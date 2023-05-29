@@ -20,6 +20,7 @@ import (
 
 	"github.com/celestiaorg/celestia-app/pkg/appconsts"
 	"github.com/celestiaorg/celestia-app/pkg/da"
+	"github.com/celestiaorg/celestia-app/pkg/namespace"
 	"github.com/celestiaorg/celestia-app/pkg/wrapper"
 	"github.com/celestiaorg/nmt"
 	"github.com/celestiaorg/rsmt2d"
@@ -219,11 +220,12 @@ func getQuadrantCells(eds *rsmt2d.ExtendedDataSquare, i, j uint) [][]byte {
 // prependNamespace adds the namespace to the passed share if in the first quadrant,
 // otherwise it adds the ParitySharesNamespace to the beginning.
 func prependNamespace(quadrant int, share []byte) []byte {
+	namespacedShare := make([]byte, 0, appconsts.NamespaceSize+appconsts.ShareSize)
 	switch quadrant {
 	case 0:
-		return append(share[:ipld.NamespaceSize], share...)
+		return append(append(namespacedShare, share[:ipld.NamespaceSize]...), share...)
 	case 1, 2, 3:
-		return append(appconsts.ParitySharesNamespaceID, share...)
+		return append(append(namespacedShare, namespace.ParitySharesNamespace.Bytes()...), share...)
 	default:
 		panic("invalid quadrant")
 	}

@@ -58,7 +58,7 @@ func (sg *StoreGetter) GetShare(ctx context.Context, dah *share.Root, row, col i
 
 	// wrap the read-only CAR blockstore in a getter
 	blockGetter := eds.NewBlockGetter(bs)
-	s, err := share.GetShare(ctx, blockGetter, root, leaf, len(dah.RowsRoots))
+	s, err := share.GetShare(ctx, blockGetter, root, leaf, len(dah.RowRoots))
 	if errors.Is(err, ipld.ErrNodeNotFound) {
 		// convert error to satisfy getter interface contract
 		err = share.ErrNotFound

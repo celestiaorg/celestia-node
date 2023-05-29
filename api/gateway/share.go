@@ -123,7 +123,11 @@ func (h *Handler) getShares(ctx context.Context, height uint64, nID namespace.ID
 }
 
 func dataFromShares(input []share.Share) (data [][]byte, err error) {
-	sequences, err := shares.ParseShares(input)
+	appShares, err := shares.FromBytes(input)
+	if err != nil {
+		return nil, err
+	}
+	sequences, err := shares.ParseShares(appShares, false)
 	if err != nil {
 		return nil, err
 	}

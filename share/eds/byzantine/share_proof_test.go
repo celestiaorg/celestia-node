@@ -31,7 +31,7 @@ func TestGetProof(t *testing.T) {
 	var tests = []struct {
 		roots [][]byte
 	}{
-		{dah.RowsRoots},
+		{dah.RowRoots},
 		{dah.ColumnRoots},
 	}
 

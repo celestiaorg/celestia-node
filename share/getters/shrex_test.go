@@ -15,8 +15,9 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/celestiaorg/celestia-app/pkg/da"
+	"github.com/celestiaorg/celestia-app/pkg/namespace"
 	libhead "github.com/celestiaorg/go-header"
-	"github.com/celestiaorg/nmt/namespace"
+	nmtnamespace "github.com/celestiaorg/nmt/namespace"
 	"github.com/celestiaorg/rsmt2d"
 
 	"github.com/celestiaorg/celestia-node/header"
@@ -162,10 +163,10 @@ func newStore(t *testing.T) (*eds.Store, error) {
 	return eds.NewStore(tmpDir, ds)
 }
 
-func generateTestEDS(t *testing.T) (*rsmt2d.ExtendedDataSquare, da.DataAvailabilityHeader, namespace.ID) {
+func generateTestEDS(t *testing.T) (*rsmt2d.ExtendedDataSquare, da.DataAvailabilityHeader, nmtnamespace.ID) {
 	eds := share.RandEDS(t, 4)
 	dah := da.NewDataAvailabilityHeader(eds)
-	randNID := dah.RowsRoots[(len(dah.RowsRoots)-1)/2][:8]
+	randNID := dah.RowRoots[(len(dah.RowRoots)-1)/2][:namespace.NamespaceSize]
 	return eds, dah, randNID
 }
 
