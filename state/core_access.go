@@ -20,11 +20,9 @@ import (
 	"google.golang.org/grpc/credentials/insecure"
 
 	"github.com/celestiaorg/celestia-app/app"
-	"github.com/celestiaorg/celestia-app/pkg/appconsts"
 	"github.com/celestiaorg/celestia-app/x/blob"
 	apptypes "github.com/celestiaorg/celestia-app/x/blob/types"
 	libhead "github.com/celestiaorg/go-header"
-	"github.com/celestiaorg/nmt/namespace"
 
 	"github.com/celestiaorg/celestia-node/header"
 )
@@ -158,17 +156,19 @@ func (ca *CoreAccessor) constructSignedTx(
 
 func (ca *CoreAccessor) SubmitPayForBlob(
 	ctx context.Context,
-	nID namespace.ID,
-	data []byte,
 	fee Int,
 	gasLim uint64,
+	blobs ...*apptypes.Blob,
 ) (*TxResponse, error) {
-	b := &apptypes.Blob{NamespaceId: nID, Data: data, ShareVersion: uint32(appconsts.DefaultShareVersion)}
+	if len(blobs) == 0 {
+		return nil, errors.New("state: no blobs provided")
+	}
+
 	response, err := blob.SubmitPayForBlob(
 		ctx,
 		ca.signer,
 		ca.coreConn,
-		[]*apptypes.Blob{b},
+		blobs,
 		apptypes.SetGasLimit(gasLim),
 		withFee(fee),
 	)

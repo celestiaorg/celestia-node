@@ -4,6 +4,7 @@ import (
 	"github.com/cristalhq/jwt"
 
 	"github.com/celestiaorg/celestia-node/api/rpc"
+	"github.com/celestiaorg/celestia-node/nodebuilder/blob"
 	"github.com/celestiaorg/celestia-node/nodebuilder/das"
 	"github.com/celestiaorg/celestia-node/nodebuilder/fraud"
 	"github.com/celestiaorg/celestia-node/nodebuilder/header"
@@ -22,6 +23,7 @@ func registerEndpoints(
 	daserMod das.Module,
 	p2pMod p2p.Module,
 	nodeMod node.Module,
+	blobMod blob.Module,
 	serv *rpc.Server,
 ) {
 	serv.RegisterAuthedService("fraud", fraudMod, &fraud.API{})
@@ -31,6 +33,7 @@ func registerEndpoints(
 	serv.RegisterAuthedService("share", shareMod, &share.API{})
 	serv.RegisterAuthedService("p2p", p2pMod, &p2p.API{})
 	serv.RegisterAuthedService("node", nodeMod, &node.API{})
+	serv.RegisterAuthedService("blob", blobMod, &blob.API{})
 }
 
 func server(cfg *Config, auth jwt.Signer) *rpc.Server {
