@@ -78,7 +78,7 @@ func NewDiscovery(
 		connector:      newBackoffConnector(h, defaultBackoffFactory),
 		onUpdatedPeers: func(peer.ID, bool) {},
 		params:         params,
-		triggerDisc:    make(chan struct{}, 1), // buffer to memoize discovery request
+		triggerDisc:    make(chan struct{}),
 	}
 }
 
