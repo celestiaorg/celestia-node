@@ -6,18 +6,24 @@ import (
 
 	"github.com/celestiaorg/celestia-app/pkg/appconsts"
 	"github.com/celestiaorg/celestia-app/pkg/shares"
-	"github.com/celestiaorg/celestia-app/testutil/testfactory"
+	"github.com/celestiaorg/celestia-app/test/util/testfactory"
+
+	"github.com/celestiaorg/celestia-node/share"
 )
 
 func GenerateBlobs(sizes []int, sameNID bool) ([]types.Blob, error) {
-	nID := tmrand.Bytes(appconsts.NamespaceSize)
 	blobs := make([]types.Blob, 0, len(sizes))
 
 	for _, size := range sizes {
 		size := rawBlobSize(appconsts.FirstSparseShareContentSize * size)
 		appBlob := testfactory.GenerateRandomBlob(size)
-		if sameNID {
-			appBlob.NamespaceID = nID
+		if !sameNID {
+			nid, err := share.NewNamespaceV0(tmrand.Bytes(7))
+			if err != nil {
+				return nil, err
+			}
+			appBlob.NamespaceVersion = nid[0]
+			appBlob.NamespaceID = nid[1:]
 		}
 
 		blobs = append(blobs, appBlob)

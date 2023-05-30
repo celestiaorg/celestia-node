@@ -2,7 +2,9 @@ package blob
 
 import (
 	"bytes"
+	"fmt"
 
+	appns "github.com/celestiaorg/celestia-app/pkg/namespace"
 	"github.com/celestiaorg/celestia-app/x/blob/types"
 	"github.com/celestiaorg/nmt"
 	"github.com/celestiaorg/nmt/namespace"
@@ -59,12 +61,21 @@ func (p Proof) equal(input Proof) error {
 type Blob struct {
 	types.Blob
 
-	commitment Commitment
+	Commitment Commitment
 }
 
 // NewBlob constructs a new blob from the provided namespace.ID and data.
-func NewBlob(_ uint8, nID namespace.ID, data []byte) (*Blob, error) {
-	blob, err := types.NewBlob(nID, data)
+func NewBlob(shareVersion uint8, namespace namespace.ID, data []byte) (*Blob, error) {
+	if len(namespace) != appns.NamespaceSize {
+		return nil, fmt.Errorf("invalid size of the namespace id. got:%d, want:%d", len(namespace), appns.NamespaceSize)
+	}
+
+	ns, err := appns.New(namespace[appns.NamespaceVersionSize-1], namespace[appns.NamespaceVersionSize:])
+	if err != nil {
+		return nil, err
+	}
+
+	blob, err := types.NewBlob(ns, data, shareVersion)
 	if err != nil {
 		return nil, err
 	}
@@ -73,25 +84,10 @@ func NewBlob(_ uint8, nID namespace.ID, data []byte) (*Blob, error) {
 	if err != nil {
 		return nil, err
 	}
-	return &Blob{Blob: *blob, commitment: com}, nil
+	return &Blob{Blob: *blob, Commitment: com}, nil
 }
 
-// NamespaceID returns blobs namespaceId.
-func (b *Blob) NamespaceID() []byte {
-	return b.Blob.NamespaceId
-}
-
-// Data returns blobs raw data.
-func (b *Blob) Data() []byte {
-	return b.Blob.Data
-}
-
-// Commitment returns the commitment of current blob.
-func (b *Blob) Commitment() Commitment {
-	return b.commitment
-}
-
-// Version is the format that was used to encode Blob data and namespaceID into shares.
-func (b *Blob) Version() uint32 {
-	return b.Blob.ShareVersion
+// Namespace returns blob's namespace.
+func (b *Blob) Namespace() namespace.ID {
+	return append([]byte{uint8(b.NamespaceVersion)}, b.NamespaceId...)
 }

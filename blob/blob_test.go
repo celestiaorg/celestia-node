@@ -7,6 +7,7 @@ import (
 	"github.com/stretchr/testify/require"
 	"github.com/tendermint/tendermint/types"
 
+	appns "github.com/celestiaorg/celestia-app/pkg/namespace"
 	apptypes "github.com/celestiaorg/celestia-app/x/blob/types"
 
 	"github.com/celestiaorg/celestia-node/blob/blobtest"
@@ -26,9 +27,9 @@ func TestBlob(t *testing.T) {
 			name: "new blob",
 			expectedRes: func(t *testing.T) {
 				require.NotEmpty(t, blob)
-				require.NotEmpty(t, blob[0].NamespaceID())
-				require.NotEmpty(t, blob[0].Data())
-				require.NotEmpty(t, blob[0].Commitment())
+				require.NotEmpty(t, blob[0].Namespace())
+				require.NotEmpty(t, blob[0].Data)
+				require.NotEmpty(t, blob[0].Commitment)
 			},
 		},
 		{
@@ -36,13 +37,18 @@ func TestBlob(t *testing.T) {
 			expectedRes: func(t *testing.T) {
 				comm, err := apptypes.CreateCommitment(&blob[0].Blob)
 				require.NoError(t, err)
-				assert.Equal(t, blob[0].Commitment(), Commitment(comm))
+				assert.Equal(t, blob[0].Commitment, Commitment(comm))
 			},
 		},
 		{
 			name: "verify nID",
 			expectedRes: func(t *testing.T) {
-				require.NoError(t, apptypes.ValidateBlobNamespaceID(blob[0].NamespaceID()))
+				ns, err := appns.New(
+					blob[0].Namespace()[appns.NamespaceVersionSize-1],
+					blob[0].Namespace()[appns.NamespaceVersionSize:],
+				)
+				require.NoError(t, err)
+				require.NoError(t, apptypes.ValidateBlobNamespaceID(ns))
 			},
 		},
 		{
@@ -53,7 +59,7 @@ func TestBlob(t *testing.T) {
 				b, err := SharesToBlobs(sh)
 				require.NoError(t, err)
 				assert.Equal(t, len(b), 1)
-				assert.Equal(t, blob[0].Commitment(), b[0].Commitment())
+				assert.Equal(t, blob[0].Commitment, b[0].Commitment)
 			},
 		},
 	}
@@ -66,7 +72,7 @@ func TestBlob(t *testing.T) {
 func convertBlobs(appBlobs ...types.Blob) ([]*Blob, error) {
 	blobs := make([]*Blob, 0, len(appBlobs))
 	for _, b := range appBlobs {
-		blob, err := NewBlob(b.ShareVersion, b.NamespaceID, b.Data)
+		blob, err := NewBlob(b.ShareVersion, append([]byte{b.NamespaceVersion}, b.NamespaceID...), b.Data)
 		if err != nil {
 			return nil, err
 		}
