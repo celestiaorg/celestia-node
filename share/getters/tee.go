@@ -2,6 +2,7 @@ package getters
 
 import (
 	"context"
+	"encoding/hex"
 	"errors"
 	"fmt"
 
@@ -75,7 +76,7 @@ func (tg *TeeGetter) GetSharesByNamespace(
 ) (shares share.NamespacedShares, err error) {
 	ctx, span := tracer.Start(ctx, "tee/get-shares-by-namespace", trace.WithAttributes(
 		attribute.String("root", root.String()),
-		attribute.String("nID", id.String()),
+		attribute.String("nid", hex.EncodeToString(id)),
 	))
 	defer func() {
 		utils.SetStatusAndEnd(span, err)

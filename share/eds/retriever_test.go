@@ -75,7 +75,7 @@ func TestRetriever_ByzantineError(t *testing.T) {
 	require.NoError(t, err)
 
 	// corrupt shares so that eds erasure coding does not match
-	copy(shares[14][8:], shares[15][8:])
+	copy(shares[14][share.NamespaceSize:], shares[15][share.NamespaceSize:])
 
 	// import corrupted eds
 	batchAdder := ipld.NewNmtNodeAdder(ctx, bserv, ipld.MaxSizeBatchOption(width*2))

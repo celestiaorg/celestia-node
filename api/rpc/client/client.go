@@ -8,6 +8,7 @@ import (
 	"github.com/filecoin-project/go-jsonrpc"
 
 	"github.com/celestiaorg/celestia-node/api/rpc/perms"
+	"github.com/celestiaorg/celestia-node/nodebuilder/blob"
 	"github.com/celestiaorg/celestia-node/nodebuilder/das"
 	"github.com/celestiaorg/celestia-node/nodebuilder/fraud"
 	"github.com/celestiaorg/celestia-node/nodebuilder/header"
@@ -27,6 +28,7 @@ var Modules = map[string]interface{}{
 	"das":    &client.DAS.Internal,
 	"p2p":    &client.P2P.Internal,
 	"node":   &client.Node.Internal,
+	"blob":   &client.Blob.Internal,
 }
 
 type Client struct {
@@ -37,6 +39,7 @@ type Client struct {
 	DAS    das.API
 	P2P    p2p.API
 	Node   node.API
+	Blob   blob.API
 
 	closer multiClientCloser
 }

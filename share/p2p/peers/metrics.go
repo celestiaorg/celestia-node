@@ -169,8 +169,10 @@ func initMetrics(manager *Manager) (*metrics, error) {
 	return metrics, nil
 }
 
-func (m *metrics) observeGetPeer(ctx context.Context,
-	source peerSource, poolSize int, waitTime time.Duration) {
+func (m *metrics) observeGetPeer(
+	ctx context.Context,
+	source peerSource, poolSize int, waitTime time.Duration,
+) {
 	if m == nil {
 		return
 	}

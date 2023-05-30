@@ -137,7 +137,7 @@ func (d *DASer) Stop(ctx context.Context) error {
 
 	// save updated checkpoint after sampler and all workers are shut down
 	if err = d.store.store(ctx, newCheckpoint(d.sampler.state.unsafeStats())); err != nil {
-		log.Errorw("storing checkpoint to disk", "Err", err)
+		log.Errorw("storing checkpoint to disk", "err", err)
 	}
 
 	if err = d.store.wait(ctx); err != nil {

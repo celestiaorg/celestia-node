@@ -54,7 +54,7 @@ func (c *Client) RequestEDS(
 	if err == nil {
 		return eds, nil
 	}
-	log.Debugw("client: eds request to peer failed", "peer", peer, "hash", dataHash.String(), "error", err)
+	log.Debugw("client: eds request to peer failed", "peer", peer.String(), "hash", dataHash.String(), "error", err)
 	if errors.Is(err, context.DeadlineExceeded) || errors.Is(err, context.Canceled) {
 		c.metrics.ObserveRequests(ctx, 1, p2p.StatusTimeout)
 		return nil, err
@@ -70,7 +70,7 @@ func (c *Client) RequestEDS(
 	}
 	if err != p2p.ErrNotFound {
 		log.Warnw("client: eds request to peer failed",
-			"peer", peer,
+			"peer", peer.String(),
 			"hash", dataHash.String(),
 			"err", err)
 	}
@@ -95,7 +95,7 @@ func (c *Client) doRequest(
 	req := &pb.EDSRequest{Hash: dataHash}
 
 	// request ODS
-	log.Debugf("client: requesting ods %s from peer %s", dataHash.String(), to)
+	log.Debugw("client: requesting ods", "hash", dataHash.String(), "peer", to.String())
 	_, err = serde.Write(stream, req)
 	if err != nil {
 		stream.Reset() //nolint:errcheck
@@ -114,9 +114,9 @@ func (c *Client) doRequest(
 	}
 	_, err = serde.Read(stream, resp)
 	if err != nil {
-		// server closes the stream after returning a non-successful status
+		// server closes the stream here if we are rate limited
 		if errors.Is(err, io.EOF) {
-			c.metrics.ObserveRequests(ctx, 1, p2p.StatusNotFound)
+			c.metrics.ObserveRequests(ctx, 1, p2p.StatusRateLimited)
 			return nil, p2p.ErrNotFound
 		}
 		stream.Reset() //nolint:errcheck
