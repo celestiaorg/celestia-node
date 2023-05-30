@@ -9,6 +9,9 @@ import (
 	"github.com/cosmos/cosmos-sdk/types"
 	"github.com/gorilla/mux"
 
+	"github.com/celestiaorg/celestia-app/pkg/appconsts"
+	apptypes "github.com/celestiaorg/celestia-app/x/blob/types"
+
 	"github.com/celestiaorg/celestia-node/state"
 )
 
@@ -137,8 +140,15 @@ func (h *Handler) handleSubmitPFB(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	fee := types.NewInt(req.Fee)
+
+	blob := &apptypes.Blob{
+		NamespaceId:  nID,
+		Data:         data,
+		ShareVersion: uint32(appconsts.DefaultShareVersion),
+	}
+
 	// perform request
-	txResp, err := h.state.SubmitPayForBlob(r.Context(), nID, data, fee, req.GasLimit)
+	txResp, err := h.state.SubmitPayForBlob(r.Context(), fee, req.GasLimit, blob)
 	if err != nil {
 		writeError(w, http.StatusInternalServerError, submitPFBEndpoint, err)
 		return
