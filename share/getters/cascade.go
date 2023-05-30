@@ -2,6 +2,7 @@ package getters
 
 import (
 	"context"
+	"encoding/hex"
 	"errors"
 
 	"go.opentelemetry.io/otel/attribute"
@@ -70,7 +71,7 @@ func (cg *CascadeGetter) GetSharesByNamespace(
 ) (share.NamespacedShares, error) {
 	ctx, span := tracer.Start(ctx, "cascade/get-shares-by-namespace", trace.WithAttributes(
 		attribute.String("root", root.String()),
-		attribute.String("nid", id.String()),
+		attribute.String("nid", hex.EncodeToString(id)),
 	))
 	defer span.End()
 
