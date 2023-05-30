@@ -10,9 +10,6 @@ import (
 	"github.com/celestiaorg/nmt/namespace"
 )
 
-// versionIndex defines the position of the namespace version in the namespace
-const versionIndex = 0
-
 // Commitment is a Merkle Root of the subtree built from shares of the Blob.
 // It is computed by splitting the blob into shares and building the Merkle subtree to be included
 // after Submit.
@@ -64,7 +61,7 @@ func (p Proof) equal(input Proof) error {
 type Blob struct {
 	types.Blob
 
-	commitment Commitment
+	Commitment Commitment
 }
 
 // NewBlob constructs a new blob from the provided namespace.ID and data.
@@ -73,7 +70,7 @@ func NewBlob(shareVersion uint8, namespace namespace.ID, data []byte) (*Blob, er
 		return nil, fmt.Errorf("invalid size of the namespace id. got:%d, want:%d", len(namespace), appns.NamespaceSize)
 	}
 
-	ns, err := appns.New(namespace[versionIndex], namespace[versionIndex+1:])
+	ns, err := appns.New(namespace[appns.NamespaceVersionSize-1], namespace[appns.NamespaceVersionSize:])
 	if err != nil {
 		return nil, err
 	}
@@ -87,15 +84,10 @@ func NewBlob(shareVersion uint8, namespace namespace.ID, data []byte) (*Blob, er
 	if err != nil {
 		return nil, err
 	}
-	return &Blob{Blob: *blob, commitment: com}, nil
+	return &Blob{Blob: *blob, Commitment: com}, nil
 }
 
 // Namespace returns blob's namespace.
 func (b *Blob) Namespace() namespace.ID {
 	return append([]byte{uint8(b.NamespaceVersion)}, b.NamespaceId...)
-}
-
-// Commitment returns the commitment of current blob.
-func (b *Blob) Commitment() Commitment {
-	return b.commitment
 }

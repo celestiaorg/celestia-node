@@ -104,6 +104,6 @@ func constructAndVerifyBlob(sh []share.Share, commitment Commitment) (*Blob, boo
 		return nil, false, err
 	}
 
-	equal := blob[0].Commitment().Equal(commitment)
+	equal := blob[0].Commitment.Equal(commitment)
 	return blob[0], equal, nil
 }
