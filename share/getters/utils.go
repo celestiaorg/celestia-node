@@ -2,6 +2,7 @@ package getters
 
 import (
 	"context"
+	"encoding/hex"
 	"errors"
 	"fmt"
 	"time"
@@ -32,8 +33,8 @@ var (
 // filterRootsByNamespace returns the row roots from the given share.Root that contain the passed
 // namespace ID.
 func filterRootsByNamespace(root *share.Root, nID namespace.ID) []cid.Cid {
-	rowRootCIDs := make([]cid.Cid, 0, len(root.RowsRoots))
-	for _, row := range root.RowsRoots {
+	rowRootCIDs := make([]cid.Cid, 0, len(root.RowRoots))
+	for _, row := range root.RowRoots {
 		if !nID.Less(nmt.MinNamespace(row, nID.Size())) && nID.LessOrEqual(nmt.MaxNamespace(row, nID.Size())) {
 			rowRootCIDs = append(rowRootCIDs, ipld.MustCidFromNamespacedSha256(row))
 		}
@@ -51,7 +52,7 @@ func collectSharesByNamespace(
 ) (shares share.NamespacedShares, err error) {
 	ctx, span := tracer.Start(ctx, "collect-shares-by-namespace", trace.WithAttributes(
 		attribute.String("root", root.String()),
-		attribute.String("nid", nID.String()),
+		attribute.String("nid", hex.EncodeToString(nID)),
 	))
 	defer func() {
 		utils.SetStatusAndEnd(span, err)
@@ -59,7 +60,7 @@ func collectSharesByNamespace(
 
 	rootCIDs := filterRootsByNamespace(root, nID)
 	if len(rootCIDs) == 0 {
-		return nil, share.ErrNotFound
+		return nil, share.ErrNamespaceNotFound
 	}
 
 	errGroup, ctx := errgroup.WithContext(ctx)
@@ -68,7 +69,7 @@ func collectSharesByNamespace(
 		// shadow loop variables, to ensure correct values are captured
 		i, rootCID := i, rootCID
 		errGroup.Go(func() error {
-			row, proof, err := share.GetSharesByNamespace(ctx, bg, rootCID, nID, len(root.RowsRoots))
+			row, proof, err := share.GetSharesByNamespace(ctx, bg, rootCID, nID, len(root.RowRoots))
 			shares[i] = share.NamespacedRow{
 				Shares: row,
 				Proof:  proof,
@@ -84,9 +85,9 @@ func collectSharesByNamespace(
 		return nil, err
 	}
 
-	// return ErrNotFound if no shares are found for namespaceID
+	// return ErrNamespaceNotFound if no shares are found for the namespace.ID
 	if len(rootCIDs) == 1 && len(shares[0].Shares) == 0 {
-		return nil, share.ErrNotFound
+		return nil, share.ErrNamespaceNotFound
 	}
 
 	return shares, nil
@@ -115,11 +116,16 @@ func ctxWithSplitTimeout(
 		return context.WithTimeout(ctx, minTimeout)
 	}
 
-	timeout := time.Until(deadline) / time.Duration(splitFactor)
-	if minTimeout == 0 || timeout > minTimeout {
-		return context.WithTimeout(ctx, timeout)
+	timeout := time.Until(deadline)
+	if timeout < minTimeout {
+		return context.WithCancel(ctx)
 	}
-	return context.WithTimeout(ctx, minTimeout)
+
+	splitTimeout := timeout / time.Duration(splitFactor)
+	if splitTimeout < minTimeout {
+		return context.WithTimeout(ctx, minTimeout)
+	}
+	return context.WithTimeout(ctx, splitTimeout)
 }
 
 // ErrorContains reports whether any error in err's tree matches any error in targets tree.

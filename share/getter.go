@@ -12,8 +12,13 @@ import (
 	"github.com/celestiaorg/rsmt2d"
 )
 
-// ErrNotFound is used to indicated that requested data could not be found.
-var ErrNotFound = errors.New("data not found")
+var (
+	// ErrNotFound is used to indicate that requested data could not be found.
+	ErrNotFound = errors.New("share: data not found")
+	// ErrNamespaceNotFound is returned by GetSharesByNamespace when data for requested root does
+	// not include any shares from the given namespace
+	ErrNamespaceNotFound = errors.New("share: namespace not found in data")
+)
 
 // Getter interface provides a set of accessors for shares by the Root.
 // Automatically verifies integrity of shares(exceptions possible depending on the implementation).
@@ -52,7 +57,7 @@ type NamespacedRow struct {
 // Verify validates NamespacedShares by checking every row with nmt inclusion proof.
 func (ns NamespacedShares) Verify(root *Root, nID namespace.ID) error {
 	originalRoots := make([][]byte, 0)
-	for _, row := range root.RowsRoots {
+	for _, row := range root.RowRoots {
 		if !nID.Less(nmt.MinNamespace(row, nID.Size())) && nID.LessOrEqual(nmt.MaxNamespace(row, nID.Size())) {
 			originalRoots = append(originalRoots, row)
 		}
@@ -66,7 +71,7 @@ func (ns NamespacedShares) Verify(root *Root, nID namespace.ID) error {
 	for i, row := range ns {
 		// verify row data against row hash from original root
 		if !row.verify(originalRoots[i], nID) {
-			return fmt.Errorf("row verification failed: row %d doesn't match original root: %s", i, root.Hash())
+			return fmt.Errorf("row verification failed: row %d doesn't match original root: %s", i, root.String())
 		}
 	}
 	return nil

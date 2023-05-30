@@ -56,6 +56,7 @@ func TestConstructModule_StoreParams(t *testing.T) {
 func TestConstructModule_SyncerParams(t *testing.T) {
 	cfg := DefaultConfig(node.Light)
 	cfg.Syncer.TrustingPeriod = time.Hour
+	cfg.TrustedPeers = []string{"/ip4/1.2.3.4/tcp/12345/p2p/12D3KooWNaJ1y1Yio3fFJEXCZyd1Cat3jmrPdgkYCrHfKD3Ce21p"}
 	var syncer *sync.Syncer[*header.ExtendedHeader]
 	app := fxtest.New(t,
 		fx.Supply(modp2p.Private),
@@ -88,6 +89,7 @@ func TestConstructModule_SyncerParams(t *testing.T) {
 func TestConstructModule_ExchangeParams(t *testing.T) {
 	cfg := DefaultConfig(node.Light)
 	cfg.Client.MaxHeadersPerRangeRequest = 15
+	cfg.TrustedPeers = []string{"/ip4/1.2.3.4/tcp/12345/p2p/12D3KooWNaJ1y1Yio3fFJEXCZyd1Cat3jmrPdgkYCrHfKD3Ce21p"}
 	var exchange *p2p.Exchange[*header.ExtendedHeader]
 	var exchangeServer *p2p.ExchangeServer[*header.ExtendedHeader]
 

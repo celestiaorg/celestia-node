@@ -15,13 +15,13 @@ import (
 
 	"github.com/celestiaorg/celestia-node/share"
 	"github.com/celestiaorg/celestia-node/share/availability/cache"
-	disc "github.com/celestiaorg/celestia-node/share/availability/discovery"
 	"github.com/celestiaorg/celestia-node/share/availability/light"
 	"github.com/celestiaorg/celestia-node/share/eds"
 	"github.com/celestiaorg/celestia-node/share/getters"
+	disc "github.com/celestiaorg/celestia-node/share/p2p/discovery"
 )
 
-func discovery(cfg Config) func(routing.ContentRouting, host.Host) *disc.Discovery {
+func newDiscovery(cfg Config) func(routing.ContentRouting, host.Host) *disc.Discovery {
 	return func(
 		r routing.ContentRouting,
 		h host.Host,
@@ -29,9 +29,8 @@ func discovery(cfg Config) func(routing.ContentRouting, host.Host) *disc.Discove
 		return disc.NewDiscovery(
 			h,
 			routingdisc.NewRoutingDiscovery(r),
-			cfg.PeersLimit,
-			cfg.DiscoveryInterval,
-			cfg.AdvertiseInterval,
+			disc.WithPeersLimit(cfg.Discovery.PeersLimit),
+			disc.WithAdvertiseInterval(cfg.Discovery.AdvertiseInterval),
 		)
 	}
 }
@@ -84,12 +83,8 @@ func fullGetter(
 	var cascade []share.Getter
 	cascade = append(cascade, storeGetter)
 	if cfg.UseShareExchange {
-		cascade = append(cascade, shrexGetter)
+		cascade = append(cascade, getters.NewTeeGetter(shrexGetter, store))
 	}
-	cascade = append(cascade, ipldGetter)
-
-	return getters.NewTeeGetter(
-		getters.NewCascadeGetter(cascade),
-		store,
-	)
+	cascade = append(cascade, getters.NewTeeGetter(ipldGetter, store))
+	return getters.NewCascadeGetter(cascade)
 }

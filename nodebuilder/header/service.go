@@ -2,6 +2,7 @@ package header
 
 import (
 	"context"
+	"fmt"
 
 	libhead "github.com/celestiaorg/go-header"
 	"github.com/celestiaorg/go-header/p2p"
@@ -16,10 +17,18 @@ import (
 type Service struct {
 	ex libhead.Exchange[*header.ExtendedHeader]
 
-	syncer    *sync.Syncer[*header.ExtendedHeader]
+	syncer    syncer
 	sub       libhead.Subscriber[*header.ExtendedHeader]
 	p2pServer *p2p.ExchangeServer[*header.ExtendedHeader]
 	store     libhead.Store[*header.ExtendedHeader]
+}
+
+// syncer bare minimum Syncer interface for testing
+type syncer interface {
+	libhead.Head[*header.ExtendedHeader]
+
+	State() sync.State
+	SyncWait(ctx context.Context) error
 }
 
 // newHeaderService creates a new instance of header Service.
@@ -51,6 +60,35 @@ func (s *Service) GetVerifiedRangeByHeight(
 }
 
 func (s *Service) GetByHeight(ctx context.Context, height uint64) (*header.ExtendedHeader, error) {
+	head, err := s.syncer.Head(ctx)
+	switch {
+	case err != nil:
+		return nil, err
+	case uint64(head.Height()) == height:
+		return head, nil
+	case uint64(head.Height()) < height:
+		return nil, fmt.Errorf("header: given height is from the future: "+
+			"networkHeight: %d, requestedHeight: %d", head.Height(), height)
+	}
+
+	// TODO(vgonkivs): remove after https://github.com/celestiaorg/go-header/issues/32 is
+	//  implemented and fetch header from HeaderEx if missing locally
+	head, err = s.store.Head(ctx)
+	switch {
+	case err != nil:
+		return nil, err
+	case uint64(head.Height()) == height:
+		return head, nil
+	// `+1` allows for one header network lag, e.g. user request header that is milliseconds away
+	case uint64(head.Height())+1 < height:
+		return nil, fmt.Errorf("header: syncing in progress: "+
+			"localHeadHeight: %d, requestedHeight: %d", head.Height(), height)
+	default:
+		return s.store.GetByHeight(ctx, height)
+	}
+}
+
+func (s *Service) WaitForHeight(ctx context.Context, height uint64) (*header.ExtendedHeader, error) {
 	return s.store.GetByHeight(ctx, height)
 }
 
@@ -79,6 +117,8 @@ func (s *Service) Subscribe(ctx context.Context) (<-chan *header.ExtendedHeader,
 	headerCh := make(chan *header.ExtendedHeader)
 	go func() {
 		defer close(headerCh)
+		defer subscription.Cancel()
+
 		for {
 			h, err := subscription.NextHeader(ctx)
 			if err != nil {

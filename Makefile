@@ -10,11 +10,11 @@ help: Makefile
 	@sed -n 's/^##//p' $< | column -t -s ':' |  sed -e 's/^/ /'
 .PHONY: help
 
-## install: Install git-hooks from .githooks directory.
+## install-hooks: Install git-hooks from .githooks directory.
 install-hooks:
 	@echo "--> Installing git hooks"
 	@git config core.hooksPath .githooks
-.PHONY: init-hooks
+.PHONY: install-hooks
 
 ## build: Build celestia-node binary.
 build:
@@ -26,6 +26,7 @@ build:
 clean:
 	@echo "--> Cleaning up ./build"
 	@rm -rf build/*
+.PHONY: clean
 
 ## cover: generate to code coverage report.
 cover:
@@ -52,7 +53,7 @@ go-install:
 	@go install ${LDFLAGS} ./cmd/celestia
 .PHONY: go-install
 
-## shed: Build cel-shed binary.
+## cel-shed: Build cel-shed binary.
 cel-shed:
 	@echo "--> Building cel-shed"
 	@go build ./cmd/cel-shed
@@ -64,7 +65,7 @@ install-shed:
 	@go install ./cmd/cel-shed
 .PHONY: install-shed
 
-## key: Build cel-key binary.
+## cel-key: Build cel-key binary.
 cel-key:
 	@echo "--> Building cel-key"
 	@go build ./cmd/cel-key
@@ -83,9 +84,9 @@ fmt: sort-imports
 	@go mod tidy -compat=1.17
 	@cfmt -w -m=100 ./...
 	@markdownlint --fix --quiet --config .markdownlint.yaml .
-.PHONY: sort-imports
+.PHONY: fmt
 
-## lint: Linting *.go files using golangci-lint. Look for .golangci.yml for the list of linters.
+## lint: Linting *.go files using golangci-lint. Look for .golangci.yml for the list of linters. Also lint *.md files using markdownlint.
 lint: lint-imports
 	@echo "--> Running linter"
 	@golangci-lint run
@@ -96,7 +97,7 @@ lint: lint-imports
 ## test-unit: Running unit tests
 test-unit:
 	@echo "--> Running unit tests"
-	@go test `go list ./... | grep -v nodebuilder/tests` -covermode=atomic -coverprofile=coverage.out
+	@go test -covermode=atomic -coverprofile=coverage.txt `go list ./... | grep -v nodebuilder/tests`
 .PHONY: test-unit
 
 ## test-unit-race: Running unit tests with data race detector
@@ -111,13 +112,13 @@ test-swamp:
 	@go test ./nodebuilder/tests
 .PHONY: test-swamp
 
-## test-swamp: Running swamp tests with data race detector located in node/tests
+## test-swamp-race: Running swamp tests with data race detector located in node/tests
 test-swamp-race:
 	@echo "--> Running swamp tests with data race detector"
 	@go test -race ./nodebuilder/tests
 .PHONY: test-swamp-race
 
-## test-all: Running both unit and swamp tests
+## test: Running both unit and swamp tests
 test:
 	@echo "--> Running all tests without data race detector"
 	@go test ./...
@@ -151,9 +152,10 @@ pb-gen:
 ## openrpc-gen: Generate OpenRPC spec for Celestia-Node's RPC api
 openrpc-gen:
 	@echo "--> Generating OpenRPC spec"
-	@go run ./cmd/docgen fraud header state share das p2p node
+	@go run ./cmd/docgen fraud header state share das p2p node blob
 .PHONY: openrpc-gen
 
+## lint-imports: Lint only Go imports.
 lint-imports:
 	@echo "--> Running imports linter"
 	@for file in `find . -type f -name '*.go'`; \
@@ -162,11 +164,13 @@ lint-imports:
     done;
 .PHONY: lint-imports
 
+## sort-imports: Sort Go imports.
 sort-imports:
 	@goimports-reviser -company-prefixes "github.com/celestiaorg"  -project-name "github.com/celestiaorg/celestia-node" -output stdout ./...
 .PHONY: sort-imports
 
+## adr-gen: Generate ADR from template. Must set NUM and TITLE parameters.
 adr-gen:
-	@echo "--> Generating ADRs"
+	@echo "--> Generating ADR"
 	@curl -sSL https://raw.githubusercontent.com/celestiaorg/.github/main/adr-template.md > docs/architecture/adr-$(NUM)-$(TITLE).md
 .PHONY: adr-gen

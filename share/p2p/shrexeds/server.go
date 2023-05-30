@@ -30,7 +30,9 @@ type Server struct {
 
 	store *eds.Store
 
-	params *Parameters
+	params     *Parameters
+	middleware *p2p.Middleware
+	metrics    *p2p.Metrics
 }
 
 // NewServer creates a new ShrEx/EDS server.
@@ -44,12 +46,13 @@ func NewServer(params *Parameters, host host.Host, store *eds.Store) (*Server, e
 		store:      store,
 		protocolID: p2p.ProtocolID(params.NetworkID(), protocolString),
 		params:     params,
+		middleware: p2p.NewMiddleware(params.ConcurrencyLimit),
 	}, nil
 }
 
 func (s *Server) Start(context.Context) error {
 	s.ctx, s.cancel = context.WithCancel(context.Background())
-	s.host.SetStreamHandler(s.protocolID, p2p.RateLimitMiddleware(s.handleStream, s.params.ConcurrencyLimit))
+	s.host.SetStreamHandler(s.protocolID, s.middleware.RateLimitHandler(s.handleStream))
 	return nil
 }
 
@@ -59,9 +62,18 @@ func (s *Server) Stop(context.Context) error {
 	return nil
 }
 
+func (s *Server) observeRateLimitedRequests() {
+	numRateLimited := s.middleware.DrainCounter()
+	if numRateLimited > 0 {
+		s.metrics.ObserveRequests(context.Background(), numRateLimited, p2p.StatusRateLimited)
+	}
+}
+
 func (s *Server) handleStream(stream network.Stream) {
-	logger := log.With("peer", stream.Conn().RemotePeer())
+	logger := log.With("peer", stream.Conn().RemotePeer().String())
 	logger.Debug("server: handling eds request")
+
+	s.observeRateLimitedRequests()
 
 	// read request from stream to get the dataHash for store lookup
 	req, err := s.readRequest(logger, stream)
@@ -75,11 +87,11 @@ func (s *Server) handleStream(stream network.Stream) {
 	hash := share.DataHash(req.Hash)
 	err = hash.Validate()
 	if err != nil {
-		logger.Debugw("server: invalid request", "err", err)
+		logger.Warnw("server: invalid request", "err", err)
 		stream.Reset() //nolint:errcheck
 		return
 	}
-	logger = logger.With("hash", hash)
+	logger = logger.With("hash", hash.String())
 
 	ctx, cancel := context.WithTimeout(s.ctx, s.params.HandleRequestTimeout)
 	defer cancel()
@@ -91,6 +103,8 @@ func (s *Server) handleStream(stream network.Stream) {
 	status := p2p_pb.Status_OK
 	switch {
 	case errors.Is(err, eds.ErrNotFound):
+		logger.Warnw("server: request hash not found")
+		s.metrics.ObserveRequests(ctx, 1, p2p.StatusNotFound)
 		status = p2p_pb.Status_NOT_FOUND
 	case err != nil:
 		logger.Errorw("server: get CAR", "err", err)
@@ -121,6 +135,7 @@ func (s *Server) handleStream(stream network.Stream) {
 		return
 	}
 
+	s.metrics.ObserveRequests(ctx, 1, p2p.StatusSuccess)
 	err = stream.Close()
 	if err != nil {
 		logger.Debugw("server: closing stream", "err", err)

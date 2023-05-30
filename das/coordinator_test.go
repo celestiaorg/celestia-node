@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 	"github.com/tendermint/tendermint/types"
 
 	"github.com/celestiaorg/celestia-node/header"
@@ -252,6 +253,51 @@ func TestCoordinator(t *testing.T) {
 		expectedState.Failed = make(map[uint64]int)
 		assert.Equal(t, expectedState, newCheckpoint(coordinator.state.unsafeStats()))
 	})
+
+	t.Run("persist retry count after on restart", func(t *testing.T) {
+		testParams := defaultTestParams()
+		testParams.dasParams.ConcurrencyLimit = 5
+		ctx, cancel := context.WithTimeout(context.Background(), testParams.timeoutDelay)
+
+		ch := checkpoint{
+			SampleFrom:  testParams.sampleFrom,
+			NetworkHead: testParams.networkHead,
+			Failed:      map[uint64]int{1: 1, 2: 2, 3: 3, 4: 4, 5: 5},
+			Workers:     []workerCheckpoint{},
+		}
+
+		waitCh := make(chan struct{})
+		var wg sync.WaitGroup
+		wg.Add(testParams.dasParams.ConcurrencyLimit)
+		sampleFn := func(ctx context.Context, h *header.ExtendedHeader) error {
+			wg.Done()
+			select {
+			case <-ctx.Done():
+				return ctx.Err()
+			case <-waitCh:
+				return nil
+			}
+		}
+
+		coordinator := newSamplingCoordinator(
+			testParams.dasParams,
+			getterStub{},
+			sampleFn,
+			newBroadcastMock(1),
+		)
+
+		go coordinator.run(ctx, ch)
+		cancel()
+		wg.Wait()
+		close(waitCh)
+
+		stopCtx, cancel := context.WithTimeout(context.Background(), testParams.timeoutDelay)
+		defer cancel()
+		assert.NoError(t, coordinator.wait(stopCtx))
+
+		st := coordinator.state.unsafeStats()
+		require.Equal(t, ch, newCheckpoint(st))
+	})
 }
 
 func BenchmarkCoordinator(b *testing.B) {
@@ -385,7 +431,7 @@ func (m *mockSampler) discover(ctx context.Context, newHeight uint64, emit liste
 	emit(ctx, &header.ExtendedHeader{
 		Commit:    &types.Commit{},
 		RawHeader: header.RawHeader{Height: int64(newHeight)},
-		DAH:       &header.DataAvailabilityHeader{RowsRoots: make([][]byte, 0)},
+		DAH:       &header.DataAvailabilityHeader{RowRoots: make([][]byte, 0)},
 	})
 }
 

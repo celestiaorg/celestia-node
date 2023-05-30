@@ -2,9 +2,16 @@ package getters
 
 import (
 	"context"
+	"encoding/hex"
 	"errors"
 	"fmt"
 	"time"
+
+	"go.opentelemetry.io/otel/attribute"
+	"go.opentelemetry.io/otel/metric/global"
+	"go.opentelemetry.io/otel/metric/instrument"
+	"go.opentelemetry.io/otel/metric/instrument/syncint64"
+	"go.opentelemetry.io/otel/metric/unit"
 
 	"github.com/celestiaorg/nmt/namespace"
 	"github.com/celestiaorg/rsmt2d"
@@ -25,6 +32,59 @@ const (
 	defaultMinAttemptsCount  = 3
 )
 
+var meter = global.MeterProvider().Meter("shrex/getter")
+
+type metrics struct {
+	edsAttempts syncint64.Histogram
+	ndAttempts  syncint64.Histogram
+}
+
+func (m *metrics) recordEDSAttempt(ctx context.Context, attemptCount int, success bool) {
+	if m == nil {
+		return
+	}
+	if ctx.Err() != nil {
+		ctx = context.Background()
+	}
+	m.edsAttempts.Record(ctx, int64(attemptCount), attribute.Bool("success", success))
+}
+
+func (m *metrics) recordNDAttempt(ctx context.Context, attemptCount int, success bool) {
+	if m == nil {
+		return
+	}
+	if ctx.Err() != nil {
+		ctx = context.Background()
+	}
+	m.ndAttempts.Record(ctx, int64(attemptCount), attribute.Bool("success", success))
+}
+
+func (sg *ShrexGetter) WithMetrics() error {
+	edsAttemptHistogram, err := meter.SyncInt64().Histogram(
+		"getters_shrex_eds_attempts_per_request",
+		instrument.WithUnit(unit.Dimensionless),
+		instrument.WithDescription("Number of attempts per shrex/eds request"),
+	)
+	if err != nil {
+		return err
+	}
+
+	ndAttemptHistogram, err := meter.SyncInt64().Histogram(
+		"getters_shrex_nd_attempts_per_request",
+		instrument.WithUnit(unit.Dimensionless),
+		instrument.WithDescription("Number of attempts per shrex/nd request"),
+	)
+	if err != nil {
+		return err
+	}
+
+	sg.metrics = &metrics{
+		edsAttempts: edsAttemptHistogram,
+		ndAttempts:  ndAttemptHistogram,
+	}
+	return nil
+}
+
 // ShrexGetter is a share.Getter that uses the shrex/eds and shrex/nd protocol to retrieve shares.
 type ShrexGetter struct {
 	edsClient *shrexeds.Client
@@ -37,6 +97,8 @@ type ShrexGetter struct {
 	// minAttemptsCount will be used to split request timeout into multiple attempts. It will allow to
 	// attempt multiple peers in scope of one request before context timeout is reached
 	minAttemptsCount int
+
+	metrics *metrics
 }
 
 func NewShrexGetter(edsClient *shrexeds.Client, ndClient *shrexnd.Client, peerManager *peers.Manager) *ShrexGetter {
@@ -67,16 +129,20 @@ func (sg *ShrexGetter) GetEDS(ctx context.Context, root *share.Root) (*rsmt2d.Ex
 		err     error
 	)
 	for {
+		if ctx.Err() != nil {
+			sg.metrics.recordEDSAttempt(ctx, attempt, false)
+			return nil, errors.Join(err, ctx.Err())
+		}
 		attempt++
 		start := time.Now()
 		peer, setStatus, getErr := sg.peerManager.Peer(ctx, root.Hash())
 		if getErr != nil {
-			err = errors.Join(err, getErr)
 			log.Debugw("eds: couldn't find peer",
 				"hash", root.String(),
 				"err", getErr,
 				"finished (s)", time.Since(start))
-			return nil, fmt.Errorf("getter/shrex: %w", err)
+			sg.metrics.recordEDSAttempt(ctx, attempt, false)
+			return nil, errors.Join(err, getErr)
 		}
 
 		reqStart := time.Now()
@@ -86,9 +152,11 @@ func (sg *ShrexGetter) GetEDS(ctx context.Context, root *share.Root) (*rsmt2d.Ex
 		switch {
 		case getErr == nil:
 			setStatus(peers.ResultSynced)
+			sg.metrics.recordEDSAttempt(ctx, attempt, true)
 			return eds, nil
 		case errors.Is(getErr, context.DeadlineExceeded),
 			errors.Is(getErr, context.Canceled):
+			setStatus(peers.ResultCooldownPeer)
 		case errors.Is(getErr, p2p.ErrNotFound):
 			getErr = share.ErrNotFound
 			setStatus(peers.ResultCooldownPeer)
@@ -119,17 +187,29 @@ func (sg *ShrexGetter) GetSharesByNamespace(
 		attempt int
 		err     error
 	)
+
+	// verify that the namespace could exist inside the roots before starting network requests
+	roots := filterRootsByNamespace(root, id)
+	if len(roots) == 0 {
+		return nil, share.ErrNamespaceNotFound
+	}
+
 	for {
+		if ctx.Err() != nil {
+			sg.metrics.recordNDAttempt(ctx, attempt, false)
+			return nil, errors.Join(err, ctx.Err())
+		}
 		attempt++
 		start := time.Now()
 		peer, setStatus, getErr := sg.peerManager.Peer(ctx, root.Hash())
 		if getErr != nil {
-			err = errors.Join(err, getErr)
 			log.Debugw("nd: couldn't find peer",
 				"hash", root.String(),
+				"nid", hex.EncodeToString(id),
 				"err", getErr,
 				"finished (s)", time.Since(start))
-			return nil, fmt.Errorf("getter/shrex: %w", err)
+			sg.metrics.recordNDAttempt(ctx, attempt, false)
+			return nil, errors.Join(err, getErr)
 		}
 
 		reqStart := time.Now()
@@ -138,10 +218,21 @@ func (sg *ShrexGetter) GetSharesByNamespace(
 		cancel()
 		switch {
 		case getErr == nil:
-			setStatus(peers.ResultSuccess)
-			return nd, nil
+			if getErr = nd.Verify(root, id); getErr != nil {
+				setStatus(peers.ResultBlacklistPeer)
+				break
+			}
+			setStatus(peers.ResultNoop)
+			sg.metrics.recordNDAttempt(ctx, attempt, true)
+			return nd, getErr
+		case errors.Is(getErr, share.ErrNamespaceNotFound):
+			// TODO: will be merged with first case once non-inclusion proofs are ready
+			setStatus(peers.ResultNoop)
+			sg.metrics.recordNDAttempt(ctx, attempt, true)
+			return nd, getErr
 		case errors.Is(getErr, context.DeadlineExceeded),
 			errors.Is(getErr, context.Canceled):
+			setStatus(peers.ResultCooldownPeer)
 		case errors.Is(getErr, p2p.ErrNotFound):
 			getErr = share.ErrNotFound
 			setStatus(peers.ResultCooldownPeer)
@@ -156,6 +247,7 @@ func (sg *ShrexGetter) GetSharesByNamespace(
 		}
 		log.Debugw("nd: request failed",
 			"hash", root.String(),
+			"nid", hex.EncodeToString(id),
 			"peer", peer.String(),
 			"attempt", attempt,
 			"err", getErr,

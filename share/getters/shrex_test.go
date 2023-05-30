@@ -15,15 +15,16 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/celestiaorg/celestia-app/pkg/da"
+	"github.com/celestiaorg/celestia-app/pkg/namespace"
 	libhead "github.com/celestiaorg/go-header"
-	"github.com/celestiaorg/nmt/namespace"
+	nmtnamespace "github.com/celestiaorg/nmt/namespace"
 	"github.com/celestiaorg/rsmt2d"
 
 	"github.com/celestiaorg/celestia-node/header"
 	"github.com/celestiaorg/celestia-node/header/headertest"
 	"github.com/celestiaorg/celestia-node/share"
-	"github.com/celestiaorg/celestia-node/share/availability/discovery"
 	"github.com/celestiaorg/celestia-node/share/eds"
+	"github.com/celestiaorg/celestia-node/share/p2p/discovery"
 	"github.com/celestiaorg/celestia-node/share/p2p/peers"
 	"github.com/celestiaorg/celestia-node/share/p2p/shrexeds"
 	"github.com/celestiaorg/celestia-node/share/p2p/shrexnd"
@@ -87,6 +88,25 @@ func TestShrexGetter(t *testing.T) {
 		require.ErrorIs(t, err, share.ErrNotFound)
 	})
 
+	t.Run("ND_namespace_not_found", func(t *testing.T) {
+		ctx, cancel := context.WithTimeout(ctx, time.Second)
+		t.Cleanup(cancel)
+
+		// generate test data
+		eds, dah, nID := generateTestEDS(t)
+		require.NoError(t, edsStore.Put(ctx, dah.Hash(), eds))
+		peerManager.Validate(ctx, srvHost.ID(), shrexsub.Notification{
+			DataHash: dah.Hash(),
+			Height:   1,
+		})
+
+		// corrupt NID
+		nID[4]++
+
+		_, err := getter.GetSharesByNamespace(ctx, &dah, nID)
+		require.ErrorIs(t, err, share.ErrNamespaceNotFound)
+	})
+
 	t.Run("EDS_Available", func(t *testing.T) {
 		ctx, cancel := context.WithTimeout(ctx, time.Second)
 		t.Cleanup(cancel)
@@ -102,6 +122,21 @@ func TestShrexGetter(t *testing.T) {
 		got, err := getter.GetEDS(ctx, &dah)
 		require.NoError(t, err)
 		require.Equal(t, eds.Flattened(), got.Flattened())
+	})
+
+	t.Run("EDS_ctx_deadline", func(t *testing.T) {
+		ctx, cancel := context.WithTimeout(ctx, time.Second)
+
+		// generate test data
+		_, dah, _ := generateTestEDS(t)
+		peerManager.Validate(ctx, srvHost.ID(), shrexsub.Notification{
+			DataHash: dah.Hash(),
+			Height:   1,
+		})
+
+		cancel()
+		_, err := getter.GetEDS(ctx, &dah)
+		require.ErrorIs(t, err, context.Canceled)
 	})
 
 	t.Run("EDS_err_not_found", func(t *testing.T) {
@@ -128,14 +163,15 @@ func newStore(t *testing.T) (*eds.Store, error) {
 	return eds.NewStore(tmpDir, ds)
 }
 
-func generateTestEDS(t *testing.T) (*rsmt2d.ExtendedDataSquare, da.DataAvailabilityHeader, namespace.ID) {
+func generateTestEDS(t *testing.T) (*rsmt2d.ExtendedDataSquare, da.DataAvailabilityHeader, nmtnamespace.ID) {
 	eds := share.RandEDS(t, 4)
 	dah := da.NewDataAvailabilityHeader(eds)
-	randNID := dah.RowsRoots[(len(dah.RowsRoots)-1)/2][:8]
+	randNID := dah.RowRoots[(len(dah.RowRoots)-1)/2][:namespace.NamespaceSize]
 	return eds, dah, randNID
 }
 
-func testManager(ctx context.Context, host host.Host, headerSub libhead.Subscriber[*header.ExtendedHeader],
+func testManager(
+	ctx context.Context, host host.Host, headerSub libhead.Subscriber[*header.ExtendedHeader],
 ) (*peers.Manager, error) {
 	shrexSub, err := shrexsub.NewPubSub(ctx, host, "test")
 	if err != nil {
@@ -143,7 +179,10 @@ func testManager(ctx context.Context, host host.Host, headerSub libhead.Subscrib
 	}
 
 	disc := discovery.NewDiscovery(nil,
-		routingdisc.NewRoutingDiscovery(routinghelpers.Null{}), 0, time.Second, time.Second)
+		routingdisc.NewRoutingDiscovery(routinghelpers.Null{}),
+		discovery.WithPeersLimit(10),
+		discovery.WithAdvertiseInterval(time.Second),
+	)
 	connGater, err := conngater.NewBasicConnectionGater(ds_sync.MutexWrap(datastore.NewMapDatastore()))
 	if err != nil {
 		return nil, err
@@ -159,7 +198,8 @@ func testManager(ctx context.Context, host host.Host, headerSub libhead.Subscrib
 	return manager, err
 }
 
-func newNDClientServer(ctx context.Context, t *testing.T, edsStore *eds.Store, srvHost, clHost host.Host,
+func newNDClientServer(
+	ctx context.Context, t *testing.T, edsStore *eds.Store, srvHost, clHost host.Host,
 ) (*shrexnd.Client, *shrexnd.Server) {
 	params := shrexnd.DefaultParameters()
 
@@ -178,7 +218,8 @@ func newNDClientServer(ctx context.Context, t *testing.T, edsStore *eds.Store, s
 	return client, server
 }
 
-func newEDSClientServer(ctx context.Context, t *testing.T, edsStore *eds.Store, srvHost, clHost host.Host,
+func newEDSClientServer(
+	ctx context.Context, t *testing.T, edsStore *eds.Store, srvHost, clHost host.Host,
 ) (*shrexeds.Client, *shrexeds.Server) {
 	params := shrexeds.DefaultParameters()
 

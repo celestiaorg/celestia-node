@@ -2,7 +2,6 @@ package discovery
 
 import (
 	"context"
-	"errors"
 	"sync"
 
 	"github.com/libp2p/go-libp2p/core/peer"
@@ -34,58 +33,55 @@ func (ps *limitedSet) Contains(p peer.ID) bool {
 	return ok
 }
 
-func (ps *limitedSet) Size() int {
-	ps.lk.RLock()
-	defer ps.lk.RUnlock()
-	return len(ps.ps)
+func (ps *limitedSet) Limit() uint {
+	return ps.limit
 }
 
-// TryAdd attempts to add the given peer into the set.
-// This operation will fail if the number of peers in the set is equal to size.
-func (ps *limitedSet) TryAdd(p peer.ID) error {
-	ps.lk.Lock()
-	defer ps.lk.Unlock()
-	if _, ok := ps.ps[p]; ok {
-		return errors.New("share: discovery: peer already added")
-	}
-	if len(ps.ps) >= int(ps.limit) {
-		return errors.New("share: discovery: peers limit reached")
-	}
+func (ps *limitedSet) Size() uint {
+	ps.lk.RLock()
+	defer ps.lk.RUnlock()
+	return uint(len(ps.ps))
+}
 
+// Add attempts to add the given peer into the set.
+func (ps *limitedSet) Add(p peer.ID) (added bool) {
+	ps.lk.Lock()
+	if _, ok := ps.ps[p]; ok {
+		ps.lk.Unlock()
+		return false
+	}
 	ps.ps[p] = struct{}{}
-LOOP:
+	ps.lk.Unlock()
+
 	for {
 		// peer will be pushed to the channel only when somebody is reading from it.
 		// this is done to handle case when Peers() was called on empty set.
 		select {
 		case ps.waitPeer <- p:
 		default:
-			break LOOP
+			return true
 		}
 	}
-	return nil
 }
 
 func (ps *limitedSet) Remove(id peer.ID) {
 	ps.lk.Lock()
-	defer ps.lk.Unlock()
-	if ps.limit > 0 {
-		delete(ps.ps, id)
-	}
+	delete(ps.ps, id)
+	ps.lk.Unlock()
 }
 
 // Peers returns all discovered peers from the set.
 func (ps *limitedSet) Peers(ctx context.Context) ([]peer.ID, error) {
-	ps.lk.Lock()
+	ps.lk.RLock()
 	if len(ps.ps) > 0 {
 		out := make([]peer.ID, 0, len(ps.ps))
 		for p := range ps.ps {
 			out = append(out, p)
 		}
-		ps.lk.Unlock()
+		ps.lk.RUnlock()
 		return out, nil
 	}
-	ps.lk.Unlock()
+	ps.lk.RUnlock()
 
 	// block until a new peer will be discovered
 	select {

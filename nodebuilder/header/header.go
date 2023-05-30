@@ -27,9 +27,12 @@ type Module interface {
 		from *header.ExtendedHeader,
 		to uint64,
 	) ([]*header.ExtendedHeader, error)
-	// GetByHeight returns the ExtendedHeader at the given height, blocking
-	// until header has been processed by the store or context deadline is exceeded.
+	// GetByHeight returns the ExtendedHeader at the given height if it is
+	// currently available.
 	GetByHeight(context.Context, uint64) (*header.ExtendedHeader, error)
+	// WaitForHeight blocks until the header at the given height has been processed
+	// by the store or context deadline is exceeded.
+	WaitForHeight(context.Context, uint64) (*header.ExtendedHeader, error)
 
 	// SyncState returns the current state of the header Syncer.
 	SyncState(context.Context) (sync.State, error)
@@ -56,11 +59,12 @@ type API struct {
 			*header.ExtendedHeader,
 			uint64,
 		) ([]*header.ExtendedHeader, error) `perm:"public"`
-		GetByHeight func(context.Context, uint64) (*header.ExtendedHeader, error)    `perm:"public"`
-		SyncState   func(ctx context.Context) (sync.State, error)                    `perm:"read"`
-		SyncWait    func(ctx context.Context) error                                  `perm:"read"`
-		NetworkHead func(ctx context.Context) (*header.ExtendedHeader, error)        `perm:"public"`
-		Subscribe   func(ctx context.Context) (<-chan *header.ExtendedHeader, error) `perm:"public"`
+		GetByHeight   func(context.Context, uint64) (*header.ExtendedHeader, error)    `perm:"public"`
+		WaitForHeight func(context.Context, uint64) (*header.ExtendedHeader, error)    `perm:"read"`
+		SyncState     func(ctx context.Context) (sync.State, error)                    `perm:"read"`
+		SyncWait      func(ctx context.Context) error                                  `perm:"read"`
+		NetworkHead   func(ctx context.Context) (*header.ExtendedHeader, error)        `perm:"public"`
+		Subscribe     func(ctx context.Context) (<-chan *header.ExtendedHeader, error) `perm:"public"`
 	}
 }
 
@@ -78,6 +82,10 @@ func (api *API) GetVerifiedRangeByHeight(
 
 func (api *API) GetByHeight(ctx context.Context, u uint64) (*header.ExtendedHeader, error) {
 	return api.Internal.GetByHeight(ctx, u)
+}
+
+func (api *API) WaitForHeight(ctx context.Context, u uint64) (*header.ExtendedHeader, error) {
+	return api.Internal.WaitForHeight(ctx, u)
 }
 
 func (api *API) LocalHead(ctx context.Context) (*header.ExtendedHeader, error) {

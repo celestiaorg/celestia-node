@@ -11,11 +11,11 @@ import (
 	"github.com/celestiaorg/celestia-node/nodebuilder/node"
 	modp2p "github.com/celestiaorg/celestia-node/nodebuilder/p2p"
 	"github.com/celestiaorg/celestia-node/share"
-	disc "github.com/celestiaorg/celestia-node/share/availability/discovery"
 	"github.com/celestiaorg/celestia-node/share/availability/full"
 	"github.com/celestiaorg/celestia-node/share/availability/light"
 	"github.com/celestiaorg/celestia-node/share/eds"
 	"github.com/celestiaorg/celestia-node/share/getters"
+	disc "github.com/celestiaorg/celestia-node/share/p2p/discovery"
 	"github.com/celestiaorg/celestia-node/share/p2p/peers"
 	"github.com/celestiaorg/celestia-node/share/p2p/shrexeds"
 	"github.com/celestiaorg/celestia-node/share/p2p/shrexnd"
@@ -24,7 +24,7 @@ import (
 
 func ConstructModule(tp node.Type, cfg *Config, options ...fx.Option) fx.Option {
 	// sanitize config values before constructing module
-	cfgErr := cfg.Validate()
+	cfgErr := cfg.Validate(tp)
 
 	baseComponents := fx.Options(
 		fx.Supply(*cfg),
@@ -33,7 +33,7 @@ func ConstructModule(tp node.Type, cfg *Config, options ...fx.Option) fx.Option 
 		fx.Provide(newModule),
 		fx.Invoke(func(disc *disc.Discovery) {}),
 		fx.Provide(fx.Annotate(
-			discovery(*cfg),
+			newDiscovery(*cfg),
 			fx.OnStart(func(ctx context.Context, d *disc.Discovery) error {
 				return d.Start(ctx)
 			}),
@@ -170,6 +170,11 @@ func ConstructModule(tp node.Type, cfg *Config, options ...fx.Option) fx.Option 
 		return fx.Module(
 			"share",
 			baseComponents,
+			fx.Provide(func() []light.Option {
+				return []light.Option{
+					light.WithSampleAmount(cfg.LightAvailability.SampleAmount),
+				}
+			}),
 			shrexGetterComponents,
 			fx.Invoke(share.EnsureEmptySquareExists),
 			fx.Provide(getters.NewIPLDGetter),

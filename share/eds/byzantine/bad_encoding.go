@@ -5,13 +5,13 @@ import (
 	"errors"
 	"fmt"
 
-	"github.com/celestiaorg/celestia-app/pkg/appconsts"
 	"github.com/celestiaorg/celestia-app/pkg/wrapper"
 	"github.com/celestiaorg/go-fraud"
 	libhead "github.com/celestiaorg/go-header"
 	"github.com/celestiaorg/rsmt2d"
 
 	"github.com/celestiaorg/celestia-node/header"
+	"github.com/celestiaorg/celestia-node/share"
 	pb "github.com/celestiaorg/celestia-node/share/eds/byzantine/pb"
 	"github.com/celestiaorg/celestia-node/share/ipld"
 )
@@ -118,7 +118,7 @@ func (p *BadEncodingProof) Validate(hdr libhead.Header) error {
 	if header.Height() != int64(p.BlockHeight) {
 		return errors.New("fraud: incorrect block height")
 	}
-	merkleRowRoots := header.DAH.RowsRoots
+	merkleRowRoots := header.DAH.RowRoots
 	merkleColRoots := header.DAH.ColumnRoots
 	if len(merkleRowRoots) != len(merkleColRoots) {
 		// NOTE: This should never happen as callers of this method should not feed it with a
@@ -157,7 +157,7 @@ func (p *BadEncodingProof) Validate(hdr libhead.Header) error {
 	}
 
 	odsWidth := uint64(len(merkleRowRoots) / 2)
-	codec := appconsts.DefaultCodec()
+	codec := share.DefaultRSMT2DCodec()
 
 	// rebuild a row or col.
 	rebuiltShares, err := codec.Decode(shares)
@@ -172,11 +172,19 @@ func (p *BadEncodingProof) Validate(hdr libhead.Header) error {
 
 	tree := wrapper.NewErasuredNamespacedMerkleTree(odsWidth, uint(p.Index))
 	for _, share := range rebuiltShares {
-		tree.Push(share)
+		err = tree.Push(share)
+		if err != nil {
+			return err
+		}
+	}
+
+	expectedRoot, err := tree.Root()
+	if err != nil {
+		return err
 	}
 
 	// comparing rebuilt Merkle Root of bad row/col with respective Merkle Root of row/col from block.
-	if bytes.Equal(tree.Root(), root) {
+	if bytes.Equal(expectedRoot, root) {
 		return errors.New("fraud: invalid proof: recomputed Merkle root matches the DAH's row/column root")
 	}
 

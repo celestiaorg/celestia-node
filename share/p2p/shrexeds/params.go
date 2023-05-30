@@ -34,3 +34,21 @@ func (p *Parameters) Validate() error {
 
 	return p.Parameters.Validate()
 }
+
+func (c *Client) WithMetrics() error {
+	metrics, err := p2p.InitClientMetrics("eds")
+	if err != nil {
+		return fmt.Errorf("shrex/eds: init Metrics: %w", err)
+	}
+	c.metrics = metrics
+	return nil
+}
+
+func (s *Server) WithMetrics() error {
+	metrics, err := p2p.InitServerMetrics("eds")
+	if err != nil {
+		return fmt.Errorf("shrex/eds: init Metrics: %w", err)
+	}
+	s.metrics = metrics
+	return nil
+}

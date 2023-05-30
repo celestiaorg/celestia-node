@@ -14,7 +14,8 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/celestiaorg/celestia-app/pkg/da"
-	"github.com/celestiaorg/nmt/namespace"
+	"github.com/celestiaorg/celestia-app/pkg/namespace"
+	nmtnamespace "github.com/celestiaorg/nmt/namespace"
 	"github.com/celestiaorg/rsmt2d"
 
 	"github.com/celestiaorg/celestia-node/share"
@@ -34,12 +35,12 @@ func TestExchange_RequestND_NotFound(t *testing.T) {
 		t.Cleanup(cancel)
 
 		root := share.Root{}
-		nID := make([]byte, 8)
+		nID := make([]byte, namespace.NamespaceSize)
 		_, err := client.RequestND(ctx, &root, nID, server.host.ID())
 		require.ErrorIs(t, err, p2p.ErrNotFound)
 	})
 
-	t.Run("Getter_err_not_found", func(t *testing.T) {
+	t.Run("ErrNamespaceNotFound", func(t *testing.T) {
 		ctx, cancel := context.WithTimeout(ctx, time.Second)
 		t.Cleanup(cancel)
 
@@ -47,9 +48,9 @@ func TestExchange_RequestND_NotFound(t *testing.T) {
 		dah := da.NewDataAvailabilityHeader(eds)
 		require.NoError(t, edsStore.Put(ctx, dah.Hash(), eds))
 
-		randNID := dah.RowsRoots[(len(dah.RowsRoots)-1)/2][:8]
+		randNID := dah.RowRoots[(len(dah.RowRoots)-1)/2][:namespace.NamespaceSize]
 		_, err := client.RequestND(ctx, &dah, randNID, server.host.ID())
-		require.ErrorIs(t, err, p2p.ErrNotFound)
+		require.ErrorIs(t, err, share.ErrNamespaceNotFound)
 	})
 }
 
@@ -83,8 +84,9 @@ func TestExchange_RequestND(t *testing.T) {
 				t.Fatal("timeout")
 			}
 		}
+		middleware := p2p.NewMiddleware(rateLimit)
 		server.host.SetStreamHandler(server.protocolID,
-			p2p.RateLimitMiddleware(mockHandler, rateLimit))
+			middleware.RateLimitHandler(mockHandler))
 
 		// take server concurrency slots with blocked requests
 		for i := 0; i < rateLimit; i++ {
@@ -102,19 +104,22 @@ func TestExchange_RequestND(t *testing.T) {
 
 type notFoundGetter struct{}
 
-func (m notFoundGetter) GetShare(_ context.Context, _ *share.Root, _, _ int,
+func (m notFoundGetter) GetShare(
+	_ context.Context, _ *share.Root, _, _ int,
 ) (share.Share, error) {
 	return nil, share.ErrNotFound
 }
 
-func (m notFoundGetter) GetEDS(_ context.Context, _ *share.Root,
+func (m notFoundGetter) GetEDS(
+	_ context.Context, _ *share.Root,
 ) (*rsmt2d.ExtendedDataSquare, error) {
 	return nil, share.ErrNotFound
 }
 
-func (m notFoundGetter) GetSharesByNamespace(_ context.Context, _ *share.Root, _ namespace.ID,
+func (m notFoundGetter) GetSharesByNamespace(
+	_ context.Context, _ *share.Root, _ nmtnamespace.ID,
 ) (share.NamespacedShares, error) {
-	return nil, share.ErrNotFound
+	return nil, share.ErrNamespaceNotFound
 }
 
 func newStore(t *testing.T) *eds.Store {

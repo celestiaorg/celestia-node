@@ -20,7 +20,7 @@ var (
 const (
 	// MaxSquareSize is currently the maximum size supported for unerasured data in
 	// rsmt2d.ExtendedDataSquare.
-	MaxSquareSize = appconsts.DefaultMaxSquareSize
+	MaxSquareSize = appconsts.MaxSquareSize
 	// NamespaceSize is a system-wide size for NMT namespaces.
 	NamespaceSize = appconsts.NamespaceSize
 	// Size is a system-wide size of a share, including both data and namespace ID

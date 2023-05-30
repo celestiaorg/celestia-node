@@ -103,8 +103,6 @@ func (eh *ExtendedHeader) LastHeader() libhead.Hash {
 	return libhead.Hash(eh.RawHeader.LastBlockID.Hash)
 }
 
-// IsBefore returns whether the given header is of a higher height.
-
 // Equals returns whether the hash and height of the given header match.
 func (eh *ExtendedHeader) Equals(header *ExtendedHeader) bool {
 	return eh.Height() == header.Height() && bytes.Equal(eh.Hash(), header.Hash())
@@ -120,7 +118,6 @@ func (eh *ExtendedHeader) Validate() error {
 	err = eh.Commit.ValidateBasic()
 	if err != nil {
 		return fmt.Errorf("ValidateBasic error on Commit at height %d: %w", eh.Height(), err)
-
 	}
 
 	err = eh.ValidatorSet.ValidateBasic()
@@ -135,14 +132,22 @@ func (eh *ExtendedHeader) Validate() error {
 		)
 	}
 
-	if err := eh.ValidatorSet.VerifyCommitLight(eh.ChainID(), eh.Commit.BlockID, eh.Height(), eh.Commit); err != nil {
-		return fmt.Errorf("VerifyCommitLight error at height %d: %w", eh.Height(), err)
-	}
-
 	// ensure data root from raw header matches computed root
 	if !bytes.Equal(eh.DAH.Hash(), eh.DataHash) {
 		panic(fmt.Sprintf("mismatch between data hash commitment from core header and computed data root "+
 			"at height %d: data hash: %X, computed root: %X", eh.Height(), eh.DataHash, eh.DAH.Hash()))
+	}
+
+	// Make sure the header is consistent with the commit.
+	if eh.Commit.Height != eh.RawHeader.Height {
+		return fmt.Errorf("header and commit height mismatch: %d vs %d", eh.RawHeader.Height, eh.Commit.Height)
+	}
+	if hhash, chash := eh.RawHeader.Hash(), eh.Commit.BlockID.Hash; !bytes.Equal(hhash, chash) {
+		return fmt.Errorf("commit signs block %X, header is block %X", chash, hhash)
+	}
+
+	if err := eh.ValidatorSet.VerifyCommitLight(eh.ChainID(), eh.Commit.BlockID, eh.Height(), eh.Commit); err != nil {
+		return fmt.Errorf("VerifyCommitLight error at height %d: %w", eh.Height(), err)
 	}
 
 	err = eh.DAH.ValidateBasic()

@@ -2,6 +2,7 @@ package nodebuilder
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"strings"
 	"time"
@@ -15,9 +16,12 @@ import (
 	"github.com/libp2p/go-libp2p/core/routing"
 	"github.com/libp2p/go-libp2p/p2p/net/conngater"
 	"go.uber.org/fx"
+	"go.uber.org/fx/fxevent"
+	"go.uber.org/zap/zapcore"
 
 	"github.com/celestiaorg/celestia-node/api/gateway"
 	"github.com/celestiaorg/celestia-node/api/rpc"
+	"github.com/celestiaorg/celestia-node/nodebuilder/blob"
 	"github.com/celestiaorg/celestia-node/nodebuilder/das"
 	"github.com/celestiaorg/celestia-node/nodebuilder/fraud"
 	"github.com/celestiaorg/celestia-node/nodebuilder/header"
@@ -27,9 +31,12 @@ import (
 	"github.com/celestiaorg/celestia-node/nodebuilder/state"
 )
 
-const Timeout = time.Second * 15
+var Timeout = time.Minute * 2
 
-var log = logging.Logger("node")
+var (
+	log   = logging.Logger("node")
+	fxLog = logging.Logger("fx")
+)
 
 // Node represents the core structure of a Celestia node. It keeps references to all
 // Celestia-specific components and services in one place and provides flexibility to run a
@@ -62,6 +69,7 @@ type Node struct {
 	HeaderServ header.Module // not optional
 	StateServ  state.Module  // not optional
 	FraudServ  fraud.Module  // not optional
+	BlobServ   blob.Module   // not optional
 	DASer      das.Module    // not optional
 
 	// start and stop control ref internal fx.App lifecycle funcs to be called from Start and Stop
@@ -92,7 +100,10 @@ func (n *Node) Start(ctx context.Context) error {
 
 	err := n.start(ctx)
 	if err != nil {
-		log.Errorf("starting %s Node: %s", n.Type, err)
+		log.Debugf("error starting %s Node: %s", n.Type, err)
+		if errors.Is(err, context.DeadlineExceeded) {
+			return fmt.Errorf("node: failed to start within timeout(%s): %w", Timeout, err)
+		}
 		return fmt.Errorf("node: failed to start: %w", err)
 	}
 
@@ -134,11 +145,14 @@ func (n *Node) Stop(ctx context.Context) error {
 
 	err := n.stop(ctx)
 	if err != nil {
-		log.Errorf("Stopping %s Node: %s", n.Type, err)
-		return err
+		log.Debugf("error stopping %s Node: %s", n.Type, err)
+		if errors.Is(err, context.DeadlineExceeded) {
+			return fmt.Errorf("node: failed to stop within timeout(%s): %w", Timeout, err)
+		}
+		return fmt.Errorf("node: failed to stop: %w", err)
 	}
 
-	log.Infof("stopped %s Node", n.Type)
+	log.Debugf("stopped %s Node", n.Type)
 	return nil
 }
 
@@ -149,7 +163,11 @@ func (n *Node) Stop(ctx context.Context) error {
 func newNode(opts ...fx.Option) (*Node, error) {
 	node := new(Node)
 	app := fx.New(
-		fx.NopLogger,
+		fx.WithLogger(func() fxevent.Logger {
+			zl := &fxevent.ZapLogger{Logger: fxLog.Desugar()}
+			zl.UseLogLevel(zapcore.DebugLevel)
+			return zl
+		}),
 		fx.Populate(node),
 		fx.Options(opts...),
 	)

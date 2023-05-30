@@ -2,6 +2,7 @@ package getters
 
 import (
 	"context"
+	"encoding/hex"
 	"errors"
 	"fmt"
 
@@ -57,7 +58,7 @@ func (sg *StoreGetter) GetShare(ctx context.Context, dah *share.Root, row, col i
 
 	// wrap the read-only CAR blockstore in a getter
 	blockGetter := eds.NewBlockGetter(bs)
-	s, err := share.GetShare(ctx, blockGetter, root, leaf, len(dah.RowsRoots))
+	s, err := share.GetShare(ctx, blockGetter, root, leaf, len(dah.RowRoots))
 	if errors.Is(err, ipld.ErrNodeNotFound) {
 		// convert error to satisfy getter interface contract
 		err = share.ErrNotFound
@@ -98,7 +99,7 @@ func (sg *StoreGetter) GetSharesByNamespace(
 ) (shares share.NamespacedShares, err error) {
 	ctx, span := tracer.Start(ctx, "store/get-shares-by-namespace", trace.WithAttributes(
 		attribute.String("root", root.String()),
-		attribute.String("nID", nID.String()),
+		attribute.String("nid", hex.EncodeToString(nID)),
 	))
 	defer func() {
 		utils.SetStatusAndEnd(span, err)
@@ -128,5 +129,6 @@ func (sg *StoreGetter) GetSharesByNamespace(
 	if err != nil {
 		return nil, fmt.Errorf("getter/store: failed to retrieve shares by namespace: %w", err)
 	}
+
 	return shares, nil
 }

@@ -12,8 +12,6 @@ import (
 
 	"github.com/celestiaorg/celestia-app/pkg/appconsts"
 	"github.com/celestiaorg/celestia-app/pkg/da"
-
-	"github.com/celestiaorg/celestia-node/libs/utils"
 )
 
 // TestNamespaceFromCID checks that deriving the Namespaced hash from
@@ -22,6 +20,7 @@ func TestNamespaceFromCID(t *testing.T) {
 	var tests = []struct {
 		randData [][]byte
 	}{
+		// note that the number of shares must be a power of two
 		{randData: generateRandNamespacedRawData(4, appconsts.NamespaceSize, appconsts.ShareSize-appconsts.NamespaceSize)},
 		{randData: generateRandNamespacedRawData(16, appconsts.NamespaceSize, appconsts.ShareSize-appconsts.NamespaceSize)},
 	}
@@ -29,12 +28,11 @@ func TestNamespaceFromCID(t *testing.T) {
 	for i, tt := range tests {
 		t.Run(strconv.Itoa(i), func(t *testing.T) {
 			// create DAH from rand data
-			squareSize := utils.SquareSize(len(tt.randData))
-			eds, err := da.ExtendShares(squareSize, tt.randData)
+			eds, err := da.ExtendShares(tt.randData)
 			require.NoError(t, err)
 			dah := da.NewDataAvailabilityHeader(eds)
 			// check to make sure NamespacedHash is correctly derived from CID
-			for _, row := range dah.RowsRoots {
+			for _, row := range dah.RowRoots {
 				c, err := CidFromNamespacedSha256(row)
 				require.NoError(t, err)
 
@@ -45,7 +43,8 @@ func TestNamespaceFromCID(t *testing.T) {
 	}
 }
 
-// generateRandNamespacedRawData returns random namespaced raw data for testing purposes.
+// generateRandNamespacedRawData returns random namespaced raw data for testing
+// purposes. Note that this does not check that total is a power of two.
 func generateRandNamespacedRawData(total, nidSize, leafSize uint32) [][]byte {
 	data := make([][]byte, total)
 	for i := uint32(0); i < total; i++ {
