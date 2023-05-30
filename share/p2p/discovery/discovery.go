@@ -35,7 +35,7 @@ const (
 	retryTimeout = time.Second
 )
 
-// retryTimeout defines time interval between discovery attempts, needed for tests
+// discoveryRetryTimeout defines time interval between discovery attempts, needed for tests
 var discoveryRetryTimeout = retryTimeout
 
 // Discovery combines advertise and discover services and allows to store discovered nodes.
