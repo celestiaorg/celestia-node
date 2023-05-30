@@ -28,16 +28,15 @@ const (
 	// (by default it is 16)
 	eventbusBufSize = 64
 
-	// findPeersStuckWarnDelay is the duration after which discover will log an error message to
-	// notify that it is stuck.
-	findPeersStuckWarnDelay = time.Minute
+	// findPeersTimeout limits the FindPeers operation in time
+	findPeersTimeout = time.Minute
 
-	// defaultRetryTimeout defines time interval between discovery attempts.
-	defaultRetryTimeout = time.Second
+	// retryTimeout defines time interval between discovery and advertise attempts.
+	retryTimeout = time.Second
 )
 
-// defaultRetryTimeout defines time interval between discovery attempts.
-var discoveryRetryTimeout = defaultRetryTimeout
+// discoveryRetryTimeout defines time interval between discovery attempts, needed for tests
+var discoveryRetryTimeout = retryTimeout
 
 // Discovery combines advertise and discover services and allows to store discovered nodes.
 // TODO: The code here gets horribly hairy, so we should refactor this at some point
@@ -166,7 +165,9 @@ func (d *Discovery) Advertise(ctx context.Context) {
 			}
 			log.Warnw("error advertising", "rendezvous", rendezvousPoint, "err", err)
 
-			errTimer := time.NewTimer(time.Minute)
+			// we don't want retry indefinitely in busy loop
+			// internal discovery mechanism may need some time before attempts
+			errTimer := time.NewTimer(retryTimeout)
 			select {
 			case <-errTimer.C:
 				errTimer.Stop()
@@ -257,8 +258,7 @@ func (d *Discovery) discover(ctx context.Context) bool {
 	// limit to minimize chances of overreaching the limit
 	wg.SetLimit(int(d.set.Limit()))
 
-	// stop discovery when we are done
-	findCtx, findCancel := context.WithCancel(ctx)
+	findCtx, findCancel := context.WithTimeout(ctx, findPeersTimeout)
 	defer func() {
 		// some workers could still be running, wait them to finish before canceling findCtx
 		wg.Wait() //nolint:errcheck
@@ -271,26 +271,11 @@ func (d *Discovery) discover(ctx context.Context) bool {
 		return false
 	}
 
-	ticker := time.NewTicker(findPeersStuckWarnDelay)
-	defer ticker.Stop()
 	for {
-		ticker.Reset(findPeersStuckWarnDelay)
-		// drain all previous ticks from channel
-		drainChannel(ticker.C)
 		select {
-		case <-findCtx.Done():
-			d.metrics.observeFindPeers(ctx, true, true)
-			return true
-		case <-ticker.C:
-			d.metrics.observeDiscoveryStuck(ctx)
-			log.Warn("wasn't able to find new peers for long time")
-			continue
 		case p, ok := <-peers:
 			if !ok {
-				isEnoughPeers := d.set.Size() >= d.set.Limit()
-				d.metrics.observeFindPeers(ctx, ctx.Err() != nil, isEnoughPeers)
-				log.Debugw("discovery channel closed", "find_is_canceled", findCtx.Err() != nil)
-				return isEnoughPeers
+				break
 			}
 
 			peer := p
@@ -313,10 +298,18 @@ func (d *Discovery) discover(ctx context.Context) bool {
 				}
 
 				log.Infow("discovered wanted peers", "amount", size)
-				findCancel()
+				findCancel() // stop discovery when we are done
 				return nil
 			})
+
+			continue
+		case <-findCtx.Done():
 		}
+
+		isEnoughPeers := d.set.Size() >= d.set.Limit()
+		d.metrics.observeFindPeers(ctx, isEnoughPeers)
+		log.Debugw("discovery finished", "discovered_wanted", isEnoughPeers)
+		return isEnoughPeers
 	}
 }
 
