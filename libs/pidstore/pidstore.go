@@ -45,13 +45,13 @@ func (p *PeerIDStore) Load(ctx context.Context) ([]peer.ID, error) {
 		return nil, fmt.Errorf("pidstore: unmarshalling peer IDs: %w", err)
 	}
 
-	log.Info("Loaded peers from disk", "amount", len(peers))
+	log.Infow("Loaded peers from disk", "amount", len(peers))
 	return peers, nil
 }
 
 // Put persists the given peer IDs to the datastore.
 func (p *PeerIDStore) Put(ctx context.Context, peers []peer.ID) error {
-	log.Debug("Persisting peers to disk", "amount", len(peers))
+	log.Debugw("Persisting peers to disk", "amount", len(peers))
 
 	bin, err := json.Marshal(peers)
 	if err != nil {
@@ -59,9 +59,9 @@ func (p *PeerIDStore) Put(ctx context.Context, peers []peer.ID) error {
 	}
 
 	if err = p.ds.Put(ctx, peersKey, bin); err != nil {
-		return fmt.Errorf("pidstore:: error writing to datastore: %w", err)
+		return fmt.Errorf("pidstore: error writing to datastore: %w", err)
 	}
 
-	log.Info("Persisted peers successfully", "amount", len(peers))
+	log.Infow("Persisted peers successfully", "amount", len(peers))
 	return nil
 }
