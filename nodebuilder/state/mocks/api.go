@@ -12,9 +12,8 @@ import (
 	types "github.com/cosmos/cosmos-sdk/types"
 	types0 "github.com/cosmos/cosmos-sdk/x/staking/types"
 	gomock "github.com/golang/mock/gomock"
-	types1 "github.com/tendermint/tendermint/types"
-
-	namespace "github.com/celestiaorg/nmt/namespace"
+	types1 "github.com/tendermint/tendermint/proto/tendermint/types"
+	types2 "github.com/tendermint/tendermint/types"
 )
 
 // MockModule is a mock of Module interface.
@@ -189,23 +188,28 @@ func (mr *MockModuleMockRecorder) QueryUnbonding(arg0, arg1 interface{}) *gomock
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "QueryUnbonding", reflect.TypeOf((*MockModule)(nil).QueryUnbonding), arg0, arg1)
 }
 
-// SubmitPayForData mocks base method.
-func (m *MockModule) SubmitPayForBlob(arg0 context.Context, arg1 namespace.ID, arg2 []byte, arg3 math.Int, arg4 uint64) (*types.TxResponse, error) {
+// SubmitPayForBlob mocks base method.
+func (m *MockModule) SubmitPayForBlob(arg0 context.Context, arg1 math.Int, arg2 uint64, arg3 ...*types1.Blob) (*types.TxResponse, error) {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "SubmitPayForBlob", arg0, arg1, arg2, arg3, arg4)
+	varargs := []interface{}{arg0, arg1, arg2}
+	for _, a := range arg3 {
+		varargs = append(varargs, a)
+	}
+	ret := m.ctrl.Call(m, "SubmitPayForBlob", varargs...)
 	ret0, _ := ret[0].(*types.TxResponse)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
 
-// SubmitPayForData indicates an expected call of SubmitPayForData.
-func (mr *MockModuleMockRecorder) SubmitPayForData(arg0, arg1, arg2, arg3, arg4 interface{}) *gomock.Call {
+// SubmitPayForBlob indicates an expected call of SubmitPayForBlob.
+func (mr *MockModuleMockRecorder) SubmitPayForBlob(arg0, arg1, arg2 interface{}, arg3 ...interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "SubmitPayForBlob", reflect.TypeOf((*MockModule)(nil).SubmitPayForBlob), arg0, arg1, arg2, arg3, arg4)
+	varargs := append([]interface{}{arg0, arg1, arg2}, arg3...)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "SubmitPayForBlob", reflect.TypeOf((*MockModule)(nil).SubmitPayForBlob), varargs...)
 }
 
 // SubmitTx mocks base method.
-func (m *MockModule) SubmitTx(arg0 context.Context, arg1 types1.Tx) (*types.TxResponse, error) {
+func (m *MockModule) SubmitTx(arg0 context.Context, arg1 types2.Tx) (*types.TxResponse, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "SubmitTx", arg0, arg1)
 	ret0, _ := ret[0].(*types.TxResponse)

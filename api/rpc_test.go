@@ -21,6 +21,8 @@ import (
 	daspkg "github.com/celestiaorg/celestia-node/das"
 	headerpkg "github.com/celestiaorg/celestia-node/header"
 	"github.com/celestiaorg/celestia-node/nodebuilder"
+	"github.com/celestiaorg/celestia-node/nodebuilder/blob"
+	blobMock "github.com/celestiaorg/celestia-node/nodebuilder/blob/mocks"
 	"github.com/celestiaorg/celestia-node/nodebuilder/das"
 	dasMock "github.com/celestiaorg/celestia-node/nodebuilder/das/mocks"
 	"github.com/celestiaorg/celestia-node/nodebuilder/fraud"
@@ -81,6 +83,7 @@ type api struct {
 	DAS    das.Module
 	Node   node.Module
 	P2P    p2p.Module
+	Blob   blob.Module
 }
 
 func TestModulesImplementFullAPI(t *testing.T) {
@@ -336,6 +339,7 @@ func setupNodeWithModifiedRPC(t *testing.T) (*nodebuilder.Node, *mockAPI) {
 		dasMock.NewMockModule(ctrl),
 		p2pMock.NewMockModule(ctrl),
 		nodeMock.NewMockModule(ctrl),
+		blobMock.NewMockModule(ctrl),
 	}
 
 	// given the behavior of fx.Invoke, this invoke will be called last as it is added at the root
@@ -348,6 +352,7 @@ func setupNodeWithModifiedRPC(t *testing.T) (*nodebuilder.Node, *mockAPI) {
 		srv.RegisterService("das", mockAPI.Das)
 		srv.RegisterService("p2p", mockAPI.P2P)
 		srv.RegisterService("node", mockAPI.Node)
+		srv.RegisterService("blob", mockAPI.Blob)
 	})
 	nd := nodebuilder.TestNode(t, node.Full, invokeRPC)
 	// start node
@@ -376,6 +381,7 @@ func setupNodeWithAuthedRPC(t *testing.T, auth jwt.Signer) (*nodebuilder.Node, *
 		dasMock.NewMockModule(ctrl),
 		p2pMock.NewMockModule(ctrl),
 		nodeMock.NewMockModule(ctrl),
+		blobMock.NewMockModule(ctrl),
 	}
 
 	// given the behavior of fx.Invoke, this invoke will be called last as it is added at the root
@@ -388,6 +394,7 @@ func setupNodeWithAuthedRPC(t *testing.T, auth jwt.Signer) (*nodebuilder.Node, *
 		srv.RegisterAuthedService("das", mockAPI.Das, &das.API{})
 		srv.RegisterAuthedService("p2p", mockAPI.P2P, &p2p.API{})
 		srv.RegisterAuthedService("node", mockAPI.Node, &node.API{})
+		srv.RegisterAuthedService("blob", mockAPI.Blob, &blob.API{})
 	})
 	// fx.Replace does not work here, but fx.Decorate does
 	nd := nodebuilder.TestNode(t, node.Full, invokeRPC, fx.Decorate(func() (jwt.Signer, error) {
@@ -411,4 +418,5 @@ type mockAPI struct {
 	Das    *dasMock.MockModule
 	P2P    *p2pMock.MockModule
 	Node   *nodeMock.MockModule
+	Blob   *blobMock.MockModule
 }
