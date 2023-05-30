@@ -71,7 +71,7 @@ func (ns NamespacedShares) Verify(root *Root, nID namespace.ID) error {
 	for i, row := range ns {
 		// verify row data against row hash from original root
 		if !row.verify(originalRoots[i], nID) {
-			return fmt.Errorf("row verification failed: row %d doesn't match original root: %s", i, root.Hash())
+			return fmt.Errorf("row verification failed: row %d doesn't match original root: %s", i, root.String())
 		}
 	}
 	return nil

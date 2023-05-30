@@ -70,7 +70,7 @@ func (s *Server) observeRateLimitedRequests() {
 }
 
 func (s *Server) handleStream(stream network.Stream) {
-	logger := log.With("peer", stream.Conn().RemotePeer())
+	logger := log.With("peer", stream.Conn().RemotePeer().String())
 	logger.Debug("server: handling eds request")
 
 	s.observeRateLimitedRequests()
@@ -91,7 +91,7 @@ func (s *Server) handleStream(stream network.Stream) {
 		stream.Reset() //nolint:errcheck
 		return
 	}
-	logger = logger.With("hash", hash)
+	logger = logger.With("hash", hash.String())
 
 	ctx, cancel := context.WithTimeout(s.ctx, s.params.HandleRequestTimeout)
 	defer cancel()
