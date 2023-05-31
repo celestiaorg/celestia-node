@@ -36,6 +36,8 @@ services:
       - prometheus-data:/prometheus
     # yamllint disable-line rule:line-length
     command: --web.enable-lifecycle  --config.file=/etc/prometheus/prometheus.yml
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
 
   otel-collector:
     container_name: otel-collector
@@ -74,7 +76,18 @@ services:
       - ${PWD}/grafana/:/var/lib/grafana/dashboards/
       - grafana-data:/var/lib/grafana
 
+  pyroscope:
+    image: "pyroscope/pyroscope:latest"
+    ports:
+      - "4040:4040"
+    command:
+      - "server"
+
+
+
 volumes:
   prometheus-data:
   loki-data:
   grafana-data:
+
+

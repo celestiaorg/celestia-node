@@ -13,7 +13,6 @@ receivers:
 exporters:
   prometheus:
     endpoint: "otel-collector:8889"
-    namespace: "testground"
     send_timestamps: true
     metric_expiration: 1800m
   jaeger:
