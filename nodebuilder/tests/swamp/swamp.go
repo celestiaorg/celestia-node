@@ -51,6 +51,12 @@ type Swamp struct {
 	cfg *Config
 
 	Network       mocknet.Mocknet
+	Bootstrappers []ma.Multiaddr
+
+	BridgeNodes []*nodebuilder.Node
+	FullNodes   []*nodebuilder.Node
+	LightNodes  []*nodebuilder.Node
+
 	ClientContext testnode.Context
 	Accounts      []string
 
@@ -210,6 +216,10 @@ func (s *Swamp) NewFullNode(options ...fx.Option) *nodebuilder.Node {
 	cfg.Header.TrustedPeers = []string{
 		"/ip4/1.2.3.4/tcp/12345/p2p/12D3KooWNaJ1y1Yio3fFJEXCZyd1Cat3jmrPdgkYCrHfKD3Ce21p",
 	}
+	// add all bootstrappers in suite as trusted peers
+	for _, bootstrapper := range s.Bootstrappers {
+		cfg.Header.TrustedPeers = append(cfg.Header.TrustedPeers, bootstrapper.String())
+	}
 	store := nodebuilder.MockStore(s.t, cfg)
 
 	return s.NewNodeWithStore(node.Full, store, options...)
@@ -222,6 +232,10 @@ func (s *Swamp) NewLightNode(options ...fx.Option) *nodebuilder.Node {
 	cfg.Header.TrustedPeers = []string{
 		"/ip4/1.2.3.4/tcp/12345/p2p/12D3KooWNaJ1y1Yio3fFJEXCZyd1Cat3jmrPdgkYCrHfKD3Ce21p",
 	}
+	// add all bootstrappers in suite as trusted peers
+	for _, bootstrapper := range s.Bootstrappers {
+		cfg.Header.TrustedPeers = append(cfg.Header.TrustedPeers, bootstrapper.String())
+	}
 
 	store := nodebuilder.MockStore(s.t, cfg)
 
@@ -230,6 +244,10 @@ func (s *Swamp) NewLightNode(options ...fx.Option) *nodebuilder.Node {
 
 func (s *Swamp) NewNodeWithConfig(nodeType node.Type, cfg *nodebuilder.Config, options ...fx.Option) *nodebuilder.Node {
 	store := nodebuilder.MockStore(s.t, cfg)
+	// add all bootstrappers in suite as trusted peers
+	for _, bootstrapper := range s.Bootstrappers {
+		cfg.Header.TrustedPeers = append(cfg.Header.TrustedPeers, bootstrapper.String())
+	}
 	return s.NewNodeWithStore(nodeType, store, options...)
 }
 
@@ -309,10 +327,15 @@ func (s *Swamp) Disconnect(t *testing.T, peerA, peerB *nodebuilder.Node) {
 	require.NoError(t, s.Network.DisconnectPeers(peerA.Host.ID(), peerB.Host.ID()))
 }
 
-func WithTrustedPeers(t *testing.T, cfg *nodebuilder.Config, trustedPeers ...*nodebuilder.Node) {
-	for _, trusted := range trustedPeers {
+// SetBootstrapper sets the given bootstrappers as the "bootstrappers" for the
+// Swamp test suite. Every new full or light node created on the suite afterwards
+// will automatically add the suite's bootstrappers as trusted peers to their config.
+// NOTE: Bridge nodes do not automaatically add the bootstrappers as trusted peers.
+// NOTE: Use `NewNodeWithStore` to avoid this automatic configuration.
+func (s *Swamp) SetBootstrapper(t *testing.T, bootstrappers ...*nodebuilder.Node) {
+	for _, trusted := range bootstrappers {
 		addrs, err := peer.AddrInfoToP2pAddrs(host.InfoFromHost(trusted.Host))
 		require.NoError(t, err)
-		cfg.Header.TrustedPeers = append(cfg.Header.TrustedPeers, addrs[0].String())
+		s.Bootstrappers = append(s.Bootstrappers, addrs[0])
 	}
 }

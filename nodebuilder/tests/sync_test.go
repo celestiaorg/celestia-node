@@ -5,6 +5,7 @@ import (
 	"testing"
 	"time"
 
+	ma "github.com/multiformats/go-multiaddr"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
@@ -51,8 +52,10 @@ func TestSyncAgainstBridge_NonEmptyChain(t *testing.T) {
 	fillDn := swamp.FillBlocks(ctx, sw.ClientContext, sw.Accounts, bsize, numBlocks)
 	sw.WaitTillHeight(ctx, numBlocks)
 
-	// start a bridge and wait for it to sync to 20
+	// create a bridge node and set it as the bootstrapper for the suite
 	bridge := sw.NewBridgeNode()
+	sw.SetBootstrapper(t, bridge)
+	// start bridge and wait for it to sync to 20
 	err := bridge.Start(ctx)
 	require.NoError(t, err)
 
@@ -64,7 +67,6 @@ func TestSyncAgainstBridge_NonEmptyChain(t *testing.T) {
 		// create a light node that is connected to the bridge node as
 		// a bootstrapper
 		cfg := nodebuilder.DefaultConfig(node.Light)
-		swamp.WithTrustedPeers(t, cfg, bridge)
 		light := sw.NewNodeWithConfig(node.Light, cfg)
 		// start light node and wait for it to sync 20 blocks
 		err = light.Start(ctx)
@@ -85,7 +87,6 @@ func TestSyncAgainstBridge_NonEmptyChain(t *testing.T) {
 	t.Run("full sync against bridge", func(t *testing.T) {
 		// create a full node with bridge node as its bootstrapper
 		cfg := nodebuilder.DefaultConfig(node.Full)
-		swamp.WithTrustedPeers(t, cfg, bridge)
 		full := sw.NewNodeWithConfig(node.Full, cfg)
 
 		// let full node sync 20 blocks
@@ -142,8 +143,10 @@ func TestSyncAgainstBridge_EmptyChain(t *testing.T) {
 	sw := swamp.NewSwamp(t, swamp.WithBlockTime(btime))
 	sw.WaitTillHeight(ctx, numBlocks)
 
-	// start a bridge and wait for it to sync to 20
+	// create bridge node and set it as the bootstrapper for the suite
 	bridge := sw.NewBridgeNode()
+	sw.SetBootstrapper(t, bridge)
+	// start  bridge and wait for it to sync to 20
 	err := bridge.Start(ctx)
 	require.NoError(t, err)
 	h, err := bridge.HeaderServ.WaitForHeight(ctx, numBlocks)
@@ -154,7 +157,6 @@ func TestSyncAgainstBridge_EmptyChain(t *testing.T) {
 		// create a light node that is connected to the bridge node as
 		// a bootstrapper
 		cfg := nodebuilder.DefaultConfig(node.Light)
-		swamp.WithTrustedPeers(t, cfg, bridge)
 		light := sw.NewNodeWithConfig(node.Light, cfg)
 		// start light node and wait for it to sync 20 blocks
 		err = light.Start(ctx)
@@ -175,7 +177,6 @@ func TestSyncAgainstBridge_EmptyChain(t *testing.T) {
 	t.Run("full sync against bridge", func(t *testing.T) {
 		// create a full node with bridge node as its bootstrapper
 		cfg := nodebuilder.DefaultConfig(node.Full)
-		swamp.WithTrustedPeers(t, cfg, bridge)
 		full := sw.NewNodeWithConfig(node.Full, cfg)
 
 		// let full node sync 20 blocks
@@ -220,19 +221,18 @@ func TestSyncStartStopLightWithBridge(t *testing.T) {
 	fillDn := swamp.FillBlocks(ctx, sw.ClientContext, sw.Accounts, bsize, numBlocks)
 	sw.WaitTillHeight(ctx, numBlocks)
 
-	// create bridge
+	// create bridge and set it as a bootstrapper
 	bridge := sw.NewBridgeNode()
-	// and let bridge node sync up with core network
+	sw.SetBootstrapper(t, bridge)
+	// and let bridge node sync up 20 blocks
 	err := bridge.Start(ctx)
 	require.NoError(t, err)
-
 	h, err := bridge.HeaderServ.WaitForHeight(ctx, numBlocks)
 	require.NoError(t, err)
 	require.EqualValues(t, h.Commit.BlockID.Hash, sw.GetCoreBlockHashByHeight(ctx, numBlocks))
 
 	// create a light node and connect it to the bridge node as a bootstrapper
 	cfg := nodebuilder.DefaultConfig(node.Light)
-	swamp.WithTrustedPeers(t, cfg, bridge)
 	light := sw.NewNodeWithConfig(node.Light, cfg)
 
 	// start light node and let it sync to 20
@@ -290,18 +290,18 @@ func TestSyncLightAgainstFull(t *testing.T) {
 	fillDn := swamp.FillBlocks(ctx, sw.ClientContext, sw.Accounts, bsize, numBlocks)
 	sw.WaitTillHeight(ctx, numBlocks)
 
-	// start a bridge node and wait for it to sync up 20 blocks
+	// create bridge and set it as a bootstrapper
 	bridge := sw.NewBridgeNode()
+	sw.SetBootstrapper(t, bridge)
+	// start a bridge node and wait for it to sync up 20 blocks
 	err := bridge.Start(ctx)
 	require.NoError(t, err)
-
 	h, err := bridge.HeaderServ.WaitForHeight(ctx, numBlocks)
 	require.NoError(t, err)
 	assert.EqualValues(t, h.Commit.BlockID.Hash, sw.GetCoreBlockHashByHeight(ctx, numBlocks))
 
 	// create a FN with BN as a trusted peer
 	cfg := nodebuilder.DefaultConfig(node.Full)
-	swamp.WithTrustedPeers(t, cfg, bridge)
 	full := sw.NewNodeWithConfig(node.Full, cfg)
 
 	// start FN and wait for it to sync up to BN
@@ -310,9 +310,13 @@ func TestSyncLightAgainstFull(t *testing.T) {
 	err = full.HeaderServ.SyncWait(ctx)
 	require.NoError(t, err)
 
+	// reset suite bootstrapper list and set full node as a bootstrapper for
+	// LN to connect to
+	sw.Bootstrappers = make([]ma.Multiaddr, 0)
+	sw.SetBootstrapper(t, full)
+
 	// create an LN with FN as a trusted peer
 	cfg = nodebuilder.DefaultConfig(node.Light)
-	swamp.WithTrustedPeers(t, cfg, full)
 	light := sw.NewNodeWithConfig(node.Light, cfg)
 
 	// ensure there is no direct connection between LN and BN so that
@@ -359,8 +363,10 @@ func TestSyncLightWithTrustedPeers(t *testing.T) {
 	fillDn := swamp.FillBlocks(ctx, sw.ClientContext, sw.Accounts, bsize, numBlocks)
 	sw.WaitTillHeight(ctx, numBlocks)
 
-	// create a BN and let it sync to network head
+	// create a BN and set as a bootstrapper
 	bridge := sw.NewBridgeNode()
+	sw.SetBootstrapper(t, bridge)
+	// let it sync to network head
 	err := bridge.Start(ctx)
 	require.NoError(t, err)
 	err = bridge.HeaderServ.SyncWait(ctx)
@@ -368,7 +374,6 @@ func TestSyncLightWithTrustedPeers(t *testing.T) {
 
 	// create a FN with BN as trusted peer
 	cfg := nodebuilder.DefaultConfig(node.Full)
-	swamp.WithTrustedPeers(t, cfg, bridge)
 	full := sw.NewNodeWithConfig(node.Full, cfg)
 
 	// let FN sync to network head
@@ -377,9 +382,11 @@ func TestSyncLightWithTrustedPeers(t *testing.T) {
 	err = full.HeaderServ.SyncWait(ctx)
 	require.NoError(t, err)
 
+	// add full node as a bootstrapper for the suite
+	sw.SetBootstrapper(t, full)
+
 	// create a LN with both FN and BN as trusted peers
 	cfg = nodebuilder.DefaultConfig(node.Light)
-	swamp.WithTrustedPeers(t, cfg, bridge, full)
 	light := sw.NewNodeWithConfig(node.Light, cfg)
 
 	// let LN sync to network head
