@@ -189,23 +189,18 @@ func (mr *MockModuleMockRecorder) QueryUnbonding(arg0, arg1 interface{}) *gomock
 }
 
 // SubmitPayForBlob mocks base method.
-func (m *MockModule) SubmitPayForBlob(arg0 context.Context, arg1 math.Int, arg2 uint64, arg3 ...*types1.Blob) (*types.TxResponse, error) {
+func (m *MockModule) SubmitPayForBlob(arg0 context.Context, arg1 math.Int, arg2 uint64, arg3 []*types1.Blob) (*types.TxResponse, error) {
 	m.ctrl.T.Helper()
-	varargs := []interface{}{arg0, arg1, arg2}
-	for _, a := range arg3 {
-		varargs = append(varargs, a)
-	}
-	ret := m.ctrl.Call(m, "SubmitPayForBlob", varargs...)
+	ret := m.ctrl.Call(m, "SubmitPayForBlob", arg0, arg1, arg2, arg3)
 	ret0, _ := ret[0].(*types.TxResponse)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
 
 // SubmitPayForBlob indicates an expected call of SubmitPayForBlob.
-func (mr *MockModuleMockRecorder) SubmitPayForBlob(arg0, arg1, arg2 interface{}, arg3 ...interface{}) *gomock.Call {
+func (mr *MockModuleMockRecorder) SubmitPayForBlob(arg0, arg1, arg2, arg3 interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	varargs := append([]interface{}{arg0, arg1, arg2}, arg3...)
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "SubmitPayForBlob", reflect.TypeOf((*MockModule)(nil).SubmitPayForBlob), varargs...)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "SubmitPayForBlob", reflect.TypeOf((*MockModule)(nil).SubmitPayForBlob), arg0, arg1, arg2, arg3)
 }
 
 // SubmitTx mocks base method.
