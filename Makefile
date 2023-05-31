@@ -178,12 +178,13 @@ adr-gen:
 	@curl -sSL https://raw.githubusercontent.com/celestiaorg/.github/main/adr-template.md > docs/architecture/adr-$(NUM)-$(TITLE).md
 .PHONY: adr-gen
 
-## telemetry-infra-up: launches the telemetry infrastructure up
+## telemetry-infra-up: launches local telemetry infrastructure. This includes grafana, jaeger, loki, pyroscope, and an otel-collector.
+## you can access the grafana instance at localhost:3000 and login with admin:admin.
 telemetry-infra-up:
 	PWD="${DIR_FULLPATH}/docker/telemetry" docker-compose -f ./docker/telemetry/docker-compose.yml up
 .PHONY: telemetry-infra-up
 
-## telemetry-infra-up: launches the telemetry infrastructure up
+## telemetry-infra-down: tears the telemetry infrastructure down. The stores for grafana, prometheus, and loki will persist.
 telemetry-infra-down:
 	PWD="${DIR_FULLPATH}/docker/telemetry" docker-compose -f ./docker/telemetry/docker-compose.yml down
 .PHONY: telemetry-infra-down

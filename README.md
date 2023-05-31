@@ -24,8 +24,6 @@ Continue reading [here](https://blog.celestia.org/celestia-mvp-release-data-avai
   - [API docs](#api-docs)
   - [Node types](#node-types)
   - [Run a node](#run-a-node)
-  - [Run local telemetry infrastructure](#run-local-telemetry-infrastructure)
-    - [Visualizing the metrics](#visualizing-the-metrics)
   - [Environment variables](#environment-variables)
   - [Package-specific documentation](#package-specific-documentation)
   - [Code of Conduct](#code-of-conduct)
@@ -57,7 +55,7 @@ For more information on setting up a node and the hardware requirements needed, 
 
 ## API docs
 
-Celestia-node public API is documented [here](https://docs.celestia.org/category/node-api/).
+The celestia-node public API is documented [here](https://docs.celestia.org/category/node-api/).
 
 ## Node types
 
@@ -69,35 +67,17 @@ More information can be found [here](https://github.com/celestiaorg/celestia-nod
 
 ## Run a node
 
-To run a celestia node, you have to first initialize it:
+`<node_type>` can be: `bridge`, `full` or `light`.
+
 ```sh
 celestia <node_type> init
 ```
 
-second, start it:
 ```sh
 celestia <node_type> start
 ```
-`<node_type>` can be: `bridge`, `full` or `light`.
 
-## Run local telemetry infrastructure
-If you don't have an already running telemetry infrastructure, you can use the one provided in this repo.
-To run it, you need to have `docker` and `docker-compose` installed. Then, you can run the following command:
-
-```sh
-$ make telemetry-infra-up
-```
-To bring it down:
-```
-$ make telemetry-infra-down
-```
-
-Then simply provide `127.0.0.1:4318` as the `METRICS_ENDPOINT` and `TRACING_ENDPOINT` when running the node.
-
-### Visualizing the metrics
-
-Head over to your local instance of [Grafana](http://localhost:3000) and login with the default credentials `admin:admin`.
-Then, import the [dashboard](./telemetry/grafana/dashboards.json) and you should be able to see the metrics.
+Please refer to [this guide](https://docs.celestia.org/nodes/celestia-node/) for more information on running a node.
 
 ## Environment variables
 
