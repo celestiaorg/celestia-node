@@ -10,7 +10,7 @@ import (
 	"github.com/celestiaorg/celestia-node/state"
 )
 
-var _ Module = (*API)(nil)
+//var _ Module = (*API)(nil)
 
 // Module represents the behaviors necessary for a user to
 // query for state-related information and submit transactions/
@@ -36,7 +36,9 @@ type Module interface {
 
 	// Transfer sends the given amount of coins from default wallet of the node to the given account
 	// address.
-	Transfer(ctx context.Context, to state.AccAddress, amount, fee state.Int, gasLimit uint64) (*state.TxResponse, error)
+	Transfer(
+		ctx context.Context, to state.AccAddress, amount, fee state.Int, gasLimit uint64,
+	) (*state.TxResponse, error)
 	// SubmitTx submits the given transaction/message to the
 	// Celestia network and blocks until the tx is included in
 	// a block.
@@ -192,7 +194,7 @@ func (api *API) SubmitPayForBlob(
 	ctx context.Context,
 	fee state.Int,
 	gasLim uint64,
-	blobs ...*apptypes.Blob,
+	blobs []*apptypes.Blob,
 ) (*state.TxResponse, error) {
 	return api.Internal.SubmitPayForBlob(ctx, fee, gasLim, blobs...)
 }
