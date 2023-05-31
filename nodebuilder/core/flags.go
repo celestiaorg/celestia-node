@@ -22,7 +22,8 @@ func Flags() *flag.FlagSet {
 		coreFlag,
 		"",
 		"Indicates node to connect to the given core node. "+
-			"Example: <ip>, 127.0.0.1. Assumes RPC port 26657 and gRPC port 9090 as default unless otherwise specified.",
+			"Example: <ip>, 127.0.0.1. <dns>, subdomain.domain.tld "+
+			"Assumes RPC port 26657 and gRPC port 9090 as default unless otherwise specified.",
 	)
 	flags.String(
 		coreRPCFlag,
