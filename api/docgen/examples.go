@@ -18,8 +18,10 @@ import (
 	"golang.org/x/text/language"
 
 	"github.com/celestiaorg/go-fraud"
+	"github.com/celestiaorg/nmt"
 	"github.com/celestiaorg/rsmt2d"
 
+	"github.com/celestiaorg/celestia-node/blob"
 	"github.com/celestiaorg/celestia-node/das"
 	"github.com/celestiaorg/celestia-node/header"
 	"github.com/celestiaorg/celestia-node/nodebuilder/node"
@@ -128,6 +130,10 @@ func init() {
 		Addrs: []multiaddr.Multiaddr{ma},
 	}
 	addToExampleValues(addrInfo)
+
+	proof := nmt.NewInclusionProof(0, 4, [][]byte{[]byte("test")}, true)
+	blobProof := &blob.Proof{&proof}
+	addToExampleValues(blobProof)
 }
 
 func addToExampleValues(v interface{}) {
