@@ -66,7 +66,7 @@ func (s *Service) Submit(ctx context.Context, blobs ...*Blob) (uint64, error) {
 		b[i] = &blob.Blob
 	}
 
-	resp, err := s.accessor.SubmitPayForBlob(ctx, types.NewInt(fee), gasLimit, b...)
+	resp, err := s.accessor.SubmitPayForBlob(ctx, types.NewInt(fee), gasLimit, b)
 	if err != nil {
 		return 0, err
 	}

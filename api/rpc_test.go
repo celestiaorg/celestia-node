@@ -3,9 +3,6 @@ package api
 import (
 	"context"
 	"encoding/json"
-	"fmt"
-	appns "github.com/celestiaorg/celestia-app/pkg/namespace"
-	apptypes "github.com/celestiaorg/celestia-app/x/blob/types"
 	"reflect"
 	"strconv"
 	"testing"
@@ -111,27 +108,28 @@ func TestModulesImplementFullAPI(t *testing.T) {
 	}
 }
 
-func TestSubmitPayForBlob(t *testing.T) {
-	ctx, cancel := context.WithCancel(context.Background())
-	t.Cleanup(cancel)
-
-	client, err := client.NewClient(ctx, "http://localhost:26658", "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJBbGxvdyI6WyJwdWJsaWMiLCJyZWFkIiwid3JpdGUiLCJhZG1pbiJdfQ.nGwuDjRTrNjCRSz9X8gL4KvvrjBQ6IGutroGjQWBpgU")
-	require.NoError(t, err)
-
-	//blobs, err := blobtest.GenerateBlobs([]int{8, 4}, true)
-	blob, err := apptypes.NewBlob(appns.Namespace{
-		Version: 0,
-		ID:      appns.RandomVerzionZeroID(),
-	}, []byte("app blob"), 0)
-	require.NoError(t, err)
-	blob2, err := apptypes.NewBlob(appns.Namespace{
-		Version: 0,
-		ID:      appns.RandomVerzionZeroID(),
-	}, []byte("app blob2"), 0)
-
-	status, err := client.State.SubmitPayForBlob(ctx, state.Int{}, 10000, []*apptypes.Blob{blob, blob2})
-	fmt.Println(status)
-}
+//func TestSubmitPayForBlob(t *testing.T) {
+//	ctx, cancel := context.WithCancel(context.Background())
+//	t.Cleanup(cancel)
+//
+//	client, err := client.NewClient(ctx, "http://localhost:26658", "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJBbGxvdyI6WyJwdWJsaWMiLCJyZWFkIiwid3JpdGUiLCJhZG1pbiJdfQ.rOqY-CR1knKeY0CD7ayCChcGmcLAOWqq2qOgnYX3mvc")
+//	require.NoError(t, err)
+//
+//	//blobs, err := blobtest.GenerateBlobs([]int{8, 4}, true)
+//	blob, err := apptypes.NewBlob(appns.Namespace{
+//		Version: 0,
+//		ID:      appns.RandomVerzionZeroID(),
+//	}, []byte("app blob"), 0)
+//	require.NoError(t, err)
+//	blob2, err := apptypes.NewBlob(appns.Namespace{
+//		Version: 0,
+//		ID:      appns.RandomVerzionZeroID(),
+//	}, []byte("app blob2"), 0)
+//
+//	status, err := client.State.SubmitPayForBlob(ctx, state.Int{}, 10000, []*apptypes.Blob{blob, blob2})
+//	fmt.Println(status)
+//}
+//
 
 func TestAuthedRPC(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
