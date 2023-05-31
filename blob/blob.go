@@ -5,8 +5,6 @@ import (
 	"encoding/json"
 	"fmt"
 
-	tmjson "github.com/tendermint/tendermint/libs/json"
-
 	appns "github.com/celestiaorg/celestia-app/pkg/namespace"
 	"github.com/celestiaorg/celestia-app/x/blob/types"
 	"github.com/celestiaorg/nmt"
@@ -133,46 +131,34 @@ func (b *Blob) Namespace() namespace.ID {
 	return append([]byte{uint8(b.NamespaceVersion)}, b.NamespaceId...)
 }
 
-func (b *Blob) MarshalJSON() ([]byte, error) {
-	appBlob := &types.Blob{
-		NamespaceId:      b.Namespace(),
-		Data:             b.Data,
-		ShareVersion:     b.ShareVersion,
-		NamespaceVersion: b.NamespaceVersion,
-	}
-	data, err := tmjson.Marshal(appBlob)
-	if err != nil {
-		return nil, err
-	}
+type jsonBlob struct {
+	Namespace    namespace.ID `json:"namespace"`
+	Data         []byte       `json:"data"`
+	ShareVersion uint32       `json:"shareVersion"`
+	Commitment   Commitment   `json:"commitment"`
+}
 
-	return json.Marshal(&struct {
-		Blob       json.RawMessage `json:"blob"`
-		Commitment []byte          `json:"commitment"`
-	}{
-		Blob:       data,
-		Commitment: b.Commitment,
-	},
-	)
+func (b *Blob) MarshalJSON() ([]byte, error) {
+	blob := &jsonBlob{
+		Namespace:    b.Namespace(),
+		Data:         b.Data,
+		ShareVersion: b.ShareVersion,
+		Commitment:   b.Commitment,
+	}
+	return json.Marshal(blob)
 }
 
 func (b *Blob) UnmarshalJSON(data []byte) error {
-	aux := &struct {
-		Blob       json.RawMessage `json:"blob"`
-		Commitment []byte          `json:"commitment"`
-	}{}
-	err := json.Unmarshal(data, &aux)
-	if err != nil {
-		return nil
-	}
-
-	appBlob := new(types.Blob)
-	err = tmjson.Unmarshal(aux.Blob, appBlob)
+	var blob jsonBlob
+	err := json.Unmarshal(data, &blob)
 	if err != nil {
 		return err
 	}
 
-	appBlob.NamespaceId = appBlob.NamespaceId[1:]
-	b.Blob = *appBlob
-	b.Commitment = aux.Commitment
+	b.Blob.NamespaceVersion = uint32(blob.Namespace[0])
+	b.Blob.NamespaceId = blob.Namespace[1:]
+	b.Blob.Data = blob.Data
+	b.Blob.ShareVersion = blob.ShareVersion
+	b.Commitment = blob.Commitment
 	return nil
 }
