@@ -76,10 +76,10 @@ func (h *Handler) performGetHeaderRequest(
 		writeError(w, http.StatusInternalServerError, heightAvailabilityEndpoint, err)
 		return nil, err
 	}
-	if headHeight := int(head.Height()); headHeight < height {
+	if localHead := int(head.Height()); height <= localHead+1 {
 		err = fmt.Errorf(
 			"current head local chain head: %d is lower than requested height: %d"+
-				" give header sync some time and retry later", headHeight, height)
+				" give header sync some time and retry later", localHead, height)
 		writeError(w, http.StatusServiceUnavailable, endpoint, err)
 		return nil, err
 	}
