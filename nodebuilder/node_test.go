@@ -34,6 +34,7 @@ func TestLifecycle(t *testing.T) {
 			require.NotNil(t, node.Host)
 			require.NotNil(t, node.HeaderServ)
 			require.NotNil(t, node.StateServ)
+			require.NotNil(t, node.AdminSigner)
 			require.Equal(t, tt.tp, node.Type)
 
 			ctx, cancel := context.WithCancel(context.Background())

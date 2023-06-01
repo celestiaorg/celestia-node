@@ -7,6 +7,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/cristalhq/jwt"
 	"github.com/ipfs/go-blockservice"
 	exchange "github.com/ipfs/go-ipfs-exchange-interface"
 	logging "github.com/ipfs/go-log/v2"
@@ -51,6 +52,7 @@ type Node struct {
 	Network       p2p.Network
 	Bootstrappers p2p.Bootstrappers
 	Config        *Config
+	AdminSigner   jwt.Signer
 
 	// rpc components
 	RPCServer     *rpc.Server     // not optional
