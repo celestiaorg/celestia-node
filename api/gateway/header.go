@@ -1,6 +1,7 @@
 package gateway
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"net/http"
@@ -9,6 +10,7 @@ import (
 	"github.com/gorilla/mux"
 
 	"github.com/celestiaorg/celestia-node/header"
+	modheader "github.com/celestiaorg/celestia-node/nodebuilder/header"
 )
 
 const (
@@ -70,24 +72,34 @@ func (h *Handler) performGetHeaderRequest(
 		writeError(w, http.StatusBadRequest, endpoint, err)
 		return nil, err
 	}
-	//TODO: change this to NetworkHead once the adjacency in the store is fixed.
-	head, err := h.header.LocalHead(r.Context())
+
+	header, code, err := headerGetByHeight(r.Context(), height, h.header)
 	if err != nil {
-		writeError(w, http.StatusInternalServerError, heightAvailabilityEndpoint, err)
+		writeError(w, code, endpoint, err)
 		return nil, err
 	}
-	if headHeight := int(head.Height()); headHeight < height {
+
+	return header, nil
+}
+
+func headerGetByHeight(ctx context.Context, height int, mod modheader.Module) (*header.ExtendedHeader, int, error) {
+	//TODO: change this to NetworkHead once the adjacency in the store is fixed.
+	head, err := mod.LocalHead(ctx)
+	if err != nil {
+		return nil, http.StatusInternalServerError, err
+	}
+
+	if localHead := int(head.Height()); localHead+1 < height { // +1 to accommodate for the network and synchronization lag
 		err = fmt.Errorf(
 			"current head local chain head: %d is lower than requested height: %d"+
-				" give header sync some time and retry later", headHeight, height)
-		writeError(w, http.StatusServiceUnavailable, endpoint, err)
-		return nil, err
+				" give header sync some time and retry later", localHead, height)
+		return nil, http.StatusServiceUnavailable, err
 	}
-	// perform request
-	header, err := h.header.GetByHeight(r.Context(), uint64(height))
+
+	header, err := mod.GetByHeight(ctx, uint64(height))
 	if err != nil {
-		writeError(w, http.StatusInternalServerError, endpoint, err)
-		return nil, err
+		return nil, http.StatusInternalServerError, err
 	}
-	return header, nil
+
+	return header, 0, nil
 }

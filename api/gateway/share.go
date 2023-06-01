@@ -4,7 +4,6 @@ import (
 	"context"
 	"encoding/hex"
 	"encoding/json"
-	"fmt"
 	"net/http"
 	"strconv"
 
@@ -13,7 +12,6 @@ import (
 	"github.com/celestiaorg/celestia-app/pkg/shares"
 	"github.com/celestiaorg/nmt/namespace"
 
-	"github.com/celestiaorg/celestia-node/header"
 	"github.com/celestiaorg/celestia-node/share"
 )
 
@@ -44,14 +42,14 @@ func (h *Handler) handleSharesByNamespaceRequest(w http.ResponseWriter, r *http.
 		writeError(w, http.StatusBadRequest, namespacedSharesEndpoint, err)
 		return
 	}
-	shares, headerHeight, err := h.getShares(r.Context(), height, nID)
+	shares, code, err := h.getShares(r.Context(), height, nID)
 	if err != nil {
-		writeError(w, http.StatusInternalServerError, namespacedSharesEndpoint, err)
+		writeError(w, code, namespacedSharesEndpoint, err)
 		return
 	}
 	resp, err := json.Marshal(&NamespacedSharesResponse{
 		Shares: shares,
-		Height: uint64(headerHeight),
+		Height: height,
 	})
 	if err != nil {
 		writeError(w, http.StatusInternalServerError, namespacedSharesEndpoint, err)
@@ -69,9 +67,9 @@ func (h *Handler) handleDataByNamespaceRequest(w http.ResponseWriter, r *http.Re
 		writeError(w, http.StatusBadRequest, namespacedDataEndpoint, err)
 		return
 	}
-	shares, headerHeight, err := h.getShares(r.Context(), height, nID)
+	shares, code, err := h.getShares(r.Context(), height, nID)
 	if err != nil {
-		writeError(w, http.StatusInternalServerError, namespacedDataEndpoint, err)
+		writeError(w, code, namespacedDataEndpoint, err)
 		return
 	}
 	data, err := dataFromShares(shares)
@@ -81,7 +79,7 @@ func (h *Handler) handleDataByNamespaceRequest(w http.ResponseWriter, r *http.Re
 	}
 	resp, err := json.Marshal(&NamespacedDataResponse{
 		Data:   data,
-		Height: uint64(headerHeight),
+		Height: height,
 	})
 	if err != nil {
 		writeError(w, http.StatusInternalServerError, namespacedDataEndpoint, err)
@@ -93,33 +91,14 @@ func (h *Handler) handleDataByNamespaceRequest(w http.ResponseWriter, r *http.Re
 	}
 }
 
-func (h *Handler) getShares(ctx context.Context, height uint64, nID namespace.ID) ([]share.Share, int64, error) {
-	// get header
-	var (
-		err    error
-		header *header.ExtendedHeader
-	)
-
-	//TODO: change this to NetworkHead once the adjacency in the store is fixed.
-	header, err = h.header.LocalHead(ctx)
+func (h *Handler) getShares(ctx context.Context, height uint64, nID namespace.ID) ([]share.Share, int, error) {
+	header, code, err := headerGetByHeight(ctx, int(height), h.header)
 	if err != nil {
-		return nil, 0, err
+		return nil, code, err
 	}
 
-	if height > 0 {
-		if storeHeight := uint64(header.Height()); storeHeight < height {
-			return nil, 0, fmt.Errorf(
-				"current head local chain head: %d is lower than requested height: %d"+
-					" give header sync some time and retry later", storeHeight, height)
-		}
-		header, err = h.header.GetByHeight(ctx, height)
-	}
-	if err != nil {
-		return nil, 0, err
-	}
-	// perform request
 	shares, err := h.share.GetSharesByNamespace(ctx, header.DAH, nID)
-	return shares.Flatten(), header.Height(), err
+	return shares.Flatten(), http.StatusInternalServerError, err
 }
 
 func dataFromShares(input []share.Share) (data [][]byte, err error) {
