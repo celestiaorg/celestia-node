@@ -134,7 +134,7 @@ func (b *Blob) Namespace() namespace.ID {
 type jsonBlob struct {
 	Namespace    namespace.ID `json:"namespace"`
 	Data         []byte       `json:"data"`
-	ShareVersion uint32       `json:"shareVersion"`
+	ShareVersion uint32       `json:"share_version"`
 	Commitment   Commitment   `json:"commitment"`
 }
 
