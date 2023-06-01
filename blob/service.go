@@ -99,7 +99,7 @@ func (s *Service) GetProof(
 
 // GetAll returns all blobs under the given namespaces at the given height.
 // GetAll can return blobs and an error in case if some requests failed.
-func (s *Service) GetAll(ctx context.Context, height uint64, nIDs ...namespace.ID) ([]*Blob, error) {
+func (s *Service) GetAll(ctx context.Context, height uint64, nIDs []namespace.ID) ([]*Blob, error) {
 	header, err := s.headerGetter(ctx, height)
 	if err != nil {
 		return nil, err

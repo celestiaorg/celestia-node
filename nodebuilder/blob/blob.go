@@ -21,7 +21,7 @@ type Module interface {
 	// Get retrieves the blob by commitment under the given namespace and height.
 	Get(_ context.Context, height uint64, _ namespace.ID, _ blob.Commitment) (*blob.Blob, error)
 	// GetAll returns all blobs under the given namespaces and height.
-	GetAll(_ context.Context, height uint64, _ ...namespace.ID) ([]*blob.Blob, error)
+	GetAll(_ context.Context, height uint64, _ []namespace.ID) ([]*blob.Blob, error)
 	// GetProof retrieves proofs in the given namespaces at the given height by commitment.
 	GetProof(_ context.Context, height uint64, _ namespace.ID, _ blob.Commitment) (*blob.Proof, error)
 	// Included checks whether a blob's given commitment(Merkle subtree root) is included at
@@ -33,7 +33,7 @@ type API struct {
 	Internal struct {
 		Submit   func(context.Context, []*blob.Blob) (uint64, error)                                     `perm:"write"`
 		Get      func(context.Context, uint64, namespace.ID, blob.Commitment) (*blob.Blob, error)        `perm:"read"`
-		GetAll   func(context.Context, uint64, ...namespace.ID) ([]*blob.Blob, error)                    `perm:"read"`
+		GetAll   func(context.Context, uint64, []namespace.ID) ([]*blob.Blob, error)                     `perm:"read"`
 		GetProof func(context.Context, uint64, namespace.ID, blob.Commitment) (*blob.Proof, error)       `perm:"read"`
 		Included func(context.Context, uint64, namespace.ID, *blob.Proof, blob.Commitment) (bool, error) `perm:"read"`
 	}
@@ -52,8 +52,8 @@ func (api *API) Get(
 	return api.Internal.Get(ctx, height, nID, commitment)
 }
 
-func (api *API) GetAll(ctx context.Context, height uint64, nIDs ...namespace.ID) ([]*blob.Blob, error) {
-	return api.Internal.GetAll(ctx, height, nIDs...)
+func (api *API) GetAll(ctx context.Context, height uint64, nIDs []namespace.ID) ([]*blob.Blob, error) {
+	return api.Internal.GetAll(ctx, height, nIDs)
 }
 
 func (api *API) GetProof(

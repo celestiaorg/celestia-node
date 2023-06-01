@@ -6,6 +6,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/celestiaorg/nmt/namespace"
 	"github.com/libp2p/go-libp2p/core/host"
 	"github.com/libp2p/go-libp2p/core/peer"
 	"github.com/stretchr/testify/assert"
@@ -77,7 +78,7 @@ func TestBlobModule(t *testing.T) {
 		{
 			name: "GetAll",
 			doFn: func(t *testing.T) {
-				newBlobs, err := fullNode.BlobServ.GetAll(ctx, height, blobs[0].Namespace())
+				newBlobs, err := fullNode.BlobServ.GetAll(ctx, height, []namespace.ID{blobs[0].Namespace()})
 				require.NoError(t, err)
 				require.Len(t, newBlobs, len(appBlobs0))
 				require.True(t, bytes.Equal(blobs[0].Commitment, newBlobs[0].Commitment))

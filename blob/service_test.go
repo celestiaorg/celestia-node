@@ -73,7 +73,7 @@ func TestBlobService_Get(t *testing.T) {
 		{
 			name: "get all with the same nID",
 			doFn: func() (interface{}, error) {
-				b, err := service.GetAll(ctx, 1, blobs1[0].Namespace())
+				b, err := service.GetAll(ctx, 1, []namespace.ID{blobs1[0].Namespace()})
 				return b, err
 			},
 			expectedResult: func(res interface{}, err error) {
@@ -93,7 +93,7 @@ func TestBlobService_Get(t *testing.T) {
 		{
 			name: "get all with different nIDs",
 			doFn: func() (interface{}, error) {
-				b, err := service.GetAll(ctx, 1, blobs0[0].Namespace(), blobs0[1].Namespace())
+				b, err := service.GetAll(ctx, 1, []namespace.ID{blobs0[0].Namespace(), blobs0[1].Namespace()})
 				return b, err
 			},
 			expectedResult: func(res interface{}, err error) {
@@ -257,7 +257,7 @@ func TestBlobService_Get(t *testing.T) {
 			name: "get all not found",
 			doFn: func() (interface{}, error) {
 				nID := tmrand.Bytes(appconsts.NamespaceSize)
-				return service.GetAll(ctx, 1, nID)
+				return service.GetAll(ctx, 1, []namespace.ID{nID})
 			},
 			expectedResult: func(i interface{}, err error) {
 				blobs, ok := i.([]*Blob)
@@ -406,7 +406,7 @@ func TestService_GetAllWithoutPadding(t *testing.T) {
 
 	service := NewService(nil, getters.NewIPLDGetter(bs), fn)
 
-	_, err = service.GetAll(ctx, 1, blobs[0].Namespace(), blobs[1].Namespace())
+	_, err = service.GetAll(ctx, 1, []namespace.ID{blobs[0].Namespace(), blobs[1].Namespace()})
 	require.NoError(t, err)
 }
 
