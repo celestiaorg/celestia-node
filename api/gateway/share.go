@@ -107,7 +107,7 @@ func (h *Handler) getShares(ctx context.Context, height uint64, nID namespace.ID
 	}
 
 	if height > 0 {
-		if storeHeight := uint64(header.Height()); storeHeight < height {
+		if storeHeight := uint64(header.Height()); height >= storeHeight+1 {
 			return nil, 0, fmt.Errorf(
 				"current head local chain head: %d is lower than requested height: %d"+
 					" give header sync some time and retry later", storeHeight, height)
