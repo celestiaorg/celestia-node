@@ -137,6 +137,9 @@ func StartMockOtelCollectorHTTPServer(t *testing.T) (string, func()) {
 }
 
 func TestEmptyBlockExists(t *testing.T) {
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
 	var test = []struct {
 		tp node.Type
 	}{
@@ -149,10 +152,6 @@ func TestEmptyBlockExists(t *testing.T) {
 	for i, tt := range test {
 		t.Run(strconv.Itoa(i), func(t *testing.T) {
 			node := TestNode(t, tt.tp)
-
-			ctx, cancel := context.WithTimeout(context.Background(), Timeout)
-			defer cancel()
-
 			err := node.Start(ctx)
 			require.NoError(t, err)
 

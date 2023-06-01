@@ -32,8 +32,6 @@ import (
 	"github.com/celestiaorg/celestia-node/nodebuilder/state"
 )
 
-var Timeout = time.Minute * 2
-
 var (
 	log   = logging.Logger("node")
 	fxLog = logging.Logger("fx")
@@ -97,14 +95,15 @@ func NewWithConfig(tp node.Type, network p2p.Network, store Store, cfg *Config, 
 
 // Start launches the Node and all its components and services.
 func (n *Node) Start(ctx context.Context) error {
-	ctx, cancel := context.WithTimeout(ctx, Timeout)
+	to := timeout(n.Type)
+	ctx, cancel := context.WithTimeout(ctx, to)
 	defer cancel()
 
 	err := n.start(ctx)
 	if err != nil {
 		log.Debugf("error starting %s Node: %s", n.Type, err)
 		if errors.Is(err, context.DeadlineExceeded) {
-			return fmt.Errorf("node: failed to start within timeout(%s): %w", Timeout, err)
+			return fmt.Errorf("node: failed to start within timeout(%s): %w", to, err)
 		}
 		return fmt.Errorf("node: failed to start: %w", err)
 	}
@@ -142,14 +141,15 @@ func (n *Node) Run(ctx context.Context) error {
 // Canceling the given context earlier 'ctx' unblocks the Stop and aborts graceful shutdown forcing
 // remaining Modules/Services to close immediately.
 func (n *Node) Stop(ctx context.Context) error {
-	ctx, cancel := context.WithTimeout(ctx, Timeout)
+	to := timeout(n.Type)
+	ctx, cancel := context.WithTimeout(ctx, to)
 	defer cancel()
 
 	err := n.stop(ctx)
 	if err != nil {
 		log.Debugf("error stopping %s Node: %s", n.Type, err)
 		if errors.Is(err, context.DeadlineExceeded) {
-			return fmt.Errorf("node: failed to stop within timeout(%s): %w", Timeout, err)
+			return fmt.Errorf("node: failed to stop within timeout(%s): %w", to, err)
 		}
 		return fmt.Errorf("node: failed to stop: %w", err)
 	}
@@ -183,3 +183,14 @@ func newNode(opts ...fx.Option) (*Node, error) {
 
 // lifecycleFunc defines a type for common lifecycle funcs.
 type lifecycleFunc func(context.Context) error
+
+var DefaultLifecycleTimeout = time.Minute * 2
+
+func timeout(tp node.Type) time.Duration {
+	switch tp {
+	case node.Light:
+		return time.Second * 20
+	default:
+		return DefaultLifecycleTimeout
+	}
+}
