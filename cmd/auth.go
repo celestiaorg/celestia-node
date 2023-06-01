@@ -14,6 +14,7 @@ import (
 	flag "github.com/spf13/pflag"
 
 	"github.com/celestiaorg/celestia-node/api/rpc/perms"
+	"github.com/celestiaorg/celestia-node/libs/authtoken"
 	"github.com/celestiaorg/celestia-node/libs/keystore"
 	nodemod "github.com/celestiaorg/celestia-node/nodebuilder/node"
 )
@@ -70,14 +71,12 @@ func newToken(cmd *cobra.Command, args []string) error {
 		return err
 	}
 
-	token, err := jwt.NewTokenBuilder(signer).Build(&perms.JWTPayload{
-		Allow: permissions,
-	})
+	token, err := authtoken.NewSignedJWT(signer, permissions)
 	if err != nil {
 		return err
 	}
 
-	fmt.Printf("%s", token.InsecureString())
+	fmt.Printf("%s", token)
 	return nil
 }
 
