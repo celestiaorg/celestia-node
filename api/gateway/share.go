@@ -42,9 +42,9 @@ func (h *Handler) handleSharesByNamespaceRequest(w http.ResponseWriter, r *http.
 		writeError(w, http.StatusBadRequest, namespacedSharesEndpoint, err)
 		return
 	}
-	shares, code, err := h.getShares(r.Context(), height, nID)
+	shares, err := h.getShares(r.Context(), height, nID)
 	if err != nil {
-		writeError(w, code, namespacedSharesEndpoint, err)
+		writeError(w, http.StatusInternalServerError, namespacedSharesEndpoint, err)
 		return
 	}
 	resp, err := json.Marshal(&NamespacedSharesResponse{
@@ -67,9 +67,9 @@ func (h *Handler) handleDataByNamespaceRequest(w http.ResponseWriter, r *http.Re
 		writeError(w, http.StatusBadRequest, namespacedDataEndpoint, err)
 		return
 	}
-	shares, code, err := h.getShares(r.Context(), height, nID)
+	shares, err := h.getShares(r.Context(), height, nID)
 	if err != nil {
-		writeError(w, code, namespacedDataEndpoint, err)
+		writeError(w, http.StatusInternalServerError, namespacedDataEndpoint, err)
 		return
 	}
 	data, err := dataFromShares(shares)
@@ -91,14 +91,18 @@ func (h *Handler) handleDataByNamespaceRequest(w http.ResponseWriter, r *http.Re
 	}
 }
 
-func (h *Handler) getShares(ctx context.Context, height uint64, nID namespace.ID) ([]share.Share, int, error) {
-	header, code, err := headerGetByHeight(ctx, int(height), h.header)
+func (h *Handler) getShares(ctx context.Context, height uint64, nID namespace.ID) ([]share.Share, error) {
+	header, err := h.header.GetByHeight(ctx, uint64(height))
 	if err != nil {
-		return nil, code, err
+		return nil, err
 	}
 
 	shares, err := h.share.GetSharesByNamespace(ctx, header.DAH, nID)
-	return shares.Flatten(), http.StatusInternalServerError, err
+	if err != nil {
+		return nil, err
+	}
+
+	return shares.Flatten(), nil
 }
 
 func dataFromShares(input []share.Share) (data [][]byte, err error) {

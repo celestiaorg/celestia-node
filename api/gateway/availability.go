@@ -27,9 +27,9 @@ func (h *Handler) handleHeightAvailabilityRequest(w http.ResponseWriter, r *http
 		return
 	}
 
-	header, code, err := headerGetByHeight(r.Context(), height, h.header)
+	header, err := h.header.GetByHeight(r.Context(), uint64(height))
 	if err != nil {
-		writeError(w, code, heightAvailabilityEndpoint, err)
+		writeError(w, http.StatusInternalServerError, heightAvailabilityEndpoint, err)
 		return
 	}
 
