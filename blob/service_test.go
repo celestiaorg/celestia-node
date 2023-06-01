@@ -268,6 +268,25 @@ func TestBlobService_Get(t *testing.T) {
 
 			},
 		},
+		{
+			name: "marshal proof",
+			doFn: func() (interface{}, error) {
+				proof, err := service.GetProof(ctx, 1, blobs0[1].Namespace(), blobs0[1].Commitment)
+				require.NoError(t, err)
+				return proof.MarshalJSON()
+			},
+			expectedResult: func(i interface{}, err error) {
+				require.NoError(t, err)
+				jsonData, ok := i.([]byte)
+				require.True(t, ok)
+				var proof Proof
+				require.NoError(t, proof.UnmarshalJSON(jsonData))
+
+				newProof, err := service.GetProof(ctx, 1, blobs0[1].Namespace(), blobs0[1].Commitment)
+				require.NoError(t, err)
+				require.NoError(t, proof.equal(*newProof))
+			},
+		},
 	}
 
 	for _, tt := range test {
