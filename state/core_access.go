@@ -158,7 +158,7 @@ func (ca *CoreAccessor) SubmitPayForBlob(
 	ctx context.Context,
 	fee Int,
 	gasLim uint64,
-	blobs ...*apptypes.Blob,
+	blobs []*apptypes.Blob,
 ) (*TxResponse, error) {
 	if len(blobs) == 0 {
 		return nil, errors.New("state: no blobs provided")

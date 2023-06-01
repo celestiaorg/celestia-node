@@ -46,7 +46,7 @@ type Module interface {
 		ctx context.Context,
 		fee state.Int,
 		gasLim uint64,
-		blobs ...*apptypes.Blob,
+		blobs []*apptypes.Blob,
 	) (*state.TxResponse, error)
 
 	// CancelUnbondingDelegation cancels a user's pending undelegation from a validator.
@@ -114,7 +114,7 @@ type API struct {
 			ctx context.Context,
 			fee state.Int,
 			gasLim uint64,
-			blobs ...*apptypes.Blob,
+			blobs []*apptypes.Blob,
 		) (*state.TxResponse, error) `perm:"write"`
 		CancelUnbondingDelegation func(
 			ctx context.Context,
@@ -192,9 +192,9 @@ func (api *API) SubmitPayForBlob(
 	ctx context.Context,
 	fee state.Int,
 	gasLim uint64,
-	blobs ...*apptypes.Blob,
+	blobs []*apptypes.Blob,
 ) (*state.TxResponse, error) {
-	return api.Internal.SubmitPayForBlob(ctx, fee, gasLim, blobs...)
+	return api.Internal.SubmitPayForBlob(ctx, fee, gasLim, blobs)
 }
 
 func (api *API) CancelUnbondingDelegation(
