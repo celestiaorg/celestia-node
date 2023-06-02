@@ -23,6 +23,7 @@ import (
 
 	"github.com/celestiaorg/celestia-node/api/rpc/client"
 	"github.com/celestiaorg/celestia-node/blob"
+	"github.com/celestiaorg/celestia-node/share"
 	"github.com/celestiaorg/celestia-node/state"
 )
 
@@ -441,7 +442,10 @@ func parseNamespace(param string) (namespace.ID, error) {
 	}
 	// if the namespace ID is 8 bytes, add v0 share + namespace prefix and zero pad
 	if len(nID) == 8 {
-		nID = append(make([]byte, 21), nID...)
+		nID, err = share.NewNamespaceV0(nID)
+		if err != nil {
+			return nil, err
+		}
 	}
 	return nID, nil
 }
