@@ -9,6 +9,7 @@ import (
 	"github.com/cosmos/cosmos-sdk/types"
 	logging "github.com/ipfs/go-log/v2"
 
+	"github.com/celestiaorg/celestia-app/pkg/appconsts"
 	"github.com/celestiaorg/celestia-app/pkg/shares"
 	apptypes "github.com/celestiaorg/celestia-app/x/blob/types"
 	"github.com/celestiaorg/nmt/namespace"
@@ -24,10 +25,6 @@ var (
 
 	log = logging.Logger("blob")
 )
-
-// TODO(@vgonkivs): remove after bumping celestia-app
-// defaultMinGasPrice is the default min gas price.
-const defaultMinGasPrice = 0.001
 
 type Service struct {
 	// accessor dials the given celestia-core endpoint to submit blobs.
@@ -58,7 +55,7 @@ func (s *Service) Submit(ctx context.Context, blobs []*Blob) (uint64, error) {
 
 	var (
 		gasLimit = estimateGas(blobs...)
-		fee      = int64(defaultMinGasPrice * float64(gasLimit))
+		fee      = int64(appconsts.DefaultMinGasPrice * float64(gasLimit))
 		b        = make([]*apptypes.Blob, len(blobs))
 	)
 
