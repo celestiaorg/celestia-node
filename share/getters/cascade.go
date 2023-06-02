@@ -131,7 +131,7 @@ func cascadeGetters[V any](
 
 		err = errors.Join(err, getErr)
 		span.RecordError(getErr, trace.WithAttributes(attribute.Int("getter_idx", i)))
-		if errors.Is(getErr, context.Canceled) {
+		if ctx.Err() != nil {
 			return zero, err
 		}
 	}
