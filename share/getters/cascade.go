@@ -4,7 +4,6 @@ import (
 	"context"
 	"encoding/hex"
 	"errors"
-
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/trace"
 
@@ -125,7 +124,7 @@ func cascadeGetters[V any](
 		if getErr == nil {
 			return val, nil
 		}
-		if errors.Is(share.ErrNamespaceNotFound, getErr) {
+		if errors.Is(getErr, share.ErrNamespaceNotFound) || errors.Is(getErr, context.Canceled) {
 			return zero, getErr
 		}
 
