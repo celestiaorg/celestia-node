@@ -7,6 +7,7 @@ import (
 	"go.opentelemetry.io/otel"
 
 	"github.com/celestiaorg/celestia-app/pkg/appconsts"
+	"github.com/celestiaorg/celestia-node/share/ipld"
 	"github.com/celestiaorg/nmt/namespace"
 )
 
@@ -27,7 +28,7 @@ const (
 var (
 	// MaxSquareSize is currently the maximum size supported for unerasured data in
 	// rsmt2d.ExtendedDataSquare.
-	MaxSquareSize = appconsts.SquareSizeUpperBound(appconsts.LatestVersion)
+	MaxSquareSize = ipld.MaxSquareSize
 )
 
 // Share contains the raw share data without the corresponding namespace.
