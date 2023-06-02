@@ -53,7 +53,7 @@ func NewService(
 // Submit sends PFB transaction and reports the height in which it was included.
 // Allows sending multiple Blobs atomically synchronously.
 // Uses default wallet registered on the Node.
-func (s *Service) Submit(ctx context.Context, blobs ...*Blob) (uint64, error) {
+func (s *Service) Submit(ctx context.Context, blobs []*Blob) (uint64, error) {
 	log.Debugw("submitting blobs", "amount", len(blobs))
 
 	var (
@@ -66,7 +66,7 @@ func (s *Service) Submit(ctx context.Context, blobs ...*Blob) (uint64, error) {
 		b[i] = &blob.Blob
 	}
 
-	resp, err := s.accessor.SubmitPayForBlob(ctx, types.NewInt(fee), gasLimit, b...)
+	resp, err := s.accessor.SubmitPayForBlob(ctx, types.NewInt(fee), gasLimit, b)
 	if err != nil {
 		return 0, err
 	}
@@ -99,7 +99,7 @@ func (s *Service) GetProof(
 
 // GetAll returns all blobs under the given namespaces at the given height.
 // GetAll can return blobs and an error in case if some requests failed.
-func (s *Service) GetAll(ctx context.Context, height uint64, nIDs ...namespace.ID) ([]*Blob, error) {
+func (s *Service) GetAll(ctx context.Context, height uint64, nIDs []namespace.ID) ([]*Blob, error) {
 	header, err := s.headerGetter(ctx, height)
 	if err != nil {
 		return nil, err
