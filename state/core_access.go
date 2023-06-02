@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"time"
 
+	sdkErrors "cosmossdk.io/errors"
 	"github.com/cosmos/cosmos-sdk/api/tendermint/abci"
 	storetypes "github.com/cosmos/cosmos-sdk/store/types"
 	sdktypes "github.com/cosmos/cosmos-sdk/types"
@@ -177,7 +178,11 @@ func (ca *CoreAccessor) SubmitPayForBlob(
 		ca.lastPayForBlob = time.Now().UnixMilli()
 		ca.payForBlobCount++
 	}
-	return response, codeToError(response.Code)
+
+	if response.Code != 0 {
+		err = errors.Join(err, sdkErrors.ABCIError(response.Codespace, response.Code, response.Logs.String()))
+	}
+	return response, err
 }
 
 func (ca *CoreAccessor) AccountAddress(context.Context) (Address, error) {
