@@ -177,7 +177,7 @@ func (ca *CoreAccessor) SubmitPayForBlob(
 		ca.lastPayForBlob = time.Now().UnixMilli()
 		ca.payForBlobCount++
 	}
-	return response, err
+	return response, codeToError(response.Code)
 }
 
 func (ca *CoreAccessor) AccountAddress(context.Context) (Address, error) {
