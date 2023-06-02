@@ -287,6 +287,7 @@ func (n *NamespaceData) traverseLinks(j job, links []*ipld.Link) []job {
 func (n *NamespaceData) collectAbsenceProofs(j job, links []*ipld.Link) []job {
 	leftLink := links[0].Cid
 	rightLink := links[1].Cid
+	// traverse to the left node, while collecting right node as proof
 	n.addProof(right, rightLink, j.depth)
 	return []job{j.next(leftLink, false, j.isAbsent)}
 }
