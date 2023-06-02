@@ -18,7 +18,11 @@ import (
 	"github.com/cosmos/cosmos-sdk/types"
 	"github.com/spf13/cobra"
 
+	apptypes "github.com/celestiaorg/celestia-app/x/blob/types"
+	"github.com/celestiaorg/nmt/namespace"
+
 	"github.com/celestiaorg/celestia-node/api/rpc/client"
+	"github.com/celestiaorg/celestia-node/blob"
 	"github.com/celestiaorg/celestia-node/state"
 )
 
@@ -28,12 +32,18 @@ const (
 
 var requestURL string
 var authTokenFlag string
+var printRequest bool
 
 type jsonRPCRequest struct {
 	ID      int64         `json:"id"`
 	JSONRPC string        `json:"jsonrpc"`
 	Method  string        `json:"method"`
 	Params  []interface{} `json:"params"`
+}
+
+type outputWithRequest struct {
+	Request  jsonRPCRequest
+	Response json.RawMessage
 }
 
 func init() {
@@ -48,6 +58,12 @@ func init() {
 		"auth",
 		"",
 		"Authorization token (if not provided, the "+authEnvKey+" environment variable will be used)",
+	)
+	rpcCmd.PersistentFlags().BoolVar(
+		&printRequest,
+		"print-request",
+		false,
+		"Print JSON-RPC request along with the response",
 	)
 	rootCmd.AddCommand(rpcCmd)
 }
@@ -98,52 +114,117 @@ func parseParams(method string, params []string) []interface{} {
 		}
 		parsedParams[0] = root
 		// 2. NamespaceID
-		if strings.HasPrefix(params[1], "0x") {
-			decoded, err := hex.DecodeString(params[1][2:])
-			if err != nil {
-				panic("Error decoding namespace ID: hex string could not be decoded.")
-			}
-			parsedParams[1] = decoded
-		} else {
-			// otherwise, it's just a base64 string
-			parsedParams[1] = params[1]
+		nID, err := parseNamespace(params[1])
+		if err != nil {
+			panic(fmt.Sprintf("Error parsing namespace: %v", err))
 		}
-		return parsedParams
-	case "SubmitPayForBlob":
+		parsedParams[1] = nID
+	case "Submit":
 		// 1. NamespaceID
-		if strings.HasPrefix(params[0], "0x") {
-			decoded, err := hex.DecodeString(params[0][2:])
-			if err != nil {
-				panic("Error decoding namespace ID: hex string could not be decoded.")
-			}
-			parsedParams[0] = decoded
-		} else {
-			// otherwise, it's just a base64 string
-			parsedParams[0] = params[0]
+		var err error
+		nID, err := parseNamespace(params[0])
+		if err != nil {
+			panic(fmt.Sprintf("Error parsing namespace: %v", err))
 		}
-		// 2. Blob
+		// 2. Blob data
+		var blobData []byte
 		switch {
 		case strings.HasPrefix(params[1], "0x"):
 			decoded, err := hex.DecodeString(params[1][2:])
 			if err != nil {
 				panic("Error decoding blob: hex string could not be decoded.")
 			}
-			parsedParams[0] = decoded
+			blobData = decoded
 		case strings.HasPrefix(params[1], "\""):
 			// user input an utf string that needs to be encoded to base64
-			parsedParams[1] = base64.StdEncoding.EncodeToString([]byte(params[1]))
+			base64.StdEncoding.Encode(blobData, []byte(params[1]))
 		default:
 			// otherwise, we assume the user has already encoded their input to base64
-			parsedParams[1] = params[1]
+			blobData, err = base64.StdEncoding.DecodeString(params[1])
+			if err != nil {
+				panic("Error decoding blob data: base64 string could not be decoded.")
+			}
 		}
-		// 3. Fee (state.Int is a string)
-		parsedParams[2] = params[2]
-		// 4. GasLimit (uint64)
-		num, err := strconv.ParseUint(params[3], 10, 64)
+		parsedBlob, err := blob.NewBlob(0, nID, blobData)
+		if err != nil {
+			panic(fmt.Sprintf("Error creating blob: %v", err))
+		}
+		parsedParams[0] = []*blob.Blob{parsedBlob}
+		// param count doesn't match input length, so cut off nil values
+		return parsedParams[:1]
+	case "SubmitPayForBlob":
+		// 1. Fee (state.Int is a string)
+		parsedParams[0] = params[0]
+		// 2. GasLimit (uint64)
+		num, err := strconv.ParseUint(params[1], 10, 64)
 		if err != nil {
 			panic("Error parsing gas limit: uint64 could not be parsed.")
 		}
-		parsedParams[3] = num
+		parsedParams[1] = num
+		// 3. NamespaceID
+		nID, err := parseNamespace(params[2])
+		if err != nil {
+			panic(fmt.Sprintf("Error parsing namespace: %v", err))
+		}
+		// 4. Blob data
+		var blobData []byte
+		switch {
+		case strings.HasPrefix(params[3], "0x"):
+			decoded, err := hex.DecodeString(params[3][2:])
+			if err != nil {
+				panic("Error decoding blob: hex string could not be decoded.")
+			}
+			blobData = decoded
+		case strings.HasPrefix(params[3], "\""):
+			// user input an utf string that needs to be encoded to base64
+			base64.StdEncoding.Encode(blobData, []byte(params[3]))
+		default:
+			// otherwise, we assume the user has already encoded their input to base64
+			blobData, err = base64.StdEncoding.DecodeString(params[3])
+			if err != nil {
+				panic("Error decoding blob: base64 string could not be decoded.")
+			}
+		}
+		parsedParams[2] = []*apptypes.Blob{{
+			NamespaceId:      nID[1:],
+			Data:             blobData,
+			ShareVersion:     0,
+			NamespaceVersion: 0,
+		}}
+		return parsedParams[:3]
+	case "Get":
+		// 1. Height
+		num, err := strconv.ParseUint(params[0], 10, 64)
+		if err != nil {
+			panic("Error parsing gas limit: uint64 could not be parsed.")
+		}
+		parsedParams[0] = num
+		// 2. NamespaceID
+		nID, err := parseNamespace(params[1])
+		if err != nil {
+			panic(fmt.Sprintf("Error parsing namespace: %v", err))
+		}
+		parsedParams[1] = nID
+		// 3: Commitment
+		commitment, err := base64.StdEncoding.DecodeString(params[2])
+		if err != nil {
+			panic("Error decoding commitment: base64 string could not be decoded.")
+		}
+		parsedParams[2] = commitment
+		return parsedParams
+	case "GetAll": // NOTE: Over the cli, you can only pass one namespace
+		// 1. Height
+		num, err := strconv.ParseUint(params[0], 10, 64)
+		if err != nil {
+			panic("Error parsing gas limit: uint64 could not be parsed.")
+		}
+		parsedParams[0] = num
+		// 2. NamespaceID
+		nID, err := parseNamespace(params[1])
+		if err != nil {
+			panic(fmt.Sprintf("Error parsing namespace: %v", err))
+		}
+		parsedParams[1] = []namespace.ID{nID}
 		return parsedParams
 	case "QueryDelegation", "QueryUnbonding", "BalanceForAddress":
 		var err error
@@ -284,7 +365,27 @@ func sendJSONRPCRequest(namespace, method string, params []interface{}) {
 		log.Fatalf("Error reading response body: %v", err) //nolint:gocritic
 	}
 
-	fmt.Println(string(responseBody))
+	rawResponseJSON, err := parseJSON(string(responseBody))
+	if err != nil {
+		panic(err)
+	}
+	if printRequest {
+		output, err := json.MarshalIndent(outputWithRequest{
+			Request:  request,
+			Response: rawResponseJSON,
+		}, "", "  ")
+		if err != nil {
+			panic(fmt.Sprintf("Error marshaling JSON-RPC response: %v", err))
+		}
+		fmt.Println(string(output))
+		return
+	}
+
+	output, err := json.MarshalIndent(rawResponseJSON, "", "  ")
+	if err != nil {
+		panic(fmt.Sprintf("Error marshaling JSON-RPC response: %v", err))
+	}
+	fmt.Println(string(output))
 }
 
 func parseAddressFromString(addrStr string) (state.Address, error) {
@@ -320,6 +421,29 @@ func parseSignatureForHelpstring(methodSig reflect.StructField) string {
 	}
 	simplifiedSignature += ")"
 	return simplifiedSignature
+}
+
+func parseNamespace(param string) (namespace.ID, error) {
+	var nID []byte
+	var err error
+	if strings.HasPrefix(param, "0x") {
+		decoded, err := hex.DecodeString(param[2:])
+		if err != nil {
+			return nil, fmt.Errorf("error decoding namespace ID: %w", err)
+		}
+		nID = decoded
+	} else {
+		// otherwise, it's just a base64 string
+		nID, err = base64.StdEncoding.DecodeString(param)
+		if err != nil {
+			return nil, fmt.Errorf("error decoding namespace ID: %w", err)
+		}
+	}
+	// if the namespace ID is 8 bytes, add v0 share + namespace prefix and zero pad
+	if len(nID) == 8 {
+		nID = append(make([]byte, 21), nID...)
+	}
+	return nID, nil
 }
 
 func parseJSON(param string) (json.RawMessage, error) {
