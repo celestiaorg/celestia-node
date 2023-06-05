@@ -7,8 +7,9 @@ import (
 	"go.opentelemetry.io/otel"
 
 	"github.com/celestiaorg/celestia-app/pkg/appconsts"
-	"github.com/celestiaorg/celestia-node/share/ipld"
 	"github.com/celestiaorg/nmt/namespace"
+
+	"github.com/celestiaorg/celestia-node/share/ipld"
 )
 
 var (
