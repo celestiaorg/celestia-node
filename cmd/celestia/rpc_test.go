@@ -3,8 +3,9 @@ package main
 import (
 	"testing"
 
-	"github.com/celestiaorg/nmt/namespace"
 	"github.com/stretchr/testify/assert"
+
+	"github.com/celestiaorg/nmt/namespace"
 )
 
 func Test_parseNamespace(t *testing.T) {
