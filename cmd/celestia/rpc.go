@@ -16,6 +16,7 @@ import (
 
 	"github.com/spf13/cobra"
 
+	appns "github.com/celestiaorg/celestia-app/pkg/namespace"
 	"github.com/celestiaorg/nmt/namespace"
 
 	"github.com/celestiaorg/celestia-node/api/rpc/client"
@@ -434,8 +435,8 @@ func parseNamespace(param string) (namespace.ID, error) {
 			return nil, fmt.Errorf("error decoding namespace ID: %w", err)
 		}
 	}
-	// if the namespace ID is 8 bytes, add v0 share + namespace prefix and zero pad
-	if len(nID) == 8 {
+	// if the namespace ID is <= 10 bytes, add v0 share + namespace prefix and zero pad
+	if len(nID) <= appns.NamespaceVersionZeroIDSize {
 		nID, err = share.NewNamespaceV0(nID)
 		if err != nil {
 			return nil, err
