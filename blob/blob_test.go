@@ -49,7 +49,7 @@ func TestBlob(t *testing.T) {
 					blob[0].Namespace()[appns.NamespaceVersionSize:],
 				)
 				require.NoError(t, err)
-				require.NoError(t, apptypes.ValidateBlobNamespaceID(ns))
+				require.NoError(t, apptypes.ValidateBlobNamespace(ns))
 			},
 		},
 		{
