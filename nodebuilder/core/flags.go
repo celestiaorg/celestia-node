@@ -3,6 +3,7 @@ package core
 import (
 	"fmt"
 	"net"
+	"net/url"
 
 	"github.com/spf13/cobra"
 	flag "github.com/spf13/pflag"
@@ -50,7 +51,11 @@ func ParseFlags(cmd *cobra.Command, cfg *Config) error {
 
 	ip := net.ParseIP(coreIP)
 	if ip == nil {
-		ips, err := net.LookupIP(coreIP)
+		u, err := url.Parse(coreIP)
+		if err != nil {
+			return fmt.Errorf("failed to parse url: %w", err)
+		}
+		ips, err := net.LookupIP(u.Host)
 		if err != nil {
 			return fmt.Errorf("failed to resolve DNS record: %v", err)
 		}
