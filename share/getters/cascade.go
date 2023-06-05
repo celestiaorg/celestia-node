@@ -122,16 +122,18 @@ func cascadeGetters[V any](
 		getCtx, cancel := ctxWithSplitTimeout(ctx, len(getters)-i, 0)
 		val, getErr := get(getCtx, getter)
 		cancel()
-		if getErr == nil {
-			return val, nil
-		}
-		if errors.Is(share.ErrNamespaceNotFound, getErr) {
-			return zero, getErr
+		if getErr == nil || errors.Is(getErr, share.ErrNamespaceNotFound) {
+			return val, getErr
 		}
 
-		if !errors.Is(getErr, errOperationNotSupported) {
-			err = errors.Join(err, getErr)
-			span.RecordError(getErr, trace.WithAttributes(attribute.Int("getter_idx", i)))
+		if errors.Is(getErr, errOperationNotSupported) {
+			continue
+		}
+
+		err = errors.Join(err, getErr)
+		span.RecordError(getErr, trace.WithAttributes(attribute.Int("getter_idx", i)))
+		if ctx.Err() != nil {
+			return zero, err
 		}
 	}
 	return zero, err
