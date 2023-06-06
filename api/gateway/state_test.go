@@ -21,7 +21,7 @@ func TestHandleSubmitPFB(t *testing.T) {
 	handler := NewHandler(mock, nil, nil, nil)
 
 	t.Run("partial response", func(t *testing.T) {
-		txResponse := &state.TxResponse{
+		txResponse := state.TxResponse{
 			Height:    1,
 			TxHash:    "hash",
 			Codespace: "codespace",
@@ -30,7 +30,7 @@ func TestHandleSubmitPFB(t *testing.T) {
 		// simulate core-app err, since it is not exported
 		timedErr := errors.New("timed out waiting for tx to be included in a block")
 		mock.EXPECT().SubmitPayForBlob(gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any()).
-			Return(txResponse, timedErr)
+			Return(&txResponse, timedErr)
 
 		bs, err := json.Marshal(submitPFBRequest{})
 		require.NoError(t, err)
@@ -38,12 +38,11 @@ func TestHandleSubmitPFB(t *testing.T) {
 		respRec := httptest.NewRecorder()
 		handler.handleSubmitPFB(respRec, httpreq)
 
-		var resp submitPFBResponse
+		var resp state.TxResponse
 		err = json.NewDecoder(respRec.Body).Decode(&resp)
 		require.NoError(t, err)
 
 		require.Equal(t, http.StatusPartialContent, respRec.Code)
-		require.Equal(t, resp.Tx, txResponse)
-		require.Equal(t, resp.Error, timedErr.Error())
+		require.Equal(t, resp, txResponse)
 	})
 }
