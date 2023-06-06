@@ -34,6 +34,16 @@ func Test_parseNamespace(t *testing.T) {
 			},
 			wantErr: false,
 		},
+		{
+			name:  "29 byte hex encoded namespace",
+			param: "0x0000000000000000000000000000000000000001010101010101010101",
+			want: namespace.ID{
+				0x0,                                                                                      // namespace version
+				0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, // v0 ID prefix
+				0x01, 0x01, 0x01, 0x01, 0x01, 0x01, 0x01, 0x01, 0x01, 0x01, // namespace ID
+			},
+			wantErr: false,
+		},
 		// HACKHACK: This test case is disabled because it fails.
 		// {
 		// 	name:    "11 byte hex encoded namespace returns error",
