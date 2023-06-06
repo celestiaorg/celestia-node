@@ -1,7 +1,9 @@
 package utils
 
 import (
+	"errors"
 	"fmt"
+	"math/rand"
 	"net"
 	"strings"
 )
@@ -30,11 +32,14 @@ func ValidateAddr(addr string) (string, error) {
 	}
 
 	if ip := net.ParseIP(addr); ip == nil {
-		_, err = net.LookupHost(addr)
+		addrs, err := net.LookupHost(addr)
 		if err != nil {
 			return addr, fmt.Errorf("could not resolve hostname or ip: %w", err)
 		}
+		if len(addrs) == 0 {
+			return addr, errors.New("no IP addresses found for DNS record")
+		}
+		addr = addrs[rand.Intn(len(addrs))] //nolint:gosec
 	}
-
 	return addr, nil
 }
