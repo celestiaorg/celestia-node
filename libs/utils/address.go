@@ -3,7 +3,6 @@ package utils
 import (
 	"errors"
 	"fmt"
-	"math/rand"
 	"net"
 	"strings"
 )
@@ -39,7 +38,7 @@ func ValidateAddr(addr string) (string, error) {
 		if len(addrs) == 0 {
 			return addr, errors.New("no IP addresses found for DNS record")
 		}
-		addr = addrs[rand.Intn(len(addrs))] //nolint:gosec
+		addr = addrs[0]
 	}
 	return addr, nil
 }
