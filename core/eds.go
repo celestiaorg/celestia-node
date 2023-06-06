@@ -24,7 +24,7 @@ func extendBlock(data types.Data) (*rsmt2d.ExtendedDataSquare, error) {
 		return nil, nil
 	}
 
-	sqr, err := square.Construct(data.Txs.ToSliceOfBytes(), appconsts.MaxSquareSize)
+	sqr, err := square.Construct(data.Txs.ToSliceOfBytes(), appconsts.LatestVersion, share.MaxSquareSize)
 	if err != nil {
 		return nil, err
 	}
