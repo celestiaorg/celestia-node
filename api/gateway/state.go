@@ -136,19 +136,26 @@ func (h *Handler) handleSubmitPFB(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusBadRequest, submitPFBEndpoint, err)
 		return
 	}
-	fee := types.NewInt(req.Fee)
+
 	// perform request
-	txResp, err := h.state.SubmitPayForBlob(r.Context(), nID, data, fee, req.GasLimit)
+	fee := types.NewInt(req.Fee)
+	txResp, txerr := h.state.SubmitPayForBlob(r.Context(), nID, data, fee, req.GasLimit)
+	if txerr != nil && txResp == nil {
+		// no tx data to return
+		writeError(w, http.StatusInternalServerError, submitPFBEndpoint, err)
+	}
+
+	bs, err := json.Marshal(&txResp)
 	if err != nil {
 		writeError(w, http.StatusInternalServerError, submitPFBEndpoint, err)
 		return
 	}
-	resp, err := json.Marshal(txResp)
-	if err != nil {
-		writeError(w, http.StatusInternalServerError, submitPFBEndpoint, err)
-		return
+
+	// if error returned, change status from 200 to 206
+	if txerr != nil {
+		w.WriteHeader(http.StatusPartialContent)
 	}
-	_, err = w.Write(resp)
+	_, err = w.Write(bs)
 	if err != nil {
 		log.Errorw("writing response", "endpoint", submitPFBEndpoint, "err", err)
 	}
