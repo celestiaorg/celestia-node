@@ -45,6 +45,13 @@ type submitPFBRequest struct {
 	GasLimit    uint64 `json:"gas_limit"`
 }
 
+// submitPFBResponse represents a response to submit a PayForBlob
+// transaction.
+type submitPFBResponse struct {
+	Tx    *state.TxResponse `json:"tx,omitempty"`
+	Error string            `json:"err,omitempty"`
+}
+
 // queryRedelegationsRequest represents a request to query redelegations
 type queryRedelegationsRequest struct {
 	From string `json:"from"`
@@ -149,21 +156,27 @@ func (h *Handler) handleSubmitPFB(w http.ResponseWriter, r *http.Request) {
 
 	// perform request
 	txResp, err := h.state.SubmitPayForBlob(r.Context(), fee, req.GasLimit, []*apptypes.Blob{blob})
+	if err != nil && txResp == nil {
+		// no tx data to return
+		writeError(w, http.StatusInternalServerError, submitPFBEndpoint, err)
+	}
+
+	resp := submitPFBResponse{
+		Tx:    txResp,
+		Error: err.Error(),
+	}
+
+	bs, err := json.Marshal(&resp)
 	if err != nil {
-		// include tx info to response if it is present
-		if txResp != nil {
-			writeErrorWithData(w, http.StatusPartialContent, submitPFBEndpoint, err, txResp)
-			return
-		}
 		writeError(w, http.StatusInternalServerError, submitPFBEndpoint, err)
 		return
 	}
-	resp, err := json.Marshal(txResp)
-	if err != nil {
-		writeError(w, http.StatusInternalServerError, submitPFBEndpoint, err)
-		return
+
+	// if error returned, change status from 200 to 206
+	if resp.Error != "" {
+		w.WriteHeader(http.StatusPartialContent)
 	}
-	_, err = w.Write(resp)
+	_, err = w.Write(bs)
 	if err != nil {
 		log.Errorw("writing response", "endpoint", submitPFBEndpoint, "err", err)
 	}
