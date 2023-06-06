@@ -39,7 +39,7 @@ func TestQuadrantOrder(t *testing.T) {
 		{"smol", 2},
 		{"still smol", 8},
 		{"default mainnet", appconsts.DefaultGovMaxSquareSize},
-		{"max", appconsts.MaxSquareSize},
+		{"max", share.MaxSquareSize},
 	}
 
 	testShareSize := 64
