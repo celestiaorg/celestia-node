@@ -44,13 +44,27 @@ func Test_parseNamespace(t *testing.T) {
 			},
 			wantErr: false,
 		},
-		// HACKHACK: This test case is disabled because it fails.
-		// {
-		// 	name:    "11 byte hex encoded namespace returns error",
-		// 	param:   "0x42690c204d39600fddd3a3",
-		// 	want:    namespace.ID{},
-		// 	wantErr: true,
-		// },
+		{
+			name:    "11 byte hex encoded namespace returns error",
+			param:   "0x42690c204d39600fddd3a3",
+			want:    namespace.ID{},
+			wantErr: true,
+		},
+		{
+			name:  "10 byte base64 encoded namespace",
+			param: "QmkMIE05YA/d0w==",
+			want: namespace.ID{
+				0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0,
+				0x0, 0x0, 0x0, 0x0, 0x42, 0x69, 0xc, 0x20, 0x4d, 0x39, 0x60, 0xf, 0xdd, 0xd3,
+			},
+			wantErr: false,
+		},
+		{
+			name:    "not base64 or hex encoded namespace returns error",
+			param:   "5748493939429",
+			want:    namespace.ID{},
+			wantErr: true,
+		},
 	}
 
 	for _, tc := range testCases {

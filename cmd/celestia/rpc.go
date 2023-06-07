@@ -441,6 +441,8 @@ func parseNamespace(param string) (namespace.ID, error) {
 		if err != nil {
 			return nil, err
 		}
+	} else if len(nID) < appns.NamespaceSize {
+		return nil, fmt.Errorf("passed namespace is too large")
 	}
 	return nID, nil
 }
