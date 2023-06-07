@@ -15,7 +15,8 @@ func NewNamespaceV0(subNId []byte) (namespace.ID, error) {
 	}
 
 	id := make([]byte, appns.NamespaceIDSize)
-	copy(id[appns.NamespaceVersionZeroPrefixSize:], subNId)
+	leftPaddingOffset := appns.NamespaceVersionZeroIDSize - len(subNId)
+	copy(id[appns.NamespaceVersionZeroPrefixSize+leftPaddingOffset:], subNId)
 
 	appID, err := appns.New(appns.NamespaceVersionZero, id)
 	if err != nil {
