@@ -80,7 +80,7 @@ func TestBlockRecovery(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			squareSize := utils.SquareSize(len(tc.shares))
 
-			eds, err := rsmt2d.ComputeExtendedDataSquare(tc.shares, rsmt2d.NewRSGF8Codec(), wrapper.NewConstructor(squareSize))
+			eds, err := rsmt2d.ComputeExtendedDataSquare(tc.shares, DefaultRSMT2DCodec(), wrapper.NewConstructor(squareSize))
 			require.NoError(t, err)
 
 			// calculate roots using the first complete square
@@ -93,7 +93,7 @@ func TestBlockRecovery(t *testing.T) {
 			rdata := removeRandShares(flat, tc.d)
 			eds, err = rsmt2d.ImportExtendedDataSquare(
 				rdata,
-				rsmt2d.NewRSGF8Codec(),
+				DefaultRSMT2DCodec(),
 				wrapper.NewConstructor(squareSize),
 			)
 			require.NoError(t, err)
@@ -106,7 +106,7 @@ func TestBlockRecovery(t *testing.T) {
 			}
 			assert.NoError(t, err)
 
-			reds, err := rsmt2d.ImportExtendedDataSquare(rdata, rsmt2d.NewRSGF8Codec(), wrapper.NewConstructor(squareSize))
+			reds, err := rsmt2d.ImportExtendedDataSquare(rdata, DefaultRSMT2DCodec(), wrapper.NewConstructor(squareSize))
 			require.NoError(t, err)
 			// check that the squares are equal
 			assert.Equal(t, ExtractEDS(eds), ExtractEDS(reds))
@@ -121,7 +121,7 @@ func Test_ConvertEDStoShares(t *testing.T) {
 	// compute extended square
 	eds, err := rsmt2d.ComputeExtendedDataSquare(
 		shares,
-		rsmt2d.NewRSGF8Codec(),
+		DefaultRSMT2DCodec(),
 		wrapper.NewConstructor(uint64(squareWidth)),
 	)
 	require.NoError(t, err)

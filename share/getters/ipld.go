@@ -2,6 +2,7 @@ package getters
 
 import (
 	"context"
+	"encoding/hex"
 	"errors"
 	"fmt"
 	"sync"
@@ -54,7 +55,7 @@ func (ig *IPLDGetter) GetShare(ctx context.Context, dah *share.Root, row, col in
 
 	// wrap the blockservice in a session if it has been signaled in the context.
 	blockGetter := getGetter(ctx, ig.bServ)
-	s, err := share.GetShare(ctx, blockGetter, root, leaf, len(dah.RowsRoots))
+	s, err := share.GetShare(ctx, blockGetter, root, leaf, len(dah.RowRoots))
 	if errors.Is(err, ipld.ErrNodeNotFound) {
 		// convert error to satisfy getter interface contract
 		err = share.ErrNotFound
@@ -93,7 +94,7 @@ func (ig *IPLDGetter) GetSharesByNamespace(
 ) (shares share.NamespacedShares, err error) {
 	ctx, span := tracer.Start(ctx, "ipld/get-shares-by-namespace", trace.WithAttributes(
 		attribute.String("root", root.String()),
-		attribute.String("nID", nID.String()),
+		attribute.String("nid", hex.EncodeToString(nID)),
 	))
 	defer func() {
 		utils.SetStatusAndEnd(span, err)

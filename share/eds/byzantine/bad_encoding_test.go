@@ -34,7 +34,7 @@ func TestIncorrectBadEncodingFraudProof(t *testing.T) {
 	// get an arbitrary row
 	row := uint(squareSize / 2)
 	rowShares := eds.Row(row)
-	rowRoot := dah.RowsRoots[row]
+	rowRoot := dah.RowRoots[row]
 
 	shareProofs, err := GetProofsForShares(ctx, bServ, ipld.MustCidFromNamespacedSha256(rowRoot), rowShares)
 	require.NoError(t, err)

@@ -9,6 +9,9 @@ import (
 	"github.com/cosmos/cosmos-sdk/types"
 	"github.com/gorilla/mux"
 
+	"github.com/celestiaorg/celestia-app/pkg/appconsts"
+	apptypes "github.com/celestiaorg/celestia-app/x/blob/types"
+
 	"github.com/celestiaorg/celestia-node/state"
 )
 
@@ -137,18 +140,31 @@ func (h *Handler) handleSubmitPFB(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	fee := types.NewInt(req.Fee)
+
+	blob := &apptypes.Blob{
+		NamespaceId:  nID,
+		Data:         data,
+		ShareVersion: uint32(appconsts.DefaultShareVersion),
+	}
+
 	// perform request
-	txResp, err := h.state.SubmitPayForBlob(r.Context(), nID, data, fee, req.GasLimit)
+	txResp, txerr := h.state.SubmitPayForBlob(r.Context(), fee, req.GasLimit, []*apptypes.Blob{blob})
+	if txerr != nil && txResp == nil {
+		// no tx data to return
+		writeError(w, http.StatusInternalServerError, submitPFBEndpoint, err)
+	}
+
+	bs, err := json.Marshal(&txResp)
 	if err != nil {
 		writeError(w, http.StatusInternalServerError, submitPFBEndpoint, err)
 		return
 	}
-	resp, err := json.Marshal(txResp)
-	if err != nil {
-		writeError(w, http.StatusInternalServerError, submitPFBEndpoint, err)
-		return
+
+	// if error returned, change status from 200 to 206
+	if txerr != nil {
+		w.WriteHeader(http.StatusPartialContent)
 	}
-	_, err = w.Write(resp)
+	_, err = w.Write(bs)
 	if err != nil {
 		log.Errorw("writing response", "endpoint", submitPFBEndpoint, "err", err)
 	}

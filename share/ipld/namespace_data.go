@@ -2,6 +2,7 @@ package ipld
 
 import (
 	"context"
+	"encoding/hex"
 	"errors"
 	"fmt"
 	"sync"
@@ -196,7 +197,7 @@ func (n *NamespaceData) CollectLeavesByNamespace(
 	defer span.End()
 
 	span.SetAttributes(
-		attribute.String("namespace", n.nID.String()),
+		attribute.String("namespace", hex.EncodeToString(n.nID)),
 		attribute.String("root", root.String()),
 	)
 
@@ -243,8 +244,8 @@ func (n *NamespaceData) CollectLeavesByNamespace(
 				singleErr.Do(func() {
 					retrievalErr = err
 				})
-				log.Errorw("getLeavesWithProofsByNamespace:could not retrieve node",
-					"nID", n.nID,
+				log.Errorw("could not retrieve IPLD node",
+					"nID", hex.EncodeToString(n.nID),
 					"pos", j.sharePos,
 					"err", err,
 				)
