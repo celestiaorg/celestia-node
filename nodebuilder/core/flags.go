@@ -5,8 +5,6 @@ import (
 
 	"github.com/spf13/cobra"
 	flag "github.com/spf13/pflag"
-
-	"github.com/celestiaorg/celestia-node/libs/utils"
 )
 
 var (
@@ -54,13 +52,9 @@ func ParseFlags(
 
 	rpc := cmd.Flag(coreRPCFlag).Value.String()
 	grpc := cmd.Flag(coreGRPCFlag).Value.String()
-	ip, err := utils.ValidateAddr(coreIP)
-	if err != nil {
-		return err
-	}
 
-	cfg.IP = ip
+	cfg.IP = coreIP
 	cfg.RPCPort = rpc
 	cfg.GRPCPort = grpc
-	return nil
+	return cfg.Validate()
 }
