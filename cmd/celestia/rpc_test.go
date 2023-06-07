@@ -8,7 +8,7 @@ import (
 	"github.com/celestiaorg/nmt/namespace"
 )
 
-func Test_parseNamespace(t *testing.T) {
+func Test_parseNamespaceID(t *testing.T) {
 	type testCase struct {
 		name    string
 		param   string
@@ -17,7 +17,7 @@ func Test_parseNamespace(t *testing.T) {
 	}
 	testCases := []testCase{
 		{
-			name:  "8 byte hex encoded namespace gets right padded",
+			name:  "8 byte hex encoded namespace ID gets right padded",
 			param: "0x0c204d39600fddd3",
 			want: namespace.ID{
 				0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0,
@@ -26,7 +26,7 @@ func Test_parseNamespace(t *testing.T) {
 			wantErr: false,
 		},
 		{
-			name:  "10 byte hex encoded namespace",
+			name:  "10 byte hex encoded namespace ID",
 			param: "0x42690c204d39600fddd3",
 			want: namespace.ID{
 				0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0,
@@ -35,7 +35,7 @@ func Test_parseNamespace(t *testing.T) {
 			wantErr: false,
 		},
 		{
-			name:  "29 byte hex encoded namespace",
+			name:  "29 byte hex encoded namespace ID",
 			param: "0x0000000000000000000000000000000000000001010101010101010101",
 			want: namespace.ID{
 				0x0,                                                                                      // namespace version
@@ -45,13 +45,13 @@ func Test_parseNamespace(t *testing.T) {
 			wantErr: false,
 		},
 		{
-			name:    "11 byte hex encoded namespace returns error",
+			name:    "11 byte hex encoded namespace ID returns error",
 			param:   "0x42690c204d39600fddd3a3",
 			want:    namespace.ID{},
 			wantErr: true,
 		},
 		{
-			name:  "10 byte base64 encoded namespace",
+			name:  "10 byte base64 encoded namespace ID",
 			param: "QmkMIE05YA/d0w==",
 			want: namespace.ID{
 				0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0,
@@ -60,7 +60,7 @@ func Test_parseNamespace(t *testing.T) {
 			wantErr: false,
 		},
 		{
-			name:    "not base64 or hex encoded namespace returns error",
+			name:    "not base64 or hex encoded namespace ID returns error",
 			param:   "5748493939429",
 			want:    namespace.ID{},
 			wantErr: true,
@@ -69,7 +69,7 @@ func Test_parseNamespace(t *testing.T) {
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
-			got, err := parseNamespace(tc.param)
+			got, err := parseNamespaceID(tc.param)
 			if tc.wantErr {
 				assert.Error(t, err)
 				return

@@ -113,17 +113,17 @@ func parseParams(method string, params []string) []interface{} {
 		}
 		parsedParams[0] = root
 		// 2. NamespaceID
-		nID, err := parseNamespace(params[1])
+		nID, err := parseNamespaceID(params[1])
 		if err != nil {
-			panic(fmt.Sprintf("Error parsing namespace: %v", err))
+			panic(fmt.Sprintf("Error parsing namespace ID: %v", err))
 		}
 		parsedParams[1] = nID
 	case "Submit":
 		// 1. NamespaceID
 		var err error
-		nID, err := parseNamespace(params[0])
+		nID, err := parseNamespaceID(params[0])
 		if err != nil {
-			panic(fmt.Sprintf("Error parsing namespace: %v", err))
+			panic(fmt.Sprintf("Error parsing namespace ID: %v", err))
 		}
 		// 2. Blob data
 		var blobData []byte
@@ -163,9 +163,9 @@ func parseParams(method string, params []string) []interface{} {
 		}
 		parsedParams[1] = num
 		// 3. NamespaceID
-		nID, err := parseNamespace(params[2])
+		nID, err := parseNamespaceID(params[2])
 		if err != nil {
-			panic(fmt.Sprintf("Error parsing namespace: %v", err))
+			panic(fmt.Sprintf("Error parsing namespace ID: %v", err))
 		}
 		// 4. Blob data
 		var blobData []byte
@@ -202,9 +202,9 @@ func parseParams(method string, params []string) []interface{} {
 		}
 		parsedParams[0] = num
 		// 2. NamespaceID
-		nID, err := parseNamespace(params[1])
+		nID, err := parseNamespaceID(params[1])
 		if err != nil {
-			panic(fmt.Sprintf("Error parsing namespace: %v", err))
+			panic(fmt.Sprintf("Error parsing namespace ID: %v", err))
 		}
 		parsedParams[1] = nID
 		// 3: Commitment
@@ -222,9 +222,9 @@ func parseParams(method string, params []string) []interface{} {
 		}
 		parsedParams[0] = num
 		// 2. NamespaceID
-		nID, err := parseNamespace(params[1])
+		nID, err := parseNamespaceID(params[1])
 		if err != nil {
-			panic(fmt.Sprintf("Error parsing namespace: %v", err))
+			panic(fmt.Sprintf("Error parsing namespace ID: %v", err))
 		}
 		parsedParams[1] = []namespace.ID{nID}
 		return parsedParams
@@ -419,7 +419,7 @@ func parseSignatureForHelpstring(methodSig reflect.StructField) string {
 	return simplifiedSignature
 }
 
-func parseNamespace(param string) (namespace.ID, error) {
+func parseNamespaceID(param string) (namespace.ID, error) {
 	var nID []byte
 	var err error
 	if strings.HasPrefix(param, "0x") {
