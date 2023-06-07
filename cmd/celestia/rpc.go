@@ -138,6 +138,8 @@ func parseParams(method string, params []string) []interface{} {
 			blobData = decoded
 		case strings.HasPrefix(params[1], "\""):
 			// user input an utf string that needs to be encoded to base64
+			src := []byte(params[1])
+			blobData = make([]byte, base64.StdEncoding.EncodedLen(len(src)))
 			base64.StdEncoding.Encode(blobData, []byte(params[1]))
 		default:
 			// otherwise, we assume the user has already encoded their input to base64
@@ -178,6 +180,8 @@ func parseParams(method string, params []string) []interface{} {
 			blobData = decoded
 		case strings.HasPrefix(params[3], "\""):
 			// user input an utf string that needs to be encoded to base64
+			src := []byte(params[1])
+			blobData = make([]byte, base64.StdEncoding.EncodedLen(len(src)))
 			base64.StdEncoding.Encode(blobData, []byte(params[3]))
 		default:
 			// otherwise, we assume the user has already encoded their input to base64
