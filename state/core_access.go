@@ -185,7 +185,7 @@ func (ca *CoreAccessor) SubmitPayForBlob(
 		ca.payForBlobCount++
 	}
 
-	if response.Code != 0 {
+	if response != nil && response.Code != 0 {
 		err = errors.Join(err, sdkErrors.ABCIError(response.Codespace, response.Code, response.Logs.String()))
 	}
 	return response, err
