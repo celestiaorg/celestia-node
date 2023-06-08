@@ -9,11 +9,11 @@ import (
 	reflect "reflect"
 
 	math "cosmossdk.io/math"
+	blob "github.com/celestiaorg/celestia-node/blob"
 	types "github.com/cosmos/cosmos-sdk/types"
 	types0 "github.com/cosmos/cosmos-sdk/x/staking/types"
 	gomock "github.com/golang/mock/gomock"
-	types1 "github.com/tendermint/tendermint/proto/tendermint/types"
-	types2 "github.com/tendermint/tendermint/types"
+	types1 "github.com/tendermint/tendermint/types"
 )
 
 // MockModule is a mock of Module interface.
@@ -189,7 +189,7 @@ func (mr *MockModuleMockRecorder) QueryUnbonding(arg0, arg1 interface{}) *gomock
 }
 
 // SubmitPayForBlob mocks base method.
-func (m *MockModule) SubmitPayForBlob(arg0 context.Context, arg1 math.Int, arg2 uint64, arg3 []*types1.Blob) (*types.TxResponse, error) {
+func (m *MockModule) SubmitPayForBlob(arg0 context.Context, arg1 math.Int, arg2 uint64, arg3 []*blob.Blob) (*types.TxResponse, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "SubmitPayForBlob", arg0, arg1, arg2, arg3)
 	ret0, _ := ret[0].(*types.TxResponse)
@@ -204,7 +204,7 @@ func (mr *MockModuleMockRecorder) SubmitPayForBlob(arg0, arg1, arg2, arg3 interf
 }
 
 // SubmitTx mocks base method.
-func (m *MockModule) SubmitTx(arg0 context.Context, arg1 types2.Tx) (*types.TxResponse, error) {
+func (m *MockModule) SubmitTx(arg0 context.Context, arg1 types1.Tx) (*types.TxResponse, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "SubmitTx", arg0, arg1)
 	ret0, _ := ret[0].(*types.TxResponse)

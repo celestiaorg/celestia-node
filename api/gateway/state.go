@@ -10,8 +10,8 @@ import (
 	"github.com/gorilla/mux"
 
 	"github.com/celestiaorg/celestia-app/pkg/appconsts"
-	apptypes "github.com/celestiaorg/celestia-app/x/blob/types"
 
+	"github.com/celestiaorg/celestia-node/blob"
 	"github.com/celestiaorg/celestia-node/state"
 )
 
@@ -141,24 +141,30 @@ func (h *Handler) handleSubmitPFB(w http.ResponseWriter, r *http.Request) {
 	}
 	fee := types.NewInt(req.Fee)
 
-	blob := &apptypes.Blob{
-		NamespaceId:  nID,
-		Data:         data,
-		ShareVersion: uint32(appconsts.DefaultShareVersion),
+	constructedBlob, err := blob.NewBlob(appconsts.DefaultShareVersion, nID, data)
+	if err != nil {
+		writeError(w, http.StatusBadRequest, submitPFBEndpoint, err)
+		return
 	}
 
 	// perform request
-	txResp, err := h.state.SubmitPayForBlob(r.Context(), fee, req.GasLimit, []*apptypes.Blob{blob})
+	txResp, txerr := h.state.SubmitPayForBlob(r.Context(), fee, req.GasLimit, []*blob.Blob{constructedBlob})
+	if txerr != nil && txResp == nil {
+		// no tx data to return
+		writeError(w, http.StatusInternalServerError, submitPFBEndpoint, err)
+	}
+
+	bs, err := json.Marshal(&txResp)
 	if err != nil {
 		writeError(w, http.StatusInternalServerError, submitPFBEndpoint, err)
 		return
 	}
-	resp, err := json.Marshal(txResp)
-	if err != nil {
-		writeError(w, http.StatusInternalServerError, submitPFBEndpoint, err)
-		return
+
+	// if error returned, change status from 200 to 206
+	if txerr != nil {
+		w.WriteHeader(http.StatusPartialContent)
 	}
-	_, err = w.Write(resp)
+	_, err = w.Write(bs)
 	if err != nil {
 		log.Errorw("writing response", "endpoint", submitPFBEndpoint, "err", err)
 	}
