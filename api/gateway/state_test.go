@@ -5,7 +5,6 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"errors"
-	"fmt"
 	"net/http"
 	"net/http/httptest"
 	"testing"
@@ -48,7 +47,6 @@ func TestHandleSubmitPFB(t *testing.T) {
 		respRec := httptest.NewRecorder()
 		handler.handleSubmitPFB(respRec, httpreq)
 
-		fmt.Println(respRec.Body.String())
 		var resp state.TxResponse
 		err = json.NewDecoder(respRec.Body).Decode(&resp)
 		require.NoError(t, err)
