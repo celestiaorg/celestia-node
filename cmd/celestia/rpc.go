@@ -5,7 +5,6 @@ import (
 	"encoding/base64"
 	"encoding/hex"
 	"encoding/json"
-	"errors"
 	"fmt"
 	"io"
 	"log"
@@ -15,7 +14,6 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/cosmos/cosmos-sdk/types"
 	"github.com/spf13/cobra"
 
 	"github.com/celestiaorg/nmt/namespace"
@@ -392,18 +390,12 @@ func sendJSONRPCRequest(namespace, method string, params []interface{}) {
 }
 
 func parseAddressFromString(addrStr string) (state.Address, error) {
-	var addr state.AccAddress
-	addr, err := types.AccAddressFromBech32(addrStr)
+	var address state.Address
+	err := address.UnmarshalJSON([]byte(addrStr))
 	if err != nil {
-		// first check if it is a validator address and can be converted
-		valAddr, err := types.ValAddressFromBech32(addrStr)
-		if err != nil {
-			return nil, errors.New("address must be a valid account or validator address ")
-		}
-		return valAddr, nil
+		return address, err
 	}
-
-	return addr, nil
+	return address, nil
 }
 
 func parseSignatureForHelpstring(methodSig reflect.StructField) string {

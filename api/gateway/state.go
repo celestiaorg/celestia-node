@@ -72,7 +72,7 @@ func (h *Handler) handleBalanceRequest(w http.ResponseWriter, r *http.Request) {
 			}
 			addr = valAddr.Bytes()
 		}
-		bal, err = h.state.BalanceForAddress(r.Context(), addr)
+		bal, err = h.state.BalanceForAddress(r.Context(), state.Address{Address: addr})
 	} else {
 		bal, err = h.state.Balance(r.Context())
 	}
