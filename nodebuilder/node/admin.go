@@ -8,7 +8,7 @@ import (
 	logging "github.com/ipfs/go-log/v2"
 )
 
-const APIVersion = "v0.2.1"
+const APIVersion = "v0.2.0"
 
 type module struct {
 	tp Type
