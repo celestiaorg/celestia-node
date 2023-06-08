@@ -6,17 +6,16 @@ import (
 	"fmt"
 	"sync"
 
+	"cosmossdk.io/math"
 	"github.com/cosmos/cosmos-sdk/types"
 	logging "github.com/ipfs/go-log/v2"
 
 	"github.com/celestiaorg/celestia-app/pkg/appconsts"
 	"github.com/celestiaorg/celestia-app/pkg/shares"
-	apptypes "github.com/celestiaorg/celestia-app/x/blob/types"
 	"github.com/celestiaorg/nmt/namespace"
 
 	"github.com/celestiaorg/celestia-node/header"
 	"github.com/celestiaorg/celestia-node/share"
-	"github.com/celestiaorg/celestia-node/state"
 )
 
 var (
@@ -26,9 +25,16 @@ var (
 	log = logging.Logger("blob")
 )
 
+// Submitter is an interface that allows submitting blobs to the celestia-core. It is used to
+// avoid a circular dependency between the blob and the state package, since the state package needs
+// the blob.Blob type for this signature.
+type Submitter interface {
+	SubmitPayForBlob(ctx context.Context, fee math.Int, gasLim uint64, blobs []*Blob) (*types.TxResponse, error)
+}
+
 type Service struct {
 	// accessor dials the given celestia-core endpoint to submit blobs.
-	accessor *state.CoreAccessor
+	blobSumitter Submitter
 	// shareGetter retrieves the EDS to fetch all shares from the requested header.
 	shareGetter share.Getter
 	//  headerGetter fetches header by the provided height
@@ -36,12 +42,12 @@ type Service struct {
 }
 
 func NewService(
-	state *state.CoreAccessor,
+	submitter Submitter,
 	getter share.Getter,
 	headerGetter func(context.Context, uint64) (*header.ExtendedHeader, error),
 ) *Service {
 	return &Service{
-		accessor:     state,
+		blobSumitter: submitter,
 		shareGetter:  getter,
 		headerGetter: headerGetter,
 	}
@@ -56,14 +62,9 @@ func (s *Service) Submit(ctx context.Context, blobs []*Blob) (uint64, error) {
 	var (
 		gasLimit = estimateGas(blobs...)
 		fee      = int64(appconsts.DefaultMinGasPrice * float64(gasLimit))
-		b        = make([]*apptypes.Blob, len(blobs))
 	)
 
-	for i, blob := range blobs {
-		b[i] = &blob.Blob
-	}
-
-	resp, err := s.accessor.SubmitPayForBlob(ctx, types.NewInt(fee), gasLimit, b)
+	resp, err := s.blobSumitter.SubmitPayForBlob(ctx, types.NewInt(fee), gasLimit, blobs)
 	if err != nil {
 		return 0, err
 	}

@@ -2,8 +2,10 @@ package gateway
 
 import (
 	"bytes"
+	"encoding/hex"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"net/http"
 	"net/http/httptest"
 	"testing"
@@ -12,6 +14,7 @@ import (
 	"github.com/stretchr/testify/require"
 
 	stateMock "github.com/celestiaorg/celestia-node/nodebuilder/state/mocks"
+	"github.com/celestiaorg/celestia-node/share"
 	"github.com/celestiaorg/celestia-node/state"
 )
 
@@ -32,12 +35,20 @@ func TestHandleSubmitPFB(t *testing.T) {
 		mock.EXPECT().SubmitPayForBlob(gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any()).
 			Return(&txResponse, timedErr)
 
-		bs, err := json.Marshal(submitPFBRequest{})
+		ns, err := share.NewNamespaceV0([]byte("abc"))
+		require.NoError(t, err)
+		hexNs := hex.EncodeToString(ns[:])
+
+		bs, err := json.Marshal(submitPFBRequest{
+			NamespaceID: hexNs,
+			Data:        "DEADBEEF",
+		})
 		require.NoError(t, err)
 		httpreq := httptest.NewRequest("GET", "/", bytes.NewReader(bs))
 		respRec := httptest.NewRecorder()
 		handler.handleSubmitPFB(respRec, httpreq)
 
+		fmt.Println(respRec.Body.String())
 		var resp state.TxResponse
 		err = json.NewDecoder(respRec.Body).Decode(&resp)
 		require.NoError(t, err)

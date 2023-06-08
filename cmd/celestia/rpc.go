@@ -18,7 +18,6 @@ import (
 	"github.com/cosmos/cosmos-sdk/types"
 	"github.com/spf13/cobra"
 
-	apptypes "github.com/celestiaorg/celestia-app/x/blob/types"
 	"github.com/celestiaorg/nmt/namespace"
 
 	"github.com/celestiaorg/celestia-node/api/rpc/client"
@@ -190,12 +189,11 @@ func parseParams(method string, params []string) []interface{} {
 				panic("Error decoding blob: base64 string could not be decoded.")
 			}
 		}
-		parsedParams[2] = []*apptypes.Blob{{
-			NamespaceId:      nID[1:],
-			Data:             blobData,
-			ShareVersion:     0,
-			NamespaceVersion: 0,
-		}}
+		parsedBlob, err := blob.NewBlob(0, nID, blobData)
+		if err != nil {
+			panic(fmt.Sprintf("Error creating blob: %v", err))
+		}
+		parsedParams[2] = []*blob.Blob{parsedBlob}
 		return parsedParams[:3]
 	case "Get":
 		// 1. Height

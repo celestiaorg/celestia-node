@@ -8,11 +8,10 @@ import (
 	context "context"
 	reflect "reflect"
 
-	gomock "github.com/golang/mock/gomock"
-
 	header "github.com/celestiaorg/celestia-node/header"
 	header0 "github.com/celestiaorg/go-header"
 	sync "github.com/celestiaorg/go-header/sync"
+	gomock "github.com/golang/mock/gomock"
 )
 
 // MockModule is a mock of Module interface.
@@ -155,4 +154,19 @@ func (m *MockModule) SyncWait(arg0 context.Context) error {
 func (mr *MockModuleMockRecorder) SyncWait(arg0 interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "SyncWait", reflect.TypeOf((*MockModule)(nil).SyncWait), arg0)
+}
+
+// WaitForHeight mocks base method.
+func (m *MockModule) WaitForHeight(arg0 context.Context, arg1 uint64) (*header.ExtendedHeader, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "WaitForHeight", arg0, arg1)
+	ret0, _ := ret[0].(*header.ExtendedHeader)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// WaitForHeight indicates an expected call of WaitForHeight.
+func (mr *MockModuleMockRecorder) WaitForHeight(arg0, arg1 interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "WaitForHeight", reflect.TypeOf((*MockModule)(nil).WaitForHeight), arg0, arg1)
 }

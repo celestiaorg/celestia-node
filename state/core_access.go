@@ -21,10 +21,11 @@ import (
 	"google.golang.org/grpc/credentials/insecure"
 
 	"github.com/celestiaorg/celestia-app/app"
-	"github.com/celestiaorg/celestia-app/x/blob"
+	appblob "github.com/celestiaorg/celestia-app/x/blob"
 	apptypes "github.com/celestiaorg/celestia-app/x/blob/types"
 	libhead "github.com/celestiaorg/go-header"
 
+	"github.com/celestiaorg/celestia-node/blob"
 	"github.com/celestiaorg/celestia-node/header"
 )
 
@@ -159,17 +160,22 @@ func (ca *CoreAccessor) SubmitPayForBlob(
 	ctx context.Context,
 	fee Int,
 	gasLim uint64,
-	blobs []*apptypes.Blob,
+	blobs []*blob.Blob,
 ) (*TxResponse, error) {
 	if len(blobs) == 0 {
 		return nil, errors.New("state: no blobs provided")
 	}
 
-	response, err := blob.SubmitPayForBlob(
+	appblobs := make([]*apptypes.Blob, len(blobs))
+	for i, blob := range blobs {
+		appblobs[i] = &blob.Blob
+	}
+
+	response, err := appblob.SubmitPayForBlob(
 		ctx,
 		ca.signer,
 		ca.coreConn,
-		blobs,
+		appblobs,
 		apptypes.SetGasLimit(gasLim),
 		withFee(fee),
 	)
