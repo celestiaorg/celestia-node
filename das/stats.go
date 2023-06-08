@@ -34,7 +34,10 @@ type WorkerStats struct {
 func (s SamplingStats) totalSampled() uint64 {
 	var inProgress uint64
 	for _, w := range s.Workers {
-		inProgress += w.To - w.Curr + 1
+		// don't count recent jobs, since heights they are working on are after catchup head
+		if w.JobType != recentJob {
+			inProgress += w.To - w.Curr + 1
+		}
 	}
 	return s.CatchupHead - inProgress - uint64(len(s.Failed))
 }
