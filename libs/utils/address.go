@@ -32,7 +32,7 @@ func ValidateAddr(addr string) (string, error) {
 	if ip := net.ParseIP(addr); ip == nil {
 		addrs, err := net.LookupHost(addr)
 		if err != nil {
-			return addr, fmt.Errorf("could not resolve %v, err: %w", addr, err)
+			return addr, fmt.Errorf("could not resolve %v: %w", addr, err)
 		}
 		if len(addrs) == 0 {
 			return addr, fmt.Errorf("no IP addresses found for DNS record: %v", addr)
