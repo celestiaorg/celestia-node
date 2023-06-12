@@ -131,6 +131,18 @@ func init() {
 	}
 	addToExampleValues(addrInfo)
 
+	namespace, err := share.NewNamespaceV0([]byte{0x1, 0x2, 0x3, 0x4, 0x5, 0x6, 0x7, 0x8, 0x9, 0x10})
+	if err != nil {
+		panic(err)
+	}
+	addToExampleValues(namespace)
+
+	generatedBlob, err := blob.NewBlob(0, namespace, []byte("This is an example of some blob data"))
+	if err != nil {
+		panic(err)
+	}
+	addToExampleValues(generatedBlob)
+
 	proof := nmt.NewInclusionProof(0, 4, [][]byte{[]byte("test")}, true)
 	blobProof := &blob.Proof{&proof}
 	addToExampleValues(blobProof)
