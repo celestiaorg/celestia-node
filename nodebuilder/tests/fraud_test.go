@@ -69,9 +69,11 @@ func TestFraudProofBroadcasting(t *testing.T) {
 	err = full.Start(ctx)
 	require.NoError(t, err)
 
+	fullClient := getAdminClient(ctx, full, t)
+
 	// subscribe to fraud proof before node starts helps
 	// to prevent flakiness when fraud proof is propagating before subscribing on it
-	subscr, err := full.FraudServ.Subscribe(ctx, byzantine.BadEncoding)
+	subscr, err := fullClient.Fraud.Subscribe(ctx, byzantine.BadEncoding)
 	require.NoError(t, err)
 
 	select {
@@ -85,7 +87,7 @@ func TestFraudProofBroadcasting(t *testing.T) {
 	// FIXME: Eventually, this should be a check on service registry managing and keeping
 	//  lifecycles of each Module.
 	syncCtx, syncCancel := context.WithTimeout(context.Background(), btime)
-	_, err = full.HeaderServ.WaitForHeight(syncCtx, 100)
+	_, err = fullClient.Header.WaitForHeight(syncCtx, 100)
 	require.ErrorIs(t, err, context.DeadlineExceeded)
 	syncCancel()
 
@@ -94,7 +96,7 @@ func TestFraudProofBroadcasting(t *testing.T) {
 	full = sw.NewNodeWithStore(node.Full, store)
 
 	require.Error(t, full.Start(ctx))
-	proofs, err := full.FraudServ.Get(ctx, byzantine.BadEncoding)
+	proofs, err := fullClient.Fraud.Get(ctx, byzantine.BadEncoding)
 	require.NoError(t, err)
 	require.NotNil(t, proofs)
 	require.NoError(t, <-fillDn)
@@ -146,13 +148,15 @@ func TestFraudProofSyncing(t *testing.T) {
 	fullCfg.Share.UseShareExchange = false
 	fullCfg.Header.TrustedPeers = append(fullCfg.Header.TrustedPeers, addrs[0].String())
 	full := sw.NewNodeWithStore(node.Full, nodebuilder.MockStore(t, fullCfg))
+	fullClient := getAdminClient(ctx, full, t)
 
 	lightCfg := nodebuilder.DefaultConfig(node.Light)
 	lightCfg.Header.TrustedPeers = append(lightCfg.Header.TrustedPeers, addrs[0].String())
 	ln := sw.NewNodeWithStore(node.Light, nodebuilder.MockStore(t, lightCfg))
 	require.NoError(t, full.Start(ctx))
+	lightClient := getAdminClient(ctx, ln, t)
 
-	subsFN, err := full.FraudServ.Subscribe(ctx, byzantine.BadEncoding)
+	subsFN, err := fullClient.Fraud.Subscribe(ctx, byzantine.BadEncoding)
 	require.NoError(t, err)
 
 	select {
@@ -167,12 +171,12 @@ func TestFraudProofSyncing(t *testing.T) {
 
 	// internal subscription for the fraud proof is done in order to ensure that light node
 	// receives the BEFP.
-	subsLN, err := ln.FraudServ.Subscribe(ctx, byzantine.BadEncoding)
+	subsLN, err := lightClient.Fraud.Subscribe(ctx, byzantine.BadEncoding)
 	require.NoError(t, err)
 
 	// ensure that the full and light node are connected to speed up test
 	// alternatively, they would discover each other
-	err = ln.Host.Connect(ctx, *host.InfoFromHost(full.Host))
+	err = lightClient.P2P.Connect(ctx, *host.InfoFromHost(full.Host))
 	require.NoError(t, err)
 
 	select {

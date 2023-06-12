@@ -59,17 +59,18 @@ func TestFullReconstructFromBridge(t *testing.T) {
 	full := sw.NewNodeWithConfig(node.Full, cfg)
 	err = full.Start(ctx)
 	require.NoError(t, err)
+	fullClient := getAdminClient(ctx, full, t)
 
 	errg, bctx := errgroup.WithContext(ctx)
 	for i := 1; i <= blocks+1; i++ {
 		i := i
 		errg.Go(func() error {
-			h, err := full.HeaderServ.WaitForHeight(bctx, uint64(i))
+			h, err := fullClient.Header.WaitForHeight(bctx, uint64(i))
 			if err != nil {
 				return err
 			}
 
-			return full.ShareServ.SharesAvailable(bctx, h.DAH)
+			return fullClient.Share.SharesAvailable(bctx, h.DAH)
 		})
 	}
 	require.NoError(t, <-fillDn)
@@ -154,6 +155,7 @@ func TestFullReconstructFromLights(t *testing.T) {
 	}
 	require.NoError(t, errg.Wait())
 	require.NoError(t, full.Start(ctx))
+	fullClient := getAdminClient(ctx, full, t)
 	for i := 0; i < lnodes; i++ {
 		select {
 		case <-ctx.Done():
@@ -167,12 +169,12 @@ func TestFullReconstructFromLights(t *testing.T) {
 	for i := 1; i <= blocks+1; i++ {
 		i := i
 		errg.Go(func() error {
-			h, err := full.HeaderServ.WaitForHeight(bctx, uint64(i))
+			h, err := fullClient.Header.WaitForHeight(bctx, uint64(i))
 			if err != nil {
 				return err
 			}
 
-			return full.ShareServ.SharesAvailable(bctx, h.DAH)
+			return fullClient.Share.SharesAvailable(bctx, h.DAH)
 		})
 	}
 	require.NoError(t, <-fillDn)

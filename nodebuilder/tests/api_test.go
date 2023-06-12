@@ -124,6 +124,21 @@ func TestBlobRPC(t *testing.T) {
 	require.True(t, height != 0)
 }
 
+func getAdminClient(ctx context.Context, nd *nodebuilder.Node, t *testing.T) *client.Client {
+	t.Helper()
+
+	signer := nd.AdminSigner
+	listenAddr := "ws://" + nd.RPCServer.ListenAddr()
+
+	jwt, err := authtoken.NewSignedJWT(signer, []auth.Permission{"public", "read", "write", "admin"})
+	require.NoError(t, err)
+
+	client, err := client.NewClient(ctx, listenAddr, jwt)
+	require.NoError(t, err)
+
+	return client
+}
+
 // TestHeaderSubscription ensures that the header subscription over RPC works
 // as intended and gets canceled successfully after rpc context cancellation.
 func TestHeaderSubscription(t *testing.T) {
@@ -147,9 +162,11 @@ func TestHeaderSubscription(t *testing.T) {
 	err = light.Start(ctx)
 	require.NoError(t, err)
 
+	lightClient := getAdminClient(ctx, light, t)
+
 	// subscribe to headers via the light node's RPC header subscription
 	subctx, subcancel := context.WithCancel(ctx)
-	sub, err := light.HeaderServ.Subscribe(subctx)
+	sub, err := lightClient.Header.Subscribe(subctx)
 	require.NoError(t, err)
 	// listen for 5 headers
 	for i := 0; i < 5; i++ {

@@ -12,6 +12,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
+	"github.com/celestiaorg/celestia-node/api/rpc/client"
 	"github.com/celestiaorg/celestia-node/nodebuilder"
 	"github.com/celestiaorg/celestia-node/nodebuilder/node"
 	"github.com/celestiaorg/celestia-node/nodebuilder/tests/swamp"
@@ -41,11 +42,15 @@ func TestUseBridgeNodeAsBootstraper(t *testing.T) {
 
 	full := sw.NewFullNode(nodebuilder.WithBootstrappers([]peer.AddrInfo{*addr}))
 	light := sw.NewLightNode(nodebuilder.WithBootstrappers([]peer.AddrInfo{*addr}))
+
 	nodes := []*nodebuilder.Node{full, light}
 	for index := range nodes {
 		require.NoError(t, nodes[index].Start(ctx))
 		assert.Equal(t, *addr, nodes[index].Bootstrappers[0])
-		assert.True(t, nodes[index].Host.Network().Connectedness(addr.ID) == network.Connected)
+		client := getAdminClient(ctx, nodes[index], t)
+		connectedness, err := client.P2P.Connectedness(ctx, addr.ID)
+		require.NoError(t, err)
+		assert.Equal(t, network.Connected, connectedness)
 	}
 }
 
@@ -70,7 +75,8 @@ func TestAddPeerToBlackList(t *testing.T) {
 	addr := host.InfoFromHost(full.Host)
 	light := sw.NewLightNode()
 	require.NoError(t, light.Start(ctx))
-	require.NoError(t, light.ConnGater.BlockPeer(addr.ID))
+	lightClient := getAdminClient(ctx, light, t)
+	require.NoError(t, lightClient.P2P.BlockPeer(ctx, addr.ID))
 
 	require.True(t, full.ConnGater.InterceptPeerDial(host.InfoFromHost(light.Host).ID))
 	require.False(t, light.ConnGater.InterceptPeerDial(addr.ID))
@@ -120,6 +126,7 @@ func TestBootstrapNodesFromBridgeNode(t *testing.T) {
 		nodebuilder.WithBootstrappers([]peer.AddrInfo{*bridgeAddr}),
 	)
 	nodes := []*nodebuilder.Node{full, light}
+	clients := make([]*client.Client, len(nodes))
 	ch := make(chan struct{})
 	sub, err := light.Host.EventBus().Subscribe(&event.EvtPeerConnectednessChanged{})
 	require.NoError(t, err)
@@ -127,7 +134,11 @@ func TestBootstrapNodesFromBridgeNode(t *testing.T) {
 	for index := range nodes {
 		require.NoError(t, nodes[index].Start(ctx))
 		assert.Equal(t, *bridgeAddr, nodes[index].Bootstrappers[0])
-		assert.True(t, nodes[index].Host.Network().Connectedness(bridgeAddr.ID) == network.Connected)
+		client := getAdminClient(ctx, nodes[index], t)
+		clients[index] = client
+		connectedness, err := client.P2P.Connectedness(ctx, bridgeAddr.ID)
+		require.NoError(t, err)
+		assert.Equal(t, network.Connected, connectedness)
 	}
 	addrFull := host.InfoFromHost(full.Host)
 	go func() {
@@ -140,7 +151,10 @@ func TestBootstrapNodesFromBridgeNode(t *testing.T) {
 	}()
 
 	// ensure that the light node is connected to the full node
-	assert.True(t, light.Host.Network().Connectedness(addrFull.ID) == network.Connected)
+	lightClient := clients[1]
+	connectedness, err := lightClient.P2P.Connectedness(ctx, addrFull.ID)
+	assert.NoError(t, err)
+	assert.Equal(t, network.Connected, connectedness)
 
 	sw.Disconnect(t, light, full)
 	require.NoError(t, full.Stop(ctx))
@@ -148,7 +162,9 @@ func TestBootstrapNodesFromBridgeNode(t *testing.T) {
 	case <-ctx.Done():
 		t.Fatal("peer was not disconnected")
 	case <-ch:
-		assert.True(t, light.Host.Network().Connectedness(addrFull.ID) == network.NotConnected)
+		connectedness, err := lightClient.P2P.Connectedness(ctx, addrFull.ID)
+		assert.NoError(t, err)
+		assert.Equal(t, network.NotConnected, connectedness)
 	}
 }
 
@@ -182,21 +198,28 @@ func TestRestartNodeDiscovery(t *testing.T) {
 	bridgeAddr := host.InfoFromHost(bridge.Host)
 
 	nodes := make([]*nodebuilder.Node, fullNodes)
+	clients := make([]*client.Client, fullNodes)
 	cfg = nodebuilder.DefaultConfig(node.Full)
 	setTimeInterval(cfg, defaultTimeInterval)
 	cfg.Share.Discovery.PeersLimit = fullNodes
 	nodesConfig := nodebuilder.WithBootstrappers([]peer.AddrInfo{*bridgeAddr})
 	for index := 0; index < fullNodes; index++ {
 		nodes[index] = sw.NewNodeWithConfig(node.Full, cfg, nodesConfig)
+		require.NoError(t, nodes[index].Start(ctx))
+		clients[index] = getAdminClient(ctx, nodes[index], t)
 	}
 
+	// ensure full nodes are connected to the bridge node
 	for index := 0; index < fullNodes; index++ {
-		require.NoError(t, nodes[index].Start(ctx))
-		assert.True(t, nodes[index].Host.Network().Connectedness(bridgeAddr.ID) == network.Connected)
+		connectedness, err := clients[index].P2P.Connectedness(ctx, bridgeAddr.ID)
+		require.NoError(t, err)
+		require.Equal(t, network.Connected, connectedness)
 	}
 
 	// ensure full nodes are connected to each other
-	require.True(t, nodes[0].Host.Network().Connectedness(nodes[1].Host.ID()) == network.Connected)
+	connectedness, err := clients[0].P2P.Connectedness(ctx, nodes[1].Host.ID())
+	require.NoError(t, err)
+	require.Equal(t, network.Connected, connectedness)
 
 	// create one more node with disabled discovery
 	cfg = nodebuilder.DefaultConfig(node.Full)
@@ -210,7 +233,9 @@ func TestRestartNodeDiscovery(t *testing.T) {
 	require.NoError(t, node.Start(ctx))
 
 	// ensure that the last node is connected to one of the nodes
-	require.True(t, nodes[0].Host.Network().Connectedness(node.Host.ID()) == network.Connected)
+	connectedness, err = clients[0].P2P.Connectedness(ctx, node.Host.ID())
+	require.NoError(t, err)
+	require.Equal(t, network.Connected, connectedness)
 }
 
 func setTimeInterval(cfg *nodebuilder.Config, interval time.Duration) {

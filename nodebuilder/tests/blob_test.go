@@ -55,12 +55,15 @@ func TestBlobModule(t *testing.T) {
 	lightNode := sw.NewNodeWithConfig(node.Light, lightCfg)
 	require.NoError(t, lightNode.Start(ctx))
 
-	height, err := fullNode.BlobServ.Submit(ctx, blobs)
+	fullClient := getAdminClient(ctx, fullNode, t)
+	lightClient := getAdminClient(ctx, lightNode, t)
+
+	height, err := fullClient.Blob.Submit(ctx, blobs)
 	require.NoError(t, err)
 
-	_, err = fullNode.HeaderServ.WaitForHeight(ctx, height)
+	_, err = fullClient.Header.WaitForHeight(ctx, height)
 	require.NoError(t, err)
-	_, err = lightNode.HeaderServ.WaitForHeight(ctx, height)
+	_, err = lightClient.Header.WaitForHeight(ctx, height)
 	require.NoError(t, err)
 
 	var test = []struct {
@@ -70,7 +73,7 @@ func TestBlobModule(t *testing.T) {
 		{
 			name: "Get",
 			doFn: func(t *testing.T) {
-				blob1, err := fullNode.BlobServ.Get(ctx, height, blobs[0].Namespace(), blobs[0].Commitment)
+				blob1, err := fullClient.Blob.Get(ctx, height, blobs[0].Namespace(), blobs[0].Commitment)
 				require.NoError(t, err)
 				require.Equal(t, blobs[0], blob1)
 			},
@@ -88,10 +91,10 @@ func TestBlobModule(t *testing.T) {
 		{
 			name: "Included",
 			doFn: func(t *testing.T) {
-				proof, err := fullNode.BlobServ.GetProof(ctx, height, blobs[0].Namespace(), blobs[0].Commitment)
+				proof, err := fullClient.Blob.GetProof(ctx, height, blobs[0].Namespace(), blobs[0].Commitment)
 				require.NoError(t, err)
 
-				included, err := lightNode.BlobServ.Included(
+				included, err := lightClient.Blob.Included(
 					ctx,
 					height,
 					blobs[0].Namespace(),
@@ -114,10 +117,10 @@ func TestBlobModule(t *testing.T) {
 				)
 				require.NoError(t, err)
 
-				b, err := fullNode.BlobServ.Get(ctx, height, newBlob.Namespace(), newBlob.Commitment)
+				b, err := fullClient.Blob.Get(ctx, height, newBlob.Namespace(), newBlob.Commitment)
 				assert.Nil(t, b)
 				require.Error(t, err)
-				require.ErrorIs(t, err, blob.ErrBlobNotFound)
+				require.ErrorContains(t, err, blob.ErrBlobNotFound.Error())
 			},
 		},
 	}
