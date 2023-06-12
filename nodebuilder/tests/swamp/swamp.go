@@ -5,6 +5,7 @@ import (
 	"crypto/rand"
 	"fmt"
 	"net"
+	"sync"
 	"testing"
 	"time"
 
@@ -16,6 +17,7 @@ import (
 	ma "github.com/multiformats/go-multiaddr"
 	"github.com/stretchr/testify/require"
 	"go.uber.org/fx"
+	"golang.org/x/exp/maps"
 
 	"github.com/celestiaorg/celestia-app/test/util/testnode"
 	apptypes "github.com/celestiaorg/celestia-app/x/blob/types"
@@ -45,15 +47,15 @@ const DefaultTestTimeout = time.Minute * 5
 // - Slices of created Bridge/Full/Light Nodes
 // - trustedHash taken from the CoreClient and shared between nodes
 type Swamp struct {
-	t           *testing.T
-	Network     mocknet.Mocknet
-	BridgeNodes []*nodebuilder.Node
-	FullNodes   []*nodebuilder.Node
-	LightNodes  []*nodebuilder.Node
-	comps       *Config
+	t   *testing.T
+	cgf *Config
 
+	Network       mocknet.Mocknet
 	ClientContext testnode.Context
 	Accounts      []string
+
+	nodesMu sync.Mutex
+	nodes   map[*nodebuilder.Node]struct{}
 
 	genesis *header.ExtendedHeader
 }
@@ -69,37 +71,38 @@ func NewSwamp(t *testing.T, options ...Option) *Swamp {
 		option(ic)
 	}
 
-	ctx, cancel := context.WithCancel(context.Background())
-	t.Cleanup(cancel)
-
 	// Now, we are making an assumption that consensus mechanism is already tested out
 	// so, we are not creating bridge nodes with each one containing its own core client
 	// instead we are assigning all created BNs to 1 Core from the swamp
 	cctx := core.StartTestNodeWithConfig(t, ic.TestConfig)
 	swp := &Swamp{
 		t:             t,
+		cgf:           ic,
 		Network:       mocknet.New(),
 		ClientContext: cctx,
-		comps:         ic,
 		Accounts:      ic.Accounts,
+		nodes:         map[*nodebuilder.Node]struct{}{},
 	}
 
-	swp.t.Cleanup(func() {
-		swp.stopAllNodes(ctx, swp.BridgeNodes, swp.FullNodes, swp.LightNodes)
-	})
-
-	swp.setupGenesis(ctx)
+	swp.t.Cleanup(swp.cleanup)
+	swp.setupGenesis()
 	return swp
 }
 
-// stopAllNodes goes through all received slices of Nodes and stops one-by-one
-// this eliminates a manual clean-up in the test-cases itself in the end
-func (s *Swamp) stopAllNodes(ctx context.Context, allNodes ...[]*nodebuilder.Node) {
-	for _, nodes := range allNodes {
-		for _, node := range nodes {
-			require.NoError(s.t, node.Stop(ctx))
-		}
-	}
+// cleanup frees up all the resources
+// including stop of all created nodes
+func (s *Swamp) cleanup() {
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second)
+	defer cancel()
+
+	require.NoError(s.t, s.Network.Close())
+
+	s.nodesMu.Lock()
+	defer s.nodesMu.Unlock()
+	maps.DeleteFunc(s.nodes, func(nd *nodebuilder.Node, _ struct{}) bool {
+		require.NoError(s.t, nd.Stop(ctx))
+		return true
+	})
 }
 
 // GetCoreBlockHashByHeight returns a tendermint block's hash by provided height
@@ -158,7 +161,10 @@ func (s *Swamp) createPeer(ks keystore.Keystore) host.Host {
 
 // setupGenesis sets up genesis Header.
 // This is required to initialize and start correctly.
-func (s *Swamp) setupGenesis(ctx context.Context) {
+func (s *Swamp) setupGenesis() {
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second)
+	defer cancel()
+
 	// ensure core has surpassed genesis block
 	s.WaitTillHeight(ctx, 2)
 
@@ -180,7 +186,7 @@ func (s *Swamp) setupGenesis(ctx context.Context) {
 func (s *Swamp) DefaultTestConfig(tp node.Type) *nodebuilder.Config {
 	cfg := nodebuilder.DefaultConfig(tp)
 
-	ip, port, err := net.SplitHostPort(s.comps.App.GRPC.Address)
+	ip, port, err := net.SplitHostPort(s.cgf.App.GRPC.Address)
 	require.NoError(s.t, err)
 
 	cfg.Core.IP = ip
@@ -228,36 +234,28 @@ func (s *Swamp) NewNodeWithConfig(nodeType node.Type, cfg *nodebuilder.Config, o
 }
 
 // NewNodeWithStore creates a new instance of Node with predefined Store.
-// Afterwards, the instance is stored in the swamp's Nodes' slice according to the
-// node's type provided from the user.
 func (s *Swamp) NewNodeWithStore(
-	t node.Type,
+	tp node.Type,
 	store nodebuilder.Store,
 	options ...fx.Option,
 ) *nodebuilder.Node {
-	var n *nodebuilder.Node
-
 	signer := apptypes.NewKeyringSigner(s.ClientContext.Keyring, s.Accounts[0], s.ClientContext.ChainID)
 	options = append(options,
 		state.WithKeyringSigner(signer),
 	)
 
-	switch t {
+	switch tp {
 	case node.Bridge:
 		options = append(options,
 			coremodule.WithClient(s.ClientContext.Client),
 		)
-		n = s.newNode(node.Bridge, store, options...)
-		s.BridgeNodes = append(s.BridgeNodes, n)
-	case node.Full:
-		n = s.newNode(node.Full, store, options...)
-		s.FullNodes = append(s.FullNodes, n)
-	case node.Light:
-		n = s.newNode(node.Light, store, options...)
-		s.LightNodes = append(s.LightNodes, n)
 	}
 
-	return n
+	nd := s.newNode(tp, store, options...)
+	s.nodesMu.Lock()
+	s.nodes[nd] = struct{}{}
+	s.nodesMu.Unlock()
+	return nd
 }
 
 func (s *Swamp) newNode(t node.Type, store nodebuilder.Store, options ...fx.Option) *nodebuilder.Node {
@@ -284,43 +282,13 @@ func (s *Swamp) newNode(t node.Type, store nodebuilder.Store, options ...fx.Opti
 	return node
 }
 
-// RemoveNode removes a node from the swamp's node slice
-// this allows reusage of the same var in the test scenario
-// if the user needs to stop and start the same node
-func (s *Swamp) RemoveNode(n *nodebuilder.Node, t node.Type) error {
-	var err error
-	switch t {
-	case node.Light:
-		s.LightNodes, err = s.remove(n, s.LightNodes)
-		return err
-	case node.Bridge:
-		s.BridgeNodes, err = s.remove(n, s.BridgeNodes)
-		return err
-	case node.Full:
-		s.FullNodes, err = s.remove(n, s.FullNodes)
-		return err
-	default:
-		return fmt.Errorf("no such type or node")
-	}
-}
-
-func (s *Swamp) remove(rn *nodebuilder.Node, sn []*nodebuilder.Node) ([]*nodebuilder.Node, error) {
-	if len(sn) == 1 {
-		return nil, nil
-	}
-
-	initSize := len(sn)
-	for i := 0; i < len(sn); i++ {
-		if sn[i] == rn {
-			sn = append(sn[:i], sn[i+1:]...)
-			i--
-		}
-	}
-
-	if initSize <= len(sn) {
-		return sn, fmt.Errorf("cannot delete the node")
-	}
-	return sn, nil
+// StopNode stops the node and removes from Swamp.
+// TODO(@Wondertan): For clean and symmetrical API, we may want to add StartNode.
+func (s *Swamp) StopNode(ctx context.Context, nd *nodebuilder.Node) {
+	s.nodesMu.Lock()
+	delete(s.nodes, nd)
+	s.nodesMu.Unlock()
+	require.NoError(s.t, nd.Stop(ctx))
 }
 
 // Connect allows to connect peers after hard disconnection.
