@@ -249,6 +249,7 @@ func (s *Swamp) NewNodeWithStore(
 		options = append(options,
 			coremodule.WithClient(s.ClientContext.Client),
 		)
+	default:
 	}
 
 	nd := s.newNode(tp, store, options...)
