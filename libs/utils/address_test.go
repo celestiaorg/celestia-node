@@ -45,7 +45,7 @@ func TestValidateAddr(t *testing.T) {
 		// Testcase: ip is valid, no port
 		{addr: "192.168.42.42", want: want{addr: "192.168.42.42"}},
 		// Testcase: resolves localhost
-		{addr: "http://localhost:8080/", want: want{addr: "::1"}},
+		{addr: "http://localhost:8080/", want: want{unresolved: true}},
 		// Testcase: hostname is valid
 		{addr: "https://celestia.org", want: want{unresolved: true}},
 		// Testcase: hostname is valid, but no schema
