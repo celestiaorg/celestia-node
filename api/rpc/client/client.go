@@ -74,8 +74,7 @@ func NewClient(ctx context.Context, addr string, token string) (*Client, error) 
 func newClient(ctx context.Context, addr string, authHeader http.Header) (*Client, error) {
 	var multiCloser multiClientCloser
 	var client Client
-	modules := moduleMap(&client)
-	for name, module := range modules {
+	for name, module := range moduleMap(&client) {
 		closer, err := jsonrpc.NewClient(ctx, addr, name, module, authHeader)
 		if err != nil {
 			return nil, err
