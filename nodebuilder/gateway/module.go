@@ -21,7 +21,6 @@ func ConstructModule(tp node.Type, cfg *Config) fx.Option {
 	if !cfg.Enabled {
 		return fx.Options()
 	}
-	log.Warn("Many gateway endpoints will be deprecated in the next release. Please use the RPC instead.")
 
 	baseComponents := fx.Options(
 		fx.Supply(cfg),

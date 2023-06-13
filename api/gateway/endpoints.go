@@ -7,6 +7,7 @@ import (
 
 func (h *Handler) RegisterEndpoints(rpc *Server, deprecatedEndpointsEnabled bool) {
 	if deprecatedEndpointsEnabled {
+		log.Warn("Deprecated endpoints will be removed from the gateway in the next release. Use the RPC instead.")
 		// state endpoints
 		rpc.RegisterHandlerFunc(balanceEndpoint, h.handleBalanceRequest, http.MethodGet)
 		rpc.RegisterHandlerFunc(submitPFBEndpoint, h.handleSubmitPFB, http.MethodPost)
