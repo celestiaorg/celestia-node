@@ -23,7 +23,6 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/celestiaorg/celestia-app/pkg/wrapper"
-	"github.com/celestiaorg/nmt"
 	"github.com/celestiaorg/nmt/namespace"
 	"github.com/celestiaorg/rsmt2d"
 
@@ -357,7 +356,7 @@ func TestGetSharesWithProofsByNamespace(t *testing.T) {
 			for _, row := range eds.RowRoots() {
 				rcid := ipld.MustCidFromNamespacedSha256(row)
 				rowShares, proof, err := GetSharesByNamespace(ctx, bServ, rcid, nID, len(eds.RowRoots()))
-				if nID.Less(nmt.MinNamespace(row, nID.Size())) || !nID.LessOrEqual(nmt.MaxNamespace(row, nID.Size())) {
+				if ipld.NamespaceIsOutsideRange(row, row, nID) {
 					require.ErrorIs(t, err, ipld.ErrNamespaceOutsideRange)
 					continue
 				}
@@ -454,7 +453,7 @@ func assertNoRowContainsNID(
 	var abscentCount, foundAbsenceRows int
 	for _, rowRoot := range eds.RowRoots() {
 		var outsideRange bool
-		if !nID.Less(nmt.MinNamespace(rowRoot, nID.Size())) && nID.LessOrEqual(nmt.MaxNamespace(rowRoot, nID.Size())) {
+		if !ipld.NamespaceIsOutsideRange(rowRoot, rowRoot, nID) {
 			// nID does belong to namespace range of the row
 			abscentCount++
 		} else {

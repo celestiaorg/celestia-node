@@ -15,7 +15,6 @@ import (
 	"go.opentelemetry.io/otel/trace"
 	"golang.org/x/sync/errgroup"
 
-	"github.com/celestiaorg/nmt"
 	"github.com/celestiaorg/nmt/namespace"
 
 	"github.com/celestiaorg/celestia-node/libs/utils"
@@ -35,7 +34,7 @@ var (
 func filterRootsByNamespace(root *share.Root, nID namespace.ID) []cid.Cid {
 	rowRootCIDs := make([]cid.Cid, 0, len(root.RowRoots))
 	for _, row := range root.RowRoots {
-		if !nID.Less(nmt.MinNamespace(row, nID.Size())) && nID.LessOrEqual(nmt.MaxNamespace(row, nID.Size())) {
+		if !ipld.NamespaceIsOutsideRange(row, row, nID) {
 			rowRootCIDs = append(rowRootCIDs, ipld.MustCidFromNamespacedSha256(row))
 		}
 	}

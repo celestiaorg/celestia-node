@@ -246,9 +246,9 @@ type job struct {
 	isAbsent bool
 }
 
-func (j job) next(cid cid.Cid, isRight, isAbsent bool) job {
+func (j job) next(direction direction, cid cid.Cid, isAbsent bool) job {
 	var i int
-	if isRight {
+	if direction == right {
 		i++
 	}
 	return job{

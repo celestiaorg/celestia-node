@@ -80,7 +80,7 @@ func (n *NamespaceData) validate(rootCid cid.Cid) error {
 	}
 
 	root := NamespacedSha256FromCID(rootCid)
-	if targetIsOutsideRight(root, n.nID) || targetIsOutsideLeft(root, n.nID) {
+	if NamespaceIsOutsideRange(root, root, n.nID) {
 		return ErrNamespaceOutsideRange
 	}
 	return nil
@@ -290,7 +290,7 @@ func (n *NamespaceData) collectAbsenceProofs(j job, links []*ipld.Link) []job {
 	rightLink := links[1].Cid
 	// traverse to the left node, while collecting right node as proof
 	n.addProof(right, rightLink, j.depth)
-	return []job{j.next(leftLink, false, j.isAbsent)}
+	return []job{j.next(left, leftLink, j.isAbsent)}
 }
 
 func (n *NamespaceData) collectNDWithProofs(j job, links []*ipld.Link) []job {
@@ -300,46 +300,38 @@ func (n *NamespaceData) collectNDWithProofs(j job, links []*ipld.Link) []job {
 	rightLink := NamespacedSha256FromCID(rightCid)
 
 	var nextJobs []job
-	// check if target namespace is outside of boundaries for both links
-	if targetIsOutsideRight(rightLink, n.nID) || targetIsOutsideLeft(leftLink, n.nID) {
+	// check if target namespace is outside of boundaries of both links
+	if NamespaceIsOutsideRange(leftLink, rightLink, n.nID) {
 		if j.depth == 0 {
 			// target namespace is not present in the root namespaces range
 			n.isAbsentNamespace.Store(true)
 			return nil
 		}
-		log.Fatalf("target namespace outside of borders of links at depth: %v", j.depth)
+		log.Fatalf("target namespace outside of boundaries of links at depth: %v", j.depth)
 	}
 
-	if !targetIsOutsideRight(leftLink, n.nID) {
+	if !NamespaceIsAboveMax(leftLink, n.nID) {
 		// namespace is within the range of left link
-		nextJobs = append(nextJobs, j.next(leftCid, false, false))
+		nextJobs = append(nextJobs, j.next(left, leftCid, false))
 	} else {
 		// proof is on the left side, if the nID is on the right side of the range of left link
 		n.addProof(left, leftCid, j.depth)
-		if targetIsOutsideLeft(rightLink, n.nID) {
+		if NamespaceIsBelowMin(rightLink, n.nID) {
 			// namespace is not included in either links, convert to absence collector
 			n.isAbsentNamespace.Store(true)
-			nextJobs = append(nextJobs, j.next(rightCid, true, true))
+			nextJobs = append(nextJobs, j.next(right, rightCid, true))
 			return nextJobs
 		}
 	}
 
-	if !targetIsOutsideLeft(rightLink, n.nID) {
+	if !NamespaceIsBelowMin(rightLink, n.nID) {
 		// namespace is within the range of right link
-		nextJobs = append(nextJobs, j.next(rightCid, true, false))
+		nextJobs = append(nextJobs, j.next(right, rightCid, false))
 	} else {
-		// proof is on the left side, if the nID is on the left side of the range of right link
+		// proof is on the right side, if the nID is on the left side of the range of right link
 		n.addProof(right, rightCid, j.depth)
 	}
 	return nextJobs
-}
-
-func targetIsOutsideRight(nodeHash []byte, target namespace.ID) bool {
-	return !target.LessOrEqual(nmt.MaxNamespace(nodeHash, target.Size()))
-}
-
-func targetIsOutsideLeft(nodeHash []byte, target namespace.ID) bool {
-	return target.Less(nmt.MinNamespace(nodeHash, target.Size()))
 }
 
 type fetchedBounds struct {

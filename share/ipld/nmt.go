@@ -20,6 +20,7 @@ import (
 	"github.com/celestiaorg/celestia-app/pkg/appconsts"
 	"github.com/celestiaorg/celestia-app/pkg/da"
 	"github.com/celestiaorg/nmt"
+	"github.com/celestiaorg/nmt/namespace"
 )
 
 var (
@@ -180,4 +181,22 @@ func Translate(dah *da.DataAvailabilityHeader, row, col int) (cid.Cid, int) {
 // NamespacedSha256FromCID derives the Namespaced hash from the given CID.
 func NamespacedSha256FromCID(cid cid.Cid) []byte {
 	return cid.Hash()[cidPrefixSize:]
+}
+
+// NamespaceIsAboveMax checks if the target namespace is above the maximum namespace for a given
+// node hash.
+func NamespaceIsAboveMax(nodeHash []byte, target namespace.ID) bool {
+	return !target.LessOrEqual(nmt.MaxNamespace(nodeHash, target.Size()))
+}
+
+// NamespaceIsBelowMin checks if the target namespace is below the minimum namespace for a given
+// node hash.
+func NamespaceIsBelowMin(nodeHash []byte, target namespace.ID) bool {
+	return target.Less(nmt.MinNamespace(nodeHash, target.Size()))
+}
+
+// NamespaceIsOutsideRange checks if the target namespace is outside the range defined by the left
+// and right nodes
+func NamespaceIsOutsideRange(leftNodeHash, rightNodeHash []byte, target namespace.ID) bool {
+	return NamespaceIsBelowMin(leftNodeHash, target) || NamespaceIsAboveMax(rightNodeHash, target)
 }
