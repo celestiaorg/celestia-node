@@ -5,21 +5,31 @@ import (
 	"net/http"
 )
 
-func (h *Handler) RegisterEndpoints(rpc *Server) {
+func (h *Handler) RegisterEndpoints(rpc *Server, deprecatedEndpointsEnabled bool) {
+	if deprecatedEndpointsEnabled {
+		// state endpoints
+		rpc.RegisterHandlerFunc(balanceEndpoint, h.handleBalanceRequest, http.MethodGet)
+		rpc.RegisterHandlerFunc(submitPFBEndpoint, h.handleSubmitPFB, http.MethodPost)
+
+		// staking queries
+		rpc.RegisterHandlerFunc(fmt.Sprintf("%s/{%s}", queryDelegationEndpoint, addrKey), h.handleQueryDelegation,
+			http.MethodGet)
+		rpc.RegisterHandlerFunc(fmt.Sprintf("%s/{%s}", queryUnbondingEndpoint, addrKey), h.handleQueryUnbonding,
+			http.MethodGet)
+		rpc.RegisterHandlerFunc(queryRedelegationsEndpoint, h.handleQueryRedelegations,
+			http.MethodPost)
+
+		// DASer endpoints
+		// only register if DASer service is available
+		if h.das != nil {
+			rpc.RegisterHandlerFunc(dasStateEndpoint, h.handleDASStateRequest, http.MethodGet)
+		}
+	}
+
 	// state endpoints
-	rpc.RegisterHandlerFunc(balanceEndpoint, h.handleBalanceRequest, http.MethodGet)
 	rpc.RegisterHandlerFunc(fmt.Sprintf("%s/{%s}", balanceEndpoint, addrKey), h.handleBalanceRequest,
 		http.MethodGet)
 	rpc.RegisterHandlerFunc(submitTxEndpoint, h.handleSubmitTx, http.MethodPost)
-	rpc.RegisterHandlerFunc(submitPFBEndpoint, h.handleSubmitPFB, http.MethodPost)
-
-	// staking queries
-	rpc.RegisterHandlerFunc(fmt.Sprintf("%s/{%s}", queryDelegationEndpoint, addrKey), h.handleQueryDelegation,
-		http.MethodGet)
-	rpc.RegisterHandlerFunc(fmt.Sprintf("%s/{%s}", queryUnbondingEndpoint, addrKey), h.handleQueryUnbonding,
-		http.MethodGet)
-	rpc.RegisterHandlerFunc(queryRedelegationsEndpoint, h.handleQueryRedelegations,
-		http.MethodPost)
 
 	// share endpoints
 	rpc.RegisterHandlerFunc(fmt.Sprintf("%s/{%s}/height/{%s}", namespacedSharesEndpoint, nIDKey, heightKey),
@@ -39,10 +49,4 @@ func (h *Handler) RegisterEndpoints(rpc *Server) {
 	rpc.RegisterHandlerFunc(fmt.Sprintf("%s/{%s}", headerByHeightEndpoint, heightKey), h.handleHeaderRequest,
 		http.MethodGet)
 	rpc.RegisterHandlerFunc(headEndpoint, h.handleHeadRequest, http.MethodGet)
-
-	// DASer endpoints
-	// only register if DASer service is available
-	if h.das != nil {
-		rpc.RegisterHandlerFunc(dasStateEndpoint, h.handleDASStateRequest, http.MethodGet)
-	}
 }
