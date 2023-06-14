@@ -21,8 +21,6 @@ func ConstructModule(tp node.Type, cfg *Config) fx.Option {
 	if !cfg.Enabled {
 		return fx.Options()
 	}
-	// NOTE @distractedm1nd @renaynay: Remove whenever/if we decide to add auth to gateway
-	log.Warn("Gateway is enabled, however gateway endpoints are not authenticated. Use with caution!")
 
 	baseComponents := fx.Options(
 		fx.Supply(cfg),
@@ -50,12 +48,13 @@ func ConstructModule(tp node.Type, cfg *Config) fx.Option {
 			"gateway",
 			baseComponents,
 			fx.Invoke(func(
+				cfg *Config,
 				state stateServ.Module,
 				share shareServ.Module,
 				header headerServ.Module,
 				serv *gateway.Server,
 			) {
-				Handler(state, share, header, nil, serv)
+				Handler(cfg, state, share, header, nil, serv)
 			}),
 		)
 	default:

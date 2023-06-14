@@ -2,8 +2,6 @@ package core
 
 import (
 	"fmt"
-	"net"
-	"net/url"
 
 	"github.com/spf13/cobra"
 	flag "github.com/spf13/pflag"
@@ -40,7 +38,10 @@ func Flags() *flag.FlagSet {
 }
 
 // ParseFlags parses Core flags from the given cmd and saves them to the passed config.
-func ParseFlags(cmd *cobra.Command, cfg *Config) error {
+func ParseFlags(
+	cmd *cobra.Command,
+	cfg *Config,
+) error {
 	coreIP := cmd.Flag(coreFlag).Value.String()
 	if coreIP == "" {
 		if cmd.Flag(coreGRPCFlag).Changed || cmd.Flag(coreRPCFlag).Changed {
@@ -49,27 +50,11 @@ func ParseFlags(cmd *cobra.Command, cfg *Config) error {
 		return nil
 	}
 
-	ip := net.ParseIP(coreIP)
-	if ip == nil {
-		u, err := url.Parse(coreIP)
-		if err != nil {
-			return fmt.Errorf("failed to parse url: %w", err)
-		}
-		ips, err := net.LookupIP(u.Host)
-		if err != nil {
-			return fmt.Errorf("failed to resolve DNS record: %v", err)
-		}
-		if len(ips) == 0 {
-			return fmt.Errorf("no IP addresses found for DNS record")
-		}
-		ip = ips[0]
-	}
-
 	rpc := cmd.Flag(coreRPCFlag).Value.String()
 	grpc := cmd.Flag(coreGRPCFlag).Value.String()
 
-	cfg.IP = ip.String()
+	cfg.IP = coreIP
 	cfg.RPCPort = rpc
 	cfg.GRPCPort = grpc
-	return nil
+	return cfg.Validate()
 }
