@@ -2,8 +2,8 @@ package tests
 
 import (
 	"context"
-	"fmt"
 	"testing"
+	"time"
 
 	"github.com/filecoin-project/go-jsonrpc/auth"
 	"github.com/libp2p/go-libp2p/core/host"
@@ -19,6 +19,41 @@ import (
 	"github.com/celestiaorg/celestia-node/nodebuilder/tests/swamp"
 )
 
+func TestGetByHeight(t *testing.T) {
+	ctx, cancel := context.WithTimeout(context.Background(), swamp.DefaultTestTimeout)
+	t.Cleanup(cancel)
+
+	sw := swamp.NewSwamp(t, swamp.WithBlockTime(time.Second))
+
+	// start a bridge node
+	bridge := sw.NewBridgeNode()
+	err := bridge.Start(ctx)
+	require.NoError(t, err)
+
+	signer := bridge.AdminSigner
+	bridgeAddr := "http://" + bridge.RPCServer.ListenAddr()
+
+	jwt, err := authtoken.NewSignedJWT(signer, []auth.Permission{"public", "read", "write", "admin"})
+	require.NoError(t, err)
+
+	client, err := client.NewClient(ctx, bridgeAddr, jwt)
+	require.NoError(t, err)
+
+	// let a few blocks be produced
+	_, err = client.Header.WaitForHeight(ctx, 3)
+	require.NoError(t, err)
+
+	networkHead, err := client.Header.NetworkHead(ctx)
+	require.NoError(t, err)
+	_, err = client.Header.GetByHeight(ctx, uint64(networkHead.Height()+1))
+	require.Nil(t, err, "Requesting syncer.Head()+1 shouldn't return an error")
+
+	networkHead, err = client.Header.NetworkHead(ctx)
+	require.NoError(t, err)
+	_, err = client.Header.GetByHeight(ctx, uint64(networkHead.Height()+2))
+	require.ErrorContains(t, err, "given height is from the future")
+}
+
 // TestBlobRPC ensures that blobs can be submited via rpc
 func TestBlobRPC(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), swamp.DefaultTestTimeout)
@@ -33,7 +68,6 @@ func TestBlobRPC(t *testing.T) {
 
 	signer := bridge.AdminSigner
 	bridgeAddr := "http://" + bridge.RPCServer.ListenAddr()
-	fmt.Println("bridgeAddr: ", bridgeAddr)
 
 	jwt, err := authtoken.NewSignedJWT(signer, []auth.Permission{"public", "read", "write", "admin"})
 	require.NoError(t, err)
