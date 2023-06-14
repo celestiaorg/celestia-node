@@ -10,8 +10,8 @@ import (
 	"github.com/gorilla/mux"
 
 	"github.com/celestiaorg/celestia-app/pkg/appconsts"
-	apptypes "github.com/celestiaorg/celestia-app/x/blob/types"
 
+	"github.com/celestiaorg/celestia-node/blob"
 	"github.com/celestiaorg/celestia-node/state"
 )
 
@@ -72,8 +72,9 @@ func (h *Handler) handleBalanceRequest(w http.ResponseWriter, r *http.Request) {
 			}
 			addr = valAddr.Bytes()
 		}
-		bal, err = h.state.BalanceForAddress(r.Context(), addr)
+		bal, err = h.state.BalanceForAddress(r.Context(), state.Address{Address: addr})
 	} else {
+		logDeprecation(balanceEndpoint, "state.Balance")
 		bal, err = h.state.Balance(r.Context())
 	}
 	if err != nil {
@@ -122,6 +123,7 @@ func (h *Handler) handleSubmitTx(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *Handler) handleSubmitPFB(w http.ResponseWriter, r *http.Request) {
+	logDeprecation(submitPFBEndpoint, "blob.Submit or state.SubmitPayForBlob")
 	// decode request
 	var req submitPFBRequest
 	err := json.NewDecoder(r.Body).Decode(&req)
@@ -141,30 +143,37 @@ func (h *Handler) handleSubmitPFB(w http.ResponseWriter, r *http.Request) {
 	}
 	fee := types.NewInt(req.Fee)
 
-	blob := &apptypes.Blob{
-		NamespaceId:  nID,
-		Data:         data,
-		ShareVersion: uint32(appconsts.DefaultShareVersion),
+	constructedBlob, err := blob.NewBlob(appconsts.DefaultShareVersion, nID, data)
+	if err != nil {
+		writeError(w, http.StatusBadRequest, submitPFBEndpoint, err)
+		return
 	}
 
 	// perform request
-	txResp, err := h.state.SubmitPayForBlob(r.Context(), fee, req.GasLimit, blob)
+	txResp, txerr := h.state.SubmitPayForBlob(r.Context(), fee, req.GasLimit, []*blob.Blob{constructedBlob})
+	if txerr != nil && txResp == nil {
+		// no tx data to return
+		writeError(w, http.StatusInternalServerError, submitPFBEndpoint, err)
+	}
+
+	bs, err := json.Marshal(&txResp)
 	if err != nil {
 		writeError(w, http.StatusInternalServerError, submitPFBEndpoint, err)
 		return
 	}
-	resp, err := json.Marshal(txResp)
-	if err != nil {
-		writeError(w, http.StatusInternalServerError, submitPFBEndpoint, err)
-		return
+
+	// if error returned, change status from 200 to 206
+	if txerr != nil {
+		w.WriteHeader(http.StatusPartialContent)
 	}
-	_, err = w.Write(resp)
+	_, err = w.Write(bs)
 	if err != nil {
 		log.Errorw("writing response", "endpoint", submitPFBEndpoint, "err", err)
 	}
 }
 
 func (h *Handler) handleQueryDelegation(w http.ResponseWriter, r *http.Request) {
+	logDeprecation(queryDelegationEndpoint, "state.QueryDelegation")
 	// read and parse request
 	vars := mux.Vars(r)
 	addrStr, exists := vars[addrKey]
@@ -196,6 +205,7 @@ func (h *Handler) handleQueryDelegation(w http.ResponseWriter, r *http.Request) 
 }
 
 func (h *Handler) handleQueryUnbonding(w http.ResponseWriter, r *http.Request) {
+	logDeprecation(queryUnbondingEndpoint, "state.QueryUnbonding")
 	// read and parse request
 	vars := mux.Vars(r)
 	addrStr, exists := vars[addrKey]
@@ -227,6 +237,7 @@ func (h *Handler) handleQueryUnbonding(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *Handler) handleQueryRedelegations(w http.ResponseWriter, r *http.Request) {
+	logDeprecation(queryRedelegationsEndpoint, "state.QueryRedelegations")
 	var req queryRedelegationsRequest
 	err := json.NewDecoder(r.Body).Decode(&req)
 	if err != nil {
@@ -257,4 +268,9 @@ func (h *Handler) handleQueryRedelegations(w http.ResponseWriter, r *http.Reques
 	if err != nil {
 		log.Errorw("writing response", "endpoint", queryRedelegationsEndpoint, "err", err)
 	}
+}
+
+func logDeprecation(endpoint string, alternative string) {
+	log.Warn("The " + endpoint + " endpoint is deprecated and will be removed in the next release. Please " +
+		"use " + alternative + " from the RPC instead.")
 }

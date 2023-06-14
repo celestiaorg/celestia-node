@@ -2,12 +2,15 @@ package blob
 
 import (
 	"bytes"
+	"encoding/json"
 	"fmt"
 
 	appns "github.com/celestiaorg/celestia-app/pkg/namespace"
 	"github.com/celestiaorg/celestia-app/x/blob/types"
 	"github.com/celestiaorg/nmt"
 	"github.com/celestiaorg/nmt/namespace"
+
+	"github.com/celestiaorg/celestia-node/share/ipld"
 )
 
 // Commitment is a Merkle Root of the subtree built from shares of the Blob.
@@ -57,11 +60,47 @@ func (p Proof) equal(input Proof) error {
 	return nil
 }
 
+type jsonProof struct {
+	Start int      `json:"start"`
+	End   int      `json:"end"`
+	Nodes [][]byte `json:"nodes"`
+}
+
+func (p *Proof) MarshalJSON() ([]byte, error) {
+	proofs := make([]jsonProof, 0, p.Len())
+	for _, pp := range *p {
+		proofs = append(proofs, jsonProof{
+			Start: pp.Start(),
+			End:   pp.End(),
+			Nodes: pp.Nodes(),
+		})
+	}
+
+	return json.Marshal(proofs)
+}
+
+func (p *Proof) UnmarshalJSON(data []byte) error {
+	var proofs []jsonProof
+	err := json.Unmarshal(data, &proofs)
+	if err != nil {
+		return err
+	}
+
+	nmtProofs := make([]*nmt.Proof, len(proofs))
+	for i, jProof := range proofs {
+		nmtProof := nmt.NewInclusionProof(jProof.Start, jProof.End, jProof.Nodes, ipld.NMTIgnoreMaxNamespace)
+		nmtProofs[i] = &nmtProof
+	}
+
+	*p = nmtProofs
+	return nil
+}
+
 // Blob represents any application-specific binary data that anyone can submit to Celestia.
 type Blob struct {
-	types.Blob
+	types.Blob `json:"blob"`
 
-	Commitment Commitment
+	Commitment Commitment `json:"commitment"`
 }
 
 // NewBlob constructs a new blob from the provided namespace.ID and data.
@@ -90,4 +129,36 @@ func NewBlob(shareVersion uint8, namespace namespace.ID, data []byte) (*Blob, er
 // Namespace returns blob's namespace.
 func (b *Blob) Namespace() namespace.ID {
 	return append([]byte{uint8(b.NamespaceVersion)}, b.NamespaceId...)
+}
+
+type jsonBlob struct {
+	Namespace    namespace.ID `json:"namespace"`
+	Data         []byte       `json:"data"`
+	ShareVersion uint32       `json:"share_version"`
+	Commitment   Commitment   `json:"commitment"`
+}
+
+func (b *Blob) MarshalJSON() ([]byte, error) {
+	blob := &jsonBlob{
+		Namespace:    b.Namespace(),
+		Data:         b.Data,
+		ShareVersion: b.ShareVersion,
+		Commitment:   b.Commitment,
+	}
+	return json.Marshal(blob)
+}
+
+func (b *Blob) UnmarshalJSON(data []byte) error {
+	var blob jsonBlob
+	err := json.Unmarshal(data, &blob)
+	if err != nil {
+		return err
+	}
+
+	b.Blob.NamespaceVersion = uint32(blob.Namespace[0])
+	b.Blob.NamespaceId = blob.Namespace[1:]
+	b.Blob.Data = blob.Data
+	b.Blob.ShareVersion = blob.ShareVersion
+	b.Commitment = blob.Commitment
+	return nil
 }

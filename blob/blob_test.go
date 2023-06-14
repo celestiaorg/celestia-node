@@ -1,6 +1,7 @@
 package blob
 
 import (
+	"reflect"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -48,7 +49,7 @@ func TestBlob(t *testing.T) {
 					blob[0].Namespace()[appns.NamespaceVersionSize:],
 				)
 				require.NoError(t, err)
-				require.NoError(t, apptypes.ValidateBlobNamespaceID(ns))
+				require.NoError(t, apptypes.ValidateBlobNamespace(ns))
 			},
 		},
 		{
@@ -60,6 +61,17 @@ func TestBlob(t *testing.T) {
 				require.NoError(t, err)
 				assert.Equal(t, len(b), 1)
 				assert.Equal(t, blob[0].Commitment, b[0].Commitment)
+			},
+		},
+		{
+			name: "blob marshaling",
+			expectedRes: func(t *testing.T) {
+				data, err := blob[0].MarshalJSON()
+				require.NoError(t, err)
+
+				newBlob := &Blob{}
+				require.NoError(t, newBlob.UnmarshalJSON(data))
+				require.True(t, reflect.DeepEqual(blob[0], newBlob))
 			},
 		},
 	}

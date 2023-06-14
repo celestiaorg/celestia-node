@@ -5,8 +5,8 @@ import (
 	"errors"
 	"fmt"
 	"strings"
-	"time"
 
+	"github.com/cristalhq/jwt"
 	"github.com/ipfs/go-blockservice"
 	exchange "github.com/ipfs/go-ipfs-exchange-interface"
 	logging "github.com/ipfs/go-log/v2"
@@ -31,8 +31,6 @@ import (
 	"github.com/celestiaorg/celestia-node/nodebuilder/state"
 )
 
-var Timeout = time.Minute * 2
-
 var (
 	log   = logging.Logger("node")
 	fxLog = logging.Logger("fx")
@@ -51,6 +49,7 @@ type Node struct {
 	Network       p2p.Network
 	Bootstrappers p2p.Bootstrappers
 	Config        *Config
+	AdminSigner   jwt.Signer
 
 	// rpc components
 	RPCServer     *rpc.Server     // not optional
@@ -95,14 +94,15 @@ func NewWithConfig(tp node.Type, network p2p.Network, store Store, cfg *Config, 
 
 // Start launches the Node and all its components and services.
 func (n *Node) Start(ctx context.Context) error {
-	ctx, cancel := context.WithTimeout(ctx, Timeout)
+	to := n.Config.Node.StartupTimeout
+	ctx, cancel := context.WithTimeout(ctx, to)
 	defer cancel()
 
 	err := n.start(ctx)
 	if err != nil {
 		log.Debugf("error starting %s Node: %s", n.Type, err)
 		if errors.Is(err, context.DeadlineExceeded) {
-			return fmt.Errorf("node: failed to start within timeout(%s): %w", Timeout, err)
+			return fmt.Errorf("node: failed to start within timeout(%s): %w", to, err)
 		}
 		return fmt.Errorf("node: failed to start: %w", err)
 	}
@@ -140,14 +140,15 @@ func (n *Node) Run(ctx context.Context) error {
 // Canceling the given context earlier 'ctx' unblocks the Stop and aborts graceful shutdown forcing
 // remaining Modules/Services to close immediately.
 func (n *Node) Stop(ctx context.Context) error {
-	ctx, cancel := context.WithTimeout(ctx, Timeout)
+	to := n.Config.Node.ShutdownTimeout
+	ctx, cancel := context.WithTimeout(ctx, to)
 	defer cancel()
 
 	err := n.stop(ctx)
 	if err != nil {
 		log.Debugf("error stopping %s Node: %s", n.Type, err)
 		if errors.Is(err, context.DeadlineExceeded) {
-			return fmt.Errorf("node: failed to stop within timeout(%s): %w", Timeout, err)
+			return fmt.Errorf("node: failed to stop within timeout(%s): %w", to, err)
 		}
 		return fmt.Errorf("node: failed to stop: %w", err)
 	}

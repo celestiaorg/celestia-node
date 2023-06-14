@@ -21,6 +21,8 @@ func SetAllLoggers(level logging.LogLevel) {
 	_ = logging.SetLogLevel("net/identify", "ERROR")
 	_ = logging.SetLogLevel("shrex/nd", "WARN")
 	_ = logging.SetLogLevel("shrex/eds", "WARN")
+	_ = logging.SetLogLevel("dagstore", "WARN")
+	_ = logging.SetLogLevel("dagstore/upgrader", "WARN")
 	_ = logging.SetLogLevel("fx", "FATAL")
 }
 

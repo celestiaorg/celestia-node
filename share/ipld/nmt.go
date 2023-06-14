@@ -38,10 +38,6 @@ const (
 	// that contain an NMT node (inner and leaf nodes).
 	sha256NamespaceFlagged = 0x7701
 
-	// MaxSquareSize is currently the maximum size supported for unerasured data in
-	// rsmt2d.ExtendedDataSquare.
-	MaxSquareSize = appconsts.MaxSquareSize
-
 	// NamespaceSize is a system-wide size for NMT namespaces.
 	NamespaceSize = appconsts.NamespaceSize
 
@@ -63,6 +59,12 @@ const (
 	// IgnoreMaxNamespace defines whether the largest possible namespace.ID MAX_NID should be 'ignored'.
 	// If set to true, this allows for shorter proofs in particular use-cases.
 	NMTIgnoreMaxNamespace = true
+)
+
+var (
+	// MaxSquareSize is currently the maximum size supported for unerasured data in
+	// rsmt2d.ExtendedDataSquare.
+	MaxSquareSize = appconsts.SquareSizeUpperBound(appconsts.LatestVersion)
 )
 
 func init() {
