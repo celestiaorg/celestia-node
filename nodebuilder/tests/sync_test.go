@@ -9,8 +9,6 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"github.com/celestiaorg/celestia-node/nodebuilder"
-	"github.com/celestiaorg/celestia-node/nodebuilder/node"
 	"github.com/celestiaorg/celestia-node/nodebuilder/tests/swamp"
 )
 
@@ -66,8 +64,7 @@ func TestSyncAgainstBridge_NonEmptyChain(t *testing.T) {
 	t.Run("light sync against bridge", func(t *testing.T) {
 		// create a light node that is connected to the bridge node as
 		// a bootstrapper
-		cfg := nodebuilder.DefaultConfig(node.Light)
-		light := sw.NewNodeWithConfig(node.Light, cfg)
+		light := sw.NewLightNode()
 		// start light node and wait for it to sync 20 blocks
 		err = light.Start(ctx)
 		require.NoError(t, err)
@@ -86,9 +83,7 @@ func TestSyncAgainstBridge_NonEmptyChain(t *testing.T) {
 
 	t.Run("full sync against bridge", func(t *testing.T) {
 		// create a full node with bridge node as its bootstrapper
-		cfg := nodebuilder.DefaultConfig(node.Full)
-		full := sw.NewNodeWithConfig(node.Full, cfg)
-
+		full := sw.NewFullNode()
 		// let full node sync 20 blocks
 		err = full.Start(ctx)
 		require.NoError(t, err)
@@ -156,8 +151,7 @@ func TestSyncAgainstBridge_EmptyChain(t *testing.T) {
 	t.Run("light sync against bridge", func(t *testing.T) {
 		// create a light node that is connected to the bridge node as
 		// a bootstrapper
-		cfg := nodebuilder.DefaultConfig(node.Light)
-		light := sw.NewNodeWithConfig(node.Light, cfg)
+		light := sw.NewLightNode()
 		// start light node and wait for it to sync 20 blocks
 		err = light.Start(ctx)
 		require.NoError(t, err)
@@ -176,9 +170,7 @@ func TestSyncAgainstBridge_EmptyChain(t *testing.T) {
 
 	t.Run("full sync against bridge", func(t *testing.T) {
 		// create a full node with bridge node as its bootstrapper
-		cfg := nodebuilder.DefaultConfig(node.Full)
-		full := sw.NewNodeWithConfig(node.Full, cfg)
-
+		full := sw.NewFullNode()
 		// let full node sync 20 blocks
 		err = full.Start(ctx)
 		require.NoError(t, err)
@@ -232,9 +224,7 @@ func TestSyncStartStopLightWithBridge(t *testing.T) {
 	require.EqualValues(t, h.Commit.BlockID.Hash, sw.GetCoreBlockHashByHeight(ctx, numBlocks))
 
 	// create a light node and connect it to the bridge node as a bootstrapper
-	cfg := nodebuilder.DefaultConfig(node.Light)
-	light := sw.NewNodeWithConfig(node.Light, cfg)
-
+	light := sw.NewLightNode()
 	// start light node and let it sync to 20
 	err = light.Start(ctx)
 	require.NoError(t, err)
@@ -301,9 +291,7 @@ func TestSyncLightAgainstFull(t *testing.T) {
 	assert.EqualValues(t, h.Commit.BlockID.Hash, sw.GetCoreBlockHashByHeight(ctx, numBlocks))
 
 	// create a FN with BN as a trusted peer
-	cfg := nodebuilder.DefaultConfig(node.Full)
-	full := sw.NewNodeWithConfig(node.Full, cfg)
-
+	full := sw.NewFullNode()
 	// start FN and wait for it to sync up to head of BN
 	err = full.Start(ctx)
 	require.NoError(t, err)
@@ -318,8 +306,7 @@ func TestSyncLightAgainstFull(t *testing.T) {
 	sw.SetBootstrapper(t, full)
 
 	// create an LN with FN as a trusted peer
-	cfg = nodebuilder.DefaultConfig(node.Light)
-	light := sw.NewNodeWithConfig(node.Light, cfg)
+	light := sw.NewLightNode()
 
 	// ensure there is no direct connection between LN and BN so that
 	// LN relies only on FN for syncing
@@ -377,8 +364,7 @@ func TestSyncLightWithTrustedPeers(t *testing.T) {
 	require.NoError(t, err)
 
 	// create a FN with BN as trusted peer
-	cfg := nodebuilder.DefaultConfig(node.Full)
-	full := sw.NewNodeWithConfig(node.Full, cfg)
+	full := sw.NewFullNode()
 
 	// let FN sync to network head
 	err = full.Start(ctx)
@@ -390,8 +376,7 @@ func TestSyncLightWithTrustedPeers(t *testing.T) {
 	sw.SetBootstrapper(t, full)
 
 	// create a LN with both FN and BN as trusted peers
-	cfg = nodebuilder.DefaultConfig(node.Light)
-	light := sw.NewNodeWithConfig(node.Light, cfg)
+	light := sw.NewLightNode()
 
 	// let LN sync to network head
 	err = light.Start(ctx)
