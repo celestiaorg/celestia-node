@@ -24,7 +24,7 @@ on:
 jobs:
   # Dockerfile Linting
   hadolint:
-    uses: celestiaorg/.github/.github/workflows/reusable_dockerfile_lint.yml@v0.1.1 # yamllint disable-line rule:line-length
+    uses: celestiaorg/.github/.github/workflows/reusable_dockerfile_lint.yml@v0.2.0 # yamllint disable-line rule:line-length
     with:
       dockerfile: Dockerfile
 
@@ -32,7 +32,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v3
-      - uses: celestiaorg/.github/.github/actions/yamllint@v0.1.1
+      - uses: celestiaorg/.github/.github/actions/yamllint@v0.2.0
 
   markdown-lint:
     name: Markdown Lint
@@ -58,7 +58,7 @@ jobs:
     steps:
       - uses: actions/checkout@v3
       - name: Version Release
-        uses: celestiaorg/.github/.github/actions/version-release@v0.1.1
+        uses: celestiaorg/.github/.github/actions/version-release@v0.2.0
         with:
           github-token: ${{secrets.GITHUB_TOKEN}}
           version-bump: ${{inputs.version}}
