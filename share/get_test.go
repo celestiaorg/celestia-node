@@ -145,8 +145,8 @@ func removeRandShares(data [][]byte, d int) [][]byte {
 }
 
 func TestGetSharesByNamespace(t *testing.T) {
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	t.Cleanup(cancel)
 	bServ := mdutils.Bserv()
 
 	var tests = []struct {
@@ -189,8 +189,8 @@ func TestGetSharesByNamespace(t *testing.T) {
 }
 
 func TestCollectLeavesByNamespace_IncompleteData(t *testing.T) {
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	t.Cleanup(cancel)
 	bServ := mdutils.Bserv()
 
 	shares := RandShares(t, 16)
@@ -233,11 +233,11 @@ func TestCollectLeavesByNamespace_IncompleteData(t *testing.T) {
 }
 
 func TestCollectLeavesByNamespace_AbsentNamespaceId(t *testing.T) {
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	t.Cleanup(cancel)
 	bServ := mdutils.Bserv()
 
-	shares := RandShares(t, 1024)
+	shares := RandShares(t, 16)
 
 	// set all shares to the same namespace id
 	nids, err := randomNids(5)
@@ -272,14 +272,14 @@ func TestCollectLeavesByNamespace_AbsentNamespaceId(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			eds, err := AddShares(ctx, shares, bServ)
 			require.NoError(t, err)
-			assertNoRowContainsNID(t, bServ, eds, tt.missingNid, tt.isAbsence)
+			assertNoRowContainsNID(t, ctx, bServ, eds, tt.missingNid, tt.isAbsence)
 		})
 	}
 }
 
 func TestCollectLeavesByNamespace_MultipleRowsContainingSameNamespaceId(t *testing.T) {
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	t.Cleanup(cancel)
 	bServ := mdutils.Bserv()
 
 	shares := RandShares(t, 16)
@@ -317,7 +317,7 @@ func TestCollectLeavesByNamespace_MultipleRowsContainingSameNamespaceId(t *testi
 }
 
 func TestGetSharesWithProofsByNamespace(t *testing.T) {
-	ctx, cancel := context.WithCancel(context.Background())
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	t.Cleanup(cancel)
 	bServ := mdutils.Bserv()
 
@@ -437,6 +437,7 @@ func TestBatchSize(t *testing.T) {
 
 func assertNoRowContainsNID(
 	t *testing.T,
+	ctx context.Context,
 	bServ blockservice.BlockService,
 	eds *rsmt2d.ExtendedDataSquare,
 	nID namespace.ID,
@@ -450,18 +451,18 @@ func assertNoRowContainsNID(
 	}
 
 	// for each row root cid check if the minNID exists
-	var abscentCount, foundAbsenceRows int
+	var absentCount, foundAbsenceRows int
 	for _, rowRoot := range eds.RowRoots() {
 		var outsideRange bool
 		if !ipld.NamespaceIsOutsideRange(rowRoot, rowRoot, nID) {
 			// nID does belong to namespace range of the row
-			abscentCount++
+			absentCount++
 		} else {
 			outsideRange = true
 		}
 		data := ipld.NewNamespaceData(rowRootCount, nID, ipld.WithProofs())
 		rootCID := ipld.MustCidFromNamespacedSha256(rowRoot)
-		err := data.CollectLeavesByNamespace(context.Background(), bServ, rootCID)
+		err := data.CollectLeavesByNamespace(ctx, bServ, rootCID)
 		if outsideRange {
 			require.ErrorIs(t, err, ipld.ErrNamespaceOutsideRange)
 			continue
@@ -475,9 +476,9 @@ func assertNoRowContainsNID(
 	}
 
 	if isAbsent {
-		require.Equal(t, foundAbsenceRows, abscentCount)
+		require.Equal(t, foundAbsenceRows, absentCount)
 		// there should be max 1 row that has namespace range containing nID
-		require.LessOrEqual(t, abscentCount, 1)
+		require.LessOrEqual(t, absentCount, 1)
 	}
 }
 

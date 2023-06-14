@@ -302,11 +302,6 @@ func (n *NamespaceData) collectNDWithProofs(j job, links []*ipld.Link) []job {
 	var nextJobs []job
 	// check if target namespace is outside of boundaries of both links
 	if NamespaceIsOutsideRange(leftLink, rightLink, n.nID) {
-		if j.depth == 0 {
-			// target namespace is not present in the root namespaces range
-			n.isAbsentNamespace.Store(true)
-			return nil
-		}
 		log.Fatalf("target namespace outside of boundaries of links at depth: %v", j.depth)
 	}
 
