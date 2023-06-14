@@ -37,7 +37,8 @@ func newHeaderService(
 	sub libhead.Subscriber[*header.ExtendedHeader],
 	p2pServer *p2p.ExchangeServer[*header.ExtendedHeader],
 	ex libhead.Exchange[*header.ExtendedHeader],
-	store libhead.Store[*header.ExtendedHeader]) Module {
+	store libhead.Store[*header.ExtendedHeader],
+) Module {
 	return &Service{
 		syncer:    syncer,
 		sub:       sub,
@@ -66,7 +67,7 @@ func (s *Service) GetByHeight(ctx context.Context, height uint64) (*header.Exten
 		return nil, err
 	case uint64(head.Height()) == height:
 		return head, nil
-	case uint64(head.Height()) < height:
+	case uint64(head.Height())+1 < height:
 		return nil, fmt.Errorf("header: given height is from the future: "+
 			"networkHeight: %d, requestedHeight: %d", head.Height(), height)
 	}
