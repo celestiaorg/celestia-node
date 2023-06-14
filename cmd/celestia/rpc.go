@@ -5,7 +5,6 @@ import (
 	"encoding/base64"
 	"encoding/hex"
 	"encoding/json"
-	"errors"
 	"fmt"
 	"io"
 	"log"
@@ -15,10 +14,8 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/cosmos/cosmos-sdk/types"
 	"github.com/spf13/cobra"
 
-	apptypes "github.com/celestiaorg/celestia-app/x/blob/types"
 	"github.com/celestiaorg/nmt/namespace"
 
 	"github.com/celestiaorg/celestia-node/api/rpc/client"
@@ -138,6 +135,8 @@ func parseParams(method string, params []string) []interface{} {
 			blobData = decoded
 		case strings.HasPrefix(params[1], "\""):
 			// user input an utf string that needs to be encoded to base64
+			src := []byte(params[1])
+			blobData = make([]byte, base64.StdEncoding.EncodedLen(len(src)))
 			base64.StdEncoding.Encode(blobData, []byte(params[1]))
 		default:
 			// otherwise, we assume the user has already encoded their input to base64
@@ -178,6 +177,8 @@ func parseParams(method string, params []string) []interface{} {
 			blobData = decoded
 		case strings.HasPrefix(params[3], "\""):
 			// user input an utf string that needs to be encoded to base64
+			src := []byte(params[1])
+			blobData = make([]byte, base64.StdEncoding.EncodedLen(len(src)))
 			base64.StdEncoding.Encode(blobData, []byte(params[3]))
 		default:
 			// otherwise, we assume the user has already encoded their input to base64
@@ -186,12 +187,11 @@ func parseParams(method string, params []string) []interface{} {
 				panic("Error decoding blob: base64 string could not be decoded.")
 			}
 		}
-		parsedParams[2] = []*apptypes.Blob{{
-			NamespaceId:      nID[1:],
-			Data:             blobData,
-			ShareVersion:     0,
-			NamespaceVersion: 0,
-		}}
+		parsedBlob, err := blob.NewBlob(0, nID, blobData)
+		if err != nil {
+			panic(fmt.Sprintf("Error creating blob: %v", err))
+		}
+		parsedParams[2] = []*blob.Blob{parsedBlob}
 		return parsedParams[:3]
 	case "Get":
 		// 1. Height
@@ -390,18 +390,12 @@ func sendJSONRPCRequest(namespace, method string, params []interface{}) {
 }
 
 func parseAddressFromString(addrStr string) (state.Address, error) {
-	var addr state.AccAddress
-	addr, err := types.AccAddressFromBech32(addrStr)
+	var address state.Address
+	err := address.UnmarshalJSON([]byte(addrStr))
 	if err != nil {
-		// first check if it is a validator address and can be converted
-		valAddr, err := types.ValAddressFromBech32(addrStr)
-		if err != nil {
-			return nil, errors.New("address must be a valid account or validator address ")
-		}
-		return valAddr, nil
+		return address, err
 	}
-
-	return addr, nil
+	return address, nil
 }
 
 func parseSignatureForHelpstring(methodSig reflect.StructField) string {
