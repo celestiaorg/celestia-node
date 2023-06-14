@@ -5,7 +5,7 @@ import (
 	"time"
 )
 
-var DefaultLifecycleTimeout = time.Minute * 2
+var defaultLifecycleTimeout = time.Minute * 2
 
 type Config struct {
 	StartupTimeout  time.Duration
@@ -19,7 +19,7 @@ func DefaultConfig(tp Type) Config {
 	case Light:
 		timeout = time.Second * 20
 	default:
-		timeout = DefaultLifecycleTimeout
+		timeout = defaultLifecycleTimeout
 	}
 	return Config{
 		StartupTimeout:  timeout,
