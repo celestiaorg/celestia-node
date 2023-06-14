@@ -304,10 +304,12 @@ func TestSyncLightAgainstFull(t *testing.T) {
 	cfg := nodebuilder.DefaultConfig(node.Full)
 	full := sw.NewNodeWithConfig(node.Full, cfg)
 
-	// start FN and wait for it to sync up to BN
+	// start FN and wait for it to sync up to head of BN
 	err = full.Start(ctx)
 	require.NoError(t, err)
-	err = full.HeaderServ.SyncWait(ctx)
+	bridgeHead, err := bridge.HeaderServ.LocalHead(ctx)
+	require.NoError(t, err)
+	_, err = full.HeaderServ.WaitForHeight(ctx, uint64(bridgeHead.Height()))
 	require.NoError(t, err)
 
 	// reset suite bootstrapper list and set full node as a bootstrapper for
@@ -324,10 +326,12 @@ func TestSyncLightAgainstFull(t *testing.T) {
 	err = sw.Network.UnlinkPeers(bridge.Host.ID(), light.Host.ID())
 	require.NoError(t, err)
 
-	// start LN and wait for it to sync up to network head against the FN
+	// start LN and wait for it to sync up to network head against the head of the FN
 	err = light.Start(ctx)
 	require.NoError(t, err)
-	err = light.HeaderServ.SyncWait(ctx)
+	fullHead, err := full.HeaderServ.LocalHead(ctx)
+	require.NoError(t, err)
+	_, err = light.HeaderServ.WaitForHeight(ctx, uint64(fullHead.Height()))
 	require.NoError(t, err)
 
 	// wait for the core block filling process to exit
@@ -369,7 +373,7 @@ func TestSyncLightWithTrustedPeers(t *testing.T) {
 	// let it sync to network head
 	err := bridge.Start(ctx)
 	require.NoError(t, err)
-	err = bridge.HeaderServ.SyncWait(ctx)
+	_, err = bridge.HeaderServ.WaitForHeight(ctx, numBlocks)
 	require.NoError(t, err)
 
 	// create a FN with BN as trusted peer
