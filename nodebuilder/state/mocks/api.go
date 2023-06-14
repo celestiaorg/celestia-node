@@ -10,6 +10,7 @@ import (
 
 	math "cosmossdk.io/math"
 	blob "github.com/celestiaorg/celestia-node/blob"
+	state "github.com/celestiaorg/celestia-node/state"
 	types "github.com/cosmos/cosmos-sdk/types"
 	types0 "github.com/cosmos/cosmos-sdk/x/staking/types"
 	gomock "github.com/golang/mock/gomock"
@@ -40,10 +41,10 @@ func (m *MockModule) EXPECT() *MockModuleMockRecorder {
 }
 
 // AccountAddress mocks base method.
-func (m *MockModule) AccountAddress(arg0 context.Context) (types.Address, error) {
+func (m *MockModule) AccountAddress(arg0 context.Context) (state.Address, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "AccountAddress", arg0)
-	ret0, _ := ret[0].(types.Address)
+	ret0, _ := ret[0].(state.Address)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
@@ -70,7 +71,7 @@ func (mr *MockModuleMockRecorder) Balance(arg0 interface{}) *gomock.Call {
 }
 
 // BalanceForAddress mocks base method.
-func (m *MockModule) BalanceForAddress(arg0 context.Context, arg1 types.Address) (*types.Coin, error) {
+func (m *MockModule) BalanceForAddress(arg0 context.Context, arg1 state.Address) (*types.Coin, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "BalanceForAddress", arg0, arg1)
 	ret0, _ := ret[0].(*types.Coin)
