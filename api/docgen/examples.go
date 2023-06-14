@@ -83,6 +83,8 @@ func init() {
 	}
 	addToExampleValues(valAddr)
 
+	addToExampleValues(state.Address{Address: addr})
+
 	var txResponse *state.TxResponse
 	err = json.Unmarshal([]byte(exampleTxResponse), &txResponse)
 	if err != nil {
