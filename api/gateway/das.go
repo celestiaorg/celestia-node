@@ -10,6 +10,7 @@ const (
 )
 
 func (h *Handler) handleDASStateRequest(w http.ResponseWriter, r *http.Request) {
+	logDeprecation(dasStateEndpoint, "das.SamplingStats")
 	stats, err := h.das.SamplingStats(r.Context())
 	if err != nil {
 		writeError(w, http.StatusInternalServerError, dasStateEndpoint, err)

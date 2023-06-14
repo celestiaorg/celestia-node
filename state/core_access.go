@@ -194,9 +194,9 @@ func (ca *CoreAccessor) SubmitPayForBlob(
 func (ca *CoreAccessor) AccountAddress(context.Context) (Address, error) {
 	addr, err := ca.signer.GetSignerInfo().GetAddress()
 	if err != nil {
-		return nil, err
+		return Address{nil}, err
 	}
-	return addr, nil
+	return Address{addr}, nil
 }
 
 func (ca *CoreAccessor) Balance(ctx context.Context) (*Balance, error) {
@@ -204,7 +204,7 @@ func (ca *CoreAccessor) Balance(ctx context.Context) (*Balance, error) {
 	if err != nil {
 		return nil, err
 	}
-	return ca.BalanceForAddress(ctx, addr)
+	return ca.BalanceForAddress(ctx, Address{addr})
 }
 
 func (ca *CoreAccessor) BalanceForAddress(ctx context.Context, addr Address) (*Balance, error) {

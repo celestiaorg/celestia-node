@@ -72,8 +72,9 @@ func (h *Handler) handleBalanceRequest(w http.ResponseWriter, r *http.Request) {
 			}
 			addr = valAddr.Bytes()
 		}
-		bal, err = h.state.BalanceForAddress(r.Context(), addr)
+		bal, err = h.state.BalanceForAddress(r.Context(), state.Address{Address: addr})
 	} else {
+		logDeprecation(balanceEndpoint, "state.Balance")
 		bal, err = h.state.Balance(r.Context())
 	}
 	if err != nil {
@@ -122,6 +123,7 @@ func (h *Handler) handleSubmitTx(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *Handler) handleSubmitPFB(w http.ResponseWriter, r *http.Request) {
+	logDeprecation(submitPFBEndpoint, "blob.Submit or state.SubmitPayForBlob")
 	// decode request
 	var req submitPFBRequest
 	err := json.NewDecoder(r.Body).Decode(&req)
@@ -171,6 +173,7 @@ func (h *Handler) handleSubmitPFB(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *Handler) handleQueryDelegation(w http.ResponseWriter, r *http.Request) {
+	logDeprecation(queryDelegationEndpoint, "state.QueryDelegation")
 	// read and parse request
 	vars := mux.Vars(r)
 	addrStr, exists := vars[addrKey]
@@ -202,6 +205,7 @@ func (h *Handler) handleQueryDelegation(w http.ResponseWriter, r *http.Request) 
 }
 
 func (h *Handler) handleQueryUnbonding(w http.ResponseWriter, r *http.Request) {
+	logDeprecation(queryUnbondingEndpoint, "state.QueryUnbonding")
 	// read and parse request
 	vars := mux.Vars(r)
 	addrStr, exists := vars[addrKey]
@@ -233,6 +237,7 @@ func (h *Handler) handleQueryUnbonding(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *Handler) handleQueryRedelegations(w http.ResponseWriter, r *http.Request) {
+	logDeprecation(queryRedelegationsEndpoint, "state.QueryRedelegations")
 	var req queryRedelegationsRequest
 	err := json.NewDecoder(r.Body).Decode(&req)
 	if err != nil {
@@ -263,4 +268,9 @@ func (h *Handler) handleQueryRedelegations(w http.ResponseWriter, r *http.Reques
 	if err != nil {
 		log.Errorw("writing response", "endpoint", queryRedelegationsEndpoint, "err", err)
 	}
+}
+
+func logDeprecation(endpoint string, alternative string) {
+	log.Warn("The " + endpoint + " endpoint is deprecated and will be removed in the next release. Please " +
+		"use " + alternative + " from the RPC instead.")
 }
