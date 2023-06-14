@@ -59,7 +59,7 @@ func (f *fsKeystore) Put(n KeyName, pk PrivKey) error {
 func (f *fsKeystore) Get(n KeyName) (PrivKey, error) {
 	path := f.pathTo(n.Base32())
 
-	st, err := os.Stat(path)
+	_, err := os.Stat(path)
 	if err != nil {
 		if os.IsNotExist(err) {
 			return PrivKey{}, fmt.Errorf("%w: %s", ErrNotFound, n)
@@ -68,7 +68,7 @@ func (f *fsKeystore) Get(n KeyName) (PrivKey, error) {
 		return PrivKey{}, fmt.Errorf("keystore: check before reading key '%s' failed: %w", n, err)
 	}
 
-	if err := checkPerms(st.Mode()); err != nil {
+	if err := keyAccess(path); err != nil {
 		return PrivKey{}, fmt.Errorf("keystore: permissions of key '%s' are too relaxed: %w", n, err)
 	}
 
@@ -115,7 +115,7 @@ func (f *fsKeystore) List() ([]KeyName, error) {
 			return nil, err
 		}
 
-		if err := checkPerms(e.Type()); err != nil {
+		if err := keyAccess(f.pathTo(kn.Base32())); err != nil {
 			return nil, fmt.Errorf("keystore: permissions of key '%s' are too relaxed: %w", kn, err)
 		}
 
@@ -135,11 +135,4 @@ func (f *fsKeystore) Keyring() keyring.Keyring {
 
 func (f *fsKeystore) pathTo(file string) string {
 	return filepath.Join(f.path, file)
-}
-
-func checkPerms(perms os.FileMode) error {
-	if perms&0077 != 0 {
-		return fmt.Errorf("required: 0600, got: %#o", perms)
-	}
-	return nil
 }

@@ -1,6 +1,7 @@
 package nodebuilder
 
 import (
+	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -12,10 +13,11 @@ import (
 	"github.com/celestiaorg/celestia-app/app"
 	"github.com/celestiaorg/celestia-app/app/encoding"
 
-	"github.com/celestiaorg/celestia-node/libs/fslock"
 	"github.com/celestiaorg/celestia-node/libs/utils"
 	"github.com/celestiaorg/celestia-node/nodebuilder/node"
 	"github.com/celestiaorg/celestia-node/nodebuilder/state"
+
+	"github.com/danjacques/gofslock/fslock"
 )
 
 // PrintKeyringInfo whether to print keyring information during init.
@@ -37,12 +39,17 @@ func Init(cfg Config, path string, tp node.Type) error {
 
 	flock, err := fslock.Lock(lockPath(path))
 	if err != nil {
-		if err == fslock.ErrLocked {
+		if errors.Is(err, fslock.ErrLockHeld) {
 			return ErrOpened
 		}
 		return err
 	}
-	defer flock.Unlock() //nolint: errcheck
+	defer func() {
+		err = flock.Unlock()
+		if err != nil {
+			log.Debug("could not unlock config after init", "nodebuilder", err)
+		}
+	}()
 
 	ksPath := keysPath(path)
 	err = initDir(ksPath)
@@ -84,12 +91,17 @@ func Reset(path string, tp node.Type) error {
 
 	flock, err := fslock.Lock(lockPath(path))
 	if err != nil {
-		if err == fslock.ErrLocked {
+		if errors.Is(err, fslock.ErrLockHeld) {
 			return ErrOpened
 		}
 		return err
 	}
-	defer flock.Unlock() //nolint: errcheck
+	defer func() {
+		err = flock.Unlock()
+		if err != nil {
+			log.Debug("could not unlock config after init", "nodebuilder", err)
+		}
+	}()
 
 	err = resetDir(dataPath(path))
 	if err != nil {

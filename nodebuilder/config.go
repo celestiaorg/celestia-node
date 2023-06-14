@@ -1,13 +1,13 @@
 package nodebuilder
 
 import (
+	"errors"
 	"io"
 	"os"
 
 	"github.com/BurntSushi/toml"
 	"github.com/imdario/mergo"
 
-	"github.com/celestiaorg/celestia-node/libs/fslock"
 	"github.com/celestiaorg/celestia-node/nodebuilder/core"
 	"github.com/celestiaorg/celestia-node/nodebuilder/das"
 	"github.com/celestiaorg/celestia-node/nodebuilder/gateway"
@@ -17,6 +17,8 @@ import (
 	"github.com/celestiaorg/celestia-node/nodebuilder/rpc"
 	"github.com/celestiaorg/celestia-node/nodebuilder/share"
 	"github.com/celestiaorg/celestia-node/nodebuilder/state"
+
+	"github.com/danjacques/gofslock/fslock"
 )
 
 // ConfigLoader defines a function that loads a config from any source.
@@ -67,7 +69,13 @@ func SaveConfig(path string, cfg *Config) error {
 	if err != nil {
 		return err
 	}
-	defer f.Close()
+
+	defer func() {
+		err = f.Close()
+		if err != nil {
+			log.Debug("could not save config", "nodebuilder", err)
+		}
+	}()
 
 	return cfg.Encode(f)
 }
@@ -78,7 +86,13 @@ func LoadConfig(path string) (*Config, error) {
 	if err != nil {
 		return nil, err
 	}
-	defer f.Close()
+
+	defer func() {
+		err = f.Close()
+		if err != nil {
+			log.Debug("could not find config file", "nodebuilder", err)
+		}
+	}()
 
 	var cfg Config
 	return &cfg, cfg.Decode(f)
@@ -93,12 +107,17 @@ func RemoveConfig(path string) (err error) {
 
 	flock, err := fslock.Lock(lockPath(path))
 	if err != nil {
-		if err == fslock.ErrLocked {
+		if errors.Is(err, fslock.ErrLockHeld) {
 			err = ErrOpened
 		}
 		return
 	}
-	defer flock.Unlock() //nolint: errcheck
+	defer func() {
+		err = flock.Unlock()
+		if err != nil {
+			log.Debug("could not unlock config", "nodebuilder", err)
+		}
+	}()
 
 	return removeConfig(configPath(path))
 }
@@ -119,12 +138,17 @@ func UpdateConfig(tp node.Type, path string) (err error) {
 
 	flock, err := fslock.Lock(lockPath(path))
 	if err != nil {
-		if err == fslock.ErrLocked {
+		if errors.Is(err, fslock.ErrLockHeld) {
 			err = ErrOpened
 		}
 		return err
 	}
-	defer flock.Unlock() //nolint: errcheck
+	defer func() {
+		err = flock.Unlock()
+		if err != nil {
+			log.Debug("could not unlock config", "nodebuilder", err)
+		}
+	}()
 
 	newCfg := DefaultConfig(tp)
 

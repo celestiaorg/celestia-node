@@ -15,6 +15,7 @@ vendor
 .bak
 .idea/
 .vscode/
+.fleet/
 /celestia
 /cel-shed
 /cel-key

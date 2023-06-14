@@ -13,17 +13,18 @@ import (
 	"github.com/celestiaorg/celestia-app/app"
 	"github.com/celestiaorg/celestia-app/app/encoding"
 
-	"github.com/celestiaorg/celestia-node/libs/fslock"
 	"github.com/celestiaorg/celestia-node/nodebuilder/node"
+
+	"github.com/danjacques/gofslock/fslock"
 )
 
 func TestInit(t *testing.T) {
 	dir := t.TempDir()
 	nodes := []node.Type{node.Light, node.Bridge}
 
-	for _, node := range nodes {
-		cfg := DefaultConfig(node)
-		require.NoError(t, Init(*cfg, dir, node))
+	for _, currentNode := range nodes {
+		cfg := DefaultConfig(currentNode)
+		require.NoError(t, Init(*cfg, dir, currentNode))
 		assert.True(t, IsInit(dir))
 	}
 }
@@ -32,9 +33,9 @@ func TestInitErrForInvalidPath(t *testing.T) {
 	path := "/invalid_path"
 	nodes := []node.Type{node.Light, node.Bridge}
 
-	for _, node := range nodes {
-		cfg := DefaultConfig(node)
-		require.Error(t, Init(*cfg, path, node))
+	for _, currentNode := range nodes {
+		cfg := DefaultConfig(currentNode)
+		require.Error(t, Init(*cfg, path, currentNode))
 	}
 }
 
@@ -42,12 +43,21 @@ func TestIsInitWithBrokenConfig(t *testing.T) {
 	dir := t.TempDir()
 	f, err := os.Create(configPath(dir))
 	require.NoError(t, err)
-	defer f.Close()
-	//nolint:errcheck
-	f.Write([]byte(`
+	defer func() {
+		err = f.Close()
+		if err != nil {
+			log.Debug("could not close config file", "nodebuilder", err)
+		}
+	}()
+
+	_, err = f.Write([]byte(`
 		[P2P]
 		  ListenAddresses = [/ip4/0.0.0.0/tcp/2121]
-    `))
+	`))
+	if err != nil {
+		log.Debug("could not fix config", "nodebuilder", err)
+	}
+
 	assert.False(t, IsInit(dir))
 }
 
@@ -63,9 +73,9 @@ func TestInitErrForLockedDir(t *testing.T) {
 	defer flock.Unlock() //nolint:errcheck
 	nodes := []node.Type{node.Light, node.Bridge}
 
-	for _, node := range nodes {
-		cfg := DefaultConfig(node)
-		require.Error(t, Init(*cfg, dir, node))
+	for _, currentNode := range nodes {
+		cfg := DefaultConfig(currentNode)
+		require.Error(t, Init(*cfg, dir, currentNode))
 	}
 }
 

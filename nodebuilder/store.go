@@ -14,9 +14,10 @@ import (
 	dsbadger "github.com/ipfs/go-ds-badger4"
 	"github.com/mitchellh/go-homedir"
 
-	"github.com/celestiaorg/celestia-node/libs/fslock"
 	"github.com/celestiaorg/celestia-node/libs/keystore"
 	"github.com/celestiaorg/celestia-node/share"
+
+	"github.com/danjacques/gofslock/fslock"
 )
 
 var (
@@ -60,7 +61,7 @@ func OpenStore(path string, ring keyring.Keyring) (Store, error) {
 
 	flock, err := fslock.Lock(lockPath(path))
 	if err != nil {
-		if err == fslock.ErrLocked {
+		if errors.Is(err, fslock.ErrLockHeld) {
 			return nil, ErrOpened
 		}
 		return nil, err
@@ -141,12 +142,11 @@ func (f *fsStore) Close() (err error) {
 }
 
 type fsStore struct {
-	path string
-
+	path    string
 	dataMu  sync.Mutex
 	data    datastore.Batching
 	keys    keystore.Keystore
-	dirLock *fslock.Locker // protects directory
+	dirLock fslock.Handle // protects directory
 }
 
 func storePath(path string) (string, error) {
