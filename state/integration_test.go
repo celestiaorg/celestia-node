@@ -110,7 +110,7 @@ func (s *IntegrationTestSuite) TestGetBalance() {
 	require := s.Require()
 	expectedBal := sdk.NewCoin(app.BondDenom, sdk.NewInt(int64(99999999999999999)))
 	for _, acc := range s.accounts {
-		bal, err := s.accessor.BalanceForAddress(context.Background(), s.getAddress(acc))
+		bal, err := s.accessor.BalanceForAddress(context.Background(), Address{s.getAddress(acc)})
 		require.NoError(err)
 		require.Equal(&expectedBal, bal)
 	}
