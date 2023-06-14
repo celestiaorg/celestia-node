@@ -42,7 +42,7 @@ func Test_parseNamespaceID(t *testing.T) {
 				0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, // v0 ID prefix
 				0x01, 0x01, 0x01, 0x01, 0x01, 0x01, 0x01, 0x01, 0x01, 0x01, // namespace ID
 			},
-			wantErr: false,
+			wantErr: true,
 		},
 		{
 			name:    "11 byte hex encoded namespace ID returns error",
@@ -69,7 +69,7 @@ func Test_parseNamespaceID(t *testing.T) {
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
-			got, err := parseNamespaceID(tc.param)
+			got, err := parseV0NamespaceID(tc.param)
 			if tc.wantErr {
 				assert.Error(t, err)
 				return
