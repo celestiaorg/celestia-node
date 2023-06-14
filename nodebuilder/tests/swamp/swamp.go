@@ -48,7 +48,7 @@ const DefaultTestTimeout = time.Minute * 5
 // - trustedHash taken from the CoreClient and shared between nodes
 type Swamp struct {
 	t   *testing.T
-	cgf *Config
+	cfg *Config
 
 	Network       mocknet.Mocknet
 	ClientContext testnode.Context
@@ -77,7 +77,7 @@ func NewSwamp(t *testing.T, options ...Option) *Swamp {
 	cctx := core.StartTestNodeWithConfig(t, ic.TestConfig)
 	swp := &Swamp{
 		t:             t,
-		cgf:           ic,
+		cfg:           ic,
 		Network:       mocknet.New(),
 		ClientContext: cctx,
 		Accounts:      ic.Accounts,
@@ -186,7 +186,7 @@ func (s *Swamp) setupGenesis() {
 func (s *Swamp) DefaultTestConfig(tp node.Type) *nodebuilder.Config {
 	cfg := nodebuilder.DefaultConfig(tp)
 
-	ip, port, err := net.SplitHostPort(s.cgf.App.GRPC.Address)
+	ip, port, err := net.SplitHostPort(s.cfg.App.GRPC.Address)
 	require.NoError(s.t, err)
 
 	cfg.Core.IP = ip
