@@ -5,7 +5,6 @@ import (
 	"errors"
 	"fmt"
 	"strings"
-	"time"
 
 	"github.com/cristalhq/jwt"
 	"github.com/ipfs/go-blockservice"
@@ -95,7 +94,7 @@ func NewWithConfig(tp node.Type, network p2p.Network, store Store, cfg *Config, 
 
 // Start launches the Node and all its components and services.
 func (n *Node) Start(ctx context.Context) error {
-	to := timeout(n.Type)
+	to := n.Config.Node.StartupTimeout
 	ctx, cancel := context.WithTimeout(ctx, to)
 	defer cancel()
 
@@ -141,7 +140,7 @@ func (n *Node) Run(ctx context.Context) error {
 // Canceling the given context earlier 'ctx' unblocks the Stop and aborts graceful shutdown forcing
 // remaining Modules/Services to close immediately.
 func (n *Node) Stop(ctx context.Context) error {
-	to := timeout(n.Type)
+	to := n.Config.Node.ShutdownTimeout
 	ctx, cancel := context.WithTimeout(ctx, to)
 	defer cancel()
 
@@ -183,14 +182,3 @@ func newNode(opts ...fx.Option) (*Node, error) {
 
 // lifecycleFunc defines a type for common lifecycle funcs.
 type lifecycleFunc func(context.Context) error
-
-var DefaultLifecycleTimeout = time.Minute * 2
-
-func timeout(tp node.Type) time.Duration {
-	switch tp {
-	case node.Light:
-		return time.Second * 20
-	default:
-		return DefaultLifecycleTimeout
-	}
-}
