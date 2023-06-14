@@ -121,8 +121,7 @@ func TestSyncStartStopLightWithBridge(t *testing.T) {
 
 	require.EqualValues(t, h.Commit.BlockID.Hash, sw.GetCoreBlockHashByHeight(ctx, 30))
 
-	require.NoError(t, light.Stop(ctx))
-	require.NoError(t, sw.RemoveNode(light, node.Light))
+	sw.StopNode(ctx, light)
 
 	cfg = nodebuilder.DefaultConfig(node.Light)
 	cfg.Header.TrustedPeers = append(cfg.Header.TrustedPeers, addrs[0].String())

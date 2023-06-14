@@ -84,8 +84,7 @@ func TestFraudProofBroadcasting(t *testing.T) {
 	require.ErrorIs(t, err, context.DeadlineExceeded)
 	syncCancel()
 
-	require.NoError(t, full.Stop(ctx))
-	require.NoError(t, sw.RemoveNode(full, node.Full))
+	sw.StopNode(ctx, full)
 
 	full = sw.NewNodeWithStore(node.Full, store)
 
