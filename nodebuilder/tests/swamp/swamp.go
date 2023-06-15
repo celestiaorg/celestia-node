@@ -53,10 +53,6 @@ type Swamp struct {
 	Network       mocknet.Mocknet
 	Bootstrappers []ma.Multiaddr
 
-	BridgeNodes []*nodebuilder.Node
-	FullNodes   []*nodebuilder.Node
-	LightNodes  []*nodebuilder.Node
-
 	ClientContext testnode.Context
 	Accounts      []string
 
