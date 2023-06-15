@@ -13,11 +13,47 @@ import (
 	"github.com/celestiaorg/celestia-node/api/rpc/client"
 	"github.com/celestiaorg/celestia-node/blob"
 	"github.com/celestiaorg/celestia-node/blob/blobtest"
-	"github.com/celestiaorg/celestia-node/libs/authtoken"
 	"github.com/celestiaorg/celestia-node/nodebuilder"
 	"github.com/celestiaorg/celestia-node/nodebuilder/node"
 	"github.com/celestiaorg/celestia-node/nodebuilder/tests/swamp"
 )
+
+func TestNodeModule(t *testing.T) {
+	ctx, cancel := context.WithTimeout(context.Background(), swamp.DefaultTestTimeout)
+	t.Cleanup(cancel)
+
+	sw := swamp.NewSwamp(t, swamp.WithBlockTime(time.Second))
+	// start a bridge node
+	bridge := sw.NewBridgeNode()
+	err := bridge.Start(ctx)
+	require.NoError(t, err)
+
+	bridgeAddr := "http://" + bridge.RPCServer.ListenAddr()
+
+	writePerms := []auth.Permission{"public", "read", "write"}
+	adminPerms := []auth.Permission{"public", "read", "write", "admin"}
+	jwt, err := bridge.AdminServ.AuthNew(ctx, adminPerms)
+	require.NoError(t, err)
+
+	client, err := client.NewClient(ctx, bridgeAddr, jwt)
+	require.NoError(t, err)
+
+	info, err := client.Node.Info(ctx)
+	require.NoError(t, err)
+	require.Equal(t, info.APIVersion, node.APIVersion)
+
+	perms, err := client.Node.AuthVerify(ctx, jwt)
+	require.NoError(t, err)
+	require.Equal(t, perms, adminPerms)
+
+	writeJWT, err := client.Node.AuthNew(ctx, writePerms)
+	require.NoError(t, err)
+
+	perms, err = client.Node.AuthVerify(ctx, writeJWT)
+	require.NoError(t, err)
+	require.Equal(t, perms, writePerms)
+
+}
 
 func TestGetByHeight(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), swamp.DefaultTestTimeout)
@@ -30,12 +66,11 @@ func TestGetByHeight(t *testing.T) {
 	err := bridge.Start(ctx)
 	require.NoError(t, err)
 
-	signer := bridge.AdminSigner
-	bridgeAddr := "http://" + bridge.RPCServer.ListenAddr()
-
-	jwt, err := authtoken.NewSignedJWT(signer, []auth.Permission{"public", "read", "write", "admin"})
+	adminPerms := []auth.Permission{"public", "read", "write", "admin"}
+	jwt, err := bridge.AdminServ.AuthNew(ctx, adminPerms)
 	require.NoError(t, err)
 
+	bridgeAddr := "http://" + bridge.RPCServer.ListenAddr()
 	client, err := client.NewClient(ctx, bridgeAddr, jwt)
 	require.NoError(t, err)
 
@@ -66,12 +101,11 @@ func TestBlobRPC(t *testing.T) {
 	err := bridge.Start(ctx)
 	require.NoError(t, err)
 
-	signer := bridge.AdminSigner
-	bridgeAddr := "http://" + bridge.RPCServer.ListenAddr()
-
-	jwt, err := authtoken.NewSignedJWT(signer, []auth.Permission{"public", "read", "write", "admin"})
+	adminPerms := []auth.Permission{"public", "read", "write", "admin"}
+	jwt, err := bridge.AdminServ.AuthNew(ctx, adminPerms)
 	require.NoError(t, err)
 
+	bridgeAddr := "http://" + bridge.RPCServer.ListenAddr()
 	client, err := client.NewClient(ctx, bridgeAddr, jwt)
 	require.NoError(t, err)
 
