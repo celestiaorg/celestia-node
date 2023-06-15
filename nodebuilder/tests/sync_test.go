@@ -234,9 +234,7 @@ func TestSyncStartStopLightWithBridge(t *testing.T) {
 
 	sw.StopNode(ctx, light)
 
-	cfg = nodebuilder.DefaultConfig(node.Light)
-	cfg.Header.TrustedPeers = append(cfg.Header.TrustedPeers, addrs[0].String())
-	light = sw.NewNodeWithConfig(node.Light, cfg)
+	light = sw.NewLightNode()
 	require.NoError(t, light.Start(ctx))
 
 	// ensure when light node comes back up, it can sync the remainder of the chain it
