@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/cristalhq/jwt"
 	"github.com/ipfs/go-blockservice"
 	exchange "github.com/ipfs/go-ipfs-exchange-interface"
 	logging "github.com/ipfs/go-log/v2"
@@ -49,7 +48,6 @@ type Node struct {
 	Network       p2p.Network
 	Bootstrappers p2p.Bootstrappers
 	Config        *Config
-	AdminSigner   jwt.Signer
 
 	// rpc components
 	RPCServer     *rpc.Server     // not optional
@@ -70,6 +68,7 @@ type Node struct {
 	FraudServ  fraud.Module  // not optional
 	BlobServ   blob.Module   // not optional
 	DASer      das.Module    // not optional
+	AdminServ  node.Module   // not optional
 
 	// start and stop control ref internal fx.App lifecycle funcs to be called from Start and Stop
 	start, stop lifecycleFunc
