@@ -272,7 +272,7 @@ func TestCollectLeavesByNamespace_AbsentNamespaceId(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			eds, err := AddShares(ctx, shares, bServ)
 			require.NoError(t, err)
-			assertNoRowContainsNID(t, ctx, bServ, eds, tt.missingNid, tt.isAbsence)
+			assertNoRowContainsNID(ctx, t, bServ, eds, tt.missingNid, tt.isAbsence)
 		})
 	}
 }
@@ -436,8 +436,8 @@ func TestBatchSize(t *testing.T) {
 }
 
 func assertNoRowContainsNID(
-	t *testing.T,
 	ctx context.Context,
+	t *testing.T,
 	bServ blockservice.BlockService,
 	eds *rsmt2d.ExtendedDataSquare,
 	nID namespace.ID,
