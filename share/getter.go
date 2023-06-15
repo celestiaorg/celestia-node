@@ -10,6 +10,8 @@ import (
 	"github.com/celestiaorg/nmt"
 	"github.com/celestiaorg/nmt/namespace"
 	"github.com/celestiaorg/rsmt2d"
+
+	"github.com/celestiaorg/celestia-node/share/ipld"
 )
 
 var (
@@ -58,7 +60,7 @@ type NamespacedRow struct {
 func (ns NamespacedShares) Verify(root *Root, nID namespace.ID) error {
 	originalRoots := make([][]byte, 0)
 	for _, row := range root.RowRoots {
-		if !nID.Less(nmt.MinNamespace(row, nID.Size())) && nID.LessOrEqual(nmt.MaxNamespace(row, nID.Size())) {
+		if !ipld.NamespaceIsOutsideRange(row, row, nID) {
 			originalRoots = append(originalRoots, row)
 		}
 	}
