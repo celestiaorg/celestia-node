@@ -142,7 +142,7 @@ func TestBootstrapNodesFromBridgeNode(t *testing.T) {
 	// ensure that the light node is connected to the full node
 	assert.True(t, light.Host.Network().Connectedness(addrFull.ID) == network.Connected)
 
-	sw.Disconnect(t, light.Host.ID(), full.Host.ID())
+	sw.Disconnect(t, light, full)
 	require.NoError(t, full.Stop(ctx))
 	select {
 	case <-ctx.Done():
@@ -206,7 +206,7 @@ func TestRestartNodeDiscovery(t *testing.T) {
 	connectSub, err := nodes[0].Host.EventBus().Subscribe(&event.EvtPeerConnectednessChanged{})
 	require.NoError(t, err)
 	defer connectSub.Close()
-	sw.Disconnect(t, nodes[0].Host.ID(), nodes[1].Host.ID())
+	sw.Disconnect(t, nodes[0], nodes[1])
 	require.NoError(t, node.Start(ctx))
 
 	// ensure that the last node is connected to one of the nodes
