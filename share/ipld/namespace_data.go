@@ -2,7 +2,6 @@ package ipld
 
 import (
 	"context"
-	"encoding/hex"
 	"errors"
 	"fmt"
 	"sync"
@@ -15,11 +14,12 @@ import (
 	"go.opentelemetry.io/otel/codes"
 
 	"github.com/celestiaorg/nmt"
-	"github.com/celestiaorg/nmt/namespace"
+
+	"github.com/celestiaorg/celestia-node/share"
 )
 
 var ErrNamespaceOutsideRange = errors.New("share/ipld: " +
-	"target namespace id is outside of namespace range for the given root")
+	"target namespace is outside of namespace range for the given root")
 
 // Option is the functional option that is applied to the NamespaceData instance
 // to configure data that needs to be stored.
@@ -48,20 +48,20 @@ type NamespaceData struct {
 
 	bounds    fetchedBounds
 	maxShares int
-	nID       namespace.ID
+	namespace share.Namespace
 
 	isAbsentNamespace atomic.Bool
 	absenceProofLeaf  ipld.Node
 }
 
-func NewNamespaceData(maxShares int, nID namespace.ID, options ...Option) *NamespaceData {
+func NewNamespaceData(maxShares int, namespace share.Namespace, options ...Option) *NamespaceData {
 	data := &NamespaceData{
 		// we don't know where in the tree the leaves in the namespace are,
 		// so we keep track of the bounds to return the correct slice
 		// maxShares acts as a sentinel to know if we find any leaves
 		bounds:    fetchedBounds{int64(maxShares), 0},
 		maxShares: maxShares,
-		nID:       nID,
+		namespace: namespace,
 	}
 
 	for _, opt := range options {
@@ -71,8 +71,8 @@ func NewNamespaceData(maxShares int, nID namespace.ID, options ...Option) *Names
 }
 
 func (n *NamespaceData) validate(rootCid cid.Cid) error {
-	if len(n.nID) != NamespaceSize {
-		return fmt.Errorf("expected namespace ID of size %d, got %d", NamespaceSize, len(n.nID))
+	if err := n.namespace.Validate(); err != nil {
+		return err
 	}
 
 	if n.leaves == nil && n.proofs == nil {
@@ -80,7 +80,7 @@ func (n *NamespaceData) validate(rootCid cid.Cid) error {
 	}
 
 	root := NamespacedSha256FromCID(rootCid)
-	if NamespaceIsOutsideRange(root, root, n.nID) {
+	if n.namespace.IsOutsideRange(root, root) {
 		return ErrNamespaceOutsideRange
 	}
 	return nil
@@ -180,7 +180,7 @@ func (n *NamespaceData) Proof() *nmt.Proof {
 }
 
 // CollectLeavesByNamespace collects leaves and corresponding proof that could be used to verify
-// leaves inclusion. It returns as many leaves from the given root with the given namespace.ID as
+// leaves inclusion. It returns as many leaves from the given root with the given Namespace as
 // it can retrieve. If no shares are found, it returns error as nil. A
 // non-nil error means that only partial data is returned, because at least one share retrieval
 // failed. The following implementation is based on `GetShares`.
@@ -197,7 +197,7 @@ func (n *NamespaceData) CollectLeavesByNamespace(
 	defer span.End()
 
 	span.SetAttributes(
-		attribute.String("namespace", hex.EncodeToString(n.nID)),
+		attribute.String("namespace", n.namespace.String()),
 		attribute.String("root", root.String()),
 	)
 
@@ -245,7 +245,7 @@ func (n *NamespaceData) CollectLeavesByNamespace(
 					retrievalErr = err
 				})
 				log.Errorw("could not retrieve IPLD node",
-					"nID", hex.EncodeToString(n.nID),
+					"namespace", n.namespace.String(),
 					"pos", j.sharePos,
 					"err", err,
 				)
@@ -301,17 +301,17 @@ func (n *NamespaceData) collectNDWithProofs(j job, links []*ipld.Link) []job {
 
 	var nextJobs []job
 	// check if target namespace is outside of boundaries of both links
-	if NamespaceIsOutsideRange(leftLink, rightLink, n.nID) {
+	if n.namespace.IsOutsideRange(leftLink, rightLink) {
 		log.Fatalf("target namespace outside of boundaries of links at depth: %v", j.depth)
 	}
 
-	if !NamespaceIsAboveMax(leftLink, n.nID) {
+	if !n.namespace.IsAboveMax(leftLink) {
 		// namespace is within the range of left link
 		nextJobs = append(nextJobs, j.next(left, leftCid, false))
 	} else {
-		// proof is on the left side, if the nID is on the right side of the range of left link
+		// proof is on the left side, if the namespace is on the right side of the range of left link
 		n.addProof(left, leftCid, j.depth)
-		if NamespaceIsBelowMin(rightLink, n.nID) {
+		if n.namespace.IsBelowMin(rightLink) {
 			// namespace is not included in either links, convert to absence collector
 			n.isAbsentNamespace.Store(true)
 			nextJobs = append(nextJobs, j.next(right, rightCid, true))
@@ -319,11 +319,11 @@ func (n *NamespaceData) collectNDWithProofs(j job, links []*ipld.Link) []job {
 		}
 	}
 
-	if !NamespaceIsBelowMin(rightLink, n.nID) {
+	if !n.namespace.IsBelowMin(rightLink) {
 		// namespace is within the range of right link
 		nextJobs = append(nextJobs, j.next(right, rightCid, false))
 	} else {
-		// proof is on the right side, if the nID is on the left side of the range of right link
+		// proof is on the right side, if the namespace is on the left side of the range of right link
 		n.addProof(right, rightCid, j.depth)
 	}
 	return nextJobs

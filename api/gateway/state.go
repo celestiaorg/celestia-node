@@ -131,7 +131,7 @@ func (h *Handler) handleSubmitPFB(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusBadRequest, submitPFBEndpoint, err)
 		return
 	}
-	nID, err := hex.DecodeString(req.NamespaceID)
+	namespace, err := hex.DecodeString(req.NamespaceID)
 	if err != nil {
 		writeError(w, http.StatusBadRequest, submitPFBEndpoint, err)
 		return
@@ -143,7 +143,7 @@ func (h *Handler) handleSubmitPFB(w http.ResponseWriter, r *http.Request) {
 	}
 	fee := types.NewInt(req.Fee)
 
-	constructedBlob, err := blob.NewBlob(appconsts.DefaultShareVersion, nID, data)
+	constructedBlob, err := blob.NewBlob(appconsts.DefaultShareVersion, namespace, data)
 	if err != nil {
 		writeError(w, http.StatusBadRequest, submitPFBEndpoint, err)
 		return

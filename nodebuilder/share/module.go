@@ -176,7 +176,7 @@ func ConstructModule(tp node.Type, cfg *Config, options ...fx.Option) fx.Option 
 				}
 			}),
 			shrexGetterComponents,
-			fx.Invoke(share.EnsureEmptySquareExists),
+			fx.Invoke(ensureEmptyEDSInBS),
 			fx.Provide(getters.NewIPLDGetter),
 			fx.Provide(lightGetter),
 			// shrexsub broadcaster stub for daser

@@ -8,7 +8,6 @@ import (
 	"github.com/stretchr/testify/require"
 	"github.com/tendermint/tendermint/types"
 
-	appns "github.com/celestiaorg/celestia-app/pkg/namespace"
 	apptypes "github.com/celestiaorg/celestia-app/x/blob/types"
 
 	"github.com/celestiaorg/celestia-node/blob/blobtest"
@@ -42,12 +41,9 @@ func TestBlob(t *testing.T) {
 			},
 		},
 		{
-			name: "verify nID",
+			name: "verify namespace",
 			expectedRes: func(t *testing.T) {
-				ns, err := appns.New(
-					blob[0].Namespace()[appns.NamespaceVersionSize-1],
-					blob[0].Namespace()[appns.NamespaceVersionSize:],
-				)
+				ns := blob[0].Namespace().AsAppNamespace()
 				require.NoError(t, err)
 				require.NoError(t, apptypes.ValidateBlobNamespace(ns))
 			},

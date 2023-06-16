@@ -2,7 +2,6 @@ package getters
 
 import (
 	"context"
-	"encoding/hex"
 	"errors"
 	"fmt"
 	"time"
@@ -13,7 +12,6 @@ import (
 	"go.opentelemetry.io/otel/metric/instrument/syncint64"
 	"go.opentelemetry.io/otel/metric/unit"
 
-	"github.com/celestiaorg/nmt/namespace"
 	"github.com/celestiaorg/rsmt2d"
 
 	"github.com/celestiaorg/celestia-node/share"
@@ -181,15 +179,18 @@ func (sg *ShrexGetter) GetEDS(ctx context.Context, root *share.Root) (*rsmt2d.Ex
 func (sg *ShrexGetter) GetSharesByNamespace(
 	ctx context.Context,
 	root *share.Root,
-	id namespace.ID,
+	namespace share.Namespace,
 ) (share.NamespacedShares, error) {
+	if err := namespace.Validate(); err != nil {
+		return nil, err
+	}
 	var (
 		attempt int
 		err     error
 	)
 
 	// verify that the namespace could exist inside the roots before starting network requests
-	roots := filterRootsByNamespace(root, id)
+	roots := filterRootsByNamespace(root, namespace)
 	if len(roots) == 0 {
 		return nil, share.ErrNamespaceNotFound
 	}
@@ -205,7 +206,7 @@ func (sg *ShrexGetter) GetSharesByNamespace(
 		if getErr != nil {
 			log.Debugw("nd: couldn't find peer",
 				"hash", root.String(),
-				"nid", hex.EncodeToString(id),
+				"namespace", namespace.String(),
 				"err", getErr,
 				"finished (s)", time.Since(start))
 			sg.metrics.recordNDAttempt(ctx, attempt, false)
@@ -214,11 +215,11 @@ func (sg *ShrexGetter) GetSharesByNamespace(
 
 		reqStart := time.Now()
 		reqCtx, cancel := ctxWithSplitTimeout(ctx, sg.minAttemptsCount-attempt+1, sg.minRequestTimeout)
-		nd, getErr := sg.ndClient.RequestND(reqCtx, root, id, peer)
+		nd, getErr := sg.ndClient.RequestND(reqCtx, root, namespace, peer)
 		cancel()
 		switch {
 		case getErr == nil:
-			if getErr = nd.Verify(root, id); getErr != nil {
+			if getErr = nd.Verify(root, namespace); getErr != nil {
 				setStatus(peers.ResultBlacklistPeer)
 				break
 			}
@@ -247,7 +248,7 @@ func (sg *ShrexGetter) GetSharesByNamespace(
 		}
 		log.Debugw("nd: request failed",
 			"hash", root.String(),
-			"nid", hex.EncodeToString(id),
+			"namespace", namespace.String(),
 			"peer", peer.String(),
 			"attempt", attempt,
 			"err", getErr,

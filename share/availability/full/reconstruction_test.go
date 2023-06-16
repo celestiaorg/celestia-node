@@ -25,7 +25,7 @@ func init() {
 // data is available (reconstruct data square) while being connected to
 // light nodes only.
 func TestShareAvailable_OneFullNode(t *testing.T) {
-	// NOTE: Numbers are taken from the original 'Fraud and Data Availability Proofs' paper
+	// NOTE: Numbers are taken from the original 'Fraud and GetData Availability Proofs' paper
 	light.DefaultSampleAmount = 20 // s
 	const (
 		origSquareSize = 16 // k
@@ -79,7 +79,7 @@ func TestShareAvailable_OneFullNode(t *testing.T) {
 // source, full node must be able to finish the availability process started in
 // the beginning.
 func TestShareAvailable_ConnectedFullNodes(t *testing.T) {
-	// NOTE: Numbers are taken from the original 'Fraud and Data Availability Proofs' paper
+	// NOTE: Numbers are taken from the original 'Fraud and GetData Availability Proofs' paper
 	light.DefaultSampleAmount = 20 // s
 	const (
 		origSquareSize = 16 // k
@@ -177,7 +177,7 @@ func TestShareAvailable_DisconnectedFullNodes(t *testing.T) {
 	//    F└───┘F
 	//
 
-	// NOTE: Numbers are taken from the original 'Fraud and Data Availability Proofs' paper
+	// NOTE: Numbers are taken from the original 'Fraud and GetData Availability Proofs' paper
 	light.DefaultSampleAmount = 20 // s
 	const (
 		origSquareSize = 16 // k

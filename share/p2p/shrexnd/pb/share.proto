@@ -4,7 +4,7 @@ package share.p2p.shrex.nd;
 
 message GetSharesByNamespaceRequest{
   bytes root_hash = 1;
-  bytes namespace_id = 2;
+  bytes namespace = 2;
 }
 
 message GetSharesByNamespaceResponse{

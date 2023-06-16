@@ -9,12 +9,13 @@ import (
 	reflect "reflect"
 
 	math "cosmossdk.io/math"
-	blob "github.com/celestiaorg/celestia-node/blob"
-	state "github.com/celestiaorg/celestia-node/state"
 	types "github.com/cosmos/cosmos-sdk/types"
 	types0 "github.com/cosmos/cosmos-sdk/x/staking/types"
 	gomock "github.com/golang/mock/gomock"
 	types1 "github.com/tendermint/tendermint/types"
+
+	blob "github.com/celestiaorg/celestia-node/blob"
+	state "github.com/celestiaorg/celestia-node/state"
 )
 
 // MockModule is a mock of Module interface.
