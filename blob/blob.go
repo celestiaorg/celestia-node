@@ -3,13 +3,13 @@ package blob
 import (
 	"bytes"
 	"encoding/json"
-	"fmt"
 
-	appns "github.com/celestiaorg/celestia-app/pkg/namespace"
+	tmproto "github.com/tendermint/tendermint/proto/tendermint/types"
+
 	"github.com/celestiaorg/celestia-app/x/blob/types"
 	"github.com/celestiaorg/nmt"
-	"github.com/celestiaorg/nmt/namespace"
 
+	"github.com/celestiaorg/celestia-node/share"
 	"github.com/celestiaorg/celestia-node/share/ipld"
 )
 
@@ -101,41 +101,42 @@ type Blob struct {
 	types.Blob `json:"blob"`
 
 	Commitment Commitment `json:"commitment"`
+
+	// the celestia-node's namespace type
+	// this is to avoid converting to and from app's type
+	namespace share.Namespace
 }
 
-// NewBlob constructs a new blob from the provided namespace.ID and data.
-func NewBlob(shareVersion uint8, namespace namespace.ID, data []byte) (*Blob, error) {
-	if len(namespace) != appns.NamespaceSize {
-		return nil, fmt.Errorf("invalid size of the namespace id. got:%d, want:%d", len(namespace), appns.NamespaceSize)
-	}
-
-	ns, err := appns.New(namespace[appns.NamespaceVersionSize-1], namespace[appns.NamespaceVersionSize:])
-	if err != nil {
+// NewBlob constructs a new blob from the provided Namespace and data.
+func NewBlob(shareVersion uint8, namespace share.Namespace, data []byte) (*Blob, error) {
+	if err := namespace.ValidateBlobNamespace(); err != nil {
 		return nil, err
 	}
 
-	blob, err := types.NewBlob(ns, data, shareVersion)
-	if err != nil {
-		return nil, err
+	blob := tmproto.Blob{
+		NamespaceId:      namespace.ID(),
+		Data:             data,
+		ShareVersion:     uint32(shareVersion),
+		NamespaceVersion: uint32(namespace.Version()),
 	}
 
-	com, err := types.CreateCommitment(blob)
+	com, err := types.CreateCommitment(&blob)
 	if err != nil {
 		return nil, err
 	}
-	return &Blob{Blob: *blob, Commitment: com}, nil
+	return &Blob{Blob: blob, Commitment: com, namespace: namespace}, nil
 }
 
 // Namespace returns blob's namespace.
-func (b *Blob) Namespace() namespace.ID {
-	return append([]byte{uint8(b.NamespaceVersion)}, b.NamespaceId...)
+func (b *Blob) Namespace() share.Namespace {
+	return b.namespace
 }
 
 type jsonBlob struct {
-	Namespace    namespace.ID `json:"namespace"`
-	Data         []byte       `json:"data"`
-	ShareVersion uint32       `json:"share_version"`
-	Commitment   Commitment   `json:"commitment"`
+	Namespace    share.Namespace `json:"namespace"`
+	Data         []byte          `json:"data"`
+	ShareVersion uint32          `json:"share_version"`
+	Commitment   Commitment      `json:"commitment"`
 }
 
 func (b *Blob) MarshalJSON() ([]byte, error) {
@@ -155,10 +156,11 @@ func (b *Blob) UnmarshalJSON(data []byte) error {
 		return err
 	}
 
-	b.Blob.NamespaceVersion = uint32(blob.Namespace[0])
-	b.Blob.NamespaceId = blob.Namespace[1:]
+	b.Blob.NamespaceVersion = uint32(blob.Namespace.Version())
+	b.Blob.NamespaceId = blob.Namespace.ID()
 	b.Blob.Data = blob.Data
 	b.Blob.ShareVersion = blob.ShareVersion
 	b.Commitment = blob.Commitment
+	b.namespace = blob.Namespace
 	return nil
 }

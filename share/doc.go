@@ -4,7 +4,7 @@ block data.
 
 Though this package contains several useful methods for getting specific shares and/or
 sampling them at random, a particularly useful method is GetSharesByNamespace which retrieves
-all shares of block data of the given namespace.ID from the block associated with the given
+all shares of block data of the given Namespace from the block associated with the given
 DataAvailabilityHeader (DAH, but referred to as Root within this package).
 
 This package also contains declaration of the Availability interface. Implementations of

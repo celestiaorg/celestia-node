@@ -14,17 +14,15 @@ import (
 	"github.com/stretchr/testify/require"
 	tmrand "github.com/tendermint/tendermint/libs/rand"
 
-	"github.com/celestiaorg/celestia-app/pkg/appconsts"
-	appns "github.com/celestiaorg/celestia-app/pkg/namespace"
 	"github.com/celestiaorg/celestia-app/pkg/shares"
 	"github.com/celestiaorg/go-header/store"
-	"github.com/celestiaorg/nmt/namespace"
 
 	"github.com/celestiaorg/celestia-node/blob/blobtest"
 	"github.com/celestiaorg/celestia-node/header"
 	"github.com/celestiaorg/celestia-node/header/headertest"
 	"github.com/celestiaorg/celestia-node/share"
 	"github.com/celestiaorg/celestia-node/share/getters"
+	"github.com/celestiaorg/celestia-node/share/ipld"
 )
 
 func TestBlobService_Get(t *testing.T) {
@@ -71,9 +69,9 @@ func TestBlobService_Get(t *testing.T) {
 			},
 		},
 		{
-			name: "get all with the same nID",
+			name: "get all with the same namespace",
 			doFn: func() (interface{}, error) {
-				b, err := service.GetAll(ctx, 1, []namespace.ID{blobs1[0].Namespace()})
+				b, err := service.GetAll(ctx, 1, []share.Namespace{blobs1[0].Namespace()})
 				return b, err
 			},
 			expectedResult: func(res interface{}, err error) {
@@ -91,9 +89,9 @@ func TestBlobService_Get(t *testing.T) {
 			},
 		},
 		{
-			name: "get all with different nIDs",
+			name: "get all with different namespaces",
 			doFn: func() (interface{}, error) {
-				b, err := service.GetAll(ctx, 1, []namespace.ID{blobs0[0].Namespace(), blobs0[1].Namespace()})
+				b, err := service.GetAll(ctx, 1, []share.Namespace{blobs0[0].Namespace(), blobs0[1].Namespace()})
 				return b, err
 			},
 			expectedResult: func(res interface{}, err error) {
@@ -157,13 +155,13 @@ func TestBlobService_Get(t *testing.T) {
 				proof, ok := res.(*Proof)
 				assert.True(t, ok)
 
-				verifyFn := func(t *testing.T, rawShares [][]byte, proof *Proof, nID namespace.ID) {
+				verifyFn := func(t *testing.T, rawShares [][]byte, proof *Proof, namespace share.Namespace) {
 					for _, row := range header.DAH.RowRoots {
 						to := 0
 						for _, p := range *proof {
 							from := to
 							to = p.End() - p.Start() + from
-							eq := p.VerifyInclusion(sha256.New(), nID, rawShares[from:to], row)
+							eq := p.VerifyInclusion(sha256.New(), namespace.ToNMT(), rawShares[from:to], row)
 							if eq == true {
 								return
 							}
@@ -256,8 +254,8 @@ func TestBlobService_Get(t *testing.T) {
 		{
 			name: "get all not found",
 			doFn: func() (interface{}, error) {
-				nID := tmrand.Bytes(appconsts.NamespaceSize)
-				return service.GetAll(ctx, 1, []namespace.ID{nID})
+				namespace := share.Namespace(tmrand.Bytes(share.NamespaceSize))
+				return service.GetAll(ctx, 1, []share.Namespace{namespace})
 			},
 			expectedResult: func(i interface{}, err error) {
 				blobs, ok := i.([]*Blob)
@@ -297,7 +295,7 @@ func TestBlobService_Get(t *testing.T) {
 	}
 }
 
-// TestService_GetSingleBlobWithoutPadding creates two blobs with the same nID
+// TestService_GetSingleBlobWithoutPadding creates two blobs with the same namespace
 // But to satisfy the rule of eds creating, padding namespace share is placed between
 // blobs. Test ensures that blob service will skip padding share and return the correct blob.
 func TestService_GetSingleBlobWithoutPadding(t *testing.T) {
@@ -309,11 +307,7 @@ func TestService_GetSingleBlobWithoutPadding(t *testing.T) {
 	blobs, err := convertBlobs(appBlob...)
 	require.NoError(t, err)
 
-	ns1, err := appns.New(blobs[0].Namespace()[0], blobs[0].Namespace()[appns.NamespaceVersionSize:])
-	require.NoError(t, err)
-
-	ns2, err := appns.New(blobs[1].Namespace()[0], blobs[1].Namespace()[appns.NamespaceVersionSize:])
-	require.NoError(t, err)
+	ns1, ns2 := blobs[0].Namespace().AsAppNamespace(), blobs[1].Namespace().AsAppNamespace()
 
 	padding0, err := shares.NamespacePaddingShare(ns1)
 	require.NoError(t, err)
@@ -332,7 +326,7 @@ func TestService_GetSingleBlobWithoutPadding(t *testing.T) {
 	batching := ds_sync.MutexWrap(ds.NewMapDatastore())
 	headerStore, err := store.NewStore[*header.ExtendedHeader](batching)
 	require.NoError(t, err)
-	eds, err := share.AddShares(ctx, rawShares, bs)
+	eds, err := ipld.AddShares(ctx, rawShares, bs)
 	require.NoError(t, err)
 
 	h := headertest.ExtendedHeaderFromEDS(t, 1, eds)
@@ -358,17 +352,7 @@ func TestService_GetAllWithoutPadding(t *testing.T) {
 	blobs, err := convertBlobs(appBlob...)
 	require.NoError(t, err)
 
-	ns1, err := appns.New(
-		blobs[0].Namespace()[appns.NamespaceVersionSize-1],
-		blobs[0].Namespace()[appns.NamespaceVersionSize:],
-	)
-	require.NoError(t, err)
-
-	ns2, err := appns.New(
-		blobs[1].Namespace()[appns.NamespaceVersionSize-1],
-		blobs[1].Namespace()[appns.NamespaceVersionSize:],
-	)
-	require.NoError(t, err)
+	ns1, ns2 := blobs[0].Namespace().AsAppNamespace(), blobs[1].Namespace().AsAppNamespace()
 
 	padding0, err := shares.NamespacePaddingShare(ns1)
 	require.NoError(t, err)
@@ -393,7 +377,7 @@ func TestService_GetAllWithoutPadding(t *testing.T) {
 	batching := ds_sync.MutexWrap(ds.NewMapDatastore())
 	headerStore, err := store.NewStore[*header.ExtendedHeader](batching)
 	require.NoError(t, err)
-	eds, err := share.AddShares(ctx, rawShares, bs)
+	eds, err := ipld.AddShares(ctx, rawShares, bs)
 	require.NoError(t, err)
 
 	h := headertest.ExtendedHeaderFromEDS(t, 1, eds)
@@ -406,7 +390,7 @@ func TestService_GetAllWithoutPadding(t *testing.T) {
 
 	service := NewService(nil, getters.NewIPLDGetter(bs), fn)
 
-	_, err = service.GetAll(ctx, 1, []namespace.ID{blobs[0].Namespace(), blobs[1].Namespace()})
+	_, err = service.GetAll(ctx, 1, []share.Namespace{blobs[0].Namespace(), blobs[1].Namespace()})
 	require.NoError(t, err)
 }
 
@@ -417,7 +401,7 @@ func createService(ctx context.Context, t *testing.T, blobs []*Blob) *Service {
 	require.NoError(t, err)
 	rawShares, err := BlobsToShares(blobs...)
 	require.NoError(t, err)
-	eds, err := share.AddShares(ctx, rawShares, bs)
+	eds, err := ipld.AddShares(ctx, rawShares, bs)
 	require.NoError(t, err)
 
 	h := headertest.ExtendedHeaderFromEDS(t, 1, eds)

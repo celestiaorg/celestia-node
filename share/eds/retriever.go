@@ -256,7 +256,7 @@ func (rs *retrievalSession) doRequest(ctx context.Context, q *quadrant) {
 			// and go get shares of left or the right side of the whole col/row axis
 			// the left or the right side of the tree represent some portion of the quadrant
 			// which we put into the rs.square share-by-share by calculating shares' indexes using q.index
-			share.GetShares(ctx, rs.bget, nd.Links()[q.x].Cid, size, func(j int, share share.Share) {
+			ipld.GetShares(ctx, rs.bget, nd.Links()[q.x].Cid, size, func(j int, share share.Share) {
 				// NOTE: Each share can appear twice here, for a Row and Col, respectively.
 				// These shares are always equal, and we allow only the first one to be written
 				// in the square.

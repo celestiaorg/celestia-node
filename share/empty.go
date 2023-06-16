@@ -2,10 +2,7 @@ package share
 
 import (
 	"bytes"
-	"context"
 	"fmt"
-
-	"github.com/ipfs/go-blockservice"
 
 	"github.com/celestiaorg/celestia-app/pkg/appconsts"
 	"github.com/celestiaorg/celestia-app/pkg/da"
@@ -13,19 +10,37 @@ import (
 	"github.com/celestiaorg/rsmt2d"
 )
 
+// EmptyRoot returns Root of the empty block EDS.
+func EmptyRoot() *Root {
+	return emptyBlockRoot
+}
+
+// EmptyExtendedDataSquare returns the EDS of the empty block data square.
+func EmptyExtendedDataSquare() *rsmt2d.ExtendedDataSquare {
+	return emptyBlockEDS
+}
+
+// EmptyBlockShares returns the shares of the empty block.
+func EmptyBlockShares() []Share {
+	return emptyBlockShares
+}
+
 var (
-	emptyRoot *Root
-	emptyEDS  *rsmt2d.ExtendedDataSquare
+	emptyBlockRoot   *Root
+	emptyBlockEDS    *rsmt2d.ExtendedDataSquare
+	emptyBlockShares []Share
 )
 
 func init() {
 	// compute empty block EDS and DAH for it
-	shares := emptyDataSquare()
-	eds, err := da.ExtendShares(shares)
+	result := shares.TailPaddingShares(appconsts.MinShareCount)
+	emptyBlockShares = shares.ToBytes(result)
+
+	eds, err := da.ExtendShares(emptyBlockShares)
 	if err != nil {
 		panic(fmt.Errorf("failed to create empty EDS: %w", err))
 	}
-	emptyEDS = eds
+	emptyBlockEDS = eds
 
 	dah := da.NewDataAvailabilityHeader(eds)
 	minDAH := da.MinDataAvailabilityHeader()
@@ -33,33 +48,8 @@ func init() {
 		panic(fmt.Sprintf("mismatch in calculated minimum DAH and minimum DAH from celestia-app, "+
 			"expected %s, got %s", minDAH.String(), dah.String()))
 	}
-	emptyRoot = &dah
+	emptyBlockRoot = &dah
 
 	// precompute Hash, so it's cached internally to avoid potential races
-	emptyRoot.Hash()
-}
-
-// EmptyRoot returns Root of an empty EDS.
-func EmptyRoot() *Root {
-	return emptyRoot
-}
-
-// EnsureEmptySquareExists checks if the given DAG contains an empty block data square.
-// If it does not, it stores an empty block. This optimization exists to prevent
-// redundant storing of empty block data so that it is only stored once and returned
-// upon request for a block with an empty data square. Ref: header/constructors.go#L56
-func EnsureEmptySquareExists(ctx context.Context, bServ blockservice.BlockService) (*rsmt2d.ExtendedDataSquare, error) {
-	shares := emptyDataSquare()
-	return AddShares(ctx, shares, bServ)
-}
-
-// EmptyExtendedDataSquare returns the EDS of the empty block data square.
-func EmptyExtendedDataSquare() *rsmt2d.ExtendedDataSquare {
-	return emptyEDS
-}
-
-// emptyDataSquare returns the minimum size data square filled with tail padding.
-func emptyDataSquare() [][]byte {
-	result := shares.TailPaddingShares(appconsts.MinShareCount)
-	return shares.ToBytes(result)
+	emptyBlockRoot.Hash()
 }

@@ -12,8 +12,8 @@ import (
 
 	"github.com/celestiaorg/celestia-app/pkg/da"
 
-	"github.com/celestiaorg/celestia-node/share"
 	"github.com/celestiaorg/celestia-node/share/ipld"
+	"github.com/celestiaorg/celestia-node/share/sharetest"
 )
 
 func TestGetProof(t *testing.T) {
@@ -23,8 +23,8 @@ func TestGetProof(t *testing.T) {
 	defer cancel()
 	bServ := mdutils.Bserv()
 
-	shares := share.RandShares(t, width*width)
-	in, err := share.AddShares(ctx, shares, bServ)
+	shares := sharetest.RandShares(t, width*width)
+	in, err := ipld.AddShares(ctx, shares, bServ)
 	require.NoError(t, err)
 
 	dah := da.NewDataAvailabilityHeader(in)
@@ -59,8 +59,8 @@ func TestGetProofs(t *testing.T) {
 	defer cancel()
 	bServ := mdutils.Bserv()
 
-	shares := share.RandShares(t, width*width)
-	in, err := share.AddShares(ctx, shares, bServ)
+	shares := sharetest.RandShares(t, width*width)
+	in, err := ipld.AddShares(ctx, shares, bServ)
 	require.NoError(t, err)
 
 	dah := da.NewDataAvailabilityHeader(in)
