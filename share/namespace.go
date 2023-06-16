@@ -34,9 +34,27 @@ func (n Namespace) Version() byte {
 	return n[appns.NamespaceVersionSize-1]
 }
 
-// ID reports version of the Namespace.
+// ID reports ID of the Namespace.
 func (n Namespace) ID() namespace.ID {
 	return namespace.ID(n[appns.NamespaceVersionSize:])
+}
+
+// AsNMT converts the whole Namespace(both Version and ID parts) into NMT's namespace.ID
+// NOTE: Once https://github.com/celestiaorg/nmt/issues/206 is closed Namespace should become NNT's
+// type.
+func (n Namespace) AsNMT() namespace.ID {
+	return namespace.ID(n)
+}
+
+// AsAppNamespace converts the Namespace to App's definition of Namespace.
+// TODO: Unify types between node and app
+func (n Namespace) AsAppNamespace() appns.Namespace {
+	return appns.Namespace{Version: n.Version(), ID: n.ID()}
+}
+
+// Len reports the total length of the namespace.
+func (n Namespace) Len() int {
+	return len(n)
 }
 
 // String stringifies the Namespace.
@@ -46,8 +64,8 @@ func (n Namespace) String() string {
 
 // Validate checks if the namespace is correct.
 func (n Namespace) Validate() error {
-	if len(n) != NamespaceSize {
-		return fmt.Errorf("invalid namespace length: %v must be %v", len(n), NamespaceSize)
+	if n.Len() != NamespaceSize {
+		return fmt.Errorf("invalid namespace length: %v must be %v", n.Len(), NamespaceSize)
 	}
 	if n.Version() != appns.NamespaceVersionZero && n.Version() != appns.NamespaceVersionMax {
 		return fmt.Errorf("unsupported namespace version %v", n.Version())
@@ -57,7 +75,7 @@ func (n Namespace) Validate() error {
 			n.ID(), appns.NamespaceIDSize, len(n.ID()))
 	}
 	if n.Version() == appns.NamespaceVersionZero && !bytes.HasPrefix(n.ID(), appns.NamespaceVersionZeroPrefix) {
-		return fmt.Errorf("unsupported namespace id with version %v. GetNamespace %v must start with %v leading zeros",
+		return fmt.Errorf("unsupported namespace id with version %v. ID %v must start with %v leading zeros",
 			n.Version(), n.ID(), len(appns.NamespaceVersionZeroPrefix))
 	}
 	return nil
@@ -79,6 +97,21 @@ func (n Namespace) ValidateBlobNamespace() error {
 		return fmt.Errorf("invalid blob namespace: %v cannot use tail padding namespace", n)
 	}
 	return nil
+}
+
+// IsAboveMax checks if the namespace is above the maximum namespace of the given hash.
+func (n Namespace) IsAboveMax(nodeHash []byte) bool {
+	return !n.AsNMT().LessOrEqual(nodeHash[n.Len() : n.Len()*2])
+}
+
+// IsBelowMin checks if the target namespace is below the minimum namespace of the given hash.
+func (n Namespace) IsBelowMin(nodeHash []byte) bool {
+	return n.AsNMT().Less(nodeHash[:n.Len()])
+}
+
+// IsOutsideRange checks if the namespace is outside the min-max range of the given hashes.
+func (n Namespace) IsOutsideRange(leftNodeHash, rightNodeHash []byte) bool {
+	return n.IsBelowMin(leftNodeHash) || n.IsAboveMax(rightNodeHash)
 }
 
 func (n Namespace) IsReserved() bool {
