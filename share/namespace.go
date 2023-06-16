@@ -62,6 +62,11 @@ func (n Namespace) String() string {
 	return hex.EncodeToString(n)
 }
 
+// Equals compares two Namespaces.
+func (n Namespace) Equals(target Namespace) bool {
+	return bytes.Equal(n, target)
+}
+
 // Validate checks if the namespace is correct.
 func (n Namespace) Validate() error {
 	if n.Len() != NamespaceSize {
@@ -84,7 +89,7 @@ func (n Namespace) ValidateDataNamespace() error {
 	if err := n.Validate(); err != nil {
 		return err
 	}
-	if n.IsParityShares() || n.IsTailPadding() {
+	if n.Equals(ParitySharesNamespace) || n.Equals(TailPaddingNamespace) {
 		return fmt.Errorf("invalid data namespace(%s): parity and tail padding namespace are fobidden", n)
 	}
 	return nil
@@ -95,7 +100,7 @@ func (n Namespace) ValidateBlobNamespace() error {
 	if err := n.ValidateDataNamespace(); err != nil {
 		return err
 	}
-	if n.IsReserved() {
+	if bytes.Compare(n, MaxReservedNamespace) < 1 {
 		return fmt.Errorf("invalid blob namespace(%s): reserved namespaces are forbidden", n)
 	}
 	return nil
@@ -103,12 +108,12 @@ func (n Namespace) ValidateBlobNamespace() error {
 
 // IsAboveMax checks if the namespace is above the maximum namespace of the given hash.
 func (n Namespace) IsAboveMax(nodeHash []byte) bool {
-	return !n.AsNMT().LessOrEqual(nodeHash[n.Len() : n.Len()*2])
+	return !n.IsLessOrEqual(nodeHash[n.Len() : n.Len()*2])
 }
 
 // IsBelowMin checks if the target namespace is below the minimum namespace of the given hash.
 func (n Namespace) IsBelowMin(nodeHash []byte) bool {
-	return n.AsNMT().Less(nodeHash[:n.Len()])
+	return n.IsLess(nodeHash[:n.Len()])
 }
 
 // IsOutsideRange checks if the namespace is outside the min-max range of the given hashes.
@@ -116,54 +121,31 @@ func (n Namespace) IsOutsideRange(leftNodeHash, rightNodeHash []byte) bool {
 	return n.IsBelowMin(leftNodeHash) || n.IsAboveMax(rightNodeHash)
 }
 
-func (n Namespace) IsReserved() bool {
-	return bytes.Compare(n, MaxReservedNamespace) < 1
-}
-
-func (n Namespace) IsParityShares() bool {
-	return bytes.Equal(n, ParitySharesNamespace)
-}
-
-func (n Namespace) IsTailPadding() bool {
-	return bytes.Equal(n, TailPaddingNamespace)
-}
-
-func (n Namespace) IsReservedPadding() bool {
-	return bytes.Equal(n, ReservedPaddingNamespace)
-}
-
-func (n Namespace) IsTx() bool {
-	return bytes.Equal(n, TxNamespace)
-}
-
-func (n Namespace) IsPayForBlob() bool {
-	return bytes.Equal(n, PayForBlobNamespace)
-}
-
-func (n Namespace) Repeat(times int) []Namespace {
-	ns := make([]Namespace, times)
-	for i := 0; i < times; i++ {
+// Repeat copies the Namespace t times.
+func (n Namespace) Repeat(t int) []Namespace {
+	ns := make([]Namespace, t)
+	for i := 0; i < t; i++ {
 		ns[i] = n
 	}
 	return ns
 }
 
-func (n Namespace) Equals(n2 Namespace) bool {
-	return bytes.Equal(n, n2)
+// IsLess reports if the Namespace is less than the target.
+func (n Namespace) IsLess(target Namespace) bool {
+	return bytes.Compare(n, target) == -1
 }
 
-func (n Namespace) IsLessThan(n2 Namespace) bool {
-	return bytes.Compare(n, n2) == -1
+// IsLessOrEqual reports if the Namespace is less than the target.
+func (n Namespace) IsLessOrEqual(target Namespace) bool {
+	return bytes.Compare(n, target) < 1
 }
 
-func (n Namespace) IsLessOrEqualThan(n2 Namespace) bool {
-	return bytes.Compare(n, n2) < 1
+// IsGreater reports if the Namespace is greater than the target.
+func (n Namespace) IsGreater(target Namespace) bool {
+	return bytes.Compare(n, target) == 1
 }
 
-func (n Namespace) IsGreaterThan(n2 Namespace) bool {
-	return bytes.Compare(n, n2) == 1
-}
-
-func (n Namespace) IsGreaterOrEqualThan(n2 Namespace) bool {
-	return bytes.Compare(n, n2) > -1
+// IsGreaterOrEqualThan reports if the Namespace is greater or equal than the target.
+func (n Namespace) IsGreaterOrEqualThan(target Namespace) bool {
+	return bytes.Compare(n, target) > -1
 }
