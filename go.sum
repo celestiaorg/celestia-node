@@ -345,8 +345,8 @@ github.com/celestiaorg/celestia-app v1.0.0-rc2 h1:/u7eespYtBpQtBSz3P8/rKfz9rW7QO
 github.com/celestiaorg/celestia-app v1.0.0-rc2/go.mod h1:uiTWKTtRpVwvSiFDl2zausrU1ZBHBWgk7z52pfzJqJU=
 github.com/celestiaorg/celestia-core v1.21.2-tm-v0.34.27 h1:nmr9O5BflgNR1aWehs1ZFw4obA//M/+g+SrSMK9sOBA=
 github.com/celestiaorg/celestia-core v1.21.2-tm-v0.34.27/go.mod h1:GVo91Wifg9KL/nFx9nPkpl0UIFdvvs4fhnly9GhGxZU=
-github.com/celestiaorg/cosmos-sdk v1.13.0-sdk-v0.46.11 h1:Rd5EvJx1nG3KurBspVN51RVmvif0Lp2UVURbG2ad3Cs=
-github.com/celestiaorg/cosmos-sdk v1.13.0-sdk-v0.46.11/go.mod h1:xCG6OUkJy5KUMEg20Zk010lra9XjkmKS3+bk0wp7bd8=
+github.com/celestiaorg/cosmos-sdk v1.14.0-sdk-v0.46.11 h1:xDLC0ZvIwj9S2gTs9b8EespilL/u/vOGcqJuHz1r/eA=
+github.com/celestiaorg/cosmos-sdk v1.14.0-sdk-v0.46.11/go.mod h1:IwvD2nN3vEMkjxhTw/SF5tyJ0+x3GB0EdyQJyteK06U=
 github.com/celestiaorg/dagstore v0.0.0-20230413141458-735ab09a15d6 h1:/yCwMCoOPcYCiG18u8/1pv5eXF04xczoQO3sR0bKsgM=
 github.com/celestiaorg/dagstore v0.0.0-20230413141458-735ab09a15d6/go.mod h1:ta/DlqIH10bvhwqJIw51Nq3QU4XVMp6pz3f0Deve9fM=
 github.com/celestiaorg/go-fraud v0.1.0 h1:v6mZvlmf2J5ELZfPnrtmmOvKbaYIUs/erDWPO8NbZyY=
