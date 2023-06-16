@@ -65,36 +65,38 @@ func (n Namespace) String() string {
 // Validate checks if the namespace is correct.
 func (n Namespace) Validate() error {
 	if n.Len() != NamespaceSize {
-		return fmt.Errorf("invalid namespace length: %v must be %v", n.Len(), NamespaceSize)
+		return fmt.Errorf("invalid namespace length: expected %d, got %d", NamespaceSize, n.Len())
 	}
 	if n.Version() != appns.NamespaceVersionZero && n.Version() != appns.NamespaceVersionMax {
-		return fmt.Errorf("unsupported namespace version %v", n.Version())
+		return fmt.Errorf("invalid namespace version %v", n.Version())
 	}
 	if len(n.ID()) != appns.NamespaceIDSize {
-		return fmt.Errorf("unsupported namespace id length: id %v must be %v bytes but it was %v bytes",
-			n.ID(), appns.NamespaceIDSize, len(n.ID()))
+		return fmt.Errorf("invalid namespace id length: expected %d, got %d", appns.NamespaceIDSize, n.ID().Size())
 	}
 	if n.Version() == appns.NamespaceVersionZero && !bytes.HasPrefix(n.ID(), appns.NamespaceVersionZeroPrefix) {
-		return fmt.Errorf("unsupported namespace id with version %v. ID %v must start with %v leading zeros",
-			n.Version(), n.ID(), len(appns.NamespaceVersionZeroPrefix))
+		return fmt.Errorf("invalid namespace id: expect %d leading zeroes", len(appns.NamespaceVersionZeroPrefix))
 	}
 	return nil
 }
 
-// ValidateBlobNamespace returns an error if this namespace is not a valid blob namespace.
-func (n Namespace) ValidateBlobNamespace() error {
+// ValidateDataNamespace checks if the Namespace contains real/useful data.
+func (n Namespace) ValidateDataNamespace() error {
 	if err := n.Validate(); err != nil {
 		return err
 	}
+	if n.IsParityShares() || n.IsTailPadding() {
+		return fmt.Errorf("invalid data namespace(%s): parity and tail padding namespace are fobidden", n)
+	}
+	return nil
+}
+
+// ValidateBlobNamespace checks if the Namespace is valid blob namespace.
+func (n Namespace) ValidateBlobNamespace() error {
+	if err := n.ValidateDataNamespace(); err != nil {
+		return err
+	}
 	if n.IsReserved() {
-		return fmt.Errorf("invalid blob namespace: %v cannot use a reserved namespace, want > %v",
-			n, appns.MaxReservedNamespace.Bytes())
-	}
-	if n.IsParityShares() {
-		return fmt.Errorf("invalid blob namespace: %v cannot use parity shares namespace", n)
-	}
-	if n.IsTailPadding() {
-		return fmt.Errorf("invalid blob namespace: %v cannot use tail padding namespace", n)
+		return fmt.Errorf("invalid blob namespace(%s): reserved namespaces are forbidden", n)
 	}
 	return nil
 }
