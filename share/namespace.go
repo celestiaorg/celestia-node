@@ -11,12 +11,12 @@ import (
 
 // Various reserved namespaces.
 var (
-	MaxReservedNamespace     = appns.MaxReservedNamespace.Bytes()
-	ParitySharesNamespace    = appns.ParitySharesNamespace.Bytes()
-	TailPaddingNamespace     = appns.TailPaddingNamespace.Bytes()
-	ReservedPaddingNamespace = appns.ReservedPaddingNamespace.Bytes()
-	TxNamespace              = appns.TxNamespace.Bytes()
-	PayForBlobNamespace      = appns.PayForBlobNamespace.Bytes()
+	MaxReservedNamespace     = Namespace(appns.MaxReservedNamespace.Bytes())
+	ParitySharesNamespace    = Namespace(appns.ParitySharesNamespace.Bytes())
+	TailPaddingNamespace     = Namespace(appns.TailPaddingNamespace.Bytes())
+	ReservedPaddingNamespace = Namespace(appns.ReservedPaddingNamespace.Bytes())
+	TxNamespace              = Namespace(appns.TxNamespace.Bytes())
+	PayForBlobNamespace      = Namespace(appns.PayForBlobNamespace.Bytes())
 )
 
 // Namespace represents namespace of a Share.
