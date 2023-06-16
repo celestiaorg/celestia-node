@@ -2,21 +2,25 @@ package node
 
 import (
 	"context"
-	"fmt"
 
+	"github.com/cristalhq/jwt"
 	"github.com/filecoin-project/go-jsonrpc/auth"
 	logging "github.com/ipfs/go-log/v2"
+
+	"github.com/celestiaorg/celestia-node/libs/authtoken"
 )
 
-const APIVersion = "v0.1.0"
+const APIVersion = "v0.2.1"
 
 type module struct {
-	tp Type
+	tp     Type
+	signer jwt.Signer
 }
 
-func newModule(tp Type) Module {
+func newModule(tp Type, signer jwt.Signer) Module {
 	return &module{
-		tp: tp,
+		tp:     tp,
+		signer: signer,
 	}
 }
 
@@ -38,10 +42,10 @@ func (m *module) LogLevelSet(_ context.Context, name, level string) error {
 	return logging.SetLogLevel(name, level)
 }
 
-func (m *module) AuthVerify(context.Context, string) ([]auth.Permission, error) {
-	return []auth.Permission{}, fmt.Errorf("not implemented")
+func (m *module) AuthVerify(_ context.Context, token string) ([]auth.Permission, error) {
+	return authtoken.ExtractSignedPermissions(m.signer, token)
 }
 
-func (m *module) AuthNew(context.Context, []auth.Permission) ([]byte, error) {
-	return nil, fmt.Errorf("not implemented")
+func (m *module) AuthNew(_ context.Context, permissions []auth.Permission) (string, error) {
+	return authtoken.NewSignedJWT(m.signer, permissions)
 }

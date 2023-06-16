@@ -9,12 +9,12 @@ import (
 	reflect "reflect"
 
 	math "cosmossdk.io/math"
+	blob "github.com/celestiaorg/celestia-node/blob"
+	state "github.com/celestiaorg/celestia-node/state"
 	types "github.com/cosmos/cosmos-sdk/types"
 	types0 "github.com/cosmos/cosmos-sdk/x/staking/types"
 	gomock "github.com/golang/mock/gomock"
 	types1 "github.com/tendermint/tendermint/types"
-
-	namespace "github.com/celestiaorg/nmt/namespace"
 )
 
 // MockModule is a mock of Module interface.
@@ -41,10 +41,10 @@ func (m *MockModule) EXPECT() *MockModuleMockRecorder {
 }
 
 // AccountAddress mocks base method.
-func (m *MockModule) AccountAddress(arg0 context.Context) (types.Address, error) {
+func (m *MockModule) AccountAddress(arg0 context.Context) (state.Address, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "AccountAddress", arg0)
-	ret0, _ := ret[0].(types.Address)
+	ret0, _ := ret[0].(state.Address)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
@@ -71,7 +71,7 @@ func (mr *MockModuleMockRecorder) Balance(arg0 interface{}) *gomock.Call {
 }
 
 // BalanceForAddress mocks base method.
-func (m *MockModule) BalanceForAddress(arg0 context.Context, arg1 types.Address) (*types.Coin, error) {
+func (m *MockModule) BalanceForAddress(arg0 context.Context, arg1 state.Address) (*types.Coin, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "BalanceForAddress", arg0, arg1)
 	ret0, _ := ret[0].(*types.Coin)
@@ -189,19 +189,19 @@ func (mr *MockModuleMockRecorder) QueryUnbonding(arg0, arg1 interface{}) *gomock
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "QueryUnbonding", reflect.TypeOf((*MockModule)(nil).QueryUnbonding), arg0, arg1)
 }
 
-// SubmitPayForData mocks base method.
-func (m *MockModule) SubmitPayForBlob(arg0 context.Context, arg1 namespace.ID, arg2 []byte, arg3 math.Int, arg4 uint64) (*types.TxResponse, error) {
+// SubmitPayForBlob mocks base method.
+func (m *MockModule) SubmitPayForBlob(arg0 context.Context, arg1 math.Int, arg2 uint64, arg3 []*blob.Blob) (*types.TxResponse, error) {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "SubmitPayForBlob", arg0, arg1, arg2, arg3, arg4)
+	ret := m.ctrl.Call(m, "SubmitPayForBlob", arg0, arg1, arg2, arg3)
 	ret0, _ := ret[0].(*types.TxResponse)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
 
-// SubmitPayForData indicates an expected call of SubmitPayForData.
-func (mr *MockModuleMockRecorder) SubmitPayForData(arg0, arg1, arg2, arg3, arg4 interface{}) *gomock.Call {
+// SubmitPayForBlob indicates an expected call of SubmitPayForBlob.
+func (mr *MockModuleMockRecorder) SubmitPayForBlob(arg0, arg1, arg2, arg3 interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "SubmitPayForBlob", reflect.TypeOf((*MockModule)(nil).SubmitPayForBlob), arg0, arg1, arg2, arg3, arg4)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "SubmitPayForBlob", reflect.TypeOf((*MockModule)(nil).SubmitPayForBlob), arg0, arg1, arg2, arg3)
 }
 
 // SubmitTx mocks base method.
