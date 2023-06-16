@@ -7,6 +7,7 @@ import (
 
 	"github.com/stretchr/testify/require"
 
+	"github.com/celestiaorg/celestia-app/pkg/namespace"
 	"github.com/celestiaorg/celestia-app/pkg/wrapper"
 	"github.com/celestiaorg/rsmt2d"
 )
@@ -46,23 +47,19 @@ func RandEDS(t require.TestingT, size int) *rsmt2d.ExtendedDataSquare {
 // to be able to take both a *testing.T and a *testing.B.
 func RandShares(t require.TestingT, total int) []Share {
 	if total&(total-1) != 0 {
-		t.Errorf("Namespace total must be power of 2: %d", total)
+		t.Errorf("total must be power of 2: %d", total)
 		t.FailNow()
 	}
 
 	shares := make([]Share, total)
 	for i := range shares {
-		nid := make([]byte, Size)
-		_, err := rand.Read(nid[:NamespaceSize])
+		share := make([]byte, Size)
+		copy(share[:NamespaceSize], namespace.RandomNamespace().Bytes())
+		_, err := rand.Read(share[NamespaceSize:])
 		require.NoError(t, err)
-		shares[i] = nid
+		shares[i] = share
 	}
 	sort.Slice(shares, func(i, j int) bool { return bytes.Compare(shares[i], shares[j]) < 0 })
-
-	for i := range shares {
-		_, err := rand.Read(shares[i][NamespaceSize:])
-		require.NoError(t, err)
-	}
 
 	return shares
 }

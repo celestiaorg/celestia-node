@@ -20,6 +20,7 @@ import (
 	"github.com/celestiaorg/celestia-app/pkg/appconsts"
 	"github.com/celestiaorg/celestia-app/pkg/da"
 	"github.com/celestiaorg/nmt"
+	"github.com/celestiaorg/nmt/namespace"
 )
 
 var (
@@ -34,13 +35,9 @@ const (
 	// nmtCodec is the codec used for leaf and inner nodes of a Namespaced Merkle Tree.
 	nmtCodec = 0x7700
 
-	// sha256Namespace8Flagged is the multihash code used to hash blocks
+	// sha256NamespaceFlagged is the multihash code used to hash blocks
 	// that contain an NMT node (inner and leaf nodes).
-	sha256Namespace8Flagged = 0x7701
-
-	// MaxSquareSize is currently the maximum size supported for unerasured data in
-	// rsmt2d.ExtendedDataSquare.
-	MaxSquareSize = appconsts.DefaultMaxSquareSize
+	sha256NamespaceFlagged = 0x7701
 
 	// NamespaceSize is a system-wide size for NMT namespaces.
 	NamespaceSize = appconsts.NamespaceSize
@@ -65,9 +62,15 @@ const (
 	NMTIgnoreMaxNamespace = true
 )
 
+var (
+	// MaxSquareSize is currently the maximum size supported for unerasured data in
+	// rsmt2d.ExtendedDataSquare.
+	MaxSquareSize = appconsts.SquareSizeUpperBound(appconsts.LatestVersion)
+)
+
 func init() {
 	// required for Bitswap to hash and verify inbound data correctly
-	mhcore.Register(sha256Namespace8Flagged, func() hash.Hash {
+	mhcore.Register(sha256NamespaceFlagged, func() hash.Hash {
 		nh := nmt.NewNmtHasher(sha256.New(), NamespaceSize, true)
 		nh.Reset()
 		return nh
@@ -144,7 +147,7 @@ func CidFromNamespacedSha256(namespacedHash []byte) (cid.Cid, error) {
 	if got, want := len(namespacedHash), NmtHashSize; got != want {
 		return cid.Cid{}, fmt.Errorf("invalid namespaced hash length, got: %v, want: %v", got, want)
 	}
-	buf, err := mh.Encode(namespacedHash, sha256Namespace8Flagged)
+	buf, err := mh.Encode(namespacedHash, sha256NamespaceFlagged)
 	if err != nil {
 		return cid.Undef, err
 	}
@@ -159,7 +162,7 @@ func MustCidFromNamespacedSha256(hash []byte) cid.Cid {
 		panic(
 			fmt.Sprintf("malformed hash: %s, codec: %v",
 				err,
-				mh.Codes[sha256Namespace8Flagged]),
+				mh.Codes[sha256NamespaceFlagged]),
 		)
 	}
 	return cidFromHash
@@ -172,10 +175,28 @@ func Translate(dah *da.DataAvailabilityHeader, row, col int) (cid.Cid, int) {
 		return MustCidFromNamespacedSha256(dah.ColumnRoots[col]), row
 	}
 
-	return MustCidFromNamespacedSha256(dah.RowsRoots[row]), col
+	return MustCidFromNamespacedSha256(dah.RowRoots[row]), col
 }
 
 // NamespacedSha256FromCID derives the Namespaced hash from the given CID.
 func NamespacedSha256FromCID(cid cid.Cid) []byte {
 	return cid.Hash()[cidPrefixSize:]
+}
+
+// NamespaceIsAboveMax checks if the target namespace is above the maximum namespace for a given
+// node hash.
+func NamespaceIsAboveMax(nodeHash []byte, target namespace.ID) bool {
+	return !target.LessOrEqual(nmt.MaxNamespace(nodeHash, target.Size()))
+}
+
+// NamespaceIsBelowMin checks if the target namespace is below the minimum namespace for a given
+// node hash.
+func NamespaceIsBelowMin(nodeHash []byte, target namespace.ID) bool {
+	return target.Less(nmt.MinNamespace(nodeHash, target.Size()))
+}
+
+// NamespaceIsOutsideRange checks if the target namespace is outside the range defined by the left
+// and right nodes
+func NamespaceIsOutsideRange(leftNodeHash, rightNodeHash []byte, target namespace.ID) bool {
+	return NamespaceIsBelowMin(leftNodeHash, target) || NamespaceIsAboveMax(rightNodeHash, target)
 }

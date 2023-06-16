@@ -5,8 +5,7 @@ import (
 
 	"github.com/cosmos/cosmos-sdk/x/staking/types"
 
-	"github.com/celestiaorg/nmt/namespace"
-
+	"github.com/celestiaorg/celestia-node/blob"
 	"github.com/celestiaorg/celestia-node/state"
 )
 
@@ -36,7 +35,9 @@ type Module interface {
 
 	// Transfer sends the given amount of coins from default wallet of the node to the given account
 	// address.
-	Transfer(ctx context.Context, to state.AccAddress, amount, fee state.Int, gasLimit uint64) (*state.TxResponse, error)
+	Transfer(
+		ctx context.Context, to state.AccAddress, amount, fee state.Int, gasLimit uint64,
+	) (*state.TxResponse, error)
 	// SubmitTx submits the given transaction/message to the
 	// Celestia network and blocks until the tx is included in
 	// a block.
@@ -44,10 +45,9 @@ type Module interface {
 	// SubmitPayForBlob builds, signs and submits a PayForBlob transaction.
 	SubmitPayForBlob(
 		ctx context.Context,
-		nID namespace.ID,
-		data []byte,
 		fee state.Int,
 		gasLim uint64,
+		blobs []*blob.Blob,
 	) (*state.TxResponse, error)
 
 	// CancelUnbondingDelegation cancels a user's pending undelegation from a validator.
@@ -113,10 +113,9 @@ type API struct {
 		SubmitTx         func(ctx context.Context, tx state.Tx) (*state.TxResponse, error) `perm:"write"`
 		SubmitPayForBlob func(
 			ctx context.Context,
-			nID namespace.ID,
-			data []byte,
 			fee state.Int,
 			gasLim uint64,
+			blobs []*blob.Blob,
 		) (*state.TxResponse, error) `perm:"write"`
 		CancelUnbondingDelegation func(
 			ctx context.Context,
@@ -192,12 +191,11 @@ func (api *API) SubmitTx(ctx context.Context, tx state.Tx) (*state.TxResponse, e
 
 func (api *API) SubmitPayForBlob(
 	ctx context.Context,
-	nID namespace.ID,
-	data []byte,
 	fee state.Int,
 	gasLim uint64,
+	blobs []*blob.Blob,
 ) (*state.TxResponse, error) {
-	return api.Internal.SubmitPayForBlob(ctx, nID, data, fee, gasLim)
+	return api.Internal.SubmitPayForBlob(ctx, fee, gasLim, blobs)
 }
 
 func (api *API) CancelUnbondingDelegation(

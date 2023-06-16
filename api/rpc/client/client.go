@@ -8,6 +8,7 @@ import (
 	"github.com/filecoin-project/go-jsonrpc"
 
 	"github.com/celestiaorg/celestia-node/api/rpc/perms"
+	"github.com/celestiaorg/celestia-node/nodebuilder/blob"
 	"github.com/celestiaorg/celestia-node/nodebuilder/das"
 	"github.com/celestiaorg/celestia-node/nodebuilder/fraud"
 	"github.com/celestiaorg/celestia-node/nodebuilder/header"
@@ -17,17 +18,11 @@ import (
 	"github.com/celestiaorg/celestia-node/nodebuilder/state"
 )
 
-// TODO: this duplication of strings many times across the codebase can be avoided with issue #1176
-var client Client
-var Modules = map[string]interface{}{
-	"share":  &client.Share.Internal,
-	"state":  &client.State.Internal,
-	"header": &client.Header.Internal,
-	"fraud":  &client.Fraud.Internal,
-	"das":    &client.DAS.Internal,
-	"p2p":    &client.P2P.Internal,
-	"node":   &client.Node.Internal,
-}
+var (
+	// staticClient is used for generating the OpenRPC spec.
+	staticClient Client
+	Modules      = moduleMap(&staticClient)
+)
 
 type Client struct {
 	Fraud  fraud.API
@@ -37,6 +32,7 @@ type Client struct {
 	DAS    das.API
 	P2P    p2p.API
 	Node   node.API
+	Blob   blob.API
 
 	closer multiClientCloser
 }
@@ -58,7 +54,7 @@ func (m *multiClientCloser) closeAll() {
 	}
 }
 
-// Close closes the connections to all namespaces registered on the client.
+// Close closes the connections to all namespaces registered on the staticClient.
 func (c *Client) Close() {
 	c.closer.closeAll()
 }
@@ -77,7 +73,8 @@ func NewClient(ctx context.Context, addr string, token string) (*Client, error) 
 
 func newClient(ctx context.Context, addr string, authHeader http.Header) (*Client, error) {
 	var multiCloser multiClientCloser
-	for name, module := range Modules {
+	var client Client
+	for name, module := range moduleMap(&client) {
 		closer, err := jsonrpc.NewClient(ctx, addr, name, module, authHeader)
 		if err != nil {
 			return nil, err
@@ -86,4 +83,18 @@ func newClient(ctx context.Context, addr string, authHeader http.Header) (*Clien
 	}
 
 	return &client, nil
+}
+
+func moduleMap(client *Client) map[string]interface{} {
+	// TODO: this duplication of strings many times across the codebase can be avoided with issue #1176
+	return map[string]interface{}{
+		"share":  &client.Share.Internal,
+		"state":  &client.State.Internal,
+		"header": &client.Header.Internal,
+		"fraud":  &client.Fraud.Internal,
+		"das":    &client.DAS.Internal,
+		"p2p":    &client.P2P.Internal,
+		"node":   &client.Node.Internal,
+		"blob":   &client.Blob.Internal,
+	}
 }

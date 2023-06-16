@@ -119,6 +119,10 @@ func (s *Store) Start(ctx context.Context) error {
 	// start Store only if DagStore succeeds
 	ctx, cancel := context.WithCancel(context.Background())
 	s.cancel = cancel
+	// initialize empty gc result to avoid panic on access
+	s.lastGCResult.Store(&dagstore.GCResult{
+		Shards: make(map[shard.Key]error),
+	})
 	go s.gc(ctx)
 	return nil
 }
@@ -132,10 +136,6 @@ func (s *Store) Stop(context.Context) error {
 // gc periodically removes all inactive or errored shards.
 func (s *Store) gc(ctx context.Context) {
 	ticker := time.NewTicker(s.gcInterval)
-	// initialize empty gc result to avoid panic on access
-	s.lastGCResult.Store(&dagstore.GCResult{
-		Shards: make(map[shard.Key]error),
-	})
 	for {
 		select {
 		case <-ctx.Done():
@@ -280,7 +280,7 @@ func dahFromCARHeader(carHeader *carv1.CarHeader) *header.DataAvailabilityHeader
 		rootBytes = append(rootBytes, ipld.NamespacedSha256FromCID(root))
 	}
 	return &header.DataAvailabilityHeader{
-		RowsRoots:   rootBytes[:rootCount/2],
+		RowRoots:    rootBytes[:rootCount/2],
 		ColumnRoots: rootBytes[rootCount/2:],
 	}
 }

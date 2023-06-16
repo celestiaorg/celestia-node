@@ -80,7 +80,7 @@ func TestBlockRecovery(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			squareSize := utils.SquareSize(len(tc.shares))
 
-			eds, err := rsmt2d.ComputeExtendedDataSquare(tc.shares, rsmt2d.NewRSGF8Codec(), wrapper.NewConstructor(squareSize))
+			eds, err := rsmt2d.ComputeExtendedDataSquare(tc.shares, DefaultRSMT2DCodec(), wrapper.NewConstructor(squareSize))
 			require.NoError(t, err)
 
 			// calculate roots using the first complete square
@@ -93,7 +93,7 @@ func TestBlockRecovery(t *testing.T) {
 			rdata := removeRandShares(flat, tc.d)
 			eds, err = rsmt2d.ImportExtendedDataSquare(
 				rdata,
-				rsmt2d.NewRSGF8Codec(),
+				DefaultRSMT2DCodec(),
 				wrapper.NewConstructor(squareSize),
 			)
 			require.NoError(t, err)
@@ -106,7 +106,7 @@ func TestBlockRecovery(t *testing.T) {
 			}
 			assert.NoError(t, err)
 
-			reds, err := rsmt2d.ImportExtendedDataSquare(rdata, rsmt2d.NewRSGF8Codec(), wrapper.NewConstructor(squareSize))
+			reds, err := rsmt2d.ImportExtendedDataSquare(rdata, DefaultRSMT2DCodec(), wrapper.NewConstructor(squareSize))
 			require.NoError(t, err)
 			// check that the squares are equal
 			assert.Equal(t, ExtractEDS(eds), ExtractEDS(reds))
@@ -121,7 +121,7 @@ func Test_ConvertEDStoShares(t *testing.T) {
 	// compute extended square
 	eds, err := rsmt2d.ComputeExtendedDataSquare(
 		shares,
-		rsmt2d.NewRSGF8Codec(),
+		DefaultRSMT2DCodec(),
 		wrapper.NewConstructor(uint64(squareWidth)),
 	)
 	require.NoError(t, err)
@@ -146,8 +146,8 @@ func removeRandShares(data [][]byte, d int) [][]byte {
 }
 
 func TestGetSharesByNamespace(t *testing.T) {
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	t.Cleanup(cancel)
 	bServ := mdutils.Bserv()
 
 	var tests = []struct {
@@ -190,8 +190,8 @@ func TestGetSharesByNamespace(t *testing.T) {
 }
 
 func TestCollectLeavesByNamespace_IncompleteData(t *testing.T) {
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	t.Cleanup(cancel)
 	bServ := mdutils.Bserv()
 
 	shares := RandShares(t, 16)
@@ -234,8 +234,8 @@ func TestCollectLeavesByNamespace_IncompleteData(t *testing.T) {
 }
 
 func TestCollectLeavesByNamespace_AbsentNamespaceId(t *testing.T) {
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	t.Cleanup(cancel)
 	bServ := mdutils.Bserv()
 
 	shares := RandShares(t, 1024)
@@ -273,14 +273,14 @@ func TestCollectLeavesByNamespace_AbsentNamespaceId(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			eds, err := AddShares(ctx, shares, bServ)
 			require.NoError(t, err)
-			assertNoRowContainsNID(t, bServ, eds, tt.missingNid, tt.isAbsence)
+			assertNoRowContainsNID(ctx, t, bServ, eds, tt.missingNid, tt.isAbsence)
 		})
 	}
 }
 
 func TestCollectLeavesByNamespace_MultipleRowsContainingSameNamespaceId(t *testing.T) {
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	t.Cleanup(cancel)
 	bServ := mdutils.Bserv()
 
 	shares := RandShares(t, 16)
@@ -318,7 +318,7 @@ func TestCollectLeavesByNamespace_MultipleRowsContainingSameNamespaceId(t *testi
 }
 
 func TestGetSharesWithProofsByNamespace(t *testing.T) {
-	ctx, cancel := context.WithCancel(context.Background())
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	t.Cleanup(cancel)
 	bServ := mdutils.Bserv()
 
@@ -357,7 +357,7 @@ func TestGetSharesWithProofsByNamespace(t *testing.T) {
 			for _, row := range eds.RowRoots() {
 				rcid := ipld.MustCidFromNamespacedSha256(row)
 				rowShares, proof, err := GetSharesByNamespace(ctx, bServ, rcid, nID, len(eds.RowRoots()))
-				if nID.Less(nmt.MinNamespace(row, nID.Size())) || !nID.LessOrEqual(nmt.MaxNamespace(row, nID.Size())) {
+				if ipld.NamespaceIsOutsideRange(row, row, nID) {
 					require.ErrorIs(t, err, ipld.ErrNamespaceOutsideRange)
 					continue
 				}
@@ -437,6 +437,7 @@ func TestBatchSize(t *testing.T) {
 }
 
 func assertNoRowContainsNID(
+	ctx context.Context,
 	t *testing.T,
 	bServ blockservice.BlockService,
 	eds *rsmt2d.ExtendedDataSquare,
@@ -451,18 +452,18 @@ func assertNoRowContainsNID(
 	}
 
 	// for each row root cid check if the minNID exists
-	var abscentCount, foundAbsenceRows int
+	var absentCount, foundAbsenceRows int
 	for _, rowRoot := range eds.RowRoots() {
 		var outsideRange bool
-		if !nID.Less(nmt.MinNamespace(rowRoot, nID.Size())) && nID.LessOrEqual(nmt.MaxNamespace(rowRoot, nID.Size())) {
+		if !ipld.NamespaceIsOutsideRange(rowRoot, rowRoot, nID) {
 			// nID does belong to namespace range of the row
-			abscentCount++
+			absentCount++
 		} else {
 			outsideRange = true
 		}
 		data := ipld.NewNamespaceData(rowRootCount, nID, ipld.WithProofs())
 		rootCID := ipld.MustCidFromNamespacedSha256(rowRoot)
-		err := data.CollectLeavesByNamespace(context.Background(), bServ, rootCID)
+		err := data.CollectLeavesByNamespace(ctx, bServ, rootCID)
 		if outsideRange {
 			require.ErrorIs(t, err, ipld.ErrNamespaceOutsideRange)
 			continue
@@ -476,9 +477,9 @@ func assertNoRowContainsNID(
 	}
 
 	if isAbsent {
-		require.Equal(t, foundAbsenceRows, abscentCount)
+		require.Equal(t, foundAbsenceRows, absentCount)
 		// there should be max 1 row that has namespace range containing nID
-		require.LessOrEqual(t, abscentCount, 1)
+		require.LessOrEqual(t, absentCount, 1)
 	}
 }
 

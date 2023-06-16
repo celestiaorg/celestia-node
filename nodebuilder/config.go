@@ -25,6 +25,7 @@ type ConfigLoader func() (*Config, error)
 // Config is main configuration structure for a Node.
 // It combines configuration units for all Node subsystems.
 type Config struct {
+	Node    node.Config
 	Core    core.Config
 	State   state.Config
 	P2P     p2p.Config
@@ -39,6 +40,7 @@ type Config struct {
 // NOTE: Currently, configs are identical, but this will change.
 func DefaultConfig(tp node.Type) *Config {
 	commonConfig := &Config{
+		Node:    node.DefaultConfig(tp),
 		Core:    core.DefaultConfig(),
 		State:   state.DefaultConfig(),
 		P2P:     p2p.DefaultConfig(tp),

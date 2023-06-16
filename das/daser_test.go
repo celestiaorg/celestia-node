@@ -345,7 +345,7 @@ type benchGetterStub struct {
 
 func newBenchGetter() benchGetterStub {
 	return benchGetterStub{header: &header.ExtendedHeader{
-		DAH: &header.DataAvailabilityHeader{RowsRoots: make([][]byte, 0)}}}
+		DAH: &header.DataAvailabilityHeader{RowRoots: make([][]byte, 0)}}}
 }
 
 func (m benchGetterStub) GetByHeight(context.Context, uint64) (*header.ExtendedHeader, error) {
@@ -362,7 +362,7 @@ func (m getterStub) GetByHeight(_ context.Context, height uint64) (*header.Exten
 	return &header.ExtendedHeader{
 		Commit:    &types.Commit{},
 		RawHeader: header.RawHeader{Height: int64(height)},
-		DAH:       &header.DataAvailabilityHeader{RowsRoots: make([][]byte, 0)}}, nil
+		DAH:       &header.DataAvailabilityHeader{RowRoots: make([][]byte, 0)}}, nil
 }
 
 func (m getterStub) GetRangeByHeight(context.Context, uint64, uint64) ([]*header.ExtendedHeader, error) {

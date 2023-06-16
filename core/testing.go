@@ -12,7 +12,7 @@ import (
 	tmrand "github.com/tendermint/tendermint/libs/rand"
 	tmproto "github.com/tendermint/tendermint/proto/tendermint/types"
 
-	"github.com/celestiaorg/celestia-app/testutil/testnode"
+	"github.com/celestiaorg/celestia-app/test/util/testnode"
 )
 
 // TestConfig encompasses all the configs required to run test Tendermint + Celestia App tandem.
@@ -79,7 +79,6 @@ func StartTestNodeWithConfig(t *testing.T, cfg *TestConfig) testnode.Context {
 		state,
 		kr,
 		"private",
-		nil,
 	)
 	require.NoError(t, err)
 

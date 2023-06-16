@@ -17,8 +17,8 @@ import (
 	"google.golang.org/grpc"
 
 	"github.com/celestiaorg/celestia-app/app"
-	"github.com/celestiaorg/celestia-app/testutil/testfactory"
-	"github.com/celestiaorg/celestia-app/testutil/testnode"
+	"github.com/celestiaorg/celestia-app/test/util/testfactory"
+	"github.com/celestiaorg/celestia-app/test/util/testnode"
 	blobtypes "github.com/celestiaorg/celestia-app/x/blob/types"
 
 	"github.com/celestiaorg/celestia-node/core"
@@ -110,7 +110,7 @@ func (s *IntegrationTestSuite) TestGetBalance() {
 	require := s.Require()
 	expectedBal := sdk.NewCoin(app.BondDenom, sdk.NewInt(int64(99999999999999999)))
 	for _, acc := range s.accounts {
-		bal, err := s.accessor.BalanceForAddress(context.Background(), s.getAddress(acc))
+		bal, err := s.accessor.BalanceForAddress(context.Background(), Address{s.getAddress(acc)})
 		require.NoError(err)
 		require.Equal(&expectedBal, bal)
 	}

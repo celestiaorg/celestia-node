@@ -2,6 +2,7 @@ package getters
 
 import (
 	"context"
+	"encoding/hex"
 	"errors"
 	"fmt"
 	"time"
@@ -204,6 +205,7 @@ func (sg *ShrexGetter) GetSharesByNamespace(
 		if getErr != nil {
 			log.Debugw("nd: couldn't find peer",
 				"hash", root.String(),
+				"nid", hex.EncodeToString(id),
 				"err", getErr,
 				"finished (s)", time.Since(start))
 			sg.metrics.recordNDAttempt(ctx, attempt, false)
@@ -241,6 +243,7 @@ func (sg *ShrexGetter) GetSharesByNamespace(
 		}
 		log.Debugw("nd: request failed",
 			"hash", root.String(),
+			"nid", hex.EncodeToString(id),
 			"peer", peer.String(),
 			"attempt", attempt,
 			"err", getErr,

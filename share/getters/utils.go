@@ -2,6 +2,7 @@ package getters
 
 import (
 	"context"
+	"encoding/hex"
 	"errors"
 	"fmt"
 	"time"
@@ -14,7 +15,6 @@ import (
 	"go.opentelemetry.io/otel/trace"
 	"golang.org/x/sync/errgroup"
 
-	"github.com/celestiaorg/nmt"
 	"github.com/celestiaorg/nmt/namespace"
 
 	"github.com/celestiaorg/celestia-node/libs/utils"
@@ -32,9 +32,9 @@ var (
 // filterRootsByNamespace returns the row roots from the given share.Root that contain the passed
 // namespace ID.
 func filterRootsByNamespace(root *share.Root, nID namespace.ID) []cid.Cid {
-	rowRootCIDs := make([]cid.Cid, 0, len(root.RowsRoots))
-	for _, row := range root.RowsRoots {
-		if !nID.Less(nmt.MinNamespace(row, nID.Size())) && nID.LessOrEqual(nmt.MaxNamespace(row, nID.Size())) {
+	rowRootCIDs := make([]cid.Cid, 0, len(root.RowRoots))
+	for _, row := range root.RowRoots {
+		if !ipld.NamespaceIsOutsideRange(row, row, nID) {
 			rowRootCIDs = append(rowRootCIDs, ipld.MustCidFromNamespacedSha256(row))
 		}
 	}
@@ -51,7 +51,7 @@ func collectSharesByNamespace(
 ) (shares share.NamespacedShares, err error) {
 	ctx, span := tracer.Start(ctx, "collect-shares-by-namespace", trace.WithAttributes(
 		attribute.String("root", root.String()),
-		attribute.String("nid", nID.String()),
+		attribute.String("nid", hex.EncodeToString(nID)),
 	))
 	defer func() {
 		utils.SetStatusAndEnd(span, err)
@@ -68,7 +68,7 @@ func collectSharesByNamespace(
 		// shadow loop variables, to ensure correct values are captured
 		i, rootCID := i, rootCID
 		errGroup.Go(func() error {
-			row, proof, err := share.GetSharesByNamespace(ctx, bg, rootCID, nID, len(root.RowsRoots))
+			row, proof, err := share.GetSharesByNamespace(ctx, bg, rootCID, nID, len(root.RowRoots))
 			shares[i] = share.NamespacedRow{
 				Shares: row,
 				Proof:  proof,

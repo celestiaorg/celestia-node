@@ -2,6 +2,7 @@ package shrexnd
 
 import (
 	"context"
+	"encoding/hex"
 	"errors"
 	"fmt"
 	"time"
@@ -82,7 +83,7 @@ func (srv *Server) observeRateLimitedRequests() {
 }
 
 func (srv *Server) handleNamespacedData(ctx context.Context, stream network.Stream) {
-	logger := log.With("peer", stream.Conn().RemotePeer())
+	logger := log.With("peer", stream.Conn().RemotePeer().String())
 	logger.Debug("server: handling nd request")
 
 	srv.observeRateLimitedRequests()
@@ -99,7 +100,7 @@ func (srv *Server) handleNamespacedData(ctx context.Context, stream network.Stre
 		stream.Reset() //nolint:errcheck
 		return
 	}
-	logger = logger.With("namespaceId", string(req.NamespaceId), "hash", string(req.RootHash))
+	logger = logger.With("namespaceId", hex.EncodeToString(req.NamespaceId), "hash", share.DataHash(req.RootHash).String())
 	logger.Debugw("server: new request")
 
 	err = stream.CloseRead()
