@@ -16,6 +16,7 @@ import (
 
 	"github.com/spf13/cobra"
 
+	appns "github.com/celestiaorg/celestia-app/pkg/namespace"
 	"github.com/celestiaorg/nmt/namespace"
 
 	"github.com/celestiaorg/celestia-node/api/rpc/client"
@@ -112,17 +113,17 @@ func parseParams(method string, params []string) []interface{} {
 		}
 		parsedParams[0] = root
 		// 2. NamespaceID
-		nID, err := parseNamespace(params[1])
+		nID, err := parseV0NamespaceID(params[1])
 		if err != nil {
-			panic(fmt.Sprintf("Error parsing namespace: %v", err))
+			panic(fmt.Sprintf("Error parsing namespace ID: %v", err))
 		}
 		parsedParams[1] = nID
 	case "Submit":
 		// 1. NamespaceID
 		var err error
-		nID, err := parseNamespace(params[0])
+		nID, err := parseV0NamespaceID(params[0])
 		if err != nil {
-			panic(fmt.Sprintf("Error parsing namespace: %v", err))
+			panic(fmt.Sprintf("Error parsing namespace ID: %v", err))
 		}
 		// 2. Blob data
 		var blobData []byte
@@ -162,9 +163,9 @@ func parseParams(method string, params []string) []interface{} {
 		}
 		parsedParams[1] = num
 		// 3. NamespaceID
-		nID, err := parseNamespace(params[2])
+		nID, err := parseV0NamespaceID(params[2])
 		if err != nil {
-			panic(fmt.Sprintf("Error parsing namespace: %v", err))
+			panic(fmt.Sprintf("Error parsing namespace ID: %v", err))
 		}
 		// 4. Blob data
 		var blobData []byte
@@ -201,9 +202,9 @@ func parseParams(method string, params []string) []interface{} {
 		}
 		parsedParams[0] = num
 		// 2. NamespaceID
-		nID, err := parseNamespace(params[1])
+		nID, err := parseV0NamespaceID(params[1])
 		if err != nil {
-			panic(fmt.Sprintf("Error parsing namespace: %v", err))
+			panic(fmt.Sprintf("Error parsing namespace ID: %v", err))
 		}
 		parsedParams[1] = nID
 		// 3: Commitment
@@ -221,9 +222,9 @@ func parseParams(method string, params []string) []interface{} {
 		}
 		parsedParams[0] = num
 		// 2. NamespaceID
-		nID, err := parseNamespace(params[1])
+		nID, err := parseV0NamespaceID(params[1])
 		if err != nil {
-			panic(fmt.Sprintf("Error parsing namespace: %v", err))
+			panic(fmt.Sprintf("Error parsing namespace ID: %v", err))
 		}
 		parsedParams[1] = []namespace.ID{nID}
 		return parsedParams
@@ -368,7 +369,7 @@ func sendJSONRPCRequest(namespace, method string, params []interface{}) {
 
 	rawResponseJSON, err := parseJSON(string(responseBody))
 	if err != nil {
-		panic(err)
+		log.Fatalf("Error parsing JSON-RPC response: %v", err)
 	}
 	if printRequest {
 		output, err := json.MarshalIndent(outputWithRequest{
@@ -418,32 +419,41 @@ func parseSignatureForHelpstring(methodSig reflect.StructField) string {
 	return simplifiedSignature
 }
 
-func parseNamespace(param string) (namespace.ID, error) {
-	var nID []byte
-	var err error
+// parseV0NamespaceID parses a namespace ID from a base64 or hex string. The param
+// is expected to be the user-specified portion of a v0 namespace ID (i.e. the
+// last 10 bytes).
+func parseV0NamespaceID(param string) (namespace.ID, error) {
+	userBytes, err := decodeToBytes(param)
+	if err != nil {
+		return nil, err
+	}
+
+	if len(userBytes) > appns.NamespaceVersionZeroIDSize {
+		return nil, fmt.Errorf(
+			"namespace ID %v is too large to be a v0 namespace, want <= %v bytes",
+			userBytes, appns.NamespaceVersionZeroIDSize,
+		)
+	}
+	// if the namespace ID is <= 10 bytes, left pad it with 0s
+	return share.NewNamespaceV0(userBytes)
+}
+
+// decodeToBytes decodes a Base64 or hex input string into a byte slice.
+func decodeToBytes(param string) ([]byte, error) {
 	if strings.HasPrefix(param, "0x") {
 		decoded, err := hex.DecodeString(param[2:])
 		if err != nil {
 			return nil, fmt.Errorf("error decoding namespace ID: %w", err)
 		}
-		nID = decoded
-	} else {
-		// otherwise, it's just a base64 string
-		nID, err = base64.StdEncoding.DecodeString(param)
-		if err != nil {
-			return nil, fmt.Errorf("error decoding namespace ID: %w", err)
-		}
+		return decoded, nil
 	}
-	// if the namespace ID is 8 bytes, add v0 share + namespace prefix and zero pad
-	if len(nID) == 8 {
-		nID, err = share.NewNamespaceV0(nID)
-		if err != nil {
-			return nil, err
-		}
+	// otherwise, it's just a base64 string
+	decoded, err := base64.StdEncoding.DecodeString(param)
+	if err != nil {
+		return nil, fmt.Errorf("error decoding namespace ID: %w", err)
 	}
-	return nID, nil
+	return decoded, nil
 }
-
 func parseJSON(param string) (json.RawMessage, error) {
 	var raw json.RawMessage
 	err := json.Unmarshal([]byte(param), &raw)
