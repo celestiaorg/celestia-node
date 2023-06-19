@@ -15,8 +15,8 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/celestiaorg/celestia-app/pkg/da"
-	"github.com/celestiaorg/celestia-app/pkg/namespace"
 	libhead "github.com/celestiaorg/go-header"
+	"github.com/celestiaorg/nmt"
 	nmtnamespace "github.com/celestiaorg/nmt/namespace"
 	"github.com/celestiaorg/rsmt2d"
 
@@ -24,6 +24,7 @@ import (
 	"github.com/celestiaorg/celestia-node/header/headertest"
 	"github.com/celestiaorg/celestia-node/share"
 	"github.com/celestiaorg/celestia-node/share/eds"
+	"github.com/celestiaorg/celestia-node/share/ipld"
 	"github.com/celestiaorg/celestia-node/share/p2p/discovery"
 	"github.com/celestiaorg/celestia-node/share/p2p/peers"
 	"github.com/celestiaorg/celestia-node/share/p2p/shrexeds"
@@ -88,12 +89,12 @@ func TestShrexGetter(t *testing.T) {
 		require.ErrorIs(t, err, share.ErrNotFound)
 	})
 
-	t.Run("ND_namespace_not_found", func(t *testing.T) {
+	t.Run("ND_namespace_not_included", func(t *testing.T) {
 		ctx, cancel := context.WithTimeout(ctx, time.Second)
 		t.Cleanup(cancel)
 
 		// generate test data
-		eds, dah, nID := generateTestEDS(t)
+		eds, dah, maxNID := generateTestEDS(t)
 		require.NoError(t, edsStore.Put(ctx, dah.Hash(), eds))
 		peerManager.Validate(ctx, srvHost.ID(), shrexsub.Notification{
 			DataHash: dah.Hash(),
@@ -101,12 +102,43 @@ func TestShrexGetter(t *testing.T) {
 		})
 
 		// corrupt NID
-		newNID := make([]byte, 8)
-		copy(newNID, nID)
-		newNID[4]++
+		nID := make([]byte, ipld.NamespaceSize)
+		copy(nID, maxNID)
+		nID[ipld.NamespaceSize-1]--
+		// check for namespace to be between max and min namespace in root
+		require.Len(t, filterRootsByNamespace(&dah, maxNID), 1)
 
-		_, err := getter.GetSharesByNamespace(ctx, &dah, newNID)
+		sh, err := getter.GetSharesByNamespace(ctx, &dah, nID)
 		require.ErrorIs(t, err, share.ErrNamespaceNotFound)
+		// no shares should be returned
+		require.Len(t, sh.Flatten(), 0)
+		require.Nil(t, sh.Verify(&dah, nID))
+	})
+
+	t.Run("ND_namespace_not_in_root", func(t *testing.T) {
+		ctx, cancel := context.WithTimeout(ctx, time.Second)
+		t.Cleanup(cancel)
+
+		// generate test data
+		eds, dah, maxNID := generateTestEDS(t)
+		require.NoError(t, edsStore.Put(ctx, dah.Hash(), eds))
+		peerManager.Validate(ctx, srvHost.ID(), shrexsub.Notification{
+			DataHash: dah.Hash(),
+			Height:   1,
+		})
+
+		// corrupt NID
+		nID := make([]byte, ipld.NamespaceSize)
+		copy(nID, maxNID)
+		nID[ipld.NamespaceSize-1]++
+		// check for namespace to be not in root
+		require.Len(t, filterRootsByNamespace(&dah, nID), 0)
+
+		sh, err := getter.GetSharesByNamespace(ctx, &dah, nID)
+		require.ErrorIs(t, err, share.ErrNamespaceNotFound)
+		// no shares should be returned
+		require.Len(t, sh.Flatten(), 0)
+		require.Nil(t, sh.Verify(&dah, nID))
 	})
 
 	t.Run("EDS_Available", func(t *testing.T) {
@@ -168,8 +200,8 @@ func newStore(t *testing.T) (*eds.Store, error) {
 func generateTestEDS(t *testing.T) (*rsmt2d.ExtendedDataSquare, da.DataAvailabilityHeader, nmtnamespace.ID) {
 	eds := share.RandEDS(t, 4)
 	dah := da.NewDataAvailabilityHeader(eds)
-	randNID := dah.RowRoots[(len(dah.RowRoots)-1)/2][:namespace.NamespaceSize]
-	return eds, dah, randNID
+	max := nmt.MaxNamespace(dah.RowRoots[(len(dah.RowRoots))/2-1], ipld.NamespaceSize)
+	return eds, dah, max
 }
 
 func testManager(
