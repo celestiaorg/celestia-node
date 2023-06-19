@@ -104,7 +104,7 @@ func TestShrexGetter(t *testing.T) {
 		// corrupt NID
 		nID := make([]byte, ipld.NamespaceSize)
 		copy(nID, maxNID)
-		nID[ipld.NamespaceSize-1]--
+		nID[ipld.NamespaceSize-1]-- // pray for last byte to not be 0x00
 		// check for namespace to be between max and min namespace in root
 		require.Len(t, filterRootsByNamespace(&dah, maxNID), 1)
 
@@ -130,7 +130,7 @@ func TestShrexGetter(t *testing.T) {
 		// corrupt NID
 		nID := make([]byte, ipld.NamespaceSize)
 		copy(nID, maxNID)
-		nID[ipld.NamespaceSize-1]++
+		nID[ipld.NamespaceSize-1]++ // pray for last byte to not be 0xFF
 		// check for namespace to be not in root
 		require.Len(t, filterRootsByNamespace(&dah, nID), 0)
 
