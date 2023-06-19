@@ -36,7 +36,7 @@ func RandShares(t require.TestingT, total int) []share.Share {
 
 // RandNamespace generates random valid namespace for testing purposes.
 func RandNamespace() share.Namespace {
-	rb := make([]byte, r.Intn(namespace.NamespaceVersionZeroIDSize))
+	rb := make([]byte, namespace.NamespaceVersionZeroIDSize)
 	r.Read(rb)
 	for {
 		namespace, _ := share.NewNamespaceV0(rb)
