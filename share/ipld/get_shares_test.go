@@ -240,7 +240,7 @@ func TestCollectLeavesByNamespace_AbsentNamespaceId(t *testing.T) {
 	t.Cleanup(cancel)
 	bServ := mdutils.Bserv()
 
-	shares := sharetest.RandShares(t, 16)
+	shares := sharetest.RandShares(t, 1024)
 
 	// set all shares to the same namespace
 	namespaces, err := randomNamespaces(5)

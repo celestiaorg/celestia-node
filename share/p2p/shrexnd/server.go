@@ -136,7 +136,8 @@ func (srv *Server) handleNamespacedData(ctx context.Context, stream network.Stre
 		srv.respondNotFoundError(ctx, logger, stream)
 		return
 	case errors.Is(err, share.ErrNamespaceNotFound):
-		srv.respondNamespaceNotFoundError(ctx, logger, stream)
+		resp := namespacedSharesToResponse(shares, false)
+		srv.respond(ctx, logger, stream, resp)
 		return
 	case err != nil:
 		logger.Errorw("server: retrieving shares", "err", err)
@@ -144,13 +145,13 @@ func (srv *Server) handleNamespacedData(ctx context.Context, stream network.Stre
 		return
 	}
 
-	resp := namespacedSharesToResponse(shares)
+	resp := namespacedSharesToResponse(shares, true)
 	srv.respond(ctx, logger, stream, resp)
 }
 
 // validateRequest checks correctness of the request
 func validateRequest(req pb.GetSharesByNamespaceRequest) error {
-	if err := share.Namespace(req.Namespace).ValidateBlobNamespace(); err != nil {
+	if err := share.Namespace(req.Namespace).Validate(); err != nil {
 		return err
 	}
 	if len(req.RootHash) != sha256.Size {
@@ -168,15 +169,6 @@ func (srv *Server) respondNotFoundError(ctx context.Context,
 	srv.respond(ctx, logger, stream, resp)
 }
 
-// respondNamespaceNotFoundError sends a namespace not found response to client
-func (srv *Server) respondNamespaceNotFoundError(ctx context.Context,
-	logger *zap.SugaredLogger, stream network.Stream) {
-	resp := &pb.GetSharesByNamespaceResponse{
-		Status: pb.StatusCode_NAMESPACE_NOT_FOUND,
-	}
-	srv.respond(ctx, logger, stream, resp)
-}
-
 // respondInternalError sends internal error response to client
 func (srv *Server) respondInternalError(ctx context.Context,
 	logger *zap.SugaredLogger, stream network.Stream) {
@@ -187,13 +179,14 @@ func (srv *Server) respondInternalError(ctx context.Context,
 }
 
 // namespacedSharesToResponse encodes shares into proto and sends it to client with OK status code
-func namespacedSharesToResponse(shares share.NamespacedShares) *pb.GetSharesByNamespaceResponse {
+func namespacedSharesToResponse(shares share.NamespacedShares, found bool) *pb.GetSharesByNamespaceResponse {
 	rows := make([]*pb.Row, 0, len(shares))
 	for _, row := range shares {
 		proof := &pb.Proof{
-			Start: int64(row.Proof.Start()),
-			End:   int64(row.Proof.End()),
-			Nodes: row.Proof.Nodes(),
+			Start:    int64(row.Proof.Start()),
+			End:      int64(row.Proof.End()),
+			Nodes:    row.Proof.Nodes(),
+			Hashleaf: row.Proof.LeafHash(),
 		}
 
 		row := &pb.Row{
@@ -204,8 +197,13 @@ func namespacedSharesToResponse(shares share.NamespacedShares) *pb.GetSharesByNa
 		rows = append(rows, row)
 	}
 
+	status := pb.StatusCode_OK
+	if !found {
+		status = pb.StatusCode_NAMESPACE_NOT_FOUND
+	}
+
 	return &pb.GetSharesByNamespaceResponse{
-		Status: pb.StatusCode_OK,
+		Status: status,
 		Rows:   rows,
 	}
 }

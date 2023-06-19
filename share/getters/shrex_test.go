@@ -16,6 +16,7 @@ import (
 
 	"github.com/celestiaorg/celestia-app/pkg/da"
 	libhead "github.com/celestiaorg/go-header"
+	"github.com/celestiaorg/nmt"
 	"github.com/celestiaorg/rsmt2d"
 
 	"github.com/celestiaorg/celestia-node/header"
@@ -87,12 +88,12 @@ func TestShrexGetter(t *testing.T) {
 		require.ErrorIs(t, err, share.ErrNotFound)
 	})
 
-	t.Run("ND_namespace_not_found", func(t *testing.T) {
+	t.Run("ND_namespace_not_included", func(t *testing.T) {
 		ctx, cancel := context.WithTimeout(ctx, time.Second)
 		t.Cleanup(cancel)
 
 		// generate test data
-		eds, dah, namespace := generateTestEDS(t)
+		eds, dah, maxNamespace := generateTestEDS(t)
 		require.NoError(t, edsStore.Put(ctx, dah.Hash(), eds))
 		peerManager.Validate(ctx, srvHost.ID(), shrexsub.Notification{
 			DataHash: dah.Hash(),
@@ -100,10 +101,43 @@ func TestShrexGetter(t *testing.T) {
 		})
 
 		// corrupt namespace
-		namespace[len(namespace)-1]++
+		namespace := make([]byte, share.NamespaceSize)
+		copy(namespace, maxNamespace)
+		namespace[share.NamespaceSize-1]-- // pray for last byte to not be 0x00
+		// check for namespace to be between max and min namespace in root
+		require.Len(t, filterRootsByNamespace(&dah, maxNamespace), 1)
 
-		_, err := getter.GetSharesByNamespace(ctx, &dah, namespace)
+		sh, err := getter.GetSharesByNamespace(ctx, &dah, namespace)
 		require.ErrorIs(t, err, share.ErrNamespaceNotFound)
+		// no shares should be returned
+		require.Len(t, sh.Flatten(), 0)
+		require.Nil(t, sh.Verify(&dah, namespace))
+	})
+
+	t.Run("ND_namespace_not_in_root", func(t *testing.T) {
+		ctx, cancel := context.WithTimeout(ctx, time.Second)
+		t.Cleanup(cancel)
+
+		// generate test data
+		eds, dah, maxNamespace := generateTestEDS(t)
+		require.NoError(t, edsStore.Put(ctx, dah.Hash(), eds))
+		peerManager.Validate(ctx, srvHost.ID(), shrexsub.Notification{
+			DataHash: dah.Hash(),
+			Height:   1,
+		})
+
+		// corrupt namespace
+		namespace := make([]byte, share.NamespaceSize)
+		copy(namespace, maxNamespace)
+		namespace[share.NamespaceSize-1]++ // pray for last byte to not be 0xFF
+		// check for namespace to be not in root
+		require.Len(t, filterRootsByNamespace(&dah, namespace), 0)
+
+		sh, err := getter.GetSharesByNamespace(ctx, &dah, namespace)
+		require.ErrorIs(t, err, share.ErrNamespaceNotFound)
+		// no shares should be returned
+		require.Len(t, sh.Flatten(), 0)
+		require.Nil(t, sh.Verify(&dah, namespace))
 	})
 
 	t.Run("EDS_Available", func(t *testing.T) {
@@ -165,8 +199,8 @@ func newStore(t *testing.T) (*eds.Store, error) {
 func generateTestEDS(t *testing.T) (*rsmt2d.ExtendedDataSquare, da.DataAvailabilityHeader, share.Namespace) {
 	eds := edstest.RandEDS(t, 4)
 	dah := da.NewDataAvailabilityHeader(eds)
-	randNamespace := dah.RowRoots[(len(dah.RowRoots)-1)/2][:share.NamespaceSize]
-	return eds, dah, randNamespace
+	max := nmt.MaxNamespace(dah.RowRoots[(len(dah.RowRoots))/2-1], share.NamespaceSize)
+	return eds, dah, max
 }
 
 func testManager(
