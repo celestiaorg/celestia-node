@@ -34,13 +34,13 @@ func RandShares(t require.TestingT, total int) []share.Share {
 	return shares
 }
 
-// RandNamespace generates random valid namespace for testing purposes.
+// RandNamespace generates random valid data namespace for testing purposes.
 func RandNamespace() share.Namespace {
 	rb := make([]byte, namespace.NamespaceVersionZeroIDSize)
 	r.Read(rb)
 	for {
 		namespace, _ := share.NewNamespaceV0(rb)
-		if err := namespace.Validate(); err != nil {
+		if err := namespace.ValidateDataNamespace(); err != nil {
 			continue
 		}
 		return namespace
