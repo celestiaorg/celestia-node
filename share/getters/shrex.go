@@ -181,7 +181,7 @@ func (sg *ShrexGetter) GetSharesByNamespace(
 	root *share.Root,
 	namespace share.Namespace,
 ) (share.NamespacedShares, error) {
-	if err := namespace.Validate(); err != nil {
+	if err := namespace.ValidateDataNamespace(); err != nil {
 		return nil, err
 	}
 	var (

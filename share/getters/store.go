@@ -103,7 +103,7 @@ func (sg *StoreGetter) GetSharesByNamespace(
 		utils.SetStatusAndEnd(span, err)
 	}()
 
-	if err = namespace.Validate(); err != nil {
+	if err = namespace.ValidateDataNamespace(); err != nil {
 		return nil, err
 	}
 

@@ -53,6 +53,10 @@ func (c *Client) RequestND(
 	namespace share.Namespace,
 	peer peer.ID,
 ) (share.NamespacedShares, error) {
+	if err := namespace.ValidateDataNamespace(); err != nil {
+		return nil, err
+	}
+
 	shares, err := c.doRequest(ctx, root, namespace, peer)
 	if err == nil || errors.Is(err, share.ErrNamespaceNotFound) {
 		return shares, err
