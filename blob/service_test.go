@@ -161,7 +161,7 @@ func TestBlobService_Get(t *testing.T) {
 						for _, p := range *proof {
 							from := to
 							to = p.End() - p.Start() + from
-							eq := p.VerifyInclusion(sha256.New(), namespace.AsNMT(), rawShares[from:to], row)
+							eq := p.VerifyInclusion(sha256.New(), namespace.ToNMT(), rawShares[from:to], row)
 							if eq == true {
 								return
 							}
@@ -307,7 +307,7 @@ func TestService_GetSingleBlobWithoutPadding(t *testing.T) {
 	blobs, err := convertBlobs(appBlob...)
 	require.NoError(t, err)
 
-	ns1, ns2 := blobs[0].Namespace().AsAppNamespace(), blobs[1].Namespace().AsAppNamespace()
+	ns1, ns2 := blobs[0].Namespace().ToAppNamespace(), blobs[1].Namespace().ToAppNamespace()
 
 	padding0, err := shares.NamespacePaddingShare(ns1)
 	require.NoError(t, err)
@@ -352,7 +352,7 @@ func TestService_GetAllWithoutPadding(t *testing.T) {
 	blobs, err := convertBlobs(appBlob...)
 	require.NoError(t, err)
 
-	ns1, ns2 := blobs[0].Namespace().AsAppNamespace(), blobs[1].Namespace().AsAppNamespace()
+	ns1, ns2 := blobs[0].Namespace().ToAppNamespace(), blobs[1].Namespace().ToAppNamespace()
 
 	padding0, err := shares.NamespacePaddingShare(ns1)
 	require.NoError(t, err)

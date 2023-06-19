@@ -378,7 +378,7 @@ func TestGetSharesWithProofsByNamespace(t *testing.T) {
 					// verify namespace
 					verified := proof.VerifyNamespace(
 						sha256.New(),
-						namespace.AsNMT(),
+						namespace.ToNMT(),
 						leaves,
 						NamespacedSha256FromCID(rcid))
 					require.True(t, verified)
@@ -386,7 +386,7 @@ func TestGetSharesWithProofsByNamespace(t *testing.T) {
 					// verify inclusion
 					verified = proof.VerifyInclusion(
 						sha256.New(),
-						namespace.AsNMT(),
+						namespace.ToNMT(),
 						rowShares,
 						NamespacedSha256FromCID(rcid))
 					require.True(t, verified)
@@ -474,7 +474,7 @@ func assertNoRowContainsNID(
 
 		// if no error returned, check absence proof
 		foundAbsenceRows++
-		verified := data.Proof().VerifyNamespace(sha256.New(), namespace.AsNMT(), nil, rowRoot)
+		verified := data.Proof().VerifyNamespace(sha256.New(), namespace.ToNMT(), nil, rowRoot)
 		require.True(t, verified)
 	}
 

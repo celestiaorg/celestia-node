@@ -87,7 +87,7 @@ func (row *NamespacedRow) verify(rowRoot []byte, namespace Namespace) bool {
 	// verify namespace
 	return row.Proof.VerifyNamespace(
 		sha256.New(),
-		namespace.AsNMT(),
+		namespace.ToNMT(),
 		leaves,
 		rowRoot)
 }

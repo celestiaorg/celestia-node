@@ -57,16 +57,16 @@ func (n Namespace) ID() namespace.ID {
 	return namespace.ID(n[appns.NamespaceVersionSize:])
 }
 
-// AsNMT converts the whole Namespace(both Version and ID parts) into NMT's namespace.ID
+// ToNMT converts the whole Namespace(both Version and ID parts) into NMT's namespace.ID
 // NOTE: Once https://github.com/celestiaorg/nmt/issues/206 is closed Namespace should become NNT's
 // type.
-func (n Namespace) AsNMT() namespace.ID {
+func (n Namespace) ToNMT() namespace.ID {
 	return namespace.ID(n)
 }
 
-// AsAppNamespace converts the Namespace to App's definition of Namespace.
+// ToAppNamespace converts the Namespace to App's definition of Namespace.
 // TODO: Unify types between node and app
-func (n Namespace) AsAppNamespace() appns.Namespace {
+func (n Namespace) ToAppNamespace() appns.Namespace {
 	return appns.Namespace{Version: n.Version(), ID: n.ID()}
 }
 
