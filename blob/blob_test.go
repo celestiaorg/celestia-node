@@ -43,7 +43,7 @@ func TestBlob(t *testing.T) {
 		{
 			name: "verify namespace",
 			expectedRes: func(t *testing.T) {
-				ns := blob[0].Namespace().AsAppNamespace()
+				ns := blob[0].Namespace().ToAppNamespace()
 				require.NoError(t, err)
 				require.NoError(t, apptypes.ValidateBlobNamespace(ns))
 			},

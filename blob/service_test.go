@@ -307,7 +307,7 @@ func TestService_GetSingleBlobWithoutPadding(t *testing.T) {
 	blobs, err := convertBlobs(appBlob...)
 	require.NoError(t, err)
 
-	ns1, ns2 := blobs[0].Namespace().AsAppNamespace(), blobs[1].Namespace().AsAppNamespace()
+	ns1, ns2 := blobs[0].Namespace().ToAppNamespace(), blobs[1].Namespace().ToAppNamespace()
 
 	padding0, err := shares.NamespacePaddingShare(ns1)
 	require.NoError(t, err)
@@ -352,7 +352,7 @@ func TestService_GetAllWithoutPadding(t *testing.T) {
 	blobs, err := convertBlobs(appBlob...)
 	require.NoError(t, err)
 
-	ns1, ns2 := blobs[0].Namespace().AsAppNamespace(), blobs[1].Namespace().AsAppNamespace()
+	ns1, ns2 := blobs[0].Namespace().ToAppNamespace(), blobs[1].Namespace().ToAppNamespace()
 
 	padding0, err := shares.NamespacePaddingShare(ns1)
 	require.NoError(t, err)
