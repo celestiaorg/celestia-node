@@ -17,8 +17,11 @@ import (
 var (
 	// ErrNotFound is used to indicate that requested data could not be found.
 	ErrNotFound = errors.New("share: data not found")
-	// ErrNamespaceNotFound is returned by GetSharesByNamespace when data for requested root does
-	// not include any shares from the given namespace
+	// ErrNamespaceNotFound is returned by GetSharesByNamespace when data for the requested root does
+	// not include any shares from the given namespace. If the target namespace belongs to the namespace range
+	// of any rows of the requested root, the error will be returned along with collected non-inclusion
+	// proofs for those rows. It is the obligation of the requester to verify non-inclusion proofs for all rows
+	// that could possibly contain the target namespace by calling the Verify method.
 	ErrNamespaceNotFound = errors.New("share: namespace not found in data")
 )
 
