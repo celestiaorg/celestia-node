@@ -2,7 +2,6 @@ package rpc
 
 import (
 	"context"
-	"encoding/json"
 	"net"
 	"net/http"
 	"reflect"
@@ -15,6 +14,7 @@ import (
 	logging "github.com/ipfs/go-log/v2"
 
 	"github.com/celestiaorg/celestia-node/api/rpc/perms"
+	"github.com/celestiaorg/celestia-node/libs/authtoken"
 )
 
 var log = logging.Logger("rpc")
@@ -51,17 +51,7 @@ func NewServer(address, port string, secret jwt.Signer) *Server {
 // reached if a token is provided in the header of the request, otherwise only
 // methods with `read` permissions are accessible.
 func (s *Server) verifyAuth(_ context.Context, token string) ([]auth.Permission, error) {
-	tk, err := jwt.ParseAndVerifyString(token, s.auth)
-	if err != nil {
-		return nil, err
-	}
-	p := new(perms.JWTPayload)
-	err = json.Unmarshal(tk.RawClaims(), p)
-	if err != nil {
-		return nil, err
-	}
-	// check permissions
-	return p.Allow, nil
+	return authtoken.ExtractSignedPermissions(s.auth, token)
 }
 
 // RegisterService registers a service onto the RPC server. All methods on the service will then be

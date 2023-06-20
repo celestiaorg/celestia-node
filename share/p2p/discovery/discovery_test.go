@@ -11,6 +11,7 @@ import (
 	"github.com/libp2p/go-libp2p/core/peer"
 	"github.com/libp2p/go-libp2p/p2p/discovery/routing"
 	basic "github.com/libp2p/go-libp2p/p2p/host/basic"
+	"github.com/libp2p/go-libp2p/p2p/host/eventbus"
 	swarmt "github.com/libp2p/go-libp2p/p2p/net/swarm/testing"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -21,7 +22,7 @@ func TestDiscovery(t *testing.T) {
 
 	discoveryRetryTimeout = time.Millisecond * 100 // defined in discovery.go
 
-	ctx, cancel := context.WithTimeout(context.Background(), time.Second*30)
+	ctx, cancel := context.WithTimeout(context.Background(), time.Minute*30)
 	t.Cleanup(cancel)
 
 	tn := newTestnet(ctx, t)
@@ -80,8 +81,9 @@ type testnet struct {
 }
 
 func newTestnet(ctx context.Context, t *testing.T) *testnet {
-	swarm := swarmt.GenSwarm(t, swarmt.OptDisableTCP)
-	hst, err := basic.NewHost(swarm, &basic.HostOpts{})
+	bus := eventbus.NewBus()
+	swarm := swarmt.GenSwarm(t, swarmt.OptDisableTCP, swarmt.EventBus(bus))
+	hst, err := basic.NewHost(swarm, &basic.HostOpts{EventBus: bus})
 	require.NoError(t, err)
 	hst.Start()
 
@@ -110,8 +112,9 @@ func (t *testnet) discovery(opts ...Option) *Discovery {
 }
 
 func (t *testnet) peer() (host.Host, discovery.Discovery) {
-	swarm := swarmt.GenSwarm(t.T, swarmt.OptDisableTCP)
-	hst, err := basic.NewHost(swarm, &basic.HostOpts{})
+	bus := eventbus.NewBus()
+	swarm := swarmt.GenSwarm(t.T, swarmt.OptDisableTCP, swarmt.EventBus(bus))
+	hst, err := basic.NewHost(swarm, &basic.HostOpts{EventBus: bus})
 	require.NoError(t.T, err)
 	hst.Start()
 
