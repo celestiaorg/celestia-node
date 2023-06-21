@@ -330,7 +330,7 @@ require (
 )
 
 replace (
-	github.com/cosmos/cosmos-sdk => github.com/celestiaorg/cosmos-sdk v1.13.0-sdk-v0.46.11
+	github.com/cosmos/cosmos-sdk => github.com/celestiaorg/cosmos-sdk v1.14.0-sdk-v0.46.11
 	github.com/filecoin-project/dagstore => github.com/celestiaorg/dagstore v0.0.0-20230413141458-735ab09a15d6
 	github.com/gogo/protobuf => github.com/regen-network/protobuf v1.3.3-alpha.regen.1
 	github.com/tendermint/tendermint => github.com/celestiaorg/celestia-core v1.21.2-tm-v0.34.27
