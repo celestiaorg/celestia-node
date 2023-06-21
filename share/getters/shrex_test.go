@@ -115,7 +115,7 @@ func TestShrexGetter(t *testing.T) {
 		require.Nil(t, emptyShares.Verify(&dah, nID))
 	})
 
-	t.Run("ND_namespace_not_in_root", func(t *testing.T) {
+	t.Run("ND_namespace_not_in_dah", func(t *testing.T) {
 		ctx, cancel := context.WithTimeout(ctx, time.Second)
 		t.Cleanup(cancel)
 
