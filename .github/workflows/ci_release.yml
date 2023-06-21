@@ -1,5 +1,6 @@
 name: CI and Release
 on:
+  merge_group:
   push:
     branches:
       - main
