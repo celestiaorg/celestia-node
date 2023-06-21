@@ -2,6 +2,7 @@ name: Docker Build & Publish
 
 # Trigger on all push events, new semantic version tags, and all PRs
 on:
+  merge_group:
   push:
     branches:
       - "**"
