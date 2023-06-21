@@ -122,7 +122,7 @@ func cascadeGetters[V any](
 		getCtx, cancel := ctxWithSplitTimeout(ctx, len(getters)-i, 0)
 		val, getErr := get(getCtx, getter)
 		cancel()
-		if getErr == nil || errors.Is(getErr, share.ErrNamespaceNotFound) {
+		if getErr == nil {
 			return val, getErr
 		}
 
