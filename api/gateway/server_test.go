@@ -12,8 +12,12 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
+const (
+	address = "localhost"
+	port    = "0"
+)
+
 func TestServer(t *testing.T) {
-	address, port := "localhost", "0"
 	server := NewServer(address, port)
 
 	ctx, cancel := context.WithCancel(context.Background())
@@ -42,10 +46,33 @@ func TestServer(t *testing.T) {
 	require.NoError(t, err)
 }
 
+func TestCorsEnabled(t *testing.T) {
+	server := NewServer(address, port)
+	server.RegisterMiddleware(enableCors)
+
+	ctx, cancel := context.WithCancel(context.Background())
+	t.Cleanup(cancel)
+
+	err := server.Start(ctx)
+	require.NoError(t, err)
+
+	// register ping handler
+	ping := new(ping)
+	server.RegisterHandlerFunc("/ping", ping.ServeHTTP, http.MethodGet)
+
+	url := fmt.Sprintf("http://%s/ping", server.ListenAddr())
+
+	resp, err := http.Get(url)
+	require.NoError(t, err)
+	defer resp.Body.Close()
+
+	require.NoError(t, err)
+	require.Equal(t, resp.Header.Get("Access-Control-Allow-Origin"), "*")
+}
+
 // TestServer_contextLeakProtection tests to ensure a context
 // deadline was added by the context wrapper middleware server-side.
 func TestServer_contextLeakProtection(t *testing.T) {
-	address, port := "localhost", "0"
 	server := NewServer(address, port)
 	server.RegisterMiddleware(wrapRequestContext)
 
