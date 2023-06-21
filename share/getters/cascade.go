@@ -123,7 +123,7 @@ func cascadeGetters[V any](
 		val, getErr := get(getCtx, getter)
 		cancel()
 		if getErr == nil {
-			return val, getErr
+			return val, nil
 		}
 
 		if errors.Is(getErr, errOperationNotSupported) {
