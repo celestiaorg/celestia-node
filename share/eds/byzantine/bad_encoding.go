@@ -2,6 +2,7 @@ package byzantine
 
 import (
 	"bytes"
+	"errors"
 	"fmt"
 
 	"github.com/celestiaorg/celestia-app/pkg/wrapper"
@@ -152,6 +153,20 @@ func (p *BadEncodingProof) Validate(hdr libhead.Header) error {
 		)
 	}
 
+	// find at least 1 non-empty share
+	nonEmpty := false
+	for _, share := range p.Shares {
+		if share == nil {
+			continue
+		}
+		nonEmpty = true
+		break
+	}
+
+	if !nonEmpty {
+		return errors.New("fraud: invalid proof: no shares provided to reconstruct row/col")
+	}
+
 	// verify that Merkle proofs correspond to particular shares.
 	shares := make([][]byte, len(merkleRoots))
 	for index, shr := range p.Shares {
@@ -170,14 +185,20 @@ func (p *BadEncodingProof) Validate(hdr libhead.Header) error {
 	odsWidth := uint64(len(merkleRoots) / 2)
 	codec := share.DefaultRSMT2DCodec()
 
+	// We assume that the proof is valid in case if we proved the inclusion of `Shares` but
+	// a row/col can't be reconstructed or building a NMT tree fails.
+
 	// rebuild a row or col.
 	rebuiltShares, err := codec.Decode(shares)
 	if err != nil {
-		return err
+		log.Errorw("failed to decode shares", "err", err)
+		return nil
 	}
+
 	rebuiltExtendedShares, err := codec.Encode(rebuiltShares[0:odsWidth])
 	if err != nil {
-		return err
+		log.Errorw("failed to encode shares", "err", err)
+		return nil
 	}
 	copy(rebuiltShares[odsWidth:], rebuiltExtendedShares)
 
@@ -185,13 +206,15 @@ func (p *BadEncodingProof) Validate(hdr libhead.Header) error {
 	for _, share := range rebuiltShares {
 		err = tree.Push(share)
 		if err != nil {
-			return err
+			log.Errorw("failed to build a tree from the reconstructed shares", "err", err)
+			return nil
 		}
 	}
 
 	expectedRoot, err := tree.Root()
 	if err != nil {
-		return err
+		log.Errorw("failed to build a tree root", "err", err)
+		return nil
 	}
 
 	// root is a merkle root of the row/col where ErrByzantine occurred
