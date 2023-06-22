@@ -185,8 +185,8 @@ func (p *BadEncodingProof) Validate(hdr libhead.Header) error {
 	odsWidth := uint64(len(merkleRoots) / 2)
 	codec := share.DefaultRSMT2DCodec()
 
-	// We assume that the proof is valid in case if we proved the inclusion of `Shares` but
-	// a row/col can't be reconstructed or building a NMT tree fails.
+	// We assume that the proof is valid in case we proved the inclusion of `Shares` but
+	// the row/col can't be reconstructed, or the building of NMTree fails.
 
 	// rebuild a row or col.
 	rebuiltShares, err := codec.Decode(shares)
