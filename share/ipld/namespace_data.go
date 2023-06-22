@@ -137,7 +137,7 @@ func (n *NamespaceData) addProof(d direction, cid cid.Cid, depth int) {
 // Leaves returns retrieved leaves within the bounds in case `WithLeaves` option was passed,
 // otherwise nil will be returned.
 func (n *NamespaceData) Leaves() []ipld.Node {
-	if n.leaves == nil || n.noLeaves() {
+	if n.leaves == nil || n.noLeaves() || n.isAbsentNamespace.Load() {
 		return nil
 	}
 	return n.leaves[n.bounds.lowest : n.bounds.highest+1]

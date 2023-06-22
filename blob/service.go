@@ -193,8 +193,7 @@ func (s *Service) getByCommitment(
 
 	namespacedShares, err := s.shareGetter.GetSharesByNamespace(ctx, header.DAH, nID)
 	if err != nil {
-		if errors.Is(err, share.ErrNamespaceNotFound) ||
-			errors.Is(err, share.ErrNotFound) {
+		if errors.Is(err, share.ErrNotFound) {
 			err = ErrBlobNotFound
 		}
 		return nil, nil, err

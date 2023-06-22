@@ -122,10 +122,6 @@ func (sg *StoreGetter) GetSharesByNamespace(
 	// wrap the read-only CAR blockstore in a getter
 	blockGetter := eds.NewBlockGetter(bs)
 	shares, err = collectSharesByNamespace(ctx, blockGetter, root, nID)
-	if errors.Is(err, ipld.ErrNodeNotFound) {
-		// convert error to satisfy getter interface contract
-		err = share.ErrNotFound
-	}
 	if err != nil {
 		return nil, fmt.Errorf("getter/store: failed to retrieve shares by namespace: %w", err)
 	}

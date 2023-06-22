@@ -136,9 +136,6 @@ func (srv *Server) handleNamespacedData(ctx context.Context, stream network.Stre
 		logger.Warn("server: nd not found")
 		srv.respondNotFoundError(ctx, logger, stream)
 		return
-	case errors.Is(err, share.ErrNamespaceNotFound):
-		srv.respondNamespaceNotFoundError(ctx, logger, stream)
-		return
 	case err != nil:
 		logger.Errorw("server: retrieving shares", "err", err)
 		srv.respondInternalError(ctx, logger, stream)
@@ -170,15 +167,6 @@ func (srv *Server) respondNotFoundError(ctx context.Context,
 	srv.respond(ctx, logger, stream, resp)
 }
 
-// respondNamespaceNotFoundError sends a namespace not found response to client
-func (srv *Server) respondNamespaceNotFoundError(ctx context.Context,
-	logger *zap.SugaredLogger, stream network.Stream) {
-	resp := &pb.GetSharesByNamespaceResponse{
-		Status: pb.StatusCode_NAMESPACE_NOT_FOUND,
-	}
-	srv.respond(ctx, logger, stream, resp)
-}
-
 // respondInternalError sends internal error response to client
 func (srv *Server) respondInternalError(ctx context.Context,
 	logger *zap.SugaredLogger, stream network.Stream) {
@@ -192,22 +180,26 @@ func (srv *Server) respondInternalError(ctx context.Context,
 func namespacedSharesToResponse(shares share.NamespacedShares) *pb.GetSharesByNamespaceResponse {
 	rows := make([]*pb.Row, 0, len(shares))
 	for _, row := range shares {
-		proof := &pb.Proof{
-			Start: int64(row.Proof.Start()),
-			End:   int64(row.Proof.End()),
-			Nodes: row.Proof.Nodes(),
-		}
-
 		row := &pb.Row{
 			Shares: row.Shares,
-			Proof:  proof,
+			Proof: &pb.Proof{
+				Start:    int64(row.Proof.Start()),
+				End:      int64(row.Proof.End()),
+				Nodes:    row.Proof.Nodes(),
+				Hashleaf: row.Proof.LeafHash(),
+			},
 		}
 
 		rows = append(rows, row)
 	}
 
+	status := pb.StatusCode_OK
+	if len(shares) == 0 || (len(shares) == 1 && len(shares[0].Shares) == 0) {
+		status = pb.StatusCode_NAMESPACE_NOT_FOUND
+	}
+
 	return &pb.GetSharesByNamespaceResponse{
-		Status: pb.StatusCode_OK,
+		Status: status,
 		Rows:   rows,
 	}
 }

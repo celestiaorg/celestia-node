@@ -56,7 +56,7 @@ func (c *Client) RequestND(
 ) (share.NamespacedShares, error) {
 	shares, err := c.doRequest(ctx, root, nID, peer)
 	if err == nil {
-		return shares, err
+		return shares, nil
 	}
 	if errors.Is(err, context.DeadlineExceeded) || errors.Is(err, context.Canceled) {
 		c.metrics.ObserveRequests(ctx, 1, p2p.StatusTimeout)
@@ -71,7 +71,7 @@ func (c *Client) RequestND(
 			return nil, context.DeadlineExceeded
 		}
 	}
-	if err != p2p.ErrNotFound && err != share.ErrNamespaceNotFound {
+	if err != p2p.ErrNotFound {
 		log.Warnw("client-nd: peer returned err", "err", err)
 	}
 	return nil, err
@@ -119,19 +119,11 @@ func (c *Client) doRequest(
 		return nil, fmt.Errorf("client-nd: reading response: %w", err)
 	}
 
-	if err = c.statusToErr(ctx, resp.Status); err != nil {
-		return nil, fmt.Errorf("client-nd: response code is not OK: %w", err)
-	}
-
-	shares, err := convertToNamespacedShares(resp.Rows)
-	if err != nil {
-		return nil, fmt.Errorf("client-nd: converting response to shares: %w", err)
-	}
-	return shares, nil
+	return c.convertResponse(ctx, resp)
 }
 
 // convertToNamespacedShares converts proto Rows to share.NamespacedShares
-func convertToNamespacedShares(rows []*pb.Row) (share.NamespacedShares, error) {
+func convertToNamespacedShares(rows []*pb.Row) share.NamespacedShares {
 	shares := make([]share.NamespacedRow, 0, len(rows))
 	for _, row := range rows {
 		var proof *nmt.Proof
@@ -150,7 +142,24 @@ func convertToNamespacedShares(rows []*pb.Row) (share.NamespacedShares, error) {
 			Proof:  proof,
 		})
 	}
-	return shares, nil
+	return shares
+}
+
+func convertToNonInclusionProofs(rows []*pb.Row) share.NamespacedShares {
+	shares := make([]share.NamespacedRow, 0, len(rows))
+	for _, row := range rows {
+		proof := nmt.NewAbsenceProof(
+			int(row.Proof.Start),
+			int(row.Proof.End),
+			row.Proof.Nodes,
+			row.Proof.Hashleaf,
+			ipld.NMTIgnoreMaxNamespace,
+		)
+		shares = append(shares, share.NamespacedRow{
+			Proof: &proof,
+		})
+	}
+	return shares
 }
 
 func (c *Client) setStreamDeadlines(ctx context.Context, stream network.Stream) {
@@ -181,22 +190,23 @@ func (c *Client) setStreamDeadlines(ctx context.Context, stream network.Stream) 
 	}
 }
 
-func (c *Client) statusToErr(ctx context.Context, code pb.StatusCode) error {
-	switch code {
+func (c *Client) convertResponse(
+	ctx context.Context, resp pb.GetSharesByNamespaceResponse) (share.NamespacedShares, error) {
+	switch resp.Status {
 	case pb.StatusCode_OK:
 		c.metrics.ObserveRequests(ctx, 1, p2p.StatusSuccess)
-		return nil
+		return convertToNamespacedShares(resp.Rows), nil
+	case pb.StatusCode_NAMESPACE_NOT_FOUND:
+		return convertToNonInclusionProofs(resp.Rows), nil
 	case pb.StatusCode_NOT_FOUND:
 		c.metrics.ObserveRequests(ctx, 1, p2p.StatusNotFound)
-		return p2p.ErrNotFound
-	case pb.StatusCode_NAMESPACE_NOT_FOUND:
-		return share.ErrNamespaceNotFound
+		return nil, p2p.ErrNotFound
 	case pb.StatusCode_INVALID:
 		log.Debug("client-nd: invalid request")
 		fallthrough
 	case pb.StatusCode_INTERNAL:
 		fallthrough
 	default:
-		return p2p.ErrInvalidResponse
+		return nil, p2p.ErrInvalidResponse
 	}
 }
