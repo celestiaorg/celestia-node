@@ -103,18 +103,18 @@ func TestShrexGetter(t *testing.T) {
 		// corrupt namespace
 		namespace := make([]byte, share.NamespaceSize)
 		copy(namespace, maxNamespace)
-		namespace[share.NamespaceSize-1]-- // pray for last byte to not be 0x00
+		namespace[share.NamespaceSize-1]--
 		// check for namespace to be between max and min namespace in root
 		require.Len(t, filterRootsByNamespace(&dah, maxNamespace), 1)
 
-		sh, err := getter.GetSharesByNamespace(ctx, &dah, namespace)
-		require.ErrorIs(t, err, share.ErrNamespaceNotFound)
+		emptyShares, err := getter.GetSharesByNamespace(ctx, &dah, namespace)
+		require.NoError(t, err)
 		// no shares should be returned
-		require.Len(t, sh.Flatten(), 0)
-		require.Nil(t, sh.Verify(&dah, namespace))
+		require.Empty(t, emptyShares.Flatten())
+		require.Nil(t, emptyShares.Verify(&dah, namespace))
 	})
 
-	t.Run("ND_namespace_not_in_root", func(t *testing.T) {
+	t.Run("ND_namespace_not_in_dah", func(t *testing.T) {
 		ctx, cancel := context.WithTimeout(ctx, time.Second)
 		t.Cleanup(cancel)
 
@@ -129,15 +129,15 @@ func TestShrexGetter(t *testing.T) {
 		// corrupt namespace
 		namespace := make([]byte, share.NamespaceSize)
 		copy(namespace, maxNamespace)
-		namespace[share.NamespaceSize-1]++ // pray for last byte to not be 0xFF
+		namespace[share.NamespaceSize-1]++
 		// check for namespace to be not in root
 		require.Len(t, filterRootsByNamespace(&dah, namespace), 0)
 
-		sh, err := getter.GetSharesByNamespace(ctx, &dah, namespace)
-		require.ErrorIs(t, err, share.ErrNamespaceNotFound)
+		emptyShares, err := getter.GetSharesByNamespace(ctx, &dah, namespace)
+		require.NoError(t, err)
 		// no shares should be returned
-		require.Len(t, sh.Flatten(), 0)
-		require.Nil(t, sh.Verify(&dah, namespace))
+		require.Empty(t, emptyShares.Flatten())
+		require.Nil(t, emptyShares.Verify(&dah, namespace))
 	})
 
 	t.Run("EDS_Available", func(t *testing.T) {

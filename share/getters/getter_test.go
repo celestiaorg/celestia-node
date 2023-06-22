@@ -140,8 +140,9 @@ func TestStoreGetter(t *testing.T) {
 
 		// namespace not found
 		randNamespace := sharetest.RandNamespace()
-		_, err = sg.GetSharesByNamespace(ctx, &dah, randNamespace)
-		require.ErrorIs(t, err, share.ErrNamespaceNotFound)
+		emptyShares, err := sg.GetSharesByNamespace(ctx, &dah, randNamespace)
+		require.Empty(t, emptyShares.Flatten())
+		require.NoError(t, err)
 
 		// root not found
 		root := share.Root{}
@@ -218,13 +219,14 @@ func TestIPLDGetter(t *testing.T) {
 		// namespace not found
 		randNamespace := sharetest.RandNamespace()
 		emptyShares, err := sg.GetSharesByNamespace(ctx, &dah, randNamespace)
-		require.ErrorIs(t, err, share.ErrNamespaceNotFound)
-		require.Nil(t, emptyShares)
+		require.Empty(t, emptyShares.Flatten())
+		require.NoError(t, err)
 
 		// nid doesnt exist in root
 		root := share.Root{}
-		_, err = sg.GetSharesByNamespace(ctx, &root, namespace)
-		require.ErrorIs(t, err, share.ErrNamespaceNotFound)
+		emptyShares, err = sg.GetSharesByNamespace(ctx, &root, namespace)
+		require.NoError(t, err)
+		require.Empty(t, emptyShares.Flatten())
 	})
 }
 

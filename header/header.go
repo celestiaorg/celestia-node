@@ -10,6 +10,7 @@ import (
 	tmjson "github.com/tendermint/tendermint/libs/json"
 	core "github.com/tendermint/tendermint/types"
 
+	"github.com/celestiaorg/celestia-app/pkg/appconsts"
 	"github.com/celestiaorg/celestia-app/pkg/da"
 	libhead "github.com/celestiaorg/go-header"
 	"github.com/celestiaorg/rsmt2d"
@@ -113,6 +114,11 @@ func (eh *ExtendedHeader) Validate() error {
 	err := eh.RawHeader.ValidateBasic()
 	if err != nil {
 		return fmt.Errorf("ValidateBasic error on RawHeader at height %d: %w", eh.Height(), err)
+	}
+
+	if eh.RawHeader.Version.App != appconsts.LatestVersion {
+		return fmt.Errorf("app version mismatch, expected: %d, got %d", appconsts.LatestVersion,
+			eh.RawHeader.Version.App)
 	}
 
 	err = eh.Commit.ValidateBasic()

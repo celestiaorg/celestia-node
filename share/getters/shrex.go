@@ -192,7 +192,7 @@ func (sg *ShrexGetter) GetSharesByNamespace(
 	// verify that the namespace could exist inside the roots before starting network requests
 	roots := filterRootsByNamespace(root, namespace)
 	if len(roots) == 0 {
-		return nil, share.ErrNamespaceNotFound
+		return nil, nil
 	}
 
 	for {
@@ -218,15 +218,16 @@ func (sg *ShrexGetter) GetSharesByNamespace(
 		nd, getErr := sg.ndClient.RequestND(reqCtx, root, namespace, peer)
 		cancel()
 		switch {
-		case getErr == nil, errors.Is(getErr, share.ErrNamespaceNotFound):
+		case getErr == nil:
 			// both inclusion and non-inclusion cases needs verification
 			if verErr := nd.Verify(root, namespace); verErr != nil {
+				getErr = verErr
 				setStatus(peers.ResultBlacklistPeer)
 				break
 			}
 			setStatus(peers.ResultNoop)
 			sg.metrics.recordNDAttempt(ctx, attempt, true)
-			return nd, getErr
+			return nd, nil
 		case errors.Is(getErr, context.DeadlineExceeded),
 			errors.Is(getErr, context.Canceled):
 			setStatus(peers.ResultCooldownPeer)

@@ -14,13 +14,6 @@ import (
 var (
 	// ErrNotFound is used to indicate that requested data could not be found.
 	ErrNotFound = errors.New("share: data not found")
-	// ErrNamespaceNotFound is returned by GetSharesByNamespace when data for the requested root does
-	// not include any shares from the given namespace. If the target namespace belongs to the
-	// namespace range of any rows of the requested root, the error will be returned along with
-	// collected non-inclusion proofs for those rows. It is the obligation of the requester to verify
-	// non-inclusion proofs for all rows that could possibly contain the target namespace by calling
-	// the Verify method.
-	ErrNamespaceNotFound = errors.New("share: namespace not found in data")
 )
 
 // Getter interface provides a set of accessors for shares by the Root.
@@ -36,8 +29,9 @@ type Getter interface {
 
 	// GetSharesByNamespace gets all shares from an EDS within the given namespace.
 	// Shares are returned in a row-by-row order if the namespace spans multiple rows.
-	// If data for the requested root does not include any shares from the given namespace
-	// ErrNamespaceNotFound will be returned along with non-inclusion proofs if there are any.
+	// Inclusion of returned data could be verified using Verify method on NamespacedShares.
+	// If no shares are found for target namespace non-inclusion could be also verified by calling
+	// Verify method.
 	GetSharesByNamespace(context.Context, *Root, Namespace) (NamespacedShares, error)
 }
 

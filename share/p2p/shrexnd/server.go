@@ -135,17 +135,13 @@ func (srv *Server) handleNamespacedData(ctx context.Context, stream network.Stre
 		logger.Warn("server: nd not found")
 		srv.respondNotFoundError(ctx, logger, stream)
 		return
-	case errors.Is(err, share.ErrNamespaceNotFound):
-		resp := namespacedSharesToResponse(shares, false)
-		srv.respond(ctx, logger, stream, resp)
-		return
 	case err != nil:
 		logger.Errorw("server: retrieving shares", "err", err)
 		srv.respondInternalError(ctx, logger, stream)
 		return
 	}
 
-	resp := namespacedSharesToResponse(shares, true)
+	resp := namespacedSharesToResponse(shares)
 	srv.respond(ctx, logger, stream, resp)
 }
 
@@ -179,26 +175,24 @@ func (srv *Server) respondInternalError(ctx context.Context,
 }
 
 // namespacedSharesToResponse encodes shares into proto and sends it to client with OK status code
-func namespacedSharesToResponse(shares share.NamespacedShares, found bool) *pb.GetSharesByNamespaceResponse {
+func namespacedSharesToResponse(shares share.NamespacedShares) *pb.GetSharesByNamespaceResponse {
 	rows := make([]*pb.Row, 0, len(shares))
 	for _, row := range shares {
-		proof := &pb.Proof{
-			Start:    int64(row.Proof.Start()),
-			End:      int64(row.Proof.End()),
-			Nodes:    row.Proof.Nodes(),
-			Hashleaf: row.Proof.LeafHash(),
-		}
-
 		row := &pb.Row{
 			Shares: row.Shares,
-			Proof:  proof,
+			Proof: &pb.Proof{
+				Start:    int64(row.Proof.Start()),
+				End:      int64(row.Proof.End()),
+				Nodes:    row.Proof.Nodes(),
+				Hashleaf: row.Proof.LeafHash(),
+			},
 		}
 
 		rows = append(rows, row)
 	}
 
 	status := pb.StatusCode_OK
-	if !found {
+	if len(shares) == 0 || (len(shares) == 1 && len(shares[0].Shares) == 0) {
 		status = pb.StatusCode_NAMESPACE_NOT_FOUND
 	}
 

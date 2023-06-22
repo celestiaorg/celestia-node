@@ -12,14 +12,13 @@ import (
 // NamespaceSize is a system-wide size for NMT namespaces.
 const NamespaceSize = appns.NamespaceSize
 
-// Various reserved namespaces.
 var (
-	MaxReservedNamespace     = appns.MaxReservedNamespace.Bytes()
-	ParitySharesNamespace    = appns.ParitySharesNamespace.Bytes()
-	TailPaddingNamespace     = appns.TailPaddingNamespace.Bytes()
-	ReservedPaddingNamespace = appns.ReservedPaddingNamespace.Bytes()
-	TxNamespace              = appns.TxNamespace.Bytes()
-	PayForBlobNamespace      = appns.PayForBlobNamespace.Bytes()
+	MaxReservedNamespace     = Namespace(appns.MaxReservedNamespace.Bytes())
+	ParitySharesNamespace    = Namespace(appns.ParitySharesNamespace.Bytes())
+	TailPaddingNamespace     = Namespace(appns.TailPaddingNamespace.Bytes())
+	ReservedPaddingNamespace = Namespace(appns.ReservedPaddingNamespace.Bytes())
+	TxNamespace              = Namespace(appns.TxNamespace.Bytes())
+	PayForBlobNamespace      = Namespace(appns.PayForBlobNamespace.Bytes())
 )
 
 // Namespace represents namespace of a Share.
@@ -108,7 +107,7 @@ func (n Namespace) ValidateDataNamespace() error {
 		return err
 	}
 	if n.Equals(ParitySharesNamespace) || n.Equals(TailPaddingNamespace) {
-		return fmt.Errorf("invalid data namespace(%s): parity and tail padding namespace are fobidden", n)
+		return fmt.Errorf("invalid data namespace(%s): parity and tail padding namespace are forbidden", n)
 	}
 	return nil
 }
