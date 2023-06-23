@@ -9,8 +9,6 @@ import (
 	"github.com/cosmos/cosmos-sdk/types"
 	"github.com/gorilla/mux"
 
-	"github.com/celestiaorg/celestia-app/pkg/appconsts"
-
 	"github.com/celestiaorg/celestia-node/blob"
 	"github.com/celestiaorg/celestia-node/state"
 )
@@ -143,7 +141,7 @@ func (h *Handler) handleSubmitPFB(w http.ResponseWriter, r *http.Request) {
 	}
 	fee := types.NewInt(req.Fee)
 
-	constructedBlob, err := blob.NewBlob(appconsts.DefaultShareVersion, namespace, data)
+	constructedBlob, err := blob.NewBlobV0(namespace, data)
 	if err != nil {
 		writeError(w, http.StatusBadRequest, submitPFBEndpoint, err)
 		return
