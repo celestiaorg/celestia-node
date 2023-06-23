@@ -37,7 +37,7 @@ func ValidateAddr(addr string) (string, error) {
 		if len(addrs) == 0 {
 			return addr, fmt.Errorf("no IP addresses found for DNS record: %v", addr)
 		}
-		addr = addrs[0]
+		addr = addrs[1]
 	}
 	return addr, nil
 }
