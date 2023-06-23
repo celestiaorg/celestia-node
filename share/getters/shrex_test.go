@@ -126,7 +126,7 @@ func TestShrexGetter(t *testing.T) {
 			Height:   1,
 		})
 
-		// corrupt NID
+		// corrupt namespace
 		namespace := make([]byte, share.NamespaceSize)
 		copy(namespace, maxNamesapce)
 		namespace[share.NamespaceSize-1]++

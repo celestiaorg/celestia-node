@@ -60,12 +60,6 @@ const (
 	NMTIgnoreMaxNamespace = true
 )
 
-var (
-	// MaxSquareSize is currently the maximum size supported for unerasured data in
-	// rsmt2d.ExtendedDataSquare.
-	MaxSquareSize = share.MaxSquareSize
-)
-
 func init() {
 	// required for Bitswap to hash and verify inbound data correctly
 	mhcore.Register(sha256NamespaceFlagged, func() hash.Hash {

@@ -27,7 +27,7 @@ var (
 )
 
 // filterRootsByNamespace returns the row roots from the given share.Root that contain the passed
-// namespace GetNamespace.
+// namespace.
 func filterRootsByNamespace(root *share.Root, namespace share.Namespace) []cid.Cid {
 	rowRootCIDs := make([]cid.Cid, 0, len(root.RowRoots))
 	for _, row := range root.RowRoots {
@@ -38,8 +38,7 @@ func filterRootsByNamespace(root *share.Root, namespace share.Namespace) []cid.C
 	return rowRootCIDs
 }
 
-// collectSharesByNamespace collects NamespaceShares within the given namespace GetNamespace from
-// the given share.Root.
+// collectSharesByNamespace collects NamespaceShares within the given namespace from share.Root.
 func collectSharesByNamespace(
 	ctx context.Context,
 	bg blockservice.BlockGetter,

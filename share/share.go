@@ -29,12 +29,12 @@ var (
 // on it.
 type Share = []byte
 
-// GetNamespace gets the namespace GetNamespace from the share.
+// GetNamespace slices Namespace out of the Share.
 func GetNamespace(s Share) Namespace {
 	return s[:NamespaceSize]
 }
 
-// GetData gets data from the share.
+// GetData slices out data of the Share.
 func GetData(s Share) []byte {
 	return s[NamespaceSize:]
 }
