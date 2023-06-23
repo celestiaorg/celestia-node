@@ -92,13 +92,13 @@ func TestExchange_RequestND(t *testing.T) {
 		// take server concurrency slots with blocked requests
 		for i := 0; i < rateLimit; i++ {
 			go func(i int) {
-				client.RequestND(ctx, nil, nil, server.host.ID()) //nolint:errcheck
+				client.RequestND(ctx, nil, sharetest.RandNamespace(), server.host.ID()) //nolint:errcheck
 			}(i)
 		}
 
 		// wait until all server slots are taken
 		wg.Wait()
-		_, err = client.RequestND(ctx, nil, nil, server.host.ID())
+		_, err = client.RequestND(ctx, nil, sharetest.RandNamespace(), server.host.ID())
 		require.ErrorIs(t, err, p2p.ErrNotFound)
 	})
 }

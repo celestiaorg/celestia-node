@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"math/rand"
 	"sort"
+	"sync"
 	"time"
 
 	"github.com/stretchr/testify/require"
@@ -25,7 +26,9 @@ func RandShares(t require.TestingT, total int) []share.Share {
 	for i := range shares {
 		shr := make([]byte, share.Size)
 		copy(shr[:share.NamespaceSize], RandNamespace())
-		_, err := r.Read(shr[share.NamespaceSize:])
+		rndMu.Lock()
+		_, err := rnd.Read(shr[share.NamespaceSize:])
+		rndMu.Unlock()
 		require.NoError(t, err)
 		shares[i] = shr
 	}
@@ -37,7 +40,9 @@ func RandShares(t require.TestingT, total int) []share.Share {
 // RandNamespace generates random valid data namespace for testing purposes.
 func RandNamespace() share.Namespace {
 	rb := make([]byte, namespace.NamespaceVersionZeroIDSize)
-	r.Read(rb)
+	rndMu.Lock()
+	rnd.Read(rb)
+	rndMu.Unlock()
 	for {
 		namespace, _ := share.NewNamespaceV0(rb)
 		if err := namespace.ValidateDataNamespace(); err != nil {
@@ -47,4 +52,7 @@ func RandNamespace() share.Namespace {
 	}
 }
 
-var r = rand.New(rand.NewSource(time.Now().Unix())) //nolint:gosec
+var (
+	rnd   = rand.New(rand.NewSource(time.Now().Unix())) //nolint:gosec
+	rndMu sync.Mutex
+)
