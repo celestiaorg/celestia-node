@@ -139,7 +139,7 @@ func TestStoreGetter(t *testing.T) {
 		assert.Len(t, shares.Flatten(), 2)
 
 		// namespace not found
-		randNamespace := sharetest.RandNamespace()
+		randNamespace := sharetest.RandV0Namespace()
 		emptyShares, err := sg.GetSharesByNamespace(ctx, &dah, randNamespace)
 		require.NoError(t, err)
 		require.Empty(t, emptyShares.Flatten())
@@ -217,7 +217,7 @@ func TestIPLDGetter(t *testing.T) {
 		assert.Len(t, shares.Flatten(), 2)
 
 		// namespace not found
-		randNamespace := sharetest.RandNamespace()
+		randNamespace := sharetest.RandV0Namespace()
 		emptyShares, err := sg.GetSharesByNamespace(ctx, &dah, randNamespace)
 		require.NoError(t, err)
 		require.Empty(t, emptyShares.Flatten())

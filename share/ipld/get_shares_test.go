@@ -488,7 +488,7 @@ func assertNoRowContainsNID(
 func randomNamespaces(total int) ([]share.Namespace, error) {
 	namespaces := make([]share.Namespace, total)
 	for i := range namespaces {
-		namespaces[i] = sharetest.RandNamespace()
+		namespaces[i] = sharetest.RandV0Namespace()
 	}
 	sort.Slice(namespaces, func(i, j int) bool { return bytes.Compare(namespaces[i], namespaces[j]) < 0 })
 	return namespaces, nil

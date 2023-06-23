@@ -35,12 +35,12 @@ func TestBlobService_Get(t *testing.T) {
 		blobSize3 = 12
 	)
 
-	appBlobs, err := blobtest.GenerateBlobs([]int{blobSize0, blobSize1}, false)
+	appBlobs, err := blobtest.GenerateV0Blobs([]int{blobSize0, blobSize1}, false)
 	require.NoError(t, err)
 	blobs0, err := convertBlobs(appBlobs...)
 	require.NoError(t, err)
 
-	appBlobs, err = blobtest.GenerateBlobs([]int{blobSize2, blobSize3}, true)
+	appBlobs, err = blobtest.GenerateV0Blobs([]int{blobSize2, blobSize3}, true)
 	require.NoError(t, err)
 	blobs1, err := convertBlobs(appBlobs...)
 	require.NoError(t, err)
@@ -124,7 +124,7 @@ func TestBlobService_Get(t *testing.T) {
 		{
 			name: "get invalid blob",
 			doFn: func() (interface{}, error) {
-				appBlob, err := blobtest.GenerateBlobs([]int{10}, false)
+				appBlob, err := blobtest.GenerateV0Blobs([]int{10}, false)
 				require.NoError(t, err)
 				blob, err := convertBlobs(appBlob...)
 				require.NoError(t, err)
@@ -207,7 +207,7 @@ func TestBlobService_Get(t *testing.T) {
 		{
 			name: "not included",
 			doFn: func() (interface{}, error) {
-				appBlob, err := blobtest.GenerateBlobs([]int{10}, false)
+				appBlob, err := blobtest.GenerateV0Blobs([]int{10}, false)
 				require.NoError(t, err)
 				blob, err := convertBlobs(appBlob...)
 				require.NoError(t, err)
@@ -302,7 +302,7 @@ func TestService_GetSingleBlobWithoutPadding(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second*5)
 	t.Cleanup(cancel)
 
-	appBlob, err := blobtest.GenerateBlobs([]int{9, 5}, true)
+	appBlob, err := blobtest.GenerateV0Blobs([]int{9, 5}, true)
 	require.NoError(t, err)
 	blobs, err := convertBlobs(appBlob...)
 	require.NoError(t, err)
@@ -347,7 +347,7 @@ func TestService_GetAllWithoutPadding(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second*5)
 	t.Cleanup(cancel)
 
-	appBlob, err := blobtest.GenerateBlobs([]int{9, 5}, true)
+	appBlob, err := blobtest.GenerateV0Blobs([]int{9, 5}, true)
 	require.NoError(t, err)
 	blobs, err := convertBlobs(appBlob...)
 	require.NoError(t, err)

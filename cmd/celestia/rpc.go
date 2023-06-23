@@ -143,7 +143,7 @@ func parseParams(method string, params []string) []interface{} {
 				panic("Error decoding blob data: base64 string could not be decoded.")
 			}
 		}
-		parsedBlob, err := blob.NewBlob(0, namespace, blobData)
+		parsedBlob, err := blob.NewBlobV0(namespace, blobData)
 		if err != nil {
 			panic(fmt.Sprintf("Error creating blob: %v", err))
 		}
@@ -185,7 +185,7 @@ func parseParams(method string, params []string) []interface{} {
 				panic("Error decoding blob: base64 string could not be decoded.")
 			}
 		}
-		parsedBlob, err := blob.NewBlob(0, namespace, blobData)
+		parsedBlob, err := blob.NewBlobV0(namespace, blobData)
 		if err != nil {
 			panic(fmt.Sprintf("Error creating blob: %v", err))
 		}

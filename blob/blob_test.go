@@ -14,7 +14,7 @@ import (
 )
 
 func TestBlob(t *testing.T) {
-	appBlobs, err := blobtest.GenerateBlobs([]int{1}, false)
+	appBlobs, err := blobtest.GenerateV0Blobs([]int{1}, false)
 	require.NoError(t, err)
 	blob, err := convertBlobs(appBlobs...)
 	require.NoError(t, err)

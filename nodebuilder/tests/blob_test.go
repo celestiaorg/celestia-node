@@ -23,9 +23,9 @@ func TestBlobModule(t *testing.T) {
 	t.Cleanup(cancel)
 	sw := swamp.NewSwamp(t)
 
-	appBlobs0, err := blobtest.GenerateBlobs([]int{8, 4}, true)
+	appBlobs0, err := blobtest.GenerateV0Blobs([]int{8, 4}, true)
 	require.NoError(t, err)
-	appBlobs1, err := blobtest.GenerateBlobs([]int{4}, false)
+	appBlobs1, err := blobtest.GenerateV0Blobs([]int{4}, false)
 	require.NoError(t, err)
 	blobs := make([]*blob.Blob, 0, len(appBlobs0)+len(appBlobs1))
 
@@ -105,7 +105,7 @@ func TestBlobModule(t *testing.T) {
 		{
 			name: "Not Found",
 			doFn: func(t *testing.T) {
-				appBlob, err := blobtest.GenerateBlobs([]int{4}, false)
+				appBlob, err := blobtest.GenerateV0Blobs([]int{4}, false)
 				require.NoError(t, err)
 				newBlob, err := blob.NewBlob(
 					appBlob[0].ShareVersion,

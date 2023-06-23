@@ -6,6 +6,7 @@ import (
 
 	tmproto "github.com/tendermint/tendermint/proto/tendermint/types"
 
+	"github.com/celestiaorg/celestia-app/pkg/appconsts"
 	"github.com/celestiaorg/celestia-app/x/blob/types"
 	"github.com/celestiaorg/nmt"
 
@@ -107,7 +108,13 @@ type Blob struct {
 	namespace share.Namespace
 }
 
-// NewBlob constructs a new blob from the provided Namespace and data.
+// NewBlobV0 constructs a new blob from the provided Namespace and data.
+// The blob will be formatted as v0 shares.
+func NewBlobV0(namespace share.Namespace, data []byte) (*Blob, error) {
+	return NewBlob(appconsts.ShareVersionZero, namespace, data)
+}
+
+// NewBlob constructs a new blob from the provided Namespace, data and share version.
 func NewBlob(shareVersion uint8, namespace share.Namespace, data []byte) (*Blob, error) {
 	if err := namespace.ValidateBlobNamespace(); err != nil {
 		return nil, err

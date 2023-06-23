@@ -25,7 +25,7 @@ func RandShares(t require.TestingT, total int) []share.Share {
 	shares := make([]share.Share, total)
 	for i := range shares {
 		shr := make([]byte, share.Size)
-		copy(shr[:share.NamespaceSize], RandNamespace())
+		copy(shr[:share.NamespaceSize], RandV0Namespace())
 		rndMu.Lock()
 		_, err := rnd.Read(shr[share.NamespaceSize:])
 		rndMu.Unlock()
@@ -37,8 +37,8 @@ func RandShares(t require.TestingT, total int) []share.Share {
 	return shares
 }
 
-// RandNamespace generates random valid data namespace for testing purposes.
-func RandNamespace() share.Namespace {
+// RandV0Namespace generates random valid data namespace for testing purposes.
+func RandV0Namespace() share.Namespace {
 	rb := make([]byte, namespace.NamespaceVersionZeroIDSize)
 	rndMu.Lock()
 	rnd.Read(rb)

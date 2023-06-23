@@ -20,7 +20,7 @@ func Test_dataFromShares(t *testing.T) {
 		[]byte("BEEEEAHP"),
 	}
 
-	ns := sharetest.RandNamespace()
+	ns := sharetest.RandV0Namespace()
 	sss := shares.NewSparseShareSplitter()
 	for _, data := range testData {
 		b := coretypes.Blob{

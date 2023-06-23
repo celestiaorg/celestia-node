@@ -139,7 +139,7 @@ func init() {
 	}
 	addToExampleValues(namespace)
 
-	generatedBlob, err := blob.NewBlob(0, namespace, []byte("This is an example of some blob data"))
+	generatedBlob, err := blob.NewBlobV0(namespace, []byte("This is an example of some blob data"))
 	if err != nil {
 		panic(err)
 	}

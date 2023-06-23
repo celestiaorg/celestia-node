@@ -141,7 +141,7 @@ func TestService_GetSharesByNamespaceNotFound(t *testing.T) {
 	getter, root := GetterWithRandSquare(t, 1)
 	root.RowRoots = nil
 
-	emptyShares, err := getter.GetSharesByNamespace(context.Background(), root, sharetest.RandNamespace())
+	emptyShares, err := getter.GetSharesByNamespace(context.Background(), root, sharetest.RandV0Namespace())
 	require.NoError(t, err)
 	require.Empty(t, emptyShares.Flatten())
 }
