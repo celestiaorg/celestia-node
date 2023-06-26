@@ -45,7 +45,7 @@ func RandV0Namespace() share.Namespace {
 	rndMu.Unlock()
 	for {
 		namespace, _ := share.NewBlobNamespaceV0(rb)
-		if err := namespace.ValidateDataNamespace(); err != nil {
+		if err := namespace.ValidateForData(); err != nil {
 			continue
 		}
 		return namespace

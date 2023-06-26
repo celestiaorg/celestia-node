@@ -20,6 +20,7 @@ var (
 	ReservedPaddingNamespace = Namespace(appns.ReservedPaddingNamespace.Bytes())
 	TxNamespace              = Namespace(appns.TxNamespace.Bytes())
 	PayForBlobNamespace      = Namespace(appns.PayForBlobNamespace.Bytes())
+	ISRNamespace             = Namespace(appns.IntermediateStateRootsNamespace.Bytes())
 )
 
 // Namespace represents namespace of a Share.
@@ -40,7 +41,7 @@ func NewBlobNamespaceV0(id []byte) (Namespace, error) {
 	// version and zero padding are already set as zero,
 	// so simply copying subNID to the end is enough to comply the V0 spec
 	copy(n[len(n)-len(id):], id)
-	return n, n.ValidateBlobNamespace()
+	return n, n.ValidateForBlob()
 }
 
 // NamespaceFromBytes converts bytes into Namespace and validates it.
@@ -104,8 +105,8 @@ func (n Namespace) Validate() error {
 	return nil
 }
 
-// ValidateDataNamespace checks if the Namespace contains real/useful data.
-func (n Namespace) ValidateDataNamespace() error {
+// ValidateForData checks if the Namespace is of real/useful data.
+func (n Namespace) ValidateForData() error {
 	if err := n.Validate(); err != nil {
 		return err
 	}
@@ -115,9 +116,9 @@ func (n Namespace) ValidateDataNamespace() error {
 	return nil
 }
 
-// ValidateBlobNamespace checks if the Namespace is valid blob namespace.
-func (n Namespace) ValidateBlobNamespace() error {
-	if err := n.ValidateDataNamespace(); err != nil {
+// ValidateForBlob checks if the Namespace is valid blob namespace.
+func (n Namespace) ValidateForBlob() error {
+	if err := n.ValidateForData(); err != nil {
 		return err
 	}
 	if bytes.Compare(n, MaxReservedNamespace) < 1 {

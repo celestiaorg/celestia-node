@@ -120,7 +120,7 @@ func NewBlob(shareVersion uint8, namespace share.Namespace, data []byte) (*Blob,
 	if len(data) == 0 || len(data) > appconsts.DefaultMaxBytes {
 		return nil, fmt.Errorf("blob data must be > 0 && <= %d, but it was %d bytes", appconsts.DefaultMaxBytes, len(data))
 	}
-	if err := namespace.ValidateBlobNamespace(); err != nil {
+	if err := namespace.ValidateForBlob(); err != nil {
 		return nil, err
 	}
 

@@ -168,7 +168,7 @@ func (ca *CoreAccessor) SubmitPayForBlob(
 
 	appblobs := make([]*apptypes.Blob, len(blobs))
 	for i, b := range blobs {
-		if err := b.Namespace().ValidateBlobNamespace(); err != nil {
+		if err := b.Namespace().ValidateForBlob(); err != nil {
 			return nil, err
 		}
 		appblobs[i] = &b.Blob

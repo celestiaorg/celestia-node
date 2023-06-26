@@ -53,7 +53,7 @@ func (c *Client) RequestND(
 	namespace share.Namespace,
 	peer peer.ID,
 ) (share.NamespacedShares, error) {
-	if err := namespace.ValidateDataNamespace(); err != nil {
+	if err := namespace.ValidateForData(); err != nil {
 		return nil, err
 	}
 

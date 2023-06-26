@@ -137,5 +137,5 @@ func parseGetByNamespaceArgs(r *http.Request) (height uint64, namespace share.Na
 	if err != nil {
 		return 0, nil, err
 	}
-	return height, namespace, namespace.ValidateDataNamespace()
+	return height, namespace, namespace.ValidateForData()
 }

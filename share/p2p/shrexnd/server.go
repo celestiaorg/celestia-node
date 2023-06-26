@@ -147,7 +147,7 @@ func (srv *Server) handleNamespacedData(ctx context.Context, stream network.Stre
 
 // validateRequest checks correctness of the request
 func validateRequest(req pb.GetSharesByNamespaceRequest) error {
-	if err := share.Namespace(req.Namespace).ValidateDataNamespace(); err != nil {
+	if err := share.Namespace(req.Namespace).ValidateForData(); err != nil {
 		return err
 	}
 	if len(req.RootHash) != sha256.Size {
