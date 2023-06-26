@@ -10,8 +10,9 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"github.com/celestiaorg/celestia-app/pkg/appconsts"
 	"github.com/celestiaorg/celestia-app/pkg/da"
+
+	"github.com/celestiaorg/celestia-node/share"
 )
 
 // TestNamespaceFromCID checks that deriving the Namespaced hash from
@@ -21,8 +22,8 @@ func TestNamespaceFromCID(t *testing.T) {
 		randData [][]byte
 	}{
 		// note that the number of shares must be a power of two
-		{randData: generateRandNamespacedRawData(4, appconsts.NamespaceSize, appconsts.ShareSize-appconsts.NamespaceSize)},
-		{randData: generateRandNamespacedRawData(16, appconsts.NamespaceSize, appconsts.ShareSize-appconsts.NamespaceSize)},
+		{randData: generateRandNamespacedRawData(4, share.NamespaceSize, share.Size-share.NamespaceSize)},
+		{randData: generateRandNamespacedRawData(16, share.NamespaceSize, share.Size-share.NamespaceSize)},
 	}
 
 	for i, tt := range tests {
