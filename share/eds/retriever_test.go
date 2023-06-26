@@ -2,9 +2,12 @@ package eds
 
 import (
 	"context"
+	"errors"
+	"fmt"
 	"testing"
 	"time"
 
+	"github.com/ipfs/go-blockservice"
 	mdutils "github.com/ipfs/go-merkledag/test"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -14,6 +17,8 @@ import (
 	"github.com/celestiaorg/nmt"
 	"github.com/celestiaorg/rsmt2d"
 
+	"github.com/celestiaorg/celestia-node/header"
+	"github.com/celestiaorg/celestia-node/header/headertest"
 	"github.com/celestiaorg/celestia-node/share"
 	"github.com/celestiaorg/celestia-node/share/eds/byzantine"
 	"github.com/celestiaorg/celestia-node/share/eds/edstest"
@@ -123,4 +128,57 @@ func TestRetriever_MultipleRandQuadrants(t *testing.T) {
 
 	_, err = ses.Reconstruct(ctx)
 	assert.NoError(t, err)
+}
+
+func TestFraudProofValidation(t *testing.T) {
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second*15)
+	defer t.Cleanup(cancel)
+	bServ := mdutils.Bserv()
+
+	var errByz *byzantine.ErrByzantine
+	faultHeader, err := generateByzantineError(ctx, t, 2, bServ)
+	require.True(t, errors.As(err, &errByz))
+
+	p := byzantine.CreateBadEncodingProof([]byte("hash"), uint64(faultHeader.Height()), errByz)
+	err = p.Validate(faultHeader)
+	require.NoError(t, err)
+}
+
+func generateByzantineError(
+	ctx context.Context,
+	t *testing.T,
+	odsSize int,
+	bServ blockservice.BlockService,
+) (*header.ExtendedHeader, error) {
+	store := headertest.NewStore(t)
+	h, err := store.GetByHeight(ctx, 1)
+	require.NoError(t, err)
+
+	faultHeader, _ := headertest.CreateFraudExtHeader(t, odsSize, h, bServ)
+	_, err = NewRetriever(bServ).Retrieve(ctx, faultHeader.DAH)
+	return faultHeader, err
+}
+
+func BenchmarkBEFP(b *testing.B) {
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second*15)
+	defer b.Cleanup(cancel)
+	bServ := mdutils.Bserv()
+
+	odsSize := []int{32, 64, 128}
+	for _, size := range odsSize {
+		b.Run(fmt.Sprintf("ods size:%d", size), func(b *testing.B) {
+			t := &testing.T{}
+			b.ResetTimer()
+			for i := 0; i < b.N; i++ {
+				b.ReportAllocs()
+				var errByz *byzantine.ErrByzantine
+				faultHeader, err := generateByzantineError(ctx, t, size, bServ)
+				require.Error(b, err)
+				require.True(b, errors.As(err, &errByz))
+				p := byzantine.CreateBadEncodingProof([]byte("hash"), uint64(faultHeader.Height()), errByz)
+				err = p.Validate(faultHeader)
+				require.NoError(b, err)
+			}
+		})
+	}
 }

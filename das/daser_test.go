@@ -164,7 +164,7 @@ func TestDASer_stopsAfter_BEFP(t *testing.T) {
 	}
 	f := fraudserv.NewProofService(ps, net.Hosts()[0], getter, ds, false, "private")
 	require.NoError(t, f.Start(ctx))
-	mockGet.headers[1], _ = headertest.CreateFraudExtHeader(t, mockGet.headers[1], bServ)
+	mockGet.headers[1], _ = headertest.CreateFraudExtHeader(t, 2, mockGet.headers[1], bServ)
 	newCtx := context.Background()
 
 	// create and start DASer
