@@ -20,7 +20,7 @@ func GenerateV0Blobs(sizes []int, sameNamespace bool) ([]types.Blob, error) {
 		size := rawBlobSize(appconsts.FirstSparseShareContentSize * size)
 		appBlob := testfactory.GenerateRandomBlob(size)
 		if !sameNamespace {
-			nid, err := share.NewNamespaceV0(tmrand.Bytes(7))
+			nid, err := share.NewBlobNamespaceV0(tmrand.Bytes(7))
 			if err != nil {
 				return nil, err
 			}

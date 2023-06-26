@@ -26,10 +26,11 @@ var (
 // Consists of version byte and namespace ID.
 type Namespace []byte
 
-// NewNamespaceV0 takes a variable size byte slice and creates a valid version 0 Namespace.
+// NewBlobNamespaceV0 takes a variable size byte slice and creates a valid version 0 Blob Namespace.
 // The byte slice must be <= 10 bytes.
 // If it is less than 10 bytes, it will be left padded to size 10 with 0s.
-func NewNamespaceV0(id []byte) (Namespace, error) {
+// Use predefined namespaces above, if non-blob namespace is needed.
+func NewBlobNamespaceV0(id []byte) (Namespace, error) {
 	if len(id) == 0 || len(id) > appns.NamespaceVersionZeroIDSize {
 		return nil, fmt.Errorf(
 			"namespace id must be > 0 && <= %d, but it was %d bytes", appns.NamespaceVersionZeroIDSize, len(id))
@@ -39,7 +40,7 @@ func NewNamespaceV0(id []byte) (Namespace, error) {
 	// version and zero padding are already set as zero,
 	// so simply copying subNID to the end is enough to comply the V0 spec
 	copy(n[len(n)-len(id):], id)
-	return n, nil
+	return n, n.ValidateBlobNamespace()
 }
 
 // NamespaceFromBytes converts bytes into Namespace and validates it.

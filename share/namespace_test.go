@@ -61,7 +61,7 @@ func TestNewNamespaceV0(t *testing.T) {
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
-			got, err := NewNamespaceV0(tc.subNid)
+			got, err := NewBlobNamespaceV0(tc.subNid)
 			if tc.wantErr {
 				assert.Error(t, err)
 				return

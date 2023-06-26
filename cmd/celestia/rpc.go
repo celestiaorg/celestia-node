@@ -426,7 +426,7 @@ func parseV0Namespace(param string) (share.Namespace, error) {
 	}
 
 	// if the namespace ID is <= 10 bytes, left pad it with 0s
-	return share.NewNamespaceV0(userBytes)
+	return share.NewBlobNamespaceV0(userBytes)
 }
 
 // decodeToBytes decodes a Base64 or hex input string into a byte slice.
