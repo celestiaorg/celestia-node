@@ -217,7 +217,7 @@ func getQuadrantCells(eds *rsmt2d.ExtendedDataSquare, i, j uint) [][]byte {
 
 // prependNamespace adds the namespace to the passed share if in the first quadrant,
 // otherwise it adds the ParitySharesNamespace to the beginning.
-func prependNamespace(quadrant int, shr []byte) []byte {
+func prependNamespace(quadrant int, shr share.Share) []byte {
 	namespacedShare := make([]byte, 0, share.NamespaceSize+share.Size)
 	switch quadrant {
 	case 0:
