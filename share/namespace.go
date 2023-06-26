@@ -26,7 +26,7 @@ var (
 // Consists of version byte and namespace ID.
 type Namespace []byte
 
-// NewNamespaceV0 takes a variable size byte slice and creates a version 0 Namespace.
+// NewNamespaceV0 takes a variable size byte slice and creates a valid version 0 Namespace.
 // The byte slice must be <= 10 bytes.
 // If it is less than 10 bytes, it will be left padded to size 10 with 0s.
 func NewNamespaceV0(id []byte) (Namespace, error) {
@@ -37,7 +37,7 @@ func NewNamespaceV0(id []byte) (Namespace, error) {
 
 	n := make(Namespace, NamespaceSize)
 	// version and zero padding are already set as zero,
-	// so simply copying subNID to the end is enough
+	// so simply copying subNID to the end is enough to comply the V0 spec
 	copy(n[len(n)-len(id):], id)
 	return n, nil
 }
