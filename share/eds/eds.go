@@ -221,7 +221,7 @@ func prependNamespace(quadrant int, shr []byte) []byte {
 	namespacedShare := make([]byte, 0, share.NamespaceSize+share.Size)
 	switch quadrant {
 	case 0:
-		return append(append(namespacedShare, shr[:share.NamespaceSize]...), shr...)
+		return append(append(namespacedShare, share.GetNamespace(shr)...), shr...)
 	case 1, 2, 3:
 		return append(append(namespacedShare, share.ParitySharesNamespace...), shr...)
 	default:
@@ -271,7 +271,7 @@ func ReadEDS(ctx context.Context, r io.Reader, root share.DataHash) (eds *rsmt2d
 		}
 		// the stored first quadrant shares are wrapped with the namespace twice.
 		// we cut it off here, because it is added again while importing to the tree below
-		shares[i] = block.RawData()[share.NamespaceSize:]
+		shares[i] = share.GetData(block.RawData())
 	}
 
 	eds, err = rsmt2d.ComputeExtendedDataSquare(

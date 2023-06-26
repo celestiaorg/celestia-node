@@ -110,9 +110,9 @@ func TestService_GetSharesByNamespace(t *testing.T) {
 			totalShares := squareSize * squareSize
 			getter, bServ := EmptyGetter()
 			randShares := sharetest.RandShares(t, totalShares)
-			lastNID := randShares[totalShares-1][:share.NamespaceSize]
+			lastNID := share.GetNamespace(randShares[totalShares-1])
 			for i := totalShares / 2; i < totalShares; i++ {
-				copy(randShares[i][:share.NamespaceSize], lastNID)
+				copy(share.GetNamespace(randShares[i]), lastNID)
 			}
 			root := availability_test.FillBS(t, bServ, randShares)
 

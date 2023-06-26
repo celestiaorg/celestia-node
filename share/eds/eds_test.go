@@ -101,7 +101,7 @@ func TestWriteEDSStartsWithLeaves(t *testing.T) {
 	block, err := reader.Next()
 	require.NoError(t, err, "error getting first block")
 
-	require.Equal(t, block.RawData()[share.NamespaceSize:], eds.GetCell(0, 0))
+	require.Equal(t, share.GetData(block.RawData()), eds.GetCell(0, 0))
 }
 
 func TestWriteEDSIncludesRoots(t *testing.T) {

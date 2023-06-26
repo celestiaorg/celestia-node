@@ -153,7 +153,7 @@ func (p *BadEncodingProof) Validate(hdr libhead.Header) error {
 		}
 		// NMTree commits the additional namespace while rsmt2d does not know about, so we trim it
 		// this is ugliness from NMTWrapper that we have to embrace ¯\_(ツ)_/¯
-		shares[index] = shr.Share[share.NamespaceSize:]
+		shares[index] = share.GetData(shr.Share)
 	}
 
 	odsWidth := uint64(len(merkleRowRoots) / 2)

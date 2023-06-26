@@ -78,7 +78,7 @@ func TestEDSStore(t *testing.T) {
 				original := eds.GetCell(uint(i), uint(j))
 				block, err := carReader.Next()
 				assert.NoError(t, err)
-				assert.Equal(t, original, block.RawData()[share.NamespaceSize:])
+				assert.Equal(t, original, share.GetData(block.RawData()))
 			}
 		}
 	})

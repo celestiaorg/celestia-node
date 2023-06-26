@@ -252,7 +252,7 @@ func randomEDSWithDoubledNamespace(t *testing.T, size int) (*rsmt2d.ExtendedData
 	// D _ _ _
 	// _ _ _ _
 	// where the D shares have a common namespace.
-	copy(randShares[idx2][:share.NamespaceSize], randShares[idx1][:share.NamespaceSize])
+	copy(share.GetNamespace(randShares[idx2]), share.GetNamespace(randShares[idx1]))
 
 	eds, err := rsmt2d.ComputeExtendedDataSquare(
 		randShares,
@@ -262,5 +262,5 @@ func randomEDSWithDoubledNamespace(t *testing.T, size int) (*rsmt2d.ExtendedData
 	require.NoError(t, err, "failure to recompute the extended data square")
 	dah := da.NewDataAvailabilityHeader(eds)
 
-	return eds, randShares[idx1][:share.NamespaceSize], dah
+	return eds, share.GetNamespace(randShares[idx1]), dah
 }

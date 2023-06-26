@@ -15,7 +15,7 @@ import (
 func RandByzantineEDS(t *testing.T, size int) *rsmt2d.ExtendedDataSquare {
 	eds := RandEDS(t, size)
 	shares := share.ExtractEDS(eds)
-	copy(shares[0][share.NamespaceSize:], shares[1][share.NamespaceSize:])
+	copy(share.GetData(shares[0]), share.GetData(shares[1])) // corrupting eds
 	eds, err := rsmt2d.ImportExtendedDataSquare(shares, share.DefaultRSMT2DCodec(), wrapper.NewConstructor(uint64(size)))
 	require.NoError(t, err, "failure to recompute the extended data square")
 	return eds

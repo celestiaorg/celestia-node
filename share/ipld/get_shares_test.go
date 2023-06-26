@@ -202,7 +202,7 @@ func TestCollectLeavesByNamespace_IncompleteData(t *testing.T) {
 	// set all shares to the same namespace id
 	namespace := share.GetNamespace(shares[0])
 	for _, shr := range shares {
-		copy(shr[:share.NamespaceSize], namespace)
+		copy(share.GetNamespace(shr), namespace)
 	}
 
 	eds, err := AddShares(ctx, shares, bServ)
@@ -288,7 +288,7 @@ func TestCollectLeavesByNamespace_MultipleRowsContainingSameNamespaceId(t *testi
 	shares := sharetest.RandShares(t, 16)
 
 	// set all shares to the same namespace and data but the last one
-	nid := shares[0][:share.NamespaceSize]
+	namespace := share.GetNamespace(shares[0])
 	commonNamespaceData := shares[0]
 
 	for i, nspace := range shares {
@@ -304,7 +304,7 @@ func TestCollectLeavesByNamespace_MultipleRowsContainingSameNamespaceId(t *testi
 
 	for _, row := range eds.RowRoots() {
 		rcid := MustCidFromNamespacedSha256(row)
-		data := NewNamespaceData(len(shares), nid, WithLeaves())
+		data := NewNamespaceData(len(shares), namespace, WithLeaves())
 		err := data.CollectLeavesByNamespace(ctx, bServ, rcid)
 		if errors.Is(err, ErrNamespaceOutsideRange) {
 			continue
@@ -314,7 +314,7 @@ func TestCollectLeavesByNamespace_MultipleRowsContainingSameNamespaceId(t *testi
 		for _, node := range leaves {
 			// test that the data returned by collectLeavesByNamespace for nid
 			// matches the commonNamespaceData that was copied across almost all data
-			assert.Equal(t, commonNamespaceData, node.RawData()[share.NamespaceSize:])
+			assert.Equal(t, commonNamespaceData, share.GetData(node.RawData()))
 		}
 	}
 }

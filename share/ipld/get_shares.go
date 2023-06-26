@@ -75,5 +75,5 @@ func GetSharesByNamespace(
 func leafToShare(nd format.Node) share.Share {
 	// * Additional namespace is prepended so that parity data can be identified with a parity
 	// namespace, which we cut off
-	return nd.RawData()[share.NamespaceSize:]
+	return share.GetData(nd.RawData())
 }
