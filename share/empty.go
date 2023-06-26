@@ -3,6 +3,7 @@ package share
 import (
 	"bytes"
 	"fmt"
+	"sync"
 
 	"github.com/celestiaorg/celestia-app/pkg/appconsts"
 	"github.com/celestiaorg/celestia-app/pkg/da"
@@ -12,26 +13,37 @@ import (
 
 // EmptyRoot returns Root of the empty block EDS.
 func EmptyRoot() *Root {
+	initEmpty()
 	return emptyBlockRoot
 }
 
 // EmptyExtendedDataSquare returns the EDS of the empty block data square.
 func EmptyExtendedDataSquare() *rsmt2d.ExtendedDataSquare {
+	initEmpty()
 	return emptyBlockEDS
 }
 
 // EmptyBlockShares returns the shares of the empty block.
 func EmptyBlockShares() []Share {
+	initEmpty()
 	return emptyBlockShares
 }
 
 var (
+	emptyMu          sync.Mutex
 	emptyBlockRoot   *Root
 	emptyBlockEDS    *rsmt2d.ExtendedDataSquare
 	emptyBlockShares []Share
 )
 
-func init() {
+// initEmpty enables lazy initialization for constant empty block data.
+func initEmpty() {
+	emptyMu.Lock()
+	defer emptyMu.Unlock()
+	if emptyBlockRoot != nil {
+		return
+	}
+
 	// compute empty block EDS and DAH for it
 	result := shares.TailPaddingShares(appconsts.MinShareCount)
 	emptyBlockShares = shares.ToBytes(result)
