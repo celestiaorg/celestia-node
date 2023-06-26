@@ -28,7 +28,7 @@ func TestNewNamespaceV0(t *testing.T) {
 	}
 	testCases := []testCase{
 		{
-			name:   "8 byte subNid, gets left padded",
+			name:   "8 byte id, gets left padded",
 			subNid: []byte{0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08},
 			expected: Namespace{
 				0x0,
@@ -37,7 +37,7 @@ func TestNewNamespaceV0(t *testing.T) {
 			wantErr: false,
 		},
 		{
-			name:   "10 byte subNid, no padding",
+			name:   "10 byte id, no padding",
 			subNid: []byte{0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08, 0x9, 0x10},
 			expected: Namespace{
 				0x0,                                                                                      // version
@@ -46,8 +46,14 @@ func TestNewNamespaceV0(t *testing.T) {
 			wantErr: false,
 		},
 		{
-			name:     "11 byte subNid",
+			name:     "11 byte id",
 			subNid:   []byte{0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08, 0x9, 0x10, 0x11},
+			expected: []byte{},
+			wantErr:  true,
+		},
+		{
+			name:     "nil id",
+			subNid:   nil,
 			expected: []byte{},
 			wantErr:  true,
 		},

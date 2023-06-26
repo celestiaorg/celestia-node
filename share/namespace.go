@@ -30,8 +30,9 @@ type Namespace []byte
 // The byte slice must be <= 10 bytes.
 // If it is less than 10 bytes, it will be left padded to size 10 with 0s.
 func NewNamespaceV0(id []byte) (Namespace, error) {
-	if len(id) > appns.NamespaceVersionZeroIDSize {
-		return nil, fmt.Errorf("namespace id must be <= %v, but it was %v bytes", appns.NamespaceVersionZeroIDSize, len(id))
+	if len(id) == 0 || len(id) > appns.NamespaceVersionZeroIDSize {
+		return nil, fmt.Errorf(
+			"namespace id must be > 0 && <= %d, but it was %d bytes", appns.NamespaceVersionZeroIDSize, len(id))
 	}
 
 	n := make(Namespace, NamespaceSize)
