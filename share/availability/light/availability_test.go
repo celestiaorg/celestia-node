@@ -159,11 +159,11 @@ func BenchmarkService_GetSharesByNamespace(b *testing.B) {
 		b.Run(strconv.Itoa(tt.amountShares), func(b *testing.B) {
 			t := &testing.T{}
 			getter, root := GetterWithRandSquare(t, tt.amountShares)
-			randNID := root.RowRoots[(len(root.RowRoots)-1)/2][:8]
+			randNamespace := root.RowRoots[(len(root.RowRoots)-1)/2][:share.NamespaceSize]
 			root.RowRoots[(len(root.RowRoots) / 2)] = root.RowRoots[(len(root.RowRoots)-1)/2]
 			b.ResetTimer()
 			for i := 0; i < b.N; i++ {
-				_, err := getter.GetSharesByNamespace(context.Background(), root, randNID)
+				_, err := getter.GetSharesByNamespace(context.Background(), root, randNamespace)
 				require.NoError(t, err)
 			}
 		})
