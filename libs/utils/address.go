@@ -30,14 +30,18 @@ func ValidateAddr(addr string) (string, error) {
 	}
 
 	if ip := net.ParseIP(addr); ip == nil {
-		addrs, err := net.LookupHost(addr)
+		resolved, err := net.ResolveIPAddr("ip4", addr)
+		if err != nil {
+			return addr, err
+		}
+		addrs, err := net.LookupHost(resolved.String())
 		if err != nil {
 			return addr, fmt.Errorf("could not resolve %v: %w", addr, err)
 		}
 		if len(addrs) == 0 {
 			return addr, fmt.Errorf("no IP addresses found for DNS record: %v", addr)
 		}
-		addr = addrs[1]
+		addr = addrs[0]
 	}
 	return addr, nil
 }
