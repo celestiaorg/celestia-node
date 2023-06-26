@@ -208,8 +208,8 @@ func (s *Service) getByCommitment(
 		// reconstruct the `blobShare` from the first rawShare in range
 		// in order to get blob's length(first share will contain this info)
 		if blobShare == nil {
-			for i, sh := range rawShares {
-				bShare, err := shares.NewShare(sh)
+			for i, shr := range rawShares {
+				bShare, err := shares.NewShare(shr)
 				if err != nil {
 					return nil, nil, err
 				}

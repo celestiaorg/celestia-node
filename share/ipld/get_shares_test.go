@@ -371,8 +371,8 @@ func TestGetSharesWithProofsByNamespace(t *testing.T) {
 
 					// construct nodes from shares by prepending namespace
 					var leaves [][]byte
-					for _, sh := range rowShares {
-						leaves = append(leaves, append(share.GetNamespace(sh), sh...))
+					for _, shr := range rowShares {
+						leaves = append(leaves, append(share.GetNamespace(shr), shr...))
 					}
 
 					// verify namespace

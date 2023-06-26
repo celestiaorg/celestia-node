@@ -80,8 +80,8 @@ func (ns NamespacedShares) Verify(root *Root, namespace Namespace) error {
 func (row *NamespacedRow) verify(rowRoot []byte, namespace Namespace) bool {
 	// construct nmt leaves from shares by prepending namespace
 	leaves := make([][]byte, 0, len(row.Shares))
-	for _, sh := range row.Shares {
-		leaves = append(leaves, append(GetNamespace(sh), sh...))
+	for _, shr := range row.Shares {
+		leaves = append(leaves, append(GetNamespace(shr), shr...))
 	}
 
 	// verify namespace
