@@ -199,7 +199,7 @@ func (sg *ShrexGetter) GetSharesByNamespace(
 	)
 	ctx, span := tracer.Start(ctx, "shrex/get-shares-by-namespace", trace.WithAttributes(
 		attribute.String("root", root.String()),
-		attribute.String("nid", hex.EncodeToString(id)),
+		attribute.String("namespace", namespace.String()),
 	))
 	defer func() {
 		utils.SetStatusAndEnd(span, err)
