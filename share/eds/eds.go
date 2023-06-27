@@ -37,7 +37,7 @@ var ErrEmptySquare = errors.New("share: importing empty data")
 type writingSession struct {
 	eds    *rsmt2d.ExtendedDataSquare
 	store  bstore.Blockstore // caches inner nodes (proofs) while we walk the nmt tree.
-	hasher *nmt.Hasher
+	hasher *nmt.NmtHasher
 	w      io.Writer
 }
 
