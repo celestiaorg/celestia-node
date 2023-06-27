@@ -34,14 +34,7 @@ func ValidateAddr(addr string) (string, error) {
 		if err != nil {
 			return addr, err
 		}
-		addrs, err := net.LookupHost(resolved.String())
-		if err != nil {
-			return addr, fmt.Errorf("could not resolve %v: %w", addr, err)
-		}
-		if len(addrs) == 0 {
-			return addr, fmt.Errorf("no IP addresses found for DNS record: %v", addr)
-		}
-		addr = addrs[0]
+		addr = resolved.String()
 	}
 	return addr, nil
 }
