@@ -14,7 +14,7 @@ require (
 	github.com/celestiaorg/go-fraud v0.1.0
 	github.com/celestiaorg/go-header v0.2.7
 	github.com/celestiaorg/go-libp2p-messenger v0.2.0
-	github.com/celestiaorg/nmt v0.16.0
+	github.com/celestiaorg/nmt v0.17.0
 	github.com/celestiaorg/rsmt2d v0.9.0
 	github.com/cosmos/cosmos-sdk v0.46.13
 	github.com/cosmos/cosmos-sdk/api v0.1.0
