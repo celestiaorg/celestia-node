@@ -12,10 +12,12 @@ import (
 	"go.opentelemetry.io/otel/metric/instrument"
 	"go.opentelemetry.io/otel/metric/instrument/syncint64"
 	"go.opentelemetry.io/otel/metric/unit"
+	"go.opentelemetry.io/otel/trace"
 
 	"github.com/celestiaorg/nmt/namespace"
 	"github.com/celestiaorg/rsmt2d"
 
+	"github.com/celestiaorg/celestia-node/libs/utils"
 	"github.com/celestiaorg/celestia-node/share"
 	"github.com/celestiaorg/celestia-node/share/p2p"
 	"github.com/celestiaorg/celestia-node/share/p2p/peers"
@@ -128,6 +130,13 @@ func (sg *ShrexGetter) GetEDS(ctx context.Context, root *share.Root) (*rsmt2d.Ex
 		attempt int
 		err     error
 	)
+	ctx, span := tracer.Start(ctx, "shrex/get-eds", trace.WithAttributes(
+		attribute.String("root", root.String()),
+	))
+	defer func() {
+		utils.SetStatusAndEnd(span, err)
+	}()
+
 	for {
 		if ctx.Err() != nil {
 			sg.metrics.recordEDSAttempt(ctx, attempt, false)
@@ -187,6 +196,13 @@ func (sg *ShrexGetter) GetSharesByNamespace(
 		attempt int
 		err     error
 	)
+	ctx, span := tracer.Start(ctx, "shrex/get-shares-by-namespace", trace.WithAttributes(
+		attribute.String("root", root.String()),
+		attribute.String("nid", hex.EncodeToString(id)),
+	))
+	defer func() {
+		utils.SetStatusAndEnd(span, err)
+	}()
 
 	// verify that the namespace could exist inside the roots before starting network requests
 	roots := filterRootsByNamespace(root, id)
