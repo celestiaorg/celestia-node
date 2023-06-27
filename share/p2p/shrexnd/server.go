@@ -17,7 +17,6 @@ import (
 
 	"github.com/celestiaorg/celestia-node/share"
 	"github.com/celestiaorg/celestia-node/share/eds"
-	"github.com/celestiaorg/celestia-node/share/ipld"
 	"github.com/celestiaorg/celestia-node/share/p2p"
 	pb "github.com/celestiaorg/celestia-node/share/p2p/shrexnd/pb"
 )
@@ -100,7 +99,7 @@ func (srv *Server) handleNamespacedData(ctx context.Context, stream network.Stre
 		stream.Reset() //nolint:errcheck
 		return
 	}
-	logger = logger.With("namespaceId", hex.EncodeToString(req.NamespaceId), "hash", share.DataHash(req.RootHash).String())
+	logger = logger.With("namespace", hex.EncodeToString(req.Namespace), "hash", share.DataHash(req.RootHash).String())
 	logger.Debugw("server: new request")
 
 	err = stream.CloseRead()
@@ -130,7 +129,7 @@ func (srv *Server) handleNamespacedData(ctx context.Context, stream network.Stre
 		return
 	}
 
-	shares, err := srv.getter.GetSharesByNamespace(ctx, dah, req.NamespaceId)
+	shares, err := srv.getter.GetSharesByNamespace(ctx, dah, req.Namespace)
 	switch {
 	case errors.Is(err, share.ErrNotFound):
 		logger.Warn("server: nd not found")
@@ -148,13 +147,12 @@ func (srv *Server) handleNamespacedData(ctx context.Context, stream network.Stre
 
 // validateRequest checks correctness of the request
 func validateRequest(req pb.GetSharesByNamespaceRequest) error {
-	if len(req.NamespaceId) != ipld.NamespaceSize {
-		return fmt.Errorf("incorrect namespace id length: %v", len(req.NamespaceId))
+	if err := share.Namespace(req.Namespace).ValidateForData(); err != nil {
+		return err
 	}
 	if len(req.RootHash) != sha256.Size {
 		return fmt.Errorf("incorrect root hash length: %v", len(req.RootHash))
 	}
-
 	return nil
 }
 

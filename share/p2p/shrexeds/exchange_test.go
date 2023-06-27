@@ -16,8 +16,8 @@ import (
 
 	"github.com/celestiaorg/celestia-app/pkg/da"
 
-	"github.com/celestiaorg/celestia-node/share"
 	"github.com/celestiaorg/celestia-node/share/eds"
+	"github.com/celestiaorg/celestia-node/share/eds/edstest"
 	"github.com/celestiaorg/celestia-node/share/p2p"
 )
 
@@ -34,7 +34,7 @@ func TestExchange_RequestEDS(t *testing.T) {
 
 	// Testcase: EDS is immediately available
 	t.Run("EDS_Available", func(t *testing.T) {
-		eds := share.RandEDS(t, 4)
+		eds := edstest.RandEDS(t, 4)
 		dah := da.NewDataAvailabilityHeader(eds)
 		err = store.Put(ctx, dah.Hash(), eds)
 		require.NoError(t, err)
@@ -47,7 +47,7 @@ func TestExchange_RequestEDS(t *testing.T) {
 	// Testcase: EDS is unavailable initially, but is found after multiple requests
 	t.Run("EDS_AvailableAfterDelay", func(t *testing.T) {
 		storageDelay := time.Second
-		eds := share.RandEDS(t, 4)
+		eds := edstest.RandEDS(t, 4)
 		dah := da.NewDataAvailabilityHeader(eds)
 		go func() {
 			time.Sleep(storageDelay)
@@ -76,7 +76,7 @@ func TestExchange_RequestEDS(t *testing.T) {
 	t.Run("EDS_err_not_found", func(t *testing.T) {
 		timeoutCtx, cancel := context.WithTimeout(ctx, time.Second)
 		t.Cleanup(cancel)
-		eds := share.RandEDS(t, 4)
+		eds := edstest.RandEDS(t, 4)
 		dah := da.NewDataAvailabilityHeader(eds)
 		_, err := client.RequestEDS(timeoutCtx, dah.Hash(), server.host.ID())
 		require.ErrorIs(t, err, p2p.ErrNotFound)

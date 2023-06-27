@@ -15,7 +15,6 @@ import (
 
 	"github.com/celestiaorg/go-libp2p-messenger/serde"
 	"github.com/celestiaorg/nmt"
-	"github.com/celestiaorg/nmt/namespace"
 
 	"github.com/celestiaorg/celestia-node/share"
 	"github.com/celestiaorg/celestia-node/share/ipld"
@@ -51,10 +50,14 @@ func NewClient(params *Parameters, host host.Host) (*Client, error) {
 func (c *Client) RequestND(
 	ctx context.Context,
 	root *share.Root,
-	nID namespace.ID,
+	namespace share.Namespace,
 	peer peer.ID,
 ) (share.NamespacedShares, error) {
-	shares, err := c.doRequest(ctx, root, nID, peer)
+	if err := namespace.ValidateForData(); err != nil {
+		return nil, err
+	}
+
+	shares, err := c.doRequest(ctx, root, namespace, peer)
 	if err == nil {
 		return shares, nil
 	}
@@ -80,7 +83,7 @@ func (c *Client) RequestND(
 func (c *Client) doRequest(
 	ctx context.Context,
 	root *share.Root,
-	nID namespace.ID,
+	namespace share.Namespace,
 	peerID peer.ID,
 ) (share.NamespacedShares, error) {
 	stream, err := c.host.NewStream(ctx, peerID, c.protocolID)
@@ -92,8 +95,8 @@ func (c *Client) doRequest(
 	c.setStreamDeadlines(ctx, stream)
 
 	req := &pb.GetSharesByNamespaceRequest{
-		RootHash:    root.Hash(),
-		NamespaceId: nID,
+		RootHash:  root.Hash(),
+		Namespace: namespace,
 	}
 
 	_, err = serde.Write(stream, req)

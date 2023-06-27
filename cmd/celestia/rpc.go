@@ -16,9 +16,6 @@ import (
 
 	"github.com/spf13/cobra"
 
-	appns "github.com/celestiaorg/celestia-app/pkg/namespace"
-	"github.com/celestiaorg/nmt/namespace"
-
 	"github.com/celestiaorg/celestia-node/api/rpc/client"
 	"github.com/celestiaorg/celestia-node/blob"
 	"github.com/celestiaorg/celestia-node/share"
@@ -112,18 +109,18 @@ func parseParams(method string, params []string) []interface{} {
 			panic(fmt.Errorf("couldn't parse share root as json: %v", err))
 		}
 		parsedParams[0] = root
-		// 2. NamespaceID
-		nID, err := parseV0NamespaceID(params[1])
+		// 2. Namespace
+		namespace, err := parseV0Namespace(params[1])
 		if err != nil {
-			panic(fmt.Sprintf("Error parsing namespace ID: %v", err))
+			panic(fmt.Sprintf("Error parsing namespace: %v", err))
 		}
-		parsedParams[1] = nID
+		parsedParams[1] = namespace
 	case "Submit":
-		// 1. NamespaceID
+		// 1. Namespace
 		var err error
-		nID, err := parseV0NamespaceID(params[0])
+		namespace, err := parseV0Namespace(params[0])
 		if err != nil {
-			panic(fmt.Sprintf("Error parsing namespace ID: %v", err))
+			panic(fmt.Sprintf("Error parsing namespace: %v", err))
 		}
 		// 2. Blob data
 		var blobData []byte
@@ -146,7 +143,7 @@ func parseParams(method string, params []string) []interface{} {
 				panic("Error decoding blob data: base64 string could not be decoded.")
 			}
 		}
-		parsedBlob, err := blob.NewBlob(0, nID, blobData)
+		parsedBlob, err := blob.NewBlobV0(namespace, blobData)
 		if err != nil {
 			panic(fmt.Sprintf("Error creating blob: %v", err))
 		}
@@ -162,10 +159,10 @@ func parseParams(method string, params []string) []interface{} {
 			panic("Error parsing gas limit: uint64 could not be parsed.")
 		}
 		parsedParams[1] = num
-		// 3. NamespaceID
-		nID, err := parseV0NamespaceID(params[2])
+		// 3. Namespace
+		namespace, err := parseV0Namespace(params[2])
 		if err != nil {
-			panic(fmt.Sprintf("Error parsing namespace ID: %v", err))
+			panic(fmt.Sprintf("Error parsing namespace: %v", err))
 		}
 		// 4. Blob data
 		var blobData []byte
@@ -188,7 +185,7 @@ func parseParams(method string, params []string) []interface{} {
 				panic("Error decoding blob: base64 string could not be decoded.")
 			}
 		}
-		parsedBlob, err := blob.NewBlob(0, nID, blobData)
+		parsedBlob, err := blob.NewBlobV0(namespace, blobData)
 		if err != nil {
 			panic(fmt.Sprintf("Error creating blob: %v", err))
 		}
@@ -202,11 +199,11 @@ func parseParams(method string, params []string) []interface{} {
 		}
 		parsedParams[0] = num
 		// 2. NamespaceID
-		nID, err := parseV0NamespaceID(params[1])
+		namespace, err := parseV0Namespace(params[1])
 		if err != nil {
-			panic(fmt.Sprintf("Error parsing namespace ID: %v", err))
+			panic(fmt.Sprintf("Error parsing namespace: %v", err))
 		}
-		parsedParams[1] = nID
+		parsedParams[1] = namespace
 		// 3: Commitment
 		commitment, err := base64.StdEncoding.DecodeString(params[2])
 		if err != nil {
@@ -221,12 +218,12 @@ func parseParams(method string, params []string) []interface{} {
 			panic("Error parsing gas limit: uint64 could not be parsed.")
 		}
 		parsedParams[0] = num
-		// 2. NamespaceID
-		nID, err := parseV0NamespaceID(params[1])
+		// 2. Namespace
+		namespace, err := parseV0Namespace(params[1])
 		if err != nil {
-			panic(fmt.Sprintf("Error parsing namespace ID: %v", err))
+			panic(fmt.Sprintf("Error parsing namespace: %v", err))
 		}
-		parsedParams[1] = []namespace.ID{nID}
+		parsedParams[1] = []share.Namespace{namespace}
 		return parsedParams
 	case "QueryDelegation", "QueryUnbonding", "BalanceForAddress":
 		var err error
@@ -419,23 +416,17 @@ func parseSignatureForHelpstring(methodSig reflect.StructField) string {
 	return simplifiedSignature
 }
 
-// parseV0NamespaceID parses a namespace ID from a base64 or hex string. The param
+// parseV0Namespace parses a namespace from a base64 or hex string. The param
 // is expected to be the user-specified portion of a v0 namespace ID (i.e. the
 // last 10 bytes).
-func parseV0NamespaceID(param string) (namespace.ID, error) {
+func parseV0Namespace(param string) (share.Namespace, error) {
 	userBytes, err := decodeToBytes(param)
 	if err != nil {
 		return nil, err
 	}
 
-	if len(userBytes) > appns.NamespaceVersionZeroIDSize {
-		return nil, fmt.Errorf(
-			"namespace ID %v is too large to be a v0 namespace, want <= %v bytes",
-			userBytes, appns.NamespaceVersionZeroIDSize,
-		)
-	}
 	// if the namespace ID is <= 10 bytes, left pad it with 0s
-	return share.NewNamespaceV0(userBytes)
+	return share.NewBlobNamespaceV0(userBytes)
 }
 
 // decodeToBytes decodes a Base64 or hex input string into a byte slice.

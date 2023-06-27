@@ -2,7 +2,6 @@ package getters
 
 import (
 	"context"
-	"encoding/hex"
 	"errors"
 	"fmt"
 	"time"
@@ -14,7 +13,6 @@ import (
 	"go.opentelemetry.io/otel/metric/unit"
 	"go.opentelemetry.io/otel/trace"
 
-	"github.com/celestiaorg/nmt/namespace"
 	"github.com/celestiaorg/rsmt2d"
 
 	"github.com/celestiaorg/celestia-node/libs/utils"
@@ -190,22 +188,25 @@ func (sg *ShrexGetter) GetEDS(ctx context.Context, root *share.Root) (*rsmt2d.Ex
 func (sg *ShrexGetter) GetSharesByNamespace(
 	ctx context.Context,
 	root *share.Root,
-	id namespace.ID,
+	namespace share.Namespace,
 ) (share.NamespacedShares, error) {
+	if err := namespace.ValidateForData(); err != nil {
+		return nil, err
+	}
 	var (
 		attempt int
 		err     error
 	)
 	ctx, span := tracer.Start(ctx, "shrex/get-shares-by-namespace", trace.WithAttributes(
 		attribute.String("root", root.String()),
-		attribute.String("nid", hex.EncodeToString(id)),
+		attribute.String("namespace", namespace.String()),
 	))
 	defer func() {
 		utils.SetStatusAndEnd(span, err)
 	}()
 
 	// verify that the namespace could exist inside the roots before starting network requests
-	roots := filterRootsByNamespace(root, id)
+	roots := filterRootsByNamespace(root, namespace)
 	if len(roots) == 0 {
 		return nil, nil
 	}
@@ -221,7 +222,7 @@ func (sg *ShrexGetter) GetSharesByNamespace(
 		if getErr != nil {
 			log.Debugw("nd: couldn't find peer",
 				"hash", root.String(),
-				"nid", hex.EncodeToString(id),
+				"namespace", namespace.String(),
 				"err", getErr,
 				"finished (s)", time.Since(start))
 			sg.metrics.recordNDAttempt(ctx, attempt, false)
@@ -230,12 +231,12 @@ func (sg *ShrexGetter) GetSharesByNamespace(
 
 		reqStart := time.Now()
 		reqCtx, cancel := ctxWithSplitTimeout(ctx, sg.minAttemptsCount-attempt+1, sg.minRequestTimeout)
-		nd, getErr := sg.ndClient.RequestND(reqCtx, root, id, peer)
+		nd, getErr := sg.ndClient.RequestND(reqCtx, root, namespace, peer)
 		cancel()
 		switch {
 		case getErr == nil:
 			// both inclusion and non-inclusion cases needs verification
-			if verErr := nd.Verify(root, id); verErr != nil {
+			if verErr := nd.Verify(root, namespace); verErr != nil {
 				getErr = verErr
 				setStatus(peers.ResultBlacklistPeer)
 				break
@@ -260,7 +261,7 @@ func (sg *ShrexGetter) GetSharesByNamespace(
 		}
 		log.Debugw("nd: request failed",
 			"hash", root.String(),
-			"nid", hex.EncodeToString(id),
+			"namespace", namespace.String(),
 			"peer", peer.String(),
 			"attempt", attempt,
 			"err", getErr,

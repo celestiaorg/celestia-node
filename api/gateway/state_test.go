@@ -34,7 +34,7 @@ func TestHandleSubmitPFB(t *testing.T) {
 		mock.EXPECT().SubmitPayForBlob(gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any()).
 			Return(&txResponse, timedErr)
 
-		ns, err := share.NewNamespaceV0([]byte("abc"))
+		ns, err := share.NewBlobNamespaceV0([]byte("abc"))
 		require.NoError(t, err)
 		hexNs := hex.EncodeToString(ns[:])
 

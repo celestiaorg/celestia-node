@@ -11,14 +11,16 @@ import (
 	"github.com/celestiaorg/celestia-node/share"
 )
 
-func GenerateBlobs(sizes []int, sameNID bool) ([]types.Blob, error) {
+// GenerateV0Blobs is a test utility producing v0 share formatted blobs with the
+// requested size and random namespaces.
+func GenerateV0Blobs(sizes []int, sameNamespace bool) ([]types.Blob, error) {
 	blobs := make([]types.Blob, 0, len(sizes))
 
 	for _, size := range sizes {
 		size := rawBlobSize(appconsts.FirstSparseShareContentSize * size)
 		appBlob := testfactory.GenerateRandomBlob(size)
-		if !sameNID {
-			nid, err := share.NewNamespaceV0(tmrand.Bytes(7))
+		if !sameNamespace {
+			nid, err := share.NewBlobNamespaceV0(tmrand.Bytes(7))
 			if err != nil {
 				return nil, err
 			}

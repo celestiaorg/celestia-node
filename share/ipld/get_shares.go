@@ -1,4 +1,4 @@
-package share
+package ipld
 
 import (
 	"context"
@@ -8,9 +8,8 @@ import (
 	format "github.com/ipfs/go-ipld-format"
 
 	"github.com/celestiaorg/nmt"
-	"github.com/celestiaorg/nmt/namespace"
 
-	"github.com/celestiaorg/celestia-node/share/ipld"
+	"github.com/celestiaorg/celestia-node/share"
 )
 
 // GetShare fetches and returns the data for leaf `leafIndex` of root `rootCid`.
@@ -20,8 +19,8 @@ func GetShare(
 	rootCid cid.Cid,
 	leafIndex int,
 	totalLeafs int, // this corresponds to the extended square width
-) (Share, error) {
-	nd, err := ipld.GetLeaf(ctx, bGetter, rootCid, leafIndex, totalLeafs)
+) (share.Share, error) {
+	nd, err := GetLeaf(ctx, bGetter, rootCid, leafIndex, totalLeafs)
 	if err != nil {
 		return nil, err
 	}
@@ -32,30 +31,30 @@ func GetShare(
 // GetShares walks the tree of a given root and puts shares into the given 'put' func.
 // Does not return any error, and returns/unblocks only on success
 // (got all shares) or on context cancellation.
-func GetShares(ctx context.Context, bGetter blockservice.BlockGetter, root cid.Cid, shares int, put func(int, Share)) {
+func GetShares(ctx context.Context, bg blockservice.BlockGetter, root cid.Cid, shares int, put func(int, share.Share)) {
 	ctx, span := tracer.Start(ctx, "get-shares")
 	defer span.End()
 
 	putNode := func(i int, leaf format.Node) {
 		put(i, leafToShare(leaf))
 	}
-	ipld.GetLeaves(ctx, bGetter, root, shares, putNode)
+	GetLeaves(ctx, bg, root, shares, putNode)
 }
 
 // GetSharesByNamespace walks the tree of a given root and returns its shares within the given
-// namespace.ID. If a share could not be retrieved, err is not nil, and the returned array
+// Namespace. If a share could not be retrieved, err is not nil, and the returned array
 // contains nil shares in place of the shares it was unable to retrieve.
 func GetSharesByNamespace(
 	ctx context.Context,
 	bGetter blockservice.BlockGetter,
 	root cid.Cid,
-	nID namespace.ID,
+	namespace share.Namespace,
 	maxShares int,
-) ([]Share, *nmt.Proof, error) {
+) ([]share.Share, *nmt.Proof, error) {
 	ctx, span := tracer.Start(ctx, "get-shares-by-namespace")
 	defer span.End()
 
-	data := ipld.NewNamespaceData(maxShares, nID, ipld.WithLeaves(), ipld.WithProofs())
+	data := NewNamespaceData(maxShares, namespace, WithLeaves(), WithProofs())
 	err := data.CollectLeavesByNamespace(ctx, bGetter, root)
 	if err != nil {
 		return nil, nil, err
@@ -63,7 +62,7 @@ func GetSharesByNamespace(
 
 	leaves := data.Leaves()
 
-	shares := make([]Share, len(leaves))
+	shares := make([]share.Share, len(leaves))
 	for i, leaf := range leaves {
 		if leaf != nil {
 			shares[i] = leafToShare(leaf)
@@ -73,8 +72,8 @@ func GetSharesByNamespace(
 }
 
 // leafToShare converts an NMT leaf into a Share.
-func leafToShare(nd format.Node) Share {
+func leafToShare(nd format.Node) share.Share {
 	// * Additional namespace is prepended so that parity data can be identified with a parity
 	// namespace, which we cut off
-	return nd.RawData()[NamespaceSize:]
+	return share.GetData(nd.RawData())
 }

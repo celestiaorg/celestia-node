@@ -12,6 +12,8 @@ import (
 	ipld "github.com/ipfs/go-ipld-format"
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/codes"
+
+	"github.com/celestiaorg/celestia-node/share"
 )
 
 // NumWorkersLimit sets global limit for workers spawned by GetShares.
@@ -26,7 +28,7 @@ import (
 //
 // TODO(@Wondertan): This assumes we have parallelized DASer implemented. Sync the values once it is shipped.
 // TODO(@Wondertan): Allow configuration of values without global state.
-var NumWorkersLimit = MaxSquareSize * MaxSquareSize / 2 * NumConcurrentSquares
+var NumWorkersLimit = share.MaxSquareSize * share.MaxSquareSize / 2 * NumConcurrentSquares
 
 // NumConcurrentSquares limits the amount of squares that are fetched
 // concurrently/simultaneously.

@@ -17,6 +17,7 @@ import (
 	"github.com/celestiaorg/rsmt2d"
 
 	"github.com/celestiaorg/celestia-node/share"
+	"github.com/celestiaorg/celestia-node/share/eds/edstest"
 )
 
 func TestEDSStore(t *testing.T) {
@@ -77,7 +78,7 @@ func TestEDSStore(t *testing.T) {
 				original := eds.GetCell(uint(i), uint(j))
 				block, err := carReader.Next()
 				assert.NoError(t, err)
-				assert.Equal(t, original, block.RawData()[share.NamespaceSize:])
+				assert.Equal(t, original, share.GetData(block.RawData()))
 			}
 		}
 	})
@@ -261,7 +262,7 @@ func newStore(t *testing.T) (*Store, error) {
 }
 
 func randomEDS(t *testing.T) (*rsmt2d.ExtendedDataSquare, share.Root) {
-	eds := share.RandEDS(t, 4)
+	eds := edstest.RandEDS(t, 4)
 	dah := da.NewDataAvailabilityHeader(eds)
 
 	return eds, dah
