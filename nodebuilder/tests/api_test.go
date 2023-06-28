@@ -109,7 +109,7 @@ func TestBlobRPC(t *testing.T) {
 	client, err := client.NewClient(ctx, bridgeAddr, jwt)
 	require.NoError(t, err)
 
-	appBlobs, err := blobtest.GenerateBlobs([]int{8}, false)
+	appBlobs, err := blobtest.GenerateV0Blobs([]int{8}, false)
 	require.NoError(t, err)
 
 	newBlob, err := blob.NewBlob(

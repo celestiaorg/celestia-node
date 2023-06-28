@@ -18,9 +18,7 @@ import (
 	"github.com/ipld/go-car/util"
 	"github.com/minio/sha256-simd"
 
-	"github.com/celestiaorg/celestia-app/pkg/appconsts"
 	"github.com/celestiaorg/celestia-app/pkg/da"
-	"github.com/celestiaorg/celestia-app/pkg/namespace"
 	"github.com/celestiaorg/celestia-app/pkg/wrapper"
 	"github.com/celestiaorg/nmt"
 	"github.com/celestiaorg/rsmt2d"
@@ -37,7 +35,7 @@ var ErrEmptySquare = errors.New("share: importing empty data")
 type writingSession struct {
 	eds    *rsmt2d.ExtendedDataSquare
 	store  bstore.Blockstore // caches inner nodes (proofs) while we walk the nmt tree.
-	hasher *nmt.Hasher
+	hasher *nmt.NmtHasher
 	w      io.Writer
 }
 
@@ -114,7 +112,7 @@ func initializeWriter(ctx context.Context, eds *rsmt2d.ExtendedDataSquare, w io.
 	return &writingSession{
 		eds:    eds,
 		store:  store,
-		hasher: nmt.NewNmtHasher(sha256.New(), ipld.NamespaceSize, ipld.NMTIgnoreMaxNamespace),
+		hasher: nmt.NewNmtHasher(sha256.New(), share.NamespaceSize, ipld.NMTIgnoreMaxNamespace),
 		w:      w,
 	}, nil
 }
@@ -219,13 +217,13 @@ func getQuadrantCells(eds *rsmt2d.ExtendedDataSquare, i, j uint) [][]byte {
 
 // prependNamespace adds the namespace to the passed share if in the first quadrant,
 // otherwise it adds the ParitySharesNamespace to the beginning.
-func prependNamespace(quadrant int, share []byte) []byte {
-	namespacedShare := make([]byte, 0, appconsts.NamespaceSize+appconsts.ShareSize)
+func prependNamespace(quadrant int, shr share.Share) []byte {
+	namespacedShare := make([]byte, 0, share.NamespaceSize+share.Size)
 	switch quadrant {
 	case 0:
-		return append(append(namespacedShare, share[:ipld.NamespaceSize]...), share...)
+		return append(append(namespacedShare, share.GetNamespace(shr)...), shr...)
 	case 1, 2, 3:
-		return append(append(namespacedShare, namespace.ParitySharesNamespace.Bytes()...), share...)
+		return append(append(namespacedShare, share.ParitySharesNamespace...), shr...)
 	default:
 		panic("invalid quadrant")
 	}
@@ -273,7 +271,7 @@ func ReadEDS(ctx context.Context, r io.Reader, root share.DataHash) (eds *rsmt2d
 		}
 		// the stored first quadrant shares are wrapped with the namespace twice.
 		// we cut it off here, because it is added again while importing to the tree below
-		shares[i] = block.RawData()[ipld.NamespaceSize:]
+		shares[i] = share.GetData(block.RawData())
 	}
 
 	eds, err = rsmt2d.ComputeExtendedDataSquare(

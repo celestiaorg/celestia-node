@@ -1,4 +1,4 @@
-package share
+package ipld
 
 import (
 	"context"
@@ -11,14 +11,14 @@ import (
 	"github.com/celestiaorg/rsmt2d"
 
 	"github.com/celestiaorg/celestia-node/libs/utils"
-	"github.com/celestiaorg/celestia-node/share/ipld"
+	"github.com/celestiaorg/celestia-node/share"
 )
 
 // AddShares erasures and extends shares to blockservice.BlockService using the provided
 // ipld.NodeAdder.
 func AddShares(
 	ctx context.Context,
-	shares []Share,
+	shares []share.Share,
 	adder blockservice.BlockService,
 ) (*rsmt2d.ExtendedDataSquare, error) {
 	if len(shares) == 0 {
@@ -26,12 +26,12 @@ func AddShares(
 	}
 	squareSize := int(utils.SquareSize(len(shares)))
 	// create nmt adder wrapping batch adder with calculated size
-	batchAdder := ipld.NewNmtNodeAdder(ctx, adder, ipld.MaxSizeBatchOption(squareSize*2))
+	batchAdder := NewNmtNodeAdder(ctx, adder, MaxSizeBatchOption(squareSize*2))
 	// create the nmt wrapper to generate row and col commitments
 	// recompute the eds
 	eds, err := rsmt2d.ComputeExtendedDataSquare(
 		shares,
-		DefaultRSMT2DCodec(),
+		share.DefaultRSMT2DCodec(),
 		wrapper.NewConstructor(uint64(squareSize),
 			nmt.NodeVisitor(batchAdder.Visit)),
 	)
@@ -55,11 +55,11 @@ func ImportShares(
 	}
 	squareSize := int(utils.SquareSize(len(shares)))
 	// create nmt adder wrapping batch adder with calculated size
-	batchAdder := ipld.NewNmtNodeAdder(ctx, adder, ipld.MaxSizeBatchOption(squareSize*2))
+	batchAdder := NewNmtNodeAdder(ctx, adder, MaxSizeBatchOption(squareSize*2))
 	// recompute the eds
 	eds, err := rsmt2d.ImportExtendedDataSquare(
 		shares,
-		DefaultRSMT2DCodec(),
+		share.DefaultRSMT2DCodec(),
 		wrapper.NewConstructor(uint64(squareSize/2),
 			nmt.NodeVisitor(batchAdder.Visit)),
 	)
@@ -72,31 +72,8 @@ func ImportShares(
 	return eds, batchAdder.Commit()
 }
 
-// ExtractODS returns the original shares of the given ExtendedDataSquare. This
-// is a helper function for circumstances where AddShares must be used after the EDS has already
-// been generated.
-func ExtractODS(eds *rsmt2d.ExtendedDataSquare) []Share {
-	origWidth := eds.Width() / 2
-	origShares := make([][]byte, origWidth*origWidth)
-	for i := uint(0); i < origWidth; i++ {
-		row := eds.Row(i)
-		for j := uint(0); j < origWidth; j++ {
-			origShares[(i*origWidth)+j] = row[j]
-		}
-	}
-	return origShares
-}
-
-// ExtractEDS takes an EDS and extracts all shares from it in a flattened slice(row by row).
-func ExtractEDS(eds *rsmt2d.ExtendedDataSquare) []Share {
-	flattenedEDSSize := eds.Width() * eds.Width()
-	out := make([][]byte, flattenedEDSSize)
-	count := 0
-	for i := uint(0); i < eds.Width(); i++ {
-		for _, share := range eds.Row(i) {
-			out[count] = share
-			count++
-		}
-	}
-	return out
+func ImportEDS(ctx context.Context, square *rsmt2d.ExtendedDataSquare, adder blockservice.BlockService) error {
+	shares := share.ExtractEDS(square)
+	_, err := ImportShares(ctx, shares, adder)
+	return err
 }

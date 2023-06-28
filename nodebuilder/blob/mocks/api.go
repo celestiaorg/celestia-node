@@ -8,9 +8,10 @@ import (
 	context "context"
 	reflect "reflect"
 
-	blob "github.com/celestiaorg/celestia-node/blob"
-	namespace "github.com/celestiaorg/nmt/namespace"
 	gomock "github.com/golang/mock/gomock"
+
+	blob "github.com/celestiaorg/celestia-node/blob"
+	share "github.com/celestiaorg/celestia-node/share"
 )
 
 // MockModule is a mock of Module interface.
@@ -37,7 +38,7 @@ func (m *MockModule) EXPECT() *MockModuleMockRecorder {
 }
 
 // Get mocks base method.
-func (m *MockModule) Get(arg0 context.Context, arg1 uint64, arg2 namespace.ID, arg3 blob.Commitment) (*blob.Blob, error) {
+func (m *MockModule) Get(arg0 context.Context, arg1 uint64, arg2 share.Namespace, arg3 blob.Commitment) (*blob.Blob, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "Get", arg0, arg1, arg2, arg3)
 	ret0, _ := ret[0].(*blob.Blob)
@@ -52,7 +53,7 @@ func (mr *MockModuleMockRecorder) Get(arg0, arg1, arg2, arg3 interface{}) *gomoc
 }
 
 // GetAll mocks base method.
-func (m *MockModule) GetAll(arg0 context.Context, arg1 uint64, arg2 []namespace.ID) ([]*blob.Blob, error) {
+func (m *MockModule) GetAll(arg0 context.Context, arg1 uint64, arg2 []share.Namespace) ([]*blob.Blob, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "GetAll", arg0, arg1, arg2)
 	ret0, _ := ret[0].([]*blob.Blob)
@@ -67,7 +68,7 @@ func (mr *MockModuleMockRecorder) GetAll(arg0, arg1, arg2 interface{}) *gomock.C
 }
 
 // GetProof mocks base method.
-func (m *MockModule) GetProof(arg0 context.Context, arg1 uint64, arg2 namespace.ID, arg3 blob.Commitment) (*blob.Proof, error) {
+func (m *MockModule) GetProof(arg0 context.Context, arg1 uint64, arg2 share.Namespace, arg3 blob.Commitment) (*blob.Proof, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "GetProof", arg0, arg1, arg2, arg3)
 	ret0, _ := ret[0].(*blob.Proof)
@@ -82,7 +83,7 @@ func (mr *MockModuleMockRecorder) GetProof(arg0, arg1, arg2, arg3 interface{}) *
 }
 
 // Included mocks base method.
-func (m *MockModule) Included(arg0 context.Context, arg1 uint64, arg2 namespace.ID, arg3 *blob.Proof, arg4 blob.Commitment) (bool, error) {
+func (m *MockModule) Included(arg0 context.Context, arg1 uint64, arg2 share.Namespace, arg3 *blob.Proof, arg4 blob.Commitment) (bool, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "Included", arg0, arg1, arg2, arg3, arg4)
 	ret0, _ := ret[0].(bool)

@@ -18,10 +18,10 @@ import (
 
 	"github.com/celestiaorg/celestia-app/pkg/appconsts"
 	"github.com/celestiaorg/celestia-app/pkg/da"
-	"github.com/celestiaorg/celestia-app/pkg/namespace"
 	"github.com/celestiaorg/rsmt2d"
 
 	"github.com/celestiaorg/celestia-node/share"
+	"github.com/celestiaorg/celestia-node/share/eds/edstest"
 	"github.com/celestiaorg/celestia-node/share/ipld"
 )
 
@@ -57,7 +57,7 @@ func TestQuadrantOrder(t *testing.T) {
 
 			res := quadrantOrder(eds)
 			for _, s := range res {
-				require.Len(t, s, testShareSize+namespace.NamespaceSize)
+				require.Len(t, s, testShareSize+share.NamespaceSize)
 			}
 
 			for q := 0; q < 4; q++ {
@@ -101,7 +101,7 @@ func TestWriteEDSStartsWithLeaves(t *testing.T) {
 	block, err := reader.Next()
 	require.NoError(t, err, "error getting first block")
 
-	require.Equal(t, block.RawData()[ipld.NamespaceSize:], eds.GetCell(0, 0))
+	require.Equal(t, share.GetData(block.RawData()), eds.GetCell(0, 0))
 }
 
 func TestWriteEDSIncludesRoots(t *testing.T) {
@@ -193,7 +193,7 @@ func TestReadEDS(t *testing.T) {
 
 func TestReadEDSContentIntegrityMismatch(t *testing.T) {
 	writeRandomEDS(t)
-	dah := da.NewDataAvailabilityHeader(share.RandEDS(t, 4))
+	dah := da.NewDataAvailabilityHeader(edstest.RandEDS(t, 4))
 	f := openWrittenEDS(t)
 	defer f.Close()
 
@@ -208,7 +208,7 @@ func BenchmarkReadWriteEDS(b *testing.B) {
 	ctx, cancel := context.WithCancel(context.Background())
 	b.Cleanup(cancel)
 	for originalDataWidth := 4; originalDataWidth <= 64; originalDataWidth *= 2 {
-		eds := share.RandEDS(b, originalDataWidth)
+		eds := edstest.RandEDS(b, originalDataWidth)
 		dah := da.NewDataAvailabilityHeader(eds)
 		b.Run(fmt.Sprintf("Writing %dx%d", originalDataWidth, originalDataWidth), func(b *testing.B) {
 			b.ReportAllocs()
@@ -242,7 +242,7 @@ func writeRandomEDS(t *testing.T) *rsmt2d.ExtendedDataSquare {
 	f, err := os.OpenFile("test.car", os.O_WRONLY|os.O_CREATE, 0600)
 	require.NoError(t, err, "error opening file")
 
-	eds := share.RandEDS(t, 4)
+	eds := edstest.RandEDS(t, 4)
 	err = WriteEDS(ctx, eds, f)
 	require.NoError(t, err, "error writing EDS to file")
 	f.Close()
@@ -276,7 +276,7 @@ func createTestData(t *testing.T, testDir string) { //nolint:unused
 	f, err := os.OpenFile("example.car", os.O_WRONLY|os.O_CREATE, 0600)
 	require.NoError(t, err, "opening file")
 
-	eds := share.RandEDS(t, 4)
+	eds := edstest.RandEDS(t, 4)
 	err = WriteEDS(ctx, eds, f)
 	require.NoError(t, err, "writing EDS to file")
 	f.Close()

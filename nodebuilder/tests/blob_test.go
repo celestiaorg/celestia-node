@@ -11,12 +11,11 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"github.com/celestiaorg/nmt/namespace"
-
 	"github.com/celestiaorg/celestia-node/blob"
 	"github.com/celestiaorg/celestia-node/blob/blobtest"
 	"github.com/celestiaorg/celestia-node/nodebuilder/node"
 	"github.com/celestiaorg/celestia-node/nodebuilder/tests/swamp"
+	"github.com/celestiaorg/celestia-node/share"
 )
 
 func TestBlobModule(t *testing.T) {
@@ -24,9 +23,9 @@ func TestBlobModule(t *testing.T) {
 	t.Cleanup(cancel)
 	sw := swamp.NewSwamp(t)
 
-	appBlobs0, err := blobtest.GenerateBlobs([]int{8, 4}, true)
+	appBlobs0, err := blobtest.GenerateV0Blobs([]int{8, 4}, true)
 	require.NoError(t, err)
-	appBlobs1, err := blobtest.GenerateBlobs([]int{4}, false)
+	appBlobs1, err := blobtest.GenerateV0Blobs([]int{4}, false)
 	require.NoError(t, err)
 	blobs := make([]*blob.Blob, 0, len(appBlobs0)+len(appBlobs1))
 
@@ -79,7 +78,7 @@ func TestBlobModule(t *testing.T) {
 		{
 			name: "GetAll",
 			doFn: func(t *testing.T) {
-				newBlobs, err := fullNode.BlobServ.GetAll(ctx, height, []namespace.ID{blobs[0].Namespace()})
+				newBlobs, err := fullNode.BlobServ.GetAll(ctx, height, []share.Namespace{blobs[0].Namespace()})
 				require.NoError(t, err)
 				require.Len(t, newBlobs, len(appBlobs0))
 				require.True(t, bytes.Equal(blobs[0].Commitment, newBlobs[0].Commitment))
@@ -106,7 +105,7 @@ func TestBlobModule(t *testing.T) {
 		{
 			name: "Not Found",
 			doFn: func(t *testing.T) {
-				appBlob, err := blobtest.GenerateBlobs([]int{4}, false)
+				appBlob, err := blobtest.GenerateV0Blobs([]int{4}, false)
 				require.NoError(t, err)
 				newBlob, err := blob.NewBlob(
 					appBlob[0].ShareVersion,

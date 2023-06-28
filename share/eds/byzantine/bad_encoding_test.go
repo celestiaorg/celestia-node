@@ -3,8 +3,10 @@ package byzantine
 import (
 	"context"
 	"testing"
+	"time"
 
 	mdutils "github.com/ipfs/go-merkledag/test"
+	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	core "github.com/tendermint/tendermint/types"
 
@@ -12,9 +14,33 @@ import (
 	"github.com/celestiaorg/rsmt2d"
 
 	"github.com/celestiaorg/celestia-node/header"
-	"github.com/celestiaorg/celestia-node/share"
+	"github.com/celestiaorg/celestia-node/share/eds/edstest"
 	"github.com/celestiaorg/celestia-node/share/ipld"
+	"github.com/celestiaorg/celestia-node/share/sharetest"
 )
+
+func TestBadEncodingFraudProof(t *testing.T) {
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second*15)
+	defer t.Cleanup(cancel)
+	bServ := mdutils.Bserv()
+
+	square := edstest.RandByzantineEDS(t, 16)
+	dah := da.NewDataAvailabilityHeader(square)
+	err := ipld.ImportEDS(ctx, square, bServ)
+	require.NoError(t, err)
+
+	var errRsmt2d *rsmt2d.ErrByzantineData
+	err = square.Repair(dah.RowRoots, dah.ColumnRoots)
+	require.ErrorAs(t, err, &errRsmt2d)
+
+	errByz := NewErrByzantine(ctx, bServ, &dah, errRsmt2d)
+
+	befp := CreateBadEncodingProof([]byte("hash"), 0, errByz)
+	err = befp.Validate(&header.ExtendedHeader{
+		DAH: &dah,
+	})
+	assert.NoError(t, err)
+}
 
 // TestIncorrectBadEncodingFraudProof asserts that BEFP is not generated for the correct data
 func TestIncorrectBadEncodingFraudProof(t *testing.T) {
@@ -24,9 +50,9 @@ func TestIncorrectBadEncodingFraudProof(t *testing.T) {
 	bServ := mdutils.Bserv()
 
 	squareSize := 8
-	shares := share.RandShares(t, squareSize*squareSize)
+	shares := sharetest.RandShares(t, squareSize*squareSize)
 
-	eds, err := share.AddShares(ctx, shares, bServ)
+	eds, err := ipld.AddShares(ctx, shares, bServ)
 	require.NoError(t, err)
 
 	dah := da.NewDataAvailabilityHeader(eds)

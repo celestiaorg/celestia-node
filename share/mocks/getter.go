@@ -8,11 +8,11 @@ import (
 	context "context"
 	reflect "reflect"
 
+	gomock "github.com/golang/mock/gomock"
+
 	da "github.com/celestiaorg/celestia-app/pkg/da"
 	share "github.com/celestiaorg/celestia-node/share"
-	namespace "github.com/celestiaorg/nmt/namespace"
 	rsmt2d "github.com/celestiaorg/rsmt2d"
-	gomock "github.com/golang/mock/gomock"
 )
 
 // MockGetter is a mock of Getter interface.
@@ -69,7 +69,7 @@ func (mr *MockGetterMockRecorder) GetShare(arg0, arg1, arg2, arg3 interface{}) *
 }
 
 // GetSharesByNamespace mocks base method.
-func (m *MockGetter) GetSharesByNamespace(arg0 context.Context, arg1 *da.DataAvailabilityHeader, arg2 namespace.ID) (share.NamespacedShares, error) {
+func (m *MockGetter) GetSharesByNamespace(arg0 context.Context, arg1 *da.DataAvailabilityHeader, arg2 share.Namespace) (share.NamespacedShares, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "GetSharesByNamespace", arg0, arg1, arg2)
 	ret0, _ := ret[0].(share.NamespacedShares)

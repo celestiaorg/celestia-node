@@ -11,7 +11,7 @@ import (
 	"github.com/ipfs/go-blockservice"
 	"github.com/ipfs/go-cid"
 	ipld "github.com/ipfs/go-ipld-format"
-	blocks "github.com/ipfs/go-libipfs/blocks"
+	"github.com/ipfs/go-libipfs/blocks"
 	logging "github.com/ipfs/go-log/v2"
 	mh "github.com/multiformats/go-multihash"
 	mhcore "github.com/multiformats/go-multihash/core"
@@ -20,7 +20,8 @@ import (
 	"github.com/celestiaorg/celestia-app/pkg/appconsts"
 	"github.com/celestiaorg/celestia-app/pkg/da"
 	"github.com/celestiaorg/nmt"
-	"github.com/celestiaorg/nmt/namespace"
+
+	"github.com/celestiaorg/celestia-node/share"
 )
 
 var (
@@ -39,17 +40,14 @@ const (
 	// that contain an NMT node (inner and leaf nodes).
 	sha256NamespaceFlagged = 0x7701
 
-	// NamespaceSize is a system-wide size for NMT namespaces.
-	NamespaceSize = appconsts.NamespaceSize
-
 	// NmtHashSize is the size of a digest created by an NMT in bytes.
-	NmtHashSize = 2*NamespaceSize + sha256.Size
+	NmtHashSize = 2*share.NamespaceSize + sha256.Size
 
 	// innerNodeSize is the size of data in inner nodes.
 	innerNodeSize = NmtHashSize * 2
 
 	// leafNodeSize is the size of data in leaf nodes.
-	leafNodeSize = NamespaceSize + appconsts.ShareSize
+	leafNodeSize = share.NamespaceSize + appconsts.ShareSize
 
 	// cidPrefixSize is the size of the prepended buffer of the CID encoding
 	// for NamespacedSha256. For more information, see:
@@ -57,21 +55,15 @@ const (
 	cidPrefixSize = 4
 
 	// NMTIgnoreMaxNamespace is currently used value for IgnoreMaxNamespace option in NMT.
-	// IgnoreMaxNamespace defines whether the largest possible namespace.ID MAX_NID should be 'ignored'.
+	// IgnoreMaxNamespace defines whether the largest possible Namespace MAX_NID should be 'ignored'.
 	// If set to true, this allows for shorter proofs in particular use-cases.
 	NMTIgnoreMaxNamespace = true
-)
-
-var (
-	// MaxSquareSize is currently the maximum size supported for unerasured data in
-	// rsmt2d.ExtendedDataSquare.
-	MaxSquareSize = appconsts.SquareSizeUpperBound(appconsts.LatestVersion)
 )
 
 func init() {
 	// required for Bitswap to hash and verify inbound data correctly
 	mhcore.Register(sha256NamespaceFlagged, func() hash.Hash {
-		nh := nmt.NewNmtHasher(sha256.New(), NamespaceSize, true)
+		nh := nmt.NewNmtHasher(sha256.New(), share.NamespaceSize, true)
 		nh.Reset()
 		return nh
 	})
@@ -181,22 +173,4 @@ func Translate(dah *da.DataAvailabilityHeader, row, col int) (cid.Cid, int) {
 // NamespacedSha256FromCID derives the Namespaced hash from the given CID.
 func NamespacedSha256FromCID(cid cid.Cid) []byte {
 	return cid.Hash()[cidPrefixSize:]
-}
-
-// NamespaceIsAboveMax checks if the target namespace is above the maximum namespace for a given
-// node hash.
-func NamespaceIsAboveMax(nodeHash []byte, target namespace.ID) bool {
-	return !target.LessOrEqual(nmt.MaxNamespace(nodeHash, target.Size()))
-}
-
-// NamespaceIsBelowMin checks if the target namespace is below the minimum namespace for a given
-// node hash.
-func NamespaceIsBelowMin(nodeHash []byte, target namespace.ID) bool {
-	return target.Less(nmt.MinNamespace(nodeHash, target.Size()))
-}
-
-// NamespaceIsOutsideRange checks if the target namespace is outside the range defined by the left
-// and right nodes
-func NamespaceIsOutsideRange(leftNodeHash, rightNodeHash []byte, target namespace.ID) bool {
-	return NamespaceIsBelowMin(leftNodeHash, target) || NamespaceIsAboveMax(rightNodeHash, target)
 }

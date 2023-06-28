@@ -143,17 +143,17 @@ func (p *BadEncodingProof) Validate(hdr libhead.Header) error {
 
 	// verify that Merkle proofs correspond to particular shares.
 	shares := make([][]byte, len(merkleRowRoots))
-	for index, share := range p.Shares {
-		if share == nil {
+	for index, shr := range p.Shares {
+		if shr == nil {
 			continue
 		}
 		// validate inclusion of the share into one of the DAHeader roots
-		if ok := share.Validate(ipld.MustCidFromNamespacedSha256(root)); !ok {
+		if ok := shr.Validate(ipld.MustCidFromNamespacedSha256(root)); !ok {
 			return fmt.Errorf("fraud: invalid proof: incorrect share received at index %d", index)
 		}
 		// NMTree commits the additional namespace while rsmt2d does not know about, so we trim it
 		// this is ugliness from NMTWrapper that we have to embrace ¯\_(ツ)_/¯
-		shares[index] = share.Share[ipld.NamespaceSize:]
+		shares[index] = share.GetData(shr.Share)
 	}
 
 	odsWidth := uint64(len(merkleRowRoots) / 2)

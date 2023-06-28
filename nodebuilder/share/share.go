@@ -3,7 +3,6 @@ package share
 import (
 	"context"
 
-	"github.com/celestiaorg/nmt/namespace"
 	"github.com/celestiaorg/rsmt2d"
 
 	"github.com/celestiaorg/celestia-node/share"
@@ -40,7 +39,7 @@ type Module interface {
 	GetEDS(ctx context.Context, root *share.Root) (*rsmt2d.ExtendedDataSquare, error)
 	// GetSharesByNamespace gets all shares from an EDS within the given namespace.
 	// Shares are returned in a row-by-row order if the namespace spans multiple rows.
-	GetSharesByNamespace(ctx context.Context, root *share.Root, namespace namespace.ID) (share.NamespacedShares, error)
+	GetSharesByNamespace(ctx context.Context, root *share.Root, namespace share.Namespace) (share.NamespacedShares, error)
 }
 
 // API is a wrapper around Module for the RPC.
@@ -61,7 +60,7 @@ type API struct {
 		GetSharesByNamespace func(
 			ctx context.Context,
 			root *share.Root,
-			namespace namespace.ID,
+			namespace share.Namespace,
 		) (share.NamespacedShares, error) `perm:"public"`
 	}
 }
@@ -85,7 +84,7 @@ func (api *API) GetEDS(ctx context.Context, root *share.Root) (*rsmt2d.ExtendedD
 func (api *API) GetSharesByNamespace(
 	ctx context.Context,
 	root *share.Root,
-	namespace namespace.ID,
+	namespace share.Namespace,
 ) (share.NamespacedShares, error) {
 	return api.Internal.GetSharesByNamespace(ctx, root, namespace)
 }

@@ -19,8 +19,8 @@ func SharesToBlobs(rawShares []share.Share) ([]*Blob, error) {
 	}
 
 	appShares := make([]shares.Share, 0, len(rawShares))
-	for _, sh := range rawShares {
-		bShare, err := shares.NewShare(sh)
+	for _, shr := range rawShares {
+		bShare, err := shares.NewShare(shr)
 		if err != nil {
 			return nil, err
 		}

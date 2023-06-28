@@ -26,7 +26,8 @@ import (
 	"github.com/celestiaorg/rsmt2d"
 
 	"github.com/celestiaorg/celestia-node/header"
-	"github.com/celestiaorg/celestia-node/share"
+	"github.com/celestiaorg/celestia-node/share/eds/edstest"
+	"github.com/celestiaorg/celestia-node/share/ipld"
 )
 
 var log = logging.Logger("headertest")
@@ -349,17 +350,15 @@ func ExtendedHeaderFromEDS(t *testing.T, height uint64, eds *rsmt2d.ExtendedData
 func CreateFraudExtHeader(
 	t *testing.T,
 	eh *header.ExtendedHeader,
-	dag blockservice.BlockService,
+	serv blockservice.BlockService,
 ) (*header.ExtendedHeader, *rsmt2d.ExtendedDataSquare) {
-	extended := share.RandEDS(t, 2)
-	shares := share.ExtractEDS(extended)
-	copy(shares[0][share.NamespaceSize:], shares[1][share.NamespaceSize:])
-	extended, err := share.ImportShares(context.Background(), shares, dag)
+	square := edstest.RandByzantineEDS(t, 16)
+	err := ipld.ImportEDS(context.Background(), square, serv)
 	require.NoError(t, err)
-	dah := da.NewDataAvailabilityHeader(extended)
+	dah := da.NewDataAvailabilityHeader(square)
 	eh.DAH = &dah
 	eh.RawHeader.DataHash = dah.Hash()
-	return eh, extended
+	return eh, square
 }
 
 type Subscriber struct {

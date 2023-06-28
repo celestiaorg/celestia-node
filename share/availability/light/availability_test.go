@@ -10,11 +10,11 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/celestiaorg/celestia-app/pkg/da"
-	"github.com/celestiaorg/celestia-app/pkg/namespace"
 
 	"github.com/celestiaorg/celestia-node/header"
 	"github.com/celestiaorg/celestia-node/share"
 	availability_test "github.com/celestiaorg/celestia-node/share/availability/test"
+	"github.com/celestiaorg/celestia-node/share/sharetest"
 )
 
 func TestSharesAvailable(t *testing.T) {
@@ -81,23 +81,23 @@ func TestService_GetSharesByNamespace(t *testing.T) {
 		t.Run("size: "+strconv.Itoa(tt.squareSize), func(t *testing.T) {
 			getter, bServ := EmptyGetter()
 			totalShares := tt.squareSize * tt.squareSize
-			randShares := share.RandShares(t, totalShares)
+			randShares := sharetest.RandShares(t, totalShares)
 			idx1 := (totalShares - 1) / 2
 			idx2 := totalShares / 2
 			if tt.expectedShareCount > 1 {
-				// make it so that two rows have the same namespace ID
-				copy(randShares[idx2][:namespace.NamespaceSize], randShares[idx1][:namespace.NamespaceSize])
+				// make it so that two rows have the same namespace
+				copy(share.GetNamespace(randShares[idx2]), share.GetNamespace(randShares[idx1]))
 			}
 			root := availability_test.FillBS(t, bServ, randShares)
-			randNID := randShares[idx1][:namespace.NamespaceSize]
+			randNamespace := share.GetNamespace(randShares[idx1])
 
-			shares, err := getter.GetSharesByNamespace(context.Background(), root, randNID)
+			shares, err := getter.GetSharesByNamespace(context.Background(), root, randNamespace)
 			require.NoError(t, err)
-			require.NoError(t, shares.Verify(root, randNID))
+			require.NoError(t, shares.Verify(root, randNamespace))
 			flattened := shares.Flatten()
 			assert.Len(t, flattened, tt.expectedShareCount)
 			for _, value := range flattened {
-				assert.Equal(t, randNID, []byte(share.ID(value)))
+				assert.Equal(t, randNamespace, share.GetNamespace(value))
 			}
 			if tt.expectedShareCount > 1 {
 				// idx1 is always smaller than idx2
@@ -105,14 +105,14 @@ func TestService_GetSharesByNamespace(t *testing.T) {
 				assert.Equal(t, randShares[idx2], flattened[1])
 			}
 		})
-		t.Run("last two rows of a 4x4 square that have the same namespace ID have valid NMT proofs", func(t *testing.T) {
+		t.Run("last two rows of a 4x4 square that have the same namespace have valid NMT proofs", func(t *testing.T) {
 			squareSize := 4
 			totalShares := squareSize * squareSize
 			getter, bServ := EmptyGetter()
-			randShares := share.RandShares(t, totalShares)
-			lastNID := randShares[totalShares-1][:namespace.NamespaceSize]
+			randShares := sharetest.RandShares(t, totalShares)
+			lastNID := share.GetNamespace(randShares[totalShares-1])
 			for i := totalShares / 2; i < totalShares; i++ {
-				copy(randShares[i][:namespace.NamespaceSize], lastNID)
+				copy(share.GetNamespace(randShares[i]), lastNID)
 			}
 			root := availability_test.FillBS(t, bServ, randShares)
 
@@ -141,7 +141,7 @@ func TestService_GetSharesByNamespaceNotFound(t *testing.T) {
 	getter, root := GetterWithRandSquare(t, 1)
 	root.RowRoots = nil
 
-	emptyShares, err := getter.GetSharesByNamespace(context.Background(), root, namespace.RandomNamespace().Bytes())
+	emptyShares, err := getter.GetSharesByNamespace(context.Background(), root, sharetest.RandV0Namespace())
 	require.NoError(t, err)
 	require.Empty(t, emptyShares.Flatten())
 }
@@ -159,11 +159,11 @@ func BenchmarkService_GetSharesByNamespace(b *testing.B) {
 		b.Run(strconv.Itoa(tt.amountShares), func(b *testing.B) {
 			t := &testing.T{}
 			getter, root := GetterWithRandSquare(t, tt.amountShares)
-			randNID := root.RowRoots[(len(root.RowRoots)-1)/2][:8]
+			randNamespace := root.RowRoots[(len(root.RowRoots)-1)/2][:share.NamespaceSize]
 			root.RowRoots[(len(root.RowRoots) / 2)] = root.RowRoots[(len(root.RowRoots)-1)/2]
 			b.ResetTimer()
 			for i := 0; i < b.N; i++ {
-				_, err := getter.GetSharesByNamespace(context.Background(), root, randNID)
+				_, err := getter.GetSharesByNamespace(context.Background(), root, randNamespace)
 				require.NoError(t, err)
 			}
 		})

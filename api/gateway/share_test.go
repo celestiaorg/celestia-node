@@ -8,8 +8,9 @@ import (
 	coretypes "github.com/tendermint/tendermint/types"
 
 	"github.com/celestiaorg/celestia-app/pkg/appconsts"
-	"github.com/celestiaorg/celestia-app/pkg/namespace"
 	"github.com/celestiaorg/celestia-app/pkg/shares"
+
+	"github.com/celestiaorg/celestia-node/share/sharetest"
 )
 
 func Test_dataFromShares(t *testing.T) {
@@ -19,13 +20,13 @@ func Test_dataFromShares(t *testing.T) {
 		[]byte("BEEEEAHP"),
 	}
 
-	ns := namespace.RandomBlobNamespace()
+	ns := sharetest.RandV0Namespace()
 	sss := shares.NewSparseShareSplitter()
 	for _, data := range testData {
 		b := coretypes.Blob{
 			Data:             data,
-			NamespaceID:      ns.ID,
-			NamespaceVersion: ns.Version,
+			NamespaceID:      ns.ID(),
+			NamespaceVersion: ns.Version(),
 			ShareVersion:     appconsts.ShareVersionZero,
 		}
 		err := sss.Write(b)
