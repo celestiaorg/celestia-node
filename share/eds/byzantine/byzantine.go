@@ -35,25 +35,30 @@ func NewErrByzantine(
 	dah *da.DataAvailabilityHeader,
 	errByz *rsmt2d.ErrByzantineData,
 ) *ErrByzantine {
-	root := [][][]byte{
-		dah.RowRoots,
+	// changing the order to collect proofs against orthogonal axis
+	roots := [][][]byte{
 		dah.ColumnRoots,
-	}[errByz.Axis][errByz.Index]
-	sharesWithProof, err := GetProofsForShares(
-		ctx,
-		bGetter,
-		ipld.MustCidFromNamespacedSha256(root),
-		errByz.Shares,
-	)
-	if err != nil {
-		// Fatal as rsmt2d proved that error is byzantine,
-		// but we cannot properly collect the proof,
-		// so verification will fail and thus services won't be stopped
-		// while we still have to stop them.
-		// TODO(@Wondertan): Find a better way to handle
-		log.Fatalw("getting proof for ErrByzantine", "err", err)
+		dah.RowRoots,
+	}[errByz.Axis]
+	sharesWithProof := make([]*ShareWithProof, len(errByz.Shares))
+	for index, share := range errByz.Shares {
+		if share != nil {
+			share, err := getProofsAt(
+				ctx, bGetter,
+				ipld.MustCidFromNamespacedSha256(roots[index]),
+				int(errByz.Index), len(errByz.Shares),
+			)
+			if err != nil {
+				// Fatal as rsmt2d proved that error is byzantine,
+				// but we cannot properly collect the proof,
+				// so verification will fail and thus services won't be stopped
+				// while we still have to stop them.
+				// TODO(@Wondertan): Find a better way to handle
+				log.Fatalw("getting proof for ErrByzantine", "err", err)
+			}
+			sharesWithProof[index] = share
+		}
 	}
-
 	return &ErrByzantine{
 		Index:  uint32(errByz.Index),
 		Shares: sharesWithProof,
