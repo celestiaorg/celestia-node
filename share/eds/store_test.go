@@ -252,6 +252,49 @@ func Test_CachedAccessor(t *testing.T) {
 	assert.Equal(t, firstBlock, secondBlock)
 }
 
+func BenchmarkStore(b *testing.B) {
+	ctx, cancel := context.WithCancel(context.Background())
+	b.Cleanup(cancel)
+
+	tmpDir := b.TempDir()
+	ds := ds_sync.MutexWrap(datastore.NewMapDatastore())
+	edsStore, err := NewStore(tmpDir, ds)
+	require.NoError(b, err)
+	err = edsStore.Start(ctx)
+	require.NoError(b, err)
+
+	//BenchmarkStore/bench_put-10         	      10	3231859283 ns/op (~3sec)
+	b.Run("bench put 128", func(b *testing.B) {
+		b.ResetTimer()
+		for i := 0; i < b.N; i++ {
+			// pause the timer for initialising test data
+			b.StopTimer()
+			eds := share.RandEDS(b, 128)
+			dah := da.NewDataAvailabilityHeader(eds)
+			b.StartTimer()
+
+			err = edsStore.Put(ctx, dah.Hash(), eds)
+			require.NoError(b, err)
+		}
+	})
+
+	//BenchmarkStore/bench_read-10         	      14	  78970661 ns/op (~70ms)
+	b.Run("bench read 128", func(b *testing.B) {
+		b.ResetTimer()
+		for i := 0; i < b.N; i++ {
+			// pause the timer for initialising test data
+			b.StopTimer()
+			eds := share.RandEDS(b, 128)
+			dah := da.NewDataAvailabilityHeader(eds)
+			edsStore.Put(ctx, dah.Hash(), eds)
+			b.StartTimer()
+
+			_, err := edsStore.Get(ctx, dah.Hash())
+			require.NoError(b, err)
+		}
+	})
+}
+
 func newStore(t *testing.T) (*Store, error) {
 	t.Helper()
 
