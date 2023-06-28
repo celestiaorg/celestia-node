@@ -17,6 +17,7 @@ import (
 	"github.com/celestiaorg/rsmt2d"
 
 	"github.com/celestiaorg/celestia-node/share"
+	"github.com/celestiaorg/celestia-node/share/eds/edstest"
 )
 
 func TestEDSStore(t *testing.T) {
@@ -77,7 +78,7 @@ func TestEDSStore(t *testing.T) {
 				original := eds.GetCell(uint(i), uint(j))
 				block, err := carReader.Next()
 				assert.NoError(t, err)
-				assert.Equal(t, original, block.RawData()[share.NamespaceSize:])
+				assert.Equal(t, original, share.GetData(block.RawData()))
 			}
 		}
 	})
@@ -269,7 +270,7 @@ func BenchmarkStore(b *testing.B) {
 		for i := 0; i < b.N; i++ {
 			// pause the timer for initializing test data
 			b.StopTimer()
-			eds := share.RandEDS(b, 128)
+			eds := edstest.RandEDS(b, 128)
 			dah := da.NewDataAvailabilityHeader(eds)
 			b.StartTimer()
 
@@ -284,7 +285,7 @@ func BenchmarkStore(b *testing.B) {
 		for i := 0; i < b.N; i++ {
 			// pause the timer for initializing test data
 			b.StopTimer()
-			eds := share.RandEDS(b, 128)
+			eds := edstest.RandEDS(b, 128)
 			dah := da.NewDataAvailabilityHeader(eds)
 			_ = edsStore.Put(ctx, dah.Hash(), eds)
 			b.StartTimer()
@@ -304,7 +305,7 @@ func newStore(t *testing.T) (*Store, error) {
 }
 
 func randomEDS(t *testing.T) (*rsmt2d.ExtendedDataSquare, share.Root) {
-	eds := share.RandEDS(t, 4)
+	eds := edstest.RandEDS(t, 4)
 	dah := da.NewDataAvailabilityHeader(eds)
 
 	return eds, dah

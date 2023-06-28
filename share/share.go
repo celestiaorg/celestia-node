@@ -4,32 +4,23 @@ import (
 	"bytes"
 	"fmt"
 
-	"go.opentelemetry.io/otel"
-
 	"github.com/celestiaorg/celestia-app/pkg/appconsts"
-	"github.com/celestiaorg/nmt/namespace"
-
-	"github.com/celestiaorg/celestia-node/share/ipld"
 )
 
 var (
-	tracer = otel.Tracer("share")
-
 	// DefaultRSMT2DCodec sets the default rsmt2d.Codec for shares.
 	DefaultRSMT2DCodec = appconsts.DefaultCodec
 )
 
 const (
-	// NamespaceSize is a system-wide size for NMT namespaces.
-	NamespaceSize = appconsts.NamespaceSize
-	// Size is a system-wide size of a share, including both data and namespace ID
+	// Size is a system-wide size of a share, including both data and namespace GetNamespace
 	Size = appconsts.ShareSize
 )
 
 var (
 	// MaxSquareSize is currently the maximum size supported for unerasured data in
 	// rsmt2d.ExtendedDataSquare.
-	MaxSquareSize = ipld.MaxSquareSize
+	MaxSquareSize = appconsts.SquareSizeUpperBound(appconsts.LatestVersion)
 )
 
 // Share contains the raw share data without the corresponding namespace.
@@ -38,13 +29,13 @@ var (
 // on it.
 type Share = []byte
 
-// ID gets the namespace ID from the share.
-func ID(s Share) namespace.ID {
+// GetNamespace slices Namespace out of the Share.
+func GetNamespace(s Share) Namespace {
 	return s[:NamespaceSize]
 }
 
-// Data gets data from the share.
-func Data(s Share) []byte {
+// GetData slices out data of the Share.
+func GetData(s Share) []byte {
 	return s[NamespaceSize:]
 }
 

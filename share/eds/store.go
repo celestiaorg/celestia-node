@@ -209,7 +209,6 @@ func (s *Store) Put(ctx context.Context, root share.DataHash, square *rsmt2d.Ext
 		return ctx.Err()
 	case result := <-ch:
 		if result.Error != nil {
-			fmt.Println("ERROR", result.Error)
 			return fmt.Errorf("failed to register shard: %w", result.Error)
 		}
 		return nil

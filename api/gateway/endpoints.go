@@ -33,13 +33,13 @@ func (h *Handler) RegisterEndpoints(rpc *Server, deprecatedEndpointsEnabled bool
 	rpc.RegisterHandlerFunc(submitTxEndpoint, h.handleSubmitTx, http.MethodPost)
 
 	// share endpoints
-	rpc.RegisterHandlerFunc(fmt.Sprintf("%s/{%s}/height/{%s}", namespacedSharesEndpoint, nIDKey, heightKey),
+	rpc.RegisterHandlerFunc(fmt.Sprintf("%s/{%s}/height/{%s}", namespacedSharesEndpoint, namespaceKey, heightKey),
 		h.handleSharesByNamespaceRequest, http.MethodGet)
-	rpc.RegisterHandlerFunc(fmt.Sprintf("%s/{%s}", namespacedSharesEndpoint, nIDKey),
+	rpc.RegisterHandlerFunc(fmt.Sprintf("%s/{%s}", namespacedSharesEndpoint, namespaceKey),
 		h.handleSharesByNamespaceRequest, http.MethodGet)
-	rpc.RegisterHandlerFunc(fmt.Sprintf("%s/{%s}/height/{%s}", namespacedDataEndpoint, nIDKey, heightKey),
+	rpc.RegisterHandlerFunc(fmt.Sprintf("%s/{%s}/height/{%s}", namespacedDataEndpoint, namespaceKey, heightKey),
 		h.handleDataByNamespaceRequest, http.MethodGet)
-	rpc.RegisterHandlerFunc(fmt.Sprintf("%s/{%s}", namespacedDataEndpoint, nIDKey),
+	rpc.RegisterHandlerFunc(fmt.Sprintf("%s/{%s}", namespacedDataEndpoint, namespaceKey),
 		h.handleDataByNamespaceRequest, http.MethodGet)
 
 	// DAS endpoints

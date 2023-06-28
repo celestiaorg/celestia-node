@@ -20,17 +20,19 @@ import (
 	"github.com/celestiaorg/celestia-app/pkg/da"
 
 	"github.com/celestiaorg/celestia-node/share"
+	"github.com/celestiaorg/celestia-node/share/ipld"
+	"github.com/celestiaorg/celestia-node/share/sharetest"
 )
 
 // RandFillBS fills the given BlockService with a random block of a given size.
 func RandFillBS(t *testing.T, n int, bServ blockservice.BlockService) *share.Root {
-	shares := share.RandShares(t, n*n)
+	shares := sharetest.RandShares(t, n*n)
 	return FillBS(t, bServ, shares)
 }
 
 // FillBS fills the given BlockService with the given shares.
 func FillBS(t *testing.T, bServ blockservice.BlockService, shares []share.Share) *share.Root {
-	eds, err := share.AddShares(context.TODO(), shares, bServ)
+	eds, err := ipld.AddShares(context.TODO(), shares, bServ)
 	require.NoError(t, err)
 	dah := da.NewDataAvailabilityHeader(eds)
 	return &dah

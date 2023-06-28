@@ -2,7 +2,6 @@ package getters
 
 import (
 	"context"
-	"encoding/hex"
 	"errors"
 	"fmt"
 
@@ -10,7 +9,6 @@ import (
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/trace"
 
-	"github.com/celestiaorg/nmt/namespace"
 	"github.com/celestiaorg/rsmt2d"
 
 	"github.com/celestiaorg/celestia-node/libs/utils"
@@ -72,15 +70,15 @@ func (tg *TeeGetter) GetEDS(ctx context.Context, root *share.Root) (eds *rsmt2d.
 func (tg *TeeGetter) GetSharesByNamespace(
 	ctx context.Context,
 	root *share.Root,
-	id namespace.ID,
+	namespace share.Namespace,
 ) (shares share.NamespacedShares, err error) {
 	ctx, span := tracer.Start(ctx, "tee/get-shares-by-namespace", trace.WithAttributes(
 		attribute.String("root", root.String()),
-		attribute.String("nid", hex.EncodeToString(id)),
+		attribute.String("namespace", namespace.String()),
 	))
 	defer func() {
 		utils.SetStatusAndEnd(span, err)
 	}()
 
-	return tg.getter.GetSharesByNamespace(ctx, root, id)
+	return tg.getter.GetSharesByNamespace(ctx, root, namespace)
 }

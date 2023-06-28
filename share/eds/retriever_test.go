@@ -2,11 +2,9 @@ package eds
 
 import (
 	"context"
-	"errors"
 	"testing"
 	"time"
 
-	"github.com/ipfs/go-blockservice"
 	mdutils "github.com/ipfs/go-merkledag/test"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -16,11 +14,11 @@ import (
 	"github.com/celestiaorg/nmt"
 	"github.com/celestiaorg/rsmt2d"
 
-	"github.com/celestiaorg/celestia-node/header"
-	"github.com/celestiaorg/celestia-node/header/headertest"
 	"github.com/celestiaorg/celestia-node/share"
 	"github.com/celestiaorg/celestia-node/share/eds/byzantine"
+	"github.com/celestiaorg/celestia-node/share/eds/edstest"
 	"github.com/celestiaorg/celestia-node/share/ipld"
+	"github.com/celestiaorg/celestia-node/share/sharetest"
 )
 
 func TestRetriever_Retrieve(t *testing.T) {
@@ -48,8 +46,8 @@ func TestRetriever_Retrieve(t *testing.T) {
 		tc := tc
 		t.Run(tc.name, func(t *testing.T) {
 			// generate EDS
-			shares := share.RandShares(t, tc.squareSize*tc.squareSize)
-			in, err := share.AddShares(ctx, shares, bServ)
+			shares := sharetest.RandShares(t, tc.squareSize*tc.squareSize)
+			in, err := ipld.AddShares(ctx, shares, bServ)
 			require.NoError(t, err)
 
 			// limit with timeout, specifically retrieval
@@ -70,8 +68,8 @@ func TestRetriever_ByzantineError(t *testing.T) {
 	defer cancel()
 
 	bserv := mdutils.Bserv()
-	shares := share.ExtractEDS(share.RandEDS(t, width))
-	_, err := share.ImportShares(ctx, shares, bserv)
+	shares := share.ExtractEDS(edstest.RandEDS(t, width))
+	_, err := ipld.ImportShares(ctx, shares, bserv)
 	require.NoError(t, err)
 
 	// corrupt shares so that eds erasure coding does not match
@@ -109,8 +107,8 @@ func TestRetriever_MultipleRandQuadrants(t *testing.T) {
 	r := NewRetriever(bServ)
 
 	// generate EDS
-	shares := share.RandShares(t, squareSize*squareSize)
-	in, err := share.AddShares(ctx, shares, bServ)
+	shares := sharetest.RandShares(t, squareSize*squareSize)
+	in, err := ipld.AddShares(ctx, shares, bServ)
 	require.NoError(t, err)
 
 	dah := da.NewDataAvailabilityHeader(in)
@@ -125,32 +123,4 @@ func TestRetriever_MultipleRandQuadrants(t *testing.T) {
 
 	_, err = ses.Reconstruct(ctx)
 	assert.NoError(t, err)
-}
-
-func TestFraudProofValidation(t *testing.T) {
-	ctx, cancel := context.WithTimeout(context.Background(), time.Second*15)
-	defer t.Cleanup(cancel)
-	bServ := mdutils.Bserv()
-
-	var errByz *byzantine.ErrByzantine
-	faultHeader, err := generateByzantineError(ctx, t, bServ)
-	require.True(t, errors.As(err, &errByz))
-
-	p := byzantine.CreateBadEncodingProof([]byte("hash"), uint64(faultHeader.Height()), errByz)
-	err = p.Validate(faultHeader)
-	require.NoError(t, err)
-}
-
-func generateByzantineError(
-	ctx context.Context,
-	t *testing.T,
-	bServ blockservice.BlockService,
-) (*header.ExtendedHeader, error) {
-	store := headertest.NewStore(t)
-	h, err := store.GetByHeight(ctx, 1)
-	require.NoError(t, err)
-
-	faultHeader, _ := headertest.CreateFraudExtHeader(t, h, bServ)
-	_, err = NewRetriever(bServ).Retrieve(ctx, faultHeader.DAH)
-	return faultHeader, err
 }

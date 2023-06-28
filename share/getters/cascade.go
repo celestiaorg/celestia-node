@@ -2,13 +2,11 @@ package getters
 
 import (
 	"context"
-	"encoding/hex"
 	"errors"
 
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/trace"
 
-	"github.com/celestiaorg/nmt/namespace"
 	"github.com/celestiaorg/rsmt2d"
 
 	"github.com/celestiaorg/celestia-node/libs/utils"
@@ -67,16 +65,16 @@ func (cg *CascadeGetter) GetEDS(ctx context.Context, root *share.Root) (*rsmt2d.
 func (cg *CascadeGetter) GetSharesByNamespace(
 	ctx context.Context,
 	root *share.Root,
-	id namespace.ID,
+	namespace share.Namespace,
 ) (share.NamespacedShares, error) {
 	ctx, span := tracer.Start(ctx, "cascade/get-shares-by-namespace", trace.WithAttributes(
 		attribute.String("root", root.String()),
-		attribute.String("nid", hex.EncodeToString(id)),
+		attribute.String("namespace", namespace.String()),
 	))
 	defer span.End()
 
 	get := func(ctx context.Context, get share.Getter) (share.NamespacedShares, error) {
-		return get.GetSharesByNamespace(ctx, root, id)
+		return get.GetSharesByNamespace(ctx, root, namespace)
 	}
 
 	return cascadeGetters(ctx, cg.getters, get)

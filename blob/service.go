@@ -12,7 +12,6 @@ import (
 
 	"github.com/celestiaorg/celestia-app/pkg/appconsts"
 	"github.com/celestiaorg/celestia-app/pkg/shares"
-	"github.com/celestiaorg/nmt/namespace"
 
 	"github.com/celestiaorg/celestia-node/header"
 	"github.com/celestiaorg/celestia-node/share"
@@ -72,8 +71,8 @@ func (s *Service) Submit(ctx context.Context, blobs []*Blob) (uint64, error) {
 }
 
 // Get retrieves all the blobs for given namespaces at the given height by commitment.
-func (s *Service) Get(ctx context.Context, height uint64, nID namespace.ID, commitment Commitment) (*Blob, error) {
-	blob, _, err := s.getByCommitment(ctx, height, nID, commitment)
+func (s *Service) Get(ctx context.Context, height uint64, ns share.Namespace, commitment Commitment) (*Blob, error) {
+	blob, _, err := s.getByCommitment(ctx, height, ns, commitment)
 	if err != nil {
 		return nil, err
 	}
@@ -85,10 +84,10 @@ func (s *Service) Get(ctx context.Context, height uint64, nID namespace.ID, comm
 func (s *Service) GetProof(
 	ctx context.Context,
 	height uint64,
-	nID namespace.ID,
+	namespace share.Namespace,
 	commitment Commitment,
 ) (*Proof, error) {
-	_, proof, err := s.getByCommitment(ctx, height, nID, commitment)
+	_, proof, err := s.getByCommitment(ctx, height, namespace, commitment)
 	if err != nil {
 		return nil, err
 	}
@@ -97,29 +96,29 @@ func (s *Service) GetProof(
 
 // GetAll returns all blobs under the given namespaces at the given height.
 // GetAll can return blobs and an error in case if some requests failed.
-func (s *Service) GetAll(ctx context.Context, height uint64, nIDs []namespace.ID) ([]*Blob, error) {
+func (s *Service) GetAll(ctx context.Context, height uint64, namespaces []share.Namespace) ([]*Blob, error) {
 	header, err := s.headerGetter(ctx, height)
 	if err != nil {
 		return nil, err
 	}
 
 	var (
-		resultBlobs = make([][]*Blob, len(nIDs))
-		resultErr   = make([]error, len(nIDs))
+		resultBlobs = make([][]*Blob, len(namespaces))
+		resultErr   = make([]error, len(namespaces))
 	)
 
 	wg := sync.WaitGroup{}
-	for i, nID := range nIDs {
+	for i, namespace := range namespaces {
 		wg.Add(1)
-		go func(i int, nID namespace.ID) {
+		go func(i int, namespace share.Namespace) {
 			defer wg.Done()
-			blobs, err := s.getBlobs(ctx, nID, header.DAH)
+			blobs, err := s.getBlobs(ctx, namespace, header.DAH)
 			if err != nil {
-				resultErr[i] = fmt.Errorf("getting blobs for nID(%s): %s", nID.String(), err)
+				resultErr[i] = fmt.Errorf("getting blobs for namespace(%s): %s", namespace.String(), err)
 				return
 			}
 			resultBlobs[i] = blobs
-		}(i, nID)
+		}(i, namespace)
 	}
 	wg.Wait()
 
@@ -143,7 +142,7 @@ func (s *Service) GetAll(ctx context.Context, height uint64, nIDs []namespace.ID
 func (s *Service) Included(
 	ctx context.Context,
 	height uint64,
-	nID namespace.ID,
+	namespace share.Namespace,
 	proof *Proof,
 	com Commitment,
 ) (bool, error) {
@@ -156,7 +155,7 @@ func (s *Service) Included(
 	// but we have to guarantee that all our stored subtree roots will be on the same height(e.g. one
 	// level above shares).
 	// TODO(@vgonkivs): rework the implementation to perform all verification without network requests.
-	_, resProof, err := s.getByCommitment(ctx, height, nID, com)
+	_, resProof, err := s.getByCommitment(ctx, height, namespace, com)
 	switch err {
 	case nil:
 	case ErrBlobNotFound:
@@ -172,12 +171,12 @@ func (s *Service) Included(
 func (s *Service) getByCommitment(
 	ctx context.Context,
 	height uint64,
-	nID namespace.ID,
+	namespace share.Namespace,
 	commitment Commitment,
 ) (*Blob, *Proof, error) {
 	log.Infow("requesting blob",
 		"height", height,
-		"nID", nID.String())
+		"namespace", namespace.String())
 
 	header, err := s.headerGetter(ctx, height)
 	if err != nil {
@@ -191,7 +190,7 @@ func (s *Service) getByCommitment(
 		blobShare *shares.Share
 	)
 
-	namespacedShares, err := s.shareGetter.GetSharesByNamespace(ctx, header.DAH, nID)
+	namespacedShares, err := s.shareGetter.GetSharesByNamespace(ctx, header.DAH, namespace)
 	if err != nil {
 		if errors.Is(err, share.ErrNotFound) {
 			err = ErrBlobNotFound
@@ -209,8 +208,8 @@ func (s *Service) getByCommitment(
 		// reconstruct the `blobShare` from the first rawShare in range
 		// in order to get blob's length(first share will contain this info)
 		if blobShare == nil {
-			for i, sh := range rawShares {
-				bShare, err := shares.NewShare(sh)
+			for i, shr := range rawShares {
+				bShare, err := shares.NewShare(shr)
 				if err != nil {
 					return nil, nil, err
 				}
@@ -278,10 +277,10 @@ func (s *Service) getByCommitment(
 	return nil, nil, ErrBlobNotFound
 }
 
-// getBlobs retrieves the DAH and fetches all shares from the requested namespace.ID and converts
+// getBlobs retrieves the DAH and fetches all shares from the requested Namespace and converts
 // them to Blobs.
-func (s *Service) getBlobs(ctx context.Context, nID namespace.ID, root *share.Root) ([]*Blob, error) {
-	namespacedShares, err := s.shareGetter.GetSharesByNamespace(ctx, root, nID)
+func (s *Service) getBlobs(ctx context.Context, namespace share.Namespace, root *share.Root) ([]*Blob, error) {
+	namespacedShares, err := s.shareGetter.GetSharesByNamespace(ctx, root, namespace)
 	if err != nil {
 		return nil, err
 	}

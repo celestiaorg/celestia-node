@@ -10,11 +10,11 @@ require (
 	github.com/BurntSushi/toml v1.3.0
 	github.com/alecthomas/jsonschema v0.0.0-20200530073317-71f438968921
 	github.com/benbjohnson/clock v1.3.5
-	github.com/celestiaorg/celestia-app v1.0.0-rc4
+	github.com/celestiaorg/celestia-app v1.0.0-rc5
 	github.com/celestiaorg/go-fraud v0.1.0
 	github.com/celestiaorg/go-header v0.2.7
 	github.com/celestiaorg/go-libp2p-messenger v0.2.0
-	github.com/celestiaorg/nmt v0.16.0
+	github.com/celestiaorg/nmt v0.17.0
 	github.com/celestiaorg/rsmt2d v0.9.0
 	github.com/cosmos/cosmos-sdk v0.46.13
 	github.com/cosmos/cosmos-sdk/api v0.1.0
@@ -44,7 +44,7 @@ require (
 	github.com/ipfs/go-log/v2 v2.5.1
 	github.com/ipfs/go-merkledag v0.10.0
 	github.com/ipld/go-car v0.6.0
-	github.com/libp2p/go-libp2p v0.28.0
+	github.com/libp2p/go-libp2p v0.28.1
 	github.com/libp2p/go-libp2p-kad-dht v0.21.1
 	github.com/libp2p/go-libp2p-pubsub v0.9.3
 	github.com/libp2p/go-libp2p-record v0.2.0

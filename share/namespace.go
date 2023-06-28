@@ -9,6 +9,9 @@ import (
 	"github.com/celestiaorg/nmt/namespace"
 )
 
+// NamespaceSize is a system-wide size for NMT namespaces.
+const NamespaceSize = appns.NamespaceSize
+
 // Various reserved namespaces.
 var (
 	MaxReservedNamespace     = Namespace(appns.MaxReservedNamespace.Bytes())
@@ -17,11 +20,29 @@ var (
 	ReservedPaddingNamespace = Namespace(appns.ReservedPaddingNamespace.Bytes())
 	TxNamespace              = Namespace(appns.TxNamespace.Bytes())
 	PayForBlobNamespace      = Namespace(appns.PayForBlobNamespace.Bytes())
+	ISRNamespace             = Namespace(appns.IntermediateStateRootsNamespace.Bytes())
 )
 
 // Namespace represents namespace of a Share.
 // Consists of version byte and namespace ID.
 type Namespace []byte
+
+// NewBlobNamespaceV0 takes a variable size byte slice and creates a valid version 0 Blob Namespace.
+// The byte slice must be <= 10 bytes.
+// If it is less than 10 bytes, it will be left padded to size 10 with 0s.
+// Use predefined namespaces above, if non-blob namespace is needed.
+func NewBlobNamespaceV0(id []byte) (Namespace, error) {
+	if len(id) == 0 || len(id) > appns.NamespaceVersionZeroIDSize {
+		return nil, fmt.Errorf(
+			"namespace id must be > 0 && <= %d, but it was %d bytes", appns.NamespaceVersionZeroIDSize, len(id))
+	}
+
+	n := make(Namespace, NamespaceSize)
+	// version and zero padding are already set as zero,
+	// so simply copying subNID to the end is enough to comply the V0 spec
+	copy(n[len(n)-len(id):], id)
+	return n, n.ValidateForBlob()
+}
 
 // NamespaceFromBytes converts bytes into Namespace and validates it.
 func NamespaceFromBytes(b []byte) (Namespace, error) {
@@ -84,8 +105,8 @@ func (n Namespace) Validate() error {
 	return nil
 }
 
-// ValidateDataNamespace checks if the Namespace contains real/useful data.
-func (n Namespace) ValidateDataNamespace() error {
+// ValidateForData checks if the Namespace is of real/useful data.
+func (n Namespace) ValidateForData() error {
 	if err := n.Validate(); err != nil {
 		return err
 	}
@@ -95,9 +116,9 @@ func (n Namespace) ValidateDataNamespace() error {
 	return nil
 }
 
-// ValidateBlobNamespace checks if the Namespace is valid blob namespace.
-func (n Namespace) ValidateBlobNamespace() error {
-	if err := n.ValidateDataNamespace(); err != nil {
+// ValidateForBlob checks if the Namespace is valid blob namespace.
+func (n Namespace) ValidateForBlob() error {
+	if err := n.ValidateForData(); err != nil {
 		return err
 	}
 	if bytes.Compare(n, MaxReservedNamespace) < 1 {
