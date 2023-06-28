@@ -182,15 +182,24 @@ func (s *Store) Put(ctx context.Context, root share.DataHash, square *rsmt2d.Ext
 	}
 	defer f.Close()
 
-	err = WriteEDS(ctx, square, f)
+	// save encoded eds into buffer
+	buf := bytes.NewBuffer(nil)
+	err = WriteEDS(ctx, square, buf)
 	if err != nil {
 		return fmt.Errorf("failed to write EDS to file: %w", err)
 	}
 
+	// write whole buffer in one go to optimise i/o
+	if _, err = f.Write(buf.Bytes()); err != nil {
+		return fmt.Errorf("failed to write EDS to file: %w", err)
+	}
+
+	mount := &inMemoryOnceMount{
+		buf:   buf.Bytes(),
+		Mount: &mount.FileMount{Path: s.basepath + blocksPath + key},
+	}
 	ch := make(chan dagstore.ShardResult, 1)
-	err = s.dgstr.RegisterShard(ctx, shard.KeyFromString(key), &mount.FileMount{
-		Path: s.basepath + blocksPath + key,
-	}, ch, dagstore.RegisterOpts{})
+	err = s.dgstr.RegisterShard(ctx, shard.KeyFromString(key), mount, ch, dagstore.RegisterOpts{})
 	if err != nil {
 		return fmt.Errorf("failed to initiate shard registration: %w", err)
 	}
@@ -200,6 +209,7 @@ func (s *Store) Put(ctx context.Context, root share.DataHash, square *rsmt2d.Ext
 		return ctx.Err()
 	case result := <-ch:
 		if result.Error != nil {
+			fmt.Println("ERROR", result.Error)
 			return fmt.Errorf("failed to register shard: %w", result.Error)
 		}
 		return nil
@@ -418,4 +428,31 @@ func setupPath(basepath string) error {
 		return fmt.Errorf("failed to create index directory: %w", err)
 	}
 	return nil
+}
+
+// inMemoryOnceMount is used to allow reading once from buffer before using main mount.Reader
+type inMemoryOnceMount struct {
+	buf []byte
+
+	readOnce atomic.Bool
+	mount.Mount
+}
+
+// inmemoryReader extends bytes.Reader to implement mount.Reader interface
+type inmemoryReader struct {
+	*bytes.Reader
+}
+
+func (i *inmemoryReader) Close() error {
+	return nil
+}
+
+func (i *inMemoryOnceMount) Fetch(ctx context.Context) (mount.Reader, error) {
+	if !i.readOnce.Swap(true) {
+		reader := &inmemoryReader{Reader: bytes.NewReader(i.buf)}
+		// release memory for gc, otherwise buffer will stick forever
+		i.buf = nil
+		return reader, nil
+	}
+	return i.Mount.Fetch(ctx)
 }
