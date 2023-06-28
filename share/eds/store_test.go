@@ -263,11 +263,11 @@ func BenchmarkStore(b *testing.B) {
 	err = edsStore.Start(ctx)
 	require.NoError(b, err)
 
-	//BenchmarkStore/bench_put-10         	      10	3231859283 ns/op (~3sec)
+	// BenchmarkStore/bench_put-10         	      10	3231859283 ns/op (~3sec)
 	b.Run("bench put 128", func(b *testing.B) {
 		b.ResetTimer()
 		for i := 0; i < b.N; i++ {
-			// pause the timer for initialising test data
+			// pause the timer for initializing test data
 			b.StopTimer()
 			eds := share.RandEDS(b, 128)
 			dah := da.NewDataAvailabilityHeader(eds)
@@ -278,15 +278,15 @@ func BenchmarkStore(b *testing.B) {
 		}
 	})
 
-	//BenchmarkStore/bench_read-10         	      14	  78970661 ns/op (~70ms)
+	// BenchmarkStore/bench_read-10         	      14	  78970661 ns/op (~70ms)
 	b.Run("bench read 128", func(b *testing.B) {
 		b.ResetTimer()
 		for i := 0; i < b.N; i++ {
-			// pause the timer for initialising test data
+			// pause the timer for initializing test data
 			b.StopTimer()
 			eds := share.RandEDS(b, 128)
 			dah := da.NewDataAvailabilityHeader(eds)
-			edsStore.Put(ctx, dah.Hash(), eds)
+			_ = edsStore.Put(ctx, dah.Hash(), eds)
 			b.StartTimer()
 
 			_, err := edsStore.Get(ctx, dah.Hash())
