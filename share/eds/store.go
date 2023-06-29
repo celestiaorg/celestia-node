@@ -69,7 +69,10 @@ func NewStore(basepath string, ds datastore.Batching) (*Store, error) {
 	}
 
 	r := mount.NewRegistry()
-	err = r.Register("fs", &mount.FileMount{Path: basepath + blocksPath})
+	err = r.Register("fs", &inMemoryOnceMount{})
+	if err != nil {
+		return nil, fmt.Errorf("failed to register memory mount on the registry: %w", err)
+	}
 	if err != nil {
 		return nil, fmt.Errorf("failed to register FS mount on the registry: %w", err)
 	}
