@@ -49,4 +49,4 @@ USER ${USER_NAME}
 EXPOSE 2121
 
 ENTRYPOINT [ "/bin/bash", "/opt/entrypoint.sh" ]
-CMD [ "celestia"]
+CMD [ "celestia" ]
