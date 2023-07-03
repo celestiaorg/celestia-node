@@ -1,4 +1,5 @@
-// +build: !test
+//go:build !test
+
 package main
 
 import (
@@ -13,8 +14,10 @@ import (
 var (
 	buildTime string
 	//go:embed lastCommit.txt
+	// The go:embed directive embeds the content of the lastCommit.txt file into the lastCommit string variable.
 	lastCommit string
 	//go:embed semanticVersion.txt
+	// The go:embed directive embeds the content of the semanticVersion.txt file into the semanticVersion string variable.
 	semanticVersion string
 
 	systemVersion = fmt.Sprintf("%s/%s", runtime.GOARCH, runtime.GOOS)
