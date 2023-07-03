@@ -46,7 +46,7 @@ func NewClient(params *Parameters, host host.Host) (*Client, error) {
 }
 
 // RequestND requests namespaced data from the given peer.
-// Returns valid data with its verified inclusion against the share.Root.
+// Returns shares with unverified inclusion proofs against the share.Root.
 func (c *Client) RequestND(
 	ctx context.Context,
 	root *share.Root,
