@@ -135,13 +135,18 @@ func TestFraudProofValidation(t *testing.T) {
 	defer t.Cleanup(cancel)
 	bServ := mdutils.Bserv()
 
-	var errByz *byzantine.ErrByzantine
-	faultHeader, err := generateByzantineError(ctx, t, 2, bServ)
-	require.True(t, errors.As(err, &errByz))
+	odsSize := []int{2, 4, 16, 32, 64, 128}
+	for _, size := range odsSize {
+		t.Run(fmt.Sprintf("ods size:%d", size), func(t *testing.T) {
+			var errByz *byzantine.ErrByzantine
+			faultHeader, err := generateByzantineError(ctx, t, 32, bServ)
+			require.True(t, errors.As(err, &errByz))
 
-	p := byzantine.CreateBadEncodingProof([]byte("hash"), uint64(faultHeader.Height()), errByz)
-	err = p.Validate(faultHeader)
-	require.NoError(t, err)
+			p := byzantine.CreateBadEncodingProof([]byte("hash"), uint64(faultHeader.Height()), errByz)
+			err = p.Validate(faultHeader)
+			require.NoError(t, err)
+		})
+	}
 }
 
 func generateByzantineError(
@@ -150,13 +155,13 @@ func generateByzantineError(
 	odsSize int,
 	bServ blockservice.BlockService,
 ) (*header.ExtendedHeader, error) {
-	store := headertest.NewStore(t)
-	h, err := store.GetByHeight(ctx, 1)
+	eds := edstest.RandByzantineEDS(t, odsSize)
+	err := ipld.ImportEDS(ctx, eds, bServ)
 	require.NoError(t, err)
+	h := headertest.ExtendedHeaderFromEDS(t, 1, eds)
+	_, err = NewRetriever(bServ).Retrieve(ctx, h.DAH)
 
-	faultHeader, _ := headertest.CreateFraudExtHeader(t, odsSize, h, bServ)
-	_, err = NewRetriever(bServ).Retrieve(ctx, faultHeader.DAH)
-	return faultHeader, err
+	return h, err
 }
 
 func BenchmarkBEFP(b *testing.B) {
@@ -164,7 +169,7 @@ func BenchmarkBEFP(b *testing.B) {
 	defer b.Cleanup(cancel)
 	bServ := mdutils.Bserv()
 
-	odsSize := []int{32, 64, 128}
+	odsSize := []int{2, 4, 16, 32, 64, 128}
 	for _, size := range odsSize {
 		b.Run(fmt.Sprintf("ods size:%d", size), func(b *testing.B) {
 			t := &testing.T{}
@@ -175,6 +180,7 @@ func BenchmarkBEFP(b *testing.B) {
 				faultHeader, err := generateByzantineError(ctx, t, size, bServ)
 				require.Error(b, err)
 				require.True(b, errors.As(err, &errByz))
+
 				p := byzantine.CreateBadEncodingProof([]byte("hash"), uint64(faultHeader.Height()), errByz)
 				err = p.Validate(faultHeader)
 				require.NoError(b, err)

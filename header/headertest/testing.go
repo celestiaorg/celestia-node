@@ -312,7 +312,7 @@ func FraudMaker(t *testing.T, faultHeight int64, bServ blockservice.BlockService
 				ValidatorSet: vals,
 			}
 
-			eh, dataSq := CreateFraudExtHeader(t, 2, eh, bServ)
+			eh, dataSq := CreateFraudExtHeader(t, eh, bServ)
 			if eds != nil {
 				*eds = *dataSq
 			}
@@ -349,11 +349,10 @@ func ExtendedHeaderFromEDS(t *testing.T, height uint64, eds *rsmt2d.ExtendedData
 
 func CreateFraudExtHeader(
 	t *testing.T,
-	odsSize int,
 	eh *header.ExtendedHeader,
 	serv blockservice.BlockService,
 ) (*header.ExtendedHeader, *rsmt2d.ExtendedDataSquare) {
-	square := edstest.RandByzantineEDS(t, odsSize)
+	square := edstest.RandByzantineEDS(t, len(eh.DAH.RowRoots))
 	err := ipld.ImportEDS(context.Background(), square, serv)
 	require.NoError(t, err)
 	dah := da.NewDataAvailabilityHeader(square)
