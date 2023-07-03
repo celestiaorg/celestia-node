@@ -17,14 +17,14 @@ install-hooks:
 	@git config core.hooksPath .githooks
 .PHONY: install-hooks
 
-## gen-embeded: Generate the embeded files for celestia-node binary.
-gen-embeded:
+## gen-embed: Generate the embed files for celestia-node binary.
+gen-embed:
 	@printf '%s' "$$(git describe --tags --abbrev=0 --dirty=-dev 2>/dev/null || git rev-parse --abbrev-ref HEAD)" > cmd/celestia/semanticVersion.txt
 	@printf '%s' "$$(git rev-parse HEAD)" > cmd/celestia/lastCommit.txt
-.PHONY: gen-embeded
+.PHONY: gen-embed
 
 ## build: Build celestia-node binary.
-build: gen-embeded
+build: gen-embed
 	@echo "--> Building Celestia"
 	@go build -o build/ ${LDFLAGS} ./cmd/celestia
 .PHONY: build
