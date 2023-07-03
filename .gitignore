@@ -20,3 +20,6 @@ vendor
 /cel-key
 coverage.txt
 go.work
+
+# embeded files
+cmd/celestia/*.txt

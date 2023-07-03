@@ -1,6 +1,7 @@
 SHELL=/usr/bin/env bash
 PROJECTNAME=$(shell basename "$(PWD)")
-LDFLAGS=-ldflags="-X 'main.buildTime=$(shell date)' -X 'main.lastCommit=$(shell git rev-parse HEAD)' -X 'main.semanticVersion=$(shell git describe --tags --dirty=-dev 2>/dev/null || git rev-parse --abbrev-ref HEAD)'"
+DOCKER_TAG := $(shell git rev-parse --short=7 HEAD)
+LDFLAGS=-ldflags="-X 'main.buildTime=$(shell date)'"
 ifeq (${PREFIX},)
 	PREFIX := /usr/local
 endif
@@ -16,8 +17,14 @@ install-hooks:
 	@git config core.hooksPath .githooks
 .PHONY: install-hooks
 
+## gen-embeded: Generate the embeded files for celestia-node binary.
+gen-embeded:
+	@printf '%s' "$$(git describe --tags --abbrev=0 --dirty=-dev 2>/dev/null || git rev-parse --abbrev-ref HEAD)" > cmd/celestia/semanticVersion.txt
+	@printf '%s' "$$(git rev-parse HEAD)" > cmd/celestia/lastCommit.txt
+.PHONY: gen-embeded
+
 ## build: Build celestia-node binary.
-build:
+build: gen-embeded
 	@echo "--> Building Celestia"
 	@go build -o build/ ${LDFLAGS} ./cmd/celestia
 .PHONY: build
@@ -174,3 +181,9 @@ adr-gen:
 	@echo "--> Generating ADR"
 	@curl -sSL https://raw.githubusercontent.com/celestiaorg/.github/main/adr-template.md > docs/architecture/adr-$(NUM)-$(TITLE).md
 .PHONY: adr-gen
+
+## docker-build: Builds the Docker container
+docker-build:
+	@echo "--> Docker build... [$(DOCKER_TAG)]"
+	@docker build -t ghcr.io/celestiaorg/$(PROJECTNAME):$(DOCKER_TAG) .
+.PHONY: docker-build

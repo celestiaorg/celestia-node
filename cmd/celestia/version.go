@@ -4,12 +4,16 @@ import (
 	"fmt"
 	"runtime"
 
+	_ "embed"
+
 	"github.com/spf13/cobra"
 )
 
 var (
-	buildTime       string
-	lastCommit      string
+	buildTime string
+	//go:embed lastCommit.txt
+	lastCommit string
+	//go:embed semanticVersion.txt
 	semanticVersion string
 
 	systemVersion = fmt.Sprintf("%s/%s", runtime.GOARCH, runtime.GOOS)
