@@ -50,7 +50,8 @@ func NewErrByzantine(
 		if share == nil {
 			continue
 		}
-		// skip further shares if we already requested half of them, which is enough to recompute the row or col
+		// skip further shares if we already requested half of them, which is enough to recompute the row
+		// or col
 		if sharesAmount == len(dah.RowRoots)/2 {
 			break
 		}

@@ -132,10 +132,14 @@ func (p *BadEncodingProof) Validate(hdr libhead.Header) error {
 	// change the order of dah roots as we are now collecting nmt proofs against orthogonal axis
 	roots := [][][]byte{header.DAH.ColumnRoots, header.DAH.RowRoots}
 	if int(p.Index) >= len(roots[rsmt2d.Row]) {
-		return fmt.Errorf("invalid %s proof: index out of bounds (%d >= %d)", BadEncoding, int(p.Index), len(roots[rsmt2d.Row]))
+		return fmt.Errorf("invalid %s proof: index out of bounds (%d >= %d)",
+			BadEncoding, int(p.Index), len(roots[rsmt2d.Row]),
+		)
 	}
 	if len(p.Shares) != len(roots[rsmt2d.Row]) {
-		return fmt.Errorf("invalid %s proof: incorrect number of shares %d != %d", BadEncoding, len(p.Shares), len(roots[rsmt2d.Row]))
+		return fmt.Errorf("invalid %s proof: incorrect number of shares %d != %d",
+			BadEncoding, len(p.Shares), len(roots[rsmt2d.Row]),
+		)
 	}
 
 	// verify that Merkle proofs correspond to particular shares.
