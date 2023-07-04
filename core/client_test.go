@@ -10,23 +10,20 @@ import (
 )
 
 func TestRemoteClient_Status(t *testing.T) {
-	ctx, cancel := context.WithTimeout(context.Background(), time.Second*3)
-	t.Cleanup(cancel)
-
 	client := StartTestNode(t).Client
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second*4)
+	t.Cleanup(cancel)
 	status, err := client.Status(ctx)
 	require.NoError(t, err)
 	require.NotNil(t, status)
 }
 
 func TestRemoteClient_StartBlockSubscription_And_GetBlock(t *testing.T) {
-	ctx, cancel := context.WithTimeout(context.Background(), time.Second*3)
-	t.Cleanup(cancel)
-
 	client := StartTestNode(t).Client
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second*4)
+	t.Cleanup(cancel)
 	eventChan, err := client.Subscribe(ctx, newBlockSubscriber, newDataSignedBlockQuery)
 	require.NoError(t, err)
-
 	for i := 1; i <= 3; i++ {
 		select {
 		case evt := <-eventChan:

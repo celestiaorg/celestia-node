@@ -48,7 +48,7 @@ const DefaultTestTimeout = time.Minute * 5
 // - trustedHash taken from the CoreClient and shared between nodes
 type Swamp struct {
 	t   *testing.T
-	cfg *Config
+	cfg *testnode.Config
 
 	Network       mocknet.Mocknet
 	Bootstrappers []ma.Multiaddr
@@ -76,7 +76,7 @@ func NewSwamp(t *testing.T, options ...Option) *Swamp {
 	// Now, we are making an assumption that consensus mechanism is already tested out
 	// so, we are not creating bridge nodes with each one containing its own core client
 	// instead we are assigning all created BNs to 1 Core from the swamp
-	cctx := core.StartTestNodeWithConfig(t, ic.TestConfig)
+	cctx := core.StartTestNodeWithConfig(t, ic)
 	swp := &Swamp{
 		t:             t,
 		cfg:           ic,
@@ -188,7 +188,7 @@ func (s *Swamp) setupGenesis() {
 func (s *Swamp) DefaultTestConfig(tp node.Type) *nodebuilder.Config {
 	cfg := nodebuilder.DefaultConfig(tp)
 
-	ip, port, err := net.SplitHostPort(s.cfg.App.GRPC.Address)
+	ip, port, err := net.SplitHostPort(s.cfg.AppConfig.GRPC.Address)
 	require.NoError(s.t, err)
 
 	cfg.Core.IP = ip
