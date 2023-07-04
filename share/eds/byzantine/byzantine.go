@@ -41,7 +41,12 @@ func NewErrByzantine(
 		dah.RowRoots,
 	}[errByz.Axis]
 	sharesWithProof := make([]*ShareWithProof, len(errByz.Shares))
+	counter := 0
 	for index, share := range errByz.Shares {
+		// collect only 1/2 of the shares
+		if counter == len(roots)/2 {
+			break
+		}
 		if share != nil {
 			share, err := getProofsAt(
 				ctx, bGetter,
@@ -57,6 +62,7 @@ func NewErrByzantine(
 				log.Fatalw("getting proof for ErrByzantine", "err", err)
 			}
 			sharesWithProof[index] = share
+			counter++
 		}
 	}
 	return &ErrByzantine{

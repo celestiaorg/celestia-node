@@ -134,7 +134,7 @@ func (p *BadEncodingProof) Validate(hdr libhead.Header) error {
 	if int(p.Index) >= len(roots[rsmt2d.Row]) {
 		return fmt.Errorf("fraud: invalid proof: index out of bounds (%d >= %d)", int(p.Index), len(roots[rsmt2d.Row]))
 	}
-	if len(roots[rsmt2d.Row]) != len(p.Shares) {
+	if len(p.Shares) != len(roots[rsmt2d.Row]) {
 		return fmt.Errorf("fraud: invalid proof: incorrect number of shares %d != %d", len(p.Shares), len(roots[rsmt2d.Row]))
 	}
 
