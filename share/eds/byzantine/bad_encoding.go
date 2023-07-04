@@ -113,17 +113,17 @@ func (p *BadEncodingProof) UnmarshalBinary(data []byte) error {
 func (p *BadEncodingProof) Validate(hdr libhead.Header) error {
 	header, ok := hdr.(*header.ExtendedHeader)
 	if !ok {
-		panic(fmt.Sprintf("invalid header type: expected %T, got %T", header, hdr))
+		panic(fmt.Sprintf("invalid header type during the befp validation: expected %T, got %T", header, hdr))
 	}
 	if header.Height() != int64(p.BlockHeight) {
-		return errors.New("fraud: incorrect block height")
+		return errors.New("incorrect block height during the befp validation")
 	}
 
 	if len(header.DAH.RowRoots) != len(header.DAH.ColumnRoots) {
 		// NOTE: This should never happen as callers of this method should not feed it with a
 		// malformed extended header.
 		panic(fmt.Sprintf(
-			"fraud: invalid extended header: length of row and column roots do not match. (rowRoots=%d) (colRoots=%d)",
+			"invalid extended header: length of row and column roots do not match. (rowRoots=%d) (colRoots=%d)",
 			len(header.DAH.RowRoots),
 			len(header.DAH.ColumnRoots)),
 		)
@@ -132,10 +132,10 @@ func (p *BadEncodingProof) Validate(hdr libhead.Header) error {
 	// change the order of dah roots as we are now collecting nmt proofs against orthogonal axis
 	roots := [][][]byte{header.DAH.ColumnRoots, header.DAH.RowRoots}
 	if int(p.Index) >= len(roots[rsmt2d.Row]) {
-		return fmt.Errorf("fraud: invalid proof: index out of bounds (%d >= %d)", int(p.Index), len(roots[rsmt2d.Row]))
+		return fmt.Errorf("invalid %s proof: index out of bounds (%d >= %d)", BadEncoding, int(p.Index), len(roots[rsmt2d.Row]))
 	}
 	if len(p.Shares) != len(roots[rsmt2d.Row]) {
-		return fmt.Errorf("fraud: invalid proof: incorrect number of shares %d != %d", len(p.Shares), len(roots[rsmt2d.Row]))
+		return fmt.Errorf("invalid %s proof: incorrect number of shares %d != %d", BadEncoding, len(p.Shares), len(roots[rsmt2d.Row]))
 	}
 
 	// verify that Merkle proofs correspond to particular shares.
@@ -146,7 +146,7 @@ func (p *BadEncodingProof) Validate(hdr libhead.Header) error {
 		}
 		// validate inclusion of the share into one of the DAHeader roots
 		if ok := shr.Validate(ipld.MustCidFromNamespacedSha256(roots[p.Axis][index])); !ok {
-			return fmt.Errorf("fraud: invalid proof: incorrect share received at index %d", index)
+			return fmt.Errorf("invalid %s proof: incorrect share received at index %d", BadEncoding, index)
 		}
 		// NMTree commits the additional namespace while rsmt2d does not know about, so we trim it
 		// this is ugliness from NMTWrapper that we have to embrace ¯\_(ツ)_/¯
@@ -188,8 +188,7 @@ func (p *BadEncodingProof) Validate(hdr libhead.Header) error {
 
 	// comparing rebuilt Merkle Root of bad row/col with respective Merkle Root of row/col from block.
 	if bytes.Equal(expectedRoot, root) {
-		return errors.New("fraud: invalid proof: recomputed Merkle root matches the DAH's row/column root")
+		return fmt.Errorf("invalid %s proof: recomputed Merkle root matches the DAH's row/column root", BadEncoding)
 	}
-
 	return nil
 }
