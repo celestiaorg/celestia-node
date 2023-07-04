@@ -173,16 +173,20 @@ func BenchmarkBEFP(b *testing.B) {
 	for _, size := range odsSize {
 		b.Run(fmt.Sprintf("ods size:%d", size), func(b *testing.B) {
 			t := &testing.T{}
+			eds := edstest.RandByzantineEDS(t, size)
+			err := ipld.ImportEDS(ctx, eds, bServ)
+			require.NoError(t, err)
+			h := headertest.ExtendedHeaderFromEDS(t, 1, eds)
+			r := NewRetriever(bServ)
 			b.ResetTimer()
 			for i := 0; i < b.N; i++ {
 				b.ReportAllocs()
+				_, err = r.Retrieve(ctx, h.DAH)
 				var errByz *byzantine.ErrByzantine
-				faultHeader, err := generateByzantineError(ctx, t, size, bServ)
-				require.Error(b, err)
-				require.True(b, errors.As(err, &errByz))
+				require.ErrorAs(t, err, &errByz)
 
-				p := byzantine.CreateBadEncodingProof([]byte("hash"), uint64(faultHeader.Height()), errByz)
-				err = p.Validate(faultHeader)
+				p := byzantine.CreateBadEncodingProof([]byte("hash"), uint64(h.Height()), errByz)
+				err = p.Validate(h)
 				require.NoError(b, err)
 			}
 		})
