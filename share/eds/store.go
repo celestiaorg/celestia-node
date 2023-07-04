@@ -192,7 +192,7 @@ func (s *Store) Put(ctx context.Context, root share.DataHash, square *rsmt2d.Ext
 		return fmt.Errorf("failed to write EDS to file: %w", err)
 	}
 
-	// write whole buffer in one go to optimise i/o
+	// write whole buffer in one go to optimize i/o
 	if _, err = f.Write(buf.Bytes()); err != nil {
 		return fmt.Errorf("failed to write EDS to file: %w", err)
 	}

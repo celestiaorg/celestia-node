@@ -1,4 +1,4 @@
-FROM docker.io/golang:1.20-alpine3.17 as builder
+FROM docker.io/golang:1.20-alpine3.18 as builder
 
 # hadolint ignore=DL3018
 RUN apk update && apk add --no-cache \
@@ -15,7 +15,7 @@ COPY . .
 
 RUN make build && make cel-key
 
-FROM docker.io/alpine:3.18.0
+FROM docker.io/alpine:3.18.2
 
 # Read here why UID 10001: https://github.com/hexops/dockerfile/blob/main/README.md#do-not-use-a-uid-below-10000
 ARG UID=10001
