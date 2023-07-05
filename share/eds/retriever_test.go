@@ -181,6 +181,7 @@ func BenchmarkBEFPValidation(b *testing.B) {
 	odsSize := []int{2, 4, 16, 32, 64, 128}
 	for _, size := range odsSize {
 		b.Run(fmt.Sprintf("ods size:%d", size), func(b *testing.B) {
+			b.ResetTimer()
 			b.StopTimer()
 			eds := edstest.RandByzantineEDS(t, size)
 			err := ipld.ImportEDS(ctx, eds, bServ)
@@ -192,6 +193,7 @@ func BenchmarkBEFPValidation(b *testing.B) {
 			b.StartTimer()
 
 			for i := 0; i < b.N; i++ {
+				b.ReportAllocs()
 				p := byzantine.CreateBadEncodingProof([]byte("hash"), uint64(h.Height()), errByz)
 				err = p.Validate(h)
 				require.NoError(b, err)
@@ -209,7 +211,6 @@ BenchmarkNewErrByzantineData/ods_size:64       	     340	   3445544 ns/op	 47670
 BenchmarkNewErrByzantineData/ods_size:128      	     132	   8740678 ns/op	11991093 B/op	  136584 allocs/op
 */
 func BenchmarkNewErrByzantineData(b *testing.B) {
-	RetrieveQuadrantTimeout = time.Millisecond * 500
 	odsSize := []int{2, 4, 16, 32, 64, 128}
 	ctx, cancel := context.WithTimeout(context.Background(), time.Minute)
 	defer cancel()
@@ -225,8 +226,13 @@ func BenchmarkNewErrByzantineData(b *testing.B) {
 			h := headertest.ExtendedHeaderFromEDS(t, 1, eds)
 			ses, err := r.newSession(ctx, h.DAH)
 			require.NoError(t, err)
-			time.Sleep(RetrieveQuadrantTimeout * 2)
-			<-ses.Done()
+
+			select {
+			case <-ctx.Done():
+				b.Fatal(ctx.Err())
+			case <-ses.Done():
+			}
+
 			_, err = ses.Reconstruct(ctx)
 			assert.NoError(t, err)
 			var errByz *rsmt2d.ErrByzantineData
