@@ -139,7 +139,7 @@ func TestFraudProofValidation(t *testing.T) {
 	for _, size := range odsSize {
 		t.Run(fmt.Sprintf("ods size:%d", size), func(t *testing.T) {
 			var errByz *byzantine.ErrByzantine
-			faultHeader, err := generateByzantineError(ctx, t, 32, bServ)
+			faultHeader, err := generateByzantineError(ctx, t, size, bServ)
 			require.True(t, errors.As(err, &errByz))
 
 			p := byzantine.CreateBadEncodingProof([]byte("hash"), uint64(faultHeader.Height()), errByz)
@@ -164,30 +164,78 @@ func generateByzantineError(
 	return h, err
 }
 
-func BenchmarkBEFP(b *testing.B) {
+/*
+BenchmarkBEFPValidation/ods_size:2         	   31273	     38819 ns/op	   68052 B/op	     366 allocs/op
+BenchmarkBEFPValidation/ods_size:4         	   14664	     80439 ns/op	  135892 B/op	     894 allocs/op
+BenchmarkBEFPValidation/ods_size:16       	    2850	    386178 ns/op	  587890 B/op	    4945 allocs/op
+BenchmarkBEFPValidation/ods_size:32        	    1399	    874490 ns/op	 1233399 B/op	   11284 allocs/op
+BenchmarkBEFPValidation/ods_size:64        	     619	   2047540 ns/op	 2578008 B/op	   25364 allocs/op
+BenchmarkBEFPValidation/ods_size:128       	     259	   4934375 ns/op	 5418406 B/op	   56345 allocs/op
+*/
+func BenchmarkBEFPValidation(b *testing.B) {
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second*15)
 	defer b.Cleanup(cancel)
 	bServ := mdutils.Bserv()
-
+	r := NewRetriever(bServ)
+	t := &testing.T{}
 	odsSize := []int{2, 4, 16, 32, 64, 128}
 	for _, size := range odsSize {
 		b.Run(fmt.Sprintf("ods size:%d", size), func(b *testing.B) {
-			t := &testing.T{}
+			b.StopTimer()
 			eds := edstest.RandByzantineEDS(t, size)
 			err := ipld.ImportEDS(ctx, eds, bServ)
 			require.NoError(t, err)
 			h := headertest.ExtendedHeaderFromEDS(t, 1, eds)
-			r := NewRetriever(bServ)
-			b.ResetTimer()
-			for i := 0; i < b.N; i++ {
-				b.ReportAllocs()
-				_, err = r.Retrieve(ctx, h.DAH)
-				var errByz *byzantine.ErrByzantine
-				require.ErrorAs(t, err, &errByz)
+			_, err = r.Retrieve(ctx, h.DAH)
+			var errByz *byzantine.ErrByzantine
+			require.ErrorAs(t, err, &errByz)
+			b.StartTimer()
 
+			for i := 0; i < b.N; i++ {
 				p := byzantine.CreateBadEncodingProof([]byte("hash"), uint64(h.Height()), errByz)
 				err = p.Validate(h)
 				require.NoError(b, err)
+			}
+		})
+	}
+}
+
+/*
+BenchmarkNewErrByzantineData/ods_size:2        	   29605	     38846 ns/op	   49518 B/op	     579 allocs/op
+BenchmarkNewErrByzantineData/ods_size:4      	   11380	    105302 ns/op	  134967 B/op	    1571 allocs/op
+BenchmarkNewErrByzantineData/ods_size:16       	    1902	    631086 ns/op	  830199 B/op	    9601 allocs/op
+BenchmarkNewErrByzantineData/ods_size:32        	 756	   1530985 ns/op	 1985272 B/op	   22901 allocs/op
+BenchmarkNewErrByzantineData/ods_size:64       	     340	   3445544 ns/op	 4767053 B/op	   54704 allocs/op
+BenchmarkNewErrByzantineData/ods_size:128      	     132	   8740678 ns/op	11991093 B/op	  136584 allocs/op
+*/
+func BenchmarkNewErrByzantineData(b *testing.B) {
+	RetrieveQuadrantTimeout = time.Millisecond * 500
+	odsSize := []int{2, 4, 16, 32, 64, 128}
+	ctx, cancel := context.WithTimeout(context.Background(), time.Minute)
+	defer cancel()
+	bServ := mdutils.Bserv()
+	r := NewRetriever(bServ)
+	t := &testing.T{}
+	for _, size := range odsSize {
+		b.Run(fmt.Sprintf("ods size:%d", size), func(b *testing.B) {
+			b.StopTimer()
+			eds := edstest.RandByzantineEDS(t, size)
+			err := ipld.ImportEDS(ctx, eds, bServ)
+			require.NoError(t, err)
+			h := headertest.ExtendedHeaderFromEDS(t, 1, eds)
+			ses, err := r.newSession(ctx, h.DAH)
+			require.NoError(t, err)
+			time.Sleep(RetrieveQuadrantTimeout * 2)
+			<-ses.Done()
+			_, err = ses.Reconstruct(ctx)
+			assert.NoError(t, err)
+			var errByz *rsmt2d.ErrByzantineData
+			require.ErrorAs(t, err, &errByz)
+			b.StartTimer()
+
+			for i := 0; i < b.N; i++ {
+				err = byzantine.NewErrByzantine(ctx, bServ, h.DAH, errByz)
+				require.NotNil(t, err)
 			}
 		})
 	}
