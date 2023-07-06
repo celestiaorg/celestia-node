@@ -352,7 +352,7 @@ func CreateFraudExtHeader(
 	eh *header.ExtendedHeader,
 	serv blockservice.BlockService,
 ) (*header.ExtendedHeader, *rsmt2d.ExtendedDataSquare) {
-	square := edstest.RandByzantineEDS(t, 16)
+	square := edstest.RandByzantineEDS(t, len(eh.DAH.RowRoots))
 	err := ipld.ImportEDS(context.Background(), square, serv)
 	require.NoError(t, err)
 	dah := da.NewDataAvailabilityHeader(square)
