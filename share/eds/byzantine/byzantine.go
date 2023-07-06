@@ -44,16 +44,17 @@ func NewErrByzantine(
 
 	sharesWithProof := make([]*ShareWithProof, len(errByz.Shares))
 	sharesAmount := 0
-	errGr, ctx := errgroup.WithContext(ctx)
 
+	errGr, ctx := errgroup.WithContext(ctx)
 	for index, share := range errByz.Shares {
-		if share == nil {
-			continue
-		}
 		// skip further shares if we already requested half of them, which is enough to recompute the row
 		// or col
 		if sharesAmount == len(dah.RowRoots)/2 {
 			break
+		}
+
+		if share == nil {
+			continue
 		}
 		sharesAmount++
 
@@ -70,14 +71,12 @@ func NewErrByzantine(
 	}
 
 	if err := errGr.Wait(); err != nil {
-		if err != nil {
-			// Fatal as rsmt2d proved that error is byzantine,
-			// but we cannot properly collect the proof,
-			// so verification will fail and thus services won't be stopped
-			// while we still have to stop them.
-			// TODO(@Wondertan): Find a better way to handle
-			log.Fatalw("getting proof for ErrByzantine", "err", err)
-		}
+		// Fatal as rsmt2d proved that error is byzantine,
+		// but we cannot properly collect the proof,
+		// so verification will fail and thus services won't be stopped
+		// while we still have to stop them.
+		// TODO(@Wondertan): Find a better way to handle
+		log.Fatalw("getting proof for ErrByzantine", "err", err)
 	}
 	return &ErrByzantine{
 		Index:  uint32(errByz.Index),

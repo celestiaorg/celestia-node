@@ -2,7 +2,6 @@ package byzantine
 
 import (
 	"bytes"
-	"errors"
 	"fmt"
 
 	"github.com/celestiaorg/celestia-app/pkg/wrapper"
@@ -113,10 +112,10 @@ func (p *BadEncodingProof) UnmarshalBinary(data []byte) error {
 func (p *BadEncodingProof) Validate(hdr libhead.Header) error {
 	header, ok := hdr.(*header.ExtendedHeader)
 	if !ok {
-		panic(fmt.Sprintf("invalid header type during the befp validation: expected %T, got %T", header, hdr))
+		panic(fmt.Sprintf("invalid header type received during BEFP validation: expected %T, got %T", header, hdr))
 	}
 	if header.Height() != int64(p.BlockHeight) {
-		return errors.New("incorrect block height during the befp validation")
+		return fmt.Errorf("incorrect block height during BEFP validation: expected %d, got %d", p.BlockHeight, header.Height())
 	}
 
 	if len(header.DAH.RowRoots) != len(header.DAH.ColumnRoots) {
@@ -129,27 +128,32 @@ func (p *BadEncodingProof) Validate(hdr libhead.Header) error {
 		)
 	}
 
-	// change the order of dah roots as we are now collecting nmt proofs against orthogonal axis
-	roots := [][][]byte{header.DAH.ColumnRoots, header.DAH.RowRoots}
-	if int(p.Index) >= len(roots[rsmt2d.Row]) {
+	// merkleRoots are the roots against which we are going to check the inclusion of the received shares.
+	// changing the order of the roots to prove the shares relative to the orthogonal axis, because
+	// inside the rsmt2d library rsmt2d.Row = 0 and rsmt2d.Col = 1
+	merkleRoots := header.DAH.RowRoots
+	if p.Axis == rsmt2d.Row {
+		merkleRoots = header.DAH.ColumnRoots
+	}
+	if int(p.Index) >= len(merkleRoots) {
 		return fmt.Errorf("invalid %s proof: index out of bounds (%d >= %d)",
-			BadEncoding, int(p.Index), len(roots[rsmt2d.Row]),
+			BadEncoding, int(p.Index), len(merkleRoots),
 		)
 	}
-	if len(p.Shares) != len(roots[rsmt2d.Row]) {
+	if len(p.Shares) != len(merkleRoots) {
 		return fmt.Errorf("invalid %s proof: incorrect number of shares %d != %d",
-			BadEncoding, len(p.Shares), len(roots[rsmt2d.Row]),
+			BadEncoding, len(p.Shares), len(merkleRoots),
 		)
 	}
 
 	// verify that Merkle proofs correspond to particular shares.
-	shares := make([][]byte, len(roots[rsmt2d.Row]))
+	shares := make([][]byte, len(merkleRoots))
 	for index, shr := range p.Shares {
 		if shr == nil {
 			continue
 		}
 		// validate inclusion of the share into one of the DAHeader roots
-		if ok := shr.Validate(ipld.MustCidFromNamespacedSha256(roots[p.Axis][index])); !ok {
+		if ok := shr.Validate(ipld.MustCidFromNamespacedSha256(merkleRoots[index])); !ok {
 			return fmt.Errorf("invalid %s proof: incorrect share received at index %d", BadEncoding, index)
 		}
 		// NMTree commits the additional namespace while rsmt2d does not know about, so we trim it
@@ -157,7 +161,7 @@ func (p *BadEncodingProof) Validate(hdr libhead.Header) error {
 		shares[index] = share.GetData(shr.Share)
 	}
 
-	odsWidth := uint64(len(roots[rsmt2d.Row]) / 2)
+	odsWidth := uint64(len(merkleRoots) / 2)
 	codec := share.DefaultRSMT2DCodec()
 
 	// rebuild a row or col.
