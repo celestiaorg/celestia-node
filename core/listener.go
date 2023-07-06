@@ -150,7 +150,7 @@ func (cl *Listener) handleNewSignedBlock(ctx context.Context, b types.EventDataS
 		attribute.Int64("height", b.Header.Height),
 	)
 	// extend block data
-	eds, err := extendBlock(b.Data)
+	eds, err := extendBlock(b.Data, b.Header.Version.App)
 	if err != nil {
 		return fmt.Errorf("extending block data: %w", err)
 	}
