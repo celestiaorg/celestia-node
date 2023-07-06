@@ -132,7 +132,7 @@ func (p *BadEncodingProof) Validate(hdr libhead.Header) error {
 	if int(p.Index) >= len(merkleRowRoots) {
 		return fmt.Errorf("fraud: invalid proof: index out of bounds (%d >= %d)", int(p.Index), len(merkleRowRoots))
 	}
-	if len(p.Shares) != len(merkleRowRoots) {
+	if len(merkleRowRoots) != len(p.Shares) {
 		// Since p.Shares should contain all the shares from either a row or a
 		// column, it should exactly match the number of row roots. In this
 		// context, the number of row roots is the width of the extended data
