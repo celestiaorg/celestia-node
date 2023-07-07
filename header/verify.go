@@ -6,9 +6,24 @@ import (
 	"time"
 
 	"github.com/tendermint/tendermint/light"
+	"github.com/tendermint/tendermint/types"
 
 	libhead "github.com/celestiaorg/go-header"
 )
+
+// clockDrift defines how much new header's time can drift into
+// the future relative to the now time during verification.
+var clockDrift = 10 * time.Second
+
+// trustingPeriod is period through which we can trust a header's validators set.
+//
+// Should be significantly less than the unbonding period (e.g. unbonding
+// period = 3 weeks, trusting period = 2 weeks).
+//
+// More specifically, trusting period + time needed to check headers + time
+// needed to report and punish misbehavior should be less than the unbonding
+// period.
+var trustingPeriod = 168 * time.Hour
 
 // Verify validates given untrusted Header against trusted ExtendedHeader.
 func (eh *ExtendedHeader) Verify(untrusted libhead.Header) error {
@@ -23,42 +38,38 @@ func (eh *ExtendedHeader) Verify(untrusted libhead.Header) error {
 	}
 
 	isAdjacent := eh.Height()+1 == untrst.Height()
-	if isAdjacent {
-		// Optimized verification for adjacent headers
-		// Check the validator hashes are the same
-		if !bytes.Equal(untrst.ValidatorsHash, eh.NextValidatorsHash) {
-			return &libhead.VerifyError{
-				Reason: fmt.Errorf("expected old header next validators (%X) to match those from new header (%X)",
-					eh.NextValidatorsHash,
-					untrst.ValidatorsHash,
-				),
-			}
-		}
-
-		if !bytes.Equal(untrst.LastHeader(), eh.Hash()) {
-			return &libhead.VerifyError{
-				Reason: fmt.Errorf("expected new header to point to last header hash (%X), but got %X)",
-					eh.Hash(),
-					untrst.LastHeader(),
-				),
-			}
-		}
-
+	if !isAdjacent {
 		return nil
 	}
 
-	// Ensure that untrusted commit has enough of trusted commit's power.
-	err := eh.ValidatorSet.VerifyCommitLightTrusting(eh.ChainID(), untrst.Commit, light.DefaultTrustLevel)
-	if err != nil {
-		return &libhead.VerifyError{Reason: err}
+	// perform light verification on adjacent headers
+	trustedSigned := &types.SignedHeader{
+		Header: &eh.RawHeader,
+		Commit: eh.Commit,
+	}
+	untrustedSigned := &types.SignedHeader{
+		Header: &untrst.RawHeader,
+		Commit: untrst.Commit,
+	}
+	if err := light.VerifyAdjacent(
+		trustedSigned,
+		untrustedSigned, untrst.ValidatorSet,
+		trustingPeriod, time.Now(), clockDrift,
+	); err != nil {
+		return err
+	}
+
+	if !bytes.Equal(untrst.LastHeader(), eh.Hash()) {
+		return &libhead.VerifyError{
+			Reason: fmt.Errorf("expected new header to point to last header hash (%X), but got %X)",
+				eh.Hash(),
+				untrst.LastHeader(),
+			),
+		}
 	}
 
 	return nil
 }
-
-// clockDrift defines how much new header's time can drift into
-// the future relative to the now time during verification.
-var clockDrift = 10 * time.Second
 
 // verify performs basic verification of untrusted header.
 func (eh *ExtendedHeader) verify(untrst libhead.Header) error {
