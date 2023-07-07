@@ -39,6 +39,8 @@ func (eh *ExtendedHeader) Verify(untrusted libhead.Header) error {
 
 	isAdjacent := eh.Height()+1 == untrst.Height()
 	if !isAdjacent {
+		// if the header is non-adjacent, it will be verified later via
+		// VerifyAdjacent once its adjacent (n-1) header is synced
 		return nil
 	}
 
