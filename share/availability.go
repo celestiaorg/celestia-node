@@ -4,7 +4,7 @@ import (
 	"context"
 	"errors"
 
-	da "github.com/celestiaorg/celestia-app/pkg/da"
+	"github.com/celestiaorg/celestia-app/pkg/da"
 )
 
 // ErrNotAvailable is returned whenever DA sampling fails.

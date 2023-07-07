@@ -4,16 +4,13 @@ import (
 	"context"
 	"encoding/hex"
 	"encoding/json"
-	"fmt"
 	"net/http"
 	"strconv"
 
 	"github.com/gorilla/mux"
 
 	"github.com/celestiaorg/celestia-app/pkg/shares"
-	"github.com/celestiaorg/nmt/namespace"
 
-	"github.com/celestiaorg/celestia-node/header"
 	"github.com/celestiaorg/celestia-node/share"
 )
 
@@ -22,7 +19,7 @@ const (
 	namespacedDataEndpoint   = "/namespaced_data"
 )
 
-var nIDKey = "nid"
+var namespaceKey = "nid"
 
 // NamespacedSharesResponse represents the response to a
 // SharesByNamespace request.
@@ -39,19 +36,19 @@ type NamespacedDataResponse struct {
 }
 
 func (h *Handler) handleSharesByNamespaceRequest(w http.ResponseWriter, r *http.Request) {
-	height, nID, err := parseGetByNamespaceArgs(r)
+	height, namespace, err := parseGetByNamespaceArgs(r)
 	if err != nil {
 		writeError(w, http.StatusBadRequest, namespacedSharesEndpoint, err)
 		return
 	}
-	shares, headerHeight, err := h.getShares(r.Context(), height, nID)
+	shares, err := h.getShares(r.Context(), height, namespace)
 	if err != nil {
 		writeError(w, http.StatusInternalServerError, namespacedSharesEndpoint, err)
 		return
 	}
 	resp, err := json.Marshal(&NamespacedSharesResponse{
 		Shares: shares,
-		Height: uint64(headerHeight),
+		Height: height,
 	})
 	if err != nil {
 		writeError(w, http.StatusInternalServerError, namespacedSharesEndpoint, err)
@@ -64,12 +61,12 @@ func (h *Handler) handleSharesByNamespaceRequest(w http.ResponseWriter, r *http.
 }
 
 func (h *Handler) handleDataByNamespaceRequest(w http.ResponseWriter, r *http.Request) {
-	height, nID, err := parseGetByNamespaceArgs(r)
+	height, namespace, err := parseGetByNamespaceArgs(r)
 	if err != nil {
 		writeError(w, http.StatusBadRequest, namespacedDataEndpoint, err)
 		return
 	}
-	shares, headerHeight, err := h.getShares(r.Context(), height, nID)
+	shares, err := h.getShares(r.Context(), height, namespace)
 	if err != nil {
 		writeError(w, http.StatusInternalServerError, namespacedDataEndpoint, err)
 		return
@@ -81,7 +78,7 @@ func (h *Handler) handleDataByNamespaceRequest(w http.ResponseWriter, r *http.Re
 	}
 	resp, err := json.Marshal(&NamespacedDataResponse{
 		Data:   data,
-		Height: uint64(headerHeight),
+		Height: height,
 	})
 	if err != nil {
 		writeError(w, http.StatusInternalServerError, namespacedDataEndpoint, err)
@@ -93,37 +90,26 @@ func (h *Handler) handleDataByNamespaceRequest(w http.ResponseWriter, r *http.Re
 	}
 }
 
-func (h *Handler) getShares(ctx context.Context, height uint64, nID namespace.ID) ([]share.Share, int64, error) {
-	// get header
-	var (
-		err    error
-		header *header.ExtendedHeader
-	)
-
-	//TODO: change this to NetworkHead once the adjacency in the store is fixed.
-	header, err = h.header.LocalHead(ctx)
+func (h *Handler) getShares(ctx context.Context, height uint64, namespace share.Namespace) ([]share.Share, error) {
+	header, err := h.header.GetByHeight(ctx, height)
 	if err != nil {
-		return nil, 0, err
+		return nil, err
 	}
 
-	if height > 0 {
-		if storeHeight := uint64(header.Height()); storeHeight < height {
-			return nil, 0, fmt.Errorf(
-				"current head local chain head: %d is lower than requested height: %d"+
-					" give header sync some time and retry later", storeHeight, height)
-		}
-		header, err = h.header.GetByHeight(ctx, height)
-	}
+	shares, err := h.share.GetSharesByNamespace(ctx, header.DAH, namespace)
 	if err != nil {
-		return nil, 0, err
+		return nil, err
 	}
-	// perform request
-	shares, err := h.share.GetSharesByNamespace(ctx, header.DAH, nID)
-	return shares.Flatten(), header.Height(), err
+
+	return shares.Flatten(), nil
 }
 
 func dataFromShares(input []share.Share) (data [][]byte, err error) {
-	sequences, err := shares.ParseShares(input)
+	appShares, err := shares.FromBytes(input)
+	if err != nil {
+		return nil, err
+	}
+	sequences, err := shares.ParseShares(appShares, false)
 	if err != nil {
 		return nil, err
 	}
@@ -137,7 +123,7 @@ func dataFromShares(input []share.Share) (data [][]byte, err error) {
 	return data, nil
 }
 
-func parseGetByNamespaceArgs(r *http.Request) (height uint64, nID namespace.ID, err error) {
+func parseGetByNamespaceArgs(r *http.Request) (height uint64, namespace share.Namespace, err error) {
 	vars := mux.Vars(r)
 	// if a height was given, parse it, otherwise get namespaced shares/data from the latest header
 	if strHeight, ok := vars[heightKey]; ok {
@@ -146,11 +132,10 @@ func parseGetByNamespaceArgs(r *http.Request) (height uint64, nID namespace.ID, 
 			return 0, nil, err
 		}
 	}
-	hexNID := vars[nIDKey]
-	nID, err = hex.DecodeString(hexNID)
+	hexNamespace := vars[namespaceKey]
+	namespace, err = hex.DecodeString(hexNamespace)
 	if err != nil {
 		return 0, nil, err
 	}
-
-	return height, nID, nil
+	return height, namespace, namespace.ValidateForData()
 }

@@ -5,6 +5,7 @@ import (
 	"errors"
 
 	"github.com/filecoin-project/dagstore"
+	"github.com/ipfs/go-blockservice"
 	"github.com/ipfs/go-datastore"
 	"github.com/libp2p/go-libp2p/core/host"
 	"github.com/libp2p/go-libp2p/core/routing"
@@ -18,6 +19,7 @@ import (
 	"github.com/celestiaorg/celestia-node/share/availability/light"
 	"github.com/celestiaorg/celestia-node/share/eds"
 	"github.com/celestiaorg/celestia-node/share/getters"
+	"github.com/celestiaorg/celestia-node/share/ipld"
 	disc "github.com/celestiaorg/celestia-node/share/p2p/discovery"
 )
 
@@ -57,6 +59,15 @@ func ensureEmptyCARExists(ctx context.Context, store *eds.Store) error {
 	if errors.Is(err, dagstore.ErrShardExists) {
 		return nil
 	}
+	return err
+}
+
+// ensureEmptyEDSInBS checks if the given DAG contains an empty block data square.
+// If it does not, it stores an empty block. This optimization exists to prevent
+// redundant storing of empty block data so that it is only stored once and returned
+// upon request for a block with an empty data square.
+func ensureEmptyEDSInBS(ctx context.Context, bServ blockservice.BlockService) error {
+	_, err := ipld.AddShares(ctx, share.EmptyBlockShares(), bServ)
 	return err
 }
 

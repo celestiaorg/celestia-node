@@ -8,16 +8,12 @@ import (
 	"github.com/minio/sha256-simd"
 
 	"github.com/celestiaorg/nmt"
-	"github.com/celestiaorg/nmt/namespace"
 	"github.com/celestiaorg/rsmt2d"
 )
 
 var (
 	// ErrNotFound is used to indicate that requested data could not be found.
 	ErrNotFound = errors.New("share: data not found")
-	// ErrNamespaceNotFound is returned by GetSharesByNamespace when data for requested root does
-	// not include any shares from the given namespace
-	ErrNamespaceNotFound = errors.New("share: namespace not found in data")
 )
 
 // Getter interface provides a set of accessors for shares by the Root.
@@ -33,7 +29,10 @@ type Getter interface {
 
 	// GetSharesByNamespace gets all shares from an EDS within the given namespace.
 	// Shares are returned in a row-by-row order if the namespace spans multiple rows.
-	GetSharesByNamespace(context.Context, *Root, namespace.ID) (NamespacedShares, error)
+	// Inclusion of returned data could be verified using Verify method on NamespacedShares.
+	// If no shares are found for target namespace non-inclusion could be also verified by calling
+	// Verify method.
+	GetSharesByNamespace(context.Context, *Root, Namespace) (NamespacedShares, error)
 }
 
 // NamespacedShares represents all shares with proofs within a specific namespace of an EDS.
@@ -55,10 +54,10 @@ type NamespacedRow struct {
 }
 
 // Verify validates NamespacedShares by checking every row with nmt inclusion proof.
-func (ns NamespacedShares) Verify(root *Root, nID namespace.ID) error {
-	originalRoots := make([][]byte, 0)
-	for _, row := range root.RowsRoots {
-		if !nID.Less(nmt.MinNamespace(row, nID.Size())) && nID.LessOrEqual(nmt.MaxNamespace(row, nID.Size())) {
+func (ns NamespacedShares) Verify(root *Root, namespace Namespace) error {
+	var originalRoots [][]byte
+	for _, row := range root.RowRoots {
+		if !namespace.IsOutsideRange(row, row) {
 			originalRoots = append(originalRoots, row)
 		}
 	}
@@ -70,25 +69,26 @@ func (ns NamespacedShares) Verify(root *Root, nID namespace.ID) error {
 
 	for i, row := range ns {
 		// verify row data against row hash from original root
-		if !row.verify(originalRoots[i], nID) {
-			return fmt.Errorf("row verification failed: row %d doesn't match original root: %s", i, root.Hash())
+		if !row.verify(originalRoots[i], namespace) {
+			return fmt.Errorf("row verification failed: row %d doesn't match original root: %s", i, root.String())
 		}
 	}
 	return nil
 }
 
 // verify validates the row using nmt inclusion proof.
-func (row *NamespacedRow) verify(rowRoot []byte, nID namespace.ID) bool {
+func (row *NamespacedRow) verify(rowRoot []byte, namespace Namespace) bool {
 	// construct nmt leaves from shares by prepending namespace
 	leaves := make([][]byte, 0, len(row.Shares))
-	for _, sh := range row.Shares {
-		leaves = append(leaves, append(sh[:NamespaceSize], sh...))
+	for _, shr := range row.Shares {
+		leaves = append(leaves, append(GetNamespace(shr), shr...))
 	}
 
 	// verify namespace
 	return row.Proof.VerifyNamespace(
 		sha256.New(),
-		nID,
+		namespace.ToNMT(),
 		leaves,
-		rowRoot)
+		rowRoot,
+	)
 }

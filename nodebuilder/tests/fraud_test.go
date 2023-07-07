@@ -34,17 +34,18 @@ Another note: this test disables share exchange to speed up test results.
 */
 func TestFraudProofBroadcasting(t *testing.T) {
 	t.Skip("requires BEFP generation on app side to work")
-
-	const (
-		blocks = 15
-		bsize  = 2
-		btime  = time.Millisecond * 300
-	)
-	sw := swamp.NewSwamp(t, swamp.WithBlockTime(btime))
 	ctx, cancel := context.WithTimeout(context.Background(), swamp.DefaultTestTimeout)
 	t.Cleanup(cancel)
 
-	fillDn := swamp.FillBlocks(ctx, sw.ClientContext, sw.Accounts, bsize, blocks)
+	const (
+		blocks    = 15
+		blockSize = 2
+		blockTime = time.Millisecond * 300
+	)
+
+	sw := swamp.NewSwamp(t, swamp.WithBlockTime(blockTime))
+	fillDn := swamp.FillBlocks(ctx, sw.ClientContext, sw.Accounts, blockSize, blocks)
+
 	cfg := nodebuilder.DefaultConfig(node.Bridge)
 	cfg.Share.UseShareExchange = false
 	bridge := sw.NewNodeWithConfig(
@@ -55,12 +56,13 @@ func TestFraudProofBroadcasting(t *testing.T) {
 
 	err := bridge.Start(ctx)
 	require.NoError(t, err)
-	addrs, err := peer.AddrInfoToP2pAddrs(host.InfoFromHost(bridge.Host))
-	require.NoError(t, err)
 
 	cfg = nodebuilder.DefaultConfig(node.Full)
 	cfg.Share.UseShareExchange = false
+	addrs, err := peer.AddrInfoToP2pAddrs(host.InfoFromHost(bridge.Host))
+	require.NoError(t, err)
 	cfg.Header.TrustedPeers = append(cfg.Header.TrustedPeers, addrs[0].String())
+
 	store := nodebuilder.MockStore(t, cfg)
 	full := sw.NewNodeWithStore(node.Full, store)
 
@@ -72,9 +74,12 @@ func TestFraudProofBroadcasting(t *testing.T) {
 	subscr, err := full.FraudServ.Subscribe(ctx, byzantine.BadEncoding)
 	require.NoError(t, err)
 
-	p := <-subscr
-	require.Equal(t, 10, int(p.Height()))
-
+	select {
+	case p := <-subscr:
+		require.Equal(t, 10, int(p.Height()))
+	case <-ctx.Done():
+		t.Fatal("fraud proof was not received in time")
+	}
 	// This is an obscure way to check if the Syncer was stopped.
 	// If we cannot get a height header within a timeframe it means the syncer was stopped
 	// FIXME: Eventually, this should be a check on service registry managing and keeping
@@ -84,8 +89,7 @@ func TestFraudProofBroadcasting(t *testing.T) {
 	require.ErrorIs(t, err, context.DeadlineExceeded)
 	syncCancel()
 
-	require.NoError(t, full.Stop(ctx))
-	require.NoError(t, sw.RemoveNode(full, node.Full))
+	sw.StopNode(ctx, full)
 
 	full = sw.NewNodeWithStore(node.Full, store)
 

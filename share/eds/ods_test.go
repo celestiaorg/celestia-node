@@ -52,7 +52,7 @@ func TestODSReader(t *testing.T) {
 			assert.NoError(t, err)
 
 			// check that original data from eds is same as data from reader
-			assert.Equal(t, original, block.RawData()[share.NamespaceSize:])
+			assert.Equal(t, original, share.GetData(block.RawData()))
 		}
 	}
 

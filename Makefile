@@ -1,6 +1,6 @@
 SHELL=/usr/bin/env bash
 PROJECTNAME=$(shell basename "$(PWD)")
-LDFLAGS=-ldflags="-X 'main.buildTime=$(shell date)' -X 'main.lastCommit=$(shell git rev-parse HEAD)' -X 'main.semanticVersion=$(shell git describe --tags --dirty=-dev)'"
+LDFLAGS=-ldflags="-X 'main.buildTime=$(shell date)' -X 'main.lastCommit=$(shell git rev-parse HEAD)' -X 'main.semanticVersion=$(shell git describe --tags --dirty=-dev 2>/dev/null || git rev-parse --abbrev-ref HEAD)'"
 ifeq (${PREFIX},)
 	PREFIX := /usr/local
 endif
@@ -97,7 +97,7 @@ lint: lint-imports
 ## test-unit: Running unit tests
 test-unit:
 	@echo "--> Running unit tests"
-	@go test `go list ./... | grep -v nodebuilder/tests` -covermode=atomic -coverprofile=coverage.out
+	@go test -covermode=atomic -coverprofile=coverage.txt `go list ./... | grep -v nodebuilder/tests`
 .PHONY: test-unit
 
 ## test-unit-race: Running unit tests with data race detector
@@ -152,7 +152,7 @@ pb-gen:
 ## openrpc-gen: Generate OpenRPC spec for Celestia-Node's RPC api
 openrpc-gen:
 	@echo "--> Generating OpenRPC spec"
-	@go run ./cmd/docgen fraud header state share das p2p node
+	@go run ./cmd/docgen fraud header state share das p2p node blob
 .PHONY: openrpc-gen
 
 ## lint-imports: Lint only Go imports.

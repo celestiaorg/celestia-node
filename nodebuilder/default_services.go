@@ -1,6 +1,7 @@
 package nodebuilder
 
 import (
+	"github.com/celestiaorg/celestia-node/nodebuilder/blob"
 	"github.com/celestiaorg/celestia-node/nodebuilder/das"
 	"github.com/celestiaorg/celestia-node/nodebuilder/fraud"
 	"github.com/celestiaorg/celestia-node/nodebuilder/header"
@@ -19,5 +20,6 @@ var PackageToAPI = map[string]interface{}{
 	"header": &header.API{},
 	"daser":  &das.API{},
 	"p2p":    &p2p.API{},
+	"blob":   &blob.API{},
 	"node":   &node.API{},
 }

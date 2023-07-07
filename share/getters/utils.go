@@ -14,9 +14,6 @@ import (
 	"go.opentelemetry.io/otel/trace"
 	"golang.org/x/sync/errgroup"
 
-	"github.com/celestiaorg/nmt"
-	"github.com/celestiaorg/nmt/namespace"
-
 	"github.com/celestiaorg/celestia-node/libs/utils"
 	"github.com/celestiaorg/celestia-node/share"
 	"github.com/celestiaorg/celestia-node/share/ipld"
@@ -30,36 +27,35 @@ var (
 )
 
 // filterRootsByNamespace returns the row roots from the given share.Root that contain the passed
-// namespace ID.
-func filterRootsByNamespace(root *share.Root, nID namespace.ID) []cid.Cid {
-	rowRootCIDs := make([]cid.Cid, 0, len(root.RowsRoots))
-	for _, row := range root.RowsRoots {
-		if !nID.Less(nmt.MinNamespace(row, nID.Size())) && nID.LessOrEqual(nmt.MaxNamespace(row, nID.Size())) {
+// namespace.
+func filterRootsByNamespace(root *share.Root, namespace share.Namespace) []cid.Cid {
+	rowRootCIDs := make([]cid.Cid, 0, len(root.RowRoots))
+	for _, row := range root.RowRoots {
+		if !namespace.IsOutsideRange(row, row) {
 			rowRootCIDs = append(rowRootCIDs, ipld.MustCidFromNamespacedSha256(row))
 		}
 	}
 	return rowRootCIDs
 }
 
-// collectSharesByNamespace collects NamespaceShares within the given namespace ID from the given
-// share.Root.
+// collectSharesByNamespace collects NamespaceShares within the given namespace from share.Root.
 func collectSharesByNamespace(
 	ctx context.Context,
 	bg blockservice.BlockGetter,
 	root *share.Root,
-	nID namespace.ID,
+	namespace share.Namespace,
 ) (shares share.NamespacedShares, err error) {
 	ctx, span := tracer.Start(ctx, "collect-shares-by-namespace", trace.WithAttributes(
 		attribute.String("root", root.String()),
-		attribute.String("nid", nID.String()),
+		attribute.String("namespace", namespace.String()),
 	))
 	defer func() {
 		utils.SetStatusAndEnd(span, err)
 	}()
 
-	rootCIDs := filterRootsByNamespace(root, nID)
+	rootCIDs := filterRootsByNamespace(root, namespace)
 	if len(rootCIDs) == 0 {
-		return nil, share.ErrNamespaceNotFound
+		return nil, nil
 	}
 
 	errGroup, ctx := errgroup.WithContext(ctx)
@@ -68,13 +64,13 @@ func collectSharesByNamespace(
 		// shadow loop variables, to ensure correct values are captured
 		i, rootCID := i, rootCID
 		errGroup.Go(func() error {
-			row, proof, err := share.GetSharesByNamespace(ctx, bg, rootCID, nID, len(root.RowsRoots))
+			row, proof, err := ipld.GetSharesByNamespace(ctx, bg, rootCID, namespace, len(root.RowRoots))
 			shares[i] = share.NamespacedRow{
 				Shares: row,
 				Proof:  proof,
 			}
 			if err != nil {
-				return fmt.Errorf("retrieving nID %x for row %x: %w", nID, rootCID, err)
+				return fmt.Errorf("retrieving shares by namespace %s for row %x: %w", namespace.String(), rootCID, err)
 			}
 			return nil
 		})
@@ -84,20 +80,7 @@ func collectSharesByNamespace(
 		return nil, err
 	}
 
-	// return ErrNamespaceNotFound if no shares are found for the namespace.ID
-	if len(rootCIDs) == 1 && len(shares[0].Shares) == 0 {
-		return nil, share.ErrNamespaceNotFound
-	}
-
 	return shares, nil
-}
-
-func verifyNIDSize(nID namespace.ID) error {
-	if len(nID) != share.NamespaceSize {
-		return fmt.Errorf("expected namespace ID of size %d, got %d",
-			share.NamespaceSize, len(nID))
-	}
-	return nil
 }
 
 // ctxWithSplitTimeout will split timeout stored in context by splitFactor and return the result if

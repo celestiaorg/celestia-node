@@ -2,6 +2,7 @@ package shrexnd
 
 import (
 	"context"
+	"encoding/hex"
 	"errors"
 	"fmt"
 	"time"
@@ -16,7 +17,6 @@ import (
 
 	"github.com/celestiaorg/celestia-node/share"
 	"github.com/celestiaorg/celestia-node/share/eds"
-	"github.com/celestiaorg/celestia-node/share/ipld"
 	"github.com/celestiaorg/celestia-node/share/p2p"
 	pb "github.com/celestiaorg/celestia-node/share/p2p/shrexnd/pb"
 )
@@ -90,7 +90,7 @@ func (srv *Server) observeRateLimitedRequests() {
 }
 
 func (srv *Server) handleNamespacedData(ctx context.Context, stream network.Stream) {
-	logger := log.With("peer", stream.Conn().RemotePeer())
+	logger := log.With("peer", stream.Conn().RemotePeer().String())
 	logger.Debug("server: handling nd request")
 
 	srv.observeRateLimitedRequests()
@@ -107,7 +107,7 @@ func (srv *Server) handleNamespacedData(ctx context.Context, stream network.Stre
 		stream.Reset() //nolint:errcheck
 		return
 	}
-	logger = logger.With("namespaceId", string(req.NamespaceId), "hash", string(req.RootHash))
+	logger = logger.With("namespace", hex.EncodeToString(req.Namespace), "hash", share.DataHash(req.RootHash).String())
 	logger.Debugw("server: new request")
 
 	err = stream.CloseRead()
@@ -137,14 +137,11 @@ func (srv *Server) handleNamespacedData(ctx context.Context, stream network.Stre
 		return
 	}
 
-	shares, err := srv.getter.GetSharesByNamespace(ctx, dah, req.NamespaceId)
+	shares, err := srv.getter.GetSharesByNamespace(ctx, dah, req.Namespace)
 	switch {
 	case errors.Is(err, share.ErrNotFound):
 		logger.Warn("server: nd not found")
 		srv.respondNotFoundError(ctx, logger, stream)
-		return
-	case errors.Is(err, share.ErrNamespaceNotFound):
-		srv.respondNamespaceNotFoundError(ctx, logger, stream)
 		return
 	case err != nil:
 		logger.Errorw("server: retrieving shares", "err", err)
@@ -158,13 +155,12 @@ func (srv *Server) handleNamespacedData(ctx context.Context, stream network.Stre
 
 // validateRequest checks correctness of the request
 func validateRequest(req pb.GetSharesByNamespaceRequest) error {
-	if len(req.NamespaceId) != ipld.NamespaceSize {
-		return fmt.Errorf("incorrect namespace id length: %v", len(req.NamespaceId))
+	if err := share.Namespace(req.Namespace).ValidateForData(); err != nil {
+		return err
 	}
 	if len(req.RootHash) != sha256.Size {
 		return fmt.Errorf("incorrect root hash length: %v", len(req.RootHash))
 	}
-
 	return nil
 }
 
@@ -173,15 +169,6 @@ func (srv *Server) respondNotFoundError(ctx context.Context,
 	logger *zap.SugaredLogger, stream network.Stream) {
 	resp := &pb.GetSharesByNamespaceResponse{
 		Status: pb.StatusCode_NOT_FOUND,
-	}
-	srv.respond(ctx, logger, stream, resp)
-}
-
-// respondNamespaceNotFoundError sends a namespace not found response to client
-func (srv *Server) respondNamespaceNotFoundError(ctx context.Context,
-	logger *zap.SugaredLogger, stream network.Stream) {
-	resp := &pb.GetSharesByNamespaceResponse{
-		Status: pb.StatusCode_NAMESPACE_NOT_FOUND,
 	}
 	srv.respond(ctx, logger, stream, resp)
 }
@@ -199,22 +186,26 @@ func (srv *Server) respondInternalError(ctx context.Context,
 func namespacedSharesToResponse(shares share.NamespacedShares) *pb.GetSharesByNamespaceResponse {
 	rows := make([]*pb.Row, 0, len(shares))
 	for _, row := range shares {
-		proof := &pb.Proof{
-			Start: int64(row.Proof.Start()),
-			End:   int64(row.Proof.End()),
-			Nodes: row.Proof.Nodes(),
-		}
-
 		row := &pb.Row{
 			Shares: row.Shares,
-			Proof:  proof,
+			Proof: &pb.Proof{
+				Start:    int64(row.Proof.Start()),
+				End:      int64(row.Proof.End()),
+				Nodes:    row.Proof.Nodes(),
+				Hashleaf: row.Proof.LeafHash(),
+			},
 		}
 
 		rows = append(rows, row)
 	}
 
+	status := pb.StatusCode_OK
+	if len(shares) == 0 || (len(shares) == 1 && len(shares[0].Shares) == 0) {
+		status = pb.StatusCode_NAMESPACE_NOT_FOUND
+	}
+
 	return &pb.GetSharesByNamespaceResponse{
-		Status: pb.StatusCode_OK,
+		Status: status,
 		Rows:   rows,
 	}
 }

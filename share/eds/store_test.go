@@ -17,6 +17,7 @@ import (
 	"github.com/celestiaorg/rsmt2d"
 
 	"github.com/celestiaorg/celestia-node/share"
+	"github.com/celestiaorg/celestia-node/share/eds/edstest"
 )
 
 func TestEDSStore(t *testing.T) {
@@ -77,7 +78,7 @@ func TestEDSStore(t *testing.T) {
 				original := eds.GetCell(uint(i), uint(j))
 				block, err := carReader.Next()
 				assert.NoError(t, err)
-				assert.Equal(t, original, block.RawData()[share.NamespaceSize:])
+				assert.Equal(t, original, share.GetData(block.RawData()))
 			}
 		}
 	})
@@ -252,6 +253,49 @@ func Test_CachedAccessor(t *testing.T) {
 	assert.Equal(t, firstBlock, secondBlock)
 }
 
+func BenchmarkStore(b *testing.B) {
+	ctx, cancel := context.WithCancel(context.Background())
+	b.Cleanup(cancel)
+
+	tmpDir := b.TempDir()
+	ds := ds_sync.MutexWrap(datastore.NewMapDatastore())
+	edsStore, err := NewStore(tmpDir, ds)
+	require.NoError(b, err)
+	err = edsStore.Start(ctx)
+	require.NoError(b, err)
+
+	// BenchmarkStore/bench_put_128-10         	      10	3231859283 ns/op (~3sec)
+	b.Run("bench put 128", func(b *testing.B) {
+		b.ResetTimer()
+		for i := 0; i < b.N; i++ {
+			// pause the timer for initializing test data
+			b.StopTimer()
+			eds := edstest.RandEDS(b, 128)
+			dah := da.NewDataAvailabilityHeader(eds)
+			b.StartTimer()
+
+			err = edsStore.Put(ctx, dah.Hash(), eds)
+			require.NoError(b, err)
+		}
+	})
+
+	// BenchmarkStore/bench_read_128-10         	      14	  78970661 ns/op (~70ms)
+	b.Run("bench read 128", func(b *testing.B) {
+		b.ResetTimer()
+		for i := 0; i < b.N; i++ {
+			// pause the timer for initializing test data
+			b.StopTimer()
+			eds := edstest.RandEDS(b, 128)
+			dah := da.NewDataAvailabilityHeader(eds)
+			_ = edsStore.Put(ctx, dah.Hash(), eds)
+			b.StartTimer()
+
+			_, err := edsStore.Get(ctx, dah.Hash())
+			require.NoError(b, err)
+		}
+	})
+}
+
 func newStore(t *testing.T) (*Store, error) {
 	t.Helper()
 
@@ -261,7 +305,7 @@ func newStore(t *testing.T) (*Store, error) {
 }
 
 func randomEDS(t *testing.T) (*rsmt2d.ExtendedDataSquare, share.Root) {
-	eds := share.RandEDS(t, 4)
+	eds := edstest.RandEDS(t, 4)
 	dah := da.NewDataAvailabilityHeader(eds)
 
 	return eds, dah

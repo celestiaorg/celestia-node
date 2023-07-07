@@ -7,7 +7,6 @@ import (
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/trace"
 
-	"github.com/celestiaorg/nmt/namespace"
 	"github.com/celestiaorg/rsmt2d"
 
 	"github.com/celestiaorg/celestia-node/libs/utils"
@@ -66,16 +65,16 @@ func (cg *CascadeGetter) GetEDS(ctx context.Context, root *share.Root) (*rsmt2d.
 func (cg *CascadeGetter) GetSharesByNamespace(
 	ctx context.Context,
 	root *share.Root,
-	id namespace.ID,
+	namespace share.Namespace,
 ) (share.NamespacedShares, error) {
 	ctx, span := tracer.Start(ctx, "cascade/get-shares-by-namespace", trace.WithAttributes(
 		attribute.String("root", root.String()),
-		attribute.String("nid", id.String()),
+		attribute.String("namespace", namespace.String()),
 	))
 	defer span.End()
 
 	get := func(ctx context.Context, get share.Getter) (share.NamespacedShares, error) {
-		return get.GetSharesByNamespace(ctx, root, id)
+		return get.GetSharesByNamespace(ctx, root, namespace)
 	}
 
 	return cascadeGetters(ctx, cg.getters, get)
@@ -124,13 +123,15 @@ func cascadeGetters[V any](
 		if getErr == nil {
 			return val, nil
 		}
-		if errors.Is(share.ErrNamespaceNotFound, getErr) {
-			return zero, getErr
+
+		if errors.Is(getErr, errOperationNotSupported) {
+			continue
 		}
 
-		if !errors.Is(getErr, errOperationNotSupported) {
-			err = errors.Join(err, getErr)
-			span.RecordError(getErr, trace.WithAttributes(attribute.Int("getter_idx", i)))
+		err = errors.Join(err, getErr)
+		span.RecordError(getErr, trace.WithAttributes(attribute.Int("getter_idx", i)))
+		if ctx.Err() != nil {
+			return zero, err
 		}
 	}
 	return zero, err

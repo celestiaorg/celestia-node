@@ -26,7 +26,8 @@ import (
 	"github.com/celestiaorg/rsmt2d"
 
 	"github.com/celestiaorg/celestia-node/header"
-	"github.com/celestiaorg/celestia-node/share"
+	"github.com/celestiaorg/celestia-node/share/eds/edstest"
+	"github.com/celestiaorg/celestia-node/share/ipld"
 )
 
 var log = logging.Logger("headertest")
@@ -321,20 +322,43 @@ func FraudMaker(t *testing.T, faultHeight int64, bServ blockservice.BlockService
 	}
 }
 
+func ExtendedHeaderFromEDS(t *testing.T, height uint64, eds *rsmt2d.ExtendedDataSquare) *header.ExtendedHeader {
+	valSet, vals := RandValidatorSet(10, 10)
+	gen := RandRawHeader(t)
+	dah := da.NewDataAvailabilityHeader(eds)
+
+	gen.DataHash = dah.Hash()
+	gen.ValidatorsHash = valSet.Hash()
+	gen.NextValidatorsHash = valSet.Hash()
+	gen.Height = int64(height)
+	blockID := RandBlockID(t)
+	blockID.Hash = gen.Hash()
+	voteSet := types.NewVoteSet(gen.ChainID, gen.Height, 0, tmproto.PrecommitType, valSet)
+	commit, err := MakeCommit(blockID, gen.Height, 0, voteSet, vals, time.Now())
+	require.NoError(t, err)
+
+	eh := &header.ExtendedHeader{
+		RawHeader:    *gen,
+		Commit:       commit,
+		ValidatorSet: valSet,
+		DAH:          &dah,
+	}
+	require.NoError(t, eh.Validate())
+	return eh
+}
+
 func CreateFraudExtHeader(
 	t *testing.T,
 	eh *header.ExtendedHeader,
-	dag blockservice.BlockService,
+	serv blockservice.BlockService,
 ) (*header.ExtendedHeader, *rsmt2d.ExtendedDataSquare) {
-	extended := share.RandEDS(t, 2)
-	shares := share.ExtractEDS(extended)
-	copy(shares[0][share.NamespaceSize:], shares[1][share.NamespaceSize:])
-	extended, err := share.ImportShares(context.Background(), shares, dag)
+	square := edstest.RandByzantineEDS(t, len(eh.DAH.RowRoots))
+	err := ipld.ImportEDS(context.Background(), square, serv)
 	require.NoError(t, err)
-	dah := da.NewDataAvailabilityHeader(extended)
+	dah := da.NewDataAvailabilityHeader(square)
 	eh.DAH = &dah
 	eh.RawHeader.DataHash = dah.Hash()
-	return eh, extended
+	return eh, square
 }
 
 type Subscriber struct {

@@ -18,8 +18,10 @@ import (
 	"golang.org/x/text/language"
 
 	"github.com/celestiaorg/go-fraud"
+	"github.com/celestiaorg/nmt"
 	"github.com/celestiaorg/rsmt2d"
 
+	"github.com/celestiaorg/celestia-node/blob"
 	"github.com/celestiaorg/celestia-node/das"
 	"github.com/celestiaorg/celestia-node/header"
 	"github.com/celestiaorg/celestia-node/nodebuilder/node"
@@ -81,6 +83,8 @@ func init() {
 	}
 	addToExampleValues(valAddr)
 
+	addToExampleValues(state.Address{Address: addr})
+
 	var txResponse *state.TxResponse
 	err = json.Unmarshal([]byte(exampleTxResponse), &txResponse)
 	if err != nil {
@@ -128,6 +132,22 @@ func init() {
 		Addrs: []multiaddr.Multiaddr{ma},
 	}
 	addToExampleValues(addrInfo)
+
+	namespace, err := share.NewBlobNamespaceV0([]byte{0x1, 0x2, 0x3, 0x4, 0x5, 0x6, 0x7, 0x8, 0x9, 0x10})
+	if err != nil {
+		panic(err)
+	}
+	addToExampleValues(namespace)
+
+	generatedBlob, err := blob.NewBlobV0(namespace, []byte("This is an example of some blob data"))
+	if err != nil {
+		panic(err)
+	}
+	addToExampleValues(generatedBlob)
+
+	proof := nmt.NewInclusionProof(0, 4, [][]byte{[]byte("test")}, true)
+	blobProof := &blob.Proof{&proof}
+	addToExampleValues(blobProof)
 }
 
 func addToExampleValues(v interface{}) {

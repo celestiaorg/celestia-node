@@ -8,6 +8,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	tmrand "github.com/tendermint/tendermint/libs/rand"
 
+	"github.com/celestiaorg/celestia-app/pkg/appconsts"
 	libhead "github.com/celestiaorg/go-header"
 )
 
@@ -76,6 +77,13 @@ func TestVerify(t *testing.T) {
 		{
 			prepare: func() libhead.Header {
 				untrustedAdj.RawHeader.Height++
+				return untrustedAdj
+			},
+			err: true,
+		},
+		{
+			prepare: func() libhead.Header {
+				untrustedAdj.RawHeader.Version.App = appconsts.LatestVersion + 1
 				return untrustedAdj
 			},
 			err: true,
