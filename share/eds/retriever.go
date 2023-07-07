@@ -241,12 +241,15 @@ func (rs *retrievalSession) request(ctx context.Context) {
 // doRequest requests the given quadrant by requesting halves of axis(Row or Col) using GetShares
 // and fills shares into rs.square slice.
 func (rs *retrievalSession) doRequest(ctx context.Context, q *quadrant) {
+	reqCtx, cancelRetrieval := context.WithCancel(ctx)
+	defer cancelRetrieval()
+
 	size := len(q.roots)
 	for i, root := range q.roots {
 		go func(i int, root cid.Cid) {
 			// get the root node
-			nd, err := ipld.GetNode(ctx, rs.bget, root)
-			if err != nil {
+			nd, err := ipld.GetNode(reqCtx, rs.bget, root)
+			if err != nil && (!errors.Is(err, context.Canceled) || ctx.Err() != nil) {
 				rs.span.RecordError(err, trace.WithAttributes(
 					attribute.String("requesting-root", root.String()),
 					attribute.Int("root-index", i),
@@ -256,7 +259,7 @@ func (rs *retrievalSession) doRequest(ctx context.Context, q *quadrant) {
 			// and go get shares of left or the right side of the whole col/row axis
 			// the left or the right side of the tree represent some portion of the quadrant
 			// which we put into the rs.square share-by-share by calculating shares' indexes using q.index
-			ipld.GetShares(ctx, rs.bget, nd.Links()[q.x].Cid, size, func(j int, share share.Share) {
+			ipld.GetShares(reqCtx, rs.bget, nd.Links()[q.x].Cid, size, func(j int, share share.Share) {
 				// NOTE: Each share can appear twice here, for a Row and Col, respectively.
 				// These shares are always equal, and we allow only the first one to be written
 				// in the square.
@@ -294,6 +297,7 @@ func (rs *retrievalSession) doRequest(ctx context.Context, q *quadrant) {
 				//  The earlier we correctly know that we have the full square - the earlier
 				//  we cancel ongoing requests - the less data is being wastedly transferred.
 				if atomic.AddUint32(&rs.squareCellsCount, 1) >= uint32(size*size) {
+					cancelRetrieval()
 					select {
 					case rs.squareSig <- struct{}{}:
 					default:
