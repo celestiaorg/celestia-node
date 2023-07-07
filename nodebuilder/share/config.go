@@ -14,7 +14,6 @@ import (
 // TODO: some params are pointers and other are not, Let's fix this.
 type Config struct {
 	UseShareExchange bool
-	UseIPLD          bool
 	// ShrExEDSParams sets shrexeds client and server configuration parameters
 	ShrExEDSParams *shrexeds.Parameters
 	// ShrExNDParams sets shrexnd client and server configuration parameters
@@ -32,7 +31,6 @@ func DefaultConfig(tp node.Type) Config {
 		ShrExEDSParams:    shrexeds.DefaultParameters(),
 		ShrExNDParams:     shrexnd.DefaultParameters(),
 		UseShareExchange:  true,
-		UseIPLD:           true,
 		PeerManagerParams: peers.DefaultParameters(),
 	}
 

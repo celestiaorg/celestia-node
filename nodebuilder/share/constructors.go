@@ -80,9 +80,7 @@ func lightGetter(
 	if cfg.UseShareExchange {
 		cascade = append(cascade, shrexGetter)
 	}
-	if cfg.UseIPLD {
-		cascade = append(cascade, ipldGetter)
-	}
+	cascade = append(cascade, ipldGetter)
 	return getters.NewCascadeGetter(cascade)
 }
 
@@ -97,9 +95,6 @@ func fullGetter(
 	cascade = append(cascade, storeGetter)
 	if cfg.UseShareExchange {
 		cascade = append(cascade, getters.NewTeeGetter(shrexGetter, store))
-	}
-	if cfg.UseIPLD {
-		cascade = append(cascade, ipldGetter)
 	}
 	cascade = append(cascade, getters.NewTeeGetter(ipldGetter, store))
 	return getters.NewCascadeGetter(cascade)
