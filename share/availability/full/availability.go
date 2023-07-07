@@ -4,7 +4,6 @@ import (
 	"context"
 	"errors"
 
-	ipldFormat "github.com/ipfs/go-ipld-format"
 	logging "github.com/ipfs/go-log/v2"
 
 	"github.com/celestiaorg/celestia-node/share"
@@ -74,7 +73,7 @@ func (fa *ShareAvailability) SharesAvailable(ctx context.Context, root *share.Ro
 	if err != nil {
 		log.Errorw("availability validation failed", "root", root.String(), "err", err.Error())
 		var byzantineErr *byzantine.ErrByzantine
-		if ipldFormat.IsNotFound(err) || errors.Is(err, context.DeadlineExceeded) && !errors.As(err, &byzantineErr) {
+		if errors.Is(err, share.ErrNotFound) || errors.Is(err, context.DeadlineExceeded) && !errors.As(err, &byzantineErr) {
 			return share.ErrNotAvailable
 		}
 
