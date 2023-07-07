@@ -109,23 +109,22 @@ func (m *GetSharesByNamespaceRequest) GetNamespace() []byte {
 	return nil
 }
 
-type GetSharesByNamespaceResponse struct {
+type GetSharesByNamespaceStatusResponse struct {
 	Status StatusCode `protobuf:"varint,1,opt,name=status,proto3,enum=share.p2p.shrex.nd.StatusCode" json:"status,omitempty"`
-	Rows   []*Row     `protobuf:"bytes,2,rep,name=rows,proto3" json:"rows,omitempty"`
 }
 
-func (m *GetSharesByNamespaceResponse) Reset()         { *m = GetSharesByNamespaceResponse{} }
-func (m *GetSharesByNamespaceResponse) String() string { return proto.CompactTextString(m) }
-func (*GetSharesByNamespaceResponse) ProtoMessage()    {}
-func (*GetSharesByNamespaceResponse) Descriptor() ([]byte, []int) {
+func (m *GetSharesByNamespaceStatusResponse) Reset()         { *m = GetSharesByNamespaceStatusResponse{} }
+func (m *GetSharesByNamespaceStatusResponse) String() string { return proto.CompactTextString(m) }
+func (*GetSharesByNamespaceStatusResponse) ProtoMessage()    {}
+func (*GetSharesByNamespaceStatusResponse) Descriptor() ([]byte, []int) {
 	return fileDescriptor_ed9f13149b0de397, []int{1}
 }
-func (m *GetSharesByNamespaceResponse) XXX_Unmarshal(b []byte) error {
+func (m *GetSharesByNamespaceStatusResponse) XXX_Unmarshal(b []byte) error {
 	return m.Unmarshal(b)
 }
-func (m *GetSharesByNamespaceResponse) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+func (m *GetSharesByNamespaceStatusResponse) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
 	if deterministic {
-		return xxx_messageInfo_GetSharesByNamespaceResponse.Marshal(b, m, deterministic)
+		return xxx_messageInfo_GetSharesByNamespaceStatusResponse.Marshal(b, m, deterministic)
 	} else {
 		b = b[:cap(b)]
 		n, err := m.MarshalToSizedBuffer(b)
@@ -135,49 +134,42 @@ func (m *GetSharesByNamespaceResponse) XXX_Marshal(b []byte, deterministic bool)
 		return b[:n], nil
 	}
 }
-func (m *GetSharesByNamespaceResponse) XXX_Merge(src proto.Message) {
-	xxx_messageInfo_GetSharesByNamespaceResponse.Merge(m, src)
+func (m *GetSharesByNamespaceStatusResponse) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_GetSharesByNamespaceStatusResponse.Merge(m, src)
 }
-func (m *GetSharesByNamespaceResponse) XXX_Size() int {
+func (m *GetSharesByNamespaceStatusResponse) XXX_Size() int {
 	return m.Size()
 }
-func (m *GetSharesByNamespaceResponse) XXX_DiscardUnknown() {
-	xxx_messageInfo_GetSharesByNamespaceResponse.DiscardUnknown(m)
+func (m *GetSharesByNamespaceStatusResponse) XXX_DiscardUnknown() {
+	xxx_messageInfo_GetSharesByNamespaceStatusResponse.DiscardUnknown(m)
 }
 
-var xxx_messageInfo_GetSharesByNamespaceResponse proto.InternalMessageInfo
+var xxx_messageInfo_GetSharesByNamespaceStatusResponse proto.InternalMessageInfo
 
-func (m *GetSharesByNamespaceResponse) GetStatus() StatusCode {
+func (m *GetSharesByNamespaceStatusResponse) GetStatus() StatusCode {
 	if m != nil {
 		return m.Status
 	}
 	return StatusCode_INVALID
 }
 
-func (m *GetSharesByNamespaceResponse) GetRows() []*Row {
-	if m != nil {
-		return m.Rows
-	}
-	return nil
-}
-
-type Row struct {
+type NamespaceRowResponse struct {
 	Shares [][]byte  `protobuf:"bytes,1,rep,name=shares,proto3" json:"shares,omitempty"`
 	Proof  *pb.Proof `protobuf:"bytes,2,opt,name=proof,proto3" json:"proof,omitempty"`
 }
 
-func (m *Row) Reset()         { *m = Row{} }
-func (m *Row) String() string { return proto.CompactTextString(m) }
-func (*Row) ProtoMessage()    {}
-func (*Row) Descriptor() ([]byte, []int) {
+func (m *NamespaceRowResponse) Reset()         { *m = NamespaceRowResponse{} }
+func (m *NamespaceRowResponse) String() string { return proto.CompactTextString(m) }
+func (*NamespaceRowResponse) ProtoMessage()    {}
+func (*NamespaceRowResponse) Descriptor() ([]byte, []int) {
 	return fileDescriptor_ed9f13149b0de397, []int{2}
 }
-func (m *Row) XXX_Unmarshal(b []byte) error {
+func (m *NamespaceRowResponse) XXX_Unmarshal(b []byte) error {
 	return m.Unmarshal(b)
 }
-func (m *Row) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+func (m *NamespaceRowResponse) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
 	if deterministic {
-		return xxx_messageInfo_Row.Marshal(b, m, deterministic)
+		return xxx_messageInfo_NamespaceRowResponse.Marshal(b, m, deterministic)
 	} else {
 		b = b[:cap(b)]
 		n, err := m.MarshalToSizedBuffer(b)
@@ -187,26 +179,26 @@ func (m *Row) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
 		return b[:n], nil
 	}
 }
-func (m *Row) XXX_Merge(src proto.Message) {
-	xxx_messageInfo_Row.Merge(m, src)
+func (m *NamespaceRowResponse) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_NamespaceRowResponse.Merge(m, src)
 }
-func (m *Row) XXX_Size() int {
+func (m *NamespaceRowResponse) XXX_Size() int {
 	return m.Size()
 }
-func (m *Row) XXX_DiscardUnknown() {
-	xxx_messageInfo_Row.DiscardUnknown(m)
+func (m *NamespaceRowResponse) XXX_DiscardUnknown() {
+	xxx_messageInfo_NamespaceRowResponse.DiscardUnknown(m)
 }
 
-var xxx_messageInfo_Row proto.InternalMessageInfo
+var xxx_messageInfo_NamespaceRowResponse proto.InternalMessageInfo
 
-func (m *Row) GetShares() [][]byte {
+func (m *NamespaceRowResponse) GetShares() [][]byte {
 	if m != nil {
 		return m.Shares
 	}
 	return nil
 }
 
-func (m *Row) GetProof() *pb.Proof {
+func (m *NamespaceRowResponse) GetProof() *pb.Proof {
 	if m != nil {
 		return m.Proof
 	}
@@ -216,8 +208,8 @@ func (m *Row) GetProof() *pb.Proof {
 func init() {
 	proto.RegisterEnum("share.p2p.shrex.nd.StatusCode", StatusCode_name, StatusCode_value)
 	proto.RegisterType((*GetSharesByNamespaceRequest)(nil), "share.p2p.shrex.nd.GetSharesByNamespaceRequest")
-	proto.RegisterType((*GetSharesByNamespaceResponse)(nil), "share.p2p.shrex.nd.GetSharesByNamespaceResponse")
-	proto.RegisterType((*Row)(nil), "share.p2p.shrex.nd.Row")
+	proto.RegisterType((*GetSharesByNamespaceStatusResponse)(nil), "share.p2p.shrex.nd.GetSharesByNamespaceStatusResponse")
+	proto.RegisterType((*NamespaceRowResponse)(nil), "share.p2p.shrex.nd.NamespaceRowResponse")
 }
 
 func init() { proto.RegisterFile("share/p2p/shrexnd/pb/share.proto", fileDescriptor_ed9f13149b0de397) }
@@ -286,7 +278,7 @@ func (m *GetSharesByNamespaceRequest) MarshalToSizedBuffer(dAtA []byte) (int, er
 	return len(dAtA) - i, nil
 }
 
-func (m *GetSharesByNamespaceResponse) Marshal() (dAtA []byte, err error) {
+func (m *GetSharesByNamespaceStatusResponse) Marshal() (dAtA []byte, err error) {
 	size := m.Size()
 	dAtA = make([]byte, size)
 	n, err := m.MarshalToSizedBuffer(dAtA[:size])
@@ -296,30 +288,16 @@ func (m *GetSharesByNamespaceResponse) Marshal() (dAtA []byte, err error) {
 	return dAtA[:n], nil
 }
 
-func (m *GetSharesByNamespaceResponse) MarshalTo(dAtA []byte) (int, error) {
+func (m *GetSharesByNamespaceStatusResponse) MarshalTo(dAtA []byte) (int, error) {
 	size := m.Size()
 	return m.MarshalToSizedBuffer(dAtA[:size])
 }
 
-func (m *GetSharesByNamespaceResponse) MarshalToSizedBuffer(dAtA []byte) (int, error) {
+func (m *GetSharesByNamespaceStatusResponse) MarshalToSizedBuffer(dAtA []byte) (int, error) {
 	i := len(dAtA)
 	_ = i
 	var l int
 	_ = l
-	if len(m.Rows) > 0 {
-		for iNdEx := len(m.Rows) - 1; iNdEx >= 0; iNdEx-- {
-			{
-				size, err := m.Rows[iNdEx].MarshalToSizedBuffer(dAtA[:i])
-				if err != nil {
-					return 0, err
-				}
-				i -= size
-				i = encodeVarintShare(dAtA, i, uint64(size))
-			}
-			i--
-			dAtA[i] = 0x12
-		}
-	}
 	if m.Status != 0 {
 		i = encodeVarintShare(dAtA, i, uint64(m.Status))
 		i--
@@ -328,7 +306,7 @@ func (m *GetSharesByNamespaceResponse) MarshalToSizedBuffer(dAtA []byte) (int, e
 	return len(dAtA) - i, nil
 }
 
-func (m *Row) Marshal() (dAtA []byte, err error) {
+func (m *NamespaceRowResponse) Marshal() (dAtA []byte, err error) {
 	size := m.Size()
 	dAtA = make([]byte, size)
 	n, err := m.MarshalToSizedBuffer(dAtA[:size])
@@ -338,12 +316,12 @@ func (m *Row) Marshal() (dAtA []byte, err error) {
 	return dAtA[:n], nil
 }
 
-func (m *Row) MarshalTo(dAtA []byte) (int, error) {
+func (m *NamespaceRowResponse) MarshalTo(dAtA []byte) (int, error) {
 	size := m.Size()
 	return m.MarshalToSizedBuffer(dAtA[:size])
 }
 
-func (m *Row) MarshalToSizedBuffer(dAtA []byte) (int, error) {
+func (m *NamespaceRowResponse) MarshalToSizedBuffer(dAtA []byte) (int, error) {
 	i := len(dAtA)
 	_ = i
 	var l int
@@ -400,7 +378,7 @@ func (m *GetSharesByNamespaceRequest) Size() (n int) {
 	return n
 }
 
-func (m *GetSharesByNamespaceResponse) Size() (n int) {
+func (m *GetSharesByNamespaceStatusResponse) Size() (n int) {
 	if m == nil {
 		return 0
 	}
@@ -409,16 +387,10 @@ func (m *GetSharesByNamespaceResponse) Size() (n int) {
 	if m.Status != 0 {
 		n += 1 + sovShare(uint64(m.Status))
 	}
-	if len(m.Rows) > 0 {
-		for _, e := range m.Rows {
-			l = e.Size()
-			n += 1 + l + sovShare(uint64(l))
-		}
-	}
 	return n
 }
 
-func (m *Row) Size() (n int) {
+func (m *NamespaceRowResponse) Size() (n int) {
 	if m == nil {
 		return 0
 	}
@@ -561,7 +533,7 @@ func (m *GetSharesByNamespaceRequest) Unmarshal(dAtA []byte) error {
 	}
 	return nil
 }
-func (m *GetSharesByNamespaceResponse) Unmarshal(dAtA []byte) error {
+func (m *GetSharesByNamespaceStatusResponse) Unmarshal(dAtA []byte) error {
 	l := len(dAtA)
 	iNdEx := 0
 	for iNdEx < l {
@@ -584,10 +556,10 @@ func (m *GetSharesByNamespaceResponse) Unmarshal(dAtA []byte) error {
 		fieldNum := int32(wire >> 3)
 		wireType := int(wire & 0x7)
 		if wireType == 4 {
-			return fmt.Errorf("proto: GetSharesByNamespaceResponse: wiretype end group for non-group")
+			return fmt.Errorf("proto: GetSharesByNamespaceStatusResponse: wiretype end group for non-group")
 		}
 		if fieldNum <= 0 {
-			return fmt.Errorf("proto: GetSharesByNamespaceResponse: illegal tag %d (wire type %d)", fieldNum, wire)
+			return fmt.Errorf("proto: GetSharesByNamespaceStatusResponse: illegal tag %d (wire type %d)", fieldNum, wire)
 		}
 		switch fieldNum {
 		case 1:
@@ -609,40 +581,6 @@ func (m *GetSharesByNamespaceResponse) Unmarshal(dAtA []byte) error {
 					break
 				}
 			}
-		case 2:
-			if wireType != 2 {
-				return fmt.Errorf("proto: wrong wireType = %d for field Rows", wireType)
-			}
-			var msglen int
-			for shift := uint(0); ; shift += 7 {
-				if shift >= 64 {
-					return ErrIntOverflowShare
-				}
-				if iNdEx >= l {
-					return io.ErrUnexpectedEOF
-				}
-				b := dAtA[iNdEx]
-				iNdEx++
-				msglen |= int(b&0x7F) << shift
-				if b < 0x80 {
-					break
-				}
-			}
-			if msglen < 0 {
-				return ErrInvalidLengthShare
-			}
-			postIndex := iNdEx + msglen
-			if postIndex < 0 {
-				return ErrInvalidLengthShare
-			}
-			if postIndex > l {
-				return io.ErrUnexpectedEOF
-			}
-			m.Rows = append(m.Rows, &Row{})
-			if err := m.Rows[len(m.Rows)-1].Unmarshal(dAtA[iNdEx:postIndex]); err != nil {
-				return err
-			}
-			iNdEx = postIndex
 		default:
 			iNdEx = preIndex
 			skippy, err := skipShare(dAtA[iNdEx:])
@@ -664,7 +602,7 @@ func (m *GetSharesByNamespaceResponse) Unmarshal(dAtA []byte) error {
 	}
 	return nil
 }
-func (m *Row) Unmarshal(dAtA []byte) error {
+func (m *NamespaceRowResponse) Unmarshal(dAtA []byte) error {
 	l := len(dAtA)
 	iNdEx := 0
 	for iNdEx < l {
@@ -687,10 +625,10 @@ func (m *Row) Unmarshal(dAtA []byte) error {
 		fieldNum := int32(wire >> 3)
 		wireType := int(wire & 0x7)
 		if wireType == 4 {
-			return fmt.Errorf("proto: Row: wiretype end group for non-group")
+			return fmt.Errorf("proto: NamespaceRowResponse: wiretype end group for non-group")
 		}
 		if fieldNum <= 0 {
-			return fmt.Errorf("proto: Row: illegal tag %d (wire type %d)", fieldNum, wire)
+			return fmt.Errorf("proto: NamespaceRowResponse: illegal tag %d (wire type %d)", fieldNum, wire)
 		}
 		switch fieldNum {
 		case 1:

@@ -45,7 +45,7 @@ func NewClient(params *Parameters, host host.Host) (*Client, error) {
 }
 
 // RequestND requests namespaced data from the given peer.
-// Returns shares with unverified inclusion proofs against the share.Root.
+// Returns NamespacedShares with unverified inclusion proofs against the share.Root.
 func (c *Client) RequestND(
 	ctx context.Context,
 	root *share.Root,
@@ -73,7 +73,7 @@ func (c *Client) RequestND(
 			return nil, context.DeadlineExceeded
 		}
 	}
-	if err != p2p.ErrNotFound {
+	if err != p2p.ErrNotFound && err != p2p.ErrRateLimited {
 		log.Warnw("client-nd: peer returned err", "err", err)
 	}
 	return nil, err
@@ -100,6 +100,7 @@ func (c *Client) doRequest(
 
 	_, err = serde.Write(stream, req)
 	if err != nil {
+		c.metrics.ObserveRequests(ctx, 1, p2p.StatusSendReqErr)
 		stream.Reset() //nolint:errcheck
 		return nil, fmt.Errorf("client-nd: writing request: %w", err)
 	}
@@ -109,59 +110,72 @@ func (c *Client) doRequest(
 		log.Debugw("client-nd: closing write side of the stream", "err", err)
 	}
 
-	var resp pb.GetSharesByNamespaceResponse
-	_, err = serde.Read(stream, &resp)
+	status, err := c.readStatus(ctx, stream)
+	if err != nil {
+		return nil, err
+	}
+	return c.readNamespacedShares(ctx, stream, *status == pb.StatusCode_OK)
+}
+
+func (c *Client) readStatus(ctx context.Context, stream network.Stream) (*pb.StatusCode, error) {
+	var resp pb.GetSharesByNamespaceStatusResponse
+	_, err := serde.Read(stream, &resp)
 	if err != nil {
 		// server is overloaded and closed the stream
 		if errors.Is(err, io.EOF) {
 			c.metrics.ObserveRequests(ctx, 1, p2p.StatusRateLimited)
-			return nil, p2p.ErrNotFound
+			return nil, p2p.ErrRateLimited
 		}
+		c.metrics.ObserveRequests(ctx, 1, p2p.StatusReadRespErr)
 		stream.Reset() //nolint:errcheck
-		return nil, fmt.Errorf("client-nd: reading response: %w", err)
+		return nil, fmt.Errorf("client-nd: reading status response: %w", err)
 	}
 
-	return c.convertResponse(ctx, resp)
+	return &resp.Status, c.convertStatusToErr(ctx, resp.Status)
 }
 
 // convertToNamespacedShares converts proto Rows to share.NamespacedShares
-func convertToNamespacedShares(rows []*pb.Row) share.NamespacedShares {
-	shares := make([]share.NamespacedRow, 0, len(rows))
-	for _, row := range rows {
-		var proof *nmt.Proof
-		if row.Proof != nil {
-			tmpProof := nmt.NewInclusionProof(
-				int(row.Proof.Start),
-				int(row.Proof.End),
-				row.Proof.Nodes,
-				row.Proof.IsMaxNamespaceIgnored,
-			)
-			proof = &tmpProof
+func (c *Client) readNamespacedShares(
+	ctx context.Context,
+	stream network.Stream,
+	namespaceIsIncluded bool,
+) (share.NamespacedShares, error) {
+	var shares share.NamespacedShares
+	for {
+		var row pb.NamespaceRowResponse
+		_, err := serde.Read(stream, &row)
+		if err != nil {
+			if errors.Is(err, io.EOF) {
+				// all data is received and steam is closed by server
+				return shares, nil
+			}
+			c.metrics.ObserveRequests(ctx, 1, p2p.StatusReadRespErr)
+			return nil, err
 		}
-
+		var proof nmt.Proof
+		if row.Proof != nil {
+			if namespaceIsIncluded {
+				proof = nmt.NewInclusionProof(
+					int(row.Proof.Start),
+					int(row.Proof.End),
+					row.Proof.Nodes,
+					row.Proof.IsMaxNamespaceIgnored,
+				)
+			} else {
+				proof = nmt.NewAbsenceProof(
+					int(row.Proof.Start),
+					int(row.Proof.End),
+					row.Proof.Nodes,
+					row.Proof.LeafHash,
+					row.Proof.IsMaxNamespaceIgnored,
+				)
+			}
+		}
 		shares = append(shares, share.NamespacedRow{
 			Shares: row.Shares,
-			Proof:  proof,
+			Proof:  &proof,
 		})
 	}
-	return shares
-}
-
-func convertToNonInclusionProofs(rows []*pb.Row) share.NamespacedShares {
-	shares := make([]share.NamespacedRow, 0, len(rows))
-	for _, row := range rows {
-		proof := nmt.NewAbsenceProof(
-			int(row.Proof.Start),
-			int(row.Proof.End),
-			row.Proof.Nodes,
-			row.Proof.LeafHash,
-			row.Proof.IsMaxNamespaceIgnored,
-		)
-		shares = append(shares, share.NamespacedRow{
-			Proof: &proof,
-		})
-	}
-	return shares
 }
 
 func (c *Client) setStreamDeadlines(ctx context.Context, stream network.Stream) {
@@ -192,23 +206,22 @@ func (c *Client) setStreamDeadlines(ctx context.Context, stream network.Stream) 
 	}
 }
 
-func (c *Client) convertResponse(
-	ctx context.Context, resp pb.GetSharesByNamespaceResponse) (share.NamespacedShares, error) {
-	switch resp.Status {
+func (c *Client) convertStatusToErr(ctx context.Context, status pb.StatusCode) error {
+	switch status {
 	case pb.StatusCode_OK:
 		c.metrics.ObserveRequests(ctx, 1, p2p.StatusSuccess)
-		return convertToNamespacedShares(resp.Rows), nil
+		return nil
 	case pb.StatusCode_NAMESPACE_NOT_FOUND:
-		return convertToNonInclusionProofs(resp.Rows), nil
+		return nil
 	case pb.StatusCode_NOT_FOUND:
 		c.metrics.ObserveRequests(ctx, 1, p2p.StatusNotFound)
-		return nil, p2p.ErrNotFound
+		return p2p.ErrNotFound
 	case pb.StatusCode_INVALID:
-		log.Debug("client-nd: invalid request")
+		log.Error("client-nd: invalid request")
 		fallthrough
 	case pb.StatusCode_INTERNAL:
 		fallthrough
 	default:
-		return nil, p2p.ErrInvalidResponse
+		return p2p.ErrInvalidResponse
 	}
 }
