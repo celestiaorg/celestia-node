@@ -26,11 +26,10 @@ const _ = proto.GoGoProtoPackageIsVersion3 // please upgrade the proto package
 type StatusCode int32
 
 const (
-	StatusCode_INVALID             StatusCode = 0
-	StatusCode_OK                  StatusCode = 1
-	StatusCode_NOT_FOUND           StatusCode = 2
-	StatusCode_INTERNAL            StatusCode = 3
-	StatusCode_NAMESPACE_NOT_FOUND StatusCode = 4
+	StatusCode_INVALID   StatusCode = 0
+	StatusCode_OK        StatusCode = 1
+	StatusCode_NOT_FOUND StatusCode = 2
+	StatusCode_INTERNAL  StatusCode = 3
 )
 
 var StatusCode_name = map[int32]string{
@@ -38,15 +37,13 @@ var StatusCode_name = map[int32]string{
 	1: "OK",
 	2: "NOT_FOUND",
 	3: "INTERNAL",
-	4: "NAMESPACE_NOT_FOUND",
 }
 
 var StatusCode_value = map[string]int32{
-	"INVALID":             0,
-	"OK":                  1,
-	"NOT_FOUND":           2,
-	"INTERNAL":            3,
-	"NAMESPACE_NOT_FOUND": 4,
+	"INVALID":   0,
+	"OK":        1,
+	"NOT_FOUND": 2,
+	"INTERNAL":  3,
 }
 
 func (x StatusCode) String() string {

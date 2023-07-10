@@ -1,7 +1,6 @@
 package getters
 
 import (
-	"bytes"
 	"context"
 	"math/rand"
 	"sort"
@@ -20,7 +19,6 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/celestiaorg/celestia-app/pkg/da"
-	"github.com/celestiaorg/celestia-app/pkg/wrapper"
 	libhead "github.com/celestiaorg/go-header"
 	"github.com/celestiaorg/nmt"
 	"github.com/celestiaorg/rsmt2d"
@@ -64,12 +62,12 @@ func TestShrexGetter(t *testing.T) {
 	require.NoError(t, getter.Start(ctx))
 
 	t.Run("ND_Available", func(t *testing.T) {
-		ctx, cancel := context.WithTimeout(ctx, time.Second*5)
+		ctx, cancel := context.WithTimeout(ctx, time.Second*10)
 		t.Cleanup(cancel)
 
 		// generate test data
 		namespace := sharetest.RandV0Namespace()
-		randEDS, dah := singleNamespaceEds(t, namespace, 16)
+		randEDS, dah := edstest.RandEDSWithNamespace(t, namespace, 64)
 		require.NoError(t, edsStore.Put(ctx, dah.Hash(), randEDS))
 		peerManager.Validate(ctx, srvHost.ID(), shrexsub.Notification{
 			DataHash: dah.Hash(),

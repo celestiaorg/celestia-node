@@ -110,35 +110,33 @@ func (c *Client) doRequest(
 		log.Debugw("client-nd: closing write side of the stream", "err", err)
 	}
 
-	status, err := c.readStatus(ctx, stream)
-	if err != nil {
+	if err := c.readStatus(ctx, stream); err != nil {
 		return nil, err
 	}
-	return c.readNamespacedShares(ctx, stream, *status == pb.StatusCode_OK)
+	return c.readNamespacedShares(ctx, stream)
 }
 
-func (c *Client) readStatus(ctx context.Context, stream network.Stream) (*pb.StatusCode, error) {
+func (c *Client) readStatus(ctx context.Context, stream network.Stream) error {
 	var resp pb.GetSharesByNamespaceStatusResponse
 	_, err := serde.Read(stream, &resp)
 	if err != nil {
 		// server is overloaded and closed the stream
 		if errors.Is(err, io.EOF) {
 			c.metrics.ObserveRequests(ctx, 1, p2p.StatusRateLimited)
-			return nil, p2p.ErrRateLimited
+			return p2p.ErrRateLimited
 		}
 		c.metrics.ObserveRequests(ctx, 1, p2p.StatusReadRespErr)
 		stream.Reset() //nolint:errcheck
-		return nil, fmt.Errorf("client-nd: reading status response: %w", err)
+		return fmt.Errorf("client-nd: reading status response: %w", err)
 	}
 
-	return &resp.Status, c.convertStatusToErr(ctx, resp.Status)
+	return c.convertStatusToErr(ctx, resp.Status)
 }
 
 // convertToNamespacedShares converts proto Rows to share.NamespacedShares
 func (c *Client) readNamespacedShares(
 	ctx context.Context,
 	stream network.Stream,
-	namespaceIsIncluded bool,
 ) (share.NamespacedShares, error) {
 	var shares share.NamespacedShares
 	for {
@@ -154,7 +152,7 @@ func (c *Client) readNamespacedShares(
 		}
 		var proof nmt.Proof
 		if row.Proof != nil {
-			if namespaceIsIncluded {
+			if len(row.Shares) != 0 {
 				proof = nmt.NewInclusionProof(
 					int(row.Proof.Start),
 					int(row.Proof.End),
@@ -210,8 +208,6 @@ func (c *Client) convertStatusToErr(ctx context.Context, status pb.StatusCode) e
 	switch status {
 	case pb.StatusCode_OK:
 		c.metrics.ObserveRequests(ctx, 1, p2p.StatusSuccess)
-		return nil
-	case pb.StatusCode_NAMESPACE_NOT_FOUND:
 		return nil
 	case pb.StatusCode_NOT_FOUND:
 		c.metrics.ObserveRequests(ctx, 1, p2p.StatusNotFound)

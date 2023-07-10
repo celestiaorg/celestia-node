@@ -78,7 +78,6 @@ func (srv *Server) streamHandler(ctx context.Context) network.StreamHandler {
 	return func(s network.Stream) {
 		err := srv.handleNamespacedData(ctx, s)
 		if err != nil {
-			log.Errorw("server", "err", err)
 			s.Reset() //nolint:errcheck
 			return
 		}
@@ -121,11 +120,11 @@ func (srv *Server) handleNamespacedData(ctx context.Context, stream network.Stre
 	shares, status, getErr := srv.getNamespaceData(ctx, req.RootHash, req.Namespace)
 
 	// server should respond with status regardless if there was an error getting data
-	err = srv.respondStatus(logger, stream, status)
-	srv.observeStatus(ctx, status)
+	err = srv.respondStatus(ctx, logger, stream, status)
 	if err != nil || getErr != nil {
-		err = errors.Join(err, getErr)
+		err = errors.Join(getErr, err)
 		logger.Errorw("handling request", "err", err)
+		srv.metrics.ObserveRequests(ctx, 1, p2p.StatusSendRespErr)
 		return err
 	}
 
@@ -182,16 +181,16 @@ func (srv *Server) getNamespaceData(ctx context.Context,
 		return nil, pb.StatusCode_INTERNAL, fmt.Errorf("retrieving shares: %w", err)
 	}
 
-	if shares.IsEmpty() {
-		return shares, pb.StatusCode_NAMESPACE_NOT_FOUND, nil
-	}
 	return shares, pb.StatusCode_OK, nil
 }
 
 func (srv *Server) respondStatus(
+	ctx context.Context,
 	logger *zap.SugaredLogger,
 	stream network.Stream,
 	status pb.StatusCode) error {
+	srv.observeStatus(ctx, status)
+
 	err := stream.SetWriteDeadline(time.Now().Add(srv.params.ServerWriteTimeout))
 	if err != nil {
 		logger.Debugw("server: setting write deadline", "err", err)
@@ -234,8 +233,6 @@ func (srv *Server) observeStatus(ctx context.Context, status pb.StatusCode) {
 		srv.metrics.ObserveRequests(ctx, 1, p2p.StatusNotFound)
 	case status == pb.StatusCode_INTERNAL:
 		srv.metrics.ObserveRequests(ctx, 1, p2p.StatusInternalErr)
-	case status == pb.StatusCode_NAMESPACE_NOT_FOUND:
-		srv.metrics.ObserveRequests(ctx, 1, p2p.StatusNamespaceNotFound)
 	}
 }
 
