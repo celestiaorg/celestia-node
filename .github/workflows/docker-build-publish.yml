@@ -18,6 +18,7 @@ jobs:
     permissions:
       contents: write
       packages: write
-    uses: celestiaorg/.github/.github/workflows/reusable_dockerfile_pipeline.yml@v0.2.1 # yamllint disable-line rule:line-length
+    uses: jrmanes/.github/.github/workflows/reusable_dockerfile_pipeline.yml@main # yamllint disable-line rule:line-length
+    #uses: celestiaorg/.github/.github/workflows/reusable_dockerfile_pipeline.yml@v0.2.1 # yamllint disable-line rule:line-length
     with:
       dockerfile: Dockerfile

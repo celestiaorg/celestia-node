@@ -30,3 +30,8 @@ func printBuildInfo(_ *cobra.Command, _ []string) {
 	fmt.Printf("System version: %s\n", systemVersion)
 	fmt.Printf("Golang version: %s\n", golangVersion)
 }
+
+// GetSemanticVersion returns the version value
+func GetSemanticVersion() string {
+	return semanticVersion
+}
