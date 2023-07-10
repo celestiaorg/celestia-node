@@ -186,21 +186,20 @@ func (s *Store) Put(ctx context.Context, root share.DataHash, square *rsmt2d.Ext
 	defer f.Close()
 
 	// save encoded eds into buffer
-	buf := bytes.NewBuffer(nil)
-	err = WriteEDS(ctx, square, buf)
+	mount := &inMemoryOnceMount{
+		buf:   bytes.NewBuffer(nil),
+		Mount: &mount.FileMount{Path: s.basepath + blocksPath + key},
+	}
+	err = WriteEDS(ctx, square, mount)
 	if err != nil {
 		return fmt.Errorf("failed to write EDS to file: %w", err)
 	}
 
-	// write whole buffer in one go to optimize i/o
-	if _, err = f.Write(buf.Bytes()); err != nil {
+	// write whole buffered mount data in one go to optimize i/o
+	if _, err = mount.WriteTo(f); err != nil {
 		return fmt.Errorf("failed to write EDS to file: %w", err)
 	}
 
-	mount := &inMemoryOnceMount{
-		buf:   buf.Bytes(),
-		Mount: &mount.FileMount{Path: s.basepath + blocksPath + key},
-	}
 	ch := make(chan dagstore.ShardResult, 1)
 	err = s.dgstr.RegisterShard(ctx, shard.KeyFromString(key), mount, ch, dagstore.RegisterOpts{})
 	if err != nil {
@@ -434,27 +433,36 @@ func setupPath(basepath string) error {
 
 // inMemoryOnceMount is used to allow reading once from buffer before using main mount.Reader
 type inMemoryOnceMount struct {
-	buf []byte
+	buf *bytes.Buffer
 
 	readOnce atomic.Bool
 	mount.Mount
 }
 
-// inmemoryReader extends bytes.Reader to implement mount.Reader interface
-type inmemoryReader struct {
+func (m *inMemoryOnceMount) Fetch(ctx context.Context) (mount.Reader, error) {
+	if !m.readOnce.Swap(true) {
+		reader := &inMemoryReader{Reader: bytes.NewReader(m.buf.Bytes())}
+		// release memory for gc, otherwise buffer will stick forever
+		m.buf = nil
+		return reader, nil
+	}
+	return m.Mount.Fetch(ctx)
+}
+
+func (m *inMemoryOnceMount) Write(b []byte) (int, error) {
+	return m.buf.Write(b)
+}
+
+func (m *inMemoryOnceMount) WriteTo(w io.Writer) (int64, error) {
+	return io.Copy(w, bytes.NewReader(m.buf.Bytes()))
+}
+
+// inMemoryReader extends bytes.Reader to implement mount.Reader interface
+type inMemoryReader struct {
 	*bytes.Reader
 }
 
-func (i *inmemoryReader) Close() error {
+// Close allows inMemoryReader to satisfy mount.Reader interface
+func (r *inMemoryReader) Close() error {
 	return nil
-}
-
-func (i *inMemoryOnceMount) Fetch(ctx context.Context) (mount.Reader, error) {
-	if !i.readOnce.Swap(true) {
-		reader := &inmemoryReader{Reader: bytes.NewReader(i.buf)}
-		// release memory for gc, otherwise buffer will stick forever
-		i.buf = nil
-		return reader, nil
-	}
-	return i.Mount.Fetch(ctx)
 }
