@@ -5,8 +5,6 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/tendermint/tendermint/light"
-
 	libhead "github.com/celestiaorg/go-header"
 )
 
@@ -45,12 +43,6 @@ func (eh *ExtendedHeader) Verify(untrusted libhead.Header) error {
 		}
 
 		return nil
-	}
-
-	// Ensure that untrusted commit has enough of trusted commit's power.
-	err := eh.ValidatorSet.VerifyCommitLightTrusting(eh.ChainID(), untrst.Commit, light.DefaultTrustLevel)
-	if err != nil {
-		return &libhead.VerifyError{Reason: err}
 	}
 
 	return nil
