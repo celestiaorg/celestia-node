@@ -102,7 +102,10 @@ func initializeWriter(ctx context.Context, eds *rsmt2d.ExtendedDataSquare, w io.
 		return nil, fmt.Errorf("recomputing data square: %w", err)
 	}
 	// compute roots
-	eds.RowRoots()
+	_, err = eds.RowRoots()
+	if err != nil {
+		return nil, fmt.Errorf("computing row roots: %w", err)
+	}
 	// commit the batch to DAG
 	err = batchAdder.Commit()
 	if err != nil {
@@ -240,7 +243,9 @@ func rootsToCids(eds *rsmt2d.ExtendedDataSquare) ([]cid.Cid, error) {
 		return nil, err
 	}
 
-	roots := append(rowRoots, colRoots...)
+	roots := make([][]byte, 0, len(rowRoots)+len(colRoots))
+	roots = append(roots, rowRoots...)
+	roots = append(roots, colRoots...)
 	rootCids := make([]cid.Cid, len(roots))
 	for i, r := range roots {
 		rootCids[i], err = ipld.CidFromNamespacedSha256(r)

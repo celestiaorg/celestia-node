@@ -178,6 +178,7 @@ func TestReadWriteRoundtrip(t *testing.T) {
 	rowRoot, err := eds.RowRoots()
 	require.NoError(t, err)
 	loadedRowRoot, err := loaded.RowRoots()
+	require.NoError(t, err)
 	require.Equal(t, rowRoot, loadedRowRoot)
 
 	colRoot, err := eds.ColRoots()

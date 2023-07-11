@@ -286,7 +286,10 @@ func (rs *retrievalSession) doRequest(ctx context.Context, q *quadrant) {
 				if rs.square.GetCell(uint(x), uint(y)) != nil {
 					return
 				}
-				rs.square.SetCell(uint(x), uint(y), share)
+				if err := rs.square.SetCell(uint(x), uint(y), share); err != nil {
+					// TODO: handle error
+					return
+				}
 				// if we have >= 1/4 of the square we can start trying to Reconstruct
 				// TODO(@Wondertan): This is not an ideal way to know when to start
 				//  reconstruction and can cause idle reconstruction tries in some cases,
