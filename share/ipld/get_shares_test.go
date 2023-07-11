@@ -45,7 +45,9 @@ func TestGetShare(t *testing.T) {
 	for i, leaf := range shares {
 		row := i / size
 		pos := i - (size * row)
-		share, err := GetShare(ctx, bServ, MustCidFromNamespacedSha256(eds.RowRoots()[row]), pos, size*2)
+		rowRoots, err := eds.RowRoots()
+		require.NoError(t, err)
+		share, err := GetShare(ctx, bServ, MustCidFromNamespacedSha256(rowRoots[row]), pos, size*2)
 		require.NoError(t, err)
 		assert.Equal(t, leaf, share)
 	}
@@ -87,8 +89,10 @@ func TestBlockRecovery(t *testing.T) {
 			require.NoError(t, err)
 
 			// calculate roots using the first complete square
-			rowRoots := testEds.RowRoots()
-			colRoots := testEds.ColRoots()
+			rowRoots, err := testEds.RowRoots()
+			require.NoError(t, err)
+			colRoots, err := testEds.ColRoots()
+			require.NoError(t, err)
 
 			flat := share.ExtractEDS(testEds)
 
@@ -173,9 +177,11 @@ func TestGetSharesByNamespace(t *testing.T) {
 			require.NoError(t, err)
 
 			var shares []share.Share
-			for _, row := range eds.RowRoots() {
+			rowRoots, err := eds.RowRoots()
+			require.NoError(t, err)
+			for _, row := range rowRoots {
 				rcid := MustCidFromNamespacedSha256(row)
-				rowShares, _, err := GetSharesByNamespace(ctx, bServ, rcid, namespace, len(eds.RowRoots()))
+				rowShares, _, err := GetSharesByNamespace(ctx, bServ, rcid, namespace, len(rowRoots))
 				if errors.Is(err, ErrNamespaceOutsideRange) {
 					continue
 				}
@@ -208,7 +214,8 @@ func TestCollectLeavesByNamespace_IncompleteData(t *testing.T) {
 	eds, err := AddShares(ctx, shares, bServ)
 	require.NoError(t, err)
 
-	roots := eds.RowRoots()
+	roots, err := eds.RowRoots()
+	require.NoError(t, err)
 
 	// remove the second share from the first row
 	rcid := MustCidFromNamespacedSha256(roots[0])
@@ -302,7 +309,10 @@ func TestCollectLeavesByNamespace_MultipleRowsContainingSameNamespaceId(t *testi
 	eds, err := AddShares(ctx, shares, bServ)
 	require.NoError(t, err)
 
-	for _, row := range eds.RowRoots() {
+	rowRoots, err := eds.RowRoots()
+	require.NoError(t, err)
+
+	for _, row := range rowRoots {
 		rcid := MustCidFromNamespacedSha256(row)
 		data := NewNamespaceData(len(shares), namespace, WithLeaves())
 		err := data.CollectLeavesByNamespace(ctx, bServ, rcid)
@@ -356,9 +366,11 @@ func TestGetSharesWithProofsByNamespace(t *testing.T) {
 			require.NoError(t, err)
 
 			var shares []share.Share
-			for _, row := range eds.RowRoots() {
+			rowRoots, err := eds.RowRoots()
+			require.NoError(t, err)
+			for _, row := range rowRoots {
 				rcid := MustCidFromNamespacedSha256(row)
-				rowShares, proof, err := GetSharesByNamespace(ctx, bServ, rcid, namespace, len(eds.RowRoots()))
+				rowShares, proof, err := GetSharesByNamespace(ctx, bServ, rcid, namespace, len(rowRoots))
 				if namespace.IsOutsideRange(row, row) {
 					require.ErrorIs(t, err, ErrNamespaceOutsideRange)
 					continue
@@ -446,16 +458,18 @@ func assertNoRowContainsNID(
 	namespace share.Namespace,
 	isAbsent bool,
 ) {
-	rowRootCount := len(eds.RowRoots())
+	rowRoots, err := eds.RowRoots()
+	require.NoError(t, err)
+	rowRootCount := len(rowRoots)
 	// get all row root cids
 	rowRootCIDs := make([]cid.Cid, rowRootCount)
-	for i, rowRoot := range eds.RowRoots() {
+	for i, rowRoot := range rowRoots {
 		rowRootCIDs[i] = MustCidFromNamespacedSha256(rowRoot)
 	}
 
 	// for each row root cid check if the min namespace exists
 	var absentCount, foundAbsenceRows int
-	for _, rowRoot := range eds.RowRoots() {
+	for _, rowRoot := range rowRoots {
 		var outsideRange bool
 		if !namespace.IsOutsideRange(rowRoot, rowRoot) {
 			// namespace does belong to namespace range of the row

@@ -16,7 +16,7 @@ type Config struct {
 func DefaultConfig() *Config {
 	cfg := core.DefaultTestConfig()
 	// target height duration lower than this tend to be flakier
-	cfg.Tendermint.Consensus.TargetHeightDuration = 200 * time.Millisecond
+	cfg.Tendermint.Consensus.TimeoutCommit = 200 * time.Millisecond
 	return &Config{
 		cfg,
 	}
@@ -31,7 +31,7 @@ func WithBlockTime(t time.Duration) Option {
 		// for empty block
 		c.Tendermint.Consensus.CreateEmptyBlocksInterval = t
 		// for filled block
-		c.Tendermint.Consensus.TargetHeightDuration = t
+		c.Tendermint.Consensus.TimeoutCommit = t
 		c.Tendermint.Consensus.SkipTimeoutCommit = false
 	}
 }
