@@ -78,22 +78,36 @@ func GetProofsForShares(
 	proofs := make([]*ShareWithProof, len(shares))
 	for index, share := range shares {
 		if share != nil {
-			proof := make([]cid.Cid, 0)
-			// TODO(@vgonkivs): Combine GetLeafData and GetProof in one function as the are traversing the same
-			// tree. Add options that will control what data will be fetched.
-			s, err := ipld.GetLeaf(ctx, bGetter, root, index, len(shares))
+			proof, err := getProofsAt(ctx, bGetter, root, index, len(shares))
 			if err != nil {
 				return nil, err
 			}
-			proof, err = ipld.GetProof(ctx, bGetter, root, proof, index, len(shares))
-			if err != nil {
-				return nil, err
-			}
-			proofs[index] = NewShareWithProof(index, s.RawData(), proof)
+			proofs[index] = proof
 		}
 	}
-
 	return proofs, nil
+}
+
+func getProofsAt(
+	ctx context.Context,
+	bGetter blockservice.BlockGetter,
+	root cid.Cid,
+	index,
+	total int,
+) (*ShareWithProof, error) {
+	proof := make([]cid.Cid, 0)
+	// TODO(@vgonkivs): Combine GetLeafData and GetProof in one function as the are traversing the same
+	// tree. Add options that will control what data will be fetched.
+	node, err := ipld.GetLeaf(ctx, bGetter, root, index, total)
+	if err != nil {
+		return nil, err
+	}
+
+	proof, err = ipld.GetProof(ctx, bGetter, root, proof, index, total)
+	if err != nil {
+		return nil, err
+	}
+	return NewShareWithProof(index, node.RawData(), proof), nil
 }
 
 func ProtoToShare(protoShares []*pb.Share) []*ShareWithProof {
