@@ -115,7 +115,9 @@ func (p *BadEncodingProof) Validate(hdr libhead.Header) error {
 		panic(fmt.Sprintf("invalid header type received during BEFP validation: expected %T, got %T", header, hdr))
 	}
 	if header.Height() != int64(p.BlockHeight) {
-		return fmt.Errorf("incorrect block height during BEFP validation: expected %d, got %d", p.BlockHeight, header.Height())
+		return fmt.Errorf("incorrect block height during BEFP validation: expected %d, got %d",
+			p.BlockHeight, header.Height(),
+		)
 	}
 
 	if len(header.DAH.RowRoots) != len(header.DAH.ColumnRoots) {
@@ -128,9 +130,9 @@ func (p *BadEncodingProof) Validate(hdr libhead.Header) error {
 		)
 	}
 
-	// merkleRoots are the roots against which we are going to check the inclusion of the received shares.
-	// changing the order of the roots to prove the shares relative to the orthogonal axis, because
-	// inside the rsmt2d library rsmt2d.Row = 0 and rsmt2d.Col = 1
+	// merkleRoots are the roots against which we are going to check the inclusion of the received
+	// shares. Changing the order of the roots to prove the shares relative to the orthogonal axis,
+	// because inside the rsmt2d library rsmt2d.Row = 0 and rsmt2d.Col = 1
 	merkleRoots := header.DAH.RowRoots
 	if p.Axis == rsmt2d.Row {
 		merkleRoots = header.DAH.ColumnRoots
