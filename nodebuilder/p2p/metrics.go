@@ -6,8 +6,7 @@ import (
 	"net/http"
 	"time"
 
-	"github.com/celestiaorg/celestia-node/cmd/celestia/"
-
+	share "github.com/celestiaorg/celestia-node/share"
 	rcmgrObs "github.com/libp2p/go-libp2p/p2p/host/resource-manager/obs"
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
@@ -32,21 +31,27 @@ const (
 func prometheusMetrics(lifecycle fx.Lifecycle, registerer prometheus.Registerer) error {
 
 	// Register the semanticVersion as a metric
-	semanticVersionMetric := prometheus.NewGauge(prometheus.GaugeOpts{
-		Name: "celestia_node_version",
-		Help: "Semantic version of Celestia Node",
-	})
+	semanticVersionMetric := prometheus.NewGaugeVec(
+		prometheus.GaugeOpts{
+			Name: "celestia_node_version",
+			Help: "Semantic version of Celestia Node",
+		},
+		[]string{"version"},
+	)
+
+	// Register the metric with the registerer
 	registerer.MustRegister(semanticVersionMetric)
 
 	// Retrieve the semanticVersion value using the exported function from cmd/celestia
-	semanticVersion := celestia.GetSemanticVersion()
+	semanticVersion := share.GetSemanticVersion()
+
+	// Set the value of semanticVersionMetric with the version label
+	semanticVersionMetric.WithLabelValues(semanticVersion).Set(1)
+
+	// Retrieve the semanticVersion value using the exported function from cmd/celestia
 	fmt.Println("-----------------------------------")
 	fmt.Println("- VERSION -", semanticVersion)
 	fmt.Println("-----------------------------------")
-
-	// Set the value of semanticVersionMetric
-	semanticVersionMetric.Set(semanticVersion)
-
 	rcmgrObs.MustRegisterWith(registerer)
 
 	registry := registerer.(*prometheus.Registry)

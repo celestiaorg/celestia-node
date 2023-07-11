@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+	"github.com/celestiaorg/celestia-node/share"
 	"runtime"
 
 	"github.com/spf13/cobra"
@@ -24,14 +25,11 @@ var versionCmd = &cobra.Command{
 }
 
 func printBuildInfo(_ *cobra.Command, _ []string) {
+	share.SemanticVersion = semanticVersion
+
 	fmt.Printf("Semantic version: %s\n", semanticVersion)
 	fmt.Printf("Commit: %s\n", lastCommit)
 	fmt.Printf("Build Date: %s\n", buildTime)
 	fmt.Printf("System version: %s\n", systemVersion)
 	fmt.Printf("Golang version: %s\n", golangVersion)
-}
-
-// GetSemanticVersion returns the version value
-func GetSemanticVersion() string {
-	return semanticVersion
 }
