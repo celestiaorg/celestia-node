@@ -155,7 +155,7 @@ func convertToNonInclusionProofs(rows []*pb.Row) share.NamespacedShares {
 			int(row.Proof.Start),
 			int(row.Proof.End),
 			row.Proof.Nodes,
-			row.Proof.Hashleaf,
+			row.Proof.LeafHash,
 			ipld.NMTIgnoreMaxNamespace,
 		)
 		shares = append(shares, share.NamespacedRow{

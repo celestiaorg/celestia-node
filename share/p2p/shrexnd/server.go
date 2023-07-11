@@ -184,7 +184,7 @@ func namespacedSharesToResponse(shares share.NamespacedShares) *pb.GetSharesByNa
 				Start:                   int64(row.Proof.Start()),
 				End:                     int64(row.Proof.End()),
 				Nodes:                   row.Proof.Nodes(),
-				Hashleaf:                row.Proof.LeafHash(),
+				LeafHash:                row.Proof.LeafHash(),
 				IsMaxNamespaceIDIgnored: row.Proof.IsMaxNamespaceIDIgnored(),
 			},
 		}

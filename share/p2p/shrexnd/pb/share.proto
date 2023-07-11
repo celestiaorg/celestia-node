@@ -29,6 +29,6 @@ message Proof {
   int64 start = 1;
   int64 end = 2;
   repeated bytes nodes = 3;
-  bytes hashleaf = 4;
+  bytes leaf_hash = 4;
   bool isMaxNamespaceIDIgnored = 5;
 }
