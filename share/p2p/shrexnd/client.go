@@ -135,7 +135,7 @@ func convertToNamespacedShares(rows []*pb.Row) share.NamespacedShares {
 				int(row.Proof.Start),
 				int(row.Proof.End),
 				row.Proof.Nodes,
-				ipld.NMTIgnoreMaxNamespace,
+				row.Proof.IsMaxNamespaceIDIgnored,
 			)
 			proof = &tmpProof
 		}

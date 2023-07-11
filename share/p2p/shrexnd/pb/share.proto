@@ -30,4 +30,5 @@ message Proof {
   int64 end = 2;
   repeated bytes nodes = 3;
   bytes hashleaf = 4;
+  bool isMaxNamespaceIDIgnored = 5;
 }
