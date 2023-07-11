@@ -11,6 +11,7 @@ import (
 	"github.com/celestiaorg/celestia-node/nodebuilder/p2p"
 	"github.com/celestiaorg/celestia-node/nodebuilder/rpc"
 	"github.com/celestiaorg/celestia-node/nodebuilder/state"
+	"github.com/celestiaorg/celestia-node/share"
 )
 
 func persistentPreRunEnv(cmd *cobra.Command, nodeType node.Type, _ []string) error {
@@ -66,6 +67,11 @@ func persistentPreRunEnv(cmd *cobra.Command, nodeType node.Type, _ []string) err
 	rpc.ParseFlags(cmd, &cfg.RPC)
 	gateway.ParseFlags(cmd, &cfg.Gateway)
 	state.ParseFlags(cmd, &cfg.State)
+
+	// set the semanticVersion var value to the share package
+	// we will use this value for example to expose it via Prometheus
+	share.SetSemanticVersion(semanticVersion)
+	share.SetLastCommit(lastCommit)
 
 	// set config
 	ctx = cmdnode.WithNodeConfig(ctx, &cfg)

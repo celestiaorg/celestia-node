@@ -4,8 +4,6 @@ go 1.20
 
 replace github.com/ipfs/go-verifcid => github.com/celestiaorg/go-verifcid v0.0.1-lazypatch
 
-//replace github.com/celestiaorg/celestia-node/cmd/celestia => github.com/jrmanes/celestia-node/cmd/celestia v0.0.3
-
 require (
 	cosmossdk.io/errors v1.0.0-beta.7
 	cosmossdk.io/math v1.0.0-rc.0
