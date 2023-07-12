@@ -1,4 +1,4 @@
-package main
+package version
 
 import (
 	"fmt"
@@ -16,11 +16,31 @@ var (
 	golangVersion = runtime.Version()
 )
 
-var versionCmd = &cobra.Command{
+var Cmd = &cobra.Command{
 	Use:   "version",
 	Short: "Show information about the current binary build",
 	Args:  cobra.NoArgs,
 	Run:   printBuildInfo,
+}
+
+// BuildInfo represents all necessary information about current build.
+type BuildInfo struct {
+	BuildTime       string
+	LastCommit      string
+	SemanticVersion string
+	SystemVersion   string
+	GolandVersion   string
+}
+
+// GetBuildInfo returns information about current build.
+func GetBuildInfo() *BuildInfo {
+	return &BuildInfo{
+		buildTime,
+		lastCommit,
+		semanticVersion,
+		systemVersion,
+		golangVersion,
+	}
 }
 
 func printBuildInfo(_ *cobra.Command, _ []string) {

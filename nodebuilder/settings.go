@@ -16,6 +16,7 @@ import (
 
 	"github.com/celestiaorg/go-fraud"
 
+	"github.com/celestiaorg/celestia-node/cmd/version"
 	"github.com/celestiaorg/celestia-node/nodebuilder/das"
 	modheader "github.com/celestiaorg/celestia-node/nodebuilder/header"
 	"github.com/celestiaorg/celestia-node/nodebuilder/node"
@@ -62,7 +63,7 @@ func WithPyroscope(endpoint string, nodeType node.Type) fx.Option {
 }
 
 // WithMetrics enables metrics exporting for the node.
-func WithMetrics(metricOpts []otlpmetrichttp.Option, nodeType node.Type, buildInfo node.BuildInfo) fx.Option {
+func WithMetrics(metricOpts []otlpmetrichttp.Option, nodeType node.Type, buildInfo version.BuildInfo) fx.Option {
 	baseComponents := fx.Options(
 		fx.Supply(metricOpts),
 		fx.Supply(buildInfo),
@@ -111,7 +112,7 @@ func initializeMetrics(
 	lc fx.Lifecycle,
 	peerID peer.ID,
 	nodeType node.Type,
-	buildInfo node.BuildInfo,
+	buildInfo version.BuildInfo,
 	opts []otlpmetrichttp.Option,
 ) error {
 	exp, err := otlpmetrichttp.New(ctx, opts...)

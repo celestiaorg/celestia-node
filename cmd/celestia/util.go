@@ -4,6 +4,7 @@ import (
 	"github.com/spf13/cobra"
 
 	cmdnode "github.com/celestiaorg/celestia-node/cmd"
+	"github.com/celestiaorg/celestia-node/cmd/version"
 	"github.com/celestiaorg/celestia-node/nodebuilder/core"
 	"github.com/celestiaorg/celestia-node/nodebuilder/gateway"
 	"github.com/celestiaorg/celestia-node/nodebuilder/header"
@@ -26,12 +27,7 @@ func persistentPreRunEnv(cmd *cobra.Command, nodeType node.Type, _ []string) err
 		return err
 	}
 	ctx = cmdnode.WithNetwork(ctx, parsedNetwork)
-	ctx = cmdnode.WithNodeBuildInfo(ctx, &node.BuildInfo{
-		LastCommit:      lastCommit,
-		SemanticVersion: semanticVersion,
-		SystemVersion:   systemVersion,
-		GolangVersion:   golangVersion,
-	})
+	ctx = cmdnode.WithNodeBuildInfo(ctx, version.GetBuildInfo())
 
 	// loads existing config into the environment
 	ctx, err = cmdnode.ParseNodeFlags(ctx, cmd, cmdnode.Network(ctx))

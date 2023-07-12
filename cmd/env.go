@@ -6,6 +6,7 @@ import (
 	logging "github.com/ipfs/go-log/v2"
 	"go.uber.org/fx"
 
+	"github.com/celestiaorg/celestia-node/cmd/version"
 	"github.com/celestiaorg/celestia-node/nodebuilder"
 	"github.com/celestiaorg/celestia-node/nodebuilder/node"
 	"github.com/celestiaorg/celestia-node/nodebuilder/p2p"
@@ -39,8 +40,8 @@ func NodeConfig(ctx context.Context) nodebuilder.Config {
 }
 
 // NodeInfo reads the node build inforamtion from the context.
-func NodeInfo(ctx context.Context) node.BuildInfo {
-	return ctx.Value(buildInfo{}).(node.BuildInfo)
+func NodeInfo(ctx context.Context) version.BuildInfo {
+	return ctx.Value(version.BuildInfo{}).(version.BuildInfo)
 }
 
 // WithNodeType sets the node type in the given context.
@@ -78,9 +79,9 @@ func WithNodeConfig(ctx context.Context, config *nodebuilder.Config) context.Con
 	return context.WithValue(ctx, configKey{}, *config)
 }
 
-// WithNodeConfig sets the node config build information.
-func WithNodeBuildInfo(ctx context.Context, info *node.BuildInfo) context.Context {
-	return context.WithValue(ctx, buildInfo{}, *info)
+// WithNodeBuildInfo sets the node config build information.
+func WithNodeBuildInfo(ctx context.Context, info *version.BuildInfo) context.Context {
+	return context.WithValue(ctx, version.BuildInfo{}, *info)
 }
 
 type (
@@ -89,5 +90,4 @@ type (
 	storePathKey struct{}
 	nodeTypeKey  struct{}
 	networkKey   struct{}
-	buildInfo    struct{}
 )
