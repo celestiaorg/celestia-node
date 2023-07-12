@@ -68,10 +68,13 @@ func persistentPreRunEnv(cmd *cobra.Command, nodeType node.Type, _ []string) err
 	gateway.ParseFlags(cmd, &cfg.Gateway)
 	state.ParseFlags(cmd, &cfg.State)
 
-	// set the semanticVersion var value to the share package
+	// set the var values to the share package
 	// we will use this value for example to expose it via Prometheus
 	share.SetSemanticVersion(semanticVersion)
 	share.SetLastCommit(lastCommit)
+	share.SetBuildTime(buildTime)
+	share.SetSystemVersion(systemVersion)
+	share.SetGolangVersion(golangVersion)
 
 	// set config
 	ctx = cmdnode.WithNodeConfig(ctx, &cfg)
