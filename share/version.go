@@ -100,7 +100,7 @@ func RegisterPromMetrics(registerer prometheus.Registerer) prometheus.Registerer
 		},
 		{
 			name: "celestia_node_golang_version",
-			help: "Go programming language version of Celestia Node",
+			help: "Go version of Celestia Node",
 		},
 	}
 
