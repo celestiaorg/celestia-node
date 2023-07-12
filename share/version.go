@@ -62,6 +62,20 @@ func GetGolangVersion() string {
 	return golangVersion
 }
 
+// SetMetricsValues sets values to all variables
+func SetMetricsValues(
+	lastCommit,
+	semanticVersion,
+	systemVersion,
+	golangVersion,
+	buildTime string) {
+	SetSemanticVersion(semanticVersion)
+	SetLastCommit(lastCommit)
+	SetBuildTime(buildTime)
+	SetSystemVersion(systemVersion)
+	SetGolangVersion(golangVersion)
+}
+
 // RegisterPromMetrics adds all the info metrics to Prometheus
 func RegisterPromMetrics(registerer prometheus.Registerer) prometheus.Registerer {
 	metrics := []struct {
