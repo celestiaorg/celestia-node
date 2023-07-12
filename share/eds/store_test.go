@@ -271,7 +271,8 @@ func BenchmarkStore(b *testing.B) {
 			// pause the timer for initializing test data
 			b.StopTimer()
 			eds := edstest.RandEDS(b, 128)
-			dah := da.NewDataAvailabilityHeader(eds)
+			dah, err := da.NewDataAvailabilityHeader(eds)
+			require.NoError(b, err)
 			b.StartTimer()
 
 			err = edsStore.Put(ctx, dah.Hash(), eds)
@@ -286,11 +287,12 @@ func BenchmarkStore(b *testing.B) {
 			// pause the timer for initializing test data
 			b.StopTimer()
 			eds := edstest.RandEDS(b, 128)
-			dah := da.NewDataAvailabilityHeader(eds)
+			dah, err := da.NewDataAvailabilityHeader(eds)
+			require.NoError(b, err)
 			_ = edsStore.Put(ctx, dah.Hash(), eds)
 			b.StartTimer()
 
-			_, err := edsStore.Get(ctx, dah.Hash())
+			_, err = edsStore.Get(ctx, dah.Hash())
 			require.NoError(b, err)
 		}
 	})
@@ -306,7 +308,8 @@ func newStore(t *testing.T) (*Store, error) {
 
 func randomEDS(t *testing.T) (*rsmt2d.ExtendedDataSquare, share.Root) {
 	eds := edstest.RandEDS(t, 4)
-	dah := da.NewDataAvailabilityHeader(eds)
+	dah, err := da.NewDataAvailabilityHeader(eds)
+	require.NoError(t, err)
 
 	return eds, dah
 }
