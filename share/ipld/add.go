@@ -39,7 +39,10 @@ func AddShares(
 		return nil, fmt.Errorf("failure to recompute the extended data square: %w", err)
 	}
 	// compute roots
-	eds.RowRoots()
+	_, err = eds.RowRoots()
+	if err != nil {
+		return nil, err
+	}
 	// commit the batch to ipfs
 	return eds, batchAdder.Commit()
 }
@@ -67,7 +70,10 @@ func ImportShares(
 		return nil, fmt.Errorf("failure to recompute the extended data square: %w", err)
 	}
 	// compute roots
-	eds.RowRoots()
+	_, err = eds.RowRoots()
+	if err != nil {
+		return nil, err
+	}
 	// commit the batch to DAG
 	return eds, batchAdder.Commit()
 }

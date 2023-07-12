@@ -45,7 +45,8 @@ func TestExchange_RequestND_NotFound(t *testing.T) {
 		t.Cleanup(cancel)
 
 		eds := edstest.RandEDS(t, 4)
-		dah := da.NewDataAvailabilityHeader(eds)
+		dah, err := da.NewDataAvailabilityHeader(eds)
+		require.NoError(t, err)
 		require.NoError(t, edsStore.Put(ctx, dah.Hash(), eds))
 
 		randNamespace := dah.RowRoots[(len(dah.RowRoots)-1)/2][:share.NamespaceSize]
