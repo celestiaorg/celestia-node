@@ -110,7 +110,7 @@ func (f *fsStore) Keystore() (_ keystore.Keystore, err error) {
 	return f.keys, nil
 }
 
-func (f *fsStore) Datastore() (_ datastore.Batching, err error) {
+func (f *fsStore) Datastore() (datastore.Batching, error) {
 	f.dataMu.Lock()
 	defer f.dataMu.Unlock()
 	if f.data != nil {
@@ -138,12 +138,13 @@ func (f *fsStore) Datastore() (_ datastore.Batching, err error) {
 	// TODO(@Wondertan): Make configurable with more conservative defaults for Light Node
 	opts.MaxTableSize = 64 << 20
 
-	f.data, err = dsbadger.NewDatastore(dataPath(f.path), &opts)
+	ds, err := dsbadger.NewDatastore(dataPath(f.path), &opts)
 	if err != nil {
 		return nil, fmt.Errorf("node: can't open Badger Datastore: %w", err)
 	}
 
-	return f.data, nil
+	f.data = ds
+	return ds, nil
 }
 
 func (f *fsStore) Close() (err error) {
