@@ -15,7 +15,7 @@ type Config struct {
 // 100ms
 func DefaultConfig() *Config {
 	cfg := core.DefaultTestConfig()
-	// target height duration lower than this tend to be flakier
+	// timeout commit lower than this tend to be flakier
 	cfg.Tendermint.Consensus.TimeoutCommit = 200 * time.Millisecond
 	return &Config{
 		cfg,
