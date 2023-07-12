@@ -68,8 +68,7 @@ func persistentPreRunEnv(cmd *cobra.Command, nodeType node.Type, _ []string) err
 	gateway.ParseFlags(cmd, &cfg.Gateway)
 	state.ParseFlags(cmd, &cfg.State)
 
-	// set the var values to the share package
-	// we will use this value for example to expose it via Prometheus
+	// set the values to expose them via Prometheus
 	share.SetMetricsValues(lastCommit, semanticVersion, systemVersion, golangVersion, buildTime)
 
 	// set config
