@@ -10,7 +10,7 @@ require (
 	github.com/BurntSushi/toml v1.3.2
 	github.com/alecthomas/jsonschema v0.0.0-20200530073317-71f438968921
 	github.com/benbjohnson/clock v1.3.5
-	github.com/celestiaorg/celestia-app v1.0.0-rc8.0.20230711195230-7a176b2bb786 // v1.0.0-rc8
+	github.com/celestiaorg/celestia-app v1.0.0-rc9
 	github.com/celestiaorg/go-fraud v0.1.0
 	github.com/celestiaorg/go-header v0.2.11
 	github.com/celestiaorg/go-libp2p-messenger v0.2.0
