@@ -1,6 +1,6 @@
 SHELL=/usr/bin/env bash
 PROJECTNAME=$(shell basename "$(PWD)")
-versioningPath := "github.com/celestiaorg/celestia-node/cmd/version"
+versioningPath := "github.com/celestiaorg/celestia-node/nodebuilder/node"
 LDFLAGS=-ldflags="-X '$(versioningPath).buildTime=$(shell date)' -X '$(versioningPath).lastCommit=$(shell git rev-parse HEAD)' -X '$(versioningPath).semanticVersion=$(shell git describe --tags --dirty=-dev 2>/dev/null || git rev-parse --abbrev-ref HEAD)'"
 ifeq (${PREFIX},)
 	PREFIX := /usr/local

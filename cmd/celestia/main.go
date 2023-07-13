@@ -5,8 +5,6 @@ import (
 	"os"
 
 	"github.com/spf13/cobra"
-
-	"github.com/celestiaorg/celestia-node/cmd/version"
 )
 
 func init() {
@@ -14,7 +12,7 @@ func init() {
 		bridgeCmd,
 		lightCmd,
 		fullCmd,
-		version.Cmd,
+		versionCmd,
 	)
 	rootCmd.SetHelpCommand(&cobra.Command{})
 }
