@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"path/filepath"
 	"sync"
+	"time"
 
 	"github.com/cosmos/cosmos-sdk/crypto/keyring"
 	"github.com/ipfs/go-datastore"
@@ -131,6 +132,8 @@ func (f *fsStore) Datastore() (_ datastore.Batching, err error) {
 	opts.ValueThreshold = 128
 	// We always write unique values to Badger transaction so there is no need to detect conflicts.
 	opts.DetectConflicts = false
+	opts.MetricsEnabled = true
+	opts.GcInterval = 5 * time.Minute
 	f.data, err = dsbadger.NewDatastore(dataPath(f.path), &opts)
 	if err != nil {
 		return nil, fmt.Errorf("node: can't open Badger Datastore: %w", err)
