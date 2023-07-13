@@ -132,7 +132,6 @@ func initializeMetrics(
 			return provider.Shutdown(ctx)
 		},
 	})
-	otel.GetMeterProvider()
 	otel.SetMeterProvider(provider)
 	return nil
 }
