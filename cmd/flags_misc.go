@@ -2,6 +2,7 @@ package cmd
 
 import (
 	"context"
+	"expvar"
 	"fmt"
 	"net/http"
 	"net/http/pprof"
@@ -170,6 +171,7 @@ func ParseMiscFlags(ctx context.Context, cmd *cobra.Command) (context.Context, e
 			mux.HandleFunc("/debug/pprof/profile", pprof.Profile)
 			mux.HandleFunc("/debug/pprof/symbol", pprof.Symbol)
 			mux.HandleFunc("/debug/pprof/trace", pprof.Trace)
+			mux.Handle("/debug/vars", expvar.Handler())
 			err := http.ListenAndServe("0.0.0.0:6000", mux) //nolint:gosec
 			if err != nil {
 				log.Fatalw("failed to start pprof server", "err", err)
