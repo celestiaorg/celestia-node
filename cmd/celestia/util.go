@@ -27,7 +27,13 @@ func persistentPreRunEnv(cmd *cobra.Command, nodeType node.Type, _ []string) err
 		return err
 	}
 	ctx = cmdnode.WithNetwork(ctx, parsedNetwork)
-	ctx = cmdnode.WithNodeBuildInfo(ctx, version.GetBuildInfo())
+	buildInfo := version.GetBuildInfo()
+	ctx = cmdnode.WithNodeBuildInfo(ctx, &node.BuildInfo{
+		LastCommit:      buildInfo.LastCommit,
+		SemanticVersion: buildInfo.SemanticVersion,
+		SystemVersion:   buildInfo.SystemVersion,
+		GolangVersion:   buildInfo.GolangVersion,
+	})
 
 	// loads existing config into the environment
 	ctx, err = cmdnode.ParseNodeFlags(ctx, cmd, cmdnode.Network(ctx))

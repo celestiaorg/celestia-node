@@ -63,7 +63,7 @@ func WithPyroscope(endpoint string, nodeType node.Type) fx.Option {
 }
 
 // WithMetrics enables metrics exporting for the node.
-func WithMetrics(metricOpts []otlpmetrichttp.Option, nodeType node.Type, buildInfo version.BuildInfo) fx.Option {
+func WithMetrics(metricOpts []otlpmetrichttp.Option, nodeType node.Type, buildInfo node.BuildInfo) fx.Option {
 	baseComponents := fx.Options(
 		fx.Supply(metricOpts),
 		fx.Supply(buildInfo),

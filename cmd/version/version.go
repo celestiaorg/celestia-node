@@ -29,7 +29,7 @@ type BuildInfo struct {
 	LastCommit      string
 	SemanticVersion string
 	SystemVersion   string
-	GolandVersion   string
+	GolangVersion   string
 }
 
 // GetBuildInfo returns information about current build.

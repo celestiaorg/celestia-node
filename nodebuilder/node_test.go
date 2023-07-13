@@ -13,7 +13,6 @@ import (
 	collectormetricpb "go.opentelemetry.io/proto/otlp/collector/metrics/v1"
 	"google.golang.org/protobuf/proto"
 
-	"github.com/celestiaorg/celestia-node/cmd/version"
 	"github.com/celestiaorg/celestia-node/nodebuilder/node"
 	"github.com/celestiaorg/celestia-node/share"
 )
@@ -82,7 +81,7 @@ func TestLifecycle_WithMetrics(t *testing.T) {
 						otlpmetrichttp.WithInsecure(),
 					},
 					tt.tp,
-					version.BuildInfo{},
+					node.BuildInfo{},
 				),
 			)
 			require.NotNil(t, node)
