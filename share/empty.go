@@ -54,7 +54,10 @@ func initEmpty() {
 	}
 	emptyBlockEDS = eds
 
-	dah := da.NewDataAvailabilityHeader(eds)
+	dah, err := da.NewDataAvailabilityHeader(eds)
+	if err != nil {
+		panic(fmt.Errorf("failed to create empty DAH: %w", err))
+	}
 	minDAH := da.MinDataAvailabilityHeader()
 	if !bytes.Equal(minDAH.Hash(), dah.Hash()) {
 		panic(fmt.Sprintf("mismatch in calculated minimum DAH and minimum DAH from celestia-app, "+

@@ -104,24 +104,18 @@ func (f *fsStore) PutConfig(cfg *Config) error {
 }
 
 func (f *fsStore) Keystore() (_ keystore.Keystore, err error) {
-	f.lock.RLock()
-	defer f.lock.RUnlock()
 	if f.keys == nil {
 		return nil, fmt.Errorf("node: no Keystore found")
 	}
 	return f.keys, nil
 }
 
-func (f *fsStore) Datastore() (_ datastore.Batching, err error) {
-	f.lock.RLock()
+func (f *fsStore) Datastore() (datastore.Batching, error) {
+	f.dataMu.Lock()
+	defer f.dataMu.Unlock()
 	if f.data != nil {
-		f.lock.RUnlock()
 		return f.data, nil
 	}
-	f.lock.RUnlock()
-
-	f.lock.Lock()
-	defer f.lock.Unlock()
 
 	opts := dsbadger.DefaultOptions // this should be copied
 
@@ -144,29 +138,31 @@ func (f *fsStore) Datastore() (_ datastore.Batching, err error) {
 	// TODO(@Wondertan): Make configurable with more conservative defaults for Light Node
 	opts.MaxTableSize = 64 << 20
 
-	f.data, err = dsbadger.NewDatastore(dataPath(f.path), &opts)
+	ds, err := dsbadger.NewDatastore(dataPath(f.path), &opts)
 	if err != nil {
 		return nil, fmt.Errorf("node: can't open Badger Datastore: %w", err)
 	}
 
-	return f.data, nil
+	f.data = ds
+	return ds, nil
 }
 
 func (f *fsStore) Close() (err error) {
 	err = errors.Join(err, f.dirLock.Unlock())
+	f.dataMu.Lock()
 	if f.data != nil {
 		err = errors.Join(err, f.data.Close())
 	}
+	f.dataMu.Unlock()
 	return
 }
 
 type fsStore struct {
 	path string
 
-	data datastore.Batching
-	keys keystore.Keystore
-
-	lock    sync.RWMutex   // protects all the fields
+	dataMu  sync.Mutex
+	data    datastore.Batching
+	keys    keystore.Keystore
 	dirLock *fslock.Locker // protects directory
 }
 

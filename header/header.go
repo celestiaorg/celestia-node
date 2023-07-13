@@ -75,12 +75,18 @@ func MakeExtendedHeader(
 	vals *core.ValidatorSet,
 	eds *rsmt2d.ExtendedDataSquare,
 ) (*ExtendedHeader, error) {
-	var dah DataAvailabilityHeader
+	var (
+		dah DataAvailabilityHeader
+		err error
+	)
 	switch eds {
 	case nil:
 		dah = EmptyDAH()
 	default:
-		dah = da.NewDataAvailabilityHeader(eds)
+		dah, err = da.NewDataAvailabilityHeader(eds)
+	}
+	if err != nil {
+		return nil, err
 	}
 
 	eh := &ExtendedHeader{
