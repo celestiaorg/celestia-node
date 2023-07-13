@@ -202,7 +202,6 @@ func ParseMiscFlags(ctx context.Context, cmd *cobra.Command) (context.Context, e
 	if ok {
 		var tp trace.TracerProvider
 		opts := []otlptracehttp.Option{
-
 			otlptracehttp.WithCompression(otlptracehttp.GzipCompression),
 			otlptracehttp.WithEndpoint(cmd.Flag(tracingEndpointFlag).Value.String()),
 		}
@@ -215,7 +214,7 @@ func ParseMiscFlags(ctx context.Context, cmd *cobra.Command) (context.Context, e
 		client := otlptracehttp.NewClient(opts...)
 		exporter, err := otlptrace.New(ctx, client)
 		if err != nil {
-			return nil, fmt.Errorf("creating OTLP trace exporter: %w", err)
+			return ctx, fmt.Errorf("creating OTLP trace exporter: %w", err)
 		}
 
 		tp = tracesdk.NewTracerProvider(

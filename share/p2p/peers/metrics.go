@@ -136,20 +136,24 @@ func initMetrics(manager *Manager) (*metrics, error) {
 
 	callback := func(ctx context.Context, observer metric.Observer) error {
 		for poolStatus, count := range manager.shrexPools() {
-			observer.ObserveInt64(shrexPools, count, metric.WithAttributes(
-				attribute.String(poolStatusKey, string(poolStatus))))
+			observer.ObserveInt64(shrexPools, count,
+				metric.WithAttributes(
+					attribute.String(poolStatusKey, string(poolStatus))))
 		}
 
-		observer.ObserveInt64(fullNodesPool, int64(manager.fullNodes.len()), metric.WithAttributes(
-			attribute.String(peerStatusKey, string(peerStatusActive))))
-		observer.ObserveInt64(fullNodesPool, int64(manager.fullNodes.cooldown.len()), metric.WithAttributes(
-			attribute.String(peerStatusKey, string(peerStatusCooldown))))
+		observer.ObserveInt64(fullNodesPool, int64(manager.fullNodes.len()),
+			metric.WithAttributes(
+				attribute.String(peerStatusKey, string(peerStatusActive))))
+		observer.ObserveInt64(fullNodesPool, int64(manager.fullNodes.cooldown.len()),
+			metric.WithAttributes(
+				attribute.String(peerStatusKey, string(peerStatusCooldown))))
 
 		metrics.blacklistedPeersByReason.Range(func(key, value any) bool {
 			reason := key.(blacklistPeerReason)
 			amount := value.(int)
-			observer.ObserveInt64(blacklisted, int64(amount), metric.WithAttributes(
-				attribute.String(blacklistPeerReasonKey, string(reason))))
+			observer.ObserveInt64(blacklisted, int64(amount),
+				metric.WithAttributes(
+					attribute.String(blacklistPeerReasonKey, string(reason))))
 			return true
 		})
 		return nil
@@ -171,18 +175,21 @@ func (m *metrics) observeGetPeer(
 	if ctx.Err() != nil {
 		ctx = context.Background()
 	}
-	m.getPeer.Add(ctx, 1, metric.WithAttributes(
-		attribute.String(sourceKey, string(source)),
-		attribute.Bool(isInstantKey, waitTime == 0)))
+	m.getPeer.Add(ctx, 1,
+		metric.WithAttributes(
+			attribute.String(sourceKey, string(source)),
+			attribute.Bool(isInstantKey, waitTime == 0)))
 	if source == sourceShrexSub {
-		m.getPeerPoolSizeHistogram.Record(ctx, int64(poolSize), metric.WithAttributes(
-			attribute.String(sourceKey, string(source))))
+		m.getPeerPoolSizeHistogram.Record(ctx, int64(poolSize),
+			metric.WithAttributes(
+				attribute.String(sourceKey, string(source))))
 	}
 
 	// record wait time only for async gets
 	if waitTime > 0 {
-		m.getPeerWaitTimeHistogram.Record(ctx, waitTime.Milliseconds(), metric.WithAttributes(
-			attribute.String(sourceKey, string(source))))
+		m.getPeerWaitTimeHistogram.Record(ctx, waitTime.Milliseconds(),
+			metric.WithAttributes(
+				attribute.String(sourceKey, string(source))))
 	}
 }
 
@@ -192,9 +199,10 @@ func (m *metrics) observeDoneResult(source peerSource, result result) {
 	}
 
 	ctx := context.Background()
-	m.doneResult.Add(ctx, 1, metric.WithAttributes(
-		attribute.String(sourceKey, string(source)),
-		attribute.String(doneResultKey, string(result))))
+	m.doneResult.Add(ctx, 1,
+		metric.WithAttributes(
+			attribute.String(sourceKey, string(source)),
+			attribute.String(doneResultKey, string(result))))
 }
 
 // validationObserver is a middleware that observes validation results as metrics
@@ -221,8 +229,9 @@ func (m *metrics) validationObserver(validator shrexsub.ValidatorFn) shrexsub.Va
 			ctx = context.Background()
 		}
 
-		m.validationResult.Add(ctx, 1, metric.WithAttributes(
-			attribute.String(validationResultKey, resStr)))
+		m.validationResult.Add(ctx, 1,
+			metric.WithAttributes(
+				attribute.String(validationResultKey, resStr)))
 		return res
 	}
 }

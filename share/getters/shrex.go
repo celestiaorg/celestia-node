@@ -44,8 +44,9 @@ func (m *metrics) recordEDSAttempt(ctx context.Context, attemptCount int, succes
 	if ctx.Err() != nil {
 		ctx = context.Background()
 	}
-	m.edsAttempts.Record(ctx, int64(attemptCount), metric.WithAttributes(
-		attribute.Bool("success", success)))
+	m.edsAttempts.Record(ctx, int64(attemptCount),
+		metric.WithAttributes(
+			attribute.Bool("success", success)))
 }
 
 func (m *metrics) recordNDAttempt(ctx context.Context, attemptCount int, success bool) {
@@ -55,8 +56,9 @@ func (m *metrics) recordNDAttempt(ctx context.Context, attemptCount int, success
 	if ctx.Err() != nil {
 		ctx = context.Background()
 	}
-	m.ndAttempts.Record(ctx, int64(attemptCount), metric.WithAttributes(
-		attribute.Bool("success", success)))
+	m.ndAttempts.Record(ctx, int64(attemptCount),
+		metric.WithAttributes(
+			attribute.Bool("success", success)))
 }
 
 func (sg *ShrexGetter) WithMetrics() error {

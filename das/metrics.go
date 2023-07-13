@@ -103,9 +103,10 @@ func (d *DASer) InitMetrics() error {
 		}
 
 		for jobType, amount := range stats.workersByJobType() {
-			observer.ObserveInt64(busyWorkers, amount, metric.WithAttributes(
-				attribute.String(jobTypeLabel, string(jobType)),
-			))
+			observer.ObserveInt64(busyWorkers, amount,
+				metric.WithAttributes(
+					attribute.String(jobTypeLabel, string(jobType)),
+				))
 		}
 
 		observer.ObserveInt64(networkHead, int64(stats.NetworkHead))
@@ -148,17 +149,19 @@ func (m *metrics) observeSample(
 	if ctx.Err() != nil {
 		ctx = context.Background()
 	}
-	m.sampleTime.Record(ctx, sampleTime.Seconds(), metric.WithAttributes(
-		attribute.Bool(failedLabel, err != nil),
-		attribute.Int(headerWidthLabel, len(h.DAH.RowRoots)),
-		attribute.String(jobTypeLabel, string(jobType)),
-	))
+	m.sampleTime.Record(ctx, sampleTime.Seconds(),
+		metric.WithAttributes(
+			attribute.Bool(failedLabel, err != nil),
+			attribute.Int(headerWidthLabel, len(h.DAH.RowRoots)),
+			attribute.String(jobTypeLabel, string(jobType)),
+		))
 
-	m.sampled.Add(ctx, 1, metric.WithAttributes(
-		attribute.Bool(failedLabel, err != nil),
-		attribute.Int(headerWidthLabel, len(h.DAH.RowRoots)),
-		attribute.String(jobTypeLabel, string(jobType)),
-	))
+	m.sampled.Add(ctx, 1,
+		metric.WithAttributes(
+			attribute.Bool(failedLabel, err != nil),
+			attribute.Int(headerWidthLabel, len(h.DAH.RowRoots)),
+			attribute.String(jobTypeLabel, string(jobType)),
+		))
 
 	atomic.StoreUint64(&m.lastSampledTS, uint64(time.Now().UTC().Unix()))
 }

@@ -123,8 +123,9 @@ func (m *metrics) observeFindPeers(ctx context.Context, isEnoughPeers bool) {
 		ctx = context.Background()
 	}
 
-	m.discoveryResult.Add(ctx, 1, metric.WithAttributes(
-		attribute.Bool(discoveryEnoughPeersKey, isEnoughPeers)))
+	m.discoveryResult.Add(ctx, 1,
+		metric.WithAttributes(
+			attribute.Bool(discoveryEnoughPeersKey, isEnoughPeers)))
 }
 
 func (m *metrics) observeHandlePeer(ctx context.Context, result handlePeerResult) {
@@ -135,8 +136,9 @@ func (m *metrics) observeHandlePeer(ctx context.Context, result handlePeerResult
 		ctx = context.Background()
 	}
 
-	m.handlePeerResult.Add(ctx, 1, metric.WithAttributes(
-		attribute.String(handlePeerResultKey, string(result))))
+	m.handlePeerResult.Add(ctx, 1,
+		metric.WithAttributes(
+			attribute.String(handlePeerResultKey, string(result))))
 }
 
 func (m *metrics) observeAdvertise(ctx context.Context, err error) {
@@ -147,8 +149,9 @@ func (m *metrics) observeAdvertise(ctx context.Context, err error) {
 		ctx = context.Background()
 	}
 
-	m.advertise.Add(ctx, 1, metric.WithAttributes(
-		attribute.Bool(advertiseFailedKey, err != nil)))
+	m.advertise.Add(ctx, 1,
+		metric.WithAttributes(
+			attribute.Bool(advertiseFailedKey, err != nil)))
 }
 
 func (m *metrics) observeOnPeersUpdate(_ peer.ID, isAdded bool) {

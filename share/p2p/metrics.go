@@ -34,9 +34,10 @@ func (m *Metrics) ObserveRequests(ctx context.Context, count int64, status statu
 	if ctx.Err() != nil {
 		ctx = context.Background()
 	}
-	m.totalRequestCounter.Add(ctx, count, metric.WithAttributes(
-		attribute.String("status", string(status)),
-	))
+	m.totalRequestCounter.Add(ctx, count,
+		metric.WithAttributes(
+			attribute.String("status", string(status)),
+		))
 }
 
 func InitClientMetrics(protocol string) (*Metrics, error) {
