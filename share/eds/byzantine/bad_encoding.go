@@ -143,6 +143,10 @@ func (p *BadEncodingProof) Validate(hdr libhead.Header) error {
 		)
 	}
 	if len(p.Shares) != len(merkleRoots) {
+		// Since p.Shares should contain all the shares from either a row or a
+		// column, it should exactly match the number of row roots. In this
+		// context, the number of row roots is the width of the extended data
+		// square.
 		return fmt.Errorf("invalid %s proof: incorrect number of shares %d != %d",
 			BadEncoding, len(p.Shares), len(merkleRoots),
 		)
