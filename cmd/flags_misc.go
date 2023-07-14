@@ -11,14 +11,8 @@ import (
 	otelpyroscope "github.com/pyroscope-io/otel-profiling-go"
 	"github.com/spf13/cobra"
 	flag "github.com/spf13/pflag"
-	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/exporters/otlp/otlpmetric/otlpmetrichttp"
-	"go.opentelemetry.io/otel/exporters/otlp/otlptrace"
 	"go.opentelemetry.io/otel/exporters/otlp/otlptrace/otlptracehttp"
-	"go.opentelemetry.io/otel/sdk/resource"
-	tracesdk "go.opentelemetry.io/otel/sdk/trace"
-	semconv "go.opentelemetry.io/otel/semconv/v1.11.0"
-	"go.opentelemetry.io/otel/trace"
 
 	"github.com/celestiaorg/celestia-node/logs"
 	"github.com/celestiaorg/celestia-node/nodebuilder"
@@ -201,7 +195,6 @@ func ParseMiscFlags(ctx context.Context, cmd *cobra.Command) (context.Context, e
 	}
 
 	if ok {
-		var tp trace.TracerProvider
 		opts := []otlptracehttp.Option{
 			otlptracehttp.WithCompression(otlptracehttp.GzipCompression),
 			otlptracehttp.WithEndpoint(cmd.Flag(tracingEndpointFlag).Value.String()),
@@ -212,31 +205,13 @@ func ParseMiscFlags(ctx context.Context, cmd *cobra.Command) (context.Context, e
 			opts = append(opts, otlptracehttp.WithInsecure())
 		}
 
-		client := otlptracehttp.NewClient(opts...)
-		exporter, err := otlptrace.New(ctx, client)
-		if err != nil {
-			return ctx, fmt.Errorf("creating OTLP trace exporter: %w", err)
-		}
-
-		tp = tracesdk.NewTracerProvider(
-			tracesdk.WithSampler(tracesdk.AlwaysSample()),
-			// Always be sure to batch in production.
-			tracesdk.WithBatcher(exporter),
-			// Record information about this application in a Resource.
-			tracesdk.WithResource(resource.NewWithAttributes(
-				semconv.SchemaURL,
-				semconv.ServiceNameKey.String(fmt.Sprintf("Celestia-%s", NodeType(ctx).String())),
-				// TODO(@Wondertan): Versioning: semconv.ServiceVersionKey
-			)),
-		)
-
+		pyroOpts := make([]otelpyroscope.Option, 0)
 		ok, err = cmd.Flags().GetBool(pyroscopeTracing)
 		if err != nil {
 			panic(err)
 		}
 		if ok {
-			tp = otelpyroscope.NewTracerProvider(
-				tp,
+			pyroOpts = append(pyroOpts,
 				otelpyroscope.WithAppName("celestia.da-node"),
 				otelpyroscope.WithPyroscopeURL(cmd.Flag(pyroscopeEndpoint).Value.String()),
 				otelpyroscope.WithRootSpanOnly(true),
@@ -245,8 +220,7 @@ func ParseMiscFlags(ctx context.Context, cmd *cobra.Command) (context.Context, e
 				otelpyroscope.WithProfileBaselineURL(true),
 			)
 		}
-
-		otel.SetTracerProvider(tp)
+		ctx = WithNodeOptions(ctx, nodebuilder.WithTraces(opts, pyroOpts))
 	}
 
 	ok, err = cmd.Flags().GetBool(metricsFlag)
