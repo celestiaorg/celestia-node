@@ -251,7 +251,6 @@ func TestShareAvailable_DisconnectedFullNodes(t *testing.T) {
 
 	// check that any of the fulls cannot reconstruct on their own
 	err := errg.Wait()
-	// TODO: shrex already sent notifications or discovery found?
 	require.ErrorIs(t, err, share.ErrNotAvailable)
 	cancelErr()
 
