@@ -141,7 +141,7 @@ func initializeTraces(
 		tracesdk.WithResource(resource.NewWithAttributes(
 			semconv.SchemaURL,
 			semconv.ServiceNamespaceKey.String(nodeType.String()),
-			semconv.ServiceInstanceIDKey.String(fmt.Sprintf("%s/%s", network.String(), peerID.String()))),
+			semconv.ServiceNameKey.String(fmt.Sprintf("%s/%s", network.String(), peerID.String()))),
 		))
 
 	if len(pyroOpts) > 0 {
@@ -170,7 +170,7 @@ func initializeMetrics(
 		sdk.WithResource(resource.NewWithAttributes(
 			semconv.SchemaURL,
 			semconv.ServiceNamespaceKey.String(nodeType.String()),
-			semconv.ServiceInstanceIDKey.String(fmt.Sprintf("%s/%s", network.String(), peerID.String())))))
+			semconv.ServiceNameKey.String(fmt.Sprintf("%s/%s", network.String(), peerID.String())))))
 	lc.Append(fx.Hook{
 		OnStop: func(ctx context.Context) error {
 			return provider.Shutdown(ctx)
