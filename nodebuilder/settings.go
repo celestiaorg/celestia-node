@@ -147,12 +147,9 @@ func initializeTraces(
 			semconv.ServiceInstanceIDKey.String(fmt.Sprintf("%s/%s", network.String(), peerID.String()))),
 		))
 
-	otel.SetTracerProvider(tp)
-	if len(pyroOpts) == 0 {
-		return nil
+	if len(pyroOpts) > 0 {
+		tp = otelpyroscope.NewTracerProvider(tp, pyroOpts...)
 	}
-
-	tp = otelpyroscope.NewTracerProvider(tp, pyroOpts...)
 	otel.SetTracerProvider(tp)
 	return nil
 }
