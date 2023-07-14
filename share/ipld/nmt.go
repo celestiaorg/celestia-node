@@ -8,10 +8,10 @@ import (
 	"hash"
 	"math/rand"
 
+	blocks "github.com/ipfs/go-block-format"
 	"github.com/ipfs/go-blockservice"
 	"github.com/ipfs/go-cid"
 	ipld "github.com/ipfs/go-ipld-format"
-	"github.com/ipfs/go-libipfs/blocks"
 	logging "github.com/ipfs/go-log/v2"
 	mh "github.com/multiformats/go-multihash"
 	mhcore "github.com/multiformats/go-multihash/core"
@@ -74,6 +74,7 @@ func GetNode(ctx context.Context, bGetter blockservice.BlockGetter, root cid.Cid
 	if err != nil {
 		var errNotFound ipld.ErrNotFound
 		if errors.As(err, &errNotFound) {
+			fmt.Println("BLOCK NOT FOUND")
 			return nil, ErrNodeNotFound
 		}
 		return nil, err
