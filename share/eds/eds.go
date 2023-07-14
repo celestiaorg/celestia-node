@@ -135,10 +135,10 @@ func getProofs(ctx context.Context, eds *rsmt2d.ExtendedDataSquare) ([]blocks.Bl
 		return nil, fmt.Errorf("recomputing data square: %w", err)
 	}
 	// compute roots
-	_, err = eds.RowRoots()
-	if err != nil {
+	if _, err = eds.RowRoots(); err != nil {
 		return nil, fmt.Errorf("computing row roots: %w", err)
 	}
+
 	return adder.Proofs(), nil
 }
 
