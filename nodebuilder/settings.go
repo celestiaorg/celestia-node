@@ -67,10 +67,9 @@ func WithPyroscope(endpoint string, nodeType node.Type) fx.Option {
 }
 
 // WithMetrics enables metrics exporting for the node.
-func WithMetrics(metricOpts []otlpmetrichttp.Option, nodeType node.Type, buildInfo *node.BuildInfo) fx.Option {
+func WithMetrics(metricOpts []otlpmetrichttp.Option, nodeType node.Type) fx.Option {
 	baseComponents := fx.Options(
 		fx.Supply(metricOpts),
-		fx.Supply(buildInfo),
 		fx.Invoke(initializeMetrics),
 		fx.Invoke(state.WithMetrics),
 		fx.Invoke(fraud.WithMetrics),
@@ -124,17 +123,16 @@ func initializeTraces(
 	nodeType node.Type,
 	peerID peer.ID,
 	network p2p.Network,
-	buildInfo *node.BuildInfo,
 	opts []otlptracehttp.Option,
 	pyroOpts []otelpyroscope.Option,
 ) error {
-	var tp trace.TracerProvider
 	client := otlptracehttp.NewClient(opts...)
 	exporter, err := otlptrace.New(ctx, client)
 	if err != nil {
 		return fmt.Errorf("creating OTLP trace exporter: %w", err)
 	}
 
+	var tp trace.TracerProvider
 	tp = tracesdk.NewTracerProvider(
 		tracesdk.WithSampler(tracesdk.AlwaysSample()),
 		// Always be sure to batch in production.
@@ -142,8 +140,7 @@ func initializeTraces(
 		// Record information about this application in a Resource.
 		tracesdk.WithResource(resource.NewWithAttributes(
 			semconv.SchemaURL,
-			semconv.ServiceNamespaceKey.String(fmt.Sprintf("Celestia-%s", nodeType)),
-			semconv.ServiceNameKey.String(fmt.Sprintf("semver-%s", buildInfo.SemanticVersion)),
+			semconv.ServiceNamespaceKey.String(nodeType.String()),
 			semconv.ServiceInstanceIDKey.String(fmt.Sprintf("%s/%s", network.String(), peerID.String()))),
 		))
 
@@ -160,7 +157,6 @@ func initializeMetrics(
 	lc fx.Lifecycle,
 	peerID peer.ID,
 	nodeType node.Type,
-	buildInfo *node.BuildInfo,
 	network p2p.Network,
 	opts []otlpmetrichttp.Option,
 ) error {
@@ -173,8 +169,7 @@ func initializeMetrics(
 		sdk.WithReader(sdk.NewPeriodicReader(exp, sdk.WithTimeout(2*time.Second))),
 		sdk.WithResource(resource.NewWithAttributes(
 			semconv.SchemaURL,
-			semconv.ServiceNamespaceKey.String(fmt.Sprintf("Celestia-%s", nodeType.String())),
-			semconv.ServiceNameKey.String(fmt.Sprintf("semver-%s", buildInfo.SemanticVersion)),
+			semconv.ServiceNamespaceKey.String(nodeType.String()),
 			semconv.ServiceInstanceIDKey.String(fmt.Sprintf("%s/%s", network.String(), peerID.String())))))
 	lc.Append(fx.Hook{
 		OnStop: func(ctx context.Context) error {

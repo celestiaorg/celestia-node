@@ -16,7 +16,6 @@ import (
 
 	"github.com/celestiaorg/celestia-node/logs"
 	"github.com/celestiaorg/celestia-node/nodebuilder"
-	"github.com/celestiaorg/celestia-node/nodebuilder/node"
 	modp2p "github.com/celestiaorg/celestia-node/nodebuilder/p2p"
 )
 
@@ -239,7 +238,7 @@ func ParseMiscFlags(ctx context.Context, cmd *cobra.Command) (context.Context, e
 			opts = append(opts, otlpmetrichttp.WithInsecure())
 		}
 
-		ctx = WithNodeOptions(ctx, nodebuilder.WithMetrics(opts, NodeType(ctx), node.GetBuildInfo()))
+		ctx = WithNodeOptions(ctx, nodebuilder.WithMetrics(opts, NodeType(ctx)))
 	}
 
 	ok, err = cmd.Flags().GetBool(p2pMetrics)
