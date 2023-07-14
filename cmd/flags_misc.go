@@ -13,6 +13,7 @@ import (
 	flag "github.com/spf13/pflag"
 	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/exporters/otlp/otlpmetric/otlpmetrichttp"
+	"go.opentelemetry.io/otel/exporters/otlp/otlptrace"
 	"go.opentelemetry.io/otel/exporters/otlp/otlptrace/otlptracehttp"
 	"go.opentelemetry.io/otel/sdk/resource"
 	tracesdk "go.opentelemetry.io/otel/sdk/trace"
@@ -21,6 +22,7 @@ import (
 
 	"github.com/celestiaorg/celestia-node/logs"
 	"github.com/celestiaorg/celestia-node/nodebuilder"
+	"github.com/celestiaorg/celestia-node/nodebuilder/node"
 	modp2p "github.com/celestiaorg/celestia-node/nodebuilder/p2p"
 )
 
@@ -210,15 +212,16 @@ func ParseMiscFlags(ctx context.Context, cmd *cobra.Command) (context.Context, e
 			opts = append(opts, otlptracehttp.WithInsecure())
 		}
 
-		exp, err := otlptracehttp.New(cmd.Context(), opts...)
+		client := otlptracehttp.NewClient(opts...)
+		exporter, err := otlptrace.New(ctx, client)
 		if err != nil {
-			return ctx, err
+			return ctx, fmt.Errorf("creating OTLP trace exporter: %w", err)
 		}
 
 		tp = tracesdk.NewTracerProvider(
 			tracesdk.WithSampler(tracesdk.AlwaysSample()),
 			// Always be sure to batch in production.
-			tracesdk.WithBatcher(exp),
+			tracesdk.WithBatcher(exporter),
 			// Record information about this application in a Resource.
 			tracesdk.WithResource(resource.NewWithAttributes(
 				semconv.SchemaURL,
@@ -262,7 +265,7 @@ func ParseMiscFlags(ctx context.Context, cmd *cobra.Command) (context.Context, e
 			opts = append(opts, otlpmetrichttp.WithInsecure())
 		}
 
-		ctx = WithNodeOptions(ctx, nodebuilder.WithMetrics(opts, NodeType(ctx), NodeInfo(ctx)))
+		ctx = WithNodeOptions(ctx, nodebuilder.WithMetrics(opts, NodeType(ctx), node.GetBuildInfo()))
 	}
 
 	ok, err = cmd.Flags().GetBool(p2pMetrics)

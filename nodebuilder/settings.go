@@ -7,9 +7,9 @@ import (
 
 	"github.com/libp2p/go-libp2p/core/peer"
 	"github.com/pyroscope-io/client/pyroscope"
+	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/exporters/otlp/otlpmetric/otlpmetrichttp"
-	"go.opentelemetry.io/otel/metric/global"
-	"go.opentelemetry.io/otel/sdk/metric"
+	sdk "go.opentelemetry.io/otel/sdk/metric"
 	"go.opentelemetry.io/otel/sdk/resource"
 	semconv "go.opentelemetry.io/otel/semconv/v1.11.0"
 	"go.uber.org/fx"
@@ -62,7 +62,7 @@ func WithPyroscope(endpoint string, nodeType node.Type) fx.Option {
 }
 
 // WithMetrics enables metrics exporting for the node.
-func WithMetrics(metricOpts []otlpmetrichttp.Option, nodeType node.Type, buildInfo node.BuildInfo) fx.Option {
+func WithMetrics(metricOpts []otlpmetrichttp.Option, nodeType node.Type, buildInfo *node.BuildInfo) fx.Option {
 	baseComponents := fx.Options(
 		fx.Supply(metricOpts),
 		fx.Supply(buildInfo),
@@ -111,7 +111,7 @@ func initializeMetrics(
 	lc fx.Lifecycle,
 	peerID peer.ID,
 	nodeType node.Type,
-	buildInfo node.BuildInfo,
+	buildInfo *node.BuildInfo,
 	opts []otlpmetrichttp.Option,
 ) error {
 	exp, err := otlpmetrichttp.New(ctx, opts...)
@@ -119,9 +119,9 @@ func initializeMetrics(
 		return err
 	}
 
-	provider := metric.NewMeterProvider(
-		metric.WithReader(metric.NewPeriodicReader(exp, metric.WithTimeout(2*time.Second))),
-		metric.WithResource(resource.NewWithAttributes(
+	provider := sdk.NewMeterProvider(
+		sdk.WithReader(sdk.NewPeriodicReader(exp, sdk.WithTimeout(2*time.Second))),
+		sdk.WithResource(resource.NewWithAttributes(
 			semconv.SchemaURL,
 			semconv.ServiceNamespaceKey.String(fmt.Sprintf("Celestia-%s", nodeType.String())),
 			semconv.ServiceNameKey.String(fmt.Sprintf("semver-%s", buildInfo.SemanticVersion)),
@@ -132,6 +132,6 @@ func initializeMetrics(
 			return provider.Shutdown(ctx)
 		},
 	})
-	global.SetMeterProvider(provider)
+	otel.SetMeterProvider(provider)
 	return nil
 }

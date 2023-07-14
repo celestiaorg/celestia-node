@@ -35,7 +35,8 @@ func TestExchange_RequestEDS(t *testing.T) {
 	// Testcase: EDS is immediately available
 	t.Run("EDS_Available", func(t *testing.T) {
 		eds := edstest.RandEDS(t, 4)
-		dah := da.NewDataAvailabilityHeader(eds)
+		dah, err := da.NewDataAvailabilityHeader(eds)
+		require.NoError(t, err)
 		err = store.Put(ctx, dah.Hash(), eds)
 		require.NoError(t, err)
 
@@ -48,7 +49,8 @@ func TestExchange_RequestEDS(t *testing.T) {
 	t.Run("EDS_AvailableAfterDelay", func(t *testing.T) {
 		storageDelay := time.Second
 		eds := edstest.RandEDS(t, 4)
-		dah := da.NewDataAvailabilityHeader(eds)
+		dah, err := da.NewDataAvailabilityHeader(eds)
+		require.NoError(t, err)
 		go func() {
 			time.Sleep(storageDelay)
 			err = store.Put(ctx, dah.Hash(), eds)
@@ -77,8 +79,9 @@ func TestExchange_RequestEDS(t *testing.T) {
 		timeoutCtx, cancel := context.WithTimeout(ctx, time.Second)
 		t.Cleanup(cancel)
 		eds := edstest.RandEDS(t, 4)
-		dah := da.NewDataAvailabilityHeader(eds)
-		_, err := client.RequestEDS(timeoutCtx, dah.Hash(), server.host.ID())
+		dah, err := da.NewDataAvailabilityHeader(eds)
+		require.NoError(t, err)
+		_, err = client.RequestEDS(timeoutCtx, dah.Hash(), server.host.ID())
 		require.ErrorIs(t, err, p2p.ErrNotFound)
 	})
 

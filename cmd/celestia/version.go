@@ -2,18 +2,10 @@ package main
 
 import (
 	"fmt"
-	"runtime"
 
 	"github.com/spf13/cobra"
-)
 
-var (
-	buildTime       string
-	lastCommit      string
-	semanticVersion string
-
-	systemVersion = fmt.Sprintf("%s/%s", runtime.GOARCH, runtime.GOOS)
-	golangVersion = runtime.Version()
+	"github.com/celestiaorg/celestia-node/nodebuilder/node"
 )
 
 var versionCmd = &cobra.Command{
@@ -24,9 +16,10 @@ var versionCmd = &cobra.Command{
 }
 
 func printBuildInfo(_ *cobra.Command, _ []string) {
-	fmt.Printf("Semantic version: %s\n", semanticVersion)
-	fmt.Printf("Commit: %s\n", lastCommit)
-	fmt.Printf("Build Date: %s\n", buildTime)
-	fmt.Printf("System version: %s\n", systemVersion)
-	fmt.Printf("Golang version: %s\n", golangVersion)
+	buildInfo := node.GetBuildInfo()
+	fmt.Printf("Semantic version: %s\n", buildInfo.SemanticVersion)
+	fmt.Printf("Commit: %s\n", buildInfo.LastCommit)
+	fmt.Printf("Build Date: %s\n", buildInfo.BuildTime)
+	fmt.Printf("System version: %s\n", buildInfo.SystemVersion)
+	fmt.Printf("Golang version: %s\n", buildInfo.GolangVersion)
 }

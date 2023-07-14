@@ -2,7 +2,6 @@ package byzantine
 
 import (
 	"bytes"
-	"errors"
 	"fmt"
 
 	"github.com/celestiaorg/celestia-app/pkg/wrapper"
@@ -113,50 +112,62 @@ func (p *BadEncodingProof) UnmarshalBinary(data []byte) error {
 func (p *BadEncodingProof) Validate(hdr libhead.Header) error {
 	header, ok := hdr.(*header.ExtendedHeader)
 	if !ok {
-		panic(fmt.Sprintf("invalid header type: expected %T, got %T", header, hdr))
+		panic(fmt.Sprintf("invalid header type received during BEFP validation: expected %T, got %T", header, hdr))
 	}
 	if header.Height() != int64(p.BlockHeight) {
-		return errors.New("fraud: incorrect block height")
+		return fmt.Errorf("incorrect block height during BEFP validation: expected %d, got %d",
+			p.BlockHeight, header.Height(),
+		)
 	}
-	merkleRowRoots := header.DAH.RowRoots
-	merkleColRoots := header.DAH.ColumnRoots
-	if len(merkleRowRoots) != len(merkleColRoots) {
+
+	if len(header.DAH.RowRoots) != len(header.DAH.ColumnRoots) {
 		// NOTE: This should never happen as callers of this method should not feed it with a
 		// malformed extended header.
 		panic(fmt.Sprintf(
-			"fraud: invalid extended header: length of row and column roots do not match. (rowRoots=%d) (colRoots=%d)",
-			len(merkleRowRoots),
-			len(merkleColRoots)),
+			"invalid extended header: length of row and column roots do not match. (rowRoots=%d) (colRoots=%d)",
+			len(header.DAH.RowRoots),
+			len(header.DAH.ColumnRoots)),
 		)
 	}
-	if int(p.Index) >= len(merkleRowRoots) {
-		return fmt.Errorf("fraud: invalid proof: index out of bounds (%d >= %d)", int(p.Index), len(merkleRowRoots))
-	}
-	if len(merkleRowRoots) != len(p.Shares) {
-		return fmt.Errorf("fraud: invalid proof: incorrect number of shares %d != %d", len(p.Shares), len(merkleRowRoots))
-	}
 
-	root := merkleRowRoots[p.Index]
-	if p.Axis == rsmt2d.Col {
-		root = merkleColRoots[p.Index]
+	// merkleRoots are the roots against which we are going to check the inclusion of the received
+	// shares. Changing the order of the roots to prove the shares relative to the orthogonal axis,
+	// because inside the rsmt2d library rsmt2d.Row = 0 and rsmt2d.Col = 1
+	merkleRoots := header.DAH.RowRoots
+	if p.Axis == rsmt2d.Row {
+		merkleRoots = header.DAH.ColumnRoots
+	}
+	if int(p.Index) >= len(merkleRoots) {
+		return fmt.Errorf("invalid %s proof: index out of bounds (%d >= %d)",
+			BadEncoding, int(p.Index), len(merkleRoots),
+		)
+	}
+	if len(p.Shares) != len(merkleRoots) {
+		// Since p.Shares should contain all the shares from either a row or a
+		// column, it should exactly match the number of row roots. In this
+		// context, the number of row roots is the width of the extended data
+		// square.
+		return fmt.Errorf("invalid %s proof: incorrect number of shares %d != %d",
+			BadEncoding, len(p.Shares), len(merkleRoots),
+		)
 	}
 
 	// verify that Merkle proofs correspond to particular shares.
-	shares := make([][]byte, len(merkleRowRoots))
+	shares := make([][]byte, len(merkleRoots))
 	for index, shr := range p.Shares {
 		if shr == nil {
 			continue
 		}
 		// validate inclusion of the share into one of the DAHeader roots
-		if ok := shr.Validate(ipld.MustCidFromNamespacedSha256(root)); !ok {
-			return fmt.Errorf("fraud: invalid proof: incorrect share received at index %d", index)
+		if ok := shr.Validate(ipld.MustCidFromNamespacedSha256(merkleRoots[index])); !ok {
+			return fmt.Errorf("invalid %s proof: incorrect share received at index %d", BadEncoding, index)
 		}
 		// NMTree commits the additional namespace while rsmt2d does not know about, so we trim it
 		// this is ugliness from NMTWrapper that we have to embrace ¯\_(ツ)_/¯
 		shares[index] = share.GetData(shr.Share)
 	}
 
-	odsWidth := uint64(len(merkleRowRoots) / 2)
+	odsWidth := uint64(len(merkleRoots) / 2)
 	codec := share.DefaultRSMT2DCodec()
 
 	// rebuild a row or col.
@@ -183,10 +194,15 @@ func (p *BadEncodingProof) Validate(hdr libhead.Header) error {
 		return err
 	}
 
-	// comparing rebuilt Merkle Root of bad row/col with respective Merkle Root of row/col from block.
-	if bytes.Equal(expectedRoot, root) {
-		return errors.New("fraud: invalid proof: recomputed Merkle root matches the DAH's row/column root")
+	// root is a merkle root of the row/col where ErrByzantine occurred
+	root := header.DAH.RowRoots[p.Index]
+	if p.Axis == rsmt2d.Col {
+		root = header.DAH.ColumnRoots[p.Index]
 	}
 
+	// comparing rebuilt Merkle Root of bad row/col with respective Merkle Root of row/col from block.
+	if bytes.Equal(expectedRoot, root) {
+		return fmt.Errorf("invalid %s proof: recomputed Merkle root matches the DAH's row/column root", BadEncoding)
+	}
 	return nil
 }
