@@ -80,8 +80,6 @@ func (fa *ShareAvailability) SharesAvailable(ctx context.Context, root *share.Ro
 		if ipldFormat.IsNotFound(err) || errors.Is(err, context.DeadlineExceeded) && !errors.As(err, &byzantineErr) {
 			return share.ErrNotAvailable
 		}
-
-		return err
 	}
 	return err
 }
