@@ -14,7 +14,7 @@ const (
 	// Arabica testnet. See: celestiaorg/networks.
 	Arabica Network = "arabica-9"
 	// Mocha testnet. See: celestiaorg/networks.
-	Mocha Network = "mocha-2"
+	Mocha Network = "mocha-3"
 	// BlockspaceRace testnet. See: https://docs.celestia.org/nodes/blockspace-race/.
 	BlockspaceRace Network = "blockspacerace-0"
 	// Private can be used to set up any private network, including local testing setups.

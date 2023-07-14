@@ -6,11 +6,9 @@ import (
 	"fmt"
 	"time"
 
+	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/attribute"
-	"go.opentelemetry.io/otel/metric/global"
-	"go.opentelemetry.io/otel/metric/instrument"
-	"go.opentelemetry.io/otel/metric/instrument/syncint64"
-	"go.opentelemetry.io/otel/metric/unit"
+	"go.opentelemetry.io/otel/metric"
 	"go.opentelemetry.io/otel/trace"
 
 	"github.com/celestiaorg/rsmt2d"
@@ -32,11 +30,11 @@ const (
 	defaultMinAttemptsCount  = 3
 )
 
-var meter = global.MeterProvider().Meter("shrex/getter")
+var meter = otel.Meter("shrex/getter")
 
 type metrics struct {
-	edsAttempts syncint64.Histogram
-	ndAttempts  syncint64.Histogram
+	edsAttempts metric.Int64Histogram
+	ndAttempts  metric.Int64Histogram
 }
 
 func (m *metrics) recordEDSAttempt(ctx context.Context, attemptCount int, success bool) {
@@ -46,7 +44,9 @@ func (m *metrics) recordEDSAttempt(ctx context.Context, attemptCount int, succes
 	if ctx.Err() != nil {
 		ctx = context.Background()
 	}
-	m.edsAttempts.Record(ctx, int64(attemptCount), attribute.Bool("success", success))
+	m.edsAttempts.Record(ctx, int64(attemptCount),
+		metric.WithAttributes(
+			attribute.Bool("success", success)))
 }
 
 func (m *metrics) recordNDAttempt(ctx context.Context, attemptCount int, success bool) {
@@ -56,23 +56,23 @@ func (m *metrics) recordNDAttempt(ctx context.Context, attemptCount int, success
 	if ctx.Err() != nil {
 		ctx = context.Background()
 	}
-	m.ndAttempts.Record(ctx, int64(attemptCount), attribute.Bool("success", success))
+	m.ndAttempts.Record(ctx, int64(attemptCount),
+		metric.WithAttributes(
+			attribute.Bool("success", success)))
 }
 
 func (sg *ShrexGetter) WithMetrics() error {
-	edsAttemptHistogram, err := meter.SyncInt64().Histogram(
+	edsAttemptHistogram, err := meter.Int64Histogram(
 		"getters_shrex_eds_attempts_per_request",
-		instrument.WithUnit(unit.Dimensionless),
-		instrument.WithDescription("Number of attempts per shrex/eds request"),
+		metric.WithDescription("Number of attempts per shrex/eds request"),
 	)
 	if err != nil {
 		return err
 	}
 
-	ndAttemptHistogram, err := meter.SyncInt64().Histogram(
+	ndAttemptHistogram, err := meter.Int64Histogram(
 		"getters_shrex_nd_attempts_per_request",
-		instrument.WithUnit(unit.Dimensionless),
-		instrument.WithDescription("Number of attempts per shrex/nd request"),
+		metric.WithDescription("Number of attempts per shrex/nd request"),
 	)
 	if err != nil {
 		return err

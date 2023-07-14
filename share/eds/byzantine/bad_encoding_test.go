@@ -25,8 +25,9 @@ func TestBadEncodingFraudProof(t *testing.T) {
 	bServ := mdutils.Bserv()
 
 	square := edstest.RandByzantineEDS(t, 16)
-	dah := da.NewDataAvailabilityHeader(square)
-	err := ipld.ImportEDS(ctx, square, bServ)
+	dah, err := da.NewDataAvailabilityHeader(square)
+	require.NoError(t, err)
+	err = ipld.ImportEDS(ctx, square, bServ)
 	require.NoError(t, err)
 
 	var errRsmt2d *rsmt2d.ErrByzantineData
@@ -55,7 +56,8 @@ func TestIncorrectBadEncodingFraudProof(t *testing.T) {
 	eds, err := ipld.AddShares(ctx, shares, bServ)
 	require.NoError(t, err)
 
-	dah := da.NewDataAvailabilityHeader(eds)
+	dah, err := da.NewDataAvailabilityHeader(eds)
+	require.NoError(t, err)
 
 	// get an arbitrary row
 	row := uint(squareSize / 2)

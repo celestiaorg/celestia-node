@@ -74,7 +74,7 @@ func BlobsToShares(blobs ...*Blob) ([]share.Share, error) {
 		return val <= 0
 	})
 
-	rawShares, err := shares.SplitBlobs(0, nil, b, false)
+	rawShares, err := shares.SplitBlobs(b...)
 	if err != nil {
 		return nil, err
 	}

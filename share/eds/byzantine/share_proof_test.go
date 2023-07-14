@@ -27,7 +27,8 @@ func TestGetProof(t *testing.T) {
 	in, err := ipld.AddShares(ctx, shares, bServ)
 	require.NoError(t, err)
 
-	dah := da.NewDataAvailabilityHeader(in)
+	dah, err := da.NewDataAvailabilityHeader(in)
+	require.NoError(t, err)
 	var tests = []struct {
 		roots [][]byte
 	}{
@@ -63,7 +64,8 @@ func TestGetProofs(t *testing.T) {
 	in, err := ipld.AddShares(ctx, shares, bServ)
 	require.NoError(t, err)
 
-	dah := da.NewDataAvailabilityHeader(in)
+	dah, err := da.NewDataAvailabilityHeader(in)
+	require.NoError(t, err)
 	for _, root := range dah.ColumnRoots {
 		rootCid := ipld.MustCidFromNamespacedSha256(root)
 		data := make([][]byte, 0, in.Width())
