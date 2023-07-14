@@ -3,32 +3,28 @@ package state
 import (
 	"context"
 
-	"go.opentelemetry.io/otel/metric/global"
-	"go.opentelemetry.io/otel/metric/instrument"
-	"go.opentelemetry.io/otel/metric/unit"
+	"go.opentelemetry.io/otel"
+	"go.opentelemetry.io/otel/metric"
 )
 
-var meter = global.MeterProvider().Meter("state")
+var meter = otel.Meter("state")
 
 func WithMetrics(ca *CoreAccessor) {
-	pfbCounter, _ := meter.AsyncInt64().Counter(
+	pfbCounter, _ := meter.Int64ObservableCounter(
 		"pfb_count",
-		instrument.WithUnit(unit.Dimensionless),
-		instrument.WithDescription("Total count of submitted PayForBlob transactions"),
+		metric.WithDescription("Total count of submitted PayForBlob transactions"),
 	)
-	lastPfbTimestamp, _ := meter.AsyncInt64().Counter(
+	lastPfbTimestamp, _ := meter.Int64ObservableCounter(
 		"last_pfb_timestamp",
-		instrument.WithUnit(unit.Milliseconds),
-		instrument.WithDescription("Timestamp of the last submitted PayForBlob transaction"),
+		metric.WithDescription("Timestamp of the last submitted PayForBlob transaction"),
 	)
 
-	err := meter.RegisterCallback(
-		[]instrument.Asynchronous{pfbCounter, lastPfbTimestamp},
-		func(ctx context.Context) {
-			pfbCounter.Observe(ctx, ca.payForBlobCount)
-			lastPfbTimestamp.Observe(ctx, ca.lastPayForBlob)
-		},
-	)
+	callback := func(ctx context.Context, observer metric.Observer) error {
+		observer.ObserveInt64(pfbCounter, ca.payForBlobCount)
+		observer.ObserveInt64(lastPfbTimestamp, ca.lastPayForBlob)
+		return nil
+	}
+	_, err := meter.RegisterCallback(callback, pfbCounter, lastPfbTimestamp)
 	if err != nil {
 		panic(err)
 	}

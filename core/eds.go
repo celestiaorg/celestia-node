@@ -7,9 +7,7 @@ import (
 	"github.com/filecoin-project/dagstore"
 	"github.com/tendermint/tendermint/types"
 
-	"github.com/celestiaorg/celestia-app/pkg/appconsts"
-	"github.com/celestiaorg/celestia-app/pkg/da"
-	"github.com/celestiaorg/celestia-app/pkg/square"
+	"github.com/celestiaorg/celestia-app/app"
 	"github.com/celestiaorg/rsmt2d"
 
 	"github.com/celestiaorg/celestia-node/share"
@@ -19,22 +17,12 @@ import (
 // extendBlock extends the given block data, returning the resulting
 // ExtendedDataSquare (EDS). If there are no transactions in the block,
 // nil is returned in place of the eds.
-func extendBlock(data types.Data) (*rsmt2d.ExtendedDataSquare, error) {
-	if len(data.Txs) == 0 && data.SquareSize == uint64(1) {
+func extendBlock(data types.Data, appVersion uint64) (*rsmt2d.ExtendedDataSquare, error) {
+	if app.IsEmptyBlock(data, appVersion) {
 		return nil, nil
 	}
 
-	sqr, err := square.Construct(data.Txs.ToSliceOfBytes(), appconsts.LatestVersion, share.MaxSquareSize)
-	if err != nil {
-		return nil, err
-	}
-
-	shares := make([][]byte, len(sqr))
-	for i, s := range sqr {
-		shares[i] = s.ToBytes()
-	}
-
-	return da.ExtendShares(shares)
+	return app.ExtendBlock(data, appVersion)
 }
 
 // storeEDS will only store extended block if it is not empty and doesn't already exist.

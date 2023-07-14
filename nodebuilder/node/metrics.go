@@ -4,11 +4,11 @@ import (
 	"context"
 	"time"
 
-	"go.opentelemetry.io/otel/metric/global"
-	"go.opentelemetry.io/otel/metric/instrument"
+	"go.opentelemetry.io/otel"
+	"go.opentelemetry.io/otel/metric"
 )
 
-var meter = global.MeterProvider().Meter("node")
+var meter = otel.Meter("node")
 
 var (
 	timeStarted time.Time
@@ -17,37 +17,34 @@ var (
 
 // WithMetrics registers node metrics.
 func WithMetrics() error {
-	nodeStartTS, err := meter.
-		AsyncFloat64().
-		Gauge(
-			"node_start_ts",
-			instrument.WithDescription("timestamp when the node was started"),
-		)
-	if err != nil {
-		return err
-	}
-
-	totalNodeRunTime, err := meter.
-		AsyncFloat64().
-		Counter(
-			"node_runtime_counter_in_seconds",
-			instrument.WithDescription("total time the node has been running"),
-		)
-	if err != nil {
-		return err
-	}
-
-	return meter.RegisterCallback(
-		[]instrument.Asynchronous{nodeStartTS, totalNodeRunTime},
-		func(ctx context.Context) {
-			if !nodeStarted {
-				// Observe node start timestamp
-				timeStarted = time.Now()
-				nodeStartTS.Observe(ctx, float64(timeStarted.Unix()))
-				nodeStarted = true
-			}
-
-			totalNodeRunTime.Observe(ctx, time.Since(timeStarted).Seconds())
-		},
+	nodeStartTS, err := meter.Int64ObservableGauge(
+		"node_start_ts",
+		metric.WithDescription("timestamp when the node was started"),
 	)
+	if err != nil {
+		return err
+	}
+
+	totalNodeRunTime, err := meter.Float64ObservableCounter(
+		"node_runtime_counter_in_seconds",
+		metric.WithDescription("total time the node has been running"),
+	)
+	if err != nil {
+		return err
+	}
+
+	callback := func(ctx context.Context, observer metric.Observer) error {
+		if !nodeStarted {
+			// Observe node start timestamp
+			timeStarted = time.Now()
+			observer.ObserveInt64(nodeStartTS, timeStarted.Unix())
+			nodeStarted = true
+		}
+
+		observer.ObserveFloat64(totalNodeRunTime, time.Since(timeStarted).Seconds())
+		return nil
+	}
+
+	_, err = meter.RegisterCallback(callback, nodeStartTS, totalNodeRunTime)
+	return err
 }

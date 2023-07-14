@@ -39,14 +39,6 @@ func TestVerify(t *testing.T) {
 		},
 		{
 			prepare: func() libhead.Header {
-				untrusted := *untrustedNonAdj
-				untrusted.Commit = NewTestSuite(t, 2).Commit(RandRawHeader(t))
-				return &untrusted
-			},
-			err: true,
-		},
-		{
-			prepare: func() libhead.Header {
 				untrusted := *untrustedAdj
 				untrusted.RawHeader.LastBlockID.Hash = tmrand.Bytes(32)
 				return &untrusted
