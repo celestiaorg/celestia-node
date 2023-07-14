@@ -167,14 +167,25 @@ func TestInnerNodeBatchSize(t *testing.T) {
 
 func TestReadWriteRoundtrip(t *testing.T) {
 	eds := writeRandomEDS(t)
-	dah := da.NewDataAvailabilityHeader(eds)
+	dah, err := da.NewDataAvailabilityHeader(eds)
+	require.NoError(t, err)
 	f := openWrittenEDS(t)
 	defer f.Close()
 
 	loaded, err := ReadEDS(context.Background(), f, dah.Hash())
 	require.NoError(t, err, "error reading EDS from file")
-	require.Equal(t, eds.RowRoots(), loaded.RowRoots())
-	require.Equal(t, eds.ColRoots(), loaded.ColRoots())
+
+	rowRoots, err := eds.RowRoots()
+	require.NoError(t, err)
+	loadedRowRoots, err := loaded.RowRoots()
+	require.NoError(t, err)
+	require.Equal(t, rowRoots, loadedRowRoots)
+
+	colRoots, err := eds.ColRoots()
+	require.NoError(t, err)
+	loadedColRoots, err := loaded.ColRoots()
+	require.NoError(t, err)
+	require.Equal(t, colRoots, loadedColRoots)
 }
 
 func TestReadEDS(t *testing.T) {
@@ -187,17 +198,22 @@ func TestReadEDS(t *testing.T) {
 
 	loaded, err := ReadEDS(context.Background(), f, dah.Hash())
 	require.NoError(t, err, "error reading EDS from file")
-	require.Equal(t, dah.RowRoots, loaded.RowRoots())
-	require.Equal(t, dah.ColumnRoots, loaded.ColRoots())
+	rowRoots, err := loaded.RowRoots()
+	require.NoError(t, err)
+	require.Equal(t, dah.RowRoots, rowRoots)
+	colRoots, err := loaded.ColRoots()
+	require.NoError(t, err)
+	require.Equal(t, dah.ColumnRoots, colRoots)
 }
 
 func TestReadEDSContentIntegrityMismatch(t *testing.T) {
 	writeRandomEDS(t)
-	dah := da.NewDataAvailabilityHeader(edstest.RandEDS(t, 4))
+	dah, err := da.NewDataAvailabilityHeader(edstest.RandEDS(t, 4))
+	require.NoError(t, err)
 	f := openWrittenEDS(t)
 	defer f.Close()
 
-	_, err := ReadEDS(context.Background(), f, dah.Hash())
+	_, err = ReadEDS(context.Background(), f, dah.Hash())
 	require.ErrorContains(t, err, "share: content integrity mismatch: imported root")
 }
 
@@ -209,7 +225,8 @@ func BenchmarkReadWriteEDS(b *testing.B) {
 	b.Cleanup(cancel)
 	for originalDataWidth := 4; originalDataWidth <= 64; originalDataWidth *= 2 {
 		eds := edstest.RandEDS(b, originalDataWidth)
-		dah := da.NewDataAvailabilityHeader(eds)
+		dah, err := da.NewDataAvailabilityHeader(eds)
+		require.NoError(b, err)
 		b.Run(fmt.Sprintf("Writing %dx%d", originalDataWidth, originalDataWidth), func(b *testing.B) {
 			b.ReportAllocs()
 			for i := 0; i < b.N; i++ {
@@ -280,7 +297,8 @@ func createTestData(t *testing.T, testDir string) { //nolint:unused
 	err = WriteEDS(ctx, eds, f)
 	require.NoError(t, err, "writing EDS to file")
 	f.Close()
-	dah := da.NewDataAvailabilityHeader(eds)
+	dah, err := da.NewDataAvailabilityHeader(eds)
+	require.NoError(t, err)
 
 	header, err := json.MarshalIndent(dah, "", "")
 	require.NoError(t, err, "marshaling example root")

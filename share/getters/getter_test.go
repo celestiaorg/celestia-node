@@ -232,7 +232,8 @@ func TestIPLDGetter(t *testing.T) {
 
 func randomEDS(t *testing.T) (*rsmt2d.ExtendedDataSquare, share.Root) {
 	eds := edstest.RandEDS(t, 4)
-	dah := da.NewDataAvailabilityHeader(eds)
+	dah, err := da.NewDataAvailabilityHeader(eds)
+	require.NoError(t, err)
 	return eds, dah
 }
 
@@ -260,7 +261,8 @@ func randomEDSWithDoubledNamespace(t *testing.T, size int) (*rsmt2d.ExtendedData
 		wrapper.NewConstructor(uint64(size)),
 	)
 	require.NoError(t, err, "failure to recompute the extended data square")
-	dah := da.NewDataAvailabilityHeader(eds)
+	dah, err := da.NewDataAvailabilityHeader(eds)
+	require.NoError(t, err)
 
 	return eds, share.GetNamespace(randShares[idx1]), dah
 }

@@ -53,9 +53,12 @@ func newModule(getter share.Getter, avail share.Availability) Module {
 // ensureEmptyCARExists adds an empty EDS to the provided EDS store.
 func ensureEmptyCARExists(ctx context.Context, store *eds.Store) error {
 	emptyEDS := share.EmptyExtendedDataSquare()
-	emptyDAH := da.NewDataAvailabilityHeader(emptyEDS)
+	emptyDAH, err := da.NewDataAvailabilityHeader(emptyEDS)
+	if err != nil {
+		return err
+	}
 
-	err := store.Put(ctx, emptyDAH.Hash(), emptyEDS)
+	err = store.Put(ctx, emptyDAH.Hash(), emptyEDS)
 	if errors.Is(err, dagstore.ErrShardExists) {
 		return nil
 	}

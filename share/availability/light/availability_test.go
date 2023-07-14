@@ -132,7 +132,8 @@ func TestGetShares(t *testing.T) {
 
 	eds, err := getter.GetEDS(ctx, dah)
 	require.NoError(t, err)
-	gotDAH := da.NewDataAvailabilityHeader(eds)
+	gotDAH, err := da.NewDataAvailabilityHeader(eds)
+	require.NoError(t, err)
 
 	require.True(t, dah.Equals(&gotDAH))
 }

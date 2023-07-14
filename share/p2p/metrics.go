@@ -4,14 +4,12 @@ import (
 	"context"
 	"fmt"
 
+	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/attribute"
-	"go.opentelemetry.io/otel/metric/global"
-	"go.opentelemetry.io/otel/metric/instrument"
-	"go.opentelemetry.io/otel/metric/instrument/syncint64"
-	"go.opentelemetry.io/otel/metric/unit"
+	"go.opentelemetry.io/otel/metric"
 )
 
-var meter = global.MeterProvider().Meter("shrex/eds")
+var meter = otel.Meter("shrex/eds")
 
 type status string
 
@@ -24,7 +22,7 @@ const (
 )
 
 type Metrics struct {
-	totalRequestCounter syncint64.Counter
+	totalRequestCounter metric.Int64Counter
 }
 
 // ObserveRequests increments the total number of requests sent with the given status as an
@@ -36,14 +34,16 @@ func (m *Metrics) ObserveRequests(ctx context.Context, count int64, status statu
 	if ctx.Err() != nil {
 		ctx = context.Background()
 	}
-	m.totalRequestCounter.Add(ctx, count, attribute.String("status", string(status)))
+	m.totalRequestCounter.Add(ctx, count,
+		metric.WithAttributes(
+			attribute.String("status", string(status)),
+		))
 }
 
 func InitClientMetrics(protocol string) (*Metrics, error) {
-	totalRequestCounter, err := meter.SyncInt64().Counter(
+	totalRequestCounter, err := meter.Int64Counter(
 		fmt.Sprintf("shrex_%s_client_total_requests", protocol),
-		instrument.WithUnit(unit.Dimensionless),
-		instrument.WithDescription(fmt.Sprintf("Total count of sent shrex/%s requests", protocol)),
+		metric.WithDescription(fmt.Sprintf("Total count of sent shrex/%s requests", protocol)),
 	)
 	if err != nil {
 		return nil, err
@@ -55,10 +55,9 @@ func InitClientMetrics(protocol string) (*Metrics, error) {
 }
 
 func InitServerMetrics(protocol string) (*Metrics, error) {
-	totalRequestCounter, err := meter.SyncInt64().Counter(
+	totalRequestCounter, err := meter.Int64Counter(
 		fmt.Sprintf("shrex_%s_server_total_responses", protocol),
-		instrument.WithUnit(unit.Dimensionless),
-		instrument.WithDescription(fmt.Sprintf("Total count of sent shrex/%s responses", protocol)),
+		metric.WithDescription(fmt.Sprintf("Total count of sent shrex/%s responses", protocol)),
 	)
 	if err != nil {
 		return nil, err

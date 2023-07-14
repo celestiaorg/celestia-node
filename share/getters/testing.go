@@ -5,6 +5,8 @@ import (
 	"fmt"
 	"testing"
 
+	"github.com/stretchr/testify/require"
+
 	"github.com/celestiaorg/celestia-app/pkg/da"
 	"github.com/celestiaorg/rsmt2d"
 
@@ -15,7 +17,8 @@ import (
 // TestGetter provides a testing SingleEDSGetter and the root of the EDS it holds.
 func TestGetter(t *testing.T) (share.Getter, *share.Root) {
 	eds := edstest.RandEDS(t, 8)
-	dah := da.NewDataAvailabilityHeader(eds)
+	dah, err := da.NewDataAvailabilityHeader(eds)
+	require.NoError(t, err)
 	return &SingleEDSGetter{
 		EDS: eds,
 	}, &dah
@@ -52,7 +55,10 @@ func (seg *SingleEDSGetter) GetSharesByNamespace(context.Context, *share.Root, s
 }
 
 func (seg *SingleEDSGetter) checkRoot(root *share.Root) error {
-	dah := da.NewDataAvailabilityHeader(seg.EDS)
+	dah, err := da.NewDataAvailabilityHeader(seg.EDS)
+	if err != nil {
+		return err
+	}
 	if !root.Equals(&dah) {
 		return fmt.Errorf("unknown EDS: have %s, asked %s", dah.String(), root.String())
 	}
