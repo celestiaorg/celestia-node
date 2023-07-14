@@ -111,7 +111,7 @@ func initializeMetrics(
 	lc fx.Lifecycle,
 	peerID peer.ID,
 	nodeType node.Type,
-	buildInfo node.BuildInfo,
+	buildInfo *node.BuildInfo,
 	opts []otlpmetrichttp.Option,
 ) error {
 	exp, err := otlpmetrichttp.New(ctx, opts...)
