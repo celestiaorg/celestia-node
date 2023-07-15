@@ -12,7 +12,6 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"github.com/celestiaorg/celestia-app/pkg/da"
 	"github.com/celestiaorg/celestia-app/pkg/wrapper"
 	"github.com/celestiaorg/rsmt2d"
 
@@ -274,7 +273,7 @@ func TestIPLDGetter(t *testing.T) {
 
 func randomEDS(t *testing.T) (*rsmt2d.ExtendedDataSquare, share.Root) {
 	eds := edstest.RandEDS(t, 4)
-	dah, err := da.NewDataAvailabilityHeader(eds)
+	dah, err := share.NewRoot(eds)
 	require.NoError(t, err)
 	return eds, dah
 }
@@ -303,7 +302,7 @@ func randomEDSWithDoubledNamespace(t *testing.T, size int) (*rsmt2d.ExtendedData
 		wrapper.NewConstructor(uint64(size)),
 	)
 	require.NoError(t, err, "failure to recompute the extended data square")
-	dah, err := da.NewDataAvailabilityHeader(eds)
+	dah, err := share.NewRoot(eds)
 	require.NoError(t, err)
 
 	return eds, share.GetNamespace(randShares[idx1]), dah

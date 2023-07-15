@@ -54,7 +54,7 @@ func initEmpty() {
 	}
 	emptyBlockEDS = eds
 
-	dah, err := da.NewDataAvailabilityHeader(eds)
+	dah, err := NewRoot(eds)
 	if err != nil {
 		panic(fmt.Errorf("failed to create empty DAH: %w", err))
 	}

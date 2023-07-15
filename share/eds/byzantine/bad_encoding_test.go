@@ -13,6 +13,7 @@ import (
 	"github.com/celestiaorg/rsmt2d"
 
 	"github.com/celestiaorg/celestia-node/header"
+	"github.com/celestiaorg/celestia-node/share"
 	"github.com/celestiaorg/celestia-node/share/eds/edstest"
 	"github.com/celestiaorg/celestia-node/share/ipld"
 	"github.com/celestiaorg/celestia-node/share/sharetest"
@@ -55,7 +56,7 @@ func TestIncorrectBadEncodingFraudProof(t *testing.T) {
 	eds, err := ipld.AddShares(ctx, shares, bServ)
 	require.NoError(t, err)
 
-	dah, err := da.NewDataAvailabilityHeader(eds)
+	dah, err := share.NewRoot(eds)
 	require.NoError(t, err)
 
 	// get an arbitrary row

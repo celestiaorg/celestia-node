@@ -9,9 +9,6 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"github.com/celestiaorg/celestia-app/pkg/da"
-
-	"github.com/celestiaorg/celestia-node/header"
 	"github.com/celestiaorg/celestia-node/share"
 	availability_test "github.com/celestiaorg/celestia-node/share/availability/test"
 	"github.com/celestiaorg/celestia-node/share/sharetest"
@@ -33,8 +30,8 @@ func TestSharesAvailableFailed(t *testing.T) {
 
 	getter, _ := GetterWithRandSquare(t, 16)
 	avail := TestAvailability(getter)
-	empty := header.EmptyDAH()
-	err := avail.SharesAvailable(ctx, &empty)
+	empty := share.EmptyRoot()
+	err := avail.SharesAvailable(ctx, empty)
 	assert.Error(t, err)
 }
 
@@ -132,7 +129,7 @@ func TestGetShares(t *testing.T) {
 
 	eds, err := getter.GetEDS(ctx, dah)
 	require.NoError(t, err)
-	gotDAH, err := da.NewDataAvailabilityHeader(eds)
+	gotDAH, err := share.NewRoot(eds)
 	require.NoError(t, err)
 
 	require.True(t, dah.Equals(&gotDAH))

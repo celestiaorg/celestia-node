@@ -14,6 +14,10 @@ var ErrNotAvailable = errors.New("share: data not available")
 // In practice, it is a commitment to all the Data in a square.
 type Root = da.DataAvailabilityHeader
 
+// NewRoot generates Root(DataAvailabilityHeader) using the
+// provided extended data square.
+var NewRoot = da.NewDataAvailabilityHeader
+
 // Availability defines interface for validation of Shares' availability.
 type Availability interface {
 	// SharesAvailable subjectively validates if Shares committed to the given Root are available on
