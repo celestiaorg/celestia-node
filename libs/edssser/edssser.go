@@ -57,7 +57,8 @@ func (ss *EDSsser) Run(ctx context.Context) (stats Stats, err error) {
 
 	t := &testing.T{}
 	for ctx.Err() == nil && ss.config.EDSWrites != 0 {
-		square := edstest.RandEDS(t, ss.config.EDSSize)
+		// dived by 2 to get ODS size as expected by RandEDS
+		square := edstest.RandEDS(t, ss.config.EDSSize/2)
 		dah, err := da.NewDataAvailabilityHeader(square)
 		if err != nil {
 			return stats, err
