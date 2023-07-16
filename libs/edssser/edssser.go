@@ -17,9 +17,10 @@ import (
 )
 
 type Config struct {
-	EDSSize   int
-	EDSWrites int
-	EnableLog bool
+	EDSSize     int
+	EDSWrites   int
+	EnableLog   bool
+	StatLogFreq int
 }
 
 // EDSsser stand for EDS Store Stresser.
@@ -56,7 +57,7 @@ func (ss *EDSsser) Run(ctx context.Context) (stats Stats, err error) {
 	}()
 
 	t := &testing.T{}
-	for ctx.Err() == nil && ss.config.EDSWrites != 0 {
+	for ; ctx.Err() == nil && ss.config.EDSWrites != 0; ss.config.EDSWrites-- {
 		// divide by 2 to get ODS size as expected by RandEDS
 		square := edstest.RandEDS(t, ss.config.EDSSize/2)
 		dah, err := da.NewDataAvailabilityHeader(square)
@@ -71,16 +72,20 @@ func (ss *EDSsser) Run(ctx context.Context) (stats Stats, err error) {
 		}
 		took := time.Since(now)
 
-		if ss.config.EnableLog {
-			fmt.Println("square written", "size", ss.config.EDSSize, "took", took)
-		}
-
 		stats.TotalWritten++
 		stats.TotalTime += took
 		if took < stats.MinTime || stats.MinTime == 0 {
 			stats.MinTime = took
 		} else if took > stats.MaxTime {
 			stats.MaxTime = took
+		}
+
+		if ss.config.EnableLog {
+			fmt.Println("square written", "size", ss.config.EDSSize, "took", took)
+
+			if stats.TotalWritten%ss.config.StatLogFreq == 0 {
+				fmt.Println(stats.Finalize())
+			}
 		}
 	}
 
