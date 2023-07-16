@@ -4,6 +4,7 @@ import (
 	"bufio"
 	"bytes"
 	"context"
+	"encoding/hex"
 	"errors"
 	"fmt"
 	"io"
@@ -401,6 +402,20 @@ func (s *Store) Has(ctx context.Context, root share.DataHash) (bool, error) {
 	default:
 		return false, err
 	}
+}
+
+// List lists all the registered EDSes.
+func (s *Store) List() ([]share.DataHash, error) {
+	shards := s.dgstr.AllShardsInfo()
+	hashes := make([]share.DataHash, 0, len(shards))
+	for shrd := range shards {
+		hash, err := hex.DecodeString(shrd.String())
+		if err != nil {
+			return nil, err
+		}
+		hashes = append(hashes, hash)
+	}
+	return hashes, nil
 }
 
 func setupPath(basepath string) error {
