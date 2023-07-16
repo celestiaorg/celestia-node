@@ -52,7 +52,7 @@ var edsStoreStress = &cobra.Command{
 	SilenceUsage: true,
 	RunE: func(cmd *cobra.Command, args []string) (err error) {
 		path, _ := cmd.Flags().GetString(edsStorePathFlag)
-		fmt.Printf("using %s as path for the EDS Store\n", path)
+		fmt.Printf("using %s\n", path)
 
 		freshStart, _ := cmd.Flags().GetBool(edsFreshStartFlag)
 		if freshStart {

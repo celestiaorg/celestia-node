@@ -60,7 +60,7 @@ func (ss *EDSsser) Run(ctx context.Context) (stats Stats, err error) {
 	if err != nil {
 		return stats, err
 	}
-	fmt.Printf("recovered %d EDSes\n", len(edsHashes))
+	fmt.Printf("recovered %d EDSes\n\n", len(edsHashes))
 
 	t := &testing.T{}
 	for toWrite := ss.config.EDSWrites - len(edsHashes); ctx.Err() == nil && toWrite > 0; toWrite-- {
