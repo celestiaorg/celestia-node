@@ -56,8 +56,14 @@ func (ss *EDSsser) Run(ctx context.Context) (stats Stats, err error) {
 		err = errors.Join(err, ss.edsstore.Stop(ctx))
 	}()
 
+	edsHashes, err := ss.edsstore.List()
+	if err != nil {
+		return stats, err
+	}
+	fmt.Printf("recovered %d EDSes\n", len(edsHashes))
+
 	t := &testing.T{}
-	for ; ctx.Err() == nil && ss.config.EDSWrites != 0; ss.config.EDSWrites-- {
+	for toWrite := ss.config.EDSWrites - len(edsHashes); ctx.Err() == nil && toWrite > 0; toWrite-- {
 		// divide by 2 to get ODS size as expected by RandEDS
 		square := edstest.RandEDS(t, ss.config.EDSSize/2)
 		dah, err := da.NewDataAvailabilityHeader(square)

@@ -7,7 +7,6 @@ import (
 	"math"
 	"os"
 
-	logging "github.com/ipfs/go-log/v2"
 	"github.com/spf13/cobra"
 
 	"github.com/celestiaorg/celestia-node/libs/edssser"
@@ -16,63 +15,68 @@ import (
 )
 
 const (
-	edsStorePathFlag   = "eds-store"
-	edsWritesFlag      = "eds-writes"
-	edsSizeFlag        = "eds-size"
-	edsEnableLogFlag   = "log"
+	edsStorePathFlag   = "path"
+	edsWritesFlag      = "writes"
+	edsSizeFlag        = "size"
+	edsDisableLogFlag  = "disable-log"
 	edsLogStatFreqFlag = "log-stat-freq"
-	edsStoreCleanup    = "cleanup"
+	edsCleanupFlag     = "cleanup"
+	edsFreshStartFlag  = "fresh"
 )
 
 func init() {
-	shareCmd.AddCommand(edsStoreStress)
+	edsStoreCmd.AddCommand(edsStoreStress)
 
-	edsStoreStress.Flags().String(edsStorePathFlag, "", "Directory path to use for stress test. os.TempDir by default.")
+	defaultPath := os.TempDir() + "/eds-store"
+	pathFlagUsage := fmt.Sprintf("Directory path to use for stress test. Uses %s by default.", defaultPath)
+	edsStoreStress.Flags().String(edsStorePathFlag, defaultPath, pathFlagUsage)
 	edsStoreStress.Flags().Int(edsWritesFlag, math.MaxInt, "Total EDS writes to make. MaxInt by default.")
 	edsStoreStress.Flags().Int(edsSizeFlag, 128, "Chooses EDS size. 128 by default.")
-	edsStoreStress.Flags().Bool(edsEnableLogFlag, true, "Enables logging. Disabled by default.")
+	edsStoreStress.Flags().Bool(edsDisableLogFlag, false, "Disables logging. Enabled by default.")
 	edsStoreStress.Flags().Int(edsLogStatFreqFlag, 10, "Write statistic logging frequency. 10 by default.")
-	edsStoreStress.Flags().Bool(edsStoreCleanup, true, "Cleans up the store on stop. Enabled by default.")
+	edsStoreStress.Flags().Bool(edsCleanupFlag, false, "Cleans up the store on stop. Disabled by default.")
+	edsStoreStress.Flags().Bool(edsFreshStartFlag, false, "Cleanup previous state on start. Disabled by default.")
 
 	// kill redundant print
 	nodebuilder.PrintKeyringInfo = false
 }
 
-var shareCmd = &cobra.Command{
-	Use:   "share [subcommand]",
-	Short: "Collection of share module related utilities",
+var edsStoreCmd = &cobra.Command{
+	Use:   "eds-store [subcommand]",
+	Short: "Collection of eds-store related utilities",
 }
 
 var edsStoreStress = &cobra.Command{
-	Use:          "eds-store-stress",
+	Use:          "stress",
 	Short:        `Runs eds.Store stress test over default node.Store Datastore backend (e.g. Badger).`,
 	SilenceUsage: true,
 	RunE: func(cmd *cobra.Command, args []string) (err error) {
-		_ = logging.SetLogLevel("*", "fatal")
 		path, _ := cmd.Flags().GetString(edsStorePathFlag)
-		if path == "" {
-			path, err = os.MkdirTemp("", "*")
+		fmt.Printf("using %s as path for the EDS Store\n", path)
+
+		freshStart, _ := cmd.Flags().GetBool(edsFreshStartFlag)
+		if freshStart {
+			err = os.RemoveAll(path)
 			if err != nil {
 				return err
 			}
 		}
-		fmt.Printf("Using %s as path for the EDS Store\n", path)
 
-		cleanup, _ := cmd.Flags().GetBool(edsStoreCleanup)
+		cleanup, _ := cmd.Flags().GetBool(edsCleanupFlag)
 		if cleanup {
 			defer func() {
 				err = errors.Join(err, os.RemoveAll(path))
 			}()
 		}
 
-		enableLog, _ := cmd.Flags().GetBool(edsEnableLogFlag)
+		disableLog, _ := cmd.Flags().GetBool(edsDisableLogFlag)
 		logFreq, _ := cmd.Flags().GetInt(edsLogStatFreqFlag)
 		edsWrites, _ := cmd.Flags().GetInt(edsWritesFlag)
 		edsSize, _ := cmd.Flags().GetInt(edsSizeFlag)
 		cfg := edssser.Config{
 			EDSSize:     edsSize,
 			EDSWrites:   edsWrites,
-			EnableLog:   enableLog,
+			EnableLog:   !disableLog,
 			StatLogFreq: logFreq,
 		}
 
