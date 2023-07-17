@@ -41,7 +41,6 @@ func NewIPLDGetter(bServ blockservice.BlockService) *IPLDGetter {
 func (ig *IPLDGetter) GetShare(ctx context.Context, dah *share.Root, row, col int) (share.Share, error) {
 	var err error
 	ctx, span := tracer.Start(ctx, "ipld/get-share", trace.WithAttributes(
-		attribute.String("root", dah.String()),
 		attribute.Int("row", row),
 		attribute.Int("col", col),
 	))
@@ -66,9 +65,7 @@ func (ig *IPLDGetter) GetShare(ctx context.Context, dah *share.Root, row, col in
 }
 
 func (ig *IPLDGetter) GetEDS(ctx context.Context, root *share.Root) (eds *rsmt2d.ExtendedDataSquare, err error) {
-	ctx, span := tracer.Start(ctx, "ipld/get-eds", trace.WithAttributes(
-		attribute.String("root", root.String()),
-	))
+	ctx, span := tracer.Start(ctx, "ipld/get-eds")
 	defer func() {
 		utils.SetStatusAndEnd(span, err)
 	}()
@@ -91,7 +88,6 @@ func (ig *IPLDGetter) GetSharesByNamespace(
 	namespace share.Namespace,
 ) (shares share.NamespacedShares, err error) {
 	ctx, span := tracer.Start(ctx, "ipld/get-shares-by-namespace", trace.WithAttributes(
-		attribute.String("root", root.String()),
 		attribute.String("namespace", namespace.String()),
 	))
 	defer func() {

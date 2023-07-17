@@ -64,7 +64,6 @@ func (r *Retriever) Retrieve(ctx context.Context, dah *da.DataAvailabilityHeader
 	defer span.End()
 	span.SetAttributes(
 		attribute.Int("size", len(dah.RowRoots)),
-		attribute.String("data_hash", dah.String()),
 	)
 
 	log.Debugw("retrieving data square", "data_hash", dah.String(), "size", len(dah.RowRoots))
@@ -248,7 +247,6 @@ func (rs *retrievalSession) doRequest(ctx context.Context, q *quadrant) {
 			nd, err := ipld.GetNode(ctx, rs.bget, root)
 			if err != nil {
 				rs.span.RecordError(err, trace.WithAttributes(
-					attribute.String("requesting-root", root.String()),
 					attribute.Int("root-index", i),
 				))
 				return

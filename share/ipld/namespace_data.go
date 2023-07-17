@@ -198,7 +198,6 @@ func (n *NamespaceData) CollectLeavesByNamespace(
 
 	span.SetAttributes(
 		attribute.String("namespace", n.namespace.String()),
-		attribute.String("root", root.String()),
 	)
 
 	// buffer the jobs to avoid blocking, we only need as many
