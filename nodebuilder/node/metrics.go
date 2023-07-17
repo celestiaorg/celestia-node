@@ -2,10 +2,10 @@ package node
 
 import (
 	"context"
-	"go.opentelemetry.io/otel/attribute"
 	"time"
 
 	"go.opentelemetry.io/otel"
+	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/metric"
 )
 
