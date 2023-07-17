@@ -3,10 +3,13 @@ package main
 import (
 	"context"
 	"errors"
+	_ "expvar"
 	"fmt"
 	"math"
+	"net/http"
 	"os"
 
+	"github.com/mitchellh/go-homedir"
 	"github.com/spf13/cobra"
 
 	"github.com/celestiaorg/celestia-node/libs/edssser"
@@ -27,9 +30,14 @@ const (
 func init() {
 	edsStoreCmd.AddCommand(edsStoreStress)
 
-	defaultPath := os.TempDir() + "/eds-store"
+	defaultPath := "~/.edssser"
+	path, err := homedir.Expand(defaultPath)
+	if err != nil {
+		panic(err)
+	}
+
 	pathFlagUsage := fmt.Sprintf("Directory path to use for stress test. Uses %s by default.", defaultPath)
-	edsStoreStress.Flags().String(edsStorePathFlag, defaultPath, pathFlagUsage)
+	edsStoreStress.Flags().String(edsStorePathFlag, path, pathFlagUsage)
 	edsStoreStress.Flags().Int(edsWritesFlag, math.MaxInt, "Total EDS writes to make. MaxInt by default.")
 	edsStoreStress.Flags().Int(edsSizeFlag, 128, "Chooses EDS size. 128 by default.")
 	edsStoreStress.Flags().Bool(edsDisableLogFlag, false, "Disables logging. Enabled by default.")
@@ -51,6 +59,9 @@ var edsStoreStress = &cobra.Command{
 	Short:        `Runs eds.Store stress test over default node.Store Datastore backend (e.g. Badger).`,
 	SilenceUsage: true,
 	RunE: func(cmd *cobra.Command, args []string) (err error) {
+		// expose expvar vars over http
+		go http.ListenAndServe(":9999", http.DefaultServeMux)
+
 		path, _ := cmd.Flags().GetString(edsStorePathFlag)
 		fmt.Printf("using %s\n", path)
 
