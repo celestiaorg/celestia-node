@@ -26,7 +26,7 @@ const (
 	promAgentPort     = "8890"
 )
 
-// option sets up native libp2p metrics up
+// prometheusMetrics option sets up native libp2p metrics up
 func prometheusMetrics(lifecycle fx.Lifecycle, registerer prometheus.Registerer) error {
 	rcmgrObs.MustRegisterWith(registerer)
 
