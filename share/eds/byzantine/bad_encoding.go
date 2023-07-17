@@ -191,14 +191,18 @@ func (p *BadEncodingProof) Validate(hdr libhead.Header) error {
 	// the row/col can't be reconstructed, or the building of NMTree fails.
 	rebuiltShares, err := codec.Decode(shares)
 	if err != nil {
-		log.Infow("failed to decode shares", "err", err)
+		log.Infow("failed to decode shares at height",
+			"height", header.Height(), "err", err,
+		)
 		return nil
 	}
 
 	odsWidth := uint64(len(merkleRoots) / 2)
 	rebuiltExtendedShares, err := codec.Encode(rebuiltShares[0:odsWidth])
 	if err != nil {
-		log.Infow("failed to encode shares", "err", err)
+		log.Infow("failed to encode shares at height",
+			"height", header.Height(), "err", err,
+		)
 		return nil
 	}
 	copy(rebuiltShares[odsWidth:], rebuiltExtendedShares)
@@ -207,14 +211,18 @@ func (p *BadEncodingProof) Validate(hdr libhead.Header) error {
 	for _, share := range rebuiltShares {
 		err = tree.Push(share)
 		if err != nil {
-			log.Infow("failed to build a tree from the reconstructed shares", "err", err)
+			log.Infow("failed to build a tree from the reconstructed shares at height",
+				"height", header.Height(), "err", err,
+			)
 			return nil
 		}
 	}
 
 	expectedRoot, err := tree.Root()
 	if err != nil {
-		log.Infow("failed to build a tree root", "err", err)
+		log.Infow("failed to build a tree root at height",
+			"height", header.Height(), "err", err,
+		)
 		return nil
 	}
 
