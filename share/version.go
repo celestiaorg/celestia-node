@@ -2,6 +2,7 @@ package share
 
 import (
 	"github.com/prometheus/client_golang/prometheus"
+	"go.opentelemetry.io/otel"
 )
 
 var (
@@ -11,6 +12,8 @@ var (
 	systemVersion   string // System version of the application
 	golangVersion   string // Go programming language version
 )
+
+var meter = otel.Meter("build_info")
 
 // SetSemanticVersion sets the value of the semanticVersion variable
 func SetSemanticVersion(version string) {

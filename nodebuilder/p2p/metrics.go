@@ -6,7 +6,6 @@ import (
 	"net/http"
 	"time"
 
-	"github.com/celestiaorg/celestia-node/share"
 	rcmgrObs "github.com/libp2p/go-libp2p/p2p/host/resource-manager/obs"
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
@@ -29,9 +28,6 @@ const (
 
 // option sets up native libp2p metrics up
 func prometheusMetrics(lifecycle fx.Lifecycle, registerer prometheus.Registerer) error {
-	// register the version info to the metrics
-	registerer = share.RegisterPromMetrics(registerer)
-
 	rcmgrObs.MustRegisterWith(registerer)
 
 	registry := registerer.(*prometheus.Registry)

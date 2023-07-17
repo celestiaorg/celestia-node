@@ -2,6 +2,7 @@ package node
 
 import (
 	"context"
+	"go.opentelemetry.io/otel/attribute"
 	"time"
 
 	"go.opentelemetry.io/otel"
@@ -33,6 +34,14 @@ func WithMetrics() error {
 		return err
 	}
 
+	buildInfoGauge, err := meter.Float64ObservableGauge(
+		"build_info",
+		metric.WithDescription("Celestia Node build information"),
+	)
+	if err != nil {
+		return err
+	}
+
 	callback := func(ctx context.Context, observer metric.Observer) error {
 		if !nodeStarted {
 			// Observe node start timestamp
@@ -42,9 +51,22 @@ func WithMetrics() error {
 		}
 
 		observer.ObserveFloat64(totalNodeRunTime, time.Since(timeStarted).Seconds())
+
+		// Observe build info with labels
+		labels := metric.WithAttributes(
+			attribute.String("buildTime", buildTime),
+			attribute.String("lastCommit", lastCommit),
+			attribute.String("semanticVersion", semanticVersion),
+			attribute.String("systemVersion", systemVersion),
+			attribute.String("golangVersion", golangVersion),
+		)
+
+		observer.ObserveFloat64(buildInfoGauge, 1, labels)
+
 		return nil
 	}
 
-	_, err = meter.RegisterCallback(callback, nodeStartTS, totalNodeRunTime)
+	_, err = meter.RegisterCallback(callback, nodeStartTS, totalNodeRunTime, buildInfoGauge)
+
 	return err
 }

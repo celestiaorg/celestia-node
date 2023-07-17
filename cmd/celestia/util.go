@@ -11,7 +11,6 @@ import (
 	"github.com/celestiaorg/celestia-node/nodebuilder/p2p"
 	"github.com/celestiaorg/celestia-node/nodebuilder/rpc"
 	"github.com/celestiaorg/celestia-node/nodebuilder/state"
-	"github.com/celestiaorg/celestia-node/share"
 )
 
 func persistentPreRunEnv(cmd *cobra.Command, nodeType node.Type, _ []string) error {
@@ -61,9 +60,6 @@ func persistentPreRunEnv(cmd *cobra.Command, nodeType node.Type, _ []string) err
 	rpc.ParseFlags(cmd, &cfg.RPC)
 	gateway.ParseFlags(cmd, &cfg.Gateway)
 	state.ParseFlags(cmd, &cfg.State)
-
-	// set the values to expose them via Prometheus
-	share.SetMetricsValues(lastCommit, semanticVersion, systemVersion, golangVersion, buildTime)
 
 	// set config
 	ctx = cmdnode.WithNodeConfig(ctx, &cfg)
