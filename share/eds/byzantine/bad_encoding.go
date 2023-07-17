@@ -156,18 +156,20 @@ func (p *BadEncodingProof) Validate(hdr libhead.Header) error {
 		)
 	}
 
-	// find at least 1 non-empty share
-	empty := true
+	odsWidth := uint64(len(merkleRoots) / 2)
+	amount := uint64(0)
 	for _, share := range p.Shares {
 		if share == nil {
 			continue
 		}
-		empty = false
-		break
+		amount++
+		if amount == odsWidth {
+			break
+		}
 	}
 
-	if empty {
-		return errors.New("fraud: invalid proof: no shares provided to reconstruct row/col")
+	if amount < odsWidth {
+		return errors.New("fraud: invalid proof: not enough shares provided to reconstruct row/col")
 	}
 
 	// verify that Merkle proofs correspond to particular shares.
@@ -187,7 +189,7 @@ func (p *BadEncodingProof) Validate(hdr libhead.Header) error {
 
 	codec := share.DefaultRSMT2DCodec()
 
-	// We assume that the proof is valid in case we proved the inclusion of `Shares` but
+	// We can conclude that the proof is valid in case we proved the inclusion of `Shares` but
 	// the row/col can't be reconstructed, or the building of NMTree fails.
 	rebuiltShares, err := codec.Decode(shares)
 	if err != nil {
@@ -197,7 +199,6 @@ func (p *BadEncodingProof) Validate(hdr libhead.Header) error {
 		return nil
 	}
 
-	odsWidth := uint64(len(merkleRoots) / 2)
 	rebuiltExtendedShares, err := codec.Encode(rebuiltShares[0:odsWidth])
 	if err != nil {
 		log.Infow("failed to encode shares at height",
