@@ -115,6 +115,7 @@ func (p *BadEncodingProof) Validate(hdr libhead.Header) error {
 	if !ok {
 		panic(fmt.Sprintf("invalid header type received during BEFP validation: expected %T, got %T", header, hdr))
 	}
+
 	if header.Height() != int64(p.BlockHeight) {
 		return fmt.Errorf("incorrect block height during BEFP validation: expected %d, got %d",
 			p.BlockHeight, header.Height(),
@@ -138,11 +139,13 @@ func (p *BadEncodingProof) Validate(hdr libhead.Header) error {
 	if p.Axis == rsmt2d.Row {
 		merkleRoots = header.DAH.ColumnRoots
 	}
+
 	if int(p.Index) >= len(merkleRoots) {
 		return fmt.Errorf("invalid %s proof: index out of bounds (%d >= %d)",
 			BadEncoding, int(p.Index), len(merkleRoots),
 		)
 	}
+
 	if len(p.Shares) != len(merkleRoots) {
 		// Since p.Shares should contain all the shares from either a row or a
 		// column, it should exactly match the number of row roots. In this
@@ -154,16 +157,16 @@ func (p *BadEncodingProof) Validate(hdr libhead.Header) error {
 	}
 
 	// find at least 1 non-empty share
-	nonEmpty := false
+	empty := true
 	for _, share := range p.Shares {
 		if share == nil {
 			continue
 		}
-		nonEmpty = true
+		empty = false
 		break
 	}
 
-	if !nonEmpty {
+	if empty {
 		return errors.New("fraud: invalid proof: no shares provided to reconstruct row/col")
 	}
 
@@ -182,22 +185,20 @@ func (p *BadEncodingProof) Validate(hdr libhead.Header) error {
 		shares[index] = share.GetData(shr.Share)
 	}
 
-	odsWidth := uint64(len(merkleRoots) / 2)
 	codec := share.DefaultRSMT2DCodec()
 
 	// We assume that the proof is valid in case we proved the inclusion of `Shares` but
 	// the row/col can't be reconstructed, or the building of NMTree fails.
-
-	// rebuild a row or col.
 	rebuiltShares, err := codec.Decode(shares)
 	if err != nil {
-		log.Errorw("failed to decode shares", "err", err)
+		log.Infow("failed to decode shares", "err", err)
 		return nil
 	}
 
+	odsWidth := uint64(len(merkleRoots) / 2)
 	rebuiltExtendedShares, err := codec.Encode(rebuiltShares[0:odsWidth])
 	if err != nil {
-		log.Errorw("failed to encode shares", "err", err)
+		log.Infow("failed to encode shares", "err", err)
 		return nil
 	}
 	copy(rebuiltShares[odsWidth:], rebuiltExtendedShares)
@@ -206,14 +207,14 @@ func (p *BadEncodingProof) Validate(hdr libhead.Header) error {
 	for _, share := range rebuiltShares {
 		err = tree.Push(share)
 		if err != nil {
-			log.Errorw("failed to build a tree from the reconstructed shares", "err", err)
+			log.Infow("failed to build a tree from the reconstructed shares", "err", err)
 			return nil
 		}
 	}
 
 	expectedRoot, err := tree.Root()
 	if err != nil {
-		log.Errorw("failed to build a tree root", "err", err)
+		log.Infow("failed to build a tree root", "err", err)
 		return nil
 	}
 
