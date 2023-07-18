@@ -54,11 +54,11 @@ func WithMetrics() error {
 
 		// Observe build info with labels
 		labels := metric.WithAttributes(
-			attribute.String("buildTime", buildTime),
-			attribute.String("lastCommit", lastCommit),
-			attribute.String("semanticVersion", semanticVersion),
-			attribute.String("systemVersion", systemVersion),
-			attribute.String("golangVersion", golangVersion),
+			attribute.String("build_time", buildTime),
+			attribute.String("last_commit", lastCommit),
+			attribute.String("semantic_version", semanticVersion),
+			attribute.String("system_version", systemVersion),
+			attribute.String("golang_version", golangVersion),
 		)
 
 		observer.ObserveFloat64(buildInfoGauge, 1, labels)
