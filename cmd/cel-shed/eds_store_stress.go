@@ -88,6 +88,7 @@ var edsStoreStress = &cobra.Command{
 			EDSSize:     edsSize,
 			EDSWrites:   edsWrites,
 			EnableLog:   !disableLog,
+			LogFilePath: path,
 			StatLogFreq: logFreq,
 		}
 
