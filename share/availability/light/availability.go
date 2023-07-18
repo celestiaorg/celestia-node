@@ -84,13 +84,13 @@ func (la *ShareAvailability) SharesAvailable(ctx context.Context, dah *share.Roo
 		}
 
 		if err != nil {
-			if !errors.Is(err, context.Canceled) {
-				log.Errorw("availability validation failed", "root", dah.String(), "err", err.Error())
+			if errors.Is(err, context.Canceled) {
+				return err
 			}
+			log.Errorw("availability validation failed", "root", dah.String(), "err", err.Error())
 			if ipldFormat.IsNotFound(err) || errors.Is(err, context.DeadlineExceeded) {
 				return share.ErrNotAvailable
 			}
-
 			return err
 		}
 	}

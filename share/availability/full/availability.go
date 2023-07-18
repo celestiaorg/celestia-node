@@ -72,13 +72,14 @@ func (fa *ShareAvailability) SharesAvailable(ctx context.Context, root *share.Ro
 
 	_, err := fa.getter.GetEDS(ctx, root)
 	if err != nil {
+		if errors.Is(err, context.Canceled) {
+			return err
+		}
 		log.Errorw("availability validation failed", "root", root.String(), "err", err.Error())
 		var byzantineErr *byzantine.ErrByzantine
 		if ipldFormat.IsNotFound(err) || errors.Is(err, context.DeadlineExceeded) && !errors.As(err, &byzantineErr) {
 			return share.ErrNotAvailable
 		}
-
-		return err
 	}
 	return err
 }
