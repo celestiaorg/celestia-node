@@ -270,6 +270,7 @@ func newEDSClientServer(
 	return client, server
 }
 
+// addToNamespace adds arbitrary int value to namespace, treating namespace as big-endian implementation of int
 func addToNamespace(namespace share.Namespace, val int) (share.Namespace, error) {
 	if val == 0 {
 		return namespace, nil
@@ -340,14 +341,14 @@ func TestAddToNamespace(t *testing.T) {
 			value:         1,
 			input:         share.Namespace{0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF},
 			expected:      nil,
-			expectedError: errors.New("integer overflow"),
+			expectedError: errors.New("namespace overflow"),
 		},
 		{
 			name:          "Overflow error negative",
 			value:         -1,
 			input:         share.Namespace{0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0},
 			expected:      nil,
-			expectedError: errors.New("integer overflow"),
+			expectedError: errors.New("namespace overflow"),
 		},
 	}
 
