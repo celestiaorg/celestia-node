@@ -26,7 +26,8 @@ func TestNamespaceFromCID(t *testing.T) {
 
 	for i, tt := range tests {
 		t.Run(strconv.Itoa(i), func(t *testing.T) {
-			dah := da.NewDataAvailabilityHeader(tt.eds)
+			dah, err := da.NewDataAvailabilityHeader(tt.eds)
+			require.NoError(t, err)
 			// check to make sure NamespacedHash is correctly derived from CID
 			for _, row := range dah.RowRoots {
 				c, err := CidFromNamespacedSha256(row)

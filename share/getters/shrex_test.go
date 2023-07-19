@@ -198,7 +198,8 @@ func newStore(t *testing.T) (*eds.Store, error) {
 
 func generateTestEDS(t *testing.T) (*rsmt2d.ExtendedDataSquare, da.DataAvailabilityHeader, share.Namespace) {
 	eds := edstest.RandEDS(t, 4)
-	dah := da.NewDataAvailabilityHeader(eds)
+	dah, err := da.NewDataAvailabilityHeader(eds)
+	require.NoError(t, err)
 	max := nmt.MaxNamespace(dah.RowRoots[(len(dah.RowRoots))/2-1], share.NamespaceSize)
 	return eds, dah, max
 }

@@ -34,7 +34,8 @@ func RandFillBS(t *testing.T, n int, bServ blockservice.BlockService) *share.Roo
 func FillBS(t *testing.T, bServ blockservice.BlockService, shares []share.Share) *share.Root {
 	eds, err := ipld.AddShares(context.TODO(), shares, bServ)
 	require.NoError(t, err)
-	dah := da.NewDataAvailabilityHeader(eds)
+	dah, err := da.NewDataAvailabilityHeader(eds)
+	require.NoError(t, err)
 	return &dah
 }
 

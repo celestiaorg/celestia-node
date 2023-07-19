@@ -47,6 +47,7 @@ func TestEmptySquareWithZeroTxs(t *testing.T) {
 	eds, err = app.ExtendBlock(data, appconsts.LatestVersion)
 	require.NoError(t, err)
 
-	dah := da.NewDataAvailabilityHeader(eds)
+	dah, err := da.NewDataAvailabilityHeader(eds)
+	require.NoError(t, err)
 	assert.Equal(t, share.EmptyRoot().Hash(), dah.Hash())
 }
