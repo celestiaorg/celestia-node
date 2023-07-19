@@ -64,7 +64,6 @@ func (r *Retriever) Retrieve(ctx context.Context, dah *da.DataAvailabilityHeader
 	defer span.End()
 	span.SetAttributes(
 		attribute.Int("size", len(dah.RowRoots)),
-		attribute.String("data_hash", dah.String()),
 	)
 
 	log.Debugw("retrieving data square", "data_hash", dah.String(), "size", len(dah.RowRoots))
@@ -127,7 +126,7 @@ func (r *Retriever) newSession(ctx context.Context, dah *da.DataAvailabilityHead
 		return &tree
 	}
 
-	square, err := rsmt2d.ImportExtendedDataSquare(make([][]byte, size*size), share.DefaultRSMT2DCodec(), treeFn)
+	square, err := rsmt2d.NewExtendedDataSquare(share.DefaultRSMT2DCodec(), treeFn, uint(size), share.Size)
 	if err != nil {
 		return nil, err
 	}
@@ -248,7 +247,6 @@ func (rs *retrievalSession) doRequest(ctx context.Context, q *quadrant) {
 			nd, err := ipld.GetNode(ctx, rs.bget, root)
 			if err != nil {
 				rs.span.RecordError(err, trace.WithAttributes(
-					attribute.String("requesting-root", root.String()),
 					attribute.Int("root-index", i),
 				))
 				return
@@ -283,10 +281,12 @@ func (rs *retrievalSession) doRequest(ctx context.Context, q *quadrant) {
 				if rs.isReconstructed() {
 					return
 				}
-				if rs.square.GetCell(uint(x), uint(y)) != nil {
+				if err := rs.square.SetCell(uint(x), uint(y), share); err != nil {
+					// safe to ignore as:
+					// * share size already verified
+					// * the same share might come from either Row or Col
 					return
 				}
-				rs.square.SetCell(uint(x), uint(y), share)
 				// if we have >= 1/4 of the square we can start trying to Reconstruct
 				// TODO(@Wondertan): This is not an ideal way to know when to start
 				//  reconstruction and can cause idle reconstruction tries in some cases,

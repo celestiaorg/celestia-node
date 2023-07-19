@@ -8,11 +8,9 @@ import (
 
 	pubsub "github.com/libp2p/go-libp2p-pubsub"
 	"github.com/libp2p/go-libp2p/core/peer"
+	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/attribute"
-	"go.opentelemetry.io/otel/metric/global"
-	"go.opentelemetry.io/otel/metric/instrument"
-	"go.opentelemetry.io/otel/metric/instrument/asyncint64"
-	"go.opentelemetry.io/otel/metric/instrument/syncint64"
+	"go.opentelemetry.io/otel/metric"
 
 	"github.com/celestiaorg/celestia-node/share/p2p/shrexsub"
 )
@@ -52,7 +50,7 @@ const (
 )
 
 var (
-	meter = global.MeterProvider().Meter("shrex_peer_manager")
+	meter = otel.Meter("shrex_peer_manager")
 )
 
 type blacklistPeerReason string
@@ -64,63 +62,63 @@ type poolStatus string
 type peerSource string
 
 type metrics struct {
-	getPeer                  syncint64.Counter   // attributes: source, is_instant
-	getPeerWaitTimeHistogram syncint64.Histogram // attributes: source
-	getPeerPoolSizeHistogram syncint64.Histogram // attributes: source
-	doneResult               syncint64.Counter   // attributes: source, done_result
-	validationResult         syncint64.Counter   // attributes: validation_result
+	getPeer                  metric.Int64Counter   // attributes: source, is_instant
+	getPeerWaitTimeHistogram metric.Int64Histogram // attributes: source
+	getPeerPoolSizeHistogram metric.Int64Histogram // attributes: source
+	doneResult               metric.Int64Counter   // attributes: source, done_result
+	validationResult         metric.Int64Counter   // attributes: validation_result
 
-	shrexPools               asyncint64.Gauge // attributes: pool_status
-	fullNodesPool            asyncint64.Gauge // attributes: pool_status
+	shrexPools               metric.Int64ObservableGauge // attributes: pool_status
+	fullNodesPool            metric.Int64ObservableGauge // attributes: pool_status
 	blacklistedPeersByReason sync.Map
-	blacklistedPeers         asyncint64.Gauge // attributes: blacklist_reason
+	blacklistedPeers         metric.Int64ObservableGauge // attributes: blacklist_reason
 }
 
 func initMetrics(manager *Manager) (*metrics, error) {
-	getPeer, err := meter.SyncInt64().Counter("peer_manager_get_peer_counter",
-		instrument.WithDescription("get peer counter"))
+	getPeer, err := meter.Int64Counter("peer_manager_get_peer_counter",
+		metric.WithDescription("get peer counter"))
 	if err != nil {
 		return nil, err
 	}
 
-	getPeerWaitTimeHistogram, err := meter.SyncInt64().Histogram("peer_manager_get_peer_ms_time_hist",
-		instrument.WithDescription("get peer time histogram(ms), observed only for async get(is_instant = false)"))
+	getPeerWaitTimeHistogram, err := meter.Int64Histogram("peer_manager_get_peer_ms_time_hist",
+		metric.WithDescription("get peer time histogram(ms), observed only for async get(is_instant = false)"))
 	if err != nil {
 		return nil, err
 	}
 
-	getPeerPoolSizeHistogram, err := meter.SyncInt64().Histogram("peer_manager_get_peer_pool_size_hist",
-		instrument.WithDescription("amount of available active peers in pool at time when get was called"))
+	getPeerPoolSizeHistogram, err := meter.Int64Histogram("peer_manager_get_peer_pool_size_hist",
+		metric.WithDescription("amount of available active peers in pool at time when get was called"))
 	if err != nil {
 		return nil, err
 	}
 
-	doneResult, err := meter.SyncInt64().Counter("peer_manager_done_result_counter",
-		instrument.WithDescription("done results counter"))
+	doneResult, err := meter.Int64Counter("peer_manager_done_result_counter",
+		metric.WithDescription("done results counter"))
 	if err != nil {
 		return nil, err
 	}
 
-	validationResult, err := meter.SyncInt64().Counter("peer_manager_validation_result_counter",
-		instrument.WithDescription("validation result counter"))
+	validationResult, err := meter.Int64Counter("peer_manager_validation_result_counter",
+		metric.WithDescription("validation result counter"))
 	if err != nil {
 		return nil, err
 	}
 
-	shrexPools, err := meter.AsyncInt64().Gauge("peer_manager_pools_gauge",
-		instrument.WithDescription("pools amount"))
+	shrexPools, err := meter.Int64ObservableGauge("peer_manager_pools_gauge",
+		metric.WithDescription("pools amount"))
 	if err != nil {
 		return nil, err
 	}
 
-	fullNodesPool, err := meter.AsyncInt64().Gauge("peer_manager_full_nodes_gauge",
-		instrument.WithDescription("full nodes pool peers amount"))
+	fullNodesPool, err := meter.Int64ObservableGauge("peer_manager_full_nodes_gauge",
+		metric.WithDescription("full nodes pool peers amount"))
 	if err != nil {
 		return nil, err
 	}
 
-	blacklisted, err := meter.AsyncInt64().Gauge("peer_manager_blacklisted_peers",
-		instrument.WithDescription("blacklisted peers amount"))
+	blacklisted, err := meter.Int64ObservableGauge("peer_manager_blacklisted_peers",
+		metric.WithDescription("blacklisted peers amount"))
 	if err != nil {
 		return nil, err
 	}
@@ -136,33 +134,31 @@ func initMetrics(manager *Manager) (*metrics, error) {
 		blacklistedPeers:         blacklisted,
 	}
 
-	err = meter.RegisterCallback(
-		[]instrument.Asynchronous{
-			shrexPools,
-			fullNodesPool,
-			blacklisted,
-		},
-		func(ctx context.Context) {
-			for poolStatus, count := range manager.shrexPools() {
-				shrexPools.Observe(ctx, count,
-					attribute.String(poolStatusKey, string(poolStatus)))
-			}
+	callback := func(ctx context.Context, observer metric.Observer) error {
+		for poolStatus, count := range manager.shrexPools() {
+			observer.ObserveInt64(shrexPools, count,
+				metric.WithAttributes(
+					attribute.String(poolStatusKey, string(poolStatus))))
+		}
 
-			fullNodesPool.Observe(ctx, int64(manager.fullNodes.len()),
-				attribute.String(peerStatusKey, string(peerStatusActive)))
-			fullNodesPool.Observe(ctx, int64(manager.fullNodes.cooldown.len()),
-				attribute.String(peerStatusKey, string(peerStatusCooldown)))
+		observer.ObserveInt64(fullNodesPool, int64(manager.fullNodes.len()),
+			metric.WithAttributes(
+				attribute.String(peerStatusKey, string(peerStatusActive))))
+		observer.ObserveInt64(fullNodesPool, int64(manager.fullNodes.cooldown.len()),
+			metric.WithAttributes(
+				attribute.String(peerStatusKey, string(peerStatusCooldown))))
 
-			metrics.blacklistedPeersByReason.Range(func(key, value any) bool {
-				reason := key.(blacklistPeerReason)
-				amount := value.(int)
-				blacklisted.Observe(ctx, int64(amount),
-					attribute.String(blacklistPeerReasonKey, string(reason)))
-				return true
-			})
-		},
-	)
-
+		metrics.blacklistedPeersByReason.Range(func(key, value any) bool {
+			reason := key.(blacklistPeerReason)
+			amount := value.(int)
+			observer.ObserveInt64(blacklisted, int64(amount),
+				metric.WithAttributes(
+					attribute.String(blacklistPeerReasonKey, string(reason))))
+			return true
+		})
+		return nil
+	}
+	_, err = meter.RegisterCallback(callback, shrexPools, fullNodesPool, blacklisted)
 	if err != nil {
 		return nil, fmt.Errorf("registering metrics callback: %w", err)
 	}
@@ -180,17 +176,20 @@ func (m *metrics) observeGetPeer(
 		ctx = context.Background()
 	}
 	m.getPeer.Add(ctx, 1,
-		attribute.String(sourceKey, string(source)),
-		attribute.Bool(isInstantKey, waitTime == 0))
+		metric.WithAttributes(
+			attribute.String(sourceKey, string(source)),
+			attribute.Bool(isInstantKey, waitTime == 0)))
 	if source == sourceShrexSub {
 		m.getPeerPoolSizeHistogram.Record(ctx, int64(poolSize),
-			attribute.String(sourceKey, string(source)))
+			metric.WithAttributes(
+				attribute.String(sourceKey, string(source))))
 	}
 
 	// record wait time only for async gets
 	if waitTime > 0 {
 		m.getPeerWaitTimeHistogram.Record(ctx, waitTime.Milliseconds(),
-			attribute.String(sourceKey, string(source)))
+			metric.WithAttributes(
+				attribute.String(sourceKey, string(source))))
 	}
 }
 
@@ -201,8 +200,9 @@ func (m *metrics) observeDoneResult(source peerSource, result result) {
 
 	ctx := context.Background()
 	m.doneResult.Add(ctx, 1,
-		attribute.String(sourceKey, string(source)),
-		attribute.String(doneResultKey, string(result)))
+		metric.WithAttributes(
+			attribute.String(sourceKey, string(source)),
+			attribute.String(doneResultKey, string(result))))
 }
 
 // validationObserver is a middleware that observes validation results as metrics
@@ -230,7 +230,8 @@ func (m *metrics) validationObserver(validator shrexsub.ValidatorFn) shrexsub.Va
 		}
 
 		m.validationResult.Add(ctx, 1,
-			attribute.String(validationResultKey, resStr))
+			metric.WithAttributes(
+				attribute.String(validationResultKey, resStr)))
 		return res
 	}
 }

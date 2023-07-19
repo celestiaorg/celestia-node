@@ -5,11 +5,9 @@ import (
 	"fmt"
 
 	"github.com/libp2p/go-libp2p/core/peer"
+	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/attribute"
-	"go.opentelemetry.io/otel/metric/global"
-	"go.opentelemetry.io/otel/metric/instrument"
-	"go.opentelemetry.io/otel/metric/instrument/asyncint64"
-	"go.opentelemetry.io/otel/metric/instrument/syncint64"
+	"go.opentelemetry.io/otel/metric"
 )
 
 const (
@@ -28,18 +26,18 @@ const (
 )
 
 var (
-	meter = global.MeterProvider().Meter("share_discovery")
+	meter = otel.Meter("share_discovery")
 )
 
 type handlePeerResult string
 
 type metrics struct {
-	peersAmount      asyncint64.Gauge
-	discoveryResult  syncint64.Counter // attributes: enough_peers[bool],is_canceled[bool]
-	handlePeerResult syncint64.Counter // attributes: result[string]
-	advertise        syncint64.Counter // attributes: failed[bool]
-	peerAdded        syncint64.Counter
-	peerRemoved      syncint64.Counter
+	peersAmount      metric.Int64ObservableGauge
+	discoveryResult  metric.Int64Counter // attributes: enough_peers[bool],is_canceled[bool]
+	handlePeerResult metric.Int64Counter // attributes: result[string]
+	advertise        metric.Int64Counter // attributes: failed[bool]
+	peerAdded        metric.Int64Counter
+	peerRemoved      metric.Int64Counter
 }
 
 // WithMetrics turns on metric collection in discoery.
@@ -54,44 +52,44 @@ func (d *Discovery) WithMetrics() error {
 }
 
 func initMetrics(d *Discovery) (*metrics, error) {
-	peersAmount, err := meter.AsyncInt64().Gauge("discovery_amount_of_peers",
-		instrument.WithDescription("amount of peers in discovery set"))
+	peersAmount, err := meter.Int64ObservableGauge("discovery_amount_of_peers",
+		metric.WithDescription("amount of peers in discovery set"))
 	if err != nil {
 		return nil, err
 	}
 
-	discoveryResult, err := meter.SyncInt64().Counter("discovery_find_peers_result",
-		instrument.WithDescription("result of find peers run"))
+	discoveryResult, err := meter.Int64Counter("discovery_find_peers_result",
+		metric.WithDescription("result of find peers run"))
 	if err != nil {
 		return nil, err
 	}
 
-	handlePeerResultCounter, err := meter.SyncInt64().Counter("discovery_handler_peer_result",
-		instrument.WithDescription("result handling found peer"))
+	handlePeerResultCounter, err := meter.Int64Counter("discovery_handler_peer_result",
+		metric.WithDescription("result handling found peer"))
 	if err != nil {
 		return nil, err
 	}
 
-	advertise, err := meter.SyncInt64().Counter("discovery_advertise_event",
-		instrument.WithDescription("advertise events counter"))
+	advertise, err := meter.Int64Counter("discovery_advertise_event",
+		metric.WithDescription("advertise events counter"))
 	if err != nil {
 		return nil, err
 	}
 
-	peerAdded, err := meter.SyncInt64().Counter("discovery_add_peer",
-		instrument.WithDescription("add peer to discovery set counter"))
+	peerAdded, err := meter.Int64Counter("discovery_add_peer",
+		metric.WithDescription("add peer to discovery set counter"))
 	if err != nil {
 		return nil, err
 	}
 
-	peerRemoved, err := meter.SyncInt64().Counter("discovery_remove_peer",
-		instrument.WithDescription("remove peer from discovery set counter"))
+	peerRemoved, err := meter.Int64Counter("discovery_remove_peer",
+		metric.WithDescription("remove peer from discovery set counter"))
 	if err != nil {
 		return nil, err
 	}
 
-	backOffSize, err := meter.AsyncInt64().Gauge("discovery_backoff_amount",
-		instrument.WithDescription("amount of peers in backoff"))
+	backOffSize, err := meter.Int64ObservableGauge("discovery_backoff_amount",
+		metric.WithDescription("amount of peers in backoff"))
 	if err != nil {
 		return nil, err
 	}
@@ -105,16 +103,12 @@ func initMetrics(d *Discovery) (*metrics, error) {
 		peerRemoved:      peerRemoved,
 	}
 
-	err = meter.RegisterCallback(
-		[]instrument.Asynchronous{
-			peersAmount,
-			backOffSize,
-		},
-		func(ctx context.Context) {
-			peersAmount.Observe(ctx, int64(d.set.Size()))
-			backOffSize.Observe(ctx, int64(d.connector.Size()))
-		},
-	)
+	callback := func(ctx context.Context, observer metric.Observer) error {
+		observer.ObserveInt64(peersAmount, int64(d.set.Size()))
+		observer.ObserveInt64(backOffSize, int64(d.connector.Size()))
+		return nil
+	}
+	_, err = meter.RegisterCallback(callback, peersAmount, backOffSize)
 	if err != nil {
 		return nil, fmt.Errorf("registering metrics callback: %w", err)
 	}
@@ -130,7 +124,8 @@ func (m *metrics) observeFindPeers(ctx context.Context, isEnoughPeers bool) {
 	}
 
 	m.discoveryResult.Add(ctx, 1,
-		attribute.Bool(discoveryEnoughPeersKey, isEnoughPeers))
+		metric.WithAttributes(
+			attribute.Bool(discoveryEnoughPeersKey, isEnoughPeers)))
 }
 
 func (m *metrics) observeHandlePeer(ctx context.Context, result handlePeerResult) {
@@ -142,7 +137,8 @@ func (m *metrics) observeHandlePeer(ctx context.Context, result handlePeerResult
 	}
 
 	m.handlePeerResult.Add(ctx, 1,
-		attribute.String(handlePeerResultKey, string(result)))
+		metric.WithAttributes(
+			attribute.String(handlePeerResultKey, string(result))))
 }
 
 func (m *metrics) observeAdvertise(ctx context.Context, err error) {
@@ -154,7 +150,8 @@ func (m *metrics) observeAdvertise(ctx context.Context, err error) {
 	}
 
 	m.advertise.Add(ctx, 1,
-		attribute.Bool(advertiseFailedKey, err != nil))
+		metric.WithAttributes(
+			attribute.Bool(advertiseFailedKey, err != nil)))
 }
 
 func (m *metrics) observeOnPeersUpdate(_ peer.ID, isAdded bool) {
