@@ -47,7 +47,8 @@ func TestSharesAvailable_Full_ErrNotAvailable(t *testing.T) {
 	defer cancel()
 
 	eds := edstest.RandEDS(t, 4)
-	dah := da.NewDataAvailabilityHeader(eds)
+	dah, err := da.NewDataAvailabilityHeader(eds)
+	require.NoError(t, err)
 	avail := TestAvailability(getter)
 
 	errors := []error{share.ErrNotFound, context.DeadlineExceeded}
