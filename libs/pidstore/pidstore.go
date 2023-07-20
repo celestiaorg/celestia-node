@@ -23,7 +23,8 @@ type PeerIDStore struct {
 	ds datastore.Datastore
 }
 
-// NewPeerIDStore creates a new peer ID store backed by the given datastore.
+// NewPeerIDStore creates a new peer AddrInfo store backed by the given
+// datastore.
 func NewPeerIDStore(ds datastore.Datastore) *PeerIDStore {
 	return &PeerIDStore{
 		ds: namespace.Wrap(ds, storePrefix),
@@ -31,7 +32,7 @@ func NewPeerIDStore(ds datastore.Datastore) *PeerIDStore {
 }
 
 // Load loads the peers from datastore and returns them.
-func (p *PeerIDStore) Load(ctx context.Context) ([]peer.ID, error) {
+func (p *PeerIDStore) Load(ctx context.Context) ([]peer.AddrInfo, error) {
 	log.Debug("Loading peers")
 
 	bin, err := p.ds.Get(ctx, peersKey)
@@ -39,7 +40,7 @@ func (p *PeerIDStore) Load(ctx context.Context) ([]peer.ID, error) {
 		return nil, fmt.Errorf("pidstore: loading peers from datastore: %w", err)
 	}
 
-	var peers []peer.ID
+	var peers []peer.AddrInfo
 	err = json.Unmarshal(bin, &peers)
 	if err != nil {
 		return nil, fmt.Errorf("pidstore: unmarshalling peer IDs: %w", err)
@@ -49,8 +50,8 @@ func (p *PeerIDStore) Load(ctx context.Context) ([]peer.ID, error) {
 	return peers, nil
 }
 
-// Put persists the given peer IDs to the datastore.
-func (p *PeerIDStore) Put(ctx context.Context, peers []peer.ID) error {
+// Put persists the given peers' AddrInfo to the datastore.
+func (p *PeerIDStore) Put(ctx context.Context, peers []peer.AddrInfo) error {
 	log.Debugw("Persisting peers to disk", "amount", len(peers))
 
 	bin, err := json.Marshal(peers)
