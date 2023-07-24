@@ -344,12 +344,12 @@ github.com/buger/jsonparser v0.0.0-20181115193947-bf1c66bbce23/go.mod h1:bbYlZJ7
 github.com/bwesterb/go-ristretto v1.2.0/go.mod h1:fUIoIZaG73pV5biE2Blr2xEzDoMj7NFEuV9ekS419A0=
 github.com/c-bata/go-prompt v0.2.2/go.mod h1:VzqtzE2ksDBcdln8G7mk2RX9QyGjH+OVqOCSiVIqS34=
 github.com/casbin/casbin/v2 v2.1.2/go.mod h1:YcPU1XXisHhLzuxH9coDNf2FbKpjGlbCg3n9yuLkIJQ=
-github.com/celestiaorg/celestia-app v1.0.0-rc9 h1:6xDYE+OziXO/rLeYy/MutnJpE8M2sIPryZ/ifSWUmdc=
-github.com/celestiaorg/celestia-app v1.0.0-rc9/go.mod h1:aGFnIIdA30DtFzznYbcfMdNnXiUebfEUkkrQu8imC3I=
+github.com/celestiaorg/celestia-app v1.0.0-rc10 h1:wglTplF5qVVOtSYCGtNHz8qA37azD+fgcxCKAphYL6c=
+github.com/celestiaorg/celestia-app v1.0.0-rc10/go.mod h1:A17xfzurB2RHpplh6+nGMeC9hCquu0aMYnanOeifDO0=
 github.com/celestiaorg/celestia-core v1.24.0-tm-v0.34.28 h1:eXS3v26nob8Xs2+flKHVxcTzhzQW44KgTcooR3OxnK4=
 github.com/celestiaorg/celestia-core v1.24.0-tm-v0.34.28/go.mod h1:J/GsBjoTZaFz71VeyrLZbG8rV+Rzi6oFEUZUipQ97hQ=
-github.com/celestiaorg/cosmos-sdk v1.16.0-sdk-v0.46.13 h1:N1PrCWcYkaODeIQyyVBmDKDTwiQWZ31bgtTEYIGeby8=
-github.com/celestiaorg/cosmos-sdk v1.16.0-sdk-v0.46.13/go.mod h1:xpBZc/OYZ736hp0IZlBGNUhEgCD9C+bKs8yNLZibyv0=
+github.com/celestiaorg/cosmos-sdk v1.16.1-sdk-v0.46.13 h1:CxEQDQEQR1ypB+VUmCISIqFVmHfb+mx8x+zh7rHbyU8=
+github.com/celestiaorg/cosmos-sdk v1.16.1-sdk-v0.46.13/go.mod h1:xpBZc/OYZ736hp0IZlBGNUhEgCD9C+bKs8yNLZibyv0=
 github.com/celestiaorg/dagstore v0.0.0-20230413141458-735ab09a15d6 h1:/yCwMCoOPcYCiG18u8/1pv5eXF04xczoQO3sR0bKsgM=
 github.com/celestiaorg/dagstore v0.0.0-20230413141458-735ab09a15d6/go.mod h1:ta/DlqIH10bvhwqJIw51Nq3QU4XVMp6pz3f0Deve9fM=
 github.com/celestiaorg/go-fraud v0.1.2 h1:Bf7yIN3lZ4IR/Vlu5OtmcVCVNESBKEJ/xwu28rRKGA8=
