@@ -8,6 +8,7 @@ import (
 
 	sdkErrors "cosmossdk.io/errors"
 	"github.com/cosmos/cosmos-sdk/api/tendermint/abci"
+	nodeservice "github.com/cosmos/cosmos-sdk/client/grpc/node"
 	storetypes "github.com/cosmos/cosmos-sdk/store/types"
 	sdktypes "github.com/cosmos/cosmos-sdk/types"
 	sdktx "github.com/cosmos/cosmos-sdk/types/tx"
@@ -458,6 +459,33 @@ func (ca *CoreAccessor) QueryRedelegations(
 		SrcValidatorAddr: srcValAddr.String(),
 		DstValidatorAddr: dstValAddr.String(),
 	})
+}
+
+// QueryMinimumGasPrice returns the minimum gas price required by the node.
+func (ca *CoreAccessor) QueryMinimumGasPrice(
+	ctx context.Context,
+) (float64, error) {
+	rsp, err := nodeservice.NewServiceClient(ca.coreConn).Config(ctx, &nodeservice.ConfigRequest{})
+	if err != nil {
+		return 0, err
+	}
+
+	coins, err := sdktypes.ParseDecCoins(rsp.MinimumGasPrice)
+	if err != nil {
+		return 0, err
+	}
+	return coins.AmountOf(app.BondDenom).MustFloat64(), nil
+}
+
+// QueryBlobParams returns the current blob module parameters: MaxGovSquareSize and GasPerBlobByte.
+func (ca *CoreAccessor) QueryBlobParams(
+	ctx context.Context,
+) (apptypes.Params, error) {
+	resp, err := apptypes.NewQueryClient(ca.coreConn).Params(ctx, &apptypes.QueryParamsRequest{})
+	if err != nil {
+		return apptypes.Params{}, err
+	}
+	return resp.Params, nil
 }
 
 func (ca *CoreAccessor) IsStopped(context.Context) bool {
