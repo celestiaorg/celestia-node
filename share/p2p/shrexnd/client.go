@@ -17,7 +17,6 @@ import (
 	"github.com/celestiaorg/nmt"
 
 	"github.com/celestiaorg/celestia-node/share"
-	"github.com/celestiaorg/celestia-node/share/ipld"
 	"github.com/celestiaorg/celestia-node/share/p2p"
 	pb "github.com/celestiaorg/celestia-node/share/p2p/shrexnd/pb"
 )
@@ -135,7 +134,7 @@ func convertToNamespacedShares(rows []*pb.Row) share.NamespacedShares {
 				int(row.Proof.Start),
 				int(row.Proof.End),
 				row.Proof.Nodes,
-				ipld.NMTIgnoreMaxNamespace,
+				row.Proof.IsMaxNamespaceIgnored,
 			)
 			proof = &tmpProof
 		}
@@ -155,8 +154,8 @@ func convertToNonInclusionProofs(rows []*pb.Row) share.NamespacedShares {
 			int(row.Proof.Start),
 			int(row.Proof.End),
 			row.Proof.Nodes,
-			row.Proof.Hashleaf,
-			ipld.NMTIgnoreMaxNamespace,
+			row.Proof.LeafHash,
+			row.Proof.IsMaxNamespaceIgnored,
 		)
 		shares = append(shares, share.NamespacedRow{
 			Proof: &proof,
