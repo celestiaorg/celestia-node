@@ -4,18 +4,13 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"math"
 	"sync"
 
 	sdkmath "cosmossdk.io/math"
 	"github.com/cosmos/cosmos-sdk/types"
-	auth "github.com/cosmos/cosmos-sdk/x/auth/types"
 	logging "github.com/ipfs/go-log/v2"
 
-	apperrors "github.com/celestiaorg/celestia-app/app/errors"
-	"github.com/celestiaorg/celestia-app/pkg/appconsts"
 	"github.com/celestiaorg/celestia-app/pkg/shares"
-	blobtypes "github.com/celestiaorg/celestia-app/x/blob/types"
 
 	"github.com/celestiaorg/celestia-node/header"
 	"github.com/celestiaorg/celestia-node/share"
@@ -28,14 +23,11 @@ var (
 	log = logging.Logger("blob")
 )
 
-const maxRetries = 5
-
 // Submitter is an interface that allows submitting blobs to the celestia-core. It is used to
 // avoid a circular dependency between the blob and the state package, since the state package needs
 // the blob.Blob type for this signature.
 type Submitter interface {
 	SubmitPayForBlob(ctx context.Context, fee sdkmath.Int, gasLim uint64, blobs []*Blob) (*types.TxResponse, error)
-	QueryMinimumGasPrice(context.Context) (float64, error)
 }
 
 type Service struct {
@@ -45,11 +37,6 @@ type Service struct {
 	shareGetter share.Getter
 	// headerGetter fetches header by the provided height
 	headerGetter func(context.Context, uint64) (*header.ExtendedHeader, error)
-	// minGasPrice is the minimum gas price that the node will accept.
-	// NOTE: just because the first node accepts the transaction, does not mean it
-	// will find a proposer that does accept the transaction. Better would be
-	// to set a global min gas price that correct processes conform to.
-	minGasPrice float64
 }
 
 func NewService(
@@ -61,7 +48,6 @@ func NewService(
 		blobSumitter: submitter,
 		shareGetter:  getter,
 		headerGetter: headerGetter,
-		minGasPrice:  -1, // since 0 is a valid value, a negative value is used instead.
 	}
 }
 
@@ -72,52 +58,11 @@ func NewService(
 func (s *Service) Submit(ctx context.Context, blobs []*Blob) (uint64, error) {
 	log.Debugw("submitting blobs", "amount", len(blobs))
 
-	if s.minGasPrice < 0 {
-		minGasPrice, err := s.blobSumitter.QueryMinimumGasPrice(ctx)
-		if err != nil {
-			return 0, fmt.Errorf("querying minimum gas price: %w", err)
-		}
-		s.minGasPrice = minGasPrice
+	resp, err := s.blobSumitter.SubmitPayForBlob(ctx, types.OneInt().Neg(), 0, blobs)
+	if err != nil {
+		return 0, err
 	}
-	// TODO: when we add an option to manually set the gas price, we should check that it is greater
-	// than the minimum gas price of the node
-
-	blobSizes := make([]uint32, len(blobs))
-	for i, blob := range blobs {
-		blobSizes[i] = uint32(len(blob.Data))
-	}
-
-	var (
-		// TODO: the default gas per byte and the default tx size cost per byte could be changed through governance
-		// This section could be more robust by tracking these values and adjusting the gas limit accordingly
-		// (as is done for the gas price)
-		gasLimit = blobtypes.EstimateGas(blobSizes, appconsts.DefaultGasPerBlobByte, auth.DefaultTxSizeCostPerByte)
-		fee      = int64(math.Ceil(s.minGasPrice * float64(gasLimit)))
-		lastErr  error
-	)
-
-	for attempt := 0; attempt < maxRetries; attempt++ {
-		resp, err := s.blobSumitter.SubmitPayForBlob(ctx, types.NewInt(fee), gasLimit, blobs)
-		if err != nil {
-			// the node is capable of changing the min gas price at any time so we must be able to detect it and
-			// update our version accordingly
-			if apperrors.IsInsufficientMinGasPrice(err) {
-				// The error message contains enough information to parse the new min gas price
-				newMinGasPrice, err := apperrors.ParseInsufficientMinGasPrice(err, s.minGasPrice, gasLimit)
-				if err != nil {
-					return 0, fmt.Errorf("parsing insufficient min gas price error: %w", err)
-				}
-				s.minGasPrice = newMinGasPrice
-				lastErr = err
-				continue
-			}
-
-			return 0, err
-		}
-		return uint64(resp.Height), nil
-	}
-
-	return 0, fmt.Errorf("failed to submit blobs after %d attempts: %w", maxRetries, lastErr)
+	return uint64(resp.Height), nil
 }
 
 // Get retrieves all the blobs for given namespaces at the given height by commitment.
