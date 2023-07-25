@@ -196,6 +196,7 @@ func (ca *CoreAccessor) SubmitPayForBlob(
 		appblobs[i] = &b.Blob
 	}
 
+	// if the min gas price is not set we query the node that we are connected for it
 	if ca.minGasPrice < 0 {
 		minGasPrice, err := ca.queryMinimumGasPrice(ctx)
 		if err != nil {
@@ -204,7 +205,7 @@ func (ca *CoreAccessor) SubmitPayForBlob(
 		ca.minGasPrice = minGasPrice
 	}
 
-	// we only estimate gas if the user wants us to *by setting the gasLim to 0). In the future we may want
+	// we only estimate gas if the user wants us to (by setting the gasLim to 0). In the future we may want
 	// to make these arguments optional.
 	if gasLim == 0 {
 		blobSizes := make([]uint32, len(blobs))

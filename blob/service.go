@@ -6,7 +6,7 @@ import (
 	"fmt"
 	"sync"
 
-	sdkmath "cosmossdk.io/math"
+	"cosmossdk.io/math"
 	"github.com/cosmos/cosmos-sdk/types"
 	logging "github.com/ipfs/go-log/v2"
 
@@ -27,7 +27,7 @@ var (
 // avoid a circular dependency between the blob and the state package, since the state package needs
 // the blob.Blob type for this signature.
 type Submitter interface {
-	SubmitPayForBlob(ctx context.Context, fee sdkmath.Int, gasLim uint64, blobs []*Blob) (*types.TxResponse, error)
+	SubmitPayForBlob(ctx context.Context, fee math.Int, gasLim uint64, blobs []*Blob) (*types.TxResponse, error)
 }
 
 type Service struct {
