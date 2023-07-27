@@ -78,7 +78,7 @@ func TestIncorrectBadEncodingFraudProof(t *testing.T) {
 		RawHeader: core.Header{
 			Height: 420,
 		},
-		DAH: &dah,
+		DAH: dah,
 		Commit: &core.Commit{
 			BlockID: core.BlockID{
 				Hash: []byte("made up hash"),

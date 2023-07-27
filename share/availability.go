@@ -5,6 +5,7 @@ import (
 	"errors"
 
 	"github.com/celestiaorg/celestia-app/pkg/da"
+	"github.com/celestiaorg/rsmt2d"
 )
 
 // ErrNotAvailable is returned whenever DA sampling fails.
@@ -16,7 +17,13 @@ type Root = da.DataAvailabilityHeader
 
 // NewRoot generates Root(DataAvailabilityHeader) using the
 // provided extended data square.
-var NewRoot = da.NewDataAvailabilityHeader
+func NewRoot(eds *rsmt2d.ExtendedDataSquare) (*Root, error) {
+	dah, err := da.NewDataAvailabilityHeader(eds)
+	if err != nil {
+		return nil, err
+	}
+	return &dah, nil
+}
 
 // Availability defines interface for validation of Shares' availability.
 type Availability interface {

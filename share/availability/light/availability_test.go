@@ -132,7 +132,7 @@ func TestGetShares(t *testing.T) {
 	gotDAH, err := share.NewRoot(eds)
 	require.NoError(t, err)
 
-	require.True(t, dah.Equals(&gotDAH))
+	require.True(t, dah.Equals(gotDAH))
 }
 
 func TestService_GetSharesByNamespaceNotFound(t *testing.T) {

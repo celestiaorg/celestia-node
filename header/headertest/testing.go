@@ -309,7 +309,7 @@ func ExtendedHeaderFromEDS(t *testing.T, height uint64, eds *rsmt2d.ExtendedData
 		RawHeader:    *gen,
 		Commit:       commit,
 		ValidatorSet: valSet,
-		DAH:          &dah,
+		DAH:          dah,
 	}
 	require.NoError(t, eh.Validate())
 	return eh

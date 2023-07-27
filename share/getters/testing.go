@@ -21,7 +21,7 @@ func TestGetter(t *testing.T) (share.Getter, *share.Root) {
 	require.NoError(t, err)
 	return &SingleEDSGetter{
 		EDS: eds,
-	}, &dah
+	}, dah
 }
 
 // SingleEDSGetter contains a single EDS where data is retrieved from.

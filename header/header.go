@@ -55,14 +55,10 @@ func MakeExtendedHeader(
 	case nil:
 		dah = share.EmptyRoot()
 	default:
-		root, err := share.NewRoot(eds)
+		dah, err = share.NewRoot(eds)
 		if err != nil {
 			return nil, err
 		}
-		dah = &root
-	}
-	if err != nil {
-		return nil, err
 	}
 
 	eh := &ExtendedHeader{

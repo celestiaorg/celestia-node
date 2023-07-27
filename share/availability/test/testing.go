@@ -34,7 +34,7 @@ func FillBS(t *testing.T, bServ blockservice.BlockService, shares []share.Share)
 	require.NoError(t, err)
 	dah, err := share.NewRoot(eds)
 	require.NoError(t, err)
-	return &dah
+	return dah
 }
 
 type TestNode struct {
