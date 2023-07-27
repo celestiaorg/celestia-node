@@ -3,6 +3,7 @@ package getters
 import (
 	"context"
 	"errors"
+	"fmt"
 
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/trace"
@@ -37,7 +38,12 @@ func (cg *CascadeGetter) GetShare(ctx context.Context, root *share.Root, row, co
 		attribute.Int("col", col),
 	))
 	defer span.End()
-
+	if row >= len(root.RowRoots) || col >= len(root.ColumnRoots) {
+		err := fmt.Errorf("cascade/get-share: invalid indexes were provided:rowIndex=%d, colIndex=%d."+
+			"rowsAmount=%d, colsAmount=%d", row, col, len(root.RowRoots), len(root.ColumnRoots))
+		span.RecordError(err)
+		return nil, err
+	}
 	get := func(ctx context.Context, get share.Getter) (share.Share, error) {
 		return get.GetShare(ctx, root, row, col)
 	}
