@@ -74,7 +74,6 @@ func GetNode(ctx context.Context, bGetter blockservice.BlockGetter, root cid.Cid
 	if err != nil {
 		var errNotFound ipld.ErrNotFound
 		if errors.As(err, &errNotFound) {
-			fmt.Println("BLOCK NOT FOUND")
 			return nil, ErrNodeNotFound
 		}
 		return nil, err
