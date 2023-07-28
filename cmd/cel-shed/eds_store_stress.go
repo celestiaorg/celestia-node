@@ -8,8 +8,11 @@ import (
 	"math"
 	"net/http"
 	"os"
+	"time"
 
+	logging "github.com/ipfs/go-log/v2"
 	"github.com/mitchellh/go-homedir"
+	"github.com/pyroscope-io/client/pyroscope"
 	"github.com/spf13/cobra"
 
 	"github.com/celestiaorg/celestia-node/libs/edssser"
@@ -25,6 +28,10 @@ const (
 	edsLogStatFreqFlag = "log-stat-freq"
 	edsCleanupFlag     = "cleanup"
 	edsFreshStartFlag  = "fresh"
+
+	pyroscopeEndpointFlag = "pyroscope"
+	putTimeoutFlag        = "timeout"
+	badgerLogLevelFlag    = "badger-log-level"
 )
 
 func init() {
@@ -38,12 +45,15 @@ func init() {
 
 	pathFlagUsage := fmt.Sprintf("Directory path to use for stress test. Uses %s by default.", defaultPath)
 	edsStoreStress.Flags().String(edsStorePathFlag, path, pathFlagUsage)
+	edsStoreStress.Flags().String(pyroscopeEndpointFlag, "", "Pyroscope address")
 	edsStoreStress.Flags().Int(edsWritesFlag, math.MaxInt, "Total EDS writes to make. MaxInt by default.")
 	edsStoreStress.Flags().Int(edsSizeFlag, 128, "Chooses EDS size. 128 by default.")
 	edsStoreStress.Flags().Bool(edsDisableLogFlag, false, "Disables logging. Enabled by default.")
 	edsStoreStress.Flags().Int(edsLogStatFreqFlag, 10, "Write statistic logging frequency. 10 by default.")
 	edsStoreStress.Flags().Bool(edsCleanupFlag, false, "Cleans up the store on stop. Disabled by default.")
 	edsStoreStress.Flags().Bool(edsFreshStartFlag, false, "Cleanup previous state on start. Disabled by default.")
+	edsStoreStress.Flags().Int(putTimeoutFlag, 30, "Sets put timeout in seconds. 30 sec by default.")
+	edsStoreStress.Flags().String(badgerLogLevelFlag, "INFO", "Badger log level, Defaults to INFO")
 
 	// kill redundant print
 	nodebuilder.PrintKeyringInfo = false
@@ -61,6 +71,26 @@ var edsStoreStress = &cobra.Command{
 	RunE: func(cmd *cobra.Command, args []string) (err error) {
 		// expose expvar vars over http
 		go http.ListenAndServe(":9999", http.DefaultServeMux)
+
+		endpoint, _ := cmd.Flags().GetString(pyroscopeEndpointFlag)
+		if endpoint != "" {
+			_, err = pyroscope.Start(pyroscope.Config{
+				ApplicationName: "cel-shred.stresser",
+				ServerAddress:   endpoint,
+				ProfileTypes: []pyroscope.ProfileType{
+					pyroscope.ProfileCPU,
+					pyroscope.ProfileAllocObjects,
+					pyroscope.ProfileAllocSpace,
+					pyroscope.ProfileInuseObjects,
+					pyroscope.ProfileInuseSpace,
+				},
+			})
+			if err != nil {
+				fmt.Printf("failed to launch pyroscope with addr: %s err: %s\n", endpoint, err.Error())
+			} else {
+				fmt.Println("connected pyroscope to:", endpoint)
+			}
+		}
 
 		path, _ := cmd.Flags().GetString(edsStorePathFlag)
 		fmt.Printf("using %s\n", path)
@@ -80,16 +110,24 @@ var edsStoreStress = &cobra.Command{
 			}()
 		}
 
+		loglevel, _ := cmd.Flags().GetString(badgerLogLevelFlag)
+		if err = logging.SetLogLevel("badger", loglevel); err != nil {
+			return err
+		}
+
 		disableLog, _ := cmd.Flags().GetBool(edsDisableLogFlag)
 		logFreq, _ := cmd.Flags().GetInt(edsLogStatFreqFlag)
 		edsWrites, _ := cmd.Flags().GetInt(edsWritesFlag)
 		edsSize, _ := cmd.Flags().GetInt(edsSizeFlag)
+		putTimeout, _ := cmd.Flags().GetInt(putTimeoutFlag)
+
 		cfg := edssser.Config{
 			EDSSize:     edsSize,
 			EDSWrites:   edsWrites,
 			EnableLog:   !disableLog,
 			LogFilePath: path,
 			StatLogFreq: logFreq,
+			OpTimeout:   time.Duration(putTimeout) * time.Second,
 		}
 
 		err = nodebuilder.Init(*nodebuilder.DefaultConfig(node.Full), path, node.Full)
