@@ -9,7 +9,6 @@ import (
 	"math"
 
 	"github.com/ipfs/go-cid"
-	"github.com/ipfs/go-libipfs/blocks"
 	"github.com/ipld/go-car"
 	"github.com/ipld/go-car/util"
 	"github.com/minio/sha256-simd"
@@ -98,8 +97,8 @@ func writeProofs(ctx context.Context, eds *rsmt2d.ExtendedDataSquare, w io.Write
 		return fmt.Errorf("recomputing proofs: %w", err)
 	}
 
-	for _, proof := range proofs {
-		err := util.LdWrite(w, proof.Cid().Bytes(), proof.RawData())
+	for id, proof := range proofs {
+		err := util.LdWrite(w, id.Bytes(), proof)
 		if err != nil {
 			return fmt.Errorf("writing proof to the car: %w", err)
 		}
@@ -107,7 +106,7 @@ func writeProofs(ctx context.Context, eds *rsmt2d.ExtendedDataSquare, w io.Write
 	return nil
 }
 
-func getProofs(ctx context.Context, eds *rsmt2d.ExtendedDataSquare) ([]blocks.Block, error) {
+func getProofs(ctx context.Context, eds *rsmt2d.ExtendedDataSquare) (map[cid.Cid][]byte, error) {
 	// check if there are proofs collected by ipld.ProofsAdder in previous reconstruction of eds
 	proofs := ipld.ProofsAdderFromCtx(ctx).Proofs()
 	if proofs != nil {

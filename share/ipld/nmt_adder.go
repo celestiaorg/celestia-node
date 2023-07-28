@@ -8,7 +8,6 @@ import (
 	"github.com/ipfs/go-blockservice"
 	"github.com/ipfs/go-cid"
 	ipld "github.com/ipfs/go-ipld-format"
-	"github.com/ipfs/go-libipfs/blocks"
 	"github.com/ipfs/go-merkledag"
 
 	"github.com/celestiaorg/nmt"
@@ -104,13 +103,13 @@ func BatchSize(squareSize int) int {
 
 type ProofsAdder struct {
 	lock   sync.Mutex
-	proofs []blocks.Block
+	proofs map[cid.Cid][]byte
 }
 
 func NewProofsAdder(squareSize int) *ProofsAdder {
 	return &ProofsAdder{
 		// preallocate array to fit all inner nodes for given square size
-		proofs: make([]blocks.Block, 0, 2*(squareSize-1)*squareSize),
+		proofs: make(map[cid.Cid][]byte, 2*(squareSize-1)*squareSize),
 	}
 }
 
@@ -127,7 +126,7 @@ func ProofsAdderFromCtx(ctx context.Context) *ProofsAdder {
 	return adder
 }
 
-func (a *ProofsAdder) Proofs() []blocks.Block {
+func (a *ProofsAdder) Proofs() map[cid.Cid][]byte {
 	if a == nil {
 		return nil
 	}
@@ -155,13 +154,9 @@ func (a *ProofsAdder) visitInnerNodes(hash []byte, children ...[]byte) {
 		break
 	case 2:
 		id := MustCidFromNamespacedSha256(hash)
-		b, err := blocks.NewBlockWithCid(append(children[0], children[1]...), id)
-		if err != nil {
-			panic(err)
-		}
 		a.lock.Lock()
 		defer a.lock.Unlock()
-		a.proofs = append(a.proofs, b)
+		a.proofs[id] = append(children[0], children[1]...)
 	default:
 		panic("expected a binary tree")
 	}
