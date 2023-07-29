@@ -17,13 +17,17 @@ import (
 	"github.com/spf13/cobra"
 
 	"github.com/celestiaorg/celestia-node/api/rpc/client"
-	"github.com/celestiaorg/celestia-node/blob"
 	"github.com/celestiaorg/celestia-node/share"
 	"github.com/celestiaorg/celestia-node/state"
 )
 
 const (
 	authEnvKey = "CELESTIA_NODE_AUTH_TOKEN"
+	addrEnvKey = "CELESTIA_NODE_RPC_ADDRESS"
+	portEnvKey = "CELESTIA_NODE_RPC_PORT"
+
+	defaultAddress = "127.0.0.1"
+	defaultPort    = "26658"
 )
 
 var requestURL string
@@ -61,6 +65,7 @@ func init() {
 		false,
 		"Print JSON-RPC request along with the response",
 	)
+	rpcCmd.AddCommand(blobCmd)
 	rootCmd.AddCommand(rpcCmd)
 }
 
@@ -115,116 +120,6 @@ func parseParams(method string, params []string) []interface{} {
 			panic(fmt.Sprintf("Error parsing namespace: %v", err))
 		}
 		parsedParams[1] = namespace
-	case "Submit":
-		// 1. Namespace
-		var err error
-		namespace, err := parseV0Namespace(params[0])
-		if err != nil {
-			panic(fmt.Sprintf("Error parsing namespace: %v", err))
-		}
-		// 2. Blob data
-		var blobData []byte
-		switch {
-		case strings.HasPrefix(params[1], "0x"):
-			decoded, err := hex.DecodeString(params[1][2:])
-			if err != nil {
-				panic("Error decoding blob: hex string could not be decoded.")
-			}
-			blobData = decoded
-		case strings.HasPrefix(params[1], "\""):
-			// user input an utf string that needs to be encoded to base64
-			src := []byte(params[1])
-			blobData = make([]byte, base64.StdEncoding.EncodedLen(len(src)))
-			base64.StdEncoding.Encode(blobData, []byte(params[1]))
-		default:
-			// otherwise, we assume the user has already encoded their input to base64
-			blobData, err = base64.StdEncoding.DecodeString(params[1])
-			if err != nil {
-				panic("Error decoding blob data: base64 string could not be decoded.")
-			}
-		}
-		parsedBlob, err := blob.NewBlobV0(namespace, blobData)
-		if err != nil {
-			panic(fmt.Sprintf("Error creating blob: %v", err))
-		}
-		parsedParams[0] = []*blob.Blob{parsedBlob}
-		// param count doesn't match input length, so cut off nil values
-		return parsedParams[:1]
-	case "SubmitPayForBlob":
-		// 1. Fee (state.Int is a string)
-		parsedParams[0] = params[0]
-		// 2. GasLimit (uint64)
-		num, err := strconv.ParseUint(params[1], 10, 64)
-		if err != nil {
-			panic("Error parsing gas limit: uint64 could not be parsed.")
-		}
-		parsedParams[1] = num
-		// 3. Namespace
-		namespace, err := parseV0Namespace(params[2])
-		if err != nil {
-			panic(fmt.Sprintf("Error parsing namespace: %v", err))
-		}
-		// 4. Blob data
-		var blobData []byte
-		switch {
-		case strings.HasPrefix(params[3], "0x"):
-			decoded, err := hex.DecodeString(params[3][2:])
-			if err != nil {
-				panic("Error decoding blob: hex string could not be decoded.")
-			}
-			blobData = decoded
-		case strings.HasPrefix(params[3], "\""):
-			// user input an utf string that needs to be encoded to base64
-			src := []byte(params[1])
-			blobData = make([]byte, base64.StdEncoding.EncodedLen(len(src)))
-			base64.StdEncoding.Encode(blobData, []byte(params[3]))
-		default:
-			// otherwise, we assume the user has already encoded their input to base64
-			blobData, err = base64.StdEncoding.DecodeString(params[3])
-			if err != nil {
-				panic("Error decoding blob: base64 string could not be decoded.")
-			}
-		}
-		parsedBlob, err := blob.NewBlobV0(namespace, blobData)
-		if err != nil {
-			panic(fmt.Sprintf("Error creating blob: %v", err))
-		}
-		parsedParams[2] = []*blob.Blob{parsedBlob}
-		return parsedParams[:3]
-	case "Get":
-		// 1. Height
-		num, err := strconv.ParseUint(params[0], 10, 64)
-		if err != nil {
-			panic("Error parsing height: uint64 could not be parsed.")
-		}
-		parsedParams[0] = num
-		// 2. NamespaceID
-		namespace, err := parseV0Namespace(params[1])
-		if err != nil {
-			panic(fmt.Sprintf("Error parsing namespace: %v", err))
-		}
-		parsedParams[1] = namespace
-		// 3: Commitment
-		commitment, err := base64.StdEncoding.DecodeString(params[2])
-		if err != nil {
-			panic("Error decoding commitment: base64 string could not be decoded.")
-		}
-		parsedParams[2] = commitment
-		return parsedParams
-	case "GetAll": // NOTE: Over the cli, you can only pass one namespace
-		// 1. Height
-		num, err := strconv.ParseUint(params[0], 10, 64)
-		if err != nil {
-			panic("Error parsing height: uint64 could not be parsed.")
-		}
-		parsedParams[0] = num
-		// 2. Namespace
-		namespace, err := parseV0Namespace(params[1])
-		if err != nil {
-			panic(fmt.Sprintf("Error parsing namespace: %v", err))
-		}
-		parsedParams[1] = []share.Namespace{namespace}
-		return parsedParams
 	case "QueryDelegation", "QueryUnbonding", "BalanceForAddress":
 		var err error
 		parsedParams[0], err = parseAddressFromString(params[0])

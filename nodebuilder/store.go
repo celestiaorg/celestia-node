@@ -26,6 +26,16 @@ var (
 // Store encapsulates storage for the Node. Basically, it is the Store of all Stores.
 // It provides access for the Node data stored in root directory e.g. '~/.celestia'.
 type Store interface {
+	ReadCloser
+	// PutConfig alters the stored Node config.
+	PutConfig(*Config) error
+
+	// Close closes the Store freeing up acquired resources and locks.
+	Close() error
+}
+
+// ReadCloser provides a read-only access to the store
+type ReadCloser interface {
 	// Path reports the FileSystem path of Store.
 	Path() string
 
@@ -38,9 +48,6 @@ type Store interface {
 	// Config loads the stored Node config.
 	Config() (*Config, error)
 
-	// PutConfig alters the stored Node config.
-	PutConfig(*Config) error
-
 	// Close closes the Store freeing up acquired resources and locks.
 	Close() error
 }
@@ -50,6 +57,21 @@ type Store interface {
 // OpenStore takes a file Lock on directory, hence only one Store can be opened at a time under the
 // given 'path', otherwise ErrOpened is thrown.
 func OpenStore(path string, ring keyring.Keyring) (Store, error) {
+	s, err := OpenStoreReadOnly(path)
+	if err != nil {
+		return nil, err
+	}
+	store := s.(*fsStore)
+	store.keys, err = keystore.NewFSKeystore(keysPath(path), ring)
+	if err != nil {
+		return nil, err
+	}
+
+	return store, nil
+}
+
+// OpenStoreReadOnly opens the store without an access to modify it.
+func OpenStoreReadOnly(path string) (ReadCloser, error) {
 	path, err := storePath(path)
 	if err != nil {
 		return nil, err
@@ -69,15 +91,9 @@ func OpenStore(path string, ring keyring.Keyring) (Store, error) {
 		return nil, ErrNotInited
 	}
 
-	ks, err := keystore.NewFSKeystore(keysPath(path), ring)
-	if err != nil {
-		return nil, err
-	}
-
 	return &fsStore{
 		path:    path,
 		dirLock: flock,
-		keys:    ks,
 	}, nil
 }
 
