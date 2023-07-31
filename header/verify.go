@@ -41,10 +41,10 @@ func (eh *ExtendedHeader) Verify(untrusted libhead.Header) error {
 				),
 			}
 		}
-
+		fmt.Println("verify.go: Verify: isAdjacent", eh.Height())
 		return nil
 	}
-
+	fmt.Println("verify.go: Verify: !isAdjacent", eh.Height())
 	return nil
 }
 

@@ -44,7 +44,7 @@ func TestFullReconstructFromBridge(t *testing.T) {
 		btime  = time.Millisecond * 300
 	)
 
-	ctx, cancel := context.WithTimeout(context.Background(), swamp.DefaultTestTimeout)
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second*30)
 	t.Cleanup(cancel)
 	sw := swamp.NewSwamp(t, swamp.WithBlockTime(btime))
 	fillDn := swamp.FillBlocks(ctx, sw.ClientContext, sw.Accounts, bsize, blocks)
@@ -102,7 +102,7 @@ func TestFullReconstructFromLights(t *testing.T) {
 		lnodes = 69
 	)
 
-	ctx, cancel := context.WithTimeout(context.Background(), swamp.DefaultTestTimeout)
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second*18)
 
 	t.Cleanup(cancel)
 	sw := swamp.NewSwamp(t, swamp.WithBlockTime(btime))

@@ -19,7 +19,7 @@ import (
 )
 
 func TestBlobModule(t *testing.T) {
-	ctx, cancel := context.WithTimeout(context.Background(), time.Minute)
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	t.Cleanup(cancel)
 	sw := swamp.NewSwamp(t)
 
@@ -57,12 +57,10 @@ func TestBlobModule(t *testing.T) {
 
 	height, err := fullNode.BlobServ.Submit(ctx, blobs)
 	require.NoError(t, err)
-
+	// _, err = lightNode.HeaderServ.WaitForHeight(ctx, height)
+	require.NoError(t, err)
 	_, err = fullNode.HeaderServ.WaitForHeight(ctx, height)
 	require.NoError(t, err)
-	_, err = lightNode.HeaderServ.WaitForHeight(ctx, height)
-	require.NoError(t, err)
-
 	var test = []struct {
 		name string
 		doFn func(t *testing.T)

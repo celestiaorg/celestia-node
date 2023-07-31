@@ -67,6 +67,7 @@ func (s *Service) Submit(ctx context.Context, blobs []*Blob) (uint64, error) {
 	if err != nil {
 		return 0, err
 	}
+
 	return uint64(resp.Height), nil
 }
 
