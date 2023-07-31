@@ -19,7 +19,7 @@ func FillBlocks(ctx context.Context, cctx testnode.Context, accounts []string, b
 		time.Sleep(time.Millisecond * 50)
 		var err error
 		for i := 0; i < blocks; i++ {
-			_, err := cctx.FillBlock(bsize, accounts, flags.BroadcastBlock)
+			_, err = cctx.FillBlock(bsize, accounts, flags.BroadcastBlock)
 			if err != nil {
 				break
 			}

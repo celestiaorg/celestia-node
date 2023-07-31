@@ -57,9 +57,9 @@ func TestBlobModule(t *testing.T) {
 
 	height, err := fullNode.BlobServ.Submit(ctx, blobs)
 	require.NoError(t, err)
-	// _, err = lightNode.HeaderServ.WaitForHeight(ctx, height)
-	require.NoError(t, err)
 	_, err = fullNode.HeaderServ.WaitForHeight(ctx, height)
+	require.NoError(t, err)
+	_, err = lightNode.HeaderServ.WaitForHeight(ctx, height)
 	require.NoError(t, err)
 	var test = []struct {
 		name string
