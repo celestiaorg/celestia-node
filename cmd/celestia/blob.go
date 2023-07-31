@@ -15,7 +15,6 @@ import (
 
 	"github.com/celestiaorg/celestia-node/api/rpc/client"
 	"github.com/celestiaorg/celestia-node/blob"
-	blob_api "github.com/celestiaorg/celestia-node/nodebuilder/blob"
 	"github.com/celestiaorg/celestia-node/share"
 )
 
@@ -24,11 +23,11 @@ type response struct {
 	Error  string      `json:"error,omitempty"`
 }
 
-var rpcClient blob_api.API
+var rpcClient *client.Client
 
 var blobCmd = &cobra.Command{
 	Use:   "blob [command]",
-	Short: "Allow to interact with the Blob Service via JSON-RPC",
+	Short: "Allows to interact with the Blob Service via JSON-RPC",
 	Args:  cobra.NoArgs,
 	PersistentPreRunE: func(cmd *cobra.Command, args []string) error {
 		client, err := getRPCClient(cmd.Context())
@@ -36,15 +35,18 @@ var blobCmd = &cobra.Command{
 			return err
 		}
 
-		rpcClient = client.Blob
+		rpcClient = client
 		return nil
+	},
+	PersistentPostRun: func(_ *cobra.Command, _ []string) {
+		rpcClient.Close()
 	},
 }
 
 var getCmd = &cobra.Command{
 	Use:   "Get [params]",
 	Args:  cobra.ExactArgs(3),
-	Short: "Returns blob for the given namespace by commitment at a particular height.",
+	Short: "Returns the blob for the given namespace by commitment at a particular height.",
 	Run: func(cmd *cobra.Command, args []string) {
 		num, err := strconv.ParseUint(args[0], 10, 64)
 		if err != nil {
@@ -72,7 +74,7 @@ var getCmd = &cobra.Command{
 			os.Exit(1)
 		}
 
-		blob, err := rpcClient.Get(cmd.Context(), num, namespace, commitment)
+		blob, err := rpcClient.Blob.Get(cmd.Context(), num, namespace, commitment)
 		if err == nil {
 			if data, decodeErr := tryDecode(blob.Data); decodeErr == nil {
 				blob.Data = data
@@ -106,7 +108,7 @@ var getAllCmd = &cobra.Command{
 			os.Exit(1)
 		}
 
-		blobs, err := rpcClient.GetAll(cmd.Context(), num, []share.Namespace{namespace})
+		blobs, err := rpcClient.Blob.GetAll(cmd.Context(), num, []share.Namespace{namespace})
 		if err == nil {
 			for _, b := range blobs {
 				if data, err := tryDecode(b.Data); err == nil {
@@ -123,7 +125,7 @@ var getAllCmd = &cobra.Command{
 var submitCmd = &cobra.Command{
 	Use:   "Submit [params]",
 	Args:  cobra.ExactArgs(2),
-	Short: "Submit a blob at the given namespace. Note: only one blob is allowed to submit through the RPC.",
+	Short: "Submit the blob at the given namespace. Note: only one blob is allowed to submit through the RPC.",
 	Run: func(cmd *cobra.Command, args []string) {
 		// 1. Namespace
 		namespace, err := parseV0Namespace(args[0])
@@ -164,7 +166,7 @@ var submitCmd = &cobra.Command{
 			os.Exit(1)
 		}
 
-		height, err := rpcClient.Submit(cmd.Context(), []*blob.Blob{parsedBlob})
+		height, err := rpcClient.Blob.Submit(cmd.Context(), []*blob.Blob{parsedBlob})
 		output := prepareOutput(height, err)
 
 		fmt.Fprintln(os.Stdout, string(output))
@@ -174,7 +176,7 @@ var submitCmd = &cobra.Command{
 var getProofCmd = &cobra.Command{
 	Use:   "GetProof [params]",
 	Args:  cobra.ExactArgs(3),
-	Short: "Retrieves a blob in the given namespaces at the given height by commitment and returns its Proof.",
+	Short: "Retrieves the blob in the given namespaces at the given height by commitment and returns its Proof.",
 	Run: func(cmd *cobra.Command, args []string) {
 		// 1. Height
 		num, err := strconv.ParseUint(args[0], 10, 64)
@@ -196,7 +198,7 @@ var getProofCmd = &cobra.Command{
 			fmt.Fprintln(os.Stderr, errors.New("error decoding commitment: base64 string could not be decoded"))
 		}
 
-		proof, err := rpcClient.GetProof(cmd.Context(), num, namespace, commitment)
+		proof, err := rpcClient.Blob.GetProof(cmd.Context(), num, namespace, commitment)
 		output := prepareOutput(proof, err)
 		fmt.Fprintln(os.Stdout, string(output))
 	},
