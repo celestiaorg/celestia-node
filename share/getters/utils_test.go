@@ -186,7 +186,7 @@ func Test_ctxWithSplitTimeout(t *testing.T) {
 				splitFactor: []int{-1, 0, 1, 2},
 				minTimeout:  time.Minute,
 			},
-			want: 0,
+			want: time.Minute,
 		},
 		{
 			name: "no context timeout, minTimeout = 0",
@@ -201,12 +201,18 @@ func Test_ctxWithSplitTimeout(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			for _, sf := range tt.args.splitFactor {
-				ctx, cancel := context.WithTimeout(context.Background(), tt.args.ctxTimeout)
+				ctx, cancel := context.WithCancel(context.Background())
+				// add timeout if original context should have it
+				if tt.args.ctxTimeout > 0 {
+					ctx, cancel = context.WithTimeout(ctx, tt.args.ctxTimeout)
+				}
 				t.Cleanup(cancel)
 				got, _ := ctxWithSplitTimeout(ctx, sf, tt.args.minTimeout)
 				dl, ok := got.Deadline()
-				if !ok {
-					require.Equal(t, tt.want, 0)
+				// in case no deadline is found in ctx or not expected to be found, check both cases apply at the same time
+				if !ok || tt.want == 0 {
+					require.False(t, ok)
+					require.Equal(t, tt.want, time.Duration(0))
 					continue
 				}
 				d := time.Until(dl)
