@@ -23,11 +23,6 @@ import (
 
 const (
 	authEnvKey = "CELESTIA_NODE_AUTH_TOKEN"
-	addrEnvKey = "CELESTIA_NODE_RPC_ADDRESS"
-	portEnvKey = "CELESTIA_NODE_RPC_PORT"
-
-	defaultAddress = "127.0.0.1"
-	defaultPort    = "26658"
 )
 
 var requestURL string

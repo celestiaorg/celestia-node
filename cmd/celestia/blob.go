@@ -226,20 +226,9 @@ func tryDecode(data []byte) ([]byte, error) {
 }
 
 func getRPCClient(ctx context.Context) (*client.Client, error) {
-	key := os.Getenv(authEnvKey)
-	addr := os.Getenv(addrEnvKey)
-	port := os.Getenv(portEnvKey)
-
 	if authTokenFlag == "" {
-		authTokenFlag = key
-	}
-	if addr == "" {
-		addr = defaultAddress
-	}
-	if port == "" {
-		port = defaultPort
+		authTokenFlag = os.Getenv(authEnvKey)
 	}
 
-	listenAddr := "http://" + addr + ":" + port
-	return client.NewClient(ctx, listenAddr, authTokenFlag)
+	return client.NewClient(ctx, requestURL, authTokenFlag)
 }
