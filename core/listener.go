@@ -183,6 +183,7 @@ func (cl *Listener) handleNewSignedBlock(ctx context.Context, b types.EventDataS
 				"hash", b.Header.Hash(), "err", err) //TODO: hash or datahash?
 		}
 	}
+
 	// broadcast new ExtendedHeader, but if core is still syncing, notify only local subscribers
 	err = cl.headerBroadcaster.Broadcast(ctx, eh, pubsub.WithLocalPublication(syncing))
 	if err != nil && !errors.Is(err, context.Canceled) {
