@@ -225,7 +225,8 @@ func logLateResult(res <-chan dagstore.ShardResult, maxWait time.Duration) {
 			log.Errorf("failed to register shard after context expired: %v ago, err: %w", time.Since(tnow), result.Error)
 			return
 		}
-		log.Warnf("parent context expired, but register shard finished with no error, after context expired: %v ago", time.Since(tnow))
+		log.Warnf("parent context expired, but register shard finished with no error,"+
+			" after context expired: %v ago", time.Since(tnow))
 		return
 	}
 }
