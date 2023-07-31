@@ -2,14 +2,11 @@ package tests
 
 import (
 	"context"
-	"os"
 	"testing"
 	"time"
 
-	"github.com/libp2p/go-libp2p/core/event"
 	"github.com/libp2p/go-libp2p/core/host"
 	"github.com/libp2p/go-libp2p/core/network"
-	"github.com/libp2p/go-libp2p/core/peer"
 	"github.com/stretchr/testify/require"
 	"go.uber.org/fx"
 
@@ -25,27 +22,30 @@ import (
 
 func TestShrexNDFromLights(t *testing.T) {
 	const (
-		blocks      = 10
-		btime       = time.Millisecond * 300
-		bsize       = 16
-		testTimeout = time.Second * 10
+		blocks = 10
+		btime  = time.Millisecond * 300
+		bsize  = 16
 	)
 
 	ctx, cancel := context.WithTimeout(context.Background(), swamp.DefaultTestTimeout)
-
 	t.Cleanup(cancel)
+
 	sw := swamp.NewSwamp(t, swamp.WithBlockTime(btime))
 	fillDn := swamp.FillBlocks(ctx, sw.ClientContext, sw.Accounts, bsize, blocks)
 
 	bridge := sw.NewBridgeNode()
-	addrsBridge, err := peer.AddrInfoToP2pAddrs(host.InfoFromHost(bridge.Host))
+	sw.SetBootstrapper(t, bridge)
+
+	cfg := nodebuilder.DefaultConfig(node.Light)
+	cfg.Share.Discovery.PeersLimit = 1
+	light := sw.NewNodeWithConfig(node.Light, cfg)
+
+	err := bridge.Start(ctx)
+	require.NoError(t, err)
+	err = light.Start(ctx)
 	require.NoError(t, err)
 
-	os.Setenv(p2p.EnvKeyCelestiaBootstrapper, "true")
-
-	light := newLightNode(sw, addrsBridge[0].String(), testTimeout, 1)
-	require.NoError(t, bridge.Start(ctx))
-	require.NoError(t, startLightNodes(ctx, light))
+	// wait for chain to be filled
 	require.NoError(t, <-fillDn)
 
 	// first 2 blocks are not filled with data
@@ -53,12 +53,20 @@ func TestShrexNDFromLights(t *testing.T) {
 		h, err := bridge.HeaderServ.GetByHeight(ctx, uint64(i))
 		require.NoError(t, err)
 
-		namespace := h.DAH.RowRoots[0][:share.NamespaceSize]
 		reqCtx, cancel := context.WithTimeout(ctx, time.Second*5)
-		sh, err := light.ShareServ.GetSharesByNamespace(reqCtx, h.DAH, namespace)
-		cancel()
+
+		// ensure to fetch random namespace (not the reserved namespace)
+		namespace := h.DAH.RowRoots[1][:share.NamespaceSize]
+
+		expected, err := bridge.ShareServ.GetSharesByNamespace(reqCtx, h.DAH, namespace)
 		require.NoError(t, err)
-		require.True(t, len(sh[0].Shares) > 0)
+		got, err := light.ShareServ.GetSharesByNamespace(reqCtx, h.DAH, namespace)
+		require.NoError(t, err)
+
+		require.True(t, len(got[0].Shares) > 0)
+		require.Equal(t, expected, got)
+
+		cancel()
 	}
 }
 
@@ -78,10 +86,7 @@ func TestShrexNDFromLightsWithBadFulls(t *testing.T) {
 	fillDn := swamp.FillBlocks(ctx, sw.ClientContext, sw.Accounts, bsize, blocks)
 
 	bridge := sw.NewBridgeNode()
-	addrsBridge, err := peer.AddrInfoToP2pAddrs(host.InfoFromHost(bridge.Host))
-	require.NoError(t, err)
-
-	os.Setenv(p2p.EnvKeyCelestiaBootstrapper, "true")
+	sw.SetBootstrapper(t, bridge)
 
 	// create full nodes with basic stream.reset handler
 	ndHandler := func(stream network.Stream) {
@@ -89,19 +94,22 @@ func TestShrexNDFromLightsWithBadFulls(t *testing.T) {
 	}
 	fulls := make([]*nodebuilder.Node, 0, amountOfFulls)
 	for i := 0; i < amountOfFulls; i++ {
-		full := newFullNodeWithNDHandler(
-			sw,
-			addrsBridge[0].String(),
-			testTimeout,
-			ndHandler)
-
+		cfg := nodebuilder.DefaultConfig(node.Full)
+		setTimeInterval(cfg, testTimeout)
+		full := sw.NewNodeWithConfig(node.Full, cfg, replaceNDServer(cfg, ndHandler), replaceShareGetter())
 		fulls = append(fulls, full)
 	}
 
-	light := newLightNode(sw, addrsBridge[0].String(), testTimeout, amountOfFulls+1)
+	lnConfig := nodebuilder.DefaultConfig(node.Light)
+	lnConfig.Share.Discovery.PeersLimit = uint(amountOfFulls)
+	light := sw.NewNodeWithConfig(node.Light, lnConfig)
+
+	// start all nodes
 	require.NoError(t, bridge.Start(ctx))
 	require.NoError(t, startFullNodes(ctx, fulls...))
-	require.NoError(t, startLightNodes(ctx, light))
+	require.NoError(t, light.Start(ctx))
+
+	// wait for chain to fill up
 	require.NoError(t, <-fillDn)
 
 	// first 2 blocks are not filled with data
@@ -109,65 +117,36 @@ func TestShrexNDFromLightsWithBadFulls(t *testing.T) {
 		h, err := bridge.HeaderServ.GetByHeight(ctx, uint64(i))
 		require.NoError(t, err)
 
-		namespace := h.DAH.RowRoots[0][:share.NamespaceSize]
+		if len(h.DAH.RowRoots) != bsize*2 {
+			// fill blocks does not always fill every block to the given block
+			// size - this check prevents trying to fetch shares for the parity
+			// namespace.
+			continue
+		}
+
 		reqCtx, cancel := context.WithTimeout(ctx, time.Second*5)
-		sh, err := light.ShareServ.GetSharesByNamespace(reqCtx, h.DAH, namespace)
-		cancel()
+
+		// ensure to fetch random namespace (not the reserved namespace)
+		namespace := h.DAH.RowRoots[1][:share.NamespaceSize]
+
+		expected, err := bridge.ShareServ.GetSharesByNamespace(reqCtx, h.DAH, namespace)
 		require.NoError(t, err)
-		require.True(t, len(sh[0].Shares) > 0)
+		require.True(t, len(expected[0].Shares) > 0)
+
+		// choose a random full to test
+		gotFull, err := fulls[len(fulls)/2].ShareServ.GetSharesByNamespace(reqCtx, h.DAH, namespace)
+		require.NoError(t, err)
+		require.True(t, len(gotFull[0].Shares) > 0)
+
+		gotLight, err := light.ShareServ.GetSharesByNamespace(reqCtx, h.DAH, namespace)
+		require.NoError(t, err)
+		require.True(t, len(gotLight[0].Shares) > 0)
+
+		require.Equal(t, expected, gotFull)
+		require.Equal(t, expected, gotLight)
+
+		cancel()
 	}
-}
-
-func newLightNode(
-	sw *swamp.Swamp,
-	bootstrapperAddr string,
-	defaultTimeInterval time.Duration,
-	amountOfFulls int,
-) *nodebuilder.Node {
-	lnConfig := nodebuilder.DefaultConfig(node.Light)
-	lnConfig.Share.Discovery.PeersLimit = uint(amountOfFulls)
-	setTimeInterval(lnConfig, defaultTimeInterval)
-	lnConfig.Header.TrustedPeers = append(lnConfig.Header.TrustedPeers, bootstrapperAddr)
-	return sw.NewNodeWithConfig(node.Light, lnConfig)
-}
-
-func startLightNodes(ctx context.Context, nodes ...*nodebuilder.Node) error {
-	for _, node := range nodes {
-		sub, err := node.Host.EventBus().Subscribe(&event.EvtPeerIdentificationCompleted{})
-		if err != nil {
-			return err
-		}
-
-		if err = node.Start(ctx); err != nil {
-			return err
-		}
-
-		select {
-		case <-ctx.Done():
-			return ctx.Err()
-		case <-sub.Out():
-			if err = sub.Close(); err != nil {
-				return err
-			}
-		}
-	}
-	return nil
-}
-
-func newFullNodeWithNDHandler(
-	sw *swamp.Swamp,
-	bootstrapperAddr string,
-	defaultTimeInterval time.Duration,
-	handler network.StreamHandler,
-) *nodebuilder.Node {
-	cfg := nodebuilder.DefaultConfig(node.Full)
-	setTimeInterval(cfg, defaultTimeInterval)
-	cfg.Header.TrustedPeers = []string{
-		"/ip4/1.2.3.4/tcp/12345/p2p/12D3KooWNaJ1y1Yio3fFJEXCZyd1Cat3jmrPdgkYCrHfKD3Ce21p",
-	}
-	cfg.Header.TrustedPeers = append(cfg.Header.TrustedPeers, bootstrapperAddr)
-
-	return sw.NewNodeWithConfig(node.Full, cfg, replaceNDServer(cfg, handler), replaceShareGetter())
 }
 
 func startFullNodes(ctx context.Context, fulls ...*nodebuilder.Node) error {
