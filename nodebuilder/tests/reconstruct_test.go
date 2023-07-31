@@ -44,13 +44,17 @@ func TestFullReconstructFromBridge(t *testing.T) {
 		btime  = time.Millisecond * 300
 	)
 
-	ctx, cancel := context.WithTimeout(context.Background(), time.Second*30)
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second*40)
 	t.Cleanup(cancel)
 	sw := swamp.NewSwamp(t, swamp.WithBlockTime(btime))
+
 	fillDn := swamp.FillBlocks(ctx, sw.ClientContext, sw.Accounts, bsize, blocks)
 
 	bridge := sw.NewBridgeNode()
 	err := bridge.Start(ctx)
+	require.NoError(t, err)
+
+	_, err = bridge.HeaderServ.WaitForHeight(ctx, uint64(blocks))
 	require.NoError(t, err)
 
 	cfg := nodebuilder.DefaultConfig(node.Full)
@@ -103,7 +107,6 @@ func TestFullReconstructFromLights(t *testing.T) {
 	)
 
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second*18)
-
 	t.Cleanup(cancel)
 	sw := swamp.NewSwamp(t, swamp.WithBlockTime(btime))
 	fillDn := swamp.FillBlocks(ctx, sw.ClientContext, sw.Accounts, bsize, blocks)
