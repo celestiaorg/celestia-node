@@ -8,18 +8,13 @@ import (
 	"errors"
 	"fmt"
 	"os"
-	"path/filepath"
-	"reflect"
 	"strconv"
 	"strings"
 
-	"github.com/mitchellh/go-homedir"
 	"github.com/spf13/cobra"
 
 	"github.com/celestiaorg/celestia-node/api/rpc/client"
 	"github.com/celestiaorg/celestia-node/blob"
-	options "github.com/celestiaorg/celestia-node/cmd"
-	"github.com/celestiaorg/celestia-node/nodebuilder"
 	blob_api "github.com/celestiaorg/celestia-node/nodebuilder/blob"
 	"github.com/celestiaorg/celestia-node/share"
 )
@@ -29,159 +24,182 @@ type response struct {
 	Error  string      `json:"error,omitempty"`
 }
 
+var rpcClient blob_api.API
+
 var blobCmd = &cobra.Command{
-	Use:   "blob [method] [params...]",
+	Use:   "blob [command]",
 	Short: "Allow to interact with the Blob Service via JSON-RPC",
-	Args:  cobra.MinimumNArgs(2),
-	ValidArgsFunction: func(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
-		blobApi := client.Modules["blob"]
-		methods := reflect.VisibleFields(reflect.TypeOf(blobApi).Elem())
-		var methodNames []string
-		for _, m := range methods {
-			methodNames = append(methodNames, m.Name+"\t"+parseSignatureForHelpstring(m))
-		}
-		return methodNames, cobra.ShellCompDirectiveNoFileComp
-	},
-	Run: func(cmd *cobra.Command, args []string) {
+	Args:  cobra.NoArgs,
+	PersistentPreRunE: func(cmd *cobra.Command, args []string) error {
 		client, err := getRPCClient(cmd.Context())
 		if err != nil {
-			panic(err)
-		}
-		defer client.Close()
-
-		var requestFn func([]string, *blob_api.API) (interface{}, error)
-
-		// switch over method names
-		switch args[0] {
-		default:
-			panic("invalid method requested")
-		case "Submit":
-			requestFn = handleSubmit
-		case "Get":
-			requestFn = handleGet
-		case "GetAll":
-			requestFn = handleGetAll
-		case "GetProof":
-			requestFn = handleGetProof
+			return err
 		}
 
-		output := prepareOutput(requestFn(args[1:], &client.Blob))
-		fmt.Println(string(output))
+		rpcClient = client.Blob
+		return nil
 	},
 }
 
-func handleGet(params []string, client *blob_api.API) (interface{}, error) {
-	// 1. Height
-	num, err := strconv.ParseUint(params[0], 10, 64)
-	if err != nil {
-		return nil, fmt.Errorf("error parsing height: uint64 could not be parsed")
-	}
-
-	// 2. Namespace
-	namespace, err := parseV0Namespace(params[1])
-	if err != nil {
-		return nil, fmt.Errorf("error parsing namespace: %v", err)
-	}
-
-	// 3: Commitment
-	commitment, err := base64.StdEncoding.DecodeString(params[2])
-	if err != nil {
-		return nil, errors.New("error decoding commitment: base64 string could not be decoded")
-	}
-
-	blob, err := client.Get(context.Background(), num, namespace, commitment)
-	if err != nil {
-		return nil, err
-	}
-
-	if data, err := tryDecode(blob.Data); err == nil {
-		blob.Data = data
-	}
-	return blob, nil
-}
-
-func handleGetAll(params []string, client *blob_api.API) (interface{}, error) {
-	// 1. Height
-	num, err := strconv.ParseUint(params[0], 10, 64)
-	if err != nil {
-		return nil, fmt.Errorf("error parsing height: uint64 could not be parsed")
-	}
-
-	// 2. Namespace
-	namespace, err := parseV0Namespace(params[1])
-	if err != nil {
-		return nil, fmt.Errorf("error parsing namespace: %v", err)
-	}
-
-	blobs, err := client.GetAll(context.Background(), num, []share.Namespace{namespace})
-	if err != nil {
-		return nil, fmt.Errorf("error getting blobs: %s", err)
-	}
-
-	for _, b := range blobs {
-		if data, err := tryDecode(b.Data); err == nil {
-			b.Data = data
-		}
-	}
-	return blobs, err
-}
-
-func handleSubmit(params []string, client *blob_api.API) (interface{}, error) {
-	// 1. Namespace
-	var err error
-	namespace, err := parseV0Namespace(params[0])
-	if err != nil {
-		panic(fmt.Sprintf("Error parsing namespace: %v", err))
-	}
-
-	// 2. Blob data
-	var blobData []byte
-	switch {
-	case strings.HasPrefix(params[1], "0x"):
-		decoded, err := hex.DecodeString(params[1][2:])
+var getCmd = &cobra.Command{
+	Use:   "Get [params]",
+	Args:  cobra.ExactArgs(3),
+	Short: "Returns blob for the given namespace by commitment at a particular height.",
+	Run: func(cmd *cobra.Command, args []string) {
+		num, err := strconv.ParseUint(args[0], 10, 64)
 		if err != nil {
-			return nil, errors.New("error decoding blob: hex string could not be decoded")
+			fmt.Fprintln(os.Stderr,
+				fmt.Errorf("error parsing height: uint64 could not be parsed"),
+			)
+			os.Exit(1)
 		}
-		blobData = decoded
-	case strings.HasPrefix(params[1], "\""):
-		// user input an utf string that needs to be encoded to base64
-		src := []byte(params[1])
-		blobData = make([]byte, base64.StdEncoding.EncodedLen(len(src)))
-		base64.StdEncoding.Encode(blobData, []byte(params[1]))
-	default:
-		// otherwise, we assume the user has already encoded their input to base64
-		blobData, err = base64.StdEncoding.DecodeString(params[1])
-		if err != nil {
-			return nil, errors.New("error decoding blob data: base64 string could not be decoded")
-		}
-	}
 
-	parsedBlob, err := blob.NewBlobV0(namespace, blobData)
-	if err != nil {
-		return nil, fmt.Errorf("error creating blob: %v", err)
-	}
-	return client.Submit(context.Background(), []*blob.Blob{parsedBlob})
+		// 2. Namespace
+		namespace, err := parseV0Namespace(args[1])
+		if err != nil {
+			fmt.Fprintln(os.Stderr,
+				fmt.Errorf("error parsing namespace: %v", err),
+			)
+			os.Exit(1)
+		}
+
+		// 3: Commitment
+		commitment, err := base64.StdEncoding.DecodeString(args[2])
+		if err != nil {
+			fmt.Fprintln(os.Stderr,
+				errors.New("error decoding commitment: base64 string could not be decoded"),
+			)
+			os.Exit(1)
+		}
+
+		blob, err := rpcClient.Get(cmd.Context(), num, namespace, commitment)
+		if err == nil {
+			if data, decodeErr := tryDecode(blob.Data); decodeErr == nil {
+				blob.Data = data
+			}
+		}
+
+		output := prepareOutput(blob, err)
+		fmt.Fprintln(os.Stdout, string(output))
+	},
 }
 
-func handleGetProof(params []string, client *blob_api.API) (interface{}, error) {
-	// 1. Height
-	num, err := strconv.ParseUint(params[0], 10, 64)
-	if err != nil {
-		return nil, fmt.Errorf("error parsing height: uint64 could not be parsed")
-	}
+var getAllCmd = &cobra.Command{
+	Use:   "GetAll [params]",
+	Args:  cobra.ExactArgs(2),
+	Short: "Returns all blobs for the given namespace at a particular height.",
+	Run: func(cmd *cobra.Command, args []string) {
+		num, err := strconv.ParseUint(args[0], 10, 64)
+		if err != nil {
+			fmt.Fprintln(os.Stderr,
+				fmt.Errorf("error parsing height: uint64 could not be parsed"),
+			)
+			os.Exit(1)
+		}
 
-	// 2. NamespaceID
-	namespace, err := parseV0Namespace(params[1])
-	if err != nil {
-		return nil, fmt.Errorf("error parsing namespace: %v", err)
-	}
+		// 2. Namespace
+		namespace, err := parseV0Namespace(args[1])
+		if err != nil {
+			fmt.Fprintln(os.Stderr,
+				fmt.Errorf("error parsing namespace: %v", err),
+			)
+			os.Exit(1)
+		}
 
-	// 3: Commitment
-	commitment, err := base64.StdEncoding.DecodeString(params[2])
-	if err != nil {
-		return nil, errors.New("error decoding commitment: base64 string could not be decoded")
-	}
-	return client.GetProof(context.Background(), num, namespace, commitment)
+		blobs, err := rpcClient.GetAll(cmd.Context(), num, []share.Namespace{namespace})
+		if err == nil {
+			for _, b := range blobs {
+				if data, err := tryDecode(b.Data); err == nil {
+					b.Data = data
+				}
+			}
+		}
+
+		output := prepareOutput(blobs, err)
+		fmt.Fprintln(os.Stdout, string(output))
+	},
+}
+
+var submitCmd = &cobra.Command{
+	Use:   "Submit [params]",
+	Args:  cobra.ExactArgs(2),
+	Short: "Submit a blob at the given namespace. Note: only one blob is allowed to submit through the RPC.",
+	Run: func(cmd *cobra.Command, args []string) {
+		// 1. Namespace
+		namespace, err := parseV0Namespace(args[0])
+		if err != nil {
+			fmt.Fprintln(os.Stderr,
+				fmt.Errorf("error parsing namespace: %v", err),
+			)
+			os.Exit(1)
+		}
+
+		// 2. Blob data
+		var blobData []byte
+		switch {
+		case strings.HasPrefix(args[1], "0x"):
+			decoded, err := hex.DecodeString(args[1][2:])
+			if err != nil {
+				fmt.Fprintln(os.Stderr, errors.New("error decoding blob: hex string could not be decoded"))
+				os.Exit(1)
+			}
+			blobData = decoded
+		case strings.HasPrefix(args[1], "\""):
+			// user input an utf string that needs to be encoded to base64
+			src := []byte(args[1])
+			blobData = make([]byte, base64.StdEncoding.EncodedLen(len(src)))
+			base64.StdEncoding.Encode(blobData, []byte(args[1]))
+		default:
+			// otherwise, we assume the user has already encoded their input to base64
+			blobData, err = base64.StdEncoding.DecodeString(args[1])
+			if err != nil {
+				fmt.Fprintln(os.Stderr, errors.New("error decoding blob data: base64 string could not be decoded"))
+				os.Exit(1)
+			}
+		}
+
+		parsedBlob, err := blob.NewBlobV0(namespace, blobData)
+		if err != nil {
+			fmt.Fprintln(os.Stderr, fmt.Errorf("error creating blob: %v", err))
+			os.Exit(1)
+		}
+
+		height, err := rpcClient.Submit(cmd.Context(), []*blob.Blob{parsedBlob})
+		output := prepareOutput(height, err)
+
+		fmt.Fprintln(os.Stdout, string(output))
+	},
+}
+
+var getProofCmd = &cobra.Command{
+	Use:   "GetProof [params]",
+	Args:  cobra.ExactArgs(3),
+	Short: "Retrieves a blob in the given namespaces at the given height by commitment and returns its Proof.",
+	Run: func(cmd *cobra.Command, args []string) {
+		// 1. Height
+		num, err := strconv.ParseUint(args[0], 10, 64)
+		if err != nil {
+			fmt.Fprintln(os.Stderr, fmt.Errorf("error parsing height: uint64 could not be parsed"))
+			os.Exit(1)
+		}
+
+		// 2. NamespaceID
+		namespace, err := parseV0Namespace(args[1])
+		if err != nil {
+			fmt.Fprintln(os.Stderr, fmt.Errorf("error parsing namespace: %v", err))
+			os.Exit(1)
+		}
+
+		// 3: Commitment
+		commitment, err := base64.StdEncoding.DecodeString(args[2])
+		if err != nil {
+			fmt.Fprintln(os.Stderr, errors.New("error decoding commitment: base64 string could not be decoded"))
+		}
+
+		proof, err := rpcClient.GetProof(cmd.Context(), num, namespace, commitment)
+		output := prepareOutput(proof, err)
+		fmt.Fprintln(os.Stdout, string(output))
+	},
 }
 
 func prepareOutput(data interface{}, err error) []byte {
@@ -195,7 +213,8 @@ func prepareOutput(data interface{}, err error) []byte {
 		Error:  errStr,
 	}, "", "  ")
 	if err != nil {
-		panic(err)
+		fmt.Fprintln(os.Stderr, err)
+		os.Exit(1)
 	}
 	return bytes
 }
@@ -207,27 +226,20 @@ func tryDecode(data []byte) ([]byte, error) {
 }
 
 func getRPCClient(ctx context.Context) (*client.Client, error) {
-	expanded, err := homedir.Expand(filepath.Clean(options.StorePath(ctx)))
-	if err != nil {
-		return nil, err
-	}
-
-	store, err := nodebuilder.OpenStoreReadOnly(expanded)
-	if err != nil {
-		return nil, err
-	}
-	defer store.Close()
-
-	cfg, err := store.Config()
-	if err != nil {
-		return nil, err
-	}
-	addr := cfg.RPC.Address
-	port := cfg.RPC.Port
-	listenAddr := "http://" + addr + ":" + port
+	key := os.Getenv(authEnvKey)
+	addr := os.Getenv(addrEnvKey)
+	port := os.Getenv(portEnvKey)
 
 	if authTokenFlag == "" {
-		authTokenFlag = os.Getenv(authEnvKey)
+		authTokenFlag = key
 	}
+	if addr == "" {
+		addr = defaultAddress
+	}
+	if port == "" {
+		port = defaultPort
+	}
+
+	listenAddr := "http://" + addr + ":" + port
 	return client.NewClient(ctx, listenAddr, authTokenFlag)
 }
