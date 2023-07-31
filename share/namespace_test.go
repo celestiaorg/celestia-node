@@ -5,6 +5,7 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 
 	appns "github.com/celestiaorg/celestia-app/pkg/namespace"
 )
@@ -134,4 +135,56 @@ func TestFrom(t *testing.T) {
 			assert.Equal(t, tc.want, got)
 		})
 	}
+}
+
+func TestValidateForBlob(t *testing.T) {
+	type testCase struct {
+		name    string
+		ns      Namespace
+		wantErr bool
+	}
+
+	validNamespace, err := NewBlobNamespaceV0(bytes.Repeat([]byte{0x1}, appns.NamespaceVersionZeroIDSize))
+	require.NoError(t, err)
+
+	testCases := []testCase{
+		{
+			name:    "valid blob namespace",
+			ns:      validNamespace,
+			wantErr: false,
+		},
+		{
+			name:    "invalid blob namespace: parity shares namespace",
+			ns:      ParitySharesNamespace,
+			wantErr: true,
+		},
+		{
+			name:    "invalid blob namespace: tail padding namespace",
+			ns:      TailPaddingNamespace,
+			wantErr: true,
+		},
+		{
+			name:    "invalid blob namespace: tx namespace",
+			ns:      TxNamespace,
+			wantErr: true,
+		},
+		{
+			name:    "invalid blob namespace: namespace version max",
+			ns:      append([]byte{appns.NamespaceVersionMax}, bytes.Repeat([]byte{0x0}, appns.NamespaceIDSize)...),
+			wantErr: true,
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			err := tc.ns.ValidateForBlob()
+
+			if tc.wantErr {
+				assert.Error(t, err)
+				return
+			}
+			assert.NoError(t, err)
+		})
+	}
+
 }
