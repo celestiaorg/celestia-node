@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"path/filepath"
 	"sync"
+	"time"
 
 	"github.com/cosmos/cosmos-sdk/crypto/keyring"
 	"github.com/ipfs/go-datastore"
@@ -118,8 +119,7 @@ func (f *fsStore) Datastore() (datastore.Batching, error) {
 	}
 
 	opts := dsbadger.DefaultOptions // this should be copied
-	// turn off value log GC
-	opts.GcInterval = 0
+	opts.GcInterval = time.Minute * 10
 	// use one compactor per level.
 	opts.NumCompactors = 7
 	// use minimum amount of NumLevelZeroTables to trigger L0 compaction faster
