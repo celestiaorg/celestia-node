@@ -61,7 +61,7 @@ func TestShrexGetter(t *testing.T) {
 	getter := NewShrexGetter(edsClient, ndClient, peerManager)
 	require.NoError(t, getter.Start(ctx))
 
-	t.Run("ND_Available", func(t *testing.T) {
+	t.Run("ND_Available, total data size > 1mb", func(t *testing.T) {
 		ctx, cancel := context.WithTimeout(ctx, time.Second*10)
 		t.Cleanup(cancel)
 

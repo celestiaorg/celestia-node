@@ -47,11 +47,6 @@ func (ns NamespacedShares) Flatten() []Share {
 	return shares
 }
 
-// IsEmpty indicates if there are no shares found for given namespace
-func (ns NamespacedShares) IsEmpty() bool {
-	return len(ns) == 0 || (len(ns) == 1 && len(ns[0].Shares) == 0)
-}
-
 // NamespacedRow represents all shares with proofs within a specific namespace of a single EDS row.
 type NamespacedRow struct {
 	Shares []Share

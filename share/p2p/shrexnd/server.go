@@ -101,13 +101,13 @@ func (srv *Server) observeRateLimitedRequests() {
 
 func (srv *Server) handleNamespacedData(ctx context.Context, stream network.Stream) error {
 	logger := log.With("source", "server", "peer", stream.Conn().RemotePeer().String())
-	logger.Debug("server: handling nd request")
+	logger.Debug("handling nd request")
 
 	srv.observeRateLimitedRequests()
 	req, err := srv.readRequest(logger, stream)
 	if err != nil {
 		logger.Warnw("read request", "err", err)
-		srv.metrics.ObserveRequests(ctx, 1, p2p.StatusBadReuest)
+		srv.metrics.ObserveRequests(ctx, 1, p2p.StatusBadRequest)
 		return err
 	}
 
@@ -117,13 +117,21 @@ func (srv *Server) handleNamespacedData(ctx context.Context, stream network.Stre
 	ctx, cancel := context.WithTimeout(ctx, srv.params.HandleRequestTimeout)
 	defer cancel()
 
-	shares, status, getErr := srv.getNamespaceData(ctx, req.RootHash, req.Namespace)
-
-	// server should respond with status regardless if there was an error getting data
-	err = srv.respondStatus(ctx, logger, stream, status)
-	if err != nil || getErr != nil {
-		err = errors.Join(getErr, err)
+	shares, status, err := srv.getNamespaceData(ctx, req.RootHash, req.Namespace)
+	if err != nil {
+		// server should respond with status regardless if there was an error getting data
+		sendErr := srv.respondStatus(ctx, logger, stream, status)
+		if sendErr != nil {
+			logger.Errorw("sending response", "err", sendErr)
+			srv.metrics.ObserveRequests(ctx, 1, p2p.StatusSendRespErr)
+		}
 		logger.Errorw("handling request", "err", err)
+		return errors.Join(err, sendErr)
+	}
+
+	err = srv.respondStatus(ctx, logger, stream, status)
+	if err != nil {
+		logger.Errorw("sending response", "err", err)
 		srv.metrics.ObserveRequests(ctx, 1, p2p.StatusSendRespErr)
 		return err
 	}
@@ -143,7 +151,7 @@ func (srv *Server) readRequest(
 ) (*pb.GetSharesByNamespaceRequest, error) {
 	err := stream.SetReadDeadline(time.Now().Add(srv.params.ServerReadTimeout))
 	if err != nil {
-		logger.Debugw("server: setting read deadline", "err", err)
+		logger.Debugw("setting read deadline", "err", err)
 	}
 
 	var req pb.GetSharesByNamespaceRequest
@@ -153,10 +161,10 @@ func (srv *Server) readRequest(
 
 	}
 
-	logger.Debugw("server: new request")
+	logger.Debugw("new request")
 	err = stream.CloseRead()
 	if err != nil {
-		logger.Debugw("server: closing read side of the stream", "err", err)
+		logger.Debugw("closing read side of the stream", "err", err)
 	}
 
 	err = validateRequest(req)
@@ -188,12 +196,13 @@ func (srv *Server) respondStatus(
 	ctx context.Context,
 	logger *zap.SugaredLogger,
 	stream network.Stream,
-	status pb.StatusCode) error {
+	status pb.StatusCode,
+) error {
 	srv.observeStatus(ctx, status)
 
 	err := stream.SetWriteDeadline(time.Now().Add(srv.params.ServerWriteTimeout))
 	if err != nil {
-		logger.Debugw("server: setting write deadline", "err", err)
+		logger.Debugw("setting write deadline", "err", err)
 	}
 
 	_, err = serde.Write(stream, &pb.GetSharesByNamespaceStatusResponse{Status: status})

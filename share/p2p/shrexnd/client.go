@@ -133,7 +133,7 @@ func (c *Client) readStatus(ctx context.Context, stream network.Stream) error {
 	return c.convertStatusToErr(ctx, resp.Status)
 }
 
-// convertToNamespacedShares converts proto Rows to share.NamespacedShares
+// readNamespacedShares converts proto Rows to share.NamespacedShares
 func (c *Client) readNamespacedShares(
 	ctx context.Context,
 	stream network.Stream,
@@ -213,7 +213,7 @@ func (c *Client) convertStatusToErr(ctx context.Context, status pb.StatusCode) e
 		c.metrics.ObserveRequests(ctx, 1, p2p.StatusNotFound)
 		return p2p.ErrNotFound
 	case pb.StatusCode_INVALID:
-		log.Error("client-nd: invalid request")
+		log.Warn("client-nd: invalid request")
 		fallthrough
 	case pb.StatusCode_INTERNAL:
 		fallthrough
