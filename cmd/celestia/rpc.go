@@ -9,7 +9,6 @@ import (
 	"io"
 	"log"
 	"net/http"
-	"os"
 	"reflect"
 	"strconv"
 	"strings"
@@ -17,7 +16,10 @@ import (
 	"github.com/spf13/cobra"
 
 	"github.com/celestiaorg/celestia-node/api/rpc/client"
+	"github.com/celestiaorg/celestia-node/api/rpc/perms"
 	"github.com/celestiaorg/celestia-node/blob"
+	auth "github.com/celestiaorg/celestia-node/cmd"
+	"github.com/celestiaorg/celestia-node/nodebuilder/p2p"
 	"github.com/celestiaorg/celestia-node/share"
 	"github.com/celestiaorg/celestia-node/state"
 )
@@ -26,9 +28,10 @@ const (
 	authEnvKey = "CELESTIA_NODE_AUTH_TOKEN"
 )
 
-var requestURL string
-var authTokenFlag string
-var printRequest bool
+var (
+	requestURL, authTokenFlag, storePath string
+	printRequest                         bool
+)
 
 type jsonRPCRequest struct {
 	ID      int64         `json:"id"`
@@ -60,6 +63,12 @@ func init() {
 		"print-request",
 		false,
 		"Print JSON-RPC request along with the response",
+	)
+	rpcCmd.PersistentFlags().StringVar(
+		&storePath,
+		"store.path",
+		"~/.celestia-light-"+string(p2p.DefaultNetwork),
+		"Store Path",
 	)
 	rootCmd.AddCommand(rpcCmd)
 }
@@ -346,8 +355,13 @@ func sendJSONRPCRequest(namespace, method string, params []interface{}) {
 
 	authToken := authTokenFlag
 	if authToken == "" {
-		authToken = os.Getenv(authEnvKey)
+		token, err := auth.Token(storePath, perms.AllPerms)
+		if err != nil {
+			panic(err)
+		}
+		authToken = token
 	}
+
 	if authToken != "" {
 		req.Header.Set("Authorization", "Bearer "+authToken)
 	}

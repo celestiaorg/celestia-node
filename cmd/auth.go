@@ -44,40 +44,49 @@ func newToken(cmd *cobra.Command, args []string) error {
 		return err
 	}
 
-	expanded, err := homedir.Expand(filepath.Clean(StorePath(cmd.Context())))
-	if err != nil {
-		return err
-	}
-	ks, err := keystore.NewFSKeystore(filepath.Join(expanded, "keys"), nil)
-	if err != nil {
-		return err
-	}
-
-	var key keystore.PrivKey
-	key, err = ks.Get(nodemod.SecretName)
-	if err != nil {
-		if !errors.Is(err, keystore.ErrNotFound) {
-			return err
-		}
-		// otherwise, generate and save new priv key
-		key, err = generateNewKey(ks)
-		if err != nil {
-			return err
-		}
-	}
-
-	signer, err := jwt.NewHS256(key.Body)
-	if err != nil {
-		return err
-	}
-
-	token, err := authtoken.NewSignedJWT(signer, permissions)
+	token, err := Token(StorePath(cmd.Context()), permissions)
 	if err != nil {
 		return err
 	}
 
 	fmt.Printf("%s", token)
 	return nil
+}
+
+func Token(path string, perms []auth.Permission) (string, error) {
+	expanded, err := homedir.Expand(filepath.Clean(path))
+	if err != nil {
+		return "", err
+	}
+	ks, err := keystore.NewFSKeystore(filepath.Join(expanded, "keys"), nil)
+	if err != nil {
+		return "", err
+	}
+
+	var key keystore.PrivKey
+	key, err = ks.Get(nodemod.SecretName)
+	if err != nil {
+		if !errors.Is(err, keystore.ErrNotFound) {
+			return "", err
+		}
+		// otherwise, generate and save new priv key
+		key, err = generateNewKey(ks)
+		if err != nil {
+			return "", err
+		}
+	}
+
+	signer, err := jwt.NewHS256(key.Body)
+	if err != nil {
+		return "", err
+	}
+
+	token, err := authtoken.NewSignedJWT(signer, perms)
+	if err != nil {
+		return "", err
+	}
+
+	return token, nil
 }
 
 func generateNewKey(ks keystore.Keystore) (keystore.PrivKey, error) {
