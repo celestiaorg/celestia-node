@@ -293,13 +293,14 @@ func addToNamespace(namespace share.Namespace, val int) (share.Namespace, error)
 			sum = int(namespace[i]) - int(result[i]) + carry
 		}
 
-		if sum > 255 {
+		switch {
+		case sum > 255:
 			carry = 1
 			sum -= 256
-		} else if sum < 0 {
+		case sum < 0:
 			carry = -1
 			sum += 256
-		} else {
+		default:
 			carry = 0
 		}
 
