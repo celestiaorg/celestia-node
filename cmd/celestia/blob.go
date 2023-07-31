@@ -220,7 +220,7 @@ func prepareOutput(data interface{}, err error) []byte {
 }
 
 // Golang marshals `[]byte` as a base64-encoded string, so without additional encoding data will
-// match expectations. We need this functionality in order to get the original data.
+// not match the expectations. We need this functionality in order to get the original data.
 func tryDecode(data []byte) ([]byte, error) {
 	return base64.StdEncoding.DecodeString(string(data))
 }
