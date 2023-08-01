@@ -2,9 +2,11 @@ package main
 
 import (
 	"bytes"
+	"context"
 	"encoding/base64"
 	"encoding/hex"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"log"
@@ -23,6 +25,8 @@ import (
 
 const (
 	authEnvKey = "CELESTIA_NODE_AUTH_TOKEN"
+
+	rpcClientKey = "rpcClient"
 )
 
 var requestURL string
@@ -69,6 +73,25 @@ var rpcCmd = &cobra.Command{
 	Use:   "rpc [namespace] [method] [params...]",
 	Short: "Send JSON-RPC request",
 	Args:  cobra.MinimumNArgs(2),
+	PersistentPreRunE: func(cmd *cobra.Command, args []string) error {
+		client, err := newRPCClient(cmd.Context())
+		if err != nil {
+			return err
+		}
+
+		ctx := context.WithValue(cmd.Context(), rpcClientKey, client)
+		cmd.SetContext(ctx)
+		return nil
+	},
+	PersistentPostRunE: func(cmd *cobra.Command, args []string) error {
+		client, err := rpcClient(cmd.Context())
+		if err != nil {
+			return err
+		}
+
+		client.Close()
+		return nil
+	},
 	ValidArgsFunction: func(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
 		modules := client.Modules
 		if len(args) == 0 {
@@ -336,8 +359,24 @@ func decodeToBytes(param string) ([]byte, error) {
 	}
 	return decoded, nil
 }
+
 func parseJSON(param string) (json.RawMessage, error) {
 	var raw json.RawMessage
 	err := json.Unmarshal([]byte(param), &raw)
 	return raw, err
+}
+
+func newRPCClient(ctx context.Context) (*client.Client, error) {
+	if authTokenFlag == "" {
+		authTokenFlag = os.Getenv(authEnvKey)
+	}
+	return client.NewClient(ctx, requestURL, authTokenFlag)
+}
+
+func rpcClient(ctx context.Context) (*client.Client, error) {
+	client, ok := ctx.Value(rpcClientKey).(*client.Client)
+	if !ok {
+		return nil, errors.New("rpc client was not set")
+	}
+	return client, nil
 }
