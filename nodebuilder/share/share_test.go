@@ -27,7 +27,8 @@ func Test_EmptyCARExists(t *testing.T) {
 	require.NoError(t, err)
 
 	eds := share.EmptyExtendedDataSquare()
-	dah := da.NewDataAvailabilityHeader(eds)
+	dah, err := da.NewDataAvailabilityHeader(eds)
+	require.NoError(t, err)
 
 	// add empty EDS to store
 	err = ensureEmptyCARExists(ctx, edsStore)

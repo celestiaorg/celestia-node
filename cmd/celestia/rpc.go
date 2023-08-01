@@ -195,7 +195,7 @@ func parseParams(method string, params []string) []interface{} {
 		// 1. Height
 		num, err := strconv.ParseUint(params[0], 10, 64)
 		if err != nil {
-			panic("Error parsing gas limit: uint64 could not be parsed.")
+			panic("Error parsing height: uint64 could not be parsed.")
 		}
 		parsedParams[0] = num
 		// 2. NamespaceID
@@ -215,7 +215,7 @@ func parseParams(method string, params []string) []interface{} {
 		// 1. Height
 		num, err := strconv.ParseUint(params[0], 10, 64)
 		if err != nil {
-			panic("Error parsing gas limit: uint64 could not be parsed.")
+			panic("Error parsing height: uint64 could not be parsed.")
 		}
 		parsedParams[0] = num
 		// 2. Namespace

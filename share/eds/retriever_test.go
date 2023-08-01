@@ -59,7 +59,8 @@ func TestRetriever_Retrieve(t *testing.T) {
 			ctx, cancel := context.WithTimeout(ctx, time.Minute*5) // the timeout is big for the max size which is long
 			defer cancel()
 
-			dah := da.NewDataAvailabilityHeader(in)
+			dah, err := da.NewDataAvailabilityHeader(in)
+			require.NoError(t, err)
 			out, err := r.Retrieve(ctx, &dah)
 			require.NoError(t, err)
 			assert.True(t, share.EqualEDS(in, out))
@@ -93,7 +94,8 @@ func TestRetriever_ByzantineError(t *testing.T) {
 	require.NoError(t, err)
 
 	// ensure we rcv an error
-	dah := da.NewDataAvailabilityHeader(attackerEDS)
+	dah, err := da.NewDataAvailabilityHeader(attackerEDS)
+	require.NoError(t, err)
 	r := NewRetriever(bserv)
 	_, err = r.Retrieve(ctx, &dah)
 	var errByz *byzantine.ErrByzantine
@@ -116,7 +118,8 @@ func TestRetriever_MultipleRandQuadrants(t *testing.T) {
 	in, err := ipld.AddShares(ctx, shares, bServ)
 	require.NoError(t, err)
 
-	dah := da.NewDataAvailabilityHeader(in)
+	dah, err := da.NewDataAvailabilityHeader(in)
+	require.NoError(t, err)
 	ses, err := r.newSession(ctx, &dah)
 	require.NoError(t, err)
 

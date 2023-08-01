@@ -102,7 +102,10 @@ func initializeWriter(ctx context.Context, eds *rsmt2d.ExtendedDataSquare, w io.
 		return nil, fmt.Errorf("recomputing data square: %w", err)
 	}
 	// compute roots
-	eds.RowRoots()
+	_, err = eds.RowRoots()
+	if err != nil {
+		return nil, fmt.Errorf("computing row roots: %w", err)
+	}
 	// commit the batch to DAG
 	err = batchAdder.Commit()
 	if err != nil {
@@ -231,8 +234,18 @@ func prependNamespace(quadrant int, shr share.Share) []byte {
 
 // rootsToCids converts the EDS's Row and Column roots to CIDs.
 func rootsToCids(eds *rsmt2d.ExtendedDataSquare) ([]cid.Cid, error) {
-	var err error
-	roots := append(eds.RowRoots(), eds.ColRoots()...)
+	rowRoots, err := eds.RowRoots()
+	if err != nil {
+		return nil, err
+	}
+	colRoots, err := eds.ColRoots()
+	if err != nil {
+		return nil, err
+	}
+
+	roots := make([][]byte, 0, len(rowRoots)+len(colRoots))
+	roots = append(roots, rowRoots...)
+	roots = append(roots, colRoots...)
 	rootCids := make([]cid.Cid, len(roots))
 	for i, r := range roots {
 		rootCids[i], err = ipld.CidFromNamespacedSha256(r)
@@ -283,7 +296,10 @@ func ReadEDS(ctx context.Context, r io.Reader, root share.DataHash) (eds *rsmt2d
 		return nil, fmt.Errorf("share: computing eds: %w", err)
 	}
 
-	newDah := da.NewDataAvailabilityHeader(eds)
+	newDah, err := da.NewDataAvailabilityHeader(eds)
+	if err != nil {
+		return nil, err
+	}
 	if !bytes.Equal(newDah.Hash(), root) {
 		return nil, fmt.Errorf(
 			"share: content integrity mismatch: imported root %s doesn't match expected root %s",

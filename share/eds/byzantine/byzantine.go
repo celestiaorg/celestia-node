@@ -5,6 +5,7 @@ import (
 	"fmt"
 
 	"github.com/ipfs/go-blockservice"
+	"golang.org/x/sync/errgroup"
 
 	"github.com/celestiaorg/celestia-app/pkg/da"
 	"github.com/celestiaorg/rsmt2d"
@@ -35,17 +36,41 @@ func NewErrByzantine(
 	dah *da.DataAvailabilityHeader,
 	errByz *rsmt2d.ErrByzantineData,
 ) *ErrByzantine {
-	root := [][][]byte{
-		dah.RowRoots,
+	// changing the order to collect proofs against an orthogonal axis
+	roots := [][][]byte{
 		dah.ColumnRoots,
-	}[errByz.Axis][errByz.Index]
-	sharesWithProof, err := GetProofsForShares(
-		ctx,
-		bGetter,
-		ipld.MustCidFromNamespacedSha256(root),
-		errByz.Shares,
-	)
-	if err != nil {
+		dah.RowRoots,
+	}[errByz.Axis]
+
+	sharesWithProof := make([]*ShareWithProof, len(errByz.Shares))
+	sharesAmount := 0
+
+	errGr, ctx := errgroup.WithContext(ctx)
+	for index, share := range errByz.Shares {
+		// skip further shares if we already requested half of them, which is enough to recompute the row
+		// or col
+		if sharesAmount == len(dah.RowRoots)/2 {
+			break
+		}
+
+		if share == nil {
+			continue
+		}
+		sharesAmount++
+
+		index := index
+		errGr.Go(func() error {
+			share, err := getProofsAt(
+				ctx, bGetter,
+				ipld.MustCidFromNamespacedSha256(roots[index]),
+				int(errByz.Index), len(errByz.Shares),
+			)
+			sharesWithProof[index] = share
+			return err
+		})
+	}
+
+	if err := errGr.Wait(); err != nil {
 		// Fatal as rsmt2d proved that error is byzantine,
 		// but we cannot properly collect the proof,
 		// so verification will fail and thus services won't be stopped
@@ -53,7 +78,6 @@ func NewErrByzantine(
 		// TODO(@Wondertan): Find a better way to handle
 		log.Fatalw("getting proof for ErrByzantine", "err", err)
 	}
-
 	return &ErrByzantine{
 		Index:  uint32(errByz.Index),
 		Shares: sharesWithProof,

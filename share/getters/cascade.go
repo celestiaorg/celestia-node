@@ -33,7 +33,6 @@ func NewCascadeGetter(getters []share.Getter) *CascadeGetter {
 // GetShare gets a share from any of registered share.Getters in cascading order.
 func (cg *CascadeGetter) GetShare(ctx context.Context, root *share.Root, row, col int) (share.Share, error) {
 	ctx, span := tracer.Start(ctx, "cascade/get-share", trace.WithAttributes(
-		attribute.String("root", root.String()),
 		attribute.Int("row", row),
 		attribute.Int("col", col),
 	))
@@ -48,9 +47,7 @@ func (cg *CascadeGetter) GetShare(ctx context.Context, root *share.Root, row, co
 
 // GetEDS gets a full EDS from any of registered share.Getters in cascading order.
 func (cg *CascadeGetter) GetEDS(ctx context.Context, root *share.Root) (*rsmt2d.ExtendedDataSquare, error) {
-	ctx, span := tracer.Start(ctx, "cascade/get-eds", trace.WithAttributes(
-		attribute.String("root", root.String()),
-	))
+	ctx, span := tracer.Start(ctx, "cascade/get-eds")
 	defer span.End()
 
 	get := func(ctx context.Context, get share.Getter) (*rsmt2d.ExtendedDataSquare, error) {
@@ -68,7 +65,6 @@ func (cg *CascadeGetter) GetSharesByNamespace(
 	namespace share.Namespace,
 ) (share.NamespacedShares, error) {
 	ctx, span := tracer.Start(ctx, "cascade/get-shares-by-namespace", trace.WithAttributes(
-		attribute.String("root", root.String()),
 		attribute.String("namespace", namespace.String()),
 	))
 	defer span.End()

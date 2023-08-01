@@ -251,7 +251,10 @@ func (d *Discovery) discover(ctx context.Context) bool {
 		log.Debugw("reached soft peer limit, skipping discovery", "size", size)
 		return true
 	}
-	log.Infow("discovering peers", "want", want)
+	// TODO @renaynay: eventually, have a mechanism to catch if wanted amount of peers
+	//  has not been discovered in X amount of time so that users are warned of degraded
+	//  FN connectivity.
+	log.Debugw("discovering peers", "want", want)
 
 	// we use errgroup as it provide limits
 	var wg errgroup.Group
