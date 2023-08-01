@@ -34,7 +34,10 @@ const (
 	indexPath      = "/index/"
 	transientsPath = "/transients/"
 
-	defaultGCInterval = time.Hour
+	// GC performs DAG store garbage collection by reclaiming transient files of
+	// shards that are currently available but inactive, or errored.
+	// We don't use transient files right now, so GC is turned off by default.
+	defaultGCInterval = 0
 )
 
 var ErrNotFound = errors.New("eds not found in store")
@@ -117,13 +120,16 @@ func (s *Store) Start(ctx context.Context) error {
 		return err
 	}
 	// start Store only if DagStore succeeds
-	ctx, cancel := context.WithCancel(context.Background())
+	runCtx, cancel := context.WithCancel(context.Background())
 	s.cancel = cancel
 	// initialize empty gc result to avoid panic on access
 	s.lastGCResult.Store(&dagstore.GCResult{
 		Shards: make(map[shard.Key]error),
 	})
-	go s.gc(ctx)
+
+	if s.gcInterval != 0 {
+		go s.gc(runCtx)
+	}
 	return nil
 }
 
