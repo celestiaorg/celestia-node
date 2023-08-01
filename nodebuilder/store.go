@@ -120,10 +120,6 @@ func (f *fsStore) Datastore() (datastore.Batching, error) {
 
 	opts := dsbadger.DefaultOptions // this should be copied
 	opts.GcInterval = time.Minute * 10
-	// use one compactor per level.
-	opts.NumCompactors = 7
-	// use minimum amount of NumLevelZeroTables to trigger L0 compaction faster
-	opts.NumLevelZeroTables = 1
 
 	ds, err := dsbadger.NewDatastore(dataPath(f.path), &opts)
 	if err != nil {
