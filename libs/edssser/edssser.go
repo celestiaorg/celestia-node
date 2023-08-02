@@ -23,6 +23,7 @@ type Config struct {
 	EnableLog   bool
 	LogFilePath string
 	StatLogFreq int
+	OpTimeout   time.Duration
 }
 
 // EDSsser stand for EDS Store Stresser.
@@ -67,25 +68,9 @@ func (ss *EDSsser) Run(ctx context.Context) (stats Stats, err error) {
 	}
 	fmt.Printf("recovered %d EDSes\n\n", len(edsHashes))
 
-	defer func() {
-		err = errors.Join(err, ss.dumpStat(stats.Finalize()))
-	}()
-
 	t := &testing.T{}
 	for toWrite := ss.config.EDSWrites - len(edsHashes); ctx.Err() == nil && toWrite > 0; toWrite-- {
-		// divide by 2 to get ODS size as expected by RandEDS
-		square := edstest.RandEDS(t, ss.config.EDSSize/2)
-		dah, err := da.NewDataAvailabilityHeader(square)
-		if err != nil {
-			return stats, err
-		}
-
-		now := time.Now()
-		err = ss.edsstore.Put(ctx, dah.Hash(), square)
-		if err != nil {
-			return stats, err
-		}
-		took := time.Since(now)
+		took, err := ss.put(ctx, t)
 
 		stats.TotalWritten++
 		stats.TotalTime += took
@@ -96,8 +81,6 @@ func (ss *EDSsser) Run(ctx context.Context) (stats Stats, err error) {
 		}
 
 		if ss.config.EnableLog {
-			fmt.Println("square written", "size", ss.config.EDSSize, "took", took)
-
 			if stats.TotalWritten%ss.config.StatLogFreq == 0 {
 				stats := stats.Finalize()
 				fmt.Println(stats)
@@ -108,9 +91,18 @@ func (ss *EDSsser) Run(ctx context.Context) (stats Stats, err error) {
 					}
 				}()
 			}
+			if err != nil {
+				fmt.Printf("ERROR put: %s, took: %v, at: %v\n", err.Error(), took, time.Now())
+				continue
+			}
+			if took > ss.config.OpTimeout/2 {
+				fmt.Println("long put", "size", ss.config.EDSSize, "took", took, "at", time.Now())
+				continue
+			}
+
+			fmt.Println("square written", "size", ss.config.EDSSize, "took", took, "at", time.Now())
 		}
 	}
-
 	return stats, nil
 }
 
@@ -158,4 +150,23 @@ AvgTime %s
 		stats.MinTime,
 		stats.AvgTime,
 	)
+}
+
+func (ss *EDSsser) put(ctx context.Context, t *testing.T) (time.Duration, error) {
+	ctx, cancel := context.WithTimeout(ctx, ss.config.OpTimeout)
+	if ss.config.OpTimeout == 0 {
+		ctx, cancel = context.WithCancel(ctx)
+	}
+	defer cancel()
+
+	// divide by 2 to get ODS size as expected by RandEDS
+	square := edstest.RandEDS(t, ss.config.EDSSize/2)
+	dah, err := da.NewDataAvailabilityHeader(square)
+	if err != nil {
+		return 0, err
+	}
+
+	now := time.Now()
+	err = ss.edsstore.Put(ctx, dah.Hash(), square)
+	return time.Since(now), err
 }
