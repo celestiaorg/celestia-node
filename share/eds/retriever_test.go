@@ -120,7 +120,7 @@ func TestRetriever_MultipleRandQuadrants(t *testing.T) {
 
 	dah, err := da.NewDataAvailabilityHeader(in)
 	require.NoError(t, err)
-	ses, err := r.newSession(ctx, &dah)
+	ses, err := r.newSession(ctx, &dah, nil)
 	require.NoError(t, err)
 
 	// wait until two additional quadrants requested
@@ -227,7 +227,7 @@ func BenchmarkNewErrByzantineData(b *testing.B) {
 			err := ipld.ImportEDS(ctx, eds, bServ)
 			require.NoError(t, err)
 			h := headertest.ExtendedHeaderFromEDS(t, 1, eds)
-			ses, err := r.newSession(ctx, h.DAH)
+			ses, err := r.newSession(ctx, h.DAH, nil)
 			require.NoError(t, err)
 
 			select {

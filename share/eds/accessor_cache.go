@@ -65,7 +65,7 @@ func (bc *blockstoreCache) evictFn() func(_ interface{}, val interface{}) {
 		if err != nil {
 			log.Errorf("couldn't close accessor after cache eviction: %s", err)
 		}
-		bc.metrics.observeEvicted(err != nil)
+		bc.metrics.observeEvicted(err == nil)
 	}
 }
 

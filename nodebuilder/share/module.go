@@ -3,6 +3,7 @@ package share
 import (
 	"context"
 
+	"github.com/ipfs/go-blockservice"
 	"github.com/ipfs/go-datastore"
 	"github.com/libp2p/go-libp2p/core/host"
 	"go.uber.org/fx"
@@ -163,7 +164,9 @@ func ConstructModule(tp node.Type, cfg *Config, options ...fx.Option) fx.Option 
 			baseComponents,
 			bridgeAndFullComponents,
 			shrexGetterComponents,
-			fx.Provide(getters.NewIPLDGetter),
+			fx.Provide(func(bServ blockservice.BlockService) *getters.IPLDGetter {
+				return getters.NewIPLDGetter(bServ, eds.WithBlockstoreCleanup())
+			}),
 			fx.Provide(fullGetter),
 		)
 	case node.Light:

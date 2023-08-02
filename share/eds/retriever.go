@@ -30,6 +30,10 @@ var (
 	tracer = otel.Tracer("share/eds")
 )
 
+type RetrieverOption func(*Retriever)
+
+type CleanupFunc func(context.Context, cid.Cid) error
+
 // Retriever retrieves rsmt2d.ExtendedDataSquares from the IPLD network.
 // Instead of requesting data 'share by share' it requests data by quadrants
 // minimizing bandwidth usage in the happy cases.
@@ -43,12 +47,27 @@ var (
 // Retriever randomly picks one of the data square quadrants and tries to request them one by one
 // until it is able to reconstruct the whole square.
 type Retriever struct {
-	bServ blockservice.BlockService
+	bServ       blockservice.BlockService
+	cleanupFunc CleanupFunc
 }
 
 // NewRetriever creates a new instance of the Retriever over IPLD BlockService and rmst2d.Codec
-func NewRetriever(bServ blockservice.BlockService) *Retriever {
-	return &Retriever{bServ: bServ}
+func NewRetriever(bServ blockservice.BlockService, options ...RetrieverOption) *Retriever {
+	retriever := &Retriever{bServ: bServ}
+
+	for _, option := range options {
+		option(retriever)
+	}
+
+	return retriever
+}
+
+// WithBlockstoreCleanup cleans up temporarily cached blocks from the EDSStore blockstore after
+// successful reconstruction.
+func WithBlockstoreCleanup() RetrieverOption {
+	return func(retriever *Retriever) {
+		retriever.cleanupFunc = retriever.bServ.Blockstore().DeleteBlock
+	}
 }
 
 // Retrieve retrieves all the data committed to DataAvailabilityHeader.
@@ -68,7 +87,7 @@ func (r *Retriever) Retrieve(ctx context.Context, dah *da.DataAvailabilityHeader
 	)
 
 	log.Debugw("retrieving data square", "data_hash", dah.String(), "size", len(dah.RowRoots))
-	ses, err := r.newSession(ctx, dah)
+	ses, err := r.newSession(ctx, dah, r.cleanupFunc)
 	if err != nil {
 		return nil, err
 	}
@@ -82,6 +101,12 @@ func (r *Retriever) Retrieve(ctx context.Context, dah *da.DataAvailabilityHeader
 			eds, err := ses.Reconstruct(ctx)
 			if err == nil {
 				span.SetStatus(codes.Ok, "square-retrieved")
+				err = ses.cleanup(ctx)
+				if err != nil {
+					log.Errorw("failed to clean up cached blocks after successful retrieval",
+						"err", err, "datahash", dah.String(),
+					)
+				}
 				return eds, nil
 			}
 			// check to ensure it is not a catastrophic ErrByzantine case, otherwise handle accordingly
@@ -103,8 +128,9 @@ func (r *Retriever) Retrieve(ctx context.Context, dah *da.DataAvailabilityHeader
 // quadrant request retries. Also, provides an API
 // to reconstruct the block once enough shares are fetched.
 type retrievalSession struct {
-	dah  *da.DataAvailabilityHeader
-	bget blockservice.BlockGetter
+	dah         *da.DataAvailabilityHeader
+	bget        blockservice.BlockGetter
+	cleanupFunc func(ctx context.Context, cid cid.Cid) error
 
 	// TODO(@Wondertan): Extract into a separate data structure
 	// https://github.com/celestiaorg/rsmt2d/issues/135
@@ -115,12 +141,15 @@ type retrievalSession struct {
 	squareDn         chan struct{}
 	squareLk         sync.RWMutex
 	square           *rsmt2d.ExtendedDataSquare
+	cids             *cid.Set
 
 	span trace.Span
 }
 
 // newSession creates a new retrieval session and kicks off requesting process.
-func (r *Retriever) newSession(ctx context.Context, dah *da.DataAvailabilityHeader) (*retrievalSession, error) {
+func (r *Retriever) newSession(
+	ctx context.Context, dah *da.DataAvailabilityHeader, cleanupFunc CleanupFunc,
+) (*retrievalSession, error) {
 	size := len(dah.RowRoots)
 	treeFn := func(_ rsmt2d.Axis, index uint) rsmt2d.Tree {
 		// use proofs adder if provided, to cache collected proofs while recomputing the eds
@@ -142,16 +171,29 @@ func (r *Retriever) newSession(ctx context.Context, dah *da.DataAvailabilityHead
 	ses := &retrievalSession{
 		dah:             dah,
 		bget:            blockservice.NewSession(ctx, r.bServ),
+		cleanupFunc:     cleanupFunc,
 		squareQuadrants: newQuadrants(dah),
 		squareCellsLks:  make([][]sync.Mutex, size),
 		squareSig:       make(chan struct{}, 1),
 		squareDn:        make(chan struct{}),
-		square:          square,
 		span:            trace.SpanFromContext(ctx),
+		cids:            cid.NewSet(),
 	}
 	for i := range ses.squareCellsLks {
 		ses.squareCellsLks[i] = make([]sync.Mutex, size)
 	}
+	treeFn := func(_ rsmt2d.Axis, index uint) rsmt2d.Tree {
+		tree := wrapper.NewErasuredNamespacedMerkleTree(uint64(size)/2, index, nmt.NodeVisitor(ses.Visit))
+		return &tree
+	}
+
+	square, err := rsmt2d.NewExtendedDataSquare(share.DefaultRSMT2DCodec(), treeFn, uint(size), share.Size)
+	if err != nil {
+		return nil, err
+	}
+
+	ses.square = square
+
 	go ses.request(ctx)
 	return ses, nil
 }
@@ -161,6 +203,28 @@ func (r *Retriever) newSession(ctx context.Context, dah *da.DataAvailabilityHead
 // guarantee that reconstruction can be performed with the shares provided.
 func (rs *retrievalSession) Done() <-chan struct{} {
 	return rs.squareSig
+}
+
+func (rs *retrievalSession) Visit(hash []byte, _ ...[]byte) {
+	rs.cids.Visit(ipld.MustCidFromNamespacedSha256(hash))
+}
+
+// cleanup removes all the temporarily cached blocks from the eds blockstore if it exists. This
+// is because after successful retrieval, the blocks are added to the blockstore on the CAR level.
+// This step is skipped for light nodes, which pass a nil eds blockstore
+func (rs *retrievalSession) cleanup(ctx context.Context) error {
+	var err error
+	if rs.cleanupFunc != nil {
+		_, span := tracer.Start(ctx, "cleanup")
+		defer span.End()
+		err = rs.cids.ForEach(func(c cid.Cid) error {
+			return rs.cleanupFunc(ctx, c)
+		})
+		if err != nil {
+			return err
+		}
+	}
+	return nil
 }
 
 // Reconstruct tries to reconstruct the data square and returns it on success.
