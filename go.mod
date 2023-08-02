@@ -59,7 +59,7 @@ require (
 	github.com/prometheus/client_golang v1.14.0
 	github.com/pyroscope-io/client v0.7.1
 	github.com/pyroscope-io/otel-profiling-go v0.4.0
-	github.com/spf13/cobra v1.6.1
+	github.com/spf13/cobra v1.7.0
 	github.com/spf13/pflag v1.0.5
 	github.com/stretchr/testify v1.8.4
 	github.com/tendermint/tendermint v0.34.28
@@ -193,7 +193,7 @@ require (
 	github.com/huin/goupnp v1.2.0 // indirect
 	github.com/iancoleman/orderedmap v0.1.0 // indirect
 	github.com/improbable-eng/grpc-web v0.15.0 // indirect
-	github.com/inconshreveable/mousetrap v1.0.1 // indirect
+	github.com/inconshreveable/mousetrap v1.1.0 // indirect
 	github.com/influxdata/influxdb-client-go/v2 v2.12.2 // indirect
 	github.com/influxdata/line-protocol v0.0.0-20210311194329-9aa0e372d097 // indirect
 	github.com/ipfs/bbloom v0.0.4 // indirect
