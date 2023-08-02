@@ -203,12 +203,38 @@ func (s *Store) Put(ctx context.Context, root share.DataHash, square *rsmt2d.Ext
 
 	select {
 	case <-ctx.Done():
+		go logLateResult(ch, time.Minute*5)
 		return ctx.Err()
 	case result := <-ch:
 		if result.Error != nil {
 			return fmt.Errorf("failed to register shard: %w", result.Error)
 		}
 		return nil
+	}
+}
+
+// waitForResult waits for a result from the res channel for a maximum duration specified by
+// maxWait. If the result is not received within the specified duration, it logs an error
+// indicating that the parent context has expired and the shard registration is stuck. If a result
+// is received, it checks for any error and logs appropriate messages.
+func logLateResult(res <-chan dagstore.ShardResult, maxWait time.Duration) {
+	tnow := time.Now()
+	select {
+	case <-time.After(maxWait):
+		log.Errorf("parent context is expired, while register shard is stuck for more than %v sec", time.Since(tnow))
+		return
+	case result := <-res:
+		// don't log if result was received right after launch of the func
+		if time.Since(tnow) < time.Second {
+			return
+		}
+		if result.Error != nil {
+			log.Errorf("failed to register shard after context expired: %v ago, err: %w", time.Since(tnow), result.Error)
+			return
+		}
+		log.Warnf("parent context expired, but register shard finished with no error,"+
+			" after context expired: %v ago", time.Since(tnow))
+		return
 	}
 }
 
