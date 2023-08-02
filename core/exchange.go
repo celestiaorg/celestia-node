@@ -109,7 +109,6 @@ func (ce *Exchange) Get(ctx context.Context, hash libhead.Hash) (*header.Extende
 
 	// extend block data
 	adder := ipld.NewProofsAdder(int(block.Data.SquareSize))
-	ctx = ipld.CtxWithProofsAdder(ctx, adder)
 	eds, err := extendBlock(block.Data, block.Header.Version.App,
 		wrapper.NewConstructor(block.Data.SquareSize,
 			nmt.NodeVisitor(adder.VisitFn())))
@@ -126,7 +125,7 @@ func (ce *Exchange) Get(ctx context.Context, hash libhead.Hash) (*header.Extende
 		return nil, fmt.Errorf("incorrect hash in header at height %d: expected %x, got %x",
 			&block.Height, hash, eh.Hash())
 	}
-	err = storeEDS(ctx, eh.DAH.Hash(), eds, ce.store)
+	err = storeEDS(ctx, eh.DAH.Hash(), eds, adder.Proofs(), ce.store)
 	if err != nil {
 		return nil, fmt.Errorf("storing EDS to eds.Store for height %d: %w", &block.Height, err)
 	}
@@ -150,7 +149,6 @@ func (ce *Exchange) getExtendedHeaderByHeight(ctx context.Context, height *int64
 
 	// extend block data
 	adder := ipld.NewProofsAdder(int(b.Data.SquareSize))
-	ctx = ipld.CtxWithProofsAdder(ctx, adder)
 	eds, err := extendBlock(b.Data, b.Header.Version.App,
 		wrapper.NewConstructor(b.Data.SquareSize,
 			nmt.NodeVisitor(adder.VisitFn())))
@@ -162,7 +160,7 @@ func (ce *Exchange) getExtendedHeaderByHeight(ctx context.Context, height *int64
 	if err != nil {
 		return nil, fmt.Errorf("constructing extended header for height %d: %w", b.Header.Height, err)
 	}
-	err = storeEDS(ctx, eh.DAH.Hash(), eds, ce.store)
+	err = storeEDS(ctx, eh.DAH.Hash(), eds, adder.Proofs(), ce.store)
 	if err != nil {
 		return nil, fmt.Errorf("storing EDS to eds.Store for block height %d: %w", b.Header.Height, err)
 	}

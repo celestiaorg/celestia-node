@@ -202,7 +202,7 @@ func BenchmarkReadWriteEDS(b *testing.B) {
 			b.ReportAllocs()
 			for i := 0; i < b.N; i++ {
 				f := new(bytes.Buffer)
-				err := WriteEDS(ctx, eds, f)
+				err := WriteEDS(ctx, eds, nil, f)
 				require.NoError(b, err)
 			}
 		})
@@ -211,7 +211,7 @@ func BenchmarkReadWriteEDS(b *testing.B) {
 			for i := 0; i < b.N; i++ {
 				b.StopTimer()
 				f := new(bytes.Buffer)
-				_ = WriteEDS(ctx, eds, f)
+				_ = WriteEDS(ctx, eds, nil, f)
 				b.StartTimer()
 				_, err := ReadEDS(ctx, f, dah.Hash())
 				require.NoError(b, err)
@@ -231,7 +231,7 @@ func writeRandomEDS(t *testing.T) *rsmt2d.ExtendedDataSquare {
 	require.NoError(t, err, "error opening file")
 
 	eds := edstest.RandEDS(t, 4)
-	err = WriteEDS(ctx, eds, f)
+	err = WriteEDS(ctx, eds, nil, f)
 	require.NoError(t, err, "error writing EDS to file")
 	f.Close()
 	return eds
@@ -265,7 +265,7 @@ func createTestData(t *testing.T, testDir string) { //nolint:unused
 	require.NoError(t, err, "opening file")
 
 	eds := edstest.RandEDS(t, 4)
-	err = WriteEDS(ctx, eds, f)
+	err = WriteEDS(ctx, eds, nil, f)
 	require.NoError(t, err, "writing EDS to file")
 	f.Close()
 	dah, err := da.NewDataAvailabilityHeader(eds)

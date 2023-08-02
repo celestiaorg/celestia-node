@@ -26,7 +26,7 @@ func TestBlockstore_Operations(t *testing.T) {
 	require.NoError(t, err)
 
 	eds, dah := randomEDS(t)
-	err = edsStore.Put(ctx, dah.Hash(), eds)
+	err = edsStore.Put(ctx, dah.Hash(), eds, nil)
 	require.NoError(t, err)
 
 	r, err := edsStore.GetCAR(ctx, dah.Hash())

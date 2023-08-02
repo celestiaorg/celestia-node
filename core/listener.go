@@ -154,7 +154,6 @@ func (cl *Listener) handleNewSignedBlock(ctx context.Context, b types.EventDataS
 	)
 	// extend block data
 	adder := ipld.NewProofsAdder(int(b.Data.SquareSize))
-	ctx = ipld.CtxWithProofsAdder(ctx, adder)
 	eds, err := extendBlock(b.Data, b.Header.Version.App,
 		wrapper.NewConstructor(b.Data.SquareSize,
 			nmt.NodeVisitor(adder.VisitFn())))
@@ -168,7 +167,7 @@ func (cl *Listener) handleNewSignedBlock(ctx context.Context, b types.EventDataS
 	}
 
 	// attempt to store block data if not empty
-	err = storeEDS(ctx, b.Header.DataHash.Bytes(), eds, cl.store)
+	err = storeEDS(ctx, b.Header.DataHash.Bytes(), eds, adder.Proofs(), cl.store)
 	if err != nil {
 		return fmt.Errorf("storing EDS: %w", err)
 	}

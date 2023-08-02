@@ -95,7 +95,7 @@ func TestStoreGetter(t *testing.T) {
 
 	t.Run("GetShare", func(t *testing.T) {
 		randEds, dah := randomEDS(t)
-		err = edsStore.Put(ctx, dah.Hash(), randEds)
+		err = edsStore.Put(ctx, dah.Hash(), randEds, nil)
 		require.NoError(t, err)
 
 		squareSize := int(randEds.Width())
@@ -115,7 +115,7 @@ func TestStoreGetter(t *testing.T) {
 
 	t.Run("GetEDS", func(t *testing.T) {
 		randEds, dah := randomEDS(t)
-		err = edsStore.Put(ctx, dah.Hash(), randEds)
+		err = edsStore.Put(ctx, dah.Hash(), randEds, nil)
 		require.NoError(t, err)
 
 		retrievedEDS, err := sg.GetEDS(ctx, &dah)
@@ -130,7 +130,7 @@ func TestStoreGetter(t *testing.T) {
 
 	t.Run("GetSharesByNamespace", func(t *testing.T) {
 		randEds, namespace, dah := randomEDSWithDoubledNamespace(t, 4)
-		err = edsStore.Put(ctx, dah.Hash(), randEds)
+		err = edsStore.Put(ctx, dah.Hash(), randEds, nil)
 		require.NoError(t, err)
 
 		shares, err := sg.GetSharesByNamespace(ctx, &dah, namespace)
@@ -171,7 +171,7 @@ func TestIPLDGetter(t *testing.T) {
 		t.Cleanup(cancel)
 
 		randEds, dah := randomEDS(t)
-		err = edsStore.Put(ctx, dah.Hash(), randEds)
+		err = edsStore.Put(ctx, dah.Hash(), randEds, nil)
 		require.NoError(t, err)
 
 		squareSize := int(randEds.Width())
@@ -194,7 +194,7 @@ func TestIPLDGetter(t *testing.T) {
 		t.Cleanup(cancel)
 
 		randEds, dah := randomEDS(t)
-		err = edsStore.Put(ctx, dah.Hash(), randEds)
+		err = edsStore.Put(ctx, dah.Hash(), randEds, nil)
 		require.NoError(t, err)
 
 		retrievedEDS, err := sg.GetEDS(ctx, &dah)
@@ -207,7 +207,7 @@ func TestIPLDGetter(t *testing.T) {
 		t.Cleanup(cancel)
 
 		randEds, namespace, dah := randomEDSWithDoubledNamespace(t, 4)
-		err = edsStore.Put(ctx, dah.Hash(), randEds)
+		err = edsStore.Put(ctx, dah.Hash(), randEds, nil)
 		require.NoError(t, err)
 
 		// first check that shares are returned correctly if they exist

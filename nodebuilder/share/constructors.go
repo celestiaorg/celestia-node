@@ -58,7 +58,7 @@ func ensureEmptyCARExists(ctx context.Context, store *eds.Store) error {
 		return err
 	}
 
-	err = store.Put(ctx, emptyDAH.Hash(), emptyEDS)
+	err = store.Put(ctx, emptyDAH.Hash(), emptyEDS, nil)
 	if errors.Is(err, dagstore.ErrShardExists) {
 		return nil
 	}

@@ -154,7 +154,7 @@ func (a *ProofsAdder) visitInnerNodes(hash []byte, children ...[]byte) {
 		break
 	case 2:
 		id := MustCidFromNamespacedSha256(hash)
-		a.addProof(id, append(children[0], children[1]...))
+		a.addProof(id, append(children[0][:len(children[0])], children[1]...))
 	default:
 		panic("expected a binary tree")
 	}

@@ -29,8 +29,8 @@ var ErrEmptySquare = errors.New("share: importing empty data")
 // This includes all shares in quadrant order, followed by all inner nodes of the NMT tree.
 // Order: [ Carv1Header | Q1 |  Q2 | Q3 | Q4 | inner nodes ]
 // For more information about the header: https://ipld.io/specs/transport/car/carv1/#header
-func WriteEDS(ctx context.Context, eds *rsmt2d.ExtendedDataSquare, w io.Writer) (err error) {
-	ctx, span := tracer.Start(ctx, "write-eds")
+func WriteEDS(ctx context.Context, eds *rsmt2d.ExtendedDataSquare, proofs map[cid.Cid][]byte, w io.Writer) (err error) {
+	_, span := tracer.Start(ctx, "write-eds")
 	defer func() {
 		utils.SetStatusAndEnd(span, err)
 	}()
@@ -47,7 +47,7 @@ func WriteEDS(ctx context.Context, eds *rsmt2d.ExtendedDataSquare, w io.Writer) 
 	}
 
 	// Iterates over proofs and writes them to the CAR
-	err = writeProofs(ctx, eds, w)
+	err = writeProofs(eds, proofs, w)
 	if err != nil {
 		return fmt.Errorf("share: writing proofs: %w", err)
 	}
@@ -90,11 +90,14 @@ func writeQuadrants(eds *rsmt2d.ExtendedDataSquare, w io.Writer) error {
 
 // writeProofs iterates over the in-memory blockstore's keys and writes all inner nodes to the
 // CARv1 file.
-func writeProofs(ctx context.Context, eds *rsmt2d.ExtendedDataSquare, w io.Writer) error {
-	// check if proofs are collected by ipld.ProofsAdder in previous reconstructions of eds
-	proofs, err := getProofs(ctx, eds)
-	if err != nil {
-		return fmt.Errorf("recomputing proofs: %w", err)
+func writeProofs(eds *rsmt2d.ExtendedDataSquare, proofs map[cid.Cid][]byte, w io.Writer) error {
+	// calculate proofs if not provided
+	if proofs == nil {
+		var err error
+		proofs, err = calculateProofs(eds)
+		if err != nil {
+			return fmt.Errorf("recomputing proofs: %w", err)
+		}
 	}
 
 	for id, proof := range proofs {
@@ -106,13 +109,7 @@ func writeProofs(ctx context.Context, eds *rsmt2d.ExtendedDataSquare, w io.Write
 	return nil
 }
 
-func getProofs(ctx context.Context, eds *rsmt2d.ExtendedDataSquare) (map[cid.Cid][]byte, error) {
-	// check if there are proofs collected by ipld.ProofsAdder in previous reconstruction of eds
-	proofs := ipld.ProofsAdderFromCtx(ctx).Proofs()
-	if proofs != nil {
-		return proofs, nil
-	}
-
+func calculateProofs(eds *rsmt2d.ExtendedDataSquare) (map[cid.Cid][]byte, error) {
 	// recompute proofs from eds
 	shares := share.ExtractEDS(eds)
 	shareCount := len(shares)

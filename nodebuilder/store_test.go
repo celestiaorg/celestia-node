@@ -98,7 +98,6 @@ func BenchmarkStore(b *testing.B) {
 			b.ResetTimer()
 			for i := 0; i < b.N; i++ {
 				adder := ipld.NewProofsAdder(size * 2)
-				ctx := ipld.CtxWithProofsAdder(ctx, adder)
 				shares := sharetest.RandShares(b, size*size)
 				eds, err := rsmt2d.ComputeExtendedDataSquare(
 					shares,
@@ -111,7 +110,7 @@ func BenchmarkStore(b *testing.B) {
 				require.NoError(b, err)
 
 				b.StartTimer()
-				err = edsStore.Put(ctx, dah.Hash(), eds)
+				err = edsStore.Put(ctx, dah.Hash(), eds, adder.Proofs())
 				b.StopTimer()
 				require.NoError(b, err)
 			}
@@ -126,7 +125,7 @@ func BenchmarkStore(b *testing.B) {
 				require.NoError(b, err)
 
 				b.StartTimer()
-				err = edsStore.Put(ctx, dah.Hash(), eds)
+				err = edsStore.Put(ctx, dah.Hash(), eds, nil)
 				b.StopTimer()
 				require.NoError(b, err)
 			}

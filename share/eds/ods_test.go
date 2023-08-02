@@ -26,7 +26,7 @@ func TestODSReader(t *testing.T) {
 
 	// generate random eds data and put it into the store
 	eds, dah := randomEDS(t)
-	err = edsStore.Put(ctx, dah.Hash(), eds)
+	err = edsStore.Put(ctx, dah.Hash(), eds, nil)
 	require.NoError(t, err)
 
 	// get CAR reader from store
@@ -75,7 +75,7 @@ func TestODSReaderReconstruction(t *testing.T) {
 
 	// generate random eds data and put it into the store
 	eds, dah := randomEDS(t)
-	err = edsStore.Put(ctx, dah.Hash(), eds)
+	err = edsStore.Put(ctx, dah.Hash(), eds, nil)
 	require.NoError(t, err)
 
 	// get CAR reader from store

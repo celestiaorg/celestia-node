@@ -52,13 +52,14 @@ func (tg *TeeGetter) GetEDS(ctx context.Context, root *share.Root) (eds *rsmt2d.
 		utils.SetStatusAndEnd(span, err)
 	}()
 
-	ctx = ipld.CtxWithProofsAdder(ctx, ipld.NewProofsAdder(len(root.RowRoots)))
+	adder := ipld.NewProofsAdder(len(root.RowRoots))
+	ctx = ipld.CtxWithProofsAdder(ctx, adder)
 	eds, err = tg.getter.GetEDS(ctx, root)
 	if err != nil {
 		return nil, err
 	}
 
-	err = tg.store.Put(ctx, root.Hash(), eds)
+	err = tg.store.Put(ctx, root.Hash(), eds, adder.Proofs())
 	if err != nil && !errors.Is(err, dagstore.ErrShardExists) {
 		return nil, fmt.Errorf("getter/tee: failed to store eds: %w", err)
 	}
