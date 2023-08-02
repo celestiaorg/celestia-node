@@ -53,7 +53,8 @@ func TestFullReconstructFromBridge(t *testing.T) {
 	err := bridge.Start(ctx)
 	require.NoError(t, err)
 
-  // TODO: This is required to avoid flakes coming from unfinished retry mechanism for the same peer in go-header 
+	// TODO: This is required to avoid flakes coming from unfinished retry
+	// mechanism for the same peer in go-header
 	_, err = bridge.HeaderServ.WaitForHeight(ctx, uint64(blocks))
 	require.NoError(t, err)
 
@@ -129,6 +130,8 @@ func TestFullReconstructFromLights(t *testing.T) {
 	require.NoError(t, bridge.Start(ctx))
 	bootstrapperAddr := host.InfoFromHost(bootstrapper.Host)
 
+	// TODO: This is required to avoid flakes coming from unfinished retry
+	// mechanism for the same peer in go-header
 	_, err = bridge.HeaderServ.WaitForHeight(ctx, uint64(blocks))
 	require.NoError(t, err)
 
