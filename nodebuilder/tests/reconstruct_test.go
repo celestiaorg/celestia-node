@@ -53,6 +53,7 @@ func TestFullReconstructFromBridge(t *testing.T) {
 	err := bridge.Start(ctx)
 	require.NoError(t, err)
 
+  // TODO: This is required to avoid flakes coming from unfinished retry mechanism for the same peer in go-header 
 	_, err = bridge.HeaderServ.WaitForHeight(ctx, uint64(blocks))
 	require.NoError(t, err)
 
