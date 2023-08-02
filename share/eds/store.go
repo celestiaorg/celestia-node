@@ -4,6 +4,7 @@ import (
 	"bufio"
 	"bytes"
 	"context"
+	"encoding/hex"
 	"errors"
 	"fmt"
 	"io"
@@ -34,7 +35,10 @@ const (
 	indexPath      = "/index/"
 	transientsPath = "/transients/"
 
-	defaultGCInterval = time.Hour
+	// GC performs DAG store garbage collection by reclaiming transient files of
+	// shards that are currently available but inactive, or errored.
+	// We don't use transient files right now, so GC is turned off by default.
+	defaultGCInterval = 0
 )
 
 var ErrNotFound = errors.New("eds not found in store")
@@ -117,13 +121,16 @@ func (s *Store) Start(ctx context.Context) error {
 		return err
 	}
 	// start Store only if DagStore succeeds
-	ctx, cancel := context.WithCancel(context.Background())
+	runCtx, cancel := context.WithCancel(context.Background())
 	s.cancel = cancel
 	// initialize empty gc result to avoid panic on access
 	s.lastGCResult.Store(&dagstore.GCResult{
 		Shards: make(map[shard.Key]error),
 	})
-	go s.gc(ctx)
+
+	if s.gcInterval != 0 {
+		go s.gc(runCtx)
+	}
 	return nil
 }
 
@@ -427,6 +434,20 @@ func (s *Store) Has(ctx context.Context, root share.DataHash) (bool, error) {
 	default:
 		return false, err
 	}
+}
+
+// List lists all the registered EDSes.
+func (s *Store) List() ([]share.DataHash, error) {
+	shards := s.dgstr.AllShardsInfo()
+	hashes := make([]share.DataHash, 0, len(shards))
+	for shrd := range shards {
+		hash, err := hex.DecodeString(shrd.String())
+		if err != nil {
+			return nil, err
+		}
+		hashes = append(hashes, hash)
+	}
+	return hashes, nil
 }
 
 func setupPath(basepath string) error {

@@ -113,6 +113,9 @@ func (n Namespace) ValidateForData() error {
 	if n.Equals(ParitySharesNamespace) || n.Equals(TailPaddingNamespace) {
 		return fmt.Errorf("invalid data namespace(%s): parity and tail padding namespace are forbidden", n)
 	}
+	if n.Version() != appns.NamespaceVersionZero {
+		return fmt.Errorf("invalid data namespace(%s): only version 0 is supported", n)
+	}
 	return nil
 }
 
