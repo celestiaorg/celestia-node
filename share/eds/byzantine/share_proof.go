@@ -9,6 +9,7 @@ import (
 	"github.com/minio/sha256-simd"
 
 	"github.com/celestiaorg/nmt"
+	nmt_pb "github.com/celestiaorg/nmt/pb"
 
 	"github.com/celestiaorg/celestia-node/share"
 	pb "github.com/celestiaorg/celestia-node/share/eds/byzantine/pb"
@@ -58,11 +59,12 @@ func (s *ShareWithProof) ShareWithProofToProto() *pb.Share {
 
 	return &pb.Share{
 		Data: s.Share,
-		Proof: &pb.MerkleProof{
-			Start:    int64(s.Proof.Start()),
-			End:      int64(s.Proof.End()),
-			Nodes:    s.Proof.Nodes(),
-			LeafHash: s.Proof.LeafHash(),
+		Proof: &nmt_pb.Proof{
+			Start:                 int64(s.Proof.Start()),
+			End:                   int64(s.Proof.End()),
+			Nodes:                 s.Proof.Nodes(),
+			LeafHash:              s.Proof.LeafHash(),
+			IsMaxNamespaceIgnored: s.Proof.IsMaxNamespaceIDIgnored(),
 		},
 	}
 }
@@ -122,6 +124,11 @@ func ProtoToShare(protoShares []*pb.Share) []*ShareWithProof {
 	return shares
 }
 
-func ProtoToProof(protoProof *pb.MerkleProof) nmt.Proof {
-	return nmt.NewInclusionProof(int(protoProof.Start), int(protoProof.End), protoProof.Nodes, ipld.NMTIgnoreMaxNamespace)
+func ProtoToProof(protoProof *nmt_pb.Proof) nmt.Proof {
+	return nmt.NewInclusionProof(
+		int(protoProof.Start),
+		int(protoProof.End),
+		protoProof.Nodes,
+		protoProof.IsMaxNamespaceIgnored,
+	)
 }

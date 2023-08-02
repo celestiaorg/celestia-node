@@ -1,6 +1,7 @@
 syntax = "proto3";
 
 package share.p2p.shrex.nd;
+import "pb/proof.proto";
 
 message GetSharesByNamespaceRequest{
   bytes root_hash = 1;
@@ -22,12 +23,5 @@ enum StatusCode {
 
 message Row {
   repeated bytes shares = 1;
-  Proof proof = 2;
-}
-
-message Proof {
-  int64 start = 1;
-  int64 end = 2;
-  repeated bytes nodes = 3;
-  bytes hashleaf = 4;
+  proof.pb.Proof proof = 2;
 }

@@ -17,7 +17,9 @@ import (
 )
 
 const (
-	BadEncoding fraud.ProofType = "badencoding"
+	version = "v0.1"
+
+	BadEncoding fraud.ProofType = "badencoding" + version
 )
 
 func init() {

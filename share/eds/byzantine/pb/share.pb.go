@@ -5,6 +5,7 @@ package share_eds_byzantine_pb
 
 import (
 	fmt "fmt"
+	pb "github.com/celestiaorg/nmt/pb"
 	proto "github.com/gogo/protobuf/proto"
 	io "io"
 	math "math"
@@ -47,84 +48,16 @@ func (Axis) EnumDescriptor() ([]byte, []int) {
 	return fileDescriptor_d28ce8f160a920d1, []int{0}
 }
 
-type MerkleProof struct {
-	Start    int64    `protobuf:"varint,1,opt,name=start,proto3" json:"start,omitempty"`
-	End      int64    `protobuf:"varint,2,opt,name=end,proto3" json:"end,omitempty"`
-	Nodes    [][]byte `protobuf:"bytes,3,rep,name=nodes,proto3" json:"nodes,omitempty"`
-	LeafHash []byte   `protobuf:"bytes,4,opt,name=leaf_hash,json=leafHash,proto3" json:"leaf_hash,omitempty"`
-}
-
-func (m *MerkleProof) Reset()         { *m = MerkleProof{} }
-func (m *MerkleProof) String() string { return proto.CompactTextString(m) }
-func (*MerkleProof) ProtoMessage()    {}
-func (*MerkleProof) Descriptor() ([]byte, []int) {
-	return fileDescriptor_d28ce8f160a920d1, []int{0}
-}
-func (m *MerkleProof) XXX_Unmarshal(b []byte) error {
-	return m.Unmarshal(b)
-}
-func (m *MerkleProof) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
-	if deterministic {
-		return xxx_messageInfo_MerkleProof.Marshal(b, m, deterministic)
-	} else {
-		b = b[:cap(b)]
-		n, err := m.MarshalToSizedBuffer(b)
-		if err != nil {
-			return nil, err
-		}
-		return b[:n], nil
-	}
-}
-func (m *MerkleProof) XXX_Merge(src proto.Message) {
-	xxx_messageInfo_MerkleProof.Merge(m, src)
-}
-func (m *MerkleProof) XXX_Size() int {
-	return m.Size()
-}
-func (m *MerkleProof) XXX_DiscardUnknown() {
-	xxx_messageInfo_MerkleProof.DiscardUnknown(m)
-}
-
-var xxx_messageInfo_MerkleProof proto.InternalMessageInfo
-
-func (m *MerkleProof) GetStart() int64 {
-	if m != nil {
-		return m.Start
-	}
-	return 0
-}
-
-func (m *MerkleProof) GetEnd() int64 {
-	if m != nil {
-		return m.End
-	}
-	return 0
-}
-
-func (m *MerkleProof) GetNodes() [][]byte {
-	if m != nil {
-		return m.Nodes
-	}
-	return nil
-}
-
-func (m *MerkleProof) GetLeafHash() []byte {
-	if m != nil {
-		return m.LeafHash
-	}
-	return nil
-}
-
 type Share struct {
-	Data  []byte       `protobuf:"bytes,1,opt,name=Data,proto3" json:"Data,omitempty"`
-	Proof *MerkleProof `protobuf:"bytes,2,opt,name=Proof,proto3" json:"Proof,omitempty"`
+	Data  []byte    `protobuf:"bytes,1,opt,name=Data,proto3" json:"Data,omitempty"`
+	Proof *pb.Proof `protobuf:"bytes,2,opt,name=Proof,proto3" json:"Proof,omitempty"`
 }
 
 func (m *Share) Reset()         { *m = Share{} }
 func (m *Share) String() string { return proto.CompactTextString(m) }
 func (*Share) ProtoMessage()    {}
 func (*Share) Descriptor() ([]byte, []int) {
-	return fileDescriptor_d28ce8f160a920d1, []int{1}
+	return fileDescriptor_d28ce8f160a920d1, []int{0}
 }
 func (m *Share) XXX_Unmarshal(b []byte) error {
 	return m.Unmarshal(b)
@@ -160,7 +93,7 @@ func (m *Share) GetData() []byte {
 	return nil
 }
 
-func (m *Share) GetProof() *MerkleProof {
+func (m *Share) GetProof() *pb.Proof {
 	if m != nil {
 		return m.Proof
 	}
@@ -179,7 +112,7 @@ func (m *BadEncoding) Reset()         { *m = BadEncoding{} }
 func (m *BadEncoding) String() string { return proto.CompactTextString(m) }
 func (*BadEncoding) ProtoMessage()    {}
 func (*BadEncoding) Descriptor() ([]byte, []int) {
-	return fileDescriptor_d28ce8f160a920d1, []int{2}
+	return fileDescriptor_d28ce8f160a920d1, []int{1}
 }
 func (m *BadEncoding) XXX_Unmarshal(b []byte) error {
 	return m.Unmarshal(b)
@@ -245,7 +178,6 @@ func (m *BadEncoding) GetAxis() Axis {
 
 func init() {
 	proto.RegisterEnum("share.eds.byzantine.pb.Axis", Axis_name, Axis_value)
-	proto.RegisterType((*MerkleProof)(nil), "share.eds.byzantine.pb.MerkleProof")
 	proto.RegisterType((*Share)(nil), "share.eds.byzantine.pb.Share")
 	proto.RegisterType((*BadEncoding)(nil), "share.eds.byzantine.pb.BadEncoding")
 }
@@ -255,78 +187,26 @@ func init() {
 }
 
 var fileDescriptor_d28ce8f160a920d1 = []byte{
-	// 347 bytes of a gzipped FileDescriptorProto
-	0x1f, 0x8b, 0x08, 0x00, 0x00, 0x00, 0x00, 0x00, 0x02, 0xff, 0x74, 0x91, 0x41, 0x4b, 0xf3, 0x30,
-	0x1c, 0xc6, 0x9b, 0xb7, 0xed, 0xde, 0xf7, 0xfd, 0x77, 0xca, 0x08, 0x32, 0x02, 0x6a, 0x28, 0xf5,
-	0x52, 0x3c, 0xb4, 0x32, 0xf1, 0xe0, 0xd1, 0xa9, 0x30, 0x41, 0x99, 0x44, 0xd0, 0xa3, 0xa4, 0x26,
-	0x5b, 0x8b, 0x23, 0x1d, 0x4d, 0x0f, 0xd3, 0x4f, 0xe1, 0x87, 0xf2, 0xe0, 0x71, 0x47, 0x8f, 0xb2,
-	0x7d, 0x11, 0x49, 0x3a, 0x64, 0x07, 0x77, 0xfb, 0x3f, 0x0f, 0x4f, 0xf2, 0xfc, 0xfe, 0x09, 0x44,
-	0x3a, 0xe7, 0x95, 0x4c, 0xa5, 0xd0, 0x69, 0xf6, 0xf2, 0xca, 0x55, 0x5d, 0x28, 0x99, 0x4e, 0xb3,
-	0xd4, 0xda, 0xc9, 0xb4, 0x2a, 0xeb, 0x12, 0x77, 0x1b, 0x21, 0x85, 0x4e, 0x7e, 0x32, 0xc9, 0x34,
-	0x8b, 0x72, 0x08, 0x6e, 0x64, 0xf5, 0x3c, 0x91, 0xb7, 0x55, 0x59, 0x8e, 0xf0, 0x0e, 0xf8, 0xba,
-	0xe6, 0x55, 0x4d, 0x50, 0x88, 0x62, 0x97, 0x35, 0x02, 0x77, 0xc0, 0x95, 0x4a, 0x90, 0x3f, 0xd6,
-	0x33, 0xa3, 0xc9, 0xa9, 0x52, 0x48, 0x4d, 0xdc, 0xd0, 0x8d, 0xdb, 0xac, 0x11, 0x78, 0x17, 0xfe,
-	0x4f, 0x24, 0x1f, 0x3d, 0xe6, 0x5c, 0xe7, 0xc4, 0x0b, 0x51, 0xdc, 0x66, 0xff, 0x8c, 0x31, 0xe0,
-	0x3a, 0x8f, 0xee, 0xc1, 0xbf, 0x33, 0x0c, 0x18, 0x83, 0x77, 0xc1, 0x6b, 0x6e, 0x2b, 0xda, 0xcc,
-	0xce, 0xf8, 0x14, 0x7c, 0x0b, 0x60, 0x3b, 0x82, 0xde, 0x41, 0xf2, 0x3b, 0x6e, 0xb2, 0xc6, 0xca,
-	0x9a, 0x13, 0xd1, 0x3b, 0x82, 0xa0, 0xcf, 0xc5, 0xa5, 0x7a, 0x2a, 0x45, 0xa1, 0xc6, 0x98, 0x02,
-	0x0c, 0x24, 0x17, 0xb2, 0x32, 0xad, 0xab, 0x92, 0x35, 0x07, 0x77, 0xa1, 0x35, 0x90, 0xc5, 0x38,
-	0xaf, 0x6d, 0x97, 0xc7, 0x56, 0x0a, 0x9f, 0x40, 0xcb, 0xf2, 0x35, 0x3b, 0x05, 0xbd, 0xfd, 0x4d,
-	0x0c, 0x36, 0xc5, 0x56, 0x61, 0xf3, 0x12, 0x57, 0x4a, 0xc8, 0x99, 0xdd, 0x77, 0x8b, 0x35, 0x02,
-	0x1f, 0x81, 0x77, 0x36, 0x2b, 0x34, 0xf1, 0x43, 0x14, 0x6f, 0xf7, 0xf6, 0x36, 0x5d, 0xc5, 0x67,
-	0x85, 0x66, 0x36, 0x79, 0x48, 0xc0, 0x33, 0x0a, 0xff, 0x05, 0x97, 0x0d, 0x1f, 0x3a, 0x8e, 0x19,
-	0xce, 0x87, 0xd7, 0x1d, 0xd4, 0x27, 0x1f, 0x0b, 0x8a, 0xe6, 0x0b, 0x8a, 0xbe, 0x16, 0x14, 0xbd,
-	0x2d, 0xa9, 0x33, 0x5f, 0x52, 0xe7, 0x73, 0x49, 0x9d, 0xac, 0x65, 0xff, 0xf6, 0xf8, 0x3b, 0x00,
-	0x00, 0xff, 0xff, 0x0f, 0xa3, 0x91, 0xb4, 0x01, 0x02, 0x00, 0x00,
-}
-
-func (m *MerkleProof) Marshal() (dAtA []byte, err error) {
-	size := m.Size()
-	dAtA = make([]byte, size)
-	n, err := m.MarshalToSizedBuffer(dAtA[:size])
-	if err != nil {
-		return nil, err
-	}
-	return dAtA[:n], nil
-}
-
-func (m *MerkleProof) MarshalTo(dAtA []byte) (int, error) {
-	size := m.Size()
-	return m.MarshalToSizedBuffer(dAtA[:size])
-}
-
-func (m *MerkleProof) MarshalToSizedBuffer(dAtA []byte) (int, error) {
-	i := len(dAtA)
-	_ = i
-	var l int
-	_ = l
-	if len(m.LeafHash) > 0 {
-		i -= len(m.LeafHash)
-		copy(dAtA[i:], m.LeafHash)
-		i = encodeVarintShare(dAtA, i, uint64(len(m.LeafHash)))
-		i--
-		dAtA[i] = 0x22
-	}
-	if len(m.Nodes) > 0 {
-		for iNdEx := len(m.Nodes) - 1; iNdEx >= 0; iNdEx-- {
-			i -= len(m.Nodes[iNdEx])
-			copy(dAtA[i:], m.Nodes[iNdEx])
-			i = encodeVarintShare(dAtA, i, uint64(len(m.Nodes[iNdEx])))
-			i--
-			dAtA[i] = 0x1a
-		}
-	}
-	if m.End != 0 {
-		i = encodeVarintShare(dAtA, i, uint64(m.End))
-		i--
-		dAtA[i] = 0x10
-	}
-	if m.Start != 0 {
-		i = encodeVarintShare(dAtA, i, uint64(m.Start))
-		i--
-		dAtA[i] = 0x8
-	}
-	return len(dAtA) - i, nil
+	// 297 bytes of a gzipped FileDescriptorProto
+	0x1f, 0x8b, 0x08, 0x00, 0x00, 0x00, 0x00, 0x00, 0x02, 0xff, 0x74, 0x90, 0xc1, 0x4a, 0xec, 0x30,
+	0x14, 0x86, 0x9b, 0x3b, 0xed, 0x5c, 0x38, 0xa3, 0xe3, 0x10, 0x64, 0x08, 0xa2, 0xa1, 0x0c, 0x08,
+	0xc5, 0x45, 0x2a, 0x15, 0x1f, 0xc0, 0xaa, 0x50, 0x41, 0x18, 0x89, 0x0b, 0xd7, 0x89, 0x89, 0xd3,
+	0x6e, 0xda, 0xd2, 0x74, 0x51, 0x7d, 0x0a, 0x1f, 0xca, 0x85, 0xcb, 0x59, 0xba, 0x94, 0xf6, 0x45,
+	0xa4, 0x69, 0x11, 0x17, 0xba, 0x3b, 0xdf, 0x9f, 0x2f, 0x3f, 0xc9, 0x81, 0x95, 0x49, 0x45, 0xa5,
+	0x43, 0xad, 0x4c, 0x28, 0x9f, 0x5f, 0x44, 0x5e, 0x67, 0xb9, 0x0e, 0x4b, 0x19, 0xda, 0x98, 0x95,
+	0x55, 0x51, 0x17, 0x78, 0x39, 0x80, 0x56, 0x86, 0x7d, 0x3b, 0xac, 0x94, 0x07, 0xf3, 0x52, 0x86,
+	0x65, 0x55, 0x14, 0x4f, 0x83, 0xb7, 0x8a, 0xc1, 0xbb, 0xef, 0x4d, 0x8c, 0xc1, 0xbd, 0x12, 0xb5,
+	0x20, 0xc8, 0x47, 0xc1, 0x0e, 0xb7, 0x33, 0x3e, 0x06, 0xef, 0xae, 0x77, 0xc9, 0x3f, 0x1f, 0x05,
+	0xb3, 0x68, 0x8f, 0x8d, 0x37, 0x25, 0xb3, 0x31, 0x1f, 0x4e, 0x57, 0x6f, 0x08, 0x66, 0xb1, 0x50,
+	0xd7, 0xf9, 0x63, 0xa1, 0xb2, 0x7c, 0x83, 0x29, 0x40, 0xa2, 0x85, 0xd2, 0x55, 0x22, 0x4c, 0x3a,
+	0x16, 0xfe, 0x48, 0xf0, 0x12, 0xa6, 0x89, 0xce, 0x36, 0x69, 0x6d, 0x7b, 0x5d, 0x3e, 0x12, 0x3e,
+	0x87, 0xa9, 0x7d, 0x8b, 0x21, 0x13, 0x7f, 0x12, 0xcc, 0xa2, 0x23, 0xf6, 0xfb, 0x27, 0x98, 0xb5,
+	0xf8, 0x28, 0xe3, 0x7d, 0xf0, 0x6e, 0x72, 0xa5, 0x1b, 0xe2, 0xfa, 0x28, 0xd8, 0xe5, 0x03, 0xe0,
+	0x53, 0x70, 0x2f, 0x9a, 0xcc, 0x10, 0xcf, 0x47, 0xc1, 0x3c, 0x3a, 0xfc, 0xab, 0x4a, 0x34, 0x99,
+	0xe1, 0xd6, 0x3c, 0x21, 0xe0, 0xf6, 0x84, 0xff, 0xc3, 0x84, 0xaf, 0x1f, 0x16, 0x4e, 0x3f, 0x5c,
+	0xae, 0x6f, 0x17, 0x28, 0x26, 0xef, 0x2d, 0x45, 0xdb, 0x96, 0xa2, 0xcf, 0x96, 0xa2, 0xd7, 0x8e,
+	0x3a, 0xdb, 0x8e, 0x3a, 0x1f, 0x1d, 0x75, 0xe4, 0xd4, 0x6e, 0xf1, 0xec, 0x2b, 0x00, 0x00, 0xff,
+	0xff, 0xb1, 0x96, 0xb9, 0xbe, 0x93, 0x01, 0x00, 0x00,
 }
 
 func (m *Share) Marshal() (dAtA []byte, err error) {
@@ -441,31 +321,6 @@ func encodeVarintShare(dAtA []byte, offset int, v uint64) int {
 	dAtA[offset] = uint8(v)
 	return base
 }
-func (m *MerkleProof) Size() (n int) {
-	if m == nil {
-		return 0
-	}
-	var l int
-	_ = l
-	if m.Start != 0 {
-		n += 1 + sovShare(uint64(m.Start))
-	}
-	if m.End != 0 {
-		n += 1 + sovShare(uint64(m.End))
-	}
-	if len(m.Nodes) > 0 {
-		for _, b := range m.Nodes {
-			l = len(b)
-			n += 1 + l + sovShare(uint64(l))
-		}
-	}
-	l = len(m.LeafHash)
-	if l > 0 {
-		n += 1 + l + sovShare(uint64(l))
-	}
-	return n
-}
-
 func (m *Share) Size() (n int) {
 	if m == nil {
 		return 0
@@ -516,160 +371,6 @@ func sovShare(x uint64) (n int) {
 }
 func sozShare(x uint64) (n int) {
 	return sovShare(uint64((x << 1) ^ uint64((int64(x) >> 63))))
-}
-func (m *MerkleProof) Unmarshal(dAtA []byte) error {
-	l := len(dAtA)
-	iNdEx := 0
-	for iNdEx < l {
-		preIndex := iNdEx
-		var wire uint64
-		for shift := uint(0); ; shift += 7 {
-			if shift >= 64 {
-				return ErrIntOverflowShare
-			}
-			if iNdEx >= l {
-				return io.ErrUnexpectedEOF
-			}
-			b := dAtA[iNdEx]
-			iNdEx++
-			wire |= uint64(b&0x7F) << shift
-			if b < 0x80 {
-				break
-			}
-		}
-		fieldNum := int32(wire >> 3)
-		wireType := int(wire & 0x7)
-		if wireType == 4 {
-			return fmt.Errorf("proto: MerkleProof: wiretype end group for non-group")
-		}
-		if fieldNum <= 0 {
-			return fmt.Errorf("proto: MerkleProof: illegal tag %d (wire type %d)", fieldNum, wire)
-		}
-		switch fieldNum {
-		case 1:
-			if wireType != 0 {
-				return fmt.Errorf("proto: wrong wireType = %d for field Start", wireType)
-			}
-			m.Start = 0
-			for shift := uint(0); ; shift += 7 {
-				if shift >= 64 {
-					return ErrIntOverflowShare
-				}
-				if iNdEx >= l {
-					return io.ErrUnexpectedEOF
-				}
-				b := dAtA[iNdEx]
-				iNdEx++
-				m.Start |= int64(b&0x7F) << shift
-				if b < 0x80 {
-					break
-				}
-			}
-		case 2:
-			if wireType != 0 {
-				return fmt.Errorf("proto: wrong wireType = %d for field End", wireType)
-			}
-			m.End = 0
-			for shift := uint(0); ; shift += 7 {
-				if shift >= 64 {
-					return ErrIntOverflowShare
-				}
-				if iNdEx >= l {
-					return io.ErrUnexpectedEOF
-				}
-				b := dAtA[iNdEx]
-				iNdEx++
-				m.End |= int64(b&0x7F) << shift
-				if b < 0x80 {
-					break
-				}
-			}
-		case 3:
-			if wireType != 2 {
-				return fmt.Errorf("proto: wrong wireType = %d for field Nodes", wireType)
-			}
-			var byteLen int
-			for shift := uint(0); ; shift += 7 {
-				if shift >= 64 {
-					return ErrIntOverflowShare
-				}
-				if iNdEx >= l {
-					return io.ErrUnexpectedEOF
-				}
-				b := dAtA[iNdEx]
-				iNdEx++
-				byteLen |= int(b&0x7F) << shift
-				if b < 0x80 {
-					break
-				}
-			}
-			if byteLen < 0 {
-				return ErrInvalidLengthShare
-			}
-			postIndex := iNdEx + byteLen
-			if postIndex < 0 {
-				return ErrInvalidLengthShare
-			}
-			if postIndex > l {
-				return io.ErrUnexpectedEOF
-			}
-			m.Nodes = append(m.Nodes, make([]byte, postIndex-iNdEx))
-			copy(m.Nodes[len(m.Nodes)-1], dAtA[iNdEx:postIndex])
-			iNdEx = postIndex
-		case 4:
-			if wireType != 2 {
-				return fmt.Errorf("proto: wrong wireType = %d for field LeafHash", wireType)
-			}
-			var byteLen int
-			for shift := uint(0); ; shift += 7 {
-				if shift >= 64 {
-					return ErrIntOverflowShare
-				}
-				if iNdEx >= l {
-					return io.ErrUnexpectedEOF
-				}
-				b := dAtA[iNdEx]
-				iNdEx++
-				byteLen |= int(b&0x7F) << shift
-				if b < 0x80 {
-					break
-				}
-			}
-			if byteLen < 0 {
-				return ErrInvalidLengthShare
-			}
-			postIndex := iNdEx + byteLen
-			if postIndex < 0 {
-				return ErrInvalidLengthShare
-			}
-			if postIndex > l {
-				return io.ErrUnexpectedEOF
-			}
-			m.LeafHash = append(m.LeafHash[:0], dAtA[iNdEx:postIndex]...)
-			if m.LeafHash == nil {
-				m.LeafHash = []byte{}
-			}
-			iNdEx = postIndex
-		default:
-			iNdEx = preIndex
-			skippy, err := skipShare(dAtA[iNdEx:])
-			if err != nil {
-				return err
-			}
-			if (skippy < 0) || (iNdEx+skippy) < 0 {
-				return ErrInvalidLengthShare
-			}
-			if (iNdEx + skippy) > l {
-				return io.ErrUnexpectedEOF
-			}
-			iNdEx += skippy
-		}
-	}
-
-	if iNdEx > l {
-		return io.ErrUnexpectedEOF
-	}
-	return nil
 }
 func (m *Share) Unmarshal(dAtA []byte) error {
 	l := len(dAtA)
@@ -764,7 +465,7 @@ func (m *Share) Unmarshal(dAtA []byte) error {
 				return io.ErrUnexpectedEOF
 			}
 			if m.Proof == nil {
-				m.Proof = &MerkleProof{}
+				m.Proof = &pb.Proof{}
 			}
 			if err := m.Proof.Unmarshal(dAtA[iNdEx:postIndex]); err != nil {
 				return err
