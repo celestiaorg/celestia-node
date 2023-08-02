@@ -2,7 +2,6 @@ package eds
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
 
 	"github.com/filecoin-project/dagstore/index"
@@ -56,11 +55,7 @@ func (s *simpleInvertedIndex) AddMultihashesForShard(
 
 	err = mhIter.ForEach(func(mh multihash.Multihash) error {
 		key := ds.NewKey(string(mh))
-		bz, err := json.Marshal(sk)
-		if err != nil {
-			return fmt.Errorf("failed to marshal shard key to bytes: %w", err)
-		}
-		if err := batch.Put(ctx, key, bz); err != nil {
+		if err := batch.Put(ctx, key, []byte(sk.String())); err != nil {
 			return fmt.Errorf("failed to put mh=%s, err=%w", mh, err)
 		}
 		return nil
@@ -82,12 +77,7 @@ func (s *simpleInvertedIndex) GetShardsForMultihash(ctx context.Context, mh mult
 		return nil, fmt.Errorf("failed to lookup index for mh %s, err: %w", mh, err)
 	}
 
-	var shardKey shard.Key
-	if err := json.Unmarshal(sbz, &shardKey); err != nil {
-		return nil, fmt.Errorf("failed to unmarshal shard key for mh=%s, err=%w", mh, err)
-	}
-
-	return []shard.Key{shardKey}, nil
+	return []shard.Key{shard.KeyFromString(string(sbz))}, nil
 }
 
 func (s *simpleInvertedIndex) close() error {
