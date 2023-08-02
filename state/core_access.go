@@ -212,7 +212,7 @@ func (ca *CoreAccessor) SubmitPayForBlob(
 			blobSizes[i] = uint32(len(blob.Data))
 		}
 
-		// TODO: the default gas per byte and the default tx size cost per byte could be changed through governance
+		// TODO (@cmwaters): the default gas per byte and the default tx size cost per byte could be changed through governance
 		// This section could be more robust by tracking these values and adjusting the gas limit accordingly
 		// (as is done for the gas price)
 		gasLim = apptypes.EstimateGas(blobSizes, appconsts.DefaultGasPerBlobByte, auth.DefaultTxSizeCostPerByte)
@@ -526,6 +526,25 @@ func (ca *CoreAccessor) QueryRedelegations(
 	})
 }
 
+func (ca *CoreAccessor) LastPayForBlob() int64 {
+	ca.mtx.Lock()
+	defer ca.mtx.Unlock()
+	return ca.lastPayForBlob
+}
+
+func (ca *CoreAccessor) PayForBlobCount() int64 {
+	ca.mtx.Lock()
+	defer ca.mtx.Unlock()
+	return ca.payForBlobCount
+}
+
+func (ca *CoreAccessor) markSuccessfulPFB() {
+	ca.mtx.Lock()
+	defer ca.mtx.Unlock()
+	ca.lastPayForBlob = time.Now().UnixMilli()
+	ca.payForBlobCount++
+}
+
 func (ca *CoreAccessor) getMinGasPrice(ctx context.Context) (float64, error) {
 	ca.mtx.Lock()
 	defer ca.mtx.Unlock()
@@ -543,13 +562,6 @@ func (ca *CoreAccessor) setMinGasPrice(minGasPrice float64) {
 	ca.mtx.Lock()
 	defer ca.mtx.Unlock()
 	ca.minGasPrice = minGasPrice
-}
-
-func (ca *CoreAccessor) markSuccessfulPFB() {
-	ca.mtx.Lock()
-	defer ca.mtx.Unlock()
-	ca.lastPayForBlob = time.Now().UnixMilli()
-	ca.payForBlobCount++
 }
 
 // QueryMinimumGasPrice returns the minimum gas price required by the node.
