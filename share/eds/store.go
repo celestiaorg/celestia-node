@@ -56,8 +56,8 @@ type Store struct {
 	cache *blockstoreCache
 	bs    bstore.Blockstore
 
-	topIdx index.Inverted
-	carIdx index.FullIndexRepo
+	carIdx      index.FullIndexRepo
+	invertedIdx *simpleInvertedIndex
 
 	basepath   string
 	gcInterval time.Duration
@@ -83,14 +83,17 @@ func NewStore(basepath string, ds datastore.Batching) (*Store, error) {
 		return nil, fmt.Errorf("failed to create index repository: %w", err)
 	}
 
-	invertedRepo := newSimpleInvertedIndex(ds)
+	invertedIdx, err := newSimpleInvertedIndex(basepath)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create index: %w", err)
+	}
 	dagStore, err := dagstore.NewDAGStore(
 		dagstore.Config{
 			TransientsDir: basepath + transientsPath,
 			IndexRepo:     fsRepo,
 			Datastore:     ds,
 			MountRegistry: r,
-			TopLevelIndex: invertedRepo,
+			TopLevelIndex: invertedIdx,
 		},
 	)
 	if err != nil {
@@ -103,13 +106,13 @@ func NewStore(basepath string, ds datastore.Batching) (*Store, error) {
 	}
 
 	store := &Store{
-		basepath:   basepath,
-		dgstr:      dagStore,
-		topIdx:     invertedRepo,
-		carIdx:     fsRepo,
-		gcInterval: defaultGCInterval,
-		mounts:     r,
-		cache:      cache,
+		basepath:    basepath,
+		dgstr:       dagStore,
+		carIdx:      fsRepo,
+		invertedIdx: invertedIdx,
+		gcInterval:  defaultGCInterval,
+		mounts:      r,
+		cache:       cache,
 	}
 	store.bs = newBlockstore(store, cache)
 	return store, nil
@@ -137,6 +140,9 @@ func (s *Store) Start(ctx context.Context) error {
 // Stop stops the underlying DAGStore.
 func (s *Store) Stop(context.Context) error {
 	defer s.cancel()
+	if err := s.invertedIdx.close(); err != nil {
+		return err
+	}
 	return s.dgstr.Close()
 }
 
