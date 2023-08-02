@@ -70,7 +70,7 @@ var edsStoreStress = &cobra.Command{
 	SilenceUsage: true,
 	RunE: func(cmd *cobra.Command, args []string) (err error) {
 		// expose expvar vars over http
-		go http.ListenAndServe(":9999", http.DefaultServeMux)
+		go http.ListenAndServe(":9999", http.DefaultServeMux) //nolint:errcheck
 
 		endpoint, _ := cmd.Flags().GetString(pyroscopeEndpointFlag)
 		if endpoint != "" {
