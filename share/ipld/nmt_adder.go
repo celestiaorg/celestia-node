@@ -154,10 +154,14 @@ func (a *ProofsAdder) visitInnerNodes(hash []byte, children ...[]byte) {
 		break
 	case 2:
 		id := MustCidFromNamespacedSha256(hash)
-		a.lock.Lock()
-		defer a.lock.Unlock()
-		a.proofs[id] = append(children[0], children[1]...)
+		a.addProof(id, append(children[0], children[1]...))
 	default:
 		panic("expected a binary tree")
 	}
+}
+
+func (a *ProofsAdder) addProof(id cid.Cid, proof []byte) {
+	a.lock.Lock()
+	defer a.lock.Unlock()
+	a.proofs[id] = proof
 }
