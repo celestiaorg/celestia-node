@@ -8,6 +8,7 @@ import (
 	"testing"
 	"time"
 
+	"cosmossdk.io/math"
 	srvconfig "github.com/cosmos/cosmos-sdk/server/config"
 	"github.com/cosmos/cosmos-sdk/server/types"
 	sdktypes "github.com/cosmos/cosmos-sdk/types"
@@ -79,7 +80,7 @@ func TestSubmitPayForBlob(t *testing.T) {
 	testcases := []struct {
 		name   string
 		blobs  []*blob.Blob
-		fee    sdktypes.Int
+		fee    math.Int
 		gasLim uint64
 		expErr error
 	}{
