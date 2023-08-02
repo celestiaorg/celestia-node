@@ -128,6 +128,9 @@ func TestFullReconstructFromLights(t *testing.T) {
 	require.NoError(t, bridge.Start(ctx))
 	bootstrapperAddr := host.InfoFromHost(bootstrapper.Host)
 
+	_, err = bridge.HeaderServ.WaitForHeight(ctx, uint64(blocks))
+	require.NoError(t, err)
+
 	cfg = nodebuilder.DefaultConfig(node.Full)
 	setTimeInterval(cfg, defaultTimeInterval)
 	cfg.Share.UseShareExchange = false
