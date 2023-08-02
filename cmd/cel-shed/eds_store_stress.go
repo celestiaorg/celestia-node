@@ -45,7 +45,7 @@ func init() {
 
 	pathFlagUsage := fmt.Sprintf("Directory path to use for stress test. Uses %s by default.", defaultPath)
 	edsStoreStress.Flags().String(edsStorePathFlag, path, pathFlagUsage)
-	edsStoreStress.Flags().String(pyroscopeEndpointFlag, "", "Pyroscope address")
+	edsStoreStress.Flags().String(pyroscopeEndpointFlag, "", "Pyroscope address. If no address provided, pyroscope will be disabled")
 	edsStoreStress.Flags().Int(edsWritesFlag, math.MaxInt, "Total EDS writes to make. MaxInt by default.")
 	edsStoreStress.Flags().Int(edsSizeFlag, 128, "Chooses EDS size. 128 by default.")
 	edsStoreStress.Flags().Bool(edsDisableLogFlag, false, "Disables logging. Enabled by default.")
@@ -70,7 +70,7 @@ var edsStoreStress = &cobra.Command{
 	SilenceUsage: true,
 	RunE: func(cmd *cobra.Command, args []string) (err error) {
 		// expose expvar vars over http
-		go http.ListenAndServe(":9999", http.DefaultServeMux) //nolint:errcheck
+		go http.ListenAndServe(":9999", http.DefaultServeMux) //nolint:errcheck,gosec
 
 		endpoint, _ := cmd.Flags().GetString(pyroscopeEndpointFlag)
 		if endpoint != "" {
