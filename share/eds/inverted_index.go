@@ -8,9 +8,12 @@ import (
 	"github.com/filecoin-project/dagstore/index"
 	"github.com/filecoin-project/dagstore/shard"
 	ds "github.com/ipfs/go-datastore"
-	"github.com/ipfs/go-datastore/namespace"
 	"github.com/multiformats/go-multihash"
+
+	dsbadger "github.com/celestiaorg/go-ds-badger4"
 )
+
+const invertedIndexPath = "/inverted_index/"
 
 // simpleInvertedIndex is an inverted index that only stores a single shard key per multihash. Its
 // implementation is modified from the default upstream implementation in dagstore/index.
@@ -21,10 +24,21 @@ type simpleInvertedIndex struct {
 // newSimpleInvertedIndex returns a new inverted index that only stores a single shard key per
 // multihash. This is because we use badger as a storage backend, so updates are expensive, and we
 // don't care which shard is used to serve a cid.
-func newSimpleInvertedIndex(dts ds.Batching) *simpleInvertedIndex {
-	return &simpleInvertedIndex{
-		ds: namespace.Wrap(dts, ds.NewKey("/inverted/index")),
+func newSimpleInvertedIndex(storePath string) (*simpleInvertedIndex, error) {
+	opts := dsbadger.DefaultOptions // this should be copied
+	// turn off value log GC
+	opts.GcInterval = 0
+	// 20 compactors show to have no hangups on put operation up to 40k blocks with eds size 128.
+	opts.NumCompactors = 20
+	// use minimum amount of NumLevelZeroTables to trigger L0 compaction faster
+	opts.NumLevelZeroTables = 1
+
+	ds, err := dsbadger.NewDatastore(storePath+invertedIndexPath, &opts)
+	if err != nil {
+		return nil, fmt.Errorf("can't open Badger Datastore: %w", err)
 	}
+
+	return &simpleInvertedIndex{ds: ds}, nil
 }
 
 func (s *simpleInvertedIndex) AddMultihashesForShard(
@@ -74,4 +88,8 @@ func (s *simpleInvertedIndex) GetShardsForMultihash(ctx context.Context, mh mult
 	}
 
 	return []shard.Key{shardKey}, nil
+}
+
+func (s *simpleInvertedIndex) close() error {
+	return s.ds.Close()
 }
