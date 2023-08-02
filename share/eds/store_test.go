@@ -154,6 +154,23 @@ func TestEDSStore(t *testing.T) {
 		_, err = edsStore.cache.Get(shardKey)
 		assert.NoError(t, err, errCacheMiss)
 	})
+
+	t.Run("List", func(t *testing.T) {
+		const amount = 10
+		hashes := make([]share.DataHash, 0, amount)
+		for range make([]byte, amount) {
+			eds, dah := randomEDS(t)
+			err = edsStore.Put(ctx, dah.Hash(), eds)
+			require.NoError(t, err)
+			hashes = append(hashes, dah.Hash())
+		}
+
+		hashesOut, err := edsStore.List()
+		require.NoError(t, err)
+		for _, hash := range hashes {
+			assert.Contains(t, hashesOut, hash)
+		}
+	})
 }
 
 // TestEDSStore_GC verifies that unused transient shards are collected by the GC periodically.
