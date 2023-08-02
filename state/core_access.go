@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"math"
+	"sync"
 	"time"
 
 	sdkErrors "cosmossdk.io/errors"
@@ -61,9 +62,10 @@ type CoreAccessor struct {
 	rpcPort  string
 	grpcPort string
 
+	// these fields are mutatable and thus need to be protected by a mutex
+	mtx             sync.Mutex
 	lastPayForBlob  int64
 	payForBlobCount int64
-
 	// minGasPrice is the minimum gas price that the node will accept.
 	// NOTE: just because the first node accepts the transaction, does not mean it
 	// will find a proposer that does accept the transaction. Better would be
@@ -174,9 +176,9 @@ func (ca *CoreAccessor) constructSignedTx(
 	return ca.signer.EncodeTx(tx)
 }
 
-// SubmitPayForBlob builds, signs, and synchronously submits a MsgPayForBlob. It blocks until the transaction is committed
-// and returns the TxReponse. If gasLim is set to 0, the method will automatically estimate the gas limit. If the fee is
-// negative, the method will use the nodes min gas price multipled by the gas limit.
+// SubmitPayForBlob builds, signs, and synchronously submits a MsgPayForBlob. It blocks until the transaction
+// is committed and returns the TxReponse. If gasLim is set to 0, the method will automatically estimate the
+// gas limit. If the fee is negative, the method will use the nodes min gas price multiplied by the gas limit.
 func (ca *CoreAccessor) SubmitPayForBlob(
 	ctx context.Context,
 	fee Int,
@@ -197,12 +199,9 @@ func (ca *CoreAccessor) SubmitPayForBlob(
 	}
 
 	// if the min gas price is not set we query the node that we are connected for it
-	if ca.minGasPrice < 0 {
-		minGasPrice, err := ca.queryMinimumGasPrice(ctx)
-		if err != nil {
-			return nil, fmt.Errorf("querying minimum gas price: %w", err)
-		}
-		ca.minGasPrice = minGasPrice
+	minGasPrice, err := ca.getMinGasPrice(ctx)
+	if err != nil {
+		return nil, err
 	}
 
 	// we only estimate gas if the user wants us to (by setting the gasLim to 0). In the future we may want
@@ -226,7 +225,7 @@ func (ca *CoreAccessor) SubmitPayForBlob(
 	// set the fee for the user as the minimum gas price multiplied by the gas limit
 	if fee.IsNegative() {
 		estimatedFee = true
-		fee = sdktypes.NewInt(int64(math.Ceil(ca.minGasPrice * float64(gasLim))))
+		fee = sdktypes.NewInt(int64(math.Ceil(minGasPrice * float64(gasLim))))
 	}
 
 	for attempt := 0; attempt < maxRetries; attempt++ {
@@ -244,19 +243,18 @@ func (ca *CoreAccessor) SubmitPayForBlob(
 		// update our version accordingly
 		if apperrors.IsInsufficientMinGasPrice(err) && estimatedFee {
 			// The error message contains enough information to parse the new min gas price
-			newMinGasPrice, err := apperrors.ParseInsufficientMinGasPrice(err, ca.minGasPrice, gasLim)
+			newMinGasPrice, err := apperrors.ParseInsufficientMinGasPrice(err, minGasPrice, gasLim)
 			if err != nil {
 				return nil, fmt.Errorf("parsing insufficient min gas price error: %w", err)
 			}
-			ca.minGasPrice = newMinGasPrice
+			ca.setMinGasPrice(newMinGasPrice)
 			lastErr = err
 			continue
 		}
 
 		// metrics should only be counted on a successful PFD tx
 		if err == nil && response.Code == 0 {
-			ca.lastPayForBlob = time.Now().UnixMilli()
-			ca.payForBlobCount++
+			ca.markSuccessfulPFB()
 		}
 
 		if response != nil && response.Code != 0 {
@@ -528,6 +526,32 @@ func (ca *CoreAccessor) QueryRedelegations(
 	})
 }
 
+func (ca *CoreAccessor) getMinGasPrice(ctx context.Context) (float64, error) {
+	ca.mtx.Lock()
+	defer ca.mtx.Unlock()
+	if ca.minGasPrice < 0 {
+		minGasPrice, err := ca.queryMinimumGasPrice(ctx)
+		if err != nil {
+			return -1, fmt.Errorf("querying minimum gas price: %w", err)
+		}
+		ca.minGasPrice = minGasPrice
+	}
+	return ca.minGasPrice, nil
+}
+
+func (ca *CoreAccessor) setMinGasPrice(minGasPrice float64) {
+	ca.mtx.Lock()
+	defer ca.mtx.Unlock()
+	ca.minGasPrice = minGasPrice
+}
+
+func (ca *CoreAccessor) markSuccessfulPFB() {
+	ca.mtx.Lock()
+	defer ca.mtx.Unlock()
+	ca.lastPayForBlob = time.Now().UnixMilli()
+	ca.payForBlobCount++
+}
+
 // QueryMinimumGasPrice returns the minimum gas price required by the node.
 func (ca *CoreAccessor) queryMinimumGasPrice(
 	ctx context.Context,
@@ -542,17 +566,6 @@ func (ca *CoreAccessor) queryMinimumGasPrice(
 		return 0, err
 	}
 	return coins.AmountOf(app.BondDenom).MustFloat64(), nil
-}
-
-// QueryBlobParams returns the current blob module parameters: MaxGovSquareSize and GasPerBlobByte.
-func (ca *CoreAccessor) queryBlobParams(
-	ctx context.Context,
-) (apptypes.Params, error) {
-	resp, err := apptypes.NewQueryClient(ca.coreConn).Params(ctx, &apptypes.QueryParamsRequest{})
-	if err != nil {
-		return apptypes.Params{}, err
-	}
-	return resp.Params, nil
 }
 
 func (ca *CoreAccessor) IsStopped(context.Context) bool {
