@@ -46,10 +46,10 @@ func TestMultihashesForShard(t *testing.T) {
 	require.NoError(t, err)
 	require.Equal(t, []shard.Key{shard.KeyFromString("shard1")}, shardKeys)
 
-	// 2. Add mh1 to shard2, and ensure that mh1 still points to shard1
+	// 2. Add mh1 to shard2, and ensure that mh1 no longer points to shard1
 	err = invertedIndex.AddMultihashesForShard(ctx, &mockIterator{mhs: mhs[:1]}, shard.KeyFromString("shard2"))
 	require.NoError(t, err)
 	shardKeys, err = invertedIndex.GetShardsForMultihash(ctx, mhs[0])
 	require.NoError(t, err)
-	require.Equal(t, []shard.Key{shard.KeyFromString("shard1")}, shardKeys)
+	require.Equal(t, []shard.Key{shard.KeyFromString("shard2")}, shardKeys)
 }
