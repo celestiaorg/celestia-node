@@ -141,7 +141,9 @@ type retrievalSession struct {
 	squareDn         chan struct{}
 	squareLk         sync.RWMutex
 	square           *rsmt2d.ExtendedDataSquare
-	cids             *cid.Set
+	// lock prevents cids from concurrent read/writes
+	lock sync.Mutex
+	cids *cid.Set
 
 	span trace.Span
 }
@@ -206,6 +208,9 @@ func (rs *retrievalSession) Done() <-chan struct{} {
 }
 
 func (rs *retrievalSession) Visit(hash []byte, _ ...[]byte) {
+	rs.lock.Lock()
+	defer rs.lock.Unlock()
+
 	rs.cids.Visit(ipld.MustCidFromNamespacedSha256(hash))
 }
 
