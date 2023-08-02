@@ -14,6 +14,7 @@ import (
 	"go.uber.org/zap"
 
 	"github.com/celestiaorg/go-libp2p-messenger/serde"
+	nmt_pb "github.com/celestiaorg/nmt/pb"
 
 	"github.com/celestiaorg/celestia-node/share"
 	"github.com/celestiaorg/celestia-node/share/eds"
@@ -188,11 +189,12 @@ func namespacedSharesToResponse(shares share.NamespacedShares) *pb.GetSharesByNa
 	for _, row := range shares {
 		row := &pb.Row{
 			Shares: row.Shares,
-			Proof: &pb.Proof{
-				Start:    int64(row.Proof.Start()),
-				End:      int64(row.Proof.End()),
-				Nodes:    row.Proof.Nodes(),
-				Hashleaf: row.Proof.LeafHash(),
+			Proof: &nmt_pb.Proof{
+				Start:                 int64(row.Proof.Start()),
+				End:                   int64(row.Proof.End()),
+				Nodes:                 row.Proof.Nodes(),
+				LeafHash:              row.Proof.LeafHash(),
+				IsMaxNamespaceIgnored: row.Proof.IsMaxNamespaceIDIgnored(),
 			},
 		}
 
