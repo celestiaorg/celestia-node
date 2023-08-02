@@ -39,30 +39,19 @@ func (s *simpleInvertedIndex) AddMultihashesForShard(
 		return fmt.Errorf("failed to create ds batch: %w", err)
 	}
 
-	if err := mhIter.ForEach(func(mh multihash.Multihash) error {
+	err = mhIter.ForEach(func(mh multihash.Multihash) error {
 		key := ds.NewKey(string(mh))
-		ok, err := s.ds.Has(ctx, key)
-		if err != nil {
-			return fmt.Errorf("failed to check if value for multihash exists %s, err: %w", mh, err)
+		if err := batch.Put(ctx, key, []byte(sk.String())); err != nil {
+			return fmt.Errorf("failed to put mh=%s, err=%w", mh, err)
 		}
-
-		if !ok {
-			if err := batch.Put(ctx, key, []byte(sk.String())); err != nil {
-				return fmt.Errorf("failed to put mh=%s, err=%w", mh, err)
-			}
-		}
-
 		return nil
-	}); err != nil {
+	})
+	if err != nil {
 		return fmt.Errorf("failed to add index entry: %w", err)
 	}
 
 	if err := batch.Commit(ctx); err != nil {
 		return fmt.Errorf("failed to commit batch: %w", err)
-	}
-
-	if err := s.ds.Sync(ctx, ds.Key{}); err != nil {
-		return fmt.Errorf("failed to sync puts: %w", err)
 	}
 	return nil
 }

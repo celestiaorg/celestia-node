@@ -5,12 +5,13 @@ import (
 	"fmt"
 	"path/filepath"
 	"sync"
+	"time"
 
 	"github.com/cosmos/cosmos-sdk/crypto/keyring"
-	"github.com/dgraph-io/badger/v2/options"
 	"github.com/ipfs/go-datastore"
-	dsbadger "github.com/ipfs/go-ds-badger2"
 	"github.com/mitchellh/go-homedir"
+
+	dsbadger "github.com/celestiaorg/go-ds-badger4"
 
 	"github.com/celestiaorg/celestia-node/libs/fslock"
 	"github.com/celestiaorg/celestia-node/libs/keystore"
@@ -118,25 +119,7 @@ func (f *fsStore) Datastore() (datastore.Batching, error) {
 	}
 
 	opts := dsbadger.DefaultOptions // this should be copied
-
-	// Badger sets ValueThreshold to 1K by default and this makes shares being stored in LSM tree
-	// instead of the value log, so we change the value to be lower than share size,
-	// so shares are store in value log. For value log and LSM definitions
-	opts.ValueThreshold = 128
-	// We always write unique values to Badger transaction so there is no need to detect conflicts.
-	opts.DetectConflicts = false
-	// Use MemoryMap for better performance
-	opts.ValueLogLoadingMode = options.MemoryMap
-	opts.TableLoadingMode = options.MemoryMap
-	// Truncate set to true will truncate corrupted data on start if there is any.
-	// If we don't truncate, the node will refuse to start and will beg for recovering, etc.
-	// If we truncate, the node will start with any uncorrupted data and reliably sync again what was
-	// corrupted in most cases.
-	opts.Truncate = true
-	// MaxTableSize defines in memory and on disk size of LSM tree
-	// Bigger values constantly takes more RAM
-	// TODO(@Wondertan): Make configurable with more conservative defaults for Light Node
-	opts.MaxTableSize = 64 << 20
+	opts.GcInterval = time.Minute * 10
 
 	ds, err := dsbadger.NewDatastore(dataPath(f.path), &opts)
 	if err != nil {

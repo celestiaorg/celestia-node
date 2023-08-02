@@ -164,7 +164,7 @@ func (s *Swamp) createPeer(ks keystore.Keystore) host.Host {
 // setupGenesis sets up genesis Header.
 // This is required to initialize and start correctly.
 func (s *Swamp) setupGenesis() {
-	ctx, cancel := context.WithTimeout(context.Background(), time.Second)
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second*5)
 	defer cancel()
 
 	// ensure core has surpassed genesis block
