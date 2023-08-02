@@ -163,8 +163,9 @@ func TestIPLDGetter(t *testing.T) {
 	err = edsStore.Start(ctx)
 	require.NoError(t, err)
 
-	bserv := bsrv.New(edsStore.Blockstore(), offline.Exchange(edsStore.Blockstore()))
-	sg := NewIPLDGetter(bserv)
+	bStore := edsStore.Blockstore()
+	bserv := bsrv.New(bStore, offline.Exchange(bStore))
+	sg := NewIPLDGetter(bserv, eds.WithBlockstoreCleanup())
 
 	t.Run("GetShare", func(t *testing.T) {
 		ctx, cancel := context.WithTimeout(ctx, time.Second)
@@ -200,6 +201,12 @@ func TestIPLDGetter(t *testing.T) {
 		retrievedEDS, err := sg.GetEDS(ctx, &dah)
 		require.NoError(t, err)
 		assert.True(t, randEds.Equals(retrievedEDS))
+
+		// Ensure blocks still exist after cleanup
+		colRoots, _ := retrievedEDS.ColRoots()
+		has, err := bStore.Has(ctx, ipld.MustCidFromNamespacedSha256(colRoots[0]))
+		assert.NoError(t, err)
+		assert.True(t, has)
 	})
 
 	t.Run("GetSharesByNamespace", func(t *testing.T) {
