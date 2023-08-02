@@ -58,7 +58,7 @@ func (bs *blockstore) Has(ctx context.Context, cid cid.Cid) (bool, error) {
 func (bs *blockstore) Get(ctx context.Context, cid cid.Cid) (blocks.Block, error) {
 	blockstr, err := bs.getReadOnlyBlockstore(ctx, cid)
 	if errors.Is(err, ErrNotFound) {
-		// TODO(@distractedm1nd): Not sure if we should log the error or not. I don't think it needs
+		// TODO(REVIEWERS): Not sure if we should log the error or not. I don't think it needs
 		// to be returned, since this ds.Get is a "last ditch effort" to find the block, and the
 		// relevant error stays ipld.ErrNotFound
 		blockData, err := bs.ds.Get(ctx, datastore.NewKey(cid.KeyString()))
@@ -75,11 +75,13 @@ func (bs *blockstore) Get(ctx context.Context, cid cid.Cid) (blocks.Block, error
 	return blockstr.Get(ctx, cid)
 }
 
-// TODO(@distractedm1nd): Figure out why GetSize is used and if we should add datastore retrieval...
-// wait, isn't this a constant?
 func (bs *blockstore) GetSize(ctx context.Context, cid cid.Cid) (int, error) {
 	blockstr, err := bs.getReadOnlyBlockstore(ctx, cid)
 	if errors.Is(err, ErrNotFound) {
+		size, err := bs.ds.GetSize(ctx, datastore.NewKey(cid.KeyString()))
+		if err == nil {
+			return size, nil
+		}
 		// nmt's GetSize expects an ipld.ErrNotFound when a cid is not found.
 		return 0, ipld.ErrNotFound{Cid: cid}
 	}
