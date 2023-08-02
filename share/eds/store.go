@@ -171,7 +171,6 @@ func (s *Store) Put(ctx context.Context, root share.DataHash, square *rsmt2d.Ext
 	}
 
 	ctx, span := tracer.Start(ctx, "store/put", trace.WithAttributes(
-		attribute.String("root", root.String()),
 		attribute.Int("width", int(square.Width())),
 	))
 	defer func() {
@@ -226,7 +225,7 @@ func (s *Store) Put(ctx context.Context, root share.DataHash, square *rsmt2d.Ext
 // The shard is cached in the Store, so subsequent calls to GetCAR with the same root will use the
 // same reader. The cache is responsible for closing the underlying reader.
 func (s *Store) GetCAR(ctx context.Context, root share.DataHash) (io.Reader, error) {
-	ctx, span := tracer.Start(ctx, "store/get-car", trace.WithAttributes(attribute.String("root", root.String())))
+	ctx, span := tracer.Start(ctx, "store/get-car")
 	defer span.End()
 
 	key := root.String()
@@ -263,7 +262,7 @@ func (s *Store) CARBlockstore(
 
 // GetDAH returns the DataAvailabilityHeader for the EDS identified by DataHash.
 func (s *Store) GetDAH(ctx context.Context, root share.DataHash) (*share.Root, error) {
-	ctx, span := tracer.Start(ctx, "store/get-dah", trace.WithAttributes(attribute.String("root", root.String())))
+	ctx, span := tracer.Start(ctx, "store/get-dah")
 	defer span.End()
 
 	key := shard.KeyFromString(root.String())
@@ -342,7 +341,7 @@ func (s *Store) getCachedAccessor(ctx context.Context, key shard.Key) (*accessor
 // Remove removes EDS from Store by the given share.Root hash and cleans up all
 // the indexing.
 func (s *Store) Remove(ctx context.Context, root share.DataHash) (err error) {
-	ctx, span := tracer.Start(ctx, "store/remove", trace.WithAttributes(attribute.String("root", root.String())))
+	ctx, span := tracer.Start(ctx, "store/remove")
 	defer func() {
 		utils.SetStatusAndEnd(span, err)
 	}()
@@ -383,7 +382,7 @@ func (s *Store) Remove(ctx context.Context, root share.DataHash) (err error) {
 // It reads only one quadrant(1/4) of the EDS and verifies the integrity of the stored data by
 // recomputing it.
 func (s *Store) Get(ctx context.Context, root share.DataHash) (eds *rsmt2d.ExtendedDataSquare, err error) {
-	ctx, span := tracer.Start(ctx, "store/get", trace.WithAttributes(attribute.String("root", root.String())))
+	ctx, span := tracer.Start(ctx, "store/get")
 	defer func() {
 		utils.SetStatusAndEnd(span, err)
 	}()
@@ -401,7 +400,7 @@ func (s *Store) Get(ctx context.Context, root share.DataHash) (eds *rsmt2d.Exten
 
 // Has checks if EDS exists by the given share.Root hash.
 func (s *Store) Has(ctx context.Context, root share.DataHash) (bool, error) {
-	_, span := tracer.Start(ctx, "store/has", trace.WithAttributes(attribute.String("root", root.String())))
+	_, span := tracer.Start(ctx, "store/has")
 	defer span.End()
 
 	key := root.String()

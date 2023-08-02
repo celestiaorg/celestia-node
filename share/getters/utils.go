@@ -46,7 +46,6 @@ func collectSharesByNamespace(
 	namespace share.Namespace,
 ) (shares share.NamespacedShares, err error) {
 	ctx, span := tracer.Start(ctx, "collect-shares-by-namespace", trace.WithAttributes(
-		attribute.String("root", root.String()),
 		attribute.String("namespace", namespace.String()),
 	))
 	defer func() {

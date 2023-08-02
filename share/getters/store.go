@@ -36,7 +36,6 @@ func NewStoreGetter(store *eds.Store) *StoreGetter {
 func (sg *StoreGetter) GetShare(ctx context.Context, dah *share.Root, row, col int) (share.Share, error) {
 	var err error
 	ctx, span := tracer.Start(ctx, "store/get-share", trace.WithAttributes(
-		attribute.String("root", dah.String()),
 		attribute.Int("row", row),
 		attribute.Int("col", col),
 	))
@@ -70,9 +69,7 @@ func (sg *StoreGetter) GetShare(ctx context.Context, dah *share.Root, row, col i
 
 // GetEDS gets the EDS identified by the given root from the EDS store.
 func (sg *StoreGetter) GetEDS(ctx context.Context, root *share.Root) (data *rsmt2d.ExtendedDataSquare, err error) {
-	ctx, span := tracer.Start(ctx, "store/get-eds", trace.WithAttributes(
-		attribute.String("root", root.String()),
-	))
+	ctx, span := tracer.Start(ctx, "store/get-eds")
 	defer func() {
 		utils.SetStatusAndEnd(span, err)
 	}()
@@ -96,7 +93,6 @@ func (sg *StoreGetter) GetSharesByNamespace(
 	namespace share.Namespace,
 ) (shares share.NamespacedShares, err error) {
 	ctx, span := tracer.Start(ctx, "store/get-shares-by-namespace", trace.WithAttributes(
-		attribute.String("root", root.String()),
 		attribute.String("namespace", namespace.String()),
 	))
 	defer func() {
