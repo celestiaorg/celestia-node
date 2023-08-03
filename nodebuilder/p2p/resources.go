@@ -6,7 +6,6 @@ import (
 	"github.com/libp2p/go-libp2p"
 	"github.com/libp2p/go-libp2p/core/network"
 	rcmgr "github.com/libp2p/go-libp2p/p2p/host/resource-manager"
-	rcmgrObs "github.com/libp2p/go-libp2p/p2p/host/resource-manager/obs"
 	ma "github.com/multiformats/go-multiaddr"
 	madns "github.com/multiformats/go-multiaddr-dns"
 	"go.uber.org/fx"
@@ -60,7 +59,7 @@ func allowList(ctx context.Context, cfg Config, bootstrappers Bootstrappers) (rc
 }
 
 func traceReporter() rcmgr.Option {
-	str, err := rcmgrObs.NewStatsTraceReporter()
+	str, err := rcmgr.NewStatsTraceReporter()
 	if err != nil {
 		panic(err) // err is always nil as per sources
 	}
