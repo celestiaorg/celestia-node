@@ -52,18 +52,11 @@ var getCmd = &cobra.Command{
 			return fmt.Errorf("error parsing a commitment:%v", err)
 		}
 
-		var output []byte
 		blob, err := client.Blob.Get(cmd.Context(), height, namespace, commitment)
+
+		output, err := prepareOutput(blob, err)
 		if err != nil {
-			output, err = prepareOutput(err)
-			if err != nil {
-				return err
-			}
-		} else {
-			output, err = prepareOutput(blob)
-			if err != nil {
-				return err
-			}
+			return err
 		}
 
 		fmt.Fprintln(os.Stdout, string(output))
@@ -93,16 +86,10 @@ var getAllCmd = &cobra.Command{
 
 		var output []byte
 		blobs, err := client.Blob.GetAll(cmd.Context(), height, []share.Namespace{namespace})
+
+		output, err = prepareOutput(blobs, err)
 		if err != nil {
-			output, err = prepareOutput(err)
-			if err != nil {
-				return err
-			}
-		} else {
-			output, err = prepareOutput(blobs)
-			if err != nil {
-				return err
-			}
+			return err
 		}
 
 		fmt.Fprintln(os.Stdout, string(output))
@@ -130,25 +117,19 @@ var submitCmd = &cobra.Command{
 			return fmt.Errorf("error creating a blob:%v", err)
 		}
 
-		var output []byte
 		height, err := client.Blob.Submit(cmd.Context(), []*blob.Blob{parsedBlob})
+
+		response := struct {
+			Height     uint64          `json:"uint64"`
+			Commitment blob.Commitment `json:"commitment"`
+		}{
+			Height:     height,
+			Commitment: parsedBlob.Commitment,
+		}
+
+		output, err := prepareOutput(response, err)
 		if err != nil {
-			output, err = prepareOutput(err)
-			if err != nil {
-				return err
-			}
-		} else {
-			response := struct {
-				Height     uint64          `json:"uint64"`
-				Commitment blob.Commitment `json:"commitment"`
-			}{
-				Height:     height,
-				Commitment: parsedBlob.Commitment,
-			}
-			output, err = prepareOutput(response)
-			if err != nil {
-				return err
-			}
+			return err
 		}
 
 		fmt.Fprintln(os.Stdout, string(output))
@@ -181,18 +162,11 @@ var getProofCmd = &cobra.Command{
 			return fmt.Errorf("error parsing a commitment:%v", err)
 		}
 
-		var output []byte
 		proof, err := client.Blob.GetProof(cmd.Context(), height, namespace, commitment)
+
+		output, err := prepareOutput(proof, err)
 		if err != nil {
-			output, err = prepareOutput(err)
-			if err != nil {
-				return err
-			}
-		} else {
-			output, err = prepareOutput(proof)
-			if err != nil {
-				return err
-			}
+			return err
 		}
 
 		fmt.Fprintln(os.Stdout, string(output))
@@ -200,7 +174,11 @@ var getProofCmd = &cobra.Command{
 	},
 }
 
-func prepareOutput(data interface{}) ([]byte, error) {
+func prepareOutput(data interface{}, err error) ([]byte, error) {
+	if err != nil {
+		data = err
+	}
+
 	bytes, err := json.MarshalIndent(response{
 		Result: data,
 	}, "", "  ")
