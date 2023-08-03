@@ -154,6 +154,108 @@ func TestShareAvailable_ConnectedFullNodes(t *testing.T) {
 	require.NoError(t, err)
 }
 
+// TestShareAvailable_BetweenFulls has a similar setup as TestShareAvailable_DisconnectedFullNodes,
+// except that we disconnect the FNs from the LN subnetworks before connecting the FNs to each
+// other. This ensures that FNs store individual IPLD blocks in the block store before the full CAR
+// is put to the store.
+func TestShareAvailable_BetweenFulls(t *testing.T) {
+	// NOTE: Numbers are taken from the original 'Fraud and Data Availability Proofs' paper
+	light.DefaultSampleAmount = 20 // s
+	const (
+		origSquareSize = 16 // k
+		lightNodes     = 60 // c - total number of nodes on two subnetworks
+	)
+
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second*30)
+	defer cancel()
+
+	net := availability_test.NewTestDAGNet(ctx, t)
+	source, root := RandNode(net, origSquareSize)
+
+	// create two full nodes and ensure they are disconnected
+	full1 := Node(net)
+	full2 := Node(net)
+	net.Disconnect(full1.ID(), full2.ID())
+
+	// ensure fulls and source are not connected
+	// so that fulls take data from light nodes only
+	net.Disconnect(full1.ID(), source.ID())
+	net.Disconnect(full2.ID(), source.ID())
+
+	// create light nodes and start sampling for them immediately
+	lights1, lights2 := make(
+		[]*availability_test.TestNode, lightNodes/2),
+		make([]*availability_test.TestNode, lightNodes/2)
+
+	var wg sync.WaitGroup
+	wg.Add(lightNodes)
+	for i := 0; i < len(lights1); i++ {
+		lights1[i] = light.Node(net)
+		net.Connect(lights1[i].ID(), source.ID())
+		go func(i int) {
+			defer wg.Done()
+			err := lights1[i].SharesAvailable(ctx, root)
+			if err != nil {
+				t.Log("light1 errors:", err)
+			}
+		}(i)
+
+		lights2[i] = light.Node(net)
+		net.Connect(lights2[i].ID(), source.ID())
+		go func(i int) {
+			defer wg.Done()
+			err := lights2[i].SharesAvailable(ctx, root)
+			if err != nil {
+				t.Log("light2 errors:", err)
+			}
+		}(i)
+	}
+
+	wg.Wait()
+
+	// start reconstruction for fulls that should fail
+	ctxErr, cancelErr := context.WithTimeout(ctx, eds.RetrieveQuadrantTimeout*8)
+	errg, errCtx := errgroup.WithContext(ctxErr)
+	errg.Go(func() error {
+		return full1.SharesAvailable(errCtx, root)
+	})
+	errg.Go(func() error {
+		return full2.SharesAvailable(errCtx, root)
+	})
+
+	// shape topology
+	for i := 0; i < len(lights1); i++ {
+		// ensure lights1 are only connected to source and full1
+		net.Connect(lights1[i].ID(), source.ID())
+		net.Connect(lights1[i].ID(), full1.ID())
+		net.Disconnect(lights1[i].ID(), full2.ID())
+		// ensure lights2 are only connected to source and full2
+		net.Connect(lights2[i].ID(), source.ID())
+		net.Connect(lights2[i].ID(), full2.ID())
+		net.Disconnect(lights2[i].ID(), full1.ID())
+	}
+
+	// check that any of the fulls cannot reconstruct on their own
+	err := errg.Wait()
+	require.ErrorIs(t, err, share.ErrNotAvailable)
+	cancelErr()
+
+	// disconnect the LNs from the fullnodes to ensure full nodes saved the data
+	for i := 0; i < len(lights1); i++ {
+		net.Disconnect(lights1[i].ID(), full1.ID())
+		net.Disconnect(lights2[i].ID(), full2.ID())
+	}
+
+	// but after they connect
+	net.Connect(full1.ID(), full2.ID())
+
+	// they both should be able to reconstruct the block
+	err = full1.SharesAvailable(ctx, root)
+	require.NoError(t, err, share.ErrNotAvailable)
+	err = full2.SharesAvailable(ctx, root)
+	require.NoError(t, err, share.ErrNotAvailable)
+}
+
 // TestShareAvailable_DisconnectedFullNodes asserts that two disconnected full
 // nodes cannot ensure data is available (reconstruct data square) while being
 // connected to isolated light nodes subnetworks, which do not have enough nodes
