@@ -17,6 +17,10 @@ type response struct {
 	Result interface{} `json:"result"`
 }
 
+func init() {
+	blobCmd.AddCommand(getCmd, getAllCmd, submitCmd, getProofCmd)
+}
+
 var blobCmd = &cobra.Command{
 	Use:   "blob [command]",
 	Short: "Allows to interact with the Blob Service via JSON-RPC",
@@ -24,7 +28,7 @@ var blobCmd = &cobra.Command{
 }
 
 var getCmd = &cobra.Command{
-	Use:   "get [params]",
+	Use:   "get [height, namespace, commitment]",
 	Args:  cobra.ExactArgs(3),
 	Short: "Returns the blob for the given namespace by commitment at a particular height.",
 	RunE: func(cmd *cobra.Command, args []string) error {
@@ -33,7 +37,7 @@ var getCmd = &cobra.Command{
 			return err
 		}
 
-		num, err := strconv.ParseUint(args[0], 10, 64)
+		height, err := strconv.ParseUint(args[0], 10, 64)
 		if err != nil {
 			return fmt.Errorf("error parsing a height:%v", err)
 		}
@@ -49,7 +53,7 @@ var getCmd = &cobra.Command{
 		}
 
 		var output []byte
-		blob, err := client.Blob.Get(cmd.Context(), num, namespace, commitment)
+		blob, err := client.Blob.Get(cmd.Context(), height, namespace, commitment)
 		if err != nil {
 			output, err = prepareOutput(err)
 			if err != nil {
@@ -68,7 +72,7 @@ var getCmd = &cobra.Command{
 }
 
 var getAllCmd = &cobra.Command{
-	Use:   "getAll [params]",
+	Use:   "get-all [height, namespace]",
 	Args:  cobra.ExactArgs(2),
 	Short: "Returns all blobs for the given namespace at a particular height.",
 	RunE: func(cmd *cobra.Command, args []string) error {
@@ -107,7 +111,7 @@ var getAllCmd = &cobra.Command{
 }
 
 var submitCmd = &cobra.Command{
-	Use:   "submit [params]",
+	Use:   "submit [namespace, blobData]",
 	Args:  cobra.ExactArgs(2),
 	Short: "Submit the blob at the given namespace. Note: only one blob is allowed to submit through the RPC.",
 	RunE: func(cmd *cobra.Command, args []string) error {
@@ -134,7 +138,14 @@ var submitCmd = &cobra.Command{
 				return err
 			}
 		} else {
-			output, err = prepareOutput(height)
+			response := struct {
+				Height     uint64          `json:"uint64"`
+				Commitment blob.Commitment `json:"commitment"`
+			}{
+				Height:     height,
+				Commitment: parsedBlob.Commitment,
+			}
+			output, err = prepareOutput(response)
 			if err != nil {
 				return err
 			}
@@ -146,7 +157,7 @@ var submitCmd = &cobra.Command{
 }
 
 var getProofCmd = &cobra.Command{
-	Use:   "getProof [params]",
+	Use:   "get-proof [height, namespace, commitment]",
 	Args:  cobra.ExactArgs(3),
 	Short: "Retrieves the blob in the given namespaces at the given height by commitment and returns its Proof.",
 	RunE: func(cmd *cobra.Command, args []string) error {
