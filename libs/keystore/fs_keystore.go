@@ -1,14 +1,17 @@
 package keystore
 
 import (
+	"crypto/rand"
 	"encoding/json"
 	"errors"
 	"fmt"
+	"io"
 	"io/fs"
 	"os"
 	"path/filepath"
 
 	"github.com/cosmos/cosmos-sdk/crypto/keyring"
+	"github.com/mitchellh/go-homedir"
 )
 
 // ErrNotFound is returned when the key does not exist.
@@ -142,4 +145,44 @@ func checkPerms(perms os.FileMode) error {
 		return fmt.Errorf("required: 0600, got: %#o", perms)
 	}
 	return nil
+}
+
+func Key(path string, keyName KeyName) ([]byte, error) {
+	expanded, err := homedir.Expand(filepath.Clean(path))
+	if err != nil {
+		return nil, err
+	}
+	ks, err := NewFSKeystore(filepath.Join(expanded, "keys"), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	var key PrivKey
+	key, err = ks.Get(keyName)
+	if err != nil {
+		if !errors.Is(err, ErrNotFound) {
+			return nil, err
+		}
+		// otherwise, generate and save new priv key
+		key, err = generateNewKey(ks, keyName)
+		if err != nil {
+			return nil, err
+		}
+	}
+
+	return key.Body, nil
+}
+
+func generateNewKey(ks Keystore, keyName KeyName) (PrivKey, error) {
+	sk, err := io.ReadAll(io.LimitReader(rand.Reader, 32))
+	if err != nil {
+		return PrivKey{}, err
+	}
+	// save key
+	key := PrivKey{Body: sk}
+	err = ks.Put(keyName, key)
+	if err != nil {
+		return PrivKey{}, err
+	}
+	return key, nil
 }

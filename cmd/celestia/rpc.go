@@ -13,12 +13,15 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/cristalhq/jwt"
 	"github.com/spf13/cobra"
 
 	"github.com/celestiaorg/celestia-node/api/rpc/client"
 	"github.com/celestiaorg/celestia-node/api/rpc/perms"
 	"github.com/celestiaorg/celestia-node/blob"
-	auth "github.com/celestiaorg/celestia-node/cmd"
+	"github.com/celestiaorg/celestia-node/libs/authtoken"
+	"github.com/celestiaorg/celestia-node/libs/keystore"
+	nodemod "github.com/celestiaorg/celestia-node/nodebuilder/node"
 	"github.com/celestiaorg/celestia-node/nodebuilder/p2p"
 	"github.com/celestiaorg/celestia-node/share"
 	"github.com/celestiaorg/celestia-node/state"
@@ -355,16 +358,23 @@ func sendJSONRPCRequest(namespace, method string, params []interface{}) {
 
 	authToken := authTokenFlag
 	if authToken == "" {
-		token, err := auth.Token(storePath, perms.AllPerms)
+		privKey, err := keystore.Key(storePath, nodemod.SecretName)
+		if err != nil {
+			panic(err)
+		}
+
+		signer, err := jwt.NewHS256(privKey)
+		if err != nil {
+			panic(err)
+		}
+
+		token, err := authtoken.NewSignedJWT(signer, perms.AllPerms)
 		if err != nil {
 			panic(err)
 		}
 		authToken = token
 	}
-
-	if authToken != "" {
-		req.Header.Set("Authorization", "Bearer "+authToken)
-	}
+	req.Header.Set("Authorization", "Bearer "+authToken)
 
 	client := &http.Client{}
 	resp, err := client.Do(req)

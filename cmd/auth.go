@@ -1,15 +1,10 @@
 package cmd
 
 import (
-	"crypto/rand"
-	"errors"
 	"fmt"
-	"io"
-	"path/filepath"
 
 	"github.com/cristalhq/jwt"
 	"github.com/filecoin-project/go-jsonrpc/auth"
-	"github.com/mitchellh/go-homedir"
 	"github.com/spf13/cobra"
 	flag "github.com/spf13/pflag"
 
@@ -44,63 +39,23 @@ func newToken(cmd *cobra.Command, args []string) error {
 		return err
 	}
 
-	token, err := Token(StorePath(cmd.Context()), permissions)
+	privKey, err := keystore.Key(StorePath(cmd.Context()), nodemod.SecretName)
+	if err != nil {
+		return err
+	}
+
+	signer, err := jwt.NewHS256(privKey)
+	if err != nil {
+		return err
+	}
+
+	token, err := authtoken.NewSignedJWT(signer, permissions)
 	if err != nil {
 		return err
 	}
 
 	fmt.Printf("%s", token)
 	return nil
-}
-
-func Token(path string, perms []auth.Permission) (string, error) {
-	expanded, err := homedir.Expand(filepath.Clean(path))
-	if err != nil {
-		return "", err
-	}
-	ks, err := keystore.NewFSKeystore(filepath.Join(expanded, "keys"), nil)
-	if err != nil {
-		return "", err
-	}
-
-	var key keystore.PrivKey
-	key, err = ks.Get(nodemod.SecretName)
-	if err != nil {
-		if !errors.Is(err, keystore.ErrNotFound) {
-			return "", err
-		}
-		// otherwise, generate and save new priv key
-		key, err = generateNewKey(ks)
-		if err != nil {
-			return "", err
-		}
-	}
-
-	signer, err := jwt.NewHS256(key.Body)
-	if err != nil {
-		return "", err
-	}
-
-	token, err := authtoken.NewSignedJWT(signer, perms)
-	if err != nil {
-		return "", err
-	}
-
-	return token, nil
-}
-
-func generateNewKey(ks keystore.Keystore) (keystore.PrivKey, error) {
-	sk, err := io.ReadAll(io.LimitReader(rand.Reader, 32))
-	if err != nil {
-		return keystore.PrivKey{}, err
-	}
-	// save key
-	key := keystore.PrivKey{Body: sk}
-	err = ks.Put(nodemod.SecretName, key)
-	if err != nil {
-		return keystore.PrivKey{}, err
-	}
-	return key, nil
 }
 
 func convertToPerms(perm string) ([]auth.Permission, error) {
