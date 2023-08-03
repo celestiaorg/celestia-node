@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"os"
+	"reflect"
 	"strconv"
 
 	"github.com/spf13/cobra"
@@ -13,8 +14,23 @@ import (
 	"github.com/celestiaorg/celestia-node/share"
 )
 
+var fomatedData bool
+
 func init() {
 	blobCmd.AddCommand(getCmd, getAllCmd, submitCmd, getProofCmd)
+
+	getCmd.PersistentFlags().BoolVar(
+		&fomatedData,
+		"data.format",
+		false,
+		"printed blob's data as a plain text",
+	)
+	getAllCmd.PersistentFlags().BoolVar(
+		&fomatedData,
+		"data.format",
+		false,
+		"printed blob's data as a plain text",
+	)
 }
 
 var blobCmd = &cobra.Command{
@@ -154,6 +170,10 @@ func printOutput(data interface{}, err error) {
 		data = err
 	}
 
+	if fomatedData && err == nil {
+		data = formatData(data)
+	}
+
 	resp := struct {
 		Result interface{} `json:"result"`
 	}{
@@ -166,4 +186,44 @@ func printOutput(data interface{}, err error) {
 		os.Exit(1)
 	}
 	fmt.Fprintln(os.Stdout, string(bytes))
+}
+
+func formatData(data interface{}) interface{} {
+	type tempBlob struct {
+		Namespace    []byte `json:"namespace"`
+		Data         string `json:"data"`
+		ShareVersion uint32 `json:"share_version"`
+		Commitment   []byte `json:"commitment"`
+	}
+
+	if reflect.TypeOf(data).Kind() == reflect.Slice {
+		blobs, ok := data.([]*blob.Blob)
+		if !ok {
+			fmt.Fprintln(os.Stderr, "could not cast to []blob.Blob")
+			os.Exit(1)
+		}
+
+		result := make([]tempBlob, len(blobs))
+		for i, b := range blobs {
+			result[i] = tempBlob{
+				Namespace:    b.Namespace(),
+				Data:         string(b.Data),
+				ShareVersion: b.ShareVersion,
+				Commitment:   b.Commitment,
+			}
+		}
+		return result
+	}
+
+	b, ok := data.(*blob.Blob)
+	if !ok {
+		fmt.Fprintln(os.Stderr, "could not cast to blob.Blob")
+		os.Exit(1)
+	}
+	return tempBlob{
+		Namespace:    b.Namespace(),
+		Data:         string(b.Data),
+		ShareVersion: b.ShareVersion,
+		Commitment:   b.Commitment,
+	}
 }
