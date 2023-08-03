@@ -47,21 +47,27 @@ func TestExchange_RequestEDS(t *testing.T) {
 
 	// Testcase: EDS is unavailable initially, but is found after multiple requests
 	t.Run("EDS_AvailableAfterDelay", func(t *testing.T) {
-		storageDelay := time.Second
 		eds := edstest.RandEDS(t, 4)
 		dah, err := da.NewDataAvailabilityHeader(eds)
 		require.NoError(t, err)
+
+		lock := make(chan struct{})
 		go func() {
-			time.Sleep(storageDelay)
+			<-lock
 			err = store.Put(ctx, dah.Hash(), eds)
-			// require.NoError(t, err)
+			require.NoError(t, err)
+			lock <- struct{}{}
 		}()
 
 		requestedEDS, err := client.RequestEDS(ctx, dah.Hash(), server.host.ID())
 		assert.ErrorIs(t, err, p2p.ErrNotFound)
 		assert.Nil(t, requestedEDS)
 
-		time.Sleep(storageDelay * 2)
+		// unlock write
+		lock <- struct{}{}
+		// wait for write to finish
+		<-lock
+
 		requestedEDS, err = client.RequestEDS(ctx, dah.Hash(), server.host.ID())
 		assert.NoError(t, err)
 		assert.Equal(t, eds.Flattened(), requestedEDS.Flattened())
