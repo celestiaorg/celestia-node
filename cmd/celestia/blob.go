@@ -13,10 +13,6 @@ import (
 	"github.com/celestiaorg/celestia-node/share"
 )
 
-type response struct {
-	Result interface{} `json:"result"`
-}
-
 func init() {
 	blobCmd.AddCommand(getCmd, getAllCmd, submitCmd, getProofCmd)
 }
@@ -54,12 +50,7 @@ var getCmd = &cobra.Command{
 
 		blob, err := client.Blob.Get(cmd.Context(), height, namespace, commitment)
 
-		output, err := prepareOutput(blob, err)
-		if err != nil {
-			return err
-		}
-
-		fmt.Fprintln(os.Stdout, string(output))
+		printOutput(blob, err)
 		return nil
 	},
 }
@@ -84,15 +75,9 @@ var getAllCmd = &cobra.Command{
 			return fmt.Errorf("error parsing a namespace:%v", err)
 		}
 
-		var output []byte
 		blobs, err := client.Blob.GetAll(cmd.Context(), height, []share.Namespace{namespace})
 
-		output, err = prepareOutput(blobs, err)
-		if err != nil {
-			return err
-		}
-
-		fmt.Fprintln(os.Stdout, string(output))
+		printOutput(blobs, err)
 		return nil
 	},
 }
@@ -127,12 +112,7 @@ var submitCmd = &cobra.Command{
 			Commitment: parsedBlob.Commitment,
 		}
 
-		output, err := prepareOutput(response, err)
-		if err != nil {
-			return err
-		}
-
-		fmt.Fprintln(os.Stdout, string(output))
+		printOutput(response, err)
 		return nil
 	},
 }
@@ -164,26 +144,26 @@ var getProofCmd = &cobra.Command{
 
 		proof, err := client.Blob.GetProof(cmd.Context(), height, namespace, commitment)
 
-		output, err := prepareOutput(proof, err)
-		if err != nil {
-			return err
-		}
-
-		fmt.Fprintln(os.Stdout, string(output))
+		printOutput(proof, err)
 		return nil
 	},
 }
 
-func prepareOutput(data interface{}, err error) ([]byte, error) {
+func printOutput(data interface{}, err error) {
 	if err != nil {
 		data = err
 	}
 
-	bytes, err := json.MarshalIndent(response{
+	resp := struct {
+		Result interface{} `json:"result"`
+	}{
 		Result: data,
-	}, "", "  ")
-	if err != nil {
-		return nil, err
 	}
-	return bytes, nil
+
+	bytes, err := json.MarshalIndent(resp, "", "  ")
+	if err != nil {
+		fmt.Fprintln(os.Stderr, err)
+		os.Exit(1)
+	}
+	fmt.Fprintln(os.Stdout, string(bytes))
 }
