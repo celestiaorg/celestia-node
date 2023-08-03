@@ -14,20 +14,20 @@ import (
 	"github.com/celestiaorg/celestia-node/share"
 )
 
-var fomatedData bool
+var plaintext bool
 
 func init() {
 	blobCmd.AddCommand(getCmd, getAllCmd, submitCmd, getProofCmd)
 
 	getCmd.PersistentFlags().BoolVar(
-		&fomatedData,
-		"data.format",
+		&plaintext,
+		"plaintext",
 		false,
 		"printed blob's data as a plain text",
 	)
 	getAllCmd.PersistentFlags().BoolVar(
-		&fomatedData,
-		"data.format",
+		&plaintext,
+		"plaintext",
 		false,
 		"printed blob's data as a plain text",
 	)
@@ -170,7 +170,7 @@ func printOutput(data interface{}, err error) {
 		data = err
 	}
 
-	if fomatedData && err == nil {
+	if plaintext && err == nil {
 		data = formatData(data)
 	}
 
