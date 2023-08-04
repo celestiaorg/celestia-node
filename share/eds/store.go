@@ -203,7 +203,7 @@ func (s *Store) Put(ctx context.Context, root share.DataHash, square *rsmt2d.Ext
 		buf:   bytes.NewBuffer(nil),
 		Mount: &mount.FileMount{Path: s.basepath + blocksPath + key},
 	}
-	err = WriteEDS(ctx, square, f)
+	err = WriteEDS(ctx, square, mount)
 	if err != nil {
 		return fmt.Errorf("failed to write EDS to file: %w", err)
 	}
