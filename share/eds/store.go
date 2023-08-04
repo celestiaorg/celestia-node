@@ -175,15 +175,15 @@ func (s *Store) Put(ctx context.Context, root share.DataHash, square *rsmt2d.Ext
 
 	tnow := time.Now()
 	err := s.put(ctx, root, square)
+	result := putOK
 	switch {
 	case errors.Is(err, dagstore.ErrShardExists):
-		s.metrics.observePut(ctx, time.Since(tnow), putExists, square.Width())
+		result = putExists
 	case err != nil:
-		s.metrics.observePut(ctx, time.Since(tnow), putFailed, square.Width())
-	default:
-		s.metrics.observePut(ctx, time.Since(tnow), putOK, square.Width())
+		result = putFailed
 	}
 	utils.SetStatusAndEnd(span, err)
+	s.metrics.observePut(ctx, time.Since(tnow), result, square.Width())
 	return err
 }
 
