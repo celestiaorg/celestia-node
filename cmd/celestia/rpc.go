@@ -23,11 +23,7 @@ import (
 	"github.com/celestiaorg/celestia-node/state"
 )
 
-const (
-	authEnvKey = "CELESTIA_NODE_AUTH_TOKEN"
-
-	rpcClientKey = "rpcClient"
-)
+const authEnvKey = "CELESTIA_NODE_AUTH_TOKEN"
 
 var requestURL string
 var authTokenFlag string
@@ -73,12 +69,12 @@ var rpcCmd = &cobra.Command{
 	Short: "Send JSON-RPC request",
 	Args:  cobra.MinimumNArgs(2),
 	PersistentPreRunE: func(cmd *cobra.Command, args []string) error {
-		client, err := newRPCClient(cmd.Context())
+		rpcClient, err := newRPCClient(cmd.Context())
 		if err != nil {
 			return err
 		}
 
-		ctx := context.WithValue(cmd.Context(), rpcClientKey, client)
+		ctx := context.WithValue(cmd.Context(), rpcClientKey{}, rpcClient)
 		cmd.SetContext(ctx)
 		return nil
 	},
@@ -372,8 +368,10 @@ func newRPCClient(ctx context.Context) (*client.Client, error) {
 	return client.NewClient(ctx, requestURL, authTokenFlag)
 }
 
+type rpcClientKey struct{}
+
 func rpcClient(ctx context.Context) (*client.Client, error) {
-	client, ok := ctx.Value(rpcClientKey).(*client.Client)
+	client, ok := ctx.Value(rpcClientKey{}).(*client.Client)
 	if !ok {
 		return nil, errors.New("rpc client was not set")
 	}
