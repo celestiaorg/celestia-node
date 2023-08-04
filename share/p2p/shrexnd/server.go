@@ -56,7 +56,6 @@ func NewServer(params *Parameters, host host.Host, store *eds.Store, getter shar
 	ctx, cancel := context.WithCancel(context.Background())
 	srv.cancel = cancel
 
-
 	srv.handler = srv.middleware.RateLimitHandler(srv.streamHandler(ctx))
 	return srv, nil
 }

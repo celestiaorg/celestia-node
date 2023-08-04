@@ -1,11 +1,12 @@
 package getters
 
 import (
+	"bytes"
 	"context"
-	"math/rand"
-	"sort"
 	"encoding/binary"
 	"errors"
+	"math/rand"
+	"sort"
 	"testing"
 	"time"
 
@@ -19,6 +20,7 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/celestiaorg/celestia-app/pkg/da"
+	"github.com/celestiaorg/celestia-app/pkg/wrapper"
 	libhead "github.com/celestiaorg/go-header"
 	"github.com/celestiaorg/nmt"
 	"github.com/celestiaorg/rsmt2d"
@@ -67,7 +69,7 @@ func TestShrexGetter(t *testing.T) {
 
 		// generate test data
 		namespace := sharetest.RandV0Namespace()
-		randEDS, dah := edstest.RandEDSWithNamespace(t, namespace, 64)
+		randEDS, dah := singleNamespaceEds(t, namespace, 64)
 		require.NoError(t, edsStore.Put(ctx, dah.Hash(), randEDS))
 		peerManager.Validate(ctx, srvHost.ID(), shrexsub.Notification{
 			DataHash: dah.Hash(),
@@ -390,5 +392,7 @@ func singleNamespaceEds(
 	sort.Slice(shares, func(i, j int) bool { return bytes.Compare(shares[i], shares[j]) < 0 })
 	eds, err := rsmt2d.ComputeExtendedDataSquare(shares, share.DefaultRSMT2DCodec(), wrapper.NewConstructor(uint64(size)))
 	require.NoError(t, err, "failure to recompute the extended data square")
-	return eds, da.NewDataAvailabilityHeader(eds)
+	dah, err := da.NewDataAvailabilityHeader(eds)
+	require.NoError(t, err)
+	return eds, dah
 }
