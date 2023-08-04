@@ -1,6 +1,7 @@
 package share
 
 import (
+	"github.com/celestiaorg/celestia-node/share/eds"
 	"github.com/celestiaorg/celestia-node/share/getters"
 	disc "github.com/celestiaorg/celestia-node/share/p2p/discovery"
 	"github.com/celestiaorg/celestia-node/share/p2p/peers"
@@ -40,4 +41,8 @@ func WithShrexServerMetrics(edsServer *shrexeds.Server, ndServer *shrexnd.Server
 
 func WithShrexGetterMetrics(sg *getters.ShrexGetter) error {
 	return sg.WithMetrics()
+}
+
+func WithStoreMetrics(s *eds.Store) error {
+	return s.WithMetrics()
 }
