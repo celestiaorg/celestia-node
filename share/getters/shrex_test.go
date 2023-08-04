@@ -64,7 +64,7 @@ func TestShrexGetter(t *testing.T) {
 
 		// generate test data
 		randEDS, dah, namespace := generateTestEDS(t)
-		require.NoError(t, edsStore.Put(ctx, dah.Hash(), randEDS, nil))
+		require.NoError(t, edsStore.Put(ctx, dah.Hash(), randEDS))
 		peerManager.Validate(ctx, srvHost.ID(), shrexsub.Notification{
 			DataHash: dah.Hash(),
 			Height:   1,
@@ -96,7 +96,7 @@ func TestShrexGetter(t *testing.T) {
 
 		// generate test data
 		eds, dah, maxNamespace := generateTestEDS(t)
-		require.NoError(t, edsStore.Put(ctx, dah.Hash(), eds, nil))
+		require.NoError(t, edsStore.Put(ctx, dah.Hash(), eds))
 		peerManager.Validate(ctx, srvHost.ID(), shrexsub.Notification{
 			DataHash: dah.Hash(),
 			Height:   1,
@@ -120,7 +120,7 @@ func TestShrexGetter(t *testing.T) {
 
 		// generate test data
 		eds, dah, maxNamesapce := generateTestEDS(t)
-		require.NoError(t, edsStore.Put(ctx, dah.Hash(), eds, nil))
+		require.NoError(t, edsStore.Put(ctx, dah.Hash(), eds))
 		peerManager.Validate(ctx, srvHost.ID(), shrexsub.Notification{
 			DataHash: dah.Hash(),
 			Height:   1,
@@ -144,7 +144,7 @@ func TestShrexGetter(t *testing.T) {
 
 		// generate test data
 		randEDS, dah, _ := generateTestEDS(t)
-		require.NoError(t, edsStore.Put(ctx, dah.Hash(), randEDS, nil))
+		require.NoError(t, edsStore.Put(ctx, dah.Hash(), randEDS))
 		peerManager.Validate(ctx, srvHost.ID(), shrexsub.Notification{
 			DataHash: dah.Hash(),
 			Height:   1,

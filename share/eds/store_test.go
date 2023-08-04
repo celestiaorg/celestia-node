@@ -38,7 +38,7 @@ func TestEDSStore(t *testing.T) {
 		assert.False(t, has)
 		assert.NoError(t, err)
 
-		err = edsStore.Put(ctx, dah.Hash(), eds, nil)
+		err = edsStore.Put(ctx, dah.Hash(), eds)
 		assert.NoError(t, err)
 
 		_, err = edsStore.dgstr.GetShardInfo(shard.KeyFromString(dah.String()))
@@ -52,7 +52,7 @@ func TestEDSStore(t *testing.T) {
 		stat, _ := edsStore.carIdx.StatFullIndex(shard.KeyFromString(dah.String()))
 		assert.False(t, stat.Exists)
 
-		err = edsStore.Put(ctx, dah.Hash(), eds, nil)
+		err = edsStore.Put(ctx, dah.Hash(), eds)
 		assert.NoError(t, err)
 
 		stat, err = edsStore.carIdx.StatFullIndex(shard.KeyFromString(dah.String()))
@@ -65,7 +65,7 @@ func TestEDSStore(t *testing.T) {
 	t.Run("GetCAR", func(t *testing.T) {
 		eds, dah := randomEDS(t)
 
-		err = edsStore.Put(ctx, dah.Hash(), eds, nil)
+		err = edsStore.Put(ctx, dah.Hash(), eds)
 		require.NoError(t, err)
 
 		r, err := edsStore.GetCAR(ctx, dah.Hash())
@@ -98,7 +98,7 @@ func TestEDSStore(t *testing.T) {
 	t.Run("Remove", func(t *testing.T) {
 		eds, dah := randomEDS(t)
 
-		err = edsStore.Put(ctx, dah.Hash(), eds, nil)
+		err = edsStore.Put(ctx, dah.Hash(), eds)
 		require.NoError(t, err)
 
 		// assert that file now exists
@@ -129,7 +129,7 @@ func TestEDSStore(t *testing.T) {
 		assert.NoError(t, err)
 		assert.False(t, ok)
 
-		err = edsStore.Put(ctx, dah.Hash(), eds, nil)
+		err = edsStore.Put(ctx, dah.Hash(), eds)
 		assert.NoError(t, err)
 
 		ok, err = edsStore.Has(ctx, dah.Hash())
@@ -140,7 +140,7 @@ func TestEDSStore(t *testing.T) {
 	t.Run("BlockstoreCache", func(t *testing.T) {
 		eds, dah := randomEDS(t)
 
-		err = edsStore.Put(ctx, dah.Hash(), eds, nil)
+		err = edsStore.Put(ctx, dah.Hash(), eds)
 		require.NoError(t, err)
 
 		// key isnt in cache yet, so get returns errCacheMiss
@@ -189,7 +189,7 @@ func TestEDSStore_GC(t *testing.T) {
 	eds, dah := randomEDS(t)
 	shardKey := shard.KeyFromString(dah.String())
 
-	err = edsStore.Put(ctx, dah.Hash(), eds, nil)
+	err = edsStore.Put(ctx, dah.Hash(), eds)
 	require.NoError(t, err)
 
 	// doesn't exist yet
@@ -218,7 +218,7 @@ func Test_BlockstoreCache(t *testing.T) {
 	require.NoError(t, err)
 
 	eds, dah := randomEDS(t)
-	err = edsStore.Put(ctx, dah.Hash(), eds, nil)
+	err = edsStore.Put(ctx, dah.Hash(), eds)
 	require.NoError(t, err)
 
 	// key isnt in cache yet, so get returns errCacheMiss
@@ -245,7 +245,7 @@ func Test_CachedAccessor(t *testing.T) {
 	require.NoError(t, err)
 
 	eds, dah := randomEDS(t)
-	err = edsStore.Put(ctx, dah.Hash(), eds, nil)
+	err = edsStore.Put(ctx, dah.Hash(), eds)
 	require.NoError(t, err)
 
 	shardKey := shard.KeyFromString(dah.String())
@@ -292,7 +292,7 @@ func BenchmarkStore(b *testing.B) {
 			require.NoError(b, err)
 			b.StartTimer()
 
-			err = edsStore.Put(ctx, dah.Hash(), eds, nil)
+			err = edsStore.Put(ctx, dah.Hash(), eds)
 			require.NoError(b, err)
 		}
 	})
@@ -306,7 +306,7 @@ func BenchmarkStore(b *testing.B) {
 			eds := edstest.RandEDS(b, 128)
 			dah, err := da.NewDataAvailabilityHeader(eds)
 			require.NoError(b, err)
-			_ = edsStore.Put(ctx, dah.Hash(), eds, nil)
+			_ = edsStore.Put(ctx, dah.Hash(), eds)
 			b.StartTimer()
 
 			_, err = edsStore.Get(ctx, dah.Hash())

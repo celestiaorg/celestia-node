@@ -6,7 +6,6 @@ import (
 	"fmt"
 
 	"github.com/filecoin-project/dagstore"
-	"github.com/ipfs/go-cid"
 	"github.com/tendermint/tendermint/types"
 
 	"github.com/celestiaorg/celestia-app/app"
@@ -52,17 +51,11 @@ func extendShares(s [][]byte, options ...nmt.Option) (*rsmt2d.ExtendedDataSquare
 }
 
 // storeEDS will only store extended block if it is not empty and doesn't already exist.
-func storeEDS(
-	ctx context.Context,
-	hash share.DataHash,
-	eds *rsmt2d.ExtendedDataSquare,
-	proofs map[cid.Cid][]byte,
-	store *eds.Store,
-) error {
+func storeEDS(ctx context.Context, hash share.DataHash, eds *rsmt2d.ExtendedDataSquare, store *eds.Store) error {
 	if eds == nil {
 		return nil
 	}
-	err := store.Put(ctx, hash, eds, proofs)
+	err := store.Put(ctx, hash, eds)
 	if errors.Is(err, dagstore.ErrShardExists) {
 		// block with given root already exists, return nil
 		return nil

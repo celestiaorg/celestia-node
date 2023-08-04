@@ -108,9 +108,10 @@ func BenchmarkStore(b *testing.B) {
 				require.NoError(b, err)
 				dah, err := da.NewDataAvailabilityHeader(eds)
 				require.NoError(b, err)
+				ctx := ipld.CtxWithProofsAdder(ctx, adder)
 
 				b.StartTimer()
-				err = edsStore.Put(ctx, dah.Hash(), eds, adder.Proofs())
+				err = edsStore.Put(ctx, dah.Hash(), eds)
 				b.StopTimer()
 				require.NoError(b, err)
 			}
@@ -125,7 +126,7 @@ func BenchmarkStore(b *testing.B) {
 				require.NoError(b, err)
 
 				b.StartTimer()
-				err = edsStore.Put(ctx, dah.Hash(), eds, nil)
+				err = edsStore.Put(ctx, dah.Hash(), eds)
 				b.StopTimer()
 				require.NoError(b, err)
 			}

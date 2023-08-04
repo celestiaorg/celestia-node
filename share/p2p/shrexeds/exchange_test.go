@@ -37,7 +37,7 @@ func TestExchange_RequestEDS(t *testing.T) {
 		eds := edstest.RandEDS(t, 4)
 		dah, err := da.NewDataAvailabilityHeader(eds)
 		require.NoError(t, err)
-		err = store.Put(ctx, dah.Hash(), eds, nil)
+		err = store.Put(ctx, dah.Hash(), eds)
 		require.NoError(t, err)
 
 		requestedEDS, err := client.RequestEDS(ctx, dah.Hash(), server.host.ID())
@@ -54,7 +54,7 @@ func TestExchange_RequestEDS(t *testing.T) {
 		lock := make(chan struct{})
 		go func() {
 			<-lock
-			err = store.Put(ctx, dah.Hash(), eds, nil)
+			err = store.Put(ctx, dah.Hash(), eds)
 			require.NoError(t, err)
 			lock <- struct{}{}
 		}()

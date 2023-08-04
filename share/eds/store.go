@@ -16,7 +16,6 @@ import (
 	"github.com/filecoin-project/dagstore/index"
 	"github.com/filecoin-project/dagstore/mount"
 	"github.com/filecoin-project/dagstore/shard"
-	"github.com/ipfs/go-cid"
 	"github.com/ipfs/go-datastore"
 	bstore "github.com/ipfs/go-ipfs-blockstore"
 	carv1 "github.com/ipld/go-car"
@@ -174,12 +173,7 @@ func (s *Store) gc(ctx context.Context) {
 // The square is verified on the Exchange level, and Put only stores the square, trusting it.
 // The resulting file stores all the shares and NMT Merkle Proofs of the EDS.
 // Additionally, the file gets indexed s.t. store.Blockstore can access them.
-func (s *Store) Put(
-	ctx context.Context,
-	root share.DataHash,
-	square *rsmt2d.ExtendedDataSquare,
-	proofs map[cid.Cid][]byte,
-) (err error) {
+func (s *Store) Put(ctx context.Context, root share.DataHash, square *rsmt2d.ExtendedDataSquare) (err error) {
 	// if root already exists, short-circuit
 	has, err := s.Has(ctx, root)
 	if err != nil {
@@ -209,7 +203,7 @@ func (s *Store) Put(
 		buf:   bytes.NewBuffer(nil),
 		Mount: &mount.FileMount{Path: s.basepath + blocksPath + key},
 	}
-	err = WriteEDS(ctx, square, proofs, f)
+	err = WriteEDS(ctx, square, f)
 	if err != nil {
 		return fmt.Errorf("failed to write EDS to file: %w", err)
 	}

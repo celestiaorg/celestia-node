@@ -47,7 +47,7 @@ func TestExchange_RequestND_NotFound(t *testing.T) {
 		eds := edstest.RandEDS(t, 4)
 		dah, err := da.NewDataAvailabilityHeader(eds)
 		require.NoError(t, err)
-		require.NoError(t, edsStore.Put(ctx, dah.Hash(), eds, nil))
+		require.NoError(t, edsStore.Put(ctx, dah.Hash(), eds))
 
 		randNamespace := dah.RowRoots[(len(dah.RowRoots)-1)/2][:share.NamespaceSize]
 		emptyShares, err := client.RequestND(ctx, &dah, randNamespace, server.host.ID())
