@@ -8,7 +8,6 @@ import (
 
 	"golang.org/x/sync/errgroup"
 
-	"github.com/celestiaorg/celestia-app/pkg/wrapper"
 	libhead "github.com/celestiaorg/go-header"
 	"github.com/celestiaorg/nmt"
 
@@ -109,9 +108,7 @@ func (ce *Exchange) Get(ctx context.Context, hash libhead.Hash) (*header.Extende
 
 	// extend block data
 	adder := ipld.NewProofsAdder(int(block.Data.SquareSize))
-	eds, err := extendBlock(block.Data, block.Header.Version.App,
-		wrapper.NewConstructor(block.Data.SquareSize,
-			nmt.NodeVisitor(adder.VisitFn())))
+	eds, err := extendBlock(block.Data, block.Header.Version.App, nmt.NodeVisitor(adder.VisitFn()))
 	if err != nil {
 		return nil, fmt.Errorf("extending block data for height %d: %w", &block.Height, err)
 	}
@@ -149,9 +146,7 @@ func (ce *Exchange) getExtendedHeaderByHeight(ctx context.Context, height *int64
 
 	// extend block data
 	adder := ipld.NewProofsAdder(int(b.Data.SquareSize))
-	eds, err := extendBlock(b.Data, b.Header.Version.App,
-		wrapper.NewConstructor(b.Data.SquareSize,
-			nmt.NodeVisitor(adder.VisitFn())))
+	eds, err := extendBlock(b.Data, b.Header.Version.App, nmt.NodeVisitor(adder.VisitFn()))
 	if err != nil {
 		return nil, fmt.Errorf("extending block data for height %d: %w", b.Header.Height, err)
 	}
