@@ -8,9 +8,8 @@ message GetSharesByNamespaceRequest{
   bytes namespace = 2;
 }
 
-message GetSharesByNamespaceResponse{
+message GetSharesByNamespaceStatusResponse{
   StatusCode status = 1;
-  repeated Row rows = 2;
 }
 
 enum StatusCode {
@@ -18,10 +17,9 @@ enum StatusCode {
   OK = 1;
   NOT_FOUND = 2;
   INTERNAL = 3;
-  NAMESPACE_NOT_FOUND = 4;
 };
 
-message Row {
+message NamespaceRowResponse {
   repeated bytes shares = 1;
   proof.pb.Proof proof = 2;
 }

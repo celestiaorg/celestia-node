@@ -2,7 +2,6 @@ package shrexnd
 
 import (
 	"context"
-	"encoding/hex"
 	"errors"
 	"fmt"
 	"time"
@@ -57,11 +56,7 @@ func NewServer(params *Parameters, host host.Host, store *eds.Store, getter shar
 	ctx, cancel := context.WithCancel(context.Background())
 	srv.cancel = cancel
 
-	handler := func(s network.Stream) {
-		srv.handleNamespacedData(ctx, s)
-	}
-	srv.handler = srv.middleware.RateLimitHandler(handler)
-
+	srv.handler = srv.middleware.RateLimitHandler(srv.streamHandler(ctx))
 	return srv, nil
 }
 
@@ -78,6 +73,19 @@ func (srv *Server) Stop(context.Context) error {
 	return nil
 }
 
+func (srv *Server) streamHandler(ctx context.Context) network.StreamHandler {
+	return func(s network.Stream) {
+		err := srv.handleNamespacedData(ctx, s)
+		if err != nil {
+			s.Reset() //nolint:errcheck
+			return
+		}
+		if err = s.Close(); err != nil {
+			log.Debugw("server: closing stream", "err", err)
+		}
+	}
+}
+
 // SetHandler sets server handler
 func (srv *Server) SetHandler(handler network.StreamHandler) {
 	srv.handler = handler
@@ -90,68 +98,150 @@ func (srv *Server) observeRateLimitedRequests() {
 	}
 }
 
-func (srv *Server) handleNamespacedData(ctx context.Context, stream network.Stream) {
-	logger := log.With("peer", stream.Conn().RemotePeer().String())
-	logger.Debug("server: handling nd request")
+func (srv *Server) handleNamespacedData(ctx context.Context, stream network.Stream) error {
+	logger := log.With("source", "server", "peer", stream.Conn().RemotePeer().String())
+	logger.Debug("handling nd request")
 
 	srv.observeRateLimitedRequests()
+	req, err := srv.readRequest(logger, stream)
+	if err != nil {
+		logger.Warnw("read request", "err", err)
+		srv.metrics.ObserveRequests(ctx, 1, p2p.StatusBadRequest)
+		return err
+	}
 
+	logger = logger.With("namespace", share.Namespace(req.Namespace).String(),
+		"hash", share.DataHash(req.RootHash).String())
+
+	ctx, cancel := context.WithTimeout(ctx, srv.params.HandleRequestTimeout)
+	defer cancel()
+
+	shares, status, err := srv.getNamespaceData(ctx, req.RootHash, req.Namespace)
+	if err != nil {
+		// server should respond with status regardless if there was an error getting data
+		sendErr := srv.respondStatus(ctx, logger, stream, status)
+		if sendErr != nil {
+			logger.Errorw("sending response", "err", sendErr)
+			srv.metrics.ObserveRequests(ctx, 1, p2p.StatusSendRespErr)
+		}
+		logger.Errorw("handling request", "err", err)
+		return errors.Join(err, sendErr)
+	}
+
+	err = srv.respondStatus(ctx, logger, stream, status)
+	if err != nil {
+		logger.Errorw("sending response", "err", err)
+		srv.metrics.ObserveRequests(ctx, 1, p2p.StatusSendRespErr)
+		return err
+	}
+
+	err = srv.sendNamespacedShares(shares, stream)
+	if err != nil {
+		logger.Errorw("send nd data", "err", err)
+		srv.metrics.ObserveRequests(ctx, 1, p2p.StatusSendRespErr)
+		return err
+	}
+	return nil
+}
+
+func (srv *Server) readRequest(
+	logger *zap.SugaredLogger,
+	stream network.Stream,
+) (*pb.GetSharesByNamespaceRequest, error) {
 	err := stream.SetReadDeadline(time.Now().Add(srv.params.ServerReadTimeout))
 	if err != nil {
-		logger.Debugw("server: setting read deadline", "err", err)
+		logger.Debugw("setting read deadline", "err", err)
 	}
 
 	var req pb.GetSharesByNamespaceRequest
 	_, err = serde.Read(stream, &req)
 	if err != nil {
-		logger.Warnw("server: reading request", "err", err)
-		stream.Reset() //nolint:errcheck
-		return
-	}
-	logger = logger.With("namespace", hex.EncodeToString(req.Namespace), "hash", share.DataHash(req.RootHash).String())
-	logger.Debugw("server: new request")
+		return nil, fmt.Errorf("reading request: %w", err)
 
+	}
+
+	logger.Debugw("new request")
 	err = stream.CloseRead()
 	if err != nil {
-		logger.Debugw("server: closing read side of the stream", "err", err)
+		logger.Debugw("closing read side of the stream", "err", err)
 	}
 
 	err = validateRequest(req)
 	if err != nil {
-		logger.Warnw("server: invalid request", "err", err)
-		stream.Reset() //nolint:errcheck
-		return
+		return nil, fmt.Errorf("invalid request: %w", err)
 	}
+	return &req, nil
+}
 
-	ctx, cancel := context.WithTimeout(ctx, srv.params.HandleRequestTimeout)
-	defer cancel()
-
-	dah, err := srv.store.GetDAH(ctx, req.RootHash)
+func (srv *Server) getNamespaceData(ctx context.Context,
+	hash share.DataHash, namespace share.Namespace) (share.NamespacedShares, pb.StatusCode, error) {
+	dah, err := srv.store.GetDAH(ctx, hash)
 	if err != nil {
 		if errors.Is(err, eds.ErrNotFound) {
-			logger.Warn("server: DAH not found")
-			srv.respondNotFoundError(ctx, logger, stream)
-			return
+			return nil, pb.StatusCode_NOT_FOUND, nil
 		}
-		logger.Errorw("server: retrieving DAH", "err", err)
-		srv.respondInternalError(ctx, logger, stream)
-		return
+		return nil, pb.StatusCode_INTERNAL, fmt.Errorf("retrieving DAH: %w", err)
 	}
 
-	shares, err := srv.getter.GetSharesByNamespace(ctx, dah, req.Namespace)
+	shares, err := srv.getter.GetSharesByNamespace(ctx, dah, namespace)
+	if err != nil {
+		return nil, pb.StatusCode_INTERNAL, fmt.Errorf("retrieving shares: %w", err)
+	}
+
+	return shares, pb.StatusCode_OK, nil
+}
+
+func (srv *Server) respondStatus(
+	ctx context.Context,
+	logger *zap.SugaredLogger,
+	stream network.Stream,
+	status pb.StatusCode,
+) error {
+	srv.observeStatus(ctx, status)
+
+	err := stream.SetWriteDeadline(time.Now().Add(srv.params.ServerWriteTimeout))
+	if err != nil {
+		logger.Debugw("setting write deadline", "err", err)
+	}
+
+	_, err = serde.Write(stream, &pb.GetSharesByNamespaceStatusResponse{Status: status})
+	if err != nil {
+		return fmt.Errorf("writing response: %w", err)
+	}
+
+	return nil
+}
+
+// sendNamespacedShares encodes shares into proto messages and sends it to client
+func (srv *Server) sendNamespacedShares(shares share.NamespacedShares, stream network.Stream) error {
+	for _, row := range shares {
+		row := &pb.NamespaceRowResponse{
+			Shares: row.Shares,
+			Proof: &nmt_pb.Proof{
+				Start:                 int64(row.Proof.Start()),
+				End:                   int64(row.Proof.End()),
+				Nodes:                 row.Proof.Nodes(),
+				LeafHash:              row.Proof.LeafHash(),
+				IsMaxNamespaceIgnored: row.Proof.IsMaxNamespaceIDIgnored(),
+			},
+		}
+		_, err := serde.Write(stream, row)
+		if err != nil {
+			return fmt.Errorf("writing nd data to stream: %w", err)
+		}
+	}
+	return nil
+}
+
+func (srv *Server) observeStatus(ctx context.Context, status pb.StatusCode) {
 	switch {
-	case errors.Is(err, share.ErrNotFound):
-		logger.Warn("server: nd not found")
-		srv.respondNotFoundError(ctx, logger, stream)
-		return
-	case err != nil:
-		logger.Errorw("server: retrieving shares", "err", err)
-		srv.respondInternalError(ctx, logger, stream)
-		return
+	case status == pb.StatusCode_OK:
+		srv.metrics.ObserveRequests(ctx, 1, p2p.StatusSuccess)
+	case status == pb.StatusCode_NOT_FOUND:
+		srv.metrics.ObserveRequests(ctx, 1, p2p.StatusNotFound)
+	case status == pb.StatusCode_INTERNAL:
+		srv.metrics.ObserveRequests(ctx, 1, p2p.StatusInternalErr)
 	}
-
-	resp := namespacedSharesToResponse(shares)
-	srv.respond(ctx, logger, stream, resp)
 }
 
 // validateRequest checks correctness of the request
@@ -163,78 +253,4 @@ func validateRequest(req pb.GetSharesByNamespaceRequest) error {
 		return fmt.Errorf("incorrect root hash length: %v", len(req.RootHash))
 	}
 	return nil
-}
-
-// respondNotFoundError sends a not found response to client
-func (srv *Server) respondNotFoundError(ctx context.Context,
-	logger *zap.SugaredLogger, stream network.Stream) {
-	resp := &pb.GetSharesByNamespaceResponse{
-		Status: pb.StatusCode_NOT_FOUND,
-	}
-	srv.respond(ctx, logger, stream, resp)
-}
-
-// respondInternalError sends internal error response to client
-func (srv *Server) respondInternalError(ctx context.Context,
-	logger *zap.SugaredLogger, stream network.Stream) {
-	resp := &pb.GetSharesByNamespaceResponse{
-		Status: pb.StatusCode_INTERNAL,
-	}
-	srv.respond(ctx, logger, stream, resp)
-}
-
-// namespacedSharesToResponse encodes shares into proto and sends it to client with OK status code
-func namespacedSharesToResponse(shares share.NamespacedShares) *pb.GetSharesByNamespaceResponse {
-	rows := make([]*pb.Row, 0, len(shares))
-	for _, row := range shares {
-		row := &pb.Row{
-			Shares: row.Shares,
-			Proof: &nmt_pb.Proof{
-				Start:                 int64(row.Proof.Start()),
-				End:                   int64(row.Proof.End()),
-				Nodes:                 row.Proof.Nodes(),
-				LeafHash:              row.Proof.LeafHash(),
-				IsMaxNamespaceIgnored: row.Proof.IsMaxNamespaceIDIgnored(),
-			},
-		}
-
-		rows = append(rows, row)
-	}
-
-	status := pb.StatusCode_OK
-	if len(shares) == 0 || (len(shares) == 1 && len(shares[0].Shares) == 0) {
-		status = pb.StatusCode_NAMESPACE_NOT_FOUND
-	}
-
-	return &pb.GetSharesByNamespaceResponse{
-		Status: status,
-		Rows:   rows,
-	}
-}
-
-func (srv *Server) respond(ctx context.Context,
-	logger *zap.SugaredLogger, stream network.Stream, resp *pb.GetSharesByNamespaceResponse) {
-	err := stream.SetWriteDeadline(time.Now().Add(srv.params.ServerWriteTimeout))
-	if err != nil {
-		logger.Debugw("server: setting write deadline", "err", err)
-	}
-
-	_, err = serde.Write(stream, resp)
-	if err != nil {
-		logger.Warnw("server: writing response", "err", err)
-		stream.Reset() //nolint:errcheck
-		return
-	}
-
-	switch {
-	case resp.Status == pb.StatusCode_OK:
-		srv.metrics.ObserveRequests(ctx, 1, p2p.StatusSuccess)
-	case resp.Status == pb.StatusCode_NOT_FOUND:
-		srv.metrics.ObserveRequests(ctx, 1, p2p.StatusNotFound)
-	case resp.Status == pb.StatusCode_INTERNAL:
-		srv.metrics.ObserveRequests(ctx, 1, p2p.StatusInternalErr)
-	}
-	if err = stream.Close(); err != nil {
-		logger.Debugw("server: closing stream", "err", err)
-	}
 }

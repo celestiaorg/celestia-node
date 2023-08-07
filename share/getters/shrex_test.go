@@ -1,9 +1,12 @@
 package getters
 
 import (
+	"bytes"
 	"context"
 	"encoding/binary"
 	"errors"
+	"math/rand"
+	"sort"
 	"testing"
 	"time"
 
@@ -17,6 +20,7 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/celestiaorg/celestia-app/pkg/da"
+	"github.com/celestiaorg/celestia-app/pkg/wrapper"
 	libhead "github.com/celestiaorg/go-header"
 	"github.com/celestiaorg/nmt"
 	"github.com/celestiaorg/rsmt2d"
@@ -31,6 +35,7 @@ import (
 	"github.com/celestiaorg/celestia-node/share/p2p/shrexeds"
 	"github.com/celestiaorg/celestia-node/share/p2p/shrexnd"
 	"github.com/celestiaorg/celestia-node/share/p2p/shrexsub"
+	"github.com/celestiaorg/celestia-node/share/sharetest"
 )
 
 func TestShrexGetter(t *testing.T) {
@@ -58,12 +63,13 @@ func TestShrexGetter(t *testing.T) {
 	getter := NewShrexGetter(edsClient, ndClient, peerManager)
 	require.NoError(t, getter.Start(ctx))
 
-	t.Run("ND_Available", func(t *testing.T) {
-		ctx, cancel := context.WithTimeout(ctx, time.Second)
+	t.Run("ND_Available, total data size > 1mb", func(t *testing.T) {
+		ctx, cancel := context.WithTimeout(ctx, time.Second*10)
 		t.Cleanup(cancel)
 
 		// generate test data
-		randEDS, dah, namespace := generateTestEDS(t)
+		namespace := sharetest.RandV0Namespace()
+		randEDS, dah := singleNamespaceEds(t, namespace, 64)
 		require.NoError(t, edsStore.Put(ctx, dah.Hash(), randEDS))
 		peerManager.Validate(ctx, srvHost.ID(), shrexsub.Notification{
 			DataHash: dah.Hash(),
@@ -367,4 +373,26 @@ func TestAddToNamespace(t *testing.T) {
 			}
 		})
 	}
+}
+
+func singleNamespaceEds(
+	t require.TestingT,
+	namespace share.Namespace,
+	size int,
+) (*rsmt2d.ExtendedDataSquare, da.DataAvailabilityHeader) {
+	shares := make([]share.Share, size*size)
+	rnd := rand.New(rand.NewSource(time.Now().Unix()))
+	for i := range shares {
+		shr := make([]byte, share.Size)
+		copy(share.GetNamespace(shr), namespace)
+		_, err := rnd.Read(share.GetData(shr))
+		require.NoError(t, err)
+		shares[i] = shr
+	}
+	sort.Slice(shares, func(i, j int) bool { return bytes.Compare(shares[i], shares[j]) < 0 })
+	eds, err := rsmt2d.ComputeExtendedDataSquare(shares, share.DefaultRSMT2DCodec(), wrapper.NewConstructor(uint64(size)))
+	require.NoError(t, err, "failure to recompute the extended data square")
+	dah, err := da.NewDataAvailabilityHeader(eds)
+	require.NoError(t, err)
+	return eds, dah
 }
