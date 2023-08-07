@@ -9,9 +9,11 @@ import (
 	"golang.org/x/sync/errgroup"
 
 	libhead "github.com/celestiaorg/go-header"
+	"github.com/celestiaorg/nmt"
 
 	"github.com/celestiaorg/celestia-node/header"
 	"github.com/celestiaorg/celestia-node/share/eds"
+	"github.com/celestiaorg/celestia-node/share/ipld"
 )
 
 const concurrencyLimit = 4
@@ -105,7 +107,8 @@ func (ce *Exchange) Get(ctx context.Context, hash libhead.Hash) (*header.Extende
 	}
 
 	// extend block data
-	eds, err := extendBlock(block.Data, block.Header.Version.App)
+	adder := ipld.NewProofsAdder(int(block.Data.SquareSize))
+	eds, err := extendBlock(block.Data, block.Header.Version.App, nmt.NodeVisitor(adder.VisitFn()))
 	if err != nil {
 		return nil, fmt.Errorf("extending block data for height %d: %w", &block.Height, err)
 	}
@@ -119,6 +122,8 @@ func (ce *Exchange) Get(ctx context.Context, hash libhead.Hash) (*header.Extende
 		return nil, fmt.Errorf("incorrect hash in header at height %d: expected %x, got %x",
 			&block.Height, hash, eh.Hash())
 	}
+
+	ctx = ipld.CtxWithProofsAdder(ctx, adder)
 	err = storeEDS(ctx, eh.DAH.Hash(), eds, ce.store)
 	if err != nil {
 		return nil, fmt.Errorf("storing EDS to eds.Store for height %d: %w", &block.Height, err)
@@ -142,7 +147,8 @@ func (ce *Exchange) getExtendedHeaderByHeight(ctx context.Context, height *int64
 	log.Debugw("fetched signed block from core", "height", b.Header.Height)
 
 	// extend block data
-	eds, err := extendBlock(b.Data, b.Header.Version.App)
+	adder := ipld.NewProofsAdder(int(b.Data.SquareSize))
+	eds, err := extendBlock(b.Data, b.Header.Version.App, nmt.NodeVisitor(adder.VisitFn()))
 	if err != nil {
 		return nil, fmt.Errorf("extending block data for height %d: %w", b.Header.Height, err)
 	}
@@ -151,6 +157,8 @@ func (ce *Exchange) getExtendedHeaderByHeight(ctx context.Context, height *int64
 	if err != nil {
 		return nil, fmt.Errorf("constructing extended header for height %d: %w", b.Header.Height, err)
 	}
+
+	ctx = ipld.CtxWithProofsAdder(ctx, adder)
 	err = storeEDS(ctx, eh.DAH.Hash(), eds, ce.store)
 	if err != nil {
 		return nil, fmt.Errorf("storing EDS to eds.Store for block height %d: %w", b.Header.Height, err)
