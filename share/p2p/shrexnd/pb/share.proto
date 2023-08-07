@@ -1,15 +1,15 @@
 syntax = "proto3";
 
 package share.p2p.shrex.nd;
+import "pb/proof.proto";
 
 message GetSharesByNamespaceRequest{
   bytes root_hash = 1;
   bytes namespace = 2;
 }
 
-message GetSharesByNamespaceResponse{
+message GetSharesByNamespaceStatusResponse{
   StatusCode status = 1;
-  repeated Row rows = 2;
 }
 
 enum StatusCode {
@@ -17,17 +17,9 @@ enum StatusCode {
   OK = 1;
   NOT_FOUND = 2;
   INTERNAL = 3;
-  NAMESPACE_NOT_FOUND = 4;
 };
 
-message Row {
+message NamespaceRowResponse {
   repeated bytes shares = 1;
-  Proof proof = 2;
-}
-
-message Proof {
-  int64 start = 1;
-  int64 end = 2;
-  repeated bytes nodes = 3;
-  bytes hashleaf = 4;
+  proof.pb.Proof proof = 2;
 }

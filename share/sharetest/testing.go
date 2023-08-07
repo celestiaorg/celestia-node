@@ -37,6 +37,26 @@ func RandShares(t require.TestingT, total int) []share.Share {
 	return shares
 }
 
+// RandSharesWithNamespace is same the as RandShares, but sets same namespace for all shares.
+func RandSharesWithNamespace(t require.TestingT, namespace share.Namespace, total int) []share.Share {
+	if total&(total-1) != 0 {
+		t.Errorf("total must be power of 2: %d", total)
+		t.FailNow()
+	}
+
+	shares := make([]share.Share, total)
+	rnd := rand.New(rand.NewSource(time.Now().Unix())) //nolint:gosec
+	for i := range shares {
+		shr := make([]byte, share.Size)
+		copy(share.GetNamespace(shr), namespace)
+		_, err := rnd.Read(share.GetData(shr))
+		require.NoError(t, err)
+		shares[i] = shr
+	}
+	sort.Slice(shares, func(i, j int) bool { return bytes.Compare(shares[i], shares[j]) < 0 })
+	return shares
+}
+
 // RandV0Namespace generates random valid data namespace for testing purposes.
 func RandV0Namespace() share.Namespace {
 	rb := make([]byte, namespace.NamespaceVersionZeroIDSize)

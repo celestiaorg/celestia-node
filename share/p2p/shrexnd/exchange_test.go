@@ -100,7 +100,7 @@ func TestExchange_RequestND(t *testing.T) {
 		// wait until all server slots are taken
 		wg.Wait()
 		_, err = client.RequestND(ctx, nil, sharetest.RandV0Namespace(), server.host.ID())
-		require.ErrorIs(t, err, p2p.ErrNotFound)
+		require.ErrorIs(t, err, p2p.ErrRateLimited)
 	})
 }
 

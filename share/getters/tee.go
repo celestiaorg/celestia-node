@@ -14,6 +14,7 @@ import (
 	"github.com/celestiaorg/celestia-node/libs/utils"
 	"github.com/celestiaorg/celestia-node/share"
 	"github.com/celestiaorg/celestia-node/share/eds"
+	"github.com/celestiaorg/celestia-node/share/ipld"
 )
 
 var _ share.Getter = (*TeeGetter)(nil)
@@ -51,6 +52,7 @@ func (tg *TeeGetter) GetEDS(ctx context.Context, root *share.Root) (eds *rsmt2d.
 		utils.SetStatusAndEnd(span, err)
 	}()
 
+	ctx = ipld.CtxWithProofsAdder(ctx, ipld.NewProofsAdder(len(root.RowRoots)))
 	eds, err = tg.getter.GetEDS(ctx, root)
 	if err != nil {
 		return nil, err

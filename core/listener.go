@@ -12,9 +12,11 @@ import (
 	"go.opentelemetry.io/otel/attribute"
 
 	libhead "github.com/celestiaorg/go-header"
+	"github.com/celestiaorg/nmt"
 
 	"github.com/celestiaorg/celestia-node/header"
 	"github.com/celestiaorg/celestia-node/share/eds"
+	"github.com/celestiaorg/celestia-node/share/ipld"
 	"github.com/celestiaorg/celestia-node/share/p2p/shrexsub"
 )
 
@@ -150,7 +152,8 @@ func (cl *Listener) handleNewSignedBlock(ctx context.Context, b types.EventDataS
 		attribute.Int64("height", b.Header.Height),
 	)
 	// extend block data
-	eds, err := extendBlock(b.Data, b.Header.Version.App)
+	adder := ipld.NewProofsAdder(int(b.Data.SquareSize))
+	eds, err := extendBlock(b.Data, b.Header.Version.App, nmt.NodeVisitor(adder.VisitFn()))
 	if err != nil {
 		return fmt.Errorf("extending block data: %w", err)
 	}
@@ -161,6 +164,7 @@ func (cl *Listener) handleNewSignedBlock(ctx context.Context, b types.EventDataS
 	}
 
 	// attempt to store block data if not empty
+	ctx = ipld.CtxWithProofsAdder(ctx, adder)
 	err = storeEDS(ctx, b.Header.DataHash.Bytes(), eds, cl.store)
 	if err != nil {
 		return fmt.Errorf("storing EDS: %w", err)

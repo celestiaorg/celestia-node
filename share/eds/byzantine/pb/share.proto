@@ -1,17 +1,11 @@
 syntax = "proto3";
 
 package share.eds.byzantine.pb;
-
-message MerkleProof {
-  int64 start     = 1;
-  int64 end       = 2;
-  repeated bytes nodes = 3;
-  bytes leaf_hash = 4;
-}
+import "pb/proof.proto";
 
 message Share {
   bytes Data = 1;
-  MerkleProof Proof = 2;
+  proof.pb.Proof Proof = 2;
 }
 
 enum axis {

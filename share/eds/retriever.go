@@ -17,6 +17,7 @@ import (
 
 	"github.com/celestiaorg/celestia-app/pkg/da"
 	"github.com/celestiaorg/celestia-app/pkg/wrapper"
+	"github.com/celestiaorg/nmt"
 	"github.com/celestiaorg/rsmt2d"
 
 	"github.com/celestiaorg/celestia-node/share"
@@ -122,7 +123,14 @@ type retrievalSession struct {
 func (r *Retriever) newSession(ctx context.Context, dah *da.DataAvailabilityHeader) (*retrievalSession, error) {
 	size := len(dah.RowRoots)
 	treeFn := func(_ rsmt2d.Axis, index uint) rsmt2d.Tree {
-		tree := wrapper.NewErasuredNamespacedMerkleTree(uint64(size)/2, index)
+		// use proofs adder if provided, to cache collected proofs while recomputing the eds
+		var opts []nmt.Option
+		visitor := ipld.ProofsAdderFromCtx(ctx).VisitFn()
+		if visitor != nil {
+			opts = append(opts, nmt.NodeVisitor(visitor))
+		}
+
+		tree := wrapper.NewErasuredNamespacedMerkleTree(uint64(size)/2, index, opts...)
 		return &tree
 	}
 
