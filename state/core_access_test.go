@@ -9,13 +9,8 @@ import (
 	"time"
 
 	"cosmossdk.io/math"
-	srvconfig "github.com/cosmos/cosmos-sdk/server/config"
-	"github.com/cosmos/cosmos-sdk/server/types"
 	sdktypes "github.com/cosmos/cosmos-sdk/types"
 	"github.com/stretchr/testify/require"
-	"github.com/tendermint/tendermint/config"
-	tmrand "github.com/tendermint/tendermint/libs/rand"
-	tmproto "github.com/tendermint/tendermint/proto/tendermint/types"
 
 	"github.com/celestiaorg/celestia-app/app"
 	"github.com/celestiaorg/celestia-app/test/util/testnode"
@@ -58,7 +53,8 @@ func TestSubmitPayForBlob(t *testing.T) {
 	appConf.API.Enable = true
 	appConf.MinGasPrices = fmt.Sprintf("0.1%s", app.BondDenom)
 
-	cctx, rpcAddr, grpcAddr := NewNetwork(t, testnode.DefaultParams(), tmCfg, appConf, accounts)
+	config := testnode.DefaultConfig().WithTendermintConfig(tmCfg).WithAppConfig(appConf).WithAccounts(accounts)
+	cctx, rpcAddr, grpcAddr := testnode.NewNetwork(t, config)
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
@@ -118,65 +114,4 @@ func TestSubmitPayForBlob(t *testing.T) {
 func extractPort(addr string) string {
 	splitStr := strings.Split(addr, ":")
 	return splitStr[len(splitStr)-1]
-}
-
-// NewNetwork starts a single valiator celestia-app network using the provided
-// configurations. Provided accounts will be funded and their keys can be
-// accessed in keyring returned client.Context. All rpc, p2p, and grpc addresses
-// in the provided configs are overwritten to use open ports. The node can be
-// accessed via the returned client.Context or via the returned rpc and grpc
-// addresses. Provided genesis options will be applied after all accounts have
-// been initialized.
-//
-// FIXME: this function is copied from celestia-app because it doesn't currently
-// support the MinGasPrice query
-func NewNetwork(
-	t testing.TB,
-	cparams *tmproto.ConsensusParams,
-	tmCfg *config.Config,
-	appCfg *srvconfig.Config,
-	accounts []string,
-	genesisOpts ...testnode.GenesisOption,
-) (cctx testnode.Context, rpcAddr, grpcAddr string) {
-	t.Helper()
-
-	tmCfg.RPC.ListenAddress = fmt.Sprintf("tcp://127.0.0.1:%d", testnode.GetFreePort())
-	tmCfg.P2P.ListenAddress = fmt.Sprintf("tcp://127.0.0.1:%d", testnode.GetFreePort())
-	tmCfg.RPC.GRPCListenAddress = fmt.Sprintf("tcp://127.0.0.1:%d", testnode.GetFreePort())
-
-	genState, kr, err := testnode.DefaultGenesisState(accounts...)
-	require.NoError(t, err)
-
-	for _, opt := range genesisOpts {
-		genState = opt(genState)
-	}
-
-	tmNode, app, cctx, err := testnode.New(t, cparams, tmCfg, false, genState, kr, tmrand.Str(6))
-	require.NoError(t, err)
-
-	cctx, stopNode, err := testnode.StartNode(tmNode, cctx)
-	require.NoError(t, err)
-
-	// Add the tx service to the gRPC router. We only need to register this
-	// service if API or gRPC is enabled, and avoid doing so in the general
-	// case, because it spawns a new local tendermint RPC client.
-	if (appCfg.API.Enable || appCfg.GRPC.Enable) && tmNode != nil {
-		if a, ok := app.(types.ApplicationQueryService); ok {
-			a.RegisterNodeService(cctx.Context)
-		}
-	}
-
-	appCfg.GRPC.Address = fmt.Sprintf("127.0.0.1:%d", testnode.GetFreePort())
-	appCfg.API.Address = fmt.Sprintf("tcp://127.0.0.1:%d", testnode.GetFreePort())
-
-	cctx, cleanupGRPC, err := testnode.StartGRPCServer(app, appCfg, cctx)
-	require.NoError(t, err)
-
-	t.Cleanup(func() {
-		t.Log("tearing down testnode")
-		require.NoError(t, stopNode())
-		require.NoError(t, cleanupGRPC())
-	})
-
-	return cctx, tmCfg.RPC.ListenAddress, appCfg.GRPC.Address
 }
