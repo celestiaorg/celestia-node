@@ -102,14 +102,14 @@ func BatchSize(squareSize int) int {
 }
 
 type ProofsAdder struct {
-	lock   sync.Mutex
+	lock   sync.RWMutex
 	proofs map[cid.Cid][]byte
 }
 
 func NewProofsAdder(squareSize int) *ProofsAdder {
 	return &ProofsAdder{
-		// preallocate array to fit all inner nodes for given square size
-		proofs: make(map[cid.Cid][]byte, 2*(squareSize-1)*squareSize),
+		// preallocate map to fit all inner nodes for given square size
+		proofs: make(map[cid.Cid][]byte, innerNodesAmount(squareSize)),
 	}
 }
 
@@ -131,8 +131,8 @@ func (a *ProofsAdder) Proofs() map[cid.Cid][]byte {
 		return nil
 	}
 
-	a.lock.Lock()
-	defer a.lock.Unlock()
+	a.lock.RLock()
+	defer a.lock.RUnlock()
 	return a.proofs
 }
 
@@ -140,6 +140,9 @@ func (a *ProofsAdder) VisitFn() nmt.NodeVisitorFn {
 	if a == nil {
 		return nil
 	}
+
+	a.lock.RLock()
+	defer a.lock.RUnlock()
 
 	// proofs are already collected, don't collect second time
 	if len(a.proofs) > 0 {
@@ -164,4 +167,9 @@ func (a *ProofsAdder) addProof(id cid.Cid, proof []byte) {
 	a.lock.Lock()
 	defer a.lock.Unlock()
 	a.proofs[id] = proof
+}
+
+// innerNodesAmount return amount of inner nodes in eds with given size
+func innerNodesAmount(squareSize int) int {
+	return 2 * (squareSize - 1) * squareSize
 }
