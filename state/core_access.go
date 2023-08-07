@@ -186,7 +186,6 @@ func (ca *CoreAccessor) SubmitPayForBlob(
 	blobs []*blob.Blob,
 ) (*TxResponse, error) {
 	if len(blobs) == 0 {
-		// TODO: publilcly facing errors should be able to be handled
 		return nil, errors.New("state: no blobs provided")
 	}
 
