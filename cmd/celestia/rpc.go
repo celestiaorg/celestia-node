@@ -142,6 +142,7 @@ func parseParams(method string, params []string) []interface{} {
 			panic(fmt.Sprintf("Error parsing namespace: %v", err))
 		}
 		parsedParams[1] = namespace
+		return parsedParams
 	case "QueryDelegation", "QueryUnbonding", "BalanceForAddress":
 		var err error
 		if err = validateParamsFn(len(params), 2); err != nil {

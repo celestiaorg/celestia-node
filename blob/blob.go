@@ -144,20 +144,16 @@ func (b *Blob) Namespace() share.Namespace {
 }
 
 type jsonBlob struct {
-	Namespace share.Namespace `json:"namespace"`
-	// According to the Go documentation:
-	// Array and slice values encode as JSON arrays,
-	// except that []byte encodes as a base64-encoded string.
-	// So, this led to the incorrect representation of the `Data`.
-	Data         string     `json:"data"`
-	ShareVersion uint32     `json:"share_version"`
-	Commitment   Commitment `json:"commitment"`
+	Namespace    share.Namespace `json:"namespace"`
+	Data         []byte          `json:"data"`
+	ShareVersion uint32          `json:"share_version"`
+	Commitment   Commitment      `json:"commitment"`
 }
 
 func (b *Blob) MarshalJSON() ([]byte, error) {
 	blob := &jsonBlob{
 		Namespace:    b.Namespace(),
-		Data:         string(b.Data),
+		Data:         b.Data,
 		ShareVersion: b.ShareVersion,
 		Commitment:   b.Commitment,
 	}
@@ -173,7 +169,7 @@ func (b *Blob) UnmarshalJSON(data []byte) error {
 
 	b.Blob.NamespaceVersion = uint32(blob.Namespace.Version())
 	b.Blob.NamespaceId = blob.Namespace.ID()
-	b.Blob.Data = []byte(blob.Data)
+	b.Blob.Data = blob.Data
 	b.Blob.ShareVersion = blob.ShareVersion
 	b.Commitment = blob.Commitment
 	b.namespace = blob.Namespace

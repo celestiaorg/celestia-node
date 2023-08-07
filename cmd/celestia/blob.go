@@ -22,13 +22,13 @@ func init() {
 	getCmd.PersistentFlags().BoolVar(
 		&plaintext,
 		"plaintext",
-		false,
+		true,
 		"printed blob's data as a plain text",
 	)
 	getAllCmd.PersistentFlags().BoolVar(
 		&plaintext,
 		"plaintext",
-		false,
+		true,
 		"printed blob's data as a plain text",
 	)
 }
