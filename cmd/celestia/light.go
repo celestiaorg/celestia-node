@@ -18,6 +18,11 @@ import (
 // PersistentPreRun func on parent command.
 
 func init() {
+	basicFlags := []*pflag.FlagSet{
+		cmdnode.NodeFlags(),
+		p2p.Flags(),
+	}
+
 	flags := []*pflag.FlagSet{
 		cmdnode.NodeFlags(),
 		p2p.Flags(),
@@ -31,6 +36,8 @@ func init() {
 		state.Flags(),
 	}
 
+	flags = append(flags, basicFlags...)
+
 	lightCmd.AddCommand(
 		cmdnode.Init(flags...),
 		cmdnode.Start(flags...),
@@ -38,6 +45,7 @@ func init() {
 		cmdnode.ResetStore(flags...),
 		cmdnode.RemoveConfigCmd(flags...),
 		cmdnode.UpdateConfigCmd(flags...),
+		createRPCCmd(basicFlags...),
 	)
 }
 
@@ -46,6 +54,9 @@ var lightCmd = &cobra.Command{
 	Args:  cobra.NoArgs,
 	Short: "Manage your Light node",
 	PersistentPreRunE: func(cmd *cobra.Command, args []string) error {
-		return persistentPreRunEnv(cmd, node.Light, args)
+		if cmd.Name() != rpcCmd.Name() {
+			return persistentPreRunEnv(cmd, node.Light, args)
+		}
+		return persistentPreRunRPC(cmd, node.Light)
 	},
 }

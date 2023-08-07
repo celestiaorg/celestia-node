@@ -14,7 +14,7 @@ import (
 func TestParseNetwork_matchesByAlias(t *testing.T) {
 	cmd := createCmdWithNetworkFlag()
 
-	err := cmd.Flags().Set(networkFlag, "arabica")
+	err := cmd.Flags().Set(NetworkFlag, "arabica")
 	require.NoError(t, err)
 
 	net, err := ParseNetwork(cmd)
@@ -27,7 +27,7 @@ func TestParseNetwork_matchesByAlias(t *testing.T) {
 func TestParseNetwork_matchesByValue(t *testing.T) {
 	cmd := createCmdWithNetworkFlag()
 
-	err := cmd.Flags().Set(networkFlag, string(Arabica))
+	err := cmd.Flags().Set(NetworkFlag, string(Arabica))
 	require.NoError(t, err)
 
 	net, err := ParseNetwork(cmd)
@@ -50,7 +50,7 @@ func TestParseNetwork_parsesFromEnv(t *testing.T) {
 func TestParsedNetwork_invalidNetwork(t *testing.T) {
 	cmd := createCmdWithNetworkFlag()
 
-	err := cmd.Flags().Set(networkFlag, "invalid")
+	err := cmd.Flags().Set(NetworkFlag, "invalid")
 	require.NoError(t, err)
 
 	net, err := ParseNetwork(cmd)
@@ -62,7 +62,7 @@ func createCmdWithNetworkFlag() *cobra.Command {
 	cmd := &cobra.Command{}
 	flags := &flag.FlagSet{}
 	flags.String(
-		networkFlag,
+		NetworkFlag,
 		"",
 		"",
 	)

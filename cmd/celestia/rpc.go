@@ -9,16 +9,19 @@ import (
 	"io"
 	"log"
 	"net/http"
+	"os"
 	"reflect"
 	"strconv"
 	"strings"
 
 	"github.com/cristalhq/jwt"
 	"github.com/spf13/cobra"
+	flag "github.com/spf13/pflag"
 
 	"github.com/celestiaorg/celestia-node/api/rpc/client"
 	"github.com/celestiaorg/celestia-node/api/rpc/perms"
 	"github.com/celestiaorg/celestia-node/blob"
+	cmdnode "github.com/celestiaorg/celestia-node/cmd"
 	"github.com/celestiaorg/celestia-node/libs/authtoken"
 	"github.com/celestiaorg/celestia-node/libs/keystore"
 	nodemod "github.com/celestiaorg/celestia-node/nodebuilder/node"
@@ -49,6 +52,46 @@ type outputWithRequest struct {
 }
 
 func init() {
+
+}
+
+var rpcCmd = &cobra.Command{}
+
+func createRPCCmd(fsets ...*flag.FlagSet) *cobra.Command {
+	rpcCmd = &cobra.Command{
+		Use:   "rpc [namespace] [method] [params...]",
+		Short: "Send JSON-RPC request",
+		Args:  cobra.MinimumNArgs(2),
+		ValidArgsFunction: func(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
+			modules := client.Modules
+			if len(args) == 0 {
+				// get keys from modules (map[string]interface{})
+				var keys []string
+				for k := range modules {
+					keys = append(keys, k)
+				}
+				return keys, cobra.ShellCompDirectiveNoFileComp
+			} else if len(args) == 1 {
+				// get methods from module
+				module := modules[args[0]]
+				methods := reflect.VisibleFields(reflect.TypeOf(module).Elem())
+				var methodNames []string
+				for _, m := range methods {
+					methodNames = append(methodNames, m.Name+"\t"+parseSignatureForHelpstring(m))
+				}
+				return methodNames, cobra.ShellCompDirectiveNoFileComp
+			}
+			return nil, cobra.ShellCompDirectiveNoFileComp
+		},
+		Run: func(cmd *cobra.Command, args []string) {
+			namespace := args[0]
+			method := args[1]
+			params := parseParams(method, args[2:])
+
+			sendJSONRPCRequest(namespace, method, params)
+		},
+	}
+
 	rpcCmd.PersistentFlags().StringVar(
 		&requestURL,
 		"url",
@@ -67,47 +110,18 @@ func init() {
 		false,
 		"Print JSON-RPC request along with the response",
 	)
-	rpcCmd.PersistentFlags().StringVar(
-		&storePath,
-		"store.path",
-		"~/.celestia-light-"+string(p2p.DefaultNetwork),
-		"Store Path",
-	)
-	rootCmd.AddCommand(rpcCmd)
-}
 
-var rpcCmd = &cobra.Command{
-	Use:   "rpc [namespace] [method] [params...]",
-	Short: "Send JSON-RPC request",
-	Args:  cobra.MinimumNArgs(2),
-	ValidArgsFunction: func(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
-		modules := client.Modules
-		if len(args) == 0 {
-			// get keys from modules (map[string]interface{})
-			var keys []string
-			for k := range modules {
-				keys = append(keys, k)
-			}
-			return keys, cobra.ShellCompDirectiveNoFileComp
-		} else if len(args) == 1 {
-			// get methods from module
-			module := modules[args[0]]
-			methods := reflect.VisibleFields(reflect.TypeOf(module).Elem())
-			var methodNames []string
-			for _, m := range methods {
-				methodNames = append(methodNames, m.Name+"\t"+parseSignatureForHelpstring(m))
-			}
-			return methodNames, cobra.ShellCompDirectiveNoFileComp
+	for _, set := range fsets {
+		if flag := set.Lookup(cmdnode.NodeStoreFlag); flag != nil {
+			rpcCmd.Flags().AddFlag(flag)
 		}
-		return nil, cobra.ShellCompDirectiveNoFileComp
-	},
-	Run: func(cmd *cobra.Command, args []string) {
-		namespace := args[0]
-		method := args[1]
-		params := parseParams(method, args[2:])
 
-		sendJSONRPCRequest(namespace, method, params)
-	},
+		if flag := set.Lookup(p2p.NetworkFlag); flag != nil {
+			rpcCmd.Flags().AddFlag(flag)
+		}
+	}
+
+	return rpcCmd
 }
 
 func parseParams(method string, params []string) []interface{} {
@@ -355,26 +369,7 @@ func sendJSONRPCRequest(namespace, method string, params []interface{}) {
 	}
 
 	req.Header.Set("Content-Type", "application/json")
-
-	authToken := authTokenFlag
-	if authToken == "" {
-		privKey, err := keystore.GetKey(storePath, nodemod.SecretName)
-		if err != nil {
-			panic(err)
-		}
-
-		signer, err := jwt.NewHS256(privKey)
-		if err != nil {
-			panic(err)
-		}
-
-		token, err := authtoken.NewSignedJWT(signer, perms.AllPerms)
-		if err != nil {
-			log.Fatalf("Error creating an auth token: %v", err)
-		}
-		authToken = token
-	}
-	req.Header.Set("Authorization", "Bearer "+authToken)
+	req.Header.Set("Authorization", "Bearer "+authTokenFlag)
 
 	client := &http.Client{}
 	resp, err := client.Do(req)
@@ -473,4 +468,44 @@ func parseJSON(param string) (json.RawMessage, error) {
 	var raw json.RawMessage
 	err := json.Unmarshal([]byte(param), &raw)
 	return raw, err
+}
+
+func persistentPreRunRPC(cmd *cobra.Command, nodeType nodemod.Type) error {
+	if authTokenFlag != "" {
+		return nil
+	}
+
+	store := cmd.Flag(cmdnode.NodeStoreFlag).Value.String()
+	if store == "" {
+		network := cmd.Flag(p2p.NetworkFlag).Value.String()
+		if network == "" {
+			network = p2p.DefaultNetwork.String()
+			if custom, ok := os.LookupEnv(p2p.EnvCustomNetwork); ok {
+				network = custom
+			}
+		}
+
+		path, err := cmdnode.DefaultNodeStorePath(nodeType.String(), network)
+		if err != nil {
+			log.Fatal(err)
+		}
+		store = path
+	}
+
+	privKey, err := keystore.GetKey(store, nodemod.SecretName)
+	if err != nil {
+		panic(err)
+	}
+
+	signer, err := jwt.NewHS256(privKey)
+	if err != nil {
+		panic(err)
+	}
+
+	token, err := authtoken.NewSignedJWT(signer, perms.AllPerms)
+	if err != nil {
+		log.Fatalf("Error creating an auth token: %v", err)
+	}
+	authTokenFlag = token
+	return nil
 }

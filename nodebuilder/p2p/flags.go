@@ -14,7 +14,7 @@ import (
 const EnvCustomNetwork = "CELESTIA_CUSTOM"
 
 const (
-	networkFlag = "p2p.network"
+	NetworkFlag = "p2p.network"
 	mutualFlag  = "p2p.mutual"
 )
 
@@ -31,7 +31,7 @@ Peers must bidirectionally point to each other. (Format: multiformats.io/multiad
 `,
 	)
 	flags.String(
-		networkFlag,
+		NetworkFlag,
 		"",
 		"The name of the network to connect to, e.g. "+
 			listProvidedNetworks()+
@@ -67,7 +67,7 @@ func ParseFlags(
 // ParseNetwork tries to parse the network from the flags and environment,
 // and returns either the parsed network or the build's default network
 func ParseNetwork(cmd *cobra.Command) (Network, error) {
-	parsed := cmd.Flag(networkFlag).Value.String()
+	parsed := cmd.Flag(NetworkFlag).Value.String()
 	// no network set through the flags, so check if there is an override in the env
 	if parsed == "" {
 		envNetwork, err := parseNetworkFromEnv()

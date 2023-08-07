@@ -15,8 +15,8 @@ import (
 	"github.com/celestiaorg/celestia-node/nodebuilder/p2p"
 )
 
-var (
-	nodeStoreFlag  = "node.store"
+const (
+	NodeStoreFlag  = "node.store"
 	nodeConfigFlag = "node.config"
 )
 
@@ -25,7 +25,7 @@ func NodeFlags() *flag.FlagSet {
 	flags := &flag.FlagSet{}
 
 	flags.String(
-		nodeStoreFlag,
+		NodeStoreFlag,
 		"",
 		"The path to root/home directory of your Celestia Node Store",
 	)
@@ -40,7 +40,7 @@ func NodeFlags() *flag.FlagSet {
 
 // ParseNodeFlags parses Node flags from the given cmd and applies values to Env.
 func ParseNodeFlags(ctx context.Context, cmd *cobra.Command, network p2p.Network) (context.Context, error) {
-	store := cmd.Flag(nodeStoreFlag).Value.String()
+	store := cmd.Flag(NodeStoreFlag).Value.String()
 	if store == "" {
 		tp := NodeType(ctx)
 		var err error
