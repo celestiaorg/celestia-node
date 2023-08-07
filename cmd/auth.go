@@ -39,7 +39,7 @@ func newToken(cmd *cobra.Command, args []string) error {
 		return err
 	}
 
-	privKey, err := keystore.Key(StorePath(cmd.Context()), nodemod.SecretName)
+	privKey, err := keystore.GetKey(StorePath(cmd.Context()), nodemod.SecretName)
 	if err != nil {
 		return err
 	}

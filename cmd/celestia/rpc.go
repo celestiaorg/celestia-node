@@ -358,7 +358,7 @@ func sendJSONRPCRequest(namespace, method string, params []interface{}) {
 
 	authToken := authTokenFlag
 	if authToken == "" {
-		privKey, err := keystore.Key(storePath, nodemod.SecretName)
+		privKey, err := keystore.GetKey(storePath, nodemod.SecretName)
 		if err != nil {
 			panic(err)
 		}
@@ -370,7 +370,7 @@ func sendJSONRPCRequest(namespace, method string, params []interface{}) {
 
 		token, err := authtoken.NewSignedJWT(signer, perms.AllPerms)
 		if err != nil {
-			panic(err)
+			log.Fatalf("Error creating an auth token: %v", err)
 		}
 		authToken = token
 	}

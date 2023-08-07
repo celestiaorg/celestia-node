@@ -147,7 +147,7 @@ func checkPerms(perms os.FileMode) error {
 	return nil
 }
 
-func Key(path string, keyName KeyName) ([]byte, error) {
+func GetKey(path string, keyName KeyName) ([]byte, error) {
 	expanded, err := homedir.Expand(filepath.Clean(path))
 	if err != nil {
 		return nil, err
