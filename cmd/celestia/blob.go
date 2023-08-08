@@ -1,7 +1,7 @@
 package main
 
 import (
-	encoding "encoding/base64"
+	"encoding/base64"
 	"encoding/json"
 	"fmt"
 	"os"
@@ -14,19 +14,19 @@ import (
 	"github.com/celestiaorg/celestia-node/share"
 )
 
-var base64 bool
+var base64Flag bool
 
 func init() {
 	blobCmd.AddCommand(getCmd, getAllCmd, submitCmd, getProofCmd)
 
 	getCmd.PersistentFlags().BoolVar(
-		&base64,
+		&base64Flag,
 		"base64",
 		false,
 		"printed blob's data a base64 string",
 	)
 	getAllCmd.PersistentFlags().BoolVar(
-		&base64,
+		&base64Flag,
 		"base64",
 		false,
 		"printed blob's data as a base64 string",
@@ -59,7 +59,7 @@ var getCmd = &cobra.Command{
 			return fmt.Errorf("error parsing a namespace:%v", err)
 		}
 
-		commitment, err := encoding.StdEncoding.DecodeString(args[2])
+		commitment, err := base64.StdEncoding.DecodeString(args[2])
 		if err != nil {
 			return fmt.Errorf("error parsing a commitment:%v", err)
 		}
@@ -153,7 +153,7 @@ var getProofCmd = &cobra.Command{
 			return fmt.Errorf("error parsing a namespace:%v", err)
 		}
 
-		commitment, err := encoding.StdEncoding.DecodeString(args[2])
+		commitment, err := base64.StdEncoding.DecodeString(args[2])
 		if err != nil {
 			return fmt.Errorf("error parsing a commitment:%v", err)
 		}
@@ -170,7 +170,7 @@ func printOutput(data interface{}, err error) {
 		data = err
 	}
 
-	if !base64 && err == nil {
+	if !base64Flag && err == nil {
 		data = formatData(data)
 	}
 
