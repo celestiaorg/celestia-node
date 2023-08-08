@@ -120,7 +120,7 @@ var rpcCmd = &cobra.Command{
 func parseParams(method string, params []string) []interface{} {
 	parsedParams := make([]interface{}, len(params))
 	validateParamsFn := func(has, want int) error {
-		if has < want {
+		if has != want {
 			return fmt.Errorf("rpc: invalid amount of params. has=%d, want=%d", has, want)
 		}
 		return nil

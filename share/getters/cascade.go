@@ -40,7 +40,7 @@ func (cg *CascadeGetter) GetShare(ctx context.Context, root *share.Root, row, co
 	defer span.End()
 	if row >= len(root.RowRoots) || col >= len(root.ColumnRoots) {
 		err := fmt.Errorf("cascade/get-share: invalid indexes were provided:rowIndex=%d, colIndex=%d."+
-			"rowsAmount=%d, colsAmount=%d", row, col, len(root.RowRoots), len(root.ColumnRoots))
+			"squarewidth=%d", row, col, len(root.RowRoots))
 		span.RecordError(err)
 		return nil, err
 	}
