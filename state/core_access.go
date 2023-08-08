@@ -211,9 +211,9 @@ func (ca *CoreAccessor) SubmitPayForBlob(
 			blobSizes[i] = uint32(len(blob.Data))
 		}
 
-		// TODO (@cmwaters): the default gas per byte and the default tx size cost per byte could be changed through governance
-		// This section could be more robust by tracking these values and adjusting the gas limit accordingly
-		// (as is done for the gas price)
+		// TODO (@cmwaters): the default gas per byte and the default tx size cost per byte could be changed
+		// through governance. This section could be more robust by tracking these values and adjusting the
+		// gas limit accordingly (as is done for the gas price)
 		gasLim = apptypes.EstimateGas(blobSizes, appconsts.DefaultGasPerBlobByte, auth.DefaultTxSizeCostPerByte)
 	}
 
