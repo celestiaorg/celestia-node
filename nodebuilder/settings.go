@@ -171,8 +171,13 @@ func initializeMetrics(
 		sdk.WithReader(sdk.NewPeriodicReader(exp, sdk.WithTimeout(2*time.Second))),
 		sdk.WithResource(resource.NewWithAttributes(
 			semconv.SchemaURL,
-			semconv.ServiceNamespaceKey.String(nodeType.String()),
-			semconv.ServiceNameKey.String(fmt.Sprintf("%s/%s", network.String(), peerID.String())))))
+			// ServiceNamespaceKey and ServiceNameKey will be concatenated into single attribute with key:
+			// "job" and value: "%service.namespace%/%service.name%"
+			semconv.ServiceNamespaceKey.String(network.String()),
+			semconv.ServiceNameKey.String(nodeType.String()),
+			// ServiceInstanceIDKey will be exported with key: "instance"
+			semconv.ServiceInstanceIDKey.String(peerID.String()),
+		)))
 	lc.Append(fx.Hook{
 		OnStop: func(ctx context.Context) error {
 			return provider.Shutdown(ctx)
