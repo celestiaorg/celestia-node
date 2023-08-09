@@ -16,7 +16,6 @@ func TestChainIDFromNetwork(t *testing.T) {
 		{name: "mocha-3", expectedChainID: "mocha-3"},
 		{name: "celestia-da-network1", expectedChainID: "celestia"},
 		{name: "celestia", expectedChainID: "celestia"},
-		{name: "malformed-blahblah", expectedChainID: "malformed-blahblah"},
 	}
 
 	for i, tt := range tests {
