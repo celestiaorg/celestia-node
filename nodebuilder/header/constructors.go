@@ -26,6 +26,7 @@ func newP2PExchange(
 	lc fx.Lifecycle,
 	bpeers modp2p.Bootstrappers,
 	network modp2p.Network,
+	chainID modp2p.ChainID,
 	host host.Host,
 	conngater *conngater.BasicConnectionGater,
 	cfg Config,
@@ -42,7 +43,7 @@ func newP2PExchange(
 	exchange, err := p2p.NewExchange[*header.ExtendedHeader](host, ids, conngater,
 		p2p.WithParams(cfg.Client),
 		p2p.WithNetworkID[p2p.ClientParameters](network.String()),
-		p2p.WithChainID(network.String()),
+		p2p.WithChainID(chainID.String()),
 	)
 	if err != nil {
 		return nil, err

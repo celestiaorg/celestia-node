@@ -2,6 +2,7 @@ package p2p
 
 import (
 	"errors"
+	"strings"
 	"time"
 
 	"github.com/libp2p/go-libp2p/core/peer"
@@ -25,7 +26,20 @@ const (
 )
 
 // Network is a type definition for DA network run by Celestia Node.
+// Networks using a custom suffix should always be formatted using `-da-` as the
+// separator and must contain the ChainID at the beginning.
+// Example: `mocha-3-da-customnet`. The Network would be `mocha-3-da-customnet`,
+// but the ChainID would be `mocha-3`.
+//
+// Note: this does not apply for those using `CELESTIA_CUSTOM`.
 type Network string
+
+// ChainID is a type definition for a Celestia chain-ID. A chain-ID is different
+// from a network name as the chain-ID corresponds to the actual core consensus
+// chain while the DA network ID can just be an identifier for the DA network
+// (they are often the same, but it is possible to run several DA networks off
+// of one core consensus chain, thus the differentiation).
+type ChainID string
 
 // Bootstrappers is a type definition for nodes that will be used as bootstrappers.
 type Bootstrappers []peer.AddrInfo
@@ -48,6 +62,28 @@ func (n Network) Validate() (Network, error) {
 // String returns string representation of the Network.
 func (n Network) String() string {
 	return string(n)
+}
+
+// ChainIDFromNetwork parses the ChainID from the Network name.
+func ChainIDFromNetwork(net Network) ChainID {
+	if !strings.Contains(net.String(), "da") {
+		return ChainID(net.String())
+	}
+	// parse the ChainID from the custom Network name
+	networkName := strings.Split(net.String(), "-")
+	switch len(networkName) {
+	case 3:
+		// handles case where no suffix has been added to core consensus chainID
+		return ChainID(networkName[0])
+	case 4:
+		return ChainID(strings.Join(networkName[:2], "-"))
+	}
+	return ""
+}
+
+// String returns string representation of the ChainID.
+func (c ChainID) String() string {
+	return string(c)
 }
 
 // networksList is a strict list of all known long-standing networks.

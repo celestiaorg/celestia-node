@@ -60,6 +60,7 @@ func TestConstructModule_SyncerParams(t *testing.T) {
 	var syncer *sync.Syncer[*header.ExtendedHeader]
 	app := fxtest.New(t,
 		fx.Supply(modp2p.Private),
+		fx.Supply(modp2p.ChainIDFromNetwork(modp2p.Private)),
 		fx.Supply(modp2p.Bootstrappers{}),
 		fx.Provide(context.Background),
 		fx.Provide(libp2p.New),
@@ -95,6 +96,7 @@ func TestConstructModule_ExchangeParams(t *testing.T) {
 
 	app := fxtest.New(t,
 		fx.Supply(modp2p.Private),
+		fx.Supply(modp2p.ChainIDFromNetwork(modp2p.Private)),
 		fx.Supply(modp2p.Bootstrappers{}),
 		fx.Provide(libp2p.New),
 		fx.Provide(func() datastore.Batching {

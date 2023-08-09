@@ -11,6 +11,8 @@ import (
 )
 
 // EnvCustomNetwork is the environment variable name used for setting a custom network.
+// Note that setting a custom network overrides network/chainID validation rules - so
+// the custom network name MUST match the chainID used by the core consensus network.
 const EnvCustomNetwork = "CELESTIA_CUSTOM"
 
 const (
