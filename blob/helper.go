@@ -32,6 +32,11 @@ func SharesToBlobs(rawShares []share.Share) ([]*Blob, error) {
 		return nil, err
 	}
 
+	// ensure that sequence length is not 0
+	if len(shareSequences) == 0 {
+		return nil, ErrBlobNotFound
+	}
+
 	blobs := make([]*Blob, len(shareSequences))
 	for i, sequence := range shareSequences {
 		data, err := sequence.RawData()
