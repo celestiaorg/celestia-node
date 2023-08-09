@@ -30,8 +30,6 @@ const (
 // separator and must contain the ChainID at the beginning.
 // Example: `mocha-3-da-customnet`. The Network would be `mocha-3-da-customnet`,
 // but the ChainID would be `mocha-3`.
-//
-// Note: this does not apply for those using `CELESTIA_CUSTOM`.
 type Network string
 
 // ChainID is a type definition for a Celestia chain-ID. A chain-ID is different
