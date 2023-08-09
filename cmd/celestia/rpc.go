@@ -119,9 +119,17 @@ var rpcCmd = &cobra.Command{
 
 func parseParams(method string, params []string) []interface{} {
 	parsedParams := make([]interface{}, len(params))
-
+	validateParamsFn := func(has, want int) error {
+		if has != want {
+			return fmt.Errorf("rpc: invalid amount of params. has=%d, want=%d", has, want)
+		}
+		return nil
+	}
 	switch method {
 	case "GetSharesByNamespace":
+		if err := validateParamsFn(len(params), 2); err != nil {
+			panic(err)
+		}
 		// 1. Share Root
 		root, err := parseJSON(params[0])
 		if err != nil {
@@ -134,8 +142,12 @@ func parseParams(method string, params []string) []interface{} {
 			panic(fmt.Sprintf("Error parsing namespace: %v", err))
 		}
 		parsedParams[1] = namespace
+		return parsedParams
 	case "QueryDelegation", "QueryUnbonding", "BalanceForAddress":
 		var err error
+		if err = validateParamsFn(len(params), 2); err != nil {
+			panic(err)
+		}
 		parsedParams[0], err = parseAddressFromString(params[0])
 		if err != nil {
 			panic(fmt.Errorf("error parsing address: %w", err))
@@ -155,6 +167,9 @@ func parseParams(method string, params []string) []interface{} {
 	case "Transfer", "Delegate", "Undelegate":
 		// 1. Address
 		var err error
+		if err = validateParamsFn(len(params), 4); err != nil {
+			panic(err)
+		}
 		parsedParams[0], err = parseAddressFromString(params[0])
 		if err != nil {
 			panic(fmt.Errorf("error parsing address: %w", err))
@@ -172,6 +187,9 @@ func parseParams(method string, params []string) []interface{} {
 	case "CancelUnbondingDelegation":
 		// 1. Validator Address
 		var err error
+		if err = validateParamsFn(len(params), 5); err != nil {
+			panic(err)
+		}
 		parsedParams[0], err = parseAddressFromString(params[0])
 		if err != nil {
 			panic(fmt.Errorf("error parsing address: %w", err))
@@ -186,9 +204,13 @@ func parseParams(method string, params []string) []interface{} {
 			panic("Error parsing gas limit: uint64 could not be parsed.")
 		}
 		parsedParams[4] = num
+		return parsedParams
 	case "BeginRedelegate":
 		// 1. Source Validator Address
 		var err error
+		if err = validateParamsFn(len(params), 5); err != nil {
+			panic(err)
+		}
 		parsedParams[0], err = parseAddressFromString(params[0])
 		if err != nil {
 			panic(fmt.Errorf("error parsing address: %w", err))
@@ -207,6 +229,7 @@ func parseParams(method string, params []string) []interface{} {
 			panic("Error parsing gas limit: uint64 could not be parsed.")
 		}
 		parsedParams[4] = num
+		return parsedParams
 	default:
 	}
 
@@ -228,7 +251,6 @@ func parseParams(method string, params []string) []interface{} {
 			parsedParams[i] = param
 		}
 	}
-
 	return parsedParams
 }
 
