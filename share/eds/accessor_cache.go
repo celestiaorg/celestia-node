@@ -16,7 +16,7 @@ import (
 
 var (
 	defaultCacheSize = 128
-	errCacheMiss     = errors.New("accessor not found in blockstore cache")
+	errCacheMiss     = errors.New("accessor not found in Blockstore cache")
 )
 
 // accessorWithBlockstore is the value that we store in the blockstore cache
@@ -114,7 +114,7 @@ func (bc *blockstoreCache) unsafeAdd(
 ) (*accessorWithBlockstore, error) {
 	blockStore, err := accessor.Blockstore()
 	if err != nil {
-		return nil, fmt.Errorf("failed to get blockstore from accessor: %w", err)
+		return nil, fmt.Errorf("failed to get Blockstore from accessor: %w", err)
 	}
 
 	newAccessor := &accessorWithBlockstore{

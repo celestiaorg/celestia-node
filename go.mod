@@ -80,6 +80,8 @@ require (
 	google.golang.org/protobuf v1.31.0
 )
 
+require github.com/ipfs/go-ipfs-ds-help v1.1.0
+
 require (
 	cloud.google.com/go v0.110.6 // indirect
 	cloud.google.com/go/compute v1.23.0 // indirect
@@ -202,7 +204,6 @@ require (
 	github.com/ipfs/bbloom v0.0.4 // indirect
 	github.com/ipfs/go-ipfs-blockstore v1.3.1 // indirect
 	github.com/ipfs/go-ipfs-delay v0.0.1 // indirect
-	github.com/ipfs/go-ipfs-ds-help v1.1.0 // indirect
 	github.com/ipfs/go-ipfs-exchange-interface v0.2.1 // indirect
 	github.com/ipfs/go-ipfs-exchange-offline v0.3.0 // indirect
 	github.com/ipfs/go-ipfs-pq v0.0.3 // indirect

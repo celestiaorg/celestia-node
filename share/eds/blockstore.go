@@ -11,7 +11,7 @@ import (
 	"github.com/ipfs/go-cid"
 	"github.com/ipfs/go-datastore"
 	"github.com/ipfs/go-datastore/namespace"
-	bstore "github.com/ipfs/go-ipfs-blockstore"
+	dshelp "github.com/ipfs/go-ipfs-ds-help"
 	ipld "github.com/ipfs/go-ipld-format"
 )
 
@@ -46,22 +46,30 @@ func newBlockstore(store *Store, cache *blockstoreCache, ds datastore.Batching) 
 
 func (bs *blockstore) Has(ctx context.Context, cid cid.Cid) (bool, error) {
 	keys, err := bs.store.dgstr.ShardsContainingMultihash(ctx, cid.Hash())
-	if errors.Is(err, ErrNotFound) {
-		return bs.ds.Has(ctx, datastore.NewKey(cid.KeyString()))
+	k := dshelp.MultihashToDsKey(cid.Hash())
+	if errors.Is(err, ErrNotFound) || errors.Is(err, ErrNotFoundInIndex) {
+		// key wasn't found in top level blockstore, but could be in datastore while being reconstructed
+		dsHas, dsErr := bs.ds.Has(ctx, k)
+		if dsErr != nil {
+			return false, ErrNotFound
+		}
+		return dsHas, nil
 	}
 	if err != nil {
-		return false, fmt.Errorf("failed to find shards containing multihash: %w", err)
+		return false, err
 	}
+
 	return len(keys) > 0, nil
 }
 
 func (bs *blockstore) Get(ctx context.Context, cid cid.Cid) (blocks.Block, error) {
 	blockstr, err := bs.getReadOnlyBlockstore(ctx, cid)
-	if errors.Is(err, ErrNotFound) {
+	if errors.Is(err, ErrNotFound) || errors.Is(err, ErrNotFoundInIndex) {
 		// TODO(REVIEWERS): Not sure if we should log the error or not. I don't think it needs
 		// to be returned, since this ds.Get is a "last ditch effort" to find the block, and the
 		// relevant error stays ipld.ErrNotFound
-		blockData, err := bs.ds.Get(ctx, datastore.NewKey(cid.KeyString()))
+		k := dshelp.MultihashToDsKey(cid.Hash())
+		blockData, err := bs.ds.Get(ctx, k)
 		if err == nil {
 			return blocks.NewBlockWithCid(blockData, cid)
 		}
@@ -69,7 +77,7 @@ func (bs *blockstore) Get(ctx context.Context, cid cid.Cid) (blocks.Block, error
 		return nil, ipld.ErrNotFound{Cid: cid}
 	}
 	if err != nil {
-		log.Debugf("failed to get Blockstore for cid %s: %s", cid, err)
+		log.Debugf("failed to get blockstore for cid %s: %s", cid, err)
 		return nil, err
 	}
 	return blockstr.Get(ctx, cid)
@@ -77,8 +85,9 @@ func (bs *blockstore) Get(ctx context.Context, cid cid.Cid) (blocks.Block, error
 
 func (bs *blockstore) GetSize(ctx context.Context, cid cid.Cid) (int, error) {
 	blockstr, err := bs.getReadOnlyBlockstore(ctx, cid)
-	if errors.Is(err, ErrNotFound) {
-		size, err := bs.ds.GetSize(ctx, datastore.NewKey(cid.KeyString()))
+	if errors.Is(err, ErrNotFound) || errors.Is(err, ErrNotFoundInIndex) {
+		k := dshelp.MultihashToDsKey(cid.Hash())
+		size, err := bs.ds.GetSize(ctx, k)
 		if err == nil {
 			return size, nil
 		}
@@ -92,11 +101,18 @@ func (bs *blockstore) GetSize(ctx context.Context, cid cid.Cid) (int, error) {
 }
 
 func (bs *blockstore) DeleteBlock(ctx context.Context, cid cid.Cid) error {
-	return bs.ds.Delete(ctx, datastore.NewKey(cid.KeyString()))
+	k := dshelp.MultihashToDsKey(cid.Hash())
+	return bs.ds.Delete(ctx, k)
 }
 
 func (bs *blockstore) Put(ctx context.Context, blk blocks.Block) error {
-	return bs.ds.Put(ctx, datastore.NewKey(blk.Cid().KeyString()), blk.RawData())
+	k := dshelp.MultihashToDsKey(blk.Cid().Hash())
+
+	exists, err := bs.ds.Has(ctx, k)
+	if err == nil && exists {
+		return nil
+	}
+	return bs.ds.Put(ctx, k, blk.RawData())
 }
 
 func (bs *blockstore) PutMany(ctx context.Context, blocks []blocks.Block) error {
@@ -118,13 +134,13 @@ func (bs *blockstore) AllKeysChan(context.Context) (<-chan cid.Cid, error) {
 // HashOnRead is a noop on the EDS blockstore but an error cannot be returned due to the method
 // signature from the blockstore interface.
 func (bs *blockstore) HashOnRead(bool) {
-	log.Warnf("HashOnRead is a noop on the EDS Blockstore")
+	log.Warnf("HashOnRead is a noop on the EDS blockstore")
 }
 
 // getReadOnlyBlockstore finds the underlying blockstore of the shard that contains the given CID.
 func (bs *blockstore) getReadOnlyBlockstore(ctx context.Context, cid cid.Cid) (dagstore.ReadBlockstore, error) {
 	keys, err := bs.store.dgstr.ShardsContainingMultihash(ctx, cid.Hash())
-	if errors.Is(err, datastore.ErrNotFound) {
+	if errors.Is(err, datastore.ErrNotFound) || errors.Is(err, ErrNotFoundInIndex) {
 		return nil, ErrNotFound
 	}
 	if err != nil {

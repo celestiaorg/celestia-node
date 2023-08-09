@@ -2,12 +2,12 @@ package eds
 
 import (
 	"context"
-	"github.com/ipfs/boxo/ipld/car"
 	"io"
 	"testing"
 
 	"github.com/filecoin-project/dagstore"
 	ipld "github.com/ipfs/go-ipld-format"
+	"github.com/ipld/go-car"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
@@ -56,12 +56,12 @@ func TestBlockstore_Operations(t *testing.T) {
 		for _, bs := range blockstores {
 			// test GetSize
 			has, err := bs.Has(ctx, blockCid)
-			require.NoError(t, err, "Blockstore.Has could not find root CID")
+			require.NoError(t, err, "blockstore.Has could not find root CID")
 			require.True(t, has)
 
 			// test GetSize
 			block, err := bs.Get(ctx, blockCid)
-			assert.NoError(t, err, "Blockstore.Get could not get a leaf CID")
+			assert.NoError(t, err, "blockstore.Get could not get a leaf CID")
 			assert.Equal(t, block.Cid(), blockCid)
 			assert.Equal(t, block.RawData(), next.RawData())
 
@@ -71,7 +71,7 @@ func TestBlockstore_Operations(t *testing.T) {
 
 			// test GetSize
 			size, err := bs.GetSize(ctx, blockCid)
-			assert.NotZerof(t, size, "blocksize.GetSize reported a root block from Blockstore was empty")
+			assert.NotZerof(t, size, "blocksize.GetSize reported a root block from blockstore was empty")
 			assert.NoError(t, err)
 		}
 	}

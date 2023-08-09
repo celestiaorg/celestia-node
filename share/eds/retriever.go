@@ -153,22 +153,6 @@ func (r *Retriever) newSession(
 	ctx context.Context, dah *da.DataAvailabilityHeader, cleanupFunc CleanupFunc,
 ) (*retrievalSession, error) {
 	size := len(dah.RowRoots)
-	treeFn := func(_ rsmt2d.Axis, index uint) rsmt2d.Tree {
-		// use proofs adder if provided, to cache collected proofs while recomputing the eds
-		var opts []nmt.Option
-		visitor := ipld.ProofsAdderFromCtx(ctx).VisitFn()
-		if visitor != nil {
-			opts = append(opts, nmt.NodeVisitor(visitor))
-		}
-
-		tree := wrapper.NewErasuredNamespacedMerkleTree(uint64(size)/2, index, opts...)
-		return &tree
-	}
-
-	square, err := rsmt2d.NewExtendedDataSquare(share.DefaultRSMT2DCodec(), treeFn, uint(size), share.Size)
-	if err != nil {
-		return nil, err
-	}
 
 	ses := &retrievalSession{
 		dah:             dah,
@@ -184,8 +168,23 @@ func (r *Retriever) newSession(
 	for i := range ses.squareCellsLks {
 		ses.squareCellsLks[i] = make([]sync.Mutex, size)
 	}
+
 	treeFn := func(_ rsmt2d.Axis, index uint) rsmt2d.Tree {
-		tree := wrapper.NewErasuredNamespacedMerkleTree(uint64(size)/2, index, nmt.NodeVisitor(ses.Visit))
+		var opts []nmt.Option
+		visitor := func(hash []byte, children ...[]byte) {
+			// collect CIDs to remove from EDS blockstore if cleanup is enabled
+			if r.cleanupFunc != nil {
+				ses.Visit(hash, children...)
+			}
+			// use proofs adder if provided, to cache collected proofs while recomputing the eds
+			proofAdder := ipld.ProofsAdderFromCtx(ctx).VisitFn()
+			if proofAdder != nil {
+				proofAdder(hash, children...)
+			}
+		}
+		opts = append(opts, nmt.NodeVisitor(visitor))
+
+		tree := wrapper.NewErasuredNamespacedMerkleTree(uint64(size)/2, index, opts...)
 		return &tree
 	}
 

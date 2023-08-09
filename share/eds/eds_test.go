@@ -115,8 +115,8 @@ func TestWriteEDSIncludesRoots(t *testing.T) {
 	require.NoError(t, err, "error loading car file")
 	for _, root := range loaded.Roots {
 		ok, err := bs.Has(context.Background(), root)
-		require.NoError(t, err, "error checking if Blockstore has root")
-		require.True(t, ok, "Blockstore does not have root")
+		require.NoError(t, err, "error checking if blockstore has root")
+		require.True(t, ok, "blockstore does not have root")
 	}
 }
 
