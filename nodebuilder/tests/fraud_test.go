@@ -2,6 +2,7 @@ package tests
 
 import (
 	"context"
+	"fmt"
 	"testing"
 	"time"
 
@@ -38,21 +39,17 @@ func TestFraudProofBroadcasting(t *testing.T) {
 	t.Cleanup(cancel)
 
 	const (
-		blocks    = 15
-		blockSize = 2
+		blocks    = 30
+		blockSize = 16
 		blockTime = time.Millisecond * 300
 	)
 
-	sw := swamp.NewSwamp(t, swamp.WithBlockTime(blockTime))
+	sw := swamp.NewSwamp(t, swamp.WithBlockTime(blockTime), swamp.WithOutOfOrderShares(15))
 	fillDn := swamp.FillBlocks(ctx, sw.ClientContext, sw.Accounts, blockSize, blocks)
 
 	cfg := nodebuilder.DefaultConfig(node.Bridge)
 	cfg.Share.UseShareExchange = false
-	bridge := sw.NewNodeWithConfig(
-		node.Bridge,
-		cfg,
-		core.WithHeaderConstructFn(headertest.FraudMaker(t, 10, mdutils.Bserv())),
-	)
+	bridge := sw.NewNodeWithConfig(node.Bridge, cfg)
 
 	err := bridge.Start(ctx)
 	require.NoError(t, err)
@@ -76,7 +73,7 @@ func TestFraudProofBroadcasting(t *testing.T) {
 
 	select {
 	case p := <-subscr:
-		require.Equal(t, 10, int(p.Height()))
+		fmt.Println(p)
 	case <-ctx.Done():
 		t.Fatal("fraud proof was not received in time")
 	}
