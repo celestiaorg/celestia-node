@@ -199,8 +199,7 @@ func formatData(data interface{}) interface{} {
 	if reflect.TypeOf(data).Kind() == reflect.Slice {
 		blobs, ok := data.([]*blob.Blob)
 		if !ok {
-			fmt.Fprintln(os.Stderr, "could not cast to []blob.Blob")
-			os.Exit(1)
+			return data
 		}
 
 		result := make([]tempBlob, len(blobs))
@@ -217,8 +216,7 @@ func formatData(data interface{}) interface{} {
 
 	b, ok := data.(*blob.Blob)
 	if !ok {
-		fmt.Fprintln(os.Stderr, "could not cast to blob.Blob")
-		os.Exit(1)
+		return data
 	}
 	return tempBlob{
 		Namespace:    b.Namespace(),
