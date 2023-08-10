@@ -68,7 +68,7 @@ func NewSwamp(t *testing.T, options ...Option) *Swamp {
 		logs.SetDebugLogging()
 	}
 
-	ic := DefaultConfig()
+	ic := core.DefaultTestConfig()
 	for _, option := range options {
 		option(ic)
 	}
@@ -334,4 +334,8 @@ func (s *Swamp) SetBootstrapper(t *testing.T, bootstrappers ...*nodebuilder.Node
 		require.NoError(t, err)
 		s.Bootstrappers = append(s.Bootstrappers, addrs[0])
 	}
+}
+
+func (s *Swamp) Config() *testnode.Config {
+	return s.cfg
 }

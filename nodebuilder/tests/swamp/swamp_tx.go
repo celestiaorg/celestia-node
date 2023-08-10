@@ -2,10 +2,13 @@ package swamp
 
 import (
 	"context"
+	"testing"
 	"time"
 
 	"github.com/cosmos/cosmos-sdk/client/flags"
+	"github.com/stretchr/testify/require"
 
+	"github.com/celestiaorg/celestia-app/test/txsim"
 	"github.com/celestiaorg/celestia-app/test/util/testnode"
 )
 
@@ -31,4 +34,15 @@ func FillBlocks(ctx context.Context, cctx testnode.Context, accounts []string, b
 		}
 	}()
 	return errCh
+}
+
+func FillBlocksWithMultipleBlobs(t *testing.T, ctx context.Context, cfg *testnode.Config, sdkcontext testnode.Context) {
+	err := txsim.Run(
+		ctx,
+		[]string{cfg.TmConfig.RPC.ListenAddress},
+		[]string{cfg.AppConfig.GRPC.Address},
+		sdkcontext.Keyring, 9001, 100*time.Millisecond,
+		txsim.NewBlobSequence(txsim.NewRange(1e3, 1e4), txsim.NewRange(1, 1)).Clone(10)...,
+	)
+	require.Equal(t, context.DeadlineExceeded, err)
 }

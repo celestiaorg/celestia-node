@@ -34,7 +34,6 @@ Note: 15 is not available because DASer will be stopped before reaching this hei
 Another note: this test disables share exchange to speed up test results.
 */
 func TestFraudProofBroadcasting(t *testing.T) {
-	t.Skip("requires BEFP generation on app side to work")
 	ctx, cancel := context.WithTimeout(context.Background(), swamp.DefaultTestTimeout)
 	t.Cleanup(cancel)
 
@@ -45,7 +44,7 @@ func TestFraudProofBroadcasting(t *testing.T) {
 	)
 
 	sw := swamp.NewSwamp(t, swamp.WithBlockTime(blockTime), swamp.WithOutOfOrderShares(15))
-	fillDn := swamp.FillBlocks(ctx, sw.ClientContext, sw.Accounts, blockSize, blocks)
+	go swamp.FillBlocksWithMultipleBlobs(t, ctx, sw.Config(), sw.ClientContext)
 
 	cfg := nodebuilder.DefaultConfig(node.Bridge)
 	cfg.Share.UseShareExchange = false
@@ -94,7 +93,6 @@ func TestFraudProofBroadcasting(t *testing.T) {
 	proofs, err := full.FraudServ.Get(ctx, byzantine.BadEncoding)
 	require.NoError(t, err)
 	require.NotNil(t, proofs)
-	require.NoError(t, <-fillDn)
 }
 
 /*
