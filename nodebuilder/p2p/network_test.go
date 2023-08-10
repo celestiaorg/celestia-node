@@ -12,9 +12,9 @@ func TestChainIDFromNetwork(t *testing.T) {
 		name            string
 		expectedChainID string
 	}{
-		{name: "mocha-3-da-custom", expectedChainID: "mocha-3"},
+		{name: "mocha-3:custom", expectedChainID: "mocha-3"},
 		{name: "mocha-3", expectedChainID: "mocha-3"},
-		{name: "celestia-da-network1", expectedChainID: "celestia"},
+		{name: "celestia:network1", expectedChainID: "celestia"},
 		{name: "celestia", expectedChainID: "celestia"},
 	}
 
