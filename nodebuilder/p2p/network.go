@@ -26,9 +26,9 @@ const (
 )
 
 // Network is a type definition for DA network run by Celestia Node.
-// Networks using a custom suffix should always be formatted using `-da-` as the
+// Networks using a custom suffix should always be formatted using `:` as the
 // separator and must contain the ChainID at the beginning.
-// Example: `mocha-3-da-customnet`. The Network would be `mocha-3-da-customnet`,
+// Example: `mocha-3:da-customnet`. The Network would be `mocha-3:da-customnet`,
 // but the ChainID would be `mocha-3`.
 type Network string
 
@@ -64,19 +64,12 @@ func (n Network) String() string {
 
 // ChainIDFromNetwork parses the ChainID from the Network name.
 func ChainIDFromNetwork(net Network) ChainID {
-	if !strings.Contains(net.String(), "da") {
+	if !strings.Contains(net.String(), ":") {
 		return ChainID(net.String())
 	}
 	// parse the ChainID from the custom Network name
-	networkName := strings.Split(net.String(), "-")
-	switch len(networkName) {
-	case 3:
-		// handles case where no suffix has been added to core consensus chainID
-		return ChainID(networkName[0])
-	case 4:
-		return ChainID(strings.Join(networkName[:2], "-"))
-	}
-	return ""
+	networkName := strings.Split(net.String(), ":")
+	return ChainID(networkName[0])
 }
 
 // String returns string representation of the ChainID.
