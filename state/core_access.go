@@ -88,13 +88,12 @@ func NewCoreAccessor(
 	prt.RegisterOpDecoder(storetypes.ProofOpIAVLCommitment, storetypes.CommitmentOpDecoder)
 	prt.RegisterOpDecoder(storetypes.ProofOpSimpleMerkleCommitment, storetypes.CommitmentOpDecoder)
 	return &CoreAccessor{
-		signer:      signer,
-		getter:      getter,
-		coreIP:      coreIP,
-		rpcPort:     rpcPort,
-		grpcPort:    grpcPort,
-		prt:         prt,
-		minGasPrice: -1, // since 0 is a valid value, a negative value is used instead.
+		signer:   signer,
+		getter:   getter,
+		coreIP:   coreIP,
+		rpcPort:  rpcPort,
+		grpcPort: grpcPort,
+		prt:      prt,
 	}
 }
 
@@ -241,14 +240,14 @@ func (ca *CoreAccessor) SubmitPayForBlob(
 		// update our version accordingly
 		if apperrors.IsInsufficientMinGasPrice(err) && estimatedFee {
 			// The error message contains enough information to parse the new min gas price
-			newMinGasPrice, err := apperrors.ParseInsufficientMinGasPrice(err, minGasPrice, gasLim)
+			minGasPrice, err = apperrors.ParseInsufficientMinGasPrice(err, minGasPrice, gasLim)
 			if err != nil {
 				return nil, fmt.Errorf("parsing insufficient min gas price error: %w", err)
 			}
-			ca.setMinGasPrice(newMinGasPrice)
+			ca.setMinGasPrice(minGasPrice)
 			lastErr = err
 			// update the fee to retry again
-			fee = sdktypes.NewInt(int64(math.Ceil(newMinGasPrice * float64(gasLim))))
+			fee = sdktypes.NewInt(int64(math.Ceil(minGasPrice * float64(gasLim))))
 			continue
 		}
 
