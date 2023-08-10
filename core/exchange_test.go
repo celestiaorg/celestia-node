@@ -9,10 +9,13 @@ import (
 	ds_sync "github.com/ipfs/go-datastore/sync"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"github.com/tendermint/tendermint/libs/rand"
 
 	"github.com/celestiaorg/celestia-app/test/util/testnode"
 
 	"github.com/celestiaorg/celestia-node/header"
+	"github.com/celestiaorg/celestia-node/header/headertest"
+	"github.com/celestiaorg/celestia-node/share"
 	"github.com/celestiaorg/celestia-node/share/eds"
 )
 
@@ -55,4 +58,18 @@ func generateBlocks(t *testing.T, fetcher *BlockFetcher) {
 	for i := 0; i < 10; i++ {
 		<-sub
 	}
+}
+
+func TestExchange_panicsOnDataRootMismatch(t *testing.T) {
+	h := headertest.RandExtendedHeader(t)
+	h.DataHash = rand.Bytes(32)
+	empty := share.EmptyExtendedDataSquare()
+
+	ce := NewExchange(nil, nil, header.MakeExtendedHeader)
+
+	panicFn := func() {
+		//nolint:errcheck
+		ce.constructExtendedHeader(context.Background(), &h.RawHeader, h.Commit, h.ValidatorSet, empty)
+	}
+	assert.Panics(t, panicFn)
 }
