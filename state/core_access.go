@@ -63,7 +63,7 @@ type CoreAccessor struct {
 	grpcPort string
 
 	// these fields are mutatable and thus need to be protected by a mutex
-	mtx             sync.Mutex
+	lock            sync.Mutex
 	lastPayForBlob  int64
 	payForBlobCount int64
 	// minGasPrice is the minimum gas price that the node will accept.
@@ -127,6 +127,11 @@ func (ca *CoreAccessor) Start(ctx context.Context) error {
 		return err
 	}
 	ca.rpcCli = cli
+
+	ca.minGasPrice, err = ca.queryMinimumGasPrice(ctx)
+	if err != nil {
+		return fmt.Errorf("querying minimum gas price: %w", err)
+	}
 
 	return nil
 }
@@ -197,12 +202,6 @@ func (ca *CoreAccessor) SubmitPayForBlob(
 		appblobs[i] = &b.Blob
 	}
 
-	// if the min gas price is not set we query the node that we are connected for it
-	minGasPrice, err := ca.getMinGasPrice(ctx)
-	if err != nil {
-		return nil, err
-	}
-
 	// we only estimate gas if the user wants us to (by setting the gasLim to 0). In the future we may want
 	// to make these arguments optional.
 	if gasLim == 0 {
@@ -217,16 +216,16 @@ func (ca *CoreAccessor) SubmitPayForBlob(
 		gasLim = apptypes.EstimateGas(blobSizes, appconsts.DefaultGasPerBlobByte, auth.DefaultTxSizeCostPerByte)
 	}
 
-	var (
-		lastErr      error
-		estimatedFee = false
-	)
+	minGasPrice := ca.getMinGasPrice()
+
 	// set the fee for the user as the minimum gas price multiplied by the gas limit
+	estimatedFee := false
 	if fee.IsNegative() {
 		estimatedFee = true
 		fee = sdktypes.NewInt(int64(math.Ceil(minGasPrice * float64(gasLim))))
 	}
 
+	var lastErr error
 	for attempt := 0; attempt < maxRetries; attempt++ {
 		response, err := appblob.SubmitPayForBlob(
 			ctx,
@@ -248,6 +247,8 @@ func (ca *CoreAccessor) SubmitPayForBlob(
 			}
 			ca.setMinGasPrice(newMinGasPrice)
 			lastErr = err
+			// update the fee to retry again
+			fee = sdktypes.NewInt(int64(math.Ceil(newMinGasPrice * float64(gasLim))))
 			continue
 		}
 
@@ -526,41 +527,34 @@ func (ca *CoreAccessor) QueryRedelegations(
 }
 
 func (ca *CoreAccessor) LastPayForBlob() int64 {
-	ca.mtx.Lock()
-	defer ca.mtx.Unlock()
+	ca.lock.Lock()
+	defer ca.lock.Unlock()
 	return ca.lastPayForBlob
 }
 
 func (ca *CoreAccessor) PayForBlobCount() int64 {
-	ca.mtx.Lock()
-	defer ca.mtx.Unlock()
+	ca.lock.Lock()
+	defer ca.lock.Unlock()
 	return ca.payForBlobCount
 }
 
 func (ca *CoreAccessor) markSuccessfulPFB() {
-	ca.mtx.Lock()
-	defer ca.mtx.Unlock()
+	ca.lock.Lock()
+	defer ca.lock.Unlock()
 	ca.lastPayForBlob = time.Now().UnixMilli()
 	ca.payForBlobCount++
 }
 
-func (ca *CoreAccessor) getMinGasPrice(ctx context.Context) (float64, error) {
-	ca.mtx.Lock()
-	defer ca.mtx.Unlock()
-	if ca.minGasPrice < 0 {
-		minGasPrice, err := ca.queryMinimumGasPrice(ctx)
-		if err != nil {
-			return -1, fmt.Errorf("querying minimum gas price: %w", err)
-		}
-		ca.minGasPrice = minGasPrice
-	}
-	return ca.minGasPrice, nil
+func (ca *CoreAccessor) setMinGasPrice(minGasPrice float64) {
+	ca.lock.Lock()
+	defer ca.lock.Unlock()
+	ca.minGasPrice = minGasPrice
 }
 
-func (ca *CoreAccessor) setMinGasPrice(minGasPrice float64) {
-	ca.mtx.Lock()
-	defer ca.mtx.Unlock()
-	ca.minGasPrice = minGasPrice
+func (ca *CoreAccessor) getMinGasPrice() float64 {
+	ca.lock.Lock()
+	defer ca.lock.Unlock()
+	return ca.minGasPrice
 }
 
 // QueryMinimumGasPrice returns the minimum gas price required by the node.
