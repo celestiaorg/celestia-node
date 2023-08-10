@@ -569,7 +569,7 @@ type inMemoryOnceMount struct {
 }
 
 func (m *inMemoryOnceMount) Fetch(ctx context.Context) (mount.Reader, error) {
-	if !m.readOnce.Swap(true) {
+	if m.buf != nil && !m.readOnce.Swap(true) {
 		reader := &inMemoryReader{Reader: bytes.NewReader(m.buf.Bytes())}
 		// release memory for gc, otherwise buffer will stick forever
 		m.buf = nil
