@@ -3,16 +3,13 @@ package core
 import (
 	"bytes"
 	"context"
-	"errors"
 	"fmt"
 	"time"
 
-	core "github.com/tendermint/tendermint/types"
 	"golang.org/x/sync/errgroup"
 
 	libhead "github.com/celestiaorg/go-header"
 	"github.com/celestiaorg/nmt"
-	"github.com/celestiaorg/rsmt2d"
 
 	"github.com/celestiaorg/celestia-node/header"
 	"github.com/celestiaorg/celestia-node/share/eds"
@@ -116,9 +113,9 @@ func (ce *Exchange) Get(ctx context.Context, hash libhead.Hash) (*header.Extende
 		return nil, fmt.Errorf("extending block data for height %d: %w", &block.Height, err)
 	}
 	// construct extended header
-	eh, err := ce.constructExtendedHeader(ctx, &block.Header, comm, vals, eds)
+	eh, err := ce.construct(ctx, &block.Header, comm, vals, eds)
 	if err != nil {
-		return nil, fmt.Errorf("constructing extended header for height %d: %w", &block.Height, err)
+		panic(fmt.Errorf("constructing extended header for height %d: %w", &block.Height, err))
 	}
 	// verify hashes match
 	if !bytes.Equal(hash, eh.Hash()) {
@@ -156,9 +153,9 @@ func (ce *Exchange) getExtendedHeaderByHeight(ctx context.Context, height *int64
 		return nil, fmt.Errorf("extending block data for height %d: %w", b.Header.Height, err)
 	}
 	// create extended header
-	eh, err := ce.constructExtendedHeader(ctx, &b.Header, &b.Commit, &b.ValidatorSet, eds)
+	eh, err := ce.construct(ctx, &b.Header, &b.Commit, &b.ValidatorSet, eds)
 	if err != nil {
-		return nil, fmt.Errorf("constructing extended header for height %d: %w", b.Header.Height, err)
+		panic(fmt.Errorf("constructing extended header for height %d: %w", b.Header.Height, err))
 	}
 
 	ctx = ipld.CtxWithProofsAdder(ctx, adder)
@@ -167,21 +164,4 @@ func (ce *Exchange) getExtendedHeaderByHeight(ctx context.Context, height *int64
 		return nil, fmt.Errorf("storing EDS to eds.Store for block height %d: %w", b.Header.Height, err)
 	}
 	return eh, nil
-}
-
-func (ce *Exchange) constructExtendedHeader(
-	ctx context.Context,
-	h *core.Header,
-	comm *core.Commit,
-	vals *core.ValidatorSet,
-	eds *rsmt2d.ExtendedDataSquare,
-) (*header.ExtendedHeader, error) {
-	eh, err := ce.construct(ctx, h, comm, vals, eds)
-	if err != nil {
-		var errMismatch *header.ErrDataRootMismatch
-		if errors.As(err, &errMismatch) {
-			panic(err.Error())
-		}
-	}
-	return eh, err
 }

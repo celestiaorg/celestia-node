@@ -7,7 +7,6 @@ import (
 	"fmt"
 	"time"
 
-	logging "github.com/ipfs/go-log/v2"
 	tmjson "github.com/tendermint/tendermint/libs/json"
 	core "github.com/tendermint/tendermint/types"
 
@@ -16,8 +15,6 @@ import (
 	libhead "github.com/celestiaorg/go-header"
 	"github.com/celestiaorg/rsmt2d"
 )
-
-var log = logging.Logger("header")
 
 // ConstructFn aliases a function that creates an ExtendedHeader.
 type ConstructFn = func(
@@ -149,13 +146,8 @@ func (eh *ExtendedHeader) Validate() error {
 
 	// ensure data root from raw header matches computed root
 	if !bytes.Equal(eh.DAH.Hash(), eh.DataHash) {
-		err = &ErrDataRootMismatch{
-			Height:       uint64(eh.Height()),
-			DataRoot:     eh.DataHash,
-			ComputedRoot: eh.DAH.Hash(),
-		}
-		log.Warnw("HIGH SEVERITY!!!", "err", err.Error())
-		return err
+		return fmt.Errorf("mismatch between data hash commitment from core header and computed data root "+
+			"at height %d: data hash: %X, computed root: %X", eh.Height(), eh.DataHash, eh.DAH.Hash())
 	}
 
 	// Make sure the header is consistent with the commit.

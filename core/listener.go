@@ -160,11 +160,7 @@ func (cl *Listener) handleNewSignedBlock(ctx context.Context, b types.EventDataS
 	// generate extended header
 	eh, err := cl.construct(ctx, &b.Header, &b.Commit, &b.ValidatorSet, eds)
 	if err != nil {
-		var errMismatch *header.ErrDataRootMismatch
-		if errors.As(err, &errMismatch) {
-			panic(err.Error())
-		}
-		return fmt.Errorf("making extended header: %w", err)
+		panic(fmt.Errorf("making extended header: %w", err))
 	}
 
 	// attempt to store block data if not empty
