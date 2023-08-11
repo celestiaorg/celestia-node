@@ -2,11 +2,12 @@ package nodebuilder
 
 import (
 	"context"
-	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/require"
 	"strconv"
 	"testing"
 	"time"
+
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 
 	"github.com/celestiaorg/celestia-app/pkg/da"
 	"github.com/celestiaorg/celestia-app/pkg/wrapper"
@@ -72,7 +73,7 @@ func BenchmarkStore(b *testing.B) {
 		err := Init(*DefaultConfig(node.Full), dir, node.Full)
 		require.NoError(b, err)
 
-		store := newStore(b, ctx, dir)
+		store := newStore(ctx, b, dir)
 		size := 128
 		b.Run("enabled eds proof caching", func(b *testing.B) {
 			b.StopTimer()
@@ -115,44 +116,44 @@ func BenchmarkStore(b *testing.B) {
 	})
 }
 
-func TestStoreRestart(b *testing.T) {
+func TestStoreRestart(t *testing.T) {
 	const (
 		blocks = 5
 		size   = 32
 	)
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second*5)
-	b.Cleanup(cancel)
+	t.Cleanup(cancel)
 
-	dir := b.TempDir()
+	dir := t.TempDir()
 	err := Init(*DefaultConfig(node.Full), dir, node.Full)
-	require.NoError(b, err)
+	require.NoError(t, err)
 
-	store := newStore(b, ctx, dir)
+	store := newStore(ctx, t, dir)
 
 	hashes := make([][]byte, blocks)
 	for i := range hashes {
-		edss := edstest.RandEDS(b, size)
-		require.NoError(b, err)
+		edss := edstest.RandEDS(t, size)
+		require.NoError(t, err)
 		dah, err := da.NewDataAvailabilityHeader(edss)
-		require.NoError(b, err)
+		require.NoError(t, err)
 		err = store.edsStore.Put(ctx, dah.Hash(), edss)
-		require.NoError(b, err)
+		require.NoError(t, err)
 
 		// store hashes for read loop later
 		hashes[i] = dah.Hash()
 	}
 
 	// restart store
-	store.stop(b, ctx)
-	store = newStore(b, ctx, dir)
+	store.stop(ctx, t)
+	store = newStore(ctx, t, dir)
 
 	for _, h := range hashes {
 		edsReader, err := store.edsStore.GetCAR(ctx, h)
-		require.NoError(b, err)
+		require.NoError(t, err)
 		odsReader, err := eds.ODSReader(edsReader)
-		require.NoError(b, err)
+		require.NoError(t, err)
 		_, err = eds.ReadEDS(ctx, odsReader, h)
-		require.NoError(b, err)
+		require.NoError(t, err)
 	}
 }
 
@@ -161,7 +162,7 @@ type store struct {
 	edsStore *eds.Store
 }
 
-func newStore(t require.TestingT, ctx context.Context, dir string) store {
+func newStore(ctx context.Context, t require.TestingT, dir string) store {
 	s, err := OpenStore(dir, nil)
 	require.NoError(t, err)
 	ds, err := s.Datastore()
@@ -176,7 +177,7 @@ func newStore(t require.TestingT, ctx context.Context, dir string) store {
 	}
 }
 
-func (s *store) stop(t *testing.T, ctx context.Context) {
+func (s *store) stop(ctx context.Context, t *testing.T) {
 	require.NoError(t, s.edsStore.Stop(ctx))
 	require.NoError(t, s.s.Close())
 }
