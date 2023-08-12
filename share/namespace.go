@@ -14,13 +14,14 @@ const NamespaceSize = appns.NamespaceSize
 
 // Various reserved namespaces.
 var (
-	MaxReservedNamespace     = Namespace(appns.MaxReservedNamespace.Bytes())
-	ParitySharesNamespace    = Namespace(appns.ParitySharesNamespace.Bytes())
-	TailPaddingNamespace     = Namespace(appns.TailPaddingNamespace.Bytes())
-	ReservedPaddingNamespace = Namespace(appns.ReservedPaddingNamespace.Bytes())
-	TxNamespace              = Namespace(appns.TxNamespace.Bytes())
-	PayForBlobNamespace      = Namespace(appns.PayForBlobNamespace.Bytes())
-	ISRNamespace             = Namespace(appns.IntermediateStateRootsNamespace.Bytes())
+	MaxPrimaryReservedNamespace     = Namespace(appns.MaxPrimaryReservedNamespace.Bytes())
+	MinSecondaryReservedNamespace   = Namespace(appns.MinSecondaryReservedNamespace.Bytes())
+	ParitySharesNamespace           = Namespace(appns.ParitySharesNamespace.Bytes())
+	TailPaddingNamespace            = Namespace(appns.TailPaddingNamespace.Bytes())
+	PrimaryReservedPaddingNamespace = Namespace(appns.PrimaryReservedPaddingNamespace.Bytes())
+	TxNamespace                     = Namespace(appns.TxNamespace.Bytes())
+	PayForBlobNamespace             = Namespace(appns.PayForBlobNamespace.Bytes())
+	ISRNamespace                    = Namespace(appns.IntermediateStateRootsNamespace.Bytes())
 )
 
 // Namespace represents namespace of a Share.
@@ -106,6 +107,7 @@ func (n Namespace) Validate() error {
 }
 
 // ValidateForData checks if the Namespace is of real/useful data.
+// TODO: it's not clear what "real/useful" data means.
 func (n Namespace) ValidateForData() error {
 	if err := n.Validate(); err != nil {
 		return err
@@ -124,7 +126,7 @@ func (n Namespace) ValidateForBlob() error {
 	if err := n.ValidateForData(); err != nil {
 		return err
 	}
-	if bytes.Compare(n, MaxReservedNamespace) < 1 {
+	if n.ToAppNamespace().IsReserved() {
 		return fmt.Errorf("invalid blob namespace(%s): reserved namespaces are forbidden", n)
 	}
 	return nil
