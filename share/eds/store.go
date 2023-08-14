@@ -75,7 +75,7 @@ func NewStore(basepath string, ds datastore.Batching) (*Store, error) {
 	}
 
 	r := mount.NewRegistry()
-	err = r.Register("fs", &inMemoryOnceMount{Mount: &mount.FileMount{}})
+	err = r.Register("fs", &inMemoryOnceMount{})
 	if err != nil {
 		return nil, fmt.Errorf("failed to register memory mount on the registry: %w", err)
 	}
@@ -212,8 +212,8 @@ func (s *Store) put(ctx context.Context, root share.DataHash, square *rsmt2d.Ext
 	// save encoded eds into buffer
 	mount := &inMemoryOnceMount{
 		// TODO: buffer could be pre-allocated with capacity calculated based on eds size.
-		buf:   bytes.NewBuffer(nil),
-		Mount: &mount.FileMount{Path: s.basepath + blocksPath + key},
+		buf:       bytes.NewBuffer(nil),
+		FileMount: mount.FileMount{Path: s.basepath + blocksPath + key},
 	}
 	err = WriteEDS(ctx, square, mount)
 	if err != nil {
@@ -565,7 +565,7 @@ type inMemoryOnceMount struct {
 	buf *bytes.Buffer
 
 	readOnce atomic.Bool
-	mount.Mount
+	mount.FileMount
 }
 
 func (m *inMemoryOnceMount) Fetch(ctx context.Context) (mount.Reader, error) {
@@ -575,7 +575,7 @@ func (m *inMemoryOnceMount) Fetch(ctx context.Context) (mount.Reader, error) {
 		m.buf = nil
 		return reader, nil
 	}
-	return m.Mount.Fetch(ctx)
+	return m.FileMount.Fetch(ctx)
 }
 
 func (m *inMemoryOnceMount) Write(b []byte) (int, error) {
