@@ -1,6 +1,7 @@
 package eds
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"reflect"
@@ -9,6 +10,8 @@ import (
 	"github.com/filecoin-project/dagstore"
 	"github.com/filecoin-project/dagstore/shard"
 	lru "github.com/hashicorp/golang-lru"
+	"go.opentelemetry.io/otel/attribute"
+	"go.opentelemetry.io/otel/metric"
 )
 
 var (
@@ -35,6 +38,12 @@ type blockstoreCache struct {
 }
 
 func newBlockstoreCache(cacheSize int) (*blockstoreCache, error) {
+	evictedCounter, err := meter.Int64Counter("eds_blockstore_cache_evicted_counter",
+		metric.WithDescription("eds blockstore cache evicted event counter"))
+	if err != nil {
+		return nil, err
+	}
+
 	// instantiate the blockstore cache
 	bslru, err := lru.NewWithEvict(cacheSize, func(_ interface{}, val interface{}) {
 		// ensure we close the blockstore for a shard when it's evicted so dagstore can gc it.
@@ -49,9 +58,27 @@ func newBlockstoreCache(cacheSize int) (*blockstoreCache, error) {
 		if err := abs.sa.Close(); err != nil {
 			log.Errorf("couldn't close accessor after cache eviction: %s", err)
 		}
+		evictedCounter.Add(context.Background(), 1, metric.WithAttributes(
+			attribute.Bool(failedKey, err != nil)))
 	})
 	if err != nil {
 		return nil, fmt.Errorf("failed to instantiate blockstore cache: %w", err)
+	}
+
+	currSize, err := meter.Int64ObservableGauge("eds_blockstore_cache_size",
+		metric.WithDescription("total amount of items in blockstore cache"),
+	)
+	if err != nil {
+		return nil, err
+	}
+
+	callback := func(ctx context.Context, observer metric.Observer) error {
+		observer.ObserveInt64(currSize, int64(bslru.Len()))
+		return nil
+	}
+	_, err = meter.RegisterCallback(callback, currSize)
+	if err != nil {
+		return nil, err
 	}
 	return &blockstoreCache{cache: bslru}, nil
 }
