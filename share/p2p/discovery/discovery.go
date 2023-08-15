@@ -328,7 +328,8 @@ func (d *Discovery) handleDiscoveredPeer(ctx context.Context, peer peer.AddrInfo
 	case len(peer.Addrs) == 0:
 		d.metrics.observeHandlePeer(ctx, handlePeerEmptyAddrs)
 		logger.Debug("skip handle: empty address list")
-		return false
+		// TODO: try to connect to emtpy addresses peer anyway
+		//return false
 	case d.set.Size() >= d.set.Limit():
 		d.metrics.observeHandlePeer(ctx, handlePeerEnoughPeers)
 		logger.Debug("skip handle: enough peers found")
