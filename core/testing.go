@@ -52,7 +52,7 @@ func StartTestNodeWithConfig(t *testing.T, cfg *testnode.Config) testnode.Contex
 	// so we are as close to the real environment as possible
 	// however, it might be useful to use local tendermint client
 	// if you need to debug something inside of it
-	ip, port, err := GetEndpointFromCoreConfig(cfg.TmConfig)
+	ip, port, err := getEndpoint(cfg.TmConfig)
 	require.NoError(t, err)
 	client, err := NewRemote(ip, port)
 	require.NoError(t, err)
@@ -68,9 +68,7 @@ func StartTestNodeWithConfig(t *testing.T, cfg *testnode.Config) testnode.Contex
 	return cctx
 }
 
-// GetEndpointFromCoreConfig returns the IP and the RPC port
-// from the given core config.
-func GetEndpointFromCoreConfig(cfg *tmconfig.Config) (string, string, error) {
+func getEndpoint(cfg *tmconfig.Config) (string, string, error) {
 	url, err := url.Parse(cfg.RPC.ListenAddress)
 	if err != nil {
 		return "", "", err
