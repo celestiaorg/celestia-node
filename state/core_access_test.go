@@ -13,6 +13,7 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/celestiaorg/celestia-app/app"
+	"github.com/celestiaorg/celestia-app/pkg/appconsts"
 	"github.com/celestiaorg/celestia-app/test/util/testnode"
 	blobtypes "github.com/celestiaorg/celestia-app/x/blob/types"
 
@@ -21,7 +22,7 @@ import (
 )
 
 func TestSubmitPayForBlob(t *testing.T) {
-	accounts := []string{"jimmmy", "rob"}
+	accounts := []string{"jimy", "rob"}
 	tmCfg := testnode.DefaultTendermintConfig()
 	tmCfg.Consensus.TimeoutCommit = time.Millisecond * 1
 	appConf := testnode.DefaultAppConfig()
@@ -49,7 +50,7 @@ func TestSubmitPayForBlob(t *testing.T) {
 
 	minGas, err := ca.queryMinimumGasPrice(ctx)
 	require.NoError(t, err)
-	fmt.Println(minGas)
+	require.Equal(t, appconsts.DefaultMinGasPrice, minGas)
 
 	testcases := []struct {
 		name   string
