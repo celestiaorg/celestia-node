@@ -56,8 +56,6 @@ type Swamp struct {
 	ClientContext testnode.Context
 	Accounts      []string
 
-	GRPCListenAddress string
-
 	nodesMu sync.Mutex
 	nodes   map[*nodebuilder.Node]struct{}
 
@@ -80,13 +78,12 @@ func NewSwamp(t *testing.T, options ...Option) *Swamp {
 	// instead we are assigning all created BNs to 1 Core from the swamp
 	cctx := core.StartTestNodeWithConfig(t, ic)
 	swp := &Swamp{
-		t:                 t,
-		cfg:               ic,
-		Network:           mocknet.New(),
-		ClientContext:     cctx,
-		Accounts:          ic.Accounts,
-		GRPCListenAddress: ic.AppConfig.GRPC.Address,
-		nodes:             map[*nodebuilder.Node]struct{}{},
+		t:             t,
+		cfg:           ic,
+		Network:       mocknet.New(),
+		ClientContext: cctx,
+		Accounts:      ic.Accounts,
+		nodes:         map[*nodebuilder.Node]struct{}{},
 	}
 
 	swp.t.Cleanup(swp.cleanup)
@@ -337,16 +334,4 @@ func (s *Swamp) SetBootstrapper(t *testing.T, bootstrappers ...*nodebuilder.Node
 		require.NoError(t, err)
 		s.Bootstrappers = append(s.Bootstrappers, addrs[0])
 	}
-}
-
-// GetRPCEndpoint returns the RPC endpoint for the suite's
-// core client.
-func (s *Swamp) GetRPCEndpoint() (string, string, error) {
-	return core.GetEndpointFromCoreConfig(s.cfg.TmConfig)
-}
-
-// GetGRPCEndpoint returns the GRPC endpoint for the suite's
-// core client.
-func (s *Swamp) GetGRPCEndpoint() (string, string, error) {
-	return net.SplitHostPort(s.GRPCListenAddress)
 }
