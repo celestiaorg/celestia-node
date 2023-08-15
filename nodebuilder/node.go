@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"runtime/debug"
 	"strings"
 
 	"github.com/ipfs/go-blockservice"
@@ -93,6 +94,13 @@ func NewWithConfig(tp node.Type, network p2p.Network, store Store, cfg *Config, 
 
 // Start launches the Node and all its components and services.
 func (n *Node) Start(ctx context.Context) error {
+
+	if n.Type == node.Full {
+		var val int64 = 1 << 35
+		old := debug.SetMemoryLimit(val)
+		log.Infof("set memory limit old: %v, new:%v", old, val)
+	}
+
 	to := n.Config.Node.StartupTimeout
 	ctx, cancel := context.WithTimeout(ctx, to)
 	defer cancel()
