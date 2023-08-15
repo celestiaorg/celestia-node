@@ -195,22 +195,31 @@ func (d *Discovery) Advertise(ctx context.Context) {
 }
 
 // discoveryLoop ensures we always have '~peerLimit' connected peers.
-// It starts peer discovery per request and restarts the process until the soft limit reached.
+// It initiates peer discovery upon request and restarts the process until the soft limit is reached.
 func (d *Discovery) discoveryLoop(ctx context.Context) {
 	t := time.NewTicker(discoveryRetryTimeout)
 	defer t.Stop()
+
+	// Add a timer to check every 5 minutes
+	warnTimer := time.NewTicker(5 * time.Minute)
+	defer warnTimer.Stop()
+
 	for {
-		// drain all previous ticks from channel
+		// drain all previous ticks from the channel
 		drainChannel(t.C)
 		select {
 		case <-t.C:
 			found := d.discover(ctx)
 			if !found {
-				// rerun discovery if amount of peers didn't reach the limit
+				// rerun discovery if the number of peers hasn't reached the limit
 				continue
 			}
 		case <-ctx.Done():
 			return
+		case <-warnTimer.C: // Handle our timer's trigger here
+			if d.set.Size() < d.set.Limit() {
+				log.Warn("potentially degraded connectivity, unable to discover the desired amount of full node peers in 5 minutes")
+			}
 		}
 
 		select {
