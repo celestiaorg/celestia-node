@@ -1,7 +1,6 @@
 package shrexeds
 
 import (
-	"bytes"
 	"context"
 	"errors"
 	"fmt"
@@ -110,37 +109,6 @@ func (s *Server) handleStream(stream network.Stream) {
 	case err != nil:
 		logger.Errorw("server: get CAR", "err", err)
 		status = p2p_pb.Status_INTERNAL
-	}
-
-	check := func() {
-		odsReader, err := eds.ODSReader(edsReader)
-		if err != nil {
-			logger.Errorf("creating ODS reader: %w", err)
-			status = p2p_pb.Status_INTERNAL
-			return
-		}
-
-		bs, err := io.ReadAll(odsReader)
-		if err != nil {
-			logger.Errorf("reading from ODS reader: %w", err)
-			status = p2p_pb.Status_INTERNAL
-			return
-		}
-
-		_, err = eds.ReadEDS(ctx, bytes.NewReader(bs), hash)
-		if err != nil {
-			logger.Errorf("reading eds from ODS reader: %w", err)
-			status = p2p_pb.Status_INTERNAL
-			return
-		}
-
-		logger.Info("Serving valid eds")
-		edsReader = bytes.NewReader(bs)
-		return
-	}
-
-	if status == p2p_pb.Status_OK {
-		check()
 	}
 
 	// inform the client of our status
