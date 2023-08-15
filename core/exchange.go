@@ -115,7 +115,7 @@ func (ce *Exchange) Get(ctx context.Context, hash libhead.Hash) (*header.Extende
 	// construct extended header
 	eh, err := ce.construct(ctx, &block.Header, comm, vals, eds)
 	if err != nil {
-		return nil, fmt.Errorf("constructing extended header for height %d: %w", &block.Height, err)
+		panic(fmt.Errorf("constructing extended header for height %d: %w", &block.Height, err))
 	}
 	// verify hashes match
 	if !bytes.Equal(hash, eh.Hash()) {
@@ -155,7 +155,7 @@ func (ce *Exchange) getExtendedHeaderByHeight(ctx context.Context, height *int64
 	// create extended header
 	eh, err := ce.construct(ctx, &b.Header, &b.Commit, &b.ValidatorSet, eds)
 	if err != nil {
-		return nil, fmt.Errorf("constructing extended header for height %d: %w", b.Header.Height, err)
+		panic(fmt.Errorf("constructing extended header for height %d: %w", b.Header.Height, err))
 	}
 
 	ctx = ipld.CtxWithProofsAdder(ctx, adder)

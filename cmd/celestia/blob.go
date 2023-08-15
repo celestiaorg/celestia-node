@@ -14,22 +14,22 @@ import (
 	"github.com/celestiaorg/celestia-node/share"
 )
 
-var plaintext bool
+var base64Flag bool
 
 func init() {
 	blobCmd.AddCommand(getCmd, getAllCmd, submitCmd, getProofCmd)
 
 	getCmd.PersistentFlags().BoolVar(
-		&plaintext,
-		"plaintext",
+		&base64Flag,
+		"base64",
 		false,
-		"printed blob's data as a plain text",
+		"printed blob's data a base64 string",
 	)
 	getAllCmd.PersistentFlags().BoolVar(
-		&plaintext,
-		"plaintext",
+		&base64Flag,
+		"base64",
 		false,
-		"printed blob's data as a plain text",
+		"printed blob's data as a base64 string",
 	)
 }
 
@@ -170,7 +170,7 @@ func printOutput(data interface{}, err error) {
 		data = err
 	}
 
-	if plaintext && err == nil {
+	if !base64Flag && err == nil {
 		data = formatData(data)
 	}
 
@@ -199,8 +199,7 @@ func formatData(data interface{}) interface{} {
 	if reflect.TypeOf(data).Kind() == reflect.Slice {
 		blobs, ok := data.([]*blob.Blob)
 		if !ok {
-			fmt.Fprintln(os.Stderr, "could not cast to []blob.Blob")
-			os.Exit(1)
+			return data
 		}
 
 		result := make([]tempBlob, len(blobs))
@@ -217,8 +216,7 @@ func formatData(data interface{}) interface{} {
 
 	b, ok := data.(*blob.Blob)
 	if !ok {
-		fmt.Fprintln(os.Stderr, "could not cast to blob.Blob")
-		os.Exit(1)
+		return data
 	}
 	return tempBlob{
 		Namespace:    b.Namespace(),
