@@ -35,15 +35,11 @@ type blockstoreCache struct {
 	// caches the blockstore for a given shard for shard read affinity i.e.
 	// further reads will likely be from the same shard. Maps (shard key -> blockstore).
 	cache *lru.Cache
+
+	metrics *cacheMetrics
 }
 
 func newBlockstoreCache(cacheSize int) (*blockstoreCache, error) {
-	evictedCounter, err := meter.Int64Counter("eds_blockstore_cache_evicted_counter",
-		metric.WithDescription("eds blockstore cache evicted event counter"))
-	if err != nil {
-		return nil, err
-	}
-
 	// instantiate the blockstore cache
 	bslru, err := lru.NewWithEvict(cacheSize, func(_ interface{}, val interface{}) {
 		// ensure we close the blockstore for a shard when it's evicted so dagstore can gc it.
@@ -58,27 +54,9 @@ func newBlockstoreCache(cacheSize int) (*blockstoreCache, error) {
 		if err := abs.sa.Close(); err != nil {
 			log.Errorf("couldn't close accessor after cache eviction: %s", err)
 		}
-		evictedCounter.Add(context.Background(), 1, metric.WithAttributes(
-			attribute.Bool(failedKey, err != nil)))
 	})
 	if err != nil {
 		return nil, fmt.Errorf("failed to instantiate blockstore cache: %w", err)
-	}
-
-	currSize, err := meter.Int64ObservableGauge("eds_blockstore_cache_size",
-		metric.WithDescription("total amount of items in blockstore cache"),
-	)
-	if err != nil {
-		return nil, err
-	}
-
-	callback := func(ctx context.Context, observer metric.Observer) error {
-		observer.ObserveInt64(currSize, int64(bslru.Len()))
-		return nil
-	}
-	_, err = meter.RegisterCallback(callback, currSize)
-	if err != nil {
-		return nil, err
 	}
 	return &blockstoreCache{cache: bslru}, nil
 }
@@ -143,4 +121,42 @@ func (bc *blockstoreCache) unsafeAdd(
 // byte of the shard key as the pseudo-random index.
 func shardKeyToStriped(sk shard.Key) byte {
 	return sk.String()[len(sk.String())-1]
+}
+
+type cacheMetrics struct {
+	evictedCounter metric.Int64Counter
+}
+
+func (bc *blockstoreCache) withMetrics() error {
+	evictedCounter, err := meter.Int64Counter("eds_blockstore_cache_evicted_counter",
+		metric.WithDescription("eds blockstore cache evicted event counter"))
+	if err != nil {
+		return err
+	}
+
+	cacheSize, err := meter.Int64ObservableGauge("eds_blockstore_cache_size",
+		metric.WithDescription("total amount of items in blockstore cache"),
+	)
+	if err != nil {
+		return err
+	}
+
+	callback := func(ctx context.Context, observer metric.Observer) error {
+		observer.ObserveInt64(cacheSize, int64(bc.cache.Len()))
+		return nil
+	}
+	_, err = meter.RegisterCallback(callback, cacheSize)
+	if err != nil {
+		return err
+	}
+	bc.metrics = &cacheMetrics{evictedCounter: evictedCounter}
+	return nil
+}
+
+func (m *cacheMetrics) observeEvicted(failed bool) {
+	if m == nil {
+		return
+	}
+	m.evictedCounter.Add(context.Background(), 1, metric.WithAttributes(
+		attribute.Bool(failedKey, failed)))
 }
