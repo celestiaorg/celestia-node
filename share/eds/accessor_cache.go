@@ -40,8 +40,18 @@ type blockstoreCache struct {
 }
 
 func newBlockstoreCache(cacheSize int) (*blockstoreCache, error) {
+	bc := &blockstoreCache{}
 	// instantiate the blockstore cache
-	bslru, err := lru.NewWithEvict(cacheSize, func(_ interface{}, val interface{}) {
+	bslru, err := lru.NewWithEvict(cacheSize, bc.evictFn())
+	if err != nil {
+		return nil, fmt.Errorf("failed to instantiate blockstore cache: %w", err)
+	}
+	bc.cache = bslru
+	return bc, nil
+}
+
+func (bc *blockstoreCache) evictFn() func(_ interface{}, val interface{}) {
+	return func(_ interface{}, val interface{}) {
 		// ensure we close the blockstore for a shard when it's evicted so dagstore can gc it.
 		abs, ok := val.(*accessorWithBlockstore)
 		if !ok {
@@ -51,14 +61,12 @@ func newBlockstoreCache(cacheSize int) (*blockstoreCache, error) {
 			))
 		}
 
-		if err := abs.sa.Close(); err != nil {
+		err := abs.sa.Close()
+		if err != nil {
 			log.Errorf("couldn't close accessor after cache eviction: %s", err)
 		}
-	})
-	if err != nil {
-		return nil, fmt.Errorf("failed to instantiate blockstore cache: %w", err)
+		bc.metrics.observeEvicted(err != nil)
 	}
-	return &blockstoreCache{cache: bslru}, nil
 }
 
 // Get retrieves the blockstore for a given shard key from the cache. If the blockstore is not in
