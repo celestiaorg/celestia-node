@@ -407,9 +407,8 @@ func (s *Store) getCachedAccessor(ctx context.Context, key shard.Key) (*accessor
 	if err != nil && err != errCacheMiss {
 		log.Errorf("unexpected error while reading key from bs cache %s: %s", key, err)
 	}
-	// TODO(@walldiss): need to check if err could happen with non-nil accessor
 	if accessor != nil {
-		s.metrics.observeGetAccessor(ctx, time.Since(tnow), true, err != nil)
+		s.metrics.observeGetAccessor(ctx, time.Since(tnow), true, false)
 		return accessor, nil
 	}
 
