@@ -22,7 +22,6 @@ import (
 
 	"github.com/celestiaorg/celestia-node/share"
 	"github.com/celestiaorg/celestia-node/share/eds/edstest"
-	"github.com/celestiaorg/celestia-node/share/ipld"
 )
 
 //go:embed "testdata/example-root.json"
@@ -134,34 +133,6 @@ func TestWriteEDSInQuadrantOrder(t *testing.T) {
 		block, err := reader.Next()
 		require.NoError(t, err, "error getting block")
 		require.Equal(t, block.RawData(), shares[i])
-	}
-}
-
-// TestInnerNodeBatchSize verifies that the number of unique inner nodes is equal to ipld.BatchSize
-// - shareCount.
-func TestInnerNodeBatchSize(t *testing.T) {
-	tests := []struct {
-		name      string
-		origWidth int
-	}{
-		{"2", 2},
-		{"4", 4},
-		{"8", 8},
-		{"16", 16},
-		{"32", 32},
-		// {"64", 64}, // test case too large for CI with race detector
-	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			extendedWidth := tt.origWidth * 2
-			shareCount := extendedWidth * extendedWidth
-			assert.Equalf(
-				t,
-				innerNodeBatchSize(shareCount, tt.origWidth),
-				ipld.BatchSize(extendedWidth)-shareCount,
-				"batchSize(%v)", extendedWidth,
-			)
-		})
 	}
 }
 

@@ -14,6 +14,10 @@ var meter = otel.Meter("shrex/eds")
 type status string
 
 const (
+	StatusBadRequest  status = "bad_request"
+	StatusSendRespErr status = "send_resp_err"
+	StatusSendReqErr  status = "send_req_err"
+	StatusReadRespErr status = "read_resp_err"
 	StatusInternalErr status = "internal_err"
 	StatusNotFound    status = "not_found"
 	StatusTimeout     status = "timeout"

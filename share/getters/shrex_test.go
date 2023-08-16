@@ -1,7 +1,12 @@
 package getters
 
 import (
+	"bytes"
 	"context"
+	"encoding/binary"
+	"errors"
+	"math/rand"
+	"sort"
 	"testing"
 	"time"
 
@@ -15,6 +20,7 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/celestiaorg/celestia-app/pkg/da"
+	"github.com/celestiaorg/celestia-app/pkg/wrapper"
 	libhead "github.com/celestiaorg/go-header"
 	"github.com/celestiaorg/nmt"
 	"github.com/celestiaorg/rsmt2d"
@@ -29,6 +35,7 @@ import (
 	"github.com/celestiaorg/celestia-node/share/p2p/shrexeds"
 	"github.com/celestiaorg/celestia-node/share/p2p/shrexnd"
 	"github.com/celestiaorg/celestia-node/share/p2p/shrexsub"
+	"github.com/celestiaorg/celestia-node/share/sharetest"
 )
 
 func TestShrexGetter(t *testing.T) {
@@ -56,12 +63,13 @@ func TestShrexGetter(t *testing.T) {
 	getter := NewShrexGetter(edsClient, ndClient, peerManager)
 	require.NoError(t, getter.Start(ctx))
 
-	t.Run("ND_Available", func(t *testing.T) {
-		ctx, cancel := context.WithTimeout(ctx, time.Second)
+	t.Run("ND_Available, total data size > 1mb", func(t *testing.T) {
+		ctx, cancel := context.WithTimeout(ctx, time.Second*10)
 		t.Cleanup(cancel)
 
 		// generate test data
-		randEDS, dah, namespace := generateTestEDS(t)
+		namespace := sharetest.RandV0Namespace()
+		randEDS, dah := singleNamespaceEds(t, namespace, 64)
 		require.NoError(t, edsStore.Put(ctx, dah.Hash(), randEDS))
 		peerManager.Validate(ctx, srvHost.ID(), shrexsub.Notification{
 			DataHash: dah.Hash(),
@@ -100,18 +108,16 @@ func TestShrexGetter(t *testing.T) {
 			Height:   1,
 		})
 
-		// corrupt NID
-		nID := make([]byte, share.NamespaceSize)
-		copy(nID, maxNamespace)
-		nID[share.NamespaceSize-1]--
+		namespace, err := addToNamespace(maxNamespace, -1)
+		require.NoError(t, err)
 		// check for namespace to be between max and min namespace in root
-		require.Len(t, filterRootsByNamespace(&dah, maxNamespace), 1)
+		require.Len(t, filterRootsByNamespace(&dah, namespace), 1)
 
-		emptyShares, err := getter.GetSharesByNamespace(ctx, &dah, nID)
+		emptyShares, err := getter.GetSharesByNamespace(ctx, &dah, namespace)
 		require.NoError(t, err)
 		// no shares should be returned
 		require.Empty(t, emptyShares.Flatten())
-		require.Nil(t, emptyShares.Verify(&dah, nID))
+		require.Nil(t, emptyShares.Verify(&dah, namespace))
 	})
 
 	t.Run("ND_namespace_not_in_dah", func(t *testing.T) {
@@ -126,10 +132,8 @@ func TestShrexGetter(t *testing.T) {
 			Height:   1,
 		})
 
-		// corrupt namespace
-		namespace := make([]byte, share.NamespaceSize)
-		copy(namespace, maxNamesapce)
-		namespace[share.NamespaceSize-1]++
+		namespace, err := addToNamespace(maxNamesapce, 1)
+		require.NoError(t, err)
 		// check for namespace to be not in root
 		require.Len(t, filterRootsByNamespace(&dah, namespace), 0)
 
@@ -270,4 +274,125 @@ func newEDSClientServer(
 	client, err := shrexeds.NewClient(params, clHost)
 	require.NoError(t, err)
 	return client, server
+}
+
+// addToNamespace adds arbitrary int value to namespace, treating namespace as big-endian implementation of int
+func addToNamespace(namespace share.Namespace, val int) (share.Namespace, error) {
+	if val == 0 {
+		return namespace, nil
+	}
+	// Convert the input integer to a byte slice and add it to result slice
+	result := make([]byte, len(namespace))
+	if val > 0 {
+		binary.BigEndian.PutUint64(result[len(namespace)-8:], uint64(val))
+	} else {
+		binary.BigEndian.PutUint64(result[len(namespace)-8:], uint64(-val))
+	}
+
+	// Perform addition byte by byte
+	var carry int
+	for i := len(namespace) - 1; i >= 0; i-- {
+		sum := 0
+		if val > 0 {
+			sum = int(namespace[i]) + int(result[i]) + carry
+		} else {
+			sum = int(namespace[i]) - int(result[i]) + carry
+		}
+
+		switch {
+		case sum > 255:
+			carry = 1
+			sum -= 256
+		case sum < 0:
+			carry = -1
+			sum += 256
+		default:
+			carry = 0
+		}
+
+		result[i] = uint8(sum)
+	}
+
+	// Handle any remaining carry
+	if carry != 0 {
+		return nil, errors.New("namespace overflow")
+	}
+
+	return result, nil
+}
+
+func TestAddToNamespace(t *testing.T) {
+	testCases := []struct {
+		name          string
+		value         int
+		input         share.Namespace
+		expected      share.Namespace
+		expectedError error
+	}{
+		{
+			name:          "Positive value addition",
+			value:         42,
+			input:         share.Namespace{0x01, 0x01, 0x01, 0x01, 0x01, 0x01, 0x01, 0x01, 0x01, 0x01},
+			expected:      share.Namespace{0x1, 0x1, 0x1, 0x1, 0x1, 0x1, 0x1, 0x1, 0x1, 0x2b},
+			expectedError: nil,
+		},
+		{
+			name:          "Negative value addition",
+			value:         -42,
+			input:         share.Namespace{0x01, 0x01, 0x01, 0x01, 0x01, 0x01, 0x01, 0x01, 0x01, 0x01, 0x01},
+			expected:      share.Namespace{0x1, 0x1, 0x1, 0x1, 0x1, 0x01, 0x1, 0x1, 0x1, 0x0, 0xd7},
+			expectedError: nil,
+		},
+		{
+			name:          "Overflow error",
+			value:         1,
+			input:         share.Namespace{0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF},
+			expected:      nil,
+			expectedError: errors.New("namespace overflow"),
+		},
+		{
+			name:          "Overflow error negative",
+			value:         -1,
+			input:         share.Namespace{0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0},
+			expected:      nil,
+			expectedError: errors.New("namespace overflow"),
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			result, err := addToNamespace(tc.input, tc.value)
+			if tc.expectedError == nil {
+				require.NoError(t, err)
+				require.Equal(t, tc.expected, result)
+				return
+			}
+			require.Error(t, err)
+			if err.Error() != tc.expectedError.Error() {
+				t.Errorf("Unexpected error message. Expected: %v, Got: %v", tc.expectedError, err)
+			}
+		})
+	}
+}
+
+func singleNamespaceEds(
+	t require.TestingT,
+	namespace share.Namespace,
+	size int,
+) (*rsmt2d.ExtendedDataSquare, da.DataAvailabilityHeader) {
+	shares := make([]share.Share, size*size)
+	rnd := rand.New(rand.NewSource(time.Now().Unix()))
+	for i := range shares {
+		shr := make([]byte, share.Size)
+		copy(share.GetNamespace(shr), namespace)
+		_, err := rnd.Read(share.GetData(shr))
+		require.NoError(t, err)
+		shares[i] = shr
+	}
+	sort.Slice(shares, func(i, j int) bool { return bytes.Compare(shares[i], shares[j]) < 0 })
+	eds, err := rsmt2d.ComputeExtendedDataSquare(shares, share.DefaultRSMT2DCodec(), wrapper.NewConstructor(uint64(size)))
+	require.NoError(t, err, "failure to recompute the extended data square")
+	dah, err := da.NewDataAvailabilityHeader(eds)
+	require.NoError(t, err)
+	return eds, dah
 }

@@ -4,6 +4,7 @@ import (
 	"bufio"
 	"bytes"
 	"context"
+	"encoding/hex"
 	"errors"
 	"fmt"
 	"io"
@@ -34,7 +35,10 @@ const (
 	indexPath      = "/index/"
 	transientsPath = "/transients/"
 
-	defaultGCInterval = time.Hour
+	// GC performs DAG store garbage collection by reclaiming transient files of
+	// shards that are currently available but inactive, or errored.
+	// We don't use transient files right now, so GC is turned off by default.
+	defaultGCInterval = 0
 )
 
 var ErrNotFound = errors.New("eds not found in store")
@@ -52,13 +56,15 @@ type Store struct {
 	cache *blockstoreCache
 	bs    bstore.Blockstore
 
-	topIdx index.Inverted
-	carIdx index.FullIndexRepo
+	carIdx      index.FullIndexRepo
+	invertedIdx *simpleInvertedIndex
 
 	basepath   string
 	gcInterval time.Duration
 	// lastGCResult is only stored on the store for testing purposes.
 	lastGCResult atomic.Pointer[dagstore.GCResult]
+
+	metrics *metrics
 }
 
 // NewStore creates a new EDS Store under the given basepath and datastore.
@@ -69,7 +75,10 @@ func NewStore(basepath string, ds datastore.Batching) (*Store, error) {
 	}
 
 	r := mount.NewRegistry()
-	err = r.Register("fs", &mount.FileMount{Path: basepath + blocksPath})
+	err = r.Register("fs", &inMemoryOnceMount{})
+	if err != nil {
+		return nil, fmt.Errorf("failed to register memory mount on the registry: %w", err)
+	}
 	if err != nil {
 		return nil, fmt.Errorf("failed to register FS mount on the registry: %w", err)
 	}
@@ -79,14 +88,17 @@ func NewStore(basepath string, ds datastore.Batching) (*Store, error) {
 		return nil, fmt.Errorf("failed to create index repository: %w", err)
 	}
 
-	invertedRepo := newSimpleInvertedIndex(ds)
+	invertedIdx, err := newSimpleInvertedIndex(basepath)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create index: %w", err)
+	}
 	dagStore, err := dagstore.NewDAGStore(
 		dagstore.Config{
 			TransientsDir: basepath + transientsPath,
 			IndexRepo:     fsRepo,
 			Datastore:     ds,
 			MountRegistry: r,
-			TopLevelIndex: invertedRepo,
+			TopLevelIndex: invertedIdx,
 		},
 	)
 	if err != nil {
@@ -99,13 +111,13 @@ func NewStore(basepath string, ds datastore.Batching) (*Store, error) {
 	}
 
 	store := &Store{
-		basepath:   basepath,
-		dgstr:      dagStore,
-		topIdx:     invertedRepo,
-		carIdx:     fsRepo,
-		gcInterval: defaultGCInterval,
-		mounts:     r,
-		cache:      cache,
+		basepath:    basepath,
+		dgstr:       dagStore,
+		carIdx:      fsRepo,
+		invertedIdx: invertedIdx,
+		gcInterval:  defaultGCInterval,
+		mounts:      r,
+		cache:       cache,
 	}
 	store.bs = newBlockstore(store, cache)
 	return store, nil
@@ -117,19 +129,25 @@ func (s *Store) Start(ctx context.Context) error {
 		return err
 	}
 	// start Store only if DagStore succeeds
-	ctx, cancel := context.WithCancel(context.Background())
+	runCtx, cancel := context.WithCancel(context.Background())
 	s.cancel = cancel
 	// initialize empty gc result to avoid panic on access
 	s.lastGCResult.Store(&dagstore.GCResult{
 		Shards: make(map[shard.Key]error),
 	})
-	go s.gc(ctx)
+
+	if s.gcInterval != 0 {
+		go s.gc(runCtx)
+	}
 	return nil
 }
 
 // Stop stops the underlying DAGStore.
 func (s *Store) Stop(context.Context) error {
 	defer s.cancel()
+	if err := s.invertedIdx.close(); err != nil {
+		return err
+	}
 	return s.dgstr.Close()
 }
 
@@ -141,7 +159,9 @@ func (s *Store) gc(ctx context.Context) {
 		case <-ctx.Done():
 			return
 		case <-ticker.C:
+			tnow := time.Now()
 			res, err := s.dgstr.GC(ctx)
+			s.metrics.observeGCtime(ctx, time.Since(tnow), err != nil)
 			if err != nil {
 				log.Errorf("garbage collecting dagstore: %v", err)
 				return
@@ -157,23 +177,30 @@ func (s *Store) gc(ctx context.Context) {
 // The square is verified on the Exchange level, and Put only stores the square, trusting it.
 // The resulting file stores all the shares and NMT Merkle Proofs of the EDS.
 // Additionally, the file gets indexed s.t. store.Blockstore can access them.
-func (s *Store) Put(ctx context.Context, root share.DataHash, square *rsmt2d.ExtendedDataSquare) (err error) {
-	// if root already exists, short-circuit
-	has, err := s.Has(ctx, root)
-	if err != nil {
-		return fmt.Errorf("failed to check if root already exists in index: %w", err)
-	}
-	if has {
-		return dagstore.ErrShardExists
-	}
-
+func (s *Store) Put(ctx context.Context, root share.DataHash, square *rsmt2d.ExtendedDataSquare) error {
 	ctx, span := tracer.Start(ctx, "store/put", trace.WithAttributes(
-		attribute.String("root", root.String()),
 		attribute.Int("width", int(square.Width())),
 	))
-	defer func() {
-		utils.SetStatusAndEnd(span, err)
-	}()
+
+	tnow := time.Now()
+	err := s.put(ctx, root, square)
+	result := putOK
+	switch {
+	case errors.Is(err, dagstore.ErrShardExists):
+		result = putExists
+	case err != nil:
+		result = putFailed
+	}
+	utils.SetStatusAndEnd(span, err)
+	s.metrics.observePut(ctx, time.Since(tnow), result, square.Width())
+	return err
+}
+
+func (s *Store) put(ctx context.Context, root share.DataHash, square *rsmt2d.ExtendedDataSquare) (err error) {
+	// if root already exists, short-circuit
+	if has, _ := s.Has(ctx, root); has {
+		return dagstore.ErrShardExists
+	}
 
 	key := root.String()
 	f, err := os.OpenFile(s.basepath+blocksPath+key, os.O_CREATE|os.O_WRONLY, 0600)
@@ -182,27 +209,66 @@ func (s *Store) Put(ctx context.Context, root share.DataHash, square *rsmt2d.Ext
 	}
 	defer f.Close()
 
-	err = WriteEDS(ctx, square, f)
+	// save encoded eds into buffer
+	mount := &inMemoryOnceMount{
+		// TODO: buffer could be pre-allocated with capacity calculated based on eds size.
+		buf:       bytes.NewBuffer(nil),
+		FileMount: mount.FileMount{Path: s.basepath + blocksPath + key},
+	}
+	err = WriteEDS(ctx, square, mount)
 	if err != nil {
 		return fmt.Errorf("failed to write EDS to file: %w", err)
 	}
 
+	// write whole buffered mount data in one go to optimize i/o
+	if _, err = mount.WriteTo(f); err != nil {
+		return fmt.Errorf("failed to write EDS to file: %w", err)
+	}
+
 	ch := make(chan dagstore.ShardResult, 1)
-	err = s.dgstr.RegisterShard(ctx, shard.KeyFromString(key), &mount.FileMount{
-		Path: s.basepath + blocksPath + key,
-	}, ch, dagstore.RegisterOpts{})
+	err = s.dgstr.RegisterShard(ctx, shard.KeyFromString(key), mount, ch, dagstore.RegisterOpts{})
 	if err != nil {
 		return fmt.Errorf("failed to initiate shard registration: %w", err)
 	}
 
 	select {
 	case <-ctx.Done():
+		// if context finished before result was received, track result in separate goroutine
+		go trackLateResult("put", ch, s.metrics, time.Minute*5)
 		return ctx.Err()
 	case result := <-ch:
 		if result.Error != nil {
 			return fmt.Errorf("failed to register shard: %w", result.Error)
 		}
 		return nil
+	}
+}
+
+// waitForResult waits for a result from the res channel for a maximum duration specified by
+// maxWait. If the result is not received within the specified duration, it logs an error
+// indicating that the parent context has expired and the shard registration is stuck. If a result
+// is received, it checks for any error and logs appropriate messages.
+func trackLateResult(opName string, res <-chan dagstore.ShardResult, metrics *metrics, maxWait time.Duration) {
+	tnow := time.Now()
+	select {
+	case <-time.After(maxWait):
+		metrics.observeLongOp(context.Background(), opName, time.Since(tnow), longOpUnresolved)
+		log.Errorf("parent context is expired, while register shard is stuck for more than %v sec", time.Since(tnow))
+		return
+	case result := <-res:
+		// don't observe if result was received right after launch of the func
+		if time.Since(tnow) < time.Second {
+			return
+		}
+		if result.Error != nil {
+			metrics.observeLongOp(context.Background(), opName, time.Since(tnow), longOpFailed)
+			log.Errorf("failed to register shard after context expired: %v ago, err: %w", time.Since(tnow), result.Error)
+			return
+		}
+		metrics.observeLongOp(context.Background(), opName, time.Since(tnow), longOpOK)
+		log.Warnf("parent context expired, but register shard finished with no error,"+
+			" after context expired: %v ago", time.Since(tnow))
+		return
 	}
 }
 
@@ -214,9 +280,15 @@ func (s *Store) Put(ctx context.Context, root share.DataHash, square *rsmt2d.Ext
 // The shard is cached in the Store, so subsequent calls to GetCAR with the same root will use the
 // same reader. The cache is responsible for closing the underlying reader.
 func (s *Store) GetCAR(ctx context.Context, root share.DataHash) (io.Reader, error) {
-	ctx, span := tracer.Start(ctx, "store/get-car", trace.WithAttributes(attribute.String("root", root.String())))
-	defer span.End()
+	ctx, span := tracer.Start(ctx, "store/get-car")
+	tnow := time.Now()
+	r, err := s.getCAR(ctx, root)
+	s.metrics.observeGetCAR(ctx, time.Since(tnow), err != nil)
+	utils.SetStatusAndEnd(span, err)
+	return r, err
+}
 
+func (s *Store) getCAR(ctx context.Context, root share.DataHash) (io.Reader, error) {
 	key := root.String()
 	accessor, err := s.getCachedAccessor(ctx, shard.KeyFromString(key))
 	if err != nil {
@@ -241,6 +313,18 @@ func (s *Store) CARBlockstore(
 	ctx context.Context,
 	root share.DataHash,
 ) (dagstore.ReadBlockstore, error) {
+	ctx, span := tracer.Start(ctx, "store/car-blockstore")
+	tnow := time.Now()
+	r, err := s.carBlockstore(ctx, root)
+	s.metrics.observeCARBlockstore(ctx, time.Since(tnow), err != nil)
+	utils.SetStatusAndEnd(span, err)
+	return r, err
+}
+
+func (s *Store) carBlockstore(
+	ctx context.Context,
+	root share.DataHash,
+) (dagstore.ReadBlockstore, error) {
 	key := shard.KeyFromString(root.String())
 	accessor, err := s.getCachedAccessor(ctx, key)
 	if err != nil {
@@ -251,9 +335,15 @@ func (s *Store) CARBlockstore(
 
 // GetDAH returns the DataAvailabilityHeader for the EDS identified by DataHash.
 func (s *Store) GetDAH(ctx context.Context, root share.DataHash) (*share.Root, error) {
-	ctx, span := tracer.Start(ctx, "store/get-dah", trace.WithAttributes(attribute.String("root", root.String())))
-	defer span.End()
+	ctx, span := tracer.Start(ctx, "store/car-dah")
+	tnow := time.Now()
+	r, err := s.getDAH(ctx, root)
+	s.metrics.observeGetDAH(ctx, time.Since(tnow), err != nil)
+	utils.SetStatusAndEnd(span, err)
+	return r, err
+}
 
+func (s *Store) getDAH(ctx context.Context, root share.DataHash) (*share.Root, error) {
 	key := shard.KeyFromString(root.String())
 	accessor, err := s.getCachedAccessor(ctx, key)
 	if err != nil {
@@ -302,6 +392,7 @@ func (s *Store) getAccessor(ctx context.Context, key shard.Key) (*dagstore.Shard
 		}
 		return res.Accessor, nil
 	case <-ctx.Done():
+		go trackLateResult("get_shard", ch, s.metrics, time.Minute)
 		return nil, ctx.Err()
 	}
 }
@@ -311,30 +402,40 @@ func (s *Store) getCachedAccessor(ctx context.Context, key shard.Key) (*accessor
 	lk.Lock()
 	defer lk.Unlock()
 
+	tnow := time.Now()
 	accessor, err := s.cache.unsafeGet(key)
 	if err != nil && err != errCacheMiss {
 		log.Errorf("unexpected error while reading key from bs cache %s: %s", key, err)
 	}
 	if accessor != nil {
+		s.metrics.observeGetAccessor(ctx, time.Since(tnow), true, false)
 		return accessor, nil
 	}
 
 	// wasn't found in cache, so acquire it and add to cache
 	shardAccessor, err := s.getAccessor(ctx, key)
 	if err != nil {
+		s.metrics.observeGetAccessor(ctx, time.Since(tnow), false, err != nil)
 		return nil, err
 	}
-	return s.cache.unsafeAdd(key, shardAccessor)
+
+	a, err := s.cache.unsafeAdd(key, shardAccessor)
+	s.metrics.observeGetAccessor(ctx, time.Since(tnow), false, err != nil)
+	return a, err
 }
 
 // Remove removes EDS from Store by the given share.Root hash and cleans up all
 // the indexing.
-func (s *Store) Remove(ctx context.Context, root share.DataHash) (err error) {
-	ctx, span := tracer.Start(ctx, "store/remove", trace.WithAttributes(attribute.String("root", root.String())))
-	defer func() {
-		utils.SetStatusAndEnd(span, err)
-	}()
+func (s *Store) Remove(ctx context.Context, root share.DataHash) error {
+	ctx, span := tracer.Start(ctx, "store/remove")
+	tnow := time.Now()
+	err := s.remove(ctx, root)
+	s.metrics.observeRemove(ctx, time.Since(tnow), err != nil)
+	utils.SetStatusAndEnd(span, err)
+	return err
+}
 
+func (s *Store) remove(ctx context.Context, root share.DataHash) (err error) {
 	key := root.String()
 	ch := make(chan dagstore.ShardResult, 1)
 	err = s.dgstr.DestroyShard(ctx, shard.KeyFromString(key), ch, dagstore.DestroyOpts{})
@@ -348,6 +449,7 @@ func (s *Store) Remove(ctx context.Context, root share.DataHash) (err error) {
 			return fmt.Errorf("failed to destroy shard: %w", result.Error)
 		}
 	case <-ctx.Done():
+		go trackLateResult("remove", ch, s.metrics, time.Minute)
 		return ctx.Err()
 	}
 
@@ -370,8 +472,17 @@ func (s *Store) Remove(ctx context.Context, root share.DataHash) (err error) {
 //
 // It reads only one quadrant(1/4) of the EDS and verifies the integrity of the stored data by
 // recomputing it.
-func (s *Store) Get(ctx context.Context, root share.DataHash) (eds *rsmt2d.ExtendedDataSquare, err error) {
-	ctx, span := tracer.Start(ctx, "store/get", trace.WithAttributes(attribute.String("root", root.String())))
+func (s *Store) Get(ctx context.Context, root share.DataHash) (*rsmt2d.ExtendedDataSquare, error) {
+	ctx, span := tracer.Start(ctx, "store/get")
+	tnow := time.Now()
+	eds, err := s.get(ctx, root)
+	s.metrics.observeGet(ctx, time.Since(tnow), err != nil)
+	utils.SetStatusAndEnd(span, err)
+	return eds, err
+}
+
+func (s *Store) get(ctx context.Context, root share.DataHash) (eds *rsmt2d.ExtendedDataSquare, err error) {
+	ctx, span := tracer.Start(ctx, "store/get")
 	defer func() {
 		utils.SetStatusAndEnd(span, err)
 	}()
@@ -388,10 +499,16 @@ func (s *Store) Get(ctx context.Context, root share.DataHash) (eds *rsmt2d.Exten
 }
 
 // Has checks if EDS exists by the given share.Root hash.
-func (s *Store) Has(ctx context.Context, root share.DataHash) (bool, error) {
-	_, span := tracer.Start(ctx, "store/has", trace.WithAttributes(attribute.String("root", root.String())))
-	defer span.End()
+func (s *Store) Has(ctx context.Context, root share.DataHash) (has bool, err error) {
+	ctx, span := tracer.Start(ctx, "store/has")
+	tnow := time.Now()
+	eds, err := s.has(ctx, root)
+	s.metrics.observeHas(ctx, time.Since(tnow), err != nil)
+	utils.SetStatusAndEnd(span, err)
+	return eds, err
+}
 
+func (s *Store) has(_ context.Context, root share.DataHash) (bool, error) {
 	key := root.String()
 	info, err := s.dgstr.GetShardInfo(shard.KeyFromString(key))
 	switch err {
@@ -402,6 +519,29 @@ func (s *Store) Has(ctx context.Context, root share.DataHash) (bool, error) {
 	default:
 		return false, err
 	}
+}
+
+// List lists all the registered EDSes.
+func (s *Store) List() ([]share.DataHash, error) {
+	ctx, span := tracer.Start(context.Background(), "store/list")
+	tnow := time.Now()
+	hashes, err := s.list()
+	s.metrics.observeList(ctx, time.Since(tnow), err != nil)
+	utils.SetStatusAndEnd(span, err)
+	return hashes, err
+}
+
+func (s *Store) list() ([]share.DataHash, error) {
+	shards := s.dgstr.AllShardsInfo()
+	hashes := make([]share.DataHash, 0, len(shards))
+	for shrd := range shards {
+		hash, err := hex.DecodeString(shrd.String())
+		if err != nil {
+			return nil, err
+		}
+		hashes = append(hashes, hash)
+	}
+	return hashes, nil
 }
 
 func setupPath(basepath string) error {
@@ -417,5 +557,41 @@ func setupPath(basepath string) error {
 	if err != nil {
 		return fmt.Errorf("failed to create index directory: %w", err)
 	}
+	return nil
+}
+
+// inMemoryOnceMount is used to allow reading once from buffer before using main mount.Reader
+type inMemoryOnceMount struct {
+	buf *bytes.Buffer
+
+	readOnce atomic.Bool
+	mount.FileMount
+}
+
+func (m *inMemoryOnceMount) Fetch(ctx context.Context) (mount.Reader, error) {
+	if m.buf != nil && !m.readOnce.Swap(true) {
+		reader := &inMemoryReader{Reader: bytes.NewReader(m.buf.Bytes())}
+		// release memory for gc, otherwise buffer will stick forever
+		m.buf = nil
+		return reader, nil
+	}
+	return m.FileMount.Fetch(ctx)
+}
+
+func (m *inMemoryOnceMount) Write(b []byte) (int, error) {
+	return m.buf.Write(b)
+}
+
+func (m *inMemoryOnceMount) WriteTo(w io.Writer) (int64, error) {
+	return io.Copy(w, bytes.NewReader(m.buf.Bytes()))
+}
+
+// inMemoryReader extends bytes.Reader to implement mount.Reader interface
+type inMemoryReader struct {
+	*bytes.Reader
+}
+
+// Close allows inMemoryReader to satisfy mount.Reader interface
+func (r *inMemoryReader) Close() error {
 	return nil
 }

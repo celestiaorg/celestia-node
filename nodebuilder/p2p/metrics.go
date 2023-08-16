@@ -6,7 +6,6 @@ import (
 	"net/http"
 	"time"
 
-	rcmgrObs "github.com/libp2p/go-libp2p/p2p/host/resource-manager/obs"
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"go.uber.org/fx"
@@ -28,8 +27,6 @@ const (
 
 // prometheusMetrics option sets up native libp2p metrics up
 func prometheusMetrics(lifecycle fx.Lifecycle, registerer prometheus.Registerer) error {
-	rcmgrObs.MustRegisterWith(registerer)
-
 	registry := registerer.(*prometheus.Registry)
 
 	mux := http.NewServeMux()

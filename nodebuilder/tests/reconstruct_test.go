@@ -53,6 +53,11 @@ func TestFullReconstructFromBridge(t *testing.T) {
 	err := bridge.Start(ctx)
 	require.NoError(t, err)
 
+	// TODO: This is required to avoid flakes coming from unfinished retry
+	// mechanism for the same peer in go-header
+	_, err = bridge.HeaderServ.WaitForHeight(ctx, uint64(blocks))
+	require.NoError(t, err)
+
 	cfg := nodebuilder.DefaultConfig(node.Full)
 	cfg.Share.UseShareExchange = false
 	cfg.Header.TrustedPeers = append(cfg.Header.TrustedPeers, getMultiAddr(t, bridge.Host))
@@ -124,6 +129,11 @@ func TestFullReconstructFromLights(t *testing.T) {
 	require.NoError(t, bootstrapper.Start(ctx))
 	require.NoError(t, bridge.Start(ctx))
 	bootstrapperAddr := host.InfoFromHost(bootstrapper.Host)
+
+	// TODO: This is required to avoid flakes coming from unfinished retry
+	// mechanism for the same peer in go-header
+	_, err = bridge.HeaderServ.WaitForHeight(ctx, uint64(blocks))
+	require.NoError(t, err)
 
 	cfg = nodebuilder.DefaultConfig(node.Full)
 	setTimeInterval(cfg, defaultTimeInterval)

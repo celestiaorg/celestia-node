@@ -41,11 +41,9 @@ func TestMakeExtendedHeaderForEmptyBlock(t *testing.T) {
 
 func TestMismatchedDataHash_ComputedRoot(t *testing.T) {
 	header := headertest.RandExtendedHeader(t)
-
 	header.DataHash = rand.Bytes(32)
 
-	panicFn := func() {
-		header.Validate() //nolint:errcheck
-	}
-	assert.Panics(t, panicFn)
+	err := header.Validate()
+	assert.Contains(t, err.Error(), "mismatch between data hash commitment from"+
+		" core header and computed data root")
 }

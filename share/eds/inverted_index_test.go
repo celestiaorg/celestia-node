@@ -5,8 +5,6 @@ import (
 	"testing"
 
 	"github.com/filecoin-project/dagstore/shard"
-	"github.com/ipfs/go-datastore"
-	ds_sync "github.com/ipfs/go-datastore/sync"
 	"github.com/multiformats/go-multihash"
 	"github.com/stretchr/testify/require"
 )
@@ -37,20 +35,21 @@ func TestMultihashesForShard(t *testing.T) {
 	}
 
 	mi := &mockIterator{mhs: mhs}
-	ds := ds_sync.MutexWrap(datastore.NewMapDatastore())
-	invertedIndex := newSimpleInvertedIndex(ds)
+	path := t.TempDir()
+	invertedIndex, err := newSimpleInvertedIndex(path)
+	require.NoError(t, err)
 
 	// 1. Add all 3 multihashes to shard1
-	err := invertedIndex.AddMultihashesForShard(ctx, mi, shard.KeyFromString("shard1"))
+	err = invertedIndex.AddMultihashesForShard(ctx, mi, shard.KeyFromString("shard1"))
 	require.NoError(t, err)
 	shardKeys, err := invertedIndex.GetShardsForMultihash(ctx, mhs[0])
 	require.NoError(t, err)
 	require.Equal(t, []shard.Key{shard.KeyFromString("shard1")}, shardKeys)
 
-	// 2. Add mh1 to shard2, and ensure that mh1 still points to shard1
+	// 2. Add mh1 to shard2, and ensure that mh1 no longer points to shard1
 	err = invertedIndex.AddMultihashesForShard(ctx, &mockIterator{mhs: mhs[:1]}, shard.KeyFromString("shard2"))
 	require.NoError(t, err)
 	shardKeys, err = invertedIndex.GetShardsForMultihash(ctx, mhs[0])
 	require.NoError(t, err)
-	require.Equal(t, []shard.Key{shard.KeyFromString("shard1")}, shardKeys)
+	require.Equal(t, []shard.Key{shard.KeyFromString("shard2")}, shardKeys)
 }

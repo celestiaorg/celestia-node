@@ -9,6 +9,14 @@ import (
 	"github.com/ipfs/go-cid"
 	ipld "github.com/ipfs/go-ipld-format"
 	"github.com/ipfs/go-merkledag"
+
+	"github.com/celestiaorg/nmt"
+)
+
+type ctxKey int
+
+const (
+	proofsAdderKey ctxKey = iota
 )
 
 // NmtNodeAdder adds ipld.Nodes to the underlying ipld.Batch if it is inserted
@@ -55,26 +63,6 @@ func (n *NmtNodeAdder) Visit(hash []byte, children ...[]byte) {
 	}
 }
 
-// VisitInnerNodes is a NodeVisitor that does not store leaf nodes to the blockservice.
-func (n *NmtNodeAdder) VisitInnerNodes(hash []byte, children ...[]byte) {
-	n.lock.Lock()
-	defer n.lock.Unlock()
-
-	if n.err != nil {
-		return // protect from further visits if there is an error
-	}
-
-	id := MustCidFromNamespacedSha256(hash)
-	switch len(children) {
-	case 1:
-		break
-	case 2:
-		n.err = n.add.Add(n.ctx, newNMTNode(id, append(children[0], children[1]...)))
-	default:
-		panic("expected a binary tree")
-	}
-}
-
 // Commit checks for errors happened during Visit and if absent commits data to inner Batch.
 func (n *NmtNodeAdder) Commit() error {
 	n.lock.Lock()
@@ -111,4 +99,77 @@ func BatchSize(squareSize int) int {
 	// here we count leaves only once: the CIDs are the same for columns and rows
 	// and for the last two layers as well:
 	return (squareSize*2-1)*squareSize*2 - (squareSize * squareSize)
+}
+
+type ProofsAdder struct {
+	lock   sync.RWMutex
+	proofs map[cid.Cid][]byte
+}
+
+func NewProofsAdder(squareSize int) *ProofsAdder {
+	return &ProofsAdder{
+		// preallocate map to fit all inner nodes for given square size
+		proofs: make(map[cid.Cid][]byte, innerNodesAmount(squareSize)),
+	}
+}
+
+func CtxWithProofsAdder(ctx context.Context, adder *ProofsAdder) context.Context {
+	return context.WithValue(ctx, proofsAdderKey, adder)
+}
+
+func ProofsAdderFromCtx(ctx context.Context) *ProofsAdder {
+	val := ctx.Value(proofsAdderKey)
+	adder, ok := val.(*ProofsAdder)
+	if !ok || adder == nil {
+		return nil
+	}
+	return adder
+}
+
+func (a *ProofsAdder) Proofs() map[cid.Cid][]byte {
+	if a == nil {
+		return nil
+	}
+
+	a.lock.RLock()
+	defer a.lock.RUnlock()
+	return a.proofs
+}
+
+func (a *ProofsAdder) VisitFn() nmt.NodeVisitorFn {
+	if a == nil {
+		return nil
+	}
+
+	a.lock.RLock()
+	defer a.lock.RUnlock()
+
+	// proofs are already collected, don't collect second time
+	if len(a.proofs) > 0 {
+		return nil
+	}
+	return a.visitInnerNodes
+}
+
+func (a *ProofsAdder) visitInnerNodes(hash []byte, children ...[]byte) {
+	switch len(children) {
+	case 1:
+		break
+	case 2:
+		id := MustCidFromNamespacedSha256(hash)
+		a.addProof(id, append(children[0], children[1]...))
+	default:
+		panic("expected a binary tree")
+	}
+}
+
+func (a *ProofsAdder) addProof(id cid.Cid, proof []byte) {
+	a.lock.Lock()
+	defer a.lock.Unlock()
+	a.proofs[id] = proof
+}
+
+// innerNodesAmount return amount of inner nodes in eds with given size
+func innerNodesAmount(squareSize int) int {
+	return 2 * (squareSize - 1) * squareSize
 }

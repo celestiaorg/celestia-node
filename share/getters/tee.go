@@ -14,6 +14,7 @@ import (
 	"github.com/celestiaorg/celestia-node/libs/utils"
 	"github.com/celestiaorg/celestia-node/share"
 	"github.com/celestiaorg/celestia-node/share/eds"
+	"github.com/celestiaorg/celestia-node/share/ipld"
 )
 
 var _ share.Getter = (*TeeGetter)(nil)
@@ -35,7 +36,6 @@ func NewTeeGetter(getter share.Getter, store *eds.Store) *TeeGetter {
 
 func (tg *TeeGetter) GetShare(ctx context.Context, root *share.Root, row, col int) (share share.Share, err error) {
 	ctx, span := tracer.Start(ctx, "tee/get-share", trace.WithAttributes(
-		attribute.String("root", root.String()),
 		attribute.Int("row", row),
 		attribute.Int("col", col),
 	))
@@ -47,13 +47,12 @@ func (tg *TeeGetter) GetShare(ctx context.Context, root *share.Root, row, col in
 }
 
 func (tg *TeeGetter) GetEDS(ctx context.Context, root *share.Root) (eds *rsmt2d.ExtendedDataSquare, err error) {
-	ctx, span := tracer.Start(ctx, "tee/get-eds", trace.WithAttributes(
-		attribute.String("root", root.String()),
-	))
+	ctx, span := tracer.Start(ctx, "tee/get-eds")
 	defer func() {
 		utils.SetStatusAndEnd(span, err)
 	}()
 
+	ctx = ipld.CtxWithProofsAdder(ctx, ipld.NewProofsAdder(len(root.RowRoots)))
 	eds, err = tg.getter.GetEDS(ctx, root)
 	if err != nil {
 		return nil, err
@@ -73,7 +72,6 @@ func (tg *TeeGetter) GetSharesByNamespace(
 	namespace share.Namespace,
 ) (shares share.NamespacedShares, err error) {
 	ctx, span := tracer.Start(ctx, "tee/get-shares-by-namespace", trace.WithAttributes(
-		attribute.String("root", root.String()),
 		attribute.String("namespace", namespace.String()),
 	))
 	defer func() {

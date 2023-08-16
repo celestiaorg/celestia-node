@@ -19,9 +19,9 @@ import (
 )
 
 func TestBlobModule(t *testing.T) {
-	ctx, cancel := context.WithTimeout(context.Background(), time.Minute)
+	ctx, cancel := context.WithTimeout(context.Background(), 25*time.Second)
 	t.Cleanup(cancel)
-	sw := swamp.NewSwamp(t)
+	sw := swamp.NewSwamp(t, swamp.WithBlockTime(time.Second*1))
 
 	appBlobs0, err := blobtest.GenerateV0Blobs([]int{8, 4}, true)
 	require.NoError(t, err)

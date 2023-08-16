@@ -2,9 +2,11 @@ package main
 
 import (
 	"bytes"
+	"context"
 	"encoding/base64"
 	"encoding/hex"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"log"
@@ -17,14 +19,11 @@ import (
 	"github.com/spf13/cobra"
 
 	"github.com/celestiaorg/celestia-node/api/rpc/client"
-	"github.com/celestiaorg/celestia-node/blob"
 	"github.com/celestiaorg/celestia-node/share"
 	"github.com/celestiaorg/celestia-node/state"
 )
 
-const (
-	authEnvKey = "CELESTIA_NODE_AUTH_TOKEN"
-)
+const authEnvKey = "CELESTIA_NODE_AUTH_TOKEN"
 
 var requestURL string
 var authTokenFlag string
@@ -61,6 +60,7 @@ func init() {
 		false,
 		"Print JSON-RPC request along with the response",
 	)
+	rpcCmd.AddCommand(blobCmd)
 	rootCmd.AddCommand(rpcCmd)
 }
 
@@ -68,6 +68,25 @@ var rpcCmd = &cobra.Command{
 	Use:   "rpc [namespace] [method] [params...]",
 	Short: "Send JSON-RPC request",
 	Args:  cobra.MinimumNArgs(2),
+	PersistentPreRunE: func(cmd *cobra.Command, args []string) error {
+		rpcClient, err := newRPCClient(cmd.Context())
+		if err != nil {
+			return err
+		}
+
+		ctx := context.WithValue(cmd.Context(), rpcClientKey{}, rpcClient)
+		cmd.SetContext(ctx)
+		return nil
+	},
+	PersistentPostRunE: func(cmd *cobra.Command, args []string) error {
+		client, err := rpcClient(cmd.Context())
+		if err != nil {
+			return err
+		}
+
+		client.Close()
+		return nil
+	},
 	ValidArgsFunction: func(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
 		modules := client.Modules
 		if len(args) == 0 {
@@ -100,9 +119,17 @@ var rpcCmd = &cobra.Command{
 
 func parseParams(method string, params []string) []interface{} {
 	parsedParams := make([]interface{}, len(params))
-
+	validateParamsFn := func(has, want int) error {
+		if has != want {
+			return fmt.Errorf("rpc: invalid amount of params. has=%d, want=%d", has, want)
+		}
+		return nil
+	}
 	switch method {
 	case "GetSharesByNamespace":
+		if err := validateParamsFn(len(params), 2); err != nil {
+			panic(err)
+		}
 		// 1. Share Root
 		root, err := parseJSON(params[0])
 		if err != nil {
@@ -115,118 +142,12 @@ func parseParams(method string, params []string) []interface{} {
 			panic(fmt.Sprintf("Error parsing namespace: %v", err))
 		}
 		parsedParams[1] = namespace
-	case "Submit":
-		// 1. Namespace
-		var err error
-		namespace, err := parseV0Namespace(params[0])
-		if err != nil {
-			panic(fmt.Sprintf("Error parsing namespace: %v", err))
-		}
-		// 2. Blob data
-		var blobData []byte
-		switch {
-		case strings.HasPrefix(params[1], "0x"):
-			decoded, err := hex.DecodeString(params[1][2:])
-			if err != nil {
-				panic("Error decoding blob: hex string could not be decoded.")
-			}
-			blobData = decoded
-		case strings.HasPrefix(params[1], "\""):
-			// user input an utf string that needs to be encoded to base64
-			src := []byte(params[1])
-			blobData = make([]byte, base64.StdEncoding.EncodedLen(len(src)))
-			base64.StdEncoding.Encode(blobData, []byte(params[1]))
-		default:
-			// otherwise, we assume the user has already encoded their input to base64
-			blobData, err = base64.StdEncoding.DecodeString(params[1])
-			if err != nil {
-				panic("Error decoding blob data: base64 string could not be decoded.")
-			}
-		}
-		parsedBlob, err := blob.NewBlobV0(namespace, blobData)
-		if err != nil {
-			panic(fmt.Sprintf("Error creating blob: %v", err))
-		}
-		parsedParams[0] = []*blob.Blob{parsedBlob}
-		// param count doesn't match input length, so cut off nil values
-		return parsedParams[:1]
-	case "SubmitPayForBlob":
-		// 1. Fee (state.Int is a string)
-		parsedParams[0] = params[0]
-		// 2. GasLimit (uint64)
-		num, err := strconv.ParseUint(params[1], 10, 64)
-		if err != nil {
-			panic("Error parsing gas limit: uint64 could not be parsed.")
-		}
-		parsedParams[1] = num
-		// 3. Namespace
-		namespace, err := parseV0Namespace(params[2])
-		if err != nil {
-			panic(fmt.Sprintf("Error parsing namespace: %v", err))
-		}
-		// 4. Blob data
-		var blobData []byte
-		switch {
-		case strings.HasPrefix(params[3], "0x"):
-			decoded, err := hex.DecodeString(params[3][2:])
-			if err != nil {
-				panic("Error decoding blob: hex string could not be decoded.")
-			}
-			blobData = decoded
-		case strings.HasPrefix(params[3], "\""):
-			// user input an utf string that needs to be encoded to base64
-			src := []byte(params[1])
-			blobData = make([]byte, base64.StdEncoding.EncodedLen(len(src)))
-			base64.StdEncoding.Encode(blobData, []byte(params[3]))
-		default:
-			// otherwise, we assume the user has already encoded their input to base64
-			blobData, err = base64.StdEncoding.DecodeString(params[3])
-			if err != nil {
-				panic("Error decoding blob: base64 string could not be decoded.")
-			}
-		}
-		parsedBlob, err := blob.NewBlobV0(namespace, blobData)
-		if err != nil {
-			panic(fmt.Sprintf("Error creating blob: %v", err))
-		}
-		parsedParams[2] = []*blob.Blob{parsedBlob}
-		return parsedParams[:3]
-	case "Get":
-		// 1. Height
-		num, err := strconv.ParseUint(params[0], 10, 64)
-		if err != nil {
-			panic("Error parsing height: uint64 could not be parsed.")
-		}
-		parsedParams[0] = num
-		// 2. NamespaceID
-		namespace, err := parseV0Namespace(params[1])
-		if err != nil {
-			panic(fmt.Sprintf("Error parsing namespace: %v", err))
-		}
-		parsedParams[1] = namespace
-		// 3: Commitment
-		commitment, err := base64.StdEncoding.DecodeString(params[2])
-		if err != nil {
-			panic("Error decoding commitment: base64 string could not be decoded.")
-		}
-		parsedParams[2] = commitment
-		return parsedParams
-	case "GetAll": // NOTE: Over the cli, you can only pass one namespace
-		// 1. Height
-		num, err := strconv.ParseUint(params[0], 10, 64)
-		if err != nil {
-			panic("Error parsing height: uint64 could not be parsed.")
-		}
-		parsedParams[0] = num
-		// 2. Namespace
-		namespace, err := parseV0Namespace(params[1])
-		if err != nil {
-			panic(fmt.Sprintf("Error parsing namespace: %v", err))
-		}
-		parsedParams[1] = []share.Namespace{namespace}
 		return parsedParams
 	case "QueryDelegation", "QueryUnbonding", "BalanceForAddress":
 		var err error
+		if err = validateParamsFn(len(params), 2); err != nil {
+			panic(err)
+		}
 		parsedParams[0], err = parseAddressFromString(params[0])
 		if err != nil {
 			panic(fmt.Errorf("error parsing address: %w", err))
@@ -246,6 +167,9 @@ func parseParams(method string, params []string) []interface{} {
 	case "Transfer", "Delegate", "Undelegate":
 		// 1. Address
 		var err error
+		if err = validateParamsFn(len(params), 4); err != nil {
+			panic(err)
+		}
 		parsedParams[0], err = parseAddressFromString(params[0])
 		if err != nil {
 			panic(fmt.Errorf("error parsing address: %w", err))
@@ -263,6 +187,9 @@ func parseParams(method string, params []string) []interface{} {
 	case "CancelUnbondingDelegation":
 		// 1. Validator Address
 		var err error
+		if err = validateParamsFn(len(params), 5); err != nil {
+			panic(err)
+		}
 		parsedParams[0], err = parseAddressFromString(params[0])
 		if err != nil {
 			panic(fmt.Errorf("error parsing address: %w", err))
@@ -277,9 +204,13 @@ func parseParams(method string, params []string) []interface{} {
 			panic("Error parsing gas limit: uint64 could not be parsed.")
 		}
 		parsedParams[4] = num
+		return parsedParams
 	case "BeginRedelegate":
 		// 1. Source Validator Address
 		var err error
+		if err = validateParamsFn(len(params), 5); err != nil {
+			panic(err)
+		}
 		parsedParams[0], err = parseAddressFromString(params[0])
 		if err != nil {
 			panic(fmt.Errorf("error parsing address: %w", err))
@@ -298,6 +229,7 @@ func parseParams(method string, params []string) []interface{} {
 			panic("Error parsing gas limit: uint64 could not be parsed.")
 		}
 		parsedParams[4] = num
+		return parsedParams
 	default:
 	}
 
@@ -319,7 +251,6 @@ func parseParams(method string, params []string) []interface{} {
 			parsedParams[i] = param
 		}
 	}
-
 	return parsedParams
 }
 
@@ -445,8 +376,26 @@ func decodeToBytes(param string) ([]byte, error) {
 	}
 	return decoded, nil
 }
+
 func parseJSON(param string) (json.RawMessage, error) {
 	var raw json.RawMessage
 	err := json.Unmarshal([]byte(param), &raw)
 	return raw, err
+}
+
+func newRPCClient(ctx context.Context) (*client.Client, error) {
+	if authTokenFlag == "" {
+		authTokenFlag = os.Getenv(authEnvKey)
+	}
+	return client.NewClient(ctx, requestURL, authTokenFlag)
+}
+
+type rpcClientKey struct{}
+
+func rpcClient(ctx context.Context) (*client.Client, error) {
+	client, ok := ctx.Value(rpcClientKey{}).(*client.Client)
+	if !ok {
+		return nil, errors.New("rpc client was not set")
+	}
+	return client, nil
 }

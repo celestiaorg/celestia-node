@@ -2,6 +2,7 @@ package byzantine
 
 import (
 	"bytes"
+	"errors"
 	"fmt"
 
 	"github.com/celestiaorg/celestia-app/pkg/wrapper"
@@ -16,7 +17,9 @@ import (
 )
 
 const (
-	BadEncoding fraud.ProofType = "badencoding"
+	version = "v0.1"
+
+	BadEncoding fraud.ProofType = "badencoding" + version
 )
 
 func init() {
@@ -114,6 +117,7 @@ func (p *BadEncodingProof) Validate(hdr libhead.Header) error {
 	if !ok {
 		panic(fmt.Sprintf("invalid header type received during BEFP validation: expected %T, got %T", header, hdr))
 	}
+
 	if header.Height() != int64(p.BlockHeight) {
 		return fmt.Errorf("incorrect block height during BEFP validation: expected %d, got %d",
 			p.BlockHeight, header.Height(),
@@ -137,11 +141,13 @@ func (p *BadEncodingProof) Validate(hdr libhead.Header) error {
 	if p.Axis == rsmt2d.Row {
 		merkleRoots = header.DAH.ColumnRoots
 	}
+
 	if int(p.Index) >= len(merkleRoots) {
 		return fmt.Errorf("invalid %s proof: index out of bounds (%d >= %d)",
 			BadEncoding, int(p.Index), len(merkleRoots),
 		)
 	}
+
 	if len(p.Shares) != len(merkleRoots) {
 		// Since p.Shares should contain all the shares from either a row or a
 		// column, it should exactly match the number of row roots. In this
@@ -150,6 +156,22 @@ func (p *BadEncodingProof) Validate(hdr libhead.Header) error {
 		return fmt.Errorf("invalid %s proof: incorrect number of shares %d != %d",
 			BadEncoding, len(p.Shares), len(merkleRoots),
 		)
+	}
+
+	odsWidth := uint64(len(merkleRoots) / 2)
+	amount := uint64(0)
+	for _, share := range p.Shares {
+		if share == nil {
+			continue
+		}
+		amount++
+		if amount == odsWidth {
+			break
+		}
+	}
+
+	if amount < odsWidth {
+		return errors.New("fraud: invalid proof: not enough shares provided to reconstruct row/col")
 	}
 
 	// verify that Merkle proofs correspond to particular shares.
@@ -167,17 +189,24 @@ func (p *BadEncodingProof) Validate(hdr libhead.Header) error {
 		shares[index] = share.GetData(shr.Share)
 	}
 
-	odsWidth := uint64(len(merkleRoots) / 2)
 	codec := share.DefaultRSMT2DCodec()
 
-	// rebuild a row or col.
+	// We can conclude that the proof is valid in case we proved the inclusion of `Shares` but
+	// the row/col can't be reconstructed, or the building of NMTree fails.
 	rebuiltShares, err := codec.Decode(shares)
 	if err != nil {
-		return err
+		log.Infow("failed to decode shares at height",
+			"height", header.Height(), "err", err,
+		)
+		return nil
 	}
+
 	rebuiltExtendedShares, err := codec.Encode(rebuiltShares[0:odsWidth])
 	if err != nil {
-		return err
+		log.Infow("failed to encode shares at height",
+			"height", header.Height(), "err", err,
+		)
+		return nil
 	}
 	copy(rebuiltShares[odsWidth:], rebuiltExtendedShares)
 
@@ -185,13 +214,19 @@ func (p *BadEncodingProof) Validate(hdr libhead.Header) error {
 	for _, share := range rebuiltShares {
 		err = tree.Push(share)
 		if err != nil {
-			return err
+			log.Infow("failed to build a tree from the reconstructed shares at height",
+				"height", header.Height(), "err", err,
+			)
+			return nil
 		}
 	}
 
 	expectedRoot, err := tree.Root()
 	if err != nil {
-		return err
+		log.Infow("failed to build a tree root at height",
+			"height", header.Height(), "err", err,
+		)
+		return nil
 	}
 
 	// root is a merkle root of the row/col where ErrByzantine occurred

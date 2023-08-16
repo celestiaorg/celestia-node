@@ -128,9 +128,7 @@ func (sg *ShrexGetter) GetEDS(ctx context.Context, root *share.Root) (*rsmt2d.Ex
 		attempt int
 		err     error
 	)
-	ctx, span := tracer.Start(ctx, "shrex/get-eds", trace.WithAttributes(
-		attribute.String("root", root.String()),
-	))
+	ctx, span := tracer.Start(ctx, "shrex/get-eds")
 	defer func() {
 		utils.SetStatusAndEnd(span, err)
 	}()
@@ -198,7 +196,6 @@ func (sg *ShrexGetter) GetSharesByNamespace(
 		err     error
 	)
 	ctx, span := tracer.Start(ctx, "shrex/get-shares-by-namespace", trace.WithAttributes(
-		attribute.String("root", root.String()),
 		attribute.String("namespace", namespace.String()),
 	))
 	defer func() {
