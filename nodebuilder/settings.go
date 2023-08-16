@@ -8,6 +8,7 @@ import (
 	"github.com/libp2p/go-libp2p/core/peer"
 	"github.com/pyroscope-io/client/pyroscope"
 	otelpyroscope "github.com/pyroscope-io/otel-profiling-go"
+	"go.opentelemetry.io/contrib/instrumentation/runtime"
 	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/exporters/otlp/otlpmetric/otlpmetrichttp"
 	"go.opentelemetry.io/otel/exporters/otlp/otlptrace"
@@ -28,6 +29,8 @@ import (
 	"github.com/celestiaorg/celestia-node/nodebuilder/share"
 	"github.com/celestiaorg/celestia-node/state"
 )
+
+const defaultMetricsCollectInterval = 10 * time.Second
 
 // WithNetwork specifies the Network to which the Node should connect to.
 // WARNING: Use this option with caution and never run the Node with different networks over the
@@ -168,11 +171,28 @@ func initializeMetrics(
 	}
 
 	provider := sdk.NewMeterProvider(
-		sdk.WithReader(sdk.NewPeriodicReader(exp, sdk.WithTimeout(2*time.Second))),
-		sdk.WithResource(resource.NewWithAttributes(
-			semconv.SchemaURL,
-			semconv.ServiceNamespaceKey.String(nodeType.String()),
-			semconv.ServiceNameKey.String(fmt.Sprintf("%s/%s", network.String(), peerID.String())))))
+		sdk.WithReader(
+			sdk.NewPeriodicReader(exp,
+				sdk.WithTimeout(defaultMetricsCollectInterval),
+				sdk.WithInterval(defaultMetricsCollectInterval))),
+		sdk.WithResource(
+			resource.NewWithAttributes(
+				semconv.SchemaURL,
+				// ServiceNamespaceKey and ServiceNameKey will be concatenated into single attribute with key:
+				// "job" and value: "%service.namespace%/%service.name%"
+				semconv.ServiceNamespaceKey.String(network.String()),
+				semconv.ServiceNameKey.String(nodeType.String()),
+				// ServiceInstanceIDKey will be exported with key: "instance"
+				semconv.ServiceInstanceIDKey.String(peerID.String()),
+			)))
+
+	err = runtime.Start(
+		runtime.WithMinimumReadMemStatsInterval(defaultMetricsCollectInterval),
+		runtime.WithMeterProvider(provider))
+	if err != nil {
+		return fmt.Errorf("start runtime metrics: %w", err)
+	}
+
 	lc.Append(fx.Hook{
 		OnStop: func(ctx context.Context) error {
 			return provider.Shutdown(ctx)
