@@ -11,6 +11,7 @@ import (
 
 	"github.com/celestiaorg/celestia-node/libs/utils"
 	"github.com/celestiaorg/celestia-node/share"
+	"github.com/celestiaorg/celestia-node/share/eds/byzantine"
 )
 
 var _ share.Getter = (*CascadeGetter)(nil)
@@ -128,6 +129,11 @@ func cascadeGetters[V any](
 
 		if errors.Is(getErr, errOperationNotSupported) {
 			continue
+		}
+
+		var byzantineErr *byzantine.ErrByzantine
+		if errors.As(getErr, &byzantineErr) {
+			return zero, byzantineErr
 		}
 
 		err = errors.Join(err, getErr)
