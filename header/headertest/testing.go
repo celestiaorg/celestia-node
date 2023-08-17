@@ -296,32 +296,6 @@ func RandBlockID(*testing.T) types.BlockID {
 	return bid
 }
 
-// FraudMaker creates a custom ConstructFn that breaks the block at the given height.
-func FraudMaker(t *testing.T, faultHeight int64, bServ blockservice.BlockService) header.ConstructFn {
-	log.Warn("Corrupting block...", "height", faultHeight)
-	return func(
-		h *types.Header,
-		comm *types.Commit,
-		vals *types.ValidatorSet,
-		eds *rsmt2d.ExtendedDataSquare,
-	) (*header.ExtendedHeader, error) {
-		if h.Height == faultHeight {
-			eh := &header.ExtendedHeader{
-				RawHeader:    *h,
-				Commit:       comm,
-				ValidatorSet: vals,
-			}
-
-			eh, dataSq := CreateFraudExtHeader(t, eh, bServ)
-			if eds != nil {
-				*eds = *dataSq
-			}
-			return eh, nil
-		}
-		return header.MakeExtendedHeader(h, comm, vals, eds)
-	}
-}
-
 func ExtendedHeaderFromEDS(t *testing.T, height uint64, eds *rsmt2d.ExtendedDataSquare) *header.ExtendedHeader {
 	valSet, vals := RandValidatorSet(10, 10)
 	gen := RandRawHeader(t)
@@ -348,19 +322,51 @@ func ExtendedHeaderFromEDS(t *testing.T, height uint64, eds *rsmt2d.ExtendedData
 	return eh
 }
 
-func CreateFraudExtHeader(
-	t *testing.T,
-	eh *header.ExtendedHeader,
-	serv blockservice.BlockService,
-) (*header.ExtendedHeader, *rsmt2d.ExtendedDataSquare) {
-	square := edstest.RandByzantineEDS(t, len(eh.DAH.RowRoots))
-	err := ipld.ImportEDS(context.Background(), square, serv)
-	require.NoError(t, err)
-	dah, err := da.NewDataAvailabilityHeader(square)
-	require.NoError(t, err)
-	eh.DAH = &dah
-	eh.RawHeader.DataHash = dah.Hash()
-	return eh, square
+// FraudMaker allows to produce an invalid header at the specified height in order to produce the BEFP.
+type FraudMaker struct {
+	t *testing.T
+
+	vals   []types.PrivValidator
+	valSet *types.ValidatorSet
+
+	// height of the invalid header
+	height int64
+}
+
+func NewFraudMaker(t *testing.T, height int64, vals []types.PrivValidator, valSet *types.ValidatorSet) *FraudMaker {
+	return &FraudMaker{
+		t:      t,
+		vals:   vals,
+		valSet: valSet,
+		height: height,
+	}
+}
+
+func (f *FraudMaker) MakeExtendedHeader(odsSize int, bServ blockservice.BlockService) header.ConstructFn {
+	return func(ctx context.Context,
+		h *types.Header,
+		comm *types.Commit,
+		vals *types.ValidatorSet,
+		eds *rsmt2d.ExtendedDataSquare,
+	) (*header.ExtendedHeader, error) {
+		if h.Height == f.height {
+			square := edstest.RandByzantineEDS(f.t, odsSize)
+			err := ipld.ImportEDS(ctx, square, bServ)
+			require.NoError(f.t, err)
+			dah, err := da.NewDataAvailabilityHeader(square)
+			require.NoError(f.t, err)
+
+			h.DataHash = dah.Hash()
+			blockID := comm.BlockID
+			blockID.Hash = h.Hash()
+
+			voteSet := types.NewVoteSet(h.ChainID, h.Height, 0, tmproto.PrecommitType, f.valSet)
+			comm, err = MakeCommit(blockID, h.Height, 0, voteSet, f.vals, time.Now())
+			require.NoError(f.t, err)
+			eds = square
+		}
+		return header.MakeExtendedHeader(ctx, h, comm, vals, eds)
+	}
 }
 
 type Subscriber struct {
