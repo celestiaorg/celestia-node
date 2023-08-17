@@ -33,6 +33,9 @@ func ConstructModule(tp node.Type, cfg *Config) fx.Option {
 		)),
 		// the module is needed for the handler
 		fx.Provide(func(ca *state.CoreAccessor) Module {
+			if ca == nil {
+				return &stubbedStateModule{}
+			}
 			return ca
 		}),
 	)

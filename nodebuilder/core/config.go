@@ -41,3 +41,10 @@ func (cfg *Config) Validate() error {
 	}
 	return nil
 }
+
+// EndpointConfigured returns whether a core endpoint has been set
+// on the config.
+func (cfg *Config) EndpointConfigured() bool {
+	defaultCfg := DefaultConfig()
+	return !(cfg.IP == defaultCfg.IP && (cfg.GRPCPort == defaultCfg.GRPCPort || cfg.RPCPort == defaultCfg.RPCPort))
+}
