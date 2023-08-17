@@ -52,7 +52,10 @@ func (tg *TeeGetter) GetEDS(ctx context.Context, root *share.Root) (eds *rsmt2d.
 		utils.SetStatusAndEnd(span, err)
 	}()
 
-	ctx = ipld.CtxWithProofsAdder(ctx, ipld.NewProofsAdder(len(root.RowRoots)))
+	adder := ipld.NewProofsAdder(len(root.RowRoots))
+	ctx = ipld.CtxWithProofsAdder(ctx, adder)
+	defer adder.Purge()
+
 	eds, err = tg.getter.GetEDS(ctx, root)
 	if err != nil {
 		return nil, err

@@ -153,6 +153,8 @@ func (cl *Listener) handleNewSignedBlock(ctx context.Context, b types.EventDataS
 	)
 	// extend block data
 	adder := ipld.NewProofsAdder(int(b.Data.SquareSize))
+	defer adder.Purge()
+
 	eds, err := extendBlock(b.Data, b.Header.Version.App, nmt.NodeVisitor(adder.VisitFn()))
 	if err != nil {
 		return fmt.Errorf("extending block data: %w", err)
