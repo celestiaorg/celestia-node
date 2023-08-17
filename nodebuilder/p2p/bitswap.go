@@ -48,7 +48,7 @@ func blockstoreFromDatastore(ctx context.Context, ds datastore.Batching) (blocks
 		blockstore.CacheOpts{
 			HasBloomFilterSize:   defaultBloomFilterSize,
 			HasBloomFilterHashes: defaultBloomFilterHashes,
-			HasARCCacheSize:      defaultARCCacheSize,
+			HasTwoQueueCacheSize: defaultARCCacheSize,
 		},
 	)
 }
@@ -58,7 +58,7 @@ func blockstoreFromEDSStore(ctx context.Context, store *eds.Store) (blockstore.B
 		ctx,
 		store.Blockstore(),
 		blockstore.CacheOpts{
-			HasARCCacheSize: defaultARCCacheSize,
+			HasTwoQueueCacheSize: defaultARCCacheSize,
 		},
 	)
 }
