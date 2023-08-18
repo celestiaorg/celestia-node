@@ -4,11 +4,11 @@ import (
 	"context"
 	"fmt"
 
+	"github.com/ipfs/boxo/bitswap"
+	"github.com/ipfs/boxo/bitswap/network"
+	"github.com/ipfs/boxo/blockstore"
+	"github.com/ipfs/boxo/exchange"
 	"github.com/ipfs/go-datastore"
-	blockstore "github.com/ipfs/go-ipfs-blockstore"
-	exchange "github.com/ipfs/go-ipfs-exchange-interface"
-	"github.com/ipfs/go-libipfs/bitswap"
-	"github.com/ipfs/go-libipfs/bitswap/network"
 	routinghelpers "github.com/libp2p/go-libp2p-routing-helpers"
 	hst "github.com/libp2p/go-libp2p/core/host"
 	"github.com/libp2p/go-libp2p/core/protocol"
@@ -48,7 +48,7 @@ func blockstoreFromDatastore(ctx context.Context, ds datastore.Batching) (blocks
 		blockstore.CacheOpts{
 			HasBloomFilterSize:   defaultBloomFilterSize,
 			HasBloomFilterHashes: defaultBloomFilterHashes,
-			HasARCCacheSize:      defaultARCCacheSize,
+			HasTwoQueueCacheSize: defaultARCCacheSize,
 		},
 	)
 }
@@ -58,7 +58,7 @@ func blockstoreFromEDSStore(ctx context.Context, store *eds.Store) (blockstore.B
 		ctx,
 		store.Blockstore(),
 		blockstore.CacheOpts{
-			HasARCCacheSize: defaultARCCacheSize,
+			HasTwoQueueCacheSize: defaultARCCacheSize,
 		},
 	)
 }
