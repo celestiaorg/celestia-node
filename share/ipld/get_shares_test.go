@@ -94,7 +94,7 @@ func TestBlockRecovery(t *testing.T) {
 			colRoots, err := testEds.ColRoots()
 			require.NoError(t, err)
 
-			flat := share.ExtractEDS(testEds)
+			flat := testEds.Flattened()
 
 			// recover a partially complete square
 			rdata := removeRandShares(flat, tc.d)
@@ -116,7 +116,7 @@ func TestBlockRecovery(t *testing.T) {
 			reds, err := rsmt2d.ImportExtendedDataSquare(rdata, share.DefaultRSMT2DCodec(), wrapper.NewConstructor(squareSize))
 			require.NoError(t, err)
 			// check that the squares are equal
-			assert.Equal(t, share.ExtractEDS(testEds), share.ExtractEDS(reds))
+			assert.Equal(t, testEds.Flattened(), reds.Flattened())
 		})
 	}
 }
@@ -133,7 +133,7 @@ func Test_ConvertEDStoShares(t *testing.T) {
 	)
 	require.NoError(t, err)
 
-	resshares := share.ExtractODS(testEds)
+	resshares := testEds.FlattenedODS()
 	require.Equal(t, shares, resshares)
 }
 
@@ -434,7 +434,7 @@ func TestBatchSize(t *testing.T) {
 			bs := blockstore.NewBlockstore(dssync.MutexWrap(ds.NewMapDatastore()))
 
 			randEds := edstest.RandEDS(t, tt.origWidth)
-			_, err := AddShares(ctx, share.ExtractODS(randEds), blockservice.New(bs, offline.Exchange(bs)))
+			_, err := AddShares(ctx, randEds.FlattenedODS(), blockservice.New(bs, offline.Exchange(bs)))
 			require.NoError(t, err)
 
 			out, err := bs.AllKeysChan(ctx)
