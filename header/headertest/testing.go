@@ -9,7 +9,6 @@ import (
 	"testing"
 	"time"
 
-	"github.com/ipfs/go-blockservice"
 	logging "github.com/ipfs/go-log/v2"
 	"github.com/stretchr/testify/require"
 	"github.com/tendermint/tendermint/crypto/tmhash"
@@ -23,9 +22,11 @@ import (
 	"github.com/celestiaorg/celestia-app/pkg/da"
 	libhead "github.com/celestiaorg/go-header"
 	"github.com/celestiaorg/go-header/headertest"
+	"github.com/celestiaorg/nmt"
 	"github.com/celestiaorg/rsmt2d"
 
 	"github.com/celestiaorg/celestia-node/header"
+	"github.com/celestiaorg/celestia-node/share/eds"
 	"github.com/celestiaorg/celestia-node/share/eds/edstest"
 	"github.com/celestiaorg/celestia-node/share/ipld"
 )
@@ -342,7 +343,7 @@ func NewFraudMaker(t *testing.T, height int64, vals []types.PrivValidator, valSe
 	}
 }
 
-func (f *FraudMaker) MakeExtendedHeader(odsSize int, bServ blockservice.BlockService) header.ConstructFn {
+func (f *FraudMaker) MakeExtendedHeader(odsSize int, edsStore *eds.Store) header.ConstructFn {
 	return func(ctx context.Context,
 		h *types.Header,
 		comm *types.Commit,
@@ -350,9 +351,9 @@ func (f *FraudMaker) MakeExtendedHeader(odsSize int, bServ blockservice.BlockSer
 		eds *rsmt2d.ExtendedDataSquare,
 	) (*header.ExtendedHeader, error) {
 		if h.Height == f.height {
-			square := edstest.RandByzantineEDS(f.t, odsSize)
-			err := ipld.ImportEDS(ctx, square, bServ)
-			require.NoError(f.t, err)
+			adder := ipld.NewProofsAdder(odsSize)
+			square := edstest.RandByzantineEDS(f.t, odsSize, nmt.NodeVisitor(adder.VisitFn()))
+
 			dah, err := da.NewDataAvailabilityHeader(square)
 			require.NoError(f.t, err)
 
@@ -361,9 +362,17 @@ func (f *FraudMaker) MakeExtendedHeader(odsSize int, bServ blockservice.BlockSer
 			blockID.Hash = h.Hash()
 
 			voteSet := types.NewVoteSet(h.ChainID, h.Height, 0, tmproto.PrecommitType, f.valSet)
-			comm, err = MakeCommit(blockID, h.Height, 0, voteSet, f.vals, time.Now())
+			commit, err := MakeCommit(blockID, h.Height, 0, voteSet, f.vals, time.Now())
 			require.NoError(f.t, err)
-			eds = square
+
+			// overwrite all data
+			*eds = *square
+			*comm = *commit
+			bb := *h
+			*h = bb
+
+			ctx = ipld.CtxWithProofsAdder(ctx, adder)
+			require.NoError(f.t, edsStore.Put(ctx, h.DataHash.Bytes(), square))
 		}
 		return header.MakeExtendedHeader(ctx, h, comm, vals, eds)
 	}
