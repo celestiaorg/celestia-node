@@ -108,9 +108,9 @@ func writeProofs(ctx context.Context, eds *rsmt2d.ExtendedDataSquare, w io.Write
 
 func getProofs(ctx context.Context, eds *rsmt2d.ExtendedDataSquare) (map[cid.Cid][]byte, error) {
 	// check if there are proofs collected by ipld.ProofsAdder in previous reconstruction of eds
-	proofs := ipld.ProofsAdderFromCtx(ctx).Proofs()
-	if proofs != nil {
-		return proofs, nil
+	if adder := ipld.ProofsAdderFromCtx(ctx); adder != nil {
+		defer adder.Purge()
+		return adder.Proofs(), nil
 	}
 
 	// recompute proofs from eds
@@ -124,6 +124,8 @@ func getProofs(ctx context.Context, eds *rsmt2d.ExtendedDataSquare) (map[cid.Cid
 	// this adder ignores leaves, so that they are not added to the store we iterate through in
 	// writeProofs
 	adder := ipld.NewProofsAdder(odsWidth * 2)
+	defer adder.Purge()
+
 	eds, err := rsmt2d.ImportExtendedDataSquare(
 		shares,
 		share.DefaultRSMT2DCodec(),
