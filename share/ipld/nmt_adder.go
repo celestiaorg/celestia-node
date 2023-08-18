@@ -165,8 +165,8 @@ func (a *ProofsAdder) Purge() {
 		return
 	}
 
-	a.lock.RLock()
-	defer a.lock.RUnlock()
+	a.lock.Lock()
+	defer a.lock.Unlock()
 
 	a.proofs = nil
 }
