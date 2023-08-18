@@ -19,15 +19,15 @@ func coreAccessor(
 	signer *apptypes.KeyringSigner,
 	sync *sync.Syncer[*header.ExtendedHeader],
 	fraudServ libfraud.Service,
-) (*state.CoreAccessor, *modfraud.ServiceBreaker[*state.CoreAccessor]) {
+) (*state.CoreAccessor, Module, *modfraud.ServiceBreaker[*state.CoreAccessor]) {
 	if !corecfg.EndpointConfigured() {
 		log.Info("No core endpoint provided, running node without state access")
-		return nil, nil
+		return nil, &stubbedStateModule{}, nil
 	}
 
 	ca := state.NewCoreAccessor(signer, sync, corecfg.IP, corecfg.RPCPort, corecfg.GRPCPort)
 
-	return ca, &modfraud.ServiceBreaker[*state.CoreAccessor]{
+	return ca, ca, &modfraud.ServiceBreaker[*state.CoreAccessor]{
 		Service:   ca,
 		FraudType: byzantine.BadEncoding,
 		FraudServ: fraudServ,

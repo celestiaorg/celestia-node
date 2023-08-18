@@ -18,14 +18,18 @@ type Config struct {
 // node's connection to a Celestia-Core endpoint.
 func DefaultConfig() Config {
 	return Config{
-		IP:       "0.0.0.0",
-		RPCPort:  "0",
-		GRPCPort: "0",
+		IP:       "",
+		RPCPort:  "",
+		GRPCPort: "",
 	}
 }
 
 // Validate performs basic validation of the config.
 func (cfg *Config) Validate() error {
+	if !cfg.EndpointConfigured() {
+		return nil
+	}
+
 	ip, err := utils.ValidateAddr(cfg.IP)
 	if err != nil {
 		return err
@@ -43,8 +47,7 @@ func (cfg *Config) Validate() error {
 }
 
 // EndpointConfigured returns whether a core endpoint has been set
-// on the config.
+// on the config (true if set).
 func (cfg *Config) EndpointConfigured() bool {
-	defaultCfg := DefaultConfig()
-	return !(cfg.IP == defaultCfg.IP && (cfg.GRPCPort == defaultCfg.GRPCPort || cfg.RPCPort == defaultCfg.RPCPort))
+	return cfg.IP != ""
 }
