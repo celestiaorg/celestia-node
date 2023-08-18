@@ -51,7 +51,7 @@ func (bs *blockstore) Has(ctx context.Context, cid cid.Cid) (bool, error) {
 		// key wasn't found in top level blockstore, but could be in datastore while being reconstructed
 		dsHas, dsErr := bs.ds.Has(ctx, k)
 		if dsErr != nil {
-			return false, ErrNotFound
+			return false, nil
 		}
 		return dsHas, nil
 	}
@@ -65,9 +65,6 @@ func (bs *blockstore) Has(ctx context.Context, cid cid.Cid) (bool, error) {
 func (bs *blockstore) Get(ctx context.Context, cid cid.Cid) (blocks.Block, error) {
 	blockstr, err := bs.getReadOnlyBlockstore(ctx, cid)
 	if errors.Is(err, ErrNotFound) || errors.Is(err, ErrNotFoundInIndex) {
-		// TODO(REVIEWERS): Not sure if we should log the error or not. I don't think it needs
-		// to be returned, since this ds.Get is a "last ditch effort" to find the block, and the
-		// relevant error stays ipld.ErrNotFound
 		k := dshelp.MultihashToDsKey(cid.Hash())
 		blockData, err := bs.ds.Get(ctx, k)
 		if err == nil {
@@ -107,23 +104,28 @@ func (bs *blockstore) DeleteBlock(ctx context.Context, cid cid.Cid) error {
 
 func (bs *blockstore) Put(ctx context.Context, blk blocks.Block) error {
 	k := dshelp.MultihashToDsKey(blk.Cid().Hash())
-
-	exists, err := bs.ds.Has(ctx, k)
-	if err == nil && exists {
-		return nil
-	}
+	// note: we leave duplicate resolution to the underlying datastore
 	return bs.ds.Put(ctx, k, blk.RawData())
 }
 
 func (bs *blockstore) PutMany(ctx context.Context, blocks []blocks.Block) error {
-	var err error
-	for _, blk := range blocks {
-		err = bs.Put(ctx, blk)
+	if len(blocks) == 1 {
+		// performance fast-path
+		return bs.Put(ctx, blocks[0])
+	}
+
+	t, err := bs.ds.Batch(ctx)
+	if err != nil {
+		return err
+	}
+	for _, b := range blocks {
+		k := dshelp.MultihashToDsKey(b.Cid().Hash())
+		err = t.Put(ctx, k, b.RawData())
 		if err != nil {
 			return err
 		}
 	}
-	return err
+	return t.Commit(ctx)
 }
 
 // AllKeysChan is a noop on the EDS blockstore because the keys are not stored in a single CAR file.

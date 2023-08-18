@@ -30,9 +30,9 @@ type IPLDGetter struct {
 }
 
 // NewIPLDGetter creates a new share.Getter that retrieves shares from the bitswap network.
-func NewIPLDGetter(bServ blockservice.BlockService, options ...eds.RetrieverOption) *IPLDGetter {
+func NewIPLDGetter(bServ blockservice.BlockService) *IPLDGetter {
 	return &IPLDGetter{
-		rtrv:  eds.NewRetriever(bServ, options...),
+		rtrv:  eds.NewRetriever(bServ),
 		bServ: bServ,
 	}
 }

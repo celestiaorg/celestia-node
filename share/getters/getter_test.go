@@ -165,7 +165,7 @@ func TestIPLDGetter(t *testing.T) {
 
 	bStore := edsStore.Blockstore()
 	bserv := bsrv.New(bStore, offline.Exchange(bStore))
-	sg := NewIPLDGetter(bserv, eds.WithBlockstoreCleanup())
+	sg := NewIPLDGetter(bserv)
 
 	t.Run("GetShare", func(t *testing.T) {
 		ctx, cancel := context.WithTimeout(ctx, time.Second)

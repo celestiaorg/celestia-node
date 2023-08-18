@@ -26,41 +26,6 @@ import (
 	"github.com/celestiaorg/celestia-node/share/sharetest"
 )
 
-func TestRetriever_Cleanup(t *testing.T) {
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
-
-	bServ := mdutils.Bserv()
-	r := NewRetriever(bServ, WithBlockstoreCleanup())
-
-	// generate EDS
-	shares := sharetest.RandShares(t, 2*2)
-	in, err := ipld.AddShares(ctx, shares, bServ)
-	require.NoError(t, err)
-
-	// limit with timeout, specifically retrieval
-	ctx, cancel = context.WithTimeout(ctx, time.Minute*5) // the timeout is big for the max size which is long
-	defer cancel()
-
-	dah, err := da.NewDataAvailabilityHeader(in)
-	require.NoError(t, err)
-
-	colRoots, _ := in.ColRoots()
-	has, err := bServ.Blockstore().Has(ctx, ipld.MustCidFromNamespacedSha256(colRoots[0]))
-	assert.NoError(t, err)
-	assert.True(t, has)
-
-	out, err := r.Retrieve(ctx, &dah)
-	require.NoError(t, err)
-	assert.True(t, share.EqualEDS(in, out))
-
-	// If we use a normal blockstore (instead of EDS blockstore) with cleanup activated, the blocks
-	// will disappear from the bs
-	has, err = bServ.Blockstore().Has(ctx, ipld.MustCidFromNamespacedSha256(colRoots[0]))
-	assert.NoError(t, err)
-	assert.False(t, has)
-}
-
 func TestRetriever_Retrieve(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
