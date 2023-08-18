@@ -114,7 +114,7 @@ func getProofs(ctx context.Context, eds *rsmt2d.ExtendedDataSquare) (map[cid.Cid
 	}
 
 	// recompute proofs from eds
-	shares := share.ExtractEDS(eds)
+	shares := eds.Flattened()
 	shareCount := len(shares)
 	if shareCount == 0 {
 		return nil, ErrEmptySquare
