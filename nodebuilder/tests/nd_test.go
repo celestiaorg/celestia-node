@@ -2,7 +2,6 @@ package tests
 
 import (
 	"context"
-	"fmt"
 	"testing"
 	"time"
 
@@ -62,8 +61,6 @@ func TestShrexNDFromLights(t *testing.T) {
 
 		// ensure to fetch random namespace (not the reserved namespace)
 		namespace := h.DAH.RowRoots[1][:share.NamespaceSize]
-
-		fmt.Println("baaaaaddddd nammeeessssspppaaccceeee **************************", i, len(h.DAH.ColumnRoots), namespace)
 
 		expected, err := bridge.ShareServ.GetSharesByNamespace(reqCtx, h.DAH, namespace)
 		require.NoError(t, err)
