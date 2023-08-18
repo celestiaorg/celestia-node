@@ -61,7 +61,7 @@ func TestShrexNDFromLights(t *testing.T) {
 		reqCtx, cancel := context.WithTimeout(ctx, time.Second*5)
 
 		// ensure to fetch random namespace (not the reserved namespace)
-		namespace := h.DAH.RowRoots[0][:share.NamespaceSize]
+		namespace := h.DAH.RowRoots[1][:share.NamespaceSize]
 
 		fmt.Println("baaaaaddddd nammeeessssspppaaccceeee **************************", i, len(h.DAH.ColumnRoots), namespace)
 
