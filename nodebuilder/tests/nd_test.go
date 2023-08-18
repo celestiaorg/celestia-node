@@ -2,6 +2,7 @@ package tests
 
 import (
 	"context"
+	"fmt"
 	"testing"
 	"time"
 
@@ -48,15 +49,21 @@ func TestShrexNDFromLights(t *testing.T) {
 	// wait for chain to be filled
 	require.NoError(t, <-fillDn)
 
-	// first 2 blocks are not filled with data
-	for i := 3; i < blocks; i++ {
+	// first 15 blocks are not filled with data
+	//
+	// TODO: we need to stop guessing
+	// the block that actually has transactions. We can get this data from the
+	// response returned by FillBlock.
+	for i := 16; i < blocks; i++ {
 		h, err := bridge.HeaderServ.GetByHeight(ctx, uint64(i))
 		require.NoError(t, err)
 
 		reqCtx, cancel := context.WithTimeout(ctx, time.Second*5)
 
 		// ensure to fetch random namespace (not the reserved namespace)
-		namespace := h.DAH.RowRoots[1][:share.NamespaceSize]
+		namespace := h.DAH.RowRoots[0][:share.NamespaceSize]
+
+		fmt.Println("baaaaaddddd nammeeessssspppaaccceeee **************************", i, len(h.DAH.ColumnRoots), namespace)
 
 		expected, err := bridge.ShareServ.GetSharesByNamespace(reqCtx, h.DAH, namespace)
 		require.NoError(t, err)

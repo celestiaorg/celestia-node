@@ -14,6 +14,7 @@ import (
 	"github.com/stretchr/testify/require"
 	tmrand "github.com/tendermint/tendermint/libs/rand"
 
+	"github.com/celestiaorg/celestia-app/pkg/appconsts"
 	"github.com/celestiaorg/celestia-app/pkg/shares"
 	"github.com/celestiaorg/go-header/store"
 
@@ -309,9 +310,9 @@ func TestService_GetSingleBlobWithoutPadding(t *testing.T) {
 
 	ns1, ns2 := blobs[0].Namespace().ToAppNamespace(), blobs[1].Namespace().ToAppNamespace()
 
-	padding0, err := shares.NamespacePaddingShare(ns1)
+	padding0, err := shares.NamespacePaddingShare(ns1, appconsts.ShareVersionZero)
 	require.NoError(t, err)
-	padding1, err := shares.NamespacePaddingShare(ns2)
+	padding1, err := shares.NamespacePaddingShare(ns2, appconsts.ShareVersionZero)
 	require.NoError(t, err)
 	rawShares0, err := BlobsToShares(blobs[0])
 	require.NoError(t, err)
@@ -354,9 +355,9 @@ func TestService_GetAllWithoutPadding(t *testing.T) {
 
 	ns1, ns2 := blobs[0].Namespace().ToAppNamespace(), blobs[1].Namespace().ToAppNamespace()
 
-	padding0, err := shares.NamespacePaddingShare(ns1)
+	padding0, err := shares.NamespacePaddingShare(ns1, appconsts.ShareVersionZero)
 	require.NoError(t, err)
-	padding1, err := shares.NamespacePaddingShare(ns2)
+	padding1, err := shares.NamespacePaddingShare(ns2, appconsts.ShareVersionZero)
 	require.NoError(t, err)
 	rawShares0, err := BlobsToShares(blobs[0])
 	require.NoError(t, err)
