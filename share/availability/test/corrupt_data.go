@@ -7,11 +7,11 @@ import (
 	mrand "math/rand"
 	"testing"
 
+	"github.com/ipfs/boxo/blockstore"
+	blocks "github.com/ipfs/go-block-format"
 	"github.com/ipfs/go-cid"
 	ds "github.com/ipfs/go-datastore"
 	dssync "github.com/ipfs/go-datastore/sync"
-	blockstore "github.com/ipfs/go-ipfs-blockstore"
-	blocks "github.com/ipfs/go-libipfs/blocks"
 )
 
 var _ blockstore.Blockstore = (*FraudulentBlockstore)(nil)

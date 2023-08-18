@@ -63,7 +63,7 @@ func TestRetriever_Retrieve(t *testing.T) {
 			require.NoError(t, err)
 			out, err := r.Retrieve(ctx, &dah)
 			require.NoError(t, err)
-			assert.True(t, share.EqualEDS(in, out))
+			assert.True(t, in.Equals(out))
 		})
 	}
 }
@@ -74,7 +74,7 @@ func TestRetriever_ByzantineError(t *testing.T) {
 	defer cancel()
 
 	bserv := mdutils.Bserv()
-	shares := share.ExtractEDS(edstest.RandEDS(t, width))
+	shares := edstest.RandEDS(t, width).Flattened()
 	_, err := ipld.ImportShares(ctx, shares, bserv)
 	require.NoError(t, err)
 
