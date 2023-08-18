@@ -1,9 +1,9 @@
 package p2p
 
 import (
+	"github.com/ipfs/boxo/blockstore"
+	"github.com/ipfs/boxo/exchange"
 	"github.com/ipfs/go-blockservice"
-	blockstore "github.com/ipfs/go-ipfs-blockstore"
-	exchange "github.com/ipfs/go-ipfs-exchange-interface"
 )
 
 // blockService constructs IPFS's BlockService for fetching arbitrary Merkle structures.
