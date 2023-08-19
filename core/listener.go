@@ -11,8 +11,11 @@ import (
 	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/attribute"
 
+	"github.com/celestiaorg/celestia-app/app"
+	"github.com/celestiaorg/celestia-app/pkg/appconsts"
 	libhead "github.com/celestiaorg/go-header"
 	"github.com/celestiaorg/nmt"
+	"github.com/celestiaorg/rsmt2d"
 
 	"github.com/celestiaorg/celestia-node/header"
 	"github.com/celestiaorg/celestia-node/share/eds"
@@ -32,8 +35,10 @@ var tracer = otel.Tracer("core/listener")
 type Listener struct {
 	fetcher *BlockFetcher
 
-	construct header.ConstructFn
-	store     *eds.Store
+	headerConstruct header.ConstructFn
+	edsConstruct    eds.ConstructFn
+
+	store *eds.Store
 
 	headerBroadcaster libhead.Broadcaster[*header.ExtendedHeader]
 	hashBroadcaster   shrexsub.BroadcastFn
@@ -47,7 +52,8 @@ func NewListener(
 	bcast libhead.Broadcaster[*header.ExtendedHeader],
 	fetcher *BlockFetcher,
 	hashBroadcaster shrexsub.BroadcastFn,
-	construct header.ConstructFn,
+	headerConstruct header.ConstructFn,
+	edsConstruct eds.ConstructFn,
 	store *eds.Store,
 	blocktime time.Duration,
 ) *Listener {
@@ -55,7 +61,8 @@ func NewListener(
 		fetcher:           fetcher,
 		headerBroadcaster: bcast,
 		hashBroadcaster:   hashBroadcaster,
-		construct:         construct,
+		headerConstruct:   headerConstruct,
+		edsConstruct:      edsConstruct,
 		store:             store,
 		listenerTimeout:   2 * blocktime,
 	}
@@ -155,19 +162,32 @@ func (cl *Listener) handleNewSignedBlock(ctx context.Context, b types.EventDataS
 	adder := ipld.NewProofsAdder(int(b.Data.SquareSize))
 	defer adder.Purge()
 
-	eds, err := extendBlock(b.Data, b.Header.Version.App, nmt.NodeVisitor(adder.VisitFn()))
-	if err != nil {
-		return fmt.Errorf("extending block data: %w", err)
+	var (
+		dataSq *rsmt2d.ExtendedDataSquare
+		err    error
+	)
+
+	if !app.IsEmptyBlock(b.Data, b.Header.Version.App) {
+		dataSq, err = cl.edsConstruct(
+			b.Data.Txs.ToSliceOfBytes(),
+			b.Header.Version.App,
+			appconsts.SquareSizeUpperBound(b.Header.Version.App),
+			nmt.NodeVisitor(adder.VisitFn()),
+		)
+		if err != nil {
+			return fmt.Errorf("extending block data: %w", err)
+		}
 	}
+
 	// generate extended header
-	eh, err := cl.construct(ctx, &b.Header, &b.Commit, &b.ValidatorSet, eds)
+	eh, err := cl.headerConstruct(ctx, &b.Header, &b.Commit, &b.ValidatorSet, dataSq)
 	if err != nil {
 		panic(fmt.Errorf("making extended header: %w", err))
 	}
 
 	// attempt to store block data if not empty
 	ctx = ipld.CtxWithProofsAdder(ctx, adder)
-	err = storeEDS(ctx, b.Header.DataHash.Bytes(), eds, cl.store)
+	err = eds.StoreEDS(ctx, b.Header.DataHash.Bytes(), dataSq, cl.store)
 	if err != nil {
 		return fmt.Errorf("storing EDS: %w", err)
 	}

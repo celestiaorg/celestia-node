@@ -8,12 +8,16 @@ import (
 	"io"
 	"math"
 
+	"github.com/filecoin-project/dagstore"
 	"github.com/ipfs/go-cid"
 	"github.com/ipld/go-car"
 	"github.com/ipld/go-car/util"
 	"github.com/minio/sha256-simd"
 
+	"github.com/celestiaorg/celestia-app/pkg/appconsts"
 	"github.com/celestiaorg/celestia-app/pkg/da"
+	"github.com/celestiaorg/celestia-app/pkg/shares"
+	"github.com/celestiaorg/celestia-app/pkg/square"
 	"github.com/celestiaorg/celestia-app/pkg/wrapper"
 	"github.com/celestiaorg/nmt"
 	"github.com/celestiaorg/rsmt2d"
@@ -272,4 +276,60 @@ func ReadEDS(ctx context.Context, r io.Reader, root share.DataHash) (eds *rsmt2d
 		)
 	}
 	return eds, nil
+}
+
+// ConstructFn aliases a function that creates an ExtendedDataSquare.
+type ConstructFn func(
+	data [][]byte,
+	appVersion uint64,
+	squareSizeBounds int,
+	options ...nmt.Option,
+) (*rsmt2d.ExtendedDataSquare, error)
+
+// MakeExtendedDataSquare extends the given block data, returning the resulting
+// ExtendedDataSquare (EDS). If the data is empty,
+// nil is returned in place of the eds.
+func MakeExtendedDataSquare(
+	data [][]byte,
+	appVersion uint64,
+	squareSizeBounds int,
+	options ...nmt.Option,
+) (*rsmt2d.ExtendedDataSquare, error) {
+	if len(data) == 0 {
+		return nil, nil
+	}
+
+	// Construct the data square from the block's transactions
+	dataSquare, err := square.Construct(data, appVersion, squareSizeBounds)
+	if err != nil {
+		return nil, err
+	}
+	return extendShares(shares.ToBytes(dataSquare), options...)
+}
+
+func extendShares(s [][]byte, options ...nmt.Option) (*rsmt2d.ExtendedDataSquare, error) {
+	// Check that the length of the square is a power of 2.
+	if !shares.IsPowerOfTwo(len(s)) {
+		return nil, fmt.Errorf("number of shares is not a power of 2: got %d", len(s))
+	}
+	// here we construct a tree
+	// Note: uses the nmt wrapper to construct the tree.
+	squareSize := square.Size(len(s))
+	return rsmt2d.ComputeExtendedDataSquare(s,
+		appconsts.DefaultCodec(),
+		wrapper.NewConstructor(uint64(squareSize),
+			options...))
+}
+
+// StoreEDS will only store extended block if it is not empty and doesn't already exist.
+func StoreEDS(ctx context.Context, hash share.DataHash, eds *rsmt2d.ExtendedDataSquare, store *Store) error {
+	if eds == nil {
+		return nil
+	}
+	err := store.Put(ctx, hash, eds)
+	if errors.Is(err, dagstore.ErrShardExists) {
+		// block with given root already exists, return nil
+		return nil
+	}
+	return err
 }

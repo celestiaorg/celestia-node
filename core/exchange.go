@@ -8,6 +8,7 @@ import (
 
 	"golang.org/x/sync/errgroup"
 
+	"github.com/celestiaorg/celestia-app/pkg/appconsts"
 	libhead "github.com/celestiaorg/go-header"
 	"github.com/celestiaorg/nmt"
 
@@ -19,20 +20,23 @@ import (
 const concurrencyLimit = 4
 
 type Exchange struct {
-	fetcher   *BlockFetcher
-	store     *eds.Store
-	construct header.ConstructFn
+	fetcher         *BlockFetcher
+	store           *eds.Store
+	headerConstruct header.ConstructFn
+	edsConstruct    eds.ConstructFn
 }
 
 func NewExchange(
 	fetcher *BlockFetcher,
 	store *eds.Store,
-	construct header.ConstructFn,
+	headerConstruct header.ConstructFn,
+	edsConstruct eds.ConstructFn,
 ) *Exchange {
 	return &Exchange{
-		fetcher:   fetcher,
-		store:     store,
-		construct: construct,
+		fetcher:         fetcher,
+		store:           store,
+		headerConstruct: headerConstruct,
+		edsConstruct:    edsConstruct,
 	}
 }
 
@@ -110,12 +114,17 @@ func (ce *Exchange) Get(ctx context.Context, hash libhead.Hash) (*header.Extende
 	adder := ipld.NewProofsAdder(int(block.Data.SquareSize))
 	defer adder.Purge()
 
-	eds, err := extendBlock(block.Data, block.Header.Version.App, nmt.NodeVisitor(adder.VisitFn()))
+	dataSq, err := ce.edsConstruct(
+		block.Data.Txs.ToSliceOfBytes(),
+		block.Header.Version.App,
+		appconsts.SquareSizeUpperBound(block.Header.Version.App),
+		nmt.NodeVisitor(adder.VisitFn()),
+	)
 	if err != nil {
 		return nil, fmt.Errorf("extending block data for height %d: %w", &block.Height, err)
 	}
 	// construct extended header
-	eh, err := ce.construct(ctx, &block.Header, comm, vals, eds)
+	eh, err := ce.headerConstruct(ctx, &block.Header, comm, vals, dataSq)
 	if err != nil {
 		panic(fmt.Errorf("constructing extended header for height %d: %w", &block.Height, err))
 	}
@@ -126,7 +135,7 @@ func (ce *Exchange) Get(ctx context.Context, hash libhead.Hash) (*header.Extende
 	}
 
 	ctx = ipld.CtxWithProofsAdder(ctx, adder)
-	err = storeEDS(ctx, eh.DAH.Hash(), eds, ce.store)
+	err = eds.StoreEDS(ctx, eh.DAH.Hash(), dataSq, ce.store)
 	if err != nil {
 		return nil, fmt.Errorf("storing EDS to eds.Store for height %d: %w", &block.Height, err)
 	}
@@ -152,18 +161,23 @@ func (ce *Exchange) getExtendedHeaderByHeight(ctx context.Context, height *int64
 	adder := ipld.NewProofsAdder(int(b.Data.SquareSize))
 	defer adder.Purge()
 
-	eds, err := extendBlock(b.Data, b.Header.Version.App, nmt.NodeVisitor(adder.VisitFn()))
+	dataSq, err := ce.edsConstruct(
+		b.Data.Txs.ToSliceOfBytes(),
+		b.Header.Version.App,
+		appconsts.SquareSizeUpperBound(b.Header.Version.App),
+		nmt.NodeVisitor(adder.VisitFn()),
+	)
 	if err != nil {
 		return nil, fmt.Errorf("extending block data for height %d: %w", b.Header.Height, err)
 	}
 	// create extended header
-	eh, err := ce.construct(ctx, &b.Header, &b.Commit, &b.ValidatorSet, eds)
+	eh, err := ce.headerConstruct(ctx, &b.Header, &b.Commit, &b.ValidatorSet, dataSq)
 	if err != nil {
 		panic(fmt.Errorf("constructing extended header for height %d: %w", b.Header.Height, err))
 	}
 
 	ctx = ipld.CtxWithProofsAdder(ctx, adder)
-	err = storeEDS(ctx, eh.DAH.Hash(), eds, ce.store)
+	err = eds.StoreEDS(ctx, eh.DAH.Hash(), dataSq, ce.store)
 	if err != nil {
 		return nil, fmt.Errorf("storing EDS to eds.Store for block height %d: %w", b.Header.Height, err)
 	}

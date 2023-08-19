@@ -177,6 +177,7 @@ func (s *Swamp) setupGenesis() {
 		core.NewBlockFetcher(s.ClientContext.Client),
 		store,
 		header.MakeExtendedHeader,
+		eds.MakeExtendedDataSquare,
 	)
 
 	h, err := ex.GetByHeight(ctx, 1)

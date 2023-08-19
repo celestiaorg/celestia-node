@@ -168,7 +168,15 @@ func createListener(
 		require.NoError(t, p2pSub.Stop(ctx))
 	})
 
-	return NewListener(p2pSub, fetcher, edsSub.Broadcast, header.MakeExtendedHeader, store, nodep2p.BlockTime)
+	return NewListener(
+		p2pSub,
+		fetcher,
+		edsSub.Broadcast,
+		header.MakeExtendedHeader,
+		eds.MakeExtendedDataSquare,
+		store,
+		nodep2p.BlockTime,
+	)
 }
 
 func createEdsPubSub(ctx context.Context, t *testing.T) *shrexsub.PubSub {

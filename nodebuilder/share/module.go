@@ -146,6 +146,9 @@ func ConstructModule(tp node.Type, cfg *Config, options ...fx.Option) fx.Option 
 			"share",
 			baseComponents,
 			bridgeAndFullComponents,
+			fx.Provide(func() eds.ConstructFn {
+				return eds.MakeExtendedDataSquare
+			}),
 			fxutil.ProvideAs(func(getter *getters.StoreGetter) share.Getter {
 				return getter
 			}),

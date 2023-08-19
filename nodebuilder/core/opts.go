@@ -17,3 +17,8 @@ func WithClient(client core.Client) fx.Option {
 func WithHeaderConstructFn(construct header.ConstructFn) fx.Option {
 	return fx.Replace(construct)
 }
+
+// WithEdsConstructFn sets custom func that creates extended data square
+func WithEdsConstructFn(construct header.ConstructFn) fx.Option {
+	return fx.Replace(construct)
+}

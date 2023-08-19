@@ -41,10 +41,18 @@ func ConstructModule(tp node.Type, cfg *Config, options ...fx.Option) fx.Option 
 					bcast libhead.Broadcaster[*header.ExtendedHeader],
 					fetcher *core.BlockFetcher,
 					pubsub *shrexsub.PubSub,
-					construct header.ConstructFn,
+					hConstruct header.ConstructFn,
+					edsConstruct eds.ConstructFn,
 					store *eds.Store,
 				) *core.Listener {
-					return core.NewListener(bcast, fetcher, pubsub.Broadcast, construct, store, p2p.BlockTime)
+					return core.NewListener(bcast,
+						fetcher,
+						pubsub.Broadcast,
+						hConstruct,
+						edsConstruct,
+						store,
+						p2p.BlockTime,
+					)
 				},
 				fx.OnStart(func(ctx context.Context, listener *core.Listener) error {
 					return listener.Start(ctx)

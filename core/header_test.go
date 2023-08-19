@@ -8,8 +8,11 @@ import (
 	"github.com/stretchr/testify/require"
 	"github.com/tendermint/tendermint/libs/rand"
 
+	"github.com/celestiaorg/celestia-app/pkg/appconsts"
+
 	"github.com/celestiaorg/celestia-node/header"
 	"github.com/celestiaorg/celestia-node/header/headertest"
+	"github.com/celestiaorg/celestia-node/share/eds"
 )
 
 func TestMakeExtendedHeaderForEmptyBlock(t *testing.T) {
@@ -30,7 +33,11 @@ func TestMakeExtendedHeaderForEmptyBlock(t *testing.T) {
 	comm, val, err := fetcher.GetBlockInfo(ctx, &height)
 	require.NoError(t, err)
 
-	eds, err := extendBlock(b.Data, b.Header.Version.App)
+	eds, err := eds.MakeExtendedDataSquare(
+		b.Data.Txs.ToSliceOfBytes(),
+		b.Header.Version.App,
+		appconsts.SquareSizeUpperBound(b.Header.Version.App),
+	)
 	require.NoError(t, err)
 
 	headerExt, err := header.MakeExtendedHeader(ctx, &b.Header, comm, val, eds)
