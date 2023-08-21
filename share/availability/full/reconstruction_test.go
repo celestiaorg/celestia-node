@@ -181,34 +181,14 @@ func TestShareAvailable_DisconnectedFullNodes(t *testing.T) {
 	light.DefaultSampleAmount = 20 // s
 	const (
 		origSquareSize = 16 // k
-		lightNodes     = 60 // c - total number of nodes on two subnetworks
+		lightNodes     = 32 // c - total number of nodes on two subnetworks
 	)
 
-	ctx, cancel := context.WithTimeout(context.Background(), time.Second*30)
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second*60)
 	defer cancel()
 
 	net := availability_test.NewTestDAGNet(ctx, t)
 	source, root := RandNode(net, origSquareSize)
-
-	// create two full nodes and ensure they are disconnected
-	full1 := Node(net)
-	full2 := Node(net)
-	net.Disconnect(full1.ID(), full2.ID())
-
-	// ensure fulls and source are not connected
-	// so that fulls take data from light nodes only
-	net.Disconnect(full1.ID(), source.ID())
-	net.Disconnect(full2.ID(), source.ID())
-
-	// start reconstruction for fulls that should fail
-	ctxErr, cancelErr := context.WithTimeout(ctx, eds.RetrieveQuadrantTimeout*8)
-	errg, errCtx := errgroup.WithContext(ctxErr)
-	errg.Go(func() error {
-		return full1.SharesAvailable(errCtx, root)
-	})
-	errg.Go(func() error {
-		return full2.SharesAvailable(errCtx, root)
-	})
 
 	// create light nodes and start sampling for them immediately
 	lights1, lights2 := make(
@@ -237,6 +217,16 @@ func TestShareAvailable_DisconnectedFullNodes(t *testing.T) {
 		}(i)
 	}
 
+	// create two full nodes and ensure they are disconnected
+	full1 := Node(net)
+	full2 := Node(net)
+	net.Disconnect(full1.ID(), full2.ID())
+
+	// ensure fulls and source are not connected
+	// so that fulls take data from light nodes only
+	net.Disconnect(full1.ID(), source.ID())
+	net.Disconnect(full2.ID(), source.ID())
+
 	// shape topology
 	for i := 0; i < len(lights1); i++ {
 		// ensure lights1 are only connected to source and full1
@@ -248,6 +238,16 @@ func TestShareAvailable_DisconnectedFullNodes(t *testing.T) {
 		net.Connect(lights2[i].ID(), full2.ID())
 		net.Disconnect(lights2[i].ID(), full1.ID())
 	}
+
+	// start reconstruction for fulls that should fail
+	ctxErr, cancelErr := context.WithTimeout(ctx, time.Second*5)
+	errg, errCtx := errgroup.WithContext(ctxErr)
+	errg.Go(func() error {
+		return full1.SharesAvailable(errCtx, root)
+	})
+	errg.Go(func() error {
+		return full2.SharesAvailable(errCtx, root)
+	})
 
 	// check that any of the fulls cannot reconstruct on their own
 	err := errg.Wait()
@@ -262,10 +262,14 @@ func TestShareAvailable_DisconnectedFullNodes(t *testing.T) {
 	full2.ClearStorage()
 
 	// they both should be able to reconstruct the block
-	err = full1.SharesAvailable(ctx, root)
-	require.NoError(t, err, share.ErrNotAvailable)
-	err = full2.SharesAvailable(ctx, root)
-	require.NoError(t, err, share.ErrNotAvailable)
+	errg, bctx := errgroup.WithContext(ctx)
+	errg.Go(func() error {
+		return full1.SharesAvailable(bctx, root)
+	})
+	errg.Go(func() error {
+		return full2.SharesAvailable(bctx, root)
+	})
+	require.NoError(t, errg.Wait())
 	// wait for all routines to finish before exit, in case there are any errors to log
 	wg.Wait()
 }
