@@ -333,6 +333,8 @@ type FraudMaker struct {
 
 	// height of the invalid header
 	height int64
+
+	prevHash bytes.HexBytes
 }
 
 func NewFraudMaker(t *testing.T, height int64, vals []types.PrivValidator, valSet *types.ValidatorSet) *FraudMaker {
@@ -351,34 +353,39 @@ func (f *FraudMaker) MakeExtendedHeader(odsSize int, edsStore *eds.Store) header
 		vals *types.ValidatorSet,
 		eds *rsmt2d.ExtendedDataSquare,
 	) (*header.ExtendedHeader, error) {
+		if h.Height < f.height {
+			return header.MakeExtendedHeader(ctx, h, comm, vals, eds)
+		}
+
+		hdr := *h
 		if h.Height == f.height {
 			adder := ipld.NewProofsAdder(odsSize)
 			square := edstest.RandByzantineEDS(f.t, odsSize, nmt.NodeVisitor(adder.VisitFn()))
-
 			dah, err := da.NewDataAvailabilityHeader(square)
 			require.NoError(f.t, err)
-
-			h.DataHash = dah.Hash()
-			blockID := comm.BlockID
-			blockID.Hash = h.Hash()
-
-			voteSet := types.NewVoteSet(h.ChainID, h.Height, 0, tmproto.PrecommitType, f.valSet)
-			commit, err := MakeCommit(blockID, h.Height, 0, voteSet, f.vals, time.Now())
-			require.NoError(f.t, err)
-
-			// overwrite all data
-			*eds = *square
-			*comm = *commit
-			bb := *h
-			*h = bb
+			hdr.DataHash = dah.Hash()
 
 			ctx = ipld.CtxWithProofsAdder(ctx, adder)
 			require.NoError(f.t, edsStore.Put(ctx, h.DataHash.Bytes(), square))
+
+			*eds = *square
 		}
+		if h.Height > f.height {
+			hdr.LastBlockID.Hash = f.prevHash
+		}
+
+		blockID := comm.BlockID
+		blockID.Hash = hdr.Hash()
+		voteSet := types.NewVoteSet(hdr.ChainID, hdr.Height, 0, tmproto.PrecommitType, f.valSet)
+		commit, err := MakeCommit(blockID, hdr.Height, 0, voteSet, f.vals, time.Now())
+		require.NoError(f.t, err)
+
+		*h = hdr
+		*comm = *commit
+		f.prevHash = h.Hash()
 		return header.MakeExtendedHeader(ctx, h, comm, vals, eds)
 	}
 }
-
 func CreateFraudExtHeader(
 	t *testing.T,
 	eh *header.ExtendedHeader,
