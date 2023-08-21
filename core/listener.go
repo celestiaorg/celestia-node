@@ -175,7 +175,7 @@ func (cl *Listener) handleNewSignedBlock(ctx context.Context, b types.EventDataS
 			nmt.NodeVisitor(adder.VisitFn()),
 		)
 		if err != nil {
-			return fmt.Errorf("extending block data: %w", err)
+			panic(fmt.Errorf("extending block data: %w", err))
 		}
 	}
 

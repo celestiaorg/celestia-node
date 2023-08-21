@@ -22,21 +22,21 @@ const concurrencyLimit = 4
 type Exchange struct {
 	fetcher         *BlockFetcher
 	store           *eds.Store
-	headerConstruct header.ConstructFn
-	edsConstruct    eds.ConstructFn
+	constructHeader header.ConstructFn
+	constructEDS    eds.ConstructFn
 }
 
 func NewExchange(
 	fetcher *BlockFetcher,
 	store *eds.Store,
-	headerConstruct header.ConstructFn,
-	edsConstruct eds.ConstructFn,
+	constructHeader header.ConstructFn,
+	constructEDS eds.ConstructFn,
 ) *Exchange {
 	return &Exchange{
 		fetcher:         fetcher,
 		store:           store,
-		headerConstruct: headerConstruct,
-		edsConstruct:    edsConstruct,
+		constructHeader: constructHeader,
+		constructEDS:    constructEDS,
 	}
 }
 
@@ -114,7 +114,7 @@ func (ce *Exchange) Get(ctx context.Context, hash libhead.Hash) (*header.Extende
 	adder := ipld.NewProofsAdder(int(block.Data.SquareSize))
 	defer adder.Purge()
 
-	dataSq, err := ce.edsConstruct(
+	dataSq, err := ce.constructEDS(
 		block.Data.Txs.ToSliceOfBytes(),
 		block.Header.Version.App,
 		appconsts.SquareSizeUpperBound(block.Header.Version.App),
@@ -124,7 +124,7 @@ func (ce *Exchange) Get(ctx context.Context, hash libhead.Hash) (*header.Extende
 		return nil, fmt.Errorf("extending block data for height %d: %w", &block.Height, err)
 	}
 	// construct extended header
-	eh, err := ce.headerConstruct(ctx, &block.Header, comm, vals, dataSq)
+	eh, err := ce.constructHeader(ctx, &block.Header, comm, vals, dataSq)
 	if err != nil {
 		panic(fmt.Errorf("constructing extended header for height %d: %w", &block.Height, err))
 	}
@@ -161,7 +161,7 @@ func (ce *Exchange) getExtendedHeaderByHeight(ctx context.Context, height *int64
 	adder := ipld.NewProofsAdder(int(b.Data.SquareSize))
 	defer adder.Purge()
 
-	dataSq, err := ce.edsConstruct(
+	dataSq, err := ce.constructEDS(
 		b.Data.Txs.ToSliceOfBytes(),
 		b.Header.Version.App,
 		appconsts.SquareSizeUpperBound(b.Header.Version.App),
@@ -171,7 +171,7 @@ func (ce *Exchange) getExtendedHeaderByHeight(ctx context.Context, height *int64
 		return nil, fmt.Errorf("extending block data for height %d: %w", b.Header.Height, err)
 	}
 	// create extended header
-	eh, err := ce.headerConstruct(ctx, &b.Header, &b.Commit, &b.ValidatorSet, dataSq)
+	eh, err := ce.constructHeader(ctx, &b.Header, &b.Commit, &b.ValidatorSet, dataSq)
 	if err != nil {
 		panic(fmt.Errorf("constructing extended header for height %d: %w", b.Header.Height, err))
 	}

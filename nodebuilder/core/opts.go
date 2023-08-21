@@ -6,6 +6,7 @@ import (
 	"github.com/celestiaorg/celestia-node/core"
 	"github.com/celestiaorg/celestia-node/header"
 	"github.com/celestiaorg/celestia-node/libs/fxutil"
+	"github.com/celestiaorg/celestia-node/share/eds"
 )
 
 // WithClient sets custom client for core process
@@ -19,6 +20,6 @@ func WithHeaderConstructFn(construct header.ConstructFn) fx.Option {
 }
 
 // WithEdsConstructFn sets custom func that creates extended data square
-func WithEdsConstructFn(construct header.ConstructFn) fx.Option {
+func WithEdsConstructFn(construct eds.ConstructFn) fx.Option {
 	return fx.Replace(construct)
 }
