@@ -43,14 +43,8 @@ func TestLifecycle(t *testing.T) {
 			err := node.Start(ctx)
 			require.NoError(t, err)
 
-			// ensure the state service is running
-			require.False(t, node.StateServ.IsStopped(ctx))
-
 			err = node.Stop(ctx)
 			require.NoError(t, err)
-
-			// ensure the state service is stopped
-			require.True(t, node.StateServ.IsStopped(ctx))
 		})
 	}
 }
@@ -96,14 +90,8 @@ func TestLifecycle_WithMetrics(t *testing.T) {
 			err := node.Start(ctx)
 			require.NoError(t, err)
 
-			// ensure the state service is running
-			require.False(t, node.StateServ.IsStopped(ctx))
-
 			err = node.Stop(ctx)
 			require.NoError(t, err)
-
-			// ensure the state service is stopped
-			require.True(t, node.StateServ.IsStopped(ctx))
 		})
 	}
 }

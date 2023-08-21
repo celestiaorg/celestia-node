@@ -90,7 +90,11 @@ func (ca *CoreAccessor) Start(ctx context.Context) error {
 
 	// dial given celestia-core endpoint
 	endpoint := fmt.Sprintf("%s:%s", ca.coreIP, ca.grpcPort)
-	client, err := grpc.DialContext(ctx, endpoint, grpc.WithTransportCredentials(insecure.NewCredentials()))
+	client, err := grpc.DialContext(
+		ctx,
+		endpoint,
+		grpc.WithTransportCredentials(insecure.NewCredentials()),
+	)
 	if err != nil {
 		return err
 	}
