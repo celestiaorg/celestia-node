@@ -3,6 +3,7 @@ package ipld
 import (
 	"bytes"
 	"context"
+	"crypto/sha256"
 	"errors"
 	mrand "math/rand"
 	"sort"
@@ -17,7 +18,6 @@ import (
 	dssync "github.com/ipfs/go-datastore/sync"
 	offline "github.com/ipfs/go-ipfs-exchange-offline"
 	mdutils "github.com/ipfs/go-merkledag/test"
-	"github.com/minio/sha256-simd"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 

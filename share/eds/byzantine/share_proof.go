@@ -2,11 +2,11 @@ package byzantine
 
 import (
 	"context"
+	"crypto/sha256"
 
 	"github.com/ipfs/go-blockservice"
 	"github.com/ipfs/go-cid"
 	logging "github.com/ipfs/go-log/v2"
-	"github.com/minio/sha256-simd"
 
 	"github.com/celestiaorg/nmt"
 	nmt_pb "github.com/celestiaorg/nmt/pb"
