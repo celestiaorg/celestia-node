@@ -20,11 +20,6 @@ func coreAccessor(
 	sync *sync.Syncer[*header.ExtendedHeader],
 	fraudServ libfraud.Service,
 ) (*state.CoreAccessor, Module, *modfraud.ServiceBreaker[*state.CoreAccessor]) {
-	if !corecfg.EndpointConfigured() {
-		log.Info("No core endpoint provided, running node without state access")
-		return nil, &stubbedStateModule{}, nil
-	}
-
 	ca := state.NewCoreAccessor(signer, sync, corecfg.IP, corecfg.RPCPort, corecfg.GRPCPort)
 
 	return ca, ca, &modfraud.ServiceBreaker[*state.CoreAccessor]{

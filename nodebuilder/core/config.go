@@ -26,7 +26,7 @@ func DefaultConfig() Config {
 
 // Validate performs basic validation of the config.
 func (cfg *Config) Validate() error {
-	if !cfg.EndpointConfigured() {
+	if !cfg.IsEndpointConfigured() {
 		return nil
 	}
 
@@ -46,8 +46,8 @@ func (cfg *Config) Validate() error {
 	return nil
 }
 
-// EndpointConfigured returns whether a core endpoint has been set
+// IsEndpointConfigured returns whether a core endpoint has been set
 // on the config (true if set).
-func (cfg *Config) EndpointConfigured() bool {
+func (cfg *Config) IsEndpointConfigured() bool {
 	return cfg.IP != ""
 }
