@@ -13,7 +13,7 @@ import (
 	"github.com/tendermint/tendermint/types"
 	"go.uber.org/fx"
 
-	"github.com/celestiaorg/celestia-node/header/headertest"
+	headerfraud "github.com/celestiaorg/celestia-node/header/headertest/fraud"
 	"github.com/celestiaorg/celestia-node/nodebuilder"
 	"github.com/celestiaorg/celestia-node/nodebuilder/core"
 	"github.com/celestiaorg/celestia-node/nodebuilder/node"
@@ -33,7 +33,8 @@ Steps:
 4. Start a FN.
 5. Subscribe to a fraud proof and wait when it will be received.
 6. Check FN is not synced to 15.
-Note: 15 is not available because DASer/Syncer will be stopped before reaching this height due to receiving a fraud proof.
+Note: 15 is not available because DASer/Syncer will be stopped
+before reaching this height due to receiving a fraud proof.
 Another note: this test disables share exchange to speed up test results.
 7. Spawn a Light Node(LN) in order to sync a BEFP.
 8. Ensure that the BEFP was received.
@@ -52,7 +53,7 @@ func TestFraudProofHandling(t *testing.T) {
 	sw := swamp.NewSwamp(t, swamp.WithBlockTime(blockTime))
 	fillDn := swamp.FillBlocks(ctx, sw.ClientContext, sw.Accounts, blockSize, blocks)
 	set, val := sw.Validators(t)
-	fMaker := headertest.NewFraudMaker(t, 10, []types.PrivValidator{val}, set)
+	fMaker := headerfraud.NewFraudMaker(t, 10, []types.PrivValidator{val}, set)
 
 	tmpDir := t.TempDir()
 	ds := ds_sync.MutexWrap(datastore.NewMapDatastore())

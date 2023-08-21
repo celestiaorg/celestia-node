@@ -1,7 +1,6 @@
 package headertest
 
 import (
-	"context"
 	"crypto/rand"
 	"fmt"
 	mrand "math/rand"
@@ -9,8 +8,6 @@ import (
 	"testing"
 	"time"
 
-	"github.com/ipfs/go-blockservice"
-	logging "github.com/ipfs/go-log/v2"
 	"github.com/stretchr/testify/require"
 	"github.com/tendermint/tendermint/crypto/tmhash"
 	"github.com/tendermint/tendermint/libs/bytes"
@@ -23,16 +20,10 @@ import (
 	"github.com/celestiaorg/celestia-app/pkg/da"
 	libhead "github.com/celestiaorg/go-header"
 	"github.com/celestiaorg/go-header/headertest"
-	"github.com/celestiaorg/nmt"
 	"github.com/celestiaorg/rsmt2d"
 
 	"github.com/celestiaorg/celestia-node/header"
-	"github.com/celestiaorg/celestia-node/share/eds"
-	"github.com/celestiaorg/celestia-node/share/eds/edstest"
-	"github.com/celestiaorg/celestia-node/share/ipld"
 )
-
-var log = logging.Logger("headertest")
 
 // TestSuite provides everything you need to test chain of Headers.
 // If not, please don't hesitate to extend it for your case.
@@ -321,83 +312,6 @@ func ExtendedHeaderFromEDS(t *testing.T, height uint64, eds *rsmt2d.ExtendedData
 		DAH:          &dah,
 	}
 	require.NoError(t, eh.Validate())
-	return eh
-}
-
-// FraudMaker allows to produce an invalid header at the specified height in order to produce the BEFP.
-type FraudMaker struct {
-	t *testing.T
-
-	vals   []types.PrivValidator
-	valSet *types.ValidatorSet
-
-	// height of the invalid header
-	height int64
-
-	prevHash bytes.HexBytes
-}
-
-func NewFraudMaker(t *testing.T, height int64, vals []types.PrivValidator, valSet *types.ValidatorSet) *FraudMaker {
-	return &FraudMaker{
-		t:      t,
-		vals:   vals,
-		valSet: valSet,
-		height: height,
-	}
-}
-
-func (f *FraudMaker) MakeExtendedHeader(odsSize int, edsStore *eds.Store) header.ConstructFn {
-	return func(ctx context.Context,
-		h *types.Header,
-		comm *types.Commit,
-		vals *types.ValidatorSet,
-		eds *rsmt2d.ExtendedDataSquare,
-	) (*header.ExtendedHeader, error) {
-		if h.Height < f.height {
-			return header.MakeExtendedHeader(ctx, h, comm, vals, eds)
-		}
-
-		hdr := *h
-		if h.Height == f.height {
-			adder := ipld.NewProofsAdder(odsSize)
-			square := edstest.RandByzantineEDS(f.t, odsSize, nmt.NodeVisitor(adder.VisitFn()))
-			dah, err := da.NewDataAvailabilityHeader(square)
-			require.NoError(f.t, err)
-			hdr.DataHash = dah.Hash()
-
-			ctx = ipld.CtxWithProofsAdder(ctx, adder)
-			require.NoError(f.t, edsStore.Put(ctx, h.DataHash.Bytes(), square))
-
-			*eds = *square
-		}
-		if h.Height > f.height {
-			hdr.LastBlockID.Hash = f.prevHash
-		}
-
-		blockID := comm.BlockID
-		blockID.Hash = hdr.Hash()
-		voteSet := types.NewVoteSet(hdr.ChainID, hdr.Height, 0, tmproto.PrecommitType, f.valSet)
-		commit, err := MakeCommit(blockID, hdr.Height, 0, voteSet, f.vals, time.Now())
-		require.NoError(f.t, err)
-
-		*h = hdr
-		*comm = *commit
-		f.prevHash = h.Hash()
-		return header.MakeExtendedHeader(ctx, h, comm, vals, eds)
-	}
-}
-func CreateFraudExtHeader(
-	t *testing.T,
-	eh *header.ExtendedHeader,
-	serv blockservice.BlockService,
-) *header.ExtendedHeader {
-	square := edstest.RandByzantineEDS(t, len(eh.DAH.RowRoots))
-	err := ipld.ImportEDS(context.Background(), square, serv)
-	require.NoError(t, err)
-	dah, err := da.NewDataAvailabilityHeader(square)
-	require.NoError(t, err)
-	eh.DAH = &dah
-	eh.RawHeader.DataHash = dah.Hash()
 	return eh
 }
 
