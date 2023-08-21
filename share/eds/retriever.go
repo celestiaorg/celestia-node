@@ -30,10 +30,6 @@ var (
 	tracer = otel.Tracer("share/eds")
 )
 
-type RetrieverOption func(*Retriever)
-
-type CleanupFunc func(context.Context, cid.Cid) error
-
 // Retriever retrieves rsmt2d.ExtendedDataSquares from the IPLD network.
 // Instead of requesting data 'share by share' it requests data by quadrants
 // minimizing bandwidth usage in the happy cases.
@@ -47,8 +43,7 @@ type CleanupFunc func(context.Context, cid.Cid) error
 // Retriever randomly picks one of the data square quadrants and tries to request them one by one
 // until it is able to reconstruct the whole square.
 type Retriever struct {
-	bServ       blockservice.BlockService
-	cleanupFunc CleanupFunc
+	bServ blockservice.BlockService
 }
 
 // NewRetriever creates a new instance of the Retriever over IPLD BlockService and rmst2d.Codec
@@ -73,7 +68,7 @@ func (r *Retriever) Retrieve(ctx context.Context, dah *da.DataAvailabilityHeader
 	)
 
 	log.Debugw("retrieving data square", "data_hash", dah.String(), "size", len(dah.RowRoots))
-	ses, err := r.newSession(ctx, dah, r.cleanupFunc)
+	ses, err := r.newSession(ctx, dah)
 	if err != nil {
 		return nil, err
 	}
@@ -108,9 +103,8 @@ func (r *Retriever) Retrieve(ctx context.Context, dah *da.DataAvailabilityHeader
 // quadrant request retries. Also, provides an API
 // to reconstruct the block once enough shares are fetched.
 type retrievalSession struct {
-	dah         *da.DataAvailabilityHeader
-	bget        blockservice.BlockGetter
-	cleanupFunc func(ctx context.Context, cid cid.Cid) error
+	dah  *da.DataAvailabilityHeader
+	bget blockservice.BlockGetter
 
 	// TODO(@Wondertan): Extract into a separate data structure
 	// https://github.com/celestiaorg/rsmt2d/issues/135
@@ -126,9 +120,7 @@ type retrievalSession struct {
 }
 
 // newSession creates a new retrieval session and kicks off requesting process.
-func (r *Retriever) newSession(
-	ctx context.Context, dah *da.DataAvailabilityHeader, cleanupFunc CleanupFunc,
-) (*retrievalSession, error) {
+func (r *Retriever) newSession(ctx context.Context, dah *da.DataAvailabilityHeader) (*retrievalSession, error) {
 	size := len(dah.RowRoots)
 
 	treeFn := func(_ rsmt2d.Axis, index uint) rsmt2d.Tree {
@@ -151,7 +143,6 @@ func (r *Retriever) newSession(
 	ses := &retrievalSession{
 		dah:             dah,
 		bget:            blockservice.NewSession(ctx, r.bServ),
-		cleanupFunc:     cleanupFunc,
 		squareQuadrants: newQuadrants(dah),
 		squareCellsLks:  make([][]sync.Mutex, size),
 		squareSig:       make(chan struct{}, 1),

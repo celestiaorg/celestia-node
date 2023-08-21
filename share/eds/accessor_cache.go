@@ -16,7 +16,7 @@ import (
 
 var (
 	defaultCacheSize = 128
-	errCacheMiss     = errors.New("accessor not found in Blockstore cache")
+	errCacheMiss     = errors.New("accessor not found in blockstore cache")
 )
 
 // accessorWithBlockstore is the value that we store in the blockstore cache
@@ -65,7 +65,7 @@ func (bc *blockstoreCache) evictFn() func(_ interface{}, val interface{}) {
 		if err != nil {
 			log.Errorf("couldn't close accessor after cache eviction: %s", err)
 		}
-		bc.metrics.observeEvicted(err == nil)
+		bc.metrics.observeEvicted(err != nil)
 	}
 }
 
@@ -114,7 +114,7 @@ func (bc *blockstoreCache) unsafeAdd(
 ) (*accessorWithBlockstore, error) {
 	blockStore, err := accessor.Blockstore()
 	if err != nil {
-		return nil, fmt.Errorf("failed to get Blockstore from accessor: %w", err)
+		return nil, fmt.Errorf("failed to get blockstore from accessor: %w", err)
 	}
 
 	newAccessor := &accessorWithBlockstore{
