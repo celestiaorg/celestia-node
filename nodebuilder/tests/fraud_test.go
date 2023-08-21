@@ -35,6 +35,9 @@ Steps:
 6. Check FN is not synced to 15.
 Note: 15 is not available because DASer/Syncer will be stopped before reaching this height due to receiving a fraud proof.
 Another note: this test disables share exchange to speed up test results.
+7. Spawn a Light Node(LN) in order to sync a BEFP.
+8. Ensure that the BEFP was received.
+9. Try to start a Full Node(FN) that contains a BEFP in its store.
 */
 func TestFraudProofHandling(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), swamp.DefaultTestTimeout)
@@ -61,15 +64,18 @@ func TestFraudProofHandling(t *testing.T) {
 	})
 
 	cfg := nodebuilder.DefaultConfig(node.Bridge)
+	// 1.
 	bridge := sw.NewNodeWithConfig(
 		node.Bridge,
 		cfg,
 		core.WithHeaderConstructFn(fMaker.MakeExtendedHeader(16, edsStore)),
 		fx.Replace(edsStore),
 	)
+	// 2.
 	err = bridge.Start(ctx)
 	require.NoError(t, err)
 
+	// 3.
 	cfg = nodebuilder.DefaultConfig(node.Full)
 	addrs, err := peer.AddrInfoToP2pAddrs(host.InfoFromHost(bridge.Host))
 	require.NoError(t, err)
@@ -78,9 +84,11 @@ func TestFraudProofHandling(t *testing.T) {
 	store := nodebuilder.MockStore(t, cfg)
 	full := sw.NewNodeWithStore(node.Full, store)
 
+	// 4.
 	err = full.Start(ctx)
 	require.NoError(t, err)
 
+	// 5.
 	subCtx, subCancel := context.WithCancel(ctx)
 	subscr, err := full.FraudServ.Subscribe(subCtx, byzantine.BadEncoding)
 	require.NoError(t, err)
@@ -90,18 +98,40 @@ func TestFraudProofHandling(t *testing.T) {
 		subCancel()
 	case <-ctx.Done():
 		subCancel()
-		t.Fatal("fraud proof was not received in time")
+		t.Fatal("full node did not receive a fraud proof in time")
 	}
 
 	// This is an obscure way to check if the Syncer was stopped.
 	// If we cannot get a height header within a timeframe it means the syncer was stopped
 	// FIXME: Eventually, this should be a check on service registry managing and keeping
 	//  lifecycles of each Module.
+	// 6.
 	syncCtx, syncCancel := context.WithTimeout(context.Background(), blockTime*5)
 	_, err = full.HeaderServ.WaitForHeight(syncCtx, 15)
 	require.ErrorIs(t, err, context.DeadlineExceeded)
 	syncCancel()
 
+	// 7.
+	cfg = nodebuilder.DefaultConfig(node.Light)
+	cfg.Header.TrustedPeers = append(cfg.Header.TrustedPeers, addrs[0].String())
+	lnStore := nodebuilder.MockStore(t, cfg)
+	light := sw.NewNodeWithStore(node.Light, lnStore)
+	require.NoError(t, light.Start(ctx))
+
+	// 8.
+	subCtx, subCancel = context.WithCancel(ctx)
+	subscr, err = light.FraudServ.Subscribe(subCtx, byzantine.BadEncoding)
+	require.NoError(t, err)
+	select {
+	case p := <-subscr:
+		require.Equal(t, 10, int(p.Height()))
+		subCancel()
+	case <-ctx.Done():
+		subCancel()
+		t.Fatal("light node did not receive a fraud proof in time")
+	}
+
+	// 9.
 	fN := sw.NewNodeWithStore(node.Full, store)
 	require.Error(t, fN.Start(ctx))
 	proofs, err := fN.FraudServ.Get(ctx, byzantine.BadEncoding)
@@ -110,5 +140,6 @@ func TestFraudProofHandling(t *testing.T) {
 
 	sw.StopNode(ctx, bridge)
 	sw.StopNode(ctx, full)
+	sw.StopNode(ctx, light)
 	require.NoError(t, <-fillDn)
 }
