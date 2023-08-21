@@ -1,6 +1,7 @@
 module github.com/celestiaorg/celestia-node
 
 go 1.20
+toolchain go1.21.0
 
 replace github.com/ipfs/go-verifcid => github.com/celestiaorg/go-verifcid v0.0.1-lazypatch
 
@@ -50,7 +51,7 @@ require (
 	github.com/minio/sha256-simd v1.0.1
 	github.com/mitchellh/go-homedir v1.1.0
 	github.com/multiformats/go-base32 v0.1.0
-	github.com/multiformats/go-multiaddr v0.10.1
+	github.com/multiformats/go-multiaddr v0.11.0
 	github.com/multiformats/go-multiaddr-dns v0.3.1
 	github.com/multiformats/go-multihash v0.2.3
 	github.com/open-rpc/meta-schema v0.0.0-20201029221707-1b72ef2ea333
@@ -74,7 +75,7 @@ require (
 	go.uber.org/fx v1.20.0
 	go.uber.org/zap v1.24.0
 	golang.org/x/crypto v0.12.0
-	golang.org/x/exp v0.0.0-20230713183714-613f0c0eb8a1
+	golang.org/x/exp v0.0.0-20230725012225-302865e7556b
 	golang.org/x/sync v0.3.0
 	golang.org/x/text v0.12.0
 	google.golang.org/grpc v1.56.2
