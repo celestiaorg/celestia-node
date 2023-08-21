@@ -45,7 +45,7 @@ func ConstructModule(tp node.Type, network p2p.Network, cfg *Config, store Store
 		fx.Supply(signer),
 		// modules provided by the node
 		p2p.ConstructModule(tp, &cfg.P2P),
-		state.ConstructModule(tp, &cfg.State),
+		state.ConstructModule(tp, &cfg.State, &cfg.Core),
 		header.ConstructModule(tp, &cfg.Header),
 		share.ConstructModule(tp, &cfg.Share),
 		rpc.ConstructModule(tp, &cfg.RPC),

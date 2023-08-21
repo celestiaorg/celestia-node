@@ -31,6 +31,10 @@ type ServiceBreaker[S service] struct {
 // Start starts the inner service if there are no fraud proofs stored.
 // Subscribes for fraud and stops the service whenever necessary.
 func (breaker *ServiceBreaker[S]) Start(ctx context.Context) error {
+	if breaker == nil {
+		return nil
+	}
+
 	proofs, err := breaker.FraudServ.Get(ctx, breaker.FraudType)
 	switch err {
 	default:
@@ -57,6 +61,10 @@ func (breaker *ServiceBreaker[S]) Start(ctx context.Context) error {
 
 // Stop stops the service and cancels subscription.
 func (breaker *ServiceBreaker[S]) Stop(ctx context.Context) error {
+	if breaker == nil {
+		return nil
+	}
+
 	if breaker.ctx.Err() != nil {
 		// short circuit if the service was already stopped
 		return nil
