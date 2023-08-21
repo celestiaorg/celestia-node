@@ -1,12 +1,13 @@
 module github.com/celestiaorg/celestia-node
 
 go 1.20
+toolchain go1.21.0
 
 replace github.com/ipfs/go-verifcid => github.com/celestiaorg/go-verifcid v0.0.1-lazypatch
 
 require (
 	cosmossdk.io/errors v1.0.0
-	cosmossdk.io/math v1.0.0-rc.0
+	cosmossdk.io/math v1.1.1
 	github.com/BurntSushi/toml v1.3.2
 	github.com/alecthomas/jsonschema v0.0.0-20200530073317-71f438968921
 	github.com/benbjohnson/clock v1.3.5
