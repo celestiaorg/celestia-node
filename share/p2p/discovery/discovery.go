@@ -33,6 +33,10 @@ const (
 
 	// retryTimeout defines time interval between discovery and advertise attempts.
 	retryTimeout = time.Second
+
+	// logInterval defines the time interval at which a warning message will be logged
+	// if the desired number of nodes is not detected.
+	logInterval = 5 * time.Minute
 )
 
 // discoveryRetryTimeout defines time interval between discovery attempts, needed for tests
@@ -200,9 +204,9 @@ func (d *Discovery) discoveryLoop(ctx context.Context) {
 	t := time.NewTicker(discoveryRetryTimeout)
 	defer t.Stop()
 
-	// Add a timer to check every 5 minutes
-	warnTimer := time.NewTicker(5 * time.Minute)
-	defer warnTimer.Stop()
+	// Use the recommended name change from warnTimer to warnTicker
+	warnTicker := time.NewTicker(logInterval)
+	defer warnTicker.Stop()
 
 	for {
 		// drain all previous ticks from the channel
@@ -214,16 +218,12 @@ func (d *Discovery) discoveryLoop(ctx context.Context) {
 				// rerun discovery if the number of peers hasn't reached the limit
 				continue
 			}
-		case <-ctx.Done():
-			return
-		case <-warnTimer.C: // Handle our timer's trigger here
+		case <-warnTicker.C:
 			if d.set.Size() < d.set.Limit() {
-				log.Warn("potentially degraded connectivity, unable to discover the desired amount of full node peers in 5 minutes")
+				log.Warnf("potentially degraded connectivity, unable to discover the desired amount of full node peers in %v", logInterval)
 			}
-		}
-
-		select {
-		case <-d.triggerDisc:
+			// Do not break the loop; just continue
+			continue
 		case <-ctx.Done():
 			return
 		}
