@@ -9,6 +9,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/ipfs/go-blockservice"
 	logging "github.com/ipfs/go-log/v2"
 	"github.com/stretchr/testify/require"
 	"github.com/tendermint/tendermint/crypto/tmhash"
@@ -376,6 +377,21 @@ func (f *FraudMaker) MakeExtendedHeader(odsSize int, edsStore *eds.Store) header
 		}
 		return header.MakeExtendedHeader(ctx, h, comm, vals, eds)
 	}
+}
+
+func CreateFraudExtHeader(
+	t *testing.T,
+	eh *header.ExtendedHeader,
+	serv blockservice.BlockService,
+) *header.ExtendedHeader {
+	square := edstest.RandByzantineEDS(t, len(eh.DAH.RowRoots))
+	err := ipld.ImportEDS(context.Background(), square, serv)
+	require.NoError(t, err)
+	dah, err := da.NewDataAvailabilityHeader(square)
+	require.NoError(t, err)
+	eh.DAH = &dah
+	eh.RawHeader.DataHash = dah.Hash()
+	return eh
 }
 
 type Subscriber struct {

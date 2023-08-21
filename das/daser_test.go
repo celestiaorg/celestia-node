@@ -180,7 +180,7 @@ func TestDASer_stopsAfter_BEFP(t *testing.T) {
 		"private",
 	)
 	require.NoError(t, fserv.Start(ctx))
-	mockGet.headers[1], _ = headertest.CreateFraudExtHeader(t, mockGet.headers[1], bServ)
+	mockGet.headers[1], _ = headerfraud.CreateFraudExtHeader(t, mockGet.headers[1], bServ)
 	newCtx := context.Background()
 
 	// create and start DASer
