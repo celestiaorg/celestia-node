@@ -340,10 +340,6 @@ func (d *Discovery) handleDiscoveredPeer(ctx context.Context, peer peer.AddrInfo
 		d.metrics.observeHandlePeer(ctx, handlePeerSkipSelf)
 		logger.Debug("skip handle: self discovery")
 		return false
-	case len(peer.Addrs) == 0:
-		d.metrics.observeHandlePeer(ctx, handlePeerEmptyAddrs)
-		logger.Debug("skip handle: empty address list")
-		return false
 	case d.set.Size() >= d.set.Limit():
 		d.metrics.observeHandlePeer(ctx, handlePeerEnoughPeers)
 		logger.Debug("skip handle: enough peers found")
