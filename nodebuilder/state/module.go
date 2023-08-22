@@ -27,15 +27,9 @@ func ConstructModule(tp node.Type, cfg *Config, coreCfg *core.Config) fx.Option 
 		fxutil.ProvideIf(coreCfg.IsEndpointConfigured(), fx.Annotate(
 			coreAccessor,
 			fx.OnStart(func(ctx context.Context, breaker *modfraud.ServiceBreaker[*state.CoreAccessor]) error {
-				if breaker == nil {
-					return nil
-				}
 				return breaker.Start(ctx)
 			}),
 			fx.OnStop(func(ctx context.Context, breaker *modfraud.ServiceBreaker[*state.CoreAccessor]) error {
-				if breaker == nil {
-					return nil
-				}
 				return breaker.Stop(ctx)
 			}),
 		)),

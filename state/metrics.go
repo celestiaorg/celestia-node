@@ -10,12 +10,6 @@ import (
 var meter = otel.Meter("state")
 
 func WithMetrics(ca *CoreAccessor) {
-	if ca == nil {
-		// short-circuit if node is running without state access
-		log.Error("node is running without state access, cannot enable metrics for state module")
-		return
-	}
-
 	pfbCounter, _ := meter.Int64ObservableCounter(
 		"pfb_count",
 		metric.WithDescription("Total count of submitted PayForBlob transactions"),
