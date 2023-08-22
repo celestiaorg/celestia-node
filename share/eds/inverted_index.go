@@ -31,6 +31,8 @@ func newSimpleInvertedIndex(storePath string) (*simpleInvertedIndex, error) {
 	opts.NumCompactors = 20
 	// use minimum amount of NumLevelZeroTables to trigger L0 compaction faster
 	opts.NumLevelZeroTables = 1
+	// MaxLevels = 8 will allow the db to grow to ~11.1 TiB
+	opts.MaxLevels = 8
 
 	ds, err := dsbadger.NewDatastore(storePath+invertedIndexPath, &opts)
 	if err != nil {
