@@ -130,10 +130,7 @@ func (n Namespace) ValidateForBlob() error {
 	if err := n.ValidateForData(); err != nil {
 		return err
 	}
-	if bytes.Compare(n, MaxPrimaryReservedNamespace) < 1 {
-		return fmt.Errorf("invalid blob namespace(%s): reserved namespaces are forbidden", n)
-	}
-	if bytes.Compare(n, MinSecondaryReservedNamespace) > -1 {
+	if n.ToAppNamespace().IsReserved() {
 		return fmt.Errorf("invalid blob namespace(%s): reserved namespaces are forbidden", n)
 	}
 	return nil
