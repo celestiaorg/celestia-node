@@ -270,7 +270,8 @@ func newEDSClientServer(
 	return client, server
 }
 
-// addToNamespace adds arbitrary int value to namespace, treating namespace as big-endian implementation of int
+// addToNamespace adds arbitrary int value to namespace, treating namespace as big-endian
+// implementation of int
 func addToNamespace(namespace share.Namespace, val int) (share.Namespace, error) {
 	if val == 0 {
 		return namespace, nil

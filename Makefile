@@ -82,7 +82,7 @@ install-key:
 fmt: sort-imports
 	@find . -name '*.go' -type f -not -path "*.git*" -not -name '*.pb.go' -not -name '*pb_test.go' | xargs gofmt -w -s
 	@find . -name '*.go' -type f -not -path "*.git*"  -not -name '*.pb.go' -not -name '*pb_test.go' | xargs goimports -w -local github.com/celestiaorg
-	@go mod tidy -compat=1.17
+	@go mod tidy -compat=1.20
 	@cfmt -w -m=100 ./...
 	@markdownlint --fix --quiet --config .markdownlint.yaml .
 .PHONY: fmt
@@ -160,14 +160,14 @@ openrpc-gen:
 lint-imports:
 	@echo "--> Running imports linter"
 	@for file in `find . -type f -name '*.go'`; \
-		do goimports-reviser -list-diff -set-exit-status -company-prefixes "github.com/celestiaorg"  -project-name "github.com/celestiaorg/celestia-node" -output stdout $$file \
+		do goimports-reviser -list-diff -set-exit-status -company-prefixes "github.com/celestiaorg"  -project-name "github.com/celestiaorg/"$(PROJECTNAME)"" -output stdout $$file \
 		 || exit 1;  \
     done;
 .PHONY: lint-imports
 
 ## sort-imports: Sort Go imports.
 sort-imports:
-	@goimports-reviser -company-prefixes "github.com/celestiaorg"  -project-name "github.com/celestiaorg/celestia-node" -output stdout ./...
+	@goimports-reviser -company-prefixes "github.com/celestiaorg"  -project-name "github.com/celestiaorg/"$(PROJECTNAME)"" -output stdout .
 .PHONY: sort-imports
 
 ## adr-gen: Generate ADR from template. Must set NUM and TITLE parameters.
