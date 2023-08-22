@@ -2,10 +2,10 @@ package tests
 
 import (
 	"context"
+	"github.com/ipfs/go-datastore"
 	"testing"
 	"time"
 
-	"github.com/ipfs/go-datastore"
 	ds_sync "github.com/ipfs/go-datastore/sync"
 	"github.com/libp2p/go-libp2p/core/host"
 	"github.com/libp2p/go-libp2p/core/peer"

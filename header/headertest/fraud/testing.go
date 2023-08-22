@@ -2,10 +2,10 @@ package headerfraud
 
 import (
 	"context"
+	"github.com/ipfs/boxo/blockservice"
 	"testing"
 	"time"
 
-	"github.com/ipfs/go-blockservice"
 	"github.com/stretchr/testify/require"
 	"github.com/tendermint/tendermint/libs/bytes"
 	tmproto "github.com/tendermint/tendermint/proto/tendermint/types"
@@ -46,7 +46,8 @@ func NewFraudMaker(t *testing.T, height int64, vals []types.PrivValidator, valSe
 }
 
 func (f *FraudMaker) MakeExtendedHeader(odsSize int, edsStore *eds.Store) header.ConstructFn {
-	return func(h *types.Header,
+	return func(
+		h *types.Header,
 		comm *types.Commit,
 		vals *types.ValidatorSet,
 		eds *rsmt2d.ExtendedDataSquare,
