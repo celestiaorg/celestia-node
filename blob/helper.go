@@ -6,7 +6,6 @@ import (
 
 	"github.com/tendermint/tendermint/types"
 
-	"github.com/celestiaorg/celestia-app/pkg/appconsts"
 	"github.com/celestiaorg/celestia-app/pkg/shares"
 
 	"github.com/celestiaorg/celestia-node/share"
@@ -84,22 +83,6 @@ func BlobsToShares(blobs ...*Blob) ([]share.Share, error) {
 		return nil, err
 	}
 	return shares.ToBytes(rawShares), nil
-}
-
-const (
-	perByteGasTolerance = 2
-	pfbGasFixedCost     = 80000
-)
-
-// estimateGas estimates the gas required to pay for a set of blobs in a PFB.
-func estimateGas(blobs ...*Blob) uint64 {
-	totalByteCount := 0
-	for _, blob := range blobs {
-		totalByteCount += len(blob.Data) + appconsts.NamespaceSize
-	}
-	variableGasAmount := (appconsts.DefaultGasPerBlobByte + perByteGasTolerance) * totalByteCount
-
-	return uint64(variableGasAmount + pfbGasFixedCost)
 }
 
 // constructAndVerifyBlob reconstruct a Blob from the passed shares and compares commitments.
