@@ -182,6 +182,7 @@ func (ca *CoreAccessor) SubmitPayForBlob(
 		ctx,
 		ca.signer,
 		ca.coreConn,
+		sdktx.BroadcastMode_BROADCAST_MODE_BLOCK,
 		appblobs,
 		apptypes.SetGasLimit(gasLim),
 		withFee(fee),
