@@ -209,7 +209,8 @@ func Test_ctxWithSplitTimeout(t *testing.T) {
 				t.Cleanup(cancel)
 				got, _ := ctxWithSplitTimeout(ctx, sf, tt.args.minTimeout)
 				dl, ok := got.Deadline()
-				// in case no deadline is found in ctx or not expected to be found, check both cases apply at the same time
+				// in case no deadline is found in ctx or not expected to be found, check both cases apply at the
+				// same time
 				if !ok || tt.want == 0 {
 					require.False(t, ok)
 					require.Equal(t, tt.want, time.Duration(0))

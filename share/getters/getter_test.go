@@ -5,10 +5,10 @@ import (
 	"testing"
 	"time"
 
+	"github.com/ipfs/boxo/exchange/offline"
 	bsrv "github.com/ipfs/go-blockservice"
 	"github.com/ipfs/go-datastore"
 	ds_sync "github.com/ipfs/go-datastore/sync"
-	offline "github.com/ipfs/go-ipfs-exchange-offline"
 	mdutils "github.com/ipfs/go-merkledag/test"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
