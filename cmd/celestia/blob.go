@@ -2,9 +2,7 @@ package main
 
 import (
 	"encoding/base64"
-	"encoding/json"
 	"fmt"
-	"os"
 	"reflect"
 	"strconv"
 
@@ -66,7 +64,12 @@ var getCmd = &cobra.Command{
 
 		blob, err := client.Blob.Get(cmd.Context(), height, namespace, commitment)
 
-		printOutput(blob, err)
+		formatter := formatData
+		if base64Flag || err != nil {
+			formatter = nil
+		}
+
+		printOutput(blob, err, formatter)
 		return nil
 	},
 }
@@ -93,7 +96,12 @@ var getAllCmd = &cobra.Command{
 
 		blobs, err := client.Blob.GetAll(cmd.Context(), height, []share.Namespace{namespace})
 
-		printOutput(blobs, err)
+		formatter := formatData
+		if base64Flag || err != nil {
+			formatter = nil
+		}
+
+		printOutput(blobs, err, formatter)
 		return nil
 	},
 }
@@ -128,7 +136,7 @@ var submitCmd = &cobra.Command{
 			Commitment: parsedBlob.Commitment,
 		}
 
-		printOutput(response, err)
+		printOutput(response, err, nil)
 		return nil
 	},
 }
@@ -160,32 +168,9 @@ var getProofCmd = &cobra.Command{
 
 		proof, err := client.Blob.GetProof(cmd.Context(), height, namespace, commitment)
 
-		printOutput(proof, err)
+		printOutput(proof, err, nil)
 		return nil
 	},
-}
-
-func printOutput(data interface{}, err error) {
-	if err != nil {
-		data = err
-	}
-
-	if !base64Flag && err == nil {
-		data = formatData(data)
-	}
-
-	resp := struct {
-		Result interface{} `json:"result"`
-	}{
-		Result: data,
-	}
-
-	bytes, err := json.MarshalIndent(resp, "", "  ")
-	if err != nil {
-		fmt.Fprintln(os.Stderr, err)
-		os.Exit(1)
-	}
-	fmt.Fprintln(os.Stdout, string(bytes))
 }
 
 func formatData(data interface{}) interface{} {

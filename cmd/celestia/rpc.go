@@ -61,7 +61,9 @@ func init() {
 		"Print JSON-RPC request along with the response",
 	)
 	rpcCmd.AddCommand(blobCmd)
+	rpcCmd.AddCommand(p2pCmd)
 	rootCmd.AddCommand(rpcCmd)
+
 }
 
 var rpcCmd = &cobra.Command{
@@ -398,4 +400,27 @@ func rpcClient(ctx context.Context) (*client.Client, error) {
 		return nil, errors.New("rpc client was not set")
 	}
 	return client, nil
+}
+
+func printOutput(data interface{}, err error, formatData func(interface{}) interface{}) {
+	if err != nil {
+		data = err
+	}
+
+	if formatData != nil {
+		data = formatData(data)
+	}
+
+	resp := struct {
+		Result interface{} `json:"result"`
+	}{
+		Result: data,
+	}
+
+	bytes, err := json.MarshalIndent(resp, "", "  ")
+	if err != nil {
+		fmt.Fprintln(os.Stderr, err)
+		os.Exit(1)
+	}
+	fmt.Fprintln(os.Stdout, string(bytes))
 }
