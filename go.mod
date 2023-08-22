@@ -1,6 +1,7 @@
 module github.com/celestiaorg/celestia-node
 
 go 1.20
+toolchain go1.21.0
 
 replace github.com/ipfs/go-verifcid => github.com/celestiaorg/go-verifcid v0.0.1-lazypatch
 
@@ -13,7 +14,7 @@ require (
 	github.com/celestiaorg/celestia-app v1.0.0-rc12
 	github.com/celestiaorg/go-ds-badger4 v0.0.0-20230712104058-7ede1c814ac5
 	github.com/celestiaorg/go-fraud v0.1.2
-	github.com/celestiaorg/go-header v0.2.12
+	github.com/celestiaorg/go-header v0.2.13
 	github.com/celestiaorg/go-libp2p-messenger v0.2.0
 	github.com/celestiaorg/nmt v0.18.1
 	github.com/celestiaorg/rsmt2d v0.11.0
