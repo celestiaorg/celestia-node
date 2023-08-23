@@ -20,8 +20,8 @@ import (
 )
 
 var (
-	logLevelFlag        = "log.level"
-	logLevelModuleFlag  = "log.level.module"
+	LogLevelFlag        = "log.level"
+	LogLevelModuleFlag  = "log.level.module"
 	pprofFlag           = "pprof"
 	tracingFlag         = "tracing"
 	tracingEndpointFlag = "tracing.endpoint"
@@ -40,14 +40,14 @@ func MiscFlags() *flag.FlagSet {
 	flags := &flag.FlagSet{}
 
 	flags.String(
-		logLevelFlag,
+		LogLevelFlag,
 		"INFO",
 		`DEBUG, INFO, WARN, ERROR, DPANIC, PANIC, FATAL
 and their lower-case forms`,
 	)
 
 	flags.StringSlice(
-		logLevelModuleFlag,
+		LogLevelModuleFlag,
 		nil,
 		"<module>:<level>, e.g. pubsub:debug",
 	)
@@ -123,24 +123,24 @@ and their lower-case forms`,
 
 // ParseMiscFlags parses miscellaneous flags from the given cmd and applies values to Env.
 func ParseMiscFlags(ctx context.Context, cmd *cobra.Command) (context.Context, error) {
-	logLevel := cmd.Flag(logLevelFlag).Value.String()
+	logLevel := cmd.Flag(LogLevelFlag).Value.String()
 	if logLevel != "" {
 		level, err := logging.LevelFromString(logLevel)
 		if err != nil {
-			return ctx, fmt.Errorf("cmd: while parsing '%s': %w", logLevelFlag, err)
+			return ctx, fmt.Errorf("cmd: while parsing '%s': %w", LogLevelFlag, err)
 		}
 
 		logs.SetAllLoggers(level)
 	}
 
-	logModules, err := cmd.Flags().GetStringSlice(logLevelModuleFlag)
+	logModules, err := cmd.Flags().GetStringSlice(LogLevelModuleFlag)
 	if err != nil {
 		panic(err)
 	}
 	for _, ll := range logModules {
 		params := strings.Split(ll, ":")
 		if len(params) != 2 {
-			return ctx, fmt.Errorf("cmd: %s arg must be in form <module>:<level>, e.g. pubsub:debug", logLevelModuleFlag)
+			return ctx, fmt.Errorf("cmd: %s arg must be in form <module>:<level>, e.g. pubsub:debug", LogLevelModuleFlag)
 		}
 
 		err := logging.SetLogLevel(params[0], params[1])
