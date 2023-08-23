@@ -362,8 +362,8 @@ github.com/celestiaorg/celestia-core v1.24.0-tm-v0.34.28 h1:eXS3v26nob8Xs2+flKHV
 github.com/celestiaorg/celestia-core v1.24.0-tm-v0.34.28/go.mod h1:J/GsBjoTZaFz71VeyrLZbG8rV+Rzi6oFEUZUipQ97hQ=
 github.com/celestiaorg/cosmos-sdk v1.17.0-sdk-v0.46.14 h1:PckXGxLJjXv97VO3xS8NPHN5oO83X5nvJLbc/4s8jUM=
 github.com/celestiaorg/cosmos-sdk v1.17.0-sdk-v0.46.14/go.mod h1:70Go8qNy7YAb1PUcHCChRHNX2ke7c9jgUIEklUX+Mac=
-github.com/celestiaorg/dagstore v0.0.0-20230807133831-296832f0f65f h1:rmkr6oCmfA5KtF9HDLsUGBvgiswxIO2pBiNa6MKQ9ag=
-github.com/celestiaorg/dagstore v0.0.0-20230807133831-296832f0f65f/go.mod h1:cCGM1UoMvyTk8k62mkc+ReVu8iHBCtSBAAL4wYU7KEI=
+github.com/celestiaorg/dagstore v0.0.0-20230823095320-1d66549bbeb3 h1:2/UcuBL0HQ8Y7QXhBjaNMI2LT8or1F67wArTJIs3Vos=
+github.com/celestiaorg/dagstore v0.0.0-20230823095320-1d66549bbeb3/go.mod h1:cCGM1UoMvyTk8k62mkc+ReVu8iHBCtSBAAL4wYU7KEI=
 github.com/celestiaorg/go-ds-badger4 v0.0.0-20230712104058-7ede1c814ac5 h1:MJgXvhJP1Au8rXTvMMlBXodu9jplEK1DxiLtMnEphOs=
 github.com/celestiaorg/go-ds-badger4 v0.0.0-20230712104058-7ede1c814ac5/go.mod h1:r6xB3nvGotmlTACpAr3SunxtoXeesbqb57elgMJqflY=
 github.com/celestiaorg/go-fraud v0.1.2 h1:Bf7yIN3lZ4IR/Vlu5OtmcVCVNESBKEJ/xwu28rRKGA8=
