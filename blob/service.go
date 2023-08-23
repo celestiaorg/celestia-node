@@ -10,7 +10,6 @@ import (
 	"github.com/cosmos/cosmos-sdk/types"
 	logging "github.com/ipfs/go-log/v2"
 
-	"github.com/celestiaorg/celestia-app/pkg/appconsts"
 	"github.com/celestiaorg/celestia-app/pkg/shares"
 
 	"github.com/celestiaorg/celestia-node/header"
@@ -36,7 +35,7 @@ type Service struct {
 	blobSumitter Submitter
 	// shareGetter retrieves the EDS to fetch all shares from the requested header.
 	shareGetter share.Getter
-	//  headerGetter fetches header by the provided height
+	// headerGetter fetches header by the provided height
 	headerGetter func(context.Context, uint64) (*header.ExtendedHeader, error)
 }
 
@@ -55,15 +54,11 @@ func NewService(
 // Submit sends PFB transaction and reports the height in which it was included.
 // Allows sending multiple Blobs atomically synchronously.
 // Uses default wallet registered on the Node.
+// Handles gas estimation and fee calculation.
 func (s *Service) Submit(ctx context.Context, blobs []*Blob) (uint64, error) {
 	log.Debugw("submitting blobs", "amount", len(blobs))
 
-	var (
-		gasLimit = estimateGas(blobs...)
-		fee      = int64(appconsts.DefaultMinGasPrice * float64(gasLimit))
-	)
-
-	resp, err := s.blobSumitter.SubmitPayForBlob(ctx, types.NewInt(fee), gasLimit, blobs)
+	resp, err := s.blobSumitter.SubmitPayForBlob(ctx, types.OneInt().Neg(), 0, blobs)
 	if err != nil {
 		return 0, err
 	}

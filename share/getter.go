@@ -2,10 +2,9 @@ package share
 
 import (
 	"context"
+	"crypto/sha256"
 	"errors"
 	"fmt"
-
-	"github.com/minio/sha256-simd"
 
 	"github.com/celestiaorg/nmt"
 	"github.com/celestiaorg/rsmt2d"

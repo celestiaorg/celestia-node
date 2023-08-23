@@ -20,8 +20,8 @@ func WithMetrics(ca *CoreAccessor) {
 	)
 
 	callback := func(ctx context.Context, observer metric.Observer) error {
-		observer.ObserveInt64(pfbCounter, ca.payForBlobCount)
-		observer.ObserveInt64(lastPfbTimestamp, ca.lastPayForBlob)
+		observer.ObserveInt64(pfbCounter, ca.PayForBlobCount())
+		observer.ObserveInt64(lastPfbTimestamp, ca.LastPayForBlob())
 		return nil
 	}
 	_, err := meter.RegisterCallback(callback, pfbCounter, lastPfbTimestamp)

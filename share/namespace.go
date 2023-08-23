@@ -14,13 +14,19 @@ const NamespaceSize = appns.NamespaceSize
 
 // Various reserved namespaces.
 var (
-	MaxReservedNamespace     = Namespace(appns.MaxReservedNamespace.Bytes())
-	ParitySharesNamespace    = Namespace(appns.ParitySharesNamespace.Bytes())
-	TailPaddingNamespace     = Namespace(appns.TailPaddingNamespace.Bytes())
-	ReservedPaddingNamespace = Namespace(appns.ReservedPaddingNamespace.Bytes())
-	TxNamespace              = Namespace(appns.TxNamespace.Bytes())
-	PayForBlobNamespace      = Namespace(appns.PayForBlobNamespace.Bytes())
-	ISRNamespace             = Namespace(appns.IntermediateStateRootsNamespace.Bytes())
+	// MaxPrimaryReservedNamespace is the highest primary reserved namespace.
+	// Namespaces lower than this are reserved for protocol use.
+	MaxPrimaryReservedNamespace = Namespace(appns.MaxPrimaryReservedNamespace.Bytes())
+	// MinSecondaryReservedNamespace is the lowest secondary reserved namespace
+	// reserved for protocol use. Namespaces higher than this are reserved for
+	// protocol use.
+	MinSecondaryReservedNamespace = Namespace(appns.MinSecondaryReservedNamespace.Bytes())
+	ParitySharesNamespace         = Namespace(appns.ParitySharesNamespace.Bytes())
+	TailPaddingNamespace          = Namespace(appns.TailPaddingNamespace.Bytes())
+	ReservedPaddingNamespace      = Namespace(appns.PrimaryReservedPaddingNamespace.Bytes())
+	TxNamespace                   = Namespace(appns.TxNamespace.Bytes())
+	PayForBlobNamespace           = Namespace(appns.PayForBlobNamespace.Bytes())
+	ISRNamespace                  = Namespace(appns.IntermediateStateRootsNamespace.Bytes())
 )
 
 // Namespace represents namespace of a Share.
@@ -124,7 +130,10 @@ func (n Namespace) ValidateForBlob() error {
 	if err := n.ValidateForData(); err != nil {
 		return err
 	}
-	if bytes.Compare(n, MaxReservedNamespace) < 1 {
+	if bytes.Compare(n, MaxPrimaryReservedNamespace) < 1 {
+		return fmt.Errorf("invalid blob namespace(%s): reserved namespaces are forbidden", n)
+	}
+	if bytes.Compare(n, MinSecondaryReservedNamespace) > -1 {
 		return fmt.Errorf("invalid blob namespace(%s): reserved namespaces are forbidden", n)
 	}
 	return nil
