@@ -19,8 +19,8 @@ type Config struct {
 func DefaultConfig() Config {
 	return Config{
 		IP:       "",
-		RPCPort:  "",
-		GRPCPort: "",
+		RPCPort:  "26657",
+		GRPCPort: "9090",
 	}
 }
 
