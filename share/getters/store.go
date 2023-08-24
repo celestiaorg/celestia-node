@@ -43,6 +43,10 @@ func (sg *StoreGetter) GetShare(ctx context.Context, dah *share.Root, row, col i
 		utils.SetStatusAndEnd(span, err)
 	}()
 
+	upperBound := len(dah.RowRoots)
+	if row >= upperBound || col >= upperBound {
+		return nil, share.ErrOutOfBounds
+	}
 	root, leaf := ipld.Translate(dah, row, col)
 	bs, err := sg.store.CARBlockstore(ctx, dah.Hash())
 	if errors.Is(err, eds.ErrNotFound) {
