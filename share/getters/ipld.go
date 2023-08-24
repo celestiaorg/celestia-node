@@ -50,7 +50,9 @@ func (ig *IPLDGetter) GetShare(ctx context.Context, dah *share.Root, row, col in
 
 	upperBound := len(dah.RowRoots)
 	if row >= upperBound || col >= upperBound {
-		return nil, share.ErrOutOfBounds
+		err := share.ErrOutOfBounds
+		span.RecordError(err)
+		return nil, err
 	}
 	root, leaf := ipld.Translate(dah, row, col)
 
