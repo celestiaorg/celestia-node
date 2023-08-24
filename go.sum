@@ -362,8 +362,8 @@ github.com/celestiaorg/celestia-core v1.24.0-tm-v0.34.28 h1:eXS3v26nob8Xs2+flKHV
 github.com/celestiaorg/celestia-core v1.24.0-tm-v0.34.28/go.mod h1:J/GsBjoTZaFz71VeyrLZbG8rV+Rzi6oFEUZUipQ97hQ=
 github.com/celestiaorg/cosmos-sdk v1.17.0-sdk-v0.46.14 h1:PckXGxLJjXv97VO3xS8NPHN5oO83X5nvJLbc/4s8jUM=
 github.com/celestiaorg/cosmos-sdk v1.17.0-sdk-v0.46.14/go.mod h1:70Go8qNy7YAb1PUcHCChRHNX2ke7c9jgUIEklUX+Mac=
-github.com/celestiaorg/dagstore v0.0.0-20230823165340-dc31a7efc991 h1:pEQfugvP09coSzdmrlmezDqBZ/B7XZofQvUVV4p4f7U=
-github.com/celestiaorg/dagstore v0.0.0-20230823165340-dc31a7efc991/go.mod h1:cCGM1UoMvyTk8k62mkc+ReVu8iHBCtSBAAL4wYU7KEI=
+github.com/celestiaorg/dagstore v0.0.0-20230824094345-537c012aa403 h1:Lj73O3S+KJx5/hgZ+IeOLEIoLsAveJN/7/ZtQQtPSVw=
+github.com/celestiaorg/dagstore v0.0.0-20230824094345-537c012aa403/go.mod h1:cCGM1UoMvyTk8k62mkc+ReVu8iHBCtSBAAL4wYU7KEI=
 github.com/celestiaorg/go-ds-badger4 v0.0.0-20230712104058-7ede1c814ac5 h1:MJgXvhJP1Au8rXTvMMlBXodu9jplEK1DxiLtMnEphOs=
 github.com/celestiaorg/go-ds-badger4 v0.0.0-20230712104058-7ede1c814ac5/go.mod h1:r6xB3nvGotmlTACpAr3SunxtoXeesbqb57elgMJqflY=
 github.com/celestiaorg/go-fraud v0.1.2 h1:Bf7yIN3lZ4IR/Vlu5OtmcVCVNESBKEJ/xwu28rRKGA8=
@@ -1213,8 +1213,9 @@ github.com/ipfs/go-unixfsnode v1.1.2/go.mod h1:5dcE2x03pyjHk4JjamXmunTMzz+VUtqvP
 github.com/ipfs/go-unixfsnode v1.4.0/go.mod h1:qc7YFFZ8tABc58p62HnIYbUMwj9chhUuFWmxSokfePo=
 github.com/ipfs/go-unixfsnode v1.5.1/go.mod h1:ed79DaG9IEuZITJVQn4U6MZDftv6I3ygUBLPfhEbHvk=
 github.com/ipfs/go-unixfsnode v1.5.2/go.mod h1:NlOebRwYx8lMCNMdhAhEspYPBD3obp7TE0LvBqHY+ks=
-github.com/ipfs/go-unixfsnode v1.7.1 h1:RRxO2b6CSr5UQ/kxnGzaChTjp5LWTdf3Y4n8ANZgB/s=
 github.com/ipfs/go-unixfsnode v1.7.1/go.mod h1:PVfoyZkX1B34qzT3vJO4nsLUpRCyhnMuHBznRcXirlk=
+github.com/ipfs/go-unixfsnode v1.7.4 h1:iLvKyAVKUYOIAW2t4kDYqsT7VLGj31eXJE2aeqGfbwA=
+github.com/ipfs/go-unixfsnode v1.7.4/go.mod h1:PVfoyZkX1B34qzT3vJO4nsLUpRCyhnMuHBznRcXirlk=
 github.com/ipfs/interface-go-ipfs-core v0.9.0/go.mod h1:F3EcmDy53GFkF0H3iEJpfJC320fZ/4G60eftnItrrJ0=
 github.com/ipfs/interface-go-ipfs-core v0.10.0/go.mod h1:F3EcmDy53GFkF0H3iEJpfJC320fZ/4G60eftnItrrJ0=
 github.com/ipld/go-car v0.5.0/go.mod h1:ppiN5GWpjOZU9PgpAZ9HbZd9ZgSpwPMr48fGRJOWmvE=
@@ -1224,8 +1225,8 @@ github.com/ipld/go-car/v2 v2.1.1/go.mod h1:+2Yvf0Z3wzkv7NeI69i8tuZ+ft7jyjPYIWZze
 github.com/ipld/go-car/v2 v2.5.1/go.mod h1:jKjGOqoCj5zn6KjnabD6JbnCsMntqU2hLiU6baZVO3E=
 github.com/ipld/go-car/v2 v2.8.0/go.mod h1:a+BnAxUqgr7wcWxW/lI6ctyEQ2v9gjBChPytwFMp2f4=
 github.com/ipld/go-car/v2 v2.10.1/go.mod h1:sQEkXVM3csejlb1kCCb+vQ/pWBKX9QtvsrysMQjOgOg=
-github.com/ipld/go-car/v2 v2.10.2-0.20230622090957-499d0c909d33 h1:0OZwzSYWIuiKEOXd/2vm5cMcEmmGLFn+1h6lHELCm3s=
-github.com/ipld/go-car/v2 v2.10.2-0.20230622090957-499d0c909d33/go.mod h1:sQEkXVM3csejlb1kCCb+vQ/pWBKX9QtvsrysMQjOgOg=
+github.com/ipld/go-car/v2 v2.11.0 h1:lkAPwbbTFqbdfawgm+bfmFc8PjGC7D12VcaLXPCLNfM=
+github.com/ipld/go-car/v2 v2.11.0/go.mod h1:aDszqev0zjtU8l96g4lwXHaU9bzArj56Y7eEN0q/xqA=
 github.com/ipld/go-codec-dagpb v1.3.0/go.mod h1:ga4JTU3abYApDC3pZ00BC2RSvC3qfBb9MSJkMLSwnhA=
 github.com/ipld/go-codec-dagpb v1.3.1/go.mod h1:ErNNglIi5KMur/MfFE/svtgQthzVvf+43MrzLbpcIZY=
 github.com/ipld/go-codec-dagpb v1.4.1/go.mod h1:XdXTO/TUD/ra9RcK/NfmwBfr1JpFxM2uRKaB9oe4LxE=
