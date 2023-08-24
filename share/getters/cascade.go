@@ -3,6 +3,7 @@ package getters
 import (
 	"context"
 	"errors"
+
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/trace"
 
