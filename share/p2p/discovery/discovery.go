@@ -214,16 +214,13 @@ func (d *Discovery) discoveryLoop(ctx context.Context) {
 		case <-t.C:
 			found := d.discover(ctx)
 
-			// Added: Print out the number of peers discovered.
-			log.Infof("Number of peers discovered: %d Required: %d", d.set.Size(), d.set.Limit())
-
 			if !found {
 				// rerun discovery if the number of peers hasn't reached the limit
 				continue
 			}
 		case <-warnTicker.C:
 			if d.set.Size() < d.set.Limit() {
-				log.Warnf("potentially degraded connectivity, unable to discover the desired amount of full node peers in %v", logInterval)
+				log.Warnf("potentially degraded connectivity, unable to discover the desired amount of full node peers in %v, Number of peers discovered: %d Required: %d", logInterval, d.set.Size(), d.set.Limit())
 			}
 			// Do not break the loop; just continue
 			continue
