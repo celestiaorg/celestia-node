@@ -60,7 +60,7 @@ func init() {
 		false,
 		"Print JSON-RPC request along with the response",
 	)
-	rpcCmd.AddCommand(stateCmd)
+	rpcCmd.AddCommand(submitPFB)
 	rpcCmd.AddCommand(logCmd, logModuleCmd)
 	rpcCmd.AddCommand(blobCmd)
 	rootCmd.AddCommand(rpcCmd)

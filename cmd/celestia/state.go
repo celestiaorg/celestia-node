@@ -10,16 +10,6 @@ import (
 	"github.com/celestiaorg/celestia-node/blob"
 )
 
-func init() {
-	stateCmd.AddCommand(submitPFB)
-}
-
-var stateCmd = &cobra.Command{
-	Use:   "state [command]",
-	Short: "Allows to interact with the State Service via JSON-RPC",
-	Args:  cobra.NoArgs,
-}
-
 var submitPFB = &cobra.Command{
 	Use:   "submitPFB [namespace, data, fee, gasLim]",
 	Short: "Allows to submit pfbs",
