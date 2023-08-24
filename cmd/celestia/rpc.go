@@ -60,6 +60,7 @@ func init() {
 		false,
 		"Print JSON-RPC request along with the response",
 	)
+	rpcCmd.AddCommand(stateCmd)
 	rpcCmd.AddCommand(blobCmd)
 	rootCmd.AddCommand(rpcCmd)
 }
@@ -262,7 +263,6 @@ func sendJSONRPCRequest(namespace, method string, params []interface{}) {
 		Method:  fmt.Sprintf("%s.%s", namespace, method),
 		Params:  params,
 	}
-
 	requestBody, err := json.Marshal(request)
 	if err != nil {
 		log.Fatalf("Error marshaling JSON-RPC request: %v", err)
