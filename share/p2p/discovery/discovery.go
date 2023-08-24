@@ -212,9 +212,7 @@ func (d *Discovery) discoveryLoop(ctx context.Context) {
 		drainChannel(t.C)
 		select {
 		case <-t.C:
-			found := d.discover(ctx)
-
-			if !found {
+			if !d.discover(ctx) {
 				// rerun discovery if the number of peers hasn't reached the limit
 				continue
 			}
