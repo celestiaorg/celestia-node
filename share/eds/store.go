@@ -9,6 +9,7 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"sync"
 	"sync/atomic"
 	"time"
 
@@ -63,6 +64,9 @@ type Store struct {
 	gcInterval time.Duration
 	// lastGCResult is only stored on the store for testing purposes.
 	lastGCResult atomic.Pointer[dagstore.GCResult]
+
+	// skip is used to skip parallel operations
+	skip sync.Map
 
 	metrics *metrics
 }
@@ -197,6 +201,12 @@ func (s *Store) Put(ctx context.Context, root share.DataHash, square *rsmt2d.Ext
 }
 
 func (s *Store) put(ctx context.Context, root share.DataHash, square *rsmt2d.ExtendedDataSquare) (err error) {
+	if _, exists := s.skip.LoadOrStore(root.String(), 1); exists {
+		// no need to do any work, another routine is putting eds for the same root
+		return nil
+	}
+	defer s.skip.Delete(root.String())
+
 	// if root already exists, short-circuit
 	if has, _ := s.Has(ctx, root); has {
 		return dagstore.ErrShardExists
