@@ -102,19 +102,14 @@ func TestFullReconstructFromFulls(t *testing.T) {
 	fillDn := swamp.FillBlocks(ctx, sw.ClientContext, sw.Accounts, bsize, blocks)
 
 	const defaultTimeInterval = time.Second * 5
-	cfg := nodebuilder.DefaultConfig(node.Bridge)
-	cfg.Share.Discovery.PeersLimit = 0
-	setTimeInterval(cfg, defaultTimeInterval)
 	bridge := sw.NewBridgeNode()
-	addrsBridge, err := peer.AddrInfoToP2pAddrs(host.InfoFromHost(bridge.Host))
-	require.NoError(t, err)
 
 	sw.SetBootstrapper(t, bridge)
 	require.NoError(t, bridge.Start(ctx))
 
 	// TODO: This is required to avoid flakes coming from unfinished retry
 	// mechanism for the same peer in go-header
-	_, err = bridge.HeaderServ.WaitForHeight(ctx, uint64(blocks))
+	_, err := bridge.HeaderServ.WaitForHeight(ctx, uint64(blocks))
 	require.NoError(t, err)
 
 	lights1 := make([]*nodebuilder.Node, lnodes/2)
@@ -126,7 +121,6 @@ func TestFullReconstructFromFulls(t *testing.T) {
 		errg.Go(func() error {
 			lnConfig := nodebuilder.DefaultConfig(node.Light)
 			setTimeInterval(lnConfig, defaultTimeInterval)
-			lnConfig.Header.TrustedPeers = append(lnConfig.Header.TrustedPeers, addrsBridge[0].String())
 			light := sw.NewNodeWithConfig(node.Light, lnConfig)
 			sub, err := light.Host.EventBus().Subscribe(&event.EvtPeerIdentificationCompleted{})
 			if err != nil {
@@ -139,7 +133,6 @@ func TestFullReconstructFromFulls(t *testing.T) {
 		errg.Go(func() error {
 			lnConfig := nodebuilder.DefaultConfig(node.Light)
 			setTimeInterval(lnConfig, defaultTimeInterval)
-			lnConfig.Header.TrustedPeers = append(lnConfig.Header.TrustedPeers, addrsBridge[0].String())
 			light := sw.NewNodeWithConfig(node.Light, lnConfig)
 			sub, err := light.Host.EventBus().Subscribe(&event.EvtPeerIdentificationCompleted{})
 			if err != nil {
@@ -171,7 +164,7 @@ func TestFullReconstructFromFulls(t *testing.T) {
 	lnBootstrapper2, err := peer.AddrInfoToP2pAddrs(host.InfoFromHost(lights2[0].Host))
 	require.NoError(t, err)
 
-	cfg = nodebuilder.DefaultConfig(node.Full)
+	cfg := nodebuilder.DefaultConfig(node.Full)
 	setTimeInterval(cfg, defaultTimeInterval)
 	cfg.Share.UseShareExchange = false
 	cfg.Share.Discovery.PeersLimit = 0

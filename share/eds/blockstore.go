@@ -46,10 +46,9 @@ func newBlockstore(store *Store, cache *blockstoreCache, ds datastore.Batching) 
 
 func (bs *blockstore) Has(ctx context.Context, cid cid.Cid) (bool, error) {
 	keys, err := bs.store.dgstr.ShardsContainingMultihash(ctx, cid.Hash())
-	k := dshelp.MultihashToDsKey(cid.Hash())
 	if errors.Is(err, ErrNotFound) || errors.Is(err, ErrNotFoundInIndex) {
 		// key wasn't found in top level blockstore, but could be in datastore while being reconstructed
-		dsHas, dsErr := bs.ds.Has(ctx, k)
+		dsHas, dsErr := bs.ds.Has(ctx, dshelp.MultihashToDsKey(cid.Hash()))
 		if dsErr != nil {
 			return false, nil
 		}

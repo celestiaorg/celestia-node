@@ -16,7 +16,7 @@ import (
 const invertedIndexPath = "/inverted_index/"
 
 // ErrNotFoundInIndex is returned instead of ErrNotFound if the multihash doesn't exist in the index
-var ErrNotFoundInIndex = fmt.Errorf("failed to lookup index")
+var ErrNotFoundInIndex = fmt.Errorf("does not exist in index")
 
 // simpleInvertedIndex is an inverted index that only stores a single shard key per multihash. Its
 // implementation is modified from the default upstream implementation in dagstore/index.
