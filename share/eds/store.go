@@ -39,6 +39,9 @@ const (
 	// shards that are currently available but inactive, or errored.
 	// We don't use transient files right now, so GC is turned off by default.
 	defaultGCInterval = 0
+
+	defaultRecentBlocksCacheSize = 10
+	defaultBlockstoreCacheSize   = 128
 )
 
 var ErrNotFound = errors.New("eds not found in store")
@@ -53,7 +56,7 @@ type Store struct {
 	dgstr  *dagstore.DAGStore
 	mounts *mount.Registry
 
-	cache *blockstoreCache
+	cache cache
 	bs    bstore.Blockstore
 
 	carIdx      index.FullIndexRepo
@@ -105,7 +108,12 @@ func NewStore(basepath string, ds datastore.Batching) (*Store, error) {
 		return nil, fmt.Errorf("failed to create DAGStore: %w", err)
 	}
 
-	cache, err := newBlockstoreCache(defaultCacheSize)
+	recentBlocksCache, err := newBlockstoreCache("recent", defaultRecentBlocksCacheSize)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create recent blocks cache: %w", err)
+	}
+
+	blockstoreCache, err := newBlockstoreCache("blockstore", defaultBlockstoreCacheSize)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create blockstore cache: %w", err)
 	}
@@ -117,9 +125,9 @@ func NewStore(basepath string, ds datastore.Batching) (*Store, error) {
 		invertedIdx: invertedIdx,
 		gcInterval:  defaultGCInterval,
 		mounts:      r,
-		cache:       cache,
+		cache:       newMultiCache(recentBlocksCache, blockstoreCache),
 	}
-	store.bs = newBlockstore(store, cache)
+	store.bs = newBlockstore(store, blockstoreCache)
 	return store, nil
 }
 
@@ -231,17 +239,25 @@ func (s *Store) put(ctx context.Context, root share.DataHash, square *rsmt2d.Ext
 		return fmt.Errorf("failed to initiate shard registration: %w", err)
 	}
 
+	var result dagstore.ShardResult
 	select {
+	case result = <-ch:
 	case <-ctx.Done():
 		// if context finished before result was received, track result in separate goroutine
 		go trackLateResult("put", ch, s.metrics, time.Minute*5)
 		return ctx.Err()
-	case result := <-ch:
-		if result.Error != nil {
-			return fmt.Errorf("failed to register shard: %w", result.Error)
-		}
-		return nil
 	}
+
+	if result.Error != nil {
+		return fmt.Errorf("failed to register shard: %w", result.Error)
+	}
+
+	// return accessor in result will be always nil, need to aquire shard to make it available in cache
+	if _, err := s.cache.getOrLoad(ctx, result.Key, s.getAccessor); err != nil {
+		log.Warnw("unable to put accessor to recent blocks accessors cache", "err", err)
+	}
+
+	return nil
 }
 
 // waitForResult waits for a result from the res channel for a maximum duration specified by
@@ -289,12 +305,17 @@ func (s *Store) GetCAR(ctx context.Context, root share.DataHash) (io.Reader, err
 }
 
 func (s *Store) getCAR(ctx context.Context, root share.DataHash) (io.Reader, error) {
-	key := root.String()
-	accessor, err := s.getCachedAccessor(ctx, shard.KeyFromString(key))
+	key := shard.KeyFromString(root.String())
+	accessor, err := s.cache.get(key)
+	if err == nil {
+		return accessor.sa.Reader(), nil
+	}
+	// if accessor not found in cache, create new one from dagstore
+	shardAccessor, err := s.getAccessor(ctx, key)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get accessor: %w", err)
 	}
-	return accessor.sa.Reader(), nil
+	return shardAccessor.Reader(), nil
 }
 
 // Blockstore returns an IPFS blockstore providing access to individual shares/nodes of all EDS
@@ -326,11 +347,21 @@ func (s *Store) carBlockstore(
 	root share.DataHash,
 ) (dagstore.ReadBlockstore, error) {
 	key := shard.KeyFromString(root.String())
-	accessor, err := s.getCachedAccessor(ctx, key)
+	accessor, err := s.cache.get(key)
+	if err == nil {
+		return accessor.bs, nil
+	}
+	// if accessor not found in cache, create new one from dagstore
+	sa, err := s.getAccessor(ctx, key)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get accessor: %w", err)
+	}
+
+	bs, err := sa.Blockstore()
 	if err != nil {
 		return nil, fmt.Errorf("eds/store: failed to get accessor: %w", err)
 	}
-	return accessor.bs, nil
+	return bs, nil
 }
 
 // GetDAH returns the DataAvailabilityHeader for the EDS identified by DataHash.
@@ -344,13 +375,12 @@ func (s *Store) GetDAH(ctx context.Context, root share.DataHash) (*share.Root, e
 }
 
 func (s *Store) getDAH(ctx context.Context, root share.DataHash) (*share.Root, error) {
-	key := shard.KeyFromString(root.String())
-	accessor, err := s.getCachedAccessor(ctx, key)
+	r, err := s.getCAR(ctx, root)
 	if err != nil {
 		return nil, fmt.Errorf("eds/store: failed to get accessor: %w", err)
 	}
 
-	carHeader, err := carv1.ReadHeader(bufio.NewReader(accessor.sa.Reader()))
+	carHeader, err := carv1.ReadHeader(bufio.NewReader(r))
 	if err != nil {
 		return nil, fmt.Errorf("eds/store: failed to read car header: %w", err)
 	}
@@ -395,33 +425,6 @@ func (s *Store) getAccessor(ctx context.Context, key shard.Key) (*dagstore.Shard
 		go trackLateResult("get_shard", ch, s.metrics, time.Minute)
 		return nil, ctx.Err()
 	}
-}
-
-func (s *Store) getCachedAccessor(ctx context.Context, key shard.Key) (*accessorWithBlockstore, error) {
-	lk := &s.cache.stripedLocks[shardKeyToStriped(key)]
-	lk.Lock()
-	defer lk.Unlock()
-
-	tnow := time.Now()
-	accessor, err := s.cache.unsafeGet(key)
-	if err != nil && err != errCacheMiss {
-		log.Errorf("unexpected error while reading key from bs cache %s: %s", key, err)
-	}
-	if accessor != nil {
-		s.metrics.observeGetAccessor(ctx, time.Since(tnow), true, false)
-		return accessor, nil
-	}
-
-	// wasn't found in cache, so acquire it and add to cache
-	shardAccessor, err := s.getAccessor(ctx, key)
-	if err != nil {
-		s.metrics.observeGetAccessor(ctx, time.Since(tnow), false, err != nil)
-		return nil, err
-	}
-
-	a, err := s.cache.unsafeAdd(key, shardAccessor)
-	s.metrics.observeGetAccessor(ctx, time.Since(tnow), false, err != nil)
-	return a, err
 }
 
 // Remove removes EDS from Store by the given share.Root hash and cleans up all

@@ -40,7 +40,7 @@ func (m *MockModule) EXPECT() *MockModuleMockRecorder {
 // Get mocks base method.
 func (m *MockModule) Get(arg0 context.Context, arg1 uint64, arg2 share.Namespace, arg3 blob.Commitment) (*blob.Blob, error) {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "Get", arg0, arg1, arg2, arg3)
+	ret := m.ctrl.Call(m, "get", arg0, arg1, arg2, arg3)
 	ret0, _ := ret[0].(*blob.Blob)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
@@ -49,7 +49,7 @@ func (m *MockModule) Get(arg0 context.Context, arg1 uint64, arg2 share.Namespace
 // Get indicates an expected call of Get.
 func (mr *MockModuleMockRecorder) Get(arg0, arg1, arg2, arg3 interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Get", reflect.TypeOf((*MockModule)(nil).Get), arg0, arg1, arg2, arg3)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "get", reflect.TypeOf((*MockModule)(nil).Get), arg0, arg1, arg2, arg3)
 }
 
 // GetAll mocks base method.

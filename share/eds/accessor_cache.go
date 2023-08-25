@@ -15,9 +15,70 @@ import (
 )
 
 var (
-	defaultCacheSize = 128
-	errCacheMiss     = errors.New("accessor not found in blockstore cache")
+	errCacheMiss = errors.New("accessor not found in blockstore cache")
 )
+
+// cache is an interface that defines the basic cache operations.
+type cache interface {
+	// Get retrieves an item from the cache.
+	get(shard.Key) (*accessorWithBlockstore, error)
+
+	// getOrLoad attempts to get an item from the cache and, if not found, invokes
+	// the provided loader function to load it into the cache.
+	getOrLoad(ctx context.Context, key shard.Key, loader func(context.Context, shard.Key) (*dagstore.ShardAccessor, error)) (*accessorWithBlockstore, error)
+
+	// enableMetrics enables metrics in cache
+	enableMetrics() error
+}
+
+// multiCache represents a cache that looks into multiple caches one by one.
+type multiCache struct {
+	caches []cache
+}
+
+// newMultiCache creates a new multiCache with the provided caches.
+func newMultiCache(caches ...cache) *multiCache {
+	return &multiCache{caches: caches}
+}
+
+// get looks for an item in all the caches one by one and returns the first found item.
+func (mc *multiCache) get(key shard.Key) (*accessorWithBlockstore, error) {
+	for _, cache := range mc.caches {
+		accessor, err := cache.get(key)
+		if err == nil {
+			return accessor, nil
+		}
+	}
+
+	return nil, errCacheMiss
+}
+
+// getOrLoad attempts to get an item from all caches, and if not found, invokes
+// the provided loader function to load it into one of the caches.
+func (mc *multiCache) getOrLoad(
+	ctx context.Context,
+	key shard.Key,
+	loader func(context.Context, shard.Key) (*dagstore.ShardAccessor, error),
+) (*accessorWithBlockstore, error) {
+	for _, cache := range mc.caches {
+		accessor, err := cache.getOrLoad(ctx, key, loader)
+		if err == nil {
+			return accessor, nil
+		}
+	}
+
+	return nil, errors.New("multicache: unable to get or load accessor")
+}
+
+func (mc *multiCache) enableMetrics() error {
+	for _, cache := range mc.caches {
+		err := cache.enableMetrics()
+		if err != nil {
+			return err
+		}
+	}
+	return nil
+}
 
 // accessorWithBlockstore is the value that we store in the blockstore cache
 type accessorWithBlockstore struct {
@@ -28,6 +89,8 @@ type accessorWithBlockstore struct {
 }
 
 type blockstoreCache struct {
+	// name is a prefix, that will be used for cache metrics if it is enabled
+	name string
 	// stripedLocks prevents simultaneous RW access to the blockstore cache for a shard. Instead
 	// of using only one lock or one lock per key, we stripe the shard keys across 256 locks. 256 is
 	// chosen because it 0-255 is the range of values we get looking at the last byte of the key.
@@ -39,7 +102,7 @@ type blockstoreCache struct {
 	metrics *cacheMetrics
 }
 
-func newBlockstoreCache(cacheSize int) (*blockstoreCache, error) {
+func newBlockstoreCache(name string, cacheSize int) (*blockstoreCache, error) {
 	bc := &blockstoreCache{}
 	// instantiate the blockstore cache
 	bslru, err := lru.NewWithEvict(cacheSize, bc.evictFn())
@@ -71,17 +134,17 @@ func (bc *blockstoreCache) evictFn() func(_ interface{}, val interface{}) {
 
 // Get retrieves the blockstore for a given shard key from the cache. If the blockstore is not in
 // the cache, it returns an errCacheMiss
-func (bc *blockstoreCache) Get(shardContainingCid shard.Key) (*accessorWithBlockstore, error) {
-	lk := &bc.stripedLocks[shardKeyToStriped(shardContainingCid)]
+func (bc *blockstoreCache) get(key shard.Key) (*accessorWithBlockstore, error) {
+	lk := &bc.stripedLocks[shardKeyToStriped(key)]
 	lk.Lock()
 	defer lk.Unlock()
 
-	return bc.unsafeGet(shardContainingCid)
+	return bc.unsafeGet(key)
 }
 
-func (bc *blockstoreCache) unsafeGet(shardContainingCid shard.Key) (*accessorWithBlockstore, error) {
+func (bc *blockstoreCache) unsafeGet(key shard.Key) (*accessorWithBlockstore, error) {
 	// We've already ensured that the given shard has the cid/multihash we are looking for.
-	val, ok := bc.cache.Get(shardContainingCid)
+	val, ok := bc.cache.Get(key)
 	if !ok {
 		return nil, errCacheMiss
 	}
@@ -96,22 +159,26 @@ func (bc *blockstoreCache) unsafeGet(shardContainingCid shard.Key) (*accessorWit
 	return accessor, nil
 }
 
-// Add adds a blockstore for a given shard key to the cache.
-func (bc *blockstoreCache) Add(
-	shardContainingCid shard.Key,
-	accessor *dagstore.ShardAccessor,
+// getOrLoad attempts to get an item from all caches, and if not found, invokes
+// the provided loader function to load it into one of the caches.
+func (bc *blockstoreCache) getOrLoad(
+	ctx context.Context,
+	key shard.Key,
+	loader func(context.Context, shard.Key) (*dagstore.ShardAccessor, error),
 ) (*accessorWithBlockstore, error) {
-	lk := &bc.stripedLocks[shardKeyToStriped(shardContainingCid)]
+	lk := &bc.stripedLocks[shardKeyToStriped(key)]
 	lk.Lock()
 	defer lk.Unlock()
 
-	return bc.unsafeAdd(shardContainingCid, accessor)
-}
+	if accessor, err := bc.unsafeGet(key); err == nil {
+		return accessor, nil
+	}
 
-func (bc *blockstoreCache) unsafeAdd(
-	shardContainingCid shard.Key,
-	accessor *dagstore.ShardAccessor,
-) (*accessorWithBlockstore, error) {
+	accessor, err := loader(ctx, key)
+	if err != nil {
+		return nil, fmt.Errorf("unable to get accessor: %w", err)
+	}
+
 	blockStore, err := accessor.Blockstore()
 	if err != nil {
 		return nil, fmt.Errorf("failed to get blockstore from accessor: %w", err)
@@ -121,7 +188,7 @@ func (bc *blockstoreCache) unsafeAdd(
 		bs: blockStore,
 		sa: accessor,
 	}
-	bc.cache.Add(shardContainingCid, newAccessor)
+	bc.cache.Add(key, newAccessor)
 	return newAccessor, nil
 }
 
@@ -135,14 +202,14 @@ type cacheMetrics struct {
 	evictedCounter metric.Int64Counter
 }
 
-func (bc *blockstoreCache) withMetrics() error {
-	evictedCounter, err := meter.Int64Counter("eds_blockstore_cache_evicted_counter",
+func (bc *blockstoreCache) enableMetrics() error {
+	evictedCounter, err := meter.Int64Counter("eds_blockstore_cache"+bc.name+"_evicted_counter",
 		metric.WithDescription("eds blockstore cache evicted event counter"))
 	if err != nil {
 		return err
 	}
 
-	cacheSize, err := meter.Int64ObservableGauge("eds_blockstore_cache_size",
+	cacheSize, err := meter.Int64ObservableGauge("eds_blockstore"+bc.name+"_cache_size",
 		metric.WithDescription("total amount of items in blockstore cache"),
 	)
 	if err != nil {
@@ -167,4 +234,21 @@ func (m *cacheMetrics) observeEvicted(failed bool) {
 	}
 	m.evictedCounter.Add(context.Background(), 1, metric.WithAttributes(
 		attribute.Bool(failedKey, failed)))
+}
+
+type noopCache struct{}
+
+func (n noopCache) get(shard.Key) (*accessorWithBlockstore, error) {
+	return nil, errCacheMiss
+}
+
+func (n noopCache) getOrLoad(
+	context.Context, shard.Key,
+	func(context.Context, shard.Key) (*dagstore.ShardAccessor, error),
+) (*accessorWithBlockstore, error) {
+	return nil, nil
+}
+
+func (n noopCache) enableMetrics() error {
+	return nil
 }

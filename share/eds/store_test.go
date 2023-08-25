@@ -2,6 +2,7 @@ package eds
 
 import (
 	"context"
+	"github.com/ipfs/go-cid"
 	"os"
 	"testing"
 	"time"
@@ -145,13 +146,13 @@ func TestEDSStore(t *testing.T) {
 
 		// key isnt in cache yet, so get returns errCacheMiss
 		shardKey := shard.KeyFromString(dah.String())
-		_, err = edsStore.cache.Get(shardKey)
+		_, err = edsStore.cache.get(shardKey)
 		assert.ErrorIs(t, err, errCacheMiss)
 
 		// now get it, so that the key is in the cache
 		_, err = edsStore.CARBlockstore(ctx, dah.Hash())
 		assert.NoError(t, err)
-		_, err = edsStore.cache.Get(shardKey)
+		_, err = edsStore.cache.get(shardKey)
 		assert.NoError(t, err, errCacheMiss)
 	})
 
@@ -217,20 +218,38 @@ func Test_BlockstoreCache(t *testing.T) {
 	err = edsStore.Start(ctx)
 	require.NoError(t, err)
 
+	// store eds to the store with noopCache to allow clean cache after put
+	swap := edsStore.cache
+	edsStore.cache = noopCache{}
 	eds, dah := randomEDS(t)
 	err = edsStore.Put(ctx, dah.Hash(), eds)
 	require.NoError(t, err)
 
-	// key isnt in cache yet, so get returns errCacheMiss
+	// get any key from saved eds
+	bs, err := edsStore.carBlockstore(ctx, dah.Hash())
+	require.NoError(t, err)
+	keys, err := bs.AllKeysChan(ctx)
+	require.NoError(t, err)
+	var key cid.Cid
+	select {
+	case key = <-keys:
+	case <-ctx.Done():
+		t.Fatal("context timeout")
+	}
+
+	// swap back original cache
+	edsStore.cache = swap
+
+	// key isn't in cache yet, so get returns errCacheMiss
 	shardKey := shard.KeyFromString(dah.String())
-	_, err = edsStore.cache.Get(shardKey)
-	assert.ErrorIs(t, err, errCacheMiss)
+	_, err = edsStore.cache.get(shardKey)
+	require.ErrorIs(t, err, errCacheMiss)
 
 	// now get it, so that the key is in the cache
-	_, err = edsStore.getCachedAccessor(ctx, shardKey)
-	assert.NoError(t, err)
-	_, err = edsStore.cache.Get(shardKey)
-	assert.NoError(t, err, errCacheMiss)
+	_, err = edsStore.bs.Get(ctx, key)
+	require.NoError(t, err)
+	_, err = edsStore.cache.get(shardKey)
+	require.NoError(t, err)
 }
 
 // Test_CachedAccessor verifies that the reader represented by a cached accessor can be read from
@@ -249,8 +268,8 @@ func Test_CachedAccessor(t *testing.T) {
 	require.NoError(t, err)
 
 	shardKey := shard.KeyFromString(dah.String())
-	// adds to cache
-	cachedAccessor, err := edsStore.getCachedAccessor(ctx, shardKey)
+	// accessor is expected to be in cache
+	cachedAccessor, err := edsStore.cache.get(shardKey)
 	assert.NoError(t, err)
 
 	// first read
@@ -260,7 +279,7 @@ func Test_CachedAccessor(t *testing.T) {
 	assert.NoError(t, err)
 
 	// second read
-	cachedAccessor, err = edsStore.getCachedAccessor(ctx, shardKey)
+	cachedAccessor, err = edsStore.cache.get(shardKey)
 	assert.NoError(t, err)
 	carReader, err = car.NewCarReader(cachedAccessor.sa.Reader())
 	assert.NoError(t, err)

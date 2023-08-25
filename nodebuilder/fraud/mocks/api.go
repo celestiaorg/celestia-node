@@ -40,7 +40,7 @@ func (m *MockModule) EXPECT() *MockModuleMockRecorder {
 // Get mocks base method.
 func (m *MockModule) Get(arg0 context.Context, arg1 fraud0.ProofType) ([]fraud.Proof, error) {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "Get", arg0, arg1)
+	ret := m.ctrl.Call(m, "get", arg0, arg1)
 	ret0, _ := ret[0].([]fraud.Proof)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
@@ -49,7 +49,7 @@ func (m *MockModule) Get(arg0 context.Context, arg1 fraud0.ProofType) ([]fraud.P
 // Get indicates an expected call of Get.
 func (mr *MockModuleMockRecorder) Get(arg0, arg1 interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Get", reflect.TypeOf((*MockModule)(nil).Get), arg0, arg1)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "get", reflect.TypeOf((*MockModule)(nil).Get), arg0, arg1)
 }
 
 // Subscribe mocks base method.
