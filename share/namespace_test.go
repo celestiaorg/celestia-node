@@ -173,6 +173,16 @@ func TestValidateForBlob(t *testing.T) {
 			ns:      append([]byte{appns.NamespaceVersionMax}, bytes.Repeat([]byte{0x0}, appns.NamespaceIDSize)...),
 			wantErr: true,
 		},
+		{
+			name:    "invalid blob namespace: primary reserved namespace",
+			ns:      primaryReservedNamespace(0x10),
+			wantErr: true,
+		},
+		{
+			name:    "invalid blob namespace: secondary reserved namespace",
+			ns:      secondaryReservedNamespace(0x10),
+			wantErr: true,
+		},
 	}
 
 	for _, tc := range testCases {
@@ -186,5 +196,21 @@ func TestValidateForBlob(t *testing.T) {
 			assert.NoError(t, err)
 		})
 	}
+}
 
+func primaryReservedNamespace(lastByte byte) Namespace {
+	result := make([]byte, NamespaceSize)
+	result = append(result, appns.NamespaceVersionZero)
+	result = append(result, appns.NamespaceVersionZeroPrefix...)
+	result = append(result, bytes.Repeat([]byte{0x0}, appns.NamespaceVersionZeroIDSize-1)...)
+	result = append(result, lastByte)
+	return result
+}
+
+func secondaryReservedNamespace(lastByte byte) Namespace {
+	result := make([]byte, NamespaceSize)
+	result = append(result, appns.NamespaceVersionMax)
+	result = append(result, bytes.Repeat([]byte{0xFF}, appns.NamespaceIDSize-1)...)
+	result = append(result, lastByte)
+	return result
 }
