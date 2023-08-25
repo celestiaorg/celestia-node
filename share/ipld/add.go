@@ -79,7 +79,7 @@ func ImportShares(
 }
 
 func ImportEDS(ctx context.Context, square *rsmt2d.ExtendedDataSquare, adder blockservice.BlockService) error {
-	shares := share.ExtractEDS(square)
+	shares := square.Flattened()
 	_, err := ImportShares(ctx, shares, adder)
 	return err
 }

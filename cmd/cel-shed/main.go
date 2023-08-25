@@ -3,12 +3,14 @@ package main
 import (
 	"context"
 	"os"
+	"os/signal"
+	"syscall"
 
 	"github.com/spf13/cobra"
 )
 
 func init() {
-	rootCmd.AddCommand(p2pCmd, headerCmd)
+	rootCmd.AddCommand(p2pCmd, headerCmd, edsStoreCmd)
 }
 
 var rootCmd = &cobra.Command{
@@ -26,5 +28,8 @@ func main() {
 }
 
 func run() error {
-	return rootCmd.ExecuteContext(context.Background())
+	ctx, cancel := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)
+	defer cancel()
+
+	return rootCmd.ExecuteContext(ctx)
 }

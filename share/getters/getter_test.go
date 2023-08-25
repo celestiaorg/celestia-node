@@ -5,10 +5,10 @@ import (
 	"testing"
 	"time"
 
+	"github.com/ipfs/boxo/exchange/offline"
 	bsrv "github.com/ipfs/go-blockservice"
 	"github.com/ipfs/go-datastore"
 	ds_sync "github.com/ipfs/go-datastore/sync"
-	offline "github.com/ipfs/go-ipfs-exchange-offline"
 	mdutils "github.com/ipfs/go-merkledag/test"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -52,7 +52,7 @@ func TestTeeGetter(t *testing.T) {
 
 		retrievedEDS, err := tg.GetEDS(ctx, &dah)
 		require.NoError(t, err)
-		require.True(t, share.EqualEDS(randEds, retrievedEDS))
+		require.True(t, randEds.Equals(retrievedEDS))
 
 		// eds store now has the EDS and it can be retrieved
 		ok, err = edsStore.Has(ctx, dah.Hash())
@@ -60,7 +60,7 @@ func TestTeeGetter(t *testing.T) {
 		assert.NoError(t, err)
 		finalEDS, err := edsStore.Get(ctx, dah.Hash())
 		assert.NoError(t, err)
-		require.True(t, share.EqualEDS(randEds, finalEDS))
+		require.True(t, randEds.Equals(finalEDS))
 	})
 
 	t.Run("ShardAlreadyExistsDoesntError", func(t *testing.T) {
@@ -70,12 +70,12 @@ func TestTeeGetter(t *testing.T) {
 
 		retrievedEDS, err := tg.GetEDS(ctx, &dah)
 		require.NoError(t, err)
-		require.True(t, share.EqualEDS(randEds, retrievedEDS))
+		require.True(t, randEds.Equals(retrievedEDS))
 
 		// no error should be returned, even though the EDS identified by the DAH already exists
 		retrievedEDS, err = tg.GetEDS(ctx, &dah)
 		require.NoError(t, err)
-		require.True(t, share.EqualEDS(randEds, retrievedEDS))
+		require.True(t, randEds.Equals(retrievedEDS))
 	})
 }
 
@@ -120,7 +120,7 @@ func TestStoreGetter(t *testing.T) {
 
 		retrievedEDS, err := sg.GetEDS(ctx, &dah)
 		require.NoError(t, err)
-		assert.True(t, share.EqualEDS(randEds, retrievedEDS))
+		assert.True(t, randEds.Equals(retrievedEDS))
 
 		// root not found
 		root := share.Root{}
@@ -199,7 +199,7 @@ func TestIPLDGetter(t *testing.T) {
 
 		retrievedEDS, err := sg.GetEDS(ctx, &dah)
 		require.NoError(t, err)
-		assert.True(t, share.EqualEDS(randEds, retrievedEDS))
+		assert.True(t, randEds.Equals(retrievedEDS))
 	})
 
 	t.Run("GetSharesByNamespace", func(t *testing.T) {
