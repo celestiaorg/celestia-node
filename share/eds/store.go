@@ -65,8 +65,8 @@ type Store struct {
 	// lastGCResult is only stored on the store for testing purposes.
 	lastGCResult atomic.Pointer[dagstore.GCResult]
 
-	// skip is used to skip parallel operations
-	skip sync.Map
+	// lock is used to lock parallel operations
+	lock sync.Map
 
 	metrics *metrics
 }
@@ -201,11 +201,11 @@ func (s *Store) Put(ctx context.Context, root share.DataHash, square *rsmt2d.Ext
 }
 
 func (s *Store) put(ctx context.Context, root share.DataHash, square *rsmt2d.ExtendedDataSquare) (err error) {
-	if _, exists := s.skip.LoadOrStore(root.String(), 1); exists {
-		// no need to do any work, another routine is putting eds for the same root
-		return nil
-	}
-	defer s.skip.Delete(root.String())
+	m, _ := s.lock.LoadOrStore(root.String(), sync.Mutex{})
+	lock := m.(sync.Mutex)
+	lock.Lock()
+	defer lock.Unlock()
+	defer s.lock.Delete(root.String())
 
 	// if root already exists, short-circuit
 	if has, _ := s.Has(ctx, root); has {
