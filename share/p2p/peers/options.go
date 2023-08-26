@@ -3,6 +3,8 @@ package peers
 import (
 	"fmt"
 	"time"
+
+	"github.com/celestiaorg/celestia-node/nodebuilder/node"
 )
 
 type Parameters struct {
@@ -19,6 +21,8 @@ type Parameters struct {
 
 	// EnableBlackListing turns on blacklisting for misbehaved peers
 	EnableBlackListing bool
+
+	nodeType node.Type
 }
 
 // Validate validates the values in Parameters
@@ -33,6 +37,10 @@ func (p *Parameters) Validate() error {
 
 	if p.GcInterval <= 0 {
 		return fmt.Errorf("peer-manager: garbage collection interval must be positive")
+	}
+
+	if p.nodeType.String() == "unknown" {
+		return fmt.Errorf("peer-manager: node type must be set")
 	}
 
 	return nil
@@ -53,6 +61,7 @@ func DefaultParameters() Parameters {
 		// blacklisting is off by default //TODO(@walldiss): enable blacklisting once all related issues
 		// are resolved
 		EnableBlackListing: false,
+		nodeType:           node.Full,
 	}
 }
 

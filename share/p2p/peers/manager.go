@@ -53,9 +53,8 @@ var log = logging.Logger("shrex/peer-manager")
 
 // Manager keeps track of peers coming from shrex.Sub and from discovery
 type Manager struct {
-	lock     sync.Mutex
-	params   Parameters
-	nodeType node.Type
+	lock   sync.Mutex
+	params Parameters
 
 	// header subscription is necessary in order to Validate the inbound eds hash
 	headerSub libhead.Subscriber[*header.ExtendedHeader]
@@ -109,14 +108,12 @@ func NewManager(
 	discovery *discovery.Discovery,
 	host host.Host,
 	connGater *conngater.BasicConnectionGater,
-	nodeType node.Type,
 ) (*Manager, error) {
 	if err := params.Validate(); err != nil {
 		return nil, err
 	}
 
 	s := &Manager{
-		nodeType:              nodeType,
 		params:                params,
 		headerSub:             headerSub,
 		shrexSub:              shrexSub,
@@ -449,7 +446,7 @@ func (m *Manager) arePeerProtocolsCompatible(peerID peer.ID) bool {
 		}
 	}
 
-	if m.nodeType == node.Light {
+	if m.params.nodeType == node.Light {
 		return supportsShrexND
 	}
 
