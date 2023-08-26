@@ -158,9 +158,9 @@ func (s *TestSuite) NextHeader() *header.ExtendedHeader {
 }
 
 func (s *TestSuite) GenRawHeader(
-	height int64, lastHeader, lastCommit, dataHash libhead.Hash) *header.RawHeader {
+	height uint64, lastHeader, lastCommit, dataHash libhead.Hash) *header.RawHeader {
 	rh := RandRawHeader(s.t)
-	rh.Height = height
+	rh.Height = int64(height)
 	rh.Time = time.Now()
 	rh.LastBlockID = types.BlockID{Hash: bytes.HexBytes(lastHeader)}
 	rh.LastCommitHash = bytes.HexBytes(lastCommit)
@@ -299,7 +299,7 @@ func RandBlockID(*testing.T) types.BlockID {
 // FraudMaker creates a custom ConstructFn that breaks the block at the given height.
 func FraudMaker(t *testing.T, faultHeight int64, bServ blockservice.BlockService) header.ConstructFn {
 	log.Warn("Corrupting block...", "height", faultHeight)
-	return func(ctx context.Context,
+	return func(
 		h *types.Header,
 		comm *types.Commit,
 		vals *types.ValidatorSet,
@@ -318,7 +318,7 @@ func FraudMaker(t *testing.T, faultHeight int64, bServ blockservice.BlockService
 			}
 			return eh, nil
 		}
-		return header.MakeExtendedHeader(ctx, h, comm, vals, eds)
+		return header.MakeExtendedHeader(h, comm, vals, eds)
 	}
 }
 

@@ -18,6 +18,8 @@ import (
 	"github.com/celestiaorg/go-fraud"
 	"github.com/celestiaorg/go-fraud/fraudserv"
 	headp2p "github.com/celestiaorg/go-header/p2p"
+
+	"github.com/celestiaorg/celestia-node/header"
 )
 
 func init() {
@@ -66,7 +68,7 @@ func pubSub(cfg Config, params pubSubParams) (*pubsub.PubSub, error) {
 	//	* https://github.com/libp2p/specs/blob/master/pubsub/gossipsub/gossipsub-v1.1.md#peer-scoring
 	//  * lotus
 	//  * prysm
-	topicScores := topicScoreParams(params.Network)
+	topicScores := topicScoreParams(params)
 	peerScores, err := peerScoreParams(params.Bootstrappers, cfg)
 	if err != nil {
 		return nil, err
@@ -105,15 +107,16 @@ type pubSubParams struct {
 	Host          hst.Host
 	Bootstrappers Bootstrappers
 	Network       Network
+	Unmarshaler   fraud.ProofUnmarshaler[*header.ExtendedHeader]
 }
 
-func topicScoreParams(network Network) map[string]*pubsub.TopicScoreParams {
+func topicScoreParams(params pubSubParams) map[string]*pubsub.TopicScoreParams {
 	mp := map[string]*pubsub.TopicScoreParams{
-		headp2p.PubsubTopicID(network.String()): &headp2p.GossibSubScore,
+		headp2p.PubsubTopicID(params.Network.String()): &headp2p.GossibSubScore,
 	}
 
-	for _, pt := range fraud.Registered() {
-		mp[fraudserv.PubsubTopicID(pt.String(), network.String())] = &fraudserv.GossibSubScore
+	for _, pt := range params.Unmarshaler.List() {
+		mp[fraudserv.PubsubTopicID(pt.String(), params.Network.String())] = &fraudserv.GossibSubScore
 	}
 
 	return mp

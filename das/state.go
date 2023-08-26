@@ -132,30 +132,29 @@ func (s *coordinatorState) handleRetryResult(res result) {
 	}
 }
 
-func (s *coordinatorState) isNewHead(newHead int64) bool {
+func (s *coordinatorState) isNewHead(newHead uint64) bool {
 	// seen this header before
-	if uint64(newHead) <= s.networkHead {
+	if newHead <= s.networkHead {
 		log.Warnf("received head height: %v, which is lower or the same as previously known: %v", newHead, s.networkHead)
 		return false
 	}
 	return true
 }
 
-func (s *coordinatorState) updateHead(newHead int64) {
+func (s *coordinatorState) updateHead(newHead uint64) {
 	if s.networkHead == s.sampleFrom {
 		log.Infow("found first header, starting sampling")
 	}
 
-	s.networkHead = uint64(newHead)
+	s.networkHead = newHead
 	log.Debugw("updated head", "from_height", s.networkHead, "to_height", newHead)
 	s.checkDone()
 }
 
 // recentJob creates a job to process a recent header.
 func (s *coordinatorState) recentJob(header *header.ExtendedHeader) job {
-	height := uint64(header.Height())
 	// move next, to prevent catchup job from processing same height
-	if s.next == height {
+	if s.next == header.Height() {
 		s.next++
 	}
 	s.nextJobID++
@@ -163,8 +162,8 @@ func (s *coordinatorState) recentJob(header *header.ExtendedHeader) job {
 		id:      s.nextJobID,
 		jobType: recentJob,
 		header:  header,
-		from:    height,
-		to:      height,
+		from:    header.Height(),
+		to:      header.Height(),
 	}
 }
 
