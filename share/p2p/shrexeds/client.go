@@ -40,7 +40,7 @@ func NewClient(params *Parameters, host host.Host) (*Client, error) {
 	return &Client{
 		params:     params,
 		host:       host,
-		protocolID: p2p.ProtocolID(params.NetworkID(), protocolString),
+		protocolID: p2p.ProtocolID(params.NetworkID(), ProtocolString),
 	}, nil
 }
 

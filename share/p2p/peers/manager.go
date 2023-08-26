@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"strings"
 	"sync"
 	"sync/atomic"
 	"time"
@@ -21,8 +22,11 @@ import (
 	libhead "github.com/celestiaorg/go-header"
 
 	"github.com/celestiaorg/celestia-node/header"
+	"github.com/celestiaorg/celestia-node/nodebuilder/node"
 	"github.com/celestiaorg/celestia-node/share"
 	"github.com/celestiaorg/celestia-node/share/p2p/discovery"
+	"github.com/celestiaorg/celestia-node/share/p2p/shrexeds"
+	"github.com/celestiaorg/celestia-node/share/p2p/shrexnd"
 	"github.com/celestiaorg/celestia-node/share/p2p/shrexsub"
 )
 
@@ -49,8 +53,9 @@ var log = logging.Logger("shrex/peer-manager")
 
 // Manager keeps track of peers coming from shrex.Sub and from discovery
 type Manager struct {
-	lock   sync.Mutex
-	params Parameters
+	lock     sync.Mutex
+	params   Parameters
+	nodeType node.Type
 
 	// header subscription is necessary in order to Validate the inbound eds hash
 	headerSub libhead.Subscriber[*header.ExtendedHeader]
@@ -104,12 +109,14 @@ func NewManager(
 	discovery *discovery.Discovery,
 	host host.Host,
 	connGater *conngater.BasicConnectionGater,
+	nodeType node.Type,
 ) (*Manager, error) {
 	if err := params.Validate(); err != nil {
 		return nil, err
 	}
 
 	s := &Manager{
+		nodeType:              nodeType,
 		params:                params,
 		headerSub:             headerSub,
 		shrexSub:              shrexSub,
@@ -131,6 +138,14 @@ func NewManager(
 					log.Debugw("got blacklisted peer from discovery", "peer", peerID.String())
 					return
 				}
+
+				// peerInfo := s.host.Peerstore().PeerInfo(peerID)
+				// for _, addr := range peerInfo.Addrs {
+				// 	for _, proto := range addr.Protocols() {
+				// 		vfp, _ := addr.ValueForProtocol(proto.Code)
+				// 		log.Debugw("Adding a full node with supported protocols: Name=", proto.Name, "ValueForProtocol", vfp)
+				// 	}
+				// }
 				s.fullNodes.add(peerID)
 				log.Debugw("added to full nodes", "peer", peerID)
 				return
@@ -347,6 +362,11 @@ func (m *Manager) Validate(_ context.Context, peerID peer.ID, msg shrexsub.Notif
 		return pubsub.ValidationReject
 	}
 
+	if !m.arePeerProtocolsCompatible(peerID) {
+		logger.Debug("received message from peer with incompatible protocol, reject validation")
+		return pubsub.ValidationReject
+	}
+
 	if msg.Height == 0 {
 		logger.Debug("received message with 0 height")
 		return pubsub.ValidationReject
@@ -416,6 +436,31 @@ func (m *Manager) blacklistPeers(reason blacklistPeerReason, peerIDs ...peer.ID)
 
 func (m *Manager) isBlacklistedPeer(peerID peer.ID) bool {
 	return !m.connGater.InterceptPeerDial(peerID)
+}
+
+func (m *Manager) arePeerProtocolsCompatible(peerID peer.ID) bool {
+	peerProtos, _ := m.host.Peerstore().GetProtocols(peerID)
+
+	supportsShrexND := false
+	for _, proto := range peerProtos {
+		if strings.Contains(string(proto), shrexnd.ProtocolString) {
+			supportsShrexND = true
+			break
+		}
+	}
+
+	if m.nodeType == node.Light {
+		return supportsShrexND
+	}
+
+	supportsShrexEDS := false
+	for _, proto := range peerProtos {
+		if strings.Contains(string(proto), shrexeds.ProtocolString) {
+			supportsShrexEDS = true
+		}
+	}
+
+	return supportsShrexND && supportsShrexEDS
 }
 
 func (m *Manager) isBlacklistedHash(hash share.DataHash) bool {

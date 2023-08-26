@@ -49,7 +49,7 @@ func NewServer(params *Parameters, host host.Host, store *eds.Store, getter shar
 		store:      store,
 		host:       host,
 		params:     params,
-		protocolID: p2p.ProtocolID(params.NetworkID(), protocolString),
+		protocolID: p2p.ProtocolID(params.NetworkID(), ProtocolString),
 		middleware: p2p.NewMiddleware(params.ConcurrencyLimit),
 	}
 

@@ -44,7 +44,7 @@ func NewServer(params *Parameters, host host.Host, store *eds.Store) (*Server, e
 	return &Server{
 		host:       host,
 		store:      store,
-		protocolID: p2p.ProtocolID(params.NetworkID(), protocolString),
+		protocolID: p2p.ProtocolID(params.NetworkID(), ProtocolString),
 		params:     params,
 		middleware: p2p.NewMiddleware(params.ConcurrencyLimit),
 	}, nil
