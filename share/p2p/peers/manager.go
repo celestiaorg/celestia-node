@@ -136,13 +136,6 @@ func NewManager(
 					return
 				}
 
-				// peerInfo := s.host.Peerstore().PeerInfo(peerID)
-				// for _, addr := range peerInfo.Addrs {
-				// 	for _, proto := range addr.Protocols() {
-				// 		vfp, _ := addr.ValueForProtocol(proto.Code)
-				// 		log.Debugw("Adding a full node with supported protocols: Name=", proto.Name, "ValueForProtocol", vfp)
-				// 	}
-				// }
 				s.fullNodes.add(peerID)
 				log.Debugw("added to full nodes", "peer", peerID)
 				return
