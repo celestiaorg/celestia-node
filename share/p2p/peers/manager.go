@@ -462,7 +462,7 @@ func (m *Manager) isSupported(peerID peer.ID) bool {
 			slices.Contains(supportedProtos, protoIDs[1])
 
 	default:
-		log.Debug("default case for protocol validation")
+		log.Debug("unrecognized node type for peer protocol validation")
 		return false
 	}
 }
