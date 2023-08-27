@@ -4,7 +4,6 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"strings"
 	"sync"
 	"sync/atomic"
 	"time"
@@ -352,7 +351,7 @@ func (m *Manager) Validate(_ context.Context, peerID peer.ID, msg shrexsub.Notif
 		return pubsub.ValidationReject
 	}
 
-	if !m.arePeerProtocolsCompatible(peerID) {
+	if !m.isSupported(peerID) {
 		logger.Debug("received message from peer with incompatible protocol, reject validation")
 		return pubsub.ValidationReject
 	}
@@ -428,29 +427,45 @@ func (m *Manager) isBlacklistedPeer(peerID peer.ID) bool {
 	return !m.connGater.InterceptPeerDial(peerID)
 }
 
-func (m *Manager) arePeerProtocolsCompatible(peerID peer.ID) bool {
-	peerProtos, _ := m.host.Peerstore().GetProtocols(peerID)
-
-	supportsShrexND := false
-	for _, proto := range peerProtos {
-		if strings.Contains(string(proto), shrexnd.ProtocolString) {
-			supportsShrexND = true
-			break
+func (m *Manager) isSupported(peerID peer.ID) bool {
+	switch m.params.NodeType {
+	case node.Light:
+		supportedProtos, err := m.host.
+			Peerstore().
+			SupportsProtocols(peerID, shrexnd.ProtocolString)
+		if err != nil {
+			return false
 		}
-	}
 
-	if m.params.nodeType == node.Light {
-		return supportsShrexND
-	}
-
-	supportsShrexEDS := false
-	for _, proto := range peerProtos {
-		if strings.Contains(string(proto), shrexeds.ProtocolString) {
-			supportsShrexEDS = true
+		for _, proto := range supportedProtos {
+			log.Debugw("peer supports protocol", "peer", peerID.String(), "proto", proto)
 		}
-	}
 
-	return supportsShrexND && supportsShrexEDS
+		return len(supportedProtos) > 0 && supportedProtos[0] == shrexnd.ProtocolString
+
+	case node.Full:
+		supportedProtos, err := m.host.
+			Peerstore().
+			SupportsProtocols(
+				peerID,
+				shrexeds.ProtocolString,
+				shrexnd.ProtocolString,
+			)
+		if err != nil {
+			return false
+		}
+
+		for _, proto := range supportedProtos {
+			log.Debugw("peer supports protocol", "peer", peerID.String(), "proto", proto)
+		}
+
+		return len(supportedProtos) > 0 &&
+			supportedProtos[0] == shrexeds.ProtocolString &&
+			supportedProtos[1] == shrexnd.ProtocolString
+
+	default:
+		return false
+	}
 }
 
 func (m *Manager) isBlacklistedHash(hash share.DataHash) bool {

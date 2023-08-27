@@ -23,6 +23,10 @@ import (
 )
 
 func ConstructModule(tp node.Type, cfg *Config, options ...fx.Option) fx.Option {
+	// custom config setup for share module:
+	// set node type for peer manager params
+	cfg.PeerManagerParams.WithNodeType(tp)
+
 	// sanitize config values before constructing module
 	cfgErr := cfg.Validate(tp)
 

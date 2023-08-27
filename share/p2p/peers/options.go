@@ -21,8 +21,7 @@ type Parameters struct {
 
 	// EnableBlackListing turns on blacklisting for misbehaved peers
 	EnableBlackListing bool
-
-	nodeType node.Type
+	NodeType           node.Type
 }
 
 // Validate validates the values in Parameters
@@ -39,7 +38,7 @@ func (p *Parameters) Validate() error {
 		return fmt.Errorf("peer-manager: garbage collection interval must be positive")
 	}
 
-	if p.nodeType.String() == "unknown" {
+	if p.NodeType.String() == "unknown" {
 		return fmt.Errorf("peer-manager: node type must be set")
 	}
 
@@ -61,8 +60,12 @@ func DefaultParameters() Parameters {
 		// blacklisting is off by default //TODO(@walldiss): enable blacklisting once all related issues
 		// are resolved
 		EnableBlackListing: false,
-		nodeType:           node.Full,
 	}
+}
+
+// WithNodeType sets the node type for the peer manager parameters.
+func (params *Parameters) WithNodeType(nodeType node.Type) {
+	params.NodeType = nodeType
 }
 
 // WithMetrics turns on metric collection in peer manager.
