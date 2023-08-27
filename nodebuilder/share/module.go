@@ -23,14 +23,17 @@ import (
 )
 
 func ConstructModule(tp node.Type, cfg *Config, options ...fx.Option) fx.Option {
-	// custom config setup for share module:
-	// set node type for peer manager params
-	cfg.PeerManagerParams.WithNodeType(tp)
-
-	// sanitize config values before constructing module
-	cfgErr := cfg.Validate(tp)
-
+	var cfgErr error
 	baseComponents := fx.Options(
+		fx.Invoke(func(network modp2p.Network) {
+			// custom config setup for share module:
+			// set node type for peer manager params
+			cfg.PeerManagerParams.WithNodeType(tp)
+			cfg.PeerManagerParams.WithNetworkID(network.String())
+
+			// sanitize config values before constructing module
+			cfgErr = cfg.Validate(tp)
+		}),
 		fx.Supply(*cfg),
 		fx.Error(cfgErr),
 		fx.Options(options...),

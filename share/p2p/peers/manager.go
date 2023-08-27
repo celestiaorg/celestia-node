@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"slices"
 	"sync"
 	"sync/atomic"
 	"time"
@@ -15,6 +16,7 @@ import (
 	"github.com/libp2p/go-libp2p/core/host"
 	"github.com/libp2p/go-libp2p/core/network"
 	"github.com/libp2p/go-libp2p/core/peer"
+	"github.com/libp2p/go-libp2p/core/protocol"
 	"github.com/libp2p/go-libp2p/p2p/host/eventbus"
 	"github.com/libp2p/go-libp2p/p2p/net/conngater"
 
@@ -23,6 +25,7 @@ import (
 	"github.com/celestiaorg/celestia-node/header"
 	"github.com/celestiaorg/celestia-node/nodebuilder/node"
 	"github.com/celestiaorg/celestia-node/share"
+	"github.com/celestiaorg/celestia-node/share/p2p"
 	"github.com/celestiaorg/celestia-node/share/p2p/discovery"
 	"github.com/celestiaorg/celestia-node/share/p2p/shrexeds"
 	"github.com/celestiaorg/celestia-node/share/p2p/shrexnd"
@@ -428,42 +431,38 @@ func (m *Manager) isBlacklistedPeer(peerID peer.ID) bool {
 }
 
 func (m *Manager) isSupported(peerID peer.ID) bool {
-	switch m.params.NodeType {
+	switch m.params.nodeType {
 	case node.Light:
+		protoID := p2p.ProtocolID(m.params.networkID, shrexnd.ProtocolString)
 		supportedProtos, err := m.host.
 			Peerstore().
-			SupportsProtocols(peerID, shrexnd.ProtocolString)
+			SupportsProtocols(peerID, protoID)
 		if err != nil {
+			log.Debugw("peer does not support protocol", "peer", peerID.String(), "proto", protoID)
 			return false
 		}
 
-		for _, proto := range supportedProtos {
-			log.Debugw("peer supports protocol", "peer", peerID.String(), "proto", proto)
-		}
-
-		return len(supportedProtos) > 0 && supportedProtos[0] == shrexnd.ProtocolString
+		return len(supportedProtos) == 1 && supportedProtos[0] == protoID
 
 	case node.Full:
+		protoIDs := []protocol.ID{
+			p2p.ProtocolID(m.params.networkID, shrexeds.ProtocolString),
+			p2p.ProtocolID(m.params.networkID, shrexnd.ProtocolString),
+		}
 		supportedProtos, err := m.host.
 			Peerstore().
-			SupportsProtocols(
-				peerID,
-				shrexeds.ProtocolString,
-				shrexnd.ProtocolString,
-			)
+			SupportsProtocols(peerID, protoIDs...)
 		if err != nil {
+			log.Debugw("peer does not support protocol", "peer", peerID.String(), "protos", protoIDs)
 			return false
 		}
 
-		for _, proto := range supportedProtos {
-			log.Debugw("peer supports protocol", "peer", peerID.String(), "proto", proto)
-		}
-
-		return len(supportedProtos) > 0 &&
-			supportedProtos[0] == shrexeds.ProtocolString &&
-			supportedProtos[1] == shrexnd.ProtocolString
+		return len(supportedProtos) == 2 &&
+			slices.Contains(supportedProtos, protoIDs[0]) &&
+			slices.Contains(supportedProtos, protoIDs[1])
 
 	default:
+		log.Debug("default case for protocol validation")
 		return false
 	}
 }

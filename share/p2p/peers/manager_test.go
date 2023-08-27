@@ -24,6 +24,7 @@ import (
 	"github.com/celestiaorg/celestia-node/header"
 	"github.com/celestiaorg/celestia-node/nodebuilder/node"
 	"github.com/celestiaorg/celestia-node/share"
+	"github.com/celestiaorg/celestia-node/share/p2p"
 	"github.com/celestiaorg/celestia-node/share/p2p/discovery"
 	"github.com/celestiaorg/celestia-node/share/p2p/shrexeds"
 	"github.com/celestiaorg/celestia-node/share/p2p/shrexnd"
@@ -64,9 +65,12 @@ func TestManager(t *testing.T) {
 		manager, err := testManager(ctx, headerSub)
 		require.NoError(t, err)
 
-		peerID, msg := peer.ID("peer1"), newShrexSubMsg(h)
-		_ = manager.host.Peerstore().AddProtocols(peerID, shrexnd.ProtocolString)
-		_ = manager.host.Peerstore().AddProtocols(peerID, shrexeds.ProtocolString)
+		peerID, msg := testPeer(
+			manager,
+			"peer1",
+			shrexnd.ProtocolString,
+			shrexeds.ProtocolString,
+		), newShrexSubMsg(h)
 		result := manager.Validate(ctx, peerID, msg)
 		require.Equal(t, pubsub.ValidationIgnore, result)
 
@@ -101,44 +105,39 @@ func TestManager(t *testing.T) {
 		require.Equal(t, pubsub.ValidationAccept, result)
 
 		// normal messages should be ignored
-		peerID := peer.ID("peer1")
-		_ = manager.host.Peerstore().AddProtocols(peerID, shrexnd.ProtocolString)
-		_ = manager.host.Peerstore().AddProtocols(peerID, shrexeds.ProtocolString)
+		peerID := testPeer(manager, "peer1", shrexnd.ProtocolString, shrexeds.ProtocolString)
 		result = manager.Validate(ctx, peerID, msg)
 		require.Equal(t, pubsub.ValidationIgnore, result)
 
-		// msg from peers with incompatible protocols should be rejected\
+		// msg from peers with incompatible protocols should be rejected
 		// and peers not added to the pool
-		peerID2 := peer.ID("peer2")
-		// only shrex-nd for light nodes
-		_ = manager.host.Peerstore().AddProtocols(peerID2, "/shrex/nd/0.2.0")
+		peerID2 := testPeer(manager, "peer2", "/shrex/nd/v0.0.5") // only shrex-nd for light nodes
 		manager.params.nodeType = node.Light
 		result = manager.Validate(ctx, peerID2, msg)
 		require.Equal(t, pubsub.ValidationReject, result)
+		assert.False(t, manager.pools[msg.DataHash.String()].has(peerID2))
 
 		// both shrex-nd and shrex-eds for full nodes
-		_ = manager.host.Peerstore().AddProtocols(peerID2, "/shrex/eds/0.3.0")
+		peerID3 := testPeer(manager, "peer3", "/shrex/nd/v0.0.5", "/shrex/eds/v0.0.5")
 		manager.params.nodeType = node.Full
-		result = manager.Validate(ctx, peerID2, msg)
+		result = manager.Validate(ctx, peerID3, msg)
 		require.Equal(t, pubsub.ValidationReject, result)
+		assert.False(t, manager.pools[msg.DataHash.String()].has(peerID3))
 
 		// msg from peers with compatible protocols should be added to the pool
-		peerID3 := peer.ID("peer3")
 		// only shrex-nd for light nodes
-		_ = manager.host.Peerstore().AddProtocols(peerID3, shrexnd.ProtocolString)
+		peerID4 := testPeer(manager, "peer4", shrexnd.ProtocolString)
 		manager.params.nodeType = node.Light
-		result = manager.Validate(ctx, peerID3, msg)
-		require.Equal(t, pubsub.ValidationIgnore, result)
-		assert.True(t, manager.pools[msg.DataHash.String()].has(peerID3))
-
-		// both shrex-nd and shrex-eds for full nodes
-		peerID4 := peer.ID("peer4")
-		_ = manager.host.Peerstore().AddProtocols(peerID4, shrexnd.ProtocolString)
-		_ = manager.host.Peerstore().AddProtocols(peerID4, shrexeds.ProtocolString)
-		manager.params.nodeType = node.Full
 		result = manager.Validate(ctx, peerID4, msg)
 		require.Equal(t, pubsub.ValidationIgnore, result)
 		assert.True(t, manager.pools[msg.DataHash.String()].has(peerID4))
+
+		// both shrex-nd and shrex-eds for full nodes
+		peerID5 := testPeer(manager, "peer5", shrexnd.ProtocolString, shrexeds.ProtocolString)
+		manager.params.nodeType = node.Full
+		result = manager.Validate(ctx, peerID5, msg)
+		require.Equal(t, pubsub.ValidationIgnore, result)
+		assert.True(t, manager.pools[msg.DataHash.String()].has(peerID5))
 
 		// mark peer as misbehaved to blacklist it
 		pID, done, err := manager.Peer(ctx, h.DataHash.Bytes())
@@ -171,9 +170,7 @@ func TestManager(t *testing.T) {
 		manager.params.PoolValidationTimeout = 0
 
 		// create unvalidated pool
-		peerID := peer.ID("peer1")
-		_ = manager.host.Peerstore().AddProtocols(peerID, shrexnd.ProtocolString)
-		_ = manager.host.Peerstore().AddProtocols(peerID, shrexeds.ProtocolString)
+		peerID := testPeer(manager, "peer1", shrexnd.ProtocolString, shrexeds.ProtocolString)
 		msg := shrexsub.Notification{
 			DataHash: share.DataHash("datahash1"),
 			Height:   2,
@@ -277,9 +274,12 @@ func TestManager(t *testing.T) {
 		manager, err := testManager(ctx, headerSub)
 		require.NoError(t, err)
 
-		peerID, msg := peer.ID("peer1"), newShrexSubMsg(h)
-		_ = manager.host.Peerstore().AddProtocols(peerID, shrexnd.ProtocolString)
-		_ = manager.host.Peerstore().AddProtocols(peerID, shrexeds.ProtocolString)
+		peerID, msg := testPeer(
+			manager,
+			"peer2",
+			shrexnd.ProtocolString,
+			shrexeds.ProtocolString,
+		), newShrexSubMsg(h)
 		result := manager.Validate(ctx, peerID, msg)
 		require.Equal(t, pubsub.ValidationIgnore, result)
 
@@ -294,8 +294,6 @@ func TestManager(t *testing.T) {
 		require.True(t, pool.isSynced.Load())
 
 		// add peer on synced pool should be noop
-		_ = manager.host.Peerstore().AddProtocols("peer2", shrexnd.ProtocolString)
-		_ = manager.host.Peerstore().AddProtocols("peer2", shrexeds.ProtocolString)
 		result = manager.Validate(ctx, "peer2", msg)
 		require.Equal(t, pubsub.ValidationIgnore, result)
 		require.Len(t, pool.peersList, 0)
@@ -323,8 +321,7 @@ func TestManager(t *testing.T) {
 			DataHash: share.DataHash("datahash"),
 			Height:   uint64(h.Height() - 1),
 		}
-		_ = manager.host.Peerstore().AddProtocols("peer", shrexnd.ProtocolString)
-		_ = manager.host.Peerstore().AddProtocols("peer", shrexeds.ProtocolString)
+		_ = testPeer(manager, "peer", shrexnd.ProtocolString, shrexeds.ProtocolString)
 		result := manager.Validate(ctx, "peer", msg)
 		require.Equal(t, pubsub.ValidationIgnore, result)
 
@@ -349,8 +346,7 @@ func TestManager(t *testing.T) {
 			DataHash: share.DataHash("datahash"),
 			Height:   uint64(h.Height() - 1),
 		}
-		_ = manager.host.Peerstore().AddProtocols("peer", shrexnd.ProtocolString)
-		_ = manager.host.Peerstore().AddProtocols("peer", shrexeds.ProtocolString)
+		_ = testPeer(manager, "peer", shrexnd.ProtocolString, shrexeds.ProtocolString)
 		result := manager.Validate(ctx, "peer", msg)
 		require.Equal(t, pubsub.ValidationIgnore, result)
 
@@ -518,8 +514,11 @@ func testManager(ctx context.Context, headerSub libhead.Subscriber[*header.Exten
 	if err != nil {
 		return nil, err
 	}
+	params := DefaultParameters()
+	params.WithNetworkID("test")
+	params.WithNodeType(node.Full)
 	manager, err := NewManager(
-		DefaultParameters(),
+		params,
 		headerSub,
 		shrexSub,
 		disc,
@@ -531,6 +530,14 @@ func testManager(ctx context.Context, headerSub libhead.Subscriber[*header.Exten
 	}
 	err = manager.Start(ctx)
 	return manager, err
+}
+
+func testPeer(m *Manager, peerID string, supportedProtocols ...string) peer.ID {
+	p := peer.ID(peerID)
+	for _, protocol := range supportedProtocols {
+		_ = m.host.Peerstore().AddProtocols(p, p2p.ProtocolID(m.params.networkID, protocol))
+	}
+	return p
 }
 
 func stopManager(t *testing.T, m *Manager) {
