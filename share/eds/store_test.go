@@ -122,6 +122,37 @@ func TestEDSStore(t *testing.T) {
 		assert.ErrorContains(t, err, "no such file or directory")
 	})
 
+	t.Run("Remove after OpShardFail", func(t *testing.T) {
+		eds, dah := randomEDS(t)
+
+		err = edsStore.Put(ctx, dah.Hash(), eds)
+		require.NoError(t, err)
+
+		// assert that shard now exists
+		ok, err := edsStore.Has(ctx, dah.Hash())
+		assert.NoError(t, err)
+		assert.True(t, ok)
+
+		// assert that file now exists
+		path := edsStore.basepath + blocksPath + dah.String()
+		_, err = os.Stat(path)
+		assert.NoError(t, err)
+
+		err = os.Remove(path)
+		assert.NoError(t, err)
+
+		_, err = edsStore.GetCAR(ctx, dah.Hash())
+		assert.Error(t, err)
+
+		// give some time for the store to remove
+		time.Sleep(300 * time.Millisecond)
+
+		// assert that shard no longer exists after OpShardFail was detected from GetCAR call
+		has, err := edsStore.Has(ctx, dah.Hash())
+		assert.NoError(t, err)
+		assert.False(t, has)
+	})
+
 	t.Run("Has", func(t *testing.T) {
 		eds, dah := randomEDS(t)
 
