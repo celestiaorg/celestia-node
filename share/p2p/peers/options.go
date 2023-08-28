@@ -3,6 +3,8 @@ package peers
 import (
 	"fmt"
 	"time"
+
+	"github.com/celestiaorg/celestia-node/nodebuilder/node"
 )
 
 type Parameters struct {
@@ -19,7 +21,14 @@ type Parameters struct {
 
 	// EnableBlackListing turns on blacklisting for misbehaved peers
 	EnableBlackListing bool
+
+	// DisableShrexSub turns off shrexsub for the peer manager. This is used to
+	// enable shrex on bridge nodes without creating a second instance of
+	// shrexsub.
+	DisableShrexSub bool
 }
+
+type Option func(*Manager)
 
 // Validate validates the values in Parameters
 func (p *Parameters) Validate() error {
@@ -39,8 +48,8 @@ func (p *Parameters) Validate() error {
 }
 
 // DefaultParameters returns the default configuration values for the daser parameters
-func DefaultParameters() Parameters {
-	return Parameters{
+func DefaultParameters(tp node.Type) Parameters {
+	p := Parameters{
 		// PoolValidationTimeout's default value is based on the default daser sampling timeout of 1 minute.
 		// If a received datahash has not tried to be sampled within these two minutes, the pool will be
 		// removed.
@@ -54,6 +63,10 @@ func DefaultParameters() Parameters {
 		// are resolved
 		EnableBlackListing: false,
 	}
+	if tp == node.Bridge {
+		p.DisableShrexSub = true
+	}
+	return p
 }
 
 // WithMetrics turns on metric collection in peer manager.

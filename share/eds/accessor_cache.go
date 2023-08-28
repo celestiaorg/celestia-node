@@ -69,6 +69,14 @@ func (bc *blockstoreCache) evictFn() func(_ interface{}, val interface{}) {
 	}
 }
 
+func (bc *blockstoreCache) Remove(key shard.Key) bool {
+	lk := &bc.stripedLocks[shardKeyToStriped(key)]
+	lk.Lock()
+	defer lk.Unlock()
+
+	return bc.cache.Remove(key)
+}
+
 // Get retrieves the blockstore for a given shard key from the cache. If the blockstore is not in
 // the cache, it returns an errCacheMiss
 func (bc *blockstoreCache) Get(shardContainingCid shard.Key) (*accessorWithBlockstore, error) {

@@ -21,6 +21,7 @@ import (
 	libhead "github.com/celestiaorg/go-header"
 
 	"github.com/celestiaorg/celestia-node/header"
+	"github.com/celestiaorg/celestia-node/nodebuilder/node"
 	"github.com/celestiaorg/celestia-node/share"
 	"github.com/celestiaorg/celestia-node/share/p2p/discovery"
 	"github.com/celestiaorg/celestia-node/share/p2p/shrexsub"
@@ -418,7 +419,7 @@ func TestIntegration(t *testing.T) {
 		connGater, err := conngater.NewBasicConnectionGater(sync.MutexWrap(datastore.NewMapDatastore()))
 		require.NoError(t, err)
 		fnPeerManager, err := NewManager(
-			DefaultParameters(),
+			DefaultParameters(node.Full),
 			nil,
 			nil,
 			fnDisc,
@@ -468,7 +469,7 @@ func testManager(ctx context.Context, headerSub libhead.Subscriber[*header.Exten
 		return nil, err
 	}
 	manager, err := NewManager(
-		DefaultParameters(),
+		DefaultParameters(node.Full),
 		headerSub,
 		shrexSub,
 		disc,

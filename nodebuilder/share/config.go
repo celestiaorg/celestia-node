@@ -31,7 +31,7 @@ func DefaultConfig(tp node.Type) Config {
 		ShrExEDSParams:    shrexeds.DefaultParameters(),
 		ShrExNDParams:     shrexnd.DefaultParameters(),
 		UseShareExchange:  true,
-		PeerManagerParams: peers.DefaultParameters(),
+		PeerManagerParams: peers.DefaultParameters(tp),
 	}
 
 	if tp == node.Light {

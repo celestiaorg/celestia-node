@@ -121,6 +121,17 @@ func (sg *StoreGetter) GetSharesByNamespace(
 	// wrap the read-only CAR blockstore in a getter
 	blockGetter := eds.NewBlockGetter(bs)
 	shares, err = collectSharesByNamespace(ctx, blockGetter, root, namespace)
+	if errors.Is(err, ipld.ErrNodeNotFound) {
+		// IPLD node not found after the index pointed to this shard and the CAR
+		// blockstore has been opened successfully is a strong indicator of
+		// corruption. We remove the block and return share.ErrNotFound to
+		// ensure the data is retrieved by the next getter.
+		err = sg.store.Remove(ctx, root.Hash())
+		if err != nil {
+			log.Errorf("getter/store: failed to remove CAR after detected corruption: %w", err)
+		}
+		err = share.ErrNotFound
+	}
 	if err != nil {
 		return nil, fmt.Errorf("getter/store: failed to retrieve shares by namespace: %w", err)
 	}

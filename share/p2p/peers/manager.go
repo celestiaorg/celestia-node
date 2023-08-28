@@ -148,14 +148,16 @@ func (m *Manager) Start(startCtx context.Context) error {
 	m.cancel = cancel
 
 	validatorFn := m.metrics.validationObserver(m.Validate)
-	err := m.shrexSub.AddValidator(validatorFn)
-	if err != nil {
-		return fmt.Errorf("registering validator: %w", err)
-	}
 
-	err = m.shrexSub.Start(startCtx)
-	if err != nil {
-		return fmt.Errorf("starting shrexsub: %w", err)
+	if !m.params.DisableShrexSub {
+		err := m.shrexSub.AddValidator(validatorFn)
+		if err != nil {
+			return fmt.Errorf("registering validator: %w", err)
+		}
+		err = m.shrexSub.Start(startCtx)
+		if err != nil {
+			return fmt.Errorf("starting shrexsub: %w", err)
+		}
 	}
 
 	headerSub, err := m.headerSub.Subscribe()
