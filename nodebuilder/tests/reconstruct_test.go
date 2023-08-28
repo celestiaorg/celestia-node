@@ -218,7 +218,6 @@ func TestFullReconstructFromFulls(t *testing.T) {
 
 	errg, bctx := errgroup.WithContext(ctx)
 	for i := 10; i < blocks+11; i++ {
-		i := i
 		h, err := full1.HeaderServ.WaitForHeight(bctx, uint64(i))
 		require.NoError(t, err)
 		errg.Go(func() error {
