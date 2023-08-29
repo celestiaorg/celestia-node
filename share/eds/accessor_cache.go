@@ -14,18 +14,23 @@ import (
 	"go.opentelemetry.io/otel/metric"
 )
 
+const cacheFoundKey = "found"
+
 var (
 	errCacheMiss = errors.New("accessor not found in blockstore cache")
 )
 
 // cache is an interface that defines the basic cache operations.
 type cache interface {
-	// Get retrieves an item from the cache.
+	// get retrieves an item from the cache.
 	get(shard.Key) (*accessorWithBlockstore, error)
 
 	// getOrLoad attempts to get an item from the cache and, if not found, invokes
 	// the provided loader function to load it into the cache.
 	getOrLoad(ctx context.Context, key shard.Key, loader func(context.Context, shard.Key) (*dagstore.ShardAccessor, error)) (*accessorWithBlockstore, error)
+
+	// remove removes an item from cache.
+	remove(shard.Key) error
 
 	// enableMetrics enables metrics in cache
 	enableMetrics() error
@@ -33,24 +38,25 @@ type cache interface {
 
 // multiCache represents a cache that looks into multiple caches one by one.
 type multiCache struct {
-	caches []cache
+	recentBlocks        cache
+	ipldRequestedBlocks cache
 }
 
 // newMultiCache creates a new multiCache with the provided caches.
-func newMultiCache(caches ...cache) *multiCache {
-	return &multiCache{caches: caches}
+func newMultiCache(recentBlocks, ipldRequestedBlocks cache) *multiCache {
+	return &multiCache{
+		recentBlocks:        recentBlocks,
+		ipldRequestedBlocks: ipldRequestedBlocks,
+	}
 }
 
 // get looks for an item in all the caches one by one and returns the first found item.
 func (mc *multiCache) get(key shard.Key) (*accessorWithBlockstore, error) {
-	for _, cache := range mc.caches {
-		accessor, err := cache.get(key)
-		if err == nil {
-			return accessor, nil
-		}
+	ac, err := mc.recentBlocks.get(key)
+	if err == nil {
+		return ac, nil
 	}
-
-	return nil, errCacheMiss
+	return mc.ipldRequestedBlocks.get(key)
 }
 
 // getOrLoad attempts to get an item from all caches, and if not found, invokes
@@ -60,24 +66,26 @@ func (mc *multiCache) getOrLoad(
 	key shard.Key,
 	loader func(context.Context, shard.Key) (*dagstore.ShardAccessor, error),
 ) (*accessorWithBlockstore, error) {
-	for _, cache := range mc.caches {
-		accessor, err := cache.getOrLoad(ctx, key, loader)
-		if err == nil {
-			return accessor, nil
-		}
+	ac, err := mc.recentBlocks.getOrLoad(ctx, key, loader)
+	if err == nil {
+		return ac, nil
 	}
+	return mc.ipldRequestedBlocks.getOrLoad(ctx, key, loader)
+}
 
-	return nil, errors.New("multicache: unable to get or load accessor")
+// remove removes an item from all underlying caches
+func (mc *multiCache) remove(key shard.Key) error {
+	if err := mc.recentBlocks.remove(key); err != nil {
+		return err
+	}
+	return mc.ipldRequestedBlocks.remove(key)
 }
 
 func (mc *multiCache) enableMetrics() error {
-	for _, cache := range mc.caches {
-		err := cache.enableMetrics()
-		if err != nil {
-			return err
-		}
+	if err := mc.recentBlocks.enableMetrics(); err != nil {
+		return err
 	}
-	return nil
+	return mc.ipldRequestedBlocks.enableMetrics()
 }
 
 // accessorWithBlockstore is the value that we store in the blockstore cache
@@ -103,7 +111,9 @@ type blockstoreCache struct {
 }
 
 func newBlockstoreCache(name string, cacheSize int) (*blockstoreCache, error) {
-	bc := &blockstoreCache{}
+	bc := &blockstoreCache{
+		name: name,
+	}
 	// instantiate the blockstore cache
 	bslru, err := lru.NewWithEvict(cacheSize, bc.evictFn())
 	if err != nil {
@@ -146,6 +156,7 @@ func (bc *blockstoreCache) unsafeGet(key shard.Key) (*accessorWithBlockstore, er
 	// We've already ensured that the given shard has the cid/multihash we are looking for.
 	val, ok := bc.cache.Get(key)
 	if !ok {
+		bc.metrics.observeGet(false)
 		return nil, errCacheMiss
 	}
 
@@ -156,6 +167,7 @@ func (bc *blockstoreCache) unsafeGet(key shard.Key) (*accessorWithBlockstore, er
 			reflect.TypeOf(val),
 		))
 	}
+	bc.metrics.observeGet(true)
 	return accessor, nil
 }
 
@@ -192,6 +204,20 @@ func (bc *blockstoreCache) getOrLoad(
 	return newAccessor, nil
 }
 
+func (bc *blockstoreCache) remove(key shard.Key) error {
+	lk := &bc.stripedLocks[shardKeyToStriped(key)]
+	lk.Lock()
+	defer lk.Unlock()
+
+	ac, err := bc.unsafeGet(key)
+	if err != nil {
+		// nothing to remove
+		return nil
+	}
+
+	return ac.sa.Close()
+}
+
 // shardKeyToStriped returns the index of the lock to use for a given shard key. We use the last
 // byte of the shard key as the pseudo-random index.
 func shardKeyToStriped(sk shard.Key) byte {
@@ -199,17 +225,24 @@ func shardKeyToStriped(sk shard.Key) byte {
 }
 
 type cacheMetrics struct {
+	getCounter     metric.Int64Counter
 	evictedCounter metric.Int64Counter
 }
 
 func (bc *blockstoreCache) enableMetrics() error {
-	evictedCounter, err := meter.Int64Counter("eds_blockstore_cache"+bc.name+"_evicted_counter",
+	evictedCounter, err := meter.Int64Counter("eds_blockstore_cache_"+bc.name+"_evicted_counter",
 		metric.WithDescription("eds blockstore cache evicted event counter"))
 	if err != nil {
 		return err
 	}
 
-	cacheSize, err := meter.Int64ObservableGauge("eds_blockstore"+bc.name+"_cache_size",
+	getCounter, err := meter.Int64Counter("eds_blockstore_cache_"+bc.name+"_get_counter",
+		metric.WithDescription("eds blockstore cache evicted event counter"))
+	if err != nil {
+		return err
+	}
+
+	cacheSize, err := meter.Int64ObservableGauge("eds_blockstore_cache_"+bc.name+"_size",
 		metric.WithDescription("total amount of items in blockstore cache"),
 	)
 	if err != nil {
@@ -224,7 +257,9 @@ func (bc *blockstoreCache) enableMetrics() error {
 	if err != nil {
 		return err
 	}
-	bc.metrics = &cacheMetrics{evictedCounter: evictedCounter}
+	bc.metrics = &cacheMetrics{
+		getCounter:     getCounter,
+		evictedCounter: evictedCounter}
 	return nil
 }
 
@@ -234,6 +269,14 @@ func (m *cacheMetrics) observeEvicted(failed bool) {
 	}
 	m.evictedCounter.Add(context.Background(), 1, metric.WithAttributes(
 		attribute.Bool(failedKey, failed)))
+}
+
+func (m *cacheMetrics) observeGet(found bool) {
+	if m == nil {
+		return
+	}
+	m.getCounter.Add(context.Background(), 1, metric.WithAttributes(
+		attribute.Bool(cacheFoundKey, found)))
 }
 
 type noopCache struct{}
@@ -247,6 +290,10 @@ func (n noopCache) getOrLoad(
 	func(context.Context, shard.Key) (*dagstore.ShardAccessor, error),
 ) (*accessorWithBlockstore, error) {
 	return nil, nil
+}
+
+func (n noopCache) remove(shard.Key) error {
+	return nil
 }
 
 func (n noopCache) enableMetrics() error {

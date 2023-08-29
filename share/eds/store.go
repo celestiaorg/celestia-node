@@ -55,9 +55,7 @@ type Store struct {
 
 	dgstr  *dagstore.DAGStore
 	mounts *mount.Registry
-
-	cache cache
-	bs    bstore.Blockstore
+	cache  *multiCache
 
 	carIdx      index.FullIndexRepo
 	invertedIdx *simpleInvertedIndex
@@ -118,7 +116,7 @@ func NewStore(basepath string, ds datastore.Batching) (*Store, error) {
 		return nil, fmt.Errorf("failed to create blockstore cache: %w", err)
 	}
 
-	store := &Store{
+	return &Store{
 		basepath:    basepath,
 		dgstr:       dagStore,
 		carIdx:      fsRepo,
@@ -126,9 +124,7 @@ func NewStore(basepath string, ds datastore.Batching) (*Store, error) {
 		gcInterval:  defaultGCInterval,
 		mounts:      r,
 		cache:       newMultiCache(recentBlocksCache, blockstoreCache),
-	}
-	store.bs = newBlockstore(store, blockstoreCache)
-	return store, nil
+	}, nil
 }
 
 func (s *Store) Start(ctx context.Context) error {
@@ -310,7 +306,7 @@ func (s *Store) getCAR(ctx context.Context, root share.DataHash) (io.Reader, err
 	if err == nil {
 		return accessor.sa.Reader(), nil
 	}
-	// if accessor not found in cache, create new one from dagstore
+	// If the accessor is not found in the cache, create a new one from dagstore. We don't put accessor to the cache here, because getCAR is used by shrex.eds. There is a lower probability, compared to other cache put triggers, that the same block to be requested again.
 	shardAccessor, err := s.getAccessor(ctx, key)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get accessor: %w", err)
@@ -323,7 +319,7 @@ func (s *Store) getCAR(ctx context.Context, root share.DataHash) (io.Reader, err
 // blocks. We represent `shares` and NMT Merkle proofs as IPFS blocks and IPLD nodes so Bitswap can
 // access those.
 func (s *Store) Blockstore() bstore.Blockstore {
-	return s.bs
+	return newBlockstore(s)
 }
 
 // CARBlockstore returns an IPFS Blockstore providing access to individual shares/nodes of a
@@ -439,9 +435,12 @@ func (s *Store) Remove(ctx context.Context, root share.DataHash) error {
 }
 
 func (s *Store) remove(ctx context.Context, root share.DataHash) (err error) {
-	key := root.String()
+	key := shard.KeyFromString(root.String())
+	if err := s.cache.remove(key); err != nil {
+		log.Warnw("remove accessor from cache", "err", err)
+	}
 	ch := make(chan dagstore.ShardResult, 1)
-	err = s.dgstr.DestroyShard(ctx, shard.KeyFromString(key), ch, dagstore.DestroyOpts{})
+	err = s.dgstr.DestroyShard(ctx, key, ch, dagstore.DestroyOpts{})
 	if err != nil {
 		return fmt.Errorf("failed to initiate shard destruction: %w", err)
 	}
@@ -456,7 +455,7 @@ func (s *Store) remove(ctx context.Context, root share.DataHash) (err error) {
 		return ctx.Err()
 	}
 
-	dropped, err := s.carIdx.DropFullIndex(shard.KeyFromString(key))
+	dropped, err := s.carIdx.DropFullIndex(key)
 	if !dropped {
 		log.Warnf("failed to drop index for %s", key)
 	}
@@ -464,7 +463,7 @@ func (s *Store) remove(ctx context.Context, root share.DataHash) (err error) {
 		return fmt.Errorf("failed to drop index for %s: %w", key, err)
 	}
 
-	err = os.Remove(s.basepath + blocksPath + key)
+	err = os.Remove(s.basepath + blocksPath + root.String())
 	if err != nil {
 		return fmt.Errorf("failed to remove CAR file: %w", err)
 	}

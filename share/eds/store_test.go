@@ -138,22 +138,15 @@ func TestEDSStore(t *testing.T) {
 		assert.True(t, ok)
 	})
 
-	t.Run("BlockstoreCache", func(t *testing.T) {
+	t.Run("RecentBlocksCache", func(t *testing.T) {
 		eds, dah := randomEDS(t)
-
 		err = edsStore.Put(ctx, dah.Hash(), eds)
 		require.NoError(t, err)
 
-		// key isnt in cache yet, so get returns errCacheMiss
+		// check, that the key is in the cache after put
 		shardKey := shard.KeyFromString(dah.String())
 		_, err = edsStore.cache.get(shardKey)
-		assert.ErrorIs(t, err, errCacheMiss)
-
-		// now get it, so that the key is in the cache
-		_, err = edsStore.CARBlockstore(ctx, dah.Hash())
 		assert.NoError(t, err)
-		_, err = edsStore.cache.get(shardKey)
-		assert.NoError(t, err, errCacheMiss)
 	})
 
 	t.Run("List", func(t *testing.T) {
@@ -193,6 +186,11 @@ func TestEDSStore_GC(t *testing.T) {
 	err = edsStore.Put(ctx, dah.Hash(), eds)
 	require.NoError(t, err)
 
+	// remove links to the shard from cache
+	key := shard.KeyFromString(share.DataHash(dah.Hash()).String())
+	err = edsStore.cache.remove(key)
+	require.NoError(t, err)
+
 	// doesn't exist yet
 	assert.NotContains(t, edsStore.lastGCResult.Load().Shards, shardKey)
 
@@ -220,7 +218,7 @@ func Test_BlockstoreCache(t *testing.T) {
 
 	// store eds to the store with noopCache to allow clean cache after put
 	swap := edsStore.cache
-	edsStore.cache = noopCache{}
+	edsStore.cache = newMultiCache(noopCache{}, noopCache{})
 	eds, dah := randomEDS(t)
 	err = edsStore.Put(ctx, dah.Hash(), eds)
 	require.NoError(t, err)
@@ -246,7 +244,7 @@ func Test_BlockstoreCache(t *testing.T) {
 	require.ErrorIs(t, err, errCacheMiss)
 
 	// now get it, so that the key is in the cache
-	_, err = edsStore.bs.Get(ctx, key)
+	_, err = edsStore.Blockstore().Get(ctx, key)
 	require.NoError(t, err)
 	_, err = edsStore.cache.get(shardKey)
 	require.NoError(t, err)
