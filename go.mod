@@ -202,7 +202,7 @@ require (
 	github.com/ipfs/bbloom v0.0.4 // indirect
 	github.com/ipfs/go-ipfs-blockstore v1.3.1 // indirect
 	github.com/ipfs/go-ipfs-delay v0.0.1 // indirect
-	github.com/ipfs/go-ipfs-ds-help v1.1.0 // indirect
+	github.com/ipfs/go-ipfs-ds-help v1.1.0
 	github.com/ipfs/go-ipfs-exchange-interface v0.2.1 // indirect
 	github.com/ipfs/go-ipfs-exchange-offline v0.3.0 // indirect
 	github.com/ipfs/go-ipfs-pq v0.0.3 // indirect

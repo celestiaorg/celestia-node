@@ -119,7 +119,7 @@ func NewStore(basepath string, ds datastore.Batching) (*Store, error) {
 		mounts:      r,
 		cache:       cache,
 	}
-	store.bs = newBlockstore(store, cache)
+	store.bs = newBlockstore(store, cache, ds)
 	return store, nil
 }
 

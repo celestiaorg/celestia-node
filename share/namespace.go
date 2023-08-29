@@ -20,13 +20,13 @@ var (
 	// MinSecondaryReservedNamespace is the lowest secondary reserved namespace
 	// reserved for protocol use. Namespaces higher than this are reserved for
 	// protocol use.
-	MinSecondaryReservedNamespace = Namespace(appns.MinSecondaryReservedNamespace.Bytes())
-	ParitySharesNamespace         = Namespace(appns.ParitySharesNamespace.Bytes())
-	TailPaddingNamespace          = Namespace(appns.TailPaddingNamespace.Bytes())
-	ReservedPaddingNamespace      = Namespace(appns.PrimaryReservedPaddingNamespace.Bytes())
-	TxNamespace                   = Namespace(appns.TxNamespace.Bytes())
-	PayForBlobNamespace           = Namespace(appns.PayForBlobNamespace.Bytes())
-	ISRNamespace                  = Namespace(appns.IntermediateStateRootsNamespace.Bytes())
+	MinSecondaryReservedNamespace   = Namespace(appns.MinSecondaryReservedNamespace.Bytes())
+	ParitySharesNamespace           = Namespace(appns.ParitySharesNamespace.Bytes())
+	TailPaddingNamespace            = Namespace(appns.TailPaddingNamespace.Bytes())
+	PrimaryReservedPaddingNamespace = Namespace(appns.PrimaryReservedPaddingNamespace.Bytes())
+	TxNamespace                     = Namespace(appns.TxNamespace.Bytes())
+	PayForBlobNamespace             = Namespace(appns.PayForBlobNamespace.Bytes())
+	ISRNamespace                    = Namespace(appns.IntermediateStateRootsNamespace.Bytes())
 )
 
 // Namespace represents namespace of a Share.
