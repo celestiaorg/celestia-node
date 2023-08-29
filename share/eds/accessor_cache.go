@@ -27,7 +27,11 @@ type cache interface {
 
 	// getOrLoad attempts to get an item from the cache and, if not found, invokes
 	// the provided loader function to load it into the cache.
-	getOrLoad(ctx context.Context, key shard.Key, loader func(context.Context, shard.Key) (*dagstore.ShardAccessor, error)) (*accessorWithBlockstore, error)
+	getOrLoad(
+		ctx context.Context,
+		key shard.Key,
+		loader func(context.Context, shard.Key) (*dagstore.ShardAccessor, error),
+	) (*accessorWithBlockstore, error)
 
 	// remove removes an item from cache.
 	remove(shard.Key) error

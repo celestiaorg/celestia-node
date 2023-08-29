@@ -2,10 +2,11 @@ package eds
 
 import (
 	"context"
-	"github.com/ipfs/go-cid"
 	"os"
 	"testing"
 	"time"
+
+	"github.com/ipfs/go-cid"
 
 	"github.com/filecoin-project/dagstore/shard"
 	"github.com/ipfs/go-datastore"
