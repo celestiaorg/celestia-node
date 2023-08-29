@@ -245,7 +245,7 @@ func TestDASerSampleTimeout(t *testing.T) {
 // createDASerSubcomponents takes numGetter (number of headers
 // to store in mockGetter) and numSub (number of headers to store
 // in the mock header.Subscriber), returning a newly instantiated
-// mockGetter, resetshare.Availability, and mock header.Subscriber.
+// mockGetter, share.Availability, and mock header.Subscriber.
 func createDASerSubcomponents(
 	t *testing.T,
 	bServ blockservice.BlockService,

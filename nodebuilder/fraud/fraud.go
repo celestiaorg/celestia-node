@@ -57,6 +57,7 @@ func (s *module) Subscribe(ctx context.Context, proofType fraud.ProofType) (<-ch
 	proofs := make(chan Proof)
 	go func() {
 		defer close(proofs)
+		defer subscription.Cancel()
 		for {
 			proof, err := subscription.Proof(ctx)
 			if err != nil {
