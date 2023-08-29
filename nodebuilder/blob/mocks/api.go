@@ -8,10 +8,9 @@ import (
 	context "context"
 	reflect "reflect"
 
-	gomock "github.com/golang/mock/gomock"
-
 	blob "github.com/celestiaorg/celestia-node/blob"
 	share "github.com/celestiaorg/celestia-node/share"
+	gomock "github.com/golang/mock/gomock"
 )
 
 // MockModule is a mock of Module interface.
@@ -98,16 +97,21 @@ func (mr *MockModuleMockRecorder) Included(arg0, arg1, arg2, arg3, arg4 interfac
 }
 
 // Submit mocks base method.
-func (m *MockModule) Submit(arg0 context.Context, arg1 []*blob.Blob) (uint64, error) {
+func (m *MockModule) Submit(arg0 context.Context, arg1 []*blob.Blob, arg2 ...blob.Option) (uint64, error) {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "Submit", arg0, arg1)
+	varargs := []interface{}{arg0, arg1}
+	for _, a := range arg2 {
+		varargs = append(varargs, a)
+	}
+	ret := m.ctrl.Call(m, "Submit", varargs...)
 	ret0, _ := ret[0].(uint64)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
 
 // Submit indicates an expected call of Submit.
-func (mr *MockModuleMockRecorder) Submit(arg0, arg1 interface{}) *gomock.Call {
+func (mr *MockModuleMockRecorder) Submit(arg0, arg1 interface{}, arg2 ...interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Submit", reflect.TypeOf((*MockModule)(nil).Submit), arg0, arg1)
+	varargs := append([]interface{}{arg0, arg1}, arg2...)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Submit", reflect.TypeOf((*MockModule)(nil).Submit), varargs...)
 }
