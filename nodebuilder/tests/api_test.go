@@ -2,6 +2,7 @@ package tests
 
 import (
 	"context"
+	"reflect"
 	"testing"
 	"time"
 
@@ -119,9 +120,14 @@ func TestBlobRPC(t *testing.T) {
 	)
 	require.NoError(t, err)
 
-	height, err := client.Blob.Submit(ctx, []*blob.Blob{newBlob})
+	batch := blob.NewBatch([]*blob.Blob{newBlob}, blob.WithFee(1), blob.WithGasLimit(10000))
+	height, err := client.Blob.Submit(ctx, batch)
 	require.NoError(t, err)
 	require.True(t, height != 0)
+
+	blob, err := client.Blob.Get(ctx, height, batch.Blobs[0].Namespace(), batch.Blobs[0].Commitment)
+	require.NoError(t, err)
+	require.True(t, reflect.DeepEqual(blob, batch.Blobs[0]))
 }
 
 // TestHeaderSubscription ensures that the header subscription over RPC works

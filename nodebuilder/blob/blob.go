@@ -16,7 +16,7 @@ type Module interface {
 	// Submit sends Blobs and reports the height in which they were included.
 	// Allows sending multiple Blobs atomically synchronously.
 	// Uses default wallet registered on the Node.
-	Submit(_ context.Context, _ []*blob.Blob, _ ...blob.Option) (height uint64, _ error)
+	Submit(_ context.Context, _ *blob.Batch) (height uint64, _ error)
 	// Get retrieves the blob by commitment under the given namespace and height.
 	Get(_ context.Context, height uint64, _ share.Namespace, _ blob.Commitment) (*blob.Blob, error)
 	// GetAll returns all blobs under the given namespaces and height.
@@ -30,7 +30,7 @@ type Module interface {
 
 type API struct {
 	Internal struct {
-		Submit   func(context.Context, []*blob.Blob, ...blob.Option) (uint64, error)                        `perm:"write"`
+		Submit   func(context.Context, *blob.Batch) (uint64, error)                                         `perm:"write"`
 		Get      func(context.Context, uint64, share.Namespace, blob.Commitment) (*blob.Blob, error)        `perm:"read"`
 		GetAll   func(context.Context, uint64, []share.Namespace) ([]*blob.Blob, error)                     `perm:"read"`
 		GetProof func(context.Context, uint64, share.Namespace, blob.Commitment) (*blob.Proof, error)       `perm:"read"`
@@ -38,8 +38,8 @@ type API struct {
 	}
 }
 
-func (api *API) Submit(ctx context.Context, blobs []*blob.Blob, options ...blob.Option) (uint64, error) {
-	return api.Internal.Submit(ctx, blobs, options...)
+func (api *API) Submit(ctx context.Context, blobs *blob.Batch) (uint64, error) {
+	return api.Internal.Submit(ctx, blobs)
 }
 
 func (api *API) Get(

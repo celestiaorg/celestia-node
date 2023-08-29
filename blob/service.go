@@ -37,8 +37,6 @@ type Service struct {
 	shareGetter share.Getter
 	// headerGetter fetches header by the provided height
 	headerGetter func(context.Context, uint64) (*header.ExtendedHeader, error)
-
-	feeParams *feeParams
 }
 
 func NewService(
@@ -57,18 +55,10 @@ func NewService(
 // Allows sending multiple Blobs atomically synchronously.
 // Uses default wallet registered on the Node.
 // Handles gas estimation and fee calculation.
-func (s *Service) Submit(ctx context.Context, blobs []*Blob, options ...Option) (uint64, error) {
-	log.Debugw("submitting blobs", "amount", len(blobs))
+func (s *Service) Submit(ctx context.Context, blobs *Batch) (uint64, error) {
+	log.Debugw("submitting blobs", "amount", len(blobs.Blobs))
 
-	s.feeParams = &feeParams{
-		fee:    math.OneInt().Neg(),
-		gasLim: 0,
-	}
-
-	for _, opt := range options {
-		opt(s)
-	}
-	resp, err := s.blobSubmitter.SubmitPayForBlob(ctx, s.feeParams.fee, s.feeParams.gasLim, blobs)
+	resp, err := s.blobSubmitter.SubmitPayForBlob(ctx, math.NewInt(blobs.Fee), blobs.GasLimit, blobs.Blobs)
 	if err != nil {
 		return 0, err
 	}
