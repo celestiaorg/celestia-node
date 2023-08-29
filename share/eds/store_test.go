@@ -6,9 +6,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/ipfs/go-cid"
-
 	"github.com/filecoin-project/dagstore/shard"
+	"github.com/ipfs/go-cid"
 	"github.com/ipfs/go-datastore"
 	ds_sync "github.com/ipfs/go-datastore/sync"
 	"github.com/ipld/go-car"

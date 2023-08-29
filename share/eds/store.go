@@ -252,11 +252,11 @@ func (s *Store) put(ctx context.Context, root share.DataHash, square *rsmt2d.Ext
 		return fmt.Errorf("failed to register shard: %w", result.Error)
 	}
 
-	//accessor returned in result will be nil, so shard needs to be acquired first, to become
+	// accessor returned in result will be nil, so shard needs to be acquired first, to become
 	// available in cache. It might take some time and result should not affect put operation, so do it
 	// in goroutine
 	//TODO: Ideally only recent blocks should be put in cache, but there is no way right now to check
-	//such condition.
+	// such condition.
 	go func() {
 		ctx, cancel := context.WithTimeout(context.Background(), time.Minute)
 		defer cancel()
