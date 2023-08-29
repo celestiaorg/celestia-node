@@ -79,10 +79,9 @@ func (mc *multiCache) getOrLoad(
 
 // remove removes an item from all underlying caches
 func (mc *multiCache) remove(key shard.Key) error {
-	if err := mc.recentBlocks.remove(key); err != nil {
-		return err
-	}
-	return mc.ipldRequestedBlocks.remove(key)
+	err1 := mc.recentBlocks.remove(key)
+	err2 := mc.ipldRequestedBlocks.remove(key)
+	return errors.Join(err1, err2)
 }
 
 func (mc *multiCache) enableMetrics() error {

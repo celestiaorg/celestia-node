@@ -55,7 +55,9 @@ type Store struct {
 
 	dgstr  *dagstore.DAGStore
 	mounts *mount.Registry
-	cache  *multiCache
+
+	bs    *blockstore
+	cache *multiCache
 
 	carIdx      index.FullIndexRepo
 	invertedIdx *simpleInvertedIndex
@@ -125,7 +127,7 @@ func NewStore(basepath string, ds datastore.Batching) (*Store, error) {
 		mounts:      r,
 		cache:       newMultiCache(recentBlocksCache, blockstoreCache),
 	}
-	store.bs = newBlockstore(store, cache, ds)
+	store.bs = newBlockstore(store, ds)
 	return store, nil
 }
 
@@ -250,11 +252,18 @@ func (s *Store) put(ctx context.Context, root share.DataHash, square *rsmt2d.Ext
 		return fmt.Errorf("failed to register shard: %w", result.Error)
 	}
 
-	// accessor returned in result will be always nil, so shard needs to be acquired first, to become
-	// available in cache
-	if _, err := s.cache.getOrLoad(ctx, result.Key, s.getAccessor); err != nil {
-		log.Warnw("unable to put accessor to recent blocks accessors cache", "err", err)
-	}
+	//accessor returned in result will be nil, so shard needs to be acquired first, to become
+	// available in cache. It might take some time and result should not affect put operation, so do it
+	// in goroutine
+	//TODO: Ideally only recent blocks should be put in cache, but there is no way right now to check
+	//such condition.
+	go func() {
+		ctx, cancel := context.WithTimeout(context.Background(), time.Minute)
+		defer cancel()
+		if _, err := s.cache.getOrLoad(ctx, result.Key, s.getAccessor); err != nil {
+			log.Warnw("unable to put accessor to recent blocks accessors cache", "err", err)
+		}
+	}()
 
 	return nil
 }
@@ -324,7 +333,7 @@ func (s *Store) getCAR(ctx context.Context, root share.DataHash) (io.Reader, err
 // blocks. We represent `shares` and NMT Merkle proofs as IPFS blocks and IPLD nodes so Bitswap can
 // access those.
 func (s *Store) Blockstore() bstore.Blockstore {
-	return newBlockstore(s)
+	return s.bs
 }
 
 // CARBlockstore returns an IPFS Blockstore providing access to individual shares/nodes of a
