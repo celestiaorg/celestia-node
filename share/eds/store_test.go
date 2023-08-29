@@ -144,13 +144,20 @@ func TestEDSStore(t *testing.T) {
 		_, err = edsStore.GetCAR(ctx, dah.Hash())
 		assert.Error(t, err)
 
-		// give some time for the store to remove
-		time.Sleep(300 * time.Millisecond)
-
-		// assert that shard no longer exists after OpShardFail was detected from GetCAR call
-		has, err := edsStore.Has(ctx, dah.Hash())
-		assert.NoError(t, err)
-		assert.False(t, has)
+		ticker := time.NewTicker(time.Millisecond * 100)
+		defer ticker.Stop()
+		for {
+			select {
+			case <-ticker.C:
+				has, err := edsStore.Has(ctx, dah.Hash())
+				if err == nil && !has {
+					// shard no longer exists after OpShardFail was detected from GetCAR call
+					return
+				}
+			case <-ctx.Done():
+				t.Fatal("timeout waiting for shard to be removed")
+			}
+		}
 	})
 
 	t.Run("Has", func(t *testing.T) {

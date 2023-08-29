@@ -22,10 +22,10 @@ type Parameters struct {
 	// EnableBlackListing turns on blacklisting for misbehaved peers
 	EnableBlackListing bool
 
-	// DisableShrexSub turns off shrexsub for the peer manager. This is used to
-	// enable shrex on bridge nodes without creating a second instance of
-	// shrexsub.
-	DisableShrexSub bool
+	// EnableShrexSub enables shrexsub for the peer manager. Setting it to false
+	// is used to enable shrex on bridge nodes without creating a second
+	// instance of shrexsub.
+	EnableShrexSub bool
 }
 
 type Option func(*Manager)
@@ -62,9 +62,10 @@ func DefaultParameters(tp node.Type) Parameters {
 		// blacklisting is off by default //TODO(@walldiss): enable blacklisting once all related issues
 		// are resolved
 		EnableBlackListing: false,
+		EnableShrexSub:     true,
 	}
 	if tp == node.Bridge {
-		p.DisableShrexSub = true
+		p.EnableShrexSub = false
 	}
 	return p
 }
