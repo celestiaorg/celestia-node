@@ -30,8 +30,7 @@ type Getter interface {
 
 	// GetSharesByNamespace gets all shares from an EDS within the given namespace.
 	// Shares are returned in a row-by-row order if the namespace spans multiple rows.
-	// Inclusion of returned data could be verified using Verify method on NamespacedShares.
-	// If no shares are found for target namespace non-inclusion could be also verified by calling
+	// Inclusion of returned data could be verified using Verify method on NamespacedShares.  // If no shares are found for target namespace non-inclusion could be also verified by calling
 	// Verify method.
 	GetSharesByNamespace(context.Context, *Root, Namespace) (NamespacedShares, error)
 }
@@ -50,8 +49,8 @@ func (ns NamespacedShares) Flatten() []Share {
 
 // NamespacedRow represents all shares with proofs within a specific namespace of a single EDS row.
 type NamespacedRow struct {
-	Shares []Share
-	Proof  *nmt.Proof
+	Shares []Share    `json:"shares"`
+	Proof  *nmt.Proof `json:"proof"`
 }
 
 // Verify validates NamespacedShares by checking every row with nmt inclusion proof.
