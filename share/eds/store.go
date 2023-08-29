@@ -65,8 +65,8 @@ type Store struct {
 	// lastGCResult is only stored on the store for testing purposes.
 	lastGCResult atomic.Pointer[dagstore.GCResult]
 
-	// lock is used to lock parallel operations
-	lock sync.Map
+	// stripedLocks is used to synchronize parallel operations
+	stripedLocks [256]sync.Mutex
 
 	metrics *metrics
 }
@@ -201,11 +201,9 @@ func (s *Store) Put(ctx context.Context, root share.DataHash, square *rsmt2d.Ext
 }
 
 func (s *Store) put(ctx context.Context, root share.DataHash, square *rsmt2d.ExtendedDataSquare) (err error) {
-	m, _ := s.lock.LoadOrStore(root.String(), sync.Mutex{})
-	lock := m.(sync.Mutex)
-	lock.Lock()
-	defer lock.Unlock()
-	defer s.lock.Delete(root.String())
+	lk := &s.stripedLocks[root[len(root)-1]]
+	lk.Lock()
+	defer lk.Unlock()
 
 	// if root already exists, short-circuit
 	if has, _ := s.Has(ctx, root); has {
