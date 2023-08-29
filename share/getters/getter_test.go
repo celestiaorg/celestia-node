@@ -107,6 +107,10 @@ func TestStoreGetter(t *testing.T) {
 			}
 		}
 
+		// doesn't panic on indexes too high
+		_, err := sg.GetShare(ctx, &dah, squareSize, squareSize)
+		require.ErrorIs(t, err, share.ErrOutOfBounds)
+
 		// root not found
 		_, dah = randomEDS(t)
 		_, err = sg.GetShare(ctx, &dah, 0, 0)
@@ -183,6 +187,10 @@ func TestIPLDGetter(t *testing.T) {
 				assert.Equal(t, randEds.GetCell(uint(i), uint(j)), share)
 			}
 		}
+
+		// doesn't panic on indexes too high
+		_, err := sg.GetShare(ctx, &dah, squareSize+1, squareSize+1)
+		require.ErrorIs(t, err, share.ErrOutOfBounds)
 
 		// root not found
 		_, dah = randomEDS(t)
