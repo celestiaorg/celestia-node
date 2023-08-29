@@ -18,6 +18,9 @@ import (
 	"github.com/celestiaorg/celestia-node/nodebuilder/state"
 )
 
+// PrintKeyringInfo whether to print keyring information during init.
+var PrintKeyringInfo = true
+
 // Init initializes the Node FileSystem Store for the given Node Type 'tp' in the directory under
 // 'path'.
 func Init(cfg Config, path string, tp node.Type) error {
@@ -213,8 +216,10 @@ func generateKeys(cfg Config, ksPath string) error {
 	if err != nil {
 		return err
 	}
-	fmt.Printf("\nNAME: %s\nADDRESS: %s\nMNEMONIC (save this somewhere safe!!!): \n%s\n\n",
-		keyInfo.Name, addr.String(), mn)
+	if PrintKeyringInfo {
+		fmt.Printf("\nNAME: %s\nADDRESS: %s\nMNEMONIC (save this somewhere safe!!!): \n%s\n\n",
+			keyInfo.Name, addr.String(), mn)
+	}
 	return nil
 }
 

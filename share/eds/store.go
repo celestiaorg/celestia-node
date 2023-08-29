@@ -116,7 +116,7 @@ func NewStore(basepath string, ds datastore.Batching) (*Store, error) {
 		return nil, fmt.Errorf("failed to create blockstore cache: %w", err)
 	}
 
-	return &Store{
+	store := &Store{
 		basepath:    basepath,
 		dgstr:       dagStore,
 		carIdx:      fsRepo,
@@ -124,7 +124,9 @@ func NewStore(basepath string, ds datastore.Batching) (*Store, error) {
 		gcInterval:  defaultGCInterval,
 		mounts:      r,
 		cache:       newMultiCache(recentBlocksCache, blockstoreCache),
-	}, nil
+	}
+	store.bs = newBlockstore(store, cache, ds)
+	return store, nil
 }
 
 func (s *Store) Start(ctx context.Context) error {
