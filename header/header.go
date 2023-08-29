@@ -195,7 +195,8 @@ func (eh *ExtendedHeader) Verify(untrst *ExtendedHeader) error {
 
 	if err := eh.ValidatorSet.VerifyCommitLightTrusting(eh.ChainID(), untrst.Commit, light.DefaultTrustLevel); err != nil {
 		return &libhead.VerifyError{
-			Reason: err,
+			Reason:      err,
+			SoftFailure: true,
 		}
 	}
 	return nil

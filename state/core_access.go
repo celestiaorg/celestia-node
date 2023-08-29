@@ -295,7 +295,7 @@ func (ca *CoreAccessor) BalanceForAddress(ctx context.Context, addr Address) (*B
 	abciReq := abci.RequestQuery{
 		// TODO @renayay: once https://github.com/cosmos/cosmos-sdk/pull/12674 is merged, use const instead
 		Path:   fmt.Sprintf("store/%s/key", banktypes.StoreKey),
-		Height: int64(head.Height() - 1), // TODO(@Wondertan): Why -1?
+		Height: int64(head.Height() - 1),
 		Data:   prefixedAccountKey,
 		Prove:  true,
 	}
