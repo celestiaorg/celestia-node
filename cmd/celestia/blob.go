@@ -118,7 +118,7 @@ var submitCmd = &cobra.Command{
 			return fmt.Errorf("error creating a blob:%v", err)
 		}
 
-		height, err := client.Blob.Submit(cmd.Context(), []*blob.Blob{parsedBlob})
+		height, err := client.Blob.Submit(cmd.Context(), []*blob.Blob{parsedBlob}, nil)
 
 		response := struct {
 			Height     uint64          `json:"height"`
