@@ -46,14 +46,13 @@ func NewFraudMaker(t *testing.T, height int64, vals []types.PrivValidator, valSe
 }
 
 func (f *FraudMaker) MakeExtendedHeader(odsSize int, edsStore *eds.Store) header.ConstructFn {
-	return func(ctx context.Context,
-		h *types.Header,
+	return func(h *types.Header,
 		comm *types.Commit,
 		vals *types.ValidatorSet,
 		eds *rsmt2d.ExtendedDataSquare,
 	) (*header.ExtendedHeader, error) {
 		if h.Height < f.height {
-			return header.MakeExtendedHeader(ctx, h, comm, vals, eds)
+			return header.MakeExtendedHeader(h, comm, vals, eds)
 		}
 
 		hdr := *h
@@ -64,7 +63,7 @@ func (f *FraudMaker) MakeExtendedHeader(odsSize int, edsStore *eds.Store) header
 			require.NoError(f.t, err)
 			hdr.DataHash = dah.Hash()
 
-			ctx = ipld.CtxWithProofsAdder(ctx, adder)
+			ctx := ipld.CtxWithProofsAdder(context.Background(), adder)
 			require.NoError(f.t, edsStore.Put(ctx, h.DataHash.Bytes(), square))
 
 			*eds = *square
@@ -82,7 +81,7 @@ func (f *FraudMaker) MakeExtendedHeader(odsSize int, edsStore *eds.Store) header
 		*h = hdr
 		*comm = *commit
 		f.prevHash = h.Hash()
-		return header.MakeExtendedHeader(ctx, h, comm, vals, eds)
+		return header.MakeExtendedHeader(h, comm, vals, eds)
 	}
 }
 func CreateFraudExtHeader(
