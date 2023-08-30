@@ -134,7 +134,7 @@ func cascadeGetters[V any](
 		span.RecordError(getErr, trace.WithAttributes(attribute.Int("getter_idx", i)))
 		var byzantineErr *byzantine.ErrByzantine
 		if errors.As(getErr, &byzantineErr) {
-			// short circuit if byzantine error was detected(to be able to handle it correctly
+			// short circuit if byzantine error was detected (to be able to handle it correctly
 			// and create the BEFP)
 			return zero, byzantineErr
 		}
