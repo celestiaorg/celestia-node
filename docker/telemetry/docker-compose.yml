@@ -83,11 +83,7 @@ services:
     command:
       - "server"
 
-
-
 volumes:
   prometheus-data:
   loki-data:
   grafana-data:
-
-
