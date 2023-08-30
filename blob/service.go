@@ -37,8 +37,6 @@ type Service struct {
 	shareGetter share.Getter
 	// headerGetter fetches header by the provided height
 	headerGetter func(context.Context, uint64) (*header.ExtendedHeader, error)
-
-	feeParams *feeParams
 }
 
 func NewService(
@@ -53,22 +51,32 @@ func NewService(
 	}
 }
 
+// SubmitOptions contains the information about fee and gasLimit price in order to configure the Submit request.
+type SubmitOptions struct {
+	Fee      int64
+	GasLimit uint64
+}
+
+// DefaultSubmitOptions creates a default fee and gas price values.
+func DefaultSubmitOptions() *SubmitOptions {
+	return &SubmitOptions{
+		Fee:      -1,
+		GasLimit: 0,
+	}
+}
+
 // Submit sends PFB transaction and reports the height in which it was included.
 // Allows sending multiple Blobs atomically synchronously.
 // Uses default wallet registered on the Node.
 // Handles gas estimation and fee calculation.
-func (s *Service) Submit(ctx context.Context, blobs []*Blob, options ...Option) (uint64, error) {
+func (s *Service) Submit(ctx context.Context, blobs []*Blob, options *SubmitOptions) (uint64, error) {
 	log.Debugw("submitting blobs", "amount", len(blobs))
 
-	s.feeParams = &feeParams{
-		fee:    math.OneInt().Neg(),
-		gasLim: 0,
+	if options == nil {
+		options = DefaultSubmitOptions()
 	}
 
-	for _, opt := range options {
-		opt(s)
-	}
-	resp, err := s.blobSubmitter.SubmitPayForBlob(ctx, s.feeParams.fee, s.feeParams.gasLim, blobs)
+	resp, err := s.blobSubmitter.SubmitPayForBlob(ctx, types.NewInt(options.Fee), options.GasLimit, blobs)
 	if err != nil {
 		return 0, err
 	}

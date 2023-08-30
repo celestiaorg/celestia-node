@@ -55,7 +55,7 @@ func TestBlobModule(t *testing.T) {
 	lightNode := sw.NewNodeWithConfig(node.Light, lightCfg)
 	require.NoError(t, lightNode.Start(ctx))
 
-	height, err := fullNode.BlobServ.Submit(ctx, blobs)
+	height, err := fullNode.BlobServ.Submit(ctx, blobs, nil)
 	require.NoError(t, err)
 
 	_, err = fullNode.HeaderServ.WaitForHeight(ctx, height)
