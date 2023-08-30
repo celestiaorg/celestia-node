@@ -135,7 +135,7 @@ func (w *worker) sample(ctx context.Context, timeout time.Duration, height uint6
 	if w.state.job.jobType == recentJob {
 		err = w.broadcast(ctx, shrexsub.Notification{
 			DataHash: h.DataHash.Bytes(),
-			Height:   uint64(h.Height()),
+			Height:   h.Height(),
 		})
 		if err != nil {
 			log.Warn("failed to broadcast availability message",

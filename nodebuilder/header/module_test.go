@@ -38,7 +38,7 @@ func TestConstructModule_StoreParams(t *testing.T) {
 		fx.Provide(func() datastore.Batching {
 			return datastore.NewMapDatastore()
 		}),
-		ConstructModule(node.Light, &cfg),
+		ConstructModule[*header.ExtendedHeader](node.Light, &cfg),
 		fx.Invoke(
 			func(s libhead.Store[*header.ExtendedHeader]) {
 				ss := s.(*store.Store[*header.ExtendedHeader])
@@ -72,10 +72,10 @@ func TestConstructModule_SyncerParams(t *testing.T) {
 		fx.Provide(func() datastore.Batching {
 			return datastore.NewMapDatastore()
 		}),
-		fx.Provide(func() fraud.Service {
+		fx.Provide(func() fraud.Service[*header.ExtendedHeader] {
 			return nil
 		}),
-		ConstructModule(node.Light, &cfg),
+		ConstructModule[*header.ExtendedHeader](node.Light, &cfg),
 		fx.Invoke(func(s *sync.Syncer[*header.ExtendedHeader]) {
 			syncer = s
 		}),
@@ -100,7 +100,7 @@ func TestConstructModule_ExchangeParams(t *testing.T) {
 		fx.Provide(func() datastore.Batching {
 			return datastore.NewMapDatastore()
 		}),
-		ConstructModule(node.Light, &cfg),
+		ConstructModule[*header.ExtendedHeader](node.Light, &cfg),
 		fx.Provide(func(b datastore.Batching) (*conngater.BasicConnectionGater, error) {
 			return conngater.NewBasicConnectionGater(b)
 		}),

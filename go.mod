@@ -14,8 +14,8 @@ require (
 	github.com/benbjohnson/clock v1.3.5
 	github.com/celestiaorg/celestia-app v1.0.0-rc12
 	github.com/celestiaorg/go-ds-badger4 v0.0.0-20230712104058-7ede1c814ac5
-	github.com/celestiaorg/go-fraud v0.1.2
-	github.com/celestiaorg/go-header v0.2.13
+	github.com/celestiaorg/go-fraud v0.2.0
+	github.com/celestiaorg/go-header v0.3.0
 	github.com/celestiaorg/go-libp2p-messenger v0.2.0
 	github.com/celestiaorg/nmt v0.18.1
 	github.com/celestiaorg/rsmt2d v0.11.0
