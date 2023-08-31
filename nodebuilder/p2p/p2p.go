@@ -195,7 +195,7 @@ func (m *module) PubSubPeers(_ context.Context, topic string) ([]peer.ID, error)
 type API struct {
 	Internal struct {
 		Info                 func(context.Context) (peer.AddrInfo, error)                         `perm:"public"`
-		Peers                func(context.Context) ([]peer.ID, error)                             `perm:"read"`
+		Peers                func(context.Context) ([]peer.ID, error)                             `perm:"admin"`
 		PeerInfo             func(ctx context.Context, id peer.ID) (peer.AddrInfo, error)         `perm:"admin"`
 		Connect              func(ctx context.Context, pi peer.AddrInfo) error                    `perm:"admin"`
 		ClosePeer            func(ctx context.Context, id peer.ID) error                          `perm:"admin"`
