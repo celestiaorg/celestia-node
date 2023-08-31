@@ -7,7 +7,6 @@ import (
 
 	"github.com/celestiaorg/celestia-app/pkg/wrapper"
 	"github.com/celestiaorg/go-fraud"
-	libhead "github.com/celestiaorg/go-header"
 	"github.com/celestiaorg/rsmt2d"
 
 	"github.com/celestiaorg/celestia-node/header"
@@ -21,10 +20,6 @@ const (
 
 	BadEncoding fraud.ProofType = "badencoding" + version
 )
-
-func init() {
-	fraud.Register(&BadEncodingProof{})
-}
 
 type BadEncodingProof struct {
 	headerHash  []byte
@@ -46,8 +41,7 @@ func CreateBadEncodingProof(
 	hash []byte,
 	height uint64,
 	errByzantine *ErrByzantine,
-) fraud.Proof {
-
+) fraud.Proof[*header.ExtendedHeader] {
 	return &BadEncodingProof{
 		headerHash:  hash,
 		BlockHeight: height,
@@ -112,34 +106,29 @@ func (p *BadEncodingProof) UnmarshalBinary(data []byte) error {
 // Validate checks that provided Merkle Proofs correspond to the shares,
 // rebuilds bad row or col from received shares, computes Merkle Root
 // and compares it with block's Merkle Root.
-func (p *BadEncodingProof) Validate(hdr libhead.Header) error {
-	header, ok := hdr.(*header.ExtendedHeader)
-	if !ok {
-		panic(fmt.Sprintf("invalid header type received during BEFP validation: expected %T, got %T", header, hdr))
-	}
-
-	if header.Height() != int64(p.BlockHeight) {
+func (p *BadEncodingProof) Validate(hdr *header.ExtendedHeader) error {
+	if hdr.Height() != p.BlockHeight {
 		return fmt.Errorf("incorrect block height during BEFP validation: expected %d, got %d",
-			p.BlockHeight, header.Height(),
+			p.BlockHeight, hdr.Height(),
 		)
 	}
 
-	if len(header.DAH.RowRoots) != len(header.DAH.ColumnRoots) {
+	if len(hdr.DAH.RowRoots) != len(hdr.DAH.ColumnRoots) {
 		// NOTE: This should never happen as callers of this method should not feed it with a
 		// malformed extended header.
 		panic(fmt.Sprintf(
 			"invalid extended header: length of row and column roots do not match. (rowRoots=%d) (colRoots=%d)",
-			len(header.DAH.RowRoots),
-			len(header.DAH.ColumnRoots)),
+			len(hdr.DAH.RowRoots),
+			len(hdr.DAH.ColumnRoots)),
 		)
 	}
 
 	// merkleRoots are the roots against which we are going to check the inclusion of the received
 	// shares. Changing the order of the roots to prove the shares relative to the orthogonal axis,
 	// because inside the rsmt2d library rsmt2d.Row = 0 and rsmt2d.Col = 1
-	merkleRoots := header.DAH.RowRoots
+	merkleRoots := hdr.DAH.RowRoots
 	if p.Axis == rsmt2d.Row {
-		merkleRoots = header.DAH.ColumnRoots
+		merkleRoots = hdr.DAH.ColumnRoots
 	}
 
 	if int(p.Index) >= len(merkleRoots) {
@@ -196,7 +185,7 @@ func (p *BadEncodingProof) Validate(hdr libhead.Header) error {
 	rebuiltShares, err := codec.Decode(shares)
 	if err != nil {
 		log.Infow("failed to decode shares at height",
-			"height", header.Height(), "err", err,
+			"height", hdr.Height(), "err", err,
 		)
 		return nil
 	}
@@ -204,7 +193,7 @@ func (p *BadEncodingProof) Validate(hdr libhead.Header) error {
 	rebuiltExtendedShares, err := codec.Encode(rebuiltShares[0:odsWidth])
 	if err != nil {
 		log.Infow("failed to encode shares at height",
-			"height", header.Height(), "err", err,
+			"height", hdr.Height(), "err", err,
 		)
 		return nil
 	}
@@ -215,7 +204,7 @@ func (p *BadEncodingProof) Validate(hdr libhead.Header) error {
 		err = tree.Push(share)
 		if err != nil {
 			log.Infow("failed to build a tree from the reconstructed shares at height",
-				"height", header.Height(), "err", err,
+				"height", hdr.Height(), "err", err,
 			)
 			return nil
 		}
@@ -224,15 +213,15 @@ func (p *BadEncodingProof) Validate(hdr libhead.Header) error {
 	expectedRoot, err := tree.Root()
 	if err != nil {
 		log.Infow("failed to build a tree root at height",
-			"height", header.Height(), "err", err,
+			"height", hdr.Height(), "err", err,
 		)
 		return nil
 	}
 
 	// root is a merkle root of the row/col where ErrByzantine occurred
-	root := header.DAH.RowRoots[p.Index]
+	root := hdr.DAH.RowRoots[p.Index]
 	if p.Axis == rsmt2d.Col {
-		root = header.DAH.ColumnRoots[p.Index]
+		root = hdr.DAH.ColumnRoots[p.Index]
 	}
 
 	// comparing rebuilt Merkle Root of bad row/col with respective Merkle Root of row/col from block.

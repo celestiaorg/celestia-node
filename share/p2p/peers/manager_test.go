@@ -274,7 +274,7 @@ func TestManager(t *testing.T) {
 		// create shrexSub msg with height lower than first header from headerSub
 		msg := shrexsub.Notification{
 			DataHash: share.DataHash("datahash"),
-			Height:   uint64(h.Height() - 1),
+			Height:   h.Height() - 1,
 		}
 		result := manager.Validate(ctx, "peer", msg)
 		require.Equal(t, pubsub.ValidationIgnore, result)
@@ -298,7 +298,7 @@ func TestManager(t *testing.T) {
 		// create shrexSub msg with height lower than first header from headerSub
 		msg := shrexsub.Notification{
 			DataHash: share.DataHash("datahash"),
-			Height:   uint64(h.Height() - 1),
+			Height:   h.Height() - 1,
 		}
 		result := manager.Validate(ctx, "peer", msg)
 		require.Equal(t, pubsub.ValidationIgnore, result)
@@ -537,7 +537,7 @@ func (s *subLock) Subscribe() (libhead.Subscription[*header.ExtendedHeader], err
 	return s, nil
 }
 
-func (s *subLock) AddValidator(func(context.Context, *header.ExtendedHeader) pubsub.ValidationResult) error {
+func (s *subLock) SetVerifier(func(context.Context, *header.ExtendedHeader) error) error {
 	panic("implement me")
 }
 
@@ -561,6 +561,6 @@ func (s *subLock) Cancel() {
 func newShrexSubMsg(h *header.ExtendedHeader) shrexsub.Notification {
 	return shrexsub.Notification{
 		DataHash: h.DataHash.Bytes(),
-		Height:   uint64(h.Height()),
+		Height:   h.Height(),
 	}
 }

@@ -25,9 +25,9 @@ func TestGetByHeightHandlesError(t *testing.T) {
 	})
 }
 
-type errorSyncer[H libhead.Header] struct{}
+type errorSyncer[H libhead.Header[H]] struct{}
 
-func (d *errorSyncer[H]) Head(context.Context) (H, error) {
+func (d *errorSyncer[H]) Head(context.Context, ...libhead.HeadOption[H]) (H, error) {
 	var zero H
 	return zero, fmt.Errorf("dummy error")
 }
