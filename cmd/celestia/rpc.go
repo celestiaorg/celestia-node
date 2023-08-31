@@ -402,12 +402,13 @@ func rpcClient(ctx context.Context) (*client.Client, error) {
 }
 
 func printOutput(data interface{}, err error, formatData func(interface{}) interface{}) {
-	if err != nil {
-		data = err
-	} else {
+	switch err {
+	case nil:
 		if formatData != nil {
 			data = formatData(data)
 		}
+	default:
+		data = err
 	}
 
 	resp := struct {
