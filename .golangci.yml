@@ -4,7 +4,7 @@ run:
 linters:
   enable:
     - bodyclose
-     # - depguard as of v1.54.2, the default config throws errors on our repository
+     # - depguard as of v1.54.2, the default config throws errors on our repo
     - dogsled
     - dupl
     - errcheck
