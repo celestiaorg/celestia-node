@@ -295,7 +295,7 @@ func TestSyncLightAgainstFull(t *testing.T) {
 	require.NoError(t, err)
 	bridgeHead, err := bridge.HeaderServ.LocalHead(ctx)
 	require.NoError(t, err)
-	_, err = full.HeaderServ.WaitForHeight(ctx, uint64(bridgeHead.Height()))
+	_, err = full.HeaderServ.WaitForHeight(ctx, bridgeHead.Height())
 	require.NoError(t, err)
 
 	// reset suite bootstrapper list and set full node as a bootstrapper for
@@ -316,7 +316,7 @@ func TestSyncLightAgainstFull(t *testing.T) {
 	require.NoError(t, err)
 	fullHead, err := full.HeaderServ.LocalHead(ctx)
 	require.NoError(t, err)
-	_, err = light.HeaderServ.WaitForHeight(ctx, uint64(fullHead.Height()))
+	_, err = light.HeaderServ.WaitForHeight(ctx, fullHead.Height())
 	require.NoError(t, err)
 
 	// wait for the core block filling process to exit

@@ -145,7 +145,7 @@ func TestFraudProofValidation(t *testing.T) {
 			faultHeader, err := generateByzantineError(ctx, t, size, bServ)
 			require.True(t, errors.As(err, &errByz))
 
-			p := byzantine.CreateBadEncodingProof([]byte("hash"), uint64(faultHeader.Height()), errByz)
+			p := byzantine.CreateBadEncodingProof([]byte("hash"), faultHeader.Height(), errByz)
 			err = p.Validate(faultHeader)
 			require.NoError(t, err)
 		})
@@ -197,7 +197,7 @@ func BenchmarkBEFPValidation(b *testing.B) {
 
 			for i := 0; i < b.N; i++ {
 				b.ReportAllocs()
-				p := byzantine.CreateBadEncodingProof([]byte("hash"), uint64(h.Height()), errByz)
+				p := byzantine.CreateBadEncodingProof([]byte("hash"), h.Height(), errByz)
 				err = p.Validate(h)
 				require.NoError(b, err)
 			}
