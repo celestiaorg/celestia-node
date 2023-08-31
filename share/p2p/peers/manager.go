@@ -99,11 +99,10 @@ type syncPool struct {
 
 func NewManager(
 	params Parameters,
-	headerSub libhead.Subscriber[*header.ExtendedHeader],
-	shrexSub *shrexsub.PubSub,
 	discovery *discovery.Discovery,
 	host host.Host,
 	connGater *conngater.BasicConnectionGater,
+	options ...Option,
 ) (*Manager, error) {
 	if err := params.Validate(); err != nil {
 		return nil, err
@@ -111,8 +110,6 @@ func NewManager(
 
 	s := &Manager{
 		params:                params,
-		headerSub:             headerSub,
-		shrexSub:              shrexSub,
 		connGater:             connGater,
 		disc:                  discovery,
 		host:                  host,
@@ -120,6 +117,13 @@ func NewManager(
 		blacklistedHashes:     make(map[string]bool),
 		headerSubDone:         make(chan struct{}),
 		disconnectedPeersDone: make(chan struct{}),
+	}
+
+	for _, opt := range options {
+		err := opt(s)
+		if err != nil {
+			return nil, err
+		}
 	}
 
 	s.fullNodes = newPool(s.params.PeerCooldown)
@@ -147,9 +151,10 @@ func (m *Manager) Start(startCtx context.Context) error {
 	ctx, cancel := context.WithCancel(context.Background())
 	m.cancel = cancel
 
-	validatorFn := m.metrics.validationObserver(m.Validate)
-
-	if m.params.EnableShrexSub {
+	// pools will only be populated with senders of shrexsub notifications if the WithShrexSubPools
+	// option is used.
+	if m.shrexSub != nil && m.headerSub != nil {
+		validatorFn := m.metrics.validationObserver(m.Validate)
 		err := m.shrexSub.AddValidator(validatorFn)
 		if err != nil {
 			return fmt.Errorf("registering validator: %w", err)
@@ -158,11 +163,13 @@ func (m *Manager) Start(startCtx context.Context) error {
 		if err != nil {
 			return fmt.Errorf("starting shrexsub: %w", err)
 		}
-	}
 
-	headerSub, err := m.headerSub.Subscribe()
-	if err != nil {
-		return fmt.Errorf("subscribing to headersub: %w", err)
+		headerSub, err := m.headerSub.Subscribe()
+		if err != nil {
+			return fmt.Errorf("subscribing to headersub: %w", err)
+		}
+
+		go m.subscribeHeader(ctx, headerSub)
 	}
 
 	sub, err := m.host.EventBus().Subscribe(&event.EvtPeerConnectednessChanged{}, eventbus.BufSize(eventbusBufSize))
@@ -171,7 +178,6 @@ func (m *Manager) Start(startCtx context.Context) error {
 	}
 
 	go m.subscribeDisconnectedPeers(ctx, sub)
-	go m.subscribeHeader(ctx, headerSub)
 	go m.GC(ctx)
 
 	return nil
@@ -180,10 +186,12 @@ func (m *Manager) Start(startCtx context.Context) error {
 func (m *Manager) Stop(ctx context.Context) error {
 	m.cancel()
 
-	select {
-	case <-m.headerSubDone:
-	case <-ctx.Done():
-		return ctx.Err()
+	if m.headerSub != nil {
+		select {
+		case <-m.headerSubDone:
+		case <-ctx.Done():
+			return ctx.Err()
+		}
 	}
 
 	select {

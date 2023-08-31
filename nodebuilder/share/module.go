@@ -5,8 +5,12 @@ import (
 
 	"github.com/ipfs/go-datastore"
 	"github.com/libp2p/go-libp2p/core/host"
+	"github.com/libp2p/go-libp2p/p2p/net/conngater"
 	"go.uber.org/fx"
 
+	libhead "github.com/celestiaorg/go-header"
+
+	"github.com/celestiaorg/celestia-node/header"
 	"github.com/celestiaorg/celestia-node/nodebuilder/node"
 	modp2p "github.com/celestiaorg/celestia-node/nodebuilder/p2p"
 	"github.com/celestiaorg/celestia-node/share"
@@ -51,7 +55,6 @@ func ConstructModule(tp node.Type, cfg *Config, options ...fx.Option) fx.Option 
 		fx.Provide(func() peers.Parameters {
 			return cfg.PeerManagerParams
 		}),
-		fx.Provide(peers.NewManager),
 		fx.Provide(
 			func(host host.Host, network modp2p.Network) (*shrexnd.Client, error) {
 				cfg.ShrExNDParams.WithNetworkID(network.String())
@@ -139,11 +142,33 @@ func ConstructModule(tp node.Type, cfg *Config, options ...fx.Option) fx.Option 
 		}),
 	)
 
+	peerManagerWithShrexPools := fx.Options(
+		fx.Provide(
+			func(
+				params peers.Parameters,
+				discovery *disc.Discovery,
+				host host.Host,
+				connGater *conngater.BasicConnectionGater,
+				shrexSub *shrexsub.PubSub,
+				headerSub libhead.Subscriber[*header.ExtendedHeader],
+			) (*peers.Manager, error) {
+				return peers.NewManager(
+					params,
+					discovery,
+					host,
+					connGater,
+					peers.WithShrexSubPools(shrexSub, headerSub),
+				)
+			},
+		),
+	)
+
 	switch tp {
 	case node.Bridge:
 		return fx.Module(
 			"share",
 			baseComponents,
+			fx.Provide(peers.NewManager),
 			bridgeAndFullComponents,
 			shrexGetterComponents,
 			fx.Provide(bridgeGetter),
@@ -158,6 +183,7 @@ func ConstructModule(tp node.Type, cfg *Config, options ...fx.Option) fx.Option 
 	case node.Full:
 		return fx.Module(
 			"share",
+			peerManagerWithShrexPools,
 			baseComponents,
 			bridgeAndFullComponents,
 			shrexGetterComponents,
@@ -173,6 +199,7 @@ func ConstructModule(tp node.Type, cfg *Config, options ...fx.Option) fx.Option 
 					light.WithSampleAmount(cfg.LightAvailability.SampleAmount),
 				}
 			}),
+			peerManagerWithShrexPools,
 			shrexGetterComponents,
 			fx.Invoke(ensureEmptyEDSInBS),
 			fx.Provide(getters.NewIPLDGetter),

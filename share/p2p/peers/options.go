@@ -4,7 +4,10 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/celestiaorg/celestia-node/nodebuilder/node"
+	libhead "github.com/celestiaorg/go-header"
+
+	"github.com/celestiaorg/celestia-node/header"
+	"github.com/celestiaorg/celestia-node/share/p2p/shrexsub"
 )
 
 type Parameters struct {
@@ -21,14 +24,9 @@ type Parameters struct {
 
 	// EnableBlackListing turns on blacklisting for misbehaved peers
 	EnableBlackListing bool
-
-	// EnableShrexSub enables shrexsub for the peer manager. Setting it to false
-	// is used to enable shrex on bridge nodes without creating a second
-	// instance of shrexsub.
-	EnableShrexSub bool
 }
 
-type Option func(*Manager)
+type Option func(*Manager) error
 
 // Validate validates the values in Parameters
 func (p *Parameters) Validate() error {
@@ -48,8 +46,8 @@ func (p *Parameters) Validate() error {
 }
 
 // DefaultParameters returns the default configuration values for the daser parameters
-func DefaultParameters(tp node.Type) Parameters {
-	p := Parameters{
+func DefaultParameters() Parameters {
+	return Parameters{
 		// PoolValidationTimeout's default value is based on the default daser sampling timeout of 1 minute.
 		// If a received datahash has not tried to be sampled within these two minutes, the pool will be
 		// removed.
@@ -62,12 +60,17 @@ func DefaultParameters(tp node.Type) Parameters {
 		// blacklisting is off by default //TODO(@walldiss): enable blacklisting once all related issues
 		// are resolved
 		EnableBlackListing: false,
-		EnableShrexSub:     true,
 	}
-	if tp == node.Bridge {
-		p.EnableShrexSub = false
+}
+
+// WithShrexSubPools passes a shrexsub and headersub instance to be used to populate and validate
+// pools from shrexsub notifications.
+func WithShrexSubPools(shrexSub *shrexsub.PubSub, headerSub libhead.Subscriber[*header.ExtendedHeader]) Option {
+	return func(m *Manager) error {
+		m.shrexSub = shrexSub
+		m.headerSub = headerSub
+		return nil
 	}
-	return p
 }
 
 // WithMetrics turns on metric collection in peer manager.

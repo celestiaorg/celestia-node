@@ -27,7 +27,6 @@ import (
 
 	"github.com/celestiaorg/celestia-node/header"
 	"github.com/celestiaorg/celestia-node/header/headertest"
-	"github.com/celestiaorg/celestia-node/nodebuilder/node"
 	"github.com/celestiaorg/celestia-node/share"
 	"github.com/celestiaorg/celestia-node/share/eds"
 	"github.com/celestiaorg/celestia-node/share/eds/edstest"
@@ -227,12 +226,11 @@ func testManager(
 		return nil, err
 	}
 	manager, err := peers.NewManager(
-		peers.DefaultParameters(node.Full),
-		headerSub,
-		shrexSub,
+		peers.DefaultParameters(),
 		disc,
 		host,
 		connGater,
+		peers.WithShrexSubPools(shrexSub, headerSub),
 	)
 	return manager, err
 }
