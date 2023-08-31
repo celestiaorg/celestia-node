@@ -54,11 +54,7 @@ var infoCmd = &cobra.Command{
 		info, err := client.P2P.Info(cmd.Context())
 
 		formatter := func(data interface{}) interface{} {
-			peerAdd, ok := data.(peer.AddrInfo)
-			if !ok {
-				return peerAdd
-			}
-
+			peerAdd := data.(peer.AddrInfo)
 			ma := make([]string, len(info.Addrs))
 			for i := range peerAdd.Addrs {
 				ma[i] = peerAdd.Addrs[i].String()
@@ -92,10 +88,7 @@ var peersCmd = &cobra.Command{
 		}
 
 		formatter := func(data interface{}) interface{} {
-			conPeers, ok := data.([]string)
-			if !ok {
-				return conPeers
-			}
+			conPeers := data.([]string)
 			return struct {
 				Peers []string `json:"peers"`
 			}{
@@ -124,11 +117,7 @@ var peerInfoCmd = &cobra.Command{
 		}
 		info, err := client.P2P.PeerInfo(cmd.Context(), pid)
 		formatter := func(data interface{}) interface{} {
-			peerAdd, ok := data.(peer.AddrInfo)
-			if !ok {
-				return peerAdd
-			}
-
+			peerAdd := data.(peer.AddrInfo)
 			ma := make([]string, len(info.Addrs))
 			for i := range peerAdd.Addrs {
 				ma[i] = peerAdd.Addrs[i].String()
@@ -294,7 +283,7 @@ var blockPeerCmd = &cobra.Command{
 			}
 		}
 
-		printOutput(nil, err, formatter)
+		printOutput(err, nil, formatter)
 		return nil
 	},
 }
@@ -334,7 +323,7 @@ var unblockPeerCmd = &cobra.Command{
 			}
 		}
 
-		printOutput(nil, err, formatter)
+		printOutput(err, nil, formatter)
 		return nil
 	},
 }
@@ -404,7 +393,7 @@ var protectCmd = &cobra.Command{
 			}
 		}
 
-		printOutput(nil, err, formatter)
+		printOutput(err, nil, formatter)
 		return nil
 	},
 }
@@ -425,7 +414,7 @@ var unprotectCmd = &cobra.Command{
 			return err
 		}
 
-		result, err := client.P2P.Unprotect(cmd.Context(), pid, args[1])
+		_, err = client.P2P.Unprotect(cmd.Context(), pid, args[1])
 
 		formatter := func(data interface{}) interface{} {
 			err, ok := data.(error)
@@ -444,7 +433,7 @@ var unprotectCmd = &cobra.Command{
 			}
 		}
 
-		printOutput(result, err, formatter)
+		printOutput(err, nil, formatter)
 		return nil
 	},
 }
@@ -575,7 +564,6 @@ var pubsubPeersCmd = &cobra.Command{
 			return err
 		}
 
-		//TODO: check
 		result, err := client.P2P.PubSubPeers(cmd.Context(), args[0])
 		peers := make([]string, len(result))
 
@@ -584,10 +572,7 @@ var pubsubPeersCmd = &cobra.Command{
 		}
 
 		formatter := func(data interface{}) interface{} {
-			conPeers, ok := data.([]string)
-			if !ok {
-				return data
-			}
+			conPeers := data.([]string)
 			return struct {
 				Peers []string `json:"peers"`
 			}{

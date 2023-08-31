@@ -404,10 +404,10 @@ func rpcClient(ctx context.Context) (*client.Client, error) {
 func printOutput(data interface{}, err error, formatData func(interface{}) interface{}) {
 	if err != nil {
 		data = err
-	}
-
-	if formatData != nil {
-		data = formatData(data)
+	} else {
+		if formatData != nil {
+			data = formatData(data)
+		}
 	}
 
 	resp := struct {
