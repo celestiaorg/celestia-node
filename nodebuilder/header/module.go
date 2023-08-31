@@ -22,7 +22,7 @@ import (
 
 var log = logging.Logger("module/header")
 
-func ConstructModule(tp node.Type, cfg *Config) fx.Option {
+func ConstructModule[H libhead.Header[H]](tp node.Type, cfg *Config) fx.Option {
 	// sanitize config values before constructing module
 	cfgErr := cfg.Validate(tp)
 
@@ -31,61 +31,63 @@ func ConstructModule(tp node.Type, cfg *Config) fx.Option {
 		fx.Error(cfgErr),
 		fx.Provide(newHeaderService),
 		fx.Provide(fx.Annotate(
-			func(ds datastore.Batching) (libhead.Store[*header.ExtendedHeader], error) {
-				return store.NewStore[*header.ExtendedHeader](ds, store.WithParams(cfg.Store))
+			func(ds datastore.Batching) (libhead.Store[H], error) {
+				return store.NewStore[H](ds, store.WithParams(cfg.Store))
 			},
-			fx.OnStart(func(ctx context.Context, store libhead.Store[*header.ExtendedHeader]) error {
-				return store.Start(ctx)
+			fx.OnStart(func(ctx context.Context, str libhead.Store[H]) error {
+				s := str.(*store.Store[H])
+				return s.Start(ctx)
 			}),
-			fx.OnStop(func(ctx context.Context, store libhead.Store[*header.ExtendedHeader]) error {
-				return store.Stop(ctx)
+			fx.OnStop(func(ctx context.Context, str libhead.Store[H]) error {
+				s := str.(*store.Store[H])
+				return s.Stop(ctx)
 			}),
 		)),
-		fx.Provide(newInitStore),
-		fx.Provide(func(subscriber *p2p.Subscriber[*header.ExtendedHeader]) libhead.Subscriber[*header.ExtendedHeader] {
+		fx.Provide(newInitStore[H]),
+		fx.Provide(func(subscriber *p2p.Subscriber[H]) libhead.Subscriber[H] {
 			return subscriber
 		}),
 		fx.Provide(fx.Annotate(
-			newSyncer,
+			newSyncer[H],
 			fx.OnStart(func(
 				ctx context.Context,
-				breaker *modfraud.ServiceBreaker[*sync.Syncer[*header.ExtendedHeader]],
+				breaker *modfraud.ServiceBreaker[*sync.Syncer[H], H],
 			) error {
 				return breaker.Start(ctx)
 			}),
 			fx.OnStop(func(
 				ctx context.Context,
-				breaker *modfraud.ServiceBreaker[*sync.Syncer[*header.ExtendedHeader]],
+				breaker *modfraud.ServiceBreaker[*sync.Syncer[H], H],
 			) error {
 				return breaker.Stop(ctx)
 			}),
 		)),
 		fx.Provide(fx.Annotate(
-			func(ps *pubsub.PubSub, network modp2p.Network) *p2p.Subscriber[*header.ExtendedHeader] {
-				return p2p.NewSubscriber[*header.ExtendedHeader](ps, header.MsgID, network.String())
+			func(ps *pubsub.PubSub, network modp2p.Network) *p2p.Subscriber[H] {
+				return p2p.NewSubscriber[H](ps, header.MsgID, network.String())
 			},
-			fx.OnStart(func(ctx context.Context, sub *p2p.Subscriber[*header.ExtendedHeader]) error {
+			fx.OnStart(func(ctx context.Context, sub *p2p.Subscriber[H]) error {
 				return sub.Start(ctx)
 			}),
-			fx.OnStop(func(ctx context.Context, sub *p2p.Subscriber[*header.ExtendedHeader]) error {
+			fx.OnStop(func(ctx context.Context, sub *p2p.Subscriber[H]) error {
 				return sub.Stop(ctx)
 			}),
 		)),
 		fx.Provide(fx.Annotate(
 			func(
 				host host.Host,
-				store libhead.Store[*header.ExtendedHeader],
+				store libhead.Store[H],
 				network modp2p.Network,
-			) (*p2p.ExchangeServer[*header.ExtendedHeader], error) {
-				return p2p.NewExchangeServer[*header.ExtendedHeader](host, store,
+			) (*p2p.ExchangeServer[H], error) {
+				return p2p.NewExchangeServer[H](host, store,
 					p2p.WithParams(cfg.Server),
 					p2p.WithNetworkID[p2p.ServerParameters](network.String()),
 				)
 			},
-			fx.OnStart(func(ctx context.Context, server *p2p.ExchangeServer[*header.ExtendedHeader]) error {
+			fx.OnStart(func(ctx context.Context, server *p2p.ExchangeServer[H]) error {
 				return server.Start(ctx)
 			}),
-			fx.OnStop(func(ctx context.Context, server *p2p.ExchangeServer[*header.ExtendedHeader]) error {
+			fx.OnStop(func(ctx context.Context, server *p2p.ExchangeServer[H]) error {
 				return server.Stop(ctx)
 			}),
 		)),
@@ -96,13 +98,13 @@ func ConstructModule(tp node.Type, cfg *Config) fx.Option {
 		return fx.Module(
 			"header",
 			baseComponents,
-			fx.Provide(newP2PExchange),
+			fx.Provide(newP2PExchange[H]),
 		)
 	case node.Bridge:
 		return fx.Module(
 			"header",
 			baseComponents,
-			fx.Provide(func(subscriber *p2p.Subscriber[*header.ExtendedHeader]) libhead.Broadcaster[*header.ExtendedHeader] {
+			fx.Provide(func(subscriber *p2p.Subscriber[H]) libhead.Broadcaster[H] {
 				return subscriber
 			}),
 			fx.Supply(header.MakeExtendedHeader),
