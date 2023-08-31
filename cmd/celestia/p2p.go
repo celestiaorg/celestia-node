@@ -37,7 +37,7 @@ func init() {
 
 var p2pCmd = &cobra.Command{
 	Use:   "p2p [command]",
-	Short: "Allows to interact with the P2P Module via JSON-RPC",
+	Short: "Allows interaction with the P2P Module via JSON-RPC",
 	Args:  cobra.NoArgs,
 }
 

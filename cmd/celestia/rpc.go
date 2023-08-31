@@ -63,7 +63,6 @@ func init() {
 	rpcCmd.AddCommand(blobCmd)
 	rpcCmd.AddCommand(p2pCmd)
 	rootCmd.AddCommand(rpcCmd)
-
 }
 
 var rpcCmd = &cobra.Command{
