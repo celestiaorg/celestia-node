@@ -4,11 +4,12 @@ import (
 	"strconv"
 	"testing"
 
-	"github.com/celestiaorg/celestia-node/header"
 	libhead "github.com/celestiaorg/go-header"
 	"github.com/stretchr/testify/assert"
 	tmrand "github.com/tendermint/tendermint/libs/rand"
 	"github.com/tendermint/tendermint/types"
+
+	"github.com/celestiaorg/celestia-node/header"
 )
 
 func TestVerify(t *testing.T) {
