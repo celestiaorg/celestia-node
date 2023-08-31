@@ -170,7 +170,8 @@ func TestStoreGetter(t *testing.T) {
 		f, err := os.OpenFile(tmpDir+"/blocks/"+dah.String(), os.O_WRONLY, 0644)
 		require.NoError(t, err)
 		edsToOverwriteWith, dah := randomEDS(t)
-		eds.WriteEDS(ctx, edsToOverwriteWith, f)
+		err = eds.WriteEDS(ctx, edsToOverwriteWith, f)
+		require.NoError(t, err)
 
 		shares, err = sg.GetSharesByNamespace(ctx, &dah, namespace)
 		require.ErrorIs(t, err, share.ErrNotFound)
