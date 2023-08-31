@@ -108,7 +108,7 @@ func (s *Store) WithMetrics() error {
 		return err
 	}
 
-	if err = s.cache.enableMetrics(); err != nil {
+	if err = s.cache.EnableMetrics(); err != nil {
 		return err
 	}
 	s.metrics = &metrics{

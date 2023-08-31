@@ -18,6 +18,7 @@ import (
 	"github.com/celestiaorg/rsmt2d"
 
 	"github.com/celestiaorg/celestia-node/share"
+	"github.com/celestiaorg/celestia-node/share/eds/cache"
 	"github.com/celestiaorg/celestia-node/share/eds/edstest"
 )
 
@@ -71,6 +72,9 @@ func TestEDSStore(t *testing.T) {
 
 		r, err := edsStore.GetCAR(ctx, dah.Hash())
 		assert.NoError(t, err)
+		defer func() {
+			require.NoError(t, r.Close())
+		}()
 		carReader, err := car.NewCarReader(r)
 		assert.NoError(t, err)
 
@@ -145,7 +149,7 @@ func TestEDSStore(t *testing.T) {
 
 		// check, that the key is in the cache after put
 		shardKey := shard.KeyFromString(dah.String())
-		_, err = edsStore.cache.get(shardKey)
+		_, err = edsStore.cache.Get(shardKey)
 		assert.NoError(t, err)
 	})
 
@@ -188,7 +192,7 @@ func TestEDSStore_GC(t *testing.T) {
 
 	// remove links to the shard from cache
 	key := shard.KeyFromString(share.DataHash(dah.Hash()).String())
-	err = edsStore.cache.remove(key)
+	err = edsStore.cache.Remove(key)
 	require.NoError(t, err)
 
 	// doesn't exist yet
@@ -218,7 +222,7 @@ func Test_BlockstoreCache(t *testing.T) {
 
 	// store eds to the store with noopCache to allow clean cache after put
 	swap := edsStore.cache
-	edsStore.cache = newMultiCache(noopCache{}, noopCache{})
+	edsStore.cache = cache.NewMultiCache(cache.NoopCache{}, cache.NoopCache{})
 	eds, dah := randomEDS(t)
 	err = edsStore.Put(ctx, dah.Hash(), eds)
 	require.NoError(t, err)
@@ -240,13 +244,13 @@ func Test_BlockstoreCache(t *testing.T) {
 
 	// key isn't in cache yet, so get returns errCacheMiss
 	shardKey := shard.KeyFromString(dah.String())
-	_, err = edsStore.cache.get(shardKey)
-	require.ErrorIs(t, err, errCacheMiss)
+	_, err = edsStore.cache.Get(shardKey)
+	require.ErrorIs(t, err, cache.ErrCacheMiss)
 
 	// now get it, so that the key is in the cache
 	_, err = edsStore.Blockstore().Get(ctx, key)
 	require.NoError(t, err)
-	_, err = edsStore.cache.get(shardKey)
+	_, err = edsStore.cache.Get(shardKey)
 	require.NoError(t, err)
 }
 
@@ -267,19 +271,19 @@ func Test_CachedAccessor(t *testing.T) {
 
 	shardKey := shard.KeyFromString(dah.String())
 	// accessor is expected to be in cache
-	cachedAccessor, err := edsStore.cache.get(shardKey)
+	cachedAccessor, err := edsStore.cache.Get(shardKey)
 	assert.NoError(t, err)
 
 	// first read
-	carReader, err := car.NewCarReader(cachedAccessor.sa.Reader())
+	carReader, err := car.NewCarReader(cachedAccessor.ReadCloser())
 	assert.NoError(t, err)
 	firstBlock, err := carReader.Next()
 	assert.NoError(t, err)
 
 	// second read
-	cachedAccessor, err = edsStore.cache.get(shardKey)
+	cachedAccessor, err = edsStore.cache.Get(shardKey)
 	assert.NoError(t, err)
-	carReader, err = car.NewCarReader(cachedAccessor.sa.Reader())
+	carReader, err = car.NewCarReader(cachedAccessor.ReadCloser())
 	assert.NoError(t, err)
 	secondBlock, err := carReader.Next()
 	assert.NoError(t, err)

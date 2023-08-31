@@ -100,8 +100,16 @@ func (s *Server) handleStream(stream network.Stream) {
 	// we do not close the reader, so that other requests will not need to re-open the file.
 	// closing is handled by the LRU cache.
 	edsReader, err := s.store.GetCAR(ctx, hash)
-	status := p2p_pb.Status_OK
+	var status p2p_pb.Status
 	switch {
+	case err == nil:
+		defer func() {
+			if err := edsReader.Close(); err != nil {
+				log.Warnw("closing car reader", "err", err)
+			}
+		}()
+		edsReader.Close()
+		status = p2p_pb.Status_OK
 	case errors.Is(err, eds.ErrNotFound):
 		logger.Warnw("server: request hash not found")
 		s.metrics.ObserveRequests(ctx, 1, p2p.StatusNotFound)

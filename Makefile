@@ -161,14 +161,14 @@ openrpc-gen:
 lint-imports:
 	@echo "--> Running imports linter"
 	@for file in `find . -type f -name '*.go'`; \
-		do goimports-reviser -list-diff -set-exit-status -company-prefixes "github.com/celestiaorg"  -project-name "github.com/celestiaorg/celestia-node" -output stdout $$file \
+		do goimports-reviser -list-diff -set-exit-status -company-prefixes "github.com/celestiaorg"  -project-name "github.com/celestiaorg/"$(PROJECTNAME)"" -output stdout $$file \
 		 || exit 1;  \
     done;
 .PHONY: lint-imports
 
 ## sort-imports: Sort Go imports.
 sort-imports:
-	@goimports-reviser -company-prefixes "github.com/celestiaorg"  -project-name "github.com/celestiaorg/celestia-node" -output stdout .
+	@goimports-reviser -company-prefixes "github.com/celestiaorg"  -project-name "github.com/celestiaorg/"$(PROJECTNAME)"" -output stdout .
 .PHONY: sort-imports
 
 ## adr-gen: Generate ADR from template. Must set NUM and TITLE parameters.

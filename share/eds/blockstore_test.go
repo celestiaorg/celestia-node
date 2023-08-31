@@ -37,6 +37,9 @@ func TestBlockstore_Operations(t *testing.T) {
 	topLevelBS := edsStore.Blockstore()
 	carBS, err := edsStore.CARBlockstore(ctx, dah.Hash())
 	require.NoError(t, err)
+	defer func() {
+		require.NoError(t, carBS.Close())
+	}()
 
 	root, err := edsStore.GetDAH(ctx, dah.Hash())
 	require.NoError(t, err)
