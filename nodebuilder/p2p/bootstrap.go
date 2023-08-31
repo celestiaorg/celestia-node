@@ -38,10 +38,10 @@ func bootstrappersFor(net Network) ([]string, error) {
 // NOTE: Every time we add a new long-running network, its bootstrap peers have to be added here.
 var bootstrapList = map[Network][]string{
 	Arabica: {
-		"/dns4/da-bridge-arabica-9.celestia-arabica.com/tcp/2121/p2p/12D3KooWBLvsfkbovAH74DbGGxHPpVW7DkvKdbQxhorrkv9tfGZU",
-		"/dns4/da-bridge-arabica-9-2.celestia-arabica.com/tcp/2121/p2p/12D3KooWNjJSk8JcY7VoLEjGGUz8CXp9Bxt495zXmdmccjaMPgHf",
-		"/dns4/da-full-1-arabica-9.celestia-arabica.com/tcp/2121/p2p/12D3KooWFUK2Z4WPsQN3p5n8tgBigxP32gbmABUet2UMby2Ha9ZK",
-		"/dns4/da-full-2-arabica-9.celestia-arabica.com/tcp/2121/p2p/12D3KooWKnmwsimoghxUT1DXr7f8yXbWCfmXDk4UGbQDsAks9XsN",
+		"/dns4/da-bridge.celestia-arabica-10.com/tcp/2121/p2p/12D3KooWM3e9MWtyc8GkP8QRt74Riu17QuhGfZMytB2vq5NwkWAu",
+		"/dns4/da-bridge-2.celestia-arabica-10.com/tcp/2121/p2p/12D3KooWKj8mcdiBGxQRe1jqhaMnh2tGoC3rPDmr5UH2q8H4WA9M",
+		"/dns4/da-full-1.celestia-arabica-10.com/tcp/2121/p2p/12D3KooWBWkgmN7kmJSFovVrCjkeG47FkLGq7yEwJ2kEqNKCsBYk",
+		"/dns4/da-full-2.celestia-arabica-10.com/tcp/2121/p2p/12D3KooWRByRF67a2kVM2j4MP5Po3jgTw7H2iL2Spu8aUwPkrRfP",
 	},
 	Mocha: {
 		"/dns4/bootstr-mocha-1.celestia-mocha.com/tcp/2121/p2p/12D3KooWDRSJMbH3PS4dRDa11H7Tk615aqTUgkeEKz4pwd4sS6fN",
