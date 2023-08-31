@@ -4,7 +4,6 @@ import (
 	"bufio"
 	"bytes"
 	"context"
-	"encoding/hex"
 	"errors"
 	"fmt"
 	"io"
@@ -187,12 +186,9 @@ func (s *Store) watchForFailures(ctx context.Context) {
 			return
 		case res := <-s.shardFailures:
 			log.Errorw("removing shard after failure", "key", res.Key, "err", res.Error)
-			k, err := hex.DecodeString(res.Key.String())
-			if err != nil {
-				// we panic because no shard is ever stored with a non-hex key
-				panic("shard key is not a hex string")
-			}
-			err = s.Remove(ctx, k)
+			s.metrics.observeShardFailure(ctx, res.Key.String())
+			k := share.MustDataHashFromString(res.Key.String())
+			err := s.Remove(ctx, k)
 			if err != nil {
 				log.Errorw("failed to remove shard after failure", "key", res.Key, "err", err)
 			}
@@ -568,10 +564,7 @@ func (s *Store) list() ([]share.DataHash, error) {
 	shards := s.dgstr.AllShardsInfo()
 	hashes := make([]share.DataHash, 0, len(shards))
 	for shrd := range shards {
-		hash, err := hex.DecodeString(shrd.String())
-		if err != nil {
-			return nil, err
-		}
+		hash := share.MustDataHashFromString(shrd.String())
 		hashes = append(hashes, hash)
 	}
 	return hashes, nil
