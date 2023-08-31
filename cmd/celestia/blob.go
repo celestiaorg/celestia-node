@@ -182,11 +182,7 @@ func formatData(data interface{}) interface{} {
 	}
 
 	if reflect.TypeOf(data).Kind() == reflect.Slice {
-		blobs, ok := data.([]*blob.Blob)
-		if !ok {
-			return data
-		}
-
+		blobs := data.([]*blob.Blob)
 		result := make([]tempBlob, len(blobs))
 		for i, b := range blobs {
 			result[i] = tempBlob{
@@ -199,10 +195,7 @@ func formatData(data interface{}) interface{} {
 		return result
 	}
 
-	b, ok := data.(*blob.Blob)
-	if !ok {
-		return data
-	}
+	b := data.(*blob.Blob)
 	return tempBlob{
 		Namespace:    b.Namespace(),
 		Data:         string(b.Data),
