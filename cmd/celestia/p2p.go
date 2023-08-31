@@ -43,7 +43,7 @@ var p2pCmd = &cobra.Command{
 
 var infoCmd = &cobra.Command{
 	Use:   "info",
-	Short: "Allows to get the node's Peer Info",
+	Short: "Gets the node's peer info (peer id and multiaddresses)",
 	Args:  cobra.NoArgs,
 	RunE: func(cmd *cobra.Command, args []string) error {
 		client, err := rpcClient(cmd.Context())
@@ -77,7 +77,7 @@ var infoCmd = &cobra.Command{
 
 var peersCmd = &cobra.Command{
 	Use:   "peers",
-	Short: "Allows to get the list of peers we are connected to",
+	Short: "Lists the peers we are connected to",
 	Args:  cobra.NoArgs,
 	RunE: func(cmd *cobra.Command, args []string) error {
 		client, err := rpcClient(cmd.Context())
@@ -110,7 +110,7 @@ var peersCmd = &cobra.Command{
 
 var peerInfoCmd = &cobra.Command{
 	Use:   "peer-info [param]",
-	Short: "Allows to get a PeerInfo struct for a given peer",
+	Short: "Gets PeerInfo for a given peer",
 	Args:  cobra.ExactArgs(1),
 	RunE: func(cmd *cobra.Command, args []string) error {
 		client, err := rpcClient(cmd.Context())
@@ -147,7 +147,7 @@ var peerInfoCmd = &cobra.Command{
 
 var connectCmd = &cobra.Command{
 	Use:   "connect [peer.ID, address]",
-	Short: "Allows to establish a connection with the given peer",
+	Short: "Establishes a connection with the given peer",
 	Args:  cobra.ExactArgs(2),
 	RunE: func(cmd *cobra.Command, args []string) error {
 		client, err := rpcClient(cmd.Context())
@@ -181,7 +181,7 @@ var connectCmd = &cobra.Command{
 
 var closePeerCmd = &cobra.Command{
 	Use:   "close-peer [peer.ID]",
-	Short: "Allows to close the connection with the given peer",
+	Short: "Closes the connection with the given peer",
 	Args:  cobra.ExactArgs(1),
 	RunE: func(cmd *cobra.Command, args []string) error {
 		client, err := rpcClient(cmd.Context())
@@ -205,7 +205,7 @@ var closePeerCmd = &cobra.Command{
 
 var connectednessCmd = &cobra.Command{
 	Use:   "connectedness [peer.ID]",
-	Short: "Allows to check the connection state between current and given peers",
+	Short: "Checks the connection state between current and given peers",
 	Args:  cobra.ExactArgs(1),
 	RunE: func(cmd *cobra.Command, args []string) error {
 		client, err := rpcClient(cmd.Context())
@@ -236,7 +236,7 @@ var connectednessCmd = &cobra.Command{
 
 var natStatusCmd = &cobra.Command{
 	Use:   "nat-status",
-	Short: "Allows to check the current NAT status",
+	Short: "Gets the currrent NAT status",
 	Args:  cobra.NoArgs,
 	RunE: func(cmd *cobra.Command, args []string) error {
 		client, err := rpcClient(cmd.Context())
@@ -262,7 +262,7 @@ var natStatusCmd = &cobra.Command{
 
 var blockPeerCmd = &cobra.Command{
 	Use:   "block-peer [peer.ID]",
-	Short: "Allows to block a given peer",
+	Short: "Blocks the given peer",
 	Args:  cobra.ExactArgs(1),
 	RunE: func(cmd *cobra.Command, args []string) error {
 		client, err := rpcClient(cmd.Context())
@@ -301,7 +301,7 @@ var blockPeerCmd = &cobra.Command{
 
 var unblockPeerCmd = &cobra.Command{
 	Use:   "unblock-peer [peer.ID]",
-	Short: "Allows to unblock a given peer",
+	Short: "Unblocks the given peer",
 	Args:  cobra.ExactArgs(1),
 	RunE: func(cmd *cobra.Command, args []string) error {
 		client, err := rpcClient(cmd.Context())
@@ -341,7 +341,7 @@ var unblockPeerCmd = &cobra.Command{
 
 var blockedPeersCmd = &cobra.Command{
 	Use:   "blocked-peers",
-	Short: "Allows to get a list of the blocked peers",
+	Short: "Lists the node's blocked peers",
 	Args:  cobra.NoArgs,
 	RunE: func(cmd *cobra.Command, args []string) error {
 		client, err := rpcClient(cmd.Context())
@@ -372,7 +372,7 @@ var blockedPeersCmd = &cobra.Command{
 
 var protectCmd = &cobra.Command{
 	Use:   "protect [peer.ID, tag]",
-	Short: "Allows to protect a given peer from being pruned by the given tag",
+	Short: "Protects the given peer from being pruned by the given tag",
 	Args:  cobra.ExactArgs(2),
 	RunE: func(cmd *cobra.Command, args []string) error {
 		client, err := rpcClient(cmd.Context())
@@ -480,7 +480,7 @@ type bandwidthStats struct {
 
 var bandwidthStatsCmd = &cobra.Command{
 	Use: "bandwidth-stats",
-	Short: "Allows to get stats struct with bandwidth metrics for all data sent/" +
+	Short: "Get stats struct with bandwidth metrics for all data sent/" +
 		"received by the local peer, regardless of protocol or remote peer IDs",
 	Args: cobra.NoArgs,
 	RunE: func(cmd *cobra.Command, args []string) error {
@@ -508,7 +508,7 @@ var bandwidthStatsCmd = &cobra.Command{
 
 var peerBandwidthCmd = &cobra.Command{
 	Use:   "peer-bandwidth [peer.ID]",
-	Short: "Allows to get stats struct with bandwidth metrics associated with the given peer.ID",
+	Short: "Gets stats struct with bandwidth metrics associated with the given peer.ID",
 	Args:  cobra.ExactArgs(1),
 	RunE: func(cmd *cobra.Command, args []string) error {
 		client, err := rpcClient(cmd.Context())
@@ -540,7 +540,7 @@ var peerBandwidthCmd = &cobra.Command{
 
 var bandwidthForProtocolCmd = &cobra.Command{
 	Use:   "protocol-bandwidth [protocol.ID]",
-	Short: "Allows to get stats struct with bandwidth metrics associated with the given peer.ID",
+	Short: "Gets stats struct with bandwidth metrics associated with the given protocol.ID",
 	Args:  cobra.ExactArgs(1),
 	RunE: func(cmd *cobra.Command, args []string) error {
 		client, err := rpcClient(cmd.Context())
@@ -567,7 +567,7 @@ var bandwidthForProtocolCmd = &cobra.Command{
 
 var pubsubPeersCmd = &cobra.Command{
 	Use:   "pubsub-peers [topic]",
-	Short: "Allows to get a list of peers we are connected to in the given topic",
+	Short: "Lists the peers we are connected to in the given topic",
 	Args:  cobra.ExactArgs(1),
 	RunE: func(cmd *cobra.Command, args []string) error {
 		client, err := rpcClient(cmd.Context())
