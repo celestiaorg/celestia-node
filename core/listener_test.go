@@ -31,8 +31,8 @@ func TestListener(t *testing.T) {
 	// create mocknet with two pubsub endpoints
 	ps0, ps1 := createMocknetWithTwoPubsubEndpoints(ctx, t)
 	subscriber := p2p.NewSubscriber[*header.ExtendedHeader](ps1, header.MsgID, networkID)
-	err := subscriber.AddValidator(func(context.Context, *header.ExtendedHeader) pubsub.ValidationResult {
-		return pubsub.ValidationAccept
+	err := subscriber.SetVerifier(func(context.Context, *header.ExtendedHeader) error {
+		return nil
 	})
 	require.NoError(t, err)
 	require.NoError(t, subscriber.Start(ctx))
