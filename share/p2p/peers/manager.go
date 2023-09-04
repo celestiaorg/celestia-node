@@ -153,23 +153,23 @@ func (m *Manager) Start(startCtx context.Context) error {
 
 	// pools will only be populated with senders of shrexsub notifications if the WithShrexSubPools
 	// option is used.
-	if m.shrexSub != nil && m.headerSub != nil {
-		validatorFn := m.metrics.validationObserver(m.Validate)
-		err := m.shrexSub.AddValidator(validatorFn)
-		if err != nil {
-			return fmt.Errorf("registering validator: %w", err)
-		}
-		err = m.shrexSub.Start(startCtx)
-		if err != nil {
-			return fmt.Errorf("starting shrexsub: %w", err)
-		}
+	if m.shrexSub == nil && m.headerSub == nil {
+		return nil
+	}
 
-		headerSub, err := m.headerSub.Subscribe()
-		if err != nil {
-			return fmt.Errorf("subscribing to headersub: %w", err)
-		}
+	validatorFn := m.metrics.validationObserver(m.Validate)
+	err := m.shrexSub.AddValidator(validatorFn)
+	if err != nil {
+		return fmt.Errorf("registering validator: %w", err)
+	}
+	err = m.shrexSub.Start(startCtx)
+	if err != nil {
+		return fmt.Errorf("starting shrexsub: %w", err)
+	}
 
-		go m.subscribeHeader(ctx, headerSub)
+	headerSub, err := m.headerSub.Subscribe()
+	if err != nil {
+		return fmt.Errorf("subscribing to headersub: %w", err)
 	}
 
 	sub, err := m.host.EventBus().Subscribe(&event.EvtPeerConnectednessChanged{}, eventbus.BufSize(eventbusBufSize))
@@ -177,21 +177,25 @@ func (m *Manager) Start(startCtx context.Context) error {
 		return fmt.Errorf("subscribing to libp2p events: %w", err)
 	}
 
+	go m.subscribeHeader(ctx, headerSub)
 	go m.subscribeDisconnectedPeers(ctx, sub)
 	go m.GC(ctx)
-
 	return nil
 }
 
 func (m *Manager) Stop(ctx context.Context) error {
 	m.cancel()
 
-	if m.headerSub != nil {
-		select {
-		case <-m.headerSubDone:
-		case <-ctx.Done():
-			return ctx.Err()
-		}
+	// we do not need to wait for headersub and disconnected peers to finish
+	// here, since they were never started
+	if m.headerSub == nil && m.shrexSub == nil {
+		return nil
+	}
+
+	select {
+	case <-m.headerSubDone:
+	case <-ctx.Done():
+		return ctx.Err()
 	}
 
 	select {
