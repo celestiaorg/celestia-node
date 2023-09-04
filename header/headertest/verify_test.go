@@ -64,17 +64,14 @@ func TestVerify(t *testing.T) {
 	for i, test := range tests {
 		t.Run(strconv.Itoa(i), func(t *testing.T) {
 			err := trusted.Verify(test.prepare())
-			// Case 1 & 2: test.err == nil and err == nil or err != nil
 			if test.err == nil {
 				assert.NoError(t, err)
 				return
 			}
-			// Case 3: test.err != nil and err != nil
 			if err == nil {
 				t.Errorf("expected err: %v, got nil", test.err)
 				return
 			}
-			// Case 4: test.err != nil and err != nil
 			switch (err).(type) {
 			case *libhead.VerifyError:
 				reason := err.(*libhead.VerifyError).Reason
