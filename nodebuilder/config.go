@@ -114,7 +114,7 @@ func removeConfig(path string) error {
 func UpdateConfig(tp node.Type, path string) (err error) {
 	path, err = storePath(path)
 	if err != nil {
-		return
+		return err
 	}
 
 	flock, err := fslock.Lock(lockPath(path))
@@ -122,7 +122,7 @@ func UpdateConfig(tp node.Type, path string) (err error) {
 		if err == fslock.ErrLocked {
 			err = ErrOpened
 		}
-		return
+		return err
 	}
 	defer flock.Unlock() //nolint: errcheck
 
@@ -131,18 +131,18 @@ func UpdateConfig(tp node.Type, path string) (err error) {
 	cfgPath := configPath(path)
 	cfg, err := LoadConfig(cfgPath)
 	if err != nil {
-		return
+		return err
 	}
 
 	cfg, err = updateConfig(cfg, newCfg)
 	if err != nil {
-		return
+		return err
 	}
 
 	// save the updated config
 	err = removeConfig(cfgPath)
 	if err != nil {
-		return
+		return err
 	}
 	return SaveConfig(cfgPath, cfg)
 }
