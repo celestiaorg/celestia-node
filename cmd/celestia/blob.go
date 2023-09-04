@@ -2,9 +2,7 @@ package main
 
 import (
 	"encoding/base64"
-	"encoding/json"
 	"fmt"
-	"os"
 	"reflect"
 	"strconv"
 
@@ -66,8 +64,11 @@ var getCmd = &cobra.Command{
 
 		blob, err := client.Blob.Get(cmd.Context(), height, namespace, commitment)
 
-		printOutput(blob, err)
-		return nil
+		formatter := formatData
+		if base64Flag || err != nil {
+			formatter = nil
+		}
+		return printOutput(blob, err, formatter)
 	},
 }
 
@@ -93,8 +94,11 @@ var getAllCmd = &cobra.Command{
 
 		blobs, err := client.Blob.GetAll(cmd.Context(), height, []share.Namespace{namespace})
 
-		printOutput(blobs, err)
-		return nil
+		formatter := formatData
+		if base64Flag || err != nil {
+			formatter = nil
+		}
+		return printOutput(blobs, err, formatter)
 	},
 }
 
@@ -127,9 +131,7 @@ var submitCmd = &cobra.Command{
 			Height:     height,
 			Commitment: parsedBlob.Commitment,
 		}
-
-		printOutput(response, err)
-		return nil
+		return printOutput(response, err, nil)
 	},
 }
 
@@ -159,33 +161,8 @@ var getProofCmd = &cobra.Command{
 		}
 
 		proof, err := client.Blob.GetProof(cmd.Context(), height, namespace, commitment)
-
-		printOutput(proof, err)
-		return nil
+		return printOutput(proof, err, nil)
 	},
-}
-
-func printOutput(data interface{}, err error) {
-	if err != nil {
-		data = err
-	}
-
-	if !base64Flag && err == nil {
-		data = formatData(data)
-	}
-
-	resp := struct {
-		Result interface{} `json:"result"`
-	}{
-		Result: data,
-	}
-
-	bytes, err := json.MarshalIndent(resp, "", "  ")
-	if err != nil {
-		fmt.Fprintln(os.Stderr, err)
-		os.Exit(1)
-	}
-	fmt.Fprintln(os.Stdout, string(bytes))
 }
 
 func formatData(data interface{}) interface{} {
@@ -197,11 +174,7 @@ func formatData(data interface{}) interface{} {
 	}
 
 	if reflect.TypeOf(data).Kind() == reflect.Slice {
-		blobs, ok := data.([]*blob.Blob)
-		if !ok {
-			return data
-		}
-
+		blobs := data.([]*blob.Blob)
 		result := make([]tempBlob, len(blobs))
 		for i, b := range blobs {
 			result[i] = tempBlob{
@@ -214,10 +187,7 @@ func formatData(data interface{}) interface{} {
 		return result
 	}
 
-	b, ok := data.(*blob.Blob)
-	if !ok {
-		return data
-	}
+	b := data.(*blob.Blob)
 	return tempBlob{
 		Namespace:    b.Namespace(),
 		Data:         string(b.Data),

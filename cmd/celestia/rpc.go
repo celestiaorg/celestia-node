@@ -62,6 +62,7 @@ func init() {
 	)
 	rpcCmd.AddCommand(logCmd, logModuleCmd)
 	rpcCmd.AddCommand(blobCmd)
+	rpcCmd.AddCommand(p2pCmd)
 	rootCmd.AddCommand(rpcCmd)
 }
 
@@ -399,4 +400,26 @@ func rpcClient(ctx context.Context) (*client.Client, error) {
 		return nil, errors.New("rpc client was not set")
 	}
 	return client, nil
+}
+
+func printOutput(data interface{}, err error, formatData func(interface{}) interface{}) error {
+	switch {
+	case err != nil:
+		data = err
+	case formatData != nil:
+		data = formatData(data)
+	}
+
+	resp := struct {
+		Result interface{} `json:"result"`
+	}{
+		Result: data,
+	}
+
+	bytes, err := json.MarshalIndent(resp, "", "  ")
+	if err != nil {
+		return err
+	}
+	fmt.Fprintln(os.Stdout, string(bytes))
+	return nil
 }
