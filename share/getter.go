@@ -13,7 +13,8 @@ import (
 var (
 	// ErrNotFound is used to indicate that requested data could not be found.
 	ErrNotFound = errors.New("share: data not found")
-	// ErrOutOfBounds is used to indicate that a passed row or column index is out of bounds of the square size.
+	// ErrOutOfBounds is used to indicate that a passed row or column index is out of bounds of the
+	// square size.
 	ErrOutOfBounds = errors.New("share: row or column index is larger than square size")
 )
 
@@ -30,7 +31,8 @@ type Getter interface {
 
 	// GetSharesByNamespace gets all shares from an EDS within the given namespace.
 	// Shares are returned in a row-by-row order if the namespace spans multiple rows.
-	// Inclusion of returned data could be verified using Verify method on NamespacedShares.  // If no shares are found for target namespace non-inclusion could be also verified by calling
+	// Inclusion of returned data could be verified using Verify method on NamespacedShares.
+	// If no shares are found for target namespace non-inclusion could be also verified by calling
 	// Verify method.
 	GetSharesByNamespace(context.Context, *Root, Namespace) (NamespacedShares, error)
 }
