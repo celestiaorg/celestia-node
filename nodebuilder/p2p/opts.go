@@ -3,6 +3,7 @@ package p2p
 import (
 	"encoding/hex"
 
+	"github.com/ipfs/go-blockservice"
 	"github.com/libp2p/go-libp2p/core/crypto"
 	hst "github.com/libp2p/go-libp2p/core/host"
 	"go.uber.org/fx"
@@ -33,4 +34,9 @@ func WithP2PKeyStr(key string) fx.Option {
 // WithHost sets custom Host's data for p2p networking.
 func WithHost(hst hst.Host) fx.Option {
 	return fxutil.ReplaceAs(hst, new(HostBase))
+}
+
+// WithBlockService allows to replace the default BlockService.
+func WithBlockService(bServ blockservice.BlockService) fx.Option {
+	return fxutil.ReplaceAs(bServ, new(blockservice.BlockService))
 }
