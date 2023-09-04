@@ -121,8 +121,8 @@ Test-Case: Full node discovery of disconnected full nodes
 Steps:
 1. Create a Bridge Node(BN)
 2. Start a BN
-3. Create 2 full nodes with bridge node as bootstrapper peer and start them
-4. Check that nodes are connected to each other
+3. Create 2 FNs with bridge node as bootstrapper peer and start them
+4. Check that the FNs discover each other
 5. Disconnect the FNs
 6. Create one more node with discovery process disabled (however advertisement is still enabled)
 7. Check that the FN with discovery disabled is still found by the other two FNs
