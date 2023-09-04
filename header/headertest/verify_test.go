@@ -7,7 +7,6 @@ import (
 	libhead "github.com/celestiaorg/go-header"
 	"github.com/stretchr/testify/assert"
 	tmrand "github.com/tendermint/tendermint/libs/rand"
-	"github.com/tendermint/tendermint/types"
 
 	"github.com/celestiaorg/celestia-node/header"
 )
@@ -36,7 +35,7 @@ func TestVerify(t *testing.T) {
 				return &untrusted
 			},
 			err: &libhead.VerifyError{
-				Reason: &header.ErrValidatorHashMismatch{},
+				Reason: header.ErrValidatorHashMismatch,
 			},
 		},
 		{
@@ -46,7 +45,7 @@ func TestVerify(t *testing.T) {
 				return &untrusted
 			},
 			err: &libhead.VerifyError{
-				Reason: &header.ErrLastHeaderHashMismatch{},
+				Reason: header.ErrLastHeaderHashMismatch,
 			},
 		},
 		{
@@ -56,7 +55,7 @@ func TestVerify(t *testing.T) {
 				return &untrusted
 			},
 			err: &libhead.VerifyError{
-				Reason: &types.ErrNotEnoughVotingPowerSigned{},
+				Reason: header.ErrVerifyCommitLightTrustingFailed,
 			},
 		},
 	}
@@ -76,13 +75,13 @@ func TestVerify(t *testing.T) {
 			case *libhead.VerifyError:
 				reason := err.(*libhead.VerifyError).Reason
 				testReason := test.err.(*libhead.VerifyError).Reason
-				switch reason.(type) {
-				case *header.ErrValidatorHashMismatch:
-					assert.Equal(t, &header.ErrValidatorHashMismatch{}, testReason)
-				case *header.ErrLastHeaderHashMismatch:
-					assert.Equal(t, &header.ErrLastHeaderHashMismatch{}, testReason)
-				case types.ErrNotEnoughVotingPowerSigned:
-					assert.Equal(t, &types.ErrNotEnoughVotingPowerSigned{}, testReason)
+				switch testReason {
+				case header.ErrValidatorHashMismatch:
+					assert.ErrorIs(t, reason, header.ErrValidatorHashMismatch)
+				case header.ErrLastHeaderHashMismatch:
+					assert.ErrorIs(t, reason, header.ErrLastHeaderHashMismatch)
+				case header.ErrVerifyCommitLightTrustingFailed:
+					assert.ErrorIs(t, reason, header.ErrVerifyCommitLightTrustingFailed)
 				default:
 					assert.Equal(t, testReason, reason)
 				}

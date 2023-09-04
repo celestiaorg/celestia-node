@@ -6,6 +6,8 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/pkg/errors"
+
 	tmjson "github.com/tendermint/tendermint/libs/json"
 	"github.com/tendermint/tendermint/light"
 	core "github.com/tendermint/tendermint/types"
@@ -166,6 +168,12 @@ func (eh *ExtendedHeader) Validate() error {
 	return nil
 }
 
+var (
+	ErrValidatorHashMismatch           = errors.New("validator hash mismatch error")
+	ErrLastHeaderHashMismatch          = errors.New("last header hash mismatch error")
+	ErrVerifyCommitLightTrustingFailed = errors.New("commit light trusting verification failed")
+)
+
 // Verify validates given untrusted Header against trusted ExtendedHeader.
 func (eh *ExtendedHeader) Verify(untrst *ExtendedHeader) error {
 	isAdjacent := eh.Height()+1 == untrst.Height()
@@ -174,21 +182,23 @@ func (eh *ExtendedHeader) Verify(untrst *ExtendedHeader) error {
 		// Check the validator hashes are the same
 		if !bytes.Equal(untrst.ValidatorsHash, eh.NextValidatorsHash) {
 			return &libhead.VerifyError{
-				Reason: &ErrValidatorHashMismatch{
-					fmt.Errorf("expected old header next validators (%X) to match those from new header (%X)",
+				Reason: errors.Wrap(
+					ErrValidatorHashMismatch,
+					fmt.Sprintf("expected old header next validators (%X) to match those from new header (%X)",
 						eh.NextValidatorsHash,
 						untrst.ValidatorsHash,
-					)},
+					)),
 			}
 		}
 
 		if !bytes.Equal(untrst.LastHeader(), eh.Hash()) {
 			return &libhead.VerifyError{
-				Reason: &ErrLastHeaderHashMismatch{
-					fmt.Errorf("expected new header to point to last header hash (%X), but got %X)",
+				Reason: errors.Wrap(
+					ErrLastHeaderHashMismatch,
+					fmt.Sprintf("expected new header to point to last header hash (%X), but got %X)",
 						eh.Hash(),
 						untrst.LastHeader(),
-					)},
+					)),
 			}
 		}
 
@@ -197,7 +207,7 @@ func (eh *ExtendedHeader) Verify(untrst *ExtendedHeader) error {
 
 	if err := eh.ValidatorSet.VerifyCommitLightTrusting(eh.ChainID(), untrst.Commit, light.DefaultTrustLevel); err != nil {
 		return &libhead.VerifyError{
-			Reason:      err,
+			Reason:      errors.Wrap(ErrVerifyCommitLightTrustingFailed, err.Error()),
 			SoftFailure: true,
 		}
 	}
