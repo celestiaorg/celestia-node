@@ -24,6 +24,8 @@ const (
 	longOpUnresolved longOpResult = "unresolved"
 	longOpOK         longOpResult = "ok"
 	longOpFailed     longOpResult = "failed"
+
+	dagstoreShardStatusKey = "shard_status"
 )
 
 var (
@@ -116,9 +118,31 @@ func (s *Store) WithMetrics() error {
 		return err
 	}
 
+	dagStoreShards, err := meter.Int64ObservableGauge("eds_store_dagstore_shards",
+		metric.WithDescription("dagstore amount of shards by status"))
+	if err != nil {
+		return err
+	}
+
 	if err = s.cache.withMetrics(); err != nil {
 		return err
 	}
+
+	callback := func(ctx context.Context, observer metric.Observer) error {
+		stats := s.dgstr.Stats()
+		for status, amount := range stats {
+			observer.ObserveInt64(dagStoreShards, int64(amount),
+				metric.WithAttributes(
+					attribute.String(dagstoreShardStatusKey, status.String()),
+				))
+		}
+		return nil
+	}
+
+	if _, err := meter.RegisterCallback(callback, dagStoreShards); err != nil {
+		return err
+	}
+
 	s.metrics = &metrics{
 		putTime:              putTime,
 		getCARTime:           getCARTime,
