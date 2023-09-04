@@ -90,6 +90,7 @@ func (r *Retriever) Retrieve(ctx context.Context, dah *da.DataAvailabilityHeader
 				span.RecordError(err)
 				return nil, byzantine.NewErrByzantine(ctx, r.bServ, dah, errByz)
 			}
+
 			log.Warnw("not enough shares to reconstruct data square, requesting more...", "err", err)
 		case <-ctx.Done():
 			return nil, ctx.Err()
