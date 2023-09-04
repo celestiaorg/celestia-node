@@ -46,8 +46,8 @@ func NewService(
 ) *Service {
 	return &Service{
 		blobSubmitter: submitter,
-		shareGetter:  getter,
-		headerGetter: headerGetter,
+		shareGetter:   getter,
+		headerGetter:  headerGetter,
 	}
 }
 
