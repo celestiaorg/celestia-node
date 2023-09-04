@@ -80,12 +80,12 @@ func TestGetByHeight(t *testing.T) {
 
 	networkHead, err := client.Header.NetworkHead(ctx)
 	require.NoError(t, err)
-	_, err = client.Header.GetByHeight(ctx, uint64(networkHead.Height()+1))
+	_, err = client.Header.GetByHeight(ctx, networkHead.Height()+1)
 	require.Nil(t, err, "Requesting syncer.Head()+1 shouldn't return an error")
 
 	networkHead, err = client.Header.NetworkHead(ctx)
 	require.NoError(t, err)
-	_, err = client.Header.GetByHeight(ctx, uint64(networkHead.Height()+2))
+	_, err = client.Header.GetByHeight(ctx, networkHead.Height()+2)
 	require.ErrorContains(t, err, "given height is from the future")
 }
 

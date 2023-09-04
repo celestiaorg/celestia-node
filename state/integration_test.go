@@ -20,6 +20,7 @@ import (
 	"github.com/celestiaorg/celestia-app/test/util/testfactory"
 	"github.com/celestiaorg/celestia-app/test/util/testnode"
 	blobtypes "github.com/celestiaorg/celestia-app/x/blob/types"
+	libhead "github.com/celestiaorg/go-header"
 
 	"github.com/celestiaorg/celestia-node/core"
 	"github.com/celestiaorg/celestia-node/header"
@@ -95,7 +96,10 @@ type localHeader struct {
 	client rpcclient.Client
 }
 
-func (l localHeader) Head(ctx context.Context) (*header.ExtendedHeader, error) {
+func (l localHeader) Head(
+	ctx context.Context,
+	_ ...libhead.HeadOption[*header.ExtendedHeader],
+) (*header.ExtendedHeader, error) {
 	latest, err := l.client.Block(ctx, nil)
 	if err != nil {
 		return nil, err

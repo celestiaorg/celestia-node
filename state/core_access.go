@@ -180,9 +180,10 @@ func (ca *CoreAccessor) constructSignedTx(
 	return ca.signer.EncodeTx(tx)
 }
 
-// SubmitPayForBlob builds, signs, and synchronously submits a MsgPayForBlob. It blocks until the transaction
-// is committed and returns the TxReponse. If gasLim is set to 0, the method will automatically estimate the
-// gas limit. If the fee is negative, the method will use the nodes min gas price multiplied by the gas limit.
+// SubmitPayForBlob builds, signs, and synchronously submits a MsgPayForBlob. It blocks until the
+// transaction is committed and returns the TxReponse. If gasLim is set to 0, the method will
+// automatically estimate the gas limit. If the fee is negative, the method will use the nodes min
+// gas price multiplied by the gas limit.
 func (ca *CoreAccessor) SubmitPayForBlob(
 	ctx context.Context,
 	fee Int,
@@ -201,8 +202,8 @@ func (ca *CoreAccessor) SubmitPayForBlob(
 		appblobs[i] = &b.Blob
 	}
 
-	// we only estimate gas if the user wants us to (by setting the gasLim to 0). In the future we may want
-	// to make these arguments optional.
+	// we only estimate gas if the user wants us to (by setting the gasLim to 0). In the future we may
+	// want to make these arguments optional.
 	if gasLim == 0 {
 		blobSizes := make([]uint32, len(blobs))
 		for i, blob := range blobs {
@@ -294,7 +295,7 @@ func (ca *CoreAccessor) BalanceForAddress(ctx context.Context, addr Address) (*B
 	abciReq := abci.RequestQuery{
 		// TODO @renayay: once https://github.com/cosmos/cosmos-sdk/pull/12674 is merged, use const instead
 		Path:   fmt.Sprintf("store/%s/key", banktypes.StoreKey),
-		Height: head.Height() - 1,
+		Height: int64(head.Height() - 1),
 		Data:   prefixedAccountKey,
 		Prove:  true,
 	}

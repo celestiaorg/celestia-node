@@ -3,34 +3,32 @@ package headertest
 import (
 	"strconv"
 	"testing"
-	"time"
 
 	"github.com/stretchr/testify/assert"
 	tmrand "github.com/tendermint/tendermint/libs/rand"
 
-	"github.com/celestiaorg/celestia-app/pkg/appconsts"
-	libhead "github.com/celestiaorg/go-header"
+	"github.com/celestiaorg/celestia-node/header"
 )
 
 func TestVerify(t *testing.T) {
 	h := NewTestSuite(t, 2).GenExtendedHeaders(3)
 	trusted, untrustedAdj, untrustedNonAdj := h[0], h[1], h[2]
 	tests := []struct {
-		prepare func() libhead.Header
+		prepare func() *header.ExtendedHeader
 		err     bool
 	}{
 		{
-			prepare: func() libhead.Header { return untrustedAdj },
+			prepare: func() *header.ExtendedHeader { return untrustedAdj },
 			err:     false,
 		},
 		{
-			prepare: func() libhead.Header {
+			prepare: func() *header.ExtendedHeader {
 				return untrustedNonAdj
 			},
 			err: false,
 		},
 		{
-			prepare: func() libhead.Header {
+			prepare: func() *header.ExtendedHeader {
 				untrusted := *untrustedAdj
 				untrusted.ValidatorsHash = tmrand.Bytes(32)
 				return &untrusted
@@ -38,7 +36,7 @@ func TestVerify(t *testing.T) {
 			err: true,
 		},
 		{
-			prepare: func() libhead.Header {
+			prepare: func() *header.ExtendedHeader {
 				untrusted := *untrustedAdj
 				untrusted.RawHeader.LastBlockID.Hash = tmrand.Bytes(32)
 				return &untrusted
@@ -46,37 +44,10 @@ func TestVerify(t *testing.T) {
 			err: true,
 		},
 		{
-			prepare: func() libhead.Header {
-				untrustedAdj.RawHeader.Time = untrustedAdj.RawHeader.Time.Add(time.Minute)
-				return untrustedAdj
-			},
-			err: true,
-		},
-		{
-			prepare: func() libhead.Header {
-				untrustedAdj.RawHeader.Time = untrustedAdj.RawHeader.Time.Truncate(time.Hour)
-				return untrustedAdj
-			},
-			err: true,
-		},
-		{
-			prepare: func() libhead.Header {
-				untrustedAdj.RawHeader.ChainID = "toaster"
-				return untrustedAdj
-			},
-			err: true,
-		},
-		{
-			prepare: func() libhead.Header {
-				untrustedAdj.RawHeader.Height++
-				return untrustedAdj
-			},
-			err: true,
-		},
-		{
-			prepare: func() libhead.Header {
-				untrustedAdj.RawHeader.Version.App = appconsts.LatestVersion + 1
-				return untrustedAdj
+			prepare: func() *header.ExtendedHeader {
+				untrusted := *untrustedNonAdj
+				untrusted.Commit = NewTestSuite(t, 2).Commit(RandRawHeader(t))
+				return &untrusted
 			},
 			err: true,
 		},

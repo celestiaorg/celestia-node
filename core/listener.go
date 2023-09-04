@@ -160,7 +160,7 @@ func (cl *Listener) handleNewSignedBlock(ctx context.Context, b types.EventDataS
 		return fmt.Errorf("extending block data: %w", err)
 	}
 	// generate extended header
-	eh, err := cl.construct(ctx, &b.Header, &b.Commit, &b.ValidatorSet, eds)
+	eh, err := cl.construct(&b.Header, &b.Commit, &b.ValidatorSet, eds)
 	if err != nil {
 		panic(fmt.Errorf("making extended header: %w", err))
 	}
@@ -181,7 +181,7 @@ func (cl *Listener) handleNewSignedBlock(ctx context.Context, b types.EventDataS
 	if !syncing {
 		err = cl.hashBroadcaster(ctx, shrexsub.Notification{
 			DataHash: eh.DataHash.Bytes(),
-			Height:   uint64(eh.Height()),
+			Height:   eh.Height(),
 		})
 		if err != nil && !errors.Is(err, context.Canceled) {
 			log.Errorw("listener: broadcasting data hash",

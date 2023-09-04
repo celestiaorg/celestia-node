@@ -56,7 +56,7 @@ var ExampleValues = map[reflect.Type]interface{}{
 	reflect.TypeOf(node.Full):                node.Full,
 	reflect.TypeOf(auth.Permission("admin")): auth.Permission("admin"),
 	reflect.TypeOf(byzantine.BadEncoding):    byzantine.BadEncoding,
-	reflect.TypeOf((*fraud.Proof)(nil)).Elem(): byzantine.CreateBadEncodingProof(
+	reflect.TypeOf((*fraud.Proof[*header.ExtendedHeader])(nil)).Elem(): byzantine.CreateBadEncodingProof(
 		[]byte("bad encoding proof"),
 		42,
 		&byzantine.ErrByzantine{
