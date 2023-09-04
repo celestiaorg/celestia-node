@@ -13,7 +13,8 @@ import (
 var (
 	// ErrNotFound is used to indicate that requested data could not be found.
 	ErrNotFound = errors.New("share: data not found")
-	// ErrOutOfBounds is used to indicate that a passed row or column index is out of bounds of the square size.
+	// ErrOutOfBounds is used to indicate that a passed row or column index is out of bounds of the
+	// square size.
 	ErrOutOfBounds = errors.New("share: row or column index is larger than square size")
 )
 
@@ -50,8 +51,8 @@ func (ns NamespacedShares) Flatten() []Share {
 
 // NamespacedRow represents all shares with proofs within a specific namespace of a single EDS row.
 type NamespacedRow struct {
-	Shares []Share
-	Proof  *nmt.Proof
+	Shares []Share    `json:"shares"`
+	Proof  *nmt.Proof `json:"proof"`
 }
 
 // Verify validates NamespacedShares by checking every row with nmt inclusion proof.
