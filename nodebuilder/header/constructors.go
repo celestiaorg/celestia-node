@@ -15,21 +15,20 @@ import (
 	"github.com/celestiaorg/go-header/store"
 	"github.com/celestiaorg/go-header/sync"
 
-	"github.com/celestiaorg/celestia-node/header"
 	modfraud "github.com/celestiaorg/celestia-node/nodebuilder/fraud"
 	modp2p "github.com/celestiaorg/celestia-node/nodebuilder/p2p"
 	"github.com/celestiaorg/celestia-node/share/eds/byzantine"
 )
 
 // newP2PExchange constructs a new Exchange for headers.
-func newP2PExchange(
+func newP2PExchange[H libhead.Header[H]](
 	lc fx.Lifecycle,
 	bpeers modp2p.Bootstrappers,
 	network modp2p.Network,
 	host host.Host,
 	conngater *conngater.BasicConnectionGater,
 	cfg Config,
-) (libhead.Exchange[*header.ExtendedHeader], error) {
+) (libhead.Exchange[H], error) {
 	peers, err := cfg.trustedPeers(bpeers)
 	if err != nil {
 		return nil, err
@@ -39,7 +38,7 @@ func newP2PExchange(
 		ids[index] = peer.ID
 		host.Peerstore().AddAddrs(peer.ID, peer.Addrs, peerstore.PermanentAddrTTL)
 	}
-	exchange, err := p2p.NewExchange[*header.ExtendedHeader](host, ids, conngater,
+	exchange, err := p2p.NewExchange[H](host, ids, conngater,
 		p2p.WithParams(cfg.Client),
 		p2p.WithNetworkID[p2p.ClientParameters](network.String()),
 		p2p.WithChainID(network.String()),
@@ -60,14 +59,14 @@ func newP2PExchange(
 }
 
 // newSyncer constructs new Syncer for headers.
-func newSyncer(
-	ex libhead.Exchange[*header.ExtendedHeader],
-	fservice libfraud.Service,
-	store InitStore,
-	sub libhead.Subscriber[*header.ExtendedHeader],
+func newSyncer[H libhead.Header[H]](
+	ex libhead.Exchange[H],
+	fservice libfraud.Service[H],
+	store InitStore[H],
+	sub libhead.Subscriber[H],
 	cfg Config,
-) (*sync.Syncer[*header.ExtendedHeader], *modfraud.ServiceBreaker[*sync.Syncer[*header.ExtendedHeader]], error) {
-	syncer, err := sync.NewSyncer[*header.ExtendedHeader](ex, store, sub,
+) (*sync.Syncer[H], *modfraud.ServiceBreaker[*sync.Syncer[H], H], error) {
+	syncer, err := sync.NewSyncer[H](ex, store, sub,
 		sync.WithParams(cfg.Syncer),
 		sync.WithBlockTime(modp2p.BlockTime),
 	)
@@ -75,7 +74,7 @@ func newSyncer(
 		return nil, nil, err
 	}
 
-	return syncer, &modfraud.ServiceBreaker[*sync.Syncer[*header.ExtendedHeader]]{
+	return syncer, &modfraud.ServiceBreaker[*sync.Syncer[H], H]{
 		Service:   syncer,
 		FraudType: byzantine.BadEncoding,
 		FraudServ: fservice,
@@ -84,16 +83,16 @@ func newSyncer(
 
 // InitStore is a type representing initialized header store.
 // NOTE: It is needed to ensure that Store is always initialized before Syncer is started.
-type InitStore libhead.Store[*header.ExtendedHeader]
+type InitStore[H libhead.Header[H]] libhead.Store[H]
 
 // newInitStore constructs an initialized store
-func newInitStore(
+func newInitStore[H libhead.Header[H]](
 	lc fx.Lifecycle,
 	cfg Config,
 	net modp2p.Network,
-	s libhead.Store[*header.ExtendedHeader],
-	ex libhead.Exchange[*header.ExtendedHeader],
-) (InitStore, error) {
+	s libhead.Store[H],
+	ex libhead.Exchange[H],
+) (InitStore[H], error) {
 	trustedHash, err := cfg.trustedHash(net)
 	if err != nil {
 		return nil, err

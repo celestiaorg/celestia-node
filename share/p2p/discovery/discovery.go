@@ -199,7 +199,8 @@ func (d *Discovery) Advertise(ctx context.Context) {
 }
 
 // discoveryLoop ensures we always have '~peerLimit' connected peers.
-// It initiates peer discovery upon request and restarts the process until the soft limit is reached.
+// It initiates peer discovery upon request and restarts the process until the soft limit is
+// reached.
 func (d *Discovery) discoveryLoop(ctx context.Context) {
 	t := time.NewTicker(discoveryRetryTimeout)
 	defer t.Stop()

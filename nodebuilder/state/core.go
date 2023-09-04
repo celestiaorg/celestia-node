@@ -18,11 +18,11 @@ func coreAccessor(
 	corecfg core.Config,
 	signer *apptypes.KeyringSigner,
 	sync *sync.Syncer[*header.ExtendedHeader],
-	fraudServ libfraud.Service,
-) (*state.CoreAccessor, Module, *modfraud.ServiceBreaker[*state.CoreAccessor]) {
+	fraudServ libfraud.Service[*header.ExtendedHeader],
+) (*state.CoreAccessor, Module, *modfraud.ServiceBreaker[*state.CoreAccessor, *header.ExtendedHeader]) {
 	ca := state.NewCoreAccessor(signer, sync, corecfg.IP, corecfg.RPCPort, corecfg.GRPCPort)
 
-	return ca, ca, &modfraud.ServiceBreaker[*state.CoreAccessor]{
+	return ca, ca, &modfraud.ServiceBreaker[*state.CoreAccessor, *header.ExtendedHeader]{
 		Service:   ca,
 		FraudType: byzantine.BadEncoding,
 		FraudServ: fraudServ,

@@ -6,6 +6,7 @@ import (
 	logging "github.com/ipfs/go-log/v2"
 	"go.uber.org/fx"
 
+	"github.com/celestiaorg/celestia-node/header"
 	"github.com/celestiaorg/celestia-node/libs/fxutil"
 	"github.com/celestiaorg/celestia-node/nodebuilder/core"
 	modfraud "github.com/celestiaorg/celestia-node/nodebuilder/fraud"
@@ -26,10 +27,12 @@ func ConstructModule(tp node.Type, cfg *Config, coreCfg *core.Config) fx.Option 
 		fx.Error(cfgErr),
 		fxutil.ProvideIf(coreCfg.IsEndpointConfigured(), fx.Annotate(
 			coreAccessor,
-			fx.OnStart(func(ctx context.Context, breaker *modfraud.ServiceBreaker[*state.CoreAccessor]) error {
+			fx.OnStart(func(ctx context.Context,
+				breaker *modfraud.ServiceBreaker[*state.CoreAccessor, *header.ExtendedHeader]) error {
 				return breaker.Start(ctx)
 			}),
-			fx.OnStop(func(ctx context.Context, breaker *modfraud.ServiceBreaker[*state.CoreAccessor]) error {
+			fx.OnStop(func(ctx context.Context,
+				breaker *modfraud.ServiceBreaker[*state.CoreAccessor, *header.ExtendedHeader]) error {
 				return breaker.Stop(ctx)
 			}),
 		)),

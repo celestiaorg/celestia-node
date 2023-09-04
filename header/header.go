@@ -2,12 +2,12 @@ package header
 
 import (
 	"bytes"
-	"context"
 	"encoding/json"
 	"fmt"
 	"time"
 
 	tmjson "github.com/tendermint/tendermint/libs/json"
+	"github.com/tendermint/tendermint/light"
 	core "github.com/tendermint/tendermint/types"
 
 	"github.com/celestiaorg/celestia-app/pkg/appconsts"
@@ -18,7 +18,6 @@ import (
 
 // ConstructFn aliases a function that creates an ExtendedHeader.
 type ConstructFn = func(
-	context.Context,
 	*core.Header,
 	*core.Commit,
 	*core.ValidatorSet,
@@ -45,31 +44,8 @@ type ExtendedHeader struct {
 	DAH          *DataAvailabilityHeader `json:"dah"`
 }
 
-func (eh *ExtendedHeader) New() libhead.Header {
-	return new(ExtendedHeader)
-}
-
-func (eh *ExtendedHeader) IsZero() bool {
-	return eh == nil
-}
-
-func (eh *ExtendedHeader) ChainID() string {
-	return eh.RawHeader.ChainID
-}
-
-func (eh *ExtendedHeader) Height() int64 {
-	return eh.RawHeader.Height
-}
-
-func (eh *ExtendedHeader) Time() time.Time {
-	return eh.RawHeader.Time
-}
-
-var _ libhead.Header = &ExtendedHeader{}
-
 // MakeExtendedHeader assembles new ExtendedHeader.
 func MakeExtendedHeader(
-	_ context.Context,
 	h *core.Header,
 	comm *core.Commit,
 	vals *core.ValidatorSet,
@@ -95,14 +71,34 @@ func MakeExtendedHeader(
 		Commit:       comm,
 		ValidatorSet: vals,
 	}
-	return eh, eh.Validate()
+	return eh, nil
+}
+
+func (eh *ExtendedHeader) New() *ExtendedHeader {
+	return new(ExtendedHeader)
+}
+
+func (eh *ExtendedHeader) IsZero() bool {
+	return eh == nil
+}
+
+func (eh *ExtendedHeader) ChainID() string {
+	return eh.RawHeader.ChainID
+}
+
+func (eh *ExtendedHeader) Height() uint64 {
+	return uint64(eh.RawHeader.Height)
+}
+
+func (eh *ExtendedHeader) Time() time.Time {
+	return eh.RawHeader.Time
 }
 
 // Hash returns Hash of the wrapped RawHeader.
 // NOTE: It purposely overrides Hash method of RawHeader to get it directly from Commit without
 // recomputing.
 func (eh *ExtendedHeader) Hash() libhead.Hash {
-	return libhead.Hash(eh.Commit.BlockID.Hash)
+	return eh.Commit.BlockID.Hash.Bytes()
 }
 
 // LastHeader returns the Hash of the last wrapped RawHeader.
@@ -158,13 +154,50 @@ func (eh *ExtendedHeader) Validate() error {
 		return fmt.Errorf("commit signs block %X, header is block %X", chash, hhash)
 	}
 
-	if err := eh.ValidatorSet.VerifyCommitLight(eh.ChainID(), eh.Commit.BlockID, eh.Height(), eh.Commit); err != nil {
+	err = eh.ValidatorSet.VerifyCommitLight(eh.ChainID(), eh.Commit.BlockID, int64(eh.Height()), eh.Commit)
+	if err != nil {
 		return fmt.Errorf("VerifyCommitLight error at height %d: %w", eh.Height(), err)
 	}
 
 	err = eh.DAH.ValidateBasic()
 	if err != nil {
 		return fmt.Errorf("ValidateBasic error on DAH at height %d: %w", eh.RawHeader.Height, err)
+	}
+	return nil
+}
+
+// Verify validates given untrusted Header against trusted ExtendedHeader.
+func (eh *ExtendedHeader) Verify(untrst *ExtendedHeader) error {
+	isAdjacent := eh.Height()+1 == untrst.Height()
+	if isAdjacent {
+		// Optimized verification for adjacent headers
+		// Check the validator hashes are the same
+		if !bytes.Equal(untrst.ValidatorsHash, eh.NextValidatorsHash) {
+			return &libhead.VerifyError{
+				Reason: fmt.Errorf("expected old header next validators (%X) to match those from new header (%X)",
+					eh.NextValidatorsHash,
+					untrst.ValidatorsHash,
+				),
+			}
+		}
+
+		if !bytes.Equal(untrst.LastHeader(), eh.Hash()) {
+			return &libhead.VerifyError{
+				Reason: fmt.Errorf("expected new header to point to last header hash (%X), but got %X)",
+					eh.Hash(),
+					untrst.LastHeader(),
+				),
+			}
+		}
+
+		return nil
+	}
+
+	if err := eh.ValidatorSet.VerifyCommitLightTrusting(eh.ChainID(), untrst.Commit, light.DefaultTrustLevel); err != nil {
+		return &libhead.VerifyError{
+			Reason:      err,
+			SoftFailure: true,
+		}
 	}
 	return nil
 }
@@ -240,3 +273,5 @@ func (eh *ExtendedHeader) UnmarshalJSON(data []byte) error {
 	eh.RawHeader = *rawHeader
 	return nil
 }
+
+var _ libhead.Header[*ExtendedHeader] = &ExtendedHeader{}

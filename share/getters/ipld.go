@@ -48,6 +48,12 @@ func (ig *IPLDGetter) GetShare(ctx context.Context, dah *share.Root, row, col in
 		utils.SetStatusAndEnd(span, err)
 	}()
 
+	upperBound := len(dah.RowRoots)
+	if row >= upperBound || col >= upperBound {
+		err := share.ErrOutOfBounds
+		span.RecordError(err)
+		return nil, err
+	}
 	root, leaf := ipld.Translate(dah, row, col)
 
 	// wrap the blockservice in a session if it has been signaled in the context.
