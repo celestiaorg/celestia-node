@@ -12,6 +12,7 @@ import (
 
 	"github.com/celestiaorg/celestia-node/libs/utils"
 	"github.com/celestiaorg/celestia-node/share"
+	"github.com/celestiaorg/celestia-node/share/car"
 	"github.com/celestiaorg/celestia-node/share/eds"
 	"github.com/celestiaorg/celestia-node/share/ipld"
 )
@@ -109,18 +110,13 @@ func (sg *StoreGetter) GetSharesByNamespace(
 		return nil, err
 	}
 
-	bs, err := sg.store.CARBlockstore(ctx, root.Hash())
-	if errors.Is(err, eds.ErrNotFound) {
-		// convert error to satisfy getter interface contract
-		err = share.ErrNotFound
-	}
-	if err != nil {
-		return nil, fmt.Errorf("getter/store: failed to retrieve blockstore: %w", err)
+	if root.IsZero() {
+		return nil, share.ErrNotFound
 	}
 
-	// wrap the read-only CAR blockstore in a getter
-	blockGetter := eds.NewBlockGetter(bs)
-	shares, err = collectSharesByNamespace(ctx, blockGetter, root, namespace)
+	// retrieve shares by reading them sequentially
+	// from the underlying CARv1 file in the eds store
+	shares, err = car.ReadSharesByNamespace(ctx, sg.store, root, namespace)
 	if err != nil {
 		return nil, fmt.Errorf("getter/store: failed to retrieve shares by namespace: %w", err)
 	}
