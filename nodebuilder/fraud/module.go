@@ -6,27 +6,31 @@ import (
 
 	"github.com/celestiaorg/go-fraud"
 
+	"github.com/celestiaorg/celestia-node/header"
 	"github.com/celestiaorg/celestia-node/nodebuilder/node"
 )
 
 var log = logging.Logger("module/fraud")
 
 func ConstructModule(tp node.Type) fx.Option {
-	baseComponent := fx.Provide(func(serv fraud.Service) fraud.Getter {
-		return serv
-	})
+	baseComponent := fx.Options(
+		fx.Provide(fraudUnmarshaler),
+		fx.Provide(func(serv fraud.Service[*header.ExtendedHeader]) fraud.Getter[*header.ExtendedHeader] {
+			return serv
+		}),
+	)
 	switch tp {
 	case node.Light:
 		return fx.Module(
 			"fraud",
 			baseComponent,
-			fx.Provide(newFraudService(true)),
+			fx.Provide(newFraudServiceWithSync),
 		)
 	case node.Full, node.Bridge:
 		return fx.Module(
 			"fraud",
 			baseComponent,
-			fx.Provide(newFraudService(false)),
+			fx.Provide(newFraudServiceWithoutSync),
 		)
 	default:
 		panic("invalid node type")

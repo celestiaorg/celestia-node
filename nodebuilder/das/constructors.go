@@ -42,16 +42,16 @@ func newDASer(
 	hsub libhead.Subscriber[*header.ExtendedHeader],
 	store libhead.Store[*header.ExtendedHeader],
 	batching datastore.Batching,
-	fraudServ fraud.Service,
+	fraudServ fraud.Service[*header.ExtendedHeader],
 	bFn shrexsub.BroadcastFn,
 	options ...das.Option,
-) (*das.DASer, *modfraud.ServiceBreaker[*das.DASer], error) {
+) (*das.DASer, *modfraud.ServiceBreaker[*das.DASer, *header.ExtendedHeader], error) {
 	ds, err := das.NewDASer(da, hsub, store, batching, fraudServ, bFn, options...)
 	if err != nil {
 		return nil, nil, err
 	}
 
-	return ds, &modfraud.ServiceBreaker[*das.DASer]{
+	return ds, &modfraud.ServiceBreaker[*das.DASer, *header.ExtendedHeader]{
 		Service:   ds,
 		FraudServ: fraudServ,
 		FraudType: byzantine.BadEncoding,
