@@ -141,7 +141,7 @@ func (s *coordinatorState) isNewHead(newHead uint64) bool {
 	return true
 }
 
-func (s *coordinatorState) updateHead(newHead uint64) {
+func (s *coordinatorState)  updateHead(newHead uint64) {
 	if s.networkHead == s.sampleFrom {
 		log.Infow("found first header, starting sampling")
 	}
