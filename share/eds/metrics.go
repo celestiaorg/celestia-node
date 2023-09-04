@@ -139,7 +139,9 @@ func (s *Store) WithMetrics() error {
 		return nil
 	}
 
-	_, err = meter.RegisterCallback(callback, dagStoreShards)
+	if _, err := meter.RegisterCallback(callback, dagStoreShards); err != nil {
+		return err
+	}
 
 	s.metrics = &metrics{
 		putTime:              putTime,
