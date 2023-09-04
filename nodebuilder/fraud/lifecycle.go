@@ -73,7 +73,7 @@ func (breaker *ServiceBreaker[S, H]) Stop(ctx context.Context) error {
 	}
 
 	breaker.sub.Cancel()
-	breaker.cancel()
+	defer breaker.cancel()
 	return breaker.Service.Stop(ctx)
 }
 
