@@ -68,9 +68,7 @@ var getCmd = &cobra.Command{
 		if base64Flag || err != nil {
 			formatter = nil
 		}
-
-		printOutput(blob, err, formatter)
-		return nil
+		return printOutput(blob, err, formatter)
 	},
 }
 
@@ -100,9 +98,7 @@ var getAllCmd = &cobra.Command{
 		if base64Flag || err != nil {
 			formatter = nil
 		}
-
-		printOutput(blobs, err, formatter)
-		return nil
+		return printOutput(blobs, err, formatter)
 	},
 }
 
@@ -135,9 +131,7 @@ var submitCmd = &cobra.Command{
 			Height:     height,
 			Commitment: parsedBlob.Commitment,
 		}
-
-		printOutput(response, err, nil)
-		return nil
+		return printOutput(response, err, nil)
 	},
 }
 
@@ -167,9 +161,7 @@ var getProofCmd = &cobra.Command{
 		}
 
 		proof, err := client.Blob.GetProof(cmd.Context(), height, namespace, commitment)
-
-		printOutput(proof, err, nil)
-		return nil
+		return printOutput(proof, err, nil)
 	},
 }
 

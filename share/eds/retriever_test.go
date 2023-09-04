@@ -100,6 +100,10 @@ func TestRetriever_ByzantineError(t *testing.T) {
 	_, err = r.Retrieve(ctx, &dah)
 	var errByz *byzantine.ErrByzantine
 	require.ErrorAs(t, err, &errByz)
+
+	if errors.Is(err, errByz) {
+		t.Fatal("WTF")
+	}
 }
 
 // TestRetriever_MultipleRandQuadrants asserts that reconstruction succeeds

@@ -65,9 +65,7 @@ var infoCmd = &cobra.Command{
 				PeerAddr: ma,
 			}
 		}
-
-		printOutput(info, err, formatter)
-		return nil
+		return printOutput(info, err, formatter)
 	},
 }
 
@@ -95,9 +93,7 @@ var peersCmd = &cobra.Command{
 				Peers: conPeers,
 			}
 		}
-
-		printOutput(peers, err, formatter)
-		return nil
+		return printOutput(peers, err, formatter)
 	},
 }
 
@@ -128,9 +124,7 @@ var peerInfoCmd = &cobra.Command{
 				PeerAddr: ma,
 			}
 		}
-
-		printOutput(info, err, formatter)
-		return nil
+		return printOutput(info, err, formatter)
 	},
 }
 
@@ -161,8 +155,7 @@ var connectCmd = &cobra.Command{
 
 		err = client.P2P.Connect(cmd.Context(), peerInfo)
 		if err != nil {
-			printOutput(nil, err, nil)
-			return nil
+			return printOutput(nil, err, nil)
 		}
 		return connectednessCmd.RunE(cmd, args)
 	},
@@ -185,8 +178,7 @@ var closePeerCmd = &cobra.Command{
 
 		err = client.P2P.ClosePeer(cmd.Context(), pid)
 		if err != nil {
-			printOutput(nil, err, nil)
-			return nil
+			return printOutput(nil, err, nil)
 		}
 		return connectednessCmd.RunE(cmd, args)
 	},
@@ -217,9 +209,7 @@ var connectednessCmd = &cobra.Command{
 				ConnectionState: conn.String(),
 			}
 		}
-
-		printOutput(con, err, formatter)
-		return nil
+		return printOutput(con, err, formatter)
 	},
 }
 
@@ -243,9 +233,7 @@ var natStatusCmd = &cobra.Command{
 				Reachability: rr.String(),
 			}
 		}
-
-		printOutput(r, err, formatter)
-		return nil
+		return printOutput(r, err, formatter)
 	},
 }
 
@@ -282,9 +270,7 @@ var blockPeerCmd = &cobra.Command{
 				Reason:  err,
 			}
 		}
-
-		printOutput(err, nil, formatter)
-		return nil
+		return printOutput(err, nil, formatter)
 	},
 }
 
@@ -322,9 +308,7 @@ var unblockPeerCmd = &cobra.Command{
 				Reason:    err,
 			}
 		}
-
-		printOutput(err, nil, formatter)
-		return nil
+		return printOutput(err, nil, formatter)
 	},
 }
 
@@ -353,9 +337,7 @@ var blockedPeersCmd = &cobra.Command{
 				Peers: peers,
 			}
 		}
-
-		printOutput(pids, err, formatter)
-		return nil
+		return printOutput(pids, err, formatter)
 	},
 }
 
@@ -392,9 +374,7 @@ var protectCmd = &cobra.Command{
 				Reason:    err,
 			}
 		}
-
-		printOutput(err, nil, formatter)
-		return nil
+		return printOutput(err, nil, formatter)
 	},
 }
 
@@ -432,9 +412,7 @@ var unprotectCmd = &cobra.Command{
 				Reason:      err,
 			}
 		}
-
-		printOutput(err, nil, formatter)
-		return nil
+		return printOutput(err, nil, formatter)
 	},
 }
 
@@ -454,9 +432,7 @@ var protectedCmd = &cobra.Command{
 		}
 
 		result, err := client.P2P.IsProtected(cmd.Context(), pid, args[1])
-
-		printOutput(result, err, nil)
-		return nil
+		return printOutput(result, err, nil)
 	},
 }
 
@@ -489,9 +465,7 @@ var bandwidthStatsCmd = &cobra.Command{
 				RateOut:  stats.RateOut,
 			}
 		}
-
-		printOutput(result, err, formatter)
-		return nil
+		return printOutput(result, err, formatter)
 	},
 }
 
@@ -521,9 +495,7 @@ var peerBandwidthCmd = &cobra.Command{
 				RateOut:  stats.RateOut,
 			}
 		}
-
-		printOutput(result, err, formatter)
-		return nil
+		return printOutput(result, err, formatter)
 	},
 }
 
@@ -548,9 +520,7 @@ var bandwidthForProtocolCmd = &cobra.Command{
 				RateOut:  stats.RateOut,
 			}
 		}
-
-		printOutput(result, err, formatter)
-		return nil
+		return printOutput(result, err, formatter)
 	},
 }
 
@@ -579,8 +549,6 @@ var pubsubPeersCmd = &cobra.Command{
 				Peers: conPeers,
 			}
 		}
-
-		printOutput(peers, err, formatter)
-		return nil
+		return printOutput(peers, err, formatter)
 	},
 }

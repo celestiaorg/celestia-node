@@ -401,7 +401,7 @@ func rpcClient(ctx context.Context) (*client.Client, error) {
 	return client, nil
 }
 
-func printOutput(data interface{}, err error, formatData func(interface{}) interface{}) {
+func printOutput(data interface{}, err error, formatData func(interface{}) interface{}) error {
 	switch {
 	case err != nil:
 		data = err
@@ -417,8 +417,8 @@ func printOutput(data interface{}, err error, formatData func(interface{}) inter
 
 	bytes, err := json.MarshalIndent(resp, "", "  ")
 	if err != nil {
-		fmt.Fprintln(os.Stderr, err)
-		os.Exit(1)
+		return err
 	}
 	fmt.Fprintln(os.Stdout, string(bytes))
+	return nil
 }
