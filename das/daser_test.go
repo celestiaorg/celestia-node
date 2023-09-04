@@ -159,21 +159,37 @@ func TestDASer_stopsAfter_BEFP(t *testing.T) {
 	mockGet, sub, _ := createDASerSubcomponents(t, bServ, 15, 15)
 
 	// create fraud service and break one header
-	getter := func(ctx context.Context, height uint64) (libhead.Header, error) {
+	getter := func(ctx context.Context, height uint64) (*header.ExtendedHeader, error) {
 		return mockGet.GetByHeight(ctx, height)
 	}
-	f := fraudserv.NewProofService(ps, net.Hosts()[0], getter, ds, false, "private")
-	require.NoError(t, f.Start(ctx))
+	unmarshaler := fraud.MultiUnmarshaler[*header.ExtendedHeader]{
+		Unmarshalers: map[fraud.ProofType]func([]byte) (fraud.Proof[*header.ExtendedHeader], error){
+			byzantine.BadEncoding: func(data []byte) (fraud.Proof[*header.ExtendedHeader], error) {
+				befp := &byzantine.BadEncodingProof{}
+				return befp, befp.UnmarshalBinary(data)
+			},
+		},
+	}
+
+	fserv := fraudserv.NewProofService[*header.ExtendedHeader](ps,
+		net.Hosts()[0],
+		getter,
+		unmarshaler,
+		ds,
+		false,
+		"private",
+	)
+	require.NoError(t, fserv.Start(ctx))
 	mockGet.headers[1], _ = headertest.CreateFraudExtHeader(t, mockGet.headers[1], bServ)
 	newCtx := context.Background()
 
 	// create and start DASer
-	daser, err := NewDASer(avail, sub, mockGet, ds, f, newBroadcastMock(1))
+	daser, err := NewDASer(avail, sub, mockGet, ds, fserv, newBroadcastMock(1))
 	require.NoError(t, err)
 
 	resultCh := make(chan error)
-	go fraud.OnProof(newCtx, f, byzantine.BadEncoding,
-		func(fraud.Proof) {
+	go fraud.OnProof[*header.ExtendedHeader](newCtx, fserv, byzantine.BadEncoding,
+		func(fraud.Proof[*header.ExtendedHeader]) {
 			resultCh <- daser.Stop(newCtx)
 		})
 
@@ -210,10 +226,10 @@ func TestDASerSampleTimeout(t *testing.T) {
 
 	ds := ds_sync.MutexWrap(datastore.NewMapDatastore())
 	sub := new(headertest.Subscriber)
-	f := new(fraudtest.DummyService)
+	fserv := &fraudtest.DummyService[*header.ExtendedHeader]{}
 
 	// create and start DASer
-	daser, err := NewDASer(avail, sub, getter, ds, f, newBroadcastMock(1), WithSampleTimeout(1))
+	daser, err := NewDASer(avail, sub, getter, ds, fserv, newBroadcastMock(1), WithSampleTimeout(1))
 	require.NoError(t, err)
 
 	require.NoError(t, daser.Start(ctx))
@@ -235,9 +251,9 @@ func createDASerSubcomponents(
 	bServ blockservice.BlockService,
 	numGetter,
 	numSub int,
-) (*mockGetter, *headertest.Subscriber, *fraudtest.DummyService) {
+) (*mockGetter, *headertest.Subscriber, *fraudtest.DummyService[*header.ExtendedHeader]) {
 	mockGet, sub := createMockGetterAndSub(t, bServ, numGetter, numSub)
-	fraud := new(fraudtest.DummyService)
+	fraud := &fraudtest.DummyService[*header.ExtendedHeader]{}
 	return mockGet, sub, fraud
 }
 
@@ -313,7 +329,10 @@ func (m *mockGetter) generateHeaders(t *testing.T, bServ blockservice.BlockServi
 	m.head = int64(startHeight + endHeight)
 }
 
-func (m *mockGetter) Head(context.Context) (*header.ExtendedHeader, error) {
+func (m *mockGetter) Head(
+	context.Context,
+	...libhead.HeadOption[*header.ExtendedHeader],
+) (*header.ExtendedHeader, error) {
 	return m.headers[m.head], nil
 }
 
@@ -354,7 +373,10 @@ func (m benchGetterStub) GetByHeight(context.Context, uint64) (*header.ExtendedH
 
 type getterStub struct{}
 
-func (m getterStub) Head(context.Context) (*header.ExtendedHeader, error) {
+func (m getterStub) Head(
+	context.Context,
+	...libhead.HeadOption[*header.ExtendedHeader],
+) (*header.ExtendedHeader, error) {
 	return &header.ExtendedHeader{RawHeader: header.RawHeader{Height: 1}}, nil
 }
 

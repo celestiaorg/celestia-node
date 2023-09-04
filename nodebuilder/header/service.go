@@ -65,9 +65,9 @@ func (s *Service) GetByHeight(ctx context.Context, height uint64) (*header.Exten
 	switch {
 	case err != nil:
 		return nil, err
-	case uint64(head.Height()) == height:
+	case head.Height() == height:
 		return head, nil
-	case uint64(head.Height())+1 < height:
+	case head.Height()+1 < height:
 		return nil, fmt.Errorf("header: given height is from the future: "+
 			"networkHeight: %d, requestedHeight: %d", head.Height(), height)
 	}
@@ -78,10 +78,10 @@ func (s *Service) GetByHeight(ctx context.Context, height uint64) (*header.Exten
 	switch {
 	case err != nil:
 		return nil, err
-	case uint64(head.Height()) == height:
+	case head.Height() == height:
 		return head, nil
 	// `+1` allows for one header network lag, e.g. user request header that is milliseconds away
-	case uint64(head.Height())+1 < height:
+	case head.Height()+1 < height:
 		return nil, fmt.Errorf("header: syncing in progress: "+
 			"localHeadHeight: %d, requestedHeight: %d", head.Height(), height)
 	default:
