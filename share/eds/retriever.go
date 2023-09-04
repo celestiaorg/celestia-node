@@ -122,6 +122,7 @@ type retrievalSession struct {
 // newSession creates a new retrieval session and kicks off requesting process.
 func (r *Retriever) newSession(ctx context.Context, dah *da.DataAvailabilityHeader) (*retrievalSession, error) {
 	size := len(dah.RowRoots)
+
 	treeFn := func(_ rsmt2d.Axis, index uint) rsmt2d.Tree {
 		// use proofs adder if provided, to cache collected proofs while recomputing the eds
 		var opts []nmt.Option
@@ -152,6 +153,7 @@ func (r *Retriever) newSession(ctx context.Context, dah *da.DataAvailabilityHead
 	for i := range ses.squareCellsLks {
 		ses.squareCellsLks[i] = make([]sync.Mutex, size)
 	}
+
 	go ses.request(ctx)
 	return ses, nil
 }

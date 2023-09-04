@@ -2,6 +2,7 @@ package eds
 
 import (
 	"context"
+	"errors"
 	"fmt"
 
 	"github.com/filecoin-project/dagstore/index"
@@ -13,6 +14,9 @@ import (
 )
 
 const invertedIndexPath = "/inverted_index/"
+
+// ErrNotFoundInIndex is returned instead of ErrNotFound if the multihash doesn't exist in the index
+var ErrNotFoundInIndex = fmt.Errorf("does not exist in index")
 
 // simpleInvertedIndex is an inverted index that only stores a single shard key per multihash. Its
 // implementation is modified from the default upstream implementation in dagstore/index.
@@ -76,7 +80,7 @@ func (s *simpleInvertedIndex) GetShardsForMultihash(ctx context.Context, mh mult
 	key := ds.NewKey(string(mh))
 	sbz, err := s.ds.Get(ctx, key)
 	if err != nil {
-		return nil, fmt.Errorf("failed to lookup index for mh %s, err: %w", mh, err)
+		return nil, errors.Join(ErrNotFoundInIndex, err)
 	}
 
 	return []shard.Key{shard.KeyFromString(string(sbz))}, nil
