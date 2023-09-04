@@ -125,7 +125,7 @@ var submitCmd = &cobra.Command{
 		height, err := client.Blob.Submit(cmd.Context(), []*blob.Blob{parsedBlob})
 
 		response := struct {
-			Height     uint64          `json:"uint64"`
+			Height     uint64          `json:"height"`
 			Commitment blob.Commitment `json:"commitment"`
 		}{
 			Height:     height,

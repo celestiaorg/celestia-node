@@ -33,6 +33,10 @@ const (
 
 	// retryTimeout defines time interval between discovery and advertise attempts.
 	retryTimeout = time.Second
+
+	// logInterval defines the time interval at which a warning message will be logged
+	// if the desired number of nodes is not detected.
+	logInterval = 5 * time.Minute
 )
 
 // discoveryRetryTimeout defines time interval between discovery attempts, needed for tests
@@ -195,26 +199,34 @@ func (d *Discovery) Advertise(ctx context.Context) {
 }
 
 // discoveryLoop ensures we always have '~peerLimit' connected peers.
-// It starts peer discovery per request and restarts the process until the soft limit reached.
+// It initiates peer discovery upon request and restarts the process until the soft limit is
+// reached.
 func (d *Discovery) discoveryLoop(ctx context.Context) {
 	t := time.NewTicker(discoveryRetryTimeout)
 	defer t.Stop()
+
+	warnTicker := time.NewTicker(logInterval)
+	defer warnTicker.Stop()
+
 	for {
-		// drain all previous ticks from channel
+		// drain all previous ticks from the channel
 		drainChannel(t.C)
 		select {
 		case <-t.C:
-			found := d.discover(ctx)
-			if !found {
-				// rerun discovery if amount of peers didn't reach the limit
+			if !d.discover(ctx) {
+				// rerun discovery if the number of peers hasn't reached the limit
 				continue
 			}
-		case <-ctx.Done():
-			return
-		}
-
-		select {
-		case <-d.triggerDisc:
+		case <-warnTicker.C:
+			if d.set.Size() < d.set.Limit() {
+				log.Warnf(
+					"Potentially degraded connectivity, unable to discover the desired amount of full node peers in %v. "+
+						"Number of peers discovered: %d. Required: %d.",
+					logInterval, d.set.Size(), d.set.Limit(),
+				)
+			}
+			// Do not break the loop; just continue
+			continue
 		case <-ctx.Done():
 			return
 		}

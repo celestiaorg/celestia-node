@@ -11,9 +11,10 @@ import (
 	apptypes "github.com/celestiaorg/celestia-app/x/blob/types"
 
 	"github.com/celestiaorg/celestia-node/core"
+	"github.com/celestiaorg/celestia-node/header"
 	"github.com/celestiaorg/celestia-node/header/headertest"
 	"github.com/celestiaorg/celestia-node/libs/fxutil"
-	"github.com/celestiaorg/celestia-node/nodebuilder/header"
+	modhead "github.com/celestiaorg/celestia-node/nodebuilder/header"
 	"github.com/celestiaorg/celestia-node/nodebuilder/node"
 	"github.com/celestiaorg/celestia-node/nodebuilder/p2p"
 	"github.com/celestiaorg/celestia-node/nodebuilder/state"
@@ -47,7 +48,7 @@ func TestNodeWithConfig(t *testing.T, tp node.Type, cfg *Config, opts ...fx.Opti
 		// temp dir for the eds store FIXME: Should be in mem
 		fx.Replace(node.StorePath(t.TempDir())),
 		// avoid requesting trustedPeer during initialization
-		fxutil.ReplaceAs(headertest.NewStore(t), new(header.InitStore)),
+		fxutil.ReplaceAs(headertest.NewStore(t), new(modhead.InitStore[*header.ExtendedHeader])),
 	)
 
 	// in fact, we don't need core.Client in tests, but Bridge requires is a valid one

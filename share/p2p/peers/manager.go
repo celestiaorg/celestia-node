@@ -293,7 +293,7 @@ func (m *Manager) subscribeHeader(ctx context.Context, headerSub libhead.Subscri
 		m.validatedPool(h.DataHash.String())
 
 		// store first header for validation purposes
-		if m.initialHeight.CompareAndSwap(0, uint64(h.Height())) {
+		if m.initialHeight.CompareAndSwap(0, h.Height()) {
 			log.Debugw("stored initial height", "height", h.Height())
 		}
 	}
