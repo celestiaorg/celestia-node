@@ -15,6 +15,7 @@ import (
 	"github.com/celestiaorg/go-header/store"
 	"github.com/celestiaorg/go-header/sync"
 
+	"github.com/celestiaorg/celestia-node/header"
 	modfraud "github.com/celestiaorg/celestia-node/nodebuilder/fraud"
 	modp2p "github.com/celestiaorg/celestia-node/nodebuilder/p2p"
 	"github.com/celestiaorg/celestia-node/share/eds/byzantine"
@@ -39,7 +40,7 @@ func newP2PExchange[H libhead.Header[H]](
 		ids[index] = peer.ID
 		host.Peerstore().AddAddrs(peer.ID, peer.Addrs, peerstore.PermanentAddrTTL)
 	}
-	exchange, err := p2p.NewExchange[H](host, ids, conngater,
+	exchange, err := p2p.NewExchange[*header.ExtendedHeader](host, ids, conngater,
 		p2p.WithParams(cfg.Client),
 		p2p.WithNetworkID[p2p.ClientParameters](network.String()),
 		p2p.WithChainID(network.String()),
