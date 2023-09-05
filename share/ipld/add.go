@@ -4,7 +4,7 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/ipfs/go-blockservice"
+	"github.com/ipfs/boxo/blockservice"
 
 	"github.com/celestiaorg/celestia-app/pkg/wrapper"
 	"github.com/celestiaorg/nmt"
@@ -52,7 +52,8 @@ func AddShares(
 func ImportShares(
 	ctx context.Context,
 	shares [][]byte,
-	adder blockservice.BlockService) (*rsmt2d.ExtendedDataSquare, error) {
+	adder blockservice.BlockService,
+) (*rsmt2d.ExtendedDataSquare, error) {
 	if len(shares) == 0 {
 		return nil, fmt.Errorf("ipld: importing empty data")
 	}
