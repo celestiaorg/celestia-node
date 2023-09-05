@@ -1,5 +1,6 @@
 SHELL=/usr/bin/env bash
 PROJECTNAME=$(shell basename "$(PWD)")
+DIR_FULLPATH=$(shell pwd)
 versioningPath := "github.com/celestiaorg/celestia-node/nodebuilder/node"
 LDFLAGS=-ldflags="-X '$(versioningPath).buildTime=$(shell date)' -X '$(versioningPath).lastCommit=$(shell git rev-parse HEAD)' -X '$(versioningPath).semanticVersion=$(shell git describe --tags --dirty=-dev 2>/dev/null || git rev-parse --abbrev-ref HEAD)'"
 ifeq (${PREFIX},)
@@ -176,3 +177,14 @@ adr-gen:
 	@echo "--> Generating ADR"
 	@curl -sSL https://raw.githubusercontent.com/celestiaorg/.github/main/adr-template.md > docs/architecture/adr-$(NUM)-$(TITLE).md
 .PHONY: adr-gen
+
+## telemetry-infra-up: launches local telemetry infrastructure. This includes grafana, jaeger, loki, pyroscope, and an otel-collector.
+## you can access the grafana instance at localhost:3000 and login with admin:admin.
+telemetry-infra-up:
+	PWD="${DIR_FULLPATH}/docker/telemetry" docker-compose -f ./docker/telemetry/docker-compose.yml up
+.PHONY: telemetry-infra-up
+
+## telemetry-infra-down: tears the telemetry infrastructure down. The stores for grafana, prometheus, and loki will persist.
+telemetry-infra-down:
+	PWD="${DIR_FULLPATH}/docker/telemetry" docker-compose -f ./docker/telemetry/docker-compose.yml down
+.PHONY: telemetry-infra-down

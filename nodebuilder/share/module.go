@@ -5,9 +5,12 @@ import (
 
 	"github.com/ipfs/go-datastore"
 	"github.com/libp2p/go-libp2p/core/host"
+	"github.com/libp2p/go-libp2p/p2p/net/conngater"
 	"go.uber.org/fx"
 
-	"github.com/celestiaorg/celestia-node/libs/fxutil"
+	libhead "github.com/celestiaorg/go-header"
+
+	"github.com/celestiaorg/celestia-node/header"
 	"github.com/celestiaorg/celestia-node/nodebuilder/node"
 	modp2p "github.com/celestiaorg/celestia-node/nodebuilder/p2p"
 	"github.com/celestiaorg/celestia-node/share"
@@ -46,6 +49,33 @@ func ConstructModule(tp node.Type, cfg *Config, options ...fx.Option) fx.Option 
 				return shrexsub.NewPubSub(ctx, h, network.String())
 			},
 		),
+	)
+
+	shrexGetterComponents := fx.Options(
+		fx.Provide(func() peers.Parameters {
+			return cfg.PeerManagerParams
+		}),
+		fx.Provide(
+			func(host host.Host, network modp2p.Network) (*shrexnd.Client, error) {
+				cfg.ShrExNDParams.WithNetworkID(network.String())
+				return shrexnd.NewClient(cfg.ShrExNDParams, host)
+			},
+		),
+		fx.Provide(
+			func(host host.Host, network modp2p.Network) (*shrexeds.Client, error) {
+				cfg.ShrExEDSParams.WithNetworkID(network.String())
+				return shrexeds.NewClient(cfg.ShrExEDSParams, host)
+			},
+		),
+		fx.Provide(fx.Annotate(
+			getters.NewShrexGetter,
+			fx.OnStart(func(ctx context.Context, getter *getters.ShrexGetter) error {
+				return getter.Start(ctx)
+			}),
+			fx.OnStop(func(ctx context.Context, getter *getters.ShrexGetter) error {
+				return getter.Stop(ctx)
+			}),
+		)),
 	)
 
 	bridgeAndFullComponents := fx.Options(
@@ -112,32 +142,25 @@ func ConstructModule(tp node.Type, cfg *Config, options ...fx.Option) fx.Option 
 		}),
 	)
 
-	shrexGetterComponents := fx.Options(
-		fx.Provide(func() peers.Parameters {
-			return cfg.PeerManagerParams
-		}),
-		fx.Provide(peers.NewManager),
+	peerManagerWithShrexPools := fx.Options(
 		fx.Provide(
-			func(host host.Host, network modp2p.Network) (*shrexnd.Client, error) {
-				cfg.ShrExNDParams.WithNetworkID(network.String())
-				return shrexnd.NewClient(cfg.ShrExNDParams, host)
+			func(
+				params peers.Parameters,
+				discovery *disc.Discovery,
+				host host.Host,
+				connGater *conngater.BasicConnectionGater,
+				shrexSub *shrexsub.PubSub,
+				headerSub libhead.Subscriber[*header.ExtendedHeader],
+			) (*peers.Manager, error) {
+				return peers.NewManager(
+					params,
+					discovery,
+					host,
+					connGater,
+					peers.WithShrexSubPools(shrexSub, headerSub),
+				)
 			},
 		),
-		fx.Provide(
-			func(host host.Host, network modp2p.Network) (*shrexeds.Client, error) {
-				cfg.ShrExEDSParams.WithNetworkID(network.String())
-				return shrexeds.NewClient(cfg.ShrExEDSParams, host)
-			},
-		),
-		fx.Provide(fx.Annotate(
-			getters.NewShrexGetter,
-			fx.OnStart(func(ctx context.Context, getter *getters.ShrexGetter) error {
-				return getter.Start(ctx)
-			}),
-			fx.OnStop(func(ctx context.Context, getter *getters.ShrexGetter) error {
-				return getter.Stop(ctx)
-			}),
-		)),
 	)
 
 	switch tp {
@@ -145,10 +168,10 @@ func ConstructModule(tp node.Type, cfg *Config, options ...fx.Option) fx.Option 
 		return fx.Module(
 			"share",
 			baseComponents,
+			fx.Provide(peers.NewManager),
 			bridgeAndFullComponents,
-			fxutil.ProvideAs(func(getter *getters.StoreGetter) share.Getter {
-				return getter
-			}),
+			shrexGetterComponents,
+			fx.Provide(bridgeGetter),
 			fx.Invoke(func(lc fx.Lifecycle, sub *shrexsub.PubSub) error {
 				lc.Append(fx.Hook{
 					OnStart: sub.Start,
@@ -160,6 +183,7 @@ func ConstructModule(tp node.Type, cfg *Config, options ...fx.Option) fx.Option 
 	case node.Full:
 		return fx.Module(
 			"share",
+			peerManagerWithShrexPools,
 			baseComponents,
 			bridgeAndFullComponents,
 			shrexGetterComponents,
@@ -175,6 +199,7 @@ func ConstructModule(tp node.Type, cfg *Config, options ...fx.Option) fx.Option 
 					light.WithSampleAmount(cfg.LightAvailability.SampleAmount),
 				}
 			}),
+			peerManagerWithShrexPools,
 			shrexGetterComponents,
 			fx.Invoke(ensureEmptyEDSInBS),
 			fx.Provide(getters.NewIPLDGetter),

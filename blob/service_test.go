@@ -4,12 +4,12 @@ import (
 	"bytes"
 	"context"
 	"crypto/sha256"
+	"encoding/json"
 	"testing"
 	"time"
 
 	ds "github.com/ipfs/go-datastore"
 	ds_sync "github.com/ipfs/go-datastore/sync"
-	mdutils "github.com/ipfs/go-merkledag/test"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	tmrand "github.com/tendermint/tendermint/libs/rand"
@@ -272,14 +272,14 @@ func TestBlobService_Get(t *testing.T) {
 			doFn: func() (interface{}, error) {
 				proof, err := service.GetProof(ctx, 1, blobs0[1].Namespace(), blobs0[1].Commitment)
 				require.NoError(t, err)
-				return proof.MarshalJSON()
+				return json.Marshal(proof)
 			},
 			expectedResult: func(i interface{}, err error) {
 				require.NoError(t, err)
 				jsonData, ok := i.([]byte)
 				require.True(t, ok)
 				var proof Proof
-				require.NoError(t, proof.UnmarshalJSON(jsonData))
+				require.NoError(t, json.Unmarshal(jsonData, &proof))
 
 				newProof, err := service.GetProof(ctx, 1, blobs0[1].Namespace(), blobs0[1].Commitment)
 				require.NoError(t, err)
@@ -323,7 +323,7 @@ func TestService_GetSingleBlobWithoutPadding(t *testing.T) {
 	rawShares = append(rawShares, append(rawShares0, padding0.ToBytes())...)
 	rawShares = append(rawShares, append(rawShares1, padding1.ToBytes())...)
 
-	bs := mdutils.Bserv()
+	bs := ipld.NewMemBlockservice()
 	batching := ds_sync.MutexWrap(ds.NewMapDatastore())
 	headerStore, err := store.NewStore[*header.ExtendedHeader](batching)
 	require.NoError(t, err)
@@ -374,7 +374,7 @@ func TestService_GetAllWithoutPadding(t *testing.T) {
 		rawShares = append(rawShares, append(rawShares0, padding0.ToBytes())...)
 	}
 
-	bs := mdutils.Bserv()
+	bs := ipld.NewMemBlockservice()
 	batching := ds_sync.MutexWrap(ds.NewMapDatastore())
 	headerStore, err := store.NewStore[*header.ExtendedHeader](batching)
 	require.NoError(t, err)
@@ -396,7 +396,7 @@ func TestService_GetAllWithoutPadding(t *testing.T) {
 }
 
 func createService(ctx context.Context, t *testing.T, blobs []*Blob) *Service {
-	bs := mdutils.Bserv()
+	bs := ipld.NewMemBlockservice()
 	batching := ds_sync.MutexWrap(ds.NewMapDatastore())
 	headerStore, err := store.NewStore[*header.ExtendedHeader](batching)
 	require.NoError(t, err)

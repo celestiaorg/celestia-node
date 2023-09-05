@@ -419,8 +419,6 @@ func TestIntegration(t *testing.T) {
 		require.NoError(t, err)
 		fnPeerManager, err := NewManager(
 			DefaultParameters(),
-			nil,
-			nil,
 			fnDisc,
 			nil,
 			connGater,
@@ -469,11 +467,10 @@ func testManager(ctx context.Context, headerSub libhead.Subscriber[*header.Exten
 	}
 	manager, err := NewManager(
 		DefaultParameters(),
-		headerSub,
-		shrexSub,
 		disc,
 		host,
 		connGater,
+		WithShrexSubPools(shrexSub, headerSub),
 	)
 	if err != nil {
 		return nil, err

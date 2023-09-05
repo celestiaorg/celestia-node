@@ -23,11 +23,12 @@ import (
 // newP2PExchange constructs a new Exchange for headers.
 func newP2PExchange[H libhead.Header[H]](
 	lc fx.Lifecycle,
+	cfg Config,
 	bpeers modp2p.Bootstrappers,
 	network modp2p.Network,
 	host host.Host,
 	conngater *conngater.BasicConnectionGater,
-	cfg Config,
+	pidstore p2p.PeerIDStore,
 ) (libhead.Exchange[H], error) {
 	peers, err := cfg.trustedPeers(bpeers)
 	if err != nil {
@@ -42,6 +43,7 @@ func newP2PExchange[H libhead.Header[H]](
 		p2p.WithParams(cfg.Client),
 		p2p.WithNetworkID[p2p.ClientParameters](network.String()),
 		p2p.WithChainID(network.String()),
+		p2p.WithPeerIDStore[p2p.ClientParameters](pidstore),
 	)
 	if err != nil {
 		return nil, err
@@ -55,7 +57,6 @@ func newP2PExchange[H libhead.Header[H]](
 		},
 	})
 	return exchange, nil
-
 }
 
 // newSyncer constructs new Syncer for headers.

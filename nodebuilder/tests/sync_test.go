@@ -297,6 +297,7 @@ func TestSyncLightAgainstFull(t *testing.T) {
 	require.NoError(t, err)
 	_, err = full.HeaderServ.WaitForHeight(ctx, bridgeHead.Height())
 	require.NoError(t, err)
+	assert.EqualValues(t, h.Commit.BlockID.Hash, sw.GetCoreBlockHashByHeight(ctx, numBlocks))
 
 	// reset suite bootstrapper list and set full node as a bootstrapper for
 	// LN to connect to

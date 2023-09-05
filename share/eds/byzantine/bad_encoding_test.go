@@ -5,7 +5,6 @@ import (
 	"testing"
 	"time"
 
-	mdutils "github.com/ipfs/go-merkledag/test"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	core "github.com/tendermint/tendermint/types"
@@ -22,7 +21,7 @@ import (
 func TestBadEncodingFraudProof(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second*15)
 	defer t.Cleanup(cancel)
-	bServ := mdutils.Bserv()
+	bServ := ipld.NewMemBlockservice()
 
 	square := edstest.RandByzantineEDS(t, 16)
 	dah, err := da.NewDataAvailabilityHeader(square)
@@ -48,7 +47,7 @@ func TestIncorrectBadEncodingFraudProof(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
-	bServ := mdutils.Bserv()
+	bServ := ipld.NewMemBlockservice()
 
 	squareSize := 8
 	shares := sharetest.RandShares(t, squareSize*squareSize)

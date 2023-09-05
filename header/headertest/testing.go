@@ -1,7 +1,6 @@
 package headertest
 
 import (
-	"context"
 	"crypto/rand"
 	"fmt"
 	mrand "math/rand"
@@ -9,8 +8,6 @@ import (
 	"testing"
 	"time"
 
-	"github.com/ipfs/go-blockservice"
-	logging "github.com/ipfs/go-log/v2"
 	"github.com/stretchr/testify/require"
 	"github.com/tendermint/tendermint/crypto/tmhash"
 	"github.com/tendermint/tendermint/libs/bytes"
@@ -26,11 +23,7 @@ import (
 	"github.com/celestiaorg/rsmt2d"
 
 	"github.com/celestiaorg/celestia-node/header"
-	"github.com/celestiaorg/celestia-node/share/eds/edstest"
-	"github.com/celestiaorg/celestia-node/share/ipld"
 )
-
-var log = logging.Logger("headertest")
 
 // TestSuite provides everything you need to test chain of Headers.
 // If not, please don't hesitate to extend it for your case.
@@ -296,32 +289,6 @@ func RandBlockID(*testing.T) types.BlockID {
 	return bid
 }
 
-// FraudMaker creates a custom ConstructFn that breaks the block at the given height.
-func FraudMaker(t *testing.T, faultHeight int64, bServ blockservice.BlockService) header.ConstructFn {
-	log.Warn("Corrupting block...", "height", faultHeight)
-	return func(
-		h *types.Header,
-		comm *types.Commit,
-		vals *types.ValidatorSet,
-		eds *rsmt2d.ExtendedDataSquare,
-	) (*header.ExtendedHeader, error) {
-		if h.Height == faultHeight {
-			eh := &header.ExtendedHeader{
-				RawHeader:    *h,
-				Commit:       comm,
-				ValidatorSet: vals,
-			}
-
-			eh, dataSq := CreateFraudExtHeader(t, eh, bServ)
-			if eds != nil {
-				*eds = *dataSq
-			}
-			return eh, nil
-		}
-		return header.MakeExtendedHeader(h, comm, vals, eds)
-	}
-}
-
 func ExtendedHeaderFromEDS(t *testing.T, height uint64, eds *rsmt2d.ExtendedDataSquare) *header.ExtendedHeader {
 	valSet, vals := RandValidatorSet(10, 10)
 	gen := RandRawHeader(t)
@@ -346,21 +313,6 @@ func ExtendedHeaderFromEDS(t *testing.T, height uint64, eds *rsmt2d.ExtendedData
 	}
 	require.NoError(t, eh.Validate())
 	return eh
-}
-
-func CreateFraudExtHeader(
-	t *testing.T,
-	eh *header.ExtendedHeader,
-	serv blockservice.BlockService,
-) (*header.ExtendedHeader, *rsmt2d.ExtendedDataSquare) {
-	square := edstest.RandByzantineEDS(t, len(eh.DAH.RowRoots))
-	err := ipld.ImportEDS(context.Background(), square, serv)
-	require.NoError(t, err)
-	dah, err := da.NewDataAvailabilityHeader(square)
-	require.NoError(t, err)
-	eh.DAH = &dah
-	eh.RawHeader.DataHash = dah.Hash()
-	return eh, square
 }
 
 type Subscriber struct {

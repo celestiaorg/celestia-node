@@ -19,7 +19,19 @@ func TestPutLoad(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), time.Minute)
 	defer t.Cleanup(cancel)
 
-	peerstore := NewPeerIDStore(sync.MutexWrap(datastore.NewMapDatastore()))
+	ds := sync.MutexWrap(datastore.NewMapDatastore())
+
+	t.Run("unitialized-pidstore", func(t *testing.T) {
+		testPutLoad(ctx, ds, t)
+	})
+	t.Run("initialized-pidstore", func(t *testing.T) {
+		testPutLoad(ctx, ds, t)
+	})
+}
+
+func testPutLoad(ctx context.Context, ds datastore.Datastore, t *testing.T) {
+	peerstore, err := NewPeerIDStore(ctx, ds)
+	require.NoError(t, err)
 
 	ids, err := generateRandomPeerList(10)
 	require.NoError(t, err)
