@@ -5,8 +5,8 @@ import (
 	"sync"
 
 	"github.com/filecoin-project/dagstore"
+	"github.com/ipfs/boxo/blockservice"
 	blocks "github.com/ipfs/go-block-format"
-	"github.com/ipfs/go-blockservice"
 	"github.com/ipfs/go-cid"
 )
 
