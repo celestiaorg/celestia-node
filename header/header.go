@@ -3,10 +3,9 @@ package header
 import (
 	"bytes"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"time"
-
-	"github.com/pkg/errors"
 
 	tmjson "github.com/tendermint/tendermint/libs/json"
 	"github.com/tendermint/tendermint/light"
@@ -182,9 +181,9 @@ func (eh *ExtendedHeader) Verify(untrst *ExtendedHeader) error {
 		// Check the validator hashes are the same
 		if !bytes.Equal(untrst.ValidatorsHash, eh.NextValidatorsHash) {
 			return &libhead.VerifyError{
-				Reason: errors.Wrap(
+				Reason: fmt.Errorf("%w: %w",
 					ErrValidatorHashMismatch,
-					fmt.Sprintf("expected old header next validators (%X) to match those from new header (%X)",
+					fmt.Errorf("expected old header next validators (%X) to match those from new header (%X)",
 						eh.NextValidatorsHash,
 						untrst.ValidatorsHash,
 					)),
@@ -193,9 +192,9 @@ func (eh *ExtendedHeader) Verify(untrst *ExtendedHeader) error {
 
 		if !bytes.Equal(untrst.LastHeader(), eh.Hash()) {
 			return &libhead.VerifyError{
-				Reason: errors.Wrap(
+				Reason: fmt.Errorf("%w: %w",
 					ErrLastHeaderHashMismatch,
-					fmt.Sprintf("expected new header to point to last header hash (%X), but got %X)",
+					fmt.Errorf("expected new header to point to last header hash (%X), but got %X)",
 						eh.Hash(),
 						untrst.LastHeader(),
 					)),
@@ -207,7 +206,7 @@ func (eh *ExtendedHeader) Verify(untrst *ExtendedHeader) error {
 
 	if err := eh.ValidatorSet.VerifyCommitLightTrusting(eh.ChainID(), untrst.Commit, light.DefaultTrustLevel); err != nil {
 		return &libhead.VerifyError{
-			Reason:      errors.Wrap(ErrVerifyCommitLightTrustingFailed, err.Error()),
+			Reason:      fmt.Errorf("%w: %w", ErrVerifyCommitLightTrustingFailed, err),
 			SoftFailure: true,
 		}
 	}
