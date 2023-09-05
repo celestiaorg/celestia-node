@@ -16,6 +16,7 @@ import (
 	"github.com/celestiaorg/celestia-node/libs/utils"
 	"github.com/celestiaorg/celestia-node/share"
 	"github.com/celestiaorg/celestia-node/share/eds"
+	"github.com/celestiaorg/celestia-node/share/eds/byzantine"
 	"github.com/celestiaorg/celestia-node/share/ipld"
 )
 
@@ -48,6 +49,12 @@ func (ig *IPLDGetter) GetShare(ctx context.Context, dah *share.Root, row, col in
 		utils.SetStatusAndEnd(span, err)
 	}()
 
+	upperBound := len(dah.RowRoots)
+	if row >= upperBound || col >= upperBound {
+		err := share.ErrOutOfBounds
+		span.RecordError(err)
+		return nil, err
+	}
 	root, leaf := ipld.Translate(dah, row, col)
 
 	// wrap the blockservice in a session if it has been signaled in the context.
@@ -75,6 +82,10 @@ func (ig *IPLDGetter) GetEDS(ctx context.Context, root *share.Root) (eds *rsmt2d
 	if errors.Is(err, ipld.ErrNodeNotFound) {
 		// convert error to satisfy getter interface contract
 		err = share.ErrNotFound
+	}
+	var errByz *byzantine.ErrByzantine
+	if errors.As(err, &errByz) {
+		return nil, err
 	}
 	if err != nil {
 		return nil, fmt.Errorf("getter/ipld: failed to retrieve eds: %w", err)

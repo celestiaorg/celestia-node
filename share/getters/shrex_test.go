@@ -227,11 +227,10 @@ func testManager(
 	}
 	manager, err := peers.NewManager(
 		peers.DefaultParameters(),
-		headerSub,
-		shrexSub,
 		disc,
 		host,
 		connGater,
+		peers.WithShrexSubPools(shrexSub, headerSub),
 	)
 	return manager, err
 }

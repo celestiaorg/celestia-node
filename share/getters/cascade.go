@@ -3,7 +3,6 @@ package getters
 import (
 	"context"
 	"errors"
-	"fmt"
 
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/trace"
@@ -12,6 +11,7 @@ import (
 
 	"github.com/celestiaorg/celestia-node/libs/utils"
 	"github.com/celestiaorg/celestia-node/share"
+	"github.com/celestiaorg/celestia-node/share/eds/byzantine"
 )
 
 var _ share.Getter = (*CascadeGetter)(nil)
@@ -38,9 +38,10 @@ func (cg *CascadeGetter) GetShare(ctx context.Context, root *share.Root, row, co
 		attribute.Int("col", col),
 	))
 	defer span.End()
-	if row >= len(root.RowRoots) || col >= len(root.ColumnRoots) {
-		err := fmt.Errorf("cascade/get-share: invalid indexes were provided:rowIndex=%d, colIndex=%d."+
-			"squarewidth=%d", row, col, len(root.RowRoots))
+
+	upperBound := len(root.RowRoots)
+	if row >= upperBound || col >= upperBound {
+		err := share.ErrOutOfBounds
 		span.RecordError(err)
 		return nil, err
 	}
@@ -130,8 +131,15 @@ func cascadeGetters[V any](
 			continue
 		}
 
-		err = errors.Join(err, getErr)
 		span.RecordError(getErr, trace.WithAttributes(attribute.Int("getter_idx", i)))
+		var byzantineErr *byzantine.ErrByzantine
+		if errors.As(getErr, &byzantineErr) {
+			// short circuit if byzantine error was detected (to be able to handle it correctly
+			// and create the BEFP)
+			return zero, byzantineErr
+		}
+
+		err = errors.Join(err, getErr)
 		if ctx.Err() != nil {
 			return zero, err
 		}
