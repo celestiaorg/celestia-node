@@ -44,12 +44,11 @@ func newMetrics(bc *AccessorCache) (*metrics, error) {
 	}, err
 }
 
-func (m *metrics) observeEvicted(failed bool) {
+func (m *metrics) observeEvicted() {
 	if m == nil {
 		return
 	}
-	m.evictedCounter.Add(context.Background(), 1, metric.WithAttributes(
-		attribute.Bool(failedKey, failed)))
+	m.evictedCounter.Add(context.Background(), 1)
 }
 
 func (m *metrics) observeGet(found bool) {

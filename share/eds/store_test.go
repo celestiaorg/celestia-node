@@ -111,6 +111,7 @@ func TestEDSStore(t *testing.T) {
 		_, err = os.Stat(edsStore.basepath + blocksPath + dah.String())
 		assert.NoError(t, err)
 
+		time.Sleep(time.Millisecond * 100)
 		err = edsStore.Remove(ctx, dah.Hash())
 		assert.NoError(t, err)
 
@@ -145,6 +146,11 @@ func TestEDSStore(t *testing.T) {
 		assert.NoError(t, err)
 
 		err = os.Remove(path)
+		assert.NoError(t, err)
+
+		// remove non-failed accessor from cache
+		time.Sleep(time.Millisecond * 100)
+		err = edsStore.cache.Remove(shard.KeyFromString(dah.String()))
 		assert.NoError(t, err)
 
 		_, err = edsStore.GetCAR(ctx, dah.Hash())
@@ -230,6 +236,7 @@ func TestEDSStore_GC(t *testing.T) {
 	require.NoError(t, err)
 
 	// remove links to the shard from cache
+	time.Sleep(time.Millisecond * 100)
 	key := shard.KeyFromString(share.DataHash(dah.Hash()).String())
 	err = edsStore.cache.Remove(key)
 	require.NoError(t, err)
@@ -321,22 +328,22 @@ func Test_CachedAccessor(t *testing.T) {
 	require.NoError(t, err)
 
 	// first read from cached accessor
-	carReader := cachedAccessor.ReadCloser()
-	firstBlock, err := io.ReadAll(cachedAccessor.ReadCloser())
+	firstBlock, err := io.ReadAll(cachedAccessor.Reader())
 	require.NoError(t, err)
-	require.NoError(t, carReader.Close())
+	require.NoError(t, cachedAccessor.Close())
 
 	// second read from cached accessor
-	carReader = cachedAccessor.ReadCloser()
-	secondBlock, err := io.ReadAll(cachedAccessor.ReadCloser())
+	cachedAccessor, err = edsStore.cache.Get(shard.KeyFromString(dah.String()))
 	require.NoError(t, err)
-	require.NoError(t, carReader.Close())
+	secondBlock, err := io.ReadAll(cachedAccessor.Reader())
+	require.NoError(t, err)
+	require.NoError(t, cachedAccessor.Close())
 
 	require.Equal(t, firstBlock, secondBlock)
 }
 
-// Test_CachedAccessor verifies that the reader represented by a accessor obtained directly from dagstore can be read from
-// multiple times, without exhausting the underlying reader.
+// Test_CachedAccessor verifies that the reader represented by a accessor obtained directly from
+// dagstore can be read from multiple times, without exhausting the underlying reader.
 func Test_NotCachedAccessor(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	t.Cleanup(cancel)

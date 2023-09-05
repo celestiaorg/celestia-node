@@ -36,7 +36,7 @@ func (mc *MultiCache) Get(key shard.Key) (Accessor, error) {
 func (mc *MultiCache) GetOrLoad(
 	ctx context.Context,
 	key shard.Key,
-	loader func(context.Context, shard.Key) (AccessorProvider, error),
+	loader func(context.Context, shard.Key) (Accessor, error),
 ) (Accessor, error) {
 	ac, err := mc.first.GetOrLoad(ctx, key, loader)
 	if err == nil {

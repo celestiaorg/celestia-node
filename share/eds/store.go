@@ -240,7 +240,7 @@ func (s *Store) put(ctx context.Context, root share.DataHash, square *rsmt2d.Ext
 	if err != nil {
 		return err
 	}
-	defer f.Close()
+	defer logClose("car file", f)
 
 	// save encoded eds into buffer
 	mount := &inMemoryOnceMount{
@@ -285,8 +285,15 @@ func (s *Store) put(ctx context.Context, root share.DataHash, square *rsmt2d.Ext
 	go func() {
 		ctx, cancel := context.WithTimeout(context.Background(), time.Minute)
 		defer cancel()
-		if _, err := s.cache.GetOrLoad(ctx, result.Key, s.getAccessor); err != nil {
+		ac, err := s.cache.GetOrLoad(ctx, result.Key, s.getAccessor)
+		if err != nil {
 			log.Warnw("unable to put accessor to recent blocks accessors cache", "err", err)
+			return
+		}
+
+		// need to close returned accessor to remove the reader reference
+		if err := ac.Close(); err != nil {
+			log.Warnw("unable to close accessor after loading", "err", err)
 		}
 	}()
 
@@ -341,7 +348,7 @@ func (s *Store) getCAR(ctx context.Context, root share.DataHash) (io.ReadCloser,
 	key := shard.KeyFromString(root.String())
 	accessor, err := s.cache.Get(key)
 	if err == nil {
-		return accessor.ReadCloser(), nil
+		return newReadCloser(accessor), nil
 	}
 	// If the accessor is not found in the cache, create a new one from dagstore. We don't put accessor
 	// to the cache here, because getCAR is used by shrex.eds. There is a lower probability, compared
@@ -351,10 +358,7 @@ func (s *Store) getCAR(ctx context.Context, root share.DataHash) (io.ReadCloser,
 		return nil, fmt.Errorf("failed to get accessor: %w", err)
 	}
 
-	return readCloser{
-		Reader: shardAccessor.Reader(),
-		Closer: shardAccessor,
-	}, nil
+	return newReadCloser(shardAccessor), nil
 }
 
 // Blockstore returns an IPFS blockstore providing access to individual shares/nodes of all EDS
@@ -372,38 +376,31 @@ func (s *Store) Blockstore() bstore.Blockstore {
 func (s *Store) CARBlockstore(
 	ctx context.Context,
 	root share.DataHash,
-) (*cache.BlockstoreCloser, error) {
+) (*BlockstoreCloser, error) {
 	ctx, span := tracer.Start(ctx, "store/car-blockstore")
 	tnow := time.Now()
-	r, err := s.carBlockstore(ctx, root)
+	cbs, err := s.carBlockstore(ctx, root)
 	s.metrics.observeCARBlockstore(ctx, time.Since(tnow), err != nil)
 	utils.SetStatusAndEnd(span, err)
-	return r, err
+	return cbs, err
 }
 
 func (s *Store) carBlockstore(
 	ctx context.Context,
 	root share.DataHash,
-) (*cache.BlockstoreCloser, error) {
+) (*BlockstoreCloser, error) {
 	key := shard.KeyFromString(root.String())
 	accessor, err := s.cache.Get(key)
 	if err == nil {
-		return accessor.Blockstore()
+		return blockstoreCloser(accessor)
 	}
+
 	// if accessor not found in cache, create new one from dagstore
 	sa, err := s.getAccessor(ctx, key)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get accessor: %w", err)
 	}
-
-	bs, err := sa.Blockstore()
-	if err != nil {
-		return nil, fmt.Errorf("eds/store: failed to get accessor: %w", err)
-	}
-	return &cache.BlockstoreCloser{
-		ReadBlockstore: bs,
-		Closer:         sa,
-	}, nil
+	return blockstoreCloser(sa)
 }
 
 // GetDAH returns the DataAvailabilityHeader for the EDS identified by DataHash.
@@ -421,11 +418,7 @@ func (s *Store) getDAH(ctx context.Context, root share.DataHash) (*share.Root, e
 	if err != nil {
 		return nil, fmt.Errorf("eds/store: failed to get accessor: %w", err)
 	}
-	defer func() {
-		if err := r.Close(); err != nil {
-			log.Warnw("closing car reader", "err", err)
-		}
-	}()
+	defer logClose("car reader", r)
 
 	carHeader, err := carv1.ReadHeader(bufio.NewReader(r))
 	if err != nil {
@@ -452,7 +445,7 @@ func dahFromCARHeader(carHeader *carv1.CarHeader) *header.DataAvailabilityHeader
 	}
 }
 
-func (s *Store) getAccessor(ctx context.Context, key shard.Key) (cache.AccessorProvider, error) {
+func (s *Store) getAccessor(ctx context.Context, key shard.Key) (cache.Accessor, error) {
 	ch := make(chan dagstore.ShardResult, 1)
 	err := s.dgstr.AcquireShard(ctx, key, ch, dagstore.AcquireOpts{})
 	if err != nil {
@@ -541,15 +534,11 @@ func (s *Store) get(ctx context.Context, root share.DataHash) (eds *rsmt2d.Exten
 		utils.SetStatusAndEnd(span, err)
 	}()
 
-	r, err := s.GetCAR(ctx, root)
+	r, err := s.getCAR(ctx, root)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get CAR file: %w", err)
 	}
-	defer func() {
-		if err := r.Close(); err != nil {
-			log.Warnw("closing car reader", "err", err)
-		}
-	}()
+	defer logClose("car reader", r)
 
 	eds, err = ReadEDS(ctx, r, root)
 	if err != nil {
@@ -657,4 +646,11 @@ func (r *inMemoryReader) Close() error {
 type readCloser struct {
 	io.Reader
 	io.Closer
+}
+
+func newReadCloser(ac cache.Accessor) io.ReadCloser {
+	return readCloser{
+		ac.Reader(),
+		ac,
+	}
 }

@@ -24,8 +24,10 @@ func TestAccessorCache(t *testing.T) {
 
 		// add accessor to the cache
 		key := shard.KeyFromString("key")
-		mock := &mockAccessorProvider{}
-		loaded, err := cache.GetOrLoad(ctx, key, func(ctx context.Context, key shard.Key) (AccessorProvider, error) {
+		mock := &mockAccessor{
+			data: []byte("test_data"),
+		}
+		loaded, err := cache.GetOrLoad(ctx, key, func(ctx context.Context, key shard.Key) (Accessor, error) {
 			return mock, nil
 		})
 		require.NoError(t, err)
@@ -33,7 +35,13 @@ func TestAccessorCache(t *testing.T) {
 		// check if item exists
 		got, err := cache.Get(key)
 		require.NoError(t, err)
-		require.True(t, loaded == got)
+
+		l, err := io.ReadAll(loaded.Reader())
+		require.NoError(t, err)
+		require.Equal(t, mock.data, l)
+		g, err := io.ReadAll(got.Reader())
+		require.NoError(t, err)
+		require.Equal(t, mock.data, g)
 	})
 
 	t.Run("get blockstore from accessor", func(t *testing.T) {
@@ -44,8 +52,8 @@ func TestAccessorCache(t *testing.T) {
 
 		// add accessor to the cache
 		key := shard.KeyFromString("key")
-		mock := &mockAccessorProvider{}
-		accessor, err := cache.GetOrLoad(ctx, key, func(ctx context.Context, key shard.Key) (AccessorProvider, error) {
+		mock := &mockAccessor{}
+		accessor, err := cache.GetOrLoad(ctx, key, func(ctx context.Context, key shard.Key) (Accessor, error) {
 			return mock, nil
 		})
 		require.NoError(t, err)
@@ -62,14 +70,9 @@ func TestAccessorCache(t *testing.T) {
 		require.NoError(t, err)
 
 		// second call to blockstore should return same blockstore
-		bs, err := accessor.Blockstore()
+		_, err = accessor.Blockstore()
+		require.NoError(t, err)
 		require.Equal(t, 1, mock.returnedBs)
-		require.NoError(t, err)
-
-		// check that closed blockstore don't close accessor
-		err = bs.Close()
-		require.NoError(t, err)
-		require.False(t, mock.isClosed)
 	})
 
 	t.Run("remove an item", func(t *testing.T) {
@@ -80,17 +83,19 @@ func TestAccessorCache(t *testing.T) {
 
 		// add accessor to the cache
 		key := shard.KeyFromString("key")
-		mock := &mockAccessorProvider{}
-		_, err = cache.GetOrLoad(ctx, key, func(ctx context.Context, key shard.Key) (AccessorProvider, error) {
+		mock := &mockAccessor{}
+		ac, err := cache.GetOrLoad(ctx, key, func(ctx context.Context, key shard.Key) (Accessor, error) {
 			return mock, nil
 		})
+		require.NoError(t, err)
+		err = ac.Close()
 		require.NoError(t, err)
 
 		err = cache.Remove(key)
 		require.NoError(t, err)
 
 		// accessor should be closed on removal
-		require.True(t, mock.isClosed)
+		mock.checkClosed(t, true)
 
 		// check if item exists
 		_, err = cache.Get(key)
@@ -105,20 +110,20 @@ func TestAccessorCache(t *testing.T) {
 
 		// add accessor to the cache
 		key := shard.KeyFromString("key")
-		mock := &mockAccessorProvider{data: []byte("test")}
-		accessor, err := cache.GetOrLoad(ctx, key, func(ctx context.Context, key shard.Key) (AccessorProvider, error) {
+		mock := &mockAccessor{data: []byte("test")}
+		accessor, err := cache.GetOrLoad(ctx, key, func(ctx context.Context, key shard.Key) (Accessor, error) {
 			return mock, nil
 		})
 		require.NoError(t, err)
 
-		loaded, err := io.ReadAll(accessor.ReadCloser())
+		loaded, err := io.ReadAll(accessor.Reader())
 		require.NoError(t, err)
 		require.Equal(t, mock.data, loaded)
 
 		for i := 0; i < 2; i++ {
 			accessor, err = cache.Get(key)
 			require.NoError(t, err)
-			got, err := io.ReadAll(accessor.ReadCloser())
+			got, err := io.ReadAll(accessor.Reader())
 			require.NoError(t, err)
 			require.Equal(t, mock.data, got)
 		}
@@ -132,23 +137,25 @@ func TestAccessorCache(t *testing.T) {
 
 		// add accessor to the cache
 		key := shard.KeyFromString("key")
-		mock := &mockAccessorProvider{}
-		_, err = cache.GetOrLoad(ctx, key, func(ctx context.Context, key shard.Key) (AccessorProvider, error) {
+		mock := &mockAccessor{}
+		ac1, err := cache.GetOrLoad(ctx, key, func(ctx context.Context, key shard.Key) (Accessor, error) {
 			return mock, nil
 		})
+		require.NoError(t, err)
+		err = ac1.Close()
 		require.NoError(t, err)
 
 		// add second item
 		key2 := shard.KeyFromString("key2")
-		_, err = cache.GetOrLoad(ctx, key2, func(ctx context.Context, key shard.Key) (AccessorProvider, error) {
+		ac2, err := cache.GetOrLoad(ctx, key2, func(ctx context.Context, key shard.Key) (Accessor, error) {
 			return mock, nil
 		})
 		require.NoError(t, err)
+		err = ac2.Close()
+		require.NoError(t, err)
 
-		// give cache time to evict an item
-		time.Sleep(time.Millisecond * 100)
 		// accessor should be closed on removal by eviction
-		require.True(t, mock.isClosed)
+		mock.checkClosed(t, true)
 
 		// check if item evicted
 		_, err = cache.Get(key)
@@ -163,8 +170,8 @@ func TestAccessorCache(t *testing.T) {
 
 		// add accessor to the cache
 		key := shard.KeyFromString("key")
-		mock := &mockAccessorProvider{}
-		_, err = cache.GetOrLoad(ctx, key, func(ctx context.Context, key shard.Key) (AccessorProvider, error) {
+		mock := &mockAccessor{}
+		_, err = cache.GetOrLoad(ctx, key, func(ctx context.Context, key shard.Key) (Accessor, error) {
 			return mock, nil
 		})
 		require.NoError(t, err)
@@ -174,32 +181,114 @@ func TestAccessorCache(t *testing.T) {
 		require.NoError(t, err)
 		require.NotNil(t, accessor)
 
-		// close on reader should be noop
-		err = accessor.ReadCloser().Close()
+		// close on returned accessor should not close inner reader
+		err = accessor.Close()
 		require.NoError(t, err)
 
-		// close on blockstore should be noop
-		bs, err := accessor.Blockstore()
-		require.NoError(t, err)
-		err = bs.Close()
+		// check that close was not performed on inner accessor
+		mock.checkClosed(t, false)
+	})
+
+	t.Run("close on accessor should wait for readers to finish", func(t *testing.T) {
+		ctx, cancel := context.WithTimeout(context.Background(), time.Second)
+		defer cancel()
+		cache, err := NewAccessorCache("test", 1)
 		require.NoError(t, err)
 
-		// check that close was not performed on accessor
-		require.False(t, mock.isClosed)
+		// add accessor to the cache
+		key := shard.KeyFromString("key")
+		mock := &mockAccessor{}
+		accessor1, err := cache.GetOrLoad(ctx, key, func(ctx context.Context, key shard.Key) (Accessor, error) {
+			return mock, nil
+		})
+		require.NoError(t, err)
+
+		// create second readers
+		accessor2, err := cache.Get(key)
+		require.NoError(t, err)
+
+		// `initialize` close
+		done := make(chan struct{})
+		go func() {
+			err = cache.Remove(key)
+			close(done)
+		}()
+
+		// check that close on first reader is not enough to release the inner accessor
+		err = accessor1.Close()
+		require.NoError(t, err)
+		// second close from same reader should not release accessor
+		err = accessor1.Close()
+		require.NoError(t, err)
+		mock.checkClosed(t, false)
+
+		// reads for item that is being evicted should result in ErrCacheMiss
+		_, err = cache.Get(key)
+		require.ErrorIs(t, err, ErrCacheMiss)
+
+		// close second reader and wait for accessor to be closed
+		err = accessor2.Close()
+		require.NoError(t, err)
+		// wait until close is performed on accessor
+		select {
+		case <-done:
+		case <-ctx.Done():
+			t.Fatal("timeout reached")
+		}
+
+		// item will be removed in background, so give it some time to settle
+		mock.checkClosed(t, true)
+	})
+
+	t.Run("slow reader should not block eviction", func(t *testing.T) {
+		ctx, cancel := context.WithTimeout(context.Background(), time.Second)
+		defer cancel()
+		cache, err := NewAccessorCache("test", 1)
+		require.NoError(t, err)
+
+		// add accessor to the cache
+		key1 := shard.KeyFromString("key1")
+		mock1 := &mockAccessor{}
+		accessor1, err := cache.GetOrLoad(ctx, key1, func(ctx context.Context, key shard.Key) (Accessor, error) {
+			return mock1, nil
+		})
+		require.NoError(t, err)
+
+		// add second accessor, to trigger eviction of first one
+		key2 := shard.KeyFromString("key2")
+		mock2 := &mockAccessor{}
+		accessor2, err := cache.GetOrLoad(ctx, key2, func(ctx context.Context, key shard.Key) (Accessor, error) {
+			return mock2, nil
+		})
+		require.NoError(t, err)
+
+		// none of the accessor should be closed with Close() called.
+		mock1.checkClosed(t, false)
+		mock2.checkClosed(t, false)
+
+		// after Close() is called on first accessor, it is free to get released
+		err = accessor1.Close()
+		require.NoError(t, err)
+		mock1.checkClosed(t, true)
+
+		// after Close called on second accessor, it should stay in cache (not closed)
+		err = accessor2.Close()
+		require.NoError(t, err)
+		mock2.checkClosed(t, false)
 	})
 }
 
-type mockAccessorProvider struct {
+type mockAccessor struct {
 	data       []byte
 	isClosed   bool
 	returnedBs int
 }
 
-func (m *mockAccessorProvider) Reader() io.Reader {
+func (m *mockAccessor) Reader() io.Reader {
 	return bytes.NewBuffer(m.data)
 }
 
-func (m *mockAccessorProvider) Blockstore() (dagstore.ReadBlockstore, error) {
+func (m *mockAccessor) Blockstore() (dagstore.ReadBlockstore, error) {
 	if m.returnedBs > 0 {
 		return nil, errors.New("blockstore already returned")
 	}
@@ -207,12 +296,18 @@ func (m *mockAccessorProvider) Blockstore() (dagstore.ReadBlockstore, error) {
 	return rbsMock{}, nil
 }
 
-func (m *mockAccessorProvider) Close() error {
+func (m *mockAccessor) Close() error {
 	if m.isClosed {
 		return errors.New("already closed")
 	}
 	m.isClosed = true
 	return nil
+}
+
+func (m *mockAccessor) checkClosed(t *testing.T, expected bool) {
+	// item will be removed in background, so give it some time to settle
+	time.Sleep(time.Millisecond * 100)
+	require.Equal(t, expected, m.isClosed)
 }
 
 // rbsMock is a dagstore.ReadBlockstore mock

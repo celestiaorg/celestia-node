@@ -2,15 +2,20 @@ package cache
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"io"
 	"reflect"
 	"sync"
+	"sync/atomic"
+	"time"
 
 	"github.com/filecoin-project/dagstore"
 	"github.com/filecoin-project/dagstore/shard"
 	lru "github.com/hashicorp/golang-lru"
 )
+
+const defaultCloseTimeout = time.Minute
 
 var _ Cache = (*AccessorCache)(nil)
 
@@ -31,11 +36,15 @@ type AccessorCache struct {
 // accessorWithBlockstore is the value that we store in the blockstore Cache. Implements Accessor
 // interface
 type accessorWithBlockstore struct {
-	sync.Mutex
-	sa AccessorProvider
+	sync.RWMutex
+	shardAccessor Accessor
 	// blockstore is stored separately because each access to the blockstore over the shard accessor
 	// reopens the underlying CAR.
 	bs dagstore.ReadBlockstore
+
+	done     chan struct{}
+	refs     atomic.Int32
+	isClosed bool
 }
 
 func NewAccessorCache(name string, cacheSize int) (*AccessorCache, error) {
@@ -62,11 +71,9 @@ func (bc *AccessorCache) evictFn() func(_ interface{}, val interface{}) {
 			))
 		}
 
-		err := abs.sa.Close()
-		if err != nil {
-			log.Errorf("couldn't close accessor after cache eviction: %s", err)
-		}
-		bc.metrics.observeEvicted(err != nil)
+		// we can release accessor from cache early, while it is being closed in parallel routine
+		go abs.close()
+		bc.metrics.observeEvicted()
 	}
 }
 
@@ -77,26 +84,30 @@ func (bc *AccessorCache) Get(key shard.Key) (Accessor, error) {
 	lk.Lock()
 	defer lk.Unlock()
 
-	return bc.unsafeGet(key)
+	accessor, err := bc.get(key)
+	if err != nil {
+		bc.metrics.observeGet(false)
+		return nil, err
+	}
+	bc.metrics.observeGet(true)
+	return newRefCloser(accessor)
 }
 
-func (bc *AccessorCache) unsafeGet(key shard.Key) (*accessorWithBlockstore, error) {
+func (bc *AccessorCache) get(key shard.Key) (*accessorWithBlockstore, error) {
 	// We've already ensured that the given shard has the cid/multihash we are looking for.
 	val, ok := bc.cache.Get(key)
 	if !ok {
-		bc.metrics.observeGet(false)
 		return nil, ErrCacheMiss
 	}
 
-	accessor, ok := val.(*accessorWithBlockstore)
+	abs, ok := val.(*accessorWithBlockstore)
 	if !ok {
 		panic(fmt.Sprintf(
 			"casting value from cache to accessorWithBlockstore: %s",
 			reflect.TypeOf(val),
 		))
 	}
-	bc.metrics.observeGet(true)
-	return accessor, nil
+	return abs, nil
 }
 
 // GetOrLoad attempts to get an item from all caches, and if not found, invokes
@@ -104,33 +115,46 @@ func (bc *AccessorCache) unsafeGet(key shard.Key) (*accessorWithBlockstore, erro
 func (bc *AccessorCache) GetOrLoad(
 	ctx context.Context,
 	key shard.Key,
-	loader func(context.Context, shard.Key) (AccessorProvider, error),
+	loader func(context.Context, shard.Key) (Accessor, error),
 ) (Accessor, error) {
 	lk := &bc.stripedLocks[shardKeyToStriped(key)]
 	lk.Lock()
 	defer lk.Unlock()
 
-	if accessor, err := bc.unsafeGet(key); err == nil {
-		return accessor, nil
+	if accessor, err := bc.get(key); err == nil {
+		return newRefCloser(accessor)
 	}
 
-	accessor, err := loader(ctx, key)
+	provider, err := loader(ctx, key)
 	if err != nil {
 		return nil, fmt.Errorf("unable to get accessor: %w", err)
 	}
 
-	newAccessor := &accessorWithBlockstore{
-		sa: accessor,
+	abs := &accessorWithBlockstore{
+		shardAccessor: provider,
 	}
-	bc.cache.Add(key, newAccessor)
-	return newAccessor, nil
+
+	// create new accessor first to inc ref count in it, so it could not get evicted from inner cache
+	// before it is used
+	accessor, err := newRefCloser(abs)
+	if err != nil {
+		return nil, err
+	}
+	bc.cache.Add(key, abs)
+	return accessor, nil
 }
 
 func (bc *AccessorCache) Remove(key shard.Key) error {
-	lk := &bc.stripedLocks[shardKeyToStriped(key)]
-	lk.Lock()
-	defer lk.Unlock()
-
+	accessor, err := bc.get(key)
+	if errors.Is(err, ErrCacheMiss) {
+		// item is not in cache
+		return nil
+	}
+	if err = accessor.close(); err != nil {
+		return err
+	}
+	// cache will call evictFn on removal, where accessor close will be called second time, but in
+	// async manner
 	bc.cache.Remove(key)
 	return nil
 }
@@ -141,26 +165,90 @@ func (bc *AccessorCache) EnableMetrics() error {
 	return err
 }
 
-// ReadCloser implements ReadCloser of the Accessor interface, using noop Closer to disallow user
-// from manually closing. Close will be performed on accessor on cache eviction.
-func (s *accessorWithBlockstore) ReadCloser() io.ReadCloser {
-	return io.NopCloser(s.sa.Reader())
-}
-
 // Blockstore implements Blockstore of the Accessor interface. It creates blockstore on first
 // request and reuses created instance for all next requests.
-func (s *accessorWithBlockstore) Blockstore() (*BlockstoreCloser, error) {
+func (s *accessorWithBlockstore) Blockstore() (dagstore.ReadBlockstore, error) {
 	s.Lock()
 	defer s.Unlock()
 	var err error
 	if s.bs == nil {
-		s.bs, err = s.sa.Blockstore()
+		s.bs, err = s.shardAccessor.Blockstore()
 	}
 
-	return &BlockstoreCloser{
-		ReadBlockstore: s.bs,
-		Closer:         io.NopCloser(nil),
-	}, err
+	return s.bs, err
+}
+
+// Reader returns new copy of reader to read data
+func (s *accessorWithBlockstore) Reader() io.Reader {
+	return s.shardAccessor.Reader()
+}
+
+func (s *accessorWithBlockstore) addRef() error {
+	s.RLock()
+	defer s.RUnlock()
+	if s.isClosed {
+		// item is closed, so pretend it is a miss
+		return ErrCacheMiss
+	}
+	if s.refs.Add(1) == 1 {
+		// there were no refs previously and done channel was closed, reopen it by recreating
+		s.done = make(chan struct{})
+	}
+	return nil
+}
+
+func (s *accessorWithBlockstore) removeRef() {
+	s.RLock()
+	defer s.RUnlock()
+	if s.refs.Add(-1) <= 0 {
+		close(s.done)
+	}
+}
+
+func (s *accessorWithBlockstore) close() error {
+	s.Lock()
+	s.isClosed = true
+	done := s.done
+	s.Unlock()
+
+	// TODO: add closing metrics
+	select {
+	case <-done:
+	case <-time.After(defaultCloseTimeout):
+		return fmt.Errorf("closing accessor, some readers didn't close the accessor within timeout,"+
+			" amount left: %v", s.refs.Load())
+	}
+	if err := s.shardAccessor.Close(); err != nil {
+		return fmt.Errorf("closing accessor: %w", err)
+	}
+	return nil
+}
+
+// refCloser manages references to accessor from provided reader and removes the ref, when the
+// Close is called
+type refCloser struct {
+	*accessorWithBlockstore
+	closeFn func()
+}
+
+// newRefCloser creates new refCloser
+func newRefCloser(abs *accessorWithBlockstore) (*refCloser, error) {
+	if err := abs.addRef(); err != nil {
+		return nil, err
+	}
+
+	var closeOnce sync.Once
+	return &refCloser{
+		accessorWithBlockstore: abs,
+		closeFn: func() {
+			closeOnce.Do(abs.removeRef)
+		},
+	}, nil
+}
+
+func (c *refCloser) Close() error {
+	c.closeFn()
+	return nil
 }
 
 // shardKeyToStriped returns the index of the lock to use for a given shard key. We use the last
