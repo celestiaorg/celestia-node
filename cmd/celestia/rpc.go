@@ -63,6 +63,7 @@ func init() {
 	rpcCmd.AddCommand(logCmd, logModuleCmd)
 	rpcCmd.AddCommand(blobCmd)
 	rpcCmd.AddCommand(p2pCmd)
+	rpcCmd.AddCommand(dasCmd)
 	rootCmd.AddCommand(rpcCmd)
 }
 
