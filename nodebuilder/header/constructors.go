@@ -69,7 +69,7 @@ func newSyncer[H libhead.Header[H]](
 ) (*sync.Syncer[H], *modfraud.ServiceBreaker[*sync.Syncer[H], H], error) {
 	syncer, err := sync.NewSyncer[H](ex, store, sub,
 		sync.WithParams(cfg.Syncer),
-		sync.WithTrustingPeriod(time.Hour*336),
+		sync.WithTrustingPeriod(time.Hour*336), // set a trusting period of two weeks
 		sync.WithBlockTime(modp2p.BlockTime),
 	)
 	if err != nil {
