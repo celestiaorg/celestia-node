@@ -2,6 +2,7 @@ package header
 
 import (
 	"context"
+	"time"
 
 	"github.com/libp2p/go-libp2p/core/host"
 	"github.com/libp2p/go-libp2p/core/peer"
@@ -68,6 +69,7 @@ func newSyncer[H libhead.Header[H]](
 ) (*sync.Syncer[H], *modfraud.ServiceBreaker[*sync.Syncer[H], H], error) {
 	syncer, err := sync.NewSyncer[H](ex, store, sub,
 		sync.WithParams(cfg.Syncer),
+		sync.WithTrustingPeriod(time.Hour*336),
 		sync.WithBlockTime(modp2p.BlockTime),
 	)
 	if err != nil {
