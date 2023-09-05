@@ -181,12 +181,11 @@ func (eh *ExtendedHeader) Verify(untrst *ExtendedHeader) error {
 		// Check the validator hashes are the same
 		if !bytes.Equal(untrst.ValidatorsHash, eh.NextValidatorsHash) {
 			return &libhead.VerifyError{
-				Reason: fmt.Errorf("%w: %w",
+				Reason: fmt.Errorf("%w: expected old header next validators (%X) to match those from new header (%X)",
 					ErrValidatorHashMismatch,
-					fmt.Errorf("expected old header next validators (%X) to match those from new header (%X)",
-						eh.NextValidatorsHash,
-						untrst.ValidatorsHash,
-					)),
+					eh.NextValidatorsHash,
+					untrst.ValidatorsHash,
+					),
 			}
 		}
 
