@@ -20,6 +20,7 @@ import (
 	"github.com/celestiaorg/go-header/sync"
 
 	"github.com/celestiaorg/celestia-node/header"
+	"github.com/celestiaorg/celestia-node/libs/pidstore"
 	"github.com/celestiaorg/celestia-node/nodebuilder/node"
 	modp2p "github.com/celestiaorg/celestia-node/nodebuilder/p2p"
 )
@@ -94,6 +95,8 @@ func TestConstructModule_ExchangeParams(t *testing.T) {
 	var exchangeServer *p2p.ExchangeServer[*header.ExtendedHeader]
 
 	app := fxtest.New(t,
+		fx.Provide(pidstore.NewPeerIDStore),
+		fx.Provide(context.Background),
 		fx.Supply(modp2p.Private),
 		fx.Supply(modp2p.Bootstrappers{}),
 		fx.Provide(libp2p.New),
