@@ -1,6 +1,7 @@
 package headertest
 
 import (
+	"errors"
 	"strconv"
 	"testing"
 
@@ -63,17 +64,7 @@ func TestVerify(t *testing.T) {
 	for i, test := range tests {
 		t.Run(strconv.Itoa(i), func(t *testing.T) {
 			err := trusted.Verify(test.prepare())
-			if test.err == nil {
-				assert.NoError(t, err)
-				return
-			}
-			if err == nil {
-				t.Errorf("expected err: %v, got nil", test.err)
-				return
-			}
-			reason := err.(*libhead.VerifyError).Reason
-			testReason := test.err.(*libhead.VerifyError).Reason
-			assert.ErrorIs(t, reason, testReason)
+			assert.ErrorIs(t, errors.Unwrap(err), errors.Unwrap(test.err))
 		})
 	}
 }

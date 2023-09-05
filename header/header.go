@@ -193,7 +193,7 @@ func (eh *ExtendedHeader) Verify(untrst *ExtendedHeader) error {
 			return &libhead.VerifyError{
 				Reason: fmt.Errorf("%w: %w",
 					ErrLastHeaderHashMismatch,
-					fmt.Errorf("expected (%X), but got %X)",
+					fmt.Errorf("expected (%X), but got (%X)",
 						eh.Hash(),
 						untrst.LastHeader(),
 					)),
