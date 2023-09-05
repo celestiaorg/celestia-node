@@ -20,3 +20,5 @@ vendor
 /cel-key
 coverage.txt
 go.work
+
+dist/
