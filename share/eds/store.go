@@ -40,7 +40,8 @@ const (
 	// We don't use transient files right now, so GC is turned off by default.
 	defaultGCInterval = 0
 
-	defaultCacheSize = 128
+	defaultRecentBlocksCacheSize = 10
+	defaultBlockstoreCacheSize   = 128
 )
 
 var ErrNotFound = errors.New("eds not found in store")
@@ -112,9 +113,14 @@ func NewStore(basepath string, ds datastore.Batching) (*Store, error) {
 		return nil, fmt.Errorf("failed to create DAGStore: %w", err)
 	}
 
-	accessorCache, err := cache.NewAccessorCache("cache", defaultCacheSize)
+	recentBlocksCache, err := cache.NewAccessorCache("recent", defaultRecentBlocksCacheSize)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create recent blocks cache: %w", err)
+	}
+
+	blockstoreCache, err := cache.NewAccessorCache("blockstore", defaultBlockstoreCacheSize)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create blockstore cache: %w", err)
 	}
 
 	store := &Store{
@@ -125,9 +131,9 @@ func NewStore(basepath string, ds datastore.Batching) (*Store, error) {
 		gcInterval:    defaultGCInterval,
 		mounts:        r,
 		shardFailures: failureChan,
-		cache:         accessorCache,
+		cache:         cache.NewMultiCache(recentBlocksCache, blockstoreCache),,
 	}
-	store.bs = newBlockstore(store, ds)
+	store.bs = newBlockstore(store, blockstoreCache, ds)
 	return store, nil
 }
 
