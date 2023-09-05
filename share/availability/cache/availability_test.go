@@ -9,7 +9,6 @@ import (
 
 	"github.com/ipfs/go-datastore"
 	"github.com/ipfs/go-datastore/sync"
-	mdutils "github.com/ipfs/go-merkledag/test"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
@@ -17,6 +16,7 @@ import (
 
 	"github.com/celestiaorg/celestia-node/share"
 	availability_test "github.com/celestiaorg/celestia-node/share/availability/test"
+	"github.com/celestiaorg/celestia-node/share/ipld"
 )
 
 // TestCacheAvailability tests to ensure that the successful result of a
@@ -86,7 +86,7 @@ func TestCacheAvailability_NoDuplicateSampling(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 	// create root to cache
-	root := availability_test.RandFillBS(t, 16, mdutils.Bserv())
+	root := availability_test.RandFillBS(t, 16, ipld.NewMemBlockservice())
 	// wrap dummyAvailability with a datastore
 	ds := sync.MutexWrap(datastore.NewMapDatastore())
 	ca := NewShareAvailability(&dummyAvailability{counter: 0}, ds)

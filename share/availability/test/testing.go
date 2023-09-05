@@ -6,9 +6,9 @@ import (
 
 	"github.com/ipfs/boxo/bitswap"
 	"github.com/ipfs/boxo/bitswap/network"
+	"github.com/ipfs/boxo/blockservice"
 	"github.com/ipfs/boxo/blockstore"
 	"github.com/ipfs/boxo/routing/offline"
-	"github.com/ipfs/go-blockservice"
 	ds "github.com/ipfs/go-datastore"
 	dssync "github.com/ipfs/go-datastore/sync"
 	record "github.com/libp2p/go-libp2p-record"
@@ -94,7 +94,7 @@ func (dn *TestDagNet) NewTestNodeWithBlockstore(dstore ds.Datastore, bstore bloc
 	)
 	nd := &TestNode{
 		net:          dn,
-		BlockService: blockservice.New(bstore, bs),
+		BlockService: ipld.NewBlockservice(bstore, bs),
 		Host:         hst,
 	}
 	dn.nodes = append(dn.nodes, nd)

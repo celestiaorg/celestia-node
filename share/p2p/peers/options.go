@@ -3,6 +3,11 @@ package peers
 import (
 	"fmt"
 	"time"
+
+	libhead "github.com/celestiaorg/go-header"
+
+	"github.com/celestiaorg/celestia-node/header"
+	"github.com/celestiaorg/celestia-node/share/p2p/shrexsub"
 )
 
 type Parameters struct {
@@ -20,6 +25,8 @@ type Parameters struct {
 	// EnableBlackListing turns on blacklisting for misbehaved peers
 	EnableBlackListing bool
 }
+
+type Option func(*Manager) error
 
 // Validate validates the values in Parameters
 func (p *Parameters) Validate() error {
@@ -53,6 +60,16 @@ func DefaultParameters() Parameters {
 		// blacklisting is off by default //TODO(@walldiss): enable blacklisting once all related issues
 		// are resolved
 		EnableBlackListing: false,
+	}
+}
+
+// WithShrexSubPools passes a shrexsub and headersub instance to be used to populate and validate
+// pools from shrexsub notifications.
+func WithShrexSubPools(shrexSub *shrexsub.PubSub, headerSub libhead.Subscriber[*header.ExtendedHeader]) Option {
+	return func(m *Manager) error {
+		m.shrexSub = shrexSub
+		m.headerSub = headerSub
+		return nil
 	}
 }
 

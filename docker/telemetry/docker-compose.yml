@@ -1,0 +1,89 @@
+---
+version: '3.8'
+
+services:
+  loki:
+    container_name: loki
+    image: grafana/loki:2.6.1
+    expose:
+      - 3100
+    ports:
+      - "3100:3100"
+    restart: unless-stopped
+    volumes:
+      - loki-data:/loki
+
+  promtail:
+    container_name: promtail
+    image: grafana/promtail:latest
+    volumes:
+      # custom config will read logs from the containers of
+      # this project
+      - ${PWD}/promtail:/etc/promtail
+      # to read container labels and logs
+      - /var/run/docker.sock:/var/run/docker.sock
+      - /var/lib/docker/containers:/var/lib/docker/containers:ro
+    depends_on:
+      - loki
+
+  prometheus:
+    container_name: prometheus
+    image: prom/prometheus
+    ports:
+      - 9000:9090
+    volumes:
+      - ${PWD}/prometheus:/etc/prometheus
+      - prometheus-data:/prometheus
+    # yamllint disable-line rule:line-length
+    command: --web.enable-lifecycle  --config.file=/etc/prometheus/prometheus.yml
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+
+  otel-collector:
+    container_name: otel-collector
+    image: otel/opentelemetry-collector
+    command: ["--config=/root/otel-collector/config.yml"]
+    volumes:
+      - ${PWD}/otel-collector:/root/otel-collector/
+    ports:
+      - "8888:8888"   # Prometheus metrics exposed by the collector
+      - "8889:8889"   # Prometheus exporter metrics
+      - "55681:55681"
+      - "13133:13133"  # health_check extension
+      - "4317:4317"   # OTLP gRPC receiver
+      - "4318:4318"   # OTLP http receiver
+
+  jaeger:
+    container_name: jaeger
+    image: jaegertracing/all-in-one:latest
+    ports:
+      - "16686:16686"
+      - "14268:14268"
+      - "14250:14250"
+    environment:
+      - COLLECTOR_OTLP_ENABLED=true
+      - LOG_LEVEL=debug
+
+  grafana:
+    container_name: grafana
+    image: grafana/grafana:latest
+    user: "0"
+    ports:
+      - 3001:3000
+    restart: unless-stopped
+    volumes:
+      - ${PWD}/grafana/:/etc/grafana/provisioning/
+      - ${PWD}/grafana/:/var/lib/grafana/dashboards/
+      - grafana-data:/var/lib/grafana
+
+  pyroscope:
+    image: "pyroscope/pyroscope:latest"
+    ports:
+      - "4040:4040"
+    command:
+      - "server"
+
+volumes:
+  prometheus-data:
+  loki-data:
+  grafana-data:

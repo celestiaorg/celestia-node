@@ -7,7 +7,7 @@ import (
 	"sync/atomic"
 	"time"
 
-	"github.com/ipfs/go-blockservice"
+	"github.com/ipfs/boxo/blockservice"
 	"github.com/ipfs/go-cid"
 	logging "github.com/ipfs/go-log/v2"
 	"go.opentelemetry.io/otel"

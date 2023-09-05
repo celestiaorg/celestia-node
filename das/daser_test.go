@@ -6,10 +6,9 @@ import (
 	"time"
 
 	"github.com/golang/mock/gomock"
-	"github.com/ipfs/go-blockservice"
+	"github.com/ipfs/boxo/blockservice"
 	"github.com/ipfs/go-datastore"
 	ds_sync "github.com/ipfs/go-datastore/sync"
-	mdutils "github.com/ipfs/go-merkledag/test"
 	pubsub "github.com/libp2p/go-libp2p-pubsub"
 	mocknet "github.com/libp2p/go-libp2p/p2p/net/mock"
 	"github.com/stretchr/testify/assert"
@@ -31,6 +30,7 @@ import (
 	availability_test "github.com/celestiaorg/celestia-node/share/availability/test"
 	"github.com/celestiaorg/celestia-node/share/eds/byzantine"
 	"github.com/celestiaorg/celestia-node/share/getters"
+	"github.com/celestiaorg/celestia-node/share/ipld"
 )
 
 var timeout = time.Second * 15
@@ -39,7 +39,7 @@ var timeout = time.Second * 15
 // the DASer checkpoint is updated to network head.
 func TestDASerLifecycle(t *testing.T) {
 	ds := ds_sync.MutexWrap(datastore.NewMapDatastore())
-	bServ := mdutils.Bserv()
+	bServ := ipld.NewMemBlockservice()
 	avail := light.TestAvailability(getters.NewIPLDGetter(bServ))
 	// 15 headers from the past and 15 future headers
 	mockGet, sub, mockService := createDASerSubcomponents(t, bServ, 15, 15)
@@ -79,7 +79,7 @@ func TestDASerLifecycle(t *testing.T) {
 
 func TestDASer_Restart(t *testing.T) {
 	ds := ds_sync.MutexWrap(datastore.NewMapDatastore())
-	bServ := mdutils.Bserv()
+	bServ := ipld.NewMemBlockservice()
 	avail := light.TestAvailability(getters.NewIPLDGetter(bServ))
 	// 15 headers from the past and 15 future headers
 	mockGet, sub, mockService := createDASerSubcomponents(t, bServ, 15, 15)
@@ -147,7 +147,7 @@ func TestDASer_stopsAfter_BEFP(t *testing.T) {
 	t.Cleanup(cancel)
 
 	ds := ds_sync.MutexWrap(datastore.NewMapDatastore())
-	bServ := mdutils.Bserv()
+	bServ := ipld.NewMemBlockservice()
 	// create mock network
 	net, err := mocknet.FullMeshLinked(1)
 	require.NoError(t, err)

@@ -45,6 +45,8 @@ type metrics struct {
 	hasTime              metric.Float64Histogram
 	listTime             metric.Float64Histogram
 
+	shardFailureCount metric.Int64Counter
+
 	longOpTime metric.Float64Histogram
 	gcTime     metric.Float64Histogram
 }
@@ -98,6 +100,12 @@ func (s *Store) WithMetrics() error {
 		return err
 	}
 
+	shardFailureCount, err := meter.Int64Counter("eds_store_shard_failure_counter",
+		metric.WithDescription("eds store OpShardFail counter"))
+	if err != nil {
+		return err
+	}
+
 	longOpTime, err := meter.Float64Histogram("eds_store_long_operation_time_histogram",
 		metric.WithDescription("eds store long operation time histogram(s)"))
 	if err != nil {
@@ -144,6 +152,7 @@ func (s *Store) WithMetrics() error {
 		getTime:              getTime,
 		hasTime:              hasTime,
 		listTime:             listTime,
+		shardFailureCount:    shardFailureCount,
 		longOpTime:           longOpTime,
 		gcTime:               gcTime,
 	}
@@ -159,6 +168,17 @@ func (m *metrics) observeGCtime(ctx context.Context, dur time.Duration, failed b
 	}
 	m.gcTime.Record(ctx, dur.Seconds(), metric.WithAttributes(
 		attribute.Bool(failedKey, failed)))
+}
+
+func (m *metrics) observeShardFailure(ctx context.Context, shardKey string) {
+	if m == nil {
+		return
+	}
+	if ctx.Err() != nil {
+		ctx = context.Background()
+	}
+
+	m.shardFailureCount.Add(ctx, 1, metric.WithAttributes(attribute.String("shard_key", shardKey)))
 }
 
 func (m *metrics) observePut(ctx context.Context, dur time.Duration, result putResult, size uint) {

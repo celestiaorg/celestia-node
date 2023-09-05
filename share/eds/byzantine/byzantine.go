@@ -4,7 +4,7 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/ipfs/go-blockservice"
+	"github.com/ipfs/boxo/blockservice"
 	"golang.org/x/sync/errgroup"
 
 	"github.com/celestiaorg/celestia-app/pkg/da"

@@ -6,8 +6,8 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/ipfs/boxo/blockservice"
 	"github.com/ipfs/boxo/exchange"
-	"github.com/ipfs/go-blockservice"
 	logging "github.com/ipfs/go-log/v2"
 	pubsub "github.com/libp2p/go-libp2p-pubsub"
 	"github.com/libp2p/go-libp2p/core/host"
