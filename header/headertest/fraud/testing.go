@@ -2,10 +2,10 @@ package headerfraud
 
 import (
 	"context"
-	"github.com/ipfs/boxo/blockservice"
 	"testing"
 	"time"
 
+	"github.com/ipfs/boxo/blockservice"
 	"github.com/stretchr/testify/require"
 	"github.com/tendermint/tendermint/libs/bytes"
 	tmproto "github.com/tendermint/tendermint/proto/tendermint/types"
