@@ -41,8 +41,7 @@ const (
 	// We don't use transient files right now, so GC is turned off by default.
 	defaultGCInterval = 0
 
-	defaultRecentBlocksCacheSize = 10
-	defaultBlockstoreCacheSize   = 128
+	defaultCacheSize = 128
 )
 
 var ErrNotFound = errors.New("eds not found in store")
@@ -109,14 +108,9 @@ func NewStore(basepath string, ds datastore.Batching) (*Store, error) {
 		return nil, fmt.Errorf("failed to create DAGStore: %w", err)
 	}
 
-	recentBlocksCache, err := cache.NewAccessorCache("recent", defaultRecentBlocksCacheSize)
+	accessorCache, err := cache.NewAccessorCache("cache", defaultCacheSize)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create recent blocks cache: %w", err)
-	}
-
-	blockstoreCache, err := cache.NewAccessorCache("blockstore", defaultBlockstoreCacheSize)
-	if err != nil {
-		return nil, fmt.Errorf("failed to create blockstore cache: %w", err)
 	}
 
 	store := &Store{
@@ -126,9 +120,9 @@ func NewStore(basepath string, ds datastore.Batching) (*Store, error) {
 		invertedIdx: invertedIdx,
 		gcInterval:  defaultGCInterval,
 		mounts:      r,
-		cache:       cache.NewMultiCache(recentBlocksCache, blockstoreCache),
+		cache:       accessorCache,
 	}
-	store.bs = newBlockstore(store, blockstoreCache, ds)
+	store.bs = newBlockstore(store, ds)
 	return store, nil
 }
 
@@ -252,20 +246,6 @@ func (s *Store) put(ctx context.Context, root share.DataHash, square *rsmt2d.Ext
 	if result.Error != nil {
 		return fmt.Errorf("failed to register shard: %w", result.Error)
 	}
-
-	// accessor returned in result will be nil, so shard needs to be acquired first, to become
-	// available in cache. It might take some time and result should not affect put operation, so do it
-	// in goroutine
-	//TODO: Ideally only recent blocks should be put in cache, but there is no way right now to check
-	// such condition.
-	go func() {
-		ctx, cancel := context.WithTimeout(context.Background(), time.Minute)
-		defer cancel()
-		if _, err := s.cache.GetOrLoad(ctx, result.Key, s.getAccessor); err != nil {
-			log.Warnw("unable to put accessor to recent blocks accessors cache", "err", err)
-		}
-	}()
-
 	return nil
 }
 
@@ -315,22 +295,11 @@ func (s *Store) GetCAR(ctx context.Context, root share.DataHash) (io.ReadCloser,
 
 func (s *Store) getCAR(ctx context.Context, root share.DataHash) (io.ReadCloser, error) {
 	key := shard.KeyFromString(root.String())
-	accessor, err := s.cache.Get(key)
-	if err == nil {
-		return accessor.ReadCloser(), nil
-	}
-	// If the accessor is not found in the cache, create a new one from dagstore. We don't put accessor
-	// to the cache here, because getCAR is used by shrex.eds. There is a lower probability, compared
-	// to other cache put triggers, that the same block to be requested again.
-	shardAccessor, err := s.getAccessor(ctx, key)
+	accessor, err := s.cache.GetOrLoad(ctx, key, s.getAccessor)
 	if err != nil {
-		return nil, fmt.Errorf("failed to get accessor: %w", err)
+		return nil, err
 	}
-
-	return readCloser{
-		Reader: shardAccessor.Reader(),
-		Closer: shardAccessor,
-	}, nil
+	return accessor.ReadCloser(), nil
 }
 
 // Blockstore returns an IPFS blockstore providing access to individual shares/nodes of all EDS
@@ -362,24 +331,11 @@ func (s *Store) carBlockstore(
 	root share.DataHash,
 ) (*cache.BlockstoreCloser, error) {
 	key := shard.KeyFromString(root.String())
-	accessor, err := s.cache.Get(key)
-	if err == nil {
-		return accessor.Blockstore()
-	}
-	// if accessor not found in cache, create new one from dagstore
-	sa, err := s.getAccessor(ctx, key)
+	accessor, err := s.cache.GetOrLoad(ctx, key, s.getAccessor)
 	if err != nil {
-		return nil, fmt.Errorf("failed to get accessor: %w", err)
+		return nil, err
 	}
-
-	bs, err := sa.Blockstore()
-	if err != nil {
-		return nil, fmt.Errorf("eds/store: failed to get accessor: %w", err)
-	}
-	return &cache.BlockstoreCloser{
-		ReadBlockstore: bs,
-		Closer:         sa,
-	}, nil
+	return accessor.Blockstore()
 }
 
 // GetDAH returns the DataAvailabilityHeader for the EDS identified by DataHash.
@@ -527,11 +483,7 @@ func (s *Store) get(ctx context.Context, root share.DataHash) (eds *rsmt2d.Exten
 		}
 	}()
 
-	eds, err = ReadEDS(ctx, r, root)
-	if err != nil {
-		return nil, fmt.Errorf("failed to read EDS from CAR file: %w", err)
-	}
-	return eds, nil
+	return ReadEDS(ctx, r, root)
 }
 
 // Has checks if EDS exists by the given share.Root hash.
@@ -630,10 +582,4 @@ type inMemoryReader struct {
 // Close allows inMemoryReader to satisfy mount.Reader interface
 func (r *inMemoryReader) Close() error {
 	return nil
-}
-
-// readCloser combines io.Reader and io.Closer
-type readCloser struct {
-	io.Reader
-	io.Closer
 }

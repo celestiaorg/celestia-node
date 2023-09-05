@@ -13,8 +13,6 @@ import (
 	"github.com/ipfs/go-datastore/namespace"
 	dshelp "github.com/ipfs/go-ipfs-ds-help"
 	ipld "github.com/ipfs/go-ipld-format"
-
-	"github.com/celestiaorg/celestia-node/share/eds/cache"
 )
 
 var _ bstore.Blockstore = (*blockstore)(nil)
@@ -34,14 +32,12 @@ var (
 // implementation to allow for the blockstore operations to be routed to the underlying stores.
 type blockstore struct {
 	store *Store
-	cache cache.Cache
 	ds    datastore.Batching
 }
 
-func newBlockstore(store *Store, cache cache.Cache, ds datastore.Batching) *blockstore {
+func newBlockstore(store *Store, ds datastore.Batching) *blockstore {
 	return &blockstore{
 		store: store,
-		cache: cache,
 		ds:    namespace.Wrap(ds, blockstoreCacheKey),
 	}
 }
@@ -159,7 +155,7 @@ func (bs *blockstore) getReadOnlyBlockstore(ctx context.Context, cid cid.Cid) (d
 
 	// a share can exist in multiple EDSes, so just take the first one.
 	shardKey := keys[0]
-	accessor, err := bs.cache.GetOrLoad(ctx, shardKey, bs.store.getAccessor)
+	accessor, err := bs.store.cache.GetOrLoad(ctx, shardKey, bs.store.getAccessor)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get accessor for shard %s: %w", shardKey, err)
 	}
