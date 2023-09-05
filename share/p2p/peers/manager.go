@@ -99,11 +99,10 @@ type syncPool struct {
 
 func NewManager(
 	params Parameters,
-	headerSub libhead.Subscriber[*header.ExtendedHeader],
-	shrexSub *shrexsub.PubSub,
 	discovery *discovery.Discovery,
 	host host.Host,
 	connGater *conngater.BasicConnectionGater,
+	options ...Option,
 ) (*Manager, error) {
 	if err := params.Validate(); err != nil {
 		return nil, err
@@ -111,8 +110,6 @@ func NewManager(
 
 	s := &Manager{
 		params:                params,
-		headerSub:             headerSub,
-		shrexSub:              shrexSub,
 		connGater:             connGater,
 		disc:                  discovery,
 		host:                  host,
@@ -120,6 +117,13 @@ func NewManager(
 		blacklistedHashes:     make(map[string]bool),
 		headerSubDone:         make(chan struct{}),
 		disconnectedPeersDone: make(chan struct{}),
+	}
+
+	for _, opt := range options {
+		err := opt(s)
+		if err != nil {
+			return nil, err
+		}
 	}
 
 	s.fullNodes = newPool(s.params.PeerCooldown)
@@ -147,12 +151,17 @@ func (m *Manager) Start(startCtx context.Context) error {
 	ctx, cancel := context.WithCancel(context.Background())
 	m.cancel = cancel
 
+	// pools will only be populated with senders of shrexsub notifications if the WithShrexSubPools
+	// option is used.
+	if m.shrexSub == nil && m.headerSub == nil {
+		return nil
+	}
+
 	validatorFn := m.metrics.validationObserver(m.Validate)
 	err := m.shrexSub.AddValidator(validatorFn)
 	if err != nil {
 		return fmt.Errorf("registering validator: %w", err)
 	}
-
 	err = m.shrexSub.Start(startCtx)
 	if err != nil {
 		return fmt.Errorf("starting shrexsub: %w", err)
@@ -168,15 +177,20 @@ func (m *Manager) Start(startCtx context.Context) error {
 		return fmt.Errorf("subscribing to libp2p events: %w", err)
 	}
 
-	go m.subscribeDisconnectedPeers(ctx, sub)
 	go m.subscribeHeader(ctx, headerSub)
+	go m.subscribeDisconnectedPeers(ctx, sub)
 	go m.GC(ctx)
-
 	return nil
 }
 
 func (m *Manager) Stop(ctx context.Context) error {
 	m.cancel()
+
+	// we do not need to wait for headersub and disconnected peers to finish
+	// here, since they were never started
+	if m.headerSub == nil && m.shrexSub == nil {
+		return nil
+	}
 
 	select {
 	case <-m.headerSubDone:

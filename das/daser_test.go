@@ -23,6 +23,7 @@ import (
 
 	"github.com/celestiaorg/celestia-node/header"
 	"github.com/celestiaorg/celestia-node/header/headertest"
+	headerfraud "github.com/celestiaorg/celestia-node/header/headertest/fraud"
 	"github.com/celestiaorg/celestia-node/share"
 	"github.com/celestiaorg/celestia-node/share/availability/full"
 	"github.com/celestiaorg/celestia-node/share/availability/light"
@@ -180,7 +181,7 @@ func TestDASer_stopsAfter_BEFP(t *testing.T) {
 		"private",
 	)
 	require.NoError(t, fserv.Start(ctx))
-	mockGet.headers[1], _ = headertest.CreateFraudExtHeader(t, mockGet.headers[1], bServ)
+	mockGet.headers[1] = headerfraud.CreateFraudExtHeader(t, mockGet.headers[1], bServ)
 	newCtx := context.Background()
 
 	// create and start DASer
