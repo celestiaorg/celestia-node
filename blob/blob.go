@@ -12,7 +12,6 @@ import (
 	"github.com/celestiaorg/nmt"
 
 	"github.com/celestiaorg/celestia-node/share"
-	"github.com/celestiaorg/celestia-node/share/ipld"
 )
 
 // Commitment is a Merkle Root of the subtree built from shares of the Blob.
@@ -59,42 +58,6 @@ func (p Proof) equal(input Proof) error {
 		}
 
 	}
-	return nil
-}
-
-type jsonProof struct {
-	Start int      `json:"start"`
-	End   int      `json:"end"`
-	Nodes [][]byte `json:"nodes"`
-}
-
-func (p *Proof) MarshalJSON() ([]byte, error) {
-	proofs := make([]jsonProof, 0, p.Len())
-	for _, pp := range *p {
-		proofs = append(proofs, jsonProof{
-			Start: pp.Start(),
-			End:   pp.End(),
-			Nodes: pp.Nodes(),
-		})
-	}
-
-	return json.Marshal(proofs)
-}
-
-func (p *Proof) UnmarshalJSON(data []byte) error {
-	var proofs []jsonProof
-	err := json.Unmarshal(data, &proofs)
-	if err != nil {
-		return err
-	}
-
-	nmtProofs := make([]*nmt.Proof, len(proofs))
-	for i, jProof := range proofs {
-		nmtProof := nmt.NewInclusionProof(jProof.Start, jProof.End, jProof.Nodes, ipld.NMTIgnoreMaxNamespace)
-		nmtProofs[i] = &nmtProof
-	}
-
-	*p = nmtProofs
 	return nil
 }
 
