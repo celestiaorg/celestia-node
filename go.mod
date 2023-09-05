@@ -8,16 +8,16 @@ replace github.com/ipfs/go-verifcid => github.com/celestiaorg/go-verifcid v0.0.1
 
 require (
 	cosmossdk.io/errors v1.0.0
-	cosmossdk.io/math v1.1.1
+	cosmossdk.io/math v1.1.2
 	github.com/BurntSushi/toml v1.3.2
 	github.com/alecthomas/jsonschema v0.0.0-20220216202328-9eeeec9d044b
 	github.com/benbjohnson/clock v1.3.5
-	github.com/celestiaorg/celestia-app v1.0.0-rc12
+	github.com/celestiaorg/celestia-app v1.0.0-rc13
 	github.com/celestiaorg/go-ds-badger4 v0.0.0-20230712104058-7ede1c814ac5
 	github.com/celestiaorg/go-fraud v0.2.0
 	github.com/celestiaorg/go-header v0.3.0
 	github.com/celestiaorg/go-libp2p-messenger v0.2.0
-	github.com/celestiaorg/nmt v0.18.1
+	github.com/celestiaorg/nmt v0.19.0
 	github.com/celestiaorg/rsmt2d v0.11.0
 	github.com/cosmos/cosmos-sdk v0.46.14
 	github.com/cosmos/cosmos-sdk/api v0.1.0
@@ -33,12 +33,12 @@ require (
 	github.com/hashicorp/golang-lru v1.0.2
 	github.com/imdario/mergo v0.3.16
 	github.com/ipfs/boxo v0.11.0
-	github.com/ipfs/go-block-format v0.1.2
+	github.com/ipfs/go-block-format v0.2.0
 	github.com/ipfs/go-blockservice v0.5.1 // down 1 version, 0.5.2 is marked as deprecated and raises alerts
 	github.com/ipfs/go-cid v0.4.1
 	github.com/ipfs/go-datastore v0.6.0
-	github.com/ipfs/go-ipld-cbor v0.0.6
-	github.com/ipfs/go-ipld-format v0.5.0
+	github.com/ipfs/go-ipld-cbor v0.1.0
+	github.com/ipfs/go-ipld-format v0.6.0
 	github.com/ipfs/go-log/v2 v2.5.1
 	github.com/ipfs/go-merkledag v0.11.0
 	github.com/ipld/go-car v0.6.2
@@ -310,6 +310,7 @@ require (
 	go.opencensus.io v0.24.0 // indirect
 	go.opentelemetry.io/otel/exporters/otlp/internal/retry v1.16.0 // indirect
 	go.opentelemetry.io/otel/exporters/otlp/otlpmetric v0.39.0 // indirect
+	go.opentelemetry.io/otel/exporters/stdout/stdouttrace v1.15.1 // indirect
 	go.uber.org/atomic v1.11.0 // indirect
 	go.uber.org/dig v1.17.0 // indirect
 	go.uber.org/multierr v1.11.0 // indirect
@@ -336,10 +337,10 @@ require (
 )
 
 replace (
-	github.com/cosmos/cosmos-sdk => github.com/celestiaorg/cosmos-sdk v1.17.0-sdk-v0.46.14
+	github.com/cosmos/cosmos-sdk => github.com/celestiaorg/cosmos-sdk v1.18.0-sdk-v0.46.14
 	github.com/filecoin-project/dagstore => github.com/celestiaorg/dagstore v0.0.0-20230824094345-537c012aa403
 	github.com/gogo/protobuf => github.com/regen-network/protobuf v1.3.3-alpha.regen.1
 	// broken goleveldb needs to be replaced for the cosmos-sdk and celestia-app
 	github.com/syndtr/goleveldb => github.com/syndtr/goleveldb v1.0.1-0.20210819022825-2ae1ddf74ef7
-	github.com/tendermint/tendermint => github.com/celestiaorg/celestia-core v1.24.0-tm-v0.34.28
+	github.com/tendermint/tendermint => github.com/celestiaorg/celestia-core v1.26.2-tm-v0.34.28
 )
