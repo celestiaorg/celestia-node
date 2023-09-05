@@ -2,6 +2,7 @@ package getters
 
 import (
 	"context"
+	"os"
 	"testing"
 	"time"
 
@@ -150,6 +151,34 @@ func TestStoreGetter(t *testing.T) {
 		root := share.Root{}
 		_, err = sg.GetSharesByNamespace(ctx, &root, namespace)
 		require.ErrorIs(t, err, share.ErrNotFound)
+	})
+
+	t.Run("GetSharesFromNamespace removes corrupted shard", func(t *testing.T) {
+		randEds, namespace, dah := randomEDSWithDoubledNamespace(t, 4)
+		err = edsStore.Put(ctx, dah.Hash(), randEds)
+		require.NoError(t, err)
+
+		// available
+		shares, err := sg.GetSharesByNamespace(ctx, &dah, namespace)
+		require.NoError(t, err)
+		require.NoError(t, shares.Verify(&dah, namespace))
+		assert.Len(t, shares.Flatten(), 2)
+
+		// 'corrupt' existing CAR by overwriting with a random EDS
+		f, err := os.OpenFile(tmpDir+"/blocks/"+dah.String(), os.O_WRONLY, 0644)
+		require.NoError(t, err)
+		edsToOverwriteWith, dah := randomEDS(t)
+		err = eds.WriteEDS(ctx, edsToOverwriteWith, f)
+		require.NoError(t, err)
+
+		shares, err = sg.GetSharesByNamespace(ctx, &dah, namespace)
+		require.ErrorIs(t, err, share.ErrNotFound)
+		require.Nil(t, shares)
+
+		// corruption detected, shard is removed
+		has, err := edsStore.Has(ctx, dah.Hash())
+		require.False(t, has)
+		require.NoError(t, err)
 	})
 }
 
