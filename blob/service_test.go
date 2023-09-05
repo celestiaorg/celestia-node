@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"crypto/sha256"
+	"encoding/json"
 	"testing"
 	"time"
 
@@ -272,14 +273,14 @@ func TestBlobService_Get(t *testing.T) {
 			doFn: func() (interface{}, error) {
 				proof, err := service.GetProof(ctx, 1, blobs0[1].Namespace(), blobs0[1].Commitment)
 				require.NoError(t, err)
-				return proof.MarshalJSON()
+				return json.Marshal(proof)
 			},
 			expectedResult: func(i interface{}, err error) {
 				require.NoError(t, err)
 				jsonData, ok := i.([]byte)
 				require.True(t, ok)
 				var proof Proof
-				require.NoError(t, proof.UnmarshalJSON(jsonData))
+				require.NoError(t, json.Unmarshal(jsonData, &proof))
 
 				newProof, err := service.GetProof(ctx, 1, blobs0[1].Namespace(), blobs0[1].Commitment)
 				require.NoError(t, err)
