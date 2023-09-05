@@ -4,7 +4,6 @@ import (
 	"bufio"
 	"bytes"
 	"context"
-	"encoding/hex"
 	"errors"
 	"fmt"
 	"io"
@@ -68,6 +67,8 @@ type Store struct {
 	// lastGCResult is only stored on the store for testing purposes.
 	lastGCResult atomic.Pointer[dagstore.GCResult]
 
+	shardFailures chan dagstore.ShardResult
+
 	metrics *metrics
 }
 
@@ -96,6 +97,8 @@ func NewStore(basepath string, ds datastore.Batching) (*Store, error) {
 	if err != nil {
 		return nil, fmt.Errorf("failed to create index: %w", err)
 	}
+
+	failureChan := make(chan dagstore.ShardResult)
 	dagStore, err := dagstore.NewDAGStore(
 		dagstore.Config{
 			TransientsDir: basepath + transientsPath,
@@ -103,6 +106,7 @@ func NewStore(basepath string, ds datastore.Batching) (*Store, error) {
 			Datastore:     ds,
 			MountRegistry: r,
 			TopLevelIndex: invertedIdx,
+			FailureCh:     failureChan,
 		},
 	)
 	if err != nil {
@@ -120,13 +124,14 @@ func NewStore(basepath string, ds datastore.Batching) (*Store, error) {
 	}
 
 	store := &Store{
-		basepath:    basepath,
-		dgstr:       dagStore,
-		carIdx:      fsRepo,
-		invertedIdx: invertedIdx,
-		gcInterval:  defaultGCInterval,
-		mounts:      r,
-		cache:       cache.NewMultiCache(recentBlocksCache, blockstoreCache),
+		basepath:      basepath,
+		dgstr:         dagStore,
+		carIdx:        fsRepo,
+		invertedIdx:   invertedIdx,
+		gcInterval:    defaultGCInterval,
+		mounts:        r,
+		shardFailures: failureChan,
+		cache:         cache.NewMultiCache(recentBlocksCache, blockstoreCache),
 	}
 	store.bs = newBlockstore(store, blockstoreCache, ds)
 	return store, nil
@@ -148,6 +153,8 @@ func (s *Store) Start(ctx context.Context) error {
 	if s.gcInterval != 0 {
 		go s.gc(runCtx)
 	}
+
+	go s.watchForFailures(runCtx)
 	return nil
 }
 
@@ -178,6 +185,23 @@ func (s *Store) gc(ctx context.Context) {
 			s.lastGCResult.Store(res)
 		}
 
+	}
+}
+
+func (s *Store) watchForFailures(ctx context.Context) {
+	for {
+		select {
+		case <-ctx.Done():
+			return
+		case res := <-s.shardFailures:
+			log.Errorw("removing shard after failure", "key", res.Key, "err", res.Error)
+			s.metrics.observeShardFailure(ctx, res.Key.String())
+			k := share.MustDataHashFromString(res.Key.String())
+			err := s.Remove(ctx, k)
+			if err != nil {
+				log.Errorw("failed to remove shard after failure", "key", res.Key, "err", err)
+			}
+		}
 	}
 }
 
@@ -571,10 +595,7 @@ func (s *Store) list() ([]share.DataHash, error) {
 	shards := s.dgstr.AllShardsInfo()
 	hashes := make([]share.DataHash, 0, len(shards))
 	for shrd := range shards {
-		hash, err := hex.DecodeString(shrd.String())
-		if err != nil {
-			return nil, err
-		}
+		hash := share.MustDataHashFromString(shrd.String())
 		hashes = append(hashes, hash)
 	}
 	return hashes, nil

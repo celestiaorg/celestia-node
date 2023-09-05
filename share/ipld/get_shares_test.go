@@ -11,13 +11,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/ipfs/boxo/blockstore"
-	"github.com/ipfs/boxo/exchange/offline"
-	"github.com/ipfs/go-blockservice"
+	"github.com/ipfs/boxo/blockservice"
 	"github.com/ipfs/go-cid"
-	ds "github.com/ipfs/go-datastore"
-	dssync "github.com/ipfs/go-datastore/sync"
-	mdutils "github.com/ipfs/go-merkledag/test"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
@@ -35,7 +30,7 @@ func TestGetShare(t *testing.T) {
 
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second)
 	defer cancel()
-	bServ := mdutils.Bserv()
+	bServ := NewMemBlockservice()
 
 	// generate random shares for the nmt
 	shares := sharetest.RandShares(t, size*size)
@@ -155,7 +150,7 @@ func removeRandShares(data [][]byte, d int) [][]byte {
 func TestGetSharesByNamespace(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	t.Cleanup(cancel)
-	bServ := mdutils.Bserv()
+	bServ := NewMemBlockservice()
 
 	var tests = []struct {
 		rawData []share.Share
@@ -201,7 +196,7 @@ func TestGetSharesByNamespace(t *testing.T) {
 func TestCollectLeavesByNamespace_IncompleteData(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	t.Cleanup(cancel)
-	bServ := mdutils.Bserv()
+	bServ := NewMemBlockservice()
 
 	shares := sharetest.RandShares(t, 16)
 
@@ -245,7 +240,7 @@ func TestCollectLeavesByNamespace_IncompleteData(t *testing.T) {
 func TestCollectLeavesByNamespace_AbsentNamespaceId(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	t.Cleanup(cancel)
-	bServ := mdutils.Bserv()
+	bServ := NewMemBlockservice()
 
 	shares := sharetest.RandShares(t, 1024)
 
@@ -290,7 +285,7 @@ func TestCollectLeavesByNamespace_AbsentNamespaceId(t *testing.T) {
 func TestCollectLeavesByNamespace_MultipleRowsContainingSameNamespaceId(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	t.Cleanup(cancel)
-	bServ := mdutils.Bserv()
+	bServ := NewMemBlockservice()
 
 	shares := sharetest.RandShares(t, 16)
 
@@ -332,7 +327,7 @@ func TestCollectLeavesByNamespace_MultipleRowsContainingSameNamespaceId(t *testi
 func TestGetSharesWithProofsByNamespace(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	t.Cleanup(cancel)
-	bServ := mdutils.Bserv()
+	bServ := NewMemBlockservice()
 
 	var tests = []struct {
 		rawData []share.Share
@@ -431,13 +426,13 @@ func TestBatchSize(t *testing.T) {
 			ctx, cancel := context.WithTimeout(context.Background(), time.Second*time.Duration(tt.origWidth))
 			defer cancel()
 
-			bs := blockstore.NewBlockstore(dssync.MutexWrap(ds.NewMapDatastore()))
+			bs := NewMemBlockservice()
 
 			randEds := edstest.RandEDS(t, tt.origWidth)
-			_, err := AddShares(ctx, randEds.FlattenedODS(), blockservice.New(bs, offline.Exchange(bs)))
+			_, err := AddShares(ctx, randEds.FlattenedODS(), bs)
 			require.NoError(t, err)
 
-			out, err := bs.AllKeysChan(ctx)
+			out, err := bs.Blockstore().AllKeysChan(ctx)
 			require.NoError(t, err)
 
 			var count int

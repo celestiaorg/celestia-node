@@ -5,7 +5,7 @@ import (
 	"errors"
 
 	"github.com/filecoin-project/dagstore"
-	"github.com/ipfs/go-blockservice"
+	"github.com/ipfs/boxo/blockservice"
 	"github.com/ipfs/go-datastore"
 	"github.com/libp2p/go-libp2p/core/host"
 	"github.com/libp2p/go-libp2p/core/routing"
@@ -84,6 +84,24 @@ func lightGetter(
 		cascade = append(cascade, shrexGetter)
 	}
 	cascade = append(cascade, ipldGetter)
+	return getters.NewCascadeGetter(cascade)
+}
+
+// ShrexGetter is added to bridge nodes for the case that a shard is removed
+// after detected shard corruption. This ensures the block is fetched and stored
+// by shrex the next time the data is retrieved (meaning shard recovery is
+// manual after corruption is detected).
+func bridgeGetter(
+	store *eds.Store,
+	storeGetter *getters.StoreGetter,
+	shrexGetter *getters.ShrexGetter,
+	cfg Config,
+) share.Getter {
+	var cascade []share.Getter
+	cascade = append(cascade, storeGetter)
+	if cfg.UseShareExchange {
+		cascade = append(cascade, getters.NewTeeGetter(shrexGetter, store))
+	}
 	return getters.NewCascadeGetter(cascade)
 }
 

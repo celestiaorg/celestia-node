@@ -2,6 +2,7 @@ package share
 
 import (
 	"bytes"
+	"encoding/hex"
 	"fmt"
 
 	"github.com/celestiaorg/celestia-app/pkg/appconsts"
@@ -56,4 +57,17 @@ func (dh DataHash) String() string {
 // IsEmptyRoot check whether DataHash corresponds to the root of an empty block EDS.
 func (dh DataHash) IsEmptyRoot() bool {
 	return bytes.Equal(EmptyRoot().Hash(), dh)
+}
+
+// MustDataHashFromString converts a hex string to a valid datahash.
+func MustDataHashFromString(datahash string) DataHash {
+	dh, err := hex.DecodeString(datahash)
+	if err != nil {
+		panic(fmt.Sprintf("datahash conversion: passed string was not valid hex: %s", datahash))
+	}
+	err = DataHash(dh).Validate()
+	if err != nil {
+		panic(fmt.Sprintf("datahash validation: passed hex string failed: %s", err))
+	}
+	return dh
 }
