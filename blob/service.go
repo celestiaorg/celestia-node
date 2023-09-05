@@ -32,7 +32,7 @@ type Submitter interface {
 
 type Service struct {
 	// accessor dials the given celestia-core endpoint to submit blobs.
-	blobSumitter Submitter
+	blobSubmitter Submitter
 	// shareGetter retrieves the EDS to fetch all shares from the requested header.
 	shareGetter share.Getter
 	// headerGetter fetches header by the provided height
@@ -45,9 +45,9 @@ func NewService(
 	headerGetter func(context.Context, uint64) (*header.ExtendedHeader, error),
 ) *Service {
 	return &Service{
-		blobSumitter: submitter,
-		shareGetter:  getter,
-		headerGetter: headerGetter,
+		blobSubmitter: submitter,
+		shareGetter:   getter,
+		headerGetter:  headerGetter,
 	}
 }
 
@@ -58,7 +58,7 @@ func NewService(
 func (s *Service) Submit(ctx context.Context, blobs []*Blob) (uint64, error) {
 	log.Debugw("submitting blobs", "amount", len(blobs))
 
-	resp, err := s.blobSumitter.SubmitPayForBlob(ctx, types.OneInt().Neg(), 0, blobs)
+	resp, err := s.blobSubmitter.SubmitPayForBlob(ctx, types.OneInt().Neg(), 0, blobs)
 	if err != nil {
 		return 0, err
 	}
