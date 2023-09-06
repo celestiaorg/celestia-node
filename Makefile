@@ -159,6 +159,7 @@ openrpc-gen:
 .PHONY: openrpc-gen
 
 ## lint-imports: Lint only Go imports.
+## flag -set-exit-status doesn't exit with code 1 as it should, so we use find until it is fixed by goimports-reviser
 lint-imports:
 	@echo "--> Running imports linter"
 	@for file in `find . -type f -name '*.go'`; \
