@@ -15,6 +15,7 @@ import (
 	"github.com/celestiaorg/go-header/sync"
 
 	"github.com/celestiaorg/celestia-node/header"
+	"github.com/celestiaorg/celestia-node/libs/pidstore"
 	modfraud "github.com/celestiaorg/celestia-node/nodebuilder/fraud"
 	"github.com/celestiaorg/celestia-node/nodebuilder/node"
 	modp2p "github.com/celestiaorg/celestia-node/nodebuilder/p2p"
@@ -99,6 +100,9 @@ func ConstructModule[H libhead.Header[H]](tp node.Type, cfg *Config) fx.Option {
 			"header",
 			baseComponents,
 			fx.Provide(newP2PExchange[H]),
+			fx.Provide(func(ctx context.Context, ds datastore.Batching) (p2p.PeerIDStore, error) {
+				return pidstore.NewPeerIDStore(ctx, ds)
+			}),
 		)
 	case node.Bridge:
 		return fx.Module(
