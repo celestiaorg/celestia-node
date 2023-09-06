@@ -342,7 +342,7 @@ func Test_CachedAccessor(t *testing.T) {
 	require.Equal(t, firstBlock, secondBlock)
 }
 
-// Test_CachedAccessor verifies that the reader represented by a accessor obtained directly from
+// Test_NotCachedAccessor verifies that the reader represented by a accessor obtained directly from
 // dagstore can be read from multiple times, without exhausting the underlying reader.
 func Test_NotCachedAccessor(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
@@ -383,47 +383,6 @@ func Test_NotCachedAccessor(t *testing.T) {
 	require.Equal(t, firstBlock, secondBlock)
 }
 
-
-// Test_CachedAccessor verifies that the reader represented by a accessor obtained directly from dagstore can be read from
-// multiple times, without exhausting the underlying reader.
-func Test_NotCachedAccessor(t *testing.T) {
-	ctx, cancel := context.WithCancel(context.Background())
-	t.Cleanup(cancel)
-
-	edsStore, err := newStore(t)
-	require.NoError(t, err)
-	err = edsStore.Start(ctx)
-	require.NoError(t, err)
-	// replace cache with noopCache to
-	edsStore.cache = cache.NoopCache{}
-
-	eds, dah := randomEDS(t)
-	err = edsStore.Put(ctx, dah.Hash(), eds)
-	require.NoError(t, err)
-
-	// give some time to let cache to get settled in background
-	time.Sleep(time.Millisecond * 50)
-
-	// accessor should be in cache
-	_, err = edsStore.cache.Get(shard.KeyFromString(dah.String()))
-	require.ErrorIs(t, err, cache.ErrCacheMiss)
-
-	// first read from direct accessor
-	carReader, err := edsStore.getCAR(ctx, dah.Hash())
-	require.NoError(t, err)
-	firstBlock, err := io.ReadAll(carReader)
-	require.NoError(t, err)
-	require.NoError(t, carReader.Close())
-
-	// second read from direct accessor
-	carReader, err = edsStore.getCAR(ctx, dah.Hash())
-	require.NoError(t, err)
-	secondBlock, err := io.ReadAll(carReader)
-	require.NoError(t, err)
-	require.NoError(t, carReader.Close())
-
-	require.Equal(t, firstBlock, secondBlock)
-}
 func BenchmarkStore(b *testing.B) {
 	ctx, cancel := context.WithCancel(context.Background())
 	b.Cleanup(cancel)

@@ -131,7 +131,7 @@ func NewStore(basepath string, ds datastore.Batching) (*Store, error) {
 		gcInterval:    defaultGCInterval,
 		mounts:        r,
 		shardFailures: failureChan,
-		cache:         cache.NewMultiCache(recentBlocksCache, blockstoreCache),,
+		cache:         cache.NewMultiCache(recentBlocksCache, blockstoreCache),
 	}
 	store.bs = newBlockstore(store, blockstoreCache, ds)
 	return store, nil
