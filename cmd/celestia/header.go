@@ -66,7 +66,7 @@ var getByHashCmd = &cobra.Command{
 
 		hash, err := hex.DecodeString(args[0])
 		if err != nil {
-			return err
+			return fmt.Errorf("error decoding a hash: expected a hex encoded string:%v", err)
 		}
 		header, err := client.Header.GetByHash(cmd.Context(), hash)
 		return printOutput(header, err, nil)
