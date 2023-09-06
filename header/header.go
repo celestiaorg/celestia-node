@@ -168,8 +168,8 @@ func (eh *ExtendedHeader) Validate() error {
 }
 
 var (
-	ErrValidatorHashMismatch           = errors.New("validator hash mismatch error")
-	ErrLastHeaderHashMismatch          = errors.New("last header hash mismatch error")
+	ErrValidatorHashMismatch           = errors.New("validator hash mismatch")
+	ErrLastHeaderHashMismatch          = errors.New("last header hash mismatch")
 	ErrVerifyCommitLightTrustingFailed = errors.New("commit light trusting verification failed")
 )
 
@@ -191,12 +191,11 @@ func (eh *ExtendedHeader) Verify(untrst *ExtendedHeader) error {
 
 		if !bytes.Equal(untrst.LastHeader(), eh.Hash()) {
 			return &libhead.VerifyError{
-				Reason: fmt.Errorf("%w: %w",
+				Reason: fmt.Errorf("%w: expected (%X), but got (%X)",
 					ErrLastHeaderHashMismatch,
-					fmt.Errorf("expected (%X), but got (%X)",
-						eh.Hash(),
-						untrst.LastHeader(),
-					)),
+					eh.Hash(),
+					untrst.LastHeader(),
+				),
 			}
 		}
 

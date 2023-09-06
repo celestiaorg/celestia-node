@@ -5,7 +5,6 @@ import (
 	"strconv"
 	"testing"
 
-	libhead "github.com/celestiaorg/go-header"
 	"github.com/stretchr/testify/assert"
 	tmrand "github.com/tendermint/tendermint/libs/rand"
 
@@ -35,9 +34,7 @@ func TestVerify(t *testing.T) {
 				untrusted.ValidatorsHash = tmrand.Bytes(32)
 				return &untrusted
 			},
-			err: &libhead.VerifyError{
-				Reason: header.ErrValidatorHashMismatch,
-			},
+			err: header.ErrValidatorHashMismatch,
 		},
 		{
 			prepare: func() *header.ExtendedHeader {
@@ -45,9 +42,7 @@ func TestVerify(t *testing.T) {
 				untrusted.RawHeader.LastBlockID.Hash = tmrand.Bytes(32)
 				return &untrusted
 			},
-			err: &libhead.VerifyError{
-				Reason: header.ErrLastHeaderHashMismatch,
-			},
+			err: header.ErrLastHeaderHashMismatch,
 		},
 		{
 			prepare: func() *header.ExtendedHeader {
@@ -55,16 +50,14 @@ func TestVerify(t *testing.T) {
 				untrusted.Commit = NewTestSuite(t, 2).Commit(RandRawHeader(t))
 				return &untrusted
 			},
-			err: &libhead.VerifyError{
-				Reason: header.ErrVerifyCommitLightTrustingFailed,
-			},
+			err: header.ErrVerifyCommitLightTrustingFailed,
 		},
 	}
 
 	for i, test := range tests {
 		t.Run(strconv.Itoa(i), func(t *testing.T) {
 			err := trusted.Verify(test.prepare())
-			assert.ErrorIs(t, errors.Unwrap(err), errors.Unwrap(test.err))
+			assert.ErrorIs(t, errors.Unwrap(err), test.err)
 		})
 	}
 }
