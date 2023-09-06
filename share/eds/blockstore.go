@@ -176,6 +176,7 @@ func (bs *blockstore) getReadOnlyBlockstore(ctx context.Context, cid cid.Cid) (*
 	return blockstoreCloser(accessor)
 }
 
+// blockstoreCloser constructs new BlockstoreCloser from cache.Accessor
 func blockstoreCloser(ac cache.Accessor) (*BlockstoreCloser, error) {
 	bs, err := ac.Blockstore()
 	if err != nil {

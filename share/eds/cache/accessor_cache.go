@@ -3,16 +3,18 @@ package cache
 import (
 	"context"
 	"fmt"
-	"github.com/filecoin-project/dagstore"
-	"github.com/filecoin-project/dagstore/shard"
-	lru "github.com/hashicorp/golang-lru"
 	"io"
 	"reflect"
 	"sync"
+
+	"github.com/filecoin-project/dagstore"
+	"github.com/filecoin-project/dagstore/shard"
+	lru "github.com/hashicorp/golang-lru"
 )
 
 var _ Cache = (*AccessorCache)(nil)
 
+// AccessorCache implements Cache interface using LRU cache backend
 type AccessorCache struct {
 	// name is a prefix, that will be used for cache metrics if it is enabled
 	name string
@@ -50,6 +52,7 @@ func NewAccessorCache(name string, cacheSize int) (*AccessorCache, error) {
 	return bc, nil
 }
 
+// evictFn will be invoked when item is evicted from the cache
 func (bc *AccessorCache) evictFn() func(_ interface{}, val interface{}) {
 	return func(_ interface{}, val interface{}) {
 		// ensure we close the blockstore for a shard when it's evicted so dagstore can gc it.
@@ -69,8 +72,8 @@ func (bc *AccessorCache) evictFn() func(_ interface{}, val interface{}) {
 	}
 }
 
-// Get retrieves the blockstore for a given shard key from the Cache. If the blockstore is not in
-// the Cache, it returns an errCacheMiss
+// Get retrieves the Accessor for a given shard key from the Cache. If the Accessor is not in
+// the Cache, it returns an ErrCacheMiss
 func (bc *AccessorCache) Get(key shard.Key) (Accessor, error) {
 	lk := &bc.stripedLocks[shardKeyToStriped(key)]
 	lk.Lock()
@@ -102,8 +105,8 @@ func (bc *AccessorCache) get(key shard.Key) (*accessorWithBlockstore, error) {
 	return abs, nil
 }
 
-// GetOrLoad attempts to get an item from all caches, and if not found, invokes
-// the provided loader function to load it into one of the caches.
+// GetOrLoad attempts to get an item from cache, and if not found, invokes
+// the provided loader function to load it.
 func (bc *AccessorCache) GetOrLoad(
 	ctx context.Context,
 	key shard.Key,
@@ -136,12 +139,14 @@ func (bc *AccessorCache) GetOrLoad(
 	return accessor, nil
 }
 
+// Remove removes Accessor for given key from the cache
 func (bc *AccessorCache) Remove(key shard.Key) error {
 	// cache will call evictFn on removal, where accessor close will be called
 	bc.cache.Remove(key)
 	return nil
 }
 
+// EnableMetrics enables metrics for the cache
 func (bc *AccessorCache) EnableMetrics() error {
 	var err error
 	bc.metrics, err = newMetrics(bc)
@@ -166,7 +171,7 @@ func (s *accessorWithBlockstore) Reader() io.Reader {
 	return s.shardAccessor.Reader()
 }
 
-// temporarily object before refs count is implemented
+// accessorCloser is a temporal object before refs count is implemented
 type accessorCloser struct {
 	*accessorWithBlockstore
 	io.Closer

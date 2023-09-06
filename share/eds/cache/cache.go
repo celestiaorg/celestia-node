@@ -16,10 +16,6 @@ var (
 	meter = otel.Meter("eds_store_cache")
 )
 
-const (
-	cacheFoundKey = "found"
-)
-
 var (
 	ErrCacheMiss = errors.New("accessor not found in blockstore cache")
 )

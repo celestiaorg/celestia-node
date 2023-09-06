@@ -193,6 +193,7 @@ func TestEDSStore(t *testing.T) {
 		require.NoError(t, err)
 
 		// check, that the key is in the cache after put
+		time.Sleep(time.Millisecond * 100)
 		shardKey := shard.KeyFromString(dah.String())
 		_, err = edsStore.cache.Get(shardKey)
 		assert.NoError(t, err)

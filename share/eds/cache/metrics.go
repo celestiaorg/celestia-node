@@ -7,6 +7,10 @@ import (
 	"go.opentelemetry.io/otel/metric"
 )
 
+const (
+	cacheFoundKey = "found"
+)
+
 type metrics struct {
 	getCounter     metric.Int64Counter
 	evictedCounter metric.Int64Counter
