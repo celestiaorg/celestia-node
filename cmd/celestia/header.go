@@ -26,7 +26,7 @@ var headerCmd = &cobra.Command{
 
 var localHeadCmd = &cobra.Command{
 	Use:   "local-head",
-	Short: "Returns the ExtendedHeader from the chain head",
+	Short: "Returns the ExtendedHeader from the chain head.",
 	Args:  cobra.NoArgs,
 	RunE: func(cmd *cobra.Command, args []string) error {
 		client, err := rpcClient(cmd.Context())
@@ -41,7 +41,7 @@ var localHeadCmd = &cobra.Command{
 
 var networkHeadCmd = &cobra.Command{
 	Use:   "network-head",
-	Short: "Returns the recent ExtendedHeader from the network",
+	Short: "Provides the Syncer's view of the current network head.",
 	Args:  cobra.NoArgs,
 	RunE: func(cmd *cobra.Command, args []string) error {
 		client, err := rpcClient(cmd.Context())
@@ -56,7 +56,7 @@ var networkHeadCmd = &cobra.Command{
 
 var getByHashCmd = &cobra.Command{
 	Use:   "get-by-hash",
-	Short: "Returns the ExtendedHeader by its hash",
+	Short: "Returns the header of the given hash from the node's header store.",
 	Args:  cobra.ExactArgs(1),
 	RunE: func(cmd *cobra.Command, args []string) error {
 		client, err := rpcClient(cmd.Context())
@@ -75,7 +75,7 @@ var getByHashCmd = &cobra.Command{
 
 var getByHeightCmd = &cobra.Command{
 	Use:   "get-by-height",
-	Short: "Returns the ExtendedHeader from the particular height",
+	Short: "Returns the ExtendedHeader at the given height if it is currently available.",
 	Args:  cobra.ExactArgs(1),
 	RunE: func(cmd *cobra.Command, args []string) error {
 		client, err := rpcClient(cmd.Context())
@@ -95,7 +95,7 @@ var getByHeightCmd = &cobra.Command{
 
 var syncStateCmd = &cobra.Command{
 	Use:   "sync-state",
-	Short: "Returns the current state of the Syncer",
+	Short: "Returns the current state of the header Syncer.",
 	Args:  cobra.NoArgs,
 	RunE: func(cmd *cobra.Command, args []string) error {
 		client, err := rpcClient(cmd.Context())
