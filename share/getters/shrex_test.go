@@ -1,12 +1,9 @@
 package getters
 
 import (
-	"bytes"
 	"context"
 	"encoding/binary"
 	"errors"
-	"math/rand"
-	"sort"
 	"testing"
 	"time"
 
@@ -19,7 +16,6 @@ import (
 	mocknet "github.com/libp2p/go-libp2p/p2p/net/mock"
 	"github.com/stretchr/testify/require"
 
-	"github.com/celestiaorg/celestia-app/pkg/wrapper"
 	libhead "github.com/celestiaorg/go-header"
 	"github.com/celestiaorg/nmt"
 	"github.com/celestiaorg/rsmt2d"
@@ -372,26 +368,4 @@ func TestAddToNamespace(t *testing.T) {
 			}
 		})
 	}
-}
-
-func singleNamespaceEds(
-	t require.TestingT,
-	namespace share.Namespace,
-	size int,
-) (*rsmt2d.ExtendedDataSquare, *share.Root) {
-	shares := make([]share.Share, size*size)
-	rnd := rand.New(rand.NewSource(time.Now().Unix()))
-	for i := range shares {
-		shr := make([]byte, share.Size)
-		copy(share.GetNamespace(shr), namespace)
-		_, err := rnd.Read(share.GetData(shr))
-		require.NoError(t, err)
-		shares[i] = shr
-	}
-	sort.Slice(shares, func(i, j int) bool { return bytes.Compare(shares[i], shares[j]) < 0 })
-	eds, err := rsmt2d.ComputeExtendedDataSquare(shares, share.DefaultRSMT2DCodec(), wrapper.NewConstructor(uint64(size)))
-	require.NoError(t, err, "failure to recompute the extended data square")
-	dah, err := share.NewRoot(eds)
-	require.NoError(t, err)
-	return eds, dah
 }
