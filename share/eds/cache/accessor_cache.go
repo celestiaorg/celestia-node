@@ -3,12 +3,13 @@ package cache
 import (
 	"context"
 	"fmt"
-	"github.com/filecoin-project/dagstore"
-	"github.com/filecoin-project/dagstore/shard"
-	lru "github.com/hashicorp/golang-lru"
 	"io"
 	"reflect"
 	"sync"
+
+	"github.com/filecoin-project/dagstore"
+	"github.com/filecoin-project/dagstore/shard"
+	lru "github.com/hashicorp/golang-lru"
 )
 
 var _ Cache = (*AccessorCache)(nil)
