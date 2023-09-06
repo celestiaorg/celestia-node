@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"io"
 
 	"github.com/filecoin-project/dagstore"
 	bstore "github.com/ipfs/boxo/blockstore"
@@ -13,6 +14,8 @@ import (
 	"github.com/ipfs/go-datastore"
 	"github.com/ipfs/go-datastore/namespace"
 	ipld "github.com/ipfs/go-ipld-format"
+
+	"github.com/celestiaorg/celestia-node/share/eds/cache"
 )
 
 var _ bstore.Blockstore = (*blockstore)(nil)
@@ -33,6 +36,11 @@ var (
 type blockstore struct {
 	store *Store
 	ds    datastore.Batching
+}
+
+type BlockstoreCloser struct {
+	dagstore.ReadBlockstore
+	io.Closer
 }
 
 func newBlockstore(store *Store, ds datastore.Batching) *blockstore {
@@ -61,6 +69,11 @@ func (bs *blockstore) Has(ctx context.Context, cid cid.Cid) (bool, error) {
 
 func (bs *blockstore) Get(ctx context.Context, cid cid.Cid) (blocks.Block, error) {
 	blockstr, err := bs.getReadOnlyBlockstore(ctx, cid)
+	if err == nil {
+		defer closeAndLog("blockstore", blockstr)
+		return blockstr.Get(ctx, cid)
+	}
+
 	if errors.Is(err, ErrNotFound) || errors.Is(err, ErrNotFoundInIndex) {
 		k := dshelp.MultihashToDsKey(cid.Hash())
 		blockData, err := bs.ds.Get(ctx, k)
@@ -70,15 +83,17 @@ func (bs *blockstore) Get(ctx context.Context, cid cid.Cid) (blocks.Block, error
 		// nmt's GetNode expects an ipld.ErrNotFound when a cid is not found.
 		return nil, ipld.ErrNotFound{Cid: cid}
 	}
-	if err != nil {
-		log.Debugf("failed to get blockstore for cid %s: %s", cid, err)
-		return nil, err
-	}
-	return blockstr.Get(ctx, cid)
+
+	log.Debugf("failed to get blockstore for cid %s: %s", cid, err)
+	return nil, err
 }
 
 func (bs *blockstore) GetSize(ctx context.Context, cid cid.Cid) (int, error) {
 	blockstr, err := bs.getReadOnlyBlockstore(ctx, cid)
+	if err == nil {
+		defer closeAndLog("blockstore", blockstr)
+		return blockstr.GetSize(ctx, cid)
+	}
 	if errors.Is(err, ErrNotFound) || errors.Is(err, ErrNotFoundInIndex) {
 		k := dshelp.MultihashToDsKey(cid.Hash())
 		size, err := bs.ds.GetSize(ctx, k)
@@ -88,10 +103,9 @@ func (bs *blockstore) GetSize(ctx context.Context, cid cid.Cid) (int, error) {
 		// nmt's GetSize expects an ipld.ErrNotFound when a cid is not found.
 		return 0, ipld.ErrNotFound{Cid: cid}
 	}
-	if err != nil {
-		return 0, err
-	}
-	return blockstr.GetSize(ctx, cid)
+
+	log.Debugf("failed to get size for cid %s: %s", cid, err)
+	return 0, err
 }
 
 func (bs *blockstore) DeleteBlock(ctx context.Context, cid cid.Cid) error {
@@ -137,7 +151,7 @@ func (bs *blockstore) HashOnRead(bool) {
 }
 
 // getReadOnlyBlockstore finds the underlying blockstore of the shard that contains the given CID.
-func (bs *blockstore) getReadOnlyBlockstore(ctx context.Context, cid cid.Cid) (dagstore.ReadBlockstore, error) {
+func (bs *blockstore) getReadOnlyBlockstore(ctx context.Context, cid cid.Cid) (*BlockstoreCloser, error) {
 	keys, err := bs.store.dgstr.ShardsContainingMultihash(ctx, cid.Hash())
 	if errors.Is(err, datastore.ErrNotFound) || errors.Is(err, ErrNotFoundInIndex) {
 		return nil, ErrNotFound
@@ -149,7 +163,7 @@ func (bs *blockstore) getReadOnlyBlockstore(ctx context.Context, cid cid.Cid) (d
 	// a share can exist in multiple EDSes, check cache to contain any of accessors containing shard
 	for _, k := range keys {
 		if accessor, err := bs.store.cache.Get(k); err == nil {
-			return accessor.Blockstore()
+			return blockstoreCloser(accessor)
 		}
 	}
 
@@ -159,5 +173,16 @@ func (bs *blockstore) getReadOnlyBlockstore(ctx context.Context, cid cid.Cid) (d
 	if err != nil {
 		return nil, fmt.Errorf("failed to get accessor for shard %s: %w", shardKey, err)
 	}
-	return accessor.Blockstore()
+	return blockstoreCloser(accessor)
+}
+
+func blockstoreCloser(ac cache.Accessor) (*BlockstoreCloser, error) {
+	bs, err := ac.Blockstore()
+	if err != nil {
+		return nil, fmt.Errorf("eds/store: failed to get blockstore: %w", err)
+	}
+	return &BlockstoreCloser{
+		ReadBlockstore: bs,
+		Closer:         ac,
+	}, nil
 }
