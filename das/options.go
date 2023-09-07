@@ -3,6 +3,8 @@ package das
 import (
 	"fmt"
 	"time"
+
+	"github.com/celestiaorg/celestia-node/das/pruner"
 )
 
 // ErrInvalidOption is an error that is returned by Parameters.Validate
@@ -40,6 +42,14 @@ type Parameters struct {
 	// divided between parallel workers. SampleTimeout should be adjusted proportionally to
 	// ConcurrencyLimit.
 	SampleTimeout time.Duration
+
+	// RecencyWindow is the amount of blocks under the network head that will be
+	// sampled and stored. When using the WithStoragePruner option, heights
+	// older than this will be pruned as the network head advances.
+	RecencyWindow uint64
+
+	// PruningEnabled is a flag that enables the pruning of blocks older than the recency window.
+	PruningEnabled bool
 }
 
 // DefaultParameters returns the default configuration values for the daser parameters
@@ -52,8 +62,11 @@ func DefaultParameters() Parameters {
 		ConcurrencyLimit:        concurrencyLimit,
 		BackgroundStoreInterval: 10 * time.Minute,
 		SampleFrom:              1,
+		// TODO: this should inherit block time from p2p config
 		// SampleTimeout = block time * max amount of catchup workers
-		SampleTimeout: 15 * time.Second * time.Duration(concurrencyLimit),
+		SampleTimeout:  15 * time.Second * time.Duration(concurrencyLimit),
+		RecencyWindow:  uint64((time.Hour * 24 * 28) / (15 * time.Second)),
+		PruningEnabled: false,
 	}
 }
 
@@ -119,6 +132,14 @@ func (p *Parameters) Validate() error {
 func WithSamplingRange(samplingRange uint64) Option {
 	return func(d *DASer) {
 		d.params.SamplingRange = samplingRange
+	}
+}
+
+// WithStoragePruner is a functional option to use the daser along with a storage pruner.
+// Refer to WithSamplingRange documentation to see an example of how to use this
+func WithStoragePruner(sp *pruner.StoragePruner) Option {
+	return func(d *DASer) {
+		d.pruner = sp
 	}
 }
 

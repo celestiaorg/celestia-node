@@ -6,6 +6,7 @@ import (
 	"go.uber.org/fx"
 
 	"github.com/celestiaorg/celestia-node/das"
+	"github.com/celestiaorg/celestia-node/das/pruner"
 	"github.com/celestiaorg/celestia-node/header"
 	modfraud "github.com/celestiaorg/celestia-node/nodebuilder/fraud"
 	"github.com/celestiaorg/celestia-node/nodebuilder/node"
@@ -22,6 +23,9 @@ func ConstructModule(tp node.Type, cfg *Config) fx.Option {
 	baseComponents := fx.Options(
 		fx.Supply(*cfg),
 		fx.Error(err),
+	)
+
+	baseOptions := fx.Options(
 		fx.Provide(
 			func(c Config) []das.Option {
 				return []das.Option{
@@ -35,11 +39,65 @@ func ConstructModule(tp node.Type, cfg *Config) fx.Option {
 		),
 	)
 
+	prunerComponents := fx.Options(
+		fx.Provide(func(c Config) pruner.Config {
+			return pruner.Config{
+				RecencyWindow: c.RecencyWindow,
+			}
+		}),
+		fx.Provide(fx.Annotate(
+			pruner.NewStoragePruner,
+			fx.OnStart(func(ctx context.Context, sp *pruner.StoragePruner) error {
+				return sp.Start(ctx)
+			}),
+			fx.OnStop(func(ctx context.Context, sp *pruner.StoragePruner) error {
+				return sp.Stop(ctx)
+			}),
+		)),
+		fx.Provide(
+			func(c Config, sp *pruner.StoragePruner) []das.Option {
+				return []das.Option{
+					das.WithSamplingRange(c.SamplingRange),
+					das.WithConcurrencyLimit(c.ConcurrencyLimit),
+					das.WithBackgroundStoreInterval(c.BackgroundStoreInterval),
+					das.WithSampleFrom(c.SampleFrom),
+					das.WithSampleTimeout(c.SampleTimeout),
+					das.WithStoragePruner(sp),
+				}
+			},
+		),
+	)
+
+	fullComponents := baseOptions
+	if cfg.PruningEnabled {
+		fullComponents = prunerComponents
+	}
+
 	switch tp {
-	case node.Light, node.Full:
+	case node.Light:
 		return fx.Module(
 			"daser",
 			baseComponents,
+			baseOptions,
+			fx.Provide(fx.Annotate(
+				newDASer,
+				fx.OnStart(func(ctx context.Context, breaker *modfraud.ServiceBreaker[*das.DASer, *header.ExtendedHeader]) error {
+					return breaker.Start(ctx)
+				}),
+				fx.OnStop(func(ctx context.Context, breaker *modfraud.ServiceBreaker[*das.DASer, *header.ExtendedHeader]) error {
+					return breaker.Stop(ctx)
+				}),
+			)),
+			// Module is needed for the RPC handler
+			fx.Provide(func(das *das.DASer) Module {
+				return das
+			}),
+		)
+	case node.Full:
+		return fx.Module(
+			"daser",
+			baseComponents,
+			fullComponents,
 			fx.Provide(fx.Annotate(
 				newDASer,
 				fx.OnStart(func(ctx context.Context, breaker *modfraud.ServiceBreaker[*das.DASer, *header.ExtendedHeader]) error {
@@ -58,6 +116,7 @@ func ConstructModule(tp node.Type, cfg *Config) fx.Option {
 		return fx.Module(
 			"daser",
 			baseComponents,
+			baseOptions,
 			fx.Provide(newDaserStub),
 		)
 	default:

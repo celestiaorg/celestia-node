@@ -12,6 +12,7 @@ import (
 	"github.com/celestiaorg/go-fraud"
 	libhead "github.com/celestiaorg/go-header"
 
+	"github.com/celestiaorg/celestia-node/das/pruner"
 	"github.com/celestiaorg/celestia-node/header"
 	"github.com/celestiaorg/celestia-node/share"
 	"github.com/celestiaorg/celestia-node/share/eds/byzantine"
@@ -25,6 +26,7 @@ type DASer struct {
 	params Parameters
 
 	da     share.Availability
+	pruner *pruner.StoragePruner
 	bcast  fraud.Broadcaster[*header.ExtendedHeader]
 	hsub   libhead.Subscriber[*header.ExtendedHeader] // listens for new headers in the network
 	getter libhead.Getter[*header.ExtendedHeader]     // retrieves past headers
@@ -147,7 +149,12 @@ func (d *DASer) Stop(ctx context.Context) error {
 }
 
 func (d *DASer) sample(ctx context.Context, h *header.ExtendedHeader) error {
-	err := d.da.SharesAvailable(ctx, h.DAH)
+	var err error
+	if d.pruner != nil {
+		err = d.pruner.SampleAndRegister(ctx, h)
+	} else {
+		err = d.da.SharesAvailable(ctx, h.DAH)
+	}
 	if err != nil {
 		var byzantineErr *byzantine.ErrByzantine
 		if errors.As(err, &byzantineErr) {

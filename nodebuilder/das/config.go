@@ -31,6 +31,7 @@ func DefaultConfig(tp node.Type) Config {
 		// Full node uses shrex with fallback to ipld to sample, so need 2x amount of time in worst case
 		// scenario
 		cfg.SampleTimeout = 2 * modp2p.BlockTime * time.Duration(cfg.ConcurrencyLimit)
+		cfg.PruningEnabled = true
 	}
 	return Config(cfg)
 }
