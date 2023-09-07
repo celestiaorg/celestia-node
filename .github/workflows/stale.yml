@@ -14,3 +14,4 @@ jobs:
           days-before-close: 14
           days-before-issue-stale: 90
           days-before-issue-close: 21
+          exempt-issue-labels: 'keep-open'
