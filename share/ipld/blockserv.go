@@ -26,5 +26,5 @@ type allowlist struct{}
 
 func (a allowlist) IsAllowed(code uint64) bool {
 	// we allow all codes except home-baked sha256NamespaceFlagged
-	return code == sha256NamespaceFlagged
+	return code == sha256NamespaceFlagged || code == 0x7801
 }
