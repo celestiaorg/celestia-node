@@ -3,7 +3,7 @@
   "info": {
     "title": "Celestia Node API",
     "description": "The Celestia Node API is the collection of RPC methods that can be used to interact with the services provided by Celestia Data Availability Nodes.",
-    "version": "v0.2.0"
+    "version": "v0.2.2"
   },
   "externalDocs": {
     "description": "Celestia Node GitHub",
@@ -495,6 +495,33 @@
             ],
             "type": [
               "array"
+            ]
+          },
+          "required": true,
+          "deprecated": false
+        },
+        {
+          "name": "options",
+          "description": "*blob.SubmitOptions",
+          "summary": "",
+          "schema": {
+            "examples": [
+              {
+                "Fee": 42,
+                "GasLimit": 42
+              }
+            ],
+            "additionalProperties": false,
+            "properties": {
+              "Fee": {
+                "type": "integer"
+              },
+              "GasLimit": {
+                "type": "integer"
+              }
+            },
+            "type": [
+              "object"
             ]
           },
           "required": true,
