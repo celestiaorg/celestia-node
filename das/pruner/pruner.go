@@ -33,12 +33,6 @@ type StoragePruner struct {
 	sa       *full.ShareAvailability
 
 	registeredHeights chan uint64
-	pruneQueue        map[uint64]struct{}
-
-	// TODO: hsub is not necessary because we are working under the assumption that the DASer only syncs heights inside of the recency window anyways.
-	// remove after deciding completely on this assumption
-	// hsub     libhead.Subscriber[*header.ExtendedHeader]
-	// networkHead       uint64
 }
 
 func NewStoragePruner(
@@ -52,7 +46,6 @@ func NewStoragePruner(
 		edsStore:          edsStore,
 		ds:                ds,
 		sa:                availability,
-		pruneQueue:        make(map[uint64]struct{}),
 		registeredHeights: make(chan uint64, defaultBufferSize),
 	}, nil
 }
@@ -60,7 +53,6 @@ func NewStoragePruner(
 func (sp *StoragePruner) Start(ctx context.Context) error {
 	sp.ctx, sp.cancel = context.WithCancel(context.Background())
 	go sp.prune(sp.ctx)
-	go sp.pruneQueueRoutine(sp.ctx)
 	return nil
 }
 
@@ -71,6 +63,12 @@ func (sp *StoragePruner) Stop(ctx context.Context) error {
 }
 
 func (sp *StoragePruner) SampleAndRegister(ctx context.Context, h *header.ExtendedHeader) error {
+	if share.DataHash(h.DAH.Hash()).IsEmptyRoot() {
+		// we still need to register it to ensure its pair gets pruned
+		sp.registeredHeights <- h.Height()
+		return nil
+	}
+
 	err := sp.indexDAH(ctx, h)
 	if err != nil {
 		return err
@@ -105,13 +103,16 @@ func (sp *StoragePruner) pruneHeight(ctx context.Context, height uint64) error {
 		if err != nil {
 			return err
 		}
-		// TODO: Don't remove DAH if it is empty. We index empty DAHs because we cannot differentiate between a non-sampled height and an empty DAH otherwise.
-		err = sp.edsStore.Remove(ctx, dataHash)
-		if err != nil {
-			return err
+
+		// we index empty DAHs because we cannot differentiate between a non-sampled height and an empty DAH otherwise.
+		if !share.DataHash(dataHash).IsEmptyRoot() {
+			err = sp.edsStore.Remove(ctx, dataHash)
+			if err != nil {
+				return err
+			}
 		}
 
-		// TODO(Optimization): Queue ds deletes for batch removal
+		// TODO(Optimization): Queue ds deletes for batch removal?
 		err = sp.ds.Delete(ctx, k)
 		if err != nil {
 			return err
@@ -125,40 +126,44 @@ func (sp *StoragePruner) prune(ctx context.Context) error {
 		select {
 		case <-ctx.Done():
 			return nil
+		// TODO: Formalize this comment and simplify after discussion w team
 		// note: this means that pruning does not happen when a new header is received, but first when that height + RecencyWindow is stored
 		// the edge case here is that if a node goes offline for the length of the RecencyWindow, some blocks will not be pruned.
-		// another edge case is on startup: If recent jobs are finished faster than the first catchup job can retrieve the heights, those heights will not get pruned
+		// another edge case is on startup: If recent jobs are finished faster
+		// than the first catchup job can retrieve the heights, those heights
+		// will not get pruned. Similarly, if the network head is set too slowly
+		// and catchup jobs are started outside of the recency window, those
+		// heights are likely to not get pruned. My intuition here is that
+		// keeping the pruning solution this simple is very valuable, and the
+		// edge cases can be solved with a dumb cleanup that only needs to be
+		// run manually (worst case is that they store a few extra blocks on
+		// startup, or that their node has been down very long).
 		case height := <-sp.registeredHeights:
-			// there are no negative heights to prune
+			// underflow protection
 			if height < sp.cfg.RecencyWindow {
 				continue
 			}
-			// TODO: ctx timeout
+			// TODO: 10s is a random number
+			ctx, cancel := context.WithTimeout(ctx, 10*time.Second)
 			err := sp.pruneHeight(ctx, height-sp.cfg.RecencyWindow)
+			cancel()
 			if err != nil {
-				sp.pruneQueue[height] = struct{}{}
-				log.Errorw("failed to prune height, adding to prune queue", "height", height, "err", err)
+				log.Warnf("failed to prune height", "height", height, "err", err)
 			}
 		}
 	}
 }
-func (sp *StoragePruner) pruneQueueRoutine(ctx context.Context) {
-	ticker := time.NewTicker(5 * time.Minute)
-	defer ticker.Stop()
 
-	for {
-		select {
-		case <-ctx.Done():
-			return
-		case <-ticker.C:
-			for height := range sp.pruneQueue {
-				err := sp.pruneHeight(ctx, height)
-				if err != nil {
-					log.Errorw("failed to prune height from queue", "height", height, "err", err)
-				} else {
-					delete(sp.pruneQueue, height)
-				}
-			}
+// TODO: Figure out how to expose this to users via RPC or something. Should not
+// be run in a routine because edge cases only really happen on startup, and the
+// loop will run longer every time in the current implementation.
+func (sp *StoragePruner) CleanupBelowHeight(ctx context.Context, height uint64) error {
+	// this is slow now but when the bloom filter is implemented it will be faster than querying datastore
+	for h := uint64(0); h < height; h++ {
+		err := sp.pruneHeight(ctx, h)
+		if err != nil {
+			return fmt.Errorf("failed to prune height %d: %w", h, err)
 		}
 	}
+	return nil
 }

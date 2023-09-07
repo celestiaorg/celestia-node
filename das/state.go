@@ -32,6 +32,8 @@ type coordinatorState struct {
 	next uint64
 	// networkHead is the height of the latest known network head
 	networkHead uint64
+	// recencyWindow is the amount of blocks under the network head to be sampled
+	recencyWindow uint64
 
 	// catchUpDone indicates if all headers are sampled
 	catchUpDone atomic.Bool
@@ -62,6 +64,7 @@ func newCoordinatorState(params Parameters) coordinatorState {
 		nextJobID:     0,
 		next:          params.SampleFrom,
 		networkHead:   params.SampleFrom,
+		recencyWindow: params.RecencyWindow,
 		catchUpDoneCh: make(chan struct{}),
 	}
 }
@@ -141,7 +144,7 @@ func (s *coordinatorState) isNewHead(newHead uint64) bool {
 	return true
 }
 
-func (s *coordinatorState)  updateHead(newHead uint64) {
+func (s *coordinatorState) updateHead(newHead uint64) {
 	if s.networkHead == s.sampleFrom {
 		log.Infow("found first header, starting sampling")
 	}
@@ -182,6 +185,10 @@ func (s *coordinatorState) nextJob() (next job, found bool) {
 func (s *coordinatorState) catchupJob() (next job, found bool) {
 	if s.next > s.networkHead {
 		return job{}, false
+	}
+
+	if s.next < s.networkHead-s.recencyWindow {
+		s.next = s.networkHead - s.recencyWindow
 	}
 
 	to := s.next + s.samplingRange - 1
