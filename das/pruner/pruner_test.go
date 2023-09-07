@@ -41,7 +41,7 @@ func TestStoragePruner_Prunes(t *testing.T) {
 	availability := testAvailability(edsStore, getter)
 
 	// Create a new StoragePruner
-	sp, err := NewStoragePruner(edsStore, ds, getter, availability, &Config{
+	sp, err := NewStoragePruner(edsStore, ds, getter, availability, Config{
 		RecencyWindow: uint64(recencyWindow),
 	})
 	require.NoError(t, err)

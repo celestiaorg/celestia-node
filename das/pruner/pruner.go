@@ -3,6 +3,7 @@ package pruner
 import (
 	"context"
 	"fmt"
+	"time"
 
 	"github.com/celestiaorg/celestia-node/header"
 	"github.com/celestiaorg/celestia-node/share"
@@ -15,7 +16,7 @@ import (
 var log = logging.Logger("pruner")
 
 // TODO: Find sensible default
-var defaultBufferSize = 20
+var defaultBufferSize = 50
 
 type Config struct {
 	RecencyWindow uint64
@@ -32,6 +33,7 @@ type StoragePruner struct {
 	sa       *full.ShareAvailability
 
 	registeredHeights chan uint64
+	pruneQueue        map[uint64]struct{}
 
 	// TODO: hsub is not necessary because we are working under the assumption that the DASer only syncs heights inside of the recency window anyways.
 	// remove after deciding completely on this assumption
@@ -50,6 +52,7 @@ func NewStoragePruner(
 		edsStore:          edsStore,
 		ds:                ds,
 		sa:                availability,
+		pruneQueue:        make(map[uint64]struct{}),
 		registeredHeights: make(chan uint64, defaultBufferSize),
 	}, nil
 }
@@ -57,6 +60,7 @@ func NewStoragePruner(
 func (sp *StoragePruner) Start(ctx context.Context) error {
 	sp.ctx, sp.cancel = context.WithCancel(context.Background())
 	go sp.prune(sp.ctx)
+	go sp.pruneQueueRoutine(sp.ctx)
 	return nil
 }
 
@@ -86,7 +90,6 @@ func (sp *StoragePruner) indexDAH(ctx context.Context, h *header.ExtendedHeader)
 	return sp.ds.Put(ctx, k, h.DAH.Hash())
 }
 
-// note: does not set sp.lastPrunedHeight
 func (sp *StoragePruner) pruneHeight(ctx context.Context, height uint64) error {
 	k := datastore.NewKey(fmt.Sprintf("%d", height))
 	// TODO(optimization): Use a counting bloom filter to check if the key exists in the datastore.
@@ -98,11 +101,12 @@ func (sp *StoragePruner) pruneHeight(ctx context.Context, height uint64) error {
 	}
 
 	if exists {
-		dah, err := sp.ds.Get(ctx, k)
+		dataHash, err := sp.ds.Get(ctx, k)
 		if err != nil {
 			return err
 		}
-		err = sp.edsStore.Remove(ctx, dah)
+		// TODO: Don't remove DAH if it is empty. We index empty DAHs because we cannot differentiate between a non-sampled height and an empty DAH otherwise.
+		err = sp.edsStore.Remove(ctx, dataHash)
 		if err != nil {
 			return err
 		}
@@ -123,11 +127,37 @@ func (sp *StoragePruner) prune(ctx context.Context) error {
 			return nil
 		// note: this means that pruning does not happen when a new header is received, but first when that height + RecencyWindow is stored
 		// the edge case here is that if a node goes offline for the length of the RecencyWindow, some blocks will not be pruned.
+		// another edge case is on startup: If recent jobs are finished faster than the first catchup job can retrieve the heights, those heights will not get pruned
 		case height := <-sp.registeredHeights:
+			// there are no negative heights to prune
+			if height < sp.cfg.RecencyWindow {
+				continue
+			}
 			// TODO: ctx timeout
 			err := sp.pruneHeight(ctx, height-sp.cfg.RecencyWindow)
 			if err != nil {
-				log.Errorw("failed to prune height", "height", height, "err", err)
+				sp.pruneQueue[height] = struct{}{}
+				log.Errorw("failed to prune height, adding to prune queue", "height", height, "err", err)
+			}
+		}
+	}
+}
+func (sp *StoragePruner) pruneQueueRoutine(ctx context.Context) {
+	ticker := time.NewTicker(5 * time.Minute)
+	defer ticker.Stop()
+
+	for {
+		select {
+		case <-ctx.Done():
+			return
+		case <-ticker.C:
+			for height := range sp.pruneQueue {
+				err := sp.pruneHeight(ctx, height)
+				if err != nil {
+					log.Errorw("failed to prune height from queue", "height", height, "err", err)
+				} else {
+					delete(sp.pruneQueue, height)
+				}
 			}
 		}
 	}

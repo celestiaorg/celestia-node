@@ -64,7 +64,7 @@ func DefaultParameters() Parameters {
 		SampleFrom:              1,
 		// TODO: this should inherit block time from p2p config
 		// SampleTimeout = block time * max amount of catchup workers
-		SampleTimeout:  15 * time.Second * time.Duration(concurrencyLimit),
+		SampleTimeout: 15 * time.Second * time.Duration(concurrencyLimit),
 		RecencyWindow:  uint64((time.Hour * 24 * 28) / (15 * time.Second)),
 		PruningEnabled: false,
 	}
