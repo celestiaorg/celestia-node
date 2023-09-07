@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"sync"
 	"sync/atomic"
 	"time"
 
@@ -63,6 +64,8 @@ type Store struct {
 	// lastGCResult is only stored on the store for testing purposes.
 	lastGCResult atomic.Pointer[dagstore.GCResult]
 
+	// stripedLocks is used to synchronize parallel operations
+	stripedLocks  [256]sync.Mutex
 	shardFailures chan dagstore.ShardResult
 
 	metrics *metrics
@@ -221,6 +224,10 @@ func (s *Store) Put(ctx context.Context, root share.DataHash, square *rsmt2d.Ext
 }
 
 func (s *Store) put(ctx context.Context, root share.DataHash, square *rsmt2d.ExtendedDataSquare) (err error) {
+	lk := &s.stripedLocks[root[len(root)-1]]
+	lk.Lock()
+	defer lk.Unlock()
+
 	// if root already exists, short-circuit
 	if has, _ := s.Has(ctx, root); has {
 		return dagstore.ErrShardExists
