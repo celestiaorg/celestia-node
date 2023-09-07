@@ -34,6 +34,7 @@ func TestLifecycle(t *testing.T) {
 			require.NotNil(t, node.Host)
 			require.NotNil(t, node.HeaderServ)
 			require.NotNil(t, node.StateServ)
+			require.NotNil(t, node.AdminServ)
 			require.Equal(t, tt.tp, node.Type)
 
 			ctx, cancel := context.WithCancel(context.Background())
@@ -42,14 +43,8 @@ func TestLifecycle(t *testing.T) {
 			err := node.Start(ctx)
 			require.NoError(t, err)
 
-			// ensure the state service is running
-			require.False(t, node.StateServ.IsStopped(ctx))
-
 			err = node.Stop(ctx)
 			require.NoError(t, err)
-
-			// ensure the state service is stopped
-			require.True(t, node.StateServ.IsStopped(ctx))
 		})
 	}
 }
@@ -95,14 +90,8 @@ func TestLifecycle_WithMetrics(t *testing.T) {
 			err := node.Start(ctx)
 			require.NoError(t, err)
 
-			// ensure the state service is running
-			require.False(t, node.StateServ.IsStopped(ctx))
-
 			err = node.Stop(ctx)
 			require.NoError(t, err)
-
-			// ensure the state service is stopped
-			require.True(t, node.StateServ.IsStopped(ctx))
 		})
 	}
 }
@@ -135,6 +124,9 @@ func StartMockOtelCollectorHTTPServer(t *testing.T) (string, func()) {
 }
 
 func TestEmptyBlockExists(t *testing.T) {
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
 	var test = []struct {
 		tp node.Type
 	}{
@@ -147,10 +139,6 @@ func TestEmptyBlockExists(t *testing.T) {
 	for i, tt := range test {
 		t.Run(strconv.Itoa(i), func(t *testing.T) {
 			node := TestNode(t, tt.tp)
-
-			ctx, cancel := context.WithTimeout(context.Background(), Timeout)
-			defer cancel()
-
 			err := node.Start(ctx)
 			require.NoError(t, err)
 

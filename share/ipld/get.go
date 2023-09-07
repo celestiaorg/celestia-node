@@ -2,15 +2,18 @@ package ipld
 
 import (
 	"context"
+	"errors"
 	"sync"
 	"sync/atomic"
 
 	"github.com/gammazero/workerpool"
-	"github.com/ipfs/go-blockservice"
+	"github.com/ipfs/boxo/blockservice"
 	"github.com/ipfs/go-cid"
 	ipld "github.com/ipfs/go-ipld-format"
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/codes"
+
+	"github.com/celestiaorg/celestia-node/share"
 )
 
 // NumWorkersLimit sets global limit for workers spawned by GetShares.
@@ -25,11 +28,14 @@ import (
 //
 // TODO(@Wondertan): This assumes we have parallelized DASer implemented. Sync the values once it is shipped.
 // TODO(@Wondertan): Allow configuration of values without global state.
-var NumWorkersLimit = MaxSquareSize * MaxSquareSize / 2 * NumConcurrentSquares
+var NumWorkersLimit = share.MaxSquareSize * share.MaxSquareSize / 2 * NumConcurrentSquares
 
 // NumConcurrentSquares limits the amount of squares that are fetched
 // concurrently/simultaneously.
 var NumConcurrentSquares = 8
+
+// ErrNodeNotFound is used to signal when a nmt Node could not be found.
+var ErrNodeNotFound = errors.New("nmt node not found")
 
 // Global worker pool that globally controls and limits goroutines spawned by
 // GetShares.
@@ -99,7 +105,7 @@ func GetLeaves(ctx context.Context,
 
 	// this buffer ensures writes to 'jobs' are never blocking (bin-tree-feat)
 	jobs := make(chan *job, (maxShares+1)/2) // +1 for the case where 'maxShares' is 1
-	jobs <- &job{id: root, ctx: ctx}
+	jobs <- &job{cid: root, ctx: ctx}
 	// total is an amount of routines spawned and total amount of nodes we process (bin-tree-feat)
 	// so we can specify exact amount of loops we do, and wait for this amount
 	// of routines to finish processing
@@ -119,11 +125,11 @@ func GetLeaves(ctx context.Context,
 				defer wg.Done()
 
 				span.SetAttributes(
-					attribute.String("cid", j.id.String()),
+					attribute.String("cid", j.cid.String()),
 					attribute.Int("pos", j.sharePos),
 				)
 
-				nd, err := GetNode(ctx, bGetter, j.id)
+				nd, err := GetNode(ctx, bGetter, j.cid)
 				if err != nil {
 					// we don't really care about errors here
 					// just fetch as much as possible
@@ -145,7 +151,7 @@ func GetLeaves(ctx context.Context,
 					// send those to be processed
 					select {
 					case jobs <- &job{
-						id: lnk.Cid,
+						cid: lnk.Cid,
 						// calc position for children nodes (bin-tree-feat),
 						// s.t. 'if' above knows where to put a share
 						sharePos: j.sharePos*2 + i,
@@ -209,7 +215,7 @@ func GetProof(
 // chanGroup implements an atomic wait group, closing a jobs chan
 // when fully done.
 type chanGroup struct {
-	jobs    chan *job
+	jobs    chan job
 	counter int64
 }
 
@@ -229,8 +235,29 @@ func (w *chanGroup) done() {
 // job represents an encountered node to investigate during the `GetLeaves`
 // and `CollectLeavesByNamespace` routines.
 type job struct {
-	id       cid.Cid
+	// we pass the context to job so that spans are tracked in a tree
+	// structure
+	ctx context.Context
+	// cid of the node that will be handled
+	cid cid.Cid
+	// sharePos represents potential share position in share slice
 	sharePos int
-	depth    int
-	ctx      context.Context
+	// depth represents the number of edges present in path from the root node of a tree to that node
+	depth int
+	// isAbsent indicates if target namespaceID is not included, only collect absence proofs
+	isAbsent bool
+}
+
+func (j job) next(direction direction, cid cid.Cid, isAbsent bool) job {
+	var i int
+	if direction == right {
+		i++
+	}
+	return job{
+		ctx:      j.ctx,
+		cid:      cid,
+		sharePos: j.sharePos*2 + i,
+		depth:    j.depth + 1,
+		isAbsent: isAbsent,
+	}
 }

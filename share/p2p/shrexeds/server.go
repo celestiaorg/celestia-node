@@ -2,6 +2,7 @@ package shrexeds
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"io"
 	"time"
@@ -9,6 +10,7 @@ import (
 	"github.com/libp2p/go-libp2p/core/host"
 	"github.com/libp2p/go-libp2p/core/network"
 	"github.com/libp2p/go-libp2p/core/protocol"
+	"go.uber.org/zap"
 
 	"github.com/celestiaorg/go-libp2p-messenger/serde"
 
@@ -28,7 +30,9 @@ type Server struct {
 
 	store *eds.Store
 
-	params *Parameters
+	params     *Parameters
+	middleware *p2p.Middleware
+	metrics    *p2p.Metrics
 }
 
 // NewServer creates a new ShrEx/EDS server.
@@ -42,12 +46,13 @@ func NewServer(params *Parameters, host host.Host, store *eds.Store) (*Server, e
 		store:      store,
 		protocolID: p2p.ProtocolID(params.NetworkID(), protocolString),
 		params:     params,
+		middleware: p2p.NewMiddleware(params.ConcurrencyLimit),
 	}, nil
 }
 
 func (s *Server) Start(context.Context) error {
 	s.ctx, s.cancel = context.WithCancel(context.Background())
-	s.host.SetStreamHandler(s.protocolID, p2p.RateLimitMiddleware(s.handleStream, s.params.ConcurrencyLimit))
+	s.host.SetStreamHandler(s.protocolID, s.middleware.RateLimitHandler(s.handleStream))
 	return nil
 }
 
@@ -57,13 +62,23 @@ func (s *Server) Stop(context.Context) error {
 	return nil
 }
 
+func (s *Server) observeRateLimitedRequests() {
+	numRateLimited := s.middleware.DrainCounter()
+	if numRateLimited > 0 {
+		s.metrics.ObserveRequests(context.Background(), numRateLimited, p2p.StatusRateLimited)
+	}
+}
+
 func (s *Server) handleStream(stream network.Stream) {
-	log.Debug("server: handling eds request")
+	logger := log.With("peer", stream.Conn().RemotePeer().String())
+	logger.Debug("server: handling eds request")
+
+	s.observeRateLimitedRequests()
 
 	// read request from stream to get the dataHash for store lookup
-	req, err := s.readRequest(stream)
+	req, err := s.readRequest(logger, stream)
 	if err != nil {
-		log.Errorw("server: reading request from stream", "err", err)
+		logger.Warnw("server: reading request from stream", "err", err)
 		stream.Reset() //nolint:errcheck
 		return
 	}
@@ -72,52 +87,65 @@ func (s *Server) handleStream(stream network.Stream) {
 	hash := share.DataHash(req.Hash)
 	err = hash.Validate()
 	if err != nil {
+		logger.Warnw("server: invalid request", "err", err)
 		stream.Reset() //nolint:errcheck
 		return
 	}
+	logger = logger.With("hash", hash.String())
 
 	ctx, cancel := context.WithTimeout(s.ctx, s.params.HandleRequestTimeout)
 	defer cancel()
-	status := p2p_pb.Status_OK
+
 	// determine whether the EDS is available in our store
+	// we do not close the reader, so that other requests will not need to re-open the file.
+	// closing is handled by the LRU cache.
 	edsReader, err := s.store.GetCAR(ctx, hash)
-	if err != nil {
+	status := p2p_pb.Status_OK
+	switch {
+	case errors.Is(err, eds.ErrNotFound):
+		logger.Warnw("server: request hash not found")
+		s.metrics.ObserveRequests(ctx, 1, p2p.StatusNotFound)
 		status = p2p_pb.Status_NOT_FOUND
-	} else {
-		defer edsReader.Close()
+	case err != nil:
+		logger.Errorw("server: get CAR", "err", err)
+		status = p2p_pb.Status_INTERNAL
 	}
 
 	// inform the client of our status
-	err = s.writeStatus(status, stream)
+	err = s.writeStatus(logger, status, stream)
 	if err != nil {
-		log.Errorw("server: writing status to stream", "err", err)
+		logger.Warnw("server: writing status to stream", "err", err)
 		stream.Reset() //nolint:errcheck
 		return
 	}
 	// if we cannot serve the EDS, we are already done
 	if status != p2p_pb.Status_OK {
-		stream.Close()
+		err = stream.Close()
+		if err != nil {
+			logger.Debugw("server: closing stream", "err", err)
+		}
 		return
 	}
 
 	// start streaming the ODS to the client
-	err = s.writeODS(edsReader, stream)
+	err = s.writeODS(logger, edsReader, stream)
 	if err != nil {
-		log.Errorw("server: writing ods to stream", "hash", hash.String(), "err", err)
+		logger.Warnw("server: writing ods to stream", "err", err)
 		stream.Reset() //nolint:errcheck
 		return
 	}
 
+	s.metrics.ObserveRequests(ctx, 1, p2p.StatusSuccess)
 	err = stream.Close()
 	if err != nil {
-		log.Errorw("server: closing stream", "err", err)
+		logger.Debugw("server: closing stream", "err", err)
 	}
 }
 
-func (s *Server) readRequest(stream network.Stream) (*p2p_pb.EDSRequest, error) {
+func (s *Server) readRequest(logger *zap.SugaredLogger, stream network.Stream) (*p2p_pb.EDSRequest, error) {
 	err := stream.SetReadDeadline(time.Now().Add(s.params.ServerReadTimeout))
 	if err != nil {
-		log.Debug(err)
+		logger.Debugw("server: set read deadline", "err", err)
 	}
 
 	req := new(p2p_pb.EDSRequest)
@@ -127,16 +155,16 @@ func (s *Server) readRequest(stream network.Stream) (*p2p_pb.EDSRequest, error) 
 	}
 	err = stream.CloseRead()
 	if err != nil {
-		log.Error(err)
+		logger.Debugw("server: closing read", "err", err)
 	}
 
 	return req, nil
 }
 
-func (s *Server) writeStatus(status p2p_pb.Status, stream network.Stream) error {
+func (s *Server) writeStatus(logger *zap.SugaredLogger, status p2p_pb.Status, stream network.Stream) error {
 	err := stream.SetWriteDeadline(time.Now().Add(s.params.ServerWriteTimeout))
 	if err != nil {
-		log.Debug(err)
+		logger.Debugw("server: set write deadline", "err", err)
 	}
 
 	resp := &p2p_pb.EDSResponse{Status: status}
@@ -144,10 +172,10 @@ func (s *Server) writeStatus(status p2p_pb.Status, stream network.Stream) error 
 	return err
 }
 
-func (s *Server) writeODS(edsReader io.ReadCloser, stream network.Stream) error {
+func (s *Server) writeODS(logger *zap.SugaredLogger, edsReader io.Reader, stream network.Stream) error {
 	err := stream.SetWriteDeadline(time.Now().Add(s.params.ServerWriteTimeout))
 	if err != nil {
-		log.Debug(err)
+		logger.Debugw("server: set read deadline", "err", err)
 	}
 
 	odsReader, err := eds.ODSReader(edsReader)

@@ -3,22 +3,16 @@ package eds
 import (
 	"bytes"
 	"context"
+	"crypto/sha256"
 	"errors"
 	"fmt"
 	"io"
 	"math"
 
-	"github.com/ipfs/go-blockservice"
 	"github.com/ipfs/go-cid"
-	ds "github.com/ipfs/go-datastore"
-	dssync "github.com/ipfs/go-datastore/sync"
-	bstore "github.com/ipfs/go-ipfs-blockstore"
-	format "github.com/ipfs/go-ipld-format"
 	"github.com/ipld/go-car"
 	"github.com/ipld/go-car/util"
-	"github.com/minio/sha256-simd"
 
-	"github.com/celestiaorg/celestia-app/pkg/appconsts"
 	"github.com/celestiaorg/celestia-app/pkg/da"
 	"github.com/celestiaorg/celestia-app/pkg/wrapper"
 	"github.com/celestiaorg/nmt"
@@ -31,15 +25,6 @@ import (
 
 var ErrEmptySquare = errors.New("share: importing empty data")
 
-// writingSession contains the components needed to write an EDS to a CARv1 file with our custom
-// node order.
-type writingSession struct {
-	eds    *rsmt2d.ExtendedDataSquare
-	store  bstore.Blockstore // caches inner nodes (proofs) while we walk the nmt tree.
-	hasher *nmt.Hasher
-	w      io.Writer
-}
-
 // WriteEDS writes the entire EDS into the given io.Writer as CARv1 file.
 // This includes all shares in quadrant order, followed by all inner nodes of the NMT tree.
 // Order: [ Carv1Header | Q1 |  Q2 | Q3 | Q4 | inner nodes ]
@@ -50,77 +35,28 @@ func WriteEDS(ctx context.Context, eds *rsmt2d.ExtendedDataSquare, w io.Writer) 
 		utils.SetStatusAndEnd(span, err)
 	}()
 
-	// 1. Reimport EDS. This is needed to traverse the NMT tree and cache the inner nodes (proofs)
-	writer, err := initializeWriter(ctx, eds, w)
-	if err != nil {
-		return fmt.Errorf("share: creating eds writer: %w", err)
-	}
-
-	// 2. Creates and writes Carv1Header
-	//    - Roots are the eds Row + Col roots
-	err = writer.writeHeader()
+	// Creates and writes Carv1Header. Roots are the eds Row + Col roots
+	err = writeHeader(eds, w)
 	if err != nil {
 		return fmt.Errorf("share: writing carv1 header: %w", err)
 	}
-
-	// 3. Iterates over shares in quadrant order via eds.GetCell
-	err = writer.writeQuadrants()
+	// Iterates over shares in quadrant order via eds.GetCell
+	err = writeQuadrants(eds, w)
 	if err != nil {
 		return fmt.Errorf("share: writing shares: %w", err)
 	}
 
-	// 4. Iterates over in-memory blockstore and writes proofs to the CAR
-	err = writer.writeProofs(ctx)
+	// Iterates over proofs and writes them to the CAR
+	err = writeProofs(ctx, eds, w)
 	if err != nil {
 		return fmt.Errorf("share: writing proofs: %w", err)
 	}
 	return nil
 }
 
-// initializeWriter reimports the EDS into an in-memory blockstore in order to cache the proofs.
-func initializeWriter(ctx context.Context, eds *rsmt2d.ExtendedDataSquare, w io.Writer) (*writingSession, error) {
-	// we use an in-memory blockstore and an offline exchange
-	store := bstore.NewBlockstore(dssync.MutexWrap(ds.NewMapDatastore()))
-	bs := blockservice.New(store, nil)
-	// shares are extracted from the eds so that we can reimport them to traverse
-	shares := share.ExtractEDS(eds)
-	shareCount := len(shares)
-	if shareCount == 0 {
-		return nil, ErrEmptySquare
-	}
-	odsWidth := int(math.Sqrt(float64(shareCount)) / 2)
-	// (shareCount*2) - (odsWidth*4) is the amount of inner nodes visited
-	batchAdder := ipld.NewNmtNodeAdder(ctx, bs, format.MaxSizeBatchOption(innerNodeBatchSize(shareCount, odsWidth)))
-	// this adder ignores leaves, so that they are not added to the store we iterate through in
-	// writeProofs
-	eds, err := rsmt2d.ImportExtendedDataSquare(
-		shares,
-		share.DefaultRSMT2DCodec(),
-		wrapper.NewConstructor(uint64(odsWidth),
-			nmt.NodeVisitor(batchAdder.VisitInnerNodes)),
-	)
-	if err != nil {
-		return nil, fmt.Errorf("recomputing data square: %w", err)
-	}
-	// compute roots
-	eds.RowRoots()
-	// commit the batch to DAG
-	err = batchAdder.Commit()
-	if err != nil {
-		return nil, fmt.Errorf("committing inner nodes to the dag: %w", err)
-	}
-
-	return &writingSession{
-		eds:    eds,
-		store:  store,
-		hasher: nmt.NewNmtHasher(sha256.New(), ipld.NamespaceSize, ipld.NMTIgnoreMaxNamespace),
-		w:      w,
-	}, nil
-}
-
 // writeHeader creates a CarV1 header using the EDS's Row and Column roots as the list of DAG roots.
-func (w *writingSession) writeHeader() error {
-	rootCids, err := rootsToCids(w.eds)
+func writeHeader(eds *rsmt2d.ExtendedDataSquare, w io.Writer) error {
+	rootCids, err := rootsToCids(eds)
 	if err != nil {
 		return fmt.Errorf("getting root cids: %w", err)
 	}
@@ -128,14 +64,15 @@ func (w *writingSession) writeHeader() error {
 	return car.WriteHeader(&car.CarHeader{
 		Roots:   rootCids,
 		Version: 1,
-	}, w.w)
+	}, w)
 }
 
 // writeQuadrants reorders the shares to quadrant order and writes them to the CARv1 file.
-func (w *writingSession) writeQuadrants() error {
-	shares := quadrantOrder(w.eds)
+func writeQuadrants(eds *rsmt2d.ExtendedDataSquare, w io.Writer) error {
+	hasher := nmt.NewNmtHasher(sha256.New(), share.NamespaceSize, ipld.NMTIgnoreMaxNamespace)
+	shares := quadrantOrder(eds)
 	for _, share := range shares {
-		leaf, err := w.hasher.HashLeaf(share)
+		leaf, err := hasher.HashLeaf(share)
 		if err != nil {
 			return fmt.Errorf("hashing share: %w", err)
 		}
@@ -143,7 +80,7 @@ func (w *writingSession) writeQuadrants() error {
 		if err != nil {
 			return fmt.Errorf("getting cid from share: %w", err)
 		}
-		err = util.LdWrite(w.w, cid.Bytes(), share)
+		err = util.LdWrite(w, cid.Bytes(), share)
 		if err != nil {
 			return fmt.Errorf("writing share to file: %w", err)
 		}
@@ -153,35 +90,57 @@ func (w *writingSession) writeQuadrants() error {
 
 // writeProofs iterates over the in-memory blockstore's keys and writes all inner nodes to the
 // CARv1 file.
-func (w *writingSession) writeProofs(ctx context.Context) error {
-	// we only stored proofs to the store, so we can just iterate over them here without getting any
-	// leaves
-	proofs, err := w.store.AllKeysChan(ctx)
+func writeProofs(ctx context.Context, eds *rsmt2d.ExtendedDataSquare, w io.Writer) error {
+	// check if proofs are collected by ipld.ProofsAdder in previous reconstructions of eds
+	proofs, err := getProofs(ctx, eds)
 	if err != nil {
-		return fmt.Errorf("getting all keys from the blockstore: %w", err)
+		return fmt.Errorf("recomputing proofs: %w", err)
 	}
-	for proofCid := range proofs {
-		block, err := w.store.Get(ctx, proofCid)
-		if err != nil {
-			return fmt.Errorf("getting proof from the blockstore: %w", err)
-		}
 
-		node := block.RawData()
-		left, right := node[:ipld.NmtHashSize], node[ipld.NmtHashSize:]
-		hash, err := w.hasher.HashNode(left, right)
-		if err != nil {
-			return fmt.Errorf("hashing node: %w", err)
-		}
-		cid, err := ipld.CidFromNamespacedSha256(hash)
-		if err != nil {
-			return fmt.Errorf("getting cid: %w", err)
-		}
-		err = util.LdWrite(w.w, cid.Bytes(), node)
+	for id, proof := range proofs {
+		err := util.LdWrite(w, id.Bytes(), proof)
 		if err != nil {
 			return fmt.Errorf("writing proof to the car: %w", err)
 		}
 	}
 	return nil
+}
+
+func getProofs(ctx context.Context, eds *rsmt2d.ExtendedDataSquare) (map[cid.Cid][]byte, error) {
+	// check if there are proofs collected by ipld.ProofsAdder in previous reconstruction of eds
+	if adder := ipld.ProofsAdderFromCtx(ctx); adder != nil {
+		defer adder.Purge()
+		return adder.Proofs(), nil
+	}
+
+	// recompute proofs from eds
+	shares := eds.Flattened()
+	shareCount := len(shares)
+	if shareCount == 0 {
+		return nil, ErrEmptySquare
+	}
+	odsWidth := int(math.Sqrt(float64(shareCount)) / 2)
+
+	// this adder ignores leaves, so that they are not added to the store we iterate through in
+	// writeProofs
+	adder := ipld.NewProofsAdder(odsWidth * 2)
+	defer adder.Purge()
+
+	eds, err := rsmt2d.ImportExtendedDataSquare(
+		shares,
+		share.DefaultRSMT2DCodec(),
+		wrapper.NewConstructor(uint64(odsWidth),
+			nmt.NodeVisitor(adder.VisitFn())),
+	)
+	if err != nil {
+		return nil, fmt.Errorf("recomputing data square: %w", err)
+	}
+	// compute roots
+	if _, err = eds.RowRoots(); err != nil {
+		return nil, fmt.Errorf("computing row roots: %w", err)
+	}
+
+	return adder.Proofs(), nil
 }
 
 // quadrantOrder reorders the shares in the EDS to quadrant row-by-row order, prepending the
@@ -218,12 +177,13 @@ func getQuadrantCells(eds *rsmt2d.ExtendedDataSquare, i, j uint) [][]byte {
 
 // prependNamespace adds the namespace to the passed share if in the first quadrant,
 // otherwise it adds the ParitySharesNamespace to the beginning.
-func prependNamespace(quadrant int, share []byte) []byte {
+func prependNamespace(quadrant int, shr share.Share) []byte {
+	namespacedShare := make([]byte, 0, share.NamespaceSize+share.Size)
 	switch quadrant {
 	case 0:
-		return append(share[:ipld.NamespaceSize], share...)
+		return append(append(namespacedShare, share.GetNamespace(shr)...), shr...)
 	case 1, 2, 3:
-		return append(appconsts.ParitySharesNamespaceID, share...)
+		return append(append(namespacedShare, share.ParitySharesNamespace...), shr...)
 	default:
 		panic("invalid quadrant")
 	}
@@ -231,8 +191,18 @@ func prependNamespace(quadrant int, share []byte) []byte {
 
 // rootsToCids converts the EDS's Row and Column roots to CIDs.
 func rootsToCids(eds *rsmt2d.ExtendedDataSquare) ([]cid.Cid, error) {
-	var err error
-	roots := append(eds.RowRoots(), eds.ColRoots()...)
+	rowRoots, err := eds.RowRoots()
+	if err != nil {
+		return nil, err
+	}
+	colRoots, err := eds.ColRoots()
+	if err != nil {
+		return nil, err
+	}
+
+	roots := make([][]byte, 0, len(rowRoots)+len(colRoots))
+	roots = append(roots, rowRoots...)
+	roots = append(roots, colRoots...)
 	rootCids := make([]cid.Cid, len(roots))
 	for i, r := range roots {
 		rootCids[i], err = ipld.CidFromNamespacedSha256(r)
@@ -271,19 +241,29 @@ func ReadEDS(ctx context.Context, r io.Reader, root share.DataHash) (eds *rsmt2d
 		}
 		// the stored first quadrant shares are wrapped with the namespace twice.
 		// we cut it off here, because it is added again while importing to the tree below
-		shares[i] = block.RawData()[ipld.NamespaceSize:]
+		shares[i] = share.GetData(block.RawData())
+	}
+
+	// use proofs adder if provided, to cache collected proofs while recomputing the eds
+	var opts []nmt.Option
+	visitor := ipld.ProofsAdderFromCtx(ctx).VisitFn()
+	if visitor != nil {
+		opts = append(opts, nmt.NodeVisitor(visitor))
 	}
 
 	eds, err = rsmt2d.ComputeExtendedDataSquare(
 		shares,
 		share.DefaultRSMT2DCodec(),
-		wrapper.NewConstructor(uint64(odsWidth)),
+		wrapper.NewConstructor(uint64(odsWidth), opts...),
 	)
 	if err != nil {
 		return nil, fmt.Errorf("share: computing eds: %w", err)
 	}
 
-	newDah := da.NewDataAvailabilityHeader(eds)
+	newDah, err := da.NewDataAvailabilityHeader(eds)
+	if err != nil {
+		return nil, err
+	}
 	if !bytes.Equal(newDah.Hash(), root) {
 		return nil, fmt.Errorf(
 			"share: content integrity mismatch: imported root %s doesn't match expected root %s",
@@ -292,10 +272,4 @@ func ReadEDS(ctx context.Context, r io.Reader, root share.DataHash) (eds *rsmt2d
 		)
 	}
 	return eds, nil
-}
-
-// innerNodeBatchSize calculates the total number of inner nodes in an EDS,
-// to be flushed to the dagstore in a single write.
-func innerNodeBatchSize(shareCount int, odsWidth int) int {
-	return (shareCount * 2) - (odsWidth * 4)
 }

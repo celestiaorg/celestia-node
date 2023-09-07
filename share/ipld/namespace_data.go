@@ -7,15 +7,19 @@ import (
 	"sync"
 	"sync/atomic"
 
-	"github.com/ipfs/go-blockservice"
+	"github.com/ipfs/boxo/blockservice"
 	"github.com/ipfs/go-cid"
 	ipld "github.com/ipfs/go-ipld-format"
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/codes"
 
 	"github.com/celestiaorg/nmt"
-	"github.com/celestiaorg/nmt/namespace"
+
+	"github.com/celestiaorg/celestia-node/share"
 )
+
+var ErrNamespaceOutsideRange = errors.New("share/ipld: " +
+	"target namespace is outside of namespace range for the given root")
 
 // Option is the functional option that is applied to the NamespaceData instance
 // to configure data that needs to be stored.
@@ -39,21 +43,25 @@ func WithProofs() Option {
 
 // NamespaceData stores all leaves under the given namespace with their corresponding proofs.
 type NamespaceData struct {
-	leaves    []ipld.Node
-	proofs    *proofCollector
+	leaves []ipld.Node
+	proofs *proofCollector
+
 	bounds    fetchedBounds
 	maxShares int
-	nID       namespace.ID
+	namespace share.Namespace
+
+	isAbsentNamespace atomic.Bool
+	absenceProofLeaf  ipld.Node
 }
 
-func NewNamespaceData(maxShares int, nID namespace.ID, options ...Option) *NamespaceData {
+func NewNamespaceData(maxShares int, namespace share.Namespace, options ...Option) *NamespaceData {
 	data := &NamespaceData{
 		// we don't know where in the tree the leaves in the namespace are,
 		// so we keep track of the bounds to return the correct slice
 		// maxShares acts as a sentinel to know if we find any leaves
 		bounds:    fetchedBounds{int64(maxShares), 0},
 		maxShares: maxShares,
-		nID:       nID,
+		namespace: namespace,
 	}
 
 	for _, opt := range options {
@@ -62,13 +70,18 @@ func NewNamespaceData(maxShares int, nID namespace.ID, options ...Option) *Names
 	return data
 }
 
-func (n *NamespaceData) validate() error {
-	if len(n.nID) != NamespaceSize {
-		return fmt.Errorf("expected namespace ID of size %d, got %d", NamespaceSize, len(n.nID))
+func (n *NamespaceData) validate(rootCid cid.Cid) error {
+	if err := n.namespace.Validate(); err != nil {
+		return err
 	}
 
 	if n.leaves == nil && n.proofs == nil {
 		return errors.New("share/ipld: empty NamespaceData, nothing specified to retrieve")
+	}
+
+	root := NamespacedSha256FromCID(rootCid)
+	if n.namespace.IsOutsideRange(root, root) {
+		return ErrNamespaceOutsideRange
 	}
 	return nil
 }
@@ -76,6 +89,14 @@ func (n *NamespaceData) validate() error {
 func (n *NamespaceData) addLeaf(pos int, nd ipld.Node) {
 	// bounds will be needed in `Proof` method
 	n.bounds.update(int64(pos))
+
+	if n.isAbsentNamespace.Load() {
+		if n.absenceProofLeaf != nil {
+			log.Fatal("there should be only one absence leaf")
+		}
+		n.absenceProofLeaf = nd
+		return
+	}
 
 	if n.leaves == nil {
 		return
@@ -116,7 +137,7 @@ func (n *NamespaceData) addProof(d direction, cid cid.Cid, depth int) {
 // Leaves returns retrieved leaves within the bounds in case `WithLeaves` option was passed,
 // otherwise nil will be returned.
 func (n *NamespaceData) Leaves() []ipld.Node {
-	if n.leaves == nil || n.noLeaves() {
+	if n.leaves == nil || n.noLeaves() || n.isAbsentNamespace.Load() {
 		return nil
 	}
 	return n.leaves[n.bounds.lowest : n.bounds.highest+1]
@@ -139,6 +160,16 @@ func (n *NamespaceData) Proof() *nmt.Proof {
 		nodes[i] = NamespacedSha256FromCID(node)
 	}
 
+	if n.isAbsentNamespace.Load() {
+		proof := nmt.NewAbsenceProof(
+			int(n.bounds.lowest),
+			int(n.bounds.highest)+1,
+			nodes,
+			NamespacedSha256FromCID(n.absenceProofLeaf.Cid()),
+			NMTIgnoreMaxNamespace,
+		)
+		return &proof
+	}
 	proof := nmt.NewInclusionProof(
 		int(n.bounds.lowest),
 		int(n.bounds.highest)+1,
@@ -149,7 +180,7 @@ func (n *NamespaceData) Proof() *nmt.Proof {
 }
 
 // CollectLeavesByNamespace collects leaves and corresponding proof that could be used to verify
-// leaves inclusion. It returns as many leaves from the given root with the given namespace.ID as
+// leaves inclusion. It returns as many leaves from the given root with the given Namespace as
 // it can retrieve. If no shares are found, it returns error as nil. A
 // non-nil error means that only partial data is returned, because at least one share retrieval
 // failed. The following implementation is based on `GetShares`.
@@ -158,7 +189,7 @@ func (n *NamespaceData) CollectLeavesByNamespace(
 	bGetter blockservice.BlockGetter,
 	root cid.Cid,
 ) error {
-	if err := n.validate(); err != nil {
+	if err := n.validate(root); err != nil {
 		return err
 	}
 
@@ -166,14 +197,13 @@ func (n *NamespaceData) CollectLeavesByNamespace(
 	defer span.End()
 
 	span.SetAttributes(
-		attribute.String("namespace", n.nID.String()),
-		attribute.String("root", root.String()),
+		attribute.String("namespace", n.namespace.String()),
 	)
 
 	// buffer the jobs to avoid blocking, we only need as many
 	// queued as the number of shares in the second-to-last layer
-	jobs := make(chan *job, (n.maxShares+1)/2)
-	jobs <- &job{id: root, ctx: ctx}
+	jobs := make(chan job, (n.maxShares+1)/2)
+	jobs <- job{cid: root, ctx: ctx}
 
 	var wg chanGroup
 	wg.jobs = jobs
@@ -185,7 +215,7 @@ func (n *NamespaceData) CollectLeavesByNamespace(
 	)
 
 	for {
-		var j *job
+		var j job
 		var ok bool
 		select {
 		case j, ok = <-jobs:
@@ -202,19 +232,19 @@ func (n *NamespaceData) CollectLeavesByNamespace(
 			defer wg.done()
 
 			span.SetAttributes(
-				attribute.String("cid", j.id.String()),
+				attribute.String("cid", j.cid.String()),
 				attribute.Int("pos", j.sharePos),
 			)
 
 			// if an error is likely to be returned or not depends on
 			// the underlying impl of the blockservice, currently it is not a realistic probability
-			nd, err := GetNode(ctx, bGetter, j.id)
+			nd, err := GetNode(ctx, bGetter, j.cid)
 			if err != nil {
 				singleErr.Do(func() {
 					retrievalErr = err
 				})
-				log.Errorw("getLeavesWithProofsByNamespace:could not retrieve node",
-					"nID", n.nID,
+				log.Errorw("could not retrieve IPLD node",
+					"namespace", n.namespace.String(),
 					"pos", j.sharePos,
 					"err", err,
 				)
@@ -234,44 +264,68 @@ func (n *NamespaceData) CollectLeavesByNamespace(
 			}
 
 			// this node has links in the namespace, so keep walking
-			for i, lnk := range links {
-				newJob := &job{
-					id: lnk.Cid,
-					// sharePos represents potential share position in share slice
-					sharePos: j.sharePos*2 + i,
-					// depth represents the number of edges present in path from the root node of a tree to that node
-					depth: j.depth + 1,
-					// we pass the context to job so that spans are tracked in a tree
-					// structure
-					ctx: ctx,
-				}
-				// if the link's nID isn't in range we don't need to create a new job for it,
-				// but need to collect a proof
-				jobNid := NamespacedSha256FromCID(newJob.id)
-
-				// proof is on the right side, if the nID is less than min namespace of jobNid
-				if n.nID.Less(nmt.MinNamespace(jobNid, n.nID.Size())) {
-					n.addProof(right, lnk.Cid, newJob.depth)
-					continue
-				}
-
-				// proof is on the left side, if the nID is bigger than max namespace of jobNid
-				if !n.nID.LessOrEqual(nmt.MaxNamespace(jobNid, n.nID.Size())) {
-					n.addProof(left, lnk.Cid, newJob.depth)
-					continue
-				}
-
-				// by passing the previous check, we know we will have one more node to process
-				// note: it is important to increase the counter before sending to the channel
+			newJobs := n.traverseLinks(j, links)
+			for _, j := range newJobs {
 				wg.add(1)
 				select {
-				case jobs <- newJob:
+				case jobs <- j:
 				case <-ctx.Done():
 					return
 				}
 			}
 		})
 	}
+}
+
+func (n *NamespaceData) traverseLinks(j job, links []*ipld.Link) []job {
+	if j.isAbsent {
+		return n.collectAbsenceProofs(j, links)
+	}
+	return n.collectNDWithProofs(j, links)
+}
+
+func (n *NamespaceData) collectAbsenceProofs(j job, links []*ipld.Link) []job {
+	leftLink := links[0].Cid
+	rightLink := links[1].Cid
+	// traverse to the left node, while collecting right node as proof
+	n.addProof(right, rightLink, j.depth)
+	return []job{j.next(left, leftLink, j.isAbsent)}
+}
+
+func (n *NamespaceData) collectNDWithProofs(j job, links []*ipld.Link) []job {
+	leftCid := links[0].Cid
+	rightCid := links[1].Cid
+	leftLink := NamespacedSha256FromCID(leftCid)
+	rightLink := NamespacedSha256FromCID(rightCid)
+
+	var nextJobs []job
+	// check if target namespace is outside of boundaries of both links
+	if n.namespace.IsOutsideRange(leftLink, rightLink) {
+		log.Fatalf("target namespace outside of boundaries of links at depth: %v", j.depth)
+	}
+
+	if !n.namespace.IsAboveMax(leftLink) {
+		// namespace is within the range of left link
+		nextJobs = append(nextJobs, j.next(left, leftCid, false))
+	} else {
+		// proof is on the left side, if the namespace is on the right side of the range of left link
+		n.addProof(left, leftCid, j.depth)
+		if n.namespace.IsBelowMin(rightLink) {
+			// namespace is not included in either links, convert to absence collector
+			n.isAbsentNamespace.Store(true)
+			nextJobs = append(nextJobs, j.next(right, rightCid, true))
+			return nextJobs
+		}
+	}
+
+	if !n.namespace.IsBelowMin(rightLink) {
+		// namespace is within the range of right link
+		nextJobs = append(nextJobs, j.next(right, rightCid, false))
+	} else {
+		// proof is on the right side, if the namespace is on the left side of the range of right link
+		n.addProof(right, rightCid, j.depth)
+	}
+	return nextJobs
 }
 
 type fetchedBounds struct {

@@ -32,8 +32,6 @@ type Config struct {
 	ConnManager               connManagerConfig
 	RoutingTableRefreshPeriod time.Duration
 
-	// Libp2p Metrics Configuration
-	Metrics MetricsConfig
 	// Allowlist for IPColocation PubSub parameter, a list of string CIDRs
 	IPColocationWhitelist []string
 }
@@ -42,6 +40,8 @@ type Config struct {
 func DefaultConfig(tp node.Type) Config {
 	return Config{
 		ListenAddresses: []string{
+			"/ip4/0.0.0.0/udp/2121/quic-v1/webtransport",
+			"/ip6/::/udp/2121/quic-v1/webtransport",
 			"/ip4/0.0.0.0/udp/2121/quic-v1",
 			"/ip6/::/udp/2121/quic-v1",
 			"/ip4/0.0.0.0/tcp/2121",
@@ -49,6 +49,9 @@ func DefaultConfig(tp node.Type) Config {
 		},
 		AnnounceAddresses: []string{},
 		NoAnnounceAddresses: []string{
+			"/ip4/127.0.0.1/udp/2121/quic-v1/webtransport",
+			"/ip4/0.0.0.0/udp/2121/quic-v1/webtransport",
+			"/ip6/::/udp/2121/quic-v1/webtransport",
 			"/ip4/0.0.0.0/udp/2121/quic-v1",
 			"/ip4/127.0.0.1/udp/2121/quic-v1",
 			"/ip6/::/udp/2121/quic-v1",
@@ -58,9 +61,8 @@ func DefaultConfig(tp node.Type) Config {
 		},
 		MutualPeers:               []string{},
 		PeerExchange:              tp == node.Bridge || tp == node.Full,
-		ConnManager:               defaultConnManagerConfig(),
+		ConnManager:               defaultConnManagerConfig(tp),
 		RoutingTableRefreshPeriod: defaultRoutingRefreshPeriod,
-		Metrics:                   DefaultMetricsConfig(),
 	}
 }
 
@@ -82,5 +84,5 @@ func (cfg *Config) Validate() error {
 		cfg.RoutingTableRefreshPeriod = defaultRoutingRefreshPeriod
 		log.Warnf("routingTableRefreshPeriod is not valid. restoring to default value: %d", cfg.RoutingTableRefreshPeriod)
 	}
-	return cfg.Metrics.Validate()
+	return nil
 }

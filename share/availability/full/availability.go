@@ -4,13 +4,12 @@ import (
 	"context"
 	"errors"
 
-	ipldFormat "github.com/ipfs/go-ipld-format"
 	logging "github.com/ipfs/go-log/v2"
 
 	"github.com/celestiaorg/celestia-node/share"
-	"github.com/celestiaorg/celestia-node/share/availability/discovery"
 	"github.com/celestiaorg/celestia-node/share/eds"
 	"github.com/celestiaorg/celestia-node/share/eds/byzantine"
+	"github.com/celestiaorg/celestia-node/share/p2p/discovery"
 )
 
 var log = logging.Logger("share/full")
@@ -27,7 +26,11 @@ type ShareAvailability struct {
 }
 
 // NewShareAvailability creates a new full ShareAvailability.
-func NewShareAvailability(store *eds.Store, getter share.Getter, disc *discovery.Discovery) *ShareAvailability {
+func NewShareAvailability(
+	store *eds.Store,
+	getter share.Getter,
+	disc *discovery.Discovery,
+) *ShareAvailability {
 	return &ShareAvailability{
 		store:  store,
 		getter: getter,
@@ -68,13 +71,14 @@ func (fa *ShareAvailability) SharesAvailable(ctx context.Context, root *share.Ro
 
 	_, err := fa.getter.GetEDS(ctx, root)
 	if err != nil {
-		log.Errorw("availability validation failed", "root", root.Hash(), "err", err.Error())
+		if errors.Is(err, context.Canceled) {
+			return err
+		}
+		log.Errorw("availability validation failed", "root", root.String(), "err", err.Error())
 		var byzantineErr *byzantine.ErrByzantine
-		if ipldFormat.IsNotFound(err) || errors.Is(err, context.DeadlineExceeded) && !errors.As(err, &byzantineErr) {
+		if errors.Is(err, share.ErrNotFound) || errors.Is(err, context.DeadlineExceeded) && !errors.As(err, &byzantineErr) {
 			return share.ErrNotAvailable
 		}
-
-		return err
 	}
 	return err
 }

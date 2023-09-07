@@ -15,9 +15,11 @@ import (
 	"go.uber.org/fx"
 	"golang.org/x/crypto/blake2b"
 
+	"github.com/celestiaorg/go-fraud"
+	"github.com/celestiaorg/go-fraud/fraudserv"
 	headp2p "github.com/celestiaorg/go-header/p2p"
 
-	"github.com/celestiaorg/celestia-node/libs/fraud"
+	"github.com/celestiaorg/celestia-node/header"
 )
 
 func init() {
@@ -66,8 +68,8 @@ func pubSub(cfg Config, params pubSubParams) (*pubsub.PubSub, error) {
 	//	* https://github.com/libp2p/specs/blob/master/pubsub/gossipsub/gossipsub-v1.1.md#peer-scoring
 	//  * lotus
 	//  * prysm
-	topicScores := topicScoreParams(params.Network)
-	peerScores, err := peerScoreParams(isBootstrapper, params.Bootstrappers, cfg)
+	topicScores := topicScoreParams(params)
+	peerScores, err := peerScoreParams(params.Bootstrappers, cfg)
 	if err != nil {
 		return nil, err
 	}
@@ -105,21 +107,22 @@ type pubSubParams struct {
 	Host          hst.Host
 	Bootstrappers Bootstrappers
 	Network       Network
+	Unmarshaler   fraud.ProofUnmarshaler[*header.ExtendedHeader]
 }
 
-func topicScoreParams(network Network) map[string]*pubsub.TopicScoreParams {
+func topicScoreParams(params pubSubParams) map[string]*pubsub.TopicScoreParams {
 	mp := map[string]*pubsub.TopicScoreParams{
-		headp2p.PubsubTopicID(network.String()): &headp2p.GossibSubScore,
+		headp2p.PubsubTopicID(params.Network.String()): &headp2p.GossibSubScore,
 	}
 
-	for _, pt := range fraud.Registered() {
-		mp[fraud.PubsubTopicID(pt.String(), network.String())] = &fraud.GossibSubScore
+	for _, pt := range params.Unmarshaler.List() {
+		mp[fraudserv.PubsubTopicID(pt.String(), params.Network.String())] = &fraudserv.GossibSubScore
 	}
 
 	return mp
 }
 
-func peerScoreParams(isBootstrapper bool, bootstrappers Bootstrappers, cfg Config) (*pubsub.PeerScoreParams, error) {
+func peerScoreParams(bootstrappers Bootstrappers, cfg Config) (*pubsub.PeerScoreParams, error) {
 	bootstrapperSet := map[peer.ID]struct{}{}
 	for _, b := range bootstrappers {
 		bootstrapperSet[b.ID] = struct{}{}
@@ -141,7 +144,7 @@ func peerScoreParams(isBootstrapper bool, bootstrappers Bootstrappers, cfg Confi
 			// return a heavy positive score for bootstrappers so that we don't unilaterally prune
 			// them and accept PX from them
 			_, ok := bootstrapperSet[p]
-			if ok && !isBootstrapper {
+			if ok {
 				return 2500
 			}
 

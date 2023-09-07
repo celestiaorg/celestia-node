@@ -24,15 +24,15 @@ Continue reading [here](https://blog.celestia.org/celestia-mvp-release-data-avai
   - [API docs](#api-docs)
   - [Node types](#node-types)
   - [Run a node](#run-a-node)
-    - [Environment variables](#environment-variables)
+  - [Environment variables](#environment-variables)
   - [Package-specific documentation](#package-specific-documentation)
   - [Code of Conduct](#code-of-conduct)
 
 ## Minimum requirements
 
 | Requirement | Notes          |
-| ----------- | -------------- |
-| Go version  | 1.19 or higher |
+| ----------- |----------------|
+| Go version  | 1.21 or higher |
 
 ## System Requirements
 
@@ -55,7 +55,7 @@ For more information on setting up a node and the hardware requirements needed, 
 
 ## API docs
 
-Celestia-node public API is documented [here](https://docs.celestia.org/developers/node-api/).
+The celestia-node public API is documented [here](https://docs.celestia.org/category/node-api/).
 
 ## Node types
 
@@ -67,7 +67,7 @@ More information can be found [here](https://github.com/celestiaorg/celestia-nod
 
 ## Run a node
 
-`<node_type>` can be `bridge`, `full` or `light`.
+`<node_type>` can be: `bridge`, `full` or `light`.
 
 ```sh
 celestia <node_type> init
@@ -77,7 +77,9 @@ celestia <node_type> init
 celestia <node_type> start
 ```
 
-### Environment variables
+Please refer to [this guide](https://docs.celestia.org/nodes/celestia-node/) for more information on running a node.
+
+## Environment variables
 
 | Variable                | Explanation                         | Default value | Required |
 | ----------------------- | ----------------------------------- | ------------- | -------- |

@@ -29,12 +29,14 @@ func ValidateAddr(addr string) (string, error) {
 		return addr, err
 	}
 
-	if ip := net.ParseIP(addr); ip == nil {
-		_, err = net.LookupHost(addr)
-		if err != nil {
-			return addr, fmt.Errorf("could not resolve hostname or ip: %w", err)
-		}
+	ip := net.ParseIP(addr)
+	if ip != nil {
+		return addr, nil
 	}
 
-	return addr, nil
+	resolved, err := net.ResolveIPAddr("ip4", addr)
+	if err != nil {
+		return addr, err
+	}
+	return resolved.String(), nil
 }

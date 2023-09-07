@@ -6,16 +6,13 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/ipfs/go-blockservice"
+	"github.com/ipfs/boxo/blockservice"
 	"github.com/ipfs/go-cid"
 	logging "github.com/ipfs/go-log/v2"
 	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/trace"
 	"golang.org/x/sync/errgroup"
-
-	"github.com/celestiaorg/nmt"
-	"github.com/celestiaorg/nmt/namespace"
 
 	"github.com/celestiaorg/celestia-node/libs/utils"
 	"github.com/celestiaorg/celestia-node/share"
@@ -30,34 +27,32 @@ var (
 )
 
 // filterRootsByNamespace returns the row roots from the given share.Root that contain the passed
-// namespace ID.
-func filterRootsByNamespace(root *share.Root, nID namespace.ID) []cid.Cid {
-	rowRootCIDs := make([]cid.Cid, 0, len(root.RowsRoots))
-	for _, row := range root.RowsRoots {
-		if !nID.Less(nmt.MinNamespace(row, nID.Size())) && nID.LessOrEqual(nmt.MaxNamespace(row, nID.Size())) {
+// namespace.
+func filterRootsByNamespace(root *share.Root, namespace share.Namespace) []cid.Cid {
+	rowRootCIDs := make([]cid.Cid, 0, len(root.RowRoots))
+	for _, row := range root.RowRoots {
+		if !namespace.IsOutsideRange(row, row) {
 			rowRootCIDs = append(rowRootCIDs, ipld.MustCidFromNamespacedSha256(row))
 		}
 	}
 	return rowRootCIDs
 }
 
-// collectSharesByNamespace collects NamespaceShares within the given namespace ID from the given
-// share.Root.
+// collectSharesByNamespace collects NamespaceShares within the given namespace from share.Root.
 func collectSharesByNamespace(
 	ctx context.Context,
 	bg blockservice.BlockGetter,
 	root *share.Root,
-	nID namespace.ID,
+	namespace share.Namespace,
 ) (shares share.NamespacedShares, err error) {
 	ctx, span := tracer.Start(ctx, "collect-shares-by-namespace", trace.WithAttributes(
-		attribute.String("root", root.String()),
-		attribute.String("nid", nID.String()),
+		attribute.String("namespace", namespace.String()),
 	))
 	defer func() {
 		utils.SetStatusAndEnd(span, err)
 	}()
 
-	rootCIDs := filterRootsByNamespace(root, nID)
+	rootCIDs := filterRootsByNamespace(root, namespace)
 	if len(rootCIDs) == 0 {
 		return nil, nil
 	}
@@ -68,13 +63,13 @@ func collectSharesByNamespace(
 		// shadow loop variables, to ensure correct values are captured
 		i, rootCID := i, rootCID
 		errGroup.Go(func() error {
-			row, proof, err := share.GetSharesByNamespace(ctx, bg, rootCID, nID, len(root.RowsRoots))
+			row, proof, err := ipld.GetSharesByNamespace(ctx, bg, rootCID, namespace, len(root.RowRoots))
 			shares[i] = share.NamespacedRow{
 				Shares: row,
 				Proof:  proof,
 			}
 			if err != nil {
-				return fmt.Errorf("retrieving nID %x for row %x: %w", nID, rootCID, err)
+				return fmt.Errorf("retrieving shares by namespace %s for row %x: %w", namespace.String(), rootCID, err)
 			}
 			return nil
 		})
@@ -85,14 +80,6 @@ func collectSharesByNamespace(
 	}
 
 	return shares, nil
-}
-
-func verifyNIDSize(nID namespace.ID) error {
-	if len(nID) != share.NamespaceSize {
-		return fmt.Errorf("expected namespace ID of size %d, got %d",
-			share.NamespaceSize, len(nID))
-	}
-	return nil
 }
 
 // ctxWithSplitTimeout will split timeout stored in context by splitFactor and return the result if
@@ -110,11 +97,16 @@ func ctxWithSplitTimeout(
 		return context.WithTimeout(ctx, minTimeout)
 	}
 
-	timeout := time.Until(deadline) / time.Duration(splitFactor)
-	if minTimeout == 0 || timeout > minTimeout {
-		return context.WithTimeout(ctx, timeout)
+	timeout := time.Until(deadline)
+	if timeout < minTimeout {
+		return context.WithCancel(ctx)
 	}
-	return context.WithTimeout(ctx, minTimeout)
+
+	splitTimeout := timeout / time.Duration(splitFactor)
+	if splitTimeout < minTimeout {
+		return context.WithTimeout(ctx, minTimeout)
+	}
+	return context.WithTimeout(ctx, splitTimeout)
 }
 
 // ErrorContains reports whether any error in err's tree matches any error in targets tree.

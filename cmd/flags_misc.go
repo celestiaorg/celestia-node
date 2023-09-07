@@ -8,22 +8,20 @@ import (
 	"strings"
 
 	logging "github.com/ipfs/go-log/v2"
+	otelpyroscope "github.com/pyroscope-io/otel-profiling-go"
 	"github.com/spf13/cobra"
 	flag "github.com/spf13/pflag"
-	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/exporters/otlp/otlpmetric/otlpmetrichttp"
 	"go.opentelemetry.io/otel/exporters/otlp/otlptrace/otlptracehttp"
-	"go.opentelemetry.io/otel/sdk/resource"
-	tracesdk "go.opentelemetry.io/otel/sdk/trace"
-	semconv "go.opentelemetry.io/otel/semconv/v1.11.0"
 
 	"github.com/celestiaorg/celestia-node/logs"
 	"github.com/celestiaorg/celestia-node/nodebuilder"
+	modp2p "github.com/celestiaorg/celestia-node/nodebuilder/p2p"
 )
 
 var (
-	logLevelFlag        = "log.level"
-	logLevelModuleFlag  = "log.level.module"
+	LogLevelFlag        = "log.level"
+	LogLevelModuleFlag  = "log.level.module"
 	pprofFlag           = "pprof"
 	tracingFlag         = "tracing"
 	tracingEndpointFlag = "tracing.endpoint"
@@ -32,6 +30,9 @@ var (
 	metricsEndpointFlag = "metrics.endpoint"
 	metricsTlS          = "metrics.tls"
 	p2pMetrics          = "p2p.metrics"
+	pyroscopeFlag       = "pyroscope"
+	pyroscopeTracing    = "pyroscope.tracing"
+	pyroscopeEndpoint   = "pyroscope.endpoint"
 )
 
 // MiscFlags gives a set of hardcoded miscellaneous flags.
@@ -39,14 +40,14 @@ func MiscFlags() *flag.FlagSet {
 	flags := &flag.FlagSet{}
 
 	flags.String(
-		logLevelFlag,
+		LogLevelFlag,
 		"INFO",
 		`DEBUG, INFO, WARN, ERROR, DPANIC, PANIC, FATAL
 and their lower-case forms`,
 	)
 
 	flags.StringSlice(
-		logLevelModuleFlag,
+		LogLevelModuleFlag,
 		nil,
 		"<module>:<level>, e.g. pubsub:debug",
 	)
@@ -99,29 +100,47 @@ and their lower-case forms`,
 		"Enable libp2p metrics",
 	)
 
+	flags.Bool(
+		pyroscopeFlag,
+		false,
+		"Enables Pyroscope profiling",
+	)
+
+	flags.Bool(
+		pyroscopeTracing,
+		false,
+		"Enables Pyroscope tracing integration. Depends on --tracing",
+	)
+
+	flags.String(
+		pyroscopeEndpoint,
+		"http://localhost:4040",
+		"Sets HTTP endpoint for Pyroscope profiles to be exported to. Depends on '--pyroscope'",
+	)
+
 	return flags
 }
 
 // ParseMiscFlags parses miscellaneous flags from the given cmd and applies values to Env.
 func ParseMiscFlags(ctx context.Context, cmd *cobra.Command) (context.Context, error) {
-	logLevel := cmd.Flag(logLevelFlag).Value.String()
+	logLevel := cmd.Flag(LogLevelFlag).Value.String()
 	if logLevel != "" {
 		level, err := logging.LevelFromString(logLevel)
 		if err != nil {
-			return ctx, fmt.Errorf("cmd: while parsing '%s': %w", logLevelFlag, err)
+			return ctx, fmt.Errorf("cmd: while parsing '%s': %w", LogLevelFlag, err)
 		}
 
 		logs.SetAllLoggers(level)
 	}
 
-	logModules, err := cmd.Flags().GetStringSlice(logLevelModuleFlag)
+	logModules, err := cmd.Flags().GetStringSlice(LogLevelModuleFlag)
 	if err != nil {
 		panic(err)
 	}
 	for _, ll := range logModules {
 		params := strings.Split(ll, ":")
 		if len(params) != 2 {
-			return ctx, fmt.Errorf("cmd: %s arg must be in form <module>:<level>, e.g. pubsub:debug", logLevelModuleFlag)
+			return ctx, fmt.Errorf("cmd: %s arg must be in form <module>:<level>, e.g. pubsub:debug", LogLevelModuleFlag)
 		}
 
 		err := logging.SetLogLevel(params[0], params[1])
@@ -155,6 +174,20 @@ func ParseMiscFlags(ctx context.Context, cmd *cobra.Command) (context.Context, e
 		}()
 	}
 
+	ok, err = cmd.Flags().GetBool(pyroscopeFlag)
+	if err != nil {
+		panic(err)
+	}
+
+	if ok {
+		ctx = WithNodeOptions(ctx,
+			nodebuilder.WithPyroscope(
+				cmd.Flag(pyroscopeEndpoint).Value.String(),
+				NodeType(ctx),
+			),
+		)
+	}
+
 	ok, err = cmd.Flags().GetBool(tracingFlag)
 	if err != nil {
 		panic(err)
@@ -171,22 +204,22 @@ func ParseMiscFlags(ctx context.Context, cmd *cobra.Command) (context.Context, e
 			opts = append(opts, otlptracehttp.WithInsecure())
 		}
 
-		exp, err := otlptracehttp.New(cmd.Context(), opts...)
+		pyroOpts := make([]otelpyroscope.Option, 0)
+		ok, err = cmd.Flags().GetBool(pyroscopeTracing)
 		if err != nil {
-			return ctx, err
+			panic(err)
 		}
-
-		tp := tracesdk.NewTracerProvider(
-			// Always be sure to batch in production.
-			tracesdk.WithBatcher(exp),
-			// Record information about this application in a Resource.
-			tracesdk.WithResource(resource.NewWithAttributes(
-				semconv.SchemaURL,
-				semconv.ServiceNameKey.String(fmt.Sprintf("Celestia-%s", NodeType(ctx).String())),
-				// TODO(@Wondertan): Versioning: semconv.ServiceVersionKey
-			)),
-		)
-		otel.SetTracerProvider(tp)
+		if ok {
+			pyroOpts = append(pyroOpts,
+				otelpyroscope.WithAppName("celestia.da-node"),
+				otelpyroscope.WithPyroscopeURL(cmd.Flag(pyroscopeEndpoint).Value.String()),
+				otelpyroscope.WithRootSpanOnly(true),
+				otelpyroscope.WithAddSpanName(true),
+				otelpyroscope.WithProfileURL(true),
+				otelpyroscope.WithProfileBaselineURL(true),
+			)
+		}
+		ctx = WithNodeOptions(ctx, nodebuilder.WithTraces(opts, pyroOpts))
 	}
 
 	ok, err = cmd.Flags().GetBool(metricsFlag)
@@ -217,7 +250,7 @@ func ParseMiscFlags(ctx context.Context, cmd *cobra.Command) (context.Context, e
 		if metricsEnabled, _ := cmd.Flags().GetBool(metricsFlag); !metricsEnabled {
 			log.Error("--p2p.metrics used without --metrics being enabled")
 		} else {
-			ctx = WithNodeOptions(ctx, nodebuilder.WithP2PMetrics())
+			ctx = WithNodeOptions(ctx, modp2p.WithMetrics())
 		}
 	}
 

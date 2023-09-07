@@ -9,12 +9,12 @@ import (
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/trace"
 
-	"github.com/celestiaorg/nmt/namespace"
 	"github.com/celestiaorg/rsmt2d"
 
 	"github.com/celestiaorg/celestia-node/libs/utils"
 	"github.com/celestiaorg/celestia-node/share"
 	"github.com/celestiaorg/celestia-node/share/eds"
+	"github.com/celestiaorg/celestia-node/share/ipld"
 )
 
 var _ share.Getter = (*TeeGetter)(nil)
@@ -36,7 +36,6 @@ func NewTeeGetter(getter share.Getter, store *eds.Store) *TeeGetter {
 
 func (tg *TeeGetter) GetShare(ctx context.Context, root *share.Root, row, col int) (share share.Share, err error) {
 	ctx, span := tracer.Start(ctx, "tee/get-share", trace.WithAttributes(
-		attribute.String("root", root.String()),
 		attribute.Int("row", row),
 		attribute.Int("col", col),
 	))
@@ -48,12 +47,14 @@ func (tg *TeeGetter) GetShare(ctx context.Context, root *share.Root, row, col in
 }
 
 func (tg *TeeGetter) GetEDS(ctx context.Context, root *share.Root) (eds *rsmt2d.ExtendedDataSquare, err error) {
-	ctx, span := tracer.Start(ctx, "tee/get-eds", trace.WithAttributes(
-		attribute.String("root", root.String()),
-	))
+	ctx, span := tracer.Start(ctx, "tee/get-eds")
 	defer func() {
 		utils.SetStatusAndEnd(span, err)
 	}()
+
+	adder := ipld.NewProofsAdder(len(root.RowRoots))
+	ctx = ipld.CtxWithProofsAdder(ctx, adder)
+	defer adder.Purge()
 
 	eds, err = tg.getter.GetEDS(ctx, root)
 	if err != nil {
@@ -71,15 +72,14 @@ func (tg *TeeGetter) GetEDS(ctx context.Context, root *share.Root) (eds *rsmt2d.
 func (tg *TeeGetter) GetSharesByNamespace(
 	ctx context.Context,
 	root *share.Root,
-	id namespace.ID,
+	namespace share.Namespace,
 ) (shares share.NamespacedShares, err error) {
 	ctx, span := tracer.Start(ctx, "tee/get-shares-by-namespace", trace.WithAttributes(
-		attribute.String("root", root.String()),
-		attribute.String("nID", id.String()),
+		attribute.String("namespace", namespace.String()),
 	))
 	defer func() {
 		utils.SetStatusAndEnd(span, err)
 	}()
 
-	return tg.getter.GetSharesByNamespace(ctx, root, id)
+	return tg.getter.GetSharesByNamespace(ctx, root, namespace)
 }

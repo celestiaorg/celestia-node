@@ -3,17 +3,18 @@ package peers
 import (
 	"fmt"
 	"time"
+
+	libhead "github.com/celestiaorg/go-header"
+
+	"github.com/celestiaorg/celestia-node/header"
+	"github.com/celestiaorg/celestia-node/share/p2p/shrexsub"
 )
 
-// Option is the functional option that is applied to the manager instance to configure peer manager
-// parameters (the Parameters struct)
-type Option func(manager *Manager)
-
 type Parameters struct {
-	// ValidationTimeout is the timeout used for validating incoming datahashes. Pools that have
+	// PoolValidationTimeout is the timeout used for validating incoming datahashes. Pools that have
 	// been created for datahashes from shrexsub that do not see this hash from headersub after this
 	// timeout will be garbage collected.
-	ValidationTimeout time.Duration
+	PoolValidationTimeout time.Duration
 
 	// PeerCooldown is the time a peer is put on cooldown after a ResultCooldownPeer.
 	PeerCooldown time.Duration
@@ -25,9 +26,11 @@ type Parameters struct {
 	EnableBlackListing bool
 }
 
+type Option func(*Manager) error
+
 // Validate validates the values in Parameters
 func (p *Parameters) Validate() error {
-	if p.ValidationTimeout <= 0 {
+	if p.PoolValidationTimeout <= 0 {
 		return fmt.Errorf("peer-manager: validation timeout must be positive")
 	}
 
@@ -45,44 +48,37 @@ func (p *Parameters) Validate() error {
 // DefaultParameters returns the default configuration values for the daser parameters
 func DefaultParameters() Parameters {
 	return Parameters{
-		// ValidationTimeout's default value is based on the default daser sampling timeout of 1 minute.
+		// PoolValidationTimeout's default value is based on the default daser sampling timeout of 1 minute.
 		// If a received datahash has not tried to be sampled within these two minutes, the pool will be
 		// removed.
-		ValidationTimeout: 2 * time.Minute,
+		PoolValidationTimeout: 2 * time.Minute,
 		// PeerCooldown's default value is based on initial network tests that showed a ~3.5 second
 		// sync time for large blocks. This value gives our (discovery) peers enough time to sync
 		// the new block before we ask them again.
 		PeerCooldown: 3 * time.Second,
 		GcInterval:   time.Second * 30,
-		// blacklisting is off by default //TODO(@walldiss): enable blacklisting once all related issues are resolved
+		// blacklisting is off by default //TODO(@walldiss): enable blacklisting once all related issues
+		// are resolved
 		EnableBlackListing: false,
 	}
 }
 
-// WithValidationTimeout configures the manager's pool validation timeout.
-func WithValidationTimeout(timeout time.Duration) Option {
-	return func(manager *Manager) {
-		manager.poolValidationTimeout = timeout
+// WithShrexSubPools passes a shrexsub and headersub instance to be used to populate and validate
+// pools from shrexsub notifications.
+func WithShrexSubPools(shrexSub *shrexsub.PubSub, headerSub libhead.Subscriber[*header.ExtendedHeader]) Option {
+	return func(m *Manager) error {
+		m.shrexSub = shrexSub
+		m.headerSub = headerSub
+		return nil
 	}
 }
 
-// WithPeerCooldown configures the manager's peer cooldown time.
-func WithPeerCooldown(cooldown time.Duration) Option {
-	return func(manager *Manager) {
-		manager.peerCooldownTime = cooldown
+// WithMetrics turns on metric collection in peer manager.
+func (m *Manager) WithMetrics() error {
+	metrics, err := initMetrics(m)
+	if err != nil {
+		return fmt.Errorf("peer-manager: init metrics: %w", err)
 	}
-}
-
-// WithGcInterval configures the manager's garbage collection interval.
-func WithGcInterval(interval time.Duration) Option {
-	return func(manager *Manager) {
-		manager.gcInterval = interval
-	}
-}
-
-// WithEnabledBlacklisting turns on blacklisting of misbehaved peers.
-func WithEnabledBlacklisting() Option {
-	return func(manager *Manager) {
-		manager.enableBlackListing = true
-	}
+	m.metrics = metrics
+	return nil
 }

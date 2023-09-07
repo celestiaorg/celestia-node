@@ -17,11 +17,13 @@ import (
 	"golang.org/x/text/cases"
 	"golang.org/x/text/language"
 
+	"github.com/celestiaorg/go-fraud"
+	"github.com/celestiaorg/nmt"
 	"github.com/celestiaorg/rsmt2d"
 
+	"github.com/celestiaorg/celestia-node/blob"
 	"github.com/celestiaorg/celestia-node/das"
 	"github.com/celestiaorg/celestia-node/header"
-	"github.com/celestiaorg/celestia-node/libs/fraud"
 	"github.com/celestiaorg/celestia-node/nodebuilder/node"
 	"github.com/celestiaorg/celestia-node/share"
 	"github.com/celestiaorg/celestia-node/share/eds/byzantine"
@@ -54,7 +56,7 @@ var ExampleValues = map[reflect.Type]interface{}{
 	reflect.TypeOf(node.Full):                node.Full,
 	reflect.TypeOf(auth.Permission("admin")): auth.Permission("admin"),
 	reflect.TypeOf(byzantine.BadEncoding):    byzantine.BadEncoding,
-	reflect.TypeOf((*fraud.Proof)(nil)).Elem(): byzantine.CreateBadEncodingProof(
+	reflect.TypeOf((*fraud.Proof[*header.ExtendedHeader])(nil)).Elem(): byzantine.CreateBadEncodingProof(
 		[]byte("bad encoding proof"),
 		42,
 		&byzantine.ErrByzantine{
@@ -80,6 +82,8 @@ func init() {
 		panic(err)
 	}
 	addToExampleValues(valAddr)
+
+	addToExampleValues(state.Address{Address: addr})
 
 	var txResponse *state.TxResponse
 	err = json.Unmarshal([]byte(exampleTxResponse), &txResponse)
@@ -128,6 +132,22 @@ func init() {
 		Addrs: []multiaddr.Multiaddr{ma},
 	}
 	addToExampleValues(addrInfo)
+
+	namespace, err := share.NewBlobNamespaceV0([]byte{0x1, 0x2, 0x3, 0x4, 0x5, 0x6, 0x7, 0x8, 0x9, 0x10})
+	if err != nil {
+		panic(err)
+	}
+	addToExampleValues(namespace)
+
+	generatedBlob, err := blob.NewBlobV0(namespace, []byte("This is an example of some blob data"))
+	if err != nil {
+		panic(err)
+	}
+	addToExampleValues(generatedBlob)
+
+	proof := nmt.NewInclusionProof(0, 4, [][]byte{[]byte("test")}, true)
+	blobProof := &blob.Proof{&proof}
+	addToExampleValues(blobProof)
 }
 
 func addToExampleValues(v interface{}) {

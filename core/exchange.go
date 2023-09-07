@@ -9,9 +9,11 @@ import (
 	"golang.org/x/sync/errgroup"
 
 	libhead "github.com/celestiaorg/go-header"
+	"github.com/celestiaorg/nmt"
 
 	"github.com/celestiaorg/celestia-node/header"
 	"github.com/celestiaorg/celestia-node/share/eds"
+	"github.com/celestiaorg/celestia-node/share/ipld"
 )
 
 const concurrencyLimit = 4
@@ -76,7 +78,7 @@ func (ce *Exchange) GetVerifiedRange(
 	from *header.ExtendedHeader,
 	amount uint64,
 ) ([]*header.ExtendedHeader, error) {
-	headers, err := ce.GetRangeByHeight(ctx, uint64(from.Height())+1, amount)
+	headers, err := ce.GetRangeByHeight(ctx, from.Height()+1, amount)
 	if err != nil {
 		return nil, err
 	}
@@ -105,20 +107,25 @@ func (ce *Exchange) Get(ctx context.Context, hash libhead.Hash) (*header.Extende
 	}
 
 	// extend block data
-	eds, err := extendBlock(block.Data)
+	adder := ipld.NewProofsAdder(int(block.Data.SquareSize))
+	defer adder.Purge()
+
+	eds, err := extendBlock(block.Data, block.Header.Version.App, nmt.NodeVisitor(adder.VisitFn()))
 	if err != nil {
 		return nil, fmt.Errorf("extending block data for height %d: %w", &block.Height, err)
 	}
 	// construct extended header
-	eh, err := ce.construct(ctx, &block.Header, comm, vals, eds)
+	eh, err := ce.construct(&block.Header, comm, vals, eds)
 	if err != nil {
-		return nil, fmt.Errorf("constructing extended header for height %d: %w", &block.Height, err)
+		panic(fmt.Errorf("constructing extended header for height %d: %w", &block.Height, err))
 	}
 	// verify hashes match
 	if !bytes.Equal(hash, eh.Hash()) {
 		return nil, fmt.Errorf("incorrect hash in header at height %d: expected %x, got %x",
 			&block.Height, hash, eh.Hash())
 	}
+
+	ctx = ipld.CtxWithProofsAdder(ctx, adder)
 	err = storeEDS(ctx, eh.DAH.Hash(), eds, ce.store)
 	if err != nil {
 		return nil, fmt.Errorf("storing EDS to eds.Store for height %d: %w", &block.Height, err)
@@ -126,7 +133,10 @@ func (ce *Exchange) Get(ctx context.Context, hash libhead.Hash) (*header.Extende
 	return eh, nil
 }
 
-func (ce *Exchange) Head(ctx context.Context) (*header.ExtendedHeader, error) {
+func (ce *Exchange) Head(
+	ctx context.Context,
+	_ ...libhead.HeadOption[*header.ExtendedHeader],
+) (*header.ExtendedHeader, error) {
 	log.Debug("requesting head")
 	return ce.getExtendedHeaderByHeight(ctx, nil)
 }
@@ -142,15 +152,20 @@ func (ce *Exchange) getExtendedHeaderByHeight(ctx context.Context, height *int64
 	log.Debugw("fetched signed block from core", "height", b.Header.Height)
 
 	// extend block data
-	eds, err := extendBlock(b.Data)
+	adder := ipld.NewProofsAdder(int(b.Data.SquareSize))
+	defer adder.Purge()
+
+	eds, err := extendBlock(b.Data, b.Header.Version.App, nmt.NodeVisitor(adder.VisitFn()))
 	if err != nil {
 		return nil, fmt.Errorf("extending block data for height %d: %w", b.Header.Height, err)
 	}
 	// create extended header
-	eh, err := ce.construct(ctx, &b.Header, &b.Commit, &b.ValidatorSet, eds)
+	eh, err := ce.construct(&b.Header, &b.Commit, &b.ValidatorSet, eds)
 	if err != nil {
-		return nil, fmt.Errorf("constructing extended header for height %d: %w", b.Header.Height, err)
+		panic(fmt.Errorf("constructing extended header for height %d: %w", b.Header.Height, err))
 	}
+
+	ctx = ipld.CtxWithProofsAdder(ctx, adder)
 	err = storeEDS(ctx, eh.DAH.Hash(), eds, ce.store)
 	if err != nil {
 		return nil, fmt.Errorf("storing EDS to eds.Store for block height %d: %w", b.Header.Height, err)

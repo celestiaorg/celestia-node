@@ -4,13 +4,13 @@ import (
 	"context"
 	"testing"
 
-	"github.com/ipfs/go-blockservice"
+	"github.com/ipfs/boxo/bitswap"
+	"github.com/ipfs/boxo/bitswap/network"
+	"github.com/ipfs/boxo/blockservice"
+	"github.com/ipfs/boxo/blockstore"
+	"github.com/ipfs/boxo/routing/offline"
 	ds "github.com/ipfs/go-datastore"
 	dssync "github.com/ipfs/go-datastore/sync"
-	blockstore "github.com/ipfs/go-ipfs-blockstore"
-	"github.com/ipfs/go-ipfs-routing/offline"
-	"github.com/ipfs/go-libipfs/bitswap"
-	"github.com/ipfs/go-libipfs/bitswap/network"
 	record "github.com/libp2p/go-libp2p-record"
 	"github.com/libp2p/go-libp2p/core/host"
 	"github.com/libp2p/go-libp2p/core/peer"
@@ -20,19 +20,22 @@ import (
 	"github.com/celestiaorg/celestia-app/pkg/da"
 
 	"github.com/celestiaorg/celestia-node/share"
+	"github.com/celestiaorg/celestia-node/share/ipld"
+	"github.com/celestiaorg/celestia-node/share/sharetest"
 )
 
 // RandFillBS fills the given BlockService with a random block of a given size.
 func RandFillBS(t *testing.T, n int, bServ blockservice.BlockService) *share.Root {
-	shares := share.RandShares(t, n*n)
+	shares := sharetest.RandShares(t, n*n)
 	return FillBS(t, bServ, shares)
 }
 
 // FillBS fills the given BlockService with the given shares.
 func FillBS(t *testing.T, bServ blockservice.BlockService, shares []share.Share) *share.Root {
-	eds, err := share.AddShares(context.TODO(), shares, bServ)
+	eds, err := ipld.AddShares(context.TODO(), shares, bServ)
 	require.NoError(t, err)
-	dah := da.NewDataAvailabilityHeader(eds)
+	dah, err := da.NewDataAvailabilityHeader(eds)
+	require.NoError(t, err)
 	return &dah
 }
 
@@ -91,7 +94,7 @@ func (dn *TestDagNet) NewTestNodeWithBlockstore(dstore ds.Datastore, bstore bloc
 	)
 	nd := &TestNode{
 		net:          dn,
-		BlockService: blockservice.New(bstore, bs),
+		BlockService: ipld.NewBlockservice(bstore, bs),
 		Host:         hst,
 	}
 	dn.nodes = append(dn.nodes, nd)

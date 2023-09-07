@@ -46,9 +46,7 @@ type PubSub struct {
 
 // NewPubSub creates a libp2p.PubSub wrapper.
 func NewPubSub(ctx context.Context, h host.Host, networkID string) (*PubSub, error) {
-	// WithSeenMessagesTTL without duration allows to process all incoming messages(even with the same
-	// msgId)
-	pubsub, err := pubsub.NewFloodSub(ctx, h, pubsub.WithSeenMessagesTTL(0))
+	pubsub, err := pubsub.NewFloodSub(ctx, h)
 	if err != nil {
 		return nil, err
 	}

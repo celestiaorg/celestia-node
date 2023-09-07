@@ -30,10 +30,10 @@ func TestMakeExtendedHeaderForEmptyBlock(t *testing.T) {
 	comm, val, err := fetcher.GetBlockInfo(ctx, &height)
 	require.NoError(t, err)
 
-	eds, err := extendBlock(b.Data)
+	eds, err := extendBlock(b.Data, b.Header.Version.App)
 	require.NoError(t, err)
 
-	headerExt, err := header.MakeExtendedHeader(ctx, &b.Header, comm, val, eds)
+	headerExt, err := header.MakeExtendedHeader(&b.Header, comm, val, eds)
 	require.NoError(t, err)
 
 	assert.Equal(t, header.EmptyDAH(), *headerExt.DAH)
@@ -41,11 +41,9 @@ func TestMakeExtendedHeaderForEmptyBlock(t *testing.T) {
 
 func TestMismatchedDataHash_ComputedRoot(t *testing.T) {
 	header := headertest.RandExtendedHeader(t)
-
 	header.DataHash = rand.Bytes(32)
 
-	panicFn := func() {
-		header.Validate() //nolint:errcheck
-	}
-	assert.Panics(t, panicFn)
+	err := header.Validate()
+	assert.Contains(t, err.Error(), "mismatch between data hash commitment from"+
+		" core header and computed data root")
 }

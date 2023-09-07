@@ -7,13 +7,12 @@ import (
 	"time"
 
 	"github.com/ipfs/go-cid"
-	mdutils "github.com/ipfs/go-merkledag/test"
 	"github.com/stretchr/testify/require"
 
 	"github.com/celestiaorg/celestia-app/pkg/da"
 
-	"github.com/celestiaorg/celestia-node/share"
 	"github.com/celestiaorg/celestia-node/share/ipld"
+	"github.com/celestiaorg/celestia-node/share/sharetest"
 )
 
 func TestGetProof(t *testing.T) {
@@ -21,17 +20,18 @@ func TestGetProof(t *testing.T) {
 
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second*2)
 	defer cancel()
-	bServ := mdutils.Bserv()
+	bServ := ipld.NewMemBlockservice()
 
-	shares := share.RandShares(t, width*width)
-	in, err := share.AddShares(ctx, shares, bServ)
+	shares := sharetest.RandShares(t, width*width)
+	in, err := ipld.AddShares(ctx, shares, bServ)
 	require.NoError(t, err)
 
-	dah := da.NewDataAvailabilityHeader(in)
+	dah, err := da.NewDataAvailabilityHeader(in)
+	require.NoError(t, err)
 	var tests = []struct {
 		roots [][]byte
 	}{
-		{dah.RowsRoots},
+		{dah.RowRoots},
 		{dah.ColumnRoots},
 	}
 
@@ -57,13 +57,14 @@ func TestGetProofs(t *testing.T) {
 	const width = 4
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second*2)
 	defer cancel()
-	bServ := mdutils.Bserv()
+	bServ := ipld.NewMemBlockservice()
 
-	shares := share.RandShares(t, width*width)
-	in, err := share.AddShares(ctx, shares, bServ)
+	shares := sharetest.RandShares(t, width*width)
+	in, err := ipld.AddShares(ctx, shares, bServ)
 	require.NoError(t, err)
 
-	dah := da.NewDataAvailabilityHeader(in)
+	dah, err := da.NewDataAvailabilityHeader(in)
+	require.NoError(t, err)
 	for _, root := range dah.ColumnRoots {
 		rootCid := ipld.MustCidFromNamespacedSha256(root)
 		data := make([][]byte, 0, in.Width())

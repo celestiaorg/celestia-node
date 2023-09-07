@@ -69,11 +69,12 @@ func (h *Handler) performGetHeaderRequest(
 		writeError(w, http.StatusBadRequest, endpoint, err)
 		return nil, err
 	}
-	// perform request
+
 	header, err := h.header.GetByHeight(r.Context(), uint64(height))
 	if err != nil {
 		writeError(w, http.StatusInternalServerError, endpoint, err)
 		return nil, err
 	}
+
 	return header, nil
 }

@@ -1,14 +1,17 @@
 package p2p
 
 import (
+	"context"
 	"time"
 
 	"github.com/ipfs/go-datastore"
 	connmgri "github.com/libp2p/go-libp2p/core/connmgr"
 	"github.com/libp2p/go-libp2p/core/peerstore"
-	"github.com/libp2p/go-libp2p/p2p/host/peerstore/pstoremem"
+	"github.com/libp2p/go-libp2p/p2p/host/peerstore/pstoreds" //nolint:staticcheck
 	"github.com/libp2p/go-libp2p/p2p/net/conngater"
 	"github.com/libp2p/go-libp2p/p2p/net/connmgr"
+
+	"github.com/celestiaorg/celestia-node/nodebuilder/node"
 )
 
 // connManagerConfig configures connection manager.
@@ -21,11 +24,22 @@ type connManagerConfig struct {
 }
 
 // defaultConnManagerConfig returns defaults for ConnManagerConfig.
-func defaultConnManagerConfig() connManagerConfig {
-	return connManagerConfig{
-		Low:         50,
-		High:        100,
-		GracePeriod: time.Minute,
+func defaultConnManagerConfig(tp node.Type) connManagerConfig {
+	switch tp {
+	case node.Light:
+		return connManagerConfig{
+			Low:         50,
+			High:        100,
+			GracePeriod: time.Minute,
+		}
+	case node.Bridge, node.Full:
+		return connManagerConfig{
+			Low:         800,
+			High:        1000,
+			GracePeriod: time.Minute,
+		}
+	default:
+		panic("unknown node type")
 	}
 }
 
@@ -58,7 +72,7 @@ func connectionGater(ds datastore.Batching) (*conngater.BasicConnectionGater, er
 	return conngater.NewBasicConnectionGater(ds)
 }
 
-// peerStore constructs a PeerStore.
-func peerStore() (peerstore.Peerstore, error) {
-	return pstoremem.NewPeerstore()
+// peerStore constructs an on-disk PeerStore.
+func peerStore(ctx context.Context, ds datastore.Batching) (peerstore.Peerstore, error) {
+	return pstoreds.NewPeerstore(ctx, ds, pstoreds.DefaultOpts())
 }

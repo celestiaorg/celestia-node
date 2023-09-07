@@ -6,6 +6,7 @@ import (
 	"github.com/ipfs/go-datastore"
 	logging "github.com/ipfs/go-log/v2"
 	pubsub "github.com/libp2p/go-libp2p-pubsub"
+	"github.com/libp2p/go-libp2p/core/host"
 	"go.uber.org/fx"
 
 	libhead "github.com/celestiaorg/go-header"
@@ -14,93 +15,80 @@ import (
 	"github.com/celestiaorg/go-header/sync"
 
 	"github.com/celestiaorg/celestia-node/header"
-	"github.com/celestiaorg/celestia-node/libs/fraud"
+	"github.com/celestiaorg/celestia-node/libs/pidstore"
 	modfraud "github.com/celestiaorg/celestia-node/nodebuilder/fraud"
 	"github.com/celestiaorg/celestia-node/nodebuilder/node"
 	modp2p "github.com/celestiaorg/celestia-node/nodebuilder/p2p"
-	"github.com/celestiaorg/celestia-node/share/eds/byzantine"
 )
 
 var log = logging.Logger("module/header")
 
-func ConstructModule(tp node.Type, cfg *Config) fx.Option {
+func ConstructModule[H libhead.Header[H]](tp node.Type, cfg *Config) fx.Option {
 	// sanitize config values before constructing module
 	cfgErr := cfg.Validate(tp)
 
 	baseComponents := fx.Options(
 		fx.Supply(*cfg),
 		fx.Error(cfgErr),
-		fx.Provide(
-			func(cfg Config) []store.Option {
-				return []store.Option{
-					store.WithStoreCacheSize(cfg.Store.StoreCacheSize),
-					store.WithIndexCacheSize(cfg.Store.IndexCacheSize),
-					store.WithWriteBatchSize(cfg.Store.WriteBatchSize),
-				}
-			},
-		),
-		fx.Provide(
-			func(cfg Config, network modp2p.Network) []p2p.Option[p2p.ServerParameters] {
-				return []p2p.Option[p2p.ServerParameters]{
-					p2p.WithWriteDeadline(cfg.Server.WriteDeadline),
-					p2p.WithReadDeadline(cfg.Server.ReadDeadline),
-					p2p.WithRangeRequestTimeout[p2p.ServerParameters](cfg.Server.RangeRequestTimeout),
-					p2p.WithNetworkID[p2p.ServerParameters](network.String()),
-				}
-			}),
 		fx.Provide(newHeaderService),
 		fx.Provide(fx.Annotate(
-			func(ds datastore.Batching, opts []store.Option) (libhead.Store[*header.ExtendedHeader], error) {
-				return store.NewStore[*header.ExtendedHeader](ds, opts...)
+			func(ds datastore.Batching) (libhead.Store[H], error) {
+				return store.NewStore[H](ds, store.WithParams(cfg.Store))
 			},
-			fx.OnStart(func(ctx context.Context, store libhead.Store[*header.ExtendedHeader]) error {
-				return store.Start(ctx)
+			fx.OnStart(func(ctx context.Context, str libhead.Store[H]) error {
+				s := str.(*store.Store[H])
+				return s.Start(ctx)
 			}),
-			fx.OnStop(func(ctx context.Context, store libhead.Store[*header.ExtendedHeader]) error {
-				return store.Stop(ctx)
+			fx.OnStop(func(ctx context.Context, str libhead.Store[H]) error {
+				s := str.(*store.Store[H])
+				return s.Stop(ctx)
 			}),
 		)),
-		fx.Provide(newInitStore),
-		fx.Provide(func(subscriber *p2p.Subscriber[*header.ExtendedHeader]) libhead.Subscriber[*header.ExtendedHeader] {
+		fx.Provide(newInitStore[H]),
+		fx.Provide(func(subscriber *p2p.Subscriber[H]) libhead.Subscriber[H] {
 			return subscriber
 		}),
-		fx.Provide(func(cfg Config) []sync.Options {
-			return []sync.Options{
-				sync.WithBlockTime(modp2p.BlockTime),
-				sync.WithTrustingPeriod(cfg.Syncer.TrustingPeriod),
-			}
-		}),
 		fx.Provide(fx.Annotate(
-			newSyncer,
+			newSyncer[H],
 			fx.OnStart(func(
-				startCtx, ctx context.Context,
-				fservice fraud.Service,
-				syncer *sync.Syncer[*header.ExtendedHeader],
+				ctx context.Context,
+				breaker *modfraud.ServiceBreaker[*sync.Syncer[H], H],
 			) error {
-				return modfraud.Lifecycle(startCtx, ctx, byzantine.BadEncoding, fservice,
-					syncer.Start, syncer.Stop)
+				return breaker.Start(ctx)
 			}),
-			fx.OnStop(func(ctx context.Context, syncer *sync.Syncer[*header.ExtendedHeader]) error {
-				return syncer.Stop(ctx)
+			fx.OnStop(func(
+				ctx context.Context,
+				breaker *modfraud.ServiceBreaker[*sync.Syncer[H], H],
+			) error {
+				return breaker.Stop(ctx)
 			}),
 		)),
 		fx.Provide(fx.Annotate(
-			func(ps *pubsub.PubSub, network modp2p.Network) *p2p.Subscriber[*header.ExtendedHeader] {
-				return p2p.NewSubscriber[*header.ExtendedHeader](ps, header.MsgID, network.String())
+			func(ps *pubsub.PubSub, network modp2p.Network) *p2p.Subscriber[H] {
+				return p2p.NewSubscriber[H](ps, header.MsgID, network.String())
 			},
-			fx.OnStart(func(ctx context.Context, sub *p2p.Subscriber[*header.ExtendedHeader]) error {
+			fx.OnStart(func(ctx context.Context, sub *p2p.Subscriber[H]) error {
 				return sub.Start(ctx)
 			}),
-			fx.OnStop(func(ctx context.Context, sub *p2p.Subscriber[*header.ExtendedHeader]) error {
+			fx.OnStop(func(ctx context.Context, sub *p2p.Subscriber[H]) error {
 				return sub.Stop(ctx)
 			}),
 		)),
 		fx.Provide(fx.Annotate(
-			newP2PServer,
-			fx.OnStart(func(ctx context.Context, server *p2p.ExchangeServer[*header.ExtendedHeader]) error {
+			func(
+				host host.Host,
+				store libhead.Store[H],
+				network modp2p.Network,
+			) (*p2p.ExchangeServer[H], error) {
+				return p2p.NewExchangeServer[H](host, store,
+					p2p.WithParams(cfg.Server),
+					p2p.WithNetworkID[p2p.ServerParameters](network.String()),
+				)
+			},
+			fx.OnStart(func(ctx context.Context, server *p2p.ExchangeServer[H]) error {
 				return server.Start(ctx)
 			}),
-			fx.OnStop(func(ctx context.Context, server *p2p.ExchangeServer[*header.ExtendedHeader]) error {
+			fx.OnStop(func(ctx context.Context, server *p2p.ExchangeServer[H]) error {
 				return server.Stop(ctx)
 			}),
 		)),
@@ -111,23 +99,16 @@ func ConstructModule(tp node.Type, cfg *Config) fx.Option {
 		return fx.Module(
 			"header",
 			baseComponents,
-			fx.Provide(
-				func(cfg Config, network modp2p.Network) []p2p.Option[p2p.ClientParameters] {
-					return []p2p.Option[p2p.ClientParameters]{
-						p2p.WithMaxHeadersPerRangeRequest(cfg.Client.MaxHeadersPerRangeRequest),
-						p2p.WithRangeRequestTimeout[p2p.ClientParameters](cfg.Client.RangeRequestTimeout),
-						p2p.WithNetworkID[p2p.ClientParameters](network.String()),
-						p2p.WithChainID(network.String()),
-					}
-				},
-			),
-			fx.Provide(newP2PExchange(*cfg)),
+			fx.Provide(newP2PExchange[H]),
+			fx.Provide(func(ctx context.Context, ds datastore.Batching) (p2p.PeerIDStore, error) {
+				return pidstore.NewPeerIDStore(ctx, ds)
+			}),
 		)
 	case node.Bridge:
 		return fx.Module(
 			"header",
 			baseComponents,
-			fx.Provide(func(subscriber *p2p.Subscriber[*header.ExtendedHeader]) libhead.Broadcaster[*header.ExtendedHeader] {
+			fx.Provide(func(subscriber *p2p.Subscriber[H]) libhead.Broadcaster[H] {
 				return subscriber
 			}),
 			fx.Supply(header.MakeExtendedHeader),

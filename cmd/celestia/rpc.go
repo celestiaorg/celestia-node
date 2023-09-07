@@ -2,6 +2,7 @@ package main
 
 import (
 	"bytes"
+	"context"
 	"encoding/base64"
 	"encoding/hex"
 	"encoding/json"
@@ -15,25 +16,29 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/cosmos/cosmos-sdk/types"
 	"github.com/spf13/cobra"
 
 	"github.com/celestiaorg/celestia-node/api/rpc/client"
+	"github.com/celestiaorg/celestia-node/share"
 	"github.com/celestiaorg/celestia-node/state"
 )
 
-const (
-	authEnvKey = "CELESTIA_NODE_AUTH_TOKEN"
-)
+const authEnvKey = "CELESTIA_NODE_AUTH_TOKEN" //nolint:gosec
 
 var requestURL string
 var authTokenFlag string
+var printRequest bool
 
 type jsonRPCRequest struct {
 	ID      int64         `json:"id"`
 	JSONRPC string        `json:"jsonrpc"`
 	Method  string        `json:"method"`
 	Params  []interface{} `json:"params"`
+}
+
+type outputWithRequest struct {
+	Request  jsonRPCRequest
+	Response json.RawMessage
 }
 
 func init() {
@@ -49,6 +54,14 @@ func init() {
 		"",
 		"Authorization token (if not provided, the "+authEnvKey+" environment variable will be used)",
 	)
+	rpcCmd.PersistentFlags().BoolVar(
+		&printRequest,
+		"print-request",
+		false,
+		"Print JSON-RPC request along with the response",
+	)
+	rpcCmd.AddCommand(logCmd, logModuleCmd)
+	rpcCmd.AddCommand(blobCmd)
 	rootCmd.AddCommand(rpcCmd)
 }
 
@@ -56,6 +69,25 @@ var rpcCmd = &cobra.Command{
 	Use:   "rpc [namespace] [method] [params...]",
 	Short: "Send JSON-RPC request",
 	Args:  cobra.MinimumNArgs(2),
+	PersistentPreRunE: func(cmd *cobra.Command, args []string) error {
+		rpcClient, err := newRPCClient(cmd.Context())
+		if err != nil {
+			return err
+		}
+
+		ctx := context.WithValue(cmd.Context(), rpcClientKey{}, rpcClient)
+		cmd.SetContext(ctx)
+		return nil
+	},
+	PersistentPostRunE: func(cmd *cobra.Command, args []string) error {
+		client, err := rpcClient(cmd.Context())
+		if err != nil {
+			return err
+		}
+
+		client.Close()
+		return nil
+	},
 	ValidArgsFunction: func(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
 		modules := client.Modules
 		if len(args) == 0 {
@@ -71,7 +103,7 @@ var rpcCmd = &cobra.Command{
 			methods := reflect.VisibleFields(reflect.TypeOf(module).Elem())
 			var methodNames []string
 			for _, m := range methods {
-				methodNames = append(methodNames, m.Name)
+				methodNames = append(methodNames, m.Name+"\t"+parseSignatureForHelpstring(m))
 			}
 			return methodNames, cobra.ShellCompDirectiveNoFileComp
 		}
@@ -88,46 +120,35 @@ var rpcCmd = &cobra.Command{
 
 func parseParams(method string, params []string) []interface{} {
 	parsedParams := make([]interface{}, len(params))
-
+	validateParamsFn := func(has, want int) error {
+		if has != want {
+			return fmt.Errorf("rpc: invalid amount of params. has=%d, want=%d", has, want)
+		}
+		return nil
+	}
 	switch method {
-	case "SubmitPayForBlob":
-		// 1. NamespaceID
-		if strings.HasPrefix(params[0], "0x") {
-			decoded, err := hex.DecodeString(params[0][2:])
-			if err != nil {
-				panic("Error decoding namespace ID: hex string could not be decoded.")
-			}
-			parsedParams[0] = decoded
-		} else {
-			// otherwise, it's just a base64 string
-			parsedParams[0] = params[0]
+	case "GetSharesByNamespace":
+		if err := validateParamsFn(len(params), 2); err != nil {
+			panic(err)
 		}
-		// 2. Blob
-		switch {
-		case strings.HasPrefix(params[1], "0x"):
-			decoded, err := hex.DecodeString(params[1][2:])
-			if err != nil {
-				panic("Error decoding blob: hex string could not be decoded.")
-			}
-			parsedParams[0] = decoded
-		case strings.HasPrefix(params[1], "\""):
-			// user input an utf string that needs to be encoded to base64
-			parsedParams[1] = base64.StdEncoding.EncodeToString([]byte(params[1]))
-		default:
-			// otherwise, we assume the user has already encoded their input to base64
-			parsedParams[1] = params[1]
-		}
-		// 3. Fee (state.Int is a string)
-		parsedParams[2] = params[2]
-		// 4. GasLimit (uint64)
-		num, err := strconv.ParseUint(params[3], 10, 64)
+		// 1. Share Root
+		root, err := parseJSON(params[0])
 		if err != nil {
-			panic("Error parsing gas limit: uint64 could not be parsed.")
+			panic(fmt.Errorf("couldn't parse share root as json: %v", err))
 		}
-		parsedParams[3] = num
+		parsedParams[0] = root
+		// 2. Namespace
+		namespace, err := parseV0Namespace(params[1])
+		if err != nil {
+			panic(fmt.Sprintf("Error parsing namespace: %v", err))
+		}
+		parsedParams[1] = namespace
 		return parsedParams
 	case "QueryDelegation", "QueryUnbonding", "BalanceForAddress":
 		var err error
+		if err = validateParamsFn(len(params), 2); err != nil {
+			panic(err)
+		}
 		parsedParams[0], err = parseAddressFromString(params[0])
 		if err != nil {
 			panic(fmt.Errorf("error parsing address: %w", err))
@@ -147,6 +168,9 @@ func parseParams(method string, params []string) []interface{} {
 	case "Transfer", "Delegate", "Undelegate":
 		// 1. Address
 		var err error
+		if err = validateParamsFn(len(params), 4); err != nil {
+			panic(err)
+		}
 		parsedParams[0], err = parseAddressFromString(params[0])
 		if err != nil {
 			panic(fmt.Errorf("error parsing address: %w", err))
@@ -164,6 +188,9 @@ func parseParams(method string, params []string) []interface{} {
 	case "CancelUnbondingDelegation":
 		// 1. Validator Address
 		var err error
+		if err = validateParamsFn(len(params), 5); err != nil {
+			panic(err)
+		}
 		parsedParams[0], err = parseAddressFromString(params[0])
 		if err != nil {
 			panic(fmt.Errorf("error parsing address: %w", err))
@@ -178,9 +205,13 @@ func parseParams(method string, params []string) []interface{} {
 			panic("Error parsing gas limit: uint64 could not be parsed.")
 		}
 		parsedParams[4] = num
+		return parsedParams
 	case "BeginRedelegate":
 		// 1. Source Validator Address
 		var err error
+		if err = validateParamsFn(len(params), 5); err != nil {
+			panic(err)
+		}
 		parsedParams[0], err = parseAddressFromString(params[0])
 		if err != nil {
 			panic(fmt.Errorf("error parsing address: %w", err))
@@ -199,16 +230,17 @@ func parseParams(method string, params []string) []interface{} {
 			panic("Error parsing gas limit: uint64 could not be parsed.")
 		}
 		parsedParams[4] = num
+		return parsedParams
 	default:
 	}
 
 	for i, param := range params {
 		if param[0] == '{' || param[0] == '[' {
-			var raw json.RawMessage
-			if err := json.Unmarshal([]byte(param), &raw); err == nil {
-				parsedParams[i] = raw
-			} else {
+			rawJSON, err := parseJSON(param)
+			if err != nil {
 				parsedParams[i] = param
+			} else {
+				parsedParams[i] = rawJSON
 			}
 		} else {
 			// try to parse arguments as numbers before adding them as strings
@@ -220,7 +252,6 @@ func parseParams(method string, params []string) []interface{} {
 			parsedParams[i] = param
 		}
 	}
-
 	return parsedParams
 }
 
@@ -265,20 +296,107 @@ func sendJSONRPCRequest(namespace, method string, params []interface{}) {
 		log.Fatalf("Error reading response body: %v", err) //nolint:gocritic
 	}
 
-	fmt.Println(string(responseBody))
+	rawResponseJSON, err := parseJSON(string(responseBody))
+	if err != nil {
+		log.Fatalf("Error parsing JSON-RPC response: %v", err)
+	}
+	if printRequest {
+		output, err := json.MarshalIndent(outputWithRequest{
+			Request:  request,
+			Response: rawResponseJSON,
+		}, "", "  ")
+		if err != nil {
+			panic(fmt.Sprintf("Error marshaling JSON-RPC response: %v", err))
+		}
+		fmt.Println(string(output))
+		return
+	}
+
+	output, err := json.MarshalIndent(rawResponseJSON, "", "  ")
+	if err != nil {
+		panic(fmt.Sprintf("Error marshaling JSON-RPC response: %v", err))
+	}
+	fmt.Println(string(output))
 }
 
 func parseAddressFromString(addrStr string) (state.Address, error) {
-	var addr state.AccAddress
-	addr, err := types.AccAddressFromBech32(addrStr)
+	var address state.Address
+	err := address.UnmarshalJSON([]byte(addrStr))
 	if err != nil {
-		// first check if it is a validator address and can be converted
-		valAddr, err := types.ValAddressFromBech32(addrStr)
-		if err != nil {
-			return nil, errors.New("address must be a valid account or validator address ")
+		return address, err
+	}
+	return address, nil
+}
+
+func parseSignatureForHelpstring(methodSig reflect.StructField) string {
+	simplifiedSignature := "("
+	in, out := methodSig.Type.NumIn(), methodSig.Type.NumOut()
+	for i := 1; i < in; i++ {
+		simplifiedSignature += methodSig.Type.In(i).String()
+		if i != in-1 {
+			simplifiedSignature += ", "
 		}
-		return valAddr, nil
+	}
+	simplifiedSignature += ") -> ("
+	for i := 0; i < out-1; i++ {
+		simplifiedSignature += methodSig.Type.Out(i).String()
+		if i != out-2 {
+			simplifiedSignature += ", "
+		}
+	}
+	simplifiedSignature += ")"
+	return simplifiedSignature
+}
+
+// parseV0Namespace parses a namespace from a base64 or hex string. The param
+// is expected to be the user-specified portion of a v0 namespace ID (i.e. the
+// last 10 bytes).
+func parseV0Namespace(param string) (share.Namespace, error) {
+	userBytes, err := decodeToBytes(param)
+	if err != nil {
+		return nil, err
 	}
 
-	return addr, nil
+	// if the namespace ID is <= 10 bytes, left pad it with 0s
+	return share.NewBlobNamespaceV0(userBytes)
+}
+
+// decodeToBytes decodes a Base64 or hex input string into a byte slice.
+func decodeToBytes(param string) ([]byte, error) {
+	if strings.HasPrefix(param, "0x") {
+		decoded, err := hex.DecodeString(param[2:])
+		if err != nil {
+			return nil, fmt.Errorf("error decoding namespace ID: %w", err)
+		}
+		return decoded, nil
+	}
+	// otherwise, it's just a base64 string
+	decoded, err := base64.StdEncoding.DecodeString(param)
+	if err != nil {
+		return nil, fmt.Errorf("error decoding namespace ID: %w", err)
+	}
+	return decoded, nil
+}
+
+func parseJSON(param string) (json.RawMessage, error) {
+	var raw json.RawMessage
+	err := json.Unmarshal([]byte(param), &raw)
+	return raw, err
+}
+
+func newRPCClient(ctx context.Context) (*client.Client, error) {
+	if authTokenFlag == "" {
+		authTokenFlag = os.Getenv(authEnvKey)
+	}
+	return client.NewClient(ctx, requestURL, authTokenFlag)
+}
+
+type rpcClientKey struct{}
+
+func rpcClient(ctx context.Context) (*client.Client, error) {
+	client, ok := ctx.Value(rpcClientKey{}).(*client.Client)
+	if !ok {
+		return nil, errors.New("rpc client was not set")
+	}
+	return client, nil
 }

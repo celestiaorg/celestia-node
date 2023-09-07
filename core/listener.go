@@ -8,13 +8,19 @@ import (
 
 	pubsub "github.com/libp2p/go-libp2p-pubsub"
 	"github.com/tendermint/tendermint/types"
+	"go.opentelemetry.io/otel"
+	"go.opentelemetry.io/otel/attribute"
 
 	libhead "github.com/celestiaorg/go-header"
+	"github.com/celestiaorg/nmt"
 
 	"github.com/celestiaorg/celestia-node/header"
 	"github.com/celestiaorg/celestia-node/share/eds"
+	"github.com/celestiaorg/celestia-node/share/ipld"
 	"github.com/celestiaorg/celestia-node/share/p2p/shrexsub"
 )
+
+var tracer = otel.Tracer("core/listener")
 
 // Listener is responsible for listening to Core for
 // new block events and converting new Core blocks into
@@ -140,18 +146,27 @@ func (cl *Listener) listen(ctx context.Context, sub <-chan types.EventDataSigned
 }
 
 func (cl *Listener) handleNewSignedBlock(ctx context.Context, b types.EventDataSignedBlock) error {
+	ctx, span := tracer.Start(ctx, "handle-new-signed-block")
+	defer span.End()
+	span.SetAttributes(
+		attribute.Int64("height", b.Header.Height),
+	)
 	// extend block data
-	eds, err := extendBlock(b.Data)
+	adder := ipld.NewProofsAdder(int(b.Data.SquareSize))
+	defer adder.Purge()
+
+	eds, err := extendBlock(b.Data, b.Header.Version.App, nmt.NodeVisitor(adder.VisitFn()))
 	if err != nil {
 		return fmt.Errorf("extending block data: %w", err)
 	}
 	// generate extended header
-	eh, err := cl.construct(ctx, &b.Header, &b.Commit, &b.ValidatorSet, eds)
+	eh, err := cl.construct(&b.Header, &b.Commit, &b.ValidatorSet, eds)
 	if err != nil {
-		return fmt.Errorf("making extended header: %w", err)
+		panic(fmt.Errorf("making extended header: %w", err))
 	}
 
 	// attempt to store block data if not empty
+	ctx = ipld.CtxWithProofsAdder(ctx, adder)
 	err = storeEDS(ctx, b.Header.DataHash.Bytes(), eds, cl.store)
 	if err != nil {
 		return fmt.Errorf("storing EDS: %w", err)
@@ -166,7 +181,7 @@ func (cl *Listener) handleNewSignedBlock(ctx context.Context, b types.EventDataS
 	if !syncing {
 		err = cl.hashBroadcaster(ctx, shrexsub.Notification{
 			DataHash: eh.DataHash.Bytes(),
-			Height:   uint64(eh.Height()),
+			Height:   eh.Height(),
 		})
 		if err != nil && !errors.Is(err, context.Canceled) {
 			log.Errorw("listener: broadcasting data hash",

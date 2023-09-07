@@ -5,17 +5,20 @@ import (
 	"fmt"
 	"testing"
 
+	"github.com/stretchr/testify/require"
+
 	"github.com/celestiaorg/celestia-app/pkg/da"
-	"github.com/celestiaorg/nmt/namespace"
 	"github.com/celestiaorg/rsmt2d"
 
 	"github.com/celestiaorg/celestia-node/share"
+	"github.com/celestiaorg/celestia-node/share/eds/edstest"
 )
 
 // TestGetter provides a testing SingleEDSGetter and the root of the EDS it holds.
 func TestGetter(t *testing.T) (share.Getter, *share.Root) {
-	eds := share.RandEDS(t, 8)
-	dah := da.NewDataAvailabilityHeader(eds)
+	eds := edstest.RandEDS(t, 8)
+	dah, err := da.NewDataAvailabilityHeader(eds)
+	require.NoError(t, err)
 	return &SingleEDSGetter{
 		EDS: eds,
 	}, &dah
@@ -46,13 +49,16 @@ func (seg *SingleEDSGetter) GetEDS(_ context.Context, root *share.Root) (*rsmt2d
 }
 
 // GetSharesByNamespace returns NamespacedShares from a kept EDS if the correct root is given.
-func (seg *SingleEDSGetter) GetSharesByNamespace(context.Context, *share.Root, namespace.ID,
+func (seg *SingleEDSGetter) GetSharesByNamespace(context.Context, *share.Root, share.Namespace,
 ) (share.NamespacedShares, error) {
 	panic("SingleEDSGetter: GetSharesByNamespace is not implemented")
 }
 
 func (seg *SingleEDSGetter) checkRoot(root *share.Root) error {
-	dah := da.NewDataAvailabilityHeader(seg.EDS)
+	dah, err := da.NewDataAvailabilityHeader(seg.EDS)
+	if err != nil {
+		return err
+	}
 	if !root.Equals(&dah) {
 		return fmt.Errorf("unknown EDS: have %s, asked %s", dah.String(), root.String())
 	}

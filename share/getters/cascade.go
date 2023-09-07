@@ -6,13 +6,12 @@ import (
 
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/trace"
-	"go.uber.org/multierr"
 
-	"github.com/celestiaorg/nmt/namespace"
 	"github.com/celestiaorg/rsmt2d"
 
 	"github.com/celestiaorg/celestia-node/libs/utils"
 	"github.com/celestiaorg/celestia-node/share"
+	"github.com/celestiaorg/celestia-node/share/eds/byzantine"
 )
 
 var _ share.Getter = (*CascadeGetter)(nil)
@@ -35,12 +34,17 @@ func NewCascadeGetter(getters []share.Getter) *CascadeGetter {
 // GetShare gets a share from any of registered share.Getters in cascading order.
 func (cg *CascadeGetter) GetShare(ctx context.Context, root *share.Root, row, col int) (share.Share, error) {
 	ctx, span := tracer.Start(ctx, "cascade/get-share", trace.WithAttributes(
-		attribute.String("root", root.String()),
 		attribute.Int("row", row),
 		attribute.Int("col", col),
 	))
 	defer span.End()
 
+	upperBound := len(root.RowRoots)
+	if row >= upperBound || col >= upperBound {
+		err := share.ErrOutOfBounds
+		span.RecordError(err)
+		return nil, err
+	}
 	get := func(ctx context.Context, get share.Getter) (share.Share, error) {
 		return get.GetShare(ctx, root, row, col)
 	}
@@ -50,9 +54,7 @@ func (cg *CascadeGetter) GetShare(ctx context.Context, root *share.Root, row, co
 
 // GetEDS gets a full EDS from any of registered share.Getters in cascading order.
 func (cg *CascadeGetter) GetEDS(ctx context.Context, root *share.Root) (*rsmt2d.ExtendedDataSquare, error) {
-	ctx, span := tracer.Start(ctx, "cascade/get-eds", trace.WithAttributes(
-		attribute.String("root", root.String()),
-	))
+	ctx, span := tracer.Start(ctx, "cascade/get-eds")
 	defer span.End()
 
 	get := func(ctx context.Context, get share.Getter) (*rsmt2d.ExtendedDataSquare, error) {
@@ -67,16 +69,15 @@ func (cg *CascadeGetter) GetEDS(ctx context.Context, root *share.Root) (*rsmt2d.
 func (cg *CascadeGetter) GetSharesByNamespace(
 	ctx context.Context,
 	root *share.Root,
-	id namespace.ID,
+	namespace share.Namespace,
 ) (share.NamespacedShares, error) {
 	ctx, span := tracer.Start(ctx, "cascade/get-shares-by-namespace", trace.WithAttributes(
-		attribute.String("root", root.String()),
-		attribute.String("nid", id.String()),
+		attribute.String("namespace", namespace.String()),
 	))
 	defer span.End()
 
 	get := func(ctx context.Context, get share.Getter) (share.NamespacedShares, error) {
-		return get.GetSharesByNamespace(ctx, root, id)
+		return get.GetSharesByNamespace(ctx, root, namespace)
 	}
 
 	return cascadeGetters(ctx, cg.getters, get)
@@ -126,10 +127,21 @@ func cascadeGetters[V any](
 			return val, nil
 		}
 
-		if !errors.Is(getErr, errOperationNotSupported) {
-			// TODO(@Wondertan): migrate to errors.Join once Go1.20 is out!
-			err = multierr.Append(err, getErr)
-			span.RecordError(getErr, trace.WithAttributes(attribute.Int("getter_idx", i)))
+		if errors.Is(getErr, errOperationNotSupported) {
+			continue
+		}
+
+		span.RecordError(getErr, trace.WithAttributes(attribute.Int("getter_idx", i)))
+		var byzantineErr *byzantine.ErrByzantine
+		if errors.As(getErr, &byzantineErr) {
+			// short circuit if byzantine error was detected (to be able to handle it correctly
+			// and create the BEFP)
+			return zero, byzantineErr
+		}
+
+		err = errors.Join(err, getErr)
+		if ctx.Err() != nil {
+			return zero, err
 		}
 	}
 	return zero, err

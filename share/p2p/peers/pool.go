@@ -12,7 +12,7 @@ const defaultCleanupThreshold = 2
 
 // pool stores peers and provides methods for simple round-robin access.
 type pool struct {
-	m           sync.Mutex
+	m           sync.RWMutex
 	peersList   []peer.ID
 	statuses    map[peer.ID]status
 	cooldown    *timedQueue
@@ -139,6 +139,27 @@ func (p *pool) remove(peers ...peer.ID) {
 	p.checkHasPeers()
 }
 
+func (p *pool) has(peer peer.ID) bool {
+	p.m.RLock()
+	defer p.m.RUnlock()
+
+	status, ok := p.statuses[peer]
+	return ok && status != removed
+}
+
+func (p *pool) peers() []peer.ID {
+	p.m.RLock()
+	defer p.m.RUnlock()
+
+	peers := make([]peer.ID, 0, len(p.peersList))
+	for peer, status := range p.statuses {
+		if status != removed {
+			peers = append(peers, peer)
+		}
+	}
+	return peers
+}
+
 // cleanup will reduce memory footprint of pool.
 func (p *pool) cleanup() {
 	newList := make([]peer.ID, 0, p.activeCount)
@@ -193,4 +214,10 @@ func (p *pool) checkHasPeers() {
 		p.hasPeerCh = make(chan struct{})
 		p.hasPeer = false
 	}
+}
+
+func (p *pool) len() int {
+	p.m.RLock()
+	defer p.m.RUnlock()
+	return p.activeCount
 }

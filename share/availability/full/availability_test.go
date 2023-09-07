@@ -2,19 +2,19 @@ package full
 
 import (
 	"context"
-	"math/rand"
 	"testing"
-	"time"
 
+	"github.com/golang/mock/gomock"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 
+	"github.com/celestiaorg/celestia-app/pkg/da"
+
+	"github.com/celestiaorg/celestia-node/share"
 	availability_test "github.com/celestiaorg/celestia-node/share/availability/test"
+	"github.com/celestiaorg/celestia-node/share/eds/edstest"
+	"github.com/celestiaorg/celestia-node/share/mocks"
 )
-
-func init() {
-	// randomize quadrant fetching, otherwise quadrant sampling is deterministic
-	rand.Seed(time.Now().UnixNano())
-}
 
 func TestShareAvailableOverMocknet_Full(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
@@ -38,4 +38,23 @@ func TestSharesAvailable_Full(t *testing.T) {
 	avail := TestAvailability(getter)
 	err := avail.SharesAvailable(ctx, dah)
 	assert.NoError(t, err)
+}
+
+func TestSharesAvailable_Full_ErrNotAvailable(t *testing.T) {
+	ctrl := gomock.NewController(t)
+	getter := mocks.NewMockGetter(ctrl)
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	eds := edstest.RandEDS(t, 4)
+	dah, err := da.NewDataAvailabilityHeader(eds)
+	require.NoError(t, err)
+	avail := TestAvailability(getter)
+
+	errors := []error{share.ErrNotFound, context.DeadlineExceeded}
+	for _, getterErr := range errors {
+		getter.EXPECT().GetEDS(gomock.Any(), gomock.Any()).Return(nil, getterErr)
+		err := avail.SharesAvailable(ctx, &dah)
+		require.ErrorIs(t, err, share.ErrNotAvailable)
+	}
 }

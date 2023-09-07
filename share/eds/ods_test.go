@@ -52,7 +52,7 @@ func TestODSReader(t *testing.T) {
 			assert.NoError(t, err)
 
 			// check that original data from eds is same as data from reader
-			assert.Equal(t, original, block.RawData()[share.NamespaceSize:])
+			assert.Equal(t, original, share.GetData(block.RawData()))
 		}
 	}
 
@@ -89,6 +89,16 @@ func TestODSReaderReconstruction(t *testing.T) {
 	// reconstruct EDS from ODSReader
 	loaded, err := ReadEDS(ctx, odsR, dah.Hash())
 	assert.NoError(t, err)
-	require.Equal(t, eds.RowRoots(), loaded.RowRoots())
-	require.Equal(t, eds.ColRoots(), loaded.ColRoots())
+
+	rowRoots, err := eds.RowRoots()
+	require.NoError(t, err)
+	loadedRowRoots, err := loaded.RowRoots()
+	require.NoError(t, err)
+	require.Equal(t, rowRoots, loadedRowRoots)
+
+	colRoots, err := eds.ColRoots()
+	require.NoError(t, err)
+	loadedColRoots, err := loaded.ColRoots()
+	require.NoError(t, err)
+	require.Equal(t, colRoots, loadedColRoots)
 }

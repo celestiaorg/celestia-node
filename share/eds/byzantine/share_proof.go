@@ -2,13 +2,14 @@ package byzantine
 
 import (
 	"context"
+	"crypto/sha256"
 
-	"github.com/ipfs/go-blockservice"
+	"github.com/ipfs/boxo/blockservice"
 	"github.com/ipfs/go-cid"
 	logging "github.com/ipfs/go-log/v2"
-	"github.com/minio/sha256-simd"
 
 	"github.com/celestiaorg/nmt"
+	nmt_pb "github.com/celestiaorg/nmt/pb"
 
 	"github.com/celestiaorg/celestia-node/share"
 	pb "github.com/celestiaorg/celestia-node/share/eds/byzantine/pb"
@@ -45,8 +46,8 @@ func NewShareWithProof(index int, share share.Share, pathToLeaf []cid.Cid) *Shar
 func (s *ShareWithProof) Validate(root cid.Cid) bool {
 	return s.Proof.VerifyInclusion(
 		sha256.New(), // TODO(@Wondertan): This should be defined somewhere globally
-		share.ID(s.Share),
-		[][]byte{share.Data(s.Share)},
+		share.GetNamespace(s.Share).ToNMT(),
+		[][]byte{share.GetData(s.Share)},
 		ipld.NamespacedSha256FromCID(root),
 	)
 }
@@ -58,11 +59,12 @@ func (s *ShareWithProof) ShareWithProofToProto() *pb.Share {
 
 	return &pb.Share{
 		Data: s.Share,
-		Proof: &pb.MerkleProof{
-			Start:    int64(s.Proof.Start()),
-			End:      int64(s.Proof.End()),
-			Nodes:    s.Proof.Nodes(),
-			LeafHash: s.Proof.LeafHash(),
+		Proof: &nmt_pb.Proof{
+			Start:                 int64(s.Proof.Start()),
+			End:                   int64(s.Proof.End()),
+			Nodes:                 s.Proof.Nodes(),
+			LeafHash:              s.Proof.LeafHash(),
+			IsMaxNamespaceIgnored: s.Proof.IsMaxNamespaceIDIgnored(),
 		},
 	}
 }
@@ -78,22 +80,36 @@ func GetProofsForShares(
 	proofs := make([]*ShareWithProof, len(shares))
 	for index, share := range shares {
 		if share != nil {
-			proof := make([]cid.Cid, 0)
-			// TODO(@vgonkivs): Combine GetLeafData and GetProof in one function as the are traversing the same
-			// tree. Add options that will control what data will be fetched.
-			s, err := ipld.GetLeaf(ctx, bGetter, root, index, len(shares))
+			proof, err := getProofsAt(ctx, bGetter, root, index, len(shares))
 			if err != nil {
 				return nil, err
 			}
-			proof, err = ipld.GetProof(ctx, bGetter, root, proof, index, len(shares))
-			if err != nil {
-				return nil, err
-			}
-			proofs[index] = NewShareWithProof(index, s.RawData(), proof)
+			proofs[index] = proof
 		}
 	}
-
 	return proofs, nil
+}
+
+func getProofsAt(
+	ctx context.Context,
+	bGetter blockservice.BlockGetter,
+	root cid.Cid,
+	index,
+	total int,
+) (*ShareWithProof, error) {
+	proof := make([]cid.Cid, 0)
+	// TODO(@vgonkivs): Combine GetLeafData and GetProof in one function as the are traversing the same
+	// tree. Add options that will control what data will be fetched.
+	node, err := ipld.GetLeaf(ctx, bGetter, root, index, total)
+	if err != nil {
+		return nil, err
+	}
+
+	proof, err = ipld.GetProof(ctx, bGetter, root, proof, index, total)
+	if err != nil {
+		return nil, err
+	}
+	return NewShareWithProof(index, node.RawData(), proof), nil
 }
 
 func ProtoToShare(protoShares []*pb.Share) []*ShareWithProof {
@@ -108,6 +124,11 @@ func ProtoToShare(protoShares []*pb.Share) []*ShareWithProof {
 	return shares
 }
 
-func ProtoToProof(protoProof *pb.MerkleProof) nmt.Proof {
-	return nmt.NewInclusionProof(int(protoProof.Start), int(protoProof.End), protoProof.Nodes, ipld.NMTIgnoreMaxNamespace)
+func ProtoToProof(protoProof *nmt_pb.Proof) nmt.Proof {
+	return nmt.NewInclusionProof(
+		int(protoProof.Start),
+		int(protoProof.End),
+		protoProof.Nodes,
+		protoProof.IsMaxNamespaceIgnored,
+	)
 }

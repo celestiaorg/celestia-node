@@ -2,11 +2,12 @@ package eds
 
 import (
 	"context"
-	"fmt"
 	"os"
+	"sync"
 	"testing"
 	"time"
 
+	"github.com/filecoin-project/dagstore"
 	"github.com/filecoin-project/dagstore/shard"
 	"github.com/ipfs/go-datastore"
 	ds_sync "github.com/ipfs/go-datastore/sync"
@@ -18,6 +19,7 @@ import (
 	"github.com/celestiaorg/rsmt2d"
 
 	"github.com/celestiaorg/celestia-node/share"
+	"github.com/celestiaorg/celestia-node/share/eds/edstest"
 )
 
 func TestEDSStore(t *testing.T) {
@@ -71,8 +73,6 @@ func TestEDSStore(t *testing.T) {
 		r, err := edsStore.GetCAR(ctx, dah.Hash())
 		assert.NoError(t, err)
 		carReader, err := car.NewCarReader(r)
-
-		fmt.Println(car.HeaderSize(carReader.Header))
 		assert.NoError(t, err)
 
 		for i := 0; i < 4; i++ {
@@ -80,9 +80,21 @@ func TestEDSStore(t *testing.T) {
 				original := eds.GetCell(uint(i), uint(j))
 				block, err := carReader.Next()
 				assert.NoError(t, err)
-				assert.Equal(t, original, block.RawData()[share.NamespaceSize:])
+				assert.Equal(t, original, share.GetData(block.RawData()))
 			}
 		}
+	})
+
+	t.Run("item not exist", func(t *testing.T) {
+		root := share.DataHash{1}
+		_, err := edsStore.GetCAR(ctx, root)
+		assert.ErrorIs(t, err, ErrNotFound)
+
+		_, err = edsStore.GetDAH(ctx, root)
+		assert.ErrorIs(t, err, ErrNotFound)
+
+		_, err = edsStore.CARBlockstore(ctx, root)
+		assert.ErrorIs(t, err, ErrNotFound)
 	})
 
 	t.Run("Remove", func(t *testing.T) {
@@ -110,6 +122,44 @@ func TestEDSStore(t *testing.T) {
 		// file no longer exists
 		_, err = os.Stat(edsStore.basepath + blocksPath + dah.String())
 		assert.ErrorContains(t, err, "no such file or directory")
+	})
+
+	t.Run("Remove after OpShardFail", func(t *testing.T) {
+		eds, dah := randomEDS(t)
+
+		err = edsStore.Put(ctx, dah.Hash(), eds)
+		require.NoError(t, err)
+
+		// assert that shard now exists
+		ok, err := edsStore.Has(ctx, dah.Hash())
+		assert.NoError(t, err)
+		assert.True(t, ok)
+
+		// assert that file now exists
+		path := edsStore.basepath + blocksPath + dah.String()
+		_, err = os.Stat(path)
+		assert.NoError(t, err)
+
+		err = os.Remove(path)
+		assert.NoError(t, err)
+
+		_, err = edsStore.GetCAR(ctx, dah.Hash())
+		assert.Error(t, err)
+
+		ticker := time.NewTicker(time.Millisecond * 100)
+		defer ticker.Stop()
+		for {
+			select {
+			case <-ticker.C:
+				has, err := edsStore.Has(ctx, dah.Hash())
+				if err == nil && !has {
+					// shard no longer exists after OpShardFail was detected from GetCAR call
+					return
+				}
+			case <-ctx.Done():
+				t.Fatal("timeout waiting for shard to be removed")
+			}
+		}
 	})
 
 	t.Run("Has", func(t *testing.T) {
@@ -143,6 +193,47 @@ func TestEDSStore(t *testing.T) {
 		assert.NoError(t, err)
 		_, err = edsStore.cache.Get(shardKey)
 		assert.NoError(t, err, errCacheMiss)
+	})
+
+	t.Run("List", func(t *testing.T) {
+		const amount = 10
+		hashes := make([]share.DataHash, 0, amount)
+		for range make([]byte, amount) {
+			eds, dah := randomEDS(t)
+			err = edsStore.Put(ctx, dah.Hash(), eds)
+			require.NoError(t, err)
+			hashes = append(hashes, dah.Hash())
+		}
+
+		hashesOut, err := edsStore.List()
+		require.NoError(t, err)
+		for _, hash := range hashes {
+			assert.Contains(t, hashesOut, hash)
+		}
+	})
+
+	t.Run("Parallel put", func(t *testing.T) {
+		const amount = 20
+		eds, dah := randomEDS(t)
+
+		wg := sync.WaitGroup{}
+		for i := 1; i < amount; i++ {
+			wg.Add(1)
+			go func() {
+				defer wg.Done()
+				err := edsStore.Put(ctx, dah.Hash(), eds)
+				if err != nil {
+					require.ErrorIs(t, err, dagstore.ErrShardExists)
+				}
+			}()
+		}
+		wg.Wait()
+
+		eds, err := edsStore.Get(ctx, dah.Hash())
+		require.NoError(t, err)
+		newDah, err := da.NewDataAvailabilityHeader(eds)
+		require.NoError(t, err)
+		require.Equal(t, dah.Hash(), newDah.Hash())
 	})
 }
 
@@ -206,6 +297,88 @@ func Test_BlockstoreCache(t *testing.T) {
 	assert.NoError(t, err, errCacheMiss)
 }
 
+// Test_CachedAccessor verifies that the reader represented by a cached accessor can be read from
+// multiple times, without exhausting the underlying reader.
+func Test_CachedAccessor(t *testing.T) {
+	ctx, cancel := context.WithCancel(context.Background())
+	t.Cleanup(cancel)
+
+	edsStore, err := newStore(t)
+	require.NoError(t, err)
+	err = edsStore.Start(ctx)
+	require.NoError(t, err)
+
+	eds, dah := randomEDS(t)
+	err = edsStore.Put(ctx, dah.Hash(), eds)
+	require.NoError(t, err)
+
+	shardKey := shard.KeyFromString(dah.String())
+	// adds to cache
+	cachedAccessor, err := edsStore.getCachedAccessor(ctx, shardKey)
+	assert.NoError(t, err)
+
+	// first read
+	carReader, err := car.NewCarReader(cachedAccessor.sa.Reader())
+	assert.NoError(t, err)
+	firstBlock, err := carReader.Next()
+	assert.NoError(t, err)
+
+	// second read
+	cachedAccessor, err = edsStore.getCachedAccessor(ctx, shardKey)
+	assert.NoError(t, err)
+	carReader, err = car.NewCarReader(cachedAccessor.sa.Reader())
+	assert.NoError(t, err)
+	secondBlock, err := carReader.Next()
+	assert.NoError(t, err)
+
+	assert.Equal(t, firstBlock, secondBlock)
+}
+
+func BenchmarkStore(b *testing.B) {
+	ctx, cancel := context.WithCancel(context.Background())
+	b.Cleanup(cancel)
+
+	tmpDir := b.TempDir()
+	ds := ds_sync.MutexWrap(datastore.NewMapDatastore())
+	edsStore, err := NewStore(tmpDir, ds)
+	require.NoError(b, err)
+	err = edsStore.Start(ctx)
+	require.NoError(b, err)
+
+	// BenchmarkStore/bench_put_128-10         	      10	3231859283 ns/op (~3sec)
+	b.Run("bench put 128", func(b *testing.B) {
+		b.ResetTimer()
+		for i := 0; i < b.N; i++ {
+			// pause the timer for initializing test data
+			b.StopTimer()
+			eds := edstest.RandEDS(b, 128)
+			dah, err := da.NewDataAvailabilityHeader(eds)
+			require.NoError(b, err)
+			b.StartTimer()
+
+			err = edsStore.Put(ctx, dah.Hash(), eds)
+			require.NoError(b, err)
+		}
+	})
+
+	// BenchmarkStore/bench_read_128-10         	      14	  78970661 ns/op (~70ms)
+	b.Run("bench read 128", func(b *testing.B) {
+		b.ResetTimer()
+		for i := 0; i < b.N; i++ {
+			// pause the timer for initializing test data
+			b.StopTimer()
+			eds := edstest.RandEDS(b, 128)
+			dah, err := da.NewDataAvailabilityHeader(eds)
+			require.NoError(b, err)
+			_ = edsStore.Put(ctx, dah.Hash(), eds)
+			b.StartTimer()
+
+			_, err = edsStore.Get(ctx, dah.Hash())
+			require.NoError(b, err)
+		}
+	})
+}
+
 func newStore(t *testing.T) (*Store, error) {
 	t.Helper()
 
@@ -215,8 +388,9 @@ func newStore(t *testing.T) (*Store, error) {
 }
 
 func randomEDS(t *testing.T) (*rsmt2d.ExtendedDataSquare, share.Root) {
-	eds := share.RandEDS(t, 4)
-	dah := da.NewDataAvailabilityHeader(eds)
+	eds := edstest.RandEDS(t, 4)
+	dah, err := da.NewDataAvailabilityHeader(eds)
+	require.NoError(t, err)
 
 	return eds, dah
 }

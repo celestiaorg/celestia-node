@@ -1,16 +1,13 @@
 package headertest
 
 import (
-	"context"
+	"crypto/rand"
 	"fmt"
 	mrand "math/rand"
 	"sort"
 	"testing"
 	"time"
 
-	"github.com/ipfs/go-blockservice"
-	logging "github.com/ipfs/go-log/v2"
-	pubsub "github.com/libp2p/go-libp2p-pubsub"
 	"github.com/stretchr/testify/require"
 	"github.com/tendermint/tendermint/crypto/tmhash"
 	"github.com/tendermint/tendermint/libs/bytes"
@@ -19,18 +16,14 @@ import (
 	"github.com/tendermint/tendermint/proto/tendermint/version"
 	"github.com/tendermint/tendermint/types"
 	tmtime "github.com/tendermint/tendermint/types/time"
-	"golang.org/x/exp/rand"
 
 	"github.com/celestiaorg/celestia-app/pkg/da"
 	libhead "github.com/celestiaorg/go-header"
-	"github.com/celestiaorg/go-header/test"
+	"github.com/celestiaorg/go-header/headertest"
 	"github.com/celestiaorg/rsmt2d"
 
 	"github.com/celestiaorg/celestia-node/header"
-	"github.com/celestiaorg/celestia-node/share"
 )
-
-var log = logging.Logger("headertest")
 
 // TestSuite provides everything you need to test chain of Headers.
 // If not, please don't hesitate to extend it for your case.
@@ -42,6 +35,10 @@ type TestSuite struct {
 	valPntr int
 
 	head *header.ExtendedHeader
+}
+
+func NewStore(t *testing.T) libhead.Store[*header.ExtendedHeader] {
+	return headertest.NewStore[*header.ExtendedHeader](t, NewTestSuite(t, 3), 10)
 }
 
 // NewTestSuite setups a new test suite with a given number of validators.
@@ -64,7 +61,9 @@ func (s *TestSuite) genesis() *header.ExtendedHeader {
 	gen.NextValidatorsHash = s.valSet.Hash()
 	gen.Height = 1
 	voteSet := types.NewVoteSet(gen.ChainID, gen.Height, 0, tmproto.PrecommitType, s.valSet)
-	commit, err := MakeCommit(RandBlockID(s.t), gen.Height, 0, voteSet, s.vals, time.Now())
+	blockID := RandBlockID(s.t)
+	blockID.Hash = gen.Hash()
+	commit, err := MakeCommit(blockID, gen.Height, 0, voteSet, s.vals, time.Now())
 	require.NoError(s.t, err)
 
 	eh := &header.ExtendedHeader{
@@ -125,18 +124,14 @@ func (s *TestSuite) Head() *header.ExtendedHeader {
 func (s *TestSuite) GenExtendedHeaders(num int) []*header.ExtendedHeader {
 	headers := make([]*header.ExtendedHeader, num)
 	for i := range headers {
-		headers[i] = s.GenExtendedHeader()
+		headers[i] = s.NextHeader()
 	}
 	return headers
 }
 
-func (s *TestSuite) GetRandomHeader() *header.ExtendedHeader {
-	return s.GenExtendedHeader()
-}
+var _ headertest.Generator[*header.ExtendedHeader] = &TestSuite{}
 
-var _ test.Generator[*header.ExtendedHeader] = &TestSuite{}
-
-func (s *TestSuite) GenExtendedHeader() *header.ExtendedHeader {
+func (s *TestSuite) NextHeader() *header.ExtendedHeader {
 	if s.head == nil {
 		s.head = s.genesis()
 		return s.head
@@ -156,9 +151,9 @@ func (s *TestSuite) GenExtendedHeader() *header.ExtendedHeader {
 }
 
 func (s *TestSuite) GenRawHeader(
-	height int64, lastHeader, lastCommit, dataHash libhead.Hash) *header.RawHeader {
+	height uint64, lastHeader, lastCommit, dataHash libhead.Hash) *header.RawHeader {
 	rh := RandRawHeader(s.t)
-	rh.Height = height
+	rh.Height = int64(height)
 	rh.Time = time.Now()
 	rh.LastBlockID = types.BlockID{Hash: bytes.HexBytes(lastHeader)}
 	rh.LastCommitHash = bytes.HexBytes(lastCommit)
@@ -216,7 +211,9 @@ func RandExtendedHeader(t *testing.T) *header.ExtendedHeader {
 	valSet, vals := RandValidatorSet(3, 1)
 	rh.ValidatorsHash = valSet.Hash()
 	voteSet := types.NewVoteSet(rh.ChainID, rh.Height, 0, tmproto.PrecommitType, valSet)
-	commit, err := MakeCommit(RandBlockID(t), rh.Height, 0, voteSet, vals, time.Now())
+	blockID := RandBlockID(t)
+	blockID.Hash = rh.Hash()
+	commit, err := MakeCommit(blockID, rh.Height, 0, voteSet, vals, time.Now())
 	require.NoError(t, err)
 
 	return &header.ExtendedHeader{
@@ -248,7 +245,7 @@ func RandValidator(randPower bool, minPower int64) (*types.Validator, types.Priv
 	privVal := types.NewMockPV()
 	votePower := minPower
 	if randPower {
-		votePower += int64(rand.Uint32())
+		votePower += int64(mrand.Uint32()) //nolint:gosec
 	}
 	pubKey, err := privVal.GetPubKey()
 	if err != nil {
@@ -287,80 +284,39 @@ func RandBlockID(*testing.T) types.BlockID {
 			Hash:  make([]byte, 32),
 		},
 	}
-	mrand.Read(bid.Hash)               //nolint:gosec
-	mrand.Read(bid.PartSetHeader.Hash) //nolint:gosec
+	_, _ = rand.Read(bid.Hash)
+	_, _ = rand.Read(bid.PartSetHeader.Hash)
 	return bid
 }
 
-// FraudMaker creates a custom ConstructFn that breaks the block at the given height.
-func FraudMaker(t *testing.T, faultHeight int64, bServ blockservice.BlockService) header.ConstructFn {
-	log.Warn("Corrupting block...", "height", faultHeight)
-	return func(ctx context.Context,
-		h *types.Header,
-		comm *types.Commit,
-		vals *types.ValidatorSet,
-		eds *rsmt2d.ExtendedDataSquare,
-	) (*header.ExtendedHeader, error) {
-		if h.Height == faultHeight {
-			eh := &header.ExtendedHeader{
-				RawHeader:    *h,
-				Commit:       comm,
-				ValidatorSet: vals,
-			}
-
-			eh, dataSq := CreateFraudExtHeader(t, eh, bServ)
-			if eds != nil {
-				*eds = *dataSq
-			}
-			return eh, nil
-		}
-		return header.MakeExtendedHeader(ctx, h, comm, vals, eds)
-	}
-}
-
-func CreateFraudExtHeader(
-	t *testing.T,
-	eh *header.ExtendedHeader,
-	dag blockservice.BlockService,
-) (*header.ExtendedHeader, *rsmt2d.ExtendedDataSquare) {
-	extended := share.RandEDS(t, 2)
-	shares := share.ExtractEDS(extended)
-	copy(shares[0][share.NamespaceSize:], shares[1][share.NamespaceSize:])
-	extended, err := share.ImportShares(context.Background(), shares, dag)
+func ExtendedHeaderFromEDS(t *testing.T, height uint64, eds *rsmt2d.ExtendedDataSquare) *header.ExtendedHeader {
+	valSet, vals := RandValidatorSet(10, 10)
+	gen := RandRawHeader(t)
+	dah, err := da.NewDataAvailabilityHeader(eds)
 	require.NoError(t, err)
-	dah := da.NewDataAvailabilityHeader(extended)
-	eh.DAH = &dah
-	eh.RawHeader.DataHash = dah.Hash()
-	return eh, extended
-}
 
-type DummySubscriber struct {
-	Headers []*header.ExtendedHeader
-}
+	gen.DataHash = dah.Hash()
+	gen.ValidatorsHash = valSet.Hash()
+	gen.NextValidatorsHash = valSet.Hash()
+	gen.Height = int64(height)
+	blockID := RandBlockID(t)
+	blockID.Hash = gen.Hash()
+	voteSet := types.NewVoteSet(gen.ChainID, gen.Height, 0, tmproto.PrecommitType, valSet)
+	commit, err := MakeCommit(blockID, gen.Height, 0, voteSet, vals, time.Now())
+	require.NoError(t, err)
 
-func (mhs *DummySubscriber) AddValidator(func(context.Context, *header.ExtendedHeader) pubsub.ValidationResult) error {
-	return nil
-}
-
-func (mhs *DummySubscriber) Subscribe() (libhead.Subscription[*header.ExtendedHeader], error) {
-	return mhs, nil
-}
-
-func (mhs *DummySubscriber) NextHeader(context.Context) (*header.ExtendedHeader, error) {
-	defer func() {
-		if len(mhs.Headers) > 1 {
-			// pop the already-returned header
-			cp := mhs.Headers
-			mhs.Headers = cp[1:]
-		} else {
-			mhs.Headers = make([]*header.ExtendedHeader, 0)
-		}
-	}()
-	if len(mhs.Headers) == 0 {
-		return nil, context.Canceled
+	eh := &header.ExtendedHeader{
+		RawHeader:    *gen,
+		Commit:       commit,
+		ValidatorSet: valSet,
+		DAH:          &dah,
 	}
-	return mhs.Headers[0], nil
+	require.NoError(t, eh.Validate())
+	return eh
 }
 
-func (mhs *DummySubscriber) Stop(context.Context) error { return nil }
-func (mhs *DummySubscriber) Cancel()                    {}
+type Subscriber struct {
+	headertest.Subscriber[*header.ExtendedHeader]
+}
+
+var _ libhead.Subscriber[*header.ExtendedHeader] = &Subscriber{}

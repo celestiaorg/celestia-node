@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 	"github.com/tendermint/tendermint/types"
 
 	"github.com/celestiaorg/celestia-node/header"
@@ -195,20 +196,27 @@ func TestCoordinator(t *testing.T) {
 		)
 		go coordinator.run(ctx, sampler.checkpoint)
 
-		// wait for coordinator to indicateDone catchup
-		assert.NoError(t, coordinator.state.waitCatchUp(ctx))
+		// wait for coordinator to go over all headers
+		assert.NoError(t, sampler.finished(ctx))
 
 		cancel()
 		stopCtx, cancel := context.WithTimeout(context.Background(), testParams.timeoutDelay)
 		defer cancel()
 		assert.NoError(t, coordinator.wait(stopCtx))
 
-		// set failed items in expectedState
-		expectedState := sampler.finalState()
-		for _, h := range bornToFail {
-			expectedState.Failed[h] = 1
+		// failed item should be either in failed map or be processed by worker
+		cp := newCheckpoint(coordinator.state.unsafeStats())
+		for _, failedHeight := range bornToFail {
+			if _, ok := cp.Failed[failedHeight]; ok {
+				continue
+			}
+			for _, w := range cp.Workers {
+				if w.JobType == retryJob && w.From == failedHeight {
+					continue
+				}
+			}
+			t.Error("header is not found neither in failed nor in workers")
 		}
-		assert.Equal(t, expectedState, newCheckpoint(coordinator.state.unsafeStats()))
 	})
 
 	t.Run("failed should retry on restart", func(t *testing.T) {
@@ -218,9 +226,8 @@ func TestCoordinator(t *testing.T) {
 		ctx, cancel := context.WithTimeout(context.Background(), testParams.timeoutDelay)
 
 		failedLastRun := map[uint64]int{4: 1, 8: 2, 15: 1, 16: 1, 23: 1, 42: 1, testParams.sampleFrom - 1: 1}
-		failedAgain := []uint64{16}
 
-		sampler := newMockSampler(testParams.sampleFrom, testParams.networkHead, failedAgain...)
+		sampler := newMockSampler(testParams.sampleFrom, testParams.networkHead)
 		sampler.checkpoint.Failed = failedLastRun
 
 		coordinator := newSamplingCoordinator(
@@ -244,10 +251,52 @@ func TestCoordinator(t *testing.T) {
 
 		expectedState := sampler.finalState()
 		expectedState.Failed = make(map[uint64]int)
-		for _, v := range failedAgain {
-			expectedState.Failed[v] = failedLastRun[v] + 1
-		}
 		assert.Equal(t, expectedState, newCheckpoint(coordinator.state.unsafeStats()))
+	})
+
+	t.Run("persist retry count after on restart", func(t *testing.T) {
+		testParams := defaultTestParams()
+		testParams.dasParams.ConcurrencyLimit = 5
+		ctx, cancel := context.WithTimeout(context.Background(), testParams.timeoutDelay)
+
+		ch := checkpoint{
+			SampleFrom:  testParams.sampleFrom,
+			NetworkHead: testParams.networkHead,
+			Failed:      map[uint64]int{1: 1, 2: 2, 3: 3, 4: 4, 5: 5},
+			Workers:     []workerCheckpoint{},
+		}
+
+		waitCh := make(chan struct{})
+		var wg sync.WaitGroup
+		wg.Add(testParams.dasParams.ConcurrencyLimit)
+		sampleFn := func(ctx context.Context, h *header.ExtendedHeader) error {
+			wg.Done()
+			select {
+			case <-ctx.Done():
+				return ctx.Err()
+			case <-waitCh:
+				return nil
+			}
+		}
+
+		coordinator := newSamplingCoordinator(
+			testParams.dasParams,
+			getterStub{},
+			sampleFn,
+			newBroadcastMock(1),
+		)
+
+		go coordinator.run(ctx, ch)
+		cancel()
+		wg.Wait()
+		close(waitCh)
+
+		stopCtx, cancel := context.WithTimeout(context.Background(), testParams.timeoutDelay)
+		defer cancel()
+		assert.NoError(t, coordinator.wait(stopCtx))
+
+		st := coordinator.state.unsafeStats()
+		require.Equal(t, ch, newCheckpoint(st))
 	})
 }
 
@@ -317,7 +366,7 @@ func (m *mockSampler) sample(ctx context.Context, h *header.ExtendedHeader) erro
 	m.lock.Lock()
 	defer m.lock.Unlock()
 
-	height := uint64(h.Height())
+	height := h.Height()
 	m.done[height]++
 
 	if len(m.done) > int(m.NetworkHead-m.SampleFrom) && !m.isFinished {
@@ -330,7 +379,7 @@ func (m *mockSampler) sample(ctx context.Context, h *header.ExtendedHeader) erro
 	}
 
 	if height > m.NetworkHead || height < m.SampleFrom {
-		if m.Failed[height] == 0 {
+		if _, ok := m.checkpoint.Failed[height]; !ok {
 			return fmt.Errorf("header: %v out of range: %v-%v", h, m.SampleFrom, m.NetworkHead)
 		}
 	}
@@ -382,7 +431,7 @@ func (m *mockSampler) discover(ctx context.Context, newHeight uint64, emit liste
 	emit(ctx, &header.ExtendedHeader{
 		Commit:    &types.Commit{},
 		RawHeader: header.RawHeader{Height: int64(newHeight)},
-		DAH:       &header.DataAvailabilityHeader{RowsRoots: make([][]byte, 0)},
+		DAH:       &header.DataAvailabilityHeader{RowRoots: make([][]byte, 0)},
 	})
 }
 
@@ -454,7 +503,7 @@ func (o *checkOrder) middleWare(out sampleFn) sampleFn {
 
 		if len(o.queue) > 0 {
 			// check last item in queue to be same as input
-			if o.queue[0] != uint64(h.Height()) {
+			if o.queue[0] != h.Height() {
 				defer o.lock.Unlock()
 				return fmt.Errorf("expected height: %v,got: %v", o.queue[0], h.Height())
 			}
@@ -524,7 +573,7 @@ func (l *lock) releaseAll(except ...uint64) {
 func (l *lock) middleWare(out sampleFn) sampleFn {
 	return func(ctx context.Context, h *header.ExtendedHeader) error {
 		l.m.Lock()
-		ch, blocked := l.blockList[uint64(h.Height())]
+		ch, blocked := l.blockList[h.Height()]
 		l.m.Unlock()
 		if !blocked {
 			return out(ctx, h)
@@ -540,7 +589,7 @@ func (l *lock) middleWare(out sampleFn) sampleFn {
 }
 
 func onceMiddleWare(out sampleFn) sampleFn {
-	db := make(map[int64]int)
+	db := make(map[uint64]int)
 	m := sync.Mutex{}
 	return func(ctx context.Context, h *header.ExtendedHeader) error {
 		m.Lock()

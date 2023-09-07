@@ -15,9 +15,11 @@ import (
 	"github.com/celestiaorg/celestia-node/libs/fslock"
 	"github.com/celestiaorg/celestia-node/libs/utils"
 	"github.com/celestiaorg/celestia-node/nodebuilder/node"
+	"github.com/celestiaorg/celestia-node/nodebuilder/state"
 )
 
-const defaultKeyName = "my_celes_key"
+// PrintKeyringInfo whether to print keyring information during init.
+var PrintKeyringInfo = true
 
 // Init initializes the Node FileSystem Store for the given Node Type 'tp' in the directory under
 // 'path'.
@@ -71,6 +73,54 @@ func Init(cfg Config, path string, tp node.Type) error {
 	return nil
 }
 
+// Reset removes all data from the datastore and dagstore directories. It leaves the keystore and
+// config intact.
+func Reset(path string, tp node.Type) error {
+	path, err := storePath(path)
+	if err != nil {
+		return err
+	}
+	log.Infof("Resetting %s Node Store over '%s'", tp, path)
+
+	flock, err := fslock.Lock(lockPath(path))
+	if err != nil {
+		if err == fslock.ErrLocked {
+			return ErrOpened
+		}
+		return err
+	}
+	defer flock.Unlock() //nolint: errcheck
+
+	err = resetDir(dataPath(path))
+	if err != nil {
+		return err
+	}
+
+	// light nodes don't have dagstore paths
+	if tp == node.Light {
+		log.Info("Node Store reset")
+		return nil
+	}
+
+	err = resetDir(blocksPath(path))
+	if err != nil {
+		return err
+	}
+
+	err = resetDir(transientsPath(path))
+	if err != nil {
+		return err
+	}
+
+	err = resetDir(indexPath(path))
+	if err != nil {
+		return err
+	}
+
+	log.Info("Node Store reset")
+	return nil
+}
+
 // IsInit checks whether FileSystem Store was setup under given 'path'.
 // If any required file/subdirectory does not exist, then false is reported.
 func IsInit(path string) bool {
@@ -117,6 +167,15 @@ func initRoot(path string) error {
 	return os.Remove(f.Name())
 }
 
+// resetDir removes all files from the given directory and reinitializes it
+func resetDir(path string) error {
+	err := os.RemoveAll(path)
+	if err != nil {
+		return err
+	}
+	return initDir(path)
+}
+
 // initDir creates a dir if not exist
 func initDir(path string) error {
 	if utils.Exists(path) {
@@ -157,14 +216,16 @@ func generateKeys(cfg Config, ksPath string) error {
 	if err != nil {
 		return err
 	}
-	fmt.Printf("\nNAME: %s\nADDRESS: %s\nMNEMONIC (save this somewhere safe!!!): \n%s\n\n",
-		keyInfo.Name, addr.String(), mn)
+	if PrintKeyringInfo {
+		fmt.Printf("\nNAME: %s\nADDRESS: %s\nMNEMONIC (save this somewhere safe!!!): \n%s\n\n",
+			keyInfo.Name, addr.String(), mn)
+	}
 	return nil
 }
 
 // generateNewKey generates and returns a new key on the given keyring called
 // "my_celes_key".
 func generateNewKey(ring keyring.Keyring) (*keyring.Record, string, error) {
-	return ring.NewMnemonic(defaultKeyName, keyring.English, sdk.GetConfig().GetFullBIP44Path(),
+	return ring.NewMnemonic(state.DefaultAccountName, keyring.English, sdk.GetConfig().GetFullBIP44Path(),
 		keyring.DefaultBIP39Passphrase, hd.Secp256k1)
 }

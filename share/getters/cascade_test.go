@@ -3,11 +3,11 @@ package getters
 import (
 	"context"
 	"errors"
+	"strings"
 	"testing"
 
 	"github.com/golang/mock/gomock"
 	"github.com/stretchr/testify/assert"
-	"go.uber.org/multierr"
 
 	"github.com/celestiaorg/rsmt2d"
 
@@ -52,6 +52,7 @@ func TestCascade(t *testing.T) {
 	timeoutGetter := mocks.NewMockGetter(ctrl)
 	immediateFailGetter := mocks.NewMockGetter(ctrl)
 	successGetter := mocks.NewMockGetter(ctrl)
+	ctxGetter := mocks.NewMockGetter(ctrl)
 	timeoutGetter.EXPECT().GetEDS(gomock.Any(), gomock.Any()).
 		DoAndReturn(func(ctx context.Context, _ *share.Root) (*rsmt2d.ExtendedDataSquare, error) {
 			return nil, context.DeadlineExceeded
@@ -60,6 +61,10 @@ func TestCascade(t *testing.T) {
 		Return(nil, errors.New("second getter fails immediately")).AnyTimes()
 	successGetter.EXPECT().GetEDS(gomock.Any(), gomock.Any()).
 		Return(nil, nil).AnyTimes()
+	ctxGetter.EXPECT().GetEDS(gomock.Any(), gomock.Any()).
+		DoAndReturn(func(ctx context.Context, _ *share.Root) (*rsmt2d.ExtendedDataSquare, error) {
+			return nil, ctx.Err()
+		}).AnyTimes()
 
 	get := func(ctx context.Context, get share.Getter) (*rsmt2d.ExtendedDataSquare, error) {
 		return get.GetEDS(ctx, nil)
@@ -93,7 +98,16 @@ func TestCascade(t *testing.T) {
 		getters := []share.Getter{immediateFailGetter, timeoutGetter, immediateFailGetter}
 		_, err := cascadeGetters(ctx, getters, get)
 		assert.Error(t, err)
-		assert.Len(t, multierr.Errors(err), 3)
+		assert.Equal(t, strings.Count(err.Error(), "\n"), 2)
+	})
+
+	t.Run("Context Canceled", func(t *testing.T) {
+		ctx, cancel := context.WithCancel(ctx)
+		cancel()
+		getters := []share.Getter{ctxGetter, ctxGetter, ctxGetter}
+		_, err := cascadeGetters(ctx, getters, get)
+		assert.Error(t, err)
+		assert.Equal(t, strings.Count(err.Error(), "\n"), 0)
 	})
 
 	t.Run("Single", func(t *testing.T) {

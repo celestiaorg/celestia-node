@@ -16,8 +16,8 @@ import (
 
 	"github.com/celestiaorg/celestia-app/pkg/da"
 
-	"github.com/celestiaorg/celestia-node/share"
 	"github.com/celestiaorg/celestia-node/share/eds"
+	"github.com/celestiaorg/celestia-node/share/eds/edstest"
 	"github.com/celestiaorg/celestia-node/share/p2p"
 )
 
@@ -34,8 +34,9 @@ func TestExchange_RequestEDS(t *testing.T) {
 
 	// Testcase: EDS is immediately available
 	t.Run("EDS_Available", func(t *testing.T) {
-		eds := share.RandEDS(t, 4)
-		dah := da.NewDataAvailabilityHeader(eds)
+		eds := edstest.RandEDS(t, 4)
+		dah, err := da.NewDataAvailabilityHeader(eds)
+		require.NoError(t, err)
 		err = store.Put(ctx, dah.Hash(), eds)
 		require.NoError(t, err)
 
@@ -46,44 +47,48 @@ func TestExchange_RequestEDS(t *testing.T) {
 
 	// Testcase: EDS is unavailable initially, but is found after multiple requests
 	t.Run("EDS_AvailableAfterDelay", func(t *testing.T) {
-		t.Skip()
-		storageDelay := time.Second
-		eds := share.RandEDS(t, 4)
-		dah := da.NewDataAvailabilityHeader(eds)
+		eds := edstest.RandEDS(t, 4)
+		dah, err := da.NewDataAvailabilityHeader(eds)
+		require.NoError(t, err)
+
+		lock := make(chan struct{})
 		go func() {
-			time.Sleep(storageDelay)
+			<-lock
 			err = store.Put(ctx, dah.Hash(), eds)
-			// require.NoError(t, err)
+			require.NoError(t, err)
+			lock <- struct{}{}
 		}()
 
-		now := time.Now()
 		requestedEDS, err := client.RequestEDS(ctx, dah.Hash(), server.host.ID())
-		finished := time.Now()
+		assert.ErrorIs(t, err, p2p.ErrNotFound)
+		assert.Nil(t, requestedEDS)
 
-		assert.Greater(t, finished.Sub(now), storageDelay)
+		// unlock write
+		lock <- struct{}{}
+		// wait for write to finish
+		<-lock
+
+		requestedEDS, err = client.RequestEDS(ctx, dah.Hash(), server.host.ID())
 		assert.NoError(t, err)
 		assert.Equal(t, eds.Flattened(), requestedEDS.Flattened())
 	})
 
 	// Testcase: Invalid request excludes peer from round-robin, stopping request
 	t.Run("EDS_InvalidRequest", func(t *testing.T) {
-		t.Skip()
 		dataHash := []byte("invalid")
 		requestedEDS, err := client.RequestEDS(ctx, dataHash, server.host.ID())
-		assert.ErrorIs(t, err, p2p.ErrInvalidResponse)
+		assert.ErrorContains(t, err, "stream reset")
 		assert.Nil(t, requestedEDS)
 	})
 
-	// Testcase: Valid request, which server cannot serve, waits forever
-	t.Run("EDS_ValidTimeout", func(t *testing.T) {
-		t.Skip()
+	t.Run("EDS_err_not_found", func(t *testing.T) {
 		timeoutCtx, cancel := context.WithTimeout(ctx, time.Second)
 		t.Cleanup(cancel)
-		eds := share.RandEDS(t, 4)
-		dah := da.NewDataAvailabilityHeader(eds)
-		requestedEDS, err := client.RequestEDS(timeoutCtx, dah.Hash(), server.host.ID())
-		assert.ErrorIs(t, err, timeoutCtx.Err())
-		assert.Nil(t, requestedEDS)
+		eds := edstest.RandEDS(t, 4)
+		dah, err := da.NewDataAvailabilityHeader(eds)
+		require.NoError(t, err)
+		_, err = client.RequestEDS(timeoutCtx, dah.Hash(), server.host.ID())
+		require.ErrorIs(t, err, p2p.ErrNotFound)
 	})
 
 	// Testcase: Concurrency limit reached
@@ -111,8 +116,9 @@ func TestExchange_RequestEDS(t *testing.T) {
 				t.Fatal("timeout")
 			}
 		}
+		middleware := p2p.NewMiddleware(rateLimit)
 		server.host.SetStreamHandler(server.protocolID,
-			p2p.RateLimitMiddleware(mockHandler, rateLimit))
+			middleware.RateLimitHandler(mockHandler))
 
 		// take server concurrency slots with blocked requests
 		for i := 0; i < rateLimit; i++ {
@@ -124,7 +130,7 @@ func TestExchange_RequestEDS(t *testing.T) {
 		// wait until all server slots are taken
 		wg.Wait()
 		_, err = client.RequestEDS(ctx, nil, server.host.ID())
-		require.ErrorIs(t, err, p2p.ErrUnavailable)
+		require.ErrorIs(t, err, p2p.ErrNotFound)
 	})
 }
 

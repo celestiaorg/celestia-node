@@ -20,17 +20,27 @@ var log = logging.Logger("share/light")
 // on the network doing sampling over the same Root to collectively verify its availability.
 type ShareAvailability struct {
 	getter share.Getter
+	params Parameters
 }
 
 // NewShareAvailability creates a new light Availability.
-func NewShareAvailability(getter share.Getter) *ShareAvailability {
-	return &ShareAvailability{getter}
+func NewShareAvailability(
+	getter share.Getter,
+	opts ...Option,
+) *ShareAvailability {
+	params := DefaultParameters()
+
+	for _, opt := range opts {
+		opt(&params)
+	}
+
+	return &ShareAvailability{getter, params}
 }
 
-// SharesAvailable randomly samples DefaultSampleAmount amount of Shares committed to the given
+// SharesAvailable randomly samples `params.SampleAmount` amount of Shares committed to the given
 // Root. This way SharesAvailable subjectively verifies that Shares are available.
 func (la *ShareAvailability) SharesAvailable(ctx context.Context, dah *share.Root) error {
-	log.Debugw("Validate availability", "root", dah.Hash())
+	log.Debugw("Validate availability", "root", dah.String())
 	// We assume the caller of this method has already performed basic validation on the
 	// given dah/root. If for some reason this has not happened, the node should panic.
 	if err := dah.ValidateBasic(); err != nil {
@@ -38,7 +48,7 @@ func (la *ShareAvailability) SharesAvailable(ctx context.Context, dah *share.Roo
 			"err", err)
 		panic(err)
 	}
-	samples, err := SampleSquare(len(dah.RowsRoots), DefaultSampleAmount)
+	samples, err := SampleSquare(len(dah.RowRoots), int(la.params.SampleAmount))
 	if err != nil {
 		return err
 	}
@@ -47,14 +57,14 @@ func (la *ShareAvailability) SharesAvailable(ctx context.Context, dah *share.Roo
 	// functionality is optional and must be supported by the used share.Getter.
 	ctx = getters.WithSession(ctx)
 
-	log.Debugw("starting sampling session", "root", dah.Hash())
+	log.Debugw("starting sampling session", "root", dah.String())
 	errs := make(chan error, len(samples))
 	for _, s := range samples {
 		go func(s Sample) {
-			log.Debugw("fetching share", "root", dah.Hash(), "row", s.Row, "col", s.Col)
+			log.Debugw("fetching share", "root", dah.String(), "row", s.Row, "col", s.Col)
 			_, err := la.getter.GetShare(ctx, dah, s.Row, s.Col)
 			if err != nil {
-				log.Debugw("error fetching share", "root", dah.Hash(), "row", s.Row, "col", s.Col)
+				log.Debugw("error fetching share", "root", dah.String(), "row", s.Row, "col", s.Col)
 			}
 			// we don't really care about Share bodies at this point
 			// it also means we now saved the Share in local storage
@@ -74,13 +84,13 @@ func (la *ShareAvailability) SharesAvailable(ctx context.Context, dah *share.Roo
 		}
 
 		if err != nil {
-			if !errors.Is(err, context.Canceled) {
-				log.Errorw("availability validation failed", "root", dah.Hash(), "err", err.Error())
+			if errors.Is(err, context.Canceled) {
+				return err
 			}
+			log.Errorw("availability validation failed", "root", dah.String(), "err", err.Error())
 			if ipldFormat.IsNotFound(err) || errors.Is(err, context.DeadlineExceeded) {
 				return share.ErrNotAvailable
 			}
-
 			return err
 		}
 	}
@@ -90,9 +100,9 @@ func (la *ShareAvailability) SharesAvailable(ctx context.Context, dah *share.Roo
 
 // ProbabilityOfAvailability calculates the probability that the
 // data square is available based on the amount of samples collected
-// (DefaultSampleAmount).
+// (params.SampleAmount).
 //
 // Formula: 1 - (0.75 ** amount of samples)
 func (la *ShareAvailability) ProbabilityOfAvailability(context.Context) float64 {
-	return 1 - math.Pow(0.75, float64(DefaultSampleAmount))
+	return 1 - math.Pow(0.75, float64(la.params.SampleAmount))
 }

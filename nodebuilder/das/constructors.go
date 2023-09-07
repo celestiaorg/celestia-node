@@ -6,12 +6,14 @@ import (
 
 	"github.com/ipfs/go-datastore"
 
+	"github.com/celestiaorg/go-fraud"
 	libhead "github.com/celestiaorg/go-header"
 
 	"github.com/celestiaorg/celestia-node/das"
 	"github.com/celestiaorg/celestia-node/header"
-	"github.com/celestiaorg/celestia-node/libs/fraud"
+	modfraud "github.com/celestiaorg/celestia-node/nodebuilder/fraud"
 	"github.com/celestiaorg/celestia-node/share"
+	"github.com/celestiaorg/celestia-node/share/eds/byzantine"
 	"github.com/celestiaorg/celestia-node/share/p2p/shrexsub"
 )
 
@@ -40,9 +42,18 @@ func newDASer(
 	hsub libhead.Subscriber[*header.ExtendedHeader],
 	store libhead.Store[*header.ExtendedHeader],
 	batching datastore.Batching,
-	fraudServ fraud.Service,
+	fraudServ fraud.Service[*header.ExtendedHeader],
 	bFn shrexsub.BroadcastFn,
 	options ...das.Option,
-) (*das.DASer, error) {
-	return das.NewDASer(da, hsub, store, batching, fraudServ, bFn, options...)
+) (*das.DASer, *modfraud.ServiceBreaker[*das.DASer, *header.ExtendedHeader], error) {
+	ds, err := das.NewDASer(da, hsub, store, batching, fraudServ, bFn, options...)
+	if err != nil {
+		return nil, nil, err
+	}
+
+	return ds, &modfraud.ServiceBreaker[*das.DASer, *header.ExtendedHeader]{
+		Service:   ds,
+		FraudServ: fraudServ,
+		FraudType: byzantine.BadEncoding,
+	}, nil
 }

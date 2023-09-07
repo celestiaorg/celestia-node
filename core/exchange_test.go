@@ -10,7 +10,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"github.com/celestiaorg/celestia-app/testutil/testnode"
+	"github.com/celestiaorg/celestia-app/test/util/testnode"
 
 	"github.com/celestiaorg/celestia-node/header"
 	"github.com/celestiaorg/celestia-node/share/eds"
@@ -31,7 +31,7 @@ func TestCoreExchange_RequestHeaders(t *testing.T) {
 	assert.Equal(t, 10, len(headers))
 }
 
-func createCoreFetcher(t *testing.T, cfg *TestConfig) (*BlockFetcher, testnode.Context) {
+func createCoreFetcher(t *testing.T, cfg *testnode.Config) (*BlockFetcher, testnode.Context) {
 	cctx := StartTestNodeWithConfig(t, cfg)
 	// wait for height 2 in order to be able to start submitting txs (this prevents
 	// flakiness with accessing account state)

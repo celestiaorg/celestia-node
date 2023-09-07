@@ -2,9 +2,10 @@ package swamp
 
 import (
 	"context"
+	"crypto/rand"
 	"fmt"
-	"math/rand"
 	"net"
+	"sync"
 	"testing"
 	"time"
 
@@ -15,9 +16,13 @@ import (
 	mocknet "github.com/libp2p/go-libp2p/p2p/net/mock"
 	ma "github.com/multiformats/go-multiaddr"
 	"github.com/stretchr/testify/require"
+	"github.com/tendermint/tendermint/privval"
+	"github.com/tendermint/tendermint/types"
 	"go.uber.org/fx"
+	"golang.org/x/exp/maps"
 
-	"github.com/celestiaorg/celestia-app/testutil/testnode"
+	"github.com/celestiaorg/celestia-app/test/util/testnode"
+	apptypes "github.com/celestiaorg/celestia-app/x/blob/types"
 	libhead "github.com/celestiaorg/go-header"
 
 	"github.com/celestiaorg/celestia-node/core"
@@ -44,15 +49,17 @@ const DefaultTestTimeout = time.Minute * 5
 // - Slices of created Bridge/Full/Light Nodes
 // - trustedHash taken from the CoreClient and shared between nodes
 type Swamp struct {
-	t           *testing.T
-	Network     mocknet.Mocknet
-	BridgeNodes []*nodebuilder.Node
-	FullNodes   []*nodebuilder.Node
-	LightNodes  []*nodebuilder.Node
-	comps       *Config
+	t   *testing.T
+	cfg *testnode.Config
+
+	Network       mocknet.Mocknet
+	Bootstrappers []ma.Multiaddr
 
 	ClientContext testnode.Context
 	Accounts      []string
+
+	nodesMu sync.Mutex
+	nodes   map[*nodebuilder.Node]struct{}
 
 	genesis *header.ExtendedHeader
 }
@@ -68,37 +75,38 @@ func NewSwamp(t *testing.T, options ...Option) *Swamp {
 		option(ic)
 	}
 
-	ctx, cancel := context.WithCancel(context.Background())
-	t.Cleanup(cancel)
-
 	// Now, we are making an assumption that consensus mechanism is already tested out
 	// so, we are not creating bridge nodes with each one containing its own core client
 	// instead we are assigning all created BNs to 1 Core from the swamp
-	cctx := core.StartTestNodeWithConfig(t, ic.TestConfig)
+	cctx := core.StartTestNodeWithConfig(t, ic)
 	swp := &Swamp{
 		t:             t,
+		cfg:           ic,
 		Network:       mocknet.New(),
 		ClientContext: cctx,
-		comps:         ic,
 		Accounts:      ic.Accounts,
+		nodes:         map[*nodebuilder.Node]struct{}{},
 	}
 
-	swp.t.Cleanup(func() {
-		swp.stopAllNodes(ctx, swp.BridgeNodes, swp.FullNodes, swp.LightNodes)
-	})
-
-	swp.setupGenesis(ctx)
+	swp.t.Cleanup(swp.cleanup)
+	swp.setupGenesis()
 	return swp
 }
 
-// stopAllNodes goes through all received slices of Nodes and stops one-by-one
-// this eliminates a manual clean-up in the test-cases itself in the end
-func (s *Swamp) stopAllNodes(ctx context.Context, allNodes ...[]*nodebuilder.Node) {
-	for _, nodes := range allNodes {
-		for _, node := range nodes {
-			require.NoError(s.t, node.Stop(ctx))
-		}
-	}
+// cleanup frees up all the resources
+// including stop of all created nodes
+func (s *Swamp) cleanup() {
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second)
+	defer cancel()
+
+	require.NoError(s.t, s.Network.Close())
+
+	s.nodesMu.Lock()
+	defer s.nodesMu.Unlock()
+	maps.DeleteFunc(s.nodes, func(nd *nodebuilder.Node, _ struct{}) bool {
+		require.NoError(s.t, nd.Stop(ctx))
+		return true
+	})
 }
 
 // GetCoreBlockHashByHeight returns a tendermint block's hash by provided height
@@ -139,7 +147,7 @@ func (s *Swamp) createPeer(ks keystore.Keystore) host.Host {
 
 	// IPv6 will be starting with 100:0
 	token := make([]byte, 12)
-	rand.Read(token) //nolint:gosec
+	_, _ = rand.Read(token)
 	ip := append(net.IP{}, blackholeIP6...)
 	copy(ip[net.IPv6len-len(token):], token)
 
@@ -157,7 +165,10 @@ func (s *Swamp) createPeer(ks keystore.Keystore) host.Host {
 
 // setupGenesis sets up genesis Header.
 // This is required to initialize and start correctly.
-func (s *Swamp) setupGenesis(ctx context.Context) {
+func (s *Swamp) setupGenesis() {
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second*5)
+	defer cancel()
+
 	// ensure core has surpassed genesis block
 	s.WaitTillHeight(ctx, 2)
 
@@ -175,10 +186,22 @@ func (s *Swamp) setupGenesis(ctx context.Context) {
 	s.genesis = h
 }
 
+// DefaultTestConfig creates a test config with the access to the core node for the tp
+func (s *Swamp) DefaultTestConfig(tp node.Type) *nodebuilder.Config {
+	cfg := nodebuilder.DefaultConfig(tp)
+
+	ip, port, err := net.SplitHostPort(s.cfg.AppConfig.GRPC.Address)
+	require.NoError(s.t, err)
+
+	cfg.Core.IP = ip
+	cfg.Core.GRPCPort = port
+	return cfg
+}
+
 // NewBridgeNode creates a new instance of a BridgeNode providing a default config
 // and a mockstore to the NewNodeWithStore method
 func (s *Swamp) NewBridgeNode(options ...fx.Option) *nodebuilder.Node {
-	cfg := nodebuilder.DefaultConfig(node.Bridge)
+	cfg := s.DefaultTestConfig(node.Bridge)
 	store := nodebuilder.MockStore(s.t, cfg)
 
 	return s.NewNodeWithStore(node.Bridge, store, options...)
@@ -187,7 +210,14 @@ func (s *Swamp) NewBridgeNode(options ...fx.Option) *nodebuilder.Node {
 // NewFullNode creates a new instance of a FullNode providing a default config
 // and a mockstore to the NewNodeWithStore method
 func (s *Swamp) NewFullNode(options ...fx.Option) *nodebuilder.Node {
-	cfg := nodebuilder.DefaultConfig(node.Full)
+	cfg := s.DefaultTestConfig(node.Full)
+	cfg.Header.TrustedPeers = []string{
+		"/ip4/1.2.3.4/tcp/12345/p2p/12D3KooWNaJ1y1Yio3fFJEXCZyd1Cat3jmrPdgkYCrHfKD3Ce21p",
+	}
+	// add all bootstrappers in suite as trusted peers
+	for _, bootstrapper := range s.Bootstrappers {
+		cfg.Header.TrustedPeers = append(cfg.Header.TrustedPeers, bootstrapper.String())
+	}
 	store := nodebuilder.MockStore(s.t, cfg)
 
 	return s.NewNodeWithStore(node.Full, store, options...)
@@ -196,7 +226,15 @@ func (s *Swamp) NewFullNode(options ...fx.Option) *nodebuilder.Node {
 // NewLightNode creates a new instance of a LightNode providing a default config
 // and a mockstore to the NewNodeWithStore method
 func (s *Swamp) NewLightNode(options ...fx.Option) *nodebuilder.Node {
-	cfg := nodebuilder.DefaultConfig(node.Light)
+	cfg := s.DefaultTestConfig(node.Light)
+	cfg.Header.TrustedPeers = []string{
+		"/ip4/1.2.3.4/tcp/12345/p2p/12D3KooWNaJ1y1Yio3fFJEXCZyd1Cat3jmrPdgkYCrHfKD3Ce21p",
+	}
+	// add all bootstrappers in suite as trusted peers
+	for _, bootstrapper := range s.Bootstrappers {
+		cfg.Header.TrustedPeers = append(cfg.Header.TrustedPeers, bootstrapper.String())
+	}
+
 	store := nodebuilder.MockStore(s.t, cfg)
 
 	return s.NewNodeWithStore(node.Light, store, options...)
@@ -204,42 +242,37 @@ func (s *Swamp) NewLightNode(options ...fx.Option) *nodebuilder.Node {
 
 func (s *Swamp) NewNodeWithConfig(nodeType node.Type, cfg *nodebuilder.Config, options ...fx.Option) *nodebuilder.Node {
 	store := nodebuilder.MockStore(s.t, cfg)
+	// add all bootstrappers in suite as trusted peers
+	for _, bootstrapper := range s.Bootstrappers {
+		cfg.Header.TrustedPeers = append(cfg.Header.TrustedPeers, bootstrapper.String())
+	}
 	return s.NewNodeWithStore(nodeType, store, options...)
 }
 
 // NewNodeWithStore creates a new instance of Node with predefined Store.
-// Afterwards, the instance is stored in the swamp's Nodes' slice according to the
-// node's type provided from the user.
 func (s *Swamp) NewNodeWithStore(
-	t node.Type,
+	tp node.Type,
 	store nodebuilder.Store,
 	options ...fx.Option,
 ) *nodebuilder.Node {
-	var n *nodebuilder.Node
-
-	ks, err := store.Keystore()
-	require.NoError(s.t, err)
-
+	signer := apptypes.NewKeyringSigner(s.ClientContext.Keyring, s.Accounts[0], s.ClientContext.ChainID)
 	options = append(options,
-		state.WithKeyringSigner(nodebuilder.TestKeyringSigner(s.t, ks.Keyring())),
+		state.WithKeyringSigner(signer),
 	)
 
-	switch t {
+	switch tp {
 	case node.Bridge:
 		options = append(options,
 			coremodule.WithClient(s.ClientContext.Client),
 		)
-		n = s.newNode(node.Bridge, store, options...)
-		s.BridgeNodes = append(s.BridgeNodes, n)
-	case node.Full:
-		n = s.newNode(node.Full, store, options...)
-		s.FullNodes = append(s.FullNodes, n)
-	case node.Light:
-		n = s.newNode(node.Light, store, options...)
-		s.LightNodes = append(s.LightNodes, n)
+	default:
 	}
 
-	return n
+	nd := s.newNode(tp, store, options...)
+	s.nodesMu.Lock()
+	s.nodes[nd] = struct{}{}
+	s.nodesMu.Unlock()
+	return nd
 }
 
 func (s *Swamp) newNode(t node.Type, store nodebuilder.Store, options ...fx.Option) *nodebuilder.Node {
@@ -266,50 +299,20 @@ func (s *Swamp) newNode(t node.Type, store nodebuilder.Store, options ...fx.Opti
 	return node
 }
 
-// RemoveNode removes a node from the swamp's node slice
-// this allows reusage of the same var in the test scenario
-// if the user needs to stop and start the same node
-func (s *Swamp) RemoveNode(n *nodebuilder.Node, t node.Type) error {
-	var err error
-	switch t {
-	case node.Light:
-		s.LightNodes, err = s.remove(n, s.LightNodes)
-		return err
-	case node.Bridge:
-		s.BridgeNodes, err = s.remove(n, s.BridgeNodes)
-		return err
-	case node.Full:
-		s.FullNodes, err = s.remove(n, s.FullNodes)
-		return err
-	default:
-		return fmt.Errorf("no such type or node")
-	}
-}
-
-func (s *Swamp) remove(rn *nodebuilder.Node, sn []*nodebuilder.Node) ([]*nodebuilder.Node, error) {
-	if len(sn) == 1 {
-		return nil, nil
-	}
-
-	initSize := len(sn)
-	for i := 0; i < len(sn); i++ {
-		if sn[i] == rn {
-			sn = append(sn[:i], sn[i+1:]...)
-			i--
-		}
-	}
-
-	if initSize <= len(sn) {
-		return sn, fmt.Errorf("cannot delete the node")
-	}
-	return sn, nil
+// StopNode stops the node and removes from Swamp.
+// TODO(@Wondertan): For clean and symmetrical API, we may want to add StartNode.
+func (s *Swamp) StopNode(ctx context.Context, nd *nodebuilder.Node) {
+	s.nodesMu.Lock()
+	delete(s.nodes, nd)
+	s.nodesMu.Unlock()
+	require.NoError(s.t, nd.Stop(ctx))
 }
 
 // Connect allows to connect peers after hard disconnection.
-func (s *Swamp) Connect(t *testing.T, peerA, peerB peer.ID) {
-	_, err := s.Network.LinkPeers(peerA, peerB)
+func (s *Swamp) Connect(t *testing.T, peerA, peerB *nodebuilder.Node) {
+	_, err := s.Network.LinkPeers(peerA.Host.ID(), peerB.Host.ID())
 	require.NoError(t, err)
-	_, err = s.Network.ConnectPeers(peerA, peerB)
+	_, err = s.Network.ConnectPeers(peerA.Host.ID(), peerB.Host.ID())
 	require.NoError(t, err)
 }
 
@@ -317,7 +320,32 @@ func (s *Swamp) Connect(t *testing.T, peerA, peerB peer.ID) {
 // re-establish it. Order is very important here. We have to unlink peers first, and only after
 // that call disconnect. This is hard disconnect and peers will not be able to reconnect.
 // In order to reconnect peers again, please use swamp.Connect
-func (s *Swamp) Disconnect(t *testing.T, peerA, peerB peer.ID) {
-	require.NoError(t, s.Network.UnlinkPeers(peerA, peerB))
-	require.NoError(t, s.Network.DisconnectPeers(peerA, peerB))
+func (s *Swamp) Disconnect(t *testing.T, peerA, peerB *nodebuilder.Node) {
+	require.NoError(t, s.Network.UnlinkPeers(peerA.Host.ID(), peerB.Host.ID()))
+	require.NoError(t, s.Network.DisconnectPeers(peerA.Host.ID(), peerB.Host.ID()))
+}
+
+// SetBootstrapper sets the given bootstrappers as the "bootstrappers" for the
+// Swamp test suite. Every new full or light node created on the suite afterwards
+// will automatically add the suite's bootstrappers as trusted peers to their config.
+// NOTE: Bridge nodes do not automaatically add the bootstrappers as trusted peers.
+// NOTE: Use `NewNodeWithStore` to avoid this automatic configuration.
+func (s *Swamp) SetBootstrapper(t *testing.T, bootstrappers ...*nodebuilder.Node) {
+	for _, trusted := range bootstrappers {
+		addrs, err := peer.AddrInfoToP2pAddrs(host.InfoFromHost(trusted.Host))
+		require.NoError(t, err)
+		s.Bootstrappers = append(s.Bootstrappers, addrs[0])
+	}
+}
+
+// Validators retrieves keys from the app node in order to build the validators.
+func (s *Swamp) Validators(t *testing.T) (*types.ValidatorSet, types.PrivValidator) {
+	privPath := s.cfg.TmConfig.PrivValidatorKeyFile()
+	statePath := s.cfg.TmConfig.PrivValidatorStateFile()
+	priv := privval.LoadFilePV(privPath, statePath)
+	key, err := priv.GetPubKey()
+	require.NoError(t, err)
+	validator := types.NewValidator(key, 100)
+	set := types.NewValidatorSet([]*types.Validator{validator})
+	return set, priv
 }

@@ -8,10 +8,10 @@ import (
 	"hash"
 	"math/rand"
 
-	"github.com/ipfs/go-blockservice"
+	"github.com/ipfs/boxo/blockservice"
+	blocks "github.com/ipfs/go-block-format"
 	"github.com/ipfs/go-cid"
 	ipld "github.com/ipfs/go-ipld-format"
-	blocks "github.com/ipfs/go-libipfs/blocks"
 	logging "github.com/ipfs/go-log/v2"
 	mh "github.com/multiformats/go-multihash"
 	mhcore "github.com/multiformats/go-multihash/core"
@@ -20,6 +20,8 @@ import (
 	"github.com/celestiaorg/celestia-app/pkg/appconsts"
 	"github.com/celestiaorg/celestia-app/pkg/da"
 	"github.com/celestiaorg/nmt"
+
+	"github.com/celestiaorg/celestia-node/share"
 )
 
 var (
@@ -34,25 +36,18 @@ const (
 	// nmtCodec is the codec used for leaf and inner nodes of a Namespaced Merkle Tree.
 	nmtCodec = 0x7700
 
-	// sha256Namespace8Flagged is the multihash code used to hash blocks
+	// sha256NamespaceFlagged is the multihash code used to hash blocks
 	// that contain an NMT node (inner and leaf nodes).
-	sha256Namespace8Flagged = 0x7701
-
-	// MaxSquareSize is currently the maximum size supported for unerasured data in
-	// rsmt2d.ExtendedDataSquare.
-	MaxSquareSize = appconsts.DefaultMaxSquareSize
-
-	// NamespaceSize is a system-wide size for NMT namespaces.
-	NamespaceSize = appconsts.NamespaceSize
+	sha256NamespaceFlagged = 0x7701
 
 	// NmtHashSize is the size of a digest created by an NMT in bytes.
-	NmtHashSize = 2*NamespaceSize + sha256.Size
+	NmtHashSize = 2*share.NamespaceSize + sha256.Size
 
 	// innerNodeSize is the size of data in inner nodes.
 	innerNodeSize = NmtHashSize * 2
 
 	// leafNodeSize is the size of data in leaf nodes.
-	leafNodeSize = NamespaceSize + appconsts.ShareSize
+	leafNodeSize = share.NamespaceSize + appconsts.ShareSize
 
 	// cidPrefixSize is the size of the prepended buffer of the CID encoding
 	// for NamespacedSha256. For more information, see:
@@ -60,15 +55,15 @@ const (
 	cidPrefixSize = 4
 
 	// NMTIgnoreMaxNamespace is currently used value for IgnoreMaxNamespace option in NMT.
-	// IgnoreMaxNamespace defines whether the largest possible namespace.ID MAX_NID should be 'ignored'.
+	// IgnoreMaxNamespace defines whether the largest possible Namespace MAX_NID should be 'ignored'.
 	// If set to true, this allows for shorter proofs in particular use-cases.
 	NMTIgnoreMaxNamespace = true
 )
 
 func init() {
 	// required for Bitswap to hash and verify inbound data correctly
-	mhcore.Register(sha256Namespace8Flagged, func() hash.Hash {
-		nh := nmt.NewNmtHasher(sha256.New(), NamespaceSize, true)
+	mhcore.Register(sha256NamespaceFlagged, func() hash.Hash {
+		nh := nmt.NewNmtHasher(sha256.New(), share.NamespaceSize, true)
 		nh.Reset()
 		return nh
 	})
@@ -77,9 +72,9 @@ func init() {
 func GetNode(ctx context.Context, bGetter blockservice.BlockGetter, root cid.Cid) (ipld.Node, error) {
 	block, err := bGetter.GetBlock(ctx, root)
 	if err != nil {
-		var errNotFound *ipld.ErrNotFound
+		var errNotFound ipld.ErrNotFound
 		if errors.As(err, &errNotFound) {
-			return nil, errNotFound
+			return nil, ErrNodeNotFound
 		}
 		return nil, err
 	}
@@ -144,7 +139,7 @@ func CidFromNamespacedSha256(namespacedHash []byte) (cid.Cid, error) {
 	if got, want := len(namespacedHash), NmtHashSize; got != want {
 		return cid.Cid{}, fmt.Errorf("invalid namespaced hash length, got: %v, want: %v", got, want)
 	}
-	buf, err := mh.Encode(namespacedHash, sha256Namespace8Flagged)
+	buf, err := mh.Encode(namespacedHash, sha256NamespaceFlagged)
 	if err != nil {
 		return cid.Undef, err
 	}
@@ -159,7 +154,7 @@ func MustCidFromNamespacedSha256(hash []byte) cid.Cid {
 		panic(
 			fmt.Sprintf("malformed hash: %s, codec: %v",
 				err,
-				mh.Codes[sha256Namespace8Flagged]),
+				mh.Codes[sha256NamespaceFlagged]),
 		)
 	}
 	return cidFromHash
@@ -172,7 +167,7 @@ func Translate(dah *da.DataAvailabilityHeader, row, col int) (cid.Cid, int) {
 		return MustCidFromNamespacedSha256(dah.ColumnRoots[col]), row
 	}
 
-	return MustCidFromNamespacedSha256(dah.RowsRoots[row]), col
+	return MustCidFromNamespacedSha256(dah.RowRoots[row]), col
 }
 
 // NamespacedSha256FromCID derives the Namespaced hash from the given CID.

@@ -5,13 +5,13 @@ import (
 	"fmt"
 	"path/filepath"
 	"sync"
+	"time"
 
 	"github.com/cosmos/cosmos-sdk/crypto/keyring"
-	"github.com/dgraph-io/badger/v2/options"
 	"github.com/ipfs/go-datastore"
-	dsbadger "github.com/ipfs/go-ds-badger2"
 	"github.com/mitchellh/go-homedir"
-	"go.uber.org/multierr"
+
+	dsbadger "github.com/celestiaorg/go-ds-badger4"
 
 	"github.com/celestiaorg/celestia-node/libs/fslock"
 	"github.com/celestiaorg/celestia-node/libs/keystore"
@@ -105,73 +105,47 @@ func (f *fsStore) PutConfig(cfg *Config) error {
 }
 
 func (f *fsStore) Keystore() (_ keystore.Keystore, err error) {
-	f.lock.RLock()
-	defer f.lock.RUnlock()
 	if f.keys == nil {
 		return nil, fmt.Errorf("node: no Keystore found")
 	}
 	return f.keys, nil
 }
 
-func (f *fsStore) Datastore() (_ datastore.Batching, err error) {
-	f.lock.RLock()
+func (f *fsStore) Datastore() (datastore.Batching, error) {
+	f.dataMu.Lock()
+	defer f.dataMu.Unlock()
 	if f.data != nil {
-		f.lock.RUnlock()
 		return f.data, nil
 	}
-	f.lock.RUnlock()
-
-	f.lock.Lock()
-	defer f.lock.Unlock()
 
 	opts := dsbadger.DefaultOptions // this should be copied
+	opts.GcInterval = time.Minute * 10
 
-	// Badger sets ValueThreshold to 1K by default and this makes shares being stored in LSM tree
-	// instead of the value log, so we change the value to be lower than share size,
-	// so shares are store in value log. For value log and LSM definitions
-	opts.ValueThreshold = 128
-	// We always write unique values to Badger transaction so there is no need to detect conflicts.
-	opts.DetectConflicts = false
-	// Use MemoryMap for better performance
-	opts.ValueLogLoadingMode = options.MemoryMap
-	opts.TableLoadingMode = options.MemoryMap
-	// Truncate set to true will truncate corrupted data on start if there is any.
-	// If we don't truncate, the node will refuse to start and will beg for recovering, etc.
-	// If we truncate, the node will start with any uncorrupted data and reliably sync again what was
-	// corrupted in most cases.
-	opts.Truncate = true
-	// MaxTableSize defines in memory and on disk size of LSM tree
-	// Bigger values constantly takes more RAM
-	// TODO(@Wondertan): Make configurable with more conservative defaults for Light Node
-	opts.MaxTableSize = 64 << 20
-	// Remove GC as long as we don't have pruning of data to be GCed.
-	// Currently, we only append data on disk without removing.
-	// TODO(@Wondertan): Find good enough default, once pruning is shipped.
-	opts.GcInterval = 0
-
-	f.data, err = dsbadger.NewDatastore(dataPath(f.path), &opts)
+	ds, err := dsbadger.NewDatastore(dataPath(f.path), &opts)
 	if err != nil {
 		return nil, fmt.Errorf("node: can't open Badger Datastore: %w", err)
 	}
 
-	return f.data, nil
+	f.data = ds
+	return ds, nil
 }
 
 func (f *fsStore) Close() (err error) {
-	err = multierr.Append(err, f.dirLock.Unlock())
+	err = errors.Join(err, f.dirLock.Unlock())
+	f.dataMu.Lock()
 	if f.data != nil {
-		err = multierr.Append(err, f.data.Close())
+		err = errors.Join(err, f.data.Close())
 	}
+	f.dataMu.Unlock()
 	return
 }
 
 type fsStore struct {
 	path string
 
-	data datastore.Batching
-	keys keystore.Keystore
-
-	lock    sync.RWMutex   // protects all the fields
+	dataMu  sync.Mutex
+	data    datastore.Batching
+	keys    keystore.Keystore
 	dirLock *fslock.Locker // protects directory
 }
 
@@ -189,6 +163,20 @@ func lockPath(base string) string {
 
 func keysPath(base string) string {
 	return filepath.Join(base, "keys")
+}
+
+func blocksPath(base string) string {
+	return filepath.Join(base, "blocks")
+}
+
+func transientsPath(base string) string {
+	// we don't actually use the transients directory anymore, but it could be populated from previous
+	// versions.
+	return filepath.Join(base, "transients")
+}
+
+func indexPath(base string) string {
+	return filepath.Join(base, "index")
 }
 
 func dataPath(base string) string {

@@ -9,13 +9,12 @@ import (
 	"go.uber.org/fx"
 
 	apptypes "github.com/celestiaorg/celestia-app/x/blob/types"
-	"github.com/celestiaorg/go-header/mocks"
 
 	"github.com/celestiaorg/celestia-node/core"
-	coreheader "github.com/celestiaorg/celestia-node/header"
+	"github.com/celestiaorg/celestia-node/header"
 	"github.com/celestiaorg/celestia-node/header/headertest"
 	"github.com/celestiaorg/celestia-node/libs/fxutil"
-	"github.com/celestiaorg/celestia-node/nodebuilder/header"
+	modhead "github.com/celestiaorg/celestia-node/nodebuilder/header"
 	"github.com/celestiaorg/celestia-node/nodebuilder/node"
 	"github.com/celestiaorg/celestia-node/nodebuilder/p2p"
 	"github.com/celestiaorg/celestia-node/nodebuilder/state"
@@ -37,6 +36,7 @@ func TestNode(t *testing.T, tp node.Type, opts ...fx.Option) *Node {
 func TestNodeWithConfig(t *testing.T, tp node.Type, cfg *Config, opts ...fx.Option) *Node {
 	// avoids port conflicts
 	cfg.RPC.Port = "0"
+	cfg.Header.TrustedPeers = []string{"/ip4/1.2.3.4/tcp/12345/p2p/12D3KooWNaJ1y1Yio3fFJEXCZyd1Cat3jmrPdgkYCrHfKD3Ce21p"}
 
 	store := MockStore(t, cfg)
 	ks, err := store.Keystore()
@@ -48,9 +48,7 @@ func TestNodeWithConfig(t *testing.T, tp node.Type, cfg *Config, opts ...fx.Opti
 		// temp dir for the eds store FIXME: Should be in mem
 		fx.Replace(node.StorePath(t.TempDir())),
 		// avoid requesting trustedPeer during initialization
-		fxutil.ReplaceAs(mocks.NewStore[*coreheader.ExtendedHeader](
-			t, headertest.NewTestSuite(t, 5), 20), new(header.InitStore),
-		),
+		fxutil.ReplaceAs(headertest.NewStore(t), new(modhead.InitStore[*header.ExtendedHeader])),
 	)
 
 	// in fact, we don't need core.Client in tests, but Bridge requires is a valid one

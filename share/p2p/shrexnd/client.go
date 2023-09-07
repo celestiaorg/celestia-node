@@ -15,10 +15,8 @@ import (
 
 	"github.com/celestiaorg/go-libp2p-messenger/serde"
 	"github.com/celestiaorg/nmt"
-	"github.com/celestiaorg/nmt/namespace"
 
 	"github.com/celestiaorg/celestia-node/share"
-	"github.com/celestiaorg/celestia-node/share/ipld"
 	"github.com/celestiaorg/celestia-node/share/p2p"
 	pb "github.com/celestiaorg/celestia-node/share/p2p/shrexnd/pb"
 )
@@ -29,7 +27,8 @@ type Client struct {
 	params     *Parameters
 	protocolID protocol.ID
 
-	host host.Host
+	host    host.Host
+	metrics *p2p.Metrics
 }
 
 // NewClient creates a new shrEx/nd client
@@ -46,30 +45,36 @@ func NewClient(params *Parameters, host host.Host) (*Client, error) {
 }
 
 // RequestND requests namespaced data from the given peer.
-// Returns valid data with its verified inclusion against the share.Root.
+// Returns NamespacedShares with unverified inclusion proofs against the share.Root.
 func (c *Client) RequestND(
 	ctx context.Context,
 	root *share.Root,
-	nID namespace.ID,
+	namespace share.Namespace,
 	peer peer.ID,
 ) (share.NamespacedShares, error) {
-	shares, err := c.doRequest(ctx, root, nID, peer)
+	if err := namespace.ValidateForData(); err != nil {
+		return nil, err
+	}
+
+	shares, err := c.doRequest(ctx, root, namespace, peer)
 	if err == nil {
-		return shares, err
+		return shares, nil
 	}
 	if errors.Is(err, context.DeadlineExceeded) || errors.Is(err, context.Canceled) {
-		return nil, ctx.Err()
+		c.metrics.ObserveRequests(ctx, 1, p2p.StatusTimeout)
+		return nil, err
 	}
 	// some net.Errors also mean the context deadline was exceeded, but yamux/mocknet do not
 	// unwrap to a ctx err
 	var ne net.Error
 	if errors.As(err, &ne) && ne.Timeout() {
 		if deadline, _ := ctx.Deadline(); deadline.Before(time.Now()) {
+			c.metrics.ObserveRequests(ctx, 1, p2p.StatusTimeout)
 			return nil, context.DeadlineExceeded
 		}
 	}
-	if err != p2p.ErrUnavailable {
-		log.Debugw("client-nd: peer returned err", "peer", peer, "err", err)
+	if err != p2p.ErrNotFound && err != p2p.ErrRateLimited {
+		log.Warnw("client-nd: peer returned err", "err", err)
 	}
 	return nil, err
 }
@@ -77,7 +82,7 @@ func (c *Client) RequestND(
 func (c *Client) doRequest(
 	ctx context.Context,
 	root *share.Root,
-	nID namespace.ID,
+	namespace share.Namespace,
 	peerID peer.ID,
 ) (share.NamespacedShares, error) {
 	stream, err := c.host.NewStream(ctx, peerID, c.protocolID)
@@ -89,70 +94,86 @@ func (c *Client) doRequest(
 	c.setStreamDeadlines(ctx, stream)
 
 	req := &pb.GetSharesByNamespaceRequest{
-		RootHash:    root.Hash(),
-		NamespaceId: nID,
+		RootHash:  root.Hash(),
+		Namespace: namespace,
 	}
 
 	_, err = serde.Write(stream, req)
 	if err != nil {
+		c.metrics.ObserveRequests(ctx, 1, p2p.StatusSendReqErr)
 		stream.Reset() //nolint:errcheck
 		return nil, fmt.Errorf("client-nd: writing request: %w", err)
 	}
 
 	err = stream.CloseWrite()
 	if err != nil {
-		log.Debugf("client-nd: closing write side of the stream: %s", err)
+		log.Debugw("client-nd: closing write side of the stream", "err", err)
 	}
 
-	var resp pb.GetSharesByNamespaceResponse
-	_, err = serde.Read(stream, &resp)
+	if err := c.readStatus(ctx, stream); err != nil {
+		return nil, err
+	}
+	return c.readNamespacedShares(ctx, stream)
+}
+
+func (c *Client) readStatus(ctx context.Context, stream network.Stream) error {
+	var resp pb.GetSharesByNamespaceStatusResponse
+	_, err := serde.Read(stream, &resp)
 	if err != nil {
 		// server is overloaded and closed the stream
 		if errors.Is(err, io.EOF) {
-			return nil, p2p.ErrUnavailable
+			c.metrics.ObserveRequests(ctx, 1, p2p.StatusRateLimited)
+			return p2p.ErrRateLimited
 		}
+		c.metrics.ObserveRequests(ctx, 1, p2p.StatusReadRespErr)
 		stream.Reset() //nolint:errcheck
-		return nil, fmt.Errorf("client-nd: reading response: %w", err)
+		return fmt.Errorf("client-nd: reading status response: %w", err)
 	}
 
-	if err = statusToErr(resp.Status); err != nil {
-		return nil, fmt.Errorf("client-nd: response code is not OK: %w", err)
-	}
-
-	shares, err := convertToNamespacedShares(resp.Rows)
-	if err != nil {
-		return nil, fmt.Errorf("client-nd: converting response to shares: %w", err)
-	}
-
-	err = shares.Verify(root, nID)
-	if err != nil {
-		return nil, fmt.Errorf("client-nd: verifying response: %w", err)
-	}
-
-	return shares, nil
+	return c.convertStatusToErr(ctx, resp.Status)
 }
 
-// convertToNamespacedShares converts proto Rows to share.NamespacedShares
-func convertToNamespacedShares(rows []*pb.Row) (share.NamespacedShares, error) {
-	shares := make([]share.NamespacedRow, 0, len(rows))
-	for _, row := range rows {
-		var proof *nmt.Proof
-		if row.Proof != nil {
-			tmpProof := nmt.NewInclusionProof(
-				int(row.Proof.Start),
-				int(row.Proof.End),
-				row.Proof.Nodes,
-				ipld.NMTIgnoreMaxNamespace,
-			)
-			proof = &tmpProof
+// readNamespacedShares converts proto Rows to share.NamespacedShares
+func (c *Client) readNamespacedShares(
+	ctx context.Context,
+	stream network.Stream,
+) (share.NamespacedShares, error) {
+	var shares share.NamespacedShares
+	for {
+		var row pb.NamespaceRowResponse
+		_, err := serde.Read(stream, &row)
+		if err != nil {
+			if errors.Is(err, io.EOF) {
+				// all data is received and steam is closed by server
+				return shares, nil
+			}
+			c.metrics.ObserveRequests(ctx, 1, p2p.StatusReadRespErr)
+			return nil, err
 		}
-
+		var proof nmt.Proof
+		if row.Proof != nil {
+			if len(row.Shares) != 0 {
+				proof = nmt.NewInclusionProof(
+					int(row.Proof.Start),
+					int(row.Proof.End),
+					row.Proof.Nodes,
+					row.Proof.IsMaxNamespaceIgnored,
+				)
+			} else {
+				proof = nmt.NewAbsenceProof(
+					int(row.Proof.Start),
+					int(row.Proof.End),
+					row.Proof.Nodes,
+					row.Proof.LeafHash,
+					row.Proof.IsMaxNamespaceIgnored,
+				)
+			}
+		}
 		shares = append(shares, share.NamespacedRow{
 			Shares: row.Shares,
-			Proof:  proof,
+			Proof:  &proof,
 		})
 	}
-	return shares, nil
 }
 
 func (c *Client) setStreamDeadlines(ctx context.Context, stream network.Stream) {
@@ -160,17 +181,17 @@ func (c *Client) setStreamDeadlines(ctx context.Context, stream network.Stream) 
 	deadline, ok := ctx.Deadline()
 	if ok {
 		err := stream.SetDeadline(deadline)
-		if err != nil {
-			log.Debugf("client-nd: set write deadline: %s", err)
+		if err == nil {
+			return
 		}
-		return
+		log.Debugw("client-nd: set stream deadline", "err", err)
 	}
 
 	// if deadline not set, client read deadline defaults to server write deadline
 	if c.params.ServerWriteTimeout != 0 {
 		err := stream.SetReadDeadline(time.Now().Add(c.params.ServerWriteTimeout))
 		if err != nil {
-			log.Debugf("client-nd: set read deadline: %s", err)
+			log.Debugw("client-nd: set read deadline", "err", err)
 		}
 	}
 
@@ -178,21 +199,25 @@ func (c *Client) setStreamDeadlines(ctx context.Context, stream network.Stream) 
 	if c.params.ServerReadTimeout != 0 {
 		err := stream.SetWriteDeadline(time.Now().Add(c.params.ServerReadTimeout))
 		if err != nil {
-			log.Debugf("client-nd: set write deadline: %s", err)
+			log.Debugw("client-nd: set write deadline", "err", err)
 		}
 	}
 }
 
-func statusToErr(code pb.StatusCode) error {
-	switch code {
+func (c *Client) convertStatusToErr(ctx context.Context, status pb.StatusCode) error {
+	switch status {
 	case pb.StatusCode_OK:
+		c.metrics.ObserveRequests(ctx, 1, p2p.StatusSuccess)
 		return nil
 	case pb.StatusCode_NOT_FOUND:
-		return p2p.ErrUnavailable
-	case pb.StatusCode_INTERNAL, pb.StatusCode_INVALID:
+		c.metrics.ObserveRequests(ctx, 1, p2p.StatusNotFound)
+		return p2p.ErrNotFound
+	case pb.StatusCode_INVALID:
+		log.Warn("client-nd: invalid request")
+		fallthrough
+	case pb.StatusCode_INTERNAL:
 		fallthrough
 	default:
-		log.Errorf("client-nd: request status %s returned", code.String())
 		return p2p.ErrInvalidResponse
 	}
 }

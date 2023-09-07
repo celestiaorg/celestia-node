@@ -11,12 +11,20 @@ func SetAllLoggers(level logging.LogLevel) {
 	_ = logging.SetLogLevel("dht", "ERROR")
 	_ = logging.SetLogLevel("swarm2", "WARN")
 	_ = logging.SetLogLevel("bitswap", "WARN")
+	_ = logging.SetLogLevel("bitswap-client", "WARN")
 	_ = logging.SetLogLevel("connmgr", "WARN")
 	_ = logging.SetLogLevel("nat", "INFO")
 	_ = logging.SetLogLevel("dht/RtRefreshManager", "FATAL")
 	_ = logging.SetLogLevel("bitswap_network", "ERROR")
 	_ = logging.SetLogLevel("badger", "INFO")
 	_ = logging.SetLogLevel("basichost", "INFO")
+	_ = logging.SetLogLevel("pubsub", "WARN")
+	_ = logging.SetLogLevel("net/identify", "ERROR")
+	_ = logging.SetLogLevel("shrex/nd", "WARN")
+	_ = logging.SetLogLevel("shrex/eds", "WARN")
+	_ = logging.SetLogLevel("dagstore", "WARN")
+	_ = logging.SetLogLevel("dagstore/upgrader", "WARN")
+	_ = logging.SetLogLevel("fx", "FATAL")
 }
 
 func SetDebugLogging() {

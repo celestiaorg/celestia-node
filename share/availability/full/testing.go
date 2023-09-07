@@ -4,20 +4,20 @@ import (
 	"testing"
 	"time"
 
-	mdutils "github.com/ipfs/go-merkledag/test"
 	routinghelpers "github.com/libp2p/go-libp2p-routing-helpers"
 	"github.com/libp2p/go-libp2p/p2p/discovery/routing"
 
 	"github.com/celestiaorg/celestia-node/share"
-	"github.com/celestiaorg/celestia-node/share/availability/discovery"
 	availability_test "github.com/celestiaorg/celestia-node/share/availability/test"
 	"github.com/celestiaorg/celestia-node/share/getters"
+	"github.com/celestiaorg/celestia-node/share/ipld"
+	"github.com/celestiaorg/celestia-node/share/p2p/discovery"
 )
 
 // GetterWithRandSquare provides a share.Getter filled with 'n' NMT
 // trees of 'n' random shares, essentially storing a whole square.
 func GetterWithRandSquare(t *testing.T, n int) (share.Getter, *share.Root) {
-	bServ := mdutils.Bserv()
+	bServ := ipld.NewMemBlockservice()
 	getter := getters.NewIPLDGetter(bServ)
 	return getter, availability_test.RandFillBS(t, n, bServ)
 }
@@ -37,6 +37,11 @@ func Node(dn *availability_test.TestDagNet) *availability_test.TestNode {
 }
 
 func TestAvailability(getter share.Getter) *ShareAvailability {
-	disc := discovery.NewDiscovery(nil, routing.NewRoutingDiscovery(routinghelpers.Null{}), 0, time.Second, time.Second)
+	disc := discovery.NewDiscovery(
+		nil,
+		routing.NewRoutingDiscovery(routinghelpers.Null{}),
+		discovery.WithAdvertiseInterval(time.Second),
+		discovery.WithPeersLimit(10),
+	)
 	return NewShareAvailability(nil, getter, disc)
 }

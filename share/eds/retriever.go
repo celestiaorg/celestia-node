@@ -2,13 +2,12 @@ package eds
 
 import (
 	"context"
-	"encoding/hex"
 	"errors"
 	"sync"
 	"sync/atomic"
 	"time"
 
-	"github.com/ipfs/go-blockservice"
+	"github.com/ipfs/boxo/blockservice"
 	"github.com/ipfs/go-cid"
 	logging "github.com/ipfs/go-log/v2"
 	"go.opentelemetry.io/otel"
@@ -18,6 +17,7 @@ import (
 
 	"github.com/celestiaorg/celestia-app/pkg/da"
 	"github.com/celestiaorg/celestia-app/pkg/wrapper"
+	"github.com/celestiaorg/nmt"
 	"github.com/celestiaorg/rsmt2d"
 
 	"github.com/celestiaorg/celestia-node/share"
@@ -64,11 +64,10 @@ func (r *Retriever) Retrieve(ctx context.Context, dah *da.DataAvailabilityHeader
 	ctx, span := tracer.Start(ctx, "retrieve-square")
 	defer span.End()
 	span.SetAttributes(
-		attribute.Int("size", len(dah.RowsRoots)),
-		attribute.String("data_hash", hex.EncodeToString(dah.Hash())),
+		attribute.Int("size", len(dah.RowRoots)),
 	)
 
-	log.Debugw("retrieving data square", "data_hash", hex.EncodeToString(dah.Hash()), "size", len(dah.RowsRoots))
+	log.Debugw("retrieving data square", "data_hash", dah.String(), "size", len(dah.RowRoots))
 	ses, err := r.newSession(ctx, dah)
 	if err != nil {
 		return nil, err
@@ -122,13 +121,21 @@ type retrievalSession struct {
 
 // newSession creates a new retrieval session and kicks off requesting process.
 func (r *Retriever) newSession(ctx context.Context, dah *da.DataAvailabilityHeader) (*retrievalSession, error) {
-	size := len(dah.RowsRoots)
+	size := len(dah.RowRoots)
+
 	treeFn := func(_ rsmt2d.Axis, index uint) rsmt2d.Tree {
-		tree := wrapper.NewErasuredNamespacedMerkleTree(uint64(size)/2, index)
+		// use proofs adder if provided, to cache collected proofs while recomputing the eds
+		var opts []nmt.Option
+		visitor := ipld.ProofsAdderFromCtx(ctx).VisitFn()
+		if visitor != nil {
+			opts = append(opts, nmt.NodeVisitor(visitor))
+		}
+
+		tree := wrapper.NewErasuredNamespacedMerkleTree(uint64(size)/2, index, opts...)
 		return &tree
 	}
 
-	square, err := rsmt2d.ImportExtendedDataSquare(make([][]byte, size*size), share.DefaultRSMT2DCodec(), treeFn)
+	square, err := rsmt2d.NewExtendedDataSquare(share.DefaultRSMT2DCodec(), treeFn, uint(size), share.Size)
 	if err != nil {
 		return nil, err
 	}
@@ -146,6 +153,7 @@ func (r *Retriever) newSession(ctx context.Context, dah *da.DataAvailabilityHead
 	for i := range ses.squareCellsLks {
 		ses.squareCellsLks[i] = make([]sync.Mutex, size)
 	}
+
 	go ses.request(ctx)
 	return ses, nil
 }
@@ -170,12 +178,12 @@ func (rs *retrievalSession) Reconstruct(ctx context.Context) (*rsmt2d.ExtendedDa
 	defer span.End()
 
 	// and try to repair with what we have
-	err := rs.square.Repair(rs.dah.RowsRoots, rs.dah.ColumnRoots)
+	err := rs.square.Repair(rs.dah.RowRoots, rs.dah.ColumnRoots)
 	if err != nil {
 		span.RecordError(err)
 		return nil, err
 	}
-	log.Infow("data square reconstructed", "data_hash", hex.EncodeToString(rs.dah.Hash()), "size", len(rs.dah.RowsRoots))
+	log.Infow("data square reconstructed", "data_hash", rs.dah.String(), "size", len(rs.dah.RowRoots))
 	close(rs.squareDn)
 	return rs.square, nil
 }
@@ -249,7 +257,6 @@ func (rs *retrievalSession) doRequest(ctx context.Context, q *quadrant) {
 			nd, err := ipld.GetNode(ctx, rs.bget, root)
 			if err != nil {
 				rs.span.RecordError(err, trace.WithAttributes(
-					attribute.String("requesting-root", root.String()),
 					attribute.Int("root-index", i),
 				))
 				return
@@ -257,7 +264,7 @@ func (rs *retrievalSession) doRequest(ctx context.Context, q *quadrant) {
 			// and go get shares of left or the right side of the whole col/row axis
 			// the left or the right side of the tree represent some portion of the quadrant
 			// which we put into the rs.square share-by-share by calculating shares' indexes using q.index
-			share.GetShares(ctx, rs.bget, nd.Links()[q.x].Cid, size, func(j int, share share.Share) {
+			ipld.GetShares(ctx, rs.bget, nd.Links()[q.x].Cid, size, func(j int, share share.Share) {
 				// NOTE: Each share can appear twice here, for a Row and Col, respectively.
 				// These shares are always equal, and we allow only the first one to be written
 				// in the square.
@@ -284,10 +291,12 @@ func (rs *retrievalSession) doRequest(ctx context.Context, q *quadrant) {
 				if rs.isReconstructed() {
 					return
 				}
-				if rs.square.GetCell(uint(x), uint(y)) != nil {
+				if err := rs.square.SetCell(uint(x), uint(y), share); err != nil {
+					// safe to ignore as:
+					// * share size already verified
+					// * the same share might come from either Row or Col
 					return
 				}
-				rs.square.SetCell(uint(x), uint(y), share)
 				// if we have >= 1/4 of the square we can start trying to Reconstruct
 				// TODO(@Wondertan): This is not an ideal way to know when to start
 				//  reconstruction and can cause idle reconstruction tries in some cases,
