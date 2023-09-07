@@ -3,7 +3,7 @@
     "info": {
         "title": "Celestia Node API",
         "description": "The Celestia Node API is the collection of RPC methods that can be used to interact with the services provided by Celestia Data Availability Nodes.",
-        "version": "v0.1.1"
+        "version": "v0.2.2"
     },
     "externalDocs": {
         "description": "Celestia Node GitHub",
@@ -32,22 +32,15 @@
                     "deprecated": false
                 },
                 {
-                    "name": "nID",
-                    "description": "namespace.ID",
+                    "name": "namespace",
+                    "description": "share.Namespace",
                     "summary": "",
                     "schema": {
                         "examples": [
-                            "Bw=="
-                        ],
-                        "items": [
-                            {
-                                "type": [
-                                    "integer"
-                                ]
-                            }
+                            "AAAAAAAAAAAAAAAAAAAAAAAAAAECAwQFBgcICRA="
                         ],
                         "type": [
-                            "array"
+                            "string"
                         ]
                     },
                     "required": true,
@@ -61,15 +54,8 @@
                         "examples": [
                             "Bw=="
                         ],
-                        "items": [
-                            {
-                                "type": [
-                                    "integer"
-                                ]
-                            }
-                        ],
                         "type": [
-                            "array"
+                            "string"
                         ]
                     },
                     "required": true,
@@ -83,20 +69,20 @@
                 "schema": {
                     "examples": [
                         {
-                            "namespace": "KmJ5dGUgYXJyYXk=",
-                            "data": "Ynl0ZSBhcnJheQ==",
-                            "share_version": 42,
-                            "commitment": "Bw=="
+                            "namespace": "AAAAAAAAAAAAAAAAAAAAAAAAAAECAwQFBgcICRA=",
+                            "data": "VGhpcyBpcyBhbiBleGFtcGxlIG9mIHNvbWUgYmxvYiBkYXRh",
+                            "share_version": 0,
+                            "commitment": "AD5EzbG0/EMvpw0p8NIjMVnoCP4Bv6K+V6gjmwdXUKU="
                         }
                     ],
                     "additionalProperties": false,
                     "properties": {
                         "blob": {},
                         "commitment": {
-                            "items": {
-                                "type": "integer"
+                            "media": {
+                                "binaryEncoding": "base64"
                             },
-                            "type": "array"
+                            "type": "string"
                         }
                     },
                     "type": [
@@ -109,7 +95,7 @@
             "deprecated": false,
             "externalDocs": {
                 "description": "Source of the default service's implementation of this method.",
-                "url": "https://github.com/celestiaorg/celestia-node/blob/main/nodebuilder/blob/blob.go#L46"
+                "url": "https://github.com/celestiaorg/celestia-node/blob/main/nodebuilder/blob/blob.go#L45"
             }
         },
         {
@@ -134,26 +120,19 @@
                     "deprecated": false
                 },
                 {
-                    "name": "nIDs",
-                    "description": "[]namespace.ID",
+                    "name": "namespaces",
+                    "description": "[]share.Namespace",
                     "summary": "",
                     "schema": {
                         "examples": [
                             [
-                                "Bw=="
+                                "AAAAAAAAAAAAAAAAAAAAAAAAAAECAwQFBgcICRA="
                             ]
                         ],
                         "items": [
                             {
-                                "items": [
-                                    {
-                                        "type": [
-                                            "integer"
-                                        ]
-                                    }
-                                ],
                                 "type": [
-                                    "array"
+                                    "string"
                                 ]
                             }
                         ],
@@ -173,10 +152,10 @@
                     "examples": [
                         [
                             {
-                                "namespace": "KmJ5dGUgYXJyYXk=",
-                                "data": "Ynl0ZSBhcnJheQ==",
-                                "share_version": 42,
-                                "commitment": "Bw=="
+                                "namespace": "AAAAAAAAAAAAAAAAAAAAAAAAAAECAwQFBgcICRA=",
+                                "data": "VGhpcyBpcyBhbiBleGFtcGxlIG9mIHNvbWUgYmxvYiBkYXRh",
+                                "share_version": 0,
+                                "commitment": "AD5EzbG0/EMvpw0p8NIjMVnoCP4Bv6K+V6gjmwdXUKU="
                             }
                         ]
                     ],
@@ -189,19 +168,19 @@
                                     "properties": {
                                         "blob": {},
                                         "commitment": {
-                                            "items": {
-                                                "type": "integer"
+                                            "media": {
+                                                "binaryEncoding": "base64"
                                             },
-                                            "type": "array"
+                                            "type": "string"
                                         }
                                     },
                                     "type": "object"
                                 },
                                 "commitment": {
-                                    "items": {
-                                        "type": "integer"
+                                    "media": {
+                                        "binaryEncoding": "base64"
                                     },
-                                    "type": "array"
+                                    "type": "string"
                                 }
                             },
                             "type": [
@@ -219,7 +198,7 @@
             "deprecated": false,
             "externalDocs": {
                 "description": "Source of the default service's implementation of this method.",
-                "url": "https://github.com/celestiaorg/celestia-node/blob/main/nodebuilder/blob/blob.go#L55"
+                "url": "https://github.com/celestiaorg/celestia-node/blob/main/nodebuilder/blob/blob.go#L54"
             }
         },
         {
@@ -244,22 +223,15 @@
                     "deprecated": false
                 },
                 {
-                    "name": "nID",
-                    "description": "namespace.ID",
+                    "name": "namespace",
+                    "description": "share.Namespace",
                     "summary": "",
                     "schema": {
                         "examples": [
-                            "Bw=="
-                        ],
-                        "items": [
-                            {
-                                "type": [
-                                    "integer"
-                                ]
-                            }
+                            "AAAAAAAAAAAAAAAAAAAAAAAAAAECAwQFBgcICRA="
                         ],
                         "type": [
-                            "array"
+                            "string"
                         ]
                     },
                     "required": true,
@@ -273,15 +245,8 @@
                         "examples": [
                             "Bw=="
                         ],
-                        "items": [
-                            {
-                                "type": [
-                                    "integer"
-                                ]
-                            }
-                        ],
                         "type": [
-                            "array"
+                            "string"
                         ]
                     },
                     "required": true,
@@ -300,7 +265,9 @@
                                 "end": 4,
                                 "nodes": [
                                     "dGVzdA=="
-                                ]
+                                ],
+                                "leaf_hash": null,
+                                "is_max_namespace_id_ignored": true
                             }
                         ]
                     ],
@@ -322,7 +289,7 @@
             "deprecated": false,
             "externalDocs": {
                 "description": "Source of the default service's implementation of this method.",
-                "url": "https://github.com/celestiaorg/celestia-node/blob/main/nodebuilder/blob/blob.go#L59"
+                "url": "https://github.com/celestiaorg/celestia-node/blob/main/nodebuilder/blob/blob.go#L58"
             }
         },
         {
@@ -347,22 +314,15 @@
                     "deprecated": false
                 },
                 {
-                    "name": "nID",
-                    "description": "namespace.ID",
+                    "name": "namespace",
+                    "description": "share.Namespace",
                     "summary": "",
                     "schema": {
                         "examples": [
-                            "Bw=="
-                        ],
-                        "items": [
-                            {
-                                "type": [
-                                    "integer"
-                                ]
-                            }
+                            "AAAAAAAAAAAAAAAAAAAAAAAAAAECAwQFBgcICRA="
                         ],
                         "type": [
-                            "array"
+                            "string"
                         ]
                     },
                     "required": true,
@@ -380,7 +340,9 @@
                                     "end": 4,
                                     "nodes": [
                                         "dGVzdA=="
-                                    ]
+                                    ],
+                                    "leaf_hash": null,
+                                    "is_max_namespace_id_ignored": true
                                 }
                             ]
                         ],
@@ -407,15 +369,8 @@
                         "examples": [
                             "Bw=="
                         ],
-                        "items": [
-                            {
-                                "type": [
-                                    "integer"
-                                ]
-                            }
-                        ],
                         "type": [
-                            "array"
+                            "string"
                         ]
                     },
                     "required": true,
@@ -440,7 +395,7 @@
             "deprecated": false,
             "externalDocs": {
                 "description": "Source of the default service's implementation of this method.",
-                "url": "https://github.com/celestiaorg/celestia-node/blob/main/nodebuilder/blob/blob.go#L68"
+                "url": "https://github.com/celestiaorg/celestia-node/blob/main/nodebuilder/blob/blob.go#L67"
             }
         },
         {
@@ -457,10 +412,10 @@
                         "examples": [
                             [
                                 {
-                                    "namespace": "KmJ5dGUgYXJyYXk=",
-                                    "data": "Ynl0ZSBhcnJheQ==",
-                                    "share_version": 42,
-                                    "commitment": "Bw=="
+                                    "namespace": "AAAAAAAAAAAAAAAAAAAAAAAAAAECAwQFBgcICRA=",
+                                    "data": "VGhpcyBpcyBhbiBleGFtcGxlIG9mIHNvbWUgYmxvYiBkYXRh",
+                                    "share_version": 0,
+                                    "commitment": "AD5EzbG0/EMvpw0p8NIjMVnoCP4Bv6K+V6gjmwdXUKU="
                                 }
                             ]
                         ],
@@ -473,19 +428,19 @@
                                         "properties": {
                                             "blob": {},
                                             "commitment": {
-                                                "items": {
-                                                    "type": "integer"
+                                                "media": {
+                                                    "binaryEncoding": "base64"
                                                 },
-                                                "type": "array"
+                                                "type": "string"
                                             }
                                         },
                                         "type": "object"
                                     },
                                     "commitment": {
-                                        "items": {
-                                            "type": "integer"
+                                        "media": {
+                                            "binaryEncoding": "base64"
                                         },
-                                        "type": "array"
+                                        "type": "string"
                                     }
                                 },
                                 "type": [
@@ -495,6 +450,33 @@
                         ],
                         "type": [
                             "array"
+                        ]
+                    },
+                    "required": true,
+                    "deprecated": false
+                },
+                {
+                    "name": "options",
+                    "description": "*blob.SubmitOptions",
+                    "summary": "",
+                    "schema": {
+                        "examples": [
+                            {
+                                "Fee": 42,
+                                "GasLimit": 42
+                            }
+                        ],
+                        "additionalProperties": false,
+                        "properties": {
+                            "Fee": {
+                                "type": "integer"
+                            },
+                            "GasLimit": {
+                                "type": "integer"
+                            }
+                        },
+                        "type": [
+                            "object"
                         ]
                     },
                     "required": true,
@@ -519,7 +501,7 @@
             "deprecated": false,
             "externalDocs": {
                 "description": "Source of the default service's implementation of this method.",
-                "url": "https://github.com/celestiaorg/celestia-node/blob/main/nodebuilder/blob/blob.go#L42"
+                "url": "https://github.com/celestiaorg/celestia-node/blob/main/nodebuilder/blob/blob.go#L41"
             }
         },
         {
@@ -682,7 +664,7 @@
                     "summary": "",
                     "schema": {
                         "examples": [
-                            "badencoding"
+                            "badencodingv0.1"
                         ],
                         "type": [
                             "string"
@@ -700,7 +682,7 @@
                     "examples": [
                         [
                             {
-                                "proof_type": "badencoding",
+                                "proof_type": "badencodingv0.1",
                                 "data": "ChJiYWQgZW5jb2RpbmcgcHJvb2YQKg=="
                             }
                         ]
@@ -723,7 +705,7 @@
             "deprecated": false,
             "externalDocs": {
                 "description": "Source of the default service's implementation of this method.",
-                "url": "https://github.com/celestiaorg/celestia-node/blob/main/nodebuilder/fraud/fraud.go#L35"
+                "url": "https://github.com/celestiaorg/celestia-node/blob/main/nodebuilder/fraud/fraud.go#L39"
             }
         },
         {
@@ -738,7 +720,7 @@
                     "summary": "",
                     "schema": {
                         "examples": [
-                            "badencoding"
+                            "badencodingv0.1"
                         ],
                         "type": [
                             "string"
@@ -764,7 +746,7 @@
             "deprecated": false,
             "externalDocs": {
                 "description": "Source of the default service's implementation of this method.",
-                "url": "https://github.com/celestiaorg/celestia-node/blob/main/nodebuilder/fraud/fraud.go#L31"
+                "url": "https://github.com/celestiaorg/celestia-node/blob/main/nodebuilder/fraud/fraud.go#L35"
             }
         },
         {
@@ -781,15 +763,8 @@
                         "examples": [
                             "07"
                         ],
-                        "items": [
-                            {
-                                "type": [
-                                    "integer"
-                                ]
-                            }
-                        ],
                         "type": [
-                            "array"
+                            "string"
                         ]
                     },
                     "required": true,
@@ -889,19 +864,19 @@
                                     "additionalProperties": false,
                                     "properties": {
                                         "hash": {
-                                            "items": {
-                                                "type": "integer"
+                                            "media": {
+                                                "binaryEncoding": "base64"
                                             },
-                                            "type": "array"
+                                            "type": "string"
                                         },
                                         "parts": {
                                             "additionalProperties": false,
                                             "properties": {
                                                 "hash": {
-                                                    "items": {
-                                                        "type": "integer"
+                                                    "media": {
+                                                        "binaryEncoding": "base64"
                                                     },
-                                                    "type": "array"
+                                                    "type": "string"
                                                 },
                                                 "total": {
                                                     "type": "integer"
@@ -936,10 +911,10 @@
                                                 "type": "string"
                                             },
                                             "validator_address": {
-                                                "items": {
-                                                    "type": "integer"
+                                                "media": {
+                                                    "binaryEncoding": "base64"
                                                 },
-                                                "type": "array"
+                                                "type": "string"
                                             }
                                         },
                                         "type": "object"
@@ -977,31 +952,31 @@
                             "additionalProperties": false,
                             "properties": {
                                 "app_hash": {
-                                    "items": {
-                                        "type": "integer"
+                                    "media": {
+                                        "binaryEncoding": "base64"
                                     },
-                                    "type": "array"
+                                    "type": "string"
                                 },
                                 "chain_id": {
                                     "type": "string"
                                 },
                                 "consensus_hash": {
-                                    "items": {
-                                        "type": "integer"
+                                    "media": {
+                                        "binaryEncoding": "base64"
                                     },
-                                    "type": "array"
+                                    "type": "string"
                                 },
                                 "data_hash": {
-                                    "items": {
-                                        "type": "integer"
+                                    "media": {
+                                        "binaryEncoding": "base64"
                                     },
-                                    "type": "array"
+                                    "type": "string"
                                 },
                                 "evidence_hash": {
-                                    "items": {
-                                        "type": "integer"
+                                    "media": {
+                                        "binaryEncoding": "base64"
                                     },
-                                    "type": "array"
+                                    "type": "string"
                                 },
                                 "height": {
                                     "type": "integer"
@@ -1010,19 +985,19 @@
                                     "additionalProperties": false,
                                     "properties": {
                                         "hash": {
-                                            "items": {
-                                                "type": "integer"
+                                            "media": {
+                                                "binaryEncoding": "base64"
                                             },
-                                            "type": "array"
+                                            "type": "string"
                                         },
                                         "parts": {
                                             "additionalProperties": false,
                                             "properties": {
                                                 "hash": {
-                                                    "items": {
-                                                        "type": "integer"
+                                                    "media": {
+                                                        "binaryEncoding": "base64"
                                                     },
-                                                    "type": "array"
+                                                    "type": "string"
                                                 },
                                                 "total": {
                                                     "type": "integer"
@@ -1034,38 +1009,38 @@
                                     "type": "object"
                                 },
                                 "last_commit_hash": {
-                                    "items": {
-                                        "type": "integer"
+                                    "media": {
+                                        "binaryEncoding": "base64"
                                     },
-                                    "type": "array"
+                                    "type": "string"
                                 },
                                 "last_results_hash": {
-                                    "items": {
-                                        "type": "integer"
+                                    "media": {
+                                        "binaryEncoding": "base64"
                                     },
-                                    "type": "array"
+                                    "type": "string"
                                 },
                                 "next_validators_hash": {
-                                    "items": {
-                                        "type": "integer"
+                                    "media": {
+                                        "binaryEncoding": "base64"
                                     },
-                                    "type": "array"
+                                    "type": "string"
                                 },
                                 "proposer_address": {
-                                    "items": {
-                                        "type": "integer"
+                                    "media": {
+                                        "binaryEncoding": "base64"
                                     },
-                                    "type": "array"
+                                    "type": "string"
                                 },
                                 "time": {
                                     "format": "date-time",
                                     "type": "string"
                                 },
                                 "validators_hash": {
-                                    "items": {
-                                        "type": "integer"
+                                    "media": {
+                                        "binaryEncoding": "base64"
                                     },
-                                    "type": "array"
+                                    "type": "string"
                                 },
                                 "version": {
                                     "additionalProperties": false,
@@ -1089,10 +1064,10 @@
                                     "additionalProperties": false,
                                     "properties": {
                                         "address": {
-                                            "items": {
-                                                "type": "integer"
+                                            "media": {
+                                                "binaryEncoding": "base64"
                                             },
-                                            "type": "array"
+                                            "type": "string"
                                         },
                                         "proposer_priority": {
                                             "type": "integer"
@@ -1111,10 +1086,10 @@
                                         "additionalProperties": false,
                                         "properties": {
                                             "address": {
-                                                "items": {
-                                                    "type": "integer"
+                                                "media": {
+                                                    "binaryEncoding": "base64"
                                                 },
-                                                "type": "array"
+                                                "type": "string"
                                             },
                                             "proposer_priority": {
                                                 "type": "integer"
@@ -1262,19 +1237,19 @@
                                     "additionalProperties": false,
                                     "properties": {
                                         "hash": {
-                                            "items": {
-                                                "type": "integer"
+                                            "media": {
+                                                "binaryEncoding": "base64"
                                             },
-                                            "type": "array"
+                                            "type": "string"
                                         },
                                         "parts": {
                                             "additionalProperties": false,
                                             "properties": {
                                                 "hash": {
-                                                    "items": {
-                                                        "type": "integer"
+                                                    "media": {
+                                                        "binaryEncoding": "base64"
                                                     },
-                                                    "type": "array"
+                                                    "type": "string"
                                                 },
                                                 "total": {
                                                     "type": "integer"
@@ -1309,10 +1284,10 @@
                                                 "type": "string"
                                             },
                                             "validator_address": {
-                                                "items": {
-                                                    "type": "integer"
+                                                "media": {
+                                                    "binaryEncoding": "base64"
                                                 },
-                                                "type": "array"
+                                                "type": "string"
                                             }
                                         },
                                         "type": "object"
@@ -1350,31 +1325,31 @@
                             "additionalProperties": false,
                             "properties": {
                                 "app_hash": {
-                                    "items": {
-                                        "type": "integer"
+                                    "media": {
+                                        "binaryEncoding": "base64"
                                     },
-                                    "type": "array"
+                                    "type": "string"
                                 },
                                 "chain_id": {
                                     "type": "string"
                                 },
                                 "consensus_hash": {
-                                    "items": {
-                                        "type": "integer"
+                                    "media": {
+                                        "binaryEncoding": "base64"
                                     },
-                                    "type": "array"
+                                    "type": "string"
                                 },
                                 "data_hash": {
-                                    "items": {
-                                        "type": "integer"
+                                    "media": {
+                                        "binaryEncoding": "base64"
                                     },
-                                    "type": "array"
+                                    "type": "string"
                                 },
                                 "evidence_hash": {
-                                    "items": {
-                                        "type": "integer"
+                                    "media": {
+                                        "binaryEncoding": "base64"
                                     },
-                                    "type": "array"
+                                    "type": "string"
                                 },
                                 "height": {
                                     "type": "integer"
@@ -1383,19 +1358,19 @@
                                     "additionalProperties": false,
                                     "properties": {
                                         "hash": {
-                                            "items": {
-                                                "type": "integer"
+                                            "media": {
+                                                "binaryEncoding": "base64"
                                             },
-                                            "type": "array"
+                                            "type": "string"
                                         },
                                         "parts": {
                                             "additionalProperties": false,
                                             "properties": {
                                                 "hash": {
-                                                    "items": {
-                                                        "type": "integer"
+                                                    "media": {
+                                                        "binaryEncoding": "base64"
                                                     },
-                                                    "type": "array"
+                                                    "type": "string"
                                                 },
                                                 "total": {
                                                     "type": "integer"
@@ -1407,38 +1382,38 @@
                                     "type": "object"
                                 },
                                 "last_commit_hash": {
-                                    "items": {
-                                        "type": "integer"
+                                    "media": {
+                                        "binaryEncoding": "base64"
                                     },
-                                    "type": "array"
+                                    "type": "string"
                                 },
                                 "last_results_hash": {
-                                    "items": {
-                                        "type": "integer"
+                                    "media": {
+                                        "binaryEncoding": "base64"
                                     },
-                                    "type": "array"
+                                    "type": "string"
                                 },
                                 "next_validators_hash": {
-                                    "items": {
-                                        "type": "integer"
+                                    "media": {
+                                        "binaryEncoding": "base64"
                                     },
-                                    "type": "array"
+                                    "type": "string"
                                 },
                                 "proposer_address": {
-                                    "items": {
-                                        "type": "integer"
+                                    "media": {
+                                        "binaryEncoding": "base64"
                                     },
-                                    "type": "array"
+                                    "type": "string"
                                 },
                                 "time": {
                                     "format": "date-time",
                                     "type": "string"
                                 },
                                 "validators_hash": {
-                                    "items": {
-                                        "type": "integer"
+                                    "media": {
+                                        "binaryEncoding": "base64"
                                     },
-                                    "type": "array"
+                                    "type": "string"
                                 },
                                 "version": {
                                     "additionalProperties": false,
@@ -1462,10 +1437,10 @@
                                     "additionalProperties": false,
                                     "properties": {
                                         "address": {
-                                            "items": {
-                                                "type": "integer"
+                                            "media": {
+                                                "binaryEncoding": "base64"
                                             },
-                                            "type": "array"
+                                            "type": "string"
                                         },
                                         "proposer_priority": {
                                             "type": "integer"
@@ -1484,10 +1459,10 @@
                                         "additionalProperties": false,
                                         "properties": {
                                             "address": {
-                                                "items": {
-                                                    "type": "integer"
+                                                "media": {
+                                                    "binaryEncoding": "base64"
                                                 },
-                                                "type": "array"
+                                                "type": "string"
                                             },
                                             "proposer_priority": {
                                                 "type": "integer"
@@ -1619,19 +1594,19 @@
                                         "additionalProperties": false,
                                         "properties": {
                                             "hash": {
-                                                "items": {
-                                                    "type": "integer"
+                                                "media": {
+                                                    "binaryEncoding": "base64"
                                                 },
-                                                "type": "array"
+                                                "type": "string"
                                             },
                                             "parts": {
                                                 "additionalProperties": false,
                                                 "properties": {
                                                     "hash": {
-                                                        "items": {
-                                                            "type": "integer"
+                                                        "media": {
+                                                            "binaryEncoding": "base64"
                                                         },
-                                                        "type": "array"
+                                                        "type": "string"
                                                     },
                                                     "total": {
                                                         "type": "integer"
@@ -1666,10 +1641,10 @@
                                                     "type": "string"
                                                 },
                                                 "validator_address": {
-                                                    "items": {
-                                                        "type": "integer"
+                                                    "media": {
+                                                        "binaryEncoding": "base64"
                                                     },
-                                                    "type": "array"
+                                                    "type": "string"
                                                 }
                                             },
                                             "type": "object"
@@ -1707,31 +1682,31 @@
                                 "additionalProperties": false,
                                 "properties": {
                                     "app_hash": {
-                                        "items": {
-                                            "type": "integer"
+                                        "media": {
+                                            "binaryEncoding": "base64"
                                         },
-                                        "type": "array"
+                                        "type": "string"
                                     },
                                     "chain_id": {
                                         "type": "string"
                                     },
                                     "consensus_hash": {
-                                        "items": {
-                                            "type": "integer"
+                                        "media": {
+                                            "binaryEncoding": "base64"
                                         },
-                                        "type": "array"
+                                        "type": "string"
                                     },
                                     "data_hash": {
-                                        "items": {
-                                            "type": "integer"
+                                        "media": {
+                                            "binaryEncoding": "base64"
                                         },
-                                        "type": "array"
+                                        "type": "string"
                                     },
                                     "evidence_hash": {
-                                        "items": {
-                                            "type": "integer"
+                                        "media": {
+                                            "binaryEncoding": "base64"
                                         },
-                                        "type": "array"
+                                        "type": "string"
                                     },
                                     "height": {
                                         "type": "integer"
@@ -1740,19 +1715,19 @@
                                         "additionalProperties": false,
                                         "properties": {
                                             "hash": {
-                                                "items": {
-                                                    "type": "integer"
+                                                "media": {
+                                                    "binaryEncoding": "base64"
                                                 },
-                                                "type": "array"
+                                                "type": "string"
                                             },
                                             "parts": {
                                                 "additionalProperties": false,
                                                 "properties": {
                                                     "hash": {
-                                                        "items": {
-                                                            "type": "integer"
+                                                        "media": {
+                                                            "binaryEncoding": "base64"
                                                         },
-                                                        "type": "array"
+                                                        "type": "string"
                                                     },
                                                     "total": {
                                                         "type": "integer"
@@ -1764,38 +1739,38 @@
                                         "type": "object"
                                     },
                                     "last_commit_hash": {
-                                        "items": {
-                                            "type": "integer"
+                                        "media": {
+                                            "binaryEncoding": "base64"
                                         },
-                                        "type": "array"
+                                        "type": "string"
                                     },
                                     "last_results_hash": {
-                                        "items": {
-                                            "type": "integer"
+                                        "media": {
+                                            "binaryEncoding": "base64"
                                         },
-                                        "type": "array"
+                                        "type": "string"
                                     },
                                     "next_validators_hash": {
-                                        "items": {
-                                            "type": "integer"
+                                        "media": {
+                                            "binaryEncoding": "base64"
                                         },
-                                        "type": "array"
+                                        "type": "string"
                                     },
                                     "proposer_address": {
-                                        "items": {
-                                            "type": "integer"
+                                        "media": {
+                                            "binaryEncoding": "base64"
                                         },
-                                        "type": "array"
+                                        "type": "string"
                                     },
                                     "time": {
                                         "format": "date-time",
                                         "type": "string"
                                     },
                                     "validators_hash": {
-                                        "items": {
-                                            "type": "integer"
+                                        "media": {
+                                            "binaryEncoding": "base64"
                                         },
-                                        "type": "array"
+                                        "type": "string"
                                     },
                                     "version": {
                                         "additionalProperties": false,
@@ -1819,10 +1794,10 @@
                                         "additionalProperties": false,
                                         "properties": {
                                             "address": {
-                                                "items": {
-                                                    "type": "integer"
+                                                "media": {
+                                                    "binaryEncoding": "base64"
                                                 },
-                                                "type": "array"
+                                                "type": "string"
                                             },
                                             "proposer_priority": {
                                                 "type": "integer"
@@ -1841,10 +1816,10 @@
                                             "additionalProperties": false,
                                             "properties": {
                                                 "address": {
-                                                    "items": {
-                                                        "type": "integer"
+                                                    "media": {
+                                                        "binaryEncoding": "base64"
                                                     },
-                                                    "type": "array"
+                                                    "type": "string"
                                                 },
                                                 "proposer_priority": {
                                                     "type": "integer"
@@ -1984,19 +1959,19 @@
                                             "additionalProperties": false,
                                             "properties": {
                                                 "hash": {
-                                                    "items": {
-                                                        "type": "integer"
+                                                    "media": {
+                                                        "binaryEncoding": "base64"
                                                     },
-                                                    "type": "array"
+                                                    "type": "string"
                                                 },
                                                 "parts": {
                                                     "additionalProperties": false,
                                                     "properties": {
                                                         "hash": {
-                                                            "items": {
-                                                                "type": "integer"
+                                                            "media": {
+                                                                "binaryEncoding": "base64"
                                                             },
-                                                            "type": "array"
+                                                            "type": "string"
                                                         },
                                                         "total": {
                                                             "type": "integer"
@@ -2031,10 +2006,10 @@
                                                         "type": "string"
                                                     },
                                                     "validator_address": {
-                                                        "items": {
-                                                            "type": "integer"
+                                                        "media": {
+                                                            "binaryEncoding": "base64"
                                                         },
-                                                        "type": "array"
+                                                        "type": "string"
                                                     }
                                                 },
                                                 "type": "object"
@@ -2072,31 +2047,31 @@
                                     "additionalProperties": false,
                                     "properties": {
                                         "app_hash": {
-                                            "items": {
-                                                "type": "integer"
+                                            "media": {
+                                                "binaryEncoding": "base64"
                                             },
-                                            "type": "array"
+                                            "type": "string"
                                         },
                                         "chain_id": {
                                             "type": "string"
                                         },
                                         "consensus_hash": {
-                                            "items": {
-                                                "type": "integer"
+                                            "media": {
+                                                "binaryEncoding": "base64"
                                             },
-                                            "type": "array"
+                                            "type": "string"
                                         },
                                         "data_hash": {
-                                            "items": {
-                                                "type": "integer"
+                                            "media": {
+                                                "binaryEncoding": "base64"
                                             },
-                                            "type": "array"
+                                            "type": "string"
                                         },
                                         "evidence_hash": {
-                                            "items": {
-                                                "type": "integer"
+                                            "media": {
+                                                "binaryEncoding": "base64"
                                             },
-                                            "type": "array"
+                                            "type": "string"
                                         },
                                         "height": {
                                             "type": "integer"
@@ -2105,19 +2080,19 @@
                                             "additionalProperties": false,
                                             "properties": {
                                                 "hash": {
-                                                    "items": {
-                                                        "type": "integer"
+                                                    "media": {
+                                                        "binaryEncoding": "base64"
                                                     },
-                                                    "type": "array"
+                                                    "type": "string"
                                                 },
                                                 "parts": {
                                                     "additionalProperties": false,
                                                     "properties": {
                                                         "hash": {
-                                                            "items": {
-                                                                "type": "integer"
+                                                            "media": {
+                                                                "binaryEncoding": "base64"
                                                             },
-                                                            "type": "array"
+                                                            "type": "string"
                                                         },
                                                         "total": {
                                                             "type": "integer"
@@ -2129,38 +2104,38 @@
                                             "type": "object"
                                         },
                                         "last_commit_hash": {
-                                            "items": {
-                                                "type": "integer"
+                                            "media": {
+                                                "binaryEncoding": "base64"
                                             },
-                                            "type": "array"
+                                            "type": "string"
                                         },
                                         "last_results_hash": {
-                                            "items": {
-                                                "type": "integer"
+                                            "media": {
+                                                "binaryEncoding": "base64"
                                             },
-                                            "type": "array"
+                                            "type": "string"
                                         },
                                         "next_validators_hash": {
-                                            "items": {
-                                                "type": "integer"
+                                            "media": {
+                                                "binaryEncoding": "base64"
                                             },
-                                            "type": "array"
+                                            "type": "string"
                                         },
                                         "proposer_address": {
-                                            "items": {
-                                                "type": "integer"
+                                            "media": {
+                                                "binaryEncoding": "base64"
                                             },
-                                            "type": "array"
+                                            "type": "string"
                                         },
                                         "time": {
                                             "format": "date-time",
                                             "type": "string"
                                         },
                                         "validators_hash": {
-                                            "items": {
-                                                "type": "integer"
+                                            "media": {
+                                                "binaryEncoding": "base64"
                                             },
-                                            "type": "array"
+                                            "type": "string"
                                         },
                                         "version": {
                                             "additionalProperties": false,
@@ -2184,10 +2159,10 @@
                                             "additionalProperties": false,
                                             "properties": {
                                                 "address": {
-                                                    "items": {
-                                                        "type": "integer"
+                                                    "media": {
+                                                        "binaryEncoding": "base64"
                                                     },
-                                                    "type": "array"
+                                                    "type": "string"
                                                 },
                                                 "proposer_priority": {
                                                     "type": "integer"
@@ -2206,10 +2181,10 @@
                                                 "additionalProperties": false,
                                                 "properties": {
                                                     "address": {
-                                                        "items": {
-                                                            "type": "integer"
+                                                        "media": {
+                                                            "binaryEncoding": "base64"
                                                         },
-                                                        "type": "array"
+                                                        "type": "string"
                                                     },
                                                     "proposer_priority": {
                                                         "type": "integer"
@@ -2346,19 +2321,19 @@
                                     "additionalProperties": false,
                                     "properties": {
                                         "hash": {
-                                            "items": {
-                                                "type": "integer"
+                                            "media": {
+                                                "binaryEncoding": "base64"
                                             },
-                                            "type": "array"
+                                            "type": "string"
                                         },
                                         "parts": {
                                             "additionalProperties": false,
                                             "properties": {
                                                 "hash": {
-                                                    "items": {
-                                                        "type": "integer"
+                                                    "media": {
+                                                        "binaryEncoding": "base64"
                                                     },
-                                                    "type": "array"
+                                                    "type": "string"
                                                 },
                                                 "total": {
                                                     "type": "integer"
@@ -2393,10 +2368,10 @@
                                                 "type": "string"
                                             },
                                             "validator_address": {
-                                                "items": {
-                                                    "type": "integer"
+                                                "media": {
+                                                    "binaryEncoding": "base64"
                                                 },
-                                                "type": "array"
+                                                "type": "string"
                                             }
                                         },
                                         "type": "object"
@@ -2434,31 +2409,31 @@
                             "additionalProperties": false,
                             "properties": {
                                 "app_hash": {
-                                    "items": {
-                                        "type": "integer"
+                                    "media": {
+                                        "binaryEncoding": "base64"
                                     },
-                                    "type": "array"
+                                    "type": "string"
                                 },
                                 "chain_id": {
                                     "type": "string"
                                 },
                                 "consensus_hash": {
-                                    "items": {
-                                        "type": "integer"
+                                    "media": {
+                                        "binaryEncoding": "base64"
                                     },
-                                    "type": "array"
+                                    "type": "string"
                                 },
                                 "data_hash": {
-                                    "items": {
-                                        "type": "integer"
+                                    "media": {
+                                        "binaryEncoding": "base64"
                                     },
-                                    "type": "array"
+                                    "type": "string"
                                 },
                                 "evidence_hash": {
-                                    "items": {
-                                        "type": "integer"
+                                    "media": {
+                                        "binaryEncoding": "base64"
                                     },
-                                    "type": "array"
+                                    "type": "string"
                                 },
                                 "height": {
                                     "type": "integer"
@@ -2467,19 +2442,19 @@
                                     "additionalProperties": false,
                                     "properties": {
                                         "hash": {
-                                            "items": {
-                                                "type": "integer"
+                                            "media": {
+                                                "binaryEncoding": "base64"
                                             },
-                                            "type": "array"
+                                            "type": "string"
                                         },
                                         "parts": {
                                             "additionalProperties": false,
                                             "properties": {
                                                 "hash": {
-                                                    "items": {
-                                                        "type": "integer"
+                                                    "media": {
+                                                        "binaryEncoding": "base64"
                                                     },
-                                                    "type": "array"
+                                                    "type": "string"
                                                 },
                                                 "total": {
                                                     "type": "integer"
@@ -2491,38 +2466,38 @@
                                     "type": "object"
                                 },
                                 "last_commit_hash": {
-                                    "items": {
-                                        "type": "integer"
+                                    "media": {
+                                        "binaryEncoding": "base64"
                                     },
-                                    "type": "array"
+                                    "type": "string"
                                 },
                                 "last_results_hash": {
-                                    "items": {
-                                        "type": "integer"
+                                    "media": {
+                                        "binaryEncoding": "base64"
                                     },
-                                    "type": "array"
+                                    "type": "string"
                                 },
                                 "next_validators_hash": {
-                                    "items": {
-                                        "type": "integer"
+                                    "media": {
+                                        "binaryEncoding": "base64"
                                     },
-                                    "type": "array"
+                                    "type": "string"
                                 },
                                 "proposer_address": {
-                                    "items": {
-                                        "type": "integer"
+                                    "media": {
+                                        "binaryEncoding": "base64"
                                     },
-                                    "type": "array"
+                                    "type": "string"
                                 },
                                 "time": {
                                     "format": "date-time",
                                     "type": "string"
                                 },
                                 "validators_hash": {
-                                    "items": {
-                                        "type": "integer"
+                                    "media": {
+                                        "binaryEncoding": "base64"
                                     },
-                                    "type": "array"
+                                    "type": "string"
                                 },
                                 "version": {
                                     "additionalProperties": false,
@@ -2546,10 +2521,10 @@
                                     "additionalProperties": false,
                                     "properties": {
                                         "address": {
-                                            "items": {
-                                                "type": "integer"
+                                            "media": {
+                                                "binaryEncoding": "base64"
                                             },
-                                            "type": "array"
+                                            "type": "string"
                                         },
                                         "proposer_priority": {
                                             "type": "integer"
@@ -2568,10 +2543,10 @@
                                         "additionalProperties": false,
                                         "properties": {
                                             "address": {
-                                                "items": {
-                                                    "type": "integer"
+                                                "media": {
+                                                    "binaryEncoding": "base64"
                                                 },
-                                                "type": "array"
+                                                "type": "string"
                                             },
                                             "proposer_priority": {
                                                 "type": "integer"
@@ -2703,19 +2678,19 @@
                                     "additionalProperties": false,
                                     "properties": {
                                         "hash": {
-                                            "items": {
-                                                "type": "integer"
+                                            "media": {
+                                                "binaryEncoding": "base64"
                                             },
-                                            "type": "array"
+                                            "type": "string"
                                         },
                                         "parts": {
                                             "additionalProperties": false,
                                             "properties": {
                                                 "hash": {
-                                                    "items": {
-                                                        "type": "integer"
+                                                    "media": {
+                                                        "binaryEncoding": "base64"
                                                     },
-                                                    "type": "array"
+                                                    "type": "string"
                                                 },
                                                 "total": {
                                                     "type": "integer"
@@ -2750,10 +2725,10 @@
                                                 "type": "string"
                                             },
                                             "validator_address": {
-                                                "items": {
-                                                    "type": "integer"
+                                                "media": {
+                                                    "binaryEncoding": "base64"
                                                 },
-                                                "type": "array"
+                                                "type": "string"
                                             }
                                         },
                                         "type": "object"
@@ -2791,31 +2766,31 @@
                             "additionalProperties": false,
                             "properties": {
                                 "app_hash": {
-                                    "items": {
-                                        "type": "integer"
+                                    "media": {
+                                        "binaryEncoding": "base64"
                                     },
-                                    "type": "array"
+                                    "type": "string"
                                 },
                                 "chain_id": {
                                     "type": "string"
                                 },
                                 "consensus_hash": {
-                                    "items": {
-                                        "type": "integer"
+                                    "media": {
+                                        "binaryEncoding": "base64"
                                     },
-                                    "type": "array"
+                                    "type": "string"
                                 },
                                 "data_hash": {
-                                    "items": {
-                                        "type": "integer"
+                                    "media": {
+                                        "binaryEncoding": "base64"
                                     },
-                                    "type": "array"
+                                    "type": "string"
                                 },
                                 "evidence_hash": {
-                                    "items": {
-                                        "type": "integer"
+                                    "media": {
+                                        "binaryEncoding": "base64"
                                     },
-                                    "type": "array"
+                                    "type": "string"
                                 },
                                 "height": {
                                     "type": "integer"
@@ -2824,19 +2799,19 @@
                                     "additionalProperties": false,
                                     "properties": {
                                         "hash": {
-                                            "items": {
-                                                "type": "integer"
+                                            "media": {
+                                                "binaryEncoding": "base64"
                                             },
-                                            "type": "array"
+                                            "type": "string"
                                         },
                                         "parts": {
                                             "additionalProperties": false,
                                             "properties": {
                                                 "hash": {
-                                                    "items": {
-                                                        "type": "integer"
+                                                    "media": {
+                                                        "binaryEncoding": "base64"
                                                     },
-                                                    "type": "array"
+                                                    "type": "string"
                                                 },
                                                 "total": {
                                                     "type": "integer"
@@ -2848,38 +2823,38 @@
                                     "type": "object"
                                 },
                                 "last_commit_hash": {
-                                    "items": {
-                                        "type": "integer"
+                                    "media": {
+                                        "binaryEncoding": "base64"
                                     },
-                                    "type": "array"
+                                    "type": "string"
                                 },
                                 "last_results_hash": {
-                                    "items": {
-                                        "type": "integer"
+                                    "media": {
+                                        "binaryEncoding": "base64"
                                     },
-                                    "type": "array"
+                                    "type": "string"
                                 },
                                 "next_validators_hash": {
-                                    "items": {
-                                        "type": "integer"
+                                    "media": {
+                                        "binaryEncoding": "base64"
                                     },
-                                    "type": "array"
+                                    "type": "string"
                                 },
                                 "proposer_address": {
-                                    "items": {
-                                        "type": "integer"
+                                    "media": {
+                                        "binaryEncoding": "base64"
                                     },
-                                    "type": "array"
+                                    "type": "string"
                                 },
                                 "time": {
                                     "format": "date-time",
                                     "type": "string"
                                 },
                                 "validators_hash": {
-                                    "items": {
-                                        "type": "integer"
+                                    "media": {
+                                        "binaryEncoding": "base64"
                                     },
-                                    "type": "array"
+                                    "type": "string"
                                 },
                                 "version": {
                                     "additionalProperties": false,
@@ -2903,10 +2878,10 @@
                                     "additionalProperties": false,
                                     "properties": {
                                         "address": {
-                                            "items": {
-                                                "type": "integer"
+                                            "media": {
+                                                "binaryEncoding": "base64"
                                             },
-                                            "type": "array"
+                                            "type": "string"
                                         },
                                         "proposer_priority": {
                                             "type": "integer"
@@ -2925,10 +2900,10 @@
                                         "additionalProperties": false,
                                         "properties": {
                                             "address": {
-                                                "items": {
-                                                    "type": "integer"
+                                                "media": {
+                                                    "binaryEncoding": "base64"
                                                 },
-                                                "type": "array"
+                                                "type": "string"
                                             },
                                             "proposer_priority": {
                                                 "type": "integer"
@@ -2999,52 +2974,52 @@
                 "schema": {
                     "examples": [
                         {
-                            "ID": 42,
-                            "Height": 42,
-                            "FromHeight": 42,
-                            "ToHeight": 42,
-                            "FromHash": "07",
-                            "ToHash": "07",
-                            "Start": "0001-01-01T00:00:00Z",
-                            "End": "0001-01-01T00:00:00Z",
-                            "Error": {}
+                            "id": 42,
+                            "height": 42,
+                            "from_height": 42,
+                            "to_height": 42,
+                            "from_hash": "07",
+                            "to_hash": "07",
+                            "start": "0001-01-01T00:00:00Z",
+                            "end": "0001-01-01T00:00:00Z",
+                            "error": "string value"
                         }
                     ],
                     "additionalProperties": false,
                     "properties": {
-                        "End": {
+                        "end": {
                             "format": "date-time",
                             "type": "string"
                         },
-                        "Error": {
-                            "additionalProperties": true
+                        "error": {
+                            "type": "string"
                         },
-                        "FromHash": {
-                            "items": {
-                                "type": "integer"
+                        "from_hash": {
+                            "media": {
+                                "binaryEncoding": "base64"
                             },
-                            "type": "array"
+                            "type": "string"
                         },
-                        "FromHeight": {
+                        "from_height": {
                             "type": "integer"
                         },
-                        "Height": {
+                        "height": {
                             "type": "integer"
                         },
-                        "ID": {
+                        "id": {
                             "type": "integer"
                         },
-                        "Start": {
+                        "start": {
                             "format": "date-time",
                             "type": "string"
                         },
-                        "ToHash": {
-                            "items": {
-                                "type": "integer"
+                        "to_hash": {
+                            "media": {
+                                "binaryEncoding": "base64"
                             },
-                            "type": "array"
+                            "type": "string"
                         },
-                        "ToHeight": {
+                        "to_height": {
                             "type": "integer"
                         }
                     },
@@ -3199,19 +3174,19 @@
                                     "additionalProperties": false,
                                     "properties": {
                                         "hash": {
-                                            "items": {
-                                                "type": "integer"
+                                            "media": {
+                                                "binaryEncoding": "base64"
                                             },
-                                            "type": "array"
+                                            "type": "string"
                                         },
                                         "parts": {
                                             "additionalProperties": false,
                                             "properties": {
                                                 "hash": {
-                                                    "items": {
-                                                        "type": "integer"
+                                                    "media": {
+                                                        "binaryEncoding": "base64"
                                                     },
-                                                    "type": "array"
+                                                    "type": "string"
                                                 },
                                                 "total": {
                                                     "type": "integer"
@@ -3246,10 +3221,10 @@
                                                 "type": "string"
                                             },
                                             "validator_address": {
-                                                "items": {
-                                                    "type": "integer"
+                                                "media": {
+                                                    "binaryEncoding": "base64"
                                                 },
-                                                "type": "array"
+                                                "type": "string"
                                             }
                                         },
                                         "type": "object"
@@ -3287,31 +3262,31 @@
                             "additionalProperties": false,
                             "properties": {
                                 "app_hash": {
-                                    "items": {
-                                        "type": "integer"
+                                    "media": {
+                                        "binaryEncoding": "base64"
                                     },
-                                    "type": "array"
+                                    "type": "string"
                                 },
                                 "chain_id": {
                                     "type": "string"
                                 },
                                 "consensus_hash": {
-                                    "items": {
-                                        "type": "integer"
+                                    "media": {
+                                        "binaryEncoding": "base64"
                                     },
-                                    "type": "array"
+                                    "type": "string"
                                 },
                                 "data_hash": {
-                                    "items": {
-                                        "type": "integer"
+                                    "media": {
+                                        "binaryEncoding": "base64"
                                     },
-                                    "type": "array"
+                                    "type": "string"
                                 },
                                 "evidence_hash": {
-                                    "items": {
-                                        "type": "integer"
+                                    "media": {
+                                        "binaryEncoding": "base64"
                                     },
-                                    "type": "array"
+                                    "type": "string"
                                 },
                                 "height": {
                                     "type": "integer"
@@ -3320,19 +3295,19 @@
                                     "additionalProperties": false,
                                     "properties": {
                                         "hash": {
-                                            "items": {
-                                                "type": "integer"
+                                            "media": {
+                                                "binaryEncoding": "base64"
                                             },
-                                            "type": "array"
+                                            "type": "string"
                                         },
                                         "parts": {
                                             "additionalProperties": false,
                                             "properties": {
                                                 "hash": {
-                                                    "items": {
-                                                        "type": "integer"
+                                                    "media": {
+                                                        "binaryEncoding": "base64"
                                                     },
-                                                    "type": "array"
+                                                    "type": "string"
                                                 },
                                                 "total": {
                                                     "type": "integer"
@@ -3344,38 +3319,38 @@
                                     "type": "object"
                                 },
                                 "last_commit_hash": {
-                                    "items": {
-                                        "type": "integer"
+                                    "media": {
+                                        "binaryEncoding": "base64"
                                     },
-                                    "type": "array"
+                                    "type": "string"
                                 },
                                 "last_results_hash": {
-                                    "items": {
-                                        "type": "integer"
+                                    "media": {
+                                        "binaryEncoding": "base64"
                                     },
-                                    "type": "array"
+                                    "type": "string"
                                 },
                                 "next_validators_hash": {
-                                    "items": {
-                                        "type": "integer"
+                                    "media": {
+                                        "binaryEncoding": "base64"
                                     },
-                                    "type": "array"
+                                    "type": "string"
                                 },
                                 "proposer_address": {
-                                    "items": {
-                                        "type": "integer"
+                                    "media": {
+                                        "binaryEncoding": "base64"
                                     },
-                                    "type": "array"
+                                    "type": "string"
                                 },
                                 "time": {
                                     "format": "date-time",
                                     "type": "string"
                                 },
                                 "validators_hash": {
-                                    "items": {
-                                        "type": "integer"
+                                    "media": {
+                                        "binaryEncoding": "base64"
                                     },
-                                    "type": "array"
+                                    "type": "string"
                                 },
                                 "version": {
                                     "additionalProperties": false,
@@ -3399,10 +3374,10 @@
                                     "additionalProperties": false,
                                     "properties": {
                                         "address": {
-                                            "items": {
-                                                "type": "integer"
+                                            "media": {
+                                                "binaryEncoding": "base64"
                                             },
-                                            "type": "array"
+                                            "type": "string"
                                         },
                                         "proposer_priority": {
                                             "type": "integer"
@@ -3421,10 +3396,10 @@
                                         "additionalProperties": false,
                                         "properties": {
                                             "address": {
-                                                "items": {
-                                                    "type": "integer"
+                                                "media": {
+                                                    "binaryEncoding": "base64"
                                                 },
-                                                "type": "array"
+                                                "type": "string"
                                             },
                                             "proposer_priority": {
                                                 "type": "integer"
@@ -3489,12 +3464,12 @@
                 }
             ],
             "result": {
-                "name": "[]byte",
-                "description": "[]byte",
+                "name": "string",
+                "description": "string",
                 "summary": "",
                 "schema": {
                     "examples": [
-                        "Ynl0ZSBhcnJheQ=="
+                        "string value"
                     ],
                     "type": [
                         "string"
@@ -4461,7 +4436,7 @@
                                 }
                             },
                             "Peers": {
-                                "12D3KooWPRb5h3g9MH7sx9qfbSQZG5cXv1a2Qs3o4aW5YmmzPq82": {
+                                "\u0000$\u0008\u0001\u0012 \ufffd-\ufffd\ufffd\u0026\ufffd\ufffdY\ufffdk\ufffd\u000e\u0011\ufffdS\ufffdRM\u0013\ufffd\u0015\ufffd\ufffd$\ufffd\ufffd\ufffd\ufffd*\ufffd\u0002W": {
                                     "NumStreamsInbound": 1,
                                     "NumStreamsOutbound": 3,
                                     "NumConnsInbound": 0,
@@ -4797,7 +4772,7 @@
             "deprecated": false,
             "externalDocs": {
                 "description": "Source of the default service's implementation of this method.",
-                "url": "https://github.com/celestiaorg/celestia-node/blob/main/nodebuilder/share/share.go#L81"
+                "url": "https://github.com/celestiaorg/celestia-node/blob/main/nodebuilder/share/share.go#L80"
             }
         },
         {
@@ -4898,7 +4873,7 @@
             "deprecated": false,
             "externalDocs": {
                 "description": "Source of the default service's implementation of this method.",
-                "url": "https://github.com/celestiaorg/celestia-node/blob/main/nodebuilder/share/share.go#L77"
+                "url": "https://github.com/celestiaorg/celestia-node/blob/main/nodebuilder/share/share.go#L76"
             }
         },
         {
@@ -4952,21 +4927,14 @@
                 },
                 {
                     "name": "namespace",
-                    "description": "namespace.ID",
+                    "description": "share.Namespace",
                     "summary": "",
                     "schema": {
                         "examples": [
-                            "Bw=="
-                        ],
-                        "items": [
-                            {
-                                "type": [
-                                    "integer"
-                                ]
-                            }
+                            "AAAAAAAAAAAAAAAAAAAAAAAAAAECAwQFBgcICRA="
                         ],
                         "type": [
-                            "array"
+                            "string"
                         ]
                     },
                     "required": true,
@@ -4981,10 +4949,16 @@
                     "examples": [
                         [
                             {
-                                "Shares": [
+                                "shares": [
                                     "Ynl0ZSBhcnJheQ=="
                                 ],
-                                "Proof": {}
+                                "proof": {
+                                    "start": 0,
+                                    "end": 0,
+                                    "nodes": null,
+                                    "leaf_hash": null,
+                                    "is_max_namespace_id_ignored": false
+                                }
                             }
                         ]
                     ],
@@ -4992,11 +4966,11 @@
                         {
                             "additionalProperties": false,
                             "properties": {
-                                "Proof": {
+                                "proof": {
                                     "additionalProperties": false,
                                     "type": "object"
                                 },
-                                "Shares": {
+                                "shares": {
                                     "items": {
                                         "media": {
                                             "binaryEncoding": "base64"
@@ -5021,7 +4995,7 @@
             "deprecated": false,
             "externalDocs": {
                 "description": "Source of the default service's implementation of this method.",
-                "url": "https://github.com/celestiaorg/celestia-node/blob/main/nodebuilder/share/share.go#L85"
+                "url": "https://github.com/celestiaorg/celestia-node/blob/main/nodebuilder/share/share.go#L84"
             }
         },
         {
@@ -5048,7 +5022,7 @@
             "deprecated": false,
             "externalDocs": {
                 "description": "Source of the default service's implementation of this method.",
-                "url": "https://github.com/celestiaorg/celestia-node/blob/main/nodebuilder/share/share.go#L73"
+                "url": "https://github.com/celestiaorg/celestia-node/blob/main/nodebuilder/share/share.go#L72"
             }
         },
         {
@@ -5115,7 +5089,7 @@
             "deprecated": false,
             "externalDocs": {
                 "description": "Source of the default service's implementation of this method.",
-                "url": "https://github.com/celestiaorg/celestia-node/blob/main/nodebuilder/share/share.go#L69"
+                "url": "https://github.com/celestiaorg/celestia-node/blob/main/nodebuilder/share/share.go#L68"
             }
         },
         {
@@ -5132,7 +5106,10 @@
                     "examples": [
                         "celestia1377k5an3f94v6wyaceu0cf4nq6gk2jtpc46g7h"
                     ],
-                    "additionalProperties": true
+                    "additionalProperties": false,
+                    "type": [
+                        "object"
+                    ]
                 },
                 "required": true,
                 "deprecated": false
@@ -5140,7 +5117,7 @@
             "deprecated": false,
             "externalDocs": {
                 "description": "Source of the default service's implementation of this method.",
-                "url": "https://github.com/celestiaorg/celestia-node/blob/main/nodebuilder/state/state.go#L165"
+                "url": "https://github.com/celestiaorg/celestia-node/blob/main/nodebuilder/state/state.go#L166"
             }
         },
         {
@@ -5180,7 +5157,7 @@
             "deprecated": false,
             "externalDocs": {
                 "description": "Source of the default service's implementation of this method.",
-                "url": "https://github.com/celestiaorg/celestia-node/blob/main/nodebuilder/state/state.go#L259"
+                "url": "https://github.com/celestiaorg/celestia-node/blob/main/nodebuilder/state/state.go#L260"
             }
         },
         {
@@ -5197,7 +5174,10 @@
                         "examples": [
                             "celestia1377k5an3f94v6wyaceu0cf4nq6gk2jtpc46g7h"
                         ],
-                        "additionalProperties": true
+                        "additionalProperties": false,
+                        "type": [
+                            "object"
+                        ]
                     },
                     "required": true,
                     "deprecated": false
@@ -5234,7 +5214,7 @@
             "deprecated": false,
             "externalDocs": {
                 "description": "Source of the default service's implementation of this method.",
-                "url": "https://github.com/celestiaorg/celestia-node/blob/main/nodebuilder/state/state.go#L173"
+                "url": "https://github.com/celestiaorg/celestia-node/blob/main/nodebuilder/state/state.go#L174"
             }
         },
         {
@@ -5251,15 +5231,8 @@
                         "examples": [
                             "celestiavaloper1q3v5cugc8cdpud87u4zwy0a74uxkk6u4q4gx4p"
                         ],
-                        "items": [
-                            {
-                                "type": [
-                                    "integer"
-                                ]
-                            }
-                        ],
                         "type": [
-                            "array"
+                            "string"
                         ]
                     },
                     "required": true,
@@ -5273,15 +5246,8 @@
                         "examples": [
                             "celestiavaloper1q3v5cugc8cdpud87u4zwy0a74uxkk6u4q4gx4p"
                         ],
-                        "items": [
-                            {
-                                "type": [
-                                    "integer"
-                                ]
-                            }
-                        ],
                         "type": [
-                            "array"
+                            "string"
                         ]
                     },
                     "required": true,
@@ -5665,7 +5631,7 @@
             "deprecated": false,
             "externalDocs": {
                 "description": "Source of the default service's implementation of this method.",
-                "url": "https://github.com/celestiaorg/celestia-node/blob/main/nodebuilder/state/state.go#L211"
+                "url": "https://github.com/celestiaorg/celestia-node/blob/main/nodebuilder/state/state.go#L212"
             }
         },
         {
@@ -5682,15 +5648,8 @@
                         "examples": [
                             "celestiavaloper1q3v5cugc8cdpud87u4zwy0a74uxkk6u4q4gx4p"
                         ],
-                        "items": [
-                            {
-                                "type": [
-                                    "integer"
-                                ]
-                            }
-                        ],
                         "type": [
-                            "array"
+                            "string"
                         ]
                     },
                     "required": true,
@@ -6090,7 +6049,7 @@
             "deprecated": false,
             "externalDocs": {
                 "description": "Source of the default service's implementation of this method.",
-                "url": "https://github.com/celestiaorg/celestia-node/blob/main/nodebuilder/state/state.go#L200"
+                "url": "https://github.com/celestiaorg/celestia-node/blob/main/nodebuilder/state/state.go#L201"
             }
         },
         {
@@ -6107,15 +6066,8 @@
                         "examples": [
                             "celestiavaloper1q3v5cugc8cdpud87u4zwy0a74uxkk6u4q4gx4p"
                         ],
-                        "items": [
-                            {
-                                "type": [
-                                    "integer"
-                                ]
-                            }
-                        ],
                         "type": [
-                            "array"
+                            "string"
                         ]
                     },
                     "required": true,
@@ -6499,7 +6451,7 @@
             "deprecated": false,
             "externalDocs": {
                 "description": "Source of the default service's implementation of this method.",
-                "url": "https://github.com/celestiaorg/celestia-node/blob/main/nodebuilder/state/state.go#L231"
+                "url": "https://github.com/celestiaorg/celestia-node/blob/main/nodebuilder/state/state.go#L232"
             }
         },
         {
@@ -6526,7 +6478,7 @@
             "deprecated": false,
             "externalDocs": {
                 "description": "Source of the default service's implementation of this method.",
-                "url": "https://github.com/celestiaorg/celestia-node/blob/main/nodebuilder/state/state.go#L169"
+                "url": "https://github.com/celestiaorg/celestia-node/blob/main/nodebuilder/state/state.go#L170"
             }
         },
         {
@@ -6543,15 +6495,8 @@
                         "examples": [
                             "celestiavaloper1q3v5cugc8cdpud87u4zwy0a74uxkk6u4q4gx4p"
                         ],
-                        "items": [
-                            {
-                                "type": [
-                                    "integer"
-                                ]
-                            }
-                        ],
                         "type": [
-                            "array"
+                            "string"
                         ]
                     },
                     "required": true,
@@ -6626,7 +6571,7 @@
             "deprecated": false,
             "externalDocs": {
                 "description": "Source of the default service's implementation of this method.",
-                "url": "https://github.com/celestiaorg/celestia-node/blob/main/nodebuilder/state/state.go#L241"
+                "url": "https://github.com/celestiaorg/celestia-node/blob/main/nodebuilder/state/state.go#L242"
             }
         },
         {
@@ -6643,15 +6588,8 @@
                         "examples": [
                             "celestiavaloper1q3v5cugc8cdpud87u4zwy0a74uxkk6u4q4gx4p"
                         ],
-                        "items": [
-                            {
-                                "type": [
-                                    "integer"
-                                ]
-                            }
-                        ],
                         "type": [
-                            "array"
+                            "string"
                         ]
                     },
                     "required": true,
@@ -6665,15 +6603,8 @@
                         "examples": [
                             "celestiavaloper1q3v5cugc8cdpud87u4zwy0a74uxkk6u4q4gx4p"
                         ],
-                        "items": [
-                            {
-                                "type": [
-                                    "integer"
-                                ]
-                            }
-                        ],
                         "type": [
-                            "array"
+                            "string"
                         ]
                     },
                     "required": true,
@@ -6831,7 +6762,7 @@
             "deprecated": false,
             "externalDocs": {
                 "description": "Source of the default service's implementation of this method.",
-                "url": "https://github.com/celestiaorg/celestia-node/blob/main/nodebuilder/state/state.go#L252"
+                "url": "https://github.com/celestiaorg/celestia-node/blob/main/nodebuilder/state/state.go#L253"
             }
         },
         {
@@ -6848,15 +6779,8 @@
                         "examples": [
                             "celestiavaloper1q3v5cugc8cdpud87u4zwy0a74uxkk6u4q4gx4p"
                         ],
-                        "items": [
-                            {
-                                "type": [
-                                    "integer"
-                                ]
-                            }
-                        ],
                         "type": [
-                            "array"
+                            "string"
                         ]
                     },
                     "required": true,
@@ -6933,7 +6857,7 @@
             "deprecated": false,
             "externalDocs": {
                 "description": "Source of the default service's implementation of this method.",
-                "url": "https://github.com/celestiaorg/celestia-node/blob/main/nodebuilder/state/state.go#L245"
+                "url": "https://github.com/celestiaorg/celestia-node/blob/main/nodebuilder/state/state.go#L246"
             }
         },
         {
@@ -6975,16 +6899,16 @@
                 },
                 {
                     "name": "blobs",
-                    "description": "[]*apptypes.Blob",
+                    "description": "[]*blob.Blob",
                     "summary": "",
                     "schema": {
                         "examples": [
                             [
                                 {
-                                    "namespace_id": "Ynl0ZSBhcnJheQ==",
-                                    "data": "Ynl0ZSBhcnJheQ==",
-                                    "share_version": 42,
-                                    "namespace_version": 42
+                                    "namespace": "AAAAAAAAAAAAAAAAAAAAAAAAAAECAwQFBgcICRA=",
+                                    "data": "VGhpcyBpcyBhbiBleGFtcGxlIG9mIHNvbWUgYmxvYiBkYXRh",
+                                    "share_version": 0,
+                                    "commitment": "AD5EzbG0/EMvpw0p8NIjMVnoCP4Bv6K+V6gjmwdXUKU="
                                 }
                             ]
                         ],
@@ -6992,23 +6916,24 @@
                             {
                                 "additionalProperties": false,
                                 "properties": {
-                                    "data": {
+                                    "blob": {
+                                        "additionalProperties": false,
+                                        "properties": {
+                                            "blob": {},
+                                            "commitment": {
+                                                "media": {
+                                                    "binaryEncoding": "base64"
+                                                },
+                                                "type": "string"
+                                            }
+                                        },
+                                        "type": "object"
+                                    },
+                                    "commitment": {
                                         "media": {
                                             "binaryEncoding": "base64"
                                         },
                                         "type": "string"
-                                    },
-                                    "namespace_id": {
-                                        "media": {
-                                            "binaryEncoding": "base64"
-                                        },
-                                        "type": "string"
-                                    },
-                                    "namespace_version": {
-                                        "type": "integer"
-                                    },
-                                    "share_version": {
-                                        "type": "integer"
                                     }
                                 },
                                 "type": [
@@ -7354,7 +7279,7 @@
             "deprecated": false,
             "externalDocs": {
                 "description": "Source of the default service's implementation of this method.",
-                "url": "https://github.com/celestiaorg/celestia-node/blob/main/nodebuilder/state/state.go#L191"
+                "url": "https://github.com/celestiaorg/celestia-node/blob/main/nodebuilder/state/state.go#L192"
             }
         },
         {
@@ -7371,15 +7296,8 @@
                         "examples": [
                             "Bw=="
                         ],
-                        "items": [
-                            {
-                                "type": [
-                                    "integer"
-                                ]
-                            }
-                        ],
                         "type": [
-                            "array"
+                            "string"
                         ]
                     },
                     "required": true,
@@ -7716,7 +7634,7 @@
             "deprecated": false,
             "externalDocs": {
                 "description": "Source of the default service's implementation of this method.",
-                "url": "https://github.com/celestiaorg/celestia-node/blob/main/nodebuilder/state/state.go#L187"
+                "url": "https://github.com/celestiaorg/celestia-node/blob/main/nodebuilder/state/state.go#L188"
             }
         },
         {
@@ -7733,15 +7651,8 @@
                         "examples": [
                             "celestia1377k5an3f94v6wyaceu0cf4nq6gk2jtpc46g7h"
                         ],
-                        "items": [
-                            {
-                                "type": [
-                                    "integer"
-                                ]
-                            }
-                        ],
                         "type": [
-                            "array"
+                            "string"
                         ]
                     },
                     "required": true,
@@ -8125,7 +8036,7 @@
             "deprecated": false,
             "externalDocs": {
                 "description": "Source of the default service's implementation of this method.",
-                "url": "https://github.com/celestiaorg/celestia-node/blob/main/nodebuilder/state/state.go#L177"
+                "url": "https://github.com/celestiaorg/celestia-node/blob/main/nodebuilder/state/state.go#L178"
             }
         },
         {
@@ -8142,15 +8053,8 @@
                         "examples": [
                             "celestiavaloper1q3v5cugc8cdpud87u4zwy0a74uxkk6u4q4gx4p"
                         ],
-                        "items": [
-                            {
-                                "type": [
-                                    "integer"
-                                ]
-                            }
-                        ],
                         "type": [
-                            "array"
+                            "string"
                         ]
                     },
                     "required": true,
@@ -8534,7 +8438,7 @@
             "deprecated": false,
             "externalDocs": {
                 "description": "Source of the default service's implementation of this method.",
-                "url": "https://github.com/celestiaorg/celestia-node/blob/main/nodebuilder/state/state.go#L221"
+                "url": "https://github.com/celestiaorg/celestia-node/blob/main/nodebuilder/state/state.go#L222"
             }
         }
     ]
