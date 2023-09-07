@@ -178,7 +178,6 @@ func (s *Store) gc(ctx context.Context) {
 			}
 			s.lastGCResult.Store(res)
 		}
-
 	}
 }
 
@@ -262,7 +261,7 @@ func (s *Store) put(ctx context.Context, root share.DataHash, square *rsmt2d.Ext
 	select {
 	case result = <-ch:
 	case <-ctx.Done():
-		// if context finished before result was received, track result in separate goroutine
+		// if the context finished before the result was received, track the result in a separate goroutine
 		go trackLateResult("put", ch, s.metrics, time.Minute*5)
 		return ctx.Err()
 	}
@@ -271,11 +270,11 @@ func (s *Store) put(ctx context.Context, root share.DataHash, square *rsmt2d.Ext
 		return fmt.Errorf("failed to register shard: %w", result.Error)
 	}
 
-	// accessor returned in result will be nil, so shard needs to be acquired first, to become
-	// available in cache. It might take some time and result should not affect put operation, so do it
-	// in goroutine
-	//TODO: Ideally only recent blocks should be put in cache, but there is no way right now to check
-	// such condition.
+	// the accessor returned in the result will be nil, so the shard needs to be acquired first to become
+	// available in the cache. It might take some time, and the result should not affect the put operation, so do it
+	// in a goroutine
+	// TODO: Ideally, only recent blocks should be put in the cache, but there is no way right now to check
+	// such a condition.
 	go func() {
 		ctx, cancel := context.WithTimeout(context.Background(), time.Minute)
 		defer cancel()
@@ -339,9 +338,9 @@ func (s *Store) getCAR(ctx context.Context, root share.DataHash) (io.ReadCloser,
 	if err == nil {
 		return newReadCloser(accessor), nil
 	}
-	// If the accessor is not found in the cache, create a new one from dagstore. We don't put accessor
-	// to the cache here, because getCAR is used by shrex.eds. There is a lower probability, compared
-	// to other cache put triggers, that the same block to be requested again.
+	// If the accessor is not found in the cache, create a new one from dagstore. We don't put the accessor
+	// in the cache here because getCAR is used by shrex-eds. There is a lower probability, compared
+	// to other cache put triggers, that the same block will be requested again soon.
 	shardAccessor, err := s.getAccessor(ctx, key)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get accessor: %w", err)
@@ -384,7 +383,7 @@ func (s *Store) carBlockstore(
 		return blockstoreCloser(accessor)
 	}
 
-	// if accessor not found in cache, create new one from dagstore
+	// if the accessor is not found in the cache, create a new one from dagstore
 	sa, err := s.getAccessor(ctx, key)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get accessor: %w", err)
@@ -405,7 +404,7 @@ func (s *Store) GetDAH(ctx context.Context, root share.DataHash) (*share.Root, e
 func (s *Store) getDAH(ctx context.Context, root share.DataHash) (*share.Root, error) {
 	r, err := s.getCAR(ctx, root)
 	if err != nil {
-		return nil, fmt.Errorf("eds/store: failed to get accessor: %w", err)
+		return nil, fmt.Errorf("eds/store: failed to get CAR file: %w", err)
 	}
 	defer closeAndLog("car reader", r)
 

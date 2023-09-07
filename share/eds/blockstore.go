@@ -38,6 +38,8 @@ type blockstore struct {
 	ds    datastore.Batching
 }
 
+// BlockstoreCloser represents a blockstore that can also be closed. It combines the functionality
+// of a dagstore.ReadBlockstore with that of an io.Closer.
 type BlockstoreCloser struct {
 	dagstore.ReadBlockstore
 	io.Closer
@@ -94,6 +96,7 @@ func (bs *blockstore) GetSize(ctx context.Context, cid cid.Cid) (int, error) {
 		defer closeAndLog("blockstore", blockstr)
 		return blockstr.GetSize(ctx, cid)
 	}
+
 	if errors.Is(err, ErrNotFound) || errors.Is(err, ErrNotFoundInIndex) {
 		k := dshelp.MultihashToDsKey(cid.Hash())
 		size, err := bs.ds.GetSize(ctx, k)
