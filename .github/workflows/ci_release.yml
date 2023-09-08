@@ -74,7 +74,9 @@ jobs:
   goreleaser:
     needs: version_bump
     runs-on: ubuntu-latest
-    if: ${{ github.event_name == 'workflow_dispatch' || (github.event_name == 'push' && contains(github.ref, 'refs/tags/')) }} # yamllint disable-line rule:line-length
+    if: |
+      github.event_name == 'workflow_dispatch' || 
+      (github.event_name == 'push' && contains(github.ref, 'refs/tags/'))
     permissions: "write-all"
     steps:
       - uses: actions/checkout@v3
@@ -82,15 +84,7 @@ jobs:
       - uses: actions/setup-go@v4
         with:
           go-version: 1.21
-      # Import the GPG key from github secrets to sign the binaries
-      # Uncomment if we want signing
-      # - name: Import GPG key
-      #   id: import_gpg
-      #   uses: crazy-max/ghaction-import-gpg@v4
-      #   with:
-      #     gpg_private_key: ${{ secrets.GPG_SIGNING_KEY }}
-      #     passphrase: ${{ secrets.GPG_PASSPHRASE }}
-      # Generate the binaries, release, and sign the checksum
+      # Generate the binaries and release
       - uses: goreleaser/goreleaser-action@v4
         with:
           distribution: goreleaser
@@ -98,8 +92,6 @@ jobs:
           args: release --clean
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          # Uncomment if we want signing
-          # GPG_FINGERPRINT: ${{ steps.import_gpg.outputs.fingerprint }}
 
   # TODO: permission issue, but not worth fixing as this should be refactored
   # into the celestiaorg/.github repo, at which point any permission issues will
