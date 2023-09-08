@@ -46,7 +46,7 @@ func init() {
 
 	submitCmd.PersistentFlags().Uint64Var(
 		&gasLimit,
-		"gas-limit",
+		"gas.limit",
 		0,
 		"specifies max gas for the blob submission",
 	)
