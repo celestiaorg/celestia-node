@@ -1,6 +1,7 @@
 // This package defines a protocol that is used to broadcast shares to peers over a pubsub network.
 //
-// This protocol runs on a rudimentary floodsub network is primarily a pubsub protocol that broadcasts and listens for shares over a pubsub topic.
+// This protocol runs on a rudimentary floodsub network is primarily a pubsub protocol
+// that broadcasts and listens for shares over a pubsub topic.
 //
 // The pubsub topic used by this protocol is:
 //

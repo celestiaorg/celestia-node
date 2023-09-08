@@ -13,13 +13,23 @@
 //   - Sending data to peers
 //   - Receiving data from peers
 //
-// The peer manager is a mechanism to store peers from shrexsub, a mechanism that handles "peer discovery" and "peer selection" by relying on a shrexsub subscription and header subscriptions, such that it listens for new headers and new shares and uses this information to pool peers by shares.
+// The peer manager is a mechanism to store peers from shrexsub, a mechanism that
+// handles "peer discovery" and "peer selection" by relying on a shrexsub subscription
+// and header subscriptions, such that it listens for new headers and
+// new shares and uses this information to pool peers by shares.
 //
-// This gives the peer manager an ability to block peers that gossip invalid shares, but also access a list of peers that are known to have been gossiping valid shares. The peers are then returned on request using a round-robin algorithm to return a different peer each time. If no peers are found, the peer manager will rely on full nodes retrieved from discovery.
+// This gives the peer manager an ability to block peers that gossip invalid shares, but also access a list of peers
+// that are known to have been gossiping valid shares.
+// The peers are then returned on request using a round-robin algorithm to return a different peer each time.
+// If no peers are found, the peer manager will rely on full nodes retrieved from discovery.
 //
-// The peer manager is only concerned with recent heights, thus it retrieves peers that were active since `initialHeight`. The peer manager will also garbage collect peers such that it blacklists peers that have been active since `initialHeight` but have been found to be invalid.
+// The peer manager is only concerned with recent heights, thus it retrieves peers that
+// were active since `initialHeight`.
+// The peer manager will also garbage collect peers such that it blacklists peers that
+// have been active since `initialHeight` but have been found to be invalid.
 //
-// The peer manager is passed to the shrex getter and is used at request time to select peers for a given data hash for data retrieval.
+// The peer manager is passed to the shrex getter and is used at request time to
+// select peers for a given data hash for data retrieval.
 //
 // # Usage
 //
@@ -27,7 +37,8 @@
 //
 //	peerManager := peers.NewManager(headerSub, shrexSub, discovery, host, connGater, opts...)
 //
-// After creating the peer manager, it should be started to kick off listening and validation routines that enable peer selection and retrieval:
+// After creating the peer manager, it should be started to kick off listening and
+// validation routines that enable peer selection and retrieval:
 //
 //	err := peerManager.Start(ctx)
 //
