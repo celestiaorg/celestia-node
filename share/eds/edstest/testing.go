@@ -5,7 +5,6 @@ import (
 
 	"github.com/stretchr/testify/require"
 
-	"github.com/celestiaorg/celestia-app/pkg/da"
 	"github.com/celestiaorg/celestia-app/pkg/wrapper"
 	"github.com/celestiaorg/nmt"
 	"github.com/celestiaorg/rsmt2d"
@@ -39,11 +38,11 @@ func RandEDSWithNamespace(
 	t require.TestingT,
 	namespace share.Namespace,
 	size int,
-) (*rsmt2d.ExtendedDataSquare, da.DataAvailabilityHeader) {
+) (*rsmt2d.ExtendedDataSquare, *share.Root) {
 	shares := sharetest.RandSharesWithNamespace(t, namespace, size*size)
 	eds, err := rsmt2d.ComputeExtendedDataSquare(shares, share.DefaultRSMT2DCodec(), wrapper.NewConstructor(uint64(size)))
 	require.NoError(t, err, "failure to recompute the extended data square")
-	dah, err := da.NewDataAvailabilityHeader(eds)
+	dah, err := share.NewRoot(eds)
 	require.NoError(t, err)
 	return eds, dah
 }

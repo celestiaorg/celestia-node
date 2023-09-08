@@ -17,8 +17,6 @@ import (
 	mocknet "github.com/libp2p/go-libp2p/p2p/net/mock"
 	"github.com/stretchr/testify/require"
 
-	"github.com/celestiaorg/celestia-app/pkg/da"
-
 	"github.com/celestiaorg/celestia-node/share"
 	"github.com/celestiaorg/celestia-node/share/ipld"
 	"github.com/celestiaorg/celestia-node/share/sharetest"
@@ -34,9 +32,9 @@ func RandFillBS(t *testing.T, n int, bServ blockservice.BlockService) *share.Roo
 func FillBS(t *testing.T, bServ blockservice.BlockService, shares []share.Share) *share.Root {
 	eds, err := ipld.AddShares(context.TODO(), shares, bServ)
 	require.NoError(t, err)
-	dah, err := da.NewDataAvailabilityHeader(eds)
+	dah, err := share.NewRoot(eds)
 	require.NoError(t, err)
-	return &dah
+	return dah
 }
 
 type TestNode struct {

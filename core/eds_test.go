@@ -9,7 +9,6 @@ import (
 
 	"github.com/celestiaorg/celestia-app/app"
 	"github.com/celestiaorg/celestia-app/pkg/appconsts"
-	"github.com/celestiaorg/celestia-app/pkg/da"
 
 	"github.com/celestiaorg/celestia-node/share"
 )
@@ -47,7 +46,7 @@ func TestEmptySquareWithZeroTxs(t *testing.T) {
 	eds, err = app.ExtendBlock(data, appconsts.LatestVersion)
 	require.NoError(t, err)
 
-	dah, err := da.NewDataAvailabilityHeader(eds)
+	dah, err := share.NewRoot(eds)
 	require.NoError(t, err)
 	assert.Equal(t, share.EmptyRoot().Hash(), dah.Hash())
 }

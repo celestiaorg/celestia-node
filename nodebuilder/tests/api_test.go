@@ -119,7 +119,7 @@ func TestBlobRPC(t *testing.T) {
 	)
 	require.NoError(t, err)
 
-	height, err := client.Blob.Submit(ctx, []*blob.Blob{newBlob})
+	height, err := client.Blob.Submit(ctx, []*blob.Blob{newBlob}, nil)
 	require.NoError(t, err)
 	require.True(t, height != 0)
 }

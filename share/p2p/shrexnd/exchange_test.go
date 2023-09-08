@@ -13,7 +13,6 @@ import (
 	mocknet "github.com/libp2p/go-libp2p/p2p/net/mock"
 	"github.com/stretchr/testify/require"
 
-	"github.com/celestiaorg/celestia-app/pkg/da"
 	"github.com/celestiaorg/rsmt2d"
 
 	"github.com/celestiaorg/celestia-node/share"
@@ -45,12 +44,12 @@ func TestExchange_RequestND_NotFound(t *testing.T) {
 		t.Cleanup(cancel)
 
 		eds := edstest.RandEDS(t, 4)
-		dah, err := da.NewDataAvailabilityHeader(eds)
+		dah, err := share.NewRoot(eds)
 		require.NoError(t, err)
 		require.NoError(t, edsStore.Put(ctx, dah.Hash(), eds))
 
 		randNamespace := dah.RowRoots[(len(dah.RowRoots)-1)/2][:share.NamespaceSize]
-		emptyShares, err := client.RequestND(ctx, &dah, randNamespace, server.host.ID())
+		emptyShares, err := client.RequestND(ctx, dah, randNamespace, server.host.ID())
 		require.NoError(t, err)
 		require.Empty(t, emptyShares.Flatten())
 	})
