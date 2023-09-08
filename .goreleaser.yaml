@@ -1,20 +1,24 @@
 # This is an example .goreleaser.yml file with some sensible defaults.
 # Make sure to check the documentation at https://goreleaser.com
-env:
-  - VersioningPath={{ "github.com/celestiaorg/celestia-node/nodebuilder/node" }}
 before:
   hooks:
-    # You may remove this if you don't use go modules.
     - go mod tidy
 builds:
   - main: ./cmd/celestia
     binary: celestia
     env:
+      # NOTE: goreleaser doesn't fully support CGO natively. If CGO is needed
+      # for any node features, this should be removed and a workaround might
+      # need to be created.
+      # REF: https://goreleaser.com/limitations/cgo/
       - CGO_ENABLED=0
+      - VersioningPath={{ "github.com/celestiaorg/celestia-node/nodebuilder/node" }}
     goos:
       - linux
-      - windows
       - darwin
+    goarch:
+      - amd64
+      - arm64
     ldflags:
       # Ref: https://goreleaser.com/customization/templates/#common-fields
       #
@@ -24,10 +28,10 @@ builds:
       # .FullCommit is git commit hash goreleaser is using for the release
       #
       # .Version is the version being released
-      - -X "{{ .Env.VersioningPath }}.buildTime={{ .CommitDate }}" 
+      - -X "{{ .Env.VersioningPath }}.buildTime={{ .CommitDate }}"
       - -X "{{ .Env.VersioningPath }}.lastCommit={{ .FullCommit }}"
       - -X "{{ .Env.VersioningPath }}.semanticVersion={{ .Version }}"
-
+dist: ./build/goreleaser
 archives:
   - format: tar.gz
     # this name template makes the OS and Arch compatible with the results of
@@ -39,10 +43,6 @@ archives:
       {{- else if eq .Arch "386" }}i386
       {{- else }}{{ .Arch }}{{ end }}
       {{- if .Arm }}v{{ .Arm }}{{ end }}
-    # use zip for windows archives
-    format_overrides:
-      - goos: windows
-        format: zip
 checksum:
   name_template: "checksums.txt"
 snapshot:
@@ -53,14 +53,3 @@ changelog:
     exclude:
       - "^docs:"
       - "^test:"
-# Uncomment if enabling signing
-# signs:
-#   - artifacts: checksum
-# yamllint disable rule:line-length
-#     args: ["--batch", "-u", "{{ .Env.GPG_FINGERPRINT }}", "--output", "${signature}", "--detach-sign", "${artifact}"]
-# yamllint enable rule:line-length
-
-# The lines beneath this are called `modelines`. See `:help modeline`
-# Feel free to remove those if you don't want/use them.
-# yaml-language-server: $schema=https://goreleaser.com/static/schema.json
-# vim: set ts=2 sw=2 tw=0 fo=cnqoj
