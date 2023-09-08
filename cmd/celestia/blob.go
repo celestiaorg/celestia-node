@@ -14,7 +14,12 @@ import (
 	"github.com/celestiaorg/celestia-node/share"
 )
 
-var base64Flag bool
+var (
+	base64Flag bool
+
+	fee      int64
+	gasLimit uint64
+)
 
 func init() {
 	blobCmd.AddCommand(getCmd, getAllCmd, submitCmd, getProofCmd)
@@ -30,6 +35,20 @@ func init() {
 		"base64",
 		false,
 		"printed blob's data as a base64 string",
+	)
+
+	submitCmd.PersistentFlags().Int64Var(
+		&fee,
+		"fee",
+		-1,
+		"specifies fee for blob submission",
+	)
+
+	submitCmd.PersistentFlags().Uint64Var(
+		&gasLimit,
+		"gas.limit",
+		0,
+		"specifies max gas for the blob submission",
 	)
 }
 
