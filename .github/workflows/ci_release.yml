@@ -75,7 +75,7 @@ jobs:
     needs: version_bump
     runs-on: ubuntu-latest
     if: |
-      github.event_name == 'workflow_dispatch' || 
+      github.event_name == 'workflow_dispatch' ||
       (github.event_name == 'push' && contains(github.ref, 'refs/tags/'))
     permissions: "write-all"
     steps:
