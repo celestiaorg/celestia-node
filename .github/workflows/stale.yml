@@ -15,3 +15,4 @@ jobs:
           days-before-issue-stale: 90
           days-before-issue-close: 21
           exempt-issue-labels: 'keep-open'
+          start-date: '2023-09-01T00:00:00Z'
