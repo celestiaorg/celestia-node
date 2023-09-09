@@ -35,7 +35,8 @@ func Init(cfg Config, path string, tp node.Type) error {
 		return err
 	}
 
-	flock, err := fslock.Lock(lockPath(path))
+	flock := fslock.New(lockPath(path))
+	err = flock.TryLock()
 	if err != nil {
 		if err == fslock.ErrLocked {
 			return ErrOpened
@@ -82,7 +83,8 @@ func Reset(path string, tp node.Type) error {
 	}
 	log.Infof("Resetting %s Node Store over '%s'", tp, path)
 
-	flock, err := fslock.Lock(lockPath(path))
+	flock := fslock.New(lockPath(path))
+	err = flock.TryLock()
 	if err != nil {
 		if err == fslock.ErrLocked {
 			return ErrOpened

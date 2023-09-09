@@ -58,7 +58,8 @@ func TestIsInitForNonExistDir(t *testing.T) {
 
 func TestInitErrForLockedDir(t *testing.T) {
 	dir := t.TempDir()
-	flock, err := fslock.Lock(lockPath(dir))
+	flock := fslock.New(lockPath(dir))
+	err := flock.TryLock()
 	require.NoError(t, err)
 	defer flock.Unlock() //nolint:errcheck
 	nodes := []node.Type{node.Light, node.Bridge}

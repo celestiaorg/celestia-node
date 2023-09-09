@@ -91,7 +91,8 @@ func RemoveConfig(path string) (err error) {
 		return
 	}
 
-	flock, err := fslock.Lock(lockPath(path))
+	flock := fslock.New(lockPath(path))
+	err = flock.TryLock()
 	if err != nil {
 		if err == fslock.ErrLocked {
 			err = ErrOpened
@@ -117,7 +118,8 @@ func UpdateConfig(tp node.Type, path string) (err error) {
 		return err
 	}
 
-	flock, err := fslock.Lock(lockPath(path))
+	flock := fslock.New(lockPath(path))
+	err = flock.TryLock()
 	if err != nil {
 		if err == fslock.ErrLocked {
 			err = ErrOpened

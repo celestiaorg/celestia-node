@@ -21,7 +21,7 @@ install-hooks:
 ## build: Build celestia-node binary.
 build:
 	@echo "--> Building Celestia"
-	@go build -o build/ ${LDFLAGS} ./cmd/celestia
+	@go build -o build/${GOOS}/${GOARCH}/ ${LDFLAGS} ./cmd/celestia
 .PHONY: build
 
 ## clean: Clean up celestia-node binary.

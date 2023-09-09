@@ -56,7 +56,8 @@ func OpenStore(path string, ring keyring.Keyring) (Store, error) {
 		return nil, err
 	}
 
-	flock, err := fslock.Lock(lockPath(path))
+	flock := fslock.New(lockPath(path))
+	err = flock.TryLock()
 	if err != nil {
 		if err == fslock.ErrLocked {
 			return nil, ErrOpened
@@ -146,7 +147,7 @@ type fsStore struct {
 	dataMu  sync.Mutex
 	data    datastore.Batching
 	keys    keystore.Keystore
-	dirLock *fslock.Locker // protects directory
+	dirLock *fslock.Lock // protects directory
 }
 
 func storePath(path string) (string, error) {
