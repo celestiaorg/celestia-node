@@ -9,6 +9,7 @@ import (
 	"go.uber.org/fx"
 
 	libhead "github.com/celestiaorg/go-header"
+	"github.com/celestiaorg/go-header/sync"
 
 	"github.com/celestiaorg/celestia-node/header"
 	"github.com/celestiaorg/celestia-node/nodebuilder/node"
@@ -151,6 +152,9 @@ func ConstructModule(tp node.Type, cfg *Config, options ...fx.Option) fx.Option 
 				connGater *conngater.BasicConnectionGater,
 				shrexSub *shrexsub.PubSub,
 				headerSub libhead.Subscriber[*header.ExtendedHeader],
+				// we must ensure Syncer is started before PeerManager
+				// so that Syncer registers header validator before PeerManager subscribes to headers
+				_ *sync.Syncer[*header.ExtendedHeader],
 			) (*peers.Manager, error) {
 				return peers.NewManager(
 					params,

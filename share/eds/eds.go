@@ -13,7 +13,6 @@ import (
 	"github.com/ipld/go-car"
 	"github.com/ipld/go-car/util"
 
-	"github.com/celestiaorg/celestia-app/pkg/da"
 	"github.com/celestiaorg/celestia-app/pkg/wrapper"
 	"github.com/celestiaorg/nmt"
 	"github.com/celestiaorg/rsmt2d"
@@ -260,7 +259,7 @@ func ReadEDS(ctx context.Context, r io.Reader, root share.DataHash) (eds *rsmt2d
 		return nil, fmt.Errorf("share: computing eds: %w", err)
 	}
 
-	newDah, err := da.NewDataAvailabilityHeader(eds)
+	newDah, err := share.NewRoot(eds)
 	if err != nil {
 		return nil, err
 	}
