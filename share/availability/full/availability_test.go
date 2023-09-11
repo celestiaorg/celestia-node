@@ -21,7 +21,7 @@ func TestShareAvailableOverMocknet_Full(t *testing.T) {
 	defer cancel()
 
 	net := availability_test.NewTestDAGNet(ctx, t)
-	_, root := RandNode(net, 32)
+	_, root := RandNode(net, 32, FullyRecoverable)
 	nd := Node(net)
 	net.ConnectAll()
 

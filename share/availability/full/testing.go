@@ -22,10 +22,39 @@ func GetterWithRandSquare(t *testing.T, n int) (share.Getter, *share.Root) {
 	return getter, availability_test.RandFillBS(t, n, bServ)
 }
 
+type Recoverability int64
+
+const (
+	// FullyRecoverable makes all EDS shares available when filling the
+	// blockservice.
+	FullyRecoverable Recoverability = iota
+	// BarelyRecoverable withholds the (k + 1)^2 subsquare of the 2k^2 EDS,
+	// minus the node at (k + 1, k + 1) which allows for complete
+	// recoverability.
+	BarelyRecoverable
+	// Unrecoverable withholds the (k + 1)^2 subsquare of the 2k^2 EDS.
+	Unrecoverable
+)
+
 // RandNode creates a Full Node filled with a random block of the given size.
-func RandNode(dn *availability_test.TestDagNet, squareSize int) (*availability_test.TestNode, *share.Root) {
+func RandNode(
+	dn *availability_test.TestDagNet,
+	squareSize int,
+	recoverability Recoverability,
+) (*availability_test.TestNode, *share.Root) {
 	nd := Node(dn)
-	return nd, availability_test.RandFillBS(dn.T, squareSize, nd.BlockService)
+	var root *share.Root
+	switch recoverability {
+	case FullyRecoverable:
+		root = availability_test.RandFillBS(dn.T, squareSize, nd.BlockService)
+	case BarelyRecoverable:
+		root = availability_test.FillWithheldBS(dn.T, squareSize, nd.BlockService, true)
+	case Unrecoverable:
+		root = availability_test.FillWithheldBS(dn.T, squareSize, nd.BlockService, false)
+	default:
+		panic("invalid recoverability given")
+	}
+	return nd, root
 }
 
 // Node creates a new empty Full Node.

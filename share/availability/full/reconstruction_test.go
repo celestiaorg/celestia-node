@@ -26,49 +26,88 @@ func init() {
 // light nodes only.
 func TestShareAvailable_OneFullNode(t *testing.T) {
 	// NOTE: Numbers are taken from the original 'Fraud and Data Availability Proofs' paper
-	light.DefaultSampleAmount = 20 // s
-	const (
-		origSquareSize = 16 // k
-		lightNodes     = 69 // c
-	)
+	tc := []struct {
+		name            string
+		origSquareSize  int  // k
+		lightNodes      int  // c
+		sampleAmount    uint // s
+		recoverability  Recoverability
+		expectedFailure bool
+	}{
+		{
+			name:            "fully recoverable",
+			origSquareSize:  16,
+			lightNodes:      24,
+			sampleAmount:    20,
+			recoverability:  FullyRecoverable,
+			expectedFailure: false,
+		},
+		{
+			name:            "barely recoverable",
+			origSquareSize:  16,
+			lightNodes:      69,
+			sampleAmount:    20,
+			recoverability:  BarelyRecoverable,
+			expectedFailure: false,
+		},
+		{
+			name:            "unrecoverable",
+			origSquareSize:  16,
+			lightNodes:      69,
+			sampleAmount:    20,
+			recoverability:  Unrecoverable,
+			expectedFailure: true,
+		},
+	}
 
-	ctx, cancel := context.WithTimeout(context.Background(), 1*time.Minute)
-	defer cancel()
+	for _, tt := range tc {
+		tt := tt
+		t.Run(tt.name, func(t *testing.T) {
+			light.DefaultSampleAmount = tt.sampleAmount // s
+			origSquareSize := tt.origSquareSize         // k
+			lightNodes := tt.lightNodes                 // c
 
-	net := availability_test.NewTestDAGNet(ctx, t)
-	source, root := RandNode(net, origSquareSize) // make a source node, a.k.a bridge
-	full := Node(net)                             // make a full availability service which reconstructs data
+			ctx, cancel := context.WithTimeout(context.Background(), time.Minute)
+			defer cancel()
 
-	// ensure there is no connection between source and full nodes
-	// so that full reconstructs from the light nodes only
-	net.Disconnect(source.ID(), full.ID())
+			net := availability_test.NewTestDAGNet(ctx, t)
+			// make a source node, a.k.a bridge
+			source, root := RandNode(net, origSquareSize, tt.recoverability)
+			// make a full availability service which reconstructs data
+			full := Node(net)
 
-	errg, errCtx := errgroup.WithContext(ctx)
-	errg.Go(func() error {
-		return full.SharesAvailable(errCtx, root)
-	})
+			// ensure there is no connection between source and full nodes
+			// so that full reconstructs from the light nodes only
+			net.Disconnect(source.ID(), full.ID())
 
-	lights := make([]*availability_test.TestNode, lightNodes)
-	for i := 0; i < len(lights); i++ {
-		lights[i] = light.Node(net)
-		go func(i int) {
-			err := lights[i].SharesAvailable(ctx, root)
-			if err != nil {
-				t.Log("light errors:", err)
+			lights := make([]*availability_test.TestNode, lightNodes)
+			for i := 0; i < len(lights); i++ {
+				lights[i] = light.Node(net)
+				// Form topology
+				net.Connect(lights[i].ID(), source.ID())
+				net.Connect(lights[i].ID(), full.ID())
+				// Start sampling
+				go func(i int) {
+					err := lights[i].SharesAvailable(ctx, root)
+					if err != nil {
+						t.Log("light errors:", err)
+					}
+				}(i)
 			}
-		}(i)
-	}
 
-	for i := 0; i < len(lights); i++ {
-		net.Connect(lights[i].ID(), source.ID())
-	}
+			errg, errCtx := errgroup.WithContext(ctx)
+			errg.Go(func() error {
+				return full.SharesAvailable(errCtx, root)
+			})
 
-	for i := 0; i < len(lights); i++ {
-		net.Connect(lights[i].ID(), full.ID())
+			err := errg.Wait()
+			if tt.expectedFailure {
+				require.Error(t, err)
+			} else {
+				require.NoError(t, err)
+			}
+		})
 	}
-
-	err := errg.Wait()
-	require.NoError(t, err)
 }
 
 // TestShareAvailable_ConnectedFullNodes asserts that two connected full nodes
@@ -79,79 +118,119 @@ func TestShareAvailable_OneFullNode(t *testing.T) {
 // source, full node must be able to finish the availability process started in
 // the beginning.
 func TestShareAvailable_ConnectedFullNodes(t *testing.T) {
-	// NOTE: Numbers are taken from the original 'Fraud and Data Availability Proofs' paper
-	light.DefaultSampleAmount = 20 // s
-	const (
-		origSquareSize = 16 // k
-		lightNodes     = 60 // c
-	)
+	tc := []struct {
+		name            string
+		origSquareSize  int  // k
+		lightNodes      int  // c
+		sampleAmount    uint // s
+		recoverability  Recoverability
+		expectedFailure bool
+	}{
+		{
+			name:            "fully recoverable",
+			origSquareSize:  16,
+			lightNodes:      24,
+			sampleAmount:    20,
+			recoverability:  FullyRecoverable,
+			expectedFailure: false,
+		},
+		{
+			name:            "barely recoverable",
+			origSquareSize:  16,
+			lightNodes:      69,
+			sampleAmount:    20,
+			recoverability:  BarelyRecoverable,
+			expectedFailure: false,
+		},
+		{
+			name:            "unrecoverable",
+			origSquareSize:  16,
+			lightNodes:      69,
+			sampleAmount:    20,
+			recoverability:  Unrecoverable,
+			expectedFailure: true,
+		},
+	}
 
-	ctx, cancel := context.WithTimeout(context.Background(), time.Second*30)
-	defer cancel()
+	for _, tt := range tc {
+		tt := tt
+		t.Run(tt.name, func(t *testing.T) {
+			light.DefaultSampleAmount = tt.sampleAmount // s
+			origSquareSize := tt.origSquareSize         // k
+			lightNodes := tt.lightNodes                 // c
 
-	net := availability_test.NewTestDAGNet(ctx, t)
-	source, root := RandNode(net, origSquareSize)
+			ctx, cancel := context.WithTimeout(context.Background(), time.Second*30)
+			defer cancel()
 
-	// create two full nodes and ensure they are disconnected
-	full1 := Node(net)
-	full2 := Node(net)
+			net := availability_test.NewTestDAGNet(ctx, t)
+			source, root := RandNode(net, origSquareSize, tt.recoverability)
 
-	// pre-connect fulls
-	net.Connect(full1.ID(), full2.ID())
-	// ensure fulls and source are not connected
-	// so that fulls take data from light nodes only
-	net.Disconnect(full1.ID(), source.ID())
-	net.Disconnect(full2.ID(), source.ID())
+			// create two full nodes and ensure they are disconnected
+			full1 := Node(net)
+			full2 := Node(net)
 
-	// start reconstruction for fulls
-	errg, errCtx := errgroup.WithContext(ctx)
-	errg.Go(func() error {
-		return full1.SharesAvailable(errCtx, root)
-	})
-	errg.Go(func() error {
-		return full2.SharesAvailable(errCtx, root)
-	})
+			// pre-connect fulls
+			net.Connect(full1.ID(), full2.ID())
+			// ensure fulls and source are not connected
+			// so that fulls take data from light nodes only
+			net.Disconnect(full1.ID(), source.ID())
+			net.Disconnect(full2.ID(), source.ID())
 
-	// create light nodes and start sampling for them immediately
-	lights1, lights2 := make(
-		[]*availability_test.TestNode, lightNodes/2),
-		make([]*availability_test.TestNode, lightNodes/2)
-	for i := 0; i < len(lights1); i++ {
-		lights1[i] = light.Node(net)
-		go func(i int) {
-			err := lights1[i].SharesAvailable(ctx, root)
-			if err != nil {
-				t.Log("light1 errors:", err)
+			// start reconstruction for fulls
+			errg, errCtx := errgroup.WithContext(ctx)
+			errg.Go(func() error {
+				return full1.SharesAvailable(errCtx, root)
+			})
+			errg.Go(func() error {
+				return full2.SharesAvailable(errCtx, root)
+			})
+
+			// create light nodes and start sampling for them immediately
+			lights1, lights2 := make(
+				[]*availability_test.TestNode, lightNodes/2),
+				make([]*availability_test.TestNode, lightNodes/2)
+			for i := 0; i < len(lights1); i++ {
+				lights1[i] = light.Node(net)
+				go func(i int) {
+					err := lights1[i].SharesAvailable(ctx, root)
+					if err != nil {
+						t.Log("light1 errors:", err)
+					}
+				}(i)
+
+				lights2[i] = light.Node(net)
+				go func(i int) {
+					err := lights2[i].SharesAvailable(ctx, root)
+					if err != nil {
+						t.Log("light2 errors:", err)
+					}
+				}(i)
 			}
-		}(i)
 
-		lights2[i] = light.Node(net)
-		go func(i int) {
-			err := lights2[i].SharesAvailable(ctx, root)
-			if err != nil {
-				t.Log("light2 errors:", err)
+			// shape topology
+			for i := 0; i < len(lights1); i++ {
+				// ensure lights1 are only connected to full1
+				net.Connect(lights1[i].ID(), full1.ID())
+				net.Disconnect(lights1[i].ID(), full2.ID())
+				// ensure lights2 are only connected to full2
+				net.Connect(lights2[i].ID(), full2.ID())
+				net.Disconnect(lights2[i].ID(), full1.ID())
 			}
-		}(i)
-	}
 
-	// shape topology
-	for i := 0; i < len(lights1); i++ {
-		// ensure lights1 are only connected to full1
-		net.Connect(lights1[i].ID(), full1.ID())
-		net.Disconnect(lights1[i].ID(), full2.ID())
-		// ensure lights2 are only connected to full2
-		net.Connect(lights2[i].ID(), full2.ID())
-		net.Disconnect(lights2[i].ID(), full1.ID())
-	}
+			// start connection lights with sources
+			for i := 0; i < len(lights1); i++ {
+				net.Connect(lights1[i].ID(), source.ID())
+				net.Connect(lights2[i].ID(), source.ID())
+			}
 
-	// start connection lights with sources
-	for i := 0; i < len(lights1); i++ {
-		net.Connect(lights1[i].ID(), source.ID())
-		net.Connect(lights2[i].ID(), source.ID())
+			err := errg.Wait()
+			if tt.expectedFailure {
+				require.Error(t, err)
+			} else {
+				require.NoError(t, err)
+			}
+		})
 	}
-
-	err := errg.Wait()
-	require.NoError(t, err)
 }
 
 // TestShareAvailable_DisconnectedFullNodes asserts that two disconnected full
@@ -176,100 +255,141 @@ func TestShareAvailable_DisconnectedFullNodes(t *testing.T) {
 	// └─┴─┤   ├─┴─┘
 	//    F└───┘F
 	//
+	tc := []struct {
+		name            string
+		origSquareSize  int  // k
+		lightNodes      int  // c
+		sampleAmount    uint // s
+		recoverability  Recoverability
+		expectedFailure bool
+	}{
+		{
+			name:            "fully recoverable",
+			origSquareSize:  16,
+			lightNodes:      32,
+			sampleAmount:    20,
+			recoverability:  FullyRecoverable,
+			expectedFailure: false,
+		},
+		{
+			name:            "barely recoverable",
+			origSquareSize:  16,
+			lightNodes:      70, // actually 69, but needs to be divisible by 2
+			sampleAmount:    20,
+			recoverability:  BarelyRecoverable,
+			expectedFailure: false,
+		},
+		{
+			name:            "unrecoverable",
+			origSquareSize:  16,
+			lightNodes:      70,
+			sampleAmount:    20,
+			recoverability:  Unrecoverable,
+			expectedFailure: true,
+		},
+	}
+	for _, tt := range tc {
+		tt := tt
+		t.Run(tt.name, func(t *testing.T) {
+			light.DefaultSampleAmount = tt.sampleAmount // s
+			origSquareSize := tt.origSquareSize         // k
+			lightNodes := tt.lightNodes                 // c
 
-	// NOTE: Numbers are taken from the original 'Fraud and Data Availability Proofs' paper
-	light.DefaultSampleAmount = 20 // s
-	const (
-		origSquareSize = 16 // k
-		lightNodes     = 32 // c - total number of nodes on two subnetworks
-	)
+			ctx, cancel := context.WithTimeout(context.Background(), time.Second*60)
+			defer cancel()
 
-	ctx, cancel := context.WithTimeout(context.Background(), time.Second*60)
-	defer cancel()
+			net := availability_test.NewTestDAGNet(ctx, t)
+			source, root := RandNode(net, origSquareSize, tt.recoverability)
 
-	net := availability_test.NewTestDAGNet(ctx, t)
-	source, root := RandNode(net, origSquareSize)
+			// create light nodes and start sampling for them immediately
+			lights1, lights2 := make(
+				[]*availability_test.TestNode, lightNodes/2),
+				make([]*availability_test.TestNode, lightNodes/2)
 
-	// create light nodes and start sampling for them immediately
-	lights1, lights2 := make(
-		[]*availability_test.TestNode, lightNodes/2),
-		make([]*availability_test.TestNode, lightNodes/2)
+			var wg sync.WaitGroup
+			wg.Add(lightNodes)
+			for i := 0; i < len(lights1); i++ {
+				lights1[i] = light.Node(net)
+				go func(i int) {
+					defer wg.Done()
+					err := lights1[i].SharesAvailable(ctx, root)
+					if err != nil {
+						t.Log("light1 errors:", err)
+					}
+				}(i)
 
-	var wg sync.WaitGroup
-	wg.Add(lightNodes)
-	for i := 0; i < len(lights1); i++ {
-		lights1[i] = light.Node(net)
-		go func(i int) {
-			defer wg.Done()
-			err := lights1[i].SharesAvailable(ctx, root)
-			if err != nil {
-				t.Log("light1 errors:", err)
+				lights2[i] = light.Node(net)
+				go func(i int) {
+					defer wg.Done()
+					err := lights2[i].SharesAvailable(ctx, root)
+					if err != nil {
+						t.Log("light2 errors:", err)
+					}
+				}(i)
 			}
-		}(i)
 
-		lights2[i] = light.Node(net)
-		go func(i int) {
-			defer wg.Done()
-			err := lights2[i].SharesAvailable(ctx, root)
-			if err != nil {
-				t.Log("light2 errors:", err)
+			// create two full nodes and ensure they are disconnected
+			full1 := Node(net)
+			full2 := Node(net)
+			net.Disconnect(full1.ID(), full2.ID())
+
+			// ensure fulls and source are not connected
+			// so that fulls take data from light nodes only
+			net.Disconnect(full1.ID(), source.ID())
+			net.Disconnect(full2.ID(), source.ID())
+
+			// shape topology
+			for i := 0; i < len(lights1); i++ {
+				// ensure lights1 are only connected to source and full1
+				net.Connect(lights1[i].ID(), source.ID())
+				net.Connect(lights1[i].ID(), full1.ID())
+				net.Disconnect(lights1[i].ID(), full2.ID())
+				// ensure lights2 are only connected to source and full2
+				net.Connect(lights2[i].ID(), source.ID())
+				net.Connect(lights2[i].ID(), full2.ID())
+				net.Disconnect(lights2[i].ID(), full1.ID())
 			}
-		}(i)
+
+			// start reconstruction for fulls that should fail
+			ctxErr, cancelErr := context.WithTimeout(ctx, time.Second*5)
+			errg, errCtx := errgroup.WithContext(ctxErr)
+			errg.Go(func() error {
+				return full1.SharesAvailable(errCtx, root)
+			})
+			errg.Go(func() error {
+				return full2.SharesAvailable(errCtx, root)
+			})
+
+			// check that any of the fulls cannot reconstruct on their own
+			err := errg.Wait()
+			require.ErrorIs(t, err, share.ErrNotAvailable)
+			cancelErr()
+
+			// but after they connect
+			net.Connect(full1.ID(), full2.ID())
+
+			// with clean caches from the previous try
+			full1.ClearStorage()
+			full2.ClearStorage()
+
+			// they both should be able to reconstruct the block
+			errg, bctx := errgroup.WithContext(ctx)
+			errg.Go(func() error {
+				return full1.SharesAvailable(bctx, root)
+			})
+			errg.Go(func() error {
+				return full2.SharesAvailable(bctx, root)
+			})
+
+			err = errg.Wait()
+			if tt.expectedFailure {
+				require.Error(t, err)
+			} else {
+				require.NoError(t, err)
+			}
+			// wait for all routines to finish before exit, in case there are any errors to log
+			wg.Wait()
+		})
 	}
 
-	// create two full nodes and ensure they are disconnected
-	full1 := Node(net)
-	full2 := Node(net)
-	net.Disconnect(full1.ID(), full2.ID())
-
-	// ensure fulls and source are not connected
-	// so that fulls take data from light nodes only
-	net.Disconnect(full1.ID(), source.ID())
-	net.Disconnect(full2.ID(), source.ID())
-
-	// shape topology
-	for i := 0; i < len(lights1); i++ {
-		// ensure lights1 are only connected to source and full1
-		net.Connect(lights1[i].ID(), source.ID())
-		net.Connect(lights1[i].ID(), full1.ID())
-		net.Disconnect(lights1[i].ID(), full2.ID())
-		// ensure lights2 are only connected to source and full2
-		net.Connect(lights2[i].ID(), source.ID())
-		net.Connect(lights2[i].ID(), full2.ID())
-		net.Disconnect(lights2[i].ID(), full1.ID())
-	}
-
-	// start reconstruction for fulls that should fail
-	ctxErr, cancelErr := context.WithTimeout(ctx, time.Second*5)
-	errg, errCtx := errgroup.WithContext(ctxErr)
-	errg.Go(func() error {
-		return full1.SharesAvailable(errCtx, root)
-	})
-	errg.Go(func() error {
-		return full2.SharesAvailable(errCtx, root)
-	})
-
-	// check that any of the fulls cannot reconstruct on their own
-	err := errg.Wait()
-	require.ErrorIs(t, err, share.ErrNotAvailable)
-	cancelErr()
-
-	// but after they connect
-	net.Connect(full1.ID(), full2.ID())
-
-	// with clean caches from the previous try
-	full1.ClearStorage()
-	full2.ClearStorage()
-
-	// they both should be able to reconstruct the block
-	errg, bctx := errgroup.WithContext(ctx)
-	errg.Go(func() error {
-		return full1.SharesAvailable(bctx, root)
-	})
-	errg.Go(func() error {
-		return full2.SharesAvailable(bctx, root)
-	})
-	require.NoError(t, errg.Wait())
-	// wait for all routines to finish before exit, in case there are any errors to log
-	wg.Wait()
 }

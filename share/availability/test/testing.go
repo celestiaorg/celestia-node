@@ -22,6 +22,17 @@ import (
 	"github.com/celestiaorg/celestia-node/share/sharetest"
 )
 
+// FillWithheldBS makes k + 1 columns of k + 1 rows unavailable if recoverable =
+// false, otherwise it acts the same but keeps the node at index (k + 1, k + 1).
+func FillWithheldBS(t *testing.T, n int, bServ blockservice.BlockService, recoverable bool) *share.Root {
+	shares := sharetest.RandShares(t, n*n)
+	eds, err := AddAndWithholdShares(context.TODO(), shares, bServ, recoverable)
+	require.NoError(t, err)
+	dah, err := share.NewRoot(eds)
+	require.NoError(t, err)
+	return dah
+}
+
 // RandFillBS fills the given BlockService with a random block of a given size.
 func RandFillBS(t *testing.T, n int, bServ blockservice.BlockService) *share.Root {
 	shares := sharetest.RandShares(t, n*n)
