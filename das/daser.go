@@ -153,12 +153,14 @@ func (d *DASer) Stop(ctx context.Context) error {
 }
 
 func (d *DASer) sample(ctx context.Context, h *header.ExtendedHeader) error {
-	var err error
 	if d.pruner != nil {
-		err = d.pruner.SampleAndRegister(ctx, h)
-	} else {
-		err = d.da.SharesAvailable(ctx, h.DAH)
+		err := d.pruner.Register(ctx, h)
+		if err != nil {
+			return err
+		}
 	}
+
+	err := d.da.SharesAvailable(ctx, h.DAH)
 	if err != nil {
 		var byzantineErr *byzantine.ErrByzantine
 		if errors.As(err, &byzantineErr) {

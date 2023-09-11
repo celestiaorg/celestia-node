@@ -178,6 +178,7 @@ func (s *Swamp) setupGenesis() {
 	ex := core.NewExchange(
 		core.NewBlockFetcher(s.ClientContext.Client),
 		store,
+		nil,
 		header.MakeExtendedHeader,
 	)
 

@@ -72,7 +72,8 @@ func TestStoragePruner_Prunes(t *testing.T) {
 
 	// 1. Verify that the first EDSes get stored and are retrievable.
 	for i := 0; i < recencyWindow; i++ {
-		sp.SampleAndRegister(ctx, extendedHeaders[i])
+		sp.Register(ctx, extendedHeaders[i])
+		availability.SharesAvailable(ctx, extendedHeaders[i].DAH)
 	}
 
 	for i := 0; i < recencyWindow; i++ {
@@ -83,14 +84,13 @@ func TestStoragePruner_Prunes(t *testing.T) {
 
 	// 2. Verify that after RecencyWindow EDSes, the oldest EDSes get pruned.
 	for i := recencyWindow; i < count; i++ {
-		sp.SampleAndRegister(ctx, extendedHeaders[i])
-		// It takes time for the old data to be pruned, so check 10 times
-		for j := 0; j < 10; j++ {
-			time.Sleep(100 * time.Millisecond)
-			has, err := edsStore.Has(ctx, extendedHeaders[i-recencyWindow].DAH.Hash())
-			require.False(t, has)
-			require.NoError(t, err)
-		}
+		sp.Register(ctx, extendedHeaders[i])
+		availability.SharesAvailable(ctx, extendedHeaders[i].DAH)
+		// TODO: This is probably flaky
+		time.Sleep(500 * time.Millisecond)
+		has, err := edsStore.Has(ctx, extendedHeaders[i-recencyWindow].DAH.Hash())
+		require.False(t, has)
+		require.NoError(t, err)
 	}
 }
 

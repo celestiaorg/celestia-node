@@ -24,7 +24,7 @@ func TestCoreExchange_RequestHeaders(t *testing.T) {
 
 	store := createStore(t)
 
-	ce := NewExchange(fetcher, store, header.MakeExtendedHeader)
+	ce := NewExchange(fetcher, store, nil, header.MakeExtendedHeader)
 	headers, err := ce.GetRangeByHeight(context.Background(), 1, 10)
 	require.NoError(t, err)
 

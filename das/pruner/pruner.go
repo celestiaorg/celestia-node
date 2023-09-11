@@ -44,6 +44,7 @@ func NewStoragePruner(
 ) (*StoragePruner, error) {
 	return &StoragePruner{
 		edsStore:          edsStore,
+		cfg:               config,
 		ds:                ds,
 		sa:                availability,
 		registeredHeights: make(chan uint64, defaultBufferSize),
@@ -62,25 +63,16 @@ func (sp *StoragePruner) Stop(ctx context.Context) error {
 	return nil
 }
 
-func (sp *StoragePruner) SampleAndRegister(ctx context.Context, h *header.ExtendedHeader) error {
+func (sp *StoragePruner) Register(ctx context.Context, h *header.ExtendedHeader) error {
+	fmt.Println("registering height", h.Height())
+	// even empty datahashes need to be registered so that we prune h.Height() - RecencyWindow
+	sp.registeredHeights <- h.Height()
+
 	if share.DataHash(h.DAH.Hash()).IsEmptyRoot() {
-		// we still need to register it to ensure its pair gets pruned
-		sp.registeredHeights <- h.Height()
 		return nil
 	}
 
-	err := sp.indexDAH(ctx, h)
-	if err != nil {
-		return err
-	}
-
-	err = sp.sa.SharesAvailable(ctx, h.DAH)
-	if err != nil {
-		return err
-	}
-
-	sp.registeredHeights <- h.Height()
-	return nil
+	return sp.indexDAH(ctx, h)
 }
 
 func (sp *StoragePruner) indexDAH(ctx context.Context, h *header.ExtendedHeader) error {
@@ -89,6 +81,7 @@ func (sp *StoragePruner) indexDAH(ctx context.Context, h *header.ExtendedHeader)
 }
 
 func (sp *StoragePruner) pruneHeight(ctx context.Context, height uint64) error {
+	fmt.Println("pruning height", height)
 	k := datastore.NewKey(fmt.Sprintf("%d", height))
 	// TODO(optimization): Use a counting bloom filter to check if the key exists in the datastore.
 	// This would avoid a hit to disk, and we can remove heights from the filter as we prune them to maintain a healthy false positive rate.

@@ -14,6 +14,7 @@ import (
 	libhead "github.com/celestiaorg/go-header"
 	"github.com/celestiaorg/nmt"
 
+	"github.com/celestiaorg/celestia-node/das/pruner"
 	"github.com/celestiaorg/celestia-node/header"
 	"github.com/celestiaorg/celestia-node/share/eds"
 	"github.com/celestiaorg/celestia-node/share/ipld"
@@ -34,6 +35,7 @@ type Listener struct {
 
 	construct header.ConstructFn
 	store     *eds.Store
+	edsPruner *pruner.StoragePruner
 
 	headerBroadcaster libhead.Broadcaster[*header.ExtendedHeader]
 	hashBroadcaster   shrexsub.BroadcastFn
@@ -49,6 +51,7 @@ func NewListener(
 	hashBroadcaster shrexsub.BroadcastFn,
 	construct header.ConstructFn,
 	store *eds.Store,
+	edsPruner *pruner.StoragePruner,
 	blocktime time.Duration,
 ) *Listener {
 	return &Listener{
@@ -57,6 +60,7 @@ func NewListener(
 		hashBroadcaster:   hashBroadcaster,
 		construct:         construct,
 		store:             store,
+		edsPruner:         edsPruner,
 		listenerTimeout:   2 * blocktime,
 	}
 }
@@ -163,6 +167,11 @@ func (cl *Listener) handleNewSignedBlock(ctx context.Context, b types.EventDataS
 	eh, err := cl.construct(&b.Header, &b.Commit, &b.ValidatorSet, eds)
 	if err != nil {
 		panic(fmt.Errorf("making extended header: %w", err))
+	}
+
+	// register for future pruning
+	if cl.edsPruner != nil {
+		cl.edsPruner.Register(ctx, eh)
 	}
 
 	// attempt to store block data if not empty

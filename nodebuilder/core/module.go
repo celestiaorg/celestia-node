@@ -8,6 +8,7 @@ import (
 	libhead "github.com/celestiaorg/go-header"
 
 	"github.com/celestiaorg/celestia-node/core"
+	"github.com/celestiaorg/celestia-node/das/pruner"
 	"github.com/celestiaorg/celestia-node/header"
 	"github.com/celestiaorg/celestia-node/libs/fxutil"
 	"github.com/celestiaorg/celestia-node/nodebuilder/node"
@@ -43,8 +44,10 @@ func ConstructModule(tp node.Type, cfg *Config, options ...fx.Option) fx.Option 
 					pubsub *shrexsub.PubSub,
 					construct header.ConstructFn,
 					store *eds.Store,
+					// TODO: Pruner is not always supplied, so find a way to make it optional
+					pruner *pruner.StoragePruner,
 				) *core.Listener {
-					return core.NewListener(bcast, fetcher, pubsub.Broadcast, construct, store, p2p.BlockTime)
+					return core.NewListener(bcast, fetcher, pubsub.Broadcast, construct, store, pruner, p2p.BlockTime)
 				},
 				fx.OnStart(func(ctx context.Context, listener *core.Listener) error {
 					return listener.Start(ctx)
