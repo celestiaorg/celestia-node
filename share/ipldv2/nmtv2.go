@@ -1,8 +1,6 @@
 package ipldv2
 
 import (
-	"bytes"
-	"context"
 	"crypto/sha256"
 	"encoding/binary"
 	"fmt"
@@ -16,11 +14,10 @@ import (
 	"github.com/ipfs/go-datastore/sync"
 	mh "github.com/multiformats/go-multihash"
 
-	libhead "github.com/celestiaorg/go-header"
 	"github.com/celestiaorg/nmt"
 	"github.com/celestiaorg/nmt/pb"
+	"github.com/celestiaorg/rsmt2d"
 
-	"github.com/celestiaorg/celestia-node/header"
 	"github.com/celestiaorg/celestia-node/share"
 )
 
@@ -31,19 +28,26 @@ const (
 	// multihashCode is the multihash code used to hash blocks
 	// that contain an NMT node (inner and leaf nodes).
 	multihashCode = 0x7801
+
+	nmtHashSize = 2*share.NamespaceSize + sha256.Size
 )
 
 // ShareCID returns the CID of the share with the given index in the given dataroot.
-// TODO: Height is redundant and should be removed.
-func ShareCID(dataroot []byte, height uint64, idx int) (cid.Cid, error) {
-	if got, want := len(dataroot), sha256.Size; got != want {
-		return cid.Cid{}, fmt.Errorf("invalid namespaced hash length, got: %v, want: %v", got, want)
+func ShareCID(root *share.Root, idx int, axis rsmt2d.Axis) (cid.Cid, error) {
+	if idx < 0 || idx >= len(root.ColumnRoots) {
+		return cid.Undef, fmt.Errorf("invalid share index")
 	}
 
-	data := make([]byte, sha256.Size+4+8)
+	dataroot := root.Hash()
+	axisroot := root.RowRoots[axis]
+	if axis == rsmt2d.Col {
+		axisroot = root.ColumnRoots[axis]
+	}
+
+	data := make([]byte, sha256.Size+nmtHashSize+4)
 	n := copy(data, dataroot)
-	binary.LittleEndian.PutUint64(data[n:], uint64(height))
-	binary.LittleEndian.PutUint32(data[n+8:], uint32(idx))
+	n += copy(data[n:], axisroot)
+	binary.LittleEndian.PutUint32(data[n:], uint32(idx))
 
 	buf, err := mh.Encode(data, multihashCode)
 	if err != nil {
@@ -53,8 +57,6 @@ func ShareCID(dataroot []byte, height uint64, idx int) (cid.Cid, error) {
 }
 
 type Hasher struct {
-	// TODO: Hasher must be stateless eventually via sending inclusion proof from DAH to DataRoot
-	get  libhead.Getter[*header.ExtendedHeader]
 	data []byte
 }
 
@@ -65,37 +67,18 @@ func (h *Hasher) Write(data []byte) (int, error) {
 	// TODO Check size
 	// TODO Support Col proofs
 
-	dataroot := data[:sha256.Size]
-	height := binary.LittleEndian.Uint64(data[sha256.Size : sha256.Size+8])
-	idx := binary.LittleEndian.Uint32(data[sha256.Size+8 : sha256.Size+8+4])
-	shareData := data[sha256.Size+8+4 : sha256.Size+8+4 : +share.Size]
-	proofData := data[sha256.Size+8+4+share.Size:]
-
-	hdr, err := h.get.GetByHeight(context.TODO(), height)
-	if err != nil {
-		return 0, err
-	}
-
-	if !bytes.Equal(hdr.DataHash, dataroot) {
-		return 0, fmt.Errorf("invalid dataroot")
-	}
-
-	sqrLn := len(hdr.DAH.RowRoots) ^ 2
-	if int(idx) > sqrLn {
-		return 0, fmt.Errorf("invalid share index")
-	}
-
-	rowIdx := int(idx) / sqrLn
-	row := hdr.DAH.RowRoots[rowIdx]
+	axisroot := data[sha256.Size : sha256.Size+nmtHashSize]
+	shareData := data[sha256.Size+nmtHashSize+8 : sha256.Size+nmtHashSize+8+share.Size]
+	proofData := data[sha256.Size+nmtHashSize+8+share.Size:]
 
 	proofPb := pb.Proof{}
-	err = proofPb.Unmarshal(proofData)
+	err := proofPb.Unmarshal(proofData)
 	if err != nil {
 		return 0, err
 	}
 
 	proof := nmt.ProtoToProof(proofPb)
-	if proof.VerifyInclusion(sha256.New(), share.GetNamespace(shareData).ToNMT(), [][]byte{shareData}, row) {
+	if proof.VerifyInclusion(sha256.New(), share.GetNamespace(shareData).ToNMT(), [][]byte{shareData}, axisroot) {
 		return len(data), nil
 	}
 
@@ -104,16 +87,16 @@ func (h *Hasher) Write(data []byte) (int, error) {
 }
 
 func (h *Hasher) Sum([]byte) []byte {
-	return h.data[:sha256.Size+8+4]
+	return h.data[:sha256.Size+nmtHashSize+4]
 }
 
 // Reset resets the Hash to its initial state.
 func (h *Hasher) Reset() {
-	h.get = nil
+	h.data = nil
 }
 
 func (h *Hasher) Size() int {
-	return sha256.Size + 4 + 8
+	return sha256.Size + nmtHashSize + 4
 }
 
 // BlockSize returns the hash's underlying block size.
@@ -146,10 +129,16 @@ type node struct {
 	data []byte
 }
 
-func MakeNode(idx int, shr share.Share, proof *nmt.Proof, dataroot []byte, height uint64) (block.Block, error) {
+func MakeNode(root *share.Root, axis rsmt2d.Axis, idx int, shr share.Share, proof *nmt.Proof) (block.Block, error) {
+	dataroot := root.Hash()
+	axisroot := root.RowRoots[axis]
+	if axis == rsmt2d.Col {
+		axisroot = root.ColumnRoots[axis]
+	}
+
 	var data []byte
 	data = append(data, dataroot...)
-	data = binary.LittleEndian.AppendUint64(data, height)
+	data = append(data, axisroot...)
 	data = binary.LittleEndian.AppendUint32(data, uint32(idx))
 	data = append(data, shr...)
 
@@ -176,7 +165,7 @@ func (n *node) RawData() []byte {
 }
 
 func (n *node) Cid() cid.Cid {
-	buf, err := mh.Encode(n.data[:sha256.Size+8+4], multihashCode)
+	buf, err := mh.Encode(n.data[:sha256.Size+nmtHashSize+4], multihashCode)
 	if err != nil {
 		panic(err)
 	}
