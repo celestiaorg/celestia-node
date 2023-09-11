@@ -3,9 +3,11 @@ package eds
 import (
 	"context"
 	"os"
+	"sync"
 	"testing"
 	"time"
 
+	"github.com/filecoin-project/dagstore"
 	"github.com/filecoin-project/dagstore/shard"
 	"github.com/ipfs/go-datastore"
 	ds_sync "github.com/ipfs/go-datastore/sync"
@@ -209,6 +211,30 @@ func TestEDSStore(t *testing.T) {
 			assert.Contains(t, hashesOut, hash)
 		}
 	})
+
+	t.Run("Parallel put", func(t *testing.T) {
+		const amount = 20
+		eds, dah := randomEDS(t)
+
+		wg := sync.WaitGroup{}
+		for i := 1; i < amount; i++ {
+			wg.Add(1)
+			go func() {
+				defer wg.Done()
+				err := edsStore.Put(ctx, dah.Hash(), eds)
+				if err != nil {
+					require.ErrorIs(t, err, dagstore.ErrShardExists)
+				}
+			}()
+		}
+		wg.Wait()
+
+		eds, err := edsStore.Get(ctx, dah.Hash())
+		require.NoError(t, err)
+		newDah, err := da.NewDataAvailabilityHeader(eds)
+		require.NoError(t, err)
+		require.Equal(t, dah.Hash(), newDah.Hash())
+	})
 }
 
 // TestEDSStore_GC verifies that unused transient shards are collected by the GC periodically.
@@ -326,7 +352,7 @@ func BenchmarkStore(b *testing.B) {
 			// pause the timer for initializing test data
 			b.StopTimer()
 			eds := edstest.RandEDS(b, 128)
-			dah, err := da.NewDataAvailabilityHeader(eds)
+			dah, err := share.NewRoot(eds)
 			require.NoError(b, err)
 			b.StartTimer()
 
@@ -342,7 +368,7 @@ func BenchmarkStore(b *testing.B) {
 			// pause the timer for initializing test data
 			b.StopTimer()
 			eds := edstest.RandEDS(b, 128)
-			dah, err := da.NewDataAvailabilityHeader(eds)
+			dah, err := share.NewRoot(eds)
 			require.NoError(b, err)
 			_ = edsStore.Put(ctx, dah.Hash(), eds)
 			b.StartTimer()
@@ -361,9 +387,9 @@ func newStore(t *testing.T) (*Store, error) {
 	return NewStore(tmpDir, ds)
 }
 
-func randomEDS(t *testing.T) (*rsmt2d.ExtendedDataSquare, share.Root) {
+func randomEDS(t *testing.T) (*rsmt2d.ExtendedDataSquare, *share.Root) {
 	eds := edstest.RandEDS(t, 4)
-	dah, err := da.NewDataAvailabilityHeader(eds)
+	dah, err := share.NewRoot(eds)
 	require.NoError(t, err)
 
 	return eds, dah

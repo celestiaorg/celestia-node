@@ -10,6 +10,7 @@ import (
 
 	"github.com/celestiaorg/celestia-node/header"
 	"github.com/celestiaorg/celestia-node/header/headertest"
+	"github.com/celestiaorg/celestia-node/share"
 )
 
 func TestMakeExtendedHeaderForEmptyBlock(t *testing.T) {
@@ -36,7 +37,7 @@ func TestMakeExtendedHeaderForEmptyBlock(t *testing.T) {
 	headerExt, err := header.MakeExtendedHeader(&b.Header, comm, val, eds)
 	require.NoError(t, err)
 
-	assert.Equal(t, header.EmptyDAH(), *headerExt.DAH)
+	assert.Equal(t, share.EmptyRoot(), headerExt.DAH)
 }
 
 func TestMismatchedDataHash_ComputedRoot(t *testing.T) {

@@ -17,11 +17,11 @@ import (
 // TestGetter provides a testing SingleEDSGetter and the root of the EDS it holds.
 func TestGetter(t *testing.T) (share.Getter, *share.Root) {
 	eds := edstest.RandEDS(t, 8)
-	dah, err := da.NewDataAvailabilityHeader(eds)
+	dah, err := share.NewRoot(eds)
 	require.NoError(t, err)
 	return &SingleEDSGetter{
 		EDS: eds,
-	}, &dah
+	}, dah
 }
 
 // SingleEDSGetter contains a single EDS where data is retrieved from.

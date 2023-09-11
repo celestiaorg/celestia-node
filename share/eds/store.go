@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"sync"
 	"sync/atomic"
 	"time"
 
@@ -23,7 +24,6 @@ import (
 
 	"github.com/celestiaorg/rsmt2d"
 
-	"github.com/celestiaorg/celestia-node/header"
 	"github.com/celestiaorg/celestia-node/libs/utils"
 	"github.com/celestiaorg/celestia-node/share"
 	"github.com/celestiaorg/celestia-node/share/ipld"
@@ -63,6 +63,8 @@ type Store struct {
 	// lastGCResult is only stored on the store for testing purposes.
 	lastGCResult atomic.Pointer[dagstore.GCResult]
 
+	// stripedLocks is used to synchronize parallel operations
+	stripedLocks  [256]sync.Mutex
 	shardFailures chan dagstore.ShardResult
 
 	metrics *metrics
@@ -221,6 +223,10 @@ func (s *Store) Put(ctx context.Context, root share.DataHash, square *rsmt2d.Ext
 }
 
 func (s *Store) put(ctx context.Context, root share.DataHash, square *rsmt2d.ExtendedDataSquare) (err error) {
+	lk := &s.stripedLocks[root[len(root)-1]]
+	lk.Lock()
+	defer lk.Unlock()
+
 	// if root already exists, short-circuit
 	if has, _ := s.Has(ctx, root); has {
 		return dagstore.ErrShardExists
@@ -387,13 +393,13 @@ func (s *Store) getDAH(ctx context.Context, root share.DataHash) (*share.Root, e
 }
 
 // dahFromCARHeader returns the DataAvailabilityHeader stored in the CIDs of a CARv1 header.
-func dahFromCARHeader(carHeader *carv1.CarHeader) *header.DataAvailabilityHeader {
+func dahFromCARHeader(carHeader *carv1.CarHeader) *share.Root {
 	rootCount := len(carHeader.Roots)
 	rootBytes := make([][]byte, 0, rootCount)
 	for _, root := range carHeader.Roots {
 		rootBytes = append(rootBytes, ipld.NamespacedSha256FromCID(root))
 	}
-	return &header.DataAvailabilityHeader{
+	return &share.Root{
 		RowRoots:    rootBytes[:rootCount/2],
 		ColumnRoots: rootBytes[rootCount/2:],
 	}

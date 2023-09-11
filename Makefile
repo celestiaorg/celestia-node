@@ -159,20 +159,18 @@ openrpc-gen:
 .PHONY: openrpc-gen
 
 ## lint-imports: Lint only Go imports.
+## flag -set-exit-status doesn't exit with code 1 as it should, so we use find until it is fixed by goimports-reviser
 lint-imports:
 	@echo "--> Running imports linter"
 	@for file in `find . -type f -name '*.go'`; \
-		do goimports-reviser -list-diff -set-exit-status -company-prefixes "github.com/celestiaorg"  -project-name "github.com/celestiaorg/"$(PROJECTNAME)"" -output stdout $$file \
+		do goimports-reviser -list-diff -set-exit-status -company-prefixes "github.com/celestiaorg" -project-name "github.com/celestiaorg/celestia-node" -output stdout $$file \
 		 || exit 1;  \
     done;
 .PHONY: lint-imports
 
 ## sort-imports: Sort Go imports.
 sort-imports:
-	@for file in `find . -type f -name '*.go'`; \
-		 do goimports-reviser -company-prefixes "github.com/celestiaorg"  -project-name "github.com/celestiaorg/"$(PROJECTNAME)"" $$file \
-		  || exit 1; \
-	done;
+	@goimports-reviser -company-prefixes "github.com/celestiaorg" -project-name "github.com/celestiaorg/celestia-node" -output stdout ./...
 .PHONY: sort-imports
 
 ## adr-gen: Generate ADR from template. Must set NUM and TITLE parameters.
