@@ -65,6 +65,7 @@ func init() {
 	rpcCmd.AddCommand(dasCmd)
 	rpcCmd.AddCommand(headerCmd)
 	rpcCmd.AddCommand(shareCmd)
+	rpcCmd.AddCommand(stateCmd)
 	rootCmd.AddCommand(rpcCmd)
 }
 
