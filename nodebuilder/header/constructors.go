@@ -3,6 +3,7 @@ package header
 import (
 	"context"
 
+	"github.com/ipfs/go-datastore"
 	"github.com/libp2p/go-libp2p/core/host"
 	"github.com/libp2p/go-libp2p/core/peer"
 	"github.com/libp2p/go-libp2p/core/peerstore"
@@ -63,7 +64,7 @@ func newP2PExchange[H libhead.Header[H]](
 func newSyncer[H libhead.Header[H]](
 	ex libhead.Exchange[H],
 	fservice libfraud.Service[H],
-	store InitStore[H],
+	store libhead.Store[H],
 	sub libhead.Subscriber[H],
 	cfg Config,
 ) (*sync.Syncer[H], *modfraud.ServiceBreaker[*sync.Syncer[H], H], error) {
@@ -82,18 +83,19 @@ func newSyncer[H libhead.Header[H]](
 	}, nil
 }
 
-// InitStore is a type representing initialized header store.
-// NOTE: It is needed to ensure that Store is always initialized before Syncer is started.
-type InitStore[H libhead.Header[H]] libhead.Store[H]
-
 // newInitStore constructs an initialized store
 func newInitStore[H libhead.Header[H]](
 	lc fx.Lifecycle,
 	cfg Config,
 	net modp2p.Network,
-	s libhead.Store[H],
+	ds datastore.Batching,
 	ex libhead.Exchange[H],
-) (InitStore[H], error) {
+) (libhead.Store[H], error) {
+	s, err := store.NewStore[H](ds, store.WithParams(cfg.Store))
+	if err != nil {
+		return nil, err
+	}
+
 	trustedHash, err := cfg.trustedHash(net)
 	if err != nil {
 		return nil, err
@@ -101,7 +103,14 @@ func newInitStore[H libhead.Header[H]](
 
 	lc.Append(fx.Hook{
 		OnStart: func(ctx context.Context) error {
-			return store.Init(ctx, s, ex, trustedHash)
+			err = store.Init[H](ctx, s, ex, trustedHash)
+			if err != nil {
+				return err
+			}
+			return s.Start(ctx)
+		},
+		OnStop: func(ctx context.Context) error {
+			return s.Stop(ctx)
 		},
 	})
 
