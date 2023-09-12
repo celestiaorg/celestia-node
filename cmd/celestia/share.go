@@ -86,7 +86,7 @@ var probabilityOfAvailabilityCmd = &cobra.Command{
 }
 
 var getSharesByNamespaceCmd = &cobra.Command{
-	Use:   "get-shares-by-namespace[dah, namespace]",
+	Use:   "get-shares-by-namespace [dah, namespace]",
 	Short: "Gets all shares from an EDS within the given namespace.",
 	Args:  cobra.ExactArgs(2),
 	RunE: func(cmd *cobra.Command, args []string) error {
@@ -117,7 +117,7 @@ var getSharesByNamespaceCmd = &cobra.Command{
 }
 
 var getShare = &cobra.Command{
-	Use:   "get-share[dah, row, col]",
+	Use:   "get-share [dah, row, col]",
 	Short: "Gets a Share by coordinates in EDS.",
 	Args:  cobra.ExactArgs(3),
 	RunE: func(cmd *cobra.Command, args []string) error {
@@ -156,6 +156,7 @@ var getShare = &cobra.Command{
 			}
 
 			ns := hex.EncodeToString(share.GetNamespace(sh))
+
 			return struct {
 				Namespace string `json:"namespace"`
 				Data      []byte `json:"data"`
@@ -169,7 +170,7 @@ var getShare = &cobra.Command{
 }
 
 var getEDS = &cobra.Command{
-	Use:   "get-eds[dah]",
+	Use:   "get-eds [dah]",
 	Short: "Gets the full EDS identified by the given root",
 	Args:  cobra.ExactArgs(1),
 	RunE: func(cmd *cobra.Command, args []string) error {
