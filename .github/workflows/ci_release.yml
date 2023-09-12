@@ -32,14 +32,14 @@ jobs:
   yamllint:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
       - uses: celestiaorg/.github/.github/actions/yamllint@v0.2.2
 
   markdown-lint:
     name: Markdown Lint
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
       - uses: actions/setup-node@v3
         with:
           node-version: 18
@@ -57,7 +57,7 @@ jobs:
     if: ${{ github.event_name == 'workflow_dispatch' }}
     permissions: "write-all"
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
       - name: Version Release
         uses: celestiaorg/.github/.github/actions/version-release@v0.2.2
         with:
