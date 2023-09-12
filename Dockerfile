@@ -1,4 +1,4 @@
-FROM docker.io/golang:1.21-alpine3.18 as builder
+FROM --platform=$BUILDPLATFORM docker.io/golang:1.21-alpine3.18 as builder
 
 # hadolint ignore=DL3018
 RUN apk update && apk add --no-cache \
@@ -15,7 +15,7 @@ COPY . .
 
 RUN make build && make cel-key
 
-FROM docker.io/alpine:3.18.3
+FROM --platform=$BUILDPLATFORM docker.io/alpine:3.18.3
 
 # Read here why UID 10001: https://github.com/hexops/dockerfile/blob/main/README.md#do-not-use-a-uid-below-10000
 ARG UID=10001
@@ -30,6 +30,8 @@ ENV P2P_NETWORK mocha
 # hadolint ignore=DL3018
 RUN apk update && apk add --no-cache \
         bash \
+        curl \
+        jq \
     # Creates a user with $UID and $GID=$UID
     && adduser ${USER_NAME} \
         -D \
