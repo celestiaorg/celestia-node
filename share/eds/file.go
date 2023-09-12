@@ -65,7 +65,7 @@ func CreateFile(path string, eds *rsmt2d.ExtendedDataSquare) (*File, error) {
 	}
 
 	for _, shr := range eds.Flattened() {
-		// TOOD: Buffer and write as single?
+		// TODO: Buffer and write as single?
 		if _, err := f.Write(shr); err != nil {
 			return nil, err
 		}
@@ -86,7 +86,7 @@ func (f *File) Header() Header {
 	return f.h
 }
 
-func (f *File) Axis(idx int, tp rsmt2d.Axis) ([]share.Share, error) {
+func (f *File) Axis(idx int, _ rsmt2d.Axis) ([]share.Share, error) {
 	// TODO: Add Col support
 	shrLn := int64(f.h.ShareSize)
 	sqrLn := int64(f.h.SquareSize)
