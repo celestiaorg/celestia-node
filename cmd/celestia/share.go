@@ -29,7 +29,7 @@ var shareCmd = &cobra.Command{
 }
 
 var sharesAvailableCmd = &cobra.Command{
-	Use:   "shares-available",
+	Use:   "available",
 	Short: "Subjectively validates if Shares committed to the given Root are available on the Network.",
 	Args:  cobra.ExactArgs(1),
 	RunE: func(cmd *cobra.Command, args []string) error {
@@ -86,7 +86,7 @@ var probabilityOfAvailabilityCmd = &cobra.Command{
 }
 
 var getSharesByNamespaceCmd = &cobra.Command{
-	Use:   "get-shares-by-namespace [dah, namespace]",
+	Use:   "get-by-namespace [dah, namespace]",
 	Short: "Gets all shares from an EDS within the given namespace.",
 	Args:  cobra.ExactArgs(2),
 	RunE: func(cmd *cobra.Command, args []string) error {
