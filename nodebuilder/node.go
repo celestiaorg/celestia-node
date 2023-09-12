@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/cristalhq/jwt"
 	"github.com/ipfs/boxo/blockservice"
 	"github.com/ipfs/boxo/exchange"
 	logging "github.com/ipfs/go-log/v2"
@@ -48,6 +49,7 @@ type Node struct {
 	Network       p2p.Network
 	Bootstrappers p2p.Bootstrappers
 	Config        *Config
+	AdminSigner   jwt.Signer
 
 	// rpc components
 	RPCServer     *rpc.Server     // not optional
