@@ -65,6 +65,7 @@ func init() {
 	rpcCmd.AddCommand(p2pCmd)
 	rpcCmd.AddCommand(dasCmd)
 	rpcCmd.AddCommand(headerCmd)
+	rpcCmd.AddCommand(shareCmd)
 	rootCmd.AddCommand(rpcCmd)
 }
 
