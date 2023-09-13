@@ -113,7 +113,9 @@ func TestEDSStore(t *testing.T) {
 		_, err = os.Stat(edsStore.basepath + blocksPath + dah.String())
 		assert.NoError(t, err)
 
+		// accessor will be registered in cache async on put, so give it some time to settle
 		time.Sleep(time.Millisecond * 100)
+
 		err = edsStore.Remove(ctx, dah.Hash())
 		assert.NoError(t, err)
 
@@ -150,8 +152,10 @@ func TestEDSStore(t *testing.T) {
 		err = os.Remove(path)
 		assert.NoError(t, err)
 
-		// remove non-failed accessor from cache
+		// accessor will be registered in cache async on put, so give it some time to settle
 		time.Sleep(time.Millisecond * 100)
+
+		// remove non-failed accessor from cache
 		err = edsStore.cache.Remove(shard.KeyFromString(dah.String()))
 		assert.NoError(t, err)
 
@@ -194,8 +198,10 @@ func TestEDSStore(t *testing.T) {
 		err = edsStore.Put(ctx, dah.Hash(), eds)
 		require.NoError(t, err)
 
-		// check, that the key is in the cache after put
+		// accessor will be registered in cache async on put, so give it some time to settle
 		time.Sleep(time.Millisecond * 100)
+
+		// check, that the key is in the cache after put
 		shardKey := shard.KeyFromString(dah.String())
 		_, err = edsStore.cache.Get(shardKey)
 		assert.NoError(t, err)
@@ -262,8 +268,10 @@ func TestEDSStore_GC(t *testing.T) {
 	err = edsStore.Put(ctx, dah.Hash(), eds)
 	require.NoError(t, err)
 
-	// remove links to the shard from cache
+	// accessor will be registered in cache async on put, so give it some time to settle
 	time.Sleep(time.Millisecond * 100)
+
+	// remove links to the shard from cache
 	key := shard.KeyFromString(share.DataHash(dah.Hash()).String())
 	err = edsStore.cache.Remove(key)
 	require.NoError(t, err)
@@ -347,8 +355,8 @@ func Test_CachedAccessor(t *testing.T) {
 	err = edsStore.Put(ctx, dah.Hash(), eds)
 	require.NoError(t, err)
 
-	// give some time to let cache to get settled in background
-	time.Sleep(time.Millisecond * 50)
+	// accessor will be registered in cache async on put, so give it some time to settle
+	time.Sleep(time.Millisecond * 100)
 
 	// accessor should be in cache
 	cachedAccessor, err := edsStore.cache.Get(shard.KeyFromString(dah.String()))
@@ -386,8 +394,8 @@ func Test_NotCachedAccessor(t *testing.T) {
 	err = edsStore.Put(ctx, dah.Hash(), eds)
 	require.NoError(t, err)
 
-	// give some time to let cache to get settled in background
-	time.Sleep(time.Millisecond * 50)
+	// accessor will be registered in cache async on put, so give it some time to settle
+	time.Sleep(time.Millisecond * 100)
 
 	// accessor should be in cache
 	_, err = edsStore.cache.Get(shard.KeyFromString(dah.String()))

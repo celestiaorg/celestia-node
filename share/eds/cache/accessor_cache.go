@@ -4,12 +4,11 @@ import (
 	"context"
 	"fmt"
 	"io"
-	"reflect"
 	"sync"
 
 	"github.com/filecoin-project/dagstore"
 	"github.com/filecoin-project/dagstore/shard"
-	lru "github.com/hashicorp/golang-lru"
+	lru "github.com/hashicorp/golang-lru/v2"
 )
 
 var _ Cache = (*AccessorCache)(nil)
@@ -24,7 +23,7 @@ type AccessorCache struct {
 	stripedLocks [256]sync.Mutex
 	// Caches the blockstore for a given shard for shard read affinity, i.e., further reads will likely
 	// be from the same shard. Maps (shard key -> blockstore).
-	cache *lru.Cache
+	cache *lru.Cache[shard.Key, *accessorWithBlockstore]
 
 	metrics *metrics
 }
@@ -44,7 +43,7 @@ func NewAccessorCache(name string, cacheSize int) (*AccessorCache, error) {
 		name: name,
 	}
 	// Instantiate the blockstore Cache.
-	bslru, err := lru.NewWithEvict(cacheSize, bc.evictFn())
+	bslru, err := lru.NewWithEvict[shard.Key, *accessorWithBlockstore](cacheSize, bc.evictFn())
 	if err != nil {
 		return nil, fmt.Errorf("failed to instantiate blockstore cache: %w", err)
 	}
@@ -53,22 +52,15 @@ func NewAccessorCache(name string, cacheSize int) (*AccessorCache, error) {
 }
 
 // evictFn will be invoked when an item is evicted from the cache.
-func (bc *AccessorCache) evictFn() func(_ interface{}, val interface{}) {
-	return func(_ interface{}, val interface{}) {
-		// Ensure we close the blockstore for a shard when it's evicted so dagstore can garbage collect it.
-		abs, ok := val.(*accessorWithBlockstore)
-		if !ok {
-			panic(fmt.Sprintf(
-				"casting value from cache to accessorWithBlockstore: %s",
-				reflect.TypeOf(val),
-			))
-		}
-
+func (bc *AccessorCache) evictFn() func(shard.Key, *accessorWithBlockstore) {
+	return func(_ shard.Key, abs *accessorWithBlockstore) {
 		err := abs.shardAccessor.Close()
 		if err != nil {
+			bc.metrics.observeEvicted(true)
 			log.Errorf("couldn't close accessor after cache eviction: %s", err)
+			return
 		}
-		bc.metrics.observeEvicted()
+		bc.metrics.observeEvicted(false)
 	}
 }
 
@@ -85,22 +77,13 @@ func (bc *AccessorCache) Get(key shard.Key) (Accessor, error) {
 		return nil, err
 	}
 	bc.metrics.observeGet(true)
-	return newCloser(accessor)
+	return newCloser(accessor), nil
 }
 
 func (bc *AccessorCache) get(key shard.Key) (*accessorWithBlockstore, error) {
-	// We've already ensured that the given shard has the CID/multihash we are looking for.
-	val, ok := bc.cache.Get(key)
+	abs, ok := bc.cache.Get(key)
 	if !ok {
 		return nil, ErrCacheMiss
-	}
-
-	abs, ok := val.(*accessorWithBlockstore)
-	if !ok {
-		panic(fmt.Sprintf(
-			"casting value from cache to accessorWithBlockstore: %s",
-			reflect.TypeOf(val),
-		))
 	}
 	return abs, nil
 }
@@ -119,7 +102,7 @@ func (bc *AccessorCache) GetOrLoad(
 	abs, err := bc.get(key)
 	if err == nil {
 		bc.metrics.observeGet(true)
-		return newCloser(abs)
+		return newCloser(abs), nil
 	}
 
 	// accessor not found in cache, so load new one using loader
@@ -134,10 +117,7 @@ func (bc *AccessorCache) GetOrLoad(
 
 	// Create a new accessor first to increment the reference count in it, so it cannot get evicted
 	// from the inner lru cache before it is used.
-	ac, err := newCloser(abs)
-	if err != nil {
-		return nil, err
-	}
+	ac := newCloser(abs)
 	bc.cache.Add(key, abs)
 	return ac, nil
 }
@@ -165,7 +145,6 @@ func (s *accessorWithBlockstore) Blockstore() (dagstore.ReadBlockstore, error) {
 	if s.bs == nil {
 		s.bs, err = s.shardAccessor.Blockstore()
 	}
-
 	return s.bs, err
 }
 
@@ -180,11 +159,11 @@ type accessorCloser struct {
 	io.Closer
 }
 
-func newCloser(abs *accessorWithBlockstore) (*accessorCloser, error) {
+func newCloser(abs *accessorWithBlockstore) *accessorCloser {
 	return &accessorCloser{
 		accessorWithBlockstore: abs,
 		Closer:                 io.NopCloser(nil),
-	}, nil
+	}
 }
 
 // shardKeyToStriped returns the index of the lock to use for a given shard key. We use the last

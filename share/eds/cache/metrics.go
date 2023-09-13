@@ -9,6 +9,7 @@ import (
 
 const (
 	cacheFoundKey = "found"
+	failedKey     = "failed"
 )
 
 type metrics struct {
@@ -48,11 +49,12 @@ func newMetrics(bc *AccessorCache) (*metrics, error) {
 	}, err
 }
 
-func (m *metrics) observeEvicted() {
+func (m *metrics) observeEvicted(failed bool) {
 	if m == nil {
 		return
 	}
-	m.evictedCounter.Add(context.Background(), 1)
+	m.evictedCounter.Add(context.Background(), 1, metric.WithAttributes(
+		attribute.Bool(failedKey, failed)))
 }
 
 func (m *metrics) observeGet(found bool) {

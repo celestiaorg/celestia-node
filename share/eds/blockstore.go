@@ -4,15 +4,12 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"io"
 
-	"github.com/filecoin-project/dagstore"
 	bstore "github.com/ipfs/boxo/blockstore"
 	dshelp "github.com/ipfs/boxo/datastore/dshelp"
 	blocks "github.com/ipfs/go-block-format"
 	"github.com/ipfs/go-cid"
 	"github.com/ipfs/go-datastore"
-	"github.com/ipfs/go-datastore/namespace"
 	ipld "github.com/ipfs/go-ipld-format"
 
 	"github.com/celestiaorg/celestia-node/share/eds/cache"
@@ -36,20 +33,6 @@ var (
 type blockstore struct {
 	store *Store
 	ds    datastore.Batching
-}
-
-// BlockstoreCloser represents a blockstore that can also be closed. It combines the functionality
-// of a dagstore.ReadBlockstore with that of an io.Closer.
-type BlockstoreCloser struct {
-	dagstore.ReadBlockstore
-	io.Closer
-}
-
-func newBlockstore(store *Store, ds datastore.Batching) *blockstore {
-	return &blockstore{
-		store: store,
-		ds:    namespace.Wrap(ds, blockstoreCacheKey),
-	}
 }
 
 func (bs *blockstore) Has(ctx context.Context, cid cid.Cid) (bool, error) {

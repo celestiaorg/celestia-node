@@ -636,16 +636,3 @@ type inMemoryReader struct {
 func (r *inMemoryReader) Close() error {
 	return nil
 }
-
-// readCloser is a helper struct, that combines io.Reader and io.Closer
-type readCloser struct {
-	io.Reader
-	io.Closer
-}
-
-func newReadCloser(ac cache.Accessor) io.ReadCloser {
-	return readCloser{
-		ac.Reader(),
-		ac,
-	}
-}
