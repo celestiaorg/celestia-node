@@ -71,7 +71,7 @@ var sharesAvailableCmd = &cobra.Command{
 }
 
 var probabilityOfAvailabilityCmd = &cobra.Command{
-	Use:   "probability-of-availability",
+	Use:   "availability",
 	Short: "Calculates the probability of the data square being available based on the number of samples collected.",
 	Args:  cobra.NoArgs,
 	RunE: func(cmd *cobra.Command, args []string) error {
