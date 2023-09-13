@@ -24,7 +24,6 @@ import (
 
 	"github.com/celestiaorg/rsmt2d"
 
-	"github.com/celestiaorg/celestia-node/header"
 	"github.com/celestiaorg/celestia-node/libs/utils"
 	"github.com/celestiaorg/celestia-node/share"
 	"github.com/celestiaorg/celestia-node/share/ipld"
@@ -394,13 +393,13 @@ func (s *Store) getDAH(ctx context.Context, root share.DataHash) (*share.Root, e
 }
 
 // dahFromCARHeader returns the DataAvailabilityHeader stored in the CIDs of a CARv1 header.
-func dahFromCARHeader(carHeader *carv1.CarHeader) *header.DataAvailabilityHeader {
+func dahFromCARHeader(carHeader *carv1.CarHeader) *share.Root {
 	rootCount := len(carHeader.Roots)
 	rootBytes := make([][]byte, 0, rootCount)
 	for _, root := range carHeader.Roots {
 		rootBytes = append(rootBytes, ipld.NamespacedSha256FromCID(root))
 	}
-	return &header.DataAvailabilityHeader{
+	return &share.Root{
 		RowRoots:    rootBytes[:rootCount/2],
 		ColumnRoots: rootBytes[rootCount/2:],
 	}

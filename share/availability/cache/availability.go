@@ -10,14 +10,11 @@ import (
 	"github.com/ipfs/go-datastore/namespace"
 	logging "github.com/ipfs/go-log/v2"
 
-	"github.com/celestiaorg/celestia-app/pkg/da"
-
 	"github.com/celestiaorg/celestia-node/share"
 )
 
 var (
-	log     = logging.Logger("share/cache")
-	minRoot = da.MinDataAvailabilityHeader()
+	log = logging.Logger("share/cache")
 
 	cacheAvailabilityPrefix = datastore.NewKey("sampling_result")
 	writeBatchSize          = 2048
@@ -96,5 +93,5 @@ func rootKey(root *share.Root) datastore.Key {
 // isMinRoot returns whether the given root is a minimum (empty)
 // DataAvailabilityHeader (DAH).
 func isMinRoot(root *share.Root) bool {
-	return bytes.Equal(minRoot.Hash(), root.Hash())
+	return bytes.Equal(share.EmptyRoot().Hash(), root.Hash())
 }
