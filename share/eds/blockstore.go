@@ -163,15 +163,13 @@ func (bs *blockstore) getReadOnlyBlockstore(ctx context.Context, cid cid.Cid) (*
 		return nil, fmt.Errorf("failed to find shards containing multihash: %w", err)
 	}
 
-	// a share can exist in multiple EDSes, check cache to contain any of accessors containing shard
-	for _, k := range keys {
-		if accessor, err := bs.store.cache.Get(k); err == nil {
-			return blockstoreCloser(accessor)
-		}
+	// check if cache contains any of accessors
+	shardKey := keys[0]
+	if accessor, err := bs.store.cache.Get(shardKey); err == nil {
+		return blockstoreCloser(accessor)
 	}
 
-	// a share can exist in multiple EDSes, so just take the first one.
-	shardKey := keys[0]
+	// load accessor to the cache and use it as blockstoreCloser
 	accessor, err := bs.store.cache.GetOrLoad(ctx, shardKey, bs.store.getAccessor)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get accessor for shard %s: %w", shardKey, err)

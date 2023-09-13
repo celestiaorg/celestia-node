@@ -22,18 +22,20 @@ type AccessorCache struct {
 	// of using only one lock or one lock per key, we stripe the shard keys across 256 locks. 256 is
 	// chosen because it 0-255 is the range of values we get looking at the last byte of the key.
 	stripedLocks [256]sync.Mutex
-	// Caches the blockstore for a given shard for shard read affinity, i.e., further reads will likely be from the same shard.
-	// Maps (shard key -> blockstore).
+	// Caches the blockstore for a given shard for shard read affinity, i.e., further reads will likely
+	// be from the same shard. Maps (shard key -> blockstore).
 	cache *lru.Cache
 
 	metrics *metrics
 }
 
-// accessorWithBlockstore is the value that we store in the blockstore Cache. It implements the Accessor interface.
+// accessorWithBlockstore is the value that we store in the blockstore Cache. It implements the
+// Accessor interface.
 type accessorWithBlockstore struct {
 	sync.RWMutex
 	shardAccessor Accessor
-	// The blockstore is stored separately because each access to the blockstore over the shard accessor reopens the underlying CAR.
+	// The blockstore is stored separately because each access to the blockstore over the shard
+	// accessor reopens the underlying CAR.
 	bs dagstore.ReadBlockstore
 }
 
@@ -114,27 +116,30 @@ func (bc *AccessorCache) GetOrLoad(
 	lk.Lock()
 	defer lk.Unlock()
 
-	if accessor, err := bc.get(key); err == nil {
-		return newCloser(accessor)
+	abs, err := bc.get(key)
+	if err == nil {
+		bc.metrics.observeGet(true)
+		return newCloser(abs)
 	}
 
-	provider, err := loader(ctx, key)
+	// accessor not found in cache, so load new one using loader
+	accessor, err := loader(ctx, key)
 	if err != nil {
 		return nil, fmt.Errorf("unable to load accessor: %w", err)
 	}
 
-	abs := &accessorWithBlockstore{
-		shardAccessor: provider,
+	abs = &accessorWithBlockstore{
+		shardAccessor: accessor,
 	}
 
-	// Create a new accessor first to increment the reference count in it, so it cannot get evicted from the inner lru cache
-	// before it is used.
-	accessor, err := newCloser(abs)
+	// Create a new accessor first to increment the reference count in it, so it cannot get evicted
+	// from the inner lru cache before it is used.
+	ac, err := newCloser(abs)
 	if err != nil {
 		return nil, err
 	}
 	bc.cache.Add(key, abs)
-	return accessor, nil
+	return ac, nil
 }
 
 // Remove removes the Accessor for a given key from the cache.
@@ -151,8 +156,8 @@ func (bc *AccessorCache) EnableMetrics() error {
 	return err
 }
 
-// Blockstore implements the Blockstore of the Accessor interface. It creates the blockstore on the first
-// request and reuses the created instance for all subsequent requests.
+// Blockstore implements the Blockstore of the Accessor interface. It creates the blockstore on the
+// first request and reuses the created instance for all subsequent requests.
 func (s *accessorWithBlockstore) Blockstore() (dagstore.ReadBlockstore, error) {
 	s.Lock()
 	defer s.Unlock()

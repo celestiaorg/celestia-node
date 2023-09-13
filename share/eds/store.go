@@ -277,11 +277,11 @@ func (s *Store) put(ctx context.Context, root share.DataHash, square *rsmt2d.Ext
 		return fmt.Errorf("failed to register shard: %w", result.Error)
 	}
 
-	// the accessor returned in the result will be nil, so the shard needs to be acquired first to become
-	// available in the cache. It might take some time, and the result should not affect the put operation, so do it
-	// in a goroutine
-	// TODO: Ideally, only recent blocks should be put in the cache, but there is no way right now to check
-	// such a condition.
+	// the accessor returned in the result will be nil, so the shard needs to be acquired first to
+	// become available in the cache. It might take some time, and the result should not affect the put
+	// operation, so do it in a goroutine
+	// TODO: Ideally, only recent blocks should be put in the cache, but there is no way right now to
+	// check such a condition.
 	go func() {
 		ctx, cancel := context.WithTimeout(context.Background(), time.Minute)
 		defer cancel()
@@ -345,9 +345,9 @@ func (s *Store) getCAR(ctx context.Context, root share.DataHash) (io.ReadCloser,
 	if err == nil {
 		return newReadCloser(accessor), nil
 	}
-	// If the accessor is not found in the cache, create a new one from dagstore. We don't put the accessor
-	// in the cache here because getCAR is used by shrex-eds. There is a lower probability, compared
-	// to other cache put triggers, that the same block will be requested again soon.
+	// If the accessor is not found in the cache, create a new one from dagstore. We don't put the
+	// accessor in the cache here because getCAR is used by shrex-eds. There is a lower probability,
+	// compared to other cache put triggers, that the same block will be requested again soon.
 	shardAccessor, err := s.getAccessor(ctx, key)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get accessor: %w", err)
