@@ -89,9 +89,11 @@ func TestFraudProofHandling(t *testing.T) {
 	err = full.Start(ctx)
 	require.NoError(t, err)
 
+	fullClient := getAdminClient(ctx, full, t)
+
 	// 5.
 	subCtx, subCancel := context.WithCancel(ctx)
-	subscr, err := full.FraudServ.Subscribe(subCtx, byzantine.BadEncoding)
+	subscr, err := fullClient.Fraud.Subscribe(subCtx, byzantine.BadEncoding)
 	require.NoError(t, err)
 	select {
 	case p := <-subscr:
@@ -108,7 +110,7 @@ func TestFraudProofHandling(t *testing.T) {
 	//  lifecycles of each Module.
 	// 6.
 	syncCtx, syncCancel := context.WithTimeout(context.Background(), blockTime*5)
-	_, err = full.HeaderServ.WaitForHeight(syncCtx, 15)
+	_, err = fullClient.Header.WaitForHeight(syncCtx, 15)
 	require.ErrorIs(t, err, context.DeadlineExceeded)
 	syncCancel()
 
@@ -118,10 +120,11 @@ func TestFraudProofHandling(t *testing.T) {
 	lnStore := nodebuilder.MockStore(t, cfg)
 	light := sw.NewNodeWithStore(node.Light, lnStore)
 	require.NoError(t, light.Start(ctx))
+	lightClient := getAdminClient(ctx, light, t)
 
 	// 8.
 	subCtx, subCancel = context.WithCancel(ctx)
-	subscr, err = light.FraudServ.Subscribe(subCtx, byzantine.BadEncoding)
+	subscr, err = lightClient.Fraud.Subscribe(subCtx, byzantine.BadEncoding)
 	require.NoError(t, err)
 	select {
 	case p := <-subscr:
@@ -135,7 +138,8 @@ func TestFraudProofHandling(t *testing.T) {
 	// 9.
 	fN := sw.NewNodeWithStore(node.Full, store)
 	require.Error(t, fN.Start(ctx))
-	proofs, err := fN.FraudServ.Get(ctx, byzantine.BadEncoding)
+	fNClient := getAdminClient(ctx, fN, t)
+	proofs, err := fNClient.Fraud.Get(ctx, byzantine.BadEncoding)
 	require.NoError(t, err)
 	require.NotNil(t, proofs)
 
