@@ -10,12 +10,12 @@ import (
 )
 
 func init() {
-	adminCmd.AddCommand(nodeInfoCmd, logCmd, verifyCmd, authCmd)
-	rootCmd.AddCommand(adminCmd)
+	nodeCmd.AddCommand(nodeInfoCmd, logCmd, verifyCmd, authCmd)
+	rootCmd.AddCommand(nodeCmd)
 }
 
-var adminCmd = &cobra.Command{
-	Use:   "admin [command]",
+var nodeCmd = &cobra.Command{
+	Use:   "node [command]",
 	Short: "Allows to interact with the \"administrative\" node.",
 	Args:  cobra.NoArgs,
 	PersistentPreRunE: func(cmd *cobra.Command, args []string) error {
@@ -31,7 +31,7 @@ var adminCmd = &cobra.Command{
 }
 
 var nodeInfoCmd = &cobra.Command{
-	Use:   "node-info",
+	Use:   "info",
 	Args:  cobra.NoArgs,
 	Short: "Returns administrative information about the node.",
 	RunE: func(c *cobra.Command, args []string) error {
