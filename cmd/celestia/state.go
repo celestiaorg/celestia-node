@@ -14,7 +14,6 @@ import (
 
 func init() {
 	stateCmd.AddCommand(
-		isStoppedCmd,
 		accountAddressCmd,
 		balanceCmd,
 		balanceForAddressCmd,
@@ -35,30 +34,6 @@ var stateCmd = &cobra.Command{
 	Use:   "state [command]",
 	Short: "Allows interaction with the State Module via JSON-RPC",
 	Args:  cobra.NoArgs,
-}
-
-var isStoppedCmd = &cobra.Command{
-	Use:   "is-stopped",
-	Short: "Checks if the Module's context has been stopped.",
-	Args:  cobra.NoArgs,
-	RunE: func(cmd *cobra.Command, args []string) error {
-		client, err := rpcClient(cmd.Context())
-		if err != nil {
-			return err
-		}
-
-		stopped := client.State.IsStopped(cmd.Context())
-
-		formatter := func(data interface{}) interface{} {
-			s := data.(bool)
-			return struct {
-				Stopped bool `json:"stopped"`
-			}{
-				Stopped: s,
-			}
-		}
-		return printOutput(stopped, nil, formatter)
-	},
 }
 
 var accountAddressCmd = &cobra.Command{
