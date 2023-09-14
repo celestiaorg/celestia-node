@@ -77,9 +77,10 @@ var accountAddressCmd = &cobra.Command{
 }
 
 var balanceCmd = &cobra.Command{
-	Use:   "balance",
-	Short: "Retrieves the Celestia coin balance for the node's account/signer and verifies it against the corresponding block's AppHash.",
-	Args:  cobra.NoArgs,
+	Use: "balance",
+	Short: "Retrieves the Celestia coin balance for the node's account/signer and verifies it against " +
+		"the corresponding block's AppHash.",
+	Args: cobra.NoArgs,
 	RunE: func(cmd *cobra.Command, args []string) error {
 		client, err := rpcClient(cmd.Context())
 		if err != nil {
@@ -92,9 +93,10 @@ var balanceCmd = &cobra.Command{
 }
 
 var balanceForAddressCmd = &cobra.Command{
-	Use:   "balance-for-address [address]",
-	Short: "Retrieves the Celestia coin balance for the given address and verifies the returned balance against the corresponding block's AppHash.",
-	Args:  cobra.ExactArgs(1),
+	Use: "balance-for-address [address]",
+	Short: "Retrieves the Celestia coin balance for the given address and verifies the returned balance against " +
+		"the corresponding block's AppHash.",
+	Args: cobra.ExactArgs(1),
 	RunE: func(cmd *cobra.Command, args []string) error {
 		client, err := rpcClient(cmd.Context())
 		if err != nil {
