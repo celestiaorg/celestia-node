@@ -89,6 +89,7 @@ func (c *Client) doRequest(
 	if err != nil {
 		return nil, fmt.Errorf("failed to open stream: %w", err)
 	}
+	defer stream.Close()
 
 	c.setStreamDeadlines(ctx, stream)
 
