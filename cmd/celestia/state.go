@@ -114,7 +114,7 @@ var balanceForAddressCmd = &cobra.Command{
 }
 
 var transferCmd = &cobra.Command{
-	Use:   "transfer [address, amount, fee, gasLimit]",
+	Use:   "transfer [address] [amount] [fee] [gasLimit]",
 	Short: "Sends the given amount of coins from default wallet of the node to the given account address.",
 	Args:  cobra.ExactArgs(4),
 	RunE: func(cmd *cobra.Command, args []string) error {
@@ -174,7 +174,7 @@ var submitTxCmd = &cobra.Command{
 }
 
 var submitPFBCmd = &cobra.Command{
-	Use:   "submit-pfb [namespace, data, fee, gasLim]",
+	Use:   "submit-pfb [namespace] [data] [fee] [gasLim]",
 	Short: "Allows to submit PFBs",
 	Args:  cobra.ExactArgs(4),
 	RunE: func(cmd *cobra.Command, args []string) error {
@@ -208,7 +208,7 @@ var submitPFBCmd = &cobra.Command{
 }
 
 var cancelUnbondingDelegationCmd = &cobra.Command{
-	Use:   "cancel-unbonding-delegation [address, amount, height, fee, gasLimit]",
+	Use:   "cancel-unbonding-delegation [address] [amount] [height] [fee] [gasLimit]",
 	Short: "Cancels a user's pending undelegation from a validator.",
 	Args:  cobra.ExactArgs(5),
 	RunE: func(cmd *cobra.Command, args []string) error {
@@ -254,7 +254,7 @@ var cancelUnbondingDelegationCmd = &cobra.Command{
 }
 
 var beginRedelegateCmd = &cobra.Command{
-	Use:   "begin-redelegate [srcAddress, dstAddress, amount, fee, gasLimit]",
+	Use:   "begin-redelegate [srcAddress] [dstAddress] [amount] [fee] [gasLimit]",
 	Short: "Sends a user's delegated tokens to a new validator for redelegation",
 	Args:  cobra.ExactArgs(5),
 	RunE: func(cmd *cobra.Command, args []string) error {
@@ -299,7 +299,7 @@ var beginRedelegateCmd = &cobra.Command{
 }
 
 var undelegateCmd = &cobra.Command{
-	Use:   "undelegate [valAddress, amount, fee, gasLimit]",
+	Use:   "undelegate [valAddress] [amount] [fee] [gasLimit]",
 	Short: "Undelegates a user's delegated tokens, unbonding them from the current validator.",
 	Args:  cobra.ExactArgs(4),
 	RunE: func(cmd *cobra.Command, args []string) error {
@@ -337,7 +337,7 @@ var undelegateCmd = &cobra.Command{
 }
 
 var delegateCmd = &cobra.Command{
-	Use:   "delegate [valAddress, amount, fee, gasLimit]",
+	Use:   "delegate [valAddress] [amount] [fee] [gasLimit]",
 	Short: "Sends a user's liquid tokens to a validator for delegation.",
 	Args:  cobra.ExactArgs(4),
 	RunE: func(cmd *cobra.Command, args []string) error {
@@ -420,7 +420,7 @@ var queryUnbondingCmd = &cobra.Command{
 }
 
 var queryRedelegationCmd = &cobra.Command{
-	Use:   "get-redelegations [srcAddress, dstAddress]",
+	Use:   "get-redelegations [srcAddress] [dstAddress]",
 	Short: "Retrieves the status of the redelegations between a delegator and a validator.",
 	Args:  cobra.ExactArgs(2),
 	RunE: func(cmd *cobra.Command, args []string) error {
