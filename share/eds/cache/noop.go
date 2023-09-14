@@ -12,7 +12,7 @@ var _ Cache = (*NoopCache)(nil)
 type NoopCache struct{}
 
 func (n NoopCache) Get(shard.Key) (Accessor, error) {
-	return nil, ErrCacheMiss
+	return nil, errCacheMiss
 }
 
 func (n NoopCache) GetOrLoad(

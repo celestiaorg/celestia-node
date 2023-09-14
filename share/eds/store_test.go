@@ -329,7 +329,7 @@ func Test_BlockstoreCache(t *testing.T) {
 	// key shouldn't be in cache yet, check for returned errCacheMiss
 	shardKey := shard.KeyFromString(dah.String())
 	_, err = edsStore.cache.Get(shardKey)
-	require.ErrorIs(t, err, cache.ErrCacheMiss)
+	require.Error(t, err)
 
 	// now get it from blockstore, to trigger storing to cache
 	_, err = edsStore.Blockstore().Get(ctx, key)
@@ -399,7 +399,7 @@ func Test_NotCachedAccessor(t *testing.T) {
 
 	// accessor should be in cache
 	_, err = edsStore.cache.Get(shard.KeyFromString(dah.String()))
-	require.ErrorIs(t, err, cache.ErrCacheMiss)
+	require.Error(t, err)
 
 	// first read from direct accessor
 	carReader, err := edsStore.getCAR(ctx, dah.Hash())

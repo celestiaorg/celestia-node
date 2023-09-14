@@ -17,7 +17,7 @@ var (
 )
 
 var (
-	ErrCacheMiss = errors.New("accessor not found in blockstore cache")
+	errCacheMiss = errors.New("accessor not found in blockstore cache")
 )
 
 // Cache is an interface that defines the basic Cache operations.

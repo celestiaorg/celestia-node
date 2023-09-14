@@ -38,6 +38,23 @@ type accessorWithBlockstore struct {
 	bs dagstore.ReadBlockstore
 }
 
+// Blockstore implements the Blockstore of the Accessor interface. It creates the blockstore on the
+// first request and reuses the created instance for all subsequent requests.
+func (s *accessorWithBlockstore) Blockstore() (dagstore.ReadBlockstore, error) {
+	s.Lock()
+	defer s.Unlock()
+	var err error
+	if s.bs == nil {
+		s.bs, err = s.shardAccessor.Blockstore()
+	}
+	return s.bs, err
+}
+
+// Reader returns a new copy of the reader to read data.
+func (s *accessorWithBlockstore) Reader() io.Reader {
+	return s.shardAccessor.Reader()
+}
+
 func NewAccessorCache(name string, cacheSize int) (*AccessorCache, error) {
 	bc := &AccessorCache{
 		name: name,
@@ -65,7 +82,7 @@ func (bc *AccessorCache) evictFn() func(shard.Key, *accessorWithBlockstore) {
 }
 
 // Get retrieves the Accessor for a given shard key from the Cache. If the Accessor is not in
-// the Cache, it returns an ErrCacheMiss.
+// the Cache, it returns an errCacheMiss.
 func (bc *AccessorCache) Get(key shard.Key) (Accessor, error) {
 	lk := &bc.stripedLocks[shardKeyToStriped(key)]
 	lk.Lock()
@@ -83,7 +100,7 @@ func (bc *AccessorCache) Get(key shard.Key) (Accessor, error) {
 func (bc *AccessorCache) get(key shard.Key) (*accessorWithBlockstore, error) {
 	abs, ok := bc.cache.Get(key)
 	if !ok {
-		return nil, ErrCacheMiss
+		return nil, errCacheMiss
 	}
 	return abs, nil
 }
@@ -134,23 +151,6 @@ func (bc *AccessorCache) EnableMetrics() error {
 	var err error
 	bc.metrics, err = newMetrics(bc)
 	return err
-}
-
-// Blockstore implements the Blockstore of the Accessor interface. It creates the blockstore on the
-// first request and reuses the created instance for all subsequent requests.
-func (s *accessorWithBlockstore) Blockstore() (dagstore.ReadBlockstore, error) {
-	s.Lock()
-	defer s.Unlock()
-	var err error
-	if s.bs == nil {
-		s.bs, err = s.shardAccessor.Blockstore()
-	}
-	return s.bs, err
-}
-
-// Reader returns a new copy of the reader to read data.
-func (s *accessorWithBlockstore) Reader() io.Reader {
-	return s.shardAccessor.Reader()
 }
 
 // accessorCloser is a temporary object before reference counting is implemented.
