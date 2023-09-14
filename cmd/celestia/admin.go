@@ -1,17 +1,37 @@
 package main
 
 import (
-	"fmt"
+	"context"
+	"errors"
 	"strings"
 
 	"github.com/filecoin-project/go-jsonrpc/auth"
 	"github.com/spf13/cobra"
-
-	"github.com/celestiaorg/celestia-node/cmd"
 )
 
+func init() {
+	adminCmd.AddCommand(nodeInfoCmd, logCmd, verifyCmd, authCmd)
+	rootCmd.AddCommand(adminCmd)
+}
+
+var adminCmd = &cobra.Command{
+	Use:   "admin [command]",
+	Short: "Allows to interact with the \"administrative\" node.",
+	Args:  cobra.NoArgs,
+	PersistentPreRunE: func(cmd *cobra.Command, args []string) error {
+		rpcClient, err := newRPCClient(cmd.Context())
+		if err != nil {
+			return err
+		}
+
+		ctx := context.WithValue(cmd.Context(), rpcClientKey{}, rpcClient)
+		cmd.SetContext(ctx)
+		return nil
+	},
+}
+
 var nodeInfoCmd = &cobra.Command{
-	Use:   "node.info",
+	Use:   "node-info",
 	Args:  cobra.NoArgs,
 	Short: "Returns administrative information about the node.",
 	RunE: func(c *cobra.Command, args []string) error {
@@ -25,7 +45,7 @@ var nodeInfoCmd = &cobra.Command{
 }
 
 var logCmd = &cobra.Command{
-	Use:  cmd.LogLevelFlag,
+	Use:  "log-level",
 	Args: cobra.MinimumNArgs(1),
 	Short: "Allows to set log level for module to in format <module>:<level>" +
 		"`DEBUG, INFO, WARN, ERROR, DPANIC, PANIC, FATAL and their lower-case forms`.\n" +
@@ -39,8 +59,8 @@ var logCmd = &cobra.Command{
 		for _, ll := range args {
 			params := strings.Split(ll, ":")
 			if len(params) != 2 {
-				return fmt.Errorf("cmd: %s arg must be in form <module>:<level>,"+
-					"e.g. pubsub:debug", cmd.LogLevelFlag)
+				return errors.New("cmd: log-level arg must be in form <module>:<level>," +
+					"e.g. pubsub:debug")
 			}
 
 			if err = client.Node.LogLevelSet(c.Context(), params[0], params[1]); err != nil {
@@ -68,7 +88,7 @@ var verifyCmd = &cobra.Command{
 }
 
 var authCmd = &cobra.Command{
-	Use:   "set.permissions",
+	Use:   "set-permissions",
 	Args:  cobra.MinimumNArgs(1),
 	Short: "Signs and returns a new token with the given permissions.",
 	RunE: func(c *cobra.Command, args []string) error {
