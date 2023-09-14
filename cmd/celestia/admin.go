@@ -16,7 +16,7 @@ func init() {
 
 var nodeCmd = &cobra.Command{
 	Use:   "node [command]",
-	Short: "Allows to interact with the \"administrative\" node.",
+	Short: "Allows administrating running node.",
 	Args:  cobra.NoArgs,
 	PersistentPreRunE: func(cmd *cobra.Command, args []string) error {
 		rpcClient, err := newRPCClient(cmd.Context())
