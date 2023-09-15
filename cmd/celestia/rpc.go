@@ -23,7 +23,7 @@ import (
 	"github.com/celestiaorg/celestia-node/state"
 )
 
-const authEnvKey = "CELESTIA_NODE_AUTH_TOKEN" //nolint:gosec
+const authEnvKey = "CELESTIA_NODE_AUTH_TOKEN"
 
 var requestURL string
 var authTokenFlag string
@@ -60,7 +60,6 @@ func init() {
 		false,
 		"Print JSON-RPC request along with the response",
 	)
-	rpcCmd.AddCommand(logCmd, logModuleCmd)
 	rpcCmd.AddCommand(blobCmd)
 	rpcCmd.AddCommand(p2pCmd)
 	rpcCmd.AddCommand(dasCmd)
