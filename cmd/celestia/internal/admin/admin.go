@@ -1,33 +1,31 @@
-package main
+package admin
 
 import (
-	"context"
 	"errors"
 	"strings"
 
 	"github.com/filecoin-project/go-jsonrpc/auth"
 	"github.com/spf13/cobra"
+
+	"github.com/celestiaorg/celestia-node/cmd/celestia/internal"
 )
 
 func init() {
-	nodeCmd.AddCommand(nodeInfoCmd, logCmd, verifyCmd, authCmd)
-	rootCmd.AddCommand(nodeCmd)
+	NodeCmd.AddCommand(nodeInfoCmd, logCmd, verifyCmd, authCmd)
+
+	NodeCmd.PersistentFlags().StringVar(
+		&internal.RequestURL,
+		"url",
+		"http://localhost:26658",
+		"Request URL",
+	)
 }
 
-var nodeCmd = &cobra.Command{
-	Use:   "node [command]",
-	Short: "Allows administrating running node.",
-	Args:  cobra.NoArgs,
-	PersistentPreRunE: func(cmd *cobra.Command, args []string) error {
-		rpcClient, err := newRPCClient(cmd.Context())
-		if err != nil {
-			return err
-		}
-
-		ctx := context.WithValue(cmd.Context(), rpcClientKey{}, rpcClient)
-		cmd.SetContext(ctx)
-		return nil
-	},
+var NodeCmd = &cobra.Command{
+	Use:               "node [command]",
+	Short:             "Allows administrating running node.",
+	Args:              cobra.NoArgs,
+	PersistentPreRunE: internal.InitClient,
 }
 
 var nodeInfoCmd = &cobra.Command{
@@ -35,27 +33,19 @@ var nodeInfoCmd = &cobra.Command{
 	Args:  cobra.NoArgs,
 	Short: "Returns administrative information about the node.",
 	RunE: func(c *cobra.Command, args []string) error {
-		client, err := rpcClient(c.Context())
-		if err != nil {
-			return err
-		}
-		info, err := client.Node.Info(c.Context())
-		return printOutput(info, err, nil)
+		info, err := internal.RPCClient.Node.Info(c.Context())
+		return internal.PrintOutput(info, err, nil)
 	},
 }
 
 var logCmd = &cobra.Command{
-	Use:  "log-level",
-	Args: cobra.MinimumNArgs(1),
-	Short: "Allows to set log level for module to in format <module>:<level>" +
+	Use:   "log-level",
+	Args:  cobra.MinimumNArgs(1),
+	Short: "Sets log level for module.",
+	Long: "Allows to set log level for module to in format <module>:<level>" +
 		"`DEBUG, INFO, WARN, ERROR, DPANIC, PANIC, FATAL and their lower-case forms`.\n" +
 		"To set all modules to a particular level `*:<log.level>` should be passed",
 	RunE: func(c *cobra.Command, args []string) error {
-		client, err := rpcClient(c.Context())
-		if err != nil {
-			return err
-		}
-
 		for _, ll := range args {
 			params := strings.Split(ll, ":")
 			if len(params) != 2 {
@@ -63,7 +53,7 @@ var logCmd = &cobra.Command{
 					"e.g. pubsub:debug")
 			}
 
-			if err = client.Node.LogLevelSet(c.Context(), params[0], params[1]); err != nil {
+			if err := internal.RPCClient.Node.LogLevelSet(c.Context(), params[0], params[1]); err != nil {
 				return err
 			}
 		}
@@ -77,13 +67,8 @@ var verifyCmd = &cobra.Command{
 	Short: "Returns the permissions assigned to the given token.",
 
 	RunE: func(c *cobra.Command, args []string) error {
-		client, err := rpcClient(c.Context())
-		if err != nil {
-			return err
-		}
-
-		perms, err := client.Node.AuthVerify(c.Context(), args[0])
-		return printOutput(perms, err, nil)
+		perms, err := internal.RPCClient.Node.AuthVerify(c.Context(), args[0])
+		return internal.PrintOutput(perms, err, nil)
 	},
 }
 
@@ -92,17 +77,12 @@ var authCmd = &cobra.Command{
 	Args:  cobra.MinimumNArgs(1),
 	Short: "Signs and returns a new token with the given permissions.",
 	RunE: func(c *cobra.Command, args []string) error {
-		client, err := rpcClient(c.Context())
-		if err != nil {
-			return err
-		}
-
 		perms := make([]auth.Permission, len(args))
 		for i, p := range args {
 			perms[i] = (auth.Permission)(p)
 		}
 
-		result, err := client.Node.AuthNew(c.Context(), perms)
-		return printOutput(result, err, nil)
+		result, err := internal.RPCClient.Node.AuthNew(c.Context(), perms)
+		return internal.PrintOutput(result, err, nil)
 	},
 }
