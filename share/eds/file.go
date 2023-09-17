@@ -155,17 +155,14 @@ func (f *File) EDS() (*rsmt2d.ExtendedDataSquare, error) {
 	shrs := make([][]byte, sqrLn*sqrLn)
 	for i := 0; i < sqrLn; i++ {
 		for j := 0; j < sqrLn; j++ {
-			coord := i*sqrLn + j
-			shrs[coord] = buf[coord*shrLn : (coord+1)*shrLn]
+			x := i*sqrLn + j
+			shrs[x] = buf[x*shrLn : (x+1)*shrLn]
 		}
 	}
 
-	treeFn := func(_ rsmt2d.Axis, index uint) rsmt2d.Tree {
-		tree := wrapper.NewErasuredNamespacedMerkleTree(uint64(f.h.SquareSize/2), index)
-		return &tree
-	}
-
-	eds, err := rsmt2d.ImportExtendedDataSquare(shrs, share.DefaultRSMT2DCodec(), treeFn)
+	codec := share.DefaultRSMT2DCodec()
+	treeFn := wrapper.NewConstructor(uint64(f.h.SquareSize / 2))
+	eds, err := rsmt2d.ImportExtendedDataSquare(shrs, codec, treeFn)
 	if err != nil {
 		return nil, err
 	}

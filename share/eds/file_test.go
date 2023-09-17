@@ -32,7 +32,7 @@ func TestFile(t *testing.T) {
 	}
 
 	width := int(eds.Width())
-	for i := 0; i < width*2; i++ {
+	for i := 0; i < width*width; i++ {
 		row, col := uint(i/width), uint(i%width)
 		shr, err := fl.Share(i)
 		require.NoError(t, err)
@@ -45,7 +45,12 @@ func TestFile(t *testing.T) {
 		roots, err := eds.RowRoots()
 		require.NoError(t, err)
 
-		ok := proof.VerifyInclusion(sha256.New(), share.GetNamespace(shr).ToNMT(), [][]byte{shr}, roots[row])
+		namespace := share.ParitySharesNamespace
+		if int(row) < width/2 && int(col) < width/2 {
+			namespace = share.GetNamespace(shr)
+		}
+
+		ok := proof.VerifyInclusion(sha256.New(), namespace.ToNMT(), [][]byte{shr}, roots[row])
 		assert.True(t, ok)
 	}
 

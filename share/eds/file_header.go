@@ -10,6 +10,7 @@ const HeaderSize = 32
 type Header struct {
 	// User set features
 	// TODO: Add codec
+	// TDOD: Add ODS support
 	Version     uint8
 	Compression uint8
 	Extensions  map[string]string
