@@ -2,6 +2,7 @@ package rpc
 
 import (
 	"encoding/base64"
+	"encoding/hex"
 	"fmt"
 	"reflect"
 	"strconv"
@@ -112,7 +113,9 @@ var getAllCmd = &cobra.Command{
 		}
 
 		blobs, err := internal.RPCClient.Blob.GetAll(cmd.Context(), height, []share.Namespace{namespace})
-
+		fmt.Println(hex.EncodeToString(blobs[0].Namespace().ID()))
+		fmt.Println(blobs[0].Namespace().ID())
+		fmt.Println(blobs[0].Namespace())
 		formatter := formatData
 		if base64Flag || err != nil {
 			formatter = nil

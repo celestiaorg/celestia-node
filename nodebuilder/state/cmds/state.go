@@ -1,6 +1,7 @@
 package rpc
 
 import (
+	"encoding/hex"
 	"fmt"
 	"strconv"
 
@@ -121,13 +122,15 @@ var submitTxCmd = &cobra.Command{
 	Short: "Submits the given transaction/message to the Celestia network and blocks until the tx is included in a block.",
 	Args:  cobra.ExactArgs(1),
 	RunE: func(cmd *cobra.Command, args []string) error {
-		rawTx, err := internal.DecodeToBytes(args[0])
+		decoded, err := hex.DecodeString(args[0])
 		if err != nil {
 			return fmt.Errorf("failed to decode tx: %v", err)
 		}
+
+		fmt.Println(args[0])
 		txResponse, err := internal.RPCClient.State.SubmitTx(
 			cmd.Context(),
-			rawTx,
+			decoded,
 		)
 		return internal.PrintOutput(txResponse, err, nil)
 	},
