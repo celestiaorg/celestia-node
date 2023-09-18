@@ -1,11 +1,10 @@
 package eds
 
 import (
+	"fmt"
 	"io"
 
 	"github.com/filecoin-project/dagstore"
-	"github.com/ipfs/go-datastore"
-	"github.com/ipfs/go-datastore/namespace"
 
 	"github.com/celestiaorg/celestia-node/share/eds/cache"
 )
@@ -30,11 +29,16 @@ func newReadCloser(ac cache.Accessor) io.ReadCloser {
 	}
 }
 
-func newBlockstore(store *Store, ds datastore.Batching) *blockstore {
-	return &blockstore{
-		store: store,
-		ds:    namespace.Wrap(ds, blockstoreCacheKey),
+// blockstoreCloser constructs new BlockstoreCloser from cache.Accessor
+func blockstoreCloser(ac cache.Accessor) (*BlockstoreCloser, error) {
+	bs, err := ac.Blockstore()
+	if err != nil {
+		return nil, fmt.Errorf("eds/store: failed to get blockstore: %w", err)
 	}
+	return &BlockstoreCloser{
+		ReadBlockstore: bs,
+		Closer:         ac,
+	}, nil
 }
 
 func closeAndLog(name string, closer io.Closer) {

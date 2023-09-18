@@ -40,7 +40,8 @@ const (
 	// We don't use transient files right now, so GC is turned off by default.
 	defaultGCInterval = 0
 
-	defaultCacheSize = 128
+	defaultRecentBlocksCacheSize = 10
+	defaultBlockstoreCacheSize   = 128
 )
 
 var ErrNotFound = errors.New("eds not found in store")
@@ -56,7 +57,7 @@ type Store struct {
 	mounts *mount.Registry
 
 	bs    *blockstore
-	cache cache.Cache
+	cache *cache.DoubleCache
 
 	carIdx      index.FullIndexRepo
 	invertedIdx *simpleInvertedIndex
@@ -114,9 +115,14 @@ func NewStore(basepath string, ds datastore.Batching) (*Store, error) {
 		return nil, fmt.Errorf("failed to create DAGStore: %w", err)
 	}
 
-	accessorCache, err := cache.NewAccessorCache("cache", defaultCacheSize)
+	recentBlocksCache, err := cache.NewAccessorCache("recent", defaultRecentBlocksCacheSize)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create recent blocks cache: %w", err)
+	}
+
+	blockstoreCache, err := cache.NewAccessorCache("blockstore", defaultBlockstoreCacheSize)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create blockstore blocks cache: %w", err)
 	}
 
 	store := &Store{
@@ -127,7 +133,7 @@ func NewStore(basepath string, ds datastore.Batching) (*Store, error) {
 		gcInterval:    defaultGCInterval,
 		mounts:        r,
 		shardFailures: failureChan,
-		cache:         accessorCache,
+		cache:         cache.NewDoubleCache(recentBlocksCache, blockstoreCache),
 	}
 	store.bs = newBlockstore(store, ds)
 	return store, nil
@@ -284,7 +290,7 @@ func (s *Store) put(ctx context.Context, root share.DataHash, square *rsmt2d.Ext
 	go func() {
 		ctx, cancel := context.WithTimeout(context.Background(), time.Minute)
 		defer cancel()
-		_, err := s.cache.GetOrLoad(ctx, result.Key, s.getAccessor)
+		_, err := s.cache.First().GetOrLoad(ctx, result.Key, s.getAccessor)
 		if err != nil {
 			log.Warnw("unable to put accessor to recent blocks accessors cache", "err", err)
 			return
