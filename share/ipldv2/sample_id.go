@@ -5,24 +5,38 @@ import (
 	"encoding/binary"
 	"errors"
 
-	"github.com/celestiaorg/celestia-node/share"
-	ipldv2pb "github.com/celestiaorg/celestia-node/share/ipldv2/pb"
-	"github.com/celestiaorg/rsmt2d"
 	"github.com/ipfs/go-cid"
 	mh "github.com/multiformats/go-multihash"
+
+	"github.com/celestiaorg/rsmt2d"
+
+	"github.com/celestiaorg/celestia-node/share"
+	ipldv2pb "github.com/celestiaorg/celestia-node/share/ipldv2/pb"
 )
 
 // SampleIDSize is the size of the SampleID in bytes
 const SampleIDSize = 127
 
-// TODO: Harden with validation of fields and inputs
+// TODO(@Wondertan): Eventually this should become configurable
+const (
+	hashSize    = sha256.Size
+	dahRootSize = 2*share.NamespaceSize + hashSize
+)
+
+// SampleID is an unique identifier of a Sample.
 type SampleID struct {
+	// DataRoot is the root of the data square
+	// Needed to identify the data square in the whole chain
 	DataRoot []byte
-	DAHRoot  []byte
-	Index    int
-	Axis     rsmt2d.Axis
+	// DAHRoot is the Col or Row root from DAH of the data square
+	DAHRoot []byte
+	// Index is the index of the sample in the data square(not row or col index)
+	Index int
+	// Axis is Col or Row axis of the sample in the data square
+	Axis rsmt2d.Axis
 }
 
+// NewSampleID constructs a new SampleID.
 func NewSampleID(root *share.Root, idx int, axis rsmt2d.Axis) SampleID {
 	sqrLn := len(root.RowRoots)
 	row, col := idx/sqrLn, idx%sqrLn
@@ -39,6 +53,7 @@ func NewSampleID(root *share.Root, idx int, axis rsmt2d.Axis) SampleID {
 	}
 }
 
+// Cid returns sample ID encoded as CID.
 func (s *SampleID) Cid() (cid.Cid, error) {
 	data, err := s.MarshalBinary()
 	if err != nil {
@@ -53,6 +68,7 @@ func (s *SampleID) Cid() (cid.Cid, error) {
 	return cid.NewCidV1(codec, buf), nil
 }
 
+// Proto converts SampleID to its protobuf representation.
 func (s *SampleID) Proto() *ipldv2pb.SampleID {
 	return &ipldv2pb.SampleID{
 		DataRoot: s.DataRoot,
@@ -62,9 +78,10 @@ func (s *SampleID) Proto() *ipldv2pb.SampleID {
 	}
 }
 
+// MarshalBinary encodes SampleID into binary form.
 func (s *SampleID) MarshalBinary() ([]byte, error) {
 	// we cannot use protobuf here because it exceeds multihash limit of 128 bytes
-	data := make([]byte, 127)
+	data := make([]byte, SampleIDSize)
 	n := copy(data, s.DataRoot)
 	n += copy(data[n:], s.DAHRoot)
 	binary.LittleEndian.PutUint32(data[n:], uint32(s.Index))
@@ -72,12 +89,21 @@ func (s *SampleID) MarshalBinary() ([]byte, error) {
 	return data, nil
 }
 
-// TODO(@Wondertan): Eventually this should become configurable
-const (
-	hashSize = sha256.Size
-	dahRootSize = 2*share.NamespaceSize + hashSize
-)
+// UnmarshalBinary decodes SampleID from binary form.
+func (s *SampleID) UnmarshalBinary(data []byte) error {
+	if len(data) != SampleIDSize {
+		return errors.New("malformed sample id")
+	}
 
+	// copying data to avoid slice aliasing
+	s.DataRoot = append(s.DataRoot, data[:hashSize]...)
+	s.DAHRoot = append(s.DAHRoot, data[hashSize:hashSize+dahRootSize]...)
+	s.Index = int(binary.LittleEndian.Uint32(data[hashSize+dahRootSize : hashSize+dahRootSize+4]))
+	s.Axis = rsmt2d.Axis(data[hashSize+dahRootSize+4])
+	return nil
+}
+
+// Validate validates fields of SampleID.
 func (s *SampleID) Validate() error {
 	if len(s.DataRoot) != hashSize {
 		return errors.New("malformed data root")

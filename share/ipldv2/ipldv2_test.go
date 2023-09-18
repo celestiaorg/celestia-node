@@ -10,12 +10,12 @@ import (
 
 	"github.com/celestiaorg/rsmt2d"
 
-	"github.com/celestiaorg/celestia-node/share"
 	availability_test "github.com/celestiaorg/celestia-node/share/availability/test"
-	"github.com/celestiaorg/celestia-node/share/eds"
 	"github.com/celestiaorg/celestia-node/share/eds/edstest"
 )
 
+// TestV2Roundtrip tests full protocol round trip of:
+// EDS -> Sample -> IPLDBlock -> BlockService -> Bitswap and in reverse.
 func TestV2Roundtrip(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second*10)
 	defer cancel()
@@ -26,18 +26,9 @@ func TestV2Roundtrip(t *testing.T) {
 	dn.ConnectAll()
 
 	square := edstest.RandEDS(t, 16)
-	root, err := share.NewRoot(square)
-	require.NoError(t, err)
-
-	file, err := eds.CreateFile(t.TempDir()+"/eds_file", square)
-	require.NoError(t, err)
-
 	width := int(square.Width())
 	for i := 0; i < width*width; i++ {
-		shr, prf, err := file.ShareWithProof(i, rsmt2d.Row)
-		require.NoError(t, err)
-
-		smpl := NewSample(root, i, rsmt2d.Row, shr, prf)
+		smpl, err := NewSampleFrom(square, i, rsmt2d.Row)
 		require.NoError(t, err)
 
 		err = smpl.Validate()
