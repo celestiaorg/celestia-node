@@ -1,4 +1,4 @@
-name: OpenRPC Docs
+name: documentation checks
 
 on:
   pull_request:
