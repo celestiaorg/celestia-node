@@ -4,7 +4,6 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"io"
 
 	bstore "github.com/ipfs/boxo/blockstore"
 	dshelp "github.com/ipfs/boxo/datastore/dshelp"
@@ -36,11 +35,6 @@ type blockstore struct {
 	store *Store
 	cache cache.Cache
 	ds    datastore.Batching
-}
-
-type BlockstoreCloser struct {
-	dagstore.ReadBlockstore
-	io.Closer
 }
 
 func newBlockstore(store *Store, cache cache.Cache, ds datastore.Batching) *blockstore {

@@ -122,11 +122,6 @@ func NewStore(basepath string, ds datastore.Batching) (*Store, error) {
 
 	blockstoreCache, err := cache.NewAccessorCache("blockstore", defaultBlockstoreCacheSize)
 	if err != nil {
-		return nil, fmt.Errorf("failed to create recent blocks cache: %w", err)
-	}
-
-	blockstoreCache, err := cache.NewAccessorCache("blockstore", defaultBlockstoreCacheSize)
-	if err != nil {
 		return nil, fmt.Errorf("failed to create blockstore cache: %w", err)
 	}
 
@@ -650,17 +645,4 @@ type inMemoryReader struct {
 // Close allows inMemoryReader to satisfy mount.Reader interface
 func (r *inMemoryReader) Close() error {
 	return nil
-}
-
-// readCloser combines io.Reader and io.Closer
-type readCloser struct {
-	io.Reader
-	io.Closer
-}
-
-func newReadCloser(ac cache.Accessor) io.ReadCloser {
-	return readCloser{
-		ac.Reader(),
-		ac,
-	}
 }

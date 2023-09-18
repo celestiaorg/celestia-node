@@ -64,13 +64,12 @@ func (s *accessorWithBlockstore) Reader() io.Reader {
 	return s.shardAccessor.Reader()
 }
 
-
 func (s *accessorWithBlockstore) addRef() error {
 	s.RLock()
 	defer s.RUnlock()
 	if s.isClosed {
-		// item is closed, so pretend it is a miss
-		return ErrCacheMiss
+		// item is already closed and soon will be removed after all refs are released
+		return errCacheMiss
 	}
 	if s.refs.Add(1) == 1 {
 		// there were no refs previously and done channel was closed, reopen it by recreating
@@ -123,17 +122,15 @@ func NewAccessorCache(name string, cacheSize int) (*AccessorCache, error) {
 func (bc *AccessorCache) evictFn() func(shard.Key, *accessorWithBlockstore) {
 	return func(_ shard.Key, abs *accessorWithBlockstore) {
 		// we can release accessor from cache early, while it is being closed in parallel routine
-		go abs.close() sdf
-		sdad // no err check in new version
-		err := abs.shardAccessor.Close()
-		if err != nil {
-			bc.metrics.observeEvicted(true)
-			log.Errorf("couldn't close accessor after cache eviction: %s", err)
-			return
-		}
-
-
-		bc.metrics.observeEvicted(false)
+		go func() {
+			err := abs.close()
+			if err != nil {
+				bc.metrics.observeEvicted(true)
+				log.Errorf("couldn't close accessor after cache eviction: %s", err)
+				return
+			}
+			bc.metrics.observeEvicted(false)
+		}()
 	}
 }
 
@@ -190,18 +187,20 @@ func (bc *AccessorCache) GetOrLoad(
 
 	// Create a new accessor first to increment the reference count in it, so it cannot get evicted
 	// from the inner lru cache before it is used.
-	accessor, err := newRefCloser(abs)
+	accessorWithRef, err := newRefCloser(abs)
 	if err != nil {
 		return nil, err
 	}
 	bc.cache.Add(key, abs)
-	return accessor, nil
+	return accessorWithRef, nil
 }
 
 // Remove removes the Accessor for a given key from the cache.
 func (bc *AccessorCache) Remove(key shard.Key) error {
-	//FIXME: why no striplock??
+	lk := &bc.stripedLocks[shardKeyToStriped(key)]
+	lk.Lock()
 	accessor, err := bc.get(key)
+	lk.Unlock()
 	if errors.Is(err, errCacheMiss) {
 		// item is not in cache
 		return nil

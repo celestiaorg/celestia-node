@@ -360,7 +360,7 @@ func Test_CachedAccessor(t *testing.T) {
 	time.Sleep(time.Millisecond * 100)
 
 	// accessor should be in cache
-	cachedAccessor, err := edsStore.cache.Get(shard.KeyFromString(dah.String()))
+	_, err = edsStore.cache.Get(shard.KeyFromString(dah.String()))
 	require.NoError(t, err)
 
 	// first read from cached accessor
@@ -400,18 +400,18 @@ func Test_NotCachedAccessor(t *testing.T) {
 	// accessor will be registered in cache async on put, so give it some time to settle
 	time.Sleep(time.Millisecond * 100)
 
-	// accessor should be in cache
+	// accessor should not be in cache
 	_, err = edsStore.cache.Get(shard.KeyFromString(dah.String()))
 	require.Error(t, err)
 
-	// first read from direct accessor
+	// first read from direct accessor (not from cache)
 	carReader, err := edsStore.getCAR(ctx, dah.Hash())
 	require.NoError(t, err)
 	firstBlock, err := io.ReadAll(carReader)
 	require.NoError(t, err)
 	require.NoError(t, carReader.Close())
 
-	// second read from direct accessor
+	// second read from direct accessor (not from cache)
 	carReader, err = edsStore.getCAR(ctx, dah.Hash())
 	require.NoError(t, err)
 	secondBlock, err := io.ReadAll(carReader)
