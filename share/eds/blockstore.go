@@ -31,7 +31,6 @@ var (
 // implementation to allow for the blockstore operations to be routed to the underlying stores.
 type blockstore struct {
 	store *Store
-	cache cache.Cache
 	ds    datastore.Batching
 }
 
