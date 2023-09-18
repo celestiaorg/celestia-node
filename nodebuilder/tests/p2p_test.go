@@ -46,7 +46,10 @@ func TestBridgeNodeAsBootstrapper(t *testing.T) {
 		require.NoError(t, nd.Start(ctx))
 		assert.Equal(t, *addr, nd.Bootstrappers[0])
 		// ensure that node is actually connected to BN
-		assert.True(t, nd.Host.Network().Connectedness(addr.ID) == network.Connected)
+		client := getAdminClient(ctx, nd, t)
+		connectedenss, err := client.P2P.Connectedness(ctx, addr.ID)
+		require.NoError(t, err)
+		assert.Equal(t, connectedenss, network.Connected)
 	}
 }
 
@@ -102,15 +105,22 @@ func TestFullDiscoveryViaBootstrapper(t *testing.T) {
 	for index := range nodes {
 		require.NoError(t, nodes[index].Start(ctx))
 		assert.Equal(t, *bootstrapper, nodes[index].Bootstrappers[0])
-		assert.True(t, nodes[index].Host.Network().Connectedness(bootstrapper.ID) == network.Connected)
+		// ensure that node is actually connected to BN
+		client := getAdminClient(ctx, nodes[index], t)
+		connectedness, err := client.P2P.Connectedness(ctx, bootstrapper.ID)
+		require.NoError(t, err)
+		assert.Equal(t, connectedness, network.Connected)
 	}
 
 	for {
 		if ctx.Err() != nil {
 			t.Fatal(ctx.Err())
 		}
-		if light.Host.Network().Connectedness(host.InfoFromHost(full.Host).ID) == network.Connected {
-			// LN discovered FN successfully and is now connected
+		// LN discovered FN successfully and is now connected
+		client := getAdminClient(ctx, light, t)
+		connectedness, err := client.P2P.Connectedness(ctx, host.InfoFromHost(full.Host).ID)
+		require.NoError(t, err)
+		if connectedness == network.Connected {
 			break
 		}
 	}
@@ -158,11 +168,19 @@ func TestRestartNodeDiscovery(t *testing.T) {
 	for index := 0; index < numFulls; index++ {
 		nodes[index] = sw.NewNodeWithConfig(node.Full, fullCfg, nodesConfig)
 		require.NoError(t, nodes[index].Start(ctx))
-		assert.True(t, nodes[index].Host.Network().Connectedness(bridgeAddr.ID) == network.Connected)
+		client := getAdminClient(ctx, nodes[index], t)
+		connectedness, err := client.P2P.Connectedness(ctx, bridgeAddr.ID)
+		require.NoError(t, err)
+		assert.Equal(t, connectedness, network.Connected)
 	}
 
 	// ensure FNs are connected to each other
-	require.True(t, nodes[0].Host.Network().Connectedness(nodes[1].Host.ID()) == network.Connected)
+	fullClient1 := getAdminClient(ctx, nodes[0], t)
+	fullClient2 := getAdminClient(ctx, nodes[1], t)
+
+	connectedness, err := fullClient1.P2P.Connectedness(ctx, nodes[1].Host.ID())
+	require.NoError(t, err)
+	assert.Equal(t, connectedness, network.Connected)
 
 	// disconnect the FNs
 	sw.Disconnect(t, nodes[0], nodes[1])
@@ -175,8 +193,13 @@ func TestRestartNodeDiscovery(t *testing.T) {
 
 	// ensure that the FN with disabled discovery is discovered by both of the
 	// running FNs that have discovery enabled
-	require.True(t, nodes[0].Host.Network().Connectedness(disabledDiscoveryFN.Host.ID()) == network.Connected)
-	require.True(t, nodes[1].Host.Network().Connectedness(disabledDiscoveryFN.Host.ID()) == network.Connected)
+	connectedness, err = fullClient1.P2P.Connectedness(ctx, disabledDiscoveryFN.Host.ID())
+	require.NoError(t, err)
+	assert.Equal(t, connectedness, network.Connected)
+
+	connectedness, err = fullClient2.P2P.Connectedness(ctx, disabledDiscoveryFN.Host.ID())
+	require.NoError(t, err)
+	assert.Equal(t, connectedness, network.Connected)
 }
 
 func setTimeInterval(cfg *nodebuilder.Config, interval time.Duration) {
