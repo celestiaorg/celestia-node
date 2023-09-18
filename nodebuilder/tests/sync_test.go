@@ -56,8 +56,9 @@ func TestSyncAgainstBridge_NonEmptyChain(t *testing.T) {
 	// start bridge and wait for it to sync to 20
 	err := bridge.Start(ctx)
 	require.NoError(t, err)
+	bridgeClient := getAdminClient(ctx, bridge, t)
 
-	h, err := bridge.HeaderServ.WaitForHeight(ctx, numBlocks)
+	h, err := bridgeClient.Header.WaitForHeight(ctx, numBlocks)
 	require.NoError(t, err)
 	require.EqualValues(t, h.Commit.BlockID.Hash, sw.GetCoreBlockHashByHeight(ctx, numBlocks))
 
@@ -68,16 +69,17 @@ func TestSyncAgainstBridge_NonEmptyChain(t *testing.T) {
 		// start light node and wait for it to sync 20 blocks
 		err = light.Start(ctx)
 		require.NoError(t, err)
-		h, err = light.HeaderServ.WaitForHeight(ctx, numBlocks)
+		lightClient := getAdminClient(ctx, light, t)
+		h, err = lightClient.Header.WaitForHeight(ctx, numBlocks)
 		require.NoError(t, err)
 		assert.EqualValues(t, h.Commit.BlockID.Hash, sw.GetCoreBlockHashByHeight(ctx, numBlocks))
 
 		// check that the light node has also sampled over the block at height 20
-		err = light.ShareServ.SharesAvailable(ctx, h.DAH)
+		err = lightClient.Share.SharesAvailable(ctx, h.DAH)
 		assert.NoError(t, err)
 
 		// wait until the entire chain (up to network head) has been sampled
-		err = light.DASer.WaitCatchUp(ctx)
+		err = lightClient.DAS.WaitCatchUp(ctx)
 		require.NoError(t, err)
 	})
 
@@ -87,16 +89,17 @@ func TestSyncAgainstBridge_NonEmptyChain(t *testing.T) {
 		// let full node sync 20 blocks
 		err = full.Start(ctx)
 		require.NoError(t, err)
-		h, err = full.HeaderServ.WaitForHeight(ctx, numBlocks)
+		fullClient := getAdminClient(ctx, full, t)
+		h, err = fullClient.Header.WaitForHeight(ctx, numBlocks)
 		require.NoError(t, err)
 		assert.EqualValues(t, h.Commit.BlockID.Hash, sw.GetCoreBlockHashByHeight(ctx, numBlocks))
 
 		// check to ensure the full node can sync the 20th block's data
-		err = full.ShareServ.SharesAvailable(ctx, h.DAH)
+		err = fullClient.Share.SharesAvailable(ctx, h.DAH)
 		assert.NoError(t, err)
 
 		// wait for full node to sync up the blocks from genesis -> network head.
-		err = full.DASer.WaitCatchUp(ctx)
+		err = fullClient.DAS.WaitCatchUp(ctx)
 		require.NoError(t, err)
 	})
 
@@ -144,7 +147,8 @@ func TestSyncAgainstBridge_EmptyChain(t *testing.T) {
 	// start  bridge and wait for it to sync to 20
 	err := bridge.Start(ctx)
 	require.NoError(t, err)
-	h, err := bridge.HeaderServ.WaitForHeight(ctx, numBlocks)
+	bridgeClient := getAdminClient(ctx, bridge, t)
+	h, err := bridgeClient.Header.WaitForHeight(ctx, numBlocks)
 	require.NoError(t, err)
 	require.EqualValues(t, h.Commit.BlockID.Hash, sw.GetCoreBlockHashByHeight(ctx, numBlocks))
 
@@ -155,16 +159,17 @@ func TestSyncAgainstBridge_EmptyChain(t *testing.T) {
 		// start light node and wait for it to sync 20 blocks
 		err = light.Start(ctx)
 		require.NoError(t, err)
-		h, err = light.HeaderServ.WaitForHeight(ctx, numBlocks)
+		lightClient := getAdminClient(ctx, light, t)
+		h, err = lightClient.Header.WaitForHeight(ctx, numBlocks)
 		require.NoError(t, err)
 		assert.EqualValues(t, h.Commit.BlockID.Hash, sw.GetCoreBlockHashByHeight(ctx, numBlocks))
 
 		// check that the light node has also sampled over the block at height 20
-		err = light.ShareServ.SharesAvailable(ctx, h.DAH)
+		err = lightClient.Share.SharesAvailable(ctx, h.DAH)
 		assert.NoError(t, err)
 
 		// wait until the entire chain (up to network head) has been sampled
-		err = light.DASer.WaitCatchUp(ctx)
+		err = lightClient.DAS.WaitCatchUp(ctx)
 		require.NoError(t, err)
 	})
 
@@ -174,16 +179,17 @@ func TestSyncAgainstBridge_EmptyChain(t *testing.T) {
 		// let full node sync 20 blocks
 		err = full.Start(ctx)
 		require.NoError(t, err)
-		h, err = full.HeaderServ.WaitForHeight(ctx, numBlocks)
+		fullClient := getAdminClient(ctx, full, t)
+		h, err = fullClient.Header.WaitForHeight(ctx, numBlocks)
 		require.NoError(t, err)
 		assert.EqualValues(t, h.Commit.BlockID.Hash, sw.GetCoreBlockHashByHeight(ctx, numBlocks))
 
 		// check to ensure the full node can sync the 20th block's data
-		err = full.ShareServ.SharesAvailable(ctx, h.DAH)
+		err = fullClient.Share.SharesAvailable(ctx, h.DAH)
 		assert.NoError(t, err)
 
 		// wait for full node to sync up the blocks from genesis -> network head.
-		err = full.DASer.WaitCatchUp(ctx)
+		err = fullClient.DAS.WaitCatchUp(ctx)
 		require.NoError(t, err)
 	})
 }
@@ -219,7 +225,8 @@ func TestSyncStartStopLightWithBridge(t *testing.T) {
 	// and let bridge node sync up 20 blocks
 	err := bridge.Start(ctx)
 	require.NoError(t, err)
-	h, err := bridge.HeaderServ.WaitForHeight(ctx, numBlocks)
+	bridgeClient := getAdminClient(ctx, bridge, t)
+	h, err := bridgeClient.Header.WaitForHeight(ctx, numBlocks)
 	require.NoError(t, err)
 	require.EqualValues(t, h.Commit.BlockID.Hash, sw.GetCoreBlockHashByHeight(ctx, numBlocks))
 
@@ -228,7 +235,8 @@ func TestSyncStartStopLightWithBridge(t *testing.T) {
 	// start light node and let it sync to 20
 	err = light.Start(ctx)
 	require.NoError(t, err)
-	h, err = light.HeaderServ.WaitForHeight(ctx, numBlocks)
+	lightClient := getAdminClient(ctx, light, t)
+	h, err = lightClient.Header.WaitForHeight(ctx, numBlocks)
 	require.NoError(t, err)
 	require.EqualValues(t, h.Commit.BlockID.Hash, sw.GetCoreBlockHashByHeight(ctx, numBlocks))
 
@@ -239,7 +247,7 @@ func TestSyncStartStopLightWithBridge(t *testing.T) {
 
 	// ensure when light node comes back up, it can sync the remainder of the chain it
 	// missed while sleeping
-	h, err = light.HeaderServ.WaitForHeight(ctx, 40)
+	h, err = lightClient.Header.WaitForHeight(ctx, 40)
 	require.NoError(t, err)
 	assert.EqualValues(t, h.Commit.BlockID.Hash, sw.GetCoreBlockHashByHeight(ctx, 40))
 
@@ -284,7 +292,8 @@ func TestSyncLightAgainstFull(t *testing.T) {
 	// start a bridge node and wait for it to sync up 20 blocks
 	err := bridge.Start(ctx)
 	require.NoError(t, err)
-	h, err := bridge.HeaderServ.WaitForHeight(ctx, numBlocks)
+	bridgeClient := getAdminClient(ctx, bridge, t)
+	h, err := bridgeClient.Header.WaitForHeight(ctx, numBlocks)
 	require.NoError(t, err)
 	assert.EqualValues(t, h.Commit.BlockID.Hash, sw.GetCoreBlockHashByHeight(ctx, numBlocks))
 
@@ -293,9 +302,10 @@ func TestSyncLightAgainstFull(t *testing.T) {
 	// start FN and wait for it to sync up to head of BN
 	err = full.Start(ctx)
 	require.NoError(t, err)
-	bridgeHead, err := bridge.HeaderServ.LocalHead(ctx)
+	fullClient := getAdminClient(ctx, full, t)
+	bridgeHead, err := bridgeClient.Header.LocalHead(ctx)
 	require.NoError(t, err)
-	_, err = full.HeaderServ.WaitForHeight(ctx, bridgeHead.Height())
+	_, err = fullClient.Header.WaitForHeight(ctx, bridgeHead.Height())
 	require.NoError(t, err)
 	assert.EqualValues(t, h.Commit.BlockID.Hash, sw.GetCoreBlockHashByHeight(ctx, numBlocks))
 
@@ -315,9 +325,10 @@ func TestSyncLightAgainstFull(t *testing.T) {
 	// start LN and wait for it to sync up to network head against the head of the FN
 	err = light.Start(ctx)
 	require.NoError(t, err)
-	fullHead, err := full.HeaderServ.LocalHead(ctx)
+	lightClient := getAdminClient(ctx, light, t)
+	fullHead, err := fullClient.Header.LocalHead(ctx)
 	require.NoError(t, err)
-	_, err = light.HeaderServ.WaitForHeight(ctx, fullHead.Height())
+	_, err = lightClient.Header.WaitForHeight(ctx, fullHead.Height())
 	require.NoError(t, err)
 
 	// wait for the core block filling process to exit
@@ -359,7 +370,8 @@ func TestSyncLightWithTrustedPeers(t *testing.T) {
 	// let it sync to network head
 	err := bridge.Start(ctx)
 	require.NoError(t, err)
-	_, err = bridge.HeaderServ.WaitForHeight(ctx, numBlocks)
+	bridgeClient := getAdminClient(ctx, bridge, t)
+	_, err = bridgeClient.Header.WaitForHeight(ctx, numBlocks)
 	require.NoError(t, err)
 
 	// create a FN with BN as trusted peer
@@ -368,7 +380,8 @@ func TestSyncLightWithTrustedPeers(t *testing.T) {
 	// let FN sync to network head
 	err = full.Start(ctx)
 	require.NoError(t, err)
-	err = full.HeaderServ.SyncWait(ctx)
+	fullClient := getAdminClient(ctx, full, t)
+	err = fullClient.Header.SyncWait(ctx)
 	require.NoError(t, err)
 
 	// add full node as a bootstrapper for the suite
@@ -380,7 +393,8 @@ func TestSyncLightWithTrustedPeers(t *testing.T) {
 	// let LN sync to network head
 	err = light.Start(ctx)
 	require.NoError(t, err)
-	err = light.HeaderServ.SyncWait(ctx)
+	lightClient := getAdminClient(ctx, light, t)
+	err = lightClient.Header.SyncWait(ctx)
 	require.NoError(t, err)
 
 	// wait for the core block filling process to exit

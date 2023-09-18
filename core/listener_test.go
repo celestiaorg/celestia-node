@@ -17,6 +17,7 @@ import (
 
 	"github.com/celestiaorg/celestia-node/header"
 	nodep2p "github.com/celestiaorg/celestia-node/nodebuilder/p2p"
+	"github.com/celestiaorg/celestia-node/share"
 	"github.com/celestiaorg/celestia-node/share/eds"
 	"github.com/celestiaorg/celestia-node/share/p2p/shrexsub"
 )
@@ -96,7 +97,7 @@ func TestListenerWithNonEmptyBlocks(t *testing.T) {
 	require.NoError(t, err)
 	t.Cleanup(sub.Cancel)
 
-	empty := header.EmptyDAH()
+	empty := share.EmptyRoot()
 	// TODO extract 16
 	for i := 0; i < 16; i++ {
 		_, err := cctx.FillBlock(16, cfg.Accounts, flags.BroadcastBlock)

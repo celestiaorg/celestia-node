@@ -14,14 +14,14 @@ const (
 	// Arabica testnet. See: celestiaorg/networks.
 	Arabica Network = "arabica-10"
 	// Mocha testnet. See: celestiaorg/networks.
-	Mocha Network = "mocha-3"
+	Mocha Network = "mocha-4"
 	// BlockspaceRace testnet. See: https://docs.celestia.org/nodes/blockspace-race/.
 	BlockspaceRace Network = "blockspacerace-0"
 	// Private can be used to set up any private network, including local testing setups.
 	Private Network = "private"
 	// BlockTime is a network block time.
 	// TODO @renaynay @Wondertan (#790)
-	BlockTime = time.Second * 15
+	BlockTime = time.Second * 10
 )
 
 // Network is a type definition for DA network run by Celestia Node.

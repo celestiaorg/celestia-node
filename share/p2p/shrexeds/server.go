@@ -108,7 +108,6 @@ func (s *Server) handleStream(stream network.Stream) {
 				log.Warnw("closing car reader", "err", err)
 			}
 		}()
-		edsReader.Close()
 		status = p2p_pb.Status_OK
 	case errors.Is(err, eds.ErrNotFound):
 		logger.Warnw("server: request hash not found")

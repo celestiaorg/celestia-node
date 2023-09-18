@@ -24,10 +24,20 @@ type PeerIDStore struct {
 }
 
 // NewPeerIDStore creates a new peer ID store backed by the given datastore.
-func NewPeerIDStore(ds datastore.Datastore) *PeerIDStore {
-	return &PeerIDStore{
+func NewPeerIDStore(ctx context.Context, ds datastore.Datastore) (*PeerIDStore, error) {
+	pidstore := &PeerIDStore{
 		ds: namespace.Wrap(ds, storePrefix),
 	}
+	// check if pidstore is already initialized, and if not,
+	// initialize the pidstore
+	exists, err := pidstore.ds.Has(ctx, peersKey)
+	if err != nil {
+		return nil, err
+	}
+	if !exists {
+		return pidstore, pidstore.Put(ctx, []peer.ID{})
+	}
+	return pidstore, nil
 }
 
 // Load loads the peers from datastore and returns them.

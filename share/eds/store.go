@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"sync"
 	"sync/atomic"
 	"time"
 
@@ -23,7 +24,6 @@ import (
 
 	"github.com/celestiaorg/rsmt2d"
 
-	"github.com/celestiaorg/celestia-node/header"
 	"github.com/celestiaorg/celestia-node/libs/utils"
 	"github.com/celestiaorg/celestia-node/share"
 	"github.com/celestiaorg/celestia-node/share/eds/cache"
@@ -57,7 +57,7 @@ type Store struct {
 	mounts *mount.Registry
 
 	bs    *blockstore
-	cache cache.Cache
+	cache *cache.DoubleCache
 
 	carIdx      index.FullIndexRepo
 	invertedIdx *simpleInvertedIndex
@@ -67,6 +67,8 @@ type Store struct {
 	// lastGCResult is only stored on the store for testing purposes.
 	lastGCResult atomic.Pointer[dagstore.GCResult]
 
+	// stripedLocks is used to synchronize parallel operations
+	stripedLocks  [256]sync.Mutex
 	shardFailures chan dagstore.ShardResult
 
 	metrics *metrics
@@ -120,6 +122,11 @@ func NewStore(basepath string, ds datastore.Batching) (*Store, error) {
 
 	blockstoreCache, err := cache.NewAccessorCache("blockstore", defaultBlockstoreCacheSize)
 	if err != nil {
+		return nil, fmt.Errorf("failed to create recent blocks cache: %w", err)
+	}
+
+	blockstoreCache, err := cache.NewAccessorCache("blockstore", defaultBlockstoreCacheSize)
+	if err != nil {
 		return nil, fmt.Errorf("failed to create blockstore cache: %w", err)
 	}
 
@@ -131,7 +138,7 @@ func NewStore(basepath string, ds datastore.Batching) (*Store, error) {
 		gcInterval:    defaultGCInterval,
 		mounts:        r,
 		shardFailures: failureChan,
-		cache:         cache.NewMultiCache(recentBlocksCache, blockstoreCache),
+		cache:         cache.NewDoubleCache(recentBlocksCache, blockstoreCache),
 	}
 	store.bs = newBlockstore(store, blockstoreCache, ds)
 	return store, nil
@@ -184,7 +191,6 @@ func (s *Store) gc(ctx context.Context) {
 			}
 			s.lastGCResult.Store(res)
 		}
-
 	}
 }
 
@@ -230,6 +236,10 @@ func (s *Store) Put(ctx context.Context, root share.DataHash, square *rsmt2d.Ext
 }
 
 func (s *Store) put(ctx context.Context, root share.DataHash, square *rsmt2d.ExtendedDataSquare) (err error) {
+	lk := &s.stripedLocks[root[len(root)-1]]
+	lk.Lock()
+	defer lk.Unlock()
+
 	// if root already exists, short-circuit
 	if has, _ := s.Has(ctx, root); has {
 		return dagstore.ErrShardExists
@@ -240,7 +250,7 @@ func (s *Store) put(ctx context.Context, root share.DataHash, square *rsmt2d.Ext
 	if err != nil {
 		return err
 	}
-	defer logClose("car file", f)
+	defer closeAndLog("car file", f)
 
 	// save encoded eds into buffer
 	mount := &inMemoryOnceMount{
@@ -268,7 +278,7 @@ func (s *Store) put(ctx context.Context, root share.DataHash, square *rsmt2d.Ext
 	select {
 	case result = <-ch:
 	case <-ctx.Done():
-		// if context finished before result was received, track result in separate goroutine
+		// if the context finished before the result was received, track the result in a separate goroutine
 		go trackLateResult("put", ch, s.metrics, time.Minute*5)
 		return ctx.Err()
 	}
@@ -277,15 +287,15 @@ func (s *Store) put(ctx context.Context, root share.DataHash, square *rsmt2d.Ext
 		return fmt.Errorf("failed to register shard: %w", result.Error)
 	}
 
-	// accessor returned in result will be nil, so shard needs to be acquired first, to become
-	// available in cache. It might take some time and result should not affect put operation, so do it
-	// in goroutine
-	//TODO: Ideally only recent blocks should be put in cache, but there is no way right now to check
-	// such condition.
+	// the accessor returned in the result will be nil, so the shard needs to be acquired first to
+	// become available in the cache. It might take some time, and the result should not affect the put
+	// operation, so do it in a goroutine
+	// TODO: Ideally, only recent blocks should be put in the cache, but there is no way right now to
+	// check such a condition.
 	go func() {
 		ctx, cancel := context.WithTimeout(context.Background(), time.Minute)
 		defer cancel()
-		ac, err := s.cache.GetOrLoad(ctx, result.Key, s.getAccessor)
+		ac, err := s.cache.First().GetOrLoad(ctx, result.Key, s.getAccessor)
 		if err != nil {
 			log.Warnw("unable to put accessor to recent blocks accessors cache", "err", err)
 			return
@@ -350,9 +360,9 @@ func (s *Store) getCAR(ctx context.Context, root share.DataHash) (io.ReadCloser,
 	if err == nil {
 		return newReadCloser(accessor), nil
 	}
-	// If the accessor is not found in the cache, create a new one from dagstore. We don't put accessor
-	// to the cache here, because getCAR is used by shrex.eds. There is a lower probability, compared
-	// to other cache put triggers, that the same block to be requested again.
+	// If the accessor is not found in the cache, create a new one from dagstore. We don't put the
+	// accessor in the cache here because getCAR is used by shrex-eds. There is a lower probability,
+	// compared to other cache put triggers, that the same block will be requested again soon.
 	shardAccessor, err := s.getAccessor(ctx, key)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get accessor: %w", err)
@@ -395,7 +405,7 @@ func (s *Store) carBlockstore(
 		return blockstoreCloser(accessor)
 	}
 
-	// if accessor not found in cache, create new one from dagstore
+	// if the accessor is not found in the cache, create a new one from dagstore
 	sa, err := s.getAccessor(ctx, key)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get accessor: %w", err)
@@ -416,9 +426,9 @@ func (s *Store) GetDAH(ctx context.Context, root share.DataHash) (*share.Root, e
 func (s *Store) getDAH(ctx context.Context, root share.DataHash) (*share.Root, error) {
 	r, err := s.getCAR(ctx, root)
 	if err != nil {
-		return nil, fmt.Errorf("eds/store: failed to get accessor: %w", err)
+		return nil, fmt.Errorf("eds/store: failed to get CAR file: %w", err)
 	}
-	defer logClose("car reader", r)
+	defer closeAndLog("car reader", r)
 
 	carHeader, err := carv1.ReadHeader(bufio.NewReader(r))
 	if err != nil {
@@ -433,13 +443,13 @@ func (s *Store) getDAH(ctx context.Context, root share.DataHash) (*share.Root, e
 }
 
 // dahFromCARHeader returns the DataAvailabilityHeader stored in the CIDs of a CARv1 header.
-func dahFromCARHeader(carHeader *carv1.CarHeader) *header.DataAvailabilityHeader {
+func dahFromCARHeader(carHeader *carv1.CarHeader) *share.Root {
 	rootCount := len(carHeader.Roots)
 	rootBytes := make([][]byte, 0, rootCount)
 	for _, root := range carHeader.Roots {
 		rootBytes = append(rootBytes, ipld.NamespacedSha256FromCID(root))
 	}
-	return &header.DataAvailabilityHeader{
+	return &share.Root{
 		RowRoots:    rootBytes[:rootCount/2],
 		ColumnRoots: rootBytes[rootCount/2:],
 	}
@@ -538,7 +548,7 @@ func (s *Store) get(ctx context.Context, root share.DataHash) (eds *rsmt2d.Exten
 	if err != nil {
 		return nil, fmt.Errorf("failed to get CAR file: %w", err)
 	}
-	defer logClose("car reader", r)
+	defer closeAndLog("car reader", r)
 
 	eds, err = ReadEDS(ctx, r, root)
 	if err != nil {

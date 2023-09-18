@@ -99,7 +99,7 @@ func TestAccessorCache(t *testing.T) {
 
 		// check if item exists
 		_, err = cache.Get(key)
-		require.ErrorIs(t, err, ErrCacheMiss)
+		require.ErrorIs(t, err, errCacheMiss)
 	})
 
 	t.Run("successive reads should read the same data", func(t *testing.T) {
@@ -159,7 +159,7 @@ func TestAccessorCache(t *testing.T) {
 
 		// check if item evicted
 		_, err = cache.Get(key)
-		require.ErrorIs(t, err, ErrCacheMiss)
+		require.ErrorIs(t, err, errCacheMiss)
 	})
 
 	t.Run("close on accessor is noop", func(t *testing.T) {

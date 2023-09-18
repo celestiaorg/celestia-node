@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"io"
 
-	"github.com/filecoin-project/dagstore"
 	bstore "github.com/ipfs/boxo/blockstore"
 	dshelp "github.com/ipfs/boxo/datastore/dshelp"
 	blocks "github.com/ipfs/go-block-format"
@@ -72,7 +71,7 @@ func (bs *blockstore) Has(ctx context.Context, cid cid.Cid) (bool, error) {
 func (bs *blockstore) Get(ctx context.Context, cid cid.Cid) (blocks.Block, error) {
 	blockstr, err := bs.getReadOnlyBlockstore(ctx, cid)
 	if err == nil {
-		defer logClose("blockstore", blockstr)
+		defer closeAndLog("blockstore", blockstr)
 		return blockstr.Get(ctx, cid)
 	}
 
@@ -93,9 +92,10 @@ func (bs *blockstore) Get(ctx context.Context, cid cid.Cid) (blocks.Block, error
 func (bs *blockstore) GetSize(ctx context.Context, cid cid.Cid) (int, error) {
 	blockstr, err := bs.getReadOnlyBlockstore(ctx, cid)
 	if err == nil {
-		defer logClose("blockstore", blockstr)
+		defer closeAndLog("blockstore", blockstr)
 		return blockstr.GetSize(ctx, cid)
 	}
+
 	if errors.Is(err, ErrNotFound) || errors.Is(err, ErrNotFoundInIndex) {
 		k := dshelp.MultihashToDsKey(cid.Hash())
 		size, err := bs.ds.GetSize(ctx, k)
@@ -162,29 +162,17 @@ func (bs *blockstore) getReadOnlyBlockstore(ctx context.Context, cid cid.Cid) (*
 		return nil, fmt.Errorf("failed to find shards containing multihash: %w", err)
 	}
 
-	// a share can exist in multiple EDSes, check cache to contain any of accessors containing shard
-	for _, k := range keys {
-		if accessor, err := bs.store.cache.Get(k); err == nil {
-			return blockstoreCloser(accessor)
-		}
+	// check if any of two caches contains an accessor
+	shardKey := keys[0]
+	accessor, err := bs.store.cache.Get(shardKey)
+	if err == nil {
+		return blockstoreCloser(accessor)
 	}
 
-	// a share can exist in multiple EDSes, so just take the first one.
-	shardKey := keys[0]
-	accessor, err := bs.cache.GetOrLoad(ctx, shardKey, bs.store.getAccessor)
+	// load accessor to the blockstore cache and use it as blockstoreCloser
+	accessor, err = bs.store.cache.Second().GetOrLoad(ctx, shardKey, bs.store.getAccessor)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get accessor for shard %s: %w", shardKey, err)
 	}
 	return blockstoreCloser(accessor)
-}
-
-func blockstoreCloser(ac cache.Accessor) (*BlockstoreCloser, error) {
-	bs, err := ac.Blockstore()
-	if err != nil {
-		return nil, fmt.Errorf("eds/store: failed to get blockstore: %w", err)
-	}
-	return &BlockstoreCloser{
-		ReadBlockstore: bs,
-		Closer:         ac,
-	}, nil
 }

@@ -44,9 +44,10 @@ var bootstrapList = map[Network][]string{
 		"/dns4/da-full-2.celestia-arabica-10.com/tcp/2121/p2p/12D3KooWRByRF67a2kVM2j4MP5Po3jgTw7H2iL2Spu8aUwPkrRfP",
 	},
 	Mocha: {
-		"/dns4/bootstr-mocha-1.celestia-mocha.com/tcp/2121/p2p/12D3KooWDRSJMbH3PS4dRDa11H7Tk615aqTUgkeEKz4pwd4sS6fN",
-		"/dns4/bootstr-mocha-2.celestia-mocha.com/tcp/2121/p2p/12D3KooWEk7cxtjQCC7kC84Uhs2j6dAHjdbwYnPcvUAqmj6Zsry2",
-		"/dns4/bootstr-mocha-3.celestia-mocha.com/tcp/2121/p2p/12D3KooWBE4QcFXZzENf2VRo6Y5LBvp9gzmpYRHKCvgGzEYj7Hdn",
+		"/dns4/da-bridge-mocha-4.celestia-mocha.com/tcp/2121/p2p/12D3KooWCBAbQbJSpCpCGKzqz3rAN4ixYbc63K68zJg9aisuAajg",
+		"/dns4/da-bridge-mocha-4-2.celestia-mocha.com/tcp/2121/p2p/12D3KooWK6wJkScGQniymdWtBwBuU36n6BRXp9rCDDUD6P5gJr3G",
+		"/dns4/da-full-1-mocha-4.celestia-mocha.com/tcp/2121/p2p/12D3KooWCUHPLqQXZzpTx1x3TAsdn3vYmTNDhzg66yG8hqoxGGN8",
+		"/dns4/da-full-2-mocha-4.celestia-mocha.com/tcp/2121/p2p/12D3KooWR6SHsXPkkvhCRn6vp1RqSefgaT1X1nMNvrVjU2o3GoYy",
 	},
 	BlockspaceRace: {
 		"/dns4/bootstr-incent-3.celestia.tools/tcp/2121/p2p/12D3KooWNzdKcHagtvvr6qtjcPTAdCN6ZBiBLH8FBHbihxqu4GZx",
