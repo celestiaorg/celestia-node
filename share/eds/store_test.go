@@ -2,6 +2,7 @@ package eds
 
 import (
 	"context"
+	"io"
 	"os"
 	"sync"
 	"testing"
@@ -9,6 +10,7 @@ import (
 
 	"github.com/filecoin-project/dagstore"
 	"github.com/filecoin-project/dagstore/shard"
+	"github.com/ipfs/go-cid"
 	"github.com/ipfs/go-datastore"
 	ds_sync "github.com/ipfs/go-datastore/sync"
 	"github.com/ipld/go-car"
@@ -19,6 +21,7 @@ import (
 	"github.com/celestiaorg/rsmt2d"
 
 	"github.com/celestiaorg/celestia-node/share"
+	"github.com/celestiaorg/celestia-node/share/eds/cache"
 	"github.com/celestiaorg/celestia-node/share/eds/edstest"
 )
 
@@ -72,6 +75,9 @@ func TestEDSStore(t *testing.T) {
 
 		r, err := edsStore.GetCAR(ctx, dah.Hash())
 		assert.NoError(t, err)
+		defer func() {
+			require.NoError(t, r.Close())
+		}()
 		carReader, err := car.NewCarReader(r)
 		assert.NoError(t, err)
 
@@ -106,6 +112,9 @@ func TestEDSStore(t *testing.T) {
 		// assert that file now exists
 		_, err = os.Stat(edsStore.basepath + blocksPath + dah.String())
 		assert.NoError(t, err)
+
+		// accessor will be registered in cache async on put, so give it some time to settle
+		time.Sleep(time.Millisecond * 100)
 
 		err = edsStore.Remove(ctx, dah.Hash())
 		assert.NoError(t, err)
@@ -143,6 +152,13 @@ func TestEDSStore(t *testing.T) {
 		err = os.Remove(path)
 		assert.NoError(t, err)
 
+		// accessor will be registered in cache async on put, so give it some time to settle
+		time.Sleep(time.Millisecond * 100)
+
+		// remove non-failed accessor from cache
+		err = edsStore.cache.Remove(shard.KeyFromString(dah.String()))
+		assert.NoError(t, err)
+
 		_, err = edsStore.GetCAR(ctx, dah.Hash())
 		assert.Error(t, err)
 
@@ -177,22 +193,18 @@ func TestEDSStore(t *testing.T) {
 		assert.True(t, ok)
 	})
 
-	t.Run("BlockstoreCache", func(t *testing.T) {
+	t.Run("RecentBlocksCache", func(t *testing.T) {
 		eds, dah := randomEDS(t)
-
 		err = edsStore.Put(ctx, dah.Hash(), eds)
 		require.NoError(t, err)
 
-		// key isnt in cache yet, so get returns errCacheMiss
+		// accessor will be registered in cache async on put, so give it some time to settle
+		time.Sleep(time.Millisecond * 100)
+
+		// check, that the key is in the cache after put
 		shardKey := shard.KeyFromString(dah.String())
 		_, err = edsStore.cache.Get(shardKey)
-		assert.ErrorIs(t, err, errCacheMiss)
-
-		// now get it, so that the key is in the cache
-		_, err = edsStore.CARBlockstore(ctx, dah.Hash())
 		assert.NoError(t, err)
-		_, err = edsStore.cache.Get(shardKey)
-		assert.NoError(t, err, errCacheMiss)
 	})
 
 	t.Run("List", func(t *testing.T) {
@@ -256,6 +268,14 @@ func TestEDSStore_GC(t *testing.T) {
 	err = edsStore.Put(ctx, dah.Hash(), eds)
 	require.NoError(t, err)
 
+	// accessor will be registered in cache async on put, so give it some time to settle
+	time.Sleep(time.Millisecond * 100)
+
+	// remove links to the shard from cache
+	key := shard.KeyFromString(share.DataHash(dah.Hash()).String())
+	err = edsStore.cache.Remove(key)
+	require.NoError(t, err)
+
 	// doesn't exist yet
 	assert.NotContains(t, edsStore.lastGCResult.Load().Shards, shardKey)
 
@@ -281,20 +301,43 @@ func Test_BlockstoreCache(t *testing.T) {
 	err = edsStore.Start(ctx)
 	require.NoError(t, err)
 
+	// store eds to the store with noopCache to allow clean cache after put
+	swap := edsStore.cache
+	edsStore.cache = cache.NoopCache{}
 	eds, dah := randomEDS(t)
 	err = edsStore.Put(ctx, dah.Hash(), eds)
 	require.NoError(t, err)
 
-	// key isnt in cache yet, so get returns errCacheMiss
+	// get any key from saved eds
+	bs, err := edsStore.carBlockstore(ctx, dah.Hash())
+	require.NoError(t, err)
+	defer func() {
+		require.NoError(t, bs.Close())
+	}()
+	keys, err := bs.AllKeysChan(ctx)
+	require.NoError(t, err)
+	var key cid.Cid
+	select {
+	case key = <-keys:
+	case <-ctx.Done():
+		t.Fatal("context timeout")
+	}
+
+	// swap back original cache
+	edsStore.cache = swap
+
+	// key shouldn't be in cache yet, check for returned errCacheMiss
 	shardKey := shard.KeyFromString(dah.String())
 	_, err = edsStore.cache.Get(shardKey)
-	assert.ErrorIs(t, err, errCacheMiss)
+	require.Error(t, err)
 
-	// now get it, so that the key is in the cache
-	_, err = edsStore.getCachedAccessor(ctx, shardKey)
-	assert.NoError(t, err)
+	// now get it from blockstore, to trigger storing to cache
+	_, err = edsStore.Blockstore().Get(ctx, key)
+	require.NoError(t, err)
+
+	// should be no errCacheMiss anymore
 	_, err = edsStore.cache.Get(shardKey)
-	assert.NoError(t, err, errCacheMiss)
+	require.NoError(t, err)
 }
 
 // Test_CachedAccessor verifies that the reader represented by a cached accessor can be read from
@@ -312,26 +355,67 @@ func Test_CachedAccessor(t *testing.T) {
 	err = edsStore.Put(ctx, dah.Hash(), eds)
 	require.NoError(t, err)
 
-	shardKey := shard.KeyFromString(dah.String())
-	// adds to cache
-	cachedAccessor, err := edsStore.getCachedAccessor(ctx, shardKey)
-	assert.NoError(t, err)
+	// accessor will be registered in cache async on put, so give it some time to settle
+	time.Sleep(time.Millisecond * 100)
 
-	// first read
-	carReader, err := car.NewCarReader(cachedAccessor.sa.Reader())
-	assert.NoError(t, err)
-	firstBlock, err := carReader.Next()
-	assert.NoError(t, err)
+	// accessor should be in cache
+	cachedAccessor, err := edsStore.cache.Get(shard.KeyFromString(dah.String()))
+	require.NoError(t, err)
 
-	// second read
-	cachedAccessor, err = edsStore.getCachedAccessor(ctx, shardKey)
-	assert.NoError(t, err)
-	carReader, err = car.NewCarReader(cachedAccessor.sa.Reader())
-	assert.NoError(t, err)
-	secondBlock, err := carReader.Next()
-	assert.NoError(t, err)
+	// first read from cached accessor
+	firstBlock, err := io.ReadAll(cachedAccessor.Reader())
+	require.NoError(t, err)
+	require.NoError(t, cachedAccessor.Close())
 
-	assert.Equal(t, firstBlock, secondBlock)
+	// second read from cached accessor
+	cachedAccessor, err = edsStore.cache.Get(shard.KeyFromString(dah.String()))
+	require.NoError(t, err)
+	secondBlock, err := io.ReadAll(cachedAccessor.Reader())
+	require.NoError(t, err)
+	require.NoError(t, cachedAccessor.Close())
+
+	require.Equal(t, firstBlock, secondBlock)
+}
+
+// Test_CachedAccessor verifies that the reader represented by a accessor obtained directly from
+// dagstore can be read from multiple times, without exhausting the underlying reader.
+func Test_NotCachedAccessor(t *testing.T) {
+	ctx, cancel := context.WithCancel(context.Background())
+	t.Cleanup(cancel)
+
+	edsStore, err := newStore(t)
+	require.NoError(t, err)
+	err = edsStore.Start(ctx)
+	require.NoError(t, err)
+	// replace cache with noopCache to
+	edsStore.cache = cache.NoopCache{}
+
+	eds, dah := randomEDS(t)
+	err = edsStore.Put(ctx, dah.Hash(), eds)
+	require.NoError(t, err)
+
+	// accessor will be registered in cache async on put, so give it some time to settle
+	time.Sleep(time.Millisecond * 100)
+
+	// accessor should be in cache
+	_, err = edsStore.cache.Get(shard.KeyFromString(dah.String()))
+	require.Error(t, err)
+
+	// first read from direct accessor
+	carReader, err := edsStore.getCAR(ctx, dah.Hash())
+	require.NoError(t, err)
+	firstBlock, err := io.ReadAll(carReader)
+	require.NoError(t, err)
+	require.NoError(t, carReader.Close())
+
+	// second read from direct accessor
+	carReader, err = edsStore.getCAR(ctx, dah.Hash())
+	require.NoError(t, err)
+	secondBlock, err := io.ReadAll(carReader)
+	require.NoError(t, err)
+	require.NoError(t, carReader.Close())
+
+	require.Equal(t, firstBlock, secondBlock)
 }
 
 func BenchmarkStore(b *testing.B) {
