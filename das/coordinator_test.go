@@ -13,6 +13,7 @@ import (
 	"github.com/tendermint/tendermint/types"
 
 	"github.com/celestiaorg/celestia-node/header"
+	"github.com/celestiaorg/celestia-node/share"
 	"github.com/celestiaorg/celestia-node/share/p2p/shrexsub"
 )
 
@@ -431,7 +432,7 @@ func (m *mockSampler) discover(ctx context.Context, newHeight uint64, emit liste
 	emit(ctx, &header.ExtendedHeader{
 		Commit:    &types.Commit{},
 		RawHeader: header.RawHeader{Height: int64(newHeight)},
-		DAH:       &header.DataAvailabilityHeader{RowRoots: make([][]byte, 0)},
+		DAH:       &share.Root{RowRoots: make([][]byte, 0)},
 	})
 }
 
