@@ -2,7 +2,6 @@ package main
 
 import (
 	"github.com/celestiaorg/celestia-node/api/rpc/client"
-
 	blob "github.com/celestiaorg/celestia-node/nodebuilder/blob/cmds"
 	das "github.com/celestiaorg/celestia-node/nodebuilder/das/cmds"
 	header "github.com/celestiaorg/celestia-node/nodebuilder/header/cmds"
@@ -13,13 +12,13 @@ import (
 )
 
 func init() {
-	blob.Cmd.PersistentFlags().StringVar(initUrlFlag())
-	das.Cmd.PersistentFlags().StringVar(initUrlFlag())
-	header.Cmd.PersistentFlags().StringVar(initUrlFlag())
-	p2p.Cmd.PersistentFlags().StringVar(initUrlFlag())
-	share.Cmd.PersistentFlags().StringVar(initUrlFlag())
-	state.Cmd.PersistentFlags().StringVar(initUrlFlag())
-	node.Cmd.PersistentFlags().StringVar(initUrlFlag())
+	blob.Cmd.PersistentFlags().StringVar(initURLFlag())
+	das.Cmd.PersistentFlags().StringVar(initURLFlag())
+	header.Cmd.PersistentFlags().StringVar(initURLFlag())
+	p2p.Cmd.PersistentFlags().StringVar(initURLFlag())
+	share.Cmd.PersistentFlags().StringVar(initURLFlag())
+	state.Cmd.PersistentFlags().StringVar(initURLFlag())
+	node.Cmd.PersistentFlags().StringVar(initURLFlag())
 
 	rootCmd.AddCommand(
 		blob.Cmd,
@@ -32,6 +31,6 @@ func init() {
 	)
 }
 
-func initUrlFlag() (*string, string, string, string) {
+func initURLFlag() (*string, string, string, string) {
 	return &client.RequestURL, "url", client.DefaultRPCAddress, "Request URL"
 }

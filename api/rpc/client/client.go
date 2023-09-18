@@ -28,7 +28,7 @@ var (
 )
 
 const (
-	authEnvKey = "CELESTIA_NODE_AUTH_TOKEN" //nolint:gosec
+	authEnvKey = "CELESTIA_NODE_AUTH_TOKEN"
 
 	DefaultRPCAddress = "http://localhost:26658"
 )
