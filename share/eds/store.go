@@ -57,7 +57,7 @@ type Store struct {
 	mounts *mount.Registry
 
 	bs    *blockstore
-	cache *cache.MultiCache
+	cache *cache.DoubleCache
 
 	carIdx      index.FullIndexRepo
 	invertedIdx *simpleInvertedIndex
@@ -133,7 +133,7 @@ func NewStore(basepath string, ds datastore.Batching) (*Store, error) {
 		gcInterval:    defaultGCInterval,
 		mounts:        r,
 		shardFailures: failureChan,
-		cache:         cache.NewMultiCache(recentBlocksCache, blockstoreCache),
+		cache:         cache.NewDoubleCache(recentBlocksCache, blockstoreCache),
 	}
 	store.bs = newBlockstore(store, ds)
 	return store, nil

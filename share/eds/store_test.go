@@ -303,7 +303,7 @@ func Test_BlockstoreCache(t *testing.T) {
 
 	// store eds to the store with noopCache to allow clean cache after put
 	swap := edsStore.cache
-	edsStore.cache = cache.NewMultiCache(cache.NoopCache{}, cache.NoopCache{})
+	edsStore.cache = cache.NewDoubleCache(cache.NoopCache{}, cache.NoopCache{})
 	eds, dah := randomEDS(t)
 	err = edsStore.Put(ctx, dah.Hash(), eds)
 	require.NoError(t, err)
@@ -388,7 +388,7 @@ func Test_NotCachedAccessor(t *testing.T) {
 	err = edsStore.Start(ctx)
 	require.NoError(t, err)
 	// replace cache with noopCache to
-	edsStore.cache = cache.NewMultiCache(cache.NoopCache{}, cache.NoopCache{})
+	edsStore.cache = cache.NewDoubleCache(cache.NoopCache{}, cache.NoopCache{})
 
 	eds, dah := randomEDS(t)
 	err = edsStore.Put(ctx, dah.Hash(), eds)

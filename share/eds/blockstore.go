@@ -152,7 +152,7 @@ func (bs *blockstore) getReadOnlyBlockstore(ctx context.Context, cid cid.Cid) (*
 		return nil, fmt.Errorf("failed to find shards containing multihash: %w", err)
 	}
 
-	// check if any if multicache contains an accessor
+	// check if any of two caches contains an accessor
 	shardKey := keys[0]
 	accessor, err := bs.store.cache.Get(shardKey)
 	if err == nil {
