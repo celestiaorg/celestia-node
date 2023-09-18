@@ -1,7 +1,7 @@
 name: documentation checks
 
 on:
-  pull_request:
+  workflow_call:
 
 env:
   GO_VERSION: 1.19
@@ -24,4 +24,5 @@ jobs:
           MESSAGE: "Changes detected to openrpc.json. Please run 'make openrpc-gen' and commit the changes."
         run: |
           make openrpc-gen > openrpc.json
-          git diff --quiet --exit-code openrpc.json || echo "$MESSAGE"
+          git diff --quiet || echo "$MESSAGE"
+          git diff --exit-code --quiet .
