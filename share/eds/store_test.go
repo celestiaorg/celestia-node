@@ -276,12 +276,6 @@ func TestEDSStore_GC(t *testing.T) {
 	err = edsStore.cache.Remove(key)
 	require.NoError(t, err)
 
-	// remove links to the shard from cache
-	time.Sleep(time.Millisecond * 100)
-	key := shard.KeyFromString(share.DataHash(dah.Hash()).String())
-	err = edsStore.cache.Remove(key)
-	require.NoError(t, err)
-
 	// doesn't exist yet
 	assert.NotContains(t, edsStore.lastGCResult.Load().Shards, shardKey)
 
@@ -309,7 +303,7 @@ func Test_BlockstoreCache(t *testing.T) {
 
 	// store eds to the store with noopCache to allow clean cache after put
 	swap := edsStore.cache
-	edsStore.cache = cache.NoopCache{}
+	edsStore.cache = cache.NewMultiCache(cache.NoopCache{}, cache.NoopCache{})
 	eds, dah := randomEDS(t)
 	err = edsStore.Put(ctx, dah.Hash(), eds)
 	require.NoError(t, err)
@@ -394,7 +388,7 @@ func Test_NotCachedAccessor(t *testing.T) {
 	err = edsStore.Start(ctx)
 	require.NoError(t, err)
 	// replace cache with noopCache to
-	edsStore.cache = cache.NoopCache{}
+	edsStore.cache = cache.NewMultiCache(cache.NoopCache{}, cache.NoopCache{})
 
 	eds, dah := randomEDS(t)
 	err = edsStore.Put(ctx, dah.Hash(), eds)

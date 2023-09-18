@@ -57,7 +57,7 @@ type Store struct {
 	mounts *mount.Registry
 
 	bs    *blockstore
-	cache cache.Cache
+	cache *cache.MultiCache
 
 	carIdx      index.FullIndexRepo
 	invertedIdx *simpleInvertedIndex
@@ -135,7 +135,7 @@ func NewStore(basepath string, ds datastore.Batching) (*Store, error) {
 		shardFailures: failureChan,
 		cache:         cache.NewMultiCache(recentBlocksCache, blockstoreCache),
 	}
-	store.bs = newBlockstore(store, blockstoreCache, ds)
+	store.bs = newBlockstore(store, ds)
 	return store, nil
 }
 
@@ -290,7 +290,7 @@ func (s *Store) put(ctx context.Context, root share.DataHash, square *rsmt2d.Ext
 	go func() {
 		ctx, cancel := context.WithTimeout(context.Background(), time.Minute)
 		defer cancel()
-		_, err := s.cache.GetOrLoad(ctx, result.Key, s.getAccessor)
+		_, err := s.cache.First().GetOrLoad(ctx, result.Key, s.getAccessor)
 		if err != nil {
 			log.Warnw("unable to put accessor to recent blocks accessors cache", "err", err)
 			return
@@ -640,17 +640,4 @@ type inMemoryReader struct {
 // Close allows inMemoryReader to satisfy mount.Reader interface
 func (r *inMemoryReader) Close() error {
 	return nil
-}
-
-// readCloser is a helper struct, that combines io.Reader and io.Closer
-type readCloser struct {
-	io.Reader
-	io.Closer
-}
-
-func newReadCloser(ac cache.Accessor) io.ReadCloser {
-	return readCloser{
-		ac.Reader(),
-		ac,
-	}
 }
