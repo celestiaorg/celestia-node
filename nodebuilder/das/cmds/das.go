@@ -10,10 +10,10 @@ import (
 var rpcClient *client.Client
 
 func init() {
-	DASCmd.AddCommand(samplingStatsCmd)
+	Cmd.AddCommand(samplingStatsCmd)
 }
 
-var DASCmd = &cobra.Command{
+var Cmd = &cobra.Command{
 	Use:   "das [command]",
 	Short: "Allows to interact with the Daser via JSON-RPC",
 	Args:  cobra.NoArgs,

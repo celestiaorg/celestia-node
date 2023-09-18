@@ -20,7 +20,7 @@ type peerInfo struct {
 }
 
 func init() {
-	P2PCmd.AddCommand(infoCmd,
+	Cmd.AddCommand(infoCmd,
 		peersCmd,
 		peerInfoCmd,
 		connectCmd,
@@ -40,7 +40,7 @@ func init() {
 	)
 }
 
-var P2PCmd = &cobra.Command{
+var Cmd = &cobra.Command{
 	Use:   "p2p [command]",
 	Short: "Allows interaction with the P2P Module via JSON-RPC",
 	Args:  cobra.NoArgs,

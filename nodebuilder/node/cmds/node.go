@@ -14,10 +14,10 @@ import (
 var rpcClient *client.Client
 
 func init() {
-	NodeCmd.AddCommand(nodeInfoCmd, logCmd, verifyCmd, authCmd)
+	Cmd.AddCommand(nodeInfoCmd, logCmd, verifyCmd, authCmd)
 }
 
-var NodeCmd = &cobra.Command{
+var Cmd = &cobra.Command{
 	Use:   "node [command]",
 	Short: "Allows administrating running node.",
 	Args:  cobra.NoArgs,

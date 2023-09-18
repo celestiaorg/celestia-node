@@ -14,7 +14,7 @@ import (
 var rpcClient *client.Client
 
 func init() {
-	HeaderCmd.AddCommand(
+	Cmd.AddCommand(
 		localHeadCmd,
 		networkHeadCmd,
 		getByHashCmd,
@@ -23,7 +23,7 @@ func init() {
 	)
 }
 
-var HeaderCmd = &cobra.Command{
+var Cmd = &cobra.Command{
 	Use:   "header [command]",
 	Short: "Allows interaction with the Header Module via JSON-RPC",
 	Args:  cobra.NoArgs,

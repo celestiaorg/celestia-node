@@ -17,7 +17,7 @@ import (
 var rpcClient *client.Client
 
 func init() {
-	ShareCmd.AddCommand(
+	Cmd.AddCommand(
 		sharesAvailableCmd,
 		probabilityOfAvailabilityCmd,
 		getSharesByNamespaceCmd,
@@ -26,7 +26,7 @@ func init() {
 	)
 }
 
-var ShareCmd = &cobra.Command{
+var Cmd = &cobra.Command{
 	Use:   "share [command]",
 	Short: "Allows interaction with the Share Module via JSON-RPC",
 	Args:  cobra.NoArgs,

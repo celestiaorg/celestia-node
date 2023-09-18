@@ -25,7 +25,7 @@ var (
 )
 
 func init() {
-	BlobCmd.AddCommand(getCmd, getAllCmd, submitCmd, getProofCmd)
+	Cmd.AddCommand(getCmd, getAllCmd, submitCmd, getProofCmd)
 
 	getCmd.PersistentFlags().BoolVar(
 		&base64Flag,
@@ -56,7 +56,7 @@ func init() {
 	)
 }
 
-var BlobCmd = &cobra.Command{
+var Cmd = &cobra.Command{
 	Use:   "blob [command]",
 	Short: "Allows to interact with the Blob Service via JSON-RPC",
 	Args:  cobra.NoArgs,

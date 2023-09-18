@@ -18,7 +18,7 @@ import (
 var rpcClient *client.Client
 
 func init() {
-	StateCmd.AddCommand(
+	Cmd.AddCommand(
 		accountAddressCmd,
 		balanceCmd,
 		balanceForAddressCmd,
@@ -35,7 +35,7 @@ func init() {
 	)
 }
 
-var StateCmd = &cobra.Command{
+var Cmd = &cobra.Command{
 	Use:   "state [command]",
 	Short: "Allows interaction with the State Module via JSON-RPC",
 	Args:  cobra.NoArgs,

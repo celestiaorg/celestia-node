@@ -12,25 +12,23 @@ import (
 	state "github.com/celestiaorg/celestia-node/nodebuilder/state/cmds"
 )
 
-const authEnvKey = "CELESTIA_NODE_AUTH_TOKEN" //nolint:gosec
-
 func init() {
-	blob.BlobCmd.PersistentFlags().StringVar(initUrlFlag())
-	das.DASCmd.PersistentFlags().StringVar(initUrlFlag())
-	header.HeaderCmd.PersistentFlags().StringVar(initUrlFlag())
-	p2p.P2PCmd.PersistentFlags().StringVar(initUrlFlag())
-	share.ShareCmd.PersistentFlags().StringVar(initUrlFlag())
-	state.StateCmd.PersistentFlags().StringVar(initUrlFlag())
-	node.NodeCmd.PersistentFlags().StringVar(initUrlFlag())
+	blob.Cmd.PersistentFlags().StringVar(initUrlFlag())
+	das.Cmd.PersistentFlags().StringVar(initUrlFlag())
+	header.Cmd.PersistentFlags().StringVar(initUrlFlag())
+	p2p.Cmd.PersistentFlags().StringVar(initUrlFlag())
+	share.Cmd.PersistentFlags().StringVar(initUrlFlag())
+	state.Cmd.PersistentFlags().StringVar(initUrlFlag())
+	node.Cmd.PersistentFlags().StringVar(initUrlFlag())
 
 	rootCmd.AddCommand(
-		blob.BlobCmd,
-		das.DASCmd,
-		header.HeaderCmd,
-		p2p.P2PCmd,
-		share.ShareCmd,
-		state.StateCmd,
-		node.NodeCmd,
+		blob.Cmd,
+		das.Cmd,
+		header.Cmd,
+		p2p.Cmd,
+		share.Cmd,
+		state.Cmd,
+		node.Cmd,
 	)
 }
 
