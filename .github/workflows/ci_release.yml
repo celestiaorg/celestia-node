@@ -82,7 +82,7 @@ jobs:
       (github.event_name == 'push' && contains(github.ref, 'refs/tags/'))
     permissions: "write-all"
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
       - run: git fetch --force --tags
       - uses: actions/setup-go@v4
         with:
