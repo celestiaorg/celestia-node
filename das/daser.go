@@ -100,6 +100,11 @@ func (d *DASer) Start(ctx context.Context) error {
 		// will be able to find new head from subscriber after it is started
 		if h, err := d.getter.Head(ctx); err == nil {
 			cp.NetworkHead = h.Height()
+			// underflow protection
+			if h.Height() > d.params.RecencyWindow {
+				cp.SampleFrom = max(cp.SampleFrom, cp.NetworkHead-d.params.RecencyWindow)
+				d.sampler.state.sampleFrom = cp.SampleFrom
+			}
 		}
 	}
 	log.Info("starting DASer from checkpoint: ", cp.String())

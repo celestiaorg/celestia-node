@@ -40,6 +40,10 @@ type Parameters struct {
 	// divided between parallel workers. SampleTimeout should be adjusted proportionally to
 	// ConcurrencyLimit.
 	SampleTimeout time.Duration
+
+	// RecencyWindow is the amount of blocks under the network head that will be
+	// sampled and stored.
+	RecencyWindow uint64
 }
 
 // DefaultParameters returns the default configuration values for the daser parameters
@@ -54,6 +58,8 @@ func DefaultParameters() Parameters {
 		SampleFrom:              1,
 		// SampleTimeout = approximate block time (with a bit of wiggle room) * max amount of catchup workers
 		SampleTimeout: 15 * time.Second * time.Duration(concurrencyLimit),
+		// TODO: this should inherit block time from p2p config
+		RecencyWindow: uint64((time.Hour * 24 * 28) / (15 * time.Second)),
 	}
 }
 
@@ -152,5 +158,13 @@ func WithSampleFrom(sampleFrom uint64) Option {
 func WithSampleTimeout(sampleTimeout time.Duration) Option {
 	return func(d *DASer) {
 		d.params.SampleTimeout = sampleTimeout
+	}
+}
+
+// WithRecencyWindow is a functional option to configure the daser's `RecencyWindow` parameter
+// Refer to WithSamplingRange documentation to see an example of how to use this
+func WithRecencyWindow(recencyWindow uint64) Option {
+	return func(d *DASer) {
+		d.params.RecencyWindow = recencyWindow
 	}
 }
