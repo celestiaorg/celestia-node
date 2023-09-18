@@ -37,23 +37,39 @@ func TestShareAvailable_OneFullNode(t *testing.T) {
 		{
 			name:            "fully recoverable",
 			origSquareSize:  16,
-			lightNodes:      24,
+			lightNodes:      24, // ~99% chance of recoverability
 			sampleAmount:    20,
 			recoverability:  FullyRecoverable,
 			expectedFailure: false,
 		},
 		{
+			name:            "fully recoverable, not enough LNs",
+			origSquareSize:  16,
+			lightNodes:      19, // ~0.7% chance of recoverability
+			sampleAmount:    20,
+			recoverability:  FullyRecoverable,
+			expectedFailure: true,
+		},
+		{
 			name:            "barely recoverable",
 			origSquareSize:  16,
-			lightNodes:      69,
+			lightNodes:      230, // 99% chance of recoverability
 			sampleAmount:    20,
 			recoverability:  BarelyRecoverable,
 			expectedFailure: false,
 		},
 		{
+			name:            "barely recoverable, not enough LNs",
+			origSquareSize:  16,
+			lightNodes:      22, // ~0.3% chance of recoverability
+			sampleAmount:    20,
+			recoverability:  BarelyRecoverable,
+			expectedFailure: true,
+		},
+		{
 			name:            "unrecoverable",
 			origSquareSize:  16,
-			lightNodes:      69,
+			lightNodes:      230,
 			sampleAmount:    20,
 			recoverability:  Unrecoverable,
 			expectedFailure: true,
@@ -95,12 +111,7 @@ func TestShareAvailable_OneFullNode(t *testing.T) {
 				}(i)
 			}
 
-			errg, errCtx := errgroup.WithContext(ctx)
-			errg.Go(func() error {
-				return full.SharesAvailable(errCtx, root)
-			})
-
-			err := errg.Wait()
+			err := full.SharesAvailable(ctx, root)
 			if tt.expectedFailure {
 				require.Error(t, err)
 			} else {
@@ -135,19 +146,33 @@ func TestShareAvailable_ConnectedFullNodes(t *testing.T) {
 			expectedFailure: false,
 		},
 		{
+			name:            "fully recoverable, not enough LNs",
+			origSquareSize:  16,
+			lightNodes:      19, // ~0.7% chance of recoverability
+			sampleAmount:    20,
+			recoverability:  FullyRecoverable,
+			expectedFailure: true,
+		},
+		// NOTE: This test contains cases for barely recoverable but
+		// DisconnectedFullNodes does not.  The reasoning for this is that
+		// DisconnectedFullNodes has the additional contstraint that the data
+		// should not be reconstructable from a single subnetwork, while this
+		// test only tests that the data is reconstructable once the subnetworks
+		// are connected.
+		{
 			name:            "barely recoverable",
 			origSquareSize:  16,
-			lightNodes:      69,
+			lightNodes:      230, // 99% chance of recoverability
 			sampleAmount:    20,
 			recoverability:  BarelyRecoverable,
 			expectedFailure: false,
 		},
 		{
-			name:            "unrecoverable",
+			name:            "barely recoverable, not enough LNs",
 			origSquareSize:  16,
-			lightNodes:      69,
+			lightNodes:      22, // ~0.3% chance of recoverability
 			sampleAmount:    20,
-			recoverability:  Unrecoverable,
+			recoverability:  BarelyRecoverable,
 			expectedFailure: true,
 		},
 	}
@@ -159,7 +184,7 @@ func TestShareAvailable_ConnectedFullNodes(t *testing.T) {
 			origSquareSize := tt.origSquareSize         // k
 			lightNodes := tt.lightNodes                 // c
 
-			ctx, cancel := context.WithTimeout(context.Background(), time.Second*30)
+			ctx, cancel := context.WithTimeout(context.Background(), time.Second*60)
 			defer cancel()
 
 			net := availability_test.NewTestDAGNet(ctx, t)
@@ -266,23 +291,23 @@ func TestShareAvailable_DisconnectedFullNodes(t *testing.T) {
 		{
 			name:            "fully recoverable",
 			origSquareSize:  16,
-			lightNodes:      32,
+			lightNodes:      24, // ~99% chance of recoverability
 			sampleAmount:    20,
 			recoverability:  FullyRecoverable,
 			expectedFailure: false,
 		},
 		{
-			name:            "barely recoverable",
+			name:            "fully recoverable, not enough LNs",
 			origSquareSize:  16,
-			lightNodes:      70, // actually 69, but needs to be divisible by 2
+			lightNodes:      19, // ~0.7% chance of recoverability
 			sampleAmount:    20,
-			recoverability:  BarelyRecoverable,
-			expectedFailure: false,
+			recoverability:  FullyRecoverable,
+			expectedFailure: true,
 		},
 		{
 			name:            "unrecoverable",
 			origSquareSize:  16,
-			lightNodes:      70,
+			lightNodes:      230,
 			sampleAmount:    20,
 			recoverability:  Unrecoverable,
 			expectedFailure: true,
@@ -368,7 +393,9 @@ func TestShareAvailable_DisconnectedFullNodes(t *testing.T) {
 			// but after they connect
 			net.Connect(full1.ID(), full2.ID())
 
-			// with clean caches from the previous try
+			// we clear the blockservices not because we need to, but just to
+			// show its possible to reconstruct without any previously saved
+			// data from previous attempts.
 			full1.ClearStorage()
 			full2.ClearStorage()
 
