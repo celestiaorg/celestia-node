@@ -10,9 +10,8 @@ import (
 	blocks "github.com/ipfs/go-block-format"
 	"github.com/ipfs/go-cid"
 	"github.com/ipfs/go-datastore"
+	"github.com/ipfs/go-datastore/namespace"
 	ipld "github.com/ipfs/go-ipld-format"
-
-	"github.com/celestiaorg/celestia-node/share/eds/cache"
 )
 
 var _ bstore.Blockstore = (*blockstore)(nil)
@@ -33,6 +32,13 @@ var (
 type blockstore struct {
 	store *Store
 	ds    datastore.Batching
+}
+
+func newBlockstore(store *Store, ds datastore.Batching) *blockstore {
+	return &blockstore{
+		store: store,
+		ds:    namespace.Wrap(ds, blockstoreCacheKey),
+	}
 }
 
 func (bs *blockstore) Has(ctx context.Context, cid cid.Cid) (bool, error) {
@@ -146,28 +152,17 @@ func (bs *blockstore) getReadOnlyBlockstore(ctx context.Context, cid cid.Cid) (*
 		return nil, fmt.Errorf("failed to find shards containing multihash: %w", err)
 	}
 
-	// check if cache contains any of accessors
+	// check if either cache contains an accessor
 	shardKey := keys[0]
-	if accessor, err := bs.store.cache.Get(shardKey); err == nil {
+	accessor, err := bs.store.cache.Get(shardKey)
+	if err == nil {
 		return blockstoreCloser(accessor)
 	}
 
-	// load accessor to the cache and use it as blockstoreCloser
-	accessor, err := bs.store.cache.GetOrLoad(ctx, shardKey, bs.store.getAccessor)
+	// load accessor to the blockstore cache and use it as blockstoreCloser
+	accessor, err = bs.store.cache.Second().GetOrLoad(ctx, shardKey, bs.store.getAccessor)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get accessor for shard %s: %w", shardKey, err)
 	}
 	return blockstoreCloser(accessor)
-}
-
-// blockstoreCloser constructs new BlockstoreCloser from cache.Accessor
-func blockstoreCloser(ac cache.Accessor) (*BlockstoreCloser, error) {
-	bs, err := ac.Blockstore()
-	if err != nil {
-		return nil, fmt.Errorf("eds/store: failed to get blockstore: %w", err)
-	}
-	return &BlockstoreCloser{
-		ReadBlockstore: bs,
-		Closer:         ac,
-	}, nil
 }
