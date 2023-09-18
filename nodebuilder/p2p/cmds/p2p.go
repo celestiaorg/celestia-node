@@ -1,4 +1,4 @@
-package rpc
+package cmd
 
 import (
 	"github.com/libp2p/go-libp2p/core/metrics"
@@ -8,8 +8,11 @@ import (
 	ma2 "github.com/multiformats/go-multiaddr"
 	"github.com/spf13/cobra"
 
-	"github.com/celestiaorg/celestia-node/cmd/celestia/internal"
+	"github.com/celestiaorg/celestia-node/api/rpc/client"
+	"github.com/celestiaorg/celestia-node/cmd/celestia/util"
 )
+
+var rpcClient *client.Client
 
 type peerInfo struct {
 	ID       string   `json:"id"`
@@ -35,21 +38,20 @@ func init() {
 		bandwidthForProtocolCmd,
 		pubsubPeersCmd,
 	)
-
-	P2PCmd.PersistentFlags().StringVar(
-		&internal.RequestURL,
-		"url",
-		"http://localhost:26658",
-		"Request URL",
-	)
 }
 
 var P2PCmd = &cobra.Command{
-	Use:               "p2p [command]",
-	Short:             "Allows interaction with the P2P Module via JSON-RPC",
-	Args:              cobra.NoArgs,
-	PersistentPreRunE: internal.InitClient,
-	PersistentPostRun: internal.CloseClient,
+	Use:   "p2p [command]",
+	Short: "Allows interaction with the P2P Module via JSON-RPC",
+	Args:  cobra.NoArgs,
+	PersistentPreRunE: func(cmd *cobra.Command, args []string) error {
+		var err error
+		rpcClient, err = client.NewClient(cmd.Context(), client.RequestURL, "")
+		return err
+	},
+	PersistentPostRun: func(_ *cobra.Command, _ []string) {
+		rpcClient.Close()
+	},
 }
 
 var infoCmd = &cobra.Command{
@@ -57,7 +59,7 @@ var infoCmd = &cobra.Command{
 	Short: "Gets the node's peer info (peer id and multiaddresses)",
 	Args:  cobra.NoArgs,
 	RunE: func(cmd *cobra.Command, args []string) error {
-		info, err := internal.RPCClient.P2P.Info(cmd.Context())
+		info, err := rpcClient.P2P.Info(cmd.Context())
 
 		formatter := func(data interface{}) interface{} {
 			peerAdd := data.(peer.AddrInfo)
@@ -71,7 +73,7 @@ var infoCmd = &cobra.Command{
 				PeerAddr: ma,
 			}
 		}
-		return internal.PrintOutput(info, err, formatter)
+		return util.PrintOutput(info, err, formatter)
 	},
 }
 
@@ -80,7 +82,7 @@ var peersCmd = &cobra.Command{
 	Short: "Lists the peers we are connected to",
 	Args:  cobra.NoArgs,
 	RunE: func(cmd *cobra.Command, args []string) error {
-		result, err := internal.RPCClient.P2P.Peers(cmd.Context())
+		result, err := rpcClient.P2P.Peers(cmd.Context())
 		peers := make([]string, len(result))
 		for i, peer := range result {
 			peers[i] = peer.String()
@@ -94,7 +96,7 @@ var peersCmd = &cobra.Command{
 				Peers: conPeers,
 			}
 		}
-		return internal.PrintOutput(peers, err, formatter)
+		return util.PrintOutput(peers, err, formatter)
 	},
 }
 
@@ -107,7 +109,7 @@ var peerInfoCmd = &cobra.Command{
 		if err != nil {
 			return err
 		}
-		info, err := internal.RPCClient.P2P.PeerInfo(cmd.Context(), pid)
+		info, err := rpcClient.P2P.PeerInfo(cmd.Context(), pid)
 		formatter := func(data interface{}) interface{} {
 			peerAdd := data.(peer.AddrInfo)
 			ma := make([]string, len(info.Addrs))
@@ -120,7 +122,7 @@ var peerInfoCmd = &cobra.Command{
 				PeerAddr: ma,
 			}
 		}
-		return internal.PrintOutput(info, err, formatter)
+		return util.PrintOutput(info, err, formatter)
 	},
 }
 
@@ -144,9 +146,9 @@ var connectCmd = &cobra.Command{
 			Addrs: []ma2.Multiaddr{ma},
 		}
 
-		err = internal.RPCClient.P2P.Connect(cmd.Context(), peerInfo)
+		err = rpcClient.P2P.Connect(cmd.Context(), peerInfo)
 		if err != nil {
-			return internal.PrintOutput(nil, err, nil)
+			return util.PrintOutput(nil, err, nil)
 		}
 		return connectednessCmd.RunE(cmd, args)
 	},
@@ -162,9 +164,9 @@ var closePeerCmd = &cobra.Command{
 			return err
 		}
 
-		err = internal.RPCClient.P2P.ClosePeer(cmd.Context(), pid)
+		err = rpcClient.P2P.ClosePeer(cmd.Context(), pid)
 		if err != nil {
-			return internal.PrintOutput(nil, err, nil)
+			return util.PrintOutput(nil, err, nil)
 		}
 		return connectednessCmd.RunE(cmd, args)
 	},
@@ -180,7 +182,7 @@ var connectednessCmd = &cobra.Command{
 			return err
 		}
 
-		con, err := internal.RPCClient.P2P.Connectedness(cmd.Context(), pid)
+		con, err := rpcClient.P2P.Connectedness(cmd.Context(), pid)
 
 		formatter := func(data interface{}) interface{} {
 			conn := data.(network.Connectedness)
@@ -190,7 +192,7 @@ var connectednessCmd = &cobra.Command{
 				ConnectionState: conn.String(),
 			}
 		}
-		return internal.PrintOutput(con, err, formatter)
+		return util.PrintOutput(con, err, formatter)
 	},
 }
 
@@ -199,7 +201,7 @@ var natStatusCmd = &cobra.Command{
 	Short: "Gets the currrent NAT status",
 	Args:  cobra.NoArgs,
 	RunE: func(cmd *cobra.Command, args []string) error {
-		r, err := internal.RPCClient.P2P.NATStatus(cmd.Context())
+		r, err := rpcClient.P2P.NATStatus(cmd.Context())
 
 		formatter := func(data interface{}) interface{} {
 			rr := data.(network.Reachability)
@@ -209,7 +211,7 @@ var natStatusCmd = &cobra.Command{
 				Reachability: rr.String(),
 			}
 		}
-		return internal.PrintOutput(r, err, formatter)
+		return util.PrintOutput(r, err, formatter)
 	},
 }
 
@@ -223,7 +225,7 @@ var blockPeerCmd = &cobra.Command{
 			return err
 		}
 
-		err = internal.RPCClient.P2P.BlockPeer(cmd.Context(), pid)
+		err = rpcClient.P2P.BlockPeer(cmd.Context(), pid)
 
 		formatter := func(data interface{}) interface{} {
 			err, ok := data.(error)
@@ -241,7 +243,7 @@ var blockPeerCmd = &cobra.Command{
 				Reason:  err,
 			}
 		}
-		return internal.PrintOutput(err, nil, formatter)
+		return util.PrintOutput(err, nil, formatter)
 	},
 }
 
@@ -255,7 +257,7 @@ var unblockPeerCmd = &cobra.Command{
 			return err
 		}
 
-		err = internal.RPCClient.P2P.UnblockPeer(cmd.Context(), pid)
+		err = rpcClient.P2P.UnblockPeer(cmd.Context(), pid)
 
 		formatter := func(data interface{}) interface{} {
 			err, ok := data.(error)
@@ -274,7 +276,7 @@ var unblockPeerCmd = &cobra.Command{
 				Reason:    err,
 			}
 		}
-		return internal.PrintOutput(err, nil, formatter)
+		return util.PrintOutput(err, nil, formatter)
 	},
 }
 
@@ -283,7 +285,7 @@ var blockedPeersCmd = &cobra.Command{
 	Short: "Lists the node's blocked peers",
 	Args:  cobra.NoArgs,
 	RunE: func(cmd *cobra.Command, args []string) error {
-		list, err := internal.RPCClient.P2P.ListBlockedPeers(cmd.Context())
+		list, err := rpcClient.P2P.ListBlockedPeers(cmd.Context())
 
 		pids := make([]string, len(list))
 		for i, peer := range list {
@@ -298,7 +300,7 @@ var blockedPeersCmd = &cobra.Command{
 				Peers: peers,
 			}
 		}
-		return internal.PrintOutput(pids, err, formatter)
+		return util.PrintOutput(pids, err, formatter)
 	},
 }
 
@@ -312,7 +314,7 @@ var protectCmd = &cobra.Command{
 			return err
 		}
 
-		err = internal.RPCClient.P2P.Protect(cmd.Context(), pid, args[1])
+		err = rpcClient.P2P.Protect(cmd.Context(), pid, args[1])
 
 		formatter := func(data interface{}) interface{} {
 			err, ok := data.(error)
@@ -330,7 +332,7 @@ var protectCmd = &cobra.Command{
 				Reason:    err,
 			}
 		}
-		return internal.PrintOutput(err, nil, formatter)
+		return util.PrintOutput(err, nil, formatter)
 	},
 }
 
@@ -346,7 +348,7 @@ var unprotectCmd = &cobra.Command{
 			return err
 		}
 
-		_, err = internal.RPCClient.P2P.Unprotect(cmd.Context(), pid, args[1])
+		_, err = rpcClient.P2P.Unprotect(cmd.Context(), pid, args[1])
 
 		formatter := func(data interface{}) interface{} {
 			err, ok := data.(error)
@@ -364,7 +366,7 @@ var unprotectCmd = &cobra.Command{
 				Reason:      err,
 			}
 		}
-		return internal.PrintOutput(err, nil, formatter)
+		return util.PrintOutput(err, nil, formatter)
 	},
 }
 
@@ -378,8 +380,8 @@ var protectedCmd = &cobra.Command{
 			return err
 		}
 
-		result, err := internal.RPCClient.P2P.IsProtected(cmd.Context(), pid, args[1])
-		return internal.PrintOutput(result, err, nil)
+		result, err := rpcClient.P2P.IsProtected(cmd.Context(), pid, args[1])
+		return util.PrintOutput(result, err, nil)
 	},
 }
 
@@ -397,7 +399,7 @@ var bandwidthStatsCmd = &cobra.Command{
 		"received by the local peer, regardless of protocol or remote peer IDs",
 	Args: cobra.NoArgs,
 	RunE: func(cmd *cobra.Command, args []string) error {
-		result, err := internal.RPCClient.P2P.BandwidthStats(cmd.Context())
+		result, err := rpcClient.P2P.BandwidthStats(cmd.Context())
 
 		formatter := func(data interface{}) interface{} {
 			stats := data.(metrics.Stats)
@@ -408,7 +410,7 @@ var bandwidthStatsCmd = &cobra.Command{
 				RateOut:  stats.RateOut,
 			}
 		}
-		return internal.PrintOutput(result, err, formatter)
+		return util.PrintOutput(result, err, formatter)
 	},
 }
 
@@ -422,7 +424,7 @@ var peerBandwidthCmd = &cobra.Command{
 			return err
 		}
 
-		result, err := internal.RPCClient.P2P.BandwidthForPeer(cmd.Context(), pid)
+		result, err := rpcClient.P2P.BandwidthForPeer(cmd.Context(), pid)
 
 		formatter := func(data interface{}) interface{} {
 			stats := data.(metrics.Stats)
@@ -433,7 +435,7 @@ var peerBandwidthCmd = &cobra.Command{
 				RateOut:  stats.RateOut,
 			}
 		}
-		return internal.PrintOutput(result, err, formatter)
+		return util.PrintOutput(result, err, formatter)
 	},
 }
 
@@ -442,7 +444,7 @@ var bandwidthForProtocolCmd = &cobra.Command{
 	Short: "Gets stats struct with bandwidth metrics associated with the given protocol.ID",
 	Args:  cobra.ExactArgs(1),
 	RunE: func(cmd *cobra.Command, args []string) error {
-		result, err := internal.RPCClient.P2P.BandwidthForProtocol(cmd.Context(), protocol.ID(args[0]))
+		result, err := rpcClient.P2P.BandwidthForProtocol(cmd.Context(), protocol.ID(args[0]))
 
 		formatter := func(data interface{}) interface{} {
 			stats := data.(metrics.Stats)
@@ -453,7 +455,7 @@ var bandwidthForProtocolCmd = &cobra.Command{
 				RateOut:  stats.RateOut,
 			}
 		}
-		return internal.PrintOutput(result, err, formatter)
+		return util.PrintOutput(result, err, formatter)
 	},
 }
 
@@ -462,7 +464,7 @@ var pubsubPeersCmd = &cobra.Command{
 	Short: "Lists the peers we are connected to in the given topic",
 	Args:  cobra.ExactArgs(1),
 	RunE: func(cmd *cobra.Command, args []string) error {
-		result, err := internal.RPCClient.P2P.PubSubPeers(cmd.Context(), args[0])
+		result, err := rpcClient.P2P.PubSubPeers(cmd.Context(), args[0])
 		peers := make([]string, len(result))
 
 		for i, peer := range result {
@@ -477,6 +479,6 @@ var pubsubPeersCmd = &cobra.Command{
 				Peers: conPeers,
 			}
 		}
-		return internal.PrintOutput(peers, err, formatter)
+		return util.PrintOutput(peers, err, formatter)
 	},
 }

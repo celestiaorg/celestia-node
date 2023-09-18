@@ -1,28 +1,30 @@
-package rpc
+package cmd
 
 import (
 	"github.com/spf13/cobra"
 
-	"github.com/celestiaorg/celestia-node/cmd/celestia/internal"
+	"github.com/celestiaorg/celestia-node/api/rpc/client"
+	"github.com/celestiaorg/celestia-node/cmd/celestia/util"
 )
+
+var rpcClient *client.Client
 
 func init() {
 	DASCmd.AddCommand(samplingStatsCmd)
-
-	DASCmd.PersistentFlags().StringVar(
-		&internal.RequestURL,
-		"url",
-		"http://localhost:26658",
-		"Request URL",
-	)
 }
 
 var DASCmd = &cobra.Command{
-	Use:               "das [command]",
-	Short:             "Allows to interact with the Daser via JSON-RPC",
-	Args:              cobra.NoArgs,
-	PersistentPreRunE: internal.InitClient,
-	PersistentPostRun: internal.CloseClient,
+	Use:   "das [command]",
+	Short: "Allows to interact with the Daser via JSON-RPC",
+	Args:  cobra.NoArgs,
+	PersistentPreRunE: func(cmd *cobra.Command, args []string) error {
+		var err error
+		rpcClient, err = client.NewClient(cmd.Context(), client.RequestURL, "")
+		return err
+	},
+	PersistentPostRun: func(_ *cobra.Command, _ []string) {
+		rpcClient.Close()
+	},
 }
 
 var samplingStatsCmd = &cobra.Command{
@@ -30,7 +32,7 @@ var samplingStatsCmd = &cobra.Command{
 	Short: "Returns the current statistics over the DA sampling process",
 	Args:  cobra.NoArgs,
 	RunE: func(cmd *cobra.Command, args []string) error {
-		stats, err := internal.RPCClient.DAS.SamplingStats(cmd.Context())
-		return internal.PrintOutput(stats, err, nil)
+		stats, err := rpcClient.DAS.SamplingStats(cmd.Context())
+		return util.PrintOutput(stats, err, nil)
 	},
 }

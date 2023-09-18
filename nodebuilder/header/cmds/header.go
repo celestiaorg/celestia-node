@@ -1,4 +1,4 @@
-package rpc
+package cmd
 
 import (
 	"encoding/hex"
@@ -7,8 +7,11 @@ import (
 
 	"github.com/spf13/cobra"
 
-	"github.com/celestiaorg/celestia-node/cmd/celestia/internal"
+	"github.com/celestiaorg/celestia-node/api/rpc/client"
+	"github.com/celestiaorg/celestia-node/cmd/celestia/util"
 )
+
+var rpcClient *client.Client
 
 func init() {
 	HeaderCmd.AddCommand(
@@ -18,21 +21,20 @@ func init() {
 		getByHeightCmd,
 		syncStateCmd,
 	)
-
-	HeaderCmd.PersistentFlags().StringVar(
-		&internal.RequestURL,
-		"url",
-		"http://localhost:26658",
-		"Request URL",
-	)
 }
 
 var HeaderCmd = &cobra.Command{
-	Use:               "header [command]",
-	Short:             "Allows interaction with the Header Module via JSON-RPC",
-	Args:              cobra.NoArgs,
-	PersistentPreRunE: internal.InitClient,
-	PersistentPostRun: internal.CloseClient,
+	Use:   "header [command]",
+	Short: "Allows interaction with the Header Module via JSON-RPC",
+	Args:  cobra.NoArgs,
+	PersistentPreRunE: func(cmd *cobra.Command, args []string) error {
+		var err error
+		rpcClient, err = client.NewClient(cmd.Context(), client.RequestURL, "")
+		return err
+	},
+	PersistentPostRun: func(_ *cobra.Command, _ []string) {
+		rpcClient.Close()
+	},
 }
 
 var localHeadCmd = &cobra.Command{
@@ -40,8 +42,8 @@ var localHeadCmd = &cobra.Command{
 	Short: "Returns the ExtendedHeader from the chain head.",
 	Args:  cobra.NoArgs,
 	RunE: func(cmd *cobra.Command, args []string) error {
-		header, err := internal.RPCClient.Header.LocalHead(cmd.Context())
-		return internal.PrintOutput(header, err, nil)
+		header, err := rpcClient.Header.LocalHead(cmd.Context())
+		return util.PrintOutput(header, err, nil)
 	},
 }
 
@@ -50,8 +52,8 @@ var networkHeadCmd = &cobra.Command{
 	Short: "Provides the Syncer's view of the current network head.",
 	Args:  cobra.NoArgs,
 	RunE: func(cmd *cobra.Command, args []string) error {
-		header, err := internal.RPCClient.Header.NetworkHead(cmd.Context())
-		return internal.PrintOutput(header, err, nil)
+		header, err := rpcClient.Header.NetworkHead(cmd.Context())
+		return util.PrintOutput(header, err, nil)
 	},
 }
 
@@ -64,8 +66,8 @@ var getByHashCmd = &cobra.Command{
 		if err != nil {
 			return fmt.Errorf("error decoding a hash: expected a hex encoded string:%v", err)
 		}
-		header, err := internal.RPCClient.Header.GetByHash(cmd.Context(), hash)
-		return internal.PrintOutput(header, err, nil)
+		header, err := rpcClient.Header.GetByHash(cmd.Context(), hash)
+		return util.PrintOutput(header, err, nil)
 	},
 }
 
@@ -79,8 +81,8 @@ var getByHeightCmd = &cobra.Command{
 			return fmt.Errorf("error parsing a height:%v", err)
 		}
 
-		header, err := internal.RPCClient.Header.GetByHeight(cmd.Context(), height)
-		return internal.PrintOutput(header, err, nil)
+		header, err := rpcClient.Header.GetByHeight(cmd.Context(), height)
+		return util.PrintOutput(header, err, nil)
 	},
 }
 
@@ -89,7 +91,7 @@ var syncStateCmd = &cobra.Command{
 	Short: "Returns the current state of the header Syncer.",
 	Args:  cobra.NoArgs,
 	RunE: func(cmd *cobra.Command, args []string) error {
-		header, err := internal.RPCClient.Header.SyncState(cmd.Context())
-		return internal.PrintOutput(header, err, nil)
+		header, err := rpcClient.Header.SyncState(cmd.Context())
+		return util.PrintOutput(header, err, nil)
 	},
 }

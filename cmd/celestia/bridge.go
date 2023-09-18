@@ -5,6 +5,7 @@ import (
 	"github.com/spf13/pflag"
 
 	cmdnode "github.com/celestiaorg/celestia-node/cmd"
+	"github.com/celestiaorg/celestia-node/cmd/celestia/util"
 	"github.com/celestiaorg/celestia-node/nodebuilder/core"
 	"github.com/celestiaorg/celestia-node/nodebuilder/gateway"
 	"github.com/celestiaorg/celestia-node/nodebuilder/node"
@@ -42,6 +43,6 @@ var bridgeCmd = &cobra.Command{
 	Args:  cobra.NoArgs,
 	Short: "Manage your Bridge node",
 	PersistentPreRunE: func(cmd *cobra.Command, args []string) error {
-		return persistentPreRunEnv(cmd, node.Bridge, args)
+		return util.PersistentPreRunEnv(cmd, node.Bridge, args)
 	},
 }

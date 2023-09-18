@@ -1,4 +1,4 @@
-package admin
+package cmd
 
 import (
 	"errors"
@@ -7,25 +7,28 @@ import (
 	"github.com/filecoin-project/go-jsonrpc/auth"
 	"github.com/spf13/cobra"
 
-	"github.com/celestiaorg/celestia-node/cmd/celestia/internal"
+	"github.com/celestiaorg/celestia-node/api/rpc/client"
+	"github.com/celestiaorg/celestia-node/cmd/celestia/util"
 )
+
+var rpcClient *client.Client
 
 func init() {
 	NodeCmd.AddCommand(nodeInfoCmd, logCmd, verifyCmd, authCmd)
-
-	NodeCmd.PersistentFlags().StringVar(
-		&internal.RequestURL,
-		"url",
-		"http://localhost:26658",
-		"Request URL",
-	)
 }
 
 var NodeCmd = &cobra.Command{
-	Use:               "node [command]",
-	Short:             "Allows administrating running node.",
-	Args:              cobra.NoArgs,
-	PersistentPreRunE: internal.InitClient,
+	Use:   "node [command]",
+	Short: "Allows administrating running node.",
+	Args:  cobra.NoArgs,
+	PersistentPreRunE: func(cmd *cobra.Command, args []string) error {
+		var err error
+		rpcClient, err = client.NewClient(cmd.Context(), client.RequestURL, "")
+		return err
+	},
+	PersistentPostRun: func(_ *cobra.Command, _ []string) {
+		rpcClient.Close()
+	},
 }
 
 var nodeInfoCmd = &cobra.Command{
@@ -33,8 +36,8 @@ var nodeInfoCmd = &cobra.Command{
 	Args:  cobra.NoArgs,
 	Short: "Returns administrative information about the node.",
 	RunE: func(c *cobra.Command, args []string) error {
-		info, err := internal.RPCClient.Node.Info(c.Context())
-		return internal.PrintOutput(info, err, nil)
+		info, err := rpcClient.Node.Info(c.Context())
+		return util.PrintOutput(info, err, nil)
 	},
 }
 
@@ -53,7 +56,7 @@ var logCmd = &cobra.Command{
 					"e.g. pubsub:debug")
 			}
 
-			if err := internal.RPCClient.Node.LogLevelSet(c.Context(), params[0], params[1]); err != nil {
+			if err := rpcClient.Node.LogLevelSet(c.Context(), params[0], params[1]); err != nil {
 				return err
 			}
 		}
@@ -67,8 +70,8 @@ var verifyCmd = &cobra.Command{
 	Short: "Returns the permissions assigned to the given token.",
 
 	RunE: func(c *cobra.Command, args []string) error {
-		perms, err := internal.RPCClient.Node.AuthVerify(c.Context(), args[0])
-		return internal.PrintOutput(perms, err, nil)
+		perms, err := rpcClient.Node.AuthVerify(c.Context(), args[0])
+		return util.PrintOutput(perms, err, nil)
 	},
 }
 
@@ -82,7 +85,7 @@ var authCmd = &cobra.Command{
 			perms[i] = (auth.Permission)(p)
 		}
 
-		result, err := internal.RPCClient.Node.AuthNew(c.Context(), perms)
-		return internal.PrintOutput(result, err, nil)
+		result, err := rpcClient.Node.AuthNew(c.Context(), perms)
+		return util.PrintOutput(result, err, nil)
 	},
 }

@@ -1,4 +1,4 @@
-package rpc
+package cmd
 
 import (
 	"encoding/base64"
@@ -9,10 +9,13 @@ import (
 
 	"github.com/spf13/cobra"
 
+	"github.com/celestiaorg/celestia-node/api/rpc/client"
 	"github.com/celestiaorg/celestia-node/blob"
-	"github.com/celestiaorg/celestia-node/cmd/celestia/internal"
+	"github.com/celestiaorg/celestia-node/cmd/celestia/util"
 	"github.com/celestiaorg/celestia-node/share"
 )
+
+var rpcClient *client.Client
 
 var (
 	base64Flag bool
@@ -22,12 +25,6 @@ var (
 )
 
 func init() {
-	BlobCmd.PersistentFlags().StringVar(
-		&internal.RequestURL,
-		"url",
-		"http://localhost:26658",
-		"Request URL",
-	)
 	BlobCmd.AddCommand(getCmd, getAllCmd, submitCmd, getProofCmd)
 
 	getCmd.PersistentFlags().BoolVar(
@@ -60,11 +57,17 @@ func init() {
 }
 
 var BlobCmd = &cobra.Command{
-	Use:               "blob [command]",
-	Short:             "Allows to interact with the Blob Service via JSON-RPC",
-	Args:              cobra.NoArgs,
-	PersistentPreRunE: internal.InitClient,
-	PersistentPostRun: internal.CloseClient,
+	Use:   "blob [command]",
+	Short: "Allows to interact with the Blob Service via JSON-RPC",
+	Args:  cobra.NoArgs,
+	PersistentPreRunE: func(cmd *cobra.Command, args []string) error {
+		var err error
+		rpcClient, err = client.NewClient(cmd.Context(), client.RequestURL, "")
+		return err
+	},
+	PersistentPostRun: func(_ *cobra.Command, _ []string) {
+		rpcClient.Close()
+	},
 }
 
 var getCmd = &cobra.Command{
@@ -77,7 +80,7 @@ var getCmd = &cobra.Command{
 			return fmt.Errorf("error parsing a height:%v", err)
 		}
 
-		namespace, err := internal.ParseV0Namespace(args[1])
+		namespace, err := util.ParseV0Namespace(args[1])
 		if err != nil {
 			return fmt.Errorf("error parsing a namespace:%v", err)
 		}
@@ -87,13 +90,13 @@ var getCmd = &cobra.Command{
 			return fmt.Errorf("error parsing a commitment:%v", err)
 		}
 
-		blob, err := internal.RPCClient.Blob.Get(cmd.Context(), height, namespace, commitment)
+		blob, err := rpcClient.Blob.Get(cmd.Context(), height, namespace, commitment)
 
 		formatter := formatData
 		if base64Flag || err != nil {
 			formatter = nil
 		}
-		return internal.PrintOutput(blob, err, formatter)
+		return util.PrintOutput(blob, err, formatter)
 	},
 }
 
@@ -107,12 +110,12 @@ var getAllCmd = &cobra.Command{
 			return fmt.Errorf("error parsing a height:%v", err)
 		}
 
-		namespace, err := internal.ParseV0Namespace(args[1])
+		namespace, err := util.ParseV0Namespace(args[1])
 		if err != nil {
 			return fmt.Errorf("error parsing a namespace:%v", err)
 		}
 
-		blobs, err := internal.RPCClient.Blob.GetAll(cmd.Context(), height, []share.Namespace{namespace})
+		blobs, err := rpcClient.Blob.GetAll(cmd.Context(), height, []share.Namespace{namespace})
 		fmt.Println(hex.EncodeToString(blobs[0].Namespace().ID()))
 		fmt.Println(blobs[0].Namespace().ID())
 		fmt.Println(blobs[0].Namespace())
@@ -120,7 +123,7 @@ var getAllCmd = &cobra.Command{
 		if base64Flag || err != nil {
 			formatter = nil
 		}
-		return internal.PrintOutput(blobs, err, formatter)
+		return util.PrintOutput(blobs, err, formatter)
 	},
 }
 
@@ -129,7 +132,7 @@ var submitCmd = &cobra.Command{
 	Args:  cobra.ExactArgs(2),
 	Short: "Submit the blob at the given namespace. Note: only one blob is allowed to submit through the RPC.",
 	RunE: func(cmd *cobra.Command, args []string) error {
-		namespace, err := internal.ParseV0Namespace(args[0])
+		namespace, err := util.ParseV0Namespace(args[0])
 		if err != nil {
 			return fmt.Errorf("error parsing a namespace:%v", err)
 		}
@@ -139,7 +142,7 @@ var submitCmd = &cobra.Command{
 			return fmt.Errorf("error creating a blob:%v", err)
 		}
 
-		height, err := internal.RPCClient.Blob.Submit(
+		height, err := rpcClient.Blob.Submit(
 			cmd.Context(),
 			[]*blob.Blob{parsedBlob},
 			&blob.SubmitOptions{Fee: fee, GasLimit: gasLimit},
@@ -152,7 +155,7 @@ var submitCmd = &cobra.Command{
 			Height:     height,
 			Commitment: parsedBlob.Commitment,
 		}
-		return internal.PrintOutput(response, err, nil)
+		return util.PrintOutput(response, err, nil)
 	},
 }
 
@@ -166,7 +169,7 @@ var getProofCmd = &cobra.Command{
 			return fmt.Errorf("error parsing a height:%v", err)
 		}
 
-		namespace, err := internal.ParseV0Namespace(args[1])
+		namespace, err := util.ParseV0Namespace(args[1])
 		if err != nil {
 			return fmt.Errorf("error parsing a namespace:%v", err)
 		}
@@ -176,8 +179,8 @@ var getProofCmd = &cobra.Command{
 			return fmt.Errorf("error parsing a commitment:%v", err)
 		}
 
-		proof, err := internal.RPCClient.Blob.GetProof(cmd.Context(), height, namespace, commitment)
-		return internal.PrintOutput(proof, err, nil)
+		proof, err := rpcClient.Blob.GetProof(cmd.Context(), height, namespace, commitment)
+		return util.PrintOutput(proof, err, nil)
 	},
 }
 

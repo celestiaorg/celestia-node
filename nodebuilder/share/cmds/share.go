@@ -1,4 +1,4 @@
-package rpc
+package cmd
 
 import (
 	"encoding/hex"
@@ -9,18 +9,14 @@ import (
 
 	"github.com/celestiaorg/celestia-app/pkg/da"
 
-	"github.com/celestiaorg/celestia-node/cmd/celestia/internal"
+	"github.com/celestiaorg/celestia-node/api/rpc/client"
+	"github.com/celestiaorg/celestia-node/cmd/celestia/util"
 	"github.com/celestiaorg/celestia-node/share"
 )
 
-func init() {
-	ShareCmd.PersistentFlags().StringVar(
-		&internal.RequestURL,
-		"url",
-		"http://localhost:26658",
-		"Request URL",
-	)
+var rpcClient *client.Client
 
+func init() {
 	ShareCmd.AddCommand(
 		sharesAvailableCmd,
 		probabilityOfAvailabilityCmd,
@@ -31,11 +27,17 @@ func init() {
 }
 
 var ShareCmd = &cobra.Command{
-	Use:               "share [command]",
-	Short:             "Allows interaction with the Share Module via JSON-RPC",
-	Args:              cobra.NoArgs,
-	PersistentPreRunE: internal.InitClient,
-	PersistentPostRun: internal.CloseClient,
+	Use:   "share [command]",
+	Short: "Allows interaction with the Share Module via JSON-RPC",
+	Args:  cobra.NoArgs,
+	PersistentPreRunE: func(cmd *cobra.Command, args []string) error {
+		var err error
+		rpcClient, err = client.NewClient(cmd.Context(), client.RequestURL, "")
+		return err
+	},
+	PersistentPostRun: func(_ *cobra.Command, _ []string) {
+		rpcClient.Close()
+	},
 }
 
 var sharesAvailableCmd = &cobra.Command{
@@ -54,7 +56,7 @@ var sharesAvailableCmd = &cobra.Command{
 			return err
 		}
 
-		err = internal.RPCClient.Share.SharesAvailable(cmd.Context(), &root)
+		err = rpcClient.Share.SharesAvailable(cmd.Context(), &root)
 		formatter := func(data interface{}) interface{} {
 			err, ok := data.(error)
 			available := false
@@ -71,7 +73,7 @@ var sharesAvailableCmd = &cobra.Command{
 				Reason:    err,
 			}
 		}
-		return internal.PrintOutput(err, nil, formatter)
+		return util.PrintOutput(err, nil, formatter)
 	},
 }
 
@@ -80,8 +82,8 @@ var probabilityOfAvailabilityCmd = &cobra.Command{
 	Short: "Calculates the probability of the data square being available based on the number of samples collected.",
 	Args:  cobra.NoArgs,
 	RunE: func(cmd *cobra.Command, args []string) error {
-		prob := internal.RPCClient.Share.ProbabilityOfAvailability(cmd.Context())
-		return internal.PrintOutput(prob, nil, nil)
+		prob := rpcClient.Share.ProbabilityOfAvailability(cmd.Context())
+		return util.PrintOutput(prob, nil, nil)
 	},
 }
 
@@ -101,13 +103,13 @@ var getSharesByNamespaceCmd = &cobra.Command{
 			return err
 		}
 
-		ns, err := internal.ParseV0Namespace(args[1])
+		ns, err := util.ParseV0Namespace(args[1])
 		if err != nil {
 			return err
 		}
 
-		shares, err := internal.RPCClient.Share.GetSharesByNamespace(cmd.Context(), &root, ns)
-		return internal.PrintOutput(shares, err, nil)
+		shares, err := rpcClient.Share.GetSharesByNamespace(cmd.Context(), &root, ns)
+		return util.PrintOutput(shares, err, nil)
 	},
 }
 
@@ -137,7 +139,7 @@ var getShare = &cobra.Command{
 			return err
 		}
 
-		s, err := internal.RPCClient.Share.GetShare(cmd.Context(), &root, int(row), int(col))
+		s, err := rpcClient.Share.GetShare(cmd.Context(), &root, int(row), int(col))
 
 		formatter := func(data interface{}) interface{} {
 			sh, ok := data.(share.Share)
@@ -155,7 +157,7 @@ var getShare = &cobra.Command{
 				Data:      share.GetData(sh),
 			}
 		}
-		return internal.PrintOutput(s, err, formatter)
+		return util.PrintOutput(s, err, formatter)
 	},
 }
 
@@ -175,8 +177,8 @@ var getEDS = &cobra.Command{
 			return err
 		}
 
-		shares, err := internal.RPCClient.Share.GetEDS(cmd.Context(), &root)
-		return internal.PrintOutput(shares, err, nil)
+		shares, err := rpcClient.Share.GetEDS(cmd.Context(), &root)
+		return util.PrintOutput(shares, err, nil)
 	},
 }
 
