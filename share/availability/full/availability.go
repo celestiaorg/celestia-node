@@ -3,12 +3,15 @@ package full
 import (
 	"context"
 	"errors"
+	"fmt"
 
+	"github.com/filecoin-project/dagstore"
 	logging "github.com/ipfs/go-log/v2"
 
 	"github.com/celestiaorg/celestia-node/share"
 	"github.com/celestiaorg/celestia-node/share/eds"
 	"github.com/celestiaorg/celestia-node/share/eds/byzantine"
+	"github.com/celestiaorg/celestia-node/share/ipld"
 	"github.com/celestiaorg/celestia-node/share/p2p/discovery"
 )
 
@@ -69,7 +72,11 @@ func (fa *ShareAvailability) SharesAvailable(ctx context.Context, root *share.Ro
 		}
 	}
 
-	_, err := fa.getter.GetEDS(ctx, root)
+	adder := ipld.NewProofsAdder(len(root.RowRoots))
+	ctx = ipld.CtxWithProofsAdder(ctx, adder)
+	defer adder.Purge()
+
+	eds, err := fa.getter.GetEDS(ctx, root)
 	if err != nil {
 		if errors.Is(err, context.Canceled) {
 			return err
@@ -80,7 +87,15 @@ func (fa *ShareAvailability) SharesAvailable(ctx context.Context, root *share.Ro
 			return share.ErrNotAvailable
 		}
 	}
-	return err
+
+	if fa.store != nil {
+		err = fa.store.Put(ctx, root.Hash(), eds)
+		if err != nil && !errors.Is(err, dagstore.ErrShardExists) {
+			return fmt.Errorf("full availability: failed to store eds: %w", err)
+		}
+	}
+
+	return nil
 }
 
 func (fa *ShareAvailability) ProbabilityOfAvailability(context.Context) float64 {
