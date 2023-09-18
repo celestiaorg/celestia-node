@@ -38,7 +38,8 @@ type EDSsser struct {
 }
 
 func NewEDSsser(path string, datastore datastore.Batching, cfg Config) (*EDSsser, error) {
-	edsstore, err := eds.NewStore(path, datastore)
+	storeCfg := eds.DefaultParameters().WithBasePath(path)
+	edsstore, err := eds.NewStore(storeCfg, datastore)
 	if err != nil {
 		return nil, err
 	}

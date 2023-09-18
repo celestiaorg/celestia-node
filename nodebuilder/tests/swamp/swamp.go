@@ -172,7 +172,9 @@ func (s *Swamp) setupGenesis() {
 	// ensure core has surpassed genesis block
 	s.WaitTillHeight(ctx, 2)
 
-	store, err := eds.NewStore(s.t.TempDir(), ds_sync.MutexWrap(ds.NewMapDatastore()))
+	storeCfg := eds.DefaultParameters().WithBasePath(s.t.TempDir())
+	ds := ds_sync.MutexWrap(ds.NewMapDatastore())
+	store, err := eds.NewStore(storeCfg, ds)
 	require.NoError(s.t, err)
 
 	ex := core.NewExchange(
