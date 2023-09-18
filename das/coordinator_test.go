@@ -22,7 +22,7 @@ func TestCoordinator(t *testing.T) {
 		testParams := defaultTestParams()
 
 		ctx, cancel := context.WithTimeout(context.Background(), testParams.timeoutDelay)
-		sampler := newMockSampler(testParams.sampleFrom, testParams.networkHead)
+		sampler := newMockSampler(testParams.sampleFrom, testParams.networkHead, 0)
 		coordinator := newSamplingCoordinator(testParams.dasParams, getterStub{}, onceMiddleWare(sampler.sample), nil)
 
 		go coordinator.run(ctx, sampler.checkpoint)
@@ -46,7 +46,7 @@ func TestCoordinator(t *testing.T) {
 
 		ctx, cancel := context.WithTimeout(context.Background(), testParams.timeoutDelay)
 
-		sampler := newMockSampler(testParams.sampleFrom, testParams.networkHead)
+		sampler := newMockSampler(testParams.sampleFrom, testParams.networkHead, 0)
 
 		newhead := testParams.networkHead + 200
 		coordinator := newSamplingCoordinator(testParams.dasParams, getterStub{}, sampler.sample, newBroadcastMock(1))
@@ -69,6 +69,32 @@ func TestCoordinator(t *testing.T) {
 		assert.Equal(t, sampler.finalState(), newCheckpoint(coordinator.state.unsafeStats()))
 	})
 
+	t.Run("headers outside of recency window are not sampled", func(t *testing.T) {
+		testParams := defaultTestParams()
+		testParams.dasParams.RecencyWindow = 10
+		testParams.sampleFrom = 1
+		testParams.networkHead = 20
+
+		ctx, cancel := context.WithTimeout(context.Background(), testParams.timeoutDelay)
+		defer cancel()
+
+		sampler := newMockSampler(testParams.sampleFrom, testParams.networkHead, testParams.dasParams.RecencyWindow)
+		coordinator := newSamplingCoordinator(testParams.dasParams, getterStub{}, sampler.sample, newBroadcastMock(1))
+		go coordinator.run(ctx, sampler.checkpoint)
+
+		// check if all jobs were sampled successfully
+		assert.NoError(t, sampler.finished(ctx), "not all headers were sampled")
+
+		// wait for coordinator to indicateDone catchup
+		assert.NoError(t, coordinator.state.waitCatchUp(ctx))
+		assert.Emptyf(t, coordinator.state.failed, "failed list should be empty")
+
+		// check if headers outside of recency window were not sampled
+		for i := uint64(0); i < testParams.networkHead-testParams.dasParams.RecencyWindow; i++ {
+			assert.False(t, sampler.heightIsDone(i), "header outside of recency window was sampled")
+		}
+	})
+
 	t.Run("prioritize newly discovered over known", func(t *testing.T) {
 		testParams := defaultTestParams()
 
@@ -79,7 +105,7 @@ func TestCoordinator(t *testing.T) {
 		testParams.networkHead = 10
 		toBeDiscovered := uint64(20)
 
-		sampler := newMockSampler(testParams.sampleFrom, testParams.networkHead)
+		sampler := newMockSampler(testParams.sampleFrom, testParams.networkHead, 0)
 
 		ctx, cancel := context.WithTimeout(context.Background(), testParams.timeoutDelay)
 
@@ -139,7 +165,7 @@ func TestCoordinator(t *testing.T) {
 		testParams.networkHead = uint64(20)
 		ctx, cancel := context.WithTimeout(context.Background(), testParams.timeoutDelay)
 
-		sampler := newMockSampler(testParams.sampleFrom, testParams.networkHead)
+		sampler := newMockSampler(testParams.sampleFrom, testParams.networkHead, 0)
 
 		lk := newLock(testParams.sampleFrom, testParams.networkHead) // lock all workers before start
 		coordinator := newSamplingCoordinator(testParams.dasParams, getterStub{},
@@ -187,7 +213,7 @@ func TestCoordinator(t *testing.T) {
 		ctx, cancel := context.WithTimeout(context.Background(), testParams.timeoutDelay)
 
 		bornToFail := []uint64{4, 8, 15, 16, 23, 42}
-		sampler := newMockSampler(testParams.sampleFrom, testParams.networkHead, bornToFail...)
+		sampler := newMockSampler(testParams.sampleFrom, testParams.networkHead, 0, bornToFail...)
 
 		coordinator := newSamplingCoordinator(
 			testParams.dasParams,
@@ -228,7 +254,7 @@ func TestCoordinator(t *testing.T) {
 
 		failedLastRun := map[uint64]int{4: 1, 8: 2, 15: 1, 16: 1, 23: 1, 42: 1, testParams.sampleFrom - 1: 1}
 
-		sampler := newMockSampler(testParams.sampleFrom, testParams.networkHead)
+		sampler := newMockSampler(testParams.sampleFrom, testParams.networkHead, 0)
 		sampler.checkpoint.Failed = failedLastRun
 
 		coordinator := newSamplingCoordinator(
@@ -334,14 +360,15 @@ type mockSampler struct {
 	lock sync.Mutex
 
 	checkpoint
-	bornToFail map[uint64]bool
-	done       map[uint64]int
+	recencyWindow uint64
+	bornToFail    map[uint64]bool
+	done          map[uint64]int
 
 	isFinished bool
 	finishedCh chan struct{}
 }
 
-func newMockSampler(sampledBefore, sampleTo uint64, bornToFail ...uint64) mockSampler {
+func newMockSampler(sampledBefore, sampleTo uint64, recencyWindow uint64, bornToFail ...uint64) mockSampler {
 	failMap := make(map[uint64]bool)
 	for _, h := range bornToFail {
 		failMap[h] = true
@@ -353,9 +380,10 @@ func newMockSampler(sampledBefore, sampleTo uint64, bornToFail ...uint64) mockSa
 			Failed:      make(map[uint64]int),
 			Workers:     make([]workerCheckpoint, 0),
 		},
-		bornToFail: failMap,
-		done:       make(map[uint64]int),
-		finishedCh: make(chan struct{}),
+		recencyWindow: recencyWindow,
+		bornToFail:    failMap,
+		done:          make(map[uint64]int),
+		finishedCh:    make(chan struct{}),
 	}
 }
 
@@ -370,7 +398,8 @@ func (m *mockSampler) sample(ctx context.Context, h *header.ExtendedHeader) erro
 	height := h.Height()
 	m.done[height]++
 
-	if len(m.done) > int(m.NetworkHead-m.SampleFrom) && !m.isFinished {
+	enoughSampled := len(m.done) > int(m.NetworkHead-m.SampleFrom) || len(m.done) > int(m.NetworkHead-m.recencyWindow)
+	if enoughSampled && !m.isFinished {
 		m.isFinished = true
 		close(m.finishedCh)
 	}
