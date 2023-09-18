@@ -4,29 +4,40 @@ import (
 	"crypto/sha256"
 	"errors"
 
+	blocks "github.com/ipfs/go-block-format"
+
+	"github.com/celestiaorg/celestia-app/pkg/wrapper"
 	"github.com/celestiaorg/nmt"
 	nmtpb "github.com/celestiaorg/nmt/pb"
 	"github.com/celestiaorg/rsmt2d"
-	blocks "github.com/ipfs/go-block-format"
 
 	"github.com/celestiaorg/celestia-node/share"
 	ipldv2pb "github.com/celestiaorg/celestia-node/share/ipldv2/pb"
 )
 
-type Sample struct {
-	ID    SampleID
-	Type  SampleType
-	Proof nmt.Proof
-	Share share.Share
-}
-
+// SampleType represents type of sample.
 type SampleType uint8
 
 const (
+	// DataSample is a sample of a data share.
 	DataSample SampleType = iota
+	// ParitySample is a sample of a parity share.
 	ParitySample
 )
 
+// Sample represents a sample of an NMT in EDS.
+type Sample struct {
+	// ID of the Sample
+	ID SampleID
+	// Type of the Sample
+	Type SampleType
+	// Proof of Share inclusion in the NMT
+	Proof nmt.Proof
+	// Share being sampled
+	Share share.Share
+}
+
+// NewSample constructs a new Sample.
 func NewSample(root *share.Root, idx int, axis rsmt2d.Axis, shr share.Share, proof nmt.Proof) *Sample {
 	id := NewSampleID(root, idx, axis)
 
@@ -45,6 +56,34 @@ func NewSample(root *share.Root, idx int, axis rsmt2d.Axis, shr share.Share, pro
 	}
 }
 
+// NewSampleFrom samples the EDS and constructs a new Sample.
+func NewSampleFrom(eds *rsmt2d.ExtendedDataSquare, idx int, axis rsmt2d.Axis) (*Sample, error) {
+	sqrLn := int(eds.Width())
+	rowIdx, shrIdx := idx/sqrLn, idx%sqrLn
+	shrs := eds.Row(uint(rowIdx))
+
+	root, err := share.NewRoot(eds)
+	if err != nil {
+		return nil, err
+	}
+
+	tree := wrapper.NewErasuredNamespacedMerkleTree(uint64(sqrLn/2), uint(rowIdx))
+	for _, shr := range shrs {
+		err := tree.Push(shr)
+		if err != nil {
+			return nil, err
+		}
+	}
+
+	proof, err := tree.ProveRange(shrIdx, shrIdx+1)
+	if err != nil {
+		return nil, err
+	}
+
+	return NewSample(root, idx, axis, shrs[shrIdx], proof), nil
+}
+
+// Proto converts Sample to its protobuf representation.
 func (s *Sample) Proto() *ipldv2pb.Sample {
 	// TODO: Extract as helper to nmt
 	proof := &nmtpb.Proof{}
@@ -62,6 +101,7 @@ func (s *Sample) Proto() *ipldv2pb.Sample {
 	}
 }
 
+// IPLDBlock converts Sample to an IPLD block for Bitswap compatibility.
 func (s *Sample) IPLDBlock() (blocks.Block, error) {
 	cid, err := s.ID.Cid()
 	if err != nil {
@@ -76,10 +116,12 @@ func (s *Sample) IPLDBlock() (blocks.Block, error) {
 	return blocks.NewBlockWithCid(data, cid)
 }
 
+// MarshalBinary marshals Sample to binary.
 func (s *Sample) MarshalBinary() ([]byte, error) {
 	return s.Proto().Marshal()
 }
 
+// UnmarshalBinary unmarshals Sample from binary.
 func (s *Sample) UnmarshalBinary(data []byte) error {
 	proto := &ipldv2pb.Sample{}
 	err := proto.Unmarshal(data)
@@ -99,6 +141,7 @@ func (s *Sample) UnmarshalBinary(data []byte) error {
 	return nil
 }
 
+// Validate validates Sample's fields and proof of Share inclusion in the NMT.
 func (s *Sample) Validate() error {
 	if err := s.ID.Validate(); err != nil {
 		return err

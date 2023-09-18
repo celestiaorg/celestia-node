@@ -126,7 +126,7 @@ func (f *File) ShareWithProof(idx int, axis rsmt2d.Axis) (share.Share, nmt.Proof
 		return nil, nmt.Proof{}, err
 	}
 
-	tree := wrapper.NewErasuredNamespacedMerkleTree(uint64(f.hdr.SquareSize/2), uint(rowIdx))
+	tree := wrapper.NewErasuredNamespacedMerkleTree(uint64(sqrLn/2), uint(rowIdx))
 	for _, shr := range shrs {
 		err = tree.Push(shr)
 		if err != nil {

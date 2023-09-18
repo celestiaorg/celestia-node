@@ -16,7 +16,7 @@ func init() {
 
 // SampleHasher implements hash.Hash interface for Samples.
 type SampleHasher struct {
-	sample   Sample
+	sample Sample
 }
 
 // Write expects a marshaled Sample to validate.
