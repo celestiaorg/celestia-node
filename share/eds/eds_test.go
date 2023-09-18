@@ -138,7 +138,7 @@ func TestWriteEDSInQuadrantOrder(t *testing.T) {
 
 func TestReadWriteRoundtrip(t *testing.T) {
 	eds := writeRandomEDS(t)
-	dah, err := da.NewDataAvailabilityHeader(eds)
+	dah, err := share.NewRoot(eds)
 	require.NoError(t, err)
 	f := openWrittenEDS(t)
 	defer f.Close()
@@ -196,7 +196,7 @@ func BenchmarkReadWriteEDS(b *testing.B) {
 	b.Cleanup(cancel)
 	for originalDataWidth := 4; originalDataWidth <= 64; originalDataWidth *= 2 {
 		eds := edstest.RandEDS(b, originalDataWidth)
-		dah, err := da.NewDataAvailabilityHeader(eds)
+		dah, err := share.NewRoot(eds)
 		require.NoError(b, err)
 		b.Run(fmt.Sprintf("Writing %dx%d", originalDataWidth, originalDataWidth), func(b *testing.B) {
 			b.ReportAllocs()
@@ -268,7 +268,7 @@ func createTestData(t *testing.T, testDir string) { //nolint:unused
 	err = WriteEDS(ctx, eds, f)
 	require.NoError(t, err, "writing EDS to file")
 	f.Close()
-	dah, err := da.NewDataAvailabilityHeader(eds)
+	dah, err := share.NewRoot(eds)
 	require.NoError(t, err)
 
 	header, err := json.MarshalIndent(dah, "", "")

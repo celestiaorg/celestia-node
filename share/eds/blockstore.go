@@ -6,13 +6,11 @@ import (
 	"fmt"
 	"io"
 
-	"github.com/filecoin-project/dagstore"
 	bstore "github.com/ipfs/boxo/blockstore"
 	dshelp "github.com/ipfs/boxo/datastore/dshelp"
 	blocks "github.com/ipfs/go-block-format"
 	"github.com/ipfs/go-cid"
 	"github.com/ipfs/go-datastore"
-	"github.com/ipfs/go-datastore/namespace"
 	ipld "github.com/ipfs/go-ipld-format"
 
 	"github.com/celestiaorg/celestia-node/share/eds/cache"
@@ -37,11 +35,6 @@ type blockstore struct {
 	store *Store
 	cache cache.Cache
 	ds    datastore.Batching
-}
-
-type BlockstoreCloser struct {
-	dagstore.ReadBlockstore
-	io.Closer
 }
 
 func newBlockstore(store *Store, cache cache.Cache, ds datastore.Batching) *blockstore {
@@ -96,6 +89,7 @@ func (bs *blockstore) GetSize(ctx context.Context, cid cid.Cid) (int, error) {
 		defer closeAndLog("blockstore", blockstr)
 		return blockstr.GetSize(ctx, cid)
 	}
+
 	if errors.Is(err, ErrNotFound) || errors.Is(err, ErrNotFoundInIndex) {
 		k := dshelp.MultihashToDsKey(cid.Hash())
 		size, err := bs.ds.GetSize(ctx, k)
@@ -162,15 +156,13 @@ func (bs *blockstore) getReadOnlyBlockstore(ctx context.Context, cid cid.Cid) (*
 		return nil, fmt.Errorf("failed to find shards containing multihash: %w", err)
 	}
 
-	// a share can exist in multiple EDSes, check cache to contain any of accessors containing shard
-	for _, k := range keys {
-		if accessor, err := bs.store.cache.Get(k); err == nil {
-			return blockstoreCloser(accessor)
-		}
+	// check if cache contains any of accessors
+	shardKey := keys[0]
+	if accessor, err := bs.store.cache.Get(shardKey); err == nil {
+		return blockstoreCloser(accessor)
 	}
 
-	// a share can exist in multiple EDSes, so just take the first one.
-	shardKey := keys[0]
+	// load accessor to the blockstore cache and use it as blockstoreCloser
 	accessor, err := bs.cache.GetOrLoad(ctx, shardKey, bs.store.getAccessor)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get accessor for shard %s: %w", shardKey, err)
@@ -178,6 +170,7 @@ func (bs *blockstore) getReadOnlyBlockstore(ctx context.Context, cid cid.Cid) (*
 	return blockstoreCloser(accessor)
 }
 
+// blockstoreCloser constructs new BlockstoreCloser from cache.Accessor
 func blockstoreCloser(ac cache.Accessor) (*BlockstoreCloser, error) {
 	bs, err := ac.Blockstore()
 	if err != nil {

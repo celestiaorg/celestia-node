@@ -11,10 +11,10 @@ import (
 
 	libhead "github.com/celestiaorg/go-header"
 	"github.com/celestiaorg/go-header/p2p"
-	"github.com/celestiaorg/go-header/store"
 	"github.com/celestiaorg/go-header/sync"
 
 	"github.com/celestiaorg/celestia-node/header"
+	"github.com/celestiaorg/celestia-node/libs/pidstore"
 	modfraud "github.com/celestiaorg/celestia-node/nodebuilder/fraud"
 	"github.com/celestiaorg/celestia-node/nodebuilder/node"
 	modp2p "github.com/celestiaorg/celestia-node/nodebuilder/p2p"
@@ -30,19 +30,6 @@ func ConstructModule[H libhead.Header[H]](tp node.Type, cfg *Config) fx.Option {
 		fx.Supply(*cfg),
 		fx.Error(cfgErr),
 		fx.Provide(newHeaderService),
-		fx.Provide(fx.Annotate(
-			func(ds datastore.Batching) (libhead.Store[H], error) {
-				return store.NewStore[H](ds, store.WithParams(cfg.Store))
-			},
-			fx.OnStart(func(ctx context.Context, str libhead.Store[H]) error {
-				s := str.(*store.Store[H])
-				return s.Start(ctx)
-			}),
-			fx.OnStop(func(ctx context.Context, str libhead.Store[H]) error {
-				s := str.(*store.Store[H])
-				return s.Stop(ctx)
-			}),
-		)),
 		fx.Provide(newInitStore[H]),
 		fx.Provide(func(subscriber *p2p.Subscriber[H]) libhead.Subscriber[H] {
 			return subscriber
@@ -99,6 +86,9 @@ func ConstructModule[H libhead.Header[H]](tp node.Type, cfg *Config) fx.Option {
 			"header",
 			baseComponents,
 			fx.Provide(newP2PExchange[H]),
+			fx.Provide(func(ctx context.Context, ds datastore.Batching) (p2p.PeerIDStore, error) {
+				return pidstore.NewPeerIDStore(ctx, ds)
+			}),
 		)
 	case node.Bridge:
 		return fx.Module(

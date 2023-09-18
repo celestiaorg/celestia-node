@@ -110,9 +110,7 @@ func TestCacheAvailability_MinRoot(t *testing.T) {
 	defer cancel()
 
 	fullLocalAvail, _ := FullAvailabilityWithLocalRandSquare(t, 16)
-	minDAH := da.MinDataAvailabilityHeader()
-
-	err := fullLocalAvail.SharesAvailable(ctx, &minDAH)
+	err := fullLocalAvail.SharesAvailable(ctx, share.EmptyRoot())
 	assert.NoError(t, err)
 }
 
