@@ -19,9 +19,6 @@ import (
 var log = logging.Logger("share/discovery")
 
 const (
-	// rendezvousPoint is the namespace where peers advertise and discover each other.
-	rendezvousPoint = "full"
-
 	// eventbusBufSize is the size of the buffered channel to handle
 	// events in libp2p. We specify a larger buffer size for the channel
 	// to avoid overflowing and blocking subscription during disconnection bursts.

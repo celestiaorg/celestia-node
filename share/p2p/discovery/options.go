@@ -7,6 +7,11 @@ import (
 	"github.com/libp2p/go-libp2p/core/peer"
 )
 
+const (
+	// fullNodesTag is the namespace where full nodes advertise and discover each other.
+	fullNodesTag = "full"
+)
+
 // Parameters is the set of Parameters that must be configured for the Discovery module
 type Parameters struct {
 	// PeersLimit defines the soft limit of FNs to connect to via discovery.
@@ -32,8 +37,9 @@ func DefaultParameters() *Parameters {
 		PeersLimit: 5,
 		// based on https://github.com/libp2p/go-libp2p-kad-dht/pull/793
 		AdvertiseInterval: time.Hour * 22,
-		Tag:               rendezvousPoint,
-		onUpdatedPeers:    func(peer.ID, bool) {},
+		//TODO: remove fullNodesTag default value once multiple tags are supported
+		Tag:            fullNodesTag,
+		onUpdatedPeers: func(peer.ID, bool) {},
 	}
 }
 
