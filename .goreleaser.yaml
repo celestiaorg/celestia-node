@@ -1,0 +1,55 @@
+# This is an example .goreleaser.yml file with some sensible defaults.
+# Make sure to check the documentation at https://goreleaser.com
+before:
+  hooks:
+    - go mod tidy
+builds:
+  - main: ./cmd/celestia
+    binary: celestia
+    env:
+      # NOTE: goreleaser doesn't fully support CGO natively. If CGO is needed
+      # for any node features, this should be removed and a workaround might
+      # need to be created.
+      # REF: https://goreleaser.com/limitations/cgo/
+      - CGO_ENABLED=0
+      - VersioningPath={{ "github.com/celestiaorg/celestia-node/nodebuilder/node" }}
+    goos:
+      - linux
+      - darwin
+    goarch:
+      - amd64
+      - arm64
+    ldflags:
+      # Ref: https://goreleaser.com/customization/templates/#common-fields
+      #
+      # .CommitDate is used to help with reproducible builds, ensuring that the
+      # same date is always used
+      #
+      # .FullCommit is git commit hash goreleaser is using for the release
+      #
+      # .Version is the version being released
+      - -X "{{ .Env.VersioningPath }}.buildTime={{ .CommitDate }}"
+      - -X "{{ .Env.VersioningPath }}.lastCommit={{ .FullCommit }}"
+      - -X "{{ .Env.VersioningPath }}.semanticVersion={{ .Version }}"
+dist: ./build/goreleaser
+archives:
+  - format: tar.gz
+    # this name template makes the OS and Arch compatible with the results of
+    # uname.
+    name_template: >-
+      {{ .ProjectName }}_
+      {{- title .Os }}_
+      {{- if eq .Arch "amd64" }}x86_64
+      {{- else if eq .Arch "386" }}i386
+      {{- else }}{{ .Arch }}{{ end }}
+      {{- if .Arm }}v{{ .Arm }}{{ end }}
+checksum:
+  name_template: "checksums.txt"
+snapshot:
+  name_template: "{{ incpatch .Version }}-next"
+changelog:
+  sort: asc
+  filters:
+    exclude:
+      - "^docs:"
+      - "^test:"

@@ -58,6 +58,11 @@ func (sg *StoreGetter) GetShare(ctx context.Context, dah *share.Root, row, col i
 	if err != nil {
 		return nil, fmt.Errorf("getter/store: failed to retrieve blockstore: %w", err)
 	}
+	defer func() {
+		if err := bs.Close(); err != nil {
+			log.Warnw("closing blockstore", "err", err)
+		}
+	}()
 
 	// wrap the read-only CAR blockstore in a getter
 	blockGetter := eds.NewBlockGetter(bs)
@@ -117,6 +122,11 @@ func (sg *StoreGetter) GetSharesByNamespace(
 	if err != nil {
 		return nil, fmt.Errorf("getter/store: failed to retrieve blockstore: %w", err)
 	}
+	defer func() {
+		if err := bs.Close(); err != nil {
+			log.Warnw("closing blockstore", "err", err)
+		}
+	}()
 
 	// wrap the read-only CAR blockstore in a getter
 	blockGetter := eds.NewBlockGetter(bs)

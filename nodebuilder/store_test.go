@@ -154,6 +154,7 @@ func TestStoreRestart(t *testing.T) {
 		require.NoError(t, err)
 		_, err = eds.ReadEDS(ctx, odsReader, h)
 		require.NoError(t, err)
+		require.NoError(t, edsReader.Close())
 	}
 }
 

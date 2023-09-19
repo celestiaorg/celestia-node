@@ -189,3 +189,20 @@ telemetry-infra-up:
 telemetry-infra-down:
 	PWD="${DIR_FULLPATH}/docker/telemetry" docker-compose -f ./docker/telemetry/docker-compose.yml down
 .PHONY: telemetry-infra-down
+
+## goreleaser: List Goreleaser commands and checks if GoReleaser is installed.
+goreleaser: Makefile
+	@echo " Choose a goreleaser command to run:"
+	@sed -n 's/^## goreleaser/goreleaser/p' $< | column -t -s ':' |  sed -e 's/^/ /'
+	@goreleaser --version
+.PHONY: goreleaser
+
+## goreleaser-build: Builds the celestia binary using GoReleaser for your local OS.
+goreleaser-build:
+	goreleaser build --snapshot --clean --single-target
+.PHONY: goreleaser-build
+
+## goreleaser-release: Builds the release celestia binaries as defined in .goreleaser.yaml. This requires there be a git tag for the release in the local git history.
+goreleaser-release:
+	goreleaser release --clean --fail-fast --skip-publish
+.PHONY: goreleaser-release

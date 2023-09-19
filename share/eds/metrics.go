@@ -12,7 +12,6 @@ import (
 const (
 	failedKey = "failed"
 	sizeKey   = "eds_size"
-	cachedKey = "cached"
 
 	putResultKey           = "result"
 	putOK        putResult = "ok"
@@ -45,7 +44,6 @@ type metrics struct {
 	getTime              metric.Float64Histogram
 	hasTime              metric.Float64Histogram
 	listTime             metric.Float64Histogram
-	getAccessorTime      metric.Float64Histogram
 
 	shardFailureCount metric.Int64Counter
 
@@ -102,12 +100,6 @@ func (s *Store) WithMetrics() error {
 		return err
 	}
 
-	getAccessorTime, err := meter.Float64Histogram("eds_store_get_accessor_time_histogram",
-		metric.WithDescription("eds store get accessor time histogram(s)"))
-	if err != nil {
-		return err
-	}
-
 	shardFailureCount, err := meter.Int64Counter("eds_store_shard_failure_counter",
 		metric.WithDescription("eds store OpShardFail counter"))
 	if err != nil {
@@ -132,7 +124,7 @@ func (s *Store) WithMetrics() error {
 		return err
 	}
 
-	if err = s.cache.withMetrics(); err != nil {
+	if err = s.cache.EnableMetrics(); err != nil {
 		return err
 	}
 
@@ -160,7 +152,6 @@ func (s *Store) WithMetrics() error {
 		getTime:              getTime,
 		hasTime:              hasTime,
 		listTime:             listTime,
-		getAccessorTime:      getAccessorTime,
 		shardFailureCount:    shardFailureCount,
 		longOpTime:           longOpTime,
 		gcTime:               gcTime,
@@ -297,18 +288,5 @@ func (m *metrics) observeList(ctx context.Context, dur time.Duration, failed boo
 	}
 
 	m.listTime.Record(ctx, dur.Seconds(), metric.WithAttributes(
-		attribute.Bool(failedKey, failed)))
-}
-
-func (m *metrics) observeGetAccessor(ctx context.Context, dur time.Duration, cached, failed bool) {
-	if m == nil {
-		return
-	}
-	if ctx.Err() != nil {
-		ctx = context.Background()
-	}
-
-	m.getAccessorTime.Record(ctx, dur.Seconds(), metric.WithAttributes(
-		attribute.Bool(cachedKey, cached),
 		attribute.Bool(failedKey, failed)))
 }

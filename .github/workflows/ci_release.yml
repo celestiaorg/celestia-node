@@ -25,7 +25,7 @@ on:
 jobs:
   # Dockerfile Linting
   hadolint:
-    uses: celestiaorg/.github/.github/workflows/reusable_dockerfile_lint.yml@v0.2.2 # yamllint disable-line rule:line-length
+    uses: celestiaorg/.github/.github/workflows/reusable_dockerfile_lint.yml@v0.2.3 # yamllint disable-line rule:line-length
     with:
       dockerfile: Dockerfile
 
@@ -33,7 +33,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - uses: celestiaorg/.github/.github/actions/yamllint@v0.2.2
+      - uses: celestiaorg/.github/.github/actions/yamllint@v0.2.3
 
   markdown-lint:
     name: Markdown Lint
@@ -50,19 +50,51 @@ jobs:
   go-ci:
     uses: ./.github/workflows/go-ci.yml
 
-  # Make a release if this is a manually trigger job, i.e. workflow_dispatch
-  release:
+  # If this was a workflow dispatch event, we need to generate and push a tag
+  # for goreleaser to grab
+  version_bump:
     needs: [hadolint, yamllint, markdown-lint, go-ci]
     runs-on: ubuntu-latest
-    if: ${{ github.event_name == 'workflow_dispatch' }}
     permissions: "write-all"
     steps:
       - uses: actions/checkout@v4
+      - name: Bump version and push tag
+        # Placing the if condition here is a workaround for needing to block
+        # on this step during workflow dispatch events but the step not
+        # needing to run on tags. If we had the if condition on the full
+        # version_bump section, it would skip and not run, which would result
+        # in goreleaser not running either.
+        if: ${{ github.event_name == 'workflow_dispatch' }}
+        uses: mathieudutour/github-tag-action@v6.1
+
       - name: Version Release
-        uses: celestiaorg/.github/.github/actions/version-release@v0.2.2
+        uses: celestiaorg/.github/.github/actions/version-release@v0.2.3
         with:
-          github-token: ${{secrets.GITHUB_TOKEN}}
-          version-bump: ${{inputs.version}}
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          default_bump: ${{ inputs.version }}
+
+  # Generate the release with goreleaser to include pre-built binaries
+  goreleaser:
+    needs: version_bump
+    runs-on: ubuntu-latest
+    if: |
+      github.event_name == 'workflow_dispatch' ||
+      (github.event_name == 'push' && contains(github.ref, 'refs/tags/'))
+    permissions: "write-all"
+    steps:
+      - uses: actions/checkout@v4
+      - run: git fetch --force --tags
+      - uses: actions/setup-go@v4
+        with:
+          go-version: 1.21
+      # Generate the binaries and release
+      - uses: goreleaser/goreleaser-action@v5
+        with:
+          distribution: goreleaser
+          version: latest
+          args: release --clean
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
   # TODO: permission issue, but not worth fixing as this should be refactored
   # into the celestiaorg/.github repo, at which point any permission issues will

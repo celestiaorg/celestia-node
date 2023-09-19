@@ -32,6 +32,9 @@ func TestODSReader(t *testing.T) {
 	// get CAR reader from store
 	r, err := edsStore.GetCAR(ctx, dah.Hash())
 	assert.NoError(t, err)
+	defer func() {
+		require.NoError(t, r.Close())
+	}()
 
 	// create ODSReader wrapper based on car reader to limit reads to ODS only
 	odsR, err := ODSReader(r)
@@ -81,6 +84,9 @@ func TestODSReaderReconstruction(t *testing.T) {
 	// get CAR reader from store
 	r, err := edsStore.GetCAR(ctx, dah.Hash())
 	assert.NoError(t, err)
+	defer func() {
+		require.NoError(t, r.Close())
+	}()
 
 	// create ODSReader wrapper based on car reader to limit reads to ODS only
 	odsR, err := ODSReader(r)
