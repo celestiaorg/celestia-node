@@ -1,0 +1,28 @@
+name: documentation checks
+
+on:
+  workflow_call:
+
+env:
+  GO_VERSION: 1.19
+
+jobs:
+  check:
+    name: Verify openrpc.json
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v3
+
+      - uses: actions/setup-go@v3
+        with:
+          go-version: ${{ env.GO_VERSION }}
+
+      - name: Verify openrpc.json is up to date
+        env:
+          # yamllint disable-line rule:line-length
+          MESSAGE: "Changes detected to openrpc.json. Please run 'make openrpc-gen' and commit the changes."
+        run: |
+          make openrpc-gen > openrpc.json
+          git diff --quiet || echo "$MESSAGE"
+          git diff --exit-code --quiet .

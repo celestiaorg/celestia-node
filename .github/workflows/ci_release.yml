@@ -49,9 +49,12 @@ jobs:
   go-ci:
     uses: ./.github/workflows/go-ci.yml
 
+  docs-check:
+    uses: ./.github/workflows/docs.yml
+
   # Make a release if this is a manually trigger job, i.e. workflow_dispatch
   release:
-    needs: [hadolint, yamllint, markdown-lint, go-ci]
+    needs: [hadolint, yamllint, markdown-lint, go-ci, docs-check]
     runs-on: ubuntu-latest
     if: ${{ github.event_name == 'workflow_dispatch' }}
     permissions: "write-all"
