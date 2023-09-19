@@ -9,6 +9,8 @@ import (
 	"github.com/filecoin-project/dagstore"
 	"github.com/filecoin-project/dagstore/shard"
 	lru "github.com/hashicorp/golang-lru/v2"
+
+	"github.com/celestiaorg/celestia-node/libs/utils"
 )
 
 var _ Cache = (*AccessorCache)(nil)
@@ -20,7 +22,7 @@ type AccessorCache struct {
 	// stripedLocks prevents simultaneous RW access to the blockstore cache for a shard. Instead
 	// of using only one lock or one lock per key, we stripe the shard keys across 256 locks. 256 is
 	// chosen because it 0-255 is the range of values we get looking at the last byte of the key.
-	stripedLocks [256]sync.Mutex
+	stripedLocks [256]utils.PaddedLock
 	// Caches the blockstore for a given shard for shard read affinity, i.e., further reads will likely
 	// be from the same shard. Maps (shard key -> blockstore).
 	cache *lru.Cache[shard.Key, *accessorWithBlockstore]

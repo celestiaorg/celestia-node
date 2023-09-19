@@ -8,7 +8,6 @@ import (
 	"fmt"
 	"io"
 	"os"
-	"sync"
 	"sync/atomic"
 	"time"
 
@@ -68,7 +67,7 @@ type Store struct {
 	lastGCResult atomic.Pointer[dagstore.GCResult]
 
 	// stripedLocks is used to synchronize parallel operations
-	stripedLocks  [256]sync.Mutex
+	stripedLocks  [256]utils.PaddedLock
 	shardFailures chan dagstore.ShardResult
 
 	metrics *metrics

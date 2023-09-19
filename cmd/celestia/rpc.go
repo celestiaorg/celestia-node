@@ -23,7 +23,7 @@ import (
 	"github.com/celestiaorg/celestia-node/state"
 )
 
-const authEnvKey = "CELESTIA_NODE_AUTH_TOKEN" //nolint:gosec
+const authEnvKey = "CELESTIA_NODE_AUTH_TOKEN"
 
 var requestURL string
 var authTokenFlag string

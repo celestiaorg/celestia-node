@@ -20,6 +20,7 @@ import (
 	"github.com/celestiaorg/nmt"
 	"github.com/celestiaorg/rsmt2d"
 
+	"github.com/celestiaorg/celestia-node/libs/utils"
 	"github.com/celestiaorg/celestia-node/share"
 	"github.com/celestiaorg/celestia-node/share/eds/byzantine"
 	"github.com/celestiaorg/celestia-node/share/ipld"
@@ -109,7 +110,7 @@ type retrievalSession struct {
 	// TODO(@Wondertan): Extract into a separate data structure
 	// https://github.com/celestiaorg/rsmt2d/issues/135
 	squareQuadrants  []*quadrant
-	squareCellsLks   [][]sync.Mutex
+	squareCellsLks   [][]utils.PaddedLock
 	squareCellsCount uint32
 	squareSig        chan struct{}
 	squareDn         chan struct{}
@@ -144,14 +145,14 @@ func (r *Retriever) newSession(ctx context.Context, dah *da.DataAvailabilityHead
 		dah:             dah,
 		bget:            blockservice.NewSession(ctx, r.bServ),
 		squareQuadrants: newQuadrants(dah),
-		squareCellsLks:  make([][]sync.Mutex, size),
+		squareCellsLks:  make([][]utils.PaddedLock, size),
 		squareSig:       make(chan struct{}, 1),
 		squareDn:        make(chan struct{}),
 		square:          square,
 		span:            trace.SpanFromContext(ctx),
 	}
 	for i := range ses.squareCellsLks {
-		ses.squareCellsLks[i] = make([]sync.Mutex, size)
+		ses.squareCellsLks[i] = make([]utils.PaddedLock, size)
 	}
 
 	go ses.request(ctx)
