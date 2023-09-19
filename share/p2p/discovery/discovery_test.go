@@ -27,23 +27,29 @@ func TestDiscovery(t *testing.T) {
 
 	tn := newTestnet(ctx, t)
 
-	peerA := tn.discovery(
-		WithPeersLimit(nodes),
-		WithAdvertiseInterval(-1),
-	)
-
 	type peerUpdate struct {
 		peerID  peer.ID
 		isAdded bool
 	}
 	updateCh := make(chan peerUpdate)
-	peerA.WithOnPeersUpdate(func(peerID peer.ID, isAdded bool) {
+	submit := func(peerID peer.ID, isAdded bool) {
 		updateCh <- peerUpdate{peerID: peerID, isAdded: isAdded}
-	})
+	}
+
+	host, routingDisc := tn.peer()
+	peerA := tn.discovery(
+		host, routingDisc,
+		WithPeersLimit(nodes),
+		WithAdvertiseInterval(-1),
+		WithOnPeersUpdate(submit),
+	)
 
 	discs := make([]*Discovery, nodes)
 	for i := range discs {
-		discs[i] = tn.discovery(WithPeersLimit(0), WithAdvertiseInterval(time.Millisecond*100))
+		host, routingDisc := tn.peer()
+		discs[i] = tn.discovery(host, routingDisc,
+			WithPeersLimit(0),
+			WithAdvertiseInterval(time.Millisecond*100))
 
 		select {
 		case res := <-updateCh:
@@ -73,6 +79,51 @@ func TestDiscovery(t *testing.T) {
 	assert.EqualValues(t, 0, peerA.set.Size())
 }
 
+func TestDiscoveryTagged(t *testing.T) {
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second*10)
+	t.Cleanup(cancel)
+
+	tn := newTestnet(ctx, t)
+
+	// launch 2 peers, that advertise with different tags
+	adv1, routingDisc1 := tn.peer()
+	adv2, routingDisc2 := tn.peer()
+
+	// sub will discover both peers, but on different tags
+	sub, routingDisc := tn.peer()
+
+	// create 2 discovery services for sub, each with a different tag
+	done1 := make(chan struct{})
+	tn.discovery(sub, routingDisc,
+		WithTag("tag1"),
+		WithOnPeersUpdate(checkPeer(t, adv1.ID(), done1)))
+
+	done2 := make(chan struct{})
+	tn.discovery(sub, routingDisc,
+		WithTag("tag2"),
+		WithOnPeersUpdate(checkPeer(t, adv2.ID(), done2)))
+
+	// run discovery services for advertisers
+	tn.discovery(adv1, routingDisc1,
+		WithTag("tag1"))
+
+	tn.discovery(adv2, routingDisc2,
+		WithTag("tag2"))
+
+	// wait for discovery services to discover each other on different tags
+	select {
+	case <-done1:
+	case <-ctx.Done():
+		t.Fatal("did not discover peer in time")
+	}
+
+	select {
+	case <-done2:
+	case <-ctx.Done():
+		t.Fatal("did not discover peer in time")
+	}
+}
+
 type testnet struct {
 	ctx context.Context
 	T   *testing.T
@@ -97,8 +148,7 @@ func newTestnet(ctx context.Context, t *testing.T) *testnet {
 	return &testnet{ctx: ctx, T: t, bootstrapper: *host.InfoFromHost(hst)}
 }
 
-func (t *testnet) discovery(opts ...Option) *Discovery {
-	hst, routingDisc := t.peer()
+func (t *testnet) discovery(hst host.Host, routingDisc discovery.Discovery, opts ...Option) *Discovery {
 	disc := NewDiscovery(hst, routingDisc, opts...)
 	err := disc.Start(t.ctx)
 	require.NoError(t.T, err)
@@ -133,4 +183,12 @@ func (t *testnet) peer() (host.Host, discovery.Discovery) {
 	require.NoError(t.T, err)
 
 	return hst, routing.NewRoutingDiscovery(dht)
+}
+
+func checkPeer(t *testing.T, expected peer.ID, done chan struct{}) func(peerID peer.ID, isAdded bool) {
+	return func(peerID peer.ID, isAdded bool) {
+		defer close(done)
+		require.Equal(t, expected, peerID)
+		require.True(t, isAdded)
+	}
 }

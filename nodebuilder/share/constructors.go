@@ -21,18 +21,22 @@ import (
 	"github.com/celestiaorg/celestia-node/share/getters"
 	"github.com/celestiaorg/celestia-node/share/ipld"
 	disc "github.com/celestiaorg/celestia-node/share/p2p/discovery"
+	"github.com/celestiaorg/celestia-node/share/p2p/peers"
 )
 
-func newDiscovery(cfg Config) func(routing.ContentRouting, host.Host) *disc.Discovery {
+func newDiscovery(cfg *disc.Parameters,
+) func(routing.ContentRouting, host.Host, *peers.Manager) *disc.Discovery {
 	return func(
 		r routing.ContentRouting,
 		h host.Host,
+		manager *peers.Manager,
 	) *disc.Discovery {
 		return disc.NewDiscovery(
 			h,
 			routingdisc.NewRoutingDiscovery(r),
-			disc.WithPeersLimit(cfg.Discovery.PeersLimit),
-			disc.WithAdvertiseInterval(cfg.Discovery.AdvertiseInterval),
+			disc.WithPeersLimit(cfg.PeersLimit),
+			disc.WithAdvertiseInterval(cfg.AdvertiseInterval),
+			disc.WithOnPeersUpdate(manager.UpdatedFullNodes),
 		)
 	}
 }

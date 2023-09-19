@@ -22,7 +22,6 @@ import (
 
 	"github.com/celestiaorg/celestia-node/header"
 	"github.com/celestiaorg/celestia-node/share"
-	"github.com/celestiaorg/celestia-node/share/p2p/discovery"
 	"github.com/celestiaorg/celestia-node/share/p2p/shrexsub"
 )
 
@@ -55,7 +54,6 @@ type Manager struct {
 	// header subscription is necessary in order to Validate the inbound eds hash
 	headerSub libhead.Subscriber[*header.ExtendedHeader]
 	shrexSub  *shrexsub.PubSub
-	disc      *discovery.Discovery
 	host      host.Host
 	connGater *conngater.BasicConnectionGater
 
@@ -99,7 +97,6 @@ type syncPool struct {
 
 func NewManager(
 	params Parameters,
-	discovery *discovery.Discovery,
 	host host.Host,
 	connGater *conngater.BasicConnectionGater,
 	options ...Option,
@@ -111,7 +108,6 @@ func NewManager(
 	s := &Manager{
 		params:                params,
 		connGater:             connGater,
-		disc:                  discovery,
 		host:                  host,
 		pools:                 make(map[string]*syncPool),
 		blacklistedHashes:     make(map[string]bool),
@@ -127,23 +123,6 @@ func NewManager(
 	}
 
 	s.fullNodes = newPool(s.params.PeerCooldown)
-
-	discovery.WithOnPeersUpdate(
-		func(peerID peer.ID, isAdded bool) {
-			if isAdded {
-				if s.isBlacklistedPeer(peerID) {
-					log.Debugw("got blacklisted peer from discovery", "peer", peerID.String())
-					return
-				}
-				s.fullNodes.add(peerID)
-				log.Debugw("added to full nodes", "peer", peerID)
-				return
-			}
-
-			log.Debugw("removing peer from discovered full nodes", "peer", peerID.String())
-			s.fullNodes.remove(peerID)
-		})
-
 	return s, nil
 }
 
@@ -246,6 +225,22 @@ func (m *Manager) Peer(
 	case <-ctx.Done():
 		return "", nil, ctx.Err()
 	}
+}
+
+// UpdatedFullNodes is called by discovery when new full node is discovered or removed
+func (m *Manager) UpdatedFullNodes(peerID peer.ID, isAdded bool) {
+	if isAdded {
+		if m.isBlacklistedPeer(peerID) {
+			log.Debugw("got blacklisted peer from discovery", "peer", peerID.String())
+			return
+		}
+		m.fullNodes.add(peerID)
+		log.Debugw("added to full nodes", "peer", peerID)
+		return
+	}
+
+	log.Debugw("removing peer from discovered full nodes", "peer", peerID.String())
+	m.fullNodes.remove(peerID)
 }
 
 func (m *Manager) newPeer(

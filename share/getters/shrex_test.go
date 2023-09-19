@@ -9,9 +9,7 @@ import (
 
 	"github.com/ipfs/go-datastore"
 	ds_sync "github.com/ipfs/go-datastore/sync"
-	routinghelpers "github.com/libp2p/go-libp2p-routing-helpers"
 	"github.com/libp2p/go-libp2p/core/host"
-	routingdisc "github.com/libp2p/go-libp2p/p2p/discovery/routing"
 	"github.com/libp2p/go-libp2p/p2p/net/conngater"
 	mocknet "github.com/libp2p/go-libp2p/p2p/net/mock"
 	"github.com/stretchr/testify/require"
@@ -25,7 +23,6 @@ import (
 	"github.com/celestiaorg/celestia-node/share"
 	"github.com/celestiaorg/celestia-node/share/eds"
 	"github.com/celestiaorg/celestia-node/share/eds/edstest"
-	"github.com/celestiaorg/celestia-node/share/p2p/discovery"
 	"github.com/celestiaorg/celestia-node/share/p2p/peers"
 	"github.com/celestiaorg/celestia-node/share/p2p/shrexeds"
 	"github.com/celestiaorg/celestia-node/share/p2p/shrexnd"
@@ -211,18 +208,12 @@ func testManager(
 		return nil, err
 	}
 
-	disc := discovery.NewDiscovery(nil,
-		routingdisc.NewRoutingDiscovery(routinghelpers.Null{}),
-		discovery.WithPeersLimit(10),
-		discovery.WithAdvertiseInterval(time.Second),
-	)
 	connGater, err := conngater.NewBasicConnectionGater(ds_sync.MutexWrap(datastore.NewMapDatastore()))
 	if err != nil {
 		return nil, err
 	}
 	manager, err := peers.NewManager(
 		peers.DefaultParameters(),
-		disc,
 		host,
 		connGater,
 		peers.WithShrexSubPools(shrexSub, headerSub),

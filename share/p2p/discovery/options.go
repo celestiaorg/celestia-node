@@ -3,6 +3,8 @@ package discovery
 import (
 	"fmt"
 	"time"
+
+	"github.com/libp2p/go-libp2p/core/peer"
 )
 
 // Parameters is the set of Parameters that must be configured for the Discovery module
@@ -14,6 +16,10 @@ type Parameters struct {
 	// Set -1 to disable.
 	// NOTE: only full and bridge can advertise themselves.
 	AdvertiseInterval time.Duration
+	// onUpdatedPeers will be called on peer set changes
+	onUpdatedPeers OnUpdatedPeers
+	// Tag is used as rondezvous point for discovery service
+	Tag string
 }
 
 // Option is a function that configures Discovery Parameters
@@ -21,11 +27,13 @@ type Option func(*Parameters)
 
 // DefaultParameters returns the default Parameters' configuration values
 // for the Discovery module
-func DefaultParameters() Parameters {
-	return Parameters{
+func DefaultParameters() *Parameters {
+	return &Parameters{
 		PeersLimit: 5,
 		// based on https://github.com/libp2p/go-libp2p-kad-dht/pull/793
 		AdvertiseInterval: time.Hour * 22,
+		Tag:               rendezvousPoint,
+		onUpdatedPeers:    func(peer.ID, bool) {},
 	}
 }
 
@@ -39,6 +47,21 @@ func (p *Parameters) Validate() error {
 		)
 	}
 
+	if p.PeersLimit <= 0 {
+		return fmt.Errorf(
+			"discovery: invalid option: value PeersLimit %s, %s",
+			"is negative.",
+			"value must be positive",
+		)
+	}
+
+	if p.Tag == "" {
+		return fmt.Errorf(
+			"discovery: invalid option: value Tag %s, %s",
+			"is empty.",
+			"value must be non-empty",
+		)
+	}
 	return nil
 }
 
@@ -55,5 +78,19 @@ func WithPeersLimit(peersLimit uint) Option {
 func WithAdvertiseInterval(advInterval time.Duration) Option {
 	return func(p *Parameters) {
 		p.AdvertiseInterval = advInterval
+	}
+}
+
+// WithOnPeersUpdate chains OnPeersUpdate callbacks on every update of discovered peers list.
+func WithOnPeersUpdate(f OnUpdatedPeers) Option {
+	return func(p *Parameters) {
+		p.onUpdatedPeers = p.onUpdatedPeers.add(f)
+	}
+}
+
+// WithTag is a functional option that sets the Tag for the discovery service
+func WithTag(tag string) Option {
+	return func(p *Parameters) {
+		p.Tag = tag
 	}
 }
