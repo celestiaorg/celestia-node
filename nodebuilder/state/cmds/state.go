@@ -128,8 +128,6 @@ var submitTxCmd = &cobra.Command{
 		if err != nil {
 			return fmt.Errorf("failed to decode tx: %v", err)
 		}
-
-		fmt.Println(args[0])
 		txResponse, err := rpcClient.State.SubmitTx(
 			cmd.Context(),
 			decoded,
@@ -337,8 +335,6 @@ var queryDelegationCmd = &cobra.Command{
 		}
 
 		balance, err := rpcClient.State.QueryDelegation(cmd.Context(), addr.Address.(state.ValAddress))
-		fmt.Println(balance)
-		fmt.Println(err)
 		return util.PrintOutput(balance, err, nil)
 	},
 }
