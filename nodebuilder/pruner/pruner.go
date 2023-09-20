@@ -1,4 +1,4 @@
-package das
+package pruner
 
 import (
 	"context"
@@ -8,24 +8,25 @@ import (
 	"sync"
 	"time"
 
-	"github.com/celestiaorg/celestia-node/header"
-	"github.com/celestiaorg/celestia-node/share"
-	"github.com/celestiaorg/celestia-node/share/eds"
 	"github.com/ipfs/go-datastore"
 	"github.com/ipfs/go-datastore/namespace"
 	"github.com/ipfs/go-datastore/query"
+	logging "github.com/ipfs/go-log/v2"
+
+	"github.com/celestiaorg/celestia-node/header"
+	"github.com/celestiaorg/celestia-node/share"
+	"github.com/celestiaorg/celestia-node/share/eds"
 )
 
 const (
 	dsPrefix = "/pruner/epoch/"
 )
 
-var (
-	EpochDuration = time.Minute
-)
+var log = logging.Logger("pruner")
 
 type StoragePruner struct {
 	cancel context.CancelFunc
+	cfg    Config
 
 	// TODO: Race?
 	oldestEpoch uint64
@@ -39,19 +40,23 @@ type StoragePruner struct {
 	done chan struct{}
 }
 
-func NewStoragePruner(ds datastore.Batching, store *eds.Store) *StoragePruner {
+func NewStoragePruner(ds datastore.Batching, store *eds.Store, cfg Config) *StoragePruner {
 	return &StoragePruner{
 		// set to max uint64 as sentinel before state is restored or first epoch is registered
 		oldestEpoch:  ^uint64(0),
 		activeEpochs: make(map[uint64]struct{}),
 		ds:           namespace.Wrap(ds, datastore.NewKey(dsPrefix)),
 		store:        store,
+		cfg:          cfg,
 		done:         make(chan struct{}),
 	}
 }
 
 func (sp *StoragePruner) Start(ctx context.Context) error {
-	sp.restoreState(ctx)
+	err := sp.restoreState(ctx)
+	if err != nil {
+		return err
+	}
 	ctx, cancel := context.WithCancel(context.Background())
 	sp.cancel = cancel
 
@@ -85,7 +90,7 @@ func (sp *StoragePruner) restoreState(ctx context.Context) error {
 			sp.oldestEpoch = epoch
 		}
 	}
-	log.Infow("pruner: restored state from datastore", "oldestEpoch", sp.oldestEpoch, "active epoch count", len(sp.activeEpochs))
+	log.Infow("restored state from datastore", "oldestEpoch", sp.oldestEpoch, "active epoch count", len(sp.activeEpochs))
 	return nil
 }
 
@@ -97,11 +102,11 @@ func (sp *StoragePruner) Register(ctx context.Context, h *header.ExtendedHeader)
 		return nil
 	}
 
-	epoch := calculateEpoch(h.Time())
+	epoch := sp.calculateEpoch(h.Time())
 	lk := &sp.stripedLocks[epoch%256]
 	lk.Lock()
 	defer lk.Unlock()
-	log.Infof("pruner: registering datahash %X to epoch %d", h.DAH.Hash(), epoch)
+	log.Debugf("registering datahash %X to epoch %d", h.DAH.Hash(), epoch)
 	_, ok := sp.activeEpochs[epoch]
 	if ok { // epoch already registered, load existing datahashes from datastore
 		datahashes, err = sp.getDatahashesFromEpoch(ctx, epoch)
@@ -109,7 +114,7 @@ func (sp *StoragePruner) Register(ctx context.Context, h *header.ExtendedHeader)
 			return err
 		}
 	} else { // epoch not already registered
-		log.Infow("pruner: registering new epoch", "epoch", epoch)
+		log.Infow("registering new epoch", "epoch", epoch)
 		sp.activeEpochs[epoch] = struct{}{}
 	}
 
@@ -131,36 +136,39 @@ func (sp *StoragePruner) gc(ctx context.Context) error {
 	return nil
 }
 
-func (sp *StoragePruner) run(ctx context.Context) error {
-	ticker := time.NewTicker(EpochDuration)
+func (sp *StoragePruner) run(ctx context.Context) {
+	ticker := time.NewTicker(sp.cfg.EpochDuration)
 	defer ticker.Stop()
 
 	for {
 		select {
 		case <-ticker.C:
-			sp.pruneEpoch(ctx, sp.oldestEpoch)
+			err := sp.pruneEpoch(ctx, sp.oldestEpoch)
+			if err != nil {
+				log.Errorw("pruning oldest epoch", "err", err)
+			}
 			// skip gc if there is nothing to collect after pruning oldest epoch
-			if len(sp.activeEpochs) < int(float64(recencyWindow)/float64(EpochDuration)) {
+			if len(sp.activeEpochs) < int(float64(sp.cfg.RecencyWindow)/float64(sp.cfg.EpochDuration)) {
 				continue
 			}
 
-			err := sp.gc(ctx)
+			err = sp.gc(ctx)
 			if err != nil {
-				log.Errorw("failed to gc pruner", "err", err)
+				log.Errorw("gc failed", "err", err)
 			}
 		case <-ctx.Done():
 			sp.done <- struct{}{}
-			return nil
+			return
 		}
 	}
 }
 
 func (sp *StoragePruner) pruneEpoch(ctx context.Context, epoch uint64) error {
-	if epochIsRecent(epoch) {
+	if sp.epochIsRecent(epoch) {
 		return nil
 	}
 
-	log.Infow("pruner: pruning epoch", "epoch", epoch)
+	log.Infow("pruning epoch", "epoch", epoch)
 
 	lk := &sp.stripedLocks[epoch%256]
 	lk.Lock()
@@ -195,8 +203,8 @@ func (sp *StoragePruner) updateOldestEpoch() {
 	}
 }
 
-func epochIsRecent(epoch uint64) bool {
-	return epoch >= calculateEpoch(time.Now().Add(-recencyWindow))
+func (sp *StoragePruner) epochIsRecent(epoch uint64) bool {
+	return epoch >= sp.calculateEpoch(time.Now().Add(-sp.cfg.RecencyWindow))
 }
 
 func (sp *StoragePruner) getDatahashesFromEpoch(ctx context.Context, epoch uint64) ([]share.DataHash, error) {
@@ -226,6 +234,6 @@ func (sp *StoragePruner) saveDatahashesToEpoch(ctx context.Context, epoch uint64
 	return nil
 }
 
-func calculateEpoch(timestamp time.Time) uint64 {
-	return uint64(timestamp.Unix() / int64(EpochDuration.Seconds()))
+func (sp *StoragePruner) calculateEpoch(timestamp time.Time) uint64 {
+	return uint64(timestamp.Unix() / int64(sp.cfg.EpochDuration.Seconds()))
 }

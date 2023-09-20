@@ -15,6 +15,8 @@ import (
 type samplingCoordinator struct {
 	concurrencyLimit int
 	samplingTimeout  time.Duration
+	recencyWindow    time.Duration
+	pruningEnabled   bool
 
 	getter      libhead.Getter[*header.ExtendedHeader]
 	sampleFn    sampleFn
@@ -50,6 +52,8 @@ func newSamplingCoordinator(
 	return &samplingCoordinator{
 		concurrencyLimit: params.ConcurrencyLimit,
 		samplingTimeout:  params.SampleTimeout,
+		recencyWindow:    params.recencyWindow,
+		pruningEnabled:   params.pruningEnabled,
 		getter:           getter,
 		sampleFn:         sample,
 		broadcastFn:      broadcast,
@@ -102,7 +106,7 @@ func (sc *samplingCoordinator) run(ctx context.Context, cp checkpoint) {
 
 // runWorker runs job in separate worker go-routine
 func (sc *samplingCoordinator) runWorker(ctx context.Context, j job) {
-	w := newWorker(j, sc.getter, sc.sampleFn, sc.broadcastFn, sc.metrics)
+	w := newWorker(j, sc.getter, sc.sampleFn, sc.broadcastFn, sc.recencyWindow, sc.pruningEnabled, sc.metrics)
 	sc.state.putInProgress(j.id, w.getState)
 
 	// launch worker go-routine
