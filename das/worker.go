@@ -19,6 +19,10 @@ const (
 	retryJob   jobType = "retry"
 )
 
+// var recencyWindow = time.Hour * 24 * 30
+var recencyWindow = time.Minute * 10
+var pruning = true
+
 type worker struct {
 	lock  sync.Mutex
 	state workerState
@@ -110,6 +114,10 @@ func (w *worker) sample(ctx context.Context, timeout time.Duration, height uint6
 	start := time.Now()
 	ctx, cancel := context.WithTimeout(ctx, timeout)
 	defer cancel()
+
+	if pruning && h.Time().After(start.Add(-recencyWindow)) {
+		return nil
+	}
 
 	err = w.sampleFn(ctx, h)
 	w.metrics.observeSample(ctx, h, time.Since(start), w.state.jobType, err)

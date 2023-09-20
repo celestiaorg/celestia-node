@@ -154,3 +154,11 @@ func WithSampleTimeout(sampleTimeout time.Duration) Option {
 		d.params.SampleTimeout = sampleTimeout
 	}
 }
+
+// WithStoragePruner is a functional option to configure the daser's `pruner` parameter
+// Refer to WithSamplingRange documentation to see an example of how to use this
+func WithStoragePruner(sp *StoragePruner) Option {
+	return func(d *DASer) {
+		d.pruner = sp
+	}
+}
