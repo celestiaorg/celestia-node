@@ -4,6 +4,7 @@ package full
 
 import (
 	"context"
+	"errors"
 	"sync"
 	"testing"
 	"time"
@@ -379,15 +380,31 @@ func TestShareAvailable_DisconnectedFullNodes(t *testing.T) {
 			ctxErr, cancelErr := context.WithTimeout(ctx, time.Second*5)
 			errg, errCtx := errgroup.WithContext(ctxErr)
 			errg.Go(func() error {
-				return full1.SharesAvailable(errCtx, root)
+				err := full1.SharesAvailable(errCtx, root)
+				if err == nil {
+					return errors.New("full1 should not be able to reconstruct")
+				}
+				// this is a trick to ensure that BOTH fulls fail with this error using a single errgroup.
+				if err != share.ErrNotAvailable {
+					return err
+				}
+				return nil
 			})
 			errg.Go(func() error {
-				return full2.SharesAvailable(errCtx, root)
+				err := full2.SharesAvailable(errCtx, root)
+				if err == nil {
+					return errors.New("full2 should not be able to reconstruct")
+				}
+				// this is a trick to ensure that BOTH fulls fail with this error using a single errgroup.
+				if err != share.ErrNotAvailable {
+					return err
+				}
+				return nil
 			})
 
 			// check that any of the fulls cannot reconstruct on their own
 			err := errg.Wait()
-			require.ErrorIs(t, err, share.ErrNotAvailable)
+			require.NoError(t, err)
 			cancelErr()
 
 			// but after they connect
