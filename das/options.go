@@ -3,6 +3,8 @@ package das
 import (
 	"fmt"
 	"time"
+
+	"github.com/celestiaorg/celestia-node/nodebuilder/pruner"
 )
 
 // ErrInvalidOption is an error that is returned by Parameters.Validate
@@ -40,6 +42,15 @@ type Parameters struct {
 	// divided between parallel workers. SampleTimeout should be adjusted proportionally to
 	// ConcurrencyLimit.
 	SampleTimeout time.Duration
+
+	// recencyWindow is the amount of time that the DASer will consider a block
+	// recent enough to sample. Any blocks below this height will not be
+	// sampled. It is set from the pruner config (RecencyWindow) and is thus
+	// private.
+	recencyWindow time.Duration
+	// pruningEnabled is set by the pruner config (PruningEnabled) and is thus
+	// private. If it is false, the DASer will ignore the recencyWindow and sample all heights
+	pruningEnabled bool
 }
 
 // DefaultParameters returns the default configuration values for the daser parameters
@@ -52,9 +63,11 @@ func DefaultParameters() Parameters {
 		ConcurrencyLimit:        concurrencyLimit,
 		BackgroundStoreInterval: 10 * time.Minute,
 		SampleFrom:              1,
-		// SampleTimeout = approximate block time (with a bit of wiggle room) * max amount of catchup
-		// workers
-		SampleTimeout: 15 * time.Second * time.Duration(concurrencyLimit),
+		// SampleTimeout = approximate block time (with a bit of wiggle room) * max amount of
+		// catchup workers
+		SampleTimeout:  15 * time.Second * time.Duration(concurrencyLimit),
+		pruningEnabled: pruner.DefaultConfig().PruningEnabled,
+		recencyWindow:  pruner.DefaultConfig().RecencyWindow,
 	}
 }
 
@@ -158,8 +171,17 @@ func WithSampleTimeout(sampleTimeout time.Duration) Option {
 
 // WithStoragePruner is a functional option to configure the daser's `pruner` parameter
 // Refer to WithSamplingRange documentation to see an example of how to use this
-func WithStoragePruner(sp *StoragePruner) Option {
+func WithStoragePruner(sp *pruner.StoragePruner) Option {
 	return func(d *DASer) {
+		d.params.pruningEnabled = true
 		d.pruner = sp
+	}
+}
+
+// WithRecencyWindow is a functional option to configure the daser's `recencyWindow` parameter
+// Refer to WithSamplingRange documentation to see an example of how to use this
+func WithRecencyWindow(recencyWindow time.Duration) Option {
+	return func(d *DASer) {
+		d.params.recencyWindow = recencyWindow
 	}
 }
