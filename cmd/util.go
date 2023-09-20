@@ -5,6 +5,7 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
+	"github.com/celestiaorg/celestia-node/nodebuilder/pruner"
 	"os"
 	"strings"
 
@@ -119,6 +120,7 @@ func PersistentPreRunEnv(cmd *cobra.Command, nodeType node.Type, _ []string) err
 	rpc_cfg.ParseFlags(cmd, &cfg.RPC)
 	gateway.ParseFlags(cmd, &cfg.Gateway)
 	state.ParseFlags(cmd, &cfg.State)
+	pruner.ParseFlags(cmd, &cfg.Pruner)
 
 	// set config
 	ctx = WithNodeConfig(ctx, &cfg)
