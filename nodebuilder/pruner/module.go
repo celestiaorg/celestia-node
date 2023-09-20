@@ -13,7 +13,7 @@ func ConstructModule(tp node.Type, cfg *Config) fx.Option {
 		fx.Supply(*cfg),
 	)
 
-	var pruner fx.Option
+	pruner := fx.Options()
 	if cfg.PruningEnabled {
 		pruner = fx.Options(
 			fx.Provide(fx.Annotate(
