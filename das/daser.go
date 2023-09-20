@@ -28,6 +28,7 @@ type DASer struct {
 	bcast  fraud.Broadcaster[*header.ExtendedHeader]
 	hsub   libhead.Subscriber[*header.ExtendedHeader] // listens for new headers in the network
 	getter libhead.Getter[*header.ExtendedHeader]     // retrieves past headers
+	pruner *StoragePruner
 
 	sampler    *samplingCoordinator
 	store      checkpointStore
@@ -158,6 +159,12 @@ func (d *DASer) sample(ctx context.Context, h *header.ExtendedHeader) error {
 			}
 		}
 		return err
+	}
+	if pruning && d.pruner != nil {
+		err = d.pruner.Register(ctx, h)
+		if err != nil {
+			log.Errorw("failed to register header with pruner", "err", err)
+		}
 	}
 	return nil
 }

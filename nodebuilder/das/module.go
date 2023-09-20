@@ -22,14 +22,24 @@ func ConstructModule(tp node.Type, cfg *Config) fx.Option {
 	baseComponents := fx.Options(
 		fx.Supply(*cfg),
 		fx.Error(err),
+		fx.Provide(fx.Annotate(
+			das.NewStoragePruner,
+			fx.OnStart(func(ctx context.Context, pruner *das.StoragePruner) error {
+				return pruner.Start(ctx)
+			}),
+			fx.OnStop(func(ctx context.Context, pruner *das.StoragePruner) error {
+				return pruner.Stop(ctx)
+			}),
+		)),
 		fx.Provide(
-			func(c Config) []das.Option {
+			func(c Config, pruner *das.StoragePruner) []das.Option {
 				return []das.Option{
 					das.WithSamplingRange(c.SamplingRange),
 					das.WithConcurrencyLimit(c.ConcurrencyLimit),
 					das.WithBackgroundStoreInterval(c.BackgroundStoreInterval),
 					das.WithSampleFrom(c.SampleFrom),
 					das.WithSampleTimeout(c.SampleTimeout),
+					das.WithStoragePruner(pruner),
 				}
 			},
 		),
