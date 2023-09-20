@@ -66,10 +66,8 @@ func (fa *ShareAvailability) SharesAvailable(ctx context.Context, root *share.Ro
 	}
 
 	// a hack to avoid loading the whole EDS in mem if we store it already.
-	if fa.store != nil {
-		if ok, _ := fa.store.Has(ctx, root.Hash()); ok {
-			return nil
-		}
+	if ok, _ := fa.store.Has(ctx, root.Hash()); ok {
+		return nil
 	}
 
 	adder := ipld.NewProofsAdder(len(root.RowRoots))
@@ -88,13 +86,10 @@ func (fa *ShareAvailability) SharesAvailable(ctx context.Context, root *share.Ro
 		}
 	}
 
-	if fa.store != nil {
-		err = fa.store.Put(ctx, root.Hash(), eds)
-		if err != nil && !errors.Is(err, dagstore.ErrShardExists) {
-			return fmt.Errorf("full availability: failed to store eds: %w", err)
-		}
+	err = fa.store.Put(ctx, root.Hash(), eds)
+	if err != nil && !errors.Is(err, dagstore.ErrShardExists) {
+		return fmt.Errorf("full availability: failed to store eds: %w", err)
 	}
-
 	return nil
 }
 
