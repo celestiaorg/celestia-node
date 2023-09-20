@@ -84,6 +84,7 @@ func (fa *ShareAvailability) SharesAvailable(ctx context.Context, root *share.Ro
 		if errors.Is(err, share.ErrNotFound) || errors.Is(err, context.DeadlineExceeded) && !errors.As(err, &byzantineErr) {
 			return share.ErrNotAvailable
 		}
+		return err
 	}
 
 	err = fa.store.Put(ctx, root.Hash(), eds)
