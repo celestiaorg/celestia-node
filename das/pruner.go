@@ -66,7 +66,7 @@ func (sp *StoragePruner) Stop(ctx context.Context) error {
 }
 
 func (sp *StoragePruner) restoreState(ctx context.Context) error {
-	results, err := sp.ds.Query(ctx, query.Query{Prefix: dsPrefix})
+	results, err := sp.ds.Query(ctx, query.Query{})
 	if err != nil {
 		return fmt.Errorf("failed to recover pruner state from datastore: %w", err)
 	}
@@ -75,7 +75,7 @@ func (sp *StoragePruner) restoreState(ctx context.Context) error {
 		if !ok {
 			break
 		}
-		epoch, err := strconv.ParseUint(res.Key[len(dsPrefix):], 10, 64)
+		epoch, err := strconv.ParseUint(res.Key[1:], 10, 64)
 		if err != nil {
 			return fmt.Errorf("failed to parse epoch from datastore: %w", err)
 		}
@@ -111,6 +111,10 @@ func (sp *StoragePruner) Register(ctx context.Context, h *header.ExtendedHeader)
 	} else { // epoch not already registered
 		log.Infow("pruner: registering new epoch", "epoch", epoch)
 		sp.activeEpochs[epoch] = struct{}{}
+	}
+
+	if epoch < sp.oldestEpoch {
+		sp.oldestEpoch = epoch
 	}
 
 	datahashes = append(datahashes, h.DAH.Hash())
@@ -157,10 +161,6 @@ func (sp *StoragePruner) pruneEpoch(ctx context.Context, epoch uint64) error {
 	}
 
 	log.Infow("pruner: pruning epoch", "epoch", epoch)
-	if epoch == sp.oldestEpoch {
-		sp.oldestEpoch = ^uint64(0)
-		sp.updateOldestEpoch()
-	}
 
 	lk := &sp.stripedLocks[epoch%256]
 	lk.Lock()
@@ -178,12 +178,16 @@ func (sp *StoragePruner) pruneEpoch(ctx context.Context, epoch uint64) error {
 	}
 
 	delete(sp.activeEpochs, epoch)
+	if epoch == sp.oldestEpoch {
+		sp.updateOldestEpoch()
+	}
 	return nil
 }
 
 func (sp *StoragePruner) updateOldestEpoch() {
 	// TODO: This is obviously not ideal and we should track the oldest epoch in a more efficient way instead
 	// or just calculate it based off of time offsets and make sure we cover any edge cases
+	sp.oldestEpoch = ^uint64(0)
 	for key := range sp.activeEpochs {
 		if key < sp.oldestEpoch {
 			sp.oldestEpoch = key
