@@ -289,6 +289,7 @@ func TestShareAvailable_DisconnectedFullNodes(t *testing.T) {
 		recoverability  Recoverability
 		expectedFailure bool
 	}{
+		// NOTE: The number of LNs must be even, otherwise the WaitGroup will hang.
 		{
 			name:            "fully recoverable",
 			origSquareSize:  16,
@@ -300,7 +301,7 @@ func TestShareAvailable_DisconnectedFullNodes(t *testing.T) {
 		{
 			name:            "fully recoverable, not enough LNs",
 			origSquareSize:  16,
-			lightNodes:      19, // ~0.7% chance of recoverability
+			lightNodes:      18, // ~0.03% chance of recoverability
 			sampleAmount:    20,
 			recoverability:  FullyRecoverable,
 			expectedFailure: true,
