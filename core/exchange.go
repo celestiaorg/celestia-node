@@ -12,6 +12,7 @@ import (
 	"github.com/celestiaorg/nmt"
 
 	"github.com/celestiaorg/celestia-node/header"
+	"github.com/celestiaorg/celestia-node/nodebuilder/pruner"
 	"github.com/celestiaorg/celestia-node/share/eds"
 	"github.com/celestiaorg/celestia-node/share/ipld"
 )
@@ -21,6 +22,7 @@ const concurrencyLimit = 4
 type Exchange struct {
 	fetcher   *BlockFetcher
 	store     *eds.Store
+	pruner    *pruner.StoragePruner
 	construct header.ConstructFn
 }
 
@@ -28,12 +30,18 @@ func NewExchange(
 	fetcher *BlockFetcher,
 	store *eds.Store,
 	construct header.ConstructFn,
+	options ...ExchangeOption,
 ) *Exchange {
-	return &Exchange{
+	e := &Exchange{
 		fetcher:   fetcher,
 		store:     store,
 		construct: construct,
 	}
+
+	for _, opt := range options {
+		opt(e)
+	}
+	return e
 }
 
 func (ce *Exchange) GetByHeight(ctx context.Context, height uint64) (*header.ExtendedHeader, error) {
@@ -125,6 +133,13 @@ func (ce *Exchange) Get(ctx context.Context, hash libhead.Hash) (*header.Extende
 			&block.Height, hash, eh.Hash())
 	}
 
+	if ce.pruner != nil {
+		err = ce.pruner.Register(ctx, eh)
+		if err != nil {
+			return nil, fmt.Errorf("registering height %d on pruner: %w", &block.Height, err)
+		}
+	}
+
 	ctx = ipld.CtxWithProofsAdder(ctx, adder)
 	err = storeEDS(ctx, eh.DAH.Hash(), eds, ce.store)
 	if err != nil {
@@ -163,6 +178,13 @@ func (ce *Exchange) getExtendedHeaderByHeight(ctx context.Context, height *int64
 	eh, err := ce.construct(&b.Header, &b.Commit, &b.ValidatorSet, eds)
 	if err != nil {
 		panic(fmt.Errorf("constructing extended header for height %d: %w", b.Header.Height, err))
+	}
+
+	if ce.pruner != nil {
+		err = ce.pruner.Register(ctx, eh)
+		if err != nil {
+			return nil, fmt.Errorf("registering height %d on pruner: %w", eh.Height(), err)
+		}
 	}
 
 	ctx = ipld.CtxWithProofsAdder(ctx, adder)
