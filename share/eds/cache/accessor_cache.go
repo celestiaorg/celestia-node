@@ -88,11 +88,15 @@ func (s *accessorWithBlockstore) removeRef() {
 
 func (s *accessorWithBlockstore) close() error {
 	s.Lock()
+	if s.isClosed {
+		s.Unlock()
+		// accessor will be closed by another goroutine
+		return nil
+	}
 	s.isClosed = true
 	done := s.done
 	s.Unlock()
 
-	// TODO: add closing metrics
 	select {
 	case <-done:
 	case <-time.After(defaultCloseTimeout):
