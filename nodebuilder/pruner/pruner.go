@@ -64,7 +64,7 @@ func (sp *StoragePruner) Start(ctx context.Context) error {
 	return nil
 }
 
-func (sp *StoragePruner) Stop(ctx context.Context) error {
+func (sp *StoragePruner) Stop(_ context.Context) error {
 	sp.cancel()
 	<-sp.done
 	return nil
