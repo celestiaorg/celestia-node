@@ -115,7 +115,7 @@ func (w *worker) sample(ctx context.Context, timeout time.Duration, height uint6
 	ctx, cancel := context.WithTimeout(ctx, timeout)
 	defer cancel()
 
-	if pruning && h.Time().After(start.Add(-recencyWindow)) {
+	if pruning && h.Time().Before(start.Add(-recencyWindow)) {
 		return nil
 	}
 
