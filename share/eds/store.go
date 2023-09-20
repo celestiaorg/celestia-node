@@ -131,7 +131,7 @@ func NewStore(params *Parameters, ds datastore.Batching) (*Store, error) {
 		shardFailures: failureChan,
 		cache:         cache.NewDoubleCache(recentBlocksCache, blockstoreCache),
 	}
-	store.bs = newBlockstore(store, blockstoreCache, ds)
+	store.bs = newBlockstore(store, ds)
 	return store, nil
 }
 

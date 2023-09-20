@@ -12,8 +12,6 @@ import (
 	"github.com/ipfs/go-datastore"
 	"github.com/ipfs/go-datastore/namespace"
 	ipld "github.com/ipfs/go-ipld-format"
-
-	"github.com/celestiaorg/celestia-node/share/eds/cache"
 )
 
 var _ bstore.Blockstore = (*blockstore)(nil)
@@ -33,14 +31,12 @@ var (
 // implementation to allow for the blockstore operations to be routed to the underlying stores.
 type blockstore struct {
 	store *Store
-	cache cache.Cache
 	ds    datastore.Batching
 }
 
-func newBlockstore(store *Store, cache cache.Cache, ds datastore.Batching) *blockstore {
+func newBlockstore(store *Store, ds datastore.Batching) *blockstore {
 	return &blockstore{
 		store: store,
-		cache: cache,
 		ds:    namespace.Wrap(ds, blockstoreCacheKey),
 	}
 }
@@ -156,7 +152,7 @@ func (bs *blockstore) getReadOnlyBlockstore(ctx context.Context, cid cid.Cid) (*
 		return nil, fmt.Errorf("failed to find shards containing multihash: %w", err)
 	}
 
-	// check if any of two caches contains an accessor
+	// check if either cache contains an accessor
 	shardKey := keys[0]
 	accessor, err := bs.store.cache.Get(shardKey)
 	if err == nil {

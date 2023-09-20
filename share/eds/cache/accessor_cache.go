@@ -65,8 +65,8 @@ func (s *accessorWithBlockstore) Reader() io.Reader {
 }
 
 func (s *accessorWithBlockstore) addRef() error {
-	s.RLock()
-	defer s.RUnlock()
+	s.Lock()
+	defer s.Unlock()
 	if s.isClosed {
 		// item is already closed and soon will be removed after all refs are released
 		return errCacheMiss
@@ -79,8 +79,8 @@ func (s *accessorWithBlockstore) addRef() error {
 }
 
 func (s *accessorWithBlockstore) removeRef() {
-	s.RLock()
-	defer s.RUnlock()
+	s.Lock()
+	defer s.Unlock()
 	if s.refs.Add(-1) <= 0 {
 		close(s.done)
 	}
@@ -171,8 +171,12 @@ func (bc *AccessorCache) GetOrLoad(
 
 	abs, err := bc.get(key)
 	if err == nil {
-		bc.metrics.observeGet(true)
-		return newRefCloser(abs)
+		// return accessor, only of it is not closed yet
+		accessorWithRef, err := newRefCloser(abs)
+		if err == nil {
+			bc.metrics.observeGet(true)
+			return accessorWithRef, nil
+		}
 	}
 
 	// accessor not found in cache, so load new one using loader

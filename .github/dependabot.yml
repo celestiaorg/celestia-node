@@ -19,6 +19,10 @@ updates:
       - renaynay
     labels:
       - kind:deps
+    groups:
+      otel:
+        patterns:
+          - "^go.opentelemetry.io/otel*"
   - package-ecosystem: docker
     directory: "/"
     schedule:
