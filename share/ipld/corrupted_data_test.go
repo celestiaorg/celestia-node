@@ -38,7 +38,8 @@ func TestNamespaceHasher_CorruptedData(t *testing.T) {
 	require.NoError(t, err)
 
 	// clear the storage of the requester so that it must retrieve again, then start attacking
-	requestor.ClearStorage()
+	// we reinitialize the node to clear the eds store
+	requestor = full.Node(net)
 	mockBS.Attacking = true
 	getCtx, cancelGet = context.WithTimeout(ctx, sharesAvailableTimeout)
 	t.Cleanup(cancelGet)
