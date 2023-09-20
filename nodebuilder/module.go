@@ -15,6 +15,7 @@ import (
 	modhead "github.com/celestiaorg/celestia-node/nodebuilder/header"
 	"github.com/celestiaorg/celestia-node/nodebuilder/node"
 	"github.com/celestiaorg/celestia-node/nodebuilder/p2p"
+	"github.com/celestiaorg/celestia-node/nodebuilder/pruner"
 	"github.com/celestiaorg/celestia-node/nodebuilder/rpc"
 	"github.com/celestiaorg/celestia-node/nodebuilder/share"
 	"github.com/celestiaorg/celestia-node/nodebuilder/state"
@@ -52,7 +53,8 @@ func ConstructModule(tp node.Type, network p2p.Network, cfg *Config, store Store
 		rpc.ConstructModule(tp, &cfg.RPC),
 		gateway.ConstructModule(tp, &cfg.Gateway),
 		core.ConstructModule(tp, &cfg.Core),
-		das.ConstructModule(tp, &cfg.DASer),
+		pruner.ConstructModule(tp, &cfg.Pruner),
+		das.ConstructModule(tp, &cfg.DASer, &cfg.Pruner),
 		fraud.ConstructModule(tp),
 		blob.ConstructModule(),
 		node.ConstructModule(tp),
