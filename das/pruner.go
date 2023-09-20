@@ -66,7 +66,7 @@ func (sp *StoragePruner) Stop(ctx context.Context) error {
 }
 
 func (sp *StoragePruner) restoreState(ctx context.Context) error {
-	results, err := sp.ds.Query(ctx, query.Query{})
+	results, err := sp.ds.Query(ctx, query.Query{Prefix: dsPrefix})
 	if err != nil {
 		return fmt.Errorf("failed to recover pruner state from datastore: %w", err)
 	}
