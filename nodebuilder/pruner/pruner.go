@@ -37,6 +37,8 @@ type StoragePruner struct {
 	ds    datastore.Batching
 	store *eds.Store
 
+	metrics *metrics
+
 	done chan struct{}
 }
 
@@ -130,6 +132,7 @@ func (sp *StoragePruner) Register(ctx context.Context, h *header.ExtendedHeader)
 	}
 
 	datahashes = append(datahashes, h.DAH.Hash())
+	sp.metrics.observeRegister(ctx)
 	return sp.saveDatahashesToEpoch(ctx, epoch, datahashes)
 }
 
@@ -190,6 +193,7 @@ func (sp *StoragePruner) pruneEpoch(ctx context.Context, epoch uint64) error {
 		if err != nil {
 			return err
 		}
+		sp.metrics.observePrune(ctx)
 	}
 
 	delete(sp.activeEpochs, epoch)

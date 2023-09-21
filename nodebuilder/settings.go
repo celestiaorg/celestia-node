@@ -27,6 +27,7 @@ import (
 	modheader "github.com/celestiaorg/celestia-node/nodebuilder/header"
 	"github.com/celestiaorg/celestia-node/nodebuilder/node"
 	"github.com/celestiaorg/celestia-node/nodebuilder/p2p"
+	"github.com/celestiaorg/celestia-node/nodebuilder/pruner"
 	"github.com/celestiaorg/celestia-node/nodebuilder/share"
 	"github.com/celestiaorg/celestia-node/state"
 )
@@ -101,6 +102,7 @@ func WithMetrics(metricOpts []otlpmetrichttp.Option, nodeType node.Type) fx.Opti
 			baseComponents,
 			fx.Invoke(share.WithStoreMetrics),
 			fx.Invoke(share.WithShrexServerMetrics),
+			fx.Invoke(pruner.WithStoragePrunerMetrics),
 			samplingMetrics,
 		)
 	case node.Light:
@@ -113,6 +115,7 @@ func WithMetrics(metricOpts []otlpmetrichttp.Option, nodeType node.Type) fx.Opti
 			baseComponents,
 			fx.Invoke(share.WithStoreMetrics),
 			fx.Invoke(share.WithShrexServerMetrics),
+			fx.Invoke(pruner.WithStoragePrunerMetrics),
 		)
 	default:
 		panic("invalid node type")
