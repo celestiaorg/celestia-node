@@ -1,4 +1,4 @@
-package util
+package cmd
 
 import (
 	"encoding/base64"
@@ -10,7 +10,6 @@ import (
 
 	"github.com/spf13/cobra"
 
-	cmdnode "github.com/celestiaorg/celestia-node/cmd"
 	"github.com/celestiaorg/celestia-node/nodebuilder/core"
 	"github.com/celestiaorg/celestia-node/nodebuilder/gateway"
 	"github.com/celestiaorg/celestia-node/nodebuilder/header"
@@ -79,21 +78,21 @@ func PersistentPreRunEnv(cmd *cobra.Command, nodeType node.Type, _ []string) err
 		err error
 	)
 
-	ctx = cmdnode.WithNodeType(ctx, nodeType)
+	ctx = WithNodeType(ctx, nodeType)
 
 	parsedNetwork, err := p2p.ParseNetwork(cmd)
 	if err != nil {
 		return err
 	}
-	ctx = cmdnode.WithNetwork(ctx, parsedNetwork)
+	ctx = WithNetwork(ctx, parsedNetwork)
 
 	// loads existing config into the environment
-	ctx, err = cmdnode.ParseNodeFlags(ctx, cmd, cmdnode.Network(ctx))
+	ctx, err = ParseNodeFlags(ctx, cmd, Network(ctx))
 	if err != nil {
 		return err
 	}
 
-	cfg := cmdnode.NodeConfig(ctx)
+	cfg := NodeConfig(ctx)
 
 	err = p2p.ParseFlags(cmd, &cfg.P2P)
 	if err != nil {
@@ -112,7 +111,7 @@ func PersistentPreRunEnv(cmd *cobra.Command, nodeType node.Type, _ []string) err
 		}
 	}
 
-	ctx, err = cmdnode.ParseMiscFlags(ctx, cmd)
+	ctx, err = ParseMiscFlags(ctx, cmd)
 	if err != nil {
 		return err
 	}
@@ -122,7 +121,7 @@ func PersistentPreRunEnv(cmd *cobra.Command, nodeType node.Type, _ []string) err
 	state.ParseFlags(cmd, &cfg.State)
 
 	// set config
-	ctx = cmdnode.WithNodeConfig(ctx, &cfg)
+	ctx = WithNodeConfig(ctx, &cfg)
 	cmd.SetContext(ctx)
 	return nil
 }

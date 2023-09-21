@@ -10,7 +10,7 @@ import (
 	"github.com/spf13/cobra"
 
 	"github.com/celestiaorg/celestia-node/blob"
-	"github.com/celestiaorg/celestia-node/cmd/celestia/util"
+	util "github.com/celestiaorg/celestia-node/cmd"
 	"github.com/celestiaorg/celestia-node/share"
 )
 

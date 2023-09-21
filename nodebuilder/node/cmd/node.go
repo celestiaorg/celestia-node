@@ -7,7 +7,7 @@ import (
 	"github.com/filecoin-project/go-jsonrpc/auth"
 	"github.com/spf13/cobra"
 
-	"github.com/celestiaorg/celestia-node/cmd/celestia/util"
+	util "github.com/celestiaorg/celestia-node/cmd"
 )
 
 func init() {

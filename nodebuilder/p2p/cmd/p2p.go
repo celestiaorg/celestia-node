@@ -8,7 +8,7 @@ import (
 	ma2 "github.com/multiformats/go-multiaddr"
 	"github.com/spf13/cobra"
 
-	"github.com/celestiaorg/celestia-node/cmd/celestia/util"
+	util "github.com/celestiaorg/celestia-node/cmd"
 )
 
 type peerInfo struct {

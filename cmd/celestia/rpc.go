@@ -1,7 +1,7 @@
 package main
 
 import (
-	"github.com/celestiaorg/celestia-node/cmd/celestia/util"
+	"github.com/celestiaorg/celestia-node/cmd"
 	blob "github.com/celestiaorg/celestia-node/nodebuilder/blob/cmd"
 	das "github.com/celestiaorg/celestia-node/nodebuilder/das/cmd"
 	header "github.com/celestiaorg/celestia-node/nodebuilder/header/cmd"
@@ -12,21 +12,21 @@ import (
 )
 
 func init() {
-	blob.Cmd.PersistentFlags().StringVar(util.InitURLFlag())
-	das.Cmd.PersistentFlags().StringVar(util.InitURLFlag())
-	header.Cmd.PersistentFlags().StringVar(util.InitURLFlag())
-	p2p.Cmd.PersistentFlags().StringVar(util.InitURLFlag())
-	share.Cmd.PersistentFlags().StringVar(util.InitURLFlag())
-	state.Cmd.PersistentFlags().StringVar(util.InitURLFlag())
-	node.Cmd.PersistentFlags().StringVar(util.InitURLFlag())
+	blob.Cmd.PersistentFlags().StringVar(cmd.InitURLFlag())
+	das.Cmd.PersistentFlags().StringVar(cmd.InitURLFlag())
+	header.Cmd.PersistentFlags().StringVar(cmd.InitURLFlag())
+	p2p.Cmd.PersistentFlags().StringVar(cmd.InitURLFlag())
+	share.Cmd.PersistentFlags().StringVar(cmd.InitURLFlag())
+	state.Cmd.PersistentFlags().StringVar(cmd.InitURLFlag())
+	node.Cmd.PersistentFlags().StringVar(cmd.InitURLFlag())
 
-	blob.Cmd.PersistentFlags().StringVar(util.InitAuthTokenFlag())
-	das.Cmd.PersistentFlags().StringVar(util.InitAuthTokenFlag())
-	header.Cmd.PersistentFlags().StringVar(util.InitAuthTokenFlag())
-	p2p.Cmd.PersistentFlags().StringVar(util.InitAuthTokenFlag())
-	share.Cmd.PersistentFlags().StringVar(util.InitAuthTokenFlag())
-	state.Cmd.PersistentFlags().StringVar(util.InitAuthTokenFlag())
-	node.Cmd.PersistentFlags().StringVar(util.InitAuthTokenFlag())
+	blob.Cmd.PersistentFlags().StringVar(cmd.InitAuthTokenFlag())
+	das.Cmd.PersistentFlags().StringVar(cmd.InitAuthTokenFlag())
+	header.Cmd.PersistentFlags().StringVar(cmd.InitAuthTokenFlag())
+	p2p.Cmd.PersistentFlags().StringVar(cmd.InitAuthTokenFlag())
+	share.Cmd.PersistentFlags().StringVar(cmd.InitAuthTokenFlag())
+	state.Cmd.PersistentFlags().StringVar(cmd.InitAuthTokenFlag())
+	node.Cmd.PersistentFlags().StringVar(cmd.InitAuthTokenFlag())
 
 	rootCmd.AddCommand(
 		blob.Cmd,

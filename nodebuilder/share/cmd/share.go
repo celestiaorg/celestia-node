@@ -9,7 +9,7 @@ import (
 
 	"github.com/celestiaorg/celestia-app/pkg/da"
 
-	"github.com/celestiaorg/celestia-node/cmd/celestia/util"
+	util "github.com/celestiaorg/celestia-node/cmd"
 	"github.com/celestiaorg/celestia-node/share"
 )
 
