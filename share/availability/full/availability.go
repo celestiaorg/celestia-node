@@ -57,6 +57,11 @@ func (fa *ShareAvailability) Stop(context.Context) error {
 // SharesAvailable reconstructs the data committed to the given Root by requesting
 // enough Shares from the network.
 func (fa *ShareAvailability) SharesAvailable(ctx context.Context, root *share.Root) error {
+	// short-circuit if the given root is minimum DAH of an empty data square, to avoid datastore hit
+	if share.DataHash(root.Hash()).IsEmptyRoot() {
+		return nil
+	}
+
 	// we assume the caller of this method has already performed basic validation on the
 	// given dah/root. If for some reason this has not happened, the node should panic.
 	if err := root.ValidateBasic(); err != nil {
