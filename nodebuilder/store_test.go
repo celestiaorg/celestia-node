@@ -73,7 +73,7 @@ func BenchmarkStore(b *testing.B) {
 		err := Init(*DefaultConfig(node.Full), dir, node.Full)
 		require.NoError(b, err)
 
-		store := newStore(ctx, b, dir)
+		store := newStore(ctx, b, eds.DefaultParameters(), dir)
 		size := 128
 		b.Run("enabled eds proof caching", func(b *testing.B) {
 			b.StopTimer()
@@ -128,7 +128,7 @@ func TestStoreRestart(t *testing.T) {
 	err := Init(*DefaultConfig(node.Full), dir, node.Full)
 	require.NoError(t, err)
 
-	store := newStore(ctx, t, dir)
+	store := newStore(ctx, t, eds.DefaultParameters(), dir)
 
 	hashes := make([][]byte, blocks)
 	for i := range hashes {
@@ -145,7 +145,7 @@ func TestStoreRestart(t *testing.T) {
 
 	// restart store
 	store.stop(ctx, t)
-	store = newStore(ctx, t, dir)
+	store = newStore(ctx, t, eds.DefaultParameters(), dir)
 
 	for _, h := range hashes {
 		edsReader, err := store.edsStore.GetCAR(ctx, h)
@@ -163,12 +163,12 @@ type store struct {
 	edsStore *eds.Store
 }
 
-func newStore(ctx context.Context, t require.TestingT, dir string) store {
+func newStore(ctx context.Context, t require.TestingT, params *eds.Parameters, dir string) store {
 	s, err := OpenStore(dir, nil)
 	require.NoError(t, err)
 	ds, err := s.Datastore()
 	require.NoError(t, err)
-	edsStore, err := eds.NewStore(dir, ds)
+	edsStore, err := eds.NewStore(params, dir, ds)
 	require.NoError(t, err)
 	err = edsStore.Start(ctx)
 	require.NoError(t, err)

@@ -113,7 +113,7 @@ func ConstructModule(tp node.Type, cfg *Config, options ...fx.Option) fx.Option 
 		)),
 		fx.Provide(fx.Annotate(
 			func(path node.StorePath, ds datastore.Batching) (*eds.Store, error) {
-				return eds.NewStore(string(path), ds)
+				return eds.NewStore(cfg.EDSStoreParams, string(path), ds)
 			},
 			fx.OnStart(func(ctx context.Context, store *eds.Store) error {
 				err := store.Start(ctx)

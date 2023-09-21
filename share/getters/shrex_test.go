@@ -190,9 +190,8 @@ func TestShrexGetter(t *testing.T) {
 func newStore(t *testing.T) (*eds.Store, error) {
 	t.Helper()
 
-	tmpDir := t.TempDir()
 	ds := ds_sync.MutexWrap(datastore.NewMapDatastore())
-	return eds.NewStore(tmpDir, ds)
+	return eds.NewStore(eds.DefaultParameters(), t.TempDir(), ds)
 }
 
 func generateTestEDS(t *testing.T) (*rsmt2d.ExtendedDataSquare, *share.Root, share.Namespace) {

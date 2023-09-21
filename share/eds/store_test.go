@@ -425,9 +425,8 @@ func BenchmarkStore(b *testing.B) {
 	ctx, cancel := context.WithCancel(context.Background())
 	b.Cleanup(cancel)
 
-	tmpDir := b.TempDir()
 	ds := ds_sync.MutexWrap(datastore.NewMapDatastore())
-	edsStore, err := NewStore(tmpDir, ds)
+	edsStore, err := NewStore(DefaultParameters(), b.TempDir(), ds)
 	require.NoError(b, err)
 	err = edsStore.Start(ctx)
 	require.NoError(b, err)
@@ -469,9 +468,8 @@ func BenchmarkStore(b *testing.B) {
 func newStore(t *testing.T) (*Store, error) {
 	t.Helper()
 
-	tmpDir := t.TempDir()
 	ds := ds_sync.MutexWrap(datastore.NewMapDatastore())
-	return NewStore(tmpDir, ds)
+	return NewStore(DefaultParameters(), t.TempDir(), ds)
 }
 
 func randomEDS(t *testing.T) (*rsmt2d.ExtendedDataSquare, *share.Root) {
