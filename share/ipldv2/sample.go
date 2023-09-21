@@ -59,15 +59,26 @@ func NewSample(root *share.Root, idx int, axis rsmt2d.Axis, shr share.Share, pro
 // NewSampleFrom samples the EDS and constructs a new Sample.
 func NewSampleFrom(eds *rsmt2d.ExtendedDataSquare, idx int, axis rsmt2d.Axis) (*Sample, error) {
 	sqrLn := int(eds.Width())
-	rowIdx, shrIdx := idx/sqrLn, idx%sqrLn
-	shrs := eds.Row(uint(rowIdx))
+	axisIdx, shrIdx := idx/sqrLn, idx%sqrLn
+
+	// TODO(@Wondertan): Should be an rsmt2d method
+	var shrs [][]byte
+	switch axis {
+	case rsmt2d.Row:
+		shrs = eds.Row(uint(axisIdx))
+	case rsmt2d.Col:
+		axisIdx, shrIdx = shrIdx, axisIdx
+		shrs = eds.Col(uint(axisIdx))
+	default:
+		panic("invalid axis")
+	}
 
 	root, err := share.NewRoot(eds)
 	if err != nil {
 		return nil, err
 	}
 
-	tree := wrapper.NewErasuredNamespacedMerkleTree(uint64(sqrLn/2), uint(rowIdx))
+	tree := wrapper.NewErasuredNamespacedMerkleTree(uint64(sqrLn/2), uint(axisIdx))
 	for _, shr := range shrs {
 		err := tree.Push(shr)
 		if err != nil {
