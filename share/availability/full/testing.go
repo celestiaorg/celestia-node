@@ -47,7 +47,7 @@ func TestAvailability(t *testing.T, getter share.Getter) *ShareAvailability {
 		discovery.WithAdvertiseInterval(time.Second),
 		discovery.WithPeersLimit(10),
 	)
-	store, err := eds.NewStore(t.TempDir(), datastore.NewMapDatastore())
+	store, err := eds.NewStore(eds.DefaultParameters(), t.TempDir(), datastore.NewMapDatastore())
 	require.NoError(t, err)
 	err = store.Start(context.Background())
 	require.NoError(t, err)
