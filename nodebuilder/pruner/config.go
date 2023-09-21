@@ -15,3 +15,10 @@ func DefaultConfig() Config {
 		RecencyWindow:  time.Hour * 24 * 30,
 	}
 }
+
+// WithStoragePrunerMetrics is a utility function to turn on storage pruner metrics and that is
+// expected to be "invoked" by the fx lifecycle.
+func WithStoragePrunerMetrics(sp *StoragePruner) error {
+	return sp.WithMetrics()
+}
+
