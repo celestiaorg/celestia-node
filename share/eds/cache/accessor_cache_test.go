@@ -162,7 +162,7 @@ func TestAccessorCache(t *testing.T) {
 		require.ErrorIs(t, err, errCacheMiss)
 	})
 
-	t.Run("close on accessor is noop", func(t *testing.T) {
+	t.Run("close on accessor is not closing underlying accessor", func(t *testing.T) {
 		ctx, cancel := context.WithTimeout(context.Background(), time.Second)
 		defer cancel()
 		cache, err := NewAccessorCache("test", 1)
@@ -181,12 +181,105 @@ func TestAccessorCache(t *testing.T) {
 		require.NoError(t, err)
 		require.NotNil(t, accessor)
 
-		// close on returned accessor should not close inner reader
+		// close on returned accessor should not close inner accessor
 		err = accessor.Close()
 		require.NoError(t, err)
 
 		// check that close was not performed on inner accessor
 		mock.checkClosed(t, false)
+	})
+
+	t.Run("close on accessor should wait all readers to finish", func(t *testing.T) {
+		ctx, cancel := context.WithTimeout(context.Background(), time.Second)
+		defer cancel()
+		cache, err := NewAccessorCache("test", 1)
+		require.NoError(t, err)
+
+		// add accessor to the cache
+		key := shard.KeyFromString("key")
+		mock := &mockAccessor{}
+		accessor1, err := cache.GetOrLoad(ctx, key, func(ctx context.Context, key shard.Key) (Accessor, error) {
+			return mock, nil
+		})
+		require.NoError(t, err)
+
+		// create second readers
+		accessor2, err := cache.Get(key)
+		require.NoError(t, err)
+
+		// initialize close
+		done := make(chan struct{})
+		go func() {
+			err = cache.Remove(key)
+			close(done)
+		}()
+
+		// close on first reader and check that it is not enough to release the inner accessor
+		err = accessor1.Close()
+		require.NoError(t, err)
+		mock.checkClosed(t, false)
+
+		// second close from same reader should not release accessor either
+		err = accessor1.Close()
+		require.NoError(t, err)
+		mock.checkClosed(t, false)
+
+		// reads for item that is being evicted should result in errCacheMiss
+		_, err = cache.Get(key)
+		require.ErrorIs(t, err, errCacheMiss)
+
+		// close second reader and wait for accessor to be closed
+		err = accessor2.Close()
+		require.NoError(t, err)
+		// wait until close is performed on accessor
+		select {
+		case <-done:
+		case <-ctx.Done():
+			t.Fatal("timeout reached")
+		}
+
+		// item will be removed
+		mock.checkClosed(t, true)
+	})
+
+	t.Run("slow reader should not block eviction", func(t *testing.T) {
+		ctx, cancel := context.WithTimeout(context.Background(), time.Second)
+		defer cancel()
+		cache, err := NewAccessorCache("test", 1)
+		require.NoError(t, err)
+
+		// add accessor to the cache
+		key1 := shard.KeyFromString("key1")
+		mock1 := &mockAccessor{}
+		accessor1, err := cache.GetOrLoad(ctx, key1, func(ctx context.Context, key shard.Key) (Accessor, error) {
+			return mock1, nil
+		})
+		require.NoError(t, err)
+
+		// add second accessor, to trigger eviction of the first one
+		key2 := shard.KeyFromString("key2")
+		mock2 := &mockAccessor{}
+		accessor2, err := cache.GetOrLoad(ctx, key2, func(ctx context.Context, key shard.Key) (Accessor, error) {
+			return mock2, nil
+		})
+		require.NoError(t, err)
+
+		// first accessor should be evicted from cache
+		_, err = cache.Get(key1)
+		require.ErrorIs(t, err, errCacheMiss)
+
+		// first accessor should not be closed before all refs are released by Close() is calls.
+		mock1.checkClosed(t, false)
+
+		// after Close() is called on first accessor, it is free to get closed
+		err = accessor1.Close()
+		require.NoError(t, err)
+		mock1.checkClosed(t, true)
+
+		// after Close called on second accessor, it should stay in cache (not closed)
+		err = accessor2.Close()
+		require.NoError(t, err)
+		mock2.checkClosed(t, false)
 	})
 }
 

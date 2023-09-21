@@ -122,7 +122,7 @@ func NewStore(basepath string, ds datastore.Batching) (*Store, error) {
 
 	blockstoreCache, err := cache.NewAccessorCache("blockstore", defaultBlockstoreCacheSize)
 	if err != nil {
-		return nil, fmt.Errorf("failed to create blockstore blocks cache: %w", err)
+		return nil, fmt.Errorf("failed to create blockstore cache: %w", err)
 	}
 
 	store := &Store{
@@ -290,10 +290,15 @@ func (s *Store) put(ctx context.Context, root share.DataHash, square *rsmt2d.Ext
 	go func() {
 		ctx, cancel := context.WithTimeout(context.Background(), time.Minute)
 		defer cancel()
-		_, err := s.cache.First().GetOrLoad(ctx, result.Key, s.getAccessor)
+		ac, err := s.cache.First().GetOrLoad(ctx, result.Key, s.getAccessor)
 		if err != nil {
 			log.Warnw("unable to put accessor to recent blocks accessors cache", "err", err)
 			return
+		}
+
+		// need to close returned accessor to remove the reader reference
+		if err := ac.Close(); err != nil {
+			log.Warnw("unable to close accessor after loading", "err", err)
 		}
 	}()
 
