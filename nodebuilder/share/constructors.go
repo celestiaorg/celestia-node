@@ -92,7 +92,6 @@ func lightGetter(
 // by shrex the next time the data is retrieved (meaning shard recovery is
 // manual after corruption is detected).
 func bridgeGetter(
-	store *eds.Store,
 	storeGetter *getters.StoreGetter,
 	shrexGetter *getters.ShrexGetter,
 	cfg Config,
@@ -100,13 +99,12 @@ func bridgeGetter(
 	var cascade []share.Getter
 	cascade = append(cascade, storeGetter)
 	if cfg.UseShareExchange {
-		cascade = append(cascade, getters.NewTeeGetter(shrexGetter, store))
+		cascade = append(cascade, shrexGetter)
 	}
 	return getters.NewCascadeGetter(cascade)
 }
 
 func fullGetter(
-	store *eds.Store,
 	storeGetter *getters.StoreGetter,
 	shrexGetter *getters.ShrexGetter,
 	ipldGetter *getters.IPLDGetter,
@@ -115,8 +113,8 @@ func fullGetter(
 	var cascade []share.Getter
 	cascade = append(cascade, storeGetter)
 	if cfg.UseShareExchange {
-		cascade = append(cascade, getters.NewTeeGetter(shrexGetter, store))
+		cascade = append(cascade, shrexGetter)
 	}
-	cascade = append(cascade, getters.NewTeeGetter(ipldGetter, store))
+	cascade = append(cascade, ipldGetter)
 	return getters.NewCascadeGetter(cascade)
 }

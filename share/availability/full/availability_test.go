@@ -35,9 +35,24 @@ func TestSharesAvailable_Full(t *testing.T) {
 
 	// RandServiceWithSquare creates a NewShareAvailability inside, so we can test it
 	getter, dah := GetterWithRandSquare(t, 16)
-	avail := TestAvailability(getter)
+	avail := TestAvailability(t, getter)
 	err := avail.SharesAvailable(ctx, dah)
 	assert.NoError(t, err)
+}
+
+func TestSharesAvailable_StoresToEDSStore(t *testing.T) {
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	// RandServiceWithSquare creates a NewShareAvailability inside, so we can test it
+	getter, dah := GetterWithRandSquare(t, 16)
+	avail := TestAvailability(t, getter)
+	err := avail.SharesAvailable(ctx, dah)
+	assert.NoError(t, err)
+
+	has, err := avail.store.Has(ctx, dah.Hash())
+	assert.NoError(t, err)
+	assert.True(t, has)
 }
 
 func TestSharesAvailable_Full_ErrNotAvailable(t *testing.T) {
@@ -49,7 +64,7 @@ func TestSharesAvailable_Full_ErrNotAvailable(t *testing.T) {
 	eds := edstest.RandEDS(t, 4)
 	dah, err := da.NewDataAvailabilityHeader(eds)
 	require.NoError(t, err)
-	avail := TestAvailability(getter)
+	avail := TestAvailability(t, getter)
 
 	errors := []error{share.ErrNotFound, context.DeadlineExceeded}
 	for _, getterErr := range errors {
