@@ -214,13 +214,15 @@ func ConstructModule(tp node.Type, cfg *Config, options ...fx.Option) fx.Option 
 					return nil
 				}
 			}),
-			fx.Provide(light.NewShareAvailability),
-			fx.Provide(
-				fx.Annotate(light.NewShareAvailability),
+			fx.Provide(fx.Annotate(
+				light.NewShareAvailability,
 				fx.OnStop(func(ctx context.Context, la *light.ShareAvailability) error {
 					return la.Close(ctx)
 				}),
-			),
+			)),
+			fx.Provide(func(avail *light.ShareAvailability) share.Availability {
+				return avail
+			}),
 		)
 	default:
 		panic("invalid node type")
