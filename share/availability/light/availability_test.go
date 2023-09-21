@@ -11,8 +11,68 @@ import (
 
 	"github.com/celestiaorg/celestia-node/share"
 	availability_test "github.com/celestiaorg/celestia-node/share/availability/test"
+	"github.com/celestiaorg/celestia-node/share/ipld"
 	"github.com/celestiaorg/celestia-node/share/sharetest"
 )
+
+func TestSharesAvailableCaches(t *testing.T) {
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	getter, dah := GetterWithRandSquare(t, 16)
+	avail := TestAvailability(getter)
+
+	// cache doesn't have dah yet
+	has, err := avail.ds.Has(ctx, rootKey(dah))
+	assert.NoError(t, err)
+	assert.False(t, has)
+
+	err = avail.SharesAvailable(ctx, dah)
+	assert.NoError(t, err)
+
+	// is now cached
+	has, err = avail.ds.Has(ctx, rootKey(dah))
+	assert.NoError(t, err)
+	assert.True(t, has)
+}
+
+func TestSharesAvailableHitsCache(t *testing.T) {
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	getter, _ := GetterWithRandSquare(t, 16)
+	avail := TestAvailability(getter)
+
+	bServ := ipld.NewMemBlockservice()
+	dah := availability_test.RandFillBS(t, 16, bServ)
+
+	// blockstore doesn't actually have the dah
+	err := avail.SharesAvailable(ctx, dah)
+	require.Error(t, err)
+
+	// cache doesn't have dah yet, since it errored
+	has, err := avail.ds.Has(ctx, rootKey(dah))
+	assert.NoError(t, err)
+	assert.False(t, has)
+
+	err = avail.ds.Put(ctx, rootKey(dah), []byte{})
+	require.NoError(t, err)
+
+	// should hit cache after putting
+	err = avail.SharesAvailable(ctx, dah)
+	require.NoError(t, err)
+}
+
+func TestSharesAvailableEmptyRoot(t *testing.T) {
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	getter, _ := GetterWithRandSquare(t, 16)
+	avail := TestAvailability(getter)
+
+	err := avail.SharesAvailable(ctx, share.EmptyRoot())
+	assert.NoError(t, err)
+}
 
 func TestSharesAvailable(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
@@ -28,10 +88,12 @@ func TestSharesAvailableFailed(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
+	bServ := ipld.NewMemBlockservice()
+	dah := availability_test.RandFillBS(t, 16, bServ)
+
 	getter, _ := GetterWithRandSquare(t, 16)
 	avail := TestAvailability(getter)
-	empty := share.EmptyRoot()
-	err := avail.SharesAvailable(ctx, empty)
+	err := avail.SharesAvailable(ctx, dah)
 	assert.Error(t, err)
 }
 
