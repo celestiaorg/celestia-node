@@ -26,24 +26,27 @@ func TestV2Roundtrip(t *testing.T) {
 	dn.ConnectAll()
 
 	square := edstest.RandEDS(t, 16)
+	axis := []rsmt2d.Axis{rsmt2d.Col, rsmt2d.Row}
 	width := int(square.Width())
-	for i := 0; i < width*width; i++ {
-		smpl, err := NewSampleFrom(square, i, rsmt2d.Row)
-		require.NoError(t, err)
+	for _, axis := range axis {
+		for i := 0; i < width*width; i++ {
+			smpl, err := NewSampleFrom(square, i, axis)
+			require.NoError(t, err)
 
-		err = smpl.Validate()
-		require.NoError(t, err)
+			err = smpl.Validate()
+			require.NoError(t, err)
 
-		blkIn, err := smpl.IPLDBlock()
-		require.NoError(t, err)
+			blkIn, err := smpl.IPLDBlock()
+			require.NoError(t, err)
 
-		err = srv1.AddBlock(ctx, blkIn)
-		require.NoError(t, err)
+			err = srv1.AddBlock(ctx, blkIn)
+			require.NoError(t, err)
 
-		blkOut, err := srv2.GetBlock(ctx, blkIn.Cid())
-		require.NoError(t, err)
+			blkOut, err := srv2.GetBlock(ctx, blkIn.Cid())
+			require.NoError(t, err)
 
-		assert.EqualValues(t, blkIn.RawData(), blkOut.RawData())
-		assert.EqualValues(t, blkIn.Cid(), blkOut.Cid())
+			assert.EqualValues(t, blkIn.RawData(), blkOut.RawData())
+			assert.EqualValues(t, blkIn.Cid(), blkOut.Cid())
+		}
 	}
 }

@@ -86,23 +86,42 @@ func (f *File) Header() Header {
 	return f.hdr
 }
 
-func (f *File) Axis(idx int, _ rsmt2d.Axis) ([]share.Share, error) {
-	// TODO: Add Col support
-	shrLn := int64(f.hdr.ShareSize)
-	sqrLn := int64(f.hdr.SquareSize)
-	rwwLn := shrLn * sqrLn
+func (f *File) Axis(idx int, axis rsmt2d.Axis) ([]share.Share, error) {
+	shrLn := int(f.hdr.ShareSize)
+	sqrLn := int(f.hdr.SquareSize)
 
-	offset := int64(idx)*rwwLn + HeaderSize
-	rowdata := make([]byte, rwwLn)
-	if _, err := f.fl.ReadAt(rowdata, offset); err != nil {
-		return nil, err
+	shrs := make([]share.Share, sqrLn)
+	switch axis {
+	case rsmt2d.Col:
+		// [] [] [] []
+		// [] [] [] []
+		// [] [] [] []
+		// [] [] [] []
+
+		for i := 0; i < sqrLn; i++ {
+			pos := idx + i*sqrLn
+			offset := pos*shrLn + HeaderSize
+
+			shr := make(share.Share, shrLn)
+			if _, err := f.fl.ReadAt(shr, int64(offset)); err != nil {
+				return nil, err
+			}
+			shrs[i] = shr
+		}
+	case rsmt2d.Row:
+		pos := idx * sqrLn
+		offset := pos*shrLn + HeaderSize
+		axsData := make([]byte, sqrLn*shrLn)
+		if _, err := f.fl.ReadAt(axsData, int64(offset)); err != nil {
+			return nil, err
+		}
+
+		for i := range shrs {
+			shrs[i] = axsData[i*shrLn : (i+1)*shrLn]
+		}
 	}
 
-	row := make([]share.Share, sqrLn)
-	for i := range row {
-		row[i] = rowdata[int64(i)*shrLn : (int64(i)+1)*shrLn]
-	}
-	return row, nil
+	return shrs, nil
 }
 
 func (f *File) Share(idx int) (share.Share, error) {
@@ -120,13 +139,17 @@ func (f *File) Share(idx int) (share.Share, error) {
 func (f *File) ShareWithProof(idx int, axis rsmt2d.Axis) (share.Share, nmt.Proof, error) {
 	// TODO: Cache the axis as well as computed tree
 	sqrLn := int(f.hdr.SquareSize)
-	rowIdx := idx / sqrLn
-	shrs, err := f.Axis(rowIdx, axis)
+	axsIdx, shrIdx := idx/sqrLn, idx%sqrLn
+	if axis == rsmt2d.Col {
+		axsIdx, shrIdx = shrIdx, axsIdx
+	}
+
+	shrs, err := f.Axis(axsIdx, axis)
 	if err != nil {
 		return nil, nmt.Proof{}, err
 	}
 
-	tree := wrapper.NewErasuredNamespacedMerkleTree(uint64(sqrLn/2), uint(rowIdx))
+	tree := wrapper.NewErasuredNamespacedMerkleTree(uint64(sqrLn/2), uint(axsIdx))
 	for _, shr := range shrs {
 		err = tree.Push(shr)
 		if err != nil {
@@ -134,7 +157,6 @@ func (f *File) ShareWithProof(idx int, axis rsmt2d.Axis) (share.Share, nmt.Proof
 		}
 	}
 
-	shrIdx := idx % sqrLn
 	proof, err := tree.ProveRange(shrIdx, shrIdx+1)
 	if err != nil {
 		return nil, nmt.Proof{}, err
