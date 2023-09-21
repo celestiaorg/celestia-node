@@ -136,9 +136,9 @@ func TestExchange_RequestEDS(t *testing.T) {
 func newStore(t *testing.T) *eds.Store {
 	t.Helper()
 
-	tmpDir := t.TempDir()
+	storeCfg := eds.DefaultParameters()
 	ds := ds_sync.MutexWrap(datastore.NewMapDatastore())
-	store, err := eds.NewStore(tmpDir, ds)
+	store, err := eds.NewStore(storeCfg, t.TempDir(), ds)
 	require.NoError(t, err)
 	return store
 }

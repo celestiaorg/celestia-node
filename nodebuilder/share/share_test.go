@@ -17,9 +17,8 @@ func Test_EmptyCARExists(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	t.Cleanup(cancel)
 
-	tmpDir := t.TempDir()
 	ds := ds_sync.MutexWrap(datastore.NewMapDatastore())
-	edsStore, err := eds.NewStore(tmpDir, ds)
+	edsStore, err := eds.NewStore(eds.DefaultParameters(), t.TempDir(), ds)
 	require.NoError(t, err)
 	err = edsStore.Start(ctx)
 	require.NoError(t, err)

@@ -34,14 +34,6 @@ const (
 	blocksPath     = "/blocks/"
 	indexPath      = "/index/"
 	transientsPath = "/transients/"
-
-	// GC performs DAG store garbage collection by reclaiming transient files of
-	// shards that are currently available but inactive, or errored.
-	// We don't use transient files right now, so GC is turned off by default.
-	defaultGCInterval = 0
-
-	defaultRecentBlocksCacheSize = 10
-	defaultBlockstoreCacheSize   = 128
 )
 
 var ErrNotFound = errors.New("eds not found in store")
@@ -75,8 +67,12 @@ type Store struct {
 }
 
 // NewStore creates a new EDS Store under the given basepath and datastore.
-func NewStore(basepath string, ds datastore.Batching) (*Store, error) {
-	err := setupPath(basepath)
+func NewStore(params *Parameters, basePath string, ds datastore.Batching) (*Store, error) {
+	if err := params.Validate(); err != nil {
+		return nil, err
+	}
+
+	err := setupPath(basePath)
 	if err != nil {
 		return nil, fmt.Errorf("failed to setup eds.Store directories: %w", err)
 	}
@@ -90,12 +86,12 @@ func NewStore(basepath string, ds datastore.Batching) (*Store, error) {
 		return nil, fmt.Errorf("failed to register FS mount on the registry: %w", err)
 	}
 
-	fsRepo, err := index.NewFSRepo(basepath + indexPath)
+	fsRepo, err := index.NewFSRepo(basePath + indexPath)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create index repository: %w", err)
 	}
 
-	invertedIdx, err := newSimpleInvertedIndex(basepath)
+	invertedIdx, err := newSimpleInvertedIndex(basePath)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create index: %w", err)
 	}
@@ -103,7 +99,7 @@ func NewStore(basepath string, ds datastore.Batching) (*Store, error) {
 	failureChan := make(chan dagstore.ShardResult)
 	dagStore, err := dagstore.NewDAGStore(
 		dagstore.Config{
-			TransientsDir: basepath + transientsPath,
+			TransientsDir: basePath + transientsPath,
 			IndexRepo:     fsRepo,
 			Datastore:     ds,
 			MountRegistry: r,
@@ -115,22 +111,22 @@ func NewStore(basepath string, ds datastore.Batching) (*Store, error) {
 		return nil, fmt.Errorf("failed to create DAGStore: %w", err)
 	}
 
-	recentBlocksCache, err := cache.NewAccessorCache("recent", defaultRecentBlocksCacheSize)
+	recentBlocksCache, err := cache.NewAccessorCache("recent", params.RecentBlocksCacheSize)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create recent blocks cache: %w", err)
 	}
 
-	blockstoreCache, err := cache.NewAccessorCache("blockstore", defaultBlockstoreCacheSize)
+	blockstoreCache, err := cache.NewAccessorCache("blockstore", params.BlockstoreCacheSize)
 	if err != nil {
-		return nil, fmt.Errorf("failed to create blockstore blocks cache: %w", err)
+		return nil, fmt.Errorf("failed to create blockstore cache: %w", err)
 	}
 
 	store := &Store{
-		basepath:      basepath,
+		basepath:      basePath,
 		dgstr:         dagStore,
 		carIdx:        fsRepo,
 		invertedIdx:   invertedIdx,
-		gcInterval:    defaultGCInterval,
+		gcInterval:    params.GCInterval,
 		mounts:        r,
 		shardFailures: failureChan,
 		cache:         cache.NewDoubleCache(recentBlocksCache, blockstoreCache),
@@ -290,10 +286,15 @@ func (s *Store) put(ctx context.Context, root share.DataHash, square *rsmt2d.Ext
 	go func() {
 		ctx, cancel := context.WithTimeout(context.Background(), time.Minute)
 		defer cancel()
-		_, err := s.cache.First().GetOrLoad(ctx, result.Key, s.getAccessor)
+		ac, err := s.cache.First().GetOrLoad(ctx, result.Key, s.getAccessor)
 		if err != nil {
 			log.Warnw("unable to put accessor to recent blocks accessors cache", "err", err)
 			return
+		}
+
+		// need to close returned accessor to remove the reader reference
+		if err := ac.Close(); err != nil {
+			log.Warnw("unable to close accessor after loading", "err", err)
 		}
 	}()
 

@@ -1,14 +1,18 @@
 package full
 
 import (
+	"context"
 	"testing"
 	"time"
 
+	"github.com/ipfs/go-datastore"
 	routinghelpers "github.com/libp2p/go-libp2p-routing-helpers"
 	"github.com/libp2p/go-libp2p/p2p/discovery/routing"
+	"github.com/stretchr/testify/require"
 
 	"github.com/celestiaorg/celestia-node/share"
 	availability_test "github.com/celestiaorg/celestia-node/share/availability/test"
+	"github.com/celestiaorg/celestia-node/share/eds"
 	"github.com/celestiaorg/celestia-node/share/getters"
 	"github.com/celestiaorg/celestia-node/share/ipld"
 	"github.com/celestiaorg/celestia-node/share/p2p/discovery"
@@ -32,16 +36,20 @@ func RandNode(dn *availability_test.TestDagNet, squareSize int) (*availability_t
 func Node(dn *availability_test.TestDagNet) *availability_test.TestNode {
 	nd := dn.NewTestNode()
 	nd.Getter = getters.NewIPLDGetter(nd.BlockService)
-	nd.Availability = TestAvailability(nd.Getter)
+	nd.Availability = TestAvailability(dn.T, nd.Getter)
 	return nd
 }
 
-func TestAvailability(getter share.Getter) *ShareAvailability {
+func TestAvailability(t *testing.T, getter share.Getter) *ShareAvailability {
 	disc := discovery.NewDiscovery(
 		nil,
 		routing.NewRoutingDiscovery(routinghelpers.Null{}),
 		discovery.WithAdvertiseInterval(time.Second),
 		discovery.WithPeersLimit(10),
 	)
-	return NewShareAvailability(nil, getter, disc)
+	store, err := eds.NewStore(eds.DefaultParameters(), t.TempDir(), datastore.NewMapDatastore())
+	require.NoError(t, err)
+	err = store.Start(context.Background())
+	require.NoError(t, err)
+	return NewShareAvailability(store, getter, disc)
 }
