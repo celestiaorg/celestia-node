@@ -4,7 +4,6 @@ import (
 	"context"
 	"fmt"
 	"net/http"
-	"os"
 
 	"github.com/filecoin-project/go-jsonrpc"
 
@@ -23,14 +22,6 @@ var (
 	// staticClient is used for generating the OpenRPC spec.
 	staticClient Client
 	Modules      = moduleMap(&staticClient)
-
-	RequestURL string
-)
-
-const (
-	authEnvKey = "CELESTIA_NODE_AUTH_TOKEN"
-
-	DefaultRPCAddress = "http://localhost:26658"
 )
 
 type Client struct {
@@ -77,9 +68,6 @@ func NewPublicClient(ctx context.Context, addr string) (*Client, error) {
 // given token as the authorization token. In case if token will be empty, then
 // `CELESTIA_NODE_AUTH_TOKEN` will be used in order to get the token.
 func NewClient(ctx context.Context, addr string, token string) (*Client, error) {
-	if token == "" {
-		token = os.Getenv(authEnvKey)
-	}
 	authHeader := http.Header{perms.AuthKey: []string{fmt.Sprintf("Bearer %s", token)}}
 	return newClient(ctx, addr, authHeader)
 }

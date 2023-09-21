@@ -9,13 +9,10 @@ import (
 	"github.com/cosmos/cosmos-sdk/types"
 	"github.com/spf13/cobra"
 
-	"github.com/celestiaorg/celestia-node/api/rpc/client"
 	"github.com/celestiaorg/celestia-node/blob"
 	"github.com/celestiaorg/celestia-node/cmd/celestia/util"
 	"github.com/celestiaorg/celestia-node/state"
 )
-
-var rpcClient *client.Client
 
 func init() {
 	Cmd.AddCommand(
@@ -36,17 +33,10 @@ func init() {
 }
 
 var Cmd = &cobra.Command{
-	Use:   "state [command]",
-	Short: "Allows interaction with the State Module via JSON-RPC",
-	Args:  cobra.NoArgs,
-	PersistentPreRunE: func(cmd *cobra.Command, args []string) error {
-		var err error
-		rpcClient, err = client.NewClient(cmd.Context(), client.RequestURL, "")
-		return err
-	},
-	PersistentPostRun: func(_ *cobra.Command, _ []string) {
-		rpcClient.Close()
-	},
+	Use:               "state [command]",
+	Short:             "Allows interaction with the State Module via JSON-RPC",
+	Args:              cobra.NoArgs,
+	PersistentPreRunE: util.InitClient,
 }
 
 var accountAddressCmd = &cobra.Command{
@@ -54,7 +44,13 @@ var accountAddressCmd = &cobra.Command{
 	Short: "Retrieves the address of the node's account/signer.",
 	Args:  cobra.NoArgs,
 	RunE: func(cmd *cobra.Command, args []string) error {
-		address, err := rpcClient.State.AccountAddress(cmd.Context())
+		client, err := util.ParseClientFromCtx(cmd.Context())
+		if err != nil {
+			return err
+		}
+		defer client.Close()
+
+		address, err := client.State.AccountAddress(cmd.Context())
 		return util.PrintOutput(address, err, nil)
 	},
 }
@@ -65,7 +61,13 @@ var balanceCmd = &cobra.Command{
 		"the corresponding block's AppHash.",
 	Args: cobra.NoArgs,
 	RunE: func(cmd *cobra.Command, args []string) error {
-		balance, err := rpcClient.State.Balance(cmd.Context())
+		client, err := util.ParseClientFromCtx(cmd.Context())
+		if err != nil {
+			return err
+		}
+		defer client.Close()
+
+		balance, err := client.State.Balance(cmd.Context())
 		return util.PrintOutput(balance, err, nil)
 	},
 }
@@ -76,12 +78,18 @@ var balanceForAddressCmd = &cobra.Command{
 		"the corresponding block's AppHash.",
 	Args: cobra.ExactArgs(1),
 	RunE: func(cmd *cobra.Command, args []string) error {
+		client, err := util.ParseClientFromCtx(cmd.Context())
+		if err != nil {
+			return err
+		}
+		defer client.Close()
+
 		addr, err := parseAddressFromString(args[0])
 		if err != nil {
 			return fmt.Errorf("error parsing an address:%v", err)
 		}
 
-		balance, err := rpcClient.State.BalanceForAddress(cmd.Context(), addr)
+		balance, err := client.State.BalanceForAddress(cmd.Context(), addr)
 		return util.PrintOutput(balance, err, nil)
 	},
 }
@@ -91,6 +99,12 @@ var transferCmd = &cobra.Command{
 	Short: "Sends the given amount of coins from default wallet of the node to the given account address.",
 	Args:  cobra.ExactArgs(4),
 	RunE: func(cmd *cobra.Command, args []string) error {
+		client, err := util.ParseClientFromCtx(cmd.Context())
+		if err != nil {
+			return err
+		}
+		defer client.Close()
+
 		addr, err := parseAddressFromString(args[0])
 		if err != nil {
 			return fmt.Errorf("error parsing an address:%v", err)
@@ -109,7 +123,7 @@ var transferCmd = &cobra.Command{
 			return fmt.Errorf("error parsing a gas limit:%v", err)
 		}
 
-		txResponse, err := rpcClient.State.Transfer(
+		txResponse, err := client.State.Transfer(
 			cmd.Context(),
 			addr.Address.(state.AccAddress),
 			math.NewInt(amount),
@@ -124,11 +138,17 @@ var submitTxCmd = &cobra.Command{
 	Short: "Submits the given transaction/message to the Celestia network and blocks until the tx is included in a block.",
 	Args:  cobra.ExactArgs(1),
 	RunE: func(cmd *cobra.Command, args []string) error {
+		client, err := util.ParseClientFromCtx(cmd.Context())
+		if err != nil {
+			return err
+		}
+		defer client.Close()
+
 		decoded, err := hex.DecodeString(args[0])
 		if err != nil {
 			return fmt.Errorf("failed to decode tx: %v", err)
 		}
-		txResponse, err := rpcClient.State.SubmitTx(
+		txResponse, err := client.State.SubmitTx(
 			cmd.Context(),
 			decoded,
 		)
@@ -141,6 +161,12 @@ var submitPFBCmd = &cobra.Command{
 	Short: "Allows to submit PFBs",
 	Args:  cobra.ExactArgs(4),
 	RunE: func(cmd *cobra.Command, args []string) error {
+		client, err := util.ParseClientFromCtx(cmd.Context())
+		if err != nil {
+			return err
+		}
+		defer client.Close()
+
 		namespace, err := util.ParseV0Namespace(args[0])
 		if err != nil {
 			return fmt.Errorf("error parsing a namespace:%v", err)
@@ -161,7 +187,7 @@ var submitPFBCmd = &cobra.Command{
 			return fmt.Errorf("error creating a blob:%v", err)
 		}
 
-		txResp, err := rpcClient.State.SubmitPayForBlob(
+		txResp, err := client.State.SubmitPayForBlob(
 			cmd.Context(),
 			types.NewInt(fee),
 			gasLimit,
@@ -176,6 +202,12 @@ var cancelUnbondingDelegationCmd = &cobra.Command{
 	Short: "Cancels a user's pending undelegation from a validator.",
 	Args:  cobra.ExactArgs(5),
 	RunE: func(cmd *cobra.Command, args []string) error {
+		client, err := util.ParseClientFromCtx(cmd.Context())
+		if err != nil {
+			return err
+		}
+		defer client.Close()
+
 		addr, err := parseAddressFromString(args[0])
 		if err != nil {
 			return fmt.Errorf("error parsing an address:%v", err)
@@ -201,7 +233,7 @@ var cancelUnbondingDelegationCmd = &cobra.Command{
 			return fmt.Errorf("error parsing a gas limit:%v", err)
 		}
 
-		txResponse, err := rpcClient.State.CancelUnbondingDelegation(
+		txResponse, err := client.State.CancelUnbondingDelegation(
 			cmd.Context(),
 			addr.Address.(state.ValAddress),
 			math.NewInt(amount),
@@ -218,6 +250,12 @@ var beginRedelegateCmd = &cobra.Command{
 	Short: "Sends a user's delegated tokens to a new validator for redelegation",
 	Args:  cobra.ExactArgs(5),
 	RunE: func(cmd *cobra.Command, args []string) error {
+		client, err := util.ParseClientFromCtx(cmd.Context())
+		if err != nil {
+			return err
+		}
+		defer client.Close()
+
 		srcAddr, err := parseAddressFromString(args[0])
 		if err != nil {
 			return fmt.Errorf("error parsing an address:%v", err)
@@ -242,7 +280,7 @@ var beginRedelegateCmd = &cobra.Command{
 			return fmt.Errorf("error parsing a gas limit:%v", err)
 		}
 
-		txResponse, err := rpcClient.State.BeginRedelegate(
+		txResponse, err := client.State.BeginRedelegate(
 			cmd.Context(),
 			srcAddr.Address.(state.ValAddress),
 			dstAddr.Address.(state.ValAddress),
@@ -259,6 +297,12 @@ var undelegateCmd = &cobra.Command{
 	Short: "Undelegates a user's delegated tokens, unbonding them from the current validator.",
 	Args:  cobra.ExactArgs(4),
 	RunE: func(cmd *cobra.Command, args []string) error {
+		client, err := util.ParseClientFromCtx(cmd.Context())
+		if err != nil {
+			return err
+		}
+		defer client.Close()
+
 		addr, err := parseAddressFromString(args[0])
 		if err != nil {
 			return fmt.Errorf("error parsing an address:%v", err)
@@ -277,7 +321,7 @@ var undelegateCmd = &cobra.Command{
 			return fmt.Errorf("error parsing a gas limit:%v", err)
 		}
 
-		txResponse, err := rpcClient.State.Undelegate(
+		txResponse, err := client.State.Undelegate(
 			cmd.Context(),
 			addr.Address.(state.ValAddress),
 			math.NewInt(amount),
@@ -293,6 +337,12 @@ var delegateCmd = &cobra.Command{
 	Short: "Sends a user's liquid tokens to a validator for delegation.",
 	Args:  cobra.ExactArgs(4),
 	RunE: func(cmd *cobra.Command, args []string) error {
+		client, err := util.ParseClientFromCtx(cmd.Context())
+		if err != nil {
+			return err
+		}
+		defer client.Close()
+
 		addr, err := parseAddressFromString(args[0])
 		if err != nil {
 			return fmt.Errorf("error parsing an address:%v", err)
@@ -313,7 +363,7 @@ var delegateCmd = &cobra.Command{
 			return fmt.Errorf("error parsing a gas limit:%v", err)
 		}
 
-		txResponse, err := rpcClient.State.Delegate(
+		txResponse, err := client.State.Delegate(
 			cmd.Context(),
 			addr.Address.(state.ValAddress),
 			math.NewInt(amount),
@@ -329,12 +379,18 @@ var queryDelegationCmd = &cobra.Command{
 	Short: "Retrieves the delegation information between a delegator and a validator.",
 	Args:  cobra.ExactArgs(1),
 	RunE: func(cmd *cobra.Command, args []string) error {
+		client, err := util.ParseClientFromCtx(cmd.Context())
+		if err != nil {
+			return err
+		}
+		defer client.Close()
+
 		addr, err := parseAddressFromString(args[0])
 		if err != nil {
 			return fmt.Errorf("error parsing an address:%v", err)
 		}
 
-		balance, err := rpcClient.State.QueryDelegation(cmd.Context(), addr.Address.(state.ValAddress))
+		balance, err := client.State.QueryDelegation(cmd.Context(), addr.Address.(state.ValAddress))
 		return util.PrintOutput(balance, err, nil)
 	},
 }
@@ -344,12 +400,18 @@ var queryUnbondingCmd = &cobra.Command{
 	Short: "Retrieves the unbonding status between a delegator and a validator.",
 	Args:  cobra.ExactArgs(1),
 	RunE: func(cmd *cobra.Command, args []string) error {
+		client, err := util.ParseClientFromCtx(cmd.Context())
+		if err != nil {
+			return err
+		}
+		defer client.Close()
+
 		addr, err := parseAddressFromString(args[0])
 		if err != nil {
 			return fmt.Errorf("error parsing an address:%v", err)
 		}
 
-		response, err := rpcClient.State.QueryUnbonding(cmd.Context(), addr.Address.(state.ValAddress))
+		response, err := client.State.QueryUnbonding(cmd.Context(), addr.Address.(state.ValAddress))
 		return util.PrintOutput(response, err, nil)
 	},
 }
@@ -359,6 +421,12 @@ var queryRedelegationCmd = &cobra.Command{
 	Short: "Retrieves the status of the redelegations between a delegator and a validator.",
 	Args:  cobra.ExactArgs(2),
 	RunE: func(cmd *cobra.Command, args []string) error {
+		client, err := util.ParseClientFromCtx(cmd.Context())
+		if err != nil {
+			return err
+		}
+		defer client.Close()
+
 		srcAddr, err := parseAddressFromString(args[0])
 		if err != nil {
 			return fmt.Errorf("error parsing a src address:%v", err)
@@ -369,7 +437,7 @@ var queryRedelegationCmd = &cobra.Command{
 			return fmt.Errorf("error parsing a dst address:%v", err)
 		}
 
-		response, err := rpcClient.State.QueryRedelegations(
+		response, err := client.State.QueryRedelegations(
 			cmd.Context(),
 			srcAddr.Address.(state.ValAddress),
 			dstAddr.Address.(state.ValAddress),

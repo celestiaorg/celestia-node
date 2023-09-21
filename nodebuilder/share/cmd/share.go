@@ -9,12 +9,9 @@ import (
 
 	"github.com/celestiaorg/celestia-app/pkg/da"
 
-	"github.com/celestiaorg/celestia-node/api/rpc/client"
 	"github.com/celestiaorg/celestia-node/cmd/celestia/util"
 	"github.com/celestiaorg/celestia-node/share"
 )
-
-var rpcClient *client.Client
 
 func init() {
 	Cmd.AddCommand(
@@ -27,17 +24,10 @@ func init() {
 }
 
 var Cmd = &cobra.Command{
-	Use:   "share [command]",
-	Short: "Allows interaction with the Share Module via JSON-RPC",
-	Args:  cobra.NoArgs,
-	PersistentPreRunE: func(cmd *cobra.Command, args []string) error {
-		var err error
-		rpcClient, err = client.NewClient(cmd.Context(), client.RequestURL, "")
-		return err
-	},
-	PersistentPostRun: func(_ *cobra.Command, _ []string) {
-		rpcClient.Close()
-	},
+	Use:               "share [command]",
+	Short:             "Allows interaction with the Share Module via JSON-RPC",
+	Args:              cobra.NoArgs,
+	PersistentPreRunE: util.InitClient,
 }
 
 var sharesAvailableCmd = &cobra.Command{
@@ -45,6 +35,12 @@ var sharesAvailableCmd = &cobra.Command{
 	Short: "Subjectively validates if Shares committed to the given Root are available on the Network.",
 	Args:  cobra.ExactArgs(1),
 	RunE: func(cmd *cobra.Command, args []string) error {
+		client, err := util.ParseClientFromCtx(cmd.Context())
+		if err != nil {
+			return err
+		}
+		defer client.Close()
+
 		raw, err := parseJSON(args[0])
 		if err != nil {
 			return err
@@ -56,7 +52,7 @@ var sharesAvailableCmd = &cobra.Command{
 			return err
 		}
 
-		err = rpcClient.Share.SharesAvailable(cmd.Context(), &root)
+		err = client.Share.SharesAvailable(cmd.Context(), &root)
 		formatter := func(data interface{}) interface{} {
 			err, ok := data.(error)
 			available := false
@@ -82,7 +78,13 @@ var probabilityOfAvailabilityCmd = &cobra.Command{
 	Short: "Calculates the probability of the data square being available based on the number of samples collected.",
 	Args:  cobra.NoArgs,
 	RunE: func(cmd *cobra.Command, args []string) error {
-		prob := rpcClient.Share.ProbabilityOfAvailability(cmd.Context())
+		client, err := util.ParseClientFromCtx(cmd.Context())
+		if err != nil {
+			return err
+		}
+		defer client.Close()
+
+		prob := client.Share.ProbabilityOfAvailability(cmd.Context())
 		return util.PrintOutput(prob, nil, nil)
 	},
 }
@@ -92,6 +94,12 @@ var getSharesByNamespaceCmd = &cobra.Command{
 	Short: "Gets all shares from an EDS within the given namespace.",
 	Args:  cobra.ExactArgs(2),
 	RunE: func(cmd *cobra.Command, args []string) error {
+		client, err := util.ParseClientFromCtx(cmd.Context())
+		if err != nil {
+			return err
+		}
+		defer client.Close()
+
 		raw, err := parseJSON(args[0])
 		if err != nil {
 			return err
@@ -108,7 +116,7 @@ var getSharesByNamespaceCmd = &cobra.Command{
 			return err
 		}
 
-		shares, err := rpcClient.Share.GetSharesByNamespace(cmd.Context(), &root, ns)
+		shares, err := client.Share.GetSharesByNamespace(cmd.Context(), &root, ns)
 		return util.PrintOutput(shares, err, nil)
 	},
 }
@@ -118,6 +126,12 @@ var getShare = &cobra.Command{
 	Short: "Gets a Share by coordinates in EDS.",
 	Args:  cobra.ExactArgs(3),
 	RunE: func(cmd *cobra.Command, args []string) error {
+		client, err := util.ParseClientFromCtx(cmd.Context())
+		if err != nil {
+			return err
+		}
+		defer client.Close()
+
 		raw, err := parseJSON(args[0])
 		if err != nil {
 			return err
@@ -139,7 +153,7 @@ var getShare = &cobra.Command{
 			return err
 		}
 
-		s, err := rpcClient.Share.GetShare(cmd.Context(), &root, int(row), int(col))
+		s, err := client.Share.GetShare(cmd.Context(), &root, int(row), int(col))
 
 		formatter := func(data interface{}) interface{} {
 			sh, ok := data.(share.Share)
@@ -166,6 +180,12 @@ var getEDS = &cobra.Command{
 	Short: "Gets the full EDS identified by the given root",
 	Args:  cobra.ExactArgs(1),
 	RunE: func(cmd *cobra.Command, args []string) error {
+		client, err := util.ParseClientFromCtx(cmd.Context())
+		if err != nil {
+			return err
+		}
+		defer client.Close()
+
 		raw, err := parseJSON(args[0])
 		if err != nil {
 			return err
@@ -177,7 +197,7 @@ var getEDS = &cobra.Command{
 			return err
 		}
 
-		shares, err := rpcClient.Share.GetEDS(cmd.Context(), &root)
+		shares, err := client.Share.GetEDS(cmd.Context(), &root)
 		return util.PrintOutput(shares, err, nil)
 	},
 }

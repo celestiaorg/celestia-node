@@ -7,28 +7,18 @@ import (
 	"github.com/filecoin-project/go-jsonrpc/auth"
 	"github.com/spf13/cobra"
 
-	"github.com/celestiaorg/celestia-node/api/rpc/client"
 	"github.com/celestiaorg/celestia-node/cmd/celestia/util"
 )
-
-var rpcClient *client.Client
 
 func init() {
 	Cmd.AddCommand(nodeInfoCmd, logCmd, verifyCmd, authCmd)
 }
 
 var Cmd = &cobra.Command{
-	Use:   "node [command]",
-	Short: "Allows administrating running node.",
-	Args:  cobra.NoArgs,
-	PersistentPreRunE: func(cmd *cobra.Command, args []string) error {
-		var err error
-		rpcClient, err = client.NewClient(cmd.Context(), client.RequestURL, "")
-		return err
-	},
-	PersistentPostRun: func(_ *cobra.Command, _ []string) {
-		rpcClient.Close()
-	},
+	Use:               "node [command]",
+	Short:             "Allows administrating running node.",
+	Args:              cobra.NoArgs,
+	PersistentPreRunE: util.InitClient,
 }
 
 var nodeInfoCmd = &cobra.Command{
@@ -36,7 +26,13 @@ var nodeInfoCmd = &cobra.Command{
 	Args:  cobra.NoArgs,
 	Short: "Returns administrative information about the node.",
 	RunE: func(c *cobra.Command, args []string) error {
-		info, err := rpcClient.Node.Info(c.Context())
+		client, err := util.ParseClientFromCtx(c.Context())
+		if err != nil {
+			return err
+		}
+		defer client.Close()
+
+		info, err := client.Node.Info(c.Context())
 		return util.PrintOutput(info, err, nil)
 	},
 }
@@ -49,6 +45,12 @@ var logCmd = &cobra.Command{
 		"`DEBUG, INFO, WARN, ERROR, DPANIC, PANIC, FATAL and their lower-case forms`.\n" +
 		"To set all modules to a particular level `*:<log.level>` should be passed",
 	RunE: func(c *cobra.Command, args []string) error {
+		client, err := util.ParseClientFromCtx(c.Context())
+		if err != nil {
+			return err
+		}
+		defer client.Close()
+
 		for _, ll := range args {
 			params := strings.Split(ll, ":")
 			if len(params) != 2 {
@@ -56,7 +58,7 @@ var logCmd = &cobra.Command{
 					"e.g. pubsub:debug")
 			}
 
-			if err := rpcClient.Node.LogLevelSet(c.Context(), params[0], params[1]); err != nil {
+			if err := client.Node.LogLevelSet(c.Context(), params[0], params[1]); err != nil {
 				return err
 			}
 		}
@@ -70,7 +72,13 @@ var verifyCmd = &cobra.Command{
 	Short: "Returns the permissions assigned to the given token.",
 
 	RunE: func(c *cobra.Command, args []string) error {
-		perms, err := rpcClient.Node.AuthVerify(c.Context(), args[0])
+		client, err := util.ParseClientFromCtx(c.Context())
+		if err != nil {
+			return err
+		}
+		defer client.Close()
+
+		perms, err := client.Node.AuthVerify(c.Context(), args[0])
 		return util.PrintOutput(perms, err, nil)
 	},
 }
@@ -80,12 +88,18 @@ var authCmd = &cobra.Command{
 	Args:  cobra.MinimumNArgs(1),
 	Short: "Signs and returns a new token with the given permissions.",
 	RunE: func(c *cobra.Command, args []string) error {
+		client, err := util.ParseClientFromCtx(c.Context())
+		if err != nil {
+			return err
+		}
+		defer client.Close()
+
 		perms := make([]auth.Permission, len(args))
 		for i, p := range args {
 			perms[i] = (auth.Permission)(p)
 		}
 
-		result, err := rpcClient.Node.AuthNew(c.Context(), perms)
+		result, err := client.Node.AuthNew(c.Context(), perms)
 		return util.PrintOutput(result, err, nil)
 	},
 }

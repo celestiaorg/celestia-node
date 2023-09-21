@@ -9,13 +9,10 @@ import (
 
 	"github.com/spf13/cobra"
 
-	"github.com/celestiaorg/celestia-node/api/rpc/client"
 	"github.com/celestiaorg/celestia-node/blob"
 	"github.com/celestiaorg/celestia-node/cmd/celestia/util"
 	"github.com/celestiaorg/celestia-node/share"
 )
-
-var rpcClient *client.Client
 
 var (
 	base64Flag bool
@@ -57,17 +54,10 @@ func init() {
 }
 
 var Cmd = &cobra.Command{
-	Use:   "blob [command]",
-	Short: "Allows to interact with the Blob Service via JSON-RPC",
-	Args:  cobra.NoArgs,
-	PersistentPreRunE: func(cmd *cobra.Command, args []string) error {
-		var err error
-		rpcClient, err = client.NewClient(cmd.Context(), client.RequestURL, "")
-		return err
-	},
-	PersistentPostRun: func(_ *cobra.Command, _ []string) {
-		rpcClient.Close()
-	},
+	Use:               "blob [command]",
+	Short:             "Allows to interact with the Blob Service via JSON-RPC",
+	Args:              cobra.NoArgs,
+	PersistentPreRunE: util.InitClient,
 }
 
 var getCmd = &cobra.Command{
@@ -75,6 +65,12 @@ var getCmd = &cobra.Command{
 	Args:  cobra.ExactArgs(3),
 	Short: "Returns the blob for the given namespace by commitment at a particular height.",
 	RunE: func(cmd *cobra.Command, args []string) error {
+		client, err := util.ParseClientFromCtx(cmd.Context())
+		if err != nil {
+			return err
+		}
+		defer client.Close()
+
 		height, err := strconv.ParseUint(args[0], 10, 64)
 		if err != nil {
 			return fmt.Errorf("error parsing a height:%v", err)
@@ -90,7 +86,7 @@ var getCmd = &cobra.Command{
 			return fmt.Errorf("error parsing a commitment:%v", err)
 		}
 
-		blob, err := rpcClient.Blob.Get(cmd.Context(), height, namespace, commitment)
+		blob, err := client.Blob.Get(cmd.Context(), height, namespace, commitment)
 
 		formatter := formatData
 		if base64Flag || err != nil {
@@ -105,6 +101,12 @@ var getAllCmd = &cobra.Command{
 	Args:  cobra.ExactArgs(2),
 	Short: "Returns all blobs for the given namespace at a particular height.",
 	RunE: func(cmd *cobra.Command, args []string) error {
+		client, err := util.ParseClientFromCtx(cmd.Context())
+		if err != nil {
+			return err
+		}
+		defer client.Close()
+
 		height, err := strconv.ParseUint(args[0], 10, 64)
 		if err != nil {
 			return fmt.Errorf("error parsing a height:%v", err)
@@ -115,7 +117,7 @@ var getAllCmd = &cobra.Command{
 			return fmt.Errorf("error parsing a namespace:%v", err)
 		}
 
-		blobs, err := rpcClient.Blob.GetAll(cmd.Context(), height, []share.Namespace{namespace})
+		blobs, err := client.Blob.GetAll(cmd.Context(), height, []share.Namespace{namespace})
 		fmt.Println(hex.EncodeToString(blobs[0].Namespace().ID()))
 		fmt.Println(blobs[0].Namespace().ID())
 		fmt.Println(blobs[0].Namespace())
@@ -132,6 +134,12 @@ var submitCmd = &cobra.Command{
 	Args:  cobra.ExactArgs(2),
 	Short: "Submit the blob at the given namespace. Note: only one blob is allowed to submit through the RPC.",
 	RunE: func(cmd *cobra.Command, args []string) error {
+		client, err := util.ParseClientFromCtx(cmd.Context())
+		if err != nil {
+			return err
+		}
+		defer client.Close()
+
 		namespace, err := util.ParseV0Namespace(args[0])
 		if err != nil {
 			return fmt.Errorf("error parsing a namespace:%v", err)
@@ -142,7 +150,7 @@ var submitCmd = &cobra.Command{
 			return fmt.Errorf("error creating a blob:%v", err)
 		}
 
-		height, err := rpcClient.Blob.Submit(
+		height, err := client.Blob.Submit(
 			cmd.Context(),
 			[]*blob.Blob{parsedBlob},
 			&blob.SubmitOptions{Fee: fee, GasLimit: gasLimit},
@@ -164,6 +172,12 @@ var getProofCmd = &cobra.Command{
 	Args:  cobra.ExactArgs(3),
 	Short: "Retrieves the blob in the given namespaces at the given height by commitment and returns its Proof.",
 	RunE: func(cmd *cobra.Command, args []string) error {
+		client, err := util.ParseClientFromCtx(cmd.Context())
+		if err != nil {
+			return err
+		}
+		defer client.Close()
+
 		height, err := strconv.ParseUint(args[0], 10, 64)
 		if err != nil {
 			return fmt.Errorf("error parsing a height:%v", err)
@@ -179,7 +193,7 @@ var getProofCmd = &cobra.Command{
 			return fmt.Errorf("error parsing a commitment:%v", err)
 		}
 
-		proof, err := rpcClient.Blob.GetProof(cmd.Context(), height, namespace, commitment)
+		proof, err := client.Blob.GetProof(cmd.Context(), height, namespace, commitment)
 		return util.PrintOutput(proof, err, nil)
 	},
 }
