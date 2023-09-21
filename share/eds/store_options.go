@@ -16,9 +16,6 @@ type Parameters struct {
 
 	// BlockstoreCacheSize is the size of the cache for blockstore requested accessors.
 	BlockstoreCacheSize int
-
-	// basePath is the path to the store directory.
-	basePath string
 }
 
 // DefaultParameters returns the default configuration values for the EDS store parameters.
@@ -42,14 +39,5 @@ func (p *Parameters) Validate() error {
 	if p.BlockstoreCacheSize < 1 {
 		return fmt.Errorf("eds: blockstore cache size must be positive")
 	}
-
-	if p.basePath == "" {
-		return fmt.Errorf("eds: store path must be set")
-	}
 	return nil
-}
-
-func (p *Parameters) WithBasePath(basePath string) *Parameters {
-	p.basePath = basePath
-	return p
 }

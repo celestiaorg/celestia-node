@@ -55,9 +55,9 @@ func TestFraudProofHandling(t *testing.T) {
 	set, val := sw.Validators(t)
 	fMaker := headerfraud.NewFraudMaker(t, 10, []types.PrivValidator{val}, set)
 
-	storeCfg := eds.DefaultParameters().WithBasePath(t.TempDir())
+	storeCfg := eds.DefaultParameters()
 	ds := ds_sync.MutexWrap(datastore.NewMapDatastore())
-	edsStore, err := eds.NewStore(storeCfg, ds)
+	edsStore, err := eds.NewStore(storeCfg, t.TempDir(), ds)
 	require.NoError(t, err)
 	require.NoError(t, edsStore.Start(ctx))
 	t.Cleanup(func() {

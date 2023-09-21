@@ -67,12 +67,12 @@ type Store struct {
 }
 
 // NewStore creates a new EDS Store under the given basepath and datastore.
-func NewStore(params *Parameters, ds datastore.Batching) (*Store, error) {
+func NewStore(params *Parameters, basePath string, ds datastore.Batching) (*Store, error) {
 	if err := params.Validate(); err != nil {
 		return nil, err
 	}
 
-	err := setupPath(params.basePath)
+	err := setupPath(basePath)
 	if err != nil {
 		return nil, fmt.Errorf("failed to setup eds.Store directories: %w", err)
 	}
@@ -86,12 +86,12 @@ func NewStore(params *Parameters, ds datastore.Batching) (*Store, error) {
 		return nil, fmt.Errorf("failed to register FS mount on the registry: %w", err)
 	}
 
-	fsRepo, err := index.NewFSRepo(params.basePath + indexPath)
+	fsRepo, err := index.NewFSRepo(basePath + indexPath)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create index repository: %w", err)
 	}
 
-	invertedIdx, err := newSimpleInvertedIndex(params.basePath)
+	invertedIdx, err := newSimpleInvertedIndex(basePath)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create index: %w", err)
 	}
@@ -99,7 +99,7 @@ func NewStore(params *Parameters, ds datastore.Batching) (*Store, error) {
 	failureChan := make(chan dagstore.ShardResult)
 	dagStore, err := dagstore.NewDAGStore(
 		dagstore.Config{
-			TransientsDir: params.basePath + transientsPath,
+			TransientsDir: basePath + transientsPath,
 			IndexRepo:     fsRepo,
 			Datastore:     ds,
 			MountRegistry: r,
@@ -122,7 +122,7 @@ func NewStore(params *Parameters, ds datastore.Batching) (*Store, error) {
 	}
 
 	store := &Store{
-		basepath:      params.basePath,
+		basepath:      basePath,
 		dgstr:         dagStore,
 		carIdx:        fsRepo,
 		invertedIdx:   invertedIdx,

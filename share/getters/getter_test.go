@@ -26,9 +26,9 @@ func TestTeeGetter(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	t.Cleanup(cancel)
 
-	storeCfg := eds.DefaultParameters().WithBasePath(t.TempDir())
+	storeCfg := eds.DefaultParameters()
 	ds := ds_sync.MutexWrap(datastore.NewMapDatastore())
-	edsStore, err := eds.NewStore(storeCfg, ds)
+	edsStore, err := eds.NewStore(storeCfg, t.TempDir(), ds)
 	require.NoError(t, err)
 
 	err = edsStore.Start(ctx)
@@ -82,9 +82,9 @@ func TestStoreGetter(t *testing.T) {
 	t.Cleanup(cancel)
 
 	tmpDir := t.TempDir()
-	storeCfg := eds.DefaultParameters().WithBasePath(tmpDir)
+	storeCfg := eds.DefaultParameters()
 	ds := ds_sync.MutexWrap(datastore.NewMapDatastore())
-	edsStore, err := eds.NewStore(storeCfg, ds)
+	edsStore, err := eds.NewStore(storeCfg, tmpDir, ds)
 	require.NoError(t, err)
 
 	err = edsStore.Start(ctx)
@@ -186,9 +186,9 @@ func TestIPLDGetter(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	t.Cleanup(cancel)
 
-	storeCfg := eds.DefaultParameters().WithBasePath(t.TempDir())
+	storeCfg := eds.DefaultParameters()
 	ds := ds_sync.MutexWrap(datastore.NewMapDatastore())
-	edsStore, err := eds.NewStore(storeCfg, ds)
+	edsStore, err := eds.NewStore(storeCfg, t.TempDir(), ds)
 	require.NoError(t, err)
 
 	err = edsStore.Start(ctx)
