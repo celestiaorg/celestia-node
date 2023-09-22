@@ -10,6 +10,7 @@ import (
 	"github.com/celestiaorg/celestia-node/nodebuilder/header"
 	"github.com/celestiaorg/celestia-node/nodebuilder/node"
 	"github.com/celestiaorg/celestia-node/nodebuilder/p2p"
+	"github.com/celestiaorg/celestia-node/nodebuilder/pruner"
 	"github.com/celestiaorg/celestia-node/nodebuilder/rpc"
 	"github.com/celestiaorg/celestia-node/nodebuilder/state"
 )
@@ -28,6 +29,7 @@ func init() {
 		core.Flags(),
 		rpc.Flags(),
 		gateway.Flags(),
+		pruner.Flags(),
 		state.Flags(),
 	}
 
