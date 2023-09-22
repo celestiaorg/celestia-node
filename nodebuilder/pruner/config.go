@@ -21,4 +21,3 @@ func DefaultConfig() Config {
 func WithStoragePrunerMetrics(sp *StoragePruner) error {
 	return sp.WithMetrics()
 }
-

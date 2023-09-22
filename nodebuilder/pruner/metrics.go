@@ -61,7 +61,7 @@ func (m *metrics) observeRegister(ctx context.Context) {
 	if ctx.Err() != nil {
 		ctx = context.Background()
 	}
-	m.registeredCounter.Add(context.Background(), 1)
+	m.registeredCounter.Add(ctx, 1)
 }
 
 func (m *metrics) observePrune(ctx context.Context) {
@@ -71,5 +71,5 @@ func (m *metrics) observePrune(ctx context.Context) {
 	if ctx.Err() != nil {
 		ctx = context.Background()
 	}
-	m.prunedCounter.Add(context.Background(), 1)
+	m.prunedCounter.Add(ctx, 1)
 }
