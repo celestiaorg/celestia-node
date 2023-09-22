@@ -1,11 +1,9 @@
 package ipldv2
 
 import (
-	"github.com/ipfs/boxo/blockservice"
-	"github.com/ipfs/boxo/blockstore"
-	"github.com/ipfs/boxo/exchange"
-	"github.com/ipfs/go-datastore"
-	"github.com/ipfs/go-datastore/sync"
+	"fmt"
+
+	"github.com/ipfs/go-cid"
 	logger "github.com/ipfs/go-log/v2"
 )
 
@@ -20,17 +18,6 @@ const (
 	multihashCode = 0x7801
 )
 
-// NewBlockservice constructs Blockservice for fetching NMTrees.
-func NewBlockservice(bs blockstore.Blockstore, exchange exchange.Interface) blockservice.BlockService {
-	return blockservice.New(bs, exchange, blockservice.WithAllowlist(defaultAllowlist))
-}
-
-// NewMemBlockservice constructs Blockservice for fetching NMTrees with in-memory blockstore.
-func NewMemBlockservice() blockservice.BlockService {
-	bstore := blockstore.NewBlockstore(sync.MutexWrap(datastore.NewMapDatastore()))
-	return NewBlockservice(bstore, nil)
-}
-
 // defaultAllowlist keeps default list of hashes allowed in the network.
 var defaultAllowlist allowlist
 
@@ -39,4 +26,21 @@ type allowlist struct{}
 func (a allowlist) IsAllowed(code uint64) bool {
 	// we disable all codes except home-baked code
 	return code == multihashCode
+}
+
+func validateCID(cid cid.Cid) error {
+	prefix := cid.Prefix()
+	if prefix.Codec != codec {
+		return fmt.Errorf("unsupported codec")
+	}
+
+	if prefix.MhType != multihashCode {
+		return fmt.Errorf("unsupported multihash")
+	}
+
+	if prefix.MhLength != SampleIDSize {
+		return fmt.Errorf("invalid multihash length")
+	}
+
+	return nil
 }

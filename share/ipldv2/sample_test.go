@@ -14,7 +14,7 @@ import (
 func TestSample(t *testing.T) {
 	square := edstest.RandEDS(t, 2)
 
-	sid, err := NewSampleFrom(square, 2, rsmt2d.Row)
+	sid, err := NewSampleFromEDS(square, 2, rsmt2d.Row)
 	require.NoError(t, err)
 
 	data, err := sid.MarshalBinary()

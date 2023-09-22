@@ -1,6 +1,7 @@
 package eds
 
 import (
+	"fmt"
 	"io"
 	"os"
 
@@ -21,7 +22,7 @@ import (
 //   - Avoid storing constant shares, like padding
 type File struct {
 	path string
-	hdr  Header
+	hdr  *Header
 	fl   fileBackend
 }
 
@@ -55,9 +56,9 @@ func CreateFile(path string, eds *rsmt2d.ExtendedDataSquare) (*File, error) {
 		return nil, err
 	}
 
-	h := Header{
-		ShareSize:  uint16(len(eds.GetCell(0, 0))), // TODO: rsmt2d should expose this field
-		SquareSize: uint32(eds.Width()),
+	h := &Header{
+		shareSize:  uint16(len(eds.GetCell(0, 0))), // TODO: rsmt2d should expose this field
+		squareSize: uint32(eds.Width()),
 	}
 
 	if _, err = h.WriteTo(f); err != nil {
@@ -82,22 +83,17 @@ func (f *File) Close() error {
 	return f.fl.Close()
 }
 
-func (f *File) Header() Header {
+func (f *File) Header() *Header {
 	return f.hdr
 }
 
 func (f *File) Axis(idx int, axis rsmt2d.Axis) ([]share.Share, error) {
-	shrLn := int(f.hdr.ShareSize)
-	sqrLn := int(f.hdr.SquareSize)
+	shrLn := int(f.hdr.shareSize)
+	sqrLn := int(f.hdr.squareSize)
 
 	shrs := make([]share.Share, sqrLn)
 	switch axis {
 	case rsmt2d.Col:
-		// [] [] [] []
-		// [] [] [] []
-		// [] [] [] []
-		// [] [] [] []
-
 		for i := 0; i < sqrLn; i++ {
 			pos := idx + i*sqrLn
 			offset := pos*shrLn + HeaderSize
@@ -111,6 +107,7 @@ func (f *File) Axis(idx int, axis rsmt2d.Axis) ([]share.Share, error) {
 	case rsmt2d.Row:
 		pos := idx * sqrLn
 		offset := pos*shrLn + HeaderSize
+
 		axsData := make([]byte, sqrLn*shrLn)
 		if _, err := f.fl.ReadAt(axsData, int64(offset)); err != nil {
 			return nil, err
@@ -119,6 +116,8 @@ func (f *File) Axis(idx int, axis rsmt2d.Axis) ([]share.Share, error) {
 		for i := range shrs {
 			shrs[i] = axsData[i*shrLn : (i+1)*shrLn]
 		}
+	default:
+		return nil, fmt.Errorf("unknown axis")
 	}
 
 	return shrs, nil
@@ -126,7 +125,7 @@ func (f *File) Axis(idx int, axis rsmt2d.Axis) ([]share.Share, error) {
 
 func (f *File) Share(idx int) (share.Share, error) {
 	// TODO: Check the cache first
-	shrLn := int64(f.hdr.ShareSize)
+	shrLn := int64(f.hdr.shareSize)
 
 	offset := int64(idx)*shrLn + HeaderSize
 	shr := make(share.Share, shrLn)
@@ -138,7 +137,7 @@ func (f *File) Share(idx int) (share.Share, error) {
 
 func (f *File) ShareWithProof(idx int, axis rsmt2d.Axis) (share.Share, nmt.Proof, error) {
 	// TODO: Cache the axis as well as computed tree
-	sqrLn := int(f.hdr.SquareSize)
+	sqrLn := int(f.hdr.squareSize)
 	axsIdx, shrIdx := idx/sqrLn, idx%sqrLn
 	if axis == rsmt2d.Col {
 		axsIdx, shrIdx = shrIdx, axsIdx
@@ -166,8 +165,8 @@ func (f *File) ShareWithProof(idx int, axis rsmt2d.Axis) (share.Share, nmt.Proof
 }
 
 func (f *File) EDS() (*rsmt2d.ExtendedDataSquare, error) {
-	shrLn := int(f.hdr.ShareSize)
-	sqrLn := int(f.hdr.SquareSize)
+	shrLn := int(f.hdr.shareSize)
+	sqrLn := int(f.hdr.squareSize)
 
 	buf := make([]byte, sqrLn*sqrLn*shrLn)
 	if _, err := f.fl.ReadAt(buf, HeaderSize); err != nil {
@@ -183,7 +182,7 @@ func (f *File) EDS() (*rsmt2d.ExtendedDataSquare, error) {
 	}
 
 	codec := share.DefaultRSMT2DCodec()
-	treeFn := wrapper.NewConstructor(uint64(f.hdr.SquareSize / 2))
+	treeFn := wrapper.NewConstructor(uint64(f.hdr.squareSize / 2))
 	eds, err := rsmt2d.ImportExtendedDataSquare(shrs, codec, treeFn)
 	if err != nil {
 		return nil, err
