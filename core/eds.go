@@ -16,7 +16,8 @@ import (
 	"github.com/celestiaorg/nmt"
 	"github.com/celestiaorg/rsmt2d"
 
-	"github.com/celestiaorg/celestia-node/share"
+	"github.com/celestiaorg/celestia-node/header"
+	"github.com/celestiaorg/celestia-node/nodebuilder/pruner"
 	"github.com/celestiaorg/celestia-node/share/eds"
 )
 
@@ -51,14 +52,27 @@ func extendShares(s [][]byte, options ...nmt.Option) (*rsmt2d.ExtendedDataSquare
 }
 
 // storeEDS will only store extended block if it is not empty and doesn't already exist.
-func storeEDS(ctx context.Context, hash share.DataHash, eds *rsmt2d.ExtendedDataSquare, store *eds.Store) error {
+func storeEDS(
+	ctx context.Context,
+	h *header.ExtendedHeader,
+	eds *rsmt2d.ExtendedDataSquare,
+	store *eds.Store,
+	pruner *pruner.StoragePruner,
+) error {
 	if eds == nil {
 		return nil
 	}
-	err := store.Put(ctx, hash, eds)
+	err := store.Put(ctx, h.DAH.Hash(), eds)
 	if errors.Is(err, dagstore.ErrShardExists) {
 		// block with given root already exists, return nil
 		return nil
 	}
-	return err
+	if err != nil {
+		return err
+	}
+	// don't register on pruner if the block was already found in the store
+	if pruner != nil {
+		return pruner.Register(ctx, h)
+	}
+	return nil
 }
