@@ -134,15 +134,8 @@ func (ce *Exchange) Get(ctx context.Context, hash libhead.Hash) (*header.Extende
 			&block.Height, hash, eh.Hash())
 	}
 
-	if ce.pruner != nil {
-		err = ce.pruner.Register(ctx, eh)
-		if err != nil {
-			return nil, fmt.Errorf("registering height %d on pruner: %w", &block.Height, err)
-		}
-	}
-
 	ctx = ipld.CtxWithProofsAdder(ctx, adder)
-	err = storeEDS(ctx, eh.DAH.Hash(), eds, ce.store)
+	err = storeEDS(ctx, eh, eds, ce.store, ce.pruner)
 	if err != nil {
 		return nil, fmt.Errorf("storing EDS to eds.Store for height %d: %w", &block.Height, err)
 	}
@@ -181,15 +174,8 @@ func (ce *Exchange) getExtendedHeaderByHeight(ctx context.Context, height *int64
 		panic(fmt.Errorf("constructing extended header for height %d: %w", b.Header.Height, err))
 	}
 
-	if ce.pruner != nil {
-		err = ce.pruner.Register(ctx, eh)
-		if err != nil {
-			return nil, fmt.Errorf("registering height %d on pruner: %w", eh.Height(), err)
-		}
-	}
-
 	ctx = ipld.CtxWithProofsAdder(ctx, adder)
-	err = storeEDS(ctx, eh.DAH.Hash(), eds, ce.store)
+	err = storeEDS(ctx, eh, eds, ce.store, ce.pruner)
 	if err != nil {
 		return nil, fmt.Errorf("storing EDS to eds.Store for block height %d: %w", b.Header.Height, err)
 	}
