@@ -7,7 +7,7 @@ import (
 	"github.com/filecoin-project/go-jsonrpc/auth"
 	"github.com/spf13/cobra"
 
-	util "github.com/celestiaorg/celestia-node/cmd"
+	cmdnode "github.com/celestiaorg/celestia-node/cmd"
 )
 
 func init() {
@@ -18,7 +18,7 @@ var Cmd = &cobra.Command{
 	Use:               "node [command]",
 	Short:             "Allows administrating running node.",
 	Args:              cobra.NoArgs,
-	PersistentPreRunE: util.InitClient,
+	PersistentPreRunE: cmdnode.InitClient,
 }
 
 var nodeInfoCmd = &cobra.Command{
@@ -26,14 +26,14 @@ var nodeInfoCmd = &cobra.Command{
 	Args:  cobra.NoArgs,
 	Short: "Returns administrative information about the node.",
 	RunE: func(c *cobra.Command, args []string) error {
-		client, err := util.ParseClientFromCtx(c.Context())
+		client, err := cmdnode.ParseClientFromCtx(c.Context())
 		if err != nil {
 			return err
 		}
 		defer client.Close()
 
 		info, err := client.Node.Info(c.Context())
-		return util.PrintOutput(info, err, nil)
+		return cmdnode.PrintOutput(info, err, nil)
 	},
 }
 
@@ -45,7 +45,7 @@ var logCmd = &cobra.Command{
 		"`DEBUG, INFO, WARN, ERROR, DPANIC, PANIC, FATAL and their lower-case forms`.\n" +
 		"To set all modules to a particular level `*:<log.level>` should be passed",
 	RunE: func(c *cobra.Command, args []string) error {
-		client, err := util.ParseClientFromCtx(c.Context())
+		client, err := cmdnode.ParseClientFromCtx(c.Context())
 		if err != nil {
 			return err
 		}
@@ -72,14 +72,14 @@ var verifyCmd = &cobra.Command{
 	Short: "Returns the permissions assigned to the given token.",
 
 	RunE: func(c *cobra.Command, args []string) error {
-		client, err := util.ParseClientFromCtx(c.Context())
+		client, err := cmdnode.ParseClientFromCtx(c.Context())
 		if err != nil {
 			return err
 		}
 		defer client.Close()
 
 		perms, err := client.Node.AuthVerify(c.Context(), args[0])
-		return util.PrintOutput(perms, err, nil)
+		return cmdnode.PrintOutput(perms, err, nil)
 	},
 }
 
@@ -88,7 +88,7 @@ var authCmd = &cobra.Command{
 	Args:  cobra.MinimumNArgs(1),
 	Short: "Signs and returns a new token with the given permissions.",
 	RunE: func(c *cobra.Command, args []string) error {
-		client, err := util.ParseClientFromCtx(c.Context())
+		client, err := cmdnode.ParseClientFromCtx(c.Context())
 		if err != nil {
 			return err
 		}
@@ -100,6 +100,6 @@ var authCmd = &cobra.Command{
 		}
 
 		result, err := client.Node.AuthNew(c.Context(), perms)
-		return util.PrintOutput(result, err, nil)
+		return cmdnode.PrintOutput(result, err, nil)
 	},
 }

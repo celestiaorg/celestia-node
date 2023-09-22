@@ -3,7 +3,7 @@ package cmd
 import (
 	"github.com/spf13/cobra"
 
-	util "github.com/celestiaorg/celestia-node/cmd"
+	cmdnode "github.com/celestiaorg/celestia-node/cmd"
 )
 
 func init() {
@@ -14,7 +14,7 @@ var Cmd = &cobra.Command{
 	Use:               "das [command]",
 	Short:             "Allows to interact with the Daser via JSON-RPC",
 	Args:              cobra.NoArgs,
-	PersistentPreRunE: util.InitClient,
+	PersistentPreRunE: cmdnode.InitClient,
 }
 
 var samplingStatsCmd = &cobra.Command{
@@ -22,13 +22,13 @@ var samplingStatsCmd = &cobra.Command{
 	Short: "Returns the current statistics over the DA sampling process",
 	Args:  cobra.NoArgs,
 	RunE: func(cmd *cobra.Command, args []string) error {
-		client, err := util.ParseClientFromCtx(cmd.Context())
+		client, err := cmdnode.ParseClientFromCtx(cmd.Context())
 		if err != nil {
 			return err
 		}
 		defer client.Close()
 
 		stats, err := client.DAS.SamplingStats(cmd.Context())
-		return util.PrintOutput(stats, err, nil)
+		return cmdnode.PrintOutput(stats, err, nil)
 	},
 }

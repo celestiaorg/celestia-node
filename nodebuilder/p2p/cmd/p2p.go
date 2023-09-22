@@ -8,7 +8,7 @@ import (
 	ma2 "github.com/multiformats/go-multiaddr"
 	"github.com/spf13/cobra"
 
-	util "github.com/celestiaorg/celestia-node/cmd"
+	cmdnode "github.com/celestiaorg/celestia-node/cmd"
 )
 
 type peerInfo struct {
@@ -41,7 +41,7 @@ var Cmd = &cobra.Command{
 	Use:               "p2p [command]",
 	Short:             "Allows interaction with the P2P Module via JSON-RPC",
 	Args:              cobra.NoArgs,
-	PersistentPreRunE: util.InitClient,
+	PersistentPreRunE: cmdnode.InitClient,
 }
 
 var infoCmd = &cobra.Command{
@@ -49,7 +49,7 @@ var infoCmd = &cobra.Command{
 	Short: "Gets the node's peer info (peer id and multiaddresses)",
 	Args:  cobra.NoArgs,
 	RunE: func(cmd *cobra.Command, args []string) error {
-		client, err := util.ParseClientFromCtx(cmd.Context())
+		client, err := cmdnode.ParseClientFromCtx(cmd.Context())
 		if err != nil {
 			return err
 		}
@@ -69,7 +69,7 @@ var infoCmd = &cobra.Command{
 				PeerAddr: ma,
 			}
 		}
-		return util.PrintOutput(info, err, formatter)
+		return cmdnode.PrintOutput(info, err, formatter)
 	},
 }
 
@@ -78,7 +78,7 @@ var peersCmd = &cobra.Command{
 	Short: "Lists the peers we are connected to",
 	Args:  cobra.NoArgs,
 	RunE: func(cmd *cobra.Command, args []string) error {
-		client, err := util.ParseClientFromCtx(cmd.Context())
+		client, err := cmdnode.ParseClientFromCtx(cmd.Context())
 		if err != nil {
 			return err
 		}
@@ -98,7 +98,7 @@ var peersCmd = &cobra.Command{
 				Peers: conPeers,
 			}
 		}
-		return util.PrintOutput(peers, err, formatter)
+		return cmdnode.PrintOutput(peers, err, formatter)
 	},
 }
 
@@ -107,7 +107,7 @@ var peerInfoCmd = &cobra.Command{
 	Short: "Gets PeerInfo for a given peer",
 	Args:  cobra.ExactArgs(1),
 	RunE: func(cmd *cobra.Command, args []string) error {
-		client, err := util.ParseClientFromCtx(cmd.Context())
+		client, err := cmdnode.ParseClientFromCtx(cmd.Context())
 		if err != nil {
 			return err
 		}
@@ -130,7 +130,7 @@ var peerInfoCmd = &cobra.Command{
 				PeerAddr: ma,
 			}
 		}
-		return util.PrintOutput(info, err, formatter)
+		return cmdnode.PrintOutput(info, err, formatter)
 	},
 }
 
@@ -139,7 +139,7 @@ var connectCmd = &cobra.Command{
 	Short: "Establishes a connection with the given peer",
 	Args:  cobra.ExactArgs(2),
 	RunE: func(cmd *cobra.Command, args []string) error {
-		client, err := util.ParseClientFromCtx(cmd.Context())
+		client, err := cmdnode.ParseClientFromCtx(cmd.Context())
 		if err != nil {
 			return err
 		}
@@ -162,7 +162,7 @@ var connectCmd = &cobra.Command{
 
 		err = client.P2P.Connect(cmd.Context(), peerInfo)
 		if err != nil {
-			return util.PrintOutput(nil, err, nil)
+			return cmdnode.PrintOutput(nil, err, nil)
 		}
 		return connectednessCmd.RunE(cmd, args)
 	},
@@ -173,7 +173,7 @@ var closePeerCmd = &cobra.Command{
 	Short: "Closes the connection with the given peer",
 	Args:  cobra.ExactArgs(1),
 	RunE: func(cmd *cobra.Command, args []string) error {
-		client, err := util.ParseClientFromCtx(cmd.Context())
+		client, err := cmdnode.ParseClientFromCtx(cmd.Context())
 		if err != nil {
 			return err
 		}
@@ -186,7 +186,7 @@ var closePeerCmd = &cobra.Command{
 
 		err = client.P2P.ClosePeer(cmd.Context(), pid)
 		if err != nil {
-			return util.PrintOutput(nil, err, nil)
+			return cmdnode.PrintOutput(nil, err, nil)
 		}
 		return connectednessCmd.RunE(cmd, args)
 	},
@@ -197,7 +197,7 @@ var connectednessCmd = &cobra.Command{
 	Short: "Checks the connection state between current and given peers",
 	Args:  cobra.ExactArgs(1),
 	RunE: func(cmd *cobra.Command, args []string) error {
-		client, err := util.ParseClientFromCtx(cmd.Context())
+		client, err := cmdnode.ParseClientFromCtx(cmd.Context())
 		if err != nil {
 			return err
 		}
@@ -218,7 +218,7 @@ var connectednessCmd = &cobra.Command{
 				ConnectionState: conn.String(),
 			}
 		}
-		return util.PrintOutput(con, err, formatter)
+		return cmdnode.PrintOutput(con, err, formatter)
 	},
 }
 
@@ -227,7 +227,7 @@ var natStatusCmd = &cobra.Command{
 	Short: "Gets the currrent NAT status",
 	Args:  cobra.NoArgs,
 	RunE: func(cmd *cobra.Command, args []string) error {
-		client, err := util.ParseClientFromCtx(cmd.Context())
+		client, err := cmdnode.ParseClientFromCtx(cmd.Context())
 		if err != nil {
 			return err
 		}
@@ -243,7 +243,7 @@ var natStatusCmd = &cobra.Command{
 				Reachability: rr.String(),
 			}
 		}
-		return util.PrintOutput(r, err, formatter)
+		return cmdnode.PrintOutput(r, err, formatter)
 	},
 }
 
@@ -252,7 +252,7 @@ var blockPeerCmd = &cobra.Command{
 	Short: "Blocks the given peer",
 	Args:  cobra.ExactArgs(1),
 	RunE: func(cmd *cobra.Command, args []string) error {
-		client, err := util.ParseClientFromCtx(cmd.Context())
+		client, err := cmdnode.ParseClientFromCtx(cmd.Context())
 		if err != nil {
 			return err
 		}
@@ -281,7 +281,7 @@ var blockPeerCmd = &cobra.Command{
 				Reason:  err,
 			}
 		}
-		return util.PrintOutput(err, nil, formatter)
+		return cmdnode.PrintOutput(err, nil, formatter)
 	},
 }
 
@@ -290,7 +290,7 @@ var unblockPeerCmd = &cobra.Command{
 	Short: "Unblocks the given peer",
 	Args:  cobra.ExactArgs(1),
 	RunE: func(cmd *cobra.Command, args []string) error {
-		client, err := util.ParseClientFromCtx(cmd.Context())
+		client, err := cmdnode.ParseClientFromCtx(cmd.Context())
 		if err != nil {
 			return err
 		}
@@ -320,7 +320,7 @@ var unblockPeerCmd = &cobra.Command{
 				Reason:    err,
 			}
 		}
-		return util.PrintOutput(err, nil, formatter)
+		return cmdnode.PrintOutput(err, nil, formatter)
 	},
 }
 
@@ -329,7 +329,7 @@ var blockedPeersCmd = &cobra.Command{
 	Short: "Lists the node's blocked peers",
 	Args:  cobra.NoArgs,
 	RunE: func(cmd *cobra.Command, args []string) error {
-		client, err := util.ParseClientFromCtx(cmd.Context())
+		client, err := cmdnode.ParseClientFromCtx(cmd.Context())
 		if err != nil {
 			return err
 		}
@@ -350,7 +350,7 @@ var blockedPeersCmd = &cobra.Command{
 				Peers: peers,
 			}
 		}
-		return util.PrintOutput(pids, err, formatter)
+		return cmdnode.PrintOutput(pids, err, formatter)
 	},
 }
 
@@ -359,7 +359,7 @@ var protectCmd = &cobra.Command{
 	Short: "Protects the given peer from being pruned by the given tag",
 	Args:  cobra.ExactArgs(2),
 	RunE: func(cmd *cobra.Command, args []string) error {
-		client, err := util.ParseClientFromCtx(cmd.Context())
+		client, err := cmdnode.ParseClientFromCtx(cmd.Context())
 		if err != nil {
 			return err
 		}
@@ -388,7 +388,7 @@ var protectCmd = &cobra.Command{
 				Reason:    err,
 			}
 		}
-		return util.PrintOutput(err, nil, formatter)
+		return cmdnode.PrintOutput(err, nil, formatter)
 	},
 }
 
@@ -399,7 +399,7 @@ var unprotectCmd = &cobra.Command{
 		"The return value indicates whether the peer continues to be protected after this call, by way of a different tag",
 	Args: cobra.ExactArgs(2),
 	RunE: func(cmd *cobra.Command, args []string) error {
-		client, err := util.ParseClientFromCtx(cmd.Context())
+		client, err := cmdnode.ParseClientFromCtx(cmd.Context())
 		if err != nil {
 			return err
 		}
@@ -428,7 +428,7 @@ var unprotectCmd = &cobra.Command{
 				Reason:      err,
 			}
 		}
-		return util.PrintOutput(err, nil, formatter)
+		return cmdnode.PrintOutput(err, nil, formatter)
 	},
 }
 
@@ -437,7 +437,7 @@ var protectedCmd = &cobra.Command{
 	Short: "Ensures that a given peer is protected under a specific tag",
 	Args:  cobra.ExactArgs(2),
 	RunE: func(cmd *cobra.Command, args []string) error {
-		client, err := util.ParseClientFromCtx(cmd.Context())
+		client, err := cmdnode.ParseClientFromCtx(cmd.Context())
 		if err != nil {
 			return err
 		}
@@ -449,7 +449,7 @@ var protectedCmd = &cobra.Command{
 		}
 
 		result, err := client.P2P.IsProtected(cmd.Context(), pid, args[1])
-		return util.PrintOutput(result, err, nil)
+		return cmdnode.PrintOutput(result, err, nil)
 	},
 }
 
@@ -467,7 +467,7 @@ var bandwidthStatsCmd = &cobra.Command{
 		"received by the local peer, regardless of protocol or remote peer IDs",
 	Args: cobra.NoArgs,
 	RunE: func(cmd *cobra.Command, args []string) error {
-		client, err := util.ParseClientFromCtx(cmd.Context())
+		client, err := cmdnode.ParseClientFromCtx(cmd.Context())
 		if err != nil {
 			return err
 		}
@@ -484,7 +484,7 @@ var bandwidthStatsCmd = &cobra.Command{
 				RateOut:  stats.RateOut,
 			}
 		}
-		return util.PrintOutput(result, err, formatter)
+		return cmdnode.PrintOutput(result, err, formatter)
 	},
 }
 
@@ -493,7 +493,7 @@ var peerBandwidthCmd = &cobra.Command{
 	Short: "Gets stats struct with bandwidth metrics associated with the given peer.ID",
 	Args:  cobra.ExactArgs(1),
 	RunE: func(cmd *cobra.Command, args []string) error {
-		client, err := util.ParseClientFromCtx(cmd.Context())
+		client, err := cmdnode.ParseClientFromCtx(cmd.Context())
 		if err != nil {
 			return err
 		}
@@ -515,7 +515,7 @@ var peerBandwidthCmd = &cobra.Command{
 				RateOut:  stats.RateOut,
 			}
 		}
-		return util.PrintOutput(result, err, formatter)
+		return cmdnode.PrintOutput(result, err, formatter)
 	},
 }
 
@@ -524,7 +524,7 @@ var bandwidthForProtocolCmd = &cobra.Command{
 	Short: "Gets stats struct with bandwidth metrics associated with the given protocol.ID",
 	Args:  cobra.ExactArgs(1),
 	RunE: func(cmd *cobra.Command, args []string) error {
-		client, err := util.ParseClientFromCtx(cmd.Context())
+		client, err := cmdnode.ParseClientFromCtx(cmd.Context())
 		if err != nil {
 			return err
 		}
@@ -541,7 +541,7 @@ var bandwidthForProtocolCmd = &cobra.Command{
 				RateOut:  stats.RateOut,
 			}
 		}
-		return util.PrintOutput(result, err, formatter)
+		return cmdnode.PrintOutput(result, err, formatter)
 	},
 }
 
@@ -550,7 +550,7 @@ var pubsubPeersCmd = &cobra.Command{
 	Short: "Lists the peers we are connected to in the given topic",
 	Args:  cobra.ExactArgs(1),
 	RunE: func(cmd *cobra.Command, args []string) error {
-		client, err := util.ParseClientFromCtx(cmd.Context())
+		client, err := cmdnode.ParseClientFromCtx(cmd.Context())
 		if err != nil {
 			return err
 		}
@@ -571,6 +571,6 @@ var pubsubPeersCmd = &cobra.Command{
 				Peers: conPeers,
 			}
 		}
-		return util.PrintOutput(peers, err, formatter)
+		return cmdnode.PrintOutput(peers, err, formatter)
 	},
 }

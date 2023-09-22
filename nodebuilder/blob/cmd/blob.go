@@ -2,7 +2,6 @@ package cmd
 
 import (
 	"encoding/base64"
-	"encoding/hex"
 	"fmt"
 	"reflect"
 	"strconv"
@@ -10,7 +9,7 @@ import (
 	"github.com/spf13/cobra"
 
 	"github.com/celestiaorg/celestia-node/blob"
-	util "github.com/celestiaorg/celestia-node/cmd"
+	cmdnode "github.com/celestiaorg/celestia-node/cmd"
 	"github.com/celestiaorg/celestia-node/share"
 )
 
@@ -57,15 +56,15 @@ var Cmd = &cobra.Command{
 	Use:               "blob [command]",
 	Short:             "Allows to interact with the Blob Service via JSON-RPC",
 	Args:              cobra.NoArgs,
-	PersistentPreRunE: util.InitClient,
+	PersistentPreRunE: cmdnode.InitClient,
 }
 
 var getCmd = &cobra.Command{
-	Use:   "get [height, namespace, commitment]",
+	Use:   "get [height] [namespace] [commitment]",
 	Args:  cobra.ExactArgs(3),
 	Short: "Returns the blob for the given namespace by commitment at a particular height.",
 	RunE: func(cmd *cobra.Command, args []string) error {
-		client, err := util.ParseClientFromCtx(cmd.Context())
+		client, err := cmdnode.ParseClientFromCtx(cmd.Context())
 		if err != nil {
 			return err
 		}
@@ -76,7 +75,7 @@ var getCmd = &cobra.Command{
 			return fmt.Errorf("error parsing a height:%v", err)
 		}
 
-		namespace, err := util.ParseV0Namespace(args[1])
+		namespace, err := cmdnode.ParseV0Namespace(args[1])
 		if err != nil {
 			return fmt.Errorf("error parsing a namespace:%v", err)
 		}
@@ -92,16 +91,16 @@ var getCmd = &cobra.Command{
 		if base64Flag || err != nil {
 			formatter = nil
 		}
-		return util.PrintOutput(blob, err, formatter)
+		return cmdnode.PrintOutput(blob, err, formatter)
 	},
 }
 
 var getAllCmd = &cobra.Command{
-	Use:   "get-all [height, namespace]",
+	Use:   "get-all [height] [namespace]",
 	Args:  cobra.ExactArgs(2),
 	Short: "Returns all blobs for the given namespace at a particular height.",
 	RunE: func(cmd *cobra.Command, args []string) error {
-		client, err := util.ParseClientFromCtx(cmd.Context())
+		client, err := cmdnode.ParseClientFromCtx(cmd.Context())
 		if err != nil {
 			return err
 		}
@@ -112,35 +111,32 @@ var getAllCmd = &cobra.Command{
 			return fmt.Errorf("error parsing a height:%v", err)
 		}
 
-		namespace, err := util.ParseV0Namespace(args[1])
+		namespace, err := cmdnode.ParseV0Namespace(args[1])
 		if err != nil {
 			return fmt.Errorf("error parsing a namespace:%v", err)
 		}
 
 		blobs, err := client.Blob.GetAll(cmd.Context(), height, []share.Namespace{namespace})
-		fmt.Println(hex.EncodeToString(blobs[0].Namespace().ID()))
-		fmt.Println(blobs[0].Namespace().ID())
-		fmt.Println(blobs[0].Namespace())
 		formatter := formatData
 		if base64Flag || err != nil {
 			formatter = nil
 		}
-		return util.PrintOutput(blobs, err, formatter)
+		return cmdnode.PrintOutput(blobs, err, formatter)
 	},
 }
 
 var submitCmd = &cobra.Command{
-	Use:   "submit [namespace, blobData]",
+	Use:   "submit [namespace] [blobData]",
 	Args:  cobra.ExactArgs(2),
 	Short: "Submit the blob at the given namespace. Note: only one blob is allowed to submit through the RPC.",
 	RunE: func(cmd *cobra.Command, args []string) error {
-		client, err := util.ParseClientFromCtx(cmd.Context())
+		client, err := cmdnode.ParseClientFromCtx(cmd.Context())
 		if err != nil {
 			return err
 		}
 		defer client.Close()
 
-		namespace, err := util.ParseV0Namespace(args[0])
+		namespace, err := cmdnode.ParseV0Namespace(args[0])
 		if err != nil {
 			return fmt.Errorf("error parsing a namespace:%v", err)
 		}
@@ -163,16 +159,16 @@ var submitCmd = &cobra.Command{
 			Height:     height,
 			Commitment: parsedBlob.Commitment,
 		}
-		return util.PrintOutput(response, err, nil)
+		return cmdnode.PrintOutput(response, err, nil)
 	},
 }
 
 var getProofCmd = &cobra.Command{
-	Use:   "get-proof [height, namespace, commitment]",
+	Use:   "get-proof [height] [namespace] [commitment]",
 	Args:  cobra.ExactArgs(3),
 	Short: "Retrieves the blob in the given namespaces at the given height by commitment and returns its Proof.",
 	RunE: func(cmd *cobra.Command, args []string) error {
-		client, err := util.ParseClientFromCtx(cmd.Context())
+		client, err := cmdnode.ParseClientFromCtx(cmd.Context())
 		if err != nil {
 			return err
 		}
@@ -183,7 +179,7 @@ var getProofCmd = &cobra.Command{
 			return fmt.Errorf("error parsing a height:%v", err)
 		}
 
-		namespace, err := util.ParseV0Namespace(args[1])
+		namespace, err := cmdnode.ParseV0Namespace(args[1])
 		if err != nil {
 			return fmt.Errorf("error parsing a namespace:%v", err)
 		}
@@ -194,7 +190,7 @@ var getProofCmd = &cobra.Command{
 		}
 
 		proof, err := client.Blob.GetProof(cmd.Context(), height, namespace, commitment)
-		return util.PrintOutput(proof, err, nil)
+		return cmdnode.PrintOutput(proof, err, nil)
 	},
 }
 

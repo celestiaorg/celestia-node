@@ -9,7 +9,7 @@ import (
 
 	"github.com/celestiaorg/celestia-app/pkg/da"
 
-	util "github.com/celestiaorg/celestia-node/cmd"
+	cmdnode "github.com/celestiaorg/celestia-node/cmd"
 	"github.com/celestiaorg/celestia-node/share"
 )
 
@@ -27,7 +27,7 @@ var Cmd = &cobra.Command{
 	Use:               "share [command]",
 	Short:             "Allows interaction with the Share Module via JSON-RPC",
 	Args:              cobra.NoArgs,
-	PersistentPreRunE: util.InitClient,
+	PersistentPreRunE: cmdnode.InitClient,
 }
 
 var sharesAvailableCmd = &cobra.Command{
@@ -35,7 +35,7 @@ var sharesAvailableCmd = &cobra.Command{
 	Short: "Subjectively validates if Shares committed to the given Root are available on the Network.",
 	Args:  cobra.ExactArgs(1),
 	RunE: func(cmd *cobra.Command, args []string) error {
-		client, err := util.ParseClientFromCtx(cmd.Context())
+		client, err := cmdnode.ParseClientFromCtx(cmd.Context())
 		if err != nil {
 			return err
 		}
@@ -69,7 +69,7 @@ var sharesAvailableCmd = &cobra.Command{
 				Reason:    err,
 			}
 		}
-		return util.PrintOutput(err, nil, formatter)
+		return cmdnode.PrintOutput(err, nil, formatter)
 	},
 }
 
@@ -78,14 +78,14 @@ var probabilityOfAvailabilityCmd = &cobra.Command{
 	Short: "Calculates the probability of the data square being available based on the number of samples collected.",
 	Args:  cobra.NoArgs,
 	RunE: func(cmd *cobra.Command, args []string) error {
-		client, err := util.ParseClientFromCtx(cmd.Context())
+		client, err := cmdnode.ParseClientFromCtx(cmd.Context())
 		if err != nil {
 			return err
 		}
 		defer client.Close()
 
 		prob := client.Share.ProbabilityOfAvailability(cmd.Context())
-		return util.PrintOutput(prob, nil, nil)
+		return cmdnode.PrintOutput(prob, nil, nil)
 	},
 }
 
@@ -94,7 +94,7 @@ var getSharesByNamespaceCmd = &cobra.Command{
 	Short: "Gets all shares from an EDS within the given namespace.",
 	Args:  cobra.ExactArgs(2),
 	RunE: func(cmd *cobra.Command, args []string) error {
-		client, err := util.ParseClientFromCtx(cmd.Context())
+		client, err := cmdnode.ParseClientFromCtx(cmd.Context())
 		if err != nil {
 			return err
 		}
@@ -111,13 +111,13 @@ var getSharesByNamespaceCmd = &cobra.Command{
 			return err
 		}
 
-		ns, err := util.ParseV0Namespace(args[1])
+		ns, err := cmdnode.ParseV0Namespace(args[1])
 		if err != nil {
 			return err
 		}
 
 		shares, err := client.Share.GetSharesByNamespace(cmd.Context(), &root, ns)
-		return util.PrintOutput(shares, err, nil)
+		return cmdnode.PrintOutput(shares, err, nil)
 	},
 }
 
@@ -126,7 +126,7 @@ var getShare = &cobra.Command{
 	Short: "Gets a Share by coordinates in EDS.",
 	Args:  cobra.ExactArgs(3),
 	RunE: func(cmd *cobra.Command, args []string) error {
-		client, err := util.ParseClientFromCtx(cmd.Context())
+		client, err := cmdnode.ParseClientFromCtx(cmd.Context())
 		if err != nil {
 			return err
 		}
@@ -171,7 +171,7 @@ var getShare = &cobra.Command{
 				Data:      share.GetData(sh),
 			}
 		}
-		return util.PrintOutput(s, err, formatter)
+		return cmdnode.PrintOutput(s, err, formatter)
 	},
 }
 
@@ -180,7 +180,7 @@ var getEDS = &cobra.Command{
 	Short: "Gets the full EDS identified by the given root",
 	Args:  cobra.ExactArgs(1),
 	RunE: func(cmd *cobra.Command, args []string) error {
-		client, err := util.ParseClientFromCtx(cmd.Context())
+		client, err := cmdnode.ParseClientFromCtx(cmd.Context())
 		if err != nil {
 			return err
 		}
@@ -198,7 +198,7 @@ var getEDS = &cobra.Command{
 		}
 
 		shares, err := client.Share.GetEDS(cmd.Context(), &root)
-		return util.PrintOutput(shares, err, nil)
+		return cmdnode.PrintOutput(shares, err, nil)
 	},
 }
 
