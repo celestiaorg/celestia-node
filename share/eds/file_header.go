@@ -9,15 +9,15 @@ const HeaderSize = 32
 
 type Header struct {
 	// User set features
-	// TODO: Add codec
-	// TDOD: Add ODS support
-	version     uint8
-	compression uint8
-	// 	extensions  map[string]string
+	cfg FileConfig
 
 	// Taken directly from EDS
 	shareSize  uint16
 	squareSize uint32
+}
+
+func (h *Header) Config() FileConfig {
+	return h.cfg
 }
 
 func (h *Header) ShareSize() int {
@@ -28,18 +28,11 @@ func (h *Header) SquareSize() int {
 	return int(h.squareSize)
 }
 
-// TODO(@Wondertan) Should return special types
-func (h *Header) Version() uint8 {
-	return h.version
-}
-func (h *Header) Compression() uint8 {
-	return h.compression
-}
-
 func (h *Header) WriteTo(w io.Writer) (int64, error) {
 	buf := make([]byte, HeaderSize)
-	buf[0] = h.version
-	buf[1] = h.compression
+	buf[0] = byte(h.Config().Version)
+	buf[1] = byte(h.Config().Compression)
+	buf[2] = byte(h.Config().Mode)
 	binary.LittleEndian.PutUint16(buf[2:4], h.shareSize)
 	binary.LittleEndian.PutUint32(buf[4:12], h.squareSize)
 	// TODO: Extensions
@@ -54,8 +47,9 @@ func (h *Header) ReadFrom(r io.Reader) (int64, error) {
 		return int64(n), err
 	}
 
-	h.version = buf[0]
-	h.compression = buf[1]
+	h.cfg.Version = FileVersion(buf[0])
+	h.cfg.Compression = FileCompression(buf[1])
+	h.cfg.Mode = FileMode(buf[2])
 	h.shareSize = binary.LittleEndian.Uint16(buf[2:4])
 	h.squareSize = binary.LittleEndian.Uint32(buf[4:12])
 
@@ -71,8 +65,9 @@ func ReadHeaderAt(r io.ReaderAt, offset int64) (*Header, error) {
 		return h, err
 	}
 
-	h.version = buf[0]
-	h.compression = buf[1]
+	h.cfg.Version = FileVersion(buf[0])
+	h.cfg.Compression = FileCompression(buf[1])
+	h.cfg.Mode = FileMode(buf[2])
 	h.shareSize = binary.LittleEndian.Uint16(buf[2:4])
 	h.squareSize = binary.LittleEndian.Uint32(buf[4:12])
 	return h, nil
