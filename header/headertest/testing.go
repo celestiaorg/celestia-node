@@ -203,9 +203,15 @@ func (s *TestSuite) nextProposer() *types.Validator {
 
 // RandExtendedHeader provides an ExtendedHeader fixture.
 func RandExtendedHeader(t *testing.T) *header.ExtendedHeader {
+	timestamp := time.Now()
+	return RandExtendedHeaderAtTimestamp(t, timestamp)
+}
+
+func RandExtendedHeaderAtTimestamp(t *testing.T, timestamp time.Time) *header.ExtendedHeader {
 	dah := share.EmptyRoot()
 
 	rh := RandRawHeader(t)
+	rh.Time = timestamp
 	rh.DataHash = dah.Hash()
 
 	valSet, vals := RandValidatorSet(3, 1)
@@ -213,7 +219,7 @@ func RandExtendedHeader(t *testing.T) *header.ExtendedHeader {
 	voteSet := types.NewVoteSet(rh.ChainID, rh.Height, 0, tmproto.PrecommitType, valSet)
 	blockID := RandBlockID(t)
 	blockID.Hash = rh.Hash()
-	commit, err := MakeCommit(blockID, rh.Height, 0, voteSet, vals, time.Now())
+	commit, err := MakeCommit(blockID, rh.Height, 0, voteSet, vals, timestamp)
 	require.NoError(t, err)
 
 	return &header.ExtendedHeader{
