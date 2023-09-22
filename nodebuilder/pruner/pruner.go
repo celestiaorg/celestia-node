@@ -200,19 +200,21 @@ func (sp *StoragePruner) pruneEpoch(ctx context.Context, epoch uint64) error {
 }
 
 func (sp *StoragePruner) updateOldestEpoch() {
-	// TODO: This is obviously not ideal and we should track the oldest epoch in a more efficient way instead
-	// or just calculate it based off of time offsets and make sure we cover any edge cases
-	sp.oldestEpoch.Store(^uint64(0))
-	for key := range sp.activeEpochs {
-		oldest := sp.oldestEpoch.Load()
-		if key < oldest {
-			sp.oldestEpoch.CompareAndSwap(oldest, key)
+	oldest := sp.oldestEpoch.Load()
+	next := oldest
+	for {
+		nextTime := sp.epochToTime(next).Add(sp.cfg.EpochDuration)
+		if nextTime.After(time.Now()) {
+			log.Warn("could not find new oldest epoch")
+			break
 		}
+		nextEpoch := sp.calculateEpoch(nextTime)
+		if _, ok := sp.activeEpochs[nextEpoch]; ok {
+			sp.oldestEpoch.CompareAndSwap(oldest, nextEpoch)
+			break
+		}
+		next = oldest + 1
 	}
-}
-
-func (sp *StoragePruner) epochIsRecent(epoch uint64) bool {
-	return epoch >= sp.calculateEpoch(time.Now().Add(-sp.cfg.RecencyWindow))
 }
 
 func (sp *StoragePruner) getDatahashesFromEpoch(ctx context.Context, epoch uint64) ([]share.DataHash, error) {
@@ -244,4 +246,12 @@ func (sp *StoragePruner) saveDatahashesToEpoch(ctx context.Context, epoch uint64
 
 func (sp *StoragePruner) calculateEpoch(timestamp time.Time) uint64 {
 	return uint64(timestamp.Unix() / int64(sp.cfg.EpochDuration.Seconds()))
+}
+
+func (sp *StoragePruner) epochToTime(epoch uint64) time.Time {
+	return time.Unix(int64(epoch*uint64(sp.cfg.EpochDuration.Seconds())), 0)
+}
+
+func (sp *StoragePruner) epochIsRecent(epoch uint64) bool {
+	return epoch >= sp.calculateEpoch(time.Now().Add(-sp.cfg.RecencyWindow))
 }
