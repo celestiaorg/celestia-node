@@ -182,7 +182,7 @@ func (cl *Listener) handleNewSignedBlock(ctx context.Context, b types.EventDataS
 
 	// attempt to store block data if not empty
 	ctx = ipld.CtxWithProofsAdder(ctx, adder)
-	err = storeEDS(ctx, b.Header.DataHash.Bytes(), eds, cl.store)
+	err = storeEDS(ctx, eh, eds, cl.store, cl.pruner)
 	if err != nil {
 		return fmt.Errorf("storing EDS: %w", err)
 	}
