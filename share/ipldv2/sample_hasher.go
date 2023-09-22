@@ -2,13 +2,14 @@ package ipldv2
 
 import (
 	"crypto/sha256"
+	"fmt"
 	"hash"
 
 	mh "github.com/multiformats/go-multihash"
 )
 
 func init() {
-	// Register hasher for multihash.
+	// Register hasher for our multihash code
 	mh.Register(multihashCode, func() hash.Hash {
 		return &SampleHasher{}
 	})
@@ -21,13 +22,14 @@ type SampleHasher struct {
 
 // Write expects a marshaled Sample to validate.
 func (sh *SampleHasher) Write(data []byte) (int, error) {
-	err := sh.sample.UnmarshalBinary(data)
-	if err != nil {
+	if err := sh.sample.UnmarshalBinary(data); err != nil {
+		err = fmt.Errorf("while unmarshaling Sample: %w", err)
 		log.Error(err)
 		return 0, err
 	}
 
-	if err = sh.sample.Validate(); err != nil {
+	if err := sh.sample.Validate(); err != nil {
+		err = fmt.Errorf("while validating Sample: %w", err)
 		log.Error(err)
 		return 0, err
 	}
@@ -37,7 +39,11 @@ func (sh *SampleHasher) Write(data []byte) (int, error) {
 
 // Sum returns the "multihash" of the SampleID.
 func (sh *SampleHasher) Sum([]byte) []byte {
-	sum, _ := sh.sample.ID.MarshalBinary()
+	sum, err := sh.sample.ID.MarshalBinary()
+	if err != nil {
+		err = fmt.Errorf("while marshaling SampleID")
+		log.Error(err)
+	}
 	return sum
 }
 

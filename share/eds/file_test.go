@@ -13,6 +13,16 @@ import (
 	"github.com/celestiaorg/celestia-node/share/eds/edstest"
 )
 
+func TestCreateFile(t *testing.T) {
+	path := t.TempDir() + "/testfile"
+	edsIn := edstest.RandEDS(t, 8)
+	f, err := CreateFile(path, edsIn)
+	require.NoError(t, err)
+	edsOut, err := f.EDS()
+	require.NoError(t, err)
+	assert.True(t, edsIn.Equals(edsOut))
+}
+
 func TestFile(t *testing.T) {
 	path := t.TempDir() + "/testfile"
 	eds := edstest.RandEDS(t, 8)
@@ -44,7 +54,7 @@ func TestFile(t *testing.T) {
 			require.NoError(t, err)
 			assert.EqualValues(t, eds.GetCell(row, col), shr)
 
-			shr, proof, err := fl.ShareWithProof(i, axis)
+			shr, prf, err := fl.ShareWithProof(i, axis)
 			require.NoError(t, err)
 			assert.EqualValues(t, eds.GetCell(row, col), shr)
 
@@ -53,12 +63,12 @@ func TestFile(t *testing.T) {
 				namespace = share.GetNamespace(shr)
 			}
 
-			dahroot := root.RowRoots[row]
+			axishash := root.RowRoots[row]
 			if axis == rsmt2d.Col {
-				dahroot = root.ColumnRoots[col]
+				axishash = root.ColumnRoots[col]
 			}
 
-			ok := proof.VerifyInclusion(sha256.New(), namespace.ToNMT(), [][]byte{shr}, dahroot)
+			ok := prf.VerifyInclusion(sha256.New(), namespace.ToNMT(), [][]byte{shr}, axishash)
 			assert.True(t, ok)
 		}
 	}

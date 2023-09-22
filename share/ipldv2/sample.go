@@ -3,6 +3,7 @@ package ipldv2
 import (
 	"crypto/sha256"
 	"errors"
+	"fmt"
 
 	blocks "github.com/ipfs/go-block-format"
 
@@ -38,11 +39,8 @@ type Sample struct {
 }
 
 // NewSample constructs a new Sample.
-func NewSample(root *share.Root, idx int, axis rsmt2d.Axis, shr share.Share, proof nmt.Proof) *Sample {
-	id := NewSampleID(root, idx, axis)
-
-	sqrLn := len(root.RowRoots)
-	row, col := idx/sqrLn, idx%sqrLn
+func NewSample(id SampleID, shr share.Share, proof nmt.Proof, sqrLn int) *Sample {
+	row, col := id.Index/sqrLn, id.Index%sqrLn
 	tp := ParitySample
 	if row < sqrLn/2 && col < sqrLn/2 {
 		tp = DataSample
@@ -56,8 +54,14 @@ func NewSample(root *share.Root, idx int, axis rsmt2d.Axis, shr share.Share, pro
 	}
 }
 
-// NewSampleFrom samples the EDS and constructs a new Sample.
-func NewSampleFrom(eds *rsmt2d.ExtendedDataSquare, idx int, axis rsmt2d.Axis) (*Sample, error) {
+// NewSampleFrom constructs a new Sample from share.Root.
+func NewSampleFrom(root *share.Root, idx int, axis rsmt2d.Axis, shr share.Share, proof nmt.Proof) *Sample {
+	id := NewSampleID(root, idx, axis)
+	return NewSample(id, shr, proof, len(root.RowRoots))
+}
+
+// NewSampleFromEDS samples the EDS and constructs a new Sample.
+func NewSampleFromEDS(eds *rsmt2d.ExtendedDataSquare, idx int, axis rsmt2d.Axis) (*Sample, error) {
 	sqrLn := int(eds.Width())
 	axisIdx, shrIdx := idx/sqrLn, idx%sqrLn
 
@@ -75,23 +79,23 @@ func NewSampleFrom(eds *rsmt2d.ExtendedDataSquare, idx int, axis rsmt2d.Axis) (*
 
 	root, err := share.NewRoot(eds)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("while computing root: %w", err)
 	}
 
 	tree := wrapper.NewErasuredNamespacedMerkleTree(uint64(sqrLn/2), uint(axisIdx))
 	for _, shr := range shrs {
 		err := tree.Push(shr)
 		if err != nil {
-			return nil, err
+			return nil, fmt.Errorf("while pushing shares to NMT: %w", err)
 		}
 	}
 
-	proof, err := tree.ProveRange(shrIdx, shrIdx+1)
+	prf, err := tree.ProveRange(shrIdx, shrIdx+1)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("while proving range share over NMT: %w", err)
 	}
 
-	return NewSample(root, idx, axis, shrs[shrIdx], proof), nil
+	return NewSampleFrom(root, idx, axis, shrs[shrIdx], prf), nil
 }
 
 // Proto converts Sample to its protobuf representation.
@@ -110,6 +114,21 @@ func (s *Sample) Proto() *ipldv2pb.Sample {
 		Proof: proof,
 		Share: s.Share,
 	}
+}
+
+// SampleFromBlock converts blocks.Block into Sample.
+func SampleFromBlock(blk blocks.Block) (*Sample, error) {
+	if err := validateCID(blk.Cid()); err != nil {
+		return nil, err
+	}
+
+	s := &Sample{}
+	err := s.UnmarshalBinary(blk.RawData())
+	if err != nil {
+		return nil, fmt.Errorf("while unmarshalling Sample: %w", err)
+	}
+
+	return s, nil
 }
 
 // IPLDBlock converts Sample to an IPLD block for Bitswap compatibility.
@@ -135,14 +154,13 @@ func (s *Sample) MarshalBinary() ([]byte, error) {
 // UnmarshalBinary unmarshals Sample from binary.
 func (s *Sample) UnmarshalBinary(data []byte) error {
 	proto := &ipldv2pb.Sample{}
-	err := proto.Unmarshal(data)
-	if err != nil {
+	if err := proto.Unmarshal(data); err != nil {
 		return err
 	}
 
 	s.ID = SampleID{
-		DataRoot: proto.Id.DataRoot,
-		DAHRoot:  proto.Id.DahRoot,
+		DataHash: proto.Id.DataHash,
+		AxisHash: proto.Id.AxisHash,
 		Index:    int(proto.Id.Index),
 		Axis:     rsmt2d.Axis(proto.Id.Axis),
 	}
@@ -159,7 +177,7 @@ func (s *Sample) Validate() error {
 	}
 
 	if s.Type != DataSample && s.Type != ParitySample {
-		return errors.New("malformed sample type")
+		return fmt.Errorf("incorrect sample type: %d", s.Type)
 	}
 
 	// TODO Support Col proofs
@@ -168,7 +186,7 @@ func (s *Sample) Validate() error {
 		namespace = share.GetNamespace(s.Share)
 	}
 
-	if !s.Proof.VerifyInclusion(sha256.New(), namespace.ToNMT(), [][]byte{s.Share}, s.ID.DAHRoot) {
+	if !s.Proof.VerifyInclusion(sha256.New(), namespace.ToNMT(), [][]byte{s.Share}, s.ID.AxisHash) {
 		return errors.New("sample proof is invalid")
 	}
 

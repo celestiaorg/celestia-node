@@ -13,8 +13,8 @@ enum SampleType {
 }
 
 message SampleID{
-    bytes data_root = 1;
-    bytes dah_root = 2;
+    bytes data_hash = 1;
+    bytes axis_hash = 2;
     uint32 index = 3;
     Axis axis = 4;
 }
