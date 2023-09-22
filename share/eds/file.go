@@ -14,6 +14,15 @@ import (
 	"github.com/celestiaorg/celestia-node/share"
 )
 
+type FileConfig struct {
+	Version     FileVersion
+	Compression FileCompression
+	Mode        FileMode
+
+	// 	extensions  map[string]string
+	// TODO: Add codec
+}
+
 // File
 // * immutable
 // * versionable
@@ -42,6 +51,7 @@ func OpenFile(path string) (*File, error) {
 		return nil, err
 	}
 
+	// TODO(WWondertan): Validate header
 	return &File{
 		path: path,
 		hdr:  h,
@@ -49,26 +59,38 @@ func OpenFile(path string) (*File, error) {
 	}, nil
 }
 
-// TODO: Allow setting features
-func CreateFile(path string, eds *rsmt2d.ExtendedDataSquare) (*File, error) {
+func CreateFile(path string, eds *rsmt2d.ExtendedDataSquare, cfgs ...FileConfig) (*File, error) {
 	f, err := os.Create(path)
 	if err != nil {
 		return nil, err
 	}
 
+	cfg := FileConfig{}
+	if cfgs != nil {
+		cfg = cfgs[0]
+	}
+
 	h := &Header{
 		shareSize:  uint16(len(eds.GetCell(0, 0))), // TODO: rsmt2d should expose this field
 		squareSize: uint32(eds.Width()),
+		cfg:        cfg,
 	}
 
 	if _, err = h.WriteTo(f); err != nil {
 		return nil, err
 	}
 
-	for _, shr := range eds.Flattened() {
-		// TODO: Buffer and write as single?
-		if _, err := f.Write(shr); err != nil {
-			return nil, err
+	width := eds.Width()
+	if cfg.Mode == ODSMode {
+		width /= 2
+	}
+	for i := uint(0); i < width; i++ {
+		for j := uint(0); j < width; j++ {
+			// TODO: Buffer and write as single?
+			shr := eds.GetCell(i, j)
+			if _, err := f.Write(shr); err != nil {
+				return nil, err
+			}
 		}
 	}
 
@@ -90,6 +112,9 @@ func (f *File) Header() *Header {
 func (f *File) Axis(idx int, axis rsmt2d.Axis) ([]share.Share, error) {
 	shrLn := int(f.hdr.shareSize)
 	sqrLn := int(f.hdr.squareSize)
+	if f.Header().Config().Mode == ODSMode {
+		sqrLn /= 2
+	}
 
 	shrs := make([]share.Share, sqrLn)
 	switch axis {
@@ -120,6 +145,14 @@ func (f *File) Axis(idx int, axis rsmt2d.Axis) ([]share.Share, error) {
 		return nil, fmt.Errorf("unknown axis")
 	}
 
+	if f.Header().Config().Mode == ODSMode {
+		parity, err := share.DefaultRSMT2DCodec().Decode(shrs)
+		if err != nil {
+			return nil, err
+		}
+
+		return append(shrs, parity...), nil
+	}
 	return shrs, nil
 }
 
@@ -167,6 +200,9 @@ func (f *File) ShareWithProof(idx int, axis rsmt2d.Axis) (share.Share, nmt.Proof
 func (f *File) EDS() (*rsmt2d.ExtendedDataSquare, error) {
 	shrLn := int(f.hdr.shareSize)
 	sqrLn := int(f.hdr.squareSize)
+	if f.Header().Config().Mode == ODSMode {
+		sqrLn /= 2
+	}
 
 	buf := make([]byte, sqrLn*sqrLn*shrLn)
 	if _, err := f.fl.ReadAt(buf, HeaderSize); err != nil {
@@ -176,17 +212,20 @@ func (f *File) EDS() (*rsmt2d.ExtendedDataSquare, error) {
 	shrs := make([][]byte, sqrLn*sqrLn)
 	for i := 0; i < sqrLn; i++ {
 		for j := 0; j < sqrLn; j++ {
-			x := i*sqrLn + j
-			shrs[x] = buf[x*shrLn : (x+1)*shrLn]
+			pos := i*sqrLn + j
+			shrs[pos] = buf[pos*shrLn : (pos+1)*shrLn]
 		}
 	}
 
 	codec := share.DefaultRSMT2DCodec()
 	treeFn := wrapper.NewConstructor(uint64(f.hdr.squareSize / 2))
-	eds, err := rsmt2d.ImportExtendedDataSquare(shrs, codec, treeFn)
-	if err != nil {
-		return nil, err
-	}
 
-	return eds, nil
+	switch f.Header().Config().Mode {
+	case EDSMode:
+		return rsmt2d.ImportExtendedDataSquare(shrs, codec, treeFn)
+	case ODSMode:
+		return rsmt2d.ComputeExtendedDataSquare(shrs, codec, treeFn)
+	default:
+		return nil, fmt.Errorf("invalid mode type") // TODO(@Wondertan): Do fields validation right after read
+	}
 }

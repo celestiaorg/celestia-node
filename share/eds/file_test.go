@@ -16,11 +16,14 @@ import (
 func TestCreateFile(t *testing.T) {
 	path := t.TempDir() + "/testfile"
 	edsIn := edstest.RandEDS(t, 8)
-	f, err := CreateFile(path, edsIn)
-	require.NoError(t, err)
-	edsOut, err := f.EDS()
-	require.NoError(t, err)
-	assert.True(t, edsIn.Equals(edsOut))
+
+	for _, mode := range []FileMode{EDSMode, ODSMode} {
+		f, err := CreateFile(path, edsIn, FileConfig{Mode: mode})
+		require.NoError(t, err)
+		edsOut, err := f.EDS()
+		require.NoError(t, err)
+		assert.True(t, edsIn.Equals(edsOut))
+	}
 }
 
 func TestFile(t *testing.T) {
@@ -29,6 +32,7 @@ func TestFile(t *testing.T) {
 	root, err := share.NewRoot(eds)
 	require.NoError(t, err)
 
+	// TODO(@Wondartan): Test in multiple modes
 	fl, err := CreateFile(path, eds)
 	require.NoError(t, err)
 	err = fl.Close()
