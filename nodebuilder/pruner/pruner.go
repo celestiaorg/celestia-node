@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"strconv"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	"github.com/ipfs/go-datastore"
@@ -28,8 +29,7 @@ type StoragePruner struct {
 	cancel context.CancelFunc
 	cfg    Config
 
-	// TODO: Race?
-	oldestEpoch uint64
+	oldestEpoch atomic.Uint64
 
 	stripedLocks [256]sync.Mutex
 	activeEpochs map[uint64]struct{}
@@ -41,15 +41,17 @@ type StoragePruner struct {
 }
 
 func NewStoragePruner(ds datastore.Batching, store *eds.Store, cfg Config) *StoragePruner {
-	return &StoragePruner{
-		// set to max uint64 as sentinel before state is restored or first epoch is registered
-		oldestEpoch:  ^uint64(0),
+	sp := &StoragePruner{
 		activeEpochs: make(map[uint64]struct{}),
 		ds:           namespace.Wrap(ds, datastore.NewKey(dsPrefix)),
 		store:        store,
 		cfg:          cfg,
 		done:         make(chan struct{}),
 	}
+
+	// set to max uint64 as sentinel before state is restored or first epoch is registered
+	sp.oldestEpoch.Store(^uint64(0))
+	return sp
 }
 
 func (sp *StoragePruner) Start(ctx context.Context) error {
@@ -86,11 +88,15 @@ func (sp *StoragePruner) restoreState(ctx context.Context) error {
 		}
 		// we don't need to use locks here because no methods will be called until the callers have also started
 		sp.activeEpochs[epoch] = struct{}{}
-		if epoch < sp.oldestEpoch {
-			sp.oldestEpoch = epoch
+		oldest := sp.oldestEpoch.Load()
+		if epoch < oldest {
+			sp.oldestEpoch.CompareAndSwap(oldest, epoch)
 		}
 	}
-	log.Infow("restored state from datastore", "oldestEpoch", sp.oldestEpoch, "active epoch count", len(sp.activeEpochs))
+	log.Infow("restored state from datastore",
+		"oldestEpoch", sp.oldestEpoch.Load(),
+		"active epoch count", len(sp.activeEpochs),
+	)
 	return nil
 }
 
@@ -118,8 +124,9 @@ func (sp *StoragePruner) Register(ctx context.Context, h *header.ExtendedHeader)
 		sp.activeEpochs[epoch] = struct{}{}
 	}
 
-	if epoch < sp.oldestEpoch {
-		sp.oldestEpoch = epoch
+	oldest := sp.oldestEpoch.Load()
+	if epoch < oldest {
+		sp.oldestEpoch.CompareAndSwap(oldest, epoch)
 	}
 
 	datahashes = append(datahashes, h.DAH.Hash())
@@ -143,7 +150,7 @@ func (sp *StoragePruner) run(ctx context.Context) {
 	for {
 		select {
 		case <-ticker.C:
-			err := sp.pruneEpoch(ctx, sp.oldestEpoch)
+			err := sp.pruneEpoch(ctx, sp.oldestEpoch.Load())
 			if err != nil {
 				log.Errorw("pruning oldest epoch", "err", err)
 			}
@@ -186,7 +193,7 @@ func (sp *StoragePruner) pruneEpoch(ctx context.Context, epoch uint64) error {
 	}
 
 	delete(sp.activeEpochs, epoch)
-	if epoch == sp.oldestEpoch {
+	if epoch == sp.oldestEpoch.Load() {
 		sp.updateOldestEpoch()
 	}
 	return nil
@@ -195,10 +202,11 @@ func (sp *StoragePruner) pruneEpoch(ctx context.Context, epoch uint64) error {
 func (sp *StoragePruner) updateOldestEpoch() {
 	// TODO: This is obviously not ideal and we should track the oldest epoch in a more efficient way instead
 	// or just calculate it based off of time offsets and make sure we cover any edge cases
-	sp.oldestEpoch = ^uint64(0)
+	sp.oldestEpoch.Store(^uint64(0))
 	for key := range sp.activeEpochs {
-		if key < sp.oldestEpoch {
-			sp.oldestEpoch = key
+		oldest := sp.oldestEpoch.Load()
+		if key < oldest {
+			sp.oldestEpoch.CompareAndSwap(oldest, key)
 		}
 	}
 }
