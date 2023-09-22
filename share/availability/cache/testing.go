@@ -32,7 +32,7 @@ func FullAvailabilityWithLocalRandSquare(t *testing.T, n int) (share.Availabilit
 	store := dssync.MutexWrap(ds.NewMapDatastore())
 	getter := getters.NewIPLDGetter(bServ)
 	avail := NewShareAvailability(
-		full.TestAvailability(getter),
+		full.TestAvailability(t, getter),
 		store,
 	)
 	return avail, availability_test.RandFillBS(t, n, bServ)

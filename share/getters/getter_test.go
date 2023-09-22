@@ -22,68 +22,14 @@ import (
 	"github.com/celestiaorg/celestia-node/share/sharetest"
 )
 
-func TestTeeGetter(t *testing.T) {
-	ctx, cancel := context.WithCancel(context.Background())
-	t.Cleanup(cancel)
-
-	tmpDir := t.TempDir()
-	ds := ds_sync.MutexWrap(datastore.NewMapDatastore())
-	edsStore, err := eds.NewStore(tmpDir, ds)
-	require.NoError(t, err)
-
-	err = edsStore.Start(ctx)
-	require.NoError(t, err)
-
-	bServ := ipld.NewMemBlockservice()
-	ig := NewIPLDGetter(bServ)
-	tg := NewTeeGetter(ig, edsStore)
-
-	t.Run("TeesToEDSStore", func(t *testing.T) {
-		randEds, dah := randomEDS(t)
-		_, err := ipld.ImportShares(ctx, randEds.Flattened(), bServ)
-		require.NoError(t, err)
-
-		// eds store doesn't have the EDS yet
-		ok, err := edsStore.Has(ctx, dah.Hash())
-		assert.False(t, ok)
-		assert.NoError(t, err)
-
-		retrievedEDS, err := tg.GetEDS(ctx, dah)
-		require.NoError(t, err)
-		require.True(t, randEds.Equals(retrievedEDS))
-
-		// eds store now has the EDS and it can be retrieved
-		ok, err = edsStore.Has(ctx, dah.Hash())
-		assert.True(t, ok)
-		assert.NoError(t, err)
-		finalEDS, err := edsStore.Get(ctx, dah.Hash())
-		assert.NoError(t, err)
-		require.True(t, randEds.Equals(finalEDS))
-	})
-
-	t.Run("ShardAlreadyExistsDoesntError", func(t *testing.T) {
-		randEds, dah := randomEDS(t)
-		_, err := ipld.ImportShares(ctx, randEds.Flattened(), bServ)
-		require.NoError(t, err)
-
-		retrievedEDS, err := tg.GetEDS(ctx, dah)
-		require.NoError(t, err)
-		require.True(t, randEds.Equals(retrievedEDS))
-
-		// no error should be returned, even though the EDS identified by the DAH already exists
-		retrievedEDS, err = tg.GetEDS(ctx, dah)
-		require.NoError(t, err)
-		require.True(t, randEds.Equals(retrievedEDS))
-	})
-}
-
 func TestStoreGetter(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	t.Cleanup(cancel)
 
 	tmpDir := t.TempDir()
+	storeCfg := eds.DefaultParameters()
 	ds := ds_sync.MutexWrap(datastore.NewMapDatastore())
-	edsStore, err := eds.NewStore(tmpDir, ds)
+	edsStore, err := eds.NewStore(storeCfg, tmpDir, ds)
 	require.NoError(t, err)
 
 	err = edsStore.Start(ctx)
@@ -185,9 +131,9 @@ func TestIPLDGetter(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	t.Cleanup(cancel)
 
-	tmpDir := t.TempDir()
+	storeCfg := eds.DefaultParameters()
 	ds := ds_sync.MutexWrap(datastore.NewMapDatastore())
-	edsStore, err := eds.NewStore(tmpDir, ds)
+	edsStore, err := eds.NewStore(storeCfg, t.TempDir(), ds)
 	require.NoError(t, err)
 
 	err = edsStore.Start(ctx)

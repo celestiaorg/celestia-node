@@ -204,7 +204,7 @@ func replaceShareGetter() fx.Option {
 		) share.Getter {
 			cascade := make([]share.Getter, 0, 2)
 			cascade = append(cascade, storeGetter)
-			cascade = append(cascade, getters.NewTeeGetter(shrexGetter, store))
+			cascade = append(cascade, shrexGetter)
 			return getters.NewCascadeGetter(cascade)
 		},
 	))
