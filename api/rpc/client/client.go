@@ -65,8 +65,7 @@ func NewPublicClient(ctx context.Context, addr string) (*Client, error) {
 }
 
 // NewClient creates a new Client with one connection per namespace with the
-// given token as the authorization token. In case if token will be empty, then
-// `CELESTIA_NODE_AUTH_TOKEN` will be used in order to get the token.
+// given token as the authorization token.
 func NewClient(ctx context.Context, addr string, token string) (*Client, error) {
 	authHeader := http.Header{perms.AuthKey: []string{fmt.Sprintf("Bearer %s", token)}}
 	return newClient(ctx, addr, authHeader)
