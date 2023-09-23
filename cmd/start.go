@@ -26,54 +26,56 @@ Options passed on start override configuration options only on start and are not
 		Aliases:      []string{"run", "daemon"},
 		Args:         cobra.NoArgs,
 		SilenceUsage: true,
-		RunE: func(cmd *cobra.Command, args []string) (err error) {
-			ctx := cmd.Context()
-
-			// override config with all modifiers passed on start
-			cfg := NodeConfig(ctx)
-
-			storePath := StorePath(ctx)
-			keysPath := filepath.Join(storePath, "keys")
-
-			// construct ring
-			// TODO @renaynay: Include option for setting custom `userInput` parameter with
-			//  implementation of https://github.com/celestiaorg/celestia-node/issues/415.
-			encConf := encoding.MakeConfig(app.ModuleEncodingRegisters...)
-			ring, err := keyring.New(app.Name, cfg.State.KeyringBackend, keysPath, os.Stdin, encConf.Codec)
-			if err != nil {
-				return err
-			}
-
-			store, err := nodebuilder.OpenStore(storePath, ring)
-			if err != nil {
-				return err
-			}
-			defer func() {
-				err = errors.Join(err, store.Close())
-			}()
-
-			nd, err := nodebuilder.NewWithConfig(NodeType(ctx), Network(ctx), store, &cfg, NodeOptions(ctx)...)
-			if err != nil {
-				return err
-			}
-
-			ctx, cancel := signal.NotifyContext(cmd.Context(), syscall.SIGINT, syscall.SIGTERM)
-			defer cancel()
-			err = nd.Start(ctx)
-			if err != nil {
-				return err
-			}
-
-			<-ctx.Done()
-			cancel() // ensure we stop reading more signals for start context
-
-			ctx, cancel = signal.NotifyContext(cmd.Context(), syscall.SIGINT, syscall.SIGTERM)
-			defer cancel()
-			return nd.Stop(ctx)
-		},
+		RunE:         StartCommandRun,
 	}
 	for _, set := range fsets {
 		cmd.Flags().AddFlagSet(set)
 	}
 	return cmd
+}
+
+func StartCommandRun(cmd *cobra.Command, args []string) (err error) {
+	ctx := cmd.Context()
+
+	// override config with all modifiers passed on start
+	cfg := NodeConfig(ctx)
+
+	storePath := StorePath(ctx)
+	keysPath := filepath.Join(storePath, "keys")
+
+	// construct ring
+	// TODO @renaynay: Include option for setting custom `userInput` parameter with
+	//  implementation of https://github.com/celestiaorg/celestia-node/issues/415.
+	encConf := encoding.MakeConfig(app.ModuleEncodingRegisters...)
+	ring, err := keyring.New(app.Name, cfg.State.KeyringBackend, keysPath, os.Stdin, encConf.Codec)
+	if err != nil {
+		return err
+	}
+
+	store, err := nodebuilder.OpenStore(storePath, ring)
+	if err != nil {
+		return err
+	}
+	defer func() {
+		err = errors.Join(err, store.Close())
+	}()
+
+	nd, err := nodebuilder.NewWithConfig(NodeType(ctx), Network(ctx), store, &cfg, NodeOptions(ctx)...)
+	if err != nil {
+		return err
+	}
+
+	ctx, cancel := signal.NotifyContext(cmd.Context(), syscall.SIGINT, syscall.SIGTERM)
+	defer cancel()
+	err = nd.Start(ctx)
+	if err != nil {
+		return err
+	}
+
+	<-ctx.Done()
+	cancel() // ensure we stop reading more signals for start context
+
+	ctx, cancel = signal.NotifyContext(cmd.Context(), syscall.SIGINT, syscall.SIGTERM)
+	defer cancel()
+	return nd.Stop(ctx)
 }
