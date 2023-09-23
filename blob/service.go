@@ -133,7 +133,7 @@ func (s *Service) GetAll(ctx context.Context, height uint64, namespaces []share.
 				return
 			}
 
-			log.Debugw("receiving blobs", "height", height, "blobs", blobs)
+			log.Debugw("receiving blobs", "height", height, "total", len(blobs), "blobs", blobs)
 			resultBlobs[i] = blobs
 		}(i, namespace)
 	}
