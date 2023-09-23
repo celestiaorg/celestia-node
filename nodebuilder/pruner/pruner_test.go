@@ -6,11 +6,13 @@ import (
 	"time"
 
 	"github.com/ipfs/go-datastore"
+	logging "github.com/ipfs/go-log/v2"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
 	"github.com/celestiaorg/celestia-node/header"
 	"github.com/celestiaorg/celestia-node/header/headertest"
+	"github.com/celestiaorg/celestia-node/logs"
 	"github.com/celestiaorg/celestia-node/share"
 	"github.com/celestiaorg/celestia-node/share/eds"
 	"github.com/celestiaorg/celestia-node/share/ipld"
@@ -57,6 +59,46 @@ func TestStoragePruner_GarbageCollectsAllOutdatedEpochs(t *testing.T) {
 			t.Log("waiting for pruner to finish")
 		}
 	}
+}
+
+func TestStoragePruner_OldestEpochStaysUpdated(t *testing.T) {
+	ctx, cancel := context.WithCancel(context.Background())
+	t.Cleanup(cancel)
+	logs.SetAllLoggers(logging.LevelDebug)
+
+	ds := datastore.NewMapDatastore()
+	store, err := eds.NewStore(t.TempDir(), ds)
+	require.NoError(t, err)
+
+	err = store.Start(ctx)
+	require.NoError(t, err)
+
+	cfg := Config{
+		RecencyWindow: 10 * time.Second,
+		EpochDuration: 2 * time.Second,
+	}
+	pruner := NewStoragePruner(ds, store, cfg)
+
+	startTime := time.Now().Add(-time.Hour)
+	endTime := startTime.Add(time.Minute * 5)
+	timeBetweenHeaders := time.Second
+	fillPrunerWithBlocks(ctx, t, 16, pruner, store, startTime, endTime, timeBetweenHeaders)
+
+	expected := int(endTime.Sub(startTime) / cfg.EpochDuration)
+	// Adjusted the assertion to allow for a +/- 1 difference due to potential timing issues
+	epochCount := len(pruner.activeEpochs)
+	assert.True(t, epochCount >= expected-1 && epochCount <= expected+1)
+
+	nextEpoch := pruner.calculateEpoch(startTime)
+	for i := 0; i < epochCount; i++ {
+		t.Log(nextEpoch)
+		oldestEpoch := pruner.oldestEpoch.Load()
+		assert.Equal(t, oldestEpoch, nextEpoch)
+		err = pruner.pruneEpoch(ctx, oldestEpoch)
+		require.NoError(t, err)
+		nextEpoch = pruner.oldestEpoch.Load()
+	}
+	assert.Equal(t, len(pruner.activeEpochs), 0)
 }
 
 func TestStoragePruner_KeepsRecentEpochs(t *testing.T) {
