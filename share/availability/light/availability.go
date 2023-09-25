@@ -4,7 +4,11 @@ import (
 	"context"
 	"errors"
 	"math"
+	"sync"
 
+	"github.com/ipfs/go-datastore"
+	"github.com/ipfs/go-datastore/autobatch"
+	"github.com/ipfs/go-datastore/namespace"
 	ipldFormat "github.com/ipfs/go-ipld-format"
 	logging "github.com/ipfs/go-log/v2"
 
@@ -12,7 +16,11 @@ import (
 	"github.com/celestiaorg/celestia-node/share/getters"
 )
 
-var log = logging.Logger("share/light")
+var (
+	log                     = logging.Logger("share/light")
+	cacheAvailabilityPrefix = datastore.NewKey("sampling_result")
+	writeBatchSize          = 2048
+)
 
 // ShareAvailability implements share.Availability using Data Availability Sampling technique.
 // It is light because it does not require the downloading of all the data to verify
@@ -21,30 +29,58 @@ var log = logging.Logger("share/light")
 type ShareAvailability struct {
 	getter share.Getter
 	params Parameters
+
+	// TODO(@Wondertan): Once we come to parallelized DASer, this lock becomes a contention point
+	//  Related to #483
+	// TODO: Striped locks? :D
+	dsLk sync.RWMutex
+	ds   *autobatch.Datastore
 }
 
 // NewShareAvailability creates a new light Availability.
 func NewShareAvailability(
 	getter share.Getter,
+	ds datastore.Batching,
 	opts ...Option,
 ) *ShareAvailability {
 	params := DefaultParameters()
+	ds = namespace.Wrap(ds, cacheAvailabilityPrefix)
+	autoDS := autobatch.NewAutoBatching(ds, writeBatchSize)
 
 	for _, opt := range opts {
 		opt(&params)
 	}
 
-	return &ShareAvailability{getter, params}
+	return &ShareAvailability{
+		getter: getter,
+		params: params,
+		ds:     autoDS,
+	}
 }
 
 // SharesAvailable randomly samples `params.SampleAmount` amount of Shares committed to the given
 // Root. This way SharesAvailable subjectively verifies that Shares are available.
 func (la *ShareAvailability) SharesAvailable(ctx context.Context, dah *share.Root) error {
-	log.Debugw("Validate availability", "root", dah.String())
+	// short-circuit if the given root is minimum DAH of an empty data square
+	if share.DataHash(dah.Hash()).IsEmptyRoot() {
+		return nil
+	}
+
+	// do not sample over Root that has already been sampled
+	key := rootKey(dah)
+
+	la.dsLk.RLock()
+	exists, err := la.ds.Has(ctx, key)
+	la.dsLk.RUnlock()
+	if err != nil || exists {
+		return err
+	}
+
+	log.Debugw("validate availability", "root", dah.String())
 	// We assume the caller of this method has already performed basic validation on the
 	// given dah/root. If for some reason this has not happened, the node should panic.
 	if err := dah.ValidateBasic(); err != nil {
-		log.Errorw("Availability validation cannot be performed on a malformed DataAvailabilityHeader",
+		log.Errorw("availability validation cannot be performed on a malformed DataAvailabilityHeader",
 			"err", err)
 		panic(err)
 	}
@@ -95,6 +131,12 @@ func (la *ShareAvailability) SharesAvailable(ctx context.Context, dah *share.Roo
 		}
 	}
 
+	la.dsLk.Lock()
+	err = la.ds.Put(ctx, key, []byte{})
+	la.dsLk.Unlock()
+	if err != nil {
+		log.Errorw("storing root of successful SharesAvailable request to disk", "err", err)
+	}
 	return nil
 }
 
@@ -105,4 +147,13 @@ func (la *ShareAvailability) SharesAvailable(ctx context.Context, dah *share.Roo
 // Formula: 1 - (0.75 ** amount of samples)
 func (la *ShareAvailability) ProbabilityOfAvailability(context.Context) float64 {
 	return 1 - math.Pow(0.75, float64(la.params.SampleAmount))
+}
+
+func rootKey(root *share.Root) datastore.Key {
+	return datastore.NewKey(root.String())
+}
+
+// Close flushes all queued writes to disk.
+func (la *ShareAvailability) Close(ctx context.Context) error {
+	return la.ds.Flush(ctx)
 }
