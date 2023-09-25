@@ -120,6 +120,9 @@ func (eh *ExtendedHeader) Validate() error {
 			eh.RawHeader.Version.App)
 	}
 
+	if eh.Commit == nil {
+		return fmt.Errorf("nil commit at height %d", eh.Height())
+	}
 	err = eh.Commit.ValidateBasic()
 	if err != nil {
 		return fmt.Errorf("ValidateBasic error on Commit at height %d: %w", eh.Height(), err)
