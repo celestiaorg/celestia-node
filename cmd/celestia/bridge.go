@@ -42,6 +42,6 @@ var bridgeCmd = &cobra.Command{
 	Args:  cobra.NoArgs,
 	Short: "Manage your Bridge node",
 	PersistentPreRunE: func(cmd *cobra.Command, args []string) error {
-		return persistentPreRunEnv(cmd, node.Bridge, args)
+		return cmdnode.PersistentPreRunEnv(cmd, node.Bridge, args)
 	},
 }
