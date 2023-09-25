@@ -45,7 +45,7 @@ func (p *Parameters) Validate() error {
 	return nil
 }
 
-// DefaultParameters returns the default configuration values for the daser parameters
+// DefaultParameters returns the default configuration values for the peer manager parameters
 func DefaultParameters() Parameters {
 	return Parameters{
 		// PoolValidationTimeout's default value is based on the default daser sampling timeout of 1 minute.

@@ -53,8 +53,9 @@ func (m *metrics) observeEvicted(failed bool) {
 	if m == nil {
 		return
 	}
-	m.evictedCounter.Add(context.Background(), 1, metric.WithAttributes(
-		attribute.Bool(failedKey, failed)))
+	m.evictedCounter.Add(context.Background(), 1,
+		metric.WithAttributes(
+			attribute.Bool(failedKey, failed)))
 }
 
 func (m *metrics) observeGet(found bool) {

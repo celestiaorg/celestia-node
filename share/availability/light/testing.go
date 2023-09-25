@@ -4,6 +4,7 @@ import (
 	"testing"
 
 	"github.com/ipfs/boxo/blockservice"
+	"github.com/ipfs/go-datastore"
 
 	"github.com/celestiaorg/celestia-node/share"
 	availability_test "github.com/celestiaorg/celestia-node/share/availability/test"
@@ -42,7 +43,8 @@ func Node(dn *availability_test.TestDagNet) *availability_test.TestNode {
 }
 
 func TestAvailability(getter share.Getter) *ShareAvailability {
-	return NewShareAvailability(getter)
+	ds := datastore.NewMapDatastore()
+	return NewShareAvailability(getter, ds)
 }
 
 func SubNetNode(sn *availability_test.SubNet) *availability_test.TestNode {

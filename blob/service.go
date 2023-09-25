@@ -51,7 +51,8 @@ func NewService(
 	}
 }
 
-// SubmitOptions contains the information about fee and gasLimit price in order to configure the Submit request.
+// SubmitOptions contains the information about fee and gasLimit price in order to configure the
+// Submit request.
 type SubmitOptions struct {
 	Fee      int64
 	GasLimit uint64

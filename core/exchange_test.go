@@ -43,7 +43,8 @@ func createCoreFetcher(t *testing.T, cfg *testnode.Config) (*BlockFetcher, testn
 func createStore(t *testing.T) *eds.Store {
 	t.Helper()
 
-	store, err := eds.NewStore(t.TempDir(), ds_sync.MutexWrap(ds.NewMapDatastore()))
+	storeCfg := eds.DefaultParameters()
+	store, err := eds.NewStore(storeCfg, t.TempDir(), ds_sync.MutexWrap(ds.NewMapDatastore()))
 	require.NoError(t, err)
 	return store
 }
