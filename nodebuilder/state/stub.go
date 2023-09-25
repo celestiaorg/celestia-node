@@ -10,7 +10,7 @@ import (
 	"github.com/celestiaorg/celestia-node/state"
 )
 
-var ErrNoStateAccess = errors.New("node is running without state access")
+var ErrNoStateAccess = errors.New("node is running without state access. run with --core.ip <CORE NODE IP> to resolve")
 
 // stubbedStateModule provides a stub for the state module to return
 // errors when state endpoints are accessed without a running connection
