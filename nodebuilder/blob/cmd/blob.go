@@ -151,9 +151,7 @@ var submitCmd = &cobra.Command{
 		if err != nil {
 			return fmt.Errorf("error creating a blob:%v", err)
 		}
-		if fee != -1 {
-			panic(fee)
-		}
+
 		height, err := client.Blob.Submit(
 			cmd.Context(),
 			[]*blob.Blob{parsedBlob},
