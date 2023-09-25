@@ -150,11 +150,11 @@ type API struct {
 		QueryDelegation func(
 			ctx context.Context,
 			valAddr state.ValAddress,
-		) (*types.QueryDelegationResponse, error) `perm:"public"`
+		) (*types.QueryDelegationResponse, error) `perm:"read"`
 		QueryUnbonding func(
 			ctx context.Context,
 			valAddr state.ValAddress,
-		) (*types.QueryUnbondingDelegationResponse, error) `perm:"public"`
+		) (*types.QueryUnbondingDelegationResponse, error) `perm:"read"`
 		QueryRedelegations func(
 			ctx context.Context,
 			srcValAddr,

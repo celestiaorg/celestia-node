@@ -64,7 +64,7 @@ type API struct {
 		SyncState     func(ctx context.Context) (sync.State, error)                    `perm:"read"`
 		SyncWait      func(ctx context.Context) error                                  `perm:"read"`
 		NetworkHead   func(ctx context.Context) (*header.ExtendedHeader, error)        `perm:"public"`
-		Subscribe     func(ctx context.Context) (<-chan *header.ExtendedHeader, error) `perm:"public"`
+		Subscribe     func(ctx context.Context) (<-chan *header.ExtendedHeader, error) `perm:"read"`
 	}
 }
 
