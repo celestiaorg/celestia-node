@@ -41,29 +41,18 @@ func init() {
 		&fee,
 		"fee",
 		-1,
-		"specifies fee(in TIA) for blob submission",
+		"specifies fee (in TIA) for blob submission [optional]",
 	)
 
 	submitCmd.PersistentFlags().Uint64Var(
 		&gasLimit,
 		"gas.limit",
 		0,
-		"sets the maximum amount of gas that is allowed to consume during blob submission",
+		"sets the maximum amount of gas that is allowed to consume during blob submission [optional]",
 	)
 
-	submitCmd.SetUsageTemplate("" +
-		"celestia blob submit [namespace] [blobData] [flags]\n\n " +
-		"Flags:\n" +
-		"      --fee       int      specifies fee(in TIA) for blob submission(optional)\n" +
-		"      --gas.limit uint64   sets the maximum amount of that gas is allowed " +
-		"to consume during blob submission(optional)\n" +
-		"      -h, --help           help for submit\n" +
-		"NOTE: fee and gas.limit params will be calculated automatically if they are not provided as arguments.\n\n" +
-		"Global Flags:\n" +
-		"      --token string    Authorization token (if not provided, " +
-		"the CELESTIA_NODE_AUTH_TOKEN environment variable will be used)\n" +
-		"      --url   string    Request URL (default \"http://localhost:26658\")",
-	)
+	// unset the default value to avoid users confusion
+	submitCmd.PersistentFlags().Lookup("fee").DefValue = "0"
 }
 
 var Cmd = &cobra.Command{
@@ -140,9 +129,12 @@ var getAllCmd = &cobra.Command{
 }
 
 var submitCmd = &cobra.Command{
-	Use:   "submit [namespace] [blobData]",
-	Args:  cobra.ExactArgs(2),
-	Short: "Submit the blob at the given namespace. Note: only one blob is allowed to submit through the RPC.",
+	Use:  "submit [namespace] [blobData]",
+	Args: cobra.ExactArgs(2),
+	Short: "Submit the blob at the given namespace.\n" +
+		"Note:\n" +
+		"* only one blob is allowed to submit through the RPC.\n" +
+		"* fee and gas.limit params will be calculated automatically if they are not provided as arguments",
 	RunE: func(cmd *cobra.Command, args []string) error {
 		client, err := cmdnode.ParseClientFromCtx(cmd.Context())
 		if err != nil {
@@ -159,7 +151,9 @@ var submitCmd = &cobra.Command{
 		if err != nil {
 			return fmt.Errorf("error creating a blob:%v", err)
 		}
-
+		if fee != -1 {
+			panic(fee)
+		}
 		height, err := client.Blob.Submit(
 			cmd.Context(),
 			[]*blob.Blob{parsedBlob},
