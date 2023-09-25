@@ -136,14 +136,13 @@ func (sp *StoragePruner) Register(ctx context.Context, h *header.ExtendedHeader)
 	return sp.saveDatahashesToEpoch(ctx, epoch, datahashes)
 }
 
-func (sp *StoragePruner) gc(ctx context.Context) error {
+func (sp *StoragePruner) gc(ctx context.Context) {
 	for epoch := range sp.activeEpochs {
 		err := sp.pruneEpoch(ctx, epoch)
 		if err != nil {
-			return err
+			log.Errorw("pruning epoch", "epoch", epoch, "err", err)
 		}
 	}
-	return nil
 }
 
 func (sp *StoragePruner) run(ctx context.Context) {
@@ -162,10 +161,7 @@ func (sp *StoragePruner) run(ctx context.Context) {
 				continue
 			}
 
-			err = sp.gc(ctx)
-			if err != nil {
-				log.Errorw("gc failed", "err", err)
-			}
+			sp.gc(ctx)
 		case <-ctx.Done():
 			sp.done <- struct{}{}
 			return
@@ -183,6 +179,9 @@ func (sp *StoragePruner) pruneEpoch(ctx context.Context, epoch uint64) error {
 	lk := &sp.stripedLocks[epoch%256]
 	lk.Lock()
 	defer lk.Unlock()
+	// TODO: Make sure this doesn't end in a situation where oldestEpoch never
+	// gets updated because it cannot load here, probably by not returning an
+	// error
 	datahashes, err := sp.getDatahashesFromEpoch(ctx, epoch)
 	if err != nil {
 		return err
@@ -191,7 +190,7 @@ func (sp *StoragePruner) pruneEpoch(ctx context.Context, epoch uint64) error {
 	for _, dh := range datahashes {
 		err = sp.store.Remove(ctx, dh)
 		if err != nil {
-			return err
+			log.Errorf("failed to remove datahash %X from epoch %d: %w", dh, epoch, err)
 		}
 		sp.metrics.observePrune(ctx)
 	}
