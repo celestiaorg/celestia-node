@@ -1,6 +1,7 @@
-package main
+package cmd
 
 import (
+	"encoding/hex"
 	"fmt"
 	"strconv"
 
@@ -9,11 +10,12 @@ import (
 	"github.com/spf13/cobra"
 
 	"github.com/celestiaorg/celestia-node/blob"
+	cmdnode "github.com/celestiaorg/celestia-node/cmd"
 	"github.com/celestiaorg/celestia-node/state"
 )
 
 func init() {
-	stateCmd.AddCommand(
+	Cmd.AddCommand(
 		accountAddressCmd,
 		balanceCmd,
 		balanceForAddressCmd,
@@ -30,10 +32,11 @@ func init() {
 	)
 }
 
-var stateCmd = &cobra.Command{
-	Use:   "state [command]",
-	Short: "Allows interaction with the State Module via JSON-RPC",
-	Args:  cobra.NoArgs,
+var Cmd = &cobra.Command{
+	Use:               "state [command]",
+	Short:             "Allows interaction with the State Module via JSON-RPC",
+	Args:              cobra.NoArgs,
+	PersistentPreRunE: cmdnode.InitClient,
 }
 
 var accountAddressCmd = &cobra.Command{
@@ -41,13 +44,14 @@ var accountAddressCmd = &cobra.Command{
 	Short: "Retrieves the address of the node's account/signer.",
 	Args:  cobra.NoArgs,
 	RunE: func(cmd *cobra.Command, args []string) error {
-		client, err := rpcClient(cmd.Context())
+		client, err := cmdnode.ParseClientFromCtx(cmd.Context())
 		if err != nil {
 			return err
 		}
+		defer client.Close()
 
 		address, err := client.State.AccountAddress(cmd.Context())
-		return printOutput(address, err, nil)
+		return cmdnode.PrintOutput(address, err, nil)
 	},
 }
 
@@ -57,13 +61,14 @@ var balanceCmd = &cobra.Command{
 		"the corresponding block's AppHash.",
 	Args: cobra.NoArgs,
 	RunE: func(cmd *cobra.Command, args []string) error {
-		client, err := rpcClient(cmd.Context())
+		client, err := cmdnode.ParseClientFromCtx(cmd.Context())
 		if err != nil {
 			return err
 		}
+		defer client.Close()
 
 		balance, err := client.State.Balance(cmd.Context())
-		return printOutput(balance, err, nil)
+		return cmdnode.PrintOutput(balance, err, nil)
 	},
 }
 
@@ -73,10 +78,11 @@ var balanceForAddressCmd = &cobra.Command{
 		"the corresponding block's AppHash.",
 	Args: cobra.ExactArgs(1),
 	RunE: func(cmd *cobra.Command, args []string) error {
-		client, err := rpcClient(cmd.Context())
+		client, err := cmdnode.ParseClientFromCtx(cmd.Context())
 		if err != nil {
 			return err
 		}
+		defer client.Close()
 
 		addr, err := parseAddressFromString(args[0])
 		if err != nil {
@@ -84,7 +90,7 @@ var balanceForAddressCmd = &cobra.Command{
 		}
 
 		balance, err := client.State.BalanceForAddress(cmd.Context(), addr)
-		return printOutput(balance, err, nil)
+		return cmdnode.PrintOutput(balance, err, nil)
 	},
 }
 
@@ -93,10 +99,11 @@ var transferCmd = &cobra.Command{
 	Short: "Sends the given amount of coins from default wallet of the node to the given account address.",
 	Args:  cobra.ExactArgs(4),
 	RunE: func(cmd *cobra.Command, args []string) error {
-		client, err := rpcClient(cmd.Context())
+		client, err := cmdnode.ParseClientFromCtx(cmd.Context())
 		if err != nil {
 			return err
 		}
+		defer client.Close()
 
 		addr, err := parseAddressFromString(args[0])
 		if err != nil {
@@ -122,7 +129,7 @@ var transferCmd = &cobra.Command{
 			math.NewInt(amount),
 			math.NewInt(fee), gasLimit,
 		)
-		return printOutput(txResponse, err, nil)
+		return cmdnode.PrintOutput(txResponse, err, nil)
 	},
 }
 
@@ -131,20 +138,21 @@ var submitTxCmd = &cobra.Command{
 	Short: "Submits the given transaction/message to the Celestia network and blocks until the tx is included in a block.",
 	Args:  cobra.ExactArgs(1),
 	RunE: func(cmd *cobra.Command, args []string) error {
-		client, err := rpcClient(cmd.Context())
+		client, err := cmdnode.ParseClientFromCtx(cmd.Context())
 		if err != nil {
 			return err
 		}
+		defer client.Close()
 
-		rawTx, err := decodeToBytes(args[0])
+		decoded, err := hex.DecodeString(args[0])
 		if err != nil {
 			return fmt.Errorf("failed to decode tx: %v", err)
 		}
 		txResponse, err := client.State.SubmitTx(
 			cmd.Context(),
-			rawTx,
+			decoded,
 		)
-		return printOutput(txResponse, err, nil)
+		return cmdnode.PrintOutput(txResponse, err, nil)
 	},
 }
 
@@ -153,11 +161,13 @@ var submitPFBCmd = &cobra.Command{
 	Short: "Allows to submit PFBs",
 	Args:  cobra.ExactArgs(4),
 	RunE: func(cmd *cobra.Command, args []string) error {
-		client, err := rpcClient(cmd.Context())
+		client, err := cmdnode.ParseClientFromCtx(cmd.Context())
 		if err != nil {
 			return err
 		}
-		namespace, err := parseV0Namespace(args[0])
+		defer client.Close()
+
+		namespace, err := cmdnode.ParseV0Namespace(args[0])
 		if err != nil {
 			return fmt.Errorf("error parsing a namespace:%v", err)
 		}
@@ -177,8 +187,13 @@ var submitPFBCmd = &cobra.Command{
 			return fmt.Errorf("error creating a blob:%v", err)
 		}
 
-		txResp, err := client.State.SubmitPayForBlob(cmd.Context(), types.NewInt(fee), gasLimit, []*blob.Blob{parsedBlob})
-		return printOutput(txResp, err, nil)
+		txResp, err := client.State.SubmitPayForBlob(
+			cmd.Context(),
+			types.NewInt(fee),
+			gasLimit,
+			[]*blob.Blob{parsedBlob},
+		)
+		return cmdnode.PrintOutput(txResp, err, nil)
 	},
 }
 
@@ -187,10 +202,12 @@ var cancelUnbondingDelegationCmd = &cobra.Command{
 	Short: "Cancels a user's pending undelegation from a validator.",
 	Args:  cobra.ExactArgs(5),
 	RunE: func(cmd *cobra.Command, args []string) error {
-		client, err := rpcClient(cmd.Context())
+		client, err := cmdnode.ParseClientFromCtx(cmd.Context())
 		if err != nil {
 			return err
 		}
+		defer client.Close()
+
 		addr, err := parseAddressFromString(args[0])
 		if err != nil {
 			return fmt.Errorf("error parsing an address:%v", err)
@@ -224,7 +241,7 @@ var cancelUnbondingDelegationCmd = &cobra.Command{
 			math.NewInt(fee),
 			gasLimit,
 		)
-		return printOutput(txResponse, err, nil)
+		return cmdnode.PrintOutput(txResponse, err, nil)
 	},
 }
 
@@ -233,10 +250,12 @@ var beginRedelegateCmd = &cobra.Command{
 	Short: "Sends a user's delegated tokens to a new validator for redelegation",
 	Args:  cobra.ExactArgs(5),
 	RunE: func(cmd *cobra.Command, args []string) error {
-		client, err := rpcClient(cmd.Context())
+		client, err := cmdnode.ParseClientFromCtx(cmd.Context())
 		if err != nil {
 			return err
 		}
+		defer client.Close()
+
 		srcAddr, err := parseAddressFromString(args[0])
 		if err != nil {
 			return fmt.Errorf("error parsing an address:%v", err)
@@ -269,7 +288,7 @@ var beginRedelegateCmd = &cobra.Command{
 			math.NewInt(fee),
 			gasLimit,
 		)
-		return printOutput(txResponse, err, nil)
+		return cmdnode.PrintOutput(txResponse, err, nil)
 	},
 }
 
@@ -278,10 +297,12 @@ var undelegateCmd = &cobra.Command{
 	Short: "Undelegates a user's delegated tokens, unbonding them from the current validator.",
 	Args:  cobra.ExactArgs(4),
 	RunE: func(cmd *cobra.Command, args []string) error {
-		client, err := rpcClient(cmd.Context())
+		client, err := cmdnode.ParseClientFromCtx(cmd.Context())
 		if err != nil {
 			return err
 		}
+		defer client.Close()
+
 		addr, err := parseAddressFromString(args[0])
 		if err != nil {
 			return fmt.Errorf("error parsing an address:%v", err)
@@ -307,7 +328,7 @@ var undelegateCmd = &cobra.Command{
 			math.NewInt(fee),
 			gasLimit,
 		)
-		return printOutput(txResponse, err, nil)
+		return cmdnode.PrintOutput(txResponse, err, nil)
 	},
 }
 
@@ -316,10 +337,11 @@ var delegateCmd = &cobra.Command{
 	Short: "Sends a user's liquid tokens to a validator for delegation.",
 	Args:  cobra.ExactArgs(4),
 	RunE: func(cmd *cobra.Command, args []string) error {
-		client, err := rpcClient(cmd.Context())
+		client, err := cmdnode.ParseClientFromCtx(cmd.Context())
 		if err != nil {
 			return err
 		}
+		defer client.Close()
 
 		addr, err := parseAddressFromString(args[0])
 		if err != nil {
@@ -348,7 +370,7 @@ var delegateCmd = &cobra.Command{
 			math.NewInt(fee),
 			gasLimit,
 		)
-		return printOutput(txResponse, err, nil)
+		return cmdnode.PrintOutput(txResponse, err, nil)
 	},
 }
 
@@ -357,10 +379,11 @@ var queryDelegationCmd = &cobra.Command{
 	Short: "Retrieves the delegation information between a delegator and a validator.",
 	Args:  cobra.ExactArgs(1),
 	RunE: func(cmd *cobra.Command, args []string) error {
-		client, err := rpcClient(cmd.Context())
+		client, err := cmdnode.ParseClientFromCtx(cmd.Context())
 		if err != nil {
 			return err
 		}
+		defer client.Close()
 
 		addr, err := parseAddressFromString(args[0])
 		if err != nil {
@@ -368,9 +391,7 @@ var queryDelegationCmd = &cobra.Command{
 		}
 
 		balance, err := client.State.QueryDelegation(cmd.Context(), addr.Address.(state.ValAddress))
-		fmt.Println(balance)
-		fmt.Println(err)
-		return printOutput(balance, err, nil)
+		return cmdnode.PrintOutput(balance, err, nil)
 	},
 }
 
@@ -379,10 +400,11 @@ var queryUnbondingCmd = &cobra.Command{
 	Short: "Retrieves the unbonding status between a delegator and a validator.",
 	Args:  cobra.ExactArgs(1),
 	RunE: func(cmd *cobra.Command, args []string) error {
-		client, err := rpcClient(cmd.Context())
+		client, err := cmdnode.ParseClientFromCtx(cmd.Context())
 		if err != nil {
 			return err
 		}
+		defer client.Close()
 
 		addr, err := parseAddressFromString(args[0])
 		if err != nil {
@@ -390,7 +412,7 @@ var queryUnbondingCmd = &cobra.Command{
 		}
 
 		response, err := client.State.QueryUnbonding(cmd.Context(), addr.Address.(state.ValAddress))
-		return printOutput(response, err, nil)
+		return cmdnode.PrintOutput(response, err, nil)
 	},
 }
 
@@ -399,10 +421,11 @@ var queryRedelegationCmd = &cobra.Command{
 	Short: "Retrieves the status of the redelegations between a delegator and a validator.",
 	Args:  cobra.ExactArgs(2),
 	RunE: func(cmd *cobra.Command, args []string) error {
-		client, err := rpcClient(cmd.Context())
+		client, err := cmdnode.ParseClientFromCtx(cmd.Context())
 		if err != nil {
 			return err
 		}
+		defer client.Close()
 
 		srcAddr, err := parseAddressFromString(args[0])
 		if err != nil {
@@ -419,6 +442,15 @@ var queryRedelegationCmd = &cobra.Command{
 			srcAddr.Address.(state.ValAddress),
 			dstAddr.Address.(state.ValAddress),
 		)
-		return printOutput(response, err, nil)
+		return cmdnode.PrintOutput(response, err, nil)
 	},
+}
+
+func parseAddressFromString(addrStr string) (state.Address, error) {
+	var address state.Address
+	err := address.UnmarshalJSON([]byte(addrStr))
+	if err != nil {
+		return address, err
+	}
+	return address, nil
 }
