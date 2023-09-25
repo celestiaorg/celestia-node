@@ -37,19 +37,24 @@ func TestDiscovery(t *testing.T) {
 	}
 
 	host, routingDisc := tn.peer()
-	peerA := tn.discovery(
-		host, routingDisc,
-		WithPeersLimit(nodes),
-		WithAdvertiseInterval(-1),
+	params := DefaultParameters()
+	params.PeersLimit = nodes
+	params.AdvertiseInterval = -1
+	params.Tag = "full"
+
+	peerA := tn.discovery(params, host, routingDisc,
 		WithOnPeersUpdate(submit),
 	)
 
+	params = &Parameters{
+		PeersLimit:        0,
+		AdvertiseInterval: time.Millisecond * 100,
+		Tag:               "full",
+	}
 	discs := make([]*Discovery, nodes)
 	for i := range discs {
 		host, routingDisc := tn.peer()
-		discs[i] = tn.discovery(host, routingDisc,
-			WithPeersLimit(0),
-			WithAdvertiseInterval(time.Millisecond*100))
+		discs[i] = tn.discovery(params, host, routingDisc)
 
 		select {
 		case res := <-updateCh:
@@ -92,23 +97,25 @@ func TestDiscoveryTagged(t *testing.T) {
 	// sub will discover both peers, but on different tags
 	sub, routingDisc := tn.peer()
 
+	params := DefaultParameters()
+
 	// create 2 discovery services for sub, each with a different tag
+	params.Tag = "tag1"
 	done1 := make(chan struct{})
-	tn.discovery(sub, routingDisc,
-		WithTag("tag1"),
+	tn.discovery(params, sub, routingDisc,
 		WithOnPeersUpdate(checkPeer(t, adv1.ID(), done1)))
 
+	params.Tag = "tag2"
 	done2 := make(chan struct{})
-	tn.discovery(sub, routingDisc,
-		WithTag("tag2"),
+	tn.discovery(params, sub, routingDisc,
 		WithOnPeersUpdate(checkPeer(t, adv2.ID(), done2)))
 
 	// run discovery services for advertisers
-	tn.discovery(adv1, routingDisc1,
-		WithTag("tag1"))
+	params.Tag = "tag1"
+	tn.discovery(params, adv1, routingDisc1)
 
-	tn.discovery(adv2, routingDisc2,
-		WithTag("tag2"))
+	params.Tag = "tag2"
+	tn.discovery(params, adv2, routingDisc2)
 
 	// wait for discovery services to discover each other on different tags
 	select {
@@ -148,9 +155,15 @@ func newTestnet(ctx context.Context, t *testing.T) *testnet {
 	return &testnet{ctx: ctx, T: t, bootstrapper: *host.InfoFromHost(hst)}
 }
 
-func (t *testnet) discovery(hst host.Host, routingDisc discovery.Discovery, opts ...Option) *Discovery {
-	disc := NewDiscovery(hst, routingDisc, opts...)
-	err := disc.Start(t.ctx)
+func (t *testnet) discovery(
+	params *Parameters,
+	hst host.Host,
+	routingDisc discovery.Discovery,
+	opts ...Option,
+) *Discovery {
+	disc, err := NewDiscovery(params, hst, routingDisc, opts...)
+	require.NoError(t.T, err)
+	err = disc.Start(t.ctx)
 	require.NoError(t.T, err)
 	t.T.Cleanup(func() {
 		err := disc.Stop(t.ctx)

@@ -70,26 +70,26 @@ func (f OnUpdatedPeers) add(next OnUpdatedPeers) OnUpdatedPeers {
 
 // NewDiscovery constructs a new discovery.
 func NewDiscovery(
+	params *Parameters,
 	h host.Host,
 	d discovery.Discovery,
 	opts ...Option,
-) *Discovery {
-	params := DefaultParameters()
-
-	for _, opt := range opts {
-		opt(params)
+) (*Discovery, error) {
+	if err := params.Validate(); err != nil {
+		return nil, err
 	}
 
+	o := newOptions(opts...)
 	return &Discovery{
 		tag:            params.Tag,
 		set:            newLimitedSet(params.PeersLimit),
 		host:           h,
 		disc:           d,
 		connector:      newBackoffConnector(h, defaultBackoffFactory),
-		onUpdatedPeers: params.onUpdatedPeers,
+		onUpdatedPeers: o.onUpdatedPeers,
 		params:         params,
 		triggerDisc:    make(chan struct{}),
-	}
+	}, nil
 }
 
 func (d *Discovery) Start(context.Context) error {
@@ -158,7 +158,6 @@ func (d *Discovery) Advertise(ctx context.Context) {
 	timer := time.NewTimer(d.params.AdvertiseInterval)
 	defer timer.Stop()
 	for {
-		fmt.Println(d.tag)
 		_, err := d.disc.Advertise(ctx, d.tag)
 		d.metrics.observeAdvertise(ctx, err)
 		if err != nil {

@@ -389,12 +389,17 @@ func TestIntegration(t *testing.T) {
 		bnHost := nw.Hosts()[1]
 		bnRouter, err := dht.New(ctx, bnHost, opts...)
 		require.NoError(t, err)
-		bnDisc := discovery.NewDiscovery(
+
+		params := discovery.DefaultParameters()
+		params.AdvertiseInterval = time.Second
+		params.PeersLimit = 0
+
+		bnDisc, err := discovery.NewDiscovery(
+			params,
 			bnHost,
 			routingdisc.NewRoutingDiscovery(bnRouter),
-			discovery.WithPeersLimit(0),
-			discovery.WithAdvertiseInterval(time.Second),
 		)
+		require.NoError(t, err)
 
 		// set up full node / receiver node
 		fnHost := nw.Hosts()[2]
@@ -419,11 +424,14 @@ func TestIntegration(t *testing.T) {
 		}
 
 		// set up discovery for full node with hook to peer manager and check discovered peer
-		fnDisc := discovery.NewDiscovery(
+		params = discovery.DefaultParameters()
+		params.AdvertiseInterval = time.Second
+		params.PeersLimit = 10
+
+		fnDisc, err := discovery.NewDiscovery(
+			params,
 			fnHost,
 			routingdisc.NewRoutingDiscovery(fnRouter),
-			discovery.WithPeersLimit(10),
-			discovery.WithAdvertiseInterval(time.Second),
 			discovery.WithOnPeersUpdate(fnPeerManager.UpdatedFullNodes),
 			discovery.WithOnPeersUpdate(checkDiscoveredPeer),
 		)

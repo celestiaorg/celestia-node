@@ -21,18 +21,16 @@ import (
 )
 
 func newDiscovery(cfg *disc.Parameters,
-) func(routing.ContentRouting, host.Host, *peers.Manager) *disc.Discovery {
+) func(routing.ContentRouting, host.Host, *peers.Manager) (*disc.Discovery, error) {
 	return func(
 		r routing.ContentRouting,
 		h host.Host,
 		manager *peers.Manager,
-	) *disc.Discovery {
+	) (*disc.Discovery, error) {
 		return disc.NewDiscovery(
+			cfg,
 			h,
 			routingdisc.NewRoutingDiscovery(r),
-			disc.WithPeersLimit(cfg.PeersLimit),
-			disc.WithAdvertiseInterval(cfg.AdvertiseInterval),
-			disc.WithOnPeersUpdate(manager.UpdatedFullNodes),
 		)
 	}
 }
