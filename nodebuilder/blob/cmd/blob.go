@@ -57,7 +57,7 @@ func init() {
 		"      --fee       int      specifies fee(in TIA) for blob submission(optional)\n" +
 		"      --gas.limit uint64   sets the maximum amount of that gas is allowed to consume during blob submission(optional)\n" +
 		"      -h, --help           help for submit\n" +
-		"NOTE: fee and gas.limit params will be calculated automatically if they will not be provided.\n\n" +
+		"NOTE: fee and gas.limit params will be calculated automatically if they are not provided as arguments.\n\n" +
 		"Global Flags:\n" +
 		"      --token string    Authorization token (if not provided, the CELESTIA_NODE_AUTH_TOKEN environment variable will be used)\n" +
 		"      --url   string    Request URL (default \"http://localhost:26658\")",
