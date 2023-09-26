@@ -2,6 +2,7 @@ package peers
 
 import (
 	"context"
+	"strconv"
 	sync2 "sync"
 	"testing"
 	"time"
@@ -363,7 +364,7 @@ func TestIntegration(t *testing.T) {
 		require.Equal(t, nw.Hosts()[0].ID(), gotPeer)
 	})
 
-	t.Run("reject peer who sends malformed notification", func(t *testing.T) {
+	t.Run("do not create pool for malformed data hashes", func(t *testing.T) {
 		nw, err := mocknet.FullMeshLinked(2)
 		require.NoError(t, err)
 		ctx, cancel := context.WithTimeout(context.Background(), time.Second*5)
@@ -390,18 +391,42 @@ func TestIntegration(t *testing.T) {
 		require.NoError(t, nw.ConnectAllButSelf())
 		time.Sleep(time.Millisecond * 100)
 
-		// broadcast from BN
-		notif := shrexsub.Notification{
-			DataHash: nil,
-			Height:   1,
+		var tests = []struct {
+			notif shrexsub.Notification
+		}{
+			{
+				notif: shrexsub.Notification{
+					DataHash: nil,
+					Height:   1,
+				},
+			},
+			{
+				notif: shrexsub.Notification{
+					DataHash: rand.Bytes(64),
+					Height:   1,
+				},
+			},
+			{
+				notif: shrexsub.Notification{
+					DataHash: rand.Bytes(20),
+					Height:   1,
+				},
+			},
 		}
-		require.NoError(t, bnPubSub.Broadcast(ctx, notif))
 
-		time.Sleep(100 * time.Millisecond)
+		for i, tt := range tests {
+			t.Run(strconv.Itoa(i), func(t *testing.T) {
+				// broadcast from BN
+				require.NoError(t, bnPubSub.Broadcast(ctx, tt.notif))
 
-		// FN should NOT accept notification / should not add hash to pools
-		_, ok := fnPeerManager.pools[notif.DataHash.String()]
-		require.False(t, ok)
+				time.Sleep(100 * time.Millisecond) // give some time to receive message
+
+				// FN should NOT accept notification / should not add hash to pools
+				_, ok := fnPeerManager.pools[tt.notif.DataHash.String()]
+				require.False(t, ok)
+			})
+		}
+
 	})
 
 	t.Run("get peer from discovery", func(t *testing.T) {
