@@ -349,18 +349,59 @@ func TestIntegration(t *testing.T) {
 		time.Sleep(time.Millisecond * 100)
 
 		// broadcast from BN
-		peerHash := share.DataHash("peer1")
+		randHash := rand.Bytes(32)
 		require.NoError(t, bnPubSub.Broadcast(ctx, shrexsub.Notification{
-			DataHash: peerHash,
+			DataHash: randHash,
 			Height:   1,
 		}))
 
 		// FN should get message
-		peerID, _, err := fnPeerManager.Peer(ctx, peerHash)
+		gotPeer, _, err := fnPeerManager.Peer(ctx, randHash)
 		require.NoError(t, err)
 
-		// check that peerID matched bridge node
-		require.Equal(t, nw.Hosts()[0].ID(), peerID)
+		// check that gotPeer matched bridge node
+		require.Equal(t, nw.Hosts()[0].ID(), gotPeer)
+	})
+
+	t.Run("reject peer who sends malformed notification", func(t *testing.T) {
+		nw, err := mocknet.FullMeshLinked(2)
+		require.NoError(t, err)
+		ctx, cancel := context.WithTimeout(context.Background(), time.Second*5)
+		t.Cleanup(cancel)
+
+		bnPubSub, err := shrexsub.NewPubSub(ctx, nw.Hosts()[0], "test")
+		require.NoError(t, err)
+
+		fnPubSub, err := shrexsub.NewPubSub(ctx, nw.Hosts()[1], "test")
+		require.NoError(t, err)
+
+		require.NoError(t, bnPubSub.Start(ctx))
+		require.NoError(t, fnPubSub.Start(ctx))
+
+		fnPeerManager, err := testManager(ctx, newSubLock())
+		require.NoError(t, err)
+		fnPeerManager.host = nw.Hosts()[1]
+
+		require.NoError(t, fnPubSub.AddValidator(fnPeerManager.Validate))
+		_, err = fnPubSub.Subscribe()
+		require.NoError(t, err)
+
+		time.Sleep(time.Millisecond * 100)
+		require.NoError(t, nw.ConnectAllButSelf())
+		time.Sleep(time.Millisecond * 100)
+
+		// broadcast from BN
+		notif := shrexsub.Notification{
+			DataHash: nil,
+			Height:   1,
+		}
+		require.NoError(t, bnPubSub.Broadcast(ctx, notif))
+
+		time.Sleep(100 * time.Millisecond)
+
+		// FN should NOT accept notification / should not add hash to pools
+		_, ok := fnPeerManager.pools[notif.DataHash.String()]
+		require.False(t, ok)
 	})
 
 	t.Run("get peer from discovery", func(t *testing.T) {
