@@ -10,7 +10,6 @@ import (
 
 // Handler constructs a new RPC Handler from the given services.
 func Handler(
-	cfg *Config,
 	state state.Module,
 	share share.Module,
 	header header.Module,
@@ -18,7 +17,7 @@ func Handler(
 	serv *gateway.Server,
 ) {
 	handler := gateway.NewHandler(state, share, header, daser)
-	handler.RegisterEndpoints(serv, cfg.deprecatedEndpoints)
+	handler.RegisterEndpoints(serv)
 	handler.RegisterMiddleware(serv)
 }
 
