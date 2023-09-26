@@ -5,17 +5,12 @@ import (
 	"errors"
 	"fmt"
 	"os"
-	"path/filepath"
 
-	"github.com/cristalhq/jwt"
-	"github.com/mitchellh/go-homedir"
 	"github.com/spf13/cobra"
 	flag "github.com/spf13/pflag"
 
 	rpc "github.com/celestiaorg/celestia-node/api/rpc/client"
 	"github.com/celestiaorg/celestia-node/api/rpc/perms"
-	"github.com/celestiaorg/celestia-node/libs/authtoken"
-	"github.com/celestiaorg/celestia-node/libs/keystore"
 	nodemod "github.com/celestiaorg/celestia-node/nodebuilder/node"
 )
 
@@ -60,20 +55,19 @@ func RPCFlags() *flag.FlagSet {
 }
 
 func InitClient(cmd *cobra.Command, _ []string) error {
-	var (
-		err   error
-		token string
-	)
+	if authTokenFlag == "" {
+		authTokenFlag = os.Getenv(authEnvKey)
+	}
 
 	if authTokenFlag == "" {
-		token, err = getToken(storePath)
+		token, err := getToken(storePath)
+		if err != nil {
+			return fmt.Errorf("cant get the access to the auth token:%v", err)
+		}
+		authTokenFlag = token
 	}
 
-	if err != nil {
-		token = os.Getenv(authEnvKey)
-	}
-
-	client, err := rpc.NewClient(cmd.Context(), requestURL, token)
+	client, err := rpc.NewClient(cmd.Context(), requestURL, authTokenFlag)
 	if err != nil {
 		return err
 	}
@@ -85,41 +79,20 @@ func InitClient(cmd *cobra.Command, _ []string) error {
 
 func getToken(path string) (string, error) {
 	if path == "" {
-		return "", errors.New("empty path")
+		return "", errors.New("root directory was not specified")
 	}
 
-	expanded, err := homedir.Expand(filepath.Clean(path))
+	ks, err := newKeystore(path)
 	if err != nil {
-		fmt.Printf("error expanding the root dir path:%v", err)
 		return "", err
 	}
 
-	ks, err := keystore.NewFSKeystore(filepath.Join(expanded, "keys"), nil)
-	if err != nil {
-		fmt.Printf("error creating the keystore:%v", err)
-		return "", err
-	}
-
-	var key keystore.PrivKey
-	key, err = ks.Get(nodemod.SecretName)
+	key, err := ks.Get(nodemod.SecretName)
 	if err != nil {
 		fmt.Printf("error getting the private key:%v", err)
 		return "", err
 	}
-
-	signer, err := jwt.NewHS256(key.Body)
-	if err != nil {
-		fmt.Printf("error creating a signer:%v", err)
-		return "", err
-	}
-
-	token, err := authtoken.NewSignedJWT(signer, perms.AllPerms)
-	if err != nil {
-		fmt.Println(err)
-		return "", err
-	}
-	authTokenFlag = token
-	return token, nil
+	return buildJWTToken(key.Body, perms.AllPerms)
 }
 
 type rpcClientKey struct{}
