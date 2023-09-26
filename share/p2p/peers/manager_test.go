@@ -16,7 +16,9 @@ import (
 	routingdisc "github.com/libp2p/go-libp2p/p2p/discovery/routing"
 	"github.com/libp2p/go-libp2p/p2p/net/conngater"
 	mocknet "github.com/libp2p/go-libp2p/p2p/net/mock"
+	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"github.com/tendermint/tendermint/libs/rand"
 
 	libhead "github.com/celestiaorg/go-header"
 
@@ -317,6 +319,26 @@ func TestManager(t *testing.T) {
 		// outdated pool should be removed
 		require.Len(t, manager.pools, 1)
 	})
+
+	t.Run("does not create pool for empty datahash", func(*testing.T) {
+		ctx, cancel := context.WithTimeout(context.Background(), time.Second*5)
+		t.Cleanup(cancel)
+
+		h := testHeader()
+		h.DataHash = nil
+		headerSub := newSubLock(h, nil)
+
+		// start test manager
+		manager, err := testManager(ctx, headerSub)
+		require.NoError(t, err)
+
+		peerID, msg := peer.ID("peer1"), newShrexSubMsg(h)
+		result := manager.Validate(ctx, peerID, msg)
+		require.Equal(t, pubsub.ValidationReject, result)
+
+		_, ok := manager.pools[h.DataHash.String()]
+		assert.False(t, ok)
+	})
 }
 
 func TestIntegration(t *testing.T) {
@@ -488,7 +510,8 @@ func stopManager(t *testing.T, m *Manager) {
 func testHeader() *header.ExtendedHeader {
 	return &header.ExtendedHeader{
 		RawHeader: header.RawHeader{
-			Height: 1,
+			Height:   1,
+			DataHash: rand.Bytes(32),
 		},
 	}
 }
