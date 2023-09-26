@@ -41,15 +41,19 @@ func init() {
 		&fee,
 		"fee",
 		-1,
-		"specifies fee for blob submission",
+		"specifies fee (in utia) for blob submission.\n"+
+			"Fee will be automatically calculated if negative value is passed [optional]",
 	)
 
 	submitCmd.PersistentFlags().Uint64Var(
 		&gasLimit,
 		"gas.limit",
 		0,
-		"specifies max gas for the blob submission",
+		"sets the amount of gas that is consumed during blob submission [optional]",
 	)
+
+	// unset the default value to avoid users confusion
+	submitCmd.PersistentFlags().Lookup("fee").DefValue = "0"
 }
 
 var Cmd = &cobra.Command{
@@ -126,9 +130,12 @@ var getAllCmd = &cobra.Command{
 }
 
 var submitCmd = &cobra.Command{
-	Use:   "submit [namespace] [blobData]",
-	Args:  cobra.ExactArgs(2),
-	Short: "Submit the blob at the given namespace. Note: only one blob is allowed to submit through the RPC.",
+	Use:  "submit [namespace] [blobData]",
+	Args: cobra.ExactArgs(2),
+	Short: "Submit the blob at the given namespace.\n" +
+		"Note:\n" +
+		"* only one blob is allowed to submit through the RPC.\n" +
+		"* fee and gas.limit params will be calculated automatically if they are not provided as arguments",
 	RunE: func(cmd *cobra.Command, args []string) error {
 		client, err := cmdnode.ParseClientFromCtx(cmd.Context())
 		if err != nil {
