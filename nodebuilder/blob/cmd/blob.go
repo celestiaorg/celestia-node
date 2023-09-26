@@ -41,14 +41,15 @@ func init() {
 		&fee,
 		"fee",
 		-1,
-		"specifies fee (in TIA) for blob submission [optional]",
+		"specifies fee (in utia) for blob submission.\n"+
+			"Fee will be automatically calculated if negative value is passed [optional]",
 	)
 
 	submitCmd.PersistentFlags().Uint64Var(
 		&gasLimit,
 		"gas.limit",
 		0,
-		"sets the maximum amount of gas that is allowed to consume during blob submission [optional]",
+		"sets the amount of gas that is consumed during blob submission [optional]",
 	)
 
 	// unset the default value to avoid users confusion
