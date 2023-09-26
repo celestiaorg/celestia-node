@@ -376,7 +376,7 @@ func (m *Manager) Validate(_ context.Context, peerID peer.ID, msg shrexsub.Notif
 	}
 
 	// reject if DataHash is empty
-	if msg.DataHash == nil {
+	if err := msg.DataHash.Validate(); err != nil {
 		return pubsub.ValidationReject
 	}
 
