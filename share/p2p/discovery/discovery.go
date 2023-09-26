@@ -36,7 +36,9 @@ const (
 
 	// logInterval defines the time interval at which a warning message will be logged
 	// if the desired number of nodes is not detected.
-	logInterval = 5 * time.Minute
+	logInterval            = 5 * time.Minute
+	backoffInitialDuration = 5 * time.Second
+	maxBackoffDuration     = 10 * time.Minute
 )
 
 // discoveryRetryTimeout defines time interval between discovery attempts, needed for tests
@@ -202,21 +204,32 @@ func (d *Discovery) Advertise(ctx context.Context) {
 // It initiates peer discovery upon request and restarts the process until the soft limit is
 // reached.
 func (d *Discovery) discoveryLoop(ctx context.Context) {
-	t := time.NewTicker(discoveryRetryTimeout)
-	defer t.Stop()
+	backoffDuration := backoffInitialDuration
+	backoffTicker := time.NewTicker(backoffDuration)
+	defer backoffTicker.Stop()
 
 	warnTicker := time.NewTicker(logInterval)
 	defer warnTicker.Stop()
 
+	// Function to initiate discovery and restart the timer
+	runDiscovery := func() {
+		if !d.discover(ctx) {
+			// rerun discovery if the number of peers hasn't reached the limit
+			return
+		}
+
+		backoffTicker.Stop()
+		backoffDuration = backoffInitialDuration
+		backoffTicker = time.NewTicker(backoffDuration)
+	}
+
 	for {
-		// drain all previous ticks from the channel
-		drainChannel(t.C)
 		select {
-		case <-t.C:
-			if !d.discover(ctx) {
-				// rerun discovery if the number of peers hasn't reached the limit
-				continue
+		case <-backoffTicker.C:
+			if backoffDuration > maxBackoffDuration {
+				backoffDuration = maxBackoffDuration
 			}
+			runDiscovery()
 		case <-warnTicker.C:
 			if d.set.Size() < d.set.Limit() {
 				log.Warnf(
@@ -225,8 +238,8 @@ func (d *Discovery) discoveryLoop(ctx context.Context) {
 					logInterval, d.set.Size(), d.set.Limit(),
 				)
 			}
-			// Do not break the loop; just continue
-			continue
+		case <-d.triggerDisc: // Listen for triggerDisc channel
+			runDiscovery()
 		case <-ctx.Done():
 			return
 		}
@@ -377,14 +390,4 @@ func (d *Discovery) handleDiscoveredPeer(ctx context.Context, peer peer.AddrInfo
 	//  connection should be kept or not, similar to mesh link in GossipSub.
 	d.host.ConnManager().Protect(peer.ID, rendezvousPoint)
 	return true
-}
-
-func drainChannel(c <-chan time.Time) {
-	for {
-		select {
-		case <-c:
-		default:
-			return
-		}
-	}
 }
