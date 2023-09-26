@@ -1,8 +1,6 @@
 module github.com/celestiaorg/celestia-node
 
-go 1.21
-
-toolchain go1.21.0
+go 1.21.1
 
 require (
 	cosmossdk.io/errors v1.0.0
@@ -10,7 +8,7 @@ require (
 	github.com/BurntSushi/toml v1.3.2
 	github.com/alecthomas/jsonschema v0.0.0-20220216202328-9eeeec9d044b
 	github.com/benbjohnson/clock v1.3.5
-	github.com/celestiaorg/celestia-app v1.0.0-rc14
+	github.com/celestiaorg/celestia-app v1.0.0-rc17
 	github.com/celestiaorg/go-ds-badger4 v0.0.0-20230712104058-7ede1c814ac5
 	github.com/celestiaorg/go-fraud v0.2.0
 	github.com/celestiaorg/go-header v0.3.1
@@ -77,6 +75,19 @@ require (
 )
 
 require (
+	github.com/Microsoft/go-winio v0.6.1 // indirect
+	github.com/bits-and-blooms/bitset v1.5.0 // indirect
+	github.com/celestiaorg/quantum-gravity-bridge/v2 v2.1.1 // indirect
+	github.com/consensys/bavard v0.1.13 // indirect
+	github.com/consensys/gnark-crypto v0.10.0 // indirect
+	github.com/crate-crypto/go-kzg-4844 v0.3.0 // indirect
+	github.com/ethereum/c-kzg-4844 v0.3.1 // indirect
+	github.com/mmcloughlin/addchain v0.4.0 // indirect
+	github.com/supranational/blst v0.3.11 // indirect
+	rsc.io/tmplfunc v0.0.3 // indirect
+)
+
+require (
 	cloud.google.com/go v0.110.6 // indirect
 	cloud.google.com/go/compute v1.23.0 // indirect
 	cloud.google.com/go/compute/metadata v0.2.3 // indirect
@@ -98,7 +109,6 @@ require (
 	github.com/bgentry/speakeasy v0.1.0 // indirect
 	github.com/btcsuite/btcd/btcec/v2 v2.3.2 // indirect
 	github.com/celestiaorg/merkletree v0.0.0-20210714075610-a84dc3ddbbe4 // indirect
-	github.com/celestiaorg/quantum-gravity-bridge v1.3.0 // indirect
 	github.com/cenkalti/backoff/v4 v4.2.1 // indirect
 	github.com/cespare/xxhash v1.1.0 // indirect
 	github.com/cespare/xxhash/v2 v2.2.0 // indirect
@@ -135,7 +145,7 @@ require (
 	github.com/dvsekhvalnov/jose2go v1.5.0 // indirect
 	github.com/elastic/gosigar v0.14.2 // indirect
 	github.com/etclabscore/go-jsonschema-walk v0.0.6 // indirect
-	github.com/ethereum/go-ethereum v1.12.2 // indirect
+	github.com/ethereum/go-ethereum v1.13.1 // indirect
 	github.com/felixge/httpsnoop v1.0.1 // indirect
 	github.com/flynn/noise v1.0.0 // indirect
 	github.com/francoispqt/gojay v1.2.13 // indirect
@@ -190,7 +200,7 @@ require (
 	github.com/hashicorp/hcl v1.0.0 // indirect
 	github.com/hdevalence/ed25519consensus v0.0.0-20220222234857-c00d1f31bab3 // indirect
 	github.com/holiman/uint256 v1.2.3 // indirect
-	github.com/huin/goupnp v1.2.0 // indirect
+	github.com/huin/goupnp v1.3.0 // indirect
 	github.com/iancoleman/orderedmap v0.1.0 // indirect
 	github.com/improbable-eng/grpc-web v0.15.0 // indirect
 	github.com/inconshreveable/mousetrap v1.1.0 // indirect
@@ -296,8 +306,8 @@ require (
 	github.com/tendermint/go-amino v0.16.0 // indirect
 	github.com/tendermint/tm-db v0.6.7 // indirect
 	github.com/tidwall/btree v1.5.0 // indirect
-	github.com/tklauser/go-sysconf v0.3.10 // indirect
-	github.com/tklauser/numcpus v0.4.0 // indirect
+	github.com/tklauser/go-sysconf v0.3.12 // indirect
+	github.com/tklauser/numcpus v0.6.1 // indirect
 	github.com/ulikunitz/xz v0.5.10 // indirect
 	github.com/whyrusleeping/cbor v0.0.0-20171005072247-63513f603b11 // indirect
 	github.com/whyrusleeping/cbor-gen v0.0.0-20230818171029-f91ae536ca25 // indirect
@@ -325,7 +335,6 @@ require (
 	google.golang.org/genproto/googleapis/api v0.0.0-20230726155614-23370e0ffb3e // indirect
 	google.golang.org/genproto/googleapis/rpc v0.0.0-20230815205213-6bfd019c3878 // indirect
 	gopkg.in/ini.v1 v1.67.0 // indirect
-	gopkg.in/natefinch/npipe.v2 v2.0.0-20160621034901-c1b8fa8bdcce // indirect
 	gopkg.in/yaml.v2 v2.4.0 // indirect
 	gopkg.in/yaml.v3 v3.0.1 // indirect
 	lukechampine.com/blake3 v1.2.1 // indirect
@@ -339,5 +348,5 @@ replace (
 	github.com/gogo/protobuf => github.com/regen-network/protobuf v1.3.3-alpha.regen.1
 	// broken goleveldb needs to be replaced for the cosmos-sdk and celestia-app
 	github.com/syndtr/goleveldb => github.com/syndtr/goleveldb v1.0.1-0.20210819022825-2ae1ddf74ef7
-	github.com/tendermint/tendermint => github.com/celestiaorg/celestia-core v1.26.2-tm-v0.34.28
+	github.com/tendermint/tendermint => github.com/celestiaorg/celestia-core v1.27.0-tm-v0.34.28
 )
