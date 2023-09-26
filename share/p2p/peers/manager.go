@@ -375,11 +375,6 @@ func (m *Manager) Validate(_ context.Context, peerID peer.ID, msg shrexsub.Notif
 		return pubsub.ValidationIgnore
 	}
 
-	// reject if DataHash is empty
-	if err := msg.DataHash.Validate(); err != nil {
-		return pubsub.ValidationReject
-	}
-
 	p := m.getOrCreatePool(msg.DataHash.String())
 	p.headerHeight.Store(msg.Height)
 	logger.Debugw("got hash from shrex-sub")

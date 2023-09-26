@@ -102,6 +102,10 @@ func (v ValidatorFn) validate(ctx context.Context, p peer.ID, msg *pubsub.Messag
 		DataHash: pbmsg.DataHash,
 		Height:   pbmsg.Height,
 	}
+	if n.DataHash.Validate() != nil {
+		// hard reject any data hashes that do not pass basic validation
+		return pubsub.ValidationReject
+	}
 	if n.DataHash.IsEmptyRoot() {
 		// we don't send empty EDS data hashes, but If someone sent it to us - do hard reject
 		return pubsub.ValidationReject
