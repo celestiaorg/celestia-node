@@ -272,6 +272,7 @@ func TestEDSStore_GC(t *testing.T) {
 	time.Sleep(time.Millisecond * 100)
 
 	// remove links to the shard from cache
+	time.Sleep(time.Millisecond * 100)
 	key := shard.KeyFromString(share.DataHash(dah.Hash()).String())
 	err = edsStore.cache.Remove(key)
 	require.NoError(t, err)
@@ -303,7 +304,7 @@ func Test_BlockstoreCache(t *testing.T) {
 
 	// store eds to the store with noopCache to allow clean cache after put
 	swap := edsStore.cache
-	edsStore.cache = cache.NoopCache{}
+	edsStore.cache = cache.NewDoubleCache(cache.NoopCache{}, cache.NoopCache{})
 	eds, dah := randomEDS(t)
 	err = edsStore.Put(ctx, dah.Hash(), eds)
 	require.NoError(t, err)
@@ -359,20 +360,22 @@ func Test_CachedAccessor(t *testing.T) {
 	time.Sleep(time.Millisecond * 100)
 
 	// accessor should be in cache
-	cachedAccessor, err := edsStore.cache.Get(shard.KeyFromString(dah.String()))
+	_, err = edsStore.cache.Get(shard.KeyFromString(dah.String()))
 	require.NoError(t, err)
 
 	// first read from cached accessor
-	firstBlock, err := io.ReadAll(cachedAccessor.Reader())
+	carReader, err := edsStore.getCAR(ctx, dah.Hash())
 	require.NoError(t, err)
-	require.NoError(t, cachedAccessor.Close())
+	firstBlock, err := io.ReadAll(carReader)
+	require.NoError(t, err)
+	require.NoError(t, carReader.Close())
 
 	// second read from cached accessor
-	cachedAccessor, err = edsStore.cache.Get(shard.KeyFromString(dah.String()))
+	carReader, err = edsStore.getCAR(ctx, dah.Hash())
 	require.NoError(t, err)
-	secondBlock, err := io.ReadAll(cachedAccessor.Reader())
+	secondBlock, err := io.ReadAll(carReader)
 	require.NoError(t, err)
-	require.NoError(t, cachedAccessor.Close())
+	require.NoError(t, carReader.Close())
 
 	require.Equal(t, firstBlock, secondBlock)
 }
@@ -388,7 +391,7 @@ func Test_NotCachedAccessor(t *testing.T) {
 	err = edsStore.Start(ctx)
 	require.NoError(t, err)
 	// replace cache with noopCache to
-	edsStore.cache = cache.NoopCache{}
+	edsStore.cache = cache.NewDoubleCache(cache.NoopCache{}, cache.NoopCache{})
 
 	eds, dah := randomEDS(t)
 	err = edsStore.Put(ctx, dah.Hash(), eds)
@@ -397,18 +400,18 @@ func Test_NotCachedAccessor(t *testing.T) {
 	// accessor will be registered in cache async on put, so give it some time to settle
 	time.Sleep(time.Millisecond * 100)
 
-	// accessor should be in cache
+	// accessor should not be in cache
 	_, err = edsStore.cache.Get(shard.KeyFromString(dah.String()))
 	require.Error(t, err)
 
-	// first read from direct accessor
+	// first read from direct accessor (not from cache)
 	carReader, err := edsStore.getCAR(ctx, dah.Hash())
 	require.NoError(t, err)
 	firstBlock, err := io.ReadAll(carReader)
 	require.NoError(t, err)
 	require.NoError(t, carReader.Close())
 
-	// second read from direct accessor
+	// second read from direct accessor (not from cache)
 	carReader, err = edsStore.getCAR(ctx, dah.Hash())
 	require.NoError(t, err)
 	secondBlock, err := io.ReadAll(carReader)
@@ -422,9 +425,8 @@ func BenchmarkStore(b *testing.B) {
 	ctx, cancel := context.WithCancel(context.Background())
 	b.Cleanup(cancel)
 
-	tmpDir := b.TempDir()
 	ds := ds_sync.MutexWrap(datastore.NewMapDatastore())
-	edsStore, err := NewStore(tmpDir, ds)
+	edsStore, err := NewStore(DefaultParameters(), b.TempDir(), ds)
 	require.NoError(b, err)
 	err = edsStore.Start(ctx)
 	require.NoError(b, err)
@@ -466,9 +468,8 @@ func BenchmarkStore(b *testing.B) {
 func newStore(t *testing.T) (*Store, error) {
 	t.Helper()
 
-	tmpDir := t.TempDir()
 	ds := ds_sync.MutexWrap(datastore.NewMapDatastore())
-	return NewStore(tmpDir, ds)
+	return NewStore(DefaultParameters(), t.TempDir(), ds)
 }
 
 func randomEDS(t *testing.T) (*rsmt2d.ExtendedDataSquare, *share.Root) {

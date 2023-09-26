@@ -113,7 +113,7 @@ func ConstructModule(tp node.Type, cfg *Config, options ...fx.Option) fx.Option 
 		)),
 		fx.Provide(fx.Annotate(
 			func(path node.StorePath, ds datastore.Batching) (*eds.Store, error) {
-				return eds.NewStore(string(path), ds)
+				return eds.NewStore(cfg.EDSStoreParams, string(path), ds)
 			},
 			fx.OnStart(func(ctx context.Context, store *eds.Store) error {
 				err := store.Start(ctx)
@@ -214,10 +214,15 @@ func ConstructModule(tp node.Type, cfg *Config, options ...fx.Option) fx.Option 
 					return nil
 				}
 			}),
-			fx.Provide(light.NewShareAvailability),
-			// cacheAvailability's lifecycle continues to use a fx hook,
-			// since the LC requires a cacheAvailability but the constructor returns a share.Availability
-			fx.Provide(cacheAvailability),
+			fx.Provide(fx.Annotate(
+				light.NewShareAvailability,
+				fx.OnStop(func(ctx context.Context, la *light.ShareAvailability) error {
+					return la.Close(ctx)
+				}),
+			)),
+			fx.Provide(func(avail *light.ShareAvailability) share.Availability {
+				return avail
+			}),
 		)
 	default:
 		panic("invalid node type")

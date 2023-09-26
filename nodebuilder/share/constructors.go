@@ -6,17 +6,13 @@ import (
 
 	"github.com/filecoin-project/dagstore"
 	"github.com/ipfs/boxo/blockservice"
-	"github.com/ipfs/go-datastore"
 	"github.com/libp2p/go-libp2p/core/host"
 	"github.com/libp2p/go-libp2p/core/routing"
 	routingdisc "github.com/libp2p/go-libp2p/p2p/discovery/routing"
-	"go.uber.org/fx"
 
 	"github.com/celestiaorg/celestia-app/pkg/da"
 
 	"github.com/celestiaorg/celestia-node/share"
-	"github.com/celestiaorg/celestia-node/share/availability/cache"
-	"github.com/celestiaorg/celestia-node/share/availability/light"
 	"github.com/celestiaorg/celestia-node/share/eds"
 	"github.com/celestiaorg/celestia-node/share/getters"
 	"github.com/celestiaorg/celestia-node/share/ipld"
@@ -35,15 +31,6 @@ func newDiscovery(cfg Config) func(routing.ContentRouting, host.Host) *disc.Disc
 			disc.WithAdvertiseInterval(cfg.Discovery.AdvertiseInterval),
 		)
 	}
-}
-
-// cacheAvailability wraps light availability with a cache for result sampling.
-func cacheAvailability(lc fx.Lifecycle, ds datastore.Batching, avail *light.ShareAvailability) share.Availability {
-	ca := cache.NewShareAvailability(avail, ds)
-	lc.Append(fx.Hook{
-		OnStop: ca.Close,
-	})
-	return ca
 }
 
 func newModule(getter share.Getter, avail share.Availability) Module {
@@ -92,7 +79,6 @@ func lightGetter(
 // by shrex the next time the data is retrieved (meaning shard recovery is
 // manual after corruption is detected).
 func bridgeGetter(
-	store *eds.Store,
 	storeGetter *getters.StoreGetter,
 	shrexGetter *getters.ShrexGetter,
 	cfg Config,
@@ -100,13 +86,12 @@ func bridgeGetter(
 	var cascade []share.Getter
 	cascade = append(cascade, storeGetter)
 	if cfg.UseShareExchange {
-		cascade = append(cascade, getters.NewTeeGetter(shrexGetter, store))
+		cascade = append(cascade, shrexGetter)
 	}
 	return getters.NewCascadeGetter(cascade)
 }
 
 func fullGetter(
-	store *eds.Store,
 	storeGetter *getters.StoreGetter,
 	shrexGetter *getters.ShrexGetter,
 	ipldGetter *getters.IPLDGetter,
@@ -115,8 +100,8 @@ func fullGetter(
 	var cascade []share.Getter
 	cascade = append(cascade, storeGetter)
 	if cfg.UseShareExchange {
-		cascade = append(cascade, getters.NewTeeGetter(shrexGetter, store))
+		cascade = append(cascade, shrexGetter)
 	}
-	cascade = append(cascade, getters.NewTeeGetter(ipldGetter, store))
+	cascade = append(cascade, ipldGetter)
 	return getters.NewCascadeGetter(cascade)
 }
