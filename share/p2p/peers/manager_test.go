@@ -2,7 +2,6 @@ package peers
 
 import (
 	"context"
-	"strconv"
 	sync2 "sync"
 	"testing"
 	"time"
@@ -364,7 +363,7 @@ func TestIntegration(t *testing.T) {
 		require.Equal(t, nw.Hosts()[0].ID(), gotPeer)
 	})
 
-	t.Run("do not create pool for malformed data hashes", func(t *testing.T) {
+	t.Run("do not create pool for malformed data hashes / heights", func(t *testing.T) {
 		nw, err := mocknet.FullMeshLinked(2)
 		require.NoError(t, err)
 		ctx, cancel := context.WithTimeout(context.Background(), time.Second*5)
@@ -392,30 +391,54 @@ func TestIntegration(t *testing.T) {
 		time.Sleep(time.Millisecond * 100)
 
 		var tests = []struct {
-			notif shrexsub.Notification
+			name             string
+			notif            shrexsub.Notification
+			shouldCreatePool bool
 		}{
 			{
+				name: "valid hash, valid height",
+				notif: shrexsub.Notification{
+					DataHash: rand.Bytes(32),
+					Height:   54,
+				},
+				shouldCreatePool: true,
+			},
+			{
+				name: "nil data hash",
 				notif: shrexsub.Notification{
 					DataHash: nil,
 					Height:   1,
 				},
+				shouldCreatePool: false,
 			},
 			{
+				name: ">32 byte data hash",
 				notif: shrexsub.Notification{
 					DataHash: rand.Bytes(64),
 					Height:   1,
 				},
+				shouldCreatePool: false,
 			},
 			{
+				name: "<32 byte data hash",
 				notif: shrexsub.Notification{
 					DataHash: rand.Bytes(20),
 					Height:   1,
 				},
+				shouldCreatePool: false,
+			},
+			{
+				name: "valid hash, invalid height",
+				notif: shrexsub.Notification{
+					DataHash: rand.Bytes(32),
+					Height:   0,
+				},
+				shouldCreatePool: false,
 			},
 		}
 
-		for i, tt := range tests {
-			t.Run(strconv.Itoa(i), func(t *testing.T) {
+		for _, tt := range tests {
+			t.Run(tt.name, func(t *testing.T) {
 				// broadcast from BN
 				require.NoError(t, bnPubSub.Broadcast(ctx, tt.notif))
 
@@ -423,7 +446,7 @@ func TestIntegration(t *testing.T) {
 
 				// FN should NOT accept notification / should not add hash to pools
 				_, ok := fnPeerManager.pools[tt.notif.DataHash.String()]
-				require.False(t, ok)
+				require.Equal(t, tt.shouldCreatePool, ok)
 			})
 		}
 

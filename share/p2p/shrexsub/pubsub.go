@@ -102,6 +102,10 @@ func (v ValidatorFn) validate(ctx context.Context, p peer.ID, msg *pubsub.Messag
 		DataHash: pbmsg.DataHash,
 		Height:   pbmsg.Height,
 	}
+	if n.Height == 0 {
+		// hard reject malicious height (height 0 does not exist)
+		return pubsub.ValidationReject
+	}
 	if n.DataHash.Validate() != nil {
 		// hard reject any data hashes that do not pass basic validation
 		return pubsub.ValidationReject
