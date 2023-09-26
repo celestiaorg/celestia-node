@@ -36,7 +36,9 @@ const (
 
 	// logInterval defines the time interval at which a warning message will be logged
 	// if the desired number of nodes is not detected.
-	logInterval = 5 * time.Minute
+	logInterval            = 5 * time.Minute
+	backoffInitialDuration = 5 * time.Second
+	maxBackoffDuration     = 10 * time.Minute
 )
 
 // discoveryRetryTimeout defines time interval between discovery attempts, needed for tests
@@ -202,17 +204,23 @@ func (d *Discovery) Advertise(ctx context.Context) {
 // It initiates peer discovery upon request and restarts the process until the soft limit is
 // reached.
 func (d *Discovery) discoveryLoop(ctx context.Context) {
-	t := time.NewTicker(discoveryRetryTimeout)
-	defer t.Stop()
+
+	backoffTicker := time.NewTicker(backoffInitialDuration)
+	defer backoffTicker.Stop()
 
 	warnTicker := time.NewTicker(logInterval)
 	defer warnTicker.Stop()
 
 	for {
-		// drain all previous ticks from the channel
-		drainChannel(t.C)
 		select {
-		case <-t.C:
+		case <-backoffTicker.C:
+			backoffDuration := backoffInitialDuration
+			backoffTicker.Stop()                            // Stop the current ticker
+			backoffTicker = time.NewTicker(backoffDuration) // Reset the ticker with the new duration
+			if backoffDuration > maxBackoffDuration {
+				backoffDuration = maxBackoffDuration
+			}
+
 			if !d.discover(ctx) {
 				// rerun discovery if the number of peers hasn't reached the limit
 				continue
@@ -225,8 +233,11 @@ func (d *Discovery) discoveryLoop(ctx context.Context) {
 					logInterval, d.set.Size(), d.set.Limit(),
 				)
 			}
-			// Do not break the loop; just continue
-			continue
+		case <-d.triggerDisc: // Listen for triggerDisc channel
+			if !d.discover(ctx) {
+				// rerun discovery if the number of peers hasn't reached the limit
+				continue
+			}
 		case <-ctx.Done():
 			return
 		}
