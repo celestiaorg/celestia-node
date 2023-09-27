@@ -55,6 +55,7 @@ func persistentPreRunEnv(cmd *cobra.Command, nodeType node.Type, _ []string) err
 	ctx, err = cmdnode.ParseMiscFlags(ctx, cmd)
 	if err != nil {
 		return err
+
 	}
 
 	rpc.ParseFlags(cmd, &cfg.RPC)
