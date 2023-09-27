@@ -1,6 +1,7 @@
 package pruner
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
 	"fmt"
@@ -121,6 +122,7 @@ func (sp *StoragePruner) Register(ctx context.Context, h *header.ExtendedHeader)
 		if err != nil {
 			return err
 		}
+
 	} else { // epoch not already registered
 		log.Infow("registering new epoch", "epoch", epoch)
 		sp.activeEpochs[epoch] = struct{}{}
@@ -129,6 +131,13 @@ func (sp *StoragePruner) Register(ctx context.Context, h *header.ExtendedHeader)
 	oldest := sp.oldestEpoch.Load()
 	if epoch < oldest {
 		sp.oldestEpoch.CompareAndSwap(oldest, epoch)
+	}
+
+	// Don't save duplicates: TODO maybe saving as a map is better to avoid this loop, especially when epoch duration is large
+	for _, dh := range datahashes {
+		if bytes.Equal(dh, h.DAH.Hash()) {
+			return nil
+		}
 	}
 
 	datahashes = append(datahashes, h.DAH.Hash())
