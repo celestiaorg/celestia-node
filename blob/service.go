@@ -126,7 +126,7 @@ func (s *Service) GetAll(ctx context.Context, height uint64, namespaces []share.
 		wg.Add(1)
 		go func(i int, namespace share.Namespace) {
 			defer wg.Done()
-			blobs, err := s.getBlobs(ctx, namespace, header.DAH)
+			blobs, err := s.getBlobs(ctx, namespace, header)
 			if err != nil {
 				resultErr[i] = fmt.Errorf("getting blobs for namespace(%s): %s", namespace.String(), err)
 				return
@@ -204,7 +204,7 @@ func (s *Service) getByCommitment(
 		blobShare *shares.Share
 	)
 
-	namespacedShares, err := s.shareGetter.GetSharesByNamespace(ctx, header.DAH, namespace)
+	namespacedShares, err := s.shareGetter.GetSharesByNamespace(ctx, header, namespace)
 	if err != nil {
 		if errors.Is(err, share.ErrNotFound) {
 			err = ErrBlobNotFound
@@ -293,8 +293,8 @@ func (s *Service) getByCommitment(
 
 // getBlobs retrieves the DAH and fetches all shares from the requested Namespace and converts
 // them to Blobs.
-func (s *Service) getBlobs(ctx context.Context, namespace share.Namespace, root *share.Root) ([]*Blob, error) {
-	namespacedShares, err := s.shareGetter.GetSharesByNamespace(ctx, root, namespace)
+func (s *Service) getBlobs(ctx context.Context, namespace share.Namespace, header *header.ExtendedHeader) ([]*Blob, error) {
+	namespacedShares, err := s.shareGetter.GetSharesByNamespace(ctx, header, namespace)
 	if err != nil {
 		return nil, err
 	}

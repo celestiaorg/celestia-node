@@ -32,7 +32,7 @@ func (h *Handler) handleHeightAvailabilityRequest(w http.ResponseWriter, r *http
 		return
 	}
 
-	err = h.share.SharesAvailable(r.Context(), header.DAH)
+	err = h.share.SharesAvailable(r.Context(), header)
 	switch err {
 	case nil:
 		resp, err := json.Marshal(&AvailabilityResponse{Available: true})

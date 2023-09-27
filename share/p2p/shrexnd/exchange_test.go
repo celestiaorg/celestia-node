@@ -13,8 +13,6 @@ import (
 	mocknet "github.com/libp2p/go-libp2p/p2p/net/mock"
 	"github.com/stretchr/testify/require"
 
-	"github.com/celestiaorg/rsmt2d"
-
 	"github.com/celestiaorg/celestia-node/share"
 	"github.com/celestiaorg/celestia-node/share/eds"
 	"github.com/celestiaorg/celestia-node/share/eds/edstest"
@@ -25,7 +23,7 @@ import (
 func TestExchange_RequestND_NotFound(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	t.Cleanup(cancel)
-	edsStore, client, server := makeExchange(t, notFoundGetter{})
+	edsStore, client, server := makeExchange(t)
 	require.NoError(t, edsStore.Start(ctx))
 	require.NoError(t, server.Start(ctx))
 
@@ -48,8 +46,8 @@ func TestExchange_RequestND_NotFound(t *testing.T) {
 		require.NoError(t, err)
 		require.NoError(t, edsStore.Put(ctx, dah.Hash(), eds))
 
-		randNamespace := dah.RowRoots[(len(dah.RowRoots)-1)/2][:share.NamespaceSize]
-		emptyShares, err := client.RequestND(ctx, dah, randNamespace, server.host.ID())
+		namespace := sharetest.RandV0Namespace()
+		emptyShares, err := client.RequestND(ctx, dah, namespace, server.host.ID())
 		require.NoError(t, err)
 		require.Empty(t, emptyShares.Flatten())
 	})
@@ -62,7 +60,7 @@ func TestExchange_RequestND(t *testing.T) {
 
 		client, err := NewClient(DefaultParameters(), net.Hosts()[0])
 		require.NoError(t, err)
-		server, err := NewServer(DefaultParameters(), net.Hosts()[1], nil, nil)
+		server, err := NewServer(DefaultParameters(), net.Hosts()[1], nil)
 		require.NoError(t, err)
 
 		require.NoError(t, server.Start(context.Background()))
@@ -103,26 +101,6 @@ func TestExchange_RequestND(t *testing.T) {
 	})
 }
 
-type notFoundGetter struct{}
-
-func (m notFoundGetter) GetShare(
-	_ context.Context, _ *share.Root, _, _ int,
-) (share.Share, error) {
-	return nil, share.ErrNotFound
-}
-
-func (m notFoundGetter) GetEDS(
-	_ context.Context, _ *share.Root,
-) (*rsmt2d.ExtendedDataSquare, error) {
-	return nil, share.ErrNotFound
-}
-
-func (m notFoundGetter) GetSharesByNamespace(
-	_ context.Context, _ *share.Root, _ share.Namespace,
-) (share.NamespacedShares, error) {
-	return nil, nil
-}
-
 func newStore(t *testing.T) *eds.Store {
 	t.Helper()
 
@@ -142,14 +120,14 @@ func createMocknet(t *testing.T, amount int) []libhost.Host {
 	return net.Hosts()
 }
 
-func makeExchange(t *testing.T, getter share.Getter) (*eds.Store, *Client, *Server) {
+func makeExchange(t *testing.T) (*eds.Store, *Client, *Server) {
 	t.Helper()
 	store := newStore(t)
 	hosts := createMocknet(t, 2)
 
 	client, err := NewClient(DefaultParameters(), hosts[0])
 	require.NoError(t, err)
-	server, err := NewServer(DefaultParameters(), hosts[1], store, getter)
+	server, err := NewServer(DefaultParameters(), hosts[1], store)
 	require.NoError(t, err)
 
 	return store, client, server

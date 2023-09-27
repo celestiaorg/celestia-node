@@ -214,7 +214,7 @@ func TestDASerSampleTimeout(t *testing.T) {
 	avail := mocks.NewMockAvailability(gomock.NewController(t))
 	doneCh := make(chan struct{})
 	avail.EXPECT().SharesAvailable(gomock.Any(), gomock.Any()).DoAndReturn(
-		func(sampleCtx context.Context, h *share.Root) error {
+		func(sampleCtx context.Context, h *header.ExtendedHeader) error {
 			select {
 			case <-sampleCtx.Done():
 				close(doneCh)

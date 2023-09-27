@@ -13,6 +13,7 @@ import (
 	collectormetricpb "go.opentelemetry.io/proto/otlp/collector/metrics/v1"
 	"google.golang.org/protobuf/proto"
 
+	"github.com/celestiaorg/celestia-node/header/headertest"
 	"github.com/celestiaorg/celestia-node/nodebuilder/node"
 	"github.com/celestiaorg/celestia-node/share"
 )
@@ -143,7 +144,9 @@ func TestEmptyBlockExists(t *testing.T) {
 			require.NoError(t, err)
 
 			// ensure an empty block exists in store
-			err = node.ShareServ.SharesAvailable(ctx, share.EmptyRoot())
+			eh := headertest.RandExtendedHeader(t)
+			eh.DAH = share.EmptyRoot()
+			err = node.ShareServ.SharesAvailable(ctx, eh)
 			require.NoError(t, err)
 
 			err = node.Stop(ctx)

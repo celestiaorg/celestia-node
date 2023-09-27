@@ -10,6 +10,7 @@ import (
 
 	"github.com/celestiaorg/celestia-app/pkg/da"
 
+	"github.com/celestiaorg/celestia-node/header/headertest"
 	"github.com/celestiaorg/celestia-node/share"
 	availability_test "github.com/celestiaorg/celestia-node/share/availability/test"
 	"github.com/celestiaorg/celestia-node/share/eds/edstest"
@@ -22,10 +23,12 @@ func TestShareAvailableOverMocknet_Full(t *testing.T) {
 
 	net := availability_test.NewTestDAGNet(ctx, t)
 	_, root := RandNode(net, 32)
+	eh := headertest.RandExtendedHeader(t)
+	eh.DAH = root
 	nd := Node(net)
 	net.ConnectAll()
 
-	err := nd.SharesAvailable(ctx, root)
+	err := nd.SharesAvailable(ctx, eh)
 	assert.NoError(t, err)
 }
 
@@ -35,8 +38,10 @@ func TestSharesAvailable_Full(t *testing.T) {
 
 	// RandServiceWithSquare creates a NewShareAvailability inside, so we can test it
 	getter, dah := GetterWithRandSquare(t, 16)
+	eh := headertest.RandExtendedHeader(t)
+	eh.DAH = dah
 	avail := TestAvailability(t, getter)
-	err := avail.SharesAvailable(ctx, dah)
+	err := avail.SharesAvailable(ctx, eh)
 	assert.NoError(t, err)
 }
 
@@ -46,8 +51,10 @@ func TestSharesAvailable_StoresToEDSStore(t *testing.T) {
 
 	// RandServiceWithSquare creates a NewShareAvailability inside, so we can test it
 	getter, dah := GetterWithRandSquare(t, 16)
+	eh := headertest.RandExtendedHeader(t)
+	eh.DAH = dah
 	avail := TestAvailability(t, getter)
-	err := avail.SharesAvailable(ctx, dah)
+	err := avail.SharesAvailable(ctx, eh)
 	assert.NoError(t, err)
 
 	has, err := avail.store.Has(ctx, dah.Hash())
@@ -63,13 +70,15 @@ func TestSharesAvailable_Full_ErrNotAvailable(t *testing.T) {
 
 	eds := edstest.RandEDS(t, 4)
 	dah, err := da.NewDataAvailabilityHeader(eds)
+	eh := headertest.RandExtendedHeader(t)
+	eh.DAH = &dah
 	require.NoError(t, err)
 	avail := TestAvailability(t, getter)
 
 	errors := []error{share.ErrNotFound, context.DeadlineExceeded}
 	for _, getterErr := range errors {
 		getter.EXPECT().GetEDS(gomock.Any(), gomock.Any()).Return(nil, getterErr)
-		err := avail.SharesAvailable(ctx, &dah)
+		err := avail.SharesAvailable(ctx, eh)
 		require.ErrorIs(t, err, share.ErrNotAvailable)
 	}
 }

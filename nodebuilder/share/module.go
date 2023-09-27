@@ -98,11 +98,10 @@ func ConstructModule(tp node.Type, cfg *Config, options ...fx.Option) fx.Option 
 			func(
 				host host.Host,
 				store *eds.Store,
-				getter *getters.StoreGetter,
 				network modp2p.Network,
 			) (*shrexnd.Server, error) {
 				cfg.ShrExNDParams.WithNetworkID(network.String())
-				return shrexnd.NewServer(cfg.ShrExNDParams, host, store, getter)
+				return shrexnd.NewServer(cfg.ShrExNDParams, host, store)
 			},
 			fx.OnStart(func(ctx context.Context, server *shrexnd.Server) error {
 				return server.Start(ctx)
