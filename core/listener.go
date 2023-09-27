@@ -192,13 +192,6 @@ func (cl *Listener) handleNewSignedBlock(ctx context.Context, b types.EventDataS
 		panic(fmt.Errorf("making extended header: %w", err))
 	}
 
-	if cl.pruner != nil {
-		err = cl.pruner.Register(ctx, eh)
-		if err != nil {
-			return fmt.Errorf("registering height %d on pruner: %w", eh.Height(), err)
-		}
-	}
-
 	// attempt to store block data if not empty
 	ctx = ipld.CtxWithProofsAdder(ctx, adder)
 	err = storeEDS(ctx, eh, eds, cl.store, cl.pruner)
