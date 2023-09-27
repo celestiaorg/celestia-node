@@ -38,7 +38,7 @@ func (h *Handler) handleBalanceRequest(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
 	addrStr, exists := vars[addrKey]
 	if !exists {
-		writeError(w, http.StatusBadRequest, balanceEndpoint, errors.New("invalid endpoint"))
+		writeError(w, http.StatusBadRequest, balanceEndpoint, errors.New("balance endpoint requires address"))
 		return
 	}
 
