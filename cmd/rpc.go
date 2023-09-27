@@ -62,7 +62,7 @@ func InitClient(cmd *cobra.Command, _ []string) error {
 	if authTokenFlag == "" {
 		token, err := getToken(storePath)
 		if err != nil {
-			return fmt.Errorf("cant get the access to the auth token:%v", err)
+			return fmt.Errorf("cant get the access to the auth token: %v", err)
 		}
 		authTokenFlag = token
 	}
@@ -89,7 +89,7 @@ func getToken(path string) (string, error) {
 
 	key, err := ks.Get(nodemod.SecretName)
 	if err != nil {
-		fmt.Printf("error getting the private key:%v", err)
+		fmt.Printf("error getting the JWT secret: %v", err)
 		return "", err
 	}
 	return buildJWTToken(key.Body, perms.AllPerms)
