@@ -1,0 +1,15 @@
+[Unit]
+Description=celestia-lightd Light Node
+After=network-online.target
+
+[Service]
+User=$USER
+ExecStart=$(which celestia) light start --core.ip rpc-mocha.pops.one
+Restart=on-failure
+Restart=on-failure
+RestartSec=3
+LimitNOFILE=4096
+
+[Install]
+WantedBy=multi-user.target
+EOF
