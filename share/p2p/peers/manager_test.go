@@ -17,6 +17,7 @@ import (
 	"github.com/libp2p/go-libp2p/p2p/net/conngater"
 	mocknet "github.com/libp2p/go-libp2p/p2p/net/mock"
 	"github.com/stretchr/testify/require"
+	"github.com/tendermint/tendermint/libs/rand"
 
 	libhead "github.com/celestiaorg/go-header"
 
@@ -348,18 +349,18 @@ func TestIntegration(t *testing.T) {
 		time.Sleep(time.Millisecond * 100)
 
 		// broadcast from BN
-		peerHash := share.DataHash("peer1")
+		randHash := rand.Bytes(32)
 		require.NoError(t, bnPubSub.Broadcast(ctx, shrexsub.Notification{
-			DataHash: peerHash,
+			DataHash: randHash,
 			Height:   1,
 		}))
 
 		// FN should get message
-		peerID, _, err := fnPeerManager.Peer(ctx, peerHash)
+		gotPeer, _, err := fnPeerManager.Peer(ctx, randHash)
 		require.NoError(t, err)
 
-		// check that peerID matched bridge node
-		require.Equal(t, nw.Hosts()[0].ID(), peerID)
+		// check that gotPeer matched bridge node
+		require.Equal(t, nw.Hosts()[0].ID(), gotPeer)
 	})
 
 	t.Run("get peer from discovery", func(t *testing.T) {
@@ -488,7 +489,8 @@ func stopManager(t *testing.T, m *Manager) {
 func testHeader() *header.ExtendedHeader {
 	return &header.ExtendedHeader{
 		RawHeader: header.RawHeader{
-			Height: 1,
+			Height:   1,
+			DataHash: rand.Bytes(32),
 		},
 	}
 }

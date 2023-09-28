@@ -23,9 +23,8 @@ type Option func(*Parameters)
 // for the Discovery module
 func DefaultParameters() Parameters {
 	return Parameters{
-		PeersLimit: 5,
-		// based on https://github.com/libp2p/go-libp2p-kad-dht/pull/793
-		AdvertiseInterval: time.Hour * 22,
+		PeersLimit:        5,
+		AdvertiseInterval: time.Hour,
 	}
 }
 
