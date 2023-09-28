@@ -31,6 +31,7 @@ func newDiscovery(cfg *disc.Parameters,
 			cfg,
 			h,
 			routingdisc.NewRoutingDiscovery(r),
+			disc.WithOnPeersUpdate(manager.UpdatedFullNodes),
 		)
 	}
 }
