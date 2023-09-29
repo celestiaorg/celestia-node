@@ -461,6 +461,28 @@ func BenchmarkStore(b *testing.B) {
 			require.NoError(b, err)
 		}
 	})
+
+	b.Run("bench put 128 parallel", func(b *testing.B) {
+		fn := func(b *testing.B) {
+			b.StopTimer()
+			eds := edstest.RandEDS(b, 128)
+			dah, err := share.NewRoot(eds)
+			require.NoError(b, err)
+			b.StartTimer()
+			err = edsStore.Put(ctx, dah.Hash(), eds)
+			if err != nil {
+				require.ErrorIs(b, err, dagstore.ErrShardExists)
+			}
+		}
+		b.ResetTimer()
+
+		b.SetParallelism(512)
+		b.RunParallel(func(pb *testing.PB) {
+			for pb.Next() {
+				fn(b)
+			}
+		})
+	})
 }
 
 func newStore(t *testing.T) (*Store, error) {
