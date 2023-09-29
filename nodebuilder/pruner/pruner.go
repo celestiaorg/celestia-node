@@ -1,7 +1,6 @@
 package pruner
 
 import (
-	"bytes"
 	"context"
 	"encoding/json"
 	"fmt"
@@ -133,13 +132,6 @@ func (sp *StoragePruner) Register(ctx context.Context, h *header.ExtendedHeader)
 		sp.oldestEpoch.CompareAndSwap(oldest, epoch)
 	}
 
-	// Don't save duplicates: TODO maybe saving as a map is better to avoid this loop, especially when epoch duration is large
-	for _, dh := range datahashes {
-		if bytes.Equal(dh, h.DAH.Hash()) {
-			return nil
-		}
-	}
-
 	datahashes = append(datahashes, h.DAH.Hash())
 	sp.metrics.observeRegister(ctx)
 	return sp.saveDatahashesToEpoch(ctx, epoch, datahashes)
@@ -196,12 +188,20 @@ func (sp *StoragePruner) pruneEpoch(ctx context.Context, epoch uint64) error {
 		return err
 	}
 
+	alreadyPruned := make(map[string]struct{})
 	for _, dh := range datahashes {
+		// this is an optimization to avoid removing the same datahash twice,
+		// which can happen for example in a race between core listener and
+		// exchange. Avoiding duplication on storage level is more expensive.
+		if _, ok := alreadyPruned[string(dh)]; ok {
+			continue
+		}
 		err = sp.store.Remove(ctx, dh)
 		if err != nil {
 			log.Errorf("failed to remove datahash %X from epoch %d: %w", dh, epoch, err)
 		}
 		sp.metrics.observePrune(ctx)
+		alreadyPruned[string(dh)] = struct{}{}
 	}
 
 	delete(sp.activeEpochs, epoch)
