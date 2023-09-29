@@ -205,6 +205,11 @@ func (sp *StoragePruner) pruneEpoch(ctx context.Context, epoch uint64) error {
 	}
 
 	delete(sp.activeEpochs, epoch)
+	key := datastore.NewKey(fmt.Sprintf("%d", epoch))
+	err = sp.ds.Delete(ctx, key)
+	if err != nil {
+		log.Errorf("failed to delete epoch %d from datastore: %w", epoch, err)
+	}
 	if epoch == sp.oldestEpoch.Load() {
 		sp.updateOldestEpoch()
 	}
@@ -221,7 +226,11 @@ func (sp *StoragePruner) updateOldestEpoch() {
 			break
 		}
 		nextEpoch := sp.calculateEpoch(nextTime)
-		if _, ok := sp.activeEpochs[nextEpoch]; ok {
+		lk := &sp.stripedLocks[nextEpoch%256]
+		lk.Lock()
+		_, ok := sp.activeEpochs[nextEpoch]
+		lk.Unlock()
+		if ok {
 			sp.oldestEpoch.CompareAndSwap(oldest, nextEpoch)
 			break
 		}
