@@ -181,7 +181,6 @@ func (ce *Exchange) getExtendedHeaderByHeight(ctx context.Context, height *int64
 	// only store the EDS if either pruning is disabled, or the header is recent enough
 	if ce.recencyWindow == 0 || time.Now().Add(-ce.recencyWindow).Before(eh.Time()) {
 		ctx = ipld.CtxWithProofsAdder(ctx, adder)
-		log.Infow("storing from exchange GETBYHEIGHT", "root", eh.DAH.Hash())
 		err = storeEDS(ctx, eh, eds, ce.store, ce.pruner)
 		if err != nil {
 			return nil, fmt.Errorf("storing EDS to eds.Store for block height %d: %w", b.Header.Height, err)
