@@ -20,10 +20,11 @@ import (
 const concurrencyLimit = 4
 
 type Exchange struct {
-	fetcher   *BlockFetcher
-	store     *eds.Store
-	pruner    *pruner.StoragePruner
-	construct header.ConstructFn
+	fetcher       *BlockFetcher
+	store         *eds.Store
+	pruner        *pruner.StoragePruner
+	construct     header.ConstructFn
+	recencyWindow time.Duration
 }
 
 func NewExchange(
@@ -133,11 +134,15 @@ func (ce *Exchange) Get(ctx context.Context, hash libhead.Hash) (*header.Extende
 			&block.Height, hash, eh.Hash())
 	}
 
-	ctx = ipld.CtxWithProofsAdder(ctx, adder)
-	err = storeEDS(ctx, eh, eds, ce.store, ce.pruner)
-	if err != nil {
-		return nil, fmt.Errorf("storing EDS to eds.Store for height %d: %w", &block.Height, err)
+	// only store the EDS if either pruning is disabled, or the header is recent enough
+	if ce.recencyWindow == 0 || time.Now().Add(-ce.recencyWindow).Before(eh.Time()) {
+		ctx = ipld.CtxWithProofsAdder(ctx, adder)
+		err = storeEDS(ctx, eh, eds, ce.store, ce.pruner)
+		if err != nil {
+			return nil, fmt.Errorf("storing EDS to eds.Store for height %d: %w", &block.Height, err)
+		}
 	}
+
 	return eh, nil
 }
 
