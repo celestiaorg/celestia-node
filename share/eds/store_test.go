@@ -18,11 +18,13 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/celestiaorg/celestia-app/pkg/da"
+	dsbadger "github.com/celestiaorg/go-ds-badger4"
 	"github.com/celestiaorg/rsmt2d"
 
 	"github.com/celestiaorg/celestia-node/share"
 	"github.com/celestiaorg/celestia-node/share/eds/cache"
 	"github.com/celestiaorg/celestia-node/share/eds/edstest"
+	"github.com/celestiaorg/celestia-node/share/ipld"
 )
 
 func TestEDSStore(t *testing.T) {
@@ -463,6 +465,62 @@ func BenchmarkStore(b *testing.B) {
 			require.NoError(b, err)
 		}
 	})
+}
+
+// BenchmarkCacheEviction benchmarks the time it takes to load a block to the cache, when the
+// cache size is set to 1. This forces cache eviction on every read.
+// BenchmarkCacheEviction-10/128    	     384	   3533586 ns/op (~3ms)
+func BenchmarkCacheEviction(b *testing.B) {
+	const (
+		blocks = 4
+		size   = 128
+	)
+
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second*30)
+	b.Cleanup(cancel)
+
+	dir := b.TempDir()
+	ds, err := dsbadger.NewDatastore(dir, &dsbadger.DefaultOptions)
+	require.NoError(b, err)
+
+	newStore := func(params *Parameters) *Store {
+		edsStore, err := NewStore(params, dir, ds)
+		require.NoError(b, err)
+		err = edsStore.Start(ctx)
+		require.NoError(b, err)
+		return edsStore
+	}
+	edsStore := newStore(DefaultParameters())
+
+	// generate EDSs and store them
+	cids := make([]cid.Cid, blocks)
+	for i := range cids {
+		eds := edstest.RandEDS(b, size)
+		dah, err := da.NewDataAvailabilityHeader(eds)
+		require.NoError(b, err)
+		err = edsStore.Put(ctx, dah.Hash(), eds)
+		require.NoError(b, err)
+
+		// store cids for read loop later
+		cids[i] = ipld.MustCidFromNamespacedSha256(dah.RowRoots[0])
+	}
+
+	// restart store to clear cache
+	require.NoError(b, edsStore.Stop(ctx))
+
+	// set BlockstoreCacheSize to 1 to force eviction on every read
+	params := DefaultParameters()
+	params.BlockstoreCacheSize = 1
+	bstore := newStore(params).Blockstore()
+
+	// start benchmark
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		h := cids[i%blocks]
+		// every read will trigger eviction
+		_, err := bstore.Get(ctx, h)
+		require.NoError(b, err)
+	}
 }
 
 func newStore(t *testing.T) (*Store, error) {

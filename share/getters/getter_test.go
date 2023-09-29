@@ -3,6 +3,7 @@ package getters
 import (
 	"context"
 	"os"
+	"sync"
 	"testing"
 	"time"
 
@@ -12,7 +13,9 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
+	"github.com/celestiaorg/celestia-app/pkg/da"
 	"github.com/celestiaorg/celestia-app/pkg/wrapper"
+	dsbadger "github.com/celestiaorg/go-ds-badger4"
 	"github.com/celestiaorg/rsmt2d"
 
 	"github.com/celestiaorg/celestia-node/share"
@@ -215,6 +218,74 @@ func TestIPLDGetter(t *testing.T) {
 		require.NoError(t, err)
 		require.Empty(t, emptyShares.Flatten())
 	})
+}
+
+// BenchmarkIPLDGetterOverBusyCache benchmarks the performance of the IPLDGetter when the
+// cache size of the underlying blockstore is less than the number of blocks being requested in
+// parallel. This is to ensure performance doesn't degrade when the cache is being frequently
+// evicted.
+// BenchmarkIPLDGetterOverBusyCache-10/128    	       1	12460428417 ns/op (~12s)
+func BenchmarkIPLDGetterOverBusyCache(b *testing.B) {
+	const (
+		blocks = 10
+		size   = 128
+	)
+
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second*30)
+	b.Cleanup(cancel)
+
+	dir := b.TempDir()
+	ds, err := dsbadger.NewDatastore(dir, &dsbadger.DefaultOptions)
+	require.NoError(b, err)
+
+	newStore := func(params *eds.Parameters) *eds.Store {
+		edsStore, err := eds.NewStore(params, dir, ds)
+		require.NoError(b, err)
+		err = edsStore.Start(ctx)
+		require.NoError(b, err)
+		return edsStore
+	}
+	edsStore := newStore(eds.DefaultParameters())
+
+	// generate EDSs and store them
+	hashes := make([]da.DataAvailabilityHeader, blocks)
+	for i := range hashes {
+		eds := edstest.RandEDS(b, size)
+		dah, err := da.NewDataAvailabilityHeader(eds)
+		require.NoError(b, err)
+		err = edsStore.Put(ctx, dah.Hash(), eds)
+		require.NoError(b, err)
+
+		// store cids for read loop later
+		hashes[i] = dah
+	}
+
+	// restart store to clear cache
+	require.NoError(b, edsStore.Stop(ctx))
+
+	// set BlockstoreCacheSize to 1 to force eviction on every read
+	params := eds.DefaultParameters()
+	params.BlockstoreCacheSize = 1
+	edsStore = newStore(params)
+	bstore := edsStore.Blockstore()
+	bserv := ipld.NewBlockservice(bstore, offline.Exchange(bstore))
+
+	// start client
+	getter := NewIPLDGetter(bserv)
+
+	// request blocks in parallel
+	b.ResetTimer()
+	g := sync.WaitGroup{}
+	g.Add(blocks)
+	for _, h := range hashes {
+		h := h
+		go func() {
+			defer g.Done()
+			_, err := getter.GetEDS(ctx, &h)
+			require.NoError(b, err)
+		}()
+	}
+	g.Wait()
 }
 
 func randomEDS(t *testing.T) (*rsmt2d.ExtendedDataSquare, *share.Root) {
