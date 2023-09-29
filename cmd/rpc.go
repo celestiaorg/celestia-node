@@ -23,7 +23,6 @@ const (
 var (
 	requestURL    string
 	authTokenFlag string
-	storePath     string
 )
 
 func RPCFlags() *flag.FlagSet {
@@ -44,13 +43,7 @@ func RPCFlags() *flag.FlagSet {
 	)
 
 	storeFlag := NodeFlags().Lookup(nodeStoreFlag)
-
-	fset.StringVar(
-		&storePath,
-		nodeStoreFlag,
-		"",
-		storeFlag.Usage,
-	)
+	fset.AddFlag(storeFlag)
 	return fset
 }
 
@@ -60,6 +53,10 @@ func InitClient(cmd *cobra.Command, _ []string) error {
 	}
 
 	if authTokenFlag == "" {
+		storePath := ""
+		if cmd.Flag(nodeStoreFlag).Changed {
+			storePath = cmd.Flag(nodeStoreFlag).Value.String()
+		}
 		token, err := getToken(storePath)
 		if err != nil {
 			return fmt.Errorf("cant get the access to the auth token: %v", err)
