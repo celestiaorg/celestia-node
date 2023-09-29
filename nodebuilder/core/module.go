@@ -68,8 +68,9 @@ func ConstructModule(tp node.Type, cfg *Config, prunerCfg *pruner.Config, option
 					pubsub *shrexsub.PubSub,
 					construct header.ConstructFn,
 					store *eds.Store,
+					options ...core.ListenerOption,
 				) *core.Listener {
-					return core.NewListener(bcast, fetcher, pubsub.Broadcast, construct, store, p2p.BlockTime)
+					return core.NewListener(bcast, fetcher, pubsub.Broadcast, construct, store, p2p.BlockTime, options...)
 				},
 				fx.OnStart(func(ctx context.Context, listener *core.Listener) error {
 					return listener.Start(ctx)
