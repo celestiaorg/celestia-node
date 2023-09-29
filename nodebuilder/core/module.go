@@ -36,6 +36,7 @@ func ConstructModule(tp node.Type, cfg *Config, prunerCfg *pruner.Config, option
 				func(pruner *pruner.StoragePruner) []core.ExchangeOption {
 					return []core.ExchangeOption{
 						core.WithExchangeStoragePruner(pruner),
+						core.WithExchangeRecencyWindow(prunerCfg.RecencyWindow),
 					}
 				},
 			),
