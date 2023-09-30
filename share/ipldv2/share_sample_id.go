@@ -1,7 +1,6 @@
 package ipldv2
 
 import (
-	"crypto/sha256"
 	"encoding/binary"
 	"fmt"
 
@@ -14,18 +13,11 @@ import (
 	ipldv2pb "github.com/celestiaorg/celestia-node/share/ipldv2/pb"
 )
 
-// SampleIDSize is the size of the SampleID in bytes
-const SampleIDSize = 127
+// ShareSampleIDSize is the size of the ShareSampleID in bytes
+const ShareSampleIDSize = 127
 
-// TODO(@Wondertan): Eventually this should become configurable
-const (
-	hashSize     = sha256.Size
-	dahRootSize  = 2*share.NamespaceSize + hashSize
-	mhPrefixSize = 4
-)
-
-// SampleID is an unique identifier of a Sample.
-type SampleID struct {
+// ShareSampleID is an unique identifier of a ShareSample.
+type ShareSampleID struct {
 	// DataHash is the root of the data square
 	// Needed to identify the data square in the whole chain
 	DataHash share.DataHash
@@ -37,8 +29,8 @@ type SampleID struct {
 	Axis rsmt2d.Axis
 }
 
-// NewSampleID constructs a new SampleID.
-func NewSampleID(root *share.Root, idx int, axis rsmt2d.Axis) SampleID {
+// NewShareSampleID constructs a new ShareSampleID.
+func NewShareSampleID(root *share.Root, idx int, axis rsmt2d.Axis) ShareSampleID {
 	sqrLn := len(root.RowRoots)
 	row, col := idx/sqrLn, idx%sqrLn
 	dahroot := root.RowRoots[row]
@@ -46,7 +38,7 @@ func NewSampleID(root *share.Root, idx int, axis rsmt2d.Axis) SampleID {
 		dahroot = root.ColumnRoots[col]
 	}
 
-	return SampleID{
+	return ShareSampleID{
 		DataHash: root.Hash(),
 		AxisHash: dahroot,
 		Index:    idx,
@@ -54,38 +46,38 @@ func NewSampleID(root *share.Root, idx int, axis rsmt2d.Axis) SampleID {
 	}
 }
 
-// SampleIDFromCID coverts CID to SampleID.
-func SampleIDFromCID(cid cid.Cid) (id SampleID, err error) {
+// ShareSampleIDFromCID coverts CID to ShareSampleID.
+func ShareSampleIDFromCID(cid cid.Cid) (id ShareSampleID, err error) {
 	if err = validateCID(cid); err != nil {
 		return id, err
 	}
 
 	err = id.UnmarshalBinary(cid.Hash()[mhPrefixSize:])
 	if err != nil {
-		return id, fmt.Errorf("while unmarhalling SampleID: %w", err)
+		return id, fmt.Errorf("while unmarhalling ShareSampleID: %w", err)
 	}
 
 	return id, nil
 }
 
 // Cid returns sample ID encoded as CID.
-func (s *SampleID) Cid() (cid.Cid, error) {
+func (s *ShareSampleID) Cid() (cid.Cid, error) {
 	data, err := s.MarshalBinary()
 	if err != nil {
 		return cid.Undef, err
 	}
 
-	buf, err := mh.Encode(data, multihashCode)
+	buf, err := mh.Encode(data, shareSamplingMultihashCode)
 	if err != nil {
 		return cid.Undef, err
 	}
 
-	return cid.NewCidV1(codec, buf), nil
+	return cid.NewCidV1(shareSamplingCodec, buf), nil
 }
 
-// Proto converts SampleID to its protobuf representation.
-func (s *SampleID) Proto() *ipldv2pb.SampleID {
-	return &ipldv2pb.SampleID{
+// Proto converts ShareSampleID to its protobuf representation.
+func (s *ShareSampleID) Proto() *ipldv2pb.ShareSampleID {
+	return &ipldv2pb.ShareSampleID{
 		DataHash: s.DataHash,
 		AxisHash: s.AxisHash,
 		Index:    uint32(s.Index),
@@ -93,10 +85,10 @@ func (s *SampleID) Proto() *ipldv2pb.SampleID {
 	}
 }
 
-// MarshalBinary encodes SampleID into binary form.
-func (s *SampleID) MarshalBinary() ([]byte, error) {
+// MarshalBinary encodes ShareSampleID into binary form.
+func (s *ShareSampleID) MarshalBinary() ([]byte, error) {
 	// we cannot use protobuf here because it exceeds multihash limit of 128 bytes
-	data := make([]byte, SampleIDSize)
+	data := make([]byte, ShareSampleIDSize)
 	n := copy(data, s.DataHash)
 	n += copy(data[n:], s.AxisHash)
 	binary.LittleEndian.PutUint32(data[n:], uint32(s.Index))
@@ -104,10 +96,10 @@ func (s *SampleID) MarshalBinary() ([]byte, error) {
 	return data, nil
 }
 
-// UnmarshalBinary decodes SampleID from binary form.
-func (s *SampleID) UnmarshalBinary(data []byte) error {
-	if len(data) != SampleIDSize {
-		return fmt.Errorf("incorrect sample id size: %d != %d", len(data), SampleIDSize)
+// UnmarshalBinary decodes ShareSampleID from binary form.
+func (s *ShareSampleID) UnmarshalBinary(data []byte) error {
+	if len(data) != ShareSampleIDSize {
+		return fmt.Errorf("incorrect SampleID size: %d != %d", len(data), ShareSampleIDSize)
 	}
 
 	// copying data to avoid slice aliasing
@@ -118,8 +110,8 @@ func (s *SampleID) UnmarshalBinary(data []byte) error {
 	return nil
 }
 
-// Validate validates fields of SampleID.
-func (s *SampleID) Validate() error {
+// Validate validates fields of ShareSampleID.
+func (s *ShareSampleID) Validate() error {
 	if len(s.DataHash) != hashSize {
 		return fmt.Errorf("incorrect DataHash size: %d != %d", len(s.DataHash), hashSize)
 	}

@@ -98,7 +98,7 @@ func CreateFile(path string, eds *rsmt2d.ExtendedDataSquare, cfgs ...FileConfig)
 		path: path,
 		fl:   f,
 		hdr:  h,
-	}, err
+	}, f.Sync()
 }
 
 func (f *File) Close() error {
@@ -154,6 +154,16 @@ func (f *File) Axis(idx int, axis rsmt2d.Axis) ([]share.Share, error) {
 		return append(shrs, parity...), nil
 	}
 	return shrs, nil
+}
+
+func (f *File) AxisHalf(idx int, axis rsmt2d.Axis) ([]share.Share, error) {
+	// TODO(@Wondertan): this has to read directly from the file, avoiding recompute
+	fullAxis, err := f.Axis(idx, axis)
+	if err != nil {
+		return nil, err
+	}
+
+	return fullAxis[:len(fullAxis)/2], nil
 }
 
 func (f *File) Share(idx int) (share.Share, error) {

@@ -12,24 +12,24 @@ import (
 	"github.com/celestiaorg/celestia-node/share/eds/edstest"
 )
 
-func TestSampleID(t *testing.T) {
+func TestAxisSampleID(t *testing.T) {
 	square := edstest.RandEDS(t, 2)
 	root, err := share.NewRoot(square)
 	require.NoError(t, err)
 
-	sid := NewSampleID(root, 2, rsmt2d.Row)
+	sid := NewAxisSampleID(root, 2, rsmt2d.Row)
 
 	id, err := sid.Cid()
 	require.NoError(t, err)
 
-	assert.EqualValues(t, codec, id.Prefix().Codec)
-	assert.EqualValues(t, multihashCode, id.Prefix().MhType)
-	assert.EqualValues(t, SampleIDSize, id.Prefix().MhLength)
+	assert.EqualValues(t, axisSamplingCodec, id.Prefix().Codec)
+	assert.EqualValues(t, axisSamplingMultihashCode, id.Prefix().MhType)
+	assert.EqualValues(t, AxisSampleIDSize, id.Prefix().MhLength)
 
 	data, err := sid.MarshalBinary()
 	require.NoError(t, err)
 
-	sidOut := SampleID{}
+	sidOut := AxisSampleID{}
 	err = sidOut.UnmarshalBinary(data)
 	require.NoError(t, err)
 	assert.EqualValues(t, sid, sidOut)
