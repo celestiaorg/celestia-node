@@ -48,50 +48,50 @@ func (Axis) EnumDescriptor() ([]byte, []int) {
 	return fileDescriptor_cb41c3a4f982a271, []int{0}
 }
 
-type SampleType int32
+type ShareSampleType int32
 
 const (
-	SampleType_Data   SampleType = 0
-	SampleType_Parity SampleType = 1
+	ShareSampleType_Data   ShareSampleType = 0
+	ShareSampleType_Parity ShareSampleType = 1
 )
 
-var SampleType_name = map[int32]string{
+var ShareSampleType_name = map[int32]string{
 	0: "Data",
 	1: "Parity",
 }
 
-var SampleType_value = map[string]int32{
+var ShareSampleType_value = map[string]int32{
 	"Data":   0,
 	"Parity": 1,
 }
 
-func (x SampleType) String() string {
-	return proto.EnumName(SampleType_name, int32(x))
+func (x ShareSampleType) String() string {
+	return proto.EnumName(ShareSampleType_name, int32(x))
 }
 
-func (SampleType) EnumDescriptor() ([]byte, []int) {
+func (ShareSampleType) EnumDescriptor() ([]byte, []int) {
 	return fileDescriptor_cb41c3a4f982a271, []int{1}
 }
 
-type SampleID struct {
+type ShareSampleID struct {
 	DataHash []byte `protobuf:"bytes,1,opt,name=data_hash,json=dataHash,proto3" json:"data_hash,omitempty"`
 	AxisHash []byte `protobuf:"bytes,2,opt,name=axis_hash,json=axisHash,proto3" json:"axis_hash,omitempty"`
 	Index    uint32 `protobuf:"varint,3,opt,name=index,proto3" json:"index,omitempty"`
 	Axis     Axis   `protobuf:"varint,4,opt,name=axis,proto3,enum=Axis" json:"axis,omitempty"`
 }
 
-func (m *SampleID) Reset()         { *m = SampleID{} }
-func (m *SampleID) String() string { return proto.CompactTextString(m) }
-func (*SampleID) ProtoMessage()    {}
-func (*SampleID) Descriptor() ([]byte, []int) {
+func (m *ShareSampleID) Reset()         { *m = ShareSampleID{} }
+func (m *ShareSampleID) String() string { return proto.CompactTextString(m) }
+func (*ShareSampleID) ProtoMessage()    {}
+func (*ShareSampleID) Descriptor() ([]byte, []int) {
 	return fileDescriptor_cb41c3a4f982a271, []int{0}
 }
-func (m *SampleID) XXX_Unmarshal(b []byte) error {
+func (m *ShareSampleID) XXX_Unmarshal(b []byte) error {
 	return m.Unmarshal(b)
 }
-func (m *SampleID) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+func (m *ShareSampleID) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
 	if deterministic {
-		return xxx_messageInfo_SampleID.Marshal(b, m, deterministic)
+		return xxx_messageInfo_ShareSampleID.Marshal(b, m, deterministic)
 	} else {
 		b = b[:cap(b)]
 		n, err := m.MarshalToSizedBuffer(b)
@@ -101,65 +101,65 @@ func (m *SampleID) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
 		return b[:n], nil
 	}
 }
-func (m *SampleID) XXX_Merge(src proto.Message) {
-	xxx_messageInfo_SampleID.Merge(m, src)
+func (m *ShareSampleID) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_ShareSampleID.Merge(m, src)
 }
-func (m *SampleID) XXX_Size() int {
+func (m *ShareSampleID) XXX_Size() int {
 	return m.Size()
 }
-func (m *SampleID) XXX_DiscardUnknown() {
-	xxx_messageInfo_SampleID.DiscardUnknown(m)
+func (m *ShareSampleID) XXX_DiscardUnknown() {
+	xxx_messageInfo_ShareSampleID.DiscardUnknown(m)
 }
 
-var xxx_messageInfo_SampleID proto.InternalMessageInfo
+var xxx_messageInfo_ShareSampleID proto.InternalMessageInfo
 
-func (m *SampleID) GetDataHash() []byte {
+func (m *ShareSampleID) GetDataHash() []byte {
 	if m != nil {
 		return m.DataHash
 	}
 	return nil
 }
 
-func (m *SampleID) GetAxisHash() []byte {
+func (m *ShareSampleID) GetAxisHash() []byte {
 	if m != nil {
 		return m.AxisHash
 	}
 	return nil
 }
 
-func (m *SampleID) GetIndex() uint32 {
+func (m *ShareSampleID) GetIndex() uint32 {
 	if m != nil {
 		return m.Index
 	}
 	return 0
 }
 
-func (m *SampleID) GetAxis() Axis {
+func (m *ShareSampleID) GetAxis() Axis {
 	if m != nil {
 		return m.Axis
 	}
 	return Axis_Row
 }
 
-type Sample struct {
-	Id    *SampleID  `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
-	Type  SampleType `protobuf:"varint,2,opt,name=type,proto3,enum=SampleType" json:"type,omitempty"`
-	Share []byte     `protobuf:"bytes,3,opt,name=share,proto3" json:"share,omitempty"`
-	Proof *pb.Proof  `protobuf:"bytes,4,opt,name=proof,proto3" json:"proof,omitempty"`
+type ShareSample struct {
+	Id    *ShareSampleID  `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
+	Type  ShareSampleType `protobuf:"varint,2,opt,name=type,proto3,enum=ShareSampleType" json:"type,omitempty"`
+	Share []byte          `protobuf:"bytes,3,opt,name=share,proto3" json:"share,omitempty"`
+	Proof *pb.Proof       `protobuf:"bytes,4,opt,name=proof,proto3" json:"proof,omitempty"`
 }
 
-func (m *Sample) Reset()         { *m = Sample{} }
-func (m *Sample) String() string { return proto.CompactTextString(m) }
-func (*Sample) ProtoMessage()    {}
-func (*Sample) Descriptor() ([]byte, []int) {
+func (m *ShareSample) Reset()         { *m = ShareSample{} }
+func (m *ShareSample) String() string { return proto.CompactTextString(m) }
+func (*ShareSample) ProtoMessage()    {}
+func (*ShareSample) Descriptor() ([]byte, []int) {
 	return fileDescriptor_cb41c3a4f982a271, []int{1}
 }
-func (m *Sample) XXX_Unmarshal(b []byte) error {
+func (m *ShareSample) XXX_Unmarshal(b []byte) error {
 	return m.Unmarshal(b)
 }
-func (m *Sample) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+func (m *ShareSample) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
 	if deterministic {
-		return xxx_messageInfo_Sample.Marshal(b, m, deterministic)
+		return xxx_messageInfo_ShareSample.Marshal(b, m, deterministic)
 	} else {
 		b = b[:cap(b)]
 		n, err := m.MarshalToSizedBuffer(b)
@@ -169,80 +169,204 @@ func (m *Sample) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
 		return b[:n], nil
 	}
 }
-func (m *Sample) XXX_Merge(src proto.Message) {
-	xxx_messageInfo_Sample.Merge(m, src)
+func (m *ShareSample) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_ShareSample.Merge(m, src)
 }
-func (m *Sample) XXX_Size() int {
+func (m *ShareSample) XXX_Size() int {
 	return m.Size()
 }
-func (m *Sample) XXX_DiscardUnknown() {
-	xxx_messageInfo_Sample.DiscardUnknown(m)
+func (m *ShareSample) XXX_DiscardUnknown() {
+	xxx_messageInfo_ShareSample.DiscardUnknown(m)
 }
 
-var xxx_messageInfo_Sample proto.InternalMessageInfo
+var xxx_messageInfo_ShareSample proto.InternalMessageInfo
 
-func (m *Sample) GetId() *SampleID {
+func (m *ShareSample) GetId() *ShareSampleID {
 	if m != nil {
 		return m.Id
 	}
 	return nil
 }
 
-func (m *Sample) GetType() SampleType {
+func (m *ShareSample) GetType() ShareSampleType {
 	if m != nil {
 		return m.Type
 	}
-	return SampleType_Data
+	return ShareSampleType_Data
 }
 
-func (m *Sample) GetShare() []byte {
+func (m *ShareSample) GetShare() []byte {
 	if m != nil {
 		return m.Share
 	}
 	return nil
 }
 
-func (m *Sample) GetProof() *pb.Proof {
+func (m *ShareSample) GetProof() *pb.Proof {
 	if m != nil {
 		return m.Proof
 	}
 	return nil
 }
 
+type AxisSampleID struct {
+	DataHash []byte `protobuf:"bytes,1,opt,name=data_hash,json=dataHash,proto3" json:"data_hash,omitempty"`
+	AxisHash []byte `protobuf:"bytes,2,opt,name=axis_hash,json=axisHash,proto3" json:"axis_hash,omitempty"`
+	Index    uint32 `protobuf:"varint,3,opt,name=index,proto3" json:"index,omitempty"`
+	Axis     Axis   `protobuf:"varint,4,opt,name=axis,proto3,enum=Axis" json:"axis,omitempty"`
+}
+
+func (m *AxisSampleID) Reset()         { *m = AxisSampleID{} }
+func (m *AxisSampleID) String() string { return proto.CompactTextString(m) }
+func (*AxisSampleID) ProtoMessage()    {}
+func (*AxisSampleID) Descriptor() ([]byte, []int) {
+	return fileDescriptor_cb41c3a4f982a271, []int{2}
+}
+func (m *AxisSampleID) XXX_Unmarshal(b []byte) error {
+	return m.Unmarshal(b)
+}
+func (m *AxisSampleID) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+	if deterministic {
+		return xxx_messageInfo_AxisSampleID.Marshal(b, m, deterministic)
+	} else {
+		b = b[:cap(b)]
+		n, err := m.MarshalToSizedBuffer(b)
+		if err != nil {
+			return nil, err
+		}
+		return b[:n], nil
+	}
+}
+func (m *AxisSampleID) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_AxisSampleID.Merge(m, src)
+}
+func (m *AxisSampleID) XXX_Size() int {
+	return m.Size()
+}
+func (m *AxisSampleID) XXX_DiscardUnknown() {
+	xxx_messageInfo_AxisSampleID.DiscardUnknown(m)
+}
+
+var xxx_messageInfo_AxisSampleID proto.InternalMessageInfo
+
+func (m *AxisSampleID) GetDataHash() []byte {
+	if m != nil {
+		return m.DataHash
+	}
+	return nil
+}
+
+func (m *AxisSampleID) GetAxisHash() []byte {
+	if m != nil {
+		return m.AxisHash
+	}
+	return nil
+}
+
+func (m *AxisSampleID) GetIndex() uint32 {
+	if m != nil {
+		return m.Index
+	}
+	return 0
+}
+
+func (m *AxisSampleID) GetAxis() Axis {
+	if m != nil {
+		return m.Axis
+	}
+	return Axis_Row
+}
+
+type AxisSample struct {
+	Id       *AxisSampleID `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
+	AxisHalf [][]byte      `protobuf:"bytes,2,rep,name=axis_half,json=axisHalf,proto3" json:"axis_half,omitempty"`
+}
+
+func (m *AxisSample) Reset()         { *m = AxisSample{} }
+func (m *AxisSample) String() string { return proto.CompactTextString(m) }
+func (*AxisSample) ProtoMessage()    {}
+func (*AxisSample) Descriptor() ([]byte, []int) {
+	return fileDescriptor_cb41c3a4f982a271, []int{3}
+}
+func (m *AxisSample) XXX_Unmarshal(b []byte) error {
+	return m.Unmarshal(b)
+}
+func (m *AxisSample) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+	if deterministic {
+		return xxx_messageInfo_AxisSample.Marshal(b, m, deterministic)
+	} else {
+		b = b[:cap(b)]
+		n, err := m.MarshalToSizedBuffer(b)
+		if err != nil {
+			return nil, err
+		}
+		return b[:n], nil
+	}
+}
+func (m *AxisSample) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_AxisSample.Merge(m, src)
+}
+func (m *AxisSample) XXX_Size() int {
+	return m.Size()
+}
+func (m *AxisSample) XXX_DiscardUnknown() {
+	xxx_messageInfo_AxisSample.DiscardUnknown(m)
+}
+
+var xxx_messageInfo_AxisSample proto.InternalMessageInfo
+
+func (m *AxisSample) GetId() *AxisSampleID {
+	if m != nil {
+		return m.Id
+	}
+	return nil
+}
+
+func (m *AxisSample) GetAxisHalf() [][]byte {
+	if m != nil {
+		return m.AxisHalf
+	}
+	return nil
+}
+
 func init() {
 	proto.RegisterEnum("Axis", Axis_name, Axis_value)
-	proto.RegisterEnum("SampleType", SampleType_name, SampleType_value)
-	proto.RegisterType((*SampleID)(nil), "SampleID")
-	proto.RegisterType((*Sample)(nil), "Sample")
+	proto.RegisterEnum("ShareSampleType", ShareSampleType_name, ShareSampleType_value)
+	proto.RegisterType((*ShareSampleID)(nil), "ShareSampleID")
+	proto.RegisterType((*ShareSample)(nil), "ShareSample")
+	proto.RegisterType((*AxisSampleID)(nil), "AxisSampleID")
+	proto.RegisterType((*AxisSample)(nil), "AxisSample")
 }
 
 func init() { proto.RegisterFile("share/ipldv2/pb/ipldv2pb.proto", fileDescriptor_cb41c3a4f982a271) }
 
 var fileDescriptor_cb41c3a4f982a271 = []byte{
-	// 306 bytes of a gzipped FileDescriptorProto
-	0x1f, 0x8b, 0x08, 0x00, 0x00, 0x00, 0x00, 0x00, 0x02, 0xff, 0x44, 0x90, 0xc1, 0x4e, 0xab, 0x40,
-	0x14, 0x86, 0x99, 0x96, 0xf6, 0xb6, 0xa7, 0xbd, 0x48, 0x26, 0x2e, 0xa8, 0x26, 0x23, 0x21, 0x31,
-	0x21, 0x5d, 0x40, 0x82, 0x4f, 0xa0, 0x76, 0xa1, 0xbb, 0x66, 0x74, 0x6f, 0x86, 0x80, 0x61, 0x12,
-	0x74, 0x26, 0x80, 0x0a, 0x4b, 0xdf, 0xc0, 0xc7, 0x72, 0xd9, 0xa5, 0x4b, 0x03, 0x2f, 0x62, 0x66,
-	0x06, 0xe3, 0xee, 0x9c, 0xff, 0x9b, 0xe4, 0x3b, 0xff, 0x00, 0xa9, 0x0b, 0x56, 0xe5, 0x31, 0x97,
-	0x65, 0xf6, 0x9a, 0xc4, 0x32, 0x1d, 0x27, 0x99, 0x46, 0xb2, 0x12, 0x8d, 0x38, 0x71, 0x64, 0x1a,
-	0xcb, 0x4a, 0x88, 0x47, 0xb3, 0x07, 0x2f, 0xb0, 0xb8, 0x63, 0x4f, 0xb2, 0xcc, 0x6f, 0x77, 0xf8,
-	0x14, 0x96, 0x19, 0x6b, 0xd8, 0x43, 0xc1, 0xea, 0xc2, 0x43, 0x3e, 0x0a, 0xd7, 0x74, 0xa1, 0x82,
-	0x1b, 0x56, 0x17, 0x0a, 0xb2, 0x96, 0xd7, 0x06, 0x4e, 0x0c, 0x54, 0x81, 0x86, 0xc7, 0x30, 0xe3,
-	0xcf, 0x59, 0xde, 0x7a, 0x53, 0x1f, 0x85, 0xff, 0xa9, 0x59, 0xf0, 0x06, 0x6c, 0xf5, 0xc2, 0xb3,
-	0x7d, 0x14, 0x3a, 0xc9, 0x2c, 0xba, 0x6c, 0x79, 0x4d, 0x75, 0x14, 0xbc, 0x23, 0x98, 0x1b, 0x2f,
-	0xde, 0xc0, 0x84, 0x67, 0x5a, 0xb7, 0x4a, 0x96, 0xd1, 0xef, 0x31, 0x74, 0xc2, 0x33, 0x7c, 0x06,
-	0x76, 0xd3, 0xc9, 0x5c, 0xeb, 0x9c, 0x64, 0x35, 0xc2, 0xfb, 0x4e, 0xe6, 0x54, 0x03, 0xe5, 0xd5,
-	0x7d, 0xb5, 0x77, 0x4d, 0xcd, 0x82, 0xcf, 0x61, 0xa6, 0x2b, 0x6a, 0xf1, 0x2a, 0x39, 0x8a, 0xc6,
-	0xc2, 0x69, 0xb4, 0x57, 0x03, 0x35, 0x74, 0xeb, 0x81, 0xad, 0x2e, 0xc2, 0xff, 0x60, 0x4a, 0xc5,
-	0x9b, 0x6b, 0xa9, 0xe1, 0x5a, 0x94, 0x2e, 0xda, 0x06, 0x00, 0x7f, 0x2a, 0xbc, 0x00, 0x7b, 0xc7,
-	0x1a, 0xe6, 0x5a, 0x18, 0x60, 0xbe, 0x67, 0x15, 0x6f, 0x3a, 0x17, 0x5d, 0x79, 0x9f, 0x3d, 0x41,
-	0x87, 0x9e, 0xa0, 0xef, 0x9e, 0xa0, 0x8f, 0x81, 0x58, 0x87, 0x81, 0x58, 0x5f, 0x03, 0xb1, 0xd2,
-	0xb9, 0xfe, 0xd9, 0x8b, 0x9f, 0x00, 0x00, 0x00, 0xff, 0xff, 0x2c, 0xc2, 0x9e, 0xb2, 0x8b, 0x01,
-	0x00, 0x00,
+	// 347 bytes of a gzipped FileDescriptorProto
+	0x1f, 0x8b, 0x08, 0x00, 0x00, 0x00, 0x00, 0x00, 0x02, 0xff, 0xc4, 0x92, 0xc1, 0x4e, 0xfa, 0x40,
+	0x10, 0xc6, 0xbb, 0xa5, 0xf0, 0xe7, 0x3f, 0x40, 0x69, 0x36, 0x1e, 0xaa, 0xc6, 0x4d, 0x43, 0x34,
+	0x12, 0x0e, 0x25, 0xa9, 0x4f, 0xa0, 0x72, 0xc0, 0x1b, 0x59, 0xbc, 0x9b, 0x6d, 0x5a, 0xd2, 0x4d,
+	0xaa, 0xbb, 0x69, 0x1b, 0xa5, 0x3e, 0x05, 0x8f, 0xe5, 0x91, 0xa3, 0x47, 0x03, 0x2f, 0x62, 0x76,
+	0x97, 0x84, 0xea, 0x0b, 0x78, 0x9b, 0x99, 0x6f, 0x26, 0xdf, 0xb7, 0xbf, 0x2c, 0x90, 0x32, 0x63,
+	0x45, 0x3a, 0xe5, 0x32, 0x4f, 0x5e, 0xa3, 0xa9, 0x8c, 0x0f, 0x95, 0x8c, 0x43, 0x59, 0x88, 0x4a,
+	0x9c, 0xb9, 0x32, 0x9e, 0xca, 0x42, 0x88, 0x95, 0xe9, 0x47, 0xef, 0x30, 0x58, 0xaa, 0x8b, 0x25,
+	0x7b, 0x96, 0x79, 0xfa, 0x30, 0xc3, 0xe7, 0xf0, 0x3f, 0x61, 0x15, 0x7b, 0xca, 0x58, 0x99, 0xf9,
+	0x28, 0x40, 0xe3, 0x3e, 0xed, 0xaa, 0xc1, 0x9c, 0x95, 0x99, 0x12, 0xd9, 0x9a, 0x97, 0x46, 0xb4,
+	0x8d, 0xa8, 0x06, 0x5a, 0x3c, 0x81, 0x36, 0x7f, 0x49, 0xd2, 0xb5, 0xdf, 0x0a, 0xd0, 0x78, 0x40,
+	0x4d, 0x83, 0x4f, 0xc1, 0x51, 0x1b, 0xbe, 0x13, 0xa0, 0xb1, 0x1b, 0xb5, 0xc3, 0xdb, 0x35, 0x2f,
+	0xa9, 0x1e, 0x8d, 0x36, 0x08, 0x7a, 0x0d, 0x73, 0x4c, 0xc0, 0xe6, 0x89, 0xf6, 0xec, 0x45, 0x6e,
+	0xf8, 0x23, 0x16, 0xb5, 0x79, 0x82, 0x2f, 0xc1, 0xa9, 0x6a, 0x99, 0x6a, 0x63, 0x37, 0xf2, 0x9a,
+	0x1b, 0x8f, 0xb5, 0x4c, 0xa9, 0x56, 0x55, 0x0c, 0xcd, 0x40, 0xc7, 0xe8, 0x53, 0xd3, 0xe0, 0x2b,
+	0x68, 0xeb, 0x67, 0xeb, 0x1c, 0xbd, 0x68, 0x18, 0x1e, 0x20, 0xc4, 0xe1, 0x42, 0x15, 0xd4, 0xa8,
+	0xa3, 0x1a, 0xfa, 0x2a, 0xe0, 0x5f, 0xd0, 0x98, 0x03, 0x1c, 0xad, 0xf1, 0x45, 0x83, 0xc5, 0x20,
+	0x6c, 0x66, 0xd2, 0x28, 0x8e, 0xd6, 0xf9, 0xca, 0xb7, 0x83, 0xd6, 0xd1, 0x3a, 0x5f, 0x4d, 0x7c,
+	0x70, 0xd4, 0x01, 0xfe, 0x07, 0x2d, 0x2a, 0xde, 0x3c, 0x4b, 0x15, 0xf7, 0x22, 0xf7, 0xd0, 0xe4,
+	0x1a, 0x86, 0xbf, 0xa0, 0xe1, 0x2e, 0x38, 0x33, 0x56, 0x31, 0xcf, 0xc2, 0x00, 0x9d, 0x05, 0x2b,
+	0x78, 0x55, 0x7b, 0xe8, 0xce, 0xff, 0xd8, 0x11, 0xb4, 0xdd, 0x11, 0xf4, 0xb5, 0x23, 0x68, 0xb3,
+	0x27, 0xd6, 0x76, 0x4f, 0xac, 0xcf, 0x3d, 0xb1, 0xe2, 0x8e, 0xfe, 0x37, 0x37, 0xdf, 0x01, 0x00,
+	0x00, 0xff, 0xff, 0xa1, 0x8c, 0xa7, 0x00, 0x69, 0x02, 0x00, 0x00,
 }
 
-func (m *SampleID) Marshal() (dAtA []byte, err error) {
+func (m *ShareSampleID) Marshal() (dAtA []byte, err error) {
 	size := m.Size()
 	dAtA = make([]byte, size)
 	n, err := m.MarshalToSizedBuffer(dAtA[:size])
@@ -252,12 +376,12 @@ func (m *SampleID) Marshal() (dAtA []byte, err error) {
 	return dAtA[:n], nil
 }
 
-func (m *SampleID) MarshalTo(dAtA []byte) (int, error) {
+func (m *ShareSampleID) MarshalTo(dAtA []byte) (int, error) {
 	size := m.Size()
 	return m.MarshalToSizedBuffer(dAtA[:size])
 }
 
-func (m *SampleID) MarshalToSizedBuffer(dAtA []byte) (int, error) {
+func (m *ShareSampleID) MarshalToSizedBuffer(dAtA []byte) (int, error) {
 	i := len(dAtA)
 	_ = i
 	var l int
@@ -289,7 +413,7 @@ func (m *SampleID) MarshalToSizedBuffer(dAtA []byte) (int, error) {
 	return len(dAtA) - i, nil
 }
 
-func (m *Sample) Marshal() (dAtA []byte, err error) {
+func (m *ShareSample) Marshal() (dAtA []byte, err error) {
 	size := m.Size()
 	dAtA = make([]byte, size)
 	n, err := m.MarshalToSizedBuffer(dAtA[:size])
@@ -299,12 +423,12 @@ func (m *Sample) Marshal() (dAtA []byte, err error) {
 	return dAtA[:n], nil
 }
 
-func (m *Sample) MarshalTo(dAtA []byte) (int, error) {
+func (m *ShareSample) MarshalTo(dAtA []byte) (int, error) {
 	size := m.Size()
 	return m.MarshalToSizedBuffer(dAtA[:size])
 }
 
-func (m *Sample) MarshalToSizedBuffer(dAtA []byte) (int, error) {
+func (m *ShareSample) MarshalToSizedBuffer(dAtA []byte) (int, error) {
 	i := len(dAtA)
 	_ = i
 	var l int
@@ -348,6 +472,97 @@ func (m *Sample) MarshalToSizedBuffer(dAtA []byte) (int, error) {
 	return len(dAtA) - i, nil
 }
 
+func (m *AxisSampleID) Marshal() (dAtA []byte, err error) {
+	size := m.Size()
+	dAtA = make([]byte, size)
+	n, err := m.MarshalToSizedBuffer(dAtA[:size])
+	if err != nil {
+		return nil, err
+	}
+	return dAtA[:n], nil
+}
+
+func (m *AxisSampleID) MarshalTo(dAtA []byte) (int, error) {
+	size := m.Size()
+	return m.MarshalToSizedBuffer(dAtA[:size])
+}
+
+func (m *AxisSampleID) MarshalToSizedBuffer(dAtA []byte) (int, error) {
+	i := len(dAtA)
+	_ = i
+	var l int
+	_ = l
+	if m.Axis != 0 {
+		i = encodeVarintIpldv2Pb(dAtA, i, uint64(m.Axis))
+		i--
+		dAtA[i] = 0x20
+	}
+	if m.Index != 0 {
+		i = encodeVarintIpldv2Pb(dAtA, i, uint64(m.Index))
+		i--
+		dAtA[i] = 0x18
+	}
+	if len(m.AxisHash) > 0 {
+		i -= len(m.AxisHash)
+		copy(dAtA[i:], m.AxisHash)
+		i = encodeVarintIpldv2Pb(dAtA, i, uint64(len(m.AxisHash)))
+		i--
+		dAtA[i] = 0x12
+	}
+	if len(m.DataHash) > 0 {
+		i -= len(m.DataHash)
+		copy(dAtA[i:], m.DataHash)
+		i = encodeVarintIpldv2Pb(dAtA, i, uint64(len(m.DataHash)))
+		i--
+		dAtA[i] = 0xa
+	}
+	return len(dAtA) - i, nil
+}
+
+func (m *AxisSample) Marshal() (dAtA []byte, err error) {
+	size := m.Size()
+	dAtA = make([]byte, size)
+	n, err := m.MarshalToSizedBuffer(dAtA[:size])
+	if err != nil {
+		return nil, err
+	}
+	return dAtA[:n], nil
+}
+
+func (m *AxisSample) MarshalTo(dAtA []byte) (int, error) {
+	size := m.Size()
+	return m.MarshalToSizedBuffer(dAtA[:size])
+}
+
+func (m *AxisSample) MarshalToSizedBuffer(dAtA []byte) (int, error) {
+	i := len(dAtA)
+	_ = i
+	var l int
+	_ = l
+	if len(m.AxisHalf) > 0 {
+		for iNdEx := len(m.AxisHalf) - 1; iNdEx >= 0; iNdEx-- {
+			i -= len(m.AxisHalf[iNdEx])
+			copy(dAtA[i:], m.AxisHalf[iNdEx])
+			i = encodeVarintIpldv2Pb(dAtA, i, uint64(len(m.AxisHalf[iNdEx])))
+			i--
+			dAtA[i] = 0x12
+		}
+	}
+	if m.Id != nil {
+		{
+			size, err := m.Id.MarshalToSizedBuffer(dAtA[:i])
+			if err != nil {
+				return 0, err
+			}
+			i -= size
+			i = encodeVarintIpldv2Pb(dAtA, i, uint64(size))
+		}
+		i--
+		dAtA[i] = 0xa
+	}
+	return len(dAtA) - i, nil
+}
+
 func encodeVarintIpldv2Pb(dAtA []byte, offset int, v uint64) int {
 	offset -= sovIpldv2Pb(v)
 	base := offset
@@ -359,7 +574,7 @@ func encodeVarintIpldv2Pb(dAtA []byte, offset int, v uint64) int {
 	dAtA[offset] = uint8(v)
 	return base
 }
-func (m *SampleID) Size() (n int) {
+func (m *ShareSampleID) Size() (n int) {
 	if m == nil {
 		return 0
 	}
@@ -382,7 +597,7 @@ func (m *SampleID) Size() (n int) {
 	return n
 }
 
-func (m *Sample) Size() (n int) {
+func (m *ShareSample) Size() (n int) {
 	if m == nil {
 		return 0
 	}
@@ -406,13 +621,55 @@ func (m *Sample) Size() (n int) {
 	return n
 }
 
+func (m *AxisSampleID) Size() (n int) {
+	if m == nil {
+		return 0
+	}
+	var l int
+	_ = l
+	l = len(m.DataHash)
+	if l > 0 {
+		n += 1 + l + sovIpldv2Pb(uint64(l))
+	}
+	l = len(m.AxisHash)
+	if l > 0 {
+		n += 1 + l + sovIpldv2Pb(uint64(l))
+	}
+	if m.Index != 0 {
+		n += 1 + sovIpldv2Pb(uint64(m.Index))
+	}
+	if m.Axis != 0 {
+		n += 1 + sovIpldv2Pb(uint64(m.Axis))
+	}
+	return n
+}
+
+func (m *AxisSample) Size() (n int) {
+	if m == nil {
+		return 0
+	}
+	var l int
+	_ = l
+	if m.Id != nil {
+		l = m.Id.Size()
+		n += 1 + l + sovIpldv2Pb(uint64(l))
+	}
+	if len(m.AxisHalf) > 0 {
+		for _, b := range m.AxisHalf {
+			l = len(b)
+			n += 1 + l + sovIpldv2Pb(uint64(l))
+		}
+	}
+	return n
+}
+
 func sovIpldv2Pb(x uint64) (n int) {
 	return (math_bits.Len64(x|1) + 6) / 7
 }
 func sozIpldv2Pb(x uint64) (n int) {
 	return sovIpldv2Pb(uint64((x << 1) ^ uint64((int64(x) >> 63))))
 }
-func (m *SampleID) Unmarshal(dAtA []byte) error {
+func (m *ShareSampleID) Unmarshal(dAtA []byte) error {
 	l := len(dAtA)
 	iNdEx := 0
 	for iNdEx < l {
@@ -435,10 +692,10 @@ func (m *SampleID) Unmarshal(dAtA []byte) error {
 		fieldNum := int32(wire >> 3)
 		wireType := int(wire & 0x7)
 		if wireType == 4 {
-			return fmt.Errorf("proto: SampleID: wiretype end group for non-group")
+			return fmt.Errorf("proto: ShareSampleID: wiretype end group for non-group")
 		}
 		if fieldNum <= 0 {
-			return fmt.Errorf("proto: SampleID: illegal tag %d (wire type %d)", fieldNum, wire)
+			return fmt.Errorf("proto: ShareSampleID: illegal tag %d (wire type %d)", fieldNum, wire)
 		}
 		switch fieldNum {
 		case 1:
@@ -568,7 +825,7 @@ func (m *SampleID) Unmarshal(dAtA []byte) error {
 	}
 	return nil
 }
-func (m *Sample) Unmarshal(dAtA []byte) error {
+func (m *ShareSample) Unmarshal(dAtA []byte) error {
 	l := len(dAtA)
 	iNdEx := 0
 	for iNdEx < l {
@@ -591,10 +848,10 @@ func (m *Sample) Unmarshal(dAtA []byte) error {
 		fieldNum := int32(wire >> 3)
 		wireType := int(wire & 0x7)
 		if wireType == 4 {
-			return fmt.Errorf("proto: Sample: wiretype end group for non-group")
+			return fmt.Errorf("proto: ShareSample: wiretype end group for non-group")
 		}
 		if fieldNum <= 0 {
-			return fmt.Errorf("proto: Sample: illegal tag %d (wire type %d)", fieldNum, wire)
+			return fmt.Errorf("proto: ShareSample: illegal tag %d (wire type %d)", fieldNum, wire)
 		}
 		switch fieldNum {
 		case 1:
@@ -627,7 +884,7 @@ func (m *Sample) Unmarshal(dAtA []byte) error {
 				return io.ErrUnexpectedEOF
 			}
 			if m.Id == nil {
-				m.Id = &SampleID{}
+				m.Id = &ShareSampleID{}
 			}
 			if err := m.Id.Unmarshal(dAtA[iNdEx:postIndex]); err != nil {
 				return err
@@ -647,7 +904,7 @@ func (m *Sample) Unmarshal(dAtA []byte) error {
 				}
 				b := dAtA[iNdEx]
 				iNdEx++
-				m.Type |= SampleType(b&0x7F) << shift
+				m.Type |= ShareSampleType(b&0x7F) << shift
 				if b < 0x80 {
 					break
 				}
@@ -721,6 +978,280 @@ func (m *Sample) Unmarshal(dAtA []byte) error {
 			if err := m.Proof.Unmarshal(dAtA[iNdEx:postIndex]); err != nil {
 				return err
 			}
+			iNdEx = postIndex
+		default:
+			iNdEx = preIndex
+			skippy, err := skipIpldv2Pb(dAtA[iNdEx:])
+			if err != nil {
+				return err
+			}
+			if (skippy < 0) || (iNdEx+skippy) < 0 {
+				return ErrInvalidLengthIpldv2Pb
+			}
+			if (iNdEx + skippy) > l {
+				return io.ErrUnexpectedEOF
+			}
+			iNdEx += skippy
+		}
+	}
+
+	if iNdEx > l {
+		return io.ErrUnexpectedEOF
+	}
+	return nil
+}
+func (m *AxisSampleID) Unmarshal(dAtA []byte) error {
+	l := len(dAtA)
+	iNdEx := 0
+	for iNdEx < l {
+		preIndex := iNdEx
+		var wire uint64
+		for shift := uint(0); ; shift += 7 {
+			if shift >= 64 {
+				return ErrIntOverflowIpldv2Pb
+			}
+			if iNdEx >= l {
+				return io.ErrUnexpectedEOF
+			}
+			b := dAtA[iNdEx]
+			iNdEx++
+			wire |= uint64(b&0x7F) << shift
+			if b < 0x80 {
+				break
+			}
+		}
+		fieldNum := int32(wire >> 3)
+		wireType := int(wire & 0x7)
+		if wireType == 4 {
+			return fmt.Errorf("proto: AxisSampleID: wiretype end group for non-group")
+		}
+		if fieldNum <= 0 {
+			return fmt.Errorf("proto: AxisSampleID: illegal tag %d (wire type %d)", fieldNum, wire)
+		}
+		switch fieldNum {
+		case 1:
+			if wireType != 2 {
+				return fmt.Errorf("proto: wrong wireType = %d for field DataHash", wireType)
+			}
+			var byteLen int
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowIpldv2Pb
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := dAtA[iNdEx]
+				iNdEx++
+				byteLen |= int(b&0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+			if byteLen < 0 {
+				return ErrInvalidLengthIpldv2Pb
+			}
+			postIndex := iNdEx + byteLen
+			if postIndex < 0 {
+				return ErrInvalidLengthIpldv2Pb
+			}
+			if postIndex > l {
+				return io.ErrUnexpectedEOF
+			}
+			m.DataHash = append(m.DataHash[:0], dAtA[iNdEx:postIndex]...)
+			if m.DataHash == nil {
+				m.DataHash = []byte{}
+			}
+			iNdEx = postIndex
+		case 2:
+			if wireType != 2 {
+				return fmt.Errorf("proto: wrong wireType = %d for field AxisHash", wireType)
+			}
+			var byteLen int
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowIpldv2Pb
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := dAtA[iNdEx]
+				iNdEx++
+				byteLen |= int(b&0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+			if byteLen < 0 {
+				return ErrInvalidLengthIpldv2Pb
+			}
+			postIndex := iNdEx + byteLen
+			if postIndex < 0 {
+				return ErrInvalidLengthIpldv2Pb
+			}
+			if postIndex > l {
+				return io.ErrUnexpectedEOF
+			}
+			m.AxisHash = append(m.AxisHash[:0], dAtA[iNdEx:postIndex]...)
+			if m.AxisHash == nil {
+				m.AxisHash = []byte{}
+			}
+			iNdEx = postIndex
+		case 3:
+			if wireType != 0 {
+				return fmt.Errorf("proto: wrong wireType = %d for field Index", wireType)
+			}
+			m.Index = 0
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowIpldv2Pb
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := dAtA[iNdEx]
+				iNdEx++
+				m.Index |= uint32(b&0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+		case 4:
+			if wireType != 0 {
+				return fmt.Errorf("proto: wrong wireType = %d for field Axis", wireType)
+			}
+			m.Axis = 0
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowIpldv2Pb
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := dAtA[iNdEx]
+				iNdEx++
+				m.Axis |= Axis(b&0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+		default:
+			iNdEx = preIndex
+			skippy, err := skipIpldv2Pb(dAtA[iNdEx:])
+			if err != nil {
+				return err
+			}
+			if (skippy < 0) || (iNdEx+skippy) < 0 {
+				return ErrInvalidLengthIpldv2Pb
+			}
+			if (iNdEx + skippy) > l {
+				return io.ErrUnexpectedEOF
+			}
+			iNdEx += skippy
+		}
+	}
+
+	if iNdEx > l {
+		return io.ErrUnexpectedEOF
+	}
+	return nil
+}
+func (m *AxisSample) Unmarshal(dAtA []byte) error {
+	l := len(dAtA)
+	iNdEx := 0
+	for iNdEx < l {
+		preIndex := iNdEx
+		var wire uint64
+		for shift := uint(0); ; shift += 7 {
+			if shift >= 64 {
+				return ErrIntOverflowIpldv2Pb
+			}
+			if iNdEx >= l {
+				return io.ErrUnexpectedEOF
+			}
+			b := dAtA[iNdEx]
+			iNdEx++
+			wire |= uint64(b&0x7F) << shift
+			if b < 0x80 {
+				break
+			}
+		}
+		fieldNum := int32(wire >> 3)
+		wireType := int(wire & 0x7)
+		if wireType == 4 {
+			return fmt.Errorf("proto: AxisSample: wiretype end group for non-group")
+		}
+		if fieldNum <= 0 {
+			return fmt.Errorf("proto: AxisSample: illegal tag %d (wire type %d)", fieldNum, wire)
+		}
+		switch fieldNum {
+		case 1:
+			if wireType != 2 {
+				return fmt.Errorf("proto: wrong wireType = %d for field Id", wireType)
+			}
+			var msglen int
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowIpldv2Pb
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := dAtA[iNdEx]
+				iNdEx++
+				msglen |= int(b&0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+			if msglen < 0 {
+				return ErrInvalidLengthIpldv2Pb
+			}
+			postIndex := iNdEx + msglen
+			if postIndex < 0 {
+				return ErrInvalidLengthIpldv2Pb
+			}
+			if postIndex > l {
+				return io.ErrUnexpectedEOF
+			}
+			if m.Id == nil {
+				m.Id = &AxisSampleID{}
+			}
+			if err := m.Id.Unmarshal(dAtA[iNdEx:postIndex]); err != nil {
+				return err
+			}
+			iNdEx = postIndex
+		case 2:
+			if wireType != 2 {
+				return fmt.Errorf("proto: wrong wireType = %d for field AxisHalf", wireType)
+			}
+			var byteLen int
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowIpldv2Pb
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := dAtA[iNdEx]
+				iNdEx++
+				byteLen |= int(b&0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+			if byteLen < 0 {
+				return ErrInvalidLengthIpldv2Pb
+			}
+			postIndex := iNdEx + byteLen
+			if postIndex < 0 {
+				return ErrInvalidLengthIpldv2Pb
+			}
+			if postIndex > l {
+				return io.ErrUnexpectedEOF
+			}
+			m.AxisHalf = append(m.AxisHalf, make([]byte, postIndex-iNdEx))
+			copy(m.AxisHalf[len(m.AxisHalf)-1], dAtA[iNdEx:postIndex])
 			iNdEx = postIndex
 		default:
 			iNdEx = preIndex

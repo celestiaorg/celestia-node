@@ -13,15 +13,15 @@ import (
 	"github.com/celestiaorg/rsmt2d"
 
 	"github.com/celestiaorg/celestia-node/share"
-	"github.com/celestiaorg/celestia-node/share/eds"
 )
 
 // edsFile is a mocking friendly local interface over eds.File.
 // TODO(@Wondertan): Consider making an actual interface of eds pkg
 type edsFile interface {
 	io.Closer
-	Header() *eds.Header
+	Size() int
 	ShareWithProof(idx int, axis rsmt2d.Axis) (share.Share, nmt.Proof, error)
+	AxisHalf(idx int, axis rsmt2d.Axis) ([]share.Share, error)
 }
 
 // fileStore is a mocking friendly local interface over eds.FileStore
@@ -39,40 +39,87 @@ func NewBlockstore[F edsFile](fs fileStore[F]) blockstore.Blockstore {
 }
 
 func (b Blockstore[F]) Get(_ context.Context, cid cid.Cid) (blocks.Block, error) {
-	id, err := SampleIDFromCID(cid)
-	if err != nil {
-		err = fmt.Errorf("while converting CID to SampleID: %w", err)
-		log.Error(err)
-		return nil, err
-	}
+	switch cid.Type() {
+	case shareSamplingCodec:
+		id, err := ShareSampleIDFromCID(cid)
+		if err != nil {
+			err = fmt.Errorf("while converting CID to ShareSampleId: %w", err)
+			log.Error(err)
+			return nil, err
+		}
 
+		blk, err := b.getShareSampleBlock(id)
+		if err != nil {
+			log.Error(err)
+			return nil, err
+		}
+
+		return blk, nil
+	case axisSamplingCodec:
+		id, err := AxisSampleIDFromCID(cid)
+		if err != nil {
+			err = fmt.Errorf("while converting CID to AxisSampleID: %w", err)
+			log.Error(err)
+			return nil, err
+		}
+
+		blk, err := b.getAxisSampleBlock(id)
+		if err != nil {
+			log.Error(err)
+			return nil, err
+		}
+
+		return blk, nil
+	default:
+		return nil, fmt.Errorf("unsupported codec")
+	}
+}
+
+func (b Blockstore[F]) getShareSampleBlock(id ShareSampleID) (blocks.Block, error) {
 	f, err := b.fs.File(id.DataHash)
 	if err != nil {
-		err = fmt.Errorf("while getting EDS file from FS: %w", err)
-		log.Error(err)
-		return nil, err
+		return nil, fmt.Errorf("while getting EDS file from FS: %w", err)
 	}
 
 	shr, prf, err := f.ShareWithProof(id.Index, id.Axis)
 	if err != nil {
-		err = fmt.Errorf("while getting share with proof: %w", err)
-		log.Error(err)
-		return nil, err
+		return nil, fmt.Errorf("while getting share with proof: %w", err)
 	}
 
-	s := NewSample(id, shr, prf, f.Header().SquareSize())
+	s := NewShareSample(id, shr, prf, f.Size())
 	blk, err := s.IPLDBlock()
 	if err != nil {
-		err = fmt.Errorf("while getting share with proof: %w", err)
-		log.Error(err)
-		return nil, err
+		return nil, fmt.Errorf("while coverting to IPLD block: %w", err)
 	}
 
 	err = f.Close()
 	if err != nil {
-		err = fmt.Errorf("while closing EDS file: %w", err)
-		log.Error(err)
-		return nil, err
+		return nil, fmt.Errorf("while closing EDS file: %w", err)
+	}
+
+	return blk, nil
+}
+
+func (b Blockstore[F]) getAxisSampleBlock(id AxisSampleID) (blocks.Block, error) {
+	f, err := b.fs.File(id.DataHash)
+	if err != nil {
+		return nil, fmt.Errorf("while getting EDS file from FS: %w", err)
+	}
+
+	axisHalf, err := f.AxisHalf(id.Index, id.Axis)
+	if err != nil {
+		return nil, fmt.Errorf("while getting axis half: %w", err)
+	}
+
+	s := NewAxisSample(id, axisHalf)
+	blk, err := s.IPLDBlock()
+	if err != nil {
+		return nil, fmt.Errorf("while coverting to IPLD block: %w", err)
+	}
+
+	err = f.Close()
+	if err != nil {
+		return nil, fmt.Errorf("while closing EDS file: %w", err)
 	}
 
 	return blk, nil
@@ -80,7 +127,9 @@ func (b Blockstore[F]) Get(_ context.Context, cid cid.Cid) (blocks.Block, error)
 
 func (b Blockstore[F]) GetSize(ctx context.Context, cid cid.Cid) (int, error) {
 	// TODO(@Wondertan): There must be a way to derive size without reading, proving, serializing and
-	// allocating Sample's block.Block.
+	//  allocating ShareSample's block.Block.
+	// NOTE:Bitswap uses GetSize also to determine if we have content stored or not
+	// so simply returning constant size is not an option
 	blk, err := b.Get(ctx, cid)
 	if err != nil {
 		return 0, err
@@ -90,14 +139,31 @@ func (b Blockstore[F]) GetSize(ctx context.Context, cid cid.Cid) (int, error) {
 }
 
 func (b Blockstore[F]) Has(_ context.Context, cid cid.Cid) (bool, error) {
-	id, err := SampleIDFromCID(cid)
-	if err != nil {
-		err = fmt.Errorf("while converting CID to SampleID: %w", err)
-		log.Error(err)
-		return false, err
+	var datahash share.DataHash
+	switch cid.Type() {
+	case shareSamplingCodec:
+		id, err := ShareSampleIDFromCID(cid)
+		if err != nil {
+			err = fmt.Errorf("while converting CID to ShareSampleID: %w", err)
+			log.Error(err)
+			return false, err
+		}
+
+		datahash = id.DataHash
+	case axisSamplingCodec:
+		id, err := AxisSampleIDFromCID(cid)
+		if err != nil {
+			err = fmt.Errorf("while converting CID to AxisSampleID: %w", err)
+			log.Error(err)
+			return false, err
+		}
+
+		datahash = id.DataHash
+	default:
+		return false, fmt.Errorf("unsupported codec")
 	}
 
-	f, err := b.fs.File(id.DataHash)
+	f, err := b.fs.File(datahash)
 	if err != nil {
 		err = fmt.Errorf("while getting EDS file from FS: %w", err)
 		log.Error(err)

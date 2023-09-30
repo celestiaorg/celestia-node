@@ -30,14 +30,14 @@ func TestBlockstoreGet(t *testing.T) {
 	width := int(sqr.Width())
 	for _, axis := range axis {
 		for i := 0; i < width*width; i++ {
-			id := NewSampleID(root, i, axis)
+			id := NewShareSampleID(root, i, axis)
 			cid, err := id.Cid()
 			require.NoError(t, err)
 
 			blk, err := b.Get(ctx, cid)
 			require.NoError(t, err)
 
-			sample, err := SampleFromBlock(blk)
+			sample, err := ShareSampleFromBlock(blk)
 			require.NoError(t, err)
 
 			err = sample.Validate()
@@ -53,12 +53,16 @@ func (m *edsFileAndFS) File(share.DataHash) (*edsFileAndFS, error) {
 	return m, nil
 }
 
-func (m *edsFileAndFS) Header() *eds.Header {
-	return (*eds.File)(m).Header()
+func (m *edsFileAndFS) Size() int {
+	return (*eds.File)(m).Header().SquareSize()
 }
 
 func (m *edsFileAndFS) ShareWithProof(idx int, axis rsmt2d.Axis) (share.Share, nmt.Proof, error) {
 	return (*eds.File)(m).ShareWithProof(idx, axis)
+}
+
+func (m *edsFileAndFS) AxisHalf(idx int, axis rsmt2d.Axis) ([]share.Share, error) {
+	return (*eds.File)(m).AxisHalf(idx, axis)
 }
 
 func (m *edsFileAndFS) Close() error {

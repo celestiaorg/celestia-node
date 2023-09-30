@@ -11,26 +11,26 @@ import (
 	"github.com/celestiaorg/celestia-node/share/eds/edstest"
 )
 
-func TestSample(t *testing.T) {
+func TestAxisSample(t *testing.T) {
 	square := edstest.RandEDS(t, 2)
 
-	sid, err := NewSampleFromEDS(square, 2, rsmt2d.Row)
+	aid, err := NewAxisSampleFromEDS(square, 2, rsmt2d.Row)
 	require.NoError(t, err)
 
-	data, err := sid.MarshalBinary()
+	data, err := aid.MarshalBinary()
 	require.NoError(t, err)
 
-	blk, err := sid.IPLDBlock()
+	blk, err := aid.IPLDBlock()
 	require.NoError(t, err)
 
-	cid, err := sid.ID.Cid()
+	cid, err := aid.ID.Cid()
 	require.NoError(t, err)
 	assert.EqualValues(t, blk.Cid(), cid)
 
-	sidOut := &Sample{}
+	sidOut := &AxisSample{}
 	err = sidOut.UnmarshalBinary(data)
 	require.NoError(t, err)
-	assert.EqualValues(t, sid, sidOut)
+	assert.EqualValues(t, aid, sidOut)
 
 	err = sidOut.Validate()
 	require.NoError(t, err)

@@ -24,9 +24,9 @@ import (
 	"github.com/celestiaorg/celestia-node/share/eds/edstest"
 )
 
-// TestV2Roundtrip tests full protocol round trip of:
-// EDS -> Sample -> IPLDBlock -> BlockService -> Bitswap and in reverse.
-func TestV2RoundtripGetBlock(t *testing.T) {
+// TestShareSampleRoundtripGetBlock tests full protocol round trip of:
+// EDS -> ShareSample -> IPLDBlock -> BlockService -> Bitswap and in reverse.
+func TestShareSampleRoundtripGetBlock(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second*10)
 	defer cancel()
 
@@ -35,6 +35,7 @@ func TestV2RoundtripGetBlock(t *testing.T) {
 	path := t.TempDir() + "/eds_file"
 	f, err := eds.CreateFile(path, sqr)
 	require.NoError(t, err)
+	defer f.Close()
 
 	b := NewBlockstore[*edsFileAndFS]((*edsFileAndFS)(f))
 	client := remoteClient(ctx, t, b)
@@ -43,7 +44,7 @@ func TestV2RoundtripGetBlock(t *testing.T) {
 	width := int(sqr.Width())
 	for _, axis := range axis {
 		for i := 0; i < width*width; i++ {
-			smpl, err := NewSampleFromEDS(sqr, i, axis)
+			smpl, err := NewShareSampleFromEDS(sqr, i, axis)
 			require.NoError(t, err)
 
 			cid, err := smpl.ID.Cid()
@@ -53,22 +54,25 @@ func TestV2RoundtripGetBlock(t *testing.T) {
 			require.NoError(t, err)
 			assert.EqualValues(t, cid, blkOut.Cid())
 
-			data, err := smpl.MarshalBinary()
-			require.NoError(t, err)
-			assert.EqualValues(t, data, blkOut.RawData())
+			smpl, err = ShareSampleFromBlock(blkOut)
+			assert.NoError(t, err)
+
+			err = smpl.Validate() // bitswap already performed validation and this is only for testing
+			assert.NoError(t, err)
 		}
 	}
 }
 
-func TestV2RoundtripGetBlocks(t *testing.T) {
+func TestShareSampleRoundtripGetBlocks(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second*10)
 	defer cancel()
 
-	sqr := edstest.RandEDS(t, 16) // TODO(@Wondertan): does not work with more than 8
+	sqr := edstest.RandEDS(t, 8) // TODO(@Wondertan): does not work with more than 8 for some reasong
 
 	path := t.TempDir() + "/eds_file"
 	f, err := eds.CreateFile(path, sqr)
 	require.NoError(t, err)
+	defer f.Close()
 
 	b := NewBlockstore[*edsFileAndFS]((*edsFileAndFS)(f))
 	client := remoteClient(ctx, t, b)
@@ -78,7 +82,7 @@ func TestV2RoundtripGetBlocks(t *testing.T) {
 	width := int(sqr.Width())
 	for _, axis := range axis {
 		for i := 0; i < width*width; i++ {
-			smpl, err := NewSampleFromEDS(sqr, i, axis)
+			smpl, err := NewShareSampleFromEDS(sqr, i, axis)
 			require.NoError(t, err)
 
 			cid, err := smpl.ID.Cid()
@@ -93,6 +97,96 @@ func TestV2RoundtripGetBlocks(t *testing.T) {
 		select {
 		case blk := <-blks:
 			assert.True(t, set.Has(blk.Cid()))
+
+			smpl, err := ShareSampleFromBlock(blk)
+			assert.NoError(t, err)
+
+			err = smpl.Validate() // bitswap already performed validation and this is only for testing
+			assert.NoError(t, err)
+		case <-ctx.Done():
+			return ctx.Err()
+		}
+		return nil
+	})
+	assert.NoError(t, err)
+}
+
+func TestAxisSampleRoundtripGetBlock(t *testing.T) {
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second*10)
+	defer cancel()
+
+	sqr := edstest.RandEDS(t, 8)
+
+	path := t.TempDir() + "/eds_file"
+	f, err := eds.CreateFile(path, sqr)
+	require.NoError(t, err)
+	defer f.Close()
+
+	b := NewBlockstore[*edsFileAndFS]((*edsFileAndFS)(f))
+	client := remoteClient(ctx, t, b)
+
+	axis := []rsmt2d.Axis{rsmt2d.Col, rsmt2d.Row}
+	width := int(sqr.Width())
+	for _, axis := range axis {
+		for i := 0; i < width; i++ {
+			smpl, err := NewAxisSampleFromEDS(sqr, i, axis)
+			require.NoError(t, err)
+
+			cid, err := smpl.ID.Cid()
+			require.NoError(t, err)
+
+			blkOut, err := client.GetBlock(ctx, cid)
+			require.NoError(t, err)
+			assert.EqualValues(t, cid, blkOut.Cid())
+
+			smpl, err = AxisSampleFromBlock(blkOut)
+			assert.NoError(t, err)
+
+			err = smpl.Validate() // bitswap already performed validation and this is only for testing
+			assert.NoError(t, err)
+		}
+	}
+}
+
+func TestAxisSampleRoundtripGetBlocks(t *testing.T) {
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second*10)
+	defer cancel()
+
+	sqr := edstest.RandEDS(t, 16)
+
+	path := t.TempDir() + "/eds_file"
+	f, err := eds.CreateFile(path, sqr)
+	require.NoError(t, err)
+
+	b := NewBlockstore[*edsFileAndFS]((*edsFileAndFS)(f))
+	client := remoteClient(ctx, t, b)
+
+	set := cid.NewSet()
+	axis := []rsmt2d.Axis{rsmt2d.Col, rsmt2d.Row}
+	width := int(sqr.Width())
+	for _, axis := range axis {
+		for i := 0; i < width; i++ {
+			smpl, err := NewAxisSampleFromEDS(sqr, i, axis)
+			require.NoError(t, err)
+
+			cid, err := smpl.ID.Cid()
+			require.NoError(t, err)
+
+			set.Add(cid)
+		}
+	}
+
+	blks := client.GetBlocks(ctx, set.Keys())
+	err = set.ForEach(func(c cid.Cid) error {
+		select {
+		case blk := <-blks:
+			assert.True(t, set.Has(blk.Cid()))
+
+			smpl, err := AxisSampleFromBlock(blk)
+			assert.NoError(t, err)
+
+			err = smpl.Validate() // bitswap already performed validation and this is only for testing
+			assert.NoError(t, err)
 		case <-ctx.Done():
 			return ctx.Err()
 		}

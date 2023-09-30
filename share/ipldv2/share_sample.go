@@ -16,37 +16,37 @@ import (
 	ipldv2pb "github.com/celestiaorg/celestia-node/share/ipldv2/pb"
 )
 
-// SampleType represents type of sample.
-type SampleType uint8
+// ShareSampleType represents type of sample.
+type ShareSampleType uint8
 
 const (
-	// DataSample is a sample of a data share.
-	DataSample SampleType = iota
-	// ParitySample is a sample of a parity share.
-	ParitySample
+	// DataShareSample is a sample of a data share.
+	DataShareSample ShareSampleType = iota
+	// ParityShareSample is a sample of a parity share.
+	ParityShareSample
 )
 
-// Sample represents a sample of an NMT in EDS.
-type Sample struct {
-	// ID of the Sample
-	ID SampleID
-	// Type of the Sample
-	Type SampleType
+// ShareSample represents a sample of an NMT in EDS.
+type ShareSample struct {
+	// ID of the ShareSample
+	ID ShareSampleID
+	// Type of the ShareSample
+	Type ShareSampleType
 	// Proof of Share inclusion in the NMT
 	Proof nmt.Proof
 	// Share being sampled
 	Share share.Share
 }
 
-// NewSample constructs a new Sample.
-func NewSample(id SampleID, shr share.Share, proof nmt.Proof, sqrLn int) *Sample {
+// NewShareSample constructs a new ShareSample.
+func NewShareSample(id ShareSampleID, shr share.Share, proof nmt.Proof, sqrLn int) *ShareSample {
 	row, col := id.Index/sqrLn, id.Index%sqrLn
-	tp := ParitySample
+	tp := ParityShareSample
 	if row < sqrLn/2 && col < sqrLn/2 {
-		tp = DataSample
+		tp = DataShareSample
 	}
 
-	return &Sample{
+	return &ShareSample{
 		ID:    id,
 		Type:  tp,
 		Proof: proof,
@@ -54,14 +54,14 @@ func NewSample(id SampleID, shr share.Share, proof nmt.Proof, sqrLn int) *Sample
 	}
 }
 
-// NewSampleFrom constructs a new Sample from share.Root.
-func NewSampleFrom(root *share.Root, idx int, axis rsmt2d.Axis, shr share.Share, proof nmt.Proof) *Sample {
-	id := NewSampleID(root, idx, axis)
-	return NewSample(id, shr, proof, len(root.RowRoots))
+// NewShareSampleFrom constructs a new ShareSample from share.Root.
+func NewShareSampleFrom(root *share.Root, idx int, axis rsmt2d.Axis, shr share.Share, proof nmt.Proof) *ShareSample {
+	id := NewShareSampleID(root, idx, axis)
+	return NewShareSample(id, shr, proof, len(root.RowRoots))
 }
 
-// NewSampleFromEDS samples the EDS and constructs a new Sample.
-func NewSampleFromEDS(eds *rsmt2d.ExtendedDataSquare, idx int, axis rsmt2d.Axis) (*Sample, error) {
+// NewShareSampleFromEDS samples the EDS and constructs a new ShareSample.
+func NewShareSampleFromEDS(eds *rsmt2d.ExtendedDataSquare, idx int, axis rsmt2d.Axis) (*ShareSample, error) {
 	sqrLn := int(eds.Width())
 	axisIdx, shrIdx := idx/sqrLn, idx%sqrLn
 
@@ -95,11 +95,11 @@ func NewSampleFromEDS(eds *rsmt2d.ExtendedDataSquare, idx int, axis rsmt2d.Axis)
 		return nil, fmt.Errorf("while proving range share over NMT: %w", err)
 	}
 
-	return NewSampleFrom(root, idx, axis, shrs[shrIdx], prf), nil
+	return NewShareSampleFrom(root, idx, axis, shrs[shrIdx], prf), nil
 }
 
-// Proto converts Sample to its protobuf representation.
-func (s *Sample) Proto() *ipldv2pb.Sample {
+// Proto converts ShareSample to its protobuf representation.
+func (s *ShareSample) Proto() *ipldv2pb.ShareSample {
 	// TODO: Extract as helper to nmt
 	proof := &nmtpb.Proof{}
 	proof.Nodes = s.Proof.Nodes()
@@ -108,31 +108,31 @@ func (s *Sample) Proto() *ipldv2pb.Sample {
 	proof.IsMaxNamespaceIgnored = s.Proof.IsMaxNamespaceIDIgnored()
 	proof.LeafHash = s.Proof.LeafHash()
 
-	return &ipldv2pb.Sample{
+	return &ipldv2pb.ShareSample{
 		Id:    s.ID.Proto(),
-		Type:  ipldv2pb.SampleType(s.Type),
+		Type:  ipldv2pb.ShareSampleType(s.Type),
 		Proof: proof,
 		Share: s.Share,
 	}
 }
 
-// SampleFromBlock converts blocks.Block into Sample.
-func SampleFromBlock(blk blocks.Block) (*Sample, error) {
+// ShareSampleFromBlock converts blocks.Block into ShareSample.
+func ShareSampleFromBlock(blk blocks.Block) (*ShareSample, error) {
 	if err := validateCID(blk.Cid()); err != nil {
 		return nil, err
 	}
 
-	s := &Sample{}
+	s := &ShareSample{}
 	err := s.UnmarshalBinary(blk.RawData())
 	if err != nil {
-		return nil, fmt.Errorf("while unmarshalling Sample: %w", err)
+		return nil, fmt.Errorf("while unmarshalling ShareSample: %w", err)
 	}
 
 	return s, nil
 }
 
-// IPLDBlock converts Sample to an IPLD block for Bitswap compatibility.
-func (s *Sample) IPLDBlock() (blocks.Block, error) {
+// IPLDBlock converts ShareSample to an IPLD block for Bitswap compatibility.
+func (s *ShareSample) IPLDBlock() (blocks.Block, error) {
 	cid, err := s.ID.Cid()
 	if err != nil {
 		return nil, err
@@ -146,43 +146,42 @@ func (s *Sample) IPLDBlock() (blocks.Block, error) {
 	return blocks.NewBlockWithCid(data, cid)
 }
 
-// MarshalBinary marshals Sample to binary.
-func (s *Sample) MarshalBinary() ([]byte, error) {
+// MarshalBinary marshals ShareSample to binary.
+func (s *ShareSample) MarshalBinary() ([]byte, error) {
 	return s.Proto().Marshal()
 }
 
-// UnmarshalBinary unmarshals Sample from binary.
-func (s *Sample) UnmarshalBinary(data []byte) error {
-	proto := &ipldv2pb.Sample{}
+// UnmarshalBinary unmarshal ShareSample from binary.
+func (s *ShareSample) UnmarshalBinary(data []byte) error {
+	proto := &ipldv2pb.ShareSample{}
 	if err := proto.Unmarshal(data); err != nil {
 		return err
 	}
 
-	s.ID = SampleID{
+	s.ID = ShareSampleID{
 		DataHash: proto.Id.DataHash,
 		AxisHash: proto.Id.AxisHash,
 		Index:    int(proto.Id.Index),
 		Axis:     rsmt2d.Axis(proto.Id.Axis),
 	}
-	s.Type = SampleType(proto.Type)
+	s.Type = ShareSampleType(proto.Type)
 	s.Proof = nmt.ProtoToProof(*proto.Proof)
 	s.Share = proto.Share
 	return nil
 }
 
-// Validate validates Sample's fields and proof of Share inclusion in the NMT.
-func (s *Sample) Validate() error {
+// Validate validates ShareSample's fields and proof of Share inclusion in the NMT.
+func (s *ShareSample) Validate() error {
 	if err := s.ID.Validate(); err != nil {
 		return err
 	}
 
-	if s.Type != DataSample && s.Type != ParitySample {
+	if s.Type != DataShareSample && s.Type != ParityShareSample {
 		return fmt.Errorf("incorrect sample type: %d", s.Type)
 	}
 
-	// TODO Support Col proofs
 	namespace := share.ParitySharesNamespace
-	if s.Type == DataSample {
+	if s.Type == DataShareSample {
 		namespace = share.GetNamespace(s.Share)
 	}
 
