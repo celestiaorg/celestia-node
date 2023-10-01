@@ -14,6 +14,15 @@ import (
 	"github.com/celestiaorg/celestia-node/share"
 )
 
+type File interface {
+	io.Closer
+	Size() int
+	ShareWithProof(idx int, axis rsmt2d.Axis) (share.Share, nmt.Proof, error)
+	Axis(idx int, axis rsmt2d.Axis) ([]share.Share, error)
+	AxisHalf(idx int, axis rsmt2d.Axis) ([]share.Share, error)
+	EDS() (*rsmt2d.ExtendedDataSquare, error)
+}
+
 type FileConfig struct {
 	Version     FileVersion
 	Compression FileCompression
@@ -23,13 +32,13 @@ type FileConfig struct {
 	// TODO: Add codec
 }
 
-// File
+// LazyFile
 // * immutable
 // * versionable
 // TODO:
 //   - Cache Rows and Cols
 //   - Avoid storing constant shares, like padding
-type File struct {
+type LazyFile struct {
 	path string
 	hdr  *Header
 	fl   fileBackend
@@ -40,7 +49,7 @@ type fileBackend interface {
 	io.Closer
 }
 
-func OpenFile(path string) (*File, error) {
+func OpenFile(path string) (*LazyFile, error) {
 	f, err := mmap.Open(path)
 	if err != nil {
 		return nil, err
@@ -52,14 +61,14 @@ func OpenFile(path string) (*File, error) {
 	}
 
 	// TODO(WWondertan): Validate header
-	return &File{
+	return &LazyFile{
 		path: path,
 		hdr:  h,
 		fl:   f,
 	}, nil
 }
 
-func CreateFile(path string, eds *rsmt2d.ExtendedDataSquare, cfgs ...FileConfig) (*File, error) {
+func CreateFile(path string, eds *rsmt2d.ExtendedDataSquare, cfgs ...FileConfig) (*LazyFile, error) {
 	f, err := os.Create(path)
 	if err != nil {
 		return nil, err
@@ -94,22 +103,26 @@ func CreateFile(path string, eds *rsmt2d.ExtendedDataSquare, cfgs ...FileConfig)
 		}
 	}
 
-	return &File{
+	return &LazyFile{
 		path: path,
 		fl:   f,
 		hdr:  h,
 	}, f.Sync()
 }
 
-func (f *File) Close() error {
+func (f *LazyFile) Size() int {
+	return f.hdr.SquareSize()
+}
+
+func (f *LazyFile) Close() error {
 	return f.fl.Close()
 }
 
-func (f *File) Header() *Header {
+func (f *LazyFile) Header() *Header {
 	return f.hdr
 }
 
-func (f *File) Axis(idx int, axis rsmt2d.Axis) ([]share.Share, error) {
+func (f *LazyFile) Axis(idx int, axis rsmt2d.Axis) ([]share.Share, error) {
 	shrLn := int(f.hdr.shareSize)
 	sqrLn := int(f.hdr.squareSize)
 	if f.Header().Config().Mode == ODSMode {
@@ -156,7 +169,7 @@ func (f *File) Axis(idx int, axis rsmt2d.Axis) ([]share.Share, error) {
 	return shrs, nil
 }
 
-func (f *File) AxisHalf(idx int, axis rsmt2d.Axis) ([]share.Share, error) {
+func (f *LazyFile) AxisHalf(idx int, axis rsmt2d.Axis) ([]share.Share, error) {
 	// TODO(@Wondertan): this has to read directly from the file, avoiding recompute
 	fullAxis, err := f.Axis(idx, axis)
 	if err != nil {
@@ -166,19 +179,7 @@ func (f *File) AxisHalf(idx int, axis rsmt2d.Axis) ([]share.Share, error) {
 	return fullAxis[:len(fullAxis)/2], nil
 }
 
-func (f *File) Share(idx int) (share.Share, error) {
-	// TODO: Check the cache first
-	shrLn := int64(f.hdr.shareSize)
-
-	offset := int64(idx)*shrLn + HeaderSize
-	shr := make(share.Share, shrLn)
-	if _, err := f.fl.ReadAt(shr, offset); err != nil {
-		return nil, err
-	}
-	return shr, nil
-}
-
-func (f *File) ShareWithProof(idx int, axis rsmt2d.Axis) (share.Share, nmt.Proof, error) {
+func (f *LazyFile) ShareWithProof(idx int, axis rsmt2d.Axis) (share.Share, nmt.Proof, error) {
 	// TODO: Cache the axis as well as computed tree
 	sqrLn := int(f.hdr.squareSize)
 	axsIdx, shrIdx := idx/sqrLn, idx%sqrLn
@@ -207,7 +208,7 @@ func (f *File) ShareWithProof(idx int, axis rsmt2d.Axis) (share.Share, nmt.Proof
 	return shrs[shrIdx], proof, nil
 }
 
-func (f *File) EDS() (*rsmt2d.ExtendedDataSquare, error) {
+func (f *LazyFile) EDS() (*rsmt2d.ExtendedDataSquare, error) {
 	shrLn := int(f.hdr.shareSize)
 	sqrLn := int(f.hdr.squareSize)
 	if f.Header().Config().Mode == ODSMode {

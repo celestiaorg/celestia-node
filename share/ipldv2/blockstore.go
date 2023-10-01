@@ -3,38 +3,26 @@ package ipldv2
 import (
 	"context"
 	"fmt"
-	"io"
 
 	"github.com/ipfs/boxo/blockstore"
 	blocks "github.com/ipfs/go-block-format"
 	"github.com/ipfs/go-cid"
 
-	"github.com/celestiaorg/nmt"
-	"github.com/celestiaorg/rsmt2d"
-
 	"github.com/celestiaorg/celestia-node/share"
+	"github.com/celestiaorg/celestia-node/share/eds"
 )
-
-// edsFile is a mocking friendly local interface over eds.File.
-// TODO(@Wondertan): Consider making an actual interface of eds pkg
-type edsFile interface {
-	io.Closer
-	Size() int
-	ShareWithProof(idx int, axis rsmt2d.Axis) (share.Share, nmt.Proof, error)
-	AxisHalf(idx int, axis rsmt2d.Axis) ([]share.Share, error)
-}
 
 // fileStore is a mocking friendly local interface over eds.FileStore
 // TODO(@Wondertan): Consider making an actual interface of eds pkg
-type fileStore[F edsFile] interface {
+type fileStore[F eds.File] interface {
 	File(share.DataHash) (F, error)
 }
 
-type Blockstore[F edsFile] struct {
+type Blockstore[F eds.File] struct {
 	fs fileStore[F]
 }
 
-func NewBlockstore[F edsFile](fs fileStore[F]) blockstore.Blockstore {
+func NewBlockstore[F eds.File](fs fileStore[F]) blockstore.Blockstore {
 	return &Blockstore[F]{fs}
 }
 

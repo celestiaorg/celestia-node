@@ -54,10 +54,6 @@ func TestFile(t *testing.T) {
 	for _, axis := range axis {
 		for i := 0; i < width*width; i++ {
 			row, col := uint(i/width), uint(i%width)
-			shr, err := fl.Share(i)
-			require.NoError(t, err)
-			assert.EqualValues(t, eds.GetCell(row, col), shr)
-
 			shr, prf, err := fl.ShareWithProof(i, axis)
 			require.NoError(t, err)
 			assert.EqualValues(t, eds.GetCell(row, col), shr)
@@ -83,16 +79,4 @@ func TestFile(t *testing.T) {
 
 	err = fl.Close()
 	require.NoError(t, err)
-}
-
-// TODO(@Wondertan): Should be a method on eds
-func getAxis(idx int, axis rsmt2d.Axis, eds *rsmt2d.ExtendedDataSquare) [][]byte {
-	switch axis {
-	case rsmt2d.Row:
-		return eds.Row(uint(idx))
-	case rsmt2d.Col:
-		return eds.Col(uint(idx))
-	default:
-		panic("")
-	}
 }
