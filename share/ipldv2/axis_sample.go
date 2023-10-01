@@ -134,7 +134,7 @@ func (s *AxisSample) Validate() error {
 	}
 	s.AxisHalf = append(s.AxisHalf, parity...)
 
-	tree := wrapper.NewErasuredNamespacedMerkleTree(uint64(len(s.AxisHalf)), uint(s.ID.Index))
+	tree := wrapper.NewErasuredNamespacedMerkleTree(uint64(len(s.AxisHalf)/2), uint(s.ID.Index))
 	for _, shr := range s.AxisHalf {
 		err := tree.Push(shr)
 		if err != nil {

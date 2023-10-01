@@ -4,10 +4,10 @@ import (
 	"context"
 	"testing"
 
+	"github.com/ipfs/boxo/blockstore"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"github.com/celestiaorg/nmt"
 	"github.com/celestiaorg/rsmt2d"
 
 	"github.com/celestiaorg/celestia-node/share"
@@ -15,16 +15,15 @@ import (
 	"github.com/celestiaorg/celestia-node/share/eds/edstest"
 )
 
-func TestBlockstoreGet(t *testing.T) {
+// TODO(@Wondertan): Add axis sampling code
+
+func TestBlockstoreGetShareSample(t *testing.T) {
 	ctx := context.Background()
 	sqr := edstest.RandEDS(t, 4)
 	root, err := share.NewRoot(sqr)
 	require.NoError(t, err)
 
-	path := t.TempDir() + "/eds_file"
-	f, err := eds.CreateFile(path, sqr)
-	require.NoError(t, err)
-	b := NewBlockstore[*edsFileAndFS]((*edsFileAndFS)(f))
+	b := edsBlockstore(sqr)
 
 	axis := []rsmt2d.Axis{rsmt2d.Row, rsmt2d.Col}
 	width := int(sqr.Width())
@@ -47,24 +46,12 @@ func TestBlockstoreGet(t *testing.T) {
 	}
 }
 
-type edsFileAndFS eds.File
+type edsFileAndFS eds.MemFile
 
-func (m *edsFileAndFS) File(share.DataHash) (*edsFileAndFS, error) {
-	return m, nil
+func (m *edsFileAndFS) File(share.DataHash) (*eds.MemFile, error) {
+	return (*eds.MemFile)(m), nil
 }
 
-func (m *edsFileAndFS) Size() int {
-	return (*eds.File)(m).Header().SquareSize()
-}
-
-func (m *edsFileAndFS) ShareWithProof(idx int, axis rsmt2d.Axis) (share.Share, nmt.Proof, error) {
-	return (*eds.File)(m).ShareWithProof(idx, axis)
-}
-
-func (m *edsFileAndFS) AxisHalf(idx int, axis rsmt2d.Axis) ([]share.Share, error) {
-	return (*eds.File)(m).AxisHalf(idx, axis)
-}
-
-func (m *edsFileAndFS) Close() error {
-	return nil
+func edsBlockstore(sqr *rsmt2d.ExtendedDataSquare) blockstore.Blockstore {
+	return NewBlockstore[*eds.MemFile]((*edsFileAndFS)(&eds.MemFile{Eds: sqr}))
 }

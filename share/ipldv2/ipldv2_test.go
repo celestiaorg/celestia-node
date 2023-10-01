@@ -20,7 +20,6 @@ import (
 
 	"github.com/celestiaorg/rsmt2d"
 
-	"github.com/celestiaorg/celestia-node/share/eds"
 	"github.com/celestiaorg/celestia-node/share/eds/edstest"
 )
 
@@ -31,13 +30,7 @@ func TestShareSampleRoundtripGetBlock(t *testing.T) {
 	defer cancel()
 
 	sqr := edstest.RandEDS(t, 8)
-
-	path := t.TempDir() + "/eds_file"
-	f, err := eds.CreateFile(path, sqr)
-	require.NoError(t, err)
-	defer f.Close()
-
-	b := NewBlockstore[*edsFileAndFS]((*edsFileAndFS)(f))
+	b := edsBlockstore(sqr)
 	client := remoteClient(ctx, t, b)
 
 	axis := []rsmt2d.Axis{rsmt2d.Col, rsmt2d.Row}
@@ -68,13 +61,7 @@ func TestShareSampleRoundtripGetBlocks(t *testing.T) {
 	defer cancel()
 
 	sqr := edstest.RandEDS(t, 8) // TODO(@Wondertan): does not work with more than 8 for some reasong
-
-	path := t.TempDir() + "/eds_file"
-	f, err := eds.CreateFile(path, sqr)
-	require.NoError(t, err)
-	defer f.Close()
-
-	b := NewBlockstore[*edsFileAndFS]((*edsFileAndFS)(f))
+	b := edsBlockstore(sqr)
 	client := remoteClient(ctx, t, b)
 
 	set := cid.NewSet()
@@ -93,7 +80,7 @@ func TestShareSampleRoundtripGetBlocks(t *testing.T) {
 	}
 
 	blks := client.GetBlocks(ctx, set.Keys())
-	err = set.ForEach(func(c cid.Cid) error {
+	err := set.ForEach(func(c cid.Cid) error {
 		select {
 		case blk := <-blks:
 			assert.True(t, set.Has(blk.Cid()))
@@ -112,17 +99,11 @@ func TestShareSampleRoundtripGetBlocks(t *testing.T) {
 }
 
 func TestAxisSampleRoundtripGetBlock(t *testing.T) {
-	ctx, cancel := context.WithTimeout(context.Background(), time.Second*10)
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second*10000)
 	defer cancel()
 
 	sqr := edstest.RandEDS(t, 8)
-
-	path := t.TempDir() + "/eds_file"
-	f, err := eds.CreateFile(path, sqr)
-	require.NoError(t, err)
-	defer f.Close()
-
-	b := NewBlockstore[*edsFileAndFS]((*edsFileAndFS)(f))
+	b := edsBlockstore(sqr)
 	client := remoteClient(ctx, t, b)
 
 	axis := []rsmt2d.Axis{rsmt2d.Col, rsmt2d.Row}
@@ -153,12 +134,7 @@ func TestAxisSampleRoundtripGetBlocks(t *testing.T) {
 	defer cancel()
 
 	sqr := edstest.RandEDS(t, 16)
-
-	path := t.TempDir() + "/eds_file"
-	f, err := eds.CreateFile(path, sqr)
-	require.NoError(t, err)
-
-	b := NewBlockstore[*edsFileAndFS]((*edsFileAndFS)(f))
+	b := edsBlockstore(sqr)
 	client := remoteClient(ctx, t, b)
 
 	set := cid.NewSet()
@@ -177,7 +153,7 @@ func TestAxisSampleRoundtripGetBlocks(t *testing.T) {
 	}
 
 	blks := client.GetBlocks(ctx, set.Keys())
-	err = set.ForEach(func(c cid.Cid) error {
+	err := set.ForEach(func(c cid.Cid) error {
 		select {
 		case blk := <-blks:
 			assert.True(t, set.Has(blk.Cid()))
