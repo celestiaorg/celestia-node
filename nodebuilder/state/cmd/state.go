@@ -6,10 +6,8 @@ import (
 	"strconv"
 
 	"cosmossdk.io/math"
-	"github.com/cosmos/cosmos-sdk/types"
 	"github.com/spf13/cobra"
 
-	"github.com/celestiaorg/celestia-node/blob"
 	cmdnode "github.com/celestiaorg/celestia-node/cmd"
 	"github.com/celestiaorg/celestia-node/state"
 )
@@ -21,7 +19,6 @@ func init() {
 		balanceForAddressCmd,
 		transferCmd,
 		submitTxCmd,
-		submitPFBCmd,
 		cancelUnbondingDelegationCmd,
 		beginRedelegateCmd,
 		undelegateCmd,
@@ -153,47 +150,6 @@ var submitTxCmd = &cobra.Command{
 			decoded,
 		)
 		return cmdnode.PrintOutput(txResponse, err, nil)
-	},
-}
-
-var submitPFBCmd = &cobra.Command{
-	Use:   "submit-pfb [namespace] [data] [fee] [gasLim]",
-	Short: "Allows to submit PFBs",
-	Args:  cobra.ExactArgs(4),
-	RunE: func(cmd *cobra.Command, args []string) error {
-		client, err := cmdnode.ParseClientFromCtx(cmd.Context())
-		if err != nil {
-			return err
-		}
-		defer client.Close()
-
-		namespace, err := cmdnode.ParseV0Namespace(args[0])
-		if err != nil {
-			return fmt.Errorf("error parsing a namespace:%v", err)
-		}
-
-		fee, err := strconv.ParseInt(args[2], 10, 64)
-		if err != nil {
-			return fmt.Errorf("error parsing a fee:%v", err)
-		}
-
-		gasLimit, err := strconv.ParseUint(args[3], 10, 64)
-		if err != nil {
-			return fmt.Errorf("error parsing a gasLim:%v", err)
-		}
-
-		parsedBlob, err := blob.NewBlobV0(namespace, []byte(args[1]))
-		if err != nil {
-			return fmt.Errorf("error creating a blob:%v", err)
-		}
-
-		txResp, err := client.State.SubmitPayForBlob(
-			cmd.Context(),
-			types.NewInt(fee),
-			gasLimit,
-			[]*blob.Blob{parsedBlob},
-		)
-		return cmdnode.PrintOutput(txResp, err, nil)
 	},
 }
 
