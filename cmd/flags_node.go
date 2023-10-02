@@ -15,7 +15,7 @@ import (
 	"github.com/celestiaorg/celestia-node/nodebuilder/p2p"
 )
 
-var (
+const (
 	nodeStoreFlag  = "node.store"
 	nodeConfigFlag = "node.config"
 )
