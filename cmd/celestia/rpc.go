@@ -12,21 +12,13 @@ import (
 )
 
 func init() {
-	blob.Cmd.PersistentFlags().StringVar(cmd.InitURLFlag())
-	das.Cmd.PersistentFlags().StringVar(cmd.InitURLFlag())
-	header.Cmd.PersistentFlags().StringVar(cmd.InitURLFlag())
-	p2p.Cmd.PersistentFlags().StringVar(cmd.InitURLFlag())
-	share.Cmd.PersistentFlags().StringVar(cmd.InitURLFlag())
-	state.Cmd.PersistentFlags().StringVar(cmd.InitURLFlag())
-	node.Cmd.PersistentFlags().StringVar(cmd.InitURLFlag())
-
-	blob.Cmd.PersistentFlags().StringVar(cmd.InitAuthTokenFlag())
-	das.Cmd.PersistentFlags().StringVar(cmd.InitAuthTokenFlag())
-	header.Cmd.PersistentFlags().StringVar(cmd.InitAuthTokenFlag())
-	p2p.Cmd.PersistentFlags().StringVar(cmd.InitAuthTokenFlag())
-	share.Cmd.PersistentFlags().StringVar(cmd.InitAuthTokenFlag())
-	state.Cmd.PersistentFlags().StringVar(cmd.InitAuthTokenFlag())
-	node.Cmd.PersistentFlags().StringVar(cmd.InitAuthTokenFlag())
+	blob.Cmd.PersistentFlags().AddFlagSet(cmd.RPCFlags())
+	das.Cmd.PersistentFlags().AddFlagSet(cmd.RPCFlags())
+	header.Cmd.PersistentFlags().AddFlagSet(cmd.RPCFlags())
+	p2p.Cmd.PersistentFlags().AddFlagSet(cmd.RPCFlags())
+	share.Cmd.PersistentFlags().AddFlagSet(cmd.RPCFlags())
+	state.Cmd.PersistentFlags().AddFlagSet(cmd.RPCFlags())
+	node.Cmd.PersistentFlags().AddFlagSet(cmd.RPCFlags())
 
 	rootCmd.AddCommand(
 		blob.Cmd,
