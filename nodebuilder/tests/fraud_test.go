@@ -5,6 +5,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/celestiaorg/go-fraud"
 	"github.com/ipfs/go-datastore"
 	ds_sync "github.com/ipfs/go-datastore/sync"
 	"github.com/libp2p/go-libp2p/core/host"
@@ -13,6 +14,7 @@ import (
 	"github.com/tendermint/tendermint/types"
 	"go.uber.org/fx"
 
+	"github.com/celestiaorg/celestia-node/header"
 	headerfraud "github.com/celestiaorg/celestia-node/header/headertest/fraud"
 	"github.com/celestiaorg/celestia-node/nodebuilder"
 	"github.com/celestiaorg/celestia-node/nodebuilder/core"
@@ -98,21 +100,45 @@ func TestFraudProofHandling(t *testing.T) {
 	select {
 	case p := <-subscr:
 		require.Equal(t, 10, int(p.Height()))
+		t.Log("Caught the proof....")
 		subCancel()
 	case <-ctx.Done():
 		subCancel()
 		t.Fatal("full node did not receive a fraud proof in time")
 	}
 
+	getCtx, getCancel := context.WithTimeout(ctx, time.Second)
+	proofs, err := fullClient.Fraud.Get(getCtx, byzantine.BadEncoding)
+	getCancel()
+
+	require.NoError(t, err)
+	require.Len(t, proofs, 1)
+	require.True(t, proofs[0].Type() == byzantine.BadEncoding)
 	// This is an obscure way to check if the Syncer was stopped.
 	// If we cannot get a height header within a timeframe it means the syncer was stopped
 	// FIXME: Eventually, this should be a check on service registry managing and keeping
 	//  lifecycles of each Module.
 	// 6.
-	syncCtx, syncCancel := context.WithTimeout(context.Background(), blockTime*5)
-	_, err = fullClient.Header.WaitForHeight(syncCtx, 15)
+	// random height after befp.height
+	height := uint64(15)
+	// initial timeout is set to 5 sec, as we are targeting the height=15,
+	// blockTime=1 sec, expected befp.height=10
+	timeOut := blockTime * 5
+	// during befp validation the node can still receive headers and it mostly depends on
+	// the operating system or hardware(e.g. on macOS tests is working 100% time with a single height=15,
+	// and on the Linux VM sometimes the last height is 17-18). So, lets give a chance for our befp validator to check
+	// the fraud proof and stop the syncer.
+	for height < 20 {
+		syncCtx, syncCancel := context.WithTimeout(context.Background(), timeOut)
+		_, err = full.HeaderServ.WaitForHeight(syncCtx, height)
+		syncCancel()
+		if err != nil {
+			break
+		}
+		timeOut = blockTime
+		height++
+	}
 	require.ErrorIs(t, err, context.DeadlineExceeded)
-	syncCancel()
 
 	// 7.
 	cfg = nodebuilder.DefaultConfig(node.Light)
@@ -137,11 +163,9 @@ func TestFraudProofHandling(t *testing.T) {
 
 	// 9.
 	fN := sw.NewNodeWithStore(node.Full, store)
-	require.Error(t, fN.Start(ctx))
-	fNClient := getAdminClient(ctx, fN, t)
-	proofs, err := fNClient.Fraud.Get(ctx, byzantine.BadEncoding)
-	require.NoError(t, err)
-	require.NotNil(t, proofs)
+	err = fN.Start(ctx)
+	var fpExist *fraud.ErrFraudExists[*header.ExtendedHeader]
+	require.ErrorAs(t, err, &fpExist)
 
 	sw.StopNode(ctx, bridge)
 	sw.StopNode(ctx, full)

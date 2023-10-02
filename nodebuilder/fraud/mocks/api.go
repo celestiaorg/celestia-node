@@ -53,10 +53,10 @@ func (mr *MockModuleMockRecorder) Get(arg0, arg1 interface{}) *gomock.Call {
 }
 
 // Subscribe mocks base method.
-func (m *MockModule) Subscribe(arg0 context.Context, arg1 fraud0.ProofType) (<-chan fraud.Proof, error) {
+func (m *MockModule) Subscribe(arg0 context.Context, arg1 fraud0.ProofType) (<-chan *fraud.Proof, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "Subscribe", arg0, arg1)
-	ret0, _ := ret[0].(<-chan fraud.Proof)
+	ret0, _ := ret[0].(<-chan *fraud.Proof)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
