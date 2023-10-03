@@ -358,8 +358,8 @@ github.com/buger/jsonparser v0.0.0-20181115193947-bf1c66bbce23/go.mod h1:bbYlZJ7
 github.com/bwesterb/go-ristretto v1.2.0/go.mod h1:fUIoIZaG73pV5biE2Blr2xEzDoMj7NFEuV9ekS419A0=
 github.com/c-bata/go-prompt v0.2.2/go.mod h1:VzqtzE2ksDBcdln8G7mk2RX9QyGjH+OVqOCSiVIqS34=
 github.com/casbin/casbin/v2 v2.1.2/go.mod h1:YcPU1XXisHhLzuxH9coDNf2FbKpjGlbCg3n9yuLkIJQ=
-github.com/celestiaorg/celestia-app v1.0.0-rc9.0.20231002200307-306fb9fc3ad3 h1:1uIQBsAl8/2viKP9LS7Ox1SC5cfL6mxYdcUnxUFEfR0=
-github.com/celestiaorg/celestia-app v1.0.0-rc9.0.20231002200307-306fb9fc3ad3/go.mod h1:tqW0S7+gnj4zkRR5NXkWz60EwhvHRDQgcKaNLJ0ks6A=
+github.com/celestiaorg/celestia-app v1.0.0-rc18 h1:d2+KYPr4ri10aOtnXih3hOUd6ap94c/Hv46JFzpWzy0=
+github.com/celestiaorg/celestia-app v1.0.0-rc18/go.mod h1:Q375ijriqMv8PjKmMujNs2WzMAsgxjpbeUoQt+AZre0=
 github.com/celestiaorg/celestia-core v1.29.0-tm-v0.34.29 h1:Fd7ymPUzExPGNl2gZw4i5S74arMw+iDHLE78M/cCxl4=
 github.com/celestiaorg/celestia-core v1.29.0-tm-v0.34.29/go.mod h1:xrICN0PBhp3AdTaZ8q4wS5Jvi32V02HNjaC2EsWiEKk=
 github.com/celestiaorg/cosmos-sdk v1.18.1-sdk-v0.46.14 h1:c4cMVLU2bGTesZW1ZVgeoCB++gOOJTF3OvBsqBvo6n0=
@@ -378,8 +378,8 @@ github.com/celestiaorg/merkletree v0.0.0-20210714075610-a84dc3ddbbe4 h1:CJdIpo8n
 github.com/celestiaorg/merkletree v0.0.0-20210714075610-a84dc3ddbbe4/go.mod h1:fzuHnhzj1pUygGz+1ZkB3uQbEUL4htqCGJ4Qs2LwMZA=
 github.com/celestiaorg/nmt v0.20.0 h1:9i7ultZ8Wv5ytt8ZRaxKQ5KOOMo4A2K2T/aPGjIlSas=
 github.com/celestiaorg/nmt v0.20.0/go.mod h1:Oz15Ub6YPez9uJV0heoU4WpFctxazuIhKyUtaYNio7E=
-github.com/celestiaorg/quantum-gravity-bridge/v2 v2.1.1 h1:xOBMoRYSh/hnsEW7OLI3bjSJXKlqILfZehjPEK/+3oI=
-github.com/celestiaorg/quantum-gravity-bridge/v2 v2.1.1/go.mod h1:NziNBP12grIi+DH3TqIKUUPM2T6Hl9BTyxiK3+p8yeA=
+github.com/celestiaorg/quantum-gravity-bridge/v2 v2.1.2 h1:Q8nr5SAtDW5gocrBwqwDJcSS/JedqU58WwQA2SP+nXw=
+github.com/celestiaorg/quantum-gravity-bridge/v2 v2.1.2/go.mod h1:s/LzLUw0WeYPJ6qdk4q46jKLOq7rc9Z5Mdrxtfpcigw=
 github.com/celestiaorg/rsmt2d v0.11.0 h1:lcto/637WyTEZR3dLRoNvyuExfnUbxvdvKi3qz/2V4k=
 github.com/celestiaorg/rsmt2d v0.11.0/go.mod h1:6Y580I3gVr0+OVFfW6m2JTwnCCmvW3WfbwSLfuT+HCA=
 github.com/cenkalti/backoff v2.2.1+incompatible h1:tNowT99t7UNflLxfYYSlKYsBpXdEet03Pg2g16Swow4=
