@@ -20,6 +20,8 @@ jobs:
           labels: "kind:fix, kind:misc, kind:break!, kind:refactor, kind:feat, kind:deps, kind:docs, kind:ci, kind:chore, kind:testing" # yamllint disable-line rule:line-length
 
       - name: verify referenced issue
-        uses: ramin/verify-referenced-issue-exists@v1.0.0
+        uses: ramin/verify-referenced-issue-exists@v1.2.0
+        with:
+          ignore_label: hotfix
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
