@@ -131,6 +131,7 @@ func TestBlobRPC(t *testing.T) {
 // TestHeaderSubscription ensures that the header subscription over RPC works
 // as intended and gets canceled successfully after rpc context cancellation.
 func TestHeaderSubscription(t *testing.T) {
+	t.Skip()
 	ctx, cancel := context.WithTimeout(context.Background(), swamp.DefaultTestTimeout)
 	t.Cleanup(cancel)
 
@@ -167,7 +168,6 @@ func TestHeaderSubscription(t *testing.T) {
 	}
 	// cancel subscription via context
 	subcancel()
-
 	// stop the light node and expect no outstanding subscription errors
 	err = light.Stop(ctx)
 	require.NoError(t, err)

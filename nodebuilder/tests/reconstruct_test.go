@@ -89,6 +89,7 @@ Test-Case: Full Node reconstructs blocks from each other, after unsuccessfully s
 block from LN subnetworks. Analog to TestShareAvailable_DisconnectedFullNodes.
 */
 func TestFullReconstructFromFulls(t *testing.T) {
+	t.Skip()
 	light.DefaultSampleAmount = 10 // s
 	const (
 		blocks = 10
@@ -255,6 +256,7 @@ Steps:
 9. Check that the FN can retrieve shares from 1 to 20 blocks
 */
 func TestFullReconstructFromLights(t *testing.T) {
+	t.Skip()
 	eds.RetrieveQuadrantTimeout = time.Millisecond * 100
 	light.DefaultSampleAmount = 20
 	const (

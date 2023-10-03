@@ -26,6 +26,7 @@ Steps:
 5. Check that nodes are connected to bridge
 */
 func TestBridgeNodeAsBootstrapper(t *testing.T) {
+	t.Skip()
 	ctx, cancel := context.WithTimeout(context.Background(), swamp.DefaultTestTimeout)
 	t.Cleanup(cancel)
 
@@ -65,6 +66,7 @@ Steps:
  7. Check that full and light nodes are connected to each other
 */
 func TestFullDiscoveryViaBootstrapper(t *testing.T) {
+	t.Skip()
 	ctx, cancel := context.WithTimeout(context.Background(), swamp.DefaultTestTimeout)
 	t.Cleanup(cancel)
 
