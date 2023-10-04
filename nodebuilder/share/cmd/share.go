@@ -16,7 +16,6 @@ import (
 func init() {
 	Cmd.AddCommand(
 		sharesAvailableCmd,
-		probabilityOfAvailabilityCmd,
 		getSharesByNamespaceCmd,
 		getShare,
 		getEDS,
@@ -70,22 +69,6 @@ var sharesAvailableCmd = &cobra.Command{
 			}
 		}
 		return cmdnode.PrintOutput(err, nil, formatter)
-	},
-}
-
-var probabilityOfAvailabilityCmd = &cobra.Command{
-	Use:   "availability",
-	Short: "Calculates the probability of the data square being available based on the number of samples collected.",
-	Args:  cobra.NoArgs,
-	RunE: func(cmd *cobra.Command, args []string) error {
-		client, err := cmdnode.ParseClientFromCtx(cmd.Context())
-		if err != nil {
-			return err
-		}
-		defer client.Close()
-
-		prob := client.Share.ProbabilityOfAvailability(cmd.Context())
-		return cmdnode.PrintOutput(prob, nil, nil)
 	},
 }
 
