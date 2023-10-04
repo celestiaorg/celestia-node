@@ -59,11 +59,6 @@ func (c *Client) Close() {
 	c.closer.closeAll()
 }
 
-// NewPublicClient creates a new Client with one connection per namespace.
-func NewPublicClient(ctx context.Context, addr string) (*Client, error) {
-	return newClient(ctx, addr, nil)
-}
-
 // NewClient creates a new Client with one connection per namespace with the
 // given token as the authorization token.
 func NewClient(ctx context.Context, addr string, token string) (*Client, error) {
