@@ -21,6 +21,8 @@ import (
 
 const (
 	dsPrefix = "/pruner/epoch/"
+	// GC is triggered when the number of active epochs exceeds the target epoch count by this amount
+	gcRatio = 1.1
 )
 
 var log = logging.Logger("pruner")
@@ -138,8 +140,12 @@ func (sp *StoragePruner) Register(ctx context.Context, h *header.ExtendedHeader)
 }
 
 func (sp *StoragePruner) gc(ctx context.Context) {
+	log.Infow("epoch count exceeded max; starting gc")
+	sp.globalLock()
+	defer sp.globalUnlock()
+
 	for epoch := range sp.activeEpochs {
-		err := sp.pruneEpoch(ctx, epoch)
+		err := sp.unsafePruneEpoch(ctx, epoch)
 		if err != nil {
 			log.Errorw("pruning epoch", "epoch", epoch, "err", err)
 		}
@@ -158,11 +164,10 @@ func (sp *StoragePruner) run(ctx context.Context) {
 				log.Errorw("pruning oldest epoch", "err", err)
 			}
 			// skip gc if there is nothing to collect after pruning oldest epoch
-			if len(sp.activeEpochs) < int(float64(sp.cfg.RecencyWindow)/float64(sp.cfg.EpochDuration)) {
-				continue
+			targetEpochCount := int(float64(sp.cfg.RecencyWindow) / float64(sp.cfg.EpochDuration))
+			if len(sp.activeEpochs) > int(float64(targetEpochCount)*gcRatio) {
+				sp.gc(ctx)
 			}
-
-			sp.gc(ctx)
 		case <-ctx.Done():
 			sp.done <- struct{}{}
 			return
@@ -171,15 +176,19 @@ func (sp *StoragePruner) run(ctx context.Context) {
 }
 
 func (sp *StoragePruner) pruneEpoch(ctx context.Context, epoch uint64) error {
+	lk := &sp.stripedLocks[epoch%256]
+	lk.Lock()
+	defer lk.Unlock()
+	return sp.unsafePruneEpoch(ctx, epoch)
+}
+
+func (sp *StoragePruner) unsafePruneEpoch(ctx context.Context, epoch uint64) error {
 	if sp.epochIsRecent(epoch) {
 		return nil
 	}
 
 	log.Infow("pruning epoch", "epoch", epoch)
 
-	lk := &sp.stripedLocks[epoch%256]
-	lk.Lock()
-	defer lk.Unlock()
 	// TODO: Make sure this doesn't end in a situation where oldestEpoch never
 	// gets updated because it cannot load here, probably by not returning an
 	// error
@@ -198,18 +207,19 @@ func (sp *StoragePruner) pruneEpoch(ctx context.Context, epoch uint64) error {
 		}
 		err = sp.store.Remove(ctx, dh)
 		if err != nil {
-			log.Errorf("failed to remove datahash %X from epoch %d: %w", dh, epoch, err)
+			return fmt.Errorf("failed to remove datahash %X from epoch %d: %w", dh, epoch, err)
 		}
 		sp.metrics.observePrune(ctx)
 		alreadyPruned[string(dh)] = struct{}{}
 	}
 
-	delete(sp.activeEpochs, epoch)
 	key := datastore.NewKey(fmt.Sprintf("%d", epoch))
 	err = sp.ds.Delete(ctx, key)
 	if err != nil {
-		log.Errorf("failed to delete epoch %d from datastore: %w", epoch, err)
+		return fmt.Errorf("failed to delete epoch %d from datastore: %w", epoch, err)
 	}
+
+	delete(sp.activeEpochs, epoch)
 	if epoch == sp.oldestEpoch.Load() {
 		sp.updateOldestEpoch()
 	}
@@ -263,6 +273,18 @@ func (sp *StoragePruner) saveDatahashesToEpoch(ctx context.Context, epoch uint64
 		return fmt.Errorf("failed to put datahashes for epoch %d: %w", epoch, err)
 	}
 	return nil
+}
+
+func (sp *StoragePruner) globalLock() {
+	for i := range sp.stripedLocks {
+		sp.stripedLocks[i].Lock()
+	}
+}
+
+func (sp *StoragePruner) globalUnlock() {
+	for i := range sp.stripedLocks {
+		sp.stripedLocks[i].Unlock()
+	}
 }
 
 func (sp *StoragePruner) calculateEpoch(timestamp time.Time) uint64 {
