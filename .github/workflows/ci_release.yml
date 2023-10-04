@@ -30,7 +30,7 @@ jobs:
     runs-on: ubuntu-latest
     env:
       # upgrade go version throughout pipeline here
-      GO_VERSION: 1.21.1
+      GO_VERSION: "1.21"
     outputs:
       go-version: ${{ steps.set-vars.outputs.go-version }}
     steps:
@@ -62,6 +62,7 @@ jobs:
           markdownlint --config .markdownlint.yaml '**/*.md'
 
   go-ci:
+    needs: setup
     uses: ./.github/workflows/go-ci.yml
     with:
       go-version: ${{ needs.setup.outputs.go-version }}
