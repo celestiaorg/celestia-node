@@ -5,7 +5,6 @@ import (
 	"testing"
 	"time"
 
-	"github.com/celestiaorg/go-fraud"
 	"github.com/ipfs/go-datastore"
 	ds_sync "github.com/ipfs/go-datastore/sync"
 	"github.com/libp2p/go-libp2p/core/host"
@@ -13,6 +12,8 @@ import (
 	"github.com/stretchr/testify/require"
 	"github.com/tendermint/tendermint/types"
 	"go.uber.org/fx"
+
+	"github.com/celestiaorg/go-fraud"
 
 	"github.com/celestiaorg/celestia-node/header"
 	headerfraud "github.com/celestiaorg/celestia-node/header/headertest/fraud"

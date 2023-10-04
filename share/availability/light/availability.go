@@ -3,7 +3,6 @@ package light
 import (
 	"context"
 	"errors"
-	"math"
 	"sync"
 
 	"github.com/ipfs/go-datastore"
@@ -138,15 +137,6 @@ func (la *ShareAvailability) SharesAvailable(ctx context.Context, dah *share.Roo
 		log.Errorw("storing root of successful SharesAvailable request to disk", "err", err)
 	}
 	return nil
-}
-
-// ProbabilityOfAvailability calculates the probability that the
-// data square is available based on the amount of samples collected
-// (params.SampleAmount).
-//
-// Formula: 1 - (0.75 ** amount of samples)
-func (la *ShareAvailability) ProbabilityOfAvailability(context.Context) float64 {
-	return 1 - math.Pow(0.75, float64(la.params.SampleAmount))
 }
 
 func rootKey(root *share.Root) datastore.Key {
