@@ -49,7 +49,7 @@ func ConstructModule(tp node.Type, network p2p.Network, cfg *Config, store Store
 		p2p.ConstructModule(tp, &cfg.P2P),
 		state.ConstructModule(tp, &cfg.State, &cfg.Core),
 		modhead.ConstructModule[*header.ExtendedHeader](tp, &cfg.Header),
-		share.ConstructModule(tp, &cfg.Share),
+		share.ConstructModule(tp, &cfg.Share, &cfg.Pruner),
 		rpc.ConstructModule(tp, &cfg.RPC),
 		gateway.ConstructModule(tp, &cfg.Gateway),
 		core.ConstructModule(tp, &cfg.Core, &cfg.Pruner),

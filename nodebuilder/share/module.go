@@ -14,6 +14,7 @@ import (
 	"github.com/celestiaorg/celestia-node/header"
 	"github.com/celestiaorg/celestia-node/nodebuilder/node"
 	modp2p "github.com/celestiaorg/celestia-node/nodebuilder/p2p"
+	"github.com/celestiaorg/celestia-node/nodebuilder/pruner"
 	"github.com/celestiaorg/celestia-node/share"
 	"github.com/celestiaorg/celestia-node/share/availability/full"
 	"github.com/celestiaorg/celestia-node/share/availability/light"
@@ -26,7 +27,7 @@ import (
 	"github.com/celestiaorg/celestia-node/share/p2p/shrexsub"
 )
 
-func ConstructModule(tp node.Type, cfg *Config, options ...fx.Option) fx.Option {
+func ConstructModule(tp node.Type, cfg *Config, pruningCfg *pruner.Config, options ...fx.Option) fx.Option {
 	// sanitize config values before constructing module
 	cfgErr := cfg.Validate(tp)
 
@@ -113,7 +114,11 @@ func ConstructModule(tp node.Type, cfg *Config, options ...fx.Option) fx.Option 
 		)),
 		fx.Provide(fx.Annotate(
 			func(path node.StorePath, ds datastore.Batching) (*eds.Store, error) {
-				return eds.NewStore(cfg.EDSStoreParams, string(path), ds)
+				edsCfg := cfg.EDSStoreParams
+				if pruningCfg.PruningEnabled {
+					edsCfg.WithInvertedIndexTTL(pruningCfg.RecencyWindow)
+				}
+				return eds.NewStore(edsCfg, string(path), ds)
 			},
 			fx.OnStart(func(ctx context.Context, store *eds.Store) error {
 				err := store.Start(ctx)

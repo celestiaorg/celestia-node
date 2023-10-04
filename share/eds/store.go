@@ -91,7 +91,7 @@ func NewStore(params *Parameters, basePath string, ds datastore.Batching) (*Stor
 		return nil, fmt.Errorf("failed to create index repository: %w", err)
 	}
 
-	invertedIdx, err := newSimpleInvertedIndex(basePath)
+	invertedIdx, err := newSimpleInvertedIndex(basePath, params.invertedIndexTTL)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create index: %w", err)
 	}

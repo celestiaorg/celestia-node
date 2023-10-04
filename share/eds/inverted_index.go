@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"time"
 
 	"github.com/filecoin-project/dagstore/index"
 	"github.com/filecoin-project/dagstore/shard"
@@ -27,7 +28,7 @@ type simpleInvertedIndex struct {
 // newSimpleInvertedIndex returns a new inverted index that only stores a single shard key per
 // multihash. This is because we use badger as a storage backend, so updates are expensive, and we
 // don't care which shard is used to serve a cid.
-func newSimpleInvertedIndex(storePath string) (*simpleInvertedIndex, error) {
+func newSimpleInvertedIndex(storePath string, ttl time.Duration) (*simpleInvertedIndex, error) {
 	opts := dsbadger.DefaultOptions // this should be copied
 	// turn off value log GC
 	opts.GcInterval = 0
@@ -37,6 +38,8 @@ func newSimpleInvertedIndex(storePath string) (*simpleInvertedIndex, error) {
 	opts.NumLevelZeroTables = 1
 	// MaxLevels = 8 will allow the db to grow to ~11.1 TiB
 	opts.MaxLevels = 8
+	// Setting the TTL enables pruning of entries
+	opts.TTL = ttl
 
 	ds, err := dsbadger.NewDatastore(storePath+invertedIndexPath, &opts)
 	if err != nil {

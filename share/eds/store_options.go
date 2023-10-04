@@ -16,6 +16,11 @@ type Parameters struct {
 
 	// BlockstoreCacheSize is the size of the cache for blockstore requested accessors.
 	BlockstoreCacheSize int
+
+	// invertedIndexTTL is the time every inverted index entry lives before it
+	// is pruned. It is private because it is intended to only be set by the
+	// StoragePruner config.
+	invertedIndexTTL time.Duration
 }
 
 // DefaultParameters returns the default configuration values for the EDS store parameters.
@@ -40,4 +45,9 @@ func (p *Parameters) Validate() error {
 		return fmt.Errorf("eds: blockstore cache size must be positive")
 	}
 	return nil
+}
+
+func (p *Parameters) WithInvertedIndexTTL(ttl time.Duration) *Parameters {
+	p.invertedIndexTTL = ttl
+	return p
 }
