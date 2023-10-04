@@ -19,7 +19,6 @@ import (
 )
 
 func TestBlobModule(t *testing.T) {
-	t.Skip()
 	ctx, cancel := context.WithTimeout(context.Background(), 25*time.Second)
 	t.Cleanup(cancel)
 	sw := swamp.NewSwamp(t, swamp.WithBlockTime(time.Second*1))

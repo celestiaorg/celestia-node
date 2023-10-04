@@ -21,7 +21,6 @@ import (
 )
 
 func TestShrexNDFromLights(t *testing.T) {
-	t.Skip()
 	const (
 		blocks = 10
 		btime  = time.Millisecond * 300
@@ -79,7 +78,6 @@ func TestShrexNDFromLights(t *testing.T) {
 }
 
 func TestShrexNDFromLightsWithBadFulls(t *testing.T) {
-	t.Skip()
 	const (
 		blocks        = 10
 		btime         = time.Millisecond * 300

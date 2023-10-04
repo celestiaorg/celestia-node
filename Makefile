@@ -111,7 +111,7 @@ test-unit-race:
 ## test-swamp: Running swamp tests located in nodebuilder/tests
 test-swamp:
 	@echo "--> Running swamp tests"
-	@go test ./nodebuilder/tests
+	@go test ./nodebuilder/tests --skip "TestHeaderSubscription|TestBlobModule|TestShrexNDFromLights|TestShrexNDFromLightsWithBadFulls|TestBridgeNodeAsBootstrapper|TestFullDiscoveryViaBootstrapper|TestFullReconstructFromFulls|TestFullReconstructFromLights|TestSyncAgainstBridge_NonEmptyChain|TestSyncAgainstBridge_EmptyChain|TestSyncStartStopLightWithBridge|TestSyncLightAgainstFull|TestSyncLightWithTrustedPeers"
 .PHONY: test-swamp
 
 ## test-swamp-race: Running swamp tests with data race detector located in node/tests
