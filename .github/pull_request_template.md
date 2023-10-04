@@ -1,6 +1,9 @@
 <!--
 Thank you for submitting a pull request!
 
+Please make sure you have reviewed our contributors guide before submitting your
+first PR.
+
 Please ensure you've addressed or included references to any related issues.
 
 Tips:
