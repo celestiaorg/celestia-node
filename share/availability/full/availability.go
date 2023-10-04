@@ -98,7 +98,3 @@ func (fa *ShareAvailability) SharesAvailable(ctx context.Context, root *share.Ro
 	}
 	return nil
 }
-
-func (fa *ShareAvailability) ProbabilityOfAvailability(context.Context) float64 {
-	return 1
-}
