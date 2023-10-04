@@ -26,7 +26,6 @@ jobs:
   # variable one time and setting outputs to access passing it
   # to other jobs
   setup:
-    if: ${{ github.actor != 'dependabot[bot]' }}
     runs-on: ubuntu-latest
     env:
       # upgrade go version throughout pipeline here
