@@ -13,6 +13,7 @@ import (
 	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/codes"
+	"go.opentelemetry.io/otel/metric"
 	"go.opentelemetry.io/otel/trace"
 
 	"github.com/celestiaorg/celestia-app/pkg/da"
@@ -26,9 +27,46 @@ import (
 )
 
 var (
-	log    = logging.Logger("share/eds")
-	tracer = otel.Tracer("share/eds")
+	log       = logging.Logger("share/eds")
+	tracer    = otel.Tracer("share/eds")
+	ipldMeter = otel.Meter("share/eds/retriever")
 )
+
+type retrieverMetrics struct {
+	sharesCount       metric.Int64Histogram
+	getSharesDuration metric.Float64Histogram
+}
+
+func (m *retrieverMetrics) recordGetSharesDuration(ctx context.Context, duration time.Duration, count int) {
+	if m == nil {
+		return
+	}
+	if ctx.Err() != nil {
+		ctx = context.Background()
+	}
+
+	m.getSharesDuration.Record(
+		ctx,
+		duration.Seconds(),
+		metric.WithAttributes(
+			attribute.Int64("itemCountAttribute", int64(count)),
+		),
+	)
+}
+
+func (m *retrieverMetrics) recordSharesCount(ctx context.Context, count int64) {
+	if m == nil {
+		return
+	}
+	if ctx.Err() != nil {
+		ctx = context.Background()
+	}
+
+	m.sharesCount.Record(
+		ctx,
+		count,
+	)
+}
 
 // Retriever retrieves rsmt2d.ExtendedDataSquares from the IPLD network.
 // Instead of requesting data 'share by share' it requests data by quadrants
@@ -49,6 +87,29 @@ type Retriever struct {
 // NewRetriever creates a new instance of the Retriever over IPLD BlockService and rmst2d.Codec
 func NewRetriever(bServ blockservice.BlockService) *Retriever {
 	return &Retriever{bServ: bServ}
+}
+
+func (r *Retriever) newMetrics() (*retrieverMetrics, error) {
+	sharesCount, err := ipldMeter.Int64Histogram(
+		"retriever_get_shares_duration",
+		metric.WithDescription("size of shares"),
+	)
+	if err != nil {
+		return nil, err
+	}
+
+	getSharesDuration, err := ipldMeter.Float64Histogram(
+		"retriever_get_shares_duration",
+		metric.WithDescription("timing of calls to get shares, with share count metadata"),
+	)
+	if err != nil {
+		return nil, err
+	}
+
+	return &retrieverMetrics{
+		sharesCount:       sharesCount,
+		getSharesDuration: getSharesDuration,
+	}, nil
 }
 
 // Retrieve retrieves all the data committed to DataAvailabilityHeader.
@@ -115,6 +176,7 @@ type retrievalSession struct {
 	squareDn         chan struct{}
 	squareLk         sync.RWMutex
 	square           *rsmt2d.ExtendedDataSquare
+	metrics          *retrieverMetrics
 
 	span trace.Span
 }
@@ -140,6 +202,11 @@ func (r *Retriever) newSession(ctx context.Context, dah *da.DataAvailabilityHead
 		return nil, err
 	}
 
+	m, err := r.newMetrics()
+	if err != nil {
+		return nil, err
+	}
+
 	ses := &retrievalSession{
 		dah:             dah,
 		bget:            blockservice.NewSession(ctx, r.bServ),
@@ -149,6 +216,7 @@ func (r *Retriever) newSession(ctx context.Context, dah *da.DataAvailabilityHead
 		squareDn:        make(chan struct{}),
 		square:          square,
 		span:            trace.SpanFromContext(ctx),
+		metrics:         m,
 	}
 	for i := range ses.squareCellsLks {
 		ses.squareCellsLks[i] = make([]sync.Mutex, size)
@@ -251,6 +319,8 @@ func (rs *retrievalSession) request(ctx context.Context) {
 // and fills shares into rs.square slice.
 func (rs *retrievalSession) doRequest(ctx context.Context, q *quadrant) {
 	size := len(q.roots)
+	rs.metrics.recordSharesCount(ctx, int64(size))
+
 	for i, root := range q.roots {
 		go func(i int, root cid.Cid) {
 			// get the root node
@@ -261,10 +331,18 @@ func (rs *retrievalSession) doRequest(ctx context.Context, q *quadrant) {
 				))
 				return
 			}
+
+			// track duration of share retrieval
+			startTime := time.Now()
+			defer func(start time.Time) {
+				rs.metrics.recordGetSharesDuration(ctx, time.Since(start), size)
+			}(startTime)
+
 			// and go get shares of left or the right side of the whole col/row axis
 			// the left or the right side of the tree represent some portion of the quadrant
 			// which we put into the rs.square share-by-share by calculating shares' indexes using q.index
 			ipld.GetShares(ctx, rs.bget, nd.Links()[q.x].Cid, size, func(j int, share share.Share) {
+
 				// NOTE: Each share can appear twice here, for a Row and Col, respectively.
 				// These shares are always equal, and we allow only the first one to be written
 				// in the square.
