@@ -119,18 +119,33 @@ func TestStoreGetter(t *testing.T) {
 		// 'corrupt' existing CAR by overwriting with a random EDS
 		f, err := os.OpenFile(tmpDir+"/blocks/"+eh.DAH.String(), os.O_WRONLY, 0644)
 		require.NoError(t, err)
-		edsToOverwriteWith, dah := randomEDS(t)
+		edsToOverwriteWith, eh := randomEDS(t)
 		err = eds.WriteEDS(ctx, edsToOverwriteWith, f)
 		require.NoError(t, err)
 
-		shares, err = sg.GetSharesByNamespace(ctx, dah, namespace)
+		shares, err = sg.GetSharesByNamespace(ctx, eh, namespace)
 		require.ErrorIs(t, err, share.ErrNotFound)
 		require.Nil(t, shares)
 
 		// corruption detected, shard is removed
-		has, err := edsStore.Has(ctx, eh.DAH.Hash())
-		require.False(t, has)
-		require.NoError(t, err)
+		// try every 200ms until it passes or the context ends
+		ticker := time.NewTicker(200 * time.Millisecond)
+		defer ticker.Stop()
+		for {
+			select {
+			case <-ctx.Done():
+				t.Fatal("context ended before successful retrieval")
+			case <-ticker.C:
+				has, err := edsStore.Has(ctx, eh.DAH.Hash())
+				if err != nil {
+					t.Fatal(err)
+				}
+				if !has {
+					require.NoError(t, err)
+					return
+				}
+			}
+		}
 	})
 }
 
@@ -307,7 +322,10 @@ func randomEDS(t *testing.T) (*rsmt2d.ExtendedDataSquare, *header.ExtendedHeader
 
 // randomEDSWithDoubledNamespace generates a random EDS and ensures that there are two shares in the
 // middle that share a namespace.
-func randomEDSWithDoubledNamespace(t *testing.T, size int) (*rsmt2d.ExtendedDataSquare, []byte, *header.ExtendedHeader) {
+func randomEDSWithDoubledNamespace(
+	t *testing.T,
+	size int,
+) (*rsmt2d.ExtendedDataSquare, []byte, *header.ExtendedHeader) {
 	n := size * size
 	randShares := sharetest.RandShares(t, n)
 	idx1 := (n - 1) / 2

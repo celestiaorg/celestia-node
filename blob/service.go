@@ -293,7 +293,11 @@ func (s *Service) getByCommitment(
 
 // getBlobs retrieves the DAH and fetches all shares from the requested Namespace and converts
 // them to Blobs.
-func (s *Service) getBlobs(ctx context.Context, namespace share.Namespace, header *header.ExtendedHeader) ([]*Blob, error) {
+func (s *Service) getBlobs(
+	ctx context.Context,
+	namespace share.Namespace,
+	header *header.ExtendedHeader,
+) ([]*Blob, error) {
 	namespacedShares, err := s.shareGetter.GetSharesByNamespace(ctx, header, namespace)
 	if err != nil {
 		return nil, err

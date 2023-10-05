@@ -73,7 +73,10 @@ func (ig *IPLDGetter) GetShare(ctx context.Context, header *header.ExtendedHeade
 	return s, nil
 }
 
-func (ig *IPLDGetter) GetEDS(ctx context.Context, header *header.ExtendedHeader) (eds *rsmt2d.ExtendedDataSquare, err error) {
+func (ig *IPLDGetter) GetEDS(
+	ctx context.Context,
+	header *header.ExtendedHeader,
+) (eds *rsmt2d.ExtendedDataSquare, err error) {
 	ctx, span := tracer.Start(ctx, "ipld/get-eds")
 	defer func() {
 		utils.SetStatusAndEnd(span, err)

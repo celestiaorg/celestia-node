@@ -35,7 +35,11 @@ type SingleEDSGetter struct {
 }
 
 // GetShare gets a share from a kept EDS if exist and if the correct root is given.
-func (seg *SingleEDSGetter) GetShare(_ context.Context, header *header.ExtendedHeader, row, col int) (share.Share, error) {
+func (seg *SingleEDSGetter) GetShare(
+	_ context.Context,
+	header *header.ExtendedHeader,
+	row, col int,
+) (share.Share, error) {
 	err := seg.checkRoot(header.DAH)
 	if err != nil {
 		return nil, err
@@ -44,7 +48,10 @@ func (seg *SingleEDSGetter) GetShare(_ context.Context, header *header.ExtendedH
 }
 
 // GetEDS returns a kept EDS if the correct root is given.
-func (seg *SingleEDSGetter) GetEDS(_ context.Context, header *header.ExtendedHeader) (*rsmt2d.ExtendedDataSquare, error) {
+func (seg *SingleEDSGetter) GetEDS(
+	_ context.Context,
+	header *header.ExtendedHeader,
+) (*rsmt2d.ExtendedDataSquare, error) {
 	err := seg.checkRoot(header.DAH)
 	if err != nil {
 		return nil, err
