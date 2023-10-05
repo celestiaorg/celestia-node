@@ -8,7 +8,9 @@ import (
 	"sync/atomic"
 
 	"github.com/ipfs/boxo/blockservice"
+	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/attribute"
+	"go.opentelemetry.io/otel/metric"
 	"go.opentelemetry.io/otel/trace"
 
 	"github.com/celestiaorg/rsmt2d"
@@ -22,12 +24,45 @@ import (
 
 var _ share.Getter = (*IPLDGetter)(nil)
 
+var ipldMeter = otel.Meter("share/getters/ipld")
+
+type ipldMetrics struct {
+	edsAttempts   metric.Int64Histogram
+	shareAttempts metric.Int64Histogram
+}
+
+func (m *ipldMetrics) recordEDSAttempt(ctx context.Context, attemptCount int, success bool) {
+	if m == nil {
+		return
+	}
+	if ctx.Err() != nil {
+		ctx = context.Background()
+	}
+	m.edsAttempts.Record(ctx, int64(attemptCount),
+		metric.WithAttributes(
+			attribute.Bool("success", success)))
+}
+
+func (m *ipldMetrics) recordShareAttempt(ctx context.Context, attemptCount int, success bool) {
+	if m == nil {
+		return
+	}
+	if ctx.Err() != nil {
+		ctx = context.Background()
+	}
+	m.shareAttempts.Record(ctx, int64(attemptCount),
+		metric.WithAttributes(
+			attribute.Bool("success", success)))
+}
+
 // IPLDGetter is a share.Getter that retrieves shares from the bitswap network. Result caching is
 // handled by the provided blockservice. A blockservice session will be created for retrieval if the
 // passed context is wrapped with WithSession.
 type IPLDGetter struct {
 	rtrv  *eds.Retriever
 	bServ blockservice.BlockService
+
+	metrics *ipldMetrics
 }
 
 // NewIPLDGetter creates a new share.Getter that retrieves shares from the bitswap network.
@@ -36,6 +71,30 @@ func NewIPLDGetter(bServ blockservice.BlockService) *IPLDGetter {
 		rtrv:  eds.NewRetriever(bServ),
 		bServ: bServ,
 	}
+}
+
+func (ig *IPLDGetter) WithMetrics() error {
+	edsAttemptHistogram, err := ipldMeter.Int64Histogram(
+		"getters_ipld_eds_attempts_per_request",
+		metric.WithDescription("Number of attempts per ipld/eds request"),
+	)
+	if err != nil {
+		return err
+	}
+
+	shareAttemptHistogram, err := ipldMeter.Int64Histogram(
+		"getters_ipld_share_attempts_per_request",
+		metric.WithDescription("Number of attempts per ipld/share request"),
+	)
+	if err != nil {
+		return err
+	}
+
+	ig.metrics = &ipldMetrics{
+		edsAttempts:   edsAttemptHistogram,
+		shareAttempts: shareAttemptHistogram,
+	}
+	return nil
 }
 
 // GetShare gets a single share at the given EDS coordinates from the bitswap network.
@@ -64,6 +123,8 @@ func (ig *IPLDGetter) GetShare(ctx context.Context, dah *share.Root, row, col in
 		// convert error to satisfy getter interface contract
 		err = share.ErrNotFound
 	}
+
+	ig.metrics.recordShareAttempt(ctx, 1, err != nil)
 	if err != nil {
 		return nil, fmt.Errorf("getter/ipld: failed to retrieve share: %w", err)
 	}
@@ -85,11 +146,15 @@ func (ig *IPLDGetter) GetEDS(ctx context.Context, root *share.Root) (eds *rsmt2d
 	}
 	var errByz *byzantine.ErrByzantine
 	if errors.As(err, &errByz) {
+		ig.metrics.recordEDSAttempt(ctx, 1, false)
 		return nil, err
 	}
 	if err != nil {
+		ig.metrics.recordEDSAttempt(ctx, 1, false)
 		return nil, fmt.Errorf("getter/ipld: failed to retrieve eds: %w", err)
 	}
+
+	ig.metrics.recordEDSAttempt(ctx, 1, true)
 	return eds, nil
 }
 
