@@ -4,7 +4,6 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"os"
 
 	"github.com/spf13/cobra"
 	flag "github.com/spf13/pflag"
@@ -17,7 +16,6 @@ import (
 const (
 	// defaultRPCAddress is a default address to dial to
 	defaultRPCAddress = "http://localhost:26658"
-	authEnvKey        = "CELESTIA_NODE_AUTH_TOKEN" //nolint:gosec
 )
 
 var (
@@ -39,7 +37,7 @@ func RPCFlags() *flag.FlagSet {
 		&authTokenFlag,
 		"token",
 		"",
-		"Authorization token (if not provided, the "+authEnvKey+" environment variable will be used)",
+		"Authorization token",
 	)
 
 	storeFlag := NodeFlags().Lookup(nodeStoreFlag)
@@ -49,14 +47,11 @@ func RPCFlags() *flag.FlagSet {
 
 func InitClient(cmd *cobra.Command, _ []string) error {
 	if authTokenFlag == "" {
-		authTokenFlag = os.Getenv(authEnvKey)
-	}
-
-	if authTokenFlag == "" {
 		storePath := ""
-		if cmd.Flag(nodeStoreFlag).Changed {
-			storePath = cmd.Flag(nodeStoreFlag).Value.String()
+		if !cmd.Flag(nodeStoreFlag).Changed {
+			return fmt.Errorf("cant get the access to the auth token: token/node-store flag was not specified")
 		}
+		storePath = cmd.Flag(nodeStoreFlag).Value.String()
 		token, err := getToken(storePath)
 		if err != nil {
 			return fmt.Errorf("cant get the access to the auth token: %v", err)
