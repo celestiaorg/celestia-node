@@ -181,6 +181,7 @@ func (ig *IPLDGetter) GetSharesByNamespace(
 		// convert error to satisfy getter interface contract
 		err = share.ErrNotFound
 	}
+	ig.metrics.recordShareAttempt(ctx, 1, err != nil)
 	if err != nil {
 		return nil, fmt.Errorf("getter/ipld: failed to retrieve shares by namespace: %w", err)
 	}
