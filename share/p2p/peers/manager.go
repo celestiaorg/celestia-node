@@ -7,7 +7,6 @@ import (
 	"sync"
 	"sync/atomic"
 	"time"
-	"unsafe"
 
 	logging "github.com/ipfs/go-log/v2"
 	pubsub "github.com/libp2p/go-libp2p-pubsub"
@@ -518,9 +517,7 @@ func (m *Manager) markPoolAsSynced(datahash string) {
 	p := m.getOrCreatePool(datahash)
 	if p.isSynced.CompareAndSwap(false, true) {
 		p.isSynced.Store(true)
-		old := (*unsafe.Pointer)(unsafe.Pointer(&p.pool))
-		// release pointer to old pool to free up memory
-		atomic.StorePointer(old, unsafe.Pointer(newPool(time.Second)))
+		p.reset()
 	}
 }
 
