@@ -120,7 +120,7 @@ func TestBlobModule(t *testing.T) {
 				b, err := fullClient.Blob.Get(ctx, height, newBlob.Namespace(), newBlob.Commitment)
 				assert.Nil(t, b)
 				require.Error(t, err)
-				require.ErrorIs(t, err, blob.ErrBlobNotFound)
+				require.ErrorContains(t, err, blob.ErrBlobNotFound.Error())
 			},
 		},
 	}
