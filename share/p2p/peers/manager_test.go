@@ -432,7 +432,7 @@ func TestIntegration(t *testing.T) {
 			params,
 			fnHost,
 			routingdisc.NewRoutingDiscovery(fnRouter),
-			discovery.WithOnPeersUpdate(fnPeerManager.UpdatedFullNodes),
+			discovery.WithOnPeersUpdate(fnPeerManager.UpdateFullNodePool),
 			discovery.WithOnPeersUpdate(checkDiscoveredPeer),
 		)
 		require.NoError(t, fnDisc.Start(ctx))

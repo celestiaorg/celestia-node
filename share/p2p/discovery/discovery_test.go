@@ -40,7 +40,7 @@ func TestDiscovery(t *testing.T) {
 	params := DefaultParameters()
 	params.PeersLimit = nodes
 	params.AdvertiseInterval = -1
-	params.Tag = "full"
+	params.Tag = fullNodesTag
 
 	peerA := tn.discovery(params, host, routingDisc,
 		WithOnPeersUpdate(submit),
@@ -49,7 +49,7 @@ func TestDiscovery(t *testing.T) {
 	params = &Parameters{
 		PeersLimit:        0,
 		AdvertiseInterval: time.Millisecond * 100,
-		Tag:               "full",
+		Tag:               fullNodesTag,
 	}
 	discs := make([]*Discovery, nodes)
 	for i := range discs {

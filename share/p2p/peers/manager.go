@@ -227,8 +227,8 @@ func (m *Manager) Peer(
 	}
 }
 
-// UpdatedFullNodes is called by discovery when new full node is discovered or removed
-func (m *Manager) UpdatedFullNodes(peerID peer.ID, isAdded bool) {
+// UpdateFullNodePool is called by discovery when new full node is discovered or removed
+func (m *Manager) UpdateFullNodePool(peerID peer.ID, isAdded bool) {
 	if isAdded {
 		if m.isBlacklistedPeer(peerID) {
 			log.Debugw("got blacklisted peer from discovery", "peer", peerID.String())
