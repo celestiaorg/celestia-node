@@ -32,36 +32,73 @@ var (
 	ipldMeter = otel.Meter("share/eds/retriever")
 )
 
+// retrieverMetrics collects metrics about behavior
+// of the Retriever, attempt to collect durations
+// metrics about the doRequest func.
+// We aim to collect duration of ipld.GetShares calls
+// and the size of the share counts
 type retrieverMetrics struct {
 	sharesCount       metric.Int64Histogram
 	getSharesDuration metric.Float64Histogram
 }
 
+// newMetrics returns a new retrieverMetrics instance
+func (r *Retriever) newMetrics() (*retrieverMetrics, error) {
+	sharesCount, err := ipldMeter.Int64Histogram(
+		"retriever_get_shares_duration",
+		metric.WithDescription("size of shares"),
+	)
+	if err != nil {
+		return nil, err
+	}
+
+	getSharesDuration, err := ipldMeter.Float64Histogram(
+		"retriever_get_shares_duration",
+		metric.WithDescription("timing of calls to get shares, with share count metadata"),
+	)
+	if err != nil {
+		return nil, err
+	}
+
+	return &retrieverMetrics{
+		sharesCount:       sharesCount,
+		getSharesDuration: getSharesDuration,
+	}, nil
+}
+
+// recordGetSharesDuration records will safely
+// attempt to collect metrics about the duration of
+// a get shares call
 func (m *retrieverMetrics) recordGetSharesDuration(ctx context.Context, duration time.Duration, count int) {
 	if m == nil {
+		log.Debugw("retriever.retrieverMetrics is nil, not recording getSharesDuration")
 		return
 	}
 	if ctx.Err() != nil {
 		ctx = context.Background()
 	}
 
+	log.Debugw("retriever.retrieverMetrics", "recording getSharesDuration", "duration", duration, "count", count)
 	m.getSharesDuration.Record(
 		ctx,
 		duration.Seconds(),
 		metric.WithAttributes(
-			attribute.Int64("itemCountAttribute", int64(count)),
+			attribute.Int64("shares_count", int64(count)),
 		),
 	)
 }
 
+// recordSharesCount will
 func (m *retrieverMetrics) recordSharesCount(ctx context.Context, count int64) {
 	if m == nil {
+		log.Debugw("retriever.retrieverMetrics is nil, not recording sharesCount", "count", count)
 		return
 	}
 	if ctx.Err() != nil {
 		ctx = context.Background()
 	}
 
+	log.Debugw("retriever.retrieverMetrics", "recording sharesCount")
 	m.sharesCount.Record(
 		ctx,
 		count,
@@ -87,29 +124,6 @@ type Retriever struct {
 // NewRetriever creates a new instance of the Retriever over IPLD BlockService and rmst2d.Codec
 func NewRetriever(bServ blockservice.BlockService) *Retriever {
 	return &Retriever{bServ: bServ}
-}
-
-func (r *Retriever) newMetrics() (*retrieverMetrics, error) {
-	sharesCount, err := ipldMeter.Int64Histogram(
-		"retriever_get_shares_duration",
-		metric.WithDescription("size of shares"),
-	)
-	if err != nil {
-		return nil, err
-	}
-
-	getSharesDuration, err := ipldMeter.Float64Histogram(
-		"retriever_get_shares_duration",
-		metric.WithDescription("timing of calls to get shares, with share count metadata"),
-	)
-	if err != nil {
-		return nil, err
-	}
-
-	return &retrieverMetrics{
-		sharesCount:       sharesCount,
-		getSharesDuration: getSharesDuration,
-	}, nil
 }
 
 // Retrieve retrieves all the data committed to DataAvailabilityHeader.
@@ -334,6 +348,7 @@ func (rs *retrievalSession) doRequest(ctx context.Context, q *quadrant) {
 
 			// track duration of share retrieval
 			startTime := time.Now()
+
 			defer func(start time.Time) {
 				rs.metrics.recordGetSharesDuration(ctx, time.Since(start), size)
 			}(startTime)
