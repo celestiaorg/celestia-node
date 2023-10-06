@@ -6,10 +6,9 @@ import (
 )
 
 var (
-	enabledFlag         = "gateway"
-	addrFlag            = "gateway.addr"
-	portFlag            = "gateway.port"
-	deprecatedEndpoints = "gateway.deprecated-endpoints"
+	enabledFlag = "gateway"
+	addrFlag    = "gateway.addr"
+	portFlag    = "gateway.port"
 )
 
 // Flags gives a set of hardcoded node/gateway package flags.
@@ -20,11 +19,6 @@ func Flags() *flag.FlagSet {
 		enabledFlag,
 		false,
 		"Enables the REST gateway",
-	)
-	flags.Bool(
-		deprecatedEndpoints,
-		false,
-		"Enables deprecated endpoints on the gateway. These will be removed in the next release.",
 	)
 	flags.String(
 		addrFlag,
@@ -45,10 +39,6 @@ func ParseFlags(cmd *cobra.Command, cfg *Config) {
 	enabled, err := cmd.Flags().GetBool(enabledFlag)
 	if cmd.Flags().Changed(enabledFlag) && err == nil {
 		cfg.Enabled = enabled
-	}
-	deprecatedEndpointsEnabled, err := cmd.Flags().GetBool(deprecatedEndpoints)
-	if cmd.Flags().Changed(deprecatedEndpoints) && err == nil {
-		cfg.deprecatedEndpoints = deprecatedEndpointsEnabled
 	}
 	addr, port := cmd.Flag(addrFlag), cmd.Flag(portFlag)
 	if !cfg.Enabled && (addr.Changed || port.Changed) {
