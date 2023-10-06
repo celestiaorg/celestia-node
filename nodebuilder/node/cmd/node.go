@@ -26,7 +26,7 @@ var nodeInfoCmd = &cobra.Command{
 	Args:  cobra.NoArgs,
 	Short: "Returns administrative information about the node.",
 	RunE: func(c *cobra.Command, args []string) error {
-		client, err := cmdnode.ParseClientFromCtx(c.Context())
+		client, err := cmdnode.NewClientFromContext(c.Context())
 		if err != nil {
 			return err
 		}
@@ -45,7 +45,7 @@ var logCmd = &cobra.Command{
 		"`DEBUG, INFO, WARN, ERROR, DPANIC, PANIC, FATAL and their lower-case forms`.\n" +
 		"To set all modules to a particular level `*:<log.level>` should be passed",
 	RunE: func(c *cobra.Command, args []string) error {
-		client, err := cmdnode.ParseClientFromCtx(c.Context())
+		client, err := cmdnode.NewClientFromContext(c.Context())
 		if err != nil {
 			return err
 		}
@@ -72,7 +72,7 @@ var verifyCmd = &cobra.Command{
 	Short: "Returns the permissions assigned to the given token.",
 
 	RunE: func(c *cobra.Command, args []string) error {
-		client, err := cmdnode.ParseClientFromCtx(c.Context())
+		client, err := cmdnode.NewClientFromContext(c.Context())
 		if err != nil {
 			return err
 		}
@@ -88,7 +88,7 @@ var authCmd = &cobra.Command{
 	Args:  cobra.MinimumNArgs(1),
 	Short: "Signs and returns a new token with the given permissions.",
 	RunE: func(c *cobra.Command, args []string) error {
-		client, err := cmdnode.ParseClientFromCtx(c.Context())
+		client, err := cmdnode.NewClientFromContext(c.Context())
 		if err != nil {
 			return err
 		}

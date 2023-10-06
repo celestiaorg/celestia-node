@@ -49,7 +49,7 @@ var infoCmd = &cobra.Command{
 	Short: "Gets the node's peer info (peer id and multiaddresses)",
 	Args:  cobra.NoArgs,
 	RunE: func(cmd *cobra.Command, args []string) error {
-		client, err := cmdnode.ParseClientFromCtx(cmd.Context())
+		client, err := cmdnode.NewClientFromContext(cmd.Context())
 		if err != nil {
 			return err
 		}
@@ -78,7 +78,7 @@ var peersCmd = &cobra.Command{
 	Short: "Lists the peers we are connected to",
 	Args:  cobra.NoArgs,
 	RunE: func(cmd *cobra.Command, args []string) error {
-		client, err := cmdnode.ParseClientFromCtx(cmd.Context())
+		client, err := cmdnode.NewClientFromContext(cmd.Context())
 		if err != nil {
 			return err
 		}
@@ -107,7 +107,7 @@ var peerInfoCmd = &cobra.Command{
 	Short: "Gets PeerInfo for a given peer",
 	Args:  cobra.ExactArgs(1),
 	RunE: func(cmd *cobra.Command, args []string) error {
-		client, err := cmdnode.ParseClientFromCtx(cmd.Context())
+		client, err := cmdnode.NewClientFromContext(cmd.Context())
 		if err != nil {
 			return err
 		}
@@ -139,7 +139,7 @@ var connectCmd = &cobra.Command{
 	Short: "Establishes a connection with the given peer",
 	Args:  cobra.ExactArgs(2),
 	RunE: func(cmd *cobra.Command, args []string) error {
-		client, err := cmdnode.ParseClientFromCtx(cmd.Context())
+		client, err := cmdnode.NewClientFromContext(cmd.Context())
 		if err != nil {
 			return err
 		}
@@ -173,7 +173,7 @@ var closePeerCmd = &cobra.Command{
 	Short: "Closes the connection with the given peer",
 	Args:  cobra.ExactArgs(1),
 	RunE: func(cmd *cobra.Command, args []string) error {
-		client, err := cmdnode.ParseClientFromCtx(cmd.Context())
+		client, err := cmdnode.NewClientFromContext(cmd.Context())
 		if err != nil {
 			return err
 		}
@@ -197,7 +197,7 @@ var connectednessCmd = &cobra.Command{
 	Short: "Checks the connection state between current and given peers",
 	Args:  cobra.ExactArgs(1),
 	RunE: func(cmd *cobra.Command, args []string) error {
-		client, err := cmdnode.ParseClientFromCtx(cmd.Context())
+		client, err := cmdnode.NewClientFromContext(cmd.Context())
 		if err != nil {
 			return err
 		}
@@ -227,7 +227,7 @@ var natStatusCmd = &cobra.Command{
 	Short: "Gets the currrent NAT status",
 	Args:  cobra.NoArgs,
 	RunE: func(cmd *cobra.Command, args []string) error {
-		client, err := cmdnode.ParseClientFromCtx(cmd.Context())
+		client, err := cmdnode.NewClientFromContext(cmd.Context())
 		if err != nil {
 			return err
 		}
@@ -252,7 +252,7 @@ var blockPeerCmd = &cobra.Command{
 	Short: "Blocks the given peer",
 	Args:  cobra.ExactArgs(1),
 	RunE: func(cmd *cobra.Command, args []string) error {
-		client, err := cmdnode.ParseClientFromCtx(cmd.Context())
+		client, err := cmdnode.NewClientFromContext(cmd.Context())
 		if err != nil {
 			return err
 		}
@@ -290,7 +290,7 @@ var unblockPeerCmd = &cobra.Command{
 	Short: "Unblocks the given peer",
 	Args:  cobra.ExactArgs(1),
 	RunE: func(cmd *cobra.Command, args []string) error {
-		client, err := cmdnode.ParseClientFromCtx(cmd.Context())
+		client, err := cmdnode.NewClientFromContext(cmd.Context())
 		if err != nil {
 			return err
 		}
@@ -329,7 +329,7 @@ var blockedPeersCmd = &cobra.Command{
 	Short: "Lists the node's blocked peers",
 	Args:  cobra.NoArgs,
 	RunE: func(cmd *cobra.Command, args []string) error {
-		client, err := cmdnode.ParseClientFromCtx(cmd.Context())
+		client, err := cmdnode.NewClientFromContext(cmd.Context())
 		if err != nil {
 			return err
 		}
@@ -359,7 +359,7 @@ var protectCmd = &cobra.Command{
 	Short: "Protects the given peer from being pruned by the given tag",
 	Args:  cobra.ExactArgs(2),
 	RunE: func(cmd *cobra.Command, args []string) error {
-		client, err := cmdnode.ParseClientFromCtx(cmd.Context())
+		client, err := cmdnode.NewClientFromContext(cmd.Context())
 		if err != nil {
 			return err
 		}
@@ -399,7 +399,7 @@ var unprotectCmd = &cobra.Command{
 		"The return value indicates whether the peer continues to be protected after this call, by way of a different tag",
 	Args: cobra.ExactArgs(2),
 	RunE: func(cmd *cobra.Command, args []string) error {
-		client, err := cmdnode.ParseClientFromCtx(cmd.Context())
+		client, err := cmdnode.NewClientFromContext(cmd.Context())
 		if err != nil {
 			return err
 		}
@@ -437,7 +437,7 @@ var protectedCmd = &cobra.Command{
 	Short: "Ensures that a given peer is protected under a specific tag",
 	Args:  cobra.ExactArgs(2),
 	RunE: func(cmd *cobra.Command, args []string) error {
-		client, err := cmdnode.ParseClientFromCtx(cmd.Context())
+		client, err := cmdnode.NewClientFromContext(cmd.Context())
 		if err != nil {
 			return err
 		}
@@ -467,7 +467,7 @@ var bandwidthStatsCmd = &cobra.Command{
 		"received by the local peer, regardless of protocol or remote peer IDs",
 	Args: cobra.NoArgs,
 	RunE: func(cmd *cobra.Command, args []string) error {
-		client, err := cmdnode.ParseClientFromCtx(cmd.Context())
+		client, err := cmdnode.NewClientFromContext(cmd.Context())
 		if err != nil {
 			return err
 		}
@@ -493,7 +493,7 @@ var peerBandwidthCmd = &cobra.Command{
 	Short: "Gets stats struct with bandwidth metrics associated with the given peer.ID",
 	Args:  cobra.ExactArgs(1),
 	RunE: func(cmd *cobra.Command, args []string) error {
-		client, err := cmdnode.ParseClientFromCtx(cmd.Context())
+		client, err := cmdnode.NewClientFromContext(cmd.Context())
 		if err != nil {
 			return err
 		}
@@ -524,7 +524,7 @@ var bandwidthForProtocolCmd = &cobra.Command{
 	Short: "Gets stats struct with bandwidth metrics associated with the given protocol.ID",
 	Args:  cobra.ExactArgs(1),
 	RunE: func(cmd *cobra.Command, args []string) error {
-		client, err := cmdnode.ParseClientFromCtx(cmd.Context())
+		client, err := cmdnode.NewClientFromContext(cmd.Context())
 		if err != nil {
 			return err
 		}
@@ -550,7 +550,7 @@ var pubsubPeersCmd = &cobra.Command{
 	Short: "Lists the peers we are connected to in the given topic",
 	Args:  cobra.ExactArgs(1),
 	RunE: func(cmd *cobra.Command, args []string) error {
-		client, err := cmdnode.ParseClientFromCtx(cmd.Context())
+		client, err := cmdnode.NewClientFromContext(cmd.Context())
 		if err != nil {
 			return err
 		}

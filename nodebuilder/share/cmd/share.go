@@ -35,7 +35,7 @@ var sharesAvailableCmd = &cobra.Command{
 	Short: "Subjectively validates if Shares committed to the given Root are available on the Network.",
 	Args:  cobra.ExactArgs(1),
 	RunE: func(cmd *cobra.Command, args []string) error {
-		client, err := cmdnode.ParseClientFromCtx(cmd.Context())
+		client, err := cmdnode.NewClientFromContext(cmd.Context())
 		if err != nil {
 			return err
 		}
@@ -78,7 +78,7 @@ var probabilityOfAvailabilityCmd = &cobra.Command{
 	Short: "Calculates the probability of the data square being available based on the number of samples collected.",
 	Args:  cobra.NoArgs,
 	RunE: func(cmd *cobra.Command, args []string) error {
-		client, err := cmdnode.ParseClientFromCtx(cmd.Context())
+		client, err := cmdnode.NewClientFromContext(cmd.Context())
 		if err != nil {
 			return err
 		}
@@ -94,7 +94,7 @@ var getSharesByNamespaceCmd = &cobra.Command{
 	Short: "Gets all shares from an EDS within the given namespace.",
 	Args:  cobra.ExactArgs(2),
 	RunE: func(cmd *cobra.Command, args []string) error {
-		client, err := cmdnode.ParseClientFromCtx(cmd.Context())
+		client, err := cmdnode.NewClientFromContext(cmd.Context())
 		if err != nil {
 			return err
 		}
@@ -126,7 +126,7 @@ var getShare = &cobra.Command{
 	Short: "Gets a Share by coordinates in EDS.",
 	Args:  cobra.ExactArgs(3),
 	RunE: func(cmd *cobra.Command, args []string) error {
-		client, err := cmdnode.ParseClientFromCtx(cmd.Context())
+		client, err := cmdnode.NewClientFromContext(cmd.Context())
 		if err != nil {
 			return err
 		}
@@ -180,7 +180,7 @@ var getEDS = &cobra.Command{
 	Short: "Gets the full EDS identified by the given root",
 	Args:  cobra.ExactArgs(1),
 	RunE: func(cmd *cobra.Command, args []string) error {
-		client, err := cmdnode.ParseClientFromCtx(cmd.Context())
+		client, err := cmdnode.NewClientFromContext(cmd.Context())
 		if err != nil {
 			return err
 		}

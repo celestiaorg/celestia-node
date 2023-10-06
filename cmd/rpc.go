@@ -89,7 +89,7 @@ func getToken(path string) (string, error) {
 
 type rpcClientKey struct{}
 
-func ParseClientFromCtx(ctx context.Context) (*rpc.Client, error) {
+func NewClientFromContext(ctx context.Context) (*rpc.Client, error) {
 	client, ok := ctx.Value(rpcClientKey{}).(*rpc.Client)
 	if !ok {
 		return nil, errors.New("rpc client was not set")

@@ -32,7 +32,7 @@ var localHeadCmd = &cobra.Command{
 	Short: "Returns the ExtendedHeader from the chain head.",
 	Args:  cobra.NoArgs,
 	RunE: func(cmd *cobra.Command, args []string) error {
-		client, err := cmdnode.ParseClientFromCtx(cmd.Context())
+		client, err := cmdnode.NewClientFromContext(cmd.Context())
 		if err != nil {
 			return err
 		}
@@ -48,7 +48,7 @@ var networkHeadCmd = &cobra.Command{
 	Short: "Provides the Syncer's view of the current network head.",
 	Args:  cobra.NoArgs,
 	RunE: func(cmd *cobra.Command, args []string) error {
-		client, err := cmdnode.ParseClientFromCtx(cmd.Context())
+		client, err := cmdnode.NewClientFromContext(cmd.Context())
 		if err != nil {
 			return err
 		}
@@ -64,7 +64,7 @@ var getByHashCmd = &cobra.Command{
 	Short: "Returns the header of the given hash from the node's header store.",
 	Args:  cobra.ExactArgs(1),
 	RunE: func(cmd *cobra.Command, args []string) error {
-		client, err := cmdnode.ParseClientFromCtx(cmd.Context())
+		client, err := cmdnode.NewClientFromContext(cmd.Context())
 		if err != nil {
 			return err
 		}
@@ -84,7 +84,7 @@ var getByHeightCmd = &cobra.Command{
 	Short: "Returns the ExtendedHeader at the given height if it is currently available.",
 	Args:  cobra.ExactArgs(1),
 	RunE: func(cmd *cobra.Command, args []string) error {
-		client, err := cmdnode.ParseClientFromCtx(cmd.Context())
+		client, err := cmdnode.NewClientFromContext(cmd.Context())
 		if err != nil {
 			return err
 		}
@@ -105,7 +105,7 @@ var syncStateCmd = &cobra.Command{
 	Short: "Returns the current state of the header Syncer.",
 	Args:  cobra.NoArgs,
 	RunE: func(cmd *cobra.Command, args []string) error {
-		client, err := cmdnode.ParseClientFromCtx(cmd.Context())
+		client, err := cmdnode.NewClientFromContext(cmd.Context())
 		if err != nil {
 			return err
 		}

@@ -22,7 +22,7 @@ var samplingStatsCmd = &cobra.Command{
 	Short: "Returns the current statistics over the DA sampling process",
 	Args:  cobra.NoArgs,
 	RunE: func(cmd *cobra.Command, args []string) error {
-		client, err := cmdnode.ParseClientFromCtx(cmd.Context())
+		client, err := cmdnode.NewClientFromContext(cmd.Context())
 		if err != nil {
 			return err
 		}

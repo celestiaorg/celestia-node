@@ -41,7 +41,7 @@ var accountAddressCmd = &cobra.Command{
 	Short: "Retrieves the address of the node's account/signer.",
 	Args:  cobra.NoArgs,
 	RunE: func(cmd *cobra.Command, args []string) error {
-		client, err := cmdnode.ParseClientFromCtx(cmd.Context())
+		client, err := cmdnode.NewClientFromContext(cmd.Context())
 		if err != nil {
 			return err
 		}
@@ -58,7 +58,7 @@ var balanceCmd = &cobra.Command{
 		"the corresponding block's AppHash.",
 	Args: cobra.NoArgs,
 	RunE: func(cmd *cobra.Command, args []string) error {
-		client, err := cmdnode.ParseClientFromCtx(cmd.Context())
+		client, err := cmdnode.NewClientFromContext(cmd.Context())
 		if err != nil {
 			return err
 		}
@@ -75,7 +75,7 @@ var balanceForAddressCmd = &cobra.Command{
 		"the corresponding block's AppHash.",
 	Args: cobra.ExactArgs(1),
 	RunE: func(cmd *cobra.Command, args []string) error {
-		client, err := cmdnode.ParseClientFromCtx(cmd.Context())
+		client, err := cmdnode.NewClientFromContext(cmd.Context())
 		if err != nil {
 			return err
 		}
@@ -96,7 +96,7 @@ var transferCmd = &cobra.Command{
 	Short: "Sends the given amount of coins from default wallet of the node to the given account address.",
 	Args:  cobra.ExactArgs(4),
 	RunE: func(cmd *cobra.Command, args []string) error {
-		client, err := cmdnode.ParseClientFromCtx(cmd.Context())
+		client, err := cmdnode.NewClientFromContext(cmd.Context())
 		if err != nil {
 			return err
 		}
@@ -135,7 +135,7 @@ var submitTxCmd = &cobra.Command{
 	Short: "Submits the given transaction/message to the Celestia network and blocks until the tx is included in a block.",
 	Args:  cobra.ExactArgs(1),
 	RunE: func(cmd *cobra.Command, args []string) error {
-		client, err := cmdnode.ParseClientFromCtx(cmd.Context())
+		client, err := cmdnode.NewClientFromContext(cmd.Context())
 		if err != nil {
 			return err
 		}
@@ -158,7 +158,7 @@ var cancelUnbondingDelegationCmd = &cobra.Command{
 	Short: "Cancels a user's pending undelegation from a validator.",
 	Args:  cobra.ExactArgs(5),
 	RunE: func(cmd *cobra.Command, args []string) error {
-		client, err := cmdnode.ParseClientFromCtx(cmd.Context())
+		client, err := cmdnode.NewClientFromContext(cmd.Context())
 		if err != nil {
 			return err
 		}
@@ -206,7 +206,7 @@ var beginRedelegateCmd = &cobra.Command{
 	Short: "Sends a user's delegated tokens to a new validator for redelegation",
 	Args:  cobra.ExactArgs(5),
 	RunE: func(cmd *cobra.Command, args []string) error {
-		client, err := cmdnode.ParseClientFromCtx(cmd.Context())
+		client, err := cmdnode.NewClientFromContext(cmd.Context())
 		if err != nil {
 			return err
 		}
@@ -253,7 +253,7 @@ var undelegateCmd = &cobra.Command{
 	Short: "Undelegates a user's delegated tokens, unbonding them from the current validator.",
 	Args:  cobra.ExactArgs(4),
 	RunE: func(cmd *cobra.Command, args []string) error {
-		client, err := cmdnode.ParseClientFromCtx(cmd.Context())
+		client, err := cmdnode.NewClientFromContext(cmd.Context())
 		if err != nil {
 			return err
 		}
@@ -293,7 +293,7 @@ var delegateCmd = &cobra.Command{
 	Short: "Sends a user's liquid tokens to a validator for delegation.",
 	Args:  cobra.ExactArgs(4),
 	RunE: func(cmd *cobra.Command, args []string) error {
-		client, err := cmdnode.ParseClientFromCtx(cmd.Context())
+		client, err := cmdnode.NewClientFromContext(cmd.Context())
 		if err != nil {
 			return err
 		}
@@ -335,7 +335,7 @@ var queryDelegationCmd = &cobra.Command{
 	Short: "Retrieves the delegation information between a delegator and a validator.",
 	Args:  cobra.ExactArgs(1),
 	RunE: func(cmd *cobra.Command, args []string) error {
-		client, err := cmdnode.ParseClientFromCtx(cmd.Context())
+		client, err := cmdnode.NewClientFromContext(cmd.Context())
 		if err != nil {
 			return err
 		}
@@ -356,7 +356,7 @@ var queryUnbondingCmd = &cobra.Command{
 	Short: "Retrieves the unbonding status between a delegator and a validator.",
 	Args:  cobra.ExactArgs(1),
 	RunE: func(cmd *cobra.Command, args []string) error {
-		client, err := cmdnode.ParseClientFromCtx(cmd.Context())
+		client, err := cmdnode.NewClientFromContext(cmd.Context())
 		if err != nil {
 			return err
 		}
@@ -377,7 +377,7 @@ var queryRedelegationCmd = &cobra.Command{
 	Short: "Retrieves the status of the redelegations between a delegator and a validator.",
 	Args:  cobra.ExactArgs(2),
 	RunE: func(cmd *cobra.Command, args []string) error {
-		client, err := cmdnode.ParseClientFromCtx(cmd.Context())
+		client, err := cmdnode.NewClientFromContext(cmd.Context())
 		if err != nil {
 			return err
 		}

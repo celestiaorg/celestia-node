@@ -68,7 +68,7 @@ var getCmd = &cobra.Command{
 	Args:  cobra.ExactArgs(3),
 	Short: "Returns the blob for the given namespace by commitment at a particular height.",
 	RunE: func(cmd *cobra.Command, args []string) error {
-		client, err := cmdnode.ParseClientFromCtx(cmd.Context())
+		client, err := cmdnode.NewClientFromContext(cmd.Context())
 		if err != nil {
 			return err
 		}
@@ -104,7 +104,7 @@ var getAllCmd = &cobra.Command{
 	Args:  cobra.ExactArgs(2),
 	Short: "Returns all blobs for the given namespace at a particular height.",
 	RunE: func(cmd *cobra.Command, args []string) error {
-		client, err := cmdnode.ParseClientFromCtx(cmd.Context())
+		client, err := cmdnode.NewClientFromContext(cmd.Context())
 		if err != nil {
 			return err
 		}
@@ -137,7 +137,7 @@ var submitCmd = &cobra.Command{
 		"* only one blob is allowed to submit through the RPC.\n" +
 		"* fee and gas.limit params will be calculated automatically if they are not provided as arguments",
 	RunE: func(cmd *cobra.Command, args []string) error {
-		client, err := cmdnode.ParseClientFromCtx(cmd.Context())
+		client, err := cmdnode.NewClientFromContext(cmd.Context())
 		if err != nil {
 			return err
 		}
@@ -175,7 +175,7 @@ var getProofCmd = &cobra.Command{
 	Args:  cobra.ExactArgs(3),
 	Short: "Retrieves the blob in the given namespaces at the given height by commitment and returns its Proof.",
 	RunE: func(cmd *cobra.Command, args []string) error {
-		client, err := cmdnode.ParseClientFromCtx(cmd.Context())
+		client, err := cmdnode.NewClientFromContext(cmd.Context())
 		if err != nil {
 			return err
 		}
