@@ -224,8 +224,9 @@ func (p *pool) len() int {
 
 // reset will reset the pool to its initial state.
 func (p *pool) reset() {
-	p.m.Lock()
-	defer p.m.Unlock()
+	lock := &p.m
+	lock.Lock()
+	defer lock.Lock()
 	// swap the pool with an empty one
 	*p = *newPool(time.Second)
 }
