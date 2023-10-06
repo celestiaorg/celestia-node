@@ -30,7 +30,6 @@ type Server struct {
 	protocolID protocol.ID
 
 	handler network.StreamHandler
-	getter  share.Getter
 	store   *eds.Store
 
 	params     *Parameters
@@ -39,13 +38,12 @@ type Server struct {
 }
 
 // NewServer creates new Server
-func NewServer(params *Parameters, host host.Host, store *eds.Store, getter share.Getter) (*Server, error) {
+func NewServer(params *Parameters, host host.Host, store *eds.Store) (*Server, error) {
 	if err := params.Validate(); err != nil {
 		return nil, fmt.Errorf("shrex-nd: server creation failed: %w", err)
 	}
 
 	srv := &Server{
-		getter:     getter,
 		store:      store,
 		host:       host,
 		params:     params,
@@ -183,7 +181,7 @@ func (srv *Server) getNamespaceData(ctx context.Context,
 		return nil, pb.StatusCode_INTERNAL, fmt.Errorf("retrieving DAH: %w", err)
 	}
 
-	shares, err := srv.getter.GetSharesByNamespace(ctx, dah, namespace)
+	shares, err := eds.RetrieveNamespaceFromStore(ctx, srv.store, dah, namespace)
 	if err != nil {
 		return nil, pb.StatusCode_INTERNAL, fmt.Errorf("retrieving shares: %w", err)
 	}

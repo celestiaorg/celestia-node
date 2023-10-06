@@ -6,6 +6,8 @@ import (
 
 	"github.com/celestiaorg/celestia-app/pkg/da"
 	"github.com/celestiaorg/rsmt2d"
+
+	"github.com/celestiaorg/celestia-node/header"
 )
 
 // ErrNotAvailable is returned whenever DA sampling fails.
@@ -26,8 +28,10 @@ func NewRoot(eds *rsmt2d.ExtendedDataSquare) (*Root, error) {
 }
 
 // Availability defines interface for validation of Shares' availability.
+//
+//go:generate mockgen -destination=availability/mocks/availability.go -package=mocks . Availability
 type Availability interface {
 	// SharesAvailable subjectively validates if Shares committed to the given Root are available on
 	// the Network.
-	SharesAvailable(context.Context, *Root) error
+	SharesAvailable(context.Context, *header.ExtendedHeader) error
 }

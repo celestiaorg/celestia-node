@@ -11,6 +11,7 @@ import (
 	ipldFormat "github.com/ipfs/go-ipld-format"
 	logging "github.com/ipfs/go-log/v2"
 
+	"github.com/celestiaorg/celestia-node/header"
 	"github.com/celestiaorg/celestia-node/share"
 	"github.com/celestiaorg/celestia-node/share/getters"
 )
@@ -58,8 +59,9 @@ func NewShareAvailability(
 }
 
 // SharesAvailable randomly samples `params.SampleAmount` amount of Shares committed to the given
-// Root. This way SharesAvailable subjectively verifies that Shares are available.
-func (la *ShareAvailability) SharesAvailable(ctx context.Context, dah *share.Root) error {
+// ExtendedHeader. This way SharesAvailable subjectively verifies that Shares are available.
+func (la *ShareAvailability) SharesAvailable(ctx context.Context, header *header.ExtendedHeader) error {
+	dah := header.DAH
 	// short-circuit if the given root is minimum DAH of an empty data square
 	if share.DataHash(dah.Hash()).IsEmptyRoot() {
 		return nil
@@ -97,7 +99,7 @@ func (la *ShareAvailability) SharesAvailable(ctx context.Context, dah *share.Roo
 	for _, s := range samples {
 		go func(s Sample) {
 			log.Debugw("fetching share", "root", dah.String(), "row", s.Row, "col", s.Col)
-			_, err := la.getter.GetShare(ctx, dah, s.Row, s.Col)
+			_, err := la.getter.GetShare(ctx, header, s.Row, s.Col)
 			if err != nil {
 				log.Debugw("error fetching share", "root", dah.String(), "row", s.Row, "col", s.Col)
 			}

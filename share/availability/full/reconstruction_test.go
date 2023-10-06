@@ -11,6 +11,7 @@ import (
 	"github.com/stretchr/testify/require"
 	"golang.org/x/sync/errgroup"
 
+	"github.com/celestiaorg/celestia-node/header/headertest"
 	"github.com/celestiaorg/celestia-node/share"
 	"github.com/celestiaorg/celestia-node/share/availability/light"
 	availability_test "github.com/celestiaorg/celestia-node/share/availability/test"
@@ -37,7 +38,9 @@ func TestShareAvailable_OneFullNode(t *testing.T) {
 
 	net := availability_test.NewTestDAGNet(ctx, t)
 	source, root := RandNode(net, origSquareSize) // make a source node, a.k.a bridge
-	full := Node(net)                             // make a full availability service which reconstructs data
+	eh := headertest.RandExtendedHeader(t)
+	eh.DAH = root
+	full := Node(net) // make a full availability service which reconstructs data
 
 	// ensure there is no connection between source and full nodes
 	// so that full reconstructs from the light nodes only
@@ -45,14 +48,14 @@ func TestShareAvailable_OneFullNode(t *testing.T) {
 
 	errg, errCtx := errgroup.WithContext(ctx)
 	errg.Go(func() error {
-		return full.SharesAvailable(errCtx, root)
+		return full.SharesAvailable(errCtx, eh)
 	})
 
 	lights := make([]*availability_test.TestNode, lightNodes)
 	for i := 0; i < len(lights); i++ {
 		lights[i] = light.Node(net)
 		go func(i int) {
-			err := lights[i].SharesAvailable(ctx, root)
+			err := lights[i].SharesAvailable(ctx, eh)
 			if err != nil {
 				t.Log("light errors:", err)
 			}
@@ -91,6 +94,8 @@ func TestShareAvailable_ConnectedFullNodes(t *testing.T) {
 
 	net := availability_test.NewTestDAGNet(ctx, t)
 	source, root := RandNode(net, origSquareSize)
+	eh := headertest.RandExtendedHeader(t)
+	eh.DAH = root
 
 	// create two full nodes and ensure they are disconnected
 	full1 := Node(net)
@@ -106,10 +111,10 @@ func TestShareAvailable_ConnectedFullNodes(t *testing.T) {
 	// start reconstruction for fulls
 	errg, errCtx := errgroup.WithContext(ctx)
 	errg.Go(func() error {
-		return full1.SharesAvailable(errCtx, root)
+		return full1.SharesAvailable(errCtx, eh)
 	})
 	errg.Go(func() error {
-		return full2.SharesAvailable(errCtx, root)
+		return full2.SharesAvailable(errCtx, eh)
 	})
 
 	// create light nodes and start sampling for them immediately
@@ -119,7 +124,7 @@ func TestShareAvailable_ConnectedFullNodes(t *testing.T) {
 	for i := 0; i < len(lights1); i++ {
 		lights1[i] = light.Node(net)
 		go func(i int) {
-			err := lights1[i].SharesAvailable(ctx, root)
+			err := lights1[i].SharesAvailable(ctx, eh)
 			if err != nil {
 				t.Log("light1 errors:", err)
 			}
@@ -127,7 +132,7 @@ func TestShareAvailable_ConnectedFullNodes(t *testing.T) {
 
 		lights2[i] = light.Node(net)
 		go func(i int) {
-			err := lights2[i].SharesAvailable(ctx, root)
+			err := lights2[i].SharesAvailable(ctx, eh)
 			if err != nil {
 				t.Log("light2 errors:", err)
 			}
@@ -189,6 +194,8 @@ func TestShareAvailable_DisconnectedFullNodes(t *testing.T) {
 
 	net := availability_test.NewTestDAGNet(ctx, t)
 	source, root := RandNode(net, origSquareSize)
+	eh := headertest.RandExtendedHeader(t)
+	eh.DAH = root
 
 	// create light nodes and start sampling for them immediately
 	lights1, lights2 := make(
@@ -201,7 +208,7 @@ func TestShareAvailable_DisconnectedFullNodes(t *testing.T) {
 		lights1[i] = light.Node(net)
 		go func(i int) {
 			defer wg.Done()
-			err := lights1[i].SharesAvailable(ctx, root)
+			err := lights1[i].SharesAvailable(ctx, eh)
 			if err != nil {
 				t.Log("light1 errors:", err)
 			}
@@ -210,7 +217,7 @@ func TestShareAvailable_DisconnectedFullNodes(t *testing.T) {
 		lights2[i] = light.Node(net)
 		go func(i int) {
 			defer wg.Done()
-			err := lights2[i].SharesAvailable(ctx, root)
+			err := lights2[i].SharesAvailable(ctx, eh)
 			if err != nil {
 				t.Log("light2 errors:", err)
 			}
@@ -243,10 +250,10 @@ func TestShareAvailable_DisconnectedFullNodes(t *testing.T) {
 	ctxErr, cancelErr := context.WithTimeout(ctx, time.Second*5)
 	errg, errCtx := errgroup.WithContext(ctxErr)
 	errg.Go(func() error {
-		return full1.SharesAvailable(errCtx, root)
+		return full1.SharesAvailable(errCtx, eh)
 	})
 	errg.Go(func() error {
-		return full2.SharesAvailable(errCtx, root)
+		return full2.SharesAvailable(errCtx, eh)
 	})
 
 	// check that any of the fulls cannot reconstruct on their own
@@ -264,10 +271,10 @@ func TestShareAvailable_DisconnectedFullNodes(t *testing.T) {
 	// they both should be able to reconstruct the block
 	errg, bctx := errgroup.WithContext(ctx)
 	errg.Go(func() error {
-		return full1.SharesAvailable(bctx, root)
+		return full1.SharesAvailable(bctx, eh)
 	})
 	errg.Go(func() error {
-		return full2.SharesAvailable(bctx, root)
+		return full2.SharesAvailable(bctx, eh)
 	})
 	require.NoError(t, errg.Wait())
 	// wait for all routines to finish before exit, in case there are any errors to log
