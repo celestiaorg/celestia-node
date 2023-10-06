@@ -58,7 +58,7 @@ func closeAndLog(name string, closer io.Closer) {
 
 // RetrieveNamespaceFromStore gets all EDS shares in the given namespace from
 // the EDS store through the corresponding CAR-level blockstore. It is extracted
-// from the store getter to make it available for reuse in the shrexnd client.
+// from the store getter to make it available for reuse in the shrexnd server.
 func RetrieveNamespaceFromStore(
 	ctx context.Context,
 	store *Store,
@@ -75,7 +75,7 @@ func RetrieveNamespaceFromStore(
 		err = share.ErrNotFound
 	}
 	if err != nil {
-		return nil, fmt.Errorf("eds/utils: failed to retrieve blockstore from eds store: %w", err)
+		return nil, fmt.Errorf("failed to retrieve blockstore from eds store: %w", err)
 	}
 	defer func() {
 		if err := bs.Close(); err != nil {
@@ -96,12 +96,12 @@ func RetrieveNamespaceFromStore(
 		// removed.
 		err = store.Remove(ctx, dah.Hash())
 		if err != nil {
-			log.Errorf("eds/utils: failed to remove CAR from store after detected corruption: %w", err)
+			log.Errorf("failed to remove CAR from store after detected corruption: %w", err)
 		}
 		err = share.ErrNotFound
 	}
 	if err != nil {
-		return nil, fmt.Errorf("eds/utils: failed to retrieve shares by namespace from store: %w", err)
+		return nil, fmt.Errorf("failed to retrieve shares by namespace from store: %w", err)
 	}
 
 	return shares, nil

@@ -114,5 +114,9 @@ func (sg *StoreGetter) GetSharesByNamespace(
 		utils.SetStatusAndEnd(span, err)
 	}()
 
-	return eds.RetrieveNamespaceFromStore(ctx, sg.store, header.DAH, namespace)
+	ns, err := eds.RetrieveNamespaceFromStore(ctx, sg.store, header.DAH, namespace)
+	if err != nil {
+		return nil, fmt.Errorf("getter/store: %w", err)
+	}
+	return ns, nil
 }

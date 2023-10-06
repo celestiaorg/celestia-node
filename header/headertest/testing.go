@@ -17,6 +17,7 @@ import (
 	"github.com/tendermint/tendermint/types"
 	tmtime "github.com/tendermint/tendermint/types/time"
 
+	"github.com/celestiaorg/celestia-app/pkg/da"
 	libhead "github.com/celestiaorg/go-header"
 	"github.com/celestiaorg/go-header/headertest"
 	"github.com/celestiaorg/rsmt2d"
@@ -222,6 +223,13 @@ func RandExtendedHeader(t testing.TB) *header.ExtendedHeader {
 		ValidatorSet: valSet,
 		DAH:          dah,
 	}
+}
+
+func RandExtendedHeaderWithRoot(t testing.TB, dah *da.DataAvailabilityHeader) *header.ExtendedHeader {
+	h := RandExtendedHeader(t)
+	h.DataHash = dah.Hash()
+	h.DAH = dah
+	return h
 }
 
 func RandValidatorSet(numValidators int, votingPower int64) (*types.ValidatorSet, []types.PrivValidator) {

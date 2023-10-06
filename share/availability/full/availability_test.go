@@ -23,8 +23,8 @@ func TestShareAvailableOverMocknet_Full(t *testing.T) {
 
 	net := availability_test.NewTestDAGNet(ctx, t)
 	_, root := RandNode(net, 32)
-	eh := headertest.RandExtendedHeader(t)
-	eh.DAH = root
+
+	eh := headertest.RandExtendedHeaderWithRoot(t, root)
 	nd := Node(net)
 	net.ConnectAll()
 
@@ -38,8 +38,8 @@ func TestSharesAvailable_Full(t *testing.T) {
 
 	// RandServiceWithSquare creates a NewShareAvailability inside, so we can test it
 	getter, dah := GetterWithRandSquare(t, 16)
-	eh := headertest.RandExtendedHeader(t)
-	eh.DAH = dah
+
+	eh := headertest.RandExtendedHeaderWithRoot(t, dah)
 	avail := TestAvailability(t, getter)
 	err := avail.SharesAvailable(ctx, eh)
 	assert.NoError(t, err)
@@ -51,8 +51,7 @@ func TestSharesAvailable_StoresToEDSStore(t *testing.T) {
 
 	// RandServiceWithSquare creates a NewShareAvailability inside, so we can test it
 	getter, dah := GetterWithRandSquare(t, 16)
-	eh := headertest.RandExtendedHeader(t)
-	eh.DAH = dah
+	eh := headertest.RandExtendedHeaderWithRoot(t, dah)
 	avail := TestAvailability(t, getter)
 	err := avail.SharesAvailable(ctx, eh)
 	assert.NoError(t, err)
@@ -70,8 +69,7 @@ func TestSharesAvailable_Full_ErrNotAvailable(t *testing.T) {
 
 	eds := edstest.RandEDS(t, 4)
 	dah, err := da.NewDataAvailabilityHeader(eds)
-	eh := headertest.RandExtendedHeader(t)
-	eh.DAH = &dah
+	eh := headertest.RandExtendedHeaderWithRoot(t, &dah)
 	require.NoError(t, err)
 	avail := TestAvailability(t, getter)
 

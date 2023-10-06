@@ -20,8 +20,7 @@ import (
 func TestGetter(t *testing.T) (share.Getter, *header.ExtendedHeader) {
 	eds := edstest.RandEDS(t, 8)
 	dah, err := share.NewRoot(eds)
-	eh := headertest.RandExtendedHeader(t)
-	eh.DAH = dah
+	eh := headertest.RandExtendedHeaderWithRoot(t, dah)
 	require.NoError(t, err)
 	return &SingleEDSGetter{
 		EDS: eds,

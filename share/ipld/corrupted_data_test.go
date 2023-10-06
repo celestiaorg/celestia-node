@@ -33,8 +33,8 @@ func TestNamespaceHasher_CorruptedData(t *testing.T) {
 	// before the provider starts attacking, we should be able to retrieve successfully. We pass a size
 	// 16 block, but this is not important to the test and any valid block size behaves the same.
 	root := availability_test.RandFillBS(t, 16, provider.BlockService)
-	eh := headertest.RandExtendedHeader(t)
-	eh.DAH = root
+
+	eh := headertest.RandExtendedHeaderWithRoot(t, root)
 	getCtx, cancelGet := context.WithTimeout(ctx, sharesAvailableTimeout)
 	t.Cleanup(cancelGet)
 	err := requestor.SharesAvailable(getCtx, eh)

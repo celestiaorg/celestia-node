@@ -315,8 +315,7 @@ func randomEDS(t *testing.T) (*rsmt2d.ExtendedDataSquare, *header.ExtendedHeader
 	eds := edstest.RandEDS(t, 4)
 	dah, err := share.NewRoot(eds)
 	require.NoError(t, err)
-	eh := headertest.RandExtendedHeader(t)
-	eh.DAH = dah
+	eh := headertest.RandExtendedHeaderWithRoot(t, dah)
 	return eds, eh
 }
 
@@ -349,8 +348,7 @@ func randomEDSWithDoubledNamespace(
 	require.NoError(t, err, "failure to recompute the extended data square")
 	dah, err := share.NewRoot(eds)
 	require.NoError(t, err)
-	eh := headertest.RandExtendedHeader(t)
-	eh.DAH = dah
+	eh := headertest.RandExtendedHeaderWithRoot(t, dah)
 
 	return eds, share.GetNamespace(randShares[idx1]), eh
 }

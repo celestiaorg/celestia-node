@@ -47,8 +47,7 @@ func TestSharesAvailableHitsCache(t *testing.T) {
 
 	bServ := ipld.NewMemBlockservice()
 	dah := availability_test.RandFillBS(t, 16, bServ)
-	eh := headertest.RandExtendedHeader(t)
-	eh.DAH = dah
+	eh := headertest.RandExtendedHeaderWithRoot(t, dah)
 
 	// blockstore doesn't actually have the dah
 	err := avail.SharesAvailable(ctx, eh)
@@ -74,9 +73,7 @@ func TestSharesAvailableEmptyRoot(t *testing.T) {
 	getter, _ := GetterWithRandSquare(t, 16)
 	avail := TestAvailability(getter)
 
-	emptyRoot := share.EmptyRoot()
-	eh := headertest.RandExtendedHeader(t)
-	eh.DAH = emptyRoot
+	eh := headertest.RandExtendedHeaderWithRoot(t, share.EmptyRoot())
 	err := avail.SharesAvailable(ctx, eh)
 	assert.NoError(t, err)
 }
@@ -97,8 +94,7 @@ func TestSharesAvailableFailed(t *testing.T) {
 
 	bServ := ipld.NewMemBlockservice()
 	dah := availability_test.RandFillBS(t, 16, bServ)
-	eh := headertest.RandExtendedHeader(t)
-	eh.DAH = dah
+	eh := headertest.RandExtendedHeaderWithRoot(t, dah)
 
 	getter, _ := GetterWithRandSquare(t, 16)
 	avail := TestAvailability(getter)

@@ -144,8 +144,8 @@ func TestEmptyBlockExists(t *testing.T) {
 			require.NoError(t, err)
 
 			// ensure an empty block exists in store
-			eh := headertest.RandExtendedHeader(t)
-			eh.DAH = share.EmptyRoot()
+
+			eh := headertest.RandExtendedHeaderWithRoot(t, share.EmptyRoot())
 			err = node.ShareServ.SharesAvailable(ctx, eh)
 			require.NoError(t, err)
 

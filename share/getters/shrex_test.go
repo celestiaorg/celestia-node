@@ -66,8 +66,7 @@ func TestShrexGetter(t *testing.T) {
 		// generate test data
 		namespace := sharetest.RandV0Namespace()
 		randEDS, dah := edstest.RandEDSWithNamespace(t, namespace, 64)
-		eh := headertest.RandExtendedHeader(t)
-		eh.DAH = dah
+		eh := headertest.RandExtendedHeaderWithRoot(t, dah)
 		require.NoError(t, edsStore.Put(ctx, dah.Hash(), randEDS))
 		peerManager.Validate(ctx, srvHost.ID(), shrexsub.Notification{
 			DataHash: dah.Hash(),
@@ -85,8 +84,7 @@ func TestShrexGetter(t *testing.T) {
 
 		// generate test data
 		_, dah, namespace := generateTestEDS(t)
-		eh := headertest.RandExtendedHeader(t)
-		eh.DAH = dah
+		eh := headertest.RandExtendedHeaderWithRoot(t, dah)
 		peerManager.Validate(ctx, srvHost.ID(), shrexsub.Notification{
 			DataHash: dah.Hash(),
 			Height:   1,
@@ -102,8 +100,7 @@ func TestShrexGetter(t *testing.T) {
 
 		// generate test data
 		eds, dah, maxNamespace := generateTestEDS(t)
-		eh := headertest.RandExtendedHeader(t)
-		eh.DAH = dah
+		eh := headertest.RandExtendedHeaderWithRoot(t, dah)
 		require.NoError(t, edsStore.Put(ctx, dah.Hash(), eds))
 		peerManager.Validate(ctx, srvHost.ID(), shrexsub.Notification{
 			DataHash: dah.Hash(),
@@ -128,8 +125,7 @@ func TestShrexGetter(t *testing.T) {
 
 		// generate test data
 		eds, dah, maxNamesapce := generateTestEDS(t)
-		eh := headertest.RandExtendedHeader(t)
-		eh.DAH = dah
+		eh := headertest.RandExtendedHeaderWithRoot(t, dah)
 		require.NoError(t, edsStore.Put(ctx, dah.Hash(), eds))
 		peerManager.Validate(ctx, srvHost.ID(), shrexsub.Notification{
 			DataHash: dah.Hash(),
@@ -154,8 +150,7 @@ func TestShrexGetter(t *testing.T) {
 
 		// generate test data
 		randEDS, dah, _ := generateTestEDS(t)
-		eh := headertest.RandExtendedHeader(t)
-		eh.DAH = dah
+		eh := headertest.RandExtendedHeaderWithRoot(t, dah)
 		require.NoError(t, edsStore.Put(ctx, dah.Hash(), randEDS))
 		peerManager.Validate(ctx, srvHost.ID(), shrexsub.Notification{
 			DataHash: dah.Hash(),
@@ -172,8 +167,7 @@ func TestShrexGetter(t *testing.T) {
 
 		// generate test data
 		_, dah, _ := generateTestEDS(t)
-		eh := headertest.RandExtendedHeader(t)
-		eh.DAH = dah
+		eh := headertest.RandExtendedHeaderWithRoot(t, dah)
 		peerManager.Validate(ctx, srvHost.ID(), shrexsub.Notification{
 			DataHash: dah.Hash(),
 			Height:   1,
@@ -190,8 +184,7 @@ func TestShrexGetter(t *testing.T) {
 
 		// generate test data
 		_, dah, _ := generateTestEDS(t)
-		eh := headertest.RandExtendedHeader(t)
-		eh.DAH = dah
+		eh := headertest.RandExtendedHeaderWithRoot(t, dah)
 		peerManager.Validate(ctx, srvHost.ID(), shrexsub.Notification{
 			DataHash: dah.Hash(),
 			Height:   1,
