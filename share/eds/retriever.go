@@ -43,7 +43,7 @@ type retrieverMetrics struct {
 }
 
 // newMetrics returns a new retrieverMetrics instance
-func (r *Retriever) newMetrics() (*retrieverMetrics, error) {
+func newMetrics() (*retrieverMetrics, error) {
 	sharesCount, err := ipldMeter.Int64Histogram(
 		"retriever_get_shares_duration",
 		metric.WithDescription("size of shares"),
@@ -118,12 +118,32 @@ func (m *retrieverMetrics) recordSharesCount(ctx context.Context, count int64) {
 // Retriever randomly picks one of the data square quadrants and tries to request them one by one
 // until it is able to reconstruct the whole square.
 type Retriever struct {
-	bServ blockservice.BlockService
+	bServ   blockservice.BlockService
+	metrics *retrieverMetrics
 }
 
 // NewRetriever creates a new instance of the Retriever over IPLD BlockService and rmst2d.Codec
 func NewRetriever(bServ blockservice.BlockService) *Retriever {
 	return &Retriever{bServ: bServ}
+}
+
+// NewRetriever creates a new instance of the Retriever over IPLD BlockService and rmst2d.Codec
+func NewRetrieverWithMetrics(bServ blockservice.BlockService) *Retriever {
+	r := &Retriever{bServ: bServ}
+	err := r.WithMetrics()
+	if err != nil {
+		log.Error("unable to instantiate metrics for Retriever using NewRetrieverWithMetrics", "err", err)
+	}
+	return r
+}
+
+func (r *Retriever) WithMetrics() error {
+	metrics, err := newMetrics()
+	if err != nil {
+		return nil
+	}
+	r.metrics = metrics
+	return nil
 }
 
 // Retrieve retrieves all the data committed to DataAvailabilityHeader.
@@ -216,11 +236,6 @@ func (r *Retriever) newSession(ctx context.Context, dah *da.DataAvailabilityHead
 		return nil, err
 	}
 
-	m, err := r.newMetrics()
-	if err != nil {
-		return nil, err
-	}
-
 	ses := &retrievalSession{
 		dah:             dah,
 		bget:            blockservice.NewSession(ctx, r.bServ),
@@ -230,7 +245,10 @@ func (r *Retriever) newSession(ctx context.Context, dah *da.DataAvailabilityHead
 		squareDn:        make(chan struct{}),
 		square:          square,
 		span:            trace.SpanFromContext(ctx),
-		metrics:         m,
+
+		// may be nil, use the metrics instance on retriever
+		// to prevent making a new one within each session
+		metrics: r.metrics,
 	}
 	for i := range ses.squareCellsLks {
 		ses.squareCellsLks[i] = make([]sync.Mutex, size)
