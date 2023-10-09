@@ -17,12 +17,16 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
+const (
+	fullNodesTag = "full"
+)
+
 func TestDiscovery(t *testing.T) {
 	const nodes = 10 // higher number brings higher coverage
 
 	discoveryRetryTimeout = time.Millisecond * 100 // defined in discovery.go
 
-	ctx, cancel := context.WithTimeout(context.Background(), time.Minute*30)
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second*20)
 	t.Cleanup(cancel)
 
 	tn := newTestnet(ctx, t)
@@ -39,22 +43,21 @@ func TestDiscovery(t *testing.T) {
 	host, routingDisc := tn.peer()
 	params := DefaultParameters()
 	params.PeersLimit = nodes
-	params.AdvertiseInterval = -1
-	params.Tag = fullNodesTag
 
-	peerA := tn.discovery(params, host, routingDisc,
+	// start discovery listener service for peerA
+	peerA := tn.startNewDiscovery(params, host, routingDisc, fullNodesTag,
 		WithOnPeersUpdate(submit),
 	)
 
-	params = &Parameters{
-		PeersLimit:        0,
-		AdvertiseInterval: time.Millisecond * 100,
-		Tag:               fullNodesTag,
-	}
+	// start discovery advertisement services for other peers
+	params.AdvertiseInterval = time.Millisecond * 100
 	discs := make([]*Discovery, nodes)
 	for i := range discs {
 		host, routingDisc := tn.peer()
-		discs[i] = tn.discovery(params, host, routingDisc)
+		disc, err := NewDiscovery(params, host, routingDisc, fullNodesTag)
+		require.NoError(t, err)
+		go disc.Advertise(tn.ctx)
+		discs[i] = tn.startNewDiscovery(params, host, routingDisc, fullNodesTag)
 
 		select {
 		case res := <-updateCh:
@@ -67,6 +70,7 @@ func TestDiscovery(t *testing.T) {
 
 	assert.EqualValues(t, nodes, peerA.set.Size())
 
+	// disconnect peerA from all peers and check that notifications are received on updateCh channel
 	for _, disc := range discs {
 		peerID := disc.host.ID()
 		err := peerA.host.Network().ClosePeer(peerID)
@@ -100,22 +104,20 @@ func TestDiscoveryTagged(t *testing.T) {
 	params := DefaultParameters()
 
 	// create 2 discovery services for sub, each with a different tag
-	params.Tag = "tag1"
 	done1 := make(chan struct{})
-	tn.discovery(params, sub, routingDisc,
+	tn.startNewDiscovery(params, sub, routingDisc, "tag1",
 		WithOnPeersUpdate(checkPeer(t, adv1.ID(), done1)))
 
-	params.Tag = "tag2"
 	done2 := make(chan struct{})
-	tn.discovery(params, sub, routingDisc,
+	tn.startNewDiscovery(params, sub, routingDisc, "tag2",
 		WithOnPeersUpdate(checkPeer(t, adv2.ID(), done2)))
 
 	// run discovery services for advertisers
-	params.Tag = "tag1"
-	tn.discovery(params, adv1, routingDisc1)
+	ds1 := tn.startNewDiscovery(params, adv1, routingDisc1, "tag1")
+	go ds1.Advertise(tn.ctx)
 
-	params.Tag = "tag2"
-	tn.discovery(params, adv2, routingDisc2)
+	ds2 := tn.startNewDiscovery(params, adv2, routingDisc2, "tag2")
+	go ds2.Advertise(tn.ctx)
 
 	// wait for discovery services to discover each other on different tags
 	select {
@@ -155,13 +157,14 @@ func newTestnet(ctx context.Context, t *testing.T) *testnet {
 	return &testnet{ctx: ctx, T: t, bootstrapper: *host.InfoFromHost(hst)}
 }
 
-func (t *testnet) discovery(
+func (t *testnet) startNewDiscovery(
 	params *Parameters,
 	hst host.Host,
 	routingDisc discovery.Discovery,
+	tag string,
 	opts ...Option,
 ) *Discovery {
-	disc, err := NewDiscovery(params, hst, routingDisc, opts...)
+	disc, err := NewDiscovery(params, hst, routingDisc, tag, opts...)
 	require.NoError(t.T, err)
 	err = disc.Start(t.ctx)
 	require.NoError(t.T, err)
@@ -169,8 +172,6 @@ func (t *testnet) discovery(
 		err := disc.Stop(t.ctx)
 		require.NoError(t.T, err)
 	})
-
-	go disc.Advertise(t.ctx)
 	return disc
 }
 

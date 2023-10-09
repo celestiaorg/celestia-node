@@ -7,11 +7,6 @@ import (
 	"github.com/libp2p/go-libp2p/core/peer"
 )
 
-const (
-	// fullNodesTag is the namespace where full nodes advertise and discover each other.
-	fullNodesTag = "full"
-)
-
 // Parameters is the set of Parameters that must be configured for the Discovery module
 type Parameters struct {
 	// PeersLimit defines the soft limit of FNs to connect to via discovery.
@@ -21,8 +16,6 @@ type Parameters struct {
 	// Set -1 to disable.
 	// NOTE: only full and bridge can advertise themselves.
 	AdvertiseInterval time.Duration
-	// Tag is used as rondezvous point for discovery service
-	Tag string
 }
 
 // options is the set of options that can be configured for the Discovery module
@@ -40,19 +33,17 @@ func DefaultParameters() *Parameters {
 	return &Parameters{
 		PeersLimit:        5,
 		AdvertiseInterval: time.Hour,
-		//TODO: remove fullNodesTag default value once multiple tags are supported
-		Tag: fullNodesTag,
 	}
 }
 
 // Validate validates the values in Parameters
 func (p *Parameters) Validate() error {
-	if p.Tag == "" {
-		return fmt.Errorf(
-			"discovery: invalid option: value Tag %s, %s",
-			"is empty.",
-			"value must be non-empty",
-		)
+	if p.PeersLimit <= 0 {
+		return fmt.Errorf("discovery: peers limit cannot be zero or negative")
+	}
+
+	if p.AdvertiseInterval <= 0 {
+		return fmt.Errorf("discovery: advertise interval cannot be zero or negative")
 	}
 	return nil
 }

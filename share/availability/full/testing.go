@@ -48,6 +48,7 @@ func TestAvailability(t *testing.T, getter share.Getter) *ShareAvailability {
 		params,
 		nil,
 		routing.NewRoutingDiscovery(routinghelpers.Null{}),
+		"full",
 	)
 	require.NoError(t, err)
 	store, err := eds.NewStore(eds.DefaultParameters(), t.TempDir(), datastore.NewMapDatastore())

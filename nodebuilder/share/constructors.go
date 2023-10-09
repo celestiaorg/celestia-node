@@ -20,6 +20,11 @@ import (
 	"github.com/celestiaorg/celestia-node/share/p2p/peers"
 )
 
+const (
+	// fullNodesTag is the tag used to identify full nodes in the discovery service.
+	fullNodesTag = "full"
+)
+
 func newDiscovery(cfg *disc.Parameters,
 ) func(routing.ContentRouting, host.Host, *peers.Manager) (*disc.Discovery, error) {
 	return func(
@@ -31,6 +36,7 @@ func newDiscovery(cfg *disc.Parameters,
 			cfg,
 			h,
 			routingdisc.NewRoutingDiscovery(r),
+			fullNodesTag,
 			disc.WithOnPeersUpdate(manager.UpdateFullNodePool),
 		)
 	}

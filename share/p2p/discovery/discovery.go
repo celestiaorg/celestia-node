@@ -42,6 +42,7 @@ var discoveryRetryTimeout = retryTimeout
 // Discovery combines advertise and discover services and allows to store discovered nodes.
 // TODO: The code here gets horribly hairy, so we should refactor this at some point
 type Discovery struct {
+	// Tag is used as rondezvous point for discovery service
 	tag       string
 	set       *limitedSet
 	host      host.Host
@@ -73,15 +74,19 @@ func NewDiscovery(
 	params *Parameters,
 	h host.Host,
 	d discovery.Discovery,
+	tag string,
 	opts ...Option,
 ) (*Discovery, error) {
 	if err := params.Validate(); err != nil {
 		return nil, err
 	}
 
+	if tag == "" {
+		return nil, fmt.Errorf("discovery: tag cannot be empty")
+	}
 	o := newOptions(opts...)
 	return &Discovery{
-		tag:            params.Tag,
+		tag:            tag,
 		set:            newLimitedSet(params.PeersLimit),
 		host:           h,
 		disc:           d,
@@ -95,11 +100,6 @@ func NewDiscovery(
 func (d *Discovery) Start(context.Context) error {
 	ctx, cancel := context.WithCancel(context.Background())
 	d.cancel = cancel
-
-	if d.params.PeersLimit == 0 {
-		log.Warn("peers limit is set to 0. Skipping discovery...")
-		return nil
-	}
 
 	sub, err := d.host.EventBus().Subscribe(&event.EvtPeerConnectednessChanged{}, eventbus.BufSize(eventbusBufSize))
 	if err != nil {
@@ -150,11 +150,6 @@ func (d *Discovery) Discard(id peer.ID) bool {
 // Advertise is a utility function that persistently advertises a service through an Advertiser.
 // TODO: Start advertising only after the reachability is confirmed by AutoNAT
 func (d *Discovery) Advertise(ctx context.Context) {
-	if d.params.AdvertiseInterval == -1 {
-		log.Warn("AdvertiseInterval is set to -1. Skipping advertising...")
-		return
-	}
-
 	timer := time.NewTimer(d.params.AdvertiseInterval)
 	defer timer.Stop()
 	for {
