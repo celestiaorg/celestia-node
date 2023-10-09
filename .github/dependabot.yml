@@ -7,6 +7,8 @@ updates:
       day: monday
       time: "11:00"
     open-pull-requests-limit: 10
+    labels:
+      - kind:deps
   - package-ecosystem: gomod
     directory: "/"
     schedule:
@@ -22,7 +24,7 @@ updates:
     groups:
       otel:
         patterns:
-          - "^go.opentelemetry.io/otel*"
+          - "go.opentelemetry.io/otel*"
   - package-ecosystem: docker
     directory: "/"
     schedule:
@@ -30,3 +32,5 @@ updates:
       day: monday
       time: "11:00"
     open-pull-requests-limit: 10
+    labels:
+      - kind:deps
