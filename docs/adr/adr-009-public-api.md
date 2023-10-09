@@ -100,7 +100,7 @@ GetByHeight(ctx context.Context, height uint64) (*header.ExtendedHeader, error)
 // WaitForHeight blocks until the header at the given height has been processed
 // by the node's header store or until context deadline is exceeded.
 WaitForHeight(ctx context.Context, height uint64) (*header.ExtendedHeader, error)
-// GetVerifiedRangeByHeight returns the given range [from:to) of ExtendedHeaders
+// GetVerifiedRangeByHeight returns the given range (from:to) of ExtendedHeaders
 // from the node's header store and verifies that the returned headers are 
 // adjacent to each other.
 GetVerifiedRangeByHeight(ctx context.Context, from, to uint64) ([]*ExtendedHeader, error)

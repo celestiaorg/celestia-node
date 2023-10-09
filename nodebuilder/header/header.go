@@ -19,7 +19,7 @@ type Module interface {
 
 	// GetByHash returns the header of the given hash from the node's header store.
 	GetByHash(ctx context.Context, hash libhead.Hash) (*header.ExtendedHeader, error)
-	// GetVerifiedRangeByHeight returns the given range [from:to) of ExtendedHeaders
+	// GetVerifiedRangeByHeight returns the given range (from:to) of ExtendedHeaders
 	// from the node's header store and verifies that the returned headers are
 	// adjacent to each other.
 	GetVerifiedRangeByHeight(
