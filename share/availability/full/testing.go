@@ -41,12 +41,16 @@ func Node(dn *availability_test.TestDagNet) *availability_test.TestNode {
 }
 
 func TestAvailability(t *testing.T, getter share.Getter) *ShareAvailability {
-	disc := discovery.NewDiscovery(
+	params := discovery.DefaultParameters()
+	params.AdvertiseInterval = time.Second
+	params.PeersLimit = 10
+	disc, err := discovery.NewDiscovery(
+		params,
 		nil,
 		routing.NewRoutingDiscovery(routinghelpers.Null{}),
-		discovery.WithAdvertiseInterval(time.Second),
-		discovery.WithPeersLimit(10),
+		"full",
 	)
+	require.NoError(t, err)
 	store, err := eds.NewStore(eds.DefaultParameters(), t.TempDir(), datastore.NewMapDatastore())
 	require.NoError(t, err)
 	err = store.Start(context.Background())
