@@ -8,6 +8,7 @@ import (
 	tmproto "github.com/tendermint/tendermint/proto/tendermint/types"
 
 	"github.com/celestiaorg/celestia-app/pkg/appconsts"
+	"github.com/celestiaorg/celestia-app/pkg/shares"
 	"github.com/celestiaorg/celestia-app/x/blob/types"
 	"github.com/celestiaorg/nmt"
 
@@ -137,4 +138,38 @@ func (b *Blob) UnmarshalJSON(data []byte) error {
 	b.Commitment = blob.Commitment
 	b.namespace = blob.Namespace
 	return nil
+}
+
+// createBlobs creates and returns blobs from the passed shares. In case if blob is incomplete, then
+// the shares of the incomplete blob will be returned.
+func createBlobs(appShares []shares.Share) ([]*Blob, []shares.Share, error) {
+	blobs := make([]*Blob, 0)
+	for {
+		if len(appShares) == 0 {
+			return blobs, nil, nil
+		}
+
+		length, err := appShares[0].SequenceLen()
+		if err != nil {
+			return nil, nil, err
+		}
+
+		amount := shares.SparseSharesNeeded(length)
+		if amount > len(appShares) {
+			return blobs, appShares, nil
+		}
+
+		b, err := parseShares(appShares[:amount])
+		if err != nil {
+			return nil, nil, err
+		}
+
+		// only 1 blob will be created bc we passed the exact amount of shares
+		blobs = append(blobs, b[0])
+
+		if amount == len(appShares) {
+			return blobs, nil, nil
+		}
+		appShares = appShares[amount:]
+	}
 }
