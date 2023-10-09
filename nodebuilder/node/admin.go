@@ -10,7 +10,7 @@ import (
 	"github.com/celestiaorg/celestia-node/libs/authtoken"
 )
 
-const APIVersion = "v0.2.2"
+const APIVersion = "v0.11.0"
 
 type module struct {
 	tp     Type
