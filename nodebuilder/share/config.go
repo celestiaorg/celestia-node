@@ -26,7 +26,7 @@ type Config struct {
 	PeerManagerParams peers.Parameters
 
 	LightAvailability light.Parameters `toml:",omitempty"`
-	Discovery         discovery.Parameters
+	Discovery         *discovery.Parameters
 }
 
 func DefaultConfig(tp node.Type) Config {

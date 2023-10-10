@@ -8,11 +8,10 @@ import (
 	context "context"
 	reflect "reflect"
 
-	gomock "github.com/golang/mock/gomock"
-
 	da "github.com/celestiaorg/celestia-app/pkg/da"
 	share "github.com/celestiaorg/celestia-node/share"
 	rsmt2d "github.com/celestiaorg/rsmt2d"
+	gomock "github.com/golang/mock/gomock"
 )
 
 // MockModule is a mock of Module interface.
@@ -81,20 +80,6 @@ func (m *MockModule) GetSharesByNamespace(arg0 context.Context, arg1 *da.DataAva
 func (mr *MockModuleMockRecorder) GetSharesByNamespace(arg0, arg1, arg2 interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetSharesByNamespace", reflect.TypeOf((*MockModule)(nil).GetSharesByNamespace), arg0, arg1, arg2)
-}
-
-// ProbabilityOfAvailability mocks base method.
-func (m *MockModule) ProbabilityOfAvailability(arg0 context.Context) float64 {
-	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "ProbabilityOfAvailability", arg0)
-	ret0, _ := ret[0].(float64)
-	return ret0
-}
-
-// ProbabilityOfAvailability indicates an expected call of ProbabilityOfAvailability.
-func (mr *MockModuleMockRecorder) ProbabilityOfAvailability(arg0 interface{}) *gomock.Call {
-	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ProbabilityOfAvailability", reflect.TypeOf((*MockModule)(nil).ProbabilityOfAvailability), arg0)
 }
 
 // SharesAvailable mocks base method.

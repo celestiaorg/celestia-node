@@ -15,7 +15,6 @@ const (
 
 	handlePeerResultKey                    = "result"
 	handlePeerSkipSelf    handlePeerResult = "skip_self"
-	handlePeerEmptyAddrs  handlePeerResult = "skip_empty_addresses"
 	handlePeerEnoughPeers handlePeerResult = "skip_enough_peers"
 	handlePeerBackoff     handlePeerResult = "skip_backoff"
 	handlePeerConnected   handlePeerResult = "connected"
@@ -47,7 +46,7 @@ func (d *Discovery) WithMetrics() error {
 		return fmt.Errorf("discovery: init metrics: %w", err)
 	}
 	d.metrics = metrics
-	d.WithOnPeersUpdate(metrics.observeOnPeersUpdate)
+	d.onUpdatedPeers = d.onUpdatedPeers.add(metrics.observeOnPeersUpdate)
 	return nil
 }
 

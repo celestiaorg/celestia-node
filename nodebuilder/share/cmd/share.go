@@ -7,16 +7,14 @@ import (
 
 	"github.com/spf13/cobra"
 
-	"github.com/celestiaorg/celestia-app/pkg/da"
-
 	cmdnode "github.com/celestiaorg/celestia-node/cmd"
+	"github.com/celestiaorg/celestia-node/header"
 	"github.com/celestiaorg/celestia-node/share"
 )
 
 func init() {
 	Cmd.AddCommand(
 		sharesAvailableCmd,
-		probabilityOfAvailabilityCmd,
 		getSharesByNamespaceCmd,
 		getShare,
 		getEDS,
@@ -46,13 +44,13 @@ var sharesAvailableCmd = &cobra.Command{
 			return err
 		}
 
-		root := da.MinDataAvailabilityHeader()
-		err = json.Unmarshal(raw, &root)
+		var eh *header.ExtendedHeader
+		err = json.Unmarshal(raw, &eh)
 		if err != nil {
 			return err
 		}
 
-		err = client.Share.SharesAvailable(cmd.Context(), &root)
+		err = client.Share.SharesAvailable(cmd.Context(), eh)
 		formatter := func(data interface{}) interface{} {
 			err, ok := data.(error)
 			available := false
@@ -73,24 +71,8 @@ var sharesAvailableCmd = &cobra.Command{
 	},
 }
 
-var probabilityOfAvailabilityCmd = &cobra.Command{
-	Use:   "availability",
-	Short: "Calculates the probability of the data square being available based on the number of samples collected.",
-	Args:  cobra.NoArgs,
-	RunE: func(cmd *cobra.Command, args []string) error {
-		client, err := cmdnode.ParseClientFromCtx(cmd.Context())
-		if err != nil {
-			return err
-		}
-		defer client.Close()
-
-		prob := client.Share.ProbabilityOfAvailability(cmd.Context())
-		return cmdnode.PrintOutput(prob, nil, nil)
-	},
-}
-
 var getSharesByNamespaceCmd = &cobra.Command{
-	Use:   "get-by-namespace [dah, namespace]",
+	Use:   "get-by-namespace [extended header, namespace]",
 	Short: "Gets all shares from an EDS within the given namespace.",
 	Args:  cobra.ExactArgs(2),
 	RunE: func(cmd *cobra.Command, args []string) error {
@@ -105,8 +87,8 @@ var getSharesByNamespaceCmd = &cobra.Command{
 			return err
 		}
 
-		root := da.MinDataAvailabilityHeader()
-		err = json.Unmarshal(raw, &root)
+		var eh *header.ExtendedHeader
+		err = json.Unmarshal(raw, &eh)
 		if err != nil {
 			return err
 		}
@@ -116,13 +98,13 @@ var getSharesByNamespaceCmd = &cobra.Command{
 			return err
 		}
 
-		shares, err := client.Share.GetSharesByNamespace(cmd.Context(), &root, ns)
+		shares, err := client.Share.GetSharesByNamespace(cmd.Context(), eh, ns)
 		return cmdnode.PrintOutput(shares, err, nil)
 	},
 }
 
 var getShare = &cobra.Command{
-	Use:   "get-share [dah, row, col]",
+	Use:   "get-share [extended header, row, col]",
 	Short: "Gets a Share by coordinates in EDS.",
 	Args:  cobra.ExactArgs(3),
 	RunE: func(cmd *cobra.Command, args []string) error {
@@ -137,8 +119,8 @@ var getShare = &cobra.Command{
 			return err
 		}
 
-		root := da.MinDataAvailabilityHeader()
-		err = json.Unmarshal(raw, &root)
+		var eh *header.ExtendedHeader
+		err = json.Unmarshal(raw, &eh)
 		if err != nil {
 			return err
 		}
@@ -153,7 +135,7 @@ var getShare = &cobra.Command{
 			return err
 		}
 
-		s, err := client.Share.GetShare(cmd.Context(), &root, int(row), int(col))
+		s, err := client.Share.GetShare(cmd.Context(), eh, int(row), int(col))
 
 		formatter := func(data interface{}) interface{} {
 			sh, ok := data.(share.Share)
@@ -176,8 +158,8 @@ var getShare = &cobra.Command{
 }
 
 var getEDS = &cobra.Command{
-	Use:   "get-eds [dah]",
-	Short: "Gets the full EDS identified by the given root",
+	Use:   "get-eds [extended header]",
+	Short: "Gets the full EDS identified by the given extended header",
 	Args:  cobra.ExactArgs(1),
 	RunE: func(cmd *cobra.Command, args []string) error {
 		client, err := cmdnode.ParseClientFromCtx(cmd.Context())
@@ -191,13 +173,13 @@ var getEDS = &cobra.Command{
 			return err
 		}
 
-		root := da.MinDataAvailabilityHeader()
-		err = json.Unmarshal(raw, &root)
+		var eh *header.ExtendedHeader
+		err = json.Unmarshal(raw, &eh)
 		if err != nil {
 			return err
 		}
 
-		shares, err := client.Share.GetEDS(cmd.Context(), &root)
+		shares, err := client.Share.GetEDS(cmd.Context(), eh)
 		return cmdnode.PrintOutput(shares, err, nil)
 	},
 }

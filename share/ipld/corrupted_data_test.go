@@ -7,6 +7,7 @@ import (
 
 	"github.com/stretchr/testify/require"
 
+	"github.com/celestiaorg/celestia-node/header/headertest"
 	"github.com/celestiaorg/celestia-node/share"
 	"github.com/celestiaorg/celestia-node/share/availability/full"
 	availability_test "github.com/celestiaorg/celestia-node/share/availability/test"
@@ -32,9 +33,11 @@ func TestNamespaceHasher_CorruptedData(t *testing.T) {
 	// before the provider starts attacking, we should be able to retrieve successfully. We pass a size
 	// 16 block, but this is not important to the test and any valid block size behaves the same.
 	root := availability_test.RandFillBS(t, 16, provider.BlockService)
+
+	eh := headertest.RandExtendedHeaderWithRoot(t, root)
 	getCtx, cancelGet := context.WithTimeout(ctx, sharesAvailableTimeout)
 	t.Cleanup(cancelGet)
-	err := requestor.SharesAvailable(getCtx, root)
+	err := requestor.SharesAvailable(getCtx, eh)
 	require.NoError(t, err)
 
 	// clear the storage of the requester so that it must retrieve again, then start attacking
@@ -43,6 +46,6 @@ func TestNamespaceHasher_CorruptedData(t *testing.T) {
 	mockBS.Attacking = true
 	getCtx, cancelGet = context.WithTimeout(ctx, sharesAvailableTimeout)
 	t.Cleanup(cancelGet)
-	err = requestor.SharesAvailable(getCtx, root)
+	err = requestor.SharesAvailable(getCtx, eh)
 	require.ErrorIs(t, err, share.ErrNotAvailable)
 }
