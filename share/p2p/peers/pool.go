@@ -89,11 +89,8 @@ func (p *pool) next(ctx context.Context) <-chan peer.ID {
 				return
 			}
 
-			p.m.RLock()
-			hasPeerCh := p.hasPeerCh
-			p.m.RUnlock()
 			select {
-			case <-hasPeerCh:
+			case <-p.hasPeerCh:
 			case <-ctx.Done():
 				return
 			}
