@@ -5,6 +5,7 @@ import (
 	"context"
 	"errors"
 	"io"
+	"sync"
 	"testing"
 	"time"
 
@@ -210,7 +211,8 @@ func TestAccessorCache(t *testing.T) {
 		// initialize close
 		done := make(chan struct{})
 		go func() {
-			err = cache.Remove(key)
+			err := cache.Remove(key)
+			require.NoError(t, err)
 			close(done)
 		}()
 
@@ -284,16 +286,21 @@ func TestAccessorCache(t *testing.T) {
 }
 
 type mockAccessor struct {
+	m          sync.Mutex
 	data       []byte
 	isClosed   bool
 	returnedBs int
 }
 
 func (m *mockAccessor) Reader() io.Reader {
+	m.m.Lock()
+	defer m.m.Unlock()
 	return bytes.NewBuffer(m.data)
 }
 
 func (m *mockAccessor) Blockstore() (dagstore.ReadBlockstore, error) {
+	m.m.Lock()
+	defer m.m.Unlock()
 	if m.returnedBs > 0 {
 		return nil, errors.New("blockstore already returned")
 	}
@@ -302,6 +309,8 @@ func (m *mockAccessor) Blockstore() (dagstore.ReadBlockstore, error) {
 }
 
 func (m *mockAccessor) Close() error {
+	m.m.Lock()
+	defer m.m.Unlock()
 	if m.isClosed {
 		return errors.New("already closed")
 	}
@@ -312,6 +321,8 @@ func (m *mockAccessor) Close() error {
 func (m *mockAccessor) checkClosed(t *testing.T, expected bool) {
 	// item will be removed in background, so give it some time to settle
 	time.Sleep(time.Millisecond * 100)
+	m.m.Lock()
+	defer m.m.Unlock()
 	require.Equal(t, expected, m.isClosed)
 }
 
