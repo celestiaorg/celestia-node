@@ -140,9 +140,10 @@ func (b *Blob) UnmarshalJSON(data []byte) error {
 	return nil
 }
 
-// createBlobs creates and returns blobs from the passed shares. In case if blob is incomplete, then
-// the shares of the incomplete blob will be returned.
-func createBlobs(appShares []shares.Share) ([]*Blob, []shares.Share, error) {
+// buildBlobsIfExist takes shares and tries building the Blobs from them.
+// It will build blobs either until appShares will be empty or the first incomplete blob will appear, so in this
+// specific case it will return all built blobs + remaining shares.
+func buildBlobsIfExist(appShares []shares.Share) ([]*Blob, []shares.Share, error) {
 	blobs := make([]*Blob, 0)
 	for {
 		if len(appShares) == 0 {

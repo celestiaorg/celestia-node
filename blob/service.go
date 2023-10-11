@@ -201,7 +201,7 @@ func (s *Service) getByCommitment(
 		rawShares = make([]shares.Share, 0)
 		proofs    = make(Proof, 0)
 		// expanded specifies whether blob is expanded into multiple rows
-		expanded bool
+		spansMultipleRows bool
 	)
 
 	namespacedShares, err := s.shareGetter.GetSharesByNamespace(ctx, header, namespace)
@@ -221,7 +221,7 @@ func (s *Service) getByCommitment(
 		proofs = append(proofs, row.Proof)
 
 		var blobs []*Blob
-		blobs, rawShares, err = createBlobs(rawShares)
+		blobs, rawShares, err = buildBlobsIfExist(rawShares)
 		if err != nil {
 			return nil, nil, err
 		}
@@ -229,16 +229,20 @@ func (s *Service) getByCommitment(
 			if b.Commitment.Equal(commitment) {
 				return b, &proofs, nil
 			}
-			if expanded {
-				// only the first blob in the range can be expanded
-				expanded = false
+			// Falling under this flag means that the data from the last row
+			// was insufficient to create a complete blob. As a result,
+			// the first blob received spans two rows and includes proofs
+			// for both of these rows. All other blobs in the result will relate
+			// to the current row and have a single proof.
+			if spansMultipleRows {
+				spansMultipleRows = false
 				// leave proof only for the current row
 				proofs = proofs[len(proofs)-1:]
 			}
 		}
 
 		if len(rawShares) > 0 {
-			expanded = true
+			spansMultipleRows = true
 			continue
 		}
 		proofs = nil
