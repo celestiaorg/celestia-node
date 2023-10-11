@@ -144,7 +144,7 @@ func (b *Blob) UnmarshalJSON(data []byte) error {
 // It will build blobs either until appShares will be empty or the first incomplete blob will appear, so in this
 // specific case it will return all built blobs + remaining shares.
 func buildBlobsIfExist(appShares []shares.Share) ([]*Blob, []shares.Share, error) {
-	blobs := make([]*Blob, 0)
+	blobs := make([]*Blob, 0, len(appShares))
 	for {
 		if len(appShares) == 0 {
 			return blobs, nil, nil

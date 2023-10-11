@@ -344,6 +344,25 @@ func TestService_GetSingleBlobWithoutPadding(t *testing.T) {
 	assert.Equal(t, newBlob.Commitment, blobs[1].Commitment)
 }
 
+func TestService_Get(t *testing.T) {
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second*5)
+	t.Cleanup(cancel)
+
+	sizes := []int{1, 6, 3, 2, 4, 6, 8, 2, 15, 17}
+
+	appBlobs, err := blobtest.GenerateV0Blobs(sizes, true)
+	require.NoError(t, err)
+	blobs, err := convertBlobs(appBlobs...)
+	require.NoError(t, err)
+
+	service := createService(ctx, t, blobs)
+	for _, blob := range blobs {
+		b, err := service.Get(ctx, 1, blob.Namespace(), blob.Commitment)
+		require.NoError(t, err)
+		assert.Equal(t, b.Commitment, blob.Commitment)
+	}
+}
+
 func TestService_GetAllWithoutPadding(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second*5)
 	t.Cleanup(cancel)
