@@ -10,8 +10,6 @@ import (
 	"github.com/ipfs/boxo/blockservice"
 	"github.com/ipfs/go-cid"
 	ipld "github.com/ipfs/go-ipld-format"
-	"go.opentelemetry.io/otel/attribute"
-	"go.opentelemetry.io/otel/codes"
 
 	"github.com/celestiaorg/nmt"
 
@@ -193,13 +191,6 @@ func (n *NamespaceData) CollectLeavesByNamespace(
 		return err
 	}
 
-	ctx, span := tracer.Start(ctx, "get-leaves-by-namespace")
-	defer span.End()
-
-	span.SetAttributes(
-		attribute.String("namespace", n.namespace.String()),
-	)
-
 	// buffer the jobs to avoid blocking, we only need as many
 	// queued as the number of shares in the second-to-last layer
 	jobs := make(chan job, (n.maxShares+1)/2)
@@ -227,14 +218,7 @@ func (n *NamespaceData) CollectLeavesByNamespace(
 			return retrievalErr
 		}
 		pool.Submit(func() {
-			ctx, span := tracer.Start(j.ctx, "process-job")
-			defer span.End()
 			defer wg.done()
-
-			span.SetAttributes(
-				attribute.String("cid", j.cid.String()),
-				attribute.Int("pos", j.sharePos),
-			)
 
 			// if an error is likely to be returned or not depends on
 			// the underlying impl of the blockservice, currently it is not a realistic probability
@@ -248,7 +232,6 @@ func (n *NamespaceData) CollectLeavesByNamespace(
 					"pos", j.sharePos,
 					"err", err,
 				)
-				span.SetStatus(codes.Error, err.Error())
 				// we still need to update the bounds
 				n.addLeaf(j.sharePos, nil)
 				return
@@ -257,7 +240,6 @@ func (n *NamespaceData) CollectLeavesByNamespace(
 			links := nd.Links()
 			if len(links) == 0 {
 				// successfully fetched a leaf belonging to the namespace
-				span.SetStatus(codes.Ok, "")
 				// we found a leaf, so we update the bounds
 				n.addLeaf(j.sharePos, nd)
 				return
