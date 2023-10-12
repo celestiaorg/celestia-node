@@ -22,7 +22,7 @@ import (
 
 const (
 	// fullNodesTag is the tag used to identify full nodes in the discovery service.
-	fullNodesTag = "full"
+	fullNodesTag = "/full/0.0.1"
 )
 
 func newDiscovery(cfg *disc.Parameters,
