@@ -50,7 +50,7 @@ func ConstructModule[H libhead.Header[H]](tp node.Type, cfg *Config) fx.Option {
 			}),
 		)),
 		fx.Provide(fx.Annotate(
-			func(cfg Config, ps *pubsub.PubSub, network modp2p.Network) *p2p.Subscriber[H] {
+			func(cfg Config, ps *pubsub.PubSub, network modp2p.Network) (*p2p.Subscriber[H], error) {
 				opts := []p2p.SubscriberOption{p2p.WithSubscriberNetworkID(network.String())}
 				if cfg.MetricsEnabled {
 					opts = append(opts, p2p.WithSubscriberMetrics())
