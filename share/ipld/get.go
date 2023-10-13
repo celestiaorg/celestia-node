@@ -10,8 +10,6 @@ import (
 	"github.com/ipfs/boxo/blockservice"
 	"github.com/ipfs/go-cid"
 	ipld "github.com/ipfs/go-ipld-format"
-	"go.opentelemetry.io/otel/attribute"
-	"go.opentelemetry.io/otel/codes"
 
 	"github.com/celestiaorg/celestia-node/share"
 )
@@ -100,9 +98,6 @@ func GetLeaves(ctx context.Context,
 	maxShares int,
 	put func(int, ipld.Node),
 ) {
-	ctx, span := tracer.Start(ctx, "get-leaves")
-	defer span.End()
-
 	// this buffer ensures writes to 'jobs' are never blocking (bin-tree-feat)
 	jobs := make(chan *job, (maxShares+1)/2) // +1 for the case where 'maxShares' is 1
 	jobs <- &job{cid: root, ctx: ctx}
@@ -120,21 +115,12 @@ func GetLeaves(ctx context.Context,
 			// work over each job concurrently, s.t. shares do not block
 			// processing of each other
 			pool.Submit(func() {
-				ctx, span := tracer.Start(j.ctx, "process-job")
-				defer span.End()
 				defer wg.Done()
-
-				span.SetAttributes(
-					attribute.String("cid", j.cid.String()),
-					attribute.Int("pos", j.sharePos),
-				)
 
 				nd, err := GetNode(ctx, bGetter, j.cid)
 				if err != nil {
 					// we don't really care about errors here
 					// just fetch as much as possible
-					span.RecordError(err)
-					span.SetStatus(codes.Error, err.Error())
 					return
 				}
 				// check links to know what we should do with the node
@@ -142,7 +128,6 @@ func GetLeaves(ctx context.Context,
 				if len(lnks) == 0 {
 					// successfully fetched a share/leaf
 					// ladies and gentlemen, we got em!
-					span.SetStatus(codes.Ok, "")
 					put(j.sharePos, nd)
 					return
 				}

@@ -49,7 +49,7 @@ type Store struct {
 	mounts *mount.Registry
 
 	bs    *blockstore
-	cache *cache.DoubleCache
+	cache atomic.Pointer[cache.DoubleCache]
 
 	carIdx      index.FullIndexRepo
 	invertedIdx *simpleInvertedIndex
@@ -129,9 +129,9 @@ func NewStore(params *Parameters, basePath string, ds datastore.Batching) (*Stor
 		gcInterval:    params.GCInterval,
 		mounts:        r,
 		shardFailures: failureChan,
-		cache:         cache.NewDoubleCache(recentBlocksCache, blockstoreCache),
 	}
 	store.bs = newBlockstore(store, ds)
+	store.cache.Store(cache.NewDoubleCache(recentBlocksCache, blockstoreCache))
 	return store, nil
 }
 
@@ -286,7 +286,7 @@ func (s *Store) put(ctx context.Context, root share.DataHash, square *rsmt2d.Ext
 	go func() {
 		ctx, cancel := context.WithTimeout(context.Background(), time.Minute)
 		defer cancel()
-		ac, err := s.cache.First().GetOrLoad(ctx, result.Key, s.getAccessor)
+		ac, err := s.cache.Load().First().GetOrLoad(ctx, result.Key, s.getAccessor)
 		if err != nil {
 			log.Warnw("unable to put accessor to recent blocks accessors cache", "err", err)
 			return
@@ -347,7 +347,7 @@ func (s *Store) GetCAR(ctx context.Context, root share.DataHash) (io.ReadCloser,
 
 func (s *Store) getCAR(ctx context.Context, root share.DataHash) (io.ReadCloser, error) {
 	key := shard.KeyFromString(root.String())
-	accessor, err := s.cache.Get(key)
+	accessor, err := s.cache.Load().Get(key)
 	if err == nil {
 		return newReadCloser(accessor), nil
 	}
@@ -391,7 +391,7 @@ func (s *Store) carBlockstore(
 	root share.DataHash,
 ) (*BlockstoreCloser, error) {
 	key := shard.KeyFromString(root.String())
-	accessor, err := s.cache.Get(key)
+	accessor, err := s.cache.Load().Get(key)
 	if err == nil {
 		return blockstoreCloser(accessor)
 	}
@@ -482,7 +482,7 @@ func (s *Store) Remove(ctx context.Context, root share.DataHash) error {
 func (s *Store) remove(ctx context.Context, root share.DataHash) (err error) {
 	key := shard.KeyFromString(root.String())
 	// remove open links to accessor from cache
-	if err := s.cache.Remove(key); err != nil {
+	if err := s.cache.Load().Remove(key); err != nil {
 		log.Warnw("remove accessor from cache", "err", err)
 	}
 	ch := make(chan dagstore.ShardResult, 1)
