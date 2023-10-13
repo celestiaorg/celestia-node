@@ -557,9 +557,9 @@ github.com/dgryski/go-farm v0.0.0-20190423205320-6a90982ecee2/go.mod h1:SqUrOPUn
 github.com/dgryski/go-farm v0.0.0-20200201041132-a6ae2369ad13 h1:fAjc9m62+UWV/WAFKLNi6ZS0675eEUC9y3AlwSbQu1Y=
 github.com/dgryski/go-farm v0.0.0-20200201041132-a6ae2369ad13/go.mod h1:SqUrOPUnsFjfmXRMNPybcSiG0BgUW2AuFH8PAnS2iTw=
 github.com/dgryski/go-sip13 v0.0.0-20181026042036-e10d5fee7954/go.mod h1:vAd38F8PWV+bWy6jNmig1y/TA+kYO4g3RSRF0IAv0no=
-github.com/distractedm1nd/go-libp2p v0.0.0-20231012135604-160218ead08b h1:tMJAb1HZL0j4Vdc8ZqAQ6n7XXoF9UNPd9Zf9oVJQuEA=
-github.com/distractedm1nd/go-libp2p v0.0.0-20231012135604-160218ead08b/go.mod h1:M7d0mHynlnemvW/O/id07b+XjlyO6MCx3qRSpn/c7us=
-github.com/distractedm1nd/quic-go v0.0.0-20231012135244-94a9a65cdeeb/go.mod h1:xuV6xmn4/Xh3LbWFNXFz1x+NkaoM2zV2hVUlBY9Pevs=
+github.com/distractedm1nd/go-libp2p v0.0.0-20231013092008-45fb6b0c638b h1:X4uEg5DD0uLblf2GLRTNEU37zhF22Y0H2PaN5OZFwTo=
+github.com/distractedm1nd/go-libp2p v0.0.0-20231013092008-45fb6b0c638b/go.mod h1:P3AS+UWRMHhGR65D9HxRSUNd8POnKzqib2vuU243KZQ=
+github.com/distractedm1nd/quic-go v0.0.0-20231013091840-92e38190041d/go.mod h1:xuV6xmn4/Xh3LbWFNXFz1x+NkaoM2zV2hVUlBY9Pevs=
 github.com/dlclark/regexp2 v1.4.1-0.20201116162257-a2a8dda75c91/go.mod h1:2pZnwuY/m+8K6iRw6wQdMtk+rH5tNGR1i55kozfMjCc=
 github.com/dnaeon/go-vcr v1.1.0/go.mod h1:M7tiix8f0r6mKKJ3Yq/kqU1OYf3MnfmBWVbPx/yU9ko=
 github.com/dnaeon/go-vcr v1.2.0/go.mod h1:R4UdLID7HZT3taECzJs4YgbbH6PIGXB6W/sc5OLb6RQ=
