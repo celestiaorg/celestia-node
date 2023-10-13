@@ -122,7 +122,7 @@ and their lower-case forms`,
 }
 
 // ParseMiscFlags parses miscellaneous flags from the given cmd and applies values to Env.
-func ParseMiscFlags(ctx context.Context, cmd *cobra.Command, cfg *nodebuilder.Config) (context.Context, error) {
+func ParseMiscFlags(ctx context.Context, cmd *cobra.Command) (context.Context, error) {
 	logLevel := cmd.Flag(LogLevelFlag).Value.String()
 	if logLevel != "" {
 		level, err := logging.LevelFromString(logLevel)
@@ -238,7 +238,7 @@ func ParseMiscFlags(ctx context.Context, cmd *cobra.Command, cfg *nodebuilder.Co
 			opts = append(opts, otlpmetrichttp.WithInsecure())
 		}
 
-		ctx = WithNodeOptions(ctx, nodebuilder.WithMetrics(opts, NodeType(ctx), cfg))
+		ctx = WithNodeOptions(ctx, nodebuilder.WithMetrics(opts, NodeType(ctx)))
 	}
 
 	ok, err = cmd.Flags().GetBool(p2pMetrics)

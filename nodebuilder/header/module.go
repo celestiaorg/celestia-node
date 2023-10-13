@@ -50,9 +50,9 @@ func ConstructModule[H libhead.Header[H]](tp node.Type, cfg *Config) fx.Option {
 			}),
 		)),
 		fx.Provide(fx.Annotate(
-			func(cfg Config, ps *pubsub.PubSub, network modp2p.Network) (*p2p.Subscriber[H], error) {
+			func(ps *pubsub.PubSub, network modp2p.Network) (*p2p.Subscriber[H], error) {
 				opts := []p2p.SubscriberOption{p2p.WithSubscriberNetworkID(network.String())}
-				if cfg.MetricsEnabled {
+				if MetricsEnabled {
 					opts = append(opts, p2p.WithSubscriberMetrics())
 				}
 				return p2p.NewSubscriber[H](ps, header.MsgID, opts...)
@@ -75,7 +75,7 @@ func ConstructModule[H libhead.Header[H]](tp node.Type, cfg *Config) fx.Option {
 					p2p.WithParams(cfg.Server),
 					p2p.WithNetworkID[p2p.ServerParameters](network.String()),
 				}
-				if cfg.MetricsEnabled {
+				if MetricsEnabled {
 					opts = append(opts, p2p.WithMetrics[p2p.ServerParameters]())
 				}
 

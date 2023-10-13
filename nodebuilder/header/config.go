@@ -16,6 +16,8 @@ import (
 	"github.com/celestiaorg/celestia-node/nodebuilder/p2p"
 )
 
+var MetricsEnabled = false
+
 // Config contains configuration parameters for header retrieval and management.
 type Config struct {
 	// TrustedHash is the Block/Header hash that Nodes use as starting point for header synchronization.
@@ -31,9 +33,6 @@ type Config struct {
 
 	Server p2p_exchange.ServerParameters
 	Client p2p_exchange.ClientParameters `toml:",omitempty"`
-
-	// enables metrics for the entire header module
-	MetricsEnabled bool
 }
 
 func DefaultConfig(tp node.Type) Config {

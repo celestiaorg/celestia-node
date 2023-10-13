@@ -47,7 +47,7 @@ func newP2PExchange[H libhead.Header[H]](
 		p2p.WithChainID(network.String()),
 		p2p.WithPeerIDStore[p2p.ClientParameters](pidstore),
 	}
-	if cfg.MetricsEnabled {
+	if MetricsEnabled {
 		opts = append(opts, p2p.WithMetrics[p2p.ClientParameters]())
 	}
 
@@ -75,7 +75,7 @@ func newSyncer[H libhead.Header[H]](
 	cfg Config,
 ) (*sync.Syncer[H], *modfraud.ServiceBreaker[*sync.Syncer[H], H], error) {
 	opts := []sync.Option{sync.WithParams(cfg.Syncer), sync.WithBlockTime(modp2p.BlockTime)}
-	if cfg.MetricsEnabled {
+	if MetricsEnabled {
 		opts = append(opts, sync.WithMetrics())
 	}
 
@@ -104,7 +104,7 @@ func newInitStore[H libhead.Header[H]](
 		return nil, err
 	}
 
-	if cfg.MetricsEnabled {
+	if MetricsEnabled {
 		err = libhead.WithMetrics[H](s)
 		if err != nil {
 			return nil, err

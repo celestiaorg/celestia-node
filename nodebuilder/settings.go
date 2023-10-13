@@ -24,6 +24,7 @@ import (
 
 	"github.com/celestiaorg/celestia-node/header"
 	"github.com/celestiaorg/celestia-node/nodebuilder/das"
+	modhead "github.com/celestiaorg/celestia-node/nodebuilder/header"
 	"github.com/celestiaorg/celestia-node/nodebuilder/node"
 	"github.com/celestiaorg/celestia-node/nodebuilder/p2p"
 	"github.com/celestiaorg/celestia-node/nodebuilder/share"
@@ -70,10 +71,10 @@ func WithPyroscope(endpoint string, nodeType node.Type) fx.Option {
 }
 
 // WithMetrics enables metrics exporting for the node.
-func WithMetrics(metricOpts []otlpmetrichttp.Option, nodeType node.Type, config *Config) fx.Option {
+func WithMetrics(metricOpts []otlpmetrichttp.Option, nodeType node.Type) fx.Option {
 	// TODO @renaynay: this will be refactored when there is more granular
 	//  control over which module to enable metrics for
-	config.Header.MetricsEnabled = true
+	modhead.MetricsEnabled = true
 
 	baseComponents := fx.Options(
 		fx.Supply(metricOpts),
