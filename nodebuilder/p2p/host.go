@@ -3,6 +3,7 @@ package p2p
 import (
 	"context"
 	"fmt"
+	"os"
 
 	"github.com/libp2p/go-libp2p"
 	p2pconfig "github.com/libp2p/go-libp2p/config"
@@ -16,11 +17,21 @@ import (
 	"github.com/libp2p/go-libp2p/core/routing"
 	routedhost "github.com/libp2p/go-libp2p/p2p/host/routed"
 	"github.com/libp2p/go-libp2p/p2p/net/conngater"
+	quic "github.com/libp2p/go-libp2p/p2p/transport/quic"
+	"github.com/libp2p/go-libp2p/p2p/transport/tcp"
+	webtransport "github.com/libp2p/go-libp2p/p2p/transport/webtransport"
 	"github.com/prometheus/client_golang/prometheus"
 	"go.uber.org/fx"
 
 	"github.com/celestiaorg/celestia-node/nodebuilder/node"
 )
+
+var enableQUIC bool
+
+func init() {
+	_, ok := os.LookupEnv("CELESTIA_ENABLE_QUIC")
+	enableQUIC = ok
+}
 
 // routedHost constructs a wrapped Host that may fallback to address discovery,
 // if any top-level operation on the Host is provided with PeerID(Hash(PbK)) only.
@@ -44,8 +55,15 @@ func host(params hostParams) (HostBase, error) {
 		libp2p.ResourceManager(params.ResourceManager),
 		// to clearly define what defaults we rely upon
 		libp2p.DefaultSecurity,
-		libp2p.DefaultTransports,
 		libp2p.DefaultMuxers,
+		libp2p.Transport(tcp.NewTCPTransport),
+	}
+
+	if enableQUIC {
+		opts = append(opts,
+			libp2p.Transport(quic.NewTransport),
+			libp2p.Transport(webtransport.New),
+		)
 	}
 
 	if params.Registry != nil {
