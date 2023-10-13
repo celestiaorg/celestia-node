@@ -40,12 +40,18 @@ func newP2PExchange[H libhead.Header[H]](
 		ids[index] = peer.ID
 		host.Peerstore().AddAddrs(peer.ID, peer.Addrs, peerstore.PermanentAddrTTL)
 	}
-	exchange, err := p2p.NewExchange[H](host, ids, conngater,
+
+	opts := []p2p.Option[p2p.ClientParameters]{
 		p2p.WithParams(cfg.Client),
 		p2p.WithNetworkID[p2p.ClientParameters](network.String()),
 		p2p.WithChainID(network.String()),
 		p2p.WithPeerIDStore[p2p.ClientParameters](pidstore),
-	)
+	}
+	if cfg.MetricsEnabled {
+		opts = append(opts, p2p.WithMetrics[p2p.ClientParameters]())
+	}
+
+	exchange, err := p2p.NewExchange[H](host, ids, conngater, opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -68,10 +74,12 @@ func newSyncer[H libhead.Header[H]](
 	sub libhead.Subscriber[H],
 	cfg Config,
 ) (*sync.Syncer[H], *modfraud.ServiceBreaker[*sync.Syncer[H], H], error) {
-	syncer, err := sync.NewSyncer[H](ex, store, sub,
-		sync.WithParams(cfg.Syncer),
-		sync.WithBlockTime(modp2p.BlockTime),
-	)
+	opts := []sync.Option{sync.WithParams(cfg.Syncer), sync.WithBlockTime(modp2p.BlockTime)}
+	if cfg.MetricsEnabled {
+		opts = append(opts, sync.WithMetrics())
+	}
+
+	syncer, err := sync.NewSyncer[H](ex, store, sub, opts...)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -94,6 +102,13 @@ func newInitStore[H libhead.Header[H]](
 	s, err := store.NewStore[H](ds, store.WithParams(cfg.Store))
 	if err != nil {
 		return nil, err
+	}
+
+	if cfg.MetricsEnabled {
+		err = libhead.WithMetrics[H](s)
+		if err != nil {
+			return nil, err
+		}
 	}
 
 	trustedHash, err := cfg.trustedHash(net)

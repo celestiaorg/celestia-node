@@ -31,6 +31,9 @@ type Config struct {
 
 	Server p2p_exchange.ServerParameters
 	Client p2p_exchange.ClientParameters `toml:",omitempty"`
+
+	// enables metrics for the entire header module
+	MetricsEnabled bool
 }
 
 func DefaultConfig(tp node.Type) Config {

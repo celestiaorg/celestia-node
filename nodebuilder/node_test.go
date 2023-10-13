@@ -67,15 +67,18 @@ func TestLifecycle_WithMetrics(t *testing.T) {
 
 	for i, tt := range test {
 		t.Run(strconv.Itoa(i), func(t *testing.T) {
-			node := TestNode(
+			cfg := DefaultConfig(tt.tp)
+			node := TestNodeWithConfig(
 				t,
 				tt.tp,
+				cfg,
 				WithMetrics(
 					[]otlpmetrichttp.Option{
 						otlpmetrichttp.WithEndpoint(otelCollectorURL),
 						otlpmetrichttp.WithInsecure(),
 					},
 					tt.tp,
+					cfg,
 				),
 			)
 			require.NotNil(t, node)

@@ -111,7 +111,7 @@ func PersistentPreRunEnv(cmd *cobra.Command, nodeType node.Type, _ []string) err
 		}
 	}
 
-	ctx, err = ParseMiscFlags(ctx, cmd)
+	ctx, err = ParseMiscFlags(ctx, cmd, &cfg)
 	if err != nil {
 		return err
 	}
