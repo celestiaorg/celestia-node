@@ -136,6 +136,11 @@ func (sg *ShrexGetter) GetEDS(ctx context.Context, header *header.ExtendedHeader
 	}()
 
 	dah := header.DAH
+	// short circuit if the data root is empty
+	if dah.Equals(share.EmptyRoot()) {
+		fmt.Println("hitting")
+		return share.EmptyExtendedDataSquare(), nil
+	}
 	for {
 		if ctx.Err() != nil {
 			sg.metrics.recordEDSAttempt(ctx, attempt, false)
