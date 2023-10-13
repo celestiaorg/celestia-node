@@ -197,13 +197,6 @@ func (s *Service) getByCommitment(
 		return nil, nil, err
 	}
 
-	var (
-		rawShares = make([]share.Share, 0)
-		proofs    = make(Proof, 0)
-		amount    int
-		blobShare *shares.Share
-	)
-
 	namespacedShares, err := s.shareGetter.GetSharesByNamespace(ctx, header, namespace)
 	if err != nil {
 		if errors.Is(err, share.ErrNotFound) {
@@ -211,84 +204,57 @@ func (s *Service) getByCommitment(
 		}
 		return nil, nil, err
 	}
+
+	var (
+		rawShares = make([]shares.Share, 0)
+		proofs    = make(Proof, 0)
+		// spansMultipleRows specifies whether blob is expanded into multiple rows
+		spansMultipleRows bool
+	)
+
 	for _, row := range namespacedShares {
-		if len(row.Shares) == 0 {
-			break
-		}
-
-		rawShares = append(rawShares, row.Shares...)
-		proofs = append(proofs, row.Proof)
-
-		// reconstruct the `blobShare` from the first rawShare in range
-		// in order to get blob's length(first share will contain this info)
-		if blobShare == nil {
-			for i, shr := range rawShares {
-				bShare, err := shares.NewShare(shr)
-				if err != nil {
-					return nil, nil, err
-				}
-
-				// ensure that the first share is not a NamespacePaddingShare
-				// these shares are used to satisfy the non-interactive default rules
-				// and are not the part of the blob, so should be removed.
-				isPadding, err := bShare.IsPadding()
-				if err != nil {
-					return nil, nil, err
-				}
-				if isPadding {
-					continue
-				}
-
-				blobShare = bShare
-				// save the length.
-				length, err := blobShare.SequenceLen()
-				if err != nil {
-					return nil, nil, err
-				}
-				amount = shares.SparseSharesNeeded(length)
-				rawShares = rawShares[i:]
-				break
-			}
-		}
-
-		// move to the next row if the blob is incomplete.
-		if amount > len(rawShares) {
-			continue
-		}
-
-		blob, same, err := constructAndVerifyBlob(rawShares[:amount], commitment)
+		appShares, err := toAppShares(row.Shares...)
 		if err != nil {
 			return nil, nil, err
 		}
-		if same {
-			return blob, &proofs, nil
+		rawShares = append(rawShares, appShares...)
+		proofs = append(proofs, row.Proof)
+
+		var blobs []*Blob
+		blobs, rawShares, err = buildBlobsIfExist(rawShares)
+		if err != nil {
+			return nil, nil, err
+		}
+		for _, b := range blobs {
+			if b.Commitment.Equal(commitment) {
+				return b, &proofs, nil
+			}
+			// Falling under this flag means that the data from the last row
+			// was insufficient to create a complete blob. As a result,
+			// the first blob received spans two rows and includes proofs
+			// for both of these rows. All other blobs in the result will relate
+			// to the current row and have a single proof.
+			if spansMultipleRows {
+				spansMultipleRows = false
+				// leave proof only for the current row
+				proofs = proofs[len(proofs)-1:]
+			}
 		}
 
-		// drop info of the checked blob
-		rawShares = rawShares[amount:]
 		if len(rawShares) > 0 {
-			// save proof for the last row in case we have rawShares
-			proofs = proofs[len(proofs)-1:]
-		} else {
-			// otherwise clear proofs
-			proofs = nil
+			spansMultipleRows = true
+			continue
 		}
-		blobShare = nil
+		proofs = nil
 	}
 
-	if len(rawShares) == 0 {
-		return nil, nil, ErrBlobNotFound
+	err = ErrBlobNotFound
+	if len(rawShares) > 0 {
+		err = fmt.Errorf("incomplete blob with the "+
+			"namespace: %s detected at %d: %w", namespace.String(), height, err)
+		log.Error(err)
 	}
-
-	blob, same, err := constructAndVerifyBlob(rawShares, commitment)
-	if err != nil {
-		return nil, nil, err
-	}
-	if same {
-		return blob, &proofs, nil
-	}
-
-	return nil, nil, ErrBlobNotFound
+	return nil, nil, err
 }
 
 // getBlobs retrieves the DAH and fetches all shares from the requested Namespace and converts
@@ -303,4 +269,26 @@ func (s *Service) getBlobs(
 		return nil, err
 	}
 	return SharesToBlobs(namespacedShares.Flatten())
+}
+
+// toAppShares converts node's raw shares to the app shares, skipping padding
+func toAppShares(shrs ...share.Share) ([]shares.Share, error) {
+	appShrs := make([]shares.Share, 0, len(shrs))
+	for _, shr := range shrs {
+		bShare, err := shares.NewShare(shr)
+		if err != nil {
+			return nil, err
+		}
+
+		ok, err := bShare.IsPadding()
+		if err != nil {
+			return nil, err
+		}
+		if ok {
+			continue
+		}
+
+		appShrs = append(appShrs, *bShare)
+	}
+	return appShrs, nil
 }
