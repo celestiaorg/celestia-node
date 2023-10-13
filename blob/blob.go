@@ -3,6 +3,7 @@ package blob
 import (
 	"bytes"
 	"encoding/json"
+	"errors"
 	"fmt"
 
 	tmproto "github.com/tendermint/tendermint/proto/tendermint/types"
@@ -144,12 +145,11 @@ func (b *Blob) UnmarshalJSON(data []byte) error {
 // It will build blobs either until appShares will be empty or the first incomplete blob will appear, so in this
 // specific case it will return all built blobs + remaining shares.
 func buildBlobsIfExist(appShares []shares.Share) ([]*Blob, []shares.Share, error) {
+	if len(appShares) == 0 {
+		return nil, nil, errors.New("empty shares received")
+	}
 	blobs := make([]*Blob, 0, len(appShares))
 	for {
-		if len(appShares) == 0 {
-			return blobs, nil, nil
-		}
-
 		length, err := appShares[0].SequenceLen()
 		if err != nil {
 			return nil, nil, err

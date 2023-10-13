@@ -247,7 +247,14 @@ func (s *Service) getByCommitment(
 		}
 		proofs = nil
 	}
-	return nil, nil, ErrBlobNotFound
+
+	err = ErrBlobNotFound
+	if len(rawShares) > 0 {
+		reportErr := fmt.Errorf("THIS IS A BUG: INCOMPLETE BLOB DETECTED at: %d height", height)
+		err = errors.Join(err, reportErr)
+		log.Error(err)
+	}
+	return nil, nil, err
 }
 
 // getBlobs retrieves the DAH and fetches all shares from the requested Namespace and converts
