@@ -7,7 +7,7 @@ on:
     # Trigger on version tags
     tags:
       - "v*"
-  pull_request:
+  # pull_request:
   workflow_dispatch:
     # Inputs the workflow accepts.
     inputs:
