@@ -197,13 +197,6 @@ func (s *Service) getByCommitment(
 		return nil, nil, err
 	}
 
-	var (
-		rawShares = make([]shares.Share, 0)
-		proofs    = make(Proof, 0)
-		// expanded specifies whether blob is expanded into multiple rows
-		spansMultipleRows bool
-	)
-
 	namespacedShares, err := s.shareGetter.GetSharesByNamespace(ctx, header, namespace)
 	if err != nil {
 		if errors.Is(err, share.ErrNotFound) {
@@ -211,6 +204,13 @@ func (s *Service) getByCommitment(
 		}
 		return nil, nil, err
 	}
+
+	var (
+		rawShares = make([]shares.Share, 0)
+		proofs    = make(Proof, 0)
+		// expanded specifies whether blob is expanded into multiple rows
+		spansMultipleRows bool
+	)
 
 	for _, row := range namespacedShares {
 		appShares, err := toAppShares(row.Shares...)
@@ -250,8 +250,7 @@ func (s *Service) getByCommitment(
 
 	err = ErrBlobNotFound
 	if len(rawShares) > 0 {
-		reportErr := fmt.Errorf("THIS IS A BUG: INCOMPLETE BLOB DETECTED at: %d height", height)
-		err = errors.Join(err, reportErr)
+		err = fmt.Errorf("incomplete blob detected at %d: %w", height, err)
 		log.Error(err)
 	}
 	return nil, nil, err
