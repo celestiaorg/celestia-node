@@ -16,6 +16,7 @@ import (
 	"github.com/celestiaorg/celestia-node/nodebuilder/p2p"
 )
 
+// MetricsEnabled will be set during runtime if metrics are enabled on the node.
 var MetricsEnabled = false
 
 // Config contains configuration parameters for header retrieval and management.
