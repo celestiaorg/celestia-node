@@ -19,10 +19,10 @@ type Module interface {
 
 	// GetByHash returns the header of the given hash from the node's header store.
 	GetByHash(ctx context.Context, hash libhead.Hash) (*header.ExtendedHeader, error)
-	// GetVerifiedRangeByHeight returns the given range (from:to) of ExtendedHeaders
+	// GetRangeByHeight returns the given range (from:to) of ExtendedHeaders
 	// from the node's header store and verifies that the returned headers are
 	// adjacent to each other.
-	GetVerifiedRangeByHeight(
+	GetRangeByHeight(
 		ctx context.Context,
 		from *header.ExtendedHeader,
 		to uint64,
@@ -54,7 +54,7 @@ type API struct {
 			ctx context.Context,
 			hash libhead.Hash,
 		) (*header.ExtendedHeader, error) `perm:"read"`
-		GetVerifiedRangeByHeight func(
+		GetRangeByHeight func(
 			context.Context,
 			*header.ExtendedHeader,
 			uint64,
@@ -72,12 +72,12 @@ func (api *API) GetByHash(ctx context.Context, hash libhead.Hash) (*header.Exten
 	return api.Internal.GetByHash(ctx, hash)
 }
 
-func (api *API) GetVerifiedRangeByHeight(
+func (api *API) GetRangeByHeight(
 	ctx context.Context,
 	from *header.ExtendedHeader,
 	to uint64,
 ) ([]*header.ExtendedHeader, error) {
-	return api.Internal.GetVerifiedRangeByHeight(ctx, from, to)
+	return api.Internal.GetRangeByHeight(ctx, from, to)
 }
 
 func (api *API) GetByHeight(ctx context.Context, u uint64) (*header.ExtendedHeader, error) {
