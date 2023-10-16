@@ -121,6 +121,10 @@ func (s *Service) GetAll(ctx context.Context, height uint64, namespaces []share.
 		resultErr   = make([]error, len(namespaces))
 	)
 
+	for _, ns := range namespaces {
+		log.Debugw("performing GetAll request", "namespace", ns.String(), "height", height)
+	}
+
 	wg := sync.WaitGroup{}
 	for i, namespace := range namespaces {
 		wg.Add(1)
@@ -131,6 +135,8 @@ func (s *Service) GetAll(ctx context.Context, height uint64, namespaces []share.
 				resultErr[i] = fmt.Errorf("getting blobs for namespace(%s): %s", namespace.String(), err)
 				return
 			}
+
+			log.Debugw("receiving blobs", "height", height, "total", len(blobs))
 			resultBlobs[i] = blobs
 		}(i, namespace)
 	}
