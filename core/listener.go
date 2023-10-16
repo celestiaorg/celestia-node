@@ -57,7 +57,7 @@ func NewListener(
 		hashBroadcaster:   hashBroadcaster,
 		construct:         construct,
 		store:             store,
-		listenerTimeout:   2 * blocktime,
+		listenerTimeout:   3 * blocktime,
 	}
 }
 
