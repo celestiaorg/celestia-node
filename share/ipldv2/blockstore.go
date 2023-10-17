@@ -26,7 +26,7 @@ func NewBlockstore[F eds.File](fs fileStore[F]) blockstore.Blockstore {
 	return &Blockstore[F]{fs}
 }
 
-func (b Blockstore[F]) Get(_ context.Context, cid cid.Cid) (blocks.Block, error) {
+func (b Blockstore[F]) Get(ctx context.Context, cid cid.Cid) (blocks.Block, error) {
 	switch cid.Type() {
 	case shareSamplingCodec:
 		id, err := ShareSampleIDFromCID(cid)
@@ -36,7 +36,7 @@ func (b Blockstore[F]) Get(_ context.Context, cid cid.Cid) (blocks.Block, error)
 			return nil, err
 		}
 
-		blk, err := b.getShareSampleBlock(id)
+		blk, err := b.getShareSampleBlock(ctx, id)
 		if err != nil {
 			log.Error(err)
 			return nil, err
@@ -63,18 +63,18 @@ func (b Blockstore[F]) Get(_ context.Context, cid cid.Cid) (blocks.Block, error)
 	}
 }
 
-func (b Blockstore[F]) getShareSampleBlock(id ShareSampleID) (blocks.Block, error) {
+func (b Blockstore[F]) getShareSampleBlock(ctx context.Context, id ShareSampleID) (blocks.Block, error) {
 	f, err := b.fs.File(id.DataHash)
 	if err != nil {
 		return nil, fmt.Errorf("while getting EDS file from FS: %w", err)
 	}
 
-	shr, prf, err := f.ShareWithProof(id.Index, id.Axis)
+	shr, err := f.ShareWithProof(ctx, id.Index, id.Axis, id.AxisHash)
 	if err != nil {
 		return nil, fmt.Errorf("while getting share with proof: %w", err)
 	}
 
-	s := NewShareSample(id, shr, prf, f.Size())
+	s := NewShareSample(id, shr.Share, shr.Proof, f.Size())
 	blk, err := s.IPLDBlock()
 	if err != nil {
 		return nil, fmt.Errorf("while coverting to IPLD block: %w", err)

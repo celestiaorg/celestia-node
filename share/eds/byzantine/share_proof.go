@@ -23,7 +23,7 @@ type ShareWithProof struct {
 	// Share is a full data including namespace
 	share.Share
 	// Proof is a Merkle Proof of current share
-	Proof *nmt.Proof
+	Proof nmt.Proof
 }
 
 // NewShareWithProof takes the given leaf and its path, starting from the tree root,
@@ -38,7 +38,7 @@ func NewShareWithProof(index int, share share.Share, pathToLeaf []cid.Cid) *Shar
 	proof := nmt.NewInclusionProof(index, index+1, rangeProofs, true)
 	return &ShareWithProof{
 		share,
-		&proof,
+		proof,
 	}
 }
 
@@ -119,7 +119,7 @@ func ProtoToShare(protoShares []*pb.Share) []*ShareWithProof {
 			continue
 		}
 		proof := ProtoToProof(share.Proof)
-		shares[i] = &ShareWithProof{share.Data, &proof}
+		shares[i] = &ShareWithProof{share.Data, proof}
 	}
 	return shares
 }

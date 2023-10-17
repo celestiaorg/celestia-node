@@ -7,12 +7,15 @@ import (
 	"time"
 
 	"github.com/ipfs/boxo/exchange/offline"
+	"github.com/ipfs/go-cid"
 	"github.com/ipfs/go-datastore"
 	ds_sync "github.com/ipfs/go-datastore/sync"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
+	"github.com/celestiaorg/celestia-app/pkg/da"
 	"github.com/celestiaorg/celestia-app/pkg/wrapper"
+	dsbadger "github.com/celestiaorg/go-ds-badger4"
 	"github.com/celestiaorg/rsmt2d"
 
 	"github.com/celestiaorg/celestia-node/share"
@@ -215,6 +218,96 @@ func TestIPLDGetter(t *testing.T) {
 		require.NoError(t, err)
 		require.Empty(t, emptyShares.Flatten())
 	})
+}
+
+// BenchmarkCacheHit/128    	  292264	      3596 ns/op
+func BenchmarkCacheHit(b *testing.B) {
+	size := 128
+
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second*30)
+	b.Cleanup(cancel)
+
+	// create store
+	dir := b.TempDir()
+	ds, err := dsbadger.NewDatastore(dir, &dsbadger.DefaultOptions)
+	require.NoError(b, err)
+	edsStore, err := eds.NewStore(eds.DefaultParameters(), dir, ds)
+	require.NoError(b, err)
+	err = edsStore.Start(ctx)
+	require.NoError(b, err)
+
+	// generate EDS
+	edss := edstest.RandEDS(b, size)
+	dah, err := da.NewDataAvailabilityHeader(edss)
+	require.NoError(b, err)
+	err = edsStore.Put(ctx, dah.Hash(), edss)
+	require.NoError(b, err)
+	cid := ipld.MustCidFromNamespacedSha256(dah.RowRoots[0])
+
+	bstore := edsStore.Blockstore()
+
+	// start benchmark
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		_, err := bstore.Get(ctx, cid)
+		require.NoError(b, err)
+	}
+}
+
+// BenchmarkCacheEviction benchmarks the time it takes to load a block to the cache, when the
+// cache size is set to 1. This forces cache eviction on every read.
+// BenchmarkCacheEviction/128    	     254	   4168392 ns/op
+func BenchmarkCacheEviction(b *testing.B) {
+	const (
+		blocks = 10
+		size   = 128
+	)
+
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second*30)
+	b.Cleanup(cancel)
+
+	dir := b.TempDir()
+	ds, err := dsbadger.NewDatastore(dir, &dsbadger.DefaultOptions)
+	require.NoError(b, err)
+
+	newStore := func(params *eds.Parameters) *eds.Store {
+		edsStore, err := eds.NewStore(params, dir, ds)
+		require.NoError(b, err)
+		err = edsStore.Start(ctx)
+		require.NoError(b, err)
+		return edsStore
+	}
+	edsStore := newStore(eds.DefaultParameters())
+
+	// generate EDSs and store them
+	cids := make([]cid.Cid, blocks)
+	for i := range cids {
+		eds := edstest.RandEDS(b, size)
+		dah, err := da.NewDataAvailabilityHeader(eds)
+		require.NoError(b, err)
+		err = edsStore.Put(ctx, dah.Hash(), eds)
+		require.NoError(b, err)
+
+		// store cids for read loop later
+		cids[i] = ipld.MustCidFromNamespacedSha256(dah.RowRoots[0])
+	}
+
+	// restart store to clear cache
+	require.NoError(b, edsStore.Stop(ctx))
+
+	// set BlockstoreCacheSize to 1 to force eviction on every read
+	params := eds.DefaultParameters()
+	params.BlockstoreCacheSize = 1
+	bstore := newStore(params).Blockstore()
+
+	// start benchmark
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		h := cids[i%blocks]
+		// every read will trigger eviction
+		_, err := bstore.Get(ctx, h)
+		require.NoError(b, err)
+	}
 }
 
 func randomEDS(t *testing.T) (*rsmt2d.ExtendedDataSquare, *share.Root) {
