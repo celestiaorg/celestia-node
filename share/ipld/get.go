@@ -189,9 +189,7 @@ func GetProof(
 	// look for links
 	lnks := nd.Links()
 	if len(lnks) == 0 {
-		p := make([]cid.Cid, len(proof))
-		copy(p, proof)
-		return p, nil
+		return proof, nil
 	}
 
 	// route walk to appropriate children

@@ -1,6 +1,7 @@
 package eds
 
 import (
+	"context"
 	"fmt"
 	"io"
 	"os"
@@ -8,16 +9,23 @@ import (
 	"golang.org/x/exp/mmap"
 
 	"github.com/celestiaorg/celestia-app/pkg/wrapper"
-	"github.com/celestiaorg/nmt"
 	"github.com/celestiaorg/rsmt2d"
 
 	"github.com/celestiaorg/celestia-node/share"
+	"github.com/celestiaorg/celestia-node/share/eds/byzantine"
 )
 
+// TODO(@walldiss): Add context to all operations, so it don't backfire later
 type File interface {
 	io.Closer
 	Size() int
-	ShareWithProof(idx int, axis rsmt2d.Axis) (share.Share, nmt.Proof, error)
+	ShareWithProof(
+		ctx context.Context,
+		idx int,
+		axis rsmt2d.Axis,
+		axisRoot []byte,
+		// TODO(@walldiss): move ShareWithProof to share pkg
+	) (*byzantine.ShareWithProof, error)
 	Axis(idx int, axis rsmt2d.Axis) ([]share.Share, error)
 	AxisHalf(idx int, axis rsmt2d.Axis) ([]share.Share, error)
 	EDS() (*rsmt2d.ExtendedDataSquare, error)
@@ -179,7 +187,12 @@ func (f *LazyFile) AxisHalf(idx int, axis rsmt2d.Axis) ([]share.Share, error) {
 	return fullAxis[:len(fullAxis)/2], nil
 }
 
-func (f *LazyFile) ShareWithProof(idx int, axis rsmt2d.Axis) (share.Share, nmt.Proof, error) {
+func (f *LazyFile) ShareWithProof(
+	_ context.Context,
+	idx int,
+	axis rsmt2d.Axis,
+	_ []byte,
+) (*byzantine.ShareWithProof, error) {
 	// TODO: Cache the axis as well as computed tree
 	sqrLn := int(f.hdr.squareSize)
 	axsIdx, shrIdx := idx/sqrLn, idx%sqrLn
@@ -189,23 +202,26 @@ func (f *LazyFile) ShareWithProof(idx int, axis rsmt2d.Axis) (share.Share, nmt.P
 
 	shrs, err := f.Axis(axsIdx, axis)
 	if err != nil {
-		return nil, nmt.Proof{}, err
+		return nil, err
 	}
 
 	tree := wrapper.NewErasuredNamespacedMerkleTree(uint64(sqrLn/2), uint(axsIdx))
 	for _, shr := range shrs {
 		err = tree.Push(shr)
 		if err != nil {
-			return nil, nmt.Proof{}, err
+			return nil, err
 		}
 	}
 
 	proof, err := tree.ProveRange(shrIdx, shrIdx+1)
 	if err != nil {
-		return nil, nmt.Proof{}, err
+		return nil, err
 	}
 
-	return shrs[shrIdx], proof, nil
+	return &byzantine.ShareWithProof{
+		Share: shrs[shrIdx],
+		Proof: proof,
+	}, nil
 }
 
 func (f *LazyFile) EDS() (*rsmt2d.ExtendedDataSquare, error) {

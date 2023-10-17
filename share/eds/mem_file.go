@@ -1,11 +1,13 @@
 package eds
 
 import (
+	"context"
+
 	"github.com/celestiaorg/celestia-app/pkg/wrapper"
-	"github.com/celestiaorg/nmt"
 	"github.com/celestiaorg/rsmt2d"
 
 	"github.com/celestiaorg/celestia-node/share"
+	"github.com/celestiaorg/celestia-node/share/eds/byzantine"
 )
 
 type MemFile struct {
@@ -20,7 +22,13 @@ func (f *MemFile) Size() int {
 	return int(f.Eds.Width())
 }
 
-func (f *MemFile) ShareWithProof(idx int, axis rsmt2d.Axis) (share.Share, nmt.Proof, error) {
+func (f *MemFile) ShareWithProof(
+	_ context.Context,
+	idx int,
+	axis rsmt2d.Axis,
+	_ []byte,
+	// TODO: move ShareWithProof to share pkg
+) (*byzantine.ShareWithProof, error) {
 	sqrLn := f.Size()
 	axsIdx, shrIdx := idx/sqrLn, idx%sqrLn
 	if axis == rsmt2d.Col {
@@ -29,7 +37,7 @@ func (f *MemFile) ShareWithProof(idx int, axis rsmt2d.Axis) (share.Share, nmt.Pr
 
 	shrs, err := f.Axis(axsIdx, axis)
 	if err != nil {
-		return nil, nmt.Proof{}, err
+		return nil, err
 	}
 
 	// TODO(@Wondartan): this must access cached NMT on EDS instead of computing a new one
@@ -37,16 +45,19 @@ func (f *MemFile) ShareWithProof(idx int, axis rsmt2d.Axis) (share.Share, nmt.Pr
 	for _, shr := range shrs {
 		err = tree.Push(shr)
 		if err != nil {
-			return nil, nmt.Proof{}, err
+			return nil, err
 		}
 	}
 
 	proof, err := tree.ProveRange(shrIdx, shrIdx+1)
 	if err != nil {
-		return nil, nmt.Proof{}, err
+		return nil, err
 	}
 
-	return shrs[shrIdx], proof, nil
+	return &byzantine.ShareWithProof{
+		Share: shrs[shrIdx],
+		Proof: proof,
+	}, nil
 }
 
 func (f *MemFile) Axis(idx int, axis rsmt2d.Axis) ([]share.Share, error) {
