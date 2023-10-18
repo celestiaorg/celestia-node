@@ -11,7 +11,7 @@ require (
 	github.com/celestiaorg/celestia-app v1.1.0
 	github.com/celestiaorg/go-ds-badger4 v0.0.0-20230712104058-7ede1c814ac5
 	github.com/celestiaorg/go-fraud v0.2.0
-	github.com/celestiaorg/go-header v0.4.0
+	github.com/celestiaorg/go-header v0.4.1-0.20231018123054-cb63b3978f69
 	github.com/celestiaorg/go-libp2p-messenger v0.2.0
 	github.com/celestiaorg/nmt v0.20.0
 	github.com/celestiaorg/rsmt2d v0.11.0
