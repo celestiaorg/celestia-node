@@ -19,11 +19,13 @@ func Listen(listen []string) func(h hst.Host) (err error) {
 				return fmt.Errorf("failure to parse config.P2P.ListenAddresses: %s", err)
 			}
 
-			// TODO(@WonderTan): Remove this check when QUIC is stable
-			if slices.ContainsFunc(maddr.Protocols(), func(p ma.Protocol) bool {
-				return p.Code == ma.P_QUIC_V1 || p.Code == ma.P_WEBTRANSPORT
-			}) {
-				continue
+			if !enableQUIC {
+				// TODO(@WonderTan): Remove this check when QUIC is stable
+				if slices.ContainsFunc(maddr.Protocols(), func(p ma.Protocol) bool {
+					return p.Code == ma.P_QUIC_V1 || p.Code == ma.P_WEBTRANSPORT
+				}) {
+					continue
+				}
 			}
 
 			maListen = append(maListen, maddr)
