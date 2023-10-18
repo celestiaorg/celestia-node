@@ -132,7 +132,7 @@ func (s *Service) GetAll(ctx context.Context, height uint64, namespaces []share.
 			defer wg.Done()
 			blobs, err := s.getBlobs(ctx, namespace, header)
 			if err != nil {
-				resultErr[i] = fmt.Errorf("getting blobs for namespace(%s): %s", namespace.String(), err)
+				resultErr[i] = fmt.Errorf("getting blobs for namespace(%s): %w", namespace.String(), err)
 				return
 			}
 
