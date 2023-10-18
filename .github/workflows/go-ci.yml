@@ -46,8 +46,9 @@ jobs:
   test_coverage:
     needs: [lint, go_mod_tidy_check]
     name: Unit Tests Coverage
-    matrix:
-      os: [ubuntu-latest, macos-latest]
+    strategy:
+      matrix:
+        os: [ubuntu-latest, macos-latest]
     runs-on: ${{ matrix.os }}
 
     steps:
