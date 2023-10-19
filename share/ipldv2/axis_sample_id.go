@@ -58,6 +58,16 @@ func AxisSampleIDFromCID(cid cid.Cid) (id AxisSampleID, err error) {
 	return id, nil
 }
 
+// AxisSampleIDFromProto converts from protobuf representation of AxisSampleID.
+func AxisSampleIDFromProto(proto *ipldv2pb.AxisSampleID) AxisSampleID {
+	return AxisSampleID{
+		Height:   proto.Height,
+		AxisHash: proto.AxisHash,
+		Index:    int(proto.Index),
+		Axis:     rsmt2d.Axis(proto.Axis),
+	}
+}
+
 // Cid returns sample ID encoded as CID.
 func (s *AxisSampleID) Cid() (cid.Cid, error) {
 	data, err := s.MarshalBinary()

@@ -60,6 +60,16 @@ func ShareSampleIDFromCID(cid cid.Cid) (id ShareSampleID, err error) {
 	return id, nil
 }
 
+// ShareSampleIDFromProto converts from protobuf representation of ShareSampleID.
+func ShareSampleIDFromProto(proto *ipldv2pb.ShareSampleID) ShareSampleID {
+	return ShareSampleID{
+		Height:   proto.Height,
+		AxisHash: proto.AxisHash,
+		Index:    int(proto.Index),
+		Axis:     rsmt2d.Axis(proto.Axis),
+	}
+}
+
 // Cid returns sample ID encoded as CID.
 func (s *ShareSampleID) Cid() (cid.Cid, error) {
 	data, err := s.MarshalBinary()

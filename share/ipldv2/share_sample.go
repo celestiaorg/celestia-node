@@ -158,12 +158,7 @@ func (s *ShareSample) UnmarshalBinary(data []byte) error {
 		return err
 	}
 
-	s.ID = ShareSampleID{
-		Height:   proto.Id.Height,
-		AxisHash: proto.Id.AxisHash,
-		Index:    int(proto.Id.Index),
-		Axis:     rsmt2d.Axis(proto.Id.Axis),
-	}
+	s.ID = ShareSampleIDFromProto(proto.Id)
 	s.Type = ShareSampleType(proto.Type)
 	s.Proof = nmt.ProtoToProof(*proto.Proof)
 	s.Share = proto.Share

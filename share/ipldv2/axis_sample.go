@@ -105,12 +105,7 @@ func (s *AxisSample) UnmarshalBinary(data []byte) error {
 		return err
 	}
 
-	s.ID = AxisSampleID{
-		Height:   proto.Id.Height,
-		AxisHash: proto.Id.AxisHash,
-		Index:    int(proto.Id.Index),
-		Axis:     rsmt2d.Axis(proto.Id.Axis),
-	}
+	s.ID = AxisSampleIDFromProto(proto.Id)
 	s.AxisHalf = proto.AxisHalf
 	return nil
 }
