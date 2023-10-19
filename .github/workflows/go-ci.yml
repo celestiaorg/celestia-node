@@ -63,6 +63,7 @@ jobs:
         run: make test-unit
 
       - name: upload coverage
+        if: ${{ matrix.os == 'macos-latest' }}
         uses: codecov/codecov-action@v3.1.4
         with:
           token: ${{ secrets.CODECOV_TOKEN }}
