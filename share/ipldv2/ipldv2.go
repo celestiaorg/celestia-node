@@ -8,8 +8,6 @@ import (
 	"github.com/ipfs/go-cid"
 	logger "github.com/ipfs/go-log/v2"
 	mh "github.com/multiformats/go-multihash"
-
-	"github.com/celestiaorg/celestia-node/share"
 )
 
 var log = logger.Logger("ipldv2")
@@ -28,13 +26,14 @@ const (
 
 	// axisSamplingMultihashCode is the multihash code for custom axis sampling multihash function.
 	axisSamplingMultihashCode = 0x7811
+
+	// mhPrefixSize is the size of the multihash prefix that used to cut it off.
+	mhPrefixSize = 4
 )
 
-// TODO(@Wondertan): Eventually this should become configurable
-const (
-	hashSize     = sha256.Size
-	dahRootSize  = 2*share.NamespaceSize + hashSize
-	mhPrefixSize = 4
+var (
+	hashSize = sha256.Size
+	hasher   = sha256.New
 )
 
 func init() {
@@ -81,7 +80,7 @@ func validateCID(cid cid.Cid) error {
 }
 
 func hashBytes(preimage []byte) []byte {
-	hsh := sha256.New()
+	hsh := hasher()
 	hsh.Write(preimage)
 	return hsh.Sum(nil)
 }

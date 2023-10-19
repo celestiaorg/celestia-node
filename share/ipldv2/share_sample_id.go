@@ -14,14 +14,14 @@ import (
 )
 
 // ShareSampleIDSize is the size of the ShareSampleID in bytes
-const ShareSampleIDSize = 103
+const ShareSampleIDSize = 45
 
 // ShareSampleID is an unique identifier of a ShareSample.
 type ShareSampleID struct {
 	// Height of the block.
 	// Needed to identify block's data square in the whole chain
 	Height uint64
-	// AxisHash is the Col or Row root from DAH of the data square
+	// AxisHash is the sha256 hash of a Col or Row root taken from DAH of the data square
 	AxisHash []byte
 	// Index is the index of the sampled share in the data square(not row or col index)
 	Index int
@@ -37,10 +37,11 @@ func NewShareSampleID(height uint64, root *share.Root, idx int, axis rsmt2d.Axis
 	if axis == rsmt2d.Col {
 		dahroot = root.ColumnRoots[col]
 	}
+	axisHash := hashBytes(dahroot)
 
 	return ShareSampleID{
 		Height:   height,
-		AxisHash: dahroot,
+		AxisHash: axisHash,
 		Index:    idx,
 		Axis:     axis,
 	}
@@ -113,9 +114,9 @@ func (s *ShareSampleID) UnmarshalBinary(data []byte) error {
 	}
 
 	s.Height = binary.LittleEndian.Uint64(data)
-	s.AxisHash = append(s.AxisHash, data[8:8+dahRootSize]...) // copying data to avoid slice aliasing
-	s.Index = int(binary.LittleEndian.Uint32(data[8+dahRootSize : 8+dahRootSize+4]))
-	s.Axis = rsmt2d.Axis(data[8+dahRootSize+4])
+	s.AxisHash = append(s.AxisHash, data[8:8+hashSize]...) // copying data to avoid slice aliasing
+	s.Index = int(binary.LittleEndian.Uint32(data[8+hashSize : 8+hashSize+4]))
+	s.Axis = rsmt2d.Axis(data[8+hashSize+4])
 	return nil
 }
 
@@ -125,8 +126,8 @@ func (s *ShareSampleID) Validate() error {
 		return fmt.Errorf("zero Height")
 	}
 
-	if len(s.AxisHash) != dahRootSize {
-		return fmt.Errorf("incorrect AxisHash size: %d != %d", len(s.AxisHash), dahRootSize)
+	if len(s.AxisHash) != hashSize {
+		return fmt.Errorf("incorrect AxisHash size: %d != %d", len(s.AxisHash), hashSize)
 	}
 
 	if s.Axis != rsmt2d.Col && s.Axis != rsmt2d.Row {

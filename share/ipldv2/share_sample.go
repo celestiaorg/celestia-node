@@ -1,7 +1,6 @@
 package ipldv2
 
 import (
-	"crypto/sha256"
 	"errors"
 	"fmt"
 
@@ -180,7 +179,8 @@ func (s *ShareSample) Validate() error {
 		namespace = share.GetNamespace(s.Share)
 	}
 
-	if !s.Proof.VerifyInclusion(sha256.New(), namespace.ToNMT(), [][]byte{s.Share}, s.ID.AxisHash) {
+	s.Proof.WithHashedProof(hasher())
+	if !s.Proof.VerifyInclusion(hasher(), namespace.ToNMT(), [][]byte{s.Share}, s.ID.AxisHash) {
 		return errors.New("sample proof is invalid")
 	}
 
