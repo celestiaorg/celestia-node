@@ -43,6 +43,8 @@ type Listener struct {
 
 	listenerTimeout time.Duration
 
+	metrics *metrics
+
 	cancel context.CancelFunc
 }
 
@@ -53,7 +55,24 @@ func NewListener(
 	construct header.ConstructFn,
 	store *eds.Store,
 	blocktime time.Duration,
-) *Listener {
+	opts ...Option,
+) (*Listener, error) {
+	p := new(params)
+	for _, opt := range opts {
+		opt(p)
+	}
+
+	var (
+		metrics *metrics
+		err     error
+	)
+	if p.metrics {
+		metrics, err = newMetrics()
+		if err != nil {
+			return nil, err
+		}
+	}
+
 	return &Listener{
 		fetcher:           fetcher,
 		headerBroadcaster: bcast,
@@ -61,7 +80,8 @@ func NewListener(
 		construct:         construct,
 		store:             store,
 		listenerTimeout:   5 * blocktime,
-	}
+		metrics:           metrics,
+	}, nil
 }
 
 // Start kicks off the Listener listener loop.
@@ -143,7 +163,9 @@ func (cl *Listener) listen(ctx context.Context, sub <-chan types.EventDataSigned
 				return errors.New("underlying subscription was closed")
 			}
 
+			cl.metrics.observeBlockTime(ctx)
 			log.Debugw("listener: new block from core", "height", b.Header.Height)
+
 			err := cl.handleNewSignedBlock(ctx, b)
 			if err != nil {
 				log.Errorw("listener: handling new block msg",
@@ -157,6 +179,7 @@ func (cl *Listener) listen(ctx context.Context, sub <-chan types.EventDataSigned
 			}
 			timeout.Reset(cl.listenerTimeout)
 		case <-timeout.C:
+			cl.metrics.subscriptionStuck(ctx)
 			return errors.New("underlying subscription is stuck")
 		case <-ctx.Done():
 			return ctx.Err()

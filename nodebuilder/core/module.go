@@ -43,8 +43,13 @@ func ConstructModule(tp node.Type, cfg *Config, options ...fx.Option) fx.Option 
 					pubsub *shrexsub.PubSub,
 					construct header.ConstructFn,
 					store *eds.Store,
-				) *core.Listener {
-					return core.NewListener(bcast, fetcher, pubsub.Broadcast, construct, store, p2p.BlockTime)
+				) (*core.Listener, error) {
+					var opts []core.Option
+					if MetricsEnabled {
+						opts = append(opts, core.WithMetrics())
+					}
+
+					return core.NewListener(bcast, fetcher, pubsub.Broadcast, construct, store, p2p.BlockTime, opts...)
 				},
 				fx.OnStart(func(ctx context.Context, listener *core.Listener) error {
 					return listener.Start(ctx)
