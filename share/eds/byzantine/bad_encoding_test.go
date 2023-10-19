@@ -5,11 +5,12 @@ import (
 	"testing"
 	"time"
 
-	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	core "github.com/tendermint/tendermint/types"
 
 	"github.com/celestiaorg/celestia-app/pkg/da"
+	"github.com/celestiaorg/celestia-app/test/util/malicious"
+	"github.com/celestiaorg/nmt"
 	"github.com/celestiaorg/rsmt2d"
 
 	"github.com/celestiaorg/celestia-node/header"
@@ -19,8 +20,8 @@ import (
 	"github.com/celestiaorg/celestia-node/share/sharetest"
 )
 
-func TestBadEncodingFraudProof(t *testing.T) {
-	ctx, cancel := context.WithTimeout(context.Background(), time.Second*15)
+func TestBEFP_Validate(t *testing.T) {
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second*5)
 	defer t.Cleanup(cancel)
 	bServ := ipld.NewMemBlockservice()
 
@@ -37,10 +38,92 @@ func TestBadEncodingFraudProof(t *testing.T) {
 	errByz := NewErrByzantine(ctx, bServ, &dah, errRsmt2d)
 
 	befp := CreateBadEncodingProof([]byte("hash"), 0, errByz)
-	err = befp.Validate(&header.ExtendedHeader{
-		DAH: &dah,
-	})
-	assert.NoError(t, err)
+
+	var test = []struct {
+		name           string
+		doFn           func() error
+		expectedResult func(error)
+	}{
+		{
+			name: "valid BEFP",
+			doFn: func() error {
+				return befp.Validate(&header.ExtendedHeader{DAH: &dah})
+			},
+			expectedResult: func(err error) {
+				require.NoError(t, err)
+			},
+		},
+		{
+			name: "heights mismatch",
+			doFn: func() error {
+				return befp.Validate(&header.ExtendedHeader{
+					RawHeader: core.Header{
+						Height: 42,
+					},
+					DAH: &dah,
+				})
+			},
+			expectedResult: func(err error) {
+				require.Error(t, err)
+			},
+		},
+		{
+			name: "index out of bounds",
+			doFn: func() error {
+				befp, ok := befp.(*BadEncodingProof)
+				require.True(t, ok)
+				befpCopy := *befp
+				befpCopy.Index = 100
+				return befpCopy.Validate(&header.ExtendedHeader{DAH: &dah})
+			},
+			expectedResult: func(err error) {
+				require.Error(t, err)
+			},
+		},
+		{
+			name: "incorrect share with Proof",
+			doFn: func() error {
+				befp, ok := befp.(*BadEncodingProof)
+				require.True(t, ok)
+				befp.Shares[0].Share = befp.Shares[1].Share
+				return befp.Validate(&header.ExtendedHeader{DAH: &dah})
+			},
+			expectedResult: func(err error) {
+				require.Error(t, err)
+			},
+		},
+		{
+			name: "not enough shares to recompute the root",
+			doFn: func() error {
+				befp, ok := befp.(*BadEncodingProof)
+				require.True(t, ok)
+				befp.Shares[0] = nil
+				return befp.Validate(&header.ExtendedHeader{DAH: &dah})
+			},
+			expectedResult: func(err error) {
+				require.Error(t, err)
+			},
+		},
+		{
+			name: "invalid amount of shares",
+			doFn: func() error {
+				befp, ok := befp.(*BadEncodingProof)
+				require.True(t, ok)
+				befp.Shares = befp.Shares[0 : len(befp.Shares)/2]
+				return befp.Validate(&header.ExtendedHeader{DAH: &dah})
+			},
+			expectedResult: func(err error) {
+				require.Error(t, err)
+			},
+		},
+	}
+
+	for _, tt := range test {
+		t.Run(tt.name, func(t *testing.T) {
+			err = tt.doFn()
+			tt.expectedResult(err)
+		})
+	}
 }
 
 // TestIncorrectBadEncodingFraudProof asserts that BEFP is not generated for the correct data
@@ -88,5 +171,41 @@ func TestIncorrectBadEncodingFraudProof(t *testing.T) {
 
 	proof := CreateBadEncodingProof(h.Hash(), h.Height(), &fakeError)
 	err = proof.Validate(h)
+	require.Error(t, err)
+}
+
+func TestBEFP_ValidateOutOfOrderShares(t *testing.T) {
+	// skipping it for now because `malicious` package has a small issue: Constructor does not apply
+	// passed options, so it's not possible to store shares and thus get proofs for them.
+	// should be ok once app team will fix it.
+	t.Skip()
+	eds := edstest.RandEDS(t, 16)
+	shares := eds.Flattened()
+	shares[0], shares[1] = shares[1], shares[0] // corrupting eds
+	bServ := ipld.NewMemBlockservice()
+	batchAddr := ipld.NewNmtNodeAdder(context.Background(), bServ, ipld.MaxSizeBatchOption(16*2))
+	eds, err := rsmt2d.ImportExtendedDataSquare(shares,
+		share.DefaultRSMT2DCodec(),
+		malicious.NewConstructor(16, nmt.NodeVisitor(batchAddr.Visit)),
+	)
+	require.NoError(t, err, "failure to recompute the extended data square")
+
+	err = batchAddr.Commit()
+	require.NoError(t, err)
+
+	dah, err := da.NewDataAvailabilityHeader(eds)
+	require.NoError(t, err)
+
+	var errRsmt2d *rsmt2d.ErrByzantineData
+	err = eds.Repair(dah.RowRoots, dah.ColumnRoots)
+	require.ErrorAs(t, err, &errRsmt2d)
+
+	errByz := NewErrByzantine(context.Background(), bServ, &dah, errRsmt2d)
+
+	befp := CreateBadEncodingProof([]byte("hash"), 0, errByz)
+	err = befp.Validate(&header.ExtendedHeader{
+		DAH: &dah,
+	})
+	err = befp.Validate(&header.ExtendedHeader{DAH: &dah})
 	require.Error(t, err)
 }
