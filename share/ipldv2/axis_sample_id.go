@@ -21,11 +21,11 @@ type AxisSampleID struct {
 	// Height of the block.
 	// Needed to identify block's data square in the whole chain
 	Height uint64
-	// AxisHash is the Col or AxisSample root from DAH of the data square
+	// AxisHash is the sha256 hash of a Col or Row root taken from DAH of the data square
 	AxisHash []byte
 	// Index is the index of the axis(row, col) in the data square
 	Index int
-	// Axis is Col or AxisSample axis of the sample in the data square
+	// Axis is Col or Row axis of the sample in the data square
 	Axis rsmt2d.Axis
 }
 
