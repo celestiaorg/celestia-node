@@ -22,18 +22,38 @@ type Exchange struct {
 	fetcher   *BlockFetcher
 	store     *eds.Store
 	construct header.ConstructFn
+
+	metrics *metrics
 }
 
 func NewExchange(
 	fetcher *BlockFetcher,
 	store *eds.Store,
 	construct header.ConstructFn,
-) *Exchange {
+	opts ...Option,
+) (*Exchange, error) {
+	p := new(params)
+	for _, opt := range opts {
+		opt(p)
+	}
+
+	var (
+		metrics *metrics
+		err     error
+	)
+	if p.metrics {
+		metrics, err = newMetrics()
+		if err != nil {
+			return nil, err
+		}
+	}
+
 	return &Exchange{
 		fetcher:   fetcher,
 		store:     store,
 		construct: construct,
-	}
+		metrics:   metrics,
+	}, nil
 }
 
 func (ce *Exchange) GetByHeight(ctx context.Context, height uint64) (*header.ExtendedHeader, error) {

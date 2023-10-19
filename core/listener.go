@@ -201,6 +201,7 @@ func (cl *Listener) handleNewSignedBlock(ctx context.Context, b types.EventDataS
 	if err != nil {
 		return fmt.Errorf("extending block data: %w", err)
 	}
+
 	// generate extended header
 	eh, err := cl.construct(&b.Header, &b.Commit, &b.ValidatorSet, eds)
 	if err != nil {
