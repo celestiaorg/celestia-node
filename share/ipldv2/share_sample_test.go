@@ -14,7 +14,7 @@ import (
 func TestShareSample(t *testing.T) {
 	square := edstest.RandEDS(t, 2)
 
-	sid, err := NewShareSampleFromEDS(square, 2, rsmt2d.Row)
+	sid, err := NewShareSampleFromEDS(1, square, 2, rsmt2d.Row)
 	require.NoError(t, err)
 
 	data, err := sid.MarshalBinary()

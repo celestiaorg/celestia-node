@@ -29,7 +29,7 @@ func TestBlockstoreGetShareSample(t *testing.T) {
 	width := int(sqr.Width())
 	for _, axis := range axis {
 		for i := 0; i < width*width; i++ {
-			id := NewShareSampleID(root, i, axis)
+			id := NewShareSampleID(1, root, i, axis)
 			cid, err := id.Cid()
 			require.NoError(t, err)
 
@@ -48,7 +48,7 @@ func TestBlockstoreGetShareSample(t *testing.T) {
 
 type edsFileAndFS eds.MemFile
 
-func (m *edsFileAndFS) File(share.DataHash) (*eds.MemFile, error) {
+func (m *edsFileAndFS) File(uint64) (*eds.MemFile, error) {
 	return (*eds.MemFile)(m), nil
 }
 

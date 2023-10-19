@@ -14,7 +14,7 @@ import (
 func TestAxisSample(t *testing.T) {
 	square := edstest.RandEDS(t, 2)
 
-	aid, err := NewAxisSampleFromEDS(square, 2, rsmt2d.Row)
+	aid, err := NewAxisSampleFromEDS(1, square, 2, rsmt2d.Row)
 	require.NoError(t, err)
 
 	data, err := aid.MarshalBinary()

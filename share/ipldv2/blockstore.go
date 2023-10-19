@@ -8,14 +8,13 @@ import (
 	blocks "github.com/ipfs/go-block-format"
 	"github.com/ipfs/go-cid"
 
-	"github.com/celestiaorg/celestia-node/share"
 	"github.com/celestiaorg/celestia-node/share/eds"
 )
 
 // fileStore is a mocking friendly local interface over eds.FileStore
 // TODO(@Wondertan): Consider making an actual interface of eds pkg
 type fileStore[F eds.File] interface {
-	File(share.DataHash) (F, error)
+	File(height uint64) (F, error)
 }
 
 type Blockstore[F eds.File] struct {
@@ -64,7 +63,7 @@ func (b Blockstore[F]) Get(_ context.Context, cid cid.Cid) (blocks.Block, error)
 }
 
 func (b Blockstore[F]) getShareSampleBlock(id ShareSampleID) (blocks.Block, error) {
-	f, err := b.fs.File(id.DataHash)
+	f, err := b.fs.File(id.Height)
 	if err != nil {
 		return nil, fmt.Errorf("while getting EDS file from FS: %w", err)
 	}
@@ -89,7 +88,7 @@ func (b Blockstore[F]) getShareSampleBlock(id ShareSampleID) (blocks.Block, erro
 }
 
 func (b Blockstore[F]) getAxisSampleBlock(id AxisSampleID) (blocks.Block, error) {
-	f, err := b.fs.File(id.DataHash)
+	f, err := b.fs.File(id.Height)
 	if err != nil {
 		return nil, fmt.Errorf("while getting EDS file from FS: %w", err)
 	}
@@ -127,7 +126,7 @@ func (b Blockstore[F]) GetSize(ctx context.Context, cid cid.Cid) (int, error) {
 }
 
 func (b Blockstore[F]) Has(_ context.Context, cid cid.Cid) (bool, error) {
-	var datahash share.DataHash
+	var height uint64
 	switch cid.Type() {
 	case shareSamplingCodec:
 		id, err := ShareSampleIDFromCID(cid)
@@ -137,7 +136,7 @@ func (b Blockstore[F]) Has(_ context.Context, cid cid.Cid) (bool, error) {
 			return false, err
 		}
 
-		datahash = id.DataHash
+		height = id.Height
 	case axisSamplingCodec:
 		id, err := AxisSampleIDFromCID(cid)
 		if err != nil {
@@ -146,12 +145,12 @@ func (b Blockstore[F]) Has(_ context.Context, cid cid.Cid) (bool, error) {
 			return false, err
 		}
 
-		datahash = id.DataHash
+		height = id.Height
 	default:
 		return false, fmt.Errorf("unsupported codec")
 	}
 
-	f, err := b.fs.File(datahash)
+	f, err := b.fs.File(height)
 	if err != nil {
 		err = fmt.Errorf("while getting EDS file from FS: %w", err)
 		log.Error(err)

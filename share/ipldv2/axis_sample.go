@@ -26,14 +26,13 @@ func NewAxisSample(id AxisSampleID, axisHalf []share.Share) *AxisSample {
 	}
 }
 
-// NewAxisSampleFrom constructs a new AxisSample from share.Root.
-func NewAxisSampleFrom(root *share.Root, idx int, axis rsmt2d.Axis, axisHalf []share.Share) *AxisSample {
-	id := NewAxisSampleID(root, idx, axis)
-	return NewAxisSample(id, axisHalf)
-}
-
 // NewAxisSampleFromEDS samples the EDS and constructs a new AxisSample.
-func NewAxisSampleFromEDS(eds *rsmt2d.ExtendedDataSquare, idx int, axis rsmt2d.Axis) (*AxisSample, error) {
+func NewAxisSampleFromEDS(
+	height uint64,
+	eds *rsmt2d.ExtendedDataSquare,
+	idx int,
+	axis rsmt2d.Axis,
+) (*AxisSample, error) {
 	sqrLn := int(eds.Width())
 
 	// TODO(@Wondertan): Should be an rsmt2d method
@@ -52,7 +51,8 @@ func NewAxisSampleFromEDS(eds *rsmt2d.ExtendedDataSquare, idx int, axis rsmt2d.A
 		return nil, fmt.Errorf("while computing root: %w", err)
 	}
 
-	return NewAxisSampleFrom(root, idx, axis, axisHalf), nil
+	id := NewAxisSampleID(height, root, idx, axis)
+	return NewAxisSample(id, axisHalf), nil
 }
 
 // Proto converts AxisSample to its protobuf representation.
@@ -106,7 +106,7 @@ func (s *AxisSample) UnmarshalBinary(data []byte) error {
 	}
 
 	s.ID = AxisSampleID{
-		DataHash: proto.Id.DataHash,
+		Height:   proto.Id.Height,
 		AxisHash: proto.Id.AxisHash,
 		Index:    int(proto.Id.Index),
 		Axis:     rsmt2d.Axis(proto.Id.Axis),

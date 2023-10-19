@@ -19,7 +19,7 @@ func TestShareSampleHasher(t *testing.T) {
 
 	square := edstest.RandEDS(t, 2)
 
-	sample, err := NewShareSampleFromEDS(square, 2, rsmt2d.Row)
+	sample, err := NewShareSampleFromEDS(1, square, 2, rsmt2d.Row)
 	require.NoError(t, err)
 
 	data, err := sample.MarshalBinary()

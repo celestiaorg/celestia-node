@@ -37,7 +37,7 @@ func TestShareSampleRoundtripGetBlock(t *testing.T) {
 	width := int(sqr.Width())
 	for _, axis := range axis {
 		for i := 0; i < width*width; i++ {
-			smpl, err := NewShareSampleFromEDS(sqr, i, axis)
+			smpl, err := NewShareSampleFromEDS(1, sqr, i, axis)
 			require.NoError(t, err)
 
 			cid, err := smpl.ID.Cid()
@@ -69,7 +69,7 @@ func TestShareSampleRoundtripGetBlocks(t *testing.T) {
 	width := int(sqr.Width())
 	for _, axis := range axis {
 		for i := 0; i < width*width; i++ {
-			smpl, err := NewShareSampleFromEDS(sqr, i, axis)
+			smpl, err := NewShareSampleFromEDS(1, sqr, i, axis)
 			require.NoError(t, err)
 
 			cid, err := smpl.ID.Cid()
@@ -110,7 +110,7 @@ func TestAxisSampleRoundtripGetBlock(t *testing.T) {
 	width := int(sqr.Width())
 	for _, axis := range axis {
 		for i := 0; i < width; i++ {
-			smpl, err := NewAxisSampleFromEDS(sqr, i, axis)
+			smpl, err := NewAxisSampleFromEDS(1, sqr, i, axis)
 			require.NoError(t, err)
 
 			cid, err := smpl.ID.Cid()
@@ -142,7 +142,7 @@ func TestAxisSampleRoundtripGetBlocks(t *testing.T) {
 	width := int(sqr.Width())
 	for _, axis := range axis {
 		for i := 0; i < width; i++ {
-			smpl, err := NewAxisSampleFromEDS(sqr, i, axis)
+			smpl, err := NewAxisSampleFromEDS(1, sqr, i, axis)
 			require.NoError(t, err)
 
 			cid, err := smpl.ID.Cid()

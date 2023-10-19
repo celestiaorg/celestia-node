@@ -54,14 +54,13 @@ func NewShareSample(id ShareSampleID, shr share.Share, proof nmt.Proof, sqrLn in
 	}
 }
 
-// NewShareSampleFrom constructs a new ShareSample from share.Root.
-func NewShareSampleFrom(root *share.Root, idx int, axis rsmt2d.Axis, shr share.Share, proof nmt.Proof) *ShareSample {
-	id := NewShareSampleID(root, idx, axis)
-	return NewShareSample(id, shr, proof, len(root.RowRoots))
-}
-
 // NewShareSampleFromEDS samples the EDS and constructs a new ShareSample.
-func NewShareSampleFromEDS(eds *rsmt2d.ExtendedDataSquare, idx int, axis rsmt2d.Axis) (*ShareSample, error) {
+func NewShareSampleFromEDS(
+	height uint64,
+	eds *rsmt2d.ExtendedDataSquare,
+	idx int,
+	axis rsmt2d.Axis,
+) (*ShareSample, error) {
 	sqrLn := int(eds.Width())
 	axisIdx, shrIdx := idx/sqrLn, idx%sqrLn
 
@@ -95,7 +94,8 @@ func NewShareSampleFromEDS(eds *rsmt2d.ExtendedDataSquare, idx int, axis rsmt2d.
 		return nil, fmt.Errorf("while proving range share over NMT: %w", err)
 	}
 
-	return NewShareSampleFrom(root, idx, axis, shrs[shrIdx], prf), nil
+	id := NewShareSampleID(height, root, idx, axis)
+	return NewShareSample(id, shrs[shrIdx], prf, len(root.RowRoots)), nil
 }
 
 // Proto converts ShareSample to its protobuf representation.
@@ -159,7 +159,7 @@ func (s *ShareSample) UnmarshalBinary(data []byte) error {
 	}
 
 	s.ID = ShareSampleID{
-		DataHash: proto.Id.DataHash,
+		Height:   proto.Id.Height,
 		AxisHash: proto.Id.AxisHash,
 		Index:    int(proto.Id.Index),
 		Axis:     rsmt2d.Axis(proto.Id.Axis),

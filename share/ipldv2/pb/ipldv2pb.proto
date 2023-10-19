@@ -13,7 +13,7 @@ enum ShareSampleType {
 }
 
 message ShareSampleID{
-    bytes data_hash = 1;
+    uint64 height = 1;
     bytes axis_hash = 2; // TODO(@Wondertan): Redundant, but has to be sent due to Bitswap's stateless verification requirement
     uint32 index = 3;
     Axis axis = 4;
@@ -27,7 +27,7 @@ message ShareSample {
 }
 
 message AxisSampleID{
-    bytes data_hash = 1;
+    uint64 height = 1;
     bytes axis_hash = 2;  // TODO(@Wondertan): Redundant, but has to be sent due to Bitswap's stateless verification requirement
     uint32 index = 3; // TODO(@Wondertan): uint16 would be enough, but proto3 doest not support it
     Axis axis = 4;

@@ -14,30 +14,30 @@ import (
 )
 
 // AxisSampleIDSize is the size of the AxisSampleID in bytes
-const AxisSampleIDSize = 127
+const AxisSampleIDSize = 103
 
 // AxisSampleID is an unique identifier of a AxisSample.
 type AxisSampleID struct {
-	// DataHash is the root of the data square
-	// Needed to identify the data square in the whole chain
-	DataHash share.DataHash
+	// Height of the block.
+	// Needed to identify block's data square in the whole chain
+	Height uint64
 	// AxisHash is the Col or AxisSample root from DAH of the data square
 	AxisHash []byte
-	// Index is the index of the sample in the data square(not row or col index)
+	// Index is the index of the axis(row, col) in the data square
 	Index int
 	// Axis is Col or AxisSample axis of the sample in the data square
 	Axis rsmt2d.Axis
 }
 
 // NewAxisSampleID constructs a new AxisSampleID.
-func NewAxisSampleID(root *share.Root, idx int, axis rsmt2d.Axis) AxisSampleID {
+func NewAxisSampleID(height uint64, root *share.Root, idx int, axis rsmt2d.Axis) AxisSampleID {
 	dahroot := root.RowRoots[idx]
 	if axis == rsmt2d.Col {
 		dahroot = root.ColumnRoots[idx]
 	}
 
 	return AxisSampleID{
-		DataHash: root.Hash(),
+		Height:   height,
 		AxisHash: dahroot,
 		Index:    idx,
 		Axis:     axis,
@@ -76,7 +76,7 @@ func (s *AxisSampleID) Cid() (cid.Cid, error) {
 // Proto converts AxisSampleID to its protobuf representation.
 func (s *AxisSampleID) Proto() *ipldv2pb.AxisSampleID {
 	return &ipldv2pb.AxisSampleID{
-		DataHash: s.DataHash,
+		Height:   s.Height,
 		AxisHash: s.AxisHash,
 		Index:    uint32(s.Index),
 		Axis:     ipldv2pb.Axis(s.Axis),
@@ -86,36 +86,35 @@ func (s *AxisSampleID) Proto() *ipldv2pb.AxisSampleID {
 // MarshalBinary encodes AxisSampleID into binary form.
 func (s *AxisSampleID) MarshalBinary() ([]byte, error) {
 	// we cannot use protobuf here because it exceeds multihash limit of 128 bytes
-	data := make([]byte, ShareSampleIDSize)
-	n := copy(data, s.DataHash)
-	n += copy(data[n:], s.AxisHash)
-	binary.LittleEndian.PutUint32(data[n:], uint32(s.Index))
-	data[n+4] = byte(s.Axis)
+	data := make([]byte, 0, AxisSampleIDSize)
+	data = binary.LittleEndian.AppendUint64(data, s.Height)
+	data = append(data, s.AxisHash...)
+	data = binary.LittleEndian.AppendUint32(data, uint32(s.Index))
+	data = append(data, byte(s.Axis))
 	return data, nil
 }
 
 // UnmarshalBinary decodes AxisSampleID from binary form.
 func (s *AxisSampleID) UnmarshalBinary(data []byte) error {
-	if len(data) != ShareSampleIDSize {
-		return fmt.Errorf("incorrect sample id size: %d != %d", len(data), ShareSampleIDSize)
+	if len(data) != AxisSampleIDSize {
+		return fmt.Errorf("incorrect sample id size: %d != %d", len(data), AxisSampleIDSize)
 	}
 
-	// copying data to avoid slice aliasing
-	s.DataHash = append(s.DataHash, data[:hashSize]...)
-	s.AxisHash = append(s.AxisHash, data[hashSize:hashSize+dahRootSize]...)
-	s.Index = int(binary.LittleEndian.Uint32(data[hashSize+dahRootSize : hashSize+dahRootSize+4]))
-	s.Axis = rsmt2d.Axis(data[hashSize+dahRootSize+4])
+	s.Height = binary.LittleEndian.Uint64(data)
+	s.AxisHash = append(s.AxisHash, data[8:8+dahRootSize]...) // copying data to avoid slice aliasing
+	s.Index = int(binary.LittleEndian.Uint32(data[8+dahRootSize : 8+dahRootSize+4]))
+	s.Axis = rsmt2d.Axis(data[8+dahRootSize+4])
 	return nil
 }
 
 // Validate validates fields of AxisSampleID.
 func (s *AxisSampleID) Validate() error {
-	if len(s.DataHash) != hashSize {
-		return fmt.Errorf("incorrect DataHash size: %d != %d", len(s.DataHash), hashSize)
+	if s.Height == 0 {
+		return fmt.Errorf("zero Height")
 	}
 
 	if len(s.AxisHash) != dahRootSize {
-		return fmt.Errorf("incorrect AxisHash size: %d != %d", len(s.AxisHash), hashSize)
+		return fmt.Errorf("incorrect AxisHash size: %d != %d", len(s.AxisHash), dahRootSize)
 	}
 
 	if s.Axis != rsmt2d.Col && s.Axis != rsmt2d.Row {

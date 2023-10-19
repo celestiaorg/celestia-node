@@ -17,7 +17,7 @@ func TestAxisSampleID(t *testing.T) {
 	root, err := share.NewRoot(square)
 	require.NoError(t, err)
 
-	sid := NewAxisSampleID(root, 2, rsmt2d.Row)
+	sid := NewAxisSampleID(1, root, 2, rsmt2d.Row)
 
 	id, err := sid.Cid()
 	require.NoError(t, err)
