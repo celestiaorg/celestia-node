@@ -14,7 +14,7 @@ import (
 )
 
 // AxisSampleIDSize is the size of the AxisSampleID in bytes
-const AxisSampleIDSize = 103
+const AxisSampleIDSize = 45
 
 // AxisSampleID is an unique identifier of a AxisSample.
 type AxisSampleID struct {
@@ -35,10 +35,11 @@ func NewAxisSampleID(height uint64, root *share.Root, idx int, axis rsmt2d.Axis)
 	if axis == rsmt2d.Col {
 		dahroot = root.ColumnRoots[idx]
 	}
+	axisHash := hashBytes(dahroot)
 
 	return AxisSampleID{
 		Height:   height,
-		AxisHash: dahroot,
+		AxisHash: axisHash,
 		Index:    idx,
 		Axis:     axis,
 	}
@@ -111,9 +112,9 @@ func (s *AxisSampleID) UnmarshalBinary(data []byte) error {
 	}
 
 	s.Height = binary.LittleEndian.Uint64(data)
-	s.AxisHash = append(s.AxisHash, data[8:8+dahRootSize]...) // copying data to avoid slice aliasing
-	s.Index = int(binary.LittleEndian.Uint32(data[8+dahRootSize : 8+dahRootSize+4]))
-	s.Axis = rsmt2d.Axis(data[8+dahRootSize+4])
+	s.AxisHash = append(s.AxisHash, data[8:8+hashSize]...) // copying data to avoid slice aliasing
+	s.Index = int(binary.LittleEndian.Uint32(data[8+hashSize : 8+hashSize+4]))
+	s.Axis = rsmt2d.Axis(data[8+hashSize+4])
 	return nil
 }
 
@@ -123,8 +124,8 @@ func (s *AxisSampleID) Validate() error {
 		return fmt.Errorf("zero Height")
 	}
 
-	if len(s.AxisHash) != dahRootSize {
-		return fmt.Errorf("incorrect AxisHash size: %d != %d", len(s.AxisHash), dahRootSize)
+	if len(s.AxisHash) != hashSize {
+		return fmt.Errorf("incorrect AxisHash size: %d != %d", len(s.AxisHash), hashSize)
 	}
 
 	if s.Axis != rsmt2d.Col && s.Axis != rsmt2d.Row {

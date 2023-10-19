@@ -142,7 +142,8 @@ func (s *AxisSample) Validate() error {
 		return fmt.Errorf("while computing NMT root: %w", err)
 	}
 
-	if !bytes.Equal(s.ID.AxisHash, root) {
+	hashedRoot := hashBytes(root)
+	if !bytes.Equal(s.ID.AxisHash, hashedRoot) {
 		return fmt.Errorf("invalid root: %X != %X", root, s.ID.AxisHash)
 	}
 

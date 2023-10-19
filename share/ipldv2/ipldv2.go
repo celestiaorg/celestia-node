@@ -66,16 +66,22 @@ func (a allowlist) IsAllowed(code uint64) bool {
 func validateCID(cid cid.Cid) error {
 	prefix := cid.Prefix()
 	if prefix.Codec != shareSamplingCodec && prefix.Codec != axisSamplingCodec {
-		return fmt.Errorf("unsupported codec")
+		return fmt.Errorf("unsupported codec %d", prefix.Codec)
 	}
 
 	if prefix.MhType != shareSamplingMultihashCode && prefix.MhType != axisSamplingMultihashCode {
-		return fmt.Errorf("unsupported multihash")
+		return fmt.Errorf("unsupported multihash %d", prefix.MhType)
 	}
 
-	if prefix.MhLength != ShareSampleIDSize {
-		return fmt.Errorf("invalid multihash length")
+	if prefix.MhLength != ShareSampleIDSize && prefix.MhLength != AxisSampleIDSize {
+		return fmt.Errorf("invalid multihash length %d", prefix.MhLength)
 	}
 
 	return nil
+}
+
+func hashBytes(preimage []byte) []byte {
+	hsh := sha256.New()
+	hsh.Write(preimage)
+	return hsh.Sum(nil)
 }
