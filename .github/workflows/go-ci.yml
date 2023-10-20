@@ -64,7 +64,7 @@ jobs:
           token: ${{ secrets.CODECOV_TOKEN }}
           file: ./coverage.txt
 
-      - name: Upload unittest.log as artifact
+      - name: upload test logs
         uses: actions/upload-artifact@v3
         with:
           name: unit-tests
