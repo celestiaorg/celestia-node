@@ -31,7 +31,7 @@ func (sh *SampleHasher) Write(data []byte) (int, error) {
 func (sh *SampleHasher) Sum([]byte) []byte {
 	sum, err := sh.sample.ID.MarshalBinary()
 	if err != nil {
-		err = fmt.Errorf("while marshaling SampleID")
+		err = fmt.Errorf("while marshaling SampleID: %w", err)
 		log.Error(err)
 	}
 	return sum

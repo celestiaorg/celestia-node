@@ -30,7 +30,7 @@ func TestAxisHasher(t *testing.T) {
 	assert.EqualValues(t, len(data), n)
 
 	digest := hasher.Sum(nil)
-	sid, err := sample.ID.MarshalBinary()
+	sid, err := sample.AxisID.MarshalBinary()
 	require.NoError(t, err)
 	assert.EqualValues(t, sid, digest)
 

@@ -13,13 +13,13 @@ type AxisHasher struct {
 // Write expects a marshaled ShareSample to validate.
 func (sh *AxisHasher) Write(data []byte) (int, error) {
 	if err := sh.sample.UnmarshalBinary(data); err != nil {
-		err = fmt.Errorf("while unmarshaling ShareSample: %w", err)
+		err = fmt.Errorf("while unmarshaling Axis: %w", err)
 		log.Error(err)
 		return 0, err
 	}
 
 	if err := sh.sample.Validate(); err != nil {
-		err = fmt.Errorf("while validating ShareSample: %w", err)
+		err = fmt.Errorf("while validating Axis: %w", err)
 		log.Error(err)
 		return 0, err
 	}
@@ -29,9 +29,9 @@ func (sh *AxisHasher) Write(data []byte) (int, error) {
 
 // Sum returns the "multihash" of the ShareSampleID.
 func (sh *AxisHasher) Sum([]byte) []byte {
-	sum, err := sh.sample.ID.MarshalBinary()
+	sum, err := sh.sample.AxisID.MarshalBinary()
 	if err != nil {
-		err = fmt.Errorf("while marshaling ShareSampleID")
+		err = fmt.Errorf("while marshaling AxisID: %w", err)
 		log.Error(err)
 	}
 	return sum

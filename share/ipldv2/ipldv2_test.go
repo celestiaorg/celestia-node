@@ -112,7 +112,7 @@ func TestAxisRoundtripGetBlock(t *testing.T) {
 			smpl, err := NewAxisFromEDS(axisType, i, sqr, 1)
 			require.NoError(t, err)
 
-			cid, err := smpl.ID.Cid()
+			cid, err := smpl.AxisID.Cid()
 			require.NoError(t, err)
 
 			blkOut, err := client.GetBlock(ctx, cid)
@@ -143,7 +143,7 @@ func TestAxisRoundtripGetBlocks(t *testing.T) {
 			smpl, err := NewAxisFromEDS(axisType, i, sqr, 1)
 			require.NoError(t, err)
 
-			cid, err := smpl.ID.Cid()
+			cid, err := smpl.AxisID.Cid()
 			require.NoError(t, err)
 
 			set.Add(cid)

@@ -23,7 +23,7 @@ func TestAxis(t *testing.T) {
 	blk, err := aid.IPLDBlock()
 	require.NoError(t, err)
 
-	cid, err := aid.ID.Cid()
+	cid, err := aid.AxisID.Cid()
 	require.NoError(t, err)
 	assert.EqualValues(t, blk.Cid(), cid)
 

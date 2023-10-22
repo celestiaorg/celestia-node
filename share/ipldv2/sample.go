@@ -96,24 +96,6 @@ func NewSampleFromEDS(
 	return NewSample(id, shrs[shrIdx], prf, len(root.RowRoots)), nil
 }
 
-// Proto converts Sample to its protobuf representation.
-func (s *Sample) Proto() *ipldv2pb.Sample {
-	// TODO: Extract as helper to nmt
-	proof := &nmtpb.Proof{}
-	proof.Nodes = s.Proof.Nodes()
-	proof.End = int64(s.Proof.End())
-	proof.Start = int64(s.Proof.Start())
-	proof.IsMaxNamespaceIgnored = s.Proof.IsMaxNamespaceIDIgnored()
-	proof.LeafHash = s.Proof.LeafHash()
-
-	return &ipldv2pb.Sample{
-		Id:    s.ID.Proto(),
-		Type:  ipldv2pb.SampleType(s.Type),
-		Proof: proof,
-		Share: s.Share,
-	}
-}
-
 // SampleFromBlock converts blocks.Block into Sample.
 func SampleFromBlock(blk blocks.Block) (*Sample, error) {
 	if err := validateCID(blk.Cid()); err != nil {
@@ -146,7 +128,24 @@ func (s *Sample) IPLDBlock() (blocks.Block, error) {
 
 // MarshalBinary marshals Sample to binary.
 func (s *Sample) MarshalBinary() ([]byte, error) {
-	return s.Proto().Marshal()
+	id, err := s.ID.MarshalBinary()
+	if err != nil {
+		return nil, err
+	}
+
+	proof := &nmtpb.Proof{}
+	proof.Nodes = s.Proof.Nodes()
+	proof.End = int64(s.Proof.End())
+	proof.Start = int64(s.Proof.Start())
+	proof.IsMaxNamespaceIgnored = s.Proof.IsMaxNamespaceIDIgnored()
+	proof.LeafHash = s.Proof.LeafHash()
+
+	return (&ipldv2pb.Sample{
+		Id:    id,
+		Type:  ipldv2pb.SampleType(s.Type),
+		Proof: proof,
+		Share: s.Share,
+	}).Marshal()
 }
 
 // UnmarshalBinary unmarshal Sample from binary.
@@ -156,7 +155,11 @@ func (s *Sample) UnmarshalBinary(data []byte) error {
 		return err
 	}
 
-	s.ID = SampleIDFromProto(proto.Id)
+	err := s.ID.UnmarshalBinary(proto.Id)
+	if err != nil {
+		return err
+	}
+
 	s.Type = SampleType(proto.Type)
 	s.Proof = nmt.ProtoToProof(*proto.Proof)
 	s.Share = proto.Share

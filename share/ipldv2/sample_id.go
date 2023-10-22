@@ -10,7 +10,6 @@ import (
 	"github.com/celestiaorg/rsmt2d"
 
 	"github.com/celestiaorg/celestia-node/share"
-	ipldv2pb "github.com/celestiaorg/celestia-node/share/ipldv2/pb"
 )
 
 // SampleIDSize is the size of the SampleID in bytes
@@ -52,14 +51,6 @@ func SampleIDFromCID(cid cid.Cid) (id SampleID, err error) {
 	return id, nil
 }
 
-// SampleIDFromProto converts from protobuf representation of SampleID.
-func SampleIDFromProto(proto *ipldv2pb.SampleID) SampleID {
-	return SampleID{
-		AxisID:     AxisIDFromProto(proto.AxisId),
-		ShareIndex: uint16(proto.ShareIndex),
-	}
-}
-
 // Cid returns sample ID encoded as CID.
 func (s *SampleID) Cid() (cid.Cid, error) {
 	// avoid using proto serialization for CID as it's not deterministic
@@ -76,15 +67,10 @@ func (s *SampleID) Cid() (cid.Cid, error) {
 	return cid.NewCidV1(sampleCodec, buf), nil
 }
 
-// Proto converts SampleID to its protobuf representation.
-func (s *SampleID) Proto() *ipldv2pb.SampleID {
-	return &ipldv2pb.SampleID{
-		AxisId:     s.AxisID.Proto(),
-		ShareIndex: uint32(s.ShareIndex),
-	}
-}
-
 // MarshalBinary encodes SampleID into binary form.
+// NOTE: Proto is avoided because
+// * Its size is not deterministic which is required for IPLD.
+// * No support for uint16
 func (s *SampleID) MarshalBinary() ([]byte, error) {
 	data := make([]byte, 0, SampleIDSize)
 	n, err := s.AxisID.MarshalTo(data)

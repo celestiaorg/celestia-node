@@ -14,14 +14,14 @@ import (
 )
 
 type Axis struct {
-	ID       AxisID
+	AxisID   AxisID
 	AxisHalf []share.Share
 }
 
 // NewAxis constructs a new Axis.
 func NewAxis(id AxisID, axisHalf []share.Share) *Axis {
 	return &Axis{
-		ID:       id,
+		AxisID:   id,
 		AxisHalf: axisHalf,
 	}
 }
@@ -55,14 +55,6 @@ func NewAxisFromEDS(
 	return NewAxis(id, axisHalf), nil
 }
 
-// Proto converts Axis to its protobuf representation.
-func (s *Axis) Proto() *ipldv2pb.Axis {
-	return &ipldv2pb.Axis{
-		Id:       s.ID.Proto(),
-		AxisHalf: s.AxisHalf,
-	}
-}
-
 // AxisFromBlock converts blocks.Block into Axis.
 func AxisFromBlock(blk blocks.Block) (*Axis, error) {
 	if err := validateCID(blk.Cid()); err != nil {
@@ -80,7 +72,7 @@ func AxisFromBlock(blk blocks.Block) (*Axis, error) {
 
 // IPLDBlock converts Axis to an IPLD block for Bitswap compatibility.
 func (s *Axis) IPLDBlock() (blocks.Block, error) {
-	cid, err := s.ID.Cid()
+	cid, err := s.AxisID.Cid()
 	if err != nil {
 		return nil, err
 	}
@@ -95,7 +87,15 @@ func (s *Axis) IPLDBlock() (blocks.Block, error) {
 
 // MarshalBinary marshals Axis to binary.
 func (s *Axis) MarshalBinary() ([]byte, error) {
-	return s.Proto().Marshal()
+	id, err := s.AxisID.MarshalBinary()
+	if err != nil {
+		return nil, err
+	}
+
+	return (&ipldv2pb.Axis{
+		AxisId:   id,
+		AxisHalf: s.AxisHalf,
+	}).Marshal()
 }
 
 // UnmarshalBinary unmarshal Axis from binary.
@@ -105,20 +105,24 @@ func (s *Axis) UnmarshalBinary(data []byte) error {
 		return err
 	}
 
-	s.ID = AxisIDFromProto(proto.Id)
+	err := s.AxisID.UnmarshalBinary(proto.AxisId)
+	if err != nil {
+		return err
+	}
+
 	s.AxisHalf = proto.AxisHalf
 	return nil
 }
 
 // Validate validates Axis's fields and proof of axis inclusion.
 func (s *Axis) Validate() error {
-	if err := s.ID.Validate(); err != nil {
+	if err := s.AxisID.Validate(); err != nil {
 		return err
 	}
 
 	sqrLn := len(s.AxisHalf) * 2
-	if s.ID.AxisIndex > uint16(sqrLn) {
-		return fmt.Errorf("axis index exceeds square size: %d > %d", s.ID.AxisIndex, sqrLn)
+	if s.AxisID.AxisIndex > uint16(sqrLn) {
+		return fmt.Errorf("axis index exceeds square size: %d > %d", s.AxisID.AxisIndex, sqrLn)
 	}
 
 	// TODO(@Wondertan): This computations are quite expensive and likely to be used further,
@@ -129,7 +133,7 @@ func (s *Axis) Validate() error {
 	}
 	s.AxisHalf = append(s.AxisHalf, parity...)
 
-	tree := wrapper.NewErasuredNamespacedMerkleTree(uint64(len(s.AxisHalf)/2), uint(s.ID.AxisIndex))
+	tree := wrapper.NewErasuredNamespacedMerkleTree(uint64(len(s.AxisHalf)/2), uint(s.AxisID.AxisIndex))
 	for _, shr := range s.AxisHalf {
 		err := tree.Push(shr)
 		if err != nil {
@@ -143,8 +147,8 @@ func (s *Axis) Validate() error {
 	}
 
 	hashedRoot := hashBytes(root)
-	if !bytes.Equal(s.ID.AxisHash, hashedRoot) {
-		return fmt.Errorf("invalid axis hash: %X != %X", root, s.ID.AxisHash)
+	if !bytes.Equal(s.AxisID.AxisHash, hashedRoot) {
+		return fmt.Errorf("invalid axis hash: %X != %X", root, s.AxisID.AxisHash)
 	}
 
 	return nil

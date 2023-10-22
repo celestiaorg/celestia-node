@@ -10,7 +10,6 @@ import (
 	"github.com/celestiaorg/rsmt2d"
 
 	"github.com/celestiaorg/celestia-node/share"
-	ipldv2pb "github.com/celestiaorg/celestia-node/share/ipldv2/pb"
 )
 
 // AxisIDSize is the size of the AxisID in bytes
@@ -59,19 +58,8 @@ func AxisIDFromCID(cid cid.Cid) (id AxisID, err error) {
 	return id, nil
 }
 
-// AxisIDFromProto converts from protobuf representation of AxisID.
-func AxisIDFromProto(proto *ipldv2pb.AxisID) AxisID {
-	return AxisID{
-		AxisType:  rsmt2d.Axis(proto.Type),
-		AxisIndex: uint16(proto.Index),
-		AxisHash:  proto.Hash,
-		Height:    proto.Height,
-	}
-}
-
 // Cid returns sample ID encoded as CID.
 func (s *AxisID) Cid() (cid.Cid, error) {
-	// avoid using proto serialization for CIDs as it's not deterministic
 	data, err := s.MarshalBinary()
 	if err != nil {
 		return cid.Undef, err
@@ -85,17 +73,10 @@ func (s *AxisID) Cid() (cid.Cid, error) {
 	return cid.NewCidV1(axisCodec, buf), nil
 }
 
-// Proto converts AxisID to its protobuf representation.
-func (s *AxisID) Proto() *ipldv2pb.AxisID {
-	return &ipldv2pb.AxisID{
-		Type:   ipldv2pb.AxisType(s.AxisType),
-		Height: s.Height,
-		Hash:   s.AxisHash,
-		Index:  uint32(s.AxisIndex),
-	}
-}
-
 // MarshalTo encodes AxisID into given byte slice.
+// NOTE: Proto is avoided because
+// * Its size is not deterministic which is required for IPLD.
+// * No support for uint16
 func (s *AxisID) MarshalTo(data []byte) (int, error) {
 	data = append(data, byte(s.AxisType))
 	data = binary.LittleEndian.AppendUint16(data, s.AxisIndex)

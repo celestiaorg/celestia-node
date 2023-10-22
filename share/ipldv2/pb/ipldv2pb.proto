@@ -7,15 +7,8 @@ enum AxisType {
     Col = 1;
 }
 
-message AxisID{
-    AxisType type = 1;
-    uint64 height = 2;
-    uint32 index = 3; // TODO(@Wondertan): uint16 would be enough, but proto3 doest not support it
-    bytes hash = 4;
-}
-
 message Axis {
-    AxisID id = 1;
+    bytes axis_id = 1;
     repeated bytes axis_half = 2;
 }
 
@@ -24,13 +17,8 @@ enum SampleType {
     Parity = 1;
 }
 
-message SampleID{
-    AxisID axis_id = 1;
-    uint32 share_index = 2; // TODO: uint16 would be enough, but proto3 doest not support it
-}
-
 message Sample {
-    SampleID id = 1;
+    bytes id = 1;
     SampleType type = 2;
     bytes share = 3;
     proof.pb.Proof proof = 4;
