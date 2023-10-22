@@ -70,6 +70,7 @@ jobs:
           env_vars: OS
           token: ${{ secrets.CODECOV_TOKEN }}
           file: ./coverage.txt
+          name: coverage-${{ matrix.os }}
 
   unit_race_test:
     needs: [lint, go_mod_tidy_check]
