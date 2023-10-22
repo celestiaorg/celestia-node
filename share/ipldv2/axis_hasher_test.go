@@ -11,15 +11,15 @@ import (
 	"github.com/celestiaorg/celestia-node/share/eds/edstest"
 )
 
-func TestAxisSampleHasher(t *testing.T) {
-	hasher := &AxisSampleHasher{}
+func TestAxisHasher(t *testing.T) {
+	hasher := &AxisHasher{}
 
 	_, err := hasher.Write([]byte("hello"))
 	assert.Error(t, err)
 
 	square := edstest.RandEDS(t, 2)
 
-	sample, err := NewAxisSampleFromEDS(1, square, 2, rsmt2d.Row)
+	sample, err := NewAxisFromEDS(rsmt2d.Row, 2, square, 1)
 	require.NoError(t, err)
 
 	data, err := sample.MarshalBinary()

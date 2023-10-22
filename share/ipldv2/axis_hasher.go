@@ -5,13 +5,13 @@ import (
 	"fmt"
 )
 
-// AxisSampleHasher implements hash.Hash interface for Samples.
-type AxisSampleHasher struct {
-	sample AxisSample
+// AxisHasher implements hash.Hash interface for Samples.
+type AxisHasher struct {
+	sample Axis
 }
 
 // Write expects a marshaled ShareSample to validate.
-func (sh *AxisSampleHasher) Write(data []byte) (int, error) {
+func (sh *AxisHasher) Write(data []byte) (int, error) {
 	if err := sh.sample.UnmarshalBinary(data); err != nil {
 		err = fmt.Errorf("while unmarshaling ShareSample: %w", err)
 		log.Error(err)
@@ -28,7 +28,7 @@ func (sh *AxisSampleHasher) Write(data []byte) (int, error) {
 }
 
 // Sum returns the "multihash" of the ShareSampleID.
-func (sh *AxisSampleHasher) Sum([]byte) []byte {
+func (sh *AxisHasher) Sum([]byte) []byte {
 	sum, err := sh.sample.ID.MarshalBinary()
 	if err != nil {
 		err = fmt.Errorf("while marshaling ShareSampleID")
@@ -38,16 +38,16 @@ func (sh *AxisSampleHasher) Sum([]byte) []byte {
 }
 
 // Reset resets the Hash to its initial state.
-func (sh *AxisSampleHasher) Reset() {
-	sh.sample = AxisSample{}
+func (sh *AxisHasher) Reset() {
+	sh.sample = Axis{}
 }
 
 // Size returns the number of bytes Sum will return.
-func (sh *AxisSampleHasher) Size() int {
-	return AxisSampleIDSize
+func (sh *AxisHasher) Size() int {
+	return AxisIDSize
 }
 
 // BlockSize returns the hash's underlying block size.
-func (sh *AxisSampleHasher) BlockSize() int {
+func (sh *AxisHasher) BlockSize() int {
 	return sha256.BlockSize
 }

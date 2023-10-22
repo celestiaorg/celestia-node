@@ -11,15 +11,15 @@ import (
 	"github.com/celestiaorg/celestia-node/share/eds/edstest"
 )
 
-func TestShareSampleHasher(t *testing.T) {
-	hasher := &ShareSampleHasher{}
+func TestSampleHasher(t *testing.T) {
+	hasher := &SampleHasher{}
 
 	_, err := hasher.Write([]byte("hello"))
 	assert.Error(t, err)
 
 	square := edstest.RandEDS(t, 2)
 
-	sample, err := NewShareSampleFromEDS(1, square, 2, rsmt2d.Row)
+	sample, err := NewSampleFromEDS(rsmt2d.Row, 2, square, 1)
 	require.NoError(t, err)
 
 	data, err := sample.MarshalBinary()

@@ -13,31 +13,31 @@ import (
 	ipldv2pb "github.com/celestiaorg/celestia-node/share/ipldv2/pb"
 )
 
-type AxisSample struct {
-	ID       AxisSampleID
+type Axis struct {
+	ID       AxisID
 	AxisHalf []share.Share
 }
 
-// NewAxisSample constructs a new AxisSample.
-func NewAxisSample(id AxisSampleID, axisHalf []share.Share) *AxisSample {
-	return &AxisSample{
+// NewAxis constructs a new Axis.
+func NewAxis(id AxisID, axisHalf []share.Share) *Axis {
+	return &Axis{
 		ID:       id,
 		AxisHalf: axisHalf,
 	}
 }
 
-// NewAxisSampleFromEDS samples the EDS and constructs a new AxisSample.
-func NewAxisSampleFromEDS(
-	height uint64,
-	eds *rsmt2d.ExtendedDataSquare,
+// NewAxisFromEDS samples the EDS and constructs a new Axis.
+func NewAxisFromEDS(
+	axisType rsmt2d.Axis,
 	idx int,
-	axis rsmt2d.Axis,
-) (*AxisSample, error) {
+	eds *rsmt2d.ExtendedDataSquare,
+	height uint64,
+) (*Axis, error) {
 	sqrLn := int(eds.Width())
 
 	// TODO(@Wondertan): Should be an rsmt2d method
 	var axisHalf [][]byte
-	switch axis {
+	switch axisType {
 	case rsmt2d.Row:
 		axisHalf = eds.Row(uint(idx))[:sqrLn/2]
 	case rsmt2d.Col:
@@ -51,35 +51,35 @@ func NewAxisSampleFromEDS(
 		return nil, fmt.Errorf("while computing root: %w", err)
 	}
 
-	id := NewAxisSampleID(height, root, idx, axis)
-	return NewAxisSample(id, axisHalf), nil
+	id := NewAxisID(axisType, uint16(idx), root, height)
+	return NewAxis(id, axisHalf), nil
 }
 
-// Proto converts AxisSample to its protobuf representation.
-func (s *AxisSample) Proto() *ipldv2pb.AxisSample {
-	return &ipldv2pb.AxisSample{
+// Proto converts Axis to its protobuf representation.
+func (s *Axis) Proto() *ipldv2pb.Axis {
+	return &ipldv2pb.Axis{
 		Id:       s.ID.Proto(),
 		AxisHalf: s.AxisHalf,
 	}
 }
 
-// AxisSampleFromBlock converts blocks.Block into AxisSample.
-func AxisSampleFromBlock(blk blocks.Block) (*AxisSample, error) {
+// AxisFromBlock converts blocks.Block into Axis.
+func AxisFromBlock(blk blocks.Block) (*Axis, error) {
 	if err := validateCID(blk.Cid()); err != nil {
 		return nil, err
 	}
 
-	s := &AxisSample{}
+	s := &Axis{}
 	err := s.UnmarshalBinary(blk.RawData())
 	if err != nil {
-		return nil, fmt.Errorf("while unmarshalling ShareSample: %w", err)
+		return nil, fmt.Errorf("while unmarshalling Axis: %w", err)
 	}
 
 	return s, nil
 }
 
-// IPLDBlock converts AxisSample to an IPLD block for Bitswap compatibility.
-func (s *AxisSample) IPLDBlock() (blocks.Block, error) {
+// IPLDBlock converts Axis to an IPLD block for Bitswap compatibility.
+func (s *Axis) IPLDBlock() (blocks.Block, error) {
 	cid, err := s.ID.Cid()
 	if err != nil {
 		return nil, err
@@ -93,32 +93,32 @@ func (s *AxisSample) IPLDBlock() (blocks.Block, error) {
 	return blocks.NewBlockWithCid(data, cid)
 }
 
-// MarshalBinary marshals AxisSample to binary.
-func (s *AxisSample) MarshalBinary() ([]byte, error) {
+// MarshalBinary marshals Axis to binary.
+func (s *Axis) MarshalBinary() ([]byte, error) {
 	return s.Proto().Marshal()
 }
 
-// UnmarshalBinary unmarshal AxisSample from binary.
-func (s *AxisSample) UnmarshalBinary(data []byte) error {
-	proto := &ipldv2pb.AxisSample{}
+// UnmarshalBinary unmarshal Axis from binary.
+func (s *Axis) UnmarshalBinary(data []byte) error {
+	proto := &ipldv2pb.Axis{}
 	if err := proto.Unmarshal(data); err != nil {
 		return err
 	}
 
-	s.ID = AxisSampleIDFromProto(proto.Id)
+	s.ID = AxisIDFromProto(proto.Id)
 	s.AxisHalf = proto.AxisHalf
 	return nil
 }
 
-// Validate validates AxisSample's fields and proof of Share inclusion in the NMT.
-func (s *AxisSample) Validate() error {
+// Validate validates Axis's fields and proof of axis inclusion.
+func (s *Axis) Validate() error {
 	if err := s.ID.Validate(); err != nil {
 		return err
 	}
 
 	sqrLn := len(s.AxisHalf) * 2
-	if s.ID.Index > sqrLn {
-		return fmt.Errorf("row index exceeds square size: %d > %d", s.ID.Index, sqrLn)
+	if s.ID.AxisIndex > uint16(sqrLn) {
+		return fmt.Errorf("axis index exceeds square size: %d > %d", s.ID.AxisIndex, sqrLn)
 	}
 
 	// TODO(@Wondertan): This computations are quite expensive and likely to be used further,
@@ -129,7 +129,7 @@ func (s *AxisSample) Validate() error {
 	}
 	s.AxisHalf = append(s.AxisHalf, parity...)
 
-	tree := wrapper.NewErasuredNamespacedMerkleTree(uint64(len(s.AxisHalf)/2), uint(s.ID.Index))
+	tree := wrapper.NewErasuredNamespacedMerkleTree(uint64(len(s.AxisHalf)/2), uint(s.ID.AxisIndex))
 	for _, shr := range s.AxisHalf {
 		err := tree.Push(shr)
 		if err != nil {
@@ -144,7 +144,7 @@ func (s *AxisSample) Validate() error {
 
 	hashedRoot := hashBytes(root)
 	if !bytes.Equal(s.ID.AxisHash, hashedRoot) {
-		return fmt.Errorf("invalid root: %X != %X", root, s.ID.AxisHash)
+		return fmt.Errorf("invalid axis hash: %X != %X", root, s.ID.AxisHash)
 	}
 
 	return nil

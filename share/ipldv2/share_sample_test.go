@@ -11,10 +11,10 @@ import (
 	"github.com/celestiaorg/celestia-node/share/eds/edstest"
 )
 
-func TestShareSample(t *testing.T) {
+func TestSample(t *testing.T) {
 	square := edstest.RandEDS(t, 2)
 
-	sid, err := NewShareSampleFromEDS(1, square, 2, rsmt2d.Row)
+	sid, err := NewSampleFromEDS(rsmt2d.Row, 2, square, 1)
 	require.NoError(t, err)
 
 	data, err := sid.MarshalBinary()
@@ -27,7 +27,7 @@ func TestShareSample(t *testing.T) {
 	require.NoError(t, err)
 	assert.EqualValues(t, blk.Cid(), cid)
 
-	sidOut := &ShareSample{}
+	sidOut := &Sample{}
 	err = sidOut.UnmarshalBinary(data)
 	require.NoError(t, err)
 	assert.EqualValues(t, sid, sidOut)

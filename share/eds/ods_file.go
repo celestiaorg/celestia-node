@@ -20,20 +20,15 @@ func (f *MemFile) Size() int {
 	return int(f.Eds.Width())
 }
 
-func (f *MemFile) ShareWithProof(idx int, axis rsmt2d.Axis) (share.Share, nmt.Proof, error) {
+func (f *MemFile) ShareWithProof(axisType rsmt2d.Axis, axisIdx, shrIdx int) (share.Share, nmt.Proof, error) {
 	sqrLn := f.Size()
-	axsIdx, shrIdx := idx/sqrLn, idx%sqrLn
-	if axis == rsmt2d.Col {
-		axsIdx, shrIdx = shrIdx, axsIdx
-	}
-
-	shrs, err := f.Axis(axsIdx, axis)
+	shrs, err := f.Axis(axisType, axisIdx)
 	if err != nil {
 		return nil, nmt.Proof{}, err
 	}
 
 	// TODO(@Wondartan): this must access cached NMT on EDS instead of computing a new one
-	tree := wrapper.NewErasuredNamespacedMerkleTree(uint64(sqrLn/2), uint(axsIdx))
+	tree := wrapper.NewErasuredNamespacedMerkleTree(uint64(sqrLn/2), uint(axisIdx))
 	for _, shr := range shrs {
 		err = tree.Push(shr)
 		if err != nil {
@@ -49,12 +44,12 @@ func (f *MemFile) ShareWithProof(idx int, axis rsmt2d.Axis) (share.Share, nmt.Pr
 	return shrs[shrIdx], proof, nil
 }
 
-func (f *MemFile) Axis(idx int, axis rsmt2d.Axis) ([]share.Share, error) {
-	return getAxis(idx, axis, f.Eds), nil
+func (f *MemFile) Axis(axisType rsmt2d.Axis, axisIdx int) ([]share.Share, error) {
+	return getAxis(axisType, axisIdx, f.Eds), nil
 }
 
-func (f *MemFile) AxisHalf(idx int, axis rsmt2d.Axis) ([]share.Share, error) {
-	return getAxis(idx, axis, f.Eds)[:f.Size()/2], nil
+func (f *MemFile) AxisHalf(axisType rsmt2d.Axis, axisIdx int) ([]share.Share, error) {
+	return getAxis(axisType, axisIdx, f.Eds)[:f.Size()/2], nil
 }
 
 func (f *MemFile) EDS() (*rsmt2d.ExtendedDataSquare, error) {
@@ -62,12 +57,12 @@ func (f *MemFile) EDS() (*rsmt2d.ExtendedDataSquare, error) {
 }
 
 // TODO(@Wondertan): Should be a method on eds
-func getAxis(idx int, axis rsmt2d.Axis, eds *rsmt2d.ExtendedDataSquare) [][]byte {
-	switch axis {
+func getAxis(axisType rsmt2d.Axis, axisIdx int, eds *rsmt2d.ExtendedDataSquare) [][]byte {
+	switch axisType {
 	case rsmt2d.Row:
-		return eds.Row(uint(idx))
+		return eds.Row(uint(axisIdx))
 	case rsmt2d.Col:
-		return eds.Col(uint(idx))
+		return eds.Col(uint(axisIdx))
 	default:
 		panic("unknown axis")
 	}

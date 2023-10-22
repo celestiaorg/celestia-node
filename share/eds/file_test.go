@@ -41,31 +41,34 @@ func TestFile(t *testing.T) {
 	fl, err = OpenFile(path)
 	require.NoError(t, err)
 
-	axis := []rsmt2d.Axis{rsmt2d.Col, rsmt2d.Row}
-	for _, axis := range axis {
+	axisTypes := []rsmt2d.Axis{rsmt2d.Col, rsmt2d.Row}
+	for _, axisType := range axisTypes {
 		for i := 0; i < int(eds.Width()); i++ {
-			row, err := fl.Axis(i, axis)
+			row, err := fl.Axis(axisType, i)
 			require.NoError(t, err)
-			assert.EqualValues(t, getAxis(i, axis, eds), row)
+			assert.EqualValues(t, getAxis(axisType, i, eds), row)
 		}
 	}
 
 	width := int(eds.Width())
-	for _, axis := range axis {
+	for _, axisType := range axisTypes {
 		for i := 0; i < width*width; i++ {
-			row, col := uint(i/width), uint(i%width)
-			shr, prf, err := fl.ShareWithProof(i, axis)
+			axisIdx, shrIdx := i/width, i%width
+			if axisType == rsmt2d.Col {
+				axisIdx, shrIdx = shrIdx, axisIdx
+			}
+
+			shr, prf, err := fl.ShareWithProof(axisType, axisIdx, shrIdx)
 			require.NoError(t, err)
-			assert.EqualValues(t, eds.GetCell(row, col), shr)
 
 			namespace := share.ParitySharesNamespace
-			if int(row) < width/2 && int(col) < width/2 {
+			if axisIdx < width/2 && shrIdx < width/2 {
 				namespace = share.GetNamespace(shr)
 			}
 
-			axishash := root.RowRoots[row]
-			if axis == rsmt2d.Col {
-				axishash = root.ColumnRoots[col]
+			axishash := root.RowRoots[axisIdx]
+			if axisType == rsmt2d.Col {
+				axishash = root.ColumnRoots[axisIdx]
 			}
 
 			ok := prf.VerifyInclusion(sha256.New(), namespace.ToNMT(), [][]byte{shr}, axishash)

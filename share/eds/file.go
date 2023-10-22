@@ -17,9 +17,9 @@ import (
 type File interface {
 	io.Closer
 	Size() int
-	ShareWithProof(idx int, axis rsmt2d.Axis) (share.Share, nmt.Proof, error)
-	Axis(idx int, axis rsmt2d.Axis) ([]share.Share, error)
-	AxisHalf(idx int, axis rsmt2d.Axis) ([]share.Share, error)
+	ShareWithProof(axisType rsmt2d.Axis, axisIdx, shrIdx int) (share.Share, nmt.Proof, error)
+	Axis(axisType rsmt2d.Axis, axisIdx int) ([]share.Share, error)
+	AxisHalf(axisType rsmt2d.Axis, axisIdx int) ([]share.Share, error)
 	EDS() (*rsmt2d.ExtendedDataSquare, error)
 }
 
@@ -122,7 +122,7 @@ func (f *LazyFile) Header() *Header {
 	return f.hdr
 }
 
-func (f *LazyFile) Axis(idx int, axis rsmt2d.Axis) ([]share.Share, error) {
+func (f *LazyFile) Axis(axisType rsmt2d.Axis, axisIdx int) ([]share.Share, error) {
 	shrLn := int(f.hdr.shareSize)
 	sqrLn := int(f.hdr.squareSize)
 	if f.Header().Config().Mode == ODSMode {
@@ -130,10 +130,10 @@ func (f *LazyFile) Axis(idx int, axis rsmt2d.Axis) ([]share.Share, error) {
 	}
 
 	shrs := make([]share.Share, sqrLn)
-	switch axis {
+	switch axisType {
 	case rsmt2d.Col:
 		for i := 0; i < sqrLn; i++ {
-			pos := idx + i*sqrLn
+			pos := axisIdx + i*sqrLn
 			offset := pos*shrLn + HeaderSize
 
 			shr := make(share.Share, shrLn)
@@ -143,7 +143,7 @@ func (f *LazyFile) Axis(idx int, axis rsmt2d.Axis) ([]share.Share, error) {
 			shrs[i] = shr
 		}
 	case rsmt2d.Row:
-		pos := idx * sqrLn
+		pos := axisIdx * sqrLn
 		offset := pos*shrLn + HeaderSize
 
 		axsData := make([]byte, sqrLn*shrLn)
@@ -169,9 +169,9 @@ func (f *LazyFile) Axis(idx int, axis rsmt2d.Axis) ([]share.Share, error) {
 	return shrs, nil
 }
 
-func (f *LazyFile) AxisHalf(idx int, axis rsmt2d.Axis) ([]share.Share, error) {
+func (f *LazyFile) AxisHalf(axisType rsmt2d.Axis, axisIdx int) ([]share.Share, error) {
 	// TODO(@Wondertan): this has to read directly from the file, avoiding recompute
-	fullAxis, err := f.Axis(idx, axis)
+	fullAxis, err := f.Axis(axisType, axisIdx)
 	if err != nil {
 		return nil, err
 	}
@@ -179,20 +179,15 @@ func (f *LazyFile) AxisHalf(idx int, axis rsmt2d.Axis) ([]share.Share, error) {
 	return fullAxis[:len(fullAxis)/2], nil
 }
 
-func (f *LazyFile) ShareWithProof(idx int, axis rsmt2d.Axis) (share.Share, nmt.Proof, error) {
+func (f *LazyFile) ShareWithProof(axisType rsmt2d.Axis, axisIdx, shrIdx int) (share.Share, nmt.Proof, error) {
 	// TODO: Cache the axis as well as computed tree
 	sqrLn := int(f.hdr.squareSize)
-	axsIdx, shrIdx := idx/sqrLn, idx%sqrLn
-	if axis == rsmt2d.Col {
-		axsIdx, shrIdx = shrIdx, axsIdx
-	}
-
-	shrs, err := f.Axis(axsIdx, axis)
+	shrs, err := f.Axis(axisType, axisIdx)
 	if err != nil {
 		return nil, nmt.Proof{}, err
 	}
 
-	tree := wrapper.NewErasuredNamespacedMerkleTree(uint64(sqrLn/2), uint(axsIdx))
+	tree := wrapper.NewErasuredNamespacedMerkleTree(uint64(sqrLn/2), uint(axisIdx))
 	for _, shr := range shrs {
 		err = tree.Push(shr)
 		if err != nil {

@@ -13,19 +13,19 @@ import (
 var log = logger.Logger("ipldv2")
 
 const (
-	// shareSamplingCodec is a CID codec used for share sampling Bitswap requests over Namespaced
+	// sampleCodec is a CID codec used for share sampling Bitswap requests over Namespaced
 	// Merkle Tree.
-	shareSamplingCodec = 0x7800
+	sampleCodec = 0x7800
 
-	// shareSamplingMultihashCode is the multihash code for share sampling multihash function.
-	shareSamplingMultihashCode = 0x7801
+	// sampleMultihashCode is the multihash code for share sampling multihash function.
+	sampleMultihashCode = 0x7801
 
-	// axisSamplingCodec is a CID codec used for axis sampling Bitswap requests over Namespaced Merkle
+	// axisCodec is a CID codec used for axis sampling Bitswap requests over Namespaced Merkle
 	// Tree.
-	axisSamplingCodec = 0x7810
+	axisCodec = 0x7810
 
-	// axisSamplingMultihashCode is the multihash code for custom axis sampling multihash function.
-	axisSamplingMultihashCode = 0x7811
+	// axisMultihashCode is the multihash code for custom axis sampling multihash function.
+	axisMultihashCode = 0x7811
 
 	// mhPrefixSize is the size of the multihash prefix that used to cut it off.
 	mhPrefixSize = 4
@@ -38,11 +38,11 @@ var (
 
 func init() {
 	// Register hashers for new multihashes
-	mh.Register(shareSamplingMultihashCode, func() hash.Hash {
-		return &ShareSampleHasher{}
+	mh.Register(sampleMultihashCode, func() hash.Hash {
+		return &SampleHasher{}
 	})
-	mh.Register(axisSamplingMultihashCode, func() hash.Hash {
-		return &AxisSampleHasher{}
+	mh.Register(axisMultihashCode, func() hash.Hash {
+		return &AxisHasher{}
 	})
 }
 
@@ -54,8 +54,8 @@ type allowlist struct{}
 func (a allowlist) IsAllowed(code uint64) bool {
 	// we disable all codes except home-baked code
 	switch code {
-	case shareSamplingMultihashCode:
-	case axisSamplingMultihashCode:
+	case sampleMultihashCode:
+	case axisMultihashCode:
 	default:
 		return false
 	}
@@ -64,15 +64,15 @@ func (a allowlist) IsAllowed(code uint64) bool {
 
 func validateCID(cid cid.Cid) error {
 	prefix := cid.Prefix()
-	if prefix.Codec != shareSamplingCodec && prefix.Codec != axisSamplingCodec {
+	if prefix.Codec != sampleCodec && prefix.Codec != axisCodec {
 		return fmt.Errorf("unsupported codec %d", prefix.Codec)
 	}
 
-	if prefix.MhType != shareSamplingMultihashCode && prefix.MhType != axisSamplingMultihashCode {
+	if prefix.MhType != sampleMultihashCode && prefix.MhType != axisMultihashCode {
 		return fmt.Errorf("unsupported multihash %d", prefix.MhType)
 	}
 
-	if prefix.MhLength != ShareSampleIDSize && prefix.MhLength != AxisSampleIDSize {
+	if prefix.MhLength != SampleIDSize && prefix.MhLength != AxisIDSize {
 		return fmt.Errorf("invalid multihash length %d", prefix.MhLength)
 	}
 

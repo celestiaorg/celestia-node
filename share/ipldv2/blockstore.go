@@ -27,30 +27,30 @@ func NewBlockstore[F eds.File](fs fileStore[F]) blockstore.Blockstore {
 
 func (b Blockstore[F]) Get(_ context.Context, cid cid.Cid) (blocks.Block, error) {
 	switch cid.Type() {
-	case shareSamplingCodec:
-		id, err := ShareSampleIDFromCID(cid)
+	case sampleCodec:
+		id, err := SampleIDFromCID(cid)
 		if err != nil {
-			err = fmt.Errorf("while converting CID to ShareSampleId: %w", err)
+			err = fmt.Errorf("while converting CID to SampleId: %w", err)
 			log.Error(err)
 			return nil, err
 		}
 
-		blk, err := b.getShareSampleBlock(id)
+		blk, err := b.getSampleBlock(id)
 		if err != nil {
 			log.Error(err)
 			return nil, err
 		}
 
 		return blk, nil
-	case axisSamplingCodec:
-		id, err := AxisSampleIDFromCID(cid)
+	case axisCodec:
+		id, err := AxisIDFromCID(cid)
 		if err != nil {
-			err = fmt.Errorf("while converting CID to AxisSampleID: %w", err)
+			err = fmt.Errorf("while converting CID to AxisID: %w", err)
 			log.Error(err)
 			return nil, err
 		}
 
-		blk, err := b.getAxisSampleBlock(id)
+		blk, err := b.getAxisBlock(id)
 		if err != nil {
 			log.Error(err)
 			return nil, err
@@ -62,18 +62,18 @@ func (b Blockstore[F]) Get(_ context.Context, cid cid.Cid) (blocks.Block, error)
 	}
 }
 
-func (b Blockstore[F]) getShareSampleBlock(id ShareSampleID) (blocks.Block, error) {
+func (b Blockstore[F]) getSampleBlock(id SampleID) (blocks.Block, error) {
 	f, err := b.fs.File(id.Height)
 	if err != nil {
 		return nil, fmt.Errorf("while getting EDS file from FS: %w", err)
 	}
 
-	shr, prf, err := f.ShareWithProof(id.Index, id.Axis)
+	shr, prf, err := f.ShareWithProof(id.AxisType, int(id.AxisIndex), int(id.ShareIndex))
 	if err != nil {
 		return nil, fmt.Errorf("while getting share with proof: %w", err)
 	}
 
-	s := NewShareSample(id, shr, prf, f.Size())
+	s := NewSample(id, shr, prf, f.Size())
 	blk, err := s.IPLDBlock()
 	if err != nil {
 		return nil, fmt.Errorf("while coverting to IPLD block: %w", err)
@@ -87,18 +87,18 @@ func (b Blockstore[F]) getShareSampleBlock(id ShareSampleID) (blocks.Block, erro
 	return blk, nil
 }
 
-func (b Blockstore[F]) getAxisSampleBlock(id AxisSampleID) (blocks.Block, error) {
+func (b Blockstore[F]) getAxisBlock(id AxisID) (blocks.Block, error) {
 	f, err := b.fs.File(id.Height)
 	if err != nil {
 		return nil, fmt.Errorf("while getting EDS file from FS: %w", err)
 	}
 
-	axisHalf, err := f.AxisHalf(id.Index, id.Axis)
+	axisHalf, err := f.AxisHalf(id.AxisType, int(id.AxisIndex))
 	if err != nil {
 		return nil, fmt.Errorf("while getting axis half: %w", err)
 	}
 
-	s := NewAxisSample(id, axisHalf)
+	s := NewAxis(id, axisHalf)
 	blk, err := s.IPLDBlock()
 	if err != nil {
 		return nil, fmt.Errorf("while coverting to IPLD block: %w", err)
@@ -114,7 +114,7 @@ func (b Blockstore[F]) getAxisSampleBlock(id AxisSampleID) (blocks.Block, error)
 
 func (b Blockstore[F]) GetSize(ctx context.Context, cid cid.Cid) (int, error) {
 	// TODO(@Wondertan): There must be a way to derive size without reading, proving, serializing and
-	//  allocating ShareSample's block.Block.
+	//  allocating Sample's block.Block.
 	// NOTE:Bitswap uses GetSize also to determine if we have content stored or not
 	// so simply returning constant size is not an option
 	blk, err := b.Get(ctx, cid)
@@ -128,19 +128,19 @@ func (b Blockstore[F]) GetSize(ctx context.Context, cid cid.Cid) (int, error) {
 func (b Blockstore[F]) Has(_ context.Context, cid cid.Cid) (bool, error) {
 	var height uint64
 	switch cid.Type() {
-	case shareSamplingCodec:
-		id, err := ShareSampleIDFromCID(cid)
+	case sampleCodec:
+		id, err := SampleIDFromCID(cid)
 		if err != nil {
-			err = fmt.Errorf("while converting CID to ShareSampleID: %w", err)
+			err = fmt.Errorf("while converting CID to SampleID: %w", err)
 			log.Error(err)
 			return false, err
 		}
 
 		height = id.Height
-	case axisSamplingCodec:
-		id, err := AxisSampleIDFromCID(cid)
+	case axisCodec:
+		id, err := AxisIDFromCID(cid)
 		if err != nil {
-			err = fmt.Errorf("while converting CID to AxisSampleID: %w", err)
+			err = fmt.Errorf("while converting CID to AxisID: %w", err)
 			log.Error(err)
 			return false, err
 		}

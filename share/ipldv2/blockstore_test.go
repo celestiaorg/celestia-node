@@ -25,18 +25,17 @@ func TestBlockstoreGetShareSample(t *testing.T) {
 
 	b := edsBlockstore(sqr)
 
-	axis := []rsmt2d.Axis{rsmt2d.Row, rsmt2d.Col}
 	width := int(sqr.Width())
-	for _, axis := range axis {
+	for _, axisType := range axisTypes {
 		for i := 0; i < width*width; i++ {
-			id := NewShareSampleID(1, root, i, axis)
+			id := NewSampleID(axisType, i, root, 1)
 			cid, err := id.Cid()
 			require.NoError(t, err)
 
 			blk, err := b.Get(ctx, cid)
 			require.NoError(t, err)
 
-			sample, err := ShareSampleFromBlock(blk)
+			sample, err := SampleFromBlock(blk)
 			require.NoError(t, err)
 
 			err = sample.Validate()

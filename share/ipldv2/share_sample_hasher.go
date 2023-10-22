@@ -5,21 +5,21 @@ import (
 	"fmt"
 )
 
-// ShareSampleHasher implements hash.Hash interface for Samples.
-type ShareSampleHasher struct {
-	sample ShareSample
+// SampleHasher implements hash.Hash interface for Samples.
+type SampleHasher struct {
+	sample Sample
 }
 
-// Write expects a marshaled ShareSample to validate.
-func (sh *ShareSampleHasher) Write(data []byte) (int, error) {
+// Write expects a marshaled Sample to validate.
+func (sh *SampleHasher) Write(data []byte) (int, error) {
 	if err := sh.sample.UnmarshalBinary(data); err != nil {
-		err = fmt.Errorf("while unmarshaling ShareSample: %w", err)
+		err = fmt.Errorf("while unmarshaling Sample: %w", err)
 		log.Error(err)
 		return 0, err
 	}
 
 	if err := sh.sample.Validate(); err != nil {
-		err = fmt.Errorf("while validating ShareSample: %w", err)
+		err = fmt.Errorf("while validating Sample: %w", err)
 		log.Error(err)
 		return 0, err
 	}
@@ -27,27 +27,27 @@ func (sh *ShareSampleHasher) Write(data []byte) (int, error) {
 	return len(data), nil
 }
 
-// Sum returns the "multihash" of the ShareSampleID.
-func (sh *ShareSampleHasher) Sum([]byte) []byte {
+// Sum returns the "multihash" of the SampleID.
+func (sh *SampleHasher) Sum([]byte) []byte {
 	sum, err := sh.sample.ID.MarshalBinary()
 	if err != nil {
-		err = fmt.Errorf("while marshaling ShareSampleID")
+		err = fmt.Errorf("while marshaling SampleID")
 		log.Error(err)
 	}
 	return sum
 }
 
 // Reset resets the Hash to its initial state.
-func (sh *ShareSampleHasher) Reset() {
-	sh.sample = ShareSample{}
+func (sh *SampleHasher) Reset() {
+	sh.sample = Sample{}
 }
 
 // Size returns the number of bytes Sum will return.
-func (sh *ShareSampleHasher) Size() int {
-	return ShareSampleIDSize
+func (sh *SampleHasher) Size() int {
+	return SampleIDSize
 }
 
 // BlockSize returns the hash's underlying block size.
-func (sh *ShareSampleHasher) BlockSize() int {
+func (sh *SampleHasher) BlockSize() int {
 	return sha256.BlockSize
 }

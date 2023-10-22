@@ -23,9 +23,11 @@ import (
 	"github.com/celestiaorg/celestia-node/share/eds/edstest"
 )
 
-// TestShareSampleRoundtripGetBlock tests full protocol round trip of:
-// EDS -> ShareSample -> IPLDBlock -> BlockService -> Bitswap and in reverse.
-func TestShareSampleRoundtripGetBlock(t *testing.T) {
+var axisTypes = []rsmt2d.Axis{rsmt2d.Col, rsmt2d.Row}
+
+// TestSampleRoundtripGetBlock tests full protocol round trip of:
+// EDS -> Sample -> IPLDBlock -> BlockService -> Bitswap and in reverse.
+func TestSampleRoundtripGetBlock(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second*10)
 	defer cancel()
 
@@ -33,11 +35,10 @@ func TestShareSampleRoundtripGetBlock(t *testing.T) {
 	b := edsBlockstore(sqr)
 	client := remoteClient(ctx, t, b)
 
-	axis := []rsmt2d.Axis{rsmt2d.Col, rsmt2d.Row}
 	width := int(sqr.Width())
-	for _, axis := range axis {
+	for _, axisType := range axisTypes {
 		for i := 0; i < width*width; i++ {
-			smpl, err := NewShareSampleFromEDS(1, sqr, i, axis)
+			smpl, err := NewSampleFromEDS(axisType, i, sqr, 1)
 			require.NoError(t, err)
 
 			cid, err := smpl.ID.Cid()
@@ -47,7 +48,7 @@ func TestShareSampleRoundtripGetBlock(t *testing.T) {
 			require.NoError(t, err)
 			assert.EqualValues(t, cid, blkOut.Cid())
 
-			smpl, err = ShareSampleFromBlock(blkOut)
+			smpl, err = SampleFromBlock(blkOut)
 			assert.NoError(t, err)
 
 			err = smpl.Validate() // bitswap already performed validation and this is only for testing
@@ -56,7 +57,7 @@ func TestShareSampleRoundtripGetBlock(t *testing.T) {
 	}
 }
 
-func TestShareSampleRoundtripGetBlocks(t *testing.T) {
+func TestSampleRoundtripGetBlocks(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second*10)
 	defer cancel()
 
@@ -65,11 +66,10 @@ func TestShareSampleRoundtripGetBlocks(t *testing.T) {
 	client := remoteClient(ctx, t, b)
 
 	set := cid.NewSet()
-	axis := []rsmt2d.Axis{rsmt2d.Col, rsmt2d.Row}
 	width := int(sqr.Width())
-	for _, axis := range axis {
+	for _, axisType := range axisTypes {
 		for i := 0; i < width*width; i++ {
-			smpl, err := NewShareSampleFromEDS(1, sqr, i, axis)
+			smpl, err := NewSampleFromEDS(axisType, i, sqr, 1)
 			require.NoError(t, err)
 
 			cid, err := smpl.ID.Cid()
@@ -85,7 +85,7 @@ func TestShareSampleRoundtripGetBlocks(t *testing.T) {
 		case blk := <-blks:
 			assert.True(t, set.Has(blk.Cid()))
 
-			smpl, err := ShareSampleFromBlock(blk)
+			smpl, err := SampleFromBlock(blk)
 			assert.NoError(t, err)
 
 			err = smpl.Validate() // bitswap already performed validation and this is only for testing
@@ -98,7 +98,7 @@ func TestShareSampleRoundtripGetBlocks(t *testing.T) {
 	assert.NoError(t, err)
 }
 
-func TestAxisSampleRoundtripGetBlock(t *testing.T) {
+func TestAxisRoundtripGetBlock(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second*10000)
 	defer cancel()
 
@@ -106,11 +106,10 @@ func TestAxisSampleRoundtripGetBlock(t *testing.T) {
 	b := edsBlockstore(sqr)
 	client := remoteClient(ctx, t, b)
 
-	axis := []rsmt2d.Axis{rsmt2d.Col, rsmt2d.Row}
 	width := int(sqr.Width())
-	for _, axis := range axis {
+	for _, axisType := range axisTypes {
 		for i := 0; i < width; i++ {
-			smpl, err := NewAxisSampleFromEDS(1, sqr, i, axis)
+			smpl, err := NewAxisFromEDS(axisType, i, sqr, 1)
 			require.NoError(t, err)
 
 			cid, err := smpl.ID.Cid()
@@ -120,7 +119,7 @@ func TestAxisSampleRoundtripGetBlock(t *testing.T) {
 			require.NoError(t, err)
 			assert.EqualValues(t, cid, blkOut.Cid())
 
-			smpl, err = AxisSampleFromBlock(blkOut)
+			smpl, err = AxisFromBlock(blkOut)
 			assert.NoError(t, err)
 
 			err = smpl.Validate() // bitswap already performed validation and this is only for testing
@@ -129,7 +128,7 @@ func TestAxisSampleRoundtripGetBlock(t *testing.T) {
 	}
 }
 
-func TestAxisSampleRoundtripGetBlocks(t *testing.T) {
+func TestAxisRoundtripGetBlocks(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second*10)
 	defer cancel()
 
@@ -138,11 +137,10 @@ func TestAxisSampleRoundtripGetBlocks(t *testing.T) {
 	client := remoteClient(ctx, t, b)
 
 	set := cid.NewSet()
-	axis := []rsmt2d.Axis{rsmt2d.Col, rsmt2d.Row}
 	width := int(sqr.Width())
-	for _, axis := range axis {
+	for _, axisType := range axisTypes {
 		for i := 0; i < width; i++ {
-			smpl, err := NewAxisSampleFromEDS(1, sqr, i, axis)
+			smpl, err := NewAxisFromEDS(axisType, i, sqr, 1)
 			require.NoError(t, err)
 
 			cid, err := smpl.ID.Cid()
@@ -158,7 +156,7 @@ func TestAxisSampleRoundtripGetBlocks(t *testing.T) {
 		case blk := <-blks:
 			assert.True(t, set.Has(blk.Cid()))
 
-			smpl, err := AxisSampleFromBlock(blk)
+			smpl, err := AxisFromBlock(blk)
 			assert.NoError(t, err)
 
 			err = smpl.Validate() // bitswap already performed validation and this is only for testing

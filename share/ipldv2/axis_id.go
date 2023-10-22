@@ -1,0 +1,147 @@
+package ipldv2
+
+import (
+	"encoding/binary"
+	"fmt"
+
+	"github.com/ipfs/go-cid"
+	mh "github.com/multiformats/go-multihash"
+
+	"github.com/celestiaorg/rsmt2d"
+
+	"github.com/celestiaorg/celestia-node/share"
+	ipldv2pb "github.com/celestiaorg/celestia-node/share/ipldv2/pb"
+)
+
+// AxisIDSize is the size of the AxisID in bytes
+const AxisIDSize = 43
+
+// AxisID is an unique identifier of a Axis.
+type AxisID struct {
+	// AxisType is Col or Row axis of the sample in the data square
+	AxisType rsmt2d.Axis
+	// AxisIndex is the index of the axis(row, col) in the data square
+	AxisIndex uint16
+	// AxisHash is the sha256 hash of a Col or Row root taken from DAH of the data square
+	AxisHash []byte
+	// Height of the block.
+	// Needed to identify block's data square in the whole chain
+	Height uint64
+}
+
+// NewAxisID constructs a new AxisID.
+func NewAxisID(axisType rsmt2d.Axis, idx uint16, root *share.Root, height uint64) AxisID {
+	dahroot := root.RowRoots[idx]
+	if axisType == rsmt2d.Col {
+		dahroot = root.ColumnRoots[idx]
+	}
+	axisHash := hashBytes(dahroot)
+
+	return AxisID{
+		AxisType:  axisType,
+		AxisIndex: idx,
+		AxisHash:  axisHash,
+		Height:    height,
+	}
+}
+
+// AxisIDFromCID coverts CID to AxisID.
+func AxisIDFromCID(cid cid.Cid) (id AxisID, err error) {
+	if err = validateCID(cid); err != nil {
+		return id, err
+	}
+
+	err = id.UnmarshalBinary(cid.Hash()[mhPrefixSize:])
+	if err != nil {
+		return id, fmt.Errorf("while unmarhalling AxisID: %w", err)
+	}
+
+	return id, nil
+}
+
+// AxisIDFromProto converts from protobuf representation of AxisID.
+func AxisIDFromProto(proto *ipldv2pb.AxisID) AxisID {
+	return AxisID{
+		AxisType:  rsmt2d.Axis(proto.Type),
+		AxisIndex: uint16(proto.Index),
+		AxisHash:  proto.Hash,
+		Height:    proto.Height,
+	}
+}
+
+// Cid returns sample ID encoded as CID.
+func (s *AxisID) Cid() (cid.Cid, error) {
+	// avoid using proto serialization for CIDs as it's not deterministic
+	data, err := s.MarshalBinary()
+	if err != nil {
+		return cid.Undef, err
+	}
+
+	buf, err := mh.Encode(data, axisMultihashCode)
+	if err != nil {
+		return cid.Undef, err
+	}
+
+	return cid.NewCidV1(axisCodec, buf), nil
+}
+
+// Proto converts AxisID to its protobuf representation.
+func (s *AxisID) Proto() *ipldv2pb.AxisID {
+	return &ipldv2pb.AxisID{
+		Type:   ipldv2pb.AxisType(s.AxisType),
+		Height: s.Height,
+		Hash:   s.AxisHash,
+		Index:  uint32(s.AxisIndex),
+	}
+}
+
+// MarshalTo encodes AxisID into given byte slice.
+func (s *AxisID) MarshalTo(data []byte) (int, error) {
+	data = append(data, byte(s.AxisType))
+	data = binary.LittleEndian.AppendUint16(data, s.AxisIndex)
+	data = append(data, s.AxisHash...)
+	binary.LittleEndian.AppendUint64(data, s.Height)
+	return AxisIDSize, nil
+}
+
+// UnmarshalFrom decodes AxisID from given byte slice.
+func (s *AxisID) UnmarshalFrom(data []byte) (int, error) {
+	s.AxisType = rsmt2d.Axis(data[0])
+	s.AxisIndex = binary.LittleEndian.Uint16(data[1:])
+	s.AxisHash = append(s.AxisHash, data[3:hashSize+3]...)
+	s.Height = binary.LittleEndian.Uint64(data[hashSize+3:])
+	return AxisIDSize, nil
+}
+
+// MarshalBinary encodes AxisID into binary form.
+func (s *AxisID) MarshalBinary() ([]byte, error) {
+	data := make([]byte, 0, AxisIDSize)
+	n, err := s.MarshalTo(data)
+	return data[:n], err
+}
+
+// UnmarshalBinary decodes AxisID from binary form.
+func (s *AxisID) UnmarshalBinary(data []byte) error {
+	if len(data) != AxisIDSize {
+		return fmt.Errorf("incorrect data length: %d != %d", len(data), AxisIDSize)
+	}
+	_, err := s.UnmarshalFrom(data)
+	return err
+}
+
+// Validate validates fields of AxisID.
+func (s *AxisID) Validate() error {
+	if s.Height == 0 {
+		return fmt.Errorf("zero Height")
+	}
+
+	if len(s.AxisHash) != hashSize {
+		return fmt.Errorf("incorrect Hash size: %d != %d", len(s.AxisHash), hashSize)
+	}
+
+	if s.AxisType != rsmt2d.Col && s.AxisType != rsmt2d.Row {
+		return fmt.Errorf("incorrect Axis: %d", s.AxisType)
+	}
+
+	return nil
+}
