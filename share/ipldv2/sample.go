@@ -141,10 +141,10 @@ func (s *Sample) MarshalBinary() ([]byte, error) {
 	proof.LeafHash = s.Proof.LeafHash()
 
 	return (&ipldv2pb.Sample{
-		Id:    id,
-		Type:  ipldv2pb.SampleType(s.Type),
-		Proof: proof,
-		Share: s.Share,
+		SampleId:    id,
+		SampleType:  ipldv2pb.SampleType(s.Type),
+		SampleProof: proof,
+		SampleShare: s.Share,
 	}).Marshal()
 }
 
@@ -155,14 +155,14 @@ func (s *Sample) UnmarshalBinary(data []byte) error {
 		return err
 	}
 
-	err := s.ID.UnmarshalBinary(proto.Id)
+	err := s.ID.UnmarshalBinary(proto.SampleId)
 	if err != nil {
 		return err
 	}
 
-	s.Type = SampleType(proto.Type)
-	s.Proof = nmt.ProtoToProof(*proto.Proof)
-	s.Share = proto.Share
+	s.Type = SampleType(proto.SampleType)
+	s.Proof = nmt.ProtoToProof(*proto.SampleProof)
+	s.Share = proto.SampleShare
 	return nil
 }
 

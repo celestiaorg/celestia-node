@@ -18,8 +18,8 @@ enum SampleType {
 }
 
 message Sample {
-    bytes id = 1;
-    SampleType type = 2;
-    bytes share = 3;
-    proof.pb.Proof proof = 4;
+    bytes sample_id = 1;
+    SampleType sample_type = 2;
+    bytes sample_share = 3;
+    proof.pb.Proof sample_proof = 4;
 }
