@@ -25,7 +25,9 @@ jobs:
       - name: golangci-lint
         uses: golangci/golangci-lint-action@v3.7.0
         with:
-          version: v1.54.2
+          version: v1.55
+          skip-pkg-cache: true
+          skip-build-cache: true
 
   go_mod_tidy_check:
     name: Go Mod Tidy Check
