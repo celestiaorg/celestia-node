@@ -214,7 +214,7 @@ func TestDASerSampleTimeout(t *testing.T) {
 	avail := mocks.NewMockAvailability(gomock.NewController(t))
 	doneCh := make(chan struct{})
 	avail.EXPECT().SharesAvailable(gomock.Any(), gomock.Any()).DoAndReturn(
-		func(sampleCtx context.Context, h *share.Root) error {
+		func(sampleCtx context.Context, h *header.ExtendedHeader) error {
 			select {
 			case <-sampleCtx.Done():
 				close(doneCh)
@@ -291,9 +291,7 @@ func (m *mockGetter) fillSubWithHeaders(
 	for i := startHeight; i < endHeight; i++ {
 		dah := availability_test.RandFillBS(t, 16, bServ)
 
-		randHeader := headertest.RandExtendedHeader(t)
-		randHeader.DataHash = dah.Hash()
-		randHeader.DAH = dah
+		randHeader := headertest.RandExtendedHeaderWithRoot(t, dah)
 		randHeader.RawHeader.Height = int64(i + 1)
 
 		sub.Headers[index] = randHeader
@@ -319,9 +317,7 @@ func (m *mockGetter) generateHeaders(t *testing.T, bServ blockservice.BlockServi
 	for i := startHeight; i < endHeight; i++ {
 		dah := availability_test.RandFillBS(t, 16, bServ)
 
-		randHeader := headertest.RandExtendedHeader(t)
-		randHeader.DataHash = dah.Hash()
-		randHeader.DAH = dah
+		randHeader := headertest.RandExtendedHeaderWithRoot(t, dah)
 		randHeader.RawHeader.Height = int64(i + 1)
 
 		m.headers[int64(i+1)] = randHeader
@@ -388,11 +384,7 @@ func (m getterStub) GetByHeight(_ context.Context, height uint64) (*header.Exten
 		DAH:       &share.Root{RowRoots: make([][]byte, 0)}}, nil
 }
 
-func (m getterStub) GetRangeByHeight(context.Context, uint64, uint64) ([]*header.ExtendedHeader, error) {
-	return nil, nil
-}
-
-func (m getterStub) GetVerifiedRange(
+func (m getterStub) GetRangeByHeight(
 	context.Context,
 	*header.ExtendedHeader,
 	uint64,

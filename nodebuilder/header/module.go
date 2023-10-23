@@ -50,8 +50,12 @@ func ConstructModule[H libhead.Header[H]](tp node.Type, cfg *Config) fx.Option {
 			}),
 		)),
 		fx.Provide(fx.Annotate(
-			func(ps *pubsub.PubSub, network modp2p.Network) *p2p.Subscriber[H] {
-				return p2p.NewSubscriber[H](ps, header.MsgID, network.String())
+			func(ps *pubsub.PubSub, network modp2p.Network) (*p2p.Subscriber[H], error) {
+				opts := []p2p.SubscriberOption{p2p.WithSubscriberNetworkID(network.String())}
+				if MetricsEnabled {
+					opts = append(opts, p2p.WithSubscriberMetrics())
+				}
+				return p2p.NewSubscriber[H](ps, header.MsgID, opts...)
 			},
 			fx.OnStart(func(ctx context.Context, sub *p2p.Subscriber[H]) error {
 				return sub.Start(ctx)
@@ -62,14 +66,20 @@ func ConstructModule[H libhead.Header[H]](tp node.Type, cfg *Config) fx.Option {
 		)),
 		fx.Provide(fx.Annotate(
 			func(
+				cfg Config,
 				host host.Host,
 				store libhead.Store[H],
 				network modp2p.Network,
 			) (*p2p.ExchangeServer[H], error) {
-				return p2p.NewExchangeServer[H](host, store,
+				opts := []p2p.Option[p2p.ServerParameters]{
 					p2p.WithParams(cfg.Server),
 					p2p.WithNetworkID[p2p.ServerParameters](network.String()),
-				)
+				}
+				if MetricsEnabled {
+					opts = append(opts, p2p.WithMetrics[p2p.ServerParameters]())
+				}
+
+				return p2p.NewExchangeServer[H](host, store, opts...)
 			},
 			fx.OnStart(func(ctx context.Context, server *p2p.ExchangeServer[H]) error {
 				return server.Start(ctx)

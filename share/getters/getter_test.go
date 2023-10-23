@@ -18,6 +18,8 @@ import (
 	dsbadger "github.com/celestiaorg/go-ds-badger4"
 	"github.com/celestiaorg/rsmt2d"
 
+	"github.com/celestiaorg/celestia-node/header"
+	"github.com/celestiaorg/celestia-node/header/headertest"
 	"github.com/celestiaorg/celestia-node/share"
 	"github.com/celestiaorg/celestia-node/share/eds"
 	"github.com/celestiaorg/celestia-node/share/eds/edstest"
@@ -41,92 +43,109 @@ func TestStoreGetter(t *testing.T) {
 	sg := NewStoreGetter(edsStore)
 
 	t.Run("GetShare", func(t *testing.T) {
-		randEds, dah := randomEDS(t)
-		err = edsStore.Put(ctx, dah.Hash(), randEds)
+		randEds, eh := randomEDS(t)
+		err = edsStore.Put(ctx, eh.DAH.Hash(), randEds)
 		require.NoError(t, err)
 
 		squareSize := int(randEds.Width())
 		for i := 0; i < squareSize; i++ {
 			for j := 0; j < squareSize; j++ {
-				share, err := sg.GetShare(ctx, dah, i, j)
+				share, err := sg.GetShare(ctx, eh, i, j)
 				require.NoError(t, err)
 				assert.Equal(t, randEds.GetCell(uint(i), uint(j)), share)
 			}
 		}
 
 		// doesn't panic on indexes too high
-		_, err := sg.GetShare(ctx, dah, squareSize, squareSize)
+		_, err := sg.GetShare(ctx, eh, squareSize, squareSize)
 		require.ErrorIs(t, err, share.ErrOutOfBounds)
 
 		// root not found
-		_, dah = randomEDS(t)
-		_, err = sg.GetShare(ctx, dah, 0, 0)
+		_, eh = randomEDS(t)
+		_, err = sg.GetShare(ctx, eh, 0, 0)
 		require.ErrorIs(t, err, share.ErrNotFound)
 	})
 
 	t.Run("GetEDS", func(t *testing.T) {
-		randEds, dah := randomEDS(t)
-		err = edsStore.Put(ctx, dah.Hash(), randEds)
+		randEds, eh := randomEDS(t)
+		err = edsStore.Put(ctx, eh.DAH.Hash(), randEds)
 		require.NoError(t, err)
 
-		retrievedEDS, err := sg.GetEDS(ctx, dah)
+		retrievedEDS, err := sg.GetEDS(ctx, eh)
 		require.NoError(t, err)
 		assert.True(t, randEds.Equals(retrievedEDS))
 
 		// root not found
-		root := share.Root{}
-		_, err = sg.GetEDS(ctx, &root)
+		emptyRoot := da.MinDataAvailabilityHeader()
+		eh.DAH = &emptyRoot
+		_, err = sg.GetEDS(ctx, eh)
 		require.ErrorIs(t, err, share.ErrNotFound)
 	})
 
 	t.Run("GetSharesByNamespace", func(t *testing.T) {
-		randEds, namespace, dah := randomEDSWithDoubledNamespace(t, 4)
-		err = edsStore.Put(ctx, dah.Hash(), randEds)
+		randEds, namespace, eh := randomEDSWithDoubledNamespace(t, 4)
+		err = edsStore.Put(ctx, eh.DAH.Hash(), randEds)
 		require.NoError(t, err)
 
-		shares, err := sg.GetSharesByNamespace(ctx, dah, namespace)
+		shares, err := sg.GetSharesByNamespace(ctx, eh, namespace)
 		require.NoError(t, err)
-		require.NoError(t, shares.Verify(dah, namespace))
+		require.NoError(t, shares.Verify(eh.DAH, namespace))
 		assert.Len(t, shares.Flatten(), 2)
 
 		// namespace not found
 		randNamespace := sharetest.RandV0Namespace()
-		emptyShares, err := sg.GetSharesByNamespace(ctx, dah, randNamespace)
+		emptyShares, err := sg.GetSharesByNamespace(ctx, eh, randNamespace)
 		require.NoError(t, err)
 		require.Empty(t, emptyShares.Flatten())
 
 		// root not found
-		root := share.Root{}
-		_, err = sg.GetSharesByNamespace(ctx, &root, namespace)
+		emptyRoot := da.MinDataAvailabilityHeader()
+		eh.DAH = &emptyRoot
+		_, err = sg.GetSharesByNamespace(ctx, eh, namespace)
 		require.ErrorIs(t, err, share.ErrNotFound)
 	})
 
 	t.Run("GetSharesFromNamespace removes corrupted shard", func(t *testing.T) {
-		randEds, namespace, dah := randomEDSWithDoubledNamespace(t, 4)
-		err = edsStore.Put(ctx, dah.Hash(), randEds)
+		randEds, namespace, eh := randomEDSWithDoubledNamespace(t, 4)
+		err = edsStore.Put(ctx, eh.DAH.Hash(), randEds)
 		require.NoError(t, err)
 
 		// available
-		shares, err := sg.GetSharesByNamespace(ctx, dah, namespace)
+		shares, err := sg.GetSharesByNamespace(ctx, eh, namespace)
 		require.NoError(t, err)
-		require.NoError(t, shares.Verify(dah, namespace))
+		require.NoError(t, shares.Verify(eh.DAH, namespace))
 		assert.Len(t, shares.Flatten(), 2)
 
 		// 'corrupt' existing CAR by overwriting with a random EDS
-		f, err := os.OpenFile(tmpDir+"/blocks/"+dah.String(), os.O_WRONLY, 0644)
+		f, err := os.OpenFile(tmpDir+"/blocks/"+eh.DAH.String(), os.O_WRONLY, 0644)
 		require.NoError(t, err)
-		edsToOverwriteWith, dah := randomEDS(t)
+		edsToOverwriteWith, eh := randomEDS(t)
 		err = eds.WriteEDS(ctx, edsToOverwriteWith, f)
 		require.NoError(t, err)
 
-		shares, err = sg.GetSharesByNamespace(ctx, dah, namespace)
+		shares, err = sg.GetSharesByNamespace(ctx, eh, namespace)
 		require.ErrorIs(t, err, share.ErrNotFound)
 		require.Nil(t, shares)
 
 		// corruption detected, shard is removed
-		has, err := edsStore.Has(ctx, dah.Hash())
-		require.False(t, has)
-		require.NoError(t, err)
+		// try every 200ms until it passes or the context ends
+		ticker := time.NewTicker(200 * time.Millisecond)
+		defer ticker.Stop()
+		for {
+			select {
+			case <-ctx.Done():
+				t.Fatal("context ended before successful retrieval")
+			case <-ticker.C:
+				has, err := edsStore.Has(ctx, eh.DAH.Hash())
+				if err != nil {
+					t.Fatal(err)
+				}
+				if !has {
+					require.NoError(t, err)
+					return
+				}
+			}
+		}
 	})
 }
 
@@ -150,26 +169,26 @@ func TestIPLDGetter(t *testing.T) {
 		ctx, cancel := context.WithTimeout(ctx, time.Second)
 		t.Cleanup(cancel)
 
-		randEds, dah := randomEDS(t)
-		err = edsStore.Put(ctx, dah.Hash(), randEds)
+		randEds, eh := randomEDS(t)
+		err = edsStore.Put(ctx, eh.DAH.Hash(), randEds)
 		require.NoError(t, err)
 
 		squareSize := int(randEds.Width())
 		for i := 0; i < squareSize; i++ {
 			for j := 0; j < squareSize; j++ {
-				share, err := sg.GetShare(ctx, dah, i, j)
+				share, err := sg.GetShare(ctx, eh, i, j)
 				require.NoError(t, err)
 				assert.Equal(t, randEds.GetCell(uint(i), uint(j)), share)
 			}
 		}
 
 		// doesn't panic on indexes too high
-		_, err := sg.GetShare(ctx, dah, squareSize+1, squareSize+1)
+		_, err := sg.GetShare(ctx, eh, squareSize+1, squareSize+1)
 		require.ErrorIs(t, err, share.ErrOutOfBounds)
 
 		// root not found
-		_, dah = randomEDS(t)
-		_, err = sg.GetShare(ctx, dah, 0, 0)
+		_, eh = randomEDS(t)
+		_, err = sg.GetShare(ctx, eh, 0, 0)
 		require.ErrorIs(t, err, share.ErrNotFound)
 	})
 
@@ -177,11 +196,11 @@ func TestIPLDGetter(t *testing.T) {
 		ctx, cancel := context.WithTimeout(ctx, time.Second)
 		t.Cleanup(cancel)
 
-		randEds, dah := randomEDS(t)
-		err = edsStore.Put(ctx, dah.Hash(), randEds)
+		randEds, eh := randomEDS(t)
+		err = edsStore.Put(ctx, eh.DAH.Hash(), randEds)
 		require.NoError(t, err)
 
-		retrievedEDS, err := sg.GetEDS(ctx, dah)
+		retrievedEDS, err := sg.GetEDS(ctx, eh)
 		require.NoError(t, err)
 		assert.True(t, randEds.Equals(retrievedEDS))
 
@@ -196,25 +215,26 @@ func TestIPLDGetter(t *testing.T) {
 		ctx, cancel := context.WithTimeout(ctx, time.Second)
 		t.Cleanup(cancel)
 
-		randEds, namespace, dah := randomEDSWithDoubledNamespace(t, 4)
-		err = edsStore.Put(ctx, dah.Hash(), randEds)
+		randEds, namespace, eh := randomEDSWithDoubledNamespace(t, 4)
+		err = edsStore.Put(ctx, eh.DAH.Hash(), randEds)
 		require.NoError(t, err)
 
 		// first check that shares are returned correctly if they exist
-		shares, err := sg.GetSharesByNamespace(ctx, dah, namespace)
+		shares, err := sg.GetSharesByNamespace(ctx, eh, namespace)
 		require.NoError(t, err)
-		require.NoError(t, shares.Verify(dah, namespace))
+		require.NoError(t, shares.Verify(eh.DAH, namespace))
 		assert.Len(t, shares.Flatten(), 2)
 
 		// namespace not found
 		randNamespace := sharetest.RandV0Namespace()
-		emptyShares, err := sg.GetSharesByNamespace(ctx, dah, randNamespace)
+		emptyShares, err := sg.GetSharesByNamespace(ctx, eh, randNamespace)
 		require.NoError(t, err)
 		require.Empty(t, emptyShares.Flatten())
 
 		// nid doesnt exist in root
-		root := share.Root{}
-		emptyShares, err = sg.GetSharesByNamespace(ctx, &root, namespace)
+		emptyRoot := da.MinDataAvailabilityHeader()
+		eh.DAH = &emptyRoot
+		emptyShares, err = sg.GetSharesByNamespace(ctx, eh, namespace)
 		require.NoError(t, err)
 		require.Empty(t, emptyShares.Flatten())
 	})
@@ -248,16 +268,19 @@ func BenchmarkIPLDGetterOverBusyCache(b *testing.B) {
 	edsStore := newStore(eds.DefaultParameters())
 
 	// generate EDSs and store them
-	hashes := make([]da.DataAvailabilityHeader, blocks)
-	for i := range hashes {
+	headers := make([]*header.ExtendedHeader, blocks)
+	for i := range headers {
 		eds := edstest.RandEDS(b, size)
 		dah, err := da.NewDataAvailabilityHeader(eds)
 		require.NoError(b, err)
 		err = edsStore.Put(ctx, dah.Hash(), eds)
 		require.NoError(b, err)
 
+		eh := headertest.RandExtendedHeader(b)
+		eh.DAH = &dah
+
 		// store cids for read loop later
-		hashes[i] = dah
+		headers[i] = eh
 	}
 
 	// restart store to clear cache
@@ -277,27 +300,31 @@ func BenchmarkIPLDGetterOverBusyCache(b *testing.B) {
 	b.ResetTimer()
 	g := sync.WaitGroup{}
 	g.Add(blocks)
-	for _, h := range hashes {
+	for _, h := range headers {
 		h := h
 		go func() {
 			defer g.Done()
-			_, err := getter.GetEDS(ctx, &h)
+			_, err := getter.GetEDS(ctx, h)
 			require.NoError(b, err)
 		}()
 	}
 	g.Wait()
 }
 
-func randomEDS(t *testing.T) (*rsmt2d.ExtendedDataSquare, *share.Root) {
+func randomEDS(t *testing.T) (*rsmt2d.ExtendedDataSquare, *header.ExtendedHeader) {
 	eds := edstest.RandEDS(t, 4)
 	dah, err := share.NewRoot(eds)
 	require.NoError(t, err)
-	return eds, dah
+	eh := headertest.RandExtendedHeaderWithRoot(t, dah)
+	return eds, eh
 }
 
 // randomEDSWithDoubledNamespace generates a random EDS and ensures that there are two shares in the
 // middle that share a namespace.
-func randomEDSWithDoubledNamespace(t *testing.T, size int) (*rsmt2d.ExtendedDataSquare, []byte, *share.Root) {
+func randomEDSWithDoubledNamespace(
+	t *testing.T,
+	size int,
+) (*rsmt2d.ExtendedDataSquare, []byte, *header.ExtendedHeader) {
 	n := size * size
 	randShares := sharetest.RandShares(t, n)
 	idx1 := (n - 1) / 2
@@ -321,6 +348,7 @@ func randomEDSWithDoubledNamespace(t *testing.T, size int) (*rsmt2d.ExtendedData
 	require.NoError(t, err, "failure to recompute the extended data square")
 	dah, err := share.NewRoot(eds)
 	require.NoError(t, err)
+	eh := headertest.RandExtendedHeaderWithRoot(t, dah)
 
-	return eds, share.GetNamespace(randShares[idx1]), dah
+	return eds, share.GetNamespace(randShares[idx1]), eh
 }

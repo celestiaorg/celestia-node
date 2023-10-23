@@ -48,13 +48,12 @@ func ConstructModule(tp node.Type, cfg *Config) fx.Option {
 			"gateway",
 			baseComponents,
 			fx.Invoke(func(
-				cfg *Config,
 				state stateServ.Module,
 				share shareServ.Module,
 				header headerServ.Module,
 				serv *gateway.Server,
 			) {
-				Handler(cfg, state, share, header, nil, serv)
+				Handler(state, share, header, nil, serv)
 			}),
 		)
 	default:

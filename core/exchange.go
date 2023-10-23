@@ -42,7 +42,29 @@ func (ce *Exchange) GetByHeight(ctx context.Context, height uint64) (*header.Ext
 	return ce.getExtendedHeaderByHeight(ctx, &intHeight)
 }
 
-func (ce *Exchange) GetRangeByHeight(ctx context.Context, from, amount uint64) ([]*header.ExtendedHeader, error) {
+func (ce *Exchange) GetRangeByHeight(
+	ctx context.Context,
+	from *header.ExtendedHeader,
+	to uint64,
+) ([]*header.ExtendedHeader, error) {
+	amount := to - (from.Height() + 1)
+	headers, err := ce.getRangeByHeight(ctx, from.Height()+1, amount)
+	if err != nil {
+		return nil, err
+	}
+
+	for _, h := range headers {
+		err := from.Verify(h)
+		if err != nil {
+			return nil, fmt.Errorf("verifying next header against last verified height: %d: %w",
+				from.Height(), err)
+		}
+		from = h
+	}
+	return headers, nil
+}
+
+func (ce *Exchange) getRangeByHeight(ctx context.Context, from, amount uint64) ([]*header.ExtendedHeader, error) {
 	if amount == 0 {
 		return nil, nil
 	}
@@ -70,27 +92,6 @@ func (ce *Exchange) GetRangeByHeight(ctx context.Context, from, amount uint64) (
 		return nil, err
 	}
 	log.Debugw("received headers", "from", from, "to", from+amount, "after", time.Since(start))
-	return headers, nil
-}
-
-func (ce *Exchange) GetVerifiedRange(
-	ctx context.Context,
-	from *header.ExtendedHeader,
-	amount uint64,
-) ([]*header.ExtendedHeader, error) {
-	headers, err := ce.GetRangeByHeight(ctx, from.Height()+1, amount)
-	if err != nil {
-		return nil, err
-	}
-
-	for _, h := range headers {
-		err := from.Verify(h)
-		if err != nil {
-			return nil, fmt.Errorf("verifying next header against last verified height: %d: %w",
-				from.Height(), err)
-		}
-		from = h
-	}
 	return headers, nil
 }
 

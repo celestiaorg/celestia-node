@@ -1,4 +1,4 @@
-package main
+package cmd
 
 import (
 	"testing"
@@ -69,7 +69,7 @@ func Test_parseNamespaceID(t *testing.T) {
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
-			got, err := parseV0Namespace(tc.param)
+			got, err := ParseV0Namespace(tc.param)
 			if tc.wantErr {
 				assert.Error(t, err)
 				return

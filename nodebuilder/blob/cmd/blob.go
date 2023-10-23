@@ -1,16 +1,15 @@
-package main
+package cmd
 
 import (
 	"encoding/base64"
-	"encoding/json"
 	"fmt"
-	"os"
 	"reflect"
 	"strconv"
 
 	"github.com/spf13/cobra"
 
 	"github.com/celestiaorg/celestia-node/blob"
+	cmdnode "github.com/celestiaorg/celestia-node/cmd"
 	"github.com/celestiaorg/celestia-node/share"
 )
 
@@ -22,7 +21,7 @@ var (
 )
 
 func init() {
-	blobCmd.AddCommand(getCmd, getAllCmd, submitCmd, getProofCmd)
+	Cmd.AddCommand(getCmd, getAllCmd, submitCmd, getProofCmd)
 
 	getCmd.PersistentFlags().BoolVar(
 		&base64Flag,
@@ -30,6 +29,7 @@ func init() {
 		false,
 		"printed blob's data a base64 string",
 	)
+
 	getAllCmd.PersistentFlags().BoolVar(
 		&base64Flag,
 		"base64",
@@ -41,39 +41,45 @@ func init() {
 		&fee,
 		"fee",
 		-1,
-		"specifies fee for blob submission",
+		"specifies fee (in utia) for blob submission.\n"+
+			"Fee will be automatically calculated if negative value is passed [optional]",
 	)
 
 	submitCmd.PersistentFlags().Uint64Var(
 		&gasLimit,
 		"gas.limit",
 		0,
-		"specifies max gas for the blob submission",
+		"sets the amount of gas that is consumed during blob submission [optional]",
 	)
+
+	// unset the default value to avoid users confusion
+	submitCmd.PersistentFlags().Lookup("fee").DefValue = "0"
 }
 
-var blobCmd = &cobra.Command{
-	Use:   "blob [command]",
-	Short: "Allows to interact with the Blob Service via JSON-RPC",
-	Args:  cobra.NoArgs,
+var Cmd = &cobra.Command{
+	Use:               "blob [command]",
+	Short:             "Allows to interact with the Blob Service via JSON-RPC",
+	Args:              cobra.NoArgs,
+	PersistentPreRunE: cmdnode.InitClient,
 }
 
 var getCmd = &cobra.Command{
-	Use:   "get [height, namespace, commitment]",
+	Use:   "get [height] [namespace] [commitment]",
 	Args:  cobra.ExactArgs(3),
 	Short: "Returns the blob for the given namespace by commitment at a particular height.",
 	RunE: func(cmd *cobra.Command, args []string) error {
-		client, err := rpcClient(cmd.Context())
+		client, err := cmdnode.ParseClientFromCtx(cmd.Context())
 		if err != nil {
 			return err
 		}
+		defer client.Close()
 
 		height, err := strconv.ParseUint(args[0], 10, 64)
 		if err != nil {
 			return fmt.Errorf("error parsing a height:%v", err)
 		}
 
-		namespace, err := parseV0Namespace(args[1])
+		namespace, err := cmdnode.ParseV0Namespace(args[1])
 		if err != nil {
 			return fmt.Errorf("error parsing a namespace:%v", err)
 		}
@@ -85,49 +91,59 @@ var getCmd = &cobra.Command{
 
 		blob, err := client.Blob.Get(cmd.Context(), height, namespace, commitment)
 
-		printOutput(blob, err)
-		return nil
+		formatter := formatData
+		if base64Flag || err != nil {
+			formatter = nil
+		}
+		return cmdnode.PrintOutput(blob, err, formatter)
 	},
 }
 
 var getAllCmd = &cobra.Command{
-	Use:   "get-all [height, namespace]",
+	Use:   "get-all [height] [namespace]",
 	Args:  cobra.ExactArgs(2),
 	Short: "Returns all blobs for the given namespace at a particular height.",
 	RunE: func(cmd *cobra.Command, args []string) error {
-		client, err := rpcClient(cmd.Context())
+		client, err := cmdnode.ParseClientFromCtx(cmd.Context())
 		if err != nil {
 			return err
 		}
+		defer client.Close()
 
 		height, err := strconv.ParseUint(args[0], 10, 64)
 		if err != nil {
 			return fmt.Errorf("error parsing a height:%v", err)
 		}
 
-		namespace, err := parseV0Namespace(args[1])
+		namespace, err := cmdnode.ParseV0Namespace(args[1])
 		if err != nil {
 			return fmt.Errorf("error parsing a namespace:%v", err)
 		}
 
 		blobs, err := client.Blob.GetAll(cmd.Context(), height, []share.Namespace{namespace})
-
-		printOutput(blobs, err)
-		return nil
+		formatter := formatData
+		if base64Flag || err != nil {
+			formatter = nil
+		}
+		return cmdnode.PrintOutput(blobs, err, formatter)
 	},
 }
 
 var submitCmd = &cobra.Command{
-	Use:   "submit [namespace, blobData]",
-	Args:  cobra.ExactArgs(2),
-	Short: "Submit the blob at the given namespace. Note: only one blob is allowed to submit through the RPC.",
+	Use:  "submit [namespace] [blobData]",
+	Args: cobra.ExactArgs(2),
+	Short: "Submit the blob at the given namespace.\n" +
+		"Note:\n" +
+		"* only one blob is allowed to submit through the RPC.\n" +
+		"* fee and gas.limit params will be calculated automatically if they are not provided as arguments",
 	RunE: func(cmd *cobra.Command, args []string) error {
-		client, err := rpcClient(cmd.Context())
+		client, err := cmdnode.ParseClientFromCtx(cmd.Context())
 		if err != nil {
 			return err
 		}
+		defer client.Close()
 
-		namespace, err := parseV0Namespace(args[0])
+		namespace, err := cmdnode.ParseV0Namespace(args[0])
 		if err != nil {
 			return fmt.Errorf("error parsing a namespace:%v", err)
 		}
@@ -150,28 +166,27 @@ var submitCmd = &cobra.Command{
 			Height:     height,
 			Commitment: parsedBlob.Commitment,
 		}
-
-		printOutput(response, err)
-		return nil
+		return cmdnode.PrintOutput(response, err, nil)
 	},
 }
 
 var getProofCmd = &cobra.Command{
-	Use:   "get-proof [height, namespace, commitment]",
+	Use:   "get-proof [height] [namespace] [commitment]",
 	Args:  cobra.ExactArgs(3),
 	Short: "Retrieves the blob in the given namespaces at the given height by commitment and returns its Proof.",
 	RunE: func(cmd *cobra.Command, args []string) error {
-		client, err := rpcClient(cmd.Context())
+		client, err := cmdnode.ParseClientFromCtx(cmd.Context())
 		if err != nil {
 			return err
 		}
+		defer client.Close()
 
 		height, err := strconv.ParseUint(args[0], 10, 64)
 		if err != nil {
 			return fmt.Errorf("error parsing a height:%v", err)
 		}
 
-		namespace, err := parseV0Namespace(args[1])
+		namespace, err := cmdnode.ParseV0Namespace(args[1])
 		if err != nil {
 			return fmt.Errorf("error parsing a namespace:%v", err)
 		}
@@ -182,33 +197,8 @@ var getProofCmd = &cobra.Command{
 		}
 
 		proof, err := client.Blob.GetProof(cmd.Context(), height, namespace, commitment)
-
-		printOutput(proof, err)
-		return nil
+		return cmdnode.PrintOutput(proof, err, nil)
 	},
-}
-
-func printOutput(data interface{}, err error) {
-	if err != nil {
-		data = err
-	}
-
-	if !base64Flag && err == nil {
-		data = formatData(data)
-	}
-
-	resp := struct {
-		Result interface{} `json:"result"`
-	}{
-		Result: data,
-	}
-
-	bytes, err := json.MarshalIndent(resp, "", "  ")
-	if err != nil {
-		fmt.Fprintln(os.Stderr, err)
-		os.Exit(1)
-	}
-	fmt.Fprintln(os.Stdout, string(bytes))
 }
 
 func formatData(data interface{}) interface{} {
@@ -220,11 +210,7 @@ func formatData(data interface{}) interface{} {
 	}
 
 	if reflect.TypeOf(data).Kind() == reflect.Slice {
-		blobs, ok := data.([]*blob.Blob)
-		if !ok {
-			return data
-		}
-
+		blobs := data.([]*blob.Blob)
 		result := make([]tempBlob, len(blobs))
 		for i, b := range blobs {
 			result[i] = tempBlob{
@@ -237,10 +223,7 @@ func formatData(data interface{}) interface{} {
 		return result
 	}
 
-	b, ok := data.(*blob.Blob)
-	if !ok {
-		return data
-	}
+	b := data.(*blob.Blob)
 	return tempBlob{
 		Namespace:    b.Namespace(),
 		Data:         string(b.Data),

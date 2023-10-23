@@ -11,6 +11,7 @@ import (
 
 	"github.com/celestiaorg/rsmt2d"
 
+	"github.com/celestiaorg/celestia-node/header"
 	"github.com/celestiaorg/celestia-node/share"
 	"github.com/celestiaorg/celestia-node/share/mocks"
 )
@@ -20,24 +21,24 @@ func TestCascadeGetter(t *testing.T) {
 	t.Cleanup(cancel)
 
 	const gettersN = 3
-	roots := make([]*share.Root, gettersN)
+	headers := make([]*header.ExtendedHeader, gettersN)
 	getters := make([]share.Getter, gettersN)
-	for i := range roots {
-		getters[i], roots[i] = TestGetter(t)
+	for i := range headers {
+		getters[i], headers[i] = TestGetter(t)
 	}
 
 	getter := NewCascadeGetter(getters)
 	t.Run("GetShare", func(t *testing.T) {
-		for _, r := range roots {
-			sh, err := getter.GetShare(ctx, r, 0, 0)
+		for _, eh := range headers {
+			sh, err := getter.GetShare(ctx, eh, 0, 0)
 			assert.NoError(t, err)
 			assert.NotEmpty(t, sh)
 		}
 	})
 
 	t.Run("GetEDS", func(t *testing.T) {
-		for _, r := range roots {
-			sh, err := getter.GetEDS(ctx, r)
+		for _, eh := range headers {
+			sh, err := getter.GetEDS(ctx, eh)
 			assert.NoError(t, err)
 			assert.NotEmpty(t, sh)
 		}
@@ -54,7 +55,7 @@ func TestCascade(t *testing.T) {
 	successGetter := mocks.NewMockGetter(ctrl)
 	ctxGetter := mocks.NewMockGetter(ctrl)
 	timeoutGetter.EXPECT().GetEDS(gomock.Any(), gomock.Any()).
-		DoAndReturn(func(ctx context.Context, _ *share.Root) (*rsmt2d.ExtendedDataSquare, error) {
+		DoAndReturn(func(ctx context.Context, _ *header.ExtendedHeader) (*rsmt2d.ExtendedDataSquare, error) {
 			return nil, context.DeadlineExceeded
 		}).AnyTimes()
 	immediateFailGetter.EXPECT().GetEDS(gomock.Any(), gomock.Any()).
@@ -62,7 +63,7 @@ func TestCascade(t *testing.T) {
 	successGetter.EXPECT().GetEDS(gomock.Any(), gomock.Any()).
 		Return(nil, nil).AnyTimes()
 	ctxGetter.EXPECT().GetEDS(gomock.Any(), gomock.Any()).
-		DoAndReturn(func(ctx context.Context, _ *share.Root) (*rsmt2d.ExtendedDataSquare, error) {
+		DoAndReturn(func(ctx context.Context, _ *header.ExtendedHeader) (*rsmt2d.ExtendedDataSquare, error) {
 			return nil, ctx.Err()
 		}).AnyTimes()
 

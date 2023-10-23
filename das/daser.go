@@ -147,7 +147,7 @@ func (d *DASer) Stop(ctx context.Context) error {
 }
 
 func (d *DASer) sample(ctx context.Context, h *header.ExtendedHeader) error {
-	err := d.da.SharesAvailable(ctx, h.DAH)
+	err := d.da.SharesAvailable(ctx, h)
 	if err != nil {
 		var byzantineErr *byzantine.ErrByzantine
 		if errors.As(err, &byzantineErr) {

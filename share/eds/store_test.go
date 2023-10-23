@@ -158,7 +158,7 @@ func TestEDSStore(t *testing.T) {
 		time.Sleep(time.Millisecond * 100)
 
 		// remove non-failed accessor from cache
-		err = edsStore.cache.Remove(shard.KeyFromString(dah.String()))
+		err = edsStore.cache.Load().Remove(shard.KeyFromString(dah.String()))
 		assert.NoError(t, err)
 
 		_, err = edsStore.GetCAR(ctx, dah.Hash())
@@ -205,7 +205,7 @@ func TestEDSStore(t *testing.T) {
 
 		// check, that the key is in the cache after put
 		shardKey := shard.KeyFromString(dah.String())
-		_, err = edsStore.cache.Get(shardKey)
+		_, err = edsStore.cache.Load().Get(shardKey)
 		assert.NoError(t, err)
 	})
 
@@ -276,7 +276,7 @@ func TestEDSStore_GC(t *testing.T) {
 	// remove links to the shard from cache
 	time.Sleep(time.Millisecond * 100)
 	key := shard.KeyFromString(share.DataHash(dah.Hash()).String())
-	err = edsStore.cache.Remove(key)
+	err = edsStore.cache.Load().Remove(key)
 	require.NoError(t, err)
 
 	// doesn't exist yet
@@ -305,8 +305,8 @@ func Test_BlockstoreCache(t *testing.T) {
 	require.NoError(t, err)
 
 	// store eds to the store with noopCache to allow clean cache after put
-	swap := edsStore.cache
-	edsStore.cache = cache.NewDoubleCache(cache.NoopCache{}, cache.NoopCache{})
+	swap := edsStore.cache.Load()
+	edsStore.cache.Store(cache.NewDoubleCache(cache.NoopCache{}, cache.NoopCache{}))
 	eds, dah := randomEDS(t)
 	err = edsStore.Put(ctx, dah.Hash(), eds)
 	require.NoError(t, err)
@@ -327,11 +327,11 @@ func Test_BlockstoreCache(t *testing.T) {
 	}
 
 	// swap back original cache
-	edsStore.cache = swap
+	edsStore.cache.Store(swap)
 
 	// key shouldn't be in cache yet, check for returned errCacheMiss
 	shardKey := shard.KeyFromString(dah.String())
-	_, err = edsStore.cache.Get(shardKey)
+	_, err = edsStore.cache.Load().Get(shardKey)
 	require.Error(t, err)
 
 	// now get it from blockstore, to trigger storing to cache
@@ -339,7 +339,7 @@ func Test_BlockstoreCache(t *testing.T) {
 	require.NoError(t, err)
 
 	// should be no errCacheMiss anymore
-	_, err = edsStore.cache.Get(shardKey)
+	_, err = edsStore.cache.Load().Get(shardKey)
 	require.NoError(t, err)
 }
 
@@ -362,7 +362,7 @@ func Test_CachedAccessor(t *testing.T) {
 	time.Sleep(time.Millisecond * 100)
 
 	// accessor should be in cache
-	_, err = edsStore.cache.Get(shard.KeyFromString(dah.String()))
+	_, err = edsStore.cache.Load().Get(shard.KeyFromString(dah.String()))
 	require.NoError(t, err)
 
 	// first read from cached accessor
@@ -393,7 +393,7 @@ func Test_NotCachedAccessor(t *testing.T) {
 	err = edsStore.Start(ctx)
 	require.NoError(t, err)
 	// replace cache with noopCache to
-	edsStore.cache = cache.NewDoubleCache(cache.NoopCache{}, cache.NoopCache{})
+	edsStore.cache.Store(cache.NewDoubleCache(cache.NoopCache{}, cache.NoopCache{}))
 
 	eds, dah := randomEDS(t)
 	err = edsStore.Put(ctx, dah.Hash(), eds)
@@ -403,7 +403,7 @@ func Test_NotCachedAccessor(t *testing.T) {
 	time.Sleep(time.Millisecond * 100)
 
 	// accessor should not be in cache
-	_, err = edsStore.cache.Get(shard.KeyFromString(dah.String()))
+	_, err = edsStore.cache.Load().Get(shard.KeyFromString(dah.String()))
 	require.Error(t, err)
 
 	// first read from direct accessor (not from cache)
