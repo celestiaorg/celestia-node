@@ -3,12 +3,12 @@ package cmd
 import (
 	"encoding/hex"
 	"encoding/json"
+	"fmt"
 	"strconv"
 
 	"github.com/spf13/cobra"
 
 	cmdnode "github.com/celestiaorg/celestia-node/cmd"
-	"github.com/celestiaorg/celestia-node/header"
 	"github.com/celestiaorg/celestia-node/share"
 )
 
@@ -39,18 +39,17 @@ var sharesAvailableCmd = &cobra.Command{
 		}
 		defer client.Close()
 
-		raw, err := parseJSON(args[0])
+		height, err := strconv.ParseUint(args[0], 10, 64)
+		if err != nil {
+			return fmt.Errorf("error parsing a height:%v", err)
+		}
+
+		header, err := client.Header.GetByHeight(cmd.Context(), height)
 		if err != nil {
 			return err
 		}
 
-		var eh *header.ExtendedHeader
-		err = json.Unmarshal(raw, &eh)
-		if err != nil {
-			return err
-		}
-
-		err = client.Share.SharesAvailable(cmd.Context(), eh)
+		err = client.Share.SharesAvailable(cmd.Context(), header)
 		formatter := func(data interface{}) interface{} {
 			err, ok := data.(error)
 			available := false
@@ -58,9 +57,9 @@ var sharesAvailableCmd = &cobra.Command{
 				available = true
 			}
 			return struct {
-				Available bool   `json:"available"`
-				Hash      []byte `json:"dah_hash"`
-				Reason    error  `json:"reason,omitempty"`
+				Available bool   json:"available"
+				Hash      []byte json:"dah_hash"
+				Reason    error  json:"reason,omitempty"
 			}{
 				Available: available,
 				Hash:      []byte(args[0]),
@@ -72,7 +71,7 @@ var sharesAvailableCmd = &cobra.Command{
 }
 
 var getSharesByNamespaceCmd = &cobra.Command{
-	Use:   "get-by-namespace [extended header, namespace]",
+	Use:   "get-by-namespace [block height, namespace]",
 	Short: "Gets all shares from an EDS within the given namespace.",
 	Args:  cobra.ExactArgs(2),
 	RunE: func(cmd *cobra.Command, args []string) error {
@@ -82,13 +81,12 @@ var getSharesByNamespaceCmd = &cobra.Command{
 		}
 		defer client.Close()
 
-		raw, err := parseJSON(args[0])
+		height, err := strconv.ParseUint(args[0], 10, 64)
 		if err != nil {
-			return err
+			return fmt.Errorf("error parsing a height:%v", err)
 		}
 
-		var eh *header.ExtendedHeader
-		err = json.Unmarshal(raw, &eh)
+		header, err := client.Header.GetByHeight(cmd.Context(), height)
 		if err != nil {
 			return err
 		}
@@ -98,13 +96,13 @@ var getSharesByNamespaceCmd = &cobra.Command{
 			return err
 		}
 
-		shares, err := client.Share.GetSharesByNamespace(cmd.Context(), eh, ns)
+		shares, err := client.Share.GetSharesByNamespace(cmd.Context(), header, ns)
 		return cmdnode.PrintOutput(shares, err, nil)
 	},
 }
 
 var getShare = &cobra.Command{
-	Use:   "get-share [extended header, row, col]",
+	Use:   "get-share [block height, row, col]",
 	Short: "Gets a Share by coordinates in EDS.",
 	Args:  cobra.ExactArgs(3),
 	RunE: func(cmd *cobra.Command, args []string) error {
@@ -114,13 +112,12 @@ var getShare = &cobra.Command{
 		}
 		defer client.Close()
 
-		raw, err := parseJSON(args[0])
+		height, err := strconv.ParseUint(args[0], 10, 64)
 		if err != nil {
-			return err
+			return fmt.Errorf("error parsing a height:%v", err)
 		}
 
-		var eh *header.ExtendedHeader
-		err = json.Unmarshal(raw, &eh)
+		header, err := client.Header.GetByHeight(cmd.Context(), height)
 		if err != nil {
 			return err
 		}
@@ -135,7 +132,7 @@ var getShare = &cobra.Command{
 			return err
 		}
 
-		s, err := client.Share.GetShare(cmd.Context(), eh, int(row), int(col))
+		s, err := client.Share.GetShare(cmd.Context(), header, int(row), int(col))
 
 		formatter := func(data interface{}) interface{} {
 			sh, ok := data.(share.Share)
@@ -146,8 +143,8 @@ var getShare = &cobra.Command{
 			ns := hex.EncodeToString(share.GetNamespace(sh))
 
 			return struct {
-				Namespace string `json:"namespace"`
-				Data      []byte `json:"data"`
+				Namespace string json:"namespace"
+				Data      []byte json:"data"
 			}{
 				Namespace: ns,
 				Data:      share.GetData(sh),
@@ -158,8 +155,8 @@ var getShare = &cobra.Command{
 }
 
 var getEDS = &cobra.Command{
-	Use:   "get-eds [extended header]",
-	Short: "Gets the full EDS identified by the given extended header",
+	Use:   "get-eds [block height]",
+	Short: "Gets the full EDS identified by the given block height",
 	Args:  cobra.ExactArgs(1),
 	RunE: func(cmd *cobra.Command, args []string) error {
 		client, err := cmdnode.ParseClientFromCtx(cmd.Context())
@@ -168,18 +165,17 @@ var getEDS = &cobra.Command{
 		}
 		defer client.Close()
 
-		raw, err := parseJSON(args[0])
+		height, err := strconv.ParseUint(args[0], 10, 64)
+		if err != nil {
+			return fmt.Errorf("error parsing a height:%v", err)
+		}
+
+		header, err := client.Header.GetByHeight(cmd.Context(), height)
 		if err != nil {
 			return err
 		}
 
-		var eh *header.ExtendedHeader
-		err = json.Unmarshal(raw, &eh)
-		if err != nil {
-			return err
-		}
-
-		shares, err := client.Share.GetEDS(cmd.Context(), eh)
+		shares, err := client.Share.GetEDS(cmd.Context(), header)
 		return cmdnode.PrintOutput(shares, err, nil)
 	},
 }
