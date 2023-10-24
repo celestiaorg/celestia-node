@@ -21,8 +21,6 @@ const (
 	BadEncoding fraud.ProofType = "badencoding" + version
 )
 
-var ()
-
 type BadEncodingProof struct {
 	headerHash  []byte
 	BlockHeight uint64
