@@ -103,7 +103,7 @@ func (p *BadEncodingProof) UnmarshalBinary(data []byte) error {
 }
 
 var (
-	errHeightMismatch          = errors.New("block's height does not match with the header's height")
+	errHeightMismatch          = errors.New("height reported in proof does not match with the header's height")
 	errIncorrectIndex          = errors.New("row/col index is more then the roots amount")
 	errIncorrectAmountOfShares = errors.New("incorrect amount of shares")
 	errIncorrectShare          = errors.New("incorrect share received")
