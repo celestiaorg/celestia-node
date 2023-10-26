@@ -2,11 +2,11 @@ package p2p
 
 import (
 	"fmt"
-	"slices"
 
 	p2pconfig "github.com/libp2p/go-libp2p/config"
 	hst "github.com/libp2p/go-libp2p/core/host"
 	ma "github.com/multiformats/go-multiaddr"
+	"slices"
 )
 
 // Listen returns invoke function that starts listening for inbound connections with libp2p.Host.

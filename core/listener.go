@@ -105,7 +105,7 @@ func (cl *Listener) Start(context.Context) error {
 func (cl *Listener) Stop(context.Context) error {
 	cl.cancel()
 	cl.cancel = nil
-	return nil
+	return cl.metrics.Close()
 }
 
 // runSubscriber runs a subscriber to receive event data of new signed blocks. It will attempt to
