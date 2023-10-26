@@ -163,7 +163,6 @@ func (cl *Listener) listen(ctx context.Context, sub <-chan types.EventDataSigned
 				return errors.New("underlying subscription was closed")
 			}
 
-			cl.metrics.observeBlockTime(ctx)
 			log.Debugw("listener: new block from core", "height", b.Header.Height)
 
 			err := cl.handleNewSignedBlock(ctx, b)
