@@ -58,6 +58,7 @@ jobs:
     permissions: "write-all"
     steps:
       - uses: actions/checkout@v4
+
       - name: Bump version and push tag
         # Placing the if condition here is a workaround for needing to block
         # on this step during workflow dispatch events but the step not
@@ -66,9 +67,6 @@ jobs:
         # in goreleaser not running either.
         if: ${{ github.event_name == 'workflow_dispatch' }}
         uses: mathieudutour/github-tag-action@v6.1
-
-      - name: Version Release
-        uses: celestiaorg/.github/.github/actions/version-release@v0.2.8
         with:
           github_token: ${{ secrets.GITHUB_TOKEN }}
           default_bump: ${{ inputs.version }}
@@ -83,16 +81,20 @@ jobs:
     permissions: "write-all"
     steps:
       - uses: actions/checkout@v4
+
       - run: git fetch --force --tags
+
       - uses: actions/setup-go@v4
         with:
           go-version: 1.21
+
       - name: Import GPG key
         id: import_gpg
         uses: crazy-max/ghaction-import-gpg@v4
         with:
           gpg_private_key: ${{ secrets.GPG_SIGNING_KEY }}
           passphrase: ${{ secrets.GPG_PASSPHRASE }}
+
       # Generate the binaries and release
       - uses: goreleaser/goreleaser-action@v5
         with:
