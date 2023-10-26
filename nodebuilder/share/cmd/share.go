@@ -9,6 +9,7 @@ import (
 	"github.com/spf13/cobra"
 
 	cmdnode "github.com/celestiaorg/celestia-node/cmd"
+	"github.com/celestiaorg/celestia-node/header"
 	"github.com/celestiaorg/celestia-node/share"
 )
 
@@ -39,17 +40,23 @@ var sharesAvailableCmd = &cobra.Command{
 		}
 		defer client.Close()
 
-		height, err := strconv.ParseUint(args[0], 10, 64)
+		var eh *header.ExtendedHeader
+		hash, err := hex.DecodeString(args[0])
 		if err != nil {
-			return fmt.Errorf("error parsing a height:%v", err)
+			height, err := strconv.ParseUint(args[0], 10, 64)
+			if err != nil {
+				return fmt.Errorf("error processing a height/hash:%v", err)
+			}
+			eh, err = client.Header.GetByHeight(cmd.Context(), height)
+		} else {
+			eh, err = client.Header.GetByHash(cmd.Context(), hash)
 		}
 
-		header, err := client.Header.GetByHeight(cmd.Context(), height)
 		if err != nil {
 			return err
 		}
 
-		err = client.Share.SharesAvailable(cmd.Context(), header)
+		err = client.Share.SharesAvailable(cmd.Context(), eh)
 		formatter := func(data interface{}) interface{} {
 			err, ok := data.(error)
 			available := false
@@ -71,7 +78,7 @@ var sharesAvailableCmd = &cobra.Command{
 }
 
 var getSharesByNamespaceCmd = &cobra.Command{
-	Use:   "get-by-namespace [block height, namespace]",
+	Use:   "get-by-namespace [block height or hash, namespace]",
 	Short: "Gets all shares from an EDS within the given namespace.",
 	Args:  cobra.ExactArgs(2),
 	RunE: func(cmd *cobra.Command, args []string) error {
@@ -81,12 +88,18 @@ var getSharesByNamespaceCmd = &cobra.Command{
 		}
 		defer client.Close()
 
-		height, err := strconv.ParseUint(args[0], 10, 64)
+		var eh *header.ExtendedHeader
+		hash, err := hex.DecodeString(args[0])
 		if err != nil {
-			return fmt.Errorf("error parsing a height:%v", err)
+			height, err := strconv.ParseUint(args[0], 10, 64)
+			if err != nil {
+				return fmt.Errorf("error processing a height/hash:%v", err)
+			}
+			eh, err = client.Header.GetByHeight(cmd.Context(), height)
+		} else {
+			eh, err = client.Header.GetByHash(cmd.Context(), hash)
 		}
 
-		header, err := client.Header.GetByHeight(cmd.Context(), height)
 		if err != nil {
 			return err
 		}
@@ -96,13 +109,13 @@ var getSharesByNamespaceCmd = &cobra.Command{
 			return err
 		}
 
-		shares, err := client.Share.GetSharesByNamespace(cmd.Context(), header, ns)
+		shares, err := client.Share.GetSharesByNamespace(cmd.Context(), eh, ns)
 		return cmdnode.PrintOutput(shares, err, nil)
 	},
 }
 
 var getShare = &cobra.Command{
-	Use:   "get-share [block height, row, col]",
+	Use:   "get-share [block height or hash, row, col]",
 	Short: "Gets a Share by coordinates in EDS.",
 	Args:  cobra.ExactArgs(3),
 	RunE: func(cmd *cobra.Command, args []string) error {
@@ -112,12 +125,18 @@ var getShare = &cobra.Command{
 		}
 		defer client.Close()
 
-		height, err := strconv.ParseUint(args[0], 10, 64)
+		var eh *header.ExtendedHeader
+		hash, err := hex.DecodeString(args[0])
 		if err != nil {
-			return fmt.Errorf("error parsing a height:%v", err)
+			height, err := strconv.ParseUint(args[0], 10, 64)
+			if err != nil {
+				return fmt.Errorf("error parsing a height/hash:%v", err)
+			}
+			eh, err = client.Header.GetByHeight(cmd.Context(), height)
+		} else {
+			eh, err = client.Header.GetByHash(cmd.Context(), hash)
 		}
 
-		header, err := client.Header.GetByHeight(cmd.Context(), height)
 		if err != nil {
 			return err
 		}
@@ -132,7 +151,7 @@ var getShare = &cobra.Command{
 			return err
 		}
 
-		s, err := client.Share.GetShare(cmd.Context(), header, int(row), int(col))
+		s, err := client.Share.GetShare(cmd.Context(), eh, int(row), int(col))
 
 		formatter := func(data interface{}) interface{} {
 			sh, ok := data.(share.Share)
@@ -155,7 +174,7 @@ var getShare = &cobra.Command{
 }
 
 var getEDS = &cobra.Command{
-	Use:   "get-eds [block height]",
+	Use:   "get-eds [block height or hash]",
 	Short: "Gets the full EDS identified by the given block height",
 	Args:  cobra.ExactArgs(1),
 	RunE: func(cmd *cobra.Command, args []string) error {
@@ -165,23 +184,23 @@ var getEDS = &cobra.Command{
 		}
 		defer client.Close()
 
-		height, err := strconv.ParseUint(args[0], 10, 64)
+		var eh *header.ExtendedHeader
+		hash, err := hex.DecodeString(args[0])
 		if err != nil {
-			return fmt.Errorf("error parsing a height:%v", err)
+			height, err := strconv.ParseUint(args[0], 10, 64)
+			if err != nil {
+				return fmt.Errorf("error processing a height/hash:%v", err)
+			}
+			eh, err = client.Header.GetByHeight(cmd.Context(), height)
+		} else {
+			eh, err = client.Header.GetByHash(cmd.Context(), hash)
 		}
 
-		header, err := client.Header.GetByHeight(cmd.Context(), height)
 		if err != nil {
 			return err
 		}
 
-		shares, err := client.Share.GetEDS(cmd.Context(), header)
+		shares, err := client.Share.GetEDS(cmd.Context(), eh)
 		return cmdnode.PrintOutput(shares, err, nil)
 	},
-}
-
-func parseJSON(param string) (json.RawMessage, error) {
-	var raw json.RawMessage
-	err := json.Unmarshal([]byte(param), &raw)
-	return raw, err
 }
