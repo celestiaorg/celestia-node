@@ -102,15 +102,31 @@ func (p *BadEncodingProof) UnmarshalBinary(data []byte) error {
 	return nil
 }
 
+var (
+	errHeightMismatch          = errors.New("height reported in proof does not match with the header's height")
+	errIncorrectIndex          = errors.New("row/col index is more then the roots amount")
+	errIncorrectAmountOfShares = errors.New("incorrect amount of shares")
+	errIncorrectShare          = errors.New("incorrect share received")
+	errNMTTreeRootsMatch       = errors.New("recomputed root matches the DAH root")
+)
+
+var (
+	invalidProofPrefix = fmt.Sprintf("invalid %s proof", BadEncoding)
+)
+
 // Validate ensures that fraud proof is correct.
 // Validate checks that provided Merkle Proofs correspond to the shares,
 // rebuilds bad row or col from received shares, computes Merkle Root
 // and compares it with block's Merkle Root.
 func (p *BadEncodingProof) Validate(hdr *header.ExtendedHeader) error {
 	if hdr.Height() != p.BlockHeight {
-		return fmt.Errorf("incorrect block height during BEFP validation: expected %d, got %d",
-			p.BlockHeight, hdr.Height(),
+		log.Debugf("%s: %s. expected block's height: %d, got: %d",
+			invalidProofPrefix,
+			errHeightMismatch,
+			hdr.Height(),
+			p.BlockHeight,
 		)
+		return errHeightMismatch
 	}
 
 	if len(hdr.DAH.RowRoots) != len(hdr.DAH.ColumnRoots) {
@@ -132,9 +148,10 @@ func (p *BadEncodingProof) Validate(hdr *header.ExtendedHeader) error {
 	}
 
 	if int(p.Index) >= len(merkleRoots) {
-		return fmt.Errorf("invalid %s proof: index out of bounds (%d >= %d)",
-			BadEncoding, int(p.Index), len(merkleRoots),
+		log.Debugf("%s:%s (%d >= %d)",
+			invalidProofPrefix, errIncorrectIndex, int(p.Index), len(merkleRoots),
 		)
+		return errIncorrectIndex
 	}
 
 	if len(p.Shares) != len(merkleRoots) {
@@ -142,9 +159,10 @@ func (p *BadEncodingProof) Validate(hdr *header.ExtendedHeader) error {
 		// column, it should exactly match the number of row roots. In this
 		// context, the number of row roots is the width of the extended data
 		// square.
-		return fmt.Errorf("invalid %s proof: incorrect number of shares %d != %d",
-			BadEncoding, len(p.Shares), len(merkleRoots),
+		log.Infof("%s: %s (%d >= %d)",
+			invalidProofPrefix, errIncorrectAmountOfShares, int(p.Index), len(merkleRoots),
 		)
+		return errIncorrectAmountOfShares
 	}
 
 	odsWidth := uint64(len(merkleRoots) / 2)
@@ -160,7 +178,9 @@ func (p *BadEncodingProof) Validate(hdr *header.ExtendedHeader) error {
 	}
 
 	if amount < odsWidth {
-		return errors.New("fraud: invalid proof: not enough shares provided to reconstruct row/col")
+		log.Debugf("%s: %s. not enough shares provided to reconstruct row/col",
+			invalidProofPrefix, errIncorrectAmountOfShares)
+		return errIncorrectAmountOfShares
 	}
 
 	// verify that Merkle proofs correspond to particular shares.
@@ -171,7 +191,8 @@ func (p *BadEncodingProof) Validate(hdr *header.ExtendedHeader) error {
 		}
 		// validate inclusion of the share into one of the DAHeader roots
 		if ok := shr.Validate(ipld.MustCidFromNamespacedSha256(merkleRoots[index])); !ok {
-			return fmt.Errorf("invalid %s proof: incorrect share received at index %d", BadEncoding, index)
+			log.Debugf("%s: %s at index %d", invalidProofPrefix, errIncorrectShare, index)
+			return errIncorrectShare
 		}
 		// NMTree commits the additional namespace while rsmt2d does not know about, so we trim it
 		// this is ugliness from NMTWrapper that we have to embrace ¯\_(ツ)_/¯
@@ -184,7 +205,7 @@ func (p *BadEncodingProof) Validate(hdr *header.ExtendedHeader) error {
 	// the row/col can't be reconstructed, or the building of NMTree fails.
 	rebuiltShares, err := codec.Decode(shares)
 	if err != nil {
-		log.Infow("failed to decode shares at height",
+		log.Debugw("failed to decode shares at height",
 			"height", hdr.Height(), "err", err,
 		)
 		return nil
@@ -192,7 +213,7 @@ func (p *BadEncodingProof) Validate(hdr *header.ExtendedHeader) error {
 
 	rebuiltExtendedShares, err := codec.Encode(rebuiltShares[0:odsWidth])
 	if err != nil {
-		log.Infow("failed to encode shares at height",
+		log.Debugw("failed to encode shares at height",
 			"height", hdr.Height(), "err", err,
 		)
 		return nil
@@ -203,7 +224,7 @@ func (p *BadEncodingProof) Validate(hdr *header.ExtendedHeader) error {
 	for _, share := range rebuiltShares {
 		err = tree.Push(share)
 		if err != nil {
-			log.Infow("failed to build a tree from the reconstructed shares at height",
+			log.Debugw("failed to build a tree from the reconstructed shares at height",
 				"height", hdr.Height(), "err", err,
 			)
 			return nil
@@ -212,7 +233,7 @@ func (p *BadEncodingProof) Validate(hdr *header.ExtendedHeader) error {
 
 	expectedRoot, err := tree.Root()
 	if err != nil {
-		log.Infow("failed to build a tree root at height",
+		log.Debugw("failed to build a tree root at height",
 			"height", hdr.Height(), "err", err,
 		)
 		return nil
@@ -226,7 +247,8 @@ func (p *BadEncodingProof) Validate(hdr *header.ExtendedHeader) error {
 
 	// comparing rebuilt Merkle Root of bad row/col with respective Merkle Root of row/col from block.
 	if bytes.Equal(expectedRoot, root) {
-		return fmt.Errorf("invalid %s proof: recomputed Merkle root matches the DAH's row/column root", BadEncoding)
+		log.Debugf("invalid %s proof:%s", BadEncoding, errNMTTreeRootsMatch)
+		return errNMTTreeRootsMatch
 	}
 	return nil
 }
