@@ -1,15 +1,15 @@
 package cmd
 
 import (
+	"context"
 	"encoding/hex"
 	"fmt"
 	"strconv"
-	"context"
 
 	"github.com/spf13/cobra"
 
-	cmdnode "github.com/celestiaorg/celestia-node/cmd"
 	rpc "github.com/celestiaorg/celestia-node/api/rpc/client"
+	cmdnode "github.com/celestiaorg/celestia-node/cmd"
 	"github.com/celestiaorg/celestia-node/header"
 	"github.com/celestiaorg/celestia-node/share"
 )
@@ -69,7 +69,7 @@ var sharesAvailableCmd = &cobra.Command{
 }
 
 var getSharesByNamespaceCmd = &cobra.Command{
-	Use:   "get-by-namespace [(height | hash), namespace]",
+	Use:   "get-by-namespace (height | hash) namespace",
 	Short: "Gets all shares from an EDS within the given namespace.",
 	Args:  cobra.ExactArgs(2),
 	RunE: func(cmd *cobra.Command, args []string) error {
@@ -96,7 +96,7 @@ var getSharesByNamespaceCmd = &cobra.Command{
 }
 
 var getShare = &cobra.Command{
-	Use:   "get-share [(height | hash), row, col]",
+	Use:   "get-share (height | hash) row col",
 	Short: "Gets a Share by coordinates in EDS.",
 	Args:  cobra.ExactArgs(3),
 	RunE: func(cmd *cobra.Command, args []string) error {
