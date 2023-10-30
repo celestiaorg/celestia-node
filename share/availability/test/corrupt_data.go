@@ -63,7 +63,7 @@ func (fb FraudulentBlockstore) Has(context.Context, cid.Cid) (bool, error) {
 func (fb FraudulentBlockstore) Get(ctx context.Context, cid cid.Cid) (blocks.Block, error) {
 	key := cid.String()
 	if fb.Attacking {
-		key = "corrupt" + key
+		key = "corrupt_get" + key
 	}
 
 	data, err := fb.Datastore.Get(ctx, ds.NewKey(key))
@@ -76,7 +76,7 @@ func (fb FraudulentBlockstore) Get(ctx context.Context, cid cid.Cid) (blocks.Blo
 func (fb FraudulentBlockstore) GetSize(ctx context.Context, cid cid.Cid) (int, error) {
 	key := cid.String()
 	if fb.Attacking {
-		key = "corrupt" + key
+		key = "corrupt_size" + key
 	}
 
 	return fb.Datastore.GetSize(ctx, ds.NewKey(key))

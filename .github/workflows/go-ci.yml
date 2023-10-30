@@ -2,9 +2,11 @@ name: Go CI
 
 on:
   workflow_call:
-
-env:
-  GO_VERSION: '1.21'
+    inputs:
+      go-version:
+        description: 'Go version'
+        required: true
+        type: string
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.head_ref || github.run_id }}
@@ -20,12 +22,14 @@ jobs:
 
       - uses: actions/setup-go@v4
         with:
-          go-version: ${{ env.GO_VERSION }}
+          go-version: ${{ inputs.go-version }}
 
       - name: golangci-lint
         uses: golangci/golangci-lint-action@v3.7.0
         with:
-          version: v1.54.2
+          version: v1.55
+          skip-pkg-cache: true
+          skip-build-cache: true
 
   go_mod_tidy_check:
     name: Go Mod Tidy Check
@@ -36,7 +40,7 @@ jobs:
 
       - uses: actions/setup-go@v4
         with:
-          go-version: ${{ env.GO_VERSION }}
+          go-version: ${{ inputs.go-version }}
 
       - run: go mod tidy
 
@@ -44,8 +48,14 @@ jobs:
         run: git diff --exit-code
 
   test_coverage:
+    needs: [lint, go_mod_tidy_check]
     name: Unit Tests Coverage
-    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        os: [ubuntu-latest, macos-latest]
+    runs-on: ${{ matrix.os }}
+    env:
+      OS: ${{ matrix.os }}
 
     steps:
       - uses: actions/checkout@v4
@@ -53,7 +63,7 @@ jobs:
       - name: set up go
         uses: actions/setup-go@v4
         with:
-          go-version: ${{ env.GO_VERSION }}
+          go-version: ${{ inputs.go-version }}
 
       - name: run unit tests
         run: make test-unit ENABLE_VERBOSE=1 ENABLE_LOGGING=1
@@ -61,8 +71,10 @@ jobs:
       - name: upload coverage
         uses: codecov/codecov-action@v3.1.4
         with:
+          env_vars: OS
           token: ${{ secrets.CODECOV_TOKEN }}
           file: ./coverage.txt
+          name: coverage-${{ matrix.os }}
 
       - name: upload test logs
         uses: actions/upload-artifact@v3
@@ -74,6 +86,7 @@ jobs:
           retention-days: 5
 
   unit_race_test:
+    needs: [lint, go_mod_tidy_check]
     name: Run Unit Tests with Race Detector
     runs-on: ubuntu-latest
 
@@ -83,12 +96,13 @@ jobs:
       - name: set up go
         uses: actions/setup-go@v4
         with:
-          go-version: ${{ env.GO_VERSION }}
+          go-version: ${{ inputs.go-version }}
 
       - name: execute test run
         run: make test-unit-race
 
   integration_test:
+    needs: [lint, go_mod_tidy_check]
     name: Run Integration Tests
     runs-on: ubuntu-latest
 
@@ -98,7 +112,7 @@ jobs:
       - name: set up go
         uses: actions/setup-go@v4
         with:
-          go-version: ${{ env.GO_VERSION }}
+          go-version: ${{ inputs.go-version }}
 
       - name: Swamp Tests
         run: make test-swamp
