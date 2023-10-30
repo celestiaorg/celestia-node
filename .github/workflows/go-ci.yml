@@ -7,6 +7,11 @@ on:
         description: 'Go version'
         required: true
         type: string
+      debug:
+        description: 'Debug mode - enables and saves verbose log output'
+        required: false
+        default: 'false'
+        type: string
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.head_ref || github.run_id }}
@@ -66,7 +71,7 @@ jobs:
           go-version: ${{ inputs.go-version }}
 
       - name: run unit tests
-        run: make test-unit ENABLE_VERBOSE=1 ENABLE_LOGGING=1
+        run: make test-unit ENABLE_VERBOSE=${{ inputs.debug }}
 
       - name: upload coverage
         uses: codecov/codecov-action@v3.1.4
@@ -76,12 +81,13 @@ jobs:
           file: ./coverage.txt
           name: coverage-${{ matrix.os }}
 
-      - name: upload test logs
+      - name: Upload unit test output
         uses: actions/upload-artifact@v3
+        if: ${{ github.event.inputs.debug == 'true' }}
         with:
-          name: unit-tests
+          name: unit-test-output
           path: |
-            test.log
+            debug.log
             coverage.txt
           retention-days: 5
 

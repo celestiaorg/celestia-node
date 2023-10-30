@@ -19,5 +19,4 @@ vendor
 /cel-shed
 /cel-key
 coverage.txt
-test.log
 go.work
