@@ -5,6 +5,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	core "github.com/tendermint/tendermint/types"
 
@@ -14,6 +15,7 @@ import (
 	"github.com/celestiaorg/rsmt2d"
 
 	"github.com/celestiaorg/celestia-node/header"
+	"github.com/celestiaorg/celestia-node/libs/utils"
 	"github.com/celestiaorg/celestia-node/share"
 	"github.com/celestiaorg/celestia-node/share/eds/edstest"
 	"github.com/celestiaorg/celestia-node/share/ipld"
@@ -198,34 +200,44 @@ func TestIncorrectBadEncodingFraudProof(t *testing.T) {
 }
 
 func TestBEFP_ValidateOutOfOrderShares(t *testing.T) {
-	// skipping it for now because `malicious` package has a small issue: Constructor does not apply
-	// passed options, so it's not possible to store shares and thus get proofs for them.
-	// should be ok once app team will fix it.
-	t.Skip()
-	eds := edstest.RandEDS(t, 16)
+	eds := edstest.RandEDS(t, 2)
 	shares := eds.Flattened()
+	squareSize := int(utils.SquareSize(len(shares)))
+
 	shares[0], shares[1] = shares[1], shares[0] // corrupting eds
 	bServ := ipld.NewMemBlockservice()
-	batchAddr := ipld.NewNmtNodeAdder(context.Background(), bServ, ipld.MaxSizeBatchOption(16*2))
+	batchAddr := ipld.NewNmtNodeAdder(context.Background(), bServ, ipld.MaxSizeBatchOption(squareSize/2))
+	// create a malicious eds and store it in the blockservice
 	eds, err := rsmt2d.ImportExtendedDataSquare(shares,
 		share.DefaultRSMT2DCodec(),
-		malicious.NewConstructor(16, nmt.NodeVisitor(batchAddr.Visit)),
+		malicious.NewConstructor(2, nmt.NodeVisitor(batchAddr.Visit)),
 	)
 	require.NoError(t, err, "failure to recompute the extended data square")
-
-	err = batchAddr.Commit()
-	require.NoError(t, err)
 
 	dah, err := da.NewDataAvailabilityHeader(eds)
 	require.NoError(t, err)
 
-	var errRsmt2d *rsmt2d.ErrByzantineData
-	err = eds.Repair(dah.RowRoots, dah.ColumnRoots)
-	require.ErrorAs(t, err, &errRsmt2d)
+	_, err = eds.RowRoots()
+	require.NoError(t, err)
 
+	err = batchAddr.Commit()
+	require.NoError(t, err)
+
+	shares = eds.Flattened()
+	badShares := make([]share.Share, len(shares))
+	badShares[0], badShares[1], badShares[2], badShares[3] = shares[0], shares[1], shares[2], shares[3]
+
+	// newEds ensures that we get errByzantineData with Axis = row
+	newEds, err := rsmt2d.ImportExtendedDataSquare(badShares, share.DefaultRSMT2DCodec(), malicious.NewConstructor(2))
+	require.NoError(t, err)
+
+	var errRsmt2d *rsmt2d.ErrByzantineData
+	err = newEds.Repair(dah.RowRoots, dah.ColumnRoots)
+	require.ErrorAs(t, err, &errRsmt2d)
 	errByz := NewErrByzantine(context.Background(), bServ, &dah, errRsmt2d)
+	require.NotNil(t, errByz)
 
 	befp := CreateBadEncodingProof([]byte("hash"), 0, errByz)
 	err = befp.Validate(&header.ExtendedHeader{DAH: &dah})
-	require.Error(t, err)
+	assert.NoError(t, err)
 }
