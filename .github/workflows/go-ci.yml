@@ -2,9 +2,11 @@ name: Go CI
 
 on:
   workflow_call:
-
-env:
-  GO_VERSION: '1.21'
+    inputs:
+      go-version:
+        description: 'Go version'
+        required: true
+        type: string
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.head_ref || github.run_id }}
@@ -20,7 +22,7 @@ jobs:
 
       - uses: actions/setup-go@v4
         with:
-          go-version: ${{ env.GO_VERSION }}
+          go-version: ${{ inputs.go-version }}
 
       - name: golangci-lint
         uses: golangci/golangci-lint-action@v3.7.0
@@ -38,7 +40,7 @@ jobs:
 
       - uses: actions/setup-go@v4
         with:
-          go-version: ${{ env.GO_VERSION }}
+          go-version: ${{ inputs.go-version }}
 
       - run: go mod tidy
 
@@ -61,7 +63,7 @@ jobs:
       - name: set up go
         uses: actions/setup-go@v4
         with:
-          go-version: ${{ env.GO_VERSION }}
+          go-version: ${{ inputs.go-version }}
 
       - name: run unit tests
         run: make test-unit
@@ -85,7 +87,7 @@ jobs:
       - name: set up go
         uses: actions/setup-go@v4
         with:
-          go-version: ${{ env.GO_VERSION }}
+          go-version: ${{ inputs.go-version }}
 
       - name: execute test run
         run: make test-unit-race
@@ -102,7 +104,7 @@ jobs:
       - name: set up go
         uses: actions/setup-go@v4
         with:
-          go-version: ${{ env.GO_VERSION }}
+          go-version: ${{ inputs.go-version }}
 
       - name: Swamp Tests
         run: make test-swamp
