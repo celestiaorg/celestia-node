@@ -9,7 +9,6 @@ on:
       - "v*"
   pull_request:
   workflow_dispatch:
-    # Inputs the workflow accepts.
     inputs:
       version:
         # Friendly description to be shown in the UI instead of 'name'
@@ -23,6 +22,20 @@ on:
           - major
 
 jobs:
+  # set up go version for use through pipelines, setting
+  # variable one time and setting outputs to access passing it
+  # to other jobs
+  setup:
+    runs-on: ubuntu-latest
+    env:
+      # upgrade go version throughout pipeline here
+      GO_VERSION: "1.21"
+    outputs:
+      go-version: ${{ steps.set-vars.outputs.go-version }}
+    steps:
+      - id: set-vars
+        run: echo "go-version=${{env.GO_VERSION}}" >> "$GITHUB_OUTPUT"
+
   # Dockerfile Linting
   hadolint:
     uses: celestiaorg/.github/.github/workflows/reusable_dockerfile_lint.yml@v0.2.8 # yamllint disable-line rule:line-length
@@ -48,7 +61,10 @@ jobs:
           markdownlint --config .markdownlint.yaml '**/*.md'
 
   go-ci:
+    needs: setup
     uses: ./.github/workflows/go-ci.yml
+    with:
+      go-version: ${{ needs.setup.outputs.go-version }}
 
   # If this was a workflow dispatch event, we need to generate and push a tag
   # for goreleaser to grab
@@ -86,7 +102,7 @@ jobs:
       - run: git fetch --force --tags
       - uses: actions/setup-go@v4
         with:
-          go-version: 1.21
+          go-version: ${{ needs.setup.outputs.go-version }}
       - name: Import GPG key
         id: import_gpg
         uses: crazy-max/ghaction-import-gpg@v4
