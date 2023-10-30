@@ -23,6 +23,16 @@ on:
           - major
 
 jobs:
+  branch_name:
+    runs-on: ubuntu-latest
+    outputs:
+      branch: ${{ steps.trim_ref.outputs.branch }}
+    steps:
+      - name: Trim branch name
+        id: trim_ref
+        run: |
+          echo "branch=$(${${{ github.ref }}:11})" >> $GITHUB_OUTPUT
+
   # Dockerfile Linting
   hadolint:
     uses: celestiaorg/.github/.github/workflows/reusable_dockerfile_lint.yml@v0.2.8 # yamllint disable-line rule:line-length
@@ -53,7 +63,7 @@ jobs:
   # If this was a workflow dispatch event, we need to generate and push a tag
   # for goreleaser to grab
   version_bump:
-    needs: [hadolint, yamllint, markdown-lint, go-ci]
+    needs: [branch_name, hadolint, yamllint, markdown-lint, go-ci]
     runs-on: ubuntu-latest
     permissions: "write-all"
     steps:
@@ -70,6 +80,7 @@ jobs:
         with:
           github_token: ${{ secrets.GITHUB_TOKEN }}
           default_bump: ${{ inputs.version }}
+          release_branches: ${{ needs.branch_name.outputs.branch }}
 
   # Generate the release with goreleaser to include pre-built binaries
   goreleaser:
