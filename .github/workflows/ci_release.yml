@@ -9,7 +9,6 @@ on:
       - "v*"
   pull_request:
   workflow_dispatch:
-    # Inputs the workflow accepts.
     inputs:
       version:
         # Friendly description to be shown in the UI instead of 'name'
@@ -23,9 +22,23 @@ on:
           - major
 
 jobs:
+  # set up go version for use through pipelines, setting
+  # variable one time and setting outputs to access passing it
+  # to other jobs
+  setup:
+    runs-on: ubuntu-latest
+    env:
+      # upgrade go version throughout pipeline here
+      GO_VERSION: "1.21"
+    outputs:
+      go-version: ${{ steps.set-vars.outputs.go-version }}
+    steps:
+      - id: set-vars
+        run: echo "go-version=${{env.GO_VERSION}}" >> "$GITHUB_OUTPUT"
+
   # Dockerfile Linting
   hadolint:
-    uses: celestiaorg/.github/.github/workflows/reusable_dockerfile_lint.yml@v0.2.3 # yamllint disable-line rule:line-length
+    uses: celestiaorg/.github/.github/workflows/reusable_dockerfile_lint.yml@v0.2.8 # yamllint disable-line rule:line-length
     with:
       dockerfile: Dockerfile
 
@@ -33,7 +46,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - uses: celestiaorg/.github/.github/actions/yamllint@v0.2.3
+      - uses: celestiaorg/.github/.github/actions/yamllint@v0.2.8
 
   markdown-lint:
     name: Markdown Lint
@@ -48,7 +61,10 @@ jobs:
           markdownlint --config .markdownlint.yaml '**/*.md'
 
   go-ci:
+    needs: setup
     uses: ./.github/workflows/go-ci.yml
+    with:
+      go-version: ${{ needs.setup.outputs.go-version }}
 
   # If this was a workflow dispatch event, we need to generate and push a tag
   # for goreleaser to grab
@@ -68,7 +84,7 @@ jobs:
         uses: mathieudutour/github-tag-action@v6.1
 
       - name: Version Release
-        uses: celestiaorg/.github/.github/actions/version-release@v0.2.3
+        uses: celestiaorg/.github/.github/actions/version-release@v0.2.8
         with:
           github_token: ${{ secrets.GITHUB_TOKEN }}
           default_bump: ${{ inputs.version }}
@@ -86,7 +102,13 @@ jobs:
       - run: git fetch --force --tags
       - uses: actions/setup-go@v4
         with:
-          go-version: 1.21
+          go-version: ${{ needs.setup.outputs.go-version }}
+      - name: Import GPG key
+        id: import_gpg
+        uses: crazy-max/ghaction-import-gpg@v4
+        with:
+          gpg_private_key: ${{ secrets.GPG_SIGNING_KEY }}
+          passphrase: ${{ secrets.GPG_PASSPHRASE }}
       # Generate the binaries and release
       - uses: goreleaser/goreleaser-action@v5
         with:
@@ -95,6 +117,7 @@ jobs:
           args: release --clean
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GPG_FINGERPRINT: ${{ steps.import_gpg.outputs.fingerprint }}
 
   # TODO: permission issue, but not worth fixing as this should be refactored
   # into the celestiaorg/.github repo, at which point any permission issues will
