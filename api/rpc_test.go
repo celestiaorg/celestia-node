@@ -19,7 +19,6 @@ import (
 	"github.com/celestiaorg/celestia-node/api/rpc/client"
 	"github.com/celestiaorg/celestia-node/api/rpc/perms"
 	daspkg "github.com/celestiaorg/celestia-node/das"
-	headerpkg "github.com/celestiaorg/celestia-node/header"
 	"github.com/celestiaorg/celestia-node/nodebuilder"
 	"github.com/celestiaorg/celestia-node/nodebuilder/blob"
 	blobMock "github.com/celestiaorg/celestia-node/nodebuilder/blob/mocks"
@@ -43,16 +42,24 @@ import (
 func TestRPCCallsUnderlyingNode(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	t.Cleanup(cancel)
-	nd, server := setupNodeWithModifiedRPC(t)
+
+	// generate dummy signer and sign admin perms token with it
+	signer, err := jwt.NewHS256(make([]byte, 32))
+	require.NoError(t, err)
+
+	nd, server := setupNodeWithAuthedRPC(t, signer)
 	url := nd.RPCServer.ListenAddr()
+
+	adminToken, err := perms.NewTokenWithPerms(signer, perms.AllPerms)
+	require.NoError(t, err)
+
 	// we need to run this a few times to prevent the race where the server is not yet started
 	var (
 		rpcClient *client.Client
-		err       error
 	)
 	for i := 0; i < 3; i++ {
 		time.Sleep(time.Second * 1)
-		rpcClient, err = client.NewPublicClient(ctx, "http://"+url)
+		rpcClient, err = client.NewClient(ctx, "http://"+url, string(adminToken))
 		if err == nil {
 			t.Cleanup(rpcClient.Close)
 			break
@@ -154,13 +161,7 @@ func TestAuthedRPC(t *testing.T) {
 			require.NotNil(t, rpcClient)
 			require.NoError(t, err)
 
-			// 1. Test method with public permissions
-			server.Header.EXPECT().NetworkHead(gomock.Any()).Return(new(headerpkg.ExtendedHeader), nil)
-			got, err := rpcClient.Header.NetworkHead(ctx)
-			require.NoError(t, err)
-			require.NotNil(t, got)
-
-			// 2. Test method with read-level permissions
+			// 1. Test method with read-level permissions
 			expected := daspkg.SamplingStats{
 				SampledChainHead: 100,
 				CatchupHead:      100,
@@ -182,7 +183,7 @@ func TestAuthedRPC(t *testing.T) {
 				require.ErrorContains(t, err, "missing permission")
 			}
 
-			// 3. Test method with write-level permissions
+			// 2. Test method with write-level permissions
 			expectedResp := &state.TxResponse{}
 			if tt.perm > 2 {
 				server.State.EXPECT().SubmitTx(gomock.Any(), gomock.Any()).Return(expectedResp, nil)
@@ -195,7 +196,7 @@ func TestAuthedRPC(t *testing.T) {
 				require.ErrorContains(t, err, "missing permission")
 			}
 
-			// 4. Test method with admin-level permissions
+			// 3. Test method with admin-level permissions
 			expectedReachability := network.Reachability(3)
 			if tt.perm > 3 {
 				server.P2P.EXPECT().NATStatus(gomock.Any()).Return(expectedReachability, nil)
@@ -211,55 +212,6 @@ func TestAuthedRPC(t *testing.T) {
 			rpcClient.Close()
 		})
 	}
-}
-
-// TestPublicClient tests that the public rpc client can only
-// access public methods.
-func TestPublicClient(t *testing.T) {
-	ctx, cancel := context.WithCancel(context.Background())
-	t.Cleanup(cancel)
-
-	// generate dummy signer and sign admin perms token with it
-	signer, err := jwt.NewHS256(make([]byte, 32))
-	require.NoError(t, err)
-
-	nd, server := setupNodeWithAuthedRPC(t, signer)
-	url := nd.RPCServer.ListenAddr()
-
-	// we need to run this a few times to prevent the race where the server is not yet started
-	var rpcClient *client.Client
-	require.NoError(t, err)
-	for i := 0; i < 3; i++ {
-		time.Sleep(time.Second * 1)
-		rpcClient, err = client.NewPublicClient(ctx, "http://"+url)
-		if err == nil {
-			t.Cleanup(rpcClient.Close)
-			break
-		}
-	}
-	require.NotNil(t, rpcClient)
-	require.NoError(t, err)
-
-	// 1. Test method with public permissions
-	server.Header.EXPECT().NetworkHead(gomock.Any()).Return(new(headerpkg.ExtendedHeader), nil)
-	got, err := rpcClient.Header.NetworkHead(ctx)
-	require.NoError(t, err)
-	require.NotNil(t, got)
-
-	// 2. Test method with read-level permissions
-	_, err = rpcClient.DAS.SamplingStats(ctx)
-	require.Error(t, err)
-	require.ErrorContains(t, err, "missing permission")
-
-	// 3. Test method with write-level permissions
-	_, err = rpcClient.State.SubmitTx(ctx, []byte{})
-	require.Error(t, err)
-	require.ErrorContains(t, err, "missing permission")
-
-	// 4. Test method with admin-level permissions
-	_, err = rpcClient.P2P.NATStatus(ctx)
-	require.Error(t, err)
-	require.ErrorContains(t, err, "missing permission")
 }
 
 func TestAllReturnValuesAreMarshalable(t *testing.T) {
@@ -323,46 +275,6 @@ func implementsMarshaler(t *testing.T, typ reflect.Type) {
 		return
 	}
 
-}
-
-func setupNodeWithModifiedRPC(t *testing.T) (*nodebuilder.Node, *mockAPI) {
-	ctx, cancel := context.WithCancel(context.Background())
-	t.Cleanup(cancel)
-
-	ctrl := gomock.NewController(t)
-
-	mockAPI := &mockAPI{
-		stateMock.NewMockModule(ctrl),
-		shareMock.NewMockModule(ctrl),
-		fraudMock.NewMockModule(ctrl),
-		headerMock.NewMockModule(ctrl),
-		dasMock.NewMockModule(ctrl),
-		p2pMock.NewMockModule(ctrl),
-		nodeMock.NewMockModule(ctrl),
-		blobMock.NewMockModule(ctrl),
-	}
-
-	// given the behavior of fx.Invoke, this invoke will be called last as it is added at the root
-	// level module. For further information, check the documentation on fx.Invoke.
-	invokeRPC := fx.Invoke(func(srv *rpc.Server) {
-		srv.RegisterService("state", mockAPI.State)
-		srv.RegisterService("share", mockAPI.Share)
-		srv.RegisterService("fraud", mockAPI.Fraud)
-		srv.RegisterService("header", mockAPI.Header)
-		srv.RegisterService("das", mockAPI.Das)
-		srv.RegisterService("p2p", mockAPI.P2P)
-		srv.RegisterService("node", mockAPI.Node)
-		srv.RegisterService("blob", mockAPI.Blob)
-	})
-	nd := nodebuilder.TestNode(t, node.Full, invokeRPC)
-	// start node
-	err := nd.Start(ctx)
-	require.NoError(t, err)
-	t.Cleanup(func() {
-		err = nd.Stop(ctx)
-		require.NoError(t, err)
-	})
-	return nd, mockAPI
 }
 
 // setupNodeWithAuthedRPC sets up a node and overrides its JWT

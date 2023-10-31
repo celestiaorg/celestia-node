@@ -52,12 +52,12 @@ func (s *Service) GetByHash(ctx context.Context, hash libhead.Hash) (*header.Ext
 	return s.store.Get(ctx, hash)
 }
 
-func (s *Service) GetVerifiedRangeByHeight(
+func (s *Service) GetRangeByHeight(
 	ctx context.Context,
 	from *header.ExtendedHeader,
 	to uint64,
 ) ([]*header.ExtendedHeader, error) {
-	return s.store.GetVerifiedRange(ctx, from, to)
+	return s.store.GetRangeByHeight(ctx, from, to)
 }
 
 func (s *Service) GetByHeight(ctx context.Context, height uint64) (*header.ExtendedHeader, error) {

@@ -8,11 +8,10 @@ import (
 	context "context"
 	reflect "reflect"
 
-	gomock "github.com/golang/mock/gomock"
-
 	header "github.com/celestiaorg/celestia-node/header"
 	header0 "github.com/celestiaorg/go-header"
 	sync "github.com/celestiaorg/go-header/sync"
+	gomock "github.com/golang/mock/gomock"
 )
 
 // MockModule is a mock of Module interface.
@@ -68,19 +67,19 @@ func (mr *MockModuleMockRecorder) GetByHeight(arg0, arg1 interface{}) *gomock.Ca
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetByHeight", reflect.TypeOf((*MockModule)(nil).GetByHeight), arg0, arg1)
 }
 
-// GetVerifiedRangeByHeight mocks base method.
-func (m *MockModule) GetVerifiedRangeByHeight(arg0 context.Context, arg1 *header.ExtendedHeader, arg2 uint64) ([]*header.ExtendedHeader, error) {
+// GetRangeByHeight mocks base method.
+func (m *MockModule) GetRangeByHeight(arg0 context.Context, arg1 *header.ExtendedHeader, arg2 uint64) ([]*header.ExtendedHeader, error) {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "GetVerifiedRangeByHeight", arg0, arg1, arg2)
+	ret := m.ctrl.Call(m, "GetRangeByHeight", arg0, arg1, arg2)
 	ret0, _ := ret[0].([]*header.ExtendedHeader)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
 
-// GetVerifiedRangeByHeight indicates an expected call of GetVerifiedRangeByHeight.
-func (mr *MockModuleMockRecorder) GetVerifiedRangeByHeight(arg0, arg1, arg2 interface{}) *gomock.Call {
+// GetRangeByHeight indicates an expected call of GetRangeByHeight.
+func (mr *MockModuleMockRecorder) GetRangeByHeight(arg0, arg1, arg2 interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetVerifiedRangeByHeight", reflect.TypeOf((*MockModule)(nil).GetVerifiedRangeByHeight), arg0, arg1, arg2)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetRangeByHeight", reflect.TypeOf((*MockModule)(nil).GetRangeByHeight), arg0, arg1, arg2)
 }
 
 // LocalHead mocks base method.

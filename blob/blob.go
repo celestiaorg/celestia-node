@@ -3,11 +3,13 @@ package blob
 import (
 	"bytes"
 	"encoding/json"
+	"errors"
 	"fmt"
 
 	tmproto "github.com/tendermint/tendermint/proto/tendermint/types"
 
 	"github.com/celestiaorg/celestia-app/pkg/appconsts"
+	"github.com/celestiaorg/celestia-app/pkg/shares"
 	"github.com/celestiaorg/celestia-app/x/blob/types"
 	"github.com/celestiaorg/nmt"
 
@@ -137,4 +139,38 @@ func (b *Blob) UnmarshalJSON(data []byte) error {
 	b.Commitment = blob.Commitment
 	b.namespace = blob.Namespace
 	return nil
+}
+
+// buildBlobsIfExist takes shares and tries building the Blobs from them.
+// It will build blobs either until appShares will be empty or the first incomplete blob will appear, so in this
+// specific case it will return all built blobs + remaining shares.
+func buildBlobsIfExist(appShares []shares.Share) ([]*Blob, []shares.Share, error) {
+	if len(appShares) == 0 {
+		return nil, nil, errors.New("empty shares received")
+	}
+	blobs := make([]*Blob, 0, len(appShares))
+	for {
+		length, err := appShares[0].SequenceLen()
+		if err != nil {
+			return nil, nil, err
+		}
+
+		amount := shares.SparseSharesNeeded(length)
+		if amount > len(appShares) {
+			return blobs, appShares, nil
+		}
+
+		b, err := parseShares(appShares[:amount])
+		if err != nil {
+			return nil, nil, err
+		}
+
+		// only 1 blob will be created bc we passed the exact amount of shares
+		blobs = append(blobs, b[0])
+
+		if amount == len(appShares) {
+			return blobs, nil, nil
+		}
+		appShares = appShares[amount:]
+	}
 }

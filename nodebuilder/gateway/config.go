@@ -8,10 +8,9 @@ import (
 )
 
 type Config struct {
-	Address             string
-	Port                string
-	Enabled             bool
-	deprecatedEndpoints bool
+	Address string
+	Port    string
+	Enabled bool
 }
 
 func DefaultConfig() Config {

@@ -17,16 +17,16 @@ func SharesToBlobs(rawShares []share.Share) ([]*Blob, error) {
 		return nil, ErrBlobNotFound
 	}
 
-	appShares := make([]shares.Share, 0, len(rawShares))
-	for _, shr := range rawShares {
-		bShare, err := shares.NewShare(shr)
-		if err != nil {
-			return nil, err
-		}
-		appShares = append(appShares, *bShare)
+	appShares, err := toAppShares(rawShares...)
+	if err != nil {
+		return nil, err
 	}
+	return parseShares(appShares)
+}
 
-	shareSequences, err := shares.ParseShares(appShares, true)
+// parseShares takes shares and converts them to the []*Blob.
+func parseShares(appShrs []shares.Share) ([]*Blob, error) {
+	shareSequences, err := shares.ParseShares(appShrs, true)
 	if err != nil {
 		return nil, err
 	}
@@ -83,15 +83,4 @@ func BlobsToShares(blobs ...*Blob) ([]share.Share, error) {
 		return nil, err
 	}
 	return shares.ToBytes(rawShares), nil
-}
-
-// constructAndVerifyBlob reconstruct a Blob from the passed shares and compares commitments.
-func constructAndVerifyBlob(sh []share.Share, commitment Commitment) (*Blob, bool, error) {
-	blob, err := SharesToBlobs(sh)
-	if err != nil {
-		return nil, false, err
-	}
-
-	equal := blob[0].Commitment.Equal(commitment)
-	return blob[0], equal, nil
 }

@@ -17,6 +17,9 @@ import (
 )
 
 func TestCoreExchange_RequestHeaders(t *testing.T) {
+	ctx, cancel := context.WithCancel(context.Background())
+	t.Cleanup(cancel)
+
 	fetcher, _ := createCoreFetcher(t, DefaultTestConfig())
 
 	// generate 10 blocks
@@ -25,10 +28,26 @@ func TestCoreExchange_RequestHeaders(t *testing.T) {
 	store := createStore(t)
 
 	ce := NewExchange(fetcher, store, header.MakeExtendedHeader)
-	headers, err := ce.GetRangeByHeight(context.Background(), 1, 10)
+
+	// initialize store with genesis block
+	genHeight := int64(1)
+	genBlock, err := fetcher.GetBlock(ctx, &genHeight)
+	require.NoError(t, err)
+	genHeader, err := ce.Get(ctx, genBlock.Header.Hash().Bytes())
 	require.NoError(t, err)
 
-	assert.Equal(t, 10, len(headers))
+	to := uint64(10)
+	expectedFirstHeightInRange := genHeader.Height() + 1
+	expectedLastHeightInRange := to - 1
+	expectedLenHeaders := to - expectedFirstHeightInRange
+
+	// request headers from height 1 to 10 [2:10)
+	headers, err := ce.GetRangeByHeight(context.Background(), genHeader, to)
+	require.NoError(t, err)
+
+	assert.Len(t, headers, int(expectedLenHeaders))
+	assert.Equal(t, expectedFirstHeightInRange, headers[0].Height())
+	assert.Equal(t, expectedLastHeightInRange, headers[len(headers)-1].Height())
 }
 
 func createCoreFetcher(t *testing.T, cfg *testnode.Config) (*BlockFetcher, testnode.Context) {

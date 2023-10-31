@@ -77,7 +77,7 @@ func TestFullReconstructFromBridge(t *testing.T) {
 				return err
 			}
 
-			return fullClient.Share.SharesAvailable(bctx, h.DAH)
+			return fullClient.Share.SharesAvailable(bctx, h)
 		})
 	}
 	require.NoError(t, <-fillDn)
@@ -211,10 +211,10 @@ func TestFullReconstructFromFulls(t *testing.T) {
 	ctxErr, cancelErr := context.WithTimeout(ctx, time.Second*30)
 	errg, errCtx = errgroup.WithContext(ctxErr)
 	errg.Go(func() error {
-		return fullClient1.Share.SharesAvailable(errCtx, h.DAH)
+		return fullClient1.Share.SharesAvailable(errCtx, h)
 	})
 	errg.Go(func() error {
-		return fullClient1.Share.SharesAvailable(errCtx, h.DAH)
+		return fullClient1.Share.SharesAvailable(errCtx, h)
 	})
 	require.Error(t, errg.Wait())
 	cancelErr()
@@ -227,10 +227,10 @@ func TestFullReconstructFromFulls(t *testing.T) {
 		h, err := fullClient1.Header.WaitForHeight(bctx, uint64(i))
 		require.NoError(t, err)
 		errg.Go(func() error {
-			return fullClient1.Share.SharesAvailable(bctx, h.DAH)
+			return fullClient1.Share.SharesAvailable(bctx, h)
 		})
 		errg.Go(func() error {
-			return fullClient2.Share.SharesAvailable(bctx, h.DAH)
+			return fullClient2.Share.SharesAvailable(bctx, h)
 		})
 	}
 
@@ -344,7 +344,7 @@ func TestFullReconstructFromLights(t *testing.T) {
 				return err
 			}
 
-			return fullClient.Share.SharesAvailable(bctx, h.DAH)
+			return fullClient.Share.SharesAvailable(bctx, h)
 		})
 	}
 	require.NoError(t, <-fillDn)

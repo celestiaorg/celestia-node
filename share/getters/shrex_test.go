@@ -9,9 +9,7 @@ import (
 
 	"github.com/ipfs/go-datastore"
 	ds_sync "github.com/ipfs/go-datastore/sync"
-	routinghelpers "github.com/libp2p/go-libp2p-routing-helpers"
 	"github.com/libp2p/go-libp2p/core/host"
-	routingdisc "github.com/libp2p/go-libp2p/p2p/discovery/routing"
 	"github.com/libp2p/go-libp2p/p2p/net/conngater"
 	mocknet "github.com/libp2p/go-libp2p/p2p/net/mock"
 	"github.com/stretchr/testify/require"
@@ -25,7 +23,7 @@ import (
 	"github.com/celestiaorg/celestia-node/share"
 	"github.com/celestiaorg/celestia-node/share/eds"
 	"github.com/celestiaorg/celestia-node/share/eds/edstest"
-	"github.com/celestiaorg/celestia-node/share/p2p/discovery"
+	"github.com/celestiaorg/celestia-node/share/ipld"
 	"github.com/celestiaorg/celestia-node/share/p2p/peers"
 	"github.com/celestiaorg/celestia-node/share/p2p/shrexeds"
 	"github.com/celestiaorg/celestia-node/share/p2p/shrexnd"
@@ -65,13 +63,14 @@ func TestShrexGetter(t *testing.T) {
 		// generate test data
 		namespace := sharetest.RandV0Namespace()
 		randEDS, dah := edstest.RandEDSWithNamespace(t, namespace, 64)
+		eh := headertest.RandExtendedHeaderWithRoot(t, dah)
 		require.NoError(t, edsStore.Put(ctx, dah.Hash(), randEDS))
 		peerManager.Validate(ctx, srvHost.ID(), shrexsub.Notification{
 			DataHash: dah.Hash(),
 			Height:   1,
 		})
 
-		got, err := getter.GetSharesByNamespace(ctx, dah, namespace)
+		got, err := getter.GetSharesByNamespace(ctx, eh, namespace)
 		require.NoError(t, err)
 		require.NoError(t, got.Verify(dah, namespace))
 	})
@@ -82,12 +81,13 @@ func TestShrexGetter(t *testing.T) {
 
 		// generate test data
 		_, dah, namespace := generateTestEDS(t)
+		eh := headertest.RandExtendedHeaderWithRoot(t, dah)
 		peerManager.Validate(ctx, srvHost.ID(), shrexsub.Notification{
 			DataHash: dah.Hash(),
 			Height:   1,
 		})
 
-		_, err := getter.GetSharesByNamespace(ctx, dah, namespace)
+		_, err := getter.GetSharesByNamespace(ctx, eh, namespace)
 		require.ErrorIs(t, err, share.ErrNotFound)
 	})
 
@@ -97,6 +97,7 @@ func TestShrexGetter(t *testing.T) {
 
 		// generate test data
 		eds, dah, maxNamespace := generateTestEDS(t)
+		eh := headertest.RandExtendedHeaderWithRoot(t, dah)
 		require.NoError(t, edsStore.Put(ctx, dah.Hash(), eds))
 		peerManager.Validate(ctx, srvHost.ID(), shrexsub.Notification{
 			DataHash: dah.Hash(),
@@ -106,9 +107,9 @@ func TestShrexGetter(t *testing.T) {
 		nID, err := addToNamespace(maxNamespace, -1)
 		require.NoError(t, err)
 		// check for namespace to be between max and min namespace in root
-		require.Len(t, filterRootsByNamespace(dah, nID), 1)
+		require.Len(t, ipld.FilterRootByNamespace(dah, nID), 1)
 
-		emptyShares, err := getter.GetSharesByNamespace(ctx, dah, nID)
+		emptyShares, err := getter.GetSharesByNamespace(ctx, eh, nID)
 		require.NoError(t, err)
 		// no shares should be returned
 		require.Empty(t, emptyShares.Flatten())
@@ -121,6 +122,7 @@ func TestShrexGetter(t *testing.T) {
 
 		// generate test data
 		eds, dah, maxNamesapce := generateTestEDS(t)
+		eh := headertest.RandExtendedHeaderWithRoot(t, dah)
 		require.NoError(t, edsStore.Put(ctx, dah.Hash(), eds))
 		peerManager.Validate(ctx, srvHost.ID(), shrexsub.Notification{
 			DataHash: dah.Hash(),
@@ -130,9 +132,9 @@ func TestShrexGetter(t *testing.T) {
 		namespace, err := addToNamespace(maxNamesapce, 1)
 		require.NoError(t, err)
 		// check for namespace to be not in root
-		require.Len(t, filterRootsByNamespace(dah, namespace), 0)
+		require.Len(t, ipld.FilterRootByNamespace(dah, namespace), 0)
 
-		emptyShares, err := getter.GetSharesByNamespace(ctx, dah, namespace)
+		emptyShares, err := getter.GetSharesByNamespace(ctx, eh, namespace)
 		require.NoError(t, err)
 		// no shares should be returned
 		require.Empty(t, emptyShares.Flatten())
@@ -145,13 +147,14 @@ func TestShrexGetter(t *testing.T) {
 
 		// generate test data
 		randEDS, dah, _ := generateTestEDS(t)
+		eh := headertest.RandExtendedHeaderWithRoot(t, dah)
 		require.NoError(t, edsStore.Put(ctx, dah.Hash(), randEDS))
 		peerManager.Validate(ctx, srvHost.ID(), shrexsub.Notification{
 			DataHash: dah.Hash(),
 			Height:   1,
 		})
 
-		got, err := getter.GetEDS(ctx, dah)
+		got, err := getter.GetEDS(ctx, eh)
 		require.NoError(t, err)
 		require.Equal(t, randEDS.Flattened(), got.Flattened())
 	})
@@ -161,13 +164,14 @@ func TestShrexGetter(t *testing.T) {
 
 		// generate test data
 		_, dah, _ := generateTestEDS(t)
+		eh := headertest.RandExtendedHeaderWithRoot(t, dah)
 		peerManager.Validate(ctx, srvHost.ID(), shrexsub.Notification{
 			DataHash: dah.Hash(),
 			Height:   1,
 		})
 
 		cancel()
-		_, err := getter.GetEDS(ctx, dah)
+		_, err := getter.GetEDS(ctx, eh)
 		require.ErrorIs(t, err, context.Canceled)
 	})
 
@@ -177,12 +181,13 @@ func TestShrexGetter(t *testing.T) {
 
 		// generate test data
 		_, dah, _ := generateTestEDS(t)
+		eh := headertest.RandExtendedHeaderWithRoot(t, dah)
 		peerManager.Validate(ctx, srvHost.ID(), shrexsub.Notification{
 			DataHash: dah.Hash(),
 			Height:   1,
 		})
 
-		_, err := getter.GetEDS(ctx, dah)
+		_, err := getter.GetEDS(ctx, eh)
 		require.ErrorIs(t, err, share.ErrNotFound)
 	})
 }
@@ -210,18 +215,12 @@ func testManager(
 		return nil, err
 	}
 
-	disc := discovery.NewDiscovery(nil,
-		routingdisc.NewRoutingDiscovery(routinghelpers.Null{}),
-		discovery.WithPeersLimit(10),
-		discovery.WithAdvertiseInterval(time.Second),
-	)
 	connGater, err := conngater.NewBasicConnectionGater(ds_sync.MutexWrap(datastore.NewMapDatastore()))
 	if err != nil {
 		return nil, err
 	}
 	manager, err := peers.NewManager(
 		peers.DefaultParameters(),
-		disc,
 		host,
 		connGater,
 		peers.WithShrexSubPools(shrexSub, headerSub),
@@ -235,7 +234,7 @@ func newNDClientServer(
 	params := shrexnd.DefaultParameters()
 
 	// create server and register handler
-	server, err := shrexnd.NewServer(params, srvHost, edsStore, NewStoreGetter(edsStore))
+	server, err := shrexnd.NewServer(params, srvHost, edsStore)
 	require.NoError(t, err)
 	require.NoError(t, server.Start(ctx))
 

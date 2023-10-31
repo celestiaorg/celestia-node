@@ -17,18 +17,27 @@ import (
 	"github.com/celestiaorg/celestia-node/share/getters"
 	"github.com/celestiaorg/celestia-node/share/ipld"
 	disc "github.com/celestiaorg/celestia-node/share/p2p/discovery"
+	"github.com/celestiaorg/celestia-node/share/p2p/peers"
 )
 
-func newDiscovery(cfg Config) func(routing.ContentRouting, host.Host) *disc.Discovery {
+const (
+	// fullNodesTag is the tag used to identify full nodes in the discovery service.
+	fullNodesTag = "full"
+)
+
+func newDiscovery(cfg *disc.Parameters,
+) func(routing.ContentRouting, host.Host, *peers.Manager) (*disc.Discovery, error) {
 	return func(
 		r routing.ContentRouting,
 		h host.Host,
-	) *disc.Discovery {
+		manager *peers.Manager,
+	) (*disc.Discovery, error) {
 		return disc.NewDiscovery(
+			cfg,
 			h,
 			routingdisc.NewRoutingDiscovery(r),
-			disc.WithPeersLimit(cfg.Discovery.PeersLimit),
-			disc.WithAdvertiseInterval(cfg.Discovery.AdvertiseInterval),
+			fullNodesTag,
+			disc.WithOnPeersUpdate(manager.UpdateFullNodePool),
 		)
 	}
 }

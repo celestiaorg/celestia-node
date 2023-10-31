@@ -46,6 +46,6 @@ var fullCmd = &cobra.Command{
 	Args:  cobra.NoArgs,
 	Short: "Manage your Full node",
 	PersistentPreRunE: func(cmd *cobra.Command, args []string) error {
-		return persistentPreRunEnv(cmd, node.Full, args)
+		return cmdnode.PersistentPreRunEnv(cmd, node.Full, args)
 	},
 }
