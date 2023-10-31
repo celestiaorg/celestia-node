@@ -113,3 +113,11 @@ jobs:
       - name: Swamp Tests with Race Detector
         run: make test-swamp-race
         continue-on-error: true
+
+  fuzz:
+    needs: [lint, go_mod_tidy_check]
+    name: Run fuzz tests
+    uses: ./.github/workflows/fuzz.yml
+    with:
+      fuzztime: 3m
+      go-version: ${{ inputs.go-version }}

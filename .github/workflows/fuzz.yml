@@ -1,0 +1,45 @@
+name: Fuzz
+
+on:
+  workflow_call:
+    inputs:
+      go-version:
+        description: 'Go version'
+        required: true
+        type: string
+      fuzztime:
+        description: 'the time to fuzz for'
+        required: true
+        default: '60s'
+        type: string
+
+jobs:
+  keystore:
+    name: keystore fuzz
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-go@v4
+        with:
+          go-version: ${{ inputs.go-version }}
+
+      - name: fuzz/lib/keystore
+        run: |
+          go test -fuzz=FuzzKeyStoreName -fuzztime ${{ inputs.fuzztime }} ./lib/keystore
+
+      - name: Upload fuzz failure seed corpus as run artifact
+        if: failure()
+        uses: actions/upload-artifact@v3
+        with:
+          name: lib-keystore-fuzz-corpus
+          path: ./lib/keystore/testdata/fuzz
+
+      - name: Output message
+        if: failure()
+        shell: bash
+        run: |
+          echo -e "lib/keystore fuzz testing failed on commit ${{ env.SHA }}."
+          echo "download failing seed corpus from ${{ github.run_id }} artifacts/lib-keystore-fuzz-corpus"
+          echo "add to project at lib/keystore/testdata/fuzz"

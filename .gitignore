@@ -20,4 +20,3 @@ vendor
 /cel-key
 coverage.txt
 go.work
-test/fuzz/testdata

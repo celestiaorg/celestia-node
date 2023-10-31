@@ -1,0 +1,11 @@
+name: Run fuzz tests nightly
+on:
+  schedule:
+    - cron: '0 0 * * *'
+
+jobs:
+  fuzz:
+    uses: ./.github/workflows/fuzz.yml
+    with:
+      go-version: 1.21
+      fuzztime: 10m
