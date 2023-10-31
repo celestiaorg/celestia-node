@@ -3,6 +3,8 @@ PROJECTNAME=$(shell basename "$(PWD)")
 DIR_FULLPATH=$(shell pwd)
 versioningPath := "github.com/celestiaorg/celestia-node/nodebuilder/node"
 LDFLAGS=-ldflags="-X '$(versioningPath).buildTime=$(shell date)' -X '$(versioningPath).lastCommit=$(shell git rev-parse HEAD)' -X '$(versioningPath).semanticVersion=$(shell git describe --tags --dirty=-dev 2>/dev/null || git rev-parse --abbrev-ref HEAD)'"
+FUZZTIME ?= 2m
+
 ifeq (${PREFIX},)
 	PREFIX := /usr/local
 endif
@@ -127,6 +129,24 @@ test:
 	@echo "--> Running all tests with data race detector"
 	@go test -race ./...
 .PHONY: test
+
+## test-swamp-race: Running swamp tests with data race detector located in node/tests
+test-fuzz:
+	@echo "--> Running fuzz tests"
+	@go test -fuzz=Fuzz -tags=fuzz ./test/fuzz
+.PHONY: test-fuzz
+
+## test-swamp-race: Running swamp tests with data race detector located in node/tests
+test-unit-fuzz:
+	@echo "--> Running fuzz tests"
+	@go test -tags=fuzz ./test/fuzz
+.PHONY: test-fuzz
+
+## test-swamp-race: Running swamp tests with data race detector located in node/tests
+test-fuzz-time:
+	@echo "--> Running fuzz tests for ${FUZZTIME}"
+	@go test -fuzz=Fuzz -tags=fuzz -fuzztime ${FUZZTIME} ./test/fuzz
+.PHONY: test-fuzz
 
 ## benchmark: Running all benchmarks
 benchmark:
