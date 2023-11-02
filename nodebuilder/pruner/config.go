@@ -11,8 +11,8 @@ type Config struct {
 func DefaultConfig() Config {
 	return Config{
 		PruningEnabled: true,
-		EpochDuration:  time.Minute * 1,
-		RecencyWindow:  time.Hour,
+		EpochDuration:  time.Hour,
+		RecencyWindow:  time.Hour * 24 * 30,
 	}
 }
 
