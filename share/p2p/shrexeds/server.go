@@ -190,9 +190,9 @@ func (s *Server) writeODS(logger *zap.SugaredLogger, edsReader io.Reader, stream
 		return fmt.Errorf("creating ODS reader: %w", err)
 	}
 	buf := make([]byte, s.params.BufferSize)
-	n, err := io.CopyBuffer(stream, odsReader, buf)
+	_, err = io.CopyBuffer(stream, odsReader, buf)
 	if err != nil {
-		return fmt.Errorf("writing ODS bytes: %d bytes written, %w", n, err)
+		return fmt.Errorf("writing ODS bytes: %w", err)
 	}
 
 	return nil
