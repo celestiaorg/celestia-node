@@ -52,7 +52,7 @@ func ConstructModule(tp node.Type, network p2p.Network, cfg *Config, store Store
 		share.ConstructModule(tp, &cfg.Share),
 		rpc.ConstructModule(tp, &cfg.RPC),
 		gateway.ConstructModule(tp, &cfg.Gateway),
-		core.ConstructModule(tp, &cfg.Core),
+		core.ConstructModule(tp, &cfg.Core, &cfg.Pruner),
 		pruner.ConstructModule(tp, &cfg.Pruner),
 		das.ConstructModule(tp, &cfg.DASer),
 		fraud.ConstructModule(tp),
