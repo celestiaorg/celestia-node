@@ -26,14 +26,7 @@ type worker struct {
 	getter    libhead.Getter[*header.ExtendedHeader]
 	sampleFn  sampleFn
 	broadcast shrexsub.BroadcastFn
-	// TODO: Is there not a better way to pass these down without storing them
-	// in every worker? Not that it is actually a lot of overhead but its ugly.
-	// Alternatively we put it in a package private var, but thats also kinda
-	// ugly...
-	recencyWindow  time.Duration
-	pruningEnabled bool
-
-	metrics *metrics
+	metrics   *metrics
 }
 
 // workerState contains important information about the state of a
@@ -61,17 +54,13 @@ func newWorker(j job,
 	getter libhead.Getter[*header.ExtendedHeader],
 	sample sampleFn,
 	broadcast shrexsub.BroadcastFn,
-	recencyWindow time.Duration,
-	pruningEnabled bool,
 	metrics *metrics,
 ) worker {
 	return worker{
-		getter:         getter,
-		sampleFn:       sample,
-		broadcast:      broadcast,
-		recencyWindow:  recencyWindow,
-		pruningEnabled: pruningEnabled,
-		metrics:        metrics,
+		getter:    getter,
+		sampleFn:  sample,
+		broadcast: broadcast,
+		metrics:   metrics,
 		state: workerState{
 			curr: j.from,
 			result: result{
@@ -121,10 +110,6 @@ func (w *worker) sample(ctx context.Context, timeout time.Duration, height uint6
 	start := time.Now()
 	ctx, cancel := context.WithTimeout(ctx, timeout)
 	defer cancel()
-
-	if w.pruningEnabled && h.Time().Before(start.Add(-w.recencyWindow)) {
-		return nil
-	}
 
 	err = w.sampleFn(ctx, h)
 	w.metrics.observeSample(ctx, h, time.Since(start), w.state.jobType, err)

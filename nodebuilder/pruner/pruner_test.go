@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"github.com/ipfs/go-datastore"
+	ds_sync "github.com/ipfs/go-datastore/sync"
 	logging "github.com/ipfs/go-log/v2"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -23,7 +24,7 @@ func TestStoragePruner_GarbageCollectsAllOutdatedEpochs(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	t.Cleanup(cancel)
 
-	ds := datastore.NewMapDatastore()
+	ds := ds_sync.MutexWrap(datastore.NewMapDatastore())
 	store, err := eds.NewStore(eds.DefaultParameters(), t.TempDir(), ds)
 	require.NoError(t, err)
 
@@ -42,7 +43,7 @@ func TestStoragePruner_GarbageCollectsAllOutdatedEpochs(t *testing.T) {
 	fillPrunerWithBlocks(ctx, t, 16, pruner, store, startTime, endTime, timeBetweenHeaders)
 
 	expected := int(endTime.Sub(startTime) / cfg.EpochDuration)
-	// Adjusted the assertion to allow for a +/- 1 difference due to potential timing issues
+	// adjusted the assertion to allow for a +/- 1 difference due to potential timing issues
 	assert.True(t, len(pruner.activeEpochs) >= expected-1 && len(pruner.activeEpochs) <= expected+1)
 	err = pruner.Start(ctx)
 	require.NoError(t, err)
@@ -56,7 +57,7 @@ func TestStoragePruner_GarbageCollectsAllOutdatedEpochs(t *testing.T) {
 			if len(pruner.activeEpochs) == 0 {
 				return
 			}
-			t.Log("waiting for pruner to finish")
+			t.Log("waiting for pruner to finish. count: ", len(pruner.activeEpochs))
 		}
 	}
 }

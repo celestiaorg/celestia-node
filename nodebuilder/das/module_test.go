@@ -9,7 +9,6 @@ import (
 	"go.uber.org/fx/fxtest"
 
 	"github.com/celestiaorg/celestia-node/nodebuilder/node"
-	"github.com/celestiaorg/celestia-node/nodebuilder/pruner"
 )
 
 // TestConstructModule_DASBridgeStub verifies that a bridge node implements a stub daser that
@@ -22,9 +21,7 @@ func TestConstructModule_DASBridgeStub(t *testing.T) {
 
 	cfg := DefaultConfig(node.Bridge)
 	app := fxtest.New(t,
-		ConstructModule(node.Bridge, &cfg, &pruner.Config{
-			PruningEnabled: false,
-		}),
+		ConstructModule(node.Bridge, &cfg),
 		fx.Populate(&mod)).
 		RequireStart()
 	defer app.RequireStop()

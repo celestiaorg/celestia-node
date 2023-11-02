@@ -10,7 +10,6 @@ import (
 	"github.com/celestiaorg/celestia-node/nodebuilder/header"
 	"github.com/celestiaorg/celestia-node/nodebuilder/node"
 	"github.com/celestiaorg/celestia-node/nodebuilder/p2p"
-	"github.com/celestiaorg/celestia-node/nodebuilder/pruner"
 	"github.com/celestiaorg/celestia-node/nodebuilder/rpc"
 	"github.com/celestiaorg/celestia-node/nodebuilder/state"
 )
@@ -30,7 +29,6 @@ func init() {
 		rpc.Flags(),
 		gateway.Flags(),
 		state.Flags(),
-		pruner.Flags(),
 	}
 
 	fullCmd.AddCommand(

@@ -22,6 +22,9 @@ import (
 
 const (
 	dsPrefix = "/pruner/epoch/"
+)
+
+var (
 	// GC is triggered when the number of active epochs exceeds the target epoch count by this amount
 	gcRatio = 1.1
 )
@@ -223,30 +226,29 @@ func (sp *StoragePruner) unsafePruneEpoch(ctx context.Context, epoch uint64) err
 
 	delete(sp.activeEpochs, epoch)
 	if epoch == sp.oldestEpoch.Load() {
-		sp.updateOldestEpoch()
+		sp.unsafeUpdateOldestEpoch()
 	}
 	return nil
 }
 
-func (sp *StoragePruner) updateOldestEpoch() {
+func (sp *StoragePruner) unsafeUpdateOldestEpoch() {
 	oldest := sp.oldestEpoch.Load()
 	next := oldest
 	for {
 		nextTime := sp.epochToTime(next).Add(sp.cfg.EpochDuration)
 		if nextTime.After(time.Now()) {
 			log.Warn("could not find new oldest epoch")
+			// set to sentinel
+			sp.oldestEpoch.CompareAndSwap(oldest, ^uint64(0))
 			break
 		}
 		nextEpoch := sp.calculateEpoch(nextTime)
-		lk := &sp.stripedLocks[nextEpoch%256]
-		lk.Lock()
 		_, ok := sp.activeEpochs[nextEpoch]
-		lk.Unlock()
 		if ok {
 			sp.oldestEpoch.CompareAndSwap(oldest, nextEpoch)
 			break
 		}
-		next = oldest + 1
+		next++
 	}
 }
 

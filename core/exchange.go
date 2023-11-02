@@ -12,7 +12,6 @@ import (
 	"github.com/celestiaorg/nmt"
 
 	"github.com/celestiaorg/celestia-node/header"
-	"github.com/celestiaorg/celestia-node/nodebuilder/pruner"
 	"github.com/celestiaorg/celestia-node/share/eds"
 	"github.com/celestiaorg/celestia-node/share/ipld"
 )
@@ -20,29 +19,21 @@ import (
 const concurrencyLimit = 4
 
 type Exchange struct {
-	fetcher       *BlockFetcher
-	store         *eds.Store
-	pruner        *pruner.StoragePruner
-	construct     header.ConstructFn
-	recencyWindow time.Duration
+	fetcher   *BlockFetcher
+	store     *eds.Store
+	construct header.ConstructFn
 }
 
 func NewExchange(
 	fetcher *BlockFetcher,
 	store *eds.Store,
 	construct header.ConstructFn,
-	options ...ExchangeOption,
 ) *Exchange {
-	e := &Exchange{
+	return &Exchange{
 		fetcher:   fetcher,
 		store:     store,
 		construct: construct,
 	}
-
-	for _, opt := range options {
-		opt(e)
-	}
-	return e
 }
 
 func (ce *Exchange) GetByHeight(ctx context.Context, height uint64) (*header.ExtendedHeader, error) {
@@ -135,15 +126,11 @@ func (ce *Exchange) Get(ctx context.Context, hash libhead.Hash) (*header.Extende
 			&block.Height, hash, eh.Hash())
 	}
 
-	// only store the EDS if either pruning is disabled, or the header is recent enough
-	if ce.recencyWindow == 0 || time.Now().Add(-ce.recencyWindow).Before(eh.Time()) {
-		ctx = ipld.CtxWithProofsAdder(ctx, adder)
-		err = storeEDS(ctx, eh, eds, ce.store, ce.pruner)
-		if err != nil {
-			return nil, fmt.Errorf("storing EDS to eds.Store for height %d: %w", &block.Height, err)
-		}
+	ctx = ipld.CtxWithProofsAdder(ctx, adder)
+	err = storeEDS(ctx, eh.DAH.Hash(), eds, ce.store)
+	if err != nil {
+		return nil, fmt.Errorf("storing EDS to eds.Store for height %d: %w", &block.Height, err)
 	}
-
 	return eh, nil
 }
 
@@ -179,13 +166,10 @@ func (ce *Exchange) getExtendedHeaderByHeight(ctx context.Context, height *int64
 		panic(fmt.Errorf("constructing extended header for height %d: %w", b.Header.Height, err))
 	}
 
-	// only store the EDS if either pruning is disabled, or the header is recent enough
-	if ce.recencyWindow == 0 || time.Now().Add(-ce.recencyWindow).Before(eh.Time()) {
-		ctx = ipld.CtxWithProofsAdder(ctx, adder)
-		err = storeEDS(ctx, eh, eds, ce.store, ce.pruner)
-		if err != nil {
-			return nil, fmt.Errorf("storing EDS to eds.Store for block height %d: %w", b.Header.Height, err)
-		}
+	ctx = ipld.CtxWithProofsAdder(ctx, adder)
+	err = storeEDS(ctx, eh.DAH.Hash(), eds, ce.store)
+	if err != nil {
+		return nil, fmt.Errorf("storing EDS to eds.Store for block height %d: %w", b.Header.Height, err)
 	}
 	return eh, nil
 }
