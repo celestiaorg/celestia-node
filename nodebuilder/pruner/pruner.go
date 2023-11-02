@@ -206,11 +206,12 @@ func (sp *StoragePruner) unsafePruneEpoch(ctx context.Context, epoch uint64) err
 			continue
 		}
 		err = sp.store.Remove(ctx, dh)
+		alreadyPruned[string(dh)] = struct{}{}
 		if err != nil {
-			return fmt.Errorf("failed to remove datahash %X from epoch %d: %w", dh, epoch, err)
+			log.Errorw("failed to remove datahash", "datahash", dh, "epoch", epoch, "err", err)
+			continue
 		}
 		sp.metrics.observePrune(ctx)
-		alreadyPruned[string(dh)] = struct{}{}
 	}
 
 	key := datastore.NewKey(fmt.Sprintf("%d", epoch))
