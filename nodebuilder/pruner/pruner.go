@@ -1,8 +1,9 @@
 package pruner
 
 import (
+	"bytes"
 	"context"
-	"encoding/json"
+	"encoding/gob"
 	"fmt"
 	"strconv"
 	"sync"
@@ -256,20 +257,24 @@ func (sp *StoragePruner) getDatahashesFromEpoch(ctx context.Context, epoch uint6
 	if err != nil {
 		return nil, fmt.Errorf("failed to get datahashes for epoch %d: %w", epoch, err)
 	}
-	if err := json.Unmarshal(val, &datahashes); err != nil {
-		return nil, fmt.Errorf("failed to unmarshal datahashes for epoch %d: %w", epoch, err)
+	buf := bytes.NewBuffer(val)
+	dec := gob.NewDecoder(buf)
+	if err := dec.Decode(&datahashes); err != nil {
+		return nil, fmt.Errorf("failed to decode datahashes for epoch %d: %w", epoch, err)
 	}
 	return datahashes, nil
 }
 
 func (sp *StoragePruner) saveDatahashesToEpoch(ctx context.Context, epoch uint64, datahashes []share.DataHash) error {
 	key := datastore.NewKey(fmt.Sprintf("%d", epoch))
-	// TODO: Can we avoid expensive JSON marshal/unmarshal
-	bz, err := json.Marshal(datahashes)
+
+	var buf bytes.Buffer
+	enc := gob.NewEncoder(&buf)
+	err := enc.Encode(datahashes)
 	if err != nil {
 		return fmt.Errorf("failed to marshal datahashes for epoch %d: %w", epoch, err)
 	}
-	err = sp.ds.Put(ctx, key, bz)
+	err = sp.ds.Put(ctx, key, buf.Bytes())
 	if err != nil {
 		return fmt.Errorf("failed to put datahashes for epoch %d: %w", epoch, err)
 	}
