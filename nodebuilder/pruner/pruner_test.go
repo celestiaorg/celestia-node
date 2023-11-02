@@ -67,7 +67,7 @@ func TestStoragePruner_OldestEpochStaysUpdated(t *testing.T) {
 	logs.SetAllLoggers(logging.LevelDebug)
 
 	ds := datastore.NewMapDatastore()
-	store, err := eds.NewStore(t.TempDir(), ds)
+	store, err := eds.NewStore(eds.DefaultParameters(), t.TempDir(), ds)
 	require.NoError(t, err)
 
 	err = store.Start(ctx)
