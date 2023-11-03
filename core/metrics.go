@@ -16,6 +16,8 @@ type metrics struct {
 	lastTimeSubscriptionStuckReg  metric.Registration
 
 	subscriptionStuckInst metric.Int64Counter
+
+	getByHeightDuration metric.Float64Histogram
 }
 
 func newMetrics() (*metrics, error) {
@@ -33,6 +35,14 @@ func newMetrics() (*metrics, error) {
 	m.lastTimeSubscriptionStuckReg, err = meter.RegisterCallback(
 		m.observeLastTimeStuckCallback,
 		m.lastTimeSubscriptionStuckInst,
+	)
+	if err != nil {
+		return nil, err
+	}
+
+	m.getByHeightDuration, err = meter.Float64Histogram(
+		"core_ex_get_by_height_request_time",
+		metric.WithDescription("core exchange client getByHeight request time in seconds (per single height)"),
 	)
 	if err != nil {
 		return nil, err
@@ -63,6 +73,17 @@ func (m *metrics) subscriptionStuck(ctx context.Context) {
 func (m *metrics) observeLastTimeStuckCallback(_ context.Context, obs metric.Observer) error {
 	obs.ObserveInt64(m.lastTimeSubscriptionStuckInst, m.lastTimeSubscriptionStuck.Unix())
 	return nil
+}
+
+func (m *metrics) requestDurationPerHeader(ctx context.Context, duration time.Duration, amount uint64) {
+	m.observe(ctx, func(ctx context.Context) {
+		if amount == 0 {
+			// TODO could this happen?
+			return
+		}
+		durationPerHeader := duration.Seconds() / float64(amount)
+		m.getByHeightDuration.Record(ctx, durationPerHeader)
+	})
 }
 
 func (m *metrics) Close() error {

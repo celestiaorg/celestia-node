@@ -67,11 +67,15 @@ func (ce *Exchange) GetRangeByHeight(
 	from *header.ExtendedHeader,
 	to uint64,
 ) ([]*header.ExtendedHeader, error) {
+	start := time.Now()
+
 	amount := to - (from.Height() + 1)
 	headers, err := ce.getRangeByHeight(ctx, from.Height()+1, amount)
 	if err != nil {
 		return nil, err
 	}
+
+	ce.metrics.requestDurationPerHeader(ctx, time.Since(start), amount)
 
 	for _, h := range headers {
 		err := from.Verify(h)
