@@ -6,12 +6,12 @@ LDFLAGS=-ldflags="-X '$(versioningPath).buildTime=$(shell date)' -X '$(versionin
 ifeq (${PREFIX},)
 	PREFIX := /usr/local
 endif
-ifdef ENABLE_VERBOSE
-LOG_AND_FILTER = | tee debug.log
-VERBOSE = -v
+ifeq ($(ENABLE_VERBOSE),true)
+	LOG_AND_FILTER = | tee debug.log
+	VERBOSE = -v
 else
-VERBOSE =
-LOG_AND_FILTER =
+	VERBOSE =
+	LOG_AND_FILTER =
 endif
 ## help: Get more info on make commands.
 help: Makefile
