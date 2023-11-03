@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"time"
 
+	logging "github.com/ipfs/go-log/v2"
 	"github.com/libp2p/go-libp2p/core/peer"
 	"github.com/pyroscope-io/client/pyroscope"
 	otelpyroscope "github.com/pyroscope-io/otel-profiling-go"
@@ -208,5 +209,14 @@ func initializeMetrics(
 		},
 	})
 	otel.SetMeterProvider(provider)
+	otel.SetErrorHandler(&loggingErrorHandler{})
 	return nil
+}
+
+var metricsLogger = logging.Logger("otlp")
+
+type loggingErrorHandler struct{}
+
+func (loggingErrorHandler) Handle(err error) {
+	metricsLogger.Error(err)
 }
