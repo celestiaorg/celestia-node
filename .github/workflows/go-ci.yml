@@ -83,9 +83,9 @@ jobs:
 
       - name: Upload unit test output
         uses: actions/upload-artifact@v3
-        if: ${{ github.event.inputs.debug == 'true' }}
+        if: always() && github.event.inputs.debug == 'true'
         with:
-          name: unit-test-output
+            name: unit-test-output-${{ matrix.os }}
           path: |
             debug.log
             coverage.txt
