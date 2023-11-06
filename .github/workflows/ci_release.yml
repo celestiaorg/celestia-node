@@ -44,13 +44,13 @@ jobs:
         run: |
           echo "branch=$(${${{ github.ref }}:11})" >> $GITHUB_OUTPUT
 
-      - name: Determine Debug Mode
+      - name: Set debug output
         id: debug
         run: |
           if [[ "${{ runner.debug }}" == "true" ]]; then
-            echo "::set-output name=debug::true"
+            echo "debug=true" >> $GITHUB_ENV
           else
-            echo "::set-output name=debug::false"
+            echo "debug=false" >> $GITHUB_ENV
           fi
 
   # Dockerfile Linting
@@ -82,7 +82,6 @@ jobs:
     uses: ./.github/workflows/go-ci.yml
     with:
       go-version: ${{ needs.setup.outputs.go-version }}
-      debug: ${{ needs.setup.outputs.debug }}
 
   # If this was a workflow dispatch event, we need to generate and push a tag
   # for goreleaser to grab

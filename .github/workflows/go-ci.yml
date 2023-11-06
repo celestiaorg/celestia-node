@@ -7,18 +7,28 @@ on:
         description: 'Go version'
         required: true
         type: string
-      debug:
-        description: 'Debug mode - enables and saves verbose log output'
-        required: false
-        default: 'false'
-        type: string
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.head_ref || github.run_id }}
   cancel-in-progress: true
 
 jobs:
+  setup:
+    runs-on: ubuntu-latest
+    outputs:
+      debug: ${{ steps.debug.outputs.debug }}
+    steps:
+      - name: Set debug output
+        id: debug
+        run: |
+          if [[ "${{ runner.debug }}" == "true" ]]; then
+            echo "debug=true" >> $GITHUB_ENV
+          else
+            echo "debug=false" >> $GITHUB_ENV
+          fi
+
   lint:
+    needs: [setup]
     name: Lint
     runs-on: ubuntu-latest
 
@@ -37,6 +47,7 @@ jobs:
           skip-build-cache: true
 
   go_mod_tidy_check:
+    needs: [setup]
     name: Go Mod Tidy Check
     runs-on: ubuntu-latest
 
@@ -71,11 +82,11 @@ jobs:
           go-version: ${{ inputs.go-version }}
 
       - name: run unit tests
-        run: make test-unit ENABLE_VERBOSE=${{ inputs.debug }}
+        run: make test-unit ENABLE_VERBOSE=${{ needs.setup.outputs.debug }}
 
       - name: Upload unit test output
         uses: actions/upload-artifact@v3
-        if: always() && github.event.inputs.debug == 'true'
+        if: always() && needs.setup.outputs.debug == 'true'
         with:
           name: unit-test-output-${{ matrix.os }}
           path: |
