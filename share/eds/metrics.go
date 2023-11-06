@@ -124,7 +124,7 @@ func (s *Store) WithMetrics() error {
 		return err
 	}
 
-	if err = s.cache.EnableMetrics(); err != nil {
+	if err = s.cache.Load().EnableMetrics(); err != nil {
 		return err
 	}
 

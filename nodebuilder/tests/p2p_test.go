@@ -186,9 +186,7 @@ func TestRestartNodeDiscovery(t *testing.T) {
 	sw.Disconnect(t, nodes[0], nodes[1])
 
 	// create and start one more FN with disabled discovery
-	fullCfg.Share.Discovery.PeersLimit = 0
 	disabledDiscoveryFN := sw.NewNodeWithConfig(node.Full, fullCfg, nodesConfig)
-	err = disabledDiscoveryFN.Start(ctx)
 	require.NoError(t, err)
 
 	// ensure that the FN with disabled discovery is discovered by both of the

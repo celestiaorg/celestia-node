@@ -15,7 +15,6 @@ import (
 	logging "github.com/ipfs/go-log/v2"
 	mh "github.com/multiformats/go-multihash"
 	mhcore "github.com/multiformats/go-multihash/core"
-	"go.opentelemetry.io/otel"
 
 	"github.com/celestiaorg/celestia-app/pkg/appconsts"
 	"github.com/celestiaorg/celestia-app/pkg/da"
@@ -25,8 +24,7 @@ import (
 )
 
 var (
-	tracer = otel.Tracer("ipld")
-	log    = logging.Logger("ipld")
+	log = logging.Logger("ipld")
 )
 
 const (

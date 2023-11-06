@@ -17,6 +17,7 @@ import (
 	"github.com/tendermint/tendermint/types"
 	tmtime "github.com/tendermint/tendermint/types/time"
 
+	"github.com/celestiaorg/celestia-app/pkg/da"
 	libhead "github.com/celestiaorg/go-header"
 	"github.com/celestiaorg/go-header/headertest"
 	"github.com/celestiaorg/rsmt2d"
@@ -202,7 +203,7 @@ func (s *TestSuite) nextProposer() *types.Validator {
 }
 
 // RandExtendedHeader provides an ExtendedHeader fixture.
-func RandExtendedHeader(t *testing.T) *header.ExtendedHeader {
+func RandExtendedHeader(t testing.TB) *header.ExtendedHeader {
 	dah := share.EmptyRoot()
 
 	rh := RandRawHeader(t)
@@ -222,6 +223,13 @@ func RandExtendedHeader(t *testing.T) *header.ExtendedHeader {
 		ValidatorSet: valSet,
 		DAH:          dah,
 	}
+}
+
+func RandExtendedHeaderWithRoot(t testing.TB, dah *da.DataAvailabilityHeader) *header.ExtendedHeader {
+	h := RandExtendedHeader(t)
+	h.DataHash = dah.Hash()
+	h.DAH = dah
+	return h
 }
 
 func RandValidatorSet(numValidators int, votingPower int64) (*types.ValidatorSet, []types.PrivValidator) {
@@ -256,7 +264,7 @@ func RandValidator(randPower bool, minPower int64) (*types.Validator, types.Priv
 }
 
 // RandRawHeader provides a RawHeader fixture.
-func RandRawHeader(t *testing.T) *header.RawHeader {
+func RandRawHeader(t testing.TB) *header.RawHeader {
 	return &header.RawHeader{
 		Version:            version.Consensus{Block: 11, App: 1},
 		ChainID:            "test",
@@ -276,7 +284,7 @@ func RandRawHeader(t *testing.T) *header.RawHeader {
 }
 
 // RandBlockID provides a BlockID fixture.
-func RandBlockID(*testing.T) types.BlockID {
+func RandBlockID(testing.TB) types.BlockID {
 	bid := types.BlockID{
 		Hash: make([]byte, 32),
 		PartSetHeader: types.PartSetHeader{

@@ -8,6 +8,8 @@ import (
 
 	"github.com/celestiaorg/nmt"
 	"github.com/celestiaorg/rsmt2d"
+
+	"github.com/celestiaorg/celestia-node/header"
 )
 
 var (
@@ -24,17 +26,17 @@ var (
 //go:generate mockgen -destination=mocks/getter.go -package=mocks . Getter
 type Getter interface {
 	// GetShare gets a Share by coordinates in EDS.
-	GetShare(ctx context.Context, root *Root, row, col int) (Share, error)
+	GetShare(ctx context.Context, header *header.ExtendedHeader, row, col int) (Share, error)
 
-	// GetEDS gets the full EDS identified by the given root.
-	GetEDS(context.Context, *Root) (*rsmt2d.ExtendedDataSquare, error)
+	// GetEDS gets the full EDS identified by the given extended header.
+	GetEDS(context.Context, *header.ExtendedHeader) (*rsmt2d.ExtendedDataSquare, error)
 
 	// GetSharesByNamespace gets all shares from an EDS within the given namespace.
 	// Shares are returned in a row-by-row order if the namespace spans multiple rows.
 	// Inclusion of returned data could be verified using Verify method on NamespacedShares.
 	// If no shares are found for target namespace non-inclusion could be also verified by calling
 	// Verify method.
-	GetSharesByNamespace(context.Context, *Root, Namespace) (NamespacedShares, error)
+	GetSharesByNamespace(context.Context, *header.ExtendedHeader, Namespace) (NamespacedShares, error)
 }
 
 // NamespacedShares represents all shares with proofs within a specific namespace of an EDS.

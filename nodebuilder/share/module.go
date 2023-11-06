@@ -37,7 +37,7 @@ func ConstructModule(tp node.Type, cfg *Config, options ...fx.Option) fx.Option 
 		fx.Provide(newModule),
 		fx.Invoke(func(disc *disc.Discovery) {}),
 		fx.Provide(fx.Annotate(
-			newDiscovery(*cfg),
+			newDiscovery(cfg.Discovery),
 			fx.OnStart(func(ctx context.Context, d *disc.Discovery) error {
 				return d.Start(ctx)
 			}),
@@ -98,11 +98,10 @@ func ConstructModule(tp node.Type, cfg *Config, options ...fx.Option) fx.Option 
 			func(
 				host host.Host,
 				store *eds.Store,
-				getter *getters.StoreGetter,
 				network modp2p.Network,
 			) (*shrexnd.Server, error) {
 				cfg.ShrExNDParams.WithNetworkID(network.String())
-				return shrexnd.NewServer(cfg.ShrExNDParams, host, store, getter)
+				return shrexnd.NewServer(cfg.ShrExNDParams, host, store)
 			},
 			fx.OnStart(func(ctx context.Context, server *shrexnd.Server) error {
 				return server.Start(ctx)
@@ -147,7 +146,6 @@ func ConstructModule(tp node.Type, cfg *Config, options ...fx.Option) fx.Option 
 		fx.Provide(
 			func(
 				params peers.Parameters,
-				discovery *disc.Discovery,
 				host host.Host,
 				connGater *conngater.BasicConnectionGater,
 				shrexSub *shrexsub.PubSub,
@@ -158,7 +156,6 @@ func ConstructModule(tp node.Type, cfg *Config, options ...fx.Option) fx.Option 
 			) (*peers.Manager, error) {
 				return peers.NewManager(
 					params,
-					discovery,
 					host,
 					connGater,
 					peers.WithShrexSubPools(shrexSub, headerSub),

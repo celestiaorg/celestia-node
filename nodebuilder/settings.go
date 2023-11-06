@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"time"
 
+	logging "github.com/ipfs/go-log/v2"
 	"github.com/libp2p/go-libp2p/core/peer"
 	"github.com/pyroscope-io/client/pyroscope"
 	otelpyroscope "github.com/pyroscope-io/otel-profiling-go"
@@ -24,7 +25,7 @@ import (
 
 	"github.com/celestiaorg/celestia-node/header"
 	"github.com/celestiaorg/celestia-node/nodebuilder/das"
-	modheader "github.com/celestiaorg/celestia-node/nodebuilder/header"
+	modhead "github.com/celestiaorg/celestia-node/nodebuilder/header"
 	"github.com/celestiaorg/celestia-node/nodebuilder/node"
 	"github.com/celestiaorg/celestia-node/nodebuilder/p2p"
 	"github.com/celestiaorg/celestia-node/nodebuilder/share"
@@ -72,6 +73,10 @@ func WithPyroscope(endpoint string, nodeType node.Type) fx.Option {
 
 // WithMetrics enables metrics exporting for the node.
 func WithMetrics(metricOpts []otlpmetrichttp.Option, nodeType node.Type) fx.Option {
+	// TODO @renaynay: this will be refactored when there is more granular
+	//  control over which module to enable metrics for
+	modhead.MetricsEnabled = true
+
 	baseComponents := fx.Options(
 		fx.Supply(metricOpts),
 		fx.Invoke(initializeMetrics),
@@ -83,7 +88,6 @@ func WithMetrics(metricOpts []otlpmetrichttp.Option, nodeType node.Type) fx.Opti
 		}),
 		fx.Invoke(fraud.WithMetrics[*header.ExtendedHeader]),
 		fx.Invoke(node.WithMetrics),
-		fx.Invoke(modheader.WithMetrics),
 		fx.Invoke(share.WithDiscoveryMetrics),
 	)
 
@@ -205,5 +209,14 @@ func initializeMetrics(
 		},
 	})
 	otel.SetMeterProvider(provider)
+	otel.SetErrorHandler(&loggingErrorHandler{})
 	return nil
+}
+
+var metricsLogger = logging.Logger("otlp")
+
+type loggingErrorHandler struct{}
+
+func (loggingErrorHandler) Handle(err error) {
+	metricsLogger.Error(err)
 }

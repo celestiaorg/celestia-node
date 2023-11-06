@@ -3,6 +3,8 @@ package discovery
 import (
 	"fmt"
 	"time"
+
+	"github.com/libp2p/go-libp2p/core/peer"
 )
 
 // Parameters is the set of Parameters that must be configured for the Discovery module
@@ -16,13 +18,19 @@ type Parameters struct {
 	AdvertiseInterval time.Duration
 }
 
+// options is the set of options that can be configured for the Discovery module
+type options struct {
+	// onUpdatedPeers will be called on peer set changes
+	onUpdatedPeers OnUpdatedPeers
+}
+
 // Option is a function that configures Discovery Parameters
-type Option func(*Parameters)
+type Option func(*options)
 
 // DefaultParameters returns the default Parameters' configuration values
 // for the Discovery module
-func DefaultParameters() Parameters {
-	return Parameters{
+func DefaultParameters() *Parameters {
+	return &Parameters{
 		PeersLimit:        5,
 		AdvertiseInterval: time.Hour,
 	}
@@ -30,29 +38,30 @@ func DefaultParameters() Parameters {
 
 // Validate validates the values in Parameters
 func (p *Parameters) Validate() error {
-	if p.AdvertiseInterval <= 0 {
-		return fmt.Errorf(
-			"discovery: invalid option: value AdvertiseInterval %s, %s",
-			"is 0 or negative.",
-			"value must be positive",
-		)
+	if p.PeersLimit <= 0 {
+		return fmt.Errorf("discovery: peers limit cannot be zero or negative")
 	}
 
+	if p.AdvertiseInterval <= 0 {
+		return fmt.Errorf("discovery: advertise interval cannot be zero or negative")
+	}
 	return nil
 }
 
-// WithPeersLimit is a functional option that Discovery
-// uses to set the PeersLimit configuration param
-func WithPeersLimit(peersLimit uint) Option {
-	return func(p *Parameters) {
-		p.PeersLimit = peersLimit
+// WithOnPeersUpdate chains OnPeersUpdate callbacks on every update of discovered peers list.
+func WithOnPeersUpdate(f OnUpdatedPeers) Option {
+	return func(p *options) {
+		p.onUpdatedPeers = p.onUpdatedPeers.add(f)
 	}
 }
 
-// WithAdvertiseInterval is a functional option that Discovery
-// uses to set the AdvertiseInterval configuration param
-func WithAdvertiseInterval(advInterval time.Duration) Option {
-	return func(p *Parameters) {
-		p.AdvertiseInterval = advInterval
+func newOptions(opts ...Option) *options {
+	defaults := &options{
+		onUpdatedPeers: func(peer.ID, bool) {},
 	}
+
+	for _, opt := range opts {
+		opt(defaults)
+	}
+	return defaults
 }

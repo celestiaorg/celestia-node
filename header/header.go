@@ -12,10 +12,9 @@ import (
 	core "github.com/tendermint/tendermint/types"
 
 	"github.com/celestiaorg/celestia-app/pkg/appconsts"
+	"github.com/celestiaorg/celestia-app/pkg/da"
 	libhead "github.com/celestiaorg/go-header"
 	"github.com/celestiaorg/rsmt2d"
-
-	"github.com/celestiaorg/celestia-node/share"
 )
 
 // ConstructFn aliases a function that creates an ExtendedHeader.
@@ -36,9 +35,9 @@ type RawHeader = core.Header
 // block headers and perform Data Availability Sampling.
 type ExtendedHeader struct {
 	RawHeader    `json:"header"`
-	Commit       *core.Commit       `json:"commit"`
-	ValidatorSet *core.ValidatorSet `json:"validator_set"`
-	DAH          *share.Root        `json:"dah"`
+	Commit       *core.Commit               `json:"commit"`
+	ValidatorSet *core.ValidatorSet         `json:"validator_set"`
+	DAH          *da.DataAvailabilityHeader `json:"dah"`
 }
 
 // MakeExtendedHeader assembles new ExtendedHeader.
@@ -49,14 +48,14 @@ func MakeExtendedHeader(
 	eds *rsmt2d.ExtendedDataSquare,
 ) (*ExtendedHeader, error) {
 	var (
-		dah *share.Root
+		dah da.DataAvailabilityHeader
 		err error
 	)
 	switch eds {
 	case nil:
-		dah = share.EmptyRoot()
+		dah = da.MinDataAvailabilityHeader()
 	default:
-		dah, err = share.NewRoot(eds)
+		dah, err = da.NewDataAvailabilityHeader(eds)
 		if err != nil {
 			return nil, err
 		}
@@ -64,7 +63,7 @@ func MakeExtendedHeader(
 
 	eh := &ExtendedHeader{
 		RawHeader:    *h,
-		DAH:          dah,
+		DAH:          &dah,
 		Commit:       comm,
 		ValidatorSet: vals,
 	}
