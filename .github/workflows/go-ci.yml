@@ -85,7 +85,7 @@ jobs:
         uses: actions/upload-artifact@v3
         if: always() && github.event.inputs.debug == 'true'
         with:
-            name: unit-test-output-${{ matrix.os }}
+          name: unit-test-output-${{ matrix.os }}
           path: |
             debug.log
             coverage.txt
