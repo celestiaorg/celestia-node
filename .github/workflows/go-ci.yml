@@ -73,14 +73,6 @@ jobs:
       - name: run unit tests
         run: make test-unit ENABLE_VERBOSE=${{ inputs.debug }}
 
-      - name: upload coverage
-        uses: codecov/codecov-action@v3.1.4
-        with:
-          env_vars: OS
-          token: ${{ secrets.CODECOV_TOKEN }}
-          file: ./coverage.txt
-          name: coverage-${{ matrix.os }}
-
       - name: Upload unit test output
         uses: actions/upload-artifact@v3
         if: always() && github.event.inputs.debug == 'true'
@@ -90,6 +82,14 @@ jobs:
             debug.log
             coverage.txt
           retention-days: 5
+
+      - name: upload coverage
+        uses: codecov/codecov-action@v3.1.4
+        with:
+          env_vars: OS
+          token: ${{ secrets.CODECOV_TOKEN }}
+          file: ./coverage.txt
+          name: coverage-${{ matrix.os }}
 
   unit_race_test:
     needs: [lint, go_mod_tidy_check]
