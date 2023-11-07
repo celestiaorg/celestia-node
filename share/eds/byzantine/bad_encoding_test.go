@@ -1,10 +1,13 @@
 package byzantine
 
 import (
+	"bytes"
 	"context"
+	"encoding/hex"
 	"testing"
 	"time"
 
+	"github.com/ipfs/go-cid"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	core "github.com/tendermint/tendermint/types"
@@ -27,7 +30,7 @@ func TestBEFP_Validate(t *testing.T) {
 	defer t.Cleanup(cancel)
 	bServ := ipld.NewMemBlockservice()
 
-	square := edstest.RandByzantineEDS(t, 16)
+	square := edstest.RandByzantineEDS(t, 32)
 	dah, err := da.NewDataAvailabilityHeader(square)
 	require.NoError(t, err)
 	err = ipld.ImportEDS(ctx, square, bServ)
@@ -208,6 +211,95 @@ func TestBEFP_ValidateOutOfOrderShares(t *testing.T) {
 	bServ := ipld.NewMemBlockservice()
 	batchAddr := ipld.NewNmtNodeAdder(context.Background(), bServ, ipld.MaxSizeBatchOption(squareSize/2))
 	// create a malicious eds and store it in the blockservice
+	// A tree that is created in `malicious.NewConstructor` will not check the
+	// ordering of the namespaces and an error will not be returned on `Push`
+	eds, err := rsmt2d.ImportExtendedDataSquare(shares,
+		share.DefaultRSMT2DCodec(),
+		malicious.NewConstructor(2, nmt.NodeVisitor(batchAddr.Visit)),
+	)
+	require.NoError(t, err, "failure to recompute the extended data square")
+
+	str := hex.EncodeToString(shares[0][share.NamespaceSize:])
+	t.Log("TESTS Shares0 ", str)
+	t.Log("TESTS Shares1 ", hex.EncodeToString(shares[1][share.NamespaceSize:]))
+	t.Log("TESTS Shares3 ", hex.EncodeToString(shares[3][share.NamespaceSize:]))
+	t.Log("TESTS Shares4 ", hex.EncodeToString(shares[4][share.NamespaceSize:]))
+	dah, err := da.NewDataAvailabilityHeader(eds)
+	require.NoError(t, err)
+
+	_, err = eds.RowRoots()
+	require.NoError(t, err)
+
+	_, err = eds.ColRoots()
+	require.NoError(t, err)
+
+	err = batchAddr.Commit()
+	require.NoError(t, err)
+
+	shh0, _ := ipld.GetLeaf(context.Background(), bServ, ipld.MustCidFromNamespacedSha256(dah.RowRoots[0]), 0, 4)
+	shh1, _ := ipld.GetLeaf(context.Background(), bServ, ipld.MustCidFromNamespacedSha256(dah.RowRoots[1]), 0, 4)
+
+	t.Log("BSERV00 ", hex.EncodeToString(shh0.RawData()[share.NamespaceSize:]))
+	t.Log("BSERV01 ", hex.EncodeToString(shh1.RawData()[share.NamespaceSize:]))
+
+	shh0, _ = ipld.GetLeaf(context.Background(), bServ, ipld.MustCidFromNamespacedSha256(dah.RowRoots[0]), 1, 4)
+	shh1, _ = ipld.GetLeaf(context.Background(), bServ, ipld.MustCidFromNamespacedSha256(dah.RowRoots[1]), 1, 4)
+
+	t.Log("BSERV01 ", hex.EncodeToString(shh0.RawData()[share.NamespaceSize:]))
+	t.Log("BSERV11 ", hex.EncodeToString(shh1.RawData()[share.NamespaceSize:]))
+
+	//shares = eds.Flattened()
+	//badShares := make([]share.Share, len(shares))
+	//badShares[0], badShares[3], badShares[11], badShares[15] = shares[0], shares[3], shares[11], shares[15]
+	//
+	//// newEds ensures that we get errByzantineData with Axis = row
+	//newEds, err := rsmt2d.ImportExtendedDataSquare(badShares, share.DefaultRSMT2DCodec(), malicious.NewConstructor(2))
+	//require.NoError(t, err)
+
+	var errRsmt2d *rsmt2d.ErrByzantineData
+
+	newEds, err := deepCopy(eds)
+	require.NoError(t, err)
+
+	err = newEds.Repair(dah.RowRoots, dah.ColumnRoots)
+	require.ErrorAs(t, err, &errRsmt2d)
+	t.Log(errRsmt2d)
+	errByz := NewErrByzantine(context.Background(), bServ, &dah, errRsmt2d)
+	t.Log("RSMT2D0 ", hex.EncodeToString(errRsmt2d.Shares[0][share.NamespaceSize:]))
+	t.Log("RSMT2D1 ", hex.EncodeToString(errRsmt2d.Shares[1][share.NamespaceSize:]))
+	require.NotNil(t, errByz)
+	ns0, err := share.NamespaceFromBytes(shares[0][:share.NamespaceSize])
+	require.NoError(t, err)
+
+	ns3, err := share.NamespaceFromBytes(shares[3][:share.NamespaceSize])
+	require.NoError(t, err)
+
+	t.Log(ns0.String())
+	t.Log(ns3.String())
+	befp := CreateBadEncodingProof([]byte("hash"), 0, errByz)
+	err = befp.Validate(&header.ExtendedHeader{DAH: &dah})
+	assert.NoError(t, err)
+
+}
+
+func deepCopy(eds *rsmt2d.ExtendedDataSquare) (rsmt2d.ExtendedDataSquare, error) {
+	imported, err := rsmt2d.ImportExtendedDataSquare(
+		eds.Flattened(),
+		share.DefaultRSMT2DCodec(),
+		malicious.NewConstructor(2),
+	)
+	return *imported, err
+}
+
+func TestEds(t *testing.T) {
+	eds := edstest.RandEDS(t, 2)
+	shares := eds.Flattened()
+	t.Log(len(shares))
+	squareSize := int(utils.SquareSize(len(shares)))
+
+	shares[0], shares[4] = shares[4], shares[0] // corrupting eds
+	bServ := ipld.NewMemBlockservice()
+	batchAddr := ipld.NewNmtNodeAdder(context.Background(), bServ, ipld.MaxSizeBatchOption(squareSize/2))
 	eds, err := rsmt2d.ImportExtendedDataSquare(shares,
 		share.DefaultRSMT2DCodec(),
 		malicious.NewConstructor(2, nmt.NodeVisitor(batchAddr.Visit)),
@@ -220,24 +312,51 @@ func TestBEFP_ValidateOutOfOrderShares(t *testing.T) {
 	_, err = eds.RowRoots()
 	require.NoError(t, err)
 
+	_, err = eds.ColRoots()
+	require.NoError(t, err)
+
 	err = batchAddr.Commit()
 	require.NoError(t, err)
 
-	shares = eds.Flattened()
-	badShares := make([]share.Share, len(shares))
-	badShares[0], badShares[1], badShares[2], badShares[3] = shares[0], shares[1], shares[2], shares[3]
+	leaf0, err := ipld.GetLeaf(context.Background(), bServ, ipld.MustCidFromNamespacedSha256(dah.ColumnRoots[0]), 0, 4)
+	leaf1, err := ipld.GetLeaf(context.Background(), bServ, ipld.MustCidFromNamespacedSha256(dah.ColumnRoots[0]), 1, 4)
+	leaf2, err := ipld.GetLeaf(context.Background(), bServ, ipld.MustCidFromNamespacedSha256(dah.ColumnRoots[0]), 2, 4)
+	leaf3, err := ipld.GetLeaf(context.Background(), bServ, ipld.MustCidFromNamespacedSha256(dah.ColumnRoots[0]), 3, 4)
 
-	// newEds ensures that we get errByzantineData with Axis = row
-	newEds, err := rsmt2d.ImportExtendedDataSquare(badShares, share.DefaultRSMT2DCodec(), malicious.NewConstructor(2))
+	proof0 := make([]cid.Cid, 0)
+	proof1 := make([]cid.Cid, 0)
+	proof2 := make([]cid.Cid, 0)
+	proof3 := make([]cid.Cid, 0)
+
+	proof0, err = ipld.GetProof(context.Background(), bServ, ipld.MustCidFromNamespacedSha256(dah.ColumnRoots[0]), proof0, 0, 4)
+	proof1, err = ipld.GetProof(context.Background(), bServ, ipld.MustCidFromNamespacedSha256(dah.ColumnRoots[0]), proof1, 1, 4)
+	proof2, err = ipld.GetProof(context.Background(), bServ, ipld.MustCidFromNamespacedSha256(dah.ColumnRoots[0]), proof2, 2, 4)
+	proof3, err = ipld.GetProof(context.Background(), bServ, ipld.MustCidFromNamespacedSha256(dah.ColumnRoots[0]), proof3, 3, 4)
+
+	shWP0 := NewShareWithProof(0, leaf0.RawData(), proof0)
+	shWP1 := NewShareWithProof(1, leaf1.RawData(), proof1)
+	shWP2 := NewShareWithProof(2, leaf2.RawData(), proof2)
+	shWP3 := NewShareWithProof(3, leaf3.RawData(), proof3)
+
+	ok0 := shWP0.Validate(ipld.MustCidFromNamespacedSha256(dah.ColumnRoots[0]))
+	ok1 := shWP1.Validate(ipld.MustCidFromNamespacedSha256(dah.ColumnRoots[0]))
+	ok2 := shWP2.Validate(ipld.MustCidFromNamespacedSha256(dah.ColumnRoots[0]))
+	ok3 := shWP3.Validate(ipld.MustCidFromNamespacedSha256(dah.ColumnRoots[0]))
+
+	require.True(t, ok0)
+	require.True(t, ok1)
+	require.True(t, ok2)
+	require.True(t, ok3)
+	require.True(t, bytes.Equal(shares[0], leaf0.RawData()[29:]))
+
+	treeCn := malicious.NewConstructor(2)
+	tree := treeCn(rsmt2d.Row, 0)
+	tree.Push(shares[0])
+	tree.Push(shares[1])
+	tree.Push(shares[2])
+	tree.Push(shares[3])
+
+	root, err := tree.Root()
 	require.NoError(t, err)
-
-	var errRsmt2d *rsmt2d.ErrByzantineData
-	err = newEds.Repair(dah.RowRoots, dah.ColumnRoots)
-	require.ErrorAs(t, err, &errRsmt2d)
-	errByz := NewErrByzantine(context.Background(), bServ, &dah, errRsmt2d)
-	require.NotNil(t, errByz)
-
-	befp := CreateBadEncodingProof([]byte("hash"), 0, errByz)
-	err = befp.Validate(&header.ExtendedHeader{DAH: &dah})
-	assert.NoError(t, err)
+	require.True(t, bytes.Equal(root, dah.RowRoots[0]))
 }
