@@ -150,7 +150,6 @@ func (eh *ExtendedHeader) Validate() error {
 			return fmt.Errorf("mismatch between data hash commitment from core header and computed data root "+
 				"at height %d: data hash: %X, computed root: %X", eh.Height(), eh.DataHash, eh.DAH.Hash())
 		}
-		eh.DataHash = eh.DAH.Hash()
 	}
 
 	// Make sure the header is consistent with the commit.
