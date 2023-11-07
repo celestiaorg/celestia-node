@@ -8,7 +8,7 @@ import (
 )
 
 type exchangeMetrics struct {
-	getByHeightDuration metric.Float64Histogram // TODO move this one
+	getByHeightDuration metric.Float64Histogram
 }
 
 func newExchangeMetrics() (*exchangeMetrics, error) {
@@ -41,7 +41,6 @@ func (m *exchangeMetrics) observe(ctx context.Context, observeFn func(ctx contex
 func (m *exchangeMetrics) requestDurationPerHeader(ctx context.Context, duration time.Duration, amount uint64) {
 	m.observe(ctx, func(ctx context.Context) {
 		if amount == 0 {
-			// TODO could this happen?
 			return
 		}
 		durationPerHeader := duration.Seconds() / float64(amount)
