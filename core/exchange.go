@@ -23,7 +23,7 @@ type Exchange struct {
 	store     *eds.Store
 	construct header.ConstructFn
 
-	metrics *metrics
+	metrics *exchangeMetrics
 }
 
 func NewExchange(
@@ -38,11 +38,11 @@ func NewExchange(
 	}
 
 	var (
-		metrics *metrics
+		metrics *exchangeMetrics
 		err     error
 	)
 	if p.metrics {
-		metrics, err = newMetrics()
+		metrics, err = newExchangeMetrics()
 		if err != nil {
 			return nil, err
 		}

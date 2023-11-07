@@ -43,7 +43,7 @@ type Listener struct {
 
 	listenerTimeout time.Duration
 
-	metrics *metrics
+	metrics *listenerMetrics
 
 	cancel context.CancelFunc
 }
@@ -63,11 +63,11 @@ func NewListener(
 	}
 
 	var (
-		metrics *metrics
+		metrics *listenerMetrics
 		err     error
 	)
 	if p.metrics {
-		metrics, err = newMetrics()
+		metrics, err = newListenerMetrics()
 		if err != nil {
 			return nil, err
 		}
