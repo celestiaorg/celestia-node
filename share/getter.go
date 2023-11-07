@@ -96,3 +96,14 @@ func (row *NamespacedRow) verify(rowRoot []byte, namespace Namespace) bool {
 		rowRoot,
 	)
 }
+
+func (ns NamespacedShares) IsAbsenceProof() bool {
+	isAbsenceProof := false
+	for _, row := range ns {
+		if len(row.Shares) == 0 && row.Proof != nil {
+			isAbsenceProof = true
+		}
+		break
+	}
+	return isAbsenceProof
+}

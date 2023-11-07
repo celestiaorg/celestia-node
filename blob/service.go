@@ -211,6 +211,10 @@ func (s *Service) getByCommitment(
 		return nil, nil, err
 	}
 
+	if namespacedShares.IsAbsenceProof() {
+		return nil, nil, ErrBlobNotFound
+	}
+
 	var (
 		rawShares = make([]shares.Share, 0)
 		proofs    = make(Proof, 0)
