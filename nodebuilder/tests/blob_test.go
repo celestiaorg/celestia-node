@@ -123,6 +123,37 @@ func TestBlobModule(t *testing.T) {
 				require.ErrorContains(t, err, blob.ErrBlobNotFound.Error())
 			},
 		},
+		{
+			name: "Submit equal blobs",
+			doFn: func(t *testing.T) {
+				appBlob, err := blobtest.GenerateV0Blobs([]int{8, 4}, true)
+				require.NoError(t, err)
+				b, err := blob.NewBlob(
+					appBlob[0].ShareVersion,
+					append([]byte{appBlob[0].NamespaceVersion}, appBlob[0].NamespaceID...),
+					appBlob[0].Data,
+				)
+				require.NoError(t, err)
+				height, err := fullClient.Blob.Submit(ctx, []*blob.Blob{b, b}, nil)
+				require.NoError(t, err)
+				_, err = fullClient.Header.WaitForHeight(ctx, height)
+				require.NoError(t, err)
+				b0, err := fullClient.Blob.Get(ctx, height, b.Namespace(), b.Commitment)
+				require.NoError(t, err)
+				require.Equal(t, b, b0)
+
+				// give some time to store the data,
+				// otherwise the test will hang on the IPLD level.
+				time.Sleep(time.Second)
+
+				proof, err := fullClient.Blob.GetProof(ctx, height, b.Namespace(), b.Commitment)
+				require.NoError(t, err)
+
+				included, err := fullClient.Blob.Included(ctx, height, b.Namespace(), proof, b.Commitment)
+				require.NoError(t, err)
+				require.True(t, included)
+			},
+		},
 	}
 
 	for _, tt := range test {
