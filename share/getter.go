@@ -96,11 +96,3 @@ func (row *NamespacedRow) verify(rowRoot []byte, namespace Namespace) bool {
 		rowRoot,
 	)
 }
-
-// IsAbsenceProof checks if `NamespacedShares.Proof` proves the absence of the namespace.ID.
-func (ns NamespacedShares) IsAbsenceProof() bool {
-	if len(ns) == 0 || (len(ns[0].Shares) == 0 && ns[0].Proof != nil) {
-		return true
-	}
-	return false
-}
