@@ -220,6 +220,9 @@ func (s *Service) getByCommitment(
 
 	for _, row := range namespacedShares {
 		if len(row.Shares) == 0 {
+			// the above condition means that we've faced with an Absence Proof.
+			// This Proof proves that the namespace was not found in the DAH, so
+			// we can return `ErrBlobNotFound`.
 			return nil, nil, ErrBlobNotFound
 		}
 
