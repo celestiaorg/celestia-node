@@ -55,5 +55,10 @@ func TestAvailability(t *testing.T, getter share.Getter) *ShareAvailability {
 	require.NoError(t, err)
 	err = store.Start(context.Background())
 	require.NoError(t, err)
+
+	t.Cleanup(func() {
+		err = store.Stop(context.Background())
+		require.NoError(t, err)
+	})
 	return NewShareAvailability(store, getter, disc)
 }
