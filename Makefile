@@ -6,6 +6,13 @@ LDFLAGS=-ldflags="-X '$(versioningPath).buildTime=$(shell date)' -X '$(versionin
 ifeq (${PREFIX},)
 	PREFIX := /usr/local
 endif
+ifeq ($(ENABLE_VERBOSE),true)
+	LOG_AND_FILTER = | tee debug.log
+	VERBOSE = -v
+else
+	VERBOSE =
+	LOG_AND_FILTER =
+endif
 ## help: Get more info on make commands.
 help: Makefile
 	@echo " Choose a command run in "$(PROJECTNAME)":"
@@ -99,7 +106,7 @@ lint: lint-imports
 ## test-unit: Running unit tests
 test-unit:
 	@echo "--> Running unit tests"
-	@go test -covermode=atomic -coverprofile=coverage.txt `go list ./... | grep -v nodebuilder/tests`
+	@go test $(VERBOSE) -covermode=atomic -coverprofile=coverage.txt `go list ./... | grep -v nodebuilder/tests` $(LOG_AND_FILTER)
 .PHONY: test-unit
 
 ## test-unit-race: Running unit tests with data race detector

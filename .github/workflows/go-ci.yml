@@ -13,7 +13,22 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
+  setup:
+    runs-on: ubuntu-latest
+    outputs:
+      debug: ${{ steps.debug.outputs.debug }}
+    steps:
+      - name: Set debug output
+        id: debug
+        run: |
+          if [[ "${{ runner.debug }}" == "true" ]]; then
+            echo "debug=true" >> $GITHUB_ENV
+          else
+            echo "debug=false" >> $GITHUB_ENV
+          fi
+
   lint:
+    needs: [setup]
     name: Lint
     runs-on: ubuntu-latest
 
@@ -33,6 +48,7 @@ jobs:
           skip-build-cache: true
 
   go_mod_tidy_check:
+    needs: [setup]
     name: Go Mod Tidy Check
     runs-on: ubuntu-latest
 
@@ -68,7 +84,17 @@ jobs:
           go-version: ${{ inputs.go-version }}
 
       - name: run unit tests
-        run: make test-unit
+        run: make test-unit ENABLE_VERBOSE=${{ needs.setup.outputs.debug }}
+
+      - name: Upload unit test output
+        uses: actions/upload-artifact@v3
+        if: always() && needs.setup.outputs.debug == 'true'
+        with:
+          name: unit-test-output-${{ matrix.os }}
+          path: |
+            debug.log
+            coverage.txt
+          retention-days: 5
 
       - name: upload coverage
         uses: codecov/codecov-action@v3.1.4
@@ -93,7 +119,6 @@ jobs:
 
       - name: execute test run
         run: make test-unit-race
-        continue-on-error: true
 
   integration_test:
     needs: [lint, go_mod_tidy_check]
@@ -110,8 +135,6 @@ jobs:
 
       - name: Swamp Tests
         run: make test-swamp
-        continue-on-error: true
 
       - name: Swamp Tests with Race Detector
         run: make test-swamp-race
-        continue-on-error: true
