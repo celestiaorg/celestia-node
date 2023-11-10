@@ -33,6 +33,7 @@ jobs:
     outputs:
       go-version: ${{ steps.set-vars.outputs.go-version }}
       branch: ${{ steps.trim_ref.outputs.branch }}
+      debug: ${{ steps.debug.outputs.debug }}
     steps:
       - name: Set go version
         id: set-vars
@@ -42,6 +43,15 @@ jobs:
         id: trim_ref
         run: |
           echo "branch=$(${${{ github.ref }}:11})" >> $GITHUB_OUTPUT
+
+      - name: Set debug output
+        id: debug
+        run: |
+          if [[ "${{ runner.debug }}" == "true" ]]; then
+            echo "debug=true" >> $GITHUB_ENV
+          else
+            echo "debug=false" >> $GITHUB_ENV
+          fi
 
   # Dockerfile Linting
   hadolint:
