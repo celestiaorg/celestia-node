@@ -134,10 +134,10 @@ func TestBlobModule(t *testing.T) {
 					appBlob[0].Data,
 				)
 				require.NoError(t, err)
+
 				height, err := fullClient.Blob.Submit(ctx, []*blob.Blob{b, b}, nil)
 				require.NoError(t, err)
-				_, err = fullClient.Header.WaitForHeight(ctx, height)
-				require.NoError(t, err)
+
 				b0, err := fullClient.Blob.Get(ctx, height, b.Namespace(), b.Commitment)
 				require.NoError(t, err)
 				require.Equal(t, b, b0)
