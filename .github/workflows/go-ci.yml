@@ -42,6 +42,7 @@ jobs:
       - name: golangci-lint
         uses: golangci/golangci-lint-action@v3.7.0
         with:
+          args: --timeout 10m
           version: v1.55
           skip-pkg-cache: true
           skip-build-cache: true
@@ -67,6 +68,7 @@ jobs:
     needs: [lint, go_mod_tidy_check]
     name: Unit Tests Coverage
     strategy:
+      fail-fast: false
       matrix:
         os: [ubuntu-latest, macos-latest]
     runs-on: ${{ matrix.os }}
