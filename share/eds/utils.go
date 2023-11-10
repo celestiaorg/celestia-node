@@ -123,7 +123,7 @@ func CollectSharesByNamespace(
 
 	rootCIDs := ipld.FilterRootByNamespace(root, namespace)
 	if len(rootCIDs) == 0 {
-		return nil, nil
+		return []share.NamespacedRow{}, nil
 	}
 
 	errGroup, ctx := errgroup.WithContext(ctx)
