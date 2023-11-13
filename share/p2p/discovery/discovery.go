@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"math/rand"
 	"time"
 
 	logging "github.com/ipfs/go-log/v2"
@@ -36,6 +37,7 @@ const (
 	logInterval            = 5 * time.Minute
 	backoffInitialDuration = 5 * time.Second
 	maxBackoffDuration     = 10 * time.Minute
+	jitterFactor           = 0.1
 )
 
 // discoveryRetryTimeout defines time interval between discovery attempts, needed for tests
@@ -51,9 +53,9 @@ type Discovery struct {
 	disc      discovery.Discovery
 	connector *backoffConnector
 	// onUpdatedPeers will be called on peer set changes
-	onUpdatedPeers OnUpdatedPeers
-
-	triggerDisc chan struct{}
+	onUpdatedPeers  OnUpdatedPeers
+	backoffDuration time.Duration
+	triggerDisc     chan struct{}
 
 	metrics *metrics
 
@@ -88,14 +90,15 @@ func NewDiscovery(
 	}
 	o := newOptions(opts...)
 	return &Discovery{
-		tag:            tag,
-		set:            newLimitedSet(params.PeersLimit),
-		host:           h,
-		disc:           d,
-		connector:      newBackoffConnector(h, defaultBackoffFactory),
-		onUpdatedPeers: o.onUpdatedPeers,
-		params:         params,
-		triggerDisc:    make(chan struct{}),
+		tag:             tag,
+		set:             newLimitedSet(params.PeersLimit),
+		host:            h,
+		disc:            d,
+		backoffDuration: backoffInitialDuration,
+		connector:       newBackoffConnector(h, defaultBackoffFactory),
+		onUpdatedPeers:  o.onUpdatedPeers,
+		params:          params,
+		triggerDisc:     make(chan struct{}),
 	}, nil
 }
 
@@ -196,31 +199,30 @@ func (d *Discovery) Advertise(ctx context.Context) {
 // It initiates peer discovery upon request and restarts the process until the soft limit is
 // reached.
 func (d *Discovery) discoveryLoop(ctx context.Context) {
-	backoffDuration := backoffInitialDuration
-	backoffTicker := time.NewTicker(backoffDuration)
-	defer backoffTicker.Stop()
+	backoffTimer := time.NewTimer(0)
+	defer backoffTimer.Stop()
 
 	warnTicker := time.NewTicker(logInterval)
 	defer warnTicker.Stop()
 
-	// Function to initiate discovery and restart the timer
 	runDiscovery := func() {
 		if !d.discover(ctx) {
-			// rerun discovery if the number of peers hasn't reached the limit
+
+			d.backoffDuration += backoffInitialDuration
+			if d.backoffDuration > maxBackoffDuration {
+				d.backoffDuration = maxBackoffDuration
+			}
+			jitter := time.Duration(float64(d.backoffDuration) * jitterFactor * (rand.Float64()*2 - 1))
+			backoffTimer.Reset(d.backoffDuration + jitter)
 			return
 		}
 
-		backoffTicker.Stop()
-		backoffDuration = backoffInitialDuration
-		backoffTicker = time.NewTicker(backoffDuration)
+		d.backoffDuration = backoffInitialDuration
 	}
 
 	for {
 		select {
-		case <-backoffTicker.C:
-			if backoffDuration > maxBackoffDuration {
-				backoffDuration = maxBackoffDuration
-			}
+		case <-backoffTimer.C:
 			runDiscovery()
 		case <-warnTicker.C:
 			if d.set.Size() < d.set.Limit() {
@@ -230,8 +232,11 @@ func (d *Discovery) discoveryLoop(ctx context.Context) {
 					logInterval, d.set.Size(), d.set.Limit(),
 				)
 			}
-		case <-d.triggerDisc: // Listen for triggerDisc channel
-			runDiscovery()
+		case <-d.triggerDisc:
+			if !backoffTimer.Stop() {
+				<-backoffTimer.C
+			}
+			backoffTimer.Reset(d.backoffDuration)
 		case <-ctx.Done():
 			return
 		}
