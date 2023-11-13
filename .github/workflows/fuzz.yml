@@ -26,15 +26,9 @@ jobs:
           go-version: ${{ inputs.go-version }}
 
       - name: fuzz/lib/keystore
+        working-dir: tests/fuzz
         run: |
           go test -fuzz=FuzzKeyStoreName -fuzztime ${{ inputs.fuzztime }} ./lib/keystore
-
-      - name: Upload fuzz failure seed corpus as run artifact
-        if: failure()
-        uses: actions/upload-artifact@v3
-        with:
-          name: lib-keystore-fuzz-corpus
-          path: ./lib/keystore/testdata/fuzz
 
       - name: Output message
         if: failure()
@@ -42,4 +36,74 @@ jobs:
         run: |
           echo -e "lib/keystore fuzz testing failed on commit ${{ env.SHA }}."
           echo "download failing seed corpus from ${{ github.run_id }} artifacts/lib-keystore-fuzz-corpus"
-          echo "add to project at lib/keystore/testdata/fuzz"
+          echo "add to project at tests/fuzz/lib/keystore/testdata/fuzz"
+
+  reverse:
+    name: reverse fuzz
+    runs-on: ubuntu-latest
+    outputs:
+      failed: ${{ steps.status.outputs.status }}
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-go@v4
+        with:
+          go-version: ${{ inputs.go-version }}
+
+      - name: fuzz/reverse
+        id: fuzz
+        working-dir: tests/fuzz
+        run: |
+          go test -fuzz=FuzzReverse -fuzztime ${{ inputs.fuzztime }} ./utils/reverse
+          echo "exit=$?" >> $GITHUB_ENV
+          echo "failed=${{  env.exit != 0 }}" >> "$GITHUB_OUTPUT"
+
+      - name: Output message on failure
+        if: failure()
+        run: |
+          echo "Reverse fuzz testing failed on commit $GITHUB_SHA."
+          echo "Failing seed corpus will be added to the merged artifacts."
+
+
+  number:
+    name: trivial number fuzz
+    runs-on: ubuntu-latest
+    outputs:
+      failed: ${{ steps.fuzz.outputs.status }}
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-go@v4
+        with:
+          go-version: ${{ inputs.go-version }}
+
+      - name: fuzz/number
+        id: fuzz
+        working-dir: tests/fuzz
+        run: |
+          go test -fuzz=FuzzProcessNumber -fuzztime ${{ inputs.fuzztime }} ./utils/number
+          echo "exit=$?" >> $GITHUB_ENV
+          echo "failed=${{  env.exit != 0 }}" >> "$GITHUB_OUTPUT"
+
+      - name: Output message on failure
+        if: failure()
+        run: |
+          echo "Keystore fuzz testing failed on commit $GITHUB_SHA."
+          echo "Failing seed corpus will be added to the merged artifacts."
+
+
+  upload-artifacts:
+    needs: [keystore, number, reverse]
+    runs-on: ubuntu-latest
+    if: needs.reverse.outputs.failed == 'true' || needs.keystore.outputs.failed == 'true' || || needs.number.outputs.failed == 'true'
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Merge and upload artifacts
+        uses: actions/upload-artifact@v3
+        with:
+          name: merged-fuzz-artifacts
+          path: |
+            tests/fuzz/testdata/fuzz/Fuzz*

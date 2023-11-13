@@ -1,7 +1,9 @@
-package keystore
+package keystore_fuzz
 
 import (
 	"testing"
+
+	"github.com/celestiaorg/celestia-node/libs/keystore"
 )
 
 func FuzzKeyStoreName(f *testing.F) {
@@ -17,9 +19,9 @@ func FuzzKeyStoreName(f *testing.F) {
 	}
 
 	f.Fuzz(func(t *testing.T, data string) {
-		k := KeyName(data)
+		k := keystore.KeyName(data)
 		encoded := k.Base32()
-		if _, err := KeyNameFromBase32(encoded); err != nil {
+		if _, err := keystore.KeyNameFromBase32(encoded); err != nil {
 			t.Errorf("error decoding base32: %v", err)
 		}
 	})
