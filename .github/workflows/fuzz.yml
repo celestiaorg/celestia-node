@@ -55,7 +55,7 @@ jobs:
         id: fuzz
         working-dir: tests/fuzz
         run: |
-          go test -fuzz=FuzzReverse -fuzztime ${{ inputs.fuzztime }} ./utils/reverse
+          go test -fuzz=FuzzReverse -fuzztime ${{ inputs.fuzztime }} ./lib/utils/reverse
           echo "exit=$?" >> $GITHUB_ENV
           echo "failed=${{  env.exit != 0 }}" >> "$GITHUB_OUTPUT"
 
@@ -83,7 +83,7 @@ jobs:
         id: fuzz
         working-dir: tests/fuzz
         run: |
-          go test -fuzz=FuzzProcessNumber -fuzztime ${{ inputs.fuzztime }} ./utils/number
+          go test -fuzz=FuzzProcessNumber -fuzztime ${{ inputs.fuzztime }} ./lib/utils/number
           echo "exit=$?" >> $GITHUB_ENV
           echo "failed=${{  env.exit != 0 }}" >> "$GITHUB_OUTPUT"
 
@@ -106,4 +106,4 @@ jobs:
         with:
           name: merged-fuzz-artifacts
           path: |
-            tests/fuzz/testdata/fuzz/Fuzz*
+            tests/fuzz/**/testdata/fuzz/*
