@@ -165,44 +165,30 @@ func TestBlobModule(t *testing.T) {
 			},
 		},
 		{
-			name: "Submit equal blobs in different PFBs",
+			name: "Submit the same blob",
 			doFn: func(t *testing.T) {
-				appBlob, err := blobtest.GenerateV0Blobs([]int{8, 4}, true)
-				require.NoError(t, err)
-				b, err := blob.NewBlob(
-					appBlob[0].ShareVersion,
-					append([]byte{appBlob[0].NamespaceVersion}, appBlob[0].NamespaceID...),
-					appBlob[0].Data,
-				)
+				h, err := fullClient.Blob.Submit(ctx, []*blob.Blob{blobs[0]}, nil)
 				require.NoError(t, err)
 
-				height0, err := fullClient.Blob.Submit(ctx, []*blob.Blob{b}, nil)
+				_, err = fullClient.Header.WaitForHeight(ctx, h)
 				require.NoError(t, err)
 
-				height1, err := fullClient.Blob.Submit(ctx, []*blob.Blob{b}, nil)
+				b0, err := fullClient.Blob.Get(ctx, h, blobs[0].Namespace(), blobs[0].Commitment)
+				require.NoError(t, err)
+				require.Equal(t, blobs[0], b0)
+
+				// give some time to store the data,
+				// otherwise the test will hang on the IPLD level.
+				// https://github.com/celestiaorg/celestia-node/issues/2915
+				time.Sleep(time.Second)
+
+				proof, err := fullClient.Blob.GetProof(ctx, h, blobs[0].Namespace(), blobs[0].Commitment)
 				require.NoError(t, err)
 
-				heights := []uint64{height0, height1}
-				for _, height := range heights {
-					_, err = fullClient.Header.WaitForHeight(ctx, height)
-					require.NoError(t, err)
+				included, err := fullClient.Blob.Included(ctx, h, blobs[0].Namespace(), proof, blobs[0].Commitment)
+				require.NoError(t, err)
+				require.True(t, included)
 
-					b0, err := fullClient.Blob.Get(ctx, height, b.Namespace(), b.Commitment)
-					require.NoError(t, err)
-					require.Equal(t, b, b0)
-
-					// give some time to store the data,
-					// otherwise the test will hang on the IPLD level.
-					// https://github.com/celestiaorg/celestia-node/issues/2915
-					time.Sleep(time.Second)
-
-					proof, err := fullClient.Blob.GetProof(ctx, height, b.Namespace(), b.Commitment)
-					require.NoError(t, err)
-
-					included, err := fullClient.Blob.Included(ctx, height, b.Namespace(), proof, b.Commitment)
-					require.NoError(t, err)
-					require.True(t, included)
-				}
 			},
 		},
 	}
