@@ -15,7 +15,7 @@ import (
 	"github.com/celestiaorg/celestia-node/nodebuilder/p2p"
 )
 
-var (
+const (
 	nodeStoreFlag  = "node.store"
 	nodeConfigFlag = "node.config"
 )
@@ -87,6 +87,10 @@ func DefaultNodeStorePath(tp string, network string) (string, error) {
 			return "", err
 		}
 	}
+	if network == p2p.Mainnet.String() {
+		return fmt.Sprintf("%s/.celestia-%s", home, strings.ToLower(tp)), nil
+	}
+	// only include network name in path for testnets and custom networks
 	return fmt.Sprintf(
 		"%s/.celestia-%s-%s",
 		home,

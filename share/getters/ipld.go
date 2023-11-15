@@ -7,15 +7,17 @@ import (
 	"sync"
 	"sync/atomic"
 
-	"github.com/ipfs/go-blockservice"
+	"github.com/ipfs/boxo/blockservice"
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/trace"
 
 	"github.com/celestiaorg/rsmt2d"
 
+	"github.com/celestiaorg/celestia-node/header"
 	"github.com/celestiaorg/celestia-node/libs/utils"
 	"github.com/celestiaorg/celestia-node/share"
 	"github.com/celestiaorg/celestia-node/share/eds"
+	"github.com/celestiaorg/celestia-node/share/eds/byzantine"
 	"github.com/celestiaorg/celestia-node/share/ipld"
 )
 
@@ -38,7 +40,7 @@ func NewIPLDGetter(bServ blockservice.BlockService) *IPLDGetter {
 }
 
 // GetShare gets a single share at the given EDS coordinates from the bitswap network.
-func (ig *IPLDGetter) GetShare(ctx context.Context, dah *share.Root, row, col int) (share.Share, error) {
+func (ig *IPLDGetter) GetShare(ctx context.Context, header *header.ExtendedHeader, row, col int) (share.Share, error) {
 	var err error
 	ctx, span := tracer.Start(ctx, "ipld/get-share", trace.WithAttributes(
 		attribute.Int("row", row),
@@ -48,6 +50,7 @@ func (ig *IPLDGetter) GetShare(ctx context.Context, dah *share.Root, row, col in
 		utils.SetStatusAndEnd(span, err)
 	}()
 
+	dah := header.DAH
 	upperBound := len(dah.RowRoots)
 	if row >= upperBound || col >= upperBound {
 		err := share.ErrOutOfBounds
@@ -70,17 +73,24 @@ func (ig *IPLDGetter) GetShare(ctx context.Context, dah *share.Root, row, col in
 	return s, nil
 }
 
-func (ig *IPLDGetter) GetEDS(ctx context.Context, root *share.Root) (eds *rsmt2d.ExtendedDataSquare, err error) {
+func (ig *IPLDGetter) GetEDS(
+	ctx context.Context,
+	header *header.ExtendedHeader,
+) (eds *rsmt2d.ExtendedDataSquare, err error) {
 	ctx, span := tracer.Start(ctx, "ipld/get-eds")
 	defer func() {
 		utils.SetStatusAndEnd(span, err)
 	}()
 
 	// rtrv.Retrieve calls shares.GetShares until enough shares are retrieved to reconstruct the EDS
-	eds, err = ig.rtrv.Retrieve(ctx, root)
+	eds, err = ig.rtrv.Retrieve(ctx, header.DAH)
 	if errors.Is(err, ipld.ErrNodeNotFound) {
 		// convert error to satisfy getter interface contract
 		err = share.ErrNotFound
+	}
+	var errByz *byzantine.ErrByzantine
+	if errors.As(err, &errByz) {
+		return nil, err
 	}
 	if err != nil {
 		return nil, fmt.Errorf("getter/ipld: failed to retrieve eds: %w", err)
@@ -90,7 +100,7 @@ func (ig *IPLDGetter) GetEDS(ctx context.Context, root *share.Root) (eds *rsmt2d
 
 func (ig *IPLDGetter) GetSharesByNamespace(
 	ctx context.Context,
-	root *share.Root,
+	header *header.ExtendedHeader,
 	namespace share.Namespace,
 ) (shares share.NamespacedShares, err error) {
 	ctx, span := tracer.Start(ctx, "ipld/get-shares-by-namespace", trace.WithAttributes(
@@ -106,7 +116,7 @@ func (ig *IPLDGetter) GetSharesByNamespace(
 
 	// wrap the blockservice in a session if it has been signaled in the context.
 	blockGetter := getGetter(ctx, ig.bServ)
-	shares, err = collectSharesByNamespace(ctx, blockGetter, root, namespace)
+	shares, err = eds.CollectSharesByNamespace(ctx, blockGetter, header.DAH, namespace)
 	if errors.Is(err, ipld.ErrNodeNotFound) {
 		// convert error to satisfy getter interface contract
 		err = share.ErrNotFound

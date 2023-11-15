@@ -13,8 +13,10 @@ import (
 
 	"github.com/celestiaorg/rsmt2d"
 
+	"github.com/celestiaorg/celestia-node/header"
 	"github.com/celestiaorg/celestia-node/libs/utils"
 	"github.com/celestiaorg/celestia-node/share"
+	"github.com/celestiaorg/celestia-node/share/ipld"
 	"github.com/celestiaorg/celestia-node/share/p2p"
 	"github.com/celestiaorg/celestia-node/share/p2p/peers"
 	"github.com/celestiaorg/celestia-node/share/p2p/shrexeds"
@@ -119,11 +121,11 @@ func (sg *ShrexGetter) Stop(ctx context.Context) error {
 	return sg.peerManager.Stop(ctx)
 }
 
-func (sg *ShrexGetter) GetShare(context.Context, *share.Root, int, int) (share.Share, error) {
+func (sg *ShrexGetter) GetShare(context.Context, *header.ExtendedHeader, int, int) (share.Share, error) {
 	return nil, fmt.Errorf("getter/shrex: GetShare %w", errOperationNotSupported)
 }
 
-func (sg *ShrexGetter) GetEDS(ctx context.Context, root *share.Root) (*rsmt2d.ExtendedDataSquare, error) {
+func (sg *ShrexGetter) GetEDS(ctx context.Context, header *header.ExtendedHeader) (*rsmt2d.ExtendedDataSquare, error) {
 	var (
 		attempt int
 		err     error
@@ -133,6 +135,11 @@ func (sg *ShrexGetter) GetEDS(ctx context.Context, root *share.Root) (*rsmt2d.Ex
 		utils.SetStatusAndEnd(span, err)
 	}()
 
+	dah := header.DAH
+	// short circuit if the data root is empty
+	if dah.Equals(share.EmptyRoot()) {
+		return share.EmptyExtendedDataSquare(), nil
+	}
 	for {
 		if ctx.Err() != nil {
 			sg.metrics.recordEDSAttempt(ctx, attempt, false)
@@ -140,10 +147,10 @@ func (sg *ShrexGetter) GetEDS(ctx context.Context, root *share.Root) (*rsmt2d.Ex
 		}
 		attempt++
 		start := time.Now()
-		peer, setStatus, getErr := sg.peerManager.Peer(ctx, root.Hash())
+		peer, setStatus, getErr := sg.peerManager.Peer(ctx, dah.Hash())
 		if getErr != nil {
 			log.Debugw("eds: couldn't find peer",
-				"hash", root.String(),
+				"hash", dah.String(),
 				"err", getErr,
 				"finished (s)", time.Since(start))
 			sg.metrics.recordEDSAttempt(ctx, attempt, false)
@@ -152,7 +159,7 @@ func (sg *ShrexGetter) GetEDS(ctx context.Context, root *share.Root) (*rsmt2d.Ex
 
 		reqStart := time.Now()
 		reqCtx, cancel := ctxWithSplitTimeout(ctx, sg.minAttemptsCount-attempt+1, sg.minRequestTimeout)
-		eds, getErr := sg.edsClient.RequestEDS(reqCtx, root.Hash(), peer)
+		eds, getErr := sg.edsClient.RequestEDS(reqCtx, dah.Hash(), peer)
 		cancel()
 		switch {
 		case getErr == nil:
@@ -175,7 +182,7 @@ func (sg *ShrexGetter) GetEDS(ctx context.Context, root *share.Root) (*rsmt2d.Ex
 			err = errors.Join(err, getErr)
 		}
 		log.Debugw("eds: request failed",
-			"hash", root.String(),
+			"hash", dah.String(),
 			"peer", peer.String(),
 			"attempt", attempt,
 			"err", getErr,
@@ -185,7 +192,7 @@ func (sg *ShrexGetter) GetEDS(ctx context.Context, root *share.Root) (*rsmt2d.Ex
 
 func (sg *ShrexGetter) GetSharesByNamespace(
 	ctx context.Context,
-	root *share.Root,
+	header *header.ExtendedHeader,
 	namespace share.Namespace,
 ) (share.NamespacedShares, error) {
 	if err := namespace.ValidateForData(); err != nil {
@@ -203,9 +210,10 @@ func (sg *ShrexGetter) GetSharesByNamespace(
 	}()
 
 	// verify that the namespace could exist inside the roots before starting network requests
-	roots := filterRootsByNamespace(root, namespace)
+	dah := header.DAH
+	roots := ipld.FilterRootByNamespace(dah, namespace)
 	if len(roots) == 0 {
-		return nil, nil
+		return []share.NamespacedRow{}, nil
 	}
 
 	for {
@@ -215,10 +223,10 @@ func (sg *ShrexGetter) GetSharesByNamespace(
 		}
 		attempt++
 		start := time.Now()
-		peer, setStatus, getErr := sg.peerManager.Peer(ctx, root.Hash())
+		peer, setStatus, getErr := sg.peerManager.Peer(ctx, dah.Hash())
 		if getErr != nil {
 			log.Debugw("nd: couldn't find peer",
-				"hash", root.String(),
+				"hash", dah.String(),
 				"namespace", namespace.String(),
 				"err", getErr,
 				"finished (s)", time.Since(start))
@@ -228,12 +236,12 @@ func (sg *ShrexGetter) GetSharesByNamespace(
 
 		reqStart := time.Now()
 		reqCtx, cancel := ctxWithSplitTimeout(ctx, sg.minAttemptsCount-attempt+1, sg.minRequestTimeout)
-		nd, getErr := sg.ndClient.RequestND(reqCtx, root, namespace, peer)
+		nd, getErr := sg.ndClient.RequestND(reqCtx, dah, namespace, peer)
 		cancel()
 		switch {
 		case getErr == nil:
 			// both inclusion and non-inclusion cases needs verification
-			if verErr := nd.Verify(root, namespace); verErr != nil {
+			if verErr := nd.Verify(dah, namespace); verErr != nil {
 				getErr = verErr
 				setStatus(peers.ResultBlacklistPeer)
 				break
@@ -257,7 +265,7 @@ func (sg *ShrexGetter) GetSharesByNamespace(
 			err = errors.Join(err, getErr)
 		}
 		log.Debugw("nd: request failed",
-			"hash", root.String(),
+			"hash", dah.String(),
 			"namespace", namespace.String(),
 			"peer", peer.String(),
 			"attempt", attempt,

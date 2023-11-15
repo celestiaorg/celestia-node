@@ -3,26 +3,33 @@ package light
 import (
 	"testing"
 
-	"github.com/ipfs/go-blockservice"
-	mdutils "github.com/ipfs/go-merkledag/test"
+	"github.com/ipfs/boxo/blockservice"
+	"github.com/ipfs/go-datastore"
 
+	"github.com/celestiaorg/celestia-node/header"
+	"github.com/celestiaorg/celestia-node/header/headertest"
 	"github.com/celestiaorg/celestia-node/share"
 	availability_test "github.com/celestiaorg/celestia-node/share/availability/test"
 	"github.com/celestiaorg/celestia-node/share/getters"
+	"github.com/celestiaorg/celestia-node/share/ipld"
 )
 
 // GetterWithRandSquare provides a share.Getter filled with 'n' NMT trees of 'n' random shares,
 // essentially storing a whole square.
-func GetterWithRandSquare(t *testing.T, n int) (share.Getter, *share.Root) {
-	bServ := mdutils.Bserv()
+func GetterWithRandSquare(t *testing.T, n int) (share.Getter, *header.ExtendedHeader) {
+	bServ := ipld.NewMemBlockservice()
 	getter := getters.NewIPLDGetter(bServ)
-	return getter, availability_test.RandFillBS(t, n, bServ)
+	root := availability_test.RandFillBS(t, n, bServ)
+	eh := headertest.RandExtendedHeader(t)
+	eh.DAH = root
+
+	return getter, eh
 }
 
 // EmptyGetter provides an unfilled share.Getter with corresponding blockservice.BlockService than
 // can be filled by the test.
 func EmptyGetter() (share.Getter, blockservice.BlockService) {
-	bServ := mdutils.Bserv()
+	bServ := ipld.NewMemBlockservice()
 	getter := getters.NewIPLDGetter(bServ)
 	return getter, bServ
 }
@@ -42,7 +49,8 @@ func Node(dn *availability_test.TestDagNet) *availability_test.TestNode {
 }
 
 func TestAvailability(getter share.Getter) *ShareAvailability {
-	return NewShareAvailability(getter)
+	ds := datastore.NewMapDatastore()
+	return NewShareAvailability(getter, ds)
 }
 
 func SubNetNode(sn *availability_test.SubNet) *availability_test.TestNode {

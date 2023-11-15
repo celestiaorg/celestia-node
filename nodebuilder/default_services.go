@@ -18,7 +18,7 @@ var PackageToAPI = map[string]interface{}{
 	"state":  &state.API{},
 	"share":  &share.API{},
 	"header": &header.API{},
-	"daser":  &das.API{},
+	"das":    &das.API{},
 	"p2p":    &p2p.API{},
 	"blob":   &blob.API{},
 	"node":   &node.API{},

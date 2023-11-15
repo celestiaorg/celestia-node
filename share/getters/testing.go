@@ -10,18 +10,21 @@ import (
 	"github.com/celestiaorg/celestia-app/pkg/da"
 	"github.com/celestiaorg/rsmt2d"
 
+	"github.com/celestiaorg/celestia-node/header"
+	"github.com/celestiaorg/celestia-node/header/headertest"
 	"github.com/celestiaorg/celestia-node/share"
 	"github.com/celestiaorg/celestia-node/share/eds/edstest"
 )
 
 // TestGetter provides a testing SingleEDSGetter and the root of the EDS it holds.
-func TestGetter(t *testing.T) (share.Getter, *share.Root) {
+func TestGetter(t *testing.T) (share.Getter, *header.ExtendedHeader) {
 	eds := edstest.RandEDS(t, 8)
-	dah, err := da.NewDataAvailabilityHeader(eds)
+	dah, err := share.NewRoot(eds)
+	eh := headertest.RandExtendedHeaderWithRoot(t, dah)
 	require.NoError(t, err)
 	return &SingleEDSGetter{
 		EDS: eds,
-	}, &dah
+	}, eh
 }
 
 // SingleEDSGetter contains a single EDS where data is retrieved from.
@@ -31,8 +34,12 @@ type SingleEDSGetter struct {
 }
 
 // GetShare gets a share from a kept EDS if exist and if the correct root is given.
-func (seg *SingleEDSGetter) GetShare(_ context.Context, root *share.Root, row, col int) (share.Share, error) {
-	err := seg.checkRoot(root)
+func (seg *SingleEDSGetter) GetShare(
+	_ context.Context,
+	header *header.ExtendedHeader,
+	row, col int,
+) (share.Share, error) {
+	err := seg.checkRoot(header.DAH)
 	if err != nil {
 		return nil, err
 	}
@@ -40,8 +47,11 @@ func (seg *SingleEDSGetter) GetShare(_ context.Context, root *share.Root, row, c
 }
 
 // GetEDS returns a kept EDS if the correct root is given.
-func (seg *SingleEDSGetter) GetEDS(_ context.Context, root *share.Root) (*rsmt2d.ExtendedDataSquare, error) {
-	err := seg.checkRoot(root)
+func (seg *SingleEDSGetter) GetEDS(
+	_ context.Context,
+	header *header.ExtendedHeader,
+) (*rsmt2d.ExtendedDataSquare, error) {
+	err := seg.checkRoot(header.DAH)
 	if err != nil {
 		return nil, err
 	}
@@ -49,7 +59,7 @@ func (seg *SingleEDSGetter) GetEDS(_ context.Context, root *share.Root) (*rsmt2d
 }
 
 // GetSharesByNamespace returns NamespacedShares from a kept EDS if the correct root is given.
-func (seg *SingleEDSGetter) GetSharesByNamespace(context.Context, *share.Root, share.Namespace,
+func (seg *SingleEDSGetter) GetSharesByNamespace(context.Context, *header.ExtendedHeader, share.Namespace,
 ) (share.NamespacedShares, error) {
 	panic("SingleEDSGetter: GetSharesByNamespace is not implemented")
 }

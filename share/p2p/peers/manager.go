@@ -7,7 +7,6 @@ import (
 	"sync"
 	"sync/atomic"
 	"time"
-	"unsafe"
 
 	logging "github.com/ipfs/go-log/v2"
 	pubsub "github.com/libp2p/go-libp2p-pubsub"
@@ -22,7 +21,6 @@ import (
 
 	"github.com/celestiaorg/celestia-node/header"
 	"github.com/celestiaorg/celestia-node/share"
-	"github.com/celestiaorg/celestia-node/share/p2p/discovery"
 	"github.com/celestiaorg/celestia-node/share/p2p/shrexsub"
 )
 
@@ -55,7 +53,6 @@ type Manager struct {
 	// header subscription is necessary in order to Validate the inbound eds hash
 	headerSub libhead.Subscriber[*header.ExtendedHeader]
 	shrexSub  *shrexsub.PubSub
-	disc      *discovery.Discovery
 	host      host.Host
 	connGater *conngater.BasicConnectionGater
 
@@ -99,11 +96,9 @@ type syncPool struct {
 
 func NewManager(
 	params Parameters,
-	headerSub libhead.Subscriber[*header.ExtendedHeader],
-	shrexSub *shrexsub.PubSub,
-	discovery *discovery.Discovery,
 	host host.Host,
 	connGater *conngater.BasicConnectionGater,
+	options ...Option,
 ) (*Manager, error) {
 	if err := params.Validate(); err != nil {
 		return nil, err
@@ -111,10 +106,7 @@ func NewManager(
 
 	s := &Manager{
 		params:                params,
-		headerSub:             headerSub,
-		shrexSub:              shrexSub,
 		connGater:             connGater,
-		disc:                  discovery,
 		host:                  host,
 		pools:                 make(map[string]*syncPool),
 		blacklistedHashes:     make(map[string]bool),
@@ -122,24 +114,14 @@ func NewManager(
 		disconnectedPeersDone: make(chan struct{}),
 	}
 
+	for _, opt := range options {
+		err := opt(s)
+		if err != nil {
+			return nil, err
+		}
+	}
+
 	s.fullNodes = newPool(s.params.PeerCooldown)
-
-	discovery.WithOnPeersUpdate(
-		func(peerID peer.ID, isAdded bool) {
-			if isAdded {
-				if s.isBlacklistedPeer(peerID) {
-					log.Debugw("got blacklisted peer from discovery", "peer", peerID.String())
-					return
-				}
-				s.fullNodes.add(peerID)
-				log.Debugw("added to full nodes", "peer", peerID)
-				return
-			}
-
-			log.Debugw("removing peer from discovered full nodes", "peer", peerID.String())
-			s.fullNodes.remove(peerID)
-		})
-
 	return s, nil
 }
 
@@ -147,12 +129,17 @@ func (m *Manager) Start(startCtx context.Context) error {
 	ctx, cancel := context.WithCancel(context.Background())
 	m.cancel = cancel
 
+	// pools will only be populated with senders of shrexsub notifications if the WithShrexSubPools
+	// option is used.
+	if m.shrexSub == nil && m.headerSub == nil {
+		return nil
+	}
+
 	validatorFn := m.metrics.validationObserver(m.Validate)
 	err := m.shrexSub.AddValidator(validatorFn)
 	if err != nil {
 		return fmt.Errorf("registering validator: %w", err)
 	}
-
 	err = m.shrexSub.Start(startCtx)
 	if err != nil {
 		return fmt.Errorf("starting shrexsub: %w", err)
@@ -168,15 +155,20 @@ func (m *Manager) Start(startCtx context.Context) error {
 		return fmt.Errorf("subscribing to libp2p events: %w", err)
 	}
 
-	go m.subscribeDisconnectedPeers(ctx, sub)
 	go m.subscribeHeader(ctx, headerSub)
+	go m.subscribeDisconnectedPeers(ctx, sub)
 	go m.GC(ctx)
-
 	return nil
 }
 
 func (m *Manager) Stop(ctx context.Context) error {
 	m.cancel()
+
+	// we do not need to wait for headersub and disconnected peers to finish
+	// here, since they were never started
+	if m.headerSub == nil && m.shrexSub == nil {
+		return nil
+	}
 
 	select {
 	case <-m.headerSubDone:
@@ -232,6 +224,22 @@ func (m *Manager) Peer(
 	case <-ctx.Done():
 		return "", nil, ctx.Err()
 	}
+}
+
+// UpdateFullNodePool is called by discovery when new full node is discovered or removed
+func (m *Manager) UpdateFullNodePool(peerID peer.ID, isAdded bool) {
+	if isAdded {
+		if m.isBlacklistedPeer(peerID) {
+			log.Debugw("got blacklisted peer from discovery", "peer", peerID.String())
+			return
+		}
+		m.fullNodes.add(peerID)
+		log.Debugw("added to full nodes", "peer", peerID)
+		return
+	}
+
+	log.Debugw("removing peer from discovered full nodes", "peer", peerID.String())
+	m.fullNodes.remove(peerID)
 }
 
 func (m *Manager) newPeer(
@@ -504,9 +512,7 @@ func (m *Manager) markPoolAsSynced(datahash string) {
 	p := m.getOrCreatePool(datahash)
 	if p.isSynced.CompareAndSwap(false, true) {
 		p.isSynced.Store(true)
-		old := (*unsafe.Pointer)(unsafe.Pointer(&p.pool))
-		// release pointer to old pool to free up memory
-		atomic.StorePointer(old, unsafe.Pointer(newPool(time.Second)))
+		p.reset()
 	}
 }
 

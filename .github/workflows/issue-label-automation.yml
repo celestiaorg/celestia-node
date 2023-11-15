@@ -5,15 +5,18 @@ on:
     types: [opened]
   issues:
     types: [opened]
+
 jobs:
   automate-labels:
     runs-on: ubuntu-latest
+    if: ${{ github.actor != 'dependabot[bot]' }}
     permissions:
       issues: write
       pull-requests: write
+
     steps:
       - name: Check for External Contributor
-        uses: tspascoal/get-user-teams-membership@v2
+        uses: tspascoal/get-user-teams-membership@v3
         id: teamCheck
         with:
           username: ${{ github.actor }}

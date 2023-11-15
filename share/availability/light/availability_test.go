@@ -9,13 +9,74 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"github.com/celestiaorg/celestia-app/pkg/da"
-
-	"github.com/celestiaorg/celestia-node/header"
+	"github.com/celestiaorg/celestia-node/header/headertest"
 	"github.com/celestiaorg/celestia-node/share"
 	availability_test "github.com/celestiaorg/celestia-node/share/availability/test"
+	"github.com/celestiaorg/celestia-node/share/ipld"
 	"github.com/celestiaorg/celestia-node/share/sharetest"
 )
+
+func TestSharesAvailableCaches(t *testing.T) {
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	getter, eh := GetterWithRandSquare(t, 16)
+	dah := eh.DAH
+	avail := TestAvailability(getter)
+
+	// cache doesn't have dah yet
+	has, err := avail.ds.Has(ctx, rootKey(dah))
+	assert.NoError(t, err)
+	assert.False(t, has)
+
+	err = avail.SharesAvailable(ctx, eh)
+	assert.NoError(t, err)
+
+	// is now cached
+	has, err = avail.ds.Has(ctx, rootKey(dah))
+	assert.NoError(t, err)
+	assert.True(t, has)
+}
+
+func TestSharesAvailableHitsCache(t *testing.T) {
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	getter, _ := GetterWithRandSquare(t, 16)
+	avail := TestAvailability(getter)
+
+	bServ := ipld.NewMemBlockservice()
+	dah := availability_test.RandFillBS(t, 16, bServ)
+	eh := headertest.RandExtendedHeaderWithRoot(t, dah)
+
+	// blockstore doesn't actually have the dah
+	err := avail.SharesAvailable(ctx, eh)
+	require.Error(t, err)
+
+	// cache doesn't have dah yet, since it errored
+	has, err := avail.ds.Has(ctx, rootKey(dah))
+	assert.NoError(t, err)
+	assert.False(t, has)
+
+	err = avail.ds.Put(ctx, rootKey(dah), []byte{})
+	require.NoError(t, err)
+
+	// should hit cache after putting
+	err = avail.SharesAvailable(ctx, eh)
+	require.NoError(t, err)
+}
+
+func TestSharesAvailableEmptyRoot(t *testing.T) {
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	getter, _ := GetterWithRandSquare(t, 16)
+	avail := TestAvailability(getter)
+
+	eh := headertest.RandExtendedHeaderWithRoot(t, share.EmptyRoot())
+	err := avail.SharesAvailable(ctx, eh)
+	assert.NoError(t, err)
+}
 
 func TestSharesAvailable(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
@@ -31,10 +92,13 @@ func TestSharesAvailableFailed(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
+	bServ := ipld.NewMemBlockservice()
+	dah := availability_test.RandFillBS(t, 16, bServ)
+	eh := headertest.RandExtendedHeaderWithRoot(t, dah)
+
 	getter, _ := GetterWithRandSquare(t, 16)
 	avail := TestAvailability(getter)
-	empty := header.EmptyDAH()
-	err := avail.SharesAvailable(ctx, &empty)
+	err := avail.SharesAvailable(ctx, eh)
 	assert.Error(t, err)
 }
 
@@ -44,10 +108,12 @@ func TestShareAvailableOverMocknet_Light(t *testing.T) {
 
 	net := availability_test.NewTestDAGNet(ctx, t)
 	_, root := RandNode(net, 16)
+	eh := headertest.RandExtendedHeader(t)
+	eh.DAH = root
 	nd := Node(net)
 	net.ConnectAll()
 
-	err := nd.SharesAvailable(ctx, root)
+	err := nd.SharesAvailable(ctx, eh)
 	assert.NoError(t, err)
 }
 
@@ -56,11 +122,11 @@ func TestGetShare(t *testing.T) {
 	defer cancel()
 
 	n := 16
-	getter, dah := GetterWithRandSquare(t, n)
+	getter, eh := GetterWithRandSquare(t, n)
 
 	for i := range make([]bool, n) {
 		for j := range make([]bool, n) {
-			sh, err := getter.GetShare(ctx, dah, i, j)
+			sh, err := getter.GetShare(ctx, eh, i, j)
 			assert.NotNil(t, sh)
 			assert.NoError(t, err)
 		}
@@ -89,9 +155,11 @@ func TestService_GetSharesByNamespace(t *testing.T) {
 				copy(share.GetNamespace(randShares[idx2]), share.GetNamespace(randShares[idx1]))
 			}
 			root := availability_test.FillBS(t, bServ, randShares)
+			eh := headertest.RandExtendedHeader(t)
+			eh.DAH = root
 			randNamespace := share.GetNamespace(randShares[idx1])
 
-			shares, err := getter.GetSharesByNamespace(context.Background(), root, randNamespace)
+			shares, err := getter.GetSharesByNamespace(context.Background(), eh, randNamespace)
 			require.NoError(t, err)
 			require.NoError(t, shares.Verify(root, randNamespace))
 			flattened := shares.Flatten()
@@ -115,8 +183,10 @@ func TestService_GetSharesByNamespace(t *testing.T) {
 				copy(share.GetNamespace(randShares[i]), lastNID)
 			}
 			root := availability_test.FillBS(t, bServ, randShares)
+			eh := headertest.RandExtendedHeader(t)
+			eh.DAH = root
 
-			shares, err := getter.GetSharesByNamespace(context.Background(), root, lastNID)
+			shares, err := getter.GetSharesByNamespace(context.Background(), eh, lastNID)
 			require.NoError(t, err)
 			require.NoError(t, shares.Verify(root, lastNID))
 		})
@@ -128,21 +198,21 @@ func TestGetShares(t *testing.T) {
 	defer cancel()
 
 	n := 16
-	getter, dah := GetterWithRandSquare(t, n)
+	getter, eh := GetterWithRandSquare(t, n)
 
-	eds, err := getter.GetEDS(ctx, dah)
+	eds, err := getter.GetEDS(ctx, eh)
 	require.NoError(t, err)
-	gotDAH, err := da.NewDataAvailabilityHeader(eds)
+	gotDAH, err := share.NewRoot(eds)
 	require.NoError(t, err)
 
-	require.True(t, dah.Equals(&gotDAH))
+	require.True(t, eh.DAH.Equals(gotDAH))
 }
 
 func TestService_GetSharesByNamespaceNotFound(t *testing.T) {
-	getter, root := GetterWithRandSquare(t, 1)
-	root.RowRoots = nil
+	getter, eh := GetterWithRandSquare(t, 1)
+	eh.DAH.RowRoots = nil
 
-	emptyShares, err := getter.GetSharesByNamespace(context.Background(), root, sharetest.RandV0Namespace())
+	emptyShares, err := getter.GetSharesByNamespace(context.Background(), eh, sharetest.RandV0Namespace())
 	require.NoError(t, err)
 	require.Empty(t, emptyShares.Flatten())
 }
@@ -159,12 +229,13 @@ func BenchmarkService_GetSharesByNamespace(b *testing.B) {
 	for _, tt := range tests {
 		b.Run(strconv.Itoa(tt.amountShares), func(b *testing.B) {
 			t := &testing.T{}
-			getter, root := GetterWithRandSquare(t, tt.amountShares)
+			getter, eh := GetterWithRandSquare(t, tt.amountShares)
+			root := eh.DAH
 			randNamespace := root.RowRoots[(len(root.RowRoots)-1)/2][:share.NamespaceSize]
 			root.RowRoots[(len(root.RowRoots) / 2)] = root.RowRoots[(len(root.RowRoots)-1)/2]
 			b.ResetTimer()
 			for i := 0; i < b.N; i++ {
-				_, err := getter.GetSharesByNamespace(context.Background(), root, randNamespace)
+				_, err := getter.GetSharesByNamespace(context.Background(), eh, randNamespace)
 				require.NoError(t, err)
 			}
 		})

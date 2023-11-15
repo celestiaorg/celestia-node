@@ -8,9 +8,8 @@ import (
 	context "context"
 	reflect "reflect"
 
+	header "github.com/celestiaorg/celestia-node/header"
 	gomock "github.com/golang/mock/gomock"
-
-	da "github.com/celestiaorg/celestia-app/pkg/da"
 )
 
 // MockAvailability is a mock of Availability interface.
@@ -36,22 +35,8 @@ func (m *MockAvailability) EXPECT() *MockAvailabilityMockRecorder {
 	return m.recorder
 }
 
-// ProbabilityOfAvailability mocks base method.
-func (m *MockAvailability) ProbabilityOfAvailability(arg0 context.Context) float64 {
-	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "ProbabilityOfAvailability", arg0)
-	ret0, _ := ret[0].(float64)
-	return ret0
-}
-
-// ProbabilityOfAvailability indicates an expected call of ProbabilityOfAvailability.
-func (mr *MockAvailabilityMockRecorder) ProbabilityOfAvailability(arg0 interface{}) *gomock.Call {
-	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ProbabilityOfAvailability", reflect.TypeOf((*MockAvailability)(nil).ProbabilityOfAvailability), arg0)
-}
-
 // SharesAvailable mocks base method.
-func (m *MockAvailability) SharesAvailable(arg0 context.Context, arg1 *da.DataAvailabilityHeader) error {
+func (m *MockAvailability) SharesAvailable(arg0 context.Context, arg1 *header.ExtendedHeader) error {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "SharesAvailable", arg0, arg1)
 	ret0, _ := ret[0].(error)

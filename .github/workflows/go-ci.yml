@@ -2,41 +2,62 @@ name: Go CI
 
 on:
   workflow_call:
-
-env:
-  GO_VERSION: '1.21'
+    inputs:
+      go-version:
+        description: 'Go version'
+        required: true
+        type: string
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.head_ref || github.run_id }}
   cancel-in-progress: true
 
 jobs:
+  setup:
+    runs-on: ubuntu-latest
+    outputs:
+      debug: ${{ steps.debug.outputs.debug }}
+    steps:
+      - name: Set debug output
+        id: debug
+        run: |
+          if [[ "${{ runner.debug }}" == "true" ]]; then
+            echo "debug=true" >> $GITHUB_ENV
+          else
+            echo "debug=false" >> $GITHUB_ENV
+          fi
+
   lint:
+    needs: [setup]
     name: Lint
     runs-on: ubuntu-latest
 
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
 
       - uses: actions/setup-go@v4
         with:
-          go-version: ${{ env.GO_VERSION }}
+          go-version: ${{ inputs.go-version }}
 
       - name: golangci-lint
-        uses: golangci/golangci-lint-action@v3.6.0
+        uses: golangci/golangci-lint-action@v3.7.0
         with:
-          version: v1.52.2
+          args: --timeout 10m
+          version: v1.55
+          skip-pkg-cache: true
+          skip-build-cache: true
 
   go_mod_tidy_check:
+    needs: [setup]
     name: Go Mod Tidy Check
     runs-on: ubuntu-latest
 
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
 
       - uses: actions/setup-go@v4
         with:
-          go-version: ${{ env.GO_VERSION }}
+          go-version: ${{ inputs.go-version }}
 
       - run: go mod tidy
 
@@ -44,52 +65,73 @@ jobs:
         run: git diff --exit-code
 
   test_coverage:
+    needs: [lint, go_mod_tidy_check]
     name: Unit Tests Coverage
-    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest]
+    runs-on: ${{ matrix.os }}
+    env:
+      OS: ${{ matrix.os }}
 
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
 
       - name: set up go
         uses: actions/setup-go@v4
         with:
-          go-version: ${{ env.GO_VERSION }}
+          go-version: ${{ inputs.go-version }}
 
       - name: run unit tests
-        run: make test-unit
+        run: make test-unit ENABLE_VERBOSE=${{ needs.setup.outputs.debug }}
+
+      - name: Upload unit test output
+        uses: actions/upload-artifact@v3
+        if: always() && needs.setup.outputs.debug == 'true'
+        with:
+          name: unit-test-output-${{ matrix.os }}
+          path: |
+            debug.log
+            coverage.txt
+          retention-days: 5
 
       - name: upload coverage
         uses: codecov/codecov-action@v3.1.4
         with:
+          env_vars: OS
           token: ${{ secrets.CODECOV_TOKEN }}
           file: ./coverage.txt
+          name: coverage-${{ matrix.os }}
 
   unit_race_test:
+    needs: [lint, go_mod_tidy_check]
     name: Run Unit Tests with Race Detector
     runs-on: ubuntu-latest
 
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
 
       - name: set up go
         uses: actions/setup-go@v4
         with:
-          go-version: ${{ env.GO_VERSION }}
+          go-version: ${{ inputs.go-version }}
 
       - name: execute test run
         run: make test-unit-race
 
   integration_test:
+    needs: [lint, go_mod_tidy_check]
     name: Run Integration Tests
     runs-on: ubuntu-latest
 
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
 
       - name: set up go
         uses: actions/setup-go@v4
         with:
-          go-version: ${{ env.GO_VERSION }}
+          go-version: ${{ inputs.go-version }}
 
       - name: Swamp Tests
         run: make test-swamp

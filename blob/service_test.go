@@ -4,12 +4,12 @@ import (
 	"bytes"
 	"context"
 	"crypto/sha256"
+	"encoding/json"
 	"testing"
 	"time"
 
 	ds "github.com/ipfs/go-datastore"
 	ds_sync "github.com/ipfs/go-datastore/sync"
-	mdutils "github.com/ipfs/go-merkledag/test"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	tmrand "github.com/tendermint/tendermint/libs/rand"
@@ -272,14 +272,14 @@ func TestBlobService_Get(t *testing.T) {
 			doFn: func() (interface{}, error) {
 				proof, err := service.GetProof(ctx, 1, blobs0[1].Namespace(), blobs0[1].Commitment)
 				require.NoError(t, err)
-				return proof.MarshalJSON()
+				return json.Marshal(proof)
 			},
 			expectedResult: func(i interface{}, err error) {
 				require.NoError(t, err)
 				jsonData, ok := i.([]byte)
 				require.True(t, ok)
 				var proof Proof
-				require.NoError(t, proof.UnmarshalJSON(jsonData))
+				require.NoError(t, json.Unmarshal(jsonData, &proof))
 
 				newProof, err := service.GetProof(ctx, 1, blobs0[1].Namespace(), blobs0[1].Commitment)
 				require.NoError(t, err)
@@ -323,7 +323,7 @@ func TestService_GetSingleBlobWithoutPadding(t *testing.T) {
 	rawShares = append(rawShares, append(rawShares0, padding0.ToBytes())...)
 	rawShares = append(rawShares, append(rawShares1, padding1.ToBytes())...)
 
-	bs := mdutils.Bserv()
+	bs := ipld.NewMemBlockservice()
 	batching := ds_sync.MutexWrap(ds.NewMapDatastore())
 	headerStore, err := store.NewStore[*header.ExtendedHeader](batching)
 	require.NoError(t, err)
@@ -342,6 +342,25 @@ func TestService_GetSingleBlobWithoutPadding(t *testing.T) {
 	newBlob, err := service.Get(ctx, 1, blobs[1].Namespace(), blobs[1].Commitment)
 	require.NoError(t, err)
 	assert.Equal(t, newBlob.Commitment, blobs[1].Commitment)
+}
+
+func TestService_Get(t *testing.T) {
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second*5)
+	t.Cleanup(cancel)
+
+	sizes := []int{1, 6, 3, 2, 4, 6, 8, 2, 15, 17}
+
+	appBlobs, err := blobtest.GenerateV0Blobs(sizes, true)
+	require.NoError(t, err)
+	blobs, err := convertBlobs(appBlobs...)
+	require.NoError(t, err)
+
+	service := createService(ctx, t, blobs)
+	for _, blob := range blobs {
+		b, err := service.Get(ctx, 1, blob.Namespace(), blob.Commitment)
+		require.NoError(t, err)
+		assert.Equal(t, b.Commitment, blob.Commitment)
+	}
 }
 
 func TestService_GetAllWithoutPadding(t *testing.T) {
@@ -374,7 +393,7 @@ func TestService_GetAllWithoutPadding(t *testing.T) {
 		rawShares = append(rawShares, append(rawShares0, padding0.ToBytes())...)
 	}
 
-	bs := mdutils.Bserv()
+	bs := ipld.NewMemBlockservice()
 	batching := ds_sync.MutexWrap(ds.NewMapDatastore())
 	headerStore, err := store.NewStore[*header.ExtendedHeader](batching)
 	require.NoError(t, err)
@@ -396,7 +415,7 @@ func TestService_GetAllWithoutPadding(t *testing.T) {
 }
 
 func createService(ctx context.Context, t *testing.T, blobs []*Blob) *Service {
-	bs := mdutils.Bserv()
+	bs := ipld.NewMemBlockservice()
 	batching := ds_sync.MutexWrap(ds.NewMapDatastore())
 	headerStore, err := store.NewStore[*header.ExtendedHeader](batching)
 	require.NoError(t, err)

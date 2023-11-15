@@ -11,10 +11,10 @@ import (
 
 	libhead "github.com/celestiaorg/go-header"
 	"github.com/celestiaorg/go-header/p2p"
-	"github.com/celestiaorg/go-header/store"
 	"github.com/celestiaorg/go-header/sync"
 
 	"github.com/celestiaorg/celestia-node/header"
+	"github.com/celestiaorg/celestia-node/libs/pidstore"
 	modfraud "github.com/celestiaorg/celestia-node/nodebuilder/fraud"
 	"github.com/celestiaorg/celestia-node/nodebuilder/node"
 	modp2p "github.com/celestiaorg/celestia-node/nodebuilder/p2p"
@@ -30,19 +30,6 @@ func ConstructModule[H libhead.Header[H]](tp node.Type, cfg *Config) fx.Option {
 		fx.Supply(*cfg),
 		fx.Error(cfgErr),
 		fx.Provide(newHeaderService),
-		fx.Provide(fx.Annotate(
-			func(ds datastore.Batching) (libhead.Store[H], error) {
-				return store.NewStore[H](ds, store.WithParams(cfg.Store))
-			},
-			fx.OnStart(func(ctx context.Context, str libhead.Store[H]) error {
-				s := str.(*store.Store[H])
-				return s.Start(ctx)
-			}),
-			fx.OnStop(func(ctx context.Context, str libhead.Store[H]) error {
-				s := str.(*store.Store[H])
-				return s.Stop(ctx)
-			}),
-		)),
 		fx.Provide(newInitStore[H]),
 		fx.Provide(func(subscriber *p2p.Subscriber[H]) libhead.Subscriber[H] {
 			return subscriber
@@ -63,8 +50,12 @@ func ConstructModule[H libhead.Header[H]](tp node.Type, cfg *Config) fx.Option {
 			}),
 		)),
 		fx.Provide(fx.Annotate(
-			func(ps *pubsub.PubSub, network modp2p.Network) *p2p.Subscriber[H] {
-				return p2p.NewSubscriber[H](ps, header.MsgID, network.String())
+			func(ps *pubsub.PubSub, network modp2p.Network) (*p2p.Subscriber[H], error) {
+				opts := []p2p.SubscriberOption{p2p.WithSubscriberNetworkID(network.String())}
+				if MetricsEnabled {
+					opts = append(opts, p2p.WithSubscriberMetrics())
+				}
+				return p2p.NewSubscriber[H](ps, header.MsgID, opts...)
 			},
 			fx.OnStart(func(ctx context.Context, sub *p2p.Subscriber[H]) error {
 				return sub.Start(ctx)
@@ -75,14 +66,20 @@ func ConstructModule[H libhead.Header[H]](tp node.Type, cfg *Config) fx.Option {
 		)),
 		fx.Provide(fx.Annotate(
 			func(
+				cfg Config,
 				host host.Host,
 				store libhead.Store[H],
 				network modp2p.Network,
 			) (*p2p.ExchangeServer[H], error) {
-				return p2p.NewExchangeServer[H](host, store,
+				opts := []p2p.Option[p2p.ServerParameters]{
 					p2p.WithParams(cfg.Server),
 					p2p.WithNetworkID[p2p.ServerParameters](network.String()),
-				)
+				}
+				if MetricsEnabled {
+					opts = append(opts, p2p.WithMetrics[p2p.ServerParameters]())
+				}
+
+				return p2p.NewExchangeServer[H](host, store, opts...)
 			},
 			fx.OnStart(func(ctx context.Context, server *p2p.ExchangeServer[H]) error {
 				return server.Start(ctx)
@@ -99,6 +96,9 @@ func ConstructModule[H libhead.Header[H]](tp node.Type, cfg *Config) fx.Option {
 			"header",
 			baseComponents,
 			fx.Provide(newP2PExchange[H]),
+			fx.Provide(func(ctx context.Context, ds datastore.Batching) (p2p.PeerIDStore, error) {
+				return pidstore.NewPeerIDStore(ctx, ds)
+			}),
 		)
 	case node.Bridge:
 		return fx.Module(

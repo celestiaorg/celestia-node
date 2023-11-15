@@ -1,0 +1,9 @@
+---
+# Built from docs https://yamllint.readthedocs.io/en/stable/configuration.html
+extends: default
+
+rules:
+  # 120 chars should be enough, but don't fail if a line is longer
+  line-length:
+    max: 120
+    level: warning

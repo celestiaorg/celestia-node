@@ -1,7 +1,6 @@
 package headertest
 
 import (
-	"context"
 	"crypto/rand"
 	"fmt"
 	mrand "math/rand"
@@ -9,8 +8,6 @@ import (
 	"testing"
 	"time"
 
-	"github.com/ipfs/go-blockservice"
-	logging "github.com/ipfs/go-log/v2"
 	"github.com/stretchr/testify/require"
 	"github.com/tendermint/tendermint/crypto/tmhash"
 	"github.com/tendermint/tendermint/libs/bytes"
@@ -26,11 +23,8 @@ import (
 	"github.com/celestiaorg/rsmt2d"
 
 	"github.com/celestiaorg/celestia-node/header"
-	"github.com/celestiaorg/celestia-node/share/eds/edstest"
-	"github.com/celestiaorg/celestia-node/share/ipld"
+	"github.com/celestiaorg/celestia-node/share"
 )
-
-var log = logging.Logger("headertest")
 
 // TestSuite provides everything you need to test chain of Headers.
 // If not, please don't hesitate to extend it for your case.
@@ -59,7 +53,7 @@ func NewTestSuite(t *testing.T, num int) *TestSuite {
 }
 
 func (s *TestSuite) genesis() *header.ExtendedHeader {
-	dah := header.EmptyDAH()
+	dah := share.EmptyRoot()
 
 	gen := RandRawHeader(s.t)
 
@@ -77,7 +71,7 @@ func (s *TestSuite) genesis() *header.ExtendedHeader {
 		RawHeader:    *gen,
 		Commit:       commit,
 		ValidatorSet: s.valSet,
-		DAH:          &dah,
+		DAH:          dah,
 	}
 	require.NoError(s.t, eh.Validate())
 	return eh
@@ -144,14 +138,14 @@ func (s *TestSuite) NextHeader() *header.ExtendedHeader {
 		return s.head
 	}
 
-	dah := da.MinDataAvailabilityHeader()
+	dah := share.EmptyRoot()
 	height := s.Head().Height() + 1
 	rh := s.GenRawHeader(height, s.Head().Hash(), libhead.Hash(s.Head().Commit.Hash()), dah.Hash())
 	s.head = &header.ExtendedHeader{
 		RawHeader:    *rh,
 		Commit:       s.Commit(rh),
 		ValidatorSet: s.valSet,
-		DAH:          &dah,
+		DAH:          dah,
 	}
 	require.NoError(s.t, s.head.Validate())
 	return s.head
@@ -209,8 +203,8 @@ func (s *TestSuite) nextProposer() *types.Validator {
 }
 
 // RandExtendedHeader provides an ExtendedHeader fixture.
-func RandExtendedHeader(t *testing.T) *header.ExtendedHeader {
-	dah := header.EmptyDAH()
+func RandExtendedHeader(t testing.TB) *header.ExtendedHeader {
+	dah := share.EmptyRoot()
 
 	rh := RandRawHeader(t)
 	rh.DataHash = dah.Hash()
@@ -227,8 +221,15 @@ func RandExtendedHeader(t *testing.T) *header.ExtendedHeader {
 		RawHeader:    *rh,
 		Commit:       commit,
 		ValidatorSet: valSet,
-		DAH:          &dah,
+		DAH:          dah,
 	}
+}
+
+func RandExtendedHeaderWithRoot(t testing.TB, dah *da.DataAvailabilityHeader) *header.ExtendedHeader {
+	h := RandExtendedHeader(t)
+	h.DataHash = dah.Hash()
+	h.DAH = dah
+	return h
 }
 
 func RandValidatorSet(numValidators int, votingPower int64) (*types.ValidatorSet, []types.PrivValidator) {
@@ -263,7 +264,7 @@ func RandValidator(randPower bool, minPower int64) (*types.Validator, types.Priv
 }
 
 // RandRawHeader provides a RawHeader fixture.
-func RandRawHeader(t *testing.T) *header.RawHeader {
+func RandRawHeader(t testing.TB) *header.RawHeader {
 	return &header.RawHeader{
 		Version:            version.Consensus{Block: 11, App: 1},
 		ChainID:            "test",
@@ -283,7 +284,7 @@ func RandRawHeader(t *testing.T) *header.RawHeader {
 }
 
 // RandBlockID provides a BlockID fixture.
-func RandBlockID(*testing.T) types.BlockID {
+func RandBlockID(testing.TB) types.BlockID {
 	bid := types.BlockID{
 		Hash: make([]byte, 32),
 		PartSetHeader: types.PartSetHeader{
@@ -296,36 +297,10 @@ func RandBlockID(*testing.T) types.BlockID {
 	return bid
 }
 
-// FraudMaker creates a custom ConstructFn that breaks the block at the given height.
-func FraudMaker(t *testing.T, faultHeight int64, bServ blockservice.BlockService) header.ConstructFn {
-	log.Warn("Corrupting block...", "height", faultHeight)
-	return func(
-		h *types.Header,
-		comm *types.Commit,
-		vals *types.ValidatorSet,
-		eds *rsmt2d.ExtendedDataSquare,
-	) (*header.ExtendedHeader, error) {
-		if h.Height == faultHeight {
-			eh := &header.ExtendedHeader{
-				RawHeader:    *h,
-				Commit:       comm,
-				ValidatorSet: vals,
-			}
-
-			eh, dataSq := CreateFraudExtHeader(t, eh, bServ)
-			if eds != nil {
-				*eds = *dataSq
-			}
-			return eh, nil
-		}
-		return header.MakeExtendedHeader(h, comm, vals, eds)
-	}
-}
-
 func ExtendedHeaderFromEDS(t *testing.T, height uint64, eds *rsmt2d.ExtendedDataSquare) *header.ExtendedHeader {
 	valSet, vals := RandValidatorSet(10, 10)
 	gen := RandRawHeader(t)
-	dah, err := da.NewDataAvailabilityHeader(eds)
+	dah, err := share.NewRoot(eds)
 	require.NoError(t, err)
 
 	gen.DataHash = dah.Hash()
@@ -342,25 +317,10 @@ func ExtendedHeaderFromEDS(t *testing.T, height uint64, eds *rsmt2d.ExtendedData
 		RawHeader:    *gen,
 		Commit:       commit,
 		ValidatorSet: valSet,
-		DAH:          &dah,
+		DAH:          dah,
 	}
 	require.NoError(t, eh.Validate())
 	return eh
-}
-
-func CreateFraudExtHeader(
-	t *testing.T,
-	eh *header.ExtendedHeader,
-	serv blockservice.BlockService,
-) (*header.ExtendedHeader, *rsmt2d.ExtendedDataSquare) {
-	square := edstest.RandByzantineEDS(t, len(eh.DAH.RowRoots))
-	err := ipld.ImportEDS(context.Background(), square, serv)
-	require.NoError(t, err)
-	dah, err := da.NewDataAvailabilityHeader(square)
-	require.NoError(t, err)
-	eh.DAH = &dah
-	eh.RawHeader.DataHash = dah.Hash()
-	return eh, square
 }
 
 type Subscriber struct {

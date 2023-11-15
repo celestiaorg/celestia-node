@@ -7,7 +7,6 @@ import (
 	"time"
 
 	"github.com/ipfs/go-cid"
-	mdutils "github.com/ipfs/go-merkledag/test"
 	"github.com/stretchr/testify/require"
 
 	"github.com/celestiaorg/celestia-app/pkg/da"
@@ -21,7 +20,7 @@ func TestGetProof(t *testing.T) {
 
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second*2)
 	defer cancel()
-	bServ := mdutils.Bserv()
+	bServ := ipld.NewMemBlockservice()
 
 	shares := sharetest.RandShares(t, width*width)
 	in, err := ipld.AddShares(ctx, shares, bServ)
@@ -58,7 +57,7 @@ func TestGetProofs(t *testing.T) {
 	const width = 4
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second*2)
 	defer cancel()
-	bServ := mdutils.Bserv()
+	bServ := ipld.NewMemBlockservice()
 
 	shares := sharetest.RandShares(t, width*width)
 	in, err := ipld.AddShares(ctx, shares, bServ)

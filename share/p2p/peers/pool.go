@@ -89,8 +89,11 @@ func (p *pool) next(ctx context.Context) <-chan peer.ID {
 				return
 			}
 
+			p.m.RLock()
+			hasPeerCh := p.hasPeerCh
+			p.m.RUnlock()
 			select {
-			case <-p.hasPeerCh:
+			case <-hasPeerCh:
 			case <-ctx.Done():
 				return
 			}
@@ -220,4 +223,13 @@ func (p *pool) len() int {
 	p.m.RLock()
 	defer p.m.RUnlock()
 	return p.activeCount
+}
+
+// reset will reset the pool to its initial state.
+func (p *pool) reset() {
+	lock := &p.m
+	lock.Lock()
+	defer lock.Lock()
+	// swap the pool with an empty one
+	*p = *newPool(time.Second)
 }

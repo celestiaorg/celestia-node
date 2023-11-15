@@ -17,6 +17,7 @@ import (
 
 	"github.com/celestiaorg/celestia-node/header"
 	nodep2p "github.com/celestiaorg/celestia-node/nodebuilder/p2p"
+	"github.com/celestiaorg/celestia-node/share"
 	"github.com/celestiaorg/celestia-node/share/eds"
 	"github.com/celestiaorg/celestia-node/share/p2p/shrexsub"
 )
@@ -30,8 +31,13 @@ func TestListener(t *testing.T) {
 
 	// create mocknet with two pubsub endpoints
 	ps0, ps1 := createMocknetWithTwoPubsubEndpoints(ctx, t)
-	subscriber := p2p.NewSubscriber[*header.ExtendedHeader](ps1, header.MsgID, networkID)
-	err := subscriber.SetVerifier(func(context.Context, *header.ExtendedHeader) error {
+	subscriber, err := p2p.NewSubscriber[*header.ExtendedHeader](
+		ps1,
+		header.MsgID,
+		p2p.WithSubscriberNetworkID(networkID),
+	)
+	require.NoError(t, err)
+	err = subscriber.SetVerifier(func(context.Context, *header.ExtendedHeader) error {
 		return nil
 	})
 	require.NoError(t, err)
@@ -96,7 +102,7 @@ func TestListenerWithNonEmptyBlocks(t *testing.T) {
 	require.NoError(t, err)
 	t.Cleanup(sub.Cancel)
 
-	empty := header.EmptyDAH()
+	empty := share.EmptyRoot()
 	// TODO extract 16
 	for i := 0; i < 16; i++ {
 		_, err := cctx.FillBlock(16, cfg.Accounts, flags.BroadcastBlock)
@@ -161,8 +167,14 @@ func createListener(
 	edsSub *shrexsub.PubSub,
 	store *eds.Store,
 ) *Listener {
-	p2pSub := p2p.NewSubscriber[*header.ExtendedHeader](ps, header.MsgID, networkID)
-	err := p2pSub.Start(ctx)
+	p2pSub, err := p2p.NewSubscriber[*header.ExtendedHeader](ps, header.MsgID, p2p.WithSubscriberNetworkID(networkID))
+	require.NoError(t, err)
+
+	err = p2pSub.Start(ctx)
+	require.NoError(t, err)
+	err = p2pSub.SetVerifier(func(ctx context.Context, msg *header.ExtendedHeader) error {
+		return nil
+	})
 	require.NoError(t, err)
 	t.Cleanup(func() {
 		require.NoError(t, p2pSub.Stop(ctx))

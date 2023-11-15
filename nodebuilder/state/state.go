@@ -100,9 +100,9 @@ type Module interface {
 type API struct {
 	Internal struct {
 		AccountAddress    func(ctx context.Context) (state.Address, error)                      `perm:"read"`
-		IsStopped         func(ctx context.Context) bool                                        `perm:"public"`
+		IsStopped         func(ctx context.Context) bool                                        `perm:"read"`
 		Balance           func(ctx context.Context) (*state.Balance, error)                     `perm:"read"`
-		BalanceForAddress func(ctx context.Context, addr state.Address) (*state.Balance, error) `perm:"public"`
+		BalanceForAddress func(ctx context.Context, addr state.Address) (*state.Balance, error) `perm:"read"`
 		Transfer          func(
 			ctx context.Context,
 			to state.AccAddress,
@@ -150,16 +150,16 @@ type API struct {
 		QueryDelegation func(
 			ctx context.Context,
 			valAddr state.ValAddress,
-		) (*types.QueryDelegationResponse, error) `perm:"public"`
+		) (*types.QueryDelegationResponse, error) `perm:"read"`
 		QueryUnbonding func(
 			ctx context.Context,
 			valAddr state.ValAddress,
-		) (*types.QueryUnbondingDelegationResponse, error) `perm:"public"`
+		) (*types.QueryUnbondingDelegationResponse, error) `perm:"read"`
 		QueryRedelegations func(
 			ctx context.Context,
 			srcValAddr,
 			dstValAddr state.ValAddress,
-		) (*types.QueryRedelegationsResponse, error) `perm:"public"`
+		) (*types.QueryRedelegationsResponse, error) `perm:"read"`
 	}
 }
 

@@ -52,7 +52,8 @@ func DefaultParameters() Parameters {
 		ConcurrencyLimit:        concurrencyLimit,
 		BackgroundStoreInterval: 10 * time.Minute,
 		SampleFrom:              1,
-		// SampleTimeout = block time * max amount of catchup workers
+		// SampleTimeout = approximate block time (with a bit of wiggle room) * max amount of catchup
+		// workers
 		SampleTimeout: 15 * time.Second * time.Duration(concurrencyLimit),
 	}
 }

@@ -3,6 +3,11 @@ package peers
 import (
 	"fmt"
 	"time"
+
+	libhead "github.com/celestiaorg/go-header"
+
+	"github.com/celestiaorg/celestia-node/header"
+	"github.com/celestiaorg/celestia-node/share/p2p/shrexsub"
 )
 
 type Parameters struct {
@@ -21,6 +26,8 @@ type Parameters struct {
 	EnableBlackListing bool
 }
 
+type Option func(*Manager) error
+
 // Validate validates the values in Parameters
 func (p *Parameters) Validate() error {
 	if p.PoolValidationTimeout <= 0 {
@@ -38,7 +45,7 @@ func (p *Parameters) Validate() error {
 	return nil
 }
 
-// DefaultParameters returns the default configuration values for the daser parameters
+// DefaultParameters returns the default configuration values for the peer manager parameters
 func DefaultParameters() Parameters {
 	return Parameters{
 		// PoolValidationTimeout's default value is based on the default daser sampling timeout of 1 minute.
@@ -53,6 +60,16 @@ func DefaultParameters() Parameters {
 		// blacklisting is off by default //TODO(@walldiss): enable blacklisting once all related issues
 		// are resolved
 		EnableBlackListing: false,
+	}
+}
+
+// WithShrexSubPools passes a shrexsub and headersub instance to be used to populate and validate
+// pools from shrexsub notifications.
+func WithShrexSubPools(shrexSub *shrexsub.PubSub, headerSub libhead.Subscriber[*header.ExtendedHeader]) Option {
+	return func(m *Manager) error {
+		m.shrexSub = shrexSub
+		m.headerSub = headerSub
+		return nil
 	}
 }
 

@@ -7,8 +7,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/ipfs/go-blockservice"
-	mdutils "github.com/ipfs/go-merkledag/test"
+	"github.com/ipfs/boxo/blockservice"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
@@ -30,7 +29,7 @@ func TestRetriever_Retrieve(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
-	bServ := mdutils.Bserv()
+	bServ := ipld.NewMemBlockservice()
 	r := NewRetriever(bServ)
 
 	type test struct {
@@ -73,7 +72,7 @@ func TestRetriever_ByzantineError(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second*10)
 	defer cancel()
 
-	bserv := mdutils.Bserv()
+	bserv := ipld.NewMemBlockservice()
 	shares := edstest.RandEDS(t, width).Flattened()
 	_, err := ipld.ImportShares(ctx, shares, bserv)
 	require.NoError(t, err)
@@ -110,7 +109,7 @@ func TestRetriever_MultipleRandQuadrants(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), time.Minute)
 	defer cancel()
 
-	bServ := mdutils.Bserv()
+	bServ := ipld.NewMemBlockservice()
 	r := NewRetriever(bServ)
 
 	// generate EDS
@@ -136,7 +135,7 @@ func TestRetriever_MultipleRandQuadrants(t *testing.T) {
 func TestFraudProofValidation(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second*15)
 	defer t.Cleanup(cancel)
-	bServ := mdutils.Bserv()
+	bServ := ipld.NewMemBlockservice()
 
 	odsSize := []int{2, 4, 16, 32, 64, 128}
 	for _, size := range odsSize {
@@ -178,7 +177,7 @@ BenchmarkBEFPValidation/ods_size:128       	     259	   4934375 ns/op	 5418406 B
 func BenchmarkBEFPValidation(b *testing.B) {
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second*15)
 	defer b.Cleanup(cancel)
-	bServ := mdutils.Bserv()
+	bServ := ipld.NewMemBlockservice()
 	r := NewRetriever(bServ)
 	t := &testing.T{}
 	odsSize := []int{2, 4, 16, 32, 64, 128}
@@ -217,7 +216,7 @@ func BenchmarkNewErrByzantineData(b *testing.B) {
 	odsSize := []int{2, 4, 16, 32, 64, 128}
 	ctx, cancel := context.WithTimeout(context.Background(), time.Minute)
 	defer cancel()
-	bServ := mdutils.Bserv()
+	bServ := ipld.NewMemBlockservice()
 	r := NewRetriever(bServ)
 	t := &testing.T{}
 	for _, size := range odsSize {

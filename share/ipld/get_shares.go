@@ -3,7 +3,7 @@ package ipld
 import (
 	"context"
 
-	"github.com/ipfs/go-blockservice"
+	"github.com/ipfs/boxo/blockservice"
 	"github.com/ipfs/go-cid"
 	format "github.com/ipfs/go-ipld-format"
 
@@ -32,9 +32,6 @@ func GetShare(
 // Does not return any error, and returns/unblocks only on success
 // (got all shares) or on context cancellation.
 func GetShares(ctx context.Context, bg blockservice.BlockGetter, root cid.Cid, shares int, put func(int, share.Share)) {
-	ctx, span := tracer.Start(ctx, "get-shares")
-	defer span.End()
-
 	putNode := func(i int, leaf format.Node) {
 		put(i, leafToShare(leaf))
 	}
@@ -51,9 +48,6 @@ func GetSharesByNamespace(
 	namespace share.Namespace,
 	maxShares int,
 ) ([]share.Share, *nmt.Proof, error) {
-	ctx, span := tracer.Start(ctx, "get-shares-by-namespace")
-	defer span.End()
-
 	data := NewNamespaceData(maxShares, namespace, WithLeaves(), WithProofs())
 	err := data.CollectLeavesByNamespace(ctx, bGetter, root)
 	if err != nil {

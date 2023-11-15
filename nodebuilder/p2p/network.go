@@ -10,18 +10,18 @@ import (
 // NOTE: Every time we add a new long-running network, it has to be added here.
 const (
 	// DefaultNetwork is the default network of the current build.
-	DefaultNetwork = Mocha
+	DefaultNetwork = Mainnet
 	// Arabica testnet. See: celestiaorg/networks.
-	Arabica Network = "arabica-9"
+	Arabica Network = "arabica-10"
 	// Mocha testnet. See: celestiaorg/networks.
-	Mocha Network = "mocha-3"
-	// BlockspaceRace testnet. See: https://docs.celestia.org/nodes/blockspace-race/.
-	BlockspaceRace Network = "blockspacerace-0"
+	Mocha Network = "mocha-4"
 	// Private can be used to set up any private network, including local testing setups.
 	Private Network = "private"
+	// Celestia mainnet. See: celestiaorg/networks.
+	Mainnet Network = "celestia"
 	// BlockTime is a network block time.
 	// TODO @renaynay @Wondertan (#790)
-	BlockTime = time.Second * 15
+	BlockTime = time.Second * 10
 )
 
 // Network is a type definition for DA network run by Celestia Node.
@@ -52,20 +52,20 @@ func (n Network) String() string {
 
 // networksList is a strict list of all known long-standing networks.
 var networksList = map[Network]struct{}{
-	Arabica:        {},
-	Mocha:          {},
-	BlockspaceRace: {},
-	Private:        {},
+	Mainnet: {},
+	Arabica: {},
+	Mocha:   {},
+	Private: {},
 }
 
 // networkAliases is a strict list of all known long-standing networks
 // mapped from the string representation of their *alias* (rather than
 // their actual value) to the Network.
 var networkAliases = map[string]Network{
-	"arabica":        Arabica,
-	"mocha":          Mocha,
-	"blockspacerace": BlockspaceRace,
-	"private":        Private,
+	"mainnet": Mainnet,
+	"arabica": Arabica,
+	"mocha":   Mocha,
+	"private": Private,
 }
 
 // listProvidedNetworks provides a string listing all known long-standing networks for things like

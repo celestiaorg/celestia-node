@@ -54,16 +54,15 @@ func initEmpty() {
 	}
 	emptyBlockEDS = eds
 
-	dah, err := da.NewDataAvailabilityHeader(eds)
+	emptyBlockRoot, err = NewRoot(eds)
 	if err != nil {
 		panic(fmt.Errorf("failed to create empty DAH: %w", err))
 	}
 	minDAH := da.MinDataAvailabilityHeader()
-	if !bytes.Equal(minDAH.Hash(), dah.Hash()) {
+	if !bytes.Equal(minDAH.Hash(), emptyBlockRoot.Hash()) {
 		panic(fmt.Sprintf("mismatch in calculated minimum DAH and minimum DAH from celestia-app, "+
-			"expected %s, got %s", minDAH.String(), dah.String()))
+			"expected %s, got %s", minDAH.String(), emptyBlockRoot.String()))
 	}
-	emptyBlockRoot = &dah
 
 	// precompute Hash, so it's cached internally to avoid potential races
 	emptyBlockRoot.Hash()

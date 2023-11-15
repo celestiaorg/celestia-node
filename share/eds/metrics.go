@@ -12,7 +12,6 @@ import (
 const (
 	failedKey = "failed"
 	sizeKey   = "eds_size"
-	cachedKey = "cached"
 
 	putResultKey           = "result"
 	putOK        putResult = "ok"
@@ -24,6 +23,8 @@ const (
 	longOpUnresolved longOpResult = "unresolved"
 	longOpOK         longOpResult = "ok"
 	longOpFailed     longOpResult = "failed"
+
+	dagstoreShardStatusKey = "shard_status"
 )
 
 var (
@@ -43,7 +44,8 @@ type metrics struct {
 	getTime              metric.Float64Histogram
 	hasTime              metric.Float64Histogram
 	listTime             metric.Float64Histogram
-	getAccessorTime      metric.Float64Histogram
+
+	shardFailureCount metric.Int64Counter
 
 	longOpTime metric.Float64Histogram
 	gcTime     metric.Float64Histogram
@@ -98,8 +100,8 @@ func (s *Store) WithMetrics() error {
 		return err
 	}
 
-	getAccessorTime, err := meter.Float64Histogram("eds_store_get_accessor_time_histogram",
-		metric.WithDescription("eds store get accessor time histogram(s)"))
+	shardFailureCount, err := meter.Int64Counter("eds_store_shard_failure_counter",
+		metric.WithDescription("eds store OpShardFail counter"))
 	if err != nil {
 		return err
 	}
@@ -116,9 +118,31 @@ func (s *Store) WithMetrics() error {
 		return err
 	}
 
-	if err = s.cache.withMetrics(); err != nil {
+	dagStoreShards, err := meter.Int64ObservableGauge("eds_store_dagstore_shards",
+		metric.WithDescription("dagstore amount of shards by status"))
+	if err != nil {
 		return err
 	}
+
+	if err = s.cache.Load().EnableMetrics(); err != nil {
+		return err
+	}
+
+	callback := func(ctx context.Context, observer metric.Observer) error {
+		stats := s.dgstr.Stats()
+		for status, amount := range stats {
+			observer.ObserveInt64(dagStoreShards, int64(amount),
+				metric.WithAttributes(
+					attribute.String(dagstoreShardStatusKey, status.String()),
+				))
+		}
+		return nil
+	}
+
+	if _, err := meter.RegisterCallback(callback, dagStoreShards); err != nil {
+		return err
+	}
+
 	s.metrics = &metrics{
 		putTime:              putTime,
 		getCARTime:           getCARTime,
@@ -128,7 +152,7 @@ func (s *Store) WithMetrics() error {
 		getTime:              getTime,
 		hasTime:              hasTime,
 		listTime:             listTime,
-		getAccessorTime:      getAccessorTime,
+		shardFailureCount:    shardFailureCount,
 		longOpTime:           longOpTime,
 		gcTime:               gcTime,
 	}
@@ -144,6 +168,17 @@ func (m *metrics) observeGCtime(ctx context.Context, dur time.Duration, failed b
 	}
 	m.gcTime.Record(ctx, dur.Seconds(), metric.WithAttributes(
 		attribute.Bool(failedKey, failed)))
+}
+
+func (m *metrics) observeShardFailure(ctx context.Context, shardKey string) {
+	if m == nil {
+		return
+	}
+	if ctx.Err() != nil {
+		ctx = context.Background()
+	}
+
+	m.shardFailureCount.Add(ctx, 1, metric.WithAttributes(attribute.String("shard_key", shardKey)))
 }
 
 func (m *metrics) observePut(ctx context.Context, dur time.Duration, result putResult, size uint) {
@@ -253,18 +288,5 @@ func (m *metrics) observeList(ctx context.Context, dur time.Duration, failed boo
 	}
 
 	m.listTime.Record(ctx, dur.Seconds(), metric.WithAttributes(
-		attribute.Bool(failedKey, failed)))
-}
-
-func (m *metrics) observeGetAccessor(ctx context.Context, dur time.Duration, cached, failed bool) {
-	if m == nil {
-		return
-	}
-	if ctx.Err() != nil {
-		ctx = context.Background()
-	}
-
-	m.getAccessorTime.Record(ctx, dur.Seconds(), metric.WithAttributes(
-		attribute.Bool(cachedKey, cached),
 		attribute.Bool(failedKey, failed)))
 }

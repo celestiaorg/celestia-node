@@ -45,6 +45,9 @@ func TestShrexNDFromLights(t *testing.T) {
 	err = light.Start(ctx)
 	require.NoError(t, err)
 
+	bridgeClient := getAdminClient(ctx, bridge, t)
+	lightClient := getAdminClient(ctx, light, t)
+
 	// wait for chain to be filled
 	require.NoError(t, <-fillDn)
 
@@ -54,7 +57,7 @@ func TestShrexNDFromLights(t *testing.T) {
 	// the block that actually has transactions. We can get this data from the
 	// response returned by FillBlock.
 	for i := 16; i < blocks; i++ {
-		h, err := bridge.HeaderServ.GetByHeight(ctx, uint64(i))
+		h, err := bridgeClient.Header.GetByHeight(ctx, uint64(i))
 		require.NoError(t, err)
 
 		reqCtx, cancel := context.WithTimeout(ctx, time.Second*5)
@@ -62,9 +65,9 @@ func TestShrexNDFromLights(t *testing.T) {
 		// ensure to fetch random namespace (not the reserved namespace)
 		namespace := h.DAH.RowRoots[1][:share.NamespaceSize]
 
-		expected, err := bridge.ShareServ.GetSharesByNamespace(reqCtx, h.DAH, namespace)
+		expected, err := bridgeClient.Share.GetSharesByNamespace(reqCtx, h, namespace)
 		require.NoError(t, err)
-		got, err := light.ShareServ.GetSharesByNamespace(reqCtx, h.DAH, namespace)
+		got, err := lightClient.Share.GetSharesByNamespace(reqCtx, h, namespace)
 		require.NoError(t, err)
 
 		require.True(t, len(got[0].Shares) > 0)
@@ -113,12 +116,15 @@ func TestShrexNDFromLightsWithBadFulls(t *testing.T) {
 	require.NoError(t, startFullNodes(ctx, fulls...))
 	require.NoError(t, light.Start(ctx))
 
+	bridgeClient := getAdminClient(ctx, bridge, t)
+	lightClient := getAdminClient(ctx, light, t)
+
 	// wait for chain to fill up
 	require.NoError(t, <-fillDn)
 
 	// first 2 blocks are not filled with data
 	for i := 3; i < blocks; i++ {
-		h, err := bridge.HeaderServ.GetByHeight(ctx, uint64(i))
+		h, err := bridgeClient.Header.GetByHeight(ctx, uint64(i))
 		require.NoError(t, err)
 
 		if len(h.DAH.RowRoots) != bsize*2 {
@@ -133,16 +139,18 @@ func TestShrexNDFromLightsWithBadFulls(t *testing.T) {
 		// ensure to fetch random namespace (not the reserved namespace)
 		namespace := h.DAH.RowRoots[1][:share.NamespaceSize]
 
-		expected, err := bridge.ShareServ.GetSharesByNamespace(reqCtx, h.DAH, namespace)
+		expected, err := bridgeClient.Share.GetSharesByNamespace(reqCtx, h, namespace)
 		require.NoError(t, err)
 		require.True(t, len(expected[0].Shares) > 0)
 
 		// choose a random full to test
-		gotFull, err := fulls[len(fulls)/2].ShareServ.GetSharesByNamespace(reqCtx, h.DAH, namespace)
+		fN := fulls[len(fulls)/2]
+		fnClient := getAdminClient(ctx, fN, t)
+		gotFull, err := fnClient.Share.GetSharesByNamespace(reqCtx, h, namespace)
 		require.NoError(t, err)
 		require.True(t, len(gotFull[0].Shares) > 0)
 
-		gotLight, err := light.ShareServ.GetSharesByNamespace(reqCtx, h.DAH, namespace)
+		gotLight, err := lightClient.Share.GetSharesByNamespace(reqCtx, h, namespace)
 		require.NoError(t, err)
 		require.True(t, len(gotLight[0].Shares) > 0)
 
@@ -168,11 +176,10 @@ func replaceNDServer(cfg *nodebuilder.Config, handler network.StreamHandler) fx.
 		func(
 			host host.Host,
 			store *eds.Store,
-			getter *getters.StoreGetter,
 			network p2p.Network,
 		) (*shrexnd.Server, error) {
 			cfg.Share.ShrExNDParams.WithNetworkID(network.String())
-			return shrexnd.NewServer(cfg.Share.ShrExNDParams, host, store, getter)
+			return shrexnd.NewServer(cfg.Share.ShrExNDParams, host, store)
 		},
 		fx.OnStart(func(ctx context.Context, server *shrexnd.Server) error {
 			// replace handler for server
@@ -196,7 +203,7 @@ func replaceShareGetter() fx.Option {
 		) share.Getter {
 			cascade := make([]share.Getter, 0, 2)
 			cascade = append(cascade, storeGetter)
-			cascade = append(cascade, getters.NewTeeGetter(shrexGetter, store))
+			cascade = append(cascade, shrexGetter)
 			return getters.NewCascadeGetter(cascade)
 		},
 	))

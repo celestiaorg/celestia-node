@@ -10,13 +10,13 @@ import (
 	"github.com/ipfs/go-datastore/sync"
 	dht "github.com/libp2p/go-libp2p-kad-dht"
 	pubsub "github.com/libp2p/go-libp2p-pubsub"
-	routinghelpers "github.com/libp2p/go-libp2p-routing-helpers"
 	"github.com/libp2p/go-libp2p/core/host"
 	"github.com/libp2p/go-libp2p/core/peer"
 	routingdisc "github.com/libp2p/go-libp2p/p2p/discovery/routing"
 	"github.com/libp2p/go-libp2p/p2p/net/conngater"
 	mocknet "github.com/libp2p/go-libp2p/p2p/net/mock"
 	"github.com/stretchr/testify/require"
+	"github.com/tendermint/tendermint/libs/rand"
 
 	libhead "github.com/celestiaorg/go-header"
 
@@ -348,28 +348,29 @@ func TestIntegration(t *testing.T) {
 		time.Sleep(time.Millisecond * 100)
 
 		// broadcast from BN
-		peerHash := share.DataHash("peer1")
+		randHash := rand.Bytes(32)
 		require.NoError(t, bnPubSub.Broadcast(ctx, shrexsub.Notification{
-			DataHash: peerHash,
+			DataHash: randHash,
 			Height:   1,
 		}))
 
 		// FN should get message
-		peerID, _, err := fnPeerManager.Peer(ctx, peerHash)
+		gotPeer, _, err := fnPeerManager.Peer(ctx, randHash)
 		require.NoError(t, err)
 
-		// check that peerID matched bridge node
-		require.Equal(t, nw.Hosts()[0].ID(), peerID)
+		// check that gotPeer matched bridge node
+		require.Equal(t, nw.Hosts()[0].ID(), gotPeer)
 	})
 
 	t.Run("get peer from discovery", func(t *testing.T) {
+		fullNodesTag := "fullNodes"
 		nw, err := mocknet.FullMeshConnected(3)
 		require.NoError(t, err)
 		ctx, cancel := context.WithTimeout(context.Background(), time.Second*10)
 		t.Cleanup(cancel)
 
 		// set up bootstrapper
-		bsHost := nw.Hosts()[2]
+		bsHost := nw.Hosts()[0]
 		bs := host.InfoFromHost(bsHost)
 		opts := []dht.Option{
 			dht.Mode(dht.ModeAuto),
@@ -387,64 +388,74 @@ func TestIntegration(t *testing.T) {
 		require.NoError(t, bsRouter.Bootstrap(ctx))
 
 		// set up broadcaster node
-		bnHost := nw.Hosts()[0]
-		router1, err := dht.New(ctx, bnHost, opts...)
+		bnHost := nw.Hosts()[1]
+		bnRouter, err := dht.New(ctx, bnHost, opts...)
 		require.NoError(t, err)
-		bnDisc := discovery.NewDiscovery(
-			nw.Hosts()[0],
-			routingdisc.NewRoutingDiscovery(router1),
-			discovery.WithPeersLimit(0),
-			discovery.WithAdvertiseInterval(time.Second),
+
+		params := discovery.DefaultParameters()
+		params.AdvertiseInterval = time.Second
+
+		bnDisc, err := discovery.NewDiscovery(
+			params,
+			bnHost,
+			routingdisc.NewRoutingDiscovery(bnRouter),
+			fullNodesTag,
 		)
+		require.NoError(t, err)
 
 		// set up full node / receiver node
-		fnHost := nw.Hosts()[0]
-		router2, err := dht.New(ctx, fnHost, opts...)
+		fnHost := nw.Hosts()[2]
+		fnRouter, err := dht.New(ctx, fnHost, opts...)
 		require.NoError(t, err)
-		fnDisc := discovery.NewDiscovery(
-			nw.Hosts()[1],
-			routingdisc.NewRoutingDiscovery(router2),
-			discovery.WithPeersLimit(10),
-			discovery.WithAdvertiseInterval(time.Second),
-		)
-		err = fnDisc.Start(ctx)
-		require.NoError(t, err)
-		t.Cleanup(func() {
-			err = fnDisc.Stop(ctx)
-			require.NoError(t, err)
-		})
 
-		// hook peer manager to discovery
+		// init peer manager for full node
 		connGater, err := conngater.NewBasicConnectionGater(sync.MutexWrap(datastore.NewMapDatastore()))
 		require.NoError(t, err)
 		fnPeerManager, err := NewManager(
 			DefaultParameters(),
-			nil,
-			nil,
-			fnDisc,
 			nil,
 			connGater,
 		)
 		require.NoError(t, err)
 
 		waitCh := make(chan struct{})
-		fnDisc.WithOnPeersUpdate(func(peerID peer.ID, isAdded bool) {
+		checkDiscoveredPeer := func(peerID peer.ID, isAdded bool) {
 			defer close(waitCh)
-			// check that obtained peer id is same as BN
-			require.Equal(t, nw.Hosts()[0].ID(), peerID)
+			// check that obtained peer id is BN
+			require.Equal(t, bnHost.ID(), peerID)
+		}
+
+		// set up discovery for full node with hook to peer manager and check discovered peer
+		params = discovery.DefaultParameters()
+		params.AdvertiseInterval = time.Second
+		params.PeersLimit = 10
+
+		fnDisc, err := discovery.NewDiscovery(
+			params,
+			fnHost,
+			routingdisc.NewRoutingDiscovery(fnRouter),
+			fullNodesTag,
+			discovery.WithOnPeersUpdate(fnPeerManager.UpdateFullNodePool),
+			discovery.WithOnPeersUpdate(checkDiscoveredPeer),
+		)
+		require.NoError(t, fnDisc.Start(ctx))
+		t.Cleanup(func() {
+			err = fnDisc.Stop(ctx)
+			require.NoError(t, err)
 		})
 
-		require.NoError(t, router1.Bootstrap(ctx))
-		require.NoError(t, router2.Bootstrap(ctx))
+		require.NoError(t, bnRouter.Bootstrap(ctx))
+		require.NoError(t, fnRouter.Bootstrap(ctx))
 
 		go bnDisc.Advertise(ctx)
 
 		select {
 		case <-waitCh:
-			require.Contains(t, fnPeerManager.fullNodes.peersList, fnHost.ID())
+			require.Contains(t, fnPeerManager.fullNodes.peersList, bnHost.ID())
 		case <-ctx.Done():
 			require.NoError(t, ctx.Err())
 		}
+
 	})
 }
 
@@ -458,23 +469,17 @@ func testManager(ctx context.Context, headerSub libhead.Subscriber[*header.Exten
 		return nil, err
 	}
 
-	disc := discovery.NewDiscovery(nil,
-		routingdisc.NewRoutingDiscovery(routinghelpers.Null{}),
-		discovery.WithPeersLimit(0),
-		discovery.WithAdvertiseInterval(time.Second),
-	)
 	connGater, err := conngater.NewBasicConnectionGater(sync.MutexWrap(datastore.NewMapDatastore()))
 	if err != nil {
 		return nil, err
 	}
 	manager, err := NewManager(
 		DefaultParameters(),
-		headerSub,
-		shrexSub,
-		disc,
 		host,
 		connGater,
+		WithShrexSubPools(shrexSub, headerSub),
 	)
+
 	if err != nil {
 		return nil, err
 	}
@@ -491,7 +496,8 @@ func stopManager(t *testing.T, m *Manager) {
 func testHeader() *header.ExtendedHeader {
 	return &header.ExtendedHeader{
 		RawHeader: header.RawHeader{
-			Height: 1,
+			Height:   1,
+			DataHash: rand.Bytes(32),
 		},
 	}
 }

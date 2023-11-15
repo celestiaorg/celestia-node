@@ -16,6 +16,8 @@ import (
 	mocknet "github.com/libp2p/go-libp2p/p2p/net/mock"
 	ma "github.com/multiformats/go-multiaddr"
 	"github.com/stretchr/testify/require"
+	"github.com/tendermint/tendermint/privval"
+	"github.com/tendermint/tendermint/types"
 	"go.uber.org/fx"
 	"golang.org/x/exp/maps"
 
@@ -170,7 +172,8 @@ func (s *Swamp) setupGenesis() {
 	// ensure core has surpassed genesis block
 	s.WaitTillHeight(ctx, 2)
 
-	store, err := eds.NewStore(s.t.TempDir(), ds_sync.MutexWrap(ds.NewMapDatastore()))
+	ds := ds_sync.MutexWrap(ds.NewMapDatastore())
+	store, err := eds.NewStore(eds.DefaultParameters(), s.t.TempDir(), ds)
 	require.NoError(s.t, err)
 
 	ex := core.NewExchange(
@@ -334,4 +337,16 @@ func (s *Swamp) SetBootstrapper(t *testing.T, bootstrappers ...*nodebuilder.Node
 		require.NoError(t, err)
 		s.Bootstrappers = append(s.Bootstrappers, addrs[0])
 	}
+}
+
+// Validators retrieves keys from the app node in order to build the validators.
+func (s *Swamp) Validators(t *testing.T) (*types.ValidatorSet, types.PrivValidator) {
+	privPath := s.cfg.TmConfig.PrivValidatorKeyFile()
+	statePath := s.cfg.TmConfig.PrivValidatorStateFile()
+	priv := privval.LoadFilePV(privPath, statePath)
+	key, err := priv.GetPubKey()
+	require.NoError(t, err)
+	validator := types.NewValidator(key, 100)
+	set := types.NewValidatorSet([]*types.Validator{validator})
+	return set, priv
 }

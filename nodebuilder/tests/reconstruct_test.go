@@ -53,10 +53,11 @@ func TestFullReconstructFromBridge(t *testing.T) {
 	bridge := sw.NewBridgeNode()
 	err := bridge.Start(ctx)
 	require.NoError(t, err)
+	bridgeClient := getAdminClient(ctx, bridge, t)
 
 	// TODO: This is required to avoid flakes coming from unfinished retry
 	// mechanism for the same peer in go-header
-	_, err = bridge.HeaderServ.WaitForHeight(ctx, uint64(blocks))
+	_, err = bridgeClient.Header.WaitForHeight(ctx, uint64(blocks))
 	require.NoError(t, err)
 
 	cfg := nodebuilder.DefaultConfig(node.Full)
@@ -65,17 +66,18 @@ func TestFullReconstructFromBridge(t *testing.T) {
 	full := sw.NewNodeWithConfig(node.Full, cfg)
 	err = full.Start(ctx)
 	require.NoError(t, err)
+	fullClient := getAdminClient(ctx, full, t)
 
 	errg, bctx := errgroup.WithContext(ctx)
 	for i := 1; i <= blocks+1; i++ {
 		i := i
 		errg.Go(func() error {
-			h, err := full.HeaderServ.WaitForHeight(bctx, uint64(i))
+			h, err := fullClient.Header.WaitForHeight(bctx, uint64(i))
 			if err != nil {
 				return err
 			}
 
-			return full.ShareServ.SharesAvailable(bctx, h.DAH)
+			return fullClient.Share.SharesAvailable(bctx, h)
 		})
 	}
 	require.NoError(t, <-fillDn)
@@ -106,10 +108,11 @@ func TestFullReconstructFromFulls(t *testing.T) {
 
 	sw.SetBootstrapper(t, bridge)
 	require.NoError(t, bridge.Start(ctx))
+	bridgeClient := getAdminClient(ctx, bridge, t)
 
 	// TODO: This is required to avoid flakes coming from unfinished retry
 	// mechanism for the same peer in go-header
-	_, err := bridge.HeaderServ.WaitForHeight(ctx, uint64(blocks))
+	_, err := bridgeClient.Header.WaitForHeight(ctx, uint64(blocks))
 	require.NoError(t, err)
 
 	lights1 := make([]*nodebuilder.Node, lnodes/2)
@@ -175,6 +178,9 @@ func TestFullReconstructFromFulls(t *testing.T) {
 	require.NoError(t, full1.Start(ctx))
 	require.NoError(t, full2.Start(ctx))
 
+	fullClient1 := getAdminClient(ctx, full1, t)
+	fullClient2 := getAdminClient(ctx, full2, t)
+
 	// Form topology
 	for i := 0; i < lnodes/2; i++ {
 		// Separate light nodes into two subnetworks
@@ -198,17 +204,17 @@ func TestFullReconstructFromFulls(t *testing.T) {
 	sw.Disconnect(t, full1, bridge)
 	sw.Disconnect(t, full2, bridge)
 
-	h, err := full1.HeaderServ.WaitForHeight(ctx, uint64(10+blocks-1))
+	h, err := fullClient1.Header.WaitForHeight(ctx, uint64(10+blocks-1))
 	require.NoError(t, err)
 
 	// Ensure that the full nodes cannot reconstruct before being connected to each other
 	ctxErr, cancelErr := context.WithTimeout(ctx, time.Second*30)
 	errg, errCtx = errgroup.WithContext(ctxErr)
 	errg.Go(func() error {
-		return full1.ShareServ.SharesAvailable(errCtx, h.DAH)
+		return fullClient1.Share.SharesAvailable(errCtx, h)
 	})
 	errg.Go(func() error {
-		return full2.ShareServ.SharesAvailable(errCtx, h.DAH)
+		return fullClient1.Share.SharesAvailable(errCtx, h)
 	})
 	require.Error(t, errg.Wait())
 	cancelErr()
@@ -218,13 +224,13 @@ func TestFullReconstructFromFulls(t *testing.T) {
 
 	errg, bctx := errgroup.WithContext(ctx)
 	for i := 10; i < blocks+11; i++ {
-		h, err := full1.HeaderServ.WaitForHeight(bctx, uint64(i))
+		h, err := fullClient1.Header.WaitForHeight(bctx, uint64(i))
 		require.NoError(t, err)
 		errg.Go(func() error {
-			return full1.ShareServ.SharesAvailable(bctx, h.DAH)
+			return fullClient1.Share.SharesAvailable(bctx, h)
 		})
 		errg.Go(func() error {
-			return full2.ShareServ.SharesAvailable(bctx, h.DAH)
+			return fullClient2.Share.SharesAvailable(bctx, h)
 		})
 	}
 
@@ -278,12 +284,14 @@ func TestFullReconstructFromLights(t *testing.T) {
 	}
 	bootstrapper := sw.NewNodeWithConfig(node.Full, cfg)
 	require.NoError(t, bootstrapper.Start(ctx))
-	require.NoError(t, bridge.Start(ctx))
 	bootstrapperAddr := host.InfoFromHost(bootstrapper.Host)
+
+	require.NoError(t, bridge.Start(ctx))
+	bridgeClient := getAdminClient(ctx, bridge, t)
 
 	// TODO: This is required to avoid flakes coming from unfinished retry
 	// mechanism for the same peer in go-header
-	_, err = bridge.HeaderServ.WaitForHeight(ctx, uint64(blocks))
+	_, err = bridgeClient.Header.WaitForHeight(ctx, uint64(blocks))
 	require.NoError(t, err)
 
 	cfg = nodebuilder.DefaultConfig(node.Full)
@@ -313,8 +321,11 @@ func TestFullReconstructFromLights(t *testing.T) {
 			return light.Start(errCtx)
 		})
 	}
+
 	require.NoError(t, errg.Wait())
 	require.NoError(t, full.Start(ctx))
+	fullClient := getAdminClient(ctx, full, t)
+
 	for i := 0; i < lnodes; i++ {
 		select {
 		case <-ctx.Done():
@@ -328,12 +339,12 @@ func TestFullReconstructFromLights(t *testing.T) {
 	for i := 1; i <= blocks+1; i++ {
 		i := i
 		errg.Go(func() error {
-			h, err := full.HeaderServ.WaitForHeight(bctx, uint64(i))
+			h, err := fullClient.Header.WaitForHeight(bctx, uint64(i))
 			if err != nil {
 				return err
 			}
 
-			return full.ShareServ.SharesAvailable(bctx, h.DAH)
+			return fullClient.Share.SharesAvailable(bctx, h)
 		})
 	}
 	require.NoError(t, <-fillDn)

@@ -195,11 +195,11 @@ func (ca *CoreAccessor) SubmitPayForBlob(
 	}
 
 	appblobs := make([]*apptypes.Blob, len(blobs))
-	for i, b := range blobs {
-		if err := b.Namespace().ValidateForBlob(); err != nil {
+	for i := range blobs {
+		if err := blobs[i].Namespace().ValidateForBlob(); err != nil {
 			return nil, err
 		}
-		appblobs[i] = &b.Blob
+		appblobs[i] = &blobs[i].Blob
 	}
 
 	// we only estimate gas if the user wants us to (by setting the gasLim to 0). In the future we may
