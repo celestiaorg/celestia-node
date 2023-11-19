@@ -21,7 +21,12 @@ func (h *Handler) RegisterEndpoints(rpc *Server) {
 
 	// share endpoints
 	rpc.RegisterHandlerFunc(
-		fmt.Sprintf("%s/{%s}/height/{%s}", namespacedSharesEndpoint, namespaceKey, heightKey),
+		fmt.Sprintf(
+			"%s/{%s}/height/{%s}",
+			namespacedSharesEndpoint,
+			namespaceKey,
+			heightKey,
+		),
 		h.handleSharesByNamespaceRequest,
 		http.MethodGet,
 	)

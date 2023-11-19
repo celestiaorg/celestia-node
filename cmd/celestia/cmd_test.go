@@ -129,7 +129,7 @@ func TestBridge(t *testing.T) {
 	*/
 }
 
-func parseSignatureForHelpstring(methodSig reflect.StructField) string {
+func parseSignatureForHelptring(methodSig reflect.StructField) string {
 	simplifiedSignature := "("
 	in, out := methodSig.Type.NumIn(), methodSig.Type.NumOut()
 	for i := 1; i < in; i++ {
