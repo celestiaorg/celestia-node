@@ -53,11 +53,11 @@ func TestSubmitPayForBlob(t *testing.T) {
 	require.Equal(t, appconsts.DefaultMinGasPrice, minGas)
 
 	testcases := []struct {
+		expErr error
+		fee    math.Int
 		name   string
 		blobs  []*blob.Blob
-		fee    math.Int
 		gasLim uint64
-		expErr error
 	}{
 		{
 			name:   "empty blobs",

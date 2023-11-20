@@ -31,13 +31,14 @@ func TestIntegrationTestSuite(t *testing.T) {
 }
 
 type IntegrationTestSuite struct {
+	cctx testnode.Context
+
 	suite.Suite
+
+	accessor *CoreAccessor
 
 	cleanups []func() error
 	accounts []string
-	cctx     testnode.Context
-
-	accessor *CoreAccessor
 }
 
 func (s *IntegrationTestSuite) SetupSuite() {

@@ -10,11 +10,11 @@ import (
 
 func TestAddressMarshalling(t *testing.T) {
 	testCases := []struct {
-		name           string
-		addressString  string
 		addressFromStr func(string) (interface{}, error)
 		marshalJSON    func(interface{}) ([]byte, error)
 		unmarshalJSON  func([]byte) (interface{}, error)
+		name           string
+		addressString  string
 	}{
 		{
 			name:           "Account Address",

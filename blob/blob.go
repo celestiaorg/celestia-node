@@ -65,13 +65,12 @@ func (p Proof) equal(input Proof) error {
 
 // Blob represents any application-specific binary data that anyone can submit to Celestia.
 type Blob struct {
-	types.Blob `json:"blob"`
-
 	Commitment Commitment `json:"commitment"`
 
 	// the celestia-node's namespace type
 	// this is to avoid converting to and from app's type
-	namespace share.Namespace
+	namespace  share.Namespace
+	types.Blob `json:"blob"`
 }
 
 // NewBlobV0 constructs a new blob from the provided Namespace and data.
@@ -111,8 +110,8 @@ func (b *Blob) Namespace() share.Namespace {
 type jsonBlob struct {
 	Namespace    share.Namespace `json:"namespace"`
 	Data         []byte          `json:"data"`
-	ShareVersion uint32          `json:"share_version"`
 	Commitment   Commitment      `json:"commitment"`
+	ShareVersion uint32          `json:"share_version"`
 }
 
 func (b *Blob) MarshalJSON() ([]byte, error) {

@@ -48,9 +48,9 @@ func TestBlobService_Get(t *testing.T) {
 
 	service := createService(ctx, t, append(blobs0, blobs1...))
 	var test = []struct {
-		name           string
 		doFn           func() (interface{}, error)
 		expectedResult func(interface{}, error)
+		name           string
 	}{
 		{
 			name: "get single blob",
