@@ -31,11 +31,12 @@ import (
 type TestSuite struct {
 	t *testing.T
 
-	vals    []types.PrivValidator
-	valSet  *types.ValidatorSet
-	valPntr int
+	valSet *types.ValidatorSet
 
 	head *header.ExtendedHeader
+
+	vals    []types.PrivValidator
+	valPntr int
 }
 
 func NewStore(t *testing.T) libhead.Store[*header.ExtendedHeader] {
