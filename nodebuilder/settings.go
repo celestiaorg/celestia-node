@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"time"
 
+	logging "github.com/ipfs/go-log/v2"
 	"github.com/libp2p/go-libp2p/core/peer"
 	"github.com/pyroscope-io/client/pyroscope"
 	otelpyroscope "github.com/pyroscope-io/otel-profiling-go"
@@ -23,6 +24,7 @@ import (
 	"github.com/celestiaorg/go-fraud"
 
 	"github.com/celestiaorg/celestia-node/header"
+	modcore "github.com/celestiaorg/celestia-node/nodebuilder/core"
 	"github.com/celestiaorg/celestia-node/nodebuilder/das"
 	modhead "github.com/celestiaorg/celestia-node/nodebuilder/header"
 	"github.com/celestiaorg/celestia-node/nodebuilder/node"
@@ -75,6 +77,7 @@ func WithMetrics(metricOpts []otlpmetrichttp.Option, nodeType node.Type) fx.Opti
 	// TODO @renaynay: this will be refactored when there is more granular
 	//  control over which module to enable metrics for
 	modhead.MetricsEnabled = true
+	modcore.MetricsEnabled = true
 
 	baseComponents := fx.Options(
 		fx.Supply(metricOpts),
@@ -208,5 +211,14 @@ func initializeMetrics(
 		},
 	})
 	otel.SetMeterProvider(provider)
+	otel.SetErrorHandler(&loggingErrorHandler{})
 	return nil
+}
+
+var metricsLogger = logging.Logger("otlp")
+
+type loggingErrorHandler struct{}
+
+func (loggingErrorHandler) Handle(err error) {
+	metricsLogger.Error(err)
 }

@@ -169,13 +169,20 @@ func createListener(
 ) *Listener {
 	p2pSub, err := p2p.NewSubscriber[*header.ExtendedHeader](ps, header.MsgID, p2p.WithSubscriberNetworkID(networkID))
 	require.NoError(t, err)
+
 	err = p2pSub.Start(ctx)
+	require.NoError(t, err)
+	err = p2pSub.SetVerifier(func(ctx context.Context, msg *header.ExtendedHeader) error {
+		return nil
+	})
 	require.NoError(t, err)
 	t.Cleanup(func() {
 		require.NoError(t, p2pSub.Stop(ctx))
 	})
 
-	return NewListener(p2pSub, fetcher, edsSub.Broadcast, header.MakeExtendedHeader, store, nodep2p.BlockTime)
+	listener, err := NewListener(p2pSub, fetcher, edsSub.Broadcast, header.MakeExtendedHeader, store, nodep2p.BlockTime)
+	require.NoError(t, err)
+	return listener
 }
 
 func createEdsPubSub(ctx context.Context, t *testing.T) *shrexsub.PubSub {
