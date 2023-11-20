@@ -57,10 +57,16 @@ func TestRegisterEndpoints(t *testing.T) {
 			method:   http.MethodGet,
 			expected: true,
 		},
+		{
+			name:     "Get health endpoint",
+			path:     "/health",
+			method:   http.MethodGet,
+			expected: true,
+		},
 
-		// Add previously deprecated and since removed endpoints here to
-		// ensure we don't accidentally re-enable them in the future and
-		// accidentally expand surface area
+		// Going forward, we can add previously deprecated and since
+		// removed endpoints here to ensure we don't accidentally re-enable
+		// them in the future and accidentally expand surface area
 		{
 			name:     "example totally bogus endpoint",
 			path:     fmt.Sprintf("/wutang/{%s}/%s", "chambers", "36"),

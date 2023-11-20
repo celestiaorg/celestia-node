@@ -19,6 +19,12 @@ func (h *Handler) RegisterEndpoints(rpc *Server) {
 		http.MethodPost,
 	)
 
+	rpc.RegisterHandlerFunc(
+		healthEndpoint,
+		h.handleHealthRequest,
+		http.MethodGet,
+	)
+
 	// share endpoints
 	rpc.RegisterHandlerFunc(
 		fmt.Sprintf(
