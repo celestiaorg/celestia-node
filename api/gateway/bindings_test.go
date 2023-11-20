@@ -59,7 +59,7 @@ func TestRegisterEndpoints(t *testing.T) {
 		},
 		{
 			name:     "Get health endpoint",
-			path:     "/health",
+			path:     "/status/health",
 			method:   http.MethodGet,
 			expected: true,
 		},

@@ -63,8 +63,11 @@ func (h *Handler) RegisterEndpoints(rpc *Server) {
 	)
 
 	// header endpoints
-	rpc.RegisterHandlerFunc(fmt.Sprintf("%s/{%s}", headerByHeightEndpoint, heightKey), h.handleHeaderRequest,
-		http.MethodGet)
+	rpc.RegisterHandlerFunc(
+		fmt.Sprintf("%s/{%s}", headerByHeightEndpoint, heightKey),
+		h.handleHeaderRequest,
+		http.MethodGet,
+	)
 
 	rpc.RegisterHandlerFunc(headEndpoint, h.handleHeadRequest, http.MethodGet)
 }
