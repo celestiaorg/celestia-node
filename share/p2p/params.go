@@ -9,6 +9,10 @@ import (
 
 // Parameters is the set of parameters that must be configured for the shrex/eds protocol.
 type Parameters struct {
+
+	// networkID is prepended to the protocolID and represents the network the protocol is
+	// running on.
+	networkID string
 	// ServerReadTimeout sets the timeout for reading messages from the stream.
 	ServerReadTimeout time.Duration
 
@@ -20,10 +24,6 @@ type Parameters struct {
 
 	// ConcurrencyLimit is the maximum number of concurrently handled streams
 	ConcurrencyLimit int
-
-	// networkID is prepended to the protocolID and represents the network the protocol is
-	// running on.
-	networkID string
 }
 
 func DefaultParameters() *Parameters {

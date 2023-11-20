@@ -11,20 +11,20 @@ import (
 // timedQueue store items for ttl duration and releases it with calling onPop callback. Each item
 // is tracked independently
 type timedQueue struct {
-	sync.Mutex
-	items []item
-
-	// ttl is the amount of time each item exist in the timedQueue
-	ttl   time.Duration
 	clock clock.Clock
 	after *clock.Timer
 	// onPop will be called on item peer.ID after it is released
 	onPop func(peer.ID)
+	items []item
+
+	// ttl is the amount of time each item exist in the timedQueue
+	ttl time.Duration
+	sync.Mutex
 }
 
 type item struct {
-	peer.ID
 	createdAt time.Time
+	peer.ID
 }
 
 func newTimedQueue(ttl time.Duration, onPop func(peer.ID)) *timedQueue {

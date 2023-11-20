@@ -24,11 +24,10 @@ import (
 // Client implements client side of shrex/nd protocol to obtain namespaced shares data from remote
 // peers.
 type Client struct {
+	host       host.Host
 	params     *Parameters
+	metrics    *p2p.Metrics
 	protocolID protocol.ID
-
-	host    host.Host
-	metrics *p2p.Metrics
 }
 
 // NewClient creates a new shrEx/nd client

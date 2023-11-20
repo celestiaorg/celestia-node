@@ -42,11 +42,9 @@ var discoveryRetryTimeout = retryTimeout
 // Discovery combines advertise and discover services and allows to store discovered nodes.
 // TODO: The code here gets horribly hairy, so we should refactor this at some point
 type Discovery struct {
-	// Tag is used as rondezvous point for discovery service
-	tag       string
-	set       *limitedSet
 	host      host.Host
 	disc      discovery.Discovery
+	set       *limitedSet
 	connector *backoffConnector
 	// onUpdatedPeers will be called on peer set changes
 	onUpdatedPeers OnUpdatedPeers
@@ -58,6 +56,8 @@ type Discovery struct {
 	cancel context.CancelFunc
 
 	params *Parameters
+	// Tag is used as rondezvous point for discovery service
+	tag string
 }
 
 type OnUpdatedPeers func(peerID peer.ID, isAdded bool)

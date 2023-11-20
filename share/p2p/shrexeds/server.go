@@ -22,17 +22,17 @@ import (
 
 // Server is responsible for serving ODSs for blocksync over the ShrEx/EDS protocol.
 type Server struct {
-	ctx    context.Context
-	cancel context.CancelFunc
+	ctx context.Context
 
-	host       host.Host
-	protocolID protocol.ID
+	host   host.Host
+	cancel context.CancelFunc
 
 	store *eds.Store
 
 	params     *Parameters
 	middleware *p2p.Middleware
 	metrics    *p2p.Metrics
+	protocolID protocol.ID
 }
 
 // NewServer creates a new ShrEx/EDS server.

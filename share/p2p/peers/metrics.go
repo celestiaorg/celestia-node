@@ -70,8 +70,8 @@ type metrics struct {
 
 	shrexPools               metric.Int64ObservableGauge // attributes: pool_status
 	fullNodesPool            metric.Int64ObservableGauge // attributes: pool_status
-	blacklistedPeersByReason sync.Map
 	blacklistedPeers         metric.Int64ObservableGauge // attributes: blacklist_reason
+	blacklistedPeersByReason sync.Map
 }
 
 func initMetrics(manager *Manager) (*metrics, error) {

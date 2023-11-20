@@ -12,17 +12,18 @@ const defaultCleanupThreshold = 2
 
 // pool stores peers and provides methods for simple round-robin access.
 type pool struct {
-	m           sync.RWMutex
+	statuses  map[peer.ID]status
+	cooldown  *timedQueue
+	hasPeerCh chan struct{}
+
 	peersList   []peer.ID
-	statuses    map[peer.ID]status
-	cooldown    *timedQueue
 	activeCount int
 	nextIdx     int
 
-	hasPeer   bool
-	hasPeerCh chan struct{}
-
 	cleanupThreshold int
+	m                sync.RWMutex
+
+	hasPeer bool
 }
 
 type status int
