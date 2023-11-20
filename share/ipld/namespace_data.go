@@ -41,15 +41,16 @@ func WithProofs() Option {
 
 // NamespaceData stores all leaves under the given namespace with their corresponding proofs.
 type NamespaceData struct {
-	leaves []ipld.Node
-	proofs *proofCollector
+	absenceProofLeaf ipld.Node
+	proofs           *proofCollector
+
+	leaves    []ipld.Node
+	namespace share.Namespace
 
 	bounds    fetchedBounds
 	maxShares int
-	namespace share.Namespace
 
 	isAbsentNamespace atomic.Bool
-	absenceProofLeaf  ipld.Node
 }
 
 func NewNamespaceData(maxShares int, namespace share.Namespace, options ...Option) *NamespaceData {

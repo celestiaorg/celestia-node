@@ -53,8 +53,8 @@ func (ns NamespacedShares) Flatten() []Share {
 
 // NamespacedRow represents all shares with proofs within a specific namespace of a single EDS row.
 type NamespacedRow struct {
-	Shares []Share    `json:"shares"`
 	Proof  *nmt.Proof `json:"proof"`
+	Shares []Share    `json:"shares"`
 }
 
 // Verify validates NamespacedShares by checking every row with nmt inclusion proof.

@@ -6,8 +6,8 @@ import (
 )
 
 type done struct {
-	name     string
 	finished chan struct{}
+	name     string
 }
 
 func newDone(name string) done {

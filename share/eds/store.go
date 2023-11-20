@@ -43,6 +43,7 @@ var ErrNotFound = errors.New("eds not found in store")
 // blockstore interface implementation to achieve access. The main use-case is randomized sampling
 // over the whole chain of EDS block data and getting data by namespace.
 type Store struct {
+	carIdx index.FullIndexRepo
 	cancel context.CancelFunc
 
 	dgstr  *dagstore.DAGStore
@@ -51,19 +52,20 @@ type Store struct {
 	bs    *blockstore
 	cache atomic.Pointer[cache.DoubleCache]
 
-	carIdx      index.FullIndexRepo
 	invertedIdx *simpleInvertedIndex
 
-	basepath   string
-	gcInterval time.Duration
 	// lastGCResult is only stored on the store for testing purposes.
 	lastGCResult atomic.Pointer[dagstore.GCResult]
 
-	// stripedLocks is used to synchronize parallel operations
-	stripedLocks  [256]sync.Mutex
 	shardFailures chan dagstore.ShardResult
 
 	metrics *metrics
+
+	basepath   string
+	gcInterval time.Duration
+
+	// stripedLocks is used to synchronize parallel operations
+	stripedLocks [256]sync.Mutex
 }
 
 // NewStore creates a new EDS Store under the given basepath and datastore.
@@ -611,8 +613,9 @@ func setupPath(basepath string) error {
 type inMemoryOnceMount struct {
 	buf *bytes.Buffer
 
-	readOnce atomic.Bool
 	mount.FileMount
+
+	readOnce atomic.Bool
 }
 
 func (m *inMemoryOnceMount) Fetch(ctx context.Context) (mount.Reader, error) {

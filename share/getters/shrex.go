@@ -94,13 +94,13 @@ type ShrexGetter struct {
 
 	peerManager *peers.Manager
 
+	metrics *metrics
+
 	// minRequestTimeout limits minimal timeout given to single peer by getter for serving the request.
 	minRequestTimeout time.Duration
 	// minAttemptsCount will be used to split request timeout into multiple attempts. It will allow to
 	// attempt multiple peers in scope of one request before context timeout is reached
 	minAttemptsCount int
-
-	metrics *metrics
 }
 
 func NewShrexGetter(edsClient *shrexeds.Client, ndClient *shrexnd.Client, peerManager *peers.Manager) *ShrexGetter {

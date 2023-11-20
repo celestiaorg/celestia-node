@@ -22,16 +22,16 @@ const (
 )
 
 type BadEncodingProof struct {
-	headerHash  []byte
-	BlockHeight uint64
+	headerHash []byte
 	// ShareWithProof contains all shares from row or col.
 	// Shares that did not pass verification in rsmt2d will be nil.
 	// For non-nil shares MerkleProofs are computed.
-	Shares []*ShareWithProof
-	// Index represents the row/col index where ErrByzantineRow/ErrByzantineColl occurred.
-	Index uint32
+	Shares      []*ShareWithProof
+	BlockHeight uint64
 	// Axis represents the axis that verification failed on.
 	Axis rsmt2d.Axis
+	// Index represents the row/col index where ErrByzantineRow/ErrByzantineColl occurred.
+	Index uint32
 }
 
 // CreateBadEncodingProof creates a new Bad Encoding Fraud Proof that should be propagated through

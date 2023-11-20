@@ -20,13 +20,13 @@ const (
 )
 
 type worker struct {
-	lock  sync.Mutex
-	state workerState
-
 	getter    libhead.Getter[*header.ExtendedHeader]
 	sampleFn  sampleFn
 	broadcast shrexsub.BroadcastFn
 	metrics   *metrics
+	state     workerState
+
+	lock sync.Mutex
 }
 
 // workerState contains important information about the state of a
@@ -41,13 +41,13 @@ type jobType string
 
 // job represents headers interval to be processed by worker
 type job struct {
-	id      int
-	jobType jobType
-	from    uint64
-	to      uint64
 
 	// header is set only for recentJobs, avoiding an unnecessary call to the header store
-	header *header.ExtendedHeader
+	header  *header.ExtendedHeader
+	jobType jobType
+	id      int
+	from    uint64
+	to      uint64
 }
 
 func newWorker(j job,

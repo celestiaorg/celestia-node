@@ -22,20 +22,21 @@ var log = logging.Logger("das")
 
 // DASer continuously validates availability of data committed to headers.
 type DASer struct {
-	params Parameters
-
 	da     share.Availability
 	bcast  fraud.Broadcaster[*header.ExtendedHeader]
 	hsub   libhead.Subscriber[*header.ExtendedHeader] // listens for new headers in the network
 	getter libhead.Getter[*header.ExtendedHeader]     // retrieves past headers
 
-	sampler    *samplingCoordinator
-	store      checkpointStore
-	subscriber subscriber
+	sampler *samplingCoordinator
 
 	cancel         context.CancelFunc
 	subscriberDone chan struct{}
-	running        int32
+	store          checkpointStore
+	subscriber     subscriber
+
+	params Parameters
+
+	running int32
 }
 
 type listenFn func(context.Context, *header.ExtendedHeader)

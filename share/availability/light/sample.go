@@ -23,8 +23,8 @@ func SampleSquare(squareWidth int, num int) ([]Sample, error) {
 }
 
 type squareSampler struct {
-	squareWidth int
 	smpls       map[Sample]struct{}
+	squareWidth int
 }
 
 func newSquareSampler(squareWidth int, expectedSamples int) *squareSampler {

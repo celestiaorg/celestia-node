@@ -20,13 +20,13 @@ import (
 var log = logging.Logger("rpc")
 
 type Server struct {
-	srv      *http.Server
-	rpc      *jsonrpc.RPCServer
 	listener net.Listener
 
-	started atomic.Bool
-
 	auth jwt.Signer
+	srv  *http.Server
+	rpc  *jsonrpc.RPCServer
+
+	started atomic.Bool
 }
 
 func NewServer(address, port string, secret jwt.Signer) *Server {

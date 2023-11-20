@@ -28,13 +28,13 @@ var (
 // on the network doing sampling over the same Root to collectively verify its availability.
 type ShareAvailability struct {
 	getter share.Getter
+	ds     *autobatch.Datastore
 	params Parameters
 
 	// TODO(@Wondertan): Once we come to parallelized DASer, this lock becomes a contention point
 	//  Related to #483
 	// TODO: Striped locks? :D
 	dsLk sync.RWMutex
-	ds   *autobatch.Datastore
 }
 
 // NewShareAvailability creates a new light Availability.

@@ -13,14 +13,9 @@ import (
 
 // samplingCoordinator runs and coordinates sampling workers and updates current sampling state
 type samplingCoordinator struct {
-	concurrencyLimit int
-	samplingTimeout  time.Duration
-
 	getter      libhead.Getter[*header.ExtendedHeader]
 	sampleFn    sampleFn
 	broadcastFn shrexsub.BroadcastFn
-
-	state coordinatorState
 
 	// resultCh fans-in sampling results from worker to coordinator
 	resultCh chan result
@@ -29,16 +24,22 @@ type samplingCoordinator struct {
 	// waitCh signals to block coordinator for external access to state
 	waitCh chan *sync.WaitGroup
 
-	workersWg sync.WaitGroup
-	metrics   *metrics
+	metrics *metrics
+
 	done
+
+	state coordinatorState
+
+	workersWg        sync.WaitGroup
+	concurrencyLimit int
+	samplingTimeout  time.Duration
 }
 
 // result will carry errors to coordinator after worker finishes the job
 type result struct {
-	job
-	failed map[uint64]int
 	err    error
+	failed map[uint64]int
+	job
 }
 
 func newSamplingCoordinator(
