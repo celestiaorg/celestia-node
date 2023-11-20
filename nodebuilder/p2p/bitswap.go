@@ -67,7 +67,7 @@ type bitSwapParams struct {
 	fx.In
 
 	Ctx  context.Context
-	Net  Network
 	Host hst.Host
 	Bs   blockstore.Blockstore
+	Net  Network
 }

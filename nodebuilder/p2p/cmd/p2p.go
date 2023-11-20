@@ -272,9 +272,9 @@ var blockPeerCmd = &cobra.Command{
 				blocked = true
 			}
 			return struct {
-				Blocked bool   `json:"blocked"`
-				Peer    string `json:"peer"`
 				Reason  error  `json:"reason,omitempty"`
+				Peer    string `json:"peer"`
+				Blocked bool   `json:"blocked"`
 			}{
 				Blocked: blocked,
 				Peer:    args[0],
@@ -311,9 +311,9 @@ var unblockPeerCmd = &cobra.Command{
 			}
 
 			return struct {
-				Unblocked bool   `json:"unblocked"`
-				Peer      string `json:"peer"`
 				Reason    error  `json:"reason,omitempty"`
+				Peer      string `json:"peer"`
+				Unblocked bool   `json:"unblocked"`
 			}{
 				Unblocked: unblocked,
 				Peer:      args[0],
@@ -379,9 +379,9 @@ var protectCmd = &cobra.Command{
 				protected = true
 			}
 			return struct {
-				Protected bool   `json:"protected"`
-				Peer      string `json:"peer"`
 				Reason    error  `json:"reason,omitempty"`
+				Peer      string `json:"peer"`
+				Protected bool   `json:"protected"`
 			}{
 				Protected: protected,
 				Peer:      args[0],
@@ -419,9 +419,9 @@ var unprotectCmd = &cobra.Command{
 				unprotected = true
 			}
 			return struct {
-				Unprotected bool   `json:"unprotected"`
-				Peer        string `json:"peer"`
 				Reason      error  `json:"reason,omitempty"`
+				Peer        string `json:"peer"`
+				Unprotected bool   `json:"unprotected"`
 			}{
 				Unprotected: unprotected,
 				Peer:        args[0],

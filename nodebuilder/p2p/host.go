@@ -94,17 +94,19 @@ type HostBase hst.Host
 type hostParams struct {
 	fx.In
 
-	Net             Network
 	Lc              fx.Lifecycle
-	ID              peer.ID
 	Key             crypto.PrivKey
-	AddrF           p2pconfig.AddrsFactory
 	PStore          peerstore.Peerstore
 	ConnMngr        connmgr.ConnManager
-	ConnGater       *conngater.BasicConnectionGater
-	Bandwidth       *metrics.BandwidthCounter
 	ResourceManager network.ResourceManager
 	Registry        prometheus.Registerer `optional:"true"`
+
+	AddrF     p2pconfig.AddrsFactory
+	ConnGater *conngater.BasicConnectionGater
+	Bandwidth *metrics.BandwidthCounter
+
+	Net Network
+	ID  peer.ID
 
 	Tp node.Type
 }

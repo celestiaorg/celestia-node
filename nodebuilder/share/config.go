@@ -17,16 +17,17 @@ type Config struct {
 	// EDSStoreParams sets eds store configuration parameters
 	EDSStoreParams *eds.Parameters
 
-	UseShareExchange bool
 	// ShrExEDSParams sets shrexeds client and server configuration parameters
 	ShrExEDSParams *shrexeds.Parameters
 	// ShrExNDParams sets shrexnd client and server configuration parameters
 	ShrExNDParams *shrexnd.Parameters
+	Discovery     *discovery.Parameters
 	// PeerManagerParams sets peer-manager configuration parameters
 	PeerManagerParams peers.Parameters
 
 	LightAvailability light.Parameters `toml:",omitempty"`
-	Discovery         *discovery.Parameters
+
+	UseShareExchange bool
 }
 
 func DefaultConfig(tp node.Type) Config {

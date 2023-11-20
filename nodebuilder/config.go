@@ -25,15 +25,15 @@ type ConfigLoader func() (*Config, error)
 // Config is main configuration structure for a Node.
 // It combines configuration units for all Node subsystems.
 type Config struct {
-	Node    node.Config
 	Core    core.Config
 	State   state.Config
-	P2P     p2p.Config
 	RPC     rpc.Config
 	Gateway gateway.Config
-	Share   share.Config
 	Header  header.Config
+	Share   share.Config
+	P2P     p2p.Config
 	DASer   das.Config `toml:",omitempty"`
+	Node    node.Config
 }
 
 // DefaultConfig provides a default Config for a given Node Type 'tp'.

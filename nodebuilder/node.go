@@ -45,24 +45,13 @@ var (
 type Node struct {
 	fx.In `ignore-unexported:"true"`
 
-	Type          node.Type
-	Network       p2p.Network
-	Bootstrappers p2p.Bootstrappers
-	Config        *Config
-	AdminSigner   jwt.Signer
-
-	// rpc components
-	RPCServer     *rpc.Server     // not optional
-	GatewayServer *gateway.Server `optional:"true"`
+	AdminSigner jwt.Signer
 
 	// p2p components
 	Host         host.Host
-	ConnGater    *conngater.BasicConnectionGater
 	Routing      routing.PeerRouting
 	DataExchange exchange.Interface
 	BlockService blockservice.BlockService
-	// p2p protocols
-	PubSub *pubsub.PubSub
 	// services
 	ShareServ  share.Module  // not optional
 	HeaderServ header.Module // not optional
@@ -72,8 +61,22 @@ type Node struct {
 	DASer      das.Module    // not optional
 	AdminServ  node.Module   // not optional
 
+	Config *Config
+
+	// rpc components
+	RPCServer     *rpc.Server     // not optional
+	GatewayServer *gateway.Server `optional:"true"`
+
+	ConnGater *conngater.BasicConnectionGater
+	// p2p protocols
+	PubSub *pubsub.PubSub
+
 	// start and stop control ref internal fx.App lifecycle funcs to be called from Start and Stop
-	start, stop lifecycleFunc
+	start, stop   lifecycleFunc
+	Network       p2p.Network
+	Bootstrappers p2p.Bootstrappers
+
+	Type node.Type
 }
 
 // New assembles a new Node with the given type 'tp' over Store 'store'.

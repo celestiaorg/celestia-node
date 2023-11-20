@@ -67,8 +67,8 @@ func TestBlobModule(t *testing.T) {
 	require.NoError(t, err)
 
 	var test = []struct {
-		name string
 		doFn func(t *testing.T)
+		name string
 	}{
 		{
 			name: "Get",

@@ -105,9 +105,9 @@ type pubSubParams struct {
 
 	Ctx           context.Context
 	Host          hst.Host
-	Bootstrappers Bootstrappers
-	Network       Network
 	Unmarshaler   fraud.ProofUnmarshaler[*header.ExtendedHeader]
+	Network       Network
+	Bootstrappers Bootstrappers
 }
 
 func topicScoreParams(params pubSubParams) map[string]*pubsub.TopicScoreParams {

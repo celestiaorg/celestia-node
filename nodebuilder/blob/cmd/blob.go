@@ -160,8 +160,8 @@ var submitCmd = &cobra.Command{
 		)
 
 		response := struct {
-			Height     uint64          `json:"height"`
 			Commitment blob.Commitment `json:"commitment"`
+			Height     uint64          `json:"height"`
 		}{
 			Height:     height,
 			Commitment: parsedBlob.Commitment,
@@ -203,10 +203,10 @@ var getProofCmd = &cobra.Command{
 
 func formatData(data interface{}) interface{} {
 	type tempBlob struct {
-		Namespace    []byte `json:"namespace"`
 		Data         string `json:"data"`
-		ShareVersion uint32 `json:"share_version"`
+		Namespace    []byte `json:"namespace"`
 		Commitment   []byte `json:"commitment"`
+		ShareVersion uint32 `json:"share_version"`
 	}
 
 	if reflect.TypeOf(data).Kind() == reflect.Slice {

@@ -70,8 +70,9 @@ func traceReporter() rcmgr.Option {
 type resourceManagerParams struct {
 	fx.In
 
+	Opts []rcmgr.Option `group:"rcmgr-opts"`
+
 	Limits rcmgr.ConcreteLimitConfig
-	Opts   []rcmgr.Option `group:"rcmgr-opts"`
 }
 
 func resourceManagerOpt(opt any) fx.Annotated {

@@ -141,12 +141,12 @@ func (f *fsStore) Close() (err error) {
 }
 
 type fsStore struct {
-	path string
-
-	dataMu  sync.Mutex
 	data    datastore.Batching
 	keys    keystore.Keystore
 	dirLock *fslock.Locker // protects directory
+	path    string
+
+	dataMu sync.Mutex
 }
 
 func storePath(path string) (string, error) {

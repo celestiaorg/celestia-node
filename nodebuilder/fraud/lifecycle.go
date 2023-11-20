@@ -22,12 +22,12 @@ type service interface {
 // TODO(@Wondertan): Support multiple fraud types.
 type ServiceBreaker[S service, H libhead.Header[H]] struct {
 	Service   S
-	FraudType fraud.ProofType
 	FraudServ fraud.Service[H]
 
-	ctx    context.Context
-	cancel context.CancelFunc
-	sub    fraud.Subscription[H]
+	ctx       context.Context
+	sub       fraud.Subscription[H]
+	cancel    context.CancelFunc
+	FraudType fraud.ProofType
 }
 
 // Start starts the inner service if there are no fraud proofs stored.

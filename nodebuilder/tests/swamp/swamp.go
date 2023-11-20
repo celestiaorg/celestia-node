@@ -49,19 +49,20 @@ const DefaultTestTimeout = time.Minute * 5
 // - Slices of created Bridge/Full/Light Nodes
 // - trustedHash taken from the CoreClient and shared between nodes
 type Swamp struct {
-	t   *testing.T
-	cfg *testnode.Config
+	ClientContext testnode.Context
 
-	Network       mocknet.Mocknet
+	Network mocknet.Mocknet
+	t       *testing.T
+	cfg     *testnode.Config
+
+	nodes map[*nodebuilder.Node]struct{}
+
+	genesis       *header.ExtendedHeader
 	Bootstrappers []ma.Multiaddr
 
-	ClientContext testnode.Context
-	Accounts      []string
+	Accounts []string
 
 	nodesMu sync.Mutex
-	nodes   map[*nodebuilder.Node]struct{}
-
-	genesis *header.ExtendedHeader
 }
 
 // NewSwamp creates a new instance of Swamp.

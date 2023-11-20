@@ -55,9 +55,9 @@ var sharesAvailableCmd = &cobra.Command{
 				available = true
 			}
 			return struct {
-				Available bool   `json:"available"`
-				Hash      []byte `json:"dah_hash"`
 				Reason    error  `json:"reason,omitempty"`
+				Hash      []byte `json:"dah_hash"`
+				Available bool   `json:"available"`
 			}{
 				Available: available,
 				Hash:      []byte(args[0]),
