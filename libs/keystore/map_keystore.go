@@ -12,9 +12,9 @@ import (
 
 // mapKeystore is a simple in-memory Keystore implementation.
 type mapKeystore struct {
+	ring   keyring.Keyring
 	keys   map[KeyName]PrivKey
 	keysLk sync.Mutex
-	ring   keyring.Keyring
 }
 
 // NewMapKeystore constructs in-memory Keystore.
