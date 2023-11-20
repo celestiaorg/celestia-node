@@ -4,11 +4,12 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/celestiaorg/celestia-node/libs/utils"
 	"github.com/libp2p/go-libp2p/core/peer"
 	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/metric"
+
+	"github.com/celestiaorg/celestia-node/libs/utils"
 )
 
 const (

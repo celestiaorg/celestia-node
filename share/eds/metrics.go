@@ -4,10 +4,11 @@ import (
 	"context"
 	"time"
 
-	"github.com/celestiaorg/celestia-node/libs/utils"
 	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/metric"
+
+	"github.com/celestiaorg/celestia-node/libs/utils"
 )
 
 const (
