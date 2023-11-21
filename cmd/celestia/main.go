@@ -5,9 +5,16 @@ import (
 	"os"
 
 	"github.com/spf13/cobra"
+
+	"github.com/celestiaorg/celestia-node/cmd/celestia/bridge"
+	"github.com/celestiaorg/celestia-node/cmd/celestia/full"
+	"github.com/celestiaorg/celestia-node/cmd/celestia/light"
 )
 
 func init() {
+	bridgeCmd := bridge.NewCommand()
+	lightCmd := light.NewCommand()
+	fullCmd := full.NewCommand()
 	rootCmd.AddCommand(
 		bridgeCmd,
 		lightCmd,

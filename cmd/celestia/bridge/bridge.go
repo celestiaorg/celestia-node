@@ -1,4 +1,4 @@
-package main
+package bridge
 
 import (
 	"github.com/spf13/cobra"
@@ -16,7 +16,7 @@ import (
 // NOTE: We should always ensure that the added Flags below are parsed somewhere, like in the
 // PersistentPreRun func on parent command.
 
-func init() {
+func NewCommand(options ...func(*cobra.Command, []*pflag.FlagSet)) *cobra.Command {
 	flags := []*pflag.FlagSet{
 		cmdnode.NodeFlags(),
 		p2p.Flags(),
@@ -26,8 +26,15 @@ func init() {
 		gateway.Flags(),
 		state.Flags(),
 	}
-
-	bridgeCmd.AddCommand(
+	cmd := &cobra.Command{
+		Use:   "bridge [subcommand]",
+		Args:  cobra.NoArgs,
+		Short: "Manage your Bridge node",
+		PersistentPreRunE: func(cmd *cobra.Command, args []string) error {
+			return cmdnode.PersistentPreRunEnv(cmd, node.Bridge, args)
+		},
+	}
+	cmd.AddCommand(
 		cmdnode.Init(flags...),
 		cmdnode.Start(cmdnode.WithFlagSet(flags)),
 		cmdnode.AuthCmd(flags...),
@@ -35,13 +42,8 @@ func init() {
 		cmdnode.RemoveConfigCmd(flags...),
 		cmdnode.UpdateConfigCmd(flags...),
 	)
-}
-
-var bridgeCmd = &cobra.Command{
-	Use:   "bridge [subcommand]",
-	Args:  cobra.NoArgs,
-	Short: "Manage your Bridge node",
-	PersistentPreRunE: func(cmd *cobra.Command, args []string) error {
-		return cmdnode.PersistentPreRunEnv(cmd, node.Bridge, args)
-	},
+	for _, option := range options {
+		option(cmd, flags)
+	}
+	return cmd
 }
