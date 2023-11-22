@@ -363,4 +363,4 @@ replace (
 	github.com/tendermint/tendermint => github.com/celestiaorg/celestia-core v1.29.0-tm-v0.34.29
 )
 
-replace github.com/ipfs/go-ds-pebble => github.com/Wondertan/go-ds-pebble v0.0.0-20231121185058-4807862655ef
+replace github.com/ipfs/go-ds-pebble => github.com/Wondertan/go-ds-pebble v0.0.0-20231122144553-e65f23fd8e25
