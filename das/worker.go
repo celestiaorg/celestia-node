@@ -168,7 +168,7 @@ func (w *worker) getHeader(ctx context.Context, height uint64) (*header.Extended
 	if err != nil {
 		if !errors.Is(err, context.Canceled) {
 			log.Errorw("failed to get header from header store", "height", height,
-				"finished (s)", time.Since(start))
+				"finished (s)", time.Since(start), "err", err)
 		}
 		return nil, err
 	}
