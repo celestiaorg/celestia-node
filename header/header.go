@@ -170,8 +170,8 @@ var (
 
 // Verify validates given untrusted Header against trusted ExtendedHeader.
 func (eh *ExtendedHeader) Verify(untrst *ExtendedHeader) error {
-	isAdjacent := eh.Height()+1 == untrst.Height()
-	if isAdjacent {
+	switch untrst.Height() {
+	case eh.Height() + 1: // forwards adjacent
 		// Optimized verification for adjacent headers
 		// Check the validator hashes are the same
 		if !bytes.Equal(untrst.ValidatorsHash, eh.NextValidatorsHash) {
@@ -193,8 +193,10 @@ func (eh *ExtendedHeader) Verify(untrst *ExtendedHeader) error {
 				),
 			}
 		}
-
 		return nil
+	case eh.Height() - 1: // backwards adjacent
+		return eh.verifyBackwards(untrst)
+	default:
 	}
 
 	if err := eh.ValidatorSet.VerifyCommitLightTrusting(eh.ChainID(), untrst.Commit, light.DefaultTrustLevel); err != nil {
@@ -203,6 +205,24 @@ func (eh *ExtendedHeader) Verify(untrst *ExtendedHeader) error {
 			SoftFailure: true,
 		}
 	}
+	return nil
+}
+
+// verifyBackwards verifies an untrusted header against a trusted header where
+// the untrusted height is trusted-1.
+func (eh *ExtendedHeader) verifyBackwards(untrusted *ExtendedHeader) error {
+	if eh.Height() != untrusted.Height()-1 {
+		return fmt.Errorf("non-adjacent height attempted: trusted %d, untrusted attempted %d",
+			eh.Height(), untrusted.Height())
+	}
+
+	if !bytes.Equal(eh.LastBlockID.Hash, untrusted.Hash()) {
+		return ErrLastHeaderHashMismatch
+	}
+	if !bytes.Equal(eh.ValidatorSet.Hash(), untrusted.NextValidatorsHash) {
+		return ErrValidatorHashMismatch
+	}
+
 	return nil
 }
 
