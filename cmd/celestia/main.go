@@ -12,9 +12,9 @@ import (
 )
 
 func init() {
-	bridgeCmd := bridge.NewCommand()
-	lightCmd := light.NewCommand()
-	fullCmd := full.NewCommand()
+	bridgeCmd := bridge.NewCommand(bridge.WithSubcommands())
+	lightCmd := light.NewCommand(bridge.WithSubcommands())
+	fullCmd := full.NewCommand(bridge.WithSubcommands())
 	rootCmd.AddCommand(
 		bridgeCmd,
 		lightCmd,
