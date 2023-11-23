@@ -64,6 +64,7 @@ func WithPyroscope(endpoint string, nodeType node.Type) fx.Option {
 					pyroscope.ProfileAllocSpace,
 					pyroscope.ProfileInuseObjects,
 					pyroscope.ProfileInuseSpace,
+					pyroscope.ProfileGoroutines,
 				},
 			})
 			return err
