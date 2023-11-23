@@ -37,12 +37,9 @@ const (
 	// if the desired number of nodes is not detected.
 	logInterval            = 5 * time.Minute
 	maxBackoffDuration     = 10 * time.Minute
-	backoffInitialDuration = 1 * time.Second
+	backoffInitialDuration = 5 * time.Second
 	jitterFactor           = 0.1
 )
-
-// discoveryRetryTimeout defines time interval between discovery attempts, needed for tests
-var discoveryRetryTimeout = retryTimeout
 
 // Discovery combines advertise and discover services and allows to store discovered nodes.
 // TODO: The code here gets horribly hairy, so we should refactor this at some point

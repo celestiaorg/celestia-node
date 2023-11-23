@@ -24,8 +24,6 @@ const (
 func TestDiscovery(t *testing.T) {
 	const nodes = 10 // higher number brings higher coverage
 
-	discoveryRetryTimeout = time.Millisecond * 100 // defined in discovery.go
-
 	ctx, cancel := context.WithTimeout(context.Background(), time.Minute*2)
 	t.Cleanup(cancel)
 
