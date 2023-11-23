@@ -1,6 +1,6 @@
 package rpc
 
 const (
-	defaultBindAddress = "127.0.0.1"
+	defaultBindAddress = "localhost"
 	defaultPort        = "26658"
 )

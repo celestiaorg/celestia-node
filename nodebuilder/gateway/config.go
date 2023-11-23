@@ -7,8 +7,6 @@ import (
 	"github.com/celestiaorg/celestia-node/libs/utils"
 )
 
-const ()
-
 type Config struct {
 	Address string
 	Port    string

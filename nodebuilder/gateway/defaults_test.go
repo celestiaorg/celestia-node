@@ -7,6 +7,6 @@ import (
 )
 
 func TestServerDefaultConstants(t *testing.T) {
-	assert.Equal(t, "127.0.0.1", defaultBindAddress)
+	assert.Equal(t, "localhost", defaultBindAddress)
 	assert.Equal(t, "26659", defaultPort)
 }
