@@ -180,7 +180,9 @@ func createListener(
 		require.NoError(t, p2pSub.Stop(ctx))
 	})
 
-	return NewListener(p2pSub, fetcher, edsSub.Broadcast, header.MakeExtendedHeader, store, nodep2p.BlockTime)
+	listener, err := NewListener(p2pSub, fetcher, edsSub.Broadcast, header.MakeExtendedHeader, store, nodep2p.BlockTime)
+	require.NoError(t, err)
+	return listener
 }
 
 func createEdsPubSub(ctx context.Context, t *testing.T) *shrexsub.PubSub {

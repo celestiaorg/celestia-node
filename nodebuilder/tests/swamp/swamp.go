@@ -176,11 +176,12 @@ func (s *Swamp) setupGenesis() {
 	store, err := eds.NewStore(eds.DefaultParameters(), s.t.TempDir(), ds)
 	require.NoError(s.t, err)
 
-	ex := core.NewExchange(
+	ex, err := core.NewExchange(
 		core.NewBlockFetcher(s.ClientContext.Client),
 		store,
 		header.MakeExtendedHeader,
 	)
+	require.NoError(s.t, err)
 
 	h, err := ex.GetByHeight(ctx, 1)
 	require.NoError(s.t, err)
