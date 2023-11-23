@@ -26,7 +26,7 @@ func TestDiscovery(t *testing.T) {
 
 	discoveryRetryTimeout = time.Millisecond * 100 // defined in discovery.go
 
-	ctx, cancel := context.WithTimeout(context.Background(), time.Second*20)
+	ctx, cancel := context.WithTimeout(context.Background(), time.Minute*2)
 	t.Cleanup(cancel)
 
 	tn := newTestnet(ctx, t)
