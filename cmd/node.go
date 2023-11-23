@@ -43,8 +43,6 @@ func NewLight(options ...func(*cobra.Command, []*pflag.FlagSet)) *cobra.Command 
 		p2p.Flags(),
 		header.Flags(),
 		MiscFlags(),
-		// NOTE: for now, state-related queries can only be accessed
-		// over an RPC connection with a celestia-core node.
 		core.Flags(),
 		rpc.Flags(),
 		gateway.Flags(),
@@ -70,8 +68,6 @@ func NewFull(options ...func(*cobra.Command, []*pflag.FlagSet)) *cobra.Command {
 		p2p.Flags(),
 		header.Flags(),
 		MiscFlags(),
-		// NOTE: for now, state-related queries can only be accessed
-		// over an RPC connection with a celestia-core node.
 		core.Flags(),
 		rpc.Flags(),
 		gateway.Flags(),
