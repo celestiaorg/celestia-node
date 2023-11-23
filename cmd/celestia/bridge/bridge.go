@@ -16,25 +16,12 @@ import (
 // NOTE: We should always ensure that the added Flags below are parsed somewhere, like in the
 // PersistentPreRun func on parent command.
 
-func WithSubcommands() func(*cobra.Command, []*pflag.FlagSet) {
-	return func(c *cobra.Command, flags []*pflag.FlagSet) {
-		c.AddCommand(
-			cmdnode.Init(flags...),
-			cmdnode.Start(cmdnode.WithFlagSet(flags)),
-			cmdnode.AuthCmd(flags...),
-			cmdnode.ResetStore(flags...),
-			cmdnode.RemoveConfigCmd(flags...),
-			cmdnode.UpdateConfigCmd(flags...),
-		)
-	}
-}
-
 func NewCommand(options ...func(*cobra.Command, []*pflag.FlagSet)) *cobra.Command {
 	flags := []*pflag.FlagSet{
 		cmdnode.NodeFlags(),
 		p2p.Flags(),
-		core.Flags(),
 		cmdnode.MiscFlags(),
+		core.Flags(),
 		rpc.Flags(),
 		gateway.Flags(),
 		state.Flags(),
