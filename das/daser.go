@@ -13,6 +13,7 @@ import (
 	libhead "github.com/celestiaorg/go-header"
 
 	"github.com/celestiaorg/celestia-node/header"
+	"github.com/celestiaorg/celestia-node/pruner"
 	"github.com/celestiaorg/celestia-node/share"
 	"github.com/celestiaorg/celestia-node/share/eds/byzantine"
 	"github.com/celestiaorg/celestia-node/share/p2p/shrexsub"
@@ -28,6 +29,10 @@ type DASer struct {
 	bcast  fraud.Broadcaster[*header.ExtendedHeader]
 	hsub   libhead.Subscriber[*header.ExtendedHeader] // listens for new headers in the network
 	getter libhead.Getter[*header.ExtendedHeader]     // retrieves past headers
+
+	// determines whether a header is within the availability window and
+	// necessary to sample
+	window pruner.AvailabilityWindow
 
 	sampler    *samplingCoordinator
 	store      checkpointStore
@@ -49,6 +54,7 @@ func NewDASer(
 	dstore datastore.Datastore,
 	bcast fraud.Broadcaster[*header.ExtendedHeader],
 	shrexBroadcast shrexsub.BroadcastFn,
+	availabilityWindow pruner.AvailabilityWindow,
 	options ...Option,
 ) (*DASer, error) {
 	d := &DASer{
@@ -57,6 +63,7 @@ func NewDASer(
 		bcast:          bcast,
 		hsub:           hsub,
 		getter:         getter,
+		window:         availabilityWindow,
 		store:          newCheckpointStore(dstore),
 		subscriber:     newSubscriber(),
 		subscriberDone: make(chan struct{}),
@@ -147,6 +154,12 @@ func (d *DASer) Stop(ctx context.Context) error {
 }
 
 func (d *DASer) sample(ctx context.Context, h *header.ExtendedHeader) error {
+	// short-circuit if pruning is enabled and the header is outside the
+	// availability window
+	if !d.window.IsWithinAvailabilityWindow(h, pruner.Window) {
+		return nil
+	}
+
 	err := d.da.SharesAvailable(ctx, h)
 	if err != nil {
 		var byzantineErr *byzantine.ErrByzantine
