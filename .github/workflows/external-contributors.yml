@@ -1,0 +1,33 @@
+name: External Contributor Alert
+
+on:
+  issues:
+    types: [labeled]
+  pull_request:
+    types: [labeled]
+
+jobs:
+  webhook-job:
+    runs-on: ubuntu-latest
+    if: >-
+      github.event.label.name == 'external' ||
+      github.event.label.name == 'urgent'
+    steps:
+      - name: Prepare Payload
+        id: prepare
+        run: |
+          if [ "${{ github.event_name }}" == "issues" ]; then
+            echo "title=${{ github.event.issue.title }}" >> $GITHUB_OUTPUT
+            echo "url=${{ github.event.issue.html_url }}" >> $GITHUB_OUTPUT
+            echo "type=issue" >> $GITHUB_OUTPUT
+          else
+            echo "title=${{ github.event.pull_request.title }}" >> $GITHUB_OUTPUT
+            echo "url=${{ github.event.pull_request.html_url }}" >> $GITHUB_OUTPUT
+            echo "type=PR" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Send Webhook Notification
+        run: |
+          curl -X POST ${{ secrets.NODE_WEBHOOK_EXTERNAL_ALERT_URL }} \
+          -H "Content-Type: application/json" \
+          -d '{"eventName": "${{ github.event_name }}", "label": "${{ github.event.label.name }}", "title": "${{steps.prepare.outputs.type}} ${{ steps.prepare.outputs.title }}", "url": "${{ steps.prepare.outputs.url }}"}'
