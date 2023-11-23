@@ -30,4 +30,11 @@ jobs:
         run: |
           curl -X POST ${{ secrets.NODE_WEBHOOK_EXTERNAL_ALERT_URL }} \
           -H "Content-Type: application/json" \
-          -d '{"eventName": "${{ github.event_name }}", "label": "${{ github.event.label.name }}", "title": "${{steps.prepare.outputs.type}} ${{ steps.prepare.outputs.title }}", "url": "${{ steps.prepare.outputs.url }}"}'
+          -d @- << EOF
+            {
+              "eventName": "${{ github.event_name }}",
+              "label": "${{ github.event.label.name }}",
+              "title": "${{ steps.prepare.outputs.type }} ${{ steps.prepare.outputs.title }}",
+              "url": "${{ steps.prepare.outputs.url }}"
+            }
+          EOF
