@@ -7,10 +7,6 @@ import (
 	"github.com/spf13/cobra"
 	"github.com/spf13/pflag"
 
-	"github.com/celestiaorg/celestia-node/cmd/celestia/bridge"
-	"github.com/celestiaorg/celestia-node/cmd/celestia/full"
-	"github.com/celestiaorg/celestia-node/cmd/celestia/light"
-
 	cmdnode "github.com/celestiaorg/celestia-node/cmd"
 )
 
@@ -28,9 +24,9 @@ func WithSubcommands() func(*cobra.Command, []*pflag.FlagSet) {
 }
 
 func init() {
-	bridgeCmd := bridge.NewCommand(WithSubcommands())
-	lightCmd := light.NewCommand(WithSubcommands())
-	fullCmd := full.NewCommand(WithSubcommands())
+	bridgeCmd := cmdnode.NewBridge(WithSubcommands())
+	lightCmd := cmdnode.NewLight(WithSubcommands())
+	fullCmd := cmdnode.NewFull(WithSubcommands())
 	rootCmd.AddCommand(
 		bridgeCmd,
 		lightCmd,
