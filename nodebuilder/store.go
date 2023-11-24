@@ -120,13 +120,14 @@ func (f *fsStore) Datastore() (datastore.Batching, error) {
 	}
 
 	opts := dsbadger.DefaultOptions // this should be copied
-	opts.GcInterval = time.Minute * 1
+	opts.GcInterval = time.Minute * 10
 	opts.DetectConflicts = false
 	opts.GcDiscardRatio = 0.5
 	opts.Compression = options.None
 	opts.MemTableSize = 16 << 20
 	opts.NumLevelZeroTables = 3
-	opts.BlockCacheSize = 64 << 20
+	opts.BlockCacheSize = 128 << 20
+	opts.NumCompactors = 8
 	ds, err := dsbadger.NewDatastore(dataPath(f.path), &opts)
 	if err != nil {
 		return nil, fmt.Errorf("node: can't open Badger Datastore: %w", err)
