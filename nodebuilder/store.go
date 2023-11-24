@@ -119,16 +119,19 @@ func (f *fsStore) Datastore() (datastore.Batching, error) {
 		return f.data, nil
 	}
 
-	opts := dsbadger.DefaultOptions // this should be copied
+	opts := dsbadger.DefaultOptions // this must be copied
 	opts.GcInterval = time.Minute * 1
-	opts.DetectConflicts = false
 	opts.GcDiscardRatio = 0.5
-	opts.Compression = options.None
-	opts.MemTableSize = 32 << 20
-	opts.NumLevelZeroTables = 1 // forces compaction to happen more often preventing from memory spikes
-	opts.NumCompactors = 2
-	opts.BlockCacheSize = 16 << 20 // most of the components in the node maintain their own caches, so we can lower this (default is 256mib)
+	opts.DetectConflicts = false
+	// 2mib default => 2kib - makes sure headers are stored in value log
+	// This *tremendously* reduces the amount of memory used by the node, up to 10 times less during compaction
 	opts.ValueThreshold = 2 << 10
+	// default 256mib => 16 mib - most of the components in the node maintain their own caches
+	opts.BlockCacheSize = 16 << 20
+
+	// TODO: Check difference with and without compression
+	opts.Compression = options.None
+
 	ds, err := dsbadger.NewDatastore(dataPath(f.path), &opts)
 	if err != nil {
 		return nil, fmt.Errorf("node: can't open Badger Datastore: %w", err)
