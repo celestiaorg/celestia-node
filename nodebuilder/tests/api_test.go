@@ -25,7 +25,7 @@ func getAdminClient(ctx context.Context, nd *nodebuilder.Node, t *testing.T) *cl
 	signer := nd.AdminSigner
 	listenAddr := "ws://" + nd.RPCServer.ListenAddr()
 
-	jwt, err := authtoken.NewSignedJWT(signer, []auth.Permission{"public", "read", "write", "admin"})
+	jwt, err := authtoken.NewSignedJWT(signer, []auth.Permission{"read", "write", "admin"})
 	require.NoError(t, err)
 
 	client, err := client.NewClient(ctx, listenAddr, jwt)
@@ -46,8 +46,8 @@ func TestNodeModule(t *testing.T) {
 
 	bridgeAddr := "http://" + bridge.RPCServer.ListenAddr()
 
-	writePerms := []auth.Permission{"public", "read", "write"}
-	adminPerms := []auth.Permission{"public", "read", "write", "admin"}
+	writePerms := []auth.Permission{"read", "write"}
+	adminPerms := []auth.Permission{"read", "write", "admin"}
 	jwt, err := bridge.AdminServ.AuthNew(ctx, adminPerms)
 	require.NoError(t, err)
 

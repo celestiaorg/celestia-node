@@ -10,6 +10,7 @@ import (
 
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	"github.com/cristalhq/jwt"
+	"github.com/filecoin-project/go-jsonrpc/auth"
 	"github.com/golang/mock/gomock"
 	"github.com/libp2p/go-libp2p/core/network"
 	"github.com/stretchr/testify/require"
@@ -19,6 +20,7 @@ import (
 	"github.com/celestiaorg/celestia-node/api/rpc/client"
 	"github.com/celestiaorg/celestia-node/api/rpc/perms"
 	daspkg "github.com/celestiaorg/celestia-node/das"
+	"github.com/celestiaorg/celestia-node/libs/authtoken"
 	"github.com/celestiaorg/celestia-node/nodebuilder"
 	"github.com/celestiaorg/celestia-node/nodebuilder/blob"
 	blobMock "github.com/celestiaorg/celestia-node/nodebuilder/blob/mocks"
@@ -50,7 +52,7 @@ func TestRPCCallsUnderlyingNode(t *testing.T) {
 	nd, server := setupNodeWithAuthedRPC(t, signer)
 	url := nd.RPCServer.ListenAddr()
 
-	adminToken, err := perms.NewTokenWithPerms(signer, perms.AllPerms)
+	adminToken, err := authtoken.NewSignedJWT(signer, perms.With(perms.Admin))
 	require.NoError(t, err)
 
 	// we need to run this a few times to prevent the race where the server is not yet started
@@ -59,7 +61,7 @@ func TestRPCCallsUnderlyingNode(t *testing.T) {
 	)
 	for i := 0; i < 3; i++ {
 		time.Sleep(time.Second * 1)
-		rpcClient, err = client.NewClient(ctx, "http://"+url, string(adminToken))
+		rpcClient, err = client.NewClient(ctx, "http://"+url, adminToken)
 		if err == nil {
 			t.Cleanup(rpcClient.Close)
 			break
@@ -127,23 +129,28 @@ func TestAuthedRPC(t *testing.T) {
 	url := nd.RPCServer.ListenAddr()
 
 	// create permissioned tokens
-	publicToken, err := perms.NewTokenWithPerms(signer, perms.DefaultPerms)
+	unsupportedPublicToken, err := perms.NewTokenWithPerms(signer, []auth.Permission{"public"})
 	require.NoError(t, err)
-	readToken, err := perms.NewTokenWithPerms(signer, perms.ReadPerms)
+
+	defaultToken, err := perms.NewTokenWithPerms(signer, perms.With(perms.Default))
 	require.NoError(t, err)
-	rwToken, err := perms.NewTokenWithPerms(signer, perms.ReadWritePerms)
+	readToken, err := perms.NewTokenWithPerms(signer, perms.With(perms.Read))
 	require.NoError(t, err)
-	adminToken, err := perms.NewTokenWithPerms(signer, perms.AllPerms)
+	rwToken, err := perms.NewTokenWithPerms(signer, perms.With(perms.ReadWrite))
+	require.NoError(t, err)
+	adminToken, err := perms.NewTokenWithPerms(signer, perms.With(perms.Admin))
 	require.NoError(t, err)
 
 	var tests = []struct {
 		perm  int
 		token string
 	}{
-		{perm: 1, token: string(publicToken)}, // public
-		{perm: 2, token: string(readToken)},   // read
-		{perm: 3, token: string(rwToken)},     // RW
-		{perm: 4, token: string(adminToken)},  // admin
+		// publicToken (deprecated/unsupported but testing we fail a read request)
+		{perm: 1, token: string(unsupportedPublicToken)},
+		{perm: 2, token: string(defaultToken)}, // default (identical to read)
+		{perm: 2, token: string(readToken)},    // read
+		{perm: 3, token: string(rwToken)},      // RW
+		{perm: 4, token: string(adminToken)},   // admin
 	}
 
 	for i, tt := range tests {

@@ -2,17 +2,55 @@ package perms
 
 import (
 	"encoding/json"
+	"errors"
+	"fmt"
 
 	"github.com/cristalhq/jwt"
 	"github.com/filecoin-project/go-jsonrpc/auth"
 )
 
-var (
-	DefaultPerms   = []auth.Permission{"public"}
-	ReadPerms      = []auth.Permission{"public", "read"}
-	ReadWritePerms = []auth.Permission{"public", "read", "write"}
-	AllPerms       = []auth.Permission{"public", "read", "write", "admin"}
+type Permission int
+
+const (
+	Default Permission = iota
+	Read
+	ReadWrite
+	Admin
 )
+
+var permissions = map[Permission][]auth.Permission{
+	Default:   {"read"},
+	Read:      {"read"},
+	ReadWrite: {"read", "write"},
+	Admin:     {"read", "write", "admin"},
+}
+
+var ErrInvalidPermissions = errors.New("invalid permission specific")
+
+func With(p Permission) []auth.Permission {
+	return permissions[p]
+}
+
+func PermissionsFromString(name string) ([]auth.Permission, error) {
+	p, err := FromString(name)
+	return permissions[p], err
+}
+
+// FromString converts a string to the corresponding Permission iota value.
+func FromString(s string) (Permission, error) {
+	switch s {
+	case "default":
+		return Default, nil
+	case "read", "r":
+		return Read, nil
+	case "readwrite", "rw":
+		return ReadWrite, nil
+	case "admin":
+		return Admin, nil
+	default:
+		return Default, fmt.Errorf("%s: %s", ErrInvalidPermissions, s)
+	}
+}
 
 var AuthKey = "Authorization"
 
