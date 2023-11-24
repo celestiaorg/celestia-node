@@ -119,7 +119,7 @@ func (f *fsStore) Datastore() (datastore.Batching, error) {
 	}
 
 	opts := dsbadger.DefaultOptions // this should be copied
-	opts.GcInterval = time.Minute * 10
+	opts.GcInterval = time.Minute * 1
 	opts.DetectConflicts = false
 
 	ds, err := dsbadger.NewDatastore(dataPath(f.path), &opts)
