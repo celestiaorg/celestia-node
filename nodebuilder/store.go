@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/cosmos/cosmos-sdk/crypto/keyring"
+	"github.com/dgraph-io/badger/v4/options"
 	"github.com/ipfs/go-datastore"
 	"github.com/mitchellh/go-homedir"
 
@@ -122,6 +123,8 @@ func (f *fsStore) Datastore() (datastore.Batching, error) {
 	opts.GcInterval = time.Minute * 1
 	opts.DetectConflicts = false
 	opts.GcDiscardRatio = 0.5
+	opts.Compression = options.None
+	opts.MemTableSize = 16 << 20
 
 	ds, err := dsbadger.NewDatastore(dataPath(f.path), &opts)
 	if err != nil {
