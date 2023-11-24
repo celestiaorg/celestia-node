@@ -4,11 +4,9 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/ipfs/boxo/blockservice"
-	"golang.org/x/sync/errgroup"
-
 	"github.com/celestiaorg/celestia-app/pkg/da"
 	"github.com/celestiaorg/rsmt2d"
+	"github.com/ipfs/boxo/blockservice"
 
 	"github.com/celestiaorg/celestia-node/share/ipld"
 )
@@ -35,7 +33,7 @@ func NewErrByzantine(
 	bGetter blockservice.BlockGetter,
 	dah *da.DataAvailabilityHeader,
 	errByz *rsmt2d.ErrByzantineData,
-) *ErrByzantine {
+) error {
 	// changing the order to collect proofs against an orthogonal axis
 	roots := [][][]byte{
 		dah.ColumnRoots,
@@ -45,42 +43,50 @@ func NewErrByzantine(
 	sharesWithProof := make([]*ShareWithProof, len(errByz.Shares))
 	sharesAmount := 0
 
-	errGr, ctx := errgroup.WithContext(ctx)
-	for index, share := range errByz.Shares {
-		// skip further shares if we already requested half of them, which is enough to recompute the row
-		// or col
-		if sharesAmount == len(dah.RowRoots)/2 {
-			break
-		}
+	type tempStruct struct {
+		share *ShareWithProof
+		index int
+		err   error
+	}
+	tempStructCh := make(chan *tempStruct)
 
+	ctx, cancel := context.WithCancel(ctx)
+	defer cancel()
+
+	for index, share := range errByz.Shares {
 		if share == nil {
 			continue
 		}
-		sharesAmount++
 
 		index := index
-		errGr.Go(func() error {
+		go func() {
 			share, err := getProofsAt(
 				ctx, bGetter,
 				ipld.MustCidFromNamespacedSha256(roots[index]),
 				int(errByz.Index), len(errByz.Shares),
 			)
-			sharesWithProof[index] = share
-			return err
-		})
+			tempStructCh <- &tempStruct{share, index, err}
+		}()
 	}
 
-	if err := errGr.Wait(); err != nil {
-		// Fatal as rsmt2d proved that error is byzantine,
-		// but we cannot properly collect the proof,
-		// so verification will fail and thus services won't be stopped
-		// while we still have to stop them.
-		// TODO(@Wondertan): Find a better way to handle
-		log.Fatalw("getting proof for ErrByzantine", "err", err)
-	}
-	return &ErrByzantine{
-		Index:  uint32(errByz.Index),
-		Shares: sharesWithProof,
-		Axis:   errByz.Axis,
+	for {
+		select {
+		case t := <-tempStructCh:
+			if t.err != nil {
+				log.Errorw("requesting proof failed", "root", string(roots[t.index]), "err", t.err)
+				continue
+			}
+			sharesWithProof[t.index] = t.share
+			sharesAmount++
+			if sharesAmount == len(dah.RowRoots)/2 {
+				return &ErrByzantine{
+					Index:  uint32(errByz.Index),
+					Shares: sharesWithProof,
+					Axis:   errByz.Axis,
+				}
+			}
+		case <-ctx.Done():
+			return ipld.ErrNodeNotFound
+		}
 	}
 }

@@ -35,10 +35,11 @@ func TestBEFP_Validate(t *testing.T) {
 	err = square.Repair(dah.RowRoots, dah.ColumnRoots)
 	require.ErrorAs(t, err, &errRsmt2d)
 
-	errByz := NewErrByzantine(ctx, bServ, &dah, errRsmt2d)
+	byzantine := NewErrByzantine(ctx, bServ, &dah, errRsmt2d)
+	var errByz *ErrByzantine
+	require.ErrorAs(t, byzantine, &errByz)
 
 	befp := CreateBadEncodingProof([]byte("hash"), 0, errByz)
-
 	var test = []struct {
 		name           string
 		prepareFn      func() error
@@ -69,7 +70,9 @@ func TestBEFP_Validate(t *testing.T) {
 						Shares: validShares[0:4],
 					},
 				)
-				invalidBefp := CreateBadEncodingProof([]byte("hash"), 0, errInvalidByz)
+				var errInvalid *ErrByzantine
+				require.ErrorAs(t, errInvalidByz, &errInvalid)
+				invalidBefp := CreateBadEncodingProof([]byte("hash"), 0, errInvalid)
 				return invalidBefp.Validate(&header.ExtendedHeader{DAH: &validDah})
 			},
 			expectedResult: func(err error) {
@@ -223,7 +226,9 @@ func TestBEFP_ValidateOutOfOrderShares(t *testing.T) {
 	err = eds.Repair(dah.RowRoots, dah.ColumnRoots)
 	require.ErrorAs(t, err, &errRsmt2d)
 
-	errByz := NewErrByzantine(context.Background(), bServ, &dah, errRsmt2d)
+	byzantine := NewErrByzantine(context.Background(), bServ, &dah, errRsmt2d)
+	var errByz *ErrByzantine
+	require.ErrorAs(t, byzantine, &errByz)
 
 	befp := CreateBadEncodingProof([]byte("hash"), 0, errByz)
 	err = befp.Validate(&header.ExtendedHeader{DAH: &dah})
