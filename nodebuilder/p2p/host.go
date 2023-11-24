@@ -48,7 +48,7 @@ func host(params hostParams) (HostBase, error) {
 		libp2p.Peerstore(params.PStore),
 		libp2p.ConnectionManager(params.ConnMngr),
 		libp2p.ConnectionGater(params.ConnGater),
-		libp2p.UserAgent(fmt.Sprintf("celestia-%s", params.Net)),
+		libp2p.UserAgent(fmt.Sprintf("%s", params.Net)),
 		libp2p.NATPortMap(), // enables upnp
 		libp2p.DisableRelay(),
 		libp2p.BandwidthReporter(params.Bandwidth),
