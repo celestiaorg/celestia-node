@@ -124,10 +124,10 @@ func (f *fsStore) Datastore() (datastore.Batching, error) {
 	opts.DetectConflicts = false
 	opts.GcDiscardRatio = 0.5
 	opts.Compression = options.None
-	opts.MemTableSize = 16 << 20
-	opts.NumLevelZeroTables = 3
-	opts.BlockCacheSize = 256 << 20
-	opts.NumCompactors = 2
+	opts.MemTableSize = 32 << 20
+	opts.NumLevelZeroTables = 1
+	opts.BlockCacheSize = 64 << 20
+	opts.NumCompactors = 2 // lowering number of compactors cuts RAM usage in a half(default is 4)
 	ds, err := dsbadger.NewDatastore(dataPath(f.path), &opts)
 	if err != nil {
 		return nil, fmt.Errorf("node: can't open Badger Datastore: %w", err)
