@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"path/filepath"
 	"sync"
+	"time"
 
 	"github.com/cosmos/cosmos-sdk/crypto/keyring"
 	"github.com/ipfs/go-datastore"
@@ -122,16 +123,16 @@ func (f *fsStore) Datastore() (datastore.Batching, error) {
 	// This *tremendously* reduces the amount of memory used by the node, up to 10 times less during
 	// compaction
 	opts.ValueThreshold = 2 << 10
-	// opts.GcInterval = time.Minute * 1
-	// opts.GcDiscardRatio = 0.5
+	// make sure we don't have any limits for stored headers
+	opts.ValueLogMaxEntries = 100000000
+	// run value log GC more often to spread the work over time
+	opts.GcInterval = time.Minute * 1
+	opts.GcDiscardRatio = 0.5
+	// default 64mib => 16mib - decreases memory usage and makes compaction more often
+	opts.MemTableSize = 16 << 20
 
-	// // make sure we don't have any limits for stored headers
-	// opts.ValueLogMaxEntries = 100000000
 	// // default 256mib => 16 mib - most of the components in the node maintain their own caches
 	// opts.BlockCacheSize = 16 << 20
-	// // default 64mib => 16mib - less memory used and compaction more often
-	// opts.MemTableSize = 16 << 20
-	//
 	// // TODO: Check difference with and without compression
 	// opts.Compression = options.None
 
