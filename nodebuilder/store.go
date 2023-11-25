@@ -122,7 +122,7 @@ func (f *fsStore) Datastore() (datastore.Batching, error) {
 	opts := dsbadger.DefaultOptions // this must be copied
 	opts.GcInterval = time.Minute * 1
 	opts.GcDiscardRatio = 0.5
-	opts.DetectConflicts = false
+//	opts.DetectConflicts = false
 	// 2mib default => 2kib - makes sure headers are stored in value log
 	// This *tremendously* reduces the amount of memory used by the node, up to 10 times less during compaction
 	opts.ValueThreshold = 2 << 10
