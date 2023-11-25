@@ -118,12 +118,13 @@ func (f *fsStore) Datastore() (datastore.Batching, error) {
 	}
 
 	opts := dsbadger.DefaultOptions // this must be copied
+	// 2mib default => 2kib - makes sure headers are stored in value log
+	// This *tremendously* reduces the amount of memory used by the node, up to 10 times less during
+	// compaction
+	opts.ValueThreshold = 2 << 10
 	// opts.GcInterval = time.Minute * 1
 	// opts.GcDiscardRatio = 0.5
-	// // 2mib default => 2kib - makes sure headers are stored in value log
-	// // This *tremendously* reduces the amount of memory used by the node, up to 10 times less during
-	// // compaction
-	// opts.ValueThreshold = 2 << 10
+
 	// // make sure we don't have any limits for stored headers
 	// opts.ValueLogMaxEntries = 100000000
 	// // default 256mib => 16 mib - most of the components in the node maintain their own caches
