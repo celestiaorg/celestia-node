@@ -257,8 +257,8 @@ github.com/VictoriaMetrics/fastcache v1.6.0 h1:C/3Oi3EiBCqufydp1neRZkqcwmEiuRT9c
 github.com/VictoriaMetrics/fastcache v1.6.0/go.mod h1:0qHz5QP0GMX4pfmMA/zt5RgfNuXJrTP0zS7DqpHGGTw=
 github.com/VividCortex/gohistogram v1.0.0 h1:6+hBz+qvs0JOrrNhhmR7lFxo5sINxBCGXrdtl/UvroE=
 github.com/VividCortex/gohistogram v1.0.0/go.mod h1:Pf5mBqqDxYaXu3hDrrU+w6nw50o/4+TcAqDqk/vUH7g=
-github.com/Wondertan/badger/v4 v4.0.0-20231125204312-f58495a008bb h1:k21XTyR/M6zikIUsQ+XUQ3o47fyYRre0maMGzrMFLx4=
-github.com/Wondertan/badger/v4 v4.0.0-20231125204312-f58495a008bb/go.mod h1:T/uWAYxrXdaXw64ihI++9RMbKTCpKd/yE9+saARew7k=
+github.com/Wondertan/badger/v4 v4.0.0-20231125205038-0e024987feb5 h1:x2aJsUA1e0DhovsvvSEPSxT/2x/YghNYvjp4N+oDrIs=
+github.com/Wondertan/badger/v4 v4.0.0-20231125205038-0e024987feb5/go.mod h1:T/uWAYxrXdaXw64ihI++9RMbKTCpKd/yE9+saARew7k=
 github.com/Workiva/go-datastructures v1.0.53 h1:J6Y/52yX10Xc5JjXmGtWoSSxs3mZnGSaq37xZZh7Yig=
 github.com/Workiva/go-datastructures v1.0.53/go.mod h1:1yZL+zfsztete+ePzZz/Zb1/t5BnDuE2Ya2MMGhzP6A=
 github.com/Zilliqa/gozilliqa-sdk v1.2.1-0.20201201074141-dd0ecada1be6/go.mod h1:eSYp2T6f0apnuW8TzhV3f6Aff2SE8Dwio++U4ha4yEM=
@@ -367,8 +367,8 @@ github.com/celestiaorg/cosmos-sdk v1.18.1-sdk-v0.46.14 h1:c4cMVLU2bGTesZW1ZVgeoC
 github.com/celestiaorg/cosmos-sdk v1.18.1-sdk-v0.46.14/go.mod h1:D5y5Exw0bJkcDv9fvYDiZfZrDV1b6+xsFyiungxrCsU=
 github.com/celestiaorg/dagstore v0.0.0-20230824094345-537c012aa403 h1:Lj73O3S+KJx5/hgZ+IeOLEIoLsAveJN/7/ZtQQtPSVw=
 github.com/celestiaorg/dagstore v0.0.0-20230824094345-537c012aa403/go.mod h1:cCGM1UoMvyTk8k62mkc+ReVu8iHBCtSBAAL4wYU7KEI=
-github.com/celestiaorg/go-ds-badger4 v0.0.0-20231125172023-79404a649153 h1:p67qCdvjRR5it+XwQNwPkoAxMRTbhqpewL/nyoySsrM=
-github.com/celestiaorg/go-ds-badger4 v0.0.0-20231125172023-79404a649153/go.mod h1:r6xB3nvGotmlTACpAr3SunxtoXeesbqb57elgMJqflY=
+github.com/celestiaorg/go-ds-badger4 v0.0.0-20230712104058-7ede1c814ac5 h1:MJgXvhJP1Au8rXTvMMlBXodu9jplEK1DxiLtMnEphOs=
+github.com/celestiaorg/go-ds-badger4 v0.0.0-20230712104058-7ede1c814ac5/go.mod h1:r6xB3nvGotmlTACpAr3SunxtoXeesbqb57elgMJqflY=
 github.com/celestiaorg/go-fraud v0.2.0 h1:aaq2JiW0gTnhEdac3l51UCqSyJ4+VjFGTTpN83V4q7I=
 github.com/celestiaorg/go-fraud v0.2.0/go.mod h1:lNY1i4K6kUeeE60Z2VK8WXd+qXb8KRzfBhvwPkK6aUc=
 github.com/celestiaorg/go-header v0.4.1 h1:bjbUcKDnhrJJ9EoE7vtPpgleNLVjc2S+cB4/qe8nQmo=
