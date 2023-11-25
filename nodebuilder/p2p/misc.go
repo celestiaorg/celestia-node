@@ -7,7 +7,8 @@ import (
 	"github.com/ipfs/go-datastore"
 	connmgri "github.com/libp2p/go-libp2p/core/connmgr"
 	"github.com/libp2p/go-libp2p/core/peerstore"
-	"github.com/libp2p/go-libp2p/p2p/host/peerstore/pstoreds" //nolint:staticcheck
+	//nolint:staticcheck
+	"github.com/libp2p/go-libp2p/p2p/host/peerstore/pstoremem"
 	"github.com/libp2p/go-libp2p/p2p/net/conngater"
 	"github.com/libp2p/go-libp2p/p2p/net/connmgr"
 
@@ -74,5 +75,5 @@ func connectionGater(ds datastore.Batching) (*conngater.BasicConnectionGater, er
 
 // peerStore constructs an on-disk PeerStore.
 func peerStore(ctx context.Context, ds datastore.Batching) (peerstore.Peerstore, error) {
-	return pstoreds.NewPeerstore(ctx, ds, pstoreds.DefaultOpts())
+	return pstoremem.NewPeerstore()
 }

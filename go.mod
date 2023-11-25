@@ -9,7 +9,7 @@ require (
 	github.com/alecthomas/jsonschema v0.0.0-20220216202328-9eeeec9d044b
 	github.com/benbjohnson/clock v1.3.5
 	github.com/celestiaorg/celestia-app v1.3.0
-	github.com/celestiaorg/go-ds-badger4 v0.0.0-20230712104058-7ede1c814ac5
+	github.com/celestiaorg/go-ds-badger4 v0.0.0-20231125235544-5604cb7c10bb
 	github.com/celestiaorg/go-fraud v0.2.0
 	github.com/celestiaorg/go-header v0.4.1
 	github.com/celestiaorg/go-libp2p-messenger v0.2.0
@@ -82,7 +82,6 @@ require (
 	github.com/consensys/gnark-crypto v0.12.1 // indirect
 	github.com/crate-crypto/go-kzg-4844 v0.3.0 // indirect
 	github.com/ethereum/c-kzg-4844 v0.3.1 // indirect
-	github.com/hashicorp/golang-lru/arc/v2 v2.0.5 // indirect
 	github.com/mmcloughlin/addchain v0.4.0 // indirect
 	github.com/supranational/blst v0.3.11 // indirect
 	rsc.io/tmplfunc v0.0.3 // indirect
@@ -351,4 +350,4 @@ replace (
 	github.com/tendermint/tendermint => github.com/celestiaorg/celestia-core v1.29.0-tm-v0.34.29
 )
 
-replace github.com/dgraph-io/badger/v4 => github.com/Wondertan/badger/v4 v4.0.0-20231125213248-d4538cde4489
+replace github.com/dgraph-io/badger/v4 => github.com/Wondertan/badger/v4 v4.0.0-20231125234650-5c2a3c48ffd1
