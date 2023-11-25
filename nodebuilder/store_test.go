@@ -2,10 +2,13 @@ package nodebuilder
 
 import (
 	"context"
+	"crypto/rand"
+	"runtime"
 	"strconv"
 	"testing"
 	"time"
 
+	"github.com/dgraph-io/badger/v4"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
@@ -21,6 +24,81 @@ import (
 	"github.com/celestiaorg/celestia-node/share/ipld"
 	"github.com/celestiaorg/celestia-node/share/sharetest"
 )
+
+func TestBadgerSameKeyRewrite(t *testing.T) {
+	opts := badger.DefaultOptions(t.TempDir())
+	opts.ValueThreshold = 60
+	db, err := badger.Open(opts)
+	require.NoError(t, err)
+	t.Cleanup(func() {
+		db.Close()
+	})
+
+	randFn := func() {
+		txn := db.NewTransaction(true)
+
+		rK := make([]byte, 32)
+		rand.Read(rK)
+		rV := make([]byte, 64)
+		rand.Read(rV)
+
+		txn.Set(rK, rV)
+
+		rK1 := make([]byte, 32)
+		rand.Read(rK)
+		rV1 := make([]byte, 64)
+		rand.Read(rV)
+
+		txn.Set(rK1, rV1)
+
+		err = txn.Commit()
+		require.NoError(t, err)
+	}
+
+	rK := make([]byte, 32)
+	rand.Read(rK)
+	rV := make([]byte, 64)
+	rand.Read(rV)
+
+	rK1 := make([]byte, 32)
+	rand.Read(rK)
+	rV1 := make([]byte, 64)
+	rand.Read(rV)
+	sameFn := func() {
+		txn := db.NewTransaction(true)
+		txn.Set(rK, rV)
+ 		txn.Set(rK1, rV1)
+		err = txn.Commit()
+		require.NoError(t, err)
+	}
+
+ //	runtime.GOMAXPROCS(1) // avoid parallelism
+
+	var memstats runtime.MemStats
+	runtime.ReadMemStats(&memstats)
+	t.Log("Before Rand: ", memstats.HeapAlloc)
+	for i := 0; i < 10000; i++ {
+		randFn()
+	}
+
+	runtime.GC()
+
+	runtime.ReadMemStats(&memstats)
+	// diff := memstats.HeapAlloc - inuse
+	t.Log("After Rand/Before Same: ", memstats.HeapAlloc)
+	// t.Log("Diff: ", diff)
+
+	for i := 0; i < 10000; i++ {
+		sameFn()
+	}
+
+	runtime.GC()
+
+	runtime.ReadMemStats(&memstats)
+	// diff = memstats.HeapAlloc - inuse
+	t.Log("After Same: ", memstats.HeapAlloc)
+	// t.Log("Diff: ", diff)
+}
 
 func TestRepo(t *testing.T) {
 	var tests = []struct {
