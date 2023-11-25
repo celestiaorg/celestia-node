@@ -368,6 +368,8 @@ github.com/celestiaorg/dagstore v0.0.0-20230824094345-537c012aa403 h1:Lj73O3S+KJ
 github.com/celestiaorg/dagstore v0.0.0-20230824094345-537c012aa403/go.mod h1:cCGM1UoMvyTk8k62mkc+ReVu8iHBCtSBAAL4wYU7KEI=
 github.com/celestiaorg/go-ds-badger4 v0.0.0-20231125170808-14d80963584d h1:rQJYPvV315/yF/JCioDvbiZytZuoZJlqBpUGUi1cgZo=
 github.com/celestiaorg/go-ds-badger4 v0.0.0-20231125170808-14d80963584d/go.mod h1:r6xB3nvGotmlTACpAr3SunxtoXeesbqb57elgMJqflY=
+github.com/celestiaorg/go-ds-badger4 v0.0.0-20231125171425-916cb0945219 h1:Qe+2m1BBbCFmhVkDYi3QFM3mQC7U5AKxrH1rc5+prQY=
+github.com/celestiaorg/go-ds-badger4 v0.0.0-20231125171425-916cb0945219/go.mod h1:r6xB3nvGotmlTACpAr3SunxtoXeesbqb57elgMJqflY=
 github.com/celestiaorg/go-fraud v0.2.0 h1:aaq2JiW0gTnhEdac3l51UCqSyJ4+VjFGTTpN83V4q7I=
 github.com/celestiaorg/go-fraud v0.2.0/go.mod h1:lNY1i4K6kUeeE60Z2VK8WXd+qXb8KRzfBhvwPkK6aUc=
 github.com/celestiaorg/go-header v0.4.1 h1:bjbUcKDnhrJJ9EoE7vtPpgleNLVjc2S+cB4/qe8nQmo=
