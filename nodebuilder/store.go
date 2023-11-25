@@ -128,6 +128,8 @@ func (f *fsStore) Datastore() (datastore.Batching, error) {
 	opts.ValueThreshold = 2 << 10
 	// default 256mib => 16 mib - most of the components in the node maintain their own caches
 	opts.BlockCacheSize = 16 << 20
+	// default 64mib => 16mib
+	opts.MemTableSize = 16 << 20
 
 	// TODO: Check difference with and without compression
 	opts.Compression = options.None
