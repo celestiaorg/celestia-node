@@ -134,7 +134,7 @@ func (f *fsStore) Datastore() (datastore.Batching, error) {
 	opts.MemTableSize = 16 << 20
 
 	// TODO: Check difference with and without compression
-	opts.Compression = options.None
+	opts.Compression = options.Snappy
 
 	ds, err := dsbadger.NewDatastore(dataPath(f.path), &opts)
 	if err != nil {
