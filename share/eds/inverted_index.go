@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 
+	"github.com/dgraph-io/badger/v4/options"
 	"github.com/filecoin-project/dagstore/index"
 	"github.com/filecoin-project/dagstore/shard"
 	ds "github.com/ipfs/go-datastore"
@@ -37,6 +38,10 @@ func newSimpleInvertedIndex(storePath string) (*simpleInvertedIndex, error) {
 	opts.NumLevelZeroTables = 1
 	// MaxLevels = 8 will allow the db to grow to ~11.1 TiB
 	opts.MaxLevels = 8
+	// inverted index stores unique hash keys, so we don't need to detect conflicts
+	opts.DetectConflicts = false
+	// we don't need compression for inverted index as it just hashes
+	opts.Compression = options.None
 
 	ds, err := dsbadger.NewDatastore(storePath+invertedIndexPath, &opts)
 	if err != nil {
