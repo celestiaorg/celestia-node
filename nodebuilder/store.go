@@ -126,9 +126,11 @@ func (f *fsStore) Datastore() (datastore.Batching, error) {
 	// 2mib default => 2kib - makes sure headers are stored in value log
 	// This *tremendously* reduces the amount of memory used by the node, up to 10 times less during compaction
 	opts.ValueThreshold = 2 << 10
+	// make sure we don't have any limits for stored headers
+	opts.ValueLogMaxEntries = 100000000
 	// default 256mib => 16 mib - most of the components in the node maintain their own caches
 	opts.BlockCacheSize = 16 << 20
-	// default 64mib => 16mib
+	// default 64mib => 16mib - less memory used and compaction more often
 	opts.MemTableSize = 16 << 20
 
 	// TODO: Check difference with and without compression
