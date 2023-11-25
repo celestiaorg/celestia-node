@@ -350,4 +350,4 @@ replace (
 	github.com/tendermint/tendermint => github.com/celestiaorg/celestia-core v1.29.0-tm-v0.34.29
 )
 
-replace github.com/dgraph-io/badger/v4 => github.com/Wondertan/badger/v4 v4.0.0-20231125172209-32e35e12d4ca
+replace github.com/dgraph-io/badger/v4 => github.com/Wondertan/badger/v4 v4.0.0-20231125204312-f58495a008bb
