@@ -220,6 +220,8 @@ goreleaser-release:
 	goreleaser release --clean --fail-fast --skip-publish
 .PHONY: goreleaser-release
 
+# Copied from https://github.com/dgraph-io/badger/blob/main/Makefile
+
 USER_ID      = $(shell id -u)
 HAS_JEMALLOC = $(shell test -f /usr/local/lib/libjemalloc.a && echo "jemalloc")
 JEMALLOC_URL = "https://github.com/jemalloc/jemalloc/releases/download/5.2.1/jemalloc-5.2.1.tar.bz2"
