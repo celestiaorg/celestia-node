@@ -1,6 +1,9 @@
 package cmd
 
 import (
+	"github.com/spf13/cobra"
+	"github.com/spf13/pflag"
+
 	"github.com/celestiaorg/celestia-node/nodebuilder/core"
 	"github.com/celestiaorg/celestia-node/nodebuilder/gateway"
 	"github.com/celestiaorg/celestia-node/nodebuilder/header"
@@ -8,9 +11,6 @@ import (
 	"github.com/celestiaorg/celestia-node/nodebuilder/p2p"
 	"github.com/celestiaorg/celestia-node/nodebuilder/rpc"
 	"github.com/celestiaorg/celestia-node/nodebuilder/state"
-
-	"github.com/spf13/cobra"
-	"github.com/spf13/pflag"
 )
 
 func NewBridge(options ...func(*cobra.Command, []*pflag.FlagSet)) *cobra.Command {
