@@ -190,9 +190,10 @@ func dataPath(base string) string {
 // With the following configuration, a LN uses up to 300iB of RAM during initial sync/sampling
 // and up to 200MiB during normal operation. (on 4 core CPU, 8GiB RAM droplet)
 //
-// NOTE: Values drop for additional 50MiB if node is built with "-tags=jemalloc",
-//
-//	which configures Badger to use jemalloc instead of Go's default allocator.
+// With the following configuration and "-tags=jemalloc", a LN uses no more than 180MiB during initial
+// sync/sampling and up to 100MiB during normal operation. (same hardware spec)
+// NOTE: To enable jemalloc, build celestia-node with "-tags=jemalloc" flag, which configures Badger to
+// use jemalloc instead of Go's default allocator.
 //
 // TODO(@Wondertan): Consider alternative less constraint configuration for FN/BN
 // TODO(@Wondertan): Consider dynamic memory allocation based on available RAM
@@ -211,7 +212,7 @@ func constraintBadgerConfig() *dsbadger.Options {
 	opts.GcDiscardRatio = 0.125
 	// Snappy saves us ~200MiB of disk space on the mainnet chain to the commit's date
 	// TODO(@Wondertan): Does it worth the overhead?
-	opts.Compression = options.Snappy
+	opts.Compression = options.None
 
 	// MemTables:
 	// default 64mib => 16mib - decreases memory usage and makes compaction more often
