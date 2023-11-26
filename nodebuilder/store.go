@@ -210,6 +210,7 @@ func constraintBadgerConfig() *dsbadger.Options {
 	// default 0.5 => 0.125 - makes sure value log GC is more aggressive on reclaiming disk space
 	opts.GcDiscardRatio = 0.125
 	// Snappy saves us ~200MiB of disk space on the mainnet chain to the commit's date
+	// TODO(@Wondertan): Does it worth the overhead?
 	opts.Compression = options.Snappy
 
 	// MemTables:
