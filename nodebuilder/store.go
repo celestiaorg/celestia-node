@@ -145,6 +145,8 @@ func (f *fsStore) Datastore() (datastore.Batching, error) {
 	opts.NumMemtables = 3
 	// default 5 => 3
 	opts.NumLevelZeroTables = 3
+	// default 15 => 5 - this prevents memory growth on CPU constraint systems by blocking all writers
+	opts.NumLevelZeroTablesStall = 5
 
 	compactors := runtime.NumCPU() / 2
 	if compactors < 2 {
