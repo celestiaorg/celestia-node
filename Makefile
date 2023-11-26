@@ -32,7 +32,7 @@ build:
 .PHONY: build
 
 ## build-jemalloc: Build celestia-node binary with jemalloc allocator for BadgerDB instead of Go's native one
-build-jemalloc:
+build-jemalloc: jemalloc
 	@echo "--> Building Celestia with jemalloc"
 	@go build -o build/ ${LDFLAGS} -tags jemalloc ./cmd/celestia
 .PHONY: build-jemalloc
