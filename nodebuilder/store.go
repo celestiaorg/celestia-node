@@ -119,7 +119,14 @@ func (f *fsStore) Datastore() (datastore.Batching, error) {
 		return f.data, nil
 	}
 
+	// The configuration below is optimized for low memory usage and more frequent compaction.
+	// This is particularly important for LNs with restricted memory resources.
+	// With the following configuration, a LN uses up to 300MiB of RAM during initial sync and
+	// sampling and up to 100MiB during normal operation.
+	// TODO(@Wondertan): Consider alternative configuration for FN/BN
 	opts := dsbadger.DefaultOptions // this must be copied
+
+	// ValueLog:
 	// 2mib default => 500b - makes sure headers and samples are stored in value log
 	// This *tremendously* reduces the amount of memory used by the node, up to 10 times less during
 	// compaction
@@ -128,10 +135,15 @@ func (f *fsStore) Datastore() (datastore.Batching, error) {
 	opts.ValueLogMaxEntries = 100000000
 	// run value log GC more often to spread the work over time
 	opts.GcInterval = time.Minute * 1
+	// default 0.5 => 0.125 - makes sure value log GC is more aggressive on reclaiming disk space
 	opts.GcDiscardRatio = 0.125
+
+	// MemTables:
 	// default 64mib => 16mib - decreases memory usage and makes compaction more often
 	opts.MemTableSize = 16 << 20
+	// default 5 => 3
 	opts.NumMemtables = 3
+	// default 5 => 3
 	opts.NumLevelZeroTables = 3
 
 	compactors := runtime.NumCPU() / 2
