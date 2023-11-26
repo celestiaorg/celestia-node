@@ -121,7 +121,7 @@ func (f *fsStore) Datastore() (datastore.Batching, error) {
 
 	// The configuration below is optimized for low memory usage and more frequent compaction.
 	// This is particularly important for LNs with restricted memory resources.
-	// With the following configuration, a LN uses up to 300MiB of RAM during initial sync and
+	// With the following configuration, a LN uses up to 250iB of RAM during initial sync and
 	// sampling and up to 100MiB during normal operation.
 	// TODO(@Wondertan): Consider alternative configuration for FN/BN
 	opts := dsbadger.DefaultOptions // this must be copied
