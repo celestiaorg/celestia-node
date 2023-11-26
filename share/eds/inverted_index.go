@@ -4,7 +4,6 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"math"
 	"runtime"
 
 	"github.com/dgraph-io/badger/v4/options"
@@ -32,8 +31,6 @@ type simpleInvertedIndex struct {
 // don't care which shard is used to serve a cid.
 func newSimpleInvertedIndex(storePath string) (*simpleInvertedIndex, error) {
 	opts := dsbadger.DefaultOptions // this should be copied
-	// disable value log
-	opts.ValueThreshold = math.MaxInt64
 	// turn off value log GC as we don't use value log
 	opts.GcInterval = 0
 	compactors := runtime.NumCPU() / 2
