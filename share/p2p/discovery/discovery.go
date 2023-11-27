@@ -41,6 +41,8 @@ const (
 	jitterFactor           = 0.1
 )
 
+var discoveryRetryTimeout = retryTimeout
+
 // Discovery combines advertise and discover services and allows to store discovered nodes.
 // TODO: The code here gets horribly hairy, so we should refactor this at some point
 type Discovery struct {
