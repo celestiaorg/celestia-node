@@ -376,13 +376,3 @@ func (d *Discovery) handleDiscoveredPeer(ctx context.Context, peer peer.AddrInfo
 	d.host.ConnManager().Protect(peer.ID, d.tag)
 	return true
 }
-
-func drainChannel(c <-chan time.Time) {
-	for {
-		select {
-		case <-c:
-		default:
-			return
-		}
-	}
-}
