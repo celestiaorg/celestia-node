@@ -30,15 +30,14 @@ const (
 
 // dataExchange provides a constructor for IPFS block's DataExchange over BitSwap.
 func dataExchange(params bitSwapParams) exchange.Interface {
-	prefix := protocol.ID(fmt.Sprintf("/celestia/%s", params.Net))
-
+	prefix := protocolID(params.Net)
 	net := network.NewFromIpfsHost(params.Host, &routinghelpers.Null{}, network.Prefix(prefix))
 	srvr := server.New(
 		params.Ctx,
 		net,
 		params.Bs,
 		server.ProvideEnabled(false), // we don't provide blocks over DHT
-		// NOTE: These below ar required for our protocol to work reliably.
+		// NOTE: These below are required for our protocol to work reliably.
 		// // See https://github.com/celestiaorg/celestia-node/issues/732
 		server.SetSendDontHaves(false),
 	)
@@ -95,4 +94,8 @@ type bitSwapParams struct {
 	Net       Network
 	Host      hst.Host
 	Bs        blockstore.Blockstore
+}
+
+func protocolID(network Network) protocol.ID {
+	return protocol.ID(fmt.Sprintf("/celestia/%s", network))
 }
