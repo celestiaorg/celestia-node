@@ -2,10 +2,12 @@ package p2p
 
 import (
 	"context"
+	"errors"
 	"fmt"
 
-	"github.com/ipfs/boxo/bitswap"
+	"github.com/ipfs/boxo/bitswap/client"
 	"github.com/ipfs/boxo/bitswap/network"
+	"github.com/ipfs/boxo/bitswap/server"
 	"github.com/ipfs/boxo/blockstore"
 	"github.com/ipfs/boxo/exchange"
 	"github.com/ipfs/go-datastore"
@@ -29,16 +31,38 @@ const (
 // dataExchange provides a constructor for IPFS block's DataExchange over BitSwap.
 func dataExchange(params bitSwapParams) exchange.Interface {
 	prefix := protocol.ID(fmt.Sprintf("/celestia/%s", params.Net))
-	return bitswap.New(
+
+	net := network.NewFromIpfsHost(params.Host, &routinghelpers.Null{}, network.Prefix(prefix))
+	srvr := server.New(
 		params.Ctx,
-		network.NewFromIpfsHost(params.Host, &routinghelpers.Null{}, network.Prefix(prefix)),
+		net,
 		params.Bs,
-		bitswap.ProvideEnabled(false),
+		server.ProvideEnabled(false), // we don't provide blocks over DHT
 		// NOTE: These below ar required for our protocol to work reliably.
-		// See https://github.com/celestiaorg/celestia-node/issues/732
-		bitswap.SetSendDontHaves(false),
-		bitswap.SetSimulateDontHavesOnTimeout(false),
+		// // See https://github.com/celestiaorg/celestia-node/issues/732
+		server.SetSendDontHaves(false),
 	)
+
+	clnt := client.New(
+		params.Ctx,
+		net,
+		params.Bs,
+		client.WithBlockReceivedNotifier(srvr),
+		client.SetSimulateDontHavesOnTimeout(false),
+		client.WithoutDuplicatedBlockStats(),
+	)
+	net.Start(srvr, clnt) // starting with hook does not work
+
+	params.Lifecycle.Append(fx.Hook{
+		OnStop: func(ctx context.Context) (err error) {
+			err = errors.Join(err, clnt.Close())
+			err = errors.Join(err, srvr.Close())
+			net.Stop()
+			return err
+		},
+	})
+
+	return clnt
 }
 
 func blockstoreFromDatastore(ctx context.Context, ds datastore.Batching) (blockstore.Blockstore, error) {
@@ -66,8 +90,9 @@ func blockstoreFromEDSStore(ctx context.Context, store *eds.Store) (blockstore.B
 type bitSwapParams struct {
 	fx.In
 
-	Ctx  context.Context
-	Net  Network
-	Host hst.Host
-	Bs   blockstore.Blockstore
+	Lifecycle fx.Lifecycle
+	Ctx       context.Context
+	Net       Network
+	Host      hst.Host
+	Bs        blockstore.Blockstore
 }
