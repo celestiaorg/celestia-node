@@ -213,6 +213,7 @@ func constraintBadgerConfig() *dsbadger.Options {
 	// Snappy saves us ~200MiB of disk space on the mainnet chain to the commit's date
 	// TODO(@Wondertan): Does it worth the overhead?
 	opts.Compression = options.Snappy
+	opts.BlockCacheSize = 16 << 20
 
 	// MemTables:
 	// default 64mib => 16mib - decreases memory usage and makes compaction more often
