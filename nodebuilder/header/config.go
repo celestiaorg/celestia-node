@@ -48,7 +48,6 @@ func DefaultConfig(tp node.Type) Config {
 
 	switch tp {
 	case node.Bridge:
-		cfg.Client = p2p_exchange.ClientParameters{}
 		return cfg
 	case node.Full:
 		return cfg
