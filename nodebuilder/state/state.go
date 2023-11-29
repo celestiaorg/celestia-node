@@ -16,6 +16,7 @@ var _ Module = (*API)(nil)
 // messages to the Celestia network.
 //
 //go:generate mockgen -destination=mocks/api.go -package=mocks . Module
+//nolint:dupl
 type Module interface {
 
 	// AccountAddress retrieves the address of the node's account/signer
