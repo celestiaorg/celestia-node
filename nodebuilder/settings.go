@@ -141,6 +141,7 @@ func WithTraces(opts []otlptracehttp.Option, pyroOpts []otelpyroscope.Option) fx
 
 func initializeTraces(
 	ctx context.Context,
+	lc fx.Lifecycle,
 	nodeType node.Type,
 	peerID peer.ID,
 	network p2p.Network,
@@ -154,7 +155,7 @@ func initializeTraces(
 	}
 
 	var tp trace.TracerProvider
-	tp = tracesdk.NewTracerProvider(
+	traceProvider := tracesdk.NewTracerProvider(
 		tracesdk.WithSampler(tracesdk.AlwaysSample()),
 		// Always be sure to batch in production.
 		tracesdk.WithBatcher(exporter),
@@ -164,11 +165,26 @@ func initializeTraces(
 			semconv.ServiceNamespaceKey.String(nodeType.String()),
 			semconv.ServiceNameKey.String(fmt.Sprintf("%s/%s", network.String(), peerID.String()))),
 		))
-
+	tp = traceProvider
 	if len(pyroOpts) > 0 {
 		tp = otelpyroscope.NewTracerProvider(tp, pyroOpts...)
 	}
 	otel.SetTracerProvider(tp)
+
+	lc.Append(fx.Hook{
+		OnStop: func(ctx context.Context) error {
+			err := traceProvider.ForceFlush(ctx)
+			if err != nil {
+				log.Warnf("failed to flush traces %s", err)
+			}
+			err = traceProvider.Shutdown(ctx)
+			if err != nil {
+				log.Warnf("failed to shutdown trace exporter %s", err)
+			}
+			return nil
+		},
+	})
+
 	return nil
 }
 
