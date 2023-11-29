@@ -226,6 +226,7 @@ USER_ID      = $(shell id -u)
 HAS_JEMALLOC = $(shell test -f /usr/local/lib/libjemalloc.a && echo "jemalloc")
 JEMALLOC_URL = "https://github.com/jemalloc/jemalloc/releases/download/5.2.1/jemalloc-5.2.1.tar.bz2"
 
+## jemalloc installs jemalloc allocator
 jemalloc:
 	@if [ -z "$(HAS_JEMALLOC)" ] ; then \
 		mkdir -p /tmp/jemalloc-temp && cd /tmp/jemalloc-temp ; \
@@ -240,6 +241,8 @@ jemalloc:
 		else \
 			echo "==== Need sudo access to install jemalloc" ; \
 			sudo make install ; \
-		fi \
+		fi ; \
+		cd /tmp ; \
+		rm -rf /tmp/jemalloc-temp ; \
 	fi
 .PHONY: jemalloc
