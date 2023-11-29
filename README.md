@@ -55,7 +55,7 @@ For more information on setting up a node and the hardware requirements needed, 
 
 ## API docs
 
-The celestia-node public API is documented [here](https://docs.celestia.org/category/node-api/).
+The celestia-node public API is documented [here](https://node-rpc-docs.celestia.org/).
 
 ## Node types
 
