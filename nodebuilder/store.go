@@ -8,6 +8,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/celestiaorg/celestia-node/share"
 	"github.com/cosmos/cosmos-sdk/crypto/keyring"
 	"github.com/dgraph-io/badger/v4/options"
 	"github.com/ipfs/go-datastore"
@@ -200,20 +201,26 @@ func dataPath(base string) string {
 func constraintBadgerConfig() *dsbadger.Options {
 	opts := dsbadger.DefaultOptions // this must be copied
 	// ValueLog:
-	// 2mib default => 500b - makes sure headers and samples are stored in value log
+	// 2mib default => share.Size - makes sure headers and samples are stored in value log
 	// This *tremendously* reduces the amount of memory used by the node, up to 10 times less during
 	// compaction
-	opts.ValueThreshold = 500
+	opts.ValueThreshold = share.Size
 	// make sure we don't have any limits for stored headers
 	opts.ValueLogMaxEntries = 100000000
 	// run value log GC more often to spread the work over time
 	opts.GcInterval = time.Minute * 1
 	// default 0.5 => 0.125 - makes sure value log GC is more aggressive on reclaiming disk space
 	opts.GcDiscardRatio = 0.125
-	// Snappy saves us ~200MiB of disk space on the mainnet chain to the commit's date
-	// TODO(@Wondertan): Does it worth the overhead?
-	opts.Compression = options.Snappy
-	opts.BlockCacheSize = 16 << 20
+
+	// badger stores checksum for every value, but doesn't verify it by default
+	// enabling this option may allow us to see detect corrupted data
+	opts.ChecksumVerificationMode = options.OnBlockRead
+	opts.VerifyValueChecksum = true
+	// default 64mib => 0 - disable block cache
+	// most of our component maintain their own caches, so this is not needed
+	opts.BlockCacheSize = 0
+	// not much gain as it compresses the LSM only as well compression requires block cache
+	opts.Compression = options.None
 
 	// MemTables:
 	// default 64mib => 16mib - decreases memory usage and makes compaction more often
@@ -231,8 +238,8 @@ func constraintBadgerConfig() *dsbadger.Options {
 	if compactors < 2 {
 		compactors = 2 // can't be less than 2
 	}
-	if compactors > 7 { // ensure there is no more compactors than db table levels
-		compactors = 7
+	if compactors > opts.MaxLevels { // ensure there is no more compactors than db table levels
+		compactors = opts.MaxLevels
 	}
 	opts.NumCompactors = compactors
 	// makes sure badger is always compacted on shutdown
