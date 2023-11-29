@@ -48,14 +48,9 @@ func DefaultConfig(tp node.Type) Config {
 
 	switch tp {
 	case node.Bridge:
-		cfg.Client = p2p_exchange.ClientParameters{}
 		return cfg
-	case node.Full:
-		return cfg
-	case node.Light:
-		cfg.Store.StoreCacheSize = 512
-		cfg.Store.IndexCacheSize = 2048
-		cfg.Store.WriteBatchSize = 512
+	case node.Light, node.Full:
+		cfg.Client = p2p_exchange.DefaultClientParameters()
 		return cfg
 	default:
 		panic("header: invalid node type")

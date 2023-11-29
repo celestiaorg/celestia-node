@@ -23,7 +23,6 @@ func DefaultConfig(tp node.Type) Config {
 	switch tp {
 	case node.Light:
 		cfg.SampleTimeout = modp2p.BlockTime * time.Duration(cfg.ConcurrencyLimit)
-		cfg.ConcurrencyLimit = 64 // speeds up sampling for light nodes
 	case node.Full:
 		// Default value for DASer concurrency limit is based on dasing using ipld getter.
 		// Full node will primarily use shrex protocol for sampling, that is much more efficient and can
