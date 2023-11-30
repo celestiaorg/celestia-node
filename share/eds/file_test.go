@@ -124,10 +124,42 @@ func BenchmarkGetShareFromCache(b *testing.B) {
 	minSize, maxSize := 16, 128
 	newFile := func(size int) File {
 		sqr := edstest.RandEDS(b, size)
-		return NewCacheFile(&MemFile{Eds: sqr})
+		return NewCacheFile(&MemFile{Eds: sqr}, rsmt2d.NewLeoRSCodec())
 	}
 
 	benchGetShareFromFile(b, newFile, minSize, maxSize)
+}
+
+func TestCachedAxis(t *testing.T) {
+	sqr := edstest.RandEDS(t, 32)
+	mem := &MemFile{Eds: sqr}
+	file := NewCacheFile(mem, rsmt2d.NewLeoRSCodec())
+
+	for i := 0; i < mem.Size(); i++ {
+		a1, err := mem.Axis(i, rsmt2d.Row)
+		require.NoError(t, err)
+		a2, err := file.Axis(i, rsmt2d.Row)
+		require.NoError(t, err)
+		require.Equal(t, a1, a2)
+	}
+}
+
+func TestCachedEDS(t *testing.T) {
+	sqr := edstest.RandEDS(t, 32)
+	mem := &MemFile{Eds: sqr}
+	file := NewCacheFile(mem, rsmt2d.NewLeoRSCodec())
+
+	e1, err := mem.EDS()
+	require.NoError(t, err)
+	e2, err := file.EDS()
+	require.NoError(t, err)
+
+	r1, err := e1.RowRoots()
+	require.NoError(t, err)
+	r2, err := e2.RowRoots()
+	require.NoError(t, err)
+
+	require.Equal(t, r1, r2)
 }
 
 // BenchmarkGetShareFromCacheMiss/16 	   16308	     72295 ns/op
@@ -138,7 +170,7 @@ func BenchmarkGetShareFromCacheMiss(b *testing.B) {
 	minSize, maxSize := 16, 128
 	newFile := func(size int) File {
 		sqr := edstest.RandEDS(b, size)
-		f := NewCacheFile(&MemFile{Eds: sqr})
+		f := NewCacheFile(&MemFile{Eds: sqr}, rsmt2d.NewLeoRSCodec())
 		f.disableCache = true
 		return f
 	}
@@ -171,7 +203,7 @@ func TestCacheMemoryUsage(t *testing.T) {
 		eds := edstest.RandEDS(t, size)
 		df, err := CreateFile(dir+"/"+strconv.Itoa(i), eds)
 		require.NoError(t, err)
-		f := NewCacheFile(df)
+		f := NewCacheFile(df, rsmt2d.NewLeoRSCodec())
 
 		rows, err := eds.RowRoots()
 		require.NoError(t, err)
