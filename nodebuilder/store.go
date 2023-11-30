@@ -8,7 +8,6 @@ import (
 	"sync"
 	"time"
 
-	"github.com/celestiaorg/celestia-node/share"
 	"github.com/cosmos/cosmos-sdk/crypto/keyring"
 	"github.com/dgraph-io/badger/v4/options"
 	"github.com/ipfs/go-datastore"
@@ -18,6 +17,7 @@ import (
 
 	"github.com/celestiaorg/celestia-node/libs/fslock"
 	"github.com/celestiaorg/celestia-node/libs/keystore"
+	"github.com/celestiaorg/celestia-node/share"
 )
 
 var (
