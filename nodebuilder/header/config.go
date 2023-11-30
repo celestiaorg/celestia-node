@@ -43,7 +43,6 @@ func DefaultConfig(tp node.Type) Config {
 		Store:        store.DefaultParameters(),
 		Syncer:       sync.DefaultParameters(),
 		Server:       p2p_exchange.DefaultServerParameters(),
-		Client:       p2p_exchange.DefaultClientParameters(),
 	}
 
 	switch tp {
