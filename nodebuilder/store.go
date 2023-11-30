@@ -231,8 +231,6 @@ func constraintBadgerConfig() *dsbadger.Options {
 	opts.NumLevelZeroTables = 3
 	// default 15 => 5 - this prevents memory growth on CPU constraint systems by blocking all writers
 	opts.NumLevelZeroTablesStall = 5
-	// default 7 => 6 - we don't expect to grow over 1TB of data
-	opts.MaxLevels = 6
 
 	// Compaction:
 	// Dynamic compactor allocation
