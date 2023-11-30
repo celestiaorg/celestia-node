@@ -4,17 +4,22 @@ import (
 	"context"
 	"crypto/sha256"
 	"fmt"
+	mrand "math/rand"
 	"runtime"
 	"strconv"
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
+	"github.com/celestiaorg/celestia-app/pkg/da"
+	"github.com/celestiaorg/celestia-app/pkg/wrapper"
 	"github.com/celestiaorg/rsmt2d"
 
 	"github.com/celestiaorg/celestia-node/share"
 	"github.com/celestiaorg/celestia-node/share/eds/edstest"
+	"github.com/celestiaorg/celestia-node/share/sharetest"
 )
 
 func TestCreateFile(t *testing.T) {
@@ -160,6 +165,40 @@ func TestCachedEDS(t *testing.T) {
 	require.NoError(t, err)
 
 	require.Equal(t, r1, r2)
+}
+
+func TestGetNamespacedData(t *testing.T) {
+	size := 32
+
+	// generate random shares
+	shares := sharetest.RandShares(t, size*size)
+	rand := mrand.New(mrand.NewSource(time.Now().UnixNano()))
+
+	// choose random range in shares slice and set namespace to be the same for all shares in range
+	from := rand.Intn(size * size)
+	to := rand.Intn(size * size)
+	if to < from {
+		from, to = to, from
+	}
+	expected := shares[from]
+	namespace := share.GetNamespace(expected)
+
+	// change namespace for all shares in range
+	for i := from; i <= to; i++ {
+		shares[i] = expected
+	}
+
+	eds, err := rsmt2d.ComputeExtendedDataSquare(shares, share.DefaultRSMT2DCodec(), wrapper.NewConstructor(uint64(size)))
+	require.NoError(t, err)
+	dah, err := da.NewDataAvailabilityHeader(eds)
+	require.NoError(t, err)
+
+	file := NewCacheFile(&MemFile{Eds: eds}, rsmt2d.NewLeoRSCodec())
+
+	nd, err := file.SharesByNamespace(context.Background(), &dah, namespace)
+	require.NoError(t, err)
+	err = nd.Verify(&dah, namespace)
+	require.NoError(t, err)
 }
 
 // BenchmarkGetShareFromCacheMiss/16 	   16308	     72295 ns/op

@@ -81,7 +81,6 @@ func (f *CacheFile) axisWithProofs(idx int, axis rsmt2d.Axis) (inMemoryAxis, err
 		return inMemoryAxis{}, err
 	}
 
-	fmt.Println("building proofs for axis", idx, axis)
 	// calculate proofs
 	adder := ipld.NewProofsAdder(f.Size(), ipld.CollectShares)
 	tree := wrapper.NewErasuredNamespacedMerkleTree(uint64(f.Size()/2), uint(idx),
@@ -181,6 +180,34 @@ func (f *CacheFile) EDS() (*rsmt2d.ExtendedDataSquare, error) {
 		return nil, fmt.Errorf("recomputing data square: %w", err)
 	}
 	return eds, nil
+}
+
+func (f *CacheFile) SharesByNamespace(
+	ctx context.Context,
+	root *share.Root,
+	namespace share.Namespace,
+) (share.NamespacedShares, error) {
+	// collect all shares with proofs within the namespace
+	var shares []share.NamespacedRow
+	for i, row := range root.RowRoots {
+		if !namespace.IsOutsideRange(row, row) {
+			ax, err := f.axisWithProofs(i, rsmt2d.Row)
+			if err != nil {
+				return nil, err
+			}
+
+			rowCid := ipld.MustCidFromNamespacedSha256(row)
+			row, proof, err := ipld.GetSharesByNamespace(ctx, ax.proofs, rowCid, namespace, f.Size())
+			if err != nil {
+				return nil, fmt.Errorf("retrieving shares by namespace %s for row %x: %w", namespace.String(), row, err)
+			}
+			shares = append(shares, share.NamespacedRow{
+				Shares: row,
+				Proof:  proof,
+			})
+		}
+	}
+	return shares, nil
 }
 
 // rowProofsGetter implements blockservice.BlockGetter interface
