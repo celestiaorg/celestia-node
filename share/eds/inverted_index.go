@@ -41,7 +41,10 @@ func newSimpleInvertedIndex(storePath string) (*simpleInvertedIndex, error) {
 	opts.DetectConflicts = false
 	// we don't need compression for inverted index as it just hashes
 	opts.Compression = options.None
-	compactors := runtime.NumCPU() / 2
+	compactors := runtime.NumCPU()
+	if compactors < 2 {
+		compactors = 2
+	}
 	if compactors > opts.MaxLevels { // ensure there is no more compactors than db table levels
 		compactors = opts.MaxLevels
 	}
