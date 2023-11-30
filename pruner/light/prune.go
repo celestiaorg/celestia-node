@@ -14,10 +14,10 @@ func NewPruner() *Pruner {
 }
 
 func (p *Pruner) Prune(context.Context, ...*header.ExtendedHeader) error {
+	// TODO @renaynay: Implement once IPLDv2 is ready
 	return nil
 }
 
-func (p *Pruner) IsWithinAvailabilityWindow(_ *header.ExtendedHeader, _ time.Duration) bool {
-	// TODO @renaynay: Implement in a later PR
-	return true
+func (p *Pruner) IsWithinAvailabilityWindow(eh *header.ExtendedHeader, window time.Duration) bool {
+	return time.Since(eh.Time()) <= window
 }
