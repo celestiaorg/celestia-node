@@ -43,10 +43,10 @@ func routedHost(base HostBase, r routing.PeerRouting) hst.Host {
 func host(params hostParams) (HostBase, error) {
 	buildInfo := node.GetBuildInfo()
 
-	userAgent := fmt.Sprintf("%s-node/v%s/%s",
+	userAgent := fmt.Sprintf("celestia-node/%s/v%s/%s",
     params.Net, 
     buildInfo.SemanticVersion, 
-    buildInfo.LastCommit[:8])
+    buildInfo.LastCommit[:7])
 	
 	opts := []libp2p.Option{
 		libp2p.NoListenAddrs, // do not listen automatically
