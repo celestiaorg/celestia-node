@@ -399,6 +399,6 @@ func (m getterStub) Get(context.Context, libhead.Hash) (*header.ExtendedHeader, 
 
 type mockPruner struct{}
 
-func (mp *mockPruner) IsWithinAvailabilityWindow(_ *header.ExtendedHeader, _ time.Duration) bool {
+func (mp *mockPruner) IsWithinAvailabilityWindow(_ *header.ExtendedHeader) bool {
 	return true
 }

@@ -156,7 +156,7 @@ func (d *DASer) Stop(ctx context.Context) error {
 func (d *DASer) sample(ctx context.Context, h *header.ExtendedHeader) error {
 	// short-circuit if pruning is enabled and the header is outside the
 	// availability window
-	if !d.window.IsWithinAvailabilityWindow(h, pruner.Window) {
+	if !d.window.IsWithinAvailabilityWindow(h) {
 		return nil
 	}
 

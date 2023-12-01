@@ -2,7 +2,6 @@ package light
 
 import (
 	"context"
-	"time"
 
 	"github.com/celestiaorg/celestia-node/header"
 )
@@ -17,7 +16,7 @@ func (p *Pruner) Prune(context.Context, ...*header.ExtendedHeader) error {
 	return nil
 }
 
-func (p *Pruner) IsWithinAvailabilityWindow(_ *header.ExtendedHeader, _ time.Duration) bool {
+func (p *Pruner) IsWithinAvailabilityWindow(_ *header.ExtendedHeader) bool {
 	// TODO @renaynay: Implement in a later PR
 	return true
 }

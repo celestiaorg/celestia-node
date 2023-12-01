@@ -2,7 +2,6 @@ package pruner
 
 import (
 	"context"
-	"time"
 
 	"github.com/celestiaorg/celestia-node/header"
 )
@@ -11,7 +10,7 @@ import (
 type AvailabilityWindow interface {
 	// IsWithinAvailabilityWindow returns true if the given header is within the
 	// "availability" (sampling) window of the network.
-	IsWithinAvailabilityWindow(eh *header.ExtendedHeader, window time.Duration) bool
+	IsWithinAvailabilityWindow(eh *header.ExtendedHeader) bool
 }
 
 // Pruner handles the pruning routine for the node using the
@@ -36,6 +35,6 @@ func (p *Pruner) Stop(context.Context) error {
 
 // IsWithinAvailabilityWindow returns whether the given header is within the
 // availability window for the underlying prune Factory.
-func (p *Pruner) IsWithinAvailabilityWindow(eh *header.ExtendedHeader, window time.Duration) bool {
-	return p.factory.IsWithinAvailabilityWindow(eh, window)
+func (p *Pruner) IsWithinAvailabilityWindow(eh *header.ExtendedHeader) bool {
+	return p.factory.IsWithinAvailabilityWindow(eh)
 }
