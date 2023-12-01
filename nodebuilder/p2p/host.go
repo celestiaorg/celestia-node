@@ -4,7 +4,6 @@ import (
 	"context"
 	"fmt"
 	"os"
-	"strings"
 
 	"github.com/libp2p/go-libp2p"
 	p2pconfig "github.com/libp2p/go-libp2p/config"
@@ -43,16 +42,9 @@ func routedHost(base HostBase, r routing.PeerRouting) hst.Host {
 // host returns constructor for Host.
 func host(params hostParams) (HostBase, error) {
 	buildInfo := node.GetBuildInfo()
-	netAlias := params.Net.String()
 
-	// Split into parts
-	parts := strings.SplitN(netAlias, "-", 2)
-	netType := parts[0]
-	alias := parts[1]
-
-	userAgent := fmt.Sprintf("%s-node/%s/v%s/%s",
-    netType, 
-    alias,
+	userAgent := fmt.Sprintf("%s-node/v%s/%s",
+    params.Net, 
     buildInfo.SemanticVersion, 
     buildInfo.LastCommit[:8])
 	
