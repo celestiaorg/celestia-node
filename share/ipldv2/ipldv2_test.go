@@ -39,7 +39,7 @@ func TestSampleRoundtripGetBlock(t *testing.T) {
 	width := int(sqr.Width())
 	for _, axisType := range axisTypes {
 		for i := 0; i < width*width; i++ {
-			smpl, err := NewSampleFromEDS(axisType, i, sqr, 16)
+			smpl, err := NewSampleFromEDS(axisType, i, sqr, 1)
 			require.NoError(t, err)
 
 			cid, err := smpl.SampleID.Cid()
