@@ -85,7 +85,7 @@ func (s *SampleID) MarshalBinary() ([]byte, error) {
 // UnmarshalBinary decodes SampleID from binary form.
 func (s *SampleID) UnmarshalBinary(data []byte) error {
 	if len(data) != SampleIDSize {
-		return fmt.Errorf("invalid data lengt: %d != %d", len(data), SampleIDSize)
+		return fmt.Errorf("invalid data length: %d != %d", len(data), SampleIDSize)
 	}
 	n, err := s.AxisID.UnmarshalFrom(data)
 	if err != nil {

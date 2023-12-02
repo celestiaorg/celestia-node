@@ -20,6 +20,7 @@ type File interface {
 	ShareWithProof(axisType rsmt2d.Axis, axisIdx, shrIdx int) (share.Share, nmt.Proof, error)
 	Axis(axisType rsmt2d.Axis, axisIdx int) ([]share.Share, error)
 	AxisHalf(axisType rsmt2d.Axis, axisIdx int) ([]share.Share, error)
+	// 	Data(namespace share.Namespace, axisIdx int) ([]share.Share, nmt.Proof, error)
 	EDS() (*rsmt2d.ExtendedDataSquare, error)
 }
 

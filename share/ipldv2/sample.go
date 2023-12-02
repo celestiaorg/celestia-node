@@ -27,14 +27,14 @@ const (
 
 // Sample represents a sample of an NMT in EDS.
 type Sample struct {
-	// ID of the Sample
-	ID SampleID
+	SampleID
+
 	// Type of the Sample
 	Type SampleType
-	// Proof of Share inclusion in the NMT
-	Proof nmt.Proof
-	// Share being sampled
-	Share share.Share
+	// SampleProof of SampleShare inclusion in the NMT
+	SampleProof nmt.Proof
+	// SampleShare is a share being sampled
+	SampleShare share.Share
 }
 
 // NewSample constructs a new Sample.
@@ -45,10 +45,10 @@ func NewSample(id SampleID, shr share.Share, proof nmt.Proof, sqrLn int) *Sample
 	}
 
 	return &Sample{
-		ID:    id,
-		Type:  tp,
-		Proof: proof,
-		Share: shr,
+		SampleID:    id,
+		Type:        tp,
+		SampleProof: proof,
+		SampleShare: shr,
 	}
 }
 
@@ -113,7 +113,7 @@ func SampleFromBlock(blk blocks.Block) (*Sample, error) {
 
 // IPLDBlock converts Sample to an IPLD block for Bitswap compatibility.
 func (s *Sample) IPLDBlock() (blocks.Block, error) {
-	cid, err := s.ID.Cid()
+	cid, err := s.SampleID.Cid()
 	if err != nil {
 		return nil, err
 	}
@@ -128,23 +128,23 @@ func (s *Sample) IPLDBlock() (blocks.Block, error) {
 
 // MarshalBinary marshals Sample to binary.
 func (s *Sample) MarshalBinary() ([]byte, error) {
-	id, err := s.ID.MarshalBinary()
+	id, err := s.SampleID.MarshalBinary()
 	if err != nil {
 		return nil, err
 	}
 
 	proof := &nmtpb.Proof{}
-	proof.Nodes = s.Proof.Nodes()
-	proof.End = int64(s.Proof.End())
-	proof.Start = int64(s.Proof.Start())
-	proof.IsMaxNamespaceIgnored = s.Proof.IsMaxNamespaceIDIgnored()
-	proof.LeafHash = s.Proof.LeafHash()
+	proof.Nodes = s.SampleProof.Nodes()
+	proof.End = int64(s.SampleProof.End())
+	proof.Start = int64(s.SampleProof.Start())
+	proof.IsMaxNamespaceIgnored = s.SampleProof.IsMaxNamespaceIDIgnored()
+	proof.LeafHash = s.SampleProof.LeafHash()
 
 	return (&ipldv2pb.Sample{
 		SampleId:    id,
 		SampleType:  ipldv2pb.SampleType(s.Type),
 		SampleProof: proof,
-		SampleShare: s.Share,
+		SampleShare: s.SampleShare,
 	}).Marshal()
 }
 
@@ -155,35 +155,35 @@ func (s *Sample) UnmarshalBinary(data []byte) error {
 		return err
 	}
 
-	err := s.ID.UnmarshalBinary(proto.SampleId)
+	err := s.SampleID.UnmarshalBinary(proto.SampleId)
 	if err != nil {
 		return err
 	}
 
 	s.Type = SampleType(proto.SampleType)
-	s.Proof = nmt.ProtoToProof(*proto.SampleProof)
-	s.Share = proto.SampleShare
+	s.SampleProof = nmt.ProtoToProof(*proto.SampleProof)
+	s.SampleShare = proto.SampleShare
 	return nil
 }
 
-// Validate validates Sample's fields and proof of Share inclusion in the NMT.
+// Validate validates Sample's fields and proof of SampleShare inclusion in the NMT.
 func (s *Sample) Validate() error {
-	if err := s.ID.Validate(); err != nil {
+	if err := s.SampleID.Validate(); err != nil {
 		return err
 	}
 
 	if s.Type != DataSample && s.Type != ParitySample {
-		return fmt.Errorf("incorrect sample type: %d", s.Type)
+		return fmt.Errorf("invalid SampleType: %d", s.Type)
 	}
 
 	namespace := share.ParitySharesNamespace
 	if s.Type == DataSample {
-		namespace = share.GetNamespace(s.Share)
+		namespace = share.GetNamespace(s.SampleShare)
 	}
 
-	s.Proof.WithHashedProof(hasher())
-	if !s.Proof.VerifyInclusion(hasher(), namespace.ToNMT(), [][]byte{s.Share}, s.ID.AxisHash) {
-		return errors.New("sample proof is invalid")
+	s.SampleProof.WithHashedProof(hasher())
+	if !s.SampleProof.VerifyInclusion(hasher(), namespace.ToNMT(), [][]byte{s.SampleShare}, s.AxisHash) {
+		return errors.New("invalid ")
 	}
 
 	return nil

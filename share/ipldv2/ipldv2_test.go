@@ -41,7 +41,7 @@ func TestSampleRoundtripGetBlock(t *testing.T) {
 			smpl, err := NewSampleFromEDS(axisType, i, sqr, 1)
 			require.NoError(t, err)
 
-			cid, err := smpl.ID.Cid()
+			cid, err := smpl.SampleID.Cid()
 			require.NoError(t, err)
 
 			blkOut, err := client.GetBlock(ctx, cid)
@@ -72,7 +72,7 @@ func TestSampleRoundtripGetBlocks(t *testing.T) {
 			smpl, err := NewSampleFromEDS(axisType, i, sqr, 1)
 			require.NoError(t, err)
 
-			cid, err := smpl.ID.Cid()
+			cid, err := smpl.SampleID.Cid()
 			require.NoError(t, err)
 
 			set.Add(cid)

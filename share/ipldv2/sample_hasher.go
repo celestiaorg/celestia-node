@@ -29,7 +29,7 @@ func (sh *SampleHasher) Write(data []byte) (int, error) {
 
 // Sum returns the "multihash" of the SampleID.
 func (sh *SampleHasher) Sum([]byte) []byte {
-	sum, err := sh.sample.ID.MarshalBinary()
+	sum, err := sh.sample.SampleID.MarshalBinary()
 	if err != nil {
 		err = fmt.Errorf("while marshaling SampleID: %w", err)
 		log.Error(err)

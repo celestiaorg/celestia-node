@@ -13,16 +13,19 @@ import (
 	ipldv2pb "github.com/celestiaorg/celestia-node/share/ipldv2/pb"
 )
 
+// Axis represents an Axis of an EDS.
 type Axis struct {
-	AxisID   AxisID
-	AxisHalf []share.Share
+	AxisID
+
+	// AxisShares is the original half of the axis.
+	AxisShares []share.Share
 }
 
 // NewAxis constructs a new Axis.
 func NewAxis(id AxisID, axisHalf []share.Share) *Axis {
 	return &Axis{
-		AxisID:   id,
-		AxisHalf: axisHalf,
+		AxisID:     id,
+		AxisShares: axisHalf,
 	}
 }
 
@@ -94,7 +97,7 @@ func (s *Axis) MarshalBinary() ([]byte, error) {
 
 	return (&ipldv2pb.Axis{
 		AxisId:   id,
-		AxisHalf: s.AxisHalf,
+		AxisHalf: s.AxisShares,
 	}).Marshal()
 }
 
@@ -110,7 +113,7 @@ func (s *Axis) UnmarshalBinary(data []byte) error {
 		return err
 	}
 
-	s.AxisHalf = proto.AxisHalf
+	s.AxisShares = proto.AxisHalf
 	return nil
 }
 
@@ -120,21 +123,21 @@ func (s *Axis) Validate() error {
 		return err
 	}
 
-	sqrLn := len(s.AxisHalf) * 2
+	sqrLn := len(s.AxisShares) * 2
 	if s.AxisID.AxisIndex > uint16(sqrLn) {
 		return fmt.Errorf("axis index exceeds square size: %d > %d", s.AxisID.AxisIndex, sqrLn)
 	}
 
 	// TODO(@Wondertan): This computations are quite expensive and likely to be used further,
 	//  so we need to find a way to cache them and pass to the caller on the Bitswap side
-	parity, err := share.DefaultRSMT2DCodec().Encode(s.AxisHalf)
+	parity, err := share.DefaultRSMT2DCodec().Encode(s.AxisShares)
 	if err != nil {
 		return fmt.Errorf("while decoding erasure coded half: %w", err)
 	}
-	s.AxisHalf = append(s.AxisHalf, parity...)
+	s.AxisShares = append(s.AxisShares, parity...)
 
-	tree := wrapper.NewErasuredNamespacedMerkleTree(uint64(len(s.AxisHalf)/2), uint(s.AxisID.AxisIndex))
-	for _, shr := range s.AxisHalf {
+	tree := wrapper.NewErasuredNamespacedMerkleTree(uint64(len(s.AxisShares)/2), uint(s.AxisID.AxisIndex))
+	for _, shr := range s.AxisShares {
 		err := tree.Push(shr)
 		if err != nil {
 			return fmt.Errorf("while pushing shares to NMT: %w", err)

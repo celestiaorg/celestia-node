@@ -15,7 +15,7 @@ import (
 	"github.com/celestiaorg/celestia-node/share/eds/edstest"
 )
 
-// TODO(@Wondertan): Add axis sampling code
+// TODO(@Wondertan): Add axis and data code
 
 func TestBlockstoreGetShareSample(t *testing.T) {
 	ctx := context.Background()
@@ -40,7 +40,7 @@ func TestBlockstoreGetShareSample(t *testing.T) {
 
 			err = sample.Validate()
 			require.NoError(t, err)
-			assert.EqualValues(t, id, sample.ID)
+			assert.EqualValues(t, id, sample.SampleID)
 		}
 	}
 }

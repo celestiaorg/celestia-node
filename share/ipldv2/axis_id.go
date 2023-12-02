@@ -104,7 +104,7 @@ func (s *AxisID) MarshalBinary() ([]byte, error) {
 // UnmarshalBinary decodes AxisID from binary form.
 func (s *AxisID) UnmarshalBinary(data []byte) error {
 	if len(data) != AxisIDSize {
-		return fmt.Errorf("incorrect data length: %d != %d", len(data), AxisIDSize)
+		return fmt.Errorf("invalid data length: %d != %d", len(data), AxisIDSize)
 	}
 	_, err := s.UnmarshalFrom(data)
 	return err
@@ -117,11 +117,11 @@ func (s *AxisID) Validate() error {
 	}
 
 	if len(s.AxisHash) != hashSize {
-		return fmt.Errorf("incorrect Hash size: %d != %d", len(s.AxisHash), hashSize)
+		return fmt.Errorf("invalid AxisHash size: %d != %d", len(s.AxisHash), hashSize)
 	}
 
 	if s.AxisType != rsmt2d.Col && s.AxisType != rsmt2d.Row {
-		return fmt.Errorf("incorrect Axis: %d", s.AxisType)
+		return fmt.Errorf("invalid AxisType: %d", s.AxisType)
 	}
 
 	return nil

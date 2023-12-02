@@ -14,24 +14,24 @@ import (
 func TestSample(t *testing.T) {
 	square := edstest.RandEDS(t, 2)
 
-	sid, err := NewSampleFromEDS(rsmt2d.Row, 2, square, 1)
+	sample, err := NewSampleFromEDS(rsmt2d.Row, 2, square, 1)
 	require.NoError(t, err)
 
-	data, err := sid.MarshalBinary()
+	data, err := sample.MarshalBinary()
 	require.NoError(t, err)
 
-	blk, err := sid.IPLDBlock()
+	blk, err := sample.IPLDBlock()
 	require.NoError(t, err)
 
-	cid, err := sid.ID.Cid()
+	cid, err := sample.SampleID.Cid()
 	require.NoError(t, err)
 	assert.EqualValues(t, blk.Cid(), cid)
 
-	sidOut := &Sample{}
-	err = sidOut.UnmarshalBinary(data)
+	sampleOut := &Sample{}
+	err = sampleOut.UnmarshalBinary(data)
 	require.NoError(t, err)
-	assert.EqualValues(t, sid, sidOut)
+	assert.EqualValues(t, sample, sampleOut)
 
-	err = sidOut.Validate()
+	err = sampleOut.Validate()
 	require.NoError(t, err)
 }

@@ -1,6 +1,6 @@
 syntax = "proto3";
 
-import "pb/proof.proto";
+import "pb/proof.proto"; // celestiaorg/nmt/pb/proof.proto
 
 enum AxisType {
     Row = 0;
@@ -13,8 +13,8 @@ message Axis {
 }
 
 enum SampleType {
-    Data = 0;
-    Parity = 1;
+    DataSample = 0;
+    ParitySample = 1;
 }
 
 message Sample {
@@ -22,4 +22,10 @@ message Sample {
     SampleType sample_type = 2;
     bytes sample_share = 3;
     proof.pb.Proof sample_proof = 4;
+}
+
+message Data {
+    bytes data_id = 1;
+    repeated bytes data_shares = 2;
+    proof.pb.Proof data_proof = 3;
 }

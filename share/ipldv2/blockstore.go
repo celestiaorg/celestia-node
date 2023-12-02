@@ -8,6 +8,8 @@ import (
 	blocks "github.com/ipfs/go-block-format"
 	"github.com/ipfs/go-cid"
 
+	"github.com/celestiaorg/nmt"
+
 	"github.com/celestiaorg/celestia-node/share/eds"
 )
 
@@ -57,6 +59,21 @@ func (b Blockstore[F]) Get(_ context.Context, cid cid.Cid) (blocks.Block, error)
 		}
 
 		return blk, nil
+	case dataCodec:
+		id, err := DataIDFromCID(cid)
+		if err != nil {
+			err = fmt.Errorf("while converting CID to DataID: %w", err)
+			log.Error(err)
+			return nil, err
+		}
+
+		blk, err := b.getDataBlock(id)
+		if err != nil {
+			log.Error(err)
+			return nil, err
+		}
+
+		return blk, nil
 	default:
 		return nil, fmt.Errorf("unsupported codec")
 	}
@@ -65,7 +82,7 @@ func (b Blockstore[F]) Get(_ context.Context, cid cid.Cid) (blocks.Block, error)
 func (b Blockstore[F]) getSampleBlock(id SampleID) (blocks.Block, error) {
 	f, err := b.fs.File(id.Height)
 	if err != nil {
-		return nil, fmt.Errorf("while getting EDS file from FS: %w", err)
+		return nil, fmt.Errorf("while getting ODS file from FS: %w", err)
 	}
 
 	shr, prf, err := f.ShareWithProof(id.AxisType, int(id.AxisIndex), int(id.ShareIndex))
@@ -81,7 +98,7 @@ func (b Blockstore[F]) getSampleBlock(id SampleID) (blocks.Block, error) {
 
 	err = f.Close()
 	if err != nil {
-		return nil, fmt.Errorf("while closing EDS file: %w", err)
+		return nil, fmt.Errorf("while closing ODS file: %w", err)
 	}
 
 	return blk, nil
@@ -112,6 +129,31 @@ func (b Blockstore[F]) getAxisBlock(id AxisID) (blocks.Block, error) {
 	return blk, nil
 }
 
+func (b Blockstore[F]) getDataBlock(id DataID) (blocks.Block, error) {
+	f, err := b.fs.File(id.Height)
+	if err != nil {
+		return nil, fmt.Errorf("while getting ODS file from FS: %w", err)
+	}
+
+	// data, prf, err := f.Data(id.DataNamespace, int(id.AxisIndex))
+	// if err != nil {
+	// 	return nil, fmt.Errorf("while getting Data: %w", err)
+	// }
+
+	s := NewData(id, nil, nmt.Proof{})
+	blk, err := s.IPLDBlock()
+	if err != nil {
+		return nil, fmt.Errorf("while coverting Data to IPLD block: %w", err)
+	}
+
+	err = f.Close()
+	if err != nil {
+		return nil, fmt.Errorf("while closing ODS file: %w", err)
+	}
+
+	return blk, nil
+}
+
 func (b Blockstore[F]) GetSize(ctx context.Context, cid cid.Cid) (int, error) {
 	// TODO(@Wondertan): There must be a way to derive size without reading, proving, serializing and
 	//  allocating Sample's block.Block.
@@ -126,40 +168,48 @@ func (b Blockstore[F]) GetSize(ctx context.Context, cid cid.Cid) (int, error) {
 }
 
 func (b Blockstore[F]) Has(_ context.Context, cid cid.Cid) (bool, error) {
-	var height uint64
+	var id AxisID
 	switch cid.Type() {
 	case sampleCodec:
-		id, err := SampleIDFromCID(cid)
+		sid, err := SampleIDFromCID(cid)
 		if err != nil {
 			err = fmt.Errorf("while converting CID to SampleID: %w", err)
 			log.Error(err)
 			return false, err
 		}
 
-		height = id.Height
+		id = sid.AxisID
 	case axisCodec:
-		id, err := AxisIDFromCID(cid)
+		var err error
+		id, err = AxisIDFromCID(cid)
 		if err != nil {
 			err = fmt.Errorf("while converting CID to AxisID: %w", err)
 			log.Error(err)
 			return false, err
 		}
+	case dataCodec:
+		did, err := DataIDFromCID(cid)
+		if err != nil {
+			err = fmt.Errorf("while converting CID to DataID: %w", err)
+			log.Error(err)
+			return false, err
+		}
 
-		height = id.Height
+		id = did.AxisID
 	default:
 		return false, fmt.Errorf("unsupported codec")
 	}
 
-	f, err := b.fs.File(height)
+	f, err := b.fs.File(id.Height)
 	if err != nil {
-		err = fmt.Errorf("while getting EDS file from FS: %w", err)
+		err = fmt.Errorf("while getting ODS file from FS: %w", err)
 		log.Error(err)
 		return false, err
 	}
 
 	err = f.Close()
 	if err != nil {
-		err = fmt.Errorf("while closing EDS file: %w", err)
+		err = fmt.Errorf("while closing ODS file: %w", err)
 		log.Error(err)
 		return false, err
 	}
