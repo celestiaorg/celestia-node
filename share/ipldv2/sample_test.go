@@ -12,7 +12,7 @@ import (
 )
 
 func TestSample(t *testing.T) {
-	square := edstest.RandEDS(t, 2)
+	square := edstest.RandEDS(t, 8)
 
 	sample, err := NewSampleFromEDS(rsmt2d.Row, 2, square, 1)
 	require.NoError(t, err)

@@ -52,6 +52,15 @@ func (f *MemFile) AxisHalf(axisType rsmt2d.Axis, axisIdx int) ([]share.Share, er
 	return getAxis(axisType, axisIdx, f.Eds)[:f.Size()/2], nil
 }
 
+func (f *MemFile) Data(namespace share.Namespace, axisIdx int) ([]share.Share, nmt.Proof, error) {
+	shrs, err := f.Axis(rsmt2d.Row, axisIdx)
+	if err != nil {
+		return nil, nmt.Proof{}, err
+	}
+
+	return NDFromShares(shrs, namespace, axisIdx)
+}
+
 func (f *MemFile) EDS() (*rsmt2d.ExtendedDataSquare, error) {
 	return f.Eds, nil
 }

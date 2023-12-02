@@ -1,6 +1,7 @@
 package eds
 
 import (
+	"context"
 	"fmt"
 	"io"
 	"os"
@@ -12,6 +13,7 @@ import (
 	"github.com/celestiaorg/rsmt2d"
 
 	"github.com/celestiaorg/celestia-node/share"
+	"github.com/celestiaorg/celestia-node/share/ipld"
 )
 
 type File interface {
@@ -20,7 +22,7 @@ type File interface {
 	ShareWithProof(axisType rsmt2d.Axis, axisIdx, shrIdx int) (share.Share, nmt.Proof, error)
 	Axis(axisType rsmt2d.Axis, axisIdx int) ([]share.Share, error)
 	AxisHalf(axisType rsmt2d.Axis, axisIdx int) ([]share.Share, error)
-	// 	Data(namespace share.Namespace, axisIdx int) ([]share.Share, nmt.Proof, error)
+	Data(namespace share.Namespace, axisIdx int) ([]share.Share, nmt.Proof, error)
 	EDS() (*rsmt2d.ExtendedDataSquare, error)
 }
 
@@ -204,6 +206,15 @@ func (f *LazyFile) ShareWithProof(axisType rsmt2d.Axis, axisIdx, shrIdx int) (sh
 	return shrs[shrIdx], proof, nil
 }
 
+func (f *LazyFile) Data(namespace share.Namespace, axisIdx int) ([]share.Share, nmt.Proof, error) {
+	shrs, err := f.Axis(rsmt2d.Row, axisIdx)
+	if err != nil {
+		return nil, nmt.Proof{}, err
+	}
+
+	return NDFromShares(shrs, namespace, axisIdx)
+}
+
 func (f *LazyFile) EDS() (*rsmt2d.ExtendedDataSquare, error) {
 	shrLn := int(f.hdr.shareSize)
 	sqrLn := int(f.hdr.squareSize)
@@ -235,4 +246,34 @@ func (f *LazyFile) EDS() (*rsmt2d.ExtendedDataSquare, error) {
 	default:
 		return nil, fmt.Errorf("invalid mode type") // TODO(@Wondertan): Do fields validation right after read
 	}
+}
+
+func NDFromShares(shrs []share.Share, namespace share.Namespace, axisIdx int) ([]share.Share, nmt.Proof, error) {
+	bserv := ipld.NewMemBlockservice()
+	batchAdder := ipld.NewNmtNodeAdder(context.TODO(), bserv, ipld.MaxSizeBatchOption(len(shrs)))
+	tree := wrapper.NewErasuredNamespacedMerkleTree(uint64(len(shrs)/2), uint(axisIdx),
+		nmt.NodeVisitor(batchAdder.Visit))
+	for _, shr := range shrs {
+		err := tree.Push(shr)
+		if err != nil {
+			return nil, nmt.Proof{}, err
+		}
+	}
+
+	root, err := tree.Root()
+	if err != nil {
+		return nil, nmt.Proof{}, err
+	}
+
+	err = batchAdder.Commit()
+	if err != nil {
+		return nil, nmt.Proof{}, err
+	}
+
+	cid := ipld.MustCidFromNamespacedSha256(root)
+	row, proof, err := ipld.GetSharesByNamespace(context.TODO(), bserv, cid, namespace, len(shrs))
+	if err != nil {
+		return nil, nmt.Proof{}, err
+	}
+	return row, *proof, nil
 }

@@ -32,29 +32,29 @@ func NewAxis(id AxisID, axisHalf []share.Share) *Axis {
 // NewAxisFromEDS samples the EDS and constructs a new Axis.
 func NewAxisFromEDS(
 	axisType rsmt2d.Axis,
-	idx int,
-	eds *rsmt2d.ExtendedDataSquare,
+	axisIdx int,
+	square *rsmt2d.ExtendedDataSquare,
 	height uint64,
 ) (*Axis, error) {
-	sqrLn := int(eds.Width())
+	sqrLn := int(square.Width())
 
 	// TODO(@Wondertan): Should be an rsmt2d method
 	var axisHalf [][]byte
 	switch axisType {
 	case rsmt2d.Row:
-		axisHalf = eds.Row(uint(idx))[:sqrLn/2]
+		axisHalf = square.Row(uint(axisIdx))[:sqrLn/2]
 	case rsmt2d.Col:
-		axisHalf = eds.Col(uint(idx))[:sqrLn/2]
+		axisHalf = square.Col(uint(axisIdx))[:sqrLn/2]
 	default:
 		panic("invalid axis")
 	}
 
-	root, err := share.NewRoot(eds)
+	root, err := share.NewRoot(square)
 	if err != nil {
 		return nil, fmt.Errorf("while computing root: %w", err)
 	}
 
-	id := NewAxisID(axisType, uint16(idx), root, height)
+	id := NewAxisID(axisType, uint16(axisIdx), root, height)
 	return NewAxis(id, axisHalf), nil
 }
 

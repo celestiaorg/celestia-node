@@ -8,8 +8,6 @@ import (
 	blocks "github.com/ipfs/go-block-format"
 	"github.com/ipfs/go-cid"
 
-	"github.com/celestiaorg/nmt"
-
 	"github.com/celestiaorg/celestia-node/share/eds"
 )
 
@@ -135,12 +133,12 @@ func (b Blockstore[F]) getDataBlock(id DataID) (blocks.Block, error) {
 		return nil, fmt.Errorf("while getting ODS file from FS: %w", err)
 	}
 
-	// data, prf, err := f.Data(id.DataNamespace, int(id.AxisIndex))
-	// if err != nil {
-	// 	return nil, fmt.Errorf("while getting Data: %w", err)
-	// }
+	data, prf, err := f.Data(id.DataNamespace, int(id.AxisIndex))
+	if err != nil {
+		return nil, fmt.Errorf("while getting Data: %w", err)
+	}
 
-	s := NewData(id, nil, nmt.Proof{})
+	s := NewData(id, data, prf)
 	blk, err := s.IPLDBlock()
 	if err != nil {
 		return nil, fmt.Errorf("while coverting Data to IPLD block: %w", err)

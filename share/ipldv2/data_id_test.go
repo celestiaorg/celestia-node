@@ -17,7 +17,7 @@ func TestDataID(t *testing.T) {
 	root, err := share.NewRoot(square)
 	require.NoError(t, err)
 
-	sid := NewDataID(sharetest.RandV0Namespace(), 2, root, 1)
+	sid := NewDataID(2, root, 1, sharetest.RandV0Namespace())
 	id, err := sid.Cid()
 	require.NoError(t, err)
 

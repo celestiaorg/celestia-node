@@ -56,25 +56,25 @@ func NewSample(id SampleID, shr share.Share, proof nmt.Proof, sqrLn int) *Sample
 func NewSampleFromEDS(
 	axisType rsmt2d.Axis,
 	idx int,
-	eds *rsmt2d.ExtendedDataSquare,
+	square *rsmt2d.ExtendedDataSquare,
 	height uint64,
 ) (*Sample, error) {
-	sqrLn := int(eds.Width())
+	sqrLn := int(square.Width())
 	axisIdx, shrIdx := idx/sqrLn, idx%sqrLn
 
 	// TODO(@Wondertan): Should be an rsmt2d method
 	var shrs [][]byte
 	switch axisType {
 	case rsmt2d.Row:
-		shrs = eds.Row(uint(axisIdx))
+		shrs = square.Row(uint(axisIdx))
 	case rsmt2d.Col:
 		axisIdx, shrIdx = shrIdx, axisIdx
-		shrs = eds.Col(uint(axisIdx))
+		shrs = square.Col(uint(axisIdx))
 	default:
 		panic("invalid axis")
 	}
 
-	root, err := share.NewRoot(eds)
+	root, err := share.NewRoot(square)
 	if err != nil {
 		return nil, fmt.Errorf("while computing root: %w", err)
 	}

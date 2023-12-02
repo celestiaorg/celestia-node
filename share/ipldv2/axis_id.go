@@ -29,16 +29,16 @@ type AxisID struct {
 }
 
 // NewAxisID constructs a new AxisID.
-func NewAxisID(axisType rsmt2d.Axis, idx uint16, root *share.Root, height uint64) AxisID {
-	dahroot := root.RowRoots[idx]
+func NewAxisID(axisType rsmt2d.Axis, axisIdx uint16, root *share.Root, height uint64) AxisID {
+	dahroot := root.RowRoots[axisIdx]
 	if axisType == rsmt2d.Col {
-		dahroot = root.ColumnRoots[idx]
+		dahroot = root.ColumnRoots[axisIdx]
 	}
 	axisHash := hashBytes(dahroot)
 
 	return AxisID{
 		AxisType:  axisType,
-		AxisIndex: idx,
+		AxisIndex: axisIdx,
 		AxisHash:  axisHash,
 		Height:    height,
 	}

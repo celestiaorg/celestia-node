@@ -25,7 +25,7 @@ type DataID struct {
 }
 
 // NewDataID constructs a new DataID.
-func NewDataID(namespace share.Namespace, axisIdx int, root *share.Root, height uint64) DataID {
+func NewDataID(axisIdx int, root *share.Root, height uint64, namespace share.Namespace) DataID {
 	return DataID{
 		AxisID:        NewAxisID(rsmt2d.Row, uint16(axisIdx), root, height),
 		DataNamespace: namespace,
@@ -48,18 +48,18 @@ func DataIDFromCID(cid cid.Cid) (id DataID, err error) {
 
 // Cid returns sample ID encoded as CID.
 func (s *DataID) Cid() (cid.Cid, error) {
-	// avoid using proto serialization for CID as it's not deterministicnot lambo though
+	// avoid using proto serialization for CID as it's not deterministic
 	data, err := s.MarshalBinary()
 	if err != nil {
 		return cid.Undef, err
 	}
 
-	buf, err := mh.Encode(data, sampleMultihashCode)
+	buf, err := mh.Encode(data, dataMultihashCode)
 	if err != nil {
 		return cid.Undef, err
 	}
 
-	return cid.NewCidV1(sampleCodec, buf), nil
+	return cid.NewCidV1(dataCodec, buf), nil
 }
 
 // MarshalBinary encodes DataID into binary form.

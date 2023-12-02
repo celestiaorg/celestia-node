@@ -12,26 +12,26 @@ import (
 )
 
 func TestAxis(t *testing.T) {
-	square := edstest.RandEDS(t, 2)
+	square := edstest.RandEDS(t, 8)
 
-	aid, err := NewAxisFromEDS(rsmt2d.Row, 1, square, 2)
+	axis, err := NewAxisFromEDS(rsmt2d.Row, 1, square, 2)
 	require.NoError(t, err)
 
-	data, err := aid.MarshalBinary()
+	data, err := axis.MarshalBinary()
 	require.NoError(t, err)
 
-	blk, err := aid.IPLDBlock()
+	blk, err := axis.IPLDBlock()
 	require.NoError(t, err)
 
-	cid, err := aid.AxisID.Cid()
+	cid, err := axis.AxisID.Cid()
 	require.NoError(t, err)
 	assert.EqualValues(t, blk.Cid(), cid)
 
-	sidOut := &Axis{}
-	err = sidOut.UnmarshalBinary(data)
+	axisOut := &Axis{}
+	err = axisOut.UnmarshalBinary(data)
 	require.NoError(t, err)
-	assert.EqualValues(t, aid, sidOut)
+	assert.EqualValues(t, axis, axisOut)
 
-	err = sidOut.Validate()
+	err = axisOut.Validate()
 	require.NoError(t, err)
 }

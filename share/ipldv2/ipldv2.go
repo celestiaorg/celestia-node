@@ -51,7 +51,7 @@ func init() {
 		return &AxisHasher{}
 	})
 	mh.Register(dataMultihashCode, func() hash.Hash {
-		return &AxisHasher{}
+		return &DataHasher{}
 	})
 }
 

@@ -6,8 +6,11 @@ import (
 	blocks "github.com/ipfs/go-block-format"
 
 	"github.com/celestiaorg/nmt"
+	nmtpb "github.com/celestiaorg/nmt/pb"
+	"github.com/celestiaorg/rsmt2d"
 
 	"github.com/celestiaorg/celestia-node/share"
+	"github.com/celestiaorg/celestia-node/share/eds"
 	ipldv2pb "github.com/celestiaorg/celestia-node/share/ipldv2/pb"
 )
 
@@ -27,33 +30,36 @@ func NewData(id DataID, shares []share.Share, proof nmt.Proof) *Data {
 	}
 }
 
-// // NewDataFromEDS samples the EDS and constructs a new Data.
-// func NewDataFromEDS(
-// 	idx int,
-// 	eds *rsmt2d.ExtendedDataSquare,
-// 	height uint64,
-// ) (*Data, error) {
-// 	sqrLn := int(eds.Width())
-//
-// 	// TODO(@Wondertan): Should be an rsmt2d method
-// 	var axisHalf [][]byte
-// 	switch axisType {
-// 	case rsmt2d.Row:
-// 		axisHalf = eds.Row(uint(idx))[:sqrLn/2]
-// 	case rsmt2d.Col:
-// 		axisHalf = eds.Col(uint(idx))[:sqrLn/2]
-// 	default:
-// 		panic("invalid axis")
-// 	}
-//
-// 	root, err := share.NewRoot(eds)
-// 	if err != nil {
-// 		return nil, fmt.Errorf("while computing root: %w", err)
-// 	}
-//
-// 	id := NewDataID(axisType, uint16(idx), root, height)
-// 	return NewData(id, axisHalf), nil
-// }
+// NewDataFromEDS samples the EDS and constructs Data for each row with the given namespace.
+func NewDataFromEDS(
+	square *rsmt2d.ExtendedDataSquare,
+	height uint64,
+	namespace share.Namespace,
+) ([]*Data, error) {
+	root, err := share.NewRoot(square)
+	if err != nil {
+		return nil, fmt.Errorf("while computing root: %w", err)
+	}
+
+	var datas []*Data
+	for rowIdx, rowRoot := range root.RowRoots {
+		if namespace.IsOutsideRange(rowRoot, rowRoot) {
+			continue
+		}
+
+		shrs := square.Row(uint(rowIdx))
+		// TDOD(@Wondertan): This will likely be removed
+		nd, proof, err := eds.NDFromShares(shrs, namespace, rowIdx)
+		if err != nil {
+			return nil, err
+		}
+
+		id := NewDataID(rowIdx, root, height, namespace)
+		datas = append(datas, NewData(id, nd, proof))
+	}
+
+	return datas, nil
+}
 
 // DataFromBlock converts blocks.Block into Data.
 func DataFromBlock(blk blocks.Block) (*Data, error) {
@@ -92,8 +98,16 @@ func (s *Data) MarshalBinary() ([]byte, error) {
 		return nil, err
 	}
 
+	proof := &nmtpb.Proof{}
+	proof.Nodes = s.DataProof.Nodes()
+	proof.End = int64(s.DataProof.End())
+	proof.Start = int64(s.DataProof.Start())
+	proof.IsMaxNamespaceIgnored = s.DataProof.IsMaxNamespaceIDIgnored()
+	proof.LeafHash = s.DataProof.LeafHash()
+
 	return (&ipldv2pb.Data{
 		DataId:     id,
+		DataProof:  proof,
 		DataShares: s.DataShares,
 	}).Marshal()
 }
@@ -110,6 +124,7 @@ func (s *Data) UnmarshalBinary(data []byte) error {
 		return err
 	}
 
+	s.DataProof = nmt.ProtoToProof(*proto.DataProof)
 	s.DataShares = proto.DataShares
 	return nil
 }
@@ -124,8 +139,13 @@ func (s *Data) Validate() error {
 		return fmt.Errorf("empty DataShares")
 	}
 
+	shrs := make([][]byte, 0, len(s.DataShares))
+	for _, shr := range s.DataShares {
+		shrs = append(shrs, append(share.GetNamespace(shr), shr...))
+	}
+
 	s.DataProof.WithHashedProof(hasher())
-	if !s.DataProof.VerifyNamespace(hasher(), s.DataNamespace.ToNMT(), s.DataShares, s.AxisHash) {
+	if !s.DataProof.VerifyNamespace(hasher(), s.DataNamespace.ToNMT(), shrs, s.AxisHash) {
 		return fmt.Errorf("invalid DataProof")
 	}
 

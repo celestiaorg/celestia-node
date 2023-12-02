@@ -21,6 +21,7 @@ import (
 	"github.com/celestiaorg/rsmt2d"
 
 	"github.com/celestiaorg/celestia-node/share/eds/edstest"
+	"github.com/celestiaorg/celestia-node/share/sharetest"
 )
 
 var axisTypes = []rsmt2d.Axis{rsmt2d.Col, rsmt2d.Row}
@@ -38,7 +39,7 @@ func TestSampleRoundtripGetBlock(t *testing.T) {
 	width := int(sqr.Width())
 	for _, axisType := range axisTypes {
 		for i := 0; i < width*width; i++ {
-			smpl, err := NewSampleFromEDS(axisType, i, sqr, 1)
+			smpl, err := NewSampleFromEDS(axisType, i, sqr, 16)
 			require.NoError(t, err)
 
 			cid, err := smpl.SampleID.Cid()
@@ -58,10 +59,10 @@ func TestSampleRoundtripGetBlock(t *testing.T) {
 }
 
 func TestSampleRoundtripGetBlocks(t *testing.T) {
-	ctx, cancel := context.WithTimeout(context.Background(), time.Second*10)
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second*100)
 	defer cancel()
 
-	sqr := edstest.RandEDS(t, 8) // TODO(@Wondertan): does not work with more than 8 for some reasong
+	sqr := edstest.RandEDS(t, 8)
 	b := edsBlockstore(sqr)
 	client := remoteClient(ctx, t, b)
 
@@ -102,7 +103,7 @@ func TestAxisRoundtripGetBlock(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second*10000)
 	defer cancel()
 
-	sqr := edstest.RandEDS(t, 8)
+	sqr := edstest.RandEDS(t, 16)
 	b := edsBlockstore(sqr)
 	client := remoteClient(ctx, t, b)
 
@@ -157,6 +158,72 @@ func TestAxisRoundtripGetBlocks(t *testing.T) {
 			assert.True(t, set.Has(blk.Cid()))
 
 			smpl, err := AxisFromBlock(blk)
+			assert.NoError(t, err)
+
+			err = smpl.Validate() // bitswap already performed validation and this is only for testing
+			assert.NoError(t, err)
+		case <-ctx.Done():
+			return ctx.Err()
+		}
+		return nil
+	})
+	assert.NoError(t, err)
+}
+
+func TestDataRoundtripGetBlock(t *testing.T) {
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second*10)
+	defer cancel()
+
+	namespace := sharetest.RandV0Namespace()
+	sqr, _ := edstest.RandEDSWithNamespace(t, namespace, 16)
+	b := edsBlockstore(sqr)
+	client := remoteClient(ctx, t, b)
+
+	nds, err := NewDataFromEDS(sqr, 1, namespace)
+	require.NoError(t, err)
+
+	for _, nd := range nds {
+		cid, err := nd.DataID.Cid()
+		require.NoError(t, err)
+
+		blkOut, err := client.GetBlock(ctx, cid)
+		require.NoError(t, err)
+		assert.EqualValues(t, cid, blkOut.Cid())
+
+		ndOut, err := DataFromBlock(blkOut)
+		assert.NoError(t, err)
+
+		err = ndOut.Validate() // bitswap already performed validation and this is only for testing
+		assert.NoError(t, err)
+	}
+}
+
+func TestDataRoundtripGetBlocks(t *testing.T) {
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second*10)
+	defer cancel()
+
+	namespace := sharetest.RandV0Namespace()
+	sqr, _ := edstest.RandEDSWithNamespace(t, namespace, 16)
+	b := edsBlockstore(sqr)
+	client := remoteClient(ctx, t, b)
+
+	nds, err := NewDataFromEDS(sqr, 1, namespace)
+	require.NoError(t, err)
+
+	set := cid.NewSet()
+	for _, nd := range nds {
+		cid, err := nd.DataID.Cid()
+		require.NoError(t, err)
+		set.Add(cid)
+	}
+
+	blks := client.GetBlocks(ctx, set.Keys())
+	err = set.ForEach(func(c cid.Cid) error {
+		select {
+		case blk := <-blks:
+			assert.True(t, set.Has(blk.Cid()))
+
+			smpl, err := DataFromBlock(blk)
 			assert.NoError(t, err)
 
 			err = smpl.Validate() // bitswap already performed validation and this is only for testing
