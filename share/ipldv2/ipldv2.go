@@ -5,6 +5,9 @@ import (
 	"fmt"
 	"hash"
 
+	"github.com/ipfs/boxo/blockservice"
+	"github.com/ipfs/boxo/blockstore"
+	"github.com/ipfs/boxo/exchange"
 	"github.com/ipfs/go-cid"
 	logger "github.com/ipfs/go-log/v2"
 	mh "github.com/multiformats/go-multihash"
@@ -40,6 +43,11 @@ func MustDataCID(axisIdx int, root *share.Root, height uint64, namespace share.N
 		panic("failed to create data CID")
 	}
 	return cid
+}
+
+// NewBlockService creates a new blockservice.BlockService with allowlist supporting the protocol.
+func NewBlockService(b blockstore.Blockstore, ex exchange.Interface) blockservice.BlockService {
+	return blockservice.New(b, ex, blockservice.WithAllowlist(defaultAllowlist))
 }
 
 var log = logger.Logger("ipldv2")

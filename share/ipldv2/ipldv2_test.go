@@ -261,5 +261,5 @@ func remoteClient(ctx context.Context, t *testing.T, bstore blockstore.Blockstor
 	err = net.ConnectAllButSelf()
 	require.NoError(t, err)
 
-	return blockservice.New(bstoreClient, bitswapClient, blockservice.WithAllowlist(defaultAllowlist))
+	return NewBlockService(bstoreClient, bitswapClient)
 }
