@@ -41,7 +41,7 @@ func NewDataFromEDS(
 		return nil, fmt.Errorf("while computing root: %w", err)
 	}
 
-	var datas []*Data
+	var datas []*Data //nolint:prealloc// we don't know how many rows with needed namespace there are
 	for rowIdx, rowRoot := range root.RowRoots {
 		if namespace.IsOutsideRange(rowRoot, rowRoot) {
 			continue

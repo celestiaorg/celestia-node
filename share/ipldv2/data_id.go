@@ -26,8 +26,14 @@ type DataID struct {
 
 // NewDataID constructs a new DataID.
 func NewDataID(axisIdx int, root *share.Root, height uint64, namespace share.Namespace) DataID {
+	axisHash := hashBytes(root.RowRoots[axisIdx])
 	return DataID{
-		AxisID:        NewAxisID(rsmt2d.Row, uint16(axisIdx), root, height),
+		AxisID: AxisID{
+			AxisType:  rsmt2d.Row,
+			AxisIndex: uint16(axisIdx),
+			AxisHash:  axisHash,
+			Height:    height,
+		},
 		DataNamespace: namespace,
 	}
 }
@@ -47,7 +53,7 @@ func DataIDFromCID(cid cid.Cid) (id DataID, err error) {
 }
 
 // Cid returns sample ID encoded as CID.
-func (s *DataID) Cid() (cid.Cid, error) {
+func (s DataID) Cid() (cid.Cid, error) {
 	// avoid using proto serialization for CID as it's not deterministic
 	data, err := s.MarshalBinary()
 	if err != nil {
@@ -66,7 +72,7 @@ func (s *DataID) Cid() (cid.Cid, error) {
 // NOTE: Proto is avoided because
 // * Its size is not deterministic which is required for IPLD.
 // * No support for uint16
-func (s *DataID) MarshalBinary() ([]byte, error) {
+func (s DataID) MarshalBinary() ([]byte, error) {
 	data := make([]byte, 0, DataIDSize+1)
 	n, err := s.AxisID.MarshalTo(data)
 	if err != nil {
@@ -91,7 +97,7 @@ func (s *DataID) UnmarshalBinary(data []byte) error {
 }
 
 // Validate validates fields of DataID.
-func (s *DataID) Validate() error {
+func (s DataID) Validate() error {
 	if err := s.AxisID.Validate(); err != nil {
 		return fmt.Errorf("while validating AxisID: %w", err)
 	}

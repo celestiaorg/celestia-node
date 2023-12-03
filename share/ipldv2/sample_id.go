@@ -26,13 +26,21 @@ type SampleID struct {
 // NewSampleID constructs a new SampleID.
 func NewSampleID(axisType rsmt2d.Axis, idx int, root *share.Root, height uint64) SampleID {
 	sqrLn := len(root.RowRoots)
-	axsIdx, shrIdx := idx/sqrLn, idx%sqrLn
+	axisIdx, shrIdx := idx/sqrLn, idx%sqrLn
+	dahroot := root.RowRoots[axisIdx]
 	if axisType == rsmt2d.Col {
-		axsIdx, shrIdx = shrIdx, axsIdx
+		axisIdx, shrIdx = shrIdx, axisIdx
+		dahroot = root.ColumnRoots[axisIdx]
 	}
+	axisHash := hashBytes(dahroot)
 
 	return SampleID{
-		AxisID:     NewAxisID(axisType, uint16(axsIdx), root, height),
+		AxisID: AxisID{
+			AxisType:  axisType,
+			AxisIndex: uint16(axisIdx),
+			AxisHash:  axisHash,
+			Height:    height,
+		},
 		ShareIndex: uint16(shrIdx),
 	}
 }
@@ -52,7 +60,7 @@ func SampleIDFromCID(cid cid.Cid) (id SampleID, err error) {
 }
 
 // Cid returns sample ID encoded as CID.
-func (s *SampleID) Cid() (cid.Cid, error) {
+func (s SampleID) Cid() (cid.Cid, error) {
 	// avoid using proto serialization for CID as it's not deterministic
 	data, err := s.MarshalBinary()
 	if err != nil {
@@ -71,7 +79,7 @@ func (s *SampleID) Cid() (cid.Cid, error) {
 // NOTE: Proto is avoided because
 // * Its size is not deterministic which is required for IPLD.
 // * No support for uint16
-func (s *SampleID) MarshalBinary() ([]byte, error) {
+func (s SampleID) MarshalBinary() ([]byte, error) {
 	data := make([]byte, 0, SampleIDSize)
 	n, err := s.AxisID.MarshalTo(data)
 	if err != nil {
@@ -96,6 +104,6 @@ func (s *SampleID) UnmarshalBinary(data []byte) error {
 }
 
 // Validate validates fields of SampleID.
-func (s *SampleID) Validate() error {
+func (s SampleID) Validate() error {
 	return s.AxisID.Validate()
 }

@@ -8,7 +8,39 @@ import (
 	"github.com/ipfs/go-cid"
 	logger "github.com/ipfs/go-log/v2"
 	mh "github.com/multiformats/go-multihash"
+
+	"github.com/celestiaorg/rsmt2d"
+
+	"github.com/celestiaorg/celestia-node/share"
 )
+
+// MustSampleCID constructs a sample CID or panics.
+func MustSampleCID(axisIdx int, root *share.Root, height uint64) cid.Cid {
+	axisTp := rsmt2d.Row // TODO: Randomize axis type
+	cid, err := NewSampleID(axisTp, axisIdx, root, height).Cid()
+	if err != nil {
+		panic("failed to create sample CID")
+	}
+	return cid
+}
+
+// MustAxisCID constructs an axis CID or panics.
+func MustAxisCID(axisTp rsmt2d.Axis, axisIdx int, root *share.Root, height uint64) cid.Cid {
+	cid, err := NewAxisID(axisTp, uint16(axisIdx), root, height).Cid()
+	if err != nil {
+		panic("failed to create axis CID")
+	}
+	return cid
+}
+
+// MustDataCID constructs a data CID or panics.
+func MustDataCID(axisIdx int, root *share.Root, height uint64, namespace share.Namespace) cid.Cid {
+	cid, err := NewDataID(axisIdx, root, height, namespace).Cid()
+	if err != nil {
+		panic("failed to create data CID")
+	}
+	return cid
+}
 
 var log = logger.Logger("ipldv2")
 

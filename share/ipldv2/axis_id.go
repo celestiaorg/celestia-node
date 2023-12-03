@@ -59,7 +59,7 @@ func AxisIDFromCID(cid cid.Cid) (id AxisID, err error) {
 }
 
 // Cid returns sample ID encoded as CID.
-func (s *AxisID) Cid() (cid.Cid, error) {
+func (s AxisID) Cid() (cid.Cid, error) {
 	data, err := s.MarshalBinary()
 	if err != nil {
 		return cid.Undef, err
@@ -77,7 +77,7 @@ func (s *AxisID) Cid() (cid.Cid, error) {
 // NOTE: Proto is avoided because
 // * Its size is not deterministic which is required for IPLD.
 // * No support for uint16
-func (s *AxisID) MarshalTo(data []byte) (int, error) {
+func (s AxisID) MarshalTo(data []byte) (int, error) {
 	data = append(data, byte(s.AxisType))
 	data = binary.LittleEndian.AppendUint16(data, s.AxisIndex)
 	data = append(data, s.AxisHash...)
@@ -95,7 +95,7 @@ func (s *AxisID) UnmarshalFrom(data []byte) (int, error) {
 }
 
 // MarshalBinary encodes AxisID into binary form.
-func (s *AxisID) MarshalBinary() ([]byte, error) {
+func (s AxisID) MarshalBinary() ([]byte, error) {
 	data := make([]byte, 0, AxisIDSize)
 	n, err := s.MarshalTo(data)
 	return data[:n], err
@@ -111,7 +111,7 @@ func (s *AxisID) UnmarshalBinary(data []byte) error {
 }
 
 // Validate validates fields of AxisID.
-func (s *AxisID) Validate() error {
+func (s AxisID) Validate() error {
 	if s.Height == 0 {
 		return fmt.Errorf("zero Height")
 	}
