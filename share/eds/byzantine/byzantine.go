@@ -41,17 +41,12 @@ func NewErrByzantine(
 	}[errByz.Axis]
 
 	sharesWithProof := make([]*ShareWithProof, len(errByz.Shares))
-	sharesAmount := 0
 
-	type tempStruct struct {
+	type result struct {
 		share *ShareWithProof
 		index int
-		err   error
 	}
-	tempStructCh := make(chan *tempStruct)
-
-	ctx, cancel := context.WithCancel(ctx)
-	defer cancel()
+	resultCh := make(chan *result)
 
 	for index, share := range errByz.Shares {
 		if share == nil {
@@ -65,28 +60,26 @@ func NewErrByzantine(
 				ipld.MustCidFromNamespacedSha256(roots[index]),
 				int(errByz.Index), len(errByz.Shares),
 			)
-			tempStructCh <- &tempStruct{share, index, err}
+			if err != nil {
+				log.Errorw("requesting proof failed", "root", string(roots[index]), "err", err)
+				return
+			}
+			resultCh <- &result{share, index}
 		}()
 	}
 
-	for {
+	for i := 0; i < len(dah.RowRoots)/2; i++ {
 		select {
-		case t := <-tempStructCh:
-			if t.err != nil {
-				log.Errorw("requesting proof failed", "root", string(roots[t.index]), "err", t.err)
-				continue
-			}
+		case t := <-resultCh:
 			sharesWithProof[t.index] = t.share
-			sharesAmount++
-			if sharesAmount == len(dah.RowRoots)/2 {
-				return &ErrByzantine{
-					Index:  uint32(errByz.Index),
-					Shares: sharesWithProof,
-					Axis:   errByz.Axis,
-				}
-			}
 		case <-ctx.Done():
 			return ipld.ErrNodeNotFound
 		}
+	}
+
+	return &ErrByzantine{
+		Index:  uint32(errByz.Index),
+		Shares: sharesWithProof,
+		Axis:   errByz.Axis,
 	}
 }
