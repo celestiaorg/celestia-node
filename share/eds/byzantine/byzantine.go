@@ -47,7 +47,6 @@ func NewErrByzantine(
 		index int
 	}
 	resultCh := make(chan *result)
-
 	for index, share := range errByz.Shares {
 		if share == nil {
 			continue
@@ -61,7 +60,7 @@ func NewErrByzantine(
 				int(errByz.Index), len(errByz.Shares),
 			)
 			if err != nil {
-				log.Errorw("requesting proof failed", "root", string(roots[index]), "err", err)
+				log.Warn("requesting proof failed", "root", roots[index], "err", err)
 				return
 			}
 			resultCh <- &result{share, index}

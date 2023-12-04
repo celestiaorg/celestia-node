@@ -2,9 +2,15 @@ package byzantine
 
 import (
 	"context"
+	"crypto/sha256"
+	"hash"
 	"testing"
 	"time"
 
+	"github.com/ipfs/boxo/blockservice"
+	blocks "github.com/ipfs/go-block-format"
+	"github.com/ipfs/go-cid"
+	mhcore "github.com/multiformats/go-multihash/core"
 	"github.com/stretchr/testify/require"
 	core "github.com/tendermint/tendermint/types"
 
@@ -201,18 +207,17 @@ func TestIncorrectBadEncodingFraudProof(t *testing.T) {
 }
 
 func TestBEFP_ValidateOutOfOrderShares(t *testing.T) {
-	// skipping it for now because `malicious` package has a small issue: Constructor does not apply
-	// passed options, so it's not possible to store shares and thus get proofs for them.
-	// should be ok once app team will fix it.
-	t.Skip()
-	eds := edstest.RandEDS(t, 16)
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second*30)
+	t.Cleanup(cancel)
+
+	eds := edstest.RandEDS(t, 4)
 	shares := eds.Flattened()
-	shares[0], shares[1] = shares[1], shares[0] // corrupting eds
-	bServ := ipld.NewMemBlockservice()
-	batchAddr := ipld.NewNmtNodeAdder(context.Background(), bServ, ipld.MaxSizeBatchOption(16*2))
+	shares[0], shares[4] = shares[4], shares[0] // corrupting eds
+	bServ := newNamespacedBlockService()
+	batchAddr := ipld.NewNmtNodeAdder(ctx, bServ, ipld.MaxSizeBatchOption(4*2))
 	eds, err := rsmt2d.ImportExtendedDataSquare(shares,
 		share.DefaultRSMT2DCodec(),
-		malicious.NewConstructor(16, nmt.NodeVisitor(batchAddr.Visit)),
+		malicious.NewConstructor(4, nmt.NodeVisitor(batchAddr.Visit)),
 	)
 	require.NoError(t, err, "failure to recompute the extended data square")
 
@@ -232,5 +237,74 @@ func TestBEFP_ValidateOutOfOrderShares(t *testing.T) {
 
 	befp := CreateBadEncodingProof([]byte("hash"), 0, errByz)
 	err = befp.Validate(&header.ExtendedHeader{DAH: &dah})
-	require.Error(t, err)
+	require.NoError(t, err)
+}
+
+// namespacedBlockService wraps `BlockService` and extends the verification part
+// to avoid returning blocks that has out of order namespaces.
+type namespacedBlockService struct {
+	blockservice.BlockService
+	// the data structure that is used on the networking level, in order
+	// to verify the order of the namespaces
+	prefix *cid.Prefix
+}
+
+func newNamespacedBlockService() *namespacedBlockService {
+	// register nmt hasher to validate the order of namespaces
+	mhcore.Register(0x7701, func() hash.Hash {
+		nh := nmt.NewNmtHasher(sha256.New(), share.NamespaceSize, true)
+		nh.Reset()
+		return nh
+	})
+
+	bs := &namespacedBlockService{}
+	bs.BlockService = ipld.NewMemBlockservice()
+
+	bs.prefix = &cid.Prefix{
+		Version: 1,
+		// use hex as sha256NamespaceFlagged is not an exported variable.
+		Codec:  0x7701,
+		MhType: 0x7701,
+		// the same as hash.Hash.Size()
+		MhLength: sha256.New().Size() + 2*share.NamespaceSize,
+	}
+	return bs
+}
+
+func (n *namespacedBlockService) GetBlock(ctx context.Context, c cid.Cid) (blocks.Block, error) {
+	block, err := n.BlockService.GetBlock(ctx, c)
+	if err != nil {
+		return nil, err
+	}
+
+	_, err = n.prefix.Sum(block.RawData())
+	if err != nil {
+		return nil, err
+	}
+	return block, nil
+}
+
+func (n *namespacedBlockService) GetBlocks(ctx context.Context, cids []cid.Cid) <-chan blocks.Block {
+	blockCh := n.BlockService.GetBlocks(ctx, cids)
+	resultCh := make(chan blocks.Block)
+
+	go func() {
+		for {
+			select {
+			case <-ctx.Done():
+				close(resultCh)
+				return
+			case block, ok := <-blockCh:
+				if !ok {
+					close(resultCh)
+					return
+				}
+				if _, err := n.prefix.Sum(block.RawData()); err != nil {
+					continue
+				}
+				resultCh <- block
+			}
+		}
+	}()
+	return resultCh
 }
