@@ -47,7 +47,7 @@ func TestDASerLifecycle(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), timeout)
 	t.Cleanup(cancel)
 
-	daser, err := NewDASer(avail, sub, mockGet, ds, mockService, newBroadcastMock(1), &mockPruner{})
+	daser, err := NewDASer(avail, sub, mockGet, ds, mockService, newBroadcastMock(1))
 	require.NoError(t, err)
 
 	err = daser.Start(ctx)
@@ -87,7 +87,7 @@ func TestDASer_Restart(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), timeout)
 	t.Cleanup(cancel)
 
-	daser, err := NewDASer(avail, sub, mockGet, ds, mockService, newBroadcastMock(1), &mockPruner{})
+	daser, err := NewDASer(avail, sub, mockGet, ds, mockService, newBroadcastMock(1))
 	require.NoError(t, err)
 
 	err = daser.Start(ctx)
@@ -118,7 +118,7 @@ func TestDASer_Restart(t *testing.T) {
 	restartCtx, restartCancel := context.WithTimeout(context.Background(), timeout)
 	t.Cleanup(restartCancel)
 
-	daser, err = NewDASer(avail, sub, mockGet, ds, mockService, newBroadcastMock(1), &mockPruner{})
+	daser, err = NewDASer(avail, sub, mockGet, ds, mockService, newBroadcastMock(1))
 	require.NoError(t, err)
 
 	err = daser.Start(restartCtx)
@@ -185,7 +185,7 @@ func TestDASer_stopsAfter_BEFP(t *testing.T) {
 	newCtx := context.Background()
 
 	// create and start DASer
-	daser, err := NewDASer(avail, sub, mockGet, ds, fserv, newBroadcastMock(1), &mockPruner{})
+	daser, err := NewDASer(avail, sub, mockGet, ds, fserv, newBroadcastMock(1))
 	require.NoError(t, err)
 
 	resultCh := make(chan error)
@@ -230,7 +230,7 @@ func TestDASerSampleTimeout(t *testing.T) {
 	fserv := &fraudtest.DummyService[*header.ExtendedHeader]{}
 
 	// create and start DASer
-	daser, err := NewDASer(avail, sub, getter, ds, fserv, newBroadcastMock(1), &mockPruner{},
+	daser, err := NewDASer(avail, sub, getter, ds, fserv, newBroadcastMock(1),
 		WithSampleTimeout(1))
 	require.NoError(t, err)
 
@@ -395,10 +395,4 @@ func (m getterStub) GetRangeByHeight(
 
 func (m getterStub) Get(context.Context, libhead.Hash) (*header.ExtendedHeader, error) {
 	return nil, nil
-}
-
-type mockPruner struct{}
-
-func (mp *mockPruner) IsWithinAvailabilityWindow(_ *header.ExtendedHeader) bool {
-	return true
 }

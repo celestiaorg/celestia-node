@@ -18,9 +18,3 @@ func NewPruner() *Pruner {
 func (p *Pruner) Prune(context.Context, ...*header.ExtendedHeader) error {
 	return nil
 }
-
-// IsWithinAvailabilityWindow returns true for all headers as archival nodes'
-// subjective availability window is unbounded.
-func (p *Pruner) IsWithinAvailabilityWindow(_ *header.ExtendedHeader) bool {
-	return true
-}

@@ -14,34 +14,32 @@ import (
 func ConstructModule(tp node.Type) fx.Option {
 	baseComponents := fx.Options(
 		fx.Provide(fx.Annotate(
-			pruner.NewPruner,
-			fx.OnStart(func(ctx context.Context, p *pruner.Pruner) error {
+			pruner.NewService,
+			fx.OnStart(func(ctx context.Context, p *pruner.Service) error {
 				return p.Start(ctx)
 			}),
-			fx.OnStop(func(ctx context.Context, p *pruner.Pruner) error {
+			fx.OnStop(func(ctx context.Context, p *pruner.Service) error {
 				return p.Stop(ctx)
 			}),
 		)),
-		fx.Provide(
-			func(factory pruner.Factory) pruner.AvailabilityWindow {
-				return factory
-			}),
 	)
 
 	switch tp {
 	case node.Full, node.Bridge:
 		return fx.Module("prune",
 			baseComponents,
-			fx.Provide(func() pruner.Factory {
+			fx.Provide(func() pruner.Pruner {
 				return archival.NewPruner()
 			}),
+			fx.Supply(archival.Window),
 		)
 	case node.Light:
 		return fx.Module("prune",
 			baseComponents,
-			fx.Provide(func() pruner.Factory {
+			fx.Provide(func() pruner.Pruner {
 				return light.NewPruner()
 			}),
+			fx.Supply(archival.Window), // TODO @renaynay: turn this into light.Window in following PR
 		)
 	default:
 		panic("unknown node type")

@@ -15,8 +15,3 @@ func NewPruner() *Pruner {
 func (p *Pruner) Prune(context.Context, ...*header.ExtendedHeader) error {
 	return nil
 }
-
-func (p *Pruner) IsWithinAvailabilityWindow(_ *header.ExtendedHeader) bool {
-	// TODO @renaynay: Implement in a later PR
-	return true
-}
