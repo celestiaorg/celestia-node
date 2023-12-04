@@ -41,7 +41,9 @@ type Parameters struct {
 	// ConcurrencyLimit.
 	SampleTimeout time.Duration
 
-	// TODO @renaynay: DOC
+	// SamplingWindow determines the time window that headers should fall into
+	// in order to be sampled. If set to 0, the sampling window will include
+	// all headers.
 	SamplingWindow time.Duration
 }
 
@@ -160,8 +162,7 @@ func WithSampleTimeout(sampleTimeout time.Duration) Option {
 }
 
 // WithSamplingWindow is a functional option to configure the DASer's
-// `SamplingWindow` parameter which determines the time window that
-// headers should fall into in order to be sampled.
+// `SamplingWindow` parameter.
 func WithSamplingWindow(samplingWindow time.Duration) Option {
 	return func(d *DASer) {
 		d.params.SamplingWindow = samplingWindow
