@@ -4,10 +4,12 @@ import (
 	"errors"
 	"fmt"
 	"path/filepath"
+	"runtime"
 	"sync"
 	"time"
 
 	"github.com/cosmos/cosmos-sdk/crypto/keyring"
+	"github.com/dgraph-io/badger/v4/options"
 	"github.com/ipfs/go-datastore"
 	"github.com/mitchellh/go-homedir"
 
@@ -15,6 +17,7 @@ import (
 
 	"github.com/celestiaorg/celestia-node/libs/fslock"
 	"github.com/celestiaorg/celestia-node/libs/keystore"
+	"github.com/celestiaorg/celestia-node/share"
 )
 
 var (
@@ -118,10 +121,8 @@ func (f *fsStore) Datastore() (datastore.Batching, error) {
 		return f.data, nil
 	}
 
-	opts := dsbadger.DefaultOptions // this should be copied
-	opts.GcInterval = time.Minute * 10
-
-	ds, err := dsbadger.NewDatastore(dataPath(f.path), &opts)
+	cfg := constraintBadgerConfig()
+	ds, err := dsbadger.NewDatastore(dataPath(f.path), cfg)
 	if err != nil {
 		return nil, fmt.Errorf("node: can't open Badger Datastore: %w", err)
 	}
@@ -181,4 +182,68 @@ func indexPath(base string) string {
 
 func dataPath(base string) string {
 	return filepath.Join(base, "data")
+}
+
+// constraintBadgerConfig returns BadgerDB configuration optimized for low memory usage and more frequent
+// compaction which prevents memory spikes.
+// This is particularly important for LNs with restricted memory resources.
+//
+// With the following configuration, a LN uses up to 300iB of RAM during initial sync/sampling
+// and up to 200MiB during normal operation. (on 4 core CPU, 8GiB RAM droplet)
+//
+// With the following configuration and "-tags=jemalloc", a LN uses no more than 180MiB during initial
+// sync/sampling and up to 100MiB during normal operation. (same hardware spec)
+// NOTE: To enable jemalloc, build celestia-node with "-tags=jemalloc" flag, which configures Badger to
+// use jemalloc instead of Go's default allocator.
+//
+// TODO(@Wondertan): Consider alternative less constraint configuration for FN/BN
+// TODO(@Wondertan): Consider dynamic memory allocation based on available RAM
+func constraintBadgerConfig() *dsbadger.Options {
+	opts := dsbadger.DefaultOptions // this must be copied
+	// ValueLog:
+	// 2mib default => share.Size - makes sure headers and samples are stored in value log
+	// This *tremendously* reduces the amount of memory used by the node, up to 10 times less during
+	// compaction
+	opts.ValueThreshold = share.Size
+	// make sure we don't have any limits for stored headers
+	opts.ValueLogMaxEntries = 100000000
+	// run value log GC more often to spread the work over time
+	opts.GcInterval = time.Minute * 1
+	// default 0.5 => 0.125 - makes sure value log GC is more aggressive on reclaiming disk space
+	opts.GcDiscardRatio = 0.125
+
+	// badger stores checksum for every value, but doesn't verify it by default
+	// enabling this option may allow us to see detect corrupted data
+	opts.ChecksumVerificationMode = options.OnBlockRead
+	opts.VerifyValueChecksum = true
+	// default 64mib => 0 - disable block cache
+	// most of our component maintain their own caches, so this is not needed
+	opts.BlockCacheSize = 0
+	// not much gain as it compresses the LSM only as well compression requires block cache
+	opts.Compression = options.None
+
+	// MemTables:
+	// default 64mib => 16mib - decreases memory usage and makes compaction more often
+	opts.MemTableSize = 16 << 20
+	// default 5 => 3
+	opts.NumMemtables = 3
+	// default 5 => 3
+	opts.NumLevelZeroTables = 3
+	// default 15 => 5 - this prevents memory growth on CPU constraint systems by blocking all writers
+	opts.NumLevelZeroTablesStall = 5
+
+	// Compaction:
+	// Dynamic compactor allocation
+	compactors := runtime.NumCPU() / 2
+	if compactors < 2 {
+		compactors = 2 // can't be less than 2
+	}
+	if compactors > opts.MaxLevels { // ensure there is no more compactors than db table levels
+		compactors = opts.MaxLevels
+	}
+	opts.NumCompactors = compactors
+	// makes sure badger is always compacted on shutdown
+	opts.CompactL0OnClose = true
+
+	return &opts
 }
