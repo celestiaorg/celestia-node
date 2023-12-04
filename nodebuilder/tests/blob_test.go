@@ -165,7 +165,10 @@ func TestBlobModule(t *testing.T) {
 			},
 		},
 		{
-			name: "Submit the same blob",
+			// This test allows to check that the blob won't be
+			// deduplicated if it will be sent multiple times in
+			// different pfbs.
+			name: "Submit the same blob in different pfb",
 			doFn: func(t *testing.T) {
 				h, err := fullClient.Blob.Submit(ctx, []*blob.Blob{blobs[0]}, nil)
 				require.NoError(t, err)
