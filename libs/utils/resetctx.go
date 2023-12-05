@@ -1,6 +1,8 @@
 package utils
 
-import "context"
+import (
+	"context"
+)
 
 // ResetContextOnError returns a fresh context if the given context has an error.
 func ResetContextOnError(ctx context.Context) context.Context {

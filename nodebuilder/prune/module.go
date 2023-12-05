@@ -2,6 +2,7 @@ package prune
 
 import (
 	"context"
+	"fmt"
 
 	"go.uber.org/fx"
 
@@ -12,9 +13,11 @@ import (
 )
 
 func ConstructModule(tp node.Type) fx.Option {
+	fmt.Print("\n\n\n\nconstructing pruning module\n\n\n\n")
+
 	baseComponents := fx.Options(
 		fx.Provide(fx.Annotate(
-			pruner.NewService,
+			newPrunerService,
 			fx.OnStart(func(ctx context.Context, p *pruner.Service) error {
 				return p.Start(ctx)
 			}),
@@ -22,6 +25,9 @@ func ConstructModule(tp node.Type) fx.Option {
 				return p.Stop(ctx)
 			}),
 		)),
+		// This is necessary to invoke the pruner service as independent thanks to a
+		// quirk in FX.
+		fx.Invoke(func(p *pruner.Service) {}),
 	)
 
 	switch tp {
@@ -39,7 +45,7 @@ func ConstructModule(tp node.Type) fx.Option {
 			fx.Provide(func() pruner.Pruner {
 				return light.NewPruner()
 			}),
-			fx.Supply(archival.Window), // TODO @renaynay: turn this into light.Window in following PR
+			fx.Supply(light.Window),
 		)
 	default:
 		panic("unknown node type")
