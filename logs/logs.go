@@ -1,6 +1,8 @@
 package logs
 
-import logging "github.com/ipfs/go-log/v2"
+import (
+	logging "github.com/ipfs/go-log/v2"
+)
 
 func SetAllLoggers(level logging.LogLevel) {
 	logging.SetAllLoggers(level)
