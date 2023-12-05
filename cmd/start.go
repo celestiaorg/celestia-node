@@ -9,7 +9,6 @@ import (
 
 	"github.com/cosmos/cosmos-sdk/crypto/keyring"
 	"github.com/spf13/cobra"
-	flag "github.com/spf13/pflag"
 
 	"github.com/celestiaorg/celestia-app/app"
 	"github.com/celestiaorg/celestia-app/app/encoding"
@@ -18,7 +17,7 @@ import (
 )
 
 // Start constructs a CLI command to start Celestia Node daemon of any type with the given flags.
-func Start(fsets ...*flag.FlagSet) *cobra.Command {
+func Start(options ...func(*cobra.Command)) *cobra.Command {
 	cmd := &cobra.Command{
 		Use: "start",
 		Short: `Starts Node daemon. First stopping signal gracefully stops the Node and second terminates it.
@@ -72,8 +71,9 @@ Options passed on start override configuration options only on start and are not
 			return nd.Stop(ctx)
 		},
 	}
-	for _, set := range fsets {
-		cmd.Flags().AddFlagSet(set)
+	// Apply each passed option to the command
+	for _, option := range options {
+		option(cmd)
 	}
 	return cmd
 }

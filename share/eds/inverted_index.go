@@ -4,7 +4,9 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"runtime"
 
+	"github.com/dgraph-io/badger/v4/options"
 	"github.com/filecoin-project/dagstore/index"
 	"github.com/filecoin-project/dagstore/shard"
 	ds "github.com/ipfs/go-datastore"
@@ -29,14 +31,24 @@ type simpleInvertedIndex struct {
 // don't care which shard is used to serve a cid.
 func newSimpleInvertedIndex(storePath string) (*simpleInvertedIndex, error) {
 	opts := dsbadger.DefaultOptions // this should be copied
-	// turn off value log GC
+	// turn off value log GC as we don't use value log
 	opts.GcInterval = 0
-	// 20 compactors show to have no hangups on put operation up to 40k blocks with eds size 128.
-	opts.NumCompactors = 20
 	// use minimum amount of NumLevelZeroTables to trigger L0 compaction faster
 	opts.NumLevelZeroTables = 1
 	// MaxLevels = 8 will allow the db to grow to ~11.1 TiB
 	opts.MaxLevels = 8
+	// inverted index stores unique hash keys, so we don't need to detect conflicts
+	opts.DetectConflicts = false
+	// we don't need compression for inverted index as it just hashes
+	opts.Compression = options.None
+	compactors := runtime.NumCPU()
+	if compactors < 2 {
+		compactors = 2
+	}
+	if compactors > opts.MaxLevels { // ensure there is no more compactors than db table levels
+		compactors = opts.MaxLevels
+	}
+	opts.NumCompactors = compactors
 
 	ds, err := dsbadger.NewDatastore(storePath+invertedIndexPath, &opts)
 	if err != nil {
