@@ -73,6 +73,8 @@ func TestBlobModule(t *testing.T) {
 		{
 			name: "Get",
 			doFn: func(t *testing.T) {
+				// https://github.com/celestiaorg/celestia-node/issues/2915
+				time.Sleep(time.Second)
 				blob1, err := fullClient.Blob.Get(ctx, height, blobs[0].Namespace(), blobs[0].Commitment)
 				require.NoError(t, err)
 				require.Equal(t, blobs[0], blob1)
@@ -81,6 +83,8 @@ func TestBlobModule(t *testing.T) {
 		{
 			name: "GetAll",
 			doFn: func(t *testing.T) {
+				// https://github.com/celestiaorg/celestia-node/issues/2915
+				time.Sleep(time.Second)
 				newBlobs, err := fullClient.Blob.GetAll(ctx, height, []share.Namespace{blobs[0].Namespace()})
 				require.NoError(t, err)
 				require.Len(t, newBlobs, len(appBlobs0))
@@ -91,6 +95,8 @@ func TestBlobModule(t *testing.T) {
 		{
 			name: "Included",
 			doFn: func(t *testing.T) {
+				// https://github.com/celestiaorg/celestia-node/issues/2915
+				time.Sleep(time.Second)
 				proof, err := fullClient.Blob.GetProof(ctx, height, blobs[0].Namespace(), blobs[0].Commitment)
 				require.NoError(t, err)
 
@@ -123,12 +129,76 @@ func TestBlobModule(t *testing.T) {
 				require.ErrorContains(t, err, blob.ErrBlobNotFound.Error())
 			},
 		},
+		{
+			name: "Submit equal blobs",
+			doFn: func(t *testing.T) {
+				appBlob, err := blobtest.GenerateV0Blobs([]int{8, 4}, true)
+				require.NoError(t, err)
+				b, err := blob.NewBlob(
+					appBlob[0].ShareVersion,
+					append([]byte{appBlob[0].NamespaceVersion}, appBlob[0].NamespaceID...),
+					appBlob[0].Data,
+				)
+				require.NoError(t, err)
+
+				height, err := fullClient.Blob.Submit(ctx, []*blob.Blob{b, b}, nil)
+				require.NoError(t, err)
+
+				_, err = fullClient.Header.WaitForHeight(ctx, height)
+				require.NoError(t, err)
+
+				b0, err := fullClient.Blob.Get(ctx, height, b.Namespace(), b.Commitment)
+				require.NoError(t, err)
+				require.Equal(t, b, b0)
+
+				// give some time to store the data,
+				// otherwise the test will hang on the IPLD level.
+				// https://github.com/celestiaorg/celestia-node/issues/2915
+				time.Sleep(time.Second)
+
+				proof, err := fullClient.Blob.GetProof(ctx, height, b.Namespace(), b.Commitment)
+				require.NoError(t, err)
+
+				included, err := fullClient.Blob.Included(ctx, height, b.Namespace(), proof, b.Commitment)
+				require.NoError(t, err)
+				require.True(t, included)
+			},
+		},
+		{
+			// This test allows to check that the blob won't be
+			// deduplicated if it will be sent multiple times in
+			// different pfbs.
+			name: "Submit the same blob in different pfb",
+			doFn: func(t *testing.T) {
+				h, err := fullClient.Blob.Submit(ctx, []*blob.Blob{blobs[0]}, nil)
+				require.NoError(t, err)
+
+				_, err = fullClient.Header.WaitForHeight(ctx, h)
+				require.NoError(t, err)
+
+				b0, err := fullClient.Blob.Get(ctx, h, blobs[0].Namespace(), blobs[0].Commitment)
+				require.NoError(t, err)
+				require.Equal(t, blobs[0], b0)
+
+				// give some time to store the data,
+				// otherwise the test will hang on the IPLD level.
+				// https://github.com/celestiaorg/celestia-node/issues/2915
+				time.Sleep(time.Second)
+
+				proof, err := fullClient.Blob.GetProof(ctx, h, blobs[0].Namespace(), blobs[0].Commitment)
+				require.NoError(t, err)
+
+				included, err := fullClient.Blob.Included(ctx, h, blobs[0].Namespace(), proof, blobs[0].Commitment)
+				require.NoError(t, err)
+				require.True(t, included)
+
+			},
+		},
 	}
 
 	for _, tt := range test {
 		tt := tt
 		t.Run(tt.name, func(t *testing.T) {
-			t.Parallel()
 			tt.doFn(t)
 		})
 	}
