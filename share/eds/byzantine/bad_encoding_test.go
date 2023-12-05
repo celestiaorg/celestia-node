@@ -210,14 +210,18 @@ func TestBEFP_ValidateOutOfOrderShares(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second*30)
 	t.Cleanup(cancel)
 
-	eds := edstest.RandEDS(t, 4)
+	size := 4
+	eds := edstest.RandEDS(t, size)
+
 	shares := eds.Flattened()
 	shares[0], shares[4] = shares[4], shares[0] // corrupting eds
+
 	bServ := newNamespacedBlockService()
-	batchAddr := ipld.NewNmtNodeAdder(ctx, bServ, ipld.MaxSizeBatchOption(4*2))
+	batchAddr := ipld.NewNmtNodeAdder(ctx, bServ, ipld.MaxSizeBatchOption(size*2))
+
 	eds, err := rsmt2d.ImportExtendedDataSquare(shares,
 		share.DefaultRSMT2DCodec(),
-		malicious.NewConstructor(4, nmt.NodeVisitor(batchAddr.Visit)),
+		malicious.NewConstructor(uint64(size), nmt.NodeVisitor(batchAddr.Visit)),
 	)
 	require.NoError(t, err, "failure to recompute the extended data square")
 
@@ -231,7 +235,7 @@ func TestBEFP_ValidateOutOfOrderShares(t *testing.T) {
 	err = eds.Repair(dah.RowRoots, dah.ColumnRoots)
 	require.ErrorAs(t, err, &errRsmt2d)
 
-	byzantine := NewErrByzantine(context.Background(), bServ, &dah, errRsmt2d)
+	byzantine := NewErrByzantine(ctx, bServ, &dah, errRsmt2d)
 	var errByz *ErrByzantine
 	require.ErrorAs(t, byzantine, &errByz)
 
@@ -250,8 +254,9 @@ type namespacedBlockService struct {
 }
 
 func newNamespacedBlockService() *namespacedBlockService {
-	// register nmt hasher to validate the order of namespaces
-	mhcore.Register(0x7701, func() hash.Hash {
+	sha256NamespaceFlagged := uint64(0x7701)
+	// register the nmt hasher to validate the order of namespaces
+	mhcore.Register(sha256NamespaceFlagged, func() hash.Hash {
 		nh := nmt.NewNmtHasher(sha256.New(), share.NamespaceSize, true)
 		nh.Reset()
 		return nh
@@ -262,10 +267,9 @@ func newNamespacedBlockService() *namespacedBlockService {
 
 	bs.prefix = &cid.Prefix{
 		Version: 1,
-		// use hex as sha256NamespaceFlagged is not an exported variable.
-		Codec:  0x7701,
-		MhType: 0x7701,
-		// the same as hash.Hash.Size()
+		Codec:   sha256NamespaceFlagged,
+		MhType:  sha256NamespaceFlagged,
+		// equals to NmtHasher.Size()
 		MhLength: sha256.New().Size() + 2*share.NamespaceSize,
 	}
 	return bs
