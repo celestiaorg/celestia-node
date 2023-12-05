@@ -230,7 +230,8 @@ func TestDASerSampleTimeout(t *testing.T) {
 	fserv := &fraudtest.DummyService[*header.ExtendedHeader]{}
 
 	// create and start DASer
-	daser, err := NewDASer(avail, sub, getter, ds, fserv, newBroadcastMock(1), WithSampleTimeout(1))
+	daser, err := NewDASer(avail, sub, getter, ds, fserv, newBroadcastMock(1),
+		WithSampleTimeout(1))
 	require.NoError(t, err)
 
 	require.NoError(t, daser.Start(ctx))
