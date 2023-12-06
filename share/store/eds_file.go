@@ -19,7 +19,7 @@ type EdsFile interface {
 	// AxisHalf returns shares for the first half of the axis of the given type and index.
 	AxisHalf(ctx context.Context, axisType rsmt2d.Axis, axisIdx int) ([]share.Share, error)
 	// Data returns data for the given namespace and row index.
-	Data(ctx context.Context, namespace share.Namespace, rowIdx int) ([]share.NamespacedRow, error)
+	Data(ctx context.Context, namespace share.Namespace, rowIdx int) (share.NamespacedRow, error)
 	// EDS returns extended data square stored in the file.
 	EDS(ctx context.Context) (*rsmt2d.ExtendedDataSquare, error)
 }
