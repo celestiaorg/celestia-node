@@ -1,4 +1,4 @@
-package ipldv2
+package shwap
 
 import (
 	"errors"
@@ -12,7 +12,7 @@ import (
 	"github.com/celestiaorg/rsmt2d"
 
 	"github.com/celestiaorg/celestia-node/share"
-	ipldv2pb "github.com/celestiaorg/celestia-node/share/ipldv2/pb"
+	shwappb "github.com/celestiaorg/celestia-node/share/shwap/pb"
 )
 
 // SampleType represents type of sample.
@@ -140,9 +140,9 @@ func (s *Sample) MarshalBinary() ([]byte, error) {
 	proof.IsMaxNamespaceIgnored = s.SampleProof.IsMaxNamespaceIDIgnored()
 	proof.LeafHash = s.SampleProof.LeafHash()
 
-	return (&ipldv2pb.Sample{
+	return (&shwappb.Sample{
 		SampleId:    id,
-		SampleType:  ipldv2pb.SampleType(s.Type),
+		SampleType:  shwappb.SampleType(s.Type),
 		SampleProof: proof,
 		SampleShare: s.SampleShare,
 	}).Marshal()
@@ -150,7 +150,7 @@ func (s *Sample) MarshalBinary() ([]byte, error) {
 
 // UnmarshalBinary unmarshal Sample from binary.
 func (s *Sample) UnmarshalBinary(data []byte) error {
-	proto := &ipldv2pb.Sample{}
+	proto := &shwappb.Sample{}
 	if err := proto.Unmarshal(data); err != nil {
 		return err
 	}

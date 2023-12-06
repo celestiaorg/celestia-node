@@ -1,4 +1,4 @@
-package ipldv2
+package shwap
 
 import (
 	"testing"
@@ -12,24 +12,24 @@ import (
 	"github.com/celestiaorg/celestia-node/share/eds/edstest"
 )
 
-func TestAxisID(t *testing.T) {
+func TestSampleID(t *testing.T) {
 	square := edstest.RandEDS(t, 2)
 	root, err := share.NewRoot(square)
 	require.NoError(t, err)
 
-	sid := NewAxisID(rsmt2d.Row, 2, root, 1)
+	sid := NewSampleID(rsmt2d.Row, 2, root, 1)
 
 	id, err := sid.Cid()
 	require.NoError(t, err)
 
-	assert.EqualValues(t, axisCodec, id.Prefix().Codec)
-	assert.EqualValues(t, axisMultihashCode, id.Prefix().MhType)
-	assert.EqualValues(t, AxisIDSize, id.Prefix().MhLength)
+	assert.EqualValues(t, sampleCodec, id.Prefix().Codec)
+	assert.EqualValues(t, sampleMultihashCode, id.Prefix().MhType)
+	assert.EqualValues(t, SampleIDSize, id.Prefix().MhLength)
 
 	data, err := sid.MarshalBinary()
 	require.NoError(t, err)
 
-	sidOut := AxisID{}
+	sidOut := SampleID{}
 	err = sidOut.UnmarshalBinary(data)
 	require.NoError(t, err)
 	assert.EqualValues(t, sid, sidOut)

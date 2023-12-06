@@ -1,4 +1,4 @@
-package ipldv2
+package shwap
 
 import (
 	"testing"
@@ -11,15 +11,15 @@ import (
 	"github.com/celestiaorg/celestia-node/share/eds/edstest"
 )
 
-func TestSampleHasher(t *testing.T) {
-	hasher := &SampleHasher{}
+func TestAxisHasher(t *testing.T) {
+	hasher := &AxisHasher{}
 
 	_, err := hasher.Write([]byte("hello"))
 	assert.Error(t, err)
 
 	square := edstest.RandEDS(t, 2)
 
-	sample, err := NewSampleFromEDS(rsmt2d.Row, 2, square, 1)
+	sample, err := NewAxisFromEDS(rsmt2d.Row, 2, square, 1)
 	require.NoError(t, err)
 
 	data, err := sample.MarshalBinary()
@@ -30,7 +30,7 @@ func TestSampleHasher(t *testing.T) {
 	assert.EqualValues(t, len(data), n)
 
 	digest := hasher.Sum(nil)
-	sid, err := sample.SampleID.MarshalBinary()
+	sid, err := sample.AxisID.MarshalBinary()
 	require.NoError(t, err)
 	assert.EqualValues(t, sid, digest)
 

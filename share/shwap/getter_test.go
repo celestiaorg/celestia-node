@@ -1,4 +1,4 @@
-package ipldv2
+package shwap
 
 import (
 	"bytes"

@@ -1,4 +1,4 @@
-package ipldv2
+package shwap
 
 import (
 	"fmt"
@@ -11,7 +11,7 @@ import (
 
 	"github.com/celestiaorg/celestia-node/share"
 	"github.com/celestiaorg/celestia-node/share/eds"
-	ipldv2pb "github.com/celestiaorg/celestia-node/share/ipldv2/pb"
+	shwappb "github.com/celestiaorg/celestia-node/share/shwap/pb"
 )
 
 type Data struct {
@@ -105,7 +105,7 @@ func (s *Data) MarshalBinary() ([]byte, error) {
 	proof.IsMaxNamespaceIgnored = s.DataProof.IsMaxNamespaceIDIgnored()
 	proof.LeafHash = s.DataProof.LeafHash()
 
-	return (&ipldv2pb.Data{
+	return (&shwappb.Data{
 		DataId:     id,
 		DataProof:  proof,
 		DataShares: s.DataShares,
@@ -114,7 +114,7 @@ func (s *Data) MarshalBinary() ([]byte, error) {
 
 // UnmarshalBinary unmarshal Data from binary.
 func (s *Data) UnmarshalBinary(data []byte) error {
-	proto := &ipldv2pb.Data{}
+	proto := &shwappb.Data{}
 	if err := proto.Unmarshal(data); err != nil {
 		return err
 	}

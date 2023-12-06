@@ -1,4 +1,4 @@
-package ipldv2
+package shwap
 
 import (
 	"crypto/sha256"
@@ -50,7 +50,7 @@ func NewBlockService(b blockstore.Blockstore, ex exchange.Interface) blockservic
 	return blockservice.New(b, ex, blockservice.WithAllowlist(defaultAllowlist))
 }
 
-var log = logger.Logger("ipldv2")
+var log = logger.Logger("shwap")
 
 const (
 	// sampleCodec is a CID codec used for share sampling Bitswap requests over Namespaced

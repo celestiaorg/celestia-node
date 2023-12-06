@@ -1,4 +1,4 @@
-package ipldv2
+package shwap
 
 import (
 	"bytes"
@@ -10,7 +10,7 @@ import (
 	"github.com/celestiaorg/rsmt2d"
 
 	"github.com/celestiaorg/celestia-node/share"
-	ipldv2pb "github.com/celestiaorg/celestia-node/share/ipldv2/pb"
+	shwappb "github.com/celestiaorg/celestia-node/share/shwap/pb"
 )
 
 // Axis represents an Axis of an EDS.
@@ -95,7 +95,7 @@ func (s *Axis) MarshalBinary() ([]byte, error) {
 		return nil, err
 	}
 
-	return (&ipldv2pb.Axis{
+	return (&shwappb.Axis{
 		AxisId:   id,
 		AxisHalf: s.AxisShares,
 	}).Marshal()
@@ -103,7 +103,7 @@ func (s *Axis) MarshalBinary() ([]byte, error) {
 
 // UnmarshalBinary unmarshal Axis from binary.
 func (s *Axis) UnmarshalBinary(data []byte) error {
-	proto := &ipldv2pb.Axis{}
+	proto := &shwappb.Axis{}
 	if err := proto.Unmarshal(data); err != nil {
 		return err
 	}
