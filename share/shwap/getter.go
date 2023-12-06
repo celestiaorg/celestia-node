@@ -5,7 +5,9 @@ import (
 	"fmt"
 	"slices"
 
-	"github.com/ipfs/boxo/blockservice"
+	"github.com/ipfs/boxo/blockstore"
+	"github.com/ipfs/boxo/exchange"
+	block "github.com/ipfs/go-block-format"
 	"github.com/ipfs/go-cid"
 
 	"github.com/celestiaorg/celestia-app/pkg/wrapper"
@@ -16,32 +18,16 @@ import (
 )
 
 type Getter struct {
-	bget blockservice.BlockGetter
+	fetch  exchange.Interface
+	bstore blockstore.Blockstore
 }
 
-func NewGetter(bget blockservice.BlockGetter) *Getter {
-	return &Getter{bget: bget}
+func NewGetter(fetch exchange.Interface, bstore blockstore.Blockstore) *Getter {
+	return &Getter{fetch: fetch, bstore: bstore}
 }
 
-// GetShare
-// TODO: Deprecate this method
-func (g *Getter) GetShare(ctx context.Context, hdr *header.ExtendedHeader, row, col int) (share.Share, error) {
-	shrIdx := row*len(hdr.DAH.RowRoots) + col
-	cid := MustSampleCID(shrIdx, hdr.DAH, hdr.Height())
-	blk, err := g.bget.GetBlock(ctx, cid)
-	if err != nil {
-		return nil, fmt.Errorf("getting block from blockservice: %w", err)
-	}
-
-	smpl, err := SampleFromBlock(blk)
-	if err != nil {
-		return nil, fmt.Errorf("converting block to Sample: %w", err)
-	}
-
-	return smpl.SampleShare, nil
-}
-
-// GetShares
+// GetShares fetches in the Block/EDS by their indexes.
+// Automatically caches them on the Blockstore.
 // Guarantee that the returned shares are in the same order as shrIdxs.
 func (g *Getter) GetShares(ctx context.Context, hdr *header.ExtendedHeader, shrIdxs ...int) ([]share.Share, error) {
 	maxIdx := len(hdr.DAH.RowRoots) * len(hdr.DAH.ColumnRoots)
@@ -53,8 +39,13 @@ func (g *Getter) GetShares(ctx context.Context, hdr *header.ExtendedHeader, shrI
 		cids[i] = MustSampleCID(shrIdx, hdr.DAH, hdr.Height())
 	}
 
-	smpls := make(map[int]*Sample, len(shrIdxs))
-	blkCh := g.bget.GetBlocks(ctx, cids)
+	blkCh, err := g.fetch.GetBlocks(ctx, cids)
+	if err != nil {
+		return nil, fmt.Errorf("fetching blocks: %w", err)
+	}
+
+	blks := make([]block.Block, 0, len(cids))
+	smpls := make(map[int]*Sample, len(cids))
 	for blk := range blkCh { // NOTE: GetBlocks handles ctx, so we don't have to
 		smpl, err := SampleFromBlock(blk)
 		if err != nil {
@@ -64,13 +55,25 @@ func (g *Getter) GetShares(ctx context.Context, hdr *header.ExtendedHeader, shrI
 
 		shrIdx := int(smpl.SampleID.AxisIndex)*len(hdr.DAH.RowRoots) + int(smpl.SampleID.ShareIndex)
 		smpls[shrIdx] = smpl
+
+		blks = append(blks, blk)
 	}
 
-	if len(smpls) != len(shrIdxs) {
+	if len(blks) != len(shrIdxs) {
 		if ctx.Err() != nil {
 			return nil, ctx.Err()
 		}
 		return nil, fmt.Errorf("not all shares were found")
+	}
+
+	err = g.bstore.PutMany(ctx, blks)
+	if err != nil {
+		return nil, fmt.Errorf("storing shares: %w", err)
+	}
+
+	err = g.fetch.NotifyNewBlocks(ctx, blks...) // tell bitswap that we stored the blks and can serve them now
+	if err != nil {
+		return nil, fmt.Errorf("notifying new shares: %w", err)
 	}
 
 	shrs := make([]share.Share, len(shrIdxs))
@@ -99,7 +102,11 @@ func (g *Getter) GetEDS(ctx context.Context, hdr *header.ExtendedHeader) (*rsmt2
 		return nil, err
 	}
 
-	blkCh := g.bget.GetBlocks(ctx, cids)
+	blkCh, err := g.fetch.GetBlocks(ctx, cids)
+	if err != nil {
+		return nil, fmt.Errorf("fetching blocks: %w", err)
+	}
+
 	for blk := range blkCh { // NOTE: GetBlocks handles ctx, so we don't have to
 		axis, err := AxisFromBlock(blk)
 		if err != nil {
@@ -149,8 +156,12 @@ func (g *Getter) GetSharesByNamespace(
 		return share.NamespacedShares{}, nil
 	}
 
+	blkCh, err := g.fetch.GetBlocks(ctx, cids)
+	if err != nil {
+		return nil, fmt.Errorf("fetching blocks:%w", err)
+	}
+
 	datas := make([]*Data, 0, len(cids))
-	blkCh := g.bget.GetBlocks(ctx, cids)
 	for blk := range blkCh { // NOTE: GetBlocks handles ctx, so we don't have to
 		data, err := DataFromBlock(blk)
 		if err != nil {

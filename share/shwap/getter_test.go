@@ -9,6 +9,9 @@ import (
 	"testing"
 	"time"
 
+	"github.com/ipfs/boxo/blockstore"
+	"github.com/ipfs/boxo/exchange/offline"
+	"github.com/ipfs/go-datastore"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
@@ -29,9 +32,9 @@ func TestGetter(t *testing.T) {
 	square, root := edstest.RandEDSWithNamespace(t, ns, 16)
 	hdr := &header.ExtendedHeader{DAH: root}
 
-	b := edsBlockstore(square)
-	bserv := NewBlockService(b, nil)
-	get := NewGetter(bserv)
+	bstore := edsBlockstore(square)
+	exch := offline.Exchange(bstore)
+	get := NewGetter(exch, blockstore.NewBlockstore(datastore.NewMapDatastore()))
 
 	t.Run("GetShares", func(t *testing.T) {
 		idxs := rand.Perm(int(square.Width() ^ 2))[:30]
@@ -75,14 +78,15 @@ func TestGetter(t *testing.T) {
 		})
 
 		t.Run("NamespaceInsideOfRoot", func(t *testing.T) {
+			// this test requires a different setup so we generate a new EDS
 			square := edstest.RandEDS(t, 8)
 			root, err := share.NewRoot(square)
 			require.NoError(t, err)
 			hdr := &header.ExtendedHeader{DAH: root}
 
-			b := edsBlockstore(square)
-			bserv := NewBlockService(b, nil)
-			get := NewGetter(bserv)
+			bstore := edsBlockstore(square)
+			exch := offline.Exchange(bstore)
+			get := NewGetter(exch, blockstore.NewBlockstore(datastore.NewMapDatastore()))
 
 			maxNs := nmt.MaxNamespace(root.RowRoots[(len(root.RowRoots))/2-1], share.NamespaceSize)
 			ns, err := addToNamespace(maxNs, -1)
