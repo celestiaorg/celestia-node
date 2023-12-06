@@ -61,8 +61,9 @@ func TestShrexGetter(t *testing.T) {
 		t.Cleanup(cancel)
 
 		// generate test data
+		size := 64
 		namespace := sharetest.RandV0Namespace()
-		randEDS, dah := edstest.RandEDSWithNamespace(t, namespace, 64)
+		randEDS, dah := edstest.RandEDSWithNamespace(t, namespace, size*size, size)
 		eh := headertest.RandExtendedHeaderWithRoot(t, dah)
 		require.NoError(t, edsStore.Put(ctx, dah.Hash(), randEDS))
 		peerManager.Validate(ctx, srvHost.ID(), shrexsub.Notification{

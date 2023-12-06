@@ -5,12 +5,9 @@ import (
 	"crypto/sha256"
 	mrand "math/rand"
 	"testing"
-	"time"
 
 	"github.com/stretchr/testify/require"
 
-	"github.com/celestiaorg/celestia-app/pkg/da"
-	"github.com/celestiaorg/celestia-app/pkg/wrapper"
 	"github.com/celestiaorg/rsmt2d"
 
 	"github.com/celestiaorg/celestia-node/share"
@@ -54,28 +51,10 @@ func TestMemFileShare(t *testing.T) {
 func TestMemFileDate(t *testing.T) {
 	size := 32
 
-	// generate random shares
-	shares := sharetest.RandShares(t, size*size)
-	rand := mrand.New(mrand.NewSource(time.Now().UnixNano()))
-
-	// choose random range in shares slice and set namespace to be the same for all shares in range
-	from := rand.Intn(size * size)
-	to := rand.Intn(size * size)
-	if to < from {
-		from, to = to, from
-	}
-	expected := shares[from]
-	namespace := share.GetNamespace(expected)
-
-	// change namespace for all shares in range
-	for i := from; i <= to; i++ {
-		shares[i] = expected
-	}
-
-	eds, err := rsmt2d.ComputeExtendedDataSquare(shares, share.DefaultRSMT2DCodec(), wrapper.NewConstructor(uint64(size)))
-	require.NoError(t, err)
-	dah, err := da.NewDataAvailabilityHeader(eds)
-	require.NoError(t, err)
+	// generate EDS with random data and some shares with the same namespace
+	namespace := sharetest.RandV0Namespace()
+	amount := mrand.Intn(size*size-1) + 1
+	eds, dah := edstest.RandEDSWithNamespace(t, namespace, amount, size)
 
 	file := &MemFile{Eds: eds}
 
