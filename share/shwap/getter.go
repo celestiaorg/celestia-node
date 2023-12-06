@@ -18,11 +18,11 @@ import (
 )
 
 type Getter struct {
-	fetch  exchange.Interface
+	fetch  exchange.SessionExchange
 	bstore blockstore.Blockstore
 }
 
-func NewGetter(fetch exchange.Interface, bstore blockstore.Blockstore) *Getter {
+func NewGetter(fetch exchange.SessionExchange, bstore blockstore.Blockstore) *Getter {
 	return &Getter{fetch: fetch, bstore: bstore}
 }
 
@@ -39,7 +39,11 @@ func (g *Getter) GetShares(ctx context.Context, hdr *header.ExtendedHeader, shrI
 		cids[i] = MustSampleCID(shrIdx, hdr.DAH, hdr.Height())
 	}
 
-	blkCh, err := g.fetch.GetBlocks(ctx, cids)
+	ctx, cancel := context.WithCancel(ctx)
+	defer cancel()
+	ses := g.fetch.NewSession(ctx)
+
+	blkCh, err := ses.GetBlocks(ctx, cids)
 	if err != nil {
 		return nil, fmt.Errorf("fetching blocks: %w", err)
 	}
@@ -102,7 +106,11 @@ func (g *Getter) GetEDS(ctx context.Context, hdr *header.ExtendedHeader) (*rsmt2
 		return nil, err
 	}
 
-	blkCh, err := g.fetch.GetBlocks(ctx, cids)
+	ctx, cancel := context.WithCancel(ctx)
+	defer cancel()
+	ses := g.fetch.NewSession(ctx)
+
+	blkCh, err := ses.GetBlocks(ctx, cids)
 	if err != nil {
 		return nil, fmt.Errorf("fetching blocks: %w", err)
 	}
@@ -156,7 +164,11 @@ func (g *Getter) GetSharesByNamespace(
 		return share.NamespacedShares{}, nil
 	}
 
-	blkCh, err := g.fetch.GetBlocks(ctx, cids)
+	ctx, cancel := context.WithCancel(ctx)
+	defer cancel()
+	ses := g.fetch.NewSession(ctx)
+
+	blkCh, err := ses.GetBlocks(ctx, cids)
 	if err != nil {
 		return nil, fmt.Errorf("fetching blocks:%w", err)
 	}
