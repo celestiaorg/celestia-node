@@ -33,12 +33,14 @@ func RandEDS(t testing.TB, size int) *rsmt2d.ExtendedDataSquare {
 	return eds
 }
 
+// RandEDSWithNamespace generates EDS with given square size. Returned EDS will have namespacedAmount of
+// shares with the given namespace.
 func RandEDSWithNamespace(
 	t testing.TB,
 	namespace share.Namespace,
-	size int,
+	namespacedAmount, size int,
 ) (*rsmt2d.ExtendedDataSquare, *share.Root) {
-	shares := sharetest.RandSharesWithNamespace(t, namespace, size*size)
+	shares := sharetest.RandSharesWithNamespace(t, namespace, namespacedAmount, size*size)
 	eds, err := rsmt2d.ComputeExtendedDataSquare(shares, share.DefaultRSMT2DCodec(), wrapper.NewConstructor(uint64(size)))
 	require.NoError(t, err, "failure to recompute the extended data square")
 	dah, err := share.NewRoot(eds)
