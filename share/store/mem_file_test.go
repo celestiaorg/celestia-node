@@ -1,69 +1,75 @@
 package store
 
 import (
-	"context"
-	"crypto/sha256"
-	mrand "math/rand"
 	"testing"
-
-	"github.com/stretchr/testify/require"
 
 	"github.com/celestiaorg/rsmt2d"
 
-	"github.com/celestiaorg/celestia-node/share"
 	"github.com/celestiaorg/celestia-node/share/eds/edstest"
-	"github.com/celestiaorg/celestia-node/share/sharetest"
 )
 
-func TestMemFileShare(t *testing.T) {
-	eds := edstest.RandEDS(t, 32)
-	root, err := share.NewRoot(eds)
-	require.NoError(t, err)
-	fl := &MemFile{Eds: eds}
-
-	width := int(eds.Width())
-	for _, axisType := range []rsmt2d.Axis{rsmt2d.Col, rsmt2d.Row} {
-		for i := 0; i < width*width; i++ {
-			axisIdx, shrIdx := i/width, i%width
-			if axisType == rsmt2d.Col {
-				axisIdx, shrIdx = shrIdx, axisIdx
-			}
-
-			shr, prf, err := fl.Share(context.TODO(), axisType, axisIdx, shrIdx)
-			require.NoError(t, err)
-
-			namespace := share.ParitySharesNamespace
-			if axisIdx < width/2 && shrIdx < width/2 {
-				namespace = share.GetNamespace(shr)
-			}
-
-			axishash := root.RowRoots[axisIdx]
-			if axisType == rsmt2d.Col {
-				axishash = root.ColumnRoots[axisIdx]
-			}
-
-			ok := prf.VerifyInclusion(sha256.New(), namespace.ToNMT(), [][]byte{shr}, axishash)
-			require.True(t, ok)
-		}
+func TestMemFile(t *testing.T) {
+	size := 32
+	createMemFile := func(eds *rsmt2d.ExtendedDataSquare) File {
+		return &MemFile{Eds: eds}
 	}
+
+	t.Run("Share", func(t *testing.T) {
+		testFileShare(t, createMemFile, size)
+	})
+
+	t.Run("AxisHalf", func(t *testing.T) {
+		testFileAxisHalf(t, createMemFile, size)
+	})
+
+	t.Run("Data", func(t *testing.T) {
+		testFileDate(t, createMemFile, size)
+	})
+
+	t.Run("EDS", func(t *testing.T) {
+		testFileEds(t, createMemFile, size)
+	})
 }
 
-func TestMemFileDate(t *testing.T) {
-	size := 32
-
-	// generate EDS with random data and some shares with the same namespace
-	namespace := sharetest.RandV0Namespace()
-	amount := mrand.Intn(size*size-1) + 1
-	eds, dah := edstest.RandEDSWithNamespace(t, namespace, amount, size)
-
-	file := &MemFile{Eds: eds}
-
-	for i, root := range dah.RowRoots {
-		if !namespace.IsOutsideRange(root, root) {
-			nd, err := file.Data(context.Background(), namespace, i)
-			require.NoError(t, err)
-			ok := nd.Verify(root, namespace)
-			require.True(t, ok)
-		}
+// BenchmarkAxisFromMemFile/Size:32/Axis:row/squareHalf:first(original)-10         	  269438	      4743 ns/op
+// BenchmarkAxisFromMemFile/Size:32/Axis:row/squareHalf:second(extended)-10        	  258612	      4540 ns/op
+// BenchmarkAxisFromMemFile/Size:32/Axis:col/squareHalf:first(original)-10         	  245673	      4312 ns/op
+// BenchmarkAxisFromMemFile/Size:32/Axis:col/squareHalf:second(extended)-10        	  274141	      4541 ns/op
+// BenchmarkAxisFromMemFile/Size:64/Axis:row/squareHalf:first(original)-10         	  132518	      9809 ns/op
+// BenchmarkAxisFromMemFile/Size:64/Axis:row/squareHalf:second(extended)-10        	  132085	      9833 ns/op
+// BenchmarkAxisFromMemFile/Size:64/Axis:col/squareHalf:first(original)-10         	  112770	      9613 ns/op
+// BenchmarkAxisFromMemFile/Size:64/Axis:col/squareHalf:second(extended)-10        	  114934	      9927 ns/op
+// BenchmarkAxisFromMemFile/Size:128/Axis:row/squareHalf:first(original)-10        	   68439	     19694 ns/op
+// BenchmarkAxisFromMemFile/Size:128/Axis:row/squareHalf:second(extended)-10       	   64341	     20275 ns/op
+// BenchmarkAxisFromMemFile/Size:128/Axis:col/squareHalf:first(original)-10        	   66495	     20180 ns/op
+// BenchmarkAxisFromMemFile/Size:128/Axis:col/squareHalf:second(extended)-10       	   61392	     20912 ns/op
+func BenchmarkAxisFromMemFile(b *testing.B) {
+	minSize, maxSize := 32, 128
+	newFile := func(size int) File {
+		eds := edstest.RandEDS(b, size)
+		return &MemFile{Eds: eds}
 	}
+	benchGetAxisFromFile(b, newFile, minSize, maxSize)
+}
+
+// BenchmarkShareFromMemFile/Size:32/Axis:row/squareHalf:first(original)-10         	   17586	     66750 ns/op
+// BenchmarkShareFromMemFile/Size:32/Axis:row/squareHalf:second(extended)-10        	   18468	     68188 ns/op
+// BenchmarkShareFromMemFile/Size:32/Axis:col/squareHalf:first(original)-10         	   17899	     66697 ns/op
+// BenchmarkShareFromMemFile/Size:32/Axis:col/squareHalf:second(extended)-10        	   18092	     65383 ns/op
+// BenchmarkShareFromMemFile/Size:64/Axis:row/squareHalf:first(original)-10         	    8922	    135033 ns/op
+// BenchmarkShareFromMemFile/Size:64/Axis:row/squareHalf:second(extended)-10        	    9652	    130358 ns/op
+// BenchmarkShareFromMemFile/Size:64/Axis:col/squareHalf:first(original)-10         	    8041	    130971 ns/op
+// BenchmarkShareFromMemFile/Size:64/Axis:col/squareHalf:second(extended)-10        	    8778	    127361 ns/op
+// BenchmarkShareFromMemFile/Size:128/Axis:row/squareHalf:first(original)-10        	    4464	    260158 ns/op
+// BenchmarkShareFromMemFile/Size:128/Axis:row/squareHalf:second(extended)-10       	    4464	    248248 ns/op
+// BenchmarkShareFromMemFile/Size:128/Axis:col/squareHalf:first(original)-10        	    4486	    257392 ns/op
+// BenchmarkShareFromMemFile/Size:128/Axis:col/squareHalf:second(extended)-10       	    4335	    248022 ns/op
+func BenchmarkShareFromMemFile(b *testing.B) {
+	minSize, maxSize := 32, 128
+	newFile := func(size int) File {
+		eds := edstest.RandEDS(b, size)
+		return &MemFile{Eds: eds}
+	}
+
+	benchGetShareFromFile(b, newFile, minSize, maxSize)
 }
