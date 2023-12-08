@@ -24,7 +24,7 @@ import (
 func PrintOutput(data interface{}, err error, formatData func(interface{}) interface{}) error {
 	switch {
 	case err != nil:
-		data = err
+		data = err.Error()
 	case formatData != nil:
 		data = formatData(data)
 	}
