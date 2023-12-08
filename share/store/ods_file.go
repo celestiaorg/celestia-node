@@ -223,11 +223,11 @@ func computeAxisHalf(
 				return err
 			}
 
-			axis, err := extendShares(original)
+			parity, err := rsmt2d.NewLeoRSCodec().Encode(original)
 			if err != nil {
 				return err
 			}
-			shares[i] = axis[axisIdx]
+			shares[i] = parity[axisIdx-f.Size()/2]
 			return nil
 		})
 	}
