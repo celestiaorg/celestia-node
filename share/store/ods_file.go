@@ -100,8 +100,9 @@ func (f *OdsFile) AxisHalf(ctx context.Context, axisType rsmt2d.Axis, axisIdx in
 		return f.odsAxisHalf(axisType, axisIdx)
 	}
 
-	// compute axis if axis is outside the first quadrant
-	return computeAxisHalf(ctx, f, axisType, axisIdx)
+	// compute axis if it is outside the first quadrant
+	ods := f.readOds(oppositeAxis(axisType))
+	return computeAxisHalf(ctx, ods, axisType, axisIdx)
 }
 
 func (f *OdsFile) odsAxisHalf(axisType rsmt2d.Axis, axisIdx int) ([]share.Share, error) {
@@ -112,6 +113,56 @@ func (f *OdsFile) odsAxisHalf(axisType rsmt2d.Axis, axisIdx int) ([]share.Share,
 		return f.readRow(axisIdx)
 	}
 	return nil, fmt.Errorf("unknown axis")
+}
+
+type odsInMemFile struct {
+	File
+	axisType rsmt2d.Axis
+	shares   [][]share.Share
+}
+
+func (f *odsInMemFile) Size() int {
+	return len(f.shares) * 2
+}
+
+func (f *odsInMemFile) AxisHalf(_ context.Context, axisType rsmt2d.Axis, axisIdx int) ([]share.Share, error) {
+	if axisType != f.axisType {
+		return nil, fmt.Errorf("order of shares is not preserved")
+	}
+	return f.shares[axisIdx], nil
+}
+
+func (f *OdsFile) readOds(axisType rsmt2d.Axis) *odsInMemFile {
+	shrLn := int(f.hdr.shareSize)
+	odsLn := int(f.hdr.squareSize) / 2
+
+	buf := make([]byte, odsLn*odsLn*shrLn)
+	if _, err := f.fl.ReadAt(buf, HeaderSize); err != nil {
+		return nil
+	}
+
+	shrs := make([][]share.Share, odsLn)
+	for i := 0; i < odsLn; i++ {
+		for j := 0; j < odsLn; j++ {
+			pos := i*odsLn + j
+			if axisType == rsmt2d.Row {
+				if shrs[i] == nil {
+					shrs[i] = make([]share.Share, odsLn)
+				}
+				shrs[i][j] = buf[pos*shrLn : (pos+1)*shrLn]
+			} else {
+				if shrs[j] == nil {
+					shrs[j] = make([]share.Share, odsLn)
+				}
+				shrs[j][i] = buf[pos*shrLn : (pos+1)*shrLn]
+			}
+		}
+	}
+
+	return &odsInMemFile{
+		axisType: axisType,
+		shares:   shrs,
+	}
 }
 
 func (f *OdsFile) readRow(idx int) ([]share.Share, error) {
@@ -155,7 +206,7 @@ func (f *OdsFile) readCol(idx int) ([]share.Share, error) {
 
 func computeAxisHalf(
 	ctx context.Context,
-	f *OdsFile,
+	f File,
 	axisType rsmt2d.Axis,
 	axisIdx int,
 ) ([]share.Share, error) {
@@ -167,11 +218,16 @@ func computeAxisHalf(
 	for i := 0; i < f.Size()/2; i++ {
 		i := i
 		g.Go(func() error {
-			ax, err := f.axis(ctx, opposite, i)
+			original, err := f.AxisHalf(ctx, opposite, i)
 			if err != nil {
 				return err
 			}
-			shares[i] = ax[axisIdx]
+
+			axis, err := extendShares(original)
+			if err != nil {
+				return err
+			}
+			shares[i] = axis[axisIdx]
 			return nil
 		})
 	}
