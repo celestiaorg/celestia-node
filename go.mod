@@ -2,6 +2,8 @@ module github.com/celestiaorg/celestia-node
 
 go 1.21.1
 
+replace github.com/celestiaorg/go-header => /Users/rene/go/src/github.com/renaynay/go-header
+
 require (
 	cosmossdk.io/errors v1.0.0
 	cosmossdk.io/math v1.2.0
