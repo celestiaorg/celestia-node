@@ -37,17 +37,39 @@ func init() {
 // if any top-level operation on the Host is provided with PeerID(Hash(PbK)) only.
 func routedHost(base HostBase, r routing.PeerRouting) hst.Host {
 	return routedhost.Wrap(base, r)
+
+}
+
+func newUserAgent() *UserAgent {
+	return &UserAgent{
+		network: "",
+		build:   node.GetBuildInfo(),
+	}
+}
+
+func (ua *UserAgent) WithNetwork(net Network) *UserAgent {
+	ua.network = net
+	return ua
+}
+
+type UserAgent struct {
+	network Network
+	build   *node.BuildInfo
+}
+
+func (ua *UserAgent) String() string {
+	return fmt.Sprintf(
+		"celestia-node/%s/%s/%s",
+		ua.network,
+		ua.build.GetSemanticVersion(),
+		ua.build.CommitShortSha(),
+	)
 }
 
 // host returns constructor for Host.
 func host(params hostParams) (HostBase, error) {
-	buildInfo := node.GetBuildInfo()
+	ua := newUserAgent().WithNetwork(params.Net)
 
-	userAgent := fmt.Sprintf("celestia-node/%s/v%s/%s",
-    params.Net, 
-    buildInfo.SemanticVersion, 
-    buildInfo.LastCommit[:7])
-	
 	opts := []libp2p.Option{
 		libp2p.NoListenAddrs, // do not listen automatically
 		libp2p.AddrsFactory(params.AddrF),
@@ -55,7 +77,7 @@ func host(params hostParams) (HostBase, error) {
 		libp2p.Peerstore(params.PStore),
 		libp2p.ConnectionManager(params.ConnMngr),
 		libp2p.ConnectionGater(params.ConnGater),
-		libp2p.UserAgent(userAgent),
+		libp2p.UserAgent(ua.String()),
 		libp2p.NATPortMap(), // enables upnp
 		libp2p.DisableRelay(),
 		libp2p.BandwidthReporter(params.Bandwidth),
