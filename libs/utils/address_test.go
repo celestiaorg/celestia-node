@@ -9,8 +9,9 @@ import (
 
 func TestSanitizeAddr(t *testing.T) {
 	var tests = []struct {
-		addr string
-		want string
+		addr   string
+		want   string
+		expErr bool
 	}{
 		// Testcase: trims protocol prefix
 		{addr: "http://celestia.org", want: "celestia.org"},
@@ -20,12 +21,16 @@ func TestSanitizeAddr(t *testing.T) {
 		{addr: "tcp://192.168.42.42:5050/", want: "192.168.42.42"},
 		// Testcase: invariant ip
 		{addr: "192.168.42.42", want: "192.168.42.42"},
+		// Testcase: empty addr
+		{addr: "", want: "", expErr: true},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.addr, func(t *testing.T) {
 			got, err := SanitizeAddr(tt.addr)
-			require.NoError(t, err)
+			if !tt.expErr {
+				require.NoError(t, err)
+			}
 			require.Equal(t, tt.want, got)
 		})
 	}
