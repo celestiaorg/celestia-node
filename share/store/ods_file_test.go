@@ -16,8 +16,7 @@ import (
 func TestCreateOdsFile(t *testing.T) {
 	path := t.TempDir() + "/testfile"
 	edsIn := edstest.RandEDS(t, 8)
-	codec := rsmt2d.NewLeoRSCodec()
-	mem := newMemPool(codec, int(edsIn.Width()))
+	mem := newMemPools(rsmt2d.NewLeoRSCodec())
 	_, err := CreateOdsFile(path, edsIn, mem)
 	require.NoError(t, err)
 
@@ -30,8 +29,7 @@ func TestCreateOdsFile(t *testing.T) {
 
 func TestOdsFile(t *testing.T) {
 	size := 32
-	codec := rsmt2d.NewLeoRSCodec()
-	mem := newMemPool(codec, size)
+	mem := newMemPools(rsmt2d.NewLeoRSCodec())
 	createOdsFile := func(eds *rsmt2d.ExtendedDataSquare) File {
 		path := t.TempDir() + "/testfile"
 		fl, err := CreateOdsFile(path, eds, mem)
@@ -71,16 +69,12 @@ func TestOdsFile(t *testing.T) {
 func BenchmarkAxisFromOdsFile(b *testing.B) {
 	minSize, maxSize := 32, 128
 	dir := b.TempDir()
-	codec := rsmt2d.NewLeoRSCodec()
-	mem := make(map[int]memPool)
-	for i := minSize; i <= maxSize; i *= 2 {
-		mem[i] = newMemPool(codec, i)
-	}
+	mem := newMemPools(rsmt2d.NewLeoRSCodec())
 
 	newFile := func(size int) File {
 		eds := edstest.RandEDS(b, size)
 		path := dir + "/testfile"
-		f, err := CreateOdsFile(path, eds, mem[size])
+		f, err := CreateOdsFile(path, eds, mem)
 		require.NoError(b, err)
 		return f
 	}
@@ -102,16 +96,12 @@ func BenchmarkAxisFromOdsFile(b *testing.B) {
 func BenchmarkShareFromOdsFile(b *testing.B) {
 	minSize, maxSize := 32, 128
 	dir := b.TempDir()
-	codec := rsmt2d.NewLeoRSCodec()
-	mem := make(map[int]memPool)
-	for i := minSize; i <= maxSize; i *= 2 {
-		mem[i] = newMemPool(codec, i)
-	}
+	mem := newMemPools(rsmt2d.NewLeoRSCodec())
 
 	newFile := func(size int) File {
 		eds := edstest.RandEDS(b, size)
 		path := dir + "/testfile"
-		f, err := CreateOdsFile(path, eds, mem[size])
+		f, err := CreateOdsFile(path, eds, mem)
 		require.NoError(b, err)
 		return f
 	}

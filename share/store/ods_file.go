@@ -51,38 +51,7 @@ func OpenOdsFile(path string) (*OdsFile, error) {
 	}, nil
 }
 
-type memPool struct {
-	codec       rsmt2d.Codec
-	shares, ods *sync.Pool
-}
-
-func newMemPool(codec rsmt2d.Codec, size int) memPool {
-	shares := &sync.Pool{
-		New: func() interface{} {
-			shrs := make([][]share.Share, size)
-			for i := 0; i < size; i++ {
-				if shrs[i] == nil {
-					shrs[i] = make([]share.Share, size)
-				}
-			}
-			return shrs
-		},
-	}
-
-	ods := &sync.Pool{
-		New: func() interface{} {
-			buf := make([]byte, size*share.Size)
-			return buf
-		},
-	}
-	return memPool{
-		shares: shares,
-		ods:    ods,
-		codec:  codec,
-	}
-}
-
-func CreateOdsFile(path string, eds *rsmt2d.ExtendedDataSquare, memPool memPool) (*OdsFile, error) {
+func CreateOdsFile(path string, eds *rsmt2d.ExtendedDataSquare, memPools memPools) (*OdsFile, error) {
 	f, err := os.Create(path)
 	if err != nil {
 		return nil, err
@@ -112,7 +81,7 @@ func CreateOdsFile(path string, eds *rsmt2d.ExtendedDataSquare, memPool memPool)
 		path:    path,
 		fl:      f,
 		hdr:     h,
-		memPool: memPool,
+		memPool: memPools.get(int(h.squareSize) / 2),
 	}, f.Sync()
 }
 
@@ -134,7 +103,10 @@ func (f *OdsFile) AxisHalf(ctx context.Context, axisType rsmt2d.Axis, axisIdx in
 		return f.odsAxisHalf(axisType, axisIdx)
 	}
 
-	ods := f.readOds(oppositeAxis(axisType))
+	ods, err := f.readOds(oppositeAxis(axisType))
+	if err != nil {
+		return nil, err
+	}
 	defer f.memPool.shares.Put(ods.shares)
 
 	return computeAxisHalf(ctx, ods, f.memPool.codec, axisType, axisIdx)
@@ -167,7 +139,7 @@ func (f *odsInMemFile) AxisHalf(_ context.Context, axisType rsmt2d.Axis, axisIdx
 	return f.shares[axisIdx], nil
 }
 
-func (f *OdsFile) readOds(axisType rsmt2d.Axis) *odsInMemFile {
+func (f *OdsFile) readOds(axisType rsmt2d.Axis) (*odsInMemFile, error) {
 	shrLn := int(f.hdr.shareSize)
 	odsLn := int(f.hdr.squareSize) / 2
 
@@ -178,7 +150,7 @@ func (f *OdsFile) readOds(axisType rsmt2d.Axis) *odsInMemFile {
 	for i := 0; i < odsLn; i++ {
 		pos := HeaderSize + odsLn*shrLn*i
 		if _, err := f.fl.ReadAt(buf, int64(pos)); err != nil {
-			return nil
+			return nil, err
 		}
 
 		for j := 0; j < odsLn; j++ {
@@ -193,7 +165,7 @@ func (f *OdsFile) readOds(axisType rsmt2d.Axis) *odsInMemFile {
 	return &odsInMemFile{
 		axisType: axisType,
 		shares:   shrs,
-	}
+	}, nil
 }
 
 func (f *OdsFile) readRow(idx int) ([]share.Share, error) {
@@ -343,6 +315,57 @@ func (f *OdsFile) EDS(_ context.Context) (*rsmt2d.ExtendedDataSquare, error) {
 
 	treeFn := wrapper.NewConstructor(uint64(f.hdr.squareSize / 2))
 	return rsmt2d.ComputeExtendedDataSquare(shrs, share.DefaultRSMT2DCodec(), treeFn)
+}
+
+type memPools struct {
+	pools map[int]memPool
+	codec rsmt2d.Codec
+}
+
+type memPool struct {
+	codec       rsmt2d.Codec
+	shares, ods *sync.Pool
+}
+
+func newMemPools(codec rsmt2d.Codec) memPools {
+	return memPools{
+		pools: make(map[int]memPool),
+		codec: codec,
+	}
+}
+func (m memPools) get(size int) memPool {
+	if pool, ok := m.pools[size]; ok {
+		return pool
+	}
+	pool := newMemPool(m.codec, size)
+	m.pools[size] = pool
+	return pool
+}
+
+func newMemPool(codec rsmt2d.Codec, size int) memPool {
+	shares := &sync.Pool{
+		New: func() interface{} {
+			shrs := make([][]share.Share, size)
+			for i := 0; i < size; i++ {
+				if shrs[i] == nil {
+					shrs[i] = make([]share.Share, size)
+				}
+			}
+			return shrs
+		},
+	}
+
+	ods := &sync.Pool{
+		New: func() interface{} {
+			buf := make([]byte, size*share.Size)
+			return buf
+		},
+	}
+	return memPool{
+		shares: shares,
+		ods:    ods,
+		codec:  codec,
+	}
 }
 
 func oppositeAxis(axis rsmt2d.Axis) rsmt2d.Axis {
