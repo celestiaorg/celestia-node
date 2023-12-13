@@ -2,7 +2,9 @@ package cmd
 
 import (
 	"encoding/base64"
+	"errors"
 	"fmt"
+	"path/filepath"
 	"reflect"
 	"strconv"
 
@@ -18,6 +20,10 @@ var (
 
 	fee      int64
 	gasLimit uint64
+
+	// FlagFileInput allows the user to provide file path to the json file
+	// for submitting multiple blobs.
+	FlagFileInput = "input-file"
 )
 
 func init() {
@@ -54,6 +60,8 @@ func init() {
 
 	// unset the default value to avoid users confusion
 	submitCmd.PersistentFlags().Lookup("fee").DefValue = "0"
+
+	submitCmd.PersistentFlags().String(FlagFileInput, "", "Specify the file input")
 }
 
 var Cmd = &cobra.Command{
@@ -130,11 +138,32 @@ var getAllCmd = &cobra.Command{
 }
 
 var submitCmd = &cobra.Command{
-	Use:  "submit [namespace] [blobData]",
-	Args: cobra.ExactArgs(2),
-	Short: "Submit the blob at the given namespace.\n" +
+	Use: "submit [namespace] [blobData]",
+	Args: func(cmd *cobra.Command, args []string) error {
+		path, err := cmd.Flags().GetString(FlagFileInput)
+		if err != nil {
+			return err
+		}
+
+		// If there is a file path input we'll check for the file extension
+		if path != "" {
+			if filepath.Ext(path) != ".json" {
+				return fmt.Errorf("invalid file extension, require json got %s", filepath.Ext(path))
+			}
+
+			return nil
+		}
+
+		if len(args) < 2 {
+			return errors.New("PayForBlobs requires two arguments: namespace and blobData")
+		}
+
+		return nil
+	},
+	Short: "Submit the blob(s) at the given namespace.\n" +
+		"User can use namespaceID and blob as argument for single blob submission \n" +
+		"or use --input-file flag with the path to a json file for multiple blobs submission, \n" +
 		"Note:\n" +
-		"* only one blob is allowed to submit through the RPC.\n" +
 		"* fee and gas.limit params will be calculated automatically if they are not provided as arguments",
 	RunE: func(cmd *cobra.Command, args []string) error {
 		client, err := cmdnode.ParseClientFromCtx(cmd.Context())
@@ -143,31 +172,79 @@ var submitCmd = &cobra.Command{
 		}
 		defer client.Close()
 
-		namespace, err := cmdnode.ParseV0Namespace(args[0])
+		path, err := cmd.Flags().GetString(FlagFileInput)
 		if err != nil {
-			return fmt.Errorf("error parsing a namespace:%v", err)
+			return err
 		}
 
-		parsedBlob, err := blob.NewBlobV0(namespace, []byte(args[1]))
+		// In case of no file input, get the namespace and blob from the arguments
+		if path == "" {
+			parsedBlob, err := getBlobFromArguments(args[0], args[1])
+			if err != nil {
+				return err
+			}
+
+			height, err := client.Blob.Submit(
+				cmd.Context(),
+				[]*blob.Blob{parsedBlob},
+				&blob.SubmitOptions{Fee: fee, GasLimit: gasLimit},
+			)
+
+			response := struct {
+				Height      uint64            `json:"height"`
+				Commitments []blob.Commitment `json:"commitments"`
+			}{
+				Height:      height,
+				Commitments: []blob.Commitment{parsedBlob.Commitment},
+			}
+			return cmdnode.PrintOutput(response, err, nil)
+		}
+
+		paresdBlobs, err := parseSubmitBlobs(path)
 		if err != nil {
-			return fmt.Errorf("error creating a blob:%v", err)
+			return err
+		}
+
+		var blobs []*blob.Blob
+		var conmmitments []blob.Commitment
+		for _, paresdBlob := range paresdBlobs {
+			blob, err := getBlobFromArguments(paresdBlob.Namespace, paresdBlob.BlobData)
+			if err != nil {
+				return err
+			}
+			blobs = append(blobs, blob)
+			conmmitments = append(conmmitments, blob.Commitment)
 		}
 
 		height, err := client.Blob.Submit(
 			cmd.Context(),
-			[]*blob.Blob{parsedBlob},
+			blobs,
 			&blob.SubmitOptions{Fee: fee, GasLimit: gasLimit},
 		)
 
 		response := struct {
-			Height     uint64          `json:"height"`
-			Commitment blob.Commitment `json:"commitment"`
+			Height      uint64            `json:"height"`
+			Commitments []blob.Commitment `json:"commitments"`
 		}{
-			Height:     height,
-			Commitment: parsedBlob.Commitment,
+			Height:      height,
+			Commitments: conmmitments,
 		}
 		return cmdnode.PrintOutput(response, err, nil)
 	},
+}
+
+func getBlobFromArguments(namespaceArg, blobArg string) (*blob.Blob, error) {
+	namespace, err := cmdnode.ParseV0Namespace(namespaceArg)
+	if err != nil {
+		return nil, fmt.Errorf("error parsing a namespace:%v", err)
+	}
+
+	parsedBlob, err := blob.NewBlobV0(namespace, []byte(blobArg))
+	if err != nil {
+		return nil, fmt.Errorf("error creating a blob:%v", err)
+	}
+
+	return parsedBlob, nil
 }
 
 var getProofCmd = &cobra.Command{
