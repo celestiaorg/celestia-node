@@ -73,7 +73,10 @@ func ParseNetwork(cmd *cobra.Command) (Network, error) {
 		envNetwork, err := parseNetworkFromEnv()
 		// no network found in env, so use the default network
 		if envNetwork == "" {
-			return DefaultNetwork, err
+			if err != nil {
+				return "", err
+			}
+			return "", fmt.Errorf("no network provided")
 		}
 		return envNetwork, err
 	}
