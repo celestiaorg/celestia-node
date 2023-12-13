@@ -20,7 +20,7 @@ type Parameters struct {
 	PeerCooldown time.Duration
 
 	// StoreWindow defines amount of pools stored in the peer manager
-	StoreWindow uint
+	StoreWindow int64
 
 	// GcInterval is the interval at which the manager will garbage collect unvalidated pools.
 	GcInterval time.Duration

@@ -61,7 +61,7 @@ type Manager struct {
 	initialHeight atomic.Uint64
 	// messages from shrex.Sub with height below storeFrom will be ignored, since we don't need to
 	// track peers for those headers
-	storeFrom atomic.Uint64
+	storeFrom atomic.Int64
 
 	// fullNodes collects full nodes peer.ID found via discovery
 	fullNodes *pool
@@ -303,7 +303,7 @@ func (m *Manager) subscribeHeader(ctx context.Context, headerSub libhead.Subscri
 
 		// update storeFrom if header height is higher than current value
 		old := m.storeFrom.Load()
-		upd := h.Height() - uint64(m.params.StoreWindow)
+		upd := int64(h.Height()) - m.params.StoreWindow
 		if old < upd {
 			if m.storeFrom.Swap(upd) != old {
 				log.Debugw("updated lowest stored height", "height", upd)
@@ -365,7 +365,9 @@ func (m *Manager) Validate(_ context.Context, peerID peer.ID, msg shrexsub.Notif
 		return pubsub.ValidationReject
 	}
 
-	if msg.Height < m.storeFrom.Load() {
+	fmt.Println("incoming", msg.Height, m.storeFrom.Load())
+
+	if msg.Height < uint64(m.storeFrom.Load()) {
 		logger.Debug("received message for past header")
 		return pubsub.ValidationIgnore
 	}
@@ -441,6 +443,7 @@ func (m *Manager) isBlacklistedHash(hash share.DataHash) bool {
 }
 
 func (m *Manager) validatedPool(hashStr string, height uint64) *syncPool {
+	fmt.Println("validate", height)
 	p := m.getOrCreatePool(hashStr, height)
 	if p.isValidatedDataHash.CompareAndSwap(false, true) {
 		log.Debugw("pool marked validated", "datahash", hashStr)
@@ -481,6 +484,7 @@ func (m *Manager) GC(ctx context.Context) {
 
 func (m *Manager) cleanUp() []peer.ID {
 	if m.initialHeight.Load() == 0 {
+		fmt.Println("1")
 		// can't blacklist peers until initialHeight is set
 		return nil
 	}
@@ -492,7 +496,7 @@ func (m *Manager) cleanUp() []peer.ID {
 	for h, p := range m.pools {
 		if p.isValidatedDataHash.Load() {
 			// remove pools that are outdated
-			if p.height < m.storeFrom.Load() {
+			if p.height < uint64(m.storeFrom.Load()) {
 				delete(m.pools, h)
 			}
 			continue

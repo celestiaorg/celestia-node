@@ -2,12 +2,12 @@ package peers
 
 import (
 	"context"
-	sync2 "sync"
+	"sync"
 	"testing"
 	"time"
 
 	"github.com/ipfs/go-datastore"
-	"github.com/ipfs/go-datastore/sync"
+	dssync "github.com/ipfs/go-datastore/sync"
 	dht "github.com/libp2p/go-libp2p-kad-dht"
 	pubsub "github.com/libp2p/go-libp2p-pubsub"
 	"github.com/libp2p/go-libp2p/core/host"
@@ -240,8 +240,12 @@ func TestManager(t *testing.T) {
 		}
 		result := manager.Validate(ctx, "peer", msg)
 		require.Equal(t, pubsub.ValidationIgnore, result)
+		// pool will be created for first shrexSub message
+		require.Len(t, manager.pools, 2)
 
-		// message should be discarded and amount of pools should not change
+		blacklisted := manager.cleanUp()
+		require.Empty(t, blacklisted)
+		// trigger cleanup and outdated pool should be removed
 		require.Len(t, manager.pools, 1)
 	})
 
@@ -403,7 +407,7 @@ func TestIntegration(t *testing.T) {
 		require.NoError(t, err)
 
 		// init peer manager for full node
-		connGater, err := conngater.NewBasicConnectionGater(sync.MutexWrap(datastore.NewMapDatastore()))
+		connGater, err := conngater.NewBasicConnectionGater(dssync.MutexWrap(datastore.NewMapDatastore()))
 		require.NoError(t, err)
 		fnPeerManager, err := NewManager(
 			DefaultParameters(),
@@ -463,7 +467,7 @@ func testManager(ctx context.Context, headerSub libhead.Subscriber[*header.Exten
 		return nil, err
 	}
 
-	connGater, err := conngater.NewBasicConnectionGater(sync.MutexWrap(datastore.NewMapDatastore()))
+	connGater, err := conngater.NewBasicConnectionGater(dssync.MutexWrap(datastore.NewMapDatastore()))
 	if err != nil {
 		return nil, err
 	}
@@ -498,7 +502,7 @@ func testHeader() *header.ExtendedHeader {
 
 type subLock struct {
 	next     chan struct{}
-	wg       *sync2.WaitGroup
+	wg       *sync.WaitGroup
 	expected []*header.ExtendedHeader
 }
 
@@ -524,7 +528,7 @@ func (s subLock) release(ctx context.Context) error {
 }
 
 func newSubLock(expected ...*header.ExtendedHeader) *subLock {
-	wg := &sync2.WaitGroup{}
+	wg := &sync.WaitGroup{}
 	wg.Add(1)
 	return &subLock{
 		next:     make(chan struct{}),
