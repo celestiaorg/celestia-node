@@ -32,10 +32,11 @@ Peers must bidirectionally point to each other. (Format: multiformats.io/multiad
 	)
 	flags.String(
 		networkFlag,
-		"",
+		"default",
 		"The name of the network to connect to, e.g. "+
 			listProvidedNetworks()+
-			". Must be passed on both init and start to take effect.",
+			". Must be passed on both init and start to take effect."+
+			".Assumes mainnet unless otherwise specified.",
 	)
 
 	return flags
@@ -68,6 +69,9 @@ func ParseFlags(
 // and returns either the parsed network or the build's default network
 func ParseNetwork(cmd *cobra.Command) (Network, error) {
 	parsed := cmd.Flag(networkFlag).Value.String()
+	if parsed == "default" {
+		return DefaultNetwork, nil
+	}
 	// no network set through the flags, so check if there is an override in the env
 	if parsed == "" {
 		envNetwork, err := parseNetworkFromEnv()
