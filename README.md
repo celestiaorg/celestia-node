@@ -70,11 +70,11 @@ More information can be found [here](https://github.com/celestiaorg/celestia-nod
 `<node_type>` can be: `bridge`, `full` or `light`.
 
 ```sh
-celestia <node_type> init --p2p.network=mainnet
+celestia <node_type> init
 ```
 
 ```sh
-celestia <node_type> start --p2p.network=mainnet
+celestia <node_type> start
 ```
 
 Please refer to [this guide](https://docs.celestia.org/nodes/celestia-node/) for more information on running a node.
