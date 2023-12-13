@@ -292,7 +292,7 @@ func TestManager(t *testing.T) {
 		t.Cleanup(cancel)
 
 		h := testHeader()
-		h.RawHeader.Height = int64(DefaultParameters().StoreWindow * 2)
+		h.RawHeader.Height = DefaultParameters().StoreWindow * 2
 		headerSub := newSubLock(h, nil)
 
 		// start test manager
