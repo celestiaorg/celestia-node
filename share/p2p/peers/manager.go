@@ -364,10 +364,6 @@ func (m *Manager) Validate(_ context.Context, peerID peer.ID, msg shrexsub.Notif
 	}
 
 	if msg.Height < m.storeFrom.Load() {
-		// we can use peers from discovery for headers before the first one from headerSub
-		// if we allow pool creation for those headers, there is chance the pool will not be validated in
-		// time and will be false-positively trigger blacklisting of hash and all peers that sent msgs for
-		// that hash
 		logger.Debug("received message for past header")
 		return pubsub.ValidationIgnore
 	}
