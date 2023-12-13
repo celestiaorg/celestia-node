@@ -287,12 +287,12 @@ func TestManager(t *testing.T) {
 		require.Len(t, manager.blacklistedHashes, 0)
 	})
 
-	t.Run("pool store window", func(t *testing.T) {
+	t.Run("pools store window", func(t *testing.T) {
 		ctx, cancel := context.WithTimeout(context.Background(), time.Second*5)
 		t.Cleanup(cancel)
 
 		h := testHeader()
-		h.RawHeader.Height = DefaultParameters().StoreWindow * 2
+		h.RawHeader.Height = amountOfStoredPools * 2
 		headerSub := newSubLock(h, nil)
 
 		// start test manager
@@ -304,10 +304,10 @@ func TestManager(t *testing.T) {
 		// pool will be created for first headerSub header datahash
 		require.Len(t, manager.pools, 1)
 
-		// create shrexSub msg with height lower than StoreWindow
+		// create shrexSub msg with height lower than amountOfStoredPools
 		msg := shrexsub.Notification{
 			DataHash: share.DataHash("datahash"),
-			Height:   h.Height() - uint64(DefaultParameters().StoreWindow) - 3,
+			Height:   h.Height() - amountOfStoredPools - 3,
 		}
 		result := manager.Validate(ctx, "peer", msg)
 		require.Equal(t, pubsub.ValidationIgnore, result)

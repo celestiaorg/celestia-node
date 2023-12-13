@@ -19,9 +19,6 @@ type Parameters struct {
 	// PeerCooldown is the time a peer is put on cooldown after a ResultCooldownPeer.
 	PeerCooldown time.Duration
 
-	// StoreWindow defines amount of pools stored in the peer manager
-	StoreWindow int64
-
 	// GcInterval is the interval at which the manager will garbage collect unvalidated pools.
 	GcInterval time.Duration
 
@@ -59,7 +56,6 @@ func DefaultParameters() Parameters {
 		// sync time for large blocks. This value gives our (discovery) peers enough time to sync
 		// the new block before we ask them again.
 		PeerCooldown: 3 * time.Second,
-		StoreWindow:  10,
 		GcInterval:   time.Second * 30,
 		// blacklisting is off by default //TODO(@walldiss): enable blacklisting once all related issues
 		// are resolved

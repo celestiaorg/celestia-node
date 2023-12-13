@@ -37,6 +37,9 @@ const (
 	// eventbusBufSize is the size of the buffered channel to handle
 	// events in libp2p
 	eventbusBufSize = 32
+
+	// amountOfStoredPools is the amount of pools for recent headers that will be stored in the peer manager
+	amountOfStoredPools = 10
 )
 
 type result string
@@ -303,7 +306,7 @@ func (m *Manager) subscribeHeader(ctx context.Context, headerSub libhead.Subscri
 
 		// update storeFrom if header height is higher than current value
 		old := m.storeFrom.Load()
-		upd := int64(h.Height()) - m.params.StoreWindow
+		upd := int64(h.Height()) - amountOfStoredPools
 		if old < upd {
 			if m.storeFrom.Swap(upd) != old {
 				log.Debugw("updated lowest stored height", "height", upd)
