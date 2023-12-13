@@ -56,10 +56,12 @@ type Manager struct {
 
 	// pools collecting peers from shrexSub and stores them by datahash
 	pools map[string]*syncPool
+
+	// initialHeight is the height of the first header received from headersub
+	initialHeight atomic.Uint64
 	// messages from shrex.Sub with height below storeFrom will be ignored, since we don't need to
 	// track peers for those headers
-	initialHeight atomic.Uint64
-	storeFrom     atomic.Uint64
+	storeFrom atomic.Uint64
 
 	// fullNodes collects full nodes peer.ID found via discovery
 	fullNodes *pool
