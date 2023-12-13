@@ -35,8 +35,8 @@ Peers must bidirectionally point to each other. (Format: multiformats.io/multiad
 		"default",
 		"The name of the network to connect to, e.g. "+
 			listProvidedNetworks()+
-			". Must be passed on both init and start to take effect."+
-			".Assumes mainnet unless otherwise specified.",
+			". Must be passed on both init and start to take effect"+
+			".Assumes mainnet(celestia) unless otherwise specified.",
 	)
 
 	return flags
@@ -80,7 +80,7 @@ func ParseNetwork(cmd *cobra.Command) (Network, error) {
 			if err != nil {
 				return "", err
 			}
-			return "", fmt.Errorf("no network provided")
+			return "", fmt.Errorf("no network provided, allowed values: %s", listProvidedNetworks())
 		}
 		return envNetwork, err
 	}
