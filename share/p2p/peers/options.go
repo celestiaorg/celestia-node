@@ -59,7 +59,7 @@ func DefaultParameters() Parameters {
 		// sync time for large blocks. This value gives our (discovery) peers enough time to sync
 		// the new block before we ask them again.
 		PeerCooldown: 3 * time.Second,
-		StoreWindow:  50,
+		StoreWindow:  10,
 		GcInterval:   time.Second * 30,
 		// blacklisting is off by default //TODO(@walldiss): enable blacklisting once all related issues
 		// are resolved
