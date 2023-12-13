@@ -64,17 +64,12 @@ func TestManager(t *testing.T) {
 		result := manager.Validate(ctx, peerID, msg)
 		require.Equal(t, pubsub.ValidationIgnore, result)
 
-		pID, done, err := manager.Peer(ctx, h.DataHash.Bytes())
+		pID, _, err := manager.Peer(ctx, h.DataHash.Bytes(), h.Height())
 		require.NoError(t, err)
 		require.Equal(t, peerID, pID)
 
 		// check pool validation
-		require.True(t, manager.getOrCreatePool(h.DataHash.String()).isValidatedDataHash.Load())
-
-		done(ResultSynced)
-		// pool should not be removed after success
-		require.Len(t, manager.pools, 1)
-		require.Len(t, manager.getOrCreatePool(h.DataHash.String()).pool.peersList, 0)
+		require.True(t, manager.getPool(h.DataHash.String()).isValidatedDataHash.Load())
 	})
 
 	t.Run("validator", func(t *testing.T) {
@@ -100,7 +95,7 @@ func TestManager(t *testing.T) {
 		require.Equal(t, pubsub.ValidationIgnore, result)
 
 		// mark peer as misbehaved to blacklist it
-		pID, done, err := manager.Peer(ctx, h.DataHash.Bytes())
+		pID, done, err := manager.Peer(ctx, h.DataHash.Bytes(), h.Height())
 		require.NoError(t, err)
 		require.Equal(t, peerID, pID)
 		manager.params.EnableBlackListing = true
@@ -139,8 +134,8 @@ func TestManager(t *testing.T) {
 
 		// create validated pool
 		validDataHash := share.DataHash("datahash2")
-		manager.fullNodes.add("full")    // add FN to unblock Peer call
-		manager.Peer(ctx, validDataHash) //nolint:errcheck
+		manager.fullNodes.add("full")                // add FN to unblock Peer call
+		manager.Peer(ctx, validDataHash, h.Height()) //nolint:errcheck
 
 		// trigger cleanup
 		blacklisted := manager.cleanUp()
@@ -172,8 +167,7 @@ func TestManager(t *testing.T) {
 		peers := []peer.ID{"peer1", "peer2", "peer3"}
 		manager.fullNodes.add(peers...)
 
-		peerID, done, err := manager.Peer(ctx, h.DataHash.Bytes())
-		done(ResultSynced)
+		peerID, _, err := manager.Peer(ctx, h.DataHash.Bytes(), h.Height())
 		require.NoError(t, err)
 		require.Contains(t, peers, peerID)
 
@@ -195,7 +189,7 @@ func TestManager(t *testing.T) {
 		// make sure peers are not returned before timeout
 		timeoutCtx, cancel := context.WithTimeout(context.Background(), time.Millisecond)
 		t.Cleanup(cancel)
-		_, _, err = manager.Peer(timeoutCtx, h.DataHash.Bytes())
+		_, _, err = manager.Peer(timeoutCtx, h.DataHash.Bytes(), h.Height())
 		require.ErrorIs(t, err, context.DeadlineExceeded)
 
 		peers := []peer.ID{"peer1", "peer2", "peer3"}
@@ -204,8 +198,7 @@ func TestManager(t *testing.T) {
 		doneCh := make(chan struct{})
 		go func() {
 			defer close(doneCh)
-			peerID, done, err := manager.Peer(ctx, h.DataHash.Bytes())
-			done(ResultSynced)
+			peerID, _, err := manager.Peer(ctx, h.DataHash.Bytes(), h.Height())
 			require.NoError(t, err)
 			require.Contains(t, peers, peerID)
 		}()
@@ -223,38 +216,7 @@ func TestManager(t *testing.T) {
 		stopManager(t, manager)
 	})
 
-	t.Run("mark pool synced", func(t *testing.T) {
-		ctx, cancel := context.WithTimeout(context.Background(), time.Second*5)
-		t.Cleanup(cancel)
-
-		h := testHeader()
-		headerSub := newSubLock(h, nil)
-
-		// start test manager
-		manager, err := testManager(ctx, headerSub)
-		require.NoError(t, err)
-
-		peerID, msg := peer.ID("peer1"), newShrexSubMsg(h)
-		result := manager.Validate(ctx, peerID, msg)
-		require.Equal(t, pubsub.ValidationIgnore, result)
-
-		pID, done, err := manager.Peer(ctx, h.DataHash.Bytes())
-		require.NoError(t, err)
-		require.Equal(t, peerID, pID)
-		done(ResultSynced)
-
-		// check pool is soft deleted and marked synced
-		pool := manager.getOrCreatePool(h.DataHash.String())
-		require.Len(t, pool.peersList, 0)
-		require.True(t, pool.isSynced.Load())
-
-		// add peer on synced pool should be noop
-		result = manager.Validate(ctx, "peer2", msg)
-		require.Equal(t, pubsub.ValidationIgnore, result)
-		require.Len(t, pool.peersList, 0)
-	})
-
-	t.Run("shrexSub sends a message lower than first headerSub header height, msg first", func(t *testing.T) {
+	t.Run("shrexSub sends a message lower than first headerSub header height, headerSub first", func(t *testing.T) {
 		ctx, cancel := context.WithTimeout(context.Background(), time.Second*5)
 		t.Cleanup(cancel)
 
@@ -279,11 +241,11 @@ func TestManager(t *testing.T) {
 		result := manager.Validate(ctx, "peer", msg)
 		require.Equal(t, pubsub.ValidationIgnore, result)
 
-		// amount of pools should not change
+		// message should be discarded and amount of pools should not change
 		require.Len(t, manager.pools, 1)
 	})
 
-	t.Run("shrexSub sends a message lower than first headerSub header height, headerSub first", func(t *testing.T) {
+	t.Run("shrexSub sends a message lower than first headerSub header height, shrexSub first", func(t *testing.T) {
 		ctx, cancel := context.WithTimeout(context.Background(), time.Second*5)
 		t.Cleanup(cancel)
 
@@ -303,18 +265,50 @@ func TestManager(t *testing.T) {
 		result := manager.Validate(ctx, "peer", msg)
 		require.Equal(t, pubsub.ValidationIgnore, result)
 
-		// unlock header sub after message validator
+		// pool will be created for first shrexSub message
+		require.Len(t, manager.pools, 1)
+
+		// unlock headerSub to allow it to send next message
 		require.NoError(t, headerSub.wait(ctx, 1))
-		// pool will be created for first headerSub header datahash
+		// second pool should be created
 		require.Len(t, manager.pools, 2)
 
-		// trigger cleanup and check that no peers or hashes were blacklisted
-		manager.params.PoolValidationTimeout = 0
+		// trigger cleanup and outdated pool should be removed
 		blacklisted := manager.cleanUp()
+		require.Len(t, manager.pools, 1)
+
+		// check that no peers or hashes were blacklisted
+		manager.params.PoolValidationTimeout = 0
 		require.Len(t, blacklisted, 0)
 		require.Len(t, manager.blacklistedHashes, 0)
+	})
 
-		// outdated pool should be removed
+	t.Run("pool store window", func(t *testing.T) {
+		ctx, cancel := context.WithTimeout(context.Background(), time.Second*5)
+		t.Cleanup(cancel)
+
+		h := testHeader()
+		h.RawHeader.Height = int64(DefaultParameters().StoreWindow * 2)
+		headerSub := newSubLock(h, nil)
+
+		// start test manager
+		manager, err := testManager(ctx, headerSub)
+		require.NoError(t, err)
+
+		// unlock headerSub to read first header
+		require.NoError(t, headerSub.wait(ctx, 1))
+		// pool will be created for first headerSub header datahash
+		require.Len(t, manager.pools, 1)
+
+		// create shrexSub msg with height lower than StoreWindow
+		msg := shrexsub.Notification{
+			DataHash: share.DataHash("datahash"),
+			Height:   h.Height() - uint64(DefaultParameters().StoreWindow) - 3,
+		}
+		result := manager.Validate(ctx, "peer", msg)
+		require.Equal(t, pubsub.ValidationIgnore, result)
+
+		// shrexSub message should be discarded and amount of pools should not change
 		require.Len(t, manager.pools, 1)
 	})
 }
@@ -355,7 +349,7 @@ func TestIntegration(t *testing.T) {
 		}))
 
 		// FN should get message
-		gotPeer, _, err := fnPeerManager.Peer(ctx, randHash)
+		gotPeer, _, err := fnPeerManager.Peer(ctx, randHash, 13)
 		require.NoError(t, err)
 
 		// check that gotPeer matched bridge node

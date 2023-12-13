@@ -27,8 +27,6 @@ import (
 const (
 	// ResultNoop indicates operation was successful and no extra action is required
 	ResultNoop result = "result_noop"
-	// ResultSynced will save the status of pool as "synced" and will remove peers from it
-	ResultSynced = "result_synced"
 	// ResultCooldownPeer will put returned peer on cooldown, meaning it won't be available by Peer
 	// method for some time
 	ResultCooldownPeer = "result_cooldown_peer"
@@ -56,11 +54,12 @@ type Manager struct {
 	host      host.Host
 	connGater *conngater.BasicConnectionGater
 
-	// pools collecting peers from shrexSub
+	// pools collecting peers from shrexSub and stores them by datahash
 	pools map[string]*syncPool
-	// messages from shrex.Sub with height below initialHeight will be ignored, since we don't need to
+	// messages from shrex.Sub with height below storeFrom will be ignored, since we don't need to
 	// track peers for those headers
 	initialHeight atomic.Uint64
+	storeFrom     atomic.Uint64
 
 	// fullNodes collects full nodes peer.ID found via discovery
 	fullNodes *pool
@@ -82,14 +81,12 @@ type DoneFunc func(result)
 type syncPool struct {
 	*pool
 
+	dataHash string
 	// isValidatedDataHash indicates if datahash was validated by receiving corresponding extended
 	// header from headerSub
 	isValidatedDataHash atomic.Bool
 	// headerHeight is the height of header corresponding to syncpool
-	headerHeight atomic.Uint64
-	// isSynced will be true if DoneFunc was called with ResultSynced. It indicates that given datahash
-	// was synced and peer-manager no longer need to keep peers for it
-	isSynced atomic.Bool
+	height uint64
 	// createdAt is the syncPool creation time
 	createdAt time.Time
 }
@@ -190,16 +187,15 @@ func (m *Manager) Stop(ctx context.Context) error {
 // full nodes, it will wait until any peer appear in either source or timeout happen.
 // After fetching data using given peer, caller is required to call returned DoneFunc using
 // appropriate result value
-func (m *Manager) Peer(
-	ctx context.Context, datahash share.DataHash,
+func (m *Manager) Peer(ctx context.Context, datahash share.DataHash, height uint64,
 ) (peer.ID, DoneFunc, error) {
-	p := m.validatedPool(datahash.String())
+	p := m.validatedPool(datahash.String(), height)
 
 	// first, check if a peer is available for the given datahash
 	peerID, ok := p.tryGet()
 	if ok {
 		if m.removeIfUnreachable(p, peerID) {
-			return m.Peer(ctx, datahash)
+			return m.Peer(ctx, datahash, height)
 		}
 		return m.newPeer(ctx, datahash, peerID, sourceShrexSub, p.len(), 0)
 	}
@@ -216,7 +212,7 @@ func (m *Manager) Peer(
 	select {
 	case peerID = <-p.next(ctx):
 		if m.removeIfUnreachable(p, peerID) {
-			return m.Peer(ctx, datahash)
+			return m.Peer(ctx, datahash, height)
 		}
 		return m.newPeer(ctx, datahash, peerID, sourceShrexSub, p.len(), time.Since(start))
 	case peerID = <-m.fullNodes.next(ctx):
@@ -270,14 +266,12 @@ func (m *Manager) doneFunc(datahash share.DataHash, peerID peer.ID, source peerS
 		m.metrics.observeDoneResult(source, result)
 		switch result {
 		case ResultNoop:
-		case ResultSynced:
-			m.markPoolAsSynced(datahash.String())
 		case ResultCooldownPeer:
 			if source == sourceFullNodes {
 				m.fullNodes.putOnCooldown(peerID)
 				return
 			}
-			m.getOrCreatePool(datahash.String()).putOnCooldown(peerID)
+			m.getPool(datahash.String()).putOnCooldown(peerID)
 		case ResultBlacklistPeer:
 			m.blacklistPeers(reasonMisbehave, peerID)
 		}
@@ -298,11 +292,20 @@ func (m *Manager) subscribeHeader(ctx context.Context, headerSub libhead.Subscri
 			log.Errorw("get next header from sub", "err", err)
 			continue
 		}
-		m.validatedPool(h.DataHash.String())
+		m.validatedPool(h.DataHash.String(), h.Height())
 
 		// store first header for validation purposes
 		if m.initialHeight.CompareAndSwap(0, h.Height()) {
 			log.Debugw("stored initial height", "height", h.Height())
+		}
+
+		// update storeFrom if header height is higher than current value
+		old := m.storeFrom.Load()
+		upd := h.Height() - uint64(m.params.StoreWindow)
+		if old < upd {
+			if m.storeFrom.Swap(upd) != old {
+				log.Debugw("updated lowest stored height", "height", upd)
+			}
 		}
 	}
 }
@@ -360,7 +363,8 @@ func (m *Manager) Validate(_ context.Context, peerID peer.ID, msg shrexsub.Notif
 		return pubsub.ValidationReject
 	}
 
-	if msg.Height < m.initialHeight.Load() {
+	fmt.Println("header ", msg.Height, m.storeFrom.Load())
+	if msg.Height < m.storeFrom.Load() {
 		// we can use peers from discovery for headers before the first one from headerSub
 		// if we allow pool creation for those headers, there is chance the pool will not be validated in
 		// time and will be false-positively trigger blacklisting of hash and all peers that sent msgs for
@@ -369,8 +373,7 @@ func (m *Manager) Validate(_ context.Context, peerID peer.ID, msg shrexsub.Notif
 		return pubsub.ValidationIgnore
 	}
 
-	p := m.getOrCreatePool(msg.DataHash.String())
-	p.headerHeight.Store(msg.Height)
+	p := m.getOrCreatePool(msg.DataHash.String(), msg.Height)
 	logger.Debugw("got hash from shrex-sub")
 
 	p.add(peerID)
@@ -381,13 +384,21 @@ func (m *Manager) Validate(_ context.Context, peerID peer.ID, msg shrexsub.Notif
 	return pubsub.ValidationIgnore
 }
 
-func (m *Manager) getOrCreatePool(datahash string) *syncPool {
+func (m *Manager) getPool(datahash string) *syncPool {
+	m.lock.Lock()
+	defer m.lock.Unlock()
+	return m.pools[datahash]
+}
+
+func (m *Manager) getOrCreatePool(datahash string, height uint64) *syncPool {
 	m.lock.Lock()
 	defer m.lock.Unlock()
 
 	p, ok := m.pools[datahash]
 	if !ok {
 		p = &syncPool{
+			dataHash:  datahash,
+			height:    height,
 			pool:      newPool(m.params.PeerCooldown),
 			createdAt: time.Now(),
 		}
@@ -432,8 +443,8 @@ func (m *Manager) isBlacklistedHash(hash share.DataHash) bool {
 	return m.blacklistedHashes[hash.String()]
 }
 
-func (m *Manager) validatedPool(hashStr string) *syncPool {
-	p := m.getOrCreatePool(hashStr)
+func (m *Manager) validatedPool(hashStr string, height uint64) *syncPool {
+	p := m.getOrCreatePool(hashStr, height)
 	if p.isValidatedDataHash.CompareAndSwap(false, true) {
 		log.Debugw("pool marked validated", "datahash", hashStr)
 		// if pool is proven to be valid, add all collected peers to full nodes
@@ -482,12 +493,24 @@ func (m *Manager) cleanUp() []peer.ID {
 
 	addToBlackList := make(map[peer.ID]struct{})
 	for h, p := range m.pools {
-		if !p.isValidatedDataHash.Load() && time.Since(p.createdAt) > m.params.PoolValidationTimeout {
-			delete(m.pools, h)
-			if p.headerHeight.Load() < m.initialHeight.Load() {
-				// outdated pools could still be valid even if not validated, no need to blacklist
-				continue
+		if p.isValidatedDataHash.Load() {
+			// remove pools that are outdated
+			if p.height < m.storeFrom.Load() {
+				delete(m.pools, h)
 			}
+			continue
+		}
+
+		// can't validate datahashes below initial height
+		if p.height < m.initialHeight.Load() {
+			delete(m.pools, h)
+			continue
+		}
+
+		// find pools that are not validated in time
+		if time.Since(p.createdAt) > m.params.PoolValidationTimeout {
+			delete(m.pools, h)
+
 			log.Debug("blacklisting datahash with all corresponding peers",
 				"hash", h,
 				"peer_list", p.peersList)
@@ -506,18 +529,4 @@ func (m *Manager) cleanUp() []peer.ID {
 		blacklist = append(blacklist, peerID)
 	}
 	return blacklist
-}
-
-func (m *Manager) markPoolAsSynced(datahash string) {
-	p := m.getOrCreatePool(datahash)
-	if p.isSynced.CompareAndSwap(false, true) {
-		p.isSynced.Store(true)
-		p.reset()
-	}
-}
-
-func (p *syncPool) add(peers ...peer.ID) {
-	if !p.isSynced.Load() {
-		p.pool.add(peers...)
-	}
 }
