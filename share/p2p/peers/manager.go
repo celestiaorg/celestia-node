@@ -363,7 +363,6 @@ func (m *Manager) Validate(_ context.Context, peerID peer.ID, msg shrexsub.Notif
 		return pubsub.ValidationReject
 	}
 
-	fmt.Println("header ", msg.Height, m.storeFrom.Load())
 	if msg.Height < m.storeFrom.Load() {
 		// we can use peers from discovery for headers before the first one from headerSub
 		// if we allow pool creation for those headers, there is chance the pool will not be validated in
