@@ -27,7 +27,7 @@ func newRetryStrategy(retryIntervals []time.Duration) retryStrategy {
 
 // nextRetry creates a retry attempt with a backoff delay based on the retry backoff.
 // It takes the number of retry attempts and the time of the last attempt as inputs and returns a
-// retry instance and a boolean value indicating whether the retries amount have exceeded.
+// retry instance and a boolean value indicating whether the retries amount has exceeded.
 func (s retryStrategy) nextRetry(lastRetry retryAttempt, lastAttempt time.Time,
 ) (retry retryAttempt, retriesExceeded bool) {
 	lastRetry.count++
