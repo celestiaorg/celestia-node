@@ -384,7 +384,7 @@ func TestService_GetAllWithoutPadding(t *testing.T) {
 	require.NoError(t, err)
 	rawShares := make([][]byte, 0)
 
-	// create shares in correct order with padding shares
+	// create shares in the correct order with padding shares
 	if bytes.Compare(blobs[0].Namespace(), blobs[1].Namespace()) <= 0 {
 		rawShares = append(rawShares, append(rawShares0, padding0.ToBytes())...)
 		rawShares = append(rawShares, append(rawShares1, padding1.ToBytes())...)
