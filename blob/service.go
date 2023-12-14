@@ -35,7 +35,7 @@ type Service struct {
 	blobSubmitter Submitter
 	// shareGetter retrieves the EDS to fetch all shares from the requested header.
 	shareGetter share.Getter
-	// headerGetter fetches header by the provided height
+	// headerGetter fetches the header by the provided height
 	headerGetter func(context.Context, uint64) (*header.ExtendedHeader, error)
 }
 
