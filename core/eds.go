@@ -50,7 +50,7 @@ func extendShares(s [][]byte, options ...nmt.Option) (*rsmt2d.ExtendedDataSquare
 			options...))
 }
 
-// storeEDS will only store extended block if it is not empty and doesn't already exist.
+// storeEDS will only store an extended block if it is not empty and doesn't already exist.
 func storeEDS(ctx context.Context, hash share.DataHash, eds *rsmt2d.ExtendedDataSquare, store *eds.Store) error {
 	if eds == nil {
 		return nil
