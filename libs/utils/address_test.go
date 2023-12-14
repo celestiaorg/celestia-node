@@ -1,6 +1,7 @@
 package utils
 
 import (
+	"errors"
 	"net"
 	"testing"
 
@@ -9,9 +10,9 @@ import (
 
 func TestSanitizeAddr(t *testing.T) {
 	var tests = []struct {
-		addr   string
-		want   string
-		expErr bool
+		addr string
+		want string
+		err  error
 	}{
 		// Testcase: trims protocol prefix
 		{addr: "http://celestia.org", want: "celestia.org"},
@@ -22,16 +23,19 @@ func TestSanitizeAddr(t *testing.T) {
 		// Testcase: invariant ip
 		{addr: "192.168.42.42", want: "192.168.42.42"},
 		// Testcase: empty addr
-		{addr: "", want: "", expErr: true},
+		{addr: "", want: "", err: ErrInvalidIP},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.addr, func(t *testing.T) {
 			got, err := SanitizeAddr(tt.addr)
-			if !tt.expErr {
+			require.Equal(t, tt.want, got)
+			if tt.err != nil {
+				require.Error(t, err)
+				require.True(t, errors.Is(err, tt.err))
+			} else {
 				require.NoError(t, err)
 			}
-			require.Equal(t, tt.want, got)
 		})
 	}
 }
