@@ -160,9 +160,23 @@ var submitCmd = &cobra.Command{
 
 		return nil
 	},
-	Short: "Submit the blob(s) at the given namespace.\n" +
-		"User can use namespaceID and blob as argument for single blob submission \n" +
+	Short: "Submit the blob(s) at the given namespace(s).\n" +
+		"User can use namespace and blobData as argument for single blob submission \n" +
 		"or use --input-file flag with the path to a json file for multiple blobs submission, \n" +
+		`where the json file contains: 
+
+		{
+			"Blobs": [
+				{
+					"namespace": "0x00010203040506070809",
+					"blobData": "0x676d"
+				},
+				{
+					"namespace": "0x42690c204d39600fddd3",
+					"blobData": "0x676d"
+				}
+			]
+		}` +
 		"Note:\n" +
 		"* fee and gas.limit params will be calculated automatically if they are not provided as arguments",
 	RunE: func(cmd *cobra.Command, args []string) error {
