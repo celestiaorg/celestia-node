@@ -11,7 +11,7 @@ import (
 	"github.com/celestiaorg/celestia-node/share/p2p/shrexsub"
 )
 
-// samplingCoordinator runs and coordinates sampling workers and updates current sampling state
+// samplingCoordinator runs and coordinates sampling workers and updates the current sampling state
 type samplingCoordinator struct {
 	concurrencyLimit int
 	samplingTimeout  time.Duration
