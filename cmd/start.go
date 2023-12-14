@@ -20,7 +20,7 @@ import (
 func Start(options ...func(*cobra.Command)) *cobra.Command {
 	cmd := &cobra.Command{
 		Use: "start",
-		Short: `Starts Node daemon. First stopping signal gracefully stops the Node and second terminates it.
+		Short: `Starts Node daemon. First stopping signal gracefully stops the Node and the second terminates it.
 Options passed on start override configuration options only on start and are not persisted in config.`,
 		Aliases:      []string{"run", "daemon"},
 		Args:         cobra.NoArgs,
