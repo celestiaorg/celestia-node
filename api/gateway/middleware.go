@@ -36,7 +36,7 @@ func setContentType(next http.Handler) http.Handler {
 	})
 }
 
-// checkPostDisabled ensures that context was canceled and prohibit POST requests.
+// checkPostDisabled ensures that the context was canceled and prohibit POST requests.
 func checkPostDisabled(state state.Module) mux.MiddlewareFunc {
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
