@@ -1,9 +1,8 @@
 package utils
 
 import (
+	"math"
 	"testing"
-
-	"github.com/ethereum/go-ethereum/common/math"
 )
 
 func TestSquareSize(t *testing.T) {
