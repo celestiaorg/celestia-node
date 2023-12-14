@@ -30,7 +30,7 @@ func (com Commitment) Equal(c Commitment) bool {
 	return bytes.Equal(com, c)
 }
 
-// Proof is a collection of nmt.Proofs that verifies the inclusion of the data.
+// Proof is a collection of nmt.Proofs that verify the inclusion of the data.
 type Proof []*nmt.Proof
 
 func (p Proof) Len() int { return len(p) }
