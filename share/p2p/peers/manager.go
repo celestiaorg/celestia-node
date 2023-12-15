@@ -89,7 +89,7 @@ type syncPool struct {
 	// isValidatedDataHash indicates if datahash was validated by receiving corresponding extended
 	// header from headerSub
 	isValidatedDataHash atomic.Bool
-	// height is the height of the header that corresponds to datahash of the pool
+	// height is the height of the header that corresponds to datahash
 	height uint64
 	// createdAt is the syncPool creation time
 	createdAt time.Time
