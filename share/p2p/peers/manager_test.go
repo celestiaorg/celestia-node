@@ -26,10 +26,9 @@ import (
 	"github.com/celestiaorg/celestia-node/share/p2p/shrexsub"
 )
 
-// TODO: add broadcast to tests
 func TestManager(t *testing.T) {
 	t.Run("Validate pool by headerSub", func(t *testing.T) {
-		ctx, cancel := context.WithTimeout(context.Background(), time.Second*50)
+		ctx, cancel := context.WithTimeout(context.Background(), time.Second*5)
 		t.Cleanup(cancel)
 
 		// create headerSub mock
@@ -73,7 +72,7 @@ func TestManager(t *testing.T) {
 	})
 
 	t.Run("validator", func(t *testing.T) {
-		ctx, cancel := context.WithTimeout(context.Background(), time.Second*50)
+		ctx, cancel := context.WithTimeout(context.Background(), time.Second*5)
 		t.Cleanup(cancel)
 
 		// create headerSub mock
@@ -127,7 +126,7 @@ func TestManager(t *testing.T) {
 		// create unvalidated pool
 		peerID := peer.ID("peer1")
 		msg := shrexsub.Notification{
-			DataHash: share.DataHash("datahash1"),
+			DataHash: share.DataHash("datahash1datahash1datahash1datahash1datahash1"),
 			Height:   2,
 		}
 		manager.Validate(ctx, peerID, msg)
@@ -136,10 +135,12 @@ func TestManager(t *testing.T) {
 		validDataHash := share.DataHash("datahash2")
 		manager.fullNodes.add("full")                // add FN to unblock Peer call
 		manager.Peer(ctx, validDataHash, h.Height()) //nolint:errcheck
+		require.Len(t, manager.pools, 3)
 
 		// trigger cleanup
 		blacklisted := manager.cleanUp()
 		require.Contains(t, blacklisted, peerID)
+		require.Len(t, manager.pools, 2)
 
 		// messages with blacklisted hash should be rejected right away
 		peerID2 := peer.ID("peer2")
@@ -292,7 +293,7 @@ func TestManager(t *testing.T) {
 		t.Cleanup(cancel)
 
 		h := testHeader()
-		h.RawHeader.Height = amountOfStoredPools * 2
+		h.RawHeader.Height = storedPoolsAmount * 2
 		headerSub := newSubLock(h, nil)
 
 		// start test manager
@@ -304,10 +305,10 @@ func TestManager(t *testing.T) {
 		// pool will be created for first headerSub header datahash
 		require.Len(t, manager.pools, 1)
 
-		// create shrexSub msg with height lower than amountOfStoredPools
+		// create shrexSub msg with height lower than storedPoolsAmount
 		msg := shrexsub.Notification{
 			DataHash: share.DataHash("datahash"),
-			Height:   h.Height() - amountOfStoredPools - 3,
+			Height:   h.Height() - storedPoolsAmount - 3,
 		}
 		result := manager.Validate(ctx, "peer", msg)
 		require.Equal(t, pubsub.ValidationIgnore, result)
