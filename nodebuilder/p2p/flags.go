@@ -36,7 +36,8 @@ Peers must bidirectionally point to each other. (Format: multiformats.io/multiad
 		"The name of the network to connect to, e.g. "+
 			listProvidedNetworks()+
 			". Must be passed on both init and start to take effect"+
-			". Assumes mainnet (celestia) unless otherwise specified.",
+			". Assumes mainnet"+
+			" ("+DefaultNetwork.String()+") unless otherwise specified.",
 	)
 
 	return flags
