@@ -38,8 +38,8 @@ const (
 	// events in libp2p
 	eventbusBufSize = 32
 
-	// amountOfStoredPools is the amount of pools for recent headers that will be stored in the peer manager
-	amountOfStoredPools = 10
+	// storedPoolsAmount is the amount of pools for recent headers that will be stored in the peer manager
+	storedPoolsAmount = 10
 )
 
 type result string
@@ -64,7 +64,7 @@ type Manager struct {
 	initialHeight atomic.Uint64
 	// messages from shrex.Sub with height below storeFrom will be ignored, since we don't need to
 	// track peers for those headers
-	storeFrom atomic.Int64
+	storeFrom atomic.Uint64
 
 	// fullNodes collects full nodes peer.ID found via discovery
 	fullNodes *pool
@@ -86,11 +86,10 @@ type DoneFunc func(result)
 type syncPool struct {
 	*pool
 
-	dataHash string
 	// isValidatedDataHash indicates if datahash was validated by receiving corresponding extended
 	// header from headerSub
 	isValidatedDataHash atomic.Bool
-	// headerHeight is the height of header corresponding to syncpool
+	// height is the height of the header that corresponds to datahash
 	height uint64
 	// createdAt is the syncPool creation time
 	createdAt time.Time
@@ -304,14 +303,9 @@ func (m *Manager) subscribeHeader(ctx context.Context, headerSub libhead.Subscri
 			log.Debugw("stored initial height", "height", h.Height())
 		}
 
-		// update storeFrom if header height is higher than current value
-		old := m.storeFrom.Load()
-		upd := int64(h.Height()) - amountOfStoredPools
-		if old < upd {
-			if m.storeFrom.Swap(upd) != old {
-				log.Debugw("updated lowest stored height", "height", upd)
-			}
-		}
+		// update storeFrom if header heigh
+		m.storeFrom.Store(uint64(max(0, int(h.Height())-storedPoolsAmount)))
+		log.Debugw("updated lowest stored height", "height", h.Height())
 	}
 }
 
@@ -363,14 +357,7 @@ func (m *Manager) Validate(_ context.Context, peerID peer.ID, msg shrexsub.Notif
 		return pubsub.ValidationReject
 	}
 
-	if msg.Height == 0 {
-		logger.Debug("received message with 0 height")
-		return pubsub.ValidationReject
-	}
-
-	fmt.Println("incoming", msg.Height, m.storeFrom.Load())
-
-	if msg.Height < uint64(m.storeFrom.Load()) {
+	if msg.Height < m.storeFrom.Load() {
 		logger.Debug("received message for past header")
 		return pubsub.ValidationIgnore
 	}
@@ -399,7 +386,6 @@ func (m *Manager) getOrCreatePool(datahash string, height uint64) *syncPool {
 	p, ok := m.pools[datahash]
 	if !ok {
 		p = &syncPool{
-			dataHash:  datahash,
 			height:    height,
 			pool:      newPool(m.params.PeerCooldown),
 			createdAt: time.Now(),
@@ -446,7 +432,6 @@ func (m *Manager) isBlacklistedHash(hash share.DataHash) bool {
 }
 
 func (m *Manager) validatedPool(hashStr string, height uint64) *syncPool {
-	fmt.Println("validate", height)
 	p := m.getOrCreatePool(hashStr, height)
 	if p.isValidatedDataHash.CompareAndSwap(false, true) {
 		log.Debugw("pool marked validated", "datahash", hashStr)
@@ -487,7 +472,6 @@ func (m *Manager) GC(ctx context.Context) {
 
 func (m *Manager) cleanUp() []peer.ID {
 	if m.initialHeight.Load() == 0 {
-		fmt.Println("1")
 		// can't blacklist peers until initialHeight is set
 		return nil
 	}
@@ -499,7 +483,7 @@ func (m *Manager) cleanUp() []peer.ID {
 	for h, p := range m.pools {
 		if p.isValidatedDataHash.Load() {
 			// remove pools that are outdated
-			if p.height < uint64(m.storeFrom.Load()) {
+			if p.height < m.storeFrom.Load() {
 				delete(m.pools, h)
 			}
 			continue
