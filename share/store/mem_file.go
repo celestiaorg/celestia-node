@@ -27,24 +27,33 @@ func (f *MemFile) Size() int {
 
 func (f *MemFile) Share(
 	_ context.Context,
-	axisType rsmt2d.Axis,
-	axisIdx, shrIdx int,
-) (share.Share, nmt.Proof, error) {
+	x, y int,
+	proofType ProofAxis,
+) (*share.ShareWithProof, error) {
+	axisType, axisIdx, shrIdx := rsmt2d.Row, y, x
+	if proofType == ProofAxisCol {
+		axisType, axisIdx, shrIdx = rsmt2d.Col, x, y
+	}
+
 	shares := f.axis(axisType, axisIdx)
 	tree := wrapper.NewErasuredNamespacedMerkleTree(uint64(f.Size()/2), uint(axisIdx))
 	for _, shr := range shares {
 		err := tree.Push(shr)
 		if err != nil {
-			return nil, nmt.Proof{}, err
+			return nil, err
 		}
 	}
 
 	proof, err := tree.ProveRange(shrIdx, shrIdx+1)
 	if err != nil {
-		return nil, nmt.Proof{}, err
+		return nil, err
 	}
 
-	return shares[shrIdx], proof, nil
+	return &share.ShareWithProof{
+		Share: shares[shrIdx],
+		Proof: &proof,
+		Axis:  axisType,
+	}, nil
 }
 
 func (f *MemFile) AxisHalf(_ context.Context, axisType rsmt2d.Axis, axisIdx int) ([]share.Share, error) {
