@@ -62,7 +62,7 @@ var ExampleValues = map[reflect.Type]interface{}{
 		&byzantine.ErrByzantine{
 			Index:  0,
 			Axis:   rsmt2d.Axis(0),
-			Shares: []*byzantine.ShareWithProof{},
+			Shares: []*share.ShareWithProof{},
 		},
 	),
 	reflect.TypeOf((*error)(nil)).Elem(): fmt.Errorf("error"),

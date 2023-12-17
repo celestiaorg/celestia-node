@@ -170,7 +170,7 @@ func TestIncorrectBadEncodingFraudProof(t *testing.T) {
 	rowShares := eds.Row(row)
 	rowRoot := dah.RowRoots[row]
 
-	shareProofs, err := GetProofsForShares(ctx, bServ, ipld.MustCidFromNamespacedSha256(rowRoot), rowShares)
+	shareProofs, err := ipld.GetSharesWithProofs(ctx, bServ, rowRoot, rowShares, rsmt2d.Row)
 	require.NoError(t, err)
 
 	// create a fake error for data that was encoded correctly
