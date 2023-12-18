@@ -1,6 +1,8 @@
 package rpc
 
 import (
+	"fmt"
+
 	"github.com/spf13/cobra"
 	flag "github.com/spf13/pflag"
 )
@@ -17,12 +19,12 @@ func Flags() *flag.FlagSet {
 	flags.String(
 		addrFlag,
 		"",
-		"Set a custom RPC listen address (default: localhost)",
+		fmt.Sprintf("Set a custom RPC listen address (default: %s)", defaultBindAddress),
 	)
 	flags.String(
 		portFlag,
 		"",
-		"Set a custom RPC port (default: 26658)",
+		fmt.Sprintf("Set a custom RPC port (default: %s)", defaultPort),
 	)
 
 	return flags

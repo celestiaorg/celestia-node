@@ -45,7 +45,7 @@ func (p *Parameters) Validate() error {
 		return fmt.Errorf("invalid write timeout: %v, %s", p.ServerWriteTimeout, errSuffix)
 	}
 	if p.HandleRequestTimeout <= 0 {
-		return fmt.Errorf("invalid hadnle request timeout: %v, %s", p.HandleRequestTimeout, errSuffix)
+		return fmt.Errorf("invalid handle request timeout: %v, %s", p.HandleRequestTimeout, errSuffix)
 	}
 	if p.ConcurrencyLimit <= 0 {
 		return fmt.Errorf("invalid concurrency limit: %s", errSuffix)
