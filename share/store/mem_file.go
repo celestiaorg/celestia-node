@@ -28,12 +28,9 @@ func (f *MemFile) Size() int {
 func (f *MemFile) Share(
 	_ context.Context,
 	x, y int,
-	proofType ProofAxis,
 ) (*share.ShareWithProof, error) {
-	axisType, axisIdx, shrIdx := rsmt2d.Row, y, x
-	if proofType == ProofAxisCol {
-		axisType, axisIdx, shrIdx = rsmt2d.Col, x, y
-	}
+	axisType := rsmt2d.Row
+	axisIdx, shrIdx := y, x
 
 	shares := f.axis(axisType, axisIdx)
 	tree := wrapper.NewErasuredNamespacedMerkleTree(uint64(f.Size()/2), uint(axisIdx))
