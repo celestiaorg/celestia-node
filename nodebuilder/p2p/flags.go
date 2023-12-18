@@ -33,11 +33,9 @@ Peers must bidirectionally point to each other. (Format: multiformats.io/multiad
 	flags.String(
 		networkFlag,
 		"celestia",
-		"The name of the network to connect to, e.g. "+
-			listProvidedNetworks()+
-			". Must be passed on both init and start to take effect"+
-			". Assumes mainnet"+
-			" ("+DefaultNetwork.String()+") unless otherwise specified.",
+		fmt.Sprintf("The name of the network to connect to, e.g. %s. Must be passed on both init and start to take effect. Assumes mainnet (%s) unless otherwise specified.",
+			listProvidedNetworks(),
+			DefaultNetwork.String()),
 	)
 
 	return flags
@@ -69,28 +67,23 @@ func ParseFlags(
 // ParseNetwork tries to parse the network from the flags and environment,
 // and returns either the parsed network or the build's default network
 func ParseNetwork(cmd *cobra.Command) (Network, error) {
-	parsed := cmd.Flag(networkFlag).Value.String()
-	if parsed == DefaultNetwork.String() {
-		return DefaultNetwork, nil
-	}
-	// no network set through the flags, so check if there is an override in the env
-	if parsed == "" {
-		envNetwork, err := parseNetworkFromEnv()
-		// no network found in env, so use the default network
-		if envNetwork == "" {
-			if err != nil {
-				return "", err
-			}
-			return "", fmt.Errorf("no network provided, allowed values: %s", listProvidedNetworks())
-		}
+	if envNetwork, err := parseNetworkFromEnv(); envNetwork != "" {
 		return envNetwork, err
 	}
-	// check if user provided the actual network value
-	// or an alias
-	if net, err := Network(parsed).Validate(); err == nil {
-		return net, nil
+	parsed := cmd.Flag(networkFlag).Value.String()
+	switch parsed {
+	case "":
+		return "", fmt.Errorf("no network provided, allowed values: %s", listProvidedNetworks())
+
+	case DefaultNetwork.String():
+		return DefaultNetwork, nil
+
+	default:
+		if net, err := Network(parsed).Validate(); err == nil {
+			return net, nil
+		}
+		return "", fmt.Errorf("invalid network specified: %s, allowed values: %s", parsed, listProvidedNetworks())
 	}
-	return "", fmt.Errorf("invalid network specified: %s", parsed)
 }
 
 // parseNetworkFromEnv tries to parse the network from the environment.
