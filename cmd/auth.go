@@ -55,7 +55,7 @@ func AuthCmd(fsets ...*flag.FlagSet) *cobra.Command {
 			if err != nil {
 				return err
 			}
-			fmt.Printf("%s", token)
+			fmt.Printf("%s\n", token)
 			return nil
 		},
 	}

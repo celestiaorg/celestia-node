@@ -5,9 +5,28 @@ import (
 	"os"
 
 	"github.com/spf13/cobra"
+	"github.com/spf13/pflag"
+
+	cmdnode "github.com/celestiaorg/celestia-node/cmd"
 )
 
+func WithSubcommands() func(*cobra.Command, []*pflag.FlagSet) {
+	return func(c *cobra.Command, flags []*pflag.FlagSet) {
+		c.AddCommand(
+			cmdnode.Init(flags...),
+			cmdnode.Start(cmdnode.WithFlagSet(flags)),
+			cmdnode.AuthCmd(flags...),
+			cmdnode.ResetStore(flags...),
+			cmdnode.RemoveConfigCmd(flags...),
+			cmdnode.UpdateConfigCmd(flags...),
+		)
+	}
+}
+
 func init() {
+	bridgeCmd := cmdnode.NewBridge(WithSubcommands())
+	lightCmd := cmdnode.NewLight(WithSubcommands())
+	fullCmd := cmdnode.NewFull(WithSubcommands())
 	rootCmd.AddCommand(
 		bridgeCmd,
 		lightCmd,

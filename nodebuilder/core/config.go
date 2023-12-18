@@ -7,6 +7,8 @@ import (
 	"github.com/celestiaorg/celestia-node/libs/utils"
 )
 
+var MetricsEnabled bool
+
 // Config combines all configuration fields for managing the relationship with a Core node.
 type Config struct {
 	IP       string

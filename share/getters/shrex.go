@@ -213,7 +213,7 @@ func (sg *ShrexGetter) GetSharesByNamespace(
 	dah := header.DAH
 	roots := ipld.FilterRootByNamespace(dah, namespace)
 	if len(roots) == 0 {
-		return nil, nil
+		return []share.NamespacedRow{}, nil
 	}
 
 	for {

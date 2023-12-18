@@ -1,6 +1,8 @@
 package utils
 
-import "math"
+import (
+	"math"
+)
 
 // SquareSize returns the size of the square based on the given amount of shares.
 func SquareSize(lenShares int) uint64 {

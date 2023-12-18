@@ -231,7 +231,7 @@ func TestIPLDGetter(t *testing.T) {
 		require.NoError(t, err)
 		require.Empty(t, emptyShares.Flatten())
 
-		// nid doesnt exist in root
+		// nid doesn't exist in root
 		emptyRoot := da.MinDataAvailabilityHeader()
 		eh.DAH = &emptyRoot
 		emptyShares, err = sg.GetSharesByNamespace(ctx, eh, namespace)

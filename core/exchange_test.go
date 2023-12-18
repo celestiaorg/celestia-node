@@ -27,7 +27,8 @@ func TestCoreExchange_RequestHeaders(t *testing.T) {
 
 	store := createStore(t)
 
-	ce := NewExchange(fetcher, store, header.MakeExtendedHeader)
+	ce, err := NewExchange(fetcher, store, header.MakeExtendedHeader)
+	require.NoError(t, err)
 
 	// initialize store with genesis block
 	genHeight := int64(1)
