@@ -33,7 +33,8 @@ Peers must bidirectionally point to each other. (Format: multiformats.io/multiad
 	flags.String(
 		networkFlag,
 		"celestia",
-		fmt.Sprintf("The name of the network to connect to, e.g. %s. Must be passed on both init and start to take effect. Assumes mainnet (%s) unless otherwise specified.",
+		fmt.Sprintf("The name of the network to connect to, e.g. %s. Must be passed on "+
+			"both init and start to take effect. Assumes mainnet (%s) unless otherwise specified.",
 			listProvidedNetworks(),
 			DefaultNetwork.String()),
 	)
