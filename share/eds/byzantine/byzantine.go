@@ -4,11 +4,9 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/ipfs/boxo/blockservice"
-	"golang.org/x/sync/errgroup"
-
 	"github.com/celestiaorg/celestia-app/pkg/da"
 	"github.com/celestiaorg/rsmt2d"
+	"github.com/ipfs/boxo/blockservice"
 
 	"github.com/celestiaorg/celestia-node/share/ipld"
 )
@@ -35,7 +33,7 @@ func NewErrByzantine(
 	bGetter blockservice.BlockGetter,
 	dah *da.DataAvailabilityHeader,
 	errByz *rsmt2d.ErrByzantineData,
-) *ErrByzantine {
+) error {
 	// changing the order to collect proofs against an orthogonal axis
 	roots := [][][]byte{
 		dah.ColumnRoots,
@@ -43,41 +41,41 @@ func NewErrByzantine(
 	}[errByz.Axis]
 
 	sharesWithProof := make([]*ShareWithProof, len(errByz.Shares))
-	sharesAmount := 0
 
-	errGr, ctx := errgroup.WithContext(ctx)
+	type result struct {
+		share *ShareWithProof
+		index int
+	}
+	resultCh := make(chan *result)
 	for index, share := range errByz.Shares {
-		// skip further shares if we already requested half of them, which is enough to recompute the row
-		// or col
-		if sharesAmount == len(dah.RowRoots)/2 {
-			break
-		}
-
 		if share == nil {
 			continue
 		}
-		sharesAmount++
 
 		index := index
-		errGr.Go(func() error {
+		go func() {
 			share, err := getProofsAt(
 				ctx, bGetter,
 				ipld.MustCidFromNamespacedSha256(roots[index]),
 				int(errByz.Index), len(errByz.Shares),
 			)
-			sharesWithProof[index] = share
-			return err
-		})
+			if err != nil {
+				log.Warn("requesting proof failed", "root", roots[index], "err", err)
+				return
+			}
+			resultCh <- &result{share, index}
+		}()
 	}
 
-	if err := errGr.Wait(); err != nil {
-		// Fatal as rsmt2d proved that error is byzantine,
-		// but we cannot properly collect the proof,
-		// so verification will fail and thus services won't be stopped
-		// while we still have to stop them.
-		// TODO(@Wondertan): Find a better way to handle
-		log.Fatalw("getting proof for ErrByzantine", "err", err)
+	for i := 0; i < len(dah.RowRoots)/2; i++ {
+		select {
+		case t := <-resultCh:
+			sharesWithProof[t.index] = t.share
+		case <-ctx.Done():
+			return ipld.ErrNodeNotFound
+		}
 	}
+
 	return &ErrByzantine{
 		Index:  uint32(errByz.Index),
 		Shares: sharesWithProof,
