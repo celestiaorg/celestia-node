@@ -2,16 +2,18 @@ package utils
 
 import (
 	"os"
+	"path/filepath"
 	"testing"
 
 	"github.com/stretchr/testify/require"
 )
 
 func TestExists(t *testing.T) {
+	tmpDir := t.TempDir()
+
 	// Create a temporary file for testing
-	tmpFile, err := os.CreateTemp("", "test")
+	tmpFile, err := os.CreateTemp(tmpDir, "test")
 	require.NoError(t, err)
-	defer os.Remove(tmpFile.Name())
 
 	tests := []struct {
 		name     string
@@ -25,7 +27,7 @@ func TestExists(t *testing.T) {
 		},
 		{
 			name:     "File does not exist",
-			path:     "nonexistentfile.xyz",
+			path:     filepath.Join(tmpDir, "nonexistentfile.xyz"),
 			expected: false,
 		},
 	}
