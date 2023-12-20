@@ -40,14 +40,11 @@ const (
 	poolStatusKey                    = "pool_status"
 	poolStatusCreated     poolStatus = "created"
 	poolStatusValidated   poolStatus = "validated"
-	poolStatusSynced      poolStatus = "synced"
 	poolStatusBlacklisted poolStatus = "blacklisted"
 	// Pool status model:
 	//        	created(unvalidated)
 	//  	/						\
-	//  validated(unsynced)  	  blacklisted
-	//			|
-	//  	  synced
+	//  validated  	 			 blacklisted
 )
 
 var meter = otel.Meter("shrex_peer_manager")
@@ -258,11 +255,6 @@ func (m *Manager) shrexPools() map[poolStatus]int64 {
 	for _, p := range m.pools {
 		if !p.isValidatedDataHash.Load() {
 			shrexPools[poolStatusCreated]++
-			continue
-		}
-
-		if p.isSynced.Load() {
-			shrexPools[poolStatusSynced]++
 			continue
 		}
 
