@@ -91,9 +91,9 @@ type bitSwapParams struct {
 
 	Lifecycle fx.Lifecycle
 	Ctx       context.Context
-	Net       Network
 	Host      hst.Host
 	Bs        blockstore.Blockstore
+	Net       Network
 }
 
 func protocolID(network Network) protocol.ID {

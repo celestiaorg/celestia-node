@@ -57,12 +57,6 @@ type Manager struct {
 	// pools collecting peers from shrexSub and stores them by datahash
 	pools map[string]*syncPool
 
-	// initialHeight is the height of the first header received from headersub
-	initialHeight atomic.Uint64
-	// messages from shrex.Sub with height below storeFrom will be ignored, since we don't need to
-	// track peers for those headers
-	storeFrom atomic.Uint64
-
 	// fullNodes collects full nodes peer.ID found via discovery
 	fullNodes *pool
 
@@ -76,9 +70,11 @@ type Manager struct {
 	cancel                context.CancelFunc
 	params                Parameters
 
-	// messages from shrex.Sub with height below initialHeight will be ignored, since we don't need to
-	// track peers for those headers
+	// initialHeight is the height of the first header received from headersub
 	initialHeight atomic.Uint64
+	// messages from shrex.Sub with height below storeFrom will be ignored, since we don't need to
+	// track peers for those headers
+	storeFrom atomic.Uint64
 
 	lock sync.Mutex
 }
@@ -95,18 +91,16 @@ type syncPool struct {
 	// headerHeight is the height of header corresponding to syncpool
 	headerHeight atomic.Uint64
 
+	// height is the height of the header that corresponds to datahash
+	height uint64
+
 	// isValidatedDataHash indicates if datahash was validated by receiving corresponding extended
 	// header from headerSub
 	isValidatedDataHash atomic.Bool
-  
+
 	// isSynced will be true if DoneFunc was called with ResultSynced. It indicates that given datahash
 	// was synced and peer-manager no longer need to keep peers for it
 	isSynced atomic.Bool
-
-	// height is the height of the header that corresponds to datahash
-	height uint64
-	// createdAt is the syncPool creation time
-	createdAt time.Time
 }
 
 func NewManager(
