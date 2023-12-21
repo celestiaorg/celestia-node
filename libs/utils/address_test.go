@@ -1,7 +1,6 @@
 package utils
 
 import (
-	"errors"
 	"net"
 	"testing"
 
@@ -32,7 +31,7 @@ func TestSanitizeAddr(t *testing.T) {
 			require.Equal(t, tt.want, got)
 			if tt.err != nil {
 				require.Error(t, err)
-				require.True(t, errors.Is(err, tt.err))
+				require.ErrorIs(t, err, tt.err)
 			} else {
 				require.NoError(t, err)
 			}
