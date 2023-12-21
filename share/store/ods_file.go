@@ -136,6 +136,9 @@ func (f *odsInMemFile) AxisHalf(_ context.Context, axisType rsmt2d.Axis, axisIdx
 	if axisType != f.axisType {
 		return nil, fmt.Errorf("order of shares is not preserved")
 	}
+	if axisIdx >= f.Size()/2 {
+		return nil, fmt.Errorf("index is out of ods bounds")
+	}
 	return f.shares[axisIdx], nil
 }
 
@@ -155,9 +158,9 @@ func (f *OdsFile) readOds(axisType rsmt2d.Axis) (*odsInMemFile, error) {
 
 		for j := 0; j < odsLn; j++ {
 			if axisType == rsmt2d.Row {
-				shrs[i][j] = buf[j*shrLn : (j+1)*shrLn]
+				copy(shrs[i][j], buf[j*shrLn:(j+1)*shrLn])
 			} else {
-				shrs[j][i] = buf[j*shrLn : (j+1)*shrLn]
+				copy(shrs[j][i], buf[j*shrLn:(j+1)*shrLn])
 			}
 		}
 	}
@@ -297,20 +300,14 @@ func (f *OdsFile) Data(ctx context.Context, namespace share.Namespace, rowIdx in
 }
 
 func (f *OdsFile) EDS(_ context.Context) (*rsmt2d.ExtendedDataSquare, error) {
-	shrLn := int(f.hdr.shareSize)
-	odsLn := int(f.hdr.squareSize) / 2
-
-	buf := make([]byte, odsLn*odsLn*shrLn)
-	if _, err := f.fl.ReadAt(buf, HeaderSize); err != nil {
+	ods, err := f.readOds(rsmt2d.Row)
+	if err != nil {
 		return nil, err
 	}
 
-	shrs := make([][]byte, odsLn*odsLn)
-	for i := 0; i < odsLn; i++ {
-		for j := 0; j < odsLn; j++ {
-			pos := i*odsLn + j
-			shrs[pos] = buf[pos*shrLn : (pos+1)*shrLn]
-		}
+	shrs := make([]share.Share, 0, len(ods.shares)*len(ods.shares))
+	for _, row := range ods.shares {
+		shrs = append(shrs, row...)
 	}
 
 	treeFn := wrapper.NewConstructor(uint64(f.hdr.squareSize / 2))
@@ -346,9 +343,12 @@ func newMemPool(codec rsmt2d.Codec, size int) memPool {
 	shares := &sync.Pool{
 		New: func() interface{} {
 			shrs := make([][]share.Share, size)
-			for i := 0; i < size; i++ {
+			for i := range shrs {
 				if shrs[i] == nil {
 					shrs[i] = make([]share.Share, size)
+					for j := range shrs[i] {
+						shrs[i][j] = make(share.Share, share.Size)
+					}
 				}
 			}
 			return shrs

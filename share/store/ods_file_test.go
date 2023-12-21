@@ -54,18 +54,35 @@ func TestOdsFile(t *testing.T) {
 	})
 }
 
-// BenchmarkAxisFromOdsFile/Size:32/Axis:row/squareHalf:first(original)-10         	  429498	      2464 ns/op
-// BenchmarkAxisFromOdsFile/Size:32/Axis:row/squareHalf:second(extended)-10        	    5889	    192904 ns/op
-// BenchmarkAxisFromOdsFile/Size:32/Axis:col/squareHalf:first(original)-10         	   56209	     20926 ns/op
-// BenchmarkAxisFromOdsFile/Size:32/Axis:col/squareHalf:second(extended)-10        	    5480	    193249 ns/op
-// BenchmarkAxisFromOdsFile/Size:64/Axis:row/squareHalf:first(original)-10         	  287070	      4003 ns/op
-// BenchmarkAxisFromOdsFile/Size:64/Axis:row/squareHalf:second(extended)-10        	    2212	    506601 ns/op
-// BenchmarkAxisFromOdsFile/Size:64/Axis:col/squareHalf:first(original)-10         	   28990	     41353 ns/op
-// BenchmarkAxisFromOdsFile/Size:64/Axis:col/squareHalf:second(extended)-10        	    2358	    511020 ns/op
-// BenchmarkAxisFromOdsFile/Size:128/Axis:row/squareHalf:first(original)-10        	  186265	      6309 ns/op
-// BenchmarkAxisFromOdsFile/Size:128/Axis:row/squareHalf:second(extended)-10       	     610	   1814819 ns/op
-// BenchmarkAxisFromOdsFile/Size:128/Axis:col/squareHalf:first(original)-10        	   14460	     82613 ns/op
-// BenchmarkAxisFromOdsFile/Size:128/Axis:col/squareHalf:second(extended)-10       	     640	   1819996 ns/op
+func TestReadOdsFile(t *testing.T) {
+	eds := edstest.RandEDS(t, 8)
+	mem := newMemPools(rsmt2d.NewLeoRSCodec())
+	path := t.TempDir() + "/testfile"
+	f, err := CreateOdsFile(path, eds, mem)
+	require.NoError(t, err)
+
+	ods, err := f.readOds(rsmt2d.Row)
+	require.NoError(t, err)
+	for i, row := range ods.shares {
+		original, err := f.readRow(i)
+		require.NoError(t, err)
+		require.True(t, len(original) == len(row))
+		require.Equal(t, original, row)
+	}
+}
+
+// BenchmarkAxisFromOdsFile/Size:32/Axis:row/squareHalf:first(original)-10         	  418206	      2545 ns/op
+// BenchmarkAxisFromOdsFile/Size:32/Axis:row/squareHalf:second(extended)-10        	    4968	    227265 ns/op
+// BenchmarkAxisFromOdsFile/Size:32/Axis:col/squareHalf:first(original)-10         	   57007	     20707 ns/op
+// BenchmarkAxisFromOdsFile/Size:32/Axis:col/squareHalf:second(extended)-10        	    5016	    214184 ns/op
+// BenchmarkAxisFromOdsFile/Size:64/Axis:row/squareHalf:first(original)-10         	  308559	      3786 ns/op
+// BenchmarkAxisFromOdsFile/Size:64/Axis:row/squareHalf:second(extended)-10        	    1624	    713999 ns/op
+// BenchmarkAxisFromOdsFile/Size:64/Axis:col/squareHalf:first(original)-10         	   28724	     41421 ns/op
+// BenchmarkAxisFromOdsFile/Size:64/Axis:col/squareHalf:second(extended)-10        	    1686	    629314 ns/op
+// BenchmarkAxisFromOdsFile/Size:128/Axis:row/squareHalf:first(original)-10        	  183322	      6360 ns/op
+// BenchmarkAxisFromOdsFile/Size:128/Axis:row/squareHalf:second(extended)-10       	     428	   2616150 ns/op
+// BenchmarkAxisFromOdsFile/Size:128/Axis:col/squareHalf:first(original)-10        	   14338	     83598 ns/op
+// BenchmarkAxisFromOdsFile/Size:128/Axis:col/squareHalf:second(extended)-10       	     488	   2213146 ns/op
 func BenchmarkAxisFromOdsFile(b *testing.B) {
 	minSize, maxSize := 32, 128
 	dir := b.TempDir()
@@ -81,18 +98,18 @@ func BenchmarkAxisFromOdsFile(b *testing.B) {
 	benchGetAxisFromFile(b, newFile, minSize, maxSize)
 }
 
-// BenchmarkShareFromOdsFile/Size:32/Axis:row/squareHalf:first(original)-10         	   10333	    113351 ns/op
-// BenchmarkShareFromOdsFile/Size:32/Axis:row/squareHalf:second(extended)-10        	    3794	    319437 ns/op
-// BenchmarkShareFromOdsFile/Size:32/Axis:col/squareHalf:first(original)-10         	    7201	    139066 ns/op
-// BenchmarkShareFromOdsFile/Size:32/Axis:col/squareHalf:second(extended)-10        	    3612	    317520 ns/op
-// BenchmarkShareFromOdsFile/Size:64/Axis:row/squareHalf:first(original)-10         	    5462	    220543 ns/op
-// BenchmarkShareFromOdsFile/Size:64/Axis:row/squareHalf:second(extended)-10        	    1586	    775291 ns/op
-// BenchmarkShareFromOdsFile/Size:64/Axis:col/squareHalf:first(original)-10         	    4611	    257328 ns/op
-// BenchmarkShareFromOdsFile/Size:64/Axis:col/squareHalf:second(extended)-10        	    1534	    788619 ns/op
-// BenchmarkShareFromOdsFile/Size:128/Axis:row/squareHalf:first(original)-10        	    2413	    448675 ns/op
-// BenchmarkShareFromOdsFile/Size:128/Axis:row/squareHalf:second(extended)-10       	     517	   2427473 ns/op
-// BenchmarkShareFromOdsFile/Size:128/Axis:col/squareHalf:first(original)-10        	    2200	    528681 ns/op
-// BenchmarkShareFromOdsFile/Size:128/Axis:col/squareHalf:second(extended)-10       	     464	   2385446 ns/op
+// BenchmarkShareFromOdsFile/Size:32/Axis:row/squareHalf:first(original)-10         	   10339	    111328 ns/op
+// BenchmarkShareFromOdsFile/Size:32/Axis:row/squareHalf:second(extended)-10        	    3392	    359180 ns/op
+// BenchmarkShareFromOdsFile/Size:32/Axis:col/squareHalf:first(original)-10         	    8925	    131352 ns/op
+// BenchmarkShareFromOdsFile/Size:32/Axis:col/squareHalf:second(extended)-10        	    3447	    346218 ns/op
+// BenchmarkShareFromOdsFile/Size:64/Axis:row/squareHalf:first(original)-10         	    5503	    215833 ns/op
+// BenchmarkShareFromOdsFile/Size:64/Axis:row/squareHalf:second(extended)-10        	    1231	   1001053 ns/op
+// BenchmarkShareFromOdsFile/Size:64/Axis:col/squareHalf:first(original)-10         	    4711	    250001 ns/op
+// BenchmarkShareFromOdsFile/Size:64/Axis:col/squareHalf:second(extended)-10        	    1315	    910079 ns/op
+// BenchmarkShareFromOdsFile/Size:128/Axis:row/squareHalf:first(original)-10        	    2364	    435748 ns/op
+// BenchmarkShareFromOdsFile/Size:128/Axis:row/squareHalf:second(extended)-10       	     358	   3330620 ns/op
+// BenchmarkShareFromOdsFile/Size:128/Axis:col/squareHalf:first(original)-10        	    2114	    514642 ns/op
+// BenchmarkShareFromOdsFile/Size:128/Axis:col/squareHalf:second(extended)-10       	     373	   3068104 ns/op
 func BenchmarkShareFromOdsFile(b *testing.B) {
 	minSize, maxSize := 32, 128
 	dir := b.TempDir()
