@@ -18,7 +18,7 @@ import (
 	| toPrune  | availability window |
 */
 
-// TODO @renaynay: document
+// TODO @renaynay: tweak/document
 var (
 	availWindow = AvailabilityWindow(time.Millisecond)
 	blockTime   = time.Millisecond * 100
@@ -56,7 +56,7 @@ func TestService(t *testing.T) {
 	err = serv.Stop(ctx)
 	require.NoError(t, err)
 
-	t.Log(len(mp.deletedHeaderHashes))
+	t.Log(len(mp.deletedHeaderHashes)) // TODO @renaynay: expect something here
 }
 
 type mockPruner struct {
