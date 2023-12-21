@@ -6,7 +6,7 @@ import (
 	"github.com/ipfs/go-datastore"
 	"time"
 
-	"github.com/celestiaorg/go-header/store"
+	hdr "github.com/celestiaorg/go-header"
 
 	"github.com/celestiaorg/celestia-node/header"
 )
@@ -17,10 +17,10 @@ type Service struct {
 	pruner Pruner
 	window AvailabilityWindow
 
-	getter store.Store[*header.ExtendedHeader]
+	getter hdr.Getter[*header.ExtendedHeader]
 
-	checkpoint   checkpoint
-	checkpointDS datastore.Datastore
+	checkpoint *checkpoint
+	blockTime  time.Duration
 
 	ctx    context.Context
 	cancel context.CancelFunc
@@ -29,14 +29,32 @@ type Service struct {
 	params Params
 }
 
-func NewService(p Pruner, window AvailabilityWindow) *Service {
+func NewService(
+	p Pruner,
+	window AvailabilityWindow,
+	getter hdr.Getter[*header.ExtendedHeader],
+	ds datastore.Datastore,
+	blockTime time.Duration,
+	opts ...Option,
+) *Service {
+	params := DefaultParams()
+	for _, opt := range opts {
+		opt(&params)
+	}
+
 	return &Service{
-		pruner: p,
-		window: window,
+		pruner:     p,
+		window:     window,
+		getter:     getter,
+		checkpoint: newCheckpoint(ds),
+		blockTime:  blockTime,
+		doneCh:     make(chan struct{}),
+		params:     params,
 	}
 }
 
 func (s *Service) Start(context.Context) error {
+	s.ctx, s.cancel = context.WithCancel(context.Background())
 	go s.prune()
 	return nil
 }
@@ -62,7 +80,7 @@ func (s *Service) prune() {
 			close(s.doneCh)
 			return
 		case <-ticker.C:
-			headers, err := s.findPruneableHeaders()
+			headers, err := s.findPruneableHeaders(s.ctx)
 			if err != nil {
 				// TODO @renaynay: record + report errors properly
 				continue
@@ -76,7 +94,7 @@ func (s *Service) prune() {
 				continue
 			}
 
-			err = s.updateCheckpoint(s.ctx, headers[len(headers)-1].Height())
+			err = s.updateCheckpoint(s.ctx, headers[len(headers)-1])
 			if err != nil {
 				// TODO @renaynay: record + report errors properly
 			}

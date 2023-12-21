@@ -8,8 +8,8 @@ type Params struct {
 	gcCycle time.Duration
 }
 
-func DefaultParams() *Params {
-	return &Params{
+func DefaultParams() Params {
+	return Params{
 		gcCycle: time.Hour,
 	}
 }
