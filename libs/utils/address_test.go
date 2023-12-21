@@ -29,12 +29,7 @@ func TestSanitizeAddr(t *testing.T) {
 		t.Run(tt.addr, func(t *testing.T) {
 			got, err := SanitizeAddr(tt.addr)
 			require.Equal(t, tt.want, got)
-			if tt.err != nil {
-				require.Error(t, err)
-				require.ErrorIs(t, err, tt.err)
-			} else {
-				require.NoError(t, err)
-			}
+			require.ErrorIs(t, err, tt.err)
 		})
 	}
 }
