@@ -3,9 +3,12 @@ package pruner
 import (
 	"context"
 	"fmt"
+	"github.com/ipfs/go-datastore"
 	"time"
 
-	header "github.com/celestiaorg/go-header"
+	"github.com/celestiaorg/go-header/store"
+
+	"github.com/celestiaorg/celestia-node/header"
 )
 
 // Service handles the pruning routine for the node using the
@@ -14,9 +17,10 @@ type Service struct {
 	pruner Pruner
 	window AvailabilityWindow
 
-	getter header.Store
+	getter store.Store[*header.ExtendedHeader]
 
-	checkpoint checkpoint
+	checkpoint   checkpoint
+	checkpointDS datastore.Datastore
 
 	ctx    context.Context
 	cancel context.CancelFunc
@@ -58,7 +62,21 @@ func (s *Service) prune() {
 			close(s.doneCh)
 			return
 		case <-ticker.C:
-			err := s.pruner.Prune(s.ctx)
+			headers, err := s.findPruneableHeaders()
+			if err != nil {
+				// TODO @renaynay: record + report errors properly
+				continue
+			}
+			// TODO @renaynay: make deadline a param ? / configurable?
+			pruneCtx, cancel := context.WithDeadline(s.ctx, time.Now().Add(time.Minute))
+			err = s.pruner.Prune(pruneCtx, headers...)
+			cancel()
+			if err != nil {
+				// TODO @renaynay: record + report errors properly
+				continue
+			}
+
+			err = s.updateCheckpoint(s.ctx, headers[len(headers)-1].Height())
 			if err != nil {
 				// TODO @renaynay: record + report errors properly
 			}
