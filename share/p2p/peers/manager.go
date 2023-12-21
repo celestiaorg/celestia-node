@@ -88,19 +88,12 @@ type syncPool struct {
 	createdAt time.Time
 	*pool
 
-	// headerHeight is the height of header corresponding to syncpool
-	headerHeight atomic.Uint64
-
 	// height is the height of the header that corresponds to datahash
 	height uint64
 
 	// isValidatedDataHash indicates if datahash was validated by receiving corresponding extended
 	// header from headerSub
 	isValidatedDataHash atomic.Bool
-
-	// isSynced will be true if DoneFunc was called with ResultSynced. It indicates that given datahash
-	// was synced and peer-manager no longer need to keep peers for it
-	isSynced atomic.Bool
 }
 
 func NewManager(
