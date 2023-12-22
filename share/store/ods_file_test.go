@@ -16,7 +16,7 @@ import (
 func TestCreateOdsFile(t *testing.T) {
 	path := t.TempDir() + "/testfile"
 	edsIn := edstest.RandEDS(t, 8)
-	mem := newMemPools(rsmt2d.NewLeoRSCodec())
+	mem := newMemPools(NewCodec())
 	_, err := CreateOdsFile(path, edsIn, mem)
 	require.NoError(t, err)
 
@@ -29,7 +29,7 @@ func TestCreateOdsFile(t *testing.T) {
 
 func TestOdsFile(t *testing.T) {
 	size := 32
-	mem := newMemPools(rsmt2d.NewLeoRSCodec())
+	mem := newMemPools(NewCodec())
 	createOdsFile := func(eds *rsmt2d.ExtendedDataSquare) File {
 		path := t.TempDir() + "/testfile"
 		fl, err := CreateOdsFile(path, eds, mem)
@@ -56,14 +56,14 @@ func TestOdsFile(t *testing.T) {
 
 func TestReadOdsFile(t *testing.T) {
 	eds := edstest.RandEDS(t, 8)
-	mem := newMemPools(rsmt2d.NewLeoRSCodec())
+	mem := newMemPools(NewCodec())
 	path := t.TempDir() + "/testfile"
 	f, err := CreateOdsFile(path, eds, mem)
 	require.NoError(t, err)
 
 	ods, err := f.readOds(rsmt2d.Row)
 	require.NoError(t, err)
-	for i, row := range ods.shares {
+	for i, row := range ods.square {
 		original, err := f.readRow(i)
 		require.NoError(t, err)
 		require.True(t, len(original) == len(row))
@@ -86,7 +86,7 @@ func TestReadOdsFile(t *testing.T) {
 func BenchmarkAxisFromOdsFile(b *testing.B) {
 	minSize, maxSize := 32, 128
 	dir := b.TempDir()
-	mem := newMemPools(rsmt2d.NewLeoRSCodec())
+	mem := newMemPools(NewCodec())
 
 	newFile := func(size int) File {
 		eds := edstest.RandEDS(b, size)
@@ -113,7 +113,7 @@ func BenchmarkAxisFromOdsFile(b *testing.B) {
 func BenchmarkShareFromOdsFile(b *testing.B) {
 	minSize, maxSize := 32, 128
 	dir := b.TempDir()
-	mem := newMemPools(rsmt2d.NewLeoRSCodec())
+	mem := newMemPools(NewCodec())
 
 	newFile := func(size int) File {
 		eds := edstest.RandEDS(b, size)

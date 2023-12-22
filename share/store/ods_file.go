@@ -107,7 +107,7 @@ func (f *OdsFile) AxisHalf(ctx context.Context, axisType rsmt2d.Axis, axisIdx in
 	if err != nil {
 		return nil, err
 	}
-	defer f.memPool.shares.Put(ods.shares)
+	defer f.memPool.ods.Put(ods.square)
 
 	return computeAxisHalf(ctx, ods, f.memPool.codec, axisType, axisIdx)
 }
@@ -125,11 +125,11 @@ func (f *OdsFile) odsAxisHalf(axisType rsmt2d.Axis, axisIdx int) ([]share.Share,
 type odsInMemFile struct {
 	File
 	axisType rsmt2d.Axis
-	shares   [][]share.Share
+	square   [][]share.Share
 }
 
 func (f *odsInMemFile) Size() int {
-	return len(f.shares) * 2
+	return len(f.square) * 2
 }
 
 func (f *odsInMemFile) AxisHalf(_ context.Context, axisType rsmt2d.Axis, axisIdx int) ([]share.Share, error) {
@@ -139,17 +139,17 @@ func (f *odsInMemFile) AxisHalf(_ context.Context, axisType rsmt2d.Axis, axisIdx
 	if axisIdx >= f.Size()/2 {
 		return nil, fmt.Errorf("index is out of ods bounds")
 	}
-	return f.shares[axisIdx], nil
+	return f.square[axisIdx], nil
 }
 
 func (f *OdsFile) readOds(axisType rsmt2d.Axis) (*odsInMemFile, error) {
 	shrLn := int(f.hdr.shareSize)
 	odsLn := int(f.hdr.squareSize) / 2
 
-	buf := f.memPool.ods.Get().([]byte)
-	defer f.memPool.ods.Put(buf)
+	buf := f.memPool.halfAxis.Get().([]byte)
+	defer f.memPool.halfAxis.Put(buf)
 
-	shrs := f.memPool.shares.Get().([][]share.Share)
+	ods := f.memPool.ods.Get().([][]share.Share)
 	for i := 0; i < odsLn; i++ {
 		pos := HeaderSize + odsLn*shrLn*i
 		if _, err := f.fl.ReadAt(buf, int64(pos)); err != nil {
@@ -158,16 +158,16 @@ func (f *OdsFile) readOds(axisType rsmt2d.Axis) (*odsInMemFile, error) {
 
 		for j := 0; j < odsLn; j++ {
 			if axisType == rsmt2d.Row {
-				copy(shrs[i][j], buf[j*shrLn:(j+1)*shrLn])
+				copy(ods[i][j], buf[j*shrLn:(j+1)*shrLn])
 			} else {
-				copy(shrs[j][i], buf[j*shrLn:(j+1)*shrLn])
+				copy(ods[j][i], buf[j*shrLn:(j+1)*shrLn])
 			}
 		}
 	}
 
 	return &odsInMemFile{
 		axisType: axisType,
-		shares:   shrs,
+		square:   ods,
 	}, nil
 }
 
@@ -213,7 +213,7 @@ func (f *OdsFile) readCol(idx int) ([]share.Share, error) {
 func computeAxisHalf(
 	ctx context.Context,
 	f File,
-	codec rsmt2d.Codec,
+	codec Codec,
 	axisType rsmt2d.Axis,
 	axisIdx int,
 ) ([]share.Share, error) {
@@ -230,11 +230,31 @@ func computeAxisHalf(
 				return err
 			}
 
-			parity, err := codec.Encode(original)
+			enc, err := codec.Encoder(f.Size())
 			if err != nil {
-				return err
+				return fmt.Errorf("encoder: %w", err)
 			}
-			shares[i] = parity[axisIdx-f.Size()/2]
+
+			shards := make([][]byte, f.Size())
+			copy(shards, original)
+			for j := len(original); j < len(shards); j++ {
+				shards[j] = make([]byte, len(original[0]))
+			}
+
+			//target := make([]bool, f.Size())
+			//target[axisIdx] = true
+			//
+			//err = enc.ReconstructSome(shards, target)
+			//if err != nil {
+			//	return fmt.Errorf("reconstruct some: %w", err)
+			//}
+
+			err = enc.Encode(shards)
+			if err != nil {
+				return fmt.Errorf("encode: %w", err)
+			}
+
+			shares[i] = shards[axisIdx]
 			return nil
 		})
 	}
@@ -305,8 +325,8 @@ func (f *OdsFile) EDS(_ context.Context) (*rsmt2d.ExtendedDataSquare, error) {
 		return nil, err
 	}
 
-	shrs := make([]share.Share, 0, len(ods.shares)*len(ods.shares))
-	for _, row := range ods.shares {
+	shrs := make([]share.Share, 0, len(ods.square)*len(ods.square))
+	for _, row := range ods.square {
 		shrs = append(shrs, row...)
 	}
 
@@ -316,15 +336,15 @@ func (f *OdsFile) EDS(_ context.Context) (*rsmt2d.ExtendedDataSquare, error) {
 
 type memPools struct {
 	pools map[int]memPool
-	codec rsmt2d.Codec
+	codec Codec
 }
 
 type memPool struct {
-	codec       rsmt2d.Codec
-	shares, ods *sync.Pool
+	codec         Codec
+	ods, halfAxis *sync.Pool
 }
 
-func newMemPools(codec rsmt2d.Codec) memPools {
+func newMemPools(codec Codec) memPools {
 	return memPools{
 		pools: make(map[int]memPool),
 		codec: codec,
@@ -339,8 +359,8 @@ func (m memPools) get(size int) memPool {
 	return pool
 }
 
-func newMemPool(codec rsmt2d.Codec, size int) memPool {
-	shares := &sync.Pool{
+func newMemPool(codec Codec, size int) memPool {
+	ods := &sync.Pool{
 		New: func() interface{} {
 			shrs := make([][]share.Share, size)
 			for i := range shrs {
@@ -355,16 +375,16 @@ func newMemPool(codec rsmt2d.Codec, size int) memPool {
 		},
 	}
 
-	ods := &sync.Pool{
+	halfAxis := &sync.Pool{
 		New: func() interface{} {
 			buf := make([]byte, size*share.Size)
 			return buf
 		},
 	}
 	return memPool{
-		shares: shares,
-		ods:    ods,
-		codec:  codec,
+		halfAxis: halfAxis,
+		ods:      ods,
+		codec:    codec,
 	}
 }
 
