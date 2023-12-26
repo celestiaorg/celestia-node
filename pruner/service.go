@@ -17,7 +17,7 @@ type Service struct {
 	pruner Pruner
 	window AvailabilityWindow
 
-	getter hdr.Getter[*header.ExtendedHeader]
+	getter hdr.Getter[*header.ExtendedHeader] // TODO @renaynay: expects a header service with access to sync head
 
 	checkpoint *checkpoint
 	blockTime  time.Duration
@@ -41,6 +41,9 @@ func NewService(
 	for _, opt := range opts {
 		opt(&params)
 	}
+
+	// TODO @renaynay
+	numBlocksInWindow = uint64(time.Duration(window) / blockTime)
 
 	return &Service{
 		pruner:     p,
