@@ -5,49 +5,50 @@ import (
 	"fmt"
 )
 
-// SampleHasher implements hash.Hash interface for Samples.
+// SampleHasher implements hash.Hash interface for Sample.
 type SampleHasher struct {
-	sample Sample
+	data []byte
 }
 
 // Write expects a marshaled Sample to validate.
-func (sh *SampleHasher) Write(data []byte) (int, error) {
-	if err := sh.sample.UnmarshalBinary(data); err != nil {
-		err = fmt.Errorf("while unmarshaling Sample: %w", err)
+func (h *SampleHasher) Write(data []byte) (int, error) {
+	var s Sample
+	if err := s.UnmarshalBinary(data); err != nil {
+		err = fmt.Errorf("unmarshaling Sample: %w", err)
 		log.Error(err)
 		return 0, err
 	}
 
-	if err := sh.sample.Validate(); err != nil {
-		err = fmt.Errorf("while validating Sample: %w", err)
+	if err := sampleVerifiers.Verify(s.SampleID, s); err != nil {
+		err = fmt.Errorf("verifying Sample: %w", err)
 		log.Error(err)
 		return 0, err
 	}
 
+	h.data = data
 	return len(data), nil
 }
 
 // Sum returns the "multihash" of the SampleID.
-func (sh *SampleHasher) Sum([]byte) []byte {
-	sum, err := sh.sample.SampleID.MarshalBinary()
-	if err != nil {
-		err = fmt.Errorf("while marshaling SampleID: %w", err)
-		log.Error(err)
+func (h *SampleHasher) Sum([]byte) []byte {
+	if h.data == nil {
+		return nil
 	}
-	return sum
+	const pbOffset = 2
+	return h.data[pbOffset : SampleIDSize+pbOffset]
 }
 
 // Reset resets the Hash to its initial state.
-func (sh *SampleHasher) Reset() {
-	sh.sample = Sample{}
+func (h *SampleHasher) Reset() {
+	h.data = nil
 }
 
 // Size returns the number of bytes Sum will return.
-func (sh *SampleHasher) Size() int {
+func (h *SampleHasher) Size() int {
 	return SampleIDSize
 }
 
 // BlockSize returns the hash's underlying block size.
-func (sh *SampleHasher) BlockSize() int {
+func (h *SampleHasher) BlockSize() int {
 	return sha256.BlockSize
 }

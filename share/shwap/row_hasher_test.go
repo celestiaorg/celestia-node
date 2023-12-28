@@ -6,23 +6,28 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"github.com/celestiaorg/rsmt2d"
-
+	"github.com/celestiaorg/celestia-node/share"
 	"github.com/celestiaorg/celestia-node/share/eds/edstest"
 )
 
-func TestAxisHasher(t *testing.T) {
-	hasher := &AxisHasher{}
+func TestRowHasher(t *testing.T) {
+	hasher := &RowHasher{}
 
 	_, err := hasher.Write([]byte("hello"))
 	assert.Error(t, err)
 
 	square := edstest.RandEDS(t, 2)
-
-	sample, err := NewAxisFromEDS(rsmt2d.Row, 2, square, 1)
+	root, err := share.NewRoot(square)
 	require.NoError(t, err)
 
-	data, err := sample.MarshalBinary()
+	row, err := NewRowFromEDS(2, 1, square)
+	require.NoError(t, err)
+
+	rowVerifiers.Add(row.RowID, func(row Row) error {
+		return row.Verify(root)
+	})
+
+	data, err := row.MarshalBinary()
 	require.NoError(t, err)
 
 	n, err := hasher.Write(data)
@@ -30,11 +35,11 @@ func TestAxisHasher(t *testing.T) {
 	assert.EqualValues(t, len(data), n)
 
 	digest := hasher.Sum(nil)
-	sid, err := sample.AxisID.MarshalBinary()
+	id, err := row.RowID.MarshalBinary()
 	require.NoError(t, err)
-	assert.EqualValues(t, sid, digest)
+	assert.EqualValues(t, id, digest)
 
 	hasher.Reset()
 	digest = hasher.Sum(nil)
-	assert.NotEqualValues(t, digest, sid)
+	assert.NotEqualValues(t, digest, id)
 }

@@ -6,36 +6,31 @@ import (
 	"github.com/ipfs/go-cid"
 	mh "github.com/multiformats/go-multihash"
 
-	"github.com/celestiaorg/rsmt2d"
-
 	"github.com/celestiaorg/celestia-node/share"
 )
 
-// DataIDSize is the size of the DataID in bytes
-// We cut 1 byte from AxisIDSize because we don't need AxisType
-// as its value is always Row.
-const DataIDSize = AxisIDSize - 1 + share.NamespaceSize
+// DataIDSize is the size of the DataID in bytes.
+const DataIDSize = RowIDSize + share.NamespaceSize
 
-// DataID is an unique identifier of a namespaced Data inside EDS Axis.
+// DataID is an unique identifier of a namespaced Data inside EDS Row.
 type DataID struct {
-	AxisID
+	RowID
 
-	// DataNamespace is the namespace of the data.
-	DataNamespace share.Namespace
+	// DataNamespace is the namespace of the data
+	// It's string formatted to keep DataID comparable
+	DataNamespace string
 }
 
 // NewDataID constructs a new DataID.
-func NewDataID(axisIdx int, root *share.Root, height uint64, namespace share.Namespace) DataID {
-	axisHash := hashBytes(root.RowRoots[axisIdx])
-	return DataID{
-		AxisID: AxisID{
-			AxisType:  rsmt2d.Row,
-			AxisIndex: uint16(axisIdx),
-			AxisHash:  axisHash,
-			Height:    height,
+func NewDataID(height uint64, rowIdx uint16, namespace share.Namespace, root *share.Root) (DataID, error) {
+	did := DataID{
+		RowID: RowID{
+			RowIndex: rowIdx,
+			Height:   height,
 		},
-		DataNamespace: namespace,
+		DataNamespace: string(namespace),
 	}
+	return did, did.Verify(root)
 }
 
 // DataIDFromCID coverts CID to DataID.
@@ -46,26 +41,31 @@ func DataIDFromCID(cid cid.Cid) (id DataID, err error) {
 
 	err = id.UnmarshalBinary(cid.Hash()[mhPrefixSize:])
 	if err != nil {
-		return id, fmt.Errorf("while unmarhalling DataID: %w", err)
+		return id, fmt.Errorf("unmarhalling DataID: %w", err)
 	}
 
 	return id, nil
 }
 
-// Cid returns sample ID encoded as CID.
-func (s DataID) Cid() (cid.Cid, error) {
+// Namespace returns the namespace of the DataID.
+func (s DataID) Namespace() share.Namespace {
+	return share.Namespace(s.DataNamespace)
+}
+
+// Cid returns DataID encoded as CID.
+func (s DataID) Cid() cid.Cid {
 	// avoid using proto serialization for CID as it's not deterministic
 	data, err := s.MarshalBinary()
 	if err != nil {
-		return cid.Undef, err
+		panic(fmt.Errorf("marshaling DataID: %w", err))
 	}
 
 	buf, err := mh.Encode(data, dataMultihashCode)
 	if err != nil {
-		return cid.Undef, err
+		panic(fmt.Errorf("encoding DataID as CID: %w", err))
 	}
 
-	return cid.NewCidV1(dataCodec, buf), nil
+	return cid.NewCidV1(dataCodec, buf)
 }
 
 // MarshalBinary encodes DataID into binary form.
@@ -73,12 +73,12 @@ func (s DataID) Cid() (cid.Cid, error) {
 // * Its size is not deterministic which is required for IPLD.
 // * No support for uint16
 func (s DataID) MarshalBinary() ([]byte, error) {
-	data := make([]byte, 0, DataIDSize+1)
-	n, err := s.AxisID.MarshalTo(data)
+	data := make([]byte, 0, DataIDSize)
+	n, err := s.RowID.MarshalTo(data)
 	if err != nil {
 		return nil, err
 	}
-	data = data[1:n] // cut the first byte with AxisType
+	data = data[:n]
 	data = append(data, s.DataNamespace...)
 	return data, nil
 }
@@ -86,23 +86,29 @@ func (s DataID) MarshalBinary() ([]byte, error) {
 // UnmarshalBinary decodes DataID from binary form.
 func (s *DataID) UnmarshalBinary(data []byte) error {
 	if len(data) != DataIDSize {
-		return fmt.Errorf("invalid data length: %d != %d", len(data), DataIDSize)
+		return fmt.Errorf("invalid DataID data length: %d != %d", len(data), DataIDSize)
 	}
-	n, err := s.AxisID.UnmarshalFrom(append([]byte{byte(rsmt2d.Row)}, data...))
+	n, err := s.RowID.UnmarshalFrom(data)
 	if err != nil {
 		return err
 	}
-	s.DataNamespace = data[n-1:]
+
+	ns := share.Namespace(data[n:])
+	if err = ns.ValidateForData(); err != nil {
+		return err
+	}
+
+	s.DataNamespace = string(ns)
 	return nil
 }
 
-// Validate validates fields of DataID.
-func (s DataID) Validate() error {
-	if err := s.AxisID.Validate(); err != nil {
-		return fmt.Errorf("while validating AxisID: %w", err)
+// Verify verifies DataID fields.
+func (s DataID) Verify(root *share.Root) error {
+	if err := s.RowID.Verify(root); err != nil {
+		return fmt.Errorf("validating RowID: %w", err)
 	}
-	if err := s.DataNamespace.ValidateForData(); err != nil {
-		return fmt.Errorf("while validating DataNamespace: %w", err)
+	if err := s.Namespace().ValidateForData(); err != nil {
+		return fmt.Errorf("validating DataNamespace: %w", err)
 	}
 
 	return nil

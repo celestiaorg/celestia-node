@@ -8,6 +8,8 @@ import (
 	blocks "github.com/ipfs/go-block-format"
 	"github.com/ipfs/go-cid"
 
+	"github.com/celestiaorg/rsmt2d"
+
 	"github.com/celestiaorg/celestia-node/share/eds"
 )
 
@@ -42,15 +44,15 @@ func (b Blockstore[F]) Get(_ context.Context, cid cid.Cid) (blocks.Block, error)
 		}
 
 		return blk, nil
-	case axisCodec:
-		id, err := AxisIDFromCID(cid)
+	case rowCodec:
+		id, err := RowIDFromCID(cid)
 		if err != nil {
-			err = fmt.Errorf("while converting CID to AxisID: %w", err)
+			err = fmt.Errorf("while converting CID to RowID: %w", err)
 			log.Error(err)
 			return nil, err
 		}
 
-		blk, err := b.getAxisBlock(id)
+		blk, err := b.getRowBlock(id)
 		if err != nil {
 			log.Error(err)
 			return nil, err
@@ -83,12 +85,12 @@ func (b Blockstore[F]) getSampleBlock(id SampleID) (blocks.Block, error) {
 		return nil, fmt.Errorf("while getting ODS file from FS: %w", err)
 	}
 
-	shr, prf, err := f.ShareWithProof(id.AxisType, int(id.AxisIndex), int(id.ShareIndex))
+	shr, prf, proofType, err := f.ShareWithProof(int(id.RowIndex), int(id.ShareIndex))
 	if err != nil {
 		return nil, fmt.Errorf("while getting share with proof: %w", err)
 	}
 
-	s := NewSample(id, shr, prf, f.Size())
+	s := NewSample(id, shr, prf, proofType)
 	blk, err := s.IPLDBlock()
 	if err != nil {
 		return nil, fmt.Errorf("while coverting to IPLD block: %w", err)
@@ -102,18 +104,18 @@ func (b Blockstore[F]) getSampleBlock(id SampleID) (blocks.Block, error) {
 	return blk, nil
 }
 
-func (b Blockstore[F]) getAxisBlock(id AxisID) (blocks.Block, error) {
+func (b Blockstore[F]) getRowBlock(id RowID) (blocks.Block, error) {
 	f, err := b.fs.File(id.Height)
 	if err != nil {
 		return nil, fmt.Errorf("while getting EDS file from FS: %w", err)
 	}
 
-	axisHalf, err := f.AxisHalf(id.AxisType, int(id.AxisIndex))
+	axisHalf, err := f.AxisHalf(rsmt2d.Row, int(id.RowIndex))
 	if err != nil {
-		return nil, fmt.Errorf("while getting axis half: %w", err)
+		return nil, fmt.Errorf("while getting AxisHalf: %w", err)
 	}
 
-	s := NewAxis(id, axisHalf)
+	s := NewRow(id, axisHalf)
 	blk, err := s.IPLDBlock()
 	if err != nil {
 		return nil, fmt.Errorf("while coverting to IPLD block: %w", err)
@@ -133,7 +135,7 @@ func (b Blockstore[F]) getDataBlock(id DataID) (blocks.Block, error) {
 		return nil, fmt.Errorf("while getting ODS file from FS: %w", err)
 	}
 
-	data, prf, err := f.Data(id.DataNamespace, int(id.AxisIndex))
+	data, prf, err := f.Data(id.Namespace(), int(id.RowIndex))
 	if err != nil {
 		return nil, fmt.Errorf("while getting Data: %w", err)
 	}
@@ -166,7 +168,7 @@ func (b Blockstore[F]) GetSize(ctx context.Context, cid cid.Cid) (int, error) {
 }
 
 func (b Blockstore[F]) Has(_ context.Context, cid cid.Cid) (bool, error) {
-	var id AxisID
+	var id RowID
 	switch cid.Type() {
 	case sampleCodec:
 		sid, err := SampleIDFromCID(cid)
@@ -176,12 +178,12 @@ func (b Blockstore[F]) Has(_ context.Context, cid cid.Cid) (bool, error) {
 			return false, err
 		}
 
-		id = sid.AxisID
-	case axisCodec:
+		id = sid.RowID
+	case rowCodec:
 		var err error
-		id, err = AxisIDFromCID(cid)
+		id, err = RowIDFromCID(cid)
 		if err != nil {
-			err = fmt.Errorf("while converting CID to AxisID: %w", err)
+			err = fmt.Errorf("while converting CID to RowID: %w", err)
 			log.Error(err)
 			return false, err
 		}
@@ -193,7 +195,7 @@ func (b Blockstore[F]) Has(_ context.Context, cid cid.Cid) (bool, error) {
 			return false, err
 		}
 
-		id = did.AxisID
+		id = did.RowID
 	default:
 		return false, fmt.Errorf("unsupported codec")
 	}

@@ -1,6 +1,8 @@
 package eds
 
 import (
+	"math/rand"
+
 	"github.com/celestiaorg/celestia-app/pkg/wrapper"
 	"github.com/celestiaorg/nmt"
 	"github.com/celestiaorg/rsmt2d"
@@ -20,11 +22,15 @@ func (f *MemFile) Size() int {
 	return int(f.Eds.Width())
 }
 
-func (f *MemFile) ShareWithProof(axisType rsmt2d.Axis, axisIdx, shrIdx int) (share.Share, nmt.Proof, error) {
+func (f *MemFile) ShareWithProof(axisIdx, shrIdx int) (share.Share, nmt.Proof, rsmt2d.Axis, error) {
 	sqrLn := f.Size()
+	axisType := rsmt2d.Row
+	if rand.Int()/2 == 0 {
+		axisType = rsmt2d.Col
+	}
 	shrs, err := f.Axis(axisType, axisIdx)
 	if err != nil {
-		return nil, nmt.Proof{}, err
+		return nil, nmt.Proof{}, axisType, err
 	}
 
 	// TODO(@Wondartan): this must access cached NMT on EDS instead of computing a new one
@@ -32,16 +38,16 @@ func (f *MemFile) ShareWithProof(axisType rsmt2d.Axis, axisIdx, shrIdx int) (sha
 	for _, shr := range shrs {
 		err = tree.Push(shr)
 		if err != nil {
-			return nil, nmt.Proof{}, err
+			return nil, nmt.Proof{}, axisType, err
 		}
 	}
 
 	proof, err := tree.ProveRange(shrIdx, shrIdx+1)
 	if err != nil {
-		return nil, nmt.Proof{}, err
+		return nil, nmt.Proof{}, axisType, err
 	}
 
-	return shrs[shrIdx], proof, nil
+	return shrs[shrIdx], proof, axisType, nil
 }
 
 func (f *MemFile) Axis(axisType rsmt2d.Axis, axisIdx int) ([]share.Share, error) {

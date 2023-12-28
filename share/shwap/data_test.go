@@ -12,7 +12,7 @@ import (
 
 func TestData(t *testing.T) {
 	namespace := sharetest.RandV0Namespace()
-	square, _ := edstest.RandEDSWithNamespace(t, namespace, 8)
+	square, root := edstest.RandEDSWithNamespace(t, namespace, 8)
 
 	nds, err := NewDataFromEDS(square, 1, namespace)
 	require.NoError(t, err)
@@ -23,16 +23,13 @@ func TestData(t *testing.T) {
 
 	blk, err := nd.IPLDBlock()
 	require.NoError(t, err)
+	assert.EqualValues(t, blk.Cid(), nd.Cid())
 
-	cid, err := nd.DataID.Cid()
+	dataOut := &Data{}
+	err = dataOut.UnmarshalBinary(data)
 	require.NoError(t, err)
-	assert.EqualValues(t, blk.Cid(), cid)
+	assert.EqualValues(t, nd, dataOut)
 
-	ndOut := &Data{}
-	err = ndOut.UnmarshalBinary(data)
-	require.NoError(t, err)
-	assert.EqualValues(t, nd, ndOut)
-
-	err = ndOut.Validate()
+	err = dataOut.Verify(root)
 	require.NoError(t, err)
 }

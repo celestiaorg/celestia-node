@@ -10,26 +10,26 @@ import (
 	"github.com/celestiaorg/celestia-node/share/eds/edstest"
 )
 
-func TestSample(t *testing.T) {
+func TestRow(t *testing.T) {
 	square := edstest.RandEDS(t, 8)
 	root, err := share.NewRoot(square)
 	require.NoError(t, err)
 
-	sample, err := NewSampleFromEDS(RowProofType, 1, square, 1)
+	row, err := NewRowFromEDS(1, 2, square)
 	require.NoError(t, err)
 
-	data, err := sample.MarshalBinary()
+	data, err := row.MarshalBinary()
 	require.NoError(t, err)
 
-	blk, err := sample.IPLDBlock()
+	blk, err := row.IPLDBlock()
 	require.NoError(t, err)
-	assert.EqualValues(t, blk.Cid(), sample.Cid())
+	assert.EqualValues(t, blk.Cid(), row.Cid())
 
-	sampleOut := &Sample{}
-	err = sampleOut.UnmarshalBinary(data)
+	rowOut := &Row{}
+	err = rowOut.UnmarshalBinary(data)
 	require.NoError(t, err)
-	assert.EqualValues(t, sample, sampleOut)
+	assert.EqualValues(t, row, rowOut)
 
-	err = sampleOut.Verify(root)
+	err = rowOut.Verify(root)
 	require.NoError(t, err)
 }

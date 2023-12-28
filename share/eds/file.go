@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"io"
+	"math/rand"
 	"os"
 
 	"golang.org/x/exp/mmap"
@@ -19,7 +20,7 @@ import (
 type File interface {
 	io.Closer
 	Size() int
-	ShareWithProof(axisType rsmt2d.Axis, axisIdx, shrIdx int) (share.Share, nmt.Proof, error)
+	ShareWithProof(xisIdx, shrIdx int) (share.Share, nmt.Proof, rsmt2d.Axis, error)
 	Axis(axisType rsmt2d.Axis, axisIdx int) ([]share.Share, error)
 	AxisHalf(axisType rsmt2d.Axis, axisIdx int) ([]share.Share, error)
 	Data(namespace share.Namespace, axisIdx int) ([]share.Share, nmt.Proof, error)
@@ -182,28 +183,32 @@ func (f *LazyFile) AxisHalf(axisType rsmt2d.Axis, axisIdx int) ([]share.Share, e
 	return fullAxis[:len(fullAxis)/2], nil
 }
 
-func (f *LazyFile) ShareWithProof(axisType rsmt2d.Axis, axisIdx, shrIdx int) (share.Share, nmt.Proof, error) {
+func (f *LazyFile) ShareWithProof(axisIdx, shrIdx int) (share.Share, nmt.Proof, rsmt2d.Axis, error) {
 	// TODO: Cache the axis as well as computed tree
+	axisType := rsmt2d.Row
+	if rand.Int()/2 == 0 {
+		axisType = rsmt2d.Col
+	}
 	sqrLn := int(f.hdr.squareSize)
 	shrs, err := f.Axis(axisType, axisIdx)
 	if err != nil {
-		return nil, nmt.Proof{}, err
+		return nil, nmt.Proof{}, axisType, err
 	}
 
 	tree := wrapper.NewErasuredNamespacedMerkleTree(uint64(sqrLn/2), uint(axisIdx))
 	for _, shr := range shrs {
 		err = tree.Push(shr)
 		if err != nil {
-			return nil, nmt.Proof{}, err
+			return nil, nmt.Proof{}, axisType, err
 		}
 	}
 
 	proof, err := tree.ProveRange(shrIdx, shrIdx+1)
 	if err != nil {
-		return nil, nmt.Proof{}, err
+		return nil, nmt.Proof{}, axisType, err
 	}
 
-	return shrs[shrIdx], proof, nil
+	return shrs[shrIdx], proof, axisType, nil
 }
 
 func (f *LazyFile) Data(namespace share.Namespace, axisIdx int) ([]share.Share, nmt.Proof, error) {

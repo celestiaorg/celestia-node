@@ -11,8 +11,10 @@ import (
 
 	"github.com/ipfs/boxo/blockstore"
 	"github.com/ipfs/boxo/exchange"
-	"github.com/ipfs/boxo/exchange/offline"
+	blocks "github.com/ipfs/go-block-format"
+	"github.com/ipfs/go-cid"
 	"github.com/ipfs/go-datastore"
+	format "github.com/ipfs/go-ipld-format"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
@@ -30,15 +32,15 @@ func TestGetter(t *testing.T) {
 	defer cancel()
 
 	ns := sharetest.RandV0Namespace()
-	square, root := edstest.RandEDSWithNamespace(t, ns, 16)
-	hdr := &header.ExtendedHeader{DAH: root}
+	square, root := edstest.RandEDSWithNamespace(t, ns, 4)
+	hdr := &header.ExtendedHeader{RawHeader: header.RawHeader{Height: 1}, DAH: root}
 
 	bstore := edsBlockstore(square)
-	exch := dummySessionExchange{offline.Exchange(bstore)}
+	exch := dummySessionExchange{bstore}
 	get := NewGetter(exch, blockstore.NewBlockstore(datastore.NewMapDatastore()))
 
 	t.Run("GetShares", func(t *testing.T) {
-		idxs := rand.Perm(int(square.Width() ^ 2))[:30]
+		idxs := rand.Perm(int(square.Width() ^ 2))[:10]
 		shrs, err := get.GetShares(ctx, hdr, idxs...)
 		assert.NoError(t, err)
 
@@ -83,10 +85,10 @@ func TestGetter(t *testing.T) {
 			square := edstest.RandEDS(t, 8)
 			root, err := share.NewRoot(square)
 			require.NoError(t, err)
-			hdr := &header.ExtendedHeader{DAH: root}
+			hdr := &header.ExtendedHeader{RawHeader: header.RawHeader{Height: 1}, DAH: root}
 
 			bstore := edsBlockstore(square)
-			exch := &dummySessionExchange{offline.Exchange(bstore)}
+			exch := &dummySessionExchange{bstore}
 			get := NewGetter(exch, blockstore.NewBlockstore(datastore.NewMapDatastore()))
 
 			maxNs := nmt.MaxNamespace(root.RowRoots[(len(root.RowRoots))/2-1], share.NamespaceSize)
@@ -110,7 +112,7 @@ func addToNamespace(namespace share.Namespace, val int) (share.Namespace, error)
 	if val == 0 {
 		return namespace, nil
 	}
-	// Convert the input integer to a byte slice and add it to result slice
+	// Convert the input integer to a byte slice and Add it to result slice
 	result := make([]byte, len(namespace))
 	if val > 0 {
 		binary.BigEndian.PutUint64(result[len(namespace)-8:], uint64(val))
@@ -151,9 +153,59 @@ func addToNamespace(namespace share.Namespace, val int) (share.Namespace, error)
 }
 
 type dummySessionExchange struct {
-	exchange.Interface
+	blockstore.Blockstore
 }
 
-func (d dummySessionExchange) NewSession(context.Context) exchange.Fetcher {
-	return d
+func (e dummySessionExchange) NewSession(context.Context) exchange.Fetcher {
+	return e
+}
+
+func (e dummySessionExchange) GetBlock(ctx context.Context, k cid.Cid) (blocks.Block, error) {
+	blk, err := e.Get(ctx, k)
+	if format.IsNotFound(err) {
+		return nil, fmt.Errorf("block was not found locally (offline): %w", err)
+	}
+	rbcid, err := k.Prefix().Sum(blk.RawData())
+	if err != nil {
+		return nil, err
+	}
+
+	if !rbcid.Equals(k) {
+		return nil, blockstore.ErrHashMismatch
+	}
+	return blk, err
+}
+
+func (e dummySessionExchange) NotifyNewBlocks(context.Context, ...blocks.Block) error {
+	return nil
+}
+
+func (e dummySessionExchange) GetBlocks(ctx context.Context, ks []cid.Cid) (<-chan blocks.Block, error) {
+	out := make(chan blocks.Block)
+	go func() {
+		defer close(out)
+		for _, k := range ks {
+			hit, err := e.GetBlock(ctx, k)
+			if err != nil {
+				select {
+				case <-ctx.Done():
+					return
+				default:
+					continue
+				}
+			}
+			select {
+			case out <- hit:
+			case <-ctx.Done():
+				return
+			}
+		}
+	}()
+	return out, nil
+}
+
+func (e dummySessionExchange) Close() error {
+	// NB: exchange doesn't own the blockstore's underlying datastore, so it is
+	// not responsible for closing it.
+	return nil
 }

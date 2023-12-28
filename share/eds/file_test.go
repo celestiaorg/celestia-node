@@ -58,7 +58,7 @@ func TestFile(t *testing.T) {
 				axisIdx, shrIdx = shrIdx, axisIdx
 			}
 
-			shr, prf, err := fl.ShareWithProof(axisType, axisIdx, shrIdx)
+			shr, prf, _, err := fl.ShareWithProof(axisIdx, shrIdx)
 			require.NoError(t, err)
 
 			namespace := share.ParitySharesNamespace

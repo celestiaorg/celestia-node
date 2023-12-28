@@ -15,7 +15,7 @@ import (
 	"github.com/celestiaorg/celestia-node/share/eds/edstest"
 )
 
-// TODO(@Wondertan): Add axis and data code
+// TODO(@Wondertan): Add row and data code
 
 func TestBlockstoreGetShareSample(t *testing.T) {
 	ctx := context.Background()
@@ -26,22 +26,19 @@ func TestBlockstoreGetShareSample(t *testing.T) {
 	b := edsBlockstore(sqr)
 
 	width := int(sqr.Width())
-	for _, axisType := range axisTypes {
-		for i := 0; i < width*width; i++ {
-			id := NewSampleID(axisType, i, root, 1)
-			cid, err := id.Cid()
-			require.NoError(t, err)
+	for i := 0; i < width*width; i++ {
+		id, err := NewSampleID(1, i, root)
+		require.NoError(t, err)
 
-			blk, err := b.Get(ctx, cid)
-			require.NoError(t, err)
+		blk, err := b.Get(ctx, id.Cid())
+		require.NoError(t, err)
 
-			sample, err := SampleFromBlock(blk)
-			require.NoError(t, err)
+		sample, err := SampleFromBlock(blk)
+		require.NoError(t, err)
 
-			err = sample.Validate()
-			require.NoError(t, err)
-			assert.EqualValues(t, id, sample.SampleID)
-		}
+		err = sample.Verify(root)
+		require.NoError(t, err)
+		assert.EqualValues(t, id, sample.SampleID)
 	}
 }
 

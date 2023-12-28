@@ -3,7 +3,7 @@ package shwap
 import (
 	"context"
 	"fmt"
-	"slices"
+	"sync"
 
 	"github.com/ipfs/boxo/blockstore"
 	"github.com/ipfs/boxo/exchange"
@@ -17,6 +17,7 @@ import (
 	"github.com/celestiaorg/celestia-node/share"
 )
 
+// TODO: GetRow method
 type Getter struct {
 	fetch  exchange.SessionExchange
 	bstore blockstore.Blockstore
@@ -26,75 +27,94 @@ func NewGetter(fetch exchange.SessionExchange, bstore blockstore.Blockstore) *Ge
 	return &Getter{fetch: fetch, bstore: bstore}
 }
 
+// TODO: Make GetSamples so it provides proofs to users.
 // GetShares fetches in the Block/EDS by their indexes.
 // Automatically caches them on the Blockstore.
 // Guarantee that the returned shares are in the same order as shrIdxs.
-func (g *Getter) GetShares(ctx context.Context, hdr *header.ExtendedHeader, shrIdxs ...int) ([]share.Share, error) {
-	maxIdx := len(hdr.DAH.RowRoots) * len(hdr.DAH.ColumnRoots)
-	cids := make([]cid.Cid, len(shrIdxs))
-	for i, shrIdx := range shrIdxs {
-		if shrIdx < 0 || shrIdx >= maxIdx {
-			return nil, fmt.Errorf("share index %d is out of bounds", shrIdx)
+func (g *Getter) GetShares(ctx context.Context, hdr *header.ExtendedHeader, smplIdxs ...int) ([]share.Share, error) {
+	sids := make([]SampleID, len(smplIdxs))
+	for i, shrIdx := range smplIdxs {
+		sid, err := NewSampleID(hdr.Height(), shrIdx, hdr.DAH)
+		if err != nil {
+			return nil, err
 		}
-		cids[i] = MustSampleCID(shrIdx, hdr.DAH, hdr.Height())
+
+		sids[i] = sid
+	}
+
+	smplsMu := sync.Mutex{}
+	smpls := make(map[int]Sample, len(smplIdxs))
+	verifyFn := func(s Sample) error {
+		err := s.Verify(hdr.DAH)
+		if err != nil {
+			return err
+		}
+
+		smplIdx := int(s.SampleID.RowIndex)*len(hdr.DAH.RowRoots) + int(s.SampleID.ShareIndex)
+		smplsMu.Lock()
+		smpls[smplIdx] = s
+		smplsMu.Unlock()
+		return nil
+	}
+
+	cids := make([]cid.Cid, len(smplIdxs))
+	for i, sid := range sids {
+		sampleVerifiers.Add(sid, verifyFn)
+		cids[i] = sid.Cid()
 	}
 
 	ctx, cancel := context.WithCancel(ctx)
 	defer cancel()
 	ses := g.fetch.NewSession(ctx)
-
+	// must start getting only after verifiers are registered
 	blkCh, err := ses.GetBlocks(ctx, cids)
 	if err != nil {
 		return nil, fmt.Errorf("fetching blocks: %w", err)
 	}
-
-	blks := make([]block.Block, 0, len(cids))
-	smpls := make(map[int]*Sample, len(cids))
-	for blk := range blkCh { // NOTE: GetBlocks handles ctx, so we don't have to
-		smpl, err := SampleFromBlock(blk)
-		if err != nil {
-			// NOTE: Should never error in fact, as Hasher already validated the block
-			return nil, fmt.Errorf("converting block to Sample: %w", err)
-		}
-
-		shrIdx := int(smpl.SampleID.AxisIndex)*len(hdr.DAH.RowRoots) + int(smpl.SampleID.ShareIndex)
-		smpls[shrIdx] = smpl
-
+	// GetBlocks handles ctx and closes blkCh, so we don't have to
+	blks := make([]block.Block, 0, len(smplIdxs))
+	for blk := range blkCh {
 		blks = append(blks, blk)
 	}
-
-	if len(blks) != len(shrIdxs) {
+	// only persist when all samples received
+	if len(blks) != len(smplIdxs) {
 		if ctx.Err() != nil {
 			return nil, ctx.Err()
 		}
 		return nil, fmt.Errorf("not all shares were found")
 	}
-
+	// ensure we persist samples/blks and make them available for Bitswap
 	err = g.bstore.PutMany(ctx, blks)
 	if err != nil {
 		return nil, fmt.Errorf("storing shares: %w", err)
 	}
-
-	err = g.fetch.NotifyNewBlocks(ctx, blks...) // tell bitswap that we stored the blks and can serve them now
+	// tell bitswap that we stored the blks and can serve them now
+	err = g.fetch.NotifyNewBlocks(ctx, blks...)
 	if err != nil {
 		return nil, fmt.Errorf("notifying new shares: %w", err)
 	}
 
-	shrs := make([]share.Share, len(shrIdxs))
-	for i, shrIdx := range shrIdxs {
-		shrs[i] = smpls[shrIdx].SampleShare
+	// ensure we return shares in the requested order
+	shrs := make([]share.Share, len(smplIdxs))
+	for i, smplIdx := range smplIdxs {
+		shrs[i] = smpls[smplIdx].SampleShare
 	}
 
 	return shrs, nil
 }
 
 // GetEDS
-// TODO(@Wondertan): Consider requesting randomized rows and cols instead of ODS only
+// TODO(@Wondertan): Consider requesting randomized rows instead of ODS only
 func (g *Getter) GetEDS(ctx context.Context, hdr *header.ExtendedHeader) (*rsmt2d.ExtendedDataSquare, error) {
 	sqrLn := len(hdr.DAH.RowRoots)
-	cids := make([]cid.Cid, sqrLn/2)
+	rids := make([]RowID, sqrLn/2)
 	for i := 0; i < sqrLn/2; i++ {
-		cids[i] = MustAxisCID(rsmt2d.Row, i, hdr.DAH, hdr.Height())
+		rid, err := NewRowID(hdr.Height(), uint16(i), hdr.DAH)
+		if err != nil {
+			return nil, err
+		}
+
+		rids[i] = rid
 	}
 
 	square, err := rsmt2d.NewExtendedDataSquare(
@@ -106,32 +126,42 @@ func (g *Getter) GetEDS(ctx context.Context, hdr *header.ExtendedHeader) (*rsmt2
 		return nil, err
 	}
 
-	ctx, cancel := context.WithCancel(ctx)
-	defer cancel()
-	ses := g.fetch.NewSession(ctx)
-
-	blkCh, err := ses.GetBlocks(ctx, cids)
-	if err != nil {
-		return nil, fmt.Errorf("fetching blocks: %w", err)
-	}
-
-	for blk := range blkCh { // NOTE: GetBlocks handles ctx, so we don't have to
-		axis, err := AxisFromBlock(blk)
+	verifyFn := func(row Row) error {
+		err := row.Verify(hdr.DAH)
 		if err != nil {
-			// NOTE: Should never error in fact, as Hasher already validated the block
-			return nil, fmt.Errorf("converting block to Axis: %w", err)
+			return err
 		}
 
-		for shrIdx, shr := range axis.AxisShares {
-			err = square.SetCell(uint(axis.AxisIndex), uint(shrIdx), shr)
+		for shrIdx, shr := range row.RowShares {
+			err = square.SetCell(uint(row.RowIndex), uint(shrIdx), shr) // no synchronization needed
 			if err != nil {
 				panic(err) // this should never happen and if it is... something is really wrong
 			}
 		}
+
+		return nil
 	}
 
-	// TODO(@Wondertan): Figure out a way to avoid recompute of what has been already computed
-	//  during verification in AxisHasher
+	cids := make([]cid.Cid, sqrLn/2)
+	for i, rid := range rids {
+		rowVerifiers.Add(rid, verifyFn)
+		cids[i] = rid.Cid()
+	}
+
+	ctx, cancel := context.WithCancel(ctx)
+	defer cancel()
+	ses := g.fetch.NewSession(ctx)
+	// must start getting only after verifiers are registered
+	blkCh, err := ses.GetBlocks(ctx, cids)
+	if err != nil {
+		return nil, fmt.Errorf("fetching blocks: %w", err)
+	}
+	// GetBlocks handles ctx by closing blkCh, so we don't have to
+	for range blkCh { //nolint:revive // it complains on empty block, but the code is functional
+		// we handle writes in verifyFn so just wait for as many results as possible
+	}
+
+	// and try to repair
 	err = square.Repair(hdr.DAH.RowRoots, hdr.DAH.ColumnRoots)
 	if err != nil {
 		if ctx.Err() != nil {
@@ -152,53 +182,63 @@ func (g *Getter) GetSharesByNamespace(
 		return nil, err
 	}
 
-	var cids []cid.Cid //nolint:prealloc// we don't know how many rows with needed namespace there are
+	var dids []DataID //nolint:prealloc// we don't know how many rows with needed namespace there are
 	for rowIdx, rowRoot := range hdr.DAH.RowRoots {
 		if ns.IsOutsideRange(rowRoot, rowRoot) {
 			continue
 		}
 
-		cids = append(cids, MustDataCID(rowIdx, hdr.DAH, hdr.Height(), ns))
+		did, err := NewDataID(hdr.Height(), uint16(rowIdx), ns, hdr.DAH)
+		if err != nil {
+			return nil, err
+		}
+
+		dids = append(dids, did)
 	}
-	if len(cids) == 0 {
+	if len(dids) == 0 {
 		return share.NamespacedShares{}, nil
+	}
+
+	datas := make([]Data, len(dids))
+	verifyFn := func(d Data) error {
+		err := d.Verify(hdr.DAH)
+		if err != nil {
+			return err
+		}
+
+		nsStartIdx := dids[0].RowIndex
+		idx := d.RowIndex - nsStartIdx
+		datas[idx] = d
+		return nil
+	}
+
+	cids := make([]cid.Cid, len(dids))
+	for i, did := range dids {
+		dataVerifiers.Add(did, verifyFn)
+		cids[i] = did.Cid()
 	}
 
 	ctx, cancel := context.WithCancel(ctx)
 	defer cancel()
 	ses := g.fetch.NewSession(ctx)
-
+	// must start getting only after verifiers are registered
 	blkCh, err := ses.GetBlocks(ctx, cids)
 	if err != nil {
 		return nil, fmt.Errorf("fetching blocks:%w", err)
 	}
-
-	datas := make([]*Data, 0, len(cids))
-	for blk := range blkCh { // NOTE: GetBlocks handles ctx, so we don't have to
-		data, err := DataFromBlock(blk)
-		if err != nil {
-			// NOTE: Should never error in fact, as Hasher already validated the block
-			return nil, fmt.Errorf("converting block to Data: %w", err)
-		}
-
-		datas = append(datas, data)
+	// GetBlocks handles ctx by closing blkCh, so we don't have to
+	for range blkCh { //nolint:revive // it complains on empty block, but the code is functional
+		// we handle writes in verifyFn so just wait for as many results as possible
 	}
 
-	slices.SortFunc(datas, func(a, b *Data) int {
-		if a.DataID.AxisIndex < b.DataID.AxisIndex {
-			return -1
-		}
-		return 1
-	})
-
-	nShrs := make(share.NamespacedShares, len(datas))
-	for i, row := range datas {
-		nShrs[i] = share.NamespacedRow{
+	nShrs := make([]share.NamespacedRow, 0, len(datas))
+	for _, row := range datas {
+		proof := row.DataProof
+		nShrs = append(nShrs, share.NamespacedRow{
 			Shares: row.DataShares,
-			Proof:  &row.DataProof,
-		}
+			Proof:  &proof,
+		})
 	}
 
-	// NOTE: We don't need to call Verify here as Bitswap already did it for us internal.
 	return nShrs, nil
 }

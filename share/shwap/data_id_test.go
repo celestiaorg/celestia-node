@@ -10,27 +10,26 @@ import (
 	"github.com/celestiaorg/celestia-node/share/sharetest"
 )
 
-// TODO: Add test that AxisType is not serialized
 func TestDataID(t *testing.T) {
 	ns := sharetest.RandV0Namespace()
 	_, root := edstest.RandEDSWithNamespace(t, ns, 4)
 
-	sid := NewDataID(2, root, 1, ns)
-	id, err := sid.Cid()
+	id, err := NewDataID(1, 1, ns, root)
 	require.NoError(t, err)
 
-	assert.EqualValues(t, dataCodec, id.Prefix().Codec)
-	assert.EqualValues(t, dataMultihashCode, id.Prefix().MhType)
-	assert.EqualValues(t, DataIDSize, id.Prefix().MhLength)
+	cid := id.Cid()
+	assert.EqualValues(t, dataCodec, cid.Prefix().Codec)
+	assert.EqualValues(t, dataMultihashCode, cid.Prefix().MhType)
+	assert.EqualValues(t, DataIDSize, cid.Prefix().MhLength)
 
-	data, err := sid.MarshalBinary()
+	data, err := id.MarshalBinary()
 	require.NoError(t, err)
 
 	sidOut := DataID{}
 	err = sidOut.UnmarshalBinary(data)
 	require.NoError(t, err)
-	assert.EqualValues(t, sid, sidOut)
+	assert.EqualValues(t, id, sidOut)
 
-	err = sidOut.Validate()
+	err = sidOut.Verify(root)
 	require.NoError(t, err)
 }

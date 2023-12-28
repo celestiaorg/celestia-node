@@ -7,47 +7,48 @@ import (
 
 // DataHasher implements hash.Hash interface for Data.
 type DataHasher struct {
-	data Data
+	data []byte
 }
 
 // Write expects a marshaled Data to validate.
-func (sh *DataHasher) Write(data []byte) (int, error) {
-	if err := sh.data.UnmarshalBinary(data); err != nil {
-		err = fmt.Errorf("while unmarshaling Data: %w", err)
+func (h *DataHasher) Write(data []byte) (int, error) {
+	var d Data
+	if err := d.UnmarshalBinary(data); err != nil {
+		err = fmt.Errorf("unmarshaling Data: %w", err)
 		log.Error(err)
 		return 0, err
 	}
 
-	if err := sh.data.Validate(); err != nil {
-		err = fmt.Errorf("while validating Data: %w", err)
+	if err := dataVerifiers.Verify(d.DataID, d); err != nil {
+		err = fmt.Errorf("verifying Data: %w", err)
 		log.Error(err)
 		return 0, err
 	}
 
+	h.data = data
 	return len(data), nil
 }
 
 // Sum returns the "multihash" of the DataID.
-func (sh *DataHasher) Sum([]byte) []byte {
-	sum, err := sh.data.DataID.MarshalBinary()
-	if err != nil {
-		err = fmt.Errorf("while marshaling DataID: %w", err)
-		log.Error(err)
+func (h *DataHasher) Sum([]byte) []byte {
+	if h.data == nil {
+		return nil
 	}
-	return sum
+	const pbOffset = 2
+	return h.data[pbOffset : DataIDSize+pbOffset]
 }
 
 // Reset resets the Hash to its initial state.
-func (sh *DataHasher) Reset() {
-	sh.data = Data{}
+func (h *DataHasher) Reset() {
+	h.data = nil
 }
 
 // Size returns the number of bytes Sum will return.
-func (sh *DataHasher) Size() int {
+func (h *DataHasher) Size() int {
 	return DataIDSize
 }
 
 // BlockSize returns the hash's underlying block size.
-func (sh *DataHasher) BlockSize() int {
+func (h *DataHasher) BlockSize() int {
 	return sha256.BlockSize
 }

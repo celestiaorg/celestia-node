@@ -2,24 +2,19 @@ syntax = "proto3";
 
 import "pb/proof.proto"; // celestiaorg/nmt/pb/proof.proto
 
-enum AxisType {
-    Row = 0;
-    Col = 1;
+message Row {
+    bytes row_id = 1;
+    repeated bytes row_half = 2;
 }
 
-message Axis {
-    bytes axis_id = 1;
-    repeated bytes axis_half = 2;
-}
-
-enum SampleType {
-    DataSample = 0;
-    ParitySample = 1;
+enum SampleProofType {
+    RowSampleProofType = 0;
+    ColSampleProofType = 1;
 }
 
 message Sample {
     bytes sample_id = 1;
-    SampleType sample_type = 2;
+    SampleProofType sample_type = 2;
     bytes sample_share = 3;
     proof.pb.Proof sample_proof = 4;
 }

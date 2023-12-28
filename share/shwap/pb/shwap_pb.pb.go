@@ -23,73 +23,48 @@ var _ = math.Inf
 // proto package needs to be updated.
 const _ = proto.GoGoProtoPackageIsVersion3 // please upgrade the proto package
 
-type AxisType int32
+type SampleProofType int32
 
 const (
-	AxisType_Row AxisType = 0
-	AxisType_Col AxisType = 1
+	SampleProofType_RowSampleProofType SampleProofType = 0
+	SampleProofType_ColSampleProofType SampleProofType = 1
 )
 
-var AxisType_name = map[int32]string{
-	0: "Row",
-	1: "Col",
+var SampleProofType_name = map[int32]string{
+	0: "RowSampleProofType",
+	1: "ColSampleProofType",
 }
 
-var AxisType_value = map[string]int32{
-	"Row": 0,
-	"Col": 1,
+var SampleProofType_value = map[string]int32{
+	"RowSampleProofType": 0,
+	"ColSampleProofType": 1,
 }
 
-func (x AxisType) String() string {
-	return proto.EnumName(AxisType_name, int32(x))
+func (x SampleProofType) String() string {
+	return proto.EnumName(SampleProofType_name, int32(x))
 }
 
-func (AxisType) EnumDescriptor() ([]byte, []int) {
+func (SampleProofType) EnumDescriptor() ([]byte, []int) {
 	return fileDescriptor_fdfe0676a85dc852, []int{0}
 }
 
-type SampleType int32
-
-const (
-	SampleType_DataSample   SampleType = 0
-	SampleType_ParitySample SampleType = 1
-)
-
-var SampleType_name = map[int32]string{
-	0: "DataSample",
-	1: "ParitySample",
+type Row struct {
+	RowId   []byte   `protobuf:"bytes,1,opt,name=row_id,json=rowId,proto3" json:"row_id,omitempty"`
+	RowHalf [][]byte `protobuf:"bytes,2,rep,name=row_half,json=rowHalf,proto3" json:"row_half,omitempty"`
 }
 
-var SampleType_value = map[string]int32{
-	"DataSample":   0,
-	"ParitySample": 1,
-}
-
-func (x SampleType) String() string {
-	return proto.EnumName(SampleType_name, int32(x))
-}
-
-func (SampleType) EnumDescriptor() ([]byte, []int) {
-	return fileDescriptor_fdfe0676a85dc852, []int{1}
-}
-
-type Axis struct {
-	AxisId   []byte   `protobuf:"bytes,1,opt,name=axis_id,json=axisId,proto3" json:"axis_id,omitempty"`
-	AxisHalf [][]byte `protobuf:"bytes,2,rep,name=axis_half,json=axisHalf,proto3" json:"axis_half,omitempty"`
-}
-
-func (m *Axis) Reset()         { *m = Axis{} }
-func (m *Axis) String() string { return proto.CompactTextString(m) }
-func (*Axis) ProtoMessage()    {}
-func (*Axis) Descriptor() ([]byte, []int) {
+func (m *Row) Reset()         { *m = Row{} }
+func (m *Row) String() string { return proto.CompactTextString(m) }
+func (*Row) ProtoMessage()    {}
+func (*Row) Descriptor() ([]byte, []int) {
 	return fileDescriptor_fdfe0676a85dc852, []int{0}
 }
-func (m *Axis) XXX_Unmarshal(b []byte) error {
+func (m *Row) XXX_Unmarshal(b []byte) error {
 	return m.Unmarshal(b)
 }
-func (m *Axis) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+func (m *Row) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
 	if deterministic {
-		return xxx_messageInfo_Axis.Marshal(b, m, deterministic)
+		return xxx_messageInfo_Row.Marshal(b, m, deterministic)
 	} else {
 		b = b[:cap(b)]
 		n, err := m.MarshalToSizedBuffer(b)
@@ -99,37 +74,37 @@ func (m *Axis) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
 		return b[:n], nil
 	}
 }
-func (m *Axis) XXX_Merge(src proto.Message) {
-	xxx_messageInfo_Axis.Merge(m, src)
+func (m *Row) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_Row.Merge(m, src)
 }
-func (m *Axis) XXX_Size() int {
+func (m *Row) XXX_Size() int {
 	return m.Size()
 }
-func (m *Axis) XXX_DiscardUnknown() {
-	xxx_messageInfo_Axis.DiscardUnknown(m)
+func (m *Row) XXX_DiscardUnknown() {
+	xxx_messageInfo_Row.DiscardUnknown(m)
 }
 
-var xxx_messageInfo_Axis proto.InternalMessageInfo
+var xxx_messageInfo_Row proto.InternalMessageInfo
 
-func (m *Axis) GetAxisId() []byte {
+func (m *Row) GetRowId() []byte {
 	if m != nil {
-		return m.AxisId
+		return m.RowId
 	}
 	return nil
 }
 
-func (m *Axis) GetAxisHalf() [][]byte {
+func (m *Row) GetRowHalf() [][]byte {
 	if m != nil {
-		return m.AxisHalf
+		return m.RowHalf
 	}
 	return nil
 }
 
 type Sample struct {
-	SampleId    []byte     `protobuf:"bytes,1,opt,name=sample_id,json=sampleId,proto3" json:"sample_id,omitempty"`
-	SampleType  SampleType `protobuf:"varint,2,opt,name=sample_type,json=sampleType,proto3,enum=SampleType" json:"sample_type,omitempty"`
-	SampleShare []byte     `protobuf:"bytes,3,opt,name=sample_share,json=sampleShare,proto3" json:"sample_share,omitempty"`
-	SampleProof *pb.Proof  `protobuf:"bytes,4,opt,name=sample_proof,json=sampleProof,proto3" json:"sample_proof,omitempty"`
+	SampleId    []byte          `protobuf:"bytes,1,opt,name=sample_id,json=sampleId,proto3" json:"sample_id,omitempty"`
+	SampleType  SampleProofType `protobuf:"varint,2,opt,name=sample_type,json=sampleType,proto3,enum=SampleProofType" json:"sample_type,omitempty"`
+	SampleShare []byte          `protobuf:"bytes,3,opt,name=sample_share,json=sampleShare,proto3" json:"sample_share,omitempty"`
+	SampleProof *pb.Proof       `protobuf:"bytes,4,opt,name=sample_proof,json=sampleProof,proto3" json:"sample_proof,omitempty"`
 }
 
 func (m *Sample) Reset()         { *m = Sample{} }
@@ -172,11 +147,11 @@ func (m *Sample) GetSampleId() []byte {
 	return nil
 }
 
-func (m *Sample) GetSampleType() SampleType {
+func (m *Sample) GetSampleType() SampleProofType {
 	if m != nil {
 		return m.SampleType
 	}
-	return SampleType_DataSample
+	return SampleProofType_RowSampleProofType
 }
 
 func (m *Sample) GetSampleShare() []byte {
@@ -254,9 +229,8 @@ func (m *Data) GetDataProof() *pb.Proof {
 }
 
 func init() {
-	proto.RegisterEnum("AxisType", AxisType_name, AxisType_value)
-	proto.RegisterEnum("SampleType", SampleType_name, SampleType_value)
-	proto.RegisterType((*Axis)(nil), "Axis")
+	proto.RegisterEnum("SampleProofType", SampleProofType_name, SampleProofType_value)
+	proto.RegisterType((*Row)(nil), "Row")
 	proto.RegisterType((*Sample)(nil), "Sample")
 	proto.RegisterType((*Data)(nil), "Data")
 }
@@ -264,32 +238,31 @@ func init() {
 func init() { proto.RegisterFile("share/shwap/pb/shwap_pb.proto", fileDescriptor_fdfe0676a85dc852) }
 
 var fileDescriptor_fdfe0676a85dc852 = []byte{
-	// 337 bytes of a gzipped FileDescriptorProto
-	0x1f, 0x8b, 0x08, 0x00, 0x00, 0x00, 0x00, 0x00, 0x02, 0xff, 0x6c, 0x51, 0xbd, 0x6e, 0xf2, 0x40,
-	0x10, 0xf4, 0x61, 0xc4, 0xcf, 0xda, 0xe2, 0xb3, 0xae, 0xf9, 0xac, 0xfc, 0x38, 0x0e, 0x95, 0x85,
-	0x22, 0x23, 0x91, 0x36, 0x4d, 0x7e, 0x8a, 0xd0, 0x21, 0x93, 0x1e, 0x9d, 0x65, 0x23, 0x2c, 0x39,
-	0xba, 0x93, 0xcf, 0x12, 0xf0, 0x16, 0x79, 0x8e, 0x3c, 0x49, 0x4a, 0xca, 0x94, 0x11, 0xbc, 0x48,
-	0xb4, 0xeb, 0x0b, 0xa4, 0x48, 0x37, 0x33, 0x3b, 0xb7, 0xe3, 0x59, 0xc3, 0xa5, 0x5e, 0x89, 0x2a,
-	0x1f, 0xeb, 0xd5, 0x5a, 0xa8, 0xb1, 0x4a, 0x1b, 0xb0, 0x50, 0x69, 0xac, 0x2a, 0x59, 0xcb, 0xb3,
-	0x81, 0x4a, 0xc7, 0xaa, 0x92, 0x72, 0xd9, 0xf0, 0xe1, 0x1d, 0xb4, 0xef, 0x37, 0x85, 0xe6, 0xff,
-	0xa1, 0x2b, 0x36, 0x85, 0x5e, 0x14, 0x99, 0xcf, 0x42, 0x16, 0xb9, 0x49, 0x07, 0xe9, 0x34, 0xe3,
-	0xe7, 0xd0, 0xa7, 0xc1, 0x4a, 0x94, 0x4b, 0xbf, 0x15, 0xda, 0x91, 0x9b, 0xf4, 0x50, 0x78, 0x16,
-	0xe5, 0x72, 0xf8, 0xce, 0xa0, 0x33, 0x17, 0xaf, 0xaa, 0xcc, 0xd1, 0xa7, 0x09, 0x9d, 0x56, 0xf4,
-	0x1a, 0x61, 0x9a, 0xf1, 0x1b, 0x70, 0xcc, 0xb0, 0xde, 0xaa, 0xdc, 0x6f, 0x85, 0x2c, 0x1a, 0x4c,
-	0x9c, 0xb8, 0x79, 0xfa, 0xb2, 0x55, 0x79, 0x02, 0xfa, 0x88, 0xf9, 0x35, 0xb8, 0xc6, 0x4d, 0x5d,
-	0x7c, 0x9b, 0xb6, 0x99, 0x0d, 0x73, 0x94, 0xf8, 0xe4, 0x68, 0xa1, 0x32, 0x7e, 0x3b, 0x64, 0x91,
-	0x33, 0xf9, 0x17, 0x9b, 0x6a, 0x69, 0x3c, 0x43, 0xf0, 0xf3, 0x86, 0xc8, 0x50, 0x41, 0xfb, 0x49,
-	0xd4, 0x02, 0xab, 0x66, 0xa2, 0x16, 0xbf, 0xaa, 0x22, 0x9d, 0x66, 0xfc, 0x0a, 0x1c, 0x1a, 0x50,
-	0xaa, 0x36, 0x65, 0x01, 0x25, 0x0a, 0xd5, 0x3c, 0x06, 0x62, 0x26, 0xd3, 0xfe, 0x3b, 0xb3, 0x8f,
-	0x16, 0x82, 0xa3, 0x0b, 0xe8, 0xe1, 0x71, 0xa9, 0x54, 0x17, 0xec, 0x44, 0xae, 0x3d, 0x0b, 0xc1,
-	0xa3, 0x2c, 0x3d, 0x36, 0x8a, 0x01, 0x4e, 0x07, 0xe0, 0x03, 0x00, 0xfc, 0xba, 0x46, 0xf1, 0x2c,
-	0xee, 0x81, 0x3b, 0x13, 0x55, 0x51, 0x6f, 0x8d, 0xc2, 0x1e, 0xfc, 0x8f, 0x7d, 0xc0, 0x76, 0xfb,
-	0x80, 0x7d, 0xed, 0x03, 0xf6, 0x76, 0x08, 0xac, 0xdd, 0x21, 0xb0, 0x3e, 0x0f, 0x81, 0x95, 0x76,
-	0xe8, 0x5f, 0xde, 0x7e, 0x07, 0x00, 0x00, 0xff, 0xff, 0xad, 0x11, 0x6f, 0x50, 0xfc, 0x01, 0x00,
-	0x00,
+	// 322 bytes of a gzipped FileDescriptorProto
+	0x1f, 0x8b, 0x08, 0x00, 0x00, 0x00, 0x00, 0x00, 0x02, 0xff, 0x6c, 0x51, 0x4d, 0x4f, 0xc2, 0x40,
+	0x14, 0xec, 0x52, 0x2c, 0xf0, 0x20, 0x40, 0x36, 0x51, 0x57, 0x8d, 0x6b, 0xe5, 0xd4, 0x78, 0x28,
+	0x11, 0x0f, 0x9e, 0xfd, 0x38, 0xc8, 0xcd, 0x14, 0xef, 0x64, 0x9b, 0x96, 0x60, 0x52, 0xb3, 0x9b,
+	0x6d, 0x93, 0x0d, 0xff, 0xc2, 0x7f, 0xe2, 0xdf, 0xf0, 0xc8, 0xd1, 0xa3, 0x81, 0x3f, 0x62, 0xf6,
+	0x75, 0x95, 0x84, 0x78, 0x9b, 0x99, 0x7d, 0xf3, 0xe6, 0x4d, 0x16, 0xce, 0xcb, 0xa5, 0xd0, 0xf9,
+	0xb8, 0x5c, 0x1a, 0xa1, 0xc6, 0x2a, 0xad, 0xc1, 0x5c, 0xa5, 0xb1, 0xd2, 0xb2, 0x92, 0xa7, 0x7d,
+	0x95, 0x8e, 0x95, 0x96, 0x72, 0x51, 0xf3, 0xd1, 0x2d, 0xf8, 0x89, 0x34, 0xf4, 0x10, 0x02, 0x2d,
+	0xcd, 0xfc, 0x35, 0x63, 0x24, 0x24, 0x51, 0x2f, 0x39, 0xd0, 0xd2, 0x4c, 0x33, 0x7a, 0x02, 0x6d,
+	0x2b, 0x2f, 0x45, 0xb1, 0x60, 0x8d, 0xd0, 0x8f, 0x7a, 0x49, 0x4b, 0x4b, 0xf3, 0x24, 0x8a, 0xc5,
+	0xe8, 0x83, 0x40, 0x30, 0x13, 0x6f, 0xaa, 0xc8, 0xe9, 0x19, 0x74, 0x4a, 0x44, 0x3b, 0x7f, 0xbb,
+	0x16, 0xa6, 0x19, 0xbd, 0x86, 0xae, 0x7b, 0xac, 0x56, 0x2a, 0x67, 0x8d, 0x90, 0x44, 0xfd, 0xc9,
+	0x30, 0xae, 0xad, 0xcf, 0xf6, 0x92, 0x97, 0x95, 0xca, 0x13, 0xa8, 0x87, 0x2c, 0xa6, 0x97, 0xd0,
+	0x73, 0x16, 0xec, 0xc2, 0x7c, 0x5c, 0xe9, 0xd6, 0xcc, 0xac, 0x44, 0x27, 0x7f, 0x23, 0x58, 0x86,
+	0x35, 0x43, 0x12, 0x75, 0x27, 0x83, 0xd8, 0x55, 0x4b, 0x63, 0xdc, 0xfc, 0xeb, 0x41, 0x32, 0x52,
+	0xd0, 0x7c, 0x14, 0x95, 0xa0, 0xc7, 0xd0, 0xca, 0x44, 0x25, 0x76, 0xc7, 0x06, 0x96, 0x4e, 0x33,
+	0x7a, 0x01, 0x5d, 0x7c, 0xc0, 0xd4, 0xd2, 0x15, 0x06, 0x2b, 0x61, 0x68, 0x49, 0x63, 0x40, 0xe6,
+	0x32, 0xfd, 0xff, 0x33, 0x3b, 0x76, 0x04, 0xe1, 0xd5, 0x1d, 0x0c, 0xf6, 0x7a, 0xd2, 0x23, 0xa0,
+	0x89, 0x34, 0x7b, 0xea, 0xd0, 0xb3, 0xfa, 0x83, 0x2c, 0xf6, 0x75, 0x72, 0xcf, 0x3e, 0x37, 0x9c,
+	0xac, 0x37, 0x9c, 0x7c, 0x6f, 0x38, 0x79, 0xdf, 0x72, 0x6f, 0xbd, 0xe5, 0xde, 0xd7, 0x96, 0x7b,
+	0x69, 0x80, 0x1f, 0x78, 0xf3, 0x13, 0x00, 0x00, 0xff, 0xff, 0xa1, 0x0e, 0x39, 0xc1, 0xf1, 0x01,
+	0x00, 0x00,
 }
 
-func (m *Axis) Marshal() (dAtA []byte, err error) {
+func (m *Row) Marshal() (dAtA []byte, err error) {
 	size := m.Size()
 	dAtA = make([]byte, size)
 	n, err := m.MarshalToSizedBuffer(dAtA[:size])
@@ -299,29 +272,29 @@ func (m *Axis) Marshal() (dAtA []byte, err error) {
 	return dAtA[:n], nil
 }
 
-func (m *Axis) MarshalTo(dAtA []byte) (int, error) {
+func (m *Row) MarshalTo(dAtA []byte) (int, error) {
 	size := m.Size()
 	return m.MarshalToSizedBuffer(dAtA[:size])
 }
 
-func (m *Axis) MarshalToSizedBuffer(dAtA []byte) (int, error) {
+func (m *Row) MarshalToSizedBuffer(dAtA []byte) (int, error) {
 	i := len(dAtA)
 	_ = i
 	var l int
 	_ = l
-	if len(m.AxisHalf) > 0 {
-		for iNdEx := len(m.AxisHalf) - 1; iNdEx >= 0; iNdEx-- {
-			i -= len(m.AxisHalf[iNdEx])
-			copy(dAtA[i:], m.AxisHalf[iNdEx])
-			i = encodeVarintShwapPb(dAtA, i, uint64(len(m.AxisHalf[iNdEx])))
+	if len(m.RowHalf) > 0 {
+		for iNdEx := len(m.RowHalf) - 1; iNdEx >= 0; iNdEx-- {
+			i -= len(m.RowHalf[iNdEx])
+			copy(dAtA[i:], m.RowHalf[iNdEx])
+			i = encodeVarintShwapPb(dAtA, i, uint64(len(m.RowHalf[iNdEx])))
 			i--
 			dAtA[i] = 0x12
 		}
 	}
-	if len(m.AxisId) > 0 {
-		i -= len(m.AxisId)
-		copy(dAtA[i:], m.AxisId)
-		i = encodeVarintShwapPb(dAtA, i, uint64(len(m.AxisId)))
+	if len(m.RowId) > 0 {
+		i -= len(m.RowId)
+		copy(dAtA[i:], m.RowId)
+		i = encodeVarintShwapPb(dAtA, i, uint64(len(m.RowId)))
 		i--
 		dAtA[i] = 0xa
 	}
@@ -444,18 +417,18 @@ func encodeVarintShwapPb(dAtA []byte, offset int, v uint64) int {
 	dAtA[offset] = uint8(v)
 	return base
 }
-func (m *Axis) Size() (n int) {
+func (m *Row) Size() (n int) {
 	if m == nil {
 		return 0
 	}
 	var l int
 	_ = l
-	l = len(m.AxisId)
+	l = len(m.RowId)
 	if l > 0 {
 		n += 1 + l + sovShwapPb(uint64(l))
 	}
-	if len(m.AxisHalf) > 0 {
-		for _, b := range m.AxisHalf {
+	if len(m.RowHalf) > 0 {
+		for _, b := range m.RowHalf {
 			l = len(b)
 			n += 1 + l + sovShwapPb(uint64(l))
 		}
@@ -516,7 +489,7 @@ func sovShwapPb(x uint64) (n int) {
 func sozShwapPb(x uint64) (n int) {
 	return sovShwapPb(uint64((x << 1) ^ uint64((int64(x) >> 63))))
 }
-func (m *Axis) Unmarshal(dAtA []byte) error {
+func (m *Row) Unmarshal(dAtA []byte) error {
 	l := len(dAtA)
 	iNdEx := 0
 	for iNdEx < l {
@@ -539,15 +512,15 @@ func (m *Axis) Unmarshal(dAtA []byte) error {
 		fieldNum := int32(wire >> 3)
 		wireType := int(wire & 0x7)
 		if wireType == 4 {
-			return fmt.Errorf("proto: Axis: wiretype end group for non-group")
+			return fmt.Errorf("proto: Row: wiretype end group for non-group")
 		}
 		if fieldNum <= 0 {
-			return fmt.Errorf("proto: Axis: illegal tag %d (wire type %d)", fieldNum, wire)
+			return fmt.Errorf("proto: Row: illegal tag %d (wire type %d)", fieldNum, wire)
 		}
 		switch fieldNum {
 		case 1:
 			if wireType != 2 {
-				return fmt.Errorf("proto: wrong wireType = %d for field AxisId", wireType)
+				return fmt.Errorf("proto: wrong wireType = %d for field RowId", wireType)
 			}
 			var byteLen int
 			for shift := uint(0); ; shift += 7 {
@@ -574,14 +547,14 @@ func (m *Axis) Unmarshal(dAtA []byte) error {
 			if postIndex > l {
 				return io.ErrUnexpectedEOF
 			}
-			m.AxisId = append(m.AxisId[:0], dAtA[iNdEx:postIndex]...)
-			if m.AxisId == nil {
-				m.AxisId = []byte{}
+			m.RowId = append(m.RowId[:0], dAtA[iNdEx:postIndex]...)
+			if m.RowId == nil {
+				m.RowId = []byte{}
 			}
 			iNdEx = postIndex
 		case 2:
 			if wireType != 2 {
-				return fmt.Errorf("proto: wrong wireType = %d for field AxisHalf", wireType)
+				return fmt.Errorf("proto: wrong wireType = %d for field RowHalf", wireType)
 			}
 			var byteLen int
 			for shift := uint(0); ; shift += 7 {
@@ -608,8 +581,8 @@ func (m *Axis) Unmarshal(dAtA []byte) error {
 			if postIndex > l {
 				return io.ErrUnexpectedEOF
 			}
-			m.AxisHalf = append(m.AxisHalf, make([]byte, postIndex-iNdEx))
-			copy(m.AxisHalf[len(m.AxisHalf)-1], dAtA[iNdEx:postIndex])
+			m.RowHalf = append(m.RowHalf, make([]byte, postIndex-iNdEx))
+			copy(m.RowHalf[len(m.RowHalf)-1], dAtA[iNdEx:postIndex])
 			iNdEx = postIndex
 		default:
 			iNdEx = preIndex
@@ -709,7 +682,7 @@ func (m *Sample) Unmarshal(dAtA []byte) error {
 				}
 				b := dAtA[iNdEx]
 				iNdEx++
-				m.SampleType |= SampleType(b&0x7F) << shift
+				m.SampleType |= SampleProofType(b&0x7F) << shift
 				if b < 0x80 {
 					break
 				}

@@ -17,8 +17,8 @@ import (
 type Data struct {
 	DataID
 
-	DataProof  nmt.Proof
 	DataShares []share.Share
+	DataProof  nmt.Proof
 }
 
 // NewData constructs a new Data.
@@ -47,6 +47,11 @@ func NewDataFromEDS(
 			continue
 		}
 
+		id, err := NewDataID(height, uint16(rowIdx), namespace, root)
+		if err != nil {
+			return nil, err
+		}
+
 		shrs := square.Row(uint(rowIdx))
 		// TDOD(@Wondertan): This will likely be removed
 		nd, proof, err := eds.NDFromShares(shrs, namespace, rowIdx)
@@ -54,7 +59,6 @@ func NewDataFromEDS(
 			return nil, err
 		}
 
-		id := NewDataID(rowIdx, root, height, namespace)
 		datas = append(datas, NewData(id, nd, proof))
 	}
 
@@ -78,17 +82,12 @@ func DataFromBlock(blk blocks.Block) (*Data, error) {
 
 // IPLDBlock converts Data to an IPLD block for Bitswap compatibility.
 func (s *Data) IPLDBlock() (blocks.Block, error) {
-	cid, err := s.DataID.Cid()
-	if err != nil {
-		return nil, err
-	}
-
 	data, err := s.MarshalBinary()
 	if err != nil {
 		return nil, err
 	}
 
-	return blocks.NewBlockWithCid(data, cid)
+	return blocks.NewBlockWithCid(data, s.Cid())
 }
 
 // MarshalBinary marshals Data to binary.
@@ -107,8 +106,8 @@ func (s *Data) MarshalBinary() ([]byte, error) {
 
 	return (&shwappb.Data{
 		DataId:     id,
-		DataProof:  proof,
 		DataShares: s.DataShares,
+		DataProof:  proof,
 	}).Marshal()
 }
 
@@ -124,19 +123,19 @@ func (s *Data) UnmarshalBinary(data []byte) error {
 		return err
 	}
 
-	s.DataProof = nmt.ProtoToProof(*proto.DataProof)
 	s.DataShares = proto.DataShares
+	s.DataProof = nmt.ProtoToProof(*proto.DataProof)
 	return nil
 }
 
-// Validate performs basic validation of Data.
-func (s *Data) Validate() error {
-	if err := s.DataID.Validate(); err != nil {
+// Verify validates Data's fields and verifies Data inclusion.
+func (s *Data) Verify(root *share.Root) error {
+	if err := s.DataID.Verify(root); err != nil {
 		return err
 	}
 
-	if len(s.DataShares) == 0 {
-		return fmt.Errorf("empty DataShares")
+	if len(s.DataShares) == 0 && s.DataProof.IsEmptyProof() {
+		return fmt.Errorf("empty Data")
 	}
 
 	shrs := make([][]byte, 0, len(s.DataShares))
@@ -144,8 +143,8 @@ func (s *Data) Validate() error {
 		shrs = append(shrs, append(share.GetNamespace(shr), shr...))
 	}
 
-	s.DataProof.WithHashedProof(hasher())
-	if !s.DataProof.VerifyNamespace(hasher(), s.DataNamespace.ToNMT(), shrs, s.AxisHash) {
+	rowRoot := root.RowRoots[s.RowIndex]
+	if !s.DataProof.VerifyNamespace(hashFn(), s.Namespace().ToNMT(), shrs, rowRoot) {
 		return fmt.Errorf("invalid DataProof")
 	}
 
