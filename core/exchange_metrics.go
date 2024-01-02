@@ -5,6 +5,8 @@ import (
 	"time"
 
 	"go.opentelemetry.io/otel/metric"
+
+	"github.com/celestiaorg/celestia-node/libs/utils"
 )
 
 type exchangeMetrics struct {
@@ -31,9 +33,7 @@ func (m *exchangeMetrics) observe(ctx context.Context, observeFn func(ctx contex
 		return
 	}
 
-	if ctx.Err() != nil {
-		ctx = context.Background()
-	}
+	ctx = utils.ResetContextOnError(ctx)
 
 	observeFn(ctx)
 }
