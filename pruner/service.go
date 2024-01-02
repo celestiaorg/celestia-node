@@ -3,8 +3,9 @@ package pruner
 import (
 	"context"
 	"fmt"
-	"github.com/ipfs/go-datastore"
 	"time"
+
+	"github.com/ipfs/go-datastore"
 
 	hdr "github.com/celestiaorg/go-header"
 
@@ -19,8 +20,8 @@ type Service struct {
 
 	getter hdr.Getter[*header.ExtendedHeader] // TODO @renaynay: expects a header service with access to sync head
 
-	checkpoint *checkpoint
-	blockTime  time.Duration
+	checkpoint        *checkpoint
+	numBlocksInWindow uint64
 
 	ctx    context.Context
 	cancel context.CancelFunc
@@ -43,21 +44,27 @@ func NewService(
 	}
 
 	// TODO @renaynay
-	numBlocksInWindow = uint64(time.Duration(window) / blockTime)
+	numBlocksInWindow := uint64(time.Duration(window) / blockTime)
 
 	return &Service{
-		pruner:     p,
-		window:     window,
-		getter:     getter,
-		checkpoint: newCheckpoint(ds),
-		blockTime:  blockTime,
-		doneCh:     make(chan struct{}),
-		params:     params,
+		pruner:            p,
+		window:            window,
+		getter:            getter,
+		checkpoint:        newCheckpoint(ds),
+		numBlocksInWindow: numBlocksInWindow,
+		doneCh:            make(chan struct{}),
+		params:            params,
 	}
 }
 
 func (s *Service) Start(context.Context) error {
 	s.ctx, s.cancel = context.WithCancel(context.Background())
+
+	err := s.loadCheckpoint(s.ctx)
+	if err != nil {
+		return err
+	}
+
 	go s.prune()
 	return nil
 }
@@ -74,6 +81,12 @@ func (s *Service) Stop(ctx context.Context) error {
 }
 
 func (s *Service) prune() {
+	if s.params.gcCycle == time.Duration(0) {
+		// Service is disabled, exit
+		close(s.doneCh)
+		return
+	}
+
 	ticker := time.NewTicker(s.params.gcCycle)
 	defer ticker.Stop()
 
@@ -100,6 +113,7 @@ func (s *Service) prune() {
 			err = s.updateCheckpoint(s.ctx, headers[len(headers)-1])
 			if err != nil {
 				// TODO @renaynay: record + report errors properly
+				continue
 			}
 		}
 	}
