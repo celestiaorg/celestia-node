@@ -2,11 +2,12 @@ package pruner
 
 import (
 	"context"
+	"testing"
+	"time"
+
 	"github.com/ipfs/go-datastore"
 	"github.com/ipfs/go-datastore/sync"
 	"github.com/stretchr/testify/require"
-	"testing"
-	"time"
 
 	hdr "github.com/celestiaorg/go-header"
 

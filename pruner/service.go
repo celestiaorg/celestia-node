@@ -3,10 +3,10 @@ package pruner
 import (
 	"context"
 	"fmt"
-	"github.com/ipfs/go-datastore"
 	"time"
 
 	hdr "github.com/celestiaorg/go-header"
+	"github.com/ipfs/go-datastore"
 
 	"github.com/celestiaorg/celestia-node/header"
 )
