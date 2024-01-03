@@ -60,6 +60,11 @@ func NewService(
 func (s *Service) Start(context.Context) error {
 	s.ctx, s.cancel = context.WithCancel(context.Background())
 
+	err := s.loadCheckpoint(s.ctx)
+	if err != nil {
+		return err
+	}
+
 	go s.prune()
 	return nil
 }
