@@ -12,14 +12,14 @@ import (
 
 var (
 	lastPrunedHeaderKey = datastore.NewKey("last_pruned_header")
-
-	numBlocksInWindow uint64
 )
 
 type checkpoint struct {
 	ds datastore.Datastore
 
 	lastPrunedHeader atomic.Pointer[header.ExtendedHeader]
+
+	// TODO @renaynay: keep track of failed roots to retry  in separate job
 }
 
 func newCheckpoint(ds datastore.Datastore) *checkpoint {
@@ -31,7 +31,7 @@ func newCheckpoint(ds datastore.Datastore) *checkpoint {
 func (s *Service) findPruneableHeaders(ctx context.Context) ([]*header.ExtendedHeader, error) {
 	lastPruned := s.lastPruned()
 	pruneCutoff := time.Now().Add(time.Duration(-s.window))
-	estimatedCutoffHeight := lastPruned.Height() + numBlocksInWindow
+	estimatedCutoffHeight := lastPruned.Height() + s.numBlocksInWindow
 
 	headers, err := s.getter.GetRangeByHeight(ctx, lastPruned, estimatedCutoffHeight)
 	if err != nil {

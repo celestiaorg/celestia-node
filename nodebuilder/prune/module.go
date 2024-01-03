@@ -14,7 +14,7 @@ import (
 func ConstructModule(tp node.Type) fx.Option {
 	baseComponents := fx.Options(
 		fx.Provide(fx.Annotate(
-			pruner.NewService,
+			newPruner,
 			fx.OnStart(func(ctx context.Context, p *pruner.Service) error {
 				return p.Start(ctx)
 			}),
