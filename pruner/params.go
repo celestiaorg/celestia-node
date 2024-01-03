@@ -1,6 +1,8 @@
 package pruner
 
-import "time"
+import (
+	"time"
+)
 
 type Option func(*Params)
 

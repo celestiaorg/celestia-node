@@ -5,8 +5,9 @@ import (
 	"fmt"
 	"time"
 
-	hdr "github.com/celestiaorg/go-header"
 	"github.com/ipfs/go-datastore"
+
+	hdr "github.com/celestiaorg/go-header"
 
 	"github.com/celestiaorg/celestia-node/header"
 )
@@ -107,6 +108,7 @@ func (s *Service) prune() {
 			err = s.updateCheckpoint(s.ctx, headers[len(headers)-1])
 			if err != nil {
 				// TODO @renaynay: record + report errors properly
+				continue
 			}
 		}
 	}
