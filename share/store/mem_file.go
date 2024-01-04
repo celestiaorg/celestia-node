@@ -11,7 +11,7 @@ import (
 	"github.com/celestiaorg/celestia-node/share/ipld"
 )
 
-var _ File = (*MemFile)(nil)
+var _ EdsFile = (*MemFile)(nil)
 
 type MemFile struct {
 	Eds *rsmt2d.ExtendedDataSquare
@@ -59,18 +59,6 @@ func (f *MemFile) AxisHalf(_ context.Context, axisType rsmt2d.Axis, axisIdx int)
 
 func (f *MemFile) Data(_ context.Context, namespace share.Namespace, rowIdx int) (share.NamespacedRow, error) {
 	shares := f.axis(rsmt2d.Row, rowIdx)
-	return ndDateFromShares(shares, namespace, rowIdx)
-}
-
-func (f *MemFile) EDS(_ context.Context) (*rsmt2d.ExtendedDataSquare, error) {
-	return f.Eds, nil
-}
-
-func (f *MemFile) axis(axisType rsmt2d.Axis, axisIdx int) []share.Share {
-	return getAxis(f.Eds, axisType, axisIdx)
-}
-
-func ndDateFromShares(shares []share.Share, namespace share.Namespace, rowIdx int) (share.NamespacedRow, error) {
 	bserv := ipld.NewMemBlockservice()
 	batchAdder := ipld.NewNmtNodeAdder(context.TODO(), bserv, ipld.MaxSizeBatchOption(len(shares)))
 	tree := wrapper.NewErasuredNamespacedMerkleTree(uint64(len(shares)/2), uint(rowIdx),
@@ -103,12 +91,16 @@ func ndDateFromShares(shares []share.Share, namespace share.Namespace, rowIdx in
 	}, nil
 }
 
-func getAxis(eds *rsmt2d.ExtendedDataSquare, axisType rsmt2d.Axis, axisIdx int) []share.Share {
+func (f *MemFile) EDS(_ context.Context) (*rsmt2d.ExtendedDataSquare, error) {
+	return f.Eds, nil
+}
+
+func (f *MemFile) axis(axisType rsmt2d.Axis, axisIdx int) []share.Share {
 	switch axisType {
 	case rsmt2d.Row:
-		return eds.Row(uint(axisIdx))
+		return f.Eds.Row(uint(axisIdx))
 	case rsmt2d.Col:
-		return eds.Col(uint(axisIdx))
+		return f.Eds.Col(uint(axisIdx))
 	default:
 		panic("unknown axis")
 	}

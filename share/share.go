@@ -54,8 +54,8 @@ type ShareWithProof struct { //nolint: revive
 }
 
 // Validate validates inclusion of the share under the given root CID.
-func (s *ShareWithProof) Validate(rootHash []byte, shrIdx, axisIdx, edsSize int) bool {
-	isParity := shrIdx >= edsSize/2 || axisIdx >= edsSize/2
+func (s *ShareWithProof) Validate(rootHash []byte, x, y, edsSize int) bool {
+	isParity := x >= edsSize/2 || y >= edsSize/2
 	namespace := ParitySharesNamespace
 	if !isParity {
 		namespace = GetNamespace(s.Share)
