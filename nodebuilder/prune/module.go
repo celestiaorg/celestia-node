@@ -2,18 +2,18 @@ package prune
 
 import (
 	"context"
-	"fmt"
 
 	"go.uber.org/fx"
 
 	"github.com/celestiaorg/celestia-node/nodebuilder/node"
 	"github.com/celestiaorg/celestia-node/pruner"
 	"github.com/celestiaorg/celestia-node/pruner/archival"
+	"github.com/celestiaorg/celestia-node/pruner/full"
 	"github.com/celestiaorg/celestia-node/pruner/light"
+	"github.com/celestiaorg/celestia-node/share/eds"
 )
 
 func ConstructModule(tp node.Type) fx.Option {
-	fmt.Print("\n\n\n\nconstructing pruning module\n\n\n\n")
 
 	baseComponents := fx.Options(
 		fx.Provide(fx.Annotate(
@@ -31,7 +31,15 @@ func ConstructModule(tp node.Type) fx.Option {
 	)
 
 	switch tp {
-	case node.Full, node.Bridge:
+	case node.Full:
+		return fx.Module("prune",
+			baseComponents,
+			fx.Provide(func(store *eds.Store) pruner.Pruner {
+				return full.NewPruner(store)
+			}),
+			fx.Supply(full.Window),
+		)
+	case node.Bridge:
 		return fx.Module("prune",
 			baseComponents,
 			fx.Provide(func() pruner.Pruner {
