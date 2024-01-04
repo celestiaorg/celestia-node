@@ -370,6 +370,10 @@ github.com/celestiaorg/go-fraud v0.2.0 h1:aaq2JiW0gTnhEdac3l51UCqSyJ4+VjFGTTpN83
 github.com/celestiaorg/go-fraud v0.2.0/go.mod h1:lNY1i4K6kUeeE60Z2VK8WXd+qXb8KRzfBhvwPkK6aUc=
 github.com/celestiaorg/go-header v0.5.3 h1:8CcflT6aIlcQXKNWcMekoBNs3EU50mEmDp17gbn1pP4=
 github.com/celestiaorg/go-header v0.5.3/go.mod h1:7BVR6myjRfACbqW1de6s8OjuK66XzHm8MpFNYr0G+nU=
+github.com/celestiaorg/go-header v0.5.2 h1:CFsTAXcs1o38JVd8YN1Naq/Yzs6m9orMPEPNpLEgFJA=
+github.com/celestiaorg/go-header v0.5.2/go.mod h1:7BVR6myjRfACbqW1de6s8OjuK66XzHm8MpFNYr0G+nU=
+github.com/celestiaorg/go-header v0.5.0-rc1 h1:DAcVW8V76VI5VU4fOAdXePpq15UFblwZIMZeHCAVr0w=
+github.com/celestiaorg/go-header v0.5.0-rc1/go.mod h1:H8xhnDLDLbkpwmWPhCaZyTnIV3dlVxBHPnxNXS2Qu6c=
 github.com/celestiaorg/go-libp2p-messenger v0.2.0 h1:/0MuPDcFamQMbw9xTZ73yImqgTO3jHV7wKHvWD/Irao=
 github.com/celestiaorg/go-libp2p-messenger v0.2.0/go.mod h1:s9PIhMi7ApOauIsfBcQwbr7m+HBzmVfDIS+QLdgzDSo=
 github.com/celestiaorg/merkletree v0.0.0-20210714075610-a84dc3ddbbe4 h1:CJdIpo8n5MFP2MwK0gSRcOVlDlFdQJO1p+FqdxYzmvc=
