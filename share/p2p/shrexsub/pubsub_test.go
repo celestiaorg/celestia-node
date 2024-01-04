@@ -45,7 +45,7 @@ func TestPubSub(t *testing.T) {
 		errExpected bool
 	}{
 		{
-			name: "vaild height, valid hash",
+			name: "valid height, valid hash",
 			notif: Notification{
 				Height:   1,
 				DataHash: rand.Bytes(32),
