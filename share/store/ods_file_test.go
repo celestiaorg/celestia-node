@@ -71,6 +71,7 @@ func TestReadOdsFile(t *testing.T) {
 	}
 }
 
+// Leopard full encode
 // BenchmarkAxisFromOdsFile/Size:32/Axis:row/squareHalf:first(original)-10         	  418206	      2545 ns/op
 // BenchmarkAxisFromOdsFile/Size:32/Axis:row/squareHalf:second(extended)-10        	    4968	    227265 ns/op
 // BenchmarkAxisFromOdsFile/Size:32/Axis:col/squareHalf:first(original)-10         	   57007	     20707 ns/op
@@ -83,6 +84,20 @@ func TestReadOdsFile(t *testing.T) {
 // BenchmarkAxisFromOdsFile/Size:128/Axis:row/squareHalf:second(extended)-10       	     428	   2616150 ns/op
 // BenchmarkAxisFromOdsFile/Size:128/Axis:col/squareHalf:first(original)-10        	   14338	     83598 ns/op
 // BenchmarkAxisFromOdsFile/Size:128/Axis:col/squareHalf:second(extended)-10       	     488	   2213146 ns/op
+
+// ReconstructSome, default codec
+// BenchmarkAxisFromOdsFile/Size:32/Axis:row/squareHalf:first(original)-10         	  455848	      2588 ns/op
+// BenchmarkAxisFromOdsFile/Size:32/Axis:row/squareHalf:second(extended)-10        	    9015	    203950 ns/op
+// BenchmarkAxisFromOdsFile/Size:32/Axis:col/squareHalf:first(original)-10         	   52734	     21178 ns/op
+// BenchmarkAxisFromOdsFile/Size:32/Axis:col/squareHalf:second(extended)-10        	    8830	    127452 ns/op
+// BenchmarkAxisFromOdsFile/Size:64/Axis:row/squareHalf:first(original)-10         	  303834	      4763 ns/op
+// BenchmarkAxisFromOdsFile/Size:64/Axis:row/squareHalf:second(extended)-10        	    2940	    426246 ns/op
+// BenchmarkAxisFromOdsFile/Size:64/Axis:col/squareHalf:first(original)-10         	   27758	     42842 ns/op
+// BenchmarkAxisFromOdsFile/Size:64/Axis:col/squareHalf:second(extended)-10        	    3385	    353868 ns/op
+// BenchmarkAxisFromOdsFile/Size:128/Axis:row/squareHalf:first(original)-10        	  172086	      6455 ns/op
+// BenchmarkAxisFromOdsFile/Size:128/Axis:row/squareHalf:second(extended)-10       	     672	   1550386 ns/op
+// BenchmarkAxisFromOdsFile/Size:128/Axis:col/squareHalf:first(original)-10        	   14202	     84316 ns/op
+// BenchmarkAxisFromOdsFile/Size:128/Axis:col/squareHalf:second(extended)-10       	     978	   1230980 ns/op
 func BenchmarkAxisFromOdsFile(b *testing.B) {
 	minSize, maxSize := 32, 128
 	dir := b.TempDir()

@@ -237,21 +237,21 @@ func computeAxisHalf(
 
 			shards := make([][]byte, f.Size())
 			copy(shards, original)
-			for j := len(original); j < len(shards); j++ {
-				shards[j] = make([]byte, len(original[0]))
-			}
-
-			//target := make([]bool, f.Size())
-			//target[axisIdx] = true
-			//
-			//err = enc.ReconstructSome(shards, target)
-			//if err != nil {
-			//	return fmt.Errorf("reconstruct some: %w", err)
+			//for j := len(original); j < len(shards); j++ {
+			//	shards[j] = make([]byte, len(original[0]))
 			//}
 
-			err = enc.Encode(shards)
+			//err = enc.Encode(shards)
+			//if err != nil {
+			//	return fmt.Errorf("encode: %w", err)
+			//}
+
+			target := make([]bool, f.Size())
+			target[axisIdx] = true
+
+			err = enc.ReconstructSome(shards, target)
 			if err != nil {
-				return fmt.Errorf("encode: %w", err)
+				return fmt.Errorf("reconstruct some: %w", err)
 			}
 
 			shares[i] = shards[axisIdx]
@@ -269,18 +269,26 @@ func (f *OdsFile) axis(ctx context.Context, axisType rsmt2d.Axis, axisIdx int) (
 		return nil, err
 	}
 
-	return extendShares(original)
+	return extendShares(f.memPool.codec, original)
 }
 
-func extendShares(original []share.Share) ([]share.Share, error) {
-	parity, err := rsmt2d.NewLeoRSCodec().Encode(original)
+func extendShares(codec Codec, original []share.Share) ([]share.Share, error) {
+	sqLen := len(original) * 2
+	enc, err := codec.Encoder(sqLen)
+	if err != nil {
+		return nil, fmt.Errorf("encoder: %w", err)
+	}
+
+	shares := make([]share.Share, sqLen)
+	copy(shares, original)
+	for j := len(original); j < len(shares); j++ {
+		shares[j] = make([]byte, len(original[0]))
+	}
+
+	err = enc.Encode(shares)
 	if err != nil {
 		return nil, err
 	}
-
-	shares := make([]share.Share, 0, len(original)+len(parity))
-	shares = append(shares, original...)
-	shares = append(shares, parity...)
 
 	return shares, nil
 }
