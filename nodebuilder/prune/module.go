@@ -39,7 +39,7 @@ func ConstructModule(tp node.Type) fx.Option {
 			fx.Provide(func() pruner.Pruner {
 				return light.NewPruner()
 			}),
-			fx.Supply(archival.Window), // TODO @renaynay: turn this into light.Window in following PR
+			fx.Supply(light.Window),
 		)
 	default:
 		panic("unknown node type")
