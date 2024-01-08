@@ -8,6 +8,8 @@ import (
 	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/metric"
+
+	"github.com/celestiaorg/celestia-node/libs/utils"
 )
 
 const (
@@ -24,9 +26,7 @@ const (
 	advertiseFailedKey = "failed"
 )
 
-var (
-	meter = otel.Meter("share_discovery")
-)
+var meter = otel.Meter("share_discovery")
 
 type handlePeerResult string
 
@@ -118,9 +118,7 @@ func (m *metrics) observeFindPeers(ctx context.Context, isEnoughPeers bool) {
 	if m == nil {
 		return
 	}
-	if ctx.Err() != nil {
-		ctx = context.Background()
-	}
+	ctx = utils.ResetContextOnError(ctx)
 
 	m.discoveryResult.Add(ctx, 1,
 		metric.WithAttributes(
@@ -131,9 +129,7 @@ func (m *metrics) observeHandlePeer(ctx context.Context, result handlePeerResult
 	if m == nil {
 		return
 	}
-	if ctx.Err() != nil {
-		ctx = context.Background()
-	}
+	ctx = utils.ResetContextOnError(ctx)
 
 	m.handlePeerResult.Add(ctx, 1,
 		metric.WithAttributes(
@@ -144,9 +140,7 @@ func (m *metrics) observeAdvertise(ctx context.Context, err error) {
 	if m == nil {
 		return
 	}
-	if ctx.Err() != nil {
-		ctx = context.Background()
-	}
+	ctx = utils.ResetContextOnError(ctx)
 
 	m.advertise.Add(ctx, 1,
 		metric.WithAttributes(
