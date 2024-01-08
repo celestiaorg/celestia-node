@@ -6,11 +6,14 @@ import (
 	"time"
 
 	"github.com/ipfs/go-datastore"
+	logging "github.com/ipfs/go-log/v2"
 
 	hdr "github.com/celestiaorg/go-header"
 
 	"github.com/celestiaorg/celestia-node/header"
 )
+
+var log = logging.Logger("pruner/service")
 
 // Service handles the pruning routine for the node using the
 // prune Pruner.
@@ -21,6 +24,7 @@ type Service struct {
 	getter hdr.Getter[*header.ExtendedHeader] // TODO @renaynay: expects a header service with access to sync head
 
 	checkpoint        *checkpoint
+	failedHeaders     map[uint64]error
 	maxPruneablePerGC uint64
 	numBlocksInWindow uint64
 
@@ -28,7 +32,8 @@ type Service struct {
 	cancel context.CancelFunc
 	doneCh chan struct{}
 
-	params Params
+	params  Params
+	metrics *metrics
 }
 
 func NewService(
@@ -110,9 +115,10 @@ func (s *Service) prune() {
 				err = s.pruner.Prune(pruneCtx, eh)
 				if err != nil {
 					// TODO: @distractedm1nd: updatecheckpoint should be called on the last NON-ERRORED header
-					// TODO @renaynay: record + report errors properly
-					continue
+					log.Errorf("failed to prune header %d: %s", eh.Height(), err)
+					s.failedHeaders[eh.Height()] = err
 				}
+				s.metrics.observePrune(pruneCtx, err != nil)
 			}
 			cancel()
 
