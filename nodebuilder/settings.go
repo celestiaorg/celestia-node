@@ -30,6 +30,7 @@ import (
 	"github.com/celestiaorg/celestia-node/nodebuilder/node"
 	"github.com/celestiaorg/celestia-node/nodebuilder/p2p"
 	"github.com/celestiaorg/celestia-node/nodebuilder/share"
+	"github.com/celestiaorg/celestia-node/pruner"
 	"github.com/celestiaorg/celestia-node/state"
 )
 
@@ -93,6 +94,7 @@ func WithMetrics(metricOpts []otlpmetrichttp.Option, nodeType node.Type) fx.Opti
 		fx.Invoke(fraud.WithMetrics[*header.ExtendedHeader]),
 		fx.Invoke(node.WithMetrics),
 		fx.Invoke(share.WithDiscoveryMetrics),
+		fx.Invoke(pruner.WithPrunerMetrics),
 	)
 
 	samplingMetrics := fx.Options(

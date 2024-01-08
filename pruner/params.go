@@ -33,3 +33,9 @@ func WithDisabledGC() Option {
 		p.gcCycle = time.Duration(0)
 	}
 }
+
+// WithPrunerMetrics is a utility function to turn on pruner metrics and that is
+// expected to be "invoked" by the fx lifecycle.
+func WithPrunerMetrics(s *Service) error {
+	return s.WithMetrics()
+}
