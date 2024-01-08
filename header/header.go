@@ -67,7 +67,7 @@ func MakeExtendedHeader(
 		Commit:       comm,
 		ValidatorSet: vals,
 	}
-	return eh, nil
+	return eh, eh.Validate()
 }
 
 func (eh *ExtendedHeader) New() *ExtendedHeader {
