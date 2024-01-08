@@ -6,14 +6,11 @@ import (
 	"time"
 
 	"github.com/ipfs/go-datastore"
-	logging "github.com/ipfs/go-log/v2"
 
 	hdr "github.com/celestiaorg/go-header"
 
 	"github.com/celestiaorg/celestia-node/header"
 )
-
-var log = logging.Logger("pruner/service")
 
 // Service handles the pruning routine for the node using the
 // prune Pruner.
@@ -109,12 +106,15 @@ func (s *Service) prune() {
 			}
 			// TODO @renaynay: make deadline a param ? / configurable?
 			pruneCtx, cancel := context.WithDeadline(s.ctx, time.Now().Add(time.Minute))
-			err = s.pruner.Prune(pruneCtx, headers...)
-			cancel()
-			if err != nil {
-				// TODO @renaynay: record + report errors properly
-				continue
+			for _, eh := range headers {
+				err = s.pruner.Prune(pruneCtx, eh)
+				if err != nil {
+					// TODO: @distractedm1nd: updatecheckpoint should be called on the last NON-ERRORED header
+					// TODO @renaynay: record + report errors properly
+					continue
+				}
 			}
+			cancel()
 
 			err = s.updateCheckpoint(s.ctx, headers[len(headers)-1])
 			if err != nil {
