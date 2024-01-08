@@ -21,7 +21,7 @@ import (
 
 // TODO @renaynay: tweak/document
 var (
-	availWindow = AvailabilityWindow(time.Millisecond)
+	availWindow = AvailabilityWindow(time.Millisecond * 200)
 	blockTime   = time.Millisecond * 100
 	gcCycle     = time.Millisecond * 500
 )
@@ -57,7 +57,8 @@ func TestService(t *testing.T) {
 	err = serv.Stop(ctx)
 	require.NoError(t, err)
 
-	t.Log(len(mp.deletedHeaderHashes)) // TODO @renaynay: expect something here
+	expected := time.Second/blockTime - time.Duration(availWindow)/blockTime
+	require.Len(t, mp.deletedHeaderHashes, int(expected))
 }
 
 func TestFindPruneableHeaders(t *testing.T) {
