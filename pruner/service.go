@@ -6,11 +6,14 @@ import (
 	"time"
 
 	"github.com/ipfs/go-datastore"
+	logging "github.com/ipfs/go-log/v2"
 
 	hdr "github.com/celestiaorg/go-header"
 
 	"github.com/celestiaorg/celestia-node/header"
 )
+
+var log = logging.Logger("pruner/service")
 
 // Service handles the pruning routine for the node using the
 // prune Pruner.
@@ -21,6 +24,7 @@ type Service struct {
 	getter hdr.Getter[*header.ExtendedHeader] // TODO @renaynay: expects a header service with access to sync head
 
 	checkpoint        *checkpoint
+	maxPruneablePerGC uint64
 	numBlocksInWindow uint64
 
 	ctx    context.Context
@@ -52,6 +56,8 @@ func NewService(
 		getter:            getter,
 		checkpoint:        newCheckpoint(ds),
 		numBlocksInWindow: numBlocksInWindow,
+		// TODO @distractedmind: make this configurable?
+		maxPruneablePerGC: numBlocksInWindow * 2,
 		doneCh:            make(chan struct{}),
 		params:            params,
 	}

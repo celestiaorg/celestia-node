@@ -52,7 +52,12 @@ func (s *Service) findPruneableHeaders(ctx context.Context) ([]*header.ExtendedH
 	// TODO: This is really inefficient in the case that lastPruned is the default value, or if the
 	// node has been offline for a long time. Instead of increasing the boundary by one in the for
 	// loop we could increase by a range every iteration
+	headerCount := len(headers)
 	for {
+		if headerCount > int(s.maxPruneablePerGC) {
+			headers = headers[:s.maxPruneablePerGC]
+			break
+		}
 		lastHeader := headers[len(headers)-1]
 		if lastHeader.Time().After(pruneCutoff) {
 			break
@@ -63,6 +68,7 @@ func (s *Service) findPruneableHeaders(ctx context.Context) ([]*header.ExtendedH
 			return nil, err
 		}
 		headers = append(headers, nextHeader)
+		headerCount++
 	}
 
 	for i, h := range headers {
