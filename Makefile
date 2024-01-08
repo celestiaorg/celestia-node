@@ -121,19 +121,19 @@ test-unit-race:
 	@go test -race `go list ./... | grep -v nodebuilder/tests`
 .PHONY: test-unit-race
 
-## test-swamp: Running swamp tests located in nodebuilder/tests
-test-swamp:
-	@echo "--> Running swamp tests"
+## test-integration: Running /integration tests located in nodebuilder/tests
+test-integration:
+	@echo "--> Running integrations tests"
 	@go test ./nodebuilder/tests
-.PHONY: test-swamp
+.PHONY: test-integration
 
-## test-swamp-race: Running swamp tests with data race detector located in node/tests
-test-swamp-race:
-	@echo "--> Running swamp tests with data race detector"
+## test-integration-race: Running integration tests with data race detector located in node/tests
+test-integration-race:
+	@echo "--> Running integration tests with data race detector"
 	@go test -race ./nodebuilder/tests
-.PHONY: test-swamp-race
+.PHONY: test-integration-race
 
-## test: Running both unit and swamp tests
+## test: Running both unit and integrations tests
 test:
 	@echo "--> Running all tests without data race detector"
 	@go test ./...
