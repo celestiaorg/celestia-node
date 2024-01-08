@@ -1,6 +1,6 @@
 # Swamp: In-Memory Test Tool
 
-Swamp is a testing tool that creates an environment for deploying `celestia-node` and testing instances against each other.
+Swamp is our integration testing tool that creates an environment for deploying `celestia-node` and testing instances against each other.
 While the swamp takes care of setting up networking and initial configuration of node types, the user can focus on tailoring test scenarios.
 
 ## Usage
@@ -38,7 +38,7 @@ require.NoError(t, err)
 light := sw.NewLightClient(node.WithTrustedPeer(addrs[0].String()))
 ```
 
-## Concenptual overview
+## Conceptual overview
 
 Each of the test scenario requires flexibility in network topology.
 The user can define the necessary amount of each type of node and be able to control each of them.
