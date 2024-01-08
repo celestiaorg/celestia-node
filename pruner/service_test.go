@@ -152,10 +152,8 @@ type mockPruner struct {
 	deletedHeaderHashes []hdr.Hash
 }
 
-func (mp *mockPruner) Prune(_ context.Context, headers ...*header.ExtendedHeader) error {
-	for _, h := range headers {
-		mp.deletedHeaderHashes = append(mp.deletedHeaderHashes, h.Hash())
-	}
+func (mp *mockPruner) Prune(_ context.Context, h *header.ExtendedHeader) error {
+	mp.deletedHeaderHashes = append(mp.deletedHeaderHashes, h.Hash())
 	return nil
 }
 

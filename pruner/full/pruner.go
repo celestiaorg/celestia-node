@@ -21,12 +21,7 @@ func NewPruner(store *eds.Store) *Pruner {
 	}
 }
 
-func (p *Pruner) Prune(ctx context.Context, headers ...*header.ExtendedHeader) error {
-	for _, h := range headers {
-		log.Debugf("pruning header %s", h.DAH.Hash())
-		if err := p.store.Remove(ctx, h.DAH.Hash()); err != nil {
-			return err
-		}
-	}
-	return nil
+func (p *Pruner) Prune(ctx context.Context, eh *header.ExtendedHeader) error {
+	log.Debugf("pruning header %s", eh.DAH.Hash())
+	return p.store.Remove(ctx, eh.DAH.Hash())
 }
