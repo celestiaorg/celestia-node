@@ -110,7 +110,7 @@ type API struct {
 			fee state.Int,
 			gasLimit uint64,
 		) (*state.TxResponse, error) `perm:"write"`
-		SubmitTx         func(ctx context.Context, tx state.Tx) (*state.TxResponse, error) `perm:"write"`
+		SubmitTx         func(ctx context.Context, tx state.Tx) (*state.TxResponse, error) `perm:"read"`
 		SubmitPayForBlob func(
 			ctx context.Context,
 			fee state.Int,
