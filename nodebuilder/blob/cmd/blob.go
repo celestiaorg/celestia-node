@@ -191,38 +191,23 @@ var submitCmd = &cobra.Command{
 			return err
 		}
 
-		// In case of no file input, get the namespace and blob from the arguments
-		if path == "" {
-			parsedBlob, err := getBlobFromArguments(args[0], args[1])
+		jsonBlobs := make([]blobJSON, 0)
+		// In case of there is a file input, get the namespace and blob from the arguments
+		if path != "" {
+			paresdBlobs, err := parseSubmitBlobs(path)
 			if err != nil {
 				return err
 			}
 
-			height, err := client.Blob.Submit(
-				cmd.Context(),
-				[]*blob.Blob{parsedBlob},
-				&blob.SubmitOptions{Fee: fee, GasLimit: gasLimit},
-			)
-
-			response := struct {
-				Height      uint64            `json:"height"`
-				Commitments []blob.Commitment `json:"commitments"`
-			}{
-				Height:      height,
-				Commitments: []blob.Commitment{parsedBlob.Commitment},
-			}
-			return cmdnode.PrintOutput(response, err, nil)
-		}
-
-		paresdBlobs, err := parseSubmitBlobs(path)
-		if err != nil {
-			return err
+			jsonBlobs = append(jsonBlobs, paresdBlobs...)
+		} else {
+			jsonBlobs = append(jsonBlobs, blobJSON{Namespace: args[0], BlobData: args[1]})
 		}
 
 		var blobs []*blob.Blob
 		var conmmitments []blob.Commitment
-		for _, paresdBlob := range paresdBlobs {
-			blob, err := getBlobFromArguments(paresdBlob.Namespace, paresdBlob.BlobData)
+		for _, jsonBlob := range jsonBlobs {
+			blob, err := getBlobFromArguments(jsonBlob.Namespace, jsonBlob.BlobData)
 			if err != nil {
 				return err
 			}
