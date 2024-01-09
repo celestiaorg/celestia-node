@@ -61,7 +61,7 @@ func init() {
 	// unset the default value to avoid users confusion
 	submitCmd.PersistentFlags().Lookup("fee").DefValue = "0"
 
-	submitCmd.PersistentFlags().String(FlagFileInput, "", "Specify the file input")
+	submitCmd.PersistentFlags().String(flagFileInput, "", "Specify the file input")
 }
 
 var Cmd = &cobra.Command{
@@ -140,7 +140,7 @@ var getAllCmd = &cobra.Command{
 var submitCmd = &cobra.Command{
 	Use: "submit [namespace] [blobData]",
 	Args: func(cmd *cobra.Command, args []string) error {
-		path, err := cmd.Flags().GetString(FlagFileInput)
+		path, err := cmd.Flags().GetString(flagFileInput)
 		if err != nil {
 			return err
 		}
@@ -186,7 +186,7 @@ var submitCmd = &cobra.Command{
 		}
 		defer client.Close()
 
-		path, err := cmd.Flags().GetString(FlagFileInput)
+		path, err := cmd.Flags().GetString(flagFileInput)
 		if err != nil {
 			return err
 		}
