@@ -133,8 +133,8 @@ jobs:
         with:
           go-version: ${{ inputs.go-version }}
 
-      - name: Swamp Tests
-        run: make test-swamp
+      - name: Integration Tests
+        run: make test-integration
 
-      - name: Swamp Tests with Race Detector
-        run: make test-swamp-race
+      - name: Integration Tests with Race Detector
+        run: make test-integration-race
