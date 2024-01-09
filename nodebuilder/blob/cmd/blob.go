@@ -2,6 +2,7 @@ package cmd
 
 import (
 	"encoding/base64"
+	"encoding/hex"
 	"fmt"
 	"reflect"
 	"strconv"
@@ -148,7 +149,7 @@ var submitCmd = &cobra.Command{
 			return fmt.Errorf("error parsing a namespace:%v", err)
 		}
 
-		parsedBlob, err := blob.NewBlobV0(namespace, []byte(args[1]))
+		parsedBlob, err := blob.NewBlobV0(namespace, decodeBlobDataFromArg(args[1]))
 		if err != nil {
 			return fmt.Errorf("error creating a blob:%v", err)
 		}
@@ -230,4 +231,15 @@ func formatData(data interface{}) interface{} {
 		ShareVersion: b.ShareVersion,
 		Commitment:   b.Commitment,
 	}
+}
+
+func decodeBlobDataFromArg(arg string) []byte {
+	// check if arg is a hex string
+	if decoded, err := hex.DecodeString(arg); err == nil {
+		return decoded
+	}
+	if decoded, err := base64.StdEncoding.DecodeString(arg); err == nil {
+		return decoded
+	}
+	return []byte(arg)
 }
