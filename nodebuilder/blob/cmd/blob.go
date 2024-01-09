@@ -23,7 +23,7 @@ var (
 
 	// FlagFileInput allows the user to provide file path to the json file
 	// for submitting multiple blobs.
-	FlagFileInput = "input-file"
+	flagFileInput = "input-file"
 )
 
 func init() {
