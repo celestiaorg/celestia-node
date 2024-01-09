@@ -17,7 +17,5 @@ func newPrunerService(
 	ds datastore.Batching,
 	opts ...pruner.Option,
 ) *pruner.Service {
-	// TODO @renaynay: remove this once pruning implementation
-	opts = append(opts, pruner.WithDisabledGC())
 	return pruner.NewService(p, window, getter, ds, p2p.BlockTime, opts...)
 }
