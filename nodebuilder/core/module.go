@@ -56,10 +56,11 @@ func ConstructModule(tp node.Type, cfg *Config, options ...fx.Option) fx.Option 
 					pubsub *shrexsub.PubSub,
 					construct header.ConstructFn,
 					store *eds.Store,
+					chainID p2p.Network,
 				) (*core.Listener, error) {
 					var opts []core.Option
 					if MetricsEnabled {
-						opts = append(opts, core.WithMetrics())
+						opts = append(opts, core.WithMetrics(), core.WithChainID(chainID))
 					}
 
 					return core.NewListener(bcast, fetcher, pubsub.Broadcast, construct, store, p2p.BlockTime, opts...)

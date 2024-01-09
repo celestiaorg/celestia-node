@@ -41,11 +41,12 @@ type Listener struct {
 	headerBroadcaster libhead.Broadcaster[*header.ExtendedHeader]
 	hashBroadcaster   shrexsub.BroadcastFn
 
-	listenerTimeout time.Duration
-
 	metrics *listenerMetrics
 
-	cancel context.CancelFunc
+	chainID string
+
+	listenerTimeout time.Duration
+	cancel          context.CancelFunc
 }
 
 func NewListener(
@@ -81,6 +82,7 @@ func NewListener(
 		store:             store,
 		listenerTimeout:   5 * blocktime,
 		metrics:           metrics,
+		chainID:           p.chainID,
 	}, nil
 }
 
@@ -161,6 +163,13 @@ func (cl *Listener) listen(ctx context.Context, sub <-chan types.EventDataSigned
 		case b, ok := <-sub:
 			if !ok {
 				return errors.New("underlying subscription was closed")
+			}
+
+			if cl.chainID != "" && b.Header.ChainID != cl.chainID {
+				wrongChainIDErr := fmt.Sprintf("listener: received block with unexpected chain ID: expected %s,"+
+					" received %s", cl.chainID, b.Header.ChainID)
+				log.Warn(wrongChainIDErr)
+				return errors.New(wrongChainIDErr)
 			}
 
 			log.Debugw("listener: new block from core", "height", b.Header.Height)
