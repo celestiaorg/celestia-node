@@ -21,7 +21,7 @@ var (
 	fee      int64
 	gasLimit uint64
 
-	// FlagFileInput allows the user to provide file path to the json file
+	// flagFileInput allows the user to provide file path to the json file
 	// for submitting multiple blobs.
 	flagFileInput = "input-file"
 )
@@ -155,7 +155,7 @@ var submitCmd = &cobra.Command{
 		}
 
 		if len(args) < 2 {
-			return errors.New("PayForBlobs requires two arguments: namespace and blobData")
+			return errors.New("submit requires two arguments: namespace and blobData")
 		}
 
 		return nil
@@ -205,14 +205,14 @@ var submitCmd = &cobra.Command{
 		}
 
 		var blobs []*blob.Blob
-		var conmmitments []blob.Commitment
+		var commitments []blob.Commitment
 		for _, jsonBlob := range jsonBlobs {
 			blob, err := getBlobFromArguments(jsonBlob.Namespace, jsonBlob.BlobData)
 			if err != nil {
 				return err
 			}
 			blobs = append(blobs, blob)
-			conmmitments = append(conmmitments, blob.Commitment)
+			commitments = append(commitments, blob.Commitment)
 		}
 
 		height, err := client.Blob.Submit(
@@ -226,7 +226,7 @@ var submitCmd = &cobra.Command{
 			Commitments []blob.Commitment `json:"commitments"`
 		}{
 			Height:      height,
-			Commitments: conmmitments,
+			Commitments: commitments,
 		}
 		return cmdnode.PrintOutput(response, err, nil)
 	},
