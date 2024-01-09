@@ -1,10 +1,13 @@
 package utils
 
 import (
+	"errors"
 	"fmt"
 	"net"
 	"strings"
 )
+
+var ErrInvalidIP = errors.New("invalid IP address or hostname given")
 
 // SanitizeAddr trims leading protocol scheme and port from the given
 // IP address or hostname if present.
@@ -16,7 +19,7 @@ func SanitizeAddr(addr string) (string, error) {
 	addr = strings.TrimSuffix(addr, "/")
 	addr = strings.Split(addr, ":")[0]
 	if addr == "" {
-		return "", fmt.Errorf("invalid IP address or hostname given: %s", original)
+		return "", fmt.Errorf("%w: %s", ErrInvalidIP, original)
 	}
 	return addr, nil
 }
