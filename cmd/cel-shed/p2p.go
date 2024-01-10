@@ -4,7 +4,9 @@ import (
 	"crypto/rand"
 	"encoding/hex"
 	"fmt"
+	"os"
 
+	cmdnode "github.com/celestiaorg/celestia-node/cmd"
 	"github.com/libp2p/go-libp2p/core/crypto"
 	"github.com/libp2p/go-libp2p/core/peer"
 	"github.com/spf13/cobra"
@@ -33,7 +35,7 @@ var p2pNewKeyCmd = &cobra.Command{
 			return err
 		}
 
-		fmt.Println(hex.EncodeToString(raw))
+		cmdnode.PrintDiscreetly(os.Stderr, "**Important** write this private key in a safe place. Do not share it to anyone.", hex.EncodeToString(raw))
 		return nil
 	},
 	Args: cobra.NoArgs,

@@ -5,9 +5,11 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
+	"io"
 	"os"
 	"strings"
 
+	"github.com/muesli/termenv"
 	"github.com/spf13/cobra"
 	flag "github.com/spf13/pflag"
 
@@ -134,4 +136,18 @@ func WithFlagSet(fset []*flag.FlagSet) func(*cobra.Command) {
 			c.Flags().AddFlagSet(set)
 		}
 	}
+}
+
+// PrintDiscreetly Print a secret string to an alternate screen, so the string isn't printed to the terminal.
+func PrintDiscreetly(w io.Writer, promptMsg, secretMsg string) error {
+	output := termenv.NewOutput(w)
+	output.AltScreen()
+	defer output.ExitAltScreen()
+	if _, err := fmt.Fprintf(output, "%s\n\n%s\n\nPress 'Enter' key to continue.", promptMsg, secretMsg); err != nil {
+		return err
+	}
+	if _, err := fmt.Scanln(); err != nil {
+		return err
+	}
+	return nil
 }
