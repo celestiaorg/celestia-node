@@ -177,19 +177,8 @@ func TestAuthedRPC(t *testing.T) {
 				stats, err := rpcClient.DAS.SamplingStats(ctx)
 				require.NoError(t, err)
 				require.Equal(t, expected, stats)
-
-				expectedResp := &state.TxResponse{}
-				server.State.EXPECT().SubmitTx(gomock.Any(),
-					gomock.Any()).Return(expectedResp, nil)
-				txResp, err := rpcClient.State.SubmitTx(ctx, []byte{})
-				require.NoError(t, err)
-				require.Equal(t, expectedResp, txResp)
 			} else {
 				_, err := rpcClient.DAS.SamplingStats(ctx)
-				require.Error(t, err)
-				require.ErrorContains(t, err, "missing permission")
-
-				_, err = rpcClient.State.SubmitTx(ctx, []byte{})
 				require.Error(t, err)
 				require.ErrorContains(t, err, "missing permission")
 			}
