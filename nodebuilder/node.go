@@ -109,7 +109,7 @@ func (n *Node) Start(ctx context.Context) error {
 	}
 
 	log.Infof("\n\n/_____/  /_____/  /_____/  /_____/  /_____/ \n\nStarted celestia DA node \nnode "+
-		"type: 	%s\nnetwork: 	%s\n\n/_____/  /_____/  /_____/  /_____/  /_____/ \n", strings.ToLower(n.Type.String()),
+		"version: 	%s\nnode type: 	%s\nnetwork: 	%s\n\n/_____/  /_____/  /_____/  /_____/  /_____/ \n", node.GetBuildInfo().SemanticVersion, strings.ToLower(n.Type.String()),
 		n.Network)
 
 	addrs, err := peer.AddrInfoToP2pAddrs(host.InfoFromHost(n.Host))
