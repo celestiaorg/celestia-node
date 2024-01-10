@@ -4,9 +4,10 @@ import (
 	"context"
 	"fmt"
 
+	"github.com/ipfs/boxo/blockservice"
+
 	"github.com/celestiaorg/celestia-app/pkg/da"
 	"github.com/celestiaorg/rsmt2d"
-	"github.com/ipfs/boxo/blockservice"
 
 	"github.com/celestiaorg/celestia-node/share/ipld"
 )

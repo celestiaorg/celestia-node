@@ -12,6 +12,7 @@ import (
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/metric"
 
+	"github.com/celestiaorg/celestia-node/libs/utils"
 	"github.com/celestiaorg/celestia-node/share/p2p/shrexsub"
 )
 
@@ -46,9 +47,7 @@ const (
 	//  validated  	 			 blacklisted
 )
 
-var (
-	meter = otel.Meter("shrex_peer_manager")
-)
+var meter = otel.Meter("shrex_peer_manager")
 
 type blacklistPeerReason string
 
@@ -169,9 +168,7 @@ func (m *metrics) observeGetPeer(
 	if m == nil {
 		return
 	}
-	if ctx.Err() != nil {
-		ctx = context.Background()
-	}
+	ctx = utils.ResetContextOnError(ctx)
 	m.getPeer.Add(ctx, 1,
 		metric.WithAttributes(
 			attribute.String(sourceKey, string(source)),
@@ -222,9 +219,7 @@ func (m *metrics) validationObserver(validator shrexsub.ValidatorFn) shrexsub.Va
 			resStr = "unknown"
 		}
 
-		if ctx.Err() != nil {
-			ctx = context.Background()
-		}
+		ctx = utils.ResetContextOnError(ctx)
 
 		m.validationResult.Add(ctx, 1,
 			metric.WithAttributes(
