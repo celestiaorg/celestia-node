@@ -123,7 +123,7 @@ func (cl *Listener) runSubscriber(ctx context.Context, sub <-chan types.EventDat
 		}
 		if errors.Is(err, errInvalidSubscription) {
 			// stop node if there is a critical issue with the block subscription
-			log.Fatalf("listener: %w", err)
+			log.Fatalf("listener: %v", err)
 		}
 
 		log.Warnw("listener: subscriber error, resubscribing...", "err", err)
