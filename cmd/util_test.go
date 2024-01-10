@@ -79,3 +79,44 @@ func Test_parseNamespaceID(t *testing.T) {
 		})
 	}
 }
+
+func Test_decodeBytes(t *testing.T) {
+	type testCase struct {
+		name    string
+		param   string
+		want    []uint8
+		wantErr bool
+	}
+	testCases := []testCase{
+		{
+			param:   "0x0c204d39600fddd3",
+			name:    "8 byte hex encoded namespace ID gets left padded",
+			want:    []uint8([]byte{0xc, 0x20, 0x4d, 0x39, 0x60, 0xf, 0xdd, 0xd3}),
+			wantErr: false,
+		},
+		{
+			name:    "not base64",
+			param:   "Hi blob",
+			want:    nil,
+			wantErr: true,
+		},
+		{
+			name:    "short hex ecnoded string for blob",
+			param:   "0x676d",
+			want:    []byte{0x67, 0x6d},
+			wantErr: false,
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			got, err := DecodeToBytes(tc.param)
+			if tc.wantErr {
+				assert.Error(t, err)
+				return
+			}
+			assert.NoError(t, err)
+			assert.Equal(t, tc.want, got)
+		})
+	}
+}
