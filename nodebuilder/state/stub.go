@@ -17,10 +17,6 @@ var ErrNoStateAccess = errors.New("node is running without state access. run wit
 // to a core endpoint.
 type stubbedStateModule struct{}
 
-func (s stubbedStateModule) IsStopped(context.Context) bool {
-	return true
-}
-
 func (s stubbedStateModule) AccountAddress(context.Context) (state.Address, error) {
 	return state.Address{}, ErrNoStateAccess
 }
