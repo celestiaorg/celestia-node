@@ -156,7 +156,7 @@ func TestListenerWithWrongChainRPC(t *testing.T) {
 	require.NoError(t, err)
 
 	err = cl.listen(ctx, sub)
-	require.Errorf(t, err, "wrong chainID: wrong-chain-rpc")
+	assert.ErrorContains(t, err, "unexpected chain ID")
 }
 
 func createMocknetWithTwoPubsubEndpoints(ctx context.Context, t *testing.T) (*pubsub.PubSub, *pubsub.PubSub) {
