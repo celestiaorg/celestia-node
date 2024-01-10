@@ -23,6 +23,8 @@ import (
 var (
 	tracer                 = otel.Tracer("core/listener")
 	retrySubscriptionDelay = 5 * time.Second
+
+	errInvalidSubscription = errors.New("invalid subscription")
 )
 
 // Listener is responsible for listening to Core for
@@ -119,6 +121,10 @@ func (cl *Listener) runSubscriber(ctx context.Context, sub <-chan types.EventDat
 			// listener stopped because external context was canceled
 			return
 		}
+		if errors.Is(err, errInvalidSubscription) {
+			// stop node if there is a critical issue with the block subscription
+			log.Fatalf("listener: %w", err)
+		}
 
 		log.Warnw("listener: subscriber error, resubscribing...", "err", err)
 		sub = cl.resubscribe(ctx)
@@ -166,10 +172,9 @@ func (cl *Listener) listen(ctx context.Context, sub <-chan types.EventDataSigned
 			}
 
 			if cl.chainID != "" && b.Header.ChainID != cl.chainID {
-				wrongChainIDErr := fmt.Sprintf("listener: received block with unexpected chain ID: expected %s,"+
+				log.Errorf("listener: received block with unexpected chain ID: expected %s,"+
 					" received %s", cl.chainID, b.Header.ChainID)
-				log.Warn(wrongChainIDErr)
-				return errors.New(wrongChainIDErr)
+				return errInvalidSubscription
 			}
 
 			log.Debugw("listener: new block from core", "height", b.Header.Height)
