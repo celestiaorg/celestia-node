@@ -142,8 +142,8 @@ func (b *Blob) UnmarshalJSON(data []byte) error {
 }
 
 // buildBlobsIfExist takes shares and tries building the Blobs from them.
-// It will build blobs either until appShares will be empty or the first incomplete blob will appear, so in this
-// specific case it will return all built blobs + remaining shares.
+// It will build blobs either until appShares will be empty or the first incomplete blob will
+// appear, so in this specific case it will return all built blobs + remaining shares.
 func buildBlobsIfExist(appShares []shares.Share) ([]*Blob, []shares.Share, error) {
 	if len(appShares) == 0 {
 		return nil, nil, errors.New("empty shares received")
