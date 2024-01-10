@@ -31,6 +31,12 @@ build:
 	@go build -o build/ ${LDFLAGS} ./cmd/celestia
 .PHONY: build
 
+## build-jemalloc: Build celestia-node binary with jemalloc allocator for BadgerDB instead of Go's native one
+build-jemalloc: jemalloc
+	@echo "--> Building Celestia with jemalloc"
+	@go build -o build/ ${LDFLAGS} -tags jemalloc ./cmd/celestia
+.PHONY: build-jemalloc
+
 ## clean: Clean up celestia-node binary.
 clean:
 	@echo "--> Cleaning up ./build"
@@ -115,19 +121,19 @@ test-unit-race:
 	@go test -race `go list ./... | grep -v nodebuilder/tests`
 .PHONY: test-unit-race
 
-## test-swamp: Running swamp tests located in nodebuilder/tests
-test-swamp:
-	@echo "--> Running swamp tests"
+## test-integration: Running /integration tests located in nodebuilder/tests
+test-integration:
+	@echo "--> Running integrations tests"
 	@go test ./nodebuilder/tests
-.PHONY: test-swamp
+.PHONY: test-integration
 
-## test-swamp-race: Running swamp tests with data race detector located in node/tests
-test-swamp-race:
-	@echo "--> Running swamp tests with data race detector"
+## test-integration-race: Running integration tests with data race detector located in node/tests
+test-integration-race:
+	@echo "--> Running integration tests with data race detector"
 	@go test -race ./nodebuilder/tests
-.PHONY: test-swamp-race
+.PHONY: test-integration-race
 
-## test: Running both unit and swamp tests
+## test: Running both unit and integrations tests
 test:
 	@echo "--> Running all tests without data race detector"
 	@go test ./...
@@ -213,3 +219,30 @@ goreleaser-build:
 goreleaser-release:
 	goreleaser release --clean --fail-fast --skip-publish
 .PHONY: goreleaser-release
+
+# Copied from https://github.com/dgraph-io/badger/blob/main/Makefile
+
+USER_ID      = $(shell id -u)
+HAS_JEMALLOC = $(shell test -f /usr/local/lib/libjemalloc.a && echo "jemalloc")
+JEMALLOC_URL = "https://github.com/jemalloc/jemalloc/releases/download/5.2.1/jemalloc-5.2.1.tar.bz2"
+
+## jemalloc installs jemalloc allocator
+jemalloc:
+	@if [ -z "$(HAS_JEMALLOC)" ] ; then \
+		mkdir -p /tmp/jemalloc-temp && cd /tmp/jemalloc-temp ; \
+		echo "Downloading jemalloc..." ; \
+		curl -s -L ${JEMALLOC_URL} -o jemalloc.tar.bz2 ; \
+		tar xjf ./jemalloc.tar.bz2 ; \
+		cd jemalloc-5.2.1 ; \
+		./configure --with-jemalloc-prefix='je_' --with-malloc-conf='background_thread:true,metadata_thp:auto'; \
+		make ; \
+		if [ "$(USER_ID)" -eq "0" ]; then \
+			make install ; \
+		else \
+			echo "==== Need sudo access to install jemalloc" ; \
+			sudo make install ; \
+		fi ; \
+		cd /tmp ; \
+		rm -rf /tmp/jemalloc-temp ; \
+	fi
+.PHONY: jemalloc

@@ -35,7 +35,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - uses: actions/setup-go@v4
+      - uses: actions/setup-go@v5
         with:
           go-version: ${{ inputs.go-version }}
 
@@ -55,7 +55,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - uses: actions/setup-go@v4
+      - uses: actions/setup-go@v5
         with:
           go-version: ${{ inputs.go-version }}
 
@@ -79,7 +79,7 @@ jobs:
       - uses: actions/checkout@v4
 
       - name: set up go
-        uses: actions/setup-go@v4
+        uses: actions/setup-go@v5
         with:
           go-version: ${{ inputs.go-version }}
 
@@ -87,7 +87,7 @@ jobs:
         run: make test-unit ENABLE_VERBOSE=${{ needs.setup.outputs.debug }}
 
       - name: Upload unit test output
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         if: always() && needs.setup.outputs.debug == 'true'
         with:
           name: unit-test-output-${{ matrix.os }}
@@ -113,7 +113,7 @@ jobs:
       - uses: actions/checkout@v4
 
       - name: set up go
-        uses: actions/setup-go@v4
+        uses: actions/setup-go@v5
         with:
           go-version: ${{ inputs.go-version }}
 
@@ -129,12 +129,12 @@ jobs:
       - uses: actions/checkout@v4
 
       - name: set up go
-        uses: actions/setup-go@v4
+        uses: actions/setup-go@v5
         with:
           go-version: ${{ inputs.go-version }}
 
-      - name: Swamp Tests
-        run: make test-swamp
+      - name: Integration Tests
+        run: make test-integration
 
-      - name: Swamp Tests with Race Detector
-        run: make test-swamp-race
+      - name: Integration Tests with Race Detector
+        run: make test-integration-race

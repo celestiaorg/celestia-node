@@ -9,6 +9,7 @@ import (
 	"strings"
 
 	"github.com/spf13/cobra"
+	flag "github.com/spf13/pflag"
 
 	"github.com/celestiaorg/celestia-node/nodebuilder/core"
 	"github.com/celestiaorg/celestia-node/nodebuilder/gateway"
@@ -23,7 +24,7 @@ import (
 func PrintOutput(data interface{}, err error, formatData func(interface{}) interface{}) error {
 	switch {
 	case err != nil:
-		data = err
+		data = err.Error()
 	case formatData != nil:
 		data = formatData(data)
 	}
@@ -124,4 +125,13 @@ func PersistentPreRunEnv(cmd *cobra.Command, nodeType node.Type, _ []string) err
 	ctx = WithNodeConfig(ctx, &cfg)
 	cmd.SetContext(ctx)
 	return nil
+}
+
+// WithFlagSet adds the given flagset to the command.
+func WithFlagSet(fset []*flag.FlagSet) func(*cobra.Command) {
+	return func(c *cobra.Command) {
+		for _, set := range fset {
+			c.Flags().AddFlagSet(set)
+		}
+	}
 }

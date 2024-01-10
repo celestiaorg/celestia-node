@@ -12,7 +12,7 @@ const (
 	// DefaultNetwork is the default network of the current build.
 	DefaultNetwork = Mainnet
 	// Arabica testnet. See: celestiaorg/networks.
-	Arabica Network = "arabica-10"
+	Arabica Network = "arabica-11"
 	// Mocha testnet. See: celestiaorg/networks.
 	Mocha Network = "mocha-4"
 	// Private can be used to set up any private network, including local testing setups.
