@@ -148,12 +148,12 @@ var submitCmd = &cobra.Command{
 			return fmt.Errorf("error parsing a namespace:%v", err)
 		}
 
-		blob, err := cmdnode.DecodeToBytes(args[1])
+		blobData, err := cmdnode.DecodeToBytes(args[1])
 		if err != nil { // can be simple text
-			blob = []byte(args[1])
+			blobData = []byte(args[1])
 		}
 
-		parsedBlob, err := blob.NewBlobV0(namespace, blob)
+		parsedBlob, err := blob.NewBlobV0(namespace, blobData)
 		if err != nil {
 			return fmt.Errorf("error creating a blob:%v", err)
 		}
