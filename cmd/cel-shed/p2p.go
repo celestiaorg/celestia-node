@@ -6,10 +6,11 @@ import (
 	"fmt"
 	"os"
 
-	cmdnode "github.com/celestiaorg/celestia-node/cmd"
 	"github.com/libp2p/go-libp2p/core/crypto"
 	"github.com/libp2p/go-libp2p/core/peer"
 	"github.com/spf13/cobra"
+
+	cmdnode "github.com/celestiaorg/celestia-node/cmd"
 )
 
 func init() {
@@ -35,8 +36,10 @@ var p2pNewKeyCmd = &cobra.Command{
 			return err
 		}
 
-		cmdnode.PrintDiscreetly(os.Stderr, "**Important** write this private key in a safe place. Do not share it to anyone.", hex.EncodeToString(raw))
-		return nil
+		return cmdnode.PrintDiscreetly(os.Stderr,
+			"**Important** write this private key in a safe place. Do not share it to anyone.",
+			hex.EncodeToString(raw),
+		)
 	},
 	Args: cobra.NoArgs,
 }
