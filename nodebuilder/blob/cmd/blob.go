@@ -16,8 +16,7 @@ import (
 var (
 	base64Flag bool
 
-	fee      int64
-	gasLimit uint64
+	gasPrice float64
 )
 
 func init() {
@@ -37,23 +36,13 @@ func init() {
 		"printed blob's data as a base64 string",
 	)
 
-	submitCmd.PersistentFlags().Int64Var(
-		&fee,
-		"fee",
-		-1,
-		"specifies fee (in utia) for blob submission.\n"+
+	submitCmd.PersistentFlags().Float64Var(
+		&gasPrice,
+		"gas.price",
+		float64(blob.DefaultGasPrice()),
+		"specifies gas price (in utia) for blob submission.\n"+
 			"Fee will be automatically calculated if negative value is passed [optional]",
 	)
-
-	submitCmd.PersistentFlags().Uint64Var(
-		&gasLimit,
-		"gas.limit",
-		0,
-		"sets the amount of gas that is consumed during blob submission [optional]",
-	)
-
-	// unset the default value to avoid users confusion
-	submitCmd.PersistentFlags().Lookup("fee").DefValue = "0"
 }
 
 var Cmd = &cobra.Command{
@@ -135,7 +124,7 @@ var submitCmd = &cobra.Command{
 	Short: "Submit the blob at the given namespace.\n" +
 		"Note:\n" +
 		"* only one blob is allowed to submit through the RPC.\n" +
-		"* fee and gas.limit params will be calculated automatically if they are not provided as arguments",
+		"* fee and gas limit params will be calculated automatically based on the gas.price parameter.\n",
 	RunE: func(cmd *cobra.Command, args []string) error {
 		client, err := cmdnode.ParseClientFromCtx(cmd.Context())
 		if err != nil {
@@ -156,7 +145,7 @@ var submitCmd = &cobra.Command{
 		height, err := client.Blob.Submit(
 			cmd.Context(),
 			[]*blob.Blob{parsedBlob},
-			&blob.SubmitOptions{Fee: fee, GasLimit: gasLimit},
+			blob.GasPrice(gasPrice),
 		)
 
 		response := struct {
