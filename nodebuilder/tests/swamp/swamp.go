@@ -39,7 +39,7 @@ import (
 
 var blackholeIP6 = net.ParseIP("100::")
 
-// DefaultTestTimeout should be used as the default timout on all the Swamp tests.
+// DefaultTestTimeout should be used as the default timeout on all the Swamp tests.
 // It's generously set to 5 minutes to give enough time for CI.
 const DefaultTestTimeout = time.Minute * 5
 
@@ -330,7 +330,7 @@ func (s *Swamp) Disconnect(t *testing.T, peerA, peerB *nodebuilder.Node) {
 // SetBootstrapper sets the given bootstrappers as the "bootstrappers" for the
 // Swamp test suite. Every new full or light node created on the suite afterwards
 // will automatically add the suite's bootstrappers as trusted peers to their config.
-// NOTE: Bridge nodes do not automaatically add the bootstrappers as trusted peers.
+// NOTE: Bridge nodes do not automatically add the bootstrappers as trusted peers.
 // NOTE: Use `NewNodeWithStore` to avoid this automatic configuration.
 func (s *Swamp) SetBootstrapper(t *testing.T, bootstrappers ...*nodebuilder.Node) {
 	for _, trusted := range bootstrappers {
