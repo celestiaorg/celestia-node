@@ -34,15 +34,19 @@ type Submitter interface {
 type BlobsByNamespace map[*share.Namespace][]*Blob
 
 // Add - adding blobk
-func (bb BlobsByNamespace) Add(namespace *share.Namespace, blob ...*Blob) error {
+func (bb BlobsByNamespace) Add(namespace *share.Namespace, blob ...*Blob) {
 	val, exists := bb[namespace]
 	if !exists {
 		bb[namespace] = make([]*Blob, 0)
 		bb[namespace] = append(bb[namespace], blob...)
-		return nil
+		return
 	}
 	bb[namespace] = append(val, blob...)
-	return nil
+}
+
+type BlobsSubscription struct {
+	height           uint64
+	blobsByNamespace BlobsByNamespace
 }
 
 type Service struct {
@@ -207,23 +211,24 @@ func (s *Service) Included(
 
 // Subscribe returns all blobs under the given namespaces at subscrubed heigh.
 // Subscribe can return map of blobs and an error in case if some requests failed.
-func (s *Service) Subscribe(ctx context.Context, namespaces []share.Namespace) (<-chan map[uint64]BlobsByNamespace, error) {
+func (s *Service) Subscribe(ctx context.Context, namespaces []share.Namespace) (<-chan BlobsSubscription, error) {
 	headerChan, err := s.headerSubscribe(ctx)
 	if err != nil {
 		return nil, err
 	}
 
-	blobChan := make(chan map[uint64]BlobsByNamespace)
+	blobChan := make(chan BlobsSubscription)
 	go func() {
 		defer close(blobChan)
 		for {
 			select {
 			case head := <-headerChan:
-				res := make(map[uint64]BlobsByNamespace)
-
 				wg := sync.WaitGroup{}
+				wg.Add(len(namespaces))
+
+				mu := new(sync.Mutex)
+				blobsByName := BlobsByNamespace{}
 				for i, namespace := range namespaces {
-					wg.Add(1)
 					go func(i int, namespace share.Namespace) {
 						defer wg.Done()
 						blobs, err := s.getBlobs(ctx, namespace, head)
@@ -231,14 +236,16 @@ func (s *Service) Subscribe(ctx context.Context, namespaces []share.Namespace) (
 							log.Debugw("error getting blobs", "namespace", namespace.String(), "height", head.Height())
 							return
 						}
-						blobsByName := BlobsByNamespace{}
-						blobsByName.Add(&namespace, blobs...)
-						res[head.Height()] = blobsByName
 
-						blobChan <- res
+						mu.Lock()
+						defer mu.Unlock()
+						blobsByName.Add(&namespace, blobs...)
 					}(i, namespace)
 				}
 				wg.Wait()
+
+				blobSub := BlobsSubscription{height: head.Height(), blobsByNamespace: blobsByName}
+				blobChan <- blobSub
 			case <-ctx.Done():
 				return
 			}

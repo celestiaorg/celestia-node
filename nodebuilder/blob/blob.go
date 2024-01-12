@@ -27,7 +27,7 @@ type Module interface {
 	// given height and under the namespace.
 	Included(_ context.Context, height uint64, _ share.Namespace, _ *blob.Proof, _ blob.Commitment) (bool, error)
 	// Subscribe will subscribe to most recent blocks under a target namespaces.
-	Subscribe(_ context.Context, _ []share.Namespace) (<-chan map[uint64]blob.BlobsByNamespace, error)
+	Subscribe(_ context.Context, _ []share.Namespace) (<-chan blob.BlobsSubscription, error)
 }
 
 type API struct {
@@ -37,7 +37,7 @@ type API struct {
 		GetAll    func(context.Context, uint64, []share.Namespace) ([]*blob.Blob, error)                     `perm:"read"`
 		GetProof  func(context.Context, uint64, share.Namespace, blob.Commitment) (*blob.Proof, error)       `perm:"read"`
 		Included  func(context.Context, uint64, share.Namespace, *blob.Proof, blob.Commitment) (bool, error) `perm:"read"`
-		Subscribe func(context.Context, []share.Namespace) (<-chan map[uint64]blob.BlobsByNamespace, error)  `perm:"read"`
+		Subscribe func(context.Context, []share.Namespace) (<-chan blob.BlobsSubscription, error)            `perm:"read"`
 	}
 }
 
@@ -80,6 +80,6 @@ func (api *API) Included(
 func (api *API) Subscribe(
 	ctx context.Context,
 	namespaces []share.Namespace,
-) (<-chan map[uint64]blob.BlobsByNamespace, error) {
-	return nil, nil
+) (<-chan blob.BlobsSubscription, error) {
+	return api.Internal.Subscribe(ctx, namespaces)
 }

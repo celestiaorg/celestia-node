@@ -474,14 +474,19 @@ func TestBlobService_Subscribe(t *testing.T) {
 
 	res, err := service.Subscribe(ctx, []share.Namespace{blobs[0].Namespace(), blobs[1].Namespace()})
 	require.NoError(t, err)
-	go func() {
-		chanHead <- h
-	}()
 
-	for received := range res {
-		require.Len(t, received, 1)
-		require.Len(t, received[h.Height()], 1)
+	for i := 0; i < 1_000; i++ {
+		go func() {
+			chanHead <- h
+		}()
 	}
+
+	counter := 0
+	for received := range res {
+		require.Len(t, received.blobsByNamespace, 2)
+		counter += 1
+	}
+	require.Equal(t, counter, 1_000)
 }
 
 func createService(ctx context.Context, t *testing.T, blobs []*Blob) *Service {
