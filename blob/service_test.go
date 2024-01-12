@@ -337,7 +337,11 @@ func TestService_GetSingleBlobWithoutPadding(t *testing.T) {
 	fn := func(ctx context.Context, height uint64) (*header.ExtendedHeader, error) {
 		return headerStore.GetByHeight(ctx, height)
 	}
-	service := NewService(nil, getters.NewIPLDGetter(bs), fn)
+	dummyFnSub := func(ctx context.Context) (<-chan *header.ExtendedHeader, error) {
+		return nil, nil
+	}
+
+	service := NewService(nil, getters.NewIPLDGetter(bs), fn, dummyFnSub)
 
 	newBlob, err := service.Get(ctx, 1, blobs[1].Namespace(), blobs[1].Commitment)
 	require.NoError(t, err)
@@ -407,11 +411,77 @@ func TestService_GetAllWithoutPadding(t *testing.T) {
 	fn := func(ctx context.Context, height uint64) (*header.ExtendedHeader, error) {
 		return headerStore.GetByHeight(ctx, height)
 	}
+	dummyFnSub := func(ctx context.Context) (<-chan *header.ExtendedHeader, error) {
+		return nil, nil
+	}
 
-	service := NewService(nil, getters.NewIPLDGetter(bs), fn)
+	service := NewService(nil, getters.NewIPLDGetter(bs), fn, dummyFnSub)
 
 	_, err = service.GetAll(ctx, 1, []share.Namespace{blobs[0].Namespace(), blobs[1].Namespace()})
 	require.NoError(t, err)
+}
+
+func TestBlobService_Subscribe(t *testing.T) {
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second*5)
+	t.Cleanup(cancel)
+
+	appBlob, err := blobtest.GenerateV0Blobs([]int{9, 5}, true)
+	require.NoError(t, err)
+	blobs, err := convertBlobs(appBlob...)
+	require.NoError(t, err)
+
+	ns1, ns2 := blobs[0].Namespace().ToAppNamespace(), blobs[1].Namespace().ToAppNamespace()
+
+	padding0, err := shares.NamespacePaddingShare(ns1, appconsts.ShareVersionZero)
+	require.NoError(t, err)
+	padding1, err := shares.NamespacePaddingShare(ns2, appconsts.ShareVersionZero)
+	require.NoError(t, err)
+	rawShares0, err := BlobsToShares(blobs[0])
+	require.NoError(t, err)
+	rawShares1, err := BlobsToShares(blobs[1])
+	require.NoError(t, err)
+	rawShares := make([][]byte, 0)
+
+	// create shares in correct order with padding shares
+	if bytes.Compare(blobs[0].Namespace(), blobs[1].Namespace()) <= 0 {
+		rawShares = append(rawShares, append(rawShares0, padding0.ToBytes())...)
+		rawShares = append(rawShares, append(rawShares1, padding1.ToBytes())...)
+	} else {
+		rawShares = append(rawShares, append(rawShares1, padding1.ToBytes())...)
+		rawShares = append(rawShares, append(rawShares0, padding0.ToBytes())...)
+	}
+
+	bs := ipld.NewMemBlockservice()
+	batching := ds_sync.MutexWrap(ds.NewMapDatastore())
+	headerStore, err := store.NewStore[*header.ExtendedHeader](batching)
+	require.NoError(t, err)
+	eds, err := ipld.AddShares(ctx, rawShares, bs)
+	require.NoError(t, err)
+
+	h := headertest.ExtendedHeaderFromEDS(t, 1, eds)
+	err = headerStore.Init(ctx, h)
+	require.NoError(t, err)
+
+	chanHead := make(chan *header.ExtendedHeader)
+	fn := func(ctx context.Context, height uint64) (*header.ExtendedHeader, error) {
+		return headerStore.GetByHeight(ctx, height)
+	}
+	dummyFnSub := func(ctx context.Context) (<-chan *header.ExtendedHeader, error) {
+		return chanHead, nil
+	}
+
+	service := NewService(nil, getters.NewIPLDGetter(bs), fn, dummyFnSub)
+
+	res, err := service.Subscribe(ctx, []share.Namespace{blobs[0].Namespace(), blobs[1].Namespace()})
+	require.NoError(t, err)
+	go func() {
+		chanHead <- h
+	}()
+
+	for received := range res {
+		require.Len(t, received, 1)
+		require.Len(t, received[h.Height()], 1)
+	}
 }
 
 func createService(ctx context.Context, t *testing.T, blobs []*Blob) *Service {
@@ -431,5 +501,10 @@ func createService(ctx context.Context, t *testing.T, blobs []*Blob) *Service {
 	fn := func(ctx context.Context, height uint64) (*header.ExtendedHeader, error) {
 		return headerStore.GetByHeight(ctx, height)
 	}
-	return NewService(nil, getters.NewIPLDGetter(bs), fn)
+
+	dummyFnSub := func(ctx context.Context) (<-chan *header.ExtendedHeader, error) {
+		return nil, nil
+	}
+
+	return NewService(nil, getters.NewIPLDGetter(bs), fn, dummyFnSub)
 }

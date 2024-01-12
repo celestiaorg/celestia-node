@@ -30,6 +30,21 @@ type Submitter interface {
 	SubmitPayForBlob(ctx context.Context, fee math.Int, gasLim uint64, blobs []*Blob) (*types.TxResponse, error)
 }
 
+// BlobsByNamespace - helper type to provide map of blob under namespaces
+type BlobsByNamespace map[*share.Namespace][]*Blob
+
+// Add - adding blobk
+func (bb BlobsByNamespace) Add(namespace *share.Namespace, blob ...*Blob) error {
+	val, exists := bb[namespace]
+	if !exists {
+		bb[namespace] = make([]*Blob, 0)
+		bb[namespace] = append(bb[namespace], blob...)
+		return nil
+	}
+	bb[namespace] = append(val, blob...)
+	return nil
+}
+
 type Service struct {
 	// accessor dials the given celestia-core endpoint to submit blobs.
 	blobSubmitter Submitter
@@ -37,17 +52,21 @@ type Service struct {
 	shareGetter share.Getter
 	// headerGetter fetches header by the provided height
 	headerGetter func(context.Context, uint64) (*header.ExtendedHeader, error)
+	// headerSubscribe returns header Subscribe channel
+	headerSubscribe func(context.Context) (<-chan *header.ExtendedHeader, error)
 }
 
 func NewService(
 	submitter Submitter,
 	getter share.Getter,
 	headerGetter func(context.Context, uint64) (*header.ExtendedHeader, error),
+	headerSubscribe func(context.Context) (<-chan *header.ExtendedHeader, error),
 ) *Service {
 	return &Service{
-		blobSubmitter: submitter,
-		shareGetter:   getter,
-		headerGetter:  headerGetter,
+		blobSubmitter:   submitter,
+		shareGetter:     getter,
+		headerGetter:    headerGetter,
+		headerSubscribe: headerSubscribe,
 	}
 }
 
@@ -184,6 +203,49 @@ func (s *Service) Included(
 		return false, err
 	}
 	return true, resProof.equal(*proof)
+}
+
+// Subscribe returns all blobs under the given namespaces at subscrubed heigh.
+// Subscribe can return map of blobs and an error in case if some requests failed.
+func (s *Service) Subscribe(ctx context.Context, namespaces []share.Namespace) (<-chan map[uint64]BlobsByNamespace, error) {
+	headerChan, err := s.headerSubscribe(ctx)
+	if err != nil {
+		return nil, err
+	}
+
+	blobChan := make(chan map[uint64]BlobsByNamespace)
+	go func() {
+		defer close(blobChan)
+		for {
+			select {
+			case head := <-headerChan:
+				res := make(map[uint64]BlobsByNamespace)
+
+				wg := sync.WaitGroup{}
+				for i, namespace := range namespaces {
+					wg.Add(1)
+					go func(i int, namespace share.Namespace) {
+						defer wg.Done()
+						blobs, err := s.getBlobs(ctx, namespace, head)
+						if err != nil {
+							log.Debugw("error getting blobs", "namespace", namespace.String(), "height", head.Height())
+							return
+						}
+						blobsByName := BlobsByNamespace{}
+						blobsByName.Add(&namespace, blobs...)
+						res[head.Height()] = blobsByName
+
+						blobChan <- res
+					}(i, namespace)
+				}
+				wg.Wait()
+			case <-ctx.Done():
+				return
+			}
+		}
+	}()
+
+	return blobChan, nil
 }
 
 // getByCommitment retrieves the DAH row by row, fetching shares and constructing blobs in order to
