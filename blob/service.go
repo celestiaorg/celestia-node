@@ -33,7 +33,7 @@ type Submitter interface {
 // BlobsByNamespace - helper type to provide map of blob under namespaces
 type BlobsByNamespace map[*share.Namespace][]*Blob
 
-// Add - adding blobk
+// Add - adding blob to map in a simple way
 func (bb BlobsByNamespace) Add(namespace *share.Namespace, blob ...*Blob) {
 	val, exists := bb[namespace]
 	if !exists {
