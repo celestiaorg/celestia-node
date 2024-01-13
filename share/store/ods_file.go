@@ -3,20 +3,18 @@ package store
 import (
 	"context"
 	"fmt"
-	"io"
 	"os"
 	"sync"
 
 	"golang.org/x/sync/errgroup"
 
 	"github.com/celestiaorg/celestia-app/pkg/wrapper"
-	"github.com/celestiaorg/nmt"
 	"github.com/celestiaorg/rsmt2d"
 
 	"github.com/celestiaorg/celestia-node/share"
 )
 
-var _ File = (*OdsFile)(nil)
+var _ EdsFile = (*OdsFile)(nil)
 
 type OdsFile struct {
 	path string
@@ -24,11 +22,6 @@ type OdsFile struct {
 	fl   *os.File
 
 	memPool memPool
-}
-
-type fileBackend interface {
-	io.ReaderAt
-	io.Closer
 }
 
 // OpenOdsFile opens an existing file. File has to be closed after usage.
@@ -123,7 +116,7 @@ func (f *OdsFile) odsAxisHalf(axisType rsmt2d.Axis, axisIdx int) ([]share.Share,
 }
 
 type odsInMemFile struct {
-	File
+	EdsFile
 	axisType rsmt2d.Axis
 	square   [][]share.Share
 }
@@ -212,7 +205,7 @@ func (f *OdsFile) readCol(idx int) ([]share.Share, error) {
 
 func computeAxisHalf(
 	ctx context.Context,
-	f File,
+	f EdsFile,
 	codec Codec,
 	axisType rsmt2d.Axis,
 	axisIdx int,
@@ -287,36 +280,40 @@ func extendShares(codec Codec, original []share.Share) ([]share.Share, error) {
 
 	err = enc.Encode(shares)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("encoder: %w", err)
 	}
 
 	return shares, nil
 }
 
-func (f *OdsFile) Share(
-	ctx context.Context,
-	axisType rsmt2d.Axis,
-	axisIdx, shrIdx int,
-) (share.Share, nmt.Proof, error) {
+func (f *OdsFile) Share(ctx context.Context, x, y int) (*share.ShareWithProof, error) {
+	axisType, axisIdx, shrIdx := rsmt2d.Row, y, x
+	if x < f.Size()/2 && y >= f.Size()/2 {
+		axisType, axisIdx, shrIdx = rsmt2d.Col, x, y
+	}
 	shares, err := f.axis(ctx, axisType, axisIdx)
 	if err != nil {
-		return nil, nmt.Proof{}, err
+		return nil, err
 	}
 
 	tree := wrapper.NewErasuredNamespacedMerkleTree(uint64(f.Size()/2), uint(axisIdx))
 	for _, shr := range shares {
 		err := tree.Push(shr)
 		if err != nil {
-			return nil, nmt.Proof{}, err
+			return nil, err
 		}
 	}
 
 	proof, err := tree.ProveRange(shrIdx, shrIdx+1)
 	if err != nil {
-		return nil, nmt.Proof{}, err
+		return nil, err
 	}
 
-	return shares[shrIdx], proof, nil
+	return &share.ShareWithProof{
+		Share: shares[shrIdx],
+		Proof: &proof,
+		Axis:  axisType,
+	}, nil
 }
 
 func (f *OdsFile) Data(ctx context.Context, namespace share.Namespace, rowIdx int) (share.NamespacedRow, error) {
@@ -324,7 +321,7 @@ func (f *OdsFile) Data(ctx context.Context, namespace share.Namespace, rowIdx in
 	if err != nil {
 		return share.NamespacedRow{}, err
 	}
-	return ndDateFromShares(shares, namespace, rowIdx)
+	return ndDataFromShares(shares, namespace, rowIdx)
 }
 
 func (f *OdsFile) EDS(_ context.Context) (*rsmt2d.ExtendedDataSquare, error) {

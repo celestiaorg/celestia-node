@@ -32,7 +32,7 @@ func (f *MemFile) Share(
 	axisType := rsmt2d.Row
 	axisIdx, shrIdx := y, x
 
-	shares := f.axis(axisType, axisIdx)
+	shares := getAxis(f.Eds, axisType, axisIdx)
 	tree := wrapper.NewErasuredNamespacedMerkleTree(uint64(f.Size()/2), uint(axisIdx))
 	for _, shr := range shares {
 		err := tree.Push(shr)
@@ -54,11 +54,30 @@ func (f *MemFile) Share(
 }
 
 func (f *MemFile) AxisHalf(_ context.Context, axisType rsmt2d.Axis, axisIdx int) ([]share.Share, error) {
-	return f.axis(axisType, axisIdx)[:f.Size()/2], nil
+	return getAxis(f.Eds, axisType, axisIdx)[:f.Size()/2], nil
 }
 
 func (f *MemFile) Data(_ context.Context, namespace share.Namespace, rowIdx int) (share.NamespacedRow, error) {
-	shares := f.axis(rsmt2d.Row, rowIdx)
+	shares := getAxis(f.Eds, rsmt2d.Row, rowIdx)
+	return ndDataFromShares(shares, namespace, rowIdx)
+}
+
+func (f *MemFile) EDS(_ context.Context) (*rsmt2d.ExtendedDataSquare, error) {
+	return f.Eds, nil
+}
+
+func getAxis(eds *rsmt2d.ExtendedDataSquare, axisType rsmt2d.Axis, axisIdx int) []share.Share {
+	switch axisType {
+	case rsmt2d.Row:
+		return eds.Row(uint(axisIdx))
+	case rsmt2d.Col:
+		return eds.Col(uint(axisIdx))
+	default:
+		panic("unknown axis")
+	}
+}
+
+func ndDataFromShares(shares []share.Share, namespace share.Namespace, rowIdx int) (share.NamespacedRow, error) {
 	bserv := ipld.NewMemBlockservice()
 	batchAdder := ipld.NewNmtNodeAdder(context.TODO(), bserv, ipld.MaxSizeBatchOption(len(shares)))
 	tree := wrapper.NewErasuredNamespacedMerkleTree(uint64(len(shares)/2), uint(rowIdx),
@@ -80,8 +99,7 @@ func (f *MemFile) Data(_ context.Context, namespace share.Namespace, rowIdx int)
 		return share.NamespacedRow{}, err
 	}
 
-	cid := ipld.MustCidFromNamespacedSha256(root)
-	row, proof, err := ipld.GetSharesByNamespace(context.TODO(), bserv, cid, namespace, len(shares))
+	row, proof, err := ipld.GetSharesByNamespace(context.TODO(), bserv, root, namespace, len(shares))
 	if err != nil {
 		return share.NamespacedRow{}, err
 	}
@@ -89,19 +107,4 @@ func (f *MemFile) Data(_ context.Context, namespace share.Namespace, rowIdx int)
 		Shares: row,
 		Proof:  proof,
 	}, nil
-}
-
-func (f *MemFile) EDS(_ context.Context) (*rsmt2d.ExtendedDataSquare, error) {
-	return f.Eds, nil
-}
-
-func (f *MemFile) axis(axisType rsmt2d.Axis, axisIdx int) []share.Share {
-	switch axisType {
-	case rsmt2d.Row:
-		return f.Eds.Row(uint(axisIdx))
-	case rsmt2d.Col:
-		return f.Eds.Col(uint(axisIdx))
-	default:
-		panic("unknown axis")
-	}
 }

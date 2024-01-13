@@ -103,13 +103,15 @@ func BatchSize(squareSize int) int {
 
 // ProofsAdder is used to collect proof nodes, while traversing merkle tree
 type ProofsAdder struct {
-	lock   sync.RWMutex
-	proofs map[cid.Cid][]byte
+	lock          sync.RWMutex
+	collectShares bool
+	proofs        map[cid.Cid][]byte
 }
 
 // NewProofsAdder creates new instance of ProofsAdder.
-func NewProofsAdder(squareSize int) *ProofsAdder {
+func NewProofsAdder(squareSize int, collectShares bool) *ProofsAdder {
 	return &ProofsAdder{
+		collectShares: collectShares,
 		// preallocate map to fit all inner nodes for given square size
 		proofs: make(map[cid.Cid][]byte, innerNodesAmount(squareSize)),
 	}
@@ -156,7 +158,7 @@ func (a *ProofsAdder) VisitFn() nmt.NodeVisitorFn {
 	if len(a.proofs) > 0 {
 		return nil
 	}
-	return a.visitInnerNodes
+	return a.visitNodes
 }
 
 // Purge removed proofs from ProofsAdder allowing GC to collect the memory
@@ -171,10 +173,13 @@ func (a *ProofsAdder) Purge() {
 	a.proofs = nil
 }
 
-func (a *ProofsAdder) visitInnerNodes(hash []byte, children ...[]byte) {
+func (a *ProofsAdder) visitNodes(hash []byte, children ...[]byte) {
 	switch len(children) {
 	case 1:
-		break
+		if a.collectShares {
+			id := MustCidFromNamespacedSha256(hash)
+			a.addProof(id, children[0])
+		}
 	case 2:
 		id := MustCidFromNamespacedSha256(hash)
 		a.addProof(id, append(children[0], children[1]...))

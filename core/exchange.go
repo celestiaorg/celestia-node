@@ -132,7 +132,7 @@ func (ce *Exchange) Get(ctx context.Context, hash libhead.Hash) (*header.Extende
 	}
 
 	// extend block data
-	adder := ipld.NewProofsAdder(int(block.Data.SquareSize))
+	adder := ipld.NewProofsAdder(int(block.Data.SquareSize), false)
 	defer adder.Purge()
 
 	eds, err := extendBlock(block.Data, block.Header.Version.App, nmt.NodeVisitor(adder.VisitFn()))
@@ -177,7 +177,7 @@ func (ce *Exchange) getExtendedHeaderByHeight(ctx context.Context, height *int64
 	log.Debugw("fetched signed block from core", "height", b.Header.Height)
 
 	// extend block data
-	adder := ipld.NewProofsAdder(int(b.Data.SquareSize))
+	adder := ipld.NewProofsAdder(int(b.Data.SquareSize), false)
 	defer adder.Purge()
 
 	eds, err := extendBlock(b.Data, b.Header.Version.App, nmt.NodeVisitor(adder.VisitFn()))

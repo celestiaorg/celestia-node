@@ -2,8 +2,9 @@ package store
 
 import (
 	"context"
-	"crypto/sha256"
+	"fmt"
 	mrand "math/rand"
+	"strconv"
 	"testing"
 
 	"github.com/stretchr/testify/require"
@@ -15,7 +16,7 @@ import (
 	"github.com/celestiaorg/celestia-node/share/sharetest"
 )
 
-type createFile func(eds *rsmt2d.ExtendedDataSquare) File
+type createFile func(eds *rsmt2d.ExtendedDataSquare) EdsFile
 
 func testFileShare(t *testing.T, createFile createFile, size int) {
 	eds := edstest.RandEDS(t, size)
@@ -25,33 +26,27 @@ func testFileShare(t *testing.T, createFile createFile, size int) {
 	require.NoError(t, err)
 
 	width := int(eds.Width())
-	for _, axisType := range []rsmt2d.Axis{rsmt2d.Col, rsmt2d.Row} {
-		for i := 0; i < width*width; i++ {
-			axisIdx, shrIdx := i/width, i%width
-			if axisType == rsmt2d.Col {
-				axisIdx, shrIdx = shrIdx, axisIdx
-			}
-
-			shr, prf, err := fl.Share(context.TODO(), axisType, axisIdx, shrIdx)
+	for x := 0; x < width; x++ {
+		for y := 0; y < width; y++ {
+			shr, err := fl.Share(context.TODO(), x, y)
 			require.NoError(t, err)
 
-			namespace := share.ParitySharesNamespace
-			if axisIdx < width/2 && shrIdx < width/2 {
-				namespace = share.GetNamespace(shr)
+			var axishash []byte
+			if shr.Axis == rsmt2d.Row {
+				require.Equal(t, getAxis(eds, shr.Axis, y)[x], shr.Share)
+				axishash = root.RowRoots[y]
+			} else {
+				require.Equal(t, getAxis(eds, shr.Axis, x)[y], shr.Share)
+				axishash = root.ColumnRoots[x]
 			}
 
-			axishash := root.RowRoots[axisIdx]
-			if axisType == rsmt2d.Col {
-				axishash = root.ColumnRoots[axisIdx]
-			}
-
-			ok := prf.VerifyInclusion(sha256.New(), namespace.ToNMT(), [][]byte{shr}, axishash)
+			ok := shr.Validate(axishash, x, y, width)
 			require.True(t, ok)
 		}
 	}
 }
 
-func testFileDate(t *testing.T, createFile createFile, size int) {
+func testFileData(t *testing.T, createFile createFile, size int) {
 	// generate EDS with random data and some shares with the same namespace
 	namespace := sharetest.RandV0Namespace()
 	amount := mrand.Intn(size*size-1) + 1
@@ -89,4 +84,71 @@ func testFileEds(t *testing.T, createFile createFile, size int) {
 	eds2, err := fl.EDS(context.Background())
 	require.NoError(t, err)
 	require.True(t, eds.Equals(eds2))
+}
+
+func benchGetAxisFromFile(b *testing.B, newFile func(size int) EdsFile, minSize, maxSize int) {
+	for size := minSize; size <= maxSize; size *= 2 {
+		f := newFile(size)
+
+		// loop over all possible axis types and quadrants
+		for _, axisType := range []rsmt2d.Axis{rsmt2d.Row, rsmt2d.Col} {
+			for _, squareHalf := range []int{0, 1} {
+				name := fmt.Sprintf("Size:%v/Axis:%s/squareHalf:%s", size, axisType, strconv.Itoa(squareHalf))
+				b.Run(name, func(b *testing.B) {
+					b.ResetTimer()
+					for i := 0; i < b.N; i++ {
+						_, err := f.AxisHalf(context.TODO(), axisType, f.Size()/2*(squareHalf))
+						require.NoError(b, err)
+					}
+				})
+			}
+		}
+	}
+}
+
+func benchGetShareFromFile(b *testing.B, newFile func(size int) EdsFile, minSize, maxSize int) {
+	for size := minSize; size <= maxSize; size *= 2 {
+		f := newFile(size)
+
+		// loop over all possible axis types and quadrants
+		for _, q := range quadrants {
+			name := fmt.Sprintf("Size:%v/quadrant:%s", size, q)
+			b.Run(name, func(b *testing.B) {
+				x, y := q.coordinates(f.Size())
+				// warm up cache
+				_, err := f.Share(context.TODO(), x, y)
+				require.NoError(b, err)
+
+				b.ResetTimer()
+				for i := 0; i < b.N; i++ {
+					_, err := f.Share(context.TODO(), x, y)
+					require.NoError(b, err)
+				}
+			})
+		}
+
+	}
+}
+
+type quadrant int
+
+var (
+	quadrants = []quadrant{1, 2, 3, 4}
+)
+
+func (q quadrant) String() string {
+	return strconv.Itoa(int(q))
+}
+
+func (q quadrant) coordinates(edsSize int) (x, y int) {
+	x = edsSize/2*(int(q-1)%2) + 1
+	y = edsSize/2*(int(q-1)/2) + 1
+	return
+}
+
+func TestQuandrant(t *testing.T) {
+	for _, q := range quadrants {
+		x, y := q.coordinates(4)
+		fmt.Println(x, y)
+	}
 }

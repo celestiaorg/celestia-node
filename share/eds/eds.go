@@ -122,7 +122,7 @@ func getProofs(ctx context.Context, eds *rsmt2d.ExtendedDataSquare) (map[cid.Cid
 
 	// this adder ignores leaves, so that they are not added to the store we iterate through in
 	// writeProofs
-	adder := ipld.NewProofsAdder(odsWidth * 2)
+	adder := ipld.NewProofsAdder(odsWidth*2, false)
 	defer adder.Purge()
 
 	eds, err := rsmt2d.ImportExtendedDataSquare(

@@ -58,7 +58,7 @@ func (f *FraudMaker) MakeExtendedHeader(odsSize int, edsStore *eds.Store) header
 
 		hdr := *h
 		if h.Height == f.height {
-			adder := ipld.NewProofsAdder(odsSize)
+			adder := ipld.NewProofsAdder(odsSize, false)
 			square := edstest.RandByzantineEDS(f.t, odsSize, nmt.NodeVisitor(adder.VisitFn()))
 			dah, err := da.NewDataAvailabilityHeader(square)
 			require.NoError(f.t, err)

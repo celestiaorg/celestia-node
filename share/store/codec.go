@@ -22,7 +22,7 @@ func (l *codec) Encoder(len int) (reedsolomon.Encoder, error) {
 	enc, ok := l.encCache.Load(len)
 	if !ok {
 		var err error
-		enc, err = reedsolomon.New(len/2, len/2, reedsolomon.WithLeopardGF(false))
+		enc, err = reedsolomon.New(len/2, len/2, reedsolomon.WithLeopardGF(true))
 		if err != nil {
 			return nil, err
 		}

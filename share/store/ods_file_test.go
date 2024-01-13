@@ -2,7 +2,6 @@ package store
 
 import (
 	"context"
-	"fmt"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -30,7 +29,7 @@ func TestCreateOdsFile(t *testing.T) {
 func TestOdsFile(t *testing.T) {
 	size := 32
 	mem := newMemPools(NewCodec())
-	createOdsFile := func(eds *rsmt2d.ExtendedDataSquare) File {
+	createOdsFile := func(eds *rsmt2d.ExtendedDataSquare) EdsFile {
 		path := t.TempDir() + "/testfile"
 		fl, err := CreateOdsFile(path, eds, mem)
 		require.NoError(t, err)
@@ -46,7 +45,7 @@ func TestOdsFile(t *testing.T) {
 	})
 
 	t.Run("Data", func(t *testing.T) {
-		testFileDate(t, createOdsFile, size)
+		testFileData(t, createOdsFile, size)
 	})
 
 	t.Run("EDS", func(t *testing.T) {
@@ -103,7 +102,7 @@ func BenchmarkAxisFromOdsFile(b *testing.B) {
 	dir := b.TempDir()
 	mem := newMemPools(NewCodec())
 
-	newFile := func(size int) File {
+	newFile := func(size int) EdsFile {
 		eds := edstest.RandEDS(b, size)
 		path := dir + "/testfile"
 		f, err := CreateOdsFile(path, eds, mem)
@@ -126,11 +125,11 @@ func BenchmarkAxisFromOdsFile(b *testing.B) {
 // BenchmarkShareFromOdsFile/Size:128/Axis:col/squareHalf:first(original)-10        	    2114	    514642 ns/op
 // BenchmarkShareFromOdsFile/Size:128/Axis:col/squareHalf:second(extended)-10       	     373	   3068104 ns/op
 func BenchmarkShareFromOdsFile(b *testing.B) {
-	minSize, maxSize := 32, 128
+	minSize, maxSize := 128, 128
 	dir := b.TempDir()
 	mem := newMemPools(NewCodec())
 
-	newFile := func(size int) File {
+	newFile := func(size int) EdsFile {
 		eds := edstest.RandEDS(b, size)
 		path := dir + "/testfile"
 		f, err := CreateOdsFile(path, eds, mem)
@@ -139,61 +138,4 @@ func BenchmarkShareFromOdsFile(b *testing.B) {
 	}
 
 	benchGetShareFromFile(b, newFile, minSize, maxSize)
-}
-
-type squareHalf int
-
-func (q squareHalf) String() string {
-	switch q {
-	case 0:
-		return "first(original)"
-	case 1:
-		return "second(extended)"
-	}
-	return "unknown"
-}
-
-func benchGetAxisFromFile(b *testing.B, newFile func(size int) File, minSize, maxSize int) {
-	for size := minSize; size <= maxSize; size *= 2 {
-		f := newFile(size)
-
-		// loop over all possible axis types and quadrants
-		for _, axisType := range []rsmt2d.Axis{rsmt2d.Row, rsmt2d.Col} {
-			for _, squareHalf := range []squareHalf{0, 1} {
-				name := fmt.Sprintf("Size:%v/Axis:%s/squareHalf:%s", size, axisType, squareHalf)
-				b.Run(name, func(b *testing.B) {
-					b.ResetTimer()
-					for i := 0; i < b.N; i++ {
-						_, err := f.AxisHalf(context.TODO(), axisType, f.Size()/2*int(squareHalf))
-						require.NoError(b, err)
-					}
-				})
-			}
-		}
-	}
-}
-
-func benchGetShareFromFile(b *testing.B, newFile func(size int) File, minSize, maxSize int) {
-	for size := minSize; size <= maxSize; size *= 2 {
-		f := newFile(size)
-
-		// loop over all possible axis types and quadrants
-		for _, axisType := range []rsmt2d.Axis{rsmt2d.Row, rsmt2d.Col} {
-			for _, squareHalf := range []squareHalf{0, 1} {
-				name := fmt.Sprintf("Size:%v/Axis:%s/squareHalf:%s", size, axisType, squareHalf)
-				b.Run(name, func(b *testing.B) {
-					idx := f.Size() - 1
-					// warm up cache
-					_, _, err := f.Share(context.TODO(), axisType, f.Size()/2*int(squareHalf), idx)
-					require.NoError(b, err)
-
-					b.ResetTimer()
-					for i := 0; i < b.N; i++ {
-						_, _, err = f.Share(context.TODO(), axisType, f.Size()/2*int(squareHalf), idx)
-						require.NoError(b, err)
-					}
-				})
-			}
-		}
-	}
 }

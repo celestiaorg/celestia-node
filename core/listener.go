@@ -193,7 +193,7 @@ func (cl *Listener) handleNewSignedBlock(ctx context.Context, b types.EventDataS
 		attribute.Int64("height", b.Header.Height),
 	)
 	// extend block data
-	adder := ipld.NewProofsAdder(int(b.Data.SquareSize))
+	adder := ipld.NewProofsAdder(int(b.Data.SquareSize), false)
 	defer adder.Purge()
 
 	eds, err := extendBlock(b.Data, b.Header.Version.App, nmt.NodeVisitor(adder.VisitFn()))

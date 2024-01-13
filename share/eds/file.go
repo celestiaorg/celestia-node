@@ -17,15 +17,16 @@ import (
 	"github.com/celestiaorg/celestia-node/share/ipld"
 )
 
-type File interface {
-	io.Closer
-	Size() int
-	ShareWithProof(xisIdx, shrIdx int) (share.Share, nmt.Proof, rsmt2d.Axis, error)
-	Axis(axisType rsmt2d.Axis, axisIdx int) ([]share.Share, error)
-	AxisHalf(axisType rsmt2d.Axis, axisIdx int) ([]share.Share, error)
-	Data(namespace share.Namespace, axisIdx int) ([]share.Share, nmt.Proof, error)
-	EDS() (*rsmt2d.ExtendedDataSquare, error)
-}
+// TODO: remove
+//type File interface {
+//	io.Closer
+//	Size() int
+//	ShareWithProof(xisIdx, shrIdx int) (share.Share, nmt.Proof, rsmt2d.Axis, error)
+//	Axis(axisType rsmt2d.Axis, axisIdx int) ([]share.Share, error)
+//	AxisHalf(axisType rsmt2d.Axis, axisIdx int) ([]share.Share, error)
+//	Data(namespace share.Namespace, axisIdx int) ([]share.Share, nmt.Proof, error)
+//	EDS() (*rsmt2d.ExtendedDataSquare, error)
+//}
 
 type FileConfig struct {
 	Version     FileVersion

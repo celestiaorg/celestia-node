@@ -79,7 +79,7 @@ func BenchmarkStore(b *testing.B) {
 			b.StopTimer()
 			b.ResetTimer()
 			for i := 0; i < b.N; i++ {
-				adder := ipld.NewProofsAdder(size * 2)
+				adder := ipld.NewProofsAdder(size*2, false)
 				shares := sharetest.RandShares(b, size*size)
 				eds, err := rsmt2d.ComputeExtendedDataSquare(
 					shares,
