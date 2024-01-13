@@ -44,9 +44,17 @@ func (bb BlobsByNamespace) Add(namespace *share.Namespace, blob ...*Blob) {
 	bb[namespace] = append(val, blob...)
 }
 
+// BlobsSubscription - contains map of blobs and height
 type BlobsSubscription struct {
 	height           uint64
 	blobsByNamespace BlobsByNamespace
+}
+
+// BlobsError - signal error if something happens in subscription
+type BlobsError struct {
+	height    uint64
+	nameSpace *share.Namespace
+	err       error
 }
 
 type Service struct {
@@ -211,15 +219,17 @@ func (s *Service) Included(
 
 // Subscribe returns all blobs under the given namespaces at subscrubed heigh.
 // Subscribe can return map of blobs and an error in case if some requests failed.
-func (s *Service) Subscribe(ctx context.Context, namespaces []share.Namespace) (<-chan BlobsSubscription, error) {
+func (s *Service) Subscribe(ctx context.Context, namespaces []share.Namespace) (<-chan BlobsSubscription, <-chan BlobsError, error) {
 	headerChan, err := s.headerSubscribe(ctx)
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 
 	blobChan := make(chan BlobsSubscription)
+	blobErr := make(chan BlobsError)
 	go func() {
 		defer close(blobChan)
+		defer close(blobErr)
 		for {
 			select {
 			case head := <-headerChan:
@@ -234,6 +244,7 @@ func (s *Service) Subscribe(ctx context.Context, namespaces []share.Namespace) (
 						blobs, err := s.getBlobs(ctx, namespace, head)
 						if err != nil {
 							log.Debugw("error getting blobs", "namespace", namespace.String(), "height", head.Height())
+							blobErr <- BlobsError{height: head.Height(), nameSpace: &namespace, err: err}
 							return
 						}
 
@@ -252,7 +263,7 @@ func (s *Service) Subscribe(ctx context.Context, namespaces []share.Namespace) (
 		}
 	}()
 
-	return blobChan, nil
+	return blobChan, blobErr, nil
 }
 
 // getByCommitment retrieves the DAH row by row, fetching shares and constructing blobs in order to

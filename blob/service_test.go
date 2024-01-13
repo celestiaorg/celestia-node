@@ -472,7 +472,7 @@ func TestBlobService_Subscribe(t *testing.T) {
 
 	service := NewService(nil, getters.NewIPLDGetter(bs), fn, dummyFnSub)
 
-	res, err := service.Subscribe(ctx, []share.Namespace{blobs[0].Namespace(), blobs[1].Namespace()})
+	res, _, err := service.Subscribe(ctx, []share.Namespace{blobs[0].Namespace(), blobs[1].Namespace()})
 	require.NoError(t, err)
 
 	for i := 0; i < 1_000; i++ {
