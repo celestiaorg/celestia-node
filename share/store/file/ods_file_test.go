@@ -1,4 +1,4 @@
-package store
+package file
 
 import (
 	"context"
@@ -15,8 +15,7 @@ import (
 func TestCreateOdsFile(t *testing.T) {
 	path := t.TempDir() + "/testfile"
 	edsIn := edstest.RandEDS(t, 8)
-	mem := newMemPools(NewCodec())
-	_, err := CreateOdsFile(path, edsIn, mem)
+	_, err := CreateOdsFile(path, 1, []byte{}, edsIn)
 	require.NoError(t, err)
 
 	f, err := OpenOdsFile(path)
@@ -28,10 +27,9 @@ func TestCreateOdsFile(t *testing.T) {
 
 func TestOdsFile(t *testing.T) {
 	size := 32
-	mem := newMemPools(NewCodec())
 	createOdsFile := func(eds *rsmt2d.ExtendedDataSquare) EdsFile {
 		path := t.TempDir() + "/testfile"
-		fl, err := CreateOdsFile(path, eds, mem)
+		fl, err := CreateOdsFile(path, 1, []byte{}, eds)
 		require.NoError(t, err)
 		return fl
 	}
@@ -55,14 +53,13 @@ func TestOdsFile(t *testing.T) {
 
 func TestReadOdsFile(t *testing.T) {
 	eds := edstest.RandEDS(t, 8)
-	mem := newMemPools(NewCodec())
 	path := t.TempDir() + "/testfile"
-	f, err := CreateOdsFile(path, eds, mem)
+	f, err := CreateOdsFile(path, 1, []byte{}, eds)
 	require.NoError(t, err)
 
-	ods, err := f.readOds(rsmt2d.Row)
+	err = f.readOds()
 	require.NoError(t, err)
-	for i, row := range ods.square {
+	for i, row := range f.ods.square {
 		original, err := f.readRow(i)
 		require.NoError(t, err)
 		require.True(t, len(original) == len(row))
@@ -100,12 +97,11 @@ func TestReadOdsFile(t *testing.T) {
 func BenchmarkAxisFromOdsFile(b *testing.B) {
 	minSize, maxSize := 32, 128
 	dir := b.TempDir()
-	mem := newMemPools(NewCodec())
 
 	newFile := func(size int) EdsFile {
 		eds := edstest.RandEDS(b, size)
 		path := dir + "/testfile"
-		f, err := CreateOdsFile(path, eds, mem)
+		f, err := CreateOdsFile(path, 1, []byte{}, eds)
 		require.NoError(b, err)
 		return f
 	}
@@ -127,12 +123,11 @@ func BenchmarkAxisFromOdsFile(b *testing.B) {
 func BenchmarkShareFromOdsFile(b *testing.B) {
 	minSize, maxSize := 128, 128
 	dir := b.TempDir()
-	mem := newMemPools(NewCodec())
 
 	newFile := func(size int) EdsFile {
 		eds := edstest.RandEDS(b, size)
 		path := dir + "/testfile"
-		f, err := CreateOdsFile(path, eds, mem)
+		f, err := CreateOdsFile(path, 1, []byte{}, eds)
 		require.NoError(b, err)
 		return f
 	}

@@ -1,4 +1,4 @@
-package store
+package file
 
 import (
 	"context"
@@ -23,7 +23,6 @@ var _ EdsFile = (*CacheFile)(nil)
 type CacheFile struct {
 	EdsFile
 
-	codec     Codec
 	axisCache []map[int]inMemoryAxis
 	// disableCache disables caching of rows for testing purposes
 	disableCache bool
@@ -35,10 +34,9 @@ type inMemoryAxis struct {
 	proofs blockservice.BlockGetter
 }
 
-func NewCacheFile(f EdsFile, codec Codec) *CacheFile {
+func NewCacheFile(f EdsFile) *CacheFile {
 	return &CacheFile{
 		EdsFile:   f,
-		codec:     codec,
 		axisCache: []map[int]inMemoryAxis{make(map[int]inMemoryAxis), make(map[int]inMemoryAxis)},
 	}
 }
@@ -117,7 +115,7 @@ func (f *CacheFile) AxisHalf(ctx context.Context, axisType rsmt2d.Axis, axisIdx 
 	}
 
 	if !f.disableCache {
-		axis, err := extendShares(f.codec, half)
+		axis, err := extendShares(codec, half)
 		if err != nil {
 			return nil, fmt.Errorf("extending shares: %w", err)
 		}
@@ -135,7 +133,7 @@ func (f *CacheFile) axis(ctx context.Context, axisType rsmt2d.Axis, axisIdx int)
 		return nil, err
 	}
 
-	return extendShares(f.codec, original)
+	return extendShares(codec, original)
 }
 
 func (f *CacheFile) Data(ctx context.Context, namespace share.Namespace, rowIdx int) (share.NamespacedRow, error) {

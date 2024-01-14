@@ -1,4 +1,4 @@
-package store
+package file
 
 import (
 	"sync"
@@ -6,27 +6,33 @@ import (
 	"github.com/klauspost/reedsolomon"
 )
 
+var codec Codec
+
+func init() {
+	codec = NewCodec()
+}
+
 type Codec interface {
 	Encoder(len int) (reedsolomon.Encoder, error)
 }
 
-type codec struct {
-	encCache sync.Map
+type codecCache struct {
+	cache sync.Map
 }
 
 func NewCodec() Codec {
-	return &codec{}
+	return &codecCache{}
 }
 
-func (l *codec) Encoder(len int) (reedsolomon.Encoder, error) {
-	enc, ok := l.encCache.Load(len)
+func (l *codecCache) Encoder(len int) (reedsolomon.Encoder, error) {
+	enc, ok := l.cache.Load(len)
 	if !ok {
 		var err error
 		enc, err = reedsolomon.New(len/2, len/2, reedsolomon.WithLeopardGF(true))
 		if err != nil {
 			return nil, err
 		}
-		l.encCache.Store(len, enc)
+		l.cache.Store(len, enc)
 	}
 	return enc.(reedsolomon.Encoder), nil
 }

@@ -1,10 +1,11 @@
-package store
+package file
 
 import (
 	"context"
 	"errors"
 	"github.com/celestiaorg/celestia-node/share"
 	"github.com/celestiaorg/rsmt2d"
+	"io"
 	"sync/atomic"
 )
 
@@ -17,7 +18,7 @@ type closeOnceFile struct {
 	closed atomic.Bool
 }
 
-func CloseOnceFile(f EdsFile) EdsFile {
+func CloseOnceFile(f EdsFile) *closeOnceFile {
 	return &closeOnceFile{f: f}
 }
 
@@ -31,11 +32,32 @@ func (c *closeOnceFile) Close() error {
 	return nil
 }
 
+func (c *closeOnceFile) Reader() (io.Reader, error) {
+	if c.closed.Load() {
+		return nil, errFileClosed
+	}
+	return c.f.Reader()
+}
+
 func (c *closeOnceFile) Size() int {
 	if c.closed.Load() {
 		return 0
 	}
 	return c.f.Size()
+}
+
+func (c *closeOnceFile) Height() uint64 {
+	if c.closed.Load() {
+		return 0
+	}
+	return c.f.Height()
+}
+
+func (c *closeOnceFile) DataHash() share.DataHash {
+	if c.closed.Load() {
+		return nil
+	}
+	return c.f.DataHash()
 }
 
 func (c *closeOnceFile) Share(ctx context.Context, x, y int) (*share.ShareWithProof, error) {

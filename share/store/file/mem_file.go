@@ -1,4 +1,4 @@
-package store
+package file
 
 import (
 	"context"
@@ -11,7 +11,7 @@ import (
 	"github.com/celestiaorg/celestia-node/share/ipld"
 )
 
-var _ EdsFile = (*MemFile)(nil)
+//var _ EdsFile = (*MemFile)(nil)
 
 type MemFile struct {
 	Eds *rsmt2d.ExtendedDataSquare

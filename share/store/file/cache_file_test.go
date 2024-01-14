@@ -1,4 +1,4 @@
-package store
+package file
 
 import (
 	"github.com/celestiaorg/rsmt2d"
@@ -8,12 +8,11 @@ import (
 
 func TestCacheFile(t *testing.T) {
 	size := 8
-	mem := newMemPools(NewCodec())
 	newFile := func(eds *rsmt2d.ExtendedDataSquare) EdsFile {
 		path := t.TempDir() + "/testfile"
-		fl, err := CreateOdsFile(path, eds, mem)
+		fl, err := CreateOdsFile(path, 1, []byte{}, eds)
 		require.NoError(t, err)
-		return NewCacheFile(fl, mem.codec)
+		return NewCacheFile(fl)
 	}
 
 	t.Run("Share", func(t *testing.T) {
