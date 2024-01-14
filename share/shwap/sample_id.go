@@ -1,8 +1,11 @@
 package shwap
 
 import (
+	"context"
 	"encoding/binary"
 	"fmt"
+	"github.com/celestiaorg/celestia-node/share/store/file"
+	blocks "github.com/ipfs/go-block-format"
 
 	"github.com/ipfs/go-cid"
 	mh "github.com/multiformats/go-multihash"
@@ -10,11 +13,14 @@ import (
 	"github.com/celestiaorg/celestia-node/share"
 )
 
+//TODO(@walldiss): maybe move into separate subpkg?
+
 // SampleIDSize is the size of the SampleID in bytes
 const SampleIDSize = RowIDSize + 2
 
 // SampleID is an unique identifier of a Sample.
 type SampleID struct {
+	// TODO(@walldiss): why embed instead of just having a field?
 	RowID
 
 	// ShareIndex is the index of the sampled share in the Row
@@ -102,4 +108,28 @@ func (sid SampleID) Verify(root *share.Root) error {
 	}
 
 	return sid.RowID.Verify(root)
+}
+
+func (sid SampleID) GetHeight() uint64 {
+	return sid.RowID.Height
+}
+
+func (sid SampleID) BlockFromFile(ctx context.Context, f file.EdsFile) (blocks.Block, error) {
+	shr, err := f.Share(ctx, int(sid.RowID.RowIndex), int(sid.ShareIndex))
+	if err != nil {
+		return nil, fmt.Errorf("while getting share with proof: %w", err)
+	}
+
+	s := NewSample(sid, shr.Share, *shr.Proof, shr.Axis)
+	blk, err := s.IPLDBlock()
+	if err != nil {
+		return nil, fmt.Errorf("while coverting to IPLD block: %w", err)
+	}
+
+	err = f.Close()
+	if err != nil {
+		return nil, fmt.Errorf("while closing ODS file: %w", err)
+	}
+
+	return blk, nil
 }

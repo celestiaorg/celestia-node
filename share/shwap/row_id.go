@@ -1,14 +1,20 @@
 package shwap
 
 import (
+	"context"
 	"encoding/binary"
 	"fmt"
+	"github.com/celestiaorg/celestia-node/share/store/file"
+	"github.com/celestiaorg/rsmt2d"
+	blocks "github.com/ipfs/go-block-format"
 
 	"github.com/ipfs/go-cid"
 	mh "github.com/multiformats/go-multihash"
 
 	"github.com/celestiaorg/celestia-node/share"
 )
+
+//TODO(@walldiss): maybe move into separate subpkg?
 
 // TODO:
 // * Remove RowHash
@@ -113,4 +119,28 @@ func (rid RowID) Verify(root *share.Root) error {
 	}
 
 	return nil
+}
+
+func (rid RowID) GetHeight() uint64 {
+	return rid.Height
+}
+
+func (rid RowID) BlockFromFile(ctx context.Context, f file.EdsFile) (blocks.Block, error) {
+	axisHalf, err := f.AxisHalf(ctx, rsmt2d.Row, int(rid.RowIndex))
+	if err != nil {
+		return nil, fmt.Errorf("while getting AxisHalf: %w", err)
+	}
+
+	s := NewRow(rid, axisHalf)
+	blk, err := s.IPLDBlock()
+	if err != nil {
+		return nil, fmt.Errorf("while coverting to IPLD block: %w", err)
+	}
+
+	err = f.Close()
+	if err != nil {
+		return nil, fmt.Errorf("while closing EDS file: %w", err)
+	}
+
+	return blk, nil
 }

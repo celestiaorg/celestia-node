@@ -1,7 +1,10 @@
 package shwap
 
 import (
+	"context"
 	"fmt"
+	"github.com/celestiaorg/celestia-node/share/store/file"
+	blocks "github.com/ipfs/go-block-format"
 
 	"github.com/ipfs/go-cid"
 	mh "github.com/multiformats/go-multihash"
@@ -14,6 +17,7 @@ const DataIDSize = RowIDSize + share.NamespaceSize
 
 // DataID is an unique identifier of a namespaced Data inside EDS Row.
 type DataID struct {
+	// TODO(@walldiss): why embed instead of just having a field?
 	RowID
 
 	// DataNamespace is the namespace of the data
@@ -112,4 +116,28 @@ func (s DataID) Verify(root *share.Root) error {
 	}
 
 	return nil
+}
+
+func (s DataID) GetHeight() uint64 {
+	return s.RowID.GetHeight()
+}
+
+func (s DataID) BlockFromFile(ctx context.Context, f file.EdsFile) (blocks.Block, error) {
+	data, err := f.Data(ctx, s.Namespace(), int(s.RowIndex))
+	if err != nil {
+		return nil, fmt.Errorf("while getting Data: %w", err)
+	}
+
+	d := NewData(s, data.Shares, *data.Proof)
+	blk, err := d.IPLDBlock()
+	if err != nil {
+		return nil, fmt.Errorf("while coverting Data to IPLD block: %w", err)
+	}
+
+	err = f.Close()
+	if err != nil {
+		return nil, fmt.Errorf("while closing ODS file: %w", err)
+	}
+
+	return blk, nil
 }
