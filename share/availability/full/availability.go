@@ -4,13 +4,13 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"github.com/celestiaorg/celestia-node/share/store"
 
 	"github.com/filecoin-project/dagstore"
 	logging "github.com/ipfs/go-log/v2"
 
 	"github.com/celestiaorg/celestia-node/header"
 	"github.com/celestiaorg/celestia-node/share"
-	"github.com/celestiaorg/celestia-node/share/eds"
 	"github.com/celestiaorg/celestia-node/share/eds/byzantine"
 	"github.com/celestiaorg/celestia-node/share/ipld"
 	"github.com/celestiaorg/celestia-node/share/p2p/discovery"
@@ -22,7 +22,7 @@ var log = logging.Logger("share/full")
 // recovery technique. It is considered "full" because it is required
 // to download enough shares to fully reconstruct the data square.
 type ShareAvailability struct {
-	store  *eds.Store
+	store  *store.Store
 	getter share.Getter
 	disc   *discovery.Discovery
 
@@ -31,7 +31,7 @@ type ShareAvailability struct {
 
 // NewShareAvailability creates a new full ShareAvailability.
 func NewShareAvailability(
-	store *eds.Store,
+	store *store.Store,
 	getter share.Getter,
 	disc *discovery.Discovery,
 ) *ShareAvailability {
@@ -73,7 +73,7 @@ func (fa *ShareAvailability) SharesAvailable(ctx context.Context, header *header
 	}
 
 	// a hack to avoid loading the whole EDS in mem if we store it already.
-	if ok, _ := fa.store.Has(ctx, dah.Hash()); ok {
+	if ok, _ := fa.store.HasByHash(ctx, dah.Hash()); ok {
 		return nil
 	}
 
@@ -94,7 +94,7 @@ func (fa *ShareAvailability) SharesAvailable(ctx context.Context, header *header
 		return err
 	}
 
-	err = fa.store.Put(ctx, dah.Hash(), eds)
+	_, err = fa.store.Put(ctx, dah.Hash(), header.Height(), eds)
 	if err != nil && !errors.Is(err, dagstore.ErrShardExists) {
 		return fmt.Errorf("full availability: failed to store eds: %w", err)
 	}
