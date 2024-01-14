@@ -93,9 +93,12 @@ func (c *Client) doRequest(
 
 	c.setStreamDeadlines(ctx, stream)
 
+	from, to := share.RowRangeForNamespace(root, namespace)
 	req := &pb.GetSharesByNamespaceRequest{
 		RootHash:  root.Hash(),
 		Namespace: namespace,
+		FromRow:   uint32(from),
+		ToRow:     uint32(to),
 	}
 
 	_, err = serde.Write(stream, req)

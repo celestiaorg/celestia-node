@@ -4,6 +4,9 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"github.com/celestiaorg/celestia-node/libs/utils"
+	"github.com/celestiaorg/celestia-node/share/store"
+	"github.com/celestiaorg/celestia-node/share/store/file"
 	"io"
 	"time"
 
@@ -28,7 +31,7 @@ type Server struct {
 	host       host.Host
 	protocolID protocol.ID
 
-	store *eds.Store
+	store *store.Store
 
 	params     *Parameters
 	middleware *p2p.Middleware
@@ -36,7 +39,7 @@ type Server struct {
 }
 
 // NewServer creates a new ShrEx/EDS server.
-func NewServer(params *Parameters, host host.Host, store *eds.Store) (*Server, error) {
+func NewServer(params *Parameters, host host.Host, store *store.Store) (*Server, error) {
 	if err := params.Validate(); err != nil {
 		return nil, fmt.Errorf("shrex-eds: server creation failed: %w", err)
 	}
@@ -99,15 +102,11 @@ func (s *Server) handleStream(stream network.Stream) {
 	// determine whether the EDS is available in our store
 	// we do not close the reader, so that other requests will not need to re-open the file.
 	// closing is handled by the LRU cache.
-	edsReader, err := s.store.GetCAR(ctx, hash)
+	file, err := s.store.GetByHash(ctx, hash)
 	var status p2p_pb.Status
 	switch {
 	case err == nil:
-		defer func() {
-			if err := edsReader.Close(); err != nil {
-				log.Warnw("closing car reader", "err", err)
-			}
-		}()
+		defer utils.CloseAndLog(logger, "file", file)
 		status = p2p_pb.Status_OK
 	case errors.Is(err, eds.ErrNotFound):
 		logger.Warnw("server: request hash not found")
@@ -135,7 +134,7 @@ func (s *Server) handleStream(stream network.Stream) {
 	}
 
 	// start streaming the ODS to the client
-	err = s.writeODS(logger, edsReader, stream)
+	err = s.writeODS(logger, file, stream)
 	if err != nil {
 		logger.Warnw("server: writing ods to stream", "err", err)
 		stream.Reset() //nolint:errcheck
@@ -179,18 +178,18 @@ func (s *Server) writeStatus(logger *zap.SugaredLogger, status p2p_pb.Status, st
 	return err
 }
 
-func (s *Server) writeODS(logger *zap.SugaredLogger, edsReader io.Reader, stream network.Stream) error {
-	err := stream.SetWriteDeadline(time.Now().Add(s.params.ServerWriteTimeout))
+func (s *Server) writeODS(logger *zap.SugaredLogger, file file.EdsFile, stream network.Stream) error {
+	reader, err := file.Reader()
+	if err != nil {
+		return fmt.Errorf("getting ODS reader: %w", err)
+	}
+	err = stream.SetWriteDeadline(time.Now().Add(s.params.ServerWriteTimeout))
 	if err != nil {
 		logger.Debugw("server: set read deadline", "err", err)
 	}
 
-	odsReader, err := eds.ODSReader(edsReader)
-	if err != nil {
-		return fmt.Errorf("creating ODS reader: %w", err)
-	}
 	buf := make([]byte, s.params.BufferSize)
-	_, err = io.CopyBuffer(stream, odsReader, buf)
+	_, err = io.CopyBuffer(stream, reader, buf)
 	if err != nil {
 		return fmt.Errorf("writing ODS bytes: %w", err)
 	}

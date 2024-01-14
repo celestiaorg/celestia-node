@@ -276,8 +276,7 @@ func NDFromShares(shrs []share.Share, namespace share.Namespace, axisIdx int) ([
 		return nil, nmt.Proof{}, err
 	}
 
-	cid := ipld.MustCidFromNamespacedSha256(root)
-	row, proof, err := ipld.GetSharesByNamespace(context.TODO(), bserv, cid, namespace, len(shrs))
+	row, proof, err := ipld.GetSharesByNamespace(context.TODO(), bserv, root, namespace, len(shrs))
 	if err != nil {
 		return nil, nmt.Proof{}, err
 	}

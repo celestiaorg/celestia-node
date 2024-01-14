@@ -54,9 +54,12 @@ func (StatusCode) EnumDescriptor() ([]byte, []int) {
 	return fileDescriptor_ed9f13149b0de397, []int{0}
 }
 
+// FIXME(@walldiss): Needs to be regenerated
 type GetSharesByNamespaceRequest struct {
 	RootHash  []byte `protobuf:"bytes,1,opt,name=root_hash,json=rootHash,proto3" json:"root_hash,omitempty"`
 	Namespace []byte `protobuf:"bytes,2,opt,name=namespace,proto3" json:"namespace,omitempty"`
+	FromRow   uint32
+	ToRow     uint32
 }
 
 func (m *GetSharesByNamespaceRequest) Reset()         { *m = GetSharesByNamespaceRequest{} }

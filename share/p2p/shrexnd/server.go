@@ -5,6 +5,8 @@ import (
 	"crypto/sha256"
 	"errors"
 	"fmt"
+	"github.com/celestiaorg/celestia-node/libs/utils"
+	"github.com/celestiaorg/celestia-node/share/store"
 	"time"
 
 	"github.com/libp2p/go-libp2p/core/host"
@@ -30,7 +32,7 @@ type Server struct {
 	protocolID protocol.ID
 
 	handler network.StreamHandler
-	store   *eds.Store
+	store   *store.Store
 
 	params     *Parameters
 	middleware *p2p.Middleware
@@ -38,7 +40,7 @@ type Server struct {
 }
 
 // NewServer creates new Server
-func NewServer(params *Parameters, host host.Host, store *eds.Store) (*Server, error) {
+func NewServer(params *Parameters, host host.Host, store *store.Store) (*Server, error) {
 	if err := params.Validate(); err != nil {
 		return nil, fmt.Errorf("shrex-nd: server creation failed: %w", err)
 	}
@@ -114,7 +116,7 @@ func (srv *Server) handleNamespacedData(ctx context.Context, stream network.Stre
 	ctx, cancel := context.WithTimeout(ctx, srv.params.HandleRequestTimeout)
 	defer cancel()
 
-	shares, status, err := srv.getNamespaceData(ctx, req.RootHash, req.Namespace)
+	shares, status, err := srv.getNamespaceData(ctx, req.RootHash, req.Namespace, int(req.FromRow), int(req.ToRow))
 	if err != nil {
 		// server should respond with status regardless if there was an error getting data
 		sendErr := srv.respondStatus(ctx, logger, stream, status)
@@ -172,21 +174,29 @@ func (srv *Server) readRequest(
 }
 
 func (srv *Server) getNamespaceData(ctx context.Context,
-	hash share.DataHash, namespace share.Namespace) (share.NamespacedShares, pb.StatusCode, error) {
-	dah, err := srv.store.GetDAH(ctx, hash)
+	hash share.DataHash,
+	namespace share.Namespace,
+	fromRow, toRow int,
+) (share.NamespacedShares, pb.StatusCode, error) {
+	file, err := srv.store.GetByHash(ctx, hash)
 	if err != nil {
 		if errors.Is(err, eds.ErrNotFound) {
 			return nil, pb.StatusCode_NOT_FOUND, nil
 		}
 		return nil, pb.StatusCode_INTERNAL, fmt.Errorf("retrieving DAH: %w", err)
 	}
+	defer utils.CloseAndLog(log, "file", file)
 
-	shares, err := eds.RetrieveNamespaceFromStore(ctx, srv.store, dah, namespace)
-	if err != nil {
-		return nil, pb.StatusCode_INTERNAL, fmt.Errorf("retrieving shares: %w", err)
+	namespacedRows := make(share.NamespacedShares, 0, toRow-fromRow+1)
+	for rowIdx := fromRow; rowIdx <= toRow; rowIdx++ {
+		data, err := file.Data(ctx, namespace, rowIdx)
+		if err != nil {
+			return nil, pb.StatusCode_INTERNAL, fmt.Errorf("retrieving data: %w", err)
+		}
+		namespacedRows = append(namespacedRows, data)
 	}
 
-	return shares, pb.StatusCode_OK, nil
+	return namespacedRows, pb.StatusCode_OK, nil
 }
 
 func (srv *Server) respondStatus(
