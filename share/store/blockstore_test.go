@@ -1,10 +1,11 @@
-package shwap
+package store
 
 import (
 	"context"
+	"github.com/celestiaorg/celestia-node/share/shwap"
 	"testing"
 
-	"github.com/ipfs/boxo/blockstore"
+	boxobs "github.com/ipfs/boxo/blockstore"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
@@ -27,13 +28,13 @@ func TestBlockstoreGetShareSample(t *testing.T) {
 
 	width := int(sqr.Width())
 	for i := 0; i < width*width; i++ {
-		id, err := NewSampleID(1, i, root)
+		id, err := shwap.NewSampleID(1, i, root)
 		require.NoError(t, err)
 
 		blk, err := b.Get(ctx, id.Cid())
 		require.NoError(t, err)
 
-		sample, err := SampleFromBlock(blk)
+		sample, err := shwap.SampleFromBlock(blk)
 		require.NoError(t, err)
 
 		err = sample.Verify(root)
@@ -48,6 +49,6 @@ func (m *edsFileAndFS) File(uint64) (*eds.MemFile, error) {
 	return (*eds.MemFile)(m), nil
 }
 
-func edsBlockstore(sqr *rsmt2d.ExtendedDataSquare) blockstore.Blockstore {
+func edsBlockstore(sqr *rsmt2d.ExtendedDataSquare) boxobs.Blockstore {
 	return NewBlockstore[*eds.MemFile]((*edsFileAndFS)(&eds.MemFile{Eds: sqr}))
 }
