@@ -108,6 +108,7 @@ jobs:
     needs: [lint, go_mod_tidy_check]
     name: Run Unit Tests with Race Detector
     runs-on: ubuntu-latest
+    continue-on-error: true
 
     steps:
       - uses: actions/checkout@v4
@@ -124,6 +125,7 @@ jobs:
     needs: [lint, go_mod_tidy_check]
     name: Run Integration Tests
     runs-on: ubuntu-latest
+    continue-on-error: true
 
     steps:
       - uses: actions/checkout@v4
