@@ -1,7 +1,10 @@
 package file
 
 import (
+	"bytes"
 	"context"
+	"github.com/celestiaorg/celestia-app/pkg/da"
+	"io"
 
 	"github.com/celestiaorg/celestia-app/pkg/wrapper"
 	"github.com/celestiaorg/nmt"
@@ -11,14 +14,33 @@ import (
 	"github.com/celestiaorg/celestia-node/share/ipld"
 )
 
-//var _ EdsFile = (*MemFile)(nil)
+var _ EdsFile = (*MemFile)(nil)
 
 type MemFile struct {
-	Eds *rsmt2d.ExtendedDataSquare
+	height uint64
+	Eds    *rsmt2d.ExtendedDataSquare
 }
 
 func (f *MemFile) Close() error {
 	return nil
+}
+
+func (f *MemFile) Reader() (io.Reader, error) {
+	bs, err := f.Eds.MarshalJSON()
+	if err != nil {
+		return nil, err
+	}
+
+	return bytes.NewReader(bs), nil
+}
+
+func (f *MemFile) Height() uint64 {
+	return f.height
+}
+
+func (f *MemFile) DataHash() share.DataHash {
+	dah, _ := da.NewDataAvailabilityHeader(f.Eds)
+	return dah.Hash()
 }
 
 func (f *MemFile) Size() int {
