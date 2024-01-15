@@ -106,6 +106,7 @@ jobs:
           name: coverage-${{ matrix.os }}
 
   integration_test:
+    name: Integration Tests
     needs: [lint, go_mod_tidy_check]
     uses: ./.github/workflows/integration-tests.yml
     with:
