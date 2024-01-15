@@ -62,6 +62,7 @@ func NewService(
 		maxPruneablePerGC: numBlocksInWindow * 2,
 		doneCh:            make(chan struct{}),
 		params:            params,
+		failedHeaders:     map[uint64]error{},
 	}
 }
 
@@ -72,6 +73,7 @@ func (s *Service) Start(context.Context) error {
 	if err != nil {
 		return err
 	}
+	log.Debugw("loaded checkpoint", "lastPruned", s.lastPruned().Height())
 
 	go s.prune()
 	return nil
@@ -106,16 +108,19 @@ func (s *Service) prune() {
 		case <-ticker.C:
 			headers, err := s.findPruneableHeaders(s.ctx)
 			if err != nil {
-				// TODO @renaynay: record + report errors properly
+				// TODO @renaynay: record errors properly
+				log.Errorw("failed to find prune-able blocks", "error", err)
 				continue
 			}
+
 			// TODO @renaynay: make deadline a param ? / configurable?
 			pruneCtx, cancel := context.WithDeadline(s.ctx, time.Now().Add(time.Minute))
 			for _, eh := range headers {
+				log.Debugw("pruning block", "height", eh.Height())
 				err = s.pruner.Prune(pruneCtx, eh)
 				if err != nil {
 					// TODO: @distractedm1nd: updatecheckpoint should be called on the last NON-ERRORED header
-					log.Errorf("failed to prune header %d: %s", eh.Height(), err)
+					log.Errorw("failed to prune block", "height", eh.Height(), "err", err)
 					s.failedHeaders[eh.Height()] = err
 				}
 				s.metrics.observePrune(pruneCtx, err != nil)
@@ -124,7 +129,8 @@ func (s *Service) prune() {
 
 			err = s.updateCheckpoint(s.ctx, headers[len(headers)-1])
 			if err != nil {
-				// TODO @renaynay: record + report errors properly
+				// TODO @renaynay: record errors properly
+				log.Errorw("failed to update checkpoint", "err", err)
 				continue
 			}
 		}

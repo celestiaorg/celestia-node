@@ -14,7 +14,7 @@ type Params struct {
 
 func DefaultParams() Params {
 	return Params{
-		gcCycle: time.Hour,
+		gcCycle: time.Minute * 30,
 	}
 }
 
