@@ -124,13 +124,13 @@ test-unit-race:
 
 ## test-integration: Running /integration tests located in nodebuilder/tests
 test-integration:
-	@echo "--> Running integrations tests"
+	@echo "--> Running integrations tests -tags=$(TAGS)"
 	@go test -tags=$(TAGS) ./nodebuilder/tests
 .PHONY: test-integration
 
 ## test-integration-race: Running integration tests with data race detector located in node/tests
 test-integration-race:
-	@echo "--> Running integration tests with data race detector"
+	@echo "--> Running integration tests with data race detector -tags=$(TAGS)"
 	@go test -race -tags=$(TAGS) ./nodebuilder/tests
 .PHONY: test-integration-race
 
@@ -156,7 +156,6 @@ pb-gen:
 		done; \
 	done;
 .PHONY: pb-gen
-
 
 ## openrpc-gen: Generate OpenRPC spec for Celestia-Node's RPC api
 openrpc-gen:
@@ -214,7 +213,6 @@ goreleaser-release:
 .PHONY: goreleaser-release
 
 # Copied from https://github.com/dgraph-io/badger/blob/main/Makefile
-
 USER_ID      = $(shell id -u)
 HAS_JEMALLOC = $(shell test -f /usr/local/lib/libjemalloc.a && echo "jemalloc")
 JEMALLOC_URL = "https://github.com/jemalloc/jemalloc/releases/download/5.2.1/jemalloc-5.2.1.tar.bz2"
