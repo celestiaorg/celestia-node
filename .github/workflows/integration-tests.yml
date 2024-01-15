@@ -10,7 +10,7 @@ on:
 
 jobs:
   api_tests:
-    name: API
+    name: Integration Tests API
     runs-on: ubuntu-latest
 
     steps:
@@ -21,11 +21,11 @@ jobs:
         with:
           go-version: ${{ inputs.go-version }}
 
-      - name: run p2p tests
+      - name: run API tests
         run: make test-integration TAGS=api
 
   blob_tests:
-    name: Blob
+    name: Integration Tests Blob
     runs-on: ubuntu-latest
 
     steps:
@@ -40,7 +40,7 @@ jobs:
         run: make test-integration TAGS=blob
 
   fraud_tests:
-    name: Fraud
+    name: Integration Tests Fraud
     runs-on: ubuntu-latest
 
     steps:
@@ -55,7 +55,7 @@ jobs:
         run: make test-integration TAGS=fraud
 
   nd_tests:
-    name: ND
+    name: Integration Tests ND
     runs-on: ubuntu-latest
 
     steps:
@@ -70,7 +70,7 @@ jobs:
         run: make test-integration TAGS=nd
 
   p2p_tests:
-    name: p2p
+    name: Integration Tests p2p
     runs-on: ubuntu-latest
 
     steps:
@@ -85,7 +85,7 @@ jobs:
         run: make test-integration TAGS=p2p
 
   reconstruction_tests:
-    name: Reconstruction
+    name: Integration Tests Reconstruction
     runs-on: ubuntu-latest
 
     steps:
@@ -100,7 +100,7 @@ jobs:
         run: make test-integration TAGS=reconstruction
 
   sync_tests:
-    name: Sync
+    name: Integration Tests Sync
     runs-on: ubuntu-latest
 
     steps:

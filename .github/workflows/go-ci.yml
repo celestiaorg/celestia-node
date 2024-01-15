@@ -14,6 +14,7 @@ concurrency:
 
 jobs:
   setup:
+    name: Setup
     runs-on: ubuntu-latest
     outputs:
       debug: ${{ steps.debug.outputs.debug }}
