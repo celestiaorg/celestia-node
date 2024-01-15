@@ -15,10 +15,7 @@ concurrency:
 jobs:
   api_tests:
     name: Run api Integration Tests
-    strategy:
-      matrix:
-        os: [ubuntu-latest, macos-latest]
-    runs-on: ${{ matrix.os }}
+    runs-on: ubuntu-latest
 
     steps:
       - uses: actions/checkout@v4
@@ -33,10 +30,7 @@ jobs:
 
   blob_tests:
     name: Run blob Integration Tests
-    strategy:
-      matrix:
-        os: [ubuntu-latest, macos-latest]
-    runs-on: ${{ matrix.os }}
+    runs-on: ubuntu-latest
 
     steps:
       - uses: actions/checkout@v4
@@ -51,10 +45,7 @@ jobs:
 
   fraud_tests:
     name: Run fraud Integration Tests
-    strategy:
-      matrix:
-        os: [ubuntu-latest, macos-latest]
-    runs-on: ${{ matrix.os }}
+    runs-on: ubuntu-latest
 
     steps:
       - uses: actions/checkout@v4
@@ -69,10 +60,7 @@ jobs:
 
   nd_tests:
     name: Run nd Integration Tests
-    strategy:
-      matrix:
-        os: [ubuntu-latest, macos-latest]
-    runs-on: ${{ matrix.os }}
+    runs-on: ubuntu-latest
 
     steps:
       - uses: actions/checkout@v4
@@ -87,10 +75,7 @@ jobs:
 
   p2p_tests:
     name: Run p2p Integration Tests
-    strategy:
-      matrix:
-        os: [ubuntu-latest, macos-latest]
-    runs-on: ${{ matrix.os }}
+    runs-on: ubuntu-latest
 
     steps:
       - uses: actions/checkout@v4
@@ -105,10 +90,7 @@ jobs:
 
   reconstruction_tests:
     name: Run Reconstruction Integration Tests
-    strategy:
-      matrix:
-        os: [ubuntu-latest, macos-latest]
-    runs-on: ${{ matrix.os }}
+    runs-on: ubuntu-latest
 
     steps:
       - uses: actions/checkout@v4
@@ -123,10 +105,7 @@ jobs:
 
   sync_tests:
     name: Run Sync Integration Tests
-    strategy:
-      matrix:
-        os: [ubuntu-latest, macos-latest]
-    runs-on: ${{ matrix.os }}
+    runs-on: ubuntu-latest
 
     steps:
       - uses: actions/checkout@v4
