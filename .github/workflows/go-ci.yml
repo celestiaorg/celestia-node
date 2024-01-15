@@ -123,20 +123,6 @@ jobs:
 
   integration_test:
     needs: [lint, go_mod_tidy_check]
-    name: Run Integration Tests
-    runs-on: ubuntu-latest
-    continue-on-error: true
-
-    steps:
-      - uses: actions/checkout@v4
-
-      - name: set up go
-        uses: actions/setup-go@v5
-        with:
-          go-version: ${{ inputs.go-version }}
-
-      - name: Integration Tests
-        run: make test-integration
-
-      - name: Integration Tests with Race Detector
-        run: make test-integration-race
+    uses: ./.github/workflows/go-integration-tests.yml
+    with:
+      go-version: ${{ needs.setup.outputs.go-version }}

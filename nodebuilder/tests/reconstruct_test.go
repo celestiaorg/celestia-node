@@ -1,7 +1,4 @@
-// Test with light nodes spawns more goroutines than in the race detectors budget,
-// and thus we're disabling the race detector.
-// TODO(@Wondertan): Remove this once we move to go1.19 with unlimited race detector
-//go:build !race
+//go:build reconstruction || integration
 
 package tests
 

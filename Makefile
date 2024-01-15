@@ -3,6 +3,7 @@ PROJECTNAME=$(shell basename "$(PWD)")
 DIR_FULLPATH=$(shell pwd)
 versioningPath := "github.com/celestiaorg/celestia-node/nodebuilder/node"
 LDFLAGS=-ldflags="-X '$(versioningPath).buildTime=$(shell date)' -X '$(versioningPath).lastCommit=$(shell git rev-parse HEAD)' -X '$(versioningPath).semanticVersion=$(shell git describe --tags --dirty=-dev 2>/dev/null || git rev-parse --abbrev-ref HEAD)'"
+TAGS=integration
 ifeq (${PREFIX},)
 	PREFIX := /usr/local
 endif
@@ -124,22 +125,14 @@ test-unit-race:
 ## test-integration: Running /integration tests located in nodebuilder/tests
 test-integration:
 	@echo "--> Running integrations tests"
-	@go test ./nodebuilder/tests
+	@go test -tags=$(TAGS) ./nodebuilder/tests
 .PHONY: test-integration
 
 ## test-integration-race: Running integration tests with data race detector located in node/tests
 test-integration-race:
 	@echo "--> Running integration tests with data race detector"
-	@go test -race ./nodebuilder/tests
+	@go test -race -tags=$(TAGS) ./nodebuilder/tests
 .PHONY: test-integration-race
-
-## test: Running both unit and integrations tests
-test:
-	@echo "--> Running all tests without data race detector"
-	@go test ./...
-	@echo "--> Running all tests with data race detector"
-	@go test -race ./...
-.PHONY: test
 
 ## benchmark: Running all benchmarks
 benchmark:

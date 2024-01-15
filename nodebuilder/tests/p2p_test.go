@@ -1,3 +1,5 @@
+//go:build p2p || integration
+
 package tests
 
 import (
