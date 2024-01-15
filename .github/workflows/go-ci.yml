@@ -84,8 +84,8 @@ jobs:
         with:
           go-version: ${{ inputs.go-version }}
 
-      - name: run unit tests
-        run: make test-unit ENABLE_VERBOSE=${{ needs.setup.outputs.debug }}
+      - name: run unit tests (race)
+        run: make test-unit-race ENABLE_VERBOSE=${{ needs.setup.outputs.debug }}
 
       - name: Upload unit test output
         uses: actions/upload-artifact@v4
@@ -104,23 +104,6 @@ jobs:
           token: ${{ secrets.CODECOV_TOKEN }}
           file: ./coverage.txt
           name: coverage-${{ matrix.os }}
-
-  unit_race_test:
-    needs: [lint, go_mod_tidy_check]
-    name: Run Unit Tests with Race Detector
-    runs-on: ubuntu-latest
-    continue-on-error: true
-
-    steps:
-      - uses: actions/checkout@v4
-
-      - name: set up go
-        uses: actions/setup-go@v5
-        with:
-          go-version: ${{ inputs.go-version }}
-
-      - name: execute test run
-        run: make test-unit-race
 
   integration_test:
     needs: [lint, go_mod_tidy_check]

@@ -119,7 +119,7 @@ test-unit:
 ## test-unit-race: Running unit tests with data race detector
 test-unit-race:
 	@echo "--> Running unit tests with data race detector"
-	@go test -race `go list ./... | grep -v nodebuilder/tests`
+	@go test $(VERBOSE) -race -covermode=atomic -coverprofile=coverage.txt `go list ./... | grep -v nodebuilder/tests` $(LOG_AND_FILTER)
 .PHONY: test-unit-race
 
 ## test-integration: Running /integration tests located in nodebuilder/tests
