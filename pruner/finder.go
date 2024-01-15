@@ -43,6 +43,9 @@ func (s *Service) findPruneableHeaders(ctx context.Context) ([]*header.ExtendedH
 		estimatedCutoffHeight = head.Height()
 	}
 
+	log.Debugw("finder: fetching header range", "lastPruned", lastPruned.Height(),
+		"estimatedCutoffHeight", estimatedCutoffHeight)
+
 	headers, err := s.getter.GetRangeByHeight(ctx, lastPruned, estimatedCutoffHeight)
 	if err != nil {
 		return nil, err

@@ -2,7 +2,9 @@ package full
 
 import (
 	"context"
+	"errors"
 
+	"github.com/filecoin-project/dagstore"
 	logging "github.com/ipfs/go-log/v2"
 
 	"github.com/celestiaorg/celestia-node/header"
@@ -29,5 +31,10 @@ func (p *Pruner) Prune(ctx context.Context, eh *header.ExtendedHeader) error {
 	}
 
 	log.Debugf("pruning header %s", eh.DAH.Hash())
-	return p.store.Remove(ctx, eh.DAH.Hash())
+
+	err := p.store.Remove(ctx, eh.DAH.Hash())
+	if err != nil && !errors.Is(err, dagstore.ErrShardUnknown) {
+		return err
+	}
+	return nil
 }

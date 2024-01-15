@@ -45,10 +45,10 @@ func ConstructModule(tp node.Type) fx.Option {
 				return full.NewPruner(store)
 			}),
 			fx.Supply(full.Window),
-			//fx.Provide(func() pruner.Pruner {
+			// fx.Provide(func() pruner.Pruner {
 			//	return archival.NewPruner()
-			//}),
-			//fx.Supply(archival.Window),
+			// }),
+			// fx.Supply(archival.Window),
 		)
 	case node.Light:
 		return fx.Module("prune",
