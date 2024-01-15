@@ -125,4 +125,4 @@ jobs:
     needs: [lint, go_mod_tidy_check]
     uses: ./.github/workflows/integration-tests.yml
     with:
-      go-version: ${{ needs.setup.outputs.go-version }}
+      go-version: ${{ inputs.go-version }}
