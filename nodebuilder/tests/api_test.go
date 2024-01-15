@@ -20,6 +20,10 @@ import (
 	"github.com/celestiaorg/celestia-node/nodebuilder/tests/swamp"
 )
 
+const (
+	btime = time.Millisecond * 300
+)
+
 func TestNodeModule(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), swamp.DefaultTestTimeout)
 	t.Cleanup(cancel)

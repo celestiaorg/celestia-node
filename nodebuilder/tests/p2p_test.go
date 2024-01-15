@@ -201,8 +201,3 @@ func TestRestartNodeDiscovery(t *testing.T) {
 	require.NoError(t, err)
 	assert.Equal(t, connectedness, network.Connected)
 }
-
-func setTimeInterval(cfg *nodebuilder.Config, interval time.Duration) {
-	cfg.P2P.RoutingTableRefreshPeriod = interval
-	cfg.Share.Discovery.AdvertiseInterval = interval
-}

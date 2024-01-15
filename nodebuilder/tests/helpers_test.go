@@ -1,8 +1,10 @@
+//nolint:unused
 package tests
 
 import (
 	"context"
 	"testing"
+	"time"
 
 	"github.com/celestiaorg/celestia-node/api/rpc/client"
 	"github.com/celestiaorg/celestia-node/libs/authtoken"
@@ -12,7 +14,6 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-//nolint:unused
 func getAdminClient(ctx context.Context, nd *nodebuilder.Node, t *testing.T) *client.Client {
 	t.Helper()
 
@@ -26,4 +27,9 @@ func getAdminClient(ctx context.Context, nd *nodebuilder.Node, t *testing.T) *cl
 	require.NoError(t, err)
 
 	return client
+}
+
+func setTimeInterval(cfg *nodebuilder.Config, interval time.Duration) {
+	cfg.P2P.RoutingTableRefreshPeriod = interval
+	cfg.Share.Discovery.AdvertiseInterval = interval
 }

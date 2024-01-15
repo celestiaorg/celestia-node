@@ -10,7 +10,7 @@ on:
 
 jobs:
   api_tests:
-    name: Run api Integration Tests
+    name: API
     runs-on: ubuntu-latest
 
     steps:
@@ -25,7 +25,7 @@ jobs:
         run: make test-integration TAGS=api
 
   blob_tests:
-    name: Run blob Integration Tests
+    name: Blob
     runs-on: ubuntu-latest
 
     steps:
@@ -40,7 +40,7 @@ jobs:
         run: make test-integration TAGS=blob
 
   fraud_tests:
-    name: Run fraud Integration Tests
+    name: Fraud
     runs-on: ubuntu-latest
 
     steps:
@@ -55,7 +55,7 @@ jobs:
         run: make test-integration TAGS=fraud
 
   nd_tests:
-    name: Run nd Integration Tests
+    name: ND
     runs-on: ubuntu-latest
 
     steps:
@@ -70,7 +70,7 @@ jobs:
         run: make test-integration TAGS=nd
 
   p2p_tests:
-    name: Run p2p Integration Tests
+    name: p2p
     runs-on: ubuntu-latest
 
     steps:
@@ -85,7 +85,7 @@ jobs:
         run: make test-integration TAGS=p2p
 
   reconstruction_tests:
-    name: Run Reconstruction Integration Tests
+    name: Reconstruction
     runs-on: ubuntu-latest
 
     steps:
@@ -100,7 +100,7 @@ jobs:
         run: make test-integration TAGS=reconstruction
 
   sync_tests:
-    name: Run Sync Integration Tests
+    name: Sync
     runs-on: ubuntu-latest
 
     steps:
