@@ -573,10 +573,6 @@ func (ca *CoreAccessor) queryMinimumGasPrice(
 	return coins.AmountOf(app.BondDenom).MustFloat64(), nil
 }
 
-func (ca *CoreAccessor) IsStopped(context.Context) bool {
-	return ca.ctx.Err() != nil
-}
-
 func withFee(fee Int) apptypes.TxBuilderOption {
 	gasFee := sdktypes.NewCoins(sdktypes.NewCoin(app.BondDenom, fee))
 	return apptypes.SetFeeAmount(gasFee)
