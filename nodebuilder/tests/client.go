@@ -7,10 +7,12 @@ import (
 	"github.com/celestiaorg/celestia-node/api/rpc/client"
 	"github.com/celestiaorg/celestia-node/libs/authtoken"
 	"github.com/celestiaorg/celestia-node/nodebuilder"
+
 	"github.com/filecoin-project/go-jsonrpc/auth"
 	"github.com/stretchr/testify/require"
 )
 
+//nolint:unused
 func getAdminClient(ctx context.Context, nd *nodebuilder.Node, t *testing.T) *client.Client {
 	t.Helper()
 
