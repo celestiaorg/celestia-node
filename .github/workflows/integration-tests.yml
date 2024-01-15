@@ -97,7 +97,7 @@ jobs:
           go-version: ${{ inputs.go-version }}
 
       - name: run reconstruction tests
-        run: make test-integration TAGS=reconstruction
+        run: make test-integration SHORT=true TAGS=reconstruction
 
   sync_tests:
     name: Integration Tests Sync
@@ -111,5 +111,5 @@ jobs:
         with:
           go-version: ${{ inputs.go-version }}
 
-      - name: run reconstruction tests
+      - name: run sync tests
         run: make test-integration TAGS=sync

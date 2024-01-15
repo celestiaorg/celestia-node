@@ -4,6 +4,7 @@ DIR_FULLPATH=$(shell pwd)
 versioningPath := "github.com/celestiaorg/celestia-node/nodebuilder/node"
 LDFLAGS=-ldflags="-X '$(versioningPath).buildTime=$(shell date)' -X '$(versioningPath).lastCommit=$(shell git rev-parse HEAD)' -X '$(versioningPath).semanticVersion=$(shell git describe --tags --dirty=-dev 2>/dev/null || git rev-parse --abbrev-ref HEAD)'"
 TAGS=integration
+SHORT=
 ifeq (${PREFIX},)
 	PREFIX := /usr/local
 endif
@@ -13,6 +14,11 @@ ifeq ($(ENABLE_VERBOSE),true)
 else
 	VERBOSE =
 	LOG_AND_FILTER =
+endif
+ifeq ($(SHORT),true)
+	INTEGRATION_RUN_LENGTH = -short
+else
+	INTEGRATION_RUN_LENGTH =
 endif
 ## help: Get more info on make commands.
 help: Makefile
@@ -124,8 +130,8 @@ test-unit-race:
 
 ## test-integration: Running /integration tests located in nodebuilder/tests
 test-integration:
-	@echo "--> Running integrations tests -tags=$(TAGS)"
-	@go test -tags=$(TAGS) ./nodebuilder/tests
+	@echo "--> Running integrations tests $(VERBOSE) -tags=$(TAGS) $(INTEGRATION_RUN_LENGTH)"
+	@go test $(VERBOSE) -tags=$(TAGS) $(INTEGRATION_RUN_LENGTH) ./nodebuilder/tests
 .PHONY: test-integration
 
 ## test-integration-race: Running integration tests with data race detector located in node/tests
