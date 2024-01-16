@@ -360,8 +360,8 @@ github.com/c-bata/go-prompt v0.2.2/go.mod h1:VzqtzE2ksDBcdln8G7mk2RX9QyGjH+OVqOC
 github.com/casbin/casbin/v2 v2.1.2/go.mod h1:YcPU1XXisHhLzuxH9coDNf2FbKpjGlbCg3n9yuLkIJQ=
 github.com/celestiaorg/badger/v4 v4.0.0-20231125230536-2b9e13346f75 h1:dfArr6rKfcB46+/sR/ZZuiBbcB1ZQcpZQT4E4HHcIuE=
 github.com/celestiaorg/badger/v4 v4.0.0-20231125230536-2b9e13346f75/go.mod h1:T/uWAYxrXdaXw64ihI++9RMbKTCpKd/yE9+saARew7k=
-github.com/celestiaorg/celestia-app v1.4.0 h1:hTId3xL8GssN5sHSHPP7svHi/iWp+XVxphStiR7ADiY=
-github.com/celestiaorg/celestia-app v1.4.0/go.mod h1:zhdQIFGFZRRxrDVtFE4OFIT7/12RE8DRyfvNZdW8ceM=
+github.com/celestiaorg/celestia-app v1.6.0 h1:B5hFoeLHqMsC8rHmtqEcbXhP9SdLetSb+chosH0frXo=
+github.com/celestiaorg/celestia-app v1.6.0/go.mod h1:zhdQIFGFZRRxrDVtFE4OFIT7/12RE8DRyfvNZdW8ceM=
 github.com/celestiaorg/celestia-core v1.29.0-tm-v0.34.29 h1:Fd7ymPUzExPGNl2gZw4i5S74arMw+iDHLE78M/cCxl4=
 github.com/celestiaorg/celestia-core v1.29.0-tm-v0.34.29/go.mod h1:xrICN0PBhp3AdTaZ8q4wS5Jvi32V02HNjaC2EsWiEKk=
 github.com/celestiaorg/cosmos-sdk v1.18.3-sdk-v0.46.14 h1:+Te28r5Zp4Vp69f82kcON9/BIF8f1BNXb0go2+achuc=
