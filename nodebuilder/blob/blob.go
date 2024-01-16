@@ -19,7 +19,7 @@ type Module interface {
 	Submit(_ context.Context, _ []*blob.Blob, _ *blob.SubmitOptions) (height uint64, _ error)
 	// Get retrieves the blob by commitment under the given namespace and height.
 	Get(_ context.Context, height uint64, _ share.Namespace, _ blob.Commitment) (*blob.Blob, error)
-	// GetAll returns all blobs under the given namespaces and height.
+	// GetAll returns all blobs at the given height under the given namespaces.
 	GetAll(_ context.Context, height uint64, _ []share.Namespace) ([]*blob.Blob, error)
 	// GetProof retrieves proofs in the given namespaces at the given height by commitment.
 	GetProof(_ context.Context, height uint64, _ share.Namespace, _ blob.Commitment) (*blob.Proof, error)
