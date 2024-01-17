@@ -88,7 +88,7 @@ func (s *Service) Submit(ctx context.Context, blobs []*Blob, gasPrice GasPrice) 
 	log.Debugw("submitting blobs", "amount", len(blobs))
 
 	options := DefaultSubmitOptions()
-	if gasPrice > 0 {
+	if gasPrice >= 0 {
 		blobSizes := make([]uint32, len(blobs))
 		for i, blob := range blobs {
 			blobSizes[i] = uint32(len(blob.Data))
