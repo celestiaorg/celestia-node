@@ -107,7 +107,7 @@ jobs:
 
   unit_test_race:
     needs: [lint, go_mod_tidy_check]
-    name: Run Unit Tests with Race Detector
+    name: Unit Tests with Race Detector (ubuntu-latest)
     runs-on: ubuntu-latest
 
     steps:
