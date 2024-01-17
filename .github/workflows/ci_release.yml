@@ -4,7 +4,6 @@ on:
   push:
     branches:
       - main
-      - ci/ramin/integration-tests
     # Trigger on version tags
     tags:
       - "v*"
