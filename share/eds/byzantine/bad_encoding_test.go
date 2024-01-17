@@ -45,7 +45,9 @@ func TestBEFP_Validate(t *testing.T) {
 	var errByz *ErrByzantine
 	require.ErrorAs(t, byzantine, &errByz)
 
-	befp := CreateBadEncodingProof([]byte("hash"), 0, errByz)
+	proof := CreateBadEncodingProof([]byte("hash"), 0, errByz)
+	befp, ok := proof.(*BadEncodingProof)
+	require.True(t, ok)
 	var test = []struct {
 		name           string
 		prepareFn      func() error
@@ -54,7 +56,7 @@ func TestBEFP_Validate(t *testing.T) {
 		{
 			name: "valid BEFP",
 			prepareFn: func() error {
-				return befp.Validate(&header.ExtendedHeader{DAH: &dah})
+				return proof.Validate(&header.ExtendedHeader{DAH: &dah})
 			},
 			expectedResult: func(err error) {
 				require.NoError(t, err)
@@ -88,10 +90,14 @@ func TestBEFP_Validate(t *testing.T) {
 		{
 			name: "incorrect share with Proof",
 			prepareFn: func() error {
-				befp, ok := befp.(*BadEncodingProof)
-				require.True(t, ok)
-				befp.Shares[0].Share = befp.Shares[1].Share
-				return befp.Validate(&header.ExtendedHeader{DAH: &dah})
+				// find first non-nil share to break the proof
+				for index := 1; index < len(befp.Shares); index++ {
+					if befp.Shares[index] != nil {
+						befp.Shares[0] = befp.Shares[index]
+						break
+					}
+				}
+				return proof.Validate(&header.ExtendedHeader{DAH: &dah})
 			},
 			expectedResult: func(err error) {
 				require.ErrorIs(t, err, errIncorrectShare)
@@ -100,10 +106,8 @@ func TestBEFP_Validate(t *testing.T) {
 		{
 			name: "invalid amount of shares",
 			prepareFn: func() error {
-				befp, ok := befp.(*BadEncodingProof)
-				require.True(t, ok)
 				befp.Shares = befp.Shares[0 : len(befp.Shares)/2]
-				return befp.Validate(&header.ExtendedHeader{DAH: &dah})
+				return proof.Validate(&header.ExtendedHeader{DAH: &dah})
 			},
 			expectedResult: func(err error) {
 				require.ErrorIs(t, err, errIncorrectAmountOfShares)
@@ -112,10 +116,8 @@ func TestBEFP_Validate(t *testing.T) {
 		{
 			name: "not enough shares to recompute the root",
 			prepareFn: func() error {
-				befp, ok := befp.(*BadEncodingProof)
-				require.True(t, ok)
 				befp.Shares[0] = nil
-				return befp.Validate(&header.ExtendedHeader{DAH: &dah})
+				return proof.Validate(&header.ExtendedHeader{DAH: &dah})
 			},
 			expectedResult: func(err error) {
 				require.ErrorIs(t, err, errIncorrectAmountOfShares)
@@ -124,11 +126,8 @@ func TestBEFP_Validate(t *testing.T) {
 		{
 			name: "index out of bounds",
 			prepareFn: func() error {
-				befp, ok := befp.(*BadEncodingProof)
-				require.True(t, ok)
-				befpCopy := *befp
-				befpCopy.Index = 100
-				return befpCopy.Validate(&header.ExtendedHeader{DAH: &dah})
+				befp.Index = 100
+				return proof.Validate(&header.ExtendedHeader{DAH: &dah})
 			},
 			expectedResult: func(err error) {
 				require.ErrorIs(t, err, errIncorrectIndex)
@@ -137,7 +136,7 @@ func TestBEFP_Validate(t *testing.T) {
 		{
 			name: "heights mismatch",
 			prepareFn: func() error {
-				return befp.Validate(&header.ExtendedHeader{
+				return proof.Validate(&header.ExtendedHeader{
 					RawHeader: core.Header{
 						Height: 42,
 					},
