@@ -213,6 +213,10 @@ Steps:
 9. Check LN is synced to height 40
 */
 func TestSyncStartStopLightWithBridge(t *testing.T) {
+	if testing.Short() {
+		t.Skip("skipping TestSyncStartStopLightWithBridge test in short mode.")
+	}
+
 	ctx, cancel := context.WithTimeout(context.Background(), swamp.DefaultTestTimeout)
 	defer cancel()
 

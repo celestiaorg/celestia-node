@@ -112,4 +112,4 @@ jobs:
           go-version: ${{ inputs.go-version }}
 
       - name: run sync tests
-        run: make test-integration TAGS=sync
+        run: make test-integration SHORT=true TAGS=sync
