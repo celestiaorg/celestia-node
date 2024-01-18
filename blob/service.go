@@ -7,12 +7,13 @@ import (
 	"sync"
 
 	"cosmossdk.io/math"
-	"github.com/celestiaorg/celestia-app/pkg/shares"
 	"github.com/cosmos/cosmos-sdk/types"
 	logging "github.com/ipfs/go-log/v2"
 	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/trace"
+
+	"github.com/celestiaorg/celestia-app/pkg/shares"
 
 	"github.com/celestiaorg/celestia-node/header"
 	"github.com/celestiaorg/celestia-node/libs/utils"
