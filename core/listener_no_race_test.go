@@ -25,6 +25,7 @@ func TestListenerWithNonEmptyBlocks(t *testing.T) {
 
 	// create one block to store as Head in local store and then unsubscribe from block events
 	cfg := DefaultTestConfig()
+	cfg.ChainID = networkID
 	fetcher, cctx := createCoreFetcher(t, cfg)
 	eds := createEdsPubSub(ctx, t)
 
@@ -37,7 +38,7 @@ func TestListenerWithNonEmptyBlocks(t *testing.T) {
 	})
 
 	// create Listener and start listening
-	cl := createListener(ctx, t, fetcher, ps0, eds, store)
+	cl := createListener(ctx, t, fetcher, ps0, eds, store, networkID)
 	err = cl.Start(ctx)
 	require.NoError(t, err)
 
