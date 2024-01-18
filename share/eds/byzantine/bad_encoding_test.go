@@ -90,13 +90,10 @@ func TestBEFP_Validate(t *testing.T) {
 		{
 			name: "incorrect share with Proof",
 			prepareFn: func() error {
-				// find first non-nil share to break the proof
-				for index := 1; index < len(befp.Shares); index++ {
-					if befp.Shares[index] != nil {
-						befp.Shares[0] = befp.Shares[index]
-						break
-					}
-				}
+				// break the first shareWithProof to test negative case
+				sh := sharetest.RandShares(t, 2)
+				nmtProof := nmt.NewInclusionProof(0, 1, nil, false)
+				befp.Shares[0] = &ShareWithProof{sh[0], &nmtProof}
 				return proof.Validate(&header.ExtendedHeader{DAH: &dah})
 			},
 			expectedResult: func(err error) {
