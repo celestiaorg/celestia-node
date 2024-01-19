@@ -11,9 +11,8 @@ import (
 	"github.com/cosmos/cosmos-sdk/crypto/keyring"
 	"github.com/dgraph-io/badger/v4/options"
 	"github.com/ipfs/go-datastore"
+	dsbadger "github.com/ipfs/go-ds-badger4"
 	"github.com/mitchellh/go-homedir"
-
-	dsbadger "github.com/celestiaorg/go-ds-badger4"
 
 	"github.com/celestiaorg/celestia-node/libs/fslock"
 	"github.com/celestiaorg/celestia-node/libs/keystore"
@@ -69,7 +68,7 @@ func OpenStore(path string, ring keyring.Keyring) (Store, error) {
 
 	ok := IsInit(path)
 	if !ok {
-		flock.Unlock() //nolint: errcheck
+		flock.Unlock() //nolint:errcheck
 		return nil, ErrNotInited
 	}
 
