@@ -38,6 +38,10 @@ func (m *module) Info(context.Context) (Info, error) {
 	}, nil
 }
 
+func (m *module) Ready(context.Context) (bool, error) {
+	return true, nil
+}
+
 func (m *module) LogLevelSet(_ context.Context, name, level string) error {
 	return logging.SetLogLevel(name, level)
 }
