@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"sync"
+	"time"
 
 	"cosmossdk.io/math"
 	"github.com/cosmos/cosmos-sdk/types"
@@ -216,14 +217,18 @@ func (s *Service) getByCommitment(
 		attribute.String("commitment", string(commitment)),
 	)
 
+	now := time.Now()
 	header, err := s.headerGetter(ctx, height)
 	if err != nil {
 		return nil, nil, err
 	}
 
 	span.AddEvent("received eds", trace.WithAttributes(
-		attribute.Int64("eds-size", int64(len(header.DAH.RowRoots)))))
+		attribute.Int64("eds-size", int64(len(header.DAH.RowRoots))),
+		attribute.Int64("duration", time.Since(now).Milliseconds())),
+	)
 
+	now = time.Now()
 	namespacedShares, err := s.shareGetter.GetSharesByNamespace(ctx, header, namespace)
 	if err != nil {
 		if errors.Is(err, share.ErrNotFound) {
@@ -232,6 +237,10 @@ func (s *Service) getByCommitment(
 		return nil, nil, err
 	}
 
+	span.AddEvent("received shares", trace.WithAttributes(
+		attribute.Int64("eds-size", int64(len(header.DAH.RowRoots))),
+		attribute.Int64("duration", time.Since(now).Milliseconds())),
+	)
 	var (
 		rawShares = make([]shares.Share, 0)
 		proofs    = make(Proof, 0)
