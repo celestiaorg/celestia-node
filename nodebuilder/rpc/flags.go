@@ -10,7 +10,7 @@ import (
 var (
 	addrFlag = "rpc.addr"
 	portFlag = "rpc.port"
-	authFlag = "rpc.disable-auth"
+	authFlag = "rpc.skip-auth"
 )
 
 // Flags gives a set of hardcoded node/rpc package flags.
@@ -30,7 +30,7 @@ func Flags() *flag.FlagSet {
 	flags.Bool(
 		authFlag,
 		false,
-		"Disable authentication for RPC requests",
+		"Skips authentication for RPC requests",
 	)
 
 	return flags
@@ -51,6 +51,6 @@ func ParseFlags(cmd *cobra.Command, cfg *Config) {
 		panic(err)
 	}
 	if ok {
-		cfg.AuthDisabled = true
+		cfg.SkipAuth = true
 	}
 }
