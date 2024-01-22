@@ -8,4 +8,4 @@ import (
 
 // Window is the availability window for light nodes in the Celestia
 // network (30 days).
-const Window = pruner.AvailabilityWindow(time.Hour * 2)
+const Window = pruner.AvailabilityWindow(time.Minute * 30)
