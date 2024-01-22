@@ -31,7 +31,7 @@ var _ Module = (*API)(nil)
 type API struct {
 	Internal struct {
 		Info        func(context.Context) (Info, error)                                `perm:"admin"`
-		Ready       func(context.Context) (bool, error)                                `perm:"public"`
+		Ready       func(context.Context) (bool, error)                                `perm:"read"`
 		LogLevelSet func(ctx context.Context, name, level string) error                `perm:"admin"`
 		AuthVerify  func(ctx context.Context, token string) ([]auth.Permission, error) `perm:"admin"`
 		AuthNew     func(ctx context.Context, perms []auth.Permission) (string, error) `perm:"admin"`
