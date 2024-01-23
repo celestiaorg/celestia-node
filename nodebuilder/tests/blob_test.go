@@ -1,3 +1,5 @@
+//go:build blob || integration
+
 package tests
 
 import (
