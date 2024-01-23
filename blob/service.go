@@ -12,6 +12,7 @@ import (
 	logging "github.com/ipfs/go-log/v2"
 	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/attribute"
+	"go.opentelemetry.io/otel/codes"
 	"go.opentelemetry.io/otel/trace"
 
 	"github.com/celestiaorg/celestia-app/pkg/shares"
@@ -217,30 +218,39 @@ func (s *Service) getByCommitment(
 		attribute.String("commitment", string(commitment)),
 	)
 
+	getCtx, headerGetterSpan := tracer.Start(ctx, "header-getter")
+
 	now := time.Now()
-	header, err := s.headerGetter(ctx, height)
+	header, err := s.headerGetter(getCtx, height)
 	if err != nil {
+		headerGetterSpan.SetStatus(codes.Error, err.Error())
 		return nil, nil, err
 	}
 
-	span.AddEvent("received eds", trace.WithAttributes(
+	headerGetterSpan.SetStatus(codes.Ok, "")
+	headerGetterSpan.AddEvent("received eds", trace.WithAttributes(
 		attribute.Int64("eds-size", int64(len(header.DAH.RowRoots))),
 		attribute.Int64("duration", time.Since(now).Milliseconds())),
 	)
 
+	getCtx, getSharesSpan := tracer.Start(ctx, "get-shares-by-namespace")
+
 	now = time.Now()
-	namespacedShares, err := s.shareGetter.GetSharesByNamespace(ctx, header, namespace)
+	namespacedShares, err := s.shareGetter.GetSharesByNamespace(getCtx, header, namespace)
 	if err != nil {
 		if errors.Is(err, share.ErrNotFound) {
 			err = ErrBlobNotFound
 		}
+		getSharesSpan.SetStatus(codes.Error, err.Error())
 		return nil, nil, err
 	}
 
-	span.AddEvent("received shares", trace.WithAttributes(
+	getSharesSpan.SetStatus(codes.Ok, "")
+	getSharesSpan.AddEvent("received shares", trace.WithAttributes(
 		attribute.Int64("eds-size", int64(len(header.DAH.RowRoots))),
 		attribute.Int64("duration", time.Since(now).Milliseconds())),
 	)
+
 	var (
 		rawShares = make([]shares.Share, 0)
 		proofs    = make(Proof, 0)
