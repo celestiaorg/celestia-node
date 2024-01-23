@@ -131,20 +131,6 @@ func (mr *MockModuleMockRecorder) Delegate(arg0, arg1, arg2, arg3, arg4 interfac
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Delegate", reflect.TypeOf((*MockModule)(nil).Delegate), arg0, arg1, arg2, arg3, arg4)
 }
 
-// IsStopped mocks base method.
-func (m *MockModule) IsStopped(arg0 context.Context) bool {
-	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "IsStopped", arg0)
-	ret0, _ := ret[0].(bool)
-	return ret0
-}
-
-// IsStopped indicates an expected call of IsStopped.
-func (mr *MockModuleMockRecorder) IsStopped(arg0 interface{}) *gomock.Call {
-	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "IsStopped", reflect.TypeOf((*MockModule)(nil).IsStopped), arg0)
-}
-
 // QueryDelegation mocks base method.
 func (m *MockModule) QueryDelegation(arg0 context.Context, arg1 types.ValAddress) (*types0.QueryDelegationResponse, error) {
 	m.ctrl.T.Helper()
