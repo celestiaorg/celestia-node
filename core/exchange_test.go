@@ -20,7 +20,9 @@ func TestCoreExchange_RequestHeaders(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	t.Cleanup(cancel)
 
-	fetcher, _ := createCoreFetcher(t, DefaultTestConfig())
+	cfg := DefaultTestConfig()
+	cfg.ChainID = networkID
+	fetcher, _ := createCoreFetcher(t, cfg)
 
 	// generate 10 blocks
 	generateBlocks(t, fetcher)
