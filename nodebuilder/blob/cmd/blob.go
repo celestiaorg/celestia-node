@@ -41,7 +41,7 @@ func init() {
 		"gas.price",
 		float64(blob.DefaultGasPrice()),
 		"specifies gas price (in utia) for blob submission.\n"+
-			"Fee will be automatically calculated if negative value is passed [optional]",
+			"Gas price will be set to default (0.002) if no value is passed",
 	)
 }
 
@@ -124,7 +124,7 @@ var submitCmd = &cobra.Command{
 	Short: "Submit the blob at the given namespace.\n" +
 		"Note:\n" +
 		"* only one blob is allowed to submit through the RPC.\n" +
-		"* fee and gas limit params will be calculated automatically based on the gas.price parameter.\n",
+		"* fee and gas limit params will be calculated automatically.\n",
 	RunE: func(cmd *cobra.Command, args []string) error {
 		client, err := cmdnode.ParseClientFromCtx(cmd.Context())
 		if err != nil {
