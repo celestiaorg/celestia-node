@@ -3,11 +3,13 @@ package rpc
 import (
 	"fmt"
 
+	logging "github.com/ipfs/go-log/v2"
 	"github.com/spf13/cobra"
 	flag "github.com/spf13/pflag"
 )
 
 var (
+	log      = logging.Logger("rpc")
 	addrFlag = "rpc.addr"
 	portFlag = "rpc.port"
 	authFlag = "rpc.skip-auth"
@@ -51,6 +53,7 @@ func ParseFlags(cmd *cobra.Command, cfg *Config) {
 		panic(err)
 	}
 	if ok {
+		log.Warn("RPC authentication is disabled")
 		cfg.SkipAuth = true
 	}
 }
