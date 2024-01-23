@@ -33,7 +33,7 @@ func TestCompletionHelpString(t *testing.T) {
 	}
 	methods := reflect.VisibleFields(reflect.TypeOf(TestFields{}))
 	for i, method := range methods {
-		require.Equal(t, testOutputs[i], parseSignatureForHelpstring(method))
+		require.Equal(t, testOutputs[i], parseSignatureForHelpString(method))
 	}
 }
 
@@ -129,7 +129,7 @@ func TestBridge(t *testing.T) {
 	*/
 }
 
-func parseSignatureForHelpstring(methodSig reflect.StructField) string {
+func parseSignatureForHelpString(methodSig reflect.StructField) string {
 	simplifiedSignature := "("
 	in, out := methodSig.Type.NumIn(), methodSig.Type.NumOut()
 	for i := 1; i < in; i++ {
