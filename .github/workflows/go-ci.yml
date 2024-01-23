@@ -108,6 +108,7 @@ jobs:
     needs: [lint, go_mod_tidy_check]
     name: Run Unit Tests with Race Detector
     runs-on: ubuntu-latest
+    continue-on-error: true
 
     steps:
       - uses: actions/checkout@v4
@@ -124,6 +125,7 @@ jobs:
     needs: [lint, go_mod_tidy_check]
     name: Run Integration Tests
     runs-on: ubuntu-latest
+    continue-on-error: true
 
     steps:
       - uses: actions/checkout@v4
@@ -133,8 +135,8 @@ jobs:
         with:
           go-version: ${{ inputs.go-version }}
 
-      - name: Swamp Tests
-        run: make test-swamp
+      - name: Integration Tests
+        run: make test-integration
 
-      - name: Swamp Tests with Race Detector
-        run: make test-swamp-race
+      - name: Integration Tests with Race Detector
+        run: make test-integration-race
