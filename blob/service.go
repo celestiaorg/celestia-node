@@ -5,7 +5,6 @@ import (
 	"errors"
 	"fmt"
 	"sync"
-	"time"
 
 	"cosmossdk.io/math"
 	"github.com/cosmos/cosmos-sdk/types"
@@ -219,8 +218,7 @@ func (s *Service) getByCommitment(
 	)
 
 	getCtx, headerGetterSpan := tracer.Start(ctx, "header-getter")
-
-	now := time.Now()
+	
 	header, err := s.headerGetter(getCtx, height)
 	if err != nil {
 		headerGetterSpan.SetStatus(codes.Error, err.Error())
@@ -229,13 +227,10 @@ func (s *Service) getByCommitment(
 
 	headerGetterSpan.SetStatus(codes.Ok, "")
 	headerGetterSpan.AddEvent("received eds", trace.WithAttributes(
-		attribute.Int64("eds-size", int64(len(header.DAH.RowRoots))),
-		attribute.Int64("duration", time.Since(now).Milliseconds())),
-	)
+		attribute.Int64("eds-size", int64(len(header.DAH.RowRoots)))))
 
 	getCtx, getSharesSpan := tracer.Start(ctx, "get-shares-by-namespace")
 
-	now = time.Now()
 	namespacedShares, err := s.shareGetter.GetSharesByNamespace(getCtx, header, namespace)
 	if err != nil {
 		if errors.Is(err, share.ErrNotFound) {
@@ -247,9 +242,7 @@ func (s *Service) getByCommitment(
 
 	getSharesSpan.SetStatus(codes.Ok, "")
 	getSharesSpan.AddEvent("received shares", trace.WithAttributes(
-		attribute.Int64("eds-size", int64(len(header.DAH.RowRoots))),
-		attribute.Int64("duration", time.Since(now).Milliseconds())),
-	)
+		attribute.Int64("eds-size", int64(len(header.DAH.RowRoots)))))
 
 	var (
 		rawShares = make([]shares.Share, 0)
