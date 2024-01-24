@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"github.com/ipfs/go-datastore"
+	"github.com/ipfs/go-datastore/namespace"
 	logging "github.com/ipfs/go-log/v2"
 
 	hdr "github.com/celestiaorg/go-header"
@@ -15,16 +16,23 @@ import (
 
 var log = logging.Logger("pruner/service")
 
+/*
+	TODO:
+		* failed headers retry loop / jobs
+*/
+
 // Service handles the pruning routine for the node using the
 // prune Pruner.
 type Service struct {
 	pruner Pruner
 	window AvailabilityWindow
 
-	getter hdr.Getter[*header.ExtendedHeader] // TODO @renaynay: expects a header service with access to sync head
+	getter hdr.Getter[*header.ExtendedHeader]
 
-	checkpoint        *checkpoint
-	failedHeaders     map[uint64]error
+	ds         datastore.Datastore
+	checkpoint *checkpoint
+
+	// TODO @renaynay @distractedmind: how would this impact a node that enables pruning after being an archival node?
 	maxPruneablePerGC uint64
 	numBlocksInWindow uint64
 
@@ -49,20 +57,18 @@ func NewService(
 		opt(&params)
 	}
 
-	// TODO @renaynay
 	numBlocksInWindow := uint64(time.Duration(window) / blockTime)
 
 	return &Service{
 		pruner:            p,
 		window:            window,
 		getter:            getter,
-		checkpoint:        newCheckpoint(ds),
+		ds:                namespace.Wrap(ds, storePrefix),
 		numBlocksInWindow: numBlocksInWindow,
 		// TODO @distractedmind: make this configurable?
 		maxPruneablePerGC: numBlocksInWindow * 2,
 		doneCh:            make(chan struct{}),
 		params:            params,
-		failedHeaders:     map[uint64]error{},
 	}
 }
 
@@ -100,6 +106,10 @@ func (s *Service) prune() {
 	ticker := time.NewTicker(s.params.gcCycle)
 	defer ticker.Stop()
 
+	// TODO @renaynay: prioritize retrying failed headers
+
+	lastPrunedHeader := s.lastPruned()
+
 	for {
 		select {
 		case <-s.ctx.Done():
@@ -113,6 +123,8 @@ func (s *Service) prune() {
 				continue
 			}
 
+			failed := make(map[uint64]error)
+
 			// TODO @renaynay: make deadline a param ? / configurable?
 			pruneCtx, cancel := context.WithDeadline(s.ctx, time.Now().Add(time.Minute))
 			for _, eh := range headers {
@@ -121,15 +133,16 @@ func (s *Service) prune() {
 				if err != nil {
 					// TODO: @distractedm1nd: updatecheckpoint should be called on the last NON-ERRORED header
 					log.Errorw("failed to prune block", "height", eh.Height(), "err", err)
-					s.failedHeaders[eh.Height()] = err
+					failed[eh.Height()] = err
+				} else {
+					lastPrunedHeader = eh // TODO @renaynay: make prettier
 				}
 				s.metrics.observePrune(pruneCtx, err != nil)
 			}
 			cancel()
 
-			err = s.updateCheckpoint(s.ctx, headers[len(headers)-1])
+			err = s.updateCheckpoint(s.ctx, lastPrunedHeader, failed)
 			if err != nil {
-				// TODO @renaynay: record errors properly
 				log.Errorw("failed to update checkpoint", "err", err)
 				continue
 			}

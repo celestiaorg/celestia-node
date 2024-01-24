@@ -39,7 +39,8 @@ func (s *Service) WithMetrics() error {
 	}
 
 	callback := func(ctx context.Context, observer metric.Observer) error {
-		observer.ObserveInt64(failedPrunes, int64(len(s.failedHeaders)))
+		// TODO @renaynay: ensure this isn't callable before pruner Start
+		observer.ObserveInt64(failedPrunes, int64(len(s.checkpoint.FailedHeaders)))
 		return nil
 	}
 
