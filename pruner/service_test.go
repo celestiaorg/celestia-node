@@ -2,11 +2,13 @@ package pruner
 
 import (
 	"context"
+	"fmt"
 	"testing"
 	"time"
 
 	"github.com/ipfs/go-datastore"
 	"github.com/ipfs/go-datastore/sync"
+	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
 	hdr "github.com/celestiaorg/go-header"
@@ -19,14 +21,7 @@ import (
 	| toPrune  | availability window |
 */
 
-// TODO @renaynay: tweak/document
-var (
-	availWindow = AvailabilityWindow(time.Millisecond * 200)
-	blockTime   = time.Millisecond * 100
-	gcCycle     = time.Millisecond * 500
-)
-
-func TestService(t *testing.T) {
+func TestServiceCheckpointing(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	t.Cleanup(cancel)
 
@@ -36,29 +31,40 @@ func TestService(t *testing.T) {
 
 	serv := NewService(
 		mp,
-		availWindow,
+		AvailabilityWindow(time.Second),
 		store,
 		sync.MutexWrap(datastore.NewMapDatastore()),
-		blockTime,
-		WithGCCycle(gcCycle),
+		time.Millisecond,
+		WithGCCycle(0), // we do not need to run GC in this test
 	)
+
+	err := serv.Start(ctx)
+	require.NoError(t, err)
 
 	gen, err := store.GetByHeight(ctx, 1)
 	require.NoError(t, err)
 
-	err = serv.updateCheckpoint(ctx, gen)
-	require.NoError(t, err)
+	// ensure checkpoint was initialized correctly
+	assert.Equal(t, uint64(1), serv.checkpoint.LastPrunedHeight)
+	assert.Empty(t, serv.checkpoint.FailedHeaders)
+	assert.Equal(t, gen, serv.lastPruned())
 
-	err = serv.Start(ctx)
+	// update checkpoint
+	lastPruned, err := store.GetByHeight(ctx, 3)
 	require.NoError(t, err)
-
-	time.Sleep(time.Second)
+	err = serv.updateCheckpoint(ctx, lastPruned, map[uint64]error{2: fmt.Errorf("failed to prune")})
+	require.NoError(t, err)
 
 	err = serv.Stop(ctx)
 	require.NoError(t, err)
 
-	expected := time.Second/blockTime - time.Duration(availWindow)/blockTime
-	require.Len(t, mp.deletedHeaderHashes, int(expected))
+	// ensure checkpoint was updated correctly in datastore
+	err = serv.loadCheckpoint(ctx)
+	require.NoError(t, err)
+	assert.Equal(t, uint64(3), serv.checkpoint.LastPrunedHeight)
+	assert.Len(t, serv.checkpoint.FailedHeaders, 1)
+	assert.Equal(t, lastPruned, serv.lastPruned())
+
 }
 
 func TestFindPruneableHeaders(t *testing.T) {
