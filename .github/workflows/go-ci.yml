@@ -4,7 +4,7 @@ on:
   workflow_call:
     inputs:
       go-version:
-        description: 'Go version'
+        description: "Go version"
         required: true
         type: string
 
@@ -66,7 +66,7 @@ jobs:
         run: git diff --exit-code
 
   test_coverage:
-    needs: [lint, go_mod_tidy_check]
+    needs: [lint, go_mod_tidy_check, setup]
     name: Unit Tests Coverage
     strategy:
       fail-fast: false
@@ -106,7 +106,7 @@ jobs:
           name: coverage-${{ matrix.os }}
 
   unit_test_race:
-    needs: [lint, go_mod_tidy_check]
+    needs: [lint, go_mod_tidy_check, setup]
     name: Unit Tests with Race Detector (ubuntu-latest)
     runs-on: ubuntu-latest
 

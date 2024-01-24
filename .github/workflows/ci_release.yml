@@ -86,7 +86,7 @@ jobs:
   # If this was a workflow dispatch event, we need to generate and push a tag
   # for goreleaser to grab
   version_bump:
-    needs: [hadolint, yamllint, markdown-lint, go-ci]
+    needs: [hadolint, yamllint, markdown-lint, go-ci, setup]
     runs-on: ubuntu-latest
     permissions: "write-all"
     steps:
@@ -107,7 +107,7 @@ jobs:
 
   # Generate the release with goreleaser to include pre-built binaries
   goreleaser:
-    needs: version_bump
+    needs: [version_bump, setup]
     runs-on: ubuntu-latest
     if: |
       github.event_name == 'workflow_dispatch' ||
