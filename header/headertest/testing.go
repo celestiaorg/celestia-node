@@ -43,8 +43,8 @@ func NewStore(t *testing.T) libhead.Store[*header.ExtendedHeader] {
 }
 
 // NewTestSuite setups a new test suite with a given number of validators.
-func NewTestSuite(t *testing.T, num int) *TestSuite {
-	valSet, vals := RandValidatorSet(num, 10)
+func NewTestSuite(t *testing.T, numValidators int) *TestSuite {
+	valSet, vals := RandValidatorSet(numValidators, 10)
 	return &TestSuite{
 		t:      t,
 		vals:   vals,
