@@ -348,4 +348,4 @@ replace (
 	github.com/tendermint/tendermint => github.com/celestiaorg/celestia-core v1.29.0-tm-v0.34.29
 )
 
-replace github.com/celestia/go-header => github.com/vgonkivs/go-header v0.0.0-20240119150939-0a56349a2922
+replace github.com/celestia/go-header => github.com/vgonkivs/go-header v0.0.0-20240123204101-2d1debbde792
