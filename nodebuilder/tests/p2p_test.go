@@ -1,3 +1,5 @@
+//go:build p2p || integration
+
 package tests
 
 import (
@@ -198,9 +200,4 @@ func TestRestartNodeDiscovery(t *testing.T) {
 	connectedness, err = fullClient2.P2P.Connectedness(ctx, disabledDiscoveryFN.Host.ID())
 	require.NoError(t, err)
 	assert.Equal(t, connectedness, network.Connected)
-}
-
-func setTimeInterval(cfg *nodebuilder.Config, interval time.Duration) {
-	cfg.P2P.RoutingTableRefreshPeriod = interval
-	cfg.Share.Discovery.AdvertiseInterval = interval
 }

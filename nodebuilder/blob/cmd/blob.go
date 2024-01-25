@@ -18,8 +18,7 @@ import (
 var (
 	base64Flag bool
 
-	fee      int64
-	gasLimit uint64
+	gasPrice float64
 
 	// flagFileInput allows the user to provide file path to the json file
 	// for submitting multiple blobs.
@@ -43,23 +42,13 @@ func init() {
 		"printed blob's data as a base64 string",
 	)
 
-	submitCmd.PersistentFlags().Int64Var(
-		&fee,
-		"fee",
-		-1,
-		"specifies fee (in utia) for blob submission.\n"+
-			"Fee will be automatically calculated if negative value is passed [optional]",
+	submitCmd.PersistentFlags().Float64Var(
+		&gasPrice,
+		"gas.price",
+		float64(blob.DefaultGasPrice()),
+		"specifies gas price (in utia) for blob submission.\n"+
+			"Gas price will be set to default (0.002) if no value is passed",
 	)
-
-	submitCmd.PersistentFlags().Uint64Var(
-		&gasLimit,
-		"gas.limit",
-		0,
-		"sets the amount of gas that is consumed during blob submission [optional]",
-	)
-
-	// unset the default value to avoid users confusion
-	submitCmd.PersistentFlags().Lookup("fee").DefValue = "0"
 
 	submitCmd.PersistentFlags().String(flagFileInput, "", "Specify the file input")
 }
@@ -178,7 +167,7 @@ var submitCmd = &cobra.Command{
 			]
 		}` +
 		"Note:\n" +
-		"* fee and gas.limit params will be calculated automatically if they are not provided as arguments",
+		"* fee and gas limit params will be calculated automatically.\n",
 	RunE: func(cmd *cobra.Command, args []string) error {
 		client, err := cmdnode.ParseClientFromCtx(cmd.Context())
 		if err != nil {
@@ -218,7 +207,7 @@ var submitCmd = &cobra.Command{
 		height, err := client.Blob.Submit(
 			cmd.Context(),
 			blobs,
-			&blob.SubmitOptions{Fee: fee, GasLimit: gasLimit},
+			blob.GasPrice(gasPrice),
 		)
 
 		response := struct {
