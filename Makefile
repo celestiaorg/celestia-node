@@ -131,13 +131,20 @@ test-unit-race:
 ## test-integration: Running /integration tests located in nodebuilder/tests
 test-integration:
 	@echo "--> Running integrations tests $(VERBOSE) -tags=$(TAGS) $(INTEGRATION_RUN_LENGTH)"
-	@go test $(VERBOSE) -tags=$(TAGS) $(INTEGRATION_RUN_LENGTH) ./nodebuilder/tests
+	@go test $(VERBOSE) -tags=$(TAGS) $(INTEGRATION_RUN_LENGTH) -cover -coverprofile=$(TAGS)-coverage.out ./nodebuilder/tests
 .PHONY: test-integration
 
 ## test-integration-race: Running integration tests with data race detector located in node/tests
 test-integration-race:
 	@echo "--> Running integration tests with data race detector -tags=$(TAGS)"
 	@go test -race -tags=$(TAGS) ./nodebuilder/tests
+.PHONY: test-integration-race
+
+## test-integration-race: Running integration tests with data race detector located in node/tests
+test-integration-coverage:
+	@echo "--> building and running integration tests w/ coverage and data race detector -tags=$(TAGS)"
+	@go test -c -cover -covermode=atomic -coverpkg=./... -tags $(TAGS) -cover -o $(TAGS).test ./nodebuilder/tests
+	@./$(TAGS).test -test.coverprofile=$(TAGS)-coverage.out
 .PHONY: test-integration-race
 
 ## benchmark: Running all benchmarks

@@ -4,6 +4,7 @@ on:
   push:
     branches:
       - main
+      - ramin/coverage-integration
     # Trigger on version tags
     tags:
       - "v*"
