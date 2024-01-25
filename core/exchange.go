@@ -22,18 +22,38 @@ type Exchange struct {
 	fetcher   *BlockFetcher
 	store     *eds.Store
 	construct header.ConstructFn
+
+	metrics *exchangeMetrics
 }
 
 func NewExchange(
 	fetcher *BlockFetcher,
 	store *eds.Store,
 	construct header.ConstructFn,
-) *Exchange {
+	opts ...Option,
+) (*Exchange, error) {
+	p := new(params)
+	for _, opt := range opts {
+		opt(p)
+	}
+
+	var (
+		metrics *exchangeMetrics
+		err     error
+	)
+	if p.metrics {
+		metrics, err = newExchangeMetrics()
+		if err != nil {
+			return nil, err
+		}
+	}
+
 	return &Exchange{
 		fetcher:   fetcher,
 		store:     store,
 		construct: construct,
-	}
+		metrics:   metrics,
+	}, nil
 }
 
 func (ce *Exchange) GetByHeight(ctx context.Context, height uint64) (*header.ExtendedHeader, error) {
@@ -47,14 +67,18 @@ func (ce *Exchange) GetRangeByHeight(
 	from *header.ExtendedHeader,
 	to uint64,
 ) ([]*header.ExtendedHeader, error) {
+	start := time.Now()
+
 	amount := to - (from.Height() + 1)
 	headers, err := ce.getRangeByHeight(ctx, from.Height()+1, amount)
 	if err != nil {
 		return nil, err
 	}
 
+	ce.metrics.requestDurationPerHeader(ctx, time.Since(start), amount)
+
 	for _, h := range headers {
-		err := from.Verify(h)
+		err := libhead.Verify[*header.ExtendedHeader](from, h, libhead.DefaultHeightThreshold)
 		if err != nil {
 			return nil, fmt.Errorf("verifying next header against last verified height: %d: %w",
 				from.Height(), err)

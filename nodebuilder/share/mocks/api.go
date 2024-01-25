@@ -8,7 +8,7 @@ import (
 	context "context"
 	reflect "reflect"
 
-	da "github.com/celestiaorg/celestia-app/pkg/da"
+	header "github.com/celestiaorg/celestia-node/header"
 	share "github.com/celestiaorg/celestia-node/share"
 	rsmt2d "github.com/celestiaorg/rsmt2d"
 	gomock "github.com/golang/mock/gomock"
@@ -38,7 +38,7 @@ func (m *MockModule) EXPECT() *MockModuleMockRecorder {
 }
 
 // GetEDS mocks base method.
-func (m *MockModule) GetEDS(arg0 context.Context, arg1 *da.DataAvailabilityHeader) (*rsmt2d.ExtendedDataSquare, error) {
+func (m *MockModule) GetEDS(arg0 context.Context, arg1 *header.ExtendedHeader) (*rsmt2d.ExtendedDataSquare, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "GetEDS", arg0, arg1)
 	ret0, _ := ret[0].(*rsmt2d.ExtendedDataSquare)
@@ -53,7 +53,7 @@ func (mr *MockModuleMockRecorder) GetEDS(arg0, arg1 interface{}) *gomock.Call {
 }
 
 // GetShare mocks base method.
-func (m *MockModule) GetShare(arg0 context.Context, arg1 *da.DataAvailabilityHeader, arg2, arg3 int) ([]byte, error) {
+func (m *MockModule) GetShare(arg0 context.Context, arg1 *header.ExtendedHeader, arg2, arg3 int) ([]byte, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "GetShare", arg0, arg1, arg2, arg3)
 	ret0, _ := ret[0].([]byte)
@@ -68,7 +68,7 @@ func (mr *MockModuleMockRecorder) GetShare(arg0, arg1, arg2, arg3 interface{}) *
 }
 
 // GetSharesByNamespace mocks base method.
-func (m *MockModule) GetSharesByNamespace(arg0 context.Context, arg1 *da.DataAvailabilityHeader, arg2 share.Namespace) (share.NamespacedShares, error) {
+func (m *MockModule) GetSharesByNamespace(arg0 context.Context, arg1 *header.ExtendedHeader, arg2 share.Namespace) (share.NamespacedShares, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "GetSharesByNamespace", arg0, arg1, arg2)
 	ret0, _ := ret[0].(share.NamespacedShares)
@@ -83,7 +83,7 @@ func (mr *MockModuleMockRecorder) GetSharesByNamespace(arg0, arg1, arg2 interfac
 }
 
 // SharesAvailable mocks base method.
-func (m *MockModule) SharesAvailable(arg0 context.Context, arg1 *da.DataAvailabilityHeader) error {
+func (m *MockModule) SharesAvailable(arg0 context.Context, arg1 *header.ExtendedHeader) error {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "SharesAvailable", arg0, arg1)
 	ret0, _ := ret[0].(error)

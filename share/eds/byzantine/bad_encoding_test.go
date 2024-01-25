@@ -2,9 +2,15 @@ package byzantine
 
 import (
 	"context"
+	"crypto/sha256"
+	"hash"
 	"testing"
 	"time"
 
+	"github.com/ipfs/boxo/blockservice"
+	blocks "github.com/ipfs/go-block-format"
+	"github.com/ipfs/go-cid"
+	mhcore "github.com/multiformats/go-multihash/core"
 	"github.com/stretchr/testify/require"
 	core "github.com/tendermint/tendermint/types"
 
@@ -35,10 +41,13 @@ func TestBEFP_Validate(t *testing.T) {
 	err = square.Repair(dah.RowRoots, dah.ColumnRoots)
 	require.ErrorAs(t, err, &errRsmt2d)
 
-	errByz := NewErrByzantine(ctx, bServ, &dah, errRsmt2d)
+	byzantine := NewErrByzantine(ctx, bServ, &dah, errRsmt2d)
+	var errByz *ErrByzantine
+	require.ErrorAs(t, byzantine, &errByz)
 
-	befp := CreateBadEncodingProof([]byte("hash"), 0, errByz)
-
+	proof := CreateBadEncodingProof([]byte("hash"), 0, errByz)
+	befp, ok := proof.(*BadEncodingProof)
+	require.True(t, ok)
 	var test = []struct {
 		name           string
 		prepareFn      func() error
@@ -47,7 +56,7 @@ func TestBEFP_Validate(t *testing.T) {
 		{
 			name: "valid BEFP",
 			prepareFn: func() error {
-				return befp.Validate(&header.ExtendedHeader{DAH: &dah})
+				return proof.Validate(&header.ExtendedHeader{DAH: &dah})
 			},
 			expectedResult: func(err error) {
 				require.NoError(t, err)
@@ -69,7 +78,9 @@ func TestBEFP_Validate(t *testing.T) {
 						Shares: validShares[0:4],
 					},
 				)
-				invalidBefp := CreateBadEncodingProof([]byte("hash"), 0, errInvalidByz)
+				var errInvalid *ErrByzantine
+				require.ErrorAs(t, errInvalidByz, &errInvalid)
+				invalidBefp := CreateBadEncodingProof([]byte("hash"), 0, errInvalid)
 				return invalidBefp.Validate(&header.ExtendedHeader{DAH: &validDah})
 			},
 			expectedResult: func(err error) {
@@ -79,10 +90,11 @@ func TestBEFP_Validate(t *testing.T) {
 		{
 			name: "incorrect share with Proof",
 			prepareFn: func() error {
-				befp, ok := befp.(*BadEncodingProof)
-				require.True(t, ok)
-				befp.Shares[0].Share = befp.Shares[1].Share
-				return befp.Validate(&header.ExtendedHeader{DAH: &dah})
+				// break the first shareWithProof to test negative case
+				sh := sharetest.RandShares(t, 2)
+				nmtProof := nmt.NewInclusionProof(0, 1, nil, false)
+				befp.Shares[0] = &ShareWithProof{sh[0], &nmtProof}
+				return proof.Validate(&header.ExtendedHeader{DAH: &dah})
 			},
 			expectedResult: func(err error) {
 				require.ErrorIs(t, err, errIncorrectShare)
@@ -91,10 +103,8 @@ func TestBEFP_Validate(t *testing.T) {
 		{
 			name: "invalid amount of shares",
 			prepareFn: func() error {
-				befp, ok := befp.(*BadEncodingProof)
-				require.True(t, ok)
 				befp.Shares = befp.Shares[0 : len(befp.Shares)/2]
-				return befp.Validate(&header.ExtendedHeader{DAH: &dah})
+				return proof.Validate(&header.ExtendedHeader{DAH: &dah})
 			},
 			expectedResult: func(err error) {
 				require.ErrorIs(t, err, errIncorrectAmountOfShares)
@@ -103,10 +113,8 @@ func TestBEFP_Validate(t *testing.T) {
 		{
 			name: "not enough shares to recompute the root",
 			prepareFn: func() error {
-				befp, ok := befp.(*BadEncodingProof)
-				require.True(t, ok)
 				befp.Shares[0] = nil
-				return befp.Validate(&header.ExtendedHeader{DAH: &dah})
+				return proof.Validate(&header.ExtendedHeader{DAH: &dah})
 			},
 			expectedResult: func(err error) {
 				require.ErrorIs(t, err, errIncorrectAmountOfShares)
@@ -115,11 +123,8 @@ func TestBEFP_Validate(t *testing.T) {
 		{
 			name: "index out of bounds",
 			prepareFn: func() error {
-				befp, ok := befp.(*BadEncodingProof)
-				require.True(t, ok)
-				befpCopy := *befp
-				befpCopy.Index = 100
-				return befpCopy.Validate(&header.ExtendedHeader{DAH: &dah})
+				befp.Index = 100
+				return proof.Validate(&header.ExtendedHeader{DAH: &dah})
 			},
 			expectedResult: func(err error) {
 				require.ErrorIs(t, err, errIncorrectIndex)
@@ -128,7 +133,7 @@ func TestBEFP_Validate(t *testing.T) {
 		{
 			name: "heights mismatch",
 			prepareFn: func() error {
-				return befp.Validate(&header.ExtendedHeader{
+				return proof.Validate(&header.ExtendedHeader{
 					RawHeader: core.Header{
 						Height: 42,
 					},
@@ -198,18 +203,21 @@ func TestIncorrectBadEncodingFraudProof(t *testing.T) {
 }
 
 func TestBEFP_ValidateOutOfOrderShares(t *testing.T) {
-	// skipping it for now because `malicious` package has a small issue: Constructor does not apply
-	// passed options, so it's not possible to store shares and thus get proofs for them.
-	// should be ok once app team will fix it.
-	t.Skip()
-	eds := edstest.RandEDS(t, 16)
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second*30)
+	t.Cleanup(cancel)
+
+	size := 4
+	eds := edstest.RandEDS(t, size)
+
 	shares := eds.Flattened()
-	shares[0], shares[1] = shares[1], shares[0] // corrupting eds
-	bServ := ipld.NewMemBlockservice()
-	batchAddr := ipld.NewNmtNodeAdder(context.Background(), bServ, ipld.MaxSizeBatchOption(16*2))
+	shares[0], shares[4] = shares[4], shares[0] // corrupting eds
+
+	bServ := newNamespacedBlockService()
+	batchAddr := ipld.NewNmtNodeAdder(ctx, bServ, ipld.MaxSizeBatchOption(size*2))
+
 	eds, err := rsmt2d.ImportExtendedDataSquare(shares,
 		share.DefaultRSMT2DCodec(),
-		malicious.NewConstructor(16, nmt.NodeVisitor(batchAddr.Visit)),
+		malicious.NewConstructor(uint64(size), nmt.NodeVisitor(batchAddr.Visit)),
 	)
 	require.NoError(t, err, "failure to recompute the extended data square")
 
@@ -223,9 +231,80 @@ func TestBEFP_ValidateOutOfOrderShares(t *testing.T) {
 	err = eds.Repair(dah.RowRoots, dah.ColumnRoots)
 	require.ErrorAs(t, err, &errRsmt2d)
 
-	errByz := NewErrByzantine(context.Background(), bServ, &dah, errRsmt2d)
+	byzantine := NewErrByzantine(ctx, bServ, &dah, errRsmt2d)
+	var errByz *ErrByzantine
+	require.ErrorAs(t, byzantine, &errByz)
 
 	befp := CreateBadEncodingProof([]byte("hash"), 0, errByz)
 	err = befp.Validate(&header.ExtendedHeader{DAH: &dah})
-	require.Error(t, err)
+	require.NoError(t, err)
+}
+
+// namespacedBlockService wraps `BlockService` and extends the verification part
+// to avoid returning blocks that has out of order namespaces.
+type namespacedBlockService struct {
+	blockservice.BlockService
+	// the data structure that is used on the networking level, in order
+	// to verify the order of the namespaces
+	prefix *cid.Prefix
+}
+
+func newNamespacedBlockService() *namespacedBlockService {
+	sha256NamespaceFlagged := uint64(0x7701)
+	// register the nmt hasher to validate the order of namespaces
+	mhcore.Register(sha256NamespaceFlagged, func() hash.Hash {
+		nh := nmt.NewNmtHasher(sha256.New(), share.NamespaceSize, true)
+		nh.Reset()
+		return nh
+	})
+
+	bs := &namespacedBlockService{}
+	bs.BlockService = ipld.NewMemBlockservice()
+
+	bs.prefix = &cid.Prefix{
+		Version: 1,
+		Codec:   sha256NamespaceFlagged,
+		MhType:  sha256NamespaceFlagged,
+		// equals to NmtHasher.Size()
+		MhLength: sha256.New().Size() + 2*share.NamespaceSize,
+	}
+	return bs
+}
+
+func (n *namespacedBlockService) GetBlock(ctx context.Context, c cid.Cid) (blocks.Block, error) {
+	block, err := n.BlockService.GetBlock(ctx, c)
+	if err != nil {
+		return nil, err
+	}
+
+	_, err = n.prefix.Sum(block.RawData())
+	if err != nil {
+		return nil, err
+	}
+	return block, nil
+}
+
+func (n *namespacedBlockService) GetBlocks(ctx context.Context, cids []cid.Cid) <-chan blocks.Block {
+	blockCh := n.BlockService.GetBlocks(ctx, cids)
+	resultCh := make(chan blocks.Block)
+
+	go func() {
+		for {
+			select {
+			case <-ctx.Done():
+				close(resultCh)
+				return
+			case block, ok := <-blockCh:
+				if !ok {
+					close(resultCh)
+					return
+				}
+				if _, err := n.prefix.Sum(block.RawData()); err != nil {
+					continue
+				}
+				resultCh <- block
+			}
+		}
+	}()
+	return resultCh
 }

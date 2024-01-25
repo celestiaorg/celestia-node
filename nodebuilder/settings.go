@@ -24,6 +24,7 @@ import (
 	"github.com/celestiaorg/go-fraud"
 
 	"github.com/celestiaorg/celestia-node/header"
+	modcore "github.com/celestiaorg/celestia-node/nodebuilder/core"
 	"github.com/celestiaorg/celestia-node/nodebuilder/das"
 	modhead "github.com/celestiaorg/celestia-node/nodebuilder/header"
 	"github.com/celestiaorg/celestia-node/nodebuilder/node"
@@ -51,6 +52,7 @@ func WithPyroscope(endpoint string, nodeType node.Type) fx.Option {
 	return fx.Options(
 		fx.Invoke(func(peerID peer.ID) error {
 			_, err := pyroscope.Start(pyroscope.Config{
+				UploadRate:      15 * time.Second,
 				ApplicationName: "celestia.da-node",
 				ServerAddress:   endpoint,
 				Tags: map[string]string{
@@ -64,6 +66,7 @@ func WithPyroscope(endpoint string, nodeType node.Type) fx.Option {
 					pyroscope.ProfileAllocSpace,
 					pyroscope.ProfileInuseObjects,
 					pyroscope.ProfileInuseSpace,
+					pyroscope.ProfileGoroutines,
 				},
 			})
 			return err
@@ -76,6 +79,7 @@ func WithMetrics(metricOpts []otlpmetrichttp.Option, nodeType node.Type) fx.Opti
 	// TODO @renaynay: this will be refactored when there is more granular
 	//  control over which module to enable metrics for
 	modhead.MetricsEnabled = true
+	modcore.MetricsEnabled = true
 
 	baseComponents := fx.Options(
 		fx.Supply(metricOpts),

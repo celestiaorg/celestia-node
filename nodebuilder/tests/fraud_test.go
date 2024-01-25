@@ -1,3 +1,5 @@
+//go:build fraud || integration
+
 package tests
 
 import (
@@ -126,9 +128,9 @@ func TestFraudProofHandling(t *testing.T) {
 	// blockTime=1 sec, expected befp.height=10
 	timeOut := blockTime * 5
 	// during befp validation the node can still receive headers and it mostly depends on
-	// the operating system or hardware(e.g. on macOS tests is working 100% time with a single height=15,
-	// and on the Linux VM sometimes the last height is 17-18). So, lets give a chance for our befp validator to check
-	// the fraud proof and stop the syncer.
+	// the operating system or hardware(e.g. on macOS tests is working 100% time with a single
+	// height=15, and on the Linux VM sometimes the last height is 17-18). So, lets give a chance for
+	// our befp validator to check the fraud proof and stop the syncer.
 	for height < 20 {
 		syncCtx, syncCancel := context.WithTimeout(context.Background(), timeOut)
 		_, err = full.HeaderServ.WaitForHeight(syncCtx, height)

@@ -1,3 +1,5 @@
+//go:build !race
+
 package state
 
 import (
@@ -27,7 +29,7 @@ func TestSubmitPayForBlob(t *testing.T) {
 	tmCfg.Consensus.TimeoutCommit = time.Millisecond * 1
 	appConf := testnode.DefaultAppConfig()
 	appConf.API.Enable = true
-	appConf.MinGasPrices = fmt.Sprintf("0.1%s", app.BondDenom)
+	appConf.MinGasPrices = fmt.Sprintf("0.002%s", app.BondDenom)
 
 	config := testnode.DefaultConfig().WithTendermintConfig(tmCfg).WithAppConfig(appConf).WithAccounts(accounts)
 	cctx, rpcAddr, grpcAddr := testnode.NewNetwork(t, config)

@@ -297,7 +297,7 @@ func RandBlockID(testing.TB) types.BlockID {
 	return bid
 }
 
-func ExtendedHeaderFromEDS(t *testing.T, height uint64, eds *rsmt2d.ExtendedDataSquare) *header.ExtendedHeader {
+func ExtendedHeaderFromEDS(t testing.TB, height uint64, eds *rsmt2d.ExtendedDataSquare) *header.ExtendedHeader {
 	valSet, vals := RandValidatorSet(10, 10)
 	gen := RandRawHeader(t)
 	dah, err := share.NewRoot(eds)

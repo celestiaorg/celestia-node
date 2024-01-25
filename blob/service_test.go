@@ -1,5 +1,3 @@
-//go:build linux
-
 package blob
 
 import (
@@ -416,7 +414,28 @@ func TestService_GetAllWithoutPadding(t *testing.T) {
 	require.NoError(t, err)
 }
 
-func createService(ctx context.Context, t *testing.T, blobs []*Blob) *Service {
+// BenchmarkGetByCommitment-12    	    3139	    380827 ns/op	  701647 B/op	    4990 allocs/op
+func BenchmarkGetByCommitment(b *testing.B) {
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second*5)
+	b.Cleanup(cancel)
+	appBlobs, err := blobtest.GenerateV0Blobs([]int{32, 32}, true)
+	require.NoError(b, err)
+
+	blobs, err := convertBlobs(appBlobs...)
+	require.NoError(b, err)
+
+	service := createService(ctx, b, blobs)
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		b.ReportAllocs()
+		_, _, err = service.getByCommitment(
+			ctx, 1, blobs[1].Namespace(), blobs[1].Commitment,
+		)
+		require.NoError(b, err)
+	}
+}
+
+func createService(ctx context.Context, t testing.TB, blobs []*Blob) *Service {
 	bs := ipld.NewMemBlockservice()
 	batching := ds_sync.MutexWrap(ds.NewMapDatastore())
 	headerStore, err := store.NewStore[*header.ExtendedHeader](batching)
