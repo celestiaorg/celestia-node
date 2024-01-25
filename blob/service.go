@@ -218,7 +218,7 @@ func (s *Service) getByCommitment(
 	)
 
 	getCtx, headerGetterSpan := tracer.Start(ctx, "header-getter")
-	
+
 	header, err := s.headerGetter(getCtx, height)
 	if err != nil {
 		headerGetterSpan.SetStatus(codes.Error, err.Error())
