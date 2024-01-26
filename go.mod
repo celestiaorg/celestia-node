@@ -2,8 +2,6 @@ module github.com/celestiaorg/celestia-node
 
 go 1.21.1
 
-replace github.com/celestiaorg/go-header => github.com/vgonkivs/go-header v0.0.0-20240119150939-0a56349a2922
-
 require (
 	cosmossdk.io/errors v1.0.1
 	cosmossdk.io/math v1.2.0
@@ -11,6 +9,7 @@ require (
 	github.com/alecthomas/jsonschema v0.0.0-20220216202328-9eeeec9d044b
 	github.com/benbjohnson/clock v1.3.5
 	github.com/celestiaorg/celestia-app v1.4.0
+	github.com/celestiaorg/go-ds-badger4 v0.0.0-20231125235544-5604cb7c10bb
 	github.com/celestiaorg/go-fraud v0.2.0
 	github.com/celestiaorg/go-header v0.5.3
 	github.com/celestiaorg/go-libp2p-messenger v0.2.0
