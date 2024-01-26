@@ -12,7 +12,7 @@ import (
 )
 
 func TestVerify(t *testing.T) {
-	h := NewTestSuite(t, 2).GenExtendedHeaders(3)
+	h := NewTestSuite(t, 2, 0).GenExtendedHeaders(3)
 	trusted, untrustedAdj, untrustedNonAdj := h[0], h[1], h[2]
 	tests := []struct {
 		prepare func() *header.ExtendedHeader
@@ -47,7 +47,7 @@ func TestVerify(t *testing.T) {
 		{
 			prepare: func() *header.ExtendedHeader {
 				untrusted := *untrustedNonAdj
-				untrusted.Commit = NewTestSuite(t, 2).Commit(RandRawHeader(t))
+				untrusted.Commit = NewTestSuite(t, 2, 0).Commit(RandRawHeader(t))
 				return &untrusted
 			},
 			err: header.ErrVerifyCommitLightTrustingFailed,
