@@ -2,7 +2,6 @@ package pruner
 
 import (
 	"context"
-	"fmt"
 	"time"
 
 	"github.com/celestiaorg/celestia-node/header"
@@ -10,6 +9,7 @@ import (
 
 // findPruneableHeaders returns all headers that are eligible for pruning
 // (outside the sampling window).
+// TODO @renaynay @distractedm1nd: This will not prune the genesis block
 func (s *Service) findPruneableHeaders(ctx context.Context) ([]*header.ExtendedHeader, error) {
 	lastPruned := s.lastPruned()
 
@@ -27,7 +27,6 @@ func (s *Service) findPruneableHeaders(ctx context.Context) ([]*header.ExtendedH
 	log.Debugw("finder: fetching header range", "lastPruned", lastPruned.Height(),
 		"estimatedCutoffHeight", estimatedCutoffHeight)
 
-	fmt.Println("LAST PRUNED: ", lastPruned.Height(), "   estimated cutoff: ", estimatedCutoffHeight)
 	headers, err := s.getter.GetRangeByHeight(ctx, lastPruned, estimatedCutoffHeight)
 	if err != nil {
 		return nil, err
@@ -37,7 +36,6 @@ func (s *Service) findPruneableHeaders(ctx context.Context) ([]*header.ExtendedH
 	// TODO: This is really inefficient in the case that lastPruned is the default value, or if the
 	// node has been offline for a long time. Instead of increasing the boundary by one in the for
 	// loop we could increase by a range every iteration
-	fmt.Println("LEN HEADERS: ", len(headers))
 	headerCount := len(headers)
 	for {
 		if headerCount > int(s.maxPruneablePerGC) {
