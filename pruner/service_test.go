@@ -21,6 +21,47 @@ import (
 	| toPrune  | availability window |
 */
 
+// TestService tests the pruner service to ensure that the expected amount
+// of blocks are pruned within a given AvailabilityWindow.
+//
+// Parameters: In a sampling window of 100ms where blocks are produced every
+// 25ms (4-5 block sampling window), 5 blocks are expected to be pruned
+// [genesis:5]. // TODO @renaynay: if avail window is 100ms, and blocks every 25s, 5 are pruned
+// which means sampling window is actually 5 blocks'-worth
+func TestService(t *testing.T) {
+	ctx, cancel := context.WithCancel(context.Background())
+	t.Cleanup(cancel)
+
+	blockTime := time.Millisecond * 25
+
+	// all headers generated in suite are timestamped to time.Now(), so
+	// they will all be considered "pruneable" within the availability window (
+	suite := headertest.NewTestSuite(t, 1, blockTime)
+	store := headertest.NewCustomStore(t, suite, 20)
+
+	mp := &mockPruner{}
+
+	serv := NewService(
+		mp,
+		AvailabilityWindow(time.Millisecond*100),
+		store,
+		sync.MutexWrap(datastore.NewMapDatastore()),
+		blockTime,
+		WithGCCycle(time.Millisecond*100),
+	)
+
+	err := serv.Start(ctx)
+	require.NoError(t, err)
+
+	// wait for 2 GC cycles to run
+	time.Sleep(time.Millisecond * 200)
+
+	err = serv.Stop(ctx)
+	require.NoError(t, err)
+
+	assert.Equal(t, uint64(5), serv.checkpoint.LastPrunedHeight)
+}
+
 func TestServiceCheckpointing(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	t.Cleanup(cancel)

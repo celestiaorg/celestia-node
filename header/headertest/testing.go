@@ -36,10 +36,12 @@ type TestSuite struct {
 	valPntr int
 
 	head *header.ExtendedHeader
+
+	blockTime time.Duration
 }
 
 func NewStore(t *testing.T) libhead.Store[*header.ExtendedHeader] {
-	return headertest.NewStore[*header.ExtendedHeader](t, NewTestSuite(t, 3), 10)
+	return headertest.NewStore[*header.ExtendedHeader](t, NewTestSuite(t, 3, 0), 10)
 }
 
 func NewCustomStore(
@@ -51,12 +53,13 @@ func NewCustomStore(
 }
 
 // NewTestSuite setups a new test suite with a given number of validators.
-func NewTestSuite(t *testing.T, num int) *TestSuite {
-	valSet, vals := RandValidatorSet(num, 10)
+func NewTestSuite(t *testing.T, numValidators int, blockTime time.Duration) *TestSuite {
+	valSet, vals := RandValidatorSet(numValidators, 10)
 	return &TestSuite{
-		t:      t,
-		vals:   vals,
-		valSet: valSet,
+		t:         t,
+		vals:      vals,
+		valSet:    valSet,
+		blockTime: blockTime,
 	}
 }
 
@@ -166,13 +169,18 @@ func (s *TestSuite) GenRawHeader(
 ) *header.RawHeader {
 	rh := RandRawHeader(s.t)
 	rh.Height = int64(height)
-	rh.Time = time.Now()
 	rh.LastBlockID = types.BlockID{Hash: bytes.HexBytes(lastHeader)}
 	rh.LastCommitHash = bytes.HexBytes(lastCommit)
 	rh.DataHash = bytes.HexBytes(dataHash)
 	rh.ValidatorsHash = s.valSet.Hash()
 	rh.NextValidatorsHash = s.valSet.Hash()
 	rh.ProposerAddress = s.nextProposer().Address
+
+	rh.Time = time.Now()
+	if s.blockTime > 0 {
+		rh.Time = s.Head().Time().Add(s.blockTime)
+	}
+
 	return rh
 }
 
