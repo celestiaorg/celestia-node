@@ -11,8 +11,6 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	hdr "github.com/celestiaorg/go-header"
-
 	"github.com/celestiaorg/celestia-node/header"
 	"github.com/celestiaorg/celestia-node/header/headertest"
 )
@@ -197,14 +195,20 @@ func TestFindPruneableHeaders(t *testing.T) {
 }
 
 type mockPruner struct {
-	deletedHeaderHashes []hdr.Hash
+	deletedHeaderHashes []pruned
+}
+
+type pruned struct {
+	hash   string
+	height uint64
 }
 
 func (mp *mockPruner) Prune(_ context.Context, h *header.ExtendedHeader) error {
-	mp.deletedHeaderHashes = append(mp.deletedHeaderHashes, h.Hash())
+	mp.deletedHeaderHashes = append(mp.deletedHeaderHashes, pruned{hash: h.Hash().String(), height: h.Height()})
 	return nil
 }
 
+// TODO @renaynay @distractedm1nd: can dedup and just use headertest util
 type SpacedHeaderGenerator struct {
 	t                  *testing.T
 	TimeBetweenHeaders time.Duration

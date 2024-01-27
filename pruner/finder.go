@@ -9,6 +9,7 @@ import (
 
 // findPruneableHeaders returns all headers that are eligible for pruning
 // (outside the sampling window).
+// TODO @renaynay @distractedm1nd: This will not prune the genesis block
 func (s *Service) findPruneableHeaders(ctx context.Context) ([]*header.ExtendedHeader, error) {
 	lastPruned := s.lastPruned()
 
