@@ -63,6 +63,7 @@ func NewService(
 		pruner:            p,
 		window:            window,
 		getter:            getter,
+		checkpoint:        &checkpoint{FailedHeaders: map[uint64]string{}},
 		ds:                namespace.Wrap(ds, storePrefix),
 		numBlocksInWindow: numBlocksInWindow,
 		// TODO @distractedmind: make this configurable?
