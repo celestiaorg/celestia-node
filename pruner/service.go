@@ -148,7 +148,7 @@ func (s *Service) prune() {
 				continue
 			}
 
-			s.retryFailed(s.ctx)
+			s.retryFailed(s.ctx) // TODO @renaynay: persist the results of this to disk
 		}
 	}
 }
