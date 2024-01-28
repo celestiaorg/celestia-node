@@ -16,7 +16,7 @@ type metrics struct {
 	prunedCounter metric.Int64Counter
 
 	lastPruned   metric.Int64ObservableGauge
-	failedPrunes metric.Int64ObservableGauge
+	failedPrunes metric.Int64ObservableGauge // TODO @renaynay: make callback for this
 }
 
 func (s *Service) WithMetrics() error {

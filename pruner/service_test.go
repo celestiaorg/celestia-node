@@ -60,6 +60,45 @@ func TestService(t *testing.T) {
 	assert.Equal(t, uint64(5), serv.checkpoint.LastPrunedHeight)
 }
 
+func TestService_RetryingFailed(t *testing.T) {
+	ctx, cancel := context.WithCancel(context.Background())
+	t.Cleanup(cancel)
+
+	blockTime := time.Millisecond * 25
+
+	// all headers generated in suite are timestamped to time.Now(), so
+	// they will all be considered "pruneable" within the availability window (
+	suite := headertest.NewTestSuite(t, 1, blockTime)
+	store := headertest.NewCustomStore(t, suite, 20)
+
+	mp := &mockPruner{failHeight: map[uint64]int{4: 0, 5: 0, 13: 0}}
+
+	serv := NewService(
+		mp,
+		AvailabilityWindow(time.Millisecond*100),
+		store,
+		sync.MutexWrap(datastore.NewMapDatastore()),
+		blockTime,
+		WithGCCycle(time.Millisecond*100),
+	)
+
+	err := serv.Start(ctx)
+	require.NoError(t, err)
+
+	time.Sleep(time.Millisecond * 500) // 4-5 blocks per availability window * 5 = 25ish blocks pruned
+
+	err = serv.Stop(ctx)
+	require.NoError(t, err)
+
+	assert.Len(t, serv.checkpoint.FailedHeaders, 3)
+	for expectedFail := range mp.failHeight {
+		_, exists := serv.checkpoint.FailedHeaders[expectedFail]
+		assert.True(t, exists)
+	}
+}
+
+// TODO @renaynay: implement test to ensure successful retries work
+
 func TestServiceCheckpointing(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	t.Cleanup(cancel)
@@ -196,6 +235,10 @@ func TestFindPruneableHeaders(t *testing.T) {
 
 type mockPruner struct {
 	deletedHeaderHashes []pruned
+
+	// tells the mockPruner on which heights to fail
+	failHeight         map[uint64]int
+	enableRetrySuccess bool
 }
 
 type pruned struct {
@@ -204,6 +247,16 @@ type pruned struct {
 }
 
 func (mp *mockPruner) Prune(_ context.Context, h *header.ExtendedHeader) error {
+	for fail := range mp.failHeight {
+		if h.Height() == fail {
+			// if retried, return successful
+			if mp.failHeight[fail] > 1 && mp.enableRetrySuccess {
+				return nil
+			}
+			mp.failHeight[fail]++
+			return fmt.Errorf("failed to prune")
+		}
+	}
 	mp.deletedHeaderHashes = append(mp.deletedHeaderHashes, pruned{hash: h.Hash().String(), height: h.Height()})
 	return nil
 }

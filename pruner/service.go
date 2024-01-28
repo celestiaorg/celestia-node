@@ -63,6 +63,7 @@ func NewService(
 		pruner:            p,
 		window:            window,
 		getter:            getter,
+		checkpoint:        &checkpoint{FailedHeaders: map[uint64]string{}},
 		ds:                namespace.Wrap(ds, storePrefix),
 		numBlocksInWindow: numBlocksInWindow,
 		// TODO @distractedmind: make this configurable?
@@ -106,7 +107,8 @@ func (s *Service) prune() {
 	ticker := time.NewTicker(s.params.gcCycle)
 	defer ticker.Stop()
 
-	// TODO @renaynay: prioritize retrying failed headers
+	// prioritize retrying failed headers
+	s.retryFailed(s.ctx)
 
 	lastPrunedHeader := s.lastPruned()
 
@@ -146,6 +148,26 @@ func (s *Service) prune() {
 				log.Errorw("failed to update checkpoint", "err", err)
 				continue
 			}
+
+			s.retryFailed(s.ctx) // TODO @renaynay: persist the results of this to disk
 		}
+	}
+}
+
+func (s *Service) retryFailed(ctx context.Context) {
+	for failed := range s.checkpoint.FailedHeaders {
+		h, err := s.getter.GetByHeight(ctx, failed)
+		if err != nil {
+			log.Errorw("failed to load header from failed map", "height", failed, "err", err)
+			s.checkpoint.FailedHeaders[failed] = err.Error()
+			continue
+		}
+		err = s.pruner.Prune(ctx, h)
+		if err != nil {
+			log.Errorw("failed to prune block from failed map", "height", failed, "err", err)
+			s.checkpoint.FailedHeaders[failed] = err.Error()
+			continue
+		}
+		delete(s.checkpoint.FailedHeaders, failed)
 	}
 }

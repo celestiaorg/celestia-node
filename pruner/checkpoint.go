@@ -32,9 +32,6 @@ func (s *Service) initializeCheckpoint(ctx context.Context) error {
 		return fmt.Errorf("failed to initialize checkpoint: %w", err)
 	}
 
-	s.checkpoint = &checkpoint{
-		FailedHeaders: make(map[uint64]string),
-	}
 	return s.updateCheckpoint(ctx, firstHeader, nil)
 }
 
