@@ -35,13 +35,13 @@ func (s *Service) MaxBlobSize(context.Context) (uint64, error) {
 }
 
 // Get returns Blob for each given ID, or an error.
-func (s *Service) Get(ctx context.Context, ids []da.ID) ([]da.Blob, error) {
+func (s *Service) Get(ctx context.Context, ids []da.ID, ns da.Namespace) ([]da.Blob, error) {
 	blobs := make([]da.Blob, 0, len(ids))
 	for _, id := range ids {
-		height, commitment, namespace := splitID(id)
-		log.Debugw("getting blob", "height", height, "commitment", commitment, "namespace", share.Namespace(namespace))
-		currentBlob, err := s.blobServ.Get(ctx, height, namespace, commitment)
-		log.Debugw("got blob", "height", height, "commitment", commitment, "namespace", share.Namespace(namespace))
+		height, commitment := splitID(id)
+		log.Debugw("getting blob", "height", height, "commitment", commitment, "namespace", share.Namespace(ns))
+		currentBlob, err := s.blobServ.Get(ctx, height, ns, commitment)
+		log.Debugw("got blob", "height", height, "commitment", commitment, "namespace", share.Namespace(ns))
 		if err != nil {
 			return nil, err
 		}
@@ -63,7 +63,7 @@ func (s *Service) GetIDs(ctx context.Context, height uint64, namespace da.Namesp
 		return nil, err
 	}
 	for _, b := range blobs {
-		ids = append(ids, makeID(height, b.Commitment, namespace))
+		ids = append(ids, makeID(height, b.Commitment))
 	}
 	return ids, nil
 }
@@ -75,23 +75,28 @@ func (s *Service) Commit(_ context.Context, daBlobs []da.Blob, namespace da.Name
 }
 
 // Submit submits the Blobs to Data Availability layer.
-func (s *Service) Submit(ctx context.Context, daBlobs []da.Blob, opts *da.SubmitOptions) ([]da.ID, []da.Proof, error) {
-	blobs, commitments, err := s.blobsAndCommitments(daBlobs, opts.Namespace)
+func (s *Service) Submit(
+	ctx context.Context,
+	daBlobs []da.Blob,
+	gasPrice float64,
+	namespace da.Namespace,
+) ([]da.ID, []da.Proof, error) {
+	blobs, commitments, err := s.blobsAndCommitments(daBlobs, namespace)
 	if err != nil {
 		return nil, nil, err
 	}
 
-	height, err := s.blobServ.Submit(ctx, blobs, blob.GasPrice(opts.GasPrice))
+	height, err := s.blobServ.Submit(ctx, blobs, blob.GasPrice(gasPrice))
 	if err != nil {
-		log.Error("failed to submit blobs", "height", height, "gas price", opts.GasPrice)
+		log.Error("failed to submit blobs", "height", height, "gas price", gasPrice)
 		return nil, nil, err
 	}
-	log.Info("successfully submitted blobs", "height", height, "gas price", opts.GasPrice)
+	log.Info("successfully submitted blobs", "height", height, "gas price", gasPrice)
 	ids := make([]da.ID, len(daBlobs))
 	proofs := make([]da.Proof, len(daBlobs))
 	for i, commitment := range commitments {
-		ids[i] = makeID(height, commitment, opts.Namespace)
-		proof, err := s.blobServ.GetProof(ctx, height, opts.Namespace, commitment)
+		ids[i] = makeID(height, commitment)
+		proof, err := s.blobServ.GetProof(ctx, height, namespace, commitment)
 		if err != nil {
 			return nil, nil, err
 		}
@@ -104,7 +109,8 @@ func (s *Service) Submit(ctx context.Context, daBlobs []da.Blob, opts *da.Submit
 	return ids, proofs, nil
 }
 
-// blobsAndCommitments converts []da.Blob to []*blob.Blob and generates corresponding []da.Commitment
+// blobsAndCommitments converts []da.Blob to []*blob.Blob and generates corresponding
+// []da.Commitment
 func (s *Service) blobsAndCommitments(
 	daBlobs []da.Blob, namespace da.Namespace,
 ) ([]*blob.Blob, []da.Commitment, error) {
@@ -128,7 +134,12 @@ func (s *Service) blobsAndCommitments(
 
 // Validate validates Commitments against the corresponding Proofs. This should be possible without
 // retrieving the Blobs.
-func (s *Service) Validate(ctx context.Context, ids []da.ID, daProofs []da.Proof) ([]bool, error) {
+func (s *Service) Validate(
+	ctx context.Context,
+	ids []da.ID,
+	daProofs []da.Proof,
+	namespace da.Namespace,
+) ([]bool, error) {
 	included := make([]bool, len(ids))
 	proofs := make([]*blob.Proof, len(ids))
 	for _, daProof := range daProofs {
@@ -140,28 +151,28 @@ func (s *Service) Validate(ctx context.Context, ids []da.ID, daProofs []da.Proof
 		proofs = append(proofs, proof)
 	}
 	for i, id := range ids {
-		height, commitment, namespace := splitID(id)
-		// TODO(tzdybal): for some reason, if proof doesn't match commitment, API returns (false, "blob: invalid proof")
-		//    but analysis of the code in celestia-node implies this should never happen - maybe it's caused by openrpc?
-		//    there is no way of gently handling errors here, but returned value is fine for us
+		height, commitment := splitID(id)
+		// TODO(tzdybal): for some reason, if proof doesn't match commitment, API returns (false, "blob:
+		// invalid proof")    but analysis of the code in celestia-node implies this should never happen -
+		// maybe it's caused by openrpc?    there is no way of gently handling errors here, but returned
+		// value is fine for us
 		isIncluded, _ := s.blobServ.Included(ctx, height, namespace, proofs[i], commitment)
 		included = append(included, isIncluded)
 	}
 	return included, nil
 }
 
-func makeID(height uint64, commitment da.Commitment, namespace da.Namespace) da.ID {
-	id := make([]byte, heightLen+len(commitment)+len(namespace))
+func makeID(height uint64, commitment da.Commitment) da.ID {
+	id := make([]byte, heightLen+len(commitment))
 	binary.LittleEndian.PutUint64(id, height)
 	copy(id[heightLen:], commitment)
-	copy(id[heightLen+len(commitment):], namespace)
 	return id
 }
 
-func splitID(id da.ID) (uint64, da.Commitment, da.Namespace) {
+func splitID(id da.ID) (uint64, da.Commitment) {
 	if len(id) <= heightLen {
-		return 0, nil, nil
+		return 0, nil
 	}
 	commitment := id[heightLen:]
-	return binary.LittleEndian.Uint64(id[:heightLen]), commitment, id[heightLen+len(commitment):]
+	return binary.LittleEndian.Uint64(id[:heightLen]), commitment
 }

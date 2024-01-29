@@ -16,11 +16,11 @@ type Module interface {
 type API struct {
 	Internal struct {
 		MaxBlobSize func(ctx context.Context) (uint64, error)                                            `perm:"read"`
-		Get         func(ctx context.Context, ids []da.ID) ([]da.Blob, error)                            `perm:"read"`
+		Get         func(ctx context.Context, ids []da.ID, ns da.Namespace) ([]da.Blob, error)           `perm:"read"`
 		GetIDs      func(ctx context.Context, height uint64, ns da.Namespace) ([]da.ID, error)           `perm:"read"`
 		Commit      func(ctx context.Context, blobs []da.Blob, ns da.Namespace) ([]da.Commitment, error) `perm:"read"`
-		Validate    func(ctx context.Context, ids []da.ID, proofs []da.Proof) ([]bool, error)            `perm:"read"`
-		Submit      func(context.Context, []da.Blob, *da.SubmitOptions) ([]da.ID, []da.Proof, error)     `perm:"write"`
+		Validate    func(context.Context, []da.ID, []da.Proof, da.Namespace) ([]bool, error)             `perm:"read"`
+		Submit      func(context.Context, []da.Blob, float64, da.Namespace) ([]da.ID, []da.Proof, error) `perm:"write"`
 	}
 }
 
@@ -28,8 +28,8 @@ func (api *API) MaxBlobSize(ctx context.Context) (uint64, error) {
 	return api.Internal.MaxBlobSize(ctx)
 }
 
-func (api *API) Get(ctx context.Context, ids []da.ID) ([]da.Blob, error) {
-	return api.Internal.Get(ctx, ids)
+func (api *API) Get(ctx context.Context, ids []da.ID, ns da.Namespace) ([]da.Blob, error) {
+	return api.Internal.Get(ctx, ids, ns)
 }
 
 func (api *API) GetIDs(ctx context.Context, height uint64, ns da.Namespace) ([]da.ID, error) {
@@ -40,6 +40,6 @@ func (api *API) Commit(ctx context.Context, blobs []da.Blob, ns da.Namespace) ([
 	return api.Internal.Commit(ctx, blobs, ns)
 }
 
-func (api *API) Validate(ctx context.Context, ids []da.ID, proofs []da.Proof) ([]bool, error) {
-	return api.Internal.Validate(ctx, ids, proofs)
+func (api *API) Validate(ctx context.Context, ids []da.ID, proofs []da.Proof, ns da.Namespace) ([]bool, error) {
+	return api.Internal.Validate(ctx, ids, proofs, ns)
 }

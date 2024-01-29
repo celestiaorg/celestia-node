@@ -6,12 +6,12 @@ import (
 	"testing"
 	"time"
 
+	"github.com/filecoin-project/go-jsonrpc/auth"
+	"github.com/stretchr/testify/require"
+
 	"github.com/celestiaorg/celestia-node/api/rpc/client"
 	"github.com/celestiaorg/celestia-node/libs/authtoken"
 	"github.com/celestiaorg/celestia-node/nodebuilder"
-
-	"github.com/filecoin-project/go-jsonrpc/auth"
-	"github.com/stretchr/testify/require"
 )
 
 func getAdminClient(ctx context.Context, nd *nodebuilder.Node, t *testing.T) *client.Client {
