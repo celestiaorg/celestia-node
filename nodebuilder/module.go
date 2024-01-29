@@ -50,7 +50,6 @@ func ConstructModule(tp node.Type, network p2p.Network, cfg *Config, store Store
 		state.ConstructModule(tp, &cfg.State, &cfg.Core),
 		modhead.ConstructModule[*header.ExtendedHeader](tp, &cfg.Header),
 		share.ConstructModule(tp, &cfg.Share),
-		rpc.ConstructModule(tp, &cfg.RPC),
 		gateway.ConstructModule(tp, &cfg.Gateway),
 		core.ConstructModule(tp, &cfg.Core),
 		das.ConstructModule(tp, &cfg.DASer),
@@ -58,6 +57,7 @@ func ConstructModule(tp node.Type, network p2p.Network, cfg *Config, store Store
 		blob.ConstructModule(),
 		node.ConstructModule(tp),
 		prune.ConstructModule(tp),
+		rpc.ConstructModule(tp, &cfg.RPC),
 	)
 
 	return fx.Module(
