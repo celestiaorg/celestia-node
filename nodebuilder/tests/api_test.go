@@ -48,6 +48,10 @@ func TestNodeModule(t *testing.T) {
 	require.NoError(t, err)
 	require.Equal(t, info.APIVersion, node.APIVersion)
 
+	ready, err := client.Node.Ready(ctx)
+	require.NoError(t, err)
+	require.True(t, ready)
+
 	perms, err := client.Node.AuthVerify(ctx, jwt)
 	require.NoError(t, err)
 	require.Equal(t, perms, adminPerms)
