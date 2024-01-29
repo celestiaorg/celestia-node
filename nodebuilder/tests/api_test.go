@@ -89,7 +89,7 @@ func TestGetByHeight(t *testing.T) {
 	require.ErrorContains(t, err, "given height is from the future")
 }
 
-// TestBlobRPC ensures that blobs can be submited via rpc
+// TestBlobRPC ensures that blobs can be submitted via rpc
 func TestBlobRPC(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), swamp.DefaultTestTimeout)
 	t.Cleanup(cancel)
