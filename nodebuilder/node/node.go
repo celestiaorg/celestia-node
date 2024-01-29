@@ -14,6 +14,9 @@ type Module interface {
 	// Info returns administrative information about the node.
 	Info(context.Context) (Info, error)
 
+	// Ready returns true once the node's RPC is ready to accept requests.
+	Ready(context.Context) (bool, error)
+
 	// LogLevelSet sets the given component log level to the given level.
 	LogLevelSet(ctx context.Context, name, level string) error
 
@@ -28,6 +31,7 @@ var _ Module = (*API)(nil)
 type API struct {
 	Internal struct {
 		Info        func(context.Context) (Info, error)                                `perm:"admin"`
+		Ready       func(context.Context) (bool, error)                                `perm:"read"`
 		LogLevelSet func(ctx context.Context, name, level string) error                `perm:"admin"`
 		AuthVerify  func(ctx context.Context, token string) ([]auth.Permission, error) `perm:"admin"`
 		AuthNew     func(ctx context.Context, perms []auth.Permission) (string, error) `perm:"admin"`
@@ -36,6 +40,10 @@ type API struct {
 
 func (api *API) Info(ctx context.Context) (Info, error) {
 	return api.Internal.Info(ctx)
+}
+
+func (api *API) Ready(ctx context.Context) (bool, error) {
+	return api.Internal.Ready(ctx)
 }
 
 func (api *API) LogLevelSet(ctx context.Context, name, level string) error {

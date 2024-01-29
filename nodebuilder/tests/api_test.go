@@ -48,6 +48,10 @@ func TestNodeModule(t *testing.T) {
 	require.NoError(t, err)
 	require.Equal(t, info.APIVersion, node.APIVersion)
 
+	ready, err := client.Node.Ready(ctx)
+	require.NoError(t, err)
+	require.True(t, ready)
+
 	perms, err := client.Node.AuthVerify(ctx, jwt)
 	require.NoError(t, err)
 	require.Equal(t, perms, adminPerms)
@@ -89,7 +93,7 @@ func TestGetByHeight(t *testing.T) {
 	require.ErrorContains(t, err, "given height is from the future")
 }
 
-// TestBlobRPC ensures that blobs can be submited via rpc
+// TestBlobRPC ensures that blobs can be submitted via rpc
 func TestBlobRPC(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), swamp.DefaultTestTimeout)
 	t.Cleanup(cancel)
