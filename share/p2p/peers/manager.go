@@ -303,7 +303,7 @@ func (m *Manager) subscribeHeader(ctx context.Context, headerSub libhead.Subscri
 			log.Debugw("stored initial height", "height", h.Height())
 		}
 
-		// update storeFrom if header heigh
+		// update storeFrom if header height
 		m.storeFrom.Store(uint64(max(0, int(h.Height())-storedPoolsAmount)))
 		log.Debugw("updated lowest stored height", "height", h.Height())
 	}
