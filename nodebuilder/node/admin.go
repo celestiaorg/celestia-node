@@ -39,6 +39,10 @@ func (m *module) Info(context.Context) (Info, error) {
 }
 
 func (m *module) Ready(context.Context) (bool, error) {
+	// Because the node uses FX to provide the RPC last, all services' lifecycles have been started by
+	// the point this endpoint is available. It is not 100% guaranteed at this point that all services
+	// are fully ready, but it is very high probability and all endpoints are available at this point
+	// regardless.
 	return true, nil
 }
 
