@@ -22,6 +22,8 @@ import (
 	"github.com/celestiaorg/celestia-node/nodebuilder"
 	"github.com/celestiaorg/celestia-node/nodebuilder/blob"
 	blobMock "github.com/celestiaorg/celestia-node/nodebuilder/blob/mocks"
+	"github.com/celestiaorg/celestia-node/nodebuilder/da"
+	daMock "github.com/celestiaorg/celestia-node/nodebuilder/da/mocks"
 	"github.com/celestiaorg/celestia-node/nodebuilder/das"
 	dasMock "github.com/celestiaorg/celestia-node/nodebuilder/das/mocks"
 	"github.com/celestiaorg/celestia-node/nodebuilder/fraud"
@@ -91,6 +93,7 @@ type api struct {
 	Node   node.Module
 	P2P    p2p.Module
 	Blob   blob.Module
+	DA     da.Module
 }
 
 func TestModulesImplementFullAPI(t *testing.T) {
@@ -297,6 +300,7 @@ func setupNodeWithAuthedRPC(t *testing.T, auth jwt.Signer) (*nodebuilder.Node, *
 		p2pMock.NewMockModule(ctrl),
 		nodeMock.NewMockModule(ctrl),
 		blobMock.NewMockModule(ctrl),
+		daMock.NewMockModule(ctrl),
 	}
 
 	// given the behavior of fx.Invoke, this invoke will be called last as it is added at the root
@@ -310,6 +314,7 @@ func setupNodeWithAuthedRPC(t *testing.T, auth jwt.Signer) (*nodebuilder.Node, *
 		srv.RegisterAuthedService("p2p", mockAPI.P2P, &p2p.API{})
 		srv.RegisterAuthedService("node", mockAPI.Node, &node.API{})
 		srv.RegisterAuthedService("blob", mockAPI.Blob, &blob.API{})
+		srv.RegisterAuthedService("da", mockAPI.DA, &da.API{})
 	})
 	// fx.Replace does not work here, but fx.Decorate does
 	nd := nodebuilder.TestNode(t, node.Full, invokeRPC, fx.Decorate(func() (jwt.Signer, error) {
@@ -334,4 +339,5 @@ type mockAPI struct {
 	P2P    *p2pMock.MockModule
 	Node   *nodeMock.MockModule
 	Blob   *blobMock.MockModule
+	DA     *daMock.MockModule
 }

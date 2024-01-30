@@ -13,6 +13,7 @@ import (
 	"github.com/celestiaorg/nmt"
 
 	"github.com/celestiaorg/celestia-node/blob"
+	nodeblob "github.com/celestiaorg/celestia-node/nodebuilder/blob"
 	"github.com/celestiaorg/celestia-node/share"
 )
 
@@ -26,7 +27,13 @@ var log = logging.Logger("go-da")
 const heightLen = 8
 
 type Service struct {
-	blobServ blob.Service
+	blobServ nodeblob.Module
+}
+
+func NewService(blobMod nodeblob.Module) *Service {
+	return &Service{
+		blobServ: blobMod,
+	}
 }
 
 // MaxBlobSize returns the max blob size
