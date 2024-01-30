@@ -43,3 +43,7 @@ func (api *API) Commit(ctx context.Context, blobs []da.Blob, ns da.Namespace) ([
 func (api *API) Validate(ctx context.Context, ids []da.ID, proofs []da.Proof, ns da.Namespace) ([]bool, error) {
 	return api.Internal.Validate(ctx, ids, proofs, ns)
 }
+
+func (api *API) Submit(ctx context.Context, blobs []da.Blob, gasPrice float64, ns da.Namespace) ([]da.ID, []da.Proof, error) {
+	return api.Internal.Submit(ctx, blobs, gasPrice, ns)
+}

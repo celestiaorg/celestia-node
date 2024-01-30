@@ -45,7 +45,7 @@ func (s *Service) MaxBlobSize(context.Context) (uint64, error) {
 func (s *Service) Get(ctx context.Context, ids []da.ID, ns da.Namespace) ([]da.Blob, error) {
 	blobs := make([]da.Blob, 0, len(ids))
 	for _, id := range ids {
-		height, commitment := splitID(id)
+		height, commitment := SplitID(id)
 		log.Debugw("getting blob", "height", height, "commitment", commitment, "namespace", share.Namespace(ns))
 		currentBlob, err := s.blobServ.Get(ctx, height, ns, commitment)
 		log.Debugw("got blob", "height", height, "commitment", commitment, "namespace", share.Namespace(ns))
@@ -70,7 +70,7 @@ func (s *Service) GetIDs(ctx context.Context, height uint64, namespace da.Namesp
 		return nil, err
 	}
 	for _, b := range blobs {
-		ids = append(ids, makeID(height, b.Commitment))
+		ids = append(ids, MakeID(height, b.Commitment))
 	}
 	return ids, nil
 }
@@ -102,7 +102,7 @@ func (s *Service) Submit(
 	ids := make([]da.ID, len(daBlobs))
 	proofs := make([]da.Proof, len(daBlobs))
 	for i, commitment := range commitments {
-		ids[i] = makeID(height, commitment)
+		ids[i] = MakeID(height, commitment)
 		proof, err := s.blobServ.GetProof(ctx, height, namespace, commitment)
 		if err != nil {
 			return nil, nil, err
@@ -158,7 +158,7 @@ func (s *Service) Validate(
 		proofs = append(proofs, proof)
 	}
 	for i, id := range ids {
-		height, commitment := splitID(id)
+		height, commitment := SplitID(id)
 		// TODO(tzdybal): for some reason, if proof doesn't match commitment, API returns (false, "blob:
 		// invalid proof")    but analysis of the code in celestia-node implies this should never happen -
 		// maybe it's caused by openrpc?    there is no way of gently handling errors here, but returned
@@ -169,14 +169,14 @@ func (s *Service) Validate(
 	return included, nil
 }
 
-func makeID(height uint64, commitment da.Commitment) da.ID {
+func MakeID(height uint64, commitment da.Commitment) da.ID {
 	id := make([]byte, heightLen+len(commitment))
 	binary.LittleEndian.PutUint64(id, height)
 	copy(id[heightLen:], commitment)
 	return id
 }
 
-func splitID(id da.ID) (uint64, da.Commitment) {
+func SplitID(id da.ID) (uint64, da.Commitment) {
 	if len(id) <= heightLen {
 		return 0, nil
 	}
