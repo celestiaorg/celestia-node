@@ -1,3 +1,5 @@
+//go:build fraud || integration
+
 package tests
 
 import (
