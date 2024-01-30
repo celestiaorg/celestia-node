@@ -32,7 +32,9 @@ type Service struct {
 	ds         datastore.Datastore
 	checkpoint *checkpoint
 
-	// TODO @renaynay @distractedmind: how would this impact a node that enables pruning after being an archival node?
+	// TODO @renaynay: how would this impact a node that enables pruning after being an archival node?
+	//  e.g. Node has already 600k+ blocks stored, how long will it take to clean up all blocks outside
+	//  of pruning window?
 	maxPruneablePerGC uint64
 	numBlocksInWindow uint64
 
@@ -66,8 +68,7 @@ func NewService(
 		checkpoint:        &checkpoint{FailedHeaders: map[uint64]string{}},
 		ds:                namespace.Wrap(ds, storePrefix),
 		numBlocksInWindow: numBlocksInWindow,
-		// TODO @distractedmind: make this configurable?
-		maxPruneablePerGC: numBlocksInWindow * 2,
+		maxPruneablePerGC: params.maxPruneablePerGC,
 		doneCh:            make(chan struct{}),
 		params:            params,
 	}
@@ -119,7 +120,7 @@ func (s *Service) prune() {
 			return
 		case <-ticker.C:
 			headers, err := s.findPruneableHeaders(s.ctx)
-			if err != nil {
+			if err != nil || len(headers) == 0 {
 				// TODO @renaynay: record errors properly
 				log.Errorw("failed to find prune-able blocks", "error", err)
 				continue
@@ -129,15 +130,16 @@ func (s *Service) prune() {
 
 			// TODO @renaynay: make deadline a param ? / configurable?
 			pruneCtx, cancel := context.WithDeadline(s.ctx, time.Now().Add(time.Minute))
+
+			log.Debugw("pruning headers", "from", headers[0].Height(), "to",
+				headers[len(headers)-1].Height())
 			for _, eh := range headers {
-				log.Debugw("pruning block", "height", eh.Height())
 				err = s.pruner.Prune(pruneCtx, eh)
 				if err != nil {
-					// TODO: @distractedm1nd: updatecheckpoint should be called on the last NON-ERRORED header
 					log.Errorw("failed to prune block", "height", eh.Height(), "err", err)
 					failed[eh.Height()] = err
 				} else {
-					lastPrunedHeader = eh // TODO @renaynay: make prettier
+					lastPrunedHeader = eh // TODO @renaynay: make prettier, updatecheckpoint should be called on the last NON-ERRORED header
 				}
 				s.metrics.observePrune(pruneCtx, err != nil)
 			}
@@ -149,6 +151,7 @@ func (s *Service) prune() {
 				continue
 			}
 
+			log.Debugw("retrying failed headers", "amount", len(s.checkpoint.FailedHeaders))
 			s.retryFailed(s.ctx) // TODO @renaynay: persist the results of this to disk
 		}
 	}
