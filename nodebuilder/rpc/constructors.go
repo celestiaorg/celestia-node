@@ -37,5 +37,5 @@ func registerEndpoints(
 }
 
 func server(cfg *Config, auth jwt.Signer) *rpc.Server {
-	return rpc.NewServer(cfg.Address, cfg.Port, auth)
+	return rpc.NewServer(cfg.Address, cfg.Port, cfg.SkipAuth, auth)
 }
