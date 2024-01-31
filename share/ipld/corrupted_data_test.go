@@ -25,7 +25,7 @@ func TestNamespaceHasher_CorruptedData(t *testing.T) {
 	t.Cleanup(cancel)
 	net := availability_test.NewTestDAGNet(ctx, t)
 
-	requestor := full.Node(net)
+	requester := full.Node(net)
 	provider, mockBS := availability_test.MockNode(t, net)
 	provider.Availability = full.TestAvailability(t, getters.NewIPLDGetter(provider.BlockService))
 	net.ConnectAll()
@@ -37,15 +37,15 @@ func TestNamespaceHasher_CorruptedData(t *testing.T) {
 	eh := headertest.RandExtendedHeaderWithRoot(t, root)
 	getCtx, cancelGet := context.WithTimeout(ctx, sharesAvailableTimeout)
 	t.Cleanup(cancelGet)
-	err := requestor.SharesAvailable(getCtx, eh)
+	err := requester.SharesAvailable(getCtx, eh)
 	require.NoError(t, err)
 
 	// clear the storage of the requester so that it must retrieve again, then start attacking
 	// we reinitialize the node to clear the eds store
-	requestor = full.Node(net)
+	requester = full.Node(net)
 	mockBS.Attacking = true
 	getCtx, cancelGet = context.WithTimeout(ctx, sharesAvailableTimeout)
 	t.Cleanup(cancelGet)
-	err = requestor.SharesAvailable(getCtx, eh)
+	err = requester.SharesAvailable(getCtx, eh)
 	require.ErrorIs(t, err, share.ErrNotAvailable)
 }
