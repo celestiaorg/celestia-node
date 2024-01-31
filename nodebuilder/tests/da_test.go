@@ -1,4 +1,4 @@
-//go:build da || integration
+//go:build blob || integration
 
 package tests
 
@@ -13,6 +13,7 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/celestiaorg/celestia-app/pkg/appconsts"
+
 	"github.com/celestiaorg/celestia-node/blob"
 	"github.com/celestiaorg/celestia-node/blob/blobtest"
 	"github.com/celestiaorg/celestia-node/nodebuilder/da"
@@ -24,7 +25,7 @@ import (
 func TestDaModule(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), 25*time.Second)
 	t.Cleanup(cancel)
-	sw := swamp.NewSwamp(t, swamp.WithBlockTime(time.Second*1))
+	sw := swamp.NewSwamp(t, swamp.WithBlockTime(time.Second))
 
 	namespace, err := share.NewBlobNamespaceV0([]byte("namespace"))
 	require.NoError(t, err)
@@ -37,7 +38,7 @@ func TestDaModule(t *testing.T) {
 	daBlobs := make([][]byte, 0, len(appBlobs0)+len(appBlobs1))
 
 	for _, b := range append(appBlobs0, appBlobs1...) {
-		blob, err := blob.NewBlob(b.ShareVersion, append([]byte{b.NamespaceVersion}, namespace...), b.Data)
+		blob, err := blob.NewBlob(b.ShareVersion, namespace, b.Data)
 		require.NoError(t, err)
 		blobs = append(blobs, blob)
 		daBlobs = append(daBlobs, blob.Data)
@@ -66,7 +67,7 @@ func TestDaModule(t *testing.T) {
 	fullClient := getAdminClient(ctx, fullNode, t)
 	lightClient := getAdminClient(ctx, lightNode, t)
 
-	ids, proofs, err := fullClient.DA.Submit(ctx, daBlobs, -1, namespace)
+	ids, err := fullClient.DA.Submit(ctx, daBlobs, -1, namespace)
 	require.NoError(t, err)
 
 	var test = []struct {
@@ -82,8 +83,13 @@ func TestDaModule(t *testing.T) {
 			},
 		},
 		{
-			name: "Validate",
+			name: "GetProofs + Validate",
 			doFn: func(t *testing.T) {
+				h, _ := da.SplitID(ids[0])
+				lightClient.Header.WaitForHeight(ctx, h)
+				proofs, err := lightClient.DA.GetProofs(ctx, ids, namespace)
+				require.NoError(t, err)
+				require.NotEmpty(t, proofs)
 				valid, err := fullClient.DA.Validate(ctx, ids, proofs, namespace)
 				require.NoError(t, err)
 				for _, v := range valid {
@@ -103,6 +109,8 @@ func TestDaModule(t *testing.T) {
 		{
 			name: "Get",
 			doFn: func(t *testing.T) {
+				h, _ := da.SplitID(ids[0])
+				lightClient.Header.WaitForHeight(ctx, h)
 				fetched, err := lightClient.DA.Get(ctx, ids, namespace)
 				require.NoError(t, err)
 				require.Len(t, fetched, len(ids))

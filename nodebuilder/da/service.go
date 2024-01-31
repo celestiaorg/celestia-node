@@ -3,14 +3,13 @@ package da
 import (
 	"context"
 	"encoding/binary"
+	"fmt"
 	"strings"
 
 	logging "github.com/ipfs/go-log/v2"
 	"github.com/rollkit/go-da"
 
 	"github.com/celestiaorg/celestia-app/pkg/appconsts"
-	"github.com/celestiaorg/celestia-app/x/blob/types"
-	"github.com/celestiaorg/nmt"
 
 	"github.com/celestiaorg/celestia-node/blob"
 	nodeblob "github.com/celestiaorg/celestia-node/nodebuilder/blob"
@@ -75,6 +74,23 @@ func (s *Service) GetIDs(ctx context.Context, height uint64, namespace da.Namesp
 	return ids, nil
 }
 
+// GetProofs returns inclusion Proofs for all Blobs located in DA at given height.
+func (s *Service) GetProofs(ctx context.Context, ids []da.ID, namespace da.Namespace) ([]da.Proof, error) {
+	proofs := make([]da.Proof, len(ids))
+	for i, id := range ids {
+		height, commitment := SplitID(id)
+		proof, err := s.blobServ.GetProof(ctx, height, namespace, commitment)
+		if err != nil {
+			return nil, err
+		}
+		proofs[i], err = proof.MarshalJSON()
+		if err != nil {
+			return nil, err
+		}
+	}
+	return proofs, nil
+}
+
 // Commit creates a Commitment for each given Blob.
 func (s *Service) Commit(_ context.Context, daBlobs []da.Blob, namespace da.Namespace) ([]da.Commitment, error) {
 	_, commitments, err := s.blobsAndCommitments(daBlobs, namespace)
@@ -87,33 +103,23 @@ func (s *Service) Submit(
 	daBlobs []da.Blob,
 	gasPrice float64,
 	namespace da.Namespace,
-) ([]da.ID, []da.Proof, error) {
-	blobs, commitments, err := s.blobsAndCommitments(daBlobs, namespace)
+) ([]da.ID, error) {
+	blobs, _, err := s.blobsAndCommitments(daBlobs, namespace)
 	if err != nil {
-		return nil, nil, err
+		return nil, err
 	}
 
 	height, err := s.blobServ.Submit(ctx, blobs, blob.GasPrice(gasPrice))
 	if err != nil {
 		log.Error("failed to submit blobs", "height", height, "gas price", gasPrice)
-		return nil, nil, err
+		return nil, err
 	}
 	log.Info("successfully submitted blobs", "height", height, "gas price", gasPrice)
-	ids := make([]da.ID, len(daBlobs))
-	proofs := make([]da.Proof, len(daBlobs))
-	for i, commitment := range commitments {
-		ids[i] = MakeID(height, commitment)
-		proof, err := s.blobServ.GetProof(ctx, height, namespace, commitment)
-		if err != nil {
-			return nil, nil, err
-		}
-		// TODO(tzdybal): does always len(*proof) == 1?
-		proofs[i], err = (*proof)[0].MarshalJSON()
-		if err != nil {
-			return nil, nil, err
-		}
+	ids := make([]da.ID, len(blobs))
+	for i, blob := range blobs {
+		ids[i] = MakeID(height, blob.Commitment)
 	}
-	return ids, proofs, nil
+	return ids, nil
 }
 
 // blobsAndCommitments converts []da.Blob to []*blob.Blob and generates corresponding
@@ -130,11 +136,7 @@ func (s *Service) blobsAndCommitments(
 		}
 		blobs = append(blobs, b)
 
-		commitment, err := types.CreateCommitment(&b.Blob)
-		if err != nil {
-			return nil, nil, err
-		}
-		commitments = append(commitments, commitment)
+		commitments = append(commitments, b.Commitment)
 	}
 	return blobs, commitments, nil
 }
@@ -149,13 +151,13 @@ func (s *Service) Validate(
 ) ([]bool, error) {
 	included := make([]bool, len(ids))
 	proofs := make([]*blob.Proof, len(ids))
-	for _, daProof := range daProofs {
-		nmtProof := &nmt.Proof{}
-		if err := nmtProof.UnmarshalJSON(daProof); err != nil {
+	for i, daProof := range daProofs {
+		blobProof := &blob.Proof{}
+		err := blobProof.UnmarshalJSON(daProof)
+		if err != nil {
 			return nil, err
 		}
-		proof := &blob.Proof{nmtProof}
-		proofs = append(proofs, proof)
+		proofs[i] = blobProof
 	}
 	for i, id := range ids {
 		height, commitment := SplitID(id)
@@ -163,6 +165,7 @@ func (s *Service) Validate(
 		// invalid proof")    but analysis of the code in celestia-node implies this should never happen -
 		// maybe it's caused by openrpc?    there is no way of gently handling errors here, but returned
 		// value is fine for us
+		fmt.Println("proof", proofs[i] == nil, "commitment", commitment == nil)
 		isIncluded, _ := s.blobServ.Included(ctx, height, namespace, proofs[i], commitment)
 		included = append(included, isIncluded)
 	}

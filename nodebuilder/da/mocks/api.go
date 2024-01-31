@@ -79,6 +79,21 @@ func (mr *MockModuleMockRecorder) GetIDs(arg0, arg1, arg2 interface{}) *gomock.C
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetIDs", reflect.TypeOf((*MockModule)(nil).GetIDs), arg0, arg1, arg2)
 }
 
+// GetProofs mocks base method.
+func (m *MockModule) GetProofs(arg0 context.Context, arg1 [][]byte, arg2 []byte) ([][]byte, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "GetProofs", arg0, arg1, arg2)
+	ret0, _ := ret[0].([][]byte)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// GetProofs indicates an expected call of GetProofs.
+func (mr *MockModuleMockRecorder) GetProofs(arg0, arg1, arg2 interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetProofs", reflect.TypeOf((*MockModule)(nil).GetProofs), arg0, arg1, arg2)
+}
+
 // MaxBlobSize mocks base method.
 func (m *MockModule) MaxBlobSize(arg0 context.Context) (uint64, error) {
 	m.ctrl.T.Helper()
@@ -95,13 +110,12 @@ func (mr *MockModuleMockRecorder) MaxBlobSize(arg0 interface{}) *gomock.Call {
 }
 
 // Submit mocks base method.
-func (m *MockModule) Submit(arg0 context.Context, arg1 [][]byte, arg2 float64, arg3 []byte) ([][]byte, [][]byte, error) {
+func (m *MockModule) Submit(arg0 context.Context, arg1 [][]byte, arg2 float64, arg3 []byte) ([][]byte, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "Submit", arg0, arg1, arg2, arg3)
 	ret0, _ := ret[0].([][]byte)
-	ret1, _ := ret[1].([][]byte)
-	ret2, _ := ret[2].(error)
-	return ret0, ret1, ret2
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
 }
 
 // Submit indicates an expected call of Submit.
