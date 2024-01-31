@@ -26,6 +26,8 @@ import (
 // 25ms (4-5 block sampling window), 5 blocks are expected to be pruned
 // [genesis:5]. // TODO @renaynay: if avail window is 100ms, and blocks every 25s, 5 are pruned
 // which means sampling window is actually 5 blocks'-worth
+//
+// TODO @renaynay: FLAKEY!
 func TestService(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	t.Cleanup(cancel)

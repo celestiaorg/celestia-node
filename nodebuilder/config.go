@@ -14,6 +14,7 @@ import (
 	"github.com/celestiaorg/celestia-node/nodebuilder/header"
 	"github.com/celestiaorg/celestia-node/nodebuilder/node"
 	"github.com/celestiaorg/celestia-node/nodebuilder/p2p"
+	"github.com/celestiaorg/celestia-node/nodebuilder/pruner"
 	"github.com/celestiaorg/celestia-node/nodebuilder/rpc"
 	"github.com/celestiaorg/celestia-node/nodebuilder/share"
 	"github.com/celestiaorg/celestia-node/nodebuilder/state"
@@ -34,6 +35,7 @@ type Config struct {
 	Share   share.Config
 	Header  header.Config
 	DASer   das.Config `toml:",omitempty"`
+	Pruner  pruner.Config
 }
 
 // DefaultConfig provides a default Config for a given Node Type 'tp'.
@@ -48,6 +50,7 @@ func DefaultConfig(tp node.Type) *Config {
 		Gateway: gateway.DefaultConfig(),
 		Share:   share.DefaultConfig(tp),
 		Header:  header.DefaultConfig(tp),
+		Pruner:  pruner.DefaultConfig(),
 	}
 
 	switch tp {

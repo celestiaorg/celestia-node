@@ -1,4 +1,4 @@
-package prune
+package pruner
 
 import (
 	"github.com/ipfs/go-datastore"
@@ -16,6 +16,13 @@ func newPrunerService(
 	getter hdr.Store[*header.ExtendedHeader],
 	ds datastore.Batching,
 	opts ...pruner.Option,
-) *pruner.Service {
-	return pruner.NewService(p, window, getter, ds, p2p.BlockTime, opts...)
+) (*pruner.Service, error) {
+	serv := pruner.NewService(p, window, getter, ds, p2p.BlockTime, opts...)
+	if MetricsEnabled {
+		err := pruner.WithPrunerMetrics(serv)
+		if err != nil {
+			return nil, err
+		}
+	}
+	return serv, nil
 }
