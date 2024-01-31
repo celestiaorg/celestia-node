@@ -16,7 +16,7 @@ type metrics struct {
 	prunedCounter metric.Int64Counter
 
 	lastPruned   metric.Int64ObservableGauge
-	failedPrunes metric.Int64ObservableGauge // TODO @renaynay: make callback for this
+	failedPrunes metric.Int64ObservableGauge
 }
 
 func (s *Service) WithMetrics() error {
@@ -39,24 +39,15 @@ func (s *Service) WithMetrics() error {
 	}
 
 	callback := func(ctx context.Context, observer metric.Observer) error {
-		// TODO @renaynay: ensure this isn't callable before pruner Start
-		observer.ObserveInt64(failedPrunes, int64(len(s.checkpoint.FailedHeaders)))
-		return nil
-	}
-
-	if _, err := meter.RegisterCallback(callback, failedPrunes); err != nil {
-		return err
-	}
-
-	callback = func(ctx context.Context, observer metric.Observer) error {
 		lastPrunedHeader := s.checkpoint.lastPrunedHeader.Load()
 		if lastPrunedHeader != nil {
 			observer.ObserveInt64(lastPruned, int64(lastPrunedHeader.Height()))
 		}
+		observer.ObserveInt64(failedPrunes, int64(len(s.checkpoint.FailedHeaders)))
 		return nil
 	}
 
-	if _, err := meter.RegisterCallback(callback, lastPruned); err != nil {
+	if _, err := meter.RegisterCallback(callback, lastPruned, failedPrunes); err != nil {
 		return err
 	}
 
