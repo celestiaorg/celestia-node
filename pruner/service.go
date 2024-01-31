@@ -128,12 +128,12 @@ func (s *Service) prune() {
 
 			failed := make(map[uint64]error)
 
-			// TODO @renaynay: make deadline a param ? / configurable?
-			pruneCtx, cancel := context.WithDeadline(s.ctx, time.Now().Add(time.Minute))
-
 			log.Debugw("pruning headers", "from", headers[0].Height(), "to",
 				headers[len(headers)-1].Height())
+
 			for _, eh := range headers {
+				pruneCtx, cancel := context.WithDeadline(s.ctx, time.Now().Add(time.Second))
+
 				err = s.pruner.Prune(pruneCtx, eh)
 				if err != nil {
 					log.Errorw("failed to prune block", "height", eh.Height(), "err", err)
@@ -142,9 +142,10 @@ func (s *Service) prune() {
 					// TODO @renaynay: make prettier, updatecheckpoint should be called on the last NON-ERRORED header
 					lastPrunedHeader = eh
 				}
+
 				s.metrics.observePrune(pruneCtx, err != nil)
+				cancel()
 			}
-			cancel()
 
 			err = s.updateCheckpoint(s.ctx, lastPrunedHeader, failed)
 			if err != nil {
