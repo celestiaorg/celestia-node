@@ -16,8 +16,9 @@ func TestDataHasher(t *testing.T) {
 	_, err := hasher.Write([]byte("hello"))
 	assert.Error(t, err)
 
+	size := 8
 	namespace := sharetest.RandV0Namespace()
-	square, root := edstest.RandEDSWithNamespace(t, namespace, 8)
+	square, root := edstest.RandEDSWithNamespace(t, namespace, size*size, size)
 
 	datas, err := NewDataFromEDS(square, 1, namespace)
 	require.NoError(t, err)

@@ -4,7 +4,6 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"github.com/celestiaorg/celestia-node/share/store"
 
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/trace"
@@ -14,7 +13,7 @@ import (
 	"github.com/celestiaorg/celestia-node/header"
 	"github.com/celestiaorg/celestia-node/libs/utils"
 	"github.com/celestiaorg/celestia-node/share"
-	"github.com/celestiaorg/celestia-node/share/eds"
+	"github.com/celestiaorg/celestia-node/share/store"
 )
 
 var _ share.Getter = (*StoreGetter)(nil)
@@ -53,7 +52,7 @@ func (sg *StoreGetter) GetShare(ctx context.Context, header *header.ExtendedHead
 	}
 
 	file, err := sg.store.GetByHash(ctx, dah.Hash())
-	if errors.Is(err, eds.ErrNotFound) {
+	if errors.Is(err, store.ErrNotFound) {
 		// convert error to satisfy getter interface contract
 		err = share.ErrNotFound
 	}
@@ -84,7 +83,7 @@ func (sg *StoreGetter) GetEDS(
 	}()
 
 	file, err := sg.store.GetByHash(ctx, header.DAH.Hash())
-	if errors.Is(err, eds.ErrNotFound) {
+	if errors.Is(err, store.ErrNotFound) {
 		// convert error to satisfy getter interface contract
 		err = share.ErrNotFound
 	}
@@ -115,7 +114,7 @@ func (sg *StoreGetter) GetSharesByNamespace(
 	}()
 
 	file, err := sg.store.GetByHash(ctx, header.DAH.Hash())
-	if errors.Is(err, eds.ErrNotFound) {
+	if errors.Is(err, store.ErrNotFound) {
 		// convert error to satisfy getter interface contract
 		err = share.ErrNotFound
 	}

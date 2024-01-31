@@ -9,7 +9,7 @@ import (
 )
 
 // NewBlockservice constructs Blockservice for fetching NMTrees.
-func NewBlockservice(bs blockstore.Blockstore, exchange exchange.Interface) blockservice.BlockService {
+func NewBlockservice(bs blockstore.Blockstore, exchange exchange.SessionExchange) blockservice.BlockService {
 	return blockservice.New(bs, exchange, blockservice.WithAllowlist(defaultAllowlist))
 }
 

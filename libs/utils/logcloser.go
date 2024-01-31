@@ -1,8 +1,9 @@
 package utils
 
 import (
-	"github.com/ipfs/go-log/v2"
 	"io"
+
+	"github.com/ipfs/go-log/v2"
 )
 
 func CloseAndLog(log log.StandardLogger, name string, closer io.Closer) {

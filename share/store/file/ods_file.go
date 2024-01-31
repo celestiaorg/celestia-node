@@ -21,7 +21,7 @@ type OdsFile struct {
 	fl   *os.File
 
 	lock sync.RWMutex
-	ods  *odsInMemFile
+	ods  square
 }
 
 // OpenOdsFile opens an existing file. File has to be closed after usage.
@@ -36,7 +36,6 @@ func OpenOdsFile(path string) (*OdsFile, error) {
 		return nil, err
 	}
 
-	// TODO(WWondertan): Validate header
 	return &OdsFile{
 		path: path,
 		hdr:  h,
@@ -51,7 +50,7 @@ func CreateOdsFile(
 	eds *rsmt2d.ExtendedDataSquare) (*OdsFile, error) {
 	f, err := os.Create(path)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("file create: %w", err)
 	}
 
 	h := &Header{
@@ -67,7 +66,7 @@ func CreateOdsFile(
 		return nil, fmt.Errorf("writing ODS file: %w", err)
 	}
 
-	// TODO: fill odsInMemFile with data from eds
+	// TODO: fill ods field with data from eds
 	return &OdsFile{
 		path: path,
 		fl:   f,
@@ -98,7 +97,7 @@ func (f *OdsFile) Size() int {
 }
 
 func (f *OdsFile) Close() error {
-	if err := f.ods.Сlose(); err != nil {
+	if err := f.ods.close(); err != nil {
 		return err
 	}
 	return f.fl.Close()
@@ -117,7 +116,7 @@ func (f *OdsFile) Reader() (io.Reader, error) {
 	if err != nil {
 		return nil, fmt.Errorf("reading ods: %w", err)
 	}
-	return f.ods.Reader()
+	return f.ods.Reader(f.hdr)
 }
 
 func (f *OdsFile) AxisHalf(ctx context.Context, axisType rsmt2d.Axis, axisIdx int) ([]share.Share, error) {
@@ -137,7 +136,7 @@ func (f *OdsFile) AxisHalf(ctx context.Context, axisType rsmt2d.Axis, axisIdx in
 func (f *OdsFile) odsAxisHalf(axisType rsmt2d.Axis, axisIdx int) ([]share.Share, error) {
 	f.lock.RLock()
 	defer f.lock.RUnlock()
-	shrs, err := f.ods.AxisHalf(context.Background(), axisType, axisIdx)
+	shrs, err := f.ods.axisHalf(context.Background(), axisType, axisIdx)
 	if err == nil {
 		return shrs, nil
 	}
@@ -164,11 +163,11 @@ func (f *OdsFile) readOds() error {
 		return fmt.Errorf("discarding header: %w", err)
 	}
 
-	ods, err := readOdsInMem(f.hdr, f.fl)
+	square, err := readShares(f.hdr, f.fl)
 	if err != nil {
 		return fmt.Errorf("reading ods: %w", err)
 	}
-	f.ods = ods
+	f.ods = square
 	return nil
 }
 
@@ -293,5 +292,5 @@ func (f *OdsFile) EDS(ctx context.Context) (*rsmt2d.ExtendedDataSquare, error) {
 		return nil, err
 	}
 
-	return f.ods.EDS(ctx)
+	return f.ods.eds()
 }

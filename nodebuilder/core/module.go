@@ -12,8 +12,8 @@ import (
 	"github.com/celestiaorg/celestia-node/libs/fxutil"
 	"github.com/celestiaorg/celestia-node/nodebuilder/node"
 	"github.com/celestiaorg/celestia-node/nodebuilder/p2p"
-	"github.com/celestiaorg/celestia-node/share/eds"
 	"github.com/celestiaorg/celestia-node/share/p2p/shrexsub"
+	"github.com/celestiaorg/celestia-node/share/store"
 )
 
 // ConstructModule collects all the components and services related to managing the relationship
@@ -38,7 +38,7 @@ func ConstructModule(tp node.Type, cfg *Config, options ...fx.Option) fx.Option 
 			fxutil.ProvideAs(
 				func(
 					fetcher *core.BlockFetcher,
-					store *eds.Store,
+					store *store.Store,
 					construct header.ConstructFn,
 				) (*core.Exchange, error) {
 					var opts []core.Option
@@ -55,7 +55,7 @@ func ConstructModule(tp node.Type, cfg *Config, options ...fx.Option) fx.Option 
 					fetcher *core.BlockFetcher,
 					pubsub *shrexsub.PubSub,
 					construct header.ConstructFn,
-					store *eds.Store,
+					store *store.Store,
 				) (*core.Listener, error) {
 					var opts []core.Option
 					if MetricsEnabled {

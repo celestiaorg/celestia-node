@@ -1,4 +1,4 @@
-package shwap
+package getters
 
 import (
 	"context"
@@ -15,6 +15,7 @@ import (
 
 	"github.com/celestiaorg/celestia-node/header"
 	"github.com/celestiaorg/celestia-node/share"
+	"github.com/celestiaorg/celestia-node/share/shwap"
 )
 
 // TODO: GetRow method
@@ -46,9 +47,9 @@ func (g *Getter) GetShare(ctx context.Context, header *header.ExtendedHeader, ro
 // Automatically caches them on the Blockstore.
 // Guarantee that the returned shares are in the same order as shrIdxs.
 func (g *Getter) GetShares(ctx context.Context, hdr *header.ExtendedHeader, smplIdxs ...int) ([]share.Share, error) {
-	sids := make([]SampleID, len(smplIdxs))
+	sids := make([]shwap.SampleID, len(smplIdxs))
 	for i, shrIdx := range smplIdxs {
-		sid, err := NewSampleID(hdr.Height(), shrIdx, hdr.DAH)
+		sid, err := shwap.NewSampleID(hdr.Height(), shrIdx, hdr.DAH)
 		if err != nil {
 			return nil, err
 		}
@@ -57,8 +58,8 @@ func (g *Getter) GetShares(ctx context.Context, hdr *header.ExtendedHeader, smpl
 	}
 
 	smplsMu := sync.Mutex{}
-	smpls := make(map[int]Sample, len(smplIdxs))
-	verifyFn := func(s Sample) error {
+	smpls := make(map[int]shwap.Sample, len(smplIdxs))
+	verifyFn := func(s shwap.Sample) error {
 		err := s.Verify(hdr.DAH)
 		if err != nil {
 			return err
@@ -121,9 +122,9 @@ func (g *Getter) GetShares(ctx context.Context, hdr *header.ExtendedHeader, smpl
 // TODO(@Wondertan): Consider requesting randomized rows instead of ODS only
 func (g *Getter) GetEDS(ctx context.Context, hdr *header.ExtendedHeader) (*rsmt2d.ExtendedDataSquare, error) {
 	sqrLn := len(hdr.DAH.RowRoots)
-	rids := make([]RowID, sqrLn/2)
+	rids := make([]shwap.RowID, sqrLn/2)
 	for i := 0; i < sqrLn/2; i++ {
-		rid, err := NewRowID(hdr.Height(), uint16(i), hdr.DAH)
+		rid, err := shwap.NewRowID(hdr.Height(), uint16(i), hdr.DAH)
 		if err != nil {
 			return nil, err
 		}
@@ -140,7 +141,7 @@ func (g *Getter) GetEDS(ctx context.Context, hdr *header.ExtendedHeader) (*rsmt2
 		return nil, err
 	}
 
-	verifyFn := func(row Row) error {
+	verifyFn := func(row shwap.Row) error {
 		err := row.Verify(hdr.DAH)
 		if err != nil {
 			return err
@@ -196,13 +197,13 @@ func (g *Getter) GetSharesByNamespace(
 		return nil, err
 	}
 
-	var dids []DataID //nolint:prealloc// we don't know how many rows with needed namespace there are
+	var dids []shwap.DataID //nolint:prealloc// we don't know how many rows with needed namespace there are
 	for rowIdx, rowRoot := range hdr.DAH.RowRoots {
 		if ns.IsOutsideRange(rowRoot, rowRoot) {
 			continue
 		}
 
-		did, err := NewDataID(hdr.Height(), uint16(rowIdx), ns, hdr.DAH)
+		did, err := shwap.NewDataID(hdr.Height(), uint16(rowIdx), ns, hdr.DAH)
 		if err != nil {
 			return nil, err
 		}
@@ -213,8 +214,8 @@ func (g *Getter) GetSharesByNamespace(
 		return share.NamespacedShares{}, nil
 	}
 
-	datas := make([]Data, len(dids))
-	verifyFn := func(d Data) error {
+	datas := make([]shwap.Data, len(dids))
+	verifyFn := func(d shwap.Data) error {
 		err := d.Verify(hdr.DAH)
 		if err != nil {
 			return err

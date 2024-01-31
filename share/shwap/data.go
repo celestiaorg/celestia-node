@@ -1,16 +1,18 @@
 package shwap
 
 import (
+	"context"
 	"fmt"
 
 	blocks "github.com/ipfs/go-block-format"
 
+	"github.com/celestiaorg/celestia-app/pkg/wrapper"
 	"github.com/celestiaorg/nmt"
 	nmtpb "github.com/celestiaorg/nmt/pb"
 	"github.com/celestiaorg/rsmt2d"
 
 	"github.com/celestiaorg/celestia-node/share"
-	"github.com/celestiaorg/celestia-node/share/eds"
+	"github.com/celestiaorg/celestia-node/share/ipld"
 	shwappb "github.com/celestiaorg/celestia-node/share/shwap/pb"
 )
 
@@ -54,7 +56,7 @@ func NewDataFromEDS(
 
 		shrs := square.Row(uint(rowIdx))
 		// TDOD(@Wondertan): This will likely be removed
-		nd, proof, err := eds.NDFromShares(shrs, namespace, rowIdx)
+		nd, proof, err := ndFromShares(shrs, namespace, rowIdx)
 		if err != nil {
 			return nil, err
 		}
@@ -63,6 +65,35 @@ func NewDataFromEDS(
 	}
 
 	return datas, nil
+}
+
+func ndFromShares(shrs []share.Share, namespace share.Namespace, axisIdx int) ([]share.Share, nmt.Proof, error) {
+	bserv := ipld.NewMemBlockservice()
+	batchAdder := ipld.NewNmtNodeAdder(context.TODO(), bserv, ipld.MaxSizeBatchOption(len(shrs)))
+	tree := wrapper.NewErasuredNamespacedMerkleTree(uint64(len(shrs)/2), uint(axisIdx),
+		nmt.NodeVisitor(batchAdder.Visit))
+	for _, shr := range shrs {
+		err := tree.Push(shr)
+		if err != nil {
+			return nil, nmt.Proof{}, err
+		}
+	}
+
+	root, err := tree.Root()
+	if err != nil {
+		return nil, nmt.Proof{}, err
+	}
+
+	err = batchAdder.Commit()
+	if err != nil {
+		return nil, nmt.Proof{}, err
+	}
+
+	row, proof, err := ipld.GetSharesByNamespace(context.TODO(), bserv, root, namespace, len(shrs))
+	if err != nil {
+		return nil, nmt.Proof{}, err
+	}
+	return row, *proof, nil
 }
 
 // DataFromBlock converts blocks.Block into Data.

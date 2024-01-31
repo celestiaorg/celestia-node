@@ -13,7 +13,6 @@ import (
 
 	"github.com/celestiaorg/celestia-node/header"
 	"github.com/celestiaorg/celestia-node/share"
-	"github.com/celestiaorg/celestia-node/share/getters"
 )
 
 var (
@@ -89,10 +88,6 @@ func (la *ShareAvailability) SharesAvailable(ctx context.Context, header *header
 	if err != nil {
 		return err
 	}
-
-	// indicate to the share.Getter that a blockservice session should be created. This
-	// functionality is optional and must be supported by the used share.Getter.
-	ctx = getters.WithSession(ctx)
 
 	log.Debugw("starting sampling session", "root", dah.String())
 	errs := make(chan error, len(samples))

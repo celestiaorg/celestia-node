@@ -4,30 +4,30 @@ import (
 	"bytes"
 	"context"
 	"fmt"
-	"github.com/celestiaorg/celestia-app/pkg/wrapper"
-	"github.com/celestiaorg/celestia-node/share"
-	"github.com/celestiaorg/rsmt2d"
-	"golang.org/x/sync/errgroup"
 	"io"
+
+	"golang.org/x/sync/errgroup"
+
+	"github.com/celestiaorg/celestia-app/pkg/wrapper"
+	"github.com/celestiaorg/rsmt2d"
+
+	"github.com/celestiaorg/celestia-node/share"
 )
 
-type odsInMemFile struct {
-	inner  *OdsFile
-	square [][]share.Share
-}
+type square [][]share.Share
 
-func ReadEds(ctx context.Context, r io.Reader, root share.DataHash) (*rsmt2d.ExtendedDataSquare, error) {
+func ReadEds(_ context.Context, r io.Reader, root share.DataHash) (*rsmt2d.ExtendedDataSquare, error) {
 	h, err := ReadHeader(r)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("reading header: %w", err)
 	}
 
-	ods, err := readOdsInMem(h, r)
+	square, err := readShares(h, r)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("reading shares: %w", err)
 	}
 
-	eds, err := ods.EDS(ctx)
+	eds, err := square.eds()
 	if err != nil {
 		return nil, fmt.Errorf("computing EDS: %w", err)
 	}
@@ -39,18 +39,18 @@ func ReadEds(ctx context.Context, r io.Reader, root share.DataHash) (*rsmt2d.Ext
 	if !bytes.Equal(newDah.Hash(), root) {
 		return nil, fmt.Errorf(
 			"share: content integrity mismatch: imported root %s doesn't match expected root %s",
-			newDah.Hash(),
+			share.DataHash(newDah.Hash()),
 			root,
 		)
 	}
 	return eds, nil
 }
 
-func readOdsInMem(hdr *Header, reader io.Reader) (*odsInMemFile, error) {
+func readShares(hdr *Header, reader io.Reader) (square, error) {
 	shrLn := int(hdr.shareSize)
 	odsLn := int(hdr.squareSize) / 2
 
-	ods := memPools.get(odsLn).getOds()
+	square := memPools.get(odsLn).square()
 	buf := memPools.get(odsLn).getHalfAxis()
 	defer memPools.get(odsLn).putHalfAxis(buf)
 
@@ -60,74 +60,69 @@ func readOdsInMem(hdr *Header, reader io.Reader) (*odsInMemFile, error) {
 		}
 
 		for j := 0; j < odsLn; j++ {
-			copy(ods[i][j], buf[j*shrLn:(j+1)*shrLn])
+			copy(square[i][j], buf[j*shrLn:(j+1)*shrLn])
 		}
 	}
 
-	return &odsInMemFile{square: ods}, nil
+	return square, nil
 }
 
-func (f *odsInMemFile) Size() int {
-	f.inner.lock.RLock()
-	defer f.inner.lock.RUnlock()
-	return len(f.square) * 2
+func (s square) size() int {
+	return len(s)
 }
 
-func (f *odsInMemFile) Сlose() error {
-	f.inner.lock.RLock()
-	defer f.inner.lock.RUnlock()
-	if f != nil {
-		memPools.get(f.Size() / 2).putOds(f.square)
+func (s square) close() error {
+	if s != nil {
+		memPools.get(s.size()).putSquare(s)
 	}
 	return nil
 }
 
-func (f *odsInMemFile) AxisHalf(_ context.Context, axisType rsmt2d.Axis, axisIdx int) ([]share.Share, error) {
-	f.inner.lock.RLock()
-	defer f.inner.lock.RUnlock()
-	if f == nil {
-		return nil, fmt.Errorf("ods file not cached")
+func (s square) axisHalf(_ context.Context, axisType rsmt2d.Axis, axisIdx int) ([]share.Share, error) {
+	if s == nil {
+		return nil, fmt.Errorf("ods file not in mem")
 	}
 
-	if axisIdx >= f.Size()/2 {
+	if axisIdx >= s.size() {
 		return nil, fmt.Errorf("index is out of ods bounds")
 	}
+
+	// square stores rows directly in high level slice, so we can return by accessing row by index
 	if axisType == rsmt2d.Row {
-		return f.square[axisIdx], nil
+		return s[axisIdx], nil
 	}
 
-	// TODO: this is not efficient, but it is better than reading from file
-	shrs := make([]share.Share, f.Size()/2)
-	for i := 0; i < f.Size()/2; i++ {
-		shrs[i] = f.square[i][axisIdx]
+	// construct half column from row ordered square
+	col := make([]share.Share, s.size())
+	for i := 0; i < s.size(); i++ {
+		col[i] = s[i][axisIdx]
 	}
-	return shrs, nil
+	return col, nil
 }
 
-func (f *odsInMemFile) EDS(_ context.Context) (*rsmt2d.ExtendedDataSquare, error) {
-	shrs := make([]share.Share, 0, f.Size()*f.Size())
-	for _, row := range f.square {
+func (s square) eds() (*rsmt2d.ExtendedDataSquare, error) {
+	shrs := make([]share.Share, 0, 4*s.size()*s.size())
+	for _, row := range s {
 		shrs = append(shrs, row...)
 	}
 
-	treeFn := wrapper.NewConstructor(uint64(f.Size() / 2))
+	treeFn := wrapper.NewConstructor(uint64(s.size()))
 	return rsmt2d.ComputeExtendedDataSquare(shrs, share.DefaultRSMT2DCodec(), treeFn)
 }
 
-func (f *odsInMemFile) Reader() (io.Reader, error) {
-	f.inner.lock.RLock()
-	defer f.inner.lock.RUnlock()
-	if f == nil {
+func (s square) Reader(hdr *Header) (io.Reader, error) {
+	if s == nil {
 		return nil, fmt.Errorf("ods file not cached")
 	}
 
 	odsR := &bufferedODSReader{
-		f:   f,
-		buf: bytes.NewBuffer(make([]byte, int(f.inner.hdr.shareSize))),
+		square: s,
+		total:  s.size() * s.size(),
+		buf:    bytes.NewBuffer(make([]byte, 0, int(hdr.shareSize))),
 	}
 
 	// write header to the buffer
-	_, err := f.inner.hdr.WriteTo(odsR.buf)
+	_, err := hdr.WriteTo(odsR.buf)
 	if err != nil {
 		return nil, fmt.Errorf("writing header: %w", err)
 	}
@@ -135,30 +130,30 @@ func (f *odsInMemFile) Reader() (io.Reader, error) {
 	return odsR, nil
 }
 
-func (f *odsInMemFile) computeAxisHalf(
+func (s square) computeAxisHalf(
 	ctx context.Context,
 	axisType rsmt2d.Axis,
 	axisIdx int,
 ) ([]share.Share, error) {
-	shares := make([]share.Share, f.Size()/2)
+	shares := make([]share.Share, s.size())
 
 	// extend opposite half of the square while collecting shares for the first half of required axis
 	g, ctx := errgroup.WithContext(ctx)
 	opposite := oppositeAxis(axisType)
-	for i := 0; i < f.Size()/2; i++ {
+	for i := 0; i < s.size(); i++ {
 		i := i
 		g.Go(func() error {
-			original, err := f.AxisHalf(ctx, opposite, i)
+			original, err := s.axisHalf(ctx, opposite, i)
 			if err != nil {
 				return err
 			}
 
-			enc, err := codec.Encoder(f.Size())
+			enc, err := codec.Encoder(s.size() * 2)
 			if err != nil {
 				return fmt.Errorf("encoder: %w", err)
 			}
 
-			shards := make([][]byte, f.Size())
+			shards := make([][]byte, s.size()*2)
 			copy(shards, original)
 			//for j := len(original); j < len(shards); j++ {
 			//	shards[j] = make([]byte, len(original[0]))
@@ -169,7 +164,7 @@ func (f *odsInMemFile) computeAxisHalf(
 			//	return fmt.Errorf("encode: %w", err)
 			//}
 
-			target := make([]bool, f.Size())
+			target := make([]bool, s.size()*2)
 			target[axisIdx] = true
 
 			err = enc.ReconstructSome(shards, target)
@@ -193,10 +188,10 @@ func oppositeAxis(axis rsmt2d.Axis) rsmt2d.Axis {
 	return rsmt2d.Col
 }
 
-// bufferedODSReader will reads shares from odsInMemFile into the buffer.
+// bufferedODSReader will reads shares from inMemOds into the buffer.
 // It exposes the buffer to be read by io.Reader interface implementation
 type bufferedODSReader struct {
-	f *odsInMemFile
+	square square
 	// current is the amount of shares stored in ods file that have been read from reader. When current
 	// reaches total, bufferedODSReader will prevent further reads by returning io.EOF
 	current, total int
@@ -207,11 +202,10 @@ func (r *bufferedODSReader) Read(p []byte) (n int, err error) {
 	// read shares to the buffer until it has sufficient data to fill provided container or full ods is
 	// read
 	for r.current < r.total && r.buf.Len() < len(p) {
-		x, y := r.current%r.f.Size(), r.current/r.f.Size()
-		r.buf.Write(r.f.square[y][x])
+		x, y := r.current%(r.square.size()), r.current/(r.square.size())
+		r.buf.Write(r.square[y][x])
 		r.current++
 	}
-
 	// read buffer to slice
 	return r.buf.Read(p)
 }

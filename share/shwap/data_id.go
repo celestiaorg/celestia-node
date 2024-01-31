@@ -3,13 +3,13 @@ package shwap
 import (
 	"context"
 	"fmt"
-	"github.com/celestiaorg/celestia-node/share/store/file"
-	blocks "github.com/ipfs/go-block-format"
 
+	blocks "github.com/ipfs/go-block-format"
 	"github.com/ipfs/go-cid"
 	mh "github.com/multiformats/go-multihash"
 
 	"github.com/celestiaorg/celestia-node/share"
+	"github.com/celestiaorg/celestia-node/share/store/file"
 )
 
 // DataIDSize is the size of the DataID in bytes.

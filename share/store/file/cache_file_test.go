@@ -1,9 +1,11 @@
 package file
 
 import (
-	"github.com/celestiaorg/rsmt2d"
-	"github.com/stretchr/testify/require"
 	"testing"
+
+	"github.com/stretchr/testify/require"
+
+	"github.com/celestiaorg/rsmt2d"
 )
 
 func TestCacheFile(t *testing.T) {

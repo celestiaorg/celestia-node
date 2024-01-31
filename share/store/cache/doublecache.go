@@ -2,6 +2,7 @@ package cache
 
 import (
 	"errors"
+
 	"github.com/celestiaorg/celestia-node/share/store/file"
 )
 
@@ -19,7 +20,7 @@ func NewDoubleCache(first, second Cache) *DoubleCache {
 }
 
 // Get looks for an item in all the caches one by one and returns the Cache found item.
-func (mc *DoubleCache) Get(key Key) (file.EdsFile, error) {
+func (mc *DoubleCache) Get(key key) (file.EdsFile, error) {
 	accessor, err := mc.first.Get(key)
 	if err == nil {
 		return accessor, nil
@@ -28,7 +29,7 @@ func (mc *DoubleCache) Get(key Key) (file.EdsFile, error) {
 }
 
 // Remove removes an item from all underlying caches
-func (mc *DoubleCache) Remove(key Key) error {
+func (mc *DoubleCache) Remove(key key) error {
 	err1 := mc.first.Remove(key)
 	err2 := mc.second.Remove(key)
 	return errors.Join(err1, err2)

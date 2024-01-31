@@ -4,7 +4,6 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"github.com/celestiaorg/celestia-node/share/store"
 
 	"github.com/filecoin-project/dagstore"
 	logging "github.com/ipfs/go-log/v2"
@@ -14,6 +13,7 @@ import (
 	"github.com/celestiaorg/celestia-node/share/eds/byzantine"
 	"github.com/celestiaorg/celestia-node/share/ipld"
 	"github.com/celestiaorg/celestia-node/share/p2p/discovery"
+	"github.com/celestiaorg/celestia-node/share/store"
 )
 
 var log = logging.Logger("share/full")

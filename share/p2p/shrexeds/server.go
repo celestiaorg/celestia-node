@@ -4,9 +4,6 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"github.com/celestiaorg/celestia-node/libs/utils"
-	"github.com/celestiaorg/celestia-node/share/store"
-	"github.com/celestiaorg/celestia-node/share/store/file"
 	"io"
 	"time"
 
@@ -17,10 +14,11 @@ import (
 
 	"github.com/celestiaorg/go-libp2p-messenger/serde"
 
-	"github.com/celestiaorg/celestia-node/share"
-	"github.com/celestiaorg/celestia-node/share/eds"
+	"github.com/celestiaorg/celestia-node/libs/utils"
 	"github.com/celestiaorg/celestia-node/share/p2p"
 	p2p_pb "github.com/celestiaorg/celestia-node/share/p2p/shrexeds/pb"
+	"github.com/celestiaorg/celestia-node/share/store"
+	"github.com/celestiaorg/celestia-node/share/store/file"
 )
 
 // Server is responsible for serving ODSs for blocksync over the ShrEx/EDS protocol.
@@ -86,15 +84,7 @@ func (s *Server) handleStream(stream network.Stream) {
 		return
 	}
 
-	// ensure the requested dataHash is a valid root
-	hash := share.DataHash(req.Hash)
-	err = hash.Validate()
-	if err != nil {
-		logger.Warnw("server: invalid request", "err", err)
-		stream.Reset() //nolint:errcheck
-		return
-	}
-	logger = logger.With("hash", hash.String())
+	logger = logger.With("height", req.Height)
 
 	ctx, cancel := context.WithTimeout(s.ctx, s.params.HandleRequestTimeout)
 	defer cancel()
@@ -102,13 +92,13 @@ func (s *Server) handleStream(stream network.Stream) {
 	// determine whether the EDS is available in our store
 	// we do not close the reader, so that other requests will not need to re-open the file.
 	// closing is handled by the LRU cache.
-	file, err := s.store.GetByHash(ctx, hash)
+	file, err := s.store.GetByHeight(ctx, req.Height)
 	var status p2p_pb.Status
 	switch {
 	case err == nil:
 		defer utils.CloseAndLog(logger, "file", file)
 		status = p2p_pb.Status_OK
-	case errors.Is(err, eds.ErrNotFound):
+	case errors.Is(err, store.ErrNotFound):
 		logger.Warnw("server: request hash not found")
 		s.metrics.ObserveRequests(ctx, 1, p2p.StatusNotFound)
 		status = p2p_pb.Status_NOT_FOUND

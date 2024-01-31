@@ -4,8 +4,6 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"github.com/celestiaorg/celestia-node/share/shwap"
-	"github.com/celestiaorg/celestia-node/share/store/cache"
 
 	bstore "github.com/ipfs/boxo/blockstore"
 	"github.com/ipfs/boxo/datastore/dshelp"
@@ -14,6 +12,8 @@ import (
 	"github.com/ipfs/go-datastore"
 	"github.com/ipfs/go-datastore/namespace"
 	ipld "github.com/ipfs/go-ipld-format"
+
+	"github.com/celestiaorg/celestia-node/share/shwap"
 )
 
 var _ bstore.Blockstore = (*Blockstore)(nil)
@@ -47,12 +47,12 @@ func (bs *Blockstore) Has(ctx context.Context, cid cid.Cid) (bool, error) {
 
 	// check cache first
 	height := h.GetHeight()
-	_, err = bs.store.cache.Get(cache.Key{Height: height})
+	_, err = bs.store.cache.Get(height)
 	if err == nil {
 		return true, nil
 	}
 
-	_, err = bs.store.GetByHeight(ctx, height)
+	_, err = bs.store.HasByHeight(ctx, height)
 	if err == nil {
 		return true, nil
 	}
@@ -75,7 +75,7 @@ func (bs *Blockstore) Get(ctx context.Context, cid cid.Cid) (blocks.Block, error
 	}
 
 	height := h.GetHeight()
-	f, err := bs.store.cache.Second().GetOrLoad(ctx, cache.Key{Height: height}, bs.store.openFileByHeight(height))
+	f, err := bs.store.cache.Second().GetOrLoad(ctx, height, bs.store.openFileByHeight(height))
 	if err == nil {
 		return h.BlockFromFile(ctx, f)
 	}

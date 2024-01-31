@@ -4,13 +4,17 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"os"
+	"time"
+
+	logging "github.com/ipfs/go-log/v2"
+	"go.opentelemetry.io/otel"
+
+	"github.com/celestiaorg/rsmt2d"
+
 	"github.com/celestiaorg/celestia-node/share"
 	"github.com/celestiaorg/celestia-node/share/store/cache"
 	"github.com/celestiaorg/celestia-node/share/store/file"
-	"github.com/celestiaorg/rsmt2d"
-	logging "github.com/ipfs/go-log/v2"
-	"go.opentelemetry.io/otel"
-	"os"
 )
 
 var (
@@ -18,9 +22,12 @@ var (
 	tracer = otel.Tracer("share/eds")
 )
 
+// TODO(@walldiss): persist store stats like amount of files, file types, avg file size etc in a file
 const (
-	blocksPath  = "/blocks/"
+	hashsPath   = "/blocks/"
 	heightsPath = "/heights/"
+
+	defaultDirPerm = 0755
 )
 
 var ErrNotFound = errors.New("eds not found in store")
@@ -42,7 +49,7 @@ type Store struct {
 	// stripedLocks is used to synchronize parallel operations
 	stripLock *striplock
 
-	//metrics *metrics
+	metrics *metrics
 }
 
 // NewStore creates a new EDS Store under the given basepath and datastore.
@@ -52,6 +59,16 @@ func NewStore(params *Parameters, basePath string) (*Store, error) {
 	}
 
 	//TODO: acquire DirectoryLock store lockGuard
+
+	// ensure blocks folder
+	if err := ensureFolder(basePath + hashsPath); err != nil {
+		return nil, fmt.Errorf("ensure blocks folder: %w", err)
+	}
+
+	// ensure heights folder
+	if err := ensureFolder(basePath + heightsPath); err != nil {
+		return nil, fmt.Errorf("ensure blocks folder: %w", err)
+	}
 
 	recentBlocksCache, err := cache.NewFileCache("recent", params.RecentBlocksCacheSize)
 	if err != nil {
@@ -63,11 +80,9 @@ func NewStore(params *Parameters, basePath string) (*Store, error) {
 		return nil, fmt.Errorf("failed to create blockstore cache: %w", err)
 	}
 
-	dcache := cache.NewDoubleCache(recentBlocksCache, blockstoreCache)
-
 	store := &Store{
 		basepath:  basePath,
-		cache:     dcache,
+		cache:     cache.NewDoubleCache(recentBlocksCache, blockstoreCache),
 		stripLock: newStripLock(1024),
 		//metrics:   newMetrics(),
 	}
@@ -80,144 +95,210 @@ func (s *Store) Put(
 	height uint64,
 	square *rsmt2d.ExtendedDataSquare,
 ) (file.EdsFile, error) {
+	tNow := time.Now()
 	lock := s.stripLock.byDatahashAndHeight(datahash, height)
 	lock.lock()
 	defer lock.unlock()
 
-	path := s.basepath + blocksPath + datahash.String()
-	odsFile, err := file.CreateOdsFile(path, height, datahash, square)
+	// short circuit if file exists
+	if has, _ := s.hasByHeight(height); has {
+		s.metrics.observePutExist(ctx)
+		return s.getByHeight(height)
+	}
+
+	path := s.basepath + hashsPath + datahash.String()
+	file, err := file.CreateOdsFile(path, height, datahash, square)
 	if err != nil {
-		return nil, fmt.Errorf("writing ODS file: %w", err)
+		s.metrics.observePut(ctx, time.Since(tNow), square.Width(), true)
+		return nil, fmt.Errorf("creating ODS file: %w", err)
 	}
 
 	// create hard link with height as name
 	err = os.Link(path, s.basepath+heightsPath+fmt.Sprintf("%d", height))
 	if err != nil {
+		s.metrics.observePut(ctx, time.Since(tNow), square.Width(), true)
 		return nil, fmt.Errorf("creating hard link: %w", err)
 	}
 
+	s.metrics.observePut(ctx, time.Since(tNow), square.Width(), false)
+
 	// put in recent cache
-	f, err := s.cache.First().GetOrLoad(ctx, cache.Key{Height: height}, wrapWithCache(odsFile))
+	f, err := s.cache.First().GetOrLoad(ctx, height, edsLoader(file))
 	if err != nil {
 		return nil, fmt.Errorf("putting in cache: %w", err)
 	}
 	return f, nil
 }
 
-func (s *Store) GetByHash(_ context.Context, datahash share.DataHash) (file.EdsFile, error) {
+func (s *Store) GetByHash(ctx context.Context, datahash share.DataHash) (file.EdsFile, error) {
 	lock := s.stripLock.byDatahash(datahash)
 	lock.RLock()
 	defer lock.RUnlock()
 
-	f, err := s.cache.Get(cache.Key{Datahash: datahash})
-	if err == nil {
-		return f, nil
-	}
+	tNow := time.Now()
+	f, err := s.getByHash(datahash)
+	s.metrics.observeGet(ctx, time.Since(tNow), err != nil)
+	return f, err
+}
 
-	path := s.basepath + blocksPath + datahash.String()
+func (s *Store) getByHash(datahash share.DataHash) (file.EdsFile, error) {
+	path := s.basepath + hashsPath + datahash.String()
 	odsFile, err := file.OpenOdsFile(path)
 	if err != nil {
-		return nil, fmt.Errorf("opening ODS file: %w", err)
-	}
-	return odsFile, nil
-}
-
-func (s *Store) GetByHeight(_ context.Context, height uint64) (file.EdsFile, error) {
-	lock := s.stripLock.byHeight(height)
-	lock.RLock()
-	defer lock.RUnlock()
-
-	f, err := s.cache.Get(cache.Key{Height: height})
-	if err == nil {
-		return f, nil
-	}
-
-	path := s.basepath + heightsPath + fmt.Sprintf("%d", height)
-	odsFile, err := file.OpenOdsFile(path)
-	if err != nil {
-		return nil, fmt.Errorf("opening ODS file: %w", err)
-	}
-	return odsFile, nil
-}
-
-func (s *Store) HasByHash(_ context.Context, datahash share.DataHash) (bool, error) {
-	lock := s.stripLock.byDatahash(datahash)
-	lock.RLock()
-	defer lock.RUnlock()
-
-	_, err := s.cache.Get(cache.Key{Datahash: datahash})
-	if err == nil {
-		return true, nil
-	}
-
-	path := s.basepath + blocksPath + datahash.String()
-	_, err = file.OpenOdsFile(path)
-	if err != nil {
-		return false, fmt.Errorf("opening ODS file: %w", err)
-	}
-	return true, nil
-}
-
-func (s *Store) HasByHeight(_ context.Context, height uint64) (bool, error) {
-	lock := s.stripLock.byHeight(height)
-	lock.RLock()
-	defer lock.RUnlock()
-
-	_, err := s.cache.Get(cache.Key{Height: height})
-	if err == nil {
-		return true, nil
-	}
-
-	path := s.basepath + heightsPath + fmt.Sprintf("%d", height)
-	_, err = file.OpenOdsFile(path)
-	if err != nil {
-		return false, fmt.Errorf("opening ODS file: %w", err)
-	}
-	return true, nil
-}
-
-func wrapWithCache(f file.EdsFile) cache.OpenFileFn {
-	return func(ctx context.Context) (cache.Key, file.EdsFile, error) {
-		f := file.NewCacheFile(f)
-		key := cache.Key{
-			Datahash: f.DataHash(),
-			Height:   f.Height(),
+		if os.IsNotExist(err) {
+			return nil, ErrNotFound
 		}
-		return key, f, nil
+		return nil, fmt.Errorf("opening ODS file: %w", err)
+	}
+	return odsFile, nil
+}
+
+func (s *Store) GetByHeight(ctx context.Context, height uint64) (file.EdsFile, error) {
+	lock := s.stripLock.byHeight(height)
+	lock.RLock()
+	defer lock.RUnlock()
+
+	tNow := time.Now()
+	f, err := s.getByHeight(height)
+	s.metrics.observeGet(ctx, time.Since(tNow), err != nil)
+	return f, err
+}
+
+func (s *Store) getByHeight(height uint64) (file.EdsFile, error) {
+	f, err := s.cache.Get(height)
+	if err == nil {
+		return f, nil
+	}
+
+	path := s.basepath + heightsPath + fmt.Sprintf("%d", height)
+	odsFile, err := file.OpenOdsFile(path)
+	if err != nil {
+		if os.IsNotExist(err) {
+			return nil, ErrNotFound
+		}
+		return nil, fmt.Errorf("opening ODS file: %w", err)
+	}
+	return odsFile, nil
+}
+
+func (s *Store) HasByHash(ctx context.Context, datahash share.DataHash) (bool, error) {
+	lock := s.stripLock.byDatahash(datahash)
+	lock.RLock()
+	defer lock.RUnlock()
+
+	tNow := time.Now()
+	exist, err := s.hasByHash(datahash)
+	s.metrics.observeHas(ctx, time.Since(tNow), err != nil)
+	return exist, err
+}
+
+func (s *Store) hasByHash(datahash share.DataHash) (bool, error) {
+	path := s.basepath + hashsPath + datahash.String()
+	return pathExists(path)
+}
+
+func (s *Store) HasByHeight(ctx context.Context, height uint64) (bool, error) {
+	lock := s.stripLock.byHeight(height)
+	lock.RLock()
+	defer lock.RUnlock()
+
+	tNow := time.Now()
+	exist, err := s.hasByHeight(height)
+	s.metrics.observeHas(ctx, time.Since(tNow), err != nil)
+	return exist, err
+}
+
+func (s *Store) hasByHeight(height uint64) (bool, error) {
+	_, err := s.cache.Get(height)
+	if err == nil {
+		return true, nil
+	}
+
+	path := s.basepath + heightsPath + fmt.Sprintf("%d", height)
+	return pathExists(path)
+}
+
+func (s *Store) Remove(ctx context.Context, height uint64) error {
+	lock := s.stripLock.byHeight(height)
+	lock.Lock()
+	defer lock.Unlock()
+
+	tNow := time.Now()
+	err := s.remove(height)
+	s.metrics.observeRemove(ctx, time.Since(tNow), err != nil)
+	return err
+}
+
+func (s *Store) remove(height uint64) error {
+	// short circuit if file not exists
+	f, err := s.getByHeight(height)
+	if errors.Is(err, ErrNotFound) {
+		return nil
+	}
+
+	hashStr := f.DataHash().String()
+	if err = f.Close(); err != nil {
+		return fmt.Errorf("closing file on removal: %w", err)
+	}
+
+	if err = s.cache.Remove(height); err != nil {
+		return fmt.Errorf("removing from cache: %w", err)
+	}
+
+	heightPath := s.basepath + heightsPath + fmt.Sprintf("%d", height)
+	if err = os.Remove(heightPath); err != nil {
+		return fmt.Errorf("removing by height: %w", err)
+	}
+
+	hashPath := s.basepath + hashsPath + hashStr
+	if err = os.Remove(hashPath); err != nil {
+		return fmt.Errorf("removing by hash: %w", err)
+	}
+	return nil
+}
+
+func edsLoader(f file.EdsFile) cache.OpenFileFn {
+	return func(ctx context.Context) (file.EdsFile, error) {
+		return f, nil
 	}
 }
 
 func (s *Store) openFileByHeight(height uint64) cache.OpenFileFn {
-	return func(ctx context.Context) (cache.Key, file.EdsFile, error) {
+	return func(ctx context.Context) (file.EdsFile, error) {
 		path := s.basepath + heightsPath + fmt.Sprintf("%d", height)
 		f, err := file.OpenOdsFile(path)
 		if err != nil {
-			return cache.Key{}, nil, fmt.Errorf("opening ODS file: %w", err)
+			return nil, fmt.Errorf("opening ODS file: %w", err)
 		}
-		key := cache.Key{
-			Datahash: f.DataHash(),
-			Height:   height,
-		}
-		return key, file.NewCacheFile(f), nil
+		return f, nil
 	}
 }
 
-func (s *Store) openFileByDatahash(datahash share.DataHash) cache.OpenFileFn {
-	return func(ctx context.Context) (cache.Key, file.EdsFile, error) {
-		path := s.basepath + blocksPath + datahash.String()
-		f, err := file.OpenOdsFile(path)
+func ensureFolder(path string) error {
+	info, err := os.Stat(path)
+	if os.IsNotExist(err) {
+		err = os.Mkdir(path, defaultDirPerm)
 		if err != nil {
-			return cache.Key{}, nil, fmt.Errorf("opening ODS file: %w", err)
+			return fmt.Errorf("creating blocks dir: %w", err)
 		}
-		key := cache.Key{
-			Datahash: f.DataHash(),
-			Height:   f.Height(),
-		}
-		return key, file.NewCacheFile(f), nil
+		return nil
 	}
+	if err != nil {
+		return fmt.Errorf("checking blocks dir: %w", err)
+	}
+	if !info.IsDir() {
+		return errors.New("expected dir, got a file")
+	}
+	return nil
 }
 
-func (s *Store) Close() error {
-	panic("implement me")
-	return nil
+func pathExists(path string) (bool, error) {
+	_, err := os.Stat(path)
+	if err != nil {
+		if os.IsNotExist(err) {
+			return false, nil
+		}
+		return false, err
+	}
+	return true, nil
 }

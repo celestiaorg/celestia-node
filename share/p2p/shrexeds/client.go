@@ -4,7 +4,6 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"github.com/celestiaorg/celestia-node/share/store/file"
 	"io"
 	"net"
 	"time"
@@ -20,6 +19,7 @@ import (
 	"github.com/celestiaorg/celestia-node/share"
 	"github.com/celestiaorg/celestia-node/share/p2p"
 	pb "github.com/celestiaorg/celestia-node/share/p2p/shrexeds/pb"
+	"github.com/celestiaorg/celestia-node/share/store/file"
 )
 
 // Client is responsible for requesting EDSs for blocksync over the ShrEx/EDS protocol.
@@ -47,14 +47,18 @@ func NewClient(params *Parameters, host host.Host) (*Client, error) {
 // RequestEDS requests the ODS from the given peers and returns the EDS upon success.
 func (c *Client) RequestEDS(
 	ctx context.Context,
+	height uint64,
 	dataHash share.DataHash,
 	peer peer.ID,
 ) (*rsmt2d.ExtendedDataSquare, error) {
-	eds, err := c.doRequest(ctx, dataHash, peer)
+	eds, err := c.doRequest(ctx, height, dataHash, peer)
 	if err == nil {
 		return eds, nil
 	}
-	log.Debugw("client: eds request to peer failed", "peer", peer.String(), "hash", dataHash.String(), "error", err)
+	log.Debugw("client: eds request to peer failed",
+		"height", height,
+		"peer", peer.String(),
+		"error", err)
 	if errors.Is(err, context.DeadlineExceeded) || errors.Is(err, context.Canceled) {
 		c.metrics.ObserveRequests(ctx, 1, p2p.StatusTimeout)
 		return nil, err
@@ -71,7 +75,7 @@ func (c *Client) RequestEDS(
 	if err != p2p.ErrNotFound {
 		log.Warnw("client: eds request to peer failed",
 			"peer", peer.String(),
-			"hash", dataHash.String(),
+			"height", height,
 			"err", err)
 	}
 
@@ -80,6 +84,7 @@ func (c *Client) RequestEDS(
 
 func (c *Client) doRequest(
 	ctx context.Context,
+	height uint64,
 	dataHash share.DataHash,
 	to peer.ID,
 ) (*rsmt2d.ExtendedDataSquare, error) {
@@ -93,10 +98,12 @@ func (c *Client) doRequest(
 
 	c.setStreamDeadlines(ctx, stream)
 
-	req := &pb.EDSRequest{Hash: dataHash}
+	req := &pb.EDSRequest{Height: height}
 
 	// request ODS
-	log.Debugw("client: requesting ods", "hash", dataHash.String(), "peer", to.String())
+	log.Debugw("client: requesting ods",
+		"height", height,
+		"peer", to.String())
 	_, err = serde.Write(stream, req)
 	if err != nil {
 		stream.Reset() //nolint:errcheck

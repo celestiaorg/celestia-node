@@ -4,13 +4,13 @@ import (
 	"context"
 	"encoding/binary"
 	"fmt"
-	"github.com/celestiaorg/celestia-node/share/store/file"
-	blocks "github.com/ipfs/go-block-format"
 
+	blocks "github.com/ipfs/go-block-format"
 	"github.com/ipfs/go-cid"
 	mh "github.com/multiformats/go-multihash"
 
 	"github.com/celestiaorg/celestia-node/share"
+	"github.com/celestiaorg/celestia-node/share/store/file"
 )
 
 //TODO(@walldiss): maybe move into separate subpkg?
@@ -115,7 +115,7 @@ func (sid SampleID) GetHeight() uint64 {
 }
 
 func (sid SampleID) BlockFromFile(ctx context.Context, f file.EdsFile) (blocks.Block, error) {
-	shr, err := f.Share(ctx, int(sid.RowID.RowIndex), int(sid.ShareIndex))
+	shr, err := f.Share(ctx, int(sid.ShareIndex), int(sid.RowID.RowIndex))
 	if err != nil {
 		return nil, fmt.Errorf("while getting share with proof: %w", err)
 	}

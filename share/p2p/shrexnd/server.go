@@ -2,11 +2,8 @@ package shrexnd
 
 import (
 	"context"
-	"crypto/sha256"
 	"errors"
 	"fmt"
-	"github.com/celestiaorg/celestia-node/libs/utils"
-	"github.com/celestiaorg/celestia-node/share/store"
 	"time"
 
 	"github.com/libp2p/go-libp2p/core/host"
@@ -17,10 +14,11 @@ import (
 	"github.com/celestiaorg/go-libp2p-messenger/serde"
 	nmt_pb "github.com/celestiaorg/nmt/pb"
 
+	"github.com/celestiaorg/celestia-node/libs/utils"
 	"github.com/celestiaorg/celestia-node/share"
-	"github.com/celestiaorg/celestia-node/share/eds"
 	"github.com/celestiaorg/celestia-node/share/p2p"
 	pb "github.com/celestiaorg/celestia-node/share/p2p/shrexnd/pb"
+	"github.com/celestiaorg/celestia-node/share/store"
 )
 
 // Server implements server side of shrex/nd protocol to serve namespaced share to remote
@@ -110,13 +108,15 @@ func (srv *Server) handleNamespacedData(ctx context.Context, stream network.Stre
 		return err
 	}
 
-	logger = logger.With("namespace", share.Namespace(req.Namespace).String(),
-		"hash", share.DataHash(req.RootHash).String())
+	logger = logger.With(
+		"namespace", share.Namespace(req.Namespace).String(),
+		"height", req.Height,
+	)
 
 	ctx, cancel := context.WithTimeout(ctx, srv.params.HandleRequestTimeout)
 	defer cancel()
 
-	shares, status, err := srv.getNamespaceData(ctx, req.RootHash, req.Namespace, int(req.FromRow), int(req.ToRow))
+	shares, status, err := srv.getNamespaceData(ctx, req.Height, req.Namespace, int(req.FromRow), int(req.ToRow))
 	if err != nil {
 		// server should respond with status regardless if there was an error getting data
 		sendErr := srv.respondStatus(ctx, logger, stream, status)
@@ -174,13 +174,13 @@ func (srv *Server) readRequest(
 }
 
 func (srv *Server) getNamespaceData(ctx context.Context,
-	hash share.DataHash,
+	height uint64,
 	namespace share.Namespace,
 	fromRow, toRow int,
 ) (share.NamespacedShares, pb.StatusCode, error) {
-	file, err := srv.store.GetByHash(ctx, hash)
+	file, err := srv.store.GetByHeight(ctx, height)
 	if err != nil {
-		if errors.Is(err, eds.ErrNotFound) {
+		if errors.Is(err, store.ErrNotFound) {
 			return nil, pb.StatusCode_NOT_FOUND, nil
 		}
 		return nil, pb.StatusCode_INTERNAL, fmt.Errorf("retrieving DAH: %w", err)
@@ -254,11 +254,5 @@ func (srv *Server) observeStatus(ctx context.Context, status pb.StatusCode) {
 
 // validateRequest checks correctness of the request
 func validateRequest(req pb.GetSharesByNamespaceRequest) error {
-	if err := share.Namespace(req.Namespace).ValidateForData(); err != nil {
-		return err
-	}
-	if len(req.RootHash) != sha256.Size {
-		return fmt.Errorf("incorrect root hash length: %v", len(req.RootHash))
-	}
-	return nil
+	return share.Namespace(req.Namespace).ValidateForData()
 }

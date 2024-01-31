@@ -15,9 +15,9 @@ import (
 	"github.com/celestiaorg/nmt"
 
 	"github.com/celestiaorg/celestia-node/header"
-	"github.com/celestiaorg/celestia-node/share/eds"
 	"github.com/celestiaorg/celestia-node/share/ipld"
 	"github.com/celestiaorg/celestia-node/share/p2p/shrexsub"
+	"github.com/celestiaorg/celestia-node/share/store"
 )
 
 var (
@@ -36,7 +36,7 @@ type Listener struct {
 	fetcher *BlockFetcher
 
 	construct header.ConstructFn
-	store     *eds.Store
+	store     *store.Store
 
 	headerBroadcaster libhead.Broadcaster[*header.ExtendedHeader]
 	hashBroadcaster   shrexsub.BroadcastFn
@@ -53,7 +53,7 @@ func NewListener(
 	fetcher *BlockFetcher,
 	hashBroadcaster shrexsub.BroadcastFn,
 	construct header.ConstructFn,
-	store *eds.Store,
+	store *store.Store,
 	blocktime time.Duration,
 	opts ...Option,
 ) (*Listener, error) {
@@ -209,7 +209,7 @@ func (cl *Listener) handleNewSignedBlock(ctx context.Context, b types.EventDataS
 
 	// attempt to store block data if not empty
 	ctx = ipld.CtxWithProofsAdder(ctx, adder)
-	err = storeEDS(ctx, b.Header.DataHash.Bytes(), eds, cl.store)
+	_, err = cl.store.Put(ctx, eh.DAH.Hash(), eh.Height(), eds)
 	if err != nil {
 		return fmt.Errorf("storing EDS: %w", err)
 	}

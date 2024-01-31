@@ -3,8 +3,9 @@ package file
 import (
 	"bytes"
 	"encoding/binary"
-	"github.com/celestiaorg/celestia-node/share"
 	"io"
+
+	"github.com/celestiaorg/celestia-node/share"
 )
 
 const HeaderSize = 64

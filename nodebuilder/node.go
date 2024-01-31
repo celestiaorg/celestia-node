@@ -59,7 +59,7 @@ type Node struct {
 	Host         host.Host
 	ConnGater    *conngater.BasicConnectionGater
 	Routing      routing.PeerRouting
-	DataExchange exchange.Interface
+	DataExchange exchange.SessionExchange
 	BlockService blockservice.BlockService
 	// p2p protocols
 	PubSub *pubsub.PubSub

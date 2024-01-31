@@ -2,10 +2,12 @@ package cache
 
 import (
 	"context"
+	"io"
+
+	"github.com/celestiaorg/rsmt2d"
+
 	"github.com/celestiaorg/celestia-node/share"
 	"github.com/celestiaorg/celestia-node/share/store/file"
-	"github.com/celestiaorg/rsmt2d"
-	"io"
 )
 
 var _ Cache = (*NoopCache)(nil)
@@ -13,15 +15,15 @@ var _ Cache = (*NoopCache)(nil)
 // NoopCache implements noop version of Cache interface
 type NoopCache struct{}
 
-func (n NoopCache) Get(Key) (file.EdsFile, error) {
-	return nil, errCacheMiss
+func (n NoopCache) Get(key) (file.EdsFile, error) {
+	return nil, ErrCacheMiss
 }
 
-func (n NoopCache) GetOrLoad(context.Context, Key, OpenFileFn) (file.EdsFile, error) {
-	return NoopFile{}, nil
+func (n NoopCache) GetOrLoad(ctx context.Context, _ key, loader OpenFileFn) (file.EdsFile, error) {
+	return loader(ctx)
 }
 
-func (n NoopCache) Remove(Key) error {
+func (n NoopCache) Remove(key) error {
 	return nil
 }
 

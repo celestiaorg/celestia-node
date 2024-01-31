@@ -1,8 +1,9 @@
 package file
 
 import (
-	"github.com/celestiaorg/celestia-node/share"
 	"sync"
+
+	"github.com/celestiaorg/celestia-node/share"
 )
 
 // TODO: need better name
@@ -32,11 +33,11 @@ func (m poolsMap) get(size int) *memPool {
 	return pool
 }
 
-func (m *memPool) putOds(ods [][]share.Share) {
-	m.ods.Put(ods)
+func (m *memPool) putSquare(s [][]share.Share) {
+	m.ods.Put(s)
 }
 
-func (m *memPool) getOds() [][]share.Share {
+func (m *memPool) square() [][]share.Share {
 	return m.ods.Get().([][]share.Share)
 }
 

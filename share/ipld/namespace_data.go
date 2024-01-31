@@ -2,6 +2,7 @@ package ipld
 
 import (
 	"context"
+	"encoding/hex"
 	"errors"
 	"fmt"
 	"sync"
@@ -79,6 +80,7 @@ func (n *NamespaceData) validate(rootCid cid.Cid) error {
 
 	root := NamespacedSha256FromCID(rootCid)
 	if n.namespace.IsOutsideRange(root, root) {
+		fmt.Println("look", n.namespace.String(), hex.EncodeToString(root))
 		return ErrNamespaceOutsideRange
 	}
 	return nil

@@ -14,29 +14,33 @@ import (
 	blocks "github.com/ipfs/go-block-format"
 	"github.com/ipfs/go-cid"
 	"github.com/ipfs/go-datastore"
+	ds_sync "github.com/ipfs/go-datastore/sync"
 	format "github.com/ipfs/go-ipld-format"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
 	"github.com/celestiaorg/nmt"
+	"github.com/celestiaorg/rsmt2d"
 
 	"github.com/celestiaorg/celestia-node/header"
 	"github.com/celestiaorg/celestia-node/share"
 	"github.com/celestiaorg/celestia-node/share/eds/edstest"
 	"github.com/celestiaorg/celestia-node/share/ipld"
 	"github.com/celestiaorg/celestia-node/share/sharetest"
+	"github.com/celestiaorg/celestia-node/share/store/cache"
 )
 
 func TestGetter(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
+	size := 8
 	ns := sharetest.RandV0Namespace()
-	square, root := edstest.RandEDSWithNamespace(t, ns, 4)
+	square, root := edstest.RandEDSWithNamespace(t, ns, size*size, size)
 	hdr := &header.ExtendedHeader{RawHeader: header.RawHeader{Height: 1}, DAH: root}
 
 	bstore := edsBlockstore(square)
-	exch := dummySessionExchange{bstore}
+	exch := DummySessionExchange{bstore}
 	get := NewGetter(exch, blockstore.NewBlockstore(datastore.NewMapDatastore()))
 
 	t.Run("GetShares", func(t *testing.T) {
@@ -88,7 +92,7 @@ func TestGetter(t *testing.T) {
 			hdr := &header.ExtendedHeader{RawHeader: header.RawHeader{Height: 1}, DAH: root}
 
 			bstore := edsBlockstore(square)
-			exch := &dummySessionExchange{bstore}
+			exch := &DummySessionExchange{bstore}
 			get := NewGetter(exch, blockstore.NewBlockstore(datastore.NewMapDatastore()))
 
 			maxNs := nmt.MaxNamespace(root.RowRoots[(len(root.RowRoots))/2-1], share.NamespaceSize)
@@ -152,15 +156,15 @@ func addToNamespace(namespace share.Namespace, val int) (share.Namespace, error)
 	return result, nil
 }
 
-type dummySessionExchange struct {
+type DummySessionExchange struct {
 	blockstore.Blockstore
 }
 
-func (e dummySessionExchange) NewSession(context.Context) exchange.Fetcher {
+func (e DummySessionExchange) NewSession(context.Context) exchange.Fetcher {
 	return e
 }
 
-func (e dummySessionExchange) GetBlock(ctx context.Context, k cid.Cid) (blocks.Block, error) {
+func (e DummySessionExchange) GetBlock(ctx context.Context, k cid.Cid) (blocks.Block, error) {
 	blk, err := e.Get(ctx, k)
 	if format.IsNotFound(err) {
 		return nil, fmt.Errorf("block was not found locally (offline): %w", err)
@@ -176,11 +180,11 @@ func (e dummySessionExchange) GetBlock(ctx context.Context, k cid.Cid) (blocks.B
 	return blk, err
 }
 
-func (e dummySessionExchange) NotifyNewBlocks(context.Context, ...blocks.Block) error {
+func (e DummySessionExchange) NotifyNewBlocks(context.Context, ...blocks.Block) error {
 	return nil
 }
 
-func (e dummySessionExchange) GetBlocks(ctx context.Context, ks []cid.Cid) (<-chan blocks.Block, error) {
+func (e DummySessionExchange) GetBlocks(ctx context.Context, ks []cid.Cid) (<-chan blocks.Block, error) {
 	out := make(chan blocks.Block)
 	go func() {
 		defer close(out)
@@ -204,8 +208,24 @@ func (e dummySessionExchange) GetBlocks(ctx context.Context, ks []cid.Cid) (<-ch
 	return out, nil
 }
 
-func (e dummySessionExchange) Close() error {
+func (e DummySessionExchange) Close() error {
 	// NB: exchange doesn't own the blockstore's underlying datastore, so it is
 	// not responsible for closing it.
 	return nil
+}
+
+func edsBlockstore(sqr *rsmt2d.ExtendedDataSquare) blockstore.Blockstore {
+	edsStore, err := NewStore(DefaultParameters(), t.TempDir())
+	require.NoError(t, err)
+
+	// disable cache
+	edsStore.cache = cache.NewDoubleCache(cache.NoopCache{}, cache.NoopCache{})
+	bs := NewBlockstore(edsStore, ds_sync.MutexWrap(ds.NewMapDatastore()))
+
+	height := uint64(100)
+	eds, dah := randomEDS(t)
+
+	f, err := edsStore.Put(ctx, dah.Hash(), height, eds)
+	require.NoError(t, err)
+	require.NoError(t, f.Close())
 }

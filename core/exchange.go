@@ -12,15 +12,15 @@ import (
 	"github.com/celestiaorg/nmt"
 
 	"github.com/celestiaorg/celestia-node/header"
-	"github.com/celestiaorg/celestia-node/share/eds"
 	"github.com/celestiaorg/celestia-node/share/ipld"
+	"github.com/celestiaorg/celestia-node/share/store"
 )
 
 const concurrencyLimit = 4
 
 type Exchange struct {
 	fetcher   *BlockFetcher
-	store     *eds.Store
+	store     *store.Store
 	construct header.ConstructFn
 
 	metrics *exchangeMetrics
@@ -28,7 +28,7 @@ type Exchange struct {
 
 func NewExchange(
 	fetcher *BlockFetcher,
-	store *eds.Store,
+	store *store.Store,
 	construct header.ConstructFn,
 	opts ...Option,
 ) (*Exchange, error) {
@@ -151,7 +151,7 @@ func (ce *Exchange) Get(ctx context.Context, hash libhead.Hash) (*header.Extende
 	}
 
 	ctx = ipld.CtxWithProofsAdder(ctx, adder)
-	err = storeEDS(ctx, eh.DAH.Hash(), eds, ce.store)
+	_, err = ce.store.Put(ctx, eh.DAH.Hash(), eh.Height(), eds)
 	if err != nil {
 		return nil, fmt.Errorf("storing EDS to eds.Store for height %d: %w", &block.Height, err)
 	}
@@ -191,7 +191,7 @@ func (ce *Exchange) getExtendedHeaderByHeight(ctx context.Context, height *int64
 	}
 
 	ctx = ipld.CtxWithProofsAdder(ctx, adder)
-	err = storeEDS(ctx, eh.DAH.Hash(), eds, ce.store)
+	_, err = ce.store.Put(ctx, eh.DAH.Hash(), eh.Height(), eds)
 	if err != nil {
 		return nil, fmt.Errorf("storing EDS to eds.Store for block height %d: %w", b.Header.Height, err)
 	}

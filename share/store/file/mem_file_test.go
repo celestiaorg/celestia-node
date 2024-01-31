@@ -1,8 +1,9 @@
 package file
 
 import (
-	"github.com/celestiaorg/rsmt2d"
 	"testing"
+
+	"github.com/celestiaorg/rsmt2d"
 )
 
 func TestMemFile(t *testing.T) {

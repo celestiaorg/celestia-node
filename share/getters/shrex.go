@@ -135,9 +135,8 @@ func (sg *ShrexGetter) GetEDS(ctx context.Context, header *header.ExtendedHeader
 		utils.SetStatusAndEnd(span, err)
 	}()
 
-	dah := header.DAH
 	// short circuit if the data root is empty
-	if dah.Equals(share.EmptyRoot()) {
+	if header.DAH.Equals(share.EmptyRoot()) {
 		return share.EmptyExtendedDataSquare(), nil
 	}
 	for {
@@ -147,10 +146,11 @@ func (sg *ShrexGetter) GetEDS(ctx context.Context, header *header.ExtendedHeader
 		}
 		attempt++
 		start := time.Now()
-		peer, setStatus, getErr := sg.peerManager.Peer(ctx, dah.Hash())
+		peer, setStatus, getErr := sg.peerManager.Peer(ctx, header.DAH.Hash())
 		if getErr != nil {
 			log.Debugw("eds: couldn't find peer",
-				"hash", dah.String(),
+				"hash", header.DAH.String(),
+				"height", header.Height(),
 				"err", getErr,
 				"finished (s)", time.Since(start))
 			sg.metrics.recordEDSAttempt(ctx, attempt, false)
@@ -159,7 +159,7 @@ func (sg *ShrexGetter) GetEDS(ctx context.Context, header *header.ExtendedHeader
 
 		reqStart := time.Now()
 		reqCtx, cancel := ctxWithSplitTimeout(ctx, sg.minAttemptsCount-attempt+1, sg.minRequestTimeout)
-		eds, getErr := sg.edsClient.RequestEDS(reqCtx, dah.Hash(), peer)
+		eds, getErr := sg.edsClient.RequestEDS(reqCtx, header.Height(), header.DAH.Hash(), peer)
 		cancel()
 		switch {
 		case getErr == nil:
@@ -182,7 +182,7 @@ func (sg *ShrexGetter) GetEDS(ctx context.Context, header *header.ExtendedHeader
 			err = errors.Join(err, getErr)
 		}
 		log.Debugw("eds: request failed",
-			"hash", dah.String(),
+			"height", header.Height(),
 			"peer", peer.String(),
 			"attempt", attempt,
 			"err", getErr,
@@ -227,6 +227,7 @@ func (sg *ShrexGetter) GetSharesByNamespace(
 		if getErr != nil {
 			log.Debugw("nd: couldn't find peer",
 				"hash", dah.String(),
+				"height", header.Height(),
 				"namespace", namespace.String(),
 				"err", getErr,
 				"finished (s)", time.Since(start))
@@ -236,7 +237,7 @@ func (sg *ShrexGetter) GetSharesByNamespace(
 
 		reqStart := time.Now()
 		reqCtx, cancel := ctxWithSplitTimeout(ctx, sg.minAttemptsCount-attempt+1, sg.minRequestTimeout)
-		nd, getErr := sg.ndClient.RequestND(reqCtx, dah, namespace, peer)
+		nd, getErr := sg.ndClient.RequestND(reqCtx, header.Height(), dah, namespace, peer)
 		cancel()
 		switch {
 		case getErr == nil:
@@ -265,7 +266,7 @@ func (sg *ShrexGetter) GetSharesByNamespace(
 			err = errors.Join(err, getErr)
 		}
 		log.Debugw("nd: request failed",
-			"hash", dah.String(),
+			"height", header.Height(),
 			"namespace", namespace.String(),
 			"peer", peer.String(),
 			"attempt", attempt,

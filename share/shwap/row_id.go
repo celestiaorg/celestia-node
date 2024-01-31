@@ -4,14 +4,15 @@ import (
 	"context"
 	"encoding/binary"
 	"fmt"
-	"github.com/celestiaorg/celestia-node/share/store/file"
-	"github.com/celestiaorg/rsmt2d"
-	blocks "github.com/ipfs/go-block-format"
 
+	blocks "github.com/ipfs/go-block-format"
 	"github.com/ipfs/go-cid"
 	mh "github.com/multiformats/go-multihash"
 
+	"github.com/celestiaorg/rsmt2d"
+
 	"github.com/celestiaorg/celestia-node/share"
+	"github.com/celestiaorg/celestia-node/share/store/file"
 )
 
 //TODO(@walldiss): maybe move into separate subpkg?
@@ -83,8 +84,8 @@ func (rid RowID) MarshalTo(data []byte) (int, error) {
 
 // UnmarshalFrom decodes RowID from given byte slice.
 func (rid *RowID) UnmarshalFrom(data []byte) (int, error) {
-	rid.Height = binary.LittleEndian.Uint64(data[2:])
-	rid.RowIndex = binary.LittleEndian.Uint16(data)
+	rid.Height = binary.LittleEndian.Uint64(data)
+	rid.RowIndex = binary.LittleEndian.Uint16(data[8:])
 	return RowIDSize, nil
 }
 

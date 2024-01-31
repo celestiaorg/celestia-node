@@ -3,9 +3,11 @@ package file
 import (
 	"bytes"
 	"context"
-	"github.com/celestiaorg/celestia-app/pkg/da"
+	"encoding/hex"
+	"fmt"
 	"io"
 
+	"github.com/celestiaorg/celestia-app/pkg/da"
 	"github.com/celestiaorg/celestia-app/pkg/wrapper"
 	"github.com/celestiaorg/nmt"
 	"github.com/celestiaorg/rsmt2d"
@@ -116,11 +118,13 @@ func ndDataFromShares(shares []share.Share, namespace share.Namespace, rowIdx in
 		return share.NamespacedRow{}, err
 	}
 
+	fmt.Println("roooot", rowIdx, hex.EncodeToString(root))
 	err = batchAdder.Commit()
 	if err != nil {
 		return share.NamespacedRow{}, err
 	}
 
+	fmt.Println("lookup", rowIdx)
 	row, proof, err := ipld.GetSharesByNamespace(context.TODO(), bserv, root, namespace, len(shares))
 	if err != nil {
 		return share.NamespacedRow{}, err

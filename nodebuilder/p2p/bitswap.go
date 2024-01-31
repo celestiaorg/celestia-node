@@ -16,7 +16,7 @@ import (
 	"github.com/libp2p/go-libp2p/core/protocol"
 	"go.uber.org/fx"
 
-	"github.com/celestiaorg/celestia-node/share/eds"
+	"github.com/celestiaorg/celestia-node/share/store"
 )
 
 const (
@@ -29,7 +29,7 @@ const (
 )
 
 // dataExchange provides a constructor for IPFS block's DataExchange over BitSwap.
-func dataExchange(params bitSwapParams) exchange.Interface {
+func dataExchange(params bitSwapParams) exchange.SessionExchange {
 	prefix := protocolID(params.Net)
 	net := network.NewFromIpfsHost(params.Host, &routinghelpers.Null{}, network.Prefix(prefix))
 	srvr := server.New(
@@ -76,10 +76,10 @@ func blockstoreFromDatastore(ctx context.Context, ds datastore.Batching) (blocks
 	)
 }
 
-func blockstoreFromEDSStore(ctx context.Context, store *eds.Store) (blockstore.Blockstore, error) {
+func blockstoreFromEDSStore(ctx context.Context, s *store.Store, ds datastore.Batching) (blockstore.Blockstore, error) {
 	return blockstore.CachedBlockstore(
 		ctx,
-		store.Blockstore(),
+		store.NewBlockstore(s, ds),
 		blockstore.CacheOpts{
 			HasTwoQueueCacheSize: defaultARCCacheSize,
 		},

@@ -2,8 +2,9 @@ package store
 
 import (
 	"encoding/binary"
-	"github.com/celestiaorg/celestia-node/share"
 	"sync"
+
+	"github.com/celestiaorg/celestia-node/share"
 )
 
 // TODO: move to utils

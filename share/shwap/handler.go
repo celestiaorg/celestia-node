@@ -3,9 +3,11 @@ package shwap
 import (
 	"context"
 	"fmt"
-	"github.com/celestiaorg/celestia-node/share/store/file"
+
 	blocks "github.com/ipfs/go-block-format"
 	"github.com/ipfs/go-cid"
+
+	"github.com/celestiaorg/celestia-node/share/store/file"
 )
 
 // BlockBuilder is an interface for building blocks from files.

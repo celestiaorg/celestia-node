@@ -20,7 +20,7 @@ func TestAccessorCache(t *testing.T) {
 	t.Run("add / get item from cache", func(t *testing.T) {
 		ctx, cancel := context.WithTimeout(context.Background(), time.Second)
 		defer cancel()
-		cache, err := NewAccessorCache("test", 1)
+		cache, err := NewFileCache("test", 1)
 		require.NoError(t, err)
 
 		// add accessor to the cache
@@ -48,7 +48,7 @@ func TestAccessorCache(t *testing.T) {
 	t.Run("get blockstore from accessor", func(t *testing.T) {
 		ctx, cancel := context.WithTimeout(context.Background(), time.Second)
 		defer cancel()
-		cache, err := NewAccessorCache("test", 1)
+		cache, err := NewFileCache("test", 1)
 		require.NoError(t, err)
 
 		// add accessor to the cache
@@ -79,7 +79,7 @@ func TestAccessorCache(t *testing.T) {
 	t.Run("remove an item", func(t *testing.T) {
 		ctx, cancel := context.WithTimeout(context.Background(), time.Second)
 		defer cancel()
-		cache, err := NewAccessorCache("test", 1)
+		cache, err := NewFileCache("test", 1)
 		require.NoError(t, err)
 
 		// add accessor to the cache
@@ -100,13 +100,13 @@ func TestAccessorCache(t *testing.T) {
 
 		// check if item exists
 		_, err = cache.Get(key)
-		require.ErrorIs(t, err, errCacheMiss)
+		require.ErrorIs(t, err, ErrCacheMiss)
 	})
 
 	t.Run("successive reads should read the same data", func(t *testing.T) {
 		ctx, cancel := context.WithTimeout(context.Background(), time.Second)
 		defer cancel()
-		cache, err := NewAccessorCache("test", 1)
+		cache, err := NewFileCache("test", 1)
 		require.NoError(t, err)
 
 		// add accessor to the cache
@@ -133,7 +133,7 @@ func TestAccessorCache(t *testing.T) {
 	t.Run("removed by eviction", func(t *testing.T) {
 		ctx, cancel := context.WithTimeout(context.Background(), time.Second)
 		defer cancel()
-		cache, err := NewAccessorCache("test", 1)
+		cache, err := NewFileCache("test", 1)
 		require.NoError(t, err)
 
 		// add accessor to the cache
@@ -160,13 +160,13 @@ func TestAccessorCache(t *testing.T) {
 
 		// check if item evicted
 		_, err = cache.Get(key)
-		require.ErrorIs(t, err, errCacheMiss)
+		require.ErrorIs(t, err, ErrCacheMiss)
 	})
 
 	t.Run("close on accessor is not closing underlying accessor", func(t *testing.T) {
 		ctx, cancel := context.WithTimeout(context.Background(), time.Second)
 		defer cancel()
-		cache, err := NewAccessorCache("test", 1)
+		cache, err := NewFileCache("test", 1)
 		require.NoError(t, err)
 
 		// add accessor to the cache
@@ -193,7 +193,7 @@ func TestAccessorCache(t *testing.T) {
 	t.Run("close on accessor should wait all readers to finish", func(t *testing.T) {
 		ctx, cancel := context.WithTimeout(context.Background(), time.Second)
 		defer cancel()
-		cache, err := NewAccessorCache("test", 1)
+		cache, err := NewFileCache("test", 1)
 		require.NoError(t, err)
 
 		// add accessor to the cache
@@ -226,9 +226,9 @@ func TestAccessorCache(t *testing.T) {
 		require.NoError(t, err)
 		mock.checkClosed(t, false)
 
-		// reads for item that is being evicted should result in errCacheMiss
+		// reads for item that is being evicted should result in ErrCacheMiss
 		_, err = cache.Get(key)
-		require.ErrorIs(t, err, errCacheMiss)
+		require.ErrorIs(t, err, ErrCacheMiss)
 
 		// close second reader and wait for accessor to be closed
 		err = accessor2.Close()
@@ -247,7 +247,7 @@ func TestAccessorCache(t *testing.T) {
 	t.Run("slow reader should not block eviction", func(t *testing.T) {
 		ctx, cancel := context.WithTimeout(context.Background(), time.Second)
 		defer cancel()
-		cache, err := NewAccessorCache("test", 1)
+		cache, err := NewFileCache("test", 1)
 		require.NoError(t, err)
 
 		// add accessor to the cache
@@ -268,7 +268,7 @@ func TestAccessorCache(t *testing.T) {
 
 		// first accessor should be evicted from cache
 		_, err = cache.Get(key1)
-		require.ErrorIs(t, err, errCacheMiss)
+		require.ErrorIs(t, err, ErrCacheMiss)
 
 		// first accessor should not be closed before all refs are released by Close() is calls.
 		mock1.checkClosed(t, false)
