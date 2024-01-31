@@ -4,6 +4,7 @@ on:
   push:
     branches:
       - main
+      - ci/ramin/m1-mac
     # Trigger on version tags
     tags:
       - "v*"
