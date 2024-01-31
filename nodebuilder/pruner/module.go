@@ -1,4 +1,4 @@
-package prune
+package pruner
 
 import (
 	"context"
@@ -7,12 +7,25 @@ import (
 
 	"github.com/celestiaorg/celestia-node/nodebuilder/node"
 	"github.com/celestiaorg/celestia-node/pruner"
+	"github.com/celestiaorg/celestia-node/pruner/archival"
 	"github.com/celestiaorg/celestia-node/pruner/full"
 	"github.com/celestiaorg/celestia-node/pruner/light"
 	"github.com/celestiaorg/celestia-node/share/eds"
 )
 
-func ConstructModule(tp node.Type) fx.Option {
+func ConstructModule(tp node.Type, cfg *Config) fx.Option {
+	if !cfg.EnableService {
+		switch tp {
+		case node.Light:
+			// light nodes are still subject to sampling within window
+			// even if pruning is not enabled.
+			return fx.Supply(light.Window)
+		case node.Full, node.Bridge:
+			return fx.Supply(archival.Window)
+		default:
+			panic("unknown node type")
+		}
+	}
 
 	baseComponents := fx.Options(
 		fx.Provide(fx.Annotate(
@@ -50,6 +63,8 @@ func ConstructModule(tp node.Type) fx.Option {
 			// }),
 			// fx.Supply(archival.Window),
 		)
+	// TODO: Eventually, light nodes will be capable of pruning samples
+	//  in which case, this can be enabled.
 	case node.Light:
 		return fx.Module("prune",
 			baseComponents,
