@@ -58,10 +58,6 @@ func ConstructModule(tp node.Type, cfg *Config) fx.Option {
 				return full.NewPruner(store)
 			}),
 			fx.Supply(full.Window),
-			// fx.Provide(func() pruner.Pruner {
-			//	return archival.NewPruner()
-			// }),
-			// fx.Supply(archival.Window),
 		)
 	// TODO: Eventually, light nodes will be capable of pruning samples
 	//  in which case, this can be enabled.
