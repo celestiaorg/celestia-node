@@ -139,7 +139,7 @@ func (s *Service) prune() {
 					log.Errorw("failed to prune block", "height", eh.Height(), "err", err)
 					failed[eh.Height()] = err
 				} else {
-					// TODO @renaynay: make prettier, updatecheckpoint should be called on the last NON-ERRORED header
+					// TODO @renaynay: make prettier
 					lastPrunedHeader = eh
 				}
 
