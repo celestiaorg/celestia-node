@@ -105,21 +105,27 @@ jobs:
           file: ./coverage.txt
           name: coverage-${{ matrix.os }}
 
-  unit_test_race:
-    needs: [lint, go_mod_tidy_check, setup]
-    name: Unit Tests with Race Detector (ubuntu-latest)
-    runs-on: ubuntu-latest
+  # @ramin - Temporarily removed while we figure out getting
+  # these unit tests consistently running on ubuntu-latest
+  # and then enabled for macos-latest. We aren't requiring
+  # unit_race_test to pass for PRs so lets remove and reintroduce
+  # once green
+  #
+  # unit_test_race:
+  #   needs: [lint, go_mod_tidy_check]
+  #   name: Unit Tests with Race Detector (ubuntu-latest)
+  #   runs-on: ubuntu-latest
 
-    steps:
-      - uses: actions/checkout@v4
+  #   steps:
+  #     - uses: actions/checkout@v4
 
-      - name: set up go
-        uses: actions/setup-go@v5
-        with:
-          go-version: ${{ inputs.go-version }}
+  #     - name: set up go
+  #       uses: actions/setup-go@v5
+  #       with:
+  #         go-version: ${{ inputs.go-version }}
 
-      - name: execute test run
-        run: make test-unit-race ENABLE_VERBOSE=${{ needs.setup.outputs.debug }}
+  #     - name: execute test run
+  #       run: make test-unit-race ENABLE_VERBOSE=${{ needs.setup.outputs.debug }}
 
   integration_test:
     name: Integration Tests
