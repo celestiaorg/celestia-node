@@ -2,8 +2,6 @@ module github.com/celestiaorg/celestia-node
 
 go 1.21.1
 
-replace github.com/rollkit/go-da v0.3.0 => ../go-da
-
 require (
 	cosmossdk.io/errors v1.0.1
 	cosmossdk.io/math v1.2.0
@@ -54,7 +52,7 @@ require (
 	github.com/prometheus/client_golang v1.18.0
 	github.com/pyroscope-io/client v0.7.2
 	github.com/pyroscope-io/otel-profiling-go v0.5.0
-	github.com/rollkit/go-da v0.3.0
+	github.com/rollkit/go-da v0.4.0
 	github.com/spf13/cobra v1.8.0
 	github.com/spf13/pflag v1.0.5
 	github.com/stretchr/testify v1.8.4
