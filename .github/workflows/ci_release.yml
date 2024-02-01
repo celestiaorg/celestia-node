@@ -4,7 +4,6 @@ on:
   push:
     branches:
       - main
-      - ci/ramin/m1-mac
     # Trigger on version tags
     tags:
       - "v*"
@@ -139,11 +138,3 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           GPG_FINGERPRINT: ${{ steps.import_gpg.outputs.fingerprint }}
-
-  # TODO: permission issue, but not worth fixing as this should be refactored
-  # into the celestiaorg/.github repo, at which point any permission issues will
-  # be resolved.
-  #
-  # docker:
-  #   needs: [release]
-  #   uses: ./.github/workflows/docker-build.yml
