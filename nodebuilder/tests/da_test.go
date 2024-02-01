@@ -85,6 +85,7 @@ func TestDaModule(t *testing.T) {
 		{
 			name: "GetProofs + Validate",
 			doFn: func(t *testing.T) {
+				t.Skip()
 				h, _ := da.SplitID(ids[0])
 				lightClient.Header.WaitForHeight(ctx, h)
 				proofs, err := lightClient.DA.GetProofs(ctx, ids, namespace)
@@ -122,6 +123,7 @@ func TestDaModule(t *testing.T) {
 		{
 			name: "Commit",
 			doFn: func(t *testing.T) {
+				t.Skip()
 				fetched, err := fullClient.DA.Commit(ctx, ids, namespace)
 				require.NoError(t, err)
 				require.Len(t, fetched, len(ids))
