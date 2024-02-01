@@ -11,6 +11,7 @@ var (
 	ipFlag       = "core.ip"
 	rpcIPFlag    = "core.rpc.ip"
 	grpcIPFlag   = "core.grpc.ip"
+	grpcTLSFlag  = "core.grpc.tls"
 	rpcPortFlag  = "core.rpc.port"
 	grpcPortFlag = "core.grpc.port"
 )
@@ -42,6 +43,12 @@ func Flags() *flag.FlagSet {
 			"NOTE: If this flag is set, the core.ip flag cannot be set. "+
 			"Example: <ip>, 127.0.0.1. <dns>, subdomain.domain.tld "+
 			"Assumes RPC port 26657 and gRPC port 9090 as default unless otherwise specified.",
+	)
+	flags.Bool(
+		grpcTLSFlag,
+		false,
+		"Indicates whether to use TLS when connecting to the given core node's gRPC. "+
+			"The --core.grpc.ip or --core.ip flag must also be provided. ",
 	)
 	flags.String(
 		rpcPortFlag,
@@ -77,6 +84,9 @@ func ParseFlags(cmd *cobra.Command, cfg *Config) error {
 			}
 		}
 		if coreGRPCIP == "" {
+			if cmd.Flag(grpcTLSFlag).Changed {
+				return fmt.Errorf("cannot specify gRPC TLS without specifying an IP address for --core.grpc.ip")
+			}
 			if cmd.Flag(grpcPortFlag).Changed {
 				return fmt.Errorf("cannot specify gRPC ports without specifying an IP address for --core.grpc.ip")
 			}

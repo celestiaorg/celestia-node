@@ -15,6 +15,7 @@ type Config struct {
 	GRPCIP   string
 	RPCPort  string
 	GRPCPort string
+	GRPCTLS  bool
 }
 
 // DefaultConfig returns default configuration for managing the
@@ -25,6 +26,7 @@ func DefaultConfig() Config {
 		GRPCIP:   "",
 		RPCPort:  "26657",
 		GRPCPort: "9090",
+		GRPCTLS:  false,
 	}
 }
 

@@ -2,6 +2,7 @@ package state
 
 import (
 	"context"
+	"crypto/tls"
 	"errors"
 	"fmt"
 	"math"
@@ -22,6 +23,7 @@ import (
 	rpcclient "github.com/tendermint/tendermint/rpc/client"
 	"github.com/tendermint/tendermint/rpc/client/http"
 	"google.golang.org/grpc"
+	"google.golang.org/grpc/credentials"
 	"google.golang.org/grpc/credentials/insecure"
 
 	"github.com/celestiaorg/celestia-app/app"
@@ -62,6 +64,7 @@ type CoreAccessor struct {
 	grpcIP   string
 	rpcPort  string
 	grpcPort string
+	grpcTLS  bool
 
 	// these fields are mutatable and thus need to be protected by a mutex
 	lock            sync.Mutex
@@ -84,6 +87,7 @@ func NewCoreAccessor(
 	grpcIP,
 	rpcPort string,
 	grpcPort string,
+	grpcTLS bool,
 ) *CoreAccessor {
 	// create verifier
 	prt := merkle.DefaultProofRuntime()
@@ -96,6 +100,7 @@ func NewCoreAccessor(
 		grpcIP:   grpcIP,
 		rpcPort:  rpcPort,
 		grpcPort: grpcPort,
+		grpcTLS:  grpcTLS,
 		prt:      prt,
 	}
 }
@@ -108,10 +113,17 @@ func (ca *CoreAccessor) Start(ctx context.Context) error {
 
 	// dial given celestia-core endpoint
 	endpoint := fmt.Sprintf("%s:%s", ca.grpcIP, ca.grpcPort)
+	creds := insecure.NewCredentials()
+	if ca.grpcTLS {
+		creds = credentials.NewTLS(&tls.Config{
+			InsecureSkipVerify: false,
+			MinVersion:         tls.VersionTLS12,
+		})
+	}
 	client, err := grpc.DialContext(
 		ctx,
 		endpoint,
-		grpc.WithTransportCredentials(insecure.NewCredentials()),
+		grpc.WithTransportCredentials(creds),
 	)
 	if err != nil {
 		return err
