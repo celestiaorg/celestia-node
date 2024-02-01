@@ -191,6 +191,10 @@ jobs:
         uses: actions/download-artifact@v4
         with:
           name: coverage-reports
+          path: ./coverage-reports
+
+      - run: |
+          ls -lah
 
       - name: Upload to Codecov
         uses: codecov/codecov-action@v2
