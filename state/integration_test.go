@@ -51,7 +51,7 @@ func (s *IntegrationTestSuite) SetupSuite() {
 	s.accounts = cfg.Accounts
 
 	signer := blobtypes.NewKeyringSigner(s.cctx.Keyring, s.accounts[0], s.cctx.ChainID)
-	accessor := NewCoreAccessor(signer, localHeader{s.cctx.Client}, "", "", "")
+	accessor := NewCoreAccessor(signer, localHeader{s.cctx.Client}, "", "", "", "")
 	setClients(accessor, s.cctx.GRPCClient, s.cctx.Client)
 	s.accessor = accessor
 

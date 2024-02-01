@@ -11,7 +11,8 @@ var MetricsEnabled bool
 
 // Config combines all configuration fields for managing the relationship with a Core node.
 type Config struct {
-	IP       string
+	RPCIP    string
+	GRPCIP   string
 	RPCPort  string
 	GRPCPort string
 }
@@ -20,7 +21,8 @@ type Config struct {
 // node's connection to a Celestia-Core endpoint.
 func DefaultConfig() Config {
 	return Config{
-		IP:       "",
+		RPCIP:    "",
+		GRPCIP:   "",
 		RPCPort:  "26657",
 		GRPCPort: "9090",
 	}
@@ -32,11 +34,18 @@ func (cfg *Config) Validate() error {
 		return nil
 	}
 
-	ip, err := utils.ValidateAddr(cfg.IP)
+	rpcIP, err := utils.ValidateAddr(cfg.RPCIP)
 	if err != nil {
-		return err
+		return fmt.Errorf("nodebuilder/core: invalid rpc ip: %s", err.Error())
 	}
-	cfg.IP = ip
+	cfg.RPCIP = rpcIP
+
+	grpcIP, err := utils.ValidateAddr(cfg.GRPCIP)
+	if err != nil {
+		return fmt.Errorf("nodebuilder/core: invalid grpc ip: %s", err.Error())
+	}
+	cfg.GRPCIP = grpcIP
+
 	_, err = strconv.Atoi(cfg.RPCPort)
 	if err != nil {
 		return fmt.Errorf("nodebuilder/core: invalid rpc port: %s", err.Error())
@@ -51,5 +60,5 @@ func (cfg *Config) Validate() error {
 // IsEndpointConfigured returns whether a core endpoint has been set
 // on the config (true if set).
 func (cfg *Config) IsEndpointConfigured() bool {
-	return cfg.IP != ""
+	return cfg.RPCIP != "" && cfg.GRPCIP != ""
 }

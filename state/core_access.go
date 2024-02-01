@@ -58,7 +58,8 @@ type CoreAccessor struct {
 	prt *merkle.ProofRuntime
 
 	coreConn *grpc.ClientConn
-	coreIP   string
+	rpcIP    string
+	grpcIP   string
 	rpcPort  string
 	grpcPort string
 
@@ -79,7 +80,8 @@ type CoreAccessor struct {
 func NewCoreAccessor(
 	signer *apptypes.KeyringSigner,
 	getter libhead.Head[*header.ExtendedHeader],
-	coreIP,
+	rpcIP,
+	grpcIP,
 	rpcPort string,
 	grpcPort string,
 ) *CoreAccessor {
@@ -90,7 +92,8 @@ func NewCoreAccessor(
 	return &CoreAccessor{
 		signer:   signer,
 		getter:   getter,
-		coreIP:   coreIP,
+		rpcIP:    rpcIP,
+		grpcIP:   grpcIP,
 		rpcPort:  rpcPort,
 		grpcPort: grpcPort,
 		prt:      prt,
@@ -104,7 +107,7 @@ func (ca *CoreAccessor) Start(ctx context.Context) error {
 	ca.ctx, ca.cancel = context.WithCancel(context.Background())
 
 	// dial given celestia-core endpoint
-	endpoint := fmt.Sprintf("%s:%s", ca.coreIP, ca.grpcPort)
+	endpoint := fmt.Sprintf("%s:%s", ca.grpcIP, ca.grpcPort)
 	client, err := grpc.DialContext(
 		ctx,
 		endpoint,
@@ -121,7 +124,7 @@ func (ca *CoreAccessor) Start(ctx context.Context) error {
 	stakingCli := stakingtypes.NewQueryClient(ca.coreConn)
 	ca.stakingCli = stakingCli
 	// create ABCI query client
-	cli, err := http.New(fmt.Sprintf("http://%s:%s", ca.coreIP, ca.rpcPort), "/websocket")
+	cli, err := http.New(fmt.Sprintf("http://%s:%s", ca.rpcIP, ca.rpcPort), "/websocket")
 	if err != nil {
 		return err
 	}

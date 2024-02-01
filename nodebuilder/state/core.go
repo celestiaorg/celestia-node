@@ -20,7 +20,7 @@ func coreAccessor(
 	sync *sync.Syncer[*header.ExtendedHeader],
 	fraudServ libfraud.Service[*header.ExtendedHeader],
 ) (*state.CoreAccessor, Module, *modfraud.ServiceBreaker[*state.CoreAccessor, *header.ExtendedHeader]) {
-	ca := state.NewCoreAccessor(signer, sync, corecfg.IP, corecfg.RPCPort, corecfg.GRPCPort)
+	ca := state.NewCoreAccessor(signer, sync, corecfg.RPCIP, corecfg.GRPCIP, corecfg.RPCPort, corecfg.GRPCPort)
 
 	return ca, ca, &modfraud.ServiceBreaker[*state.CoreAccessor, *header.ExtendedHeader]{
 		Service:   ca,
