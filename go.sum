@@ -370,8 +370,8 @@ github.com/celestiaorg/dagstore v0.0.0-20230824094345-537c012aa403 h1:Lj73O3S+KJ
 github.com/celestiaorg/dagstore v0.0.0-20230824094345-537c012aa403/go.mod h1:cCGM1UoMvyTk8k62mkc+ReVu8iHBCtSBAAL4wYU7KEI=
 github.com/celestiaorg/go-fraud v0.2.0 h1:aaq2JiW0gTnhEdac3l51UCqSyJ4+VjFGTTpN83V4q7I=
 github.com/celestiaorg/go-fraud v0.2.0/go.mod h1:lNY1i4K6kUeeE60Z2VK8WXd+qXb8KRzfBhvwPkK6aUc=
-github.com/celestiaorg/go-header v0.5.2 h1:CFsTAXcs1o38JVd8YN1Naq/Yzs6m9orMPEPNpLEgFJA=
-github.com/celestiaorg/go-header v0.5.2/go.mod h1:7BVR6myjRfACbqW1de6s8OjuK66XzHm8MpFNYr0G+nU=
+github.com/celestiaorg/go-header v0.5.3 h1:8CcflT6aIlcQXKNWcMekoBNs3EU50mEmDp17gbn1pP4=
+github.com/celestiaorg/go-header v0.5.3/go.mod h1:7BVR6myjRfACbqW1de6s8OjuK66XzHm8MpFNYr0G+nU=
 github.com/celestiaorg/go-libp2p-messenger v0.2.0 h1:/0MuPDcFamQMbw9xTZ73yImqgTO3jHV7wKHvWD/Irao=
 github.com/celestiaorg/go-libp2p-messenger v0.2.0/go.mod h1:s9PIhMi7ApOauIsfBcQwbr7m+HBzmVfDIS+QLdgzDSo=
 github.com/celestiaorg/merkletree v0.0.0-20210714075610-a84dc3ddbbe4 h1:CJdIpo8n5MFP2MwK0gSRcOVlDlFdQJO1p+FqdxYzmvc=
@@ -1837,8 +1837,8 @@ github.com/multiformats/go-multiaddr v0.5.0/go.mod h1:3KAxNkUqLTJ20AAwN4XVX4kZar
 github.com/multiformats/go-multiaddr v0.6.0/go.mod h1:F4IpaKZuPP360tOMn2Tpyu0At8w23aRyVqeK0DbFeGM=
 github.com/multiformats/go-multiaddr v0.7.0/go.mod h1:Fs50eBDWvZu+l3/9S6xAE7ZYj6yhxlvaVZjakWN7xRs=
 github.com/multiformats/go-multiaddr v0.8.0/go.mod h1:Fs50eBDWvZu+l3/9S6xAE7ZYj6yhxlvaVZjakWN7xRs=
-github.com/multiformats/go-multiaddr v0.12.1 h1:vm+BA/WZA8QZDp1pF1FWhi5CT3g1tbi5GJmqpb6wnlk=
-github.com/multiformats/go-multiaddr v0.12.1/go.mod h1:7mPkiBMmLeFipt+nNSq9pHZUeJSt8lHBgH6yhj0YQzE=
+github.com/multiformats/go-multiaddr v0.12.2 h1:9G9sTY/wCYajKa9lyfWPmpZAwe6oV+Wb1zcmMS1HG24=
+github.com/multiformats/go-multiaddr v0.12.2/go.mod h1:GKyaTYjZRdcUhyOetrxTk9z0cW+jA/YrnqTOvKgi44M=
 github.com/multiformats/go-multiaddr-dns v0.0.1/go.mod h1:9kWcqw/Pj6FwxAwW38n/9403szc57zJPs45fmnznu3Q=
 github.com/multiformats/go-multiaddr-dns v0.0.2/go.mod h1:9kWcqw/Pj6FwxAwW38n/9403szc57zJPs45fmnznu3Q=
 github.com/multiformats/go-multiaddr-dns v0.2.0/go.mod h1:TJ5pr5bBO7Y1B18djPuRsVkduhQH2YqYSbxWJzYGdK0=
@@ -2128,6 +2128,8 @@ github.com/rogpeppe/go-internal v1.6.1/go.mod h1:xXDCJY+GAPziupqXw64V24skbSoqbTE
 github.com/rogpeppe/go-internal v1.9.0/go.mod h1:WtVeX8xhTBvf0smdhujwtBcq4Qrzq/fJaraNFVN+nFs=
 github.com/rogpeppe/go-internal v1.11.0 h1:cWPaGQEPrBb5/AsnsZesgZZ9yb1OQ+GOISoDNXVBh4M=
 github.com/rogpeppe/go-internal v1.11.0/go.mod h1:ddIwULY96R17DhadqLgMfk9H9tvdUzkipdSkR5nkCZA=
+github.com/rollkit/go-da v0.4.0 h1:/s7ZrVq7DC2aK8UXIvB7rsXrZ2mVGRw7zrexcxRvhlw=
+github.com/rollkit/go-da v0.4.0/go.mod h1:Kef0XI5ecEKd3TXzI8S+9knAUJnZg0svh2DuXoCsPlM=
 github.com/rs/cors v1.7.0/go.mod h1:gFx+x8UowdsKA9AchylcLynDq+nNFfI8FkUZdN/jGCU=
 github.com/rs/cors v1.8.2 h1:KCooALfAYGs415Cwu5ABvv9n9509fSiG5SQJn/AQo4U=
 github.com/rs/cors v1.8.2/go.mod h1:XyqrcTp5zjWr1wsJ8PIRZssZ8b/WMcMf71DJnit4EMU=
