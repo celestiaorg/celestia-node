@@ -19,20 +19,17 @@ import (
 	| toPrune  | availability window |
 */
 
-// TestService tests the pruner service to ensure that the expected amount
-// of blocks are pruned within a given AvailabilityWindow.
-//
-// Parameters: In a sampling window of 100ms where blocks are produced every
-// 25ms (4-5 block sampling window), 5 blocks are expected to be pruned
-// [genesis:5]. // TODO @renaynay: if avail window is 100ms, and blocks every 25s, 5 are pruned
-// which means sampling window is actually 5 blocks'-worth
-//
-// TODO @renaynay: FLAKEY!
+// TestService tests the pruner service to check whether the expected
+// amount of blocks are pruned within a given AvailabilityWindow.
+// This test runs a pruning cycle once which should prune at least
+// 2 blocks (as the AvailabilityWindow is ~2 blocks). Since the
+// prune-able header determination is time-based, it cannot be
+// exact.
 func TestService(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	t.Cleanup(cancel)
 
-	blockTime := time.Millisecond * 25
+	blockTime := time.Millisecond
 
 	// all headers generated in suite are timestamped to time.Now(), so
 	// they will all be considered "pruneable" within the availability window (
@@ -43,63 +40,72 @@ func TestService(t *testing.T) {
 
 	serv := NewService(
 		mp,
-		AvailabilityWindow(time.Millisecond*100),
+		AvailabilityWindow(time.Millisecond*2),
 		store,
 		sync.MutexWrap(datastore.NewMapDatastore()),
 		blockTime,
-		WithGCCycle(time.Millisecond*100),
 	)
 
-	err := serv.Start(ctx)
+	serv.ctx, serv.cancel = ctx, cancel
+
+	err := serv.loadCheckpoint(ctx)
 	require.NoError(t, err)
 
-	// wait for 2 GC cycles to run
-	time.Sleep(time.Millisecond * 200)
+	time.Sleep(time.Millisecond * 2)
 
-	err = serv.Stop(ctx)
-	require.NoError(t, err)
+	lastPruned := serv.prune(ctx, serv.lastPruned())
 
-	assert.Equal(t, uint64(5), serv.checkpoint.LastPrunedHeight)
+	assert.Greater(t, lastPruned.Height(), uint64(2))
+	assert.Greater(t, serv.checkpoint.LastPrunedHeight, uint64(2))
 }
 
-func TestService_RetryingFailed(t *testing.T) {
+// TestService_FailedAreRecorded checks whether the pruner service
+// can accurately detect blocks to be pruned and store them
+// to checkpoint.
+func TestService_FailedAreRecorded(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	t.Cleanup(cancel)
 
-	blockTime := time.Millisecond * 25
+	blockTime := time.Millisecond
 
 	// all headers generated in suite are timestamped to time.Now(), so
-	// they will all be considered "pruneable" within the availability window (
+	// they will all be considered "pruneable" within the availability window
 	suite := headertest.NewTestSuite(t, 1, blockTime)
-	store := headertest.NewCustomStore(t, suite, 20)
+	store := headertest.NewCustomStore(t, suite, 100)
 
-	mp := &mockPruner{failHeight: map[uint64]int{4: 0, 5: 0, 13: 0}}
+	mp := &mockPruner{
+		failHeight: map[uint64]int{4: 0, 5: 0, 13: 0},
+	}
 
 	serv := NewService(
 		mp,
-		AvailabilityWindow(time.Millisecond*100),
+		AvailabilityWindow(time.Millisecond*20),
 		store,
 		sync.MutexWrap(datastore.NewMapDatastore()),
 		blockTime,
-		WithGCCycle(time.Millisecond*100),
 	)
 
-	err := serv.Start(ctx)
+	err := serv.loadCheckpoint(ctx)
 	require.NoError(t, err)
 
-	time.Sleep(time.Millisecond * 500) // 4-5 blocks per availability window * 5 = 25ish blocks pruned
+	// ensures at least 13 blocks are prune-able
+	time.Sleep(time.Millisecond * 50)
 
-	err = serv.Stop(ctx)
-	require.NoError(t, err)
+	// trigger a prune job
+	_ = serv.prune(ctx, serv.lastPruned())
 
 	assert.Len(t, serv.checkpoint.FailedHeaders, 3)
 	for expectedFail := range mp.failHeight {
 		_, exists := serv.checkpoint.FailedHeaders[expectedFail]
 		assert.True(t, exists)
 	}
-}
 
-// TODO @renaynay: implement test to ensure successful retries work
+	// trigger another prune job, which will prioritize retrying
+	// failed blocks
+	_ = serv.prune(ctx, serv.lastPruned())
+
+	assert.Len(t, serv.checkpoint.FailedHeaders, 0)
+}
 
 func TestServiceCheckpointing(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
@@ -239,8 +245,7 @@ type mockPruner struct {
 	deletedHeaderHashes []pruned
 
 	// tells the mockPruner on which heights to fail
-	failHeight         map[uint64]int
-	enableRetrySuccess bool
+	failHeight map[uint64]int
 }
 
 type pruned struct {
@@ -252,7 +257,7 @@ func (mp *mockPruner) Prune(_ context.Context, h *header.ExtendedHeader) error {
 	for fail := range mp.failHeight {
 		if h.Height() == fail {
 			// if retried, return successful
-			if mp.failHeight[fail] > 1 && mp.enableRetrySuccess {
+			if mp.failHeight[fail] > 0 {
 				return nil
 			}
 			mp.failHeight[fail]++
