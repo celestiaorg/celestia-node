@@ -174,11 +174,6 @@ func (m *Manager) Stop(ctx context.Context) error {
 
 	select {
 	case <-m.headerSubDone:
-	case <-ctx.Done():
-		return ctx.Err()
-	}
-
-	select {
 	case <-m.disconnectedPeersDone:
 	case <-ctx.Done():
 		return ctx.Err()
