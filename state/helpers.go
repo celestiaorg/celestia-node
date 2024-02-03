@@ -1,19 +1,19 @@
 package state
 
 import (
-	sdk_errors "github.com/cosmos/cosmos-sdk/types/errors"
-	sdk_abci "github.com/tendermint/tendermint/abci/types"
+	sdkerrors "github.com/cosmos/cosmos-sdk/types/errors"
+	abcitypes "github.com/tendermint/tendermint/abci/types"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 )
 
-func sdkErrorToGRPCError(resp sdk_abci.ResponseQuery) error {
+func sdkErrorToGRPCError(resp abcitypes.ResponseQuery) error {
 	switch resp.Code {
-	case sdk_errors.ErrInvalidRequest.ABCICode():
+	case sdkerrors.ErrInvalidRequest.ABCICode():
 		return status.Error(codes.InvalidArgument, resp.Log)
-	case sdk_errors.ErrUnauthorized.ABCICode():
+	case sdkerrors.ErrUnauthorized.ABCICode():
 		return status.Error(codes.Unauthenticated, resp.Log)
-	case sdk_errors.ErrKeyNotFound.ABCICode():
+	case sdkerrors.ErrKeyNotFound.ABCICode():
 		return status.Error(codes.NotFound, resp.Log)
 	default:
 		return status.Error(codes.Unknown, resp.Log)

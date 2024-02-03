@@ -8,7 +8,7 @@ import (
 	"sync"
 	"time"
 
-	sdkErrors "cosmossdk.io/errors"
+	sdkerrors "cosmossdk.io/errors"
 	"github.com/cosmos/cosmos-sdk/api/tendermint/abci"
 	nodeservice "github.com/cosmos/cosmos-sdk/client/grpc/node"
 	storetypes "github.com/cosmos/cosmos-sdk/store/types"
@@ -258,7 +258,7 @@ func (ca *CoreAccessor) SubmitPayForBlob(
 		}
 
 		if response != nil && response.Code != 0 {
-			err = errors.Join(err, sdkErrors.ABCIError(response.Codespace, response.Code, response.Logs.String()))
+			err = errors.Join(err, sdkerrors.ABCIError(response.Codespace, response.Code, response.Logs.String()))
 		}
 		return response, err
 	}
@@ -557,7 +557,7 @@ func (ca *CoreAccessor) getMinGasPrice() float64 {
 	return ca.minGasPrice
 }
 
-// QueryMinimumGasPrice returns the minimum gas price required by the node.
+// queryMinimumGasPrice returns the minimum gas price required by the node.
 func (ca *CoreAccessor) queryMinimumGasPrice(
 	ctx context.Context,
 ) (float64, error) {
