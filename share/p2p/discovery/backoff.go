@@ -91,6 +91,8 @@ func (b *backoffConnector) HasBackoff(p peer.ID) bool {
 // GC is a perpetual GCing loop.
 func (b *backoffConnector) GC(ctx context.Context) {
 	ticker := time.NewTicker(gcInterval)
+	defer ticker.Stop()
+
 	for {
 		select {
 		case <-ctx.Done():
