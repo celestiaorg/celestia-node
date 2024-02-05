@@ -251,6 +251,18 @@ func (s *Service) getByCommitment(
 
 	getCtx, getSharesSpan := tracer.Start(ctx, "get-shares-by-namespace")
 
+	// ensure that requested namespace can be found inside the DAH before retrieving it.
+	offset := -1
+	for i, row := range header.DAH.RowRoots {
+		if !namespace.IsOutsideRange(row, row) {
+			offset = i
+			break
+		}
+	}
+	if offset == -1 {
+		return nil, nil, ErrBlobNotFound
+	}
+
 	namespacedShares, err := s.shareGetter.GetSharesByNamespace(getCtx, header, namespace)
 	if err != nil {
 		if errors.Is(err, share.ErrNotFound) {
@@ -291,9 +303,10 @@ func (s *Service) getByCommitment(
 		if err != nil {
 			return nil, nil, err
 		}
+
 		for _, b := range blobs {
 			if b.Commitment.Equal(commitment) {
-				span.AddEvent("blob reconstructed")
+				b.index = offset*len(header.DAH.RowRoots) + proofs[0].Start()
 				return b, &proofs, nil
 			}
 			// Falling under this flag means that the data from the last row
@@ -303,15 +316,18 @@ func (s *Service) getByCommitment(
 			// to the current row and have a single proof.
 			if spansMultipleRows {
 				spansMultipleRows = false
-				// leave proof only for the current row
+				// move offset to the current row index.
+				offset += len(proofs) - 1
+				// leave proof only for the current row.
 				proofs = proofs[len(proofs)-1:]
 			}
 		}
-
 		if len(rawShares) > 0 {
 			spansMultipleRows = true
 			continue
 		}
+		// moving to the next row.
+		offset++
 		proofs = nil
 	}
 

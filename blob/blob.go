@@ -99,6 +99,10 @@ type Blob struct {
 	// the celestia-node's namespace type
 	// this is to avoid converting to and from app's type
 	namespace share.Namespace
+
+	// index represents index of the first share in the eds.
+	// before data is being published, the index set by default to -1.
+	index int
 }
 
 // NewBlobV0 constructs a new blob from the provided Namespace and data.
@@ -127,7 +131,7 @@ func NewBlob(shareVersion uint8, namespace share.Namespace, data []byte) (*Blob,
 	if err != nil {
 		return nil, err
 	}
-	return &Blob{Blob: blob, Commitment: com, namespace: namespace}, nil
+	return &Blob{Blob: blob, Commitment: com, namespace: namespace, index: -1}, nil
 }
 
 // Namespace returns blob's namespace.
@@ -135,11 +139,17 @@ func (b *Blob) Namespace() share.Namespace {
 	return b.namespace
 }
 
+// Index returns the index  of the first share in the eds.
+func (b *Blob) Index() int {
+	return b.index
+}
+
 type jsonBlob struct {
 	Namespace    share.Namespace `json:"namespace"`
 	Data         []byte          `json:"data"`
 	ShareVersion uint32          `json:"share_version"`
 	Commitment   Commitment      `json:"commitment"`
+	Index        int             `json:"index"`
 }
 
 func (b *Blob) MarshalJSON() ([]byte, error) {
@@ -148,6 +158,7 @@ func (b *Blob) MarshalJSON() ([]byte, error) {
 		Data:         b.Data,
 		ShareVersion: b.ShareVersion,
 		Commitment:   b.Commitment,
+		Index:        b.index,
 	}
 	return json.Marshal(blob)
 }
@@ -165,6 +176,7 @@ func (b *Blob) UnmarshalJSON(data []byte) error {
 	b.Blob.ShareVersion = blob.ShareVersion
 	b.Commitment = blob.Commitment
 	b.namespace = blob.Namespace
+	b.index = blob.Index
 	return nil
 }
 

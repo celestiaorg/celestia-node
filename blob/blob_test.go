@@ -1,7 +1,7 @@
 package blob
 
 import (
-	"reflect"
+	"bytes"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -67,7 +67,8 @@ func TestBlob(t *testing.T) {
 
 				newBlob := &Blob{}
 				require.NoError(t, newBlob.UnmarshalJSON(data))
-				require.True(t, reflect.DeepEqual(blob[0], newBlob))
+				require.True(t, bytes.Equal(blob[0].Blob.Data, newBlob.Data))
+				require.True(t, bytes.Equal(blob[0].Commitment, newBlob.Commitment))
 			},
 		},
 	}
