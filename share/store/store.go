@@ -106,6 +106,14 @@ func (s *Store) Put(
 		return s.getByHeight(height)
 	}
 
+	if has, _ := s.hasByHash(datahash); has {
+		log.Errorw("put: file already exists by hash, but not by height",
+			"height", height,
+			"hash", datahash.String())
+		s.metrics.observePutExist(ctx)
+		return s.getByHash(datahash)
+	}
+
 	path := s.basepath + hashsPath + datahash.String()
 	file, err := file.CreateOdsFile(path, height, datahash, square)
 	if err != nil {
