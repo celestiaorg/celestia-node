@@ -188,7 +188,7 @@ func (srv *Server) getNamespaceData(ctx context.Context,
 	defer utils.CloseAndLog(log, "file", file)
 
 	namespacedRows := make(share.NamespacedShares, 0, toRow-fromRow+1)
-	for rowIdx := fromRow; rowIdx <= toRow; rowIdx++ {
+	for rowIdx := fromRow; rowIdx < toRow; rowIdx++ {
 		data, err := file.Data(ctx, namespace, rowIdx)
 		if err != nil {
 			return nil, pb.StatusCode_INTERNAL, fmt.Errorf("retrieving data: %w", err)

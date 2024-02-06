@@ -22,7 +22,12 @@ var (
 	tracer = otel.Tracer("share/eds")
 )
 
-// TODO(@walldiss): persist store stats like amount of files, file types, avg file size etc in a file
+// TODO(@walldiss):
+//  - persist store stats like amount of files, file types, avg file size etc in a file
+//  - handle corrupted files
+//  - maintain in-memory missing files index / bloom-filter to fast return for not stored files.
+//  - lock store folder
+
 const (
 	hashsPath   = "/blocks/"
 	heightsPath = "/heights/"
@@ -44,8 +49,6 @@ type Store struct {
 	// cache is used to cache recent blocks and blocks that are accessed frequently
 	cache *cache.DoubleCache
 
-	//TODO: maintain in-memory missing files index / bloom-filter to fast return for not stored files.
-
 	// stripedLocks is used to synchronize parallel operations
 	stripLock *striplock
 
@@ -57,8 +60,6 @@ func NewStore(params *Parameters, basePath string) (*Store, error) {
 	if err := params.Validate(); err != nil {
 		return nil, err
 	}
-
-	//TODO: acquire DirectoryLock store lockGuard
 
 	// ensure blocks folder
 	if err := ensureFolder(basePath + hashsPath); err != nil {

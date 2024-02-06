@@ -4,6 +4,9 @@ import (
 	"context"
 	"encoding/binary"
 	"errors"
+	"github.com/celestiaorg/celestia-node/share/store"
+	"github.com/tendermint/tendermint/libs/rand"
+	"sync/atomic"
 	"testing"
 	"time"
 
@@ -21,7 +24,6 @@ import (
 	"github.com/celestiaorg/celestia-node/header"
 	"github.com/celestiaorg/celestia-node/header/headertest"
 	"github.com/celestiaorg/celestia-node/share"
-	"github.com/celestiaorg/celestia-node/share/eds"
 	"github.com/celestiaorg/celestia-node/share/eds/edstest"
 	"github.com/celestiaorg/celestia-node/share/ipld"
 	"github.com/celestiaorg/celestia-node/share/p2p/peers"
@@ -41,10 +43,9 @@ func TestShrexGetter(t *testing.T) {
 	clHost, srvHost := net.Hosts()[0], net.Hosts()[1]
 
 	// launch eds store and put test data into it
-	edsStore, err := newStore(t)
+	edsStore, err := store.NewStore(store.DefaultParameters(), t.TempDir())
 	require.NoError(t, err)
-	err = edsStore.Start(ctx)
-	require.NoError(t, err)
+	height := atomic.Uint64{}
 
 	ndClient, _ := newNDClientServer(ctx, t, edsStore, srvHost, clHost)
 	edsClient, _ := newEDSClientServer(ctx, t, edsStore, srvHost, clHost)
@@ -61,14 +62,20 @@ func TestShrexGetter(t *testing.T) {
 		t.Cleanup(cancel)
 
 		// generate test data
-		size := 64
+		size := 128
 		namespace := sharetest.RandV0Namespace()
-		randEDS, dah := edstest.RandEDSWithNamespace(t, namespace, size*size, size)
+		sqSise := size * size
+		eds, dah := edstest.RandEDSWithNamespace(t, namespace, sqSise/2+rand.Intn(sqSise/2), size)
 		eh := headertest.RandExtendedHeaderWithRoot(t, dah)
-		require.NoError(t, edsStore.Put(ctx, dah.Hash(), randEDS))
+		height := height.Add(1)
+		eh.RawHeader.Height = int64(height)
+
+		f, err := edsStore.Put(ctx, dah.Hash(), height, eds)
+		require.NoError(t, err)
+		defer f.Close()
 		peerManager.Validate(ctx, srvHost.ID(), shrexsub.Notification{
 			DataHash: dah.Hash(),
-			Height:   1,
+			Height:   height,
 		})
 
 		got, err := getter.GetSharesByNamespace(ctx, eh, namespace)
@@ -83,9 +90,11 @@ func TestShrexGetter(t *testing.T) {
 		// generate test data
 		_, dah, namespace := generateTestEDS(t)
 		eh := headertest.RandExtendedHeaderWithRoot(t, dah)
+		height := height.Add(1)
+
 		peerManager.Validate(ctx, srvHost.ID(), shrexsub.Notification{
 			DataHash: dah.Hash(),
-			Height:   1,
+			Height:   height,
 		})
 
 		_, err := getter.GetSharesByNamespace(ctx, eh, namespace)
@@ -93,16 +102,21 @@ func TestShrexGetter(t *testing.T) {
 	})
 
 	t.Run("ND_namespace_not_included", func(t *testing.T) {
-		ctx, cancel := context.WithTimeout(ctx, time.Second)
+		ctx, cancel := context.WithTimeout(ctx, time.Second*444)
 		t.Cleanup(cancel)
 
 		// generate test data
 		eds, dah, maxNamespace := generateTestEDS(t)
 		eh := headertest.RandExtendedHeaderWithRoot(t, dah)
-		require.NoError(t, edsStore.Put(ctx, dah.Hash(), eds))
+		height := height.Add(1)
+		eh.RawHeader.Height = int64(height)
+
+		f, err := edsStore.Put(ctx, dah.Hash(), height, eds)
+		require.NoError(t, err)
+		f.Close()
 		peerManager.Validate(ctx, srvHost.ID(), shrexsub.Notification{
 			DataHash: dah.Hash(),
-			Height:   1,
+			Height:   height,
 		})
 
 		nID, err := addToNamespace(maxNamespace, -1)
@@ -110,11 +124,19 @@ func TestShrexGetter(t *testing.T) {
 		// check for namespace to be between max and min namespace in root
 		require.Len(t, ipld.FilterRootByNamespace(dah, nID), 1)
 
-		emptyShares, err := getter.GetSharesByNamespace(ctx, eh, nID)
+		sgetter := NewStoreGetter(edsStore)
+		emptyShares, err := sgetter.GetSharesByNamespace(ctx, eh, nID)
 		require.NoError(t, err)
 		// no shares should be returned
 		require.Empty(t, emptyShares.Flatten())
 		require.Nil(t, emptyShares.Verify(dah, nID))
+
+		emptyShares1, err := getter.GetSharesByNamespace(ctx, eh, nID)
+		require.Equal(t, emptyShares.Flatten(), emptyShares1.Flatten())
+		require.NoError(t, err)
+		// no shares should be returned
+		require.Empty(t, emptyShares1.Flatten())
+		require.Nil(t, emptyShares1.Verify(dah, nID))
 	})
 
 	t.Run("ND_namespace_not_in_dah", func(t *testing.T) {
@@ -124,10 +146,15 @@ func TestShrexGetter(t *testing.T) {
 		// generate test data
 		eds, dah, maxNamesapce := generateTestEDS(t)
 		eh := headertest.RandExtendedHeaderWithRoot(t, dah)
-		require.NoError(t, edsStore.Put(ctx, dah.Hash(), eds))
+		height := height.Add(1)
+		eh.RawHeader.Height = int64(height)
+
+		f, err := edsStore.Put(ctx, dah.Hash(), height, eds)
+		require.NoError(t, err)
+		defer f.Close()
 		peerManager.Validate(ctx, srvHost.ID(), shrexsub.Notification{
 			DataHash: dah.Hash(),
-			Height:   1,
+			Height:   height,
 		})
 
 		namespace, err := addToNamespace(maxNamesapce, 1)
@@ -147,17 +174,22 @@ func TestShrexGetter(t *testing.T) {
 		t.Cleanup(cancel)
 
 		// generate test data
-		randEDS, dah, _ := generateTestEDS(t)
+		eds, dah, _ := generateTestEDS(t)
 		eh := headertest.RandExtendedHeaderWithRoot(t, dah)
-		require.NoError(t, edsStore.Put(ctx, dah.Hash(), randEDS))
+		height := height.Add(1)
+		eh.RawHeader.Height = int64(height)
+
+		f, err := edsStore.Put(ctx, dah.Hash(), height, eds)
+		require.NoError(t, err)
+		defer f.Close()
 		peerManager.Validate(ctx, srvHost.ID(), shrexsub.Notification{
 			DataHash: dah.Hash(),
-			Height:   1,
+			Height:   height,
 		})
 
 		got, err := getter.GetEDS(ctx, eh)
 		require.NoError(t, err)
-		require.Equal(t, randEDS.Flattened(), got.Flattened())
+		require.Equal(t, eds.Flattened(), got.Flattened())
 	})
 
 	t.Run("EDS_ctx_deadline", func(t *testing.T) {
@@ -166,9 +198,12 @@ func TestShrexGetter(t *testing.T) {
 		// generate test data
 		_, dah, _ := generateTestEDS(t)
 		eh := headertest.RandExtendedHeaderWithRoot(t, dah)
+		height := height.Add(1)
+		eh.RawHeader.Height = int64(height)
+
 		peerManager.Validate(ctx, srvHost.ID(), shrexsub.Notification{
 			DataHash: dah.Hash(),
-			Height:   1,
+			Height:   height,
 		})
 
 		cancel()
@@ -183,21 +218,17 @@ func TestShrexGetter(t *testing.T) {
 		// generate test data
 		_, dah, _ := generateTestEDS(t)
 		eh := headertest.RandExtendedHeaderWithRoot(t, dah)
+		height := height.Add(1)
+		eh.RawHeader.Height = int64(height)
+
 		peerManager.Validate(ctx, srvHost.ID(), shrexsub.Notification{
 			DataHash: dah.Hash(),
-			Height:   1,
+			Height:   height,
 		})
 
 		_, err := getter.GetEDS(ctx, eh)
 		require.ErrorIs(t, err, share.ErrNotFound)
 	})
-}
-
-func newStore(t *testing.T) (*eds.Store, error) {
-	t.Helper()
-
-	ds := ds_sync.MutexWrap(datastore.NewMapDatastore())
-	return eds.NewStore(eds.DefaultParameters(), t.TempDir(), ds)
 }
 
 func generateTestEDS(t *testing.T) (*rsmt2d.ExtendedDataSquare, *share.Root, share.Namespace) {
@@ -230,7 +261,7 @@ func testManager(
 }
 
 func newNDClientServer(
-	ctx context.Context, t *testing.T, edsStore *eds.Store, srvHost, clHost host.Host,
+	ctx context.Context, t *testing.T, edsStore *store.Store, srvHost, clHost host.Host,
 ) (*shrexnd.Client, *shrexnd.Server) {
 	params := shrexnd.DefaultParameters()
 
@@ -250,7 +281,7 @@ func newNDClientServer(
 }
 
 func newEDSClientServer(
-	ctx context.Context, t *testing.T, edsStore *eds.Store, srvHost, clHost host.Host,
+	ctx context.Context, t *testing.T, edsStore *store.Store, srvHost, clHost host.Host,
 ) (*shrexeds.Client, *shrexeds.Server) {
 	params := shrexeds.DefaultParameters()
 

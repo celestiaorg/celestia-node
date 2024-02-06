@@ -113,7 +113,7 @@ func (sg *StoreGetter) GetSharesByNamespace(
 		utils.SetStatusAndEnd(span, err)
 	}()
 
-	file, err := sg.store.GetByHash(ctx, header.DAH.Hash())
+	file, err := sg.store.GetByHeight(ctx, header.Height())
 	if errors.Is(err, store.ErrNotFound) {
 		// convert error to satisfy getter interface contract
 		err = share.ErrNotFound
@@ -127,7 +127,7 @@ func (sg *StoreGetter) GetSharesByNamespace(
 	from, to := share.RowRangeForNamespace(header.DAH, namespace)
 
 	shares = make(share.NamespacedShares, 0, to-from+1)
-	for row := from; row <= to; row++ {
+	for row := from; row < to; row++ {
 		data, err := file.Data(ctx, namespace, row)
 		if err != nil {
 			return nil, fmt.Errorf("getter/store: failed to retrieve namespcaed data: %w", err)
