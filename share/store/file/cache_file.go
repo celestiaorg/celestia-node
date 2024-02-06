@@ -70,7 +70,7 @@ func (f *CacheFile) axisWithProofs(ctx context.Context, axisType rsmt2d.Axis, ax
 	// build proofs from shares and cache them
 	shrs, err := f.axis(ctx, axisType, axisIdx)
 	if err != nil {
-		return inMemoryAxis{}, err
+		return inMemoryAxis{}, fmt.Errorf("get axis: %w", err)
 	}
 
 	// calculate proofs
@@ -80,20 +80,23 @@ func (f *CacheFile) axisWithProofs(ctx context.Context, axisType rsmt2d.Axis, ax
 	for _, shr := range shrs {
 		err = tree.Push(shr)
 		if err != nil {
-			return inMemoryAxis{}, err
+			return inMemoryAxis{}, fmt.Errorf("push shares: %w", err)
 		}
 	}
 
 	// build the tree
 	root, err := tree.Root()
 	if err != nil {
-		return inMemoryAxis{}, err
+		return inMemoryAxis{}, fmt.Errorf("calculating root: %w", err)
 	}
 
 	ax = f.axisCache[axisType][axisIdx]
 	ax.root = root
 	ax.shares = shrs
-	ax.proofs = newRowProofsGetter(adder.Proofs())
+	ax.proofs, err = newRowProofsGetter(adder.Proofs())
+	if err != nil {
+		return inMemoryAxis{}, fmt.Errorf("creating proof getter: %w", err)
+	}
 
 	if !f.disableCache {
 		f.axisCache[axisType][axisIdx] = ax
@@ -178,14 +181,16 @@ type rowProofsGetter struct {
 	proofs map[cid.Cid]blocks.Block
 }
 
-func newRowProofsGetter(rawProofs map[cid.Cid][]byte) *rowProofsGetter {
+func newRowProofsGetter(rawProofs map[cid.Cid][]byte) (*rowProofsGetter, error) {
 	proofs := make(map[cid.Cid]blocks.Block, len(rawProofs))
 	for k, v := range rawProofs {
-		proofs[k] = blocks.NewBlock(v)
+		b, err := blocks.NewBlockWithCid(v, k)
+		if err != nil {
+			return nil, err
+		}
+		proofs[k] = b
 	}
-	return &rowProofsGetter{
-		proofs: proofs,
-	}
+	return &rowProofsGetter{proofs: proofs}, nil
 }
 
 func (r rowProofsGetter) GetBlock(_ context.Context, c cid.Cid) (blocks.Block, error) {
