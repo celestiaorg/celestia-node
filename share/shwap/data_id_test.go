@@ -12,7 +12,7 @@ import (
 
 func TestDataID(t *testing.T) {
 	ns := sharetest.RandV0Namespace()
-	_, root := edstest.RandEDSWithNamespace(t, ns, 4)
+	_, root := edstest.RandEDSWithNamespace(t, ns, 8, 4)
 
 	id, err := NewDataID(1, 1, ns, root)
 	require.NoError(t, err)

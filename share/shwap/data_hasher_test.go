@@ -10,6 +10,8 @@ import (
 	"github.com/celestiaorg/celestia-node/share/sharetest"
 )
 
+// TODO(@walldiss):
+// FIX: hasher test succeed, while logging unmarshal error: "unmarshaling Data: proto: Data: wiretype end group for non-group"
 func TestDataHasher(t *testing.T) {
 	hasher := &DataHasher{}
 

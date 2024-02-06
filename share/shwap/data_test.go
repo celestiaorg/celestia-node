@@ -12,7 +12,7 @@ import (
 
 func TestData(t *testing.T) {
 	namespace := sharetest.RandV0Namespace()
-	square, root := edstest.RandEDSWithNamespace(t, namespace, 8)
+	square, root := edstest.RandEDSWithNamespace(t, namespace, 16, 8)
 
 	nds, err := NewDataFromEDS(square, 1, namespace)
 	require.NoError(t, err)

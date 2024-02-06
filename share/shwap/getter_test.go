@@ -1,10 +1,12 @@
-package shwap
+package shwap_test
 
 import (
 	"bytes"
 	"context"
-	"encoding/binary"
 	"fmt"
+	"github.com/celestiaorg/celestia-node/share/shwap"
+	"github.com/celestiaorg/celestia-node/share/store"
+	ds_sync "github.com/ipfs/go-datastore/sync"
 	"math/rand"
 	"testing"
 	"time"
@@ -14,7 +16,6 @@ import (
 	blocks "github.com/ipfs/go-block-format"
 	"github.com/ipfs/go-cid"
 	"github.com/ipfs/go-datastore"
-	ds_sync "github.com/ipfs/go-datastore/sync"
 	format "github.com/ipfs/go-ipld-format"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -27,11 +28,10 @@ import (
 	"github.com/celestiaorg/celestia-node/share/eds/edstest"
 	"github.com/celestiaorg/celestia-node/share/ipld"
 	"github.com/celestiaorg/celestia-node/share/sharetest"
-	"github.com/celestiaorg/celestia-node/share/store/cache"
 )
 
 func TestGetter(t *testing.T) {
-	ctx, cancel := context.WithCancel(context.Background())
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second)
 	defer cancel()
 
 	size := 8
@@ -39,9 +39,9 @@ func TestGetter(t *testing.T) {
 	square, root := edstest.RandEDSWithNamespace(t, ns, size*size, size)
 	hdr := &header.ExtendedHeader{RawHeader: header.RawHeader{Height: 1}, DAH: root}
 
-	bstore := edsBlockstore(square)
+	bstore := edsBlockstore(ctx, t, square, hdr.Height())
 	exch := DummySessionExchange{bstore}
-	get := NewGetter(exch, blockstore.NewBlockstore(datastore.NewMapDatastore()))
+	get := shwap.NewGetter(exch, blockstore.NewBlockstore(datastore.NewMapDatastore()))
 
 	t.Run("GetShares", func(t *testing.T) {
 		idxs := rand.Perm(int(square.Width() ^ 2))[:10]
@@ -89,14 +89,14 @@ func TestGetter(t *testing.T) {
 			square := edstest.RandEDS(t, 8)
 			root, err := share.NewRoot(square)
 			require.NoError(t, err)
-			hdr := &header.ExtendedHeader{RawHeader: header.RawHeader{Height: 1}, DAH: root}
+			hdr := &header.ExtendedHeader{RawHeader: header.RawHeader{Height: 3}, DAH: root}
 
-			bstore := edsBlockstore(square)
+			bstore := edsBlockstore(ctx, t, square, hdr.Height())
 			exch := &DummySessionExchange{bstore}
-			get := NewGetter(exch, blockstore.NewBlockstore(datastore.NewMapDatastore()))
+			get := shwap.NewGetter(exch, blockstore.NewBlockstore(datastore.NewMapDatastore()))
 
 			maxNs := nmt.MaxNamespace(root.RowRoots[(len(root.RowRoots))/2-1], share.NamespaceSize)
-			ns, err := addToNamespace(maxNs, -1)
+			ns, err := share.Namespace(maxNs).AddInt(-1)
 			require.NoError(t, err)
 			require.Len(t, ipld.FilterRootByNamespace(root, ns), 1)
 
@@ -107,53 +107,6 @@ func TestGetter(t *testing.T) {
 			assert.Empty(t, emptyShares.Flatten())
 		})
 	})
-}
-
-// addToNamespace adds arbitrary int value to namespace, treating namespace as big-endian
-// implementation of int
-// TODO: dedup with getters/shrex_test.go
-func addToNamespace(namespace share.Namespace, val int) (share.Namespace, error) {
-	if val == 0 {
-		return namespace, nil
-	}
-	// Convert the input integer to a byte slice and Add it to result slice
-	result := make([]byte, len(namespace))
-	if val > 0 {
-		binary.BigEndian.PutUint64(result[len(namespace)-8:], uint64(val))
-	} else {
-		binary.BigEndian.PutUint64(result[len(namespace)-8:], uint64(-val))
-	}
-
-	// Perform addition byte by byte
-	var carry int
-	for i := len(namespace) - 1; i >= 0; i-- {
-		sum := 0
-		if val > 0 {
-			sum = int(namespace[i]) + int(result[i]) + carry
-		} else {
-			sum = int(namespace[i]) - int(result[i]) + carry
-		}
-
-		switch {
-		case sum > 255:
-			carry = 1
-			sum -= 256
-		case sum < 0:
-			carry = -1
-			sum += 256
-		default:
-			carry = 0
-		}
-
-		result[i] = uint8(sum)
-	}
-
-	// Handle any remaining carry
-	if carry != 0 {
-		return nil, fmt.Errorf("namespace overflow")
-	}
-
-	return result, nil
 }
 
 type DummySessionExchange struct {
@@ -214,18 +167,16 @@ func (e DummySessionExchange) Close() error {
 	return nil
 }
 
-func edsBlockstore(sqr *rsmt2d.ExtendedDataSquare) blockstore.Blockstore {
-	edsStore, err := NewStore(DefaultParameters(), t.TempDir())
+func edsBlockstore(ctx context.Context, t *testing.T, eds *rsmt2d.ExtendedDataSquare, height uint64) blockstore.Blockstore {
+	dah, err := share.NewRoot(eds)
 	require.NoError(t, err)
 
-	// disable cache
-	edsStore.cache = cache.NewDoubleCache(cache.NoopCache{}, cache.NoopCache{})
-	bs := NewBlockstore(edsStore, ds_sync.MutexWrap(ds.NewMapDatastore()))
-
-	height := uint64(100)
-	eds, dah := randomEDS(t)
+	edsStore, err := store.NewStore(store.DefaultParameters(), t.TempDir())
+	require.NoError(t, err)
 
 	f, err := edsStore.Put(ctx, dah.Hash(), height, eds)
 	require.NoError(t, err)
-	require.NoError(t, f.Close())
+	f.Close()
+
+	return store.NewBlockstore(edsStore, ds_sync.MutexWrap(datastore.NewMapDatastore()))
 }
