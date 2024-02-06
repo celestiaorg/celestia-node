@@ -2,6 +2,7 @@ package share
 
 import (
 	"bytes"
+	"errors"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -194,6 +195,60 @@ func TestValidateForBlob(t *testing.T) {
 				return
 			}
 			assert.NoError(t, err)
+		})
+	}
+}
+
+func TestAddToNamespace(t *testing.T) {
+	testCases := []struct {
+		name          string
+		value         int
+		input         Namespace
+		expected      Namespace
+		expectedError error
+	}{
+		{
+			name:          "Positive value addition",
+			value:         42,
+			input:         Namespace{0x01, 0x01, 0x01, 0x01, 0x01, 0x01, 0x01, 0x01, 0x01, 0x01},
+			expected:      Namespace{0x1, 0x1, 0x1, 0x1, 0x1, 0x1, 0x1, 0x1, 0x1, 0x2b},
+			expectedError: nil,
+		},
+		{
+			name:          "Negative value addition",
+			value:         -42,
+			input:         Namespace{0x01, 0x01, 0x01, 0x01, 0x01, 0x01, 0x01, 0x01, 0x01, 0x01, 0x01},
+			expected:      Namespace{0x1, 0x1, 0x1, 0x1, 0x1, 0x01, 0x1, 0x1, 0x1, 0x0, 0xd7},
+			expectedError: nil,
+		},
+		{
+			name:          "Overflow error",
+			value:         1,
+			input:         Namespace{0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF},
+			expected:      nil,
+			expectedError: errors.New("namespace overflow"),
+		},
+		{
+			name:          "Overflow error negative",
+			value:         -1,
+			input:         Namespace{0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0},
+			expected:      nil,
+			expectedError: errors.New("namespace overflow"),
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			result, err := tc.input.AddInt(tc.value)
+			if tc.expectedError == nil {
+				require.NoError(t, err)
+				require.Equal(t, tc.expected, result)
+				return
+			}
+			require.Error(t, err)
+			if err.Error() != tc.expectedError.Error() {
+				t.Errorf("Unexpected error message. Expected: %v, Got: %v", tc.expectedError, err)
+			}
 		})
 	}
 }

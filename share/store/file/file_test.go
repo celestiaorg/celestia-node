@@ -3,6 +3,7 @@ package file
 import (
 	"context"
 	"fmt"
+	"github.com/celestiaorg/nmt"
 	mrand "math/rand"
 	"strconv"
 	"testing"
@@ -47,13 +48,31 @@ func testFileShare(t *testing.T, createFile createFile, size int) {
 }
 
 func testFileData(t *testing.T, createFile createFile, size int) {
-	// generate EDS with random data and some shares with the same namespace
-	namespace := sharetest.RandV0Namespace()
-	amount := mrand.Intn(size*size-1) + 1
-	eds, dah := edstest.RandEDSWithNamespace(t, namespace, amount, size)
+	t.Run("included", func(t *testing.T) {
+		// generate EDS with random data and some shares with the same namespace
+		namespace := sharetest.RandV0Namespace()
+		amount := mrand.Intn(size*size-1) + 1
+		eds, dah := edstest.RandEDSWithNamespace(t, namespace, amount, size)
+		f := createFile(eds)
+		testData(t, f, namespace, dah)
+	})
 
-	f := createFile(eds)
+	t.Run("not included", func(t *testing.T) {
+		// generate EDS with random data and some shares with the same namespace
+		eds := edstest.RandEDS(t, size)
+		dah, err := share.NewRoot(eds)
+		require.NoError(t, err)
 
+		maxNs := nmt.MaxNamespace(dah.RowRoots[(len(dah.RowRoots))/2-1], share.NamespaceSize)
+		targetNs, err := share.Namespace(maxNs).AddInt(-1)
+		require.NoError(t, err)
+
+		f := createFile(eds)
+		testData(t, f, targetNs, dah)
+	})
+}
+
+func testData(t *testing.T, f EdsFile, namespace share.Namespace, dah *share.Root) {
 	for i, root := range dah.RowRoots {
 		if !namespace.IsOutsideRange(root, root) {
 			nd, err := f.Data(context.Background(), namespace, i)
