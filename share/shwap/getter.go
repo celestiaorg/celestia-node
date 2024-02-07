@@ -46,6 +46,19 @@ func (g *Getter) GetShare(ctx context.Context, header *header.ExtendedHeader, ro
 // Automatically caches them on the Blockstore.
 // Guarantee that the returned shares are in the same order as shrIdxs.
 func (g *Getter) GetShares(ctx context.Context, hdr *header.ExtendedHeader, smplIdxs ...int) ([]share.Share, error) {
+	if len(smplIdxs) == 0 {
+		return nil, nil
+	}
+
+	if hdr.DAH.Equals(share.EmptyRoot()) {
+		shares := make([]share.Share, len(smplIdxs))
+		for _, idx := range smplIdxs {
+			x, y := uint(smplIdxs[idx]/len(hdr.DAH.RowRoots)), uint(smplIdxs[idx]%len(hdr.DAH.RowRoots))
+			shares[idx] = share.EmptyExtendedDataSquare().GetCell(x, y)
+		}
+		return shares, nil
+	}
+
 	sids := make([]SampleID, len(smplIdxs))
 	for i, shrIdx := range smplIdxs {
 		sid, err := NewSampleID(hdr.Height(), shrIdx, hdr.DAH)
@@ -120,6 +133,10 @@ func (g *Getter) GetShares(ctx context.Context, hdr *header.ExtendedHeader, smpl
 // GetEDS
 // TODO(@Wondertan): Consider requesting randomized rows instead of ODS only
 func (g *Getter) GetEDS(ctx context.Context, hdr *header.ExtendedHeader) (*rsmt2d.ExtendedDataSquare, error) {
+	if hdr.DAH.Equals(share.EmptyRoot()) {
+		return share.EmptyExtendedDataSquare(), nil
+	}
+
 	sqrLn := len(hdr.DAH.RowRoots)
 	rids := make([]RowID, sqrLn/2)
 	for i := 0; i < sqrLn/2; i++ {

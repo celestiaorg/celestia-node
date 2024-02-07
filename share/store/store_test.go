@@ -169,6 +169,75 @@ func TestEDSStore(t *testing.T) {
 		require.NoError(t, err)
 		require.False(t, has)
 	})
+
+	t.Run("empty EDS returned by hash", func(t *testing.T) {
+		eds := share.EmptyExtendedDataSquare()
+		dah, err := share.NewRoot(eds)
+		require.NoError(t, err)
+
+		// assert that the empty file exists
+		has, err := edsStore.HasByHash(ctx, dah.Hash())
+		require.NoError(t, err)
+		require.True(t, has)
+
+		// assert that the empty file is, in fact, empty
+		f, err := edsStore.GetByHash(ctx, dah.Hash())
+		require.NoError(t, err)
+		require.True(t, f.DataHash().IsEmptyRoot())
+	})
+
+	t.Run("empty EDS returned by height", func(t *testing.T) {
+		eds := share.EmptyExtendedDataSquare()
+		dah, err := share.NewRoot(eds)
+		require.NoError(t, err)
+		height := height.Add(1)
+
+		// assert that the empty file exists
+		has, err := edsStore.HasByHeight(ctx, height)
+		require.NoError(t, err)
+		require.False(t, has)
+
+		f, err := edsStore.Put(ctx, dah.Hash(), height, eds)
+		require.NoError(t, err)
+		require.True(t, f.DataHash().IsEmptyRoot())
+		require.NoError(t, f.Close())
+
+		// assert that the empty file can be accessed by height
+		f, err = edsStore.GetByHeight(ctx, height)
+		require.NoError(t, err)
+		require.True(t, f.DataHash().IsEmptyRoot())
+	})
+
+	t.Run("empty EDS are persisted", func(t *testing.T) {
+		dir := t.TempDir()
+		edsStore, err := NewStore(DefaultParameters(), dir)
+		require.NoError(t, err)
+
+		eds := share.EmptyExtendedDataSquare()
+		dah, err := share.NewRoot(eds)
+		require.NoError(t, err)
+		from, to := 10, 20
+
+		// store empty EDSs
+		for i := from; i <= to; i++ {
+			f, err := edsStore.Put(ctx, dah.Hash(), uint64(i), eds)
+			require.NoError(t, err)
+			require.NoError(t, f.Close())
+		}
+
+		// close and reopen the store to ensure that the empty files are persisted
+		require.NoError(t, edsStore.Close())
+		edsStore, err = NewStore(DefaultParameters(), dir)
+		require.NoError(t, err)
+
+		// assert that the empty files restored from disk
+		for i := from; i <= to; i++ {
+			f, err := edsStore.GetByHeight(ctx, uint64(i))
+			require.NoError(t, err)
+			require.True(t, f.DataHash().IsEmptyRoot())
+			require.NoError(t, f.Close())
+		}
+	})
 }
 
 func BenchmarkStore(b *testing.B) {

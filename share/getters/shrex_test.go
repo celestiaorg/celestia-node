@@ -2,6 +2,7 @@ package getters
 
 import (
 	"context"
+	"github.com/celestiaorg/celestia-app/pkg/da"
 	"github.com/celestiaorg/celestia-node/share/store"
 	"github.com/tendermint/tendermint/libs/rand"
 	"sync/atomic"
@@ -111,7 +112,7 @@ func TestShrexGetter(t *testing.T) {
 
 		f, err := edsStore.Put(ctx, dah.Hash(), height, eds)
 		require.NoError(t, err)
-		f.Close()
+		require.NoError(t, f.Close())
 		peerManager.Validate(ctx, srvHost.ID(), shrexsub.Notification{
 			DataHash: dah.Hash(),
 			Height:   height,
@@ -149,7 +150,7 @@ func TestShrexGetter(t *testing.T) {
 
 		f, err := edsStore.Put(ctx, dah.Hash(), height, eds)
 		require.NoError(t, err)
-		defer f.Close()
+		require.NoError(t, f.Close())
 		peerManager.Validate(ctx, srvHost.ID(), shrexsub.Notification{
 			DataHash: dah.Hash(),
 			Height:   height,
@@ -179,7 +180,7 @@ func TestShrexGetter(t *testing.T) {
 
 		f, err := edsStore.Put(ctx, dah.Hash(), height, eds)
 		require.NoError(t, err)
-		defer f.Close()
+		require.NoError(t, f.Close())
 		peerManager.Validate(ctx, srvHost.ID(), shrexsub.Notification{
 			DataHash: dah.Hash(),
 			Height:   height,
@@ -188,6 +189,17 @@ func TestShrexGetter(t *testing.T) {
 		got, err := getter.GetEDS(ctx, eh)
 		require.NoError(t, err)
 		require.Equal(t, eds.Flattened(), got.Flattened())
+	})
+
+	t.Run("EDS get empty", func(t *testing.T) {
+		// empty root
+		emptyRoot := da.MinDataAvailabilityHeader()
+		eh := headertest.RandExtendedHeaderWithRoot(t, &emptyRoot)
+
+		eds, err := getter.GetEDS(ctx, eh)
+		require.NoError(t, err)
+		dah, err := share.NewRoot(eds)
+		require.True(t, share.DataHash(dah.Hash()).IsEmptyRoot())
 	})
 
 	t.Run("EDS_ctx_deadline", func(t *testing.T) {

@@ -4,6 +4,8 @@ import (
 	"bytes"
 	"context"
 	"fmt"
+	"github.com/celestiaorg/celestia-app/pkg/da"
+	"github.com/celestiaorg/celestia-node/header/headertest"
 	"github.com/celestiaorg/celestia-node/share/shwap"
 	"github.com/celestiaorg/celestia-node/share/store"
 	ds_sync "github.com/ipfs/go-datastore/sync"
@@ -57,6 +59,24 @@ func TestGetter(t *testing.T) {
 		}
 	})
 
+	t.Run("GetShares from empty", func(t *testing.T) {
+		emptyRoot := da.MinDataAvailabilityHeader()
+		eh := headertest.RandExtendedHeaderWithRoot(t, &emptyRoot)
+
+		idxs := []int{0, 1, 2, 3}
+		square := share.EmptyExtendedDataSquare()
+		shrs, err := get.GetShares(ctx, eh, idxs...)
+		assert.NoError(t, err)
+
+		for i, shrs := range shrs {
+			idx := idxs[i]
+			x, y := uint(idx)/square.Width(), uint(idx)%square.Width()
+			cell := square.GetCell(x, y)
+			ok := bytes.Equal(cell, shrs)
+			require.True(t, ok)
+		}
+	})
+
 	t.Run("GetEDS", func(t *testing.T) {
 		ctx, cancel := context.WithTimeout(ctx, time.Second)
 		t.Cleanup(cancel)
@@ -67,6 +87,21 @@ func TestGetter(t *testing.T) {
 
 		ok := eds.Equals(square)
 		assert.True(t, ok)
+	})
+
+	t.Run("GetEDS empty", func(t *testing.T) {
+		ctx, cancel := context.WithTimeout(ctx, time.Second)
+		t.Cleanup(cancel)
+
+		emptyRoot := da.MinDataAvailabilityHeader()
+		eh := headertest.RandExtendedHeaderWithRoot(t, &emptyRoot)
+
+		eds, err := get.GetEDS(ctx, eh)
+		assert.NoError(t, err)
+		assert.NotNil(t, eds)
+
+		dah, err := share.NewRoot(eds)
+		require.True(t, share.DataHash(dah.Hash()).IsEmptyRoot())
 	})
 
 	t.Run("GetSharesByNamespace", func(t *testing.T) {

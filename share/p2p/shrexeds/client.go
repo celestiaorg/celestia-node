@@ -167,11 +167,11 @@ func readEds(ctx context.Context, stream network.Stream, eh *header.ExtendedHead
 	if err != nil {
 		return nil, err
 	}
-	if !bytes.Equal(newDah.Hash(), eh.Hash()) {
+	if !bytes.Equal(newDah.Hash(), eh.DAH.Hash()) {
 		return nil, fmt.Errorf(
 			"content integrity mismatch: imported root %s doesn't match expected root %s",
 			share.DataHash(newDah.Hash()),
-			eh.Hash(),
+			eh.DAH.Hash(),
 		)
 	}
 	return eds, nil

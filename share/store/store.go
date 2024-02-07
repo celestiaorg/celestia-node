@@ -2,9 +2,13 @@ package store
 
 import (
 	"context"
+	"encoding/gob"
 	"errors"
 	"fmt"
+	"github.com/celestiaorg/celestia-node/libs/utils"
+	"io"
 	"os"
+	"sync"
 	"time"
 
 	logging "github.com/ipfs/go-log/v2"
@@ -32,8 +36,9 @@ var (
 //  - lock store folder
 
 const (
-	hashsPath   = "/blocks/"
-	heightsPath = "/heights/"
+	hashsPath    = "/blocks/"
+	heightsPath  = "/heights/"
+	emptyHeights = "/empty_heights"
 
 	defaultDirPerm = 0755
 )
@@ -45,15 +50,15 @@ var ErrNotFound = errors.New("eds not found in store")
 // blockstore interface implementation to achieve access. The main use-case is randomized sampling
 // over the whole chain of EDS block data and getting data by namespace.
 type Store struct {
-	cancel context.CancelFunc
-
+	// basepath is the root directory of the store
 	basepath string
-
 	// cache is used to cache recent blocks and blocks that are accessed frequently
 	cache *cache.DoubleCache
-
 	// stripedLocks is used to synchronize parallel operations
 	stripLock *striplock
+	// emptyHeights stores the heights of empty files
+	emptyHeights     map[uint64]struct{}
+	emptyHeightsLock sync.RWMutex
 
 	metrics *metrics
 }
@@ -74,6 +79,11 @@ func NewStore(params *Parameters, basePath string) (*Store, error) {
 		return nil, fmt.Errorf("ensure blocks folder: %w", err)
 	}
 
+	// ensure empty heights file
+	if err := ensureFile(basePath + emptyHeights); err != nil {
+		return nil, fmt.Errorf("ensure empty heights file: %w", err)
+	}
+
 	recentBlocksCache, err := cache.NewFileCache("recent", params.RecentBlocksCacheSize)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create recent blocks cache: %w", err)
@@ -84,13 +94,22 @@ func NewStore(params *Parameters, basePath string) (*Store, error) {
 		return nil, fmt.Errorf("failed to create blockstore cache: %w", err)
 	}
 
+	emptyHeights, err := loadEmptyHeights(basePath)
+	if err != nil {
+		return nil, fmt.Errorf("loading empty heights: %w", err)
+	}
+
 	store := &Store{
-		basepath:  basePath,
-		cache:     cache.NewDoubleCache(recentBlocksCache, blockstoreCache),
-		stripLock: newStripLock(1024),
-		//metrics:   newMetrics(),
+		basepath:     basePath,
+		cache:        cache.NewDoubleCache(recentBlocksCache, blockstoreCache),
+		stripLock:    newStripLock(1024),
+		emptyHeights: emptyHeights,
 	}
 	return store, nil
+}
+
+func (s *Store) Close() error {
+	return s.storeEmptyHeights()
 }
 
 func (s *Store) Put(
@@ -103,6 +122,11 @@ func (s *Store) Put(
 	lock := s.stripLock.byDatahashAndHeight(datahash, height)
 	lock.lock()
 	defer lock.unlock()
+
+	if datahash.IsEmptyRoot() {
+		s.addEmptyHeight(height)
+		return emptyFile, nil
+	}
 
 	// short circuit if file exists
 	if has, _ := s.hasByHash(datahash); has {
@@ -184,6 +208,10 @@ func (s *Store) GetByHeight(ctx context.Context, height uint64) (file.EdsFile, e
 }
 
 func (s *Store) getByHeight(height uint64) (file.EdsFile, error) {
+	if s.isEmptyHeight(height) {
+		return emptyFile, nil
+	}
+
 	f, err := s.cache.Get(height)
 	if err == nil {
 		return f, nil
@@ -234,6 +262,10 @@ func (s *Store) HasByHeight(ctx context.Context, height uint64) (bool, error) {
 }
 
 func (s *Store) hasByHeight(height uint64) (bool, error) {
+	if s.isEmptyHeight(height) {
+		return true, nil
+	}
+
 	_, err := s.cache.Get(height)
 	if err == nil {
 		return true, nil
@@ -309,10 +341,28 @@ func ensureFolder(path string) error {
 		return nil
 	}
 	if err != nil {
-		return fmt.Errorf("checking blocks dir: %w", err)
+		return fmt.Errorf("checking dir: %w", err)
 	}
 	if !info.IsDir() {
 		return errors.New("expected dir, got a file")
+	}
+	return nil
+}
+
+func ensureFile(path string) error {
+	info, err := os.Stat(path)
+	if os.IsNotExist(err) {
+		file, err := os.Create(path)
+		if err != nil {
+			return fmt.Errorf("creating file: %w", err)
+		}
+		return file.Close()
+	}
+	if err != nil {
+		return fmt.Errorf("checking file: %w", err)
+	}
+	if info.IsDir() {
+		return errors.New("expected file, got a dir")
 	}
 	return nil
 }
@@ -326,4 +376,47 @@ func pathExists(path string) (bool, error) {
 		return false, err
 	}
 	return true, nil
+}
+
+func (s *Store) storeEmptyHeights() error {
+	file, err := os.OpenFile(s.basepath+emptyHeights, os.O_WRONLY, os.ModePerm)
+	if err != nil {
+		return fmt.Errorf("opening empty heights file: %w", err)
+	}
+	defer utils.CloseAndLog(log, "empty heights file", file)
+
+	encoder := gob.NewEncoder(file)
+	if err := encoder.Encode(s.emptyHeights); err != nil {
+		return fmt.Errorf("encoding empty heights: %w", err)
+	}
+
+	return nil
+}
+
+func loadEmptyHeights(basepath string) (map[uint64]struct{}, error) {
+	file, err := os.Open(basepath + emptyHeights)
+	if err != nil {
+		return nil, fmt.Errorf("opening empty heights file: %w", err)
+	}
+	defer utils.CloseAndLog(log, "empty heights file", file)
+
+	emptyHeights := make(map[uint64]struct{})
+	gob.NewDecoder(file).Decode(&emptyHeights)
+	if err != nil && !errors.Is(err, io.EOF) {
+		return nil, fmt.Errorf("decoding empty heights file: %w", err)
+	}
+	return emptyHeights, nil
+}
+
+func (s *Store) isEmptyHeight(height uint64) bool {
+	s.emptyHeightsLock.RLock()
+	defer s.emptyHeightsLock.RUnlock()
+	_, ok := s.emptyHeights[height]
+	return ok
+}
+
+func (s *Store) addEmptyHeight(height uint64) {
+	s.emptyHeightsLock.Lock()
+	defer s.emptyHeightsLock.Unlock()
+	s.emptyHeights[height] = struct{}{}
 }

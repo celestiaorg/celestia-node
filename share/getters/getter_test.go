@@ -2,6 +2,7 @@ package getters
 
 import (
 	"context"
+	"github.com/celestiaorg/celestia-app/pkg/da"
 	"github.com/celestiaorg/celestia-node/share/store"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -71,6 +72,20 @@ func TestStoreGetter(t *testing.T) {
 		eh.RawHeader.Height = 666
 		_, err = sg.GetEDS(ctx, eh)
 		require.ErrorIs(t, err, share.ErrNotFound, err)
+	})
+
+	t.Run("Get empty EDS", func(t *testing.T) {
+		// empty root
+		emptyRoot := da.MinDataAvailabilityHeader()
+		eh := headertest.RandExtendedHeaderWithRoot(t, &emptyRoot)
+		f, err := edsStore.Put(ctx, eh.DAH.Hash(), eh.Height(), nil)
+		require.NoError(t, err)
+		require.NoError(t, f.Close())
+
+		eds, err := sg.GetEDS(ctx, eh)
+		require.NoError(t, err)
+		dah, err := share.NewRoot(eds)
+		require.True(t, share.DataHash(dah.Hash()).IsEmptyRoot())
 	})
 
 	t.Run("GetSharesByNamespace", func(t *testing.T) {
