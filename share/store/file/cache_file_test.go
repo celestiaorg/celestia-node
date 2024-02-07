@@ -32,4 +32,8 @@ func TestCacheFile(t *testing.T) {
 	t.Run("EDS", func(t *testing.T) {
 		testFileEds(t, newFile, size)
 	})
+
+	t.Run("ReadOds", func(t *testing.T) {
+		testFileReader(t, newFile, size)
+	})
 }

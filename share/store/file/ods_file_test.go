@@ -2,13 +2,10 @@ package file
 
 import (
 	"context"
-	"testing"
-	"time"
-
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"testing"
 
-	"github.com/celestiaorg/celestia-app/pkg/da"
 	"github.com/celestiaorg/rsmt2d"
 
 	"github.com/celestiaorg/celestia-node/share/eds/edstest"
@@ -51,6 +48,10 @@ func TestOdsFile(t *testing.T) {
 	t.Run("EDS", func(t *testing.T) {
 		testFileEds(t, createOdsFile, size)
 	})
+
+	t.Run("ReadOds", func(t *testing.T) {
+		testFileReader(t, createOdsFile, size)
+	})
 }
 
 func TestReadOdsFile(t *testing.T) {
@@ -67,35 +68,6 @@ func TestReadOdsFile(t *testing.T) {
 		require.True(t, len(original) == len(row))
 		require.Equal(t, original, row)
 	}
-}
-
-func TestFileStreaming(t *testing.T) {
-	ctx, cancel := context.WithTimeout(context.Background(), time.Second*5)
-	t.Cleanup(cancel)
-
-	eds := edstest.RandEDS(t, 8)
-	dah, err := da.NewDataAvailabilityHeader(eds)
-	require.NoError(t, err)
-
-	path := t.TempDir() + "/testfile"
-	f, err := CreateOdsFile(path, 1, []byte{}, eds)
-	require.NoError(t, err)
-
-	reader, err := f.Reader()
-	require.NoError(t, err)
-
-	streamed, err := ReadEds(ctx, reader, dah.Hash())
-	require.NoError(t, err)
-	require.True(t, eds.Equals(streamed))
-
-	// verify that the reader represented by file can be read from
-	// multiple times, without exhausting the underlying reader.
-	reader2, err := f.Reader()
-	require.NoError(t, err)
-
-	streamed2, err := ReadEds(ctx, reader2, dah.Hash())
-	require.NoError(t, err)
-	require.True(t, eds.Equals(streamed2))
 }
 
 // Leopard full encode

@@ -7,6 +7,7 @@ import (
 	mrand "math/rand"
 	"strconv"
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/require"
 
@@ -103,6 +104,30 @@ func testFileEds(t *testing.T, createFile createFile, size int) {
 	eds2, err := fl.EDS(context.Background())
 	require.NoError(t, err)
 	require.True(t, eds.Equals(eds2))
+}
+
+func testFileReader(t *testing.T, createFile createFile, size int) {
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+
+	eds := edstest.RandEDS(t, size)
+	f := createFile(eds)
+
+	reader, err := f.Reader()
+	require.NoError(t, err)
+
+	streamed, err := ReadEds(ctx, reader, size)
+	require.NoError(t, err)
+	require.True(t, eds.Equals(streamed))
+
+	// verify that the reader represented by file can be read from
+	// multiple times, without exhausting the underlying reader.
+	reader2, err := f.Reader()
+	require.NoError(t, err)
+
+	streamed2, err := ReadEds(ctx, reader2, size)
+	require.NoError(t, err)
+	require.True(t, eds.Equals(streamed2))
 }
 
 func benchGetAxisFromFile(b *testing.B, newFile func(size int) EdsFile, minSize, maxSize int) {
