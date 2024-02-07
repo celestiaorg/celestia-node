@@ -8,7 +8,6 @@ import (
 	"sync/atomic"
 	"testing"
 
-	"github.com/celestiaorg/celestia-app/pkg/da"
 	"github.com/celestiaorg/celestia-app/pkg/wrapper"
 	"github.com/celestiaorg/rsmt2d"
 
@@ -69,10 +68,9 @@ func TestStoreGetter(t *testing.T) {
 		assert.True(t, eds.Equals(retrievedEDS))
 
 		// root not found
-		emptyRoot := da.MinDataAvailabilityHeader()
-		eh.DAH = &emptyRoot
+		eh.RawHeader.Height = 666
 		_, err = sg.GetEDS(ctx, eh)
-		require.ErrorIs(t, err, share.ErrNotFound)
+		require.ErrorIs(t, err, share.ErrNotFound, err)
 	})
 
 	t.Run("GetSharesByNamespace", func(t *testing.T) {

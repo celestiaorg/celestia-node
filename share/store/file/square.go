@@ -16,13 +16,9 @@ import (
 
 type square [][]share.Share
 
-func ReadEds(_ context.Context, r io.Reader, root share.DataHash) (*rsmt2d.ExtendedDataSquare, error) {
-	h, err := ReadHeader(r)
-	if err != nil {
-		return nil, fmt.Errorf("reading header: %w", err)
-	}
-
-	square, err := readShares(h, r)
+// ReadEds reads an EDS from the reader and returns it.
+func ReadEds(_ context.Context, r io.Reader, size int) (*rsmt2d.ExtendedDataSquare, error) {
+	square, err := readShares(share.Size, size, r)
 	if err != nil {
 		return nil, fmt.Errorf("reading shares: %w", err)
 	}
@@ -31,25 +27,16 @@ func ReadEds(_ context.Context, r io.Reader, root share.DataHash) (*rsmt2d.Exten
 	if err != nil {
 		return nil, fmt.Errorf("computing EDS: %w", err)
 	}
-
-	newDah, err := share.NewRoot(eds)
-	if err != nil {
-		return nil, err
-	}
-	if !bytes.Equal(newDah.Hash(), root) {
-		return nil, fmt.Errorf(
-			"share: content integrity mismatch: imported root %s doesn't match expected root %s",
-			share.DataHash(newDah.Hash()),
-			root,
-		)
-	}
 	return eds, nil
 }
 
-func readShares(hdr *Header, reader io.Reader) (square, error) {
-	shrLn := int(hdr.shareSize)
-	odsLn := int(hdr.squareSize) / 2
+// readShares reads shares from the reader and returns a square. It assumes that the reader is
+// positioned at the beginning of the shares. It knows the size of the shares and the size of the
+// square, so reads from reader are limited to exactly the amount of data required.
+func readShares(shareSize, squareSize int, reader io.Reader) (square, error) {
+	odsLn := squareSize / 2
 
+	// get pre-allocated square and buffer from memPools
 	square := memPools.get(odsLn).square()
 	buf := memPools.get(odsLn).getHalfAxis()
 	defer memPools.get(odsLn).putHalfAxis(buf)
@@ -60,7 +47,7 @@ func readShares(hdr *Header, reader io.Reader) (square, error) {
 		}
 
 		for j := 0; j < odsLn; j++ {
-			copy(square[i][j], buf[j*shrLn:(j+1)*shrLn])
+			copy(square[i][j], buf[j*shareSize:(j+1)*shareSize])
 		}
 	}
 
@@ -119,12 +106,6 @@ func (s square) Reader(hdr *Header) (io.Reader, error) {
 		square: s,
 		total:  s.size() * s.size(),
 		buf:    bytes.NewBuffer(make([]byte, 0, int(hdr.shareSize))),
-	}
-
-	// write header to the buffer
-	_, err := hdr.WriteTo(odsR.buf)
-	if err != nil {
-		return nil, fmt.Errorf("writing header: %w", err)
 	}
 
 	return odsR, nil

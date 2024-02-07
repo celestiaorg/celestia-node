@@ -1,9 +1,11 @@
 package shrexeds
 
 import (
+	"bytes"
 	"context"
 	"errors"
 	"fmt"
+	"github.com/celestiaorg/celestia-node/header"
 	"io"
 	"net"
 	"time"
@@ -47,16 +49,15 @@ func NewClient(params *Parameters, host host.Host) (*Client, error) {
 // RequestEDS requests the ODS from the given peers and returns the EDS upon success.
 func (c *Client) RequestEDS(
 	ctx context.Context,
-	height uint64,
-	dataHash share.DataHash,
+	header *header.ExtendedHeader,
 	peer peer.ID,
 ) (*rsmt2d.ExtendedDataSquare, error) {
-	eds, err := c.doRequest(ctx, height, dataHash, peer)
+	eds, err := c.doRequest(ctx, header, peer)
 	if err == nil {
 		return eds, nil
 	}
 	log.Debugw("client: eds request to peer failed",
-		"height", height,
+		"height", header.Height(),
 		"peer", peer.String(),
 		"error", err)
 	if errors.Is(err, context.DeadlineExceeded) || errors.Is(err, context.Canceled) {
@@ -75,7 +76,7 @@ func (c *Client) RequestEDS(
 	if err != p2p.ErrNotFound {
 		log.Warnw("client: eds request to peer failed",
 			"peer", peer.String(),
-			"height", height,
+			"height", header.Height(),
 			"err", err)
 	}
 
@@ -84,30 +85,29 @@ func (c *Client) RequestEDS(
 
 func (c *Client) doRequest(
 	ctx context.Context,
-	height uint64,
-	dataHash share.DataHash,
+	header *header.ExtendedHeader,
 	to peer.ID,
 ) (*rsmt2d.ExtendedDataSquare, error) {
 	streamOpenCtx, cancel := context.WithTimeout(ctx, c.params.ServerReadTimeout)
 	defer cancel()
 	stream, err := c.host.NewStream(streamOpenCtx, to, c.protocolID)
 	if err != nil {
-		return nil, fmt.Errorf("failed to open stream: %w", err)
+		return nil, fmt.Errorf("open stream: %w", err)
 	}
 	defer stream.Close()
 
 	c.setStreamDeadlines(ctx, stream)
 
-	req := &pb.EDSRequest{Height: height}
+	req := &pb.EDSRequest{Height: header.Height()}
 
 	// request ODS
 	log.Debugw("client: requesting ods",
-		"height", height,
+		"height", header.Height(),
 		"peer", to.String())
 	_, err = serde.Write(stream, req)
 	if err != nil {
 		stream.Reset() //nolint:errcheck
-		return nil, fmt.Errorf("failed to write request to stream: %w", err)
+		return nil, fmt.Errorf("write request to stream: %w", err)
 	}
 	err = stream.CloseWrite()
 	if err != nil {
@@ -128,7 +128,7 @@ func (c *Client) doRequest(
 			return nil, p2p.ErrNotFound
 		}
 		stream.Reset() //nolint:errcheck
-		return nil, fmt.Errorf("failed to read status from stream: %w", err)
+		return nil, fmt.Errorf("read status from stream: %w", err)
 	}
 
 	switch resp.Status {
@@ -136,9 +136,9 @@ func (c *Client) doRequest(
 		// reset stream deadlines to original values, since read deadline was changed during status read
 		c.setStreamDeadlines(ctx, stream)
 		// use header and ODS bytes to construct EDS and verify it against dataHash
-		eds, err := file.ReadEds(ctx, stream, dataHash)
+		eds, err := readEds(ctx, stream, header)
 		if err != nil {
-			return nil, fmt.Errorf("failed to read eds from ods bytes: %w", err)
+			return nil, fmt.Errorf("read eds from stream: %w", err)
 		}
 		c.metrics.ObserveRequests(ctx, 1, p2p.StatusSuccess)
 		return eds, nil
@@ -154,6 +154,27 @@ func (c *Client) doRequest(
 		c.metrics.ObserveRequests(ctx, 1, p2p.StatusInternalErr)
 		return nil, p2p.ErrInvalidResponse
 	}
+}
+
+func readEds(ctx context.Context, stream network.Stream, eh *header.ExtendedHeader) (*rsmt2d.ExtendedDataSquare, error) {
+	eds, err := file.ReadEds(ctx, stream, len(eh.DAH.RowRoots))
+	if err != nil {
+		return nil, fmt.Errorf("failed to read eds from ods bytes: %w", err)
+	}
+
+	// verify that the EDS hash matches the expected hash
+	newDah, err := share.NewRoot(eds)
+	if err != nil {
+		return nil, err
+	}
+	if !bytes.Equal(newDah.Hash(), eh.Hash()) {
+		return nil, fmt.Errorf(
+			"content integrity mismatch: imported root %s doesn't match expected root %s",
+			share.DataHash(newDah.Hash()),
+			eh.Hash(),
+		)
+	}
+	return eds, nil
 }
 
 func (c *Client) setStreamDeadlines(ctx context.Context, stream network.Stream) {

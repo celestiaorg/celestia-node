@@ -163,7 +163,7 @@ func (f *OdsFile) readOds() error {
 		return fmt.Errorf("discarding header: %w", err)
 	}
 
-	square, err := readShares(f.hdr, f.fl)
+	square, err := readShares(f.hdr.ShareSize(), f.Size(), f.fl)
 	if err != nil {
 		return fmt.Errorf("reading ods: %w", err)
 	}
