@@ -196,21 +196,19 @@ func (g *Getter) GetSharesByNamespace(
 		return nil, err
 	}
 
-	var dids []DataID //nolint:prealloc// we don't know how many rows with needed namespace there are
-	for rowIdx, rowRoot := range hdr.DAH.RowRoots {
-		if ns.IsOutsideRange(rowRoot, rowRoot) {
-			continue
-		}
+	from, to := share.RowRangeForNamespace(hdr.DAH, ns)
+	if from == to {
+		return share.NamespacedShares{}, nil
+	}
 
+	dids := make([]DataID, 0, to-from)
+	for rowIdx := from; rowIdx < to; rowIdx++ {
 		did, err := NewDataID(hdr.Height(), uint16(rowIdx), ns, hdr.DAH)
 		if err != nil {
 			return nil, err
 		}
 
 		dids = append(dids, did)
-	}
-	if len(dids) == 0 {
-		return share.NamespacedShares{}, nil
 	}
 
 	datas := make([]Data, len(dids))
