@@ -38,7 +38,8 @@ const (
 	// events in libp2p
 	eventbusBufSize = 32
 
-	// storedPoolsAmount is the amount of pools for recent headers that will be stored in the peer manager
+	// storedPoolsAmount is the amount of pools for recent headers that will be stored in the peer
+	// manager
 	storedPoolsAmount = 10
 )
 
@@ -303,7 +304,7 @@ func (m *Manager) subscribeHeader(ctx context.Context, headerSub libhead.Subscri
 			log.Debugw("stored initial height", "height", h.Height())
 		}
 
-		// update storeFrom if header heigh
+		// update storeFrom if header height
 		m.storeFrom.Store(uint64(max(0, int(h.Height())-storedPoolsAmount)))
 		log.Debugw("updated lowest stored height", "height", h.Height())
 	}

@@ -1,3 +1,5 @@
+//go:build api || integration
+
 package tests
 
 import (
@@ -13,26 +15,14 @@ import (
 	"github.com/celestiaorg/celestia-node/api/rpc/client"
 	"github.com/celestiaorg/celestia-node/blob"
 	"github.com/celestiaorg/celestia-node/blob/blobtest"
-	"github.com/celestiaorg/celestia-node/libs/authtoken"
 	"github.com/celestiaorg/celestia-node/nodebuilder"
 	"github.com/celestiaorg/celestia-node/nodebuilder/node"
 	"github.com/celestiaorg/celestia-node/nodebuilder/tests/swamp"
 )
 
-func getAdminClient(ctx context.Context, nd *nodebuilder.Node, t *testing.T) *client.Client {
-	t.Helper()
-
-	signer := nd.AdminSigner
-	listenAddr := "ws://" + nd.RPCServer.ListenAddr()
-
-	jwt, err := authtoken.NewSignedJWT(signer, []auth.Permission{"public", "read", "write", "admin"})
-	require.NoError(t, err)
-
-	client, err := client.NewClient(ctx, listenAddr, jwt)
-	require.NoError(t, err)
-
-	return client
-}
+const (
+	btime = time.Millisecond * 300
+)
 
 func TestNodeModule(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), swamp.DefaultTestTimeout)
@@ -57,6 +47,10 @@ func TestNodeModule(t *testing.T) {
 	info, err := client.Node.Info(ctx)
 	require.NoError(t, err)
 	require.Equal(t, info.APIVersion, node.APIVersion)
+
+	ready, err := client.Node.Ready(ctx)
+	require.NoError(t, err)
+	require.True(t, ready)
 
 	perms, err := client.Node.AuthVerify(ctx, jwt)
 	require.NoError(t, err)
@@ -99,7 +93,7 @@ func TestGetByHeight(t *testing.T) {
 	require.ErrorContains(t, err, "given height is from the future")
 }
 
-// TestBlobRPC ensures that blobs can be submited via rpc
+// TestBlobRPC ensures that blobs can be submitted via rpc
 func TestBlobRPC(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), swamp.DefaultTestTimeout)
 	t.Cleanup(cancel)
@@ -123,7 +117,7 @@ func TestBlobRPC(t *testing.T) {
 	)
 	require.NoError(t, err)
 
-	height, err := rpcClient.Blob.Submit(ctx, []*blob.Blob{newBlob}, nil)
+	height, err := rpcClient.Blob.Submit(ctx, []*blob.Blob{newBlob}, blob.DefaultGasPrice())
 	require.NoError(t, err)
 	require.True(t, height != 0)
 }

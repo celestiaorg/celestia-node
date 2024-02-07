@@ -10,9 +10,8 @@ import (
 	"github.com/filecoin-project/dagstore/index"
 	"github.com/filecoin-project/dagstore/shard"
 	ds "github.com/ipfs/go-datastore"
+	dsbadger "github.com/ipfs/go-ds-badger4"
 	"github.com/multiformats/go-multihash"
-
-	dsbadger "github.com/celestiaorg/go-ds-badger4"
 )
 
 const invertedIndexPath = "/inverted_index/"
