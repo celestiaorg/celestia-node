@@ -116,7 +116,7 @@ func (f *OdsFile) Reader() (io.Reader, error) {
 	if err != nil {
 		return nil, fmt.Errorf("reading ods: %w", err)
 	}
-	return f.ods.Reader(f.hdr)
+	return f.ods.Reader()
 }
 
 func (f *OdsFile) AxisHalf(ctx context.Context, axisType rsmt2d.Axis, axisIdx int) ([]share.Share, error) {

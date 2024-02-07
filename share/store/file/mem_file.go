@@ -1,7 +1,6 @@
 package file
 
 import (
-	"bytes"
 	"context"
 	"io"
 
@@ -26,12 +25,19 @@ func (f *MemFile) Close() error {
 }
 
 func (f *MemFile) Reader() (io.Reader, error) {
-	bs, err := f.Eds.MarshalJSON()
-	if err != nil {
-		return nil, err
-	}
+	return f.readOds().Reader()
+}
 
-	return bytes.NewReader(bs), nil
+func (f *MemFile) readOds() square {
+	odsLn := int(f.Eds.Width() / 2)
+	s := make(square, odsLn)
+	for y := 0; y < odsLn; y++ {
+		s[y] = make([]share.Share, odsLn)
+		for x := 0; x < odsLn; x++ {
+			s[y][x] = f.Eds.GetCell(uint(y), uint(x))
+		}
+	}
+	return s
 }
 
 func (f *MemFile) Height() uint64 {

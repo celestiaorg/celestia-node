@@ -97,7 +97,7 @@ func (s square) eds() (*rsmt2d.ExtendedDataSquare, error) {
 	return rsmt2d.ComputeExtendedDataSquare(shrs, share.DefaultRSMT2DCodec(), treeFn)
 }
 
-func (s square) Reader(hdr *Header) (io.Reader, error) {
+func (s square) Reader() (io.Reader, error) {
 	if s == nil {
 		return nil, fmt.Errorf("ods file not cached")
 	}
@@ -105,7 +105,7 @@ func (s square) Reader(hdr *Header) (io.Reader, error) {
 	odsR := &bufferedODSReader{
 		square: s,
 		total:  s.size() * s.size(),
-		buf:    bytes.NewBuffer(make([]byte, 0, int(hdr.shareSize))),
+		buf:    new(bytes.Buffer),
 	}
 
 	return odsR, nil
