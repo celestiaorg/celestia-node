@@ -106,17 +106,17 @@ func testFileEds(t *testing.T, createFile createFile, size int) {
 	require.True(t, eds.Equals(eds2))
 }
 
-func testFileReader(t *testing.T, createFile createFile, size int) {
+func testFileReader(t *testing.T, createFile createFile, odsSize int) {
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 
-	eds := edstest.RandEDS(t, size)
+	eds := edstest.RandEDS(t, odsSize)
 	f := createFile(eds)
 
 	reader, err := f.Reader()
 	require.NoError(t, err)
 
-	streamed, err := ReadEds(ctx, reader, size)
+	streamed, err := ReadEds(ctx, reader, f.Size())
 	require.NoError(t, err)
 	require.True(t, eds.Equals(streamed))
 
@@ -125,7 +125,7 @@ func testFileReader(t *testing.T, createFile createFile, size int) {
 	reader2, err := f.Reader()
 	require.NoError(t, err)
 
-	streamed2, err := ReadEds(ctx, reader2, size)
+	streamed2, err := ReadEds(ctx, reader2, f.Size())
 	require.NoError(t, err)
 	require.True(t, eds.Equals(streamed2))
 }

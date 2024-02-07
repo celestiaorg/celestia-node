@@ -17,8 +17,8 @@ import (
 type square [][]share.Share
 
 // ReadEds reads an EDS from the reader and returns it.
-func ReadEds(_ context.Context, r io.Reader, size int) (*rsmt2d.ExtendedDataSquare, error) {
-	square, err := readShares(share.Size, size, r)
+func ReadEds(_ context.Context, r io.Reader, edsSize int) (*rsmt2d.ExtendedDataSquare, error) {
+	square, err := readShares(share.Size, edsSize, r)
 	if err != nil {
 		return nil, fmt.Errorf("reading shares: %w", err)
 	}
@@ -33,8 +33,8 @@ func ReadEds(_ context.Context, r io.Reader, size int) (*rsmt2d.ExtendedDataSqua
 // readShares reads shares from the reader and returns a square. It assumes that the reader is
 // positioned at the beginning of the shares. It knows the size of the shares and the size of the
 // square, so reads from reader are limited to exactly the amount of data required.
-func readShares(shareSize, squareSize int, reader io.Reader) (square, error) {
-	odsLn := squareSize / 2
+func readShares(shareSize, edsSize int, reader io.Reader) (square, error) {
+	odsLn := edsSize / 2
 
 	// get pre-allocated square and buffer from memPools
 	square := memPools.get(odsLn).square()
