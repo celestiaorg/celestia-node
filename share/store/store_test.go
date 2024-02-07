@@ -2,11 +2,11 @@ package store
 
 import (
 	"context"
-	"github.com/tendermint/tendermint/libs/rand"
 	"testing"
 	"time"
 
 	"github.com/stretchr/testify/require"
+	"github.com/tendermint/tendermint/libs/rand"
 	"go.uber.org/atomic"
 
 	"github.com/celestiaorg/rsmt2d"

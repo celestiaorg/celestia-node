@@ -2,6 +2,8 @@ package shwap
 
 import (
 	"context"
+	"testing"
+
 	"github.com/ipfs/boxo/bitswap"
 	"github.com/ipfs/boxo/bitswap/network"
 	"github.com/ipfs/boxo/blockstore"
@@ -12,7 +14,6 @@ import (
 	record "github.com/libp2p/go-libp2p-record"
 	mocknet "github.com/libp2p/go-libp2p/p2p/net/mock"
 	"github.com/stretchr/testify/require"
-	"testing"
 )
 
 // TODO(@walldiss): those tests works, but wants to imports with edsStore, when dependency is reversed

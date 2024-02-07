@@ -3,7 +3,6 @@ package file
 import (
 	"context"
 	"fmt"
-	"github.com/celestiaorg/nmt"
 	mrand "math/rand"
 	"strconv"
 	"testing"
@@ -11,6 +10,7 @@ import (
 
 	"github.com/stretchr/testify/require"
 
+	"github.com/celestiaorg/nmt"
 	"github.com/celestiaorg/rsmt2d"
 
 	"github.com/celestiaorg/celestia-node/share"

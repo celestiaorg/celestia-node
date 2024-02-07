@@ -5,7 +5,6 @@ import (
 	"encoding/gob"
 	"errors"
 	"fmt"
-	"github.com/celestiaorg/celestia-node/libs/utils"
 	"io"
 	"os"
 	"sync"
@@ -16,6 +15,7 @@ import (
 
 	"github.com/celestiaorg/rsmt2d"
 
+	"github.com/celestiaorg/celestia-node/libs/utils"
 	"github.com/celestiaorg/celestia-node/share"
 	"github.com/celestiaorg/celestia-node/share/store/cache"
 	"github.com/celestiaorg/celestia-node/share/store/file"
