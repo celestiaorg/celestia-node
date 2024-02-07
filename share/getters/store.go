@@ -82,7 +82,11 @@ func (sg *StoreGetter) GetEDS(
 		utils.SetStatusAndEnd(span, err)
 	}()
 
-	file, err := sg.store.GetByHash(ctx, header.DAH.Hash())
+	if header.DAH.IsZero() {
+		return share.EmptyExtendedDataSquare(), nil
+	}
+
+	file, err := sg.store.GetByHeight(ctx, header.Height())
 	if errors.Is(err, store.ErrNotFound) {
 		// convert error to satisfy getter interface contract
 		err = share.ErrNotFound
@@ -113,6 +117,13 @@ func (sg *StoreGetter) GetSharesByNamespace(
 		utils.SetStatusAndEnd(span, err)
 	}()
 
+	// find rows that contains target namespace
+	from, to := share.RowRangeForNamespace(header.DAH, namespace)
+	if from == to {
+		// target namespace is out of bounds of all rows in the EDS
+		return share.NamespacedShares{}, nil
+	}
+
 	file, err := sg.store.GetByHeight(ctx, header.Height())
 	if errors.Is(err, store.ErrNotFound) {
 		// convert error to satisfy getter interface contract
@@ -122,9 +133,6 @@ func (sg *StoreGetter) GetSharesByNamespace(
 		return nil, fmt.Errorf("getter/store: failed to retrieve file: %w", err)
 	}
 	defer utils.CloseAndLog(log, "file", file)
-
-	// get all shares in the namespace
-	from, to := share.RowRangeForNamespace(header.DAH, namespace)
 
 	shares = make(share.NamespacedShares, 0, to-from+1)
 	for row := from; row < to; row++ {

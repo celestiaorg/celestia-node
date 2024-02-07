@@ -20,9 +20,12 @@ import (
 var (
 	log    = logging.Logger("share/eds")
 	tracer = otel.Tracer("share/eds")
+
+	emptyFile = &file.MemFile{Eds: share.EmptyExtendedDataSquare()}
 )
 
 // TODO(@walldiss):
+//  - index empty files by height
 //  - persist store stats like amount of files, file types, avg file size etc in a file
 //  - handle corrupted files
 //  - maintain in-memory missing files index / bloom-filter to fast return for not stored files.
@@ -102,17 +105,17 @@ func (s *Store) Put(
 	defer lock.unlock()
 
 	// short circuit if file exists
-	if has, _ := s.hasByHeight(height); has {
+	if has, _ := s.hasByHash(datahash); has {
 		s.metrics.observePutExist(ctx)
-		return s.getByHeight(height)
+		return s.getByHash(datahash)
 	}
 
-	if has, _ := s.hasByHash(datahash); has {
-		log.Errorw("put: file already exists by hash, but not by height",
+	if has, _ := s.hasByHeight(height); has {
+		log.Warnw("put: file already exists by height, but not by hash",
 			"height", height,
 			"hash", datahash.String())
 		s.metrics.observePutExist(ctx)
-		return s.getByHash(datahash)
+		return s.getByHeight(height)
 	}
 
 	path := s.basepath + hashsPath + datahash.String()
@@ -140,6 +143,9 @@ func (s *Store) Put(
 }
 
 func (s *Store) GetByHash(ctx context.Context, datahash share.DataHash) (file.EdsFile, error) {
+	if datahash.IsEmptyRoot() {
+		return emptyFile, nil
+	}
 	lock := s.stripLock.byDatahash(datahash)
 	lock.RLock()
 	defer lock.RUnlock()
@@ -151,6 +157,10 @@ func (s *Store) GetByHash(ctx context.Context, datahash share.DataHash) (file.Ed
 }
 
 func (s *Store) getByHash(datahash share.DataHash) (file.EdsFile, error) {
+	if datahash.IsEmptyRoot() {
+		return emptyFile, nil
+	}
+
 	path := s.basepath + hashsPath + datahash.String()
 	odsFile, err := file.OpenOdsFile(path)
 	if err != nil {
@@ -191,6 +201,9 @@ func (s *Store) getByHeight(height uint64) (file.EdsFile, error) {
 }
 
 func (s *Store) HasByHash(ctx context.Context, datahash share.DataHash) (bool, error) {
+	if datahash.IsEmptyRoot() {
+		return true, nil
+	}
 	lock := s.stripLock.byDatahash(datahash)
 	lock.RLock()
 	defer lock.RUnlock()
@@ -202,6 +215,9 @@ func (s *Store) HasByHash(ctx context.Context, datahash share.DataHash) (bool, e
 }
 
 func (s *Store) hasByHash(datahash share.DataHash) (bool, error) {
+	if datahash.IsEmptyRoot() {
+		return true, nil
+	}
 	path := s.basepath + hashsPath + datahash.String()
 	return pathExists(path)
 }

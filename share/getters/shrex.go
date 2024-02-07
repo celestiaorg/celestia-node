@@ -209,10 +209,11 @@ func (sg *ShrexGetter) GetSharesByNamespace(
 		utils.SetStatusAndEnd(span, err)
 	}()
 
-	// verify that the namespace could exist inside the roots before starting network requests
+	// find rows that contains target namespace
 	dah := header.DAH
-	roots := ipld.FilterRootByNamespace(dah, namespace)
-	if len(roots) == 0 {
+	fromRow, toRow := share.RowRangeForNamespace(dah, namespace)
+	if fromRow == toRow {
+		// target namespace is out of bounds of all rows in the EDS
 		return []share.NamespacedRow{}, nil
 	}
 
