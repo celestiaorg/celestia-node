@@ -16,7 +16,6 @@ import (
 	"github.com/celestiaorg/celestia-node/header"
 	"github.com/celestiaorg/celestia-node/libs/utils"
 	"github.com/celestiaorg/celestia-node/share"
-	"github.com/celestiaorg/celestia-node/share/ipld"
 	"github.com/celestiaorg/celestia-node/share/p2p"
 	"github.com/celestiaorg/celestia-node/share/p2p/peers"
 	"github.com/celestiaorg/celestia-node/share/p2p/shrexeds"
@@ -159,7 +158,7 @@ func (sg *ShrexGetter) GetEDS(ctx context.Context, header *header.ExtendedHeader
 
 		reqStart := time.Now()
 		reqCtx, cancel := ctxWithSplitTimeout(ctx, sg.minAttemptsCount-attempt+1, sg.minRequestTimeout)
-		eds, getErr := sg.edsClient.RequestEDS(reqCtx, header.Height(), header.DAH.Hash(), peer)
+		eds, getErr := sg.edsClient.RequestEDS(reqCtx, header, peer)
 		cancel()
 		switch {
 		case getErr == nil:
@@ -238,7 +237,7 @@ func (sg *ShrexGetter) GetSharesByNamespace(
 
 		reqStart := time.Now()
 		reqCtx, cancel := ctxWithSplitTimeout(ctx, sg.minAttemptsCount-attempt+1, sg.minRequestTimeout)
-		nd, getErr := sg.ndClient.RequestND(reqCtx, header.Height(), dah, namespace, peer)
+		nd, getErr := sg.ndClient.RequestND(reqCtx, header.Height(), fromRow, toRow, namespace, peer)
 		cancel()
 		switch {
 		case getErr == nil:

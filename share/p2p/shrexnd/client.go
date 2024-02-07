@@ -49,7 +49,7 @@ func NewClient(params *Parameters, host host.Host) (*Client, error) {
 func (c *Client) RequestND(
 	ctx context.Context,
 	height uint64,
-	root *share.Root,
+	fromRow, toRow int,
 	namespace share.Namespace,
 	peer peer.ID,
 ) (share.NamespacedShares, error) {
@@ -57,7 +57,7 @@ func (c *Client) RequestND(
 		return nil, err
 	}
 
-	shares, err := c.doRequest(ctx, height, root, namespace, peer)
+	shares, err := c.doRequest(ctx, height, fromRow, toRow, namespace, peer)
 	if err == nil {
 		return shares, nil
 	}
@@ -83,7 +83,7 @@ func (c *Client) RequestND(
 func (c *Client) doRequest(
 	ctx context.Context,
 	height uint64,
-	root *share.Root,
+	fromRow, toRow int,
 	namespace share.Namespace,
 	peerID peer.ID,
 ) (share.NamespacedShares, error) {
@@ -95,12 +95,11 @@ func (c *Client) doRequest(
 
 	c.setStreamDeadlines(ctx, stream)
 
-	from, to := share.RowRangeForNamespace(root, namespace)
 	req := &pb.GetSharesByNamespaceRequest{
 		Height:    height,
 		Namespace: namespace,
-		FromRow:   uint32(from),
-		ToRow:     uint32(to),
+		FromRow:   uint32(fromRow),
+		ToRow:     uint32(toRow),
 	}
 
 	_, err = serde.Write(stream, req)
