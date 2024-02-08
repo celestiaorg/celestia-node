@@ -286,7 +286,7 @@ func (f *OdsFile) Data(ctx context.Context, namespace share.Namespace, rowIdx in
 	return ndDataFromShares(shares, namespace, rowIdx)
 }
 
-func (f *OdsFile) EDS(ctx context.Context) (*rsmt2d.ExtendedDataSquare, error) {
+func (f *OdsFile) EDS(_ context.Context) (*rsmt2d.ExtendedDataSquare, error) {
 	err := f.readOds()
 	if err != nil {
 		return nil, err

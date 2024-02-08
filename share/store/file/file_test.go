@@ -189,10 +189,3 @@ func (q quadrant) coordinates(edsSize int) (x, y int) {
 	y = edsSize/2*(int(q-1)/2) + 1
 	return
 }
-
-func TestQuandrant(t *testing.T) {
-	for _, q := range quadrants {
-		x, y := q.coordinates(4)
-		fmt.Println(x, y)
-	}
-}

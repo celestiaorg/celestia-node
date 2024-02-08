@@ -77,6 +77,8 @@ func (rid RowID) Cid() cid.Cid {
 // * Its size is not deterministic which is required for IPLD.
 // * No support for uint16
 func (rid RowID) MarshalTo(data []byte) (int, error) {
+	//TODO:(@walldiss): this works, only if data underlying array was preallocated with
+	//  enough size. Otherwise Caller might not see the changes.
 	data = binary.LittleEndian.AppendUint64(data, rid.Height)
 	data = binary.LittleEndian.AppendUint16(data, rid.RowIndex)
 	return RowIDSize, nil

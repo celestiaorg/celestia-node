@@ -11,7 +11,7 @@ import (
 const HeaderSize = 64
 
 type Header struct {
-	version FileVersion
+	version fileVersion
 
 	// Taken directly from EDS
 	shareSize  uint16
@@ -21,13 +21,13 @@ type Header struct {
 	datahash share.DataHash
 }
 
-type FileVersion uint8
+type fileVersion uint8
 
 const (
-	FileV0 FileVersion = iota
+	FileV0 fileVersion = iota
 )
 
-func (h *Header) Version() FileVersion {
+func (h *Header) Version() fileVersion {
 	return h.version
 }
 
@@ -66,7 +66,7 @@ func ReadHeader(r io.Reader) (*Header, error) {
 	}
 
 	h := &Header{
-		version:    FileVersion(buf[0]),
+		version:    fileVersion(buf[0]),
 		shareSize:  binary.LittleEndian.Uint16(buf[1:3]),
 		squareSize: binary.LittleEndian.Uint16(buf[3:5]),
 		height:     binary.LittleEndian.Uint64(buf[5:13]),

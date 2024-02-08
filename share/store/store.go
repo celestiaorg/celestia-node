@@ -401,7 +401,7 @@ func loadEmptyHeights(basepath string) (map[uint64]struct{}, error) {
 	defer utils.CloseAndLog(log, "empty heights file", file)
 
 	emptyHeights := make(map[uint64]struct{})
-	gob.NewDecoder(file).Decode(&emptyHeights)
+	err = gob.NewDecoder(file).Decode(&emptyHeights)
 	if err != nil && !errors.Is(err, io.EOF) {
 		return nil, fmt.Errorf("decoding empty heights file: %w", err)
 	}

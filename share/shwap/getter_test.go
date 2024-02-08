@@ -101,6 +101,7 @@ func TestGetter(t *testing.T) {
 		assert.NotNil(t, eds)
 
 		dah, err := share.NewRoot(eds)
+		require.NoError(t, err)
 		require.True(t, share.DataHash(dah.Hash()).IsEmptyRoot())
 	})
 

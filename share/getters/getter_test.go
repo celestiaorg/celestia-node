@@ -86,6 +86,7 @@ func TestStoreGetter(t *testing.T) {
 		eds, err := sg.GetEDS(ctx, eh)
 		require.NoError(t, err)
 		dah, err := share.NewRoot(eds)
+		require.NoError(t, err)
 		require.True(t, share.DataHash(dah.Hash()).IsEmptyRoot())
 	})
 

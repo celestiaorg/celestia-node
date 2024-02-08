@@ -1,21 +1,5 @@
 package shwap
 
-import (
-	"context"
-	"testing"
-
-	"github.com/ipfs/boxo/bitswap"
-	"github.com/ipfs/boxo/bitswap/network"
-	"github.com/ipfs/boxo/blockstore"
-	"github.com/ipfs/boxo/exchange"
-	"github.com/ipfs/boxo/routing/offline"
-	ds "github.com/ipfs/go-datastore"
-	dssync "github.com/ipfs/go-datastore/sync"
-	record "github.com/libp2p/go-libp2p-record"
-	mocknet "github.com/libp2p/go-libp2p/p2p/net/mock"
-	"github.com/stretchr/testify/require"
-)
-
 // TODO(@walldiss): those tests works, but wants to imports with edsStore, when dependency is reversed
 // - need to rework to test over local blockstore
 
@@ -244,31 +228,31 @@ import (
 //	})
 //	assert.NoError(t, err)
 //}
-
-func remoteClient(ctx context.Context, t *testing.T, bstore blockstore.Blockstore) exchange.Fetcher {
-	net, err := mocknet.FullMeshLinked(2)
-	require.NoError(t, err)
-
-	dstore := dssync.MutexWrap(ds.NewMapDatastore())
-	routing := offline.NewOfflineRouter(dstore, record.NamespacedValidator{})
-	_ = bitswap.New(
-		ctx,
-		network.NewFromIpfsHost(net.Hosts()[0], routing),
-		bstore,
-	)
-
-	dstoreClient := dssync.MutexWrap(ds.NewMapDatastore())
-	bstoreClient := blockstore.NewBlockstore(dstoreClient)
-	routingClient := offline.NewOfflineRouter(dstoreClient, record.NamespacedValidator{})
-
-	bitswapClient := bitswap.New(
-		ctx,
-		network.NewFromIpfsHost(net.Hosts()[1], routingClient),
-		bstoreClient,
-	)
-
-	err = net.ConnectAllButSelf()
-	require.NoError(t, err)
-
-	return bitswapClient
-}
+//
+//func remoteClient(ctx context.Context, t *testing.T, bstore blockstore.Blockstore) exchange.Fetcher {
+//	net, err := mocknet.FullMeshLinked(2)
+//	require.NoError(t, err)
+//
+//	dstore := dssync.MutexWrap(ds.NewMapDatastore())
+//	routing := offline.NewOfflineRouter(dstore, record.NamespacedValidator{})
+//	_ = bitswap.New(
+//		ctx,
+//		network.NewFromIpfsHost(net.Hosts()[0], routing),
+//		bstore,
+//	)
+//
+//	dstoreClient := dssync.MutexWrap(ds.NewMapDatastore())
+//	bstoreClient := blockstore.NewBlockstore(dstoreClient)
+//	routingClient := offline.NewOfflineRouter(dstoreClient, record.NamespacedValidator{})
+//
+//	bitswapClient := bitswap.New(
+//		ctx,
+//		network.NewFromIpfsHost(net.Hosts()[1], routingClient),
+//		bstoreClient,
+//	)
+//
+//	err = net.ConnectAllButSelf()
+//	require.NoError(t, err)
+//
+//	return bitswapClient
+//}

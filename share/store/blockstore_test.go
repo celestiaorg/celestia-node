@@ -59,10 +59,10 @@ func TestBlockstoreGetShareSample(t *testing.T) {
 	t.Run("Row", func(t *testing.T) {
 		width := int(eds.Width())
 		for i := 0; i < width; i++ {
-			rowId, err := shwap.NewRowID(height, uint16(i), dah)
+			rowID, err := shwap.NewRowID(height, uint16(i), dah)
 			require.NoError(t, err)
 
-			blk, err := bs.Get(ctx, rowId.Cid())
+			blk, err := bs.Get(ctx, rowID.Cid())
 			require.NoError(t, err)
 
 			row, err := shwap.RowFromBlock(blk)
@@ -71,7 +71,7 @@ func TestBlockstoreGetShareSample(t *testing.T) {
 			err = row.Verify(dah)
 			require.NoError(t, err)
 
-			require.EqualValues(t, rowId, row.RowID)
+			require.EqualValues(t, rowID, row.RowID)
 		}
 	})
 

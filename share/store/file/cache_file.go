@@ -147,7 +147,7 @@ func (f *CacheFile) Data(ctx context.Context, namespace share.Namespace, rowIdx 
 
 	row, proof, err := ipld.GetSharesByNamespace(ctx, ax.proofs, ax.root, namespace, f.Size())
 	if err != nil {
-		return share.NamespacedRow{}, fmt.Errorf("retrieving shares by namespace %s for row %x: %w", namespace.String(), row, err)
+		return share.NamespacedRow{}, fmt.Errorf("shares by namespace %s for row %v: %w", namespace.String(), rowIdx, err)
 	}
 
 	return share.NamespacedRow{
