@@ -10,16 +10,9 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/celestiaorg/celestia-app/pkg/da"
-	"github.com/celestiaorg/celestia-app/pkg/wrapper"
-	"github.com/celestiaorg/nmt"
-	"github.com/celestiaorg/rsmt2d"
-
 	"github.com/celestiaorg/celestia-node/nodebuilder/node"
-	"github.com/celestiaorg/celestia-node/share"
 	"github.com/celestiaorg/celestia-node/share/eds"
 	"github.com/celestiaorg/celestia-node/share/eds/edstest"
-	"github.com/celestiaorg/celestia-node/share/ipld"
-	"github.com/celestiaorg/celestia-node/share/sharetest"
 )
 
 func TestRepo(t *testing.T) {
@@ -75,44 +68,19 @@ func BenchmarkStore(b *testing.B) {
 
 		store := newStore(ctx, b, eds.DefaultParameters(), dir)
 		size := 128
-		b.Run("enabled eds proof caching", func(b *testing.B) {
+
+		b.ResetTimer()
+		b.StopTimer()
+		for i := 0; i < b.N; i++ {
+			eds := edstest.RandEDS(b, size)
+			dah, err := da.NewDataAvailabilityHeader(eds)
+			require.NoError(b, err)
+
+			b.StartTimer()
+			err = store.edsStore.Put(ctx, dah.Hash(), eds)
 			b.StopTimer()
-			b.ResetTimer()
-			for i := 0; i < b.N; i++ {
-				adder := ipld.NewProofsAdder(size*2, false)
-				shares := sharetest.RandShares(b, size*size)
-				eds, err := rsmt2d.ComputeExtendedDataSquare(
-					shares,
-					share.DefaultRSMT2DCodec(),
-					wrapper.NewConstructor(uint64(size),
-						nmt.NodeVisitor(adder.VisitFn())),
-				)
-				require.NoError(b, err)
-				dah, err := da.NewDataAvailabilityHeader(eds)
-				require.NoError(b, err)
-				ctx := ipld.CtxWithProofsAdder(ctx, adder)
-
-				b.StartTimer()
-				err = store.edsStore.Put(ctx, dah.Hash(), eds)
-				b.StopTimer()
-				require.NoError(b, err)
-			}
-		})
-
-		b.Run("disabled eds proof caching", func(b *testing.B) {
-			b.ResetTimer()
-			b.StopTimer()
-			for i := 0; i < b.N; i++ {
-				eds := edstest.RandEDS(b, size)
-				dah, err := da.NewDataAvailabilityHeader(eds)
-				require.NoError(b, err)
-
-				b.StartTimer()
-				err = store.edsStore.Put(ctx, dah.Hash(), eds)
-				b.StopTimer()
-				require.NoError(b, err)
-			}
-		})
+			require.NoError(b, err)
+		}
 	})
 }
 

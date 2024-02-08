@@ -11,7 +11,6 @@ import (
 	"github.com/celestiaorg/celestia-node/header"
 	"github.com/celestiaorg/celestia-node/share"
 	"github.com/celestiaorg/celestia-node/share/eds/byzantine"
-	"github.com/celestiaorg/celestia-node/share/ipld"
 	"github.com/celestiaorg/celestia-node/share/p2p/discovery"
 	"github.com/celestiaorg/celestia-node/share/store"
 )
@@ -81,10 +80,6 @@ func (fa *ShareAvailability) getEds(ctx context.Context, header *header.Extended
 	if share.DataHash(dah.Hash()).IsEmptyRoot() {
 		return share.EmptyExtendedDataSquare(), nil
 	}
-
-	adder := ipld.NewProofsAdder(len(dah.RowRoots), false)
-	ctx = ipld.CtxWithProofsAdder(ctx, adder)
-	defer adder.Purge()
 
 	eds, err := fa.getter.GetEDS(ctx, header)
 	if err != nil {
