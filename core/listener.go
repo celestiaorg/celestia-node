@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"github.com/celestiaorg/celestia-node/libs/utils"
 	"time"
 
 	pubsub "github.com/libp2p/go-libp2p-pubsub"
@@ -202,10 +203,11 @@ func (cl *Listener) handleNewSignedBlock(ctx context.Context, b types.EventDataS
 	}
 
 	// attempt to store block data if not empty
-	_, err = cl.store.Put(ctx, eh.DAH.Hash(), eh.Height(), eds)
+	f, err := cl.store.Put(ctx, eh.DAH.Hash(), eh.Height(), eds)
 	if err != nil {
 		return fmt.Errorf("storing EDS: %w", err)
 	}
+	utils.CloseAndLog(log, "file", f)
 
 	syncing, err := cl.fetcher.IsSyncing(ctx)
 	if err != nil {

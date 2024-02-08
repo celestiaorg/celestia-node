@@ -60,6 +60,7 @@ func (s square) size() int {
 
 func (s square) close() error {
 	if s != nil {
+		// return square to memPools
 		memPools.get(s.size()).putSquare(s)
 	}
 	return nil

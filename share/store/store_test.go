@@ -96,11 +96,11 @@ func TestEDSStore(t *testing.T) {
 		f, err = edsStore.GetByHeight(ctx, height)
 		require.NoError(t, err)
 
-		fromFile, err := f.EDS(ctx)
+		fileEds, err := f.EDS(ctx)
 		require.NoError(t, err)
 		require.NoError(t, f.Close())
 
-		require.True(t, eds.Equals(fromFile))
+		require.True(t, eds.Equals(fileEds))
 	})
 
 	t.Run("GetByDataHash", func(t *testing.T) {
@@ -133,11 +133,13 @@ func TestEDSStore(t *testing.T) {
 		require.NoError(t, err)
 		require.False(t, has)
 
-		_, err = edsStore.GetByHeight(ctx, height)
+		f, err := edsStore.GetByHeight(ctx, height)
 		require.ErrorIs(t, err, ErrNotFound)
+		require.NoError(t, f.Close())
 
-		_, err = edsStore.GetByHash(ctx, dah.Hash())
+		f, err = edsStore.GetByHash(ctx, dah.Hash())
 		require.ErrorIs(t, err, ErrNotFound)
+		require.NoError(t, f.Close())
 	})
 
 	t.Run("Remove", func(t *testing.T) {
@@ -206,6 +208,7 @@ func TestEDSStore(t *testing.T) {
 		f, err = edsStore.GetByHeight(ctx, height)
 		require.NoError(t, err)
 		require.True(t, f.DataHash().IsEmptyRoot())
+		require.NoError(t, f.Close())
 	})
 
 	t.Run("empty EDS are persisted", func(t *testing.T) {
@@ -281,7 +284,7 @@ func BenchmarkStore(b *testing.B) {
 		for i := 0; i < b.N; i++ {
 			f, err := edsStore.GetByHeight(ctx, height)
 			require.NoError(b, err)
-			_ = f.Close()
+			require.NoError(b, f.Close())
 		}
 	})
 
@@ -305,7 +308,7 @@ func BenchmarkStore(b *testing.B) {
 		for i := 0; i < b.N; i++ {
 			f, err := edsStore.GetByHash(ctx, dah.Hash())
 			require.NoError(b, err)
-			_ = f.Close()
+			require.NoError(b, f.Close())
 		}
 	})
 }

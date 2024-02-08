@@ -62,7 +62,9 @@ func (f *FraudMaker) MakeExtendedHeader(odsSize int, edsStore *store.Store) head
 			require.NoError(f.t, err)
 			hdr.DataHash = dah.Hash()
 
-			require.NoError(f.t, edsStore.Put(ctx, h.DataHash.Bytes(), square))
+			file, err := edsStore.Put(context.Background(), dah.Hash(), uint64(h.Height), square)
+			require.NoError(f.t, err)
+			require.NoError(f.t, file.Close())
 
 			*eds = *square
 		}

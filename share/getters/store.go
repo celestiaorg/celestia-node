@@ -51,7 +51,7 @@ func (sg *StoreGetter) GetShare(ctx context.Context, header *header.ExtendedHead
 		return nil, err
 	}
 
-	file, err := sg.store.GetByHash(ctx, dah.Hash())
+	file, err := sg.store.GetByHeight(ctx, header.Height())
 	if errors.Is(err, store.ErrNotFound) {
 		// convert error to satisfy getter interface contract
 		err = share.ErrNotFound

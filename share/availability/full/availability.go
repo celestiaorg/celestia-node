@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"github.com/celestiaorg/celestia-node/libs/utils"
 	"github.com/celestiaorg/rsmt2d"
 
 	logging "github.com/ipfs/go-log/v2"
@@ -67,10 +68,11 @@ func (fa *ShareAvailability) SharesAvailable(ctx context.Context, header *header
 		return err
 	}
 
-	_, err = fa.store.Put(ctx, header.DAH.Hash(), header.Height(), eds)
+	f, err := fa.store.Put(ctx, header.DAH.Hash(), header.Height(), eds)
 	if err != nil {
 		return fmt.Errorf("full availability: failed to store eds: %w", err)
 	}
+	utils.CloseAndLog(log, "file", f)
 	return nil
 }
 

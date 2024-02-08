@@ -27,7 +27,7 @@ func CloseOnceFile(f EdsFile) *closeOnceFile {
 func (c *closeOnceFile) Close() error {
 	if !c.closed.Swap(true) {
 		err := c.f.Close()
-		// release reference to the file
+		// release reference to the file to allow GC to collect it
 		c.f = nil
 		return err
 	}

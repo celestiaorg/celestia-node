@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"fmt"
+	"github.com/celestiaorg/celestia-node/libs/utils"
 	"time"
 
 	"golang.org/x/sync/errgroup"
@@ -145,10 +146,11 @@ func (ce *Exchange) Get(ctx context.Context, hash libhead.Hash) (*header.Extende
 			&block.Height, hash, eh.Hash())
 	}
 
-	_, err = ce.store.Put(ctx, eh.DAH.Hash(), eh.Height(), eds)
+	f, err := ce.store.Put(ctx, eh.DAH.Hash(), eh.Height(), eds)
 	if err != nil {
 		return nil, fmt.Errorf("storing EDS to eds.Store for height %d: %w", &block.Height, err)
 	}
+	utils.CloseAndLog(log, "file", f)
 	return eh, nil
 }
 
@@ -180,9 +182,10 @@ func (ce *Exchange) getExtendedHeaderByHeight(ctx context.Context, height *int64
 		panic(fmt.Errorf("constructing extended header for height %d: %w", b.Header.Height, err))
 	}
 
-	_, err = ce.store.Put(ctx, eh.DAH.Hash(), eh.Height(), eds)
+	f, err := ce.store.Put(ctx, eh.DAH.Hash(), eh.Height(), eds)
 	if err != nil {
 		return nil, fmt.Errorf("storing EDS to eds.Store for block height %d: %w", b.Header.Height, err)
 	}
+	utils.CloseAndLog(log, "file", f)
 	return eh, nil
 }
