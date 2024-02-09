@@ -188,7 +188,7 @@ func TestShrexGetter(t *testing.T) {
 
 		got, err := getter.GetEDS(ctx, eh)
 		require.NoError(t, err)
-		require.Equal(t, eds.Flattened(), got.Flattened())
+		require.True(t, got.Equals(eds))
 	})
 
 	t.Run("EDS get empty", func(t *testing.T) {

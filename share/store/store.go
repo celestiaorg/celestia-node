@@ -29,7 +29,7 @@ var (
 )
 
 // TODO(@walldiss):
-//  - index empty files by height
+//  - handle blocks duplicates(same hash,different height)
 //  - persist store stats like amount of files, file types, avg file size etc in a file
 //  - handle corrupted files
 //  - maintain in-memory missing files index / bloom-filter to fast return for not stored files.
@@ -130,9 +130,6 @@ func (s *Store) Put(
 
 	// short circuit if file exists
 	if has, _ := s.hasByHeight(height); has {
-		log.Warnw("put: file already exists by height, but not by hash",
-			"height", height,
-			"hash", datahash.String())
 		s.metrics.observePutExist(ctx)
 		return s.getByHeight(height)
 	}

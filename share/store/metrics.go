@@ -33,7 +33,7 @@ func (s *Store) WithMetrics() error {
 		return err
 	}
 
-	putExists, err := meter.Int64Counter("eds_store_put_exists_histogram",
+	putExists, err := meter.Int64Counter("eds_store_put_exists_counter",
 		metric.WithDescription("eds store put file exists"))
 	if err != nil {
 		return err

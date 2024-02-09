@@ -5,6 +5,7 @@ import (
 	"fmt"
 	mrand "math/rand"
 	"strconv"
+	"sync"
 	"testing"
 	"time"
 
@@ -24,28 +25,53 @@ func testFileShare(t *testing.T, createFile createFile, size int) {
 	eds := edstest.RandEDS(t, size)
 	fl := createFile(eds)
 
-	root, err := share.NewRoot(eds)
+	dah, err := share.NewRoot(eds)
 	require.NoError(t, err)
 
 	width := int(eds.Width())
-	for x := 0; x < width; x++ {
-		for y := 0; y < width; y++ {
-			shr, err := fl.Share(context.TODO(), x, y)
-			require.NoError(t, err)
-
-			var axishash []byte
-			if shr.Axis == rsmt2d.Row {
-				require.Equal(t, getAxis(eds, shr.Axis, y)[x], shr.Share)
-				axishash = root.RowRoots[y]
-			} else {
-				require.Equal(t, getAxis(eds, shr.Axis, x)[y], shr.Share)
-				axishash = root.ColumnRoots[x]
+	t.Run("single thread", func(t *testing.T) {
+		for x := 0; x < width; x++ {
+			for y := 0; y < width; y++ {
+				testShare(t, fl, eds, dah, x, y)
 			}
-
-			ok := shr.Validate(axishash, x, y, width)
-			require.True(t, ok)
 		}
+	})
+
+	t.Run("parallel", func(t *testing.T) {
+		wg := sync.WaitGroup{}
+		for y := 0; y < width; y++ {
+			for x := 0; x < width; x++ {
+				wg.Add(1)
+				go func(x, y int) {
+					defer wg.Done()
+					testShare(t, fl, eds, dah, x, y)
+				}(x, y)
+			}
+		}
+		wg.Wait()
+	})
+}
+
+func testShare(t *testing.T,
+	fl EdsFile,
+	eds *rsmt2d.ExtendedDataSquare,
+	dah *share.Root,
+	x, y int) {
+	width := int(eds.Width())
+	shr, err := fl.Share(context.TODO(), x, y)
+	require.NoError(t, err)
+
+	var axishash []byte
+	if shr.Axis == rsmt2d.Row {
+		require.Equal(t, getAxis(eds, shr.Axis, y)[x], shr.Share)
+		axishash = dah.RowRoots[y]
+	} else {
+		require.Equal(t, getAxis(eds, shr.Axis, x)[y], shr.Share)
+		axishash = dah.ColumnRoots[x]
 	}
+
+	ok := shr.Validate(axishash, x, y, width)
+	require.True(t, ok)
 }
 
 func testFileData(t *testing.T, createFile createFile, size int) {
@@ -88,13 +114,31 @@ func testFileAxisHalf(t *testing.T, createFile createFile, size int) {
 	eds := edstest.RandEDS(t, size)
 	fl := createFile(eds)
 
-	for _, axisType := range []rsmt2d.Axis{rsmt2d.Col, rsmt2d.Row} {
-		for i := 0; i < size; i++ {
-			half, err := fl.AxisHalf(context.Background(), axisType, i)
-			require.NoError(t, err)
-			require.Equal(t, getAxis(eds, axisType, i)[:size], half)
+	t.Run("single thread", func(t *testing.T) {
+		for _, axisType := range []rsmt2d.Axis{rsmt2d.Col, rsmt2d.Row} {
+			for i := 0; i < size; i++ {
+				half, err := fl.AxisHalf(context.Background(), axisType, i)
+				require.NoError(t, err)
+				require.Equal(t, getAxis(eds, axisType, i)[:size], half)
+			}
 		}
-	}
+	})
+
+	t.Run("parallel", func(t *testing.T) {
+		wg := sync.WaitGroup{}
+		for _, axisType := range []rsmt2d.Axis{rsmt2d.Col, rsmt2d.Row} {
+			for i := 0; i < size; i++ {
+				wg.Add(1)
+				go func(axisType rsmt2d.Axis, idx int) {
+					defer wg.Done()
+					half, err := fl.AxisHalf(context.Background(), axisType, idx)
+					require.NoError(t, err)
+					require.Equal(t, getAxis(eds, axisType, idx)[:size], half)
+				}(axisType, i)
+			}
+		}
+		wg.Wait()
+	})
 }
 
 func testFileEds(t *testing.T, createFile createFile, size int) {
@@ -113,21 +157,26 @@ func testFileReader(t *testing.T, createFile createFile, odsSize int) {
 	eds := edstest.RandEDS(t, odsSize)
 	f := createFile(eds)
 
+	// verify that the reader represented by file can be read from
+	// multiple times, without exhausting the underlying reader.
+	wg := sync.WaitGroup{}
+	for i := 0; i < 6; i++ {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			testReader(t, ctx, f, eds)
+		}()
+	}
+	wg.Wait()
+}
+
+func testReader(t *testing.T, ctx context.Context, f EdsFile, eds *rsmt2d.ExtendedDataSquare) {
 	reader, err := f.Reader()
 	require.NoError(t, err)
 
 	streamed, err := ReadEds(ctx, reader, f.Size())
 	require.NoError(t, err)
 	require.True(t, eds.Equals(streamed))
-
-	// verify that the reader represented by file can be read from
-	// multiple times, without exhausting the underlying reader.
-	reader2, err := f.Reader()
-	require.NoError(t, err)
-
-	streamed2, err := ReadEds(ctx, reader2, f.Size())
-	require.NoError(t, err)
-	require.True(t, eds.Equals(streamed2))
 }
 
 func benchGetAxisFromFile(b *testing.B, newFile func(size int) EdsFile, minSize, maxSize int) {

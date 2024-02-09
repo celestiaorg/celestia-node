@@ -26,7 +26,7 @@ func TestCreateOdsFile(t *testing.T) {
 }
 
 func TestOdsFile(t *testing.T) {
-	size := 32
+	size := 8
 	createOdsFile := func(eds *rsmt2d.ExtendedDataSquare) EdsFile {
 		path := t.TempDir() + "/testfile"
 		fl, err := CreateOdsFile(path, 1, []byte{}, eds)

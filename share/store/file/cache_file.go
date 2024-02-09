@@ -4,10 +4,10 @@ import (
 	"context"
 	"errors"
 	"fmt"
-
 	"github.com/ipfs/boxo/blockservice"
 	blocks "github.com/ipfs/go-block-format"
 	"github.com/ipfs/go-cid"
+	"sync"
 
 	"github.com/celestiaorg/celestia-app/pkg/wrapper"
 	"github.com/celestiaorg/nmt"
@@ -19,18 +19,22 @@ import (
 
 var _ EdsFile = (*CacheFile)(nil)
 
-// TODO: allow concurrency safety fpr CacheFile methods
 type CacheFile struct {
 	EdsFile
 
+	// lock protects axisCache
+	lock sync.RWMutex
+	// axisCache caches the axis shares and proofs
 	axisCache []map[int]inMemoryAxis
 	// disableCache disables caching of rows for testing purposes
 	disableCache bool
 }
 
 type inMemoryAxis struct {
-	root   []byte
 	shares []share.Share
+
+	// root will be set only when proofs are calculated
+	root   []byte
 	proofs blockservice.BlockGetter
 }
 
@@ -52,6 +56,7 @@ func (f *CacheFile) Share(ctx context.Context, x, y int) (*share.ShareWithProof,
 		return nil, err
 	}
 
+	// build share proof from proofs cached for given axis
 	share, err := ipld.GetShareWithProof(ctx, ax.proofs, ax.root, shrIdx, f.Size(), axisType)
 	if err != nil {
 		return nil, fmt.Errorf("building proof from cache: %w", err)
@@ -61,24 +66,27 @@ func (f *CacheFile) Share(ctx context.Context, x, y int) (*share.ShareWithProof,
 }
 
 func (f *CacheFile) axisWithProofs(ctx context.Context, axisType rsmt2d.Axis, axisIdx int) (inMemoryAxis, error) {
-	// return axis from cache if possible
-	ax := f.axisCache[axisType][axisIdx]
+	// return axis with proofs from cache if possible
+	ax, ok := f.getAxisFromCache(axisType, axisIdx)
 	if ax.proofs != nil {
 		return ax, nil
 	}
 
 	// build proofs from shares and cache them
-	shrs, err := f.axis(ctx, axisType, axisIdx)
-	if err != nil {
-		return inMemoryAxis{}, fmt.Errorf("get axis: %w", err)
+	if !ok {
+		shrs, err := f.axis(ctx, axisType, axisIdx)
+		if err != nil {
+			return inMemoryAxis{}, fmt.Errorf("get axis: %w", err)
+		}
+		ax.shares = shrs
 	}
 
 	// calculate proofs
 	adder := ipld.NewProofsAdder(f.Size(), true)
 	tree := wrapper.NewErasuredNamespacedMerkleTree(uint64(f.Size()/2), uint(axisIdx),
 		nmt.NodeVisitor(adder.VisitFn()))
-	for _, shr := range shrs {
-		err = tree.Push(shr)
+	for _, shr := range ax.shares {
+		err := tree.Push(shr)
 		if err != nil {
 			return inMemoryAxis{}, fmt.Errorf("push shares: %w", err)
 		}
@@ -90,23 +98,21 @@ func (f *CacheFile) axisWithProofs(ctx context.Context, axisType rsmt2d.Axis, ax
 		return inMemoryAxis{}, fmt.Errorf("calculating root: %w", err)
 	}
 
-	ax = f.axisCache[axisType][axisIdx]
 	ax.root = root
-	ax.shares = shrs
 	ax.proofs, err = newRowProofsGetter(adder.Proofs())
 	if err != nil {
 		return inMemoryAxis{}, fmt.Errorf("creating proof getter: %w", err)
 	}
 
 	if !f.disableCache {
-		f.axisCache[axisType][axisIdx] = ax
+		f.storeAxisInCache(axisType, axisIdx, ax)
 	}
 	return ax, nil
 }
 
 func (f *CacheFile) AxisHalf(ctx context.Context, axisType rsmt2d.Axis, axisIdx int) ([]share.Share, error) {
 	// return axis from cache if possible
-	ax, ok := f.axisCache[axisType][axisIdx]
+	ax, ok := f.getAxisFromCache(axisType, axisIdx)
 	if ok {
 		return ax.shares[:f.Size()/2], nil
 	}
@@ -122,9 +128,8 @@ func (f *CacheFile) AxisHalf(ctx context.Context, axisType rsmt2d.Axis, axisIdx 
 		if err != nil {
 			return nil, fmt.Errorf("extending shares: %w", err)
 		}
-		f.axisCache[axisType][axisIdx] = inMemoryAxis{
-			shares: axis,
-		}
+		ax.shares = axis
+		f.storeAxisInCache(axisType, axisIdx, ax)
 	}
 
 	return half, nil
@@ -174,6 +179,19 @@ func (f *CacheFile) EDS(ctx context.Context) (*rsmt2d.ExtendedDataSquare, error)
 		return nil, fmt.Errorf("recomputing data square: %w", err)
 	}
 	return eds, nil
+}
+
+func (f *CacheFile) storeAxisInCache(axisType rsmt2d.Axis, axisIdx int, axis inMemoryAxis) {
+	f.lock.Lock()
+	defer f.lock.Unlock()
+	f.axisCache[axisType][axisIdx] = axis
+}
+
+func (f *CacheFile) getAxisFromCache(axisType rsmt2d.Axis, axisIdx int) (inMemoryAxis, bool) {
+	f.lock.RLock()
+	defer f.lock.RUnlock()
+	ax, ok := f.axisCache[axisType][axisIdx]
+	return ax, ok
 }
 
 // rowProofsGetter implements blockservice.BlockGetter interface
