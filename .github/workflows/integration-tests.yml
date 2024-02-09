@@ -39,7 +39,6 @@ jobs:
       - name: run blob tests
         run: make test-integration TAGS=blob
 
-
   da_tests:
     name: Da Tests Sync
     runs-on: ubuntu-latest
