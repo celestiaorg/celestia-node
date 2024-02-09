@@ -41,16 +41,22 @@ func readShares(shareSize, edsSize int, reader io.Reader) (square, error) {
 	buf := memPools.get(odsLn).getHalfAxis()
 	defer memPools.get(odsLn).putHalfAxis(buf)
 
+	var total int
+	log.Info("start reading ods", "ods size", odsLn, "share size", shareSize, "buf size", len(buf))
 	for i := 0; i < odsLn; i++ {
-		if _, err := reader.Read(buf); err != nil {
-			return nil, err
+		n, err := reader.Read(buf)
+		if err != nil {
+			return nil, fmt.Errorf("reading share: %w, bytes read: %v", err, total+n)
 		}
 
+		total += n
 		for j := 0; j < odsLn; j++ {
 			copy(square[i][j], buf[j*shareSize:(j+1)*shareSize])
 		}
 	}
 
+	// TODO: remove this log
+	log.Info("read bytes", "total", total)
 	return square, nil
 }
 

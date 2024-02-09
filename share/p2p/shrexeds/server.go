@@ -184,5 +184,6 @@ func (s *Server) writeODS(logger *zap.SugaredLogger, file file.EdsFile, stream n
 		return fmt.Errorf("written: %v, writing ODS bytes: %w", n, err)
 	}
 
+	logger.Debugw("server: wrote ODS", "bytes", n)
 	return nil
 }

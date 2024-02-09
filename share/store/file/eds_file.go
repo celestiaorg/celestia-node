@@ -2,12 +2,15 @@ package file
 
 import (
 	"context"
+	logging "github.com/ipfs/go-log/v2"
 	"io"
 
 	"github.com/celestiaorg/rsmt2d"
 
 	"github.com/celestiaorg/celestia-node/share"
 )
+
+var log = logging.Logger("store/file")
 
 type EdsFile interface {
 	io.Closer

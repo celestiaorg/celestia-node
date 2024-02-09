@@ -55,7 +55,7 @@ func CreateOdsFile(
 
 	h := &Header{
 		version:    FileV0,
-		shareSize:  uint16(len(eds.GetCell(0, 0))), // TODO: rsmt2d should expose this field
+		shareSize:  share.Size, // TODO: rsmt2d should expose this field
 		squareSize: uint16(eds.Width()),
 		height:     height,
 		datahash:   datahash,
@@ -80,13 +80,9 @@ func writeOdsFile(w io.Writer, h *Header, eds *rsmt2d.ExtendedDataSquare) error 
 		return err
 	}
 
-	for i := uint(0); i < eds.Width()/2; i++ {
-		for j := uint(0); j < eds.Width()/2; j++ {
-			// TODO: Implemented buffered write through io.CopyBuffer
-			shr := eds.GetCell(i, j)
-			if _, err := w.Write(shr); err != nil {
-				return err
-			}
+	for _, shr := range eds.FlattenedODS() {
+		if _, err := w.Write(shr); err != nil {
+			return err
 		}
 	}
 	return nil
@@ -163,7 +159,7 @@ func (f *OdsFile) readOds() error {
 		return fmt.Errorf("discarding header: %w", err)
 	}
 
-	square, err := readShares(f.hdr.ShareSize(), f.Size(), f.fl)
+	square, err := readShares(share.Size, f.Size(), f.fl)
 	if err != nil {
 		return fmt.Errorf("reading ods: %w", err)
 	}

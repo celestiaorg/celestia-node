@@ -30,6 +30,7 @@ var (
 
 // TODO(@walldiss):
 //  - handle blocks duplicates(same hash,different height)
+//  - periodically store empty heights
 //  - persist store stats like amount of files, file types, avg file size etc in a file
 //  - handle corrupted files
 //  - maintain in-memory missing files index / bloom-filter to fast return for not stored files.
