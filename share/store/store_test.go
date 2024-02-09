@@ -133,13 +133,11 @@ func TestEDSStore(t *testing.T) {
 		require.NoError(t, err)
 		require.False(t, has)
 
-		f, err := edsStore.GetByHeight(ctx, height)
+		_, err = edsStore.GetByHeight(ctx, height)
 		require.ErrorIs(t, err, ErrNotFound)
-		require.NoError(t, f.Close())
 
-		f, err = edsStore.GetByHash(ctx, dah.Hash())
+		_, err = edsStore.GetByHash(ctx, dah.Hash())
 		require.ErrorIs(t, err, ErrNotFound)
-		require.NoError(t, f.Close())
 	})
 
 	t.Run("Remove", func(t *testing.T) {

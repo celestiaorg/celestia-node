@@ -36,9 +36,9 @@ var (
 //  - lock store folder
 
 const (
-	hashsPath    = "/blocks/"
-	heightsPath  = "/heights/"
-	emptyHeights = "/empty_heights"
+	blocksPath   = "/blocks/"
+	heightsPath  = blocksPath + "heights/"
+	emptyHeights = blocksPath + "/empty_heights"
 
 	defaultDirPerm = 0755
 )
@@ -70,7 +70,7 @@ func NewStore(params *Parameters, basePath string) (*Store, error) {
 	}
 
 	// ensure blocks folder
-	if err := ensureFolder(basePath + hashsPath); err != nil {
+	if err := ensureFolder(basePath + blocksPath); err != nil {
 		return nil, fmt.Errorf("ensure blocks folder: %w", err)
 	}
 
@@ -129,11 +129,6 @@ func (s *Store) Put(
 	}
 
 	// short circuit if file exists
-	if has, _ := s.hasByHash(datahash); has {
-		s.metrics.observePutExist(ctx)
-		return s.getByHash(datahash)
-	}
-
 	if has, _ := s.hasByHeight(height); has {
 		log.Warnw("put: file already exists by height, but not by hash",
 			"height", height,
@@ -142,7 +137,7 @@ func (s *Store) Put(
 		return s.getByHeight(height)
 	}
 
-	path := s.basepath + hashsPath + datahash.String()
+	path := s.basepath + blocksPath + datahash.String()
 	file, err := file.CreateOdsFile(path, height, datahash, square)
 	if err != nil {
 		s.metrics.observePut(ctx, time.Since(tNow), square.Width(), true)
@@ -185,7 +180,7 @@ func (s *Store) getByHash(datahash share.DataHash) (file.EdsFile, error) {
 		return emptyFile, nil
 	}
 
-	path := s.basepath + hashsPath + datahash.String()
+	path := s.basepath + blocksPath + datahash.String()
 	odsFile, err := file.OpenOdsFile(path)
 	if err != nil {
 		if os.IsNotExist(err) {
@@ -246,7 +241,7 @@ func (s *Store) hasByHash(datahash share.DataHash) (bool, error) {
 	if datahash.IsEmptyRoot() {
 		return true, nil
 	}
-	path := s.basepath + hashsPath + datahash.String()
+	path := s.basepath + blocksPath + datahash.String()
 	return pathExists(path)
 }
 
@@ -307,7 +302,7 @@ func (s *Store) remove(height uint64) error {
 		return fmt.Errorf("removing by height: %w", err)
 	}
 
-	hashPath := s.basepath + hashsPath + hashStr
+	hashPath := s.basepath + blocksPath + hashStr
 	if err = os.Remove(hashPath); err != nil {
 		return fmt.Errorf("removing by hash: %w", err)
 	}
