@@ -191,7 +191,7 @@ func TestShrexGetter(t *testing.T) {
 		require.True(t, got.Equals(eds))
 	})
 
-	t.Run("EDS get empty", func(t *testing.T) {
+	t.Run("EDS get empty block", func(t *testing.T) {
 		// empty root
 		emptyRoot := da.MinDataAvailabilityHeader()
 		eh := headertest.RandExtendedHeaderWithRoot(t, &emptyRoot)

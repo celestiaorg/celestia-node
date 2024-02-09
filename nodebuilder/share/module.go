@@ -192,7 +192,6 @@ func ConstructModule(tp node.Type, cfg *Config, options ...fx.Option) fx.Option 
 			}),
 			peerManagerWithShrexPools,
 			shrexGetterComponents,
-			fx.Invoke(ensureEmptyEDSInBS),
 			fx.Provide(shwap.NewGetter),
 			fx.Provide(lightGetter),
 			// shrexsub broadcaster stub for daser

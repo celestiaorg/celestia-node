@@ -165,7 +165,11 @@ func readEds(ctx context.Context, stream network.Stream, eh *header.ExtendedHead
 	// verify that the EDS hash matches the expected hash
 	newDah, err := share.NewRoot(eds)
 	if err != nil {
-		return nil, fmt.Errorf("create new root from eds: %w", err)
+		return nil, fmt.Errorf("create new root from eds: %w, size:%v , expectedSize:%v",
+			err,
+			eds.Width(),
+			len(eh.DAH.RowRoots),
+		)
 	}
 	if !bytes.Equal(newDah.Hash(), eh.DAH.Hash()) {
 		return nil, fmt.Errorf(

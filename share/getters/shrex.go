@@ -182,6 +182,7 @@ func (sg *ShrexGetter) GetEDS(ctx context.Context, header *header.ExtendedHeader
 		}
 		log.Debugw("eds: request failed",
 			"height", header.Height(),
+			"hash", header.DAH.String(),
 			"peer", peer.String(),
 			"attempt", attempt,
 			"err", getErr,

@@ -89,6 +89,7 @@ func (s square) axisHalf(_ context.Context, axisType rsmt2d.Axis, axisIdx int) (
 }
 
 func (s square) eds() (*rsmt2d.ExtendedDataSquare, error) {
+	//TODO(@walldiss): use mempool
 	shrs := make([]share.Share, 0, 4*s.size()*s.size())
 	for _, row := range s {
 		shrs = append(shrs, row...)

@@ -1,16 +1,12 @@
 package share
 
 import (
-	"context"
-
-	"github.com/ipfs/boxo/blockservice"
 	"github.com/libp2p/go-libp2p/core/host"
 	"github.com/libp2p/go-libp2p/core/routing"
 	routingdisc "github.com/libp2p/go-libp2p/p2p/discovery/routing"
 
 	"github.com/celestiaorg/celestia-node/share"
 	"github.com/celestiaorg/celestia-node/share/getters"
-	"github.com/celestiaorg/celestia-node/share/ipld"
 	disc "github.com/celestiaorg/celestia-node/share/p2p/discovery"
 	"github.com/celestiaorg/celestia-node/share/p2p/peers"
 	"github.com/celestiaorg/celestia-node/share/shwap"
@@ -40,15 +36,6 @@ func newDiscovery(cfg *disc.Parameters,
 
 func newModule(getter share.Getter, avail share.Availability) Module {
 	return &module{getter, avail}
-}
-
-// ensureEmptyEDSInBS checks if the given DAG contains an empty block data square.
-// If it does not, it stores an empty block. This optimization exists to prevent
-// redundant storing of empty block data so that it is only stored once and returned
-// upon request for a block with an empty data square.
-func ensureEmptyEDSInBS(ctx context.Context, bServ blockservice.BlockService) error {
-	_, err := ipld.AddShares(ctx, share.EmptyBlockShares(), bServ)
-	return err
 }
 
 func lightGetter(

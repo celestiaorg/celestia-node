@@ -99,11 +99,11 @@ func (s *Server) handleStream(stream network.Stream) {
 		defer utils.CloseAndLog(logger, "file", file)
 		status = p2p_pb.Status_OK
 	case errors.Is(err, store.ErrNotFound):
-		logger.Warnw("server: request hash not found")
+		logger.Warnw("server: request height not found")
 		s.metrics.ObserveRequests(ctx, 1, p2p.StatusNotFound)
 		status = p2p_pb.Status_NOT_FOUND
 	case err != nil:
-		logger.Errorw("server: get CAR", "err", err)
+		logger.Errorw("server: get file", "err", err)
 		status = p2p_pb.Status_INTERNAL
 	}
 

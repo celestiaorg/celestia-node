@@ -130,7 +130,6 @@ func (ce *Exchange) Get(ctx context.Context, hash libhead.Hash) (*header.Extende
 	}
 
 	// extend block data
-
 	eds, err := extendBlock(block.Data, block.Header.Version.App)
 	if err != nil {
 		return nil, fmt.Errorf("extending block data for height %d: %w", &block.Height, err)
