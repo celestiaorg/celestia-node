@@ -179,9 +179,9 @@ func (s *Server) writeODS(logger *zap.SugaredLogger, file file.EdsFile, stream n
 	}
 
 	buf := make([]byte, s.params.BufferSize)
-	_, err = io.CopyBuffer(stream, reader, buf)
+	n, err := io.CopyBuffer(stream, reader, buf)
 	if err != nil {
-		return fmt.Errorf("writing ODS bytes: %w", err)
+		return fmt.Errorf("written: %v, writing ODS bytes: %w", n, err)
 	}
 
 	return nil
