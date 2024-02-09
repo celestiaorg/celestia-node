@@ -170,6 +170,7 @@ func (c *Client) readNamespacedShares(
 			}
 		}
 		shares = append(shares, share.NamespacedRow{
+			Index:  int(row.Index),
 			Shares: row.Shares,
 			Proof:  &proof,
 		})

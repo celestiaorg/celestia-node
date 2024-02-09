@@ -22,4 +22,5 @@ enum StatusCode {
 message NamespaceRowResponse {
   repeated bytes shares = 1;
   proof.pb.Proof proof = 2;
+  int32 index = 3;
 }
