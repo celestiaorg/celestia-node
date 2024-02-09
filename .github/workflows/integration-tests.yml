@@ -39,6 +39,22 @@ jobs:
       - name: run blob tests
         run: make test-integration TAGS=blob
 
+
+  da_tests:
+    name: Da Tests Sync
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: set up go
+        uses: actions/setup-go@v5
+        with:
+          go-version: ${{ inputs.go-version }}
+
+      - name: run da tests
+        run: make test-integration SHORT=true TAGS=da
+
   fraud_tests:
     name: Integration Tests Fraud
     runs-on: ubuntu-latest

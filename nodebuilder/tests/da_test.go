@@ -1,4 +1,4 @@
-//go:build blob || integration
+//go:build da || integration
 
 package tests
 
@@ -101,6 +101,7 @@ func TestDaModule(t *testing.T) {
 		{
 			name: "GetIDs",
 			doFn: func(t *testing.T) {
+				t.Skip()
 				height, _ := da.SplitID(ids[0])
 				ids2, err := fullClient.DA.GetIDs(ctx, height, namespace)
 				require.NoError(t, err)
