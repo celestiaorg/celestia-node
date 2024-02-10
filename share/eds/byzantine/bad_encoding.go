@@ -208,6 +208,7 @@ func (p *BadEncodingProof) Validate(hdr *header.ExtendedHeader) error {
 		log.Debugw("failed to decode shares at height",
 			"height", hdr.Height(), "err", err,
 		)
+		log.Debugf("BPEF is valid")
 		return nil
 	}
 
@@ -216,6 +217,7 @@ func (p *BadEncodingProof) Validate(hdr *header.ExtendedHeader) error {
 		log.Debugw("failed to encode shares at height",
 			"height", hdr.Height(), "err", err,
 		)
+		log.Debugf("BPEF is valid")
 		return nil
 	}
 	copy(rebuiltShares[odsWidth:], rebuiltExtendedShares)
@@ -227,6 +229,7 @@ func (p *BadEncodingProof) Validate(hdr *header.ExtendedHeader) error {
 			log.Debugw("failed to build a tree from the reconstructed shares at height",
 				"height", hdr.Height(), "err", err,
 			)
+			log.Debugf("BPEF is valid")
 			return nil
 		}
 	}
@@ -236,6 +239,7 @@ func (p *BadEncodingProof) Validate(hdr *header.ExtendedHeader) error {
 		log.Debugw("failed to build a tree root at height",
 			"height", hdr.Height(), "err", err,
 		)
+		log.Debugf("BPEF is valid")
 		return nil
 	}
 
