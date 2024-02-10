@@ -145,7 +145,7 @@ func (sg *ShrexGetter) GetEDS(ctx context.Context, header *header.ExtendedHeader
 		peer, setStatus, getErr := sg.peerManager.Peer(ctx, header.DAH.Hash(), header.Height())
 		if getErr != nil {
 			log.Debugw("eds: couldn't find peer",
-				"hash", header.DAH.String(),
+				"datahash", header.DAH.String(),
 				"err", getErr,
 				"finished (s)", time.Since(start))
 			sg.metrics.recordEDSAttempt(ctx, attempt, false)

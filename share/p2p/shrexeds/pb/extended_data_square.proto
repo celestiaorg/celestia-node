@@ -1,7 +1,7 @@
 syntax = "proto3";
 
 message EDSRequest {
-  bytes hash = 1; // identifies the requested EDS.
+  bytes datahash = 1; // identifies the requested EDS.
 }
 
 enum Status {

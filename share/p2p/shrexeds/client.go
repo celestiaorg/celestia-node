@@ -71,7 +71,7 @@ func (c *Client) RequestEDS(
 	if err != p2p.ErrNotFound {
 		log.Warnw("client: eds request to peer failed",
 			"peer", peer.String(),
-			"hash", dataHash.String(),
+			"datahash", dataHash.String(),
 			"err", err)
 	}
 
@@ -93,7 +93,7 @@ func (c *Client) doRequest(
 
 	c.setStreamDeadlines(ctx, stream)
 
-	req := &pb.EDSRequest{Hash: dataHash}
+	req := &pb.EDSRequest{Datahash: dataHash}
 
 	// request ODS
 	log.Debugw("client: requesting ods", "hash", dataHash.String(), "peer", to.String())

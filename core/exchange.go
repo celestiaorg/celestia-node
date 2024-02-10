@@ -120,7 +120,7 @@ func (ce *Exchange) getRangeByHeight(ctx context.Context, from, amount uint64) (
 }
 
 func (ce *Exchange) Get(ctx context.Context, hash libhead.Hash) (*header.ExtendedHeader, error) {
-	log.Debugw("requesting header", "hash", hash.String())
+	log.Debugw("requesting header", "datahash", hash.String())
 	block, err := ce.fetcher.GetBlockByHash(ctx, hash)
 	if err != nil {
 		return nil, fmt.Errorf("fetching block by hash %s: %w", hash.String(), err)

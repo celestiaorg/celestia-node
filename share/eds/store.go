@@ -440,7 +440,7 @@ func dahFromCARHeader(carHeader *carv1.CarHeader) *share.Dah {
 	for _, root := range carHeader.Roots {
 		rootBytes = append(rootBytes, ipld.NamespacedSha256FromCID(root))
 	}
-	return &share.Root{
+	return &share.Dah{
 		RowRoots:    rootBytes[:rootCount/2],
 		ColumnRoots: rootBytes[rootCount/2:],
 	}
