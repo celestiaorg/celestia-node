@@ -1,6 +1,7 @@
 package file
 
 import (
+	"bufio"
 	"bytes"
 	"context"
 	"fmt"
@@ -33,25 +34,23 @@ func ReadEds(_ context.Context, r io.Reader, edsSize int) (*rsmt2d.ExtendedDataS
 // readShares reads shares from the reader and returns a square. It assumes that the reader is
 // positioned at the beginning of the shares. It knows the size of the shares and the size of the
 // square, so reads from reader are limited to exactly the amount of data required.
-func readShares(shareSize, edsSize int, reader io.Reader) (square, error) {
+func readShares(shareSize, edsSize int, r io.Reader) (square, error) {
 	odsLn := edsSize / 2
 
 	// get pre-allocated square and buffer from memPools
 	square := memPools.get(odsLn).square()
-	buf := memPools.get(odsLn).getHalfAxis()
-	defer memPools.get(odsLn).putHalfAxis(buf)
 
+	// TODO(@walldiss): find proper size for buffer
+	br := bufio.NewReader(r)
 	var total int
-	log.Info("start reading ods", "ods size", odsLn, "share size", shareSize, "buf size", len(buf))
+	log.Info("start reading ods", "ods size", odsLn, "share size", shareSize)
 	for i := 0; i < odsLn; i++ {
-		n, err := reader.Read(buf)
-		if err != nil {
-			return nil, fmt.Errorf("reading share: %w, bytes read: %v", err, total+n)
-		}
-
-		total += n
 		for j := 0; j < odsLn; j++ {
-			copy(square[i][j], buf[j*shareSize:(j+1)*shareSize])
+			n, err := io.ReadFull(br, square[i][j])
+			if err != nil {
+				return nil, fmt.Errorf("reading share: %w, bytes read: %v", err, total+n)
+			}
+			total += n
 		}
 	}
 
