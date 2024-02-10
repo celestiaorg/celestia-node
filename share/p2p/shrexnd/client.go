@@ -48,7 +48,7 @@ func NewClient(params *Parameters, host host.Host) (*Client, error) {
 // Returns NamespacedShares with unverified inclusion proofs against the share.Root.
 func (c *Client) RequestND(
 	ctx context.Context,
-	root *share.Root,
+	root *share.Dah,
 	namespace share.Namespace,
 	peer peer.ID,
 ) (share.NamespacedShares, error) {
@@ -81,7 +81,7 @@ func (c *Client) RequestND(
 
 func (c *Client) doRequest(
 	ctx context.Context,
-	root *share.Root,
+	root *share.Dah,
 	namespace share.Namespace,
 	peerID peer.ID,
 ) (share.NamespacedShares, error) {

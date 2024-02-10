@@ -125,7 +125,7 @@ NetworkHead(ctx context.Context) (*header.ExtendedHeader, error)
     // coordinates.
     GetShare(ctx context.Context, root *Root, row, col int) (Share, error)
     // GetEDS gets the full EDS identified by the given root.
-    GetEDS(ctx context.Context, root *share.Root) (*rsmt2d.ExtendedDataSquare, error)
+    GetEDS(ctx context.Context, root *share.Dah) (*rsmt2d.ExtendedDataSquare, error)
     // GetSharesByNamespace gets all shares from an EDS within the given namespace.
     // Shares are returned in a row-by-row order if the namespace spans multiple rows.
     GetSharesByNamespace(

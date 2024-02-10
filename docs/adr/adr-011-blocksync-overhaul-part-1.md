@@ -301,7 +301,7 @@ The `GetDAH` method returns the DAH (`share.Root`) of the EDS identified by `Dat
 
 ```go
 // GetDAH returns the DataAvailabilityHeader for the EDS identified by DataHash.
-func (s *Store) GetDAH(context.Context, share.DataHash) (*share.Root, error) 
+func (s *Store) GetDAH(context.Context, share.DataHash) (*share.Dah, error) 
 ```
 
 ##### `eds.Store.Get`

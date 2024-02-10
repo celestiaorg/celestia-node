@@ -199,7 +199,7 @@ func newStore(t *testing.T) (*eds.Store, error) {
 	return eds.NewStore(eds.DefaultParameters(), t.TempDir(), ds)
 }
 
-func generateTestEDS(t *testing.T) (*rsmt2d.ExtendedDataSquare, *share.Root, share.Namespace) {
+func generateTestEDS(t *testing.T) (*rsmt2d.ExtendedDataSquare, *share.Dah, share.Namespace) {
 	eds := edstest.RandEDS(t, 4)
 	dah, err := share.NewRoot(eds)
 	require.NoError(t, err)

@@ -58,7 +58,7 @@ type NamespacedRow struct {
 }
 
 // Verify validates NamespacedShares by checking every row with nmt inclusion proof.
-func (ns NamespacedShares) Verify(root *Root, namespace Namespace) error {
+func (ns NamespacedShares) Verify(root *Dah, namespace Namespace) error {
 	var originalRoots [][]byte
 	for _, row := range root.RowRoots {
 		if !namespace.IsOutsideRange(row, row) {

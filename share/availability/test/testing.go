@@ -23,13 +23,13 @@ import (
 )
 
 // RandFillBS fills the given BlockService with a random block of a given size.
-func RandFillBS(t *testing.T, n int, bServ blockservice.BlockService) *share.Root {
+func RandFillBS(t *testing.T, n int, bServ blockservice.BlockService) *share.Dah {
 	shares := sharetest.RandShares(t, n*n)
 	return FillBS(t, bServ, shares)
 }
 
 // FillBS fills the given BlockService with the given shares.
-func FillBS(t *testing.T, bServ blockservice.BlockService, shares []share.Share) *share.Root {
+func FillBS(t *testing.T, bServ blockservice.BlockService, shares []share.Share) *share.Dah {
 	eds, err := ipld.AddShares(context.TODO(), shares, bServ)
 	require.NoError(t, err)
 	dah, err := share.NewRoot(eds)

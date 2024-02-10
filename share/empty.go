@@ -12,7 +12,7 @@ import (
 )
 
 // EmptyRoot returns Root of the empty block EDS.
-func EmptyRoot() *Root {
+func EmptyRoot() *Dah {
 	initEmpty()
 	return emptyBlockRoot
 }
@@ -31,7 +31,7 @@ func EmptyBlockShares() []Share {
 
 var (
 	emptyMu          sync.Mutex
-	emptyBlockRoot   *Root
+	emptyBlockRoot   *Dah
 	emptyBlockEDS    *rsmt2d.ExtendedDataSquare
 	emptyBlockShares []Share
 )

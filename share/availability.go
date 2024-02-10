@@ -15,11 +15,11 @@ var ErrNotAvailable = errors.New("share: data not available")
 
 // Root represents root commitment to multiple Shares.
 // In practice, it is a commitment to all the Data in a square.
-type Root = da.DataAvailabilityHeader
+type Dah = da.DataAvailabilityHeader
 
 // NewRoot generates Root(DataAvailabilityHeader) using the
 // provided extended data square.
-func NewRoot(eds *rsmt2d.ExtendedDataSquare) (*Root, error) {
+func NewRoot(eds *rsmt2d.ExtendedDataSquare) (*Dah, error) {
 	dah, err := da.NewDataAvailabilityHeader(eds)
 	if err != nil {
 		return nil, err

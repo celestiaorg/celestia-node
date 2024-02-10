@@ -405,7 +405,7 @@ func (s *Store) carBlockstore(
 }
 
 // GetDAH returns the DataAvailabilityHeader for the EDS identified by DataHash.
-func (s *Store) GetDAH(ctx context.Context, root share.DataHash) (*share.Root, error) {
+func (s *Store) GetDAH(ctx context.Context, root share.DataHash) (*share.Dah, error) {
 	ctx, span := tracer.Start(ctx, "store/car-dah")
 	tnow := time.Now()
 	r, err := s.getDAH(ctx, root)
@@ -414,7 +414,7 @@ func (s *Store) GetDAH(ctx context.Context, root share.DataHash) (*share.Root, e
 	return r, err
 }
 
-func (s *Store) getDAH(ctx context.Context, root share.DataHash) (*share.Root, error) {
+func (s *Store) getDAH(ctx context.Context, root share.DataHash) (*share.Dah, error) {
 	r, err := s.getCAR(ctx, root)
 	if err != nil {
 		return nil, fmt.Errorf("eds/store: failed to get CAR file: %w", err)
@@ -434,7 +434,7 @@ func (s *Store) getDAH(ctx context.Context, root share.DataHash) (*share.Root, e
 }
 
 // dahFromCARHeader returns the DataAvailabilityHeader stored in the CIDs of a CARv1 header.
-func dahFromCARHeader(carHeader *carv1.CarHeader) *share.Root {
+func dahFromCARHeader(carHeader *carv1.CarHeader) *share.Dah {
 	rootCount := len(carHeader.Roots)
 	rootBytes := make([][]byte, 0, rootCount)
 	for _, root := range carHeader.Roots {

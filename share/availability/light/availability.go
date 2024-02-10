@@ -141,7 +141,7 @@ func (la *ShareAvailability) SharesAvailable(ctx context.Context, header *header
 	return nil
 }
 
-func rootKey(root *share.Root) datastore.Key {
+func rootKey(root *share.Dah) datastore.Key {
 	return datastore.NewKey(root.String())
 }
 

@@ -35,7 +35,7 @@ func EmptyGetter() (share.Getter, blockservice.BlockService) {
 }
 
 // RandNode creates a Light Node filled with a random block of the given size.
-func RandNode(dn *availability_test.TestDagNet, squareSize int) (*availability_test.TestNode, *share.Root) {
+func RandNode(dn *availability_test.TestDagNet, squareSize int) (*availability_test.TestNode, *share.Dah) {
 	nd := Node(dn)
 	return nd, availability_test.RandFillBS(dn.T, squareSize, nd.BlockService)
 }

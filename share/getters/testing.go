@@ -64,7 +64,7 @@ func (seg *SingleEDSGetter) GetSharesByNamespace(context.Context, *header.Extend
 	panic("SingleEDSGetter: GetSharesByNamespace is not implemented")
 }
 
-func (seg *SingleEDSGetter) checkRoot(root *share.Root) error {
+func (seg *SingleEDSGetter) checkRoot(root *share.Dah) error {
 	dah, err := da.NewDataAvailabilityHeader(seg.EDS)
 	if err != nil {
 		return err

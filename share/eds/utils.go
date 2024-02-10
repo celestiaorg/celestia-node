@@ -62,7 +62,7 @@ func closeAndLog(name string, closer io.Closer) {
 func RetrieveNamespaceFromStore(
 	ctx context.Context,
 	store *Store,
-	dah *share.Root,
+	dah *share.Dah,
 	namespace share.Namespace,
 ) (shares share.NamespacedShares, err error) {
 	if err = namespace.ValidateForData(); err != nil {
@@ -111,7 +111,7 @@ func RetrieveNamespaceFromStore(
 func CollectSharesByNamespace(
 	ctx context.Context,
 	bg blockservice.BlockGetter,
-	root *share.Root,
+	root *share.Dah,
 	namespace share.Namespace,
 ) (shares share.NamespacedShares, err error) {
 	ctx, span := tracer.Start(ctx, "collect-shares-by-namespace", trace.WithAttributes(
