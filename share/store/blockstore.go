@@ -40,13 +40,13 @@ func NewBlockstore(store *Store, ds datastore.Batching) *Blockstore {
 }
 
 func (bs *Blockstore) Has(ctx context.Context, cid cid.Cid) (bool, error) {
-	h, err := shwap.BlockBuilderFromCID(cid)
+	req, err := shwap.BlockBuilderFromCID(cid)
 	if err != nil {
 		return false, fmt.Errorf("while getting height from CID: %w", err)
 	}
 
 	// check cache first
-	height := h.GetHeight()
+	height := req.GetHeight()
 	_, err = bs.store.cache.Get(height)
 	if err == nil {
 		return true, nil
@@ -69,15 +69,15 @@ func (bs *Blockstore) Has(ctx context.Context, cid cid.Cid) (bool, error) {
 }
 
 func (bs *Blockstore) Get(ctx context.Context, cid cid.Cid) (blocks.Block, error) {
-	h, err := shwap.BlockBuilderFromCID(cid)
+	req, err := shwap.BlockBuilderFromCID(cid)
 	if err != nil {
 		return nil, fmt.Errorf("while getting height from CID: %w", err)
 	}
 
-	height := h.GetHeight()
+	height := req.GetHeight()
 	f, err := bs.store.cache.Second().GetOrLoad(ctx, height, bs.store.openFileByHeight(height))
 	if err == nil {
-		return h.BlockFromFile(ctx, f)
+		return req.BlockFromFile(ctx, f)
 	}
 
 	if errors.Is(err, ErrNotFound) {

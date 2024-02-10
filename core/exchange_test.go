@@ -2,18 +2,16 @@ package core
 
 import (
 	"context"
+	"github.com/celestiaorg/celestia-node/share/store"
 	"testing"
 	"time"
 
-	ds "github.com/ipfs/go-datastore"
-	ds_sync "github.com/ipfs/go-datastore/sync"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
 	"github.com/celestiaorg/celestia-app/test/util/testnode"
 
 	"github.com/celestiaorg/celestia-node/header"
-	"github.com/celestiaorg/celestia-node/share/eds"
 )
 
 func TestCoreExchange_RequestHeaders(t *testing.T) {
@@ -60,11 +58,11 @@ func createCoreFetcher(t *testing.T, cfg *testnode.Config) (*BlockFetcher, testn
 	return NewBlockFetcher(cctx.Client), cctx
 }
 
-func createStore(t *testing.T) *eds.Store {
+func createStore(t *testing.T) *store.Store {
 	t.Helper()
 
-	storeCfg := eds.DefaultParameters()
-	store, err := eds.NewStore(storeCfg, t.TempDir(), ds_sync.MutexWrap(ds.NewMapDatastore()))
+	storeCfg := store.DefaultParameters()
+	store, err := store.NewStore(storeCfg, t.TempDir())
 	require.NoError(t, err)
 	return store
 }

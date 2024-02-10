@@ -10,7 +10,7 @@ import (
 	"github.com/celestiaorg/celestia-node/share/store/file"
 )
 
-// BlockBuilder is an interface for building blocks from files.
+// BlockBuilder is an interface for building response blocks from request and file.
 type BlockBuilder interface {
 	// TODO(@walldiss): don't like this name, but it collides with field name in RowID
 	GetHeight() uint64

@@ -3,6 +3,7 @@ package core
 import (
 	"bytes"
 	"context"
+	"github.com/celestiaorg/celestia-node/share/store"
 	"testing"
 	"time"
 
@@ -18,7 +19,6 @@ import (
 	"github.com/celestiaorg/celestia-node/header"
 	nodep2p "github.com/celestiaorg/celestia-node/nodebuilder/p2p"
 	"github.com/celestiaorg/celestia-node/share"
-	"github.com/celestiaorg/celestia-node/share/eds"
 	"github.com/celestiaorg/celestia-node/share/p2p/shrexsub"
 )
 
@@ -84,16 +84,13 @@ func TestListenerWithNonEmptyBlocks(t *testing.T) {
 	eds := createEdsPubSub(ctx, t)
 
 	store := createStore(t)
-	err := store.Start(ctx)
-	require.NoError(t, err)
 	t.Cleanup(func() {
-		err = store.Stop(ctx)
-		require.NoError(t, err)
+		require.NoError(t, store.Close())
 	})
 
 	// create Listener and start listening
 	cl := createListener(ctx, t, fetcher, ps0, eds, store)
-	err = cl.Start(ctx)
+	err := cl.Start(ctx)
 	require.NoError(t, err)
 
 	// listen for eds hashes broadcasted through eds-sub and ensure store has
@@ -114,7 +111,7 @@ func TestListenerWithNonEmptyBlocks(t *testing.T) {
 			continue
 		}
 
-		has, err := store.Has(ctx, msg.DataHash)
+		has, err := store.HasByHash(ctx, msg.DataHash)
 		require.NoError(t, err)
 		require.True(t, has)
 	}
@@ -165,7 +162,7 @@ func createListener(
 	fetcher *BlockFetcher,
 	ps *pubsub.PubSub,
 	edsSub *shrexsub.PubSub,
-	store *eds.Store,
+	store *store.Store,
 ) *Listener {
 	p2pSub, err := p2p.NewSubscriber[*header.ExtendedHeader](ps, header.MsgID, p2p.WithSubscriberNetworkID(networkID))
 	require.NoError(t, err)
