@@ -12,7 +12,7 @@ func TestCacheFile(t *testing.T) {
 	size := 8
 	newFile := func(eds *rsmt2d.ExtendedDataSquare) EdsFile {
 		path := t.TempDir() + "/testfile"
-		fl, err := CreateOdsFile(path, 1, []byte{}, eds)
+		fl, err := CreateOdsFile(path, []byte{}, eds)
 		require.NoError(t, err)
 		return NewCacheFile(fl)
 	}

@@ -17,7 +17,8 @@ type Header struct {
 	shareSize  uint16
 	squareSize uint16
 
-	height   uint64
+	// TODO(@walldiss) store all heights in the header?
+	//height   uint64
 	datahash share.DataHash
 }
 
@@ -39,10 +40,6 @@ func (h *Header) SquareSize() int {
 	return int(h.squareSize)
 }
 
-func (h *Header) Height() uint64 {
-	return h.height
-}
-
 func (h *Header) DataHash() share.DataHash {
 	return h.datahash
 }
@@ -52,8 +49,7 @@ func (h *Header) WriteTo(w io.Writer) (int64, error) {
 	buf[0] = byte(h.version)
 	binary.LittleEndian.PutUint16(buf[1:3], h.shareSize)
 	binary.LittleEndian.PutUint16(buf[3:5], h.squareSize)
-	binary.LittleEndian.PutUint64(buf[5:13], h.height)
-	copy(buf[13:45], h.datahash)
+	copy(buf[5:37], h.datahash)
 	_, err := io.Copy(w, bytes.NewBuffer(buf))
 	return HeaderSize, err
 }
@@ -69,10 +65,9 @@ func ReadHeader(r io.Reader) (*Header, error) {
 		version:    fileVersion(buf[0]),
 		shareSize:  binary.LittleEndian.Uint16(buf[1:3]),
 		squareSize: binary.LittleEndian.Uint16(buf[3:5]),
-		height:     binary.LittleEndian.Uint64(buf[5:13]),
 		datahash:   make([]byte, 32),
 	}
 
-	copy(h.datahash, buf[13:45])
+	copy(h.datahash, buf[5:37])
 	return h, err
 }

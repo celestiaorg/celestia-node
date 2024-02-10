@@ -45,7 +45,6 @@ func OpenOdsFile(path string) (*OdsFile, error) {
 
 func CreateOdsFile(
 	path string,
-	height uint64,
 	datahash share.DataHash,
 	eds *rsmt2d.ExtendedDataSquare) (*OdsFile, error) {
 	f, err := os.Create(path)
@@ -57,7 +56,6 @@ func CreateOdsFile(
 		version:    FileV0,
 		shareSize:  share.Size, // TODO: rsmt2d should expose this field
 		squareSize: uint16(eds.Width()),
-		height:     height,
 		datahash:   datahash,
 	}
 
@@ -97,10 +95,6 @@ func (f *OdsFile) Close() error {
 		return err
 	}
 	return f.fl.Close()
-}
-
-func (f *OdsFile) Height() uint64 {
-	return f.hdr.Height()
 }
 
 func (f *OdsFile) DataHash() share.DataHash {

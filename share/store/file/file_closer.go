@@ -48,13 +48,6 @@ func (c *closeOnceFile) Size() int {
 	return c.f.Size()
 }
 
-func (c *closeOnceFile) Height() uint64 {
-	if c.closed.Load() {
-		return 0
-	}
-	return c.f.Height()
-}
-
 func (c *closeOnceFile) DataHash() share.DataHash {
 	if c.closed.Load() {
 		return nil

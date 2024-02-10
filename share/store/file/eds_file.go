@@ -18,8 +18,6 @@ type EdsFile interface {
 	Reader() (io.Reader, error)
 	// Size returns square size of the file.
 	Size() int
-	// Height returns height of the file.
-	Height() uint64
 	// DataHash returns data hash of the file.
 	DataHash() share.DataHash
 	// Share returns share and corresponding proof for the given axis and share index in this axis.

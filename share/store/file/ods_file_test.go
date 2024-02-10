@@ -15,7 +15,7 @@ import (
 func TestCreateOdsFile(t *testing.T) {
 	path := t.TempDir() + "/testfile"
 	edsIn := edstest.RandEDS(t, 8)
-	_, err := CreateOdsFile(path, 1, []byte{}, edsIn)
+	_, err := CreateOdsFile(path, []byte{}, edsIn)
 	require.NoError(t, err)
 
 	f, err := OpenOdsFile(path)
@@ -29,7 +29,7 @@ func TestOdsFile(t *testing.T) {
 	size := 8
 	createOdsFile := func(eds *rsmt2d.ExtendedDataSquare) EdsFile {
 		path := t.TempDir() + "/testfile"
-		fl, err := CreateOdsFile(path, 1, []byte{}, eds)
+		fl, err := CreateOdsFile(path, []byte{}, eds)
 		require.NoError(t, err)
 		return fl
 	}
@@ -58,7 +58,7 @@ func TestOdsFile(t *testing.T) {
 func TestReadOdsFile(t *testing.T) {
 	eds := edstest.RandEDS(t, 8)
 	path := t.TempDir() + "/testfile"
-	f, err := CreateOdsFile(path, 1, []byte{}, eds)
+	f, err := CreateOdsFile(path, []byte{}, eds)
 	require.NoError(t, err)
 
 	err = f.readOds()
@@ -105,7 +105,7 @@ func BenchmarkAxisFromOdsFile(b *testing.B) {
 	newFile := func(size int) EdsFile {
 		eds := edstest.RandEDS(b, size)
 		path := dir + "/testfile"
-		f, err := CreateOdsFile(path, 1, []byte{}, eds)
+		f, err := CreateOdsFile(path, []byte{}, eds)
 		require.NoError(b, err)
 		return f
 	}
@@ -131,7 +131,7 @@ func BenchmarkShareFromOdsFile(b *testing.B) {
 	newFile := func(size int) EdsFile {
 		eds := edstest.RandEDS(b, size)
 		path := dir + "/testfile"
-		f, err := CreateOdsFile(path, 1, []byte{}, eds)
+		f, err := CreateOdsFile(path, []byte{}, eds)
 		require.NoError(b, err)
 		return f
 	}

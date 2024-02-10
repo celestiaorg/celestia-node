@@ -16,8 +16,7 @@ import (
 var _ EdsFile = (*MemFile)(nil)
 
 type MemFile struct {
-	height uint64
-	Eds    *rsmt2d.ExtendedDataSquare
+	Eds *rsmt2d.ExtendedDataSquare
 }
 
 func (f *MemFile) Close() error {
@@ -38,10 +37,6 @@ func (f *MemFile) readOds() square {
 		}
 	}
 	return s
-}
-
-func (f *MemFile) Height() uint64 {
-	return f.height
 }
 
 func (f *MemFile) DataHash() share.DataHash {
