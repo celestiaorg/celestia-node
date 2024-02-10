@@ -85,6 +85,41 @@ func TestEDSStore(t *testing.T) {
 		require.NoError(t, f.Close())
 	})
 
+	t.Run("Put eds with same hash for different height", func(t *testing.T) {
+		eds, dah := randomEDS(t)
+		h1 := height.Add(1)
+
+		f, err := edsStore.Put(ctx, dah.Hash(), h1, eds)
+		require.NoError(t, err)
+		require.NoError(t, f.Close())
+
+		h2 := height.Add(1)
+		f, err = edsStore.Put(ctx, dah.Hash(), h2, eds)
+		require.NoError(t, err)
+		require.NoError(t, f.Close())
+
+		// both heights should be available
+		has, err := edsStore.HasByHeight(ctx, h1)
+		require.NoError(t, err)
+		require.True(t, has)
+
+		has, err = edsStore.HasByHeight(ctx, h2)
+		require.NoError(t, err)
+		require.True(t, has)
+
+		// removing one height should not affect the other
+		err = edsStore.Remove(ctx, h1)
+		require.NoError(t, err)
+
+		has, err = edsStore.HasByHeight(ctx, h1)
+		require.NoError(t, err)
+		require.False(t, has)
+
+		has, err = edsStore.HasByHeight(ctx, h2)
+		require.NoError(t, err)
+		require.True(t, has)
+	})
+
 	t.Run("GetByHeight", func(t *testing.T) {
 		eds, dah := randomEDS(t)
 		height := height.Add(1)

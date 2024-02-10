@@ -59,8 +59,8 @@ func (fa *ShareAvailability) Stop(context.Context) error {
 // enough Shares from the network.
 func (fa *ShareAvailability) SharesAvailable(ctx context.Context, header *header.ExtendedHeader) error {
 	// a hack to avoid loading the whole EDS in mem if we store it already.
-	if ok, _ := fa.store.HasByHeight(ctx, header.Height()); ok {
-		return nil
+	if ok, _ := fa.store.HasByHash(ctx, header.DAH.Hash()); ok {
+		return fa.store.LinkHeight(ctx, header.DAH.Hash(), header.Height())
 	}
 
 	eds, err := fa.getEds(ctx, header)
@@ -91,7 +91,7 @@ func (fa *ShareAvailability) getEds(ctx context.Context, header *header.Extended
 		log.Errorw("availability validation failed", "root", dah.String(), "err", err.Error())
 		var byzantineErr *byzantine.ErrByzantine
 		if errors.Is(err, share.ErrNotFound) || errors.Is(err, context.DeadlineExceeded) && !errors.As(err, &byzantineErr) {
-			return nil, share.ErrNotAvailable
+			return nil, fmt.Errorf("%w:%w", share.ErrNotAvailable, err)
 		}
 		return nil, err
 	}

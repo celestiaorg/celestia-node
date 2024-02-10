@@ -7,7 +7,9 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"strconv"
 	"sync"
+	"syscall"
 	"time"
 
 	logging "github.com/ipfs/go-log/v2"
@@ -29,7 +31,6 @@ var (
 )
 
 // TODO(@walldiss):
-//  - handle blocks duplicates(same hash,different height)
 //  - periodically store empty heights
 //  - persist store stats like amount of files, file types, avg file size etc in a file
 //  - handle corrupted files
@@ -85,12 +86,12 @@ func NewStore(params *Parameters, basePath string) (*Store, error) {
 		return nil, fmt.Errorf("ensure empty heights file: %w", err)
 	}
 
-	recentBlocksCache, err := cache.NewFileCache("recent", params.RecentBlocksCacheSize)
+	recentBlocksCache, err := cache.NewFileCache("recent", 1)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create recent blocks cache: %w", err)
 	}
 
-	blockstoreCache, err := cache.NewFileCache("blockstore", params.BlockstoreCacheSize)
+	blockstoreCache, err := cache.NewFileCache("blockstore", 1)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create blockstore cache: %w", err)
 	}
@@ -135,26 +136,44 @@ func (s *Store) Put(
 		return s.getByHeight(height)
 	}
 
-	path := s.basepath + blocksPath + datahash.String()
-	file, err := file.CreateOdsFile(path, height, datahash, square)
+	filePath := s.basepath + blocksPath + datahash.String()
+	f, err := s.createFile(filePath, datahash, square)
 	if err != nil {
 		s.metrics.observePut(ctx, time.Since(tNow), square.Width(), true)
-		return nil, fmt.Errorf("creating ODS file: %w", err)
+		return nil, fmt.Errorf("creating file: %w", err)
 	}
 
 	// create hard link with height as name
-	err = os.Link(path, s.basepath+heightsPath+fmt.Sprintf("%d", height))
+	err = s.createHeightLink(datahash, height)
 	if err != nil {
-		s.metrics.observePut(ctx, time.Since(tNow), square.Width(), true)
-		return nil, fmt.Errorf("creating hard link: %w", err)
+		s.metrics.observePut(ctx, time.Since(tNow), square.Width(), false)
+		return nil, fmt.Errorf("linking height: %w", err)
 	}
-
 	s.metrics.observePut(ctx, time.Since(tNow), square.Width(), false)
 
-	// put in recent cache
-	f, err := s.cache.First().GetOrLoad(ctx, height, edsLoader(file))
+	// put file in recent cache
+	f, err = s.cache.First().GetOrLoad(ctx, height, fileLoader(f))
 	if err != nil {
-		return nil, fmt.Errorf("putting in cache: %w", err)
+		log.Warnf("failed to put file in recent cache: %s", err)
+	}
+	return f, nil
+}
+
+func (s *Store) createFile(filePath string, datahash share.DataHash, square *rsmt2d.ExtendedDataSquare) (file.EdsFile, error) {
+	// check if file with the same hash already exists
+	f, err := s.getByHash(datahash)
+	if err == nil {
+		return f, nil
+	}
+
+	if !errors.Is(err, ErrNotFound) {
+		return nil, fmt.Errorf("getting by hash: %w", err)
+	}
+
+	// create ODS file
+	f, err = file.CreateOdsFile(filePath, datahash, square)
+	if err != nil {
+		return nil, fmt.Errorf("creating ODS file: %w", err)
 	}
 	return f, nil
 }
@@ -187,6 +206,36 @@ func (s *Store) getByHash(datahash share.DataHash) (file.EdsFile, error) {
 		return nil, fmt.Errorf("opening ODS file: %w", err)
 	}
 	return odsFile, nil
+}
+
+func (s *Store) LinkHeight(_ context.Context, datahash share.DataHash, height uint64) error {
+	lock := s.stripLock.byDatahashAndHeight(datahash, height)
+	lock.lock()
+	defer lock.unlock()
+
+	if datahash.IsEmptyRoot() {
+		s.addEmptyHeight(height)
+		return nil
+	}
+
+	// short circuit if link exists
+	if has, _ := s.hasByHeight(height); has {
+		return nil
+	}
+
+	return s.createHeightLink(datahash, height)
+}
+
+func (s *Store) createHeightLink(datahash share.DataHash, height uint64) error {
+	filePath := s.basepath + blocksPath + datahash.String()
+	// create hard link with height as name
+	linkPath := s.basepath + heightsPath + strconv.Itoa(int(height))
+	err := os.Link(filePath, linkPath)
+	if err != nil {
+		return fmt.Errorf("creating hard link: %w", err)
+	}
+
+	return nil
 }
 
 func (s *Store) GetByHeight(ctx context.Context, height uint64) (file.EdsFile, error) {
@@ -282,11 +331,13 @@ func (s *Store) Remove(ctx context.Context, height uint64) error {
 func (s *Store) remove(height uint64) error {
 	// short circuit if file not exists
 	f, err := s.getByHeight(height)
-	if errors.Is(err, ErrNotFound) {
-		return nil
+	if err != nil {
+		if errors.Is(err, ErrNotFound) {
+			return nil
+		}
+		return fmt.Errorf("getting by height: %w", err)
 	}
 
-	hashStr := f.DataHash().String()
 	if err = f.Close(); err != nil {
 		return fmt.Errorf("closing file on removal: %w", err)
 	}
@@ -295,19 +346,28 @@ func (s *Store) remove(height uint64) error {
 		return fmt.Errorf("removing from cache: %w", err)
 	}
 
+	// remove hard link by height
 	heightPath := s.basepath + heightsPath + fmt.Sprintf("%d", height)
 	if err = os.Remove(heightPath); err != nil {
 		return fmt.Errorf("removing by height: %w", err)
 	}
 
+	hashStr := f.DataHash().String()
 	hashPath := s.basepath + blocksPath + hashStr
-	if err = os.Remove(hashPath); err != nil {
-		return fmt.Errorf("removing by hash: %w", err)
+	count, err := linksCount(hashPath)
+	if err != nil {
+		return fmt.Errorf("counting links: %w", err)
+	}
+	if count == 1 {
+		err = os.Remove(hashPath)
+		if err != nil {
+			return fmt.Errorf("removing by hash: %w", err)
+		}
 	}
 	return nil
 }
 
-func edsLoader(f file.EdsFile) cache.OpenFileFn {
+func fileLoader(f file.EdsFile) cache.OpenFileFn {
 	return func(ctx context.Context) (file.EdsFile, error) {
 		return f, nil
 	}
@@ -369,6 +429,15 @@ func pathExists(path string) (bool, error) {
 		return false, err
 	}
 	return true, nil
+}
+
+func linksCount(path string) (int, error) {
+	info, err := os.Stat(path)
+	if err != nil {
+		return 0, fmt.Errorf("checking file: %w", err)
+	}
+
+	return int(info.Sys().(*syscall.Stat_t).Nlink), nil
 }
 
 func (s *Store) storeEmptyHeights() error {
