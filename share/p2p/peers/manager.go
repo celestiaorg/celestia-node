@@ -38,7 +38,8 @@ const (
 	// events in libp2p
 	eventbusBufSize = 32
 
-	// storedPoolsAmount is the amount of pools for recent headers that will be stored in the peer manager
+	// storedPoolsAmount is the amount of pools for recent headers that will be stored in the peer
+	// manager
 	storedPoolsAmount = 10
 )
 
