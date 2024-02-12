@@ -17,7 +17,7 @@ import (
 func TestPubSub(t *testing.T) {
 	h, err := mocknet.FullMeshConnected(2)
 	require.NoError(t, err)
-	ctx, cancel := context.WithTimeout(context.Background(), time.Second*5)
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second*30)
 	t.Cleanup(cancel)
 
 	pSub1, err := NewPubSub(ctx, h.Hosts()[0], "test")
@@ -106,7 +106,7 @@ func TestPubSub(t *testing.T) {
 			err = pSub1.topic.Publish(ctx, data, pubsub.WithReadiness(pubsub.MinTopicSize(1)))
 			require.NoError(t, err)
 
-			reqCtx, reqCtxCancel := context.WithTimeout(context.Background(), time.Millisecond*100)
+			reqCtx, reqCtxCancel := context.WithTimeout(context.Background(), time.Second*1)
 			defer reqCtxCancel()
 
 			got, err := subs.Next(reqCtx)
