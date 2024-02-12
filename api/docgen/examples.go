@@ -51,6 +51,7 @@ var ExampleValues = map[reflect.Type]interface{}{
 	reflect.TypeOf(42):                       42,
 	reflect.TypeOf(byte(7)):                  byte(7),
 	reflect.TypeOf(float64(42)):              float64(42),
+	reflect.TypeOf(blob.GasPrice(0)):         blob.GasPrice(0.002),
 	reflect.TypeOf(true):                     true,
 	reflect.TypeOf([]byte{}):                 []byte("byte array"),
 	reflect.TypeOf(node.Full):                node.Full,
