@@ -1,6 +1,7 @@
 package blob
 
 import (
+	"bytes"
 	"context"
 	"errors"
 	"fmt"
@@ -112,7 +113,7 @@ func (s *Service) Submit(ctx context.Context, blobs []*Blob, gasPrice GasPrice) 
 
 // Get retrieves all the blobs for given namespaces at the given height by commitment.
 func (s *Service) Get(ctx context.Context, height uint64, ns share.Namespace, commitment Commitment) (*Blob, error) {
-	blob, _, err := s.getByCommitment(ctx, height, ns, commitment)
+	blob, _, err := s.retrieve(ctx, height, ns, commitment, verify)
 	if err != nil {
 		return nil, err
 	}
@@ -127,7 +128,7 @@ func (s *Service) GetProof(
 	namespace share.Namespace,
 	commitment Commitment,
 ) (*Proof, error) {
-	_, proof, err := s.getByCommitment(ctx, height, namespace, commitment)
+	_, proof, err := s.retrieve(ctx, height, namespace, commitment, verify)
 	if err != nil {
 		return nil, err
 	}
@@ -205,7 +206,7 @@ func (s *Service) Included(
 	// but we have to guarantee that all our stored subtree roots will be on the same height(e.g. one
 	// level above shares).
 	// TODO(@vgonkivs): rework the implementation to perform all verification without network requests.
-	_, resProof, err := s.getByCommitment(ctx, height, namespace, com)
+	_, resProof, err := s.retrieve(ctx, height, namespace, com, verify)
 	switch err {
 	case nil:
 	case ErrBlobNotFound:
@@ -216,13 +217,14 @@ func (s *Service) Included(
 	return true, resProof.equal(*proof)
 }
 
-// getByCommitment retrieves the DAH row by row, fetching shares and constructing blobs in order to
+// retrieve retrieves the DAH row by row, fetching shares and constructing blobs in order to
 // compare Commitments. Retrieving is stopped once the requested blob/proof is found.
-func (s *Service) getByCommitment(
+func (s *Service) retrieve(
 	ctx context.Context,
 	height uint64,
 	namespace share.Namespace,
 	commitment Commitment,
+	verifyFn func(blob *Blob, com Commitment) bool,
 ) (_ *Blob, _ *Proof, err error) {
 	log.Infow("requesting blob",
 		"height", height,
@@ -251,18 +253,6 @@ func (s *Service) getByCommitment(
 
 	getCtx, getSharesSpan := tracer.Start(ctx, "get-shares-by-namespace")
 
-	// ensure that requested namespace can be found inside the DAH before retrieving it.
-	offset := -1
-	for i, row := range header.DAH.RowRoots {
-		if !namespace.IsOutsideRange(row, row) {
-			offset = i
-			break
-		}
-	}
-	if offset == -1 {
-		return nil, nil, ErrBlobNotFound
-	}
-
 	namespacedShares, err := s.shareGetter.GetSharesByNamespace(getCtx, header, namespace)
 	if err != nil {
 		if errors.Is(err, share.ErrNotFound) {
@@ -277,10 +267,9 @@ func (s *Service) getByCommitment(
 		attribute.Int64("eds-size", int64(len(header.DAH.RowRoots)))))
 
 	var (
-		rawShares = make([]shares.Share, 0)
-		proofs    = make(Proof, 0)
-		// spansMultipleRows specifies whether blob is expanded into multiple rows
-		spansMultipleRows bool
+		appShares       = make([]shares.Share, 0)
+		proofs          = make(Proof, 0)
+		blobTransformer = &transformer{}
 	)
 
 	for _, row := range namespacedShares {
@@ -291,51 +280,100 @@ func (s *Service) getByCommitment(
 			return nil, nil, ErrBlobNotFound
 		}
 
-		appShares, err := toAppShares(row.Shares...)
+		appShares, err = toAppShares(row.Shares...)
 		if err != nil {
 			return nil, nil, err
 		}
-		rawShares = append(rawShares, appShares...)
+
 		proofs = append(proofs, row.Proof)
+		index := row.Proof.Start()
 
-		var blobs []*Blob
-		blobs, rawShares, err = buildBlobsIfExist(rawShares)
-		if err != nil {
-			return nil, nil, err
-		}
-
-		for _, b := range blobs {
-			if b.Commitment.Equal(commitment) {
-				b.index = offset*len(header.DAH.RowRoots) + proofs[0].Start()
-				return b, &proofs, nil
+		for {
+			if len(appShares) == 0 {
+				break
 			}
-			// Falling under this flag means that the data from the last row
-			// was insufficient to create a complete blob. As a result,
-			// the first blob received spans two rows and includes proofs
-			// for both of these rows. All other blobs in the result will relate
-			// to the current row and have a single proof.
-			if spansMultipleRows {
-				spansMultipleRows = false
-				// move offset to the current row index.
-				offset += len(proofs) - 1
-				// leave proof only for the current row.
+
+			isPadding, err := appShares[0].IsPadding()
+			if err != nil {
+				return nil, nil, err
+			}
+
+			if isPadding {
+				index++
+				if len(appShares) > 1 {
+					appShares = appShares[1:]
+					continue
+				}
+				break
+			}
+
+			isComplete := false
+			if !blobTransformer.empty() {
+				beforeSet := len(appShares)
+				appShares, isComplete = blobTransformer.setShares(appShares)
+				if !isComplete {
+					break
+				}
+
+				blob, err := blobTransformer.transform()
+				if err != nil {
+					return nil, nil, err
+				}
+				if verifyFn(blob, commitment) {
+					return blob, &proofs, nil
+				}
+
+				// index of the next blob
+				index += beforeSet - len(appShares)
 				proofs = proofs[len(proofs)-1:]
+				blobTransformer.restore()
+				continue
 			}
+
+			length, err := appShares[0].SequenceLen()
+			if err != nil {
+				return nil, nil, err
+			}
+
+			blobTransformer = newTransformer(
+				row.Index*len(header.DAH.RowRoots)+index,
+				shares.SparseSharesNeeded(length),
+			)
+
+			appShares, isComplete = blobTransformer.setShares(appShares)
+			if !isComplete {
+				break
+			}
+
+			blob, err := blobTransformer.transform()
+			if err != nil {
+				return nil, nil, err
+			}
+
+			if verifyFn(blob, commitment) {
+				return blob, &proofs, nil
+			}
+
+			index += shares.SparseSharesNeeded(length)
+			blobTransformer.restore()
 		}
-		if len(rawShares) > 0 {
-			spansMultipleRows = true
-			continue
+
+		if blobTransformer.empty() {
+			proofs = nil
 		}
-		// moving to the next row.
-		offset++
-		proofs = nil
 	}
 
 	err = ErrBlobNotFound
-	if len(rawShares) > 0 {
-		err = fmt.Errorf("incomplete blob with the "+
-			"namespace: %s detected at %d: %w", namespace.String(), height, err)
-		log.Error(err)
+	for _, sh := range appShares {
+		ok, err := sh.IsPadding()
+		if err != nil {
+			return nil, nil, err
+		}
+		if !ok {
+			err = fmt.Errorf("incomplete blob with the "+
+				"namespace: %s detected at %d: %w", namespace.String(), height, err)
+			log.Error(err)
+		}
 	}
 	return nil, nil, err
 }
@@ -351,11 +389,18 @@ func (s *Service) getBlobs(
 	defer func() {
 		utils.SetStatusAndEnd(span, err)
 	}()
-	namespacedShares, err := s.shareGetter.GetSharesByNamespace(ctx, header, namespace)
-	if err != nil {
-		return nil, err
+
+	blobs := make([]*Blob, 0)
+	verifyFn := func(blob *Blob, _ Commitment) bool {
+		blobs = append(blobs, blob)
+		return false
 	}
-	return SharesToBlobs(namespacedShares.Flatten())
+
+	_, _, err = s.retrieve(ctx, header.Height(), namespace, nil, verifyFn)
+	if len(blobs) == 0 {
+		return nil, ErrBlobNotFound
+	}
+	return blobs, nil
 }
 
 // toAppShares converts node's raw shares to the app shares, skipping padding
@@ -366,16 +411,11 @@ func toAppShares(shrs ...share.Share) ([]shares.Share, error) {
 		if err != nil {
 			return nil, err
 		}
-
-		ok, err := bShare.IsPadding()
-		if err != nil {
-			return nil, err
-		}
-		if ok {
-			continue
-		}
-
 		appShrs = append(appShrs, *bShare)
 	}
 	return appShrs, nil
+}
+
+func verify(blob *Blob, com Commitment) bool {
+	return bytes.Equal(blob.Commitment, com)
 }

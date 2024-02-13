@@ -180,36 +180,84 @@ func (b *Blob) UnmarshalJSON(data []byte) error {
 	return nil
 }
 
-// buildBlobsIfExist takes shares and tries building the Blobs from them.
-// It will build blobs either until appShares will be empty or the first incomplete blob will
-// appear, so in this specific case it will return all built blobs + remaining shares.
-func buildBlobsIfExist(appShares []shares.Share) ([]*Blob, []shares.Share, error) {
-	if len(appShares) == 0 {
-		return nil, nil, errors.New("empty shares received")
+// transformer is a data structure that collects shares until blob is completed
+// and transforms that shares into blob.
+type transformer struct {
+	index  int
+	length int
+	shares []shares.Share
+}
+
+func newTransformer(index, length int) *transformer {
+	return &transformer{
+		index:  index,
+		length: length,
 	}
-	blobs := make([]*Blob, 0, len(appShares))
-	for {
-		length, err := appShares[0].SequenceLen()
-		if err != nil {
-			return nil, nil, err
-		}
+}
 
-		amount := shares.SparseSharesNeeded(length)
-		if amount > len(appShares) {
-			return blobs, appShares, nil
+// setShares sets shares
+func (b *transformer) setShares(shares []shares.Share) (shrs []shares.Share, isComplete bool) {
+	index := -1
+	for i, sh := range shares {
+		b.shares = append(b.shares, sh)
+		if len(b.shares) == b.length {
+			index = i
+			isComplete = true
+			break
 		}
-
-		b, err := parseShares(appShares[:amount])
-		if err != nil {
-			return nil, nil, err
-		}
-
-		// only 1 blob will be created bc we passed the exact amount of shares
-		blobs = append(blobs, b[0])
-
-		if amount == len(appShares) {
-			return blobs, nil, nil
-		}
-		appShares = appShares[amount:]
 	}
+
+	if index == -1 {
+		return
+	}
+
+	if index+1 >= len(shares) {
+		return shrs, true
+	}
+	return shares[index+1:], true
+}
+
+func (b *transformer) transform() (*Blob, error) {
+	if b.length != len(b.shares) {
+		return nil, errors.New("blob: blob is incomplete")
+	}
+
+	sequence, err := shares.ParseShares(b.shares, true)
+	if err != nil {
+		return nil, err
+	}
+
+	if len(sequence) != 1 {
+		return nil, ErrBlobNotFound
+	}
+
+	data, err := sequence[0].RawData()
+	if err != nil {
+		return nil, err
+	}
+	if len(data) == 0 {
+		return nil, ErrBlobNotFound
+	}
+
+	shareVersion, err := sequence[0].Shares[0].Version()
+	if err != nil {
+		return nil, err
+	}
+
+	blob, err := NewBlob(shareVersion, sequence[0].Namespace.Bytes(), data)
+	if err != nil {
+		return nil, err
+	}
+	blob.index = b.index
+	return blob, nil
+}
+
+func (b *transformer) empty() bool {
+	return b.index == 0 && b.length == 0 && len(b.shares) == 0
+}
+
+func (b *transformer) restore() {
+	b.index = 0
+	b.length = 0
+	b.shares = []shares.Share{}
 }

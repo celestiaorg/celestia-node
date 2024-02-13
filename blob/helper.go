@@ -75,7 +75,7 @@ func BlobsToShares(blobs ...*Blob) ([]share.Share, error) {
 
 	sort.Slice(b, func(i, j int) bool {
 		val := bytes.Compare(b[i].NamespaceID, b[j].NamespaceID)
-		return val <= 0
+		return val < 0
 	})
 
 	rawShares, err := shares.SplitBlobs(b...)
