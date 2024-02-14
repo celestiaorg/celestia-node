@@ -60,5 +60,5 @@ func TestAvailability(t *testing.T, getter share.Getter) *ShareAvailability {
 		err = store.Stop(context.Background())
 		require.NoError(t, err)
 	})
-	return NewShareAvailability(store, getter, disc)
+	return NewShareAvailability(store, getter, []*discovery.Discovery{disc})
 }

@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"time"
 
+	libpeer "github.com/libp2p/go-libp2p/core/peer"
 	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/metric"
@@ -15,6 +16,8 @@ import (
 
 	"github.com/celestiaorg/celestia-node/header"
 	"github.com/celestiaorg/celestia-node/libs/utils"
+	"github.com/celestiaorg/celestia-node/pruner"
+	"github.com/celestiaorg/celestia-node/pruner/full"
 	"github.com/celestiaorg/celestia-node/share"
 	"github.com/celestiaorg/celestia-node/share/ipld"
 	"github.com/celestiaorg/celestia-node/share/p2p"
@@ -88,7 +91,9 @@ type ShrexGetter struct {
 	edsClient *shrexeds.Client
 	ndClient  *shrexnd.Client
 
-	peerManager *peers.Manager
+	fullPeerManager *peers.Manager
+	// optional, non-nil when archival service is enabled
+	archivalPeerManager *peers.Manager
 
 	// minRequestTimeout limits minimal timeout given to single peer by getter for serving the request.
 	minRequestTimeout time.Duration
@@ -99,22 +104,32 @@ type ShrexGetter struct {
 	metrics *metrics
 }
 
-func NewShrexGetter(edsClient *shrexeds.Client, ndClient *shrexnd.Client, peerManager *peers.Manager) *ShrexGetter {
-	return &ShrexGetter{
+func NewShrexGetter(
+	edsClient *shrexeds.Client,
+	ndClient *shrexnd.Client,
+	peerManager *peers.Manager,
+	opts ...Option,
+) *ShrexGetter {
+	s := &ShrexGetter{
 		edsClient:         edsClient,
 		ndClient:          ndClient,
-		peerManager:       peerManager,
+		fullPeerManager:   peerManager,
 		minRequestTimeout: defaultMinRequestTimeout,
 		minAttemptsCount:  defaultMinAttemptsCount,
 	}
+
+	for _, opt := range opts {
+		opt(s)
+	}
+	return s
 }
 
 func (sg *ShrexGetter) Start(ctx context.Context) error {
-	return sg.peerManager.Start(ctx)
+	return sg.fullPeerManager.Start(ctx)
 }
 
 func (sg *ShrexGetter) Stop(ctx context.Context) error {
-	return sg.peerManager.Stop(ctx)
+	return sg.fullPeerManager.Stop(ctx)
 }
 
 func (sg *ShrexGetter) GetShare(context.Context, *header.ExtendedHeader, int, int) (share.Share, error) {
@@ -122,10 +137,7 @@ func (sg *ShrexGetter) GetShare(context.Context, *header.ExtendedHeader, int, in
 }
 
 func (sg *ShrexGetter) GetEDS(ctx context.Context, header *header.ExtendedHeader) (*rsmt2d.ExtendedDataSquare, error) {
-	var (
-		attempt int
-		err     error
-	)
+	var err error
 	ctx, span := tracer.Start(ctx, "shrex/get-eds")
 	defer func() {
 		utils.SetStatusAndEnd(span, err)
@@ -135,6 +147,8 @@ func (sg *ShrexGetter) GetEDS(ctx context.Context, header *header.ExtendedHeader
 	if header.DAH.Equals(share.EmptyRoot()) {
 		return share.EmptyExtendedDataSquare(), nil
 	}
+
+	var attempt int
 	for {
 		if ctx.Err() != nil {
 			sg.metrics.recordEDSAttempt(ctx, attempt, false)
@@ -142,7 +156,8 @@ func (sg *ShrexGetter) GetEDS(ctx context.Context, header *header.ExtendedHeader
 		}
 		attempt++
 		start := time.Now()
-		peer, setStatus, getErr := sg.peerManager.Peer(ctx, header.DAH.Hash(), header.Height())
+
+		peer, setStatus, getErr := sg.getPeer(ctx, header)
 		if getErr != nil {
 			log.Debugw("eds: couldn't find peer",
 				"hash", header.DAH.String(),
@@ -218,7 +233,8 @@ func (sg *ShrexGetter) GetSharesByNamespace(
 		}
 		attempt++
 		start := time.Now()
-		peer, setStatus, getErr := sg.peerManager.Peer(ctx, header.DAH.Hash(), header.Height())
+
+		peer, setStatus, getErr := sg.getPeer(ctx, header)
 		if getErr != nil {
 			log.Debugw("nd: couldn't find peer",
 				"hash", dah.String(),
@@ -267,4 +283,14 @@ func (sg *ShrexGetter) GetSharesByNamespace(
 			"err", getErr,
 			"finished (s)", time.Since(reqStart))
 	}
+}
+
+func (sg *ShrexGetter) getPeer(
+	ctx context.Context,
+	header *header.ExtendedHeader,
+) (libpeer.ID, peers.DoneFunc, error) {
+	if sg.archivalPeerManager != nil && pruner.IsWithinAvailabilityWindow(header.Time(), full.Window) {
+		return sg.archivalPeerManager.Peer(ctx, header.DAH.Hash(), header.Height())
+	}
+	return sg.fullPeerManager.Peer(ctx, header.DAH.Hash(), header.Height())
 }

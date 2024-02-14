@@ -24,7 +24,7 @@ var log = logging.Logger("share/full")
 type ShareAvailability struct {
 	store  *eds.Store
 	getter share.Getter
-	disc   *discovery.Discovery
+	disc   []*discovery.Discovery
 
 	cancel context.CancelFunc
 }
@@ -33,7 +33,7 @@ type ShareAvailability struct {
 func NewShareAvailability(
 	store *eds.Store,
 	getter share.Getter,
-	disc *discovery.Discovery,
+	disc []*discovery.Discovery,
 ) *ShareAvailability {
 	return &ShareAvailability{
 		store:  store,
@@ -46,7 +46,10 @@ func (fa *ShareAvailability) Start(context.Context) error {
 	ctx, cancel := context.WithCancel(context.Background())
 	fa.cancel = cancel
 
-	go fa.disc.Advertise(ctx)
+	for _, disc := range fa.disc {
+		go disc.Advertise(ctx)
+	}
+
 	return nil
 }
 

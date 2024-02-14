@@ -5,6 +5,9 @@ import (
 
 	"github.com/ipfs/go-datastore"
 	"github.com/libp2p/go-libp2p/core/host"
+	"github.com/libp2p/go-libp2p/core/peer"
+	"github.com/libp2p/go-libp2p/core/routing"
+	routingdisc "github.com/libp2p/go-libp2p/p2p/discovery/routing"
 	"github.com/libp2p/go-libp2p/p2p/net/conngater"
 	"go.uber.org/fx"
 
@@ -14,6 +17,7 @@ import (
 	"github.com/celestiaorg/celestia-node/header"
 	"github.com/celestiaorg/celestia-node/nodebuilder/node"
 	modp2p "github.com/celestiaorg/celestia-node/nodebuilder/p2p"
+	"github.com/celestiaorg/celestia-node/nodebuilder/pruner"
 	"github.com/celestiaorg/celestia-node/share"
 	"github.com/celestiaorg/celestia-node/share/availability/full"
 	"github.com/celestiaorg/celestia-node/share/availability/light"
@@ -38,6 +42,7 @@ func ConstructModule(tp node.Type, cfg *Config, options ...fx.Option) fx.Option 
 		peerManagerComponents(tp, cfg),
 		discoveryComponents(cfg),
 		shrexSubComponents(),
+		archivalComponents(cfg),
 	)
 
 	bridgeAndFullComponents := fx.Options(
@@ -74,6 +79,7 @@ func ConstructModule(tp node.Type, cfg *Config, options ...fx.Option) fx.Option 
 			"share",
 			baseComponents,
 			bridgeAndFullComponents,
+			peerManagerComponents(cfg),
 			fx.Provide(getters.NewIPLDGetter),
 			fx.Provide(fullGetter),
 		)
@@ -210,8 +216,16 @@ func shrexGetterComponents(cfg *Config) fx.Option {
 			},
 		),
 
+		// shrex-getter
 		fx.Provide(fx.Annotate(
-			getters.NewShrexGetter,
+			func(
+				edsClient *shrexeds.Client,
+				ndClient *shrexnd.Client,
+				man *peers.Manager,
+				opts []getters.Option,
+			) *getters.ShrexGetter {
+				return getters.NewShrexGetter(edsClient, ndClient, man, opts...)
+			},
 			fx.OnStart(func(ctx context.Context, getter *getters.ShrexGetter) error {
 				return getter.Start(ctx)
 			}),
@@ -308,6 +322,72 @@ func lightAvailabilityComponents(cfg *Config) fx.Option {
 		}),
 		fx.Provide(func(avail *light.ShareAvailability) share.Availability {
 			return avail
+		}),
+	)
+}
+
+func archivalComponents(cfg *Config) fx.Option {
+	return fx.Options(
+		// archival service discovery
+		fx.Provide(func(
+			lc fx.Lifecycle,
+			pruneCfg *pruner.Config,
+			d *disc.Discovery,
+			h host.Host,
+			r routing.ContentRouting,
+			opt disc.Option,
+		) ([]*disc.Discovery, error) {
+			// if pruner is enabled, no archival service is necessary
+			if pruneCfg.EnableService {
+				// only full node discovery is needed
+				return []*disc.Discovery{d}, nil
+			}
+
+			archivalDisc, err := disc.NewDiscovery(
+				cfg.Discovery,
+				h,
+				routingdisc.NewRoutingDiscovery(r),
+				archivalNodesTag,
+				opt,
+			)
+			if err != nil {
+				return nil, err
+			}
+
+			lc.Append(fx.Hook{
+				OnStart: archivalDisc.Start,
+				OnStop:  archivalDisc.Stop,
+			})
+
+			return []*disc.Discovery{d, archivalDisc}, nil
+		}),
+
+		// archival peer manager
+		fx.Provide(func(
+			lc fx.Lifecycle,
+			pruneCfg *pruner.Config,
+			params peers.Parameters,
+			h host.Host,
+			gater *conngater.BasicConnectionGater,
+		) ([]getters.Option, disc.Option, error) {
+			opts := make([]getters.Option, 0)
+			if pruneCfg.EnableService {
+				// if pruner is enabled, no archival service is necessary
+				return opts, disc.WithOnPeersUpdate(func(peer.ID, bool) {}), nil
+			}
+
+			// archival node peer manager
+			archivalPeerManager, err := peers.NewManager(params, h, gater)
+			if err != nil {
+				return nil, nil, err
+			}
+			lc.Append(fx.Hook{
+				OnStart: archivalPeerManager.Start,
+				OnStop:  archivalPeerManager.Stop,
+			})
+
+			opts = append(opts, getters.WithArchivalPeerManager(archivalPeerManager))
+			return opts, disc.WithOnPeersUpdate(archivalPeerManager.UpdateFullNodePool), nil
 		}),
 	)
 }
