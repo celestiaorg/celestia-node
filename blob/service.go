@@ -217,8 +217,8 @@ func (s *Service) Included(
 	return true, resProof.equal(*proof)
 }
 
-// retrieve retrieves the DAH row by row, fetching shares and constructing blobs in order to
-// compare Commitments. Retrieving is stopped once the requested blob/proof is found.
+// retrieve retrieves blobs and their proofs under requested namespace and
+// compares Commitments Retrieving is stopped once the requested blob/proof is found.
 func (s *Service) retrieve(
 	ctx context.Context,
 	height uint64,
@@ -308,7 +308,7 @@ func (s *Service) retrieve(
 			}
 
 			isComplete := false
-			if !blobTransformer.empty() {
+			if !blobTransformer.isEmpty() {
 				beforeSet := len(appShares)
 				appShares, isComplete = blobTransformer.setShares(appShares)
 				if !isComplete {
@@ -326,7 +326,7 @@ func (s *Service) retrieve(
 				// index of the next blob
 				index += beforeSet - len(appShares)
 				proofs = proofs[len(proofs)-1:]
-				blobTransformer.restore()
+				blobTransformer.reset()
 				continue
 			}
 
@@ -355,10 +355,10 @@ func (s *Service) retrieve(
 			}
 
 			index += shares.SparseSharesNeeded(length)
-			blobTransformer.restore()
+			blobTransformer.reset()
 		}
 
-		if blobTransformer.empty() {
+		if blobTransformer.isEmpty() {
 			proofs = nil
 		}
 	}

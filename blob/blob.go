@@ -31,6 +31,9 @@ func (com Commitment) Equal(c Commitment) bool {
 }
 
 // Proof is a collection of nmt.Proofs that verifies the inclusion of the data.
+// Proof proves the WHOLE namespaced data for the particular row.
+// TODO (@vgonkivs): rework `Proof` in order to prove a particular blob.
+// https://github.com/celestiaorg/celestia-node/issues/2303
 type Proof []*nmt.Proof
 
 func (p Proof) Len() int { return len(p) }
@@ -180,8 +183,8 @@ func (b *Blob) UnmarshalJSON(data []byte) error {
 	return nil
 }
 
-// transformer is a data structure that collects shares until blob is completed
-// and transforms that shares into blob.
+// index represents index of the blob's first share in the eds.
+// -1 by default and only retrieved onchain blobs will have it set.
 type transformer struct {
 	index  int
 	length int
@@ -195,7 +198,7 @@ func newTransformer(index, length int) *transformer {
 	}
 }
 
-// setShares sets shares
+// setShares sets shares until the blob is completed and returns extra shares back.
 func (b *transformer) setShares(shares []shares.Share) (shrs []shares.Share, isComplete bool) {
 	index := -1
 	for i, sh := range shares {
@@ -219,7 +222,7 @@ func (b *transformer) setShares(shares []shares.Share) (shrs []shares.Share, isC
 
 func (b *transformer) transform() (*Blob, error) {
 	if b.length != len(b.shares) {
-		return nil, errors.New("blob: blob is incomplete")
+		return nil, errors.New("blob: incomplete blob")
 	}
 
 	sequence, err := shares.ParseShares(b.shares, true)
@@ -252,11 +255,11 @@ func (b *transformer) transform() (*Blob, error) {
 	return blob, nil
 }
 
-func (b *transformer) empty() bool {
+func (b *transformer) isEmpty() bool {
 	return b.index == 0 && b.length == 0 && len(b.shares) == 0
 }
 
-func (b *transformer) restore() {
+func (b *transformer) reset() {
 	b.index = 0
 	b.length = 0
 	b.shares = []shares.Share{}
