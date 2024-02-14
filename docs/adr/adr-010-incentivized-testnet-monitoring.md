@@ -14,7 +14,7 @@
 
 ## Context
 
-We're adding telemetry to celestia-node by instrumenting our codebase with metrics (see [ADR-009-telemetry](./adr-009-telemetry.md)). If the option to report metrics is enabled on celestia-node, then celestia-node will push metrics via [OTLP Exporter](https://opentelemetry.io/docs/reference/specification/protocol/exporter/) to an [OTEL Collector](https://opentelemetry.io/docs/collector/) instance.
+We're adding telemetry to celestia-node by instrumenting our codebase with metrics (see [ADR-007-incentivized-testnet](./adr-007-incentivized-testnet.md#telemetry)). If the option to report metrics is enabled on celestia-node, then celestia-node will push metrics via [OTLP Exporter](https://opentelemetry.io/docs/reference/specification/protocol/exporter/) to an [OTEL Collector](https://opentelemetry.io/docs/collector/) instance.
 
 We would like to make the metrics exported by celestia-node actionable by making them queryable in internal Grafana dashboards. We additionally want a subset of metrics to be queryable by a public incentivized testnet leaderboard frontend.
 
