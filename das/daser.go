@@ -5,7 +5,6 @@ import (
 	"errors"
 	"fmt"
 	"sync/atomic"
-	"time"
 
 	"github.com/ipfs/go-datastore"
 	logging "github.com/ipfs/go-log/v2"
@@ -14,6 +13,7 @@ import (
 	libhead "github.com/celestiaorg/go-header"
 
 	"github.com/celestiaorg/celestia-node/header"
+	"github.com/celestiaorg/celestia-node/pruner"
 	"github.com/celestiaorg/celestia-node/share"
 	"github.com/celestiaorg/celestia-node/share/eds/byzantine"
 	"github.com/celestiaorg/celestia-node/share/p2p/shrexsub"
@@ -176,7 +176,7 @@ func (d *DASer) isWithinSamplingWindow(eh *header.ExtendedHeader) bool {
 	if d.params.SamplingWindow == 0 {
 		return true
 	}
-	return time.Since(eh.Time()) <= d.params.SamplingWindow
+	return pruner.IsWithinAvailabilityWindow(eh.Time(), pruner.AvailabilityWindow(d.params.SamplingWindow))
 }
 
 // SamplingStats returns the current statistics over the DA sampling process.
