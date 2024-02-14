@@ -38,11 +38,11 @@ jobs:
           # If we need to overwrite such files, trigger this workflow manually.
           keep_files: ${{ github.event_name != 'workflow_dispatch' }}
 
-#      - name: Deploy PR preview
-#        # Only run this job if the PR was created from a branch on celestiaorg/celestia-node
-#        # because this job will fail for branches from forks.
-#        # https://github.com/celestiaorg/celestia-app/issues/1506
-#        if: github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository
-#        uses: rossjrw/pr-preview-action@v1
-#        with:
-#          source-dir: ./specs/book
+      - name: Deploy PR preview
+        # Only run this job if the PR was created from a branch on celestiaorg/celestia-node
+        # because this job will fail for branches from forks.
+        # https://github.com/celestiaorg/celestia-app/issues/1506
+        if: github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository
+        uses: rossjrw/pr-preview-action@v1
+        with:
+          source-dir: ./specs/book
