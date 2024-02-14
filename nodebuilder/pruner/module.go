@@ -15,6 +15,10 @@ import (
 )
 
 func ConstructModule(tp node.Type, cfg *Config) fx.Option {
+	baseComponents := fx.Options(
+		fx.Supply(cfg),
+	)
+
 	if !cfg.EnableService {
 		switch tp {
 		case node.Light:
@@ -39,7 +43,8 @@ func ConstructModule(tp node.Type, cfg *Config) fx.Option {
 		}
 	}
 
-	baseComponents := fx.Options(
+	baseComponents = fx.Options(
+		baseComponents,
 		fx.Provide(fx.Annotate(
 			newPrunerService,
 			fx.OnStart(func(ctx context.Context, p *pruner.Service) error {

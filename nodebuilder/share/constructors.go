@@ -23,6 +23,9 @@ import (
 const (
 	// fullNodesTag is the tag used to identify full nodes in the discovery service.
 	fullNodesTag = "full"
+	// archivalNodesTag is the tag used to identify archival nodes in the
+	// discovery service.
+	archivalNodesTag = "archival"
 )
 
 func newDiscovery(cfg *disc.Parameters,

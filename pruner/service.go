@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/ipfs/go-datastore"
 	"github.com/ipfs/go-datastore/namespace"
 	logging "github.com/ipfs/go-log/v2"
 
