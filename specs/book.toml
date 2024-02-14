@@ -6,7 +6,7 @@ src = "src"
 title = "Celestia Node Specification"
 
 [output.html]
-git-repository-url = "https://github.com/celestiaorg/celestia-app"
+git-repository-url = "https://github.com/celestiaorg/celestia-node"
 
 [preprocessor.toc]
 command = "mdbook-toc"
