@@ -42,6 +42,14 @@ func NewStore(t *testing.T) libhead.Store[*header.ExtendedHeader] {
 	return headertest.NewStore[*header.ExtendedHeader](t, NewTestSuite(t, 3), 10)
 }
 
+func NewCustomStore(
+	t *testing.T,
+	generator headertest.Generator[*header.ExtendedHeader],
+	numHeaders int,
+) libhead.Store[*header.ExtendedHeader] {
+	return headertest.NewStore[*header.ExtendedHeader](t, generator, numHeaders)
+}
+
 // NewTestSuite setups a new test suite with a given number of validators.
 func NewTestSuite(t *testing.T, num int) *TestSuite {
 	valSet, vals := RandValidatorSet(num, 10)
@@ -77,8 +85,10 @@ func (s *TestSuite) genesis() *header.ExtendedHeader {
 	return eh
 }
 
-func MakeCommit(blockID types.BlockID, height int64, round int32,
-	voteSet *types.VoteSet, validators []types.PrivValidator, now time.Time) (*types.Commit, error) {
+func MakeCommit(
+	blockID types.BlockID, height int64, round int32,
+	voteSet *types.VoteSet, validators []types.PrivValidator, now time.Time,
+) (*types.Commit, error) {
 
 	// all sign
 	for i := 0; i < len(validators); i++ {
@@ -152,7 +162,8 @@ func (s *TestSuite) NextHeader() *header.ExtendedHeader {
 }
 
 func (s *TestSuite) GenRawHeader(
-	height uint64, lastHeader, lastCommit, dataHash libhead.Hash) *header.RawHeader {
+	height uint64, lastHeader, lastCommit, dataHash libhead.Hash,
+) *header.RawHeader {
 	rh := RandRawHeader(s.t)
 	rh.Height = int64(height)
 	rh.Time = time.Now()
@@ -204,6 +215,11 @@ func (s *TestSuite) nextProposer() *types.Validator {
 
 // RandExtendedHeader provides an ExtendedHeader fixture.
 func RandExtendedHeader(t testing.TB) *header.ExtendedHeader {
+	timestamp := time.Now()
+	return RandExtendedHeaderAtTimestamp(t, timestamp)
+}
+
+func RandExtendedHeaderAtTimestamp(t testing.TB, timestamp time.Time) *header.ExtendedHeader {
 	dah := share.EmptyRoot()
 
 	rh := RandRawHeader(t)
@@ -214,7 +230,7 @@ func RandExtendedHeader(t testing.TB) *header.ExtendedHeader {
 	voteSet := types.NewVoteSet(rh.ChainID, rh.Height, 0, tmproto.PrecommitType, valSet)
 	blockID := RandBlockID(t)
 	blockID.Hash = rh.Hash()
-	commit, err := MakeCommit(blockID, rh.Height, 0, voteSet, vals, time.Now())
+	commit, err := MakeCommit(blockID, rh.Height, 0, voteSet, vals, timestamp)
 	require.NoError(t, err)
 
 	return &header.ExtendedHeader{
