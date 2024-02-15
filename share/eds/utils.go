@@ -1,7 +1,6 @@
 package eds
 
 import (
-	"bytes"
 	"context"
 	"errors"
 	"fmt"
@@ -9,7 +8,6 @@ import (
 
 	"github.com/filecoin-project/dagstore"
 	"github.com/ipfs/boxo/blockservice"
-	"github.com/ipfs/go-cid"
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/trace"
 	"golang.org/x/sync/errgroup"
@@ -128,16 +126,6 @@ func CollectSharesByNamespace(
 		return []share.NamespacedRow{}, nil
 	}
 
-	rootIndexFromCID := func(cid cid.Cid) int {
-		rowRoot := ipld.NamespacedSha256FromCID(cid)
-		for i, row := range root.RowRoots {
-			if bytes.Equal(rowRoot, row) {
-				return i
-			}
-		}
-		return -1
-	}
-
 	errGroup, ctx := errgroup.WithContext(ctx)
 	shares = make([]share.NamespacedRow, len(rootCIDs))
 	for i, rootCID := range rootCIDs {
@@ -148,7 +136,6 @@ func CollectSharesByNamespace(
 			shares[i] = share.NamespacedRow{
 				Shares: row,
 				Proof:  proof,
-				Index:  rootIndexFromCID(rootCID),
 			}
 			if err != nil {
 				return fmt.Errorf("retrieving shares by namespace %s for row %x: %w", namespace.String(), rootCID, err)

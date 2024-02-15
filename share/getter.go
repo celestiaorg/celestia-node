@@ -55,7 +55,6 @@ func (ns NamespacedShares) Flatten() []Share {
 type NamespacedRow struct {
 	Shares []Share    `json:"shares"`
 	Proof  *nmt.Proof `json:"proof"`
-	Index  int        `json:"index"`
 }
 
 // Verify validates NamespacedShares by checking every row with nmt inclusion proof.
