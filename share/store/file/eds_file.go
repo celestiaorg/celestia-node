@@ -2,8 +2,9 @@ package file
 
 import (
 	"context"
-	logging "github.com/ipfs/go-log/v2"
 	"io"
+
+	logging "github.com/ipfs/go-log/v2"
 
 	"github.com/celestiaorg/rsmt2d"
 

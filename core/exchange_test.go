@@ -2,7 +2,6 @@ package core
 
 import (
 	"context"
-	"github.com/celestiaorg/celestia-node/share/store"
 	"testing"
 	"time"
 
@@ -12,6 +11,7 @@ import (
 	"github.com/celestiaorg/celestia-app/test/util/testnode"
 
 	"github.com/celestiaorg/celestia-node/header"
+	"github.com/celestiaorg/celestia-node/share/store"
 )
 
 func TestCoreExchange_RequestHeaders(t *testing.T) {

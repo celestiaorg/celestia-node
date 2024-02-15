@@ -2,7 +2,6 @@ package shrexnd
 
 import (
 	"context"
-	"github.com/celestiaorg/celestia-node/share/store"
 	"sync"
 	"testing"
 	"time"
@@ -16,6 +15,7 @@ import (
 	"github.com/celestiaorg/celestia-node/share/eds/edstest"
 	"github.com/celestiaorg/celestia-node/share/p2p"
 	"github.com/celestiaorg/celestia-node/share/sharetest"
+	"github.com/celestiaorg/celestia-node/share/store"
 )
 
 func TestExchange_RequestND_NotFound(t *testing.T) {

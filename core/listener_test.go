@@ -3,7 +3,6 @@ package core
 import (
 	"bytes"
 	"context"
-	"github.com/celestiaorg/celestia-node/share/store"
 	"testing"
 	"time"
 
@@ -20,6 +19,7 @@ import (
 	nodep2p "github.com/celestiaorg/celestia-node/nodebuilder/p2p"
 	"github.com/celestiaorg/celestia-node/share"
 	"github.com/celestiaorg/celestia-node/share/p2p/shrexsub"
+	"github.com/celestiaorg/celestia-node/share/store"
 )
 
 const networkID = "private"

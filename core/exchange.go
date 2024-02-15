@@ -4,14 +4,15 @@ import (
 	"bytes"
 	"context"
 	"fmt"
-	"github.com/celestiaorg/celestia-node/libs/utils"
 	"time"
 
 	"golang.org/x/sync/errgroup"
 
-	"github.com/celestiaorg/celestia-node/header"
-	"github.com/celestiaorg/celestia-node/share/store"
 	libhead "github.com/celestiaorg/go-header"
+
+	"github.com/celestiaorg/celestia-node/header"
+	"github.com/celestiaorg/celestia-node/libs/utils"
+	"github.com/celestiaorg/celestia-node/share/store"
 )
 
 const concurrencyLimit = 4

@@ -4,7 +4,6 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"github.com/celestiaorg/celestia-node/libs/utils"
 	"time"
 
 	pubsub "github.com/libp2p/go-libp2p-pubsub"
@@ -12,10 +11,12 @@ import (
 	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/attribute"
 
+	libhead "github.com/celestiaorg/go-header"
+
 	"github.com/celestiaorg/celestia-node/header"
+	"github.com/celestiaorg/celestia-node/libs/utils"
 	"github.com/celestiaorg/celestia-node/share/p2p/shrexsub"
 	"github.com/celestiaorg/celestia-node/share/store"
-	libhead "github.com/celestiaorg/go-header"
 )
 
 var (
