@@ -251,6 +251,14 @@ func (s *Service) retrieve(
 	headerGetterSpan.AddEvent("received eds", trace.WithAttributes(
 		attribute.Int64("eds-size", int64(len(header.DAH.RowRoots)))))
 
+	rowIndex := -1
+	for i, row := range header.DAH.RowRoots {
+		if !namespace.IsOutsideRange(row, row) {
+			rowIndex = i
+			break
+		}
+	}
+
 	getCtx, getSharesSpan := tracer.Start(ctx, "get-shares-by-namespace")
 
 	namespacedShares, err := s.shareGetter.GetSharesByNamespace(getCtx, header, namespace)
@@ -336,7 +344,7 @@ func (s *Service) retrieve(
 			}
 
 			blobTransformer = newTransformer(
-				row.Index*len(header.DAH.RowRoots)+index,
+				rowIndex*len(header.DAH.RowRoots)+index,
 				shares.SparseSharesNeeded(length),
 			)
 
@@ -358,6 +366,7 @@ func (s *Service) retrieve(
 			blobTransformer.reset()
 		}
 
+		rowIndex++
 		if blobTransformer.isEmpty() {
 			proofs = nil
 		}
