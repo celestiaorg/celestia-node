@@ -9,8 +9,6 @@ import (
 	"testing"
 	"time"
 
-	ds "github.com/ipfs/go-datastore"
-	ds_sync "github.com/ipfs/go-datastore/sync"
 	"github.com/libp2p/go-libp2p/core/host"
 	"github.com/libp2p/go-libp2p/core/peer"
 	mocknet "github.com/libp2p/go-libp2p/p2p/net/mock"
@@ -34,7 +32,7 @@ import (
 	"github.com/celestiaorg/celestia-node/nodebuilder/node"
 	"github.com/celestiaorg/celestia-node/nodebuilder/p2p"
 	"github.com/celestiaorg/celestia-node/nodebuilder/state"
-	"github.com/celestiaorg/celestia-node/share/eds"
+	"github.com/celestiaorg/celestia-node/share/store"
 )
 
 var blackholeIP6 = net.ParseIP("100::")
@@ -172,8 +170,7 @@ func (s *Swamp) setupGenesis() {
 	// ensure core has surpassed genesis block
 	s.WaitTillHeight(ctx, 2)
 
-	ds := ds_sync.MutexWrap(ds.NewMapDatastore())
-	store, err := eds.NewStore(eds.DefaultParameters(), s.t.TempDir(), ds)
+	store, err := store.NewStore(store.DefaultParameters(), s.t.TempDir())
 	require.NoError(s.t, err)
 
 	ex, err := core.NewExchange(
@@ -287,7 +284,7 @@ func (s *Swamp) newNode(t node.Type, store nodebuilder.Store, options ...fx.Opti
 	cfg, _ := store.Config()
 	cfg.RPC.Port = "0"
 
-	// tempDir is used for the eds.Store
+	// tempDir is used for the store.Store
 	tempDir := s.t.TempDir()
 	options = append(options,
 		p2p.WithHost(s.createPeer(ks)),
