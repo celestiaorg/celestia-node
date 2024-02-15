@@ -1,6 +1,6 @@
 package light
 
-// FIXME: rework testing pkg
+// TODO(@walldiss): rework all availability tests
 // GetterWithRandSquare provides a share.Getter filled with 'n' NMT trees of 'n' random shares,
 // essentially storing a whole square.
 //func GetterWithRandSquare(t *testing.T, n int) (share.Getter, *header.ExtendedHeader) {
