@@ -139,11 +139,5 @@ func (rid RowID) BlockFromFile(ctx context.Context, f file.EdsFile) (blocks.Bloc
 	if err != nil {
 		return nil, fmt.Errorf("while coverting to IPLD block: %w", err)
 	}
-
-	err = f.Close()
-	if err != nil {
-		return nil, fmt.Errorf("while closing EDS file: %w", err)
-	}
-
 	return blk, nil
 }

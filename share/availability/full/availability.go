@@ -4,12 +4,13 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"github.com/celestiaorg/celestia-node/libs/utils"
-	"github.com/celestiaorg/rsmt2d"
 
 	logging "github.com/ipfs/go-log/v2"
 
+	"github.com/celestiaorg/rsmt2d"
+
 	"github.com/celestiaorg/celestia-node/header"
+	"github.com/celestiaorg/celestia-node/libs/utils"
 	"github.com/celestiaorg/celestia-node/share"
 	"github.com/celestiaorg/celestia-node/share/eds/byzantine"
 	"github.com/celestiaorg/celestia-node/share/p2p/discovery"
@@ -24,7 +25,8 @@ var log = logging.Logger("share/full")
 type ShareAvailability struct {
 	store  *store.Store
 	getter share.Getter
-	disc   *discovery.Discovery
+	// TODO(@walldiss): discovery should be managed by nodebuilder, not availability
+	disc *discovery.Discovery
 
 	cancel context.CancelFunc
 }

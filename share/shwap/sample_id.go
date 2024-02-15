@@ -125,11 +125,5 @@ func (sid SampleID) BlockFromFile(ctx context.Context, f file.EdsFile) (blocks.B
 	if err != nil {
 		return nil, fmt.Errorf("while coverting to IPLD block: %w", err)
 	}
-
-	err = f.Close()
-	if err != nil {
-		return nil, fmt.Errorf("while closing ODS file: %w", err)
-	}
-
 	return blk, nil
 }

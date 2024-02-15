@@ -13,6 +13,7 @@ import (
 	"github.com/ipfs/go-datastore/namespace"
 	ipld "github.com/ipfs/go-ipld-format"
 
+	"github.com/celestiaorg/celestia-node/libs/utils"
 	"github.com/celestiaorg/celestia-node/share/shwap"
 )
 
@@ -42,7 +43,7 @@ func NewBlockstore(store *Store, ds datastore.Batching) *Blockstore {
 func (bs *Blockstore) Has(ctx context.Context, cid cid.Cid) (bool, error) {
 	req, err := shwap.BlockBuilderFromCID(cid)
 	if err != nil {
-		return false, fmt.Errorf("while getting height from CID: %w", err)
+		return false, fmt.Errorf("get height from CID: %w", err)
 	}
 
 	// check cache first
@@ -52,16 +53,17 @@ func (bs *Blockstore) Has(ctx context.Context, cid cid.Cid) (bool, error) {
 		return true, nil
 	}
 
-	_, err = bs.store.HasByHeight(ctx, height)
+	has, err := bs.store.HasByHeight(ctx, height)
 	if err == nil {
-		return true, nil
+		return has, nil
 	}
 	if !errors.Is(err, ErrNotFound) {
-		return false, fmt.Errorf("failed to get file: %w", err)
+		return false, fmt.Errorf("has file: %w", err)
 	}
 
 	// key wasn't found in top level blockstore, but could be in datastore while being reconstructed
 	dsHas, dsErr := bs.ds.Has(ctx, dshelp.MultihashToDsKey(cid.Hash()))
+	// TODO:(@walldoss): Only specific error should be treated as missing block, otherwise return error
 	if dsErr != nil {
 		return false, nil
 	}
@@ -77,6 +79,7 @@ func (bs *Blockstore) Get(ctx context.Context, cid cid.Cid) (blocks.Block, error
 	height := req.GetHeight()
 	f, err := bs.store.cache.Second().GetOrLoad(ctx, height, bs.store.openFileByHeight(height))
 	if err == nil {
+		defer utils.CloseAndLog(log, "file", f)
 		return req.BlockFromFile(ctx, f)
 	}
 
@@ -90,7 +93,7 @@ func (bs *Blockstore) Get(ctx context.Context, cid cid.Cid) (blocks.Block, error
 		return nil, ipld.ErrNotFound{Cid: cid}
 	}
 
-	log.Debugf("failed to get blockstore for cid %s: %s", cid, err)
+	log.Debugf("get blockstore for cid %s: %s", cid, err)
 	return nil, err
 }
 
@@ -99,12 +102,19 @@ func (bs *Blockstore) GetSize(ctx context.Context, cid cid.Cid) (int, error) {
 	//  allocating Sample's block.Block.
 	// NOTE:Bitswap uses GetSize also to determine if we have content stored or not
 	// so simply returning constant size is not an option
-	blk, err := bs.Get(ctx, cid)
+	req, err := shwap.BlockBuilderFromCID(cid)
 	if err != nil {
-		return 0, err
+		return 0, fmt.Errorf("get height from CID: %w", err)
 	}
 
-	return len(blk.RawData()), nil
+	height := req.GetHeight()
+	f, err := bs.store.cache.Second().GetOrLoad(ctx, height, bs.store.openFileByHeight(height))
+	if err != nil {
+		return 0, fmt.Errorf("get file: %w", err)
+	}
+	defer utils.CloseAndLog(log, "file", f)
+
+	return f.Size(), nil
 }
 
 func (bs *Blockstore) DeleteBlock(ctx context.Context, cid cid.Cid) error {
