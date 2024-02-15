@@ -158,7 +158,7 @@ func (sg *ShrexGetter) GetEDS(ctx context.Context, header *header.ExtendedHeader
 
 		reqStart := time.Now()
 		reqCtx, cancel := ctxWithSplitTimeout(ctx, sg.minAttemptsCount-attempt+1, sg.minRequestTimeout)
-		eds, getErr := sg.edsClient.RequestEDS(reqCtx, header, peer)
+		eds, getErr := sg.edsClient.RequestEDS(reqCtx, header.DAH, header.Height(), peer)
 		cancel()
 		switch {
 		case getErr == nil:
