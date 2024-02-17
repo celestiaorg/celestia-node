@@ -155,5 +155,4 @@ func TestEmptyBlockExists(t *testing.T) {
 			require.NoError(t, err)
 		})
 	}
-
 }
