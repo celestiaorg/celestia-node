@@ -98,6 +98,8 @@ func ConstructModule(tp node.Type, cfg *Config, options ...fx.Option) fx.Option 
 					return nil
 				}
 			}),
+			// needed to invoke archival discovery
+			fx.Invoke(func(discs []*disc.Discovery) {}),
 		)
 	default:
 		panic("invalid node type")
