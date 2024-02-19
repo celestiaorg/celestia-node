@@ -15,6 +15,7 @@ import (
 	"github.com/celestiaorg/celestia-app/pkg/da"
 	libhead "github.com/celestiaorg/go-header"
 	"github.com/celestiaorg/rsmt2d"
+	"github.com/tendermint/tendermint/crypto/merkle"
 )
 
 // ConstructFn aliases a function that creates an ExtendedHeader.
@@ -94,7 +95,17 @@ func (eh *ExtendedHeader) Time() time.Time {
 // NOTE: It purposely overrides Hash method of RawHeader to get it directly from Commit without
 // recomputing.
 func (eh *ExtendedHeader) Hash() libhead.Hash {
-	return eh.Commit.BlockID.Hash.Bytes()
+	bs := make([][]byte, len(eh.Commit.Signatures))
+	for i, commitSig := range eh.Commit.Signatures {
+		pbcs := commitSig.ToProto()
+		bz, err := pbcs.Marshal()
+		if err != nil {
+			panic(err)
+		}
+
+		bs[i] = bz
+	}
+	return merkle.HashFromByteSlices(bs)
 }
 
 // LastHeader returns the Hash of the last wrapped RawHeader.
