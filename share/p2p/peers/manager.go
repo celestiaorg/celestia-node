@@ -188,8 +188,8 @@ func (m *Manager) Stop(ctx context.Context) error {
 }
 
 // Peer returns peer collected from shrex.Sub for given datahash if any available.
-// If there is none, it will look for full nodes collected from discovery. If there is no discovered
-// full nodes, it will wait until any peer appear in either source or timeout happen.
+// If there is none, it will look for nodes collected from discovery. If there is no discovered
+// nodes, it will wait until any peer appear in either source or timeout happen.
 // After fetching data using given peer, caller is required to call returned DoneFunc using
 // appropriate result value
 func (m *Manager) Peer(ctx context.Context, datahash share.DataHash, height uint64,
@@ -205,7 +205,7 @@ func (m *Manager) Peer(ctx context.Context, datahash share.DataHash, height uint
 		return m.newPeer(ctx, datahash, peerID, sourceShrexSub, p.len(), 0)
 	}
 
-	// if no peer for datahash is currently available, try to use full node
+	// if no peer for datahash is currently available, try to use node
 	// obtained from discovery
 	peerID, ok = m.nodes.tryGet()
 	if ok {
@@ -235,11 +235,11 @@ func (m *Manager) UpdateNodePool(peerID peer.ID, isAdded bool) {
 			return
 		}
 		m.nodes.add(peerID)
-		log.Debugw("added to full nodes", "peer", peerID)
+		log.Debugw("added to discovered nodes pool", "peer", peerID)
 		return
 	}
 
-	log.Debugw("removing peer from discovered full nodes", "peer", peerID.String())
+	log.Debugw("removing peer from discovered nodes pool", "peer", peerID.String())
 	m.nodes.remove(peerID)
 }
 
@@ -311,7 +311,7 @@ func (m *Manager) subscribeHeader(ctx context.Context, headerSub libhead.Subscri
 }
 
 // subscribeDisconnectedPeers subscribes to libp2p connectivity events and removes disconnected
-// peers from full nodes pool
+// peers from nodes pool
 func (m *Manager) subscribeDisconnectedPeers(ctx context.Context, sub event.Subscription) {
 	defer close(m.disconnectedPeersDone)
 	defer sub.Close()
@@ -324,12 +324,13 @@ func (m *Manager) subscribeDisconnectedPeers(ctx context.Context, sub event.Subs
 				log.Fatal("Subscription for connectedness events is closed.") //nolint:gocritic
 				return
 			}
-			// listen to disconnect event to remove peer from full nodes pool
+			// listen to disconnect event to remove peer from nodes pool
 			connStatus := e.(event.EvtPeerConnectednessChanged)
 			if connStatus.Connectedness == network.NotConnected {
 				peer := connStatus.Peer
 				if m.nodes.has(peer) {
-					log.Debugw("peer disconnected, removing from full nodes", "peer", peer.String())
+					log.Debugw("peer disconnected, removing from discovered nodes pool",
+						"peer", peer.String())
 					m.nodes.remove(peer)
 				}
 			}
@@ -368,7 +369,7 @@ func (m *Manager) Validate(_ context.Context, peerID peer.ID, msg shrexsub.Notif
 
 	p.add(peerID)
 	if p.isValidatedDataHash.Load() {
-		// add peer to full nodes pool only if datahash has been already validated
+		// add peer to discovered nodes pool only if datahash has been already validated
 		m.nodes.add(peerID)
 	}
 	return pubsub.ValidationIgnore
@@ -436,7 +437,7 @@ func (m *Manager) validatedPool(hashStr string, height uint64) *syncPool {
 	p := m.getOrCreatePool(hashStr, height)
 	if p.isValidatedDataHash.CompareAndSwap(false, true) {
 		log.Debugw("pool marked validated", "datahash", hashStr)
-		// if pool is proven to be valid, add all collected peers to full nodes
+		// if pool is proven to be valid, add all collected peers to discovered nodes
 		m.nodes.add(p.peers()...)
 	}
 	return p
