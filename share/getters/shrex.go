@@ -289,7 +289,7 @@ func (sg *ShrexGetter) getPeer(
 	ctx context.Context,
 	header *header.ExtendedHeader,
 ) (libpeer.ID, peers.DoneFunc, error) {
-	if sg.archivalPeerManager != nil && pruner.IsWithinAvailabilityWindow(header.Time(), full.Window) {
+	if sg.archivalPeerManager != nil && !pruner.IsWithinAvailabilityWindow(header.Time(), full.Window) {
 		return sg.archivalPeerManager.Peer(ctx, header.DAH.Hash(), header.Height())
 	}
 	return sg.fullPeerManager.Peer(ctx, header.DAH.Hash(), header.Height())

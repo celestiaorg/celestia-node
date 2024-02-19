@@ -12,6 +12,7 @@ import (
 	"github.com/libp2p/go-libp2p/core/host"
 	"github.com/libp2p/go-libp2p/p2p/net/conngater"
 	mocknet "github.com/libp2p/go-libp2p/p2p/net/mock"
+	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
 	libhead "github.com/celestiaorg/go-header"
@@ -20,6 +21,7 @@ import (
 
 	"github.com/celestiaorg/celestia-node/header"
 	"github.com/celestiaorg/celestia-node/header/headertest"
+	"github.com/celestiaorg/celestia-node/pruner/full"
 	"github.com/celestiaorg/celestia-node/share"
 	"github.com/celestiaorg/celestia-node/share/eds"
 	"github.com/celestiaorg/celestia-node/share/eds/edstest"
@@ -51,9 +53,13 @@ func TestShrexGetter(t *testing.T) {
 
 	// create shrex Getter
 	sub := new(headertest.Subscriber)
-	peerManager, err := testManager(ctx, clHost, sub)
+
+	fullPeerManager, err := testManager(ctx, clHost, sub)
 	require.NoError(t, err)
-	getter := NewShrexGetter(edsClient, ndClient, peerManager)
+	archivalPeerManager, err := testManager(ctx, clHost, sub)
+	require.NoError(t, err)
+
+	getter := NewShrexGetter(edsClient, ndClient, fullPeerManager, WithArchivalPeerManager(archivalPeerManager))
 	require.NoError(t, getter.Start(ctx))
 
 	t.Run("ND_Available, total data size > 1mb", func(t *testing.T) {
@@ -65,7 +71,7 @@ func TestShrexGetter(t *testing.T) {
 		randEDS, dah := edstest.RandEDSWithNamespace(t, namespace, 64)
 		eh := headertest.RandExtendedHeaderWithRoot(t, dah)
 		require.NoError(t, edsStore.Put(ctx, dah.Hash(), randEDS))
-		peerManager.Validate(ctx, srvHost.ID(), shrexsub.Notification{
+		fullPeerManager.Validate(ctx, srvHost.ID(), shrexsub.Notification{
 			DataHash: dah.Hash(),
 			Height:   1,
 		})
@@ -82,7 +88,7 @@ func TestShrexGetter(t *testing.T) {
 		// generate test data
 		_, dah, namespace := generateTestEDS(t)
 		eh := headertest.RandExtendedHeaderWithRoot(t, dah)
-		peerManager.Validate(ctx, srvHost.ID(), shrexsub.Notification{
+		fullPeerManager.Validate(ctx, srvHost.ID(), shrexsub.Notification{
 			DataHash: dah.Hash(),
 			Height:   1,
 		})
@@ -99,7 +105,7 @@ func TestShrexGetter(t *testing.T) {
 		eds, dah, maxNamespace := generateTestEDS(t)
 		eh := headertest.RandExtendedHeaderWithRoot(t, dah)
 		require.NoError(t, edsStore.Put(ctx, dah.Hash(), eds))
-		peerManager.Validate(ctx, srvHost.ID(), shrexsub.Notification{
+		fullPeerManager.Validate(ctx, srvHost.ID(), shrexsub.Notification{
 			DataHash: dah.Hash(),
 			Height:   1,
 		})
@@ -124,7 +130,7 @@ func TestShrexGetter(t *testing.T) {
 		eds, dah, maxNamespace := generateTestEDS(t)
 		eh := headertest.RandExtendedHeaderWithRoot(t, dah)
 		require.NoError(t, edsStore.Put(ctx, dah.Hash(), eds))
-		peerManager.Validate(ctx, srvHost.ID(), shrexsub.Notification{
+		fullPeerManager.Validate(ctx, srvHost.ID(), shrexsub.Notification{
 			DataHash: dah.Hash(),
 			Height:   1,
 		})
@@ -149,7 +155,7 @@ func TestShrexGetter(t *testing.T) {
 		randEDS, dah, _ := generateTestEDS(t)
 		eh := headertest.RandExtendedHeaderWithRoot(t, dah)
 		require.NoError(t, edsStore.Put(ctx, dah.Hash(), randEDS))
-		peerManager.Validate(ctx, srvHost.ID(), shrexsub.Notification{
+		fullPeerManager.Validate(ctx, srvHost.ID(), shrexsub.Notification{
 			DataHash: dah.Hash(),
 			Height:   1,
 		})
@@ -165,7 +171,7 @@ func TestShrexGetter(t *testing.T) {
 		// generate test data
 		_, dah, _ := generateTestEDS(t)
 		eh := headertest.RandExtendedHeaderWithRoot(t, dah)
-		peerManager.Validate(ctx, srvHost.ID(), shrexsub.Notification{
+		fullPeerManager.Validate(ctx, srvHost.ID(), shrexsub.Notification{
 			DataHash: dah.Hash(),
 			Height:   1,
 		})
@@ -182,13 +188,42 @@ func TestShrexGetter(t *testing.T) {
 		// generate test data
 		_, dah, _ := generateTestEDS(t)
 		eh := headertest.RandExtendedHeaderWithRoot(t, dah)
-		peerManager.Validate(ctx, srvHost.ID(), shrexsub.Notification{
+		fullPeerManager.Validate(ctx, srvHost.ID(), shrexsub.Notification{
 			DataHash: dah.Hash(),
 			Height:   1,
 		})
 
 		_, err := getter.GetEDS(ctx, eh)
 		require.ErrorIs(t, err, share.ErrNotFound)
+	})
+
+	// tests getPeer's ability to route requests based on whether
+	// they are historical or not
+	t.Run("routing_historical_requests", func(t *testing.T) {
+		ctx, cancel := context.WithTimeout(ctx, time.Second)
+		t.Cleanup(cancel)
+
+		archivalPeer, err := net.GenPeer()
+		require.NoError(t, err)
+		fullPeer, err := net.GenPeer()
+		require.NoError(t, err)
+
+		getter.archivalPeerManager.UpdateFullNodePool(archivalPeer.ID(), true)
+		getter.fullPeerManager.UpdateFullNodePool(fullPeer.ID(), true)
+
+		eh := headertest.RandExtendedHeader(t)
+
+		// historical data expects an archival peer
+		eh.RawHeader.Time = time.Now().Add(-(time.Duration(full.Window) + time.Second))
+		id, _, err := getter.getPeer(ctx, eh)
+		require.NoError(t, err)
+		assert.Equal(t, archivalPeer.ID(), id)
+
+		// recent (within sampling window) data expects a full peer
+		eh.RawHeader.Time = time.Now()
+		id, _, err = getter.getPeer(ctx, eh)
+		require.NoError(t, err)
+		assert.Equal(t, fullPeer.ID(), id)
 	})
 }
 
