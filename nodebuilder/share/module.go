@@ -35,12 +35,13 @@ func ConstructModule(tp node.Type, cfg *Config, options ...fx.Option) fx.Option 
 		fx.Error(cfgErr),
 		fx.Options(options...),
 		fx.Provide(newShareModule),
+		peerManagerComponents(tp, cfg),
+		discoveryComponents(cfg),
 		shrexSubComponents(),
 	)
 
 	bridgeAndFullComponents := fx.Options(
 		fx.Provide(getters.NewStoreGetter),
-		discoveryComponents(cfg),
 		shrexServerComponents(cfg),
 		edsStoreComponents(cfg),
 		fullAvailabilityComponents(),
@@ -59,7 +60,6 @@ func ConstructModule(tp node.Type, cfg *Config, options ...fx.Option) fx.Option 
 			fx.Provide(func() peers.Parameters {
 				return cfg.PeerManagerParams
 			}),
-			fx.Provide(peers.NewManager),
 			fx.Provide(bridgeGetter),
 			fx.Invoke(func(lc fx.Lifecycle, sub *shrexsub.PubSub) error {
 				lc.Append(fx.Hook{
@@ -72,7 +72,6 @@ func ConstructModule(tp node.Type, cfg *Config, options ...fx.Option) fx.Option 
 	case node.Full:
 		return fx.Module(
 			"share",
-			peerManagerComponents(cfg),
 			baseComponents,
 			bridgeAndFullComponents,
 			fx.Provide(getters.NewIPLDGetter),
@@ -82,8 +81,6 @@ func ConstructModule(tp node.Type, cfg *Config, options ...fx.Option) fx.Option 
 		return fx.Module(
 			"share",
 			baseComponents,
-			discoveryComponents(cfg),
-			peerManagerComponents(cfg),
 			shrexGetterComponents(cfg),
 			lightAvailabilityComponents(cfg),
 			fx.Invoke(ensureEmptyEDSInBS),
@@ -116,31 +113,38 @@ func discoveryComponents(cfg *Config) fx.Option {
 	)
 }
 
-func peerManagerComponents(cfg *Config) fx.Option {
-	return fx.Options(
-		fx.Provide(func() peers.Parameters {
-			return cfg.PeerManagerParams
-		}),
-		fx.Provide(
-			func(
-				params peers.Parameters,
-				host host.Host,
-				connGater *conngater.BasicConnectionGater,
-				shrexSub *shrexsub.PubSub,
-				headerSub libhead.Subscriber[*header.ExtendedHeader],
-				// we must ensure Syncer is started before PeerManager
-				// so that Syncer registers header validator before PeerManager subscribes to headers
-				_ *sync.Syncer[*header.ExtendedHeader],
-			) (*peers.Manager, error) {
-				return peers.NewManager(
-					params,
-					host,
-					connGater,
-					peers.WithShrexSubPools(shrexSub, headerSub),
-				)
-			},
-		),
-	)
+func peerManagerComponents(tp node.Type, cfg *Config) fx.Option {
+	switch tp {
+	case node.Full, node.Light:
+		return fx.Options(
+			fx.Provide(func() peers.Parameters {
+				return cfg.PeerManagerParams
+			}),
+			fx.Provide(
+				func(
+					params peers.Parameters,
+					host host.Host,
+					connGater *conngater.BasicConnectionGater,
+					shrexSub *shrexsub.PubSub,
+					headerSub libhead.Subscriber[*header.ExtendedHeader],
+					// we must ensure Syncer is started before PeerManager
+					// so that Syncer registers header validator before PeerManager subscribes to headers
+					_ *sync.Syncer[*header.ExtendedHeader],
+				) (*peers.Manager, error) {
+					return peers.NewManager(
+						params,
+						host,
+						connGater,
+						peers.WithShrexSubPools(shrexSub, headerSub),
+					)
+				},
+			),
+		)
+	case node.Bridge:
+		return fx.Provide(peers.NewManager)
+	default:
+		panic("invalid node type")
+	}
 }
 
 func shrexSubComponents() fx.Option {
