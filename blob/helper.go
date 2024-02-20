@@ -84,3 +84,9 @@ func BlobsToShares(blobs ...*Blob) ([]share.Share, error) {
 	}
 	return shares.ToBytes(rawShares), nil
 }
+
+func index(rowLength, blobIndex int) (row, col int) {
+	row = blobIndex / rowLength
+	col = blobIndex - (row * rowLength)
+	return
+}

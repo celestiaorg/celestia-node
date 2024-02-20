@@ -103,8 +103,8 @@ type Blob struct {
 	// this is to avoid converting to and from app's type
 	namespace share.Namespace
 
-	// index represents index of the first share in the eds.
-	// before data is being published, the index set by default to -1.
+	// index represents the index of the blob's first share in the EDS.
+	// Only retrieved, on-chain blobs will have the index set. Default is -1.
 	index int
 }
 
@@ -142,7 +142,7 @@ func (b *Blob) Namespace() share.Namespace {
 	return b.namespace
 }
 
-// Index returns the index  of the first share in the eds.
+// Index returns the blob's first share index in the EDS.
 func (b *Blob) Index() int {
 	return b.index
 }
@@ -183,23 +183,21 @@ func (b *Blob) UnmarshalJSON(data []byte) error {
 	return nil
 }
 
-// index represents index of the blob's first share in the eds.
-// -1 by default and only retrieved onchain blobs will have it set.
-type transformer struct {
+type blobIndexer struct {
 	index  int
 	length int
 	shares []shares.Share
 }
 
-func newTransformer(index, length int) *transformer {
-	return &transformer{
+func newBlobIndexer(index, length int) *blobIndexer {
+	return &blobIndexer{
 		index:  index,
 		length: length,
 	}
 }
 
-// setShares sets shares until the blob is completed and returns extra shares back.
-func (b *transformer) setShares(shares []shares.Share) (shrs []shares.Share, isComplete bool) {
+// addShares sets shares until the blob is completed and returns extra shares back.
+func (b *blobIndexer) addShares(shares []shares.Share) (shrs []shares.Share, isComplete bool) {
 	index := -1
 	for i, sh := range shares {
 		b.shares = append(b.shares, sh)
@@ -220,7 +218,7 @@ func (b *transformer) setShares(shares []shares.Share) (shrs []shares.Share, isC
 	return shares[index+1:], true
 }
 
-func (b *transformer) transform() (*Blob, error) {
+func (b *blobIndexer) transform() (*Blob, error) {
 	if b.length != len(b.shares) {
 		return nil, errors.New("blob: incomplete blob")
 	}
@@ -255,12 +253,12 @@ func (b *transformer) transform() (*Blob, error) {
 	return blob, nil
 }
 
-func (b *transformer) isEmpty() bool {
+func (b *blobIndexer) isEmpty() bool {
 	return b.index == 0 && b.length == 0 && len(b.shares) == 0
 }
 
-func (b *transformer) reset() {
+func (b *blobIndexer) reset() {
 	b.index = 0
 	b.length = 0
-	b.shares = []shares.Share{}
+	b.shares = nil
 }

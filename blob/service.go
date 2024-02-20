@@ -217,8 +217,9 @@ func (s *Service) Included(
 	return true, resProof.equal(*proof)
 }
 
-// retrieve retrieves blobs and their proofs under requested namespace and
-// compares Commitments Retrieving is stopped once the requested blob/proof is found.
+// retrieve retrieves blobs and their proofs by requesting the whole namespace and
+// comparing Commitments with each blob.
+// Retrieving is stopped once the requested blob/proof is found.
 func (s *Service) retrieve(
 	ctx context.Context,
 	height uint64,
@@ -275,9 +276,9 @@ func (s *Service) retrieve(
 		attribute.Int64("eds-size", int64(len(header.DAH.RowRoots)))))
 
 	var (
-		appShares       = make([]shares.Share, 0)
-		proofs          = make(Proof, 0)
-		blobTransformer = &transformer{}
+		appShares   = make([]shares.Share, 0)
+		proofs      = make(Proof, 0)
+		blobIndexer = &blobIndexer{}
 	)
 
 	for _, row := range namespacedShares {
@@ -316,14 +317,14 @@ func (s *Service) retrieve(
 			}
 
 			isComplete := false
-			if !blobTransformer.isEmpty() {
+			if !blobIndexer.isEmpty() {
 				beforeSet := len(appShares)
-				appShares, isComplete = blobTransformer.setShares(appShares)
+				appShares, isComplete = blobIndexer.addShares(appShares)
 				if !isComplete {
 					break
 				}
 
-				blob, err := blobTransformer.transform()
+				blob, err := blobIndexer.transform()
 				if err != nil {
 					return nil, nil, err
 				}
@@ -334,7 +335,7 @@ func (s *Service) retrieve(
 				// index of the next blob
 				index += beforeSet - len(appShares)
 				proofs = proofs[len(proofs)-1:]
-				blobTransformer.reset()
+				blobIndexer.reset()
 				continue
 			}
 
@@ -343,17 +344,17 @@ func (s *Service) retrieve(
 				return nil, nil, err
 			}
 
-			blobTransformer = newTransformer(
+			blobIndexer = newBlobIndexer(
 				rowIndex*len(header.DAH.RowRoots)+index,
 				shares.SparseSharesNeeded(length),
 			)
 
-			appShares, isComplete = blobTransformer.setShares(appShares)
+			appShares, isComplete = blobIndexer.addShares(appShares)
 			if !isComplete {
 				break
 			}
 
-			blob, err := blobTransformer.transform()
+			blob, err := blobIndexer.transform()
 			if err != nil {
 				return nil, nil, err
 			}
@@ -363,11 +364,11 @@ func (s *Service) retrieve(
 			}
 
 			index += shares.SparseSharesNeeded(length)
-			blobTransformer.reset()
+			blobIndexer.reset()
 		}
 
 		rowIndex++
-		if blobTransformer.isEmpty() {
+		if blobIndexer.isEmpty() {
 			proofs = nil
 		}
 	}

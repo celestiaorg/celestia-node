@@ -86,7 +86,7 @@ func TestBlobService_Get(t *testing.T) {
 				assert.Len(t, blobs, 2)
 
 				for i := range blobs1 {
-					require.True(t, bytes.Equal(blobs1[i].Commitment, blobs[i].Commitment))
+					require.Equal(t, blobs1[i].Commitment, blobs[i].Commitment)
 				}
 			},
 		},
@@ -533,10 +533,4 @@ func createService(ctx context.Context, t testing.TB, blobs []*Blob) *Service {
 		return headerStore.GetByHeight(ctx, height)
 	}
 	return NewService(nil, getters.NewIPLDGetter(bs), fn)
-}
-
-func index(rowLength, blobIndex int) (row, col int) {
-	row = blobIndex / rowLength
-	col = blobIndex - (row * rowLength)
-	return
 }
