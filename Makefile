@@ -2,6 +2,7 @@ SHELL=/usr/bin/env bash
 PROJECTNAME=$(shell basename "$(PWD)")
 DIR_FULLPATH=$(shell pwd)
 versioningPath := "github.com/celestiaorg/celestia-node/nodebuilder/node"
+OS := $(shell uname -s)
 LDFLAGS=-ldflags="-X '$(versioningPath).buildTime=$(shell date)' -X '$(versioningPath).lastCommit=$(shell git rev-parse HEAD)' -X '$(versioningPath).semanticVersion=$(shell git describe --tags --dirty=-dev 2>/dev/null || git rev-parse --abbrev-ref HEAD)'"
 TAGS=integration
 SHORT=
@@ -65,9 +66,20 @@ deps:
 
 ## install: Install all build binaries into the $PREFIX (/usr/local/ by default) directory.
 install:
+	@$(MAKE) detect-install
+.PHONY: install
+
+detect-install:
+ifeq ($(OS),Darwin)
+	@$(MAKE) go-install
+else
+	@$(MAKE) install-global
+endif
+
+install-global:
 	@echo "--> Installing Celestia"
 	@install -v ./build/* -t ${PREFIX}/bin/
-.PHONY: install
+.PHONY: install-global
 
 ## go-install: Build and install the celestia-node binary into the GOBIN directory.
 go-install:
