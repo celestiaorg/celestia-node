@@ -86,7 +86,7 @@ func (w *worker) run(ctx context.Context, timeout time.Duration, resultCh chan<-
 
 	if w.state.jobType != recentJob {
 		log.Infow(
-			"finished sampling headers",
+			"finished receiving headers",
 			"type", w.state.jobType,
 			"from", w.state.from,
 			"to", w.state.curr,
