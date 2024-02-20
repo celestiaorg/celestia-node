@@ -53,7 +53,9 @@ func TestBlob(t *testing.T) {
 			expectedRes: func(t *testing.T) {
 				sh, err := BlobsToShares(blob...)
 				require.NoError(t, err)
-				b, err := SharesToBlobs(sh)
+				shares, err := toAppShares(sh...)
+				require.NoError(t, err)
+				b, err := parseShares(shares, []int{0})
 				require.NoError(t, err)
 				assert.Equal(t, len(b), 1)
 				assert.Equal(t, blob[0].Commitment, b[0].Commitment)

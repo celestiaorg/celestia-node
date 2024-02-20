@@ -3,7 +3,6 @@ package blob
 import (
 	"bytes"
 	"encoding/json"
-	"errors"
 	"fmt"
 
 	tmproto "github.com/tendermint/tendermint/proto/tendermint/types"
@@ -147,6 +146,10 @@ func (b *Blob) Index() int {
 	return b.index
 }
 
+func (b *Blob) compareCommitments(com Commitment) bool {
+	return bytes.Equal(b.Commitment, com)
+}
+
 type jsonBlob struct {
 	Namespace    share.Namespace `json:"namespace"`
 	Data         []byte          `json:"data"`
@@ -184,16 +187,15 @@ func (b *Blob) UnmarshalJSON(data []byte) error {
 }
 
 type blobIndexer struct {
-	index  int
-	length int
-	shares []shares.Share
+	index    int
+	length   int
+	shares   []shares.Share
+	verifyFn func(blob *Blob) bool
 }
 
-func newBlobIndexer(index, length int) *blobIndexer {
-	return &blobIndexer{
-		index:  index,
-		length: length,
-	}
+func (b *blobIndexer) set(index, length int) {
+	b.index = index
+	b.length = length
 }
 
 // addShares sets shares until the blob is completed and returns extra shares back.
@@ -218,39 +220,11 @@ func (b *blobIndexer) addShares(shares []shares.Share) (shrs []shares.Share, isC
 	return shares[index+1:], true
 }
 
-func (b *blobIndexer) transform() (*Blob, error) {
-	if b.length != len(b.shares) {
-		return nil, errors.New("blob: incomplete blob")
+func (b *blobIndexer) verify(blob *Blob) bool {
+	if b.verifyFn == nil {
+		return false
 	}
-
-	sequence, err := shares.ParseShares(b.shares, true)
-	if err != nil {
-		return nil, err
-	}
-
-	if len(sequence) != 1 {
-		return nil, ErrBlobNotFound
-	}
-
-	data, err := sequence[0].RawData()
-	if err != nil {
-		return nil, err
-	}
-	if len(data) == 0 {
-		return nil, ErrBlobNotFound
-	}
-
-	shareVersion, err := sequence[0].Shares[0].Version()
-	if err != nil {
-		return nil, err
-	}
-
-	blob, err := NewBlob(shareVersion, sequence[0].Namespace.Bytes(), data)
-	if err != nil {
-		return nil, err
-	}
-	blob.index = b.index
-	return blob, nil
+	return b.verifyFn(blob)
 }
 
 func (b *blobIndexer) isEmpty() bool {

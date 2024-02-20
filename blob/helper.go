@@ -11,21 +11,8 @@ import (
 	"github.com/celestiaorg/celestia-node/share"
 )
 
-// SharesToBlobs takes raw shares and converts them to the blobs.
-func SharesToBlobs(rawShares []share.Share) ([]*Blob, error) {
-	if len(rawShares) == 0 {
-		return nil, ErrBlobNotFound
-	}
-
-	appShares, err := toAppShares(rawShares...)
-	if err != nil {
-		return nil, err
-	}
-	return parseShares(appShares)
-}
-
 // parseShares takes shares and converts them to the []*Blob.
-func parseShares(appShrs []shares.Share) ([]*Blob, error) {
+func parseShares(appShrs []shares.Share, indexes []int) ([]*Blob, error) {
 	shareSequences, err := shares.ParseShares(appShrs, true)
 	if err != nil {
 		return nil, err
@@ -36,9 +23,14 @@ func parseShares(appShrs []shares.Share) ([]*Blob, error) {
 		return nil, ErrBlobNotFound
 	}
 
-	blobs := make([]*Blob, len(shareSequences))
+	var (
+		blobs     = make([]*Blob, len(shareSequences))
+		blobIndex = 0
+		data      []byte
+	)
+
 	for i, sequence := range shareSequences {
-		data, err := sequence.RawData()
+		data, err = sequence.RawData()
 		if err != nil {
 			return nil, err
 		}
@@ -55,6 +47,8 @@ func parseShares(appShrs []shares.Share) ([]*Blob, error) {
 		if err != nil {
 			return nil, err
 		}
+		blob.index = indexes[blobIndex]
+		blobIndex++
 		blobs[i] = blob
 	}
 	return blobs, nil
@@ -85,7 +79,20 @@ func BlobsToShares(blobs ...*Blob) ([]share.Share, error) {
 	return shares.ToBytes(rawShares), nil
 }
 
-func index(rowLength, blobIndex int) (row, col int) {
+// toAppShares converts node's raw shares to the app shares, skipping padding
+func toAppShares(shrs ...share.Share) ([]shares.Share, error) {
+	appShrs := make([]shares.Share, 0, len(shrs))
+	for _, shr := range shrs {
+		bShare, err := shares.NewShare(shr)
+		if err != nil {
+			return nil, err
+		}
+		appShrs = append(appShrs, *bShare)
+	}
+	return appShrs, nil
+}
+
+func calculateIndex(rowLength, blobIndex int) (row, col int) {
 	row = blobIndex / rowLength
 	col = blobIndex - (row * rowLength)
 	return

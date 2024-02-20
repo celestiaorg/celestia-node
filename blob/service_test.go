@@ -120,7 +120,7 @@ func TestBlobService_Get(t *testing.T) {
 				require.NoError(t, err)
 				shareOffset := 0
 				for i := range blobs {
-					row, col := index(len(h.DAH.RowRoots), blobs[i].index)
+					row, col := calculateIndex(len(h.DAH.RowRoots), blobs[i].index)
 					sh, err := service.shareGetter.GetShare(ctx, h, row, col)
 					require.NoError(t, err)
 					require.True(t, bytes.Equal(sh, resultShares[shareOffset]),
@@ -386,7 +386,7 @@ func TestService_GetSingleBlobWithoutPadding(t *testing.T) {
 
 	resultShares, err := BlobsToShares(newBlob)
 	require.NoError(t, err)
-	row, col := index(len(h.DAH.RowRoots), newBlob.index)
+	row, col := calculateIndex(len(h.DAH.RowRoots), newBlob.index)
 	sh, err := service.shareGetter.GetShare(ctx, h, row, col)
 	require.NoError(t, err)
 
@@ -418,7 +418,7 @@ func TestService_Get(t *testing.T) {
 		require.NoError(t, err)
 		assert.Equal(t, b.Commitment, blob.Commitment)
 
-		row, col := index(len(h.DAH.RowRoots), b.index)
+		row, col := calculateIndex(len(h.DAH.RowRoots), b.index)
 		sh, err := service.shareGetter.GetShare(ctx, h, row, col)
 		require.NoError(t, err)
 
@@ -485,7 +485,7 @@ func TestService_GetAllWithoutPadding(t *testing.T) {
 	})
 	shareOffset := 0
 	for _, blob := range blobs {
-		row, col := index(len(h.DAH.RowRoots), blob.index)
+		row, col := calculateIndex(len(h.DAH.RowRoots), blob.index)
 		sh, err := service.shareGetter.GetShare(ctx, h, row, col)
 		require.NoError(t, err)
 
@@ -494,7 +494,7 @@ func TestService_GetAllWithoutPadding(t *testing.T) {
 	}
 }
 
-// BenchmarkGetByCommitment-12    	    3139	    380827 ns/op	  701647 B/op	    4990 allocs/op
+// BenchmarkGetByCommitment-12    	    1801	    647529 ns/op	 1086122 B/op	    6439 allocs/op
 func BenchmarkGetByCommitment(b *testing.B) {
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second*5)
 	b.Cleanup(cancel)
@@ -505,11 +505,17 @@ func BenchmarkGetByCommitment(b *testing.B) {
 	require.NoError(b, err)
 
 	service := createService(ctx, b, blobs)
+	indexer := &blobIndexer{}
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
 		b.ReportAllocs()
+		indexer.reset()
+		indexer.verifyFn = func(blob *Blob) bool {
+			return blob.compareCommitments(blobs[1].Commitment)
+		}
+
 		_, _, err = service.retrieve(
-			ctx, 1, blobs[1].Namespace(), blobs[1].Commitment, verify,
+			ctx, 1, blobs[1].Namespace(), indexer,
 		)
 		require.NoError(b, err)
 	}

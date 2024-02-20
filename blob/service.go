@@ -1,7 +1,6 @@
 package blob
 
 import (
-	"bytes"
 	"context"
 	"errors"
 	"fmt"
@@ -112,12 +111,27 @@ func (s *Service) Submit(ctx context.Context, blobs []*Blob, gasPrice GasPrice) 
 }
 
 // Get retrieves all the blobs for given namespaces at the given height by commitment.
-func (s *Service) Get(ctx context.Context, height uint64, ns share.Namespace, commitment Commitment) (*Blob, error) {
-	blob, _, err := s.retrieve(ctx, height, ns, commitment, verify)
-	if err != nil {
-		return nil, err
-	}
-	return blob, nil
+func (s *Service) Get(
+	ctx context.Context,
+	height uint64,
+	ns share.Namespace,
+	commitment Commitment,
+) (blob *Blob, err error) {
+	ctx, span := tracer.Start(ctx, "get")
+	defer func() {
+		utils.SetStatusAndEnd(span, err)
+	}()
+	span.SetAttributes(
+		attribute.Int64("height", int64(height)),
+		attribute.String("commitment", string(commitment)),
+	)
+
+	indexer := &blobIndexer{verifyFn: func(blob *Blob) bool {
+		return blob.compareCommitments(commitment)
+	}}
+
+	blob, _, err = s.retrieve(ctx, height, ns, indexer)
+	return
 }
 
 // GetProof retrieves all blobs in the given namespaces at the given height by commitment
@@ -127,11 +141,21 @@ func (s *Service) GetProof(
 	height uint64,
 	namespace share.Namespace,
 	commitment Commitment,
-) (*Proof, error) {
-	_, proof, err := s.retrieve(ctx, height, namespace, commitment, verify)
-	if err != nil {
-		return nil, err
-	}
+) (proof *Proof, err error) {
+	ctx, span := tracer.Start(ctx, "get-proof")
+	defer func() {
+		utils.SetStatusAndEnd(span, err)
+	}()
+	span.SetAttributes(
+		attribute.Int64("height", int64(height)),
+		attribute.String("commitment", string(commitment)),
+	)
+
+	indexer := &blobIndexer{verifyFn: func(blob *Blob) bool {
+		return blob.compareCommitments(commitment)
+	}}
+
+	_, proof, err = s.retrieve(ctx, height, namespace, indexer)
 	return proof, nil
 }
 
@@ -197,6 +221,10 @@ func (s *Service) Included(
 	defer func() {
 		utils.SetStatusAndEnd(span, err)
 	}()
+	span.SetAttributes(
+		attribute.Int64("height", int64(height)),
+		attribute.String("commitment", string(com)),
+	)
 	// In the current implementation, LNs will have to download all shares to recompute the commitment.
 	// To achieve 1. we need to modify Proof structure and to store all subtree roots, that were
 	// involved in commitment creation and then call `merkle.HashFromByteSlices`(tendermint package).
@@ -206,7 +234,10 @@ func (s *Service) Included(
 	// but we have to guarantee that all our stored subtree roots will be on the same height(e.g. one
 	// level above shares).
 	// TODO(@vgonkivs): rework the implementation to perform all verification without network requests.
-	_, resProof, err := s.retrieve(ctx, height, namespace, com, verify)
+	indexer := &blobIndexer{verifyFn: func(blob *Blob) bool {
+		return blob.compareCommitments(com)
+	}}
+	_, resProof, err := s.retrieve(ctx, height, namespace, indexer)
 	switch err {
 	case nil:
 	case ErrBlobNotFound:
@@ -224,21 +255,11 @@ func (s *Service) retrieve(
 	ctx context.Context,
 	height uint64,
 	namespace share.Namespace,
-	commitment Commitment,
-	verifyFn func(blob *Blob, com Commitment) bool,
+	indexer *blobIndexer,
 ) (_ *Blob, _ *Proof, err error) {
 	log.Infow("requesting blob",
 		"height", height,
 		"namespace", namespace.String())
-
-	ctx, span := tracer.Start(ctx, "get-by-commitment")
-	defer func() {
-		utils.SetStatusAndEnd(span, err)
-	}()
-	span.SetAttributes(
-		attribute.Int64("height", int64(height)),
-		attribute.String("commitment", string(commitment)),
-	)
 
 	getCtx, headerGetterSpan := tracer.Start(ctx, "header-getter")
 
@@ -276,9 +297,8 @@ func (s *Service) retrieve(
 		attribute.Int64("eds-size", int64(len(header.DAH.RowRoots)))))
 
 	var (
-		appShares   = make([]shares.Share, 0)
-		proofs      = make(Proof, 0)
-		blobIndexer = &blobIndexer{}
+		appShares = make([]shares.Share, 0)
+		proofs    = make(Proof, 0)
 	)
 
 	for _, row := range namespacedShares {
@@ -316,59 +336,48 @@ func (s *Service) retrieve(
 				break
 			}
 
-			isComplete := false
-			if !blobIndexer.isEmpty() {
-				beforeSet := len(appShares)
-				appShares, isComplete = blobIndexer.addShares(appShares)
-				if !isComplete {
-					break
-				}
+			var (
+				isComplete            bool
+				wasEmpty              = indexer.isEmpty()
+				retrievedSharesAmount = len(appShares)
+			)
 
-				blob, err := blobIndexer.transform()
+			if wasEmpty {
+				length, err := appShares[0].SequenceLen()
 				if err != nil {
 					return nil, nil, err
 				}
-				if verifyFn(blob, commitment) {
-					return blob, &proofs, nil
-				}
 
-				// index of the next blob
-				index += beforeSet - len(appShares)
-				proofs = proofs[len(proofs)-1:]
-				blobIndexer.reset()
-				continue
+				indexer.set(
+					rowIndex*len(header.DAH.RowRoots)+index,
+					shares.SparseSharesNeeded(length),
+				)
 			}
-
-			length, err := appShares[0].SequenceLen()
-			if err != nil {
-				return nil, nil, err
-			}
-
-			blobIndexer = newBlobIndexer(
-				rowIndex*len(header.DAH.RowRoots)+index,
-				shares.SparseSharesNeeded(length),
-			)
-
-			appShares, isComplete = blobIndexer.addShares(appShares)
+			// add shares and verify whether can we construct blob or not.
+			appShares, isComplete = indexer.addShares(appShares)
 			if !isComplete {
 				break
 			}
 
-			blob, err := blobIndexer.transform()
+			// construct the blob and verify if it satisfies the condition
+			blob, err := parseShares(indexer.shares, []int{indexer.index})
 			if err != nil {
 				return nil, nil, err
 			}
-
-			if verifyFn(blob, commitment) {
-				return blob, &proofs, nil
+			if indexer.verify(blob[0]) {
+				return blob[0], &proofs, nil
 			}
 
-			index += shares.SparseSharesNeeded(length)
-			blobIndexer.reset()
+			// index of the next blob
+			index += retrievedSharesAmount - len(appShares)
+			if !wasEmpty {
+				proofs = proofs[len(proofs)-1:]
+			}
+			indexer.reset()
 		}
 
 		rowIndex++
-		if blobIndexer.isEmpty() {
+		if indexer.isEmpty() {
 			proofs = nil
 		}
 	}
@@ -401,31 +410,15 @@ func (s *Service) getBlobs(
 	}()
 
 	blobs := make([]*Blob, 0)
-	verifyFn := func(blob *Blob, _ Commitment) bool {
+	verifyFn := func(blob *Blob) bool {
 		blobs = append(blobs, blob)
 		return false
 	}
+	indexer := &blobIndexer{verifyFn: verifyFn}
 
-	_, _, err = s.retrieve(ctx, header.Height(), namespace, nil, verifyFn)
+	_, _, err = s.retrieve(ctx, header.Height(), namespace, indexer)
 	if len(blobs) == 0 {
 		return nil, ErrBlobNotFound
 	}
 	return blobs, nil
-}
-
-// toAppShares converts node's raw shares to the app shares, skipping padding
-func toAppShares(shrs ...share.Share) ([]shares.Share, error) {
-	appShrs := make([]shares.Share, 0, len(shrs))
-	for _, shr := range shrs {
-		bShare, err := shares.NewShare(shr)
-		if err != nil {
-			return nil, err
-		}
-		appShrs = append(appShrs, *bShare)
-	}
-	return appShrs, nil
-}
-
-func verify(blob *Blob, com Commitment) bool {
-	return bytes.Equal(blob.Commitment, com)
 }
