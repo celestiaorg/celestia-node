@@ -306,15 +306,15 @@ func setupNodeWithAuthedRPC(t *testing.T, auth jwt.Signer) (*nodebuilder.Node, *
 	// given the behavior of fx.Invoke, this invoke will be called last as it is added at the root
 	// level module. For further information, check the documentation on fx.Invoke.
 	invokeRPC := fx.Invoke(func(srv *rpc.Server) {
-		srv.RegisterAuthedService("state", mockAPI.State, &statemod.API{})
-		srv.RegisterAuthedService("share", mockAPI.Share, &share.API{})
-		srv.RegisterAuthedService("fraud", mockAPI.Fraud, &fraud.API{})
-		srv.RegisterAuthedService("header", mockAPI.Header, &header.API{})
-		srv.RegisterAuthedService("das", mockAPI.Das, &das.API{})
-		srv.RegisterAuthedService("p2p", mockAPI.P2P, &p2p.API{})
-		srv.RegisterAuthedService("node", mockAPI.Node, &node.API{})
-		srv.RegisterAuthedService("blob", mockAPI.Blob, &blob.API{})
-		srv.RegisterAuthedService("da", mockAPI.DA, &da.API{})
+		srv.RegisterService("fraud", mockAPI.Fraud, &fraud.API{})
+		srv.RegisterService("das", mockAPI.Das, &das.API{})
+		srv.RegisterService("header", mockAPI.Header, &header.API{})
+		srv.RegisterService("state", mockAPI.State, &statemod.API{})
+		srv.RegisterService("share", mockAPI.Share, &share.API{})
+		srv.RegisterService("p2p", mockAPI.P2P, &p2p.API{})
+		srv.RegisterService("node", mockAPI.Node, &node.API{})
+		srv.RegisterService("blob", mockAPI.Blob, &blob.API{})
+		srv.RegisterService("da", mockAPI.DA, &da.API{})
 	})
 	// fx.Replace does not work here, but fx.Decorate does
 	nd := nodebuilder.TestNode(t, node.Full, invokeRPC, fx.Decorate(func() (jwt.Signer, error) {
