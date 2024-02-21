@@ -126,11 +126,11 @@ func (s *Service) Get(
 		attribute.String("commitment", string(commitment)),
 	)
 
-	indexer := &blobIndexer{verifyFn: func(blob *Blob) bool {
+	sharesParser := &parser{verifyFn: func(blob *Blob) bool {
 		return blob.compareCommitments(commitment)
 	}}
 
-	blob, _, err = s.retrieve(ctx, height, ns, indexer)
+	blob, _, err = s.retrieve(ctx, height, ns, sharesParser)
 	return
 }
 
@@ -151,11 +151,11 @@ func (s *Service) GetProof(
 		attribute.String("commitment", string(commitment)),
 	)
 
-	indexer := &blobIndexer{verifyFn: func(blob *Blob) bool {
+	sharesParser := &parser{verifyFn: func(blob *Blob) bool {
 		return blob.compareCommitments(commitment)
 	}}
 
-	_, proof, err = s.retrieve(ctx, height, namespace, indexer)
+	_, proof, err = s.retrieve(ctx, height, namespace, sharesParser)
 	return proof, nil
 }
 
@@ -234,10 +234,10 @@ func (s *Service) Included(
 	// but we have to guarantee that all our stored subtree roots will be on the same height(e.g. one
 	// level above shares).
 	// TODO(@vgonkivs): rework the implementation to perform all verification without network requests.
-	indexer := &blobIndexer{verifyFn: func(blob *Blob) bool {
+	sharesParser := &parser{verifyFn: func(blob *Blob) bool {
 		return blob.compareCommitments(com)
 	}}
-	_, resProof, err := s.retrieve(ctx, height, namespace, indexer)
+	_, resProof, err := s.retrieve(ctx, height, namespace, sharesParser)
 	switch err {
 	case nil:
 	case ErrBlobNotFound:
@@ -255,7 +255,7 @@ func (s *Service) retrieve(
 	ctx context.Context,
 	height uint64,
 	namespace share.Namespace,
-	indexer *blobIndexer,
+	sharesParser *parser,
 ) (_ *Blob, _ *Proof, err error) {
 	log.Infow("requesting blob",
 		"height", height,
@@ -318,66 +318,57 @@ func (s *Service) retrieve(
 		index := row.Proof.Start()
 
 		for {
-			if len(appShares) == 0 {
-				break
-			}
-
-			isPadding, err := appShares[0].IsPadding()
-			if err != nil {
-				return nil, nil, err
-			}
-
-			if isPadding {
-				index++
-				if len(appShares) > 1 {
-					appShares = appShares[1:]
-					continue
-				}
-				break
-			}
-
 			var (
-				isComplete            bool
-				wasEmpty              = indexer.isEmpty()
-				retrievedSharesAmount = len(appShares)
+				isComplete bool
+				shrs       []shares.Share
+				wasEmpty   = sharesParser.isEmpty()
 			)
 
 			if wasEmpty {
-				length, err := appShares[0].SequenceLen()
+				// create a parser if it is empty
+				shrs, err = sharesParser.set(rowIndex*len(header.DAH.RowRoots)+index, appShares)
 				if err != nil {
+					if errors.Is(err, errEmptyShares) {
+						appShares = nil
+						break
+					}
 					return nil, nil, err
 				}
 
-				indexer.set(
-					rowIndex*len(header.DAH.RowRoots)+index,
-					shares.SparseSharesNeeded(length),
-				)
+				if len(appShares) != len(shrs) {
+					// update index and shares if a padding share was detected.
+					index += len(appShares) - len(shrs)
+					appShares = shrs
+				}
 			}
-			// add shares and verify whether can we construct blob or not.
-			appShares, isComplete = indexer.addShares(appShares)
+
+			shrs, isComplete = sharesParser.addShares(appShares)
 			if !isComplete {
+				appShares = nil
 				break
 			}
 
-			// construct the blob and verify if it satisfies the condition
-			blob, err := parseShares(indexer.shares, []int{indexer.index})
+			blob, err := sharesParser.transform()
 			if err != nil {
 				return nil, nil, err
 			}
-			if indexer.verify(blob[0]) {
-				return blob[0], &proofs, nil
+
+			if sharesParser.verify(blob) {
+				return blob, &proofs, nil
 			}
 
-			// index of the next blob
-			index += retrievedSharesAmount - len(appShares)
+			index += len(appShares) - len(shrs)
+			appShares = shrs
+			sharesParser.reset()
+
 			if !wasEmpty {
+				// remove proofs for prev rows if verified blob spans multiple rows
 				proofs = proofs[len(proofs)-1:]
 			}
-			indexer.reset()
 		}
 
 		rowIndex++
-		if indexer.isEmpty() {
+		if sharesParser.isEmpty() {
 			proofs = nil
 		}
 	}
@@ -414,9 +405,9 @@ func (s *Service) getBlobs(
 		blobs = append(blobs, blob)
 		return false
 	}
-	indexer := &blobIndexer{verifyFn: verifyFn}
+	sharesParser := &parser{verifyFn: verifyFn}
 
-	_, _, err = s.retrieve(ctx, header.Height(), namespace, indexer)
+	_, _, err = s.retrieve(ctx, header.Height(), namespace, sharesParser)
 	if len(blobs) == 0 {
 		return nil, ErrBlobNotFound
 	}

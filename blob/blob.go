@@ -3,17 +3,19 @@ package blob
 import (
 	"bytes"
 	"encoding/json"
+	"errors"
 	"fmt"
 
 	tmproto "github.com/tendermint/tendermint/proto/tendermint/types"
 
 	"github.com/celestiaorg/celestia-app/pkg/appconsts"
-	"github.com/celestiaorg/celestia-app/pkg/shares"
 	"github.com/celestiaorg/celestia-app/x/blob/types"
 	"github.com/celestiaorg/nmt"
 
 	"github.com/celestiaorg/celestia-node/share"
 )
+
+var errEmptyShares = errors.New("empty shares")
 
 // Commitment is a Merkle Root of the subtree built from shares of the Blob.
 // It is computed by splitting the blob into shares and building the Merkle subtree to be included
@@ -184,55 +186,4 @@ func (b *Blob) UnmarshalJSON(data []byte) error {
 	b.namespace = blob.Namespace
 	b.index = blob.Index
 	return nil
-}
-
-type blobIndexer struct {
-	index    int
-	length   int
-	shares   []shares.Share
-	verifyFn func(blob *Blob) bool
-}
-
-func (b *blobIndexer) set(index, length int) {
-	b.index = index
-	b.length = length
-}
-
-// addShares sets shares until the blob is completed and returns extra shares back.
-func (b *blobIndexer) addShares(shares []shares.Share) (shrs []shares.Share, isComplete bool) {
-	index := -1
-	for i, sh := range shares {
-		b.shares = append(b.shares, sh)
-		if len(b.shares) == b.length {
-			index = i
-			isComplete = true
-			break
-		}
-	}
-
-	if index == -1 {
-		return
-	}
-
-	if index+1 >= len(shares) {
-		return shrs, true
-	}
-	return shares[index+1:], true
-}
-
-func (b *blobIndexer) verify(blob *Blob) bool {
-	if b.verifyFn == nil {
-		return false
-	}
-	return b.verifyFn(blob)
-}
-
-func (b *blobIndexer) isEmpty() bool {
-	return b.index == 0 && b.length == 0 && len(b.shares) == 0
-}
-
-func (b *blobIndexer) reset() {
-	b.index = 0
-	b.length = 0
-	b.shares = nil
 }

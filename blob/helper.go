@@ -2,6 +2,7 @@ package blob
 
 import (
 	"bytes"
+	"errors"
 	"sort"
 
 	"github.com/tendermint/tendermint/types"
@@ -11,47 +12,40 @@ import (
 	"github.com/celestiaorg/celestia-node/share"
 )
 
-// parseShares takes shares and converts them to the []*Blob.
-func parseShares(appShrs []shares.Share, indexes []int) ([]*Blob, error) {
-	shareSequences, err := shares.ParseShares(appShrs, true)
+// parseShares takes shares and converts them to the *Blob.
+func parseShares(appShrs []shares.Share, index int) (*Blob, error) {
+	sequence, err := shares.ParseShares(appShrs, true)
 	if err != nil {
 		return nil, err
 	}
 
 	// ensure that sequence length is not 0
-	if len(shareSequences) == 0 {
+	if len(sequence) == 0 {
+		return nil, ErrBlobNotFound
+	}
+	if len(sequence) > 1 {
+		return nil, errors.New("unexpected amount of sequences")
+	}
+
+	data, err := sequence[0].RawData()
+	if err != nil {
+		return nil, err
+	}
+	if len(data) == 0 {
 		return nil, ErrBlobNotFound
 	}
 
-	var (
-		blobs     = make([]*Blob, len(shareSequences))
-		blobIndex = 0
-		data      []byte
-	)
-
-	for i, sequence := range shareSequences {
-		data, err = sequence.RawData()
-		if err != nil {
-			return nil, err
-		}
-		if len(data) == 0 {
-			continue
-		}
-
-		shareVersion, err := sequence.Shares[0].Version()
-		if err != nil {
-			return nil, err
-		}
-
-		blob, err := NewBlob(shareVersion, sequence.Namespace.Bytes(), data)
-		if err != nil {
-			return nil, err
-		}
-		blob.index = indexes[blobIndex]
-		blobIndex++
-		blobs[i] = blob
+	shareVersion, err := sequence[0].Shares[0].Version()
+	if err != nil {
+		return nil, err
 	}
-	return blobs, nil
+
+	blob, err := NewBlob(shareVersion, sequence[0].Namespace.Bytes(), data)
+	if err != nil {
+		return nil, err
+	}
+	blob.index = index
+	return blob, nil
 }
 
 // BlobsToShares accepts blobs and convert them to the Shares.

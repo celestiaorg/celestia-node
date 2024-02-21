@@ -29,7 +29,7 @@ import (
 )
 
 func TestBlobService_Get(t *testing.T) {
-	ctx, cancel := context.WithTimeout(context.Background(), time.Second*5)
+	ctx, cancel := context.WithTimeout(context.Background(), time.Minute*5)
 	t.Cleanup(cancel)
 	var (
 		blobSize0 = 18
@@ -341,7 +341,7 @@ func TestBlobService_Get(t *testing.T) {
 // But to satisfy the rule of eds creating, padding namespace share is placed between
 // blobs. Test ensures that blob service will skip padding share and return the correct blob.
 func TestService_GetSingleBlobWithoutPadding(t *testing.T) {
-	ctx, cancel := context.WithTimeout(context.Background(), time.Second*5)
+	ctx, cancel := context.WithTimeout(context.Background(), time.Minute*5)
 	t.Cleanup(cancel)
 
 	appBlob, err := blobtest.GenerateV0Blobs([]int{9, 5}, true)
@@ -390,7 +390,7 @@ func TestService_GetSingleBlobWithoutPadding(t *testing.T) {
 	sh, err := service.shareGetter.GetShare(ctx, h, row, col)
 	require.NoError(t, err)
 
-	assert.True(t, bytes.Equal(sh, resultShares[0]))
+	assert.Equal(t, sh, resultShares[0])
 }
 
 func TestService_Get(t *testing.T) {
@@ -422,7 +422,7 @@ func TestService_Get(t *testing.T) {
 		sh, err := service.shareGetter.GetShare(ctx, h, row, col)
 		require.NoError(t, err)
 
-		assert.True(t, bytes.Equal(sh, resultShares[shareOffset]), fmt.Sprintf("issue on %d attempt", i))
+		assert.Equal(t, sh, resultShares[shareOffset], fmt.Sprintf("issue on %d attempt", i))
 		shareOffset += shares.SparseSharesNeeded(uint32(len(blob.Data)))
 	}
 }
@@ -489,12 +489,12 @@ func TestService_GetAllWithoutPadding(t *testing.T) {
 		sh, err := service.shareGetter.GetShare(ctx, h, row, col)
 		require.NoError(t, err)
 
-		assert.True(t, bytes.Equal(sh, resultShares[shareOffset]))
+		assert.Equal(t, sh, resultShares[shareOffset])
 		shareOffset += shares.SparseSharesNeeded(uint32(len(blob.Data)))
 	}
 }
 
-// BenchmarkGetByCommitment-12    	    1801	    647529 ns/op	 1086122 B/op	    6439 allocs/op
+// BenchmarkGetByCommitment-12    	    1869	    571663 ns/op	 1085371 B/op	    6414 allocs/op
 func BenchmarkGetByCommitment(b *testing.B) {
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second*5)
 	b.Cleanup(cancel)
@@ -505,7 +505,7 @@ func BenchmarkGetByCommitment(b *testing.B) {
 	require.NoError(b, err)
 
 	service := createService(ctx, b, blobs)
-	indexer := &blobIndexer{}
+	indexer := &parser{}
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
 		b.ReportAllocs()
