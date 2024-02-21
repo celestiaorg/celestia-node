@@ -66,15 +66,12 @@ deps:
 
 ## install: Install all build binaries into the $PREFIX (/usr/local/ by default) directory.
 install:
-	@$(MAKE) detect-install
-.PHONY: install
-
-detect-install:
 ifeq ($(OS),Darwin)
 	@$(MAKE) go-install
 else
 	@$(MAKE) install-global
 endif
+.PHONY: install
 
 install-global:
 	@echo "--> Installing Celestia"
