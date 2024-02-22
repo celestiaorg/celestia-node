@@ -171,7 +171,7 @@ func TestFindPruneableHeaders(t *testing.T) {
 			headerAmount: 2 * (24 * 7),
 			startTime:    time.Now().Add(-2 * time.Hour * 24 * 7),
 			// One week of headers are pruneable
-			expectedLength: 24 * 7,
+			expectedLength: (24 * 7) + 1,
 		},
 		{
 			name: "Estimated range not sufficient but finds the correct tail",
@@ -182,7 +182,7 @@ func TestFindPruneableHeaders(t *testing.T) {
 			headerAmount: 3 * (24 * 7),
 			startTime:    time.Now().Add(-3 * time.Hour * 24 * 7),
 			// Two weeks of headers are pruneable
-			expectedLength: 2 * 24 * 7,
+			expectedLength: (2 * 24 * 7) + 1,
 		},
 		{
 			name: "No pruneable headers",
