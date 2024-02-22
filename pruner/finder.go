@@ -7,6 +7,11 @@ import (
 	"github.com/celestiaorg/celestia-node/header"
 )
 
+// maxHeadersPerLoop is the maximum number of headers to fetch
+// for a prune loop (prevents fetching too many headers at a
+// time for nodes that have a large number of pruneable headers).
+var maxHeadersPerLoop = uint64(1024)
+
 // findPruneableHeaders returns all headers that are eligible for pruning
 // (outside the sampling window).
 func (s *Service) findPruneableHeaders(ctx context.Context) ([]*header.ExtendedHeader, error) {
@@ -26,6 +31,10 @@ func (s *Service) findPruneableHeaders(ctx context.Context) ([]*header.ExtendedH
 	log.Debugw("finder: fetching header range", "lastPruned", lastPruned.Height(),
 		"estimatedCutoffHeight", estimatedCutoffHeight)
 
+	if estimatedCutoffHeight-lastPruned.Height() > maxHeadersPerLoop {
+		estimatedCutoffHeight = lastPruned.Height() + maxHeadersPerLoop
+	}
+
 	headers, err := s.getter.GetRangeByHeight(ctx, lastPruned, estimatedCutoffHeight)
 	if err != nil {
 		return nil, err
@@ -41,8 +50,8 @@ func (s *Service) findPruneableHeaders(ctx context.Context) ([]*header.ExtendedH
 	// loop we could increase by a range every iteration
 	headerCount := len(headers)
 	for {
-		if headerCount > int(s.maxPruneablePerGC) {
-			headers = headers[:s.maxPruneablePerGC]
+		if headerCount > int(maxHeadersPerLoop) {
+			headers = headers[:maxHeadersPerLoop]
 			break
 		}
 		lastHeader := headers[len(headers)-1]
