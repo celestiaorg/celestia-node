@@ -26,9 +26,6 @@ type Service struct {
 	ds         datastore.Datastore
 	checkpoint *checkpoint
 
-	// TODO @renaynay: how would this impact a node that enables pruning after being an archival node?
-	//  e.g. Node has already 600k+ blocks stored, how long will it take to clean up all blocks outside
-	//  of pruning window?
 	maxPruneablePerGC uint64
 	numBlocksInWindow uint64
 

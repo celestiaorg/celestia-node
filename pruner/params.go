@@ -17,8 +17,8 @@ type Params struct {
 
 func DefaultParams() Params {
 	return Params{
-		gcCycle:           time.Minute * 1,
-		maxPruneablePerGC: 50000,
+		gcCycle:           time.Minute * 5,
+		maxPruneablePerGC: 1024,
 	}
 }
 

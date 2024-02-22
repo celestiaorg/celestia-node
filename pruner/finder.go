@@ -9,7 +9,6 @@ import (
 
 // findPruneableHeaders returns all headers that are eligible for pruning
 // (outside the sampling window).
-// TODO @renaynay @distractedm1nd: This will not prune the genesis block
 func (s *Service) findPruneableHeaders(ctx context.Context) ([]*header.ExtendedHeader, error) {
 	lastPruned := s.lastPruned()
 
@@ -30,6 +29,10 @@ func (s *Service) findPruneableHeaders(ctx context.Context) ([]*header.ExtendedH
 	headers, err := s.getter.GetRangeByHeight(ctx, lastPruned, estimatedCutoffHeight)
 	if err != nil {
 		return nil, err
+	}
+	// ensures genesis block gets pruned
+	if lastPruned.Height() == 1 {
+		headers = append([]*header.ExtendedHeader{lastPruned}, headers...)
 	}
 
 	// if our estimated range didn't cover enough headers, we need to fetch more
