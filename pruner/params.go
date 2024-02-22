@@ -10,15 +10,11 @@ type Params struct {
 	// gcCycle is the frequency at which the pruning Service
 	// runs the ticker. If set to 0, the Service will not run.
 	gcCycle time.Duration
-	// maxPruneablePerGC sets an upper limit to how many blocks
-	// can be pruned during a GC cycle.
-	maxPruneablePerGC uint64
 }
 
 func DefaultParams() Params {
 	return Params{
-		gcCycle:           time.Minute * 5,
-		maxPruneablePerGC: 1024,
+		gcCycle: time.Minute * 5,
 	}
 }
 
@@ -42,12 +38,4 @@ func WithDisabledGC() Option {
 // expected to be "invoked" by the fx lifecycle.
 func WithPrunerMetrics(s *Service) error {
 	return s.WithMetrics()
-}
-
-// WithMaxPruneablePerGC sets the upper limit for how many blocks can
-// be pruned per GC cycle.
-func WithMaxPruneablePerGC(maxPruneable uint64) Option {
-	return func(p *Params) {
-		p.maxPruneablePerGC = maxPruneable
-	}
 }

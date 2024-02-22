@@ -84,6 +84,7 @@ func TestService_FailedAreRecorded(t *testing.T) {
 		sync.MutexWrap(datastore.NewMapDatastore()),
 		blockTime,
 	)
+	serv.ctx = ctx
 
 	err := serv.loadCheckpoint(ctx)
 	require.NoError(t, err)
@@ -150,7 +151,51 @@ func TestServiceCheckpointing(t *testing.T) {
 	assert.Equal(t, uint64(3), serv.checkpoint.LastPrunedHeight)
 	assert.Len(t, serv.checkpoint.FailedHeaders, 1)
 	assert.Equal(t, lastPruned, serv.lastPruned())
+}
 
+// TestPrune_LargeNumberOfBlocks tests that the pruner service with a large
+// number of blocks to prune (an archival node turning into a pruned node) is
+// able to prune the blocks in one prune cycle.
+func TestPrune_LargeNumberOfBlocks(t *testing.T) {
+	ctx, cancel := context.WithCancel(context.Background())
+	t.Cleanup(cancel)
+
+	maxHeadersPerLoop = 10
+	t.Cleanup(func() {
+		maxHeadersPerLoop = 1024
+	})
+
+	blockTime := time.Nanosecond
+	availabilityWindow := AvailabilityWindow(blockTime * 10)
+
+	// all headers generated in suite are timestamped to time.Now(), so
+	// they will all be considered "pruneable" within the availability window
+	suite := headertest.NewTestSuite(t, 1, blockTime)
+	store := headertest.NewCustomStore(t, suite, int(maxHeadersPerLoop*6)) // add small buffer
+
+	mp := &mockPruner{failHeight: make(map[uint64]int, 0)}
+
+	serv := NewService(
+		mp,
+		availabilityWindow,
+		store,
+		sync.MutexWrap(datastore.NewMapDatastore()),
+		blockTime,
+	)
+	serv.ctx = ctx
+
+	err := serv.loadCheckpoint(ctx)
+	require.NoError(t, err)
+
+	// ensures availability window has passed
+	time.Sleep(time.Duration(availabilityWindow) + time.Millisecond*100)
+
+	// trigger a prune job
+	_ = serv.prune(ctx, serv.lastPruned())
+
+	// ensure all headers have been pruned
+	assert.Equal(t, maxHeadersPerLoop*5, serv.checkpoint.LastPrunedHeight)
+	assert.Len(t, serv.checkpoint.FailedHeaders, 0)
 }
 
 func TestFindPruneableHeaders(t *testing.T) {
