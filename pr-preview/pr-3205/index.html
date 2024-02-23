@@ -1,0 +1,389 @@
+<!DOCTYPE HTML>
+<html lang="en" class="light" dir="ltr">
+    <head>
+        <!-- Book generated using mdBook -->
+        <meta charset="UTF-8">
+        <title>Shwap - Celestia Node Specification</title>
+
+
+        <!-- Custom HTML head -->
+        
+        <meta name="description" content="">
+        <meta name="viewport" content="width=device-width, initial-scale=1">
+        <meta name="theme-color" content="#ffffff">
+
+        <link rel="icon" href="favicon.svg">
+        <link rel="shortcut icon" href="favicon.png">
+        <link rel="stylesheet" href="css/variables.css">
+        <link rel="stylesheet" href="css/general.css">
+        <link rel="stylesheet" href="css/chrome.css">
+        <link rel="stylesheet" href="css/print.css" media="print">
+
+        <!-- Fonts -->
+        <link rel="stylesheet" href="FontAwesome/css/font-awesome.css">
+        <link rel="stylesheet" href="fonts/fonts.css">
+
+        <!-- Highlight.js Stylesheets -->
+        <link rel="stylesheet" href="highlight.css">
+        <link rel="stylesheet" href="tomorrow-night.css">
+        <link rel="stylesheet" href="ayu-highlight.css">
+
+        <!-- Custom theme stylesheets -->
+
+    </head>
+    <body class="sidebar-visible no-js">
+    <div id="body-container">
+        <!-- Provide site root to javascript -->
+        <script>
+            var path_to_root = "";
+            var default_theme = window.matchMedia("(prefers-color-scheme: dark)").matches ? "navy" : "light";
+        </script>
+
+        <!-- Work around some values being stored in localStorage wrapped in quotes -->
+        <script>
+            try {
+                var theme = localStorage.getItem('mdbook-theme');
+                var sidebar = localStorage.getItem('mdbook-sidebar');
+
+                if (theme.startsWith('"') && theme.endsWith('"')) {
+                    localStorage.setItem('mdbook-theme', theme.slice(1, theme.length - 1));
+                }
+
+                if (sidebar.startsWith('"') && sidebar.endsWith('"')) {
+                    localStorage.setItem('mdbook-sidebar', sidebar.slice(1, sidebar.length - 1));
+                }
+            } catch (e) { }
+        </script>
+
+        <!-- Set the theme before any content is loaded, prevents flash -->
+        <script>
+            var theme;
+            try { theme = localStorage.getItem('mdbook-theme'); } catch(e) { }
+            if (theme === null || theme === undefined) { theme = default_theme; }
+            var html = document.querySelector('html');
+            html.classList.remove('light')
+            html.classList.add(theme);
+            var body = document.querySelector('body');
+            body.classList.remove('no-js')
+            body.classList.add('js');
+        </script>
+
+        <input type="checkbox" id="sidebar-toggle-anchor" class="hidden">
+
+        <!-- Hide / unhide sidebar before it is displayed -->
+        <script>
+            var body = document.querySelector('body');
+            var sidebar = null;
+            var sidebar_toggle = document.getElementById("sidebar-toggle-anchor");
+            if (document.body.clientWidth >= 1080) {
+                try { sidebar = localStorage.getItem('mdbook-sidebar'); } catch(e) { }
+                sidebar = sidebar || 'visible';
+            } else {
+                sidebar = 'hidden';
+            }
+            sidebar_toggle.checked = sidebar === 'visible';
+            body.classList.remove('sidebar-visible');
+            body.classList.add("sidebar-" + sidebar);
+        </script>
+
+        <nav id="sidebar" class="sidebar" aria-label="Table of contents">
+            <div class="sidebar-scrollbox">
+                <ol class="chapter"><li class="chapter-item expanded "><a href="shwap/spec.html" class="active"><strong aria-hidden="true">1.</strong> Shwap</a></li></ol>
+            </div>
+            <div id="sidebar-resize-handle" class="sidebar-resize-handle">
+                <div class="sidebar-resize-indicator"></div>
+            </div>
+        </nav>
+
+        <!-- Track and set sidebar scroll position -->
+        <script>
+            var sidebarScrollbox = document.querySelector('#sidebar .sidebar-scrollbox');
+            sidebarScrollbox.addEventListener('click', function(e) {
+                if (e.target.tagName === 'A') {
+                    sessionStorage.setItem('sidebar-scroll', sidebarScrollbox.scrollTop);
+                }
+            }, { passive: true });
+            var sidebarScrollTop = sessionStorage.getItem('sidebar-scroll');
+            sessionStorage.removeItem('sidebar-scroll');
+            if (sidebarScrollTop) {
+                // preserve sidebar scroll position when navigating via links within sidebar
+                sidebarScrollbox.scrollTop = sidebarScrollTop;
+            } else {
+                // scroll sidebar to current active section when navigating via "next/previous chapter" buttons
+                var activeSection = document.querySelector('#sidebar .active');
+                if (activeSection) {
+                    activeSection.scrollIntoView({ block: 'center' });
+                }
+            }
+        </script>
+
+        <div id="page-wrapper" class="page-wrapper">
+
+            <div class="page">
+                                <div id="menu-bar-hover-placeholder"></div>
+                <div id="menu-bar" class="menu-bar sticky">
+                    <div class="left-buttons">
+                        <label id="sidebar-toggle" class="icon-button" for="sidebar-toggle-anchor" title="Toggle Table of Contents" aria-label="Toggle Table of Contents" aria-controls="sidebar">
+                            <i class="fa fa-bars"></i>
+                        </label>
+                        <button id="theme-toggle" class="icon-button" type="button" title="Change theme" aria-label="Change theme" aria-haspopup="true" aria-expanded="false" aria-controls="theme-list">
+                            <i class="fa fa-paint-brush"></i>
+                        </button>
+                        <ul id="theme-list" class="theme-popup" aria-label="Themes" role="menu">
+                            <li role="none"><button role="menuitem" class="theme" id="light">Light</button></li>
+                            <li role="none"><button role="menuitem" class="theme" id="rust">Rust</button></li>
+                            <li role="none"><button role="menuitem" class="theme" id="coal">Coal</button></li>
+                            <li role="none"><button role="menuitem" class="theme" id="navy">Navy</button></li>
+                            <li role="none"><button role="menuitem" class="theme" id="ayu">Ayu</button></li>
+                        </ul>
+                        <button id="search-toggle" class="icon-button" type="button" title="Search. (Shortkey: s)" aria-label="Toggle Searchbar" aria-expanded="false" aria-keyshortcuts="S" aria-controls="searchbar">
+                            <i class="fa fa-search"></i>
+                        </button>
+                    </div>
+
+                    <h1 class="menu-title">Celestia Node Specification</h1>
+
+                    <div class="right-buttons">
+                        <a href="print.html" title="Print this book" aria-label="Print this book">
+                            <i id="print-button" class="fa fa-print"></i>
+                        </a>
+                        <a href="https://github.com/celestiaorg/celestia-node" title="Git repository" aria-label="Git repository">
+                            <i id="git-repository-button" class="fa fa-github"></i>
+                        </a>
+
+                    </div>
+                </div>
+
+                <div id="search-wrapper" class="hidden">
+                    <form id="searchbar-outer" class="searchbar-outer">
+                        <input type="search" id="searchbar" name="searchbar" placeholder="Search this book ..." aria-controls="searchresults-outer" aria-describedby="searchresults-header">
+                    </form>
+                    <div id="searchresults-outer" class="searchresults-outer hidden">
+                        <div id="searchresults-header" class="searchresults-header"></div>
+                        <ul id="searchresults">
+                        </ul>
+                    </div>
+                </div>
+
+                <!-- Apply ARIA attributes after the sidebar and the sidebar toggle button are added to the DOM -->
+                <script>
+                    document.getElementById('sidebar-toggle').setAttribute('aria-expanded', sidebar === 'visible');
+                    document.getElementById('sidebar').setAttribute('aria-hidden', sidebar !== 'visible');
+                    Array.from(document.querySelectorAll('#sidebar a')).forEach(function(link) {
+                        link.setAttribute('tabIndex', sidebar === 'visible' ? 0 : -1);
+                    });
+                </script>
+
+                <div id="content" class="content">
+                    <main>
+                        <h1 id="shwap-protocol-specification"><a class="header" href="#shwap-protocol-specification">Shwap Protocol Specification</a></h1>
+<h2 id="abstract"><a class="header" href="#abstract">Abstract</a></h2>
+<p>This document specifies the Shwap p2p protocol. Shwap provides scalable and extensible framework for exchanging and
+swapping of shared data for Celestia's Data Availability network and beyond.</p>
+<h2 id="motivation"><a class="header" href="#motivation">Motivation</a></h2>
+<p>The current Data Availability Sampling (DAS) network protocol is inefficient. A <em>single</em> sample operation takes log2(k) network
+round-trips(where k is the square size). This is not practical and does not scale for the theoretically unlimited data
+square that the Celestia network enables. The main motive here is a protocol with O(1) round-trip for <em>multiple</em> samples, preserving
+the assumption of having 1/n honest peers connected.</p>
+<p>Initially, Bitswap and IPLD were adopted as the basis for the DA network protocols, including DAS,
+block synchronization (BS), and blob/namespace data retrieval (ND). They gave battle-tested protocols and tooling with
+pluggability to rapidly scaffold Celestia's DA network. However, it came with the price of scalability limits and
+round-trips resulting in BS slower than block production. Before the network launch, the transition
+to the optimized [ShrEx protocol][shrex] for BS and integrating [CAR and DAGStore-based storage][storage] happened
+optimizing BS and ND. However, DAS was left untouched, preserving its weak scalability and roundtrip inefficiency. Shwap
+addresses these and provides an extensible and flexible framework for BS, ND, and beyond.</p>
+<h2 id="terms-and-definitions"><a class="header" href="#terms-and-definitions">Terms and Definitions</a></h2>
+<p>The key words "MUST", "MUST NOT", "REQUIRED", "SHALL", "SHALL NOT",
+"SHOULD", "SHOULD NOT", "RECOMMENDED", "NOT RECOMMENDED", "MAY", and
+"OPTIONAL" in this document are to be interpreted as described in BCP
+14 [RFC2119] [RFC8174] when, and only when, they appear in all
+capitals, as shown here.</p>
+<p>Commonly used terms in this document are described below.</p>
+<p><em><strong>Shwap</strong></em>: The protocol described by this document. Shwap is a
+portmanteau name of words share and swap.</p>
+<p><em><strong><a href="https://celestiaorg.github.io/celestia-app/specs/shares.html#abstract">Share</a></strong></em>: The core data structure of DataSquare <strong>"swapped"</strong> between peers.</p>
+<p><em><strong><a href="https://celestiaorg.github.io/celestia-app/specs/data_structures.html#2d-reed-solomon-encoding-scheme">DataSquare</a></strong></em>: The DA square format used by Celestia DA network.</p>
+<p><em><strong><a href="https://celestiaorg.github.io/celestia-app/specs/data_structures.html#availabledataheader">DAH</a></strong></em>: The Data Availability Header with Row and Column commitments.</p>
+<p><em><strong><a href="https://celestiaorg.github.io/celestia-app/specs/namespace.html#abstract">Namespace</a></strong></em>: The namespace grouping sets of shares.</p>
+<p><em><strong>Peer</strong></em>: An entity that can participate in a Shwap protocol. There are three types of peers:
+client, server and node.</p>
+<p><em><strong>Client</strong></em>: The Peer that requests content by content identifies over Shwap.</p>
+<p><em><strong>Server</strong></em>: The Peer that responds with content over Shwap.</p>
+<p><em><strong>Node</strong></em>: The peer that namespacesis both the client and the server.</p>
+<p><em><strong>Proof</strong></em>: Merkle inclusion proof of the data in the DataSquare.</p>
+<h2 id="rationale"><a class="header" href="#rationale">Rationale</a></h2>
+<h3 id="multihashes-and-cid"><a class="header" href="#multihashes-and-cid">Multihashes and CID</a></h3>
+<p>Shwap takes inspiration from content addressability, but breaks-free from hash-based only model to optimize message sizes
+and data request patterns. In some way, it hacks into multihash abstraction to make it contain data that isn't in fact a
+hash. Furthermore, the protocol does not include hash digests in the multihashes. The authentication of the messages
+happens using externally provided data commitment.</p>
+<h2 id="protocol-dependencies"><a class="header" href="#protocol-dependencies">Protocol Dependencies</a></h2>
+<h3 id="bitswap"><a class="header" href="#bitswap">Bitswap</a></h3>
+<p>Shwap depends on Bitswap for swapping bits in fully distributed p2p-manner.</p>
+<h2 id="share-identifiers"><a class="header" href="#share-identifiers">Share Identifiers</a></h2>
+<p>This section defines list of supported share identifiers. Share identifiers defined by Shwap can be used to uniquely
+identify any <a href="#share-containers">share container</a> over a chain with arbitrary number of <a href="https://celestiaorg.github.io/celestia-app/specs/data_structures.html#2d-reed-solomon-encoding-scheme">DataSquares</a>, like a range of
+<a href="https://celestiaorg.github.io/celestia-app/specs/shares.html#abstract">shares</a>, a row or a <a href="https://celestiaorg.github.io/celestia-app/specs/data_square_layout.html#blob-share-commitment-rules">blob</a>. Every share identifier relates to a respective share container and wise-versa.</p>
+<p>Identifiers are embeddable to narrow down to the needed content. (TODO: Describe better)</p>
+<p>Identifiers MUST have a fixed size for their fields. Subsequently, protobuf can't be used for CID serialization due to
+varint usage. Instead, identifiers use simple binary big endian serialization.</p>
+<p>Table of supported identifiers with their respective multihash and codec codes. This table is supposed to be extended
+whenever any new identifier is added.</p>
+<div class="table-wrapper"><table><thead><tr><th>Name</th><th>Multihash</th><th>Codec</th></tr></thead><tbody>
+<tr><td>RowID</td><td>0x7811</td><td>0x7810</td></tr>
+<tr><td>SampleID</td><td>0x7801</td><td>0x7800</td></tr>
+<tr><td>DataID</td><td>0x7821</td><td>0x7820</td></tr>
+</tbody></table>
+</div>
+<h3 id="rowid"><a class="header" href="#rowid">RowID</a></h3>
+<p>RowID identifies the <a href="#row-container">Row shares container</a> in a <a href="https://celestiaorg.github.io/celestia-app/specs/data_structures.html#2d-reed-solomon-encoding-scheme">DataSquare</a>.</p>
+<p>RowID identifiers are formatted as shown below:</p>
+<pre><code>RowID {
+    Height: u64;
+    RowIndex: u16;
+}
+</code></pre>
+<p>The fields with validity rules that form RowID are:</p>
+<p><strong>Height</strong>: A uint64 representing the chain height with the data square. It MUST be bigger than zero.</p>
+<p><strong>RowIndex</strong>: An uint16 representing row index points to a particular row. It MUST not exceed the number of Row roots in
+<a href="https://celestiaorg.github.io/celestia-app/specs/data_structures.html#availabledataheader">DAH</a>.</p>
+<p>Serialized RowID MUST have length of 10 bytes.</p>
+<h3 id="sampleid"><a class="header" href="#sampleid">SampleID</a></h3>
+<p>SampleID identifies a Sample container of a single share in a <a href="https://celestiaorg.github.io/celestia-app/specs/data_structures.html#2d-reed-solomon-encoding-scheme">DataSquare</a>.</p>
+<p>SampleID identifiers are formatted as shown below:</p>
+<pre><code>SampleID {
+    RowID;
+    ShareIndex: u16; 
+}
+</code></pre>
+<p>The fields with validity rules that form SampleID are:</p>
+<p><a href="#rowid"><strong>RowID</strong></a>: A RowID of the sample. It MUST follow <a href="#rowid">RowID</a> formatting and field validity rules.</p>
+<p><strong>ShareIndex</strong>: A uint16 representing the index of the sampled share in the row. It MUST not exceed the number of Column
+roots in <a href="https://celestiaorg.github.io/celestia-app/specs/data_structures.html#availabledataheader">DAH</a>.</p>
+<p>Serialized SampleID MUST have length of 12 bytes.</p>
+<h3 id="dataid"><a class="header" href="#dataid">DataID</a></h3>
+<p>DataID identifies <a href="https://celestiaorg.github.io/celestia-app/specs/namespace.html#abstract">namespace</a> Data container of shares within a <em>single</em> Row. That is, namespace shares spanning
+over multiple Rows are identified with multiple identifiers.</p>
+<p>DataID identifiers are formatted as shown below:</p>
+<pre><code>DataID {
+    RowID;
+    Namespace;
+}
+</code></pre>
+<p>The fields with validity rules that form DataID are:</p>
+<p><a href="#rowid"><strong>RowID</strong></a>: A RowID of the namespace data. It MUST follow <a href="#rowid">RowID</a> formatting and field validity rules.</p>
+<p><a href="https://celestiaorg.github.io/celestia-app/specs/namespace.html#abstract"><strong>Namespace</strong></a>: A fixed-size bytes array representing the Namespace of interest. It MUST follow <a href="https://celestiaorg.github.io/celestia-app/specs/namespace.html#abstract">Namespace</a>
+formatting and its validity rules.</p>
+<p>Serialized DataID MUST have length of 39 bytes.</p>
+<h2 id="share-containers"><a class="header" href="#share-containers">Share Containers</a></h2>
+<p>This section defines list of supported share containers. Share containers encapsulate a set of data shares with <a href="https://celestiaorg.github.io/celestia-app/specs/data_structures.html#availabledataheader">DAH</a>
+inclusion proof. Share containers are identified by <a href="#share-identifiers">share identifiers</a>.</p>
+<h3 id="row-container"><a class="header" href="#row-container">Row Container</a></h3>
+<p>Row containers encapsulate Row of the <a href="https://celestiaorg.github.io/celestia-app/specs/data_structures.html#2d-reed-solomon-encoding-scheme">DataSquare</a>.</p>
+<p>Row containers are protobuf formatted using the following proto3 schema:</p>
+<pre><code class="language-protobuf">syntax = "proto3";
+
+message Row {
+  bytes row_id = 1;
+  repeated bytes row_half = 2;
+}
+</code></pre>
+<p>The fields with validity rules that form Row containers are:</p>
+<p><a href="#rowid"><strong>RowID</strong></a>: A RowID of the Row Container. It MUST follow <a href="#rowid">RowID</a> formatting and field validity rules.</p>
+<p><strong>RowHalf</strong>: A two-dimensional variable size byte arrays representing left half of shares in the row. It MUST be equal
+to the number of Columns roots in <a href="https://celestiaorg.github.io/celestia-app/specs/data_structures.html#availabledataheader">DAH</a> divided by two. These shares MUST only be from the left half of the row.
+The right half is computed using Leopard GF16 Reed-Solomon erasure-coding. Afterward, the <a href="https://github.com/celestiaorg/nmt/blob/master/docs/spec/nmt.md">NMT</a> is built over both
+halves and the computed NMT root MUST be equal to the respective Row root in <a href="https://celestiaorg.github.io/celestia-app/specs/data_structures.html#availabledataheader">DAH</a>.</p>
+<h3 id="sample-container"><a class="header" href="#sample-container">Sample Container</a></h3>
+<p>Sample containers encapsulate single shares of the <a href="https://celestiaorg.github.io/celestia-app/specs/data_structures.html#2d-reed-solomon-encoding-scheme">DataSquare</a>.</p>
+<p>Sample containers are protobuf formatted using the following proto3 schema:</p>
+<pre><code class="language-protobuf">syntax = "proto3";
+
+message Sample {
+    bytes sample_id = 1;
+    bytes sample_share = 2;
+    Proof sample_proof = 3;
+    ProofType proof_type = 4;
+}
+
+enum ProofType {
+  RowProofType = 0;
+  ColProofType = 1;
+}
+</code></pre>
+<p>The fields with validity rules that form Sample containers are:</p>
+<p><a href="#sampleid"><strong>SampleID</strong></a>: A SampleID of the Sample container. It MUST follow <a href="#sampleid">SampleID</a> formatting and field
+validity rules.</p>
+<p><strong>SampleShare</strong>: A variable size array representing the share contained in the sample. Each share MUST follow <a href="https://celestiaorg.github.io/celestia-app/specs/shares.html#share-format">share
+formatting and validity</a> rules.</p>
+<p><strong>Proof</strong>: A <a href="https://github.com/celestiaorg/nmt/blob/f5556676429118db8eeb5fc396a2c75ab12b5f20/pb/proof.proto">protobuf formated</a> <a href="https://github.com/celestiaorg/nmt/blob/master/docs/spec/nmt.md">NMT</a> proof of share inclusion. It MUST follow <a href="https://github.com/celestiaorg/nmt/blob/master/docs/spec/nmt.md#namespace-proof-verification">NMT proof verification</a>
+and be verified against the respective root from Row or Column axis in <a href="https://celestiaorg.github.io/celestia-app/specs/data_structures.html#availabledataheader">DAH</a>. The axis is defined by ProofType field.</p>
+<p><strong>ProofType</strong>: An enum defining which root the Proof is coming from. It MUST be either RowProofType or ColumnProofType.</p>
+<h3 id="data-container"><a class="header" href="#data-container">Data Container</a></h3>
+<p>Data containers encapsulate user submitted data under <a href="https://celestiaorg.github.io/celestia-app/specs/namespace.html#abstract">namespaces</a>.</p>
+<p>Data containers are protobuf formatted using the following proto3 schema:</p>
+<pre><code class="language-protobuf">syntax = "proto3";
+
+message Data {
+    bytes data_id = 1;
+    repeated bytes data_shares = 2;
+    Proof data_proof = 3;
+}
+</code></pre>
+<p>The fields with validity rules that form Data containers are:</p>
+<p><a href="#dataid"><strong>DataID</strong></a>: A DataID of the Data container. It MUST follow <a href="#dataid">DataID</a> formatting and field validity
+rules.</p>
+<p><strong>DataShares</strong>: A two-dimensional variable size byte arrays representing left data shares of a namespace in the row.
+Each share MUST follow <a href="https://celestiaorg.github.io/celestia-app/specs/shares.html#share-format">share formatting and validity</a> rules.</p>
+<p><strong>Proof</strong>: A <a href="https://github.com/celestiaorg/nmt/blob/f5556676429118db8eeb5fc396a2c75ab12b5f20/pb/proof.proto">protobuf formated</a> <a href="https://github.com/celestiaorg/nmt/blob/master/docs/spec/nmt.md">NMT</a> proof of share inclusion. It MUST follow <a href="https://github.com/celestiaorg/nmt/blob/master/docs/spec/nmt.md#namespace-proof-verification">NMT proof verification</a>
+and be verified against the respective root from Row or Column axis in <a href="https://celestiaorg.github.io/celestia-app/specs/data_structures.html#availabledataheader">DAH</a>. The axis is defined by ProofType field.</p>
+<p>Namespace data may span over multiple rows in which case all the data is encapsulated in multiple containers. This is
+done</p>
+<h2 id="protocol-extensions"><a class="header" href="#protocol-extensions">Protocol Extensions</a></h2>
+<p>This section is a placeholder for future protocol extensions like new new identifiers and containers.</p>
+<h2 id="considerations"><a class="header" href="#considerations">Considerations</a></h2>
+<h3 id="bitswap-cid-integration"><a class="header" href="#bitswap-cid-integration">Bitswap CID integration</a></h3>
+<p>The naive question would be: "Why not to make content verification after Bitswap provided it back over its API?"
+Intuitively, this would simplify a lot and wouldn't require "hacking" CID. However, this has an important downside -
+the Bitswap in such case would consider the content as fetched and valid, sending DONT_WANT message to its peers, while
+the message might be invalid according to the verification rules.</p>
+
+                    </main>
+
+                    <nav class="nav-wrapper" aria-label="Page navigation">
+                        <!-- Mobile navigation buttons -->
+
+
+                        <div style="clear: both"></div>
+                    </nav>
+                </div>
+            </div>
+
+            <nav class="nav-wide-wrapper" aria-label="Page navigation">
+
+            </nav>
+
+        </div>
+
+
+
+
+        <script>
+            window.playground_copyable = true;
+        </script>
+
+
+        <script src="elasticlunr.min.js"></script>
+        <script src="mark.min.js"></script>
+        <script src="searcher.js"></script>
+
+        <script src="clipboard.min.js"></script>
+        <script src="highlight.js"></script>
+        <script src="book.js"></script>
+
+        <!-- Custom JS scripts -->
+
+
+    </div>
+    </body>
+</html>
