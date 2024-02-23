@@ -1,5 +1,25 @@
 # Shwap Protocol Specification
 
+## Abstract
+
+This document specifies the Shwap p2p protocol. Shwap provides scalable and extensible framework for exchanging and 
+swapping of shared data for Celestia's Data Availability network and beyond. 
+
+## Motivation
+
+The current Data Availability Sampling (DAS) network protocol is inefficient. A _single_ sample operation takes log2(k) network
+round-trips(where k is the square size). This is not practical and does not scale for the theoretically unlimited data
+square that the Celestia network enables. The main motive here is a protocol with O(1) round-trip for _multiple_ samples, preserving
+the assumption of having 1/n honest peers connected.
+
+Initially, Bitswap and IPLD were adopted as the basis for the DA network protocols, including DAS,
+block synchronization (BS), and blob/namespace data retrieval (ND). They gave battle-tested protocols and tooling with
+pluggability to rapidly scaffold Celestia's DA network. However, it came with the price of scalability limits and
+round-trips resulting in BS slower than block production. Before the network launch, the transition
+to the optimized [ShrEx protocol][shrex] for BS and integrating [CAR and DAGStore-based storage][storage] happened
+optimizing BS and ND. However, DAS was left untouched, preserving its weak scalability and roundtrip inefficiency. Shwap
+addresses these and provides an extensible and flexible framework for BS, ND, and beyond.
+
 ## Terms and Definitions
 
 The key words "MUST", "MUST NOT", "REQUIRED", "SHALL", "SHALL NOT",
