@@ -63,7 +63,7 @@ The celestia-node public API is documented [here](https://node-rpc-docs.celestia
 - **Full** nodes - fully reconstruct and store blocks by sampling the DA network for shares
 - **Light** nodes - verify the availability of block data by sampling the DA network for shares
 
-More information can be found [here](https://github.com/celestiaorg/celestia-node/blob/main/docs/adr/adr-003-march2022-testnet.md#legend).
+More information can be found [here](/docs/adr/adr-003-march2022-testnet.md#legend).
 
 ## Run a node
 
