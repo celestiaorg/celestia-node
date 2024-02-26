@@ -68,7 +68,7 @@ require (
 	go.opentelemetry.io/otel/trace v1.22.0
 	go.opentelemetry.io/proto/otlp v1.0.0
 	go.uber.org/fx v1.20.1
-	go.uber.org/zap v1.26.0
+	go.uber.org/zap v1.27.0
 	golang.org/x/crypto v0.19.0
 	golang.org/x/exp v0.0.0-20240110193028-0dcbfd608b1e
 	golang.org/x/sync v0.6.0
