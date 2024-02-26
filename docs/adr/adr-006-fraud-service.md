@@ -10,10 +10,13 @@
   - changed from NamespaceShareWithProof to ShareWithProof;
   - made ProofUnmarshaler public and extended return params;
   - fixed typo issues;
-- 2022.06.15 - Extend Proof interface with HeaderHash method
-- 2022.06.22 - Updated rsmt2d to change isRow to Axis
-- 2022.07.03 - Add storage description
-- 2022.07.23 - rework unmarshalers registration
+- 2022.06.15 - Extend Proof interface with HeaderHash method;
+- 2022.06.22 - Updated rsmt2d to change isRow to Axis;
+- 2022.07.03 - Added storage description;
+- 2022.07.23 - Reworked unmarshalers registration;
+- 2022.08.25 -
+  - Added BinaryUnmarshaller to Proof interface;
+  - Changed ProofType type from int to string;
 
 ## Authors
 
@@ -68,7 +71,7 @@ In addition, `das.Daser`:
     ```go
     // Currently, we support only one fraud proof. But this enum will be extended in the future with other
     const (
-    BadEncoding ProofType = 0
+    BadEncoding ProofType = "badencoding"
     )
 
     type BadEncodingProof struct {
@@ -126,7 +129,7 @@ In addition, `das.Daser`:
 
     ```go
     // ProofType is a enum type that represents a particular type of fraud proof.
-    type ProofType int
+    type ProofType string
 
     // Proof is a generic interface that will be used for all types of fraud proofs in the network.
     type Proof interface {
@@ -136,6 +139,7 @@ In addition, `das.Daser`:
     Validate(*header.ExtendedHeader) error
 
     encoding.BinaryMarshaller
+    encoding.BinaryUnmarshaler
     }
     ```
 
@@ -193,7 +197,7 @@ Both full and light nodes should stop `DAS`, `Syncer` and `SubmitTx` services.
 
 1. Valid BadEncodingFraudProofs should be stored on the disk using `FraudStore` interface:
 
-### BEFP storage
+### Fraud storage
 
 BEFP storage will be created on first subscription to Bad Encoding Fraud Proof.
 BEFP will be stored in datastore once it will be received, using `fraud/badEncodingProof` path and the corresponding block hash as the key:
@@ -210,6 +214,17 @@ func getAll(ctx context.Context, ds datastore.Datastore) ([][]byte, error)
 ```
 
 In case if response error will be empty (and not ```datastore.ErrNotFound```), then a BEFP has been already added to storage and the node should be halted.
+
+### Fraud sync
+
+The main purpose of FraudSync is to deliver fraud proofs to nodes that were started after a BEFP appears. Since full nodes create the BEFP during reconstruction, FraudSync is mainly implemented for light nodes:
+
+- Once a light node checks that its local fraud storage is empty, it starts waiting for new connections with the remote peers(full/bridge nodes) using `share/discovery`.
+- The light node will send 5 requests to newly connected peers to get a fraud proof.
+- If a fraud proof is received from a remote peer, then it should be validated and propagated across all local subscriptions in order to stop the respective services.
+
+NOTE: if a received fraud proof ends up being invalid, then the remote peer will be added to the black list.
+Both full/light nodes register a stream handler for handling fraud proof requests.
 
 ### Bridge node behaviour
 

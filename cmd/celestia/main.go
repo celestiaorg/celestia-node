@@ -2,24 +2,31 @@ package main
 
 import (
 	"context"
-	"math/rand"
 	"os"
-	"time"
 
-	sdk "github.com/cosmos/cosmos-sdk/types"
 	"github.com/spf13/cobra"
+	"github.com/spf13/pflag"
 
-	"github.com/celestiaorg/celestia-app/app"
-	"github.com/celestiaorg/celestia-node/cmd"
+	cmdnode "github.com/celestiaorg/celestia-node/cmd"
 )
 
-func init() {
-	// This is necessary to ensure that the account addresses are correctly prefixed
-	// as in the celestia application.
-	cfg := sdk.GetConfig()
-	cfg.SetBech32PrefixForAccount(app.Bech32PrefixAccAddr, app.Bech32PrefixAccPub)
-	cfg.Seal()
+func WithSubcommands() func(*cobra.Command, []*pflag.FlagSet) {
+	return func(c *cobra.Command, flags []*pflag.FlagSet) {
+		c.AddCommand(
+			cmdnode.Init(flags...),
+			cmdnode.Start(cmdnode.WithFlagSet(flags)),
+			cmdnode.AuthCmd(flags...),
+			cmdnode.ResetStore(flags...),
+			cmdnode.RemoveConfigCmd(flags...),
+			cmdnode.UpdateConfigCmd(flags...),
+		)
+	}
+}
 
+func init() {
+	bridgeCmd := cmdnode.NewBridge(WithSubcommands())
+	lightCmd := cmdnode.NewLight(WithSubcommands())
+	fullCmd := cmdnode.NewFull(WithSubcommands())
 	rootCmd.AddCommand(
 		bridgeCmd,
 		lightCmd,
@@ -37,15 +44,13 @@ func main() {
 }
 
 func run() error {
-	rand.Seed(time.Now().Unix())
-
-	return rootCmd.ExecuteContext(cmd.WithEnv(context.Background()))
+	return rootCmd.ExecuteContext(context.Background())
 }
 
 var rootCmd = &cobra.Command{
 	Use: "celestia [  bridge  ||  full ||  light  ] [subcommand]",
 	Short: `
-		____      __          __  _
+	    ____      __          __  _
 	  / ____/__  / /__  _____/ /_(_)___ _
 	 / /   / _ \/ / _ \/ ___/ __/ / __  /
 	/ /___/  __/ /  __(__  ) /_/ / /_/ /
@@ -53,6 +58,6 @@ var rootCmd = &cobra.Command{
 	`,
 	Args: cobra.NoArgs,
 	CompletionOptions: cobra.CompletionOptions{
-		DisableDefaultCmd: true,
+		DisableDefaultCmd: false,
 	},
 }

@@ -3,19 +3,43 @@ package main
 import (
 	"bytes"
 	"context"
-	"io/ioutil"
 	"os"
+	"reflect"
 	"testing"
 
 	"github.com/stretchr/testify/require"
 
-	cmdnode "github.com/celestiaorg/celestia-node/cmd"
+	"github.com/celestiaorg/celestia-node/header"
 )
+
+func TestCompletionHelpString(t *testing.T) {
+	type TestFields struct {
+		NoInputOneOutput        func(context.Context) (*header.ExtendedHeader, error)
+		TwoInputsOneOutputArray func(
+			context.Context,
+			*header.ExtendedHeader,
+			uint64,
+		) ([]*header.ExtendedHeader, error)
+		OneInputOneOutput  func(context.Context, uint64) (*header.ExtendedHeader, error)
+		NoInputsNoOutputs  func(ctx context.Context) error
+		NoInputsChanOutput func(ctx context.Context) (<-chan *header.ExtendedHeader, error)
+	}
+	testOutputs := []string{
+		"() -> (*header.ExtendedHeader)",
+		"(*header.ExtendedHeader, uint64) -> ([]*header.ExtendedHeader)",
+		"(uint64) -> (*header.ExtendedHeader)",
+		"() -> ()",
+		"() -> (<-chan *header.ExtendedHeader)",
+	}
+	methods := reflect.VisibleFields(reflect.TypeOf(TestFields{}))
+	for i, method := range methods {
+		require.Equal(t, testOutputs[i], parseSignatureForHelpString(method))
+	}
+}
 
 func TestLight(t *testing.T) {
 	// Run the tests in a temporary directory
-	tmpDir, err := ioutil.TempDir("", "light")
-	require.NoError(t, err, "error creating a temporary test directory")
+	tmpDir := t.TempDir()
 	testDir, err := os.Getwd()
 	require.NoError(t, err, "error getting the current working directory")
 	err = os.Chdir(tmpDir)
@@ -29,7 +53,7 @@ func TestLight(t *testing.T) {
 			"--node.store", ".celestia-light",
 			"init",
 		})
-		err := rootCmd.ExecuteContext(cmdnode.WithEnv(context.Background()))
+		err := rootCmd.ExecuteContext(context.Background())
 		require.NoError(t, err)
 	})
 
@@ -61,8 +85,7 @@ func TestLight(t *testing.T) {
 
 func TestBridge(t *testing.T) {
 	// Run the tests in a temporary directory
-	tmpDir, err := ioutil.TempDir("", "bridge")
-	require.NoError(t, err, "error creating a temporary test directory")
+	tmpDir := t.TempDir()
 	testDir, err := os.Getwd()
 	require.NoError(t, err, "error getting the current working directory")
 	err = os.Chdir(tmpDir)
@@ -76,7 +99,7 @@ func TestBridge(t *testing.T) {
 			"--node.store", ".celestia-bridge",
 			"init",
 		})
-		err := rootCmd.ExecuteContext(cmdnode.WithEnv(context.Background()))
+		err := rootCmd.ExecuteContext(context.Background())
 		require.NoError(t, err)
 	})
 
@@ -104,4 +127,24 @@ func TestBridge(t *testing.T) {
 				require.NoError(t, err)
 			})
 	*/
+}
+
+func parseSignatureForHelpString(methodSig reflect.StructField) string {
+	simplifiedSignature := "("
+	in, out := methodSig.Type.NumIn(), methodSig.Type.NumOut()
+	for i := 1; i < in; i++ {
+		simplifiedSignature += methodSig.Type.In(i).String()
+		if i != in-1 {
+			simplifiedSignature += ", "
+		}
+	}
+	simplifiedSignature += ") -> ("
+	for i := 0; i < out-1; i++ {
+		simplifiedSignature += methodSig.Type.Out(i).String()
+		if i != out-2 {
+			simplifiedSignature += ", "
+		}
+	}
+	simplifiedSignature += ")"
+	return simplifiedSignature
 }

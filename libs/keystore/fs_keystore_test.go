@@ -8,7 +8,7 @@ import (
 )
 
 func TestFSKeystore(t *testing.T) {
-	kstore, err := NewFSKeystore(t.TempDir() + "/keystore")
+	kstore, err := NewFSKeystore(t.TempDir()+"/keystore", nil)
 	require.NoError(t, err)
 
 	err = kstore.Put("test", PrivKey{Body: []byte("test_private_key")})

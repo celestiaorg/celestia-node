@@ -2,60 +2,81 @@ package cmd
 
 import (
 	"context"
-	"fmt"
 
-	"github.com/celestiaorg/celestia-node/node"
+	logging "github.com/ipfs/go-log/v2"
+	"go.uber.org/fx"
+
+	"github.com/celestiaorg/celestia-node/nodebuilder"
+	"github.com/celestiaorg/celestia-node/nodebuilder/node"
+	"github.com/celestiaorg/celestia-node/nodebuilder/p2p"
 )
 
-// Env is an environment for CLI commands.
-// It can be used to:
-// 1. Propagate values from parent to child commands.
-// 2. To group common logic that multiple commands rely on.
-// Usage can be extended.
-// TODO(@Wondertan): We should move to using context only instead.
-//  Env, in fact, only keeps some additional fields which should be
-//  kept in the context directly using WithValue (#965)
-type Env struct {
-	NodeType  node.Type
-	StorePath string
+var log = logging.Logger("cmd")
 
-	opts []node.Option
+// NodeType reads the node type from the context.
+func NodeType(ctx context.Context) node.Type {
+	return ctx.Value(nodeTypeKey{}).(node.Type)
 }
 
-// WithEnv wraps given ctx with Env.
-func WithEnv(ctx context.Context) context.Context {
-	_, err := GetEnv(ctx)
-	if err == nil {
-		panic("cmd: only one Env is allowed to be set in a ctx")
-	}
-
-	return context.WithValue(ctx, envCtxKey{}, &Env{})
+// Network reads the node type from the context.
+func Network(ctx context.Context) p2p.Network {
+	return ctx.Value(networkKey{}).(p2p.Network)
 }
 
-// GetEnv takes Env from the given ctx, if any.
-func GetEnv(ctx context.Context) (*Env, error) {
-	env, ok := ctx.Value(envCtxKey{}).(*Env)
+// StorePath reads the store path from the context.
+func StorePath(ctx context.Context) string {
+	return ctx.Value(storePathKey{}).(string)
+}
+
+// NodeConfig reads the node config from the context.
+func NodeConfig(ctx context.Context) nodebuilder.Config {
+	cfg, ok := ctx.Value(configKey{}).(nodebuilder.Config)
 	if !ok {
-		return nil, fmt.Errorf("cmd: Env is not set in ctx.Context")
+		nodeType := NodeType(ctx)
+		cfg = *nodebuilder.DefaultConfig(nodeType)
 	}
-
-	return env, nil
+	return cfg
 }
 
-// SetNodeType sets Node Type to the Env.
-func (env *Env) SetNodeType(tp node.Type) {
-	env.NodeType = tp
+// WithNodeType sets the node type in the given context.
+func WithNodeType(ctx context.Context, tp node.Type) context.Context {
+	return context.WithValue(ctx, nodeTypeKey{}, tp)
 }
 
-// Options returns Node Options parsed from Environment(Flags, ENV vars, etc)
-func (env *Env) Options() []node.Option {
-	return env.opts
+// WithNetwork sets the network in the given context.
+func WithNetwork(ctx context.Context, network p2p.Network) context.Context {
+	return context.WithValue(ctx, networkKey{}, network)
 }
 
-// AddOptions add new options to Env.
-func (env *Env) AddOptions(opts ...node.Option) {
-	env.opts = append(env.opts, opts...)
+// WithStorePath sets Store Path in the given context.
+func WithStorePath(ctx context.Context, storePath string) context.Context {
+	return context.WithValue(ctx, storePathKey{}, storePath)
 }
 
-// envCtxKey is a key used to identify Env on a ctx.Context.
-type envCtxKey struct{}
+// NodeOptions returns config options parsed from Environment(Flags, ENV vars, etc)
+func NodeOptions(ctx context.Context) []fx.Option {
+	options, ok := ctx.Value(optionsKey{}).([]fx.Option)
+	if !ok {
+		return []fx.Option{}
+	}
+	return options
+}
+
+// WithNodeOptions add new options to Env.
+func WithNodeOptions(ctx context.Context, opts ...fx.Option) context.Context {
+	options := NodeOptions(ctx)
+	return context.WithValue(ctx, optionsKey{}, append(options, opts...))
+}
+
+// WithNodeConfig sets the node config in the Env.
+func WithNodeConfig(ctx context.Context, config *nodebuilder.Config) context.Context {
+	return context.WithValue(ctx, configKey{}, *config)
+}
+
+type (
+	optionsKey   struct{}
+	configKey    struct{}
+	storePathKey struct{}
+	nodeTypeKey  struct{}
+	networkKey   struct{}
+)

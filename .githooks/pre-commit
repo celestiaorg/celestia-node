@@ -1,0 +1,38 @@
+#!/bin/sh
+
+set -eu -o pipefail
+
+STAGED_GO_FILES=$(git diff --cached --name-only -- '*.go')
+STAGED_MD_FILES=$(git diff --cached --name-only -- '*.md')
+
+if [[ $STAGED_GO_FILES == "" ]] && [[ $STAGED_MD_FILES == "" ]]; then
+  echo "--> Found no go or markdown files, skipping linting"
+elif [[ $STAGED_GO_FILES == "" ]]; then
+  echo "--> Found markdown files, linting"
+  if ! command -v markdownlint &> /dev/null ; then
+      echo "markdownlint is not installed of available in the PATH" >&2
+      echo "please check https://github.com/igorshubovych/markdownlint-cli" >&2
+      exit 1
+  fi
+  markdownlint --config .markdownlint.yaml '**/*.md'
+else
+  echo "--> Found go files, running make lint"
+  if ! command -v golangci-lint &> /dev/null ; then
+      echo "golangci-lint not installed or available in the PATH" >&2
+      echo "please check https://github.com/golangci/golangci-lint" >&2
+      exit 1
+  fi
+  make lint
+fi
+
+if go mod tidy -v 2>&1 | grep -q 'updates to go.mod needed'; then
+    exit 1
+fi
+
+git diff --exit-code go.* &> /dev/null
+
+if [ $? -eq 1 ]; then
+    echo "go.mod or go.sum differs, please re-add it to your commit"
+
+    exit 1
+fi

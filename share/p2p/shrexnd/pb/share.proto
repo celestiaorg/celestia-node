@@ -1,0 +1,25 @@
+syntax = "proto3";
+
+package share.p2p.shrex.nd;
+import "pb/proof.proto";
+
+message GetSharesByNamespaceRequest{
+  bytes root_hash = 1;
+  bytes namespace = 2;
+}
+
+message GetSharesByNamespaceStatusResponse{
+  StatusCode status = 1;
+}
+
+enum StatusCode {
+  INVALID = 0;
+  OK = 1;
+  NOT_FOUND = 2;
+  INTERNAL = 3;
+};
+
+message NamespaceRowResponse {
+  repeated bytes shares = 1;
+  proof.pb.Proof proof = 2;
+}

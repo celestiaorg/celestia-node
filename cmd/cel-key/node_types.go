@@ -1,47 +1,68 @@
 package main
 
 import (
+	"errors"
 	"fmt"
+	"strings"
 
+	sdkflags "github.com/cosmos/cosmos-sdk/client/flags"
 	"github.com/spf13/cobra"
 	flag "github.com/spf13/pflag"
 
-	sdkflags "github.com/cosmos/cosmos-sdk/client/flags"
+	nodecmd "github.com/celestiaorg/celestia-node/cmd"
+	"github.com/celestiaorg/celestia-node/nodebuilder/p2p"
 )
 
 var (
 	nodeDirKey = "node.type"
-
-	bridgeDir = "~/.celestia-bridge/keys"
-	fullDir   = "~/.celestia-full/keys"
-	lightDir  = "~/.celestia-light/keys"
+	networkKey = "p2p.network"
 )
 
 func DirectoryFlags() *flag.FlagSet {
 	flags := &flag.FlagSet{}
-	flags.String(nodeDirKey, "", "Sets key utility to use the node type's directory (e.g. "+
-		"~/.celestia-light if --node.type light is passed.")
+	defaultNetwork := string(p2p.DefaultNetwork)
+
+	flags.String(
+		nodeDirKey,
+		"",
+		"Sets key utility to use the node type's directory (e.g. "+
+			"~/.celestia-light-"+strings.ToLower(defaultNetwork)+" if --node.type light is passed).")
+	flags.String(
+		networkKey,
+		defaultNetwork,
+		"Sets key utility to use the node network's directory (e.g. "+
+			"~/.celestia-light-mynetwork if --p2p.network MyNetwork is passed).")
 
 	return flags
 }
 
 func ParseDirectoryFlags(cmd *cobra.Command) error {
-	nodeType := cmd.Flag(nodeDirKey).Value.String()
-	if nodeType == "" {
+	// if keyring-dir is explicitly set, use it
+	if cmd.Flags().Changed(sdkflags.FlagKeyringDir) {
 		return nil
 	}
 
+	nodeType := cmd.Flag(nodeDirKey).Value.String()
+	if nodeType == "" {
+		return errors.New("no node type provided")
+	}
+
+	network := cmd.Flag(networkKey).Value.String()
+	if net, err := p2p.Network(network).Validate(); err == nil {
+		network = string(net)
+	} else {
+		fmt.Println("WARNING: unknown network specified: ", network)
+	}
 	switch nodeType {
-	case "bridge":
-		if err := cmd.Flags().Set(sdkflags.FlagKeyringDir, bridgeDir); err != nil {
+	case "bridge", "full", "light":
+		path, err := nodecmd.DefaultNodeStorePath(nodeType, network)
+		if err != nil {
 			return err
 		}
-	case "full":
-		if err := cmd.Flags().Set(sdkflags.FlagKeyringDir, fullDir); err != nil {
-			return err
-		}
-	case "light":
-		if err := cmd.Flags().Set(sdkflags.FlagKeyringDir, lightDir); err != nil {
+
+		keyPath := fmt.Sprintf("%s/keys", path)
+		fmt.Println("using directory: ", keyPath)
+		if err := cmd.Flags().Set(sdkflags.FlagKeyringDir, keyPath); err != nil {
 			return err
 		}
 	default:

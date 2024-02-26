@@ -1,0 +1,140 @@
+name: CI and Release
+on:
+  merge_group:
+  push:
+    branches:
+      - main
+    # Trigger on version tags
+    tags:
+      - "v*"
+  pull_request:
+  workflow_dispatch:
+    inputs:
+      version:
+        # Friendly description to be shown in the UI instead of 'name'
+        description: "Semver type of new version (major / minor / patch)"
+        # Input has to be provided for the workflow to run
+        required: true
+        type: choice
+        options:
+          - patch
+          - minor
+          - major
+
+jobs:
+  # set up go version for use through pipelines, setting
+  # variable one time and setting outputs to access passing it
+  # to other jobs
+  setup:
+    runs-on: ubuntu-latest
+    env:
+      # upgrade go version throughout pipeline here
+      GO_VERSION: "1.21"
+    outputs:
+      go-version: ${{ steps.set-vars.outputs.go-version }}
+      branch: ${{ steps.trim_ref.outputs.branch }}
+      debug: ${{ steps.debug.outputs.debug }}
+    steps:
+      - name: Set go version
+        id: set-vars
+        run: echo "go-version=${{env.GO_VERSION}}" >> "$GITHUB_OUTPUT"
+
+      - name: Trim branch name
+        id: trim_ref
+        run: |
+          echo "branch=$(${${{ github.ref }}:11})" >> $GITHUB_OUTPUT
+
+      - name: Set debug output
+        id: debug
+        run: |
+          if [[ "${{ runner.debug }}" == "true" ]]; then
+            echo "debug=true" >> $GITHUB_ENV
+          else
+            echo "debug=false" >> $GITHUB_ENV
+          fi
+
+  # Dockerfile Linting
+  hadolint:
+    uses: celestiaorg/.github/.github/workflows/reusable_dockerfile_lint.yml@v0.2.8 # yamllint disable-line rule:line-length
+    with:
+      dockerfile: Dockerfile
+
+  yamllint:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: celestiaorg/.github/.github/actions/yamllint@v0.2.8
+
+  markdown-lint:
+    name: Markdown Lint
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 18
+      - run: |
+          npm install -g markdownlint-cli@0.32.1
+          markdownlint --config .markdownlint.yaml '**/*.md'
+
+  go-ci:
+    needs: setup
+    uses: ./.github/workflows/go-ci.yml
+    with:
+      go-version: ${{ needs.setup.outputs.go-version }}
+
+  # If this was a workflow dispatch event, we need to generate and push a tag
+  # for goreleaser to grab
+  version_bump:
+    needs: [hadolint, yamllint, markdown-lint, go-ci]
+    runs-on: ubuntu-latest
+    permissions: "write-all"
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Bump version and push tag
+        # Placing the if condition here is a workaround for needing to block
+        # on this step during workflow dispatch events but the step not
+        # needing to run on tags. If we had the if condition on the full
+        # version_bump section, it would skip and not run, which would result
+        # in goreleaser not running either.
+        if: ${{ github.event_name == 'workflow_dispatch' }}
+        uses: mathieudutour/github-tag-action@v6.1
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          default_bump: ${{ inputs.version }}
+          release_branches: ${{ needs.setup.outputs.branch }}
+
+  # Generate the release with goreleaser to include pre-built binaries
+  goreleaser:
+    needs: version_bump
+    runs-on: ubuntu-latest
+    if: |
+      github.event_name == 'workflow_dispatch' ||
+      (github.event_name == 'push' && contains(github.ref, 'refs/tags/'))
+    permissions: "write-all"
+    steps:
+      - uses: actions/checkout@v4
+
+      - run: git fetch --force --tags
+
+      - uses: actions/setup-go@v5
+        with:
+          go-version: ${{ needs.setup.outputs.go-version }}
+
+      - name: Import GPG key
+        id: import_gpg
+        uses: crazy-max/ghaction-import-gpg@v6
+        with:
+          gpg_private_key: ${{ secrets.GPG_SIGNING_KEY }}
+          passphrase: ${{ secrets.GPG_PASSPHRASE }}
+
+      # Generate the binaries and release
+      - uses: goreleaser/goreleaser-action@v5
+        with:
+          distribution: goreleaser
+          version: latest
+          args: release --clean
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GPG_FINGERPRINT: ${{ steps.import_gpg.outputs.fingerprint }}

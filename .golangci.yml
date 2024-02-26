@@ -4,8 +4,7 @@ run:
 linters:
   enable:
     - bodyclose
-    - deadcode
-    - depguard
+     # - depguard as of v1.54.2, the default config throws errors on our repo
     - dogsled
     - dupl
     - errcheck
@@ -33,13 +32,11 @@ linters:
     # - scopelint - deprecated since v1.39. exportloopref will be used instead
     - exportloopref
     - staticcheck
-    - structcheck
     - stylecheck
     - typecheck
     - unconvert
     # - unparam
     - unused
-    - varcheck
     # - whitespace
     # - wsl
     # - gocognit
@@ -66,6 +63,6 @@ linters-settings:
   misspell:
     locale: US
   goimports:
-    local-prefixes: github.com/celestiaorg
+    local-prefixes: github.com/celestiaorg/celestia-node
   dupl:
     threshold: 200

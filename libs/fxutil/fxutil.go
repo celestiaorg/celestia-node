@@ -43,14 +43,14 @@ func InvokeIf(cond bool, function interface{}) fx.Option {
 	return fx.Options()
 }
 
-// ProvideAs creates an FX option that provides constructor 'cnstr' with the returned values types as 'cnstrs'
-// It is as simple utility that hides away FX annotation details.
+// ProvideAs creates an FX option that provides constructor 'cnstr' with the returned values types
+// as 'cnstrs' It is as simple utility that hides away FX annotation details.
 func ProvideAs(cnstr interface{}, cnstrs ...interface{}) fx.Option {
 	return fx.Provide(fx.Annotate(cnstr, fx.As(cnstrs...)))
 }
 
-// ReplaceAs creates an FX option that substitutes types defined by constructors 'cnstrs' with the value 'val'.
-// It is as simple utility that hides away FX annotation details.
+// ReplaceAs creates an FX option that substitutes types defined by constructors 'cnstrs' with the
+// value 'val'. It is as simple utility that hides away FX annotation details.
 func ReplaceAs(val interface{}, cnstrs ...interface{}) fx.Option {
 	return fx.Replace(fx.Annotate(val, fx.As(cnstrs...)))
 }

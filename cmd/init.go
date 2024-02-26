@@ -4,7 +4,7 @@ import (
 	"github.com/spf13/cobra"
 	flag "github.com/spf13/pflag"
 
-	"github.com/celestiaorg/celestia-node/node"
+	"github.com/celestiaorg/celestia-node/nodebuilder"
 )
 
 // Init constructs a CLI command to initialize Celestia Node of any type with the given flags.
@@ -14,12 +14,9 @@ func Init(fsets ...*flag.FlagSet) *cobra.Command {
 		Short: "Initialization for Celestia Node. Passed flags have persisted effect.",
 		Args:  cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, args []string) error {
-			env, err := GetEnv(cmd.Context())
-			if err != nil {
-				return err
-			}
+			ctx := cmd.Context()
 
-			return node.Init(env.StorePath, env.NodeType, env.Options()...)
+			return nodebuilder.Init(NodeConfig(ctx), StorePath(ctx), NodeType(ctx))
 		},
 	}
 	for _, set := range fsets {

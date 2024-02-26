@@ -100,7 +100,7 @@ For devnet, it should be possible for Celestia `full` Nodes to receive informati
 
 For the Celestia Node to be able to propagate `StateFraudProof`s, we must modify Celestia Core to store blocks with invalid state and serve them to both the Celestia Node and the Celestia App, **and** the Celestia App must be able to generate and serve `StateFraudProof`s via RPC to Celestia nodes.
 
-This feature is not necessarily required for devnet (so state exection functionality for Celestia Full Nodes can be stubbed out), but it would be nice to have for devnet as we will likely allow Celestia Full Nodes to speak with other Celestia Full Nodes instead of running a trusted Celestia Core node simultaenously and relying on it for information.
+This feature is not necessarily required for devnet (so state execution functionality for Celestia Full Nodes can be stubbed out), but it would be nice to have for devnet as we will likely allow Celestia Full Nodes to speak with other Celestia Full Nodes instead of running a trusted Celestia Core node simultaneously and relying on it for information.
 
 A roadmap to implementation could look like the following:
 

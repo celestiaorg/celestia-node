@@ -1,7 +1,9 @@
 name: Feature Request
-description: Request a new feature to inform the community on what will be benenificial for the project!
+description: >
+  Request a new feature to inform the community on what will be beneficial for
+  the project!
 title: "[Feature Request]: "
-labels: ["enhancement",]
+labels: ["enhancement"]
 body:
   - type: markdown
     attributes:

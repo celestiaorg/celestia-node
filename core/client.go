@@ -4,7 +4,6 @@ import (
 	"fmt"
 
 	retryhttp "github.com/hashicorp/go-retryablehttp"
-
 	"github.com/tendermint/tendermint/rpc/client"
 	"github.com/tendermint/tendermint/rpc/client/http"
 )
@@ -21,6 +20,7 @@ func NewRemote(ip, port string) (Client, error) {
 
 	return http.NewWithClient(
 		fmt.Sprintf("tcp://%s:%s", ip, port),
+		"/websocket",
 		httpClient.StandardClient(),
 	)
 }

@@ -8,16 +8,15 @@ import (
 	"github.com/cosmos/cosmos-sdk/client/config"
 	"github.com/cosmos/cosmos-sdk/client/flags"
 	"github.com/cosmos/cosmos-sdk/client/keys"
-	sdk "github.com/cosmos/cosmos-sdk/types"
+	"github.com/cosmos/cosmos-sdk/crypto/keyring"
 	"github.com/cosmos/cosmos-sdk/x/auth/types"
 	"github.com/spf13/cobra"
 
 	"github.com/celestiaorg/celestia-app/app"
 	"github.com/celestiaorg/celestia-app/app/encoding"
-	"github.com/celestiaorg/celestia-node/cmd"
 )
 
-var encodingConfig = encoding.MakeEncodingConfig(app.ModuleEncodingRegisters...)
+var encodingConfig = encoding.MakeConfig(app.ModuleEncodingRegisters...)
 
 var initClientCtx = client.Context{}.
 	WithCodec(encodingConfig.Codec).
@@ -48,6 +47,14 @@ func init() {
 			return err
 		}
 
+		if !cmd.Flag(flags.FlagKeyringBackend).Changed {
+			err = cmd.Flag(flags.FlagKeyringBackend).Value.Set(keyring.BackendTest)
+			if err != nil {
+				return err
+			}
+			cmd.Flag(flags.FlagKeyringBackend).Changed = true
+		}
+
 		return ParseDirectoryFlags(cmd)
 	}
 }
@@ -60,10 +67,6 @@ func main() {
 }
 
 func run() error {
-	cfg := sdk.GetConfig()
-	cfg.SetBech32PrefixForAccount(app.Bech32PrefixAccAddr, app.Bech32PrefixAccPub)
-	cfg.Seal()
-
 	ctx := context.WithValue(context.Background(), client.ClientContextKey, &initClientCtx)
-	return rootCmd.ExecuteContext(cmd.WithEnv(ctx))
+	return rootCmd.ExecuteContext(ctx)
 }

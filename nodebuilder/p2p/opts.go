@@ -1,0 +1,42 @@
+package p2p
+
+import (
+	"encoding/hex"
+
+	"github.com/ipfs/go-blockservice"
+	"github.com/libp2p/go-libp2p/core/crypto"
+	hst "github.com/libp2p/go-libp2p/core/host"
+	"go.uber.org/fx"
+
+	"github.com/celestiaorg/celestia-node/libs/fxutil"
+)
+
+// WithP2PKey sets custom Ed25519 private key for p2p networking.
+func WithP2PKey(key crypto.PrivKey) fx.Option {
+	return fxutil.ReplaceAs(key, new(crypto.PrivKey))
+}
+
+// WithP2PKeyStr sets custom hex encoded Ed25519 private key for p2p networking.
+func WithP2PKeyStr(key string) fx.Option {
+	decKey, err := hex.DecodeString(key)
+	if err != nil {
+		return fx.Error(err)
+	}
+
+	privKey, err := crypto.UnmarshalEd25519PrivateKey(decKey)
+	if err != nil {
+		return fx.Error(err)
+	}
+
+	return fxutil.ReplaceAs(privKey, new(crypto.PrivKey))
+}
+
+// WithHost sets custom Host's data for p2p networking.
+func WithHost(hst hst.Host) fx.Option {
+	return fxutil.ReplaceAs(hst, new(HostBase))
+}
+
+// WithBlockService allows to replace the default BlockService.
+func WithBlockService(bServ blockservice.BlockService) fx.Option {
+	return fxutil.ReplaceAs(bServ, new(blockservice.BlockService))
+}

@@ -1,0 +1,22 @@
+syntax = "proto3";
+
+package share.eds.byzantine.pb;
+import "pb/proof.proto";
+
+message Share {
+  bytes Data = 1;
+  proof.pb.Proof Proof = 2;
+}
+
+enum axis {
+  ROW = 0;
+  COL = 1;
+}
+
+message BadEncoding {
+  bytes HeaderHash = 1;
+  uint64 Height   = 2;
+  repeated Share Shares = 3;
+  uint32 Index    = 4;
+  axis Axis    = 5;
+}

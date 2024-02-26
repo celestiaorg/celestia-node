@@ -1,14 +1,18 @@
 package main
 
 import (
+	"errors"
 	"fmt"
 	"strconv"
 	"strings"
 
 	"github.com/spf13/cobra"
 
-	"github.com/celestiaorg/celestia-node/header/store"
-	"github.com/celestiaorg/celestia-node/node"
+	"github.com/celestiaorg/go-header/store"
+
+	"github.com/celestiaorg/celestia-node/header"
+	"github.com/celestiaorg/celestia-node/nodebuilder"
+	"github.com/celestiaorg/celestia-node/nodebuilder/node"
 )
 
 func init() {
@@ -21,26 +25,29 @@ var headerCmd = &cobra.Command{
 }
 
 var headerStoreInit = &cobra.Command{
-	Use: "store-init [node-type] [height]",
+	Use: "store-init [node-type] [network] [height]",
 	Short: `Forcefully initialize header store head to be of the given height. Requires the node being stopped. 
 Custom store path is not supported yet.`,
 	SilenceUsage: true,
 	RunE: func(cmd *cobra.Command, args []string) error {
-		if len(args) != 2 {
-			return fmt.Errorf("not enough arguments")
+		if len(args) != 3 {
+			return errors.New("not enough arguments")
 		}
 
 		tp := node.ParseType(args[0])
 		if !tp.IsValid() {
-			return fmt.Errorf("invalid node-type")
+			return errors.New("invalid node-type")
 		}
 
-		height, err := strconv.Atoi(args[1])
+		network := args[1]
+
+		height, err := strconv.Atoi(args[2])
 		if err != nil {
 			return fmt.Errorf("invalid height: %w", err)
 		}
 
-		s, err := node.OpenStore(fmt.Sprintf("~/.celestia-%s", strings.ToLower(tp.String())))
+		s, err := nodebuilder.OpenStore(fmt.Sprintf("~/.celestia-%s-%s", strings.ToLower(tp.String()),
+			strings.ToLower(network)), nil)
 		if err != nil {
 			return err
 		}
@@ -50,7 +57,7 @@ Custom store path is not supported yet.`,
 			return err
 		}
 
-		hstore, err := store.NewStore(ds)
+		hstore, err := store.NewStore[*header.ExtendedHeader](ds)
 		if err != nil {
 			return err
 		}
