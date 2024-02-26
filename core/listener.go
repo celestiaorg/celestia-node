@@ -91,7 +91,7 @@ func NewListener(
 // Start kicks off the Listener listener loop.
 func (cl *Listener) Start(context.Context) error {
 	if cl.cancel != nil {
-		return fmt.Errorf("listener: already started")
+		return errors.New("listener: already started")
 	}
 
 	ctx, cancel := context.WithCancel(context.Background())

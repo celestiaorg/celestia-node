@@ -1,0 +1,13 @@
+[book]
+authors = ["Celestia Labs"]
+language = "en"
+multilingual = false
+src = "src"
+title = "Celestia Node Specification"
+
+[output.html]
+git-repository-url = "https://github.com/celestiaorg/celestia-node"
+
+[preprocessor.toc]
+command = "mdbook-toc"
+renderer = ["html"]

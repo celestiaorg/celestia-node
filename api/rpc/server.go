@@ -61,15 +61,14 @@ func (s *Server) verifyAuth(_ context.Context, token string) ([]auth.Permission,
 
 // RegisterService registers a service onto the RPC server. All methods on the service will then be
 // exposed over the RPC.
-func (s *Server) RegisterService(namespace string, service interface{}) {
-	s.rpc.Register(namespace, service)
-}
+func (s *Server) RegisterService(namespace string, service interface{}, out interface{}) {
+	if s.authDisabled {
+		s.rpc.Register(namespace, service)
+		return
+	}
 
-// RegisterAuthedService registers a service onto the RPC server. All methods on the service will
-// then be exposed over the RPC.
-func (s *Server) RegisterAuthedService(namespace string, service interface{}, out interface{}) {
 	auth.PermissionedProxy(perms.AllPerms, perms.DefaultPerms, service, getInternalStruct(out))
-	s.RegisterService(namespace, out)
+	s.rpc.Register(namespace, out)
 }
 
 func getInternalStruct(api interface{}) interface{} {
