@@ -22,7 +22,7 @@ type checkpoint struct {
 	lastPrunedHeader atomic.Pointer[header.ExtendedHeader]
 
 	LastPrunedHeight uint64            `json:"last_pruned_height"`
-	FailedHeaders    map[uint64]string `json:"failed,omitempty"`
+	FailedHeaders    map[uint64]string `json:"failed"`
 }
 
 // initializeCheckpoint initializes the checkpoint, storing the earliest header in the chain.
