@@ -434,7 +434,7 @@ amount of data stored. See <https://prometheus.io/docs/practices/naming/#labels>
 
 As you will see in the examples below, tracing looks similar to logging and have almost the same semantics. In fact,
 tracing is debug logging on steroids, and we can potentially consider dropping conventional _debug_ logging once we
-fully cover our codebases with the tracing. Same as logging, traces can be pipe out into the stdout as prettyprinted
+fully cover our codebases with the tracing. Same as logging, traces can be piped out into the stdout as prettyprinted
 event log.
 
 ### Uptrace
