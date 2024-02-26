@@ -312,7 +312,7 @@ be covered via 6 instruments OpenTelemetry provides:
 
 #### Metrics Integration Example
 
-Consider we want to know report current network height as a metric.
+Consider we want to report the current network height as a metric.
 
 First of all, the global pkg meter has to be defined in the code related to the desired metric. In our case it is `header` pkg.
 
