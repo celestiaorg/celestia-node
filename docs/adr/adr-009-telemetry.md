@@ -208,7 +208,7 @@ additional user defined _attributes_, operation status(success or error with an 
 may happen during the operation.
 
 Spans also form a parent tree, meaning that each span associated to a process can have multiple sub processes or child
-spans and vise-versa. Altogether, this feature allows to see the whole trace of execution of any part of the system, no
+spans and vice-versa. Altogether, this feature allows to see the whole trace of execution of any part of the system, no
 matter how complex it is. This is exactly what we need to analyze our reconstruction performance.
 
 #### Tracing Integration Example
