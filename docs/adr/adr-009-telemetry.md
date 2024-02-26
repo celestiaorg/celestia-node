@@ -373,7 +373,7 @@ height. This allows us to query reported heights with some square size using bac
 powers of two(with 256 being a current limit) as unique values possible for the metric, so it won't put pressure on the
 metrics backend.
   
-For in Go code examples on other metric instruments consult [Uptrace Otel docs](https://uptrace.dev/opentelemetry/go-metrics.html#getting-started).
+For Go code examples on other metric instruments consult [Uptrace Otel docs](https://uptrace.dev/opentelemetry/go-metrics.html#getting-started).
 
 #### Backends Connection
 
