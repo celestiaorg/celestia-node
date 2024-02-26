@@ -166,7 +166,7 @@ pb-gen:
 ## openrpc-gen: Generate OpenRPC spec for Celestia-Node's RPC api
 openrpc-gen:
 	@echo "--> Generating OpenRPC spec"
-	@go run ./cmd/docgen fraud header state share das p2p node blob
+	@go run ./cmd/docgen fraud header state share das p2p node blob da
 .PHONY: openrpc-gen
 
 ## lint-imports: Lint only Go imports.
