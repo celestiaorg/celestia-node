@@ -136,7 +136,7 @@ func (s *Service) prune(
 			headers[len(headers)-1].Height())
 
 		for _, eh := range headers {
-			pruneCtx, cancel := context.WithDeadline(ctx, time.Now().Add(time.Second))
+			pruneCtx, cancel := context.WithDeadline(ctx, time.Now().Add(time.Second*5))
 
 			err = s.pruner.Prune(pruneCtx, eh)
 			if err != nil {

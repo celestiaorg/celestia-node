@@ -28,8 +28,8 @@ func (s *Service) findPruneableHeaders(ctx context.Context) ([]*header.ExtendedH
 		estimatedCutoffHeight = head.Height()
 	}
 
-	log.Debugw("finder: fetching header range", "lastPruned", lastPruned.Height(),
-		"estimatedCutoffHeight", estimatedCutoffHeight)
+	log.Debugw("finder: fetching header range", "last pruned", lastPruned.Height(),
+		"target height", estimatedCutoffHeight)
 
 	if estimatedCutoffHeight-lastPruned.Height() > maxHeadersPerLoop {
 		estimatedCutoffHeight = lastPruned.Height() + maxHeadersPerLoop
