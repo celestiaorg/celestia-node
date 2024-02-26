@@ -3,6 +3,7 @@ package docgen
 import (
 	_ "embed"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"reflect"
 
@@ -66,7 +67,7 @@ var ExampleValues = map[reflect.Type]interface{}{
 			Shares: []*byzantine.ShareWithProof{},
 		},
 	),
-	reflect.TypeOf((*error)(nil)).Elem(): fmt.Errorf("error"),
+	reflect.TypeOf((*error)(nil)).Elem(): errors.New("error"),
 }
 
 func init() {
