@@ -449,7 +449,7 @@ directly
   * Custom URL and path
   * Maintaining config for itself and clickhouse
 
-Overall, it is not user-friendly alternative to known projects, even thought it still does not require running Otel
+Overall, it is not user-friendly alternative to known projects, even though it still does not require running Otel
 Collector and absorbs both tracing and metrics.
 
 ## Further Readings
