@@ -23,9 +23,6 @@
 
 ## Context
 
-> Now I know why I don't like writing ADRs - because I cannot run/test them and see if they work or not.
-> Hoping that quality team feedback will solve this problem!
-
 Celestia Node needs deeper observability of each module and their components. The only integrated observability solution
 we have is logging and there are two more options we need to explore from the observability triangle(tracing, metrics and logs).
 
