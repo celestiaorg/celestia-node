@@ -200,7 +200,7 @@ A visual example of a generic tracing dashboard provided via [Uptrace](https://u
 
 Mainly, for `ShrEx` and reconstruction analysis we need to know if the reconstruction succeeded and the time it took for
 the big block sizes(EDS >= 128). The tracing in this case would provide all the data for the whole reconstruction
-operation and for each sub operation within reconstruction, e.g time spend specifically on erasure coding
+operation and for each sub operation within reconstruction, e.g time spent specifically on erasure coding
 > NOTE: The exact compute time is not available unless [rsmt2d#107](https://github.com/celestiaorg/rsmt2d/issues/107)
 > is fixed.
 
