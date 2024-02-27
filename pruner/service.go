@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/ipfs/go-datastore"
 	"github.com/ipfs/go-datastore/namespace"
 	logging "github.com/ipfs/go-log/v2"
 
@@ -163,52 +162,6 @@ func (s *Service) prune(
 			return lastPrunedHeader
 		}
 	}
-}
-
-func (s *Service) prune(
-	ctx context.Context,
-	lastPrunedHeader *header.ExtendedHeader,
-) *header.ExtendedHeader {
-	// prioritize retrying previously-failed headers
-	s.retryFailed(s.ctx)
-
-	headers, err := s.findPruneableHeaders(ctx)
-	if err != nil || len(headers) == 0 {
-		// TODO @renaynay: record errors properly
-		log.Errorw("failed to find prune-able blocks", "error", err)
-		return lastPrunedHeader
-	}
-
-	failed := make(map[uint64]error)
-
-	log.Debugw("pruning headers", "from", headers[0].Height(), "to",
-		headers[len(headers)-1].Height())
-
-	for _, eh := range headers {
-		pruneCtx, cancel := context.WithDeadline(ctx, time.Now().Add(time.Second))
-
-		err = s.pruner.Prune(pruneCtx, eh)
-		if err != nil {
-			log.Errorw("failed to prune block", "height", eh.Height(), "err", err)
-			failed[eh.Height()] = err
-		} else {
-			// TODO @renaynay: make prettier
-			lastPrunedHeader = eh
-		}
-
-		s.metrics.observePrune(pruneCtx, err != nil)
-		cancel()
-	}
-
-	err = s.updateCheckpoint(s.ctx, lastPrunedHeader, failed)
-	if err != nil {
-		log.Errorw("failed to update checkpoint", "err", err)
-		return lastPrunedHeader
-	}
-
-	log.Debugw("retrying failed headers", "amount", len(s.checkpoint.FailedHeaders))
-
-	return lastPrunedHeader
 }
 
 func (s *Service) retryFailed(ctx context.Context) {

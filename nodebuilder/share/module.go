@@ -79,7 +79,6 @@ func ConstructModule(tp node.Type, cfg *Config, options ...fx.Option) fx.Option 
 			"share",
 			baseComponents,
 			bridgeAndFullComponents,
-			peerManagerComponents(cfg),
 			fx.Provide(getters.NewIPLDGetter),
 			fx.Provide(fullGetter),
 		)
@@ -153,41 +152,6 @@ func peerManagerComponents(tp node.Type, cfg *Config) fx.Option {
 	default:
 		panic("invalid node type")
 	}
-}
-
-func shrexSubComponents() fx.Option {
-	return fx.Provide(
-		func(ctx context.Context, h host.Host, network modp2p.Network) (*shrexsub.PubSub, error) {
-			return shrexsub.NewPubSub(ctx, h, network.String())
-		},
-	)
-}
-
-// shrexGetterComponents provides components for a shrex getter that
-// is capable of requesting
-func shrexGetterComponents(cfg *Config) fx.Option {
-	return fx.Options(
-		// shrex-nd client
-		fx.Provide(
-			func(
-				params peers.Parameters,
-				host host.Host,
-				connGater *conngater.BasicConnectionGater,
-				shrexSub *shrexsub.PubSub,
-				headerSub libhead.Subscriber[*header.ExtendedHeader],
-				// we must ensure Syncer is started before PeerManager
-				// so that Syncer registers header validator before PeerManager subscribes to headers
-				_ *sync.Syncer[*header.ExtendedHeader],
-			) (*peers.Manager, error) {
-				return peers.NewManager(
-					params,
-					host,
-					connGater,
-					peers.WithShrexSubPools(shrexSub, headerSub),
-				)
-			},
-		),
-	)
 }
 
 func shrexSubComponents() fx.Option {
