@@ -79,7 +79,6 @@ func ConstructModule(tp node.Type, cfg *Config, options ...fx.Option) fx.Option 
 			"share",
 			baseComponents,
 			bridgeAndFullComponents,
-			peerManagerComponents(cfg),
 			fx.Provide(getters.NewIPLDGetter),
 			fx.Provide(fullGetter),
 		)
