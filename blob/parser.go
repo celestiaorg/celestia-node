@@ -2,11 +2,12 @@ package blob
 
 import (
 	"errors"
+	"fmt"
 
 	"github.com/celestiaorg/celestia-app/pkg/shares"
 )
 
-// parser is a helper struct that allows collecting shares and transforming it into the blob.
+// parser is a helper struct that allows collecting shares and transforming them into the blob.
 // it contains all necessary information that is needed to build the blob:
 // * position of the blob inside the EDS;
 // * blob's length;
@@ -95,13 +96,40 @@ func (p *parser) addShares(shares []shares.Share) (shrs []shares.Share, isComple
 // transform parses shares and creates the Blob.
 func (p *parser) transform() (*Blob, error) {
 	if p.length != len(p.shares) {
-		return nil, errors.New("insufficient shares amount")
+		return nil, fmt.Errorf("invalid shares amount. want:%d, have:%d", p.length, len(p.shares))
 	}
 
-	blob, err := parseShares(p.shares, p.index)
+	sequence, err := shares.ParseShares(p.shares, true)
 	if err != nil {
 		return nil, err
 	}
+
+	// ensure that sequence length is not 0
+	if len(sequence) == 0 {
+		return nil, ErrBlobNotFound
+	}
+	if len(sequence) > 1 {
+		return nil, errors.New("unexpected amount of sequences")
+	}
+
+	data, err := sequence[0].RawData()
+	if err != nil {
+		return nil, err
+	}
+	if len(data) == 0 {
+		return nil, ErrBlobNotFound
+	}
+
+	shareVersion, err := sequence[0].Shares[0].Version()
+	if err != nil {
+		return nil, err
+	}
+
+	blob, err := NewBlob(shareVersion, sequence[0].Namespace.Bytes(), data)
+	if err != nil {
+		return nil, err
+	}
+	blob.index = p.index
 	return blob, nil
 }
 

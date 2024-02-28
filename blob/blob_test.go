@@ -55,7 +55,8 @@ func TestBlob(t *testing.T) {
 				require.NoError(t, err)
 				shares, err := toAppShares(sh...)
 				require.NoError(t, err)
-				b, err := parseShares(shares, 0)
+				p := &parser{length: len(shares), shares: shares}
+				b, err := p.transform()
 				require.NoError(t, err)
 				assert.Equal(t, blob[0].Commitment, b.Commitment)
 			},

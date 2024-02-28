@@ -144,6 +144,7 @@ func (b *Blob) Namespace() share.Namespace {
 }
 
 // Index returns the blob's first share index in the EDS.
+// Only retrieved, on-chain blobs will have the index set. Default is -1.
 func (b *Blob) Index() int {
 	return b.index
 }
