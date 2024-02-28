@@ -20,29 +20,6 @@ type parser struct {
 	verifyFn func(blob *Blob) bool
 }
 
-// skipPadding skips first share in the range if this share is the Padding share.
-func (p *parser) skipPadding(shares []shares.Share) ([]shares.Share, error) {
-	if len(shares) == 0 {
-		return nil, errEmptyShares
-	}
-
-	isPadding, err := shares[0].IsPadding()
-	if err != nil {
-		return nil, err
-	}
-
-	if !isPadding {
-		return shares, nil
-	}
-
-	// update blob index if we are going to skip one share
-	p.index++
-	if len(shares) > 1 {
-		return shares[1:], nil
-	}
-	return nil, nil
-}
-
 // NOTE: passing shares here needed to detect padding shares(as we do not need this check in addShares)
 func (p *parser) set(index int, shrs []shares.Share) ([]shares.Share, error) {
 	if len(shrs) == 0 {
@@ -93,8 +70,8 @@ func (p *parser) addShares(shares []shares.Share) (shrs []shares.Share, isComple
 	return shares[index+1:], true
 }
 
-// transform parses shares and creates the Blob.
-func (p *parser) transform() (*Blob, error) {
+// parse parses shares and creates the Blob.
+func (p *parser) parse() (*Blob, error) {
 	if p.length != len(p.shares) {
 		return nil, fmt.Errorf("invalid shares amount. want:%d, have:%d", p.length, len(p.shares))
 	}
@@ -131,6 +108,29 @@ func (p *parser) transform() (*Blob, error) {
 	}
 	blob.index = p.index
 	return blob, nil
+}
+
+// skipPadding skips first share in the range if this share is the Padding share.
+func (p *parser) skipPadding(shares []shares.Share) ([]shares.Share, error) {
+	if len(shares) == 0 {
+		return nil, errEmptyShares
+	}
+
+	isPadding, err := shares[0].IsPadding()
+	if err != nil {
+		return nil, err
+	}
+
+	if !isPadding {
+		return shares, nil
+	}
+
+	// update blob index if we are going to skip one share
+	p.index++
+	if len(shares) > 1 {
+		return shares[1:], nil
+	}
+	return nil, nil
 }
 
 func (p *parser) verify(blob *Blob) bool {

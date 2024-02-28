@@ -348,7 +348,7 @@ func (s *Service) retrieve(
 				break
 			}
 
-			blob, err := sharesParser.transform()
+			blob, err := sharesParser.parse()
 			if err != nil {
 				return nil, nil, err
 			}
