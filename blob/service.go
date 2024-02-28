@@ -225,6 +225,7 @@ func (s *Service) Included(
 		attribute.Int64("height", int64(height)),
 		attribute.String("commitment", string(com)),
 	)
+
 	// In the current implementation, LNs will have to download all shares to recompute the commitment.
 	// To achieve 1. we need to modify Proof structure and to store all subtree roots, that were
 	// involved in commitment creation and then call `merkle.HashFromByteSlices`(tendermint package).
@@ -396,6 +397,10 @@ func (s *Service) getBlobs(
 	header *header.ExtendedHeader,
 ) (_ []*Blob, err error) {
 	ctx, span := tracer.Start(ctx, "get-blobs")
+	span.SetAttributes(
+		attribute.Int64("height", int64(header.Height())),
+		attribute.String("namespace", namespace.String()),
+	)
 	defer func() {
 		utils.SetStatusAndEnd(span, err)
 	}()
