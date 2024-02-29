@@ -181,7 +181,7 @@ func (ca *CoreAccessor) constructSignedTx(
 }
 
 // SubmitPayForBlob builds, signs, and synchronously submits a MsgPayForBlob. It blocks until the
-// transaction is committed and returns the TxReponse. If gasLim is set to 0, the method will
+// transaction is committed and returns the TxResponse. If gasLim is set to 0, the method will
 // automatically estimate the gas limit. If the fee is negative, the method will use the nodes min
 // gas price multiplied by the gas limit.
 func (ca *CoreAccessor) SubmitPayForBlob(
@@ -571,10 +571,6 @@ func (ca *CoreAccessor) queryMinimumGasPrice(
 		return 0, err
 	}
 	return coins.AmountOf(app.BondDenom).MustFloat64(), nil
-}
-
-func (ca *CoreAccessor) IsStopped(context.Context) bool {
-	return ca.ctx.Err() != nil
 }
 
 func withFee(fee Int) apptypes.TxBuilderOption {

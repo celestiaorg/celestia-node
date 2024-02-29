@@ -8,15 +8,17 @@ import (
 )
 
 type Config struct {
-	Address string
-	Port    string
+	Address  string
+	Port     string
+	SkipAuth bool
 }
 
 func DefaultConfig() Config {
 	return Config{
-		Address: "0.0.0.0",
+		Address: defaultBindAddress,
 		// do NOT expose the same port as celestia-core by default so that both can run on the same machine
-		Port: "26658",
+		Port:     defaultPort,
+		SkipAuth: false,
 	}
 }
 

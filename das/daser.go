@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"sync/atomic"
+	"time"
 
 	"github.com/ipfs/go-datastore"
 	logging "github.com/ipfs/go-log/v2"
@@ -78,7 +79,7 @@ func NewDASer(
 // Start initiates subscription for new ExtendedHeaders and spawns a sampling routine.
 func (d *DASer) Start(ctx context.Context) error {
 	if !atomic.CompareAndSwapInt32(&d.running, 0, 1) {
-		return fmt.Errorf("da: DASer already started")
+		return errors.New("da: DASer already started")
 	}
 
 	sub, err := d.hsub.Subscribe()
@@ -147,6 +148,14 @@ func (d *DASer) Stop(ctx context.Context) error {
 }
 
 func (d *DASer) sample(ctx context.Context, h *header.ExtendedHeader) error {
+	// short-circuit if pruning is enabled and the header is outside the
+	// availability window
+	if !d.isWithinSamplingWindow(h) {
+		log.Debugw("skipping header outside sampling window", "height", h.Height(),
+			"time", h.Time())
+		return nil
+	}
+
 	err := d.da.SharesAvailable(ctx, h)
 	if err != nil {
 		var byzantineErr *byzantine.ErrByzantine
@@ -160,6 +169,14 @@ func (d *DASer) sample(ctx context.Context, h *header.ExtendedHeader) error {
 		return err
 	}
 	return nil
+}
+
+func (d *DASer) isWithinSamplingWindow(eh *header.ExtendedHeader) bool {
+	// if sampling window is not set, then all headers are within the window
+	if d.params.SamplingWindow == 0 {
+		return true
+	}
+	return time.Since(eh.Time()) <= d.params.SamplingWindow
 }
 
 // SamplingStats returns the current statistics over the DA sampling process.

@@ -99,16 +99,14 @@ func newInitStore[H libhead.Header[H]](
 	ds datastore.Batching,
 	ex libhead.Exchange[H],
 ) (libhead.Store[H], error) {
-	s, err := store.NewStore[H](ds, store.WithParams(cfg.Store))
-	if err != nil {
-		return nil, err
+	opts := []store.Option{store.WithParams(cfg.Store)}
+	if MetricsEnabled {
+		opts = append(opts, store.WithMetrics())
 	}
 
-	if MetricsEnabled {
-		err = libhead.WithMetrics[H](s)
-		if err != nil {
-			return nil, err
-		}
+	s, err := store.NewStore[H](ds, opts...)
+	if err != nil {
+		return nil, err
 	}
 
 	trustedHash, err := cfg.trustedHash(net)
