@@ -2,6 +2,11 @@ package shwap
 
 import (
 	"context"
+	"fmt"
+	"github.com/celestiaorg/celestia-node/share/store/file"
+	"github.com/celestiaorg/rsmt2d"
+	blocks "github.com/ipfs/go-block-format"
+	ipld "github.com/ipfs/go-ipld-format"
 	"testing"
 	"time"
 
@@ -28,7 +33,7 @@ func TestSampleRoundtripGetBlock(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second*5)
 	defer cancel()
 
-	b := NewTestBlockstore(t)
+	b := newTestBlockstore(t)
 	eds := edstest.RandEDS(t, 8)
 	height := b.AddEds(eds)
 	root, err := share.NewRoot(eds)
@@ -63,7 +68,7 @@ func TestSampleRoundtripGetBlocks(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second*5)
 	defer cancel()
 
-	b := NewTestBlockstore(t)
+	b := newTestBlockstore(t)
 	eds := edstest.RandEDS(t, 8)
 	height := b.AddEds(eds)
 	root, err := share.NewRoot(eds)
@@ -107,7 +112,7 @@ func TestRowRoundtripGetBlock(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second*5)
 	defer cancel()
 
-	b := NewTestBlockstore(t)
+	b := newTestBlockstore(t)
 	eds := edstest.RandEDS(t, 8)
 	height := b.AddEds(eds)
 	root, err := share.NewRoot(eds)
@@ -140,7 +145,7 @@ func TestRowRoundtripGetBlocks(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second*5)
 	defer cancel()
 
-	b := NewTestBlockstore(t)
+	b := newTestBlockstore(t)
 	eds := edstest.RandEDS(t, 8)
 	height := b.AddEds(eds)
 	root, err := share.NewRoot(eds)
@@ -184,7 +189,7 @@ func TestDataRoundtripGetBlock(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second*5)
 	defer cancel()
 
-	b := NewTestBlockstore(t)
+	b := newTestBlockstore(t)
 	namespace := sharetest.RandV0Namespace()
 	eds, root := edstest.RandEDSWithNamespace(t, namespace, 64, 16)
 	height := b.AddEds(eds)
@@ -215,7 +220,7 @@ func TestDataRoundtripGetBlocks(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second*5)
 	defer cancel()
 
-	b := NewTestBlockstore(t)
+	b := newTestBlockstore(t)
 	namespace := sharetest.RandV0Namespace()
 	eds, root := edstest.RandEDSWithNamespace(t, namespace, 64, 16)
 	height := b.AddEds(eds)
@@ -280,4 +285,86 @@ func remoteClient(ctx context.Context, t *testing.T, bstore blockstore.Blockstor
 	require.NoError(t, err)
 
 	return bitswapClient
+}
+
+type testBlockstore struct {
+	t          *testing.T
+	lastHeight uint64
+	blocks     map[uint64]*file.MemFile
+}
+
+func newTestBlockstore(t *testing.T) *testBlockstore {
+	return &testBlockstore{
+		t:          t,
+		lastHeight: 1,
+		blocks:     make(map[uint64]*file.MemFile),
+	}
+}
+
+func (t *testBlockstore) AddEds(eds *rsmt2d.ExtendedDataSquare) (height uint64) {
+	for {
+		if _, ok := t.blocks[t.lastHeight]; !ok {
+			break
+		}
+		t.lastHeight++
+	}
+	t.blocks[t.lastHeight] = &file.MemFile{Eds: eds}
+	return t.lastHeight
+}
+
+func (t *testBlockstore) DeleteBlock(ctx context.Context, cid cid.Cid) error {
+	//TODO implement me
+	panic("not implemented")
+}
+
+func (t *testBlockstore) Has(ctx context.Context, cid cid.Cid) (bool, error) {
+	req, err := BlockBuilderFromCID(cid)
+	if err != nil {
+		return false, fmt.Errorf("while getting height from CID: %w", err)
+	}
+
+	_, ok := t.blocks[req.GetHeight()]
+	return ok, nil
+}
+
+func (t *testBlockstore) Get(ctx context.Context, cid cid.Cid) (blocks.Block, error) {
+	req, err := BlockBuilderFromCID(cid)
+	if err != nil {
+		return nil, fmt.Errorf("while getting height from CID: %w", err)
+	}
+
+	f, ok := t.blocks[req.GetHeight()]
+	if !ok {
+		return nil, ipld.ErrNotFound{Cid: cid}
+	}
+	return req.BlockFromFile(ctx, f)
+}
+
+func (t *testBlockstore) GetSize(ctx context.Context, cid cid.Cid) (int, error) {
+	req, err := BlockBuilderFromCID(cid)
+	if err != nil {
+		return 0, fmt.Errorf("while getting height from CID: %w", err)
+	}
+
+	f, ok := t.blocks[req.GetHeight()]
+	if !ok {
+		return 0, ipld.ErrNotFound{Cid: cid}
+	}
+	return f.Size(), nil
+}
+
+func (t *testBlockstore) Put(ctx context.Context, block blocks.Block) error {
+	panic("not implemented")
+}
+
+func (t *testBlockstore) PutMany(ctx context.Context, blocks []blocks.Block) error {
+	panic("not implemented")
+}
+
+func (t *testBlockstore) AllKeysChan(ctx context.Context) (<-chan cid.Cid, error) {
+	panic("not implemented")
+}
+
+func (t *testBlockstore) HashOnRead(enabled bool) {
+	panic("not implemented")
 }
