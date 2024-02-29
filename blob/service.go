@@ -114,7 +114,7 @@ func (s *Service) Submit(ctx context.Context, blobs []*Blob, gasPrice GasPrice) 
 func (s *Service) Get(
 	ctx context.Context,
 	height uint64,
-	ns share.Namespace,
+	namespace share.Namespace,
 	commitment Commitment,
 ) (blob *Blob, err error) {
 	ctx, span := tracer.Start(ctx, "get")
@@ -123,14 +123,14 @@ func (s *Service) Get(
 	}()
 	span.SetAttributes(
 		attribute.Int64("height", int64(height)),
-		attribute.String("commitment", string(commitment)),
+		attribute.String("namespace", namespace.String()),
 	)
 
 	sharesParser := &parser{verifyFn: func(blob *Blob) bool {
 		return blob.compareCommitments(commitment)
 	}}
 
-	blob, _, err = s.retrieve(ctx, height, ns, sharesParser)
+	blob, _, err = s.retrieve(ctx, height, namespace, sharesParser)
 	return
 }
 
@@ -148,7 +148,7 @@ func (s *Service) GetProof(
 	}()
 	span.SetAttributes(
 		attribute.Int64("height", int64(height)),
-		attribute.String("commitment", string(commitment)),
+		attribute.String("namespace", namespace.String()),
 	)
 
 	sharesParser := &parser{verifyFn: func(blob *Blob) bool {
@@ -172,8 +172,8 @@ func (s *Service) GetAll(ctx context.Context, height uint64, namespaces []share.
 		resultErr   = make([]error, len(namespaces))
 	)
 
-	for _, ns := range namespaces {
-		log.Debugw("performing GetAll request", "namespace", ns.String(), "height", height)
+	for _, namespace := range namespaces {
+		log.Debugw("performing GetAll request", "namespace", namespace.String(), "height", height)
 	}
 
 	wg := sync.WaitGroup{}
@@ -215,7 +215,7 @@ func (s *Service) Included(
 	height uint64,
 	namespace share.Namespace,
 	proof *Proof,
-	com Commitment,
+	commitment Commitment,
 ) (_ bool, err error) {
 	ctx, span := tracer.Start(ctx, "included")
 	defer func() {
@@ -223,7 +223,7 @@ func (s *Service) Included(
 	}()
 	span.SetAttributes(
 		attribute.Int64("height", int64(height)),
-		attribute.String("commitment", string(com)),
+		attribute.String("namespace", namespace.String()),
 	)
 
 	// In the current implementation, LNs will have to download all shares to recompute the commitment.
@@ -236,7 +236,7 @@ func (s *Service) Included(
 	// level above shares).
 	// TODO(@vgonkivs): rework the implementation to perform all verification without network requests.
 	sharesParser := &parser{verifyFn: func(blob *Blob) bool {
-		return blob.compareCommitments(com)
+		return blob.compareCommitments(commitment)
 	}}
 	_, resProof, err := s.retrieve(ctx, height, namespace, sharesParser)
 	switch err {
