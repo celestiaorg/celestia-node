@@ -179,21 +179,42 @@
                     <main>
                         <h1 id="shwap-protocol-specification"><a class="header" href="#shwap-protocol-specification">Shwap Protocol Specification</a></h1>
 <h2 id="abstract"><a class="header" href="#abstract">Abstract</a></h2>
-<p>This document specifies the Shwap p2p protocol. Shwap provides scalable and extensible framework for exchanging and
-swapping of shared data for Celestia's Data Availability network and beyond.</p>
+<p>This document specifies Shwap - the simple and expressive, yet extensible and future-proof messaging framework aiming to
+solve critical inefficiencies and standardise messaging of Celestia's Data Availability p2p network.</p>
+<p>Shwap defines messaging framework to be exchanged around the DA p2p network in trust-minimized way and without enforcing
+transport(QUIC/TCP or IP) or application layer protocol semantics(e.g HTTP/x). Using this framework, Shwap
+declares the most common messages and provides options on how to stack them with lower-level protocols.
+Shwap can be stacked together with application protocol like HTTP/x, [KadDHT][kaddht], <a href="https://docs.ipfs.tech/concepts/bitswap/">Bitswap</a> or any custom
+protocol.</p>
 <h2 id="motivation"><a class="header" href="#motivation">Motivation</a></h2>
-<p>The current Data Availability Sampling (DAS) network protocol is inefficient. A <em>single</em> sample operation takes log2(k) network
-round-trips(where k is the square size). This is not practical and does not scale for the theoretically unlimited data
-square that the Celestia network enables. The main motive here is a protocol with O(1) round-trip for <em>multiple</em> samples, preserving
-the assumption of having 1/n honest peers connected.</p>
+<p>The current Data Availability Sampling (DAS) network protocol is inefficient. A <em>single</em> sample operation takes log2(k)
+network round-trips(where k is the square size). This is not practical and does not scale for the theoretically unlimited
+data square that the Celestia network enables. The main motive here is a protocol with O(1) round-trip for <em>multiple</em>
+samples, preserving the assumption of having 1/n honest peers connected.</p>
 <p>Initially, Bitswap and IPLD were adopted as the basis for the DA network protocols, including DAS,
 block synchronization (BS), and blob/namespace data retrieval (ND). They gave battle-tested protocols and tooling with
 pluggability to rapidly scaffold Celestia's DA network. However, it came with the price of scalability limits and
 round-trips resulting in BS slower than block production. Before the network launch, the transition
-to the optimized [ShrEx protocol][shrex] for BS and integrating [CAR and DAGStore-based storage][storage] happened
-optimizing BS and ND. However, DAS was left untouched, preserving its weak scalability and roundtrip inefficiency. Shwap
-addresses these and provides an extensible and flexible framework for BS, ND, and beyond.</p>
-<h2 id="terms-and-definitions"><a class="header" href="#terms-and-definitions">Terms and Definitions</a></h2>
+to the optimized <a href="https://github.com/celestiaorg/celestia-node/blob/0abd16bbb05bf3016595498844a588ef55c63d2d/docs/adr/adr-013-blocksync-overhaul-part-2.md">ShrEx protocol</a> for BS and integrating <a href="https://github.com/celestiaorg/celestia-node/blob/a33c80e20da684d656c7213580be7878bcd27cf4/docs/adr/adr-011-blocksync-overhaul-part-1.md">CAR and DAGStore-based storage</a> happened
+optimizing BS and ND. However, DAS was left untouched, preserving its weak scalability and roundtrip inefficiency.</p>
+<p>Shwap messaging stacked together with Bitswap protocol directly addresses described inefficiency and provides foundation
+for efficient communication for BS, ND, and beyond.</p>
+<h2 id="rationale"><a class="header" href="#rationale">Rationale</a></h2>
+<p>The atomic primitive of Celestia's DA network is a share. Shwap standardize messaging and serialization for shares.
+Shares are grouped together forming more complex data types(Rows, Blobs, etc). These data types are encapsulated in
+containers, e.g. Row container groups shares of a particular row. Containers can be identified with share identifiers
+in order to request, advertise or index the containers. The combination of containers and identifiers provides extensible
+and expressive messaging framework for groups of shares and enable efficient single round-trip request-response
+communication.</p>
+<p>There are many share groups or containers known in Celestia network and systemizing this is the main reason behind setting
+up this simple messaging framework. There needs to be a single place with all the possible Celestia DA messages defined
+which node software and protocol researchers can rely and coordinate on. Besides, this framework is designed to be
+future-proof and sustain changes in the core protocol's data structures and proving system, as long shares stays the
+de facto atomic data type.</p>
+<p>Besides, there needs to be systematization and common knowledge-base with all the edge cases for possible protocol
+compositions of Shwap with lower-level protocols Bitswap, KadDHT or Shrex, which Shwap aims to describe.</p>
+<h2 id="specification"><a class="header" href="#specification">Specification</a></h2>
+<h3 id="terms-and-definitions"><a class="header" href="#terms-and-definitions">Terms and Definitions</a></h3>
 <p>The key words "MUST", "MUST NOT", "REQUIRED", "SHALL", "SHALL NOT",
 "SHOULD", "SHOULD NOT", "RECOMMENDED", "NOT RECOMMENDED", "MAY", and
 "OPTIONAL" in this document are to be interpreted as described in BCP
@@ -210,33 +231,30 @@ portmanteau name of words share and swap.</p>
 client, server and node.</p>
 <p><em><strong>Client</strong></em>: The Peer that requests content by content identifies over Shwap.</p>
 <p><em><strong>Server</strong></em>: The Peer that responds with content over Shwap.</p>
-<p><em><strong>Node</strong></em>: The peer that namespacesis both the client and the server.</p>
-<p><em><strong>Proof</strong></em>: Merkle inclusion proof of the data in the DataSquare.</p>
-<h2 id="rationale"><a class="header" href="#rationale">Rationale</a></h2>
-<h3 id="multihashes-and-cid"><a class="header" href="#multihashes-and-cid">Multihashes and CID</a></h3>
-<p>Shwap takes inspiration from content addressability, but breaks-free from hash-based only model to optimize message sizes
-and data request patterns. In some way, it hacks into multihash abstraction to make it contain data that isn't in fact a
-hash. Furthermore, the protocol does not include hash digests in the multihashes. The authentication of the messages
-happens using externally provided data commitment.</p>
-<h2 id="protocol-dependencies"><a class="header" href="#protocol-dependencies">Protocol Dependencies</a></h2>
-<h3 id="bitswap"><a class="header" href="#bitswap">Bitswap</a></h3>
-<p>Shwap depends on Bitswap for swapping bits in fully distributed p2p-manner.</p>
-<h2 id="share-identifiers"><a class="header" href="#share-identifiers">Share Identifiers</a></h2>
-<p>This section defines list of supported share identifiers. Share identifiers defined by Shwap can be used to uniquely
-identify any <a href="shwap/spec.html#share-containers">share container</a> over a chain with arbitrary number of <a href="https://celestiaorg.github.io/celestia-app/specs/data_structures.html#2d-reed-solomon-encoding-scheme">DataSquares</a>, like a range of
-<a href="https://celestiaorg.github.io/celestia-app/specs/shares.html#abstract">shares</a>, a row or a <a href="https://celestiaorg.github.io/celestia-app/specs/data_square_layout.html#blob-share-commitment-rules">blob</a>. Every share identifier relates to a respective share container and wise-versa.</p>
-<p>Identifiers are embeddable to narrow down to the needed content. (TODO: Describe better)</p>
-<p>Identifiers MUST have a fixed size for their fields. Subsequently, protobuf can't be used for CID serialization due to
-varint usage. Instead, identifiers use simple binary big endian serialization.</p>
-<p>Table of supported identifiers with their respective multihash and codec codes. This table is supposed to be extended
-whenever any new identifier is added.</p>
-<div class="table-wrapper"><table><thead><tr><th>Name</th><th>Multihash</th><th>Codec</th></tr></thead><tbody>
-<tr><td>RowID</td><td>0x7811</td><td>0x7810</td></tr>
-<tr><td>SampleID</td><td>0x7801</td><td>0x7800</td></tr>
-<tr><td>DataID</td><td>0x7821</td><td>0x7820</td></tr>
-</tbody></table>
-</div>
-<h3 id="rowid"><a class="header" href="#rowid">RowID</a></h3>
+<p><em><strong>Node</strong></em>: The peer that is both the client and the server.</p>
+<p><em><strong>Proof</strong></em>: A Merkle inclusion proof of the data in the DataSquare.</p>
+<h3 id="message-framework"><a class="header" href="#message-framework">Message Framework</a></h3>
+<p>This sections defines messaging framework of Shwap. Every group of shares that needs to be exchanged over the network
+MUST define its <a href="shwap/spec.html#share-identifiers">share identifier</a> and <a href="shwap/spec.html#share-containers">share container</a>, as well as, follow
+their described rules.</p>
+<h4 id="share-identifiers"><a class="header" href="#share-identifiers">Share Identifiers</a></h4>
+<p>Share identifiers defined by Shwap can be used to uniquely identify any <a href="shwap/spec.html#share-containers">share container</a> over a chain
+with arbitrary number of <a href="https://celestiaorg.github.io/celestia-app/specs/data_structures.html#2d-reed-solomon-encoding-scheme">DataSquares</a>, like a range of <a href="https://celestiaorg.github.io/celestia-app/specs/shares.html#abstract">shares</a>, a row or a <a href="https://celestiaorg.github.io/celestia-app/specs/data_square_layout.html#blob-share-commitment-rules">blob</a>. Every share
+identifier relates to a respective share container and vise-versa.</p>
+<p>Identifiers MUST have a fixed size for their fields. Subsequently, protobuf SHOULD NOT be used for CID serialization due
+to varints and lack of fixed size arrays. Instead, identifiers use simple binary big endian serialization.</p>
+<p>Identifiers MAY embed each other to narrow down the scope of needed shares. For example, <a href="shwap/spec.html#sampleid">SampleID</a> embeds
+<a href="shwap/spec.html#rowid">RowID</a> as every sample lay on a particular row.</p>
+<h4 id="share-containers"><a class="header" href="#share-containers">Share Containers</a></h4>
+<p>Share containers encapsulate a set of data shares with <a href="https://celestiaorg.github.io/celestia-app/specs/data_structures.html#availabledataheader">DAH</a> inclusion proof. Share containers are identified by
+<a href="shwap/spec.html#share-identifiers">share identifiers</a>.</p>
+<h4 id="versioning"><a class="header" href="#versioning">Versioning</a></h4>
+<p>In case defined share container or identifier requires an incompatible change the new message type MAY be introduced
+suffixed with new major version starting from v1. E.g. if Row message needs a revision, RowV1 is created.</p>
+<h3 id="messages"><a class="header" href="#messages">Messages</a></h3>
+<p>This section defines all the supported Shwap messages which includes share identifiers and share containers. All the new
+future messages should be described in here.</p>
+<h4 id="rowid"><a class="header" href="#rowid">RowID</a></h4>
 <p>RowID identifies the <a href="shwap/spec.html#row-container">Row shares container</a> in a <a href="https://celestiaorg.github.io/celestia-app/specs/data_structures.html#2d-reed-solomon-encoding-scheme">DataSquare</a>.</p>
 <p>RowID identifiers are formatted as shown below:</p>
 <pre><code>RowID {
@@ -249,37 +267,7 @@ whenever any new identifier is added.</p>
 <p><strong>RowIndex</strong>: An uint16 representing row index points to a particular row. It MUST not exceed the number of Row roots in
 <a href="https://celestiaorg.github.io/celestia-app/specs/data_structures.html#availabledataheader">DAH</a>.</p>
 <p>Serialized RowID MUST have length of 10 bytes.</p>
-<h3 id="sampleid"><a class="header" href="#sampleid">SampleID</a></h3>
-<p>SampleID identifies a Sample container of a single share in a <a href="https://celestiaorg.github.io/celestia-app/specs/data_structures.html#2d-reed-solomon-encoding-scheme">DataSquare</a>.</p>
-<p>SampleID identifiers are formatted as shown below:</p>
-<pre><code>SampleID {
-    RowID;
-    ShareIndex: u16; 
-}
-</code></pre>
-<p>The fields with validity rules that form SampleID are:</p>
-<p><a href="shwap/spec.html#rowid"><strong>RowID</strong></a>: A RowID of the sample. It MUST follow <a href="shwap/spec.html#rowid">RowID</a> formatting and field validity rules.</p>
-<p><strong>ShareIndex</strong>: A uint16 representing the index of the sampled share in the row. It MUST not exceed the number of Column
-roots in <a href="https://celestiaorg.github.io/celestia-app/specs/data_structures.html#availabledataheader">DAH</a>.</p>
-<p>Serialized SampleID MUST have length of 12 bytes.</p>
-<h3 id="dataid"><a class="header" href="#dataid">DataID</a></h3>
-<p>DataID identifies <a href="https://celestiaorg.github.io/celestia-app/specs/namespace.html#abstract">namespace</a> Data container of shares within a <em>single</em> Row. That is, namespace shares spanning
-over multiple Rows are identified with multiple identifiers.</p>
-<p>DataID identifiers are formatted as shown below:</p>
-<pre><code>DataID {
-    RowID;
-    Namespace;
-}
-</code></pre>
-<p>The fields with validity rules that form DataID are:</p>
-<p><a href="shwap/spec.html#rowid"><strong>RowID</strong></a>: A RowID of the namespace data. It MUST follow <a href="shwap/spec.html#rowid">RowID</a> formatting and field validity rules.</p>
-<p><a href="https://celestiaorg.github.io/celestia-app/specs/namespace.html#abstract"><strong>Namespace</strong></a>: A fixed-size bytes array representing the Namespace of interest. It MUST follow <a href="https://celestiaorg.github.io/celestia-app/specs/namespace.html#abstract">Namespace</a>
-formatting and its validity rules.</p>
-<p>Serialized DataID MUST have length of 39 bytes.</p>
-<h2 id="share-containers"><a class="header" href="#share-containers">Share Containers</a></h2>
-<p>This section defines list of supported share containers. Share containers encapsulate a set of data shares with <a href="https://celestiaorg.github.io/celestia-app/specs/data_structures.html#availabledataheader">DAH</a>
-inclusion proof. Share containers are identified by <a href="shwap/spec.html#share-identifiers">share identifiers</a>.</p>
-<h3 id="row-container"><a class="header" href="#row-container">Row Container</a></h3>
+<h4 id="row-container"><a class="header" href="#row-container">Row Container</a></h4>
 <p>Row containers encapsulate Row of the <a href="https://celestiaorg.github.io/celestia-app/specs/data_structures.html#2d-reed-solomon-encoding-scheme">DataSquare</a>.</p>
 <p>Row containers are protobuf formatted using the following proto3 schema:</p>
 <pre><code class="language-protobuf">syntax = "proto3";
@@ -295,7 +283,20 @@ message Row {
 to the number of Columns roots in <a href="https://celestiaorg.github.io/celestia-app/specs/data_structures.html#availabledataheader">DAH</a> divided by two. These shares MUST only be from the left half of the row.
 The right half is computed using Leopard GF16 Reed-Solomon erasure-coding. Afterward, the <a href="https://github.com/celestiaorg/nmt/blob/master/docs/spec/nmt.md">NMT</a> is built over both
 halves and the computed NMT root MUST be equal to the respective Row root in <a href="https://celestiaorg.github.io/celestia-app/specs/data_structures.html#availabledataheader">DAH</a>.</p>
-<h3 id="sample-container"><a class="header" href="#sample-container">Sample Container</a></h3>
+<h4 id="sampleid"><a class="header" href="#sampleid">SampleID</a></h4>
+<p>SampleID identifies a Sample container of a single share in a <a href="https://celestiaorg.github.io/celestia-app/specs/data_structures.html#2d-reed-solomon-encoding-scheme">DataSquare</a>.</p>
+<p>SampleID identifiers are formatted as shown below:</p>
+<pre><code>SampleID {
+    RowID;
+    ColumnIndex: u16; 
+}
+</code></pre>
+<p>The fields with validity rules that form SampleID are:</p>
+<p><a href="shwap/spec.html#rowid"><strong>RowID</strong></a>: A RowID of the sample. It MUST follow <a href="shwap/spec.html#rowid">RowID</a> formatting and field validity rules.</p>
+<p><strong>ColumnIndex</strong>: A uint16 representing the column index of the sampled share; in other words share index in the row. It
+MUST not exceed the number of Column roots in <a href="https://celestiaorg.github.io/celestia-app/specs/data_structures.html#availabledataheader">DAH</a>.</p>
+<p>Serialized SampleID MUST have length of 12 bytes.</p>
+<h4 id="sample-container"><a class="header" href="#sample-container">Sample Container</a></h4>
 <p>Sample containers encapsulate single shares of the <a href="https://celestiaorg.github.io/celestia-app/specs/data_structures.html#2d-reed-solomon-encoding-scheme">DataSquare</a>.</p>
 <p>Sample containers are protobuf formatted using the following proto3 schema:</p>
 <pre><code class="language-protobuf">syntax = "proto3";
@@ -320,7 +321,21 @@ formatting and validity</a> rules.</p>
 <p><strong>Proof</strong>: A <a href="https://github.com/celestiaorg/nmt/blob/f5556676429118db8eeb5fc396a2c75ab12b5f20/pb/proof.proto">protobuf formated</a> <a href="https://github.com/celestiaorg/nmt/blob/master/docs/spec/nmt.md">NMT</a> proof of share inclusion. It MUST follow <a href="https://github.com/celestiaorg/nmt/blob/master/docs/spec/nmt.md#namespace-proof-verification">NMT proof verification</a>
 and be verified against the respective root from Row or Column axis in <a href="https://celestiaorg.github.io/celestia-app/specs/data_structures.html#availabledataheader">DAH</a>. The axis is defined by ProofType field.</p>
 <p><strong>ProofType</strong>: An enum defining which root the Proof is coming from. It MUST be either RowProofType or ColumnProofType.</p>
-<h3 id="data-container"><a class="header" href="#data-container">Data Container</a></h3>
+<h4 id="dataid"><a class="header" href="#dataid">DataID</a></h4>
+<p>DataID identifies <a href="https://celestiaorg.github.io/celestia-app/specs/namespace.html#abstract">namespace</a> Data container of shares within a <em>single</em> Row. That is, namespace shares spanning
+over multiple Rows are identified with multiple identifiers.</p>
+<p>DataID identifiers are formatted as shown below:</p>
+<pre><code>DataID {
+    RowID;
+    Namespace;
+}
+</code></pre>
+<p>The fields with validity rules that form DataID are:</p>
+<p><a href="shwap/spec.html#rowid"><strong>RowID</strong></a>: A RowID of the namespace data. It MUST follow <a href="shwap/spec.html#rowid">RowID</a> formatting and field validity rules.</p>
+<p><a href="https://celestiaorg.github.io/celestia-app/specs/namespace.html#abstract"><strong>Namespace</strong></a>: A fixed-size bytes array representing the Namespace of interest. It MUST follow <a href="https://celestiaorg.github.io/celestia-app/specs/namespace.html#abstract">Namespace</a>
+formatting and its validity rules.</p>
+<p>Serialized DataID MUST have length of 39 bytes.</p>
+<h4 id="data-container"><a class="header" href="#data-container">Data Container</a></h4>
 <p>Data containers encapsulate user submitted data under <a href="https://celestiaorg.github.io/celestia-app/specs/namespace.html#abstract">namespaces</a>.</p>
 <p>Data containers are protobuf formatted using the following proto3 schema:</p>
 <pre><code class="language-protobuf">syntax = "proto3";
@@ -340,14 +355,61 @@ Each share MUST follow <a href="https://celestiaorg.github.io/celestia-app/specs
 and be verified against the respective root from Row or Column axis in <a href="https://celestiaorg.github.io/celestia-app/specs/data_structures.html#availabledataheader">DAH</a>. The axis is defined by ProofType field.</p>
 <p>Namespace data may span over multiple rows in which case all the data is encapsulated in multiple containers. This is
 done</p>
-<h2 id="protocol-extensions"><a class="header" href="#protocol-extensions">Protocol Extensions</a></h2>
-<p>This section is a placeholder for future protocol extensions like new new identifiers and containers.</p>
-<h2 id="considerations"><a class="header" href="#considerations">Considerations</a></h2>
-<h3 id="bitswap-cid-integration"><a class="header" href="#bitswap-cid-integration">Bitswap CID integration</a></h3>
+<h2 id="protocol-compositions"><a class="header" href="#protocol-compositions">Protocol Compositions</a></h2>
+<p>This sections specifies compositions of Shwap with other protocols. While Shwap is transport agnostic there are rough
+edges on the protocol integration which every composition specifications has to describe.</p>
+<h3 id="bitswap"><a class="header" href="#bitswap">Bitswap</a></h3>
+<p><a href="https://docs.ipfs.tech/concepts/bitswap/">Bitswap</a> is an application-level protocol designed for sharing verifiable data across peer-to-peer networks.
+Bitswap operates as a dynamic want-list exchange among peers in a network. Peers continuously update and share their
+want-lists of desired data in real-time. If at least one connected peer has the needed data, it is promptly fetched.
+This ongoing exchange ensures that as soon as any peer acquires the sought-after data, it can instantly share it with
+those in need.</p>
+<p>Shwap is designed to be synergetic with Bitswap, as that's the primary composition to be deployed in Celestia's DA
+network. Bitswap provides 1/N peers guarantee and can parallelize fetching across multiple peers. Both of these properties
+greatly contribute to efficient DAS protocol of Celestia.</p>
+<p>Bitswap runs over libp2p stack which provides QUIC transport integration. Subsequently, Shwap will benefit from features
+libp2p provides together with transport protocol advancements introduced in QUIC.</p>
+<h4 id="multihashes-and-cid"><a class="header" href="#multihashes-and-cid">Multihashes and CID</a></h4>
+<p>Bitswap is tightly coupled with Multihash and CID notions establishing the content addressability property. Shwap takes
+inspiration from content addressability, but breaks-free from hash-based only model to optimize message sizes
+and data request patterns. In some way, it hacks into multihash abstraction to make it contain data that isn't in fact a
+hash. Furthermore, the protocol does not include hash digests in the multihashes. The authentication of the messages
+happens using externally provided data commitment.</p>
+<p>However, Bitswap still requires multihashes and CID codecs to be registered. Therefore, we provide a table for the
+supported <a href="shwap/spec.html#share-identifiers">share identifiers</a> with their respective multihash and CID codec codes. This table
+is supposed to be extended whenever any new share identifier is added.</p>
+<div class="table-wrapper"><table><thead><tr><th>Name</th><th>Multihash</th><th>Codec</th></tr></thead><tbody>
+<tr><td>RowID</td><td>0x7811</td><td>0x7810</td></tr>
+<tr><td>SampleID</td><td>0x7801</td><td>0x7800</td></tr>
+<tr><td>DataID</td><td>0x7821</td><td>0x7820</td></tr>
+</tbody></table>
+</div>
 <p>The naive question would be: "Why not to make content verification after Bitswap provided it back over its API?"
 Intuitively, this would simplify a lot and wouldn't require "hacking" CID. However, this has an important downside -
-the Bitswap in such case would consider the content as fetched and valid, sending DONT_WANT message to its peers, while
-the message might be invalid according to the verification rules.</p>
+the Bitswap in such case would consider the request finalized and the content as fetched and valid, sending DONT_WANT
+message to its peers, while the message might stillbe invalid according to the verification rules.</p>
+<h2 id="backwards-compatibility"><a class="header" href="#backwards-compatibility">Backwards Compatibility</a></h2>
+<p>Swap is incompatible with the old sampling protocol.</p>
+<p>After rigorous investigation, celestia-node team decided against <em>implementing</em> backward compatibility with
+the old protocol into the node client due to the immense complications it brings. Instead, the simple and time-efficient
+strategy is transiently deploying infrastructure for old and new versions, allowing network participants to migrate
+gradually to the latest version. We will first deprecate the old version, and once the majority has migrated, we will
+terminate the old infrastructure.</p>
+<h2 id="considerations"><a class="header" href="#considerations">Considerations</a></h2>
+<h3 id="security"><a class="header" href="#security">Security</a></h3>
+<p>Shwap does not change the security model of Celestia's Data Availability network and changes the underlying
+protocol for data retrieval.</p>
+<p>Essentially, the network and its codebase get simplified and require less code and infrastructure to operate. This in turn
+decreases the amount of implementation vulnerabilities, DOS vectors, message amplification, and resource exhaustion attacks.
+Although, new bug may be introduced as with any new protocol.</p>
+<h3 id="protobuf-serialization"><a class="header" href="#protobuf-serialization">Protobuf Serialization</a></h3>
+<p>Protobuf is widely adopted serialization format and is used within Celestia's protocols. This was quite an obvious choice
+for consistency reason, even though we could choose other more efficient and advanced formats like Cap'n Proto.</p>
+<h2 id="reference-implementation"><a class="header" href="#reference-implementation">Reference Implementation</a></h2>
+<ul>
+<li>[Go reference implementation with Bitswap composition][gimpl]</li>
+<li>[Rust implementation with Bitswap composition][rimpl]</li>
+</ul>
 
                     </main>
 
