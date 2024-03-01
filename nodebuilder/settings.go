@@ -7,8 +7,8 @@ import (
 
 	logging "github.com/ipfs/go-log/v2"
 	"github.com/libp2p/go-libp2p/core/peer"
-	"github.com/pyroscope-io/client/pyroscope"
-	otelpyroscope "github.com/pyroscope-io/otel-profiling-go"
+	"github.com/grafana/pyroscope-go"
+	otelpyroscope "github.com/grafana/otel-profiling-go"
 	"go.opentelemetry.io/contrib/instrumentation/runtime"
 	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/exporters/otlp/otlpmetric/otlpmetrichttp"
