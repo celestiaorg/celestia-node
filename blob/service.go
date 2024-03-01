@@ -164,6 +164,7 @@ func (s *Service) GetProof(
 
 // GetAll returns all blobs under the given namespaces at the given height.
 // GetAll can return blobs and an error in case if some requests failed.
+// GetAll can return both empty values in case if blobs were not found for the requested namespaces.
 func (s *Service) GetAll(ctx context.Context, height uint64, namespaces []share.Namespace) ([]*Blob, error) {
 	header, err := s.headerGetter(ctx, height)
 	if err != nil {
@@ -186,7 +187,13 @@ func (s *Service) GetAll(ctx context.Context, height uint64, namespaces []share.
 			defer wg.Done()
 			blobs, err := s.getBlobs(ctx, namespace, header)
 			if err != nil {
-				resultErr[i] = fmt.Errorf("getting blobs for namespace(%s): %w", namespace.String(), err)
+				resErr := fmt.Errorf("getting blobs for namespace(%s): %w", namespace.String(), err)
+				if errors.Is(err, ErrBlobNotFound) {
+					log.Debug(resErr)
+					return
+				}
+
+				resultErr[i] = resErr
 				return
 			}
 
@@ -201,10 +208,6 @@ func (s *Service) GetAll(ctx context.Context, height uint64, namespaces []share.
 		if len(resBlobs) > 0 {
 			blobs = append(blobs, resBlobs...)
 		}
-	}
-
-	if len(blobs) == 0 {
-		resultErr = append(resultErr, ErrBlobNotFound)
 	}
 	return blobs, errors.Join(resultErr...)
 }
