@@ -184,7 +184,7 @@ solve critical inefficiencies and standardise messaging of Celestia's Data Avail
 <p>Shwap defines messaging framework to be exchanged around the DA p2p network in trust-minimized way and without enforcing
 transport(QUIC/TCP or IP) or application layer protocol semantics(e.g HTTP/x). Using this framework, Shwap
 declares the most common messages and provides options on how to stack them with lower-level protocols.
-Shwap can be stacked together with application protocol like HTTP/x, [KadDHT][kaddht], <a href="https://docs.ipfs.tech/concepts/bitswap/">Bitswap</a> or any custom
+Shwap can be stacked together with application protocol like HTTP/x, <a href="https://pdos.csail.mit.edu/~petar/papers/maymounkov-kademlia-lncs.pdf">KadDHT</a>, <a href="https://docs.ipfs.tech/concepts/bitswap/">Bitswap</a> or any custom
 protocol.</p>
 <h2 id="motivation"><a class="header" href="#motivation">Motivation</a></h2>
 <p>The current Data Availability Sampling (DAS) network protocol is inefficient. A <em>single</em> sample operation takes log2(k)
@@ -257,7 +257,7 @@ future messages should be described in here.</p>
 <h4 id="rowid"><a class="header" href="#rowid">RowID</a></h4>
 <p>RowID identifies the <a href="shwap/spec.html#row-container">Row shares container</a> in a <a href="https://celestiaorg.github.io/celestia-app/specs/data_structures.html#2d-reed-solomon-encoding-scheme">DataSquare</a>.</p>
 <p>RowID identifiers are formatted as shown below:</p>
-<pre><code>RowID {
+<pre><code class="language-text">RowID {
     Height: u64;
     RowIndex: u16;
 }
@@ -286,7 +286,7 @@ halves and the computed NMT root MUST be equal to the respective Row root in <a 
 <h4 id="sampleid"><a class="header" href="#sampleid">SampleID</a></h4>
 <p>SampleID identifies a Sample container of a single share in a <a href="https://celestiaorg.github.io/celestia-app/specs/data_structures.html#2d-reed-solomon-encoding-scheme">DataSquare</a>.</p>
 <p>SampleID identifiers are formatted as shown below:</p>
-<pre><code>SampleID {
+<pre><code class="language-text">SampleID {
     RowID;
     ColumnIndex: u16; 
 }
@@ -325,7 +325,7 @@ and be verified against the respective root from Row or Column axis in <a href="
 <p>DataID identifies <a href="https://celestiaorg.github.io/celestia-app/specs/namespace.html#abstract">namespace</a> Data container of shares within a <em>single</em> Row. That is, namespace shares spanning
 over multiple Rows are identified with multiple identifiers.</p>
 <p>DataID identifiers are formatted as shown below:</p>
-<pre><code>DataID {
+<pre><code class="language-text">DataID {
     RowID;
     Namespace;
 }
@@ -387,7 +387,7 @@ is supposed to be extended whenever any new share identifier is added.</p>
 <p>The naive question would be: "Why not to make content verification after Bitswap provided it back over its API?"
 Intuitively, this would simplify a lot and wouldn't require "hacking" CID. However, this has an important downside -
 the Bitswap in such case would consider the request finalized and the content as fetched and valid, sending DONT_WANT
-message to its peers, while the message might stillbe invalid according to the verification rules.</p>
+message to its peers, while the message might still be invalid according to the verification rules.</p>
 <h2 id="backwards-compatibility"><a class="header" href="#backwards-compatibility">Backwards Compatibility</a></h2>
 <p>Swap is incompatible with the old sampling protocol.</p>
 <p>After rigorous investigation, celestia-node team decided against <em>implementing</em> backward compatibility with
@@ -407,8 +407,8 @@ Although, new bug may be introduced as with any new protocol.</p>
 for consistency reason, even though we could choose other more efficient and advanced formats like Cap'n Proto.</p>
 <h2 id="reference-implementation"><a class="header" href="#reference-implementation">Reference Implementation</a></h2>
 <ul>
-<li>[Go reference implementation with Bitswap composition][gimpl]</li>
-<li>[Rust implementation with Bitswap composition][rimpl]</li>
+<li><a href="https://github.com/celestiaorg/celestia-node/pull/2675">Go reference implementation with Bitswap composition</a></li>
+<li><a href="https://github.com/eigerco/lumina/blob/561640072114fa5c4ed807e94882473476a41dda/node/src/p2p/shwap.rs">Rust implementation with Bitswap composition</a></li>
 </ul>
 
                     </main>
