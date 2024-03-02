@@ -3,19 +3,19 @@
 ## Abstract
 
 This document specifies Shwap - the simple and expressive, yet extensible and future-proof messaging framework aiming to
-solve critical inefficiencies and standardise messaging of Celestia's Data Availability p2p network. 
+solve critical inefficiencies and standardise messaging of Celestia's Data Availability p2p network.
 
 Shwap defines messaging framework to be exchanged around the DA p2p network in trust-minimized way and without enforcing
-transport(QUIC/TCP or IP) or application layer protocol semantics(e.g HTTP/x). Using this framework, Shwap 
-declares the most common messages and provides options on how to stack them with lower-level protocols. 
-Shwap can be stacked together with application protocol like HTTP/x, [KadDHT][kaddht], [Bitswap][bitswap] or any custom 
+transport(QUIC/TCP or IP) or application layer protocol semantics(e.g HTTP/x). Using this framework, Shwap
+declares the most common messages and provides options on how to stack them with lower-level protocols.
+Shwap can be stacked together with application protocol like HTTP/x, [KadDHT][kaddht], [Bitswap][bitswap] or any custom
 protocol.
 
 ## Motivation
 
-The current Data Availability Sampling (DAS) network protocol is inefficient. A _single_ sample operation takes log2(k) 
-network round-trips(where k is the square size). This is not practical and does not scale for the theoretically unlimited 
-data square that the Celestia network enables. The main motive here is a protocol with O(1) round-trip for _multiple_ 
+The current Data Availability Sampling (DAS) network protocol is inefficient. A _single_ sample operation takes log2(k)
+network round-trips(where k is the square size). This is not practical and does not scale for the theoretically unlimited
+data square that the Celestia network enables. The main motive here is a protocol with O(1) round-trip for _multiple_
 samples, preserving the assumption of having 1/n honest peers connected.
 
 Initially, Bitswap and IPLD were adopted as the basis for the DA network protocols, including DAS,
@@ -23,7 +23,7 @@ block synchronization (BS), and blob/namespace data retrieval (ND). They gave ba
 pluggability to rapidly scaffold Celestia's DA network. However, it came with the price of scalability limits and
 round-trips resulting in BS slower than block production. Before the network launch, the transition
 to the optimized [ShrEx protocol][shrex] for BS and integrating [CAR and DAGStore-based storage][storage] happened
-optimizing BS and ND. However, DAS was left untouched, preserving its weak scalability and roundtrip inefficiency. 
+optimizing BS and ND. However, DAS was left untouched, preserving its weak scalability and roundtrip inefficiency.
 
 Shwap messaging stacked together with Bitswap protocol directly addresses described inefficiency and provides foundation
 for efficient communication for BS, ND, and beyond.
@@ -34,16 +34,16 @@ The atomic primitive of Celestia's DA network is a share. Shwap standardize mess
 Shares are grouped together forming more complex data types(Rows, Blobs, etc). These data types are encapsulated in
 containers, e.g. Row container groups shares of a particular row. Containers can be identified with share identifiers
 in order to request, advertise or index the containers. The combination of containers and identifiers provides extensible
-and expressive messaging framework for groups of shares and enable efficient single round-trip request-response 
+and expressive messaging framework for groups of shares and enable efficient single round-trip request-response
 communication.
 
 There are many share groups or containers known in Celestia network and systemizing this is the main reason behind setting
 up this simple messaging framework. There needs to be a single place with all the possible Celestia DA messages defined
-which node software and protocol researchers can rely and coordinate on. Besides, this framework is designed to be 
-future-proof and sustain changes in the core protocol's data structures and proving system, as long shares stays the 
+which node software and protocol researchers can rely and coordinate on. Besides, this framework is designed to be
+future-proof and sustain changes in the core protocol's data structures and proving system, as long shares stays the
 de facto atomic data type.
 
-Besides, there needs to be systematization and common knowledge-base with all the edge cases for possible protocol 
+Besides, there needs to be systematization and common knowledge-base with all the edge cases for possible protocol
 compositions of Shwap with lower-level protocols Bitswap, KadDHT or Shrex, which Shwap aims to describe.
 
 ## Specification
@@ -82,14 +82,14 @@ _**Proof**_: A Merkle inclusion proof of the data in the DataSquare.
 
 ### Message Framework
 
-This sections defines messaging framework of Shwap. Every group of shares that needs to be exchanged over the network 
-MUST define its [share identifier](#share-identifiers) and [share container](#share-containers), as well as, follow 
+This sections defines messaging framework of Shwap. Every group of shares that needs to be exchanged over the network
+MUST define its [share identifier](#share-identifiers) and [share container](#share-containers), as well as, follow
 their described rules.
 
 #### Share Identifiers
 
 Share identifiers defined by Shwap can be used to uniquely identify any [share container](#share-containers) over a chain
-with arbitrary number of [DataSquares][square], like a range of [shares][shares], a row or a [blob][blob]. Every share 
+with arbitrary number of [DataSquares][square], like a range of [shares][shares], a row or a [blob][blob]. Every share
 identifier relates to a respective share container and vise-versa.
 
 Identifiers MUST have a fixed size for their fields. Subsequently, protobuf SHOULD NOT be used for CID serialization due
@@ -100,12 +100,12 @@ Identifiers MAY embed each other to narrow down the scope of needed shares. For 
 
 #### Share Containers
 
-Share containers encapsulate a set of data shares with [DAH][dah] inclusion proof. Share containers are identified by 
+Share containers encapsulate a set of data shares with [DAH][dah] inclusion proof. Share containers are identified by
 [share identifiers](#share-identifiers).
 
 #### Versioning
 
-In case defined share container or identifier requires an incompatible change the new message type MAY be introduced 
+In case defined share container or identifier requires an incompatible change the new message type MAY be introduced
 suffixed with new major version starting from v1. E.g. if Row message needs a revision, RowV1 is created.
 
 ### Messages
@@ -119,7 +119,7 @@ RowID identifies the [Row shares container](#row-container) in a [DataSquare][sq
 
 RowID identifiers are formatted as shown below:
 
-```
+```text
 RowID {
     Height: u64;
     RowIndex: u16;
@@ -128,7 +128,7 @@ RowID {
 
 The fields with validity rules that form RowID are:
 
-**Height**: A uint64 representing the chain height with the data square. It MUST be bigger than zero. 
+**Height**: A uint64 representing the chain height with the data square. It MUST be bigger than zero.
 
 **RowIndex**: An uint16 representing row index points to a particular row. It MUST not exceed the number of Row roots in
 [DAH][dah].
@@ -140,6 +140,7 @@ Serialized RowID MUST have length of 10 bytes.
 Row containers encapsulate Row of the [DataSquare][square].
 
 Row containers are protobuf formatted using the following proto3 schema:
+
 ```protobuf
 syntax = "proto3";
 
@@ -163,7 +164,8 @@ halves and the computed NMT root MUST be equal to the respective Row root in [DA
 SampleID identifies a Sample container of a single share in a [DataSquare][square].
 
 SampleID identifiers are formatted as shown below:
-```
+
+```text
 SampleID {
     RowID;
     ColumnIndex: u16; 
@@ -174,7 +176,7 @@ The fields with validity rules that form SampleID are:
 
 [**RowID**](#rowid): A RowID of the sample. It MUST follow [RowID](#rowid) formatting and field validity rules.
 
-**ColumnIndex**: A uint16 representing the column index of the sampled share; in other words share index in the row. It 
+**ColumnIndex**: A uint16 representing the column index of the sampled share; in other words share index in the row. It
 MUST not exceed the number of Column roots in [DAH][dah].
 
 Serialized SampleID MUST have length of 12 bytes.
@@ -184,6 +186,7 @@ Serialized SampleID MUST have length of 12 bytes.
 Sample containers encapsulate single shares of the [DataSquare][square].
 
 Sample containers are protobuf formatted using the following proto3 schema:
+
 ```protobuf
 syntax = "proto3";
 
@@ -215,11 +218,12 @@ and be verified against the respective root from Row or Column axis in [DAH][dah
 
 #### DataID
 
-DataID identifies [namespace][ns] Data container of shares within a _single_ Row. That is, namespace shares spanning 
+DataID identifies [namespace][ns] Data container of shares within a _single_ Row. That is, namespace shares spanning
 over multiple Rows are identified with multiple identifiers.
 
 DataID identifiers are formatted as shown below:
-```
+
+```text
 DataID {
     RowID;
     Namespace;
@@ -230,7 +234,7 @@ The fields with validity rules that form DataID are:
 
 [**RowID**](#rowid): A RowID of the namespace data. It MUST follow [RowID](#rowid) formatting and field validity rules.
 
-[**Namespace**][ns]: A fixed-size bytes array representing the Namespace of interest. It MUST follow [Namespace][ns] 
+[**Namespace**][ns]: A fixed-size bytes array representing the Namespace of interest. It MUST follow [Namespace][ns]
 formatting and its validity rules.
 
 Serialized DataID MUST have length of 39 bytes.
@@ -240,6 +244,7 @@ Serialized DataID MUST have length of 39 bytes.
 Data containers encapsulate user submitted data under [namespaces][ns].
 
 Data containers are protobuf formatted using the following proto3 schema:
+
 ```protobuf
 syntax = "proto3";
 
@@ -252,32 +257,32 @@ message Data {
 
 The fields with validity rules that form Data containers are:
 
-[**DataID**](#dataid): A DataID of the Data container. It MUST follow [DataID](#dataid) formatting and field validity 
+[**DataID**](#dataid): A DataID of the Data container. It MUST follow [DataID](#dataid) formatting and field validity
 rules.
 
-**DataShares**: A two-dimensional variable size byte arrays representing left data shares of a namespace in the row. 
+**DataShares**: A two-dimensional variable size byte arrays representing left data shares of a namespace in the row.
 Each share MUST follow [share formatting and validity][shares-format] rules.
 
 **Proof**: A [protobuf formated][nmt-pb] [NMT][nmt] proof of share inclusion. It MUST follow [NMT proof verification][nmt-verify]
 and be verified against the respective root from Row or Column axis in [DAH][dah]. The axis is defined by ProofType field.
 
-Namespace data may span over multiple rows in which case all the data is encapsulated in multiple containers. This is 
+Namespace data may span over multiple rows in which case all the data is encapsulated in multiple containers. This is
 done
 
 ## Protocol Compositions
 
-This sections specifies compositions of Shwap with other protocols. While Shwap is transport agnostic there are rough 
+This sections specifies compositions of Shwap with other protocols. While Shwap is transport agnostic there are rough
 edges on the protocol integration which every composition specifications has to describe.
 
 ### Bitswap
 
-[Bitswap][bitswap] is an application-level protocol designed for sharing verifiable data across peer-to-peer networks. 
-Bitswap operates as a dynamic want-list exchange among peers in a network. Peers continuously update and share their 
-want-lists of desired data in real-time. If at least one connected peer has the needed data, it is promptly fetched. 
-This ongoing exchange ensures that as soon as any peer acquires the sought-after data, it can instantly share it with 
+[Bitswap][bitswap] is an application-level protocol designed for sharing verifiable data across peer-to-peer networks.
+Bitswap operates as a dynamic want-list exchange among peers in a network. Peers continuously update and share their
+want-lists of desired data in real-time. If at least one connected peer has the needed data, it is promptly fetched.
+This ongoing exchange ensures that as soon as any peer acquires the sought-after data, it can instantly share it with
 those in need.
 
-Shwap is designed to be synergetic with Bitswap, as that's the primary composition to be deployed in Celestia's DA 
+Shwap is designed to be synergetic with Bitswap, as that's the primary composition to be deployed in Celestia's DA
 network. Bitswap provides 1/N peers guarantee and can parallelize fetching across multiple peers. Both of these properties
 greatly contribute to efficient DAS protocol of Celestia.
 
@@ -286,14 +291,14 @@ libp2p provides together with transport protocol advancements introduced in QUIC
 
 #### Multihashes and CID
 
-Bitswap is tightly coupled with Multihash and CID notions establishing the content addressability property. Shwap takes 
+Bitswap is tightly coupled with Multihash and CID notions establishing the content addressability property. Shwap takes
 inspiration from content addressability, but breaks-free from hash-based only model to optimize message sizes
 and data request patterns. In some way, it hacks into multihash abstraction to make it contain data that isn't in fact a
 hash. Furthermore, the protocol does not include hash digests in the multihashes. The authentication of the messages
 happens using externally provided data commitment.
 
-However, Bitswap still requires multihashes and CID codecs to be registered. Therefore, we provide a table for the 
-supported [share identifiers](#share-identifiers) with their respective multihash and CID codec codes. This table 
+However, Bitswap still requires multihashes and CID codecs to be registered. Therefore, we provide a table for the
+supported [share identifiers](#share-identifiers) with their respective multihash and CID codec codes. This table
 is supposed to be extended whenever any new share identifier is added.
 
 | Name     | Multihash | Codec  |
@@ -304,8 +309,8 @@ is supposed to be extended whenever any new share identifier is added.
 
 The naive question would be: "Why not to make content verification after Bitswap provided it back over its API?"
 Intuitively, this would simplify a lot and wouldn't require "hacking" CID. However, this has an important downside -
-the Bitswap in such case would consider the request finalized and the content as fetched and valid, sending DONT_WANT 
-message to its peers, while the message might stillbe invalid according to the verification rules. 
+the Bitswap in such case would consider the request finalized and the content as fetched and valid, sending DONT_WANT
+message to its peers, while the message might still be invalid according to the verification rules.
 
 ## Backwards Compatibility
 
@@ -341,6 +346,7 @@ for consistency reason, even though we could choose other more efficient and adv
 [shrex]: https://github.com/celestiaorg/celestia-node/blob/0abd16bbb05bf3016595498844a588ef55c63d2d/docs/adr/adr-013-blocksync-overhaul-part-2.md
 [storage]: https://github.com/celestiaorg/celestia-node/blob/a33c80e20da684d656c7213580be7878bcd27cf4/docs/adr/adr-011-blocksync-overhaul-part-1.md
 [bitswap]: https://docs.ipfs.tech/concepts/bitswap/
+[kaddht]: https://pdos.csail.mit.edu/~petar/papers/maymounkov-kademlia-lncs.pdf
 [square]: https://celestiaorg.github.io/celestia-app/specs/data_structures.html#2d-reed-solomon-encoding-scheme
 [shares]: https://celestiaorg.github.io/celestia-app/specs/shares.html#abstract
 [shares-format]: https://celestiaorg.github.io/celestia-app/specs/shares.html#share-format
@@ -350,3 +356,5 @@ for consistency reason, even though we could choose other more efficient and adv
 [nmt]: https://github.com/celestiaorg/nmt/blob/master/docs/spec/nmt.md
 [nmt-pb]: https://github.com/celestiaorg/nmt/blob/f5556676429118db8eeb5fc396a2c75ab12b5f20/pb/proof.proto
 [nmt-verify]: https://github.com/celestiaorg/nmt/blob/master/docs/spec/nmt.md#namespace-proof-verification
+[gimpl]: https://github.com/celestiaorg/celestia-node/pull/2675
+[rimpl]: https://github.com/eigerco/lumina/blob/561640072114fa5c4ed807e94882473476a41dda/node/src/p2p/shwap.rs
