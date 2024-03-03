@@ -1,7 +1,7 @@
 package blob
 
 import (
-	"reflect"
+	"bytes"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -14,7 +14,7 @@ import (
 )
 
 func TestBlob(t *testing.T) {
-	appBlobs, err := blobtest.GenerateV0Blobs([]int{1}, false)
+	appBlobs, err := blobtest.GenerateV0Blobs([]int{16}, false)
 	require.NoError(t, err)
 	blob, err := convertBlobs(appBlobs...)
 	require.NoError(t, err)
@@ -53,10 +53,12 @@ func TestBlob(t *testing.T) {
 			expectedRes: func(t *testing.T) {
 				sh, err := BlobsToShares(blob...)
 				require.NoError(t, err)
-				b, err := SharesToBlobs(sh)
+				shares, err := toAppShares(sh...)
 				require.NoError(t, err)
-				assert.Equal(t, len(b), 1)
-				assert.Equal(t, blob[0].Commitment, b[0].Commitment)
+				p := &parser{length: len(shares), shares: shares}
+				b, err := p.parse()
+				require.NoError(t, err)
+				assert.Equal(t, blob[0].Commitment, b.Commitment)
 			},
 		},
 		{
@@ -67,7 +69,8 @@ func TestBlob(t *testing.T) {
 
 				newBlob := &Blob{}
 				require.NoError(t, newBlob.UnmarshalJSON(data))
-				require.True(t, reflect.DeepEqual(blob[0], newBlob))
+				require.True(t, bytes.Equal(blob[0].Blob.Data, newBlob.Data))
+				require.True(t, bytes.Equal(blob[0].Commitment, newBlob.Commitment))
 			},
 		},
 	}
