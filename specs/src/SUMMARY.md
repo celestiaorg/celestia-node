@@ -1,3 +1,3 @@
 # Summary
 
-- [Shwap](https://github.com/celestiaorg/CIPs/pull/77#issuecomment-1977130416)
+- [Shwap](https://github.com/Wondertan/CIPs/blob/cip-shwap_protocol/cips/cip-shwap_protocol.md)
