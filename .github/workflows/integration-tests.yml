@@ -62,7 +62,7 @@ jobs:
           go-version: ${{ inputs.go-version }}
 
       - name: run da tests
-        run: make test-integration-coverage SHORT=true TAGS=da
+        run: make test-integration SHORT=true TAGS=da
 
       - name: upload coverage
         uses: codecov/codecov-action@v3
