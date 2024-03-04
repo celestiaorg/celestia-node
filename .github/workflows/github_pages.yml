@@ -25,13 +25,11 @@ jobs:
         with:
           mdbook-version: "latest"
 
-      - uses: actions-rs/toolchain@v1
+      - uses: actions-rs/install@v0.1
         with:
-          toolchain: stable
-      - uses: actions-rs/cargo@v1
-        with:
-          command: install
-          args: mdbook-webinclude mdbook-yml-header mdbool-pagetoc
+          crate: mdbook-webinclude mdbook-yml-header mdbool-pagetoc
+          version: latest
+          use-tool-cache: true
 
       - name: Build book
         run: mdbook build specs
