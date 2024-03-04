@@ -27,7 +27,19 @@ jobs:
 
       - uses: actions-rs/install@v0.1
         with:
-          crate: mdbook-webinclude mdbook-yml-header mdbool-pagetoc
+          crate: mdbook-webinclude
+          version: latest
+          use-tool-cache: true
+
+      - uses: actions-rs/install@v0.1
+        with:
+          crate: mdbook-yml-header
+          version: latest
+          use-tool-cache: true
+
+      - uses: actions-rs/install@v0.1
+        with:
+          crate: mdbool-pagetoc
           version: latest
           use-tool-cache: true
 
