@@ -1,0 +1,1 @@
+{{#webinclude https://raw.githubusercontent.com/Wondertan/CIPs/cip-shwap_protocol/cips/cip-shwap_protocol.md}} <!-- markdownlint-disable -->
