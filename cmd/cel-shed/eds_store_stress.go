@@ -10,9 +10,9 @@ import (
 	"os"
 	"time"
 
+	"github.com/grafana/pyroscope-go"
 	logging "github.com/ipfs/go-log/v2"
 	"github.com/mitchellh/go-homedir"
-	"github.com/pyroscope-io/client/pyroscope"
 	"github.com/spf13/cobra"
 
 	"github.com/celestiaorg/celestia-node/libs/edssser"

@@ -7,8 +7,8 @@ import (
 	"net/http/pprof"
 	"strings"
 
+	otelpyroscope "github.com/grafana/otel-profiling-go"
 	logging "github.com/ipfs/go-log/v2"
-	otelpyroscope "github.com/pyroscope-io/otel-profiling-go"
 	"github.com/spf13/cobra"
 	flag "github.com/spf13/pflag"
 	"go.opentelemetry.io/otel/exporters/otlp/otlpmetric/otlpmetrichttp"
