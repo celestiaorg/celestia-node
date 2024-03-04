@@ -73,7 +73,7 @@ jobs:
       - name: upload coverage
         uses: codecov/codecov-action@v3
         with:
-          file: ./sync-coverage.out
+          file: ./da-coverage.out
 
   fraud_tests:
     name: Integration Tests Fraud
@@ -153,7 +153,7 @@ jobs:
       - name: upload coverage
         uses: codecov/codecov-action@v3
         with:
-          file: ./sync-coverage.out
+          file: ./reconstruction-coverage.out
 
   sync_tests:
     name: Integration Tests Sync
