@@ -272,6 +272,7 @@ func formatData(data interface{}) interface{} {
 		Data         string `json:"data"`
 		ShareVersion uint32 `json:"share_version"`
 		Commitment   []byte `json:"commitment"`
+		Index        int    `json:"index"`
 	}
 
 	if reflect.TypeOf(data).Kind() == reflect.Slice {
@@ -283,6 +284,7 @@ func formatData(data interface{}) interface{} {
 				Data:         string(b.Data),
 				ShareVersion: b.ShareVersion,
 				Commitment:   b.Commitment,
+				Index:        b.Index(),
 			}
 		}
 		return result
@@ -294,5 +296,6 @@ func formatData(data interface{}) interface{} {
 		Data:         string(b.Data),
 		ShareVersion: b.ShareVersion,
 		Commitment:   b.Commitment,
+		Index:        b.Index(),
 	}
 }
