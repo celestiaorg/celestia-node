@@ -24,6 +24,12 @@ jobs:
       - name: run API tests
         run: make test-integration TAGS=api
 
+      - name: ls
+        run: ls -lah
+
+      - name: ls recurse
+        run: ls -lahR
+
       - name: upload coverage
         uses: codecov/codecov-action@v3
         with:
