@@ -301,10 +301,12 @@ message sizes and data request patterns. In some way, it hacks into multihash ab
 isn't in fact a hash. Furthermore, the protocol does not include hash digests in the multihashes. The authentication of
 the messages happens using externally provided data commitment.
 
-The naive question would be: "Why not to make content verification after Bitswap provided it back over its API?"
-Intuitively, this would simplify a lot and wouldn't require "hacking" CID. However, this has an important downside -
-the Bitswap in such case would consider the request finalized and the content as fetched and valid, sending DONT_WANT
-message to its peers, while the message might still be invalid according to the verification rules.
+This in turn creates a bunch complexities with the [reference Golang implementation][gimpl] that are necessary if forking
+and diverging the upstream substantially is not an option. The naive question would be: "Why not to make content
+verification after Bitswap provided it back over its API?" Intuitively, this would simplify a lot and wouldn't require
+"hacking" CID. However, this has an important downside - the Bitswap in such case would consider the request finalized
+and the content as fetched and valid, sending DONT_WANT message to its peers, while the message might still be invalid
+according to the verification rules.
 
 However, Bitswap still requires multihashes and CID codecs to be registered. Therefore, we provide a table for the
 supported [share identifiers](#share-identifiers) with their respective multihash and CID codec codes. This table
