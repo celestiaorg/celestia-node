@@ -22,13 +22,7 @@ jobs:
           go-version: ${{ inputs.go-version }}
 
       - name: run API tests
-        run: make test-integration TAGS=api
-
-      - name: ls
-        run: ls -lah
-
-      - name: ls recurse
-        run: ls -lahR
+        run: make test-integration-coverage TAGS=api
 
       - name: upload coverage
         uses: codecov/codecov-action@v3
@@ -68,7 +62,7 @@ jobs:
           go-version: ${{ inputs.go-version }}
 
       - name: run da tests
-        run: make test-integration SHORT=true TAGS=da
+        run: make test-integration-coverage SHORT=true TAGS=da
 
       - name: upload coverage
         uses: codecov/codecov-action@v3
@@ -88,7 +82,7 @@ jobs:
           go-version: ${{ inputs.go-version }}
 
       - name: run fraud tests
-        run: make test-integration TAGS=fraud
+        run: make test-integration-coverage TAGS=fraud
 
       - name: upload coverage
         uses: codecov/codecov-action@v3
@@ -108,7 +102,7 @@ jobs:
           go-version: ${{ inputs.go-version }}
 
       - name: run nd tests
-        run: make test-integration TAGS=nd
+        run: make test-integration-coverage TAGS=nd
 
       - name: upload coverage
         uses: codecov/codecov-action@v3
@@ -128,7 +122,7 @@ jobs:
           go-version: ${{ inputs.go-version }}
 
       - name: run p2p tests
-        run: make test-integration TAGS=p2p
+        run: make test-integration-coverage TAGS=p2p
 
       - name: upload coverage
         uses: codecov/codecov-action@v3
@@ -148,7 +142,7 @@ jobs:
           go-version: ${{ inputs.go-version }}
 
       - name: run reconstruction tests
-        run: make test-integration SHORT=true TAGS=reconstruction
+        run: make test-integration-coverage SHORT=true TAGS=reconstruction
 
       - name: upload coverage
         uses: codecov/codecov-action@v3
@@ -168,7 +162,7 @@ jobs:
           go-version: ${{ inputs.go-version }}
 
       - name: run sync tests
-        run: make test-integration SHORT=true TAGS=sync
+        run: make test-integration-coverage SHORT=true TAGS=sync
 
       - name: upload coverage
         uses: codecov/codecov-action@v3
