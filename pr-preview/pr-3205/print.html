@@ -370,11 +370,18 @@ greatly contribute to efficient DAS protocol of Celestia.</p>
 <p>Bitswap runs over libp2p stack which provides QUIC transport integration. Subsequently, Shwap will benefit from features
 libp2p provides together with transport protocol advancements introduced in QUIC.</p>
 <h4 id="multihashes-and-cid"><a class="header" href="#multihashes-and-cid">Multihashes and CID</a></h4>
-<p>Bitswap is tightly coupled with Multihash and CID notions establishing the content addressability property. Shwap takes
-inspiration from content addressability, but breaks-free from hash-based only model to optimize message sizes
-and data request patterns. In some way, it hacks into multihash abstraction to make it contain data that isn't in fact a
-hash. Furthermore, the protocol does not include hash digests in the multihashes. The authentication of the messages
-happens using externally provided data commitment.</p>
+<p>Bitswap is tightly coupled with Multihash and CID notions establishing the <a href="https://fission.codes/blog/content-addressing-what-it-is-and-how-it-works/">content addressability property</a>.
+Bitswap operates over Blocks of data which are addressed and verified by CIDs. Basing on that, Shwap integrates into
+Bitswap by complying to both of these interfaces. The <a href="shwap/spec.html#share-containers">Share Containers</a> are Blocks which identified
+via <a href="shwap/spec.html#share-identifiers">Share Identifiers</a>.</p>
+<p>Even though Shwap takes inspiration from content addressability, it breaks-free from hash-based only model to optimize
+message sizes and data request patterns. In some way, it hacks into multihash abstraction to make it contain data that
+isn't in fact a hash. Furthermore, the protocol does not include hash digests in the multihashes. The authentication of
+the messages happens using externally provided data commitment.</p>
+<p>The naive question would be: "Why not to make content verification after Bitswap provided it back over its API?"
+Intuitively, this would simplify a lot and wouldn't require "hacking" CID. However, this has an important downside -
+the Bitswap in such case would consider the request finalized and the content as fetched and valid, sending DONT_WANT
+message to its peers, while the message might still be invalid according to the verification rules.</p>
 <p>However, Bitswap still requires multihashes and CID codecs to be registered. Therefore, we provide a table for the
 supported <a href="shwap/spec.html#share-identifiers">share identifiers</a> with their respective multihash and CID codec codes. This table
 is supposed to be extended whenever any new share identifier is added.</p>
@@ -384,10 +391,6 @@ is supposed to be extended whenever any new share identifier is added.</p>
 <tr><td>DataID</td><td>0x7821</td><td>0x7820</td></tr>
 </tbody></table>
 </div>
-<p>The naive question would be: "Why not to make content verification after Bitswap provided it back over its API?"
-Intuitively, this would simplify a lot and wouldn't require "hacking" CID. However, this has an important downside -
-the Bitswap in such case would consider the request finalized and the content as fetched and valid, sending DONT_WANT
-message to its peers, while the message might still be invalid according to the verification rules.</p>
 <h2 id="backwards-compatibility"><a class="header" href="#backwards-compatibility">Backwards Compatibility</a></h2>
 <p>Swap is incompatible with the old sampling protocol.</p>
 <p>After rigorous investigation, celestia-node team decided against <em>implementing</em> backward compatibility with
