@@ -25,11 +25,9 @@ jobs:
         run: make test-integration TAGS=api
 
       - name: upload coverage
-        uses: actions/upload-artifact@v4
+        uses: codecov/codecov-action@v3
         with:
-          name: api-integration-test-output
-          path:
-            api-coverage.out
+          file: ./api-coverage.out
 
   blob_tests:
     name: Integration Tests Blob
@@ -47,11 +45,9 @@ jobs:
         run: make test-integration-coverage TAGS=blob
 
       - name: upload coverage
-        uses: actions/upload-artifact@v4
+        uses: codecov/codecov-action@v3
         with:
-          name: blob-integration-test-output
-          path:
-            blob-coverage.out
+          file: ./blob-coverage.out
 
   da_tests:
     name: Da Tests Sync
@@ -67,6 +63,11 @@ jobs:
 
       - name: run da tests
         run: make test-integration SHORT=true TAGS=da
+
+      - name: upload coverage
+        uses: codecov/codecov-action@v3
+        with:
+          file: ./sync-coverage.out
 
   fraud_tests:
     name: Integration Tests Fraud
@@ -84,11 +85,9 @@ jobs:
         run: make test-integration TAGS=fraud
 
       - name: upload coverage
-        uses: actions/upload-artifact@v4
+        uses: codecov/codecov-action@v3
         with:
-          name: fraud-integration-test-output
-          path:
-            fraud-coverage.out
+          file: ./fraud-coverage.out
 
   nd_tests:
     name: Integration Tests ND
@@ -106,11 +105,9 @@ jobs:
         run: make test-integration TAGS=nd
 
       - name: upload coverage
-        uses: actions/upload-artifact@v4
+        uses: codecov/codecov-action@v3
         with:
-          name: nd-integration-test-output
-          path:
-            nd-coverage.out
+          file: ./nd-coverage.out
 
   p2p_tests:
     name: Integration Tests p2p
@@ -128,11 +125,9 @@ jobs:
         run: make test-integration TAGS=p2p
 
       - name: upload coverage
-        uses: actions/upload-artifact@v4
+        uses: codecov/codecov-action@v3
         with:
-          name: p2p-integration-test-output
-          path:
-            p2p-coverage.out
+          file: ./p2p-coverage.out
 
   reconstruction_tests:
     name: Integration Tests Reconstruction
@@ -150,11 +145,9 @@ jobs:
         run: make test-integration SHORT=true TAGS=reconstruction
 
       - name: upload coverage
-        uses: actions/upload-artifact@v4
+        uses: codecov/codecov-action@v3
         with:
-          name: reconstruction-integration-test-output
-          path:
-            reconstruction-coverage.out
+          file: ./sync-coverage.out
 
   sync_tests:
     name: Integration Tests Sync
@@ -172,31 +165,6 @@ jobs:
         run: make test-integration SHORT=true TAGS=sync
 
       - name: upload coverage
-        uses: actions/upload-artifact@v4
+        uses: codecov/codecov-action@v3
         with:
-          name: sync-integration-test-output
-          path:
-            sync-coverage.out
-
-  merge:
-    runs-on: ubuntu-latest
-    needs: [api_tests, blob_tests, fraud_tests, nd_tests, p2p_tests, reconstruction_tests, sync_tests] # yamllint disable-line rule:line-length
-    steps:
-      - name: Merge Artifacts
-        uses: actions/upload-artifact/merge@v4
-        with:
-          name: coverage-reports
-
-      - name: Download Artifacts
-        uses: actions/download-artifact@v4
-        with:
-          name: coverage-reports
-          path: ./coverage-reports
-
-      - run: |
-          ls -lah
-
-      - name: Upload to Codecov
-        uses: codecov/codecov-action@v2
-        with:
-          files: ./coverage-reports/*-coverage.out
+          file: ./sync-coverage.out
