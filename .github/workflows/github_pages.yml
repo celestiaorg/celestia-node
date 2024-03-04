@@ -25,19 +25,22 @@ jobs:
         with:
           mdbook-version: "latest"
 
-      - uses: actions-rs/install@v0.1
+      - name: Install mdbook-webinclude
+        uses: actions-rs/install@v0.1
         with:
           crate: mdbook-webinclude
           version: latest
           use-tool-cache: true
 
-      - uses: actions-rs/install@v0.1
+      - name: Install mdbook-yml-header
+        uses: actions-rs/install@v0.1
         with:
           crate: mdbook-yml-header
           version: latest
           use-tool-cache: true
 
-      - uses: actions-rs/install@v0.1
+      - name: Install mdbook-pagetoc
+        uses: actions-rs/install@v0.1
         with:
           crate: mdbool-pagetoc
           version: latest
