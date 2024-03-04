@@ -291,11 +291,20 @@ libp2p provides together with transport protocol advancements introduced in QUIC
 
 #### Multihashes and CID
 
-Bitswap is tightly coupled with Multihash and CID notions establishing the content addressability property. Shwap takes
-inspiration from content addressability, but breaks-free from hash-based only model to optimize message sizes
-and data request patterns. In some way, it hacks into multihash abstraction to make it contain data that isn't in fact a
-hash. Furthermore, the protocol does not include hash digests in the multihashes. The authentication of the messages
-happens using externally provided data commitment.
+Bitswap is tightly coupled with Multihash and CID notions establishing the [content addressability property][content-address].
+Bitswap operates over Blocks of data which are addressed and verified by CIDs. Basing on that, Shwap integrates into
+Bitswap by complying to both of these interfaces. The [Share Containers](#share-containers) are Blocks which identified
+via [Share Identifiers](#share-identifiers).
+
+Even though Shwap takes inspiration from content addressability, it breaks-free from hash-based only model to optimize
+message sizes and data request patterns. In some way, it hacks into multihash abstraction to make it contain data that
+isn't in fact a hash. Furthermore, the protocol does not include hash digests in the multihashes. The authentication of
+the messages happens using externally provided data commitment.
+
+The naive question would be: "Why not to make content verification after Bitswap provided it back over its API?"
+Intuitively, this would simplify a lot and wouldn't require "hacking" CID. However, this has an important downside -
+the Bitswap in such case would consider the request finalized and the content as fetched and valid, sending DONT_WANT
+message to its peers, while the message might still be invalid according to the verification rules.
 
 However, Bitswap still requires multihashes and CID codecs to be registered. Therefore, we provide a table for the
 supported [share identifiers](#share-identifiers) with their respective multihash and CID codec codes. This table
@@ -306,11 +315,6 @@ is supposed to be extended whenever any new share identifier is added.
 | RowID    | 0x7811    | 0x7810 |
 | SampleID | 0x7801    | 0x7800 |
 | DataID   | 0x7821    | 0x7820 |
-
-The naive question would be: "Why not to make content verification after Bitswap provided it back over its API?"
-Intuitively, this would simplify a lot and wouldn't require "hacking" CID. However, this has an important downside -
-the Bitswap in such case would consider the request finalized and the content as fetched and valid, sending DONT_WANT
-message to its peers, while the message might still be invalid according to the verification rules.
 
 ## Backwards Compatibility
 
@@ -346,6 +350,7 @@ for consistency reason, even though we could choose other more efficient and adv
 [shrex]: https://github.com/celestiaorg/celestia-node/blob/0abd16bbb05bf3016595498844a588ef55c63d2d/docs/adr/adr-013-blocksync-overhaul-part-2.md
 [storage]: https://github.com/celestiaorg/celestia-node/blob/a33c80e20da684d656c7213580be7878bcd27cf4/docs/adr/adr-011-blocksync-overhaul-part-1.md
 [bitswap]: https://docs.ipfs.tech/concepts/bitswap/
+[content-address]: https://fission.codes/blog/content-addressing-what-it-is-and-how-it-works/
 [kaddht]: https://pdos.csail.mit.edu/~petar/papers/maymounkov-kademlia-lncs.pdf
 [square]: https://celestiaorg.github.io/celestia-app/specs/data_structures.html#2d-reed-solomon-encoding-scheme
 [shares]: https://celestiaorg.github.io/celestia-app/specs/shares.html#abstract
