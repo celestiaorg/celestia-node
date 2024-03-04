@@ -42,7 +42,7 @@ jobs:
       - name: Install mdbook-pagetoc
         uses: actions-rs/install@v0.1
         with:
-          crate: mdbool-pagetoc
+          crate: mdbook-pagetoc
           version: latest
           use-tool-cache: true
 
