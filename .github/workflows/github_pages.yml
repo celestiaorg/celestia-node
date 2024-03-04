@@ -25,6 +25,14 @@ jobs:
         with:
           mdbook-version: "latest"
 
+      - uses: actions-rs/toolchain@v1
+        with:
+          toolchain: stable
+      - uses: actions-rs/cargo@v1
+        with:
+          command: install
+          args: mdbook-webinclude mdbook-yml-header mdbool-pagetoc
+
       - name: Build book
         run: mdbook build specs
 
