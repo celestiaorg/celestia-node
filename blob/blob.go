@@ -9,12 +9,13 @@ import (
 	tmproto "github.com/tendermint/tendermint/proto/tendermint/types"
 
 	"github.com/celestiaorg/celestia-app/pkg/appconsts"
-	"github.com/celestiaorg/celestia-app/pkg/shares"
 	"github.com/celestiaorg/celestia-app/x/blob/types"
 	"github.com/celestiaorg/nmt"
 
 	"github.com/celestiaorg/celestia-node/share"
 )
+
+var errEmptyShares = errors.New("empty shares")
 
 // Commitment is a Merkle Root of the subtree built from shares of the Blob.
 // It is computed by splitting the blob into shares and building the Merkle subtree to be included
@@ -31,9 +32,39 @@ func (com Commitment) Equal(c Commitment) bool {
 }
 
 // Proof is a collection of nmt.Proofs that verifies the inclusion of the data.
+// Proof proves the WHOLE namespaced data for the particular row.
+// TODO (@vgonkivs): rework `Proof` in order to prove a particular blob.
+// https://github.com/celestiaorg/celestia-node/issues/2303
 type Proof []*nmt.Proof
 
 func (p Proof) Len() int { return len(p) }
+
+func (p Proof) MarshalJSON() ([]byte, error) {
+	proofs := make([]string, 0, len(p))
+	for _, proof := range p {
+		proofBytes, err := proof.MarshalJSON()
+		if err != nil {
+			return nil, err
+		}
+		proofs = append(proofs, string(proofBytes))
+	}
+	return json.Marshal(proofs)
+}
+
+func (p *Proof) UnmarshalJSON(b []byte) error {
+	var proofs []string
+	if err := json.Unmarshal(b, &proofs); err != nil {
+		return err
+	}
+	for _, proof := range proofs {
+		var nmtProof nmt.Proof
+		if err := nmtProof.UnmarshalJSON([]byte(proof)); err != nil {
+			return err
+		}
+		*p = append(*p, &nmtProof)
+	}
+	return nil
+}
 
 // equal is a temporary method that compares two proofs.
 // should be removed in BlobService V1.
@@ -72,6 +103,10 @@ type Blob struct {
 	// the celestia-node's namespace type
 	// this is to avoid converting to and from app's type
 	namespace share.Namespace
+
+	// index represents the index of the blob's first share in the EDS.
+	// Only retrieved, on-chain blobs will have the index set. Default is -1.
+	index int
 }
 
 // NewBlobV0 constructs a new blob from the provided Namespace and data.
@@ -100,7 +135,7 @@ func NewBlob(shareVersion uint8, namespace share.Namespace, data []byte) (*Blob,
 	if err != nil {
 		return nil, err
 	}
-	return &Blob{Blob: blob, Commitment: com, namespace: namespace}, nil
+	return &Blob{Blob: blob, Commitment: com, namespace: namespace, index: -1}, nil
 }
 
 // Namespace returns blob's namespace.
@@ -108,11 +143,22 @@ func (b *Blob) Namespace() share.Namespace {
 	return b.namespace
 }
 
+// Index returns the blob's first share index in the EDS.
+// Only retrieved, on-chain blobs will have the index set. Default is -1.
+func (b *Blob) Index() int {
+	return b.index
+}
+
+func (b *Blob) compareCommitments(com Commitment) bool {
+	return bytes.Equal(b.Commitment, com)
+}
+
 type jsonBlob struct {
 	Namespace    share.Namespace `json:"namespace"`
 	Data         []byte          `json:"data"`
 	ShareVersion uint32          `json:"share_version"`
 	Commitment   Commitment      `json:"commitment"`
+	Index        int             `json:"index"`
 }
 
 func (b *Blob) MarshalJSON() ([]byte, error) {
@@ -121,6 +167,7 @@ func (b *Blob) MarshalJSON() ([]byte, error) {
 		Data:         b.Data,
 		ShareVersion: b.ShareVersion,
 		Commitment:   b.Commitment,
+		Index:        b.index,
 	}
 	return json.Marshal(blob)
 }
@@ -138,39 +185,6 @@ func (b *Blob) UnmarshalJSON(data []byte) error {
 	b.Blob.ShareVersion = blob.ShareVersion
 	b.Commitment = blob.Commitment
 	b.namespace = blob.Namespace
+	b.index = blob.Index
 	return nil
-}
-
-// buildBlobsIfExist takes shares and tries building the Blobs from them.
-// It will build blobs either until appShares will be empty or the first incomplete blob will
-// appear, so in this specific case it will return all built blobs + remaining shares.
-func buildBlobsIfExist(appShares []shares.Share) ([]*Blob, []shares.Share, error) {
-	if len(appShares) == 0 {
-		return nil, nil, errors.New("empty shares received")
-	}
-	blobs := make([]*Blob, 0, len(appShares))
-	for {
-		length, err := appShares[0].SequenceLen()
-		if err != nil {
-			return nil, nil, err
-		}
-
-		amount := shares.SparseSharesNeeded(length)
-		if amount > len(appShares) {
-			return blobs, appShares, nil
-		}
-
-		b, err := parseShares(appShares[:amount])
-		if err != nil {
-			return nil, nil, err
-		}
-
-		// only 1 blob will be created bc we passed the exact amount of shares
-		blobs = append(blobs, b[0])
-
-		if amount == len(appShares) {
-			return blobs, nil, nil
-		}
-		appShares = appShares[amount:]
-	}
 }

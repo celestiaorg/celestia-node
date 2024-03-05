@@ -1,0 +1,48 @@
+name: github-pages
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - specs/**
+  pull_request:
+    paths:
+      - specs/**
+  workflow_dispatch:
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      pull-requests: write
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup mdBook
+        uses: peaceiris/actions-mdbook@v1
+        with:
+          mdbook-version: "latest"
+
+      - name: Build book
+        run: mdbook build specs
+
+      - name: Deploy main
+        if: github.event_name == 'push' || github.event_name == 'workflow_dispatch'
+        uses: peaceiris/actions-gh-pages@v3
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          publish_dir: ./specs/book
+          # keep_files is to prevent PR preview files from being overwritten.
+          # If we need to overwrite such files, trigger this workflow manually.
+          keep_files: ${{ github.event_name != 'workflow_dispatch' }}
+
+      - name: Deploy PR preview
+        # Only run this job if the PR was created from a branch on celestiaorg/celestia-node
+        # because this job will fail for branches from forks.
+        # https://github.com/celestiaorg/celestia-app/issues/1506
+        if: github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository
+        uses: rossjrw/pr-preview-action@v1
+        with:
+          source-dir: ./specs/book
