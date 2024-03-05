@@ -8,7 +8,6 @@ import (
 	"github.com/ipfs/go-datastore"
 	"github.com/ipfs/go-datastore/autobatch"
 	"github.com/ipfs/go-datastore/namespace"
-	ipldFormat "github.com/ipfs/go-ipld-format"
 	logging "github.com/ipfs/go-log/v2"
 
 	"github.com/celestiaorg/celestia-node/header"
@@ -67,26 +66,40 @@ func (la *ShareAvailability) SharesAvailable(ctx context.Context, header *header
 		return nil
 	}
 
-	// do not sample over Root that has already been sampled
+	// load snapshot of the last sampling errors from disk
 	key := rootKey(dah)
-
 	la.dsLk.RLock()
-	exists, err := la.ds.Has(ctx, key)
+	last, err := la.ds.Get(ctx, key)
 	la.dsLk.RUnlock()
-	if err != nil || exists {
+
+	// Check for error cases
+	var samples []Sample
+	switch {
+	case err == nil && len(last) == 0:
+		// Availability has already been validated
+		return nil
+	case err != nil && !errors.Is(err, datastore.ErrNotFound):
+		// Other error occurred
 		return err
+	case errors.Is(err, datastore.ErrNotFound):
+		// No sampling result found, select new samples
+		samples, err = SampleSquare(len(dah.RowRoots), int(la.params.SampleAmount))
+		if err != nil {
+			return err
+		}
+	default:
+		// Sampling result found, unmarshal it
+		samples, err = decodeSamples(last)
+		if err != nil {
+			return err
+		}
 	}
 
-	log.Debugw("validate availability", "root", dah.String())
 	// We assume the caller of this method has already performed basic validation on the
 	// given dah/root. If for some reason this has not happened, the node should panic.
 	if err := dah.ValidateBasic(); err != nil {
 		log.Errorw("availability validation cannot be performed on a malformed DataAvailabilityHeader",
 			"err", err)
-		panic(err)
-	}
-	samples, err := SampleSquare(len(dah.RowRoots), int(la.params.SampleAmount))
-	if err != nil {
 		return err
 	}
 
@@ -94,49 +107,46 @@ func (la *ShareAvailability) SharesAvailable(ctx context.Context, header *header
 	// functionality is optional and must be supported by the used share.Getter.
 	ctx = getters.WithSession(ctx)
 
+	result := struct {
+		sync.Mutex
+		failed []Sample
+	}{}
+
 	log.Debugw("starting sampling session", "root", dah.String())
-	errs := make(chan error, len(samples))
+	var wg sync.WaitGroup
 	for _, s := range samples {
+		wg.Add(1)
 		go func(s Sample) {
-			log.Debugw("fetching share", "root", dah.String(), "row", s.Row, "col", s.Col)
-			_, err := la.getter.GetShare(ctx, header, s.Row, s.Col)
+			defer wg.Done()
+			// check if the sample is available
+			_, err := la.getter.GetShare(ctx, header, int(s.Row), int(s.Col))
 			if err != nil {
 				log.Debugw("error fetching share", "root", dah.String(), "row", s.Row, "col", s.Col)
-			}
-			// we don't really care about Share bodies at this point
-			// it also means we now saved the Share in local storage
-			select {
-			case errs <- err:
-			case <-ctx.Done():
+				result.Lock()
+				result.failed = append(result.failed, s)
+				result.Unlock()
 			}
 		}(s)
 	}
+	wg.Wait()
 
-	for range samples {
-		var err error
-		select {
-		case err = <-errs:
-		case <-ctx.Done():
-			err = ctx.Err()
-		}
-
-		if err != nil {
-			if errors.Is(err, context.Canceled) {
-				return err
-			}
-			log.Errorw("availability validation failed", "root", dah.String(), "err", err.Error())
-			if ipldFormat.IsNotFound(err) || errors.Is(err, context.DeadlineExceeded) {
-				return share.ErrNotAvailable
-			}
-			return err
-		}
+	if errors.Is(ctx.Err(), context.Canceled) {
+		return ctx.Err()
 	}
 
+	// store the result of the sampling session
+	bs := encodeSamples(result.failed)
 	la.dsLk.Lock()
-	err = la.ds.Put(ctx, key, []byte{})
+	err = la.ds.Put(ctx, key, bs)
 	la.dsLk.Unlock()
 	if err != nil {
 		log.Errorw("storing root of successful SharesAvailable request to disk", "err", err)
+	}
+
+	// if any of the samples failed, return an error
+	if len(result.failed) > 0 {
+		log.Errorw("availability validation failed", "root", dah.String(), "failed_samples", result.failed)
+		return share.ErrNotAvailable
 	}
 	return nil
 }

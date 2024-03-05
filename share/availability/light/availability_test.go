@@ -32,10 +32,12 @@ func TestSharesAvailableCaches(t *testing.T) {
 	err = avail.SharesAvailable(ctx, eh)
 	assert.NoError(t, err)
 
-	// is now cached
-	has, err = avail.ds.Has(ctx, rootKey(dah))
+	// is now stored success result
+	result, err := avail.ds.Get(ctx, rootKey(dah))
 	assert.NoError(t, err)
-	assert.True(t, has)
+	failed, err := decodeSamples(result)
+	require.NoError(t, err)
+	require.Empty(t, failed)
 }
 
 func TestSharesAvailableHitsCache(t *testing.T) {
@@ -45,6 +47,7 @@ func TestSharesAvailableHitsCache(t *testing.T) {
 	getter, _ := GetterWithRandSquare(t, 16)
 	avail := TestAvailability(getter)
 
+	// create new dah, that is not available by getter
 	bServ := ipld.NewMemBlockservice()
 	dah := availability_test.RandFillBS(t, 16, bServ)
 	eh := headertest.RandExtendedHeaderWithRoot(t, dah)
@@ -53,11 +56,7 @@ func TestSharesAvailableHitsCache(t *testing.T) {
 	err := avail.SharesAvailable(ctx, eh)
 	require.Error(t, err)
 
-	// cache doesn't have dah yet, since it errored
-	has, err := avail.ds.Has(ctx, rootKey(dah))
-	assert.NoError(t, err)
-	assert.False(t, has)
-
+	// put success result in cache
 	err = avail.ds.Put(ctx, rootKey(dah), []byte{})
 	require.NoError(t, err)
 
@@ -78,16 +77,6 @@ func TestSharesAvailableEmptyRoot(t *testing.T) {
 	assert.NoError(t, err)
 }
 
-func TestSharesAvailable(t *testing.T) {
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
-
-	getter, dah := GetterWithRandSquare(t, 16)
-	avail := TestAvailability(getter)
-	err := avail.SharesAvailable(ctx, dah)
-	assert.NoError(t, err)
-}
-
 func TestSharesAvailableFailed(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
@@ -100,6 +89,54 @@ func TestSharesAvailableFailed(t *testing.T) {
 	avail := TestAvailability(getter)
 	err := avail.SharesAvailable(ctx, eh)
 	assert.Error(t, err)
+
+	// cache should have failed results now
+	result, err := avail.ds.Get(ctx, rootKey(dah))
+	require.NoError(t, err)
+
+	decoded, err := decodeSamples(result)
+	require.NoError(t, err)
+	require.Len(t, decoded, int(avail.params.SampleAmount))
+}
+
+func TestSharesAvailablePersistSamples(t *testing.T) {
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	getter, _ := GetterWithRandSquare(t, 16)
+	avail := TestAvailability(getter)
+
+	// create new dah, that is not available by getter
+	bServ := ipld.NewMemBlockservice()
+	dah := availability_test.RandFillBS(t, 16, bServ)
+	eh := headertest.RandExtendedHeaderWithRoot(t, dah)
+
+	// blockstore doesn't actually have the dah, so it should fail
+	err := avail.SharesAvailable(ctx, eh)
+	require.Error(t, err)
+
+	// cache should have failed results now
+	result, err := avail.ds.Get(ctx, rootKey(dah))
+	require.NoError(t, err)
+
+	failed, err := decodeSamples(result)
+	require.NoError(t, err)
+	require.Len(t, failed, int(avail.params.SampleAmount))
+
+	// ensure that retry persists the failed samples selection
+	// create new getter with only the failed samples available, and add them to the onceGetter
+	onceGetter := newOnceGetter()
+	onceGetter.AddSamples(failed)
+
+	// replace getter with the new one
+	avail.getter = onceGetter
+
+	// should be able to retrieve all the failed samples now
+	err = avail.SharesAvailable(ctx, eh)
+	require.NoError(t, err)
+
+	// onceGetter should have no more samples stored after the call
+	require.Empty(t, onceGetter.available)
 }
 
 func TestShareAvailableOverMocknet_Light(t *testing.T) {
