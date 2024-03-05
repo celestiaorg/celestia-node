@@ -405,6 +405,10 @@ However, new bugs may be introduced, as with any new protocol.</p>
 <h3 id="protobuf-serialization"><a class="header" href="#protobuf-serialization">Protobuf Serialization</a></h3>
 <p>Protobuf is a widely adopted serialization format and is used within Celestia's protocols. This was quite an obvious choice
 for consistency reasons, even though we could choose other more efficient and advanced formats like Cap'n Proto.</p>
+<h3 id="sampling-and-reconstruction"><a class="header" href="#sampling-and-reconstruction">Sampling and Reconstruction</a></h3>
+<p>Shwap deliberately avoids specifying sampling and reconstruction logic The sampling concerns on randomness selection and
+sample picking are out of Shwap's scope and a matter of following CIPs. Shwap only provides messaging for sampling(via
+<a href="shwap/spec.html#sampleid">SampleID</a> and <a href="shwap/spec.html#sample-container">Sample container</a>).</p>
 <h2 id="reference-implementation"><a class="header" href="#reference-implementation">Reference Implementation</a></h2>
 <ul>
 <li><a href="https://github.com/celestiaorg/celestia-node/pull/2675">Go reference implementation with Bitswap composition</a></li>
