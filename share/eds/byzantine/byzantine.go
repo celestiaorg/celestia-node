@@ -38,13 +38,9 @@ func NewErrByzantine(
 	errByz *rsmt2d.ErrByzantineData,
 ) *ErrByzantine {
 	// changing the order to collect proofs against an orthogonal axis
-	roots := [][][]byte{
-		dah.ColumnRoots,
-		dah.RowRoots,
-	}[errByz.Axis]
-	axisType := rsmt2d.Row
+	axisType, roots := rsmt2d.Row, dah.RowRoots
 	if errByz.Axis == rsmt2d.Row {
-		axisType = rsmt2d.Col
+		axisType, roots = rsmt2d.Col, dah.ColumnRoots
 	}
 
 	sharesWithProof := make([]*share.ShareWithProof, len(errByz.Shares))
