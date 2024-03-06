@@ -6,7 +6,7 @@ import (
 )
 
 var (
-	ipFlag = "core.ip"
+	coreIpFlag = "core.ip" // TODO: @ramin - we should deprecate this
 
 	rpcHostFlag = "core.rpc.host"
 	rpcPortFlag = "core.rpc.port"
@@ -23,7 +23,7 @@ func Flags() *flag.FlagSet {
 	flags := &flag.FlagSet{}
 
 	flags.String(
-		ipFlag,
+		coreIpFlag,
 		"",
 		"Indicates node to connect to the given core node's RPC and gRPC. "+
 			"NOTE: If this flag is set, the core.rpc.ip and core.grpc.ip flags cannot be set. "+
