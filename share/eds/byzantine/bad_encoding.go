@@ -212,7 +212,7 @@ func (p *BadEncodingProof) Validate(hdr *header.ExtendedHeader) error {
 		log.Debugw("failed to decode shares at height",
 			"height", hdr.Height(), "err", err,
 		)
-		return fmt.Errorf("failed to decode shares: %w", err)
+		return nil
 	}
 
 	rebuiltExtendedShares, err := codec.Encode(rebuiltShares[0:odsWidth])
@@ -220,7 +220,7 @@ func (p *BadEncodingProof) Validate(hdr *header.ExtendedHeader) error {
 		log.Debugw("failed to encode shares at height",
 			"height", hdr.Height(), "err", err,
 		)
-		return fmt.Errorf("failed to encode shares: %w", err)
+		return nil
 	}
 	copy(rebuiltShares[odsWidth:], rebuiltExtendedShares)
 
@@ -231,7 +231,7 @@ func (p *BadEncodingProof) Validate(hdr *header.ExtendedHeader) error {
 			log.Debugw("failed to build a tree from the reconstructed shares at height",
 				"height", hdr.Height(), "err", err,
 			)
-			return fmt.Errorf("failed to build a tree from the reconstructed shares: %w", err)
+			return nil
 		}
 	}
 
@@ -240,7 +240,7 @@ func (p *BadEncodingProof) Validate(hdr *header.ExtendedHeader) error {
 		log.Debugw("failed to build a tree root at height",
 			"height", hdr.Height(), "err", err,
 		)
-		return fmt.Errorf("failed to build a tree root: %w", err)
+		return nil
 	}
 
 	// root is a merkle root of the row/col where ErrByzantine occurred
