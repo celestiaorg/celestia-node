@@ -6,7 +6,7 @@ import (
 )
 
 var (
-	coreIpFlag = "core.ip" // TODO: @ramin - we should deprecate this
+	coreIPFlag = "core.ip" // TODO: @ramin - we should deprecate this
 
 	rpcHostFlag = "core.rpc.host"
 	rpcPortFlag = "core.rpc.port"
@@ -23,7 +23,7 @@ func Flags() *flag.FlagSet {
 	flags := &flag.FlagSet{}
 
 	flags.String(
-		coreIpFlag,
+		coreIPFlag,
 		"",
 		"Indicates node to connect to the given core node's RPC and gRPC. "+
 			"NOTE: If this flag is set, the core.rpc.ip and core.grpc.ip flags cannot be set. "+
@@ -69,7 +69,7 @@ func Flags() *flag.FlagSet {
 
 // ParseFlags parses Core flags from the given cmd and saves them to the passed config.
 func ParseFlags(cmd *cobra.Command, cfg *Config) error {
-	cfg.IP = cmd.Flag(coreIpFlag).Value.String()
+	cfg.IP = cmd.Flag(coreIPFlag).Value.String()
 	cfg.RPC.Host = cmd.Flag(rpcHostFlag).Value.String()
 	cfg.RPC.Port = cmd.Flag(rpcPortFlag).Value.String()
 

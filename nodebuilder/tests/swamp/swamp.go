@@ -198,7 +198,7 @@ func (s *Swamp) DefaultTestConfig(tp node.Type) *nodebuilder.Config {
 
 	cfg.Core.RPC.Host = ip
 	cfg.Core.GRPC.Host = ip
-	cfg.Core.GRPCPort = port
+	cfg.Core.GRPC.Port = port
 	return cfg
 }
 
