@@ -6,6 +6,8 @@ import (
 	"net/url"
 	"os"
 	"strconv"
+
+	"github.com/celestiaorg/celestia-node/libs/utils"
 )
 
 var (
@@ -23,9 +25,10 @@ const (
 // Config combines all configuration fields for
 // managing the relationship with a Core node.
 type Config struct {
-	IP   string
-	RPC  HostConfig
-	GRPC HostConfig
+	IP           string
+	RPC          HostConfig
+	GRPC         HostConfig
+	OtherRPCHost string
 }
 
 type HostConfig struct {
@@ -93,22 +96,22 @@ func (cfg *Config) Validate() error {
 		return err
 	}
 
-	rpcURL, err := url.Parse(cfg.RPCHost())
+	_, err := utils.ValidateAddr(cfg.RPCHost())
 	if err != nil {
 		return fmt.Errorf("nodebuilder/core: invalid rpc host: %s", err.Error())
 	}
-	cfg.RPC.Host = rpcURL.Host
 
+	rpcURL, err := url.Parse(cfg.RPCHost())
 	if rpcURL.Scheme != "" {
 		cfg.RPC.Scheme = rpcURL.Scheme
 	}
 
-	grpcURL, err := url.Parse(cfg.GRPCHost())
+	_, err = utils.ValidateAddr(cfg.GRPCHost())
 	if err != nil {
 		return fmt.Errorf("nodebuilder/core: invalid grpc host: %s", err.Error())
 	}
-	cfg.GRPC.Host = grpcURL.Host
 
+	grpcURL, err := url.Parse(cfg.GRPCHost())
 	if grpcURL.Scheme != "" {
 		cfg.GRPC.Scheme = rpcURL.Scheme
 	}
@@ -128,11 +131,24 @@ func (cfg *Config) Validate() error {
 		}
 	}
 
+	fmt.Println("config after validation")
+	fmt.Println(cfg)
+	fmt.Println("configued: ", cfg.IsEndpointConfigured())
+	fmt.Println("rpc host: ", cfg.RPCHost())
+	fmt.Println("grpc host: ", cfg.GRPCHost())
+	fmt.Println("rpc scheme: ", cfg.RPC.Scheme)
+	fmt.Println("grpc scheme: ", cfg.GRPC.Scheme)
+	fmt.Println("rpc port: ", cfg.RPC.Port)
+	fmt.Println("grpc port: ", cfg.GRPC.Port)
+
 	return nil
 }
 
 // IsEndpointConfigured returns whether a core endpoint has been set
 // on the config (true if set).
 func (cfg *Config) IsEndpointConfigured() bool {
+	fmt.Println(cfg)
+	fmt.Println(cfg.RPCHost())
+	fmt.Println(cfg.GRPCHost())
 	return cfg.RPCHost() != "" && cfg.GRPCHost() != ""
 }

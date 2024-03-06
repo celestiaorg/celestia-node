@@ -135,7 +135,8 @@ func (ca *CoreAccessor) Start(ctx context.Context) error {
 	}
 
 	// dial given celestia-core endpoint
-	endpoint := fmt.Sprintf("%s://%s:%s", ca.grpcScheme, ca.grpcHost, ca.grpcPort)
+	endpoint := fmt.Sprintf("%s:%s", ca.grpcHost, ca.grpcPort)
+
 	client, err := grpc.DialContext(
 		ctx,
 		endpoint,
