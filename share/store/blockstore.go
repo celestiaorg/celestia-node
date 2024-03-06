@@ -19,6 +19,12 @@ import (
 	"github.com/celestiaorg/celestia-node/share/store/file"
 )
 
+//TODO(@walldiss): blockstore is now able to identify invalid cids(requests) by handling file.ErrOutOfBounds
+// err. Ideally this case should lead to some penalty for the peer that sent the invalid request. The proper
+// place for this logic is in the bitswap protocol, but it's not designed to handle such cases. It forces us
+// to handle this case in the blockstore level. For now, we just log the error and return an error to the
+// caller. We should revisit this issue and find a proper solution.
+
 var _ bstore.Blockstore = (*Blockstore)(nil)
 
 var (
