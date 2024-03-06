@@ -106,12 +106,14 @@ func (cfg *Config) Validate() error {
 		cfg.RPC.Scheme = rpcURL.Scheme
 	}
 
-	_, err = utils.ValidateAddr(cfg.GRPCHost())
+	grpcHost, _ := utils.ValidateAddr(cfg.GRPCHost())
 	if err != nil {
 		return fmt.Errorf("nodebuilder/core: invalid grpc host: %s", err.Error())
 	}
 
-	grpcURL, err := url.Parse(cfg.GRPCHost())
+	cfg.GRPC.Host = grpcHost
+
+	grpcURL, _ := url.Parse(cfg.GRPCHost())
 	if grpcURL.Scheme != "" {
 		cfg.GRPC.Scheme = rpcURL.Scheme
 	}
@@ -130,16 +132,6 @@ func (cfg *Config) Validate() error {
 			return fmt.Errorf("nodebuilder/core: grpc cert file does not exist: %s", cfg.GRPC.Cert)
 		}
 	}
-
-	fmt.Println("config after validation")
-	fmt.Println(cfg)
-	fmt.Println("configued: ", cfg.IsEndpointConfigured())
-	fmt.Println("rpc host: ", cfg.RPCHost())
-	fmt.Println("grpc host: ", cfg.GRPCHost())
-	fmt.Println("rpc scheme: ", cfg.RPC.Scheme)
-	fmt.Println("grpc scheme: ", cfg.GRPC.Scheme)
-	fmt.Println("rpc port: ", cfg.RPC.Port)
-	fmt.Println("grpc port: ", cfg.GRPC.Port)
 
 	return nil
 }
