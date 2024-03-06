@@ -17,7 +17,7 @@ require (
 	github.com/cosmos/cosmos-sdk v0.46.16
 	github.com/cosmos/cosmos-sdk/api v0.1.0
 	github.com/cristalhq/jwt v1.2.0
-	github.com/danjacques/gofslock v0.0.0-20230227034627-eebdc482a3f5
+	github.com/danjacques/gofslock v0.0.0-20240212154529-d899e02bfe22
 	github.com/dgraph-io/badger/v4 v4.2.1-0.20240106094458-1c417aa3799c
 	github.com/etclabscore/go-openrpc-reflect v0.0.37
 	github.com/filecoin-project/dagstore v0.5.6
