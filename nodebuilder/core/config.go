@@ -139,8 +139,5 @@ func (cfg *Config) Validate() error {
 // IsEndpointConfigured returns whether a core endpoint has been set
 // on the config (true if set).
 func (cfg *Config) IsEndpointConfigured() bool {
-	fmt.Println(cfg)
-	fmt.Println(cfg.RPCHost())
-	fmt.Println(cfg.GRPCHost())
 	return cfg.RPCHost() != "" && cfg.GRPCHost() != ""
 }

@@ -146,8 +146,6 @@ func TestMultipleHostsConfigured(t *testing.T) {
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
 			actual := tc.cfg.multipleHostsConfigured()
-			fmt.Println(actual)
-			fmt.Println(tc.expected)
 			if tc.expected == nil {
 				assert.Nil(t, actual)
 			} else {
