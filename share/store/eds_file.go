@@ -4,7 +4,6 @@ import (
 	"context"
 	"io"
 
-	"github.com/celestiaorg/nmt"
 	"github.com/celestiaorg/rsmt2d"
 
 	"github.com/celestiaorg/celestia-node/share"
