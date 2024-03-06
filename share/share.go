@@ -61,7 +61,7 @@ func (s *ShareWithProof) Validate(rootHash []byte, x, y, edsSize int) bool {
 		namespace = GetNamespace(s.Share)
 	}
 	return s.Proof.VerifyInclusion(
-		sha256.New(), // TODO(@Wondertan): This should be defined somewhere globally
+		sha256.New(),
 		namespace.ToNMT(),
 		[][]byte{s.Share},
 		rootHash,

@@ -5,15 +5,20 @@ import (
 	"errors"
 	"fmt"
 
+	logging "github.com/ipfs/go-log/v2"
+
 	"github.com/celestiaorg/celestia-app/pkg/wrapper"
 	"github.com/celestiaorg/go-fraud"
+	"github.com/celestiaorg/nmt"
+	nmt_pb "github.com/celestiaorg/nmt/pb"
 	"github.com/celestiaorg/rsmt2d"
 
 	"github.com/celestiaorg/celestia-node/header"
 	"github.com/celestiaorg/celestia-node/share"
 	pb "github.com/celestiaorg/celestia-node/share/eds/byzantine/pb"
-	"github.com/celestiaorg/celestia-node/share/ipld"
 )
+
+var log = logging.Logger("share/byzantine")
 
 const (
 	version = "v0.1"
@@ -27,7 +32,7 @@ type BadEncodingProof struct {
 	// ShareWithProof contains all shares from row or col.
 	// Shares that did not pass verification in rsmt2d will be nil.
 	// For non-nil shares MerkleProofs are computed.
-	Shares []*ShareWithProof
+	Shares []*share.ShareWithProof
 	// Index represents the row/col index where ErrByzantineRow/ErrByzantineColl occurred.
 	Index uint32
 	// Axis represents the axis that verification failed on.
@@ -70,7 +75,7 @@ func (p *BadEncodingProof) Height() uint64 {
 func (p *BadEncodingProof) MarshalBinary() ([]byte, error) {
 	shares := make([]*pb.Share, 0, len(p.Shares))
 	for _, share := range p.Shares {
-		shares = append(shares, share.ShareWithProofToProto())
+		shares = append(shares, ShareWithProofToProto(share))
 	}
 
 	badEncodingFraudProof := pb.BadEncoding{
@@ -89,10 +94,11 @@ func (p *BadEncodingProof) UnmarshalBinary(data []byte) error {
 	if err := in.Unmarshal(data); err != nil {
 		return err
 	}
+	axisType := rsmt2d.Axis(in.Axis)
 	befp := &BadEncodingProof{
 		headerHash:  in.HeaderHash,
 		BlockHeight: in.Height,
-		Shares:      ProtoToShare(in.Shares),
+		Shares:      ProtoToShare(in.Shares, axisType),
 		Index:       in.Index,
 		Axis:        rsmt2d.Axis(in.Axis),
 	}
@@ -190,13 +196,11 @@ func (p *BadEncodingProof) Validate(hdr *header.ExtendedHeader) error {
 			continue
 		}
 		// validate inclusion of the share into one of the DAHeader roots
-		if ok := shr.Validate(ipld.MustCidFromNamespacedSha256(merkleRoots[index])); !ok {
+		if ok := shr.Validate(merkleRoots[index], index, int(p.Index), int(odsWidth)*2); !ok {
 			log.Debugf("%s: %s at index %d", invalidProofPrefix, errIncorrectShare, index)
 			return errIncorrectShare
 		}
-		// NMTree commits the additional namespace while rsmt2d does not know about, so we trim it
-		// this is ugliness from NMTWrapper that we have to embrace ¯\_(ツ)_/¯
-		shares[index] = share.GetData(shr.Share)
+		shares[index] = shr.Share
 	}
 
 	codec := share.DefaultRSMT2DCodec()
@@ -251,4 +255,46 @@ func (p *BadEncodingProof) Validate(hdr *header.ExtendedHeader) error {
 		return errNMTTreeRootsMatch
 	}
 	return nil
+}
+
+func ShareWithProofToProto(s *share.ShareWithProof) *pb.Share {
+	if s == nil {
+		return &pb.Share{}
+	}
+
+	return &pb.Share{
+		Data: s.Share,
+		Proof: &nmt_pb.Proof{
+			Start:                 int64(s.Proof.Start()),
+			End:                   int64(s.Proof.End()),
+			Nodes:                 s.Proof.Nodes(),
+			LeafHash:              s.Proof.LeafHash(),
+			IsMaxNamespaceIgnored: s.Proof.IsMaxNamespaceIDIgnored(),
+		},
+	}
+}
+
+func ProtoToShare(protoShares []*pb.Share, axisType rsmt2d.Axis) []*share.ShareWithProof {
+	shares := make([]*share.ShareWithProof, len(protoShares))
+	for i, sh := range protoShares {
+		if sh.Proof == nil {
+			continue
+		}
+		proof := ProtoToProof(sh.Proof)
+		shares[i] = &share.ShareWithProof{
+			Share: sh.Data,
+			Proof: &proof,
+			Axis:  axisType,
+		}
+	}
+	return shares
+}
+
+func ProtoToProof(protoProof *nmt_pb.Proof) nmt.Proof {
+	return nmt.NewInclusionProof(
+		int(protoProof.Start),
+		int(protoProof.End),
+		protoProof.Nodes,
+		protoProof.IsMaxNamespaceIgnored,
+	)
 }
