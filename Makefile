@@ -64,7 +64,7 @@ deps:
 	@go mod download
 .PHONY: deps
 
-## install: Install all build binaries into the $PREFIX (/usr/local/ by default) directory.
+## install: Install the celestia-node binary.
 install:
 ifeq ($(OS),Darwin)
 	@$(MAKE) go-install
