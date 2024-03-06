@@ -34,9 +34,9 @@ type FileCache struct {
 // accessor is the value stored in Cache. It implements the file.EdsFile interface. It has a
 // reference counted so that it can be removed from the cache only when all references are released.
 type accessor struct {
-	lock sync.Mutex
 	file.EdsFile
 
+	lock     sync.Mutex
 	height   uint64
 	done     chan struct{}
 	refs     atomic.Int32
@@ -117,9 +117,7 @@ func (bc *FileCache) GetOrLoad(ctx context.Context, key key, loader OpenFileFn) 
 		return nil, fmt.Errorf("unable to load accessor: %w", err)
 	}
 
-	// wrap file with close once and axis cache
-	cacheFile := file.CloseOnceFile(file.NewCacheFile(f))
-	ac = &accessor{EdsFile: cacheFile}
+	ac = &accessor{EdsFile: f}
 	// Create a new accessor first to increment the reference count in it, so it cannot get evicted
 	// from the inner lru cache before it is used.
 	rc, err := newRefCloser(ac)
@@ -177,6 +175,8 @@ func (s *accessor) removeRef() {
 	}
 }
 
+// close closes the accessor and removes it from the cache if it is not closed yet. It will block
+// until all references are released or timeout is reached.
 func (s *accessor) close() error {
 	s.lock.Lock()
 	if s.isClosed {

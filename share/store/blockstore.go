@@ -15,6 +15,8 @@ import (
 
 	"github.com/celestiaorg/celestia-node/libs/utils"
 	"github.com/celestiaorg/celestia-node/share/shwap"
+	"github.com/celestiaorg/celestia-node/share/store/cache"
+	"github.com/celestiaorg/celestia-node/share/store/file"
 )
 
 var _ bstore.Blockstore = (*Blockstore)(nil)
@@ -77,7 +79,7 @@ func (bs *Blockstore) Get(ctx context.Context, cid cid.Cid) (blocks.Block, error
 	}
 
 	height := req.GetHeight()
-	f, err := bs.store.cache.Second().GetOrLoad(ctx, height, bs.store.openFileByHeight(height))
+	f, err := bs.store.cache.Second().GetOrLoad(ctx, height, bs.openFile(height))
 	if err == nil {
 		defer utils.CloseAndLog(log, "file", f)
 		return req.BlockFromFile(ctx, f)
@@ -108,7 +110,7 @@ func (bs *Blockstore) GetSize(ctx context.Context, cid cid.Cid) (int, error) {
 	}
 
 	height := req.GetHeight()
-	f, err := bs.store.cache.Second().GetOrLoad(ctx, height, bs.store.openFileByHeight(height))
+	f, err := bs.store.cache.Second().GetOrLoad(ctx, height, bs.openFile(height))
 	if err != nil {
 		return 0, fmt.Errorf("get file: %w", err)
 	}
@@ -159,4 +161,15 @@ func (bs *Blockstore) AllKeysChan(context.Context) (<-chan cid.Cid, error) {
 // signature from the blockstore interface.
 func (bs *Blockstore) HashOnRead(bool) {
 	log.Warn("HashOnRead is a noop on the EDS blockstore")
+}
+
+func (bs *Blockstore) openFile(height uint64) cache.OpenFileFn {
+	return func(ctx context.Context) (file.EdsFile, error) {
+		path := bs.store.basepath + heightsPath + fmt.Sprintf("%d", height)
+		f, err := file.OpenOdsFile(path)
+		if err != nil {
+			return nil, fmt.Errorf("opening ODS file: %w", err)
+		}
+		return wrappedFile(f), nil
+	}
 }

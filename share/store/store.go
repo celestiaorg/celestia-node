@@ -31,16 +31,21 @@ var (
 )
 
 // TODO(@walldiss):
-//  - periodically store empty heights
-//  - persist store stats like amount of files, file types, avg file size etc in a file
-//  - handle corrupted files
+//  - periodically persist empty heights
+//  - persist store stats like
+// 		- amount of files
+//		- file types hist (ods/q1q4)
+//		- file size hist
+//		- amount of links hist
+//  - add handling of corrupted files / links
 //  - maintain in-memory missing files index / bloom-filter to fast return for not stored files.
 //  - lock store folder
+//  - add traces
 
 const (
-	blocksPath   = "/blocks/"
-	heightsPath  = blocksPath + "heights/"
-	emptyHeights = blocksPath + "/empty_heights"
+	blocksPath       = "/blocks/"
+	heightsPath      = blocksPath + "heights/"
+	emptyHeightsFile = heightsPath + "empty_heights"
 
 	defaultDirPerm = 0755
 )
@@ -82,7 +87,7 @@ func NewStore(params *Parameters, basePath string) (*Store, error) {
 	}
 
 	// ensure empty heights file
-	if err := ensureFile(basePath + emptyHeights); err != nil {
+	if err := ensureFile(basePath + emptyHeightsFile); err != nil {
 		return nil, fmt.Errorf("ensure empty heights file: %w", err)
 	}
 
@@ -208,7 +213,7 @@ func (s *Store) getByHash(datahash share.DataHash) (file.EdsFile, error) {
 	return odsFile, nil
 }
 
-func (s *Store) LinkHeight(_ context.Context, datahash share.DataHash, height uint64) error {
+func (s *Store) LinkHashToHeight(_ context.Context, datahash share.DataHash, height uint64) error {
 	lock := s.stripLock.byDatahashAndHeight(datahash, height)
 	lock.lock()
 	defer lock.unlock()
@@ -218,15 +223,18 @@ func (s *Store) LinkHeight(_ context.Context, datahash share.DataHash, height ui
 		return nil
 	}
 
+	if has, _ := s.hasByHash(datahash); !has {
+		return errors.New("cannot link non-existing file")
+	}
+	return s.createHeightLink(datahash, height)
+}
+
+func (s *Store) createHeightLink(datahash share.DataHash, height uint64) error {
 	// short circuit if link exists
 	if has, _ := s.hasByHeight(height); has {
 		return nil
 	}
 
-	return s.createHeightLink(datahash, height)
-}
-
-func (s *Store) createHeightLink(datahash share.DataHash, height uint64) error {
 	filePath := s.basepath + blocksPath + datahash.String()
 	// create hard link with height as name
 	linkPath := s.basepath + heightsPath + strconv.Itoa(int(height))
@@ -329,15 +337,16 @@ func (s *Store) Remove(ctx context.Context, height uint64) error {
 }
 
 func (s *Store) remove(height uint64) error {
-	// short circuit if file not exists
 	f, err := s.getByHeight(height)
 	if err != nil {
+		// short circuit if file not exists
 		if errors.Is(err, ErrNotFound) {
 			return nil
 		}
 		return fmt.Errorf("getting by height: %w", err)
 	}
 
+	// close file to release the reference in the cache
 	if err = f.Close(); err != nil {
 		return fmt.Errorf("closing file on removal: %w", err)
 	}
@@ -369,19 +378,15 @@ func (s *Store) remove(height uint64) error {
 
 func fileLoader(f file.EdsFile) cache.OpenFileFn {
 	return func(ctx context.Context) (file.EdsFile, error) {
-		return f, nil
+		return wrappedFile(f), nil
 	}
 }
 
-func (s *Store) openFileByHeight(height uint64) cache.OpenFileFn {
-	return func(ctx context.Context) (file.EdsFile, error) {
-		path := s.basepath + heightsPath + fmt.Sprintf("%d", height)
-		f, err := file.OpenOdsFile(path)
-		if err != nil {
-			return nil, fmt.Errorf("opening ODS file: %w", err)
-		}
-		return f, nil
-	}
+func wrappedFile(f file.EdsFile) file.EdsFile {
+	withCache := file.NewCacheFile(f)
+	closedOnce := file.CloseOnceFile(withCache)
+	sanityChecked := file.NewValidatingFile(closedOnce)
+	return sanityChecked
 }
 
 func ensureFolder(path string) error {
@@ -441,7 +446,7 @@ func linksCount(path string) (int, error) {
 }
 
 func (s *Store) storeEmptyHeights() error {
-	file, err := os.OpenFile(s.basepath+emptyHeights, os.O_WRONLY, os.ModePerm)
+	file, err := os.OpenFile(s.basepath+emptyHeightsFile, os.O_WRONLY, os.ModePerm)
 	if err != nil {
 		return fmt.Errorf("opening empty heights file: %w", err)
 	}
@@ -456,7 +461,7 @@ func (s *Store) storeEmptyHeights() error {
 }
 
 func loadEmptyHeights(basepath string) (map[uint64]struct{}, error) {
-	file, err := os.Open(basepath + emptyHeights)
+	file, err := os.Open(basepath + emptyHeightsFile)
 	if err != nil {
 		return nil, fmt.Errorf("opening empty heights file: %w", err)
 	}

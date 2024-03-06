@@ -62,7 +62,7 @@ func (fa *ShareAvailability) Stop(context.Context) error {
 func (fa *ShareAvailability) SharesAvailable(ctx context.Context, header *header.ExtendedHeader) error {
 	// a hack to avoid loading the whole EDS in mem if we store it already.
 	if ok, _ := fa.store.HasByHash(ctx, header.DAH.Hash()); ok {
-		return fa.store.LinkHeight(ctx, header.DAH.Hash(), header.Height())
+		return fa.store.LinkHashToHeight(ctx, header.DAH.Hash(), header.Height())
 	}
 
 	eds, err := fa.getEds(ctx, header)
