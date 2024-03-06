@@ -22,6 +22,7 @@ import (
 	rpcclient "github.com/tendermint/tendermint/rpc/client"
 	"github.com/tendermint/tendermint/rpc/client/http"
 	"google.golang.org/grpc"
+	"google.golang.org/grpc/credentials"
 	"google.golang.org/grpc/credentials/insecure"
 
 	"github.com/celestiaorg/celestia-app/app"
@@ -58,10 +59,15 @@ type CoreAccessor struct {
 	prt *merkle.ProofRuntime
 
 	coreConn *grpc.ClientConn
-	rpcIP    string
-	grpcIP   string
-	rpcPort  string
-	grpcPort string
+
+	rpcScheme string
+	rpcHost   string
+	rpcPort   string
+
+	grpcScheme string
+	grpcHost   string
+	grpcPort   string
+	grpcCert   string
 
 	// these fields are mutatable and thus need to be protected by a mutex
 	lock            sync.Mutex
@@ -80,23 +86,29 @@ type CoreAccessor struct {
 func NewCoreAccessor(
 	signer *apptypes.KeyringSigner,
 	getter libhead.Head[*header.ExtendedHeader],
-	rpcIP,
-	grpcIP,
-	rpcPort string,
-	grpcPort string,
+	rpcScheme,
+	rpcHost,
+	rpcPort,
+	grpcScheme,
+	grpcHost,
+	grpcPort,
+	grpcCert string,
 ) *CoreAccessor {
 	// create verifier
 	prt := merkle.DefaultProofRuntime()
 	prt.RegisterOpDecoder(storetypes.ProofOpIAVLCommitment, storetypes.CommitmentOpDecoder)
 	prt.RegisterOpDecoder(storetypes.ProofOpSimpleMerkleCommitment, storetypes.CommitmentOpDecoder)
 	return &CoreAccessor{
-		signer:   signer,
-		getter:   getter,
-		rpcIP:    rpcIP,
-		grpcIP:   grpcIP,
-		rpcPort:  rpcPort,
-		grpcPort: grpcPort,
-		prt:      prt,
+		signer:     signer,
+		getter:     getter,
+		rpcScheme:  rpcScheme,
+		rpcHost:    rpcHost,
+		rpcPort:    rpcPort,
+		grpcScheme: grpcScheme,
+		grpcHost:   grpcHost,
+		grpcPort:   grpcPort,
+		grpcCert:   grpcCert,
+		prt:        prt,
 	}
 }
 
@@ -106,12 +118,23 @@ func (ca *CoreAccessor) Start(ctx context.Context) error {
 	}
 	ca.ctx, ca.cancel = context.WithCancel(context.Background())
 
+	var opts []grpc.DialOption
+	if ca.grpcCert != "" {
+		creds, err := credentials.NewClientTLSFromFile(ca.grpcCert, "")
+		if err != nil {
+			return fmt.Errorf("failed to create TLS credentials: %w", err)
+		}
+		opts = append(opts, grpc.WithTransportCredentials(creds))
+	} else {
+		opts = append(opts, grpc.WithTransportCredentials(insecure.NewCredentials()))
+	}
+
 	// dial given celestia-core endpoint
-	endpoint := fmt.Sprintf("%s:%s", ca.grpcIP, ca.grpcPort)
+	endpoint := fmt.Sprintf("%s://%s:%s", ca.grpcScheme, ca.grpcHost, ca.grpcPort)
 	client, err := grpc.DialContext(
 		ctx,
 		endpoint,
-		grpc.WithTransportCredentials(insecure.NewCredentials()),
+		opts...,
 	)
 	if err != nil {
 		return err
@@ -124,7 +147,7 @@ func (ca *CoreAccessor) Start(ctx context.Context) error {
 	stakingCli := stakingtypes.NewQueryClient(ca.coreConn)
 	ca.stakingCli = stakingCli
 	// create ABCI query client
-	cli, err := http.New(fmt.Sprintf("http://%s:%s", ca.rpcIP, ca.rpcPort), "/websocket")
+	cli, err := http.New(fmt.Sprintf("%s://%s:%s", ca.rpcScheme, ca.rpcHost, ca.rpcPort), "/websocket")
 	if err != nil {
 		return err
 	}

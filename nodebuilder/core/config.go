@@ -1,31 +1,86 @@
 package core
 
 import (
+	"errors"
 	"fmt"
+	"net/url"
+	"os"
 	"strconv"
-
-	"github.com/celestiaorg/celestia-node/libs/utils"
 )
 
-var MetricsEnabled bool
+var (
+	MetricsEnabled bool
 
-// Config combines all configuration fields for managing the relationship with a Core node.
+	ErrMultipleHostsConfigured = errors.New("multiple hosts configured")
+)
+
+const (
+	DefaultRPCScheme = "http"
+	DefaultRPCPort   = "26657"
+	DefaultGRPCPort  = "9090"
+)
+
+// Config combines all configuration fields for
+// managing the relationship with a Core node.
 type Config struct {
-	RPCIP    string
-	GRPCIP   string
-	RPCPort  string
-	GRPCPort string
+	IP   string
+	RPC  HostConfig
+	GRPC HostConfig
+}
+
+type HostConfig struct {
+	Scheme string
+	Host   string
+	Port   string
+	Cert   string
 }
 
 // DefaultConfig returns default configuration for managing the
 // node's connection to a Celestia-Core endpoint.
 func DefaultConfig() Config {
 	return Config{
-		RPCIP:    "",
-		GRPCIP:   "",
-		RPCPort:  "26657",
-		GRPCPort: "9090",
+		IP: "",
+		RPC: HostConfig{
+			Scheme: DefaultRPCScheme,
+			Port:   DefaultRPCPort,
+		},
+		GRPC: HostConfig{
+			Scheme: DefaultRPCScheme,
+			Port:   DefaultGRPCPort,
+		},
 	}
+}
+
+func (cfg *Config) RPCHost() string {
+	if cfg.RPC.Host != "" {
+		return cfg.RPC.Host
+	}
+	return cfg.IP
+}
+
+func (cfg *Config) GRPCHost() string {
+	if cfg.GRPC.Host != "" {
+		return cfg.GRPC.Host
+	}
+	return cfg.IP
+}
+
+func (cfg *Config) multipleHostsConfigured() error {
+	if cfg.IP != "" && cfg.RPC.Host != "" {
+		return fmt.Errorf(
+			"%w: core.ip overridden by core.rpc.host",
+			ErrMultipleHostsConfigured,
+		)
+	}
+
+	if cfg.IP != "" && cfg.GRPC.Host != "" {
+		return fmt.Errorf(
+			"%w: core.ip overridden by core.grpc.host",
+			ErrMultipleHostsConfigured,
+		)
+	}
+
+	return nil
 }
 
 // Validate performs basic validation of the config.
@@ -34,31 +89,50 @@ func (cfg *Config) Validate() error {
 		return nil
 	}
 
-	rpcIP, err := utils.ValidateAddr(cfg.RPCIP)
-	if err != nil {
-		return fmt.Errorf("nodebuilder/core: invalid rpc ip: %s", err.Error())
+	if err := cfg.multipleHostsConfigured(); err != nil {
+		return err
 	}
-	cfg.RPCIP = rpcIP
 
-	grpcIP, err := utils.ValidateAddr(cfg.GRPCIP)
+	rpcURL, err := url.Parse(cfg.RPCHost())
 	if err != nil {
-		return fmt.Errorf("nodebuilder/core: invalid grpc ip: %s", err.Error())
+		return fmt.Errorf("nodebuilder/core: invalid rpc host: %s", err.Error())
 	}
-	cfg.GRPCIP = grpcIP
+	cfg.RPC.Host = rpcURL.Host
 
-	_, err = strconv.Atoi(cfg.RPCPort)
+	if rpcURL.Scheme != "" {
+		cfg.RPC.Scheme = rpcURL.Scheme
+	}
+
+	grpcURL, err := url.Parse(cfg.GRPCHost())
+	if err != nil {
+		return fmt.Errorf("nodebuilder/core: invalid grpc host: %s", err.Error())
+	}
+	cfg.GRPC.Host = grpcURL.Host
+
+	if grpcURL.Scheme != "" {
+		cfg.GRPC.Scheme = rpcURL.Scheme
+	}
+
+	_, err = strconv.Atoi(cfg.RPC.Port)
 	if err != nil {
 		return fmt.Errorf("nodebuilder/core: invalid rpc port: %s", err.Error())
 	}
-	_, err = strconv.Atoi(cfg.GRPCPort)
+	_, err = strconv.Atoi(cfg.GRPC.Port)
 	if err != nil {
 		return fmt.Errorf("nodebuilder/core: invalid grpc port: %s", err.Error())
 	}
+
+	if cfg.GRPC.Cert != "" {
+		if _, err := os.Stat(cfg.GRPC.Cert); os.IsNotExist(err) {
+			return fmt.Errorf("nodebuilder/core: grpc cert file does not exist: %s", cfg.GRPC.Cert)
+		}
+	}
+
 	return nil
 }
 
 // IsEndpointConfigured returns whether a core endpoint has been set
 // on the config (true if set).
 func (cfg *Config) IsEndpointConfigured() bool {
-	return cfg.RPCIP != "" && cfg.GRPCIP != ""
+	return cfg.RPCHost() != "" && cfg.GRPCHost() != ""
 }

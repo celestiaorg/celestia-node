@@ -196,8 +196,8 @@ func (s *Swamp) DefaultTestConfig(tp node.Type) *nodebuilder.Config {
 	ip, port, err := net.SplitHostPort(s.cfg.AppConfig.GRPC.Address)
 	require.NoError(s.t, err)
 
-	cfg.Core.RPCIP = ip
-	cfg.Core.GRPCIP = ip
+	cfg.Core.RPC.Host = ip
+	cfg.Core.GRPC.Host = ip
 	cfg.Core.GRPCPort = port
 	return cfg
 }
