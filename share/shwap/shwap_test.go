@@ -3,10 +3,6 @@ package shwap
 import (
 	"context"
 	"fmt"
-	"github.com/celestiaorg/celestia-node/share/store/file"
-	"github.com/celestiaorg/rsmt2d"
-	blocks "github.com/ipfs/go-block-format"
-	ipld "github.com/ipfs/go-ipld-format"
 	"testing"
 	"time"
 
@@ -15,16 +11,21 @@ import (
 	"github.com/ipfs/boxo/blockstore"
 	"github.com/ipfs/boxo/exchange"
 	"github.com/ipfs/boxo/routing/offline"
+	blocks "github.com/ipfs/go-block-format"
 	"github.com/ipfs/go-cid"
 	ds "github.com/ipfs/go-datastore"
 	dssync "github.com/ipfs/go-datastore/sync"
+	ipld "github.com/ipfs/go-ipld-format"
 	record "github.com/libp2p/go-libp2p-record"
 	mocknet "github.com/libp2p/go-libp2p/p2p/net/mock"
 	"github.com/stretchr/testify/require"
 
+	"github.com/celestiaorg/rsmt2d"
+
 	"github.com/celestiaorg/celestia-node/share"
 	"github.com/celestiaorg/celestia-node/share/eds/edstest"
 	"github.com/celestiaorg/celestia-node/share/sharetest"
+	"github.com/celestiaorg/celestia-node/share/store/file"
 )
 
 // TestSampleRoundtripGetBlock tests full protocol round trip of:

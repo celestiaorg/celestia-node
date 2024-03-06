@@ -13,6 +13,7 @@ import (
 
 var log = logging.Logger("store/file")
 
+// TODO: add validation of input parameters for Share, AxisHalf and Data methods.
 type EdsFile interface {
 	io.Closer
 	// Reader returns binary reader for the file.

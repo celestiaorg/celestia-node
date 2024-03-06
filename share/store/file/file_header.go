@@ -18,7 +18,7 @@ type Header struct {
 	squareSize uint16
 
 	// TODO(@walldiss) store all heights in the header?
-	//height   uint64
+	//heightы   []uint64
 	datahash share.DataHash
 }
 
