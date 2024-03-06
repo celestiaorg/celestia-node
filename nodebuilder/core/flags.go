@@ -69,7 +69,7 @@ func Flags() *flag.FlagSet {
 
 // ParseFlags parses Core flags from the given cmd and saves them to the passed config.
 func ParseFlags(cmd *cobra.Command, cfg *Config) error {
-	cfg.IP = cmd.Flag(ipFlag).Value.String()
+	cfg.IP = cmd.Flag(coreIpFlag).Value.String()
 	cfg.RPC.Host = cmd.Flag(rpcHostFlag).Value.String()
 	cfg.RPC.Port = cmd.Flag(rpcPortFlag).Value.String()
 
