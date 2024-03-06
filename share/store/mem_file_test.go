@@ -19,20 +19,14 @@ func TestMemFileShare(t *testing.T) {
 	fl := &MemFile{Eds: eds}
 
 	width := int(eds.Width())
-	for _, proofType := range []ProofType{ProofTypeAny, ProofTypeRow, ProofTypeColumn} {
-		for x := 0; x < width; x++ {
-			for y := 0; y < width; y++ {
-				shr, err := fl.Share(context.TODO(), x, y, proofType)
-				require.NoError(t, err)
+	for x := 0; x < width; x++ {
+		for y := 0; y < width; y++ {
+			shr, err := fl.Share(context.TODO(), x, y)
+			require.NoError(t, err)
 
-				axishash := root.RowRoots[y]
-				if proofType == ProofTypeColumn {
-					axishash = root.ColumnRoots[x]
-				}
-
-				ok := shr.Validate(axishash, x, y, width)
-				require.True(t, ok)
-			}
+			axishash := root.RowRoots[y]
+			ok := shr.Validate(axishash, x, y, width)
+			require.True(t, ok)
 		}
 	}
 }
