@@ -16,18 +16,24 @@ var _ EdsFile = (*closeOnceFile)(nil)
 var errFileClosed = errors.New("file closed")
 
 type closeOnceFile struct {
-	f      EdsFile
-	closed atomic.Bool
+	f        EdsFile
+	size     int
+	datahash share.DataHash
+	closed   atomic.Bool
 }
 
 func CloseOnceFile(f EdsFile) *closeOnceFile {
-	return &closeOnceFile{f: f}
+	return &closeOnceFile{
+		f:        f,
+		size:     f.Size(),
+		datahash: f.DataHash(),
+	}
 }
 
 func (c *closeOnceFile) Close() error {
 	if !c.closed.Swap(true) {
 		err := c.f.Close()
-		// release reference to the file to allow GC to collect it
+		// release reference to the file to allow GC to collect all resources associated with it
 		c.f = nil
 		return err
 	}
@@ -42,17 +48,11 @@ func (c *closeOnceFile) Reader() (io.Reader, error) {
 }
 
 func (c *closeOnceFile) Size() int {
-	if c.closed.Load() {
-		return 0
-	}
-	return c.f.Size()
+	return c.size
 }
 
 func (c *closeOnceFile) DataHash() share.DataHash {
-	if c.closed.Load() {
-		return nil
-	}
-	return c.f.DataHash()
+	return c.datahash
 }
 
 func (c *closeOnceFile) Share(ctx context.Context, x, y int) (*share.ShareWithProof, error) {
