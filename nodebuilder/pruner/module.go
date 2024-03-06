@@ -7,6 +7,7 @@ import (
 
 	"github.com/celestiaorg/celestia-node/nodebuilder/node"
 	"github.com/celestiaorg/celestia-node/pruner"
+	"github.com/celestiaorg/celestia-node/pruner/archival"
 	"github.com/celestiaorg/celestia-node/pruner/full"
 	"github.com/celestiaorg/celestia-node/pruner/light"
 	"github.com/celestiaorg/celestia-node/share/eds"
@@ -29,7 +30,7 @@ func ConstructModule(tp node.Type, cfg *Config) fx.Option {
 		case node.Full, node.Bridge:
 			return fx.Options(
 				baseComponents,
-				fx.Supply(full.Window),
+				fx.Supply(archival.Window),
 			)
 		default:
 			panic("unknown node type")
