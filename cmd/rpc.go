@@ -4,13 +4,16 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"path/filepath"
 
 	"github.com/spf13/cobra"
 	flag "github.com/spf13/pflag"
 
 	rpc "github.com/celestiaorg/celestia-node/api/rpc/client"
 	"github.com/celestiaorg/celestia-node/api/rpc/perms"
+	"github.com/celestiaorg/celestia-node/libs/fslock"
 	nodemod "github.com/celestiaorg/celestia-node/nodebuilder/node"
+	"github.com/celestiaorg/celestia-node/nodebuilder/p2p"
 )
 
 const (
@@ -47,11 +50,11 @@ func RPCFlags() *flag.FlagSet {
 
 func InitClient(cmd *cobra.Command, _ []string) error {
 	if authTokenFlag == "" {
-		storePath := ""
-		if !cmd.Flag(nodeStoreFlag).Changed {
-			return errors.New("cant get the access to the auth token: token/node-store flag was not specified")
+		storePath, err := getStorePath(cmd)
+		if err != nil {
+			return err
 		}
-		storePath = cmd.Flag(nodeStoreFlag).Value.String()
+
 		token, err := getToken(storePath)
 		if err != nil {
 			return fmt.Errorf("cant get the access to the auth token: %v", err)
@@ -67,6 +70,30 @@ func InitClient(cmd *cobra.Command, _ []string) error {
 	ctx := context.WithValue(cmd.Context(), rpcClientKey{}, client)
 	cmd.SetContext(ctx)
 	return nil
+}
+
+func getStorePath(cmd *cobra.Command) (string, error) {
+	// if node store flag is set, use it
+	if cmd.Flag(nodeStoreFlag).Changed {
+		return cmd.Flag(nodeStoreFlag).Value.String(), nil
+	}
+
+	// try to detect a running node by checking for a lock file
+	defaultNetwork := string(p2p.DefaultNetwork)
+	nodeTypes := []nodemod.Type{nodemod.Bridge, nodemod.Light, nodemod.Full}
+	for _, t := range nodeTypes {
+		path, err := DefaultNodeStorePath(t.String(), defaultNetwork)
+		if err != nil {
+			return "", err
+		}
+
+		lockpath := filepath.Join(path, "lock")
+		if fslock.IsLocked(lockpath) {
+			return path, nil
+		}
+	}
+
+	return "", errors.New("cant get the access to the auth token: token/node-store flag was not specified")
 }
 
 func getToken(path string) (string, error) {

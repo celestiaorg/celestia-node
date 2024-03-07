@@ -20,6 +20,15 @@ func Lock(path string) (*Locker, error) {
 	return l, nil
 }
 
+// IsLocked checks if a lock file exists at the given 'path'.
+func IsLocked(path string) bool {
+	if _, err := os.Stat(path); errors.Is(err, os.ErrNotExist) {
+		return false
+	}
+
+	return true
+}
+
 // Locker is a simple utility meant to create lock files.
 // This is to prevent multiple processes from managing the same working directory by purpose or
 // accident. NOTE: Windows is not supported.
