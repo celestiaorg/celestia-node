@@ -47,7 +47,7 @@ func AddShares(
 	return eds, batchAdder.Commit()
 }
 
-// ImportShares imports flattened chunks of data into Extended Data square and saves it in
+// ImportShares imports flattened pieces of data into Extended Data square and saves it in
 // blockservice.BlockService
 func ImportShares(
 	ctx context.Context,
