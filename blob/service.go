@@ -5,7 +5,6 @@ import (
 	"errors"
 	"fmt"
 	"math"
-	"sync"
 
 	sdkmath "cosmossdk.io/math"
 	"github.com/cosmos/cosmos-sdk/types"
@@ -164,7 +163,6 @@ func (s *Service) GetProof(
 
 // GetAll returns all blobs under the given namespaces at the given height.
 // GetAll can return blobs and an error in case if some requests failed.
-// GetAll can return both empty values in case if blobs were not found for the requested namespaces.
 func (s *Service) GetAll(ctx context.Context, height uint64, namespaces []share.Namespace) ([]*Blob, error) {
 	header, err := s.headerGetter(ctx, height)
 	if err != nil {
@@ -172,44 +170,47 @@ func (s *Service) GetAll(ctx context.Context, height uint64, namespaces []share.
 	}
 
 	var (
-		resultBlobs = make([][]*Blob, len(namespaces))
-		resultErr   = make([]error, len(namespaces))
+		blobs = make([]*Blob, 0)
+
+		blobsCh = make(chan []*Blob, 1)
+		errCh   = make(chan error, 1)
 	)
 
-	for _, namespace := range namespaces {
-		log.Debugw("performing GetAll request", "namespace", namespace.String(), "height", height)
-	}
-
-	wg := sync.WaitGroup{}
 	for i, namespace := range namespaces {
-		wg.Add(1)
 		go func(i int, namespace share.Namespace) {
-			defer wg.Done()
+			log.Debugw("retrieving all blobs from", "namespace", namespace.String(), "height", height)
 			blobs, err := s.getBlobs(ctx, namespace, header)
 			if err != nil {
-				resErr := fmt.Errorf("getting blobs for namespace(%s): %w", namespace.String(), err)
-				if errors.Is(err, ErrBlobNotFound) {
-					log.Debug(resErr)
-					return
-				}
-
-				resultErr[i] = resErr
+				err = fmt.Errorf("getting blobs for namespace(%s): %w", namespace.String(), err)
+				errCh <- err
+				log.Debug(err)
 				return
 			}
 
 			log.Debugw("receiving blobs", "height", height, "total", len(blobs))
-			resultBlobs[i] = blobs
+			blobsCh <- blobs
 		}(i, namespace)
 	}
-	wg.Wait()
 
-	blobs := make([]*Blob, 0)
-	for _, resBlobs := range resultBlobs {
-		if len(resBlobs) > 0 {
-			blobs = append(blobs, resBlobs...)
+	for range namespaces {
+		select {
+		case <-ctx.Done():
+			return blobs, ctx.Err()
+		case b := <-blobsCh:
+			blobs = append(blobs, b...)
+		case resultErr := <-errCh:
+			if errors.Is(resultErr, ErrBlobNotFound) {
+				continue
+
+			}
+			err = errors.Join(err, resultErr)
 		}
 	}
-	return blobs, errors.Join(resultErr...)
+
+	if len(blobs) == 0 && err == nil {
+		err = ErrBlobNotFound
+	}
+	return blobs, err
 }
 
 // Included verifies that the blob was included in a specific height.
