@@ -40,7 +40,7 @@ var accountAddressCmd = &cobra.Command{
 	Use:   "account-address",
 	Short: "Retrieves the address of the node's account/signer.",
 	Args:  cobra.NoArgs,
-	RunE: func(cmd *cobra.Command, args []string) error {
+	RunE: func(cmd *cobra.Command, _ []string) error {
 		client, err := cmdnode.ParseClientFromCtx(cmd.Context())
 		if err != nil {
 			return err
@@ -57,7 +57,7 @@ var balanceCmd = &cobra.Command{
 	Short: "Retrieves the Celestia coin balance for the node's account/signer and verifies it against " +
 		"the corresponding block's AppHash.",
 	Args: cobra.NoArgs,
-	RunE: func(cmd *cobra.Command, args []string) error {
+	RunE: func(cmd *cobra.Command, _ []string) error {
 		client, err := cmdnode.ParseClientFromCtx(cmd.Context())
 		if err != nil {
 			return err

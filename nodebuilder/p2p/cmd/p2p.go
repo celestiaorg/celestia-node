@@ -48,7 +48,7 @@ var infoCmd = &cobra.Command{
 	Use:   "info",
 	Short: "Gets the node's peer info (peer id and multiaddresses)",
 	Args:  cobra.NoArgs,
-	RunE: func(cmd *cobra.Command, args []string) error {
+	RunE: func(cmd *cobra.Command, _ []string) error {
 		client, err := cmdnode.ParseClientFromCtx(cmd.Context())
 		if err != nil {
 			return err
@@ -77,7 +77,7 @@ var peersCmd = &cobra.Command{
 	Use:   "peers",
 	Short: "Lists the peers we are connected to",
 	Args:  cobra.NoArgs,
-	RunE: func(cmd *cobra.Command, args []string) error {
+	RunE: func(cmd *cobra.Command, _ []string) error {
 		client, err := cmdnode.ParseClientFromCtx(cmd.Context())
 		if err != nil {
 			return err
@@ -226,7 +226,7 @@ var natStatusCmd = &cobra.Command{
 	Use:   "nat-status",
 	Short: "Gets the current NAT status",
 	Args:  cobra.NoArgs,
-	RunE: func(cmd *cobra.Command, args []string) error {
+	RunE: func(cmd *cobra.Command, _ []string) error {
 		client, err := cmdnode.ParseClientFromCtx(cmd.Context())
 		if err != nil {
 			return err
@@ -328,7 +328,7 @@ var blockedPeersCmd = &cobra.Command{
 	Use:   "blocked-peers",
 	Short: "Lists the node's blocked peers",
 	Args:  cobra.NoArgs,
-	RunE: func(cmd *cobra.Command, args []string) error {
+	RunE: func(cmd *cobra.Command, _ []string) error {
 		client, err := cmdnode.ParseClientFromCtx(cmd.Context())
 		if err != nil {
 			return err
@@ -466,7 +466,7 @@ var bandwidthStatsCmd = &cobra.Command{
 	Long: "Get stats struct with bandwidth metrics for all data sent/" +
 		"received by the local peer, regardless of protocol or remote peer IDs",
 	Args: cobra.NoArgs,
-	RunE: func(cmd *cobra.Command, args []string) error {
+	RunE: func(cmd *cobra.Command, _ []string) error {
 		client, err := cmdnode.ParseClientFromCtx(cmd.Context())
 		if err != nil {
 			return err

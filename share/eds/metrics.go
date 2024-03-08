@@ -128,7 +128,7 @@ func (s *Store) WithMetrics() error {
 		return err
 	}
 
-	callback := func(ctx context.Context, observer metric.Observer) error {
+	callback := func(_ context.Context, observer metric.Observer) error {
 		stats := s.dgstr.Stats()
 		for status, amount := range stats {
 			observer.ObserveInt64(dagStoreShards, int64(amount),
