@@ -11,55 +11,6 @@ import (
 	"github.com/celestiaorg/celestia-node/share"
 )
 
-// SharesToBlobs takes raw shares and converts them to the blobs.
-func SharesToBlobs(rawShares []share.Share) ([]*Blob, error) {
-	if len(rawShares) == 0 {
-		return nil, ErrBlobNotFound
-	}
-
-	appShares, err := toAppShares(rawShares...)
-	if err != nil {
-		return nil, err
-	}
-	return parseShares(appShares)
-}
-
-// parseShares takes shares and converts them to the []*Blob.
-func parseShares(appShrs []shares.Share) ([]*Blob, error) {
-	shareSequences, err := shares.ParseShares(appShrs, true)
-	if err != nil {
-		return nil, err
-	}
-
-	// ensure that sequence length is not 0
-	if len(shareSequences) == 0 {
-		return nil, ErrBlobNotFound
-	}
-
-	blobs := make([]*Blob, len(shareSequences))
-	for i, sequence := range shareSequences {
-		data, err := sequence.RawData()
-		if err != nil {
-			return nil, err
-		}
-		if len(data) == 0 {
-			continue
-		}
-
-		shareVersion, err := sequence.Shares[0].Version()
-		if err != nil {
-			return nil, err
-		}
-
-		blob, err := NewBlob(shareVersion, sequence.Namespace.Bytes(), data)
-		if err != nil {
-			return nil, err
-		}
-		blobs[i] = blob
-	}
-	return blobs, nil
-}
-
 // BlobsToShares accepts blobs and convert them to the Shares.
 func BlobsToShares(blobs ...*Blob) ([]share.Share, error) {
 	b := make([]types.Blob, len(blobs))
@@ -75,7 +26,7 @@ func BlobsToShares(blobs ...*Blob) ([]share.Share, error) {
 
 	sort.Slice(b, func(i, j int) bool {
 		val := bytes.Compare(b[i].NamespaceID, b[j].NamespaceID)
-		return val <= 0
+		return val < 0
 	})
 
 	rawShares, err := shares.SplitBlobs(b...)
@@ -83,4 +34,23 @@ func BlobsToShares(blobs ...*Blob) ([]share.Share, error) {
 		return nil, err
 	}
 	return shares.ToBytes(rawShares), nil
+}
+
+// toAppShares converts node's raw shares to the app shares, skipping padding
+func toAppShares(shrs ...share.Share) ([]shares.Share, error) {
+	appShrs := make([]shares.Share, 0, len(shrs))
+	for _, shr := range shrs {
+		bShare, err := shares.NewShare(shr)
+		if err != nil {
+			return nil, err
+		}
+		appShrs = append(appShrs, *bShare)
+	}
+	return appShrs, nil
+}
+
+func calculateIndex(rowLength, blobIndex int) (row, col int) {
+	row = blobIndex / rowLength
+	col = blobIndex - (row * rowLength)
+	return
 }

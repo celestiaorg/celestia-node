@@ -1,4 +1,4 @@
-FROM --platform=$BUILDPLATFORM docker.io/golang:1.21-alpine3.18 as builder
+FROM --platform=$BUILDPLATFORM docker.io/golang:1.22-alpine3.18 as builder
 
 ARG TARGETPLATFORM
 ARG BUILDPLATFORM
@@ -25,7 +25,7 @@ RUN uname -a &&\
     CGO_ENABLED=${CGO_ENABLED} GOOS=${TARGETOS} GOARCH=${TARGETARCH} \
     make build && make cel-key
 
-FROM docker.io/alpine:3.19.0
+FROM docker.io/alpine:3.19.1
 
 # Read here why UID 10001: https://github.com/hexops/dockerfile/blob/main/README.md#do-not-use-a-uid-below-10000
 ARG UID=10001
@@ -40,16 +40,16 @@ ENV P2P_NETWORK mocha
 # hadolint ignore=DL3018
 RUN uname -a &&\
     apk update && apk add --no-cache \
-        bash \
-        curl \
-        jq \
+    bash \
+    curl \
+    jq \
     # Creates a user with $UID and $GID=$UID
     && adduser ${USER_NAME} \
-        -D \
-        -g ${USER_NAME} \
-        -h ${CELESTIA_HOME} \
-        -s /sbin/nologin \
-        -u ${UID}
+    -D \
+    -g ${USER_NAME} \
+    -h ${CELESTIA_HOME} \
+    -s /sbin/nologin \
+    -u ${UID}
 
 # Copy in the binary
 COPY --from=builder /src/build/celestia /bin/celestia

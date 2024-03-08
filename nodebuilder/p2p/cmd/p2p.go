@@ -224,7 +224,7 @@ var connectednessCmd = &cobra.Command{
 
 var natStatusCmd = &cobra.Command{
 	Use:   "nat-status",
-	Short: "Gets the currrent NAT status",
+	Short: "Gets the current NAT status",
 	Args:  cobra.NoArgs,
 	RunE: func(cmd *cobra.Command, args []string) error {
 		client, err := cmdnode.ParseClientFromCtx(cmd.Context())

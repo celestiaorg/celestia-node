@@ -1,3 +1,5 @@
+//go:build nd || integration
+
 package tests
 
 import (

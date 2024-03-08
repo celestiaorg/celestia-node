@@ -1,0 +1,130 @@
+name: Integration Tests
+
+on:
+  workflow_call:
+    inputs:
+      go-version:
+        description: 'Go version'
+        required: true
+        type: string
+
+jobs:
+  api_tests:
+    name: Integration Tests API
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: set up go
+        uses: actions/setup-go@v5
+        with:
+          go-version: ${{ inputs.go-version }}
+
+      - name: run API tests
+        run: make test-integration TAGS=api
+
+  blob_tests:
+    name: Integration Tests Blob
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: set up go
+        uses: actions/setup-go@v5
+        with:
+          go-version: ${{ inputs.go-version }}
+
+      - name: run blob tests
+        run: make test-integration TAGS=blob
+
+  da_tests:
+    name: Da Tests Sync
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: set up go
+        uses: actions/setup-go@v5
+        with:
+          go-version: ${{ inputs.go-version }}
+
+      - name: run da tests
+        run: make test-integration SHORT=true TAGS=da
+
+  fraud_tests:
+    name: Integration Tests Fraud
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: set up go
+        uses: actions/setup-go@v5
+        with:
+          go-version: ${{ inputs.go-version }}
+
+      - name: run fraud tests
+        run: make test-integration TAGS=fraud
+
+  nd_tests:
+    name: Integration Tests ND
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: set up go
+        uses: actions/setup-go@v5
+        with:
+          go-version: ${{ inputs.go-version }}
+
+      - name: run nd tests
+        run: make test-integration TAGS=nd
+
+  p2p_tests:
+    name: Integration Tests p2p
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: set up go
+        uses: actions/setup-go@v5
+        with:
+          go-version: ${{ inputs.go-version }}
+
+      - name: run p2p tests
+        run: make test-integration TAGS=p2p
+
+  reconstruction_tests:
+    name: Integration Tests Reconstruction
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: set up go
+        uses: actions/setup-go@v5
+        with:
+          go-version: ${{ inputs.go-version }}
+
+      - name: run reconstruction tests
+        run: make test-integration SHORT=true TAGS=reconstruction
+
+  sync_tests:
+    name: Integration Tests Sync
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: set up go
+        uses: actions/setup-go@v5
+        with:
+          go-version: ${{ inputs.go-version }}
+
+      - name: run sync tests
+        run: make test-integration SHORT=true TAGS=sync

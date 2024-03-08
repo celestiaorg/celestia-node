@@ -22,6 +22,7 @@ import (
 	"github.com/celestiaorg/celestia-node/api/gateway"
 	"github.com/celestiaorg/celestia-node/api/rpc"
 	"github.com/celestiaorg/celestia-node/nodebuilder/blob"
+	"github.com/celestiaorg/celestia-node/nodebuilder/da"
 	"github.com/celestiaorg/celestia-node/nodebuilder/das"
 	"github.com/celestiaorg/celestia-node/nodebuilder/fraud"
 	"github.com/celestiaorg/celestia-node/nodebuilder/header"
@@ -60,6 +61,7 @@ type Node struct {
 	BlobServ   blob.Module   // not optional
 	DASer      das.Module    // not optional
 	AdminServ  node.Module   // not optional
+	DAMod      da.Module     // not optional
 
 	Config *Config
 
@@ -111,8 +113,12 @@ func (n *Node) Start(ctx context.Context) error {
 		return fmt.Errorf("node: failed to start: %w", err)
 	}
 
-	log.Infof("\n\n/_____/  /_____/  /_____/  /_____/  /_____/ \n\nStarted celestia DA node \nnode "+
-		"type: 	%s\nnetwork: 	%s\n\n/_____/  /_____/  /_____/  /_____/  /_____/ \n", strings.ToLower(n.Type.String()),
+	log.Infof("\n\n/_____/  /_____/  /_____/  /_____/  /_____/ \n\n"+
+		"Started celestia DA node \n"+
+		"node version: 	%s\nnode type: 	%s\nnetwork: 	%s\n\n"+
+		"/_____/  /_____/  /_____/  /_____/  /_____/ \n",
+		node.GetBuildInfo().SemanticVersion,
+		strings.ToLower(n.Type.String()),
 		n.Network)
 
 	addrs, err := peer.AddrInfoToP2pAddrs(host.InfoFromHost(n.Host))

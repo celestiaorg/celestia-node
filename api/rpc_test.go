@@ -22,6 +22,8 @@ import (
 	"github.com/celestiaorg/celestia-node/nodebuilder"
 	"github.com/celestiaorg/celestia-node/nodebuilder/blob"
 	blobMock "github.com/celestiaorg/celestia-node/nodebuilder/blob/mocks"
+	"github.com/celestiaorg/celestia-node/nodebuilder/da"
+	daMock "github.com/celestiaorg/celestia-node/nodebuilder/da/mocks"
 	"github.com/celestiaorg/celestia-node/nodebuilder/das"
 	dasMock "github.com/celestiaorg/celestia-node/nodebuilder/das/mocks"
 	"github.com/celestiaorg/celestia-node/nodebuilder/fraud"
@@ -91,6 +93,7 @@ type api struct {
 	Node   node.Module
 	P2P    p2p.Module
 	Blob   blob.Module
+	DA     da.Module
 }
 
 func TestModulesImplementFullAPI(t *testing.T) {
@@ -186,12 +189,15 @@ func TestAuthedRPC(t *testing.T) {
 			// 2. Test method with write-level permissions
 			expectedResp := &state.TxResponse{}
 			if tt.perm > 2 {
-				server.State.EXPECT().SubmitTx(gomock.Any(), gomock.Any()).Return(expectedResp, nil)
-				txResp, err := rpcClient.State.SubmitTx(ctx, []byte{})
+				server.State.EXPECT().Delegate(gomock.Any(), gomock.Any(),
+					gomock.Any(), gomock.Any(), gomock.Any()).Return(expectedResp, nil)
+				txResp, err := rpcClient.State.Delegate(ctx,
+					state.ValAddress{}, state.Int{}, state.Int{}, 0)
 				require.NoError(t, err)
 				require.Equal(t, expectedResp, txResp)
 			} else {
-				_, err := rpcClient.State.SubmitTx(ctx, []byte{})
+				_, err := rpcClient.State.Delegate(ctx,
+					state.ValAddress{}, state.Int{}, state.Int{}, 0)
 				require.Error(t, err)
 				require.ErrorContains(t, err, "missing permission")
 			}
@@ -294,19 +300,21 @@ func setupNodeWithAuthedRPC(t *testing.T, auth jwt.Signer) (*nodebuilder.Node, *
 		p2pMock.NewMockModule(ctrl),
 		nodeMock.NewMockModule(ctrl),
 		blobMock.NewMockModule(ctrl),
+		daMock.NewMockModule(ctrl),
 	}
 
 	// given the behavior of fx.Invoke, this invoke will be called last as it is added at the root
 	// level module. For further information, check the documentation on fx.Invoke.
 	invokeRPC := fx.Invoke(func(srv *rpc.Server) {
-		srv.RegisterAuthedService("state", mockAPI.State, &statemod.API{})
-		srv.RegisterAuthedService("share", mockAPI.Share, &share.API{})
-		srv.RegisterAuthedService("fraud", mockAPI.Fraud, &fraud.API{})
-		srv.RegisterAuthedService("header", mockAPI.Header, &header.API{})
-		srv.RegisterAuthedService("das", mockAPI.Das, &das.API{})
-		srv.RegisterAuthedService("p2p", mockAPI.P2P, &p2p.API{})
-		srv.RegisterAuthedService("node", mockAPI.Node, &node.API{})
-		srv.RegisterAuthedService("blob", mockAPI.Blob, &blob.API{})
+		srv.RegisterService("fraud", mockAPI.Fraud, &fraud.API{})
+		srv.RegisterService("das", mockAPI.Das, &das.API{})
+		srv.RegisterService("header", mockAPI.Header, &header.API{})
+		srv.RegisterService("state", mockAPI.State, &statemod.API{})
+		srv.RegisterService("share", mockAPI.Share, &share.API{})
+		srv.RegisterService("p2p", mockAPI.P2P, &p2p.API{})
+		srv.RegisterService("node", mockAPI.Node, &node.API{})
+		srv.RegisterService("blob", mockAPI.Blob, &blob.API{})
+		srv.RegisterService("da", mockAPI.DA, &da.API{})
 	})
 	// fx.Replace does not work here, but fx.Decorate does
 	nd := nodebuilder.TestNode(t, node.Full, invokeRPC, fx.Decorate(func() (jwt.Signer, error) {
@@ -331,4 +339,5 @@ type mockAPI struct {
 	P2P    *p2pMock.MockModule
 	Node   *nodeMock.MockModule
 	Blob   *blobMock.MockModule
+	DA     *daMock.MockModule
 }
