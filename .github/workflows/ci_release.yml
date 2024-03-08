@@ -4,9 +4,8 @@ on:
   push:
     branches:
       - main
-    # Trigger on version tags
-    tags:
-      - "v*"
+  release:
+    types: [published]
   pull_request:
   workflow_dispatch:
     inputs:
@@ -111,7 +110,7 @@ jobs:
     runs-on: ubuntu-latest
     if: |
       github.event_name == 'workflow_dispatch' ||
-      (github.event_name == 'push' && contains(github.ref, 'refs/tags/'))
+      github.event_name == 'release'
     permissions: "write-all"
     steps:
       - uses: actions/checkout@v4
