@@ -44,7 +44,7 @@ jobs:
         uses: golangci/golangci-lint-action@v4.0.0
         with:
           args: --timeout 10m
-          version: v1.55
+          version: v1.56
           skip-pkg-cache: true
           skip-build-cache: true
 

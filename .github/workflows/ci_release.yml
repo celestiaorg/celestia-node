@@ -4,6 +4,7 @@ on:
   push:
     branches:
       - main
+      - ci/ramin/lint
   release:
     types: [published]
   pull_request:
