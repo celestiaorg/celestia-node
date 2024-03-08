@@ -20,18 +20,12 @@ import (
 var log = logging.Logger("rpc")
 
 type Server struct {
-<<<<<<< HEAD
-	listener net.Listener
-=======
 	srv          *http.Server
 	rpc          *jsonrpc.RPCServer
 	listener     net.Listener
 	authDisabled bool
->>>>>>> main
 
 	auth jwt.Signer
-	srv  *http.Server
-	rpc  *jsonrpc.RPCServer
 
 	started atomic.Bool
 }

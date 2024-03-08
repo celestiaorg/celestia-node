@@ -35,8 +35,7 @@ var (
 // broadcasts the new `ExtendedHeader` to the header-sub gossipsub
 // network.
 type Listener struct {
-	headerBroadcaster libhead.Broadcaster[*header.ExtendedHeader]
-	fetcher           *BlockFetcher
+	fetcher *BlockFetcher
 
 	construct header.ConstructFn
 	store     *eds.Store

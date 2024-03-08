@@ -73,16 +73,12 @@ type Blob struct {
 
 	// the celestia-node's namespace type
 	// this is to avoid converting to and from app's type
-<<<<<<< HEAD
 	namespace  share.Namespace
 	types.Blob `json:"blob"`
-=======
-	namespace share.Namespace
 
 	// index represents the index of the blob's first share in the EDS.
 	// Only retrieved, on-chain blobs will have the index set. Default is -1.
 	index int
->>>>>>> main
 }
 
 // NewBlobV0 constructs a new blob from the provided Namespace and data.
@@ -133,11 +129,8 @@ type jsonBlob struct {
 	Namespace    share.Namespace `json:"namespace"`
 	Data         []byte          `json:"data"`
 	Commitment   Commitment      `json:"commitment"`
-<<<<<<< HEAD
 	ShareVersion uint32          `json:"share_version"`
-=======
 	Index        int             `json:"index"`
->>>>>>> main
 }
 
 func (b *Blob) MarshalJSON() ([]byte, error) {
