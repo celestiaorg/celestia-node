@@ -22,8 +22,8 @@ const (
 )
 
 type BadEncodingProof struct {
-	headerHash  []byte
 	BlockHeight uint64
+	headerHash  []byte
 	// ShareWithProof contains all shares from row or col.
 	// Shares that did not pass verification in rsmt2d will be nil.
 	// For non-nil shares MerkleProofs are computed.

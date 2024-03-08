@@ -20,10 +20,10 @@ var log = logging.Logger("share/byzantine")
 
 // ShareWithProof contains data with corresponding Merkle Proof
 type ShareWithProof struct {
-	// Share is a full data including namespace
-	share.Share
 	// Proof is a Merkle Proof of current share
 	Proof *nmt.Proof
+	// Share is a full data including namespace
+	share.Share
 }
 
 // NewShareWithProof takes the given leaf and its path, starting from the tree root,
@@ -37,8 +37,8 @@ func NewShareWithProof(index int, share share.Share, pathToLeaf []cid.Cid) *Shar
 
 	proof := nmt.NewInclusionProof(index, index+1, rangeProofs, true)
 	return &ShareWithProof{
-		share,
 		&proof,
+		share,
 	}
 }
 
@@ -119,7 +119,7 @@ func ProtoToShare(protoShares []*pb.Share) []*ShareWithProof {
 			continue
 		}
 		proof := ProtoToProof(share.Proof)
-		shares[i] = &ShareWithProof{share.Data, &proof}
+		shares[i] = &ShareWithProof{&proof, share.Data}
 	}
 	return shares
 }
