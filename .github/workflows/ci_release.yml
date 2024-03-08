@@ -4,9 +4,8 @@ on:
   push:
     branches:
       - main
-    # Trigger on version tags
-    tags:
-      - "v*"
+  release:
+    types: [published]
   pull_request:
   workflow_dispatch:
     inputs:
@@ -29,7 +28,7 @@ jobs:
     runs-on: ubuntu-latest
     env:
       # upgrade go version throughout pipeline here
-      GO_VERSION: "1.21"
+      GO_VERSION: "1.22"
     outputs:
       go-version: ${{ steps.set-vars.outputs.go-version }}
       branch: ${{ steps.trim_ref.outputs.branch }}
@@ -111,7 +110,7 @@ jobs:
     runs-on: ubuntu-latest
     if: |
       github.event_name == 'workflow_dispatch' ||
-      (github.event_name == 'push' && contains(github.ref, 'refs/tags/'))
+      github.event_name == 'release'
     permissions: "write-all"
     steps:
       - uses: actions/checkout@v4
@@ -138,11 +137,3 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           GPG_FINGERPRINT: ${{ steps.import_gpg.outputs.fingerprint }}
-
-  # TODO: permission issue, but not worth fixing as this should be refactored
-  # into the celestiaorg/.github repo, at which point any permission issues will
-  # be resolved.
-  #
-  # docker:
-  #   needs: [release]
-  #   uses: ./.github/workflows/docker-build.yml
