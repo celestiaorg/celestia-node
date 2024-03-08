@@ -27,13 +27,14 @@ import (
 type FraudMaker struct {
 	t *testing.T
 
-	vals   []types.PrivValidator
 	valSet *types.ValidatorSet
+
+	vals []types.PrivValidator
+
+	prevHash bytes.HexBytes
 
 	// height of the invalid header
 	height int64
-
-	prevHash bytes.HexBytes
 }
 
 func NewFraudMaker(t *testing.T, height int64, vals []types.PrivValidator, valSet *types.ValidatorSet) *FraudMaker {

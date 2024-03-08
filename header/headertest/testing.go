@@ -31,11 +31,12 @@ import (
 type TestSuite struct {
 	t *testing.T
 
-	vals    []types.PrivValidator
-	valSet  *types.ValidatorSet
-	valPntr int
+	valSet *types.ValidatorSet
 
 	head *header.ExtendedHeader
+
+	vals    []types.PrivValidator
+	valPntr int
 
 	// blockTime is optional - if set, the test suite will generate
 	// blocks timestamped at the specified interval

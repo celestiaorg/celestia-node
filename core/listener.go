@@ -35,20 +35,21 @@ var (
 // broadcasts the new `ExtendedHeader` to the header-sub gossipsub
 // network.
 type Listener struct {
-	fetcher *BlockFetcher
+	headerBroadcaster libhead.Broadcaster[*header.ExtendedHeader]
+	fetcher           *BlockFetcher
 
 	construct header.ConstructFn
 	store     *eds.Store
 
-	headerBroadcaster libhead.Broadcaster[*header.ExtendedHeader]
-	hashBroadcaster   shrexsub.BroadcastFn
+	hashBroadcaster shrexsub.BroadcastFn
 
 	metrics *listenerMetrics
+
+	cancel context.CancelFunc
 
 	chainID string
 
 	listenerTimeout time.Duration
-	cancel          context.CancelFunc
 }
 
 func NewListener(

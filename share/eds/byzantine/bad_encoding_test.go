@@ -93,7 +93,7 @@ func TestBEFP_Validate(t *testing.T) {
 				// break the first shareWithProof to test negative case
 				sh := sharetest.RandShares(t, 2)
 				nmtProof := nmt.NewInclusionProof(0, 1, nil, false)
-				befp.Shares[0] = &ShareWithProof{sh[0], &nmtProof}
+				befp.Shares[0] = &ShareWithProof{&nmtProof, sh[0]}
 				return proof.Validate(&header.ExtendedHeader{DAH: &dah})
 			},
 			expectedResult: func(err error) {

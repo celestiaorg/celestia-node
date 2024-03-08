@@ -10,21 +10,25 @@ import (
 
 // coordinatorState represents the current state of sampling process
 type coordinatorState struct {
-	// sampleFrom is the height from which the DASer will start sampling
-	sampleFrom uint64
-	// samplingRange is the maximum amount of headers processed in one job.
-	samplingRange uint64
 
 	// keeps track of running workers
 	inProgress map[int]func() workerState
 
-	// retryStrategy implements retry backoff
-	retryStrategy retryStrategy
 	// stores heights of failed headers with amount of retry attempt as value
 	failed map[uint64]retryAttempt
 	// inRetry stores (height -> attempt count) of failed headers that are currently being retried by
 	// workers
 	inRetry map[uint64]retryAttempt
+
+	// catchUpDoneCh blocks until all headers are sampled
+	catchUpDoneCh chan struct{}
+
+	// retryStrategy implements retry backoff
+	retryStrategy retryStrategy
+	// sampleFrom is the height from which the DASer will start sampling
+	sampleFrom uint64
+	// samplingRange is the maximum amount of headers processed in one job.
+	samplingRange uint64
 
 	// nextJobID is a unique identifier that will be used for creation of next job
 	nextJobID int
@@ -35,16 +39,14 @@ type coordinatorState struct {
 
 	// catchUpDone indicates if all headers are sampled
 	catchUpDone atomic.Bool
-	// catchUpDoneCh blocks until all headers are sampled
-	catchUpDoneCh chan struct{}
 }
 
 // retryAttempt represents a retry attempt with a backoff delay.
 type retryAttempt struct {
-	// count specifies the number of retry attempts made so far.
-	count int
 	// after specifies the time for the next retry attempt.
 	after time.Time
+	// count specifies the number of retry attempts made so far.
+	count int
 }
 
 // newCoordinatorState initiates state for samplingCoordinator

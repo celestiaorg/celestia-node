@@ -34,10 +34,10 @@ type RawHeader = core.Header
 // information necessary for Celestia Nodes to be notified of new
 // block headers and perform Data Availability Sampling.
 type ExtendedHeader struct {
-	RawHeader    `json:"header"`
 	Commit       *core.Commit               `json:"commit"`
 	ValidatorSet *core.ValidatorSet         `json:"validator_set"`
 	DAH          *da.DataAvailabilityHeader `json:"dah"`
+	RawHeader    `json:"header"`
 }
 
 // MakeExtendedHeader assembles new ExtendedHeader.
@@ -239,9 +239,9 @@ func (eh *ExtendedHeader) MarshalJSON() ([]byte, error) {
 		return nil, err
 	}
 	return json.Marshal(&struct {
+		*Alias
 		RawHeader    json.RawMessage `json:"header"`
 		ValidatorSet json.RawMessage `json:"validator_set"`
-		*Alias
 	}{
 		ValidatorSet: validatorSet,
 		RawHeader:    rawHeader,
@@ -254,9 +254,9 @@ func (eh *ExtendedHeader) MarshalJSON() ([]byte, error) {
 func (eh *ExtendedHeader) UnmarshalJSON(data []byte) error {
 	type Alias ExtendedHeader
 	aux := &struct {
+		*Alias
 		RawHeader    json.RawMessage `json:"header"`
 		ValidatorSet json.RawMessage `json:"validator_set"`
-		*Alias
 	}{
 		Alias: (*Alias)(eh),
 	}

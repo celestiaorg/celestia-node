@@ -152,7 +152,7 @@ var submitCmd = &cobra.Command{
 	Short: "Submit the blob(s) at the given namespace(s).\n" +
 		"User can use namespace and blobData as argument for single blob submission \n" +
 		"or use --input-file flag with the path to a json file for multiple blobs submission, \n" +
-		`where the json file contains: 
+		`where the json file contains:
 
 		{
 			"Blobs": [
@@ -211,8 +211,8 @@ var submitCmd = &cobra.Command{
 		)
 
 		response := struct {
-			Height      uint64            `json:"height"`
 			Commitments []blob.Commitment `json:"commitments"`
+			Height      uint64            `json:"height"`
 		}{
 			Height:      height,
 			Commitments: commitments,
@@ -268,10 +268,10 @@ var getProofCmd = &cobra.Command{
 
 func formatData(data interface{}) interface{} {
 	type tempBlob struct {
-		Namespace    []byte `json:"namespace"`
 		Data         string `json:"data"`
-		ShareVersion uint32 `json:"share_version"`
+		Namespace    []byte `json:"namespace"`
 		Commitment   []byte `json:"commitment"`
+		ShareVersion uint32 `json:"share_version"`
 		Index        int    `json:"index"`
 	}
 

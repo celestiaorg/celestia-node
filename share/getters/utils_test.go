@@ -107,8 +107,8 @@ func Test_ErrorContains(t *testing.T) {
 
 func Test_ctxWithSplitTimeout(t *testing.T) {
 	type args struct {
-		ctxTimeout  time.Duration
 		splitFactor []int
+		ctxTimeout  time.Duration
 		minTimeout  time.Duration
 	}
 	tests := []struct {

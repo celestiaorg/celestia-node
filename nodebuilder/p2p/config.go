@@ -25,15 +25,16 @@ type Config struct {
 	// Connections with those peers are protected from being trimmed, dropped or negatively scored.
 	// NOTE: Any two peers must bidirectionally configure each other on their MutualPeers field.
 	MutualPeers []string
-	// PeerExchange configures the node, whether it should share some peers to a pruned peer.
-	// This is enabled by default for Bootstrappers.
-	PeerExchange bool
+
+	// Allowlist for IPColocation PubSub parameter, a list of string CIDRs
+	IPColocationWhitelist []string
 	// ConnManager is a configuration tuple for ConnectionManager.
 	ConnManager               connManagerConfig
 	RoutingTableRefreshPeriod time.Duration
 
-	// Allowlist for IPColocation PubSub parameter, a list of string CIDRs
-	IPColocationWhitelist []string
+	// PeerExchange configures the node, whether it should share some peers to a pruned peer.
+	// This is enabled by default for Bootstrappers.
+	PeerExchange bool
 }
 
 // DefaultConfig returns default configuration for P2P subsystem.

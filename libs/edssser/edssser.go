@@ -18,23 +18,24 @@ import (
 )
 
 type Config struct {
+	LogFilePath string
 	EDSSize     int
 	EDSWrites   int
-	EnableLog   bool
-	LogFilePath string
 	StatLogFreq int
 	OpTimeout   time.Duration
+	EnableLog   bool
 }
 
 // EDSsser stand for EDS Store Stresser.
 type EDSsser struct {
+	datastore datastore.Batching
+	edsstore  *eds.Store
+
+	statsFile  *os.File
 	config     Config
-	datastore  datastore.Batching
 	edsstoreMu sync.Mutex
-	edsstore   *eds.Store
 
 	statsFileMu sync.Mutex
-	statsFile   *os.File
 }
 
 func NewEDSsser(path string, datastore datastore.Batching, cfg Config) (*EDSsser, error) {

@@ -17,10 +17,10 @@ import (
 // It exposes the buffer to be read by io.Reader interface implementation
 type bufferedODSReader struct {
 	carReader *bufio.Reader
+	buf       *bytes.Buffer
 	// current is the amount of CARv1 encoded leaves that have been read from reader. When current
 	// reaches odsSquareSize, bufferedODSReader will prevent further reads by returning io.EOF
 	current, odsSquareSize int
-	buf                    *bytes.Buffer
 }
 
 // ODSReader reads CARv1 encoded data from io.ReadCloser and limits the reader to the CAR header

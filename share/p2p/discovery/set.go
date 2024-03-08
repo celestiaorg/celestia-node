@@ -10,11 +10,12 @@ import (
 // limitedSet is a thread safe set of peers with given limit.
 // Inspired by libp2p peer.Set but extended with Remove method.
 type limitedSet struct {
-	lk sync.RWMutex
 	ps map[peer.ID]struct{}
 
-	limit    uint
 	waitPeer chan peer.ID
+
+	limit uint
+	lk    sync.RWMutex
 }
 
 // newLimitedSet constructs a set with the maximum peers amount.

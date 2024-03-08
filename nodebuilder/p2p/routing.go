@@ -61,9 +61,9 @@ type routingParams struct {
 	fx.In
 
 	Ctx       context.Context
-	Net       Network
-	Peers     Bootstrappers
 	Lc        fx.Lifecycle
 	Host      HostBase
 	DataStore datastore.Batching
+	Net       Network
+	Peers     Bootstrappers
 }

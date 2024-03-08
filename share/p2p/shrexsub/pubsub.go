@@ -40,8 +40,9 @@ type PubSub struct {
 	pubSub *pubsub.PubSub
 	topic  *pubsub.Topic
 
-	pubsubTopic string
 	cancelRelay pubsub.RelayCancelFunc
+
+	pubsubTopic string
 }
 
 // NewPubSub creates a libp2p.PubSub wrapper.

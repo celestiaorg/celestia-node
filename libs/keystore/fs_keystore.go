@@ -16,9 +16,8 @@ var ErrNotFound = errors.New("keystore: key not found")
 
 // fsKeystore implements persistent Keystore over OS filesystem.
 type fsKeystore struct {
-	path string
-
 	ring keyring.Keyring
+	path string
 }
 
 // NewFSKeystore creates a new Keystore over OS filesystem.

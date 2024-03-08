@@ -13,8 +13,8 @@ import (
 const APIVersion = "v0.11.0"
 
 type module struct {
-	tp     Type
 	signer jwt.Signer
+	tp     Type
 }
 
 func newModule(tp Type, signer jwt.Signer) Module {
@@ -27,8 +27,8 @@ func newModule(tp Type, signer jwt.Signer) Module {
 // Info contains information related to the administrative
 // node.
 type Info struct {
-	Type       Type   `json:"type"`
 	APIVersion string `json:"api_version"`
+	Type       Type   `json:"type"`
 }
 
 func (m *module) Info(context.Context) (Info, error) {

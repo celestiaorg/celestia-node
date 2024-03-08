@@ -316,11 +316,11 @@ func addToNamespace(namespace share.Namespace, val int) (share.Namespace, error)
 
 func TestAddToNamespace(t *testing.T) {
 	testCases := []struct {
+		expectedError error
 		name          string
-		value         int
 		input         share.Namespace
 		expected      share.Namespace
-		expectedError error
+		value         int
 	}{
 		{
 			name:          "Positive value addition",

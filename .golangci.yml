@@ -48,6 +48,7 @@ issues:
     - path: _test\.go
       linters:
         - gosec
+        - govet
     - linters:
         - lll
       source: "https://"
@@ -66,3 +67,6 @@ linters-settings:
     local-prefixes: github.com/celestiaorg/celestia-node
   dupl:
     threshold: 200
+  govet:
+    enable:
+      - fieldalignment

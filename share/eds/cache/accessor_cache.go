@@ -20,29 +20,29 @@ var _ Cache = (*AccessorCache)(nil)
 
 // AccessorCache implements the Cache interface using an LRU cache backend.
 type AccessorCache struct {
+	// Caches the blockstore for a given shard for shard read affinity, i.e., further reads will likely
+	// be from the same shard. Maps (shard key -> blockstore).
+	cache *lru.Cache[shard.Key, *accessorWithBlockstore]
+
+	metrics *metrics
 	// The name is a prefix that will be used for cache metrics if they are enabled.
 	name string
 	// stripedLocks prevents simultaneous RW access to the blockstore cache for a shard. Instead
 	// of using only one lock or one lock per key, we stripe the shard keys across 256 locks. 256 is
 	// chosen because it 0-255 is the range of values we get looking at the last byte of the key.
 	stripedLocks [256]sync.Mutex
-	// Caches the blockstore for a given shard for shard read affinity, i.e., further reads will likely
-	// be from the same shard. Maps (shard key -> blockstore).
-	cache *lru.Cache[shard.Key, *accessorWithBlockstore]
-
-	metrics *metrics
 }
 
 // accessorWithBlockstore is the value that we store in the blockstore Cache. It implements the
 // Accessor interface.
 type accessorWithBlockstore struct {
-	sync.RWMutex
 	shardAccessor Accessor
 	// The blockstore is stored separately because each access to the blockstore over the shard
 	// accessor reopens the underlying CAR.
 	bs dagstore.ReadBlockstore
 
-	done     chan struct{}
+	done chan struct{}
+	sync.RWMutex
 	refs     atomic.Int32
 	isClosed bool
 }

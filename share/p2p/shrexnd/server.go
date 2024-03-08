@@ -24,10 +24,8 @@ import (
 // Server implements server side of shrex/nd protocol to serve namespaced share to remote
 // peers.
 type Server struct {
+	host   host.Host
 	cancel context.CancelFunc
-
-	host       host.Host
-	protocolID protocol.ID
 
 	handler network.StreamHandler
 	store   *eds.Store
@@ -35,6 +33,7 @@ type Server struct {
 	params     *Parameters
 	middleware *p2p.Middleware
 	metrics    *p2p.Metrics
+	protocolID protocol.ID
 }
 
 // NewServer creates new Server

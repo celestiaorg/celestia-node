@@ -103,20 +103,20 @@ func (r *Retriever) Retrieve(ctx context.Context, dah *da.DataAvailabilityHeader
 // quadrant request retries. Also, provides an API
 // to reconstruct the block once enough shares are fetched.
 type retrievalSession struct {
-	dah  *da.DataAvailabilityHeader
 	bget blockservice.BlockGetter
+
+	span      trace.Span
+	dah       *da.DataAvailabilityHeader
+	squareSig chan struct{}
+	squareDn  chan struct{}
+	square    *rsmt2d.ExtendedDataSquare
 
 	// TODO(@Wondertan): Extract into a separate data structure
 	// https://github.com/celestiaorg/rsmt2d/issues/135
 	squareQuadrants  []*quadrant
 	squareCellsLks   [][]sync.Mutex
-	squareCellsCount uint32
-	squareSig        chan struct{}
-	squareDn         chan struct{}
 	squareLk         sync.RWMutex
-	square           *rsmt2d.ExtendedDataSquare
-
-	span trace.Span
+	squareCellsCount uint32
 }
 
 // newSession creates a new retrieval session and kicks off requesting process.

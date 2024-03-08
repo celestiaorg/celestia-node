@@ -20,8 +20,8 @@ func TestBlob(t *testing.T) {
 	require.NoError(t, err)
 
 	var test = []struct {
-		name        string
 		expectedRes func(t *testing.T)
+		name        string
 	}{
 		{
 			name: "new blob",

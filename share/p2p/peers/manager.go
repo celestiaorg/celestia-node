@@ -49,23 +49,14 @@ var log = logging.Logger("shrex/peer-manager")
 
 // Manager keeps track of peers coming from shrex.Sub and from discovery
 type Manager struct {
-	lock   sync.Mutex
-	params Parameters
-
 	// header subscription is necessary in order to Validate the inbound eds hash
 	headerSub libhead.Subscriber[*header.ExtendedHeader]
-	shrexSub  *shrexsub.PubSub
 	host      host.Host
+	shrexSub  *shrexsub.PubSub
 	connGater *conngater.BasicConnectionGater
 
 	// pools collecting peers from shrexSub and stores them by datahash
 	pools map[string]*syncPool
-
-	// initialHeight is the height of the first header received from headersub
-	initialHeight atomic.Uint64
-	// messages from shrex.Sub with height below storeFrom will be ignored, since we don't need to
-	// track peers for those headers
-	storeFrom atomic.Uint64
 
 	// nodes collects nodes' peer.IDs found via discovery
 	nodes *pool
@@ -78,6 +69,15 @@ type Manager struct {
 	headerSubDone         chan struct{}
 	disconnectedPeersDone chan struct{}
 	cancel                context.CancelFunc
+	params                Parameters
+
+	// initialHeight is the height of the first header received from headersub
+	initialHeight atomic.Uint64
+	// messages from shrex.Sub with height below storeFrom will be ignored, since we don't need to
+	// track peers for those headers
+	storeFrom atomic.Uint64
+
+	lock sync.Mutex
 }
 
 // DoneFunc updates internal state depending on call results. Should be called once per returned
@@ -85,15 +85,16 @@ type Manager struct {
 type DoneFunc func(result)
 
 type syncPool struct {
+	// createdAt is the syncPool creation time
+	createdAt time.Time
 	*pool
+
+	// height is the height of the header that corresponds to datahash
+	height uint64
 
 	// isValidatedDataHash indicates if datahash was validated by receiving corresponding extended
 	// header from headerSub
 	isValidatedDataHash atomic.Bool
-	// height is the height of the header that corresponds to datahash
-	height uint64
-	// createdAt is the syncPool creation time
-	createdAt time.Time
 }
 
 func NewManager(

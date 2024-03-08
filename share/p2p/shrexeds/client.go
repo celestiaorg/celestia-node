@@ -24,11 +24,12 @@ import (
 
 // Client is responsible for requesting EDSs for blocksync over the ShrEx/EDS protocol.
 type Client struct {
-	params     *Parameters
-	protocolID protocol.ID
-	host       host.Host
+	host host.Host
 
-	metrics *p2p.Metrics
+	params *Parameters
+
+	metrics    *p2p.Metrics
+	protocolID protocol.ID
 }
 
 // NewClient creates a new ShrEx/EDS client.

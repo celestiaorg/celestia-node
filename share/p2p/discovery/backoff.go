@@ -29,8 +29,9 @@ type backoffConnector struct {
 	h       host.Host
 	backoff backoff.BackoffFactory
 
-	cacheLk   sync.Mutex
 	cacheData map[peer.ID]backoffData
+
+	cacheLk sync.Mutex
 }
 
 // backoffData stores time when next connection attempt with the remote peer.

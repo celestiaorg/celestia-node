@@ -21,19 +21,20 @@ var MetricsEnabled = false
 
 // Config contains configuration parameters for header retrieval and management.
 type Config struct {
+	Client p2p_exchange.ClientParameters `toml:",omitempty"`
+
+	Store store.Parameters
 	// TrustedHash is the Block/Header hash that Nodes use as starting point for header synchronization.
 	// Only affects the node once on initial sync.
 	TrustedHash string
+
+	Server p2p_exchange.ServerParameters
 	// TrustedPeers are the peers we trust to fetch headers from.
 	// Note: The trusted does *not* imply Headers are not verified, but trusted as reliable to fetch
 	// headers at any moment.
 	TrustedPeers []string
 
-	Store  store.Parameters
 	Syncer sync.Parameters
-
-	Server p2p_exchange.ServerParameters
-	Client p2p_exchange.ClientParameters `toml:",omitempty"`
 }
 
 func DefaultConfig(tp node.Type) Config {

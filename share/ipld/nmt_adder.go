@@ -22,12 +22,12 @@ const (
 // NmtNodeAdder adds ipld.Nodes to the underlying ipld.Batch if it is inserted
 // into a nmt tree.
 type NmtNodeAdder struct {
-	// lock protects Batch, Set and error from parallel writes / reads
-	lock   sync.Mutex
 	ctx    context.Context
+	err    error
 	add    *ipld.Batch
 	leaves *cid.Set
-	err    error
+	// lock protects Batch, Set and error from parallel writes / reads
+	lock sync.Mutex
 }
 
 // NewNmtNodeAdder returns a new NmtNodeAdder with the provided context and
@@ -103,8 +103,8 @@ func BatchSize(squareSize int) int {
 
 // ProofsAdder is used to collect proof nodes, while traversing merkle tree
 type ProofsAdder struct {
-	lock   sync.RWMutex
 	proofs map[cid.Cid][]byte
+	lock   sync.RWMutex
 }
 
 // NewProofsAdder creates new instance of ProofsAdder.
