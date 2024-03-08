@@ -14,10 +14,10 @@ import (
 // * shares needed to build the blob;
 // * extra condition to verify the final blob.
 type parser struct {
+	verifyFn func(blob *Blob) bool
+	shares   []shares.Share
 	index    int
 	length   int
-	shares   []shares.Share
-	verifyFn func(blob *Blob) bool
 }
 
 // NOTE: passing shares here needed to detect padding shares(as we do not need this check in addShares)

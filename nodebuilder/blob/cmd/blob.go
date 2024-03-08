@@ -211,8 +211,8 @@ var submitCmd = &cobra.Command{
 		)
 
 		response := struct {
-			Height      uint64            `json:"height"`
 			Commitments []blob.Commitment `json:"commitments"`
+			Height      uint64            `json:"height"`
 		}{
 			Height:      height,
 			Commitments: commitments,

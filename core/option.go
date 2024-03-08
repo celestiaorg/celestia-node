@@ -5,9 +5,8 @@ import "github.com/celestiaorg/celestia-node/nodebuilder/p2p"
 type Option func(*params)
 
 type params struct {
-	metrics bool
-
 	chainID string
+	metrics bool
 }
 
 // WithMetrics is a functional option that enables metrics
