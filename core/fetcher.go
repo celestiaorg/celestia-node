@@ -2,6 +2,7 @@ package core
 
 import (
 	"context"
+	"errors"
 	"fmt"
 
 	logging "github.com/ipfs/go-log/v2"
@@ -127,7 +128,7 @@ func (f *BlockFetcher) ValidatorSet(ctx context.Context, height *int64) (*types.
 func (f *BlockFetcher) SubscribeNewBlockEvent(ctx context.Context) (<-chan types.EventDataSignedBlock, error) {
 	// start the client if not started yet
 	if !f.client.IsRunning() {
-		return nil, fmt.Errorf("client not running")
+		return nil, errors.New("client not running")
 	}
 
 	ctx, cancel := context.WithCancel(ctx)
