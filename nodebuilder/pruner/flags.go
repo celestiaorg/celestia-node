@@ -16,8 +16,5 @@ func Flags() *flag.FlagSet {
 }
 
 func ParseFlags(cmd *cobra.Command, cfg *Config) {
-	enabled := cmd.Flag(pruningFlag).Changed
-	if enabled {
-		cfg.EnableService = true
-	}
+	cfg.EnableService = cmd.Flag(pruningFlag).Changed
 }

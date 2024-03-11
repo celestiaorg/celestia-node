@@ -55,7 +55,7 @@ func NewService(
 		pruner:            p,
 		window:            window,
 		getter:            getter,
-		checkpoint:        &checkpoint{FailedHeaders: map[uint64]string{}},
+		checkpoint:        &checkpoint{FailedHeaders: map[uint64]struct{}{}},
 		ds:                namespace.Wrap(ds, storePrefix),
 		numBlocksInWindow: numBlocksInWindow,
 		doneCh:            make(chan struct{}),
@@ -130,7 +130,7 @@ func (s *Service) prune(
 			return lastPrunedHeader
 		}
 
-		failed := make(map[uint64]error)
+		failed := make(map[uint64]struct{})
 
 		log.Debugw("pruning headers", "from", headers[0].Height(), "to",
 			headers[len(headers)-1].Height())
@@ -141,7 +141,7 @@ func (s *Service) prune(
 			err = s.pruner.Prune(pruneCtx, eh)
 			if err != nil {
 				log.Errorw("failed to prune block", "height", eh.Height(), "err", err)
-				failed[eh.Height()] = err
+				failed[eh.Height()] = struct{}{}
 			} else {
 				lastPrunedHeader = eh
 			}
@@ -170,13 +170,11 @@ func (s *Service) retryFailed(ctx context.Context) {
 		h, err := s.getter.GetByHeight(ctx, failed)
 		if err != nil {
 			log.Errorw("failed to load header from failed map", "height", failed, "err", err)
-			s.checkpoint.FailedHeaders[failed] = err.Error()
 			continue
 		}
 		err = s.pruner.Prune(ctx, h)
 		if err != nil {
 			log.Errorw("failed to prune block from failed map", "height", failed, "err", err)
-			s.checkpoint.FailedHeaders[failed] = err.Error()
 			continue
 		}
 		delete(s.checkpoint.FailedHeaders, failed)

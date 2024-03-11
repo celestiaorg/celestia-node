@@ -17,7 +17,7 @@ var maxHeadersPerLoop = uint64(1024)
 func (s *Service) findPruneableHeaders(ctx context.Context) ([]*header.ExtendedHeader, error) {
 	lastPruned := s.lastPruned()
 
-	pruneCutoff := time.Now().Add(time.Duration(-s.window))
+	pruneCutoff := time.Now().UTC().Add(time.Duration(-s.window))
 	estimatedCutoffHeight := lastPruned.Height() + s.numBlocksInWindow
 
 	head, err := s.getter.Head(ctx)

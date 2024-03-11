@@ -178,9 +178,9 @@ func (s *TestSuite) GenRawHeader(
 	rh.NextValidatorsHash = s.valSet.Hash()
 	rh.ProposerAddress = s.nextProposer().Address
 
-	rh.Time = time.Now()
+	rh.Time = time.Now().UTC()
 	if s.blockTime > 0 {
-		rh.Time = s.Head().Time().Add(s.blockTime)
+		rh.Time = s.Head().Time().UTC().Add(s.blockTime)
 	}
 
 	return rh
@@ -200,7 +200,7 @@ func (s *TestSuite) Commit(h *header.RawHeader) *types.Commit {
 			ValidatorIndex:   int32(i),
 			Height:           h.Height,
 			Round:            round,
-			Timestamp:        tmtime.Now(),
+			Timestamp:        tmtime.Now().UTC(),
 			Type:             tmproto.PrecommitType,
 			BlockID:          bid,
 		}
@@ -225,7 +225,7 @@ func (s *TestSuite) nextProposer() *types.Validator {
 
 // RandExtendedHeader provides an ExtendedHeader fixture.
 func RandExtendedHeader(t testing.TB) *header.ExtendedHeader {
-	timestamp := time.Now()
+	timestamp := time.Now().UTC()
 	return RandExtendedHeaderAtTimestamp(t, timestamp)
 }
 
@@ -295,7 +295,7 @@ func RandRawHeader(t testing.TB) *header.RawHeader {
 		Version:            version.Consensus{Block: 11, App: 1},
 		ChainID:            "test",
 		Height:             mrand.Int63(), //nolint:gosec
-		Time:               time.Now(),
+		Time:               time.Now().UTC(),
 		LastBlockID:        RandBlockID(t),
 		LastCommitHash:     tmrand.Bytes(32),
 		DataHash:           tmrand.Bytes(32),
@@ -336,7 +336,7 @@ func ExtendedHeaderFromEDS(t testing.TB, height uint64, eds *rsmt2d.ExtendedData
 	blockID := RandBlockID(t)
 	blockID.Hash = gen.Hash()
 	voteSet := types.NewVoteSet(gen.ChainID, gen.Height, 0, tmproto.PrecommitType, valSet)
-	commit, err := MakeCommit(blockID, gen.Height, 0, voteSet, vals, time.Now())
+	commit, err := MakeCommit(blockID, gen.Height, 0, voteSet, vals, time.Now().UTC())
 	require.NoError(t, err)
 
 	eh := &header.ExtendedHeader{

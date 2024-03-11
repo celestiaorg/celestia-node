@@ -21,8 +21,8 @@ var (
 type checkpoint struct {
 	lastPrunedHeader atomic.Pointer[header.ExtendedHeader]
 
-	LastPrunedHeight uint64            `json:"last_pruned_height"`
-	FailedHeaders    map[uint64]string `json:"failed"`
+	LastPrunedHeight uint64              `json:"last_pruned_height"`
+	FailedHeaders    map[uint64]struct{} `json:"failed"`
 }
 
 // initializeCheckpoint initializes the checkpoint, storing the earliest header in the chain.
@@ -67,11 +67,10 @@ func (s *Service) loadCheckpoint(ctx context.Context) error {
 func (s *Service) updateCheckpoint(
 	ctx context.Context,
 	lastPruned *header.ExtendedHeader,
-	failedHeights map[uint64]error,
+	failedHeights map[uint64]struct{},
 ) error {
-	for height, failErr := range failedHeights {
-		// if the height already exists, just update the error
-		s.checkpoint.FailedHeaders[height] = failErr.Error()
+	for height := range failedHeights {
+		s.checkpoint.FailedHeaders[height] = struct{}{}
 	}
 
 	s.checkpoint.lastPrunedHeader.Store(lastPruned)

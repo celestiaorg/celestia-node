@@ -139,7 +139,8 @@ func TestServiceCheckpointing(t *testing.T) {
 	// update checkpoint
 	lastPruned, err := store.GetByHeight(ctx, 3)
 	require.NoError(t, err)
-	err = serv.updateCheckpoint(ctx, lastPruned, map[uint64]error{2: fmt.Errorf("failed to prune")})
+
+	err = serv.updateCheckpoint(ctx, lastPruned, map[uint64]struct{}{2: {}})
 	require.NoError(t, err)
 
 	err = serv.Stop(ctx)
