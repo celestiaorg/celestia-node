@@ -10,11 +10,6 @@ import (
 	"github.com/celestiaorg/celestia-node/share"
 )
 
-// TODO:
-// * Remove RowHash
-// 	* Change validation
-// * Remove IDs from responses
-
 // RowIDSize is the size of the RowID in bytes
 const RowIDSize = 10
 
