@@ -9,5 +9,5 @@ import (
 // Pruner contains methods necessary to prune data
 // from the node's datastore.
 type Pruner interface {
-	Prune(context.Context, ...*header.ExtendedHeader) error
+	Prune(context.Context, *header.ExtendedHeader) error
 }

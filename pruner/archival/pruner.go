@@ -15,6 +15,6 @@ func NewPruner() *Pruner {
 	return &Pruner{}
 }
 
-func (p *Pruner) Prune(context.Context, ...*header.ExtendedHeader) error {
+func (p *Pruner) Prune(context.Context, *header.ExtendedHeader) error {
 	return nil
 }
