@@ -4,7 +4,6 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"sync/atomic"
 
 	"github.com/ipfs/go-datastore"
 
@@ -19,20 +18,13 @@ var (
 // checkpoint contains information related to the state of the
 // pruner service that is periodically persisted to disk.
 type checkpoint struct {
-	lastPrunedHeader atomic.Pointer[header.ExtendedHeader]
-
 	LastPrunedHeight uint64              `json:"last_pruned_height"`
 	FailedHeaders    map[uint64]struct{} `json:"failed"`
 }
 
 // initializeCheckpoint initializes the checkpoint, storing the earliest header in the chain.
 func (s *Service) initializeCheckpoint(ctx context.Context) error {
-	firstHeader, err := s.getter.GetByHeight(ctx, 1)
-	if err != nil {
-		return fmt.Errorf("failed to initialize checkpoint: %w", err)
-	}
-
-	return s.updateCheckpoint(ctx, firstHeader, nil)
+	return s.updateCheckpoint(ctx, uint64(1), nil)
 }
 
 // loadCheckpoint loads the last checkpoint from disk, initializing it if it does not already exist.
@@ -50,15 +42,8 @@ func (s *Service) loadCheckpoint(ctx context.Context) error {
 	if err != nil {
 		return fmt.Errorf("failed to unmarshal checkpoint: %w", err)
 	}
+
 	s.checkpoint = cp
-
-	// load last pruned header based off height
-	lastPruned, err := s.getter.GetByHeight(ctx, cp.LastPrunedHeight)
-	if err != nil {
-		return fmt.Errorf("failed to load last pruned header at height %d: %w", cp.LastPrunedHeight, err)
-	}
-
-	s.checkpoint.lastPrunedHeader.Store(lastPruned)
 	return nil
 }
 
@@ -66,15 +51,14 @@ func (s *Service) loadCheckpoint(ctx context.Context) error {
 // and persists it to disk.
 func (s *Service) updateCheckpoint(
 	ctx context.Context,
-	lastPruned *header.ExtendedHeader,
+	lastPrunedHeight uint64,
 	failedHeights map[uint64]struct{},
 ) error {
 	for height := range failedHeights {
 		s.checkpoint.FailedHeaders[height] = struct{}{}
 	}
 
-	s.checkpoint.lastPrunedHeader.Store(lastPruned)
-	s.checkpoint.LastPrunedHeight = lastPruned.Height()
+	s.checkpoint.LastPrunedHeight = lastPrunedHeight
 
 	bin, err := json.Marshal(s.checkpoint)
 	if err != nil {
@@ -84,6 +68,6 @@ func (s *Service) updateCheckpoint(
 	return s.ds.Put(ctx, checkpointKey, bin)
 }
 
-func (s *Service) lastPruned() *header.ExtendedHeader {
-	return s.checkpoint.lastPrunedHeader.Load()
+func (s *Service) lastPruned(ctx context.Context) (*header.ExtendedHeader, error) {
+	return s.getter.GetByHeight(ctx, s.checkpoint.LastPrunedHeight)
 }

@@ -70,7 +70,7 @@ func (s *Service) Start(context.Context) error {
 	if err != nil {
 		return err
 	}
-	log.Debugw("loaded checkpoint", "lastPruned", s.lastPruned().Height())
+	log.Debugw("loaded checkpoint", "lastPruned", s.checkpoint.LastPrunedHeight)
 
 	go s.run()
 	return nil
@@ -97,7 +97,13 @@ func (s *Service) run() {
 	ticker := time.NewTicker(s.params.gcCycle)
 	defer ticker.Stop()
 
-	lastPrunedHeader := s.lastPruned()
+	lastPrunedHeader, err := s.lastPruned(s.ctx)
+	if err != nil {
+		log.Errorw("failed to get last pruned header", "height", s.checkpoint.LastPrunedHeight,
+			"err", err)
+		log.Warn("exiting pruner service!")
+		return
+	}
 
 	for {
 		select {
@@ -124,7 +130,7 @@ func (s *Service) prune(
 		default:
 		}
 
-		headers, err := s.findPruneableHeaders(ctx)
+		headers, err := s.findPruneableHeaders(ctx, lastPrunedHeader)
 		if err != nil || len(headers) == 0 {
 			log.Errorw("failed to find prune-able blocks", "error", err)
 			return lastPrunedHeader
@@ -150,7 +156,7 @@ func (s *Service) prune(
 			cancel()
 		}
 
-		err = s.updateCheckpoint(s.ctx, lastPrunedHeader, failed)
+		err = s.updateCheckpoint(s.ctx, lastPrunedHeader.Height(), failed)
 		if err != nil {
 			log.Errorw("failed to update checkpoint", "err", err)
 			return lastPrunedHeader

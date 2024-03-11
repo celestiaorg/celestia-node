@@ -53,7 +53,9 @@ func TestService(t *testing.T) {
 
 	time.Sleep(time.Millisecond * 2)
 
-	lastPruned := serv.prune(ctx, serv.lastPruned())
+	lastPruned, err := serv.lastPruned(ctx)
+	require.NoError(t, err)
+	lastPruned = serv.prune(ctx, lastPruned)
 
 	assert.Greater(t, lastPruned.Height(), uint64(2))
 	assert.Greater(t, serv.checkpoint.LastPrunedHeight, uint64(2))
@@ -93,7 +95,9 @@ func TestService_FailedAreRecorded(t *testing.T) {
 	time.Sleep(time.Millisecond * 50)
 
 	// trigger a prune job
-	_ = serv.prune(ctx, serv.lastPruned())
+	lastPruned, err := serv.lastPruned(ctx)
+	require.NoError(t, err)
+	_ = serv.prune(ctx, lastPruned)
 
 	assert.Len(t, serv.checkpoint.FailedHeaders, 3)
 	for expectedFail := range mp.failHeight {
@@ -103,7 +107,9 @@ func TestService_FailedAreRecorded(t *testing.T) {
 
 	// trigger another prune job, which will prioritize retrying
 	// failed blocks
-	_ = serv.prune(ctx, serv.lastPruned())
+	lastPruned, err = serv.lastPruned(ctx)
+	require.NoError(t, err)
+	_ = serv.prune(ctx, lastPruned)
 
 	assert.Len(t, serv.checkpoint.FailedHeaders, 0)
 }
@@ -128,19 +134,12 @@ func TestServiceCheckpointing(t *testing.T) {
 	err := serv.Start(ctx)
 	require.NoError(t, err)
 
-	gen, err := store.GetByHeight(ctx, 1)
-	require.NoError(t, err)
-
 	// ensure checkpoint was initialized correctly
 	assert.Equal(t, uint64(1), serv.checkpoint.LastPrunedHeight)
 	assert.Empty(t, serv.checkpoint.FailedHeaders)
-	assert.Equal(t, gen, serv.lastPruned())
 
 	// update checkpoint
-	lastPruned, err := store.GetByHeight(ctx, 3)
-	require.NoError(t, err)
-
-	err = serv.updateCheckpoint(ctx, lastPruned, map[uint64]struct{}{2: {}})
+	err = serv.updateCheckpoint(ctx, uint64(3), map[uint64]struct{}{2: {}})
 	require.NoError(t, err)
 
 	err = serv.Stop(ctx)
@@ -151,7 +150,6 @@ func TestServiceCheckpointing(t *testing.T) {
 	require.NoError(t, err)
 	assert.Equal(t, uint64(3), serv.checkpoint.LastPrunedHeight)
 	assert.Len(t, serv.checkpoint.FailedHeaders, 1)
-	assert.Equal(t, lastPruned, serv.lastPruned())
 }
 
 // TestPrune_LargeNumberOfBlocks tests that the pruner service with a large
@@ -192,7 +190,9 @@ func TestPrune_LargeNumberOfBlocks(t *testing.T) {
 	time.Sleep(time.Duration(availabilityWindow) + time.Millisecond*100)
 
 	// trigger a prune job
-	_ = serv.prune(ctx, serv.lastPruned())
+	lastPruned, err := serv.lastPruned(ctx)
+	require.NoError(t, err)
+	_ = serv.prune(ctx, lastPruned)
 
 	// ensure all headers have been pruned
 	assert.Equal(t, maxHeadersPerLoop*5, serv.checkpoint.LastPrunedHeight)
@@ -264,7 +264,10 @@ func TestFindPruneableHeaders(t *testing.T) {
 			err := serv.Start(ctx)
 			require.NoError(t, err)
 
-			pruneable, err := serv.findPruneableHeaders(ctx)
+			lastPruned, err := serv.lastPruned(ctx)
+			require.NoError(t, err)
+
+			pruneable, err := serv.findPruneableHeaders(ctx, lastPruned)
 			require.NoError(t, err)
 			require.Len(t, pruneable, tc.expectedLength)
 

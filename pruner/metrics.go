@@ -39,10 +39,7 @@ func (s *Service) WithMetrics() error {
 	}
 
 	callback := func(ctx context.Context, observer metric.Observer) error {
-		lastPrunedHeader := s.checkpoint.lastPrunedHeader.Load()
-		if lastPrunedHeader != nil {
-			observer.ObserveInt64(lastPruned, int64(lastPrunedHeader.Height()))
-		}
+		observer.ObserveInt64(lastPruned, int64(s.checkpoint.LastPrunedHeight))
 		observer.ObserveInt64(failedPrunes, int64(len(s.checkpoint.FailedHeaders)))
 		return nil
 	}

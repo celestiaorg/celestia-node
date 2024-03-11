@@ -14,9 +14,10 @@ var maxHeadersPerLoop = uint64(1024)
 
 // findPruneableHeaders returns all headers that are eligible for pruning
 // (outside the sampling window).
-func (s *Service) findPruneableHeaders(ctx context.Context) ([]*header.ExtendedHeader, error) {
-	lastPruned := s.lastPruned()
-
+func (s *Service) findPruneableHeaders(
+	ctx context.Context,
+	lastPruned *header.ExtendedHeader,
+) ([]*header.ExtendedHeader, error) {
 	pruneCutoff := time.Now().UTC().Add(time.Duration(-s.window))
 	estimatedCutoffHeight := lastPruned.Height() + s.numBlocksInWindow
 
