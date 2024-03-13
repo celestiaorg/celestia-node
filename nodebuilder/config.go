@@ -1,13 +1,14 @@
 package nodebuilder
 
 import (
+	"fmt"
 	"io"
 	"os"
 
 	"github.com/BurntSushi/toml"
+	"github.com/gofrs/flock"
 	"github.com/imdario/mergo"
 
-	"github.com/celestiaorg/celestia-node/libs/fslock"
 	"github.com/celestiaorg/celestia-node/nodebuilder/core"
 	"github.com/celestiaorg/celestia-node/nodebuilder/das"
 	"github.com/celestiaorg/celestia-node/nodebuilder/gateway"
@@ -91,14 +92,15 @@ func RemoveConfig(path string) (err error) {
 		return
 	}
 
-	flock, err := fslock.Lock(lockPath(path))
+	flk := flock.New(lockPath(path))
+	ok, err := flk.TryLock()
 	if err != nil {
-		if err == fslock.ErrLocked {
-			err = ErrOpened
-		}
-		return
+		return fmt.Errorf("locking file: %w", err)
 	}
-	defer flock.Unlock() //nolint: errcheck
+	defer flk.Close()
+	if !ok {
+		return ErrOpened
+	}
 
 	return removeConfig(configPath(path))
 }
@@ -117,14 +119,15 @@ func UpdateConfig(tp node.Type, path string) (err error) {
 		return err
 	}
 
-	flock, err := fslock.Lock(lockPath(path))
+	flk := flock.New(lockPath(path))
+	ok, err := flk.TryLock()
 	if err != nil {
-		if err == fslock.ErrLocked {
-			err = ErrOpened
-		}
-		return err
+		return fmt.Errorf("locking file: %w", err)
 	}
-	defer flock.Unlock() //nolint: errcheck
+	defer flk.Close()
+	if !ok {
+		return ErrOpened
+	}
 
 	newCfg := DefaultConfig(tp)
 
