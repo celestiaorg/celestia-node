@@ -68,13 +68,13 @@ func OpenStore(path string, ring keyring.Keyring) (Store, error) {
 	}
 
 	if !IsInit(path) {
-		err := errors.Join(ErrNotInited, flk.Unlock())
+		err := errors.Join(ErrNotInited, flk.Close())
 		return nil, err
 	}
 
 	ks, err := keystore.NewFSKeystore(keysPath(path), ring)
 	if err != nil {
-		err = errors.Join(err, flk.Unlock())
+		err = errors.Join(err, flk.Close())
 		return nil, err
 	}
 
@@ -132,7 +132,7 @@ func (f *fsStore) Datastore() (datastore.Batching, error) {
 }
 
 func (f *fsStore) Close() (err error) {
-	err = errors.Join(err, f.dirLock.Unlock())
+	err = errors.Join(err, f.dirLock.Close())
 	f.dataMu.Lock()
 	if f.data != nil {
 		err = errors.Join(err, f.data.Close())

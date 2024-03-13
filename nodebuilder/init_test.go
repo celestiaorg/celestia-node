@@ -61,7 +61,7 @@ func TestInitErrForLockedDir(t *testing.T) {
 	flk := flock.New(lockPath(dir))
 	_, err := flk.TryLock()
 	require.NoError(t, err)
-	defer flk.Unlock() //nolint:errcheck
+	defer flk.Close()
 	nodes := []node.Type{node.Light, node.Bridge}
 
 	for _, node := range nodes {
