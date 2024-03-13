@@ -23,6 +23,7 @@ func (s *Service) findPruneableHeaders(
 
 	head, err := s.getter.Head(ctx)
 	if err != nil {
+		log.Errorw("failed to get Head from header store", "error", err)
 		return nil, err
 	}
 	if head.Height() < estimatedCutoffHeight {
@@ -38,6 +39,8 @@ func (s *Service) findPruneableHeaders(
 
 	headers, err := s.getter.GetRangeByHeight(ctx, lastPruned, estimatedCutoffHeight)
 	if err != nil {
+		log.Errorw("failed to get range from header store", "from", lastPruned.Height(),
+			"to", estimatedCutoffHeight, "error", err)
 		return nil, err
 	}
 	// ensures genesis block gets pruned
@@ -62,6 +65,7 @@ func (s *Service) findPruneableHeaders(
 
 		nextHeader, err := s.getter.GetByHeight(ctx, lastHeader.Height()+1)
 		if err != nil {
+			log.Errorw("failed to get header by height", "height", lastHeader.Height()+1, "error", err)
 			return nil, err
 		}
 		headers = append(headers, nextHeader)

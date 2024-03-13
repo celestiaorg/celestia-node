@@ -132,7 +132,6 @@ func (s *Service) prune(
 
 		headers, err := s.findPruneableHeaders(ctx, lastPrunedHeader)
 		if err != nil || len(headers) == 0 {
-			log.Errorw("failed to find prune-able blocks", "error", err)
 			return lastPrunedHeader
 		}
 
