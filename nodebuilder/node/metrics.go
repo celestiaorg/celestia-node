@@ -42,7 +42,7 @@ func WithMetrics() error {
 		return err
 	}
 
-	callback := func(ctx context.Context, observer metric.Observer) error {
+	callback := func(_ context.Context, observer metric.Observer) error {
 		if !nodeStarted {
 			// Observe node start timestamp
 			timeStarted = time.Now()
