@@ -8,11 +8,11 @@ import (
 	"github.com/cosmos/cosmos-sdk/crypto/hd"
 	"github.com/cosmos/cosmos-sdk/crypto/keyring"
 	sdk "github.com/cosmos/cosmos-sdk/types"
+	"github.com/gofrs/flock"
 
 	"github.com/celestiaorg/celestia-app/app"
 	"github.com/celestiaorg/celestia-app/app/encoding"
 
-	"github.com/celestiaorg/celestia-node/libs/fslock"
 	"github.com/celestiaorg/celestia-node/libs/utils"
 	"github.com/celestiaorg/celestia-node/nodebuilder/node"
 	"github.com/celestiaorg/celestia-node/nodebuilder/state"
@@ -35,14 +35,15 @@ func Init(cfg Config, path string, tp node.Type) error {
 		return err
 	}
 
-	flock, err := fslock.Lock(lockPath(path))
+	flk := flock.New(lockPath(path))
+	ok, err := flk.TryLock()
 	if err != nil {
-		if err == fslock.ErrLocked {
-			return ErrOpened
-		}
-		return err
+		return fmt.Errorf("locking file: %w", err)
 	}
-	defer flock.Unlock() //nolint: errcheck
+	defer flk.Close()
+	if !ok {
+		return ErrOpened
+	}
 
 	ksPath := keysPath(path)
 	err = initDir(ksPath)
@@ -82,14 +83,15 @@ func Reset(path string, tp node.Type) error {
 	}
 	log.Infof("Resetting %s Node Store over '%s'", tp, path)
 
-	flock, err := fslock.Lock(lockPath(path))
+	flk := flock.New(lockPath(path))
+	ok, err := flk.TryLock()
 	if err != nil {
-		if err == fslock.ErrLocked {
-			return ErrOpened
-		}
-		return err
+		return fmt.Errorf("locking file: %w", err)
 	}
-	defer flock.Unlock() //nolint: errcheck
+	defer flk.Close()
+	if !ok {
+		return ErrOpened
+	}
 
 	err = resetDir(dataPath(path))
 	if err != nil {

@@ -10,11 +10,11 @@ import (
 
 	"github.com/cosmos/cosmos-sdk/crypto/keyring"
 	"github.com/dgraph-io/badger/v4/options"
+	"github.com/gofrs/flock"
 	"github.com/ipfs/go-datastore"
 	dsbadger "github.com/ipfs/go-ds-badger4"
 	"github.com/mitchellh/go-homedir"
 
-	"github.com/celestiaorg/celestia-node/libs/fslock"
 	"github.com/celestiaorg/celestia-node/libs/keystore"
 	"github.com/celestiaorg/celestia-node/share"
 )
@@ -58,28 +58,29 @@ func OpenStore(path string, ring keyring.Keyring) (Store, error) {
 		return nil, err
 	}
 
-	flock, err := fslock.Lock(lockPath(path))
+	flk := flock.New(lockPath(path))
+	ok, err := flk.TryLock()
 	if err != nil {
-		if err == fslock.ErrLocked {
-			return nil, ErrOpened
-		}
-		return nil, err
+		return nil, fmt.Errorf("locking file: %w", err)
+	}
+	if !ok {
+		return nil, ErrOpened
 	}
 
-	ok := IsInit(path)
-	if !ok {
-		flock.Unlock() //nolint:errcheck
-		return nil, ErrNotInited
+	if !IsInit(path) {
+		err := errors.Join(ErrNotInited, flk.Close())
+		return nil, err
 	}
 
 	ks, err := keystore.NewFSKeystore(keysPath(path), ring)
 	if err != nil {
+		err = errors.Join(err, flk.Close())
 		return nil, err
 	}
 
 	return &fsStore{
 		path:    path,
-		dirLock: flock,
+		dirLock: flk,
 		keys:    ks,
 	}, nil
 }
@@ -131,7 +132,7 @@ func (f *fsStore) Datastore() (datastore.Batching, error) {
 }
 
 func (f *fsStore) Close() (err error) {
-	err = errors.Join(err, f.dirLock.Unlock())
+	err = errors.Join(err, f.dirLock.Close())
 	f.dataMu.Lock()
 	if f.data != nil {
 		err = errors.Join(err, f.data.Close())
@@ -146,7 +147,7 @@ type fsStore struct {
 	dataMu  sync.Mutex
 	data    datastore.Batching
 	keys    keystore.Keystore
-	dirLock *fslock.Locker // protects directory
+	dirLock *flock.Flock // protects directory
 }
 
 func storePath(path string) (string, error) {
@@ -158,7 +159,7 @@ func configPath(base string) string {
 }
 
 func lockPath(base string) string {
-	return filepath.Join(base, "lock")
+	return filepath.Join(base, ".lock")
 }
 
 func keysPath(base string) string {
