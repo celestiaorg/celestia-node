@@ -88,9 +88,10 @@ func (s *Service) Stop(ctx context.Context) error {
 }
 
 func (s *Service) run() {
+	defer close(s.doneCh)
+
 	if s.params.gcCycle == time.Duration(0) {
 		// Service is disabled, exit
-		close(s.doneCh)
 		return
 	}
 
@@ -108,7 +109,6 @@ func (s *Service) run() {
 	for {
 		select {
 		case <-s.ctx.Done():
-			close(s.doneCh)
 			return
 		case <-ticker.C:
 			lastPrunedHeader = s.prune(s.ctx, lastPrunedHeader)
