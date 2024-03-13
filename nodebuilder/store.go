@@ -68,13 +68,13 @@ func OpenStore(path string, ring keyring.Keyring) (Store, error) {
 	}
 
 	if !IsInit(path) {
-		err := errors.Join(ErrNotInited, flk.Close())
+		err := errors.Join(ErrNotInited, flk.Unlock())
 		return nil, err
 	}
 
 	ks, err := keystore.NewFSKeystore(keysPath(path), ring)
 	if err != nil {
-		err = errors.Join(err, flk.Close())
+		err = errors.Join(err, flk.Unlock())
 		return nil, err
 	}
 
