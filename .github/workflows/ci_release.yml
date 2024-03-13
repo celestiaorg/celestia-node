@@ -98,7 +98,7 @@ jobs:
         # version_bump section, it would skip and not run, which would result
         # in goreleaser not running either.
         if: ${{ github.event_name == 'workflow_dispatch' }}
-        uses: mathieudutour/github-tag-action@v6.1
+        uses: mathieudutour/github-tag-action@v6.2
         with:
           github_token: ${{ secrets.GITHUB_TOKEN }}
           default_bump: ${{ inputs.version }}
