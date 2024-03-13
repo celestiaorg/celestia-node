@@ -97,10 +97,10 @@ func RemoveConfig(path string) (err error) {
 	if err != nil {
 		return fmt.Errorf("locking file: %w", err)
 	}
-	defer flk.Close()
 	if !ok {
 		return ErrOpened
 	}
+	defer flk.Unlock() //nolint:errcheck
 
 	return removeConfig(configPath(path))
 }
@@ -124,10 +124,10 @@ func UpdateConfig(tp node.Type, path string) (err error) {
 	if err != nil {
 		return fmt.Errorf("locking file: %w", err)
 	}
-	defer flk.Close()
 	if !ok {
 		return ErrOpened
 	}
+	defer flk.Unlock() //nolint:errcheck
 
 	newCfg := DefaultConfig(tp)
 

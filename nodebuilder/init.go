@@ -40,10 +40,10 @@ func Init(cfg Config, path string, tp node.Type) error {
 	if err != nil {
 		return fmt.Errorf("locking file: %w", err)
 	}
-	defer flk.Close()
 	if !ok {
 		return ErrOpened
 	}
+	defer flk.Unlock() //nolint:errcheck
 
 	ksPath := keysPath(path)
 	err = initDir(ksPath)
@@ -88,10 +88,10 @@ func Reset(path string, tp node.Type) error {
 	if err != nil {
 		return fmt.Errorf("locking file: %w", err)
 	}
-	defer flk.Close()
 	if !ok {
 		return ErrOpened
 	}
+	defer flk.Unlock() //nolint:errcheck
 
 	err = resetDir(dataPath(path))
 	if err != nil {
