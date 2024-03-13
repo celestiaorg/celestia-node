@@ -102,7 +102,7 @@ func initMetrics(d *Discovery) (*metrics, error) {
 		peerRemoved:      peerRemoved,
 	}
 
-	callback := func(ctx context.Context, observer metric.Observer) error {
+	callback := func(_ context.Context, observer metric.Observer) error {
 		observer.ObserveInt64(peersAmount, int64(d.set.Size()))
 		observer.ObserveInt64(backOffSize, int64(d.connector.Size()))
 		return nil
