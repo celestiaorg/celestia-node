@@ -10,9 +10,9 @@ import (
 	"os"
 	"time"
 
+	"github.com/grafana/pyroscope-go"
 	logging "github.com/ipfs/go-log/v2"
 	"github.com/mitchellh/go-homedir"
-	"github.com/pyroscope-io/client/pyroscope"
 	"github.com/spf13/cobra"
 
 	"github.com/celestiaorg/celestia-node/libs/edssser"
@@ -69,7 +69,7 @@ var edsStoreStress = &cobra.Command{
 	Use:          "stress",
 	Short:        `Runs eds.Store stress test over default node.Store Datastore backend (e.g. Badger).`,
 	SilenceUsage: true,
-	RunE: func(cmd *cobra.Command, args []string) (err error) {
+	RunE: func(cmd *cobra.Command, _ []string) (err error) {
 		// expose expvar vars over http
 		go http.ListenAndServe(":9999", http.DefaultServeMux) //nolint:errcheck,gosec
 

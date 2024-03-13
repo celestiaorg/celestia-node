@@ -44,7 +44,7 @@ jobs:
         uses: golangci/golangci-lint-action@v4.0.0
         with:
           args: --timeout 10m
-          version: v1.55
+          version: v1.56
           skip-pkg-cache: true
           skip-build-cache: true
 
@@ -98,7 +98,7 @@ jobs:
           retention-days: 5
 
       - name: upload coverage
-        uses: codecov/codecov-action@v4.0.2
+        uses: codecov/codecov-action@v4.1.0
         with:
           env_vars: OS
           token: ${{ secrets.CODECOV_TOKEN }}

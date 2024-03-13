@@ -53,7 +53,7 @@ func dataExchange(params bitSwapParams) exchange.Interface {
 	net.Start(srvr, clnt) // starting with hook does not work
 
 	params.Lifecycle.Append(fx.Hook{
-		OnStop: func(ctx context.Context) (err error) {
+		OnStop: func(_ context.Context) (err error) {
 			err = errors.Join(err, clnt.Close())
 			err = errors.Join(err, srvr.Close())
 			net.Stop()
