@@ -40,8 +40,8 @@ func readShares(shareSize, edsSize int, r io.Reader) (square, error) {
 	// get pre-allocated square and buffer from memPools
 	square := memPools.get(odsLn).square()
 
-	// TODO(@walldiss): find proper size for buffer
-	br := bufio.NewReader(r)
+	// TODO(@walldiss): run benchmark to find optimal size for buffer
+	br := bufio.NewReaderSize(r, 4096)
 	var total int
 	log.Info("start reading ods", "ods size", odsLn, "share size", shareSize)
 	for i := 0; i < odsLn; i++ {
@@ -49,6 +49,9 @@ func readShares(shareSize, edsSize int, r io.Reader) (square, error) {
 			n, err := io.ReadFull(br, square[i][j])
 			if err != nil {
 				return nil, fmt.Errorf("reading share: %w, bytes read: %v", err, total+n)
+			}
+			if n != shareSize {
+				return nil, fmt.Errorf("share size mismatch: expected %v, got %v", shareSize, n)
 			}
 			total += n
 		}
