@@ -12,7 +12,7 @@ func RemoveConfigCmd(fsets ...*flag.FlagSet) *cobra.Command {
 		Use:   "config-remove",
 		Short: "Deletes the node's config",
 		Args:  cobra.NoArgs,
-		RunE: func(cmd *cobra.Command, args []string) error {
+		RunE: func(cmd *cobra.Command, _ []string) error {
 			ctx := cmd.Context()
 			return nodebuilder.RemoveConfig(StorePath(ctx))
 		},
@@ -31,7 +31,7 @@ func UpdateConfigCmd(fsets ...*flag.FlagSet) *cobra.Command {
 		Long: "Updates the node's outdated config with default values from newly-added fields. Check the config " +
 			" afterwards to ensure all old custom values were preserved.",
 		Args: cobra.NoArgs,
-		RunE: func(cmd *cobra.Command, args []string) error {
+		RunE: func(cmd *cobra.Command, _ []string) error {
 			ctx := cmd.Context()
 			return nodebuilder.UpdateConfig(NodeType(ctx), StorePath(ctx))
 		},
