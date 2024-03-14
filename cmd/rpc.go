@@ -4,14 +4,13 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"path/filepath"
 
 	"github.com/spf13/cobra"
 	flag "github.com/spf13/pflag"
 
 	rpc "github.com/celestiaorg/celestia-node/api/rpc/client"
 	"github.com/celestiaorg/celestia-node/api/rpc/perms"
-	"github.com/celestiaorg/celestia-node/libs/fslock"
+	"github.com/celestiaorg/celestia-node/nodebuilder"
 	nodemod "github.com/celestiaorg/celestia-node/nodebuilder/node"
 	"github.com/celestiaorg/celestia-node/nodebuilder/p2p"
 )
@@ -79,17 +78,18 @@ func getStorePath(cmd *cobra.Command) (string, error) {
 	}
 
 	// try to detect a running node by checking for a lock file
-	defaultNetwork := string(p2p.DefaultNetwork)
-	nodeTypes := []nodemod.Type{nodemod.Bridge, nodemod.Light, nodemod.Full}
+	nodeTypes := []nodemod.Type{nodemod.Bridge, nodemod.Full, nodemod.Light}
+	defaultNetwork := []p2p.Network{p2p.Mainnet, p2p.Mocha, p2p.Arabica, p2p.Private}
 	for _, t := range nodeTypes {
-		path, err := DefaultNodeStorePath(t.String(), defaultNetwork)
-		if err != nil {
-			return "", err
-		}
+		for _, n := range defaultNetwork {
+			path, err := DefaultNodeStorePath(t.String(), n.String())
+			if err != nil {
+				return "", err
+			}
 
-		lockpath := filepath.Join(path, "lock")
-		if fslock.IsLocked(lockpath) {
-			return path, nil
+			if nodebuilder.IsOpened(path) {
+				return path, nil
+			}
 		}
 	}
 

@@ -3,6 +3,7 @@ package nodebuilder
 import (
 	"errors"
 	"fmt"
+	"os"
 	"path/filepath"
 	"runtime"
 	"sync"
@@ -148,6 +149,16 @@ type fsStore struct {
 	data    datastore.Batching
 	keys    keystore.Keystore
 	dirLock *flock.Flock // protects directory
+}
+
+// IsOpened checks if a directory is in use by checking if a lock file exists.
+func IsOpened(path string) bool {
+	lockPath := lockPath(path)
+	if _, err := os.Stat(lockPath); errors.Is(err, os.ErrNotExist) {
+		return false
+	}
+
+	return true
 }
 
 func storePath(path string) (string, error) {
