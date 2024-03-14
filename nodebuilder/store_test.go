@@ -180,7 +180,7 @@ func TestDiscoverOpened(t *testing.T) {
 		networks := []p2p.Network{p2p.Mainnet, p2p.Mocha, p2p.Arabica, p2p.Private}
 		nodeTypes := []node.Type{node.Bridge, node.Full, node.Light}
 
-		// Store the Stores in a map of opened stores (network + node -> dir/store)
+		// Store opened stores in a map (network + node -> dir/store)
 		dirMap := make(map[string]string)
 		storeMap := make(map[string]Store)
 		for _, network := range networks {
