@@ -204,7 +204,7 @@ func DefaultNodeStorePath(tp string, network string) (string, error) {
 
 // IsOpened checks if a directory is in use by attempting to lock it.
 func IsOpened(path string) (bool, error) {
-    flk := flock.New(lockPath(path))
+	flk := flock.New(lockPath(path))
 	ok, err := flk.TryLock()
 	if err != nil {
 		return false, fmt.Errorf("locking file: %w", err)
