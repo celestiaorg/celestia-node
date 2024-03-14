@@ -76,17 +76,19 @@ func getStorePath(cmd *cobra.Command) (string, error) {
 		return cmd.Flag(nodeStoreFlag).Value.String(), nil
 	}
 
+	errMsg := "cant get the access to the auth token: token/node-store flag was not specified"
+
 	// try to detect a running node
 	path, err := nodebuilder.DiscoverOpened()
 	if err != nil {
-		return "", err
+		return "", fmt.Errorf("%s: %w", errMsg, err)
 	}
 
 	if path != "" {
 		return path, nil
 	}
 
-	return "", errors.New("cant get the access to the auth token: token/node-store flag was not specified")
+	return "", errors.New(errMsg)
 }
 
 func getToken(path string) (string, error) {

@@ -28,6 +28,8 @@ var (
 	ErrOpened = errors.New("node: store is in use")
 	// ErrNotInited is thrown on attempt to open Store without initialization.
 	ErrNotInited = errors.New("node: store is not initialized")
+	// ErrNoOpenStore is thrown when no opened Store is found.
+	ErrNoOpenStore = errors.New("no opened Node Store found")
 )
 
 // Store encapsulates storage for the Node. Basically, it is the Store of all Stores.
@@ -154,16 +156,19 @@ type fsStore struct {
 	dirLock *flock.Flock // protects directory
 }
 
-// Finds a single running node and return its store path.
-// Node Type Order: Bridge, Full, Light
-// Network Order: Mainnet, Mocha, Arabica, Private
+// DiscoverOpened finds a path of an opened Node Store and returns its path.
+// If multiple nodes are running, it only returns the path of the first found node.
+// Network is favored over node type.
+//
+// Network preference order: Mainnet, Mocha, Arabica, Private
+// Type preference order: Bridge, Full, Light
 func DiscoverOpened() (string, error) {
-	nodeTypes := []nodemod.Type{nodemod.Bridge, nodemod.Full, nodemod.Light}
 	defaultNetwork := []p2p.Network{p2p.Mainnet, p2p.Mocha, p2p.Arabica, p2p.Private}
+	nodeTypes := []nodemod.Type{nodemod.Bridge, nodemod.Full, nodemod.Light}
 
-	for _, t := range nodeTypes {
-		for _, n := range defaultNetwork {
-			path, err := DefaultNodeStorePath(t.String(), n.String())
+	for _, network := range defaultNetwork {
+		for _, tp := range nodeTypes {
+			path, err := DefaultNodeStorePath(tp.String(), network.String())
 			if err != nil {
 				return "", err
 			}
@@ -175,12 +180,12 @@ func DiscoverOpened() (string, error) {
 		}
 	}
 
-	return "", nil
+	return "", ErrNoOpenStore
 }
 
 // DefaultNodeStorePath constructs the default node store path using the given
 // node type and network.
-func DefaultNodeStorePath(tp string, network string) (string, error) {
+var DefaultNodeStorePath = func(tp string, network string) (string, error) {
 	home := os.Getenv("CELESTIA_HOME")
 
 	if home == "" {
@@ -202,7 +207,7 @@ func DefaultNodeStorePath(tp string, network string) (string, error) {
 	), nil
 }
 
-// IsOpened checks if a directory is in use by attempting to lock it.
+// IsOpened checks if the Store is opened in a directory by checking its file lock.
 func IsOpened(path string) (bool, error) {
 	flk := flock.New(lockPath(path))
 	ok, err := flk.TryLock()
@@ -210,7 +215,11 @@ func IsOpened(path string) (bool, error) {
 		return false, fmt.Errorf("locking file: %w", err)
 	}
 
-	flk.Close()
+	err = flk.Unlock()
+	if err != nil {
+		return false, fmt.Errorf("unlocking file: %w", err)
+	}
+
 	return !ok, nil
 }
 

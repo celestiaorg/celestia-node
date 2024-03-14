@@ -8,6 +8,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/gofrs/flock"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
@@ -17,6 +18,7 @@ import (
 	"github.com/celestiaorg/rsmt2d"
 
 	"github.com/celestiaorg/celestia-node/nodebuilder/node"
+	"github.com/celestiaorg/celestia-node/nodebuilder/p2p"
 	"github.com/celestiaorg/celestia-node/share"
 	"github.com/celestiaorg/celestia-node/share/eds"
 	"github.com/celestiaorg/celestia-node/share/eds/edstest"
@@ -158,6 +160,103 @@ func TestStoreRestart(t *testing.T) {
 		require.NoError(t, err)
 		require.NoError(t, edsReader.Close())
 	}
+}
+
+func TestDiscoverOpened(t *testing.T) {
+	t.Run("single open store", func(t *testing.T) {
+		_, dir := initAndOpenStore(t, node.Full)
+
+		mockDefaultNodeStorePath := func(t string, n string) (string, error) {
+			return dir, nil
+		}
+		DefaultNodeStorePath = mockDefaultNodeStorePath
+
+		path, err := DiscoverOpened()
+		require.NoError(t, err)
+		require.Equal(t, dir, path)
+	})
+
+	t.Run("multiple open nodes by preference order", func(t *testing.T) {
+		networks := []p2p.Network{p2p.Mainnet, p2p.Mocha, p2p.Arabica, p2p.Private}
+		nodeTypes := []node.Type{node.Bridge, node.Full, node.Light}
+
+		// Store the Stores in a map of opened stores (network + node -> dir/store)
+		dirMap := make(map[string]string)
+		storeMap := make(map[string]Store)
+		for _, network := range networks {
+			for _, tp := range nodeTypes {
+				store, dir := initAndOpenStore(t, tp)
+				key := network.String() + "_" + tp.String()
+				dirMap[key] = dir
+				storeMap[key] = store
+			}
+		}
+
+		mockDefaultNodeStorePath := func(tp string, n string) (string, error) {
+			key := n + "_" + tp
+			return dirMap[key], nil
+		}
+		DefaultNodeStorePath = mockDefaultNodeStorePath
+
+		// Discover opened stores in preference order
+		for _, network := range networks {
+			for _, tp := range nodeTypes {
+				path, err := DiscoverOpened()
+				require.NoError(t, err)
+				key := network.String() + "_" + tp.String()
+				require.Equal(t, dirMap[key], path)
+
+				// close the store to discover the next one
+				storeMap[key].Close()
+			}
+		}
+	})
+
+	t.Run("no opened store", func(t *testing.T) {
+		dir := t.TempDir()
+		mockDefaultNodeStorePath := func(t string, n string) (string, error) {
+			return dir, nil
+		}
+		DefaultNodeStorePath = mockDefaultNodeStorePath
+
+		path, err := DiscoverOpened()
+		assert.ErrorIs(t, err, ErrNoOpenStore)
+		assert.Empty(t, path)
+	})
+}
+
+func TestIsOpened(t *testing.T) {
+	dir := t.TempDir()
+
+	// Case 1: non-existent node store
+	ok, err := IsOpened(dir)
+	require.NoError(t, err)
+	require.False(t, ok)
+
+	// Case 2: initialized node store, not locked
+	err = Init(*DefaultConfig(node.Full), dir, node.Full)
+	require.NoError(t, err)
+	ok, err = IsOpened(dir)
+	require.NoError(t, err)
+	require.False(t, ok)
+
+	// Case 3: initialized node store, locked
+	flk := flock.New(lockPath(dir))
+	_, err = flk.TryLock()
+	require.NoError(t, err)
+	defer flk.Unlock() //nolint:errcheck
+	ok, err = IsOpened(dir)
+	require.NoError(t, err)
+	require.True(t, ok)
+}
+
+func initAndOpenStore(t *testing.T, tp node.Type) (store Store, dir string) {
+	dir = t.TempDir()
+	err := Init(*DefaultConfig(tp), dir, tp)
+	require.NoError(t, err)
+	store, err = OpenStore(dir, nil)
+	require.NoError(t, err)
+	return store, dir
 }
 
 type store struct {
