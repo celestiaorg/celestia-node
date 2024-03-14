@@ -6,6 +6,7 @@ import (
 	"os"
 	"path/filepath"
 	"runtime"
+	"strings"
 	"sync"
 	"time"
 
@@ -17,6 +18,8 @@ import (
 	"github.com/mitchellh/go-homedir"
 
 	"github.com/celestiaorg/celestia-node/libs/keystore"
+	nodemod "github.com/celestiaorg/celestia-node/nodebuilder/node"
+	"github.com/celestiaorg/celestia-node/nodebuilder/p2p"
 	"github.com/celestiaorg/celestia-node/share"
 )
 
@@ -151,14 +154,64 @@ type fsStore struct {
 	dirLock *flock.Flock // protects directory
 }
 
-// IsOpened checks if a directory is in use by checking if a lock file exists.
-func IsOpened(path string) bool {
-	lockPath := lockPath(path)
-	if _, err := os.Stat(lockPath); errors.Is(err, os.ErrNotExist) {
-		return false
+// Finds a single running node and return its store path.
+// Node Type Order: Bridge, Full, Light
+// Network Order: Mainnet, Mocha, Arabica, Private
+func DiscoverOpened() (string, error) {
+	nodeTypes := []nodemod.Type{nodemod.Bridge, nodemod.Full, nodemod.Light}
+	defaultNetwork := []p2p.Network{p2p.Mainnet, p2p.Mocha, p2p.Arabica, p2p.Private}
+
+	for _, t := range nodeTypes {
+		for _, n := range defaultNetwork {
+			path, err := DefaultNodeStorePath(t.String(), n.String())
+			if err != nil {
+				return "", err
+			}
+
+			ok, _ := IsOpened(path)
+			if ok {
+				return path, nil
+			}
+		}
 	}
 
-	return true
+	return "", nil
+}
+
+// DefaultNodeStorePath constructs the default node store path using the given
+// node type and network.
+func DefaultNodeStorePath(tp string, network string) (string, error) {
+	home := os.Getenv("CELESTIA_HOME")
+
+	if home == "" {
+		var err error
+		home, err = os.UserHomeDir()
+		if err != nil {
+			return "", err
+		}
+	}
+	if network == p2p.Mainnet.String() {
+		return fmt.Sprintf("%s/.celestia-%s", home, strings.ToLower(tp)), nil
+	}
+	// only include network name in path for testnets and custom networks
+	return fmt.Sprintf(
+		"%s/.celestia-%s-%s",
+		home,
+		strings.ToLower(tp),
+		strings.ToLower(network),
+	), nil
+}
+
+// IsOpened checks if a directory is in use by attempting to lock it.
+func IsOpened(path string) (bool, error) {
+    flk := flock.New(lockPath(path))
+	ok, err := flk.TryLock()
+	if err != nil {
+		return false, fmt.Errorf("locking file: %w", err)
+	}
+
+	flk.Close()
+	return !ok, nil
 }
 
 func storePath(path string) (string, error) {

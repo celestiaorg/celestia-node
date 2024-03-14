@@ -12,7 +12,6 @@ import (
 	"github.com/celestiaorg/celestia-node/api/rpc/perms"
 	"github.com/celestiaorg/celestia-node/nodebuilder"
 	nodemod "github.com/celestiaorg/celestia-node/nodebuilder/node"
-	"github.com/celestiaorg/celestia-node/nodebuilder/p2p"
 )
 
 const (
@@ -77,20 +76,14 @@ func getStorePath(cmd *cobra.Command) (string, error) {
 		return cmd.Flag(nodeStoreFlag).Value.String(), nil
 	}
 
-	// try to detect a running node by checking for a lock file
-	nodeTypes := []nodemod.Type{nodemod.Bridge, nodemod.Full, nodemod.Light}
-	defaultNetwork := []p2p.Network{p2p.Mainnet, p2p.Mocha, p2p.Arabica, p2p.Private}
-	for _, t := range nodeTypes {
-		for _, n := range defaultNetwork {
-			path, err := DefaultNodeStorePath(t.String(), n.String())
-			if err != nil {
-				return "", err
-			}
+	// try to detect a running node
+	path, err := nodebuilder.DiscoverOpened()
+	if err != nil {
+		return "", err
+	}
 
-			if nodebuilder.IsOpened(path) {
-				return path, nil
-			}
-		}
+	if path != "" {
+		return path, nil
 	}
 
 	return "", errors.New("cant get the access to the auth token: token/node-store flag was not specified")
