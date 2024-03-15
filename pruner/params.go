@@ -1,6 +1,7 @@
 package pruner
 
 import (
+	"fmt"
 	"time"
 )
 
@@ -10,6 +11,13 @@ type Params struct {
 	// gcCycle is the frequency at which the pruning Service
 	// runs the ticker. If set to 0, the Service will not run.
 	gcCycle time.Duration
+}
+
+func (p *Params) Validate() error {
+	if p.gcCycle == time.Duration(0) {
+		return fmt.Errorf("invalid GC cycle given, value should be positive and non-zero")
+	}
+	return nil
 }
 
 func DefaultParams() Params {
@@ -23,14 +31,6 @@ func DefaultParams() Params {
 func WithGCCycle(cycle time.Duration) Option {
 	return func(p *Params) {
 		p.gcCycle = cycle
-	}
-}
-
-// WithDisabledGC disables the pruning Service's pruning
-// routine.
-func WithDisabledGC() Option {
-	return func(p *Params) {
-		p.gcCycle = time.Duration(0)
 	}
 }
 

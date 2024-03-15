@@ -38,17 +38,18 @@ func TestService(t *testing.T) {
 
 	mp := &mockPruner{}
 
-	serv := NewService(
+	serv, err := NewService(
 		mp,
 		AvailabilityWindow(time.Millisecond*2),
 		store,
 		sync.MutexWrap(datastore.NewMapDatastore()),
 		blockTime,
 	)
+	require.NoError(t, err)
 
 	serv.ctx, serv.cancel = ctx, cancel
 
-	err := serv.loadCheckpoint(ctx)
+	err = serv.loadCheckpoint(ctx)
 	require.NoError(t, err)
 
 	time.Sleep(time.Millisecond * 2)
@@ -79,16 +80,18 @@ func TestService_FailedAreRecorded(t *testing.T) {
 		failHeight: map[uint64]int{4: 0, 5: 0, 13: 0},
 	}
 
-	serv := NewService(
+	serv, err := NewService(
 		mp,
 		AvailabilityWindow(time.Millisecond*20),
 		store,
 		sync.MutexWrap(datastore.NewMapDatastore()),
 		blockTime,
 	)
+	require.NoError(t, err)
+
 	serv.ctx = ctx
 
-	err := serv.loadCheckpoint(ctx)
+	err = serv.loadCheckpoint(ctx)
 	require.NoError(t, err)
 
 	// ensures at least 13 blocks are prune-able
@@ -122,16 +125,16 @@ func TestServiceCheckpointing(t *testing.T) {
 
 	mp := &mockPruner{}
 
-	serv := NewService(
+	serv, err := NewService(
 		mp,
 		AvailabilityWindow(time.Second),
 		store,
 		sync.MutexWrap(datastore.NewMapDatastore()),
 		time.Millisecond,
-		WithGCCycle(0), // we do not need to run GC in this test
 	)
+	require.NoError(t, err)
 
-	err := serv.Start(ctx)
+	err = serv.loadCheckpoint(ctx)
 	require.NoError(t, err)
 
 	// ensure checkpoint was initialized correctly
@@ -140,9 +143,6 @@ func TestServiceCheckpointing(t *testing.T) {
 
 	// update checkpoint
 	err = serv.updateCheckpoint(ctx, uint64(3), map[uint64]struct{}{2: {}})
-	require.NoError(t, err)
-
-	err = serv.Stop(ctx)
 	require.NoError(t, err)
 
 	// ensure checkpoint was updated correctly in datastore
@@ -174,16 +174,17 @@ func TestPrune_LargeNumberOfBlocks(t *testing.T) {
 
 	mp := &mockPruner{failHeight: make(map[uint64]int, 0)}
 
-	serv := NewService(
+	serv, err := NewService(
 		mp,
 		availabilityWindow,
 		store,
 		sync.MutexWrap(datastore.NewMapDatastore()),
 		blockTime,
 	)
+	require.NoError(t, err)
 	serv.ctx = ctx
 
-	err := serv.loadCheckpoint(ctx)
+	err = serv.loadCheckpoint(ctx)
 	require.NoError(t, err)
 
 	// ensures availability window has passed
@@ -253,15 +254,16 @@ func TestFindPruneableHeaders(t *testing.T) {
 
 			mp := &mockPruner{}
 
-			serv := NewService(
+			serv, err := NewService(
 				mp,
 				tc.availWindow,
 				store,
 				sync.MutexWrap(datastore.NewMapDatastore()),
 				tc.blockTime,
 			)
+			require.NoError(t, err)
 
-			err := serv.Start(ctx)
+			err = serv.Start(ctx)
 			require.NoError(t, err)
 
 			lastPruned, err := serv.lastPruned(ctx)

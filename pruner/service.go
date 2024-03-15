@@ -26,7 +26,7 @@ type Service struct {
 	ds         datastore.Datastore
 	checkpoint *checkpoint
 
-	numBlocksInWindow uint64
+	blockTime time.Duration
 
 	ctx    context.Context
 	cancel context.CancelFunc
@@ -43,24 +43,26 @@ func NewService(
 	ds datastore.Datastore,
 	blockTime time.Duration,
 	opts ...Option,
-) *Service {
+) (*Service, error) {
 	params := DefaultParams()
 	for _, opt := range opts {
 		opt(&params)
 	}
 
-	numBlocksInWindow := uint64(time.Duration(window) / blockTime)
+	if err := params.Validate(); err != nil {
+		return nil, err
+	}
 
 	return &Service{
-		pruner:            p,
-		window:            window,
-		getter:            getter,
-		checkpoint:        &checkpoint{FailedHeaders: map[uint64]struct{}{}},
-		ds:                namespace.Wrap(ds, storePrefix),
-		numBlocksInWindow: numBlocksInWindow,
-		doneCh:            make(chan struct{}),
-		params:            params,
-	}
+		pruner:     p,
+		window:     window,
+		getter:     getter,
+		checkpoint: &checkpoint{FailedHeaders: map[uint64]struct{}{}},
+		ds:         namespace.Wrap(ds, storePrefix),
+		blockTime:  blockTime,
+		doneCh:     make(chan struct{}),
+		params:     params,
+	}, nil
 }
 
 func (s *Service) Start(context.Context) error {
@@ -89,11 +91,6 @@ func (s *Service) Stop(ctx context.Context) error {
 
 func (s *Service) run() {
 	defer close(s.doneCh)
-
-	if s.params.gcCycle == time.Duration(0) {
-		// Service is disabled, exit
-		return
-	}
 
 	ticker := time.NewTicker(s.params.gcCycle)
 	defer ticker.Stop()

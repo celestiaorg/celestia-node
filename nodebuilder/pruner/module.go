@@ -63,10 +63,6 @@ func ConstructModule(tp node.Type, cfg *Config) fx.Option {
 	//  in which case, this can be enabled.
 	case node.Light:
 		return fx.Module("prune",
-			baseComponents,
-			fx.Provide(func() pruner.Pruner {
-				return light.NewPruner()
-			}),
 			fx.Supply(light.Window),
 		)
 	default:

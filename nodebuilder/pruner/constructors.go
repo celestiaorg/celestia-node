@@ -17,12 +17,17 @@ func newPrunerService(
 	ds datastore.Batching,
 	opts ...pruner.Option,
 ) (*pruner.Service, error) {
-	serv := pruner.NewService(p, window, getter, ds, p2p.BlockTime, opts...)
+	serv, err := pruner.NewService(p, window, getter, ds, p2p.BlockTime, opts...)
+	if err != nil {
+		return nil, err
+	}
+
 	if MetricsEnabled {
 		err := pruner.WithPrunerMetrics(serv)
 		if err != nil {
 			return nil, err
 		}
 	}
+
 	return serv, nil
 }
