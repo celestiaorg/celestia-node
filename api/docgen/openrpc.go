@@ -1,5 +1,7 @@
 // Package docgen generates an OpenRPC spec for the Celestia Node. It has been inspired by and
 // adapted from Filecoin's Lotus API implementation.
+
+//nolint:revive
 package docgen
 
 import (
@@ -95,7 +97,7 @@ func NewOpenRPCDocument(comments Comments, permissions Comments) *go_openrpc_ref
 
 	d.WithMeta(&go_openrpc_reflect.MetaT{
 		GetServersFn: func() func(listeners []net.Listener) (*meta_schema.Servers, error) {
-			return func(listeners []net.Listener) (*meta_schema.Servers, error) {
+			return func(_ []net.Listener) (*meta_schema.Servers, error) {
 				return nil, nil
 			}
 		},

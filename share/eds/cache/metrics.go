@@ -39,7 +39,7 @@ func newMetrics(bc *AccessorCache) (*metrics, error) {
 		return nil, err
 	}
 
-	callback := func(ctx context.Context, observer metric.Observer) error {
+	callback := func(_ context.Context, observer metric.Observer) error {
 		observer.ObserveInt64(cacheSize, int64(bc.cache.Len()))
 		return nil
 	}
