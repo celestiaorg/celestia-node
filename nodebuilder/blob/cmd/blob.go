@@ -2,8 +2,10 @@ package cmd
 
 import (
 	"encoding/base64"
+	"encoding/json"
 	"errors"
 	"fmt"
+	"os"
 	"path/filepath"
 	"reflect"
 	"strconv"
@@ -204,6 +206,15 @@ var submitCmd = &cobra.Command{
 			commitments = append(commitments, blob.Commitment)
 		}
 
+		comms := struct {
+			Commitments []blob.Commitment `json:"commitments"`
+		}{
+			Commitments: commitments,
+		}
+
+		c, _ := json.Marshal(comms) // can skip error handling here
+		fmt.Fprintln(os.Stdout, "Submitting Blob(s):", string(c))
+
 		height, err := client.Blob.Submit(
 			cmd.Context(),
 			blobs,
@@ -211,11 +222,9 @@ var submitCmd = &cobra.Command{
 		)
 
 		response := struct {
-			Height      uint64            `json:"height"`
-			Commitments []blob.Commitment `json:"commitments"`
+			Height uint64 `json:"height"`
 		}{
-			Height:      height,
-			Commitments: commitments,
+			Height: height,
 		}
 		return cmdnode.PrintOutput(response, err, nil)
 	},
