@@ -6,7 +6,6 @@ import (
 	"strconv"
 	"testing"
 
-	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
 	"github.com/celestiaorg/celestia-node/header/headertest"
@@ -26,15 +25,15 @@ func TestSharesAvailableCaches(t *testing.T) {
 
 	// cache doesn't have dah yet
 	has, err := avail.ds.Has(ctx, rootKey(dah))
-	assert.NoError(t, err)
-	assert.False(t, has)
+	require.NoError(t, err)
+	require.False(t, has)
 
 	err = avail.SharesAvailable(ctx, eh)
-	assert.NoError(t, err)
+	require.NoError(t, err)
 
 	// is now stored success result
 	result, err := avail.ds.Get(ctx, rootKey(dah))
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	failed, err := decodeSamples(result)
 	require.NoError(t, err)
 	require.Empty(t, failed)
@@ -54,7 +53,7 @@ func TestSharesAvailableHitsCache(t *testing.T) {
 
 	// blockstore doesn't actually have the dah
 	err := avail.SharesAvailable(ctx, eh)
-	require.Error(t, err)
+	require.ErrorIs(t, err, share.ErrNotAvailable)
 
 	// put success result in cache
 	err = avail.ds.Put(ctx, rootKey(dah), []byte{})
@@ -74,32 +73,10 @@ func TestSharesAvailableEmptyRoot(t *testing.T) {
 
 	eh := headertest.RandExtendedHeaderWithRoot(t, share.EmptyRoot())
 	err := avail.SharesAvailable(ctx, eh)
-	assert.NoError(t, err)
+	require.NoError(t, err)
 }
 
 func TestSharesAvailableFailed(t *testing.T) {
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
-
-	bServ := ipld.NewMemBlockservice()
-	dah := availability_test.RandFillBS(t, 16, bServ)
-	eh := headertest.RandExtendedHeaderWithRoot(t, dah)
-
-	getter, _ := GetterWithRandSquare(t, 16)
-	avail := TestAvailability(getter)
-	err := avail.SharesAvailable(ctx, eh)
-	assert.Error(t, err)
-
-	// cache should have failed results now
-	result, err := avail.ds.Get(ctx, rootKey(dah))
-	require.NoError(t, err)
-
-	decoded, err := decodeSamples(result)
-	require.NoError(t, err)
-	require.Len(t, decoded, int(avail.params.SampleAmount))
-}
-
-func TestSharesAvailablePersistSamples(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
@@ -113,7 +90,7 @@ func TestSharesAvailablePersistSamples(t *testing.T) {
 
 	// blockstore doesn't actually have the dah, so it should fail
 	err := avail.SharesAvailable(ctx, eh)
-	require.Error(t, err)
+	require.ErrorIs(t, err, share.ErrNotAvailable)
 
 	// cache should have failed results now
 	result, err := avail.ds.Get(ctx, rootKey(dah))
@@ -151,7 +128,7 @@ func TestShareAvailableOverMocknet_Light(t *testing.T) {
 	net.ConnectAll()
 
 	err := nd.SharesAvailable(ctx, eh)
-	assert.NoError(t, err)
+	require.NoError(t, err)
 }
 
 func TestGetShare(t *testing.T) {
@@ -164,8 +141,8 @@ func TestGetShare(t *testing.T) {
 	for i := range make([]bool, n) {
 		for j := range make([]bool, n) {
 			sh, err := getter.GetShare(ctx, eh, i, j)
-			assert.NotNil(t, sh)
-			assert.NoError(t, err)
+			require.NotNil(t, sh)
+			require.NoError(t, err)
 		}
 	}
 }
@@ -200,14 +177,14 @@ func TestService_GetSharesByNamespace(t *testing.T) {
 			require.NoError(t, err)
 			require.NoError(t, shares.Verify(root, randNamespace))
 			flattened := shares.Flatten()
-			assert.Len(t, flattened, tt.expectedShareCount)
+			require.Len(t, flattened, tt.expectedShareCount)
 			for _, value := range flattened {
-				assert.Equal(t, randNamespace, share.GetNamespace(value))
+				require.Equal(t, randNamespace, share.GetNamespace(value))
 			}
 			if tt.expectedShareCount > 1 {
 				// idx1 is always smaller than idx2
-				assert.Equal(t, randShares[idx1], flattened[0])
-				assert.Equal(t, randShares[idx2], flattened[1])
+				require.Equal(t, randShares[idx1], flattened[0])
+				require.Equal(t, randShares[idx2], flattened[1])
 			}
 		})
 		t.Run("last two rows of a 4x4 square that have the same namespace have valid NMT proofs", func(t *testing.T) {
