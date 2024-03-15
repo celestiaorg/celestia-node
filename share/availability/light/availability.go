@@ -95,11 +95,8 @@ func (la *ShareAvailability) SharesAvailable(ctx context.Context, header *header
 		}
 	}
 
-	// We assume the caller of this method has already performed basic validation on the
-	// given dah/root. If for some reason this has not happened, the node should panic.
 	if err := dah.ValidateBasic(); err != nil {
-		log.Errorw("availability validation cannot be performed on a malformed DataAvailabilityHeader",
-			"err", err)
+		log.Errorw("DAH validation failed", "error", err)
 		return err
 	}
 
@@ -107,10 +104,10 @@ func (la *ShareAvailability) SharesAvailable(ctx context.Context, header *header
 	// functionality is optional and must be supported by the used share.Getter.
 	ctx = getters.WithSession(ctx)
 
-	result := struct {
-		sync.Mutex
-		failed []Sample
-	}{}
+	var (
+		failedSamplesLock sync.Mutex
+		failedSamples     []Sample
+	)
 
 	log.Debugw("starting sampling session", "root", dah.String())
 	var wg sync.WaitGroup
@@ -122,30 +119,34 @@ func (la *ShareAvailability) SharesAvailable(ctx context.Context, header *header
 			_, err := la.getter.GetShare(ctx, header, int(s.Row), int(s.Col))
 			if err != nil {
 				log.Debugw("error fetching share", "root", dah.String(), "row", s.Row, "col", s.Col)
-				result.Lock()
-				result.failed = append(result.failed, s)
-				result.Unlock()
+				failedSamplesLock.Lock()
+				failedSamples = append(failedSamples, s)
+				failedSamplesLock.Unlock()
 			}
 		}(s)
 	}
 	wg.Wait()
 
 	if errors.Is(ctx.Err(), context.Canceled) {
+		// Availability did not complete due to context cancellation, return context error instead of share.ErrNotAvailable
 		return ctx.Err()
 	}
 
 	// store the result of the sampling session
-	bs := encodeSamples(result.failed)
+	bs := encodeSamples(failedSamples)
 	la.dsLk.Lock()
 	err = la.ds.Put(ctx, key, bs)
 	la.dsLk.Unlock()
 	if err != nil {
-		log.Errorw("storing root of successful SharesAvailable request to disk", "err", err)
+		log.Errorw("Failed to store sampling result", "error", err)
 	}
 
 	// if any of the samples failed, return an error
-	if len(result.failed) > 0 {
-		log.Errorw("availability validation failed", "root", dah.String(), "failed_samples", result.failed)
+	if len(failedSamples) > 0 {
+		log.Errorw("availability validation failed",
+			"root", dah.String(),
+			"failed_samples", failedSamples,
+		)
 		return share.ErrNotAvailable
 	}
 	return nil
