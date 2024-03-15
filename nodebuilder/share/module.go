@@ -100,7 +100,7 @@ func ConstructModule(tp node.Type, cfg *Config, options ...fx.Option) fx.Option 
 
 func discoveryComponents(cfg *Config) fx.Option {
 	return fx.Options(
-		fx.Invoke(func(disc *disc.Discovery) {}),
+		fx.Invoke(func(_ *disc.Discovery) {}),
 		fx.Provide(fx.Annotate(
 			newDiscovery(cfg.Discovery),
 			fx.OnStart(func(ctx context.Context, d *disc.Discovery) error {
@@ -189,7 +189,7 @@ func shrexGetterComponents(cfg *Config) fx.Option {
 
 func shrexServerComponents(cfg *Config) fx.Option {
 	return fx.Options(
-		fx.Invoke(func(edsSrv *shrexeds.Server, ndSrc *shrexnd.Server) {}),
+		fx.Invoke(func(_ *shrexeds.Server, _ *shrexnd.Server) {}),
 		fx.Provide(fx.Annotate(
 			func(host host.Host, store *eds.Store, network modp2p.Network) (*shrexeds.Server, error) {
 				cfg.ShrExEDSParams.WithNetworkID(network.String())
