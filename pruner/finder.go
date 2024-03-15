@@ -10,7 +10,7 @@ import (
 // maxHeadersPerLoop is the maximum number of headers to fetch
 // for a prune loop (prevents fetching too many headers at a
 // time for nodes that have a large number of pruneable headers).
-var maxHeadersPerLoop = uint64(1024)
+var maxHeadersPerLoop = uint64(512)
 
 // findPruneableHeaders returns all headers that are eligible for pruning
 // (outside the sampling window).
