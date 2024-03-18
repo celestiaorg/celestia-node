@@ -208,8 +208,8 @@ func TestShrexGetter(t *testing.T) {
 		fullPeer, err := net.GenPeer()
 		require.NoError(t, err)
 
-		getter.archivalPeerManager.UpdateFullNodePool(archivalPeer.ID(), true)
-		getter.fullPeerManager.UpdateFullNodePool(fullPeer.ID(), true)
+		getter.archivalPeerManager.UpdateNodePool(archivalPeer.ID(), true)
+		getter.fullPeerManager.UpdateNodePool(fullPeer.ID(), true)
 
 		eh := headertest.RandExtendedHeader(t)
 

@@ -54,14 +54,6 @@ func NewCustomStore(
 	return headertest.NewStore[*header.ExtendedHeader](t, generator, numHeaders)
 }
 
-func NewCustomStore(
-	t *testing.T,
-	generator headertest.Generator[*header.ExtendedHeader],
-	numHeaders int,
-) libhead.Store[*header.ExtendedHeader] {
-	return headertest.NewStore[*header.ExtendedHeader](t, generator, numHeaders)
-}
-
 // NewTestSuite setups a new test suite with a given number of validators.
 func NewTestSuite(t *testing.T, numValidators int, blockTime time.Duration) *TestSuite {
 	valSet, vals := RandValidatorSet(numValidators, 10)

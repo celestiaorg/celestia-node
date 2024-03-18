@@ -5,6 +5,7 @@ import (
 	"time"
 
 	"github.com/celestiaorg/celestia-node/header"
+)
 
 // maxHeadersPerLoop is the maximum number of headers to fetch
 // for a prune loop (prevents fetching too many headers at a
