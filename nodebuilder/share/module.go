@@ -353,7 +353,7 @@ func archivalComponents(cfg *Config) fx.Option {
 			})
 
 			opts = append(opts, getters.WithArchivalPeerManager(archivalPeerManager))
-			return opts, disc.WithOnPeersUpdate(archivalPeerManager.UpdateFullNodePool), nil
+			return opts, disc.WithOnPeersUpdate(archivalPeerManager.UpdateNodePool), nil
 		}),
 	)
 }
