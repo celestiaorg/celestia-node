@@ -12,6 +12,7 @@ import (
 	"github.com/celestiaorg/nmt"
 
 	"github.com/celestiaorg/celestia-node/header"
+	"github.com/celestiaorg/celestia-node/pruner"
 	"github.com/celestiaorg/celestia-node/share/eds"
 	"github.com/celestiaorg/celestia-node/share/ipld"
 )
@@ -23,6 +24,8 @@ type Exchange struct {
 	store     *eds.Store
 	construct header.ConstructFn
 
+	availabilityWindow pruner.AvailabilityWindow
+
 	metrics *exchangeMetrics
 }
 
@@ -32,9 +35,9 @@ func NewExchange(
 	construct header.ConstructFn,
 	opts ...Option,
 ) (*Exchange, error) {
-	p := new(params)
+	p := defaultParams()
 	for _, opt := range opts {
-		opt(p)
+		opt(&p)
 	}
 
 	var (
@@ -49,10 +52,11 @@ func NewExchange(
 	}
 
 	return &Exchange{
-		fetcher:   fetcher,
-		store:     store,
-		construct: construct,
-		metrics:   metrics,
+		fetcher:            fetcher,
+		store:              store,
+		construct:          construct,
+		availabilityWindow: p.availabilityWindow,
+		metrics:            metrics,
 	}, nil
 }
 
@@ -151,9 +155,11 @@ func (ce *Exchange) Get(ctx context.Context, hash libhead.Hash) (*header.Extende
 	}
 
 	ctx = ipld.CtxWithProofsAdder(ctx, adder)
-	err = storeEDS(ctx, eh.DAH.Hash(), eds, ce.store)
-	if err != nil {
-		return nil, fmt.Errorf("storing EDS to eds.Store for height %d: %w", &block.Height, err)
+	if pruner.IsWithinAvailabilityWindow(eh.Time(), ce.availabilityWindow) {
+		err = storeEDS(ctx, eh.DAH.Hash(), eds, ce.store)
+		if err != nil {
+			return nil, fmt.Errorf("storing EDS to eds.Store for height %d: %w", &block.Height, err)
+		}
 	}
 	return eh, nil
 }

@@ -40,8 +40,8 @@ func ConstructModule(tp node.Type, cfg *Config, options ...fx.Option) fx.Option 
 					fetcher *core.BlockFetcher,
 					store *eds.Store,
 					construct header.ConstructFn,
+					opts []core.Option,
 				) (*core.Exchange, error) {
-					var opts []core.Option
 					if MetricsEnabled {
 						opts = append(opts, core.WithMetrics())
 					}
@@ -57,8 +57,10 @@ func ConstructModule(tp node.Type, cfg *Config, options ...fx.Option) fx.Option 
 					construct header.ConstructFn,
 					store *eds.Store,
 					chainID p2p.Network,
+					opts []core.Option,
 				) (*core.Listener, error) {
-					opts := []core.Option{core.WithChainID(chainID)}
+					opts = append(opts, core.WithChainID(chainID))
+
 					if MetricsEnabled {
 						opts = append(opts, core.WithMetrics())
 					}
@@ -74,10 +76,10 @@ func ConstructModule(tp node.Type, cfg *Config, options ...fx.Option) fx.Option 
 			)),
 			fx.Provide(fx.Annotate(
 				remote,
-				fx.OnStart(func(_ context.Context, client core.Client) error {
+				fx.OnStart(func(ctx context.Context, client core.Client) error {
 					return client.Start()
 				}),
-				fx.OnStop(func(_ context.Context, client core.Client) error {
+				fx.OnStop(func(ctx context.Context, client core.Client) error {
 					return client.Stop()
 				}),
 			)),
