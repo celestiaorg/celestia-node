@@ -150,7 +150,7 @@ func (d *DASer) Stop(ctx context.Context) error {
 func (d *DASer) sample(ctx context.Context, h *header.ExtendedHeader) error {
 	// short-circuit if pruning is enabled and the header is outside the
 	// availability window
-	if !d.isWithinSamplingWindow(h) {
+	if !pruner.IsWithinAvailabilityWindow(h.Time(), pruner.AvailabilityWindow(d.params.SamplingWindow)) {
 		log.Debugw("skipping header outside sampling window", "height", h.Height(),
 			"time", h.Time())
 		return nil
@@ -169,14 +169,6 @@ func (d *DASer) sample(ctx context.Context, h *header.ExtendedHeader) error {
 		return err
 	}
 	return nil
-}
-
-func (d *DASer) isWithinSamplingWindow(eh *header.ExtendedHeader) bool {
-	// if sampling window is not set, then all headers are within the window
-	if d.params.SamplingWindow == 0 {
-		return true
-	}
-	return pruner.IsWithinAvailabilityWindow(eh.Time(), pruner.AvailabilityWindow(d.params.SamplingWindow))
 }
 
 // SamplingStats returns the current statistics over the DA sampling process.
