@@ -62,10 +62,8 @@ type CoreAccessor struct {
 	rpcScheme string
 	rpcHost   string
 	rpcPort   string
-
-	grpcScheme string
-	grpcHost   string
-	grpcPort   string
+	grpcHost  string
+	grpcPort  string
 
 	// these fields are mutatable and thus need to be protected by a mutex
 	lock            sync.Mutex
