@@ -197,9 +197,13 @@ func (ce *Exchange) getExtendedHeaderByHeight(ctx context.Context, height *int64
 	}
 
 	ctx = ipld.CtxWithProofsAdder(ctx, adder)
-	err = storeEDS(ctx, eh.DAH.Hash(), eds, ce.store)
-	if err != nil {
-		return nil, fmt.Errorf("storing EDS to eds.Store for block height %d: %w", b.Header.Height, err)
+
+	if pruner.IsWithinAvailabilityWindow(eh.Time(), ce.availabilityWindow) {
+		err = storeEDS(ctx, eh.DAH.Hash(), eds, ce.store)
+		if err != nil {
+			return nil, fmt.Errorf("storing EDS to eds.Store for block height %d: %w", b.Header.Height, err)
+		}
 	}
+
 	return eh, nil
 }
