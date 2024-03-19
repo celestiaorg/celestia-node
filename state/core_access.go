@@ -87,7 +87,6 @@ func NewCoreAccessor(
 	rpcScheme,
 	rpcHost,
 	rpcPort,
-	grpcScheme,
 	grpcHost,
 	grpcPort string,
 ) *CoreAccessor {
@@ -96,20 +95,14 @@ func NewCoreAccessor(
 	prt.RegisterOpDecoder(storetypes.ProofOpIAVLCommitment, storetypes.CommitmentOpDecoder)
 	prt.RegisterOpDecoder(storetypes.ProofOpSimpleMerkleCommitment, storetypes.CommitmentOpDecoder)
 	return &CoreAccessor{
-		signer: signer,
-		getter: getter,
-
-		// json rpc config
+		signer:    signer,
+		getter:    getter,
 		rpcScheme: rpcScheme,
 		rpcHost:   rpcHost,
 		rpcPort:   rpcPort,
-
-		// grpc config
-		grpcScheme: grpcScheme,
-		grpcHost:   grpcHost,
-		grpcPort:   grpcPort,
-
-		prt: prt,
+		grpcHost:  grpcHost,
+		grpcPort:  grpcPort,
+		prt:       prt,
 	}
 }
 

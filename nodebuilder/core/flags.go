@@ -74,6 +74,8 @@ func ParseFlags(cmd *cobra.Command, cfg *Config) error {
 	// if the flag is present, use HTTPS
 	if cmd.Flag(rpcUseHTTPS).Changed {
 		cfg.RPC.Scheme = "https"
+	} else {
+		cfg.RPC.Scheme = "http"
 	}
 
 	cfg.GRPC.Host = cmd.Flag(grpcHostFlag).Value.String()

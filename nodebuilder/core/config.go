@@ -24,14 +24,21 @@ const (
 // managing the relationship with a Core node.
 type Config struct {
 	IP   string
-	RPC  HostConfig
-	GRPC HostConfig
+	RPC  RPCConfig
+	GRPC GRPCConfig
 }
 
-type HostConfig struct {
+type RPCConfig struct {
 	Scheme string
 	Host   string
 	Port   string
+}
+
+type GRPCConfig struct {
+	Host string
+	Port string
+	// leaving separate to account for TLS
+	// and secure connections later
 }
 
 // DefaultConfig returns default configuration for managing the
@@ -39,13 +46,12 @@ type HostConfig struct {
 func DefaultConfig() Config {
 	return Config{
 		IP: "",
-		RPC: HostConfig{
+		RPC: RPCConfig{
 			Scheme: DefaultRPCScheme,
 			Port:   DefaultRPCPort,
 		},
-		GRPC: HostConfig{
-			Scheme: DefaultRPCScheme,
-			Port:   DefaultGRPCPort,
+		GRPC: GRPCConfig{
+			Port: DefaultGRPCPort,
 		},
 	}
 }
@@ -92,19 +98,14 @@ func (cfg *Config) Validate() error {
 		return err
 	}
 
-	_, err := utils.ValidateAddr(cfg.RPCHost())
+	rpcHost, err := utils.ValidateAddr(cfg.RPCHost())
 	if err != nil {
 		return fmt.Errorf("nodebuilder/core: invalid rpc host: %s", err.Error())
 	}
 
-	rpcHost, _ := utils.ValidateAddr(cfg.RPCHost())
-	if err != nil {
-		return fmt.Errorf("nodebuilder/core: invalid grpc host: %s", err.Error())
-	}
-
 	cfg.RPC.Host = rpcHost
 
-	grpcHost, _ := utils.ValidateAddr(cfg.GRPCHost())
+	grpcHost, err := utils.ValidateAddr(cfg.GRPCHost())
 	if err != nil {
 		return fmt.Errorf("nodebuilder/core: invalid grpc host: %s", err.Error())
 	}

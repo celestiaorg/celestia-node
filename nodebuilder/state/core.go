@@ -26,7 +26,6 @@ func coreAccessor(
 		corecfg.RPC.Scheme,
 		corecfg.RPCHost(),
 		corecfg.RPC.Port,
-		corecfg.GRPC.Scheme,
 		corecfg.GRPCHost(),
 		corecfg.GRPC.Port,
 	)

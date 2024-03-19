@@ -26,7 +26,7 @@ func TestGRPCHost(t *testing.T) {
 		{
 			name: "Fallback to IP when GRPC Host is not set",
 			cfg: &Config{
-				GRPC: HostConfig{
+				GRPC: GRPCConfig{
 					Host: "",
 				},
 				IP: "127.0.0.1",
@@ -36,7 +36,7 @@ func TestGRPCHost(t *testing.T) {
 		{
 			name: "Use GRPC Host when set",
 			cfg: &Config{
-				GRPC: HostConfig{
+				GRPC: GRPCConfig{
 					Host: "0.0.0.0",
 				},
 				IP: "127.0.0.1",
@@ -63,7 +63,7 @@ func TestRPCHost(t *testing.T) {
 		{
 			name: "Fallback to IP when GRPC Host is not set",
 			cfg: &Config{
-				RPC: HostConfig{
+				RPC: RPCConfig{
 					Host: "",
 				},
 				IP: "127.0.0.1",
@@ -73,7 +73,7 @@ func TestRPCHost(t *testing.T) {
 		{
 			name: "Use GRPC Host when set",
 			cfg: &Config{
-				RPC: HostConfig{
+				RPC: RPCConfig{
 					Host: "0.0.0.0",
 				},
 				IP: "127.0.0.1",
@@ -100,7 +100,7 @@ func TestMultipleHostsConfigured(t *testing.T) {
 			name: "IP and RPC Host both configured",
 			cfg: &Config{
 				IP: "127.0.0.1",
-				RPC: HostConfig{
+				RPC: RPCConfig{
 					Host: "localhost",
 				},
 			},
@@ -110,7 +110,7 @@ func TestMultipleHostsConfigured(t *testing.T) {
 			name: "IP and gRPC Host both configured",
 			cfg: &Config{
 				IP: "127.0.0.1",
-				GRPC: HostConfig{
+				GRPC: GRPCConfig{
 					Host: "localhost",
 				},
 			},
@@ -126,7 +126,7 @@ func TestMultipleHostsConfigured(t *testing.T) {
 		{
 			name: "Only RPC Host configured",
 			cfg: &Config{
-				RPC: HostConfig{
+				RPC: RPCConfig{
 					Host: "localhost",
 				},
 			},
@@ -135,7 +135,7 @@ func TestMultipleHostsConfigured(t *testing.T) {
 		{
 			name: "Only gRPC Host configured",
 			cfg: &Config{
-				GRPC: HostConfig{
+				GRPC: GRPCConfig{
 					Host: "localhost",
 				},
 			},
