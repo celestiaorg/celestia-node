@@ -98,6 +98,10 @@ func (cfg *Config) Validate() error {
 		return err
 	}
 
+	if cfg.RPC.Scheme == "" {
+		cfg.RPC.Scheme = DefaultRPCScheme
+	}
+
 	rpcHost, err := utils.ValidateAddr(cfg.RPCHost())
 	if err != nil {
 		return fmt.Errorf("nodebuilder/core: invalid rpc host: %s", err.Error())
@@ -116,6 +120,7 @@ func (cfg *Config) Validate() error {
 	if err != nil {
 		return fmt.Errorf("nodebuilder/core: invalid rpc port: %s", err.Error())
 	}
+
 	_, err = strconv.Atoi(cfg.GRPC.Port)
 	if err != nil {
 		return fmt.Errorf("nodebuilder/core: invalid grpc port: %s", err.Error())

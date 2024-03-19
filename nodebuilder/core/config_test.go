@@ -43,7 +43,6 @@ func TestGRPCHost(t *testing.T) {
 			},
 			expected: "0.0.0.0",
 		},
-		// Add more test cases here if needed
 	}
 
 	for _, tc := range testCases {

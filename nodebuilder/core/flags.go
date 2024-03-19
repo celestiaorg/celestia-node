@@ -71,11 +71,10 @@ func ParseFlags(cmd *cobra.Command, cfg *Config) error {
 	cfg.IP = cmd.Flag(coreIPFlag).Value.String()
 	cfg.RPC.Host = cmd.Flag(rpcHostFlag).Value.String()
 	cfg.RPC.Port = cmd.Flag(rpcPortFlag).Value.String()
+
 	// if the flag is present, use HTTPS
 	if cmd.Flag(rpcUseHTTPS).Changed {
 		cfg.RPC.Scheme = "https"
-	} else {
-		cfg.RPC.Scheme = "http"
 	}
 
 	cfg.GRPC.Host = cmd.Flag(grpcHostFlag).Value.String()
