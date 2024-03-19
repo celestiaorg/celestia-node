@@ -29,7 +29,6 @@ func coreAccessor(
 		corecfg.GRPC.Scheme,
 		corecfg.GRPCHost(),
 		corecfg.GRPC.Port,
-		corecfg.GRPC.Cert,
 	)
 
 	return ca, ca, &modfraud.ServiceBreaker[*state.CoreAccessor, *header.ExtendedHeader]{

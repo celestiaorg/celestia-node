@@ -10,10 +10,10 @@ var (
 
 	rpcHostFlag = "core.rpc.host"
 	rpcPortFlag = "core.rpc.port"
+	rpcUseHTTPS = "core.rpc.https"
 
 	grpcHostFlag = "core.grpc.host"
 	grpcPortFlag = "core.grpc.port"
-	grpcCertFlag = "core.grpc.cert"
 )
 
 // Flags gives a set of hardcoded Core flags.
@@ -44,6 +44,11 @@ func Flags() *flag.FlagSet {
 		DefaultRPCPort,
 		"Set a custom RPC port for the core node connection.",
 	)
+	flags.Bool(
+		rpcUseHTTPS,
+		false,
+		"Use https for RPC connection. Default is false.",
+	)
 	// gRPC configuration flags
 	flags.String(
 		grpcHostFlag,
@@ -53,16 +58,10 @@ func Flags() *flag.FlagSet {
 			"Example: <ip>, 127.0.0.1. <dns>, subdomain.domain.tld "+
 			"Assumes RPC gRPC port 9090 as default unless otherwise specified.",
 	)
-
 	flags.String(
 		grpcPortFlag,
 		DefaultGRPCPort,
 		"Set a custom gRPC port for the core node connection.",
-	)
-	flags.String(
-		grpcCertFlag,
-		"",
-		"Set a path to a gRPC certificate for the core node connection.",
 	)
 	return flags
 }
@@ -72,10 +71,13 @@ func ParseFlags(cmd *cobra.Command, cfg *Config) error {
 	cfg.IP = cmd.Flag(coreIPFlag).Value.String()
 	cfg.RPC.Host = cmd.Flag(rpcHostFlag).Value.String()
 	cfg.RPC.Port = cmd.Flag(rpcPortFlag).Value.String()
+	// if the flag is present, use HTTPS
+	if cmd.Flag(rpcUseHTTPS).Changed {
+		cfg.RPC.Scheme = "https"
+	}
 
 	cfg.GRPC.Host = cmd.Flag(grpcHostFlag).Value.String()
 	cfg.GRPC.Port = cmd.Flag(grpcPortFlag).Value.String()
-	cfg.GRPC.Cert = cmd.Flag(grpcCertFlag).Value.String()
 
 	return cfg.Validate()
 }

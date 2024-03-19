@@ -3,8 +3,6 @@ package core
 import (
 	"errors"
 	"fmt"
-	"net/url"
-	"os"
 	"strconv"
 
 	"github.com/celestiaorg/celestia-node/libs/utils"
@@ -25,17 +23,15 @@ const (
 // Config combines all configuration fields for
 // managing the relationship with a Core node.
 type Config struct {
-	IP           string
-	RPC          HostConfig
-	GRPC         HostConfig
-	OtherRPCHost string
+	IP   string
+	RPC  HostConfig
+	GRPC HostConfig
 }
 
 type HostConfig struct {
 	Scheme string
 	Host   string
 	Port   string
-	Cert   string
 }
 
 // DefaultConfig returns default configuration for managing the
@@ -101,10 +97,12 @@ func (cfg *Config) Validate() error {
 		return fmt.Errorf("nodebuilder/core: invalid rpc host: %s", err.Error())
 	}
 
-	rpcURL, err := url.Parse(cfg.RPCHost())
-	if rpcURL.Scheme != "" {
-		cfg.RPC.Scheme = rpcURL.Scheme
+	rpcHost, _ := utils.ValidateAddr(cfg.RPCHost())
+	if err != nil {
+		return fmt.Errorf("nodebuilder/core: invalid grpc host: %s", err.Error())
 	}
+
+	cfg.RPC.Host = rpcHost
 
 	grpcHost, _ := utils.ValidateAddr(cfg.GRPCHost())
 	if err != nil {
@@ -113,11 +111,6 @@ func (cfg *Config) Validate() error {
 
 	cfg.GRPC.Host = grpcHost
 
-	grpcURL, _ := url.Parse(cfg.GRPCHost())
-	if grpcURL.Scheme != "" {
-		cfg.GRPC.Scheme = rpcURL.Scheme
-	}
-
 	_, err = strconv.Atoi(cfg.RPC.Port)
 	if err != nil {
 		return fmt.Errorf("nodebuilder/core: invalid rpc port: %s", err.Error())
@@ -125,12 +118,6 @@ func (cfg *Config) Validate() error {
 	_, err = strconv.Atoi(cfg.GRPC.Port)
 	if err != nil {
 		return fmt.Errorf("nodebuilder/core: invalid grpc port: %s", err.Error())
-	}
-
-	if cfg.GRPC.Cert != "" {
-		if _, err := os.Stat(cfg.GRPC.Cert); os.IsNotExist(err) {
-			return fmt.Errorf("nodebuilder/core: grpc cert file does not exist: %s", cfg.GRPC.Cert)
-		}
 	}
 
 	return nil
