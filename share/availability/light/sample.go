@@ -3,12 +3,14 @@ package light
 
 import (
 	crand "crypto/rand"
+	"encoding/binary"
+	"errors"
 	"math/big"
 )
 
 // Sample is a point in 2D space over square.
 type Sample struct {
-	Row, Col int
+	Row, Col uint16
 }
 
 // SampleSquare randomly picks *num* unique points from the given *width* square
@@ -66,11 +68,37 @@ func (ss *squareSampler) samples() []Sample {
 	return samples
 }
 
-func randInt(max int) int {
+func randInt(max int) uint16 {
 	n, err := crand.Int(crand.Reader, big.NewInt(int64(max)))
 	if err != nil {
 		panic(err) // won't panic as rand.Reader is endless
 	}
 
-	return int(n.Int64())
+	return uint16(n.Uint64())
+}
+
+// encodeSamples encodes a slice of samples into a byte slice using little endian encoding.
+func encodeSamples(samples []Sample) []byte {
+	bs := make([]byte, 0, len(samples)*4)
+	for _, s := range samples {
+		bs = binary.LittleEndian.AppendUint16(bs, s.Row)
+		bs = binary.LittleEndian.AppendUint16(bs, s.Col)
+	}
+	return bs
+}
+
+// decodeSamples decodes a byte slice into a slice of samples.
+func decodeSamples(bs []byte) ([]Sample, error) {
+	if len(bs)%4 != 0 {
+		return nil, errors.New("invalid byte slice length")
+	}
+
+	samples := make([]Sample, 0, len(bs)/4)
+	for i := 0; i < len(bs); i += 4 {
+		samples = append(samples, Sample{
+			Row: binary.LittleEndian.Uint16(bs[i : i+2]),
+			Col: binary.LittleEndian.Uint16(bs[i+2 : i+4]),
+		})
+	}
+	return samples, nil
 }
