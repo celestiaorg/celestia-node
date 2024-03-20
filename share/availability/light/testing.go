@@ -1,10 +1,14 @@
 package light
 
 import (
+	"context"
+	"sync"
 	"testing"
 
 	"github.com/ipfs/boxo/blockservice"
 	"github.com/ipfs/go-datastore"
+
+	"github.com/celestiaorg/rsmt2d"
 
 	"github.com/celestiaorg/celestia-node/header"
 	"github.com/celestiaorg/celestia-node/header/headertest"
@@ -57,4 +61,47 @@ func SubNetNode(sn *availability_test.SubNet) *availability_test.TestNode {
 	nd := Node(sn.TestDagNet)
 	sn.AddNode(nd)
 	return nd
+}
+
+type onceGetter struct {
+	*sync.Mutex
+	available map[Sample]struct{}
+}
+
+func newOnceGetter() onceGetter {
+	return onceGetter{
+		Mutex:     &sync.Mutex{},
+		available: make(map[Sample]struct{}),
+	}
+}
+
+func (m onceGetter) AddSamples(samples []Sample) {
+	m.Lock()
+	defer m.Unlock()
+	for _, s := range samples {
+		m.available[s] = struct{}{}
+	}
+}
+
+func (m onceGetter) GetShare(_ context.Context, _ *header.ExtendedHeader, row, col int) (share.Share, error) {
+	m.Lock()
+	defer m.Unlock()
+	s := Sample{Row: uint16(row), Col: uint16(col)}
+	if _, ok := m.available[s]; ok {
+		delete(m.available, s)
+		return share.Share{}, nil
+	}
+	return share.Share{}, share.ErrNotAvailable
+}
+
+func (m onceGetter) GetEDS(_ context.Context, _ *header.ExtendedHeader) (*rsmt2d.ExtendedDataSquare, error) {
+	panic("not implemented")
+}
+
+func (m onceGetter) GetSharesByNamespace(
+	_ context.Context,
+	_ *header.ExtendedHeader,
+	_ share.Namespace,
+) (share.NamespacedShares, error) {
+	panic("not implemented")
 }

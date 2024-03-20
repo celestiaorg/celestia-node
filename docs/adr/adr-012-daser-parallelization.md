@@ -10,7 +10,7 @@
 
 ## Context
 
-DAS is the process of verifying the availability of block data by sampling chunks or shares of those blocks. The `das` package implements an engine to ensure the availability of the chain's block data via the `Availability` interface.
+DAS is the process of verifying the availability of block data by sampling shares of those blocks. The `das` package implements an engine to ensure the availability of the chain's block data via the `Availability` interface.
 Verifying the availability of block data is a priority functionality for celestia-node. Its performance could benefit significantly from parallelization optimisation to make it able to fully utilise network bandwidth.
 
 ## Previous approach
@@ -61,7 +61,7 @@ amount of workers: 32, speed: 11.33
 amount of workers: 64, speed: 11.83
 ```
 
-Based on basic experiment results, values higher than 16 don’t bring much benefit. At the same time, increased parallelization comes with a cost of higher memory consumption.  
+Based on basic experiment results, values higher than 16 don’t bring much benefit. At the same time, increased parallelization comes with a cost of higher memory consumption.
 Future improvements will be discussed later and are out of the scope of this ADR.
 
 ## Status
@@ -70,7 +70,7 @@ Implemented
 
 ## Future plans
 
-Several params values that come hardcoded in DASer (`samplingRange`, `concurrencyLimit`, `priorityQueueSize`, `genesisHeight`, `backgroundStoreInterval`) should become configurable, so the node runner can define them based on the specific node setup. Default values should be optimized by performance testing for most common setups, and could potentially vary for different node types.  
+Several params values that come hardcoded in DASer (`samplingRange`, `concurrencyLimit`, `priorityQueueSize`, `genesisHeight`, `backgroundStoreInterval`) should become configurable, so the node runner can define them based on the specific node setup. Default values should be optimized by performance testing for most common setups, and could potentially vary for different node types.
 
 ## References
 
