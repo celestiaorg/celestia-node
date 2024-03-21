@@ -39,7 +39,7 @@ func ConstructModule(tp node.Type, cfg *Config) fx.Option {
 		)),
 		// This is necessary to invoke the pruner service as independent thanks to a
 		// quirk in FX.
-		fx.Invoke(func(p *pruner.Service) {}),
+		fx.Invoke(func(_ *pruner.Service) {}),
 	)
 
 	switch tp {
