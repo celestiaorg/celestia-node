@@ -210,6 +210,7 @@ func (p *BadEncodingProof) Validate(hdr *header.ExtendedHeader) error {
 		)
 		return nil
 	}
+	log.Debugf("BEFP is valid")
 
 	rebuiltExtendedShares, err := codec.Encode(rebuiltShares[0:odsWidth])
 	if err != nil {
@@ -218,6 +219,8 @@ func (p *BadEncodingProof) Validate(hdr *header.ExtendedHeader) error {
 		)
 		return nil
 	}
+	log.Debugf("BEFP is valid")
+
 	copy(rebuiltShares[odsWidth:], rebuiltExtendedShares)
 
 	tree := wrapper.NewErasuredNamespacedMerkleTree(odsWidth, uint(p.Index))
@@ -229,6 +232,7 @@ func (p *BadEncodingProof) Validate(hdr *header.ExtendedHeader) error {
 			)
 			return nil
 		}
+		log.Debugf("BEFP is valid")
 	}
 
 	expectedRoot, err := tree.Root()
@@ -238,6 +242,7 @@ func (p *BadEncodingProof) Validate(hdr *header.ExtendedHeader) error {
 		)
 		return nil
 	}
+	log.Debugf("BEFP is valid")
 
 	// root is a merkle root of the row/col where ErrByzantine occurred
 	root := hdr.DAH.RowRoots[p.Index]
