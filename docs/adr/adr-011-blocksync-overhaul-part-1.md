@@ -94,7 +94,7 @@ are kept with additional components introduced. Altogether, existing and new com
 foundation of our improved block storage subsystem.
 
 The central data structure representing Celestia block data is EDS(`rsmt2d.ExtendedDataSquare`), and the new storage design
-is focused around storing entire EDSes as a whole rather than a set of individual chunks, s.t. storage subsystem
+is focused around storing entire EDSes as a whole rather than a set of individual shares, s.t. storage subsystem
 can handle storing and streaming/serving blocks of 4MB and more.
 
 #### EDS (De-)Serialization
@@ -174,9 +174,9 @@ and getting data by namespace.
 
 ```go
 type Store struct {
- basepath string 
+ basepath string
  dgstr dagstore.DAGStore
- topIdx index.Inverted 
+ topIdx index.Inverted
  carIdx index.FullIndexRepo
  mounts  *mount.Registry
  ...
@@ -189,18 +189,18 @@ func NewStore(basepath string, ds datastore.Batching) *Store {
  carIdx := index.NewFSRepo(basepath + "/index")
  mounts := mount.NewRegistry()
  r := mount.NewRegistry()
- err = r.Register("fs", &mount.FSMount{FS: os.DirFS(basePath + "/eds/")}) // registration is a must 
+ err = r.Register("fs", &mount.FSMount{FS: os.DirFS(basePath + "/eds/")}) // registration is a must
  if err != nil {
   panic(err)
  }
- 
+
  return &Store{
   basepath: basepath,
   dgst: dagstore.New(dagstore.Config{...}),
   topIdx: index.NewInverted(datastore),
   carIdx: index.NewFSRepo(basepath + "/index")
   mounts: mounts,
- }   
+ }
 }
 ```
 
@@ -224,7 +224,7 @@ out of the scope of the document._
 //
 // The square is verified on the Exchange level and Put only stores the square trusting it.
 // The resulting file stores all the shares and NMT Merkle Proofs of the EDS.
-// Additionally, the file gets indexed s.t. Store.Blockstore can access them. 
+// Additionally, the file gets indexed s.t. Store.Blockstore can access them.
 func (s *Store) Put(context.Context, DataHash, *rsmt2d.ExtendedDataSquare) error
 ```
 
@@ -243,9 +243,9 @@ ___NOTES:___
 
 ```go
 // GetCAR takes a DataHash and returns a buffered reader to the respective EDS serialized as a CARv1 file.
-// 
-// The Reader strictly reads our full EDS, and it's integrity is not verified. 
-// 
+//
+// The Reader strictly reads our full EDS, and it's integrity is not verified.
+//
 // Caller must Close returned reader after reading.
 func (s *Store) GetCAR(context.Context, DataHash) (io.ReadCloser, error)
 ```
@@ -265,8 +265,8 @@ ___NOTES:___
 - EDIT: We went with custom implementation.
 
 ```go
-// Blockstore returns an IPFS Blockstore providing access to individual shares/nodes of all EDS 
-// registered on the Store. NOTE: The Blockstore does not store whole Celestia Blocks but IPFS blocks. 
+// Blockstore returns an IPFS Blockstore providing access to individual shares/nodes of all EDS
+// registered on the Store. NOTE: The Blockstore does not store whole Celestia Blocks but IPFS blocks.
 // We represent `shares` and NMT Merkle proofs as IPFS blocks and IPLD nodes so Bitswap can access those.
 func (s *Store) Blockstore() blockstore.Blockstore
 ```
@@ -284,8 +284,8 @@ ___NOTES:___
   blocks._
 
 ```go
-// CARBlockstore returns an IPFS Blockstore providing access to individual shares/nodes of a specific EDS identified by 
-// DataHash and registered on the Store. NOTE: The Blockstore does not store whole Celestia Blocks but IPFS blocks. 
+// CARBlockstore returns an IPFS Blockstore providing access to individual shares/nodes of a specific EDS identified by
+// DataHash and registered on the Store. NOTE: The Blockstore does not store whole Celestia Blocks but IPFS blocks.
 // We represent `shares` and NMT Merkle proofs as IPFS blocks and IPLD nodes so Bitswap can access those.
 func (s *Store) CARBlockstore(context.Context, DataHash)  (dagstore.ReadBlockstore, error)
 ```
@@ -301,7 +301,7 @@ The `GetDAH` method returns the DAH (`share.Root`) of the EDS identified by `Dat
 
 ```go
 // GetDAH returns the DataAvailabilityHeader for the EDS identified by DataHash.
-func (s *Store) GetDAH(context.Context, share.DataHash) (*share.Root, error) 
+func (s *Store) GetDAH(context.Context, share.DataHash) (*share.Root, error)
 ```
 
 ##### `eds.Store.Get`
@@ -315,7 +315,7 @@ ___NOTE:___ _It's unnecessary, but an API ergonomics/symmetry nice-to-have._
 
 ```go
 // Get reads EDS out of Store by given DataHash.
-// 
+//
 // It reads only one quadrant(1/4) of the EDS and verifies the integrity of the stored data by recomputing it.
 func (s *Store) Get(context.Context, DataHash) (*rsmt2d.ExtendedDataSquare, error)
 ```

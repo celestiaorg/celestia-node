@@ -48,6 +48,7 @@ issues:
     - path: _test\.go
       linters:
         - gosec
+        - revive
     - linters:
         - lll
       source: "https://"

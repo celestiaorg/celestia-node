@@ -25,7 +25,7 @@ var nodeInfoCmd = &cobra.Command{
 	Use:   "info",
 	Args:  cobra.NoArgs,
 	Short: "Returns administrative information about the node.",
-	RunE: func(c *cobra.Command, args []string) error {
+	RunE: func(c *cobra.Command, _ []string) error {
 		client, err := cmdnode.ParseClientFromCtx(c.Context())
 		if err != nil {
 			return err

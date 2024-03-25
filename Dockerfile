@@ -1,4 +1,4 @@
-FROM --platform=$BUILDPLATFORM docker.io/golang:1.21-alpine3.18 as builder
+FROM --platform=$BUILDPLATFORM docker.io/golang:1.22-alpine3.18 as builder
 
 ARG TARGETPLATFORM
 ARG BUILDPLATFORM
@@ -40,16 +40,16 @@ ENV P2P_NETWORK mocha
 # hadolint ignore=DL3018
 RUN uname -a &&\
     apk update && apk add --no-cache \
-        bash \
-        curl \
-        jq \
+    bash \
+    curl \
+    jq \
     # Creates a user with $UID and $GID=$UID
     && adduser ${USER_NAME} \
-        -D \
-        -g ${USER_NAME} \
-        -h ${CELESTIA_HOME} \
-        -s /sbin/nologin \
-        -u ${UID}
+    -D \
+    -g ${USER_NAME} \
+    -h ${CELESTIA_HOME} \
+    -s /sbin/nologin \
+    -u ${UID}
 
 # Copy in the binary
 COPY --from=builder /src/build/celestia /bin/celestia
@@ -58,6 +58,8 @@ COPY --from=builder /src/./cel-key /bin/cel-key
 COPY --chown=${USER_NAME}:${USER_NAME} docker/entrypoint.sh /opt/entrypoint.sh
 
 USER ${USER_NAME}
+
+WORKDIR ${CELESTIA_HOME}
 
 EXPOSE 2121
 

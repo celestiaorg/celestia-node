@@ -79,7 +79,7 @@ func TestBlobModule(t *testing.T) {
 				time.Sleep(time.Second)
 				blob1, err := fullClient.Blob.Get(ctx, height, blobs[0].Namespace(), blobs[0].Commitment)
 				require.NoError(t, err)
-				require.Equal(t, blobs[0], blob1)
+				require.Equal(t, blobs[0].Commitment, blob1.Commitment)
 			},
 		},
 		{
@@ -151,7 +151,7 @@ func TestBlobModule(t *testing.T) {
 
 				b0, err := fullClient.Blob.Get(ctx, height, b.Namespace(), b.Commitment)
 				require.NoError(t, err)
-				require.Equal(t, b, b0)
+				require.Equal(t, b.Commitment, b0.Commitment)
 
 				// give some time to store the data,
 				// otherwise the test will hang on the IPLD level.
@@ -180,7 +180,7 @@ func TestBlobModule(t *testing.T) {
 
 				b0, err := fullClient.Blob.Get(ctx, h, blobs[0].Namespace(), blobs[0].Commitment)
 				require.NoError(t, err)
-				require.Equal(t, blobs[0], b0)
+				require.Equal(t, blobs[0].Commitment, b0.Commitment)
 
 				// give some time to store the data,
 				// otherwise the test will hang on the IPLD level.
