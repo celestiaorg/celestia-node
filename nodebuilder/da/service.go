@@ -168,7 +168,7 @@ func (s *Service) Validate(
 		// value is fine for us
 		fmt.Println("proof", proofs[i] == nil, "commitment", commitment == nil)
 		isIncluded, _ := s.blobServ.Included(ctx, height, namespace, proofs[i], commitment)
-		included = append(included, isIncluded)
+		included[i] = isIncluded
 	}
 	return included, nil
 }
