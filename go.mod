@@ -349,3 +349,5 @@ replace (
 	github.com/syndtr/goleveldb => github.com/syndtr/goleveldb v1.0.1-0.20210819022825-2ae1ddf74ef7
 	github.com/tendermint/tendermint => github.com/celestiaorg/celestia-core v1.35.0-tm-v0.34.29
 )
+
+replace github.com/celestia/go-header => github.com/celestiaorg/go-header v0.5.5-0.20240325125549-181faa3677e8
