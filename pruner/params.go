@@ -8,13 +8,13 @@ import (
 type Option func(*Params)
 
 type Params struct {
-	// gcCycle is the frequency at which the pruning Service
+	// pruneCycle is the frequency at which the pruning Service
 	// runs the ticker. If set to 0, the Service will not run.
-	gcCycle time.Duration
+	pruneCycle time.Duration
 }
 
 func (p *Params) Validate() error {
-	if p.gcCycle == time.Duration(0) {
+	if p.pruneCycle == time.Duration(0) {
 		return fmt.Errorf("invalid GC cycle given, value should be positive and non-zero")
 	}
 	return nil
@@ -22,15 +22,15 @@ func (p *Params) Validate() error {
 
 func DefaultParams() Params {
 	return Params{
-		gcCycle: time.Minute * 5,
+		pruneCycle: time.Minute * 5,
 	}
 }
 
-// WithGCCycle configures how often the pruning Service
+// WithPruneCycle configures how often the pruning Service
 // triggers a pruning cycle.
-func WithGCCycle(cycle time.Duration) Option {
+func WithPruneCycle(cycle time.Duration) Option {
 	return func(p *Params) {
-		p.gcCycle = cycle
+		p.pruneCycle = cycle
 	}
 }
 

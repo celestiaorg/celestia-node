@@ -319,7 +319,8 @@ func (mp *mockPruner) Prune(_ context.Context, h *header.ExtendedHeader) error {
 	return nil
 }
 
-// TODO @renaynay @distractedm1nd: can dedup and just use headertest util
+// TODO @renaynay @distractedm1nd: Deduplicate via headertest utility.
+// https://github.com/celestiaorg/celestia-node/issues/3278.
 type SpacedHeaderGenerator struct {
 	t                  *testing.T
 	TimeBetweenHeaders time.Duration

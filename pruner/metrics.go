@@ -20,19 +20,19 @@ type metrics struct {
 }
 
 func (s *Service) WithMetrics() error {
-	prunedCounter, err := meter.Int64Counter("pruner_pruned_counter",
+	prunedCounter, err := meter.Int64Counter("prnr_pruned_counter",
 		metric.WithDescription("pruner pruned header counter"))
 	if err != nil {
 		return err
 	}
 
-	failedPrunes, err := meter.Int64ObservableGauge("pruner_failed_counter",
+	failedPrunes, err := meter.Int64ObservableGauge("prnr_failed_counter",
 		metric.WithDescription("pruner failed prunes counter"))
 	if err != nil {
 		return err
 	}
 
-	lastPruned, err := meter.Int64ObservableGauge("pruner_last_pruned",
+	lastPruned, err := meter.Int64ObservableGauge("prnr_last_pruned",
 		metric.WithDescription("pruner highest pruned height"))
 	if err != nil {
 		return err

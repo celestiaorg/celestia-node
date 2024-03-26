@@ -65,6 +65,9 @@ func NewService(
 	}, nil
 }
 
+// Start loads the pruner's last pruned height (1 if pruner is freshly
+// initialized) and runs the prune loop, pruning any blocks older than
+// the given availability window.
 func (s *Service) Start(context.Context) error {
 	s.ctx, s.cancel = context.WithCancel(context.Background())
 
@@ -89,10 +92,12 @@ func (s *Service) Stop(ctx context.Context) error {
 	}
 }
 
+// run prunes blocks older than the availability wiindow periodically until the
+// pruner service is stopped.
 func (s *Service) run() {
 	defer close(s.doneCh)
 
-	ticker := time.NewTicker(s.params.gcCycle)
+	ticker := time.NewTicker(s.params.pruneCycle)
 	defer ticker.Stop()
 
 	lastPrunedHeader, err := s.lastPruned(s.ctx)
@@ -100,7 +105,8 @@ func (s *Service) run() {
 		log.Errorw("failed to get last pruned header", "height", s.checkpoint.LastPrunedHeight,
 			"err", err)
 		log.Warn("exiting pruner service!")
-		return
+
+		s.cancel()
 	}
 
 	for {
@@ -138,7 +144,7 @@ func (s *Service) prune(
 			headers[len(headers)-1].Height())
 
 		for _, eh := range headers {
-			pruneCtx, cancel := context.WithDeadline(ctx, time.Now().Add(time.Second*5))
+			pruneCtx, cancel := context.WithTimeout(ctx, time.Second*5)
 
 			err = s.pruner.Prune(pruneCtx, eh)
 			if err != nil {
