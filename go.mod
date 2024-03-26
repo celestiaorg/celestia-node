@@ -10,7 +10,7 @@ require (
 	github.com/benbjohnson/clock v1.3.5
 	github.com/celestiaorg/celestia-app v1.7.0
 	github.com/celestiaorg/go-fraud v0.2.0
-	github.com/celestiaorg/go-header v0.5.4
+	github.com/celestiaorg/go-header v0.5.5
 	github.com/celestiaorg/go-libp2p-messenger v0.2.0
 	github.com/celestiaorg/nmt v0.20.0
 	github.com/celestiaorg/rsmt2d v0.11.0
