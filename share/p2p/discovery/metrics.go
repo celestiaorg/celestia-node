@@ -37,6 +37,8 @@ type metrics struct {
 	advertise        metric.Int64Counter // attributes: failed[bool]
 	peerAdded        metric.Int64Counter
 	peerRemoved      metric.Int64Counter
+
+	clientReg metric.Registration
 }
 
 // WithMetrics turns on metric collection in discoery.
@@ -107,11 +109,20 @@ func initMetrics(d *Discovery) (*metrics, error) {
 		observer.ObserveInt64(backOffSize, int64(d.connector.Size()))
 		return nil
 	}
-	_, err = meter.RegisterCallback(callback, peersAmount, backOffSize)
+
+	metrics.clientReg, err = meter.RegisterCallback(callback, peersAmount, backOffSize)
 	if err != nil {
 		return nil, fmt.Errorf("registering metrics callback: %w", err)
 	}
+
 	return metrics, nil
+}
+
+func (m *metrics) close() error {
+	if m == nil {
+		return nil
+	}
+	return m.clientReg.Unregister()
 }
 
 func (m *metrics) observeFindPeers(ctx context.Context, isEnoughPeers bool) {
