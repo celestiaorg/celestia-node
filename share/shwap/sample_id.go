@@ -13,7 +13,7 @@ import (
 	"github.com/celestiaorg/celestia-node/share/store/file"
 )
 
-//TODO(@walldiss): maybe move into separate subpkg?
+// TODO(@walldiss): maybe move into separate subpkg?
 
 // SampleIDSize is the size of the SampleID in bytes
 const SampleIDSize = RowIDSize + 2
@@ -82,7 +82,7 @@ func (sid SampleID) MarshalBinary() ([]byte, error) {
 		return nil, err
 	}
 	data = data[:n]
-	data = binary.LittleEndian.AppendUint16(data, sid.ShareIndex)
+	data = binary.BigEndian.AppendUint16(data, sid.ShareIndex)
 	return data, nil
 }
 
@@ -96,7 +96,7 @@ func (sid *SampleID) UnmarshalBinary(data []byte) error {
 		return err
 	}
 	data = data[n:]
-	sid.ShareIndex = binary.LittleEndian.Uint16(data)
+	sid.ShareIndex = binary.BigEndian.Uint16(data)
 	return nil
 }
 

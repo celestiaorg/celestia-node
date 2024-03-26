@@ -15,12 +15,7 @@ import (
 	"github.com/celestiaorg/celestia-node/share/store/file"
 )
 
-//TODO(@walldiss): maybe move into separate subpkg?
-
-// TODO:
-// * Remove RowHash
-// 	* Change validation
-// * Remove IDs from responses
+// TODO(@walldiss): maybe move into separate subpkg?
 
 // RowIDSize is the size of the RowID in bytes
 const RowIDSize = 10
@@ -77,17 +72,17 @@ func (rid RowID) Cid() cid.Cid {
 // * Its size is not deterministic which is required for IPLD.
 // * No support for uint16
 func (rid RowID) MarshalTo(data []byte) (int, error) {
-	//TODO:(@walldiss): this works, only if data underlying array was preallocated with
+	// TODO:(@walldiss): this works, only if data underlying array was preallocated with
 	//  enough size. Otherwise Caller might not see the changes.
-	data = binary.LittleEndian.AppendUint64(data, rid.Height)
-	data = binary.LittleEndian.AppendUint16(data, rid.RowIndex)
+	data = binary.BigEndian.AppendUint64(data, rid.Height)
+	data = binary.BigEndian.AppendUint16(data, rid.RowIndex)
 	return RowIDSize, nil
 }
 
 // UnmarshalFrom decodes RowID from given byte slice.
 func (rid *RowID) UnmarshalFrom(data []byte) (int, error) {
-	rid.Height = binary.LittleEndian.Uint64(data)
-	rid.RowIndex = binary.LittleEndian.Uint16(data[8:])
+	rid.Height = binary.BigEndian.Uint64(data)
+	rid.RowIndex = binary.BigEndian.Uint16(data[8:])
 	return RowIDSize, nil
 }
 

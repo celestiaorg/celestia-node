@@ -136,7 +136,7 @@ func (s *Sample) MarshalBinary() ([]byte, error) {
 
 	return (&shwappb.Sample{
 		SampleId:    id,
-		SampleType:  shwappb.SampleProofType(s.SampleProofType),
+		ProofType:   shwappb.ProofType(s.SampleProofType),
 		SampleProof: proof,
 		SampleShare: s.SampleShare,
 	}).Marshal()
@@ -154,7 +154,7 @@ func (s *Sample) UnmarshalBinary(data []byte) error {
 		return err
 	}
 
-	s.SampleProofType = SampleProofType(proto.SampleType)
+	s.SampleProofType = SampleProofType(proto.ProofType)
 	s.SampleProof = nmt.ProtoToProof(*proto.SampleProof)
 	s.SampleShare = proto.SampleShare
 	return nil
