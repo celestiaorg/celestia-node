@@ -17,6 +17,8 @@ type metrics struct {
 
 	lastPruned   metric.Int64ObservableGauge
 	failedPrunes metric.Int64ObservableGauge
+
+	clientReg metric.Registration
 }
 
 func (s *Service) WithMetrics() error {
@@ -44,7 +46,8 @@ func (s *Service) WithMetrics() error {
 		return nil
 	}
 
-	if _, err := meter.RegisterCallback(callback, lastPruned, failedPrunes); err != nil {
+	clientReg, err := meter.RegisterCallback(callback, lastPruned, failedPrunes)
+	if err != nil {
 		return err
 	}
 
@@ -52,8 +55,17 @@ func (s *Service) WithMetrics() error {
 		prunedCounter: prunedCounter,
 		lastPruned:    lastPruned,
 		failedPrunes:  failedPrunes,
+		clientReg:     clientReg,
 	}
 	return nil
+}
+
+func (m *metrics) close() error {
+	if m == nil {
+		return nil
+	}
+
+	return m.clientReg.Unregister()
 }
 
 func (m *metrics) observePrune(ctx context.Context, failed bool) {

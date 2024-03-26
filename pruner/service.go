@@ -84,6 +84,8 @@ func (s *Service) Start(context.Context) error {
 func (s *Service) Stop(ctx context.Context) error {
 	s.cancel()
 
+	s.metrics.close()
+
 	select {
 	case <-s.doneCh:
 		return nil
