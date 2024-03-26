@@ -31,6 +31,11 @@ func (s *Service) findPruneableHeaders(
 		return nil, err
 	}
 
+	if lastPruned.Height() == estimatedCutoffHeight {
+		// nothing left to prune
+		return nil, nil
+	}
+
 	log.Debugw("finder: fetching header range", "last pruned", lastPruned.Height(),
 		"target height", estimatedCutoffHeight)
 
