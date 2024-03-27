@@ -121,7 +121,7 @@ func (sg *ShrexGetter) Stop(ctx context.Context) error {
 }
 
 func (sg *ShrexGetter) GetShare(context.Context, *header.ExtendedHeader, int, int) (share.Share, error) {
-	return nil, fmt.Errorf("getter/shrex: GetShare %w", errOperationNotSupported)
+	return nil, fmt.Errorf("getter/shrex: GetShare %w", share.ErrOperationNotSupported)
 }
 
 func (sg *ShrexGetter) GetEDS(ctx context.Context, header *header.ExtendedHeader) (*rsmt2d.ExtendedDataSquare, error) {

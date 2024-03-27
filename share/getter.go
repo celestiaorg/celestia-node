@@ -18,6 +18,9 @@ var (
 	// ErrOutOfBounds is used to indicate that a passed row or column index is out of bounds of the
 	// square size.
 	ErrOutOfBounds = errors.New("share: row or column index is larger than square size")
+	// ErrOperationNotSupported is used to indicate that the operation is not supported by the
+	// implementation.
+	ErrOperationNotSupported = errors.New("operation is not supported")
 )
 
 // Getter interface provides a set of accessors for shares by the Root.
