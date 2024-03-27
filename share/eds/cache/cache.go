@@ -38,6 +38,9 @@ type Cache interface {
 
 	// EnableMetrics enables metrics in Cache
 	EnableMetrics() error
+
+	// CloseMetrics closes metrics in Cache
+	CloseMetrics() error
 }
 
 // Accessor is a interface type returned by cache, that allows to read raw data by reader or create

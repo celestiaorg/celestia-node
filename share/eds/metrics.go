@@ -49,6 +49,8 @@ type metrics struct {
 
 	longOpTime metric.Float64Histogram
 	gcTime     metric.Float64Histogram
+
+	clientReg metric.Registration
 }
 
 func (s *Store) WithMetrics() error {
@@ -139,7 +141,8 @@ func (s *Store) WithMetrics() error {
 		return nil
 	}
 
-	if _, err := meter.RegisterCallback(callback, dagStoreShards); err != nil {
+	clientReg, err := meter.RegisterCallback(callback, dagStoreShards)
+	if err != nil {
 		return err
 	}
 
@@ -155,8 +158,17 @@ func (s *Store) WithMetrics() error {
 		shardFailureCount:    shardFailureCount,
 		longOpTime:           longOpTime,
 		gcTime:               gcTime,
+		clientReg:            clientReg,
 	}
 	return nil
+}
+
+func (m *metrics) close() error {
+	if m == nil {
+		return nil
+	}
+
+	return m.clientReg.Unregister()
 }
 
 func (m *metrics) observeGCtime(ctx context.Context, dur time.Duration, failed bool) {

@@ -228,6 +228,10 @@ func (bc *AccessorCache) EnableMetrics() error {
 	return err
 }
 
+func (bc *AccessorCache) CloseMetrics() error {
+	return bc.metrics.close()
+}
+
 // refCloser manages references to accessor from provided reader and removes the ref, when the
 // Close is called
 type refCloser struct {
