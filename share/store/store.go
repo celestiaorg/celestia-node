@@ -175,8 +175,8 @@ func (s *Store) createFile(filePath string, datahash share.DataHash, square *rsm
 		return nil, fmt.Errorf("getting by hash: %w", err)
 	}
 
-	// create ODS file
-	f, err = file.CreateOdsFile(filePath, datahash, square)
+	// create Q1Q4 file
+	f, err = file.CreateQ1Q4File(filePath, datahash, square)
 	if err != nil {
 		return nil, fmt.Errorf("creating ODS file: %w", err)
 	}
@@ -203,7 +203,7 @@ func (s *Store) getByHash(datahash share.DataHash) (file.EdsFile, error) {
 	}
 
 	path := s.basepath + blocksPath + datahash.String()
-	odsFile, err := file.OpenOdsFile(path)
+	odsFile, err := file.OpenQ1Q4File(path)
 	if err != nil {
 		if os.IsNotExist(err) {
 			return nil, ErrNotFound
@@ -268,7 +268,7 @@ func (s *Store) getByHeight(height uint64) (file.EdsFile, error) {
 	}
 
 	path := s.basepath + heightsPath + fmt.Sprintf("%d", height)
-	odsFile, err := file.OpenOdsFile(path)
+	odsFile, err := file.OpenQ1Q4File(path)
 	if err != nil {
 		if os.IsNotExist(err) {
 			return nil, ErrNotFound
