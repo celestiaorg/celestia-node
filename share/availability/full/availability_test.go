@@ -14,7 +14,7 @@ package full
 //	"github.com/celestiaorg/celestia-node/header/headertest"
 //	"github.com/celestiaorg/celestia-node/share"
 //	availability_test "github.com/celestiaorg/celestia-node/share/availability/test"
-//	"github.com/celestiaorg/celestia-node/share/eds/edstest"
+//	"github.com/celestiaorg/celestia-node/share/testing/edstest"
 //	"github.com/celestiaorg/celestia-node/share/mocks"
 //)
 //

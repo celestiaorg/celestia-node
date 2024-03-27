@@ -16,9 +16,9 @@ import (
 
 	"github.com/celestiaorg/celestia-node/header"
 	"github.com/celestiaorg/celestia-node/header/headertest"
-	"github.com/celestiaorg/celestia-node/share/eds/edstest"
 	"github.com/celestiaorg/celestia-node/share/ipld"
 	"github.com/celestiaorg/celestia-node/share/store"
+	"github.com/celestiaorg/celestia-node/share/testing/edstest"
 )
 
 // FraudMaker allows to produce an invalid header at the specified height in order to produce the

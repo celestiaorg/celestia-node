@@ -11,7 +11,7 @@ import (
 	"github.com/celestiaorg/celestia-app/pkg/da"
 	"github.com/celestiaorg/rsmt2d"
 
-	"github.com/celestiaorg/celestia-node/share/sharetest"
+	"github.com/celestiaorg/celestia-node/share/testing/sharetest"
 )
 
 func TestGetProof(t *testing.T) {

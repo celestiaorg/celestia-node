@@ -7,7 +7,7 @@ import (
 	"github.com/klauspost/reedsolomon"
 	"github.com/stretchr/testify/require"
 
-	"github.com/celestiaorg/celestia-node/share/sharetest"
+	"github.com/celestiaorg/celestia-node/share/testing/sharetest"
 )
 
 func BenchmarkCodec(b *testing.B) {

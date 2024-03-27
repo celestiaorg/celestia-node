@@ -9,9 +9,9 @@ import (
 
 	"github.com/celestiaorg/rsmt2d"
 
-	"github.com/celestiaorg/celestia-node/share/eds/edstest"
 	"github.com/celestiaorg/celestia-node/share/ipld"
-	"github.com/celestiaorg/celestia-node/share/sharetest"
+	"github.com/celestiaorg/celestia-node/share/testing/edstest"
+	"github.com/celestiaorg/celestia-node/share/testing/sharetest"
 )
 
 func TestValidatingFile_Share(t *testing.T) {

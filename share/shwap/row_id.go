@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/binary"
 	"fmt"
+
 	blocks "github.com/ipfs/go-block-format"
 	"github.com/ipfs/go-cid"
 	mh "github.com/multiformats/go-multihash"
@@ -17,13 +18,12 @@ import (
 // TODO(@walldiss): maybe move into separate subpkg?
 
 // RowIDSize is the size of the RowID in bytes
-const RowIDSize = 10
+const RowIDSize = EdsIDSize + 2
 
 // RowID is an unique identifier of a Row.
 type RowID struct {
-	// Height of the block.
-	// Needed to identify block's data square in the whole chain
-	Height uint64
+	EdsID
+
 	// RowIndex is the index of the axis(row, col) in the data square
 	RowIndex uint16
 }
@@ -31,8 +31,10 @@ type RowID struct {
 // NewRowID constructs a new RowID.
 func NewRowID(height uint64, rowIdx uint16, root *share.Root) (RowID, error) {
 	rid := RowID{
+		EdsID: EdsID{
+			Height: height,
+		},
 		RowIndex: rowIdx,
-		Height:   height,
 	}
 
 	verifyFn := func(row Row) error {
@@ -109,11 +111,8 @@ func (rid *RowID) UnmarshalBinary(data []byte) error {
 
 // Verify verifies RowID fields.
 func (rid RowID) Verify(root *share.Root) error {
-	if root == nil {
-		return fmt.Errorf("nil Root")
-	}
-	if rid.Height == 0 {
-		return fmt.Errorf("zero Height")
+	if err := rid.EdsID.Verify(root); err != nil {
+		return err
 	}
 
 	sqrLn := len(root.RowRoots)
@@ -122,10 +121,6 @@ func (rid RowID) Verify(root *share.Root) error {
 	}
 
 	return nil
-}
-
-func (rid RowID) GetHeight() uint64 {
-	return rid.Height
 }
 
 func (rid RowID) BlockFromFile(ctx context.Context, f file.EdsFile) (blocks.Block, error) {

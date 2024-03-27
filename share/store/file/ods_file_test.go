@@ -9,7 +9,7 @@ import (
 
 	"github.com/celestiaorg/rsmt2d"
 
-	"github.com/celestiaorg/celestia-node/share/eds/edstest"
+	"github.com/celestiaorg/celestia-node/share/testing/edstest"
 )
 
 func TestCreateOdsFile(t *testing.T) {

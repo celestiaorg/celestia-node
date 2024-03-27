@@ -10,10 +10,10 @@ import (
 	ds_sync "github.com/ipfs/go-datastore/sync"
 	"github.com/stretchr/testify/require"
 
-	"github.com/celestiaorg/celestia-node/share/eds/edstest"
-	"github.com/celestiaorg/celestia-node/share/sharetest"
 	"github.com/celestiaorg/celestia-node/share/shwap"
 	"github.com/celestiaorg/celestia-node/share/store/cache"
+	"github.com/celestiaorg/celestia-node/share/testing/edstest"
+	"github.com/celestiaorg/celestia-node/share/testing/sharetest"
 )
 
 //TODO:

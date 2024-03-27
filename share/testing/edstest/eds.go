@@ -10,7 +10,7 @@ import (
 	"github.com/celestiaorg/rsmt2d"
 
 	"github.com/celestiaorg/celestia-node/share"
-	"github.com/celestiaorg/celestia-node/share/sharetest"
+	"github.com/celestiaorg/celestia-node/share/testing/sharetest"
 )
 
 func RandByzantineEDS(t *testing.T, size int, options ...nmt.Option) *rsmt2d.ExtendedDataSquare {

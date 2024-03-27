@@ -16,9 +16,9 @@ import (
 	"github.com/celestiaorg/rsmt2d"
 
 	"github.com/celestiaorg/celestia-node/share"
-	"github.com/celestiaorg/celestia-node/share/eds/edstest"
 	"github.com/celestiaorg/celestia-node/share/p2p"
 	"github.com/celestiaorg/celestia-node/share/store"
+	"github.com/celestiaorg/celestia-node/share/testing/edstest"
 )
 
 func TestExchange_RequestEDS(t *testing.T) {

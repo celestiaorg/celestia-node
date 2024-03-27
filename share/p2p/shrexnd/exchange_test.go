@@ -12,10 +12,10 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/celestiaorg/celestia-node/share"
-	"github.com/celestiaorg/celestia-node/share/eds/edstest"
 	"github.com/celestiaorg/celestia-node/share/p2p"
-	"github.com/celestiaorg/celestia-node/share/sharetest"
 	"github.com/celestiaorg/celestia-node/share/store"
+	"github.com/celestiaorg/celestia-node/share/testing/edstest"
+	"github.com/celestiaorg/celestia-node/share/testing/sharetest"
 )
 
 func TestExchange_RequestND_NotFound(t *testing.T) {

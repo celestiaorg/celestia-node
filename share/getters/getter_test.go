@@ -15,9 +15,9 @@ import (
 	"github.com/celestiaorg/celestia-node/header"
 	"github.com/celestiaorg/celestia-node/header/headertest"
 	"github.com/celestiaorg/celestia-node/share"
-	"github.com/celestiaorg/celestia-node/share/eds/edstest"
-	"github.com/celestiaorg/celestia-node/share/sharetest"
 	"github.com/celestiaorg/celestia-node/share/store"
+	"github.com/celestiaorg/celestia-node/share/testing/edstest"
+	"github.com/celestiaorg/celestia-node/share/testing/sharetest"
 )
 
 func TestStoreGetter(t *testing.T) {

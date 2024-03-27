@@ -1,7 +1,7 @@
 package file
 
 import (
-	"github.com/celestiaorg/celestia-node/share/sharetest"
+	"github.com/celestiaorg/celestia-node/share/testing/sharetest"
 	"github.com/stretchr/testify/require"
 	"testing"
 )

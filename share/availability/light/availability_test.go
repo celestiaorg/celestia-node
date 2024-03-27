@@ -14,7 +14,7 @@ package light
 //	"github.com/celestiaorg/celestia-node/share"
 //	availability_test "github.com/celestiaorg/celestia-node/share/availability/test"
 //	"github.com/celestiaorg/celestia-node/share/ipld"
-//	"github.com/celestiaorg/celestia-node/share/sharetest"
+//	"github.com/celestiaorg/celestia-node/share/testing/sharetest"
 //)
 //
 //func TestSharesAvailableCaches(t *testing.T) {

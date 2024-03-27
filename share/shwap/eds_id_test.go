@@ -10,23 +10,18 @@ import (
 	"github.com/celestiaorg/celestia-node/share/testing/edstest"
 )
 
-func TestSampleID(t *testing.T) {
+func TestEdsID(t *testing.T) {
 	square := edstest.RandEDS(t, 2)
 	root, err := share.NewRoot(square)
 	require.NoError(t, err)
 
-	id, err := NewSampleID(1, 1, root)
+	id, err := NewEdsID(2, root)
 	require.NoError(t, err)
-
-	cid := id.Cid()
-	assert.EqualValues(t, sampleCodec, cid.Prefix().Codec)
-	assert.EqualValues(t, sampleMultihashCode, cid.Prefix().MhType)
-	assert.EqualValues(t, SampleIDSize, cid.Prefix().MhLength)
 
 	data, err := id.MarshalBinary()
 	require.NoError(t, err)
 
-	idOut := SampleID{}
+	idOut := EdsID{}
 	err = idOut.UnmarshalBinary(data)
 	require.NoError(t, err)
 	assert.EqualValues(t, id, idOut)
