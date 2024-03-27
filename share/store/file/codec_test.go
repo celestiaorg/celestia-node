@@ -74,7 +74,7 @@ func newShards(b require.TestingT, size int, fillParity bool) [][]byte {
 	copy(shards, original)
 
 	if fillParity {
-		// fill with parity empty shares
+		// fill with parity empty Shares
 		for j := len(original); j < len(shards); j++ {
 			shards[j] = make([]byte, len(original[0]))
 		}

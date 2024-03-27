@@ -21,8 +21,8 @@ import (
 
 type createFile func(eds *rsmt2d.ExtendedDataSquare) EdsFile
 
-func testFileShare(t *testing.T, createFile createFile, size int) {
-	eds := edstest.RandEDS(t, size)
+func testFileShare(t *testing.T, createFile createFile, odsSize int) {
+	eds := edstest.RandEDS(t, odsSize)
 	fl := createFile(eds)
 
 	dah, err := share.NewRoot(eds)
@@ -76,7 +76,7 @@ func testShare(t *testing.T,
 
 func testFileData(t *testing.T, createFile createFile, size int) {
 	t.Run("included", func(t *testing.T) {
-		// generate EDS with random data and some shares with the same namespace
+		// generate EDS with random data and some Shares with the same namespace
 		namespace := sharetest.RandV0Namespace()
 		amount := mrand.Intn(size*size-1) + 1
 		eds, dah := edstest.RandEDSWithNamespace(t, namespace, amount, size)
@@ -85,7 +85,7 @@ func testFileData(t *testing.T, createFile createFile, size int) {
 	})
 
 	t.Run("not included", func(t *testing.T) {
-		// generate EDS with random data and some shares with the same namespace
+		// generate EDS with random data and some Shares with the same namespace
 		eds := edstest.RandEDS(t, size)
 		dah, err := share.NewRoot(eds)
 		require.NoError(t, err)
@@ -110,16 +110,25 @@ func testData(t *testing.T, f EdsFile, namespace share.Namespace, dah *share.Roo
 	}
 }
 
-func testFileAxisHalf(t *testing.T, createFile createFile, size int) {
-	eds := edstest.RandEDS(t, size)
+func testFileAxisHalf(t *testing.T, createFile createFile, odsSize int) {
+	eds := edstest.RandEDS(t, odsSize)
 	fl := createFile(eds)
 
 	t.Run("single thread", func(t *testing.T) {
 		for _, axisType := range []rsmt2d.Axis{rsmt2d.Col, rsmt2d.Row} {
-			for i := 0; i < size; i++ {
+			for i := 0; i < int(eds.Width()); i++ {
 				half, err := fl.AxisHalf(context.Background(), axisType, i)
 				require.NoError(t, err)
-				require.Equal(t, getAxis(eds, axisType, i)[:size], half)
+				require.Len(t, half.Shares, odsSize)
+
+				var expected []share.Share
+				if half.IsParity {
+					expected = getAxis(eds, axisType, i)[odsSize:]
+				} else {
+					expected = getAxis(eds, axisType, i)[:odsSize]
+				}
+
+				require.Equal(t, expected, half.Shares)
 			}
 		}
 	})
@@ -127,13 +136,22 @@ func testFileAxisHalf(t *testing.T, createFile createFile, size int) {
 	t.Run("parallel", func(t *testing.T) {
 		wg := sync.WaitGroup{}
 		for _, axisType := range []rsmt2d.Axis{rsmt2d.Col, rsmt2d.Row} {
-			for i := 0; i < size; i++ {
+			for i := 0; i < int(eds.Width()); i++ {
 				wg.Add(1)
 				go func(axisType rsmt2d.Axis, idx int) {
 					defer wg.Done()
 					half, err := fl.AxisHalf(context.Background(), axisType, idx)
 					require.NoError(t, err)
-					require.Equal(t, getAxis(eds, axisType, idx)[:size], half)
+					require.Len(t, half.Shares, odsSize)
+
+					var expected []share.Share
+					if half.IsParity {
+						expected = getAxis(eds, axisType, idx)[odsSize:]
+					} else {
+						expected = getAxis(eds, axisType, idx)[:odsSize]
+					}
+
+					require.Equal(t, expected, half.Shares)
 				}(axisType, i)
 			}
 		}
