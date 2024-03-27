@@ -22,19 +22,19 @@ func NewBlockService(b blockstore.Blockstore, ex exchange.Interface) blockservic
 var log = logger.Logger("shwap")
 
 const (
-	// sampleCodec is a CID codec used for share sampling Bitswap requests over Namespaced
-	// Merkle Tree.
-	sampleCodec = 0x7800
-
-	// sampleMultihashCode is the multihash code for share sampling multihash function.
-	sampleMultihashCode = 0x7801
-
 	// rowCodec is a CID codec used for row Bitswap requests over Namespaced Merkle
 	// Tree.
-	rowCodec = 0x7810
+	rowCodec = 0x7800
 
 	// rowMultihashCode is the multihash code for custom axis sampling multihash function.
-	rowMultihashCode = 0x7811
+	rowMultihashCode = 0x7801
+
+	// sampleCodec is a CID codec used for share sampling Bitswap requests over Namespaced
+	// Merkle Tree.
+	sampleCodec = 0x7810
+
+	// sampleMultihashCode is the multihash code for share sampling multihash function.
+	sampleMultihashCode = 0x7811
 
 	// dataCodec is a CID codec used for data Bitswap requests over Namespaced Merkle Tree.
 	dataCodec = 0x7820
@@ -52,11 +52,11 @@ var (
 
 func init() {
 	// Register hashers for new multihashes
-	mh.Register(sampleMultihashCode, func() hash.Hash {
-		return &SampleHasher{}
-	})
 	mh.Register(rowMultihashCode, func() hash.Hash {
 		return &RowHasher{}
+	})
+	mh.Register(sampleMultihashCode, func() hash.Hash {
+		return &SampleHasher{}
 	})
 	mh.Register(dataMultihashCode, func() hash.Hash {
 		return &DataHasher{}
@@ -94,7 +94,7 @@ type allowlist struct{}
 func (a allowlist) IsAllowed(code uint64) bool {
 	// we disable all codes except home-baked code
 	switch code {
-	case sampleMultihashCode, rowMultihashCode, dataMultihashCode:
+	case rowMultihashCode, sampleMultihashCode, dataMultihashCode:
 		return true
 	}
 	return false
@@ -109,13 +109,13 @@ func validateCID(cid cid.Cid) error {
 	switch prefix.Codec {
 	default:
 		return fmt.Errorf("unsupported codec %d", prefix.Codec)
-	case sampleCodec, rowCodec, dataCodec:
+	case rowCodec, sampleCodec, dataCodec:
 	}
 
 	switch prefix.MhLength {
 	default:
 		return fmt.Errorf("unsupported multihash length %d", prefix.MhLength)
-	case SampleIDSize, RowIDSize, DataIDSize:
+	case RowIDSize, SampleIDSize, DataIDSize:
 	}
 
 	return nil
