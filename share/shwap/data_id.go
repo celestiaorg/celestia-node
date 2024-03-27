@@ -17,7 +17,6 @@ const DataIDSize = RowIDSize + share.NamespaceSize
 
 // DataID is an unique identifier of a namespaced Data inside EDS Row.
 type DataID struct {
-	// TODO(@walldiss): why embed instead of just having a field?
 	RowID
 
 	// DataNamespace is the namespace of the data
@@ -29,8 +28,10 @@ type DataID struct {
 func NewDataID(height uint64, rowIdx uint16, namespace share.Namespace, root *share.Root) (DataID, error) {
 	did := DataID{
 		RowID: RowID{
+			EdsID: EdsID{
+				Height: height,
+			},
 			RowIndex: rowIdx,
-			Height:   height,
 		},
 		DataNamespace: string(namespace),
 	}
@@ -116,10 +117,6 @@ func (s DataID) Verify(root *share.Root) error {
 	}
 
 	return nil
-}
-
-func (s DataID) GetHeight() uint64 {
-	return s.RowID.GetHeight()
 }
 
 func (s DataID) BlockFromFile(ctx context.Context, f file.EdsFile) (blocks.Block, error) {

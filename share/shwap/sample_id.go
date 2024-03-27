@@ -20,7 +20,6 @@ const SampleIDSize = RowIDSize + 2
 
 // SampleID is an unique identifier of a Sample.
 type SampleID struct {
-	// TODO(@walldiss): why embed instead of just having a field?
 	RowID
 
 	// ShareIndex is the index of the sampled share in the Row
@@ -33,8 +32,10 @@ func NewSampleID(height uint64, smplIdx int, root *share.Root) (SampleID, error)
 	rowIdx, shrIdx := uint16(smplIdx/sqrLn), uint16(smplIdx%sqrLn)
 	sid := SampleID{
 		RowID: RowID{
+			EdsID: EdsID{
+				Height: height,
+			},
 			RowIndex: rowIdx,
-			Height:   height,
 		},
 		ShareIndex: shrIdx,
 	}
@@ -108,10 +109,6 @@ func (sid SampleID) Verify(root *share.Root) error {
 	}
 
 	return sid.RowID.Verify(root)
-}
-
-func (sid SampleID) GetHeight() uint64 {
-	return sid.RowID.Height
 }
 
 func (sid SampleID) BlockFromFile(ctx context.Context, f file.EdsFile) (blocks.Block, error) {
