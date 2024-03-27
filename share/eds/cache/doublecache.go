@@ -49,3 +49,10 @@ func (mc *DoubleCache) EnableMetrics() error {
 	}
 	return mc.second.EnableMetrics()
 }
+
+func (mc *DoubleCache) CloseMetrics() error {
+	if err := mc.first.CloseMetrics(); err != nil {
+		return err
+	}
+	return mc.second.CloseMetrics()
+}

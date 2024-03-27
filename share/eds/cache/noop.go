@@ -32,6 +32,10 @@ func (n NoopCache) EnableMetrics() error {
 	return nil
 }
 
+func (n NoopCache) CloseMetrics() error {
+	return nil
+}
+
 var _ Accessor = (*NoopAccessor)(nil)
 
 // NoopAccessor implements noop version of Accessor interface
