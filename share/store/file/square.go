@@ -5,9 +5,8 @@ import (
 	"bytes"
 	"context"
 	"fmt"
-	"io"
-
 	"golang.org/x/sync/errgroup"
+	"io"
 
 	"github.com/celestiaorg/celestia-app/pkg/wrapper"
 	"github.com/celestiaorg/rsmt2d"
@@ -19,9 +18,9 @@ type square [][]share.Share
 
 // ReadEds reads an EDS from the reader and returns it.
 func ReadEds(_ context.Context, r io.Reader, edsSize int) (*rsmt2d.ExtendedDataSquare, error) {
-	square, err := readShares(share.Size, edsSize, r)
+	square, err := readSquare(r, share.Size, edsSize)
 	if err != nil {
-		return nil, fmt.Errorf("reading shares: %w", err)
+		return nil, fmt.Errorf("reading Shares: %w", err)
 	}
 
 	eds, err := square.eds()
@@ -31,10 +30,10 @@ func ReadEds(_ context.Context, r io.Reader, edsSize int) (*rsmt2d.ExtendedDataS
 	return eds, nil
 }
 
-// readShares reads shares from the reader and returns a square. It assumes that the reader is
-// positioned at the beginning of the shares. It knows the size of the shares and the size of the
+// readSquare reads Shares from the reader and returns a square. It assumes that the reader is
+// positioned at the beginning of the Shares. It knows the size of the Shares and the size of the
 // square, so reads from reader are limited to exactly the amount of data required.
-func readShares(shareSize, edsSize int, r io.Reader) (square, error) {
+func readSquare(r io.Reader, shareSize, edsSize int) (square, error) {
 	odsLn := edsSize / 2
 
 	// get pre-allocated square and buffer from memPools
@@ -43,7 +42,6 @@ func readShares(shareSize, edsSize int, r io.Reader) (square, error) {
 	// TODO(@walldiss): run benchmark to find optimal size for buffer
 	br := bufio.NewReaderSize(r, 4096)
 	var total int
-	log.Info("start reading ods", "ods size", odsLn, "share size", shareSize)
 	for i := 0; i < odsLn; i++ {
 		for j := 0; j < odsLn; j++ {
 			n, err := io.ReadFull(br, square[i][j])
@@ -56,9 +54,6 @@ func readShares(shareSize, edsSize int, r io.Reader) (square, error) {
 			total += n
 		}
 	}
-
-	// TODO: remove this log
-	log.Info("read bytes", "total", total)
 	return square, nil
 }
 
@@ -76,11 +71,11 @@ func (s square) close() error {
 
 func (s square) axisHalf(_ context.Context, axisType rsmt2d.Axis, axisIdx int) ([]share.Share, error) {
 	if s == nil {
-		return nil, fmt.Errorf("ods file not in mem")
+		return nil, fmt.Errorf("square is nil")
 	}
 
 	if axisIdx >= s.size() {
-		return nil, fmt.Errorf("index is out of ods bounds")
+		return nil, fmt.Errorf("index is out of square bounds")
 	}
 
 	// square stores rows directly in high level slice, so we can return by accessing row by index
@@ -128,7 +123,7 @@ func (s square) computeAxisHalf(
 ) ([]share.Share, error) {
 	shares := make([]share.Share, s.size())
 
-	// extend opposite half of the square while collecting shares for the first half of required axis
+	// extend opposite half of the square while collecting Shares for the first half of required axis
 	g, ctx := errgroup.WithContext(ctx)
 	opposite := oppositeAxis(axisType)
 	for i := 0; i < s.size(); i++ {
@@ -179,18 +174,18 @@ func oppositeAxis(axis rsmt2d.Axis) rsmt2d.Axis {
 	return rsmt2d.Col
 }
 
-// bufferedODSReader will reads shares from inMemOds into the buffer.
+// bufferedODSReader will read Shares from inMemOds into the buffer.
 // It exposes the buffer to be read by io.Reader interface implementation
 type bufferedODSReader struct {
 	square square
-	// current is the amount of shares stored in ods file that have been read from reader. When current
+	// current is the amount of Shares stored in square that have been read from reader. When current
 	// reaches total, bufferedODSReader will prevent further reads by returning io.EOF
 	current, total int
 	buf            *bytes.Buffer
 }
 
 func (r *bufferedODSReader) Read(p []byte) (n int, err error) {
-	// read shares to the buffer until it has sufficient data to fill provided container or full ods is
+	// read Shares to the buffer until it has sufficient data to fill provided container or full square is
 	// read
 	for r.current < r.total && r.buf.Len() < len(p) {
 		x, y := r.current%(r.square.size()), r.current/(r.square.size())
