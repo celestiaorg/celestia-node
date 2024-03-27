@@ -1,4 +1,4 @@
-package shwap_test
+package shwap_getter
 
 import (
 	"bytes"
@@ -28,7 +28,6 @@ import (
 	"github.com/celestiaorg/celestia-node/share/eds/edstest"
 	"github.com/celestiaorg/celestia-node/share/ipld"
 	"github.com/celestiaorg/celestia-node/share/sharetest"
-	"github.com/celestiaorg/celestia-node/share/shwap"
 	"github.com/celestiaorg/celestia-node/share/store"
 )
 
@@ -43,7 +42,7 @@ func TestGetter(t *testing.T) {
 
 	bstore := edsBlockstore(ctx, t, square, hdr.Height())
 	exch := DummySessionExchange{bstore}
-	get := shwap.NewGetter(exch, blockstore.NewBlockstore(datastore.NewMapDatastore()))
+	get := NewGetter(exch, blockstore.NewBlockstore(datastore.NewMapDatastore()))
 
 	t.Run("GetShares", func(t *testing.T) {
 		idxs := rand.Perm(int(square.Width() ^ 2))[:10]
@@ -129,7 +128,7 @@ func TestGetter(t *testing.T) {
 
 			bstore := edsBlockstore(ctx, t, square, hdr.Height())
 			exch := &DummySessionExchange{bstore}
-			get := shwap.NewGetter(exch, blockstore.NewBlockstore(datastore.NewMapDatastore()))
+			get := NewGetter(exch, blockstore.NewBlockstore(datastore.NewMapDatastore()))
 
 			maxNs := nmt.MaxNamespace(root.RowRoots[(len(root.RowRoots))/2-1], share.NamespaceSize)
 			ns, err := share.Namespace(maxNs).AddInt(-1)

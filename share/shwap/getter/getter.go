@@ -1,24 +1,22 @@
-package shwap
+package shwap_getter
 
 import (
 	"context"
 	"fmt"
-	"sync"
-
+	"github.com/celestiaorg/celestia-app/pkg/wrapper"
+	"github.com/celestiaorg/celestia-node/share/shwap"
+	"github.com/celestiaorg/rsmt2d"
 	"github.com/ipfs/boxo/blockstore"
 	"github.com/ipfs/boxo/exchange"
 	block "github.com/ipfs/go-block-format"
 	"github.com/ipfs/go-cid"
 
-	"github.com/celestiaorg/celestia-app/pkg/wrapper"
-	"github.com/celestiaorg/rsmt2d"
-
 	"github.com/celestiaorg/celestia-node/header"
 	"github.com/celestiaorg/celestia-node/share"
 )
 
-// TODO: GetRow method
 type Getter struct {
+	// TODO(@walldiss): why not blockservice?
 	fetch  exchange.SessionExchange
 	bstore blockstore.Blockstore
 }
@@ -59,57 +57,28 @@ func (g *Getter) GetShares(ctx context.Context, hdr *header.ExtendedHeader, smpl
 		return shares, nil
 	}
 
-	sids := make([]SampleID, len(smplIdxs))
+	cids := make([]cid.Cid, len(smplIdxs))
 	for i, shrIdx := range smplIdxs {
-		sid, err := NewSampleID(hdr.Height(), shrIdx, hdr.DAH)
+		sid, err := shwap.NewSampleID(hdr.Height(), shrIdx, hdr.DAH)
 		if err != nil {
 			return nil, err
 		}
-
-		sids[i] = sid
-	}
-
-	smplsMu := sync.Mutex{}
-	smpls := make(map[int]Sample, len(smplIdxs))
-	verifyFn := func(s Sample) error {
-		err := s.Verify(hdr.DAH)
-		if err != nil {
-			return err
-		}
-
-		smplIdx := int(s.SampleID.RowIndex)*len(hdr.DAH.RowRoots) + int(s.SampleID.ShareIndex)
-		smplsMu.Lock()
-		smpls[smplIdx] = s
-		smplsMu.Unlock()
-		return nil
-	}
-
-	cids := make([]cid.Cid, len(smplIdxs))
-	for i, sid := range sids {
-		sampleVerifiers.Add(sid, verifyFn)
+		defer sid.Release()
 		cids[i] = sid.Cid()
 	}
 
-	ctx, cancel := context.WithCancel(ctx)
-	defer cancel()
-	ses := g.fetch.NewSession(ctx)
-	// must start getting only after verifiers are registered
-	blkCh, err := ses.GetBlocks(ctx, cids)
+	blks, err := g.getBlocks(ctx, cids)
 	if err != nil {
-		return nil, fmt.Errorf("fetching blocks: %w", err)
+		return nil, fmt.Errorf("getting blocks: %w", err)
 	}
-	// GetBlocks handles ctx and closes blkCh, so we don't have to
-	blks := make([]block.Block, 0, len(smplIdxs))
-	for blk := range blkCh {
-		blks = append(blks, blk)
-	}
-	// only persist when all samples received
+
 	if len(blks) != len(smplIdxs) {
 		if ctx.Err() != nil {
 			return nil, ctx.Err()
 		}
 		return nil, fmt.Errorf("not all shares were found")
 	}
+
 	// ensure we persist samples/blks and make them available for Bitswap
 	err = g.bstore.PutMany(ctx, blks)
 	if err != nil {
@@ -122,12 +91,26 @@ func (g *Getter) GetShares(ctx context.Context, hdr *header.ExtendedHeader, smpl
 	}
 
 	// ensure we return shares in the requested order
-	shrs := make([]share.Share, len(smplIdxs))
-	for i, smplIdx := range smplIdxs {
-		shrs[i] = smpls[smplIdx].SampleShare
+	shrs := make(map[int]share.Share, len(blks))
+	for _, blk := range blks {
+		sample, err := shwap.SampleFromBlock(blk)
+		if err != nil {
+			return nil, fmt.Errorf("getting sample from block: %w", err)
+		}
+		shrIdx := int(sample.SampleID.RowIndex)*len(hdr.DAH.RowRoots) + int(sample.SampleID.ShareIndex)
+		shrs[shrIdx] = sample.SampleShare
 	}
 
-	return shrs, nil
+	ordered := make([]share.Share, len(shrs))
+	for i, shrIdx := range smplIdxs {
+		sh, ok := shrs[shrIdx]
+		if !ok {
+			return nil, fmt.Errorf("missing share for index %d", shrIdx)
+		}
+		ordered[i] = sh
+	}
+
+	return ordered, nil
 }
 
 // GetEDS
@@ -138,58 +121,54 @@ func (g *Getter) GetEDS(ctx context.Context, hdr *header.ExtendedHeader) (*rsmt2
 	}
 
 	sqrLn := len(hdr.DAH.RowRoots)
-	rids := make([]RowID, sqrLn/2)
+	cids := make([]cid.Cid, sqrLn/2)
 	for i := 0; i < sqrLn/2; i++ {
-		rid, err := NewRowID(hdr.Height(), uint16(i), hdr.DAH)
+		rid, err := shwap.NewRowID(hdr.Height(), uint16(i), hdr.DAH)
 		if err != nil {
 			return nil, err
 		}
-
-		rids[i] = rid
-	}
-
-	square, err := rsmt2d.NewExtendedDataSquare(
-		share.DefaultRSMT2DCodec(),
-		wrapper.NewConstructor(uint64(sqrLn/2)), uint(sqrLn),
-		share.Size,
-	)
-	if err != nil {
-		return nil, err
-	}
-
-	verifyFn := func(row Row) error {
-		err := row.Verify(hdr.DAH)
-		if err != nil {
-			return err
-		}
-
-		for shrIdx, shr := range row.RowShares {
-			err = square.SetCell(uint(row.RowIndex), uint(shrIdx), shr) // no synchronization needed
-			if err != nil {
-				panic(err) // this should never happen and if it is... something is really wrong
-			}
-		}
-
-		return nil
-	}
-
-	cids := make([]cid.Cid, sqrLn/2)
-	for i, rid := range rids {
-		rowVerifiers.Add(rid, verifyFn)
+		defer rid.Release()
 		cids[i] = rid.Cid()
 	}
 
-	ctx, cancel := context.WithCancel(ctx)
-	defer cancel()
-	ses := g.fetch.NewSession(ctx)
-	// must start getting only after verifiers are registered
-	blkCh, err := ses.GetBlocks(ctx, cids)
+	blks, err := g.getBlocks(ctx, cids)
 	if err != nil {
-		return nil, fmt.Errorf("fetching blocks: %w", err)
+		return nil, fmt.Errorf("getting blocks: %w", err)
+
 	}
-	// GetBlocks handles ctx by closing blkCh, so we don't have to
-	for range blkCh { //nolint:revive // it complains on empty block, but the code is functional
-		// we handle writes in verifyFn so just wait for as many results as possible
+
+	if len(blks) != sqrLn/2 {
+		if ctx.Err() != nil {
+			return nil, ctx.Err()
+		}
+		return nil, fmt.Errorf("not all rows were found")
+	}
+
+	rows := make([]*shwap.Row, len(blks))
+	for _, blk := range blks {
+		row, err := shwap.RowFromBlock(blk)
+		if err != nil {
+			return nil, fmt.Errorf("getting row from block: %w", err)
+		}
+		if row.RowIndex >= uint16(sqrLn/2) {
+			// should never happen, because rows should be verified against root by the time they are returned
+			return nil, fmt.Errorf("row index out of bounds: %d", row.RowIndex)
+		}
+		rows[row.RowIndex] = row
+	}
+
+	shrs := make([]share.Share, 0, sqrLn*sqrLn)
+	for _, row := range rows {
+		shrs = append(shrs, row.RowShares...)
+	}
+
+	square, err := rsmt2d.ComputeExtendedDataSquare(
+		shrs,
+		share.DefaultRSMT2DCodec(),
+		wrapper.NewConstructor(uint64(sqrLn/2)),
+	)
+	if err != nil {
+		return nil, fmt.Errorf("computing EDS: %w", err)
 	}
 
 	// and try to repair
@@ -218,56 +197,62 @@ func (g *Getter) GetSharesByNamespace(
 		return share.NamespacedShares{}, nil
 	}
 
-	dids := make([]DataID, 0, to-from)
+	cids := make([]cid.Cid, 0, to-from)
 	for rowIdx := from; rowIdx < to; rowIdx++ {
-		did, err := NewDataID(hdr.Height(), uint16(rowIdx), ns, hdr.DAH)
+		did, err := shwap.NewDataID(hdr.Height(), uint16(rowIdx), ns, hdr.DAH)
 		if err != nil {
 			return nil, err
 		}
-
-		dids = append(dids, did)
+		defer did.Release()
+		cids = append(cids, did.Cid())
 	}
 
-	datas := make([]Data, len(dids))
-	verifyFn := func(d Data) error {
-		err := d.Verify(hdr.DAH)
+	blks, err := g.getBlocks(ctx, cids)
+	if err != nil {
+		return nil, fmt.Errorf("getting blocks: %w", err)
+	}
+
+	nShrs := make([]share.NamespacedRow, len(blks))
+	for _, blk := range blks {
+		data, err := shwap.DataFromBlock(blk)
 		if err != nil {
-			return err
+			return nil, fmt.Errorf("getting row from block: %w", err)
 		}
 
-		nsStartIdx := dids[0].RowIndex
-		idx := d.RowIndex - nsStartIdx
-		datas[idx] = d
-		return nil
+		if data.RowIndex < uint16(from) || data.RowIndex >= uint16(to) {
+			// should never happen, because rows should be verified against root by the time they are returned
+			return nil, fmt.Errorf("row index out of bounds: %d", data.RowIndex)
+		}
+		nShrs[int(data.RowIndex)-from] = share.NamespacedRow{
+			Shares: data.DataShares,
+			Proof:  &data.DataProof,
+		}
 	}
 
-	cids := make([]cid.Cid, len(dids))
-	for i, did := range dids {
-		dataVerifiers.Add(did, verifyFn)
-		cids[i] = did.Cid()
-	}
+	return nShrs, nil
+}
 
+func (g *Getter) getBlocks(ctx context.Context, cids []cid.Cid) ([]block.Block, error) {
 	ctx, cancel := context.WithCancel(ctx)
 	defer cancel()
 	ses := g.fetch.NewSession(ctx)
 	// must start getting only after verifiers are registered
 	blkCh, err := ses.GetBlocks(ctx, cids)
 	if err != nil {
-		return nil, fmt.Errorf("fetching blocks:%w", err)
+		return nil, fmt.Errorf("fetching blocks: %w", err)
 	}
-	// GetBlocks handles ctx by closing blkCh, so we don't have to
-	for range blkCh { //nolint:revive // it complains on empty block, but the code is functional
-		// we handle writes in verifyFn so just wait for as many results as possible
+	// GetBlocks handles ctx and closes blkCh, so we don't have to
+	blks := make([]block.Block, 0, len(cids))
+	for blk := range blkCh {
+		blks = append(blks, blk)
+	}
+	// only persist when all samples received
+	if len(blks) != len(cids) {
+		if ctx.Err() != nil {
+			return nil, ctx.Err()
+		}
+		return nil, fmt.Errorf("not all shares were found")
 	}
 
-	nShrs := make([]share.NamespacedRow, 0, len(datas))
-	for _, row := range datas {
-		proof := row.DataProof
-		nShrs = append(nShrs, share.NamespacedRow{
-			Shares: row.DataShares,
-			Proof:  &proof,
-		})
-	}
-
-	return nShrs, nil
+	return blks, nil
 }
