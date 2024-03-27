@@ -25,7 +25,7 @@ type CacheFile struct {
 
 	// lock protects axisCache
 	lock sync.RWMutex
-	// axisCache caches the axis shares and proofs
+	// axisCache caches the axis Shares and proofs
 	axisCache []map[int]inMemoryAxis
 	// disableCache disables caching of rows for testing purposes
 	disableCache bool
@@ -48,10 +48,6 @@ func NewCacheFile(f EdsFile) *CacheFile {
 
 func (f *CacheFile) Share(ctx context.Context, x, y int) (*share.ShareWithProof, error) {
 	axisType, axisIdx, shrIdx := rsmt2d.Row, y, x
-	if x < f.Size()/2 && y >= f.Size()/2 {
-		axisType, axisIdx, shrIdx = rsmt2d.Col, x, y
-	}
-
 	ax, err := f.axisWithProofs(ctx, axisType, axisIdx)
 	if err != nil {
 		return nil, err
@@ -73,7 +69,7 @@ func (f *CacheFile) axisWithProofs(ctx context.Context, axisType rsmt2d.Axis, ax
 		return ax, nil
 	}
 
-	// build proofs from shares and cache them
+	// build proofs from Shares and cache them
 	if !ok {
 		shrs, err := f.axis(ctx, axisType, axisIdx)
 		if err != nil {
@@ -89,7 +85,7 @@ func (f *CacheFile) axisWithProofs(ctx context.Context, axisType rsmt2d.Axis, ax
 	for _, shr := range ax.shares {
 		err := tree.Push(shr)
 		if err != nil {
-			return inMemoryAxis{}, fmt.Errorf("push shares: %w", err)
+			return inMemoryAxis{}, fmt.Errorf("push Shares: %w", err)
 		}
 	}
 
@@ -111,38 +107,31 @@ func (f *CacheFile) axisWithProofs(ctx context.Context, axisType rsmt2d.Axis, ax
 	return ax, nil
 }
 
-func (f *CacheFile) AxisHalf(ctx context.Context, axisType rsmt2d.Axis, axisIdx int) ([]share.Share, error) {
+func (f *CacheFile) AxisHalf(ctx context.Context, axisType rsmt2d.Axis, axisIdx int) (AxisHalf, error) {
 	// return axis from cache if possible
 	ax, ok := f.getAxisFromCache(axisType, axisIdx)
 	if ok {
-		return ax.shares[:f.Size()/2], nil
+		return AxisHalf{
+			Shares:   ax.shares[:f.Size()/2],
+			IsParity: false,
+		}, nil
 	}
 
 	// read axis from file if axis is in the first quadrant
 	half, err := f.EdsFile.AxisHalf(ctx, axisType, axisIdx)
 	if err != nil {
-		return nil, fmt.Errorf("reading axis from inner file: %w", err)
+		return AxisHalf{}, fmt.Errorf("reading axis from inner file: %w", err)
 	}
 
 	if !f.disableCache {
-		axis, err := extendShares(codec, half)
+		ax.shares, err = half.Extended()
 		if err != nil {
-			return nil, fmt.Errorf("extending shares: %w", err)
+			return AxisHalf{}, fmt.Errorf("extending Shares: %w", err)
 		}
-		ax.shares = axis
 		f.storeAxisInCache(axisType, axisIdx, ax)
 	}
 
 	return half, nil
-}
-
-func (f *CacheFile) axis(ctx context.Context, axisType rsmt2d.Axis, axisIdx int) ([]share.Share, error) {
-	original, err := f.AxisHalf(ctx, axisType, axisIdx)
-	if err != nil {
-		return nil, err
-	}
-
-	return extendShares(codec, original)
 }
 
 func (f *CacheFile) Data(ctx context.Context, namespace share.Namespace, rowIdx int) (share.NamespacedRow, error) {
@@ -153,7 +142,7 @@ func (f *CacheFile) Data(ctx context.Context, namespace share.Namespace, rowIdx 
 
 	row, proof, err := ipld.GetSharesByNamespace(ctx, ax.proofs, ax.root, namespace, f.Size())
 	if err != nil {
-		return share.NamespacedRow{}, fmt.Errorf("shares by namespace %s for row %v: %w", namespace.String(), rowIdx, err)
+		return share.NamespacedRow{}, fmt.Errorf("Shares by namespace %s for row %v: %w", namespace.String(), rowIdx, err)
 	}
 
 	return share.NamespacedRow{
@@ -180,6 +169,15 @@ func (f *CacheFile) EDS(ctx context.Context) (*rsmt2d.ExtendedDataSquare, error)
 		return nil, fmt.Errorf("recomputing data square: %w", err)
 	}
 	return eds, nil
+}
+
+func (f *CacheFile) axis(ctx context.Context, axisType rsmt2d.Axis, axisIdx int) ([]share.Share, error) {
+	half, err := f.AxisHalf(ctx, axisType, axisIdx)
+	if err != nil {
+		return nil, err
+	}
+
+	return half.Extended()
 }
 
 func (f *CacheFile) storeAxisInCache(axisType rsmt2d.Axis, axisIdx int, axis inMemoryAxis) {

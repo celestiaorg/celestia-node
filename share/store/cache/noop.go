@@ -60,8 +60,8 @@ func (n NoopFile) Share(ctx context.Context, x, y int) (*share.ShareWithProof, e
 	return nil, nil
 }
 
-func (n NoopFile) AxisHalf(ctx context.Context, axisType rsmt2d.Axis, axisIdx int) ([]share.Share, error) {
-	return nil, nil
+func (n NoopFile) AxisHalf(ctx context.Context, axisType rsmt2d.Axis, axisIdx int) (file.AxisHalf, error) {
+	return file.AxisHalf{}, nil
 }
 
 func (n NoopFile) Data(ctx context.Context, namespace share.Namespace, rowIdx int) (share.NamespacedRow, error) {

@@ -22,7 +22,7 @@ type closeOnceFile struct {
 	closed   atomic.Bool
 }
 
-func CloseOnceFile(f EdsFile) *closeOnceFile {
+func WithClosedOnce(f EdsFile) EdsFile {
 	return &closeOnceFile{
 		f:        f,
 		size:     f.Size(),
@@ -62,9 +62,9 @@ func (c *closeOnceFile) Share(ctx context.Context, x, y int) (*share.ShareWithPr
 	return c.f.Share(ctx, x, y)
 }
 
-func (c *closeOnceFile) AxisHalf(ctx context.Context, axisType rsmt2d.Axis, axisIdx int) ([]share.Share, error) {
+func (c *closeOnceFile) AxisHalf(ctx context.Context, axisType rsmt2d.Axis, axisIdx int) (AxisHalf, error) {
 	if c.closed.Load() {
-		return nil, errFileClosed
+		return AxisHalf{}, errFileClosed
 	}
 	return c.f.AxisHalf(ctx, axisType, axisIdx)
 }

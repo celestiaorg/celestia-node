@@ -76,8 +76,11 @@ func (f *MemFile) Share(
 	}, nil
 }
 
-func (f *MemFile) AxisHalf(_ context.Context, axisType rsmt2d.Axis, axisIdx int) ([]share.Share, error) {
-	return getAxis(f.Eds, axisType, axisIdx)[:f.Size()/2], nil
+func (f *MemFile) AxisHalf(_ context.Context, axisType rsmt2d.Axis, axisIdx int) (AxisHalf, error) {
+	return AxisHalf{
+		Shares:   getAxis(f.Eds, axisType, axisIdx)[:f.Size()/2],
+		IsParity: false,
+	}, nil
 }
 
 func (f *MemFile) Data(_ context.Context, namespace share.Namespace, rowIdx int) (share.NamespacedRow, error) {

@@ -13,16 +13,16 @@ import (
 // ErrOutOfBounds is returned whenever an index is out of bounds.
 var ErrOutOfBounds = errors.New("index is out of bounds")
 
-// ValidatingFile is a file implementation that performs sanity checks on file operations.
-type ValidatingFile struct {
+// validatingFile is a file implementation that performs sanity checks on file operations.
+type validatingFile struct {
 	EdsFile
 }
 
-func NewValidatingFile(f EdsFile) EdsFile {
-	return &ValidatingFile{EdsFile: f}
+func WithValidation(f EdsFile) EdsFile {
+	return &validatingFile{EdsFile: f}
 }
 
-func (f *ValidatingFile) Share(ctx context.Context, x, y int) (*share.ShareWithProof, error) {
+func (f *validatingFile) Share(ctx context.Context, x, y int) (*share.ShareWithProof, error) {
 	if err := validateIndexBounds(f, x); err != nil {
 		return nil, fmt.Errorf("col: %w", err)
 	}
@@ -32,14 +32,14 @@ func (f *ValidatingFile) Share(ctx context.Context, x, y int) (*share.ShareWithP
 	return f.EdsFile.Share(ctx, x, y)
 }
 
-func (f *ValidatingFile) AxisHalf(ctx context.Context, axisType rsmt2d.Axis, axisIdx int) ([]share.Share, error) {
+func (f *validatingFile) AxisHalf(ctx context.Context, axisType rsmt2d.Axis, axisIdx int) (AxisHalf, error) {
 	if err := validateIndexBounds(f, axisIdx); err != nil {
-		return nil, fmt.Errorf("%s: %w", axisType, err)
+		return AxisHalf{}, fmt.Errorf("%s: %w", axisType, err)
 	}
 	return f.EdsFile.AxisHalf(ctx, axisType, axisIdx)
 }
 
-func (f *ValidatingFile) Data(ctx context.Context, namespace share.Namespace, rowIdx int) (share.NamespacedRow, error) {
+func (f *validatingFile) Data(ctx context.Context, namespace share.Namespace, rowIdx int) (share.NamespacedRow, error) {
 	if err := validateIndexBounds(f, rowIdx); err != nil {
 		return share.NamespacedRow{}, fmt.Errorf("row: %w", err)
 	}

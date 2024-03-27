@@ -25,6 +25,21 @@ func TestCreateOdsFile(t *testing.T) {
 	assert.True(t, edsIn.Equals(edsOut))
 }
 
+func TestReadFullOdsFromFile(t *testing.T) {
+	eds := edstest.RandEDS(t, 8)
+	path := t.TempDir() + "/testfile"
+	f, err := CreateOdsFile(path, []byte{}, eds)
+	require.NoError(t, err)
+
+	err = f.readOds()
+	require.NoError(t, err)
+	for i, row := range f.ods {
+		original := eds.Row(uint(i))[:eds.Width()/2]
+		require.True(t, len(original) == len(row))
+		require.Equal(t, original, row)
+	}
+}
+
 func TestOdsFile(t *testing.T) {
 	size := 8
 	createOdsFile := func(eds *rsmt2d.ExtendedDataSquare) EdsFile {
@@ -54,36 +69,6 @@ func TestOdsFile(t *testing.T) {
 		testFileReader(t, createOdsFile, size)
 	})
 }
-
-func TestReadOdsFile(t *testing.T) {
-	eds := edstest.RandEDS(t, 8)
-	path := t.TempDir() + "/testfile"
-	f, err := CreateOdsFile(path, []byte{}, eds)
-	require.NoError(t, err)
-
-	err = f.readOds()
-	require.NoError(t, err)
-	for i, row := range f.ods {
-		original, err := f.readRow(i)
-		require.NoError(t, err)
-		require.True(t, len(original) == len(row))
-		require.Equal(t, original, row)
-	}
-}
-
-// Leopard full encode
-// BenchmarkAxisFromOdsFile/Size:32/Axis:row/squareHalf:first(original)-10         	  418206	      2545 ns/op
-// BenchmarkAxisFromOdsFile/Size:32/Axis:row/squareHalf:second(extended)-10        	    4968	    227265 ns/op
-// BenchmarkAxisFromOdsFile/Size:32/Axis:col/squareHalf:first(original)-10         	   57007	     20707 ns/op
-// BenchmarkAxisFromOdsFile/Size:32/Axis:col/squareHalf:second(extended)-10        	    5016	    214184 ns/op
-// BenchmarkAxisFromOdsFile/Size:64/Axis:row/squareHalf:first(original)-10         	  308559	      3786 ns/op
-// BenchmarkAxisFromOdsFile/Size:64/Axis:row/squareHalf:second(extended)-10        	    1624	    713999 ns/op
-// BenchmarkAxisFromOdsFile/Size:64/Axis:col/squareHalf:first(original)-10         	   28724	     41421 ns/op
-// BenchmarkAxisFromOdsFile/Size:64/Axis:col/squareHalf:second(extended)-10        	    1686	    629314 ns/op
-// BenchmarkAxisFromOdsFile/Size:128/Axis:row/squareHalf:first(original)-10        	  183322	      6360 ns/op
-// BenchmarkAxisFromOdsFile/Size:128/Axis:row/squareHalf:second(extended)-10       	     428	   2616150 ns/op
-// BenchmarkAxisFromOdsFile/Size:128/Axis:col/squareHalf:first(original)-10        	   14338	     83598 ns/op
-// BenchmarkAxisFromOdsFile/Size:128/Axis:col/squareHalf:second(extended)-10       	     488	   2213146 ns/op
 
 // ReconstructSome, default codec
 // BenchmarkAxisFromOdsFile/Size:32/Axis:row/squareHalf:first(original)-10         	  455848	      2588 ns/op
@@ -125,7 +110,7 @@ func BenchmarkAxisFromOdsFile(b *testing.B) {
 // BenchmarkShareFromOdsFile/Size:128/Axis:col/squareHalf:first(original)-10        	    2114	    514642 ns/op
 // BenchmarkShareFromOdsFile/Size:128/Axis:col/squareHalf:second(extended)-10       	     373	   3068104 ns/op
 func BenchmarkShareFromOdsFile(b *testing.B) {
-	minSize, maxSize := 128, 128
+	minSize, maxSize := 32, 128
 	dir := b.TempDir()
 
 	newFile := func(size int) EdsFile {
