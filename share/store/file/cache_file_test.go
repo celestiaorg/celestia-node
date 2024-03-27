@@ -14,7 +14,7 @@ func TestCacheFile(t *testing.T) {
 		path := t.TempDir() + "/testfile"
 		fl, err := CreateOdsFile(path, []byte{}, eds)
 		require.NoError(t, err)
-		return NewCacheFile(fl)
+		return WithProofsCache(fl)
 	}
 
 	t.Run("Share", func(t *testing.T) {

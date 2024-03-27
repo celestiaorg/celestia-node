@@ -383,9 +383,9 @@ func fileLoader(f file.EdsFile) cache.OpenFileFn {
 }
 
 func wrappedFile(f file.EdsFile) file.EdsFile {
-	withCache := file.NewCacheFile(f)
-	closedOnce := file.CloseOnceFile(withCache)
-	sanityChecked := file.NewValidatingFile(closedOnce)
+	withCache := file.WithProofsCache(f)
+	closedOnce := file.WithClosedOnce(withCache)
+	sanityChecked := file.WithValidation(closedOnce)
 	return sanityChecked
 }
 

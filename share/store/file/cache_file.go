@@ -18,9 +18,9 @@ import (
 	"github.com/celestiaorg/celestia-node/share/ipld"
 )
 
-var _ EdsFile = (*CacheFile)(nil)
+var _ EdsFile = (*proofsCacheFile)(nil)
 
-type CacheFile struct {
+type proofsCacheFile struct {
 	EdsFile
 
 	// lock protects axisCache
@@ -39,14 +39,14 @@ type inMemoryAxis struct {
 	proofs blockservice.BlockGetter
 }
 
-func NewCacheFile(f EdsFile) *CacheFile {
-	return &CacheFile{
+func WithProofsCache(f EdsFile) EdsFile {
+	return &proofsCacheFile{
 		EdsFile:   f,
 		axisCache: []map[int]inMemoryAxis{make(map[int]inMemoryAxis), make(map[int]inMemoryAxis)},
 	}
 }
 
-func (f *CacheFile) Share(ctx context.Context, x, y int) (*share.ShareWithProof, error) {
+func (f *proofsCacheFile) Share(ctx context.Context, x, y int) (*share.ShareWithProof, error) {
 	axisType, axisIdx, shrIdx := rsmt2d.Row, y, x
 	ax, err := f.axisWithProofs(ctx, axisType, axisIdx)
 	if err != nil {
@@ -62,7 +62,7 @@ func (f *CacheFile) Share(ctx context.Context, x, y int) (*share.ShareWithProof,
 	return share, nil
 }
 
-func (f *CacheFile) axisWithProofs(ctx context.Context, axisType rsmt2d.Axis, axisIdx int) (inMemoryAxis, error) {
+func (f *proofsCacheFile) axisWithProofs(ctx context.Context, axisType rsmt2d.Axis, axisIdx int) (inMemoryAxis, error) {
 	// return axis with proofs from cache if possible
 	ax, ok := f.getAxisFromCache(axisType, axisIdx)
 	if ax.proofs != nil {
@@ -107,7 +107,7 @@ func (f *CacheFile) axisWithProofs(ctx context.Context, axisType rsmt2d.Axis, ax
 	return ax, nil
 }
 
-func (f *CacheFile) AxisHalf(ctx context.Context, axisType rsmt2d.Axis, axisIdx int) (AxisHalf, error) {
+func (f *proofsCacheFile) AxisHalf(ctx context.Context, axisType rsmt2d.Axis, axisIdx int) (AxisHalf, error) {
 	// return axis from cache if possible
 	ax, ok := f.getAxisFromCache(axisType, axisIdx)
 	if ok {
@@ -134,7 +134,7 @@ func (f *CacheFile) AxisHalf(ctx context.Context, axisType rsmt2d.Axis, axisIdx 
 	return half, nil
 }
 
-func (f *CacheFile) Data(ctx context.Context, namespace share.Namespace, rowIdx int) (share.NamespacedRow, error) {
+func (f *proofsCacheFile) Data(ctx context.Context, namespace share.Namespace, rowIdx int) (share.NamespacedRow, error) {
 	ax, err := f.axisWithProofs(ctx, rsmt2d.Row, rowIdx)
 	if err != nil {
 		return share.NamespacedRow{}, err
@@ -151,7 +151,7 @@ func (f *CacheFile) Data(ctx context.Context, namespace share.Namespace, rowIdx 
 	}, nil
 }
 
-func (f *CacheFile) EDS(ctx context.Context) (*rsmt2d.ExtendedDataSquare, error) {
+func (f *proofsCacheFile) EDS(ctx context.Context) (*rsmt2d.ExtendedDataSquare, error) {
 	shares := make([][]byte, 0, f.Size()*f.Size())
 	for i := 0; i < f.Size(); i++ {
 		ax, err := f.axis(ctx, rsmt2d.Row, i)
@@ -171,7 +171,7 @@ func (f *CacheFile) EDS(ctx context.Context) (*rsmt2d.ExtendedDataSquare, error)
 	return eds, nil
 }
 
-func (f *CacheFile) axis(ctx context.Context, axisType rsmt2d.Axis, axisIdx int) ([]share.Share, error) {
+func (f *proofsCacheFile) axis(ctx context.Context, axisType rsmt2d.Axis, axisIdx int) ([]share.Share, error) {
 	half, err := f.AxisHalf(ctx, axisType, axisIdx)
 	if err != nil {
 		return nil, err
@@ -180,13 +180,13 @@ func (f *CacheFile) axis(ctx context.Context, axisType rsmt2d.Axis, axisIdx int)
 	return half.Extended()
 }
 
-func (f *CacheFile) storeAxisInCache(axisType rsmt2d.Axis, axisIdx int, axis inMemoryAxis) {
+func (f *proofsCacheFile) storeAxisInCache(axisType rsmt2d.Axis, axisIdx int, axis inMemoryAxis) {
 	f.lock.Lock()
 	defer f.lock.Unlock()
 	f.axisCache[axisType][axisIdx] = axis
 }
 
-func (f *CacheFile) getAxisFromCache(axisType rsmt2d.Axis, axisIdx int) (inMemoryAxis, bool) {
+func (f *proofsCacheFile) getAxisFromCache(axisType rsmt2d.Axis, axisIdx int) (inMemoryAxis, bool) {
 	f.lock.RLock()
 	defer f.lock.RUnlock()
 	ax, ok := f.axisCache[axisType][axisIdx]
