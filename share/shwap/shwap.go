@@ -6,18 +6,10 @@ import (
 	"hash"
 	"sync"
 
-	"github.com/ipfs/boxo/blockservice"
-	"github.com/ipfs/boxo/blockstore"
-	"github.com/ipfs/boxo/exchange"
 	"github.com/ipfs/go-cid"
 	logger "github.com/ipfs/go-log/v2"
 	mh "github.com/multiformats/go-multihash"
 )
-
-// NewBlockService creates a new blockservice.BlockService with allowlist supporting the protocol.
-func NewBlockService(b blockstore.Blockstore, ex exchange.Interface) blockservice.BlockService {
-	return blockservice.New(b, ex, blockservice.WithAllowlist(defaultAllowlist))
-}
 
 var log = logger.Logger("shwap")
 
@@ -86,8 +78,12 @@ func (v *verifiers[ID, V]) Verify(id ID, val V) error {
 	return f.(func(V) error)(val)
 }
 
-// defaultAllowlist keeps default list of hashes allowed in the network.
-var defaultAllowlist allowlist
+func (v *verifiers[ID, V]) Delete(id ID) {
+	v.mp.Delete(id)
+}
+
+// DefaultAllowlist keeps default list of hashes allowed in the network.
+var DefaultAllowlist allowlist
 
 type allowlist struct{}
 
@@ -102,7 +98,7 @@ func (a allowlist) IsAllowed(code uint64) bool {
 
 func validateCID(cid cid.Cid) error {
 	prefix := cid.Prefix()
-	if !defaultAllowlist.IsAllowed(prefix.MhType) {
+	if !DefaultAllowlist.IsAllowed(prefix.MhType) {
 		return fmt.Errorf("unsupported multihash type %d", prefix.MhType)
 	}
 

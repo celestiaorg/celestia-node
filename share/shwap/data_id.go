@@ -34,6 +34,12 @@ func NewDataID(height uint64, rowIdx uint16, namespace share.Namespace, root *sh
 		},
 		DataNamespace: string(namespace),
 	}
+
+	verifyFn := func(d Data) error {
+		return d.Verify(root)
+	}
+	dataVerifiers.Add(did, verifyFn)
+
 	return did, did.Verify(root)
 }
 

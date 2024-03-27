@@ -38,6 +38,12 @@ func NewSampleID(height uint64, smplIdx int, root *share.Root) (SampleID, error)
 		},
 		ShareIndex: shrIdx,
 	}
+
+	verifyFn := func(s Sample) error {
+		return s.Verify(root)
+	}
+	sampleVerifiers.Add(sid, verifyFn)
+
 	return sid, sid.Verify(root)
 }
 
@@ -126,4 +132,8 @@ func (sid SampleID) BlockFromFile(ctx context.Context, f file.EdsFile) (blocks.B
 		return nil, fmt.Errorf("while coverting to IPLD block: %w", err)
 	}
 	return blk, nil
+}
+
+func (sid SampleID) Release() {
+	sampleVerifiers.Delete(sid)
 }

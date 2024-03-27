@@ -34,6 +34,12 @@ func NewRowID(height uint64, rowIdx uint16, root *share.Root) (RowID, error) {
 		RowIndex: rowIdx,
 		Height:   height,
 	}
+
+	verifyFn := func(row Row) error {
+		return row.Verify(root)
+	}
+	rowVerifiers.Add(rid, verifyFn)
+
 	return rid, rid.Verify(root)
 }
 
@@ -144,4 +150,8 @@ func (rid RowID) BlockFromFile(ctx context.Context, f file.EdsFile) (blocks.Bloc
 		return nil, fmt.Errorf("while coverting to IPLD block: %w", err)
 	}
 	return blk, nil
+}
+
+func (rid RowID) Release() {
+	rowVerifiers.Delete(rid)
 }
