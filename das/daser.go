@@ -79,7 +79,7 @@ func NewDASer(
 // Start initiates subscription for new ExtendedHeaders and spawns a sampling routine.
 func (d *DASer) Start(ctx context.Context) error {
 	if !atomic.CompareAndSwapInt32(&d.running, 0, 1) {
-		return fmt.Errorf("da: DASer already started")
+		return errors.New("da: DASer already started")
 	}
 
 	sub, err := d.hsub.Subscribe()

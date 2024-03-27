@@ -36,19 +36,24 @@ type TestSuite struct {
 	valPntr int
 
 	head *header.ExtendedHeader
+
+	// blockTime is optional - if set, the test suite will generate
+	// blocks timestamped at the specified interval
+	blockTime time.Duration
 }
 
 func NewStore(t *testing.T) libhead.Store[*header.ExtendedHeader] {
-	return headertest.NewStore[*header.ExtendedHeader](t, NewTestSuite(t, 3), 10)
+	return headertest.NewStore[*header.ExtendedHeader](t, NewTestSuite(t, 3, 0), 10)
 }
 
 // NewTestSuite setups a new test suite with a given number of validators.
-func NewTestSuite(t *testing.T, num int) *TestSuite {
-	valSet, vals := RandValidatorSet(num, 10)
+func NewTestSuite(t *testing.T, numValidators int, blockTime time.Duration) *TestSuite {
+	valSet, vals := RandValidatorSet(numValidators, 10)
 	return &TestSuite{
-		t:      t,
-		vals:   vals,
-		valSet: valSet,
+		t:         t,
+		vals:      vals,
+		valSet:    valSet,
+		blockTime: blockTime,
 	}
 }
 
@@ -155,13 +160,18 @@ func (s *TestSuite) GenRawHeader(
 	height uint64, lastHeader, lastCommit, dataHash libhead.Hash) *header.RawHeader {
 	rh := RandRawHeader(s.t)
 	rh.Height = int64(height)
-	rh.Time = time.Now()
 	rh.LastBlockID = types.BlockID{Hash: bytes.HexBytes(lastHeader)}
 	rh.LastCommitHash = bytes.HexBytes(lastCommit)
 	rh.DataHash = bytes.HexBytes(dataHash)
 	rh.ValidatorsHash = s.valSet.Hash()
 	rh.NextValidatorsHash = s.valSet.Hash()
 	rh.ProposerAddress = s.nextProposer().Address
+
+	rh.Time = time.Now()
+	if s.blockTime > 0 {
+		rh.Time = s.Head().Time().Add(s.blockTime)
+	}
+
 	return rh
 }
 
@@ -297,7 +307,7 @@ func RandBlockID(testing.TB) types.BlockID {
 	return bid
 }
 
-func ExtendedHeaderFromEDS(t *testing.T, height uint64, eds *rsmt2d.ExtendedDataSquare) *header.ExtendedHeader {
+func ExtendedHeaderFromEDS(t testing.TB, height uint64, eds *rsmt2d.ExtendedDataSquare) *header.ExtendedHeader {
 	valSet, vals := RandValidatorSet(10, 10)
 	gen := RandRawHeader(t)
 	dah, err := share.NewRoot(eds)

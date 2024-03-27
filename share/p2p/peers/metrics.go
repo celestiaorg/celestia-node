@@ -130,17 +130,17 @@ func initMetrics(manager *Manager) (*metrics, error) {
 		blacklistedPeers:         blacklisted,
 	}
 
-	callback := func(ctx context.Context, observer metric.Observer) error {
+	callback := func(_ context.Context, observer metric.Observer) error {
 		for poolStatus, count := range manager.shrexPools() {
 			observer.ObserveInt64(shrexPools, count,
 				metric.WithAttributes(
 					attribute.String(poolStatusKey, string(poolStatus))))
 		}
 
-		observer.ObserveInt64(fullNodesPool, int64(manager.fullNodes.len()),
+		observer.ObserveInt64(fullNodesPool, int64(manager.nodes.len()),
 			metric.WithAttributes(
 				attribute.String(peerStatusKey, string(peerStatusActive))))
-		observer.ObserveInt64(fullNodesPool, int64(manager.fullNodes.cooldown.len()),
+		observer.ObserveInt64(fullNodesPool, int64(manager.nodes.cooldown.len()),
 			metric.WithAttributes(
 				attribute.String(peerStatusKey, string(peerStatusCooldown))))
 

@@ -31,7 +31,7 @@ var localHeadCmd = &cobra.Command{
 	Use:   "local-head",
 	Short: "Returns the ExtendedHeader from the chain head.",
 	Args:  cobra.NoArgs,
-	RunE: func(cmd *cobra.Command, args []string) error {
+	RunE: func(cmd *cobra.Command, _ []string) error {
 		client, err := cmdnode.ParseClientFromCtx(cmd.Context())
 		if err != nil {
 			return err
@@ -47,7 +47,7 @@ var networkHeadCmd = &cobra.Command{
 	Use:   "network-head",
 	Short: "Provides the Syncer's view of the current network head.",
 	Args:  cobra.NoArgs,
-	RunE: func(cmd *cobra.Command, args []string) error {
+	RunE: func(cmd *cobra.Command, _ []string) error {
 		client, err := cmdnode.ParseClientFromCtx(cmd.Context())
 		if err != nil {
 			return err
@@ -104,7 +104,7 @@ var syncStateCmd = &cobra.Command{
 	Use:   "sync-state",
 	Short: "Returns the current state of the header Syncer.",
 	Args:  cobra.NoArgs,
-	RunE: func(cmd *cobra.Command, args []string) error {
+	RunE: func(cmd *cobra.Command, _ []string) error {
 		client, err := cmdnode.ParseClientFromCtx(cmd.Context())
 		if err != nil {
 			return err

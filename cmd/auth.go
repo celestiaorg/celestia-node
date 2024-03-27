@@ -27,7 +27,7 @@ func AuthCmd(fsets ...*flag.FlagSet) *cobra.Command {
 			"the node has already been initialized and started.",
 		RunE: func(cmd *cobra.Command, args []string) error {
 			if len(args) != 1 {
-				return fmt.Errorf("must specify permissions")
+				return errors.New("must specify permissions")
 			}
 			permissions, err := convertToPerms(args[0])
 			if err != nil {

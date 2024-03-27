@@ -9,6 +9,7 @@ import (
 
 	"github.com/celestiaorg/celestia-node/api/rpc/perms"
 	"github.com/celestiaorg/celestia-node/nodebuilder/blob"
+	"github.com/celestiaorg/celestia-node/nodebuilder/da"
 	"github.com/celestiaorg/celestia-node/nodebuilder/das"
 	"github.com/celestiaorg/celestia-node/nodebuilder/fraud"
 	"github.com/celestiaorg/celestia-node/nodebuilder/header"
@@ -33,6 +34,7 @@ type Client struct {
 	P2P    p2p.API
 	Node   node.API
 	Blob   blob.API
+	DA     da.API
 
 	closer multiClientCloser
 }
@@ -91,5 +93,6 @@ func moduleMap(client *Client) map[string]interface{} {
 		"p2p":    &client.P2P.Internal,
 		"node":   &client.Node.Internal,
 		"blob":   &client.Blob.Internal,
+		"da":     &client.DA.Internal,
 	}
 }

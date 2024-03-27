@@ -49,7 +49,7 @@ func InitClient(cmd *cobra.Command, _ []string) error {
 	if authTokenFlag == "" {
 		storePath := ""
 		if !cmd.Flag(nodeStoreFlag).Changed {
-			return fmt.Errorf("cant get the access to the auth token: token/node-store flag was not specified")
+			return errors.New("cant get the access to the auth token: token/node-store flag was not specified")
 		}
 		storePath = cmd.Flag(nodeStoreFlag).Value.String()
 		token, err := getToken(storePath)

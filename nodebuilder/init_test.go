@@ -7,13 +7,13 @@ import (
 	"github.com/cosmos/cosmos-sdk/crypto/hd"
 	"github.com/cosmos/cosmos-sdk/crypto/keyring"
 	sdk "github.com/cosmos/cosmos-sdk/types"
+	"github.com/gofrs/flock"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
 	"github.com/celestiaorg/celestia-app/app"
 	"github.com/celestiaorg/celestia-app/app/encoding"
 
-	"github.com/celestiaorg/celestia-node/libs/fslock"
 	"github.com/celestiaorg/celestia-node/nodebuilder/node"
 )
 
@@ -58,9 +58,10 @@ func TestIsInitForNonExistDir(t *testing.T) {
 
 func TestInitErrForLockedDir(t *testing.T) {
 	dir := t.TempDir()
-	flock, err := fslock.Lock(lockPath(dir))
+	flk := flock.New(lockPath(dir))
+	_, err := flk.TryLock()
 	require.NoError(t, err)
-	defer flock.Unlock() //nolint:errcheck
+	defer flk.Unlock() //nolint:errcheck
 	nodes := []node.Type{node.Light, node.Bridge}
 
 	for _, node := range nodes {

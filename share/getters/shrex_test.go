@@ -121,7 +121,7 @@ func TestShrexGetter(t *testing.T) {
 		t.Cleanup(cancel)
 
 		// generate test data
-		eds, dah, maxNamesapce := generateTestEDS(t)
+		eds, dah, maxNamespace := generateTestEDS(t)
 		eh := headertest.RandExtendedHeaderWithRoot(t, dah)
 		require.NoError(t, edsStore.Put(ctx, dah.Hash(), eds))
 		peerManager.Validate(ctx, srvHost.ID(), shrexsub.Notification{
@@ -129,7 +129,7 @@ func TestShrexGetter(t *testing.T) {
 			Height:   1,
 		})
 
-		namespace, err := addToNamespace(maxNamesapce, 1)
+		namespace, err := addToNamespace(maxNamespace, 1)
 		require.NoError(t, err)
 		// check for namespace to be not in root
 		require.Len(t, ipld.FilterRootByNamespace(dah, namespace), 0)

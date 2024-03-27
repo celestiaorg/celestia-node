@@ -117,7 +117,7 @@ func (d *Discovery) Stop(context.Context) error {
 	return nil
 }
 
-// Peers provides a list of discovered peers in the "full" topic.
+// Peers provides a list of discovered peers in the given topic.
 // If Discovery hasn't found any peers, it blocks until at least one peer is found.
 func (d *Discovery) Peers(ctx context.Context) ([]peer.ID, error) {
 	return d.set.Peers(ctx)
@@ -212,9 +212,9 @@ func (d *Discovery) discoveryLoop(ctx context.Context) {
 		case <-warnTicker.C:
 			if d.set.Size() < d.set.Limit() {
 				log.Warnf(
-					"Potentially degraded connectivity, unable to discover the desired amount of full node peers in %v. "+
+					"Potentially degraded connectivity, unable to discover the desired amount of %s peers in %v. "+
 						"Number of peers discovered: %d. Required: %d.",
-					logInterval, d.set.Size(), d.set.Limit(),
+					d.tag, logInterval, d.set.Size(), d.set.Limit(),
 				)
 			}
 			// Do not break the loop; just continue

@@ -13,7 +13,7 @@ func ResetStore(fsets ...*flag.FlagSet) *cobra.Command {
 		Use:   "unsafe-reset-store",
 		Short: "Resets the node's store to a new state. Leaves the keystore and config intact.",
 		Args:  cobra.NoArgs,
-		RunE: func(cmd *cobra.Command, args []string) error {
+		RunE: func(cmd *cobra.Command, _ []string) error {
 			ctx := cmd.Context()
 
 			return nodebuilder.Reset(StorePath(ctx), NodeType(ctx))

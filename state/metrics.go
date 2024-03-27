@@ -19,7 +19,7 @@ func WithMetrics(ca *CoreAccessor) {
 		metric.WithDescription("Timestamp of the last submitted PayForBlob transaction"),
 	)
 
-	callback := func(ctx context.Context, observer metric.Observer) error {
+	callback := func(_ context.Context, observer metric.Observer) error {
 		observer.ObserveInt64(pfbCounter, ca.PayForBlobCount())
 		observer.ObserveInt64(lastPfbTimestamp, ca.LastPayForBlob())
 		return nil

@@ -133,7 +133,7 @@ func TestManager(t *testing.T) {
 
 		// create validated pool
 		validDataHash := share.DataHash("datahash2")
-		manager.fullNodes.add("full")                // add FN to unblock Peer call
+		manager.nodes.add("full")                    // add FN to unblock Peer call
 		manager.Peer(ctx, validDataHash, h.Height()) //nolint:errcheck
 		require.Len(t, manager.pools, 3)
 
@@ -166,7 +166,7 @@ func TestManager(t *testing.T) {
 
 		// add peers to fullnodes, imitating discovery add
 		peers := []peer.ID{"peer1", "peer2", "peer3"}
-		manager.fullNodes.add(peers...)
+		manager.nodes.add(peers...)
 
 		peerID, _, err := manager.Peer(ctx, h.DataHash.Bytes(), h.Height())
 		require.NoError(t, err)
@@ -205,7 +205,7 @@ func TestManager(t *testing.T) {
 		}()
 
 		// send peers
-		manager.fullNodes.add(peers...)
+		manager.nodes.add(peers...)
 
 		// wait for peer to be received
 		select {
@@ -434,7 +434,7 @@ func TestIntegration(t *testing.T) {
 			fnHost,
 			routingdisc.NewRoutingDiscovery(fnRouter),
 			fullNodesTag,
-			discovery.WithOnPeersUpdate(fnPeerManager.UpdateFullNodePool),
+			discovery.WithOnPeersUpdate(fnPeerManager.UpdateNodePool),
 			discovery.WithOnPeersUpdate(checkDiscoveredPeer),
 		)
 		require.NoError(t, fnDisc.Start(ctx))
@@ -450,7 +450,7 @@ func TestIntegration(t *testing.T) {
 
 		select {
 		case <-waitCh:
-			require.Contains(t, fnPeerManager.fullNodes.peersList, bnHost.ID())
+			require.Contains(t, fnPeerManager.nodes.peersList, bnHost.ID())
 		case <-ctx.Done():
 			require.NoError(t, ctx.Err())
 		}

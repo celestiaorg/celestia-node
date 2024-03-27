@@ -1,7 +1,4 @@
-// Test with light nodes spawns more goroutines than in the race detectors budget,
-// and thus we're disabling the race detector.
-// TODO(@Wondertan): Remove this once we move to go1.19 with unlimited race detector
-//go:build !race
+//go:build reconstruction || integration
 
 package tests
 
@@ -89,6 +86,10 @@ Test-Case: Full Node reconstructs blocks from each other, after unsuccessfully s
 block from LN subnetworks. Analog to TestShareAvailable_DisconnectedFullNodes.
 */
 func TestFullReconstructFromFulls(t *testing.T) {
+	if testing.Short() {
+		t.Skip()
+	}
+
 	light.DefaultSampleAmount = 10 // s
 	const (
 		blocks = 10
@@ -255,6 +256,10 @@ Steps:
 9. Check that the FN can retrieve shares from 1 to 20 blocks
 */
 func TestFullReconstructFromLights(t *testing.T) {
+	if testing.Short() {
+		t.Skip()
+	}
+
 	eds.RetrieveQuadrantTimeout = time.Millisecond * 100
 	light.DefaultSampleAmount = 20
 	const (

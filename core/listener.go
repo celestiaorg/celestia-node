@@ -23,6 +23,8 @@ import (
 var (
 	tracer                 = otel.Tracer("core/listener")
 	retrySubscriptionDelay = 5 * time.Second
+
+	errInvalidSubscription = errors.New("invalid subscription")
 )
 
 // Listener is responsible for listening to Core for
@@ -41,11 +43,12 @@ type Listener struct {
 	headerBroadcaster libhead.Broadcaster[*header.ExtendedHeader]
 	hashBroadcaster   shrexsub.BroadcastFn
 
-	listenerTimeout time.Duration
-
 	metrics *listenerMetrics
 
-	cancel context.CancelFunc
+	chainID string
+
+	listenerTimeout time.Duration
+	cancel          context.CancelFunc
 }
 
 func NewListener(
@@ -81,13 +84,14 @@ func NewListener(
 		store:             store,
 		listenerTimeout:   5 * blocktime,
 		metrics:           metrics,
+		chainID:           p.chainID,
 	}, nil
 }
 
 // Start kicks off the Listener listener loop.
 func (cl *Listener) Start(context.Context) error {
 	if cl.cancel != nil {
-		return fmt.Errorf("listener: already started")
+		return errors.New("listener: already started")
 	}
 
 	ctx, cancel := context.WithCancel(context.Background())
@@ -116,6 +120,10 @@ func (cl *Listener) runSubscriber(ctx context.Context, sub <-chan types.EventDat
 		if ctx.Err() != nil {
 			// listener stopped because external context was canceled
 			return
+		}
+		if errors.Is(err, errInvalidSubscription) {
+			// stop node if there is a critical issue with the block subscription
+			log.Fatalf("listener: %v", err)
 		}
 
 		log.Warnw("listener: subscriber error, resubscribing...", "err", err)
@@ -161,6 +169,12 @@ func (cl *Listener) listen(ctx context.Context, sub <-chan types.EventDataSigned
 		case b, ok := <-sub:
 			if !ok {
 				return errors.New("underlying subscription was closed")
+			}
+
+			if cl.chainID != "" && b.Header.ChainID != cl.chainID {
+				log.Errorf("listener: received block with unexpected chain ID: expected %s,"+
+					" received %s", cl.chainID, b.Header.ChainID)
+				return errInvalidSubscription
 			}
 
 			log.Debugw("listener: new block from core", "height", b.Header.Height)

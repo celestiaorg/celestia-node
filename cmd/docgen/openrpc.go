@@ -14,7 +14,7 @@ import (
 var rootCmd = &cobra.Command{
 	Use:   "docgen [packages]",
 	Short: "docgen generates the openrpc documentation for Celestia Node packages",
-	RunE: func(cmd *cobra.Command, moduleNames []string) error {
+	RunE: func(_ *cobra.Command, moduleNames []string) error {
 		// 1. Open the respective nodebuilder/X/service.go files for AST parsing
 		nodeComments, permComments := docgen.ParseCommentsFromNodebuilderModules(moduleNames...)
 

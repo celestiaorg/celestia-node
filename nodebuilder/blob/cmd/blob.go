@@ -2,7 +2,9 @@ package cmd
 
 import (
 	"encoding/base64"
+	"errors"
 	"fmt"
+	"path/filepath"
 	"reflect"
 	"strconv"
 
@@ -16,8 +18,11 @@ import (
 var (
 	base64Flag bool
 
-	fee      int64
-	gasLimit uint64
+	gasPrice float64
+
+	// flagFileInput allows the user to provide file path to the json file
+	// for submitting multiple blobs.
+	flagFileInput = "input-file"
 )
 
 func init() {
@@ -37,23 +42,15 @@ func init() {
 		"printed blob's data as a base64 string",
 	)
 
-	submitCmd.PersistentFlags().Int64Var(
-		&fee,
-		"fee",
-		-1,
-		"specifies fee (in utia) for blob submission.\n"+
-			"Fee will be automatically calculated if negative value is passed [optional]",
+	submitCmd.PersistentFlags().Float64Var(
+		&gasPrice,
+		"gas.price",
+		float64(blob.DefaultGasPrice()),
+		"specifies gas price (in utia) for blob submission.\n"+
+			"Gas price will be set to default (0.002) if no value is passed",
 	)
 
-	submitCmd.PersistentFlags().Uint64Var(
-		&gasLimit,
-		"gas.limit",
-		0,
-		"sets the amount of gas that is consumed during blob submission [optional]",
-	)
-
-	// unset the default value to avoid users confusion
-	submitCmd.PersistentFlags().Lookup("fee").DefValue = "0"
+	submitCmd.PersistentFlags().String(flagFileInput, "", "Specify the file input")
 }
 
 var Cmd = &cobra.Command{
@@ -130,12 +127,47 @@ var getAllCmd = &cobra.Command{
 }
 
 var submitCmd = &cobra.Command{
-	Use:  "submit [namespace] [blobData]",
-	Args: cobra.ExactArgs(2),
-	Short: "Submit the blob at the given namespace.\n" +
+	Use: "submit [namespace] [blobData]",
+	Args: func(cmd *cobra.Command, args []string) error {
+		path, err := cmd.Flags().GetString(flagFileInput)
+		if err != nil {
+			return err
+		}
+
+		// If there is a file path input we'll check for the file extension
+		if path != "" {
+			if filepath.Ext(path) != ".json" {
+				return fmt.Errorf("invalid file extension, require json got %s", filepath.Ext(path))
+			}
+
+			return nil
+		}
+
+		if len(args) < 2 {
+			return errors.New("submit requires two arguments: namespace and blobData")
+		}
+
+		return nil
+	},
+	Short: "Submit the blob(s) at the given namespace(s).\n" +
+		"User can use namespace and blobData as argument for single blob submission \n" +
+		"or use --input-file flag with the path to a json file for multiple blobs submission, \n" +
+		`where the json file contains: 
+
+		{
+			"Blobs": [
+				{
+					"namespace": "0x00010203040506070809",
+					"blobData": "0x676d"
+				},
+				{
+					"namespace": "0x42690c204d39600fddd3",
+					"blobData": "0x676d"
+				}
+			]
+		}` +
 		"Note:\n" +
-		"* only one blob is allowed to submit through the RPC.\n" +
-		"* fee and gas.limit params will be calculated automatically if they are not provided as arguments",
+		"* fee and gas limit params will be calculated automatically.\n",
 	RunE: func(cmd *cobra.Command, args []string) error {
 		client, err := cmdnode.ParseClientFromCtx(cmd.Context())
 		if err != nil {
@@ -143,31 +175,64 @@ var submitCmd = &cobra.Command{
 		}
 		defer client.Close()
 
-		namespace, err := cmdnode.ParseV0Namespace(args[0])
+		path, err := cmd.Flags().GetString(flagFileInput)
 		if err != nil {
-			return fmt.Errorf("error parsing a namespace:%v", err)
+			return err
 		}
 
-		parsedBlob, err := blob.NewBlobV0(namespace, []byte(args[1]))
-		if err != nil {
-			return fmt.Errorf("error creating a blob:%v", err)
+		jsonBlobs := make([]blobJSON, 0)
+		// In case of there is a file input, get the namespace and blob from the arguments
+		if path != "" {
+			paresdBlobs, err := parseSubmitBlobs(path)
+			if err != nil {
+				return err
+			}
+
+			jsonBlobs = append(jsonBlobs, paresdBlobs...)
+		} else {
+			jsonBlobs = append(jsonBlobs, blobJSON{Namespace: args[0], BlobData: args[1]})
+		}
+
+		var blobs []*blob.Blob
+		var commitments []blob.Commitment
+		for _, jsonBlob := range jsonBlobs {
+			blob, err := getBlobFromArguments(jsonBlob.Namespace, jsonBlob.BlobData)
+			if err != nil {
+				return err
+			}
+			blobs = append(blobs, blob)
+			commitments = append(commitments, blob.Commitment)
 		}
 
 		height, err := client.Blob.Submit(
 			cmd.Context(),
-			[]*blob.Blob{parsedBlob},
-			&blob.SubmitOptions{Fee: fee, GasLimit: gasLimit},
+			blobs,
+			blob.GasPrice(gasPrice),
 		)
 
 		response := struct {
-			Height     uint64          `json:"height"`
-			Commitment blob.Commitment `json:"commitment"`
+			Height      uint64            `json:"height"`
+			Commitments []blob.Commitment `json:"commitments"`
 		}{
-			Height:     height,
-			Commitment: parsedBlob.Commitment,
+			Height:      height,
+			Commitments: commitments,
 		}
 		return cmdnode.PrintOutput(response, err, nil)
 	},
+}
+
+func getBlobFromArguments(namespaceArg, blobArg string) (*blob.Blob, error) {
+	namespace, err := cmdnode.ParseV0Namespace(namespaceArg)
+	if err != nil {
+		return nil, fmt.Errorf("error parsing a namespace:%v", err)
+	}
+
+	parsedBlob, err := blob.NewBlobV0(namespace, []byte(blobArg))
+	if err != nil {
+		return nil, fmt.Errorf("error creating a blob:%v", err)
+	}
+
+	return parsedBlob, nil
 }
 
 var getProofCmd = &cobra.Command{
@@ -207,6 +272,7 @@ func formatData(data interface{}) interface{} {
 		Data         string `json:"data"`
 		ShareVersion uint32 `json:"share_version"`
 		Commitment   []byte `json:"commitment"`
+		Index        int    `json:"index"`
 	}
 
 	if reflect.TypeOf(data).Kind() == reflect.Slice {
@@ -218,6 +284,7 @@ func formatData(data interface{}) interface{} {
 				Data:         string(b.Data),
 				ShareVersion: b.ShareVersion,
 				Commitment:   b.Commitment,
+				Index:        b.Index(),
 			}
 		}
 		return result
@@ -229,5 +296,6 @@ func formatData(data interface{}) interface{} {
 		Data:         string(b.Data),
 		ShareVersion: b.ShareVersion,
 		Commitment:   b.Commitment,
+		Index:        b.Index(),
 	}
 }

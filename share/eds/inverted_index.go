@@ -10,15 +10,14 @@ import (
 	"github.com/filecoin-project/dagstore/index"
 	"github.com/filecoin-project/dagstore/shard"
 	ds "github.com/ipfs/go-datastore"
+	dsbadger "github.com/ipfs/go-ds-badger4"
 	"github.com/multiformats/go-multihash"
-
-	dsbadger "github.com/celestiaorg/go-ds-badger4"
 )
 
 const invertedIndexPath = "/inverted_index/"
 
 // ErrNotFoundInIndex is returned instead of ErrNotFound if the multihash doesn't exist in the index
-var ErrNotFoundInIndex = fmt.Errorf("does not exist in index")
+var ErrNotFoundInIndex = errors.New("does not exist in index")
 
 // simpleInvertedIndex is an inverted index that only stores a single shard key per multihash. Its
 // implementation is modified from the default upstream implementation in dagstore/index.
