@@ -30,16 +30,10 @@ func TestListenerWithNonEmptyBlocks(t *testing.T) {
 	eds := createEdsPubSub(ctx, t)
 
 	store := createStore(t)
-	err := store.Start(ctx)
-	require.NoError(t, err)
-	t.Cleanup(func() {
-		err = store.Stop(ctx)
-		require.NoError(t, err)
-	})
 
 	// create Listener and start listening
 	cl := createListener(ctx, t, fetcher, ps0, eds, store, networkID)
-	err = cl.Start(ctx)
+	err := cl.Start(ctx)
 	require.NoError(t, err)
 
 	// listen for eds hashes broadcasted through eds-sub and ensure store has
