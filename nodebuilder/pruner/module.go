@@ -5,6 +5,7 @@ import (
 
 	"go.uber.org/fx"
 
+	"github.com/celestiaorg/celestia-node/core"
 	"github.com/celestiaorg/celestia-node/nodebuilder/node"
 	"github.com/celestiaorg/celestia-node/pruner"
 	"github.com/celestiaorg/celestia-node/pruner/archival"
@@ -19,9 +20,20 @@ func ConstructModule(tp node.Type, cfg *Config) fx.Option {
 		case node.Light:
 			// light nodes are still subject to sampling within window
 			// even if pruning is not enabled.
-			return fx.Supply(light.Window)
-		case node.Full, node.Bridge:
-			return fx.Supply(archival.Window)
+			return fx.Options(
+				fx.Supply(light.Window),
+			)
+		case node.Full:
+			return fx.Options(
+				fx.Supply(archival.Window),
+			)
+		case node.Bridge:
+			return fx.Options(
+				fx.Supply(archival.Window),
+				fx.Provide(func() []core.Option {
+					return []core.Option{}
+				}),
+			)
 		default:
 			panic("unknown node type")
 		}
@@ -58,6 +70,9 @@ func ConstructModule(tp node.Type, cfg *Config) fx.Option {
 				return full.NewPruner(store)
 			}),
 			fx.Supply(full.Window),
+			fx.Provide(func(window pruner.AvailabilityWindow) []core.Option {
+				return []core.Option{core.WithAvailabilityWindow(window)}
+			}),
 		)
 	// TODO: Eventually, light nodes will be capable of pruning samples
 	//  in which case, this can be enabled.

@@ -15,6 +15,7 @@ import (
 	"github.com/celestiaorg/nmt"
 
 	"github.com/celestiaorg/celestia-node/header"
+	"github.com/celestiaorg/celestia-node/pruner"
 	"github.com/celestiaorg/celestia-node/share/eds"
 	"github.com/celestiaorg/celestia-node/share/ipld"
 	"github.com/celestiaorg/celestia-node/share/p2p/shrexsub"
@@ -37,8 +38,9 @@ var (
 type Listener struct {
 	fetcher *BlockFetcher
 
-	construct header.ConstructFn
-	store     *eds.Store
+	construct          header.ConstructFn
+	store              *eds.Store
+	availabilityWindow pruner.AvailabilityWindow
 
 	headerBroadcaster libhead.Broadcaster[*header.ExtendedHeader]
 	hashBroadcaster   shrexsub.BroadcastFn
@@ -60,9 +62,9 @@ func NewListener(
 	blocktime time.Duration,
 	opts ...Option,
 ) (*Listener, error) {
-	p := new(params)
+	p := defaultParams()
 	for _, opt := range opts {
-		opt(p)
+		opt(&p)
 	}
 
 	var (
@@ -77,21 +79,22 @@ func NewListener(
 	}
 
 	return &Listener{
-		fetcher:           fetcher,
-		headerBroadcaster: bcast,
-		hashBroadcaster:   hashBroadcaster,
-		construct:         construct,
-		store:             store,
-		listenerTimeout:   5 * blocktime,
-		metrics:           metrics,
-		chainID:           p.chainID,
+		fetcher:            fetcher,
+		headerBroadcaster:  bcast,
+		hashBroadcaster:    hashBroadcaster,
+		construct:          construct,
+		store:              store,
+		availabilityWindow: p.availabilityWindow,
+		listenerTimeout:    5 * blocktime,
+		metrics:            metrics,
+		chainID:            p.chainID,
 	}, nil
 }
 
 // Start kicks off the Listener listener loop.
 func (cl *Listener) Start(context.Context) error {
 	if cl.cancel != nil {
-		return errors.New("listener: already started")
+		return fmt.Errorf("listener: already started")
 	}
 
 	ctx, cancel := context.WithCancel(context.Background())
@@ -223,9 +226,13 @@ func (cl *Listener) handleNewSignedBlock(ctx context.Context, b types.EventDataS
 
 	// attempt to store block data if not empty
 	ctx = ipld.CtxWithProofsAdder(ctx, adder)
-	err = storeEDS(ctx, b.Header.DataHash.Bytes(), eds, cl.store)
-	if err != nil {
-		return fmt.Errorf("storing EDS: %w", err)
+
+	// only store EDS if the header is within the availability window
+	if pruner.IsWithinAvailabilityWindow(eh.Time(), cl.availabilityWindow) {
+		err = storeEDS(ctx, b.Header.DataHash.Bytes(), eds, cl.store)
+		if err != nil {
+			return fmt.Errorf("storing EDS: %w", err)
+		}
 	}
 
 	syncing, err := cl.fetcher.IsSyncing(ctx)
