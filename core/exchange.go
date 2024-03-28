@@ -209,6 +209,7 @@ func (ce *Exchange) getExtendedHeaderByHeight(ctx context.Context, height *int64
 }
 
 func (ce *Exchange) storeEDS(ctx context.Context, eh *header.ExtendedHeader, eds *rsmt2d.ExtendedDataSquare) error {
+
 	if !pruner.IsWithinAvailabilityWindow(eh.Time(), ce.availabilityWindow) {
 		log.Debugw("skipping storage of historic block", "height", eh.Height())
 		return nil
