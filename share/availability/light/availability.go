@@ -12,7 +12,6 @@ import (
 
 	"github.com/celestiaorg/celestia-node/header"
 	"github.com/celestiaorg/celestia-node/share"
-	"github.com/celestiaorg/celestia-node/share/getters"
 )
 
 var (
@@ -99,10 +98,6 @@ func (la *ShareAvailability) SharesAvailable(ctx context.Context, header *header
 		log.Errorw("DAH validation failed", "error", err)
 		return err
 	}
-
-	// indicate to the share.Getter that a blockservice session should be created. This
-	// functionality is optional and must be supported by the used share.Getter.
-	ctx = getters.WithSession(ctx)
 
 	var (
 		failedSamplesLock sync.Mutex

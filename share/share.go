@@ -2,10 +2,13 @@ package share
 
 import (
 	"bytes"
+	"crypto/sha256"
 	"encoding/hex"
 	"fmt"
 
 	"github.com/celestiaorg/celestia-app/pkg/appconsts"
+	"github.com/celestiaorg/nmt"
+	"github.com/celestiaorg/rsmt2d"
 )
 
 var (
@@ -38,6 +41,31 @@ func GetNamespace(s Share) Namespace {
 // GetData slices out data of the Share.
 func GetData(s Share) []byte {
 	return s[NamespaceSize:]
+}
+
+// ShareWithProof contains data with corresponding Merkle Proof
+type ShareWithProof struct { //nolint: revive
+	// Share is a full data including namespace
+	Share
+	// Proof is a Merkle Proof of current share
+	Proof *nmt.Proof
+	// Axis is a type of axis against which the share proof is computed
+	Axis rsmt2d.Axis
+}
+
+// Validate validates inclusion of the share under the given root CID.
+func (s *ShareWithProof) Validate(rootHash []byte, x, y, edsSize int) bool {
+	isParity := x >= edsSize/2 || y >= edsSize/2
+	namespace := ParitySharesNamespace
+	if !isParity {
+		namespace = GetNamespace(s.Share)
+	}
+	return s.Proof.VerifyInclusion(
+		sha256.New(), // TODO(@Wondertan): This should be defined somewhere globally
+		namespace.ToNMT(),
+		[][]byte{s.Share},
+		rootHash,
+	)
 }
 
 // DataHash is a representation of the Root hash.

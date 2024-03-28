@@ -2,7 +2,6 @@ package shrexnd
 
 import (
 	"context"
-	"crypto/sha256"
 	"errors"
 	"fmt"
 	"time"
@@ -15,10 +14,11 @@ import (
 	"github.com/celestiaorg/go-libp2p-messenger/serde"
 	nmt_pb "github.com/celestiaorg/nmt/pb"
 
+	"github.com/celestiaorg/celestia-node/libs/utils"
 	"github.com/celestiaorg/celestia-node/share"
-	"github.com/celestiaorg/celestia-node/share/eds"
 	"github.com/celestiaorg/celestia-node/share/p2p"
 	pb "github.com/celestiaorg/celestia-node/share/p2p/shrexnd/pb"
+	"github.com/celestiaorg/celestia-node/share/store"
 )
 
 // Server implements server side of shrex/nd protocol to serve namespaced share to remote
@@ -30,7 +30,7 @@ type Server struct {
 	protocolID protocol.ID
 
 	handler network.StreamHandler
-	store   *eds.Store
+	store   *store.Store
 
 	params     *Parameters
 	middleware *p2p.Middleware
@@ -38,7 +38,7 @@ type Server struct {
 }
 
 // NewServer creates new Server
-func NewServer(params *Parameters, host host.Host, store *eds.Store) (*Server, error) {
+func NewServer(params *Parameters, host host.Host, store *store.Store) (*Server, error) {
 	if err := params.Validate(); err != nil {
 		return nil, fmt.Errorf("shrex-nd: server creation failed: %w", err)
 	}
@@ -108,13 +108,15 @@ func (srv *Server) handleNamespacedData(ctx context.Context, stream network.Stre
 		return err
 	}
 
-	logger = logger.With("namespace", share.Namespace(req.Namespace).String(),
-		"hash", share.DataHash(req.RootHash).String())
+	logger = logger.With(
+		"namespace", share.Namespace(req.Namespace).String(),
+		"height", req.Height,
+	)
 
 	ctx, cancel := context.WithTimeout(ctx, srv.params.HandleRequestTimeout)
 	defer cancel()
 
-	shares, status, err := srv.getNamespaceData(ctx, req.RootHash, req.Namespace)
+	shares, status, err := srv.getNamespaceData(ctx, req.Height, req.Namespace, int(req.FromRow), int(req.ToRow))
 	if err != nil {
 		// server should respond with status regardless if there was an error getting data
 		sendErr := srv.respondStatus(ctx, logger, stream, status)
@@ -172,21 +174,29 @@ func (srv *Server) readRequest(
 }
 
 func (srv *Server) getNamespaceData(ctx context.Context,
-	hash share.DataHash, namespace share.Namespace) (share.NamespacedShares, pb.StatusCode, error) {
-	dah, err := srv.store.GetDAH(ctx, hash)
+	height uint64,
+	namespace share.Namespace,
+	fromRow, toRow int,
+) (share.NamespacedShares, pb.StatusCode, error) {
+	file, err := srv.store.GetByHeight(ctx, height)
 	if err != nil {
-		if errors.Is(err, eds.ErrNotFound) {
+		if errors.Is(err, store.ErrNotFound) {
 			return nil, pb.StatusCode_NOT_FOUND, nil
 		}
 		return nil, pb.StatusCode_INTERNAL, fmt.Errorf("retrieving DAH: %w", err)
 	}
+	defer utils.CloseAndLog(log, "file", file)
 
-	shares, err := eds.RetrieveNamespaceFromStore(ctx, srv.store, dah, namespace)
-	if err != nil {
-		return nil, pb.StatusCode_INTERNAL, fmt.Errorf("retrieving shares: %w", err)
+	namespacedRows := make(share.NamespacedShares, 0, toRow-fromRow+1)
+	for rowIdx := fromRow; rowIdx < toRow; rowIdx++ {
+		data, err := file.Data(ctx, namespace, rowIdx)
+		if err != nil {
+			return nil, pb.StatusCode_INTERNAL, fmt.Errorf("retrieving data: %w", err)
+		}
+		namespacedRows = append(namespacedRows, data)
 	}
 
-	return shares, pb.StatusCode_OK, nil
+	return namespacedRows, pb.StatusCode_OK, nil
 }
 
 func (srv *Server) respondStatus(
@@ -244,11 +254,5 @@ func (srv *Server) observeStatus(ctx context.Context, status pb.StatusCode) {
 
 // validateRequest checks correctness of the request
 func validateRequest(req pb.GetSharesByNamespaceRequest) error {
-	if err := share.Namespace(req.Namespace).ValidateForData(); err != nil {
-		return err
-	}
-	if len(req.RootHash) != sha256.Size {
-		return fmt.Errorf("incorrect root hash length: %v", len(req.RootHash))
-	}
-	return nil
+	return share.Namespace(req.Namespace).ValidateForData()
 }

@@ -5,19 +5,20 @@ import (
 
 	"github.com/celestiaorg/celestia-node/nodebuilder/node"
 	"github.com/celestiaorg/celestia-node/share/availability/light"
-	"github.com/celestiaorg/celestia-node/share/eds"
 	"github.com/celestiaorg/celestia-node/share/p2p/discovery"
 	"github.com/celestiaorg/celestia-node/share/p2p/peers"
 	"github.com/celestiaorg/celestia-node/share/p2p/shrexeds"
 	"github.com/celestiaorg/celestia-node/share/p2p/shrexnd"
+	"github.com/celestiaorg/celestia-node/share/store"
 )
 
 // TODO: some params are pointers and other are not, Let's fix this.
 type Config struct {
 	// EDSStoreParams sets eds store configuration parameters
-	EDSStoreParams *eds.Parameters
+	EDSStoreParams *store.Parameters
 
-	UseShareExchange bool
+	UseShrEx bool
+	UseShwap bool
 	// ShrExEDSParams sets shrexeds client and server configuration parameters
 	ShrExEDSParams *shrexeds.Parameters
 	// ShrExNDParams sets shrexnd client and server configuration parameters
@@ -31,11 +32,11 @@ type Config struct {
 
 func DefaultConfig(tp node.Type) Config {
 	cfg := Config{
-		EDSStoreParams:    eds.DefaultParameters(),
+		EDSStoreParams:    store.DefaultParameters(),
 		Discovery:         discovery.DefaultParameters(),
 		ShrExEDSParams:    shrexeds.DefaultParameters(),
 		ShrExNDParams:     shrexnd.DefaultParameters(),
-		UseShareExchange:  true,
+		UseShrEx:          true,
 		PeerManagerParams: peers.DefaultParameters(),
 	}
 

@@ -13,7 +13,7 @@ import (
 	"github.com/celestiaorg/celestia-node/header"
 	"github.com/celestiaorg/celestia-node/header/headertest"
 	"github.com/celestiaorg/celestia-node/share"
-	"github.com/celestiaorg/celestia-node/share/eds/edstest"
+	"github.com/celestiaorg/celestia-node/share/testing/edstest"
 )
 
 // TestGetter provides a testing SingleEDSGetter and the root of the EDS it holds.

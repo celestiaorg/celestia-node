@@ -5,15 +5,16 @@ import (
 	"errors"
 	"fmt"
 
-	"github.com/filecoin-project/dagstore"
 	logging "github.com/ipfs/go-log/v2"
 
+	"github.com/celestiaorg/rsmt2d"
+
 	"github.com/celestiaorg/celestia-node/header"
+	"github.com/celestiaorg/celestia-node/libs/utils"
 	"github.com/celestiaorg/celestia-node/share"
-	"github.com/celestiaorg/celestia-node/share/eds"
 	"github.com/celestiaorg/celestia-node/share/eds/byzantine"
-	"github.com/celestiaorg/celestia-node/share/ipld"
 	"github.com/celestiaorg/celestia-node/share/p2p/discovery"
+	"github.com/celestiaorg/celestia-node/share/store"
 )
 
 var log = logging.Logger("share/full")
@@ -22,16 +23,17 @@ var log = logging.Logger("share/full")
 // recovery technique. It is considered "full" because it is required
 // to download enough shares to fully reconstruct the data square.
 type ShareAvailability struct {
-	store  *eds.Store
+	store  *store.Store
 	getter share.Getter
-	disc   *discovery.Discovery
+	// TODO(@walldiss): discovery should be managed by nodebuilder, not availability
+	disc *discovery.Discovery
 
 	cancel context.CancelFunc
 }
 
 // NewShareAvailability creates a new full ShareAvailability.
 func NewShareAvailability(
-	store *eds.Store,
+	store *store.Store,
 	getter share.Getter,
 	disc *discovery.Discovery,
 ) *ShareAvailability {
@@ -58,45 +60,42 @@ func (fa *ShareAvailability) Stop(context.Context) error {
 // SharesAvailable reconstructs the data committed to the given Root by requesting
 // enough Shares from the network.
 func (fa *ShareAvailability) SharesAvailable(ctx context.Context, header *header.ExtendedHeader) error {
+	// a hack to avoid loading the whole EDS in mem if we store it already.
+	if ok, _ := fa.store.HasByHash(ctx, header.DAH.Hash()); ok {
+		return fa.store.LinkHashToHeight(ctx, header.DAH.Hash(), header.Height())
+	}
+
+	eds, err := fa.getEds(ctx, header)
+	if err != nil {
+		return err
+	}
+
+	f, err := fa.store.Put(ctx, header.DAH.Hash(), header.Height(), eds)
+	if err != nil {
+		return fmt.Errorf("full availability: failed to store eds: %w", err)
+	}
+	utils.CloseAndLog(log, "file", f)
+	return nil
+}
+
+func (fa *ShareAvailability) getEds(ctx context.Context, header *header.ExtendedHeader) (*rsmt2d.ExtendedDataSquare, error) {
 	dah := header.DAH
 	// short-circuit if the given root is minimum DAH of an empty data square, to avoid datastore hit
 	if share.DataHash(dah.Hash()).IsEmptyRoot() {
-		return nil
+		return share.EmptyExtendedDataSquare(), nil
 	}
-
-	// we assume the caller of this method has already performed basic validation on the
-	// given dah/root. If for some reason this has not happened, the node should panic.
-	if err := dah.ValidateBasic(); err != nil {
-		log.Errorw("Availability validation cannot be performed on a malformed DataAvailabilityHeader",
-			"err", err)
-		panic(err)
-	}
-
-	// a hack to avoid loading the whole EDS in mem if we store it already.
-	if ok, _ := fa.store.Has(ctx, dah.Hash()); ok {
-		return nil
-	}
-
-	adder := ipld.NewProofsAdder(len(dah.RowRoots))
-	ctx = ipld.CtxWithProofsAdder(ctx, adder)
-	defer adder.Purge()
 
 	eds, err := fa.getter.GetEDS(ctx, header)
 	if err != nil {
 		if errors.Is(err, context.Canceled) {
-			return err
+			return nil, err
 		}
 		log.Errorw("availability validation failed", "root", dah.String(), "err", err.Error())
 		var byzantineErr *byzantine.ErrByzantine
 		if errors.Is(err, share.ErrNotFound) || errors.Is(err, context.DeadlineExceeded) && !errors.As(err, &byzantineErr) {
-			return share.ErrNotAvailable
+			return nil, fmt.Errorf("%w:%w", share.ErrNotAvailable, err)
 		}
-		return err
+		return nil, err
 	}
-
-	err = fa.store.Put(ctx, dah.Hash(), eds)
-	if err != nil && !errors.Is(err, dagstore.ErrShardExists) {
-		return fmt.Errorf("full availability: failed to store eds: %w", err)
-	}
-	return nil
+	return eds, nil
 }

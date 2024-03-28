@@ -1,0 +1,26 @@
+syntax = "proto3";
+
+import "pb/proof.proto"; // celestiaorg/nmt/pb/proof.proto
+
+message Row {
+    bytes row_id = 1;
+    repeated bytes row_half = 2;
+}
+
+enum ProofType {
+    RowProofType = 0;
+    ColProofType = 1;
+}
+
+message Sample {
+    bytes sample_id = 1;
+    bytes sample_share = 2;
+    proof.pb.Proof sample_proof = 3;
+    ProofType proof_type = 4;
+}
+
+message Data {
+    bytes data_id = 1;
+    repeated bytes data_shares = 2;
+    proof.pb.Proof data_proof = 3;
+}

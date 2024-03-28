@@ -14,7 +14,7 @@ import (
 	"github.com/celestiaorg/celestia-app/pkg/da"
 
 	"github.com/celestiaorg/celestia-node/share/eds"
-	"github.com/celestiaorg/celestia-node/share/eds/edstest"
+	"github.com/celestiaorg/celestia-node/share/testing/edstest"
 )
 
 type Config struct {

@@ -2,7 +2,9 @@ package share
 
 import (
 	"bytes"
+	"encoding/binary"
 	"encoding/hex"
+	"errors"
 	"fmt"
 
 	appns "github.com/celestiaorg/celestia-app/pkg/namespace"
@@ -181,4 +183,50 @@ func (n Namespace) IsGreater(target Namespace) bool {
 // IsGreaterOrEqualThan reports if the Namespace is greater or equal than the target.
 func (n Namespace) IsGreaterOrEqualThan(target Namespace) bool {
 	return bytes.Compare(n, target) > -1
+}
+
+// AddInt adds arbitrary int value to namespace, treating namespace as big-endian
+// implementation of int
+func (n Namespace) AddInt(val int) (Namespace, error) {
+	if val == 0 {
+		return n, nil
+	}
+	// Convert the input integer to a byte slice and add it to result slice
+	result := make([]byte, len(n))
+	if val > 0 {
+		binary.BigEndian.PutUint64(result[len(n)-8:], uint64(val))
+	} else {
+		binary.BigEndian.PutUint64(result[len(n)-8:], uint64(-val))
+	}
+
+	// Perform addition byte by byte
+	var carry int
+	for i := len(n) - 1; i >= 0; i-- {
+		sum := 0
+		if val > 0 {
+			sum = int(n[i]) + int(result[i]) + carry
+		} else {
+			sum = int(n[i]) - int(result[i]) + carry
+		}
+
+		switch {
+		case sum > 255:
+			carry = 1
+			sum -= 256
+		case sum < 0:
+			carry = -1
+			sum += 256
+		default:
+			carry = 0
+		}
+
+		result[i] = uint8(sum)
+	}
+
+	// Handle any remaining carry
+	if carry != 0 {
+		return nil, errors.New("n overflow")
+	}
+
+	return result, nil
 }

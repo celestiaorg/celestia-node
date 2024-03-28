@@ -16,7 +16,6 @@ import (
 	"github.com/celestiaorg/celestia-node/header"
 	"github.com/celestiaorg/celestia-node/libs/utils"
 	"github.com/celestiaorg/celestia-node/share"
-	"github.com/celestiaorg/celestia-node/share/ipld"
 	"github.com/celestiaorg/celestia-node/share/p2p"
 	"github.com/celestiaorg/celestia-node/share/p2p/peers"
 	"github.com/celestiaorg/celestia-node/share/p2p/shrexeds"
@@ -118,7 +117,7 @@ func (sg *ShrexGetter) Stop(ctx context.Context) error {
 }
 
 func (sg *ShrexGetter) GetShare(context.Context, *header.ExtendedHeader, int, int) (share.Share, error) {
-	return nil, fmt.Errorf("getter/shrex: GetShare %w", errOperationNotSupported)
+	return nil, fmt.Errorf("getter/shrex: GetShare %w", share.ErrOperationNotSupported)
 }
 
 func (sg *ShrexGetter) GetEDS(ctx context.Context, header *header.ExtendedHeader) (*rsmt2d.ExtendedDataSquare, error) {
@@ -146,6 +145,7 @@ func (sg *ShrexGetter) GetEDS(ctx context.Context, header *header.ExtendedHeader
 		if getErr != nil {
 			log.Debugw("eds: couldn't find peer",
 				"hash", header.DAH.String(),
+				"height", header.Height(),
 				"err", getErr,
 				"finished (s)", time.Since(start))
 			sg.metrics.recordEDSAttempt(ctx, attempt, false)
@@ -154,7 +154,7 @@ func (sg *ShrexGetter) GetEDS(ctx context.Context, header *header.ExtendedHeader
 
 		reqStart := time.Now()
 		reqCtx, cancel := ctxWithSplitTimeout(ctx, sg.minAttemptsCount-attempt+1, sg.minRequestTimeout)
-		eds, getErr := sg.edsClient.RequestEDS(reqCtx, header.DAH.Hash(), peer)
+		eds, getErr := sg.edsClient.RequestEDS(reqCtx, header.DAH, header.Height(), peer)
 		cancel()
 		switch {
 		case getErr == nil:
@@ -177,6 +177,7 @@ func (sg *ShrexGetter) GetEDS(ctx context.Context, header *header.ExtendedHeader
 			err = errors.Join(err, getErr)
 		}
 		log.Debugw("eds: request failed",
+			"height", header.Height(),
 			"hash", header.DAH.String(),
 			"peer", peer.String(),
 			"attempt", attempt,
@@ -204,10 +205,11 @@ func (sg *ShrexGetter) GetSharesByNamespace(
 		utils.SetStatusAndEnd(span, err)
 	}()
 
-	// verify that the namespace could exist inside the roots before starting network requests
+	// find rows that contains target namespace
 	dah := header.DAH
-	roots := ipld.FilterRootByNamespace(dah, namespace)
-	if len(roots) == 0 {
+	fromRow, toRow := share.RowRangeForNamespace(dah, namespace)
+	if fromRow == toRow {
+		// target namespace is out of bounds of all rows in the EDS
 		return []share.NamespacedRow{}, nil
 	}
 
@@ -222,6 +224,7 @@ func (sg *ShrexGetter) GetSharesByNamespace(
 		if getErr != nil {
 			log.Debugw("nd: couldn't find peer",
 				"hash", dah.String(),
+				"height", header.Height(),
 				"namespace", namespace.String(),
 				"err", getErr,
 				"finished (s)", time.Since(start))
@@ -231,7 +234,7 @@ func (sg *ShrexGetter) GetSharesByNamespace(
 
 		reqStart := time.Now()
 		reqCtx, cancel := ctxWithSplitTimeout(ctx, sg.minAttemptsCount-attempt+1, sg.minRequestTimeout)
-		nd, getErr := sg.ndClient.RequestND(reqCtx, dah, namespace, peer)
+		nd, getErr := sg.ndClient.RequestND(reqCtx, header.Height(), fromRow, toRow, namespace, peer)
 		cancel()
 		switch {
 		case getErr == nil:
@@ -260,7 +263,7 @@ func (sg *ShrexGetter) GetSharesByNamespace(
 			err = errors.Join(err, getErr)
 		}
 		log.Debugw("nd: request failed",
-			"hash", dah.String(),
+			"height", header.Height(),
 			"namespace", namespace.String(),
 			"peer", peer.String(),
 			"attempt", attempt,

@@ -12,12 +12,11 @@ import (
 	"go.opentelemetry.io/otel/attribute"
 
 	libhead "github.com/celestiaorg/go-header"
-	"github.com/celestiaorg/nmt"
 
 	"github.com/celestiaorg/celestia-node/header"
-	"github.com/celestiaorg/celestia-node/share/eds"
-	"github.com/celestiaorg/celestia-node/share/ipld"
+	"github.com/celestiaorg/celestia-node/libs/utils"
 	"github.com/celestiaorg/celestia-node/share/p2p/shrexsub"
+	"github.com/celestiaorg/celestia-node/share/store"
 )
 
 var (
@@ -38,7 +37,7 @@ type Listener struct {
 	fetcher *BlockFetcher
 
 	construct header.ConstructFn
-	store     *eds.Store
+	store     *store.Store
 
 	headerBroadcaster libhead.Broadcaster[*header.ExtendedHeader]
 	hashBroadcaster   shrexsub.BroadcastFn
@@ -56,7 +55,7 @@ func NewListener(
 	fetcher *BlockFetcher,
 	hashBroadcaster shrexsub.BroadcastFn,
 	construct header.ConstructFn,
-	store *eds.Store,
+	store *store.Store,
 	blocktime time.Duration,
 	opts ...Option,
 ) (*Listener, error) {
@@ -206,11 +205,8 @@ func (cl *Listener) handleNewSignedBlock(ctx context.Context, b types.EventDataS
 	span.SetAttributes(
 		attribute.Int64("height", b.Header.Height),
 	)
-	// extend block data
-	adder := ipld.NewProofsAdder(int(b.Data.SquareSize))
-	defer adder.Purge()
 
-	eds, err := extendBlock(b.Data, b.Header.Version.App, nmt.NodeVisitor(adder.VisitFn()))
+	eds, err := extendBlock(b.Data, b.Header.Version.App)
 	if err != nil {
 		return fmt.Errorf("extending block data: %w", err)
 	}
@@ -222,11 +218,11 @@ func (cl *Listener) handleNewSignedBlock(ctx context.Context, b types.EventDataS
 	}
 
 	// attempt to store block data if not empty
-	ctx = ipld.CtxWithProofsAdder(ctx, adder)
-	err = storeEDS(ctx, b.Header.DataHash.Bytes(), eds, cl.store)
+	f, err := cl.store.Put(ctx, eh.DAH.Hash(), eh.Height(), eds)
 	if err != nil {
 		return fmt.Errorf("storing EDS: %w", err)
 	}
+	utils.CloseAndLog(log, "file", f)
 
 	syncing, err := cl.fetcher.IsSyncing(ctx)
 	if err != nil {

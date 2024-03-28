@@ -9,6 +9,7 @@ import (
 	"github.com/celestiaorg/celestia-app/pkg/da"
 	"github.com/celestiaorg/rsmt2d"
 
+	"github.com/celestiaorg/celestia-node/share"
 	"github.com/celestiaorg/celestia-node/share/ipld"
 )
 
@@ -19,7 +20,7 @@ import (
 // Merkle Proof for each share.
 type ErrByzantine struct {
 	Index  uint32
-	Shares []*ShareWithProof
+	Shares []*share.ShareWithProof
 	Axis   rsmt2d.Axis
 }
 
@@ -40,11 +41,15 @@ func NewErrByzantine(
 		dah.ColumnRoots,
 		dah.RowRoots,
 	}[errByz.Axis]
+	axisType := rsmt2d.Row
+	if errByz.Axis == rsmt2d.Row {
+		axisType = rsmt2d.Col
+	}
 
-	sharesWithProof := make([]*ShareWithProof, len(errByz.Shares))
+	sharesWithProof := make([]*share.ShareWithProof, len(errByz.Shares))
 
 	type result struct {
-		share *ShareWithProof
+		share *share.ShareWithProof
 		index int
 	}
 	resultCh := make(chan *result)
@@ -55,16 +60,17 @@ func NewErrByzantine(
 
 		index := index
 		go func() {
-			share, err := getProofsAt(
+			sh, err := ipld.GetShareWithProof(
 				ctx, bGetter,
-				ipld.MustCidFromNamespacedSha256(roots[index]),
+				roots[index],
 				int(errByz.Index), len(errByz.Shares),
+				axisType,
 			)
 			if err != nil {
 				log.Warn("requesting proof failed", "root", roots[index], "err", err)
 				return
 			}
-			resultCh <- &result{share, index}
+			resultCh <- &result{sh, index}
 		}()
 	}
 

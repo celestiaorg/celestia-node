@@ -7,8 +7,6 @@ import (
 	"testing"
 	"time"
 
-	"github.com/ipfs/go-datastore"
-	ds_sync "github.com/ipfs/go-datastore/sync"
 	"github.com/libp2p/go-libp2p/core/host"
 	"github.com/libp2p/go-libp2p/core/peer"
 	"github.com/stretchr/testify/require"
@@ -23,8 +21,8 @@ import (
 	"github.com/celestiaorg/celestia-node/nodebuilder/core"
 	"github.com/celestiaorg/celestia-node/nodebuilder/node"
 	"github.com/celestiaorg/celestia-node/nodebuilder/tests/swamp"
-	"github.com/celestiaorg/celestia-node/share/eds"
 	"github.com/celestiaorg/celestia-node/share/eds/byzantine"
+	"github.com/celestiaorg/celestia-node/share/store"
 )
 
 /*
@@ -60,14 +58,9 @@ func TestFraudProofHandling(t *testing.T) {
 	set, val := sw.Validators(t)
 	fMaker := headerfraud.NewFraudMaker(t, 10, []types.PrivValidator{val}, set)
 
-	storeCfg := eds.DefaultParameters()
-	ds := ds_sync.MutexWrap(datastore.NewMapDatastore())
-	edsStore, err := eds.NewStore(storeCfg, t.TempDir(), ds)
+	storeCfg := store.DefaultParameters()
+	edsStore, err := store.NewStore(storeCfg, t.TempDir())
 	require.NoError(t, err)
-	require.NoError(t, edsStore.Start(ctx))
-	t.Cleanup(func() {
-		_ = edsStore.Stop(ctx)
-	})
 
 	cfg := nodebuilder.DefaultConfig(node.Bridge)
 	// 1.
@@ -86,7 +79,7 @@ func TestFraudProofHandling(t *testing.T) {
 	addrs, err := peer.AddrInfoToP2pAddrs(host.InfoFromHost(bridge.Host))
 	require.NoError(t, err)
 	cfg.Header.TrustedPeers = append(cfg.Header.TrustedPeers, addrs[0].String())
-	cfg.Share.UseShareExchange = false
+	cfg.Share.UseShrEx = false
 	store := nodebuilder.MockStore(t, cfg)
 	full := sw.NewNodeWithStore(node.Full, store)
 
