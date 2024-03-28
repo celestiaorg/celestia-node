@@ -25,6 +25,27 @@ jobs:
         with:
           mdbook-version: "latest"
 
+      - name: Install mdbook-webinclude preprocessor
+        uses: actions-rs/install@v0.1
+        with:
+          crate: mdbook-webinclude
+          version: latest
+          use-tool-cache: true
+
+      - name: Install mdbook-yml-header preprocessor
+        uses: actions-rs/install@v0.1
+        with:
+          crate: mdbook-yml-header
+          version: latest
+          use-tool-cache: true
+
+      - name: Install mdbook-pagetoc preprocessor
+        uses: actions-rs/install@v0.1
+        with:
+          crate: mdbook-pagetoc
+          version: latest
+          use-tool-cache: true
+
       - name: Build book
         run: mdbook build specs
 
