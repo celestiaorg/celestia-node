@@ -86,11 +86,11 @@ func WithMetrics(metricOpts []otlpmetrichttp.Option, nodeType node.Type) fx.Opti
 	baseComponents := fx.Options(
 		fx.Supply(metricOpts),
 		fx.Invoke(initializeMetrics),
-		fx.Invoke(func(ca *state.CoreAccessor) {
+		fx.Invoke(func(lc fx.Lifecycle, ca *state.CoreAccessor) {
 			if ca == nil {
 				return
 			}
-			state.WithMetrics(ca)
+			state.WithMetrics(lc, ca)
 		}),
 		fx.Invoke(fraud.WithMetrics[*header.ExtendedHeader]),
 		fx.Invoke(node.WithMetrics),
