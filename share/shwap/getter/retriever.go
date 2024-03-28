@@ -264,8 +264,8 @@ func (rs *retrievalSession) requestCell(ctx context.Context, x, y int) {
 		return
 	}
 
-	rs.squareLk.Lock()
-	defer rs.squareLk.Unlock()
+	rs.squareLk.RLock()
+	defer rs.squareLk.RUnlock()
 
 	if err := rs.square.SetCell(uint(x), uint(y), share); err != nil {
 		log.Warnw("failed to set cell",
