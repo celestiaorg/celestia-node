@@ -76,14 +76,8 @@ func blockstoreFromDatastore(ctx context.Context, ds datastore.Batching) (blocks
 	)
 }
 
-func blockstoreFromEDSStore(ctx context.Context, store *eds.Store) (blockstore.Blockstore, error) {
-	return blockstore.CachedBlockstore(
-		ctx,
-		store.Blockstore(),
-		blockstore.CacheOpts{
-			HasTwoQueueCacheSize: defaultARCCacheSize,
-		},
-	)
+func blockstoreFromEDSStore(store *eds.Store) (blockstore.Blockstore, error) {
+	return store.Blockstore(), nil
 }
 
 type bitSwapParams struct {
