@@ -1,12 +1,12 @@
 package share
 
 import (
-	"github.com/celestiaorg/celestia-node/share/eds"
 	"github.com/celestiaorg/celestia-node/share/getters"
 	disc "github.com/celestiaorg/celestia-node/share/p2p/discovery"
 	"github.com/celestiaorg/celestia-node/share/p2p/peers"
 	"github.com/celestiaorg/celestia-node/share/p2p/shrexeds"
 	"github.com/celestiaorg/celestia-node/share/p2p/shrexnd"
+	"github.com/celestiaorg/celestia-node/share/store"
 )
 
 // WithPeerManagerMetrics is a utility function to turn on peer manager metrics and that is
@@ -43,6 +43,6 @@ func WithShrexGetterMetrics(sg *getters.ShrexGetter) error {
 	return sg.WithMetrics()
 }
 
-func WithStoreMetrics(s *eds.Store) error {
+func WithStoreMetrics(s *store.Store) error {
 	return s.WithMetrics()
 }

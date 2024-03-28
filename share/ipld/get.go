@@ -11,6 +11,9 @@ import (
 	"github.com/ipfs/go-cid"
 	ipld "github.com/ipfs/go-ipld-format"
 
+	"github.com/celestiaorg/nmt"
+	"github.com/celestiaorg/rsmt2d"
+
 	"github.com/celestiaorg/celestia-node/share"
 )
 
@@ -157,9 +160,72 @@ func GetLeaves(ctx context.Context,
 	wg.Wait()
 }
 
-// GetProof fetches and returns the leaf's Merkle Proof.
+// GetSharesWithProofs fetches Merkle proofs for the given shares
+// and returns the result as an array of ShareWithProof.
+func GetSharesWithProofs(
+	ctx context.Context,
+	bGetter blockservice.BlockGetter,
+	rootHash []byte,
+	shares [][]byte,
+	axisType rsmt2d.Axis,
+) ([]*share.ShareWithProof, error) {
+	proofs := make([]*share.ShareWithProof, len(shares))
+	for index, share := range shares {
+		if share != nil {
+			proof, err := GetShareWithProof(ctx, bGetter, rootHash, index, len(shares), axisType)
+			if err != nil {
+				return nil, err
+			}
+			proofs[index] = proof
+		}
+	}
+	return proofs, nil
+}
+
+// GetShareWithProof fetches a Merkle proof for the given share
+func GetShareWithProof(
+	ctx context.Context,
+	bGetter blockservice.BlockGetter,
+	rootHash []byte,
+	index,
+	total int,
+	axisType rsmt2d.Axis,
+) (*share.ShareWithProof, error) {
+	rootCid := MustCidFromNamespacedSha256(rootHash)
+	proof := make([]cid.Cid, 0)
+	// TODO(@vgonkivs): Combine GetLeafData and getProofNodes in one function as the are traversing the same
+	// tree. Add options that will control what data will be fetched.
+	leaf, err := GetLeaf(ctx, bGetter, rootCid, index, total)
+	if err != nil {
+		return nil, err
+	}
+
+	nodes, err := getProofNodes(ctx, bGetter, rootCid, proof, index, total)
+	if err != nil {
+		return nil, err
+	}
+
+	return &share.ShareWithProof{
+		Share: share.GetData(leaf.RawData()),
+		Proof: buildProof(nodes, index),
+		Axis:  axisType,
+	}, nil
+}
+
+func buildProof(proofNodes []cid.Cid, sharePos int) *nmt.Proof {
+	rangeProofs := make([][]byte, 0, len(proofNodes))
+	for i := len(proofNodes) - 1; i >= 0; i-- {
+		node := NamespacedSha256FromCID(proofNodes[i])
+		rangeProofs = append(rangeProofs, node)
+	}
+
+	proof := nmt.NewInclusionProof(sharePos, sharePos+1, rangeProofs, true)
+	return &proof
+}
+
+// getProofNodes fetches and returns the leaf's Merkle Proof.
 // It walks down the IPLD NMT tree until it reaches the leaf and returns collected proof
-func GetProof(
+func getProofNodes(
 	ctx context.Context,
 	bGetter blockservice.BlockGetter,
 	root cid.Cid,
@@ -186,7 +252,7 @@ func GetProof(
 		proof = append(proof, lnks[1].Cid)
 	} else {
 		root, leaf = lnks[1].Cid, leaf-total // otherwise go down the second
-		proof, err = GetProof(ctx, bGetter, root, proof, leaf, total)
+		proof, err = getProofNodes(ctx, bGetter, root, proof, leaf, total)
 		if err != nil {
 			return nil, err
 		}
@@ -194,7 +260,7 @@ func GetProof(
 	}
 
 	// recursively walk down through selected children
-	return GetProof(ctx, bGetter, root, proof, leaf, total)
+	return getProofNodes(ctx, bGetter, root, proof, leaf, total)
 }
 
 // chanGroup implements an atomic wait group, closing a jobs chan

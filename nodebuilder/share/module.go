@@ -2,8 +2,8 @@ package share
 
 import (
 	"context"
+	shwap_getter "github.com/celestiaorg/celestia-node/share/shwap/getter"
 
-	"github.com/ipfs/go-datastore"
 	"github.com/libp2p/go-libp2p/core/host"
 	"github.com/libp2p/go-libp2p/p2p/net/conngater"
 	"go.uber.org/fx"
@@ -17,13 +17,13 @@ import (
 	"github.com/celestiaorg/celestia-node/share"
 	"github.com/celestiaorg/celestia-node/share/availability/full"
 	"github.com/celestiaorg/celestia-node/share/availability/light"
-	"github.com/celestiaorg/celestia-node/share/eds"
 	"github.com/celestiaorg/celestia-node/share/getters"
 	disc "github.com/celestiaorg/celestia-node/share/p2p/discovery"
 	"github.com/celestiaorg/celestia-node/share/p2p/peers"
 	"github.com/celestiaorg/celestia-node/share/p2p/shrexeds"
 	"github.com/celestiaorg/celestia-node/share/p2p/shrexnd"
 	"github.com/celestiaorg/celestia-node/share/p2p/shrexsub"
+	"github.com/celestiaorg/celestia-node/share/store"
 )
 
 func ConstructModule(tp node.Type, cfg *Config, options ...fx.Option) fx.Option {
@@ -74,7 +74,8 @@ func ConstructModule(tp node.Type, cfg *Config, options ...fx.Option) fx.Option 
 			"share",
 			baseComponents,
 			bridgeAndFullComponents,
-			fx.Provide(getters.NewIPLDGetter),
+			fx.Provide(shwap_getter.NewGetter),
+			fx.Provide(shwap_getter.NewReconstructionGetter),
 			fx.Provide(fullGetter),
 		)
 	case node.Light:
@@ -84,7 +85,8 @@ func ConstructModule(tp node.Type, cfg *Config, options ...fx.Option) fx.Option 
 			shrexGetterComponents(cfg),
 			lightAvailabilityComponents(cfg),
 			fx.Invoke(ensureEmptyEDSInBS),
-			fx.Provide(getters.NewIPLDGetter),
+			fx.Provide(shwap_getter.NewGetter),
+			fx.Provide(shwap_getter.NewReconstructionGetter),
 			fx.Provide(lightGetter),
 			// shrexsub broadcaster stub for daser
 			fx.Provide(func() shrexsub.BroadcastFn {
@@ -191,7 +193,7 @@ func shrexServerComponents(cfg *Config) fx.Option {
 	return fx.Options(
 		fx.Invoke(func(_ *shrexeds.Server, _ *shrexnd.Server) {}),
 		fx.Provide(fx.Annotate(
-			func(host host.Host, store *eds.Store, network modp2p.Network) (*shrexeds.Server, error) {
+			func(host host.Host, store *store.Store, network modp2p.Network) (*shrexeds.Server, error) {
 				cfg.ShrExEDSParams.WithNetworkID(network.String())
 				return shrexeds.NewServer(cfg.ShrExEDSParams, host, store)
 			},
@@ -205,7 +207,7 @@ func shrexServerComponents(cfg *Config) fx.Option {
 		fx.Provide(fx.Annotate(
 			func(
 				host host.Host,
-				store *eds.Store,
+				store *store.Store,
 				network modp2p.Network,
 			) (*shrexnd.Server, error) {
 				cfg.ShrExNDParams.WithNetworkID(network.String())
@@ -224,19 +226,9 @@ func shrexServerComponents(cfg *Config) fx.Option {
 func edsStoreComponents(cfg *Config) fx.Option {
 	return fx.Options(
 		fx.Provide(fx.Annotate(
-			func(path node.StorePath, ds datastore.Batching) (*eds.Store, error) {
-				return eds.NewStore(cfg.EDSStoreParams, string(path), ds)
+			func(path node.StorePath) (*store.Store, error) {
+				return store.NewStore(cfg.EDSStoreParams, string(path))
 			},
-			fx.OnStart(func(ctx context.Context, store *eds.Store) error {
-				err := store.Start(ctx)
-				if err != nil {
-					return err
-				}
-				return ensureEmptyCARExists(ctx, store)
-			}),
-			fx.OnStop(func(ctx context.Context, store *eds.Store) error {
-				return store.Stop(ctx)
-			}),
 		)),
 	)
 }

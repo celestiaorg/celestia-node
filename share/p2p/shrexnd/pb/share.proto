@@ -4,8 +4,10 @@ package share.p2p.shrex.nd;
 import "pb/proof.proto";
 
 message GetSharesByNamespaceRequest{
-  bytes root_hash = 1;
+  uint64 height = 1;
   bytes namespace = 2;
+  uint32 fromRow = 3;
+  uint32 toRow = 4;
 }
 
 message GetSharesByNamespaceStatusResponse{

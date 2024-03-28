@@ -48,7 +48,8 @@ func NewClient(params *Parameters, host host.Host) (*Client, error) {
 // Returns NamespacedShares with unverified inclusion proofs against the share.Root.
 func (c *Client) RequestND(
 	ctx context.Context,
-	root *share.Root,
+	height uint64,
+	fromRow, toRow int,
 	namespace share.Namespace,
 	peer peer.ID,
 ) (share.NamespacedShares, error) {
@@ -56,7 +57,7 @@ func (c *Client) RequestND(
 		return nil, err
 	}
 
-	shares, err := c.doRequest(ctx, root, namespace, peer)
+	shares, err := c.doRequest(ctx, height, fromRow, toRow, namespace, peer)
 	if err == nil {
 		return shares, nil
 	}
@@ -81,7 +82,8 @@ func (c *Client) RequestND(
 
 func (c *Client) doRequest(
 	ctx context.Context,
-	root *share.Root,
+	height uint64,
+	fromRow, toRow int,
 	namespace share.Namespace,
 	peerID peer.ID,
 ) (share.NamespacedShares, error) {
@@ -94,8 +96,10 @@ func (c *Client) doRequest(
 	c.setStreamDeadlines(ctx, stream)
 
 	req := &pb.GetSharesByNamespaceRequest{
-		RootHash:  root.Hash(),
+		Height:    height,
 		Namespace: namespace,
+		FromRow:   uint32(fromRow),
+		ToRow:     uint32(toRow),
 	}
 
 	_, err = serde.Write(stream, req)

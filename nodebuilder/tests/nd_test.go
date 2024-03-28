@@ -17,9 +17,9 @@ import (
 	"github.com/celestiaorg/celestia-node/nodebuilder/p2p"
 	"github.com/celestiaorg/celestia-node/nodebuilder/tests/swamp"
 	"github.com/celestiaorg/celestia-node/share"
-	"github.com/celestiaorg/celestia-node/share/eds"
 	"github.com/celestiaorg/celestia-node/share/getters"
 	"github.com/celestiaorg/celestia-node/share/p2p/shrexnd"
+	"github.com/celestiaorg/celestia-node/share/store"
 )
 
 func TestShrexNDFromLights(t *testing.T) {
@@ -177,7 +177,7 @@ func replaceNDServer(cfg *nodebuilder.Config, handler network.StreamHandler) fx.
 	return fx.Decorate(fx.Annotate(
 		func(
 			host host.Host,
-			store *eds.Store,
+			store *store.Store,
 			network p2p.Network,
 		) (*shrexnd.Server, error) {
 			cfg.Share.ShrExNDParams.WithNetworkID(network.String())
@@ -198,7 +198,7 @@ func replaceShareGetter() fx.Option {
 	return fx.Decorate(fx.Annotate(
 		func(
 			host host.Host,
-			store *eds.Store,
+			store *store.Store,
 			storeGetter *getters.StoreGetter,
 			shrexGetter *getters.ShrexGetter,
 			network p2p.Network,

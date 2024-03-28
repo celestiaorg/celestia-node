@@ -2,8 +2,7 @@ package getters
 
 import (
 	"context"
-	"encoding/binary"
-	"errors"
+	"sync/atomic"
 	"testing"
 	"time"
 
@@ -13,7 +12,9 @@ import (
 	"github.com/libp2p/go-libp2p/p2p/net/conngater"
 	mocknet "github.com/libp2p/go-libp2p/p2p/net/mock"
 	"github.com/stretchr/testify/require"
+	"github.com/tendermint/tendermint/libs/rand"
 
+	"github.com/celestiaorg/celestia-app/pkg/da"
 	libhead "github.com/celestiaorg/go-header"
 	"github.com/celestiaorg/nmt"
 	"github.com/celestiaorg/rsmt2d"
@@ -21,14 +22,14 @@ import (
 	"github.com/celestiaorg/celestia-node/header"
 	"github.com/celestiaorg/celestia-node/header/headertest"
 	"github.com/celestiaorg/celestia-node/share"
-	"github.com/celestiaorg/celestia-node/share/eds"
-	"github.com/celestiaorg/celestia-node/share/eds/edstest"
 	"github.com/celestiaorg/celestia-node/share/ipld"
 	"github.com/celestiaorg/celestia-node/share/p2p/peers"
 	"github.com/celestiaorg/celestia-node/share/p2p/shrexeds"
 	"github.com/celestiaorg/celestia-node/share/p2p/shrexnd"
 	"github.com/celestiaorg/celestia-node/share/p2p/shrexsub"
-	"github.com/celestiaorg/celestia-node/share/sharetest"
+	"github.com/celestiaorg/celestia-node/share/store"
+	"github.com/celestiaorg/celestia-node/share/testing/edstest"
+	"github.com/celestiaorg/celestia-node/share/testing/sharetest"
 )
 
 func TestShrexGetter(t *testing.T) {
@@ -41,10 +42,9 @@ func TestShrexGetter(t *testing.T) {
 	clHost, srvHost := net.Hosts()[0], net.Hosts()[1]
 
 	// launch eds store and put test data into it
-	edsStore, err := newStore(t)
+	edsStore, err := store.NewStore(store.DefaultParameters(), t.TempDir())
 	require.NoError(t, err)
-	err = edsStore.Start(ctx)
-	require.NoError(t, err)
+	height := atomic.Uint64{}
 
 	ndClient, _ := newNDClientServer(ctx, t, edsStore, srvHost, clHost)
 	edsClient, _ := newEDSClientServer(ctx, t, edsStore, srvHost, clHost)
@@ -61,13 +61,20 @@ func TestShrexGetter(t *testing.T) {
 		t.Cleanup(cancel)
 
 		// generate test data
+		size := 128
 		namespace := sharetest.RandV0Namespace()
-		randEDS, dah := edstest.RandEDSWithNamespace(t, namespace, 64)
+		sqSise := size * size
+		eds, dah := edstest.RandEDSWithNamespace(t, namespace, sqSise/2+rand.Intn(sqSise/2), size)
 		eh := headertest.RandExtendedHeaderWithRoot(t, dah)
-		require.NoError(t, edsStore.Put(ctx, dah.Hash(), randEDS))
+		height := height.Add(1)
+		eh.RawHeader.Height = int64(height)
+
+		f, err := edsStore.Put(ctx, dah.Hash(), height, eds)
+		require.NoError(t, err)
+		defer f.Close()
 		peerManager.Validate(ctx, srvHost.ID(), shrexsub.Notification{
 			DataHash: dah.Hash(),
-			Height:   1,
+			Height:   height,
 		})
 
 		got, err := getter.GetSharesByNamespace(ctx, eh, namespace)
@@ -82,9 +89,11 @@ func TestShrexGetter(t *testing.T) {
 		// generate test data
 		_, dah, namespace := generateTestEDS(t)
 		eh := headertest.RandExtendedHeaderWithRoot(t, dah)
+		height := height.Add(1)
+
 		peerManager.Validate(ctx, srvHost.ID(), shrexsub.Notification{
 			DataHash: dah.Hash(),
-			Height:   1,
+			Height:   height,
 		})
 
 		_, err := getter.GetSharesByNamespace(ctx, eh, namespace)
@@ -92,28 +101,41 @@ func TestShrexGetter(t *testing.T) {
 	})
 
 	t.Run("ND_namespace_not_included", func(t *testing.T) {
-		ctx, cancel := context.WithTimeout(ctx, time.Second)
+		ctx, cancel := context.WithTimeout(ctx, time.Second*444)
 		t.Cleanup(cancel)
 
 		// generate test data
 		eds, dah, maxNamespace := generateTestEDS(t)
 		eh := headertest.RandExtendedHeaderWithRoot(t, dah)
-		require.NoError(t, edsStore.Put(ctx, dah.Hash(), eds))
+		height := height.Add(1)
+		eh.RawHeader.Height = int64(height)
+
+		f, err := edsStore.Put(ctx, dah.Hash(), height, eds)
+		require.NoError(t, err)
+		require.NoError(t, f.Close())
 		peerManager.Validate(ctx, srvHost.ID(), shrexsub.Notification{
 			DataHash: dah.Hash(),
-			Height:   1,
+			Height:   height,
 		})
 
-		nID, err := addToNamespace(maxNamespace, -1)
+		nID, err := maxNamespace.AddInt(-1)
 		require.NoError(t, err)
 		// check for namespace to be between max and min namespace in root
 		require.Len(t, ipld.FilterRootByNamespace(dah, nID), 1)
 
-		emptyShares, err := getter.GetSharesByNamespace(ctx, eh, nID)
+		sgetter := NewStoreGetter(edsStore)
+		emptyShares, err := sgetter.GetSharesByNamespace(ctx, eh, nID)
 		require.NoError(t, err)
 		// no shares should be returned
 		require.Empty(t, emptyShares.Flatten())
 		require.Nil(t, emptyShares.Verify(dah, nID))
+
+		emptyShares1, err := getter.GetSharesByNamespace(ctx, eh, nID)
+		require.Equal(t, emptyShares.Flatten(), emptyShares1.Flatten())
+		require.NoError(t, err)
+		// no shares should be returned
+		require.Empty(t, emptyShares1.Flatten())
+		require.Nil(t, emptyShares1.Verify(dah, nID))
 	})
 
 	t.Run("ND_namespace_not_in_dah", func(t *testing.T) {
@@ -123,13 +145,18 @@ func TestShrexGetter(t *testing.T) {
 		// generate test data
 		eds, dah, maxNamespace := generateTestEDS(t)
 		eh := headertest.RandExtendedHeaderWithRoot(t, dah)
-		require.NoError(t, edsStore.Put(ctx, dah.Hash(), eds))
+		height := height.Add(1)
+		eh.RawHeader.Height = int64(height)
+
+		f, err := edsStore.Put(ctx, dah.Hash(), height, eds)
+		require.NoError(t, err)
+		require.NoError(t, f.Close())
 		peerManager.Validate(ctx, srvHost.ID(), shrexsub.Notification{
 			DataHash: dah.Hash(),
-			Height:   1,
+			Height:   height,
 		})
 
-		namespace, err := addToNamespace(maxNamespace, 1)
+		namespace, err := maxNamesapce.AddInt(1)
 		require.NoError(t, err)
 		// check for namespace to be not in root
 		require.Len(t, ipld.FilterRootByNamespace(dah, namespace), 0)
@@ -146,17 +173,34 @@ func TestShrexGetter(t *testing.T) {
 		t.Cleanup(cancel)
 
 		// generate test data
-		randEDS, dah, _ := generateTestEDS(t)
+		eds, dah, _ := generateTestEDS(t)
 		eh := headertest.RandExtendedHeaderWithRoot(t, dah)
-		require.NoError(t, edsStore.Put(ctx, dah.Hash(), randEDS))
+		height := height.Add(1)
+		eh.RawHeader.Height = int64(height)
+
+		f, err := edsStore.Put(ctx, dah.Hash(), height, eds)
+		require.NoError(t, err)
+		require.NoError(t, f.Close())
 		peerManager.Validate(ctx, srvHost.ID(), shrexsub.Notification{
 			DataHash: dah.Hash(),
-			Height:   1,
+			Height:   height,
 		})
 
 		got, err := getter.GetEDS(ctx, eh)
 		require.NoError(t, err)
-		require.Equal(t, randEDS.Flattened(), got.Flattened())
+		require.True(t, got.Equals(eds))
+	})
+
+	t.Run("EDS get empty block", func(t *testing.T) {
+		// empty root
+		emptyRoot := da.MinDataAvailabilityHeader()
+		eh := headertest.RandExtendedHeaderWithRoot(t, &emptyRoot)
+
+		eds, err := getter.GetEDS(ctx, eh)
+		require.NoError(t, err)
+		dah, err := share.NewRoot(eds)
+		require.NoError(t, err)
+		require.True(t, share.DataHash(dah.Hash()).IsEmptyRoot())
 	})
 
 	t.Run("EDS_ctx_deadline", func(t *testing.T) {
@@ -165,9 +209,12 @@ func TestShrexGetter(t *testing.T) {
 		// generate test data
 		_, dah, _ := generateTestEDS(t)
 		eh := headertest.RandExtendedHeaderWithRoot(t, dah)
+		height := height.Add(1)
+		eh.RawHeader.Height = int64(height)
+
 		peerManager.Validate(ctx, srvHost.ID(), shrexsub.Notification{
 			DataHash: dah.Hash(),
-			Height:   1,
+			Height:   height,
 		})
 
 		cancel()
@@ -182,21 +229,17 @@ func TestShrexGetter(t *testing.T) {
 		// generate test data
 		_, dah, _ := generateTestEDS(t)
 		eh := headertest.RandExtendedHeaderWithRoot(t, dah)
+		height := height.Add(1)
+		eh.RawHeader.Height = int64(height)
+
 		peerManager.Validate(ctx, srvHost.ID(), shrexsub.Notification{
 			DataHash: dah.Hash(),
-			Height:   1,
+			Height:   height,
 		})
 
 		_, err := getter.GetEDS(ctx, eh)
 		require.ErrorIs(t, err, share.ErrNotFound)
 	})
-}
-
-func newStore(t *testing.T) (*eds.Store, error) {
-	t.Helper()
-
-	ds := ds_sync.MutexWrap(datastore.NewMapDatastore())
-	return eds.NewStore(eds.DefaultParameters(), t.TempDir(), ds)
 }
 
 func generateTestEDS(t *testing.T) (*rsmt2d.ExtendedDataSquare, *share.Root, share.Namespace) {
@@ -229,7 +272,7 @@ func testManager(
 }
 
 func newNDClientServer(
-	ctx context.Context, t *testing.T, edsStore *eds.Store, srvHost, clHost host.Host,
+	ctx context.Context, t *testing.T, edsStore *store.Store, srvHost, clHost host.Host,
 ) (*shrexnd.Client, *shrexnd.Server) {
 	params := shrexnd.DefaultParameters()
 
@@ -249,7 +292,7 @@ func newNDClientServer(
 }
 
 func newEDSClientServer(
-	ctx context.Context, t *testing.T, edsStore *eds.Store, srvHost, clHost host.Host,
+	ctx context.Context, t *testing.T, edsStore *store.Store, srvHost, clHost host.Host,
 ) (*shrexeds.Client, *shrexeds.Server) {
 	params := shrexeds.DefaultParameters()
 
@@ -266,104 +309,4 @@ func newEDSClientServer(
 	client, err := shrexeds.NewClient(params, clHost)
 	require.NoError(t, err)
 	return client, server
-}
-
-// addToNamespace adds arbitrary int value to namespace, treating namespace as big-endian
-// implementation of int
-func addToNamespace(namespace share.Namespace, val int) (share.Namespace, error) {
-	if val == 0 {
-		return namespace, nil
-	}
-	// Convert the input integer to a byte slice and add it to result slice
-	result := make([]byte, len(namespace))
-	if val > 0 {
-		binary.BigEndian.PutUint64(result[len(namespace)-8:], uint64(val))
-	} else {
-		binary.BigEndian.PutUint64(result[len(namespace)-8:], uint64(-val))
-	}
-
-	// Perform addition byte by byte
-	var carry int
-	for i := len(namespace) - 1; i >= 0; i-- {
-		sum := 0
-		if val > 0 {
-			sum = int(namespace[i]) + int(result[i]) + carry
-		} else {
-			sum = int(namespace[i]) - int(result[i]) + carry
-		}
-
-		switch {
-		case sum > 255:
-			carry = 1
-			sum -= 256
-		case sum < 0:
-			carry = -1
-			sum += 256
-		default:
-			carry = 0
-		}
-
-		result[i] = uint8(sum)
-	}
-
-	// Handle any remaining carry
-	if carry != 0 {
-		return nil, errors.New("namespace overflow")
-	}
-
-	return result, nil
-}
-
-func TestAddToNamespace(t *testing.T) {
-	testCases := []struct {
-		name          string
-		value         int
-		input         share.Namespace
-		expected      share.Namespace
-		expectedError error
-	}{
-		{
-			name:          "Positive value addition",
-			value:         42,
-			input:         share.Namespace{0x01, 0x01, 0x01, 0x01, 0x01, 0x01, 0x01, 0x01, 0x01, 0x01},
-			expected:      share.Namespace{0x1, 0x1, 0x1, 0x1, 0x1, 0x1, 0x1, 0x1, 0x1, 0x2b},
-			expectedError: nil,
-		},
-		{
-			name:          "Negative value addition",
-			value:         -42,
-			input:         share.Namespace{0x01, 0x01, 0x01, 0x01, 0x01, 0x01, 0x01, 0x01, 0x01, 0x01, 0x01},
-			expected:      share.Namespace{0x1, 0x1, 0x1, 0x1, 0x1, 0x01, 0x1, 0x1, 0x1, 0x0, 0xd7},
-			expectedError: nil,
-		},
-		{
-			name:          "Overflow error",
-			value:         1,
-			input:         share.Namespace{0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF},
-			expected:      nil,
-			expectedError: errors.New("namespace overflow"),
-		},
-		{
-			name:          "Overflow error negative",
-			value:         -1,
-			input:         share.Namespace{0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0},
-			expected:      nil,
-			expectedError: errors.New("namespace overflow"),
-		},
-	}
-
-	for _, tc := range testCases {
-		t.Run(tc.name, func(t *testing.T) {
-			result, err := addToNamespace(tc.input, tc.value)
-			if tc.expectedError == nil {
-				require.NoError(t, err)
-				require.Equal(t, tc.expected, result)
-				return
-			}
-			require.Error(t, err)
-			if err.Error() != tc.expectedError.Error() {
-				t.Errorf("Unexpected error message. Expected: %v, Got: %v", tc.expectedError, err)
-			}
-		})
-	}
 }

@@ -21,8 +21,7 @@ import (
 
 	"github.com/celestiaorg/celestia-node/libs/utils"
 	"github.com/celestiaorg/celestia-node/share"
-	"github.com/celestiaorg/celestia-node/share/eds/edstest"
-	"github.com/celestiaorg/celestia-node/share/sharetest"
+	"github.com/celestiaorg/celestia-node/share/testing/sharetest"
 )
 
 func TestGetShare(t *testing.T) {
@@ -175,8 +174,7 @@ func TestGetSharesByNamespace(t *testing.T) {
 			rowRoots, err := eds.RowRoots()
 			require.NoError(t, err)
 			for _, row := range rowRoots {
-				rcid := MustCidFromNamespacedSha256(row)
-				rowShares, _, err := GetSharesByNamespace(ctx, bServ, rcid, namespace, len(rowRoots))
+				rowShares, _, err := GetSharesByNamespace(ctx, bServ, row, namespace, len(rowRoots))
 				if errors.Is(err, ErrNamespaceOutsideRange) {
 					continue
 				}
@@ -364,8 +362,7 @@ func TestGetSharesWithProofsByNamespace(t *testing.T) {
 			rowRoots, err := eds.RowRoots()
 			require.NoError(t, err)
 			for _, row := range rowRoots {
-				rcid := MustCidFromNamespacedSha256(row)
-				rowShares, proof, err := GetSharesByNamespace(ctx, bServ, rcid, namespace, len(rowRoots))
+				rowShares, proof, err := GetSharesByNamespace(ctx, bServ, row, namespace, len(rowRoots))
 				if namespace.IsOutsideRange(row, row) {
 					require.ErrorIs(t, err, ErrNamespaceOutsideRange)
 					continue
@@ -387,7 +384,7 @@ func TestGetSharesWithProofsByNamespace(t *testing.T) {
 						sha256.New(),
 						namespace.ToNMT(),
 						leaves,
-						NamespacedSha256FromCID(rcid))
+						row)
 					require.True(t, verified)
 
 					// verify inclusion
@@ -395,7 +392,7 @@ func TestGetSharesWithProofsByNamespace(t *testing.T) {
 						sha256.New(),
 						namespace.ToNMT(),
 						rowShares,
-						NamespacedSha256FromCID(rcid))
+						row)
 					require.True(t, verified)
 				}
 			}

@@ -12,8 +12,6 @@ import (
 var (
 	tracer = otel.Tracer("share/getters")
 	log    = logging.Logger("share/getters")
-
-	errOperationNotSupported = errors.New("operation is not supported")
 )
 
 // ctxWithSplitTimeout will split timeout stored in context by splitFactor and return the result if

@@ -21,9 +21,9 @@ import (
 
 	"github.com/celestiaorg/celestia-node/header"
 	"github.com/celestiaorg/celestia-node/share"
-	"github.com/celestiaorg/celestia-node/share/eds/edstest"
 	"github.com/celestiaorg/celestia-node/share/ipld"
-	"github.com/celestiaorg/celestia-node/share/sharetest"
+	"github.com/celestiaorg/celestia-node/share/testing/edstest"
+	"github.com/celestiaorg/celestia-node/share/testing/sharetest"
 )
 
 func TestBEFP_Validate(t *testing.T) {
@@ -175,7 +175,7 @@ func TestIncorrectBadEncodingFraudProof(t *testing.T) {
 	rowShares := eds.Row(row)
 	rowRoot := dah.RowRoots[row]
 
-	shareProofs, err := GetProofsForShares(ctx, bServ, ipld.MustCidFromNamespacedSha256(rowRoot), rowShares)
+	shareProofs, err := ipld.GetSharesWithProofs(ctx, bServ, rowRoot, rowShares, rsmt2d.Row)
 	require.NoError(t, err)
 
 	// create a fake error for data that was encoded correctly

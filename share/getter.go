@@ -18,6 +18,9 @@ var (
 	// ErrOutOfBounds is used to indicate that a passed row or column index is out of bounds of the
 	// square size.
 	ErrOutOfBounds = errors.New("share: row or column index is larger than square size")
+	// ErrOperationNotSupported is used to indicate that the operation is not supported by the
+	// implementation.
+	ErrOperationNotSupported = errors.New("operation is not supported")
 )
 
 // Getter interface provides a set of accessors for shares by the Root.
@@ -72,16 +75,19 @@ func (ns NamespacedShares) Verify(root *Root, namespace Namespace) error {
 	}
 
 	for i, row := range ns {
+		if row.Proof == nil && row.Shares == nil {
+			return fmt.Errorf("row verification failed: no proofs and shares")
+		}
 		// verify row data against row hash from original root
-		if !row.verify(originalRoots[i], namespace) {
+		if !row.Verify(originalRoots[i], namespace) {
 			return fmt.Errorf("row verification failed: row %d doesn't match original root: %s", i, root.String())
 		}
 	}
 	return nil
 }
 
-// verify validates the row using nmt inclusion proof.
-func (row *NamespacedRow) verify(rowRoot []byte, namespace Namespace) bool {
+// Verify validates the row using nmt inclusion proof.
+func (row *NamespacedRow) Verify(rowRoot []byte, namespace Namespace) bool {
 	// construct nmt leaves from shares by prepending namespace
 	leaves := make([][]byte, 0, len(row.Shares))
 	for _, shr := range row.Shares {

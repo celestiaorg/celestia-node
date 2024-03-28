@@ -17,6 +17,7 @@ import (
 	nodep2p "github.com/celestiaorg/celestia-node/nodebuilder/p2p"
 	"github.com/celestiaorg/celestia-node/share/eds"
 	"github.com/celestiaorg/celestia-node/share/p2p/shrexsub"
+	"github.com/celestiaorg/celestia-node/share/store"
 )
 
 const networkID = "private"
@@ -84,11 +85,8 @@ func TestListenerWithWrongChainRPC(t *testing.T) {
 	eds := createEdsPubSub(ctx, t)
 
 	store := createStore(t)
-	err := store.Start(ctx)
-	require.NoError(t, err)
 	t.Cleanup(func() {
-		err = store.Stop(ctx)
-		require.NoError(t, err)
+		require.NoError(t, store.Close())
 	})
 
 	// create Listener and start listening
@@ -141,7 +139,7 @@ func createListener(
 	fetcher *BlockFetcher,
 	ps *pubsub.PubSub,
 	edsSub *shrexsub.PubSub,
-	store *eds.Store,
+	store *store.Store,
 	chainID string,
 ) *Listener {
 	p2pSub, err := p2p.NewSubscriber[*header.ExtendedHeader](ps, header.MsgID, p2p.WithSubscriberNetworkID(networkID))

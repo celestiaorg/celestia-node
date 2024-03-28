@@ -132,7 +132,7 @@ func cascadeGetters[V any](
 			return val, nil
 		}
 
-		if errors.Is(getErr, errOperationNotSupported) {
+		if errors.Is(getErr, share.ErrOperationNotSupported) {
 			continue
 		}
 

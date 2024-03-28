@@ -10,7 +10,7 @@ import (
 	"github.com/celestiaorg/celestia-app/pkg/da"
 	"github.com/celestiaorg/rsmt2d"
 
-	"github.com/celestiaorg/celestia-node/share/eds/edstest"
+	"github.com/celestiaorg/celestia-node/share/testing/edstest"
 )
 
 // TestNamespaceFromCID checks that deriving the Namespaced hash from
