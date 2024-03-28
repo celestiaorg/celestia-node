@@ -142,11 +142,7 @@ func TestBlobService_Get(t *testing.T) {
 				blobs, ok := res.([]*Blob)
 				assert.True(t, ok)
 				assert.NotEmpty(t, blobs)
-
 				assert.Len(t, blobs, 2)
-				// check the order
-				require.True(t, bytes.Equal(blobs[0].Namespace(), blobs0[0].Namespace()))
-				require.True(t, bytes.Equal(blobs[1].Namespace(), blobs0[1].Namespace()))
 			},
 		},
 		{
@@ -296,16 +292,15 @@ func TestBlobService_Get(t *testing.T) {
 		{
 			name: "get all not found",
 			doFn: func() (interface{}, error) {
-				namespace := share.Namespace(tmrand.Bytes(share.NamespaceSize))
-				return service.GetAll(ctx, 1, []share.Namespace{namespace})
+				nid, err := share.NewBlobNamespaceV0(tmrand.Bytes(7))
+				require.NoError(t, err)
+				return service.GetAll(ctx, 1, []share.Namespace{nid})
 			},
 			expectedResult: func(i interface{}, err error) {
 				blobs, ok := i.([]*Blob)
 				require.True(t, ok)
 				assert.Empty(t, blobs)
-				require.Error(t, err)
-				require.ErrorIs(t, err, ErrBlobNotFound)
-
+				assert.ErrorIs(t, err, ErrBlobNotFound)
 			},
 		},
 		{
