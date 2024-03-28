@@ -41,13 +41,17 @@ func newModule(getter share.Getter, avail share.Availability) Module {
 func lightGetter(
 	shrexGetter *getters.ShrexGetter,
 	shwapGetter *shwap_getter.Getter,
+	reconstructGetter *shwap_getter.ReconstructionGetter,
 	cfg Config,
 ) share.Getter {
 	var cascade []share.Getter
 	if cfg.UseShareExchange {
 		cascade = append(cascade, shrexGetter)
 	}
-	cascade = append(cascade, shwapGetter)
+	if cfg.UseShareSwap {
+		cascade = append(cascade, shwapGetter)
+	}
+	cascade = append(cascade, reconstructGetter)
 	return getters.NewCascadeGetter(cascade)
 }
 
@@ -72,6 +76,7 @@ func fullGetter(
 	storeGetter *getters.StoreGetter,
 	shrexGetter *getters.ShrexGetter,
 	shwapGetter *shwap_getter.Getter,
+	reconstructGetter *shwap_getter.ReconstructionGetter,
 	cfg Config,
 ) share.Getter {
 	var cascade []share.Getter
@@ -79,6 +84,9 @@ func fullGetter(
 	if cfg.UseShareExchange {
 		cascade = append(cascade, shrexGetter)
 	}
-	cascade = append(cascade, shwapGetter)
+	if cfg.UseShareSwap {
+		cascade = append(cascade, shwapGetter)
+	}
+	cascade = append(cascade, reconstructGetter)
 	return getters.NewCascadeGetter(cascade)
 }

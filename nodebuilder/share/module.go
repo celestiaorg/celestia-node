@@ -179,6 +179,7 @@ func ConstructModule(tp node.Type, cfg *Config, options ...fx.Option) fx.Option 
 			bridgeAndFullComponents,
 			shrexGetterComponents,
 			fx.Provide(shwap_getter.NewGetter),
+			fx.Provide(shwap_getter.NewReconstructionGetter),
 			fx.Provide(fullGetter),
 		)
 	case node.Light:
@@ -193,6 +194,7 @@ func ConstructModule(tp node.Type, cfg *Config, options ...fx.Option) fx.Option 
 			peerManagerWithShrexPools,
 			shrexGetterComponents,
 			fx.Provide(shwap_getter.NewGetter),
+			fx.Provide(shwap_getter.NewReconstructionGetter),
 			fx.Provide(lightGetter),
 			// shrexsub broadcaster stub for daser
 			fx.Provide(func() shrexsub.BroadcastFn {

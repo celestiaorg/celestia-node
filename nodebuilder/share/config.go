@@ -18,6 +18,7 @@ type Config struct {
 	EDSStoreParams *store.Parameters
 
 	UseShareExchange bool
+	UseShareSwap     bool
 	// ShrExEDSParams sets shrexeds client and server configuration parameters
 	ShrExEDSParams *shrexeds.Parameters
 	// ShrExNDParams sets shrexnd client and server configuration parameters

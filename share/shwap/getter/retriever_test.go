@@ -23,7 +23,7 @@ func TestRetriever_Retrieve(t *testing.T) {
 	exch := DummySessionExchange{bstore}
 	getter := NewGetter(exch, bstore)
 	bServ := ipld.NewMemBlockservice()
-	r := NewRetriever(bServ, getter)
+	r := newRetriever(bServ, getter)
 
 	height := atomic.NewUint64(1)
 	type test struct {
@@ -92,7 +92,7 @@ func TestRetriever_Retrieve(t *testing.T) {
 //	// ensure we rcv an error
 //	dah, err := da.NewDataAvailabilityHeader(attackerEDS)
 //	require.NoError(t, err)
-//	r := NewRetriever(bserv)
+//	r := newRetriever(bserv)
 //	_, err = r.Retrieve(ctx, &dah)
 //	var errByz *byzantine.ErrByzantine
 //	require.ErrorAs(t, err, &errByz)
@@ -107,7 +107,7 @@ func TestRetriever_Retrieve(t *testing.T) {
 //	defer cancel()
 //
 //	bServ := ipld.NewMemBlockservice()
-//	r := NewRetriever(bServ)
+//	r := newRetriever(bServ)
 //
 //	// generate EDS
 //	shares := sharetest.RandShares(t, squareSize*squareSize)
@@ -158,7 +158,7 @@ func TestRetriever_Retrieve(t *testing.T) {
 //	err := ipld.ImportEDS(ctx, eds, bServ)
 //	require.NoError(t, err)
 //	h := headertest.ExtendedHeaderFromEDS(t, 1, eds)
-//	_, err = NewRetriever(bServ).Retrieve(ctx, h.DAH)
+//	_, err = newRetriever(bServ).Retrieve(ctx, h.DAH)
 //
 //	return h, err
 //}
@@ -175,7 +175,7 @@ func TestRetriever_Retrieve(t *testing.T) {
 //	ctx, cancel := context.WithTimeout(context.Background(), time.Second*15)
 //	defer b.Cleanup(cancel)
 //	bServ := ipld.NewMemBlockservice()
-//	r := NewRetriever(bServ)
+//	r := newRetriever(bServ)
 //	t := &testing.T{}
 //	odsSize := []int{2, 4, 16, 32, 64, 128}
 //	for _, size := range odsSize {
@@ -214,7 +214,7 @@ func TestRetriever_Retrieve(t *testing.T) {
 //	ctx, cancel := context.WithTimeout(context.Background(), time.Minute)
 //	defer cancel()
 //	bServ := ipld.NewMemBlockservice()
-//	r := NewRetriever(bServ)
+//	r := newRetriever(bServ)
 //	t := &testing.T{}
 //	for _, size := range odsSize {
 //		b.Run(fmt.Sprintf("ods size:%d", size), func(b *testing.B) {

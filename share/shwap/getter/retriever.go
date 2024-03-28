@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"github.com/celestiaorg/celestia-node/header"
+	"github.com/celestiaorg/celestia-node/share/shwap"
 	"sync"
 	"sync/atomic"
 	"time"
@@ -55,8 +56,9 @@ type edsRetriver struct {
 	getter share.Getter
 }
 
-// NewRetriever creates a new instance of the edsRetriver over IPLD BlockService and rmst2d.Codec
-func NewRetriever(bServ blockservice.BlockService, getter share.Getter) *edsRetriver {
+// newRetriever creates a new instance of the edsRetriver over IPLD BlockService and rmst2d.Codec
+func newRetriever(getter *Getter) *edsRetriver {
+	bServ := blockservice.New(getter.bstore, getter.fetch, blockservice.WithAllowlist(shwap.DefaultAllowlist))
 	return &edsRetriver{
 		bServ:  bServ,
 		getter: getter,

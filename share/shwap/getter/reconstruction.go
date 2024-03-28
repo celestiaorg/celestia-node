@@ -8,7 +8,11 @@ import (
 )
 
 type ReconstructionGetter struct {
-	retriever edsRetriver
+	retriever *edsRetriver
+}
+
+func NewReconstructionGetter(getter *Getter) *ReconstructionGetter {
+	return &ReconstructionGetter{retriever: newRetriever(getter)}
 }
 
 func (r ReconstructionGetter) GetShare(ctx context.Context, header *header.ExtendedHeader, row, col int) (share.Share, error) {
