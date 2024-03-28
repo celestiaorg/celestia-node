@@ -58,9 +58,12 @@ type CoreAccessor struct {
 	prt *merkle.ProofRuntime
 
 	coreConn *grpc.ClientConn
-	coreIP   string
-	rpcPort  string
-	grpcPort string
+
+	rpcScheme string
+	rpcHost   string
+	rpcPort   string
+	grpcHost  string
+	grpcPort  string
 
 	// these fields are mutatable and thus need to be protected by a mutex
 	lock            sync.Mutex
@@ -79,8 +82,10 @@ type CoreAccessor struct {
 func NewCoreAccessor(
 	signer *apptypes.KeyringSigner,
 	getter libhead.Head[*header.ExtendedHeader],
-	coreIP,
-	rpcPort string,
+	rpcScheme,
+	rpcHost,
+	rpcPort,
+	grpcHost,
 	grpcPort string,
 ) *CoreAccessor {
 	// create verifier
@@ -88,12 +93,14 @@ func NewCoreAccessor(
 	prt.RegisterOpDecoder(storetypes.ProofOpIAVLCommitment, storetypes.CommitmentOpDecoder)
 	prt.RegisterOpDecoder(storetypes.ProofOpSimpleMerkleCommitment, storetypes.CommitmentOpDecoder)
 	return &CoreAccessor{
-		signer:   signer,
-		getter:   getter,
-		coreIP:   coreIP,
-		rpcPort:  rpcPort,
-		grpcPort: grpcPort,
-		prt:      prt,
+		signer:    signer,
+		getter:    getter,
+		rpcScheme: rpcScheme,
+		rpcHost:   rpcHost,
+		rpcPort:   rpcPort,
+		grpcHost:  grpcHost,
+		grpcPort:  grpcPort,
+		prt:       prt,
 	}
 }
 
@@ -104,7 +111,8 @@ func (ca *CoreAccessor) Start(ctx context.Context) error {
 	ca.ctx, ca.cancel = context.WithCancel(context.Background())
 
 	// dial given celestia-core endpoint
-	endpoint := fmt.Sprintf("%s:%s", ca.coreIP, ca.grpcPort)
+	endpoint := fmt.Sprintf("%s:%s", ca.grpcHost, ca.grpcPort)
+
 	client, err := grpc.DialContext(
 		ctx,
 		endpoint,
@@ -121,7 +129,7 @@ func (ca *CoreAccessor) Start(ctx context.Context) error {
 	stakingCli := stakingtypes.NewQueryClient(ca.coreConn)
 	ca.stakingCli = stakingCli
 	// create ABCI query client
-	cli, err := http.New(fmt.Sprintf("http://%s:%s", ca.coreIP, ca.rpcPort), "/websocket")
+	cli, err := http.New(fmt.Sprintf("%s://%s:%s", ca.rpcScheme, ca.rpcHost, ca.rpcPort), "/websocket")
 	if err != nil {
 		return err
 	}
