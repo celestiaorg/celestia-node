@@ -14,20 +14,31 @@ import (
 )
 
 func ConstructModule(tp node.Type, cfg *Config) fx.Option {
+	baseComponents := fx.Options(
+		fx.Supply(cfg),
+	)
+
 	if !cfg.EnableService {
 		switch tp {
 		case node.Light:
 			// light nodes are still subject to sampling within window
 			// even if pruning is not enabled.
-			return fx.Supply(light.Window)
+			return fx.Options(
+				baseComponents,
+				fx.Supply(light.Window),
+			)
 		case node.Full, node.Bridge:
-			return fx.Supply(archival.Window)
+			return fx.Options(
+				baseComponents,
+				fx.Supply(archival.Window),
+			)
 		default:
 			panic("unknown node type")
 		}
 	}
 
-	baseComponents := fx.Options(
+	baseComponents = fx.Options(
+		baseComponents,
 		fx.Provide(fx.Annotate(
 			newPrunerService,
 			fx.OnStart(func(ctx context.Context, p *pruner.Service) error {

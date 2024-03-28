@@ -24,6 +24,7 @@ import (
 	"github.com/celestiaorg/celestia-node/header"
 	"github.com/celestiaorg/celestia-node/header/headertest"
 	headerfraud "github.com/celestiaorg/celestia-node/header/headertest/fraud"
+	"github.com/celestiaorg/celestia-node/pruner"
 	"github.com/celestiaorg/celestia-node/share"
 	"github.com/celestiaorg/celestia-node/share/availability/full"
 	"github.com/celestiaorg/celestia-node/share/availability/light"
@@ -275,7 +276,11 @@ func TestDASer_SamplingWindow(t *testing.T) {
 			eh := headertest.RandExtendedHeader(t)
 			eh.RawHeader.Time = tt.timestamp
 
-			assert.Equal(t, tt.withinWindow, daser.isWithinSamplingWindow(eh))
+			assert.Equal(
+				t,
+				tt.withinWindow,
+				pruner.IsWithinAvailabilityWindow(eh.Time(), pruner.AvailabilityWindow(daser.params.SamplingWindow)),
+			)
 		})
 	}
 
