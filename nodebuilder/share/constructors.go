@@ -1,6 +1,7 @@
 package share
 
 import (
+	shwap_getter "github.com/celestiaorg/celestia-node/share/shwap/getter"
 	"github.com/libp2p/go-libp2p/core/host"
 	"github.com/libp2p/go-libp2p/core/routing"
 	routingdisc "github.com/libp2p/go-libp2p/p2p/discovery/routing"
@@ -9,7 +10,6 @@ import (
 	"github.com/celestiaorg/celestia-node/share/getters"
 	disc "github.com/celestiaorg/celestia-node/share/p2p/discovery"
 	"github.com/celestiaorg/celestia-node/share/p2p/peers"
-	"github.com/celestiaorg/celestia-node/share/shwap"
 )
 
 const (
@@ -40,7 +40,7 @@ func newModule(getter share.Getter, avail share.Availability) Module {
 
 func lightGetter(
 	shrexGetter *getters.ShrexGetter,
-	shwapGetter *shwap.Getter,
+	shwapGetter *shwap_getter.Getter,
 	cfg Config,
 ) share.Getter {
 	var cascade []share.Getter
@@ -71,7 +71,7 @@ func bridgeGetter(
 func fullGetter(
 	storeGetter *getters.StoreGetter,
 	shrexGetter *getters.ShrexGetter,
-	shwapGetter *shwap.Getter,
+	shwapGetter *shwap_getter.Getter,
 	cfg Config,
 ) share.Getter {
 	var cascade []share.Getter

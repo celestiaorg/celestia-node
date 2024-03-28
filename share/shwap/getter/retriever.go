@@ -1,36 +1,44 @@
-package eds
+package shwap_getter
 
 import (
 	"context"
 	"errors"
+	"github.com/celestiaorg/celestia-node/header"
 	"sync"
 	"sync/atomic"
 	"time"
 
 	"github.com/ipfs/boxo/blockservice"
-	"github.com/ipfs/go-cid"
 	logging "github.com/ipfs/go-log/v2"
 	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/codes"
 	"go.opentelemetry.io/otel/trace"
 
-	"github.com/celestiaorg/celestia-app/pkg/da"
 	"github.com/celestiaorg/celestia-app/pkg/wrapper"
-	"github.com/celestiaorg/nmt"
 	"github.com/celestiaorg/rsmt2d"
 
 	"github.com/celestiaorg/celestia-node/share"
 	"github.com/celestiaorg/celestia-node/share/eds/byzantine"
-	"github.com/celestiaorg/celestia-node/share/ipld"
 )
+
+// TODO(@walldiss):
+// - update comments
+// - befp construction should work over share.getter instead of blockservice
+// - use single bitswap session for fetching shares
+// - don't request repaired shares
+// - use enriched logger for session
+// - remove per-share tracing
+// - remove quadrants struct
+// - remove unneeded locks
+// - add metrics
 
 var (
 	log    = logging.Logger("share/eds")
 	tracer = otel.Tracer("share/eds")
 )
 
-// Retriever retrieves rsmt2d.ExtendedDataSquares from the IPLD network.
+// edsRetriver retrieves rsmt2d.ExtendedDataSquares from the IPLD network.
 // Instead of requesting data 'share by share' it requests data by quadrants
 // minimizing bandwidth usage in the happy cases.
 //
@@ -40,15 +48,19 @@ var (
 //	| 2  | 3  |
 //	 ---- ----
 //
-// Retriever randomly picks one of the data square quadrants and tries to request them one by one
+// edsRetriver randomly picks one of the data square quadrants and tries to request them one by one
 // until it is able to reconstruct the whole square.
-type Retriever struct {
-	bServ blockservice.BlockService
+type edsRetriver struct {
+	bServ  blockservice.BlockService
+	getter share.Getter
 }
 
-// NewRetriever creates a new instance of the Retriever over IPLD BlockService and rmst2d.Codec
-func NewRetriever(bServ blockservice.BlockService) *Retriever {
-	return &Retriever{bServ: bServ}
+// NewRetriever creates a new instance of the edsRetriver over IPLD BlockService and rmst2d.Codec
+func NewRetriever(bServ blockservice.BlockService, getter share.Getter) *edsRetriver {
+	return &edsRetriver{
+		bServ:  bServ,
+		getter: getter,
+	}
 }
 
 // Retrieve retrieves all the data committed to DataAvailabilityHeader.
@@ -57,7 +69,8 @@ func NewRetriever(bServ blockservice.BlockService) *Retriever {
 // data square and reconstructs the other three quadrants (3/4). If the requested quadrant is not
 // available within RetrieveQuadrantTimeout, it starts requesting another quadrant until either the
 // data is reconstructed, context is canceled or ErrByzantine is generated.
-func (r *Retriever) Retrieve(ctx context.Context, dah *da.DataAvailabilityHeader) (*rsmt2d.ExtendedDataSquare, error) {
+func (r *edsRetriver) Retrieve(ctx context.Context, h *header.ExtendedHeader) (*rsmt2d.ExtendedDataSquare, error) {
+	dah := h.DAH
 	ctx, cancel := context.WithCancel(ctx)
 	defer cancel() // cancels all the ongoing requests if reconstruction succeeds early
 
@@ -68,7 +81,7 @@ func (r *Retriever) Retrieve(ctx context.Context, dah *da.DataAvailabilityHeader
 	)
 
 	log.Debugw("retrieving data square", "data_hash", dah.String(), "size", len(dah.RowRoots))
-	ses, err := r.newSession(ctx, dah)
+	ses, err := r.newSession(ctx, h)
 	if err != nil {
 		return nil, err
 	}
@@ -103,13 +116,9 @@ func (r *Retriever) Retrieve(ctx context.Context, dah *da.DataAvailabilityHeader
 // quadrant request retries. Also, provides an API
 // to reconstruct the block once enough shares are fetched.
 type retrievalSession struct {
-	dah  *da.DataAvailabilityHeader
-	bget blockservice.BlockGetter
+	header *header.ExtendedHeader
+	getter share.Getter
 
-	// TODO(@Wondertan): Extract into a separate data structure
-	// https://github.com/celestiaorg/rsmt2d/issues/135
-	squareQuadrants  []*quadrant
-	squareCellsLks   [][]sync.Mutex
 	squareCellsCount uint32
 	squareSig        chan struct{}
 	squareDn         chan struct{}
@@ -120,18 +129,11 @@ type retrievalSession struct {
 }
 
 // newSession creates a new retrieval session and kicks off requesting process.
-func (r *Retriever) newSession(ctx context.Context, dah *da.DataAvailabilityHeader) (*retrievalSession, error) {
-	size := len(dah.RowRoots)
+func (r *edsRetriver) newSession(ctx context.Context, h *header.ExtendedHeader) (*retrievalSession, error) {
+	size := len(h.DAH.RowRoots)
 
 	treeFn := func(_ rsmt2d.Axis, index uint) rsmt2d.Tree {
-		// use proofs adder if provided, to cache collected proofs while recomputing the eds
-		var opts []nmt.Option
-		visitor := ipld.ProofsAdderFromCtx(ctx).VisitFn()
-		if visitor != nil {
-			opts = append(opts, nmt.NodeVisitor(visitor))
-		}
-
-		tree := wrapper.NewErasuredNamespacedMerkleTree(uint64(size)/2, index, opts...)
+		tree := wrapper.NewErasuredNamespacedMerkleTree(uint64(size)/2, index)
 		return &tree
 	}
 
@@ -141,17 +143,12 @@ func (r *Retriever) newSession(ctx context.Context, dah *da.DataAvailabilityHead
 	}
 
 	ses := &retrievalSession{
-		dah:             dah,
-		bget:            blockservice.NewSession(ctx, r.bServ),
-		squareQuadrants: newQuadrants(dah),
-		squareCellsLks:  make([][]sync.Mutex, size),
-		squareSig:       make(chan struct{}, 1),
-		squareDn:        make(chan struct{}),
-		square:          square,
-		span:            trace.SpanFromContext(ctx),
-	}
-	for i := range ses.squareCellsLks {
-		ses.squareCellsLks[i] = make([]sync.Mutex, size)
+		header:    h,
+		getter:    r.getter,
+		squareSig: make(chan struct{}, 1),
+		squareDn:  make(chan struct{}),
+		square:    square,
+		span:      trace.SpanFromContext(ctx),
 	}
 
 	go ses.request(ctx)
@@ -178,12 +175,12 @@ func (rs *retrievalSession) Reconstruct(ctx context.Context) (*rsmt2d.ExtendedDa
 	defer span.End()
 
 	// and try to repair with what we have
-	err := rs.square.Repair(rs.dah.RowRoots, rs.dah.ColumnRoots)
+	err := rs.square.Repair(rs.header.DAH.RowRoots, rs.header.DAH.ColumnRoots)
 	if err != nil {
 		span.RecordError(err)
 		return nil, err
 	}
-	log.Infow("data square reconstructed", "data_hash", rs.dah.String(), "size", len(rs.dah.RowRoots))
+	log.Infow("data square reconstructed", "data_hash", rs.header.DAH.String(), "size", len(rs.header.DAH.RowRoots))
 	close(rs.squareDn)
 	return rs.square, nil
 }
@@ -211,21 +208,16 @@ func (rs *retrievalSession) Close() error {
 func (rs *retrievalSession) request(ctx context.Context) {
 	t := time.NewTicker(RetrieveQuadrantTimeout)
 	defer t.Stop()
-	for retry := 0; retry < len(rs.squareQuadrants); retry++ {
-		q := rs.squareQuadrants[retry]
+	for _, q := range newQuadrants() {
 		log.Debugw("requesting quadrant",
-			"axis", q.source,
 			"x", q.x,
 			"y", q.y,
-			"size", len(q.roots),
 		)
 		rs.span.AddEvent("requesting quadrant", trace.WithAttributes(
-			attribute.Int("axis", int(q.source)),
 			attribute.Int("x", q.x),
 			attribute.Int("y", q.y),
-			attribute.Int("size", len(q.roots)),
 		))
-		rs.doRequest(ctx, q)
+		rs.requestQuadrant(ctx, q)
 		select {
 		case <-t.C:
 		case <-ctx.Done():
@@ -233,83 +225,72 @@ func (rs *retrievalSession) request(ctx context.Context) {
 		}
 		log.Warnw("quadrant request timeout",
 			"timeout", RetrieveQuadrantTimeout.String(),
-			"axis", q.source,
 			"x", q.x,
 			"y", q.y,
-			"size", len(q.roots),
 		)
 		rs.span.AddEvent("quadrant request timeout", trace.WithAttributes(
-			attribute.Int("axis", int(q.source)),
 			attribute.Int("x", q.x),
 			attribute.Int("y", q.y),
-			attribute.Int("size", len(q.roots)),
 		))
 	}
 }
 
-// doRequest requests the given quadrant by requesting halves of axis(Row or Col) using GetShares
+// requestQuadrant requests the given quadrant by requesting halves of axis(Row or Col) using GetShares
 // and fills shares into rs.square slice.
-func (rs *retrievalSession) doRequest(ctx context.Context, q *quadrant) {
-	size := len(q.roots)
-	for i, root := range q.roots {
-		go func(i int, root cid.Cid) {
-			// get the root node
-			nd, err := ipld.GetNode(ctx, rs.bget, root)
-			if err != nil {
-				rs.span.RecordError(err, trace.WithAttributes(
-					attribute.Int("root-index", i),
-				))
-				return
-			}
-			// and go get shares of left or the right side of the whole col/row axis
-			// the left or the right side of the tree represent some portion of the quadrant
-			// which we put into the rs.square share-by-share by calculating shares' indexes using q.index
-			ipld.GetShares(ctx, rs.bget, nd.Links()[q.x].Cid, size, func(j int, share share.Share) {
-				// NOTE: Each share can appear twice here, for a Row and Col, respectively.
-				// These shares are always equal, and we allow only the first one to be written
-				// in the square.
-				// NOTE-2: We may never actually fetch shares from the network *twice*.
-				// Once a share is downloaded from the network it may be cached on the IPLD(blockservice) level.
-				//
-				// calc position of the share
-				x, y := q.pos(i, j)
-				// try to lock the share
-				ok := rs.squareCellsLks[x][y].TryLock()
-				if !ok {
-					// if already locked and written - do nothing
-					return
-				}
-				// The R lock here is *not* to protect rs.square from multiple
-				// concurrent shares writes but to avoid races between share writes and
-				// repairing attempts.
-				// Shares are written atomically in their own slice slots and these "writes" do
-				// not need synchronization!
-				rs.squareLk.RLock()
-				defer rs.squareLk.RUnlock()
-				// the routine could be blocked above for some time during which the square
-				// might be reconstructed, if so don't write anything and return
-				if rs.isReconstructed() {
-					return
-				}
-				if err := rs.square.SetCell(uint(x), uint(y), share); err != nil {
-					// safe to ignore as:
-					// * share size already verified
-					// * the same share might come from either Row or Col
-					return
-				}
-				// if we have >= 1/4 of the square we can start trying to Reconstruct
-				// TODO(@Wondertan): This is not an ideal way to know when to start
-				//  reconstruction and can cause idle reconstruction tries in some cases,
-				//  but it is totally fine for the happy case and for now.
-				//  The earlier we correctly know that we have the full square - the earlier
-				//  we cancel ongoing requests - the less data is being wastedly transferred.
-				if atomic.AddUint32(&rs.squareCellsCount, 1) >= uint32(size*size) {
-					select {
-					case rs.squareSig <- struct{}{}:
-					default:
-					}
-				}
-			})
-		}(i, root)
+func (rs *retrievalSession) requestQuadrant(ctx context.Context, q quadrant) {
+	odsSize := len(rs.header.DAH.RowRoots) / 2
+	for x := q.x * odsSize; x < (q.x+1)*odsSize; x++ {
+		for y := q.y * odsSize; y < (q.y+1)*odsSize; y++ {
+			go rs.requestCell(ctx, x, y)
+		}
+	}
+}
+
+func (rs *retrievalSession) requestCell(ctx context.Context, x, y int) {
+	share, err := rs.getter.GetShare(ctx, rs.header, x, y)
+	if err != nil {
+		log.Debugw("failed to get share",
+			"height", rs.header.Height,
+			"x", x,
+			"y", y,
+			"err", err,
+		)
+		return
+	}
+
+	// the routine could be blocked above for some time during which the square
+	// might be reconstructed, if so don't write anything and return
+	if rs.isReconstructed() {
+		return
+	}
+
+	rs.squareLk.Lock()
+	defer rs.squareLk.Unlock()
+
+	if err := rs.square.SetCell(uint(x), uint(y), share); err != nil {
+		log.Warnw("failed to set cell",
+			"height", rs.header.Height,
+			"x", x,
+			"y", y,
+			"err", err,
+		)
+		return
+	}
+	rs.indicateDone()
+}
+
+func (rs *retrievalSession) indicateDone() {
+	size := len(rs.header.DAH.RowRoots) / 2
+	// if we have >= 1/4 of the square we can start trying to Reconstruct
+	// TODO(@Wondertan): This is not an ideal way to know when to start
+	//  reconstruction and can cause idle reconstruction tries in some cases,
+	//  but it is totally fine for the happy case and for now.
+	//  The earlier we correctly know that we have the full square - the earlier
+	//  we cancel ongoing requests - the less data is being wastedly transferred.
+	if atomic.AddUint32(&rs.squareCellsCount, 1) >= uint32(size*size) {
+		select {
+		case rs.squareSig <- struct{}{}:
+		default:
+		}
 	}
 }

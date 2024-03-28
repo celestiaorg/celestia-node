@@ -40,7 +40,8 @@ func TestGetter(t *testing.T) {
 	square, root := edstest.RandEDSWithNamespace(t, ns, size*size, size)
 	hdr := &header.ExtendedHeader{RawHeader: header.RawHeader{Height: 1}, DAH: root}
 
-	bstore := edsBlockstore(ctx, t, square, hdr.Height())
+	store, bstore := edsBlockstore(t)
+	put(t, store, square, hdr.Height())
 	exch := DummySessionExchange{bstore}
 	get := NewGetter(exch, blockstore.NewBlockstore(datastore.NewMapDatastore()))
 
@@ -126,7 +127,8 @@ func TestGetter(t *testing.T) {
 			require.NoError(t, err)
 			hdr := &header.ExtendedHeader{RawHeader: header.RawHeader{Height: 3}, DAH: root}
 
-			bstore := edsBlockstore(ctx, t, square, hdr.Height())
+			store, bstore := edsBlockstore(t)
+			put(t, store, square, hdr.Height())
 			exch := &DummySessionExchange{bstore}
 			get := NewGetter(exch, blockstore.NewBlockstore(datastore.NewMapDatastore()))
 
@@ -156,6 +158,10 @@ func (e DummySessionExchange) GetBlock(ctx context.Context, k cid.Cid) (blocks.B
 	blk, err := e.Get(ctx, k)
 	if format.IsNotFound(err) {
 		return nil, fmt.Errorf("block was not found locally (offline): %w", err)
+	}
+	if err != nil {
+		fmt.Println("ERROR", err)
+		return nil, err
 	}
 	rbcid, err := k.Prefix().Sum(blk.RawData())
 	if err != nil {
@@ -202,16 +208,18 @@ func (e DummySessionExchange) Close() error {
 	return nil
 }
 
-func edsBlockstore(ctx context.Context, t *testing.T, eds *rsmt2d.ExtendedDataSquare, height uint64) blockstore.Blockstore {
-	dah, err := share.NewRoot(eds)
-	require.NoError(t, err)
-
+func edsBlockstore(t *testing.T) (*store.Store, blockstore.Blockstore) {
 	edsStore, err := store.NewStore(store.DefaultParameters(), t.TempDir())
 	require.NoError(t, err)
 
-	f, err := edsStore.Put(ctx, dah.Hash(), height, eds)
+	return edsStore, store.NewBlockstore(edsStore, ds_sync.MutexWrap(datastore.NewMapDatastore()))
+}
+
+func put(t *testing.T, store *store.Store, eds *rsmt2d.ExtendedDataSquare, height uint64) {
+	dah, err := share.NewRoot(eds)
+	require.NoError(t, err)
+
+	f, err := store.Put(context.Background(), dah.Hash(), height, eds)
 	require.NoError(t, err)
 	f.Close()
-
-	return store.NewBlockstore(edsStore, ds_sync.MutexWrap(datastore.NewMapDatastore()))
 }
