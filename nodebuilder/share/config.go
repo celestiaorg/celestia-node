@@ -17,8 +17,8 @@ type Config struct {
 	// EDSStoreParams sets eds store configuration parameters
 	EDSStoreParams *store.Parameters
 
-	UseShareExchange bool
-	UseShareSwap     bool
+	UseShrEx bool
+	UseShwap bool
 	// ShrExEDSParams sets shrexeds client and server configuration parameters
 	ShrExEDSParams *shrexeds.Parameters
 	// ShrExNDParams sets shrexnd client and server configuration parameters
@@ -36,7 +36,7 @@ func DefaultConfig(tp node.Type) Config {
 		Discovery:         discovery.DefaultParameters(),
 		ShrExEDSParams:    shrexeds.DefaultParameters(),
 		ShrExNDParams:     shrexnd.DefaultParameters(),
-		UseShareExchange:  true,
+		UseShrEx:          true,
 		PeerManagerParams: peers.DefaultParameters(),
 	}
 

@@ -125,6 +125,7 @@ func (s DataID) Verify(root *share.Root) error {
 	return nil
 }
 
+// BlockFromFile returns the IPLD block of the DataID from the given file.
 func (s DataID) BlockFromFile(ctx context.Context, f file.EdsFile) (blocks.Block, error) {
 	data, err := f.Data(ctx, s.Namespace(), int(s.RowIndex))
 	if err != nil {
@@ -137,4 +138,9 @@ func (s DataID) BlockFromFile(ctx context.Context, f file.EdsFile) (blocks.Block
 		return nil, fmt.Errorf("while coverting Data to IPLD block: %w", err)
 	}
 	return blk, nil
+}
+
+// Release releases the verifier of the DataID.
+func (s DataID) Release() {
+	dataVerifiers.Delete(s)
 }

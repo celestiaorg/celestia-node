@@ -79,7 +79,7 @@ func TestFraudProofHandling(t *testing.T) {
 	addrs, err := peer.AddrInfoToP2pAddrs(host.InfoFromHost(bridge.Host))
 	require.NoError(t, err)
 	cfg.Header.TrustedPeers = append(cfg.Header.TrustedPeers, addrs[0].String())
-	cfg.Share.UseShareExchange = false
+	cfg.Share.UseShrEx = false
 	store := nodebuilder.MockStore(t, cfg)
 	full := sw.NewNodeWithStore(node.Full, store)
 

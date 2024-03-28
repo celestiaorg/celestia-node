@@ -72,13 +72,6 @@ func (g *Getter) GetShares(ctx context.Context, hdr *header.ExtendedHeader, smpl
 		return nil, fmt.Errorf("getting blocks: %w", err)
 	}
 
-	if len(blks) != len(smplIdxs) {
-		if ctx.Err() != nil {
-			return nil, ctx.Err()
-		}
-		return nil, fmt.Errorf("not all shares were found")
-	}
-
 	// ensure we persist samples/blks and make them available for Bitswap
 	err = g.bstore.PutMany(ctx, blks)
 	if err != nil {
@@ -91,19 +84,19 @@ func (g *Getter) GetShares(ctx context.Context, hdr *header.ExtendedHeader, smpl
 	}
 
 	// ensure we return shares in the requested order
-	shrs := make(map[int]share.Share, len(blks))
+	shares := make(map[int]share.Share, len(blks))
 	for _, blk := range blks {
 		sample, err := shwap.SampleFromBlock(blk)
 		if err != nil {
 			return nil, fmt.Errorf("getting sample from block: %w", err)
 		}
 		shrIdx := int(sample.SampleID.RowIndex)*len(hdr.DAH.RowRoots) + int(sample.SampleID.ShareIndex)
-		shrs[shrIdx] = sample.SampleShare
+		shares[shrIdx] = sample.SampleShare
 	}
 
-	ordered := make([]share.Share, len(shrs))
+	ordered := make([]share.Share, len(shares))
 	for i, shrIdx := range smplIdxs {
-		sh, ok := shrs[shrIdx]
+		sh, ok := shares[shrIdx]
 		if !ok {
 			return nil, fmt.Errorf("missing share for index %d", shrIdx)
 		}
@@ -137,22 +130,11 @@ func (g *Getter) GetEDS(ctx context.Context, hdr *header.ExtendedHeader) (*rsmt2
 
 	}
 
-	if len(blks) != sqrLn/2 {
-		if ctx.Err() != nil {
-			return nil, ctx.Err()
-		}
-		return nil, fmt.Errorf("not all rows were found")
-	}
-
 	rows := make([]*shwap.Row, len(blks))
 	for _, blk := range blks {
 		row, err := shwap.RowFromBlock(blk)
 		if err != nil {
 			return nil, fmt.Errorf("getting row from block: %w", err)
-		}
-		if row.RowIndex >= uint16(sqrLn/2) {
-			// should never happen, because rows should be verified against root by the time they are returned
-			return nil, fmt.Errorf("row index out of bounds: %d", row.RowIndex)
 		}
 		rows[row.RowIndex] = row
 	}
@@ -219,10 +201,6 @@ func (g *Getter) GetSharesByNamespace(
 			return nil, fmt.Errorf("getting row from block: %w", err)
 		}
 
-		if data.RowIndex < uint16(from) || data.RowIndex >= uint16(to) {
-			// should never happen, because rows should be verified against root by the time they are returned
-			return nil, fmt.Errorf("row index out of bounds: %d", data.RowIndex)
-		}
 		nShrs[int(data.RowIndex)-from] = share.NamespacedRow{
 			Shares: data.DataShares,
 			Proof:  &data.DataProof,
@@ -251,7 +229,7 @@ func (g *Getter) getBlocks(ctx context.Context, cids []cid.Cid) ([]block.Block, 
 		if ctx.Err() != nil {
 			return nil, ctx.Err()
 		}
-		return nil, fmt.Errorf("not all shares were found")
+		return nil, fmt.Errorf("not all blocks were found")
 	}
 
 	return blks, nil

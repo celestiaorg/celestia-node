@@ -15,8 +15,6 @@ import (
 	"github.com/celestiaorg/celestia-node/share/store/file"
 )
 
-// TODO(@walldiss): maybe move into separate subpkg?
-
 // RowIDSize is the size of the RowID in bytes
 const RowIDSize = EdsIDSize + 2
 
@@ -55,7 +53,6 @@ func RowIDFromCID(cid cid.Cid) (id RowID, err error) {
 	if err != nil {
 		return id, fmt.Errorf("while unmarhaling RowID: %w", err)
 	}
-
 	return id, nil
 }
 
@@ -123,6 +120,7 @@ func (rid RowID) Verify(root *share.Root) error {
 	return nil
 }
 
+// BlockFromFile returns the IPLD block of the RowID from the given file.
 func (rid RowID) BlockFromFile(ctx context.Context, f file.EdsFile) (blocks.Block, error) {
 	axisHalf, err := f.AxisHalf(ctx, rsmt2d.Row, int(rid.RowIndex))
 	if err != nil {
@@ -147,6 +145,7 @@ func (rid RowID) BlockFromFile(ctx context.Context, f file.EdsFile) (blocks.Bloc
 	return blk, nil
 }
 
+// Release releases the verifier of the RowID.
 func (rid RowID) Release() {
 	rowVerifiers.Delete(rid)
 }

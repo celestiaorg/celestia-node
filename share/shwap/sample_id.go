@@ -13,8 +13,6 @@ import (
 	"github.com/celestiaorg/celestia-node/share/store/file"
 )
 
-// TODO(@walldiss): maybe move into separate subpkg?
-
 // SampleIDSize is the size of the SampleID in bytes
 const SampleIDSize = RowIDSize + 2
 
@@ -117,6 +115,7 @@ func (sid SampleID) Verify(root *share.Root) error {
 	return sid.RowID.Verify(root)
 }
 
+// BlockFromFile returns the IPLD block of the Sample.
 func (sid SampleID) BlockFromFile(ctx context.Context, f file.EdsFile) (blocks.Block, error) {
 	shr, err := f.Share(ctx, int(sid.ShareIndex), int(sid.RowID.RowIndex))
 	if err != nil {
@@ -131,6 +130,7 @@ func (sid SampleID) BlockFromFile(ctx context.Context, f file.EdsFile) (blocks.B
 	return blk, nil
 }
 
+// Release releases the verifier of the SampleID.
 func (sid SampleID) Release() {
 	sampleVerifiers.Delete(sid)
 }

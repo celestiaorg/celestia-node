@@ -45,10 +45,10 @@ func lightGetter(
 	cfg Config,
 ) share.Getter {
 	var cascade []share.Getter
-	if cfg.UseShareExchange {
+	if cfg.UseShrEx {
 		cascade = append(cascade, shrexGetter)
 	}
-	if cfg.UseShareSwap {
+	if cfg.UseShwap {
 		cascade = append(cascade, shwapGetter)
 	}
 	cascade = append(cascade, reconstructGetter)
@@ -66,7 +66,7 @@ func bridgeGetter(
 ) share.Getter {
 	var cascade []share.Getter
 	cascade = append(cascade, storeGetter)
-	if cfg.UseShareExchange {
+	if cfg.UseShrEx {
 		cascade = append(cascade, shrexGetter)
 	}
 	return getters.NewCascadeGetter(cascade)
@@ -81,10 +81,10 @@ func fullGetter(
 ) share.Getter {
 	var cascade []share.Getter
 	cascade = append(cascade, storeGetter)
-	if cfg.UseShareExchange {
+	if cfg.UseShrEx {
 		cascade = append(cascade, shrexGetter)
 	}
-	if cfg.UseShareSwap {
+	if cfg.UseShwap {
 		cascade = append(cascade, shwapGetter)
 	}
 	cascade = append(cascade, reconstructGetter)
