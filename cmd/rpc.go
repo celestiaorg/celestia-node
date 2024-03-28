@@ -10,6 +10,7 @@ import (
 
 	rpc "github.com/celestiaorg/celestia-node/api/rpc/client"
 	"github.com/celestiaorg/celestia-node/api/rpc/perms"
+	"github.com/celestiaorg/celestia-node/nodebuilder"
 	nodemod "github.com/celestiaorg/celestia-node/nodebuilder/node"
 )
 
@@ -47,11 +48,11 @@ func RPCFlags() *flag.FlagSet {
 
 func InitClient(cmd *cobra.Command, _ []string) error {
 	if authTokenFlag == "" {
-		storePath := ""
-		if !cmd.Flag(nodeStoreFlag).Changed {
-			return errors.New("cant get the access to the auth token: token/node-store flag was not specified")
+		storePath, err := getStorePath(cmd)
+		if err != nil {
+			return err
 		}
-		storePath = cmd.Flag(nodeStoreFlag).Value.String()
+
 		token, err := getToken(storePath)
 		if err != nil {
 			return fmt.Errorf("cant get the access to the auth token: %v", err)
@@ -67,6 +68,27 @@ func InitClient(cmd *cobra.Command, _ []string) error {
 	ctx := context.WithValue(cmd.Context(), rpcClientKey{}, client)
 	cmd.SetContext(ctx)
 	return nil
+}
+
+func getStorePath(cmd *cobra.Command) (string, error) {
+	// if node store flag is set, use it
+	if cmd.Flag(nodeStoreFlag).Changed {
+		return cmd.Flag(nodeStoreFlag).Value.String(), nil
+	}
+
+	errMsg := "cant get the access to the auth token: token/node-store flag was not specified"
+
+	// try to detect a running node
+	path, err := nodebuilder.DiscoverOpened()
+	if err != nil {
+		return "", fmt.Errorf("%s: %w", errMsg, err)
+	}
+
+	if path != "" {
+		return path, nil
+	}
+
+	return "", errors.New(errMsg)
 }
 
 func getToken(path string) (string, error) {
