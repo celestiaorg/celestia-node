@@ -35,8 +35,9 @@ func NewRowID(height uint64, rowIdx uint16, root *share.Root) (RowID, error) {
 		},
 		RowIndex: rowIdx,
 	}
-	rootVerifiers.Add(rid, root)
 
+	// Store the root in the cache for verification later
+	globalRootsCache.Store(rid, root)
 	return rid, rid.Verify(root)
 }
 
@@ -126,7 +127,7 @@ func (rid RowID) BlockFromFile(ctx context.Context, f file.EdsFile) (blocks.Bloc
 
 // Release releases the verifier of the RowID.
 func (rid RowID) Release() {
-	rootVerifiers.Delete(rid)
+	globalRootsCache.Delete(rid)
 }
 
 func (rid RowID) appendTo(data []byte) []byte {

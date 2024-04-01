@@ -19,8 +19,14 @@ func (h *RowHasher) Write(data []byte) (int, error) {
 		return 0, err
 	}
 
-	if err := rootVerifiers.Verify(row); err != nil {
-		err = fmt.Errorf("verifying Row: %w", err)
+	root, err := getRoot(row.RowID)
+	if err != nil {
+		err = fmt.Errorf("getting root: %w", err)
+		return 0, err
+	}
+
+	if err := row.Verify(root); err != nil {
+		err = fmt.Errorf("verifying Data: %w", err)
 		log.Error(err)
 		return 0, err
 	}

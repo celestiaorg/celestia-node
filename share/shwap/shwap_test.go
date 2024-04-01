@@ -47,7 +47,7 @@ func TestSampleRoundtripGetBlock(t *testing.T) {
 		smpl, err := NewSampleFromEDS(RowProofType, i, eds, height) // TODO: Col
 		require.NoError(t, err)
 
-		rootVerifiers.Add(smpl.SampleID, root)
+		globalRootsCache.Store(smpl.SampleID, root)
 
 		cid := smpl.Cid()
 		blkOut, err := client.GetBlock(ctx, cid)
@@ -80,7 +80,7 @@ func TestSampleRoundtripGetBlocks(t *testing.T) {
 		smpl, err := NewSampleFromEDS(RowProofType, i, eds, height) // TODO: Col
 		require.NoError(t, err)
 		set.Add(smpl.Cid())
-		rootVerifiers.Add(smpl.SampleID, root)
+		globalRootsCache.Store(smpl.SampleID, root)
 	}
 
 	blks, err := client.GetBlocks(ctx, set.Keys())
@@ -120,7 +120,7 @@ func TestRowRoundtripGetBlock(t *testing.T) {
 		row, err := NewRowFromEDS(height, i, eds)
 		require.NoError(t, err)
 
-		rootVerifiers.Add(row.RowID, root)
+		globalRootsCache.Store(row.RowID, root)
 
 		cid := row.Cid()
 		blkOut, err := client.GetBlock(ctx, cid)
@@ -152,7 +152,7 @@ func TestRowRoundtripGetBlocks(t *testing.T) {
 		row, err := NewRowFromEDS(height, i, eds)
 		require.NoError(t, err)
 		set.Add(row.Cid())
-		rootVerifiers.Add(row.RowID, root)
+		globalRootsCache.Store(row.RowID, root)
 	}
 
 	blks, err := client.GetBlocks(ctx, set.Keys())
@@ -190,7 +190,7 @@ func TestDataRoundtripGetBlock(t *testing.T) {
 	require.NoError(t, err)
 
 	for _, nd := range nds {
-		rootVerifiers.Add(nd.DataID, root)
+		globalRootsCache.Store(nd.DataID, root)
 
 		cid := nd.Cid()
 		blkOut, err := client.GetBlock(ctx, cid)
@@ -221,7 +221,7 @@ func TestDataRoundtripGetBlocks(t *testing.T) {
 	set := cid.NewSet()
 	for _, nd := range nds {
 		set.Add(nd.Cid())
-		rootVerifiers.Add(nd.DataID, root)
+		globalRootsCache.Store(nd.DataID, root)
 	}
 
 	blks, err := client.GetBlocks(ctx, set.Keys())

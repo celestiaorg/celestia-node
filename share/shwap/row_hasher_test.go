@@ -23,7 +23,7 @@ func TestRowHasher(t *testing.T) {
 	row, err := NewRowFromEDS(2, 1, square)
 	require.NoError(t, err)
 
-	rootVerifiers.Add(row.RowID, root)
+	globalRootsCache.Store(row.RowID, root)
 
 	data, err := row.MarshalBinary()
 	require.NoError(t, err)

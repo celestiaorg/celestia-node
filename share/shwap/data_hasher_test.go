@@ -24,7 +24,7 @@ func TestDataHasher(t *testing.T) {
 	require.NoError(t, err)
 	data := datas[0]
 
-	rootVerifiers.Add(data.DataID, root)
+	globalRootsCache.Store(data.DataID, root)
 
 	dat, err := data.MarshalBinary()
 	require.NoError(t, err)

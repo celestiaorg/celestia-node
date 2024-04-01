@@ -36,8 +36,8 @@ func NewDataID(height uint64, rowIdx uint16, namespace share.Namespace, root *sh
 		DataNamespace: string(namespace),
 	}
 
-	rootVerifiers.Add(did, root)
-
+	// Store the root in the cache for verification later
+	globalRootsCache.Store(did, root)
 	return did, did.Verify(root)
 }
 
@@ -130,7 +130,7 @@ func (s DataID) BlockFromFile(ctx context.Context, f file.EdsFile) (blocks.Block
 
 // Release releases the verifier of the DataID.
 func (s DataID) Release() {
-	rootVerifiers.Delete(s)
+	globalRootsCache.Delete(s)
 }
 
 func (s DataID) appendTo(data []byte) []byte {

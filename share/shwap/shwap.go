@@ -57,27 +57,16 @@ func init() {
 	})
 }
 
-var rootVerifiers verifiers
+// TODO(@walldiss): store refscount along with roots to avoid verify errors on parallel requests
+var globalRootsCache sync.Map
 
-type verifiers struct {
-	mp sync.Map
-}
-
-func (vs *verifiers) Add(id id, root *share.Root) {
-	vs.mp.Store(id.key(), root)
-}
-
-func (vs *verifiers) Verify(v verifier) error {
-	r, ok := vs.mp.LoadAndDelete(v.key())
+func getRoot(key any) (*share.Root, error) {
+	r, ok := globalRootsCache.Load(key)
 	if !ok {
-		return fmt.Errorf("no verifier")
+		return nil, fmt.Errorf("no verifier")
 	}
 
-	return v.Verify(r.(*share.Root))
-}
-
-func (vs *verifiers) Delete(id id) {
-	vs.mp.Delete(id.key())
+	return r.(*share.Root), nil
 }
 
 // DefaultAllowlist keeps default list of hashes allowed in the network.
@@ -113,15 +102,4 @@ func validateCID(cid cid.Cid) error {
 	}
 
 	return nil
-}
-
-// id represents an interface for objects that can produce a key.
-type id interface {
-	key() any
-}
-
-// verifier represents an interface for verification of data roots.
-type verifier interface {
-	id
-	Verify(root *share.Root) error
 }

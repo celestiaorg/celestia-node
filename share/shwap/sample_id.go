@@ -39,7 +39,8 @@ func NewSampleID(height uint64, smplIdx int, root *share.Root) (SampleID, error)
 		ShareIndex: shrIdx,
 	}
 
-	rootVerifiers.Add(sid, root)
+	// Store the root in the cache for verification later
+	globalRootsCache.Store(sid, root)
 	return sid, sid.Verify(root)
 }
 
@@ -121,7 +122,7 @@ func (sid SampleID) BlockFromFile(ctx context.Context, f file.EdsFile) (blocks.B
 
 // Release releases the verifier of the SampleID.
 func (sid SampleID) Release() {
-	rootVerifiers.Delete(sid)
+	globalRootsCache.Delete(sid)
 }
 
 func (sid SampleID) appendTo(data []byte) []byte {

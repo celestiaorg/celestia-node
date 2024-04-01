@@ -19,7 +19,13 @@ func (h *DataHasher) Write(data []byte) (int, error) {
 		return 0, err
 	}
 
-	if err := rootVerifiers.Verify(d); err != nil {
+	root, err := getRoot(d.DataID)
+	if err != nil {
+		err = fmt.Errorf("getting root: %w", err)
+		return 0, err
+	}
+
+	if err := d.Verify(root); err != nil {
 		err = fmt.Errorf("verifying Data: %w", err)
 		log.Error(err)
 		return 0, err
