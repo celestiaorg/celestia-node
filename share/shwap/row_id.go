@@ -1,10 +1,10 @@
 package shwap
 
 import (
+	"bytes"
 	"context"
 	"encoding/binary"
 	"fmt"
-
 	blocks "github.com/ipfs/go-block-format"
 	"github.com/ipfs/go-cid"
 	mh "github.com/multiformats/go-multihash"
@@ -49,19 +49,16 @@ func RowIDFromCID(cid cid.Cid) (id RowID, err error) {
 		return id, err
 	}
 
-	err = id.UnmarshalBinary(cid.Hash()[mhPrefixSize:])
+	rid, err := RowIDFromBinary(cid.Hash()[mhPrefixSize:])
 	if err != nil {
 		return id, fmt.Errorf("while unmarhaling RowID: %w", err)
 	}
-	return id, nil
+	return rid, nil
 }
 
 // Cid returns RowID encoded as CID.
 func (rid RowID) Cid() cid.Cid {
-	data, err := rid.MarshalBinary()
-	if err != nil {
-		panic(fmt.Errorf("marshaling RowID: %w", err))
-	}
+	data := rid.MarshalBinary()
 
 	buf, err := mh.Encode(data, rowMultihashCode)
 	if err != nil {
@@ -71,39 +68,24 @@ func (rid RowID) Cid() cid.Cid {
 	return cid.NewCidV1(rowCodec, buf)
 }
 
-// MarshalTo encodes RowID into given byte slice.
-// NOTE: Proto is avoided because
-// * Its size is not deterministic which is required for IPLD.
-// * No support for uint16
-func (rid RowID) MarshalTo(data []byte) (int, error) {
-	// TODO:(@walldiss): this works, only if data underlying array was preallocated with
-	//  enough size. Otherwise Caller might not see the changes.
-	data = binary.BigEndian.AppendUint64(data, rid.Height)
-	data = binary.BigEndian.AppendUint16(data, rid.RowIndex)
-	return RowIDSize, nil
-}
-
-// UnmarshalFrom decodes RowID from given byte slice.
-func (rid *RowID) UnmarshalFrom(data []byte) (int, error) {
-	rid.Height = binary.BigEndian.Uint64(data)
-	rid.RowIndex = binary.BigEndian.Uint16(data[8:])
-	return RowIDSize, nil
-}
-
 // MarshalBinary encodes RowID into binary form.
-func (rid RowID) MarshalBinary() ([]byte, error) {
+func (rid RowID) MarshalBinary() []byte {
 	data := make([]byte, 0, RowIDSize)
-	n, err := rid.MarshalTo(data)
-	return data[:n], err
+	return rid.appendTo(data)
 }
 
-// UnmarshalBinary decodes RowID from binary form.
-func (rid *RowID) UnmarshalBinary(data []byte) error {
+// RowIDFromBinary decodes RowID from binary form.
+func RowIDFromBinary(data []byte) (RowID, error) {
+	var rid RowID
 	if len(data) != RowIDSize {
-		return fmt.Errorf("invalid RowID data length: %d != %d", len(data), RowIDSize)
+		return rid, fmt.Errorf("invalid RowID data length: %d != %d", len(data), RowIDSize)
 	}
-	_, err := rid.UnmarshalFrom(data)
-	return err
+	eid, err := EdsIDFromBinary(data[:EdsIDSize])
+	if err != nil {
+		return rid, fmt.Errorf("while decoding EdsID: %w", err)
+	}
+	rid.EdsID = eid
+	return rid, binary.Read(bytes.NewReader(data[EdsIDSize:]), binary.BigEndian, &rid.RowIndex)
 }
 
 // Verify verifies RowID fields.
@@ -148,4 +130,9 @@ func (rid RowID) BlockFromFile(ctx context.Context, f file.EdsFile) (blocks.Bloc
 // Release releases the verifier of the RowID.
 func (rid RowID) Release() {
 	rowVerifiers.Delete(rid)
+}
+
+func (rid RowID) appendTo(data []byte) []byte {
+	data = rid.EdsID.appendTo(data)
+	return binary.BigEndian.AppendUint16(data, rid.RowIndex)
 }

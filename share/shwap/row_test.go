@@ -25,8 +25,7 @@ func TestRow(t *testing.T) {
 	require.NoError(t, err)
 	assert.EqualValues(t, blk.Cid(), row.Cid())
 
-	rowOut := &Row{}
-	err = rowOut.UnmarshalBinary(data)
+	rowOut, err := RowFromBinary(data)
 	require.NoError(t, err)
 	assert.EqualValues(t, row, rowOut)
 

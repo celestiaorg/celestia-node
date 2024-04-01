@@ -25,8 +25,7 @@ func TestData(t *testing.T) {
 	require.NoError(t, err)
 	assert.EqualValues(t, blk.Cid(), nd.Cid())
 
-	dataOut := &Data{}
-	err = dataOut.UnmarshalBinary(data)
+	dataOut, err := DataFromBinary(data)
 	require.NoError(t, err)
 	assert.EqualValues(t, nd, dataOut)
 

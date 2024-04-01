@@ -100,14 +100,7 @@ func SampleFromBlock(blk blocks.Block) (*Sample, error) {
 	if err := validateCID(blk.Cid()); err != nil {
 		return nil, err
 	}
-
-	s := &Sample{}
-	err := s.UnmarshalBinary(blk.RawData())
-	if err != nil {
-		return nil, fmt.Errorf("while unmarshalling Sample: %w", err)
-	}
-
-	return s, nil
+	return SampleFromBinary(blk.RawData())
 }
 
 // IPLDBlock converts Sample to an IPLD block for Bitswap compatibility.
@@ -122,11 +115,7 @@ func (s *Sample) IPLDBlock() (blocks.Block, error) {
 
 // MarshalBinary marshals Sample to binary.
 func (s *Sample) MarshalBinary() ([]byte, error) {
-	id, err := s.SampleID.MarshalBinary()
-	if err != nil {
-		return nil, err
-	}
-
+	id := s.SampleID.MarshalBinary()
 	proof := &nmtpb.Proof{}
 	proof.Nodes = s.SampleProof.Nodes()
 	proof.End = int64(s.SampleProof.End())
@@ -142,22 +131,24 @@ func (s *Sample) MarshalBinary() ([]byte, error) {
 	}).Marshal()
 }
 
-// UnmarshalBinary unmarshal Sample from binary.
-func (s *Sample) UnmarshalBinary(data []byte) error {
+// SampleFromBinary unmarshal Sample from binary.
+func SampleFromBinary(data []byte) (*Sample, error) {
 	proto := &shwappb.Sample{}
 	if err := proto.Unmarshal(data); err != nil {
-		return err
+		return nil, err
 	}
 
-	err := s.SampleID.UnmarshalBinary(proto.SampleId)
+	sid, err := SampleIdFromBinary(proto.SampleId)
 	if err != nil {
-		return err
+		return nil, err
 	}
 
-	s.SampleProofType = SampleProofType(proto.ProofType)
-	s.SampleProof = nmt.ProtoToProof(*proto.SampleProof)
-	s.SampleShare = proto.SampleShare
-	return nil
+	return &Sample{
+		SampleID:        sid,
+		SampleProofType: SampleProofType(proto.ProofType),
+		SampleProof:     nmt.ProtoToProof(*proto.SampleProof),
+		SampleShare:     proto.SampleShare,
+	}, nil
 }
 
 // Verify validates Sample's fields and verifies SampleShare inclusion.

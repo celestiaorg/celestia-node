@@ -56,14 +56,7 @@ func RowFromBlock(blk blocks.Block) (*Row, error) {
 	if err := validateCID(blk.Cid()); err != nil {
 		return nil, err
 	}
-
-	s := &Row{}
-	err := s.UnmarshalBinary(blk.RawData())
-	if err != nil {
-		return nil, fmt.Errorf("while unmarshalling Row: %w", err)
-	}
-
-	return s, nil
+	return RowFromBinary(blk.RawData())
 }
 
 // IPLDBlock converts Row to an IPLD block for Bitswap compatibility.
@@ -78,31 +71,24 @@ func (r *Row) IPLDBlock() (blocks.Block, error) {
 
 // MarshalBinary marshals Row to binary.
 func (r *Row) MarshalBinary() ([]byte, error) {
-	id, err := r.RowID.MarshalBinary()
-	if err != nil {
-		return nil, err
-	}
-
 	return (&shwappb.Row{
-		RowId:   id,
+		RowId:   r.RowID.MarshalBinary(),
 		RowHalf: r.RowShares,
 	}).Marshal()
 }
 
-// UnmarshalBinary unmarshal Row from binary.
-func (r *Row) UnmarshalBinary(data []byte) error {
+// RowFromBinary unmarshal Row from binary.
+func RowFromBinary(data []byte) (*Row, error) {
 	proto := &shwappb.Row{}
 	if err := proto.Unmarshal(data); err != nil {
-		return err
+		return nil, err
 	}
 
-	err := r.RowID.UnmarshalBinary(proto.RowId)
+	rid, err := RowIDFromBinary(proto.RowId)
 	if err != nil {
-		return err
+		return nil, err
 	}
-
-	r.RowShares = proto.RowHalf
-	return nil
+	return NewRow(rid, proto.RowHalf), nil
 }
 
 // Verify validates Row's fields and verifies Row inclusion.

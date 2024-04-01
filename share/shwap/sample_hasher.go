@@ -12,14 +12,14 @@ type SampleHasher struct {
 
 // Write expects a marshaled Sample to validate.
 func (h *SampleHasher) Write(data []byte) (int, error) {
-	var s Sample
-	if err := s.UnmarshalBinary(data); err != nil {
+	s, err := SampleFromBinary(data)
+	if err != nil {
 		err = fmt.Errorf("unmarshaling Sample: %w", err)
 		log.Error(err)
 		return 0, err
 	}
 
-	if err := sampleVerifiers.Verify(s.SampleID, s); err != nil {
+	if err := sampleVerifiers.Verify(s.SampleID, *s); err != nil {
 		err = fmt.Errorf("verifying Sample: %w", err)
 		log.Error(err)
 		return 0, err

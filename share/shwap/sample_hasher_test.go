@@ -35,8 +35,7 @@ func TestSampleHasher(t *testing.T) {
 	assert.EqualValues(t, len(data), n)
 
 	digest := hasher.Sum(nil)
-	id, err := sample.SampleID.MarshalBinary()
-	require.NoError(t, err)
+	id := sample.SampleID.MarshalBinary()
 	assert.EqualValues(t, id, digest)
 
 	hasher.Reset()

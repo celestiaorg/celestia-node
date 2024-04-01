@@ -25,8 +25,7 @@ func TestSample(t *testing.T) {
 	require.NoError(t, err)
 	assert.EqualValues(t, blk.Cid(), sample.Cid())
 
-	sampleOut := &Sample{}
-	err = sampleOut.UnmarshalBinary(data)
+	sampleOut, err := SampleFromBinary(data)
 	require.NoError(t, err)
 	assert.EqualValues(t, sample, sampleOut)
 

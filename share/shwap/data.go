@@ -101,14 +101,7 @@ func DataFromBlock(blk blocks.Block) (*Data, error) {
 	if err := validateCID(blk.Cid()); err != nil {
 		return nil, err
 	}
-
-	s := &Data{}
-	err := s.UnmarshalBinary(blk.RawData())
-	if err != nil {
-		return nil, fmt.Errorf("while unmarshalling Data: %w", err)
-	}
-
-	return s, nil
+	return DataFromBinary(blk.RawData())
 }
 
 // IPLDBlock converts Data to an IPLD block for Bitswap compatibility.
@@ -123,11 +116,7 @@ func (s *Data) IPLDBlock() (blocks.Block, error) {
 
 // MarshalBinary marshals Data to binary.
 func (s *Data) MarshalBinary() ([]byte, error) {
-	id, err := s.DataID.MarshalBinary()
-	if err != nil {
-		return nil, err
-	}
-
+	did := s.DataID.MarshalBinary()
 	proof := &nmtpb.Proof{}
 	proof.Nodes = s.DataProof.Nodes()
 	proof.End = int64(s.DataProof.End())
@@ -136,27 +125,24 @@ func (s *Data) MarshalBinary() ([]byte, error) {
 	proof.LeafHash = s.DataProof.LeafHash()
 
 	return (&shwappb.Data{
-		DataId:     id,
+		DataId:     did,
 		DataShares: s.DataShares,
 		DataProof:  proof,
 	}).Marshal()
 }
 
-// UnmarshalBinary unmarshal Data from binary.
-func (s *Data) UnmarshalBinary(data []byte) error {
+// DataFromBinary unmarshal Data from binary.
+func DataFromBinary(data []byte) (*Data, error) {
 	proto := &shwappb.Data{}
 	if err := proto.Unmarshal(data); err != nil {
-		return err
+		return nil, err
 	}
 
-	err := s.DataID.UnmarshalBinary(proto.DataId)
+	did, err := DataIDFromBinary(proto.DataId)
 	if err != nil {
-		return err
+		return nil, err
 	}
-
-	s.DataShares = proto.DataShares
-	s.DataProof = nmt.ProtoToProof(*proto.DataProof)
-	return nil
+	return NewData(did, proto.DataShares, nmt.ProtoToProof(*proto.DataProof)), nil
 }
 
 // Verify validates Data's fields and verifies Data inclusion.

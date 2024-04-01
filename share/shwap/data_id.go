@@ -50,7 +50,7 @@ func DataIDFromCID(cid cid.Cid) (id DataID, err error) {
 		return id, err
 	}
 
-	err = id.UnmarshalBinary(cid.Hash()[mhPrefixSize:])
+	id, err = DataIDFromBinary(cid.Hash()[mhPrefixSize:])
 	if err != nil {
 		return id, fmt.Errorf("unmarhalling DataID: %w", err)
 	}
@@ -66,10 +66,7 @@ func (s DataID) Namespace() share.Namespace {
 // Cid returns DataID encoded as CID.
 func (s DataID) Cid() cid.Cid {
 	// avoid using proto serialization for CID as it's not deterministic
-	data, err := s.MarshalBinary()
-	if err != nil {
-		panic(fmt.Errorf("marshaling DataID: %w", err))
-	}
+	data := s.MarshalBinary()
 
 	buf, err := mh.Encode(data, dataMultihashCode)
 	if err != nil {
@@ -83,34 +80,28 @@ func (s DataID) Cid() cid.Cid {
 // NOTE: Proto is avoided because
 // * Its size is not deterministic which is required for IPLD.
 // * No support for uint16
-func (s DataID) MarshalBinary() ([]byte, error) {
+func (s DataID) MarshalBinary() []byte {
 	data := make([]byte, 0, DataIDSize)
-	n, err := s.RowID.MarshalTo(data)
-	if err != nil {
-		return nil, err
-	}
-	data = data[:n]
-	data = append(data, s.DataNamespace...)
-	return data, nil
+	return s.appendTo(data)
 }
 
-// UnmarshalBinary decodes DataID from binary form.
-func (s *DataID) UnmarshalBinary(data []byte) error {
+// DataIDFromBinary decodes DataID from binary form.
+func DataIDFromBinary(data []byte) (DataID, error) {
+	var did DataID
 	if len(data) != DataIDSize {
-		return fmt.Errorf("invalid DataID data length: %d != %d", len(data), DataIDSize)
+		return did, fmt.Errorf("invalid DataID data length: %d != %d", len(data), DataIDSize)
 	}
-	n, err := s.RowID.UnmarshalFrom(data)
+	rid, err := RowIDFromBinary(data[:RowIDSize])
 	if err != nil {
-		return err
+		return did, fmt.Errorf("while unmarhaling RowID: %w", err)
 	}
-
-	ns := share.Namespace(data[n:])
+	did.RowID = rid
+	ns := share.Namespace(data[RowIDSize:])
 	if err = ns.ValidateForData(); err != nil {
-		return err
+		return did, fmt.Errorf("validating DataNamespace: %w", err)
 	}
-
-	s.DataNamespace = string(ns)
-	return nil
+	did.DataNamespace = string(ns)
+	return did, err
 }
 
 // Verify verifies DataID fields.
@@ -143,4 +134,9 @@ func (s DataID) BlockFromFile(ctx context.Context, f file.EdsFile) (blocks.Block
 // Release releases the verifier of the DataID.
 func (s DataID) Release() {
 	dataVerifiers.Delete(s)
+}
+
+func (s DataID) appendTo(data []byte) []byte {
+	data = s.RowID.appendTo(data)
+	return append(data, s.DataNamespace...)
 }

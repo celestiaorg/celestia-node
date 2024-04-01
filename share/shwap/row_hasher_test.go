@@ -35,8 +35,7 @@ func TestRowHasher(t *testing.T) {
 	assert.EqualValues(t, len(data), n)
 
 	digest := hasher.Sum(nil)
-	id, err := row.RowID.MarshalBinary()
-	require.NoError(t, err)
+	id := row.RowID.MarshalBinary()
 	assert.EqualValues(t, id, digest)
 
 	hasher.Reset()

@@ -23,11 +23,8 @@ func TestSampleID(t *testing.T) {
 	assert.EqualValues(t, sampleMultihashCode, cid.Prefix().MhType)
 	assert.EqualValues(t, SampleIDSize, cid.Prefix().MhLength)
 
-	data, err := id.MarshalBinary()
-	require.NoError(t, err)
-
-	idOut := SampleID{}
-	err = idOut.UnmarshalBinary(data)
+	data := id.MarshalBinary()
+	idOut, err := SampleIdFromBinary(data)
 	require.NoError(t, err)
 	assert.EqualValues(t, id, idOut)
 

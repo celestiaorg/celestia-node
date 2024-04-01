@@ -22,11 +22,8 @@ func TestDataID(t *testing.T) {
 	assert.EqualValues(t, dataMultihashCode, cid.Prefix().MhType)
 	assert.EqualValues(t, DataIDSize, cid.Prefix().MhLength)
 
-	data, err := id.MarshalBinary()
-	require.NoError(t, err)
-
-	sidOut := DataID{}
-	err = sidOut.UnmarshalBinary(data)
+	data := id.MarshalBinary()
+	sidOut, err := DataIDFromBinary(data)
 	require.NoError(t, err)
 	assert.EqualValues(t, id, sidOut)
 

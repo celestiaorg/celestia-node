@@ -12,14 +12,14 @@ type DataHasher struct {
 
 // Write expects a marshaled Data to validate.
 func (h *DataHasher) Write(data []byte) (int, error) {
-	var d Data
-	if err := d.UnmarshalBinary(data); err != nil {
+	d, err := DataFromBinary(data)
+	if err != nil {
 		err = fmt.Errorf("unmarshaling Data: %w", err)
 		log.Error(err)
 		return 0, err
 	}
 
-	if err := dataVerifiers.Verify(d.DataID, d); err != nil {
+	if err := dataVerifiers.Verify(d.DataID, *d); err != nil {
 		err = fmt.Errorf("verifying Data: %w", err)
 		log.Error(err)
 		return 0, err

@@ -1,6 +1,7 @@
 package shwap
 
 import (
+	"bytes"
 	"context"
 	"encoding/binary"
 	"fmt"
@@ -52,7 +53,7 @@ func SampleIDFromCID(cid cid.Cid) (id SampleID, err error) {
 		return id, err
 	}
 
-	err = id.UnmarshalBinary(cid.Hash()[mhPrefixSize:])
+	id, err = SampleIdFromBinary(cid.Hash()[mhPrefixSize:])
 	if err != nil {
 		return id, fmt.Errorf("while unmarhaling SampleID: %w", err)
 	}
@@ -63,10 +64,7 @@ func SampleIDFromCID(cid cid.Cid) (id SampleID, err error) {
 // Cid returns SampleID encoded as CID.
 func (sid SampleID) Cid() cid.Cid {
 	// avoid using proto serialization for CID as it's not deterministic
-	data, err := sid.MarshalBinary()
-	if err != nil {
-		panic(fmt.Errorf("marshaling SampleID: %w", err))
-	}
+	data := sid.MarshalBinary()
 
 	buf, err := mh.Encode(data, sampleMultihashCode)
 	if err != nil {
@@ -80,29 +78,24 @@ func (sid SampleID) Cid() cid.Cid {
 // NOTE: Proto is avoided because
 // * Its size is not deterministic which is required for IPLD.
 // * No support for uint16
-func (sid SampleID) MarshalBinary() ([]byte, error) {
+func (sid SampleID) MarshalBinary() []byte {
 	data := make([]byte, 0, SampleIDSize)
-	n, err := sid.RowID.MarshalTo(data)
-	if err != nil {
-		return nil, err
-	}
-	data = data[:n]
-	data = binary.BigEndian.AppendUint16(data, sid.ShareIndex)
-	return data, nil
+	return sid.appendTo(data)
 }
 
-// UnmarshalBinary decodes SampleID from binary form.
-func (sid *SampleID) UnmarshalBinary(data []byte) error {
+// SampleIdFromBinary decodes SampleID from binary form.
+func SampleIdFromBinary(data []byte) (SampleID, error) {
+	var sid SampleID
 	if len(data) != SampleIDSize {
-		return fmt.Errorf("invalid SampleID data length: %d != %d", len(data), SampleIDSize)
+		return sid, fmt.Errorf("invalid SampleID data length: %d != %d", len(data), SampleIDSize)
 	}
-	n, err := sid.RowID.UnmarshalFrom(data)
+
+	rid, err := RowIDFromBinary(data[:RowIDSize])
 	if err != nil {
-		return err
+		return sid, fmt.Errorf("while decoding RowID: %w", err)
 	}
-	data = data[n:]
-	sid.ShareIndex = binary.BigEndian.Uint16(data)
-	return nil
+	sid.RowID = rid
+	return sid, binary.Read(bytes.NewReader(data[RowIDSize:]), binary.BigEndian, &sid.ShareIndex)
 }
 
 // Verify verifies SampleID fields.
@@ -133,4 +126,9 @@ func (sid SampleID) BlockFromFile(ctx context.Context, f file.EdsFile) (blocks.B
 // Release releases the verifier of the SampleID.
 func (sid SampleID) Release() {
 	sampleVerifiers.Delete(sid)
+}
+
+func (sid SampleID) appendTo(data []byte) []byte {
+	data = sid.RowID.appendTo(data)
+	return binary.BigEndian.AppendUint16(data, sid.ShareIndex)
 }

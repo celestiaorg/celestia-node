@@ -12,14 +12,14 @@ type RowHasher struct {
 
 // Write expects a marshaled Row to validate.
 func (h *RowHasher) Write(data []byte) (int, error) {
-	var row Row
-	if err := row.UnmarshalBinary(data); err != nil {
+	row, err := RowFromBinary(data)
+	if err != nil {
 		err = fmt.Errorf("unmarshaling Row: %w", err)
 		log.Error(err)
 		return 0, err
 	}
 
-	if err := rowVerifiers.Verify(row.RowID, row); err != nil {
+	if err := rowVerifiers.Verify(row.RowID, *row); err != nil {
 		err = fmt.Errorf("verifying Row: %w", err)
 		log.Error(err)
 		return 0, err
