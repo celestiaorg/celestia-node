@@ -2,6 +2,7 @@ package pruner
 
 import (
 	"context"
+	"github.com/celestiaorg/celestia-node/share/store"
 
 	"go.uber.org/fx"
 
@@ -10,7 +11,6 @@ import (
 	"github.com/celestiaorg/celestia-node/pruner/archival"
 	"github.com/celestiaorg/celestia-node/pruner/full"
 	"github.com/celestiaorg/celestia-node/pruner/light"
-	"github.com/celestiaorg/celestia-node/share/eds"
 )
 
 func ConstructModule(tp node.Type, cfg *Config) fx.Option {
@@ -46,7 +46,7 @@ func ConstructModule(tp node.Type, cfg *Config) fx.Option {
 	case node.Full:
 		return fx.Module("prune",
 			baseComponents,
-			fx.Provide(func(store *eds.Store) pruner.Pruner {
+			fx.Provide(func(store *store.Store) pruner.Pruner {
 				return full.NewPruner(store)
 			}),
 			fx.Supply(full.Window),
@@ -54,7 +54,7 @@ func ConstructModule(tp node.Type, cfg *Config) fx.Option {
 	case node.Bridge:
 		return fx.Module("prune",
 			baseComponents,
-			fx.Provide(func(store *eds.Store) pruner.Pruner {
+			fx.Provide(func(store *store.Store) pruner.Pruner {
 				return full.NewPruner(store)
 			}),
 			fx.Supply(full.Window),

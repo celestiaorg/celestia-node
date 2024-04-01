@@ -84,7 +84,6 @@ func ConstructModule(tp node.Type, cfg *Config, options ...fx.Option) fx.Option 
 			baseComponents,
 			shrexGetterComponents(cfg),
 			lightAvailabilityComponents(cfg),
-			fx.Invoke(ensureEmptyEDSInBS),
 			fx.Provide(shwap_getter.NewGetter),
 			fx.Provide(shwap_getter.NewReconstructionGetter),
 			fx.Provide(lightGetter),
