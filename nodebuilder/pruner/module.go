@@ -2,7 +2,6 @@ package pruner
 
 import (
 	"context"
-	"github.com/celestiaorg/celestia-node/share/store"
 
 	"go.uber.org/fx"
 
@@ -11,6 +10,7 @@ import (
 	"github.com/celestiaorg/celestia-node/pruner/archival"
 	"github.com/celestiaorg/celestia-node/pruner/full"
 	"github.com/celestiaorg/celestia-node/pruner/light"
+	"github.com/celestiaorg/celestia-node/share/store"
 )
 
 func ConstructModule(tp node.Type, cfg *Config) fx.Option {

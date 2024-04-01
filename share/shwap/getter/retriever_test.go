@@ -2,16 +2,16 @@ package shwap_getter
 
 import (
 	"context"
-	"github.com/celestiaorg/celestia-node/share/eds/byzantine"
-	"go.uber.org/atomic"
 	"testing"
 	"time"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"go.uber.org/atomic"
 
 	"github.com/celestiaorg/celestia-node/header"
 	"github.com/celestiaorg/celestia-node/share"
+	"github.com/celestiaorg/celestia-node/share/eds/byzantine"
 	"github.com/celestiaorg/celestia-node/share/testing/edstest"
 )
 

@@ -2,9 +2,11 @@ package shwap_getter
 
 import (
 	"context"
+
+	"github.com/celestiaorg/rsmt2d"
+
 	"github.com/celestiaorg/celestia-node/header"
 	"github.com/celestiaorg/celestia-node/share"
-	"github.com/celestiaorg/rsmt2d"
 )
 
 type ReconstructionGetter struct {

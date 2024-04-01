@@ -2,6 +2,7 @@ package file
 
 import (
 	"fmt"
+
 	"github.com/celestiaorg/celestia-node/share"
 )
 

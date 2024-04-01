@@ -3,9 +3,11 @@ package file
 import (
 	"context"
 	"fmt"
-	"github.com/celestiaorg/celestia-node/share"
-	"github.com/celestiaorg/rsmt2d"
 	"io"
+
+	"github.com/celestiaorg/rsmt2d"
+
+	"github.com/celestiaorg/celestia-node/share"
 )
 
 var _ EdsFile = (*Q1Q4File)(nil)

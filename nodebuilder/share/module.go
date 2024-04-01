@@ -2,7 +2,6 @@ package share
 
 import (
 	"context"
-	shwap_getter "github.com/celestiaorg/celestia-node/share/shwap/getter"
 
 	"github.com/libp2p/go-libp2p/core/host"
 	"github.com/libp2p/go-libp2p/p2p/net/conngater"
@@ -23,6 +22,7 @@ import (
 	"github.com/celestiaorg/celestia-node/share/p2p/shrexeds"
 	"github.com/celestiaorg/celestia-node/share/p2p/shrexnd"
 	"github.com/celestiaorg/celestia-node/share/p2p/shrexsub"
+	shwap_getter "github.com/celestiaorg/celestia-node/share/shwap/getter"
 	"github.com/celestiaorg/celestia-node/share/store"
 )
 

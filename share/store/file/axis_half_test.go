@@ -1,9 +1,11 @@
 package file
 
 import (
-	"github.com/celestiaorg/celestia-node/share/testing/sharetest"
-	"github.com/stretchr/testify/require"
 	"testing"
+
+	"github.com/stretchr/testify/require"
+
+	"github.com/celestiaorg/celestia-node/share/testing/sharetest"
 )
 
 func TestExtendAxisHalf(t *testing.T) {

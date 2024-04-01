@@ -3,8 +3,6 @@ package shwap_getter
 import (
 	"context"
 	"errors"
-	"github.com/celestiaorg/celestia-node/header"
-	"github.com/celestiaorg/celestia-node/share/shwap"
 	"sync"
 	"sync/atomic"
 	"time"
@@ -19,8 +17,10 @@ import (
 	"github.com/celestiaorg/celestia-app/pkg/wrapper"
 	"github.com/celestiaorg/rsmt2d"
 
+	"github.com/celestiaorg/celestia-node/header"
 	"github.com/celestiaorg/celestia-node/share"
 	"github.com/celestiaorg/celestia-node/share/eds/byzantine"
+	"github.com/celestiaorg/celestia-node/share/shwap"
 )
 
 // TODO(@walldiss):

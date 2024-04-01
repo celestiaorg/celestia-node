@@ -3,13 +3,13 @@ package full
 import (
 	"context"
 	"errors"
-	"github.com/celestiaorg/celestia-node/share/store"
 
 	"github.com/filecoin-project/dagstore"
 	logging "github.com/ipfs/go-log/v2"
 
 	"github.com/celestiaorg/celestia-node/header"
 	"github.com/celestiaorg/celestia-node/share"
+	"github.com/celestiaorg/celestia-node/share/store"
 )
 
 var log = logging.Logger("pruner/full")

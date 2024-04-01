@@ -1,7 +1,6 @@
 package share
 
 import (
-	shwap_getter "github.com/celestiaorg/celestia-node/share/shwap/getter"
 	"github.com/libp2p/go-libp2p/core/host"
 	"github.com/libp2p/go-libp2p/core/routing"
 	routingdisc "github.com/libp2p/go-libp2p/p2p/discovery/routing"
@@ -10,6 +9,7 @@ import (
 	"github.com/celestiaorg/celestia-node/share/getters"
 	disc "github.com/celestiaorg/celestia-node/share/p2p/discovery"
 	"github.com/celestiaorg/celestia-node/share/p2p/peers"
+	shwap_getter "github.com/celestiaorg/celestia-node/share/shwap/getter"
 )
 
 const (

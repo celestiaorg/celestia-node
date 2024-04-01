@@ -5,8 +5,9 @@ import (
 	"bytes"
 	"context"
 	"fmt"
-	"golang.org/x/sync/errgroup"
 	"io"
+
+	"golang.org/x/sync/errgroup"
 
 	"github.com/celestiaorg/celestia-app/pkg/wrapper"
 	"github.com/celestiaorg/rsmt2d"

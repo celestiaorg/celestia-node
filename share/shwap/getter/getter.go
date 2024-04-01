@@ -3,16 +3,18 @@ package shwap_getter
 import (
 	"context"
 	"fmt"
-	"github.com/celestiaorg/celestia-app/pkg/wrapper"
-	"github.com/celestiaorg/celestia-node/share/shwap"
-	"github.com/celestiaorg/rsmt2d"
+
 	"github.com/ipfs/boxo/blockstore"
 	"github.com/ipfs/boxo/exchange"
 	block "github.com/ipfs/go-block-format"
 	"github.com/ipfs/go-cid"
 
+	"github.com/celestiaorg/celestia-app/pkg/wrapper"
+	"github.com/celestiaorg/rsmt2d"
+
 	"github.com/celestiaorg/celestia-node/header"
 	"github.com/celestiaorg/celestia-node/share"
+	"github.com/celestiaorg/celestia-node/share/shwap"
 )
 
 type Getter struct {
