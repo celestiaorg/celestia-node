@@ -36,10 +36,7 @@ func NewDataID(height uint64, rowIdx uint16, namespace share.Namespace, root *sh
 		DataNamespace: string(namespace),
 	}
 
-	verifyFn := func(d Data) error {
-		return d.Verify(root)
-	}
-	dataVerifiers.Add(did, verifyFn)
+	rootVerifiers.Add(did, root)
 
 	return did, did.Verify(root)
 }
@@ -133,10 +130,14 @@ func (s DataID) BlockFromFile(ctx context.Context, f file.EdsFile) (blocks.Block
 
 // Release releases the verifier of the DataID.
 func (s DataID) Release() {
-	dataVerifiers.Delete(s)
+	rootVerifiers.Delete(s)
 }
 
 func (s DataID) appendTo(data []byte) []byte {
 	data = s.RowID.appendTo(data)
 	return append(data, s.DataNamespace...)
+}
+
+func (s DataID) key() any {
+	return s
 }

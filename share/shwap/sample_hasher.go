@@ -19,7 +19,7 @@ func (h *SampleHasher) Write(data []byte) (int, error) {
 		return 0, err
 	}
 
-	if err := sampleVerifiers.Verify(s.SampleID, *s); err != nil {
+	if err := rootVerifiers.Verify(s); err != nil {
 		err = fmt.Errorf("verifying Sample: %w", err)
 		log.Error(err)
 		return 0, err

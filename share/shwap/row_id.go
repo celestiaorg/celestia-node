@@ -5,6 +5,7 @@ import (
 	"context"
 	"encoding/binary"
 	"fmt"
+
 	blocks "github.com/ipfs/go-block-format"
 	"github.com/ipfs/go-cid"
 	mh "github.com/multiformats/go-multihash"
@@ -34,11 +35,7 @@ func NewRowID(height uint64, rowIdx uint16, root *share.Root) (RowID, error) {
 		},
 		RowIndex: rowIdx,
 	}
-
-	verifyFn := func(row Row) error {
-		return row.Verify(root)
-	}
-	rowVerifiers.Add(rid, verifyFn)
+	rootVerifiers.Add(rid, root)
 
 	return rid, rid.Verify(root)
 }
@@ -129,10 +126,14 @@ func (rid RowID) BlockFromFile(ctx context.Context, f file.EdsFile) (blocks.Bloc
 
 // Release releases the verifier of the RowID.
 func (rid RowID) Release() {
-	rowVerifiers.Delete(rid)
+	rootVerifiers.Delete(rid)
 }
 
 func (rid RowID) appendTo(data []byte) []byte {
 	data = rid.EdsID.appendTo(data)
 	return binary.BigEndian.AppendUint16(data, rid.RowIndex)
+}
+
+func (rid RowID) key() any {
+	return rid
 }

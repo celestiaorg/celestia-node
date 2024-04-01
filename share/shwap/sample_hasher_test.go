@@ -23,9 +23,7 @@ func TestSampleHasher(t *testing.T) {
 	sample, err := NewSampleFromEDS(RowProofType, 10, square, 1)
 	require.NoError(t, err)
 
-	sampleVerifiers.Add(sample.SampleID, func(s Sample) error {
-		return s.Verify(root)
-	})
+	rootVerifiers.Add(sample.SampleID, root)
 
 	data, err := sample.MarshalBinary()
 	require.NoError(t, err)

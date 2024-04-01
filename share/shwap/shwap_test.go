@@ -47,9 +47,7 @@ func TestSampleRoundtripGetBlock(t *testing.T) {
 		smpl, err := NewSampleFromEDS(RowProofType, i, eds, height) // TODO: Col
 		require.NoError(t, err)
 
-		sampleVerifiers.Add(smpl.SampleID, func(sample Sample) error {
-			return sample.Verify(root)
-		})
+		rootVerifiers.Add(smpl.SampleID, root)
 
 		cid := smpl.Cid()
 		blkOut, err := client.GetBlock(ctx, cid)
@@ -82,10 +80,7 @@ func TestSampleRoundtripGetBlocks(t *testing.T) {
 		smpl, err := NewSampleFromEDS(RowProofType, i, eds, height) // TODO: Col
 		require.NoError(t, err)
 		set.Add(smpl.Cid())
-
-		sampleVerifiers.Add(smpl.SampleID, func(sample Sample) error {
-			return sample.Verify(root)
-		})
+		rootVerifiers.Add(smpl.SampleID, root)
 	}
 
 	blks, err := client.GetBlocks(ctx, set.Keys())
@@ -125,9 +120,7 @@ func TestRowRoundtripGetBlock(t *testing.T) {
 		row, err := NewRowFromEDS(height, i, eds)
 		require.NoError(t, err)
 
-		rowVerifiers.Add(row.RowID, func(row Row) error {
-			return row.Verify(root)
-		})
+		rootVerifiers.Add(row.RowID, root)
 
 		cid := row.Cid()
 		blkOut, err := client.GetBlock(ctx, cid)
@@ -159,10 +152,7 @@ func TestRowRoundtripGetBlocks(t *testing.T) {
 		row, err := NewRowFromEDS(height, i, eds)
 		require.NoError(t, err)
 		set.Add(row.Cid())
-
-		rowVerifiers.Add(row.RowID, func(row Row) error {
-			return row.Verify(root)
-		})
+		rootVerifiers.Add(row.RowID, root)
 	}
 
 	blks, err := client.GetBlocks(ctx, set.Keys())
@@ -200,9 +190,7 @@ func TestDataRoundtripGetBlock(t *testing.T) {
 	require.NoError(t, err)
 
 	for _, nd := range nds {
-		dataVerifiers.Add(nd.DataID, func(data Data) error {
-			return data.Verify(root)
-		})
+		rootVerifiers.Add(nd.DataID, root)
 
 		cid := nd.Cid()
 		blkOut, err := client.GetBlock(ctx, cid)
@@ -233,10 +221,7 @@ func TestDataRoundtripGetBlocks(t *testing.T) {
 	set := cid.NewSet()
 	for _, nd := range nds {
 		set.Add(nd.Cid())
-
-		dataVerifiers.Add(nd.DataID, func(data Data) error {
-			return data.Verify(root)
-		})
+		rootVerifiers.Add(nd.DataID, root)
 	}
 
 	blks, err := client.GetBlocks(ctx, set.Keys())

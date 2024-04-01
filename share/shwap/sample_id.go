@@ -39,11 +39,7 @@ func NewSampleID(height uint64, smplIdx int, root *share.Root) (SampleID, error)
 		ShareIndex: shrIdx,
 	}
 
-	verifyFn := func(s Sample) error {
-		return s.Verify(root)
-	}
-	sampleVerifiers.Add(sid, verifyFn)
-
+	rootVerifiers.Add(sid, root)
 	return sid, sid.Verify(root)
 }
 
@@ -125,10 +121,14 @@ func (sid SampleID) BlockFromFile(ctx context.Context, f file.EdsFile) (blocks.B
 
 // Release releases the verifier of the SampleID.
 func (sid SampleID) Release() {
-	sampleVerifiers.Delete(sid)
+	rootVerifiers.Delete(sid)
 }
 
 func (sid SampleID) appendTo(data []byte) []byte {
 	data = sid.RowID.appendTo(data)
 	return binary.BigEndian.AppendUint16(data, sid.ShareIndex)
+}
+
+func (sid SampleID) key() any {
+	return sid
 }

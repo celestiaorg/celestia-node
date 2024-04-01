@@ -19,7 +19,7 @@ func (h *RowHasher) Write(data []byte) (int, error) {
 		return 0, err
 	}
 
-	if err := rowVerifiers.Verify(row.RowID, *row); err != nil {
+	if err := rootVerifiers.Verify(row); err != nil {
 		err = fmt.Errorf("verifying Row: %w", err)
 		log.Error(err)
 		return 0, err

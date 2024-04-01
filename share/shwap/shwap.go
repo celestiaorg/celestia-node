@@ -9,6 +9,8 @@ import (
 	"github.com/ipfs/go-cid"
 	logger "github.com/ipfs/go-log/v2"
 	mh "github.com/multiformats/go-multihash"
+
+	"github.com/celestiaorg/celestia-node/share"
 )
 
 var log = logger.Logger("shwap")
@@ -55,31 +57,27 @@ func init() {
 	})
 }
 
-var (
-	rowVerifiers    verifiers[RowID, Row]
-	sampleVerifiers verifiers[SampleID, Sample]
-	dataVerifiers   verifiers[DataID, Data]
-)
+var rootVerifiers verifiers
 
-type verifiers[ID comparable, V any] struct {
+type verifiers struct {
 	mp sync.Map
 }
 
-func (v *verifiers[ID, V]) Add(id ID, f func(V) error) {
-	v.mp.Store(id, f)
+func (vs *verifiers) Add(id id, root *share.Root) {
+	vs.mp.Store(id.key(), root)
 }
 
-func (v *verifiers[ID, V]) Verify(id ID, val V) error {
-	f, ok := v.mp.LoadAndDelete(id)
+func (vs *verifiers) Verify(v verifier) error {
+	r, ok := vs.mp.LoadAndDelete(v.key())
 	if !ok {
 		return fmt.Errorf("no verifier")
 	}
 
-	return f.(func(V) error)(val)
+	return v.Verify(r.(*share.Root))
 }
 
-func (v *verifiers[ID, V]) Delete(id ID) {
-	v.mp.Delete(id)
+func (vs *verifiers) Delete(id id) {
+	vs.mp.Delete(id.key())
 }
 
 // DefaultAllowlist keeps default list of hashes allowed in the network.
@@ -115,4 +113,15 @@ func validateCID(cid cid.Cid) error {
 	}
 
 	return nil
+}
+
+// id represents an interface for objects that can produce a key.
+type id interface {
+	key() any
+}
+
+// verifier represents an interface for verification of data roots.
+type verifier interface {
+	id
+	Verify(root *share.Root) error
 }

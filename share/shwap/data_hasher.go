@@ -19,7 +19,7 @@ func (h *DataHasher) Write(data []byte) (int, error) {
 		return 0, err
 	}
 
-	if err := dataVerifiers.Verify(d.DataID, *d); err != nil {
+	if err := rootVerifiers.Verify(d); err != nil {
 		err = fmt.Errorf("verifying Data: %w", err)
 		log.Error(err)
 		return 0, err
