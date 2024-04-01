@@ -76,19 +76,25 @@ func NewStore(params *Parameters, basePath string) (*Store, error) {
 		return nil, err
 	}
 
-	// ensure blocks folder
-	if err := ensureFolder(basePath + blocksPath); err != nil {
-		return nil, fmt.Errorf("ensure blocks folder: %w", err)
+	// Ensure the blocks folder exists or is created.
+	blocksFolderPath := basePath + blocksPath
+	if err := ensureFolder(blocksFolderPath); err != nil {
+		log.Errorf("Failed to ensure the existence of the blocks folder at '%s': %s", blocksFolderPath, err)
+		return nil, fmt.Errorf("ensure blocks folder '%s': %w", blocksFolderPath, err)
 	}
 
-	// ensure heights folder
-	if err := ensureFolder(basePath + heightsPath); err != nil {
-		return nil, fmt.Errorf("ensure blocks folder: %w", err)
+	// Ensure the heights folder exists or is created.
+	heightsFolderPath := basePath + heightsPath
+	if err := ensureFolder(heightsFolderPath); err != nil {
+		log.Errorf("Failed to ensure the existence of the heights folder at '%s': %s", heightsFolderPath, err)
+		return nil, fmt.Errorf("ensure heights folder '%s': %w", heightsFolderPath, err)
 	}
 
-	// ensure empty heights file
-	if err := ensureFile(basePath + emptyHeightsFile); err != nil {
-		return nil, fmt.Errorf("ensure empty heights file: %w", err)
+	// Ensure the empty heights file exists or is created.
+	emptyHeightsFilePath := basePath + emptyHeightsFile
+	if err := ensureFile(emptyHeightsFilePath); err != nil {
+		log.Errorf("Failed to ensure the empty heights file at '%s': %s", emptyHeightsFilePath, err)
+		return nil, fmt.Errorf("ensure empty heights file '%s': %w", emptyHeightsFilePath, err)
 	}
 
 	recentBlocksCache, err := cache.NewFileCache("recent", 1)
@@ -355,6 +361,12 @@ func (s *Store) remove(height uint64) error {
 		return fmt.Errorf("removing from cache: %w", err)
 	}
 
+	// additionally lock by datahash to prevent concurrent access to the same underlying file
+	// using links from different heights
+	dlock := s.stripLock.byDatahash(f.DataHash())
+	dlock.Lock()
+	defer dlock.Unlock()
+
 	// remove hard link by height
 	heightPath := s.basepath + heightsPath + fmt.Sprintf("%d", height)
 	if err = os.Remove(heightPath); err != nil {
@@ -451,6 +463,9 @@ func (s *Store) storeEmptyHeights() error {
 		return fmt.Errorf("opening empty heights file: %w", err)
 	}
 	defer utils.CloseAndLog(log, "empty heights file", file)
+
+	s.emptyHeightsLock.RLock()
+	defer s.emptyHeightsLock.RUnlock()
 
 	encoder := gob.NewEncoder(file)
 	if err := encoder.Encode(s.emptyHeights); err != nil {

@@ -1,7 +1,6 @@
 package store
 
 import (
-	"encoding/binary"
 	"sync"
 
 	"github.com/celestiaorg/celestia-node/share"
@@ -33,8 +32,9 @@ func (l *striplock) byHeight(height uint64) *sync.RWMutex {
 }
 
 func (l *striplock) byDatahash(datahash share.DataHash) *sync.RWMutex {
-	key := binary.LittleEndian.Uint16(datahash[len(datahash)-3:])
-	lkIdx := key % uint16(len(l.datahashes))
+	// Use the last 2 bytes of the datahash as hash to distribute the locks
+	last := uint16(datahash[len(datahash)-1]) | uint16(datahash[len(datahash)-2])<<8
+	lkIdx := last % uint16(len(l.datahashes))
 	return l.datahashes[lkIdx]
 }
 
