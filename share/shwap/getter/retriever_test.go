@@ -2,6 +2,7 @@ package shwap_getter
 
 import (
 	"context"
+	"github.com/celestiaorg/celestia-node/share/eds/byzantine"
 	"go.uber.org/atomic"
 	"testing"
 	"time"
@@ -11,7 +12,6 @@ import (
 
 	"github.com/celestiaorg/celestia-node/header"
 	"github.com/celestiaorg/celestia-node/share"
-	"github.com/celestiaorg/celestia-node/share/ipld"
 	"github.com/celestiaorg/celestia-node/share/testing/edstest"
 )
 
@@ -22,8 +22,7 @@ func TestRetriever_Retrieve(t *testing.T) {
 	store, bstore := edsBlockstore(t)
 	exch := DummySessionExchange{bstore}
 	getter := NewGetter(exch, bstore)
-	bServ := ipld.NewMemBlockservice()
-	r := newRetriever(bServ, getter)
+	r := newRetriever(getter)
 
 	height := atomic.NewUint64(1)
 	type test struct {
@@ -61,6 +60,33 @@ func TestRetriever_Retrieve(t *testing.T) {
 			assert.True(t, eds.Equals(out))
 		})
 	}
+}
+
+func TestRetriever_ByzantineError(t *testing.T) {
+	const width = 8
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second*10)
+	defer cancel()
+
+	store, bstore := edsBlockstore(t)
+	exch := DummySessionExchange{bstore}
+	getter := NewGetter(exch, bstore)
+	r := newRetriever(getter)
+
+	eds := edstest.RandEDS(t, width)
+	shares := eds.Flattened()
+	// corrupt shares so that eds erasure coding does not match
+	copy(shares[14][share.NamespaceSize:], shares[15][share.NamespaceSize:])
+
+	// store corrupted eds
+	put(t, store, eds, 1)
+
+	// ensure we rcv an error
+	root, err := share.NewRoot(eds)
+	require.NoError(t, err)
+	hdr := &header.ExtendedHeader{RawHeader: header.RawHeader{Height: 1}, DAH: root}
+	_, err = r.Retrieve(ctx, hdr)
+	var errByz *byzantine.ErrByzantine
+	require.ErrorAs(t, err, &errByz)
 }
 
 //
