@@ -25,11 +25,10 @@ func TestCoreExchange_RequestHeaders(t *testing.T) {
 	t.Cleanup(cancel)
 
 	cfg := DefaultTestConfig()
-	cfg.ChainID = networkID
+	cfg.ChainID = testChainID
 	fetcher, cctx := createCoreFetcher(t, cfg)
 
-	// generate several blocks
-	generateBlocks(t, fetcher, cfg, cctx)
+	generateNonEmptyBlocks(t, ctx, fetcher, cfg, cctx)
 
 	store := createStore(t)
 
@@ -43,12 +42,12 @@ func TestCoreExchange_RequestHeaders(t *testing.T) {
 	genHeader, err := ce.Get(ctx, genBlock.Header.Hash().Bytes())
 	require.NoError(t, err)
 
-	to := uint64(40) // ensures some blocks will be non-empty
+	to := uint64(30)
 	expectedFirstHeightInRange := genHeader.Height() + 1
 	expectedLastHeightInRange := to - 1
 	expectedLenHeaders := to - expectedFirstHeightInRange
 
-	// request headers from height 1 to 10 [2:35)
+	// request headers from height 1 to 20 [2:30)
 	headers, err := ce.GetRangeByHeight(context.Background(), genHeader, to)
 	require.NoError(t, err)
 
@@ -70,11 +69,10 @@ func TestExchange_DoNotStoreHistoric(t *testing.T) {
 	t.Cleanup(cancel)
 
 	cfg := DefaultTestConfig()
-	cfg.ChainID = networkID
+	cfg.ChainID = testChainID
 	fetcher, cctx := createCoreFetcher(t, cfg)
 
-	// generate 10 blocks
-	generateBlocks(t, fetcher, cfg, cctx)
+	generateNonEmptyBlocks(t, ctx, fetcher, cfg, cctx)
 
 	store := createStore(t)
 
@@ -93,8 +91,7 @@ func TestExchange_DoNotStoreHistoric(t *testing.T) {
 	genHeader, err := ce.Get(ctx, genBlock.Header.Hash().Bytes())
 	require.NoError(t, err)
 
-	// ensures some blocks will be non-empty
-	headers, err := ce.GetRangeByHeight(ctx, genHeader, 40)
+	headers, err := ce.GetRangeByHeight(ctx, genHeader, 30)
 	require.NoError(t, err)
 
 	// ensure none of the "historic" EDSs were stored
@@ -143,19 +140,62 @@ func createStore(t *testing.T) *eds.Store {
 	return store
 }
 
-func generateBlocks(t *testing.T, fetcher *BlockFetcher, cfg *testnode.Config, cctx testnode.Context) {
-	sub, err := fetcher.SubscribeNewBlockEvent(context.Background())
+// fillBlocks fills blocks until the context is canceled.
+func fillBlocks(
+	t *testing.T,
+	ctx context.Context,
+	cfg *testnode.Config,
+	cctx testnode.Context,
+) {
+	for {
+		select {
+		case <-ctx.Done():
+			return
+		default:
+		}
+
+		_, err := cctx.FillBlock(16, cfg.Accounts, flags.BroadcastBlock)
+		require.NoError(t, err)
+	}
+}
+
+// generateNonEmptyBlocks generates at least 20 non-empty blocks
+func generateNonEmptyBlocks(
+	t *testing.T,
+	ctx context.Context,
+	fetcher *BlockFetcher,
+	cfg *testnode.Config,
+	cctx testnode.Context,
+) []share.DataHash {
+	// generate several non-empty blocks
+	generateCtx, generateCtxCancel := context.WithCancel(context.Background())
+
+	sub, err := fetcher.SubscribeNewBlockEvent(ctx)
 	require.NoError(t, err)
+	defer func() {
+		err = fetcher.UnsubscribeNewBlockEvent(ctx)
+		require.NoError(t, err)
+	}()
+
+	go fillBlocks(t, generateCtx, cfg, cctx)
+
+	hashes := make([]share.DataHash, 0, 20)
 
 	i := 0
 	for i < 20 {
-		_, err := cctx.FillBlock(16, cfg.Accounts, flags.BroadcastBlock)
-		require.NoError(t, err)
+		select {
+		case b, ok := <-sub:
+			require.True(t, ok)
 
-		b := <-sub
-		if bytes.Equal(b.Header.DataHash, share.EmptyRoot().Hash()) {
-			continue
+			if !bytes.Equal(b.Data.Hash(), share.EmptyRoot().Hash()) {
+				hashes = append(hashes, share.DataHash(b.Data.Hash()))
+				i++
+			}
+		case <-ctx.Done():
+			t.Fatal("failed to fill blocks within timeout")
 		}
-		i++
 	}
+	generateCtxCancel()
+
+	return hashes
 }
