@@ -43,16 +43,17 @@ func (mc *DoubleCache) Second() Cache {
 	return mc.second
 }
 
-func (mc *DoubleCache) EnableMetrics() error {
-	if err := mc.first.EnableMetrics(); err != nil {
-		return err
+func (mc *DoubleCache) EnableMetrics() (CloseMetricsFn, error) {
+	firstCloser, err := mc.first.EnableMetrics()
+	if err != nil {
+		return nil, err
 	}
-	return mc.second.EnableMetrics()
-}
+	secondCloser, err := mc.second.EnableMetrics()
+	if err != nil {
+		return nil, err
+	}
 
-func (mc *DoubleCache) CloseMetrics() error {
-	if err := mc.first.CloseMetrics(); err != nil {
-		return err
-	}
-	return mc.second.CloseMetrics()
+	return func() error {
+		return errors.Join(firstCloser(), secondCloser())
+	}, nil
 }

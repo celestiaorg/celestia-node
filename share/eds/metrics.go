@@ -2,6 +2,7 @@ package eds
 
 import (
 	"context"
+	"errors"
 	"time"
 
 	"go.opentelemetry.io/otel"
@@ -51,6 +52,7 @@ type metrics struct {
 	gcTime     metric.Float64Histogram
 
 	clientReg metric.Registration
+	closerFn  func() error
 }
 
 func (s *Store) WithMetrics() error {
@@ -126,7 +128,8 @@ func (s *Store) WithMetrics() error {
 		return err
 	}
 
-	if err = s.cache.Load().EnableMetrics(); err != nil {
+	closerFn, err := s.cache.Load().EnableMetrics()
+	if err != nil {
 		return err
 	}
 
@@ -159,6 +162,7 @@ func (s *Store) WithMetrics() error {
 		longOpTime:           longOpTime,
 		gcTime:               gcTime,
 		clientReg:            clientReg,
+		closerFn:             closerFn,
 	}
 	return nil
 }
@@ -168,7 +172,8 @@ func (m *metrics) close() error {
 		return nil
 	}
 
-	return m.clientReg.Unregister()
+	err := m.closerFn()
+	return errors.Join(err, m.clientReg.Unregister())
 }
 
 func (m *metrics) observeGCtime(ctx context.Context, dur time.Duration, failed bool) {

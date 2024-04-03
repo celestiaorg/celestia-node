@@ -20,6 +20,8 @@ var (
 	errCacheMiss = errors.New("accessor not found in blockstore cache")
 )
 
+type CloseMetricsFn func() error
+
 // Cache is an interface that defines the basic Cache operations.
 type Cache interface {
 	// Get retrieves an item from the Cache.
@@ -37,10 +39,7 @@ type Cache interface {
 	Remove(shard.Key) error
 
 	// EnableMetrics enables metrics in Cache
-	EnableMetrics() error
-
-	// CloseMetrics closes metrics in Cache
-	CloseMetrics() error
+	EnableMetrics() (CloseMetricsFn, error)
 }
 
 // Accessor is a interface type returned by cache, that allows to read raw data by reader or create

@@ -160,10 +160,6 @@ func (s *Store) Start(ctx context.Context) error {
 func (s *Store) Stop(context.Context) error {
 	defer s.cancel()
 
-	if err := s.cache.Load().CloseMetrics(); err != nil {
-		log.Errorw("closing metrics", "err", err)
-	}
-
 	if err := s.metrics.close(); err != nil {
 		log.Errorw("closing metrics", "err", err)
 	}
