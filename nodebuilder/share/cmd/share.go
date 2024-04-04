@@ -167,13 +167,15 @@ var getEDS = &cobra.Command{
 }
 
 func getExtendedHeaderFromCmdArg(ctx context.Context, client *rpc.Client, arg string) (*header.ExtendedHeader, error) {
-	hash, err := hex.DecodeString(arg)
-	if err == nil {
-		return client.Header.GetByHash(ctx, hash)
-	}
 	height, err := strconv.ParseUint(arg, 10, 64)
+	if err == nil {
+		return client.Header.GetByHeight(ctx, height)
+	}
+
+	hash, err := hex.DecodeString(arg)
 	if err != nil {
 		return nil, fmt.Errorf("can't parse the height/hash argument: %w", err)
 	}
-	return client.Header.GetByHeight(ctx, height)
+
+	return client.Header.GetByHash(ctx, hash)
 }
