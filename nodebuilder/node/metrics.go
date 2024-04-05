@@ -4,11 +4,14 @@ import (
 	"context"
 	"time"
 
+	logging "github.com/ipfs/go-log/v2"
 	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/metric"
 	"go.uber.org/fx"
 )
+
+var log = logging.Logger("module/node")
 
 var meter = otel.Meter("node")
 
@@ -74,7 +77,10 @@ func WithMetrics(lc fx.Lifecycle) error {
 
 	lc.Append(
 		fx.Hook{OnStop: func(context.Context) error {
-			return clientReg.Unregister()
+			if err := clientReg.Unregister(); err != nil {
+				log.Warn("failed to close metrics", "err", err)
+			}
+			return nil
 		}},
 	)
 	return nil

@@ -161,7 +161,7 @@ func (s *Store) Stop(context.Context) error {
 	defer s.cancel()
 
 	if err := s.metrics.close(); err != nil {
-		log.Errorw("closing metrics", "err", err)
+		log.Warnw("failed to close metrics", "err", err)
 	}
 
 	if err := s.invertedIdx.close(); err != nil {

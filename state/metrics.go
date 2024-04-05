@@ -33,7 +33,10 @@ func WithMetrics(lc fx.Lifecycle, ca *CoreAccessor) {
 
 	lc.Append(fx.Hook{
 		OnStop: func(context.Context) error {
-			return clientReg.Unregister()
+			if err := clientReg.Unregister(); err != nil {
+				log.Warnw("failed to close metrics", "err", err)
+			}
+			return nil
 		},
 	})
 }

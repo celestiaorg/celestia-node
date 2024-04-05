@@ -54,6 +54,9 @@ func (mc *DoubleCache) EnableMetrics() (CloseMetricsFn, error) {
 	}
 
 	return func() error {
-		return errors.Join(firstCloser(), secondCloser())
+		if err := errors.Join(firstCloser(), secondCloser()); err != nil {
+			log.Warnw("failed to close metrics", "err", err)
+		}
+		return nil
 	}, nil
 }

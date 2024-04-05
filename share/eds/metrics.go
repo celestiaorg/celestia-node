@@ -172,8 +172,7 @@ func (m *metrics) close() error {
 		return nil
 	}
 
-	err := m.closerFn()
-	return errors.Join(err, m.clientReg.Unregister())
+	return errors.Join(m.closerFn(), m.clientReg.Unregister())
 }
 
 func (m *metrics) observeGCtime(ctx context.Context, dur time.Duration, failed bool) {
