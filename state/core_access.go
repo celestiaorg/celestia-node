@@ -9,6 +9,7 @@ import (
 	"time"
 
 	sdkErrors "cosmossdk.io/errors"
+	"github.com/celestiaorg/celestia-app/pkg/appconsts"
 	"github.com/cosmos/cosmos-sdk/api/tendermint/abci"
 	nodeservice "github.com/cosmos/cosmos-sdk/client/grpc/node"
 	storetypes "github.com/cosmos/cosmos-sdk/store/types"
@@ -16,6 +17,7 @@ import (
 	sdktx "github.com/cosmos/cosmos-sdk/types/tx"
 	auth "github.com/cosmos/cosmos-sdk/x/auth/types"
 	banktypes "github.com/cosmos/cosmos-sdk/x/bank/types"
+	"github.com/cosmos/cosmos-sdk/x/feegrant"
 	stakingtypes "github.com/cosmos/cosmos-sdk/x/staking/types"
 	logging "github.com/ipfs/go-log/v2"
 	"github.com/tendermint/tendermint/crypto/merkle"
@@ -26,9 +28,9 @@ import (
 
 	"github.com/celestiaorg/celestia-app/app"
 	apperrors "github.com/celestiaorg/celestia-app/app/errors"
-	"github.com/celestiaorg/celestia-app/pkg/appconsts"
 	appblob "github.com/celestiaorg/celestia-app/x/blob"
 	apptypes "github.com/celestiaorg/celestia-app/x/blob/types"
+	blobtypes "github.com/celestiaorg/celestia-app/x/blob/types"
 	libhead "github.com/celestiaorg/go-header"
 
 	"github.com/celestiaorg/celestia-node/blob"
@@ -40,7 +42,12 @@ var (
 	ErrInvalidAmount = errors.New("state: amount must be greater than zero")
 )
 
-const maxRetries = 5
+const (
+	maxRetries = 5
+
+	// gasMultiplier is used to increase gas limit in case if tx has additional options.
+	gasMultiplier = 1.1
+)
 
 // CoreAccessor implements service over a gRPC connection
 // with a celestia-core node.
@@ -51,8 +58,9 @@ type CoreAccessor struct {
 	signer *apptypes.KeyringSigner
 	getter libhead.Head[*header.ExtendedHeader]
 
-	stakingCli stakingtypes.QueryClient
-	rpcCli     rpcclient.ABCIClient
+	stakingCli  stakingtypes.QueryClient
+	feeGrantCli feegrant.QueryClient
+	rpcCli      rpcclient.ABCIClient
 
 	prt *merkle.ProofRuntime
 
@@ -117,6 +125,7 @@ func (ca *CoreAccessor) Start(ctx context.Context) error {
 	// create the staking query client
 	stakingCli := stakingtypes.NewQueryClient(ca.coreConn)
 	ca.stakingCli = stakingCli
+	ca.feeGrantCli = feegrant.NewQueryClient(ca.coreConn)
 	// create ABCI query client
 	cli, err := http.New(fmt.Sprintf("http://%s:%s", ca.coreIP, ca.rpcPort), "/websocket")
 	if err != nil {
@@ -214,6 +223,14 @@ func (ca *CoreAccessor) SubmitPayForBlob(
 
 	minGasPrice := ca.getMinGasPrice()
 
+	feeGrant, err := ca.getGranter(ctx)
+	if err != nil {
+		log.Warn(err)
+	}
+
+	if feeGrant != nil {
+		gasLim = uint64(float64(gasLim) * gasMultiplier)
+	}
 	// set the fee for the user as the minimum gas price multiplied by the gas limit
 	estimatedFee := false
 	if fee.IsNegative() {
@@ -223,14 +240,17 @@ func (ca *CoreAccessor) SubmitPayForBlob(
 
 	var lastErr error
 	for attempt := 0; attempt < maxRetries; attempt++ {
+		options := []blobtypes.TxBuilderOption{apptypes.SetGasLimit(gasLim), withFee(fee)}
+		if feeGrant != nil {
+			options = append(options, feeGrant)
+		}
 		response, err := appblob.SubmitPayForBlob(
 			ctx,
 			ca.signer,
 			ca.coreConn,
 			sdktx.BroadcastMode_BROADCAST_MODE_BLOCK,
 			appblobs,
-			apptypes.SetGasLimit(gasLim),
-			withFee(fee),
+			options...,
 		)
 
 		// the node is capable of changing the min gas price at any time so we must be able to detect it and
@@ -522,6 +542,56 @@ func (ca *CoreAccessor) QueryRedelegations(
 	})
 }
 
+func (ca *CoreAccessor) GrantFee(
+	ctx context.Context,
+	grantee AccAddress,
+	amount,
+	fee Int,
+	gasLim uint64,
+) (*TxResponse, error) {
+	granter, err := ca.signer.GetSignerInfo().GetAddress()
+	if err != nil {
+		return nil, err
+	}
+
+	allowance := &feegrant.BasicAllowance{}
+	if !amount.IsZero() {
+		// set spend limit
+		allowance.SpendLimit = sdktypes.NewCoins(sdktypes.NewCoin(app.BondDenom, amount))
+	}
+
+	msg, err := feegrant.NewMsgGrantAllowance(allowance, granter, grantee)
+	if err != nil {
+		return nil, nil
+	}
+
+	signedTx, err := ca.constructSignedTx(ctx, msg, apptypes.SetGasLimit(gasLim), withFee(fee))
+	if err != nil {
+		return nil, err
+	}
+	return ca.SubmitTx(ctx, signedTx)
+}
+
+func (ca *CoreAccessor) RevokeGrantFee(
+	ctx context.Context,
+	grantee AccAddress,
+	fee Int,
+	gasLim uint64,
+) (*TxResponse, error) {
+	granter, err := ca.signer.GetSignerInfo().GetAddress()
+	if err != nil {
+		return nil, err
+	}
+
+	msg := feegrant.NewMsgRevokeAllowance(granter, grantee)
+	signedTx, err := ca.constructSignedTx(ctx, &msg, apptypes.SetGasLimit(gasLim), withFee(fee))
+	if err != nil {
+		return nil, err
+	}
+
+	return ca.SubmitTx(ca.ctx, signedTx)
+}
+
 func (ca *CoreAccessor) LastPayForBlob() int64 {
 	ca.lock.Lock()
 	defer ca.lock.Unlock()
@@ -572,4 +642,26 @@ func (ca *CoreAccessor) queryMinimumGasPrice(
 func withFee(fee Int) apptypes.TxBuilderOption {
 	gasFee := sdktypes.NewCoins(sdktypes.NewCoin(app.BondDenom, fee))
 	return apptypes.SetFeeAmount(gasFee)
+}
+
+func (ca *CoreAccessor) getGranter(ctx context.Context) (blobtypes.TxBuilderOption, error) {
+	addr, err := ca.signer.GetSignerInfo().GetAddress()
+	if err != nil {
+		return nil, err
+	}
+
+	resp, err := ca.feeGrantCli.Allowances(ctx, &feegrant.QueryAllowancesRequest{Grantee: addr.String()})
+	if err != nil {
+		return nil, err
+	}
+
+	for _, g := range resp.GetAllowances() {
+		appAddr, err := sdktypes.AccAddressFromBech32(g.GetGranter())
+		if err != nil {
+			log.Warnw("parsing granter address", "err", err)
+			continue
+		}
+		return apptypes.SetFeeGranter(appAddr), nil
+	}
+	return nil, nil
 }
