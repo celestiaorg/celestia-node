@@ -11,6 +11,7 @@ import (
 	sdkErrors "cosmossdk.io/errors"
 	"github.com/cosmos/cosmos-sdk/api/tendermint/abci"
 	nodeservice "github.com/cosmos/cosmos-sdk/client/grpc/node"
+	"github.com/cosmos/cosmos-sdk/crypto/keyring"
 	storetypes "github.com/cosmos/cosmos-sdk/store/types"
 	sdktypes "github.com/cosmos/cosmos-sdk/types"
 	sdkerrors "github.com/cosmos/cosmos-sdk/types/errors"
@@ -27,9 +28,10 @@ import (
 	"google.golang.org/grpc/credentials/insecure"
 
 	"github.com/celestiaorg/celestia-app/app"
+	"github.com/celestiaorg/celestia-app/app/encoding"
 	apperrors "github.com/celestiaorg/celestia-app/app/errors"
 	"github.com/celestiaorg/celestia-app/pkg/appconsts"
-	appblob "github.com/celestiaorg/celestia-app/x/blob"
+	"github.com/celestiaorg/celestia-app/pkg/user"
 	apptypes "github.com/celestiaorg/celestia-app/x/blob/types"
 	libhead "github.com/celestiaorg/go-header"
 
@@ -66,8 +68,13 @@ type CoreAccessor struct {
 	ctx    context.Context
 	cancel context.CancelFunc
 
-	signer *apptypes.KeyringSigner
-	getter libhead.Head[*header.ExtendedHeader]
+	keyring keyring.Keyring
+	// TODO: (@cmwaters) - once multiple keys within a signer is supported,
+	// this will no longer be necessary.
+	// ref: https://github.com/celestiaorg/celestia-app/issues/3259
+	keyname string
+	signer  *user.Signer
+	getter  libhead.Head[*header.ExtendedHeader]
 
 	stakingCli  stakingtypes.QueryClient
 	feeGrantCli feegrant.QueryClient
@@ -100,7 +107,8 @@ type CoreAccessor struct {
 // constructs and returns a new CoreAccessor (state service) with the active
 // connection.
 func NewCoreAccessor(
-	signer *apptypes.KeyringSigner,
+	keyring keyring.Keyring,
+	keyname string,
 	getter libhead.Head[*header.ExtendedHeader],
 	coreIP,
 	rpcPort string,
@@ -113,7 +121,8 @@ func NewCoreAccessor(
 	prt.RegisterOpDecoder(storetypes.ProofOpSimpleMerkleCommitment, storetypes.CommitmentOpDecoder)
 
 	ca := &CoreAccessor{
-		signer:   signer,
+		keyring:  keyring,
+		keyname:  keyname,
 		getter:   getter,
 		coreIP:   coreIP,
 		rpcPort:  rpcPort,
@@ -125,7 +134,6 @@ func NewCoreAccessor(
 		opt(ca)
 	}
 	return ca
-
 }
 
 func (ca *CoreAccessor) Start(ctx context.Context) error {
@@ -156,6 +164,21 @@ func (ca *CoreAccessor) Start(ctx context.Context) error {
 		return err
 	}
 	ca.rpcCli = cli
+
+	encCfg := encoding.MakeConfig(app.ModuleEncodingRegisters...)
+	record, err := ca.keyring.Key(ca.keyname)
+	if err != nil {
+		return fmt.Errorf("getting key %s: %w", ca.keyname, err)
+	}
+	addr, err := record.GetAddress()
+	if err != nil {
+		return fmt.Errorf("getting address for key %s: %w", ca.keyname, err)
+	}
+
+	ca.signer, err = user.SetupSigner(ctx, ca.keyring, ca.coreConn, addr, encCfg)
+	if err != nil {
+		return fmt.Errorf("setting up signer: %w", err)
+	}
 
 	ca.minGasPrice, err = ca.queryMinimumGasPrice(ctx)
 	if err != nil {
@@ -189,24 +212,6 @@ func (ca *CoreAccessor) Stop(context.Context) error {
 func (ca *CoreAccessor) cancelCtx() {
 	ca.cancel()
 	ca.cancel = nil
-}
-
-func (ca *CoreAccessor) constructSignedTx(
-	ctx context.Context,
-	msg sdktypes.Msg,
-	opts ...apptypes.TxBuilderOption,
-) ([]byte, error) {
-	// should be called first in order to make a valid tx
-	err := ca.signer.QueryAccountNumber(ctx, ca.coreConn)
-	if err != nil {
-		return nil, err
-	}
-
-	tx, err := ca.signer.BuildSignedTx(ca.signer.NewTxBuilder(opts...), msg)
-	if err != nil {
-		return nil, err
-	}
-	return ca.signer.EncodeTx(tx)
 }
 
 // SubmitPayForBlob builds, signs, and synchronously submits a MsgPayForBlob. It blocks until the
@@ -267,11 +272,8 @@ func (ca *CoreAccessor) SubmitPayForBlob(
 		if feeGrant != nil {
 			options = append(options, feeGrant)
 		}
-		response, err := appblob.SubmitPayForBlob(
+		response, err := ca.signer.SubmitPayForBlob(
 			ctx,
-			ca.signer,
-			ca.coreConn,
-			sdktx.BroadcastMode_BROADCAST_MODE_BLOCK,
 			appblobs,
 			options...,
 		)
@@ -309,19 +311,11 @@ func (ca *CoreAccessor) SubmitPayForBlob(
 }
 
 func (ca *CoreAccessor) AccountAddress(context.Context) (Address, error) {
-	addr, err := ca.signer.GetSignerInfo().GetAddress()
-	if err != nil {
-		return Address{nil}, err
-	}
-	return Address{addr}, nil
+	return Address{ca.signer.Address()}, nil
 }
 
 func (ca *CoreAccessor) Balance(ctx context.Context) (*Balance, error) {
-	addr, err := ca.signer.GetSignerInfo().GetAddress()
-	if err != nil {
-		return nil, err
-	}
-	return ca.BalanceForAddress(ctx, Address{addr})
+	return ca.BalanceForAddress(ctx, Address{ca.signer.Address()})
 }
 
 func (ca *CoreAccessor) BalanceForAddress(ctx context.Context, addr Address) (*Balance, error) {
@@ -415,17 +409,17 @@ func (ca *CoreAccessor) Transfer(
 		return nil, ErrInvalidAmount
 	}
 
-	from, err := ca.signer.GetSignerInfo().GetAddress()
-	if err != nil {
-		return nil, err
-	}
 	coins := sdktypes.NewCoins(sdktypes.NewCoin(app.BondDenom, amount))
-	msg := banktypes.NewMsgSend(from, addr, coins)
-	signedTx, err := ca.constructSignedTx(ctx, msg, apptypes.SetGasLimit(gasLim), withFee(fee))
-	if err != nil {
-		return nil, err
+	msg := banktypes.NewMsgSend(ca.signer.Address(), addr, coins)
+	if gasLim == 0 {
+		var err error
+		gasLim, err = ca.signer.EstimateGas(ctx, []sdktypes.Msg{msg})
+		if err != nil {
+			return nil, fmt.Errorf("estimating gas: %w", err)
+		}
 	}
-	return ca.SubmitTx(ctx, signedTx)
+
+	return ca.signer.SubmitTx(ctx, []sdktypes.Msg{msg}, user.SetGasLimit(gasLim), user.SetFee(fee.Uint64()))
 }
 
 func (ca *CoreAccessor) CancelUnbondingDelegation(
@@ -440,17 +434,17 @@ func (ca *CoreAccessor) CancelUnbondingDelegation(
 		return nil, ErrInvalidAmount
 	}
 
-	from, err := ca.signer.GetSignerInfo().GetAddress()
-	if err != nil {
-		return nil, err
-	}
 	coins := sdktypes.NewCoin(app.BondDenom, amount)
-	msg := stakingtypes.NewMsgCancelUnbondingDelegation(from, valAddr, height.Int64(), coins)
-	signedTx, err := ca.constructSignedTx(ctx, msg, apptypes.SetGasLimit(gasLim), withFee(fee))
-	if err != nil {
-		return nil, err
+	msg := stakingtypes.NewMsgCancelUnbondingDelegation(ca.signer.Address(), valAddr, height.Int64(), coins)
+	if gasLim == 0 {
+		var err error
+		gasLim, err = ca.signer.EstimateGas(ctx, []sdktypes.Msg{msg})
+		if err != nil {
+			return nil, fmt.Errorf("estimating gas: %w", err)
+		}
 	}
-	return ca.SubmitTx(ctx, signedTx)
+
+	return ca.signer.SubmitTx(ctx, []sdktypes.Msg{msg}, user.SetGasLimit(gasLim), user.SetFee(fee.Uint64()))
 }
 
 func (ca *CoreAccessor) BeginRedelegate(
@@ -465,17 +459,17 @@ func (ca *CoreAccessor) BeginRedelegate(
 		return nil, ErrInvalidAmount
 	}
 
-	from, err := ca.signer.GetSignerInfo().GetAddress()
-	if err != nil {
-		return nil, err
-	}
 	coins := sdktypes.NewCoin(app.BondDenom, amount)
-	msg := stakingtypes.NewMsgBeginRedelegate(from, srcValAddr, dstValAddr, coins)
-	signedTx, err := ca.constructSignedTx(ctx, msg, apptypes.SetGasLimit(gasLim), withFee(fee))
-	if err != nil {
-		return nil, err
+	msg := stakingtypes.NewMsgBeginRedelegate(ca.signer.Address(), srcValAddr, dstValAddr, coins)
+	if gasLim == 0 {
+		var err error
+		gasLim, err = ca.signer.EstimateGas(ctx, []sdktypes.Msg{msg})
+		if err != nil {
+			return nil, fmt.Errorf("estimating gas: %w", err)
+		}
 	}
-	return ca.SubmitTx(ctx, signedTx)
+
+	return ca.signer.SubmitTx(ctx, []sdktypes.Msg{msg}, user.SetGasLimit(gasLim), user.SetFee(fee.Uint64()))
 }
 
 func (ca *CoreAccessor) Undelegate(
@@ -489,17 +483,16 @@ func (ca *CoreAccessor) Undelegate(
 		return nil, ErrInvalidAmount
 	}
 
-	from, err := ca.signer.GetSignerInfo().GetAddress()
-	if err != nil {
-		return nil, err
-	}
 	coins := sdktypes.NewCoin(app.BondDenom, amount)
-	msg := stakingtypes.NewMsgUndelegate(from, delAddr, coins)
-	signedTx, err := ca.constructSignedTx(ctx, msg, apptypes.SetGasLimit(gasLim), withFee(fee))
-	if err != nil {
-		return nil, err
+	msg := stakingtypes.NewMsgUndelegate(ca.signer.Address(), delAddr, coins)
+	if gasLim == 0 {
+		var err error
+		gasLim, err = ca.signer.EstimateGas(ctx, []sdktypes.Msg{msg})
+		if err != nil {
+			return nil, fmt.Errorf("estimating gas: %w", err)
+		}
 	}
-	return ca.SubmitTx(ctx, signedTx)
+	return ca.signer.SubmitTx(ctx, []sdktypes.Msg{msg}, user.SetGasLimit(gasLim), user.SetFee(fee.Uint64()))
 }
 
 func (ca *CoreAccessor) Delegate(
@@ -513,27 +506,23 @@ func (ca *CoreAccessor) Delegate(
 		return nil, ErrInvalidAmount
 	}
 
-	from, err := ca.signer.GetSignerInfo().GetAddress()
-	if err != nil {
-		return nil, err
-	}
 	coins := sdktypes.NewCoin(app.BondDenom, amount)
-	msg := stakingtypes.NewMsgDelegate(from, delAddr, coins)
-	signedTx, err := ca.constructSignedTx(ctx, msg, apptypes.SetGasLimit(gasLim), withFee(fee))
-	if err != nil {
-		return nil, err
+	msg := stakingtypes.NewMsgDelegate(ca.signer.Address(), delAddr, coins)
+	if gasLim == 0 {
+		var err error
+		gasLim, err = ca.signer.EstimateGas(ctx, []sdktypes.Msg{msg})
+		if err != nil {
+			return nil, fmt.Errorf("estimating gas: %w", err)
+		}
 	}
-	return ca.SubmitTx(ctx, signedTx)
+	return ca.signer.SubmitTx(ctx, []sdktypes.Msg{msg}, user.SetGasLimit(gasLim), user.SetFee(fee.Uint64()))
 }
 
 func (ca *CoreAccessor) QueryDelegation(
 	ctx context.Context,
 	valAddr ValAddress,
 ) (*stakingtypes.QueryDelegationResponse, error) {
-	delAddr, err := ca.signer.GetSignerInfo().GetAddress()
-	if err != nil {
-		return nil, err
-	}
+	delAddr := ca.signer.Address()
 	return ca.stakingCli.Delegation(ctx, &stakingtypes.QueryDelegationRequest{
 		DelegatorAddr: delAddr.String(),
 		ValidatorAddr: valAddr.String(),
@@ -544,10 +533,7 @@ func (ca *CoreAccessor) QueryUnbonding(
 	ctx context.Context,
 	valAddr ValAddress,
 ) (*stakingtypes.QueryUnbondingDelegationResponse, error) {
-	delAddr, err := ca.signer.GetSignerInfo().GetAddress()
-	if err != nil {
-		return nil, err
-	}
+	delAddr := ca.signer.Address()
 	return ca.stakingCli.UnbondingDelegation(ctx, &stakingtypes.QueryUnbondingDelegationRequest{
 		DelegatorAddr: delAddr.String(),
 		ValidatorAddr: valAddr.String(),
@@ -558,10 +544,7 @@ func (ca *CoreAccessor) QueryRedelegations(
 	srcValAddr,
 	dstValAddr ValAddress,
 ) (*stakingtypes.QueryRedelegationsResponse, error) {
-	delAddr, err := ca.signer.GetSignerInfo().GetAddress()
-	if err != nil {
-		return nil, err
-	}
+	delAddr := ca.signer.Address()
 	return ca.stakingCli.Redelegations(ctx, &stakingtypes.QueryRedelegationsRequest{
 		DelegatorAddr:    delAddr.String(),
 		SrcValidatorAddr: srcValAddr.String(),
@@ -664,9 +647,4 @@ func (ca *CoreAccessor) queryMinimumGasPrice(
 		return 0, err
 	}
 	return coins.AmountOf(app.BondDenom).MustFloat64(), nil
-}
-
-func withFee(fee Int) apptypes.TxBuilderOption {
-	gasFee := sdktypes.NewCoins(sdktypes.NewCoin(app.BondDenom, fee))
-	return apptypes.SetFeeAmount(gasFee)
 }

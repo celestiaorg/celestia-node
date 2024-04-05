@@ -28,7 +28,7 @@ func ConstructModule(tp node.Type, network p2p.Network, cfg *Config, store Store
 	if err != nil {
 		return fx.Error(err)
 	}
-	signer, err := state.KeyringSigner(cfg.State, ks, network)
+	keyring, keyname, err := state.Keyring(cfg.State, ks)
 	if err != nil {
 		return fx.Error(err)
 	}
@@ -45,7 +45,8 @@ func ConstructModule(tp node.Type, network p2p.Network, cfg *Config, store Store
 		fx.Provide(store.Datastore),
 		fx.Provide(store.Keystore),
 		fx.Supply(node.StorePath(store.Path())),
-		fx.Supply(signer),
+		fx.Supply(keyring),
+		fx.Supply(keyname),
 		// modules provided by the node
 		p2p.ConstructModule(tp, &cfg.P2P),
 		state.ConstructModule(tp, &cfg.State, &cfg.Core),
