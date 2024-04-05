@@ -13,9 +13,6 @@ const DefaultAccountName = "my_celes_key"
 // as having keyring-backend set to `file` prompts user for password.
 func Keyring(cfg Config, ks keystore.Keystore) (kr.Keyring, string, error) {
 	ring := ks.Keyring()
-	if ring == nil {
-		panic("keyring is nil")
-	}
 	var info *kr.Record
 	// if custom keyringAccName provided, find key for that name
 	if cfg.KeyringAccName != "" {
