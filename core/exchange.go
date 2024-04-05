@@ -155,10 +155,7 @@ func (ce *Exchange) Get(ctx context.Context, hash libhead.Hash) (*header.Extende
 			&block.Height, hash, eh.Hash())
 	}
 
-	ctx = ipld.CtxWithProofsAdder(ctx, adder) // TODO @renaynay: should we short-circuit this if pruning enabled
-	// && historic?
-
-	err = ce.storeEDS(ctx, eh, eds)
+	err = ce.storeEDS(ctx, eh, eds, adder)
 	if err != nil {
 		return nil, err
 	}
@@ -198,9 +195,7 @@ func (ce *Exchange) getExtendedHeaderByHeight(ctx context.Context, height *int64
 		panic(fmt.Errorf("constructing extended header for height %d: %w", b.Header.Height, err))
 	}
 
-	ctx = ipld.CtxWithProofsAdder(ctx, adder) // TODO @renaynay: refer to above comment ^
-
-	err = ce.storeEDS(ctx, eh, eds)
+	err = ce.storeEDS(ctx, eh, eds, adder)
 	if err != nil {
 		return nil, err
 	}
@@ -208,12 +203,19 @@ func (ce *Exchange) getExtendedHeaderByHeight(ctx context.Context, height *int64
 	return eh, nil
 }
 
-func (ce *Exchange) storeEDS(ctx context.Context, eh *header.ExtendedHeader, eds *rsmt2d.ExtendedDataSquare) error {
-
+func (ce *Exchange) storeEDS(
+	ctx context.Context,
+	eh *header.ExtendedHeader,
+	eds *rsmt2d.ExtendedDataSquare,
+	adder *ipld.ProofsAdder,
+) error {
 	if !pruner.IsWithinAvailabilityWindow(eh.Time(), ce.availabilityWindow) {
 		log.Debugw("skipping storage of historic block", "height", eh.Height())
 		return nil
 	}
+
+	ctx = ipld.CtxWithProofsAdder(ctx, adder) // TODO @renaynay: should we short-circuit this if pruning enabled
+	// && historic?
 
 	err := storeEDS(ctx, eh.DAH.Hash(), eds, ce.store)
 	if err != nil {
