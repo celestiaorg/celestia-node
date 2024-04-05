@@ -67,7 +67,7 @@ func TestNodeWithConfig(t *testing.T, tp node.Type, cfg *Config, opts ...fx.Opti
 
 func TestKeyringSigner(t *testing.T, ring keyring.Keyring) *apptypes.KeyringSigner {
 	signer := apptypes.NewKeyringSigner(ring, "", string(p2p.Private))
-	_, _, err := signer.NewMnemonic("test_celes", keyring.English, "",
+	_, _, err := signer.NewMnemonic("my_celes_key", keyring.English, "",
 		"", hd.Secp256k1)
 	require.NoError(t, err)
 	return signer
