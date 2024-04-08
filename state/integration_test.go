@@ -48,12 +48,13 @@ func (s *IntegrationTestSuite) SetupSuite() {
 	s.cctx = core.StartTestNodeWithConfig(s.T(), cfg)
 	s.accounts = cfg.Accounts
 
-	accessor := NewCoreAccessor(s.cctx.Keyring, s.accounts[0], localHeader{s.cctx.Client}, "", "", "")
+	accessor, err := NewCoreAccessor(s.cctx.Keyring, s.accounts[0], localHeader{s.cctx.Client}, "", "", "")
+	require.NoError(s.T(), err)
 	setClients(accessor, s.cctx.GRPCClient, s.cctx.Client)
 	s.accessor = accessor
 
 	// required to ensure the Head request is non-nil
-	_, err := s.cctx.WaitForHeight(3)
+	_, err = s.cctx.WaitForHeight(3)
 	require.NoError(s.T(), err)
 }
 
