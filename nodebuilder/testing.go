@@ -24,8 +24,15 @@ import (
 func MockStore(t *testing.T, cfg *Config) Store {
 	t.Helper()
 	store := NewMemStore()
+
 	err := store.PutConfig(cfg)
 	require.NoError(t, err)
+
+	ks, err := store.Keystore()
+	require.NoError(t, err)
+	_, _, err = generateNewKey(ks.Keyring())
+	require.NoError(t, err)
+
 	return store
 }
 
