@@ -96,7 +96,7 @@ type Module interface {
 	GrantFee(
 		ctx context.Context,
 		grantee state.AccAddress,
-		amont state.Int,
+		amount,
 		fee state.Int,
 		gasLim uint64,
 	) (*state.TxResponse, error)
@@ -178,7 +178,7 @@ type API struct {
 		GrantFee func(
 			ctx context.Context,
 			grantee state.AccAddress,
-			amount state.Int,
+			amount,
 			fee state.Int,
 			gasLim uint64,
 		) (*state.TxResponse, error) `perm:"write"`
@@ -289,11 +289,11 @@ func (api *API) Balance(ctx context.Context) (*state.Balance, error) {
 func (api *API) GrantFee(
 	ctx context.Context,
 	grantee state.AccAddress,
-	amount state.Int,
+	amount,
 	fee state.Int,
 	gasLim uint64,
 ) (*state.TxResponse, error) {
-	return api.Internal.GrantFee(ctx, grantee,amount, fee, gasLim)
+	return api.Internal.GrantFee(ctx, grantee, amount, fee, gasLim)
 }
 
 func (api *API) RevokeGrantFee(

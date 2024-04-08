@@ -9,7 +9,6 @@ import (
 	"time"
 
 	sdkErrors "cosmossdk.io/errors"
-	"github.com/celestiaorg/celestia-app/pkg/appconsts"
 	"github.com/cosmos/cosmos-sdk/api/tendermint/abci"
 	nodeservice "github.com/cosmos/cosmos-sdk/client/grpc/node"
 	storetypes "github.com/cosmos/cosmos-sdk/store/types"
@@ -28,9 +27,9 @@ import (
 
 	"github.com/celestiaorg/celestia-app/app"
 	apperrors "github.com/celestiaorg/celestia-app/app/errors"
+	"github.com/celestiaorg/celestia-app/pkg/appconsts"
 	appblob "github.com/celestiaorg/celestia-app/x/blob"
 	apptypes "github.com/celestiaorg/celestia-app/x/blob/types"
-	blobtypes "github.com/celestiaorg/celestia-app/x/blob/types"
 	libhead "github.com/celestiaorg/go-header"
 
 	"github.com/celestiaorg/celestia-node/blob"
@@ -240,7 +239,7 @@ func (ca *CoreAccessor) SubmitPayForBlob(
 
 	var lastErr error
 	for attempt := 0; attempt < maxRetries; attempt++ {
-		options := []blobtypes.TxBuilderOption{apptypes.SetGasLimit(gasLim), withFee(fee)}
+		options := []apptypes.TxBuilderOption{apptypes.SetGasLimit(gasLim), withFee(fee)}
 		if feeGrant != nil {
 			options = append(options, feeGrant)
 		}
@@ -644,7 +643,7 @@ func withFee(fee Int) apptypes.TxBuilderOption {
 	return apptypes.SetFeeAmount(gasFee)
 }
 
-func (ca *CoreAccessor) getGranter(ctx context.Context) (blobtypes.TxBuilderOption, error) {
+func (ca *CoreAccessor) getGranter(ctx context.Context) (apptypes.TxBuilderOption, error) {
 	addr, err := ca.signer.GetSignerInfo().GetAddress()
 	if err != nil {
 		return nil, err
