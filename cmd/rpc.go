@@ -4,6 +4,8 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"path/filepath"
+	"strings"
 
 	"github.com/spf13/cobra"
 	flag "github.com/spf13/pflag"
@@ -53,11 +55,26 @@ func InitClient(cmd *cobra.Command, _ []string) error {
 			return err
 		}
 
-		token, err := getToken(storePath)
+		// load config to get the RPC url and auth requirements
+		cfg, err := nodebuilder.LoadConfig(filepath.Join(storePath, "config.toml"))
 		if err != nil {
-			return fmt.Errorf("cant get the access to the auth token: %v", err)
+			return fmt.Errorf("cant load in config: %v", err)
 		}
-		authTokenFlag = token
+
+		protocol, trimmedAddress := determineProtocol(cfg.RPC.Address)
+		requestURL = fmt.Sprintf("%s://%s:%s", protocol, trimmedAddress, cfg.RPC.Port)
+
+		// only get token if auth is not skipped
+		if cfg.RPC.SkipAuth {
+			authTokenFlag = "skip" // arbitrary value required
+		} else {
+			token, err := getToken(storePath)
+			if err != nil {
+				return fmt.Errorf("cant get the access to the auth token: %v", err)
+			}
+
+			authTokenFlag = token
+		}
 	}
 
 	client, err := rpc.NewClient(cmd.Context(), requestURL, authTokenFlag)
@@ -91,6 +108,15 @@ func getStorePath(cmd *cobra.Command) (string, error) {
 	return "", errors.New(errMsg)
 }
 
+func determineProtocol(address string) (protocol string, trimmedAddress string) {
+    if strings.HasPrefix(address, "https://") {
+        return "https", strings.TrimPrefix(address, "https://")
+    } else if strings.HasPrefix(address, "http://") {
+        return "http", strings.TrimPrefix(address, "http://")
+    }
+    return "http", address // Default to HTTP if no protocol is specified
+}
+
 func getToken(path string) (string, error) {
 	if path == "" {
 		return "", errors.New("root directory was not specified")
@@ -106,6 +132,7 @@ func getToken(path string) (string, error) {
 		fmt.Printf("error getting the JWT secret: %v", err)
 		return "", err
 	}
+
 	return buildJWTToken(key.Body, perms.AllPerms)
 }
 
