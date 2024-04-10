@@ -72,10 +72,6 @@ func (r *Retriever) Retrieve(ctx context.Context, dah *da.DataAvailabilityHeader
 	if err != nil {
 		return nil, err
 	}
-	var success bool
-	defer func() {
-		ses.close(success)
-	}()
 
 	// wait for a signal to start reconstruction
 	// try until either success or context or bad data
@@ -84,19 +80,23 @@ func (r *Retriever) Retrieve(ctx context.Context, dah *da.DataAvailabilityHeader
 		case <-ses.Done():
 			eds, err := ses.Reconstruct(ctx)
 			if err == nil {
-				success = true
+				ses.close(true)
 				span.SetStatus(codes.Ok, "square-retrieved")
 				return eds, nil
 			}
 			// check to ensure it is not a catastrophic ErrByzantine case, otherwise handle accordingly
 			var errByz *rsmt2d.ErrByzantineData
 			if errors.As(err, &errByz) {
+				// session should be closed before constructing the Byzantine error to allow constructor to access nmt proofs
+				// computed during the session
+				ses.close(false)
 				span.RecordError(err)
 				return nil, byzantine.NewErrByzantine(ctx, r.bServ, dah, errByz)
 			}
 
 			log.Warnw("not enough shares to reconstruct data square, requesting more...", "err", err)
 		case <-ctx.Done():
+			ses.close(false)
 			return nil, ctx.Err()
 		}
 	}
