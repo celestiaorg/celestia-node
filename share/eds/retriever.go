@@ -72,7 +72,10 @@ func (r *Retriever) Retrieve(ctx context.Context, dah *da.DataAvailabilityHeader
 	if err != nil {
 		return nil, err
 	}
-	defer ses.Close()
+	var success bool
+	defer func() {
+		ses.close(success)
+	}()
 
 	// wait for a signal to start reconstruction
 	// try until either success or context or bad data
@@ -81,6 +84,7 @@ func (r *Retriever) Retrieve(ctx context.Context, dah *da.DataAvailabilityHeader
 		case <-ses.Done():
 			eds, err := ses.Reconstruct(ctx)
 			if err == nil {
+				success = true
 				span.SetStatus(codes.Ok, "square-retrieved")
 				return eds, nil
 			}
@@ -103,8 +107,9 @@ func (r *Retriever) Retrieve(ctx context.Context, dah *da.DataAvailabilityHeader
 // quadrant request retries. Also, provides an API
 // to reconstruct the block once enough shares are fetched.
 type retrievalSession struct {
-	dah  *da.DataAvailabilityHeader
-	bget blockservice.BlockGetter
+	dah   *da.DataAvailabilityHeader
+	bget  blockservice.BlockGetter
+	adder *ipld.NmtNodeAdder
 
 	// TODO(@Wondertan): Extract into a separate data structure
 	// https://github.com/celestiaorg/rsmt2d/issues/135
@@ -123,10 +128,25 @@ type retrievalSession struct {
 func (r *Retriever) newSession(ctx context.Context, dah *da.DataAvailabilityHeader) (*retrievalSession, error) {
 	size := len(dah.RowRoots)
 
+	adder := ipld.NewNmtNodeAdder(
+		ctx,
+		r.bServ,
+		ipld.MaxSizeBatchOption(size),
+	)
+
 	treeFn := func(_ rsmt2d.Axis, index uint) rsmt2d.Tree {
 		// use proofs adder if provided, to cache collected proofs while recomputing the eds
 		var opts []nmt.Option
-		visitor := ipld.ProofsAdderFromCtx(ctx).VisitFn()
+
+		opts = append(opts, nmt.NodeVisitor(adder.Visit))
+
+		visitor := func(hash []byte, children ...[]byte) {
+			proofsAdder := ipld.ProofsAdderFromCtx(ctx)
+			if proofsAdder != nil {
+				proofsAdder.VisitFn()(hash, children...)
+			}
+			adder.Visit(hash, children...)
+		}
 		if visitor != nil {
 			opts = append(opts, nmt.NodeVisitor(visitor))
 		}
@@ -143,6 +163,7 @@ func (r *Retriever) newSession(ctx context.Context, dah *da.DataAvailabilityHead
 	ses := &retrievalSession{
 		dah:             dah,
 		bget:            blockservice.NewSession(ctx, r.bServ),
+		adder:           adder,
 		squareQuadrants: newQuadrants(dah),
 		squareCellsLks:  make([][]sync.Mutex, size),
 		squareSig:       make(chan struct{}, 1),
@@ -200,9 +221,16 @@ func (rs *retrievalSession) isReconstructed() bool {
 	}
 }
 
-func (rs *retrievalSession) Close() error {
+func (rs *retrievalSession) close(success bool) {
 	defer rs.span.End()
-	return nil
+	if success {
+		return
+	}
+	// commit intermediate nodes to the blockservice if failed to reconstruct
+	err := rs.adder.Commit()
+	if err != nil {
+		log.Warnw("failed to commit intermediate nodes", "err", err)
+	}
 }
 
 // request kicks off quadrants requests.
