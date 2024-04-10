@@ -137,7 +137,3 @@ func (s DataID) appendTo(data []byte) []byte {
 	data = s.RowID.appendTo(data)
 	return append(data, s.DataNamespace...)
 }
-
-func (s DataID) key() any {
-	return s
-}

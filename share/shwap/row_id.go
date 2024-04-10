@@ -134,7 +134,3 @@ func (rid RowID) appendTo(data []byte) []byte {
 	data = rid.EdsID.appendTo(data)
 	return binary.BigEndian.AppendUint16(data, rid.RowIndex)
 }
-
-func (rid RowID) key() any {
-	return rid
-}

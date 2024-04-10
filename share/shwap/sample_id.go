@@ -129,7 +129,3 @@ func (sid SampleID) appendTo(data []byte) []byte {
 	data = sid.RowID.appendTo(data)
 	return binary.BigEndian.AppendUint16(data, sid.ShareIndex)
 }
-
-func (sid SampleID) key() any {
-	return sid
-}

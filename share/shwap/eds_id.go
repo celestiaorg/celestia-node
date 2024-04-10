@@ -26,9 +26,9 @@ func NewEdsID(height uint64, root *share.Root) (EdsID, error) {
 }
 
 // MarshalBinary encodes EdsID into binary form.
-func (rid EdsID) MarshalBinary() []byte {
+func (eid EdsID) MarshalBinary() []byte {
 	data := make([]byte, 0, EdsIDSize)
-	return rid.appendTo(data)
+	return eid.appendTo(data)
 }
 
 // EdsIDFromBinary decodes EdsID from binary form.
@@ -41,21 +41,21 @@ func EdsIDFromBinary(data []byte) (rid EdsID, err error) {
 }
 
 // Verify verifies EdsID fields.
-func (rid EdsID) Verify(root *share.Root) error {
+func (eid EdsID) Verify(root *share.Root) error {
 	if root == nil {
 		return fmt.Errorf("nil Root")
 	}
-	if rid.Height == 0 {
+	if eid.Height == 0 {
 		return fmt.Errorf("zero Height")
 	}
 
 	return nil
 }
 
-func (rid EdsID) GetHeight() uint64 {
-	return rid.Height
+func (eid EdsID) GetHeight() uint64 {
+	return eid.Height
 }
 
-func (rid EdsID) appendTo(data []byte) []byte {
-	return binary.BigEndian.AppendUint64(data, rid.Height)
+func (eid EdsID) appendTo(data []byte) []byte {
+	return binary.BigEndian.AppendUint64(data, eid.Height)
 }
