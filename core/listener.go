@@ -224,15 +224,9 @@ func (cl *Listener) handleNewSignedBlock(ctx context.Context, b types.EventDataS
 		panic(fmt.Errorf("making extended header: %w", err))
 	}
 
-	// only store EDS if the header is within the availability window
-	if pruner.IsWithinAvailabilityWindow(eh.Time(), cl.availabilityWindow) {
-		// attempt to store block data if not empty
-		ctx = ipld.CtxWithProofsAdder(ctx, adder)
-
-		err = storeEDS(ctx, b.Header.DataHash.Bytes(), eds, cl.store)
-		if err != nil {
-			return fmt.Errorf("storing EDS: %w", err)
-		}
+	err = storeEDS(ctx, eh, eds, adder, cl.store, cl.availabilityWindow)
+	if err != nil {
+		return fmt.Errorf("storing EDS: %w", err)
 	}
 
 	syncing, err := cl.fetcher.IsSyncing(ctx)
