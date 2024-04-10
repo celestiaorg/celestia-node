@@ -138,18 +138,14 @@ func (r *Retriever) newSession(ctx context.Context, dah *da.DataAvailabilityHead
 		// use proofs adder if provided, to cache collected proofs while recomputing the eds
 		var opts []nmt.Option
 
-		opts = append(opts, nmt.NodeVisitor(adder.Visit))
-
+		proofsAdder := ipld.ProofsAdderFromCtx(ctx)
 		visitor := func(hash []byte, children ...[]byte) {
-			proofsAdder := ipld.ProofsAdderFromCtx(ctx)
 			if proofsAdder != nil {
 				proofsAdder.VisitFn()(hash, children...)
 			}
 			adder.Visit(hash, children...)
 		}
-		if visitor != nil {
-			opts = append(opts, nmt.NodeVisitor(visitor))
-		}
+		opts = append(opts, nmt.NodeVisitor(visitor))
 
 		tree := wrapper.NewErasuredNamespacedMerkleTree(uint64(size)/2, index, opts...)
 		return &tree
