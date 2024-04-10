@@ -559,7 +559,12 @@ func (ca *CoreAccessor) GrantFee(
 		allowance.SpendLimit = sdktypes.NewCoins(sdktypes.NewCoin(app.BondDenom, amount))
 	}
 
-	msg, err := feegrant.NewMsgGrantAllowance(allowance, granter, grantee)
+	msgAllowance, err := feegrant.NewAllowedMsgAllowance(allowance, []string{apptypes.URLMsgPayForBlobs})
+	if err != nil {
+		return nil, err
+	}
+
+	msg, err := feegrant.NewMsgGrantAllowance(msgAllowance, granter, grantee)
 	if err != nil {
 		return nil, nil
 	}
