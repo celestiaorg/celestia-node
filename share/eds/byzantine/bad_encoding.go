@@ -139,34 +139,27 @@ func (p *BadEncodingProof) Validate(hdr *header.ExtendedHeader) error {
 		)
 	}
 
-	// merkleRoots are the roots against which we are going to check the inclusion of the received
-	// shares. Changing the order of the roots to prove the shares relative to the orthogonal axis,
-	// because inside the rsmt2d library rsmt2d.Row = 0 and rsmt2d.Col = 1
-	merkleRoots := hdr.DAH.RowRoots
-	if p.Axis == rsmt2d.Row {
-		merkleRoots = hdr.DAH.ColumnRoots
-	}
-
-	if int(p.Index) >= len(merkleRoots) {
+	width := len(hdr.DAH.RowRoots)
+	if int(p.Index) >= width {
 		log.Debugf("%s:%s (%d >= %d)",
-			invalidProofPrefix, errIncorrectIndex, int(p.Index), len(merkleRoots),
+			invalidProofPrefix, errIncorrectIndex, int(p.Index), width,
 		)
 		return errIncorrectIndex
 	}
 
-	if len(p.Shares) != len(merkleRoots) {
+	if len(p.Shares) != width {
 		// Since p.Shares should contain all the shares from either a row or a
 		// column, it should exactly match the number of row roots. In this
 		// context, the number of row roots is the width of the extended data
 		// square.
 		log.Infof("%s: %s (%d >= %d)",
-			invalidProofPrefix, errIncorrectAmountOfShares, int(p.Index), len(merkleRoots),
+			invalidProofPrefix, errIncorrectAmountOfShares, int(p.Index), width,
 		)
 		return errIncorrectAmountOfShares
 	}
 
-	odsWidth := uint64(len(merkleRoots) / 2)
-	amount := uint64(0)
+	odsWidth := width / 2
+	var amount int
 	for _, share := range p.Shares {
 		if share == nil {
 			continue
@@ -184,19 +177,25 @@ func (p *BadEncodingProof) Validate(hdr *header.ExtendedHeader) error {
 	}
 
 	// verify that Merkle proofs correspond to particular shares.
-	shares := make([][]byte, len(merkleRoots))
+	shares := make([][]byte, width)
 	for index, shr := range p.Shares {
 		if shr == nil {
 			continue
 		}
 		// validate inclusion of the share into one of the DAHeader roots
-		if ok := shr.Validate(ipld.MustCidFromNamespacedSha256(merkleRoots[index])); !ok {
+		var x, y int
+		if p.Axis == rsmt2d.Row {
+			x, y = index, int(p.Index)
+		} else {
+			x, y = int(p.Index), index
+		}
+		root := getRoot(hdr.DAH, shr.Axis, x, y)
+		rootCid := ipld.MustCidFromNamespacedSha256(root)
+		if ok := shr.Validate(rootCid, x, y, width); !ok {
 			log.Debugf("%s: %s at index %d", invalidProofPrefix, errIncorrectShare, index)
 			return errIncorrectShare
 		}
-		// NMTree commits the additional namespace while rsmt2d does not know about, so we trim it
-		// this is ugliness from NMTWrapper that we have to embrace ¯\_(ツ)_/¯
-		shares[index] = share.GetData(shr.Share)
+		shares[index] = shr.Share
 	}
 
 	codec := share.DefaultRSMT2DCodec()
@@ -220,7 +219,7 @@ func (p *BadEncodingProof) Validate(hdr *header.ExtendedHeader) error {
 	}
 	copy(rebuiltShares[odsWidth:], rebuiltExtendedShares)
 
-	tree := wrapper.NewErasuredNamespacedMerkleTree(odsWidth, uint(p.Index))
+	tree := wrapper.NewErasuredNamespacedMerkleTree(uint64(odsWidth), uint(p.Index))
 	for _, share := range rebuiltShares {
 		err = tree.Push(share)
 		if err != nil {
@@ -251,4 +250,11 @@ func (p *BadEncodingProof) Validate(hdr *header.ExtendedHeader) error {
 		return errNMTTreeRootsMatch
 	}
 	return nil
+}
+
+func getRoot(root *share.Root, axisType rsmt2d.Axis, x, y int) []byte {
+	if axisType == rsmt2d.Row {
+		return root.RowRoots[y]
+	}
+	return root.ColumnRoots[x]
 }

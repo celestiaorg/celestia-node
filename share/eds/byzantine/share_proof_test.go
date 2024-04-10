@@ -6,11 +6,12 @@ import (
 	"testing"
 	"time"
 
-	"github.com/ipfs/go-cid"
 	"github.com/stretchr/testify/require"
 
 	"github.com/celestiaorg/celestia-app/pkg/da"
+	"github.com/celestiaorg/rsmt2d"
 
+	"github.com/celestiaorg/celestia-node/share"
 	"github.com/celestiaorg/celestia-node/share/ipld"
 	"github.com/celestiaorg/celestia-node/share/sharetest"
 )
@@ -37,16 +38,24 @@ func TestGetProof(t *testing.T) {
 
 	for i, tt := range tests {
 		t.Run(strconv.Itoa(i), func(t *testing.T) {
-			for _, root := range tt.roots {
+			for j, root := range tt.roots {
 				rootCid := ipld.MustCidFromNamespacedSha256(root)
 				for index := 0; uint(index) < in.Width(); index++ {
-					proof := make([]cid.Cid, 0)
-					proof, err = ipld.GetProof(ctx, bServ, rootCid, proof, index, int(in.Width()))
+					proof, err := getProofsAt(ctx, bServ, rootCid, index, int(in.Width()))
 					require.NoError(t, err)
 					node, err := ipld.GetLeaf(ctx, bServ, rootCid, index, int(in.Width()))
 					require.NoError(t, err)
-					inclusion := NewShareWithProof(index, node.RawData(), proof)
-					require.True(t, inclusion.Validate(rootCid))
+					inclusion := &ShareWithProof{
+						Share: share.GetData(node.RawData()),
+						Proof: &proof,
+					}
+					var x, y int
+					if i == 0 {
+						x, y = index, j
+					} else {
+						x, y = j, index
+					}
+					require.True(t, inclusion.Validate(rootCid, x, y, int(in.Width())))
 				}
 			}
 		})
@@ -65,19 +74,20 @@ func TestGetProofs(t *testing.T) {
 
 	dah, err := da.NewDataAvailabilityHeader(in)
 	require.NoError(t, err)
-	for _, root := range dah.ColumnRoots {
+	for c, root := range dah.ColumnRoots {
 		rootCid := ipld.MustCidFromNamespacedSha256(root)
 		data := make([][]byte, 0, in.Width())
 		for index := 0; uint(index) < in.Width(); index++ {
 			node, err := ipld.GetLeaf(ctx, bServ, rootCid, index, int(in.Width()))
 			require.NoError(t, err)
-			data = append(data, node.RawData()[9:])
+			data = append(data, share.GetData(node.RawData()))
 		}
 
-		proves, err := GetProofsForShares(ctx, bServ, rootCid, data)
+		proves, err := GetProofsForShares(ctx, bServ, rootCid, data, rsmt2d.Col)
 		require.NoError(t, err)
-		for _, proof := range proves {
-			require.True(t, proof.Validate(rootCid))
+		for i, proof := range proves {
+			x, y := c, i
+			require.True(t, proof.Validate(rootCid, x, y, int(in.Width())))
 		}
 	}
 }

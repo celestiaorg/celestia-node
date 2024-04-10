@@ -41,7 +41,7 @@ func TestBEFP_Validate(t *testing.T) {
 	err = square.Repair(dah.RowRoots, dah.ColumnRoots)
 	require.ErrorAs(t, err, &errRsmt2d)
 
-	byzantine := NewErrByzantine(ctx, bServ, &dah, errRsmt2d)
+	byzantine := NewErrByzantine(ctx, bServ.Blockstore(), &dah, errRsmt2d)
 	var errByz *ErrByzantine
 	require.ErrorAs(t, byzantine, &errByz)
 
@@ -71,7 +71,7 @@ func TestBEFP_Validate(t *testing.T) {
 				err = ipld.ImportEDS(ctx, validSquare, bServ)
 				require.NoError(t, err)
 				validShares := validSquare.Flattened()
-				errInvalidByz := NewErrByzantine(ctx, bServ, &validDah,
+				errInvalidByz := NewErrByzantine(ctx, bServ.Blockstore(), &validDah,
 					&rsmt2d.ErrByzantineData{
 						Axis:   rsmt2d.Row,
 						Index:  0,
@@ -93,7 +93,7 @@ func TestBEFP_Validate(t *testing.T) {
 				// break the first shareWithProof to test negative case
 				sh := sharetest.RandShares(t, 2)
 				nmtProof := nmt.NewInclusionProof(0, 1, nil, false)
-				befp.Shares[0] = &ShareWithProof{sh[0], &nmtProof}
+				befp.Shares[0] = &ShareWithProof{sh[0], &nmtProof, rsmt2d.Row}
 				return proof.Validate(&header.ExtendedHeader{DAH: &dah})
 			},
 			expectedResult: func(err error) {
@@ -174,8 +174,9 @@ func TestIncorrectBadEncodingFraudProof(t *testing.T) {
 	row := uint(squareSize / 2)
 	rowShares := eds.Row(row)
 	rowRoot := dah.RowRoots[row]
+	rootCid := ipld.MustCidFromNamespacedSha256(rowRoot)
 
-	shareProofs, err := GetProofsForShares(ctx, bServ, ipld.MustCidFromNamespacedSha256(rowRoot), rowShares)
+	shareProofs, err := GetProofsForShares(ctx, bServ, rootCid, rowShares, rsmt2d.Row)
 	require.NoError(t, err)
 
 	// create a fake error for data that was encoded correctly
@@ -203,7 +204,7 @@ func TestIncorrectBadEncodingFraudProof(t *testing.T) {
 }
 
 func TestBEFP_ValidateOutOfOrderShares(t *testing.T) {
-	ctx, cancel := context.WithTimeout(context.Background(), time.Second*30)
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second*5)
 	t.Cleanup(cancel)
 
 	size := 4
@@ -231,7 +232,7 @@ func TestBEFP_ValidateOutOfOrderShares(t *testing.T) {
 	err = eds.Repair(dah.RowRoots, dah.ColumnRoots)
 	require.ErrorAs(t, err, &errRsmt2d)
 
-	byzantine := NewErrByzantine(ctx, bServ, &dah, errRsmt2d)
+	byzantine := NewErrByzantine(ctx, bServ.Blockstore(), &dah, errRsmt2d)
 	var errByz *ErrByzantine
 	require.ErrorAs(t, byzantine, &errByz)
 

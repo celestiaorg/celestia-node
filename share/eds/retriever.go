@@ -88,7 +88,7 @@ func (r *Retriever) Retrieve(ctx context.Context, dah *da.DataAvailabilityHeader
 			var errByz *rsmt2d.ErrByzantineData
 			if errors.As(err, &errByz) {
 				span.RecordError(err)
-				return nil, byzantine.NewErrByzantine(ctx, r.bServ, dah, errByz)
+				return nil, byzantine.NewErrByzantine(ctx, r.bServ.Blockstore(), dah, errByz)
 			}
 
 			log.Warnw("not enough shares to reconstruct data square, requesting more...", "err", err)

@@ -4,7 +4,7 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/ipfs/boxo/blockservice"
+	"github.com/ipld/go-car/v2/blockstore"
 
 	"github.com/celestiaorg/celestia-app/pkg/da"
 	"github.com/celestiaorg/rsmt2d"
@@ -31,16 +31,10 @@ func (e *ErrByzantine) Error() string {
 // If error happens during proof collection, it terminates the process with os.Exit(1).
 func NewErrByzantine(
 	ctx context.Context,
-	bGetter blockservice.BlockGetter,
+	bStore blockstore.Blockstore,
 	dah *da.DataAvailabilityHeader,
 	errByz *rsmt2d.ErrByzantineData,
 ) error {
-	// changing the order to collect proofs against an orthogonal axis
-	roots := [][][]byte{
-		dah.ColumnRoots,
-		dah.RowRoots,
-	}[errByz.Axis]
-
 	sharesWithProof := make([]*ShareWithProof, len(errByz.Shares))
 
 	type result struct {
@@ -48,23 +42,36 @@ func NewErrByzantine(
 		index int
 	}
 	resultCh := make(chan *result)
+	bGetter := ipld.NewBlockservice(bStore, nil)
 	for index, share := range errByz.Shares {
 		if share == nil {
 			continue
 		}
 
-		index := index
+		var x, y int
+		if errByz.Axis == rsmt2d.Row {
+			x = index
+			y = int(errByz.Index)
+		} else {
+			x = int(errByz.Index)
+			y = index
+		}
+		index, share := index, share
 		go func() {
-			share, err := getProofsAt(
-				ctx, bGetter,
-				ipld.MustCidFromNamespacedSha256(roots[index]),
-				int(errByz.Index), len(errByz.Shares),
-			)
+			share, err := getShareWithProof(ctx, bGetter, dah, share, x, y)
 			if err != nil {
-				log.Warn("requesting proof failed", "root", roots[index], "err", err)
+				log.Warn("requesting proof failed",
+					"errByz", errByz,
+					"x", x, "y", y,
+					"err", err)
 				return
 			}
-			resultCh <- &result{share, index}
+
+			select {
+			case resultCh <- &result{share, index}:
+			case <-ctx.Done():
+				return
+			}
 		}()
 	}
 
