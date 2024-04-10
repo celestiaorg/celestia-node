@@ -417,9 +417,9 @@ var queryRedelegationCmd = &cobra.Command{
 }
 
 var grantFeeCmd = &cobra.Command{
-	Use: "grant-fee [grantee] [fee] [gasLimit]",
-	Short: "Grant an allowance to a specified grantee account to pay the fees for their transactions.\n" +
-		"Grantee could spend any amount of tokens in case if spend limit is not set.",
+	Use: "grant-fee [granteeAddress] [fee] [gasLimit]",
+	Short: "Grant an allowance to a specified grantee account to pay the fees for their SubmitPFB transactions.\n" +
+		"Grantee can spend any amount of tokens in case the spend limit is not set.",
 	Args: cobra.ExactArgs(3),
 	RunE: func(cmd *cobra.Command, args []string) error {
 		client, err := cmdnode.ParseClientFromCtx(cmd.Context())
@@ -452,8 +452,8 @@ var grantFeeCmd = &cobra.Command{
 }
 
 var revokeGrantFeeCmd = &cobra.Command{
-	Use:   "revoke-grant-fee [grantee] [fee] [gasLimit]",
-	Short: "Adds permission for Grantee to spend up to Allowance of fees from the account of Granter.",
+	Use:   "revoke-grant-fee [granteeAddress] [fee] [gasLimit]",
+	Short: "Removes permission for grantee to submit PFB transactions which will be paid by granter.",
 	Args:  cobra.ExactArgs(3),
 	RunE: func(cmd *cobra.Command, args []string) error {
 		client, err := cmdnode.ParseClientFromCtx(cmd.Context())
