@@ -4,7 +4,7 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/ipld/go-car/v2/blockstore"
+	"github.com/ipfs/boxo/blockstore"
 
 	"github.com/celestiaorg/celestia-app/pkg/da"
 	"github.com/celestiaorg/rsmt2d"
