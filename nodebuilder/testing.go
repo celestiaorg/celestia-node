@@ -24,8 +24,15 @@ import (
 func MockStore(t *testing.T, cfg *Config) Store {
 	t.Helper()
 	store := NewMemStore()
+
 	err := store.PutConfig(cfg)
 	require.NoError(t, err)
+
+	ks, err := store.Keystore()
+	require.NoError(t, err)
+	_, _, err = generateNewKey(ks.Keyring())
+	require.NoError(t, err)
+
 	return store
 }
 
@@ -67,7 +74,7 @@ func TestNodeWithConfig(t *testing.T, tp node.Type, cfg *Config, opts ...fx.Opti
 
 func TestKeyringSigner(t *testing.T, ring keyring.Keyring) *apptypes.KeyringSigner {
 	signer := apptypes.NewKeyringSigner(ring, "", string(p2p.Private))
-	_, _, err := signer.NewMnemonic("test_celes", keyring.English, "",
+	_, _, err := signer.NewMnemonic("my_celes_key", keyring.English, "",
 		"", hd.Secp256k1)
 	require.NoError(t, err)
 	return signer
