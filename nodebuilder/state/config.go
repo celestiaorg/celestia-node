@@ -11,12 +11,14 @@ var defaultKeyringBackend = keyring.BackendTest
 type Config struct {
 	KeyringAccName string
 	KeyringBackend string
+	GranterEnabled bool
 }
 
 func DefaultConfig() Config {
 	return Config{
 		KeyringAccName: "",
 		KeyringBackend: defaultKeyringBackend,
+		GranterEnabled: false,
 	}
 }
 

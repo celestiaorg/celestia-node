@@ -77,6 +77,10 @@ type CoreAccessor struct {
 	// will find a proposer that does accept the transaction. Better would be
 	// to set a global min gas price that correct processes conform to.
 	minGasPrice float64
+
+	// granterEnabled indicates that node is run in a `grantee` mode. This means, that all
+	// SubmitPFB transactions will be paid by the granter.
+	granterEnabled bool
 }
 
 // NewCoreAccessor dials the given celestia-core endpoint and
@@ -88,18 +92,20 @@ func NewCoreAccessor(
 	coreIP,
 	rpcPort string,
 	grpcPort string,
+	granterEnabled bool,
 ) *CoreAccessor {
 	// create verifier
 	prt := merkle.DefaultProofRuntime()
 	prt.RegisterOpDecoder(storetypes.ProofOpIAVLCommitment, storetypes.CommitmentOpDecoder)
 	prt.RegisterOpDecoder(storetypes.ProofOpSimpleMerkleCommitment, storetypes.CommitmentOpDecoder)
 	return &CoreAccessor{
-		signer:   signer,
-		getter:   getter,
-		coreIP:   coreIP,
-		rpcPort:  rpcPort,
-		grpcPort: grpcPort,
-		prt:      prt,
+		signer:         signer,
+		getter:         getter,
+		coreIP:         coreIP,
+		rpcPort:        rpcPort,
+		grpcPort:       grpcPort,
+		prt:            prt,
+		granterEnabled: granterEnabled,
 	}
 }
 
@@ -224,7 +230,7 @@ func (ca *CoreAccessor) SubmitPayForBlob(
 
 	feeGrant, err := ca.getGranter(ctx)
 	if err != nil {
-		log.Warn(err)
+		return nil, err
 	}
 
 	if feeGrant != nil {
@@ -649,6 +655,11 @@ func withFee(fee Int) apptypes.TxBuilderOption {
 }
 
 func (ca *CoreAccessor) getGranter(ctx context.Context) (apptypes.TxBuilderOption, error) {
+	// check if the granter flag was enabled.
+	if !ca.granterEnabled {
+		return nil, nil
+	}
+
 	addr, err := ca.signer.GetSignerInfo().GetAddress()
 	if err != nil {
 		return nil, err
@@ -667,5 +678,5 @@ func (ca *CoreAccessor) getGranter(ctx context.Context) (apptypes.TxBuilderOptio
 		}
 		return apptypes.SetFeeGranter(appAddr), nil
 	}
-	return nil, nil
+	return nil, errors.New("granter was not found")
 }

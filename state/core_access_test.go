@@ -37,7 +37,7 @@ func TestSubmitPayForBlob(t *testing.T) {
 	defer cancel()
 
 	signer := blobtypes.NewKeyringSigner(cctx.Keyring, accounts[0], cctx.ChainID)
-	ca := NewCoreAccessor(signer, nil, "127.0.0.1", extractPort(rpcAddr), extractPort(grpcAddr))
+	ca := NewCoreAccessor(signer, nil, "127.0.0.1", extractPort(rpcAddr), extractPort(grpcAddr), false)
 	// start the accessor
 	err := ca.Start(ctx)
 	require.NoError(t, err)
