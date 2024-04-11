@@ -56,7 +56,7 @@ func InitClient(cmd *cobra.Command, _ []string) error {
 		}
 
 		if requestURL == "" {
-			requestURL = cfg.RPC.RequestUrl()
+			requestURL = cfg.RPC.RequestURL()
 		}
 
 		// only get token if auth is not skipped
