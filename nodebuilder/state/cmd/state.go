@@ -418,7 +418,7 @@ var queryRedelegationCmd = &cobra.Command{
 
 var grantFeeCmd = &cobra.Command{
 	Use: "grant-fee [granteeAddress] [fee] [gasLimit]",
-	Short: "Grant an allowance to a specified grantee account to pay the fees for their SubmitPFB transactions.\n" +
+	Short: "Grant an allowance to a specified grantee account to pay the fees for their transactions.\n" +
 		"Grantee can spend any amount of tokens in case the spend limit is not set.",
 	Args: cobra.ExactArgs(3),
 	RunE: func(cmd *cobra.Command, args []string) error {

@@ -79,7 +79,7 @@ type CoreAccessor struct {
 	minGasPrice float64
 
 	// granterEnabled indicates that node is run in a `grantee` mode. This means, that all
-	// SubmitPFB transactions will be paid by the granter.
+	// transactions will be paid by the granter.
 	granterEnabled bool
 }
 
@@ -565,12 +565,7 @@ func (ca *CoreAccessor) GrantFee(
 		allowance.SpendLimit = sdktypes.NewCoins(sdktypes.NewCoin(app.BondDenom, amount))
 	}
 
-	msgAllowance, err := feegrant.NewAllowedMsgAllowance(allowance, []string{apptypes.URLMsgPayForBlobs})
-	if err != nil {
-		return nil, err
-	}
-
-	msg, err := feegrant.NewMsgGrantAllowance(msgAllowance, granter, grantee)
+	msg, err := feegrant.NewMsgGrantAllowance(allowance, granter, grantee)
 	if err != nil {
 		return nil, nil
 	}
