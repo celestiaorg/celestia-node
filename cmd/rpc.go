@@ -5,7 +5,6 @@ import (
 	"errors"
 	"fmt"
 	"path/filepath"
-	"strings"
 
 	"github.com/spf13/cobra"
 	flag "github.com/spf13/pflag"
@@ -14,11 +13,6 @@ import (
 	"github.com/celestiaorg/celestia-node/api/rpc/perms"
 	"github.com/celestiaorg/celestia-node/nodebuilder"
 	nodemod "github.com/celestiaorg/celestia-node/nodebuilder/node"
-)
-
-const (
-	// defaultRPCAddress is a default address to dial to
-	defaultRPCAddress = "http://localhost:26658"
 )
 
 var (
@@ -32,7 +26,7 @@ func RPCFlags() *flag.FlagSet {
 	fset.StringVar(
 		&requestURL,
 		"url",
-		defaultRPCAddress,
+		"", // will try to load value from Config, which defines its own default url
 		"Request URL",
 	)
 
@@ -55,14 +49,15 @@ func InitClient(cmd *cobra.Command, _ []string) error {
 			return err
 		}
 
-		// load config to get the RPC url and auth requirements
+		// load config to get the request url and auth settings
 		cfg, err := nodebuilder.LoadConfig(filepath.Join(storePath, "config.toml"))
 		if err != nil {
 			return fmt.Errorf("cant load in config: %v", err)
 		}
 
-		protocol, trimmedAddress := determineProtocol(cfg.RPC.Address)
-		requestURL = fmt.Sprintf("%s://%s:%s", protocol, trimmedAddress, cfg.RPC.Port)
+		if requestURL == "" {
+			requestURL = cfg.RPC.RequestUrl()
+		}
 
 		// only get token if auth is not skipped
 		if cfg.RPC.SkipAuth {
@@ -106,15 +101,6 @@ func getStorePath(cmd *cobra.Command) (string, error) {
 	}
 
 	return "", errors.New(errMsg)
-}
-
-func determineProtocol(address string) (protocol string, trimmedAddress string) {
-    if strings.HasPrefix(address, "https://") {
-        return "https", strings.TrimPrefix(address, "https://")
-    } else if strings.HasPrefix(address, "http://") {
-        return "http", strings.TrimPrefix(address, "http://")
-    }
-    return "http", address // Default to HTTP if no protocol is specified
 }
 
 func getToken(path string) (string, error) {

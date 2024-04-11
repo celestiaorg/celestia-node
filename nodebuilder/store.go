@@ -28,8 +28,8 @@ var (
 	ErrOpened = errors.New("node: store is in use")
 	// ErrNotInited is thrown on attempt to open Store without initialization.
 	ErrNotInited = errors.New("node: store is not initialized")
-	// ErrNoOpenStore is thrown when no opened Store is found.
-	ErrNoOpenStore = errors.New("no opened Node Store found")
+	// ErrNoOpenStore is thrown when no opened Store is found, indicating that no node is running.
+	ErrNoOpenStore = errors.New("no opened Node Store found (no node is running)")
 )
 
 // Store encapsulates storage for the Node. Basically, it is the Store of all Stores.
