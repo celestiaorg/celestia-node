@@ -171,11 +171,10 @@ func (bs *Blockstore) HashOnRead(bool) {
 
 func (bs *Blockstore) openFile(height uint64) cache.OpenFileFn {
 	return func(ctx context.Context) (file.EdsFile, error) {
-		path := bs.store.basepath + heightsPath + fmt.Sprintf("%d", height)
-		f, err := file.OpenQ1Q4File(path)
+		f, err := bs.store.GetByHeight(ctx, height)
 		if err != nil {
 			return nil, fmt.Errorf("opening ODS file: %w", err)
 		}
-		return wrappedFile(f), nil
+		return f, nil
 	}
 }

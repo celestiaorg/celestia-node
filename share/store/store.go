@@ -209,14 +209,14 @@ func (s *Store) getByHash(datahash share.DataHash) (file.EdsFile, error) {
 	}
 
 	path := s.basepath + blocksPath + datahash.String()
-	odsFile, err := file.OpenQ1Q4File(path)
+	f, err := file.OpenQ1Q4File(path)
 	if err != nil {
 		if os.IsNotExist(err) {
 			return nil, ErrNotFound
 		}
 		return nil, fmt.Errorf("opening ODS file: %w", err)
 	}
-	return odsFile, nil
+	return wrappedFile(f), nil
 }
 
 func (s *Store) LinkHashToHeight(_ context.Context, datahash share.DataHash, height uint64) error {
@@ -274,14 +274,14 @@ func (s *Store) getByHeight(height uint64) (file.EdsFile, error) {
 	}
 
 	path := s.basepath + heightsPath + fmt.Sprintf("%d", height)
-	odsFile, err := file.OpenQ1Q4File(path)
+	f, err = file.OpenQ1Q4File(path)
 	if err != nil {
 		if os.IsNotExist(err) {
 			return nil, ErrNotFound
 		}
 		return nil, fmt.Errorf("opening ODS file: %w", err)
 	}
-	return odsFile, nil
+	return wrappedFile(f), nil
 }
 
 func (s *Store) HasByHash(ctx context.Context, datahash share.DataHash) (bool, error) {
