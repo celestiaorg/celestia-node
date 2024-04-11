@@ -26,11 +26,11 @@ func ConstructModule(tp node.Type, network p2p.Network, cfg *Config, store Store
 	log.Infow("Accessing keyring...")
 	ks, err := store.Keystore()
 	if err != nil {
-		fx.Error(err)
+		return fx.Error(err)
 	}
 	signer, err := state.KeyringSigner(cfg.State, ks, network)
 	if err != nil {
-		fx.Error(err)
+		return fx.Error(err)
 	}
 
 	baseComponents := fx.Options(
