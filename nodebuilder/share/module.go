@@ -98,7 +98,7 @@ func ConstructModule(tp node.Type, cfg *Config, options ...fx.Option) fx.Option 
 				}
 			}),
 			// needed to invoke archival discovery
-			fx.Invoke(func(discs []*disc.Discovery) {}),
+			fx.Invoke(func(_ []*disc.Discovery) {}),
 		)
 	default:
 		panic("invalid node type")
@@ -305,6 +305,7 @@ func archivalComponents(cfg *Config) fx.Option {
 		) ([]*disc.Discovery, error) {
 			// if pruner is enabled, no archival service is necessary
 			if pruneCfg.EnableService {
+				// TODO @renaynay: remove bc pruned nodes should still be able to query archival
 				// only full node discovery is needed
 				return []*disc.Discovery{d}, nil
 			}

@@ -25,14 +25,17 @@ func ConstructModule(tp node.Type, cfg *Config) fx.Option {
 			// light nodes are still subject to sampling within window
 			// even if pruning is not enabled.
 			return fx.Options(
+				baseComponents,
 				fx.Supply(light.Window),
 			)
 		case node.Full:
 			return fx.Options(
+				baseComponents,
 				fx.Supply(archival.Window),
 			)
 		case node.Bridge:
 			return fx.Options(
+				baseComponents,
 				fx.Supply(archival.Window),
 				fx.Provide(func() []core.Option {
 					return []core.Option{}

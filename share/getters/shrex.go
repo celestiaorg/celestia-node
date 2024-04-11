@@ -289,6 +289,8 @@ func (sg *ShrexGetter) getPeer(
 	ctx context.Context,
 	header *header.ExtendedHeader,
 ) (libpeer.ID, peers.DoneFunc, error) {
+	// TODO @renaynay: CHANGE TO LIGHT WINDOW
+	// TODO @renaynay: HOW TO BEST FORCE ARCHIVAL TEST
 	if sg.archivalPeerManager != nil && !pruner.IsWithinAvailabilityWindow(header.Time(), full.Window) {
 		return sg.archivalPeerManager.Peer(ctx, header.DAH.Hash(), header.Height())
 	}
