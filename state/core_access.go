@@ -51,7 +51,6 @@ type CoreAccessor struct {
 	signer *apptypes.KeyringSigner
 	getter libhead.Head[*header.ExtendedHeader]
 
-	queryCli   banktypes.QueryClient
 	stakingCli stakingtypes.QueryClient
 	rpcCli     rpcclient.ABCIClient
 
@@ -114,9 +113,7 @@ func (ca *CoreAccessor) Start(ctx context.Context) error {
 		return err
 	}
 	ca.coreConn = client
-	// create the query client
-	queryCli := banktypes.NewQueryClient(ca.coreConn)
-	ca.queryCli = queryCli
+
 	// create the staking query client
 	stakingCli := stakingtypes.NewQueryClient(ca.coreConn)
 	ca.stakingCli = stakingCli
@@ -153,7 +150,6 @@ func (ca *CoreAccessor) Stop(context.Context) error {
 	}
 
 	ca.coreConn = nil
-	ca.queryCli = nil
 	return nil
 }
 

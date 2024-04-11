@@ -8,7 +8,6 @@ import (
 
 	"github.com/cosmos/cosmos-sdk/client/flags"
 	sdk "github.com/cosmos/cosmos-sdk/types"
-	banktypes "github.com/cosmos/cosmos-sdk/x/bank/types"
 	stakingtypes "github.com/cosmos/cosmos-sdk/x/staking/types"
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
@@ -62,9 +61,6 @@ func (s *IntegrationTestSuite) SetupSuite() {
 
 func setClients(ca *CoreAccessor, conn *grpc.ClientConn, abciCli rpcclient.ABCIClient) {
 	ca.coreConn = conn
-	// create the query client
-	queryCli := banktypes.NewQueryClient(ca.coreConn)
-	ca.queryCli = queryCli
 	// create the staking query client
 	stakingCli := stakingtypes.NewQueryClient(ca.coreConn)
 	ca.stakingCli = stakingCli
