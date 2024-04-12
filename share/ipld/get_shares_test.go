@@ -5,6 +5,7 @@ import (
 	"context"
 	"crypto/sha256"
 	"errors"
+	"github.com/celestiaorg/celestia-node/share/testing/edstest"
 	mrand "math/rand"
 	"sort"
 	"strconv"

@@ -196,7 +196,12 @@ func (p *BadEncodingProof) Validate(hdr *header.ExtendedHeader) error {
 			continue
 		}
 		// validate inclusion of the share into one of the DAHeader roots
-		if ok := shr.Validate(merkleRoots[index], index, int(p.Index), int(odsWidth)*2); !ok {
+		x, y := index, int(p.Index)
+		if p.Axis == rsmt2d.Col {
+			x, y = int(p.Index), index
+		}
+		err := shr.Validate(hdr.DAH, x, y)
+		if err != nil {
 			log.Debugf("%s: %s at index %d", invalidProofPrefix, errIncorrectShare, index)
 			return errIncorrectShare
 		}

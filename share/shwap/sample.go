@@ -1,7 +1,6 @@
 package shwap
 
 import (
-	"errors"
 	"fmt"
 
 	blocks "github.com/ipfs/go-block-format"
@@ -11,16 +10,6 @@ import (
 
 	"github.com/celestiaorg/celestia-node/share"
 	shwappb "github.com/celestiaorg/celestia-node/share/shwap/pb"
-)
-
-// SampleProofType is either row or column proven Sample.
-type SampleProofType = rsmt2d.Axis
-
-const (
-	// RowProofType is a sample proven via row root of the square.
-	RowProofType = rsmt2d.Row
-	// ColProofType is a sample proven via column root of the square.
-	ColProofType = rsmt2d.Col
 )
 
 // Sample represents a sample of an NMT in EDS.
@@ -39,7 +28,7 @@ func NewSample(id SampleID, s *share.ShareWithProof) *Sample {
 
 // NewSampleFromEDS samples the EDS and constructs a new row-proven Sample.
 func NewSampleFromEDS(
-	proofType SampleProofType,
+	proofType rsmt2d.Axis,
 	smplIdx int,
 	square *rsmt2d.ExtendedDataSquare,
 	height uint64,
@@ -138,20 +127,6 @@ func (s *Sample) Verify(root *share.Root) error {
 		return err
 	}
 
-	if s.Axis != RowProofType && s.Axis != ColProofType {
-		return fmt.Errorf("invalid SampleProofType: %d", s.Axis)
-	}
-
-	sqrLn := len(root.RowRoots)
-	rootHash := root.RowRoots[s.RowIndex]
-	if s.Axis == ColProofType {
-		rootHash = root.ColumnRoots[s.ShareIndex]
-	}
-
 	x, y := int(s.RowIndex), int(s.ShareIndex)
-	if !s.Validate(rootHash, x, y, sqrLn) {
-		return errors.New("invalid Sample")
-	}
-
-	return nil
+	return s.Validate(root, x, y)
 }

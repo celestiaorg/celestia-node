@@ -2,7 +2,6 @@ package ipld
 
 import (
 	"context"
-	"strconv"
 	"testing"
 	"time"
 
@@ -27,30 +26,19 @@ func TestGetProof(t *testing.T) {
 
 	dah, err := da.NewDataAvailabilityHeader(in)
 	require.NoError(t, err)
-	var tests = []struct {
-		roots    [][]byte
-		axisType rsmt2d.Axis
-	}{
-		{
-			roots:    dah.RowRoots,
-			axisType: rsmt2d.Row,
-		},
-		{
-			roots:    dah.ColumnRoots,
-			axisType: rsmt2d.Col,
-		},
-	}
 
-	for i, tt := range tests {
-		t.Run(strconv.Itoa(i), func(t *testing.T) {
-			for axisIdx, root := range tt.roots {
-				for shrIdx := 0; uint(shrIdx) < in.Width(); shrIdx++ {
-					share, err := GetShareWithProof(ctx, bServ, root, shrIdx, int(in.Width()), tt.axisType)
-					require.NoError(t, err)
-					require.True(t, share.Validate(root, shrIdx, axisIdx, int(in.Width())))
+	for _, axisType := range []rsmt2d.Axis{rsmt2d.Row, rsmt2d.Col} {
+		for x := 0; uint(x) < in.Width(); x++ {
+			for y := 0; uint(y) < in.Width(); y++ {
+				index, rootCid := x, dah.RowRoots[y]
+				if axisType == rsmt2d.Col {
+					index, rootCid = y, dah.ColumnRoots[x]
 				}
+				share, err := GetShareWithProof(ctx, bServ, rootCid, index, int(in.Width()), axisType)
+				require.NoError(t, err)
+				require.True(t, share.VerifyInclusion(&dah, x, y))
 			}
-		})
+		}
 	}
 }
 
@@ -78,7 +66,7 @@ func TestGetSharesProofs(t *testing.T) {
 		proves, err := GetSharesWithProofs(ctx, bServ, root, data, rsmt2d.Col)
 		require.NoError(t, err)
 		for i, proof := range proves {
-			require.True(t, proof.Validate(root, i, axisIdx, int(in.Width())))
+			require.True(t, proof.VerifyInclusion(&dah, i, axisIdx))
 		}
 	}
 }

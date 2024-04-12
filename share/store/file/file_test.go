@@ -57,20 +57,10 @@ func testShare(t *testing.T,
 	eds *rsmt2d.ExtendedDataSquare,
 	dah *share.Root,
 	x, y int) {
-	width := int(eds.Width())
 	shr, err := fl.Share(context.TODO(), x, y)
 	require.NoError(t, err)
 
-	var axishash []byte
-	if shr.Axis == rsmt2d.Row {
-		require.Equal(t, getAxis(eds, shr.Axis, y)[x], shr.Share)
-		axishash = dah.RowRoots[y]
-	} else {
-		require.Equal(t, getAxis(eds, shr.Axis, x)[y], shr.Share)
-		axishash = dah.ColumnRoots[x]
-	}
-
-	ok := shr.Validate(axishash, x, y, width)
+	ok := shr.VerifyInclusion(dah, x, y)
 	require.True(t, ok)
 }
 

@@ -55,9 +55,22 @@ type ShareWithProof struct { //nolint: revive
 	Axis rsmt2d.Axis
 }
 
+func (s *ShareWithProof) Validate(dah *Root, x, y int) error {
+	if s.Axis != rsmt2d.Row && s.Axis != rsmt2d.Col {
+		return fmt.Errorf("invalid SampleProofType: %d", s.Axis)
+	}
+	if !s.VerifyInclusion(dah, x, y) {
+		return fmt.Errorf("share proof is invalid")
+	}
+	return nil
+}
+
 // Validate validates inclusion of the share under the given root CID.
-func (s *ShareWithProof) Validate(rootHash []byte, x, y, edsSize int) bool {
-	isParity := x >= edsSize/2 || y >= edsSize/2
+func (s *ShareWithProof) VerifyInclusion(dah *Root, x, y int) bool {
+	rootHash := rootHashForCoordinates(dah, s.Axis, uint(x), uint(y))
+
+	size := len(dah.RowRoots)
+	isParity := x >= size/2 || y >= size/2
 	namespace := ParitySharesNamespace
 	if !isParity {
 		namespace = GetNamespace(s.Share)
@@ -128,4 +141,11 @@ func MustDataHashFromString(datahash string) DataHash {
 		panic(fmt.Sprintf("datahash validation: passed hex string failed: %s", err))
 	}
 	return dh
+}
+
+func rootHashForCoordinates(r *Root, axisType rsmt2d.Axis, x, y uint) []byte {
+	if axisType == rsmt2d.Row {
+		return r.RowRoots[y]
+	}
+	return r.ColumnRoots[x]
 }
