@@ -51,13 +51,13 @@ type ShareWithProof struct { //nolint: revive
 	Share
 	// Proof is a Merkle Proof of current share
 	Proof *nmt.Proof
-	// Axis is a type of axis against which the share proof is computed
-	Axis rsmt2d.Axis
+	// ProofType is a type of axis against which the share proof is computed
+	ProofType rsmt2d.Axis
 }
 
 func (s *ShareWithProof) Validate(dah *Root, x, y int) error {
-	if s.Axis != rsmt2d.Row && s.Axis != rsmt2d.Col {
-		return fmt.Errorf("invalid SampleProofType: %d", s.Axis)
+	if s.ProofType != rsmt2d.Row && s.ProofType != rsmt2d.Col {
+		return fmt.Errorf("invalid SampleProofType: %d", s.ProofType)
 	}
 	if !s.VerifyInclusion(dah, x, y) {
 		return fmt.Errorf("share proof is invalid")
@@ -67,7 +67,7 @@ func (s *ShareWithProof) Validate(dah *Root, x, y int) error {
 
 // Validate validates inclusion of the share under the given root CID.
 func (s *ShareWithProof) VerifyInclusion(dah *Root, x, y int) bool {
-	rootHash := rootHashForCoordinates(dah, s.Axis, uint(x), uint(y))
+	rootHash := rootHashForCoordinates(dah, s.ProofType, uint(x), uint(y))
 
 	size := len(dah.RowRoots)
 	isParity := x >= size/2 || y >= size/2
@@ -93,7 +93,7 @@ func (s *ShareWithProof) ToProto() *types_pb.ShareWithProof {
 			LeafHash:              s.Proof.LeafHash(),
 			IsMaxNamespaceIgnored: s.Proof.IsMaxNamespaceIDIgnored(),
 		},
-		ProofType: types_pb.Axis(s.Axis),
+		ProofType: types_pb.Axis(s.ProofType),
 	}
 }
 
@@ -105,9 +105,9 @@ func ShareWithProofFromProto(s *types_pb.ShareWithProof) *ShareWithProof {
 		s.Proof.IsMaxNamespaceIgnored,
 	)
 	return &ShareWithProof{
-		Share: s.Share,
-		Proof: &proof,
-		Axis:  rsmt2d.Axis(s.ProofType),
+		Share:     s.Share,
+		Proof:     &proof,
+		ProofType: rsmt2d.Axis(s.ProofType),
 	}
 }
 

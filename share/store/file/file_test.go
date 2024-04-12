@@ -194,7 +194,7 @@ func benchGetAxisFromFile(b *testing.B, newFile func(size int) EdsFile, minSize,
 		// loop over all possible axis types and quadrants
 		for _, axisType := range []rsmt2d.Axis{rsmt2d.Row, rsmt2d.Col} {
 			for _, squareHalf := range []int{0, 1} {
-				name := fmt.Sprintf("Size:%v/Axis:%s/squareHalf:%s", size, axisType, strconv.Itoa(squareHalf))
+				name := fmt.Sprintf("Size:%v/ProofType:%s/squareHalf:%s", size, axisType, strconv.Itoa(squareHalf))
 				b.Run(name, func(b *testing.B) {
 					b.ResetTimer()
 					for i := 0; i < b.N; i++ {

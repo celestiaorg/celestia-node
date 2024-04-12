@@ -72,9 +72,9 @@ func NewSampleFromEDS(
 	}
 
 	sp := &share.ShareWithProof{
-		Share: shrs[shrIdx],
-		Proof: &prf,
-		Axis:  proofType,
+		Share:     shrs[shrIdx],
+		Proof:     &prf,
+		ProofType: proofType,
 	}
 	return NewSample(id, sp), nil
 }

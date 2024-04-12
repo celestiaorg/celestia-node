@@ -263,9 +263,9 @@ func shareWithProof(shares []share.Share, axisType rsmt2d.Axis, axisIdx, shrIdx 
 	}
 
 	return &share.ShareWithProof{
-		Share: shares[shrIdx],
-		Proof: &proof,
-		Axis:  axisType,
+		Share:     shares[shrIdx],
+		Proof:     &proof,
+		ProofType: axisType,
 	}, nil
 }
 

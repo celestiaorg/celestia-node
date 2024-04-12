@@ -206,9 +206,9 @@ func GetShareWithProof(
 	}
 
 	return &share.ShareWithProof{
-		Share: share.GetData(leaf.RawData()),
-		Proof: buildProof(nodes, index),
-		Axis:  axisType,
+		Share:     share.GetData(leaf.RawData()),
+		Proof:     buildProof(nodes, index),
+		ProofType: axisType,
 	}, nil
 }
 

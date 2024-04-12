@@ -70,9 +70,9 @@ func (f *MemFile) Share(
 	}
 
 	return &share.ShareWithProof{
-		Share: shares[shrIdx],
-		Proof: &proof,
-		Axis:  axisType,
+		Share:     shares[shrIdx],
+		Proof:     &proof,
+		ProofType: axisType,
 	}, nil
 }
 

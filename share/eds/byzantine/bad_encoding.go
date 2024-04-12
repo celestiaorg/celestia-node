@@ -279,7 +279,7 @@ func ShareWithProofToProto(s *share.ShareWithProof) *pb.Share {
 	}
 }
 
-func ProtoToShare(protoShares []*pb.Share, axisType rsmt2d.Axis) []*share.ShareWithProof {
+func ProtoToShare(protoShares []*pb.Share, proofAxis rsmt2d.Axis) []*share.ShareWithProof {
 	shares := make([]*share.ShareWithProof, len(protoShares))
 	for i, sh := range protoShares {
 		if sh.Proof == nil {
@@ -287,9 +287,9 @@ func ProtoToShare(protoShares []*pb.Share, axisType rsmt2d.Axis) []*share.ShareW
 		}
 		proof := ProtoToProof(sh.Proof)
 		shares[i] = &share.ShareWithProof{
-			Share: sh.Data,
-			Proof: &proof,
-			Axis:  axisType,
+			Share:     sh.Data,
+			Proof:     &proof,
+			ProofType: proofAxis,
 		}
 	}
 	return shares
