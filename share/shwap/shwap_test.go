@@ -43,22 +43,24 @@ func TestSampleRoundtripGetBlock(t *testing.T) {
 	client := remoteClient(ctx, t, b)
 
 	width := int(eds.Width())
-	for i := 0; i < width*width; i++ {
-		smpl, err := NewSampleFromEDS(RowProofType, i, eds, height) // TODO: Col
-		require.NoError(t, err)
+	for x := 0; x < width; x++ {
+		for y := 0; y < width; y++ {
+			smpl, err := newSampleFromEDS(x, y, eds, height) // TODO: Col, return Sample is always Row
+			require.NoError(t, err)
 
-		globalRootsCache.Store(smpl.SampleID, root)
+			globalRootsCache.Store(smpl.SampleID, root)
 
-		cid := smpl.Cid()
-		blkOut, err := client.GetBlock(ctx, cid)
-		require.NoError(t, err)
-		require.EqualValues(t, cid, blkOut.Cid())
+			cid := smpl.Cid()
+			blkOut, err := client.GetBlock(ctx, cid)
+			require.NoError(t, err)
+			require.EqualValues(t, cid, blkOut.Cid())
 
-		smpl, err = SampleFromBlock(blkOut)
-		require.NoError(t, err)
+			smpl, err = SampleFromBlock(blkOut)
+			require.NoError(t, err)
 
-		err = smpl.Verify(root)
-		require.NoError(t, err)
+			err = smpl.Verify(root)
+			require.NoError(t, err)
+		}
 	}
 }
 
@@ -76,11 +78,13 @@ func TestSampleRoundtripGetBlocks(t *testing.T) {
 
 	set := cid.NewSet()
 	width := int(eds.Width())
-	for i := 0; i < width*width; i++ {
-		smpl, err := NewSampleFromEDS(RowProofType, i, eds, height) // TODO: Col
-		require.NoError(t, err)
-		set.Add(smpl.Cid())
-		globalRootsCache.Store(smpl.SampleID, root)
+	for x := 0; x < width; x++ {
+		for y := 0; y < width; y++ {
+			smpl, err := newSampleFromEDS(x, y, eds, height) // TODO: Col, return Sample is always Row
+			require.NoError(t, err)
+			set.Add(smpl.Cid())
+			globalRootsCache.Store(smpl.SampleID, root)
+		}
 	}
 
 	blks, err := client.GetBlocks(ctx, set.Keys())
