@@ -5,6 +5,8 @@ import (
 	"crypto/sha256"
 	"encoding/hex"
 	"fmt"
+	types_pb "github.com/celestiaorg/celestia-node/share/pb"
+	nmt_pb "github.com/celestiaorg/nmt/pb"
 
 	"github.com/celestiaorg/celestia-app/pkg/appconsts"
 	"github.com/celestiaorg/nmt"
@@ -66,6 +68,34 @@ func (s *ShareWithProof) Validate(rootHash []byte, x, y, edsSize int) bool {
 		[][]byte{s.Share},
 		rootHash,
 	)
+}
+
+func (s *ShareWithProof) ToProto() *types_pb.ShareWithProof {
+	return &types_pb.ShareWithProof{
+		Share: s.Share,
+		Proof: &nmt_pb.Proof{
+			Start:                 int64(s.Proof.Start()),
+			End:                   int64(s.Proof.End()),
+			Nodes:                 s.Proof.Nodes(),
+			LeafHash:              s.Proof.LeafHash(),
+			IsMaxNamespaceIgnored: s.Proof.IsMaxNamespaceIDIgnored(),
+		},
+		ProofType: types_pb.Axis(s.Axis),
+	}
+}
+
+func ShareWithProofFromProto(s *types_pb.ShareWithProof) *ShareWithProof {
+	proof := nmt.NewInclusionProof(
+		int(s.Proof.Start),
+		int(s.Proof.End),
+		s.Proof.Nodes,
+		s.Proof.IsMaxNamespaceIgnored,
+	)
+	return &ShareWithProof{
+		Share: s.Share,
+		Proof: &proof,
+		Axis:  rsmt2d.Axis(s.ProofType),
+	}
 }
 
 // DataHash is a representation of the Root hash.

@@ -1,0 +1,25 @@
+syntax = "proto3";
+
+option go_package = "github.com/celestiaorg/celestia-node/share/pb;types";
+
+import "pb/proof.proto"; // celestiaorg/nmt/pb/proof.proto
+
+message Row {
+    repeated bytes row_half = 1;
+}
+
+message ShareWithProof {
+    bytes share = 1;
+    proof.pb.Proof proof = 2;
+    Axis proof_type = 3;
+}
+
+message Data {
+    repeated bytes shares = 1;
+    proof.pb.Proof proof = 2;
+}
+
+enum Axis {
+    ROW = 0;
+    COL = 1;
+}

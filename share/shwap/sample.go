@@ -7,8 +7,6 @@ import (
 	blocks "github.com/ipfs/go-block-format"
 
 	"github.com/celestiaorg/celestia-app/pkg/wrapper"
-	"github.com/celestiaorg/nmt"
-	nmtpb "github.com/celestiaorg/nmt/pb"
 	"github.com/celestiaorg/rsmt2d"
 
 	"github.com/celestiaorg/celestia-node/share"
@@ -28,22 +26,14 @@ const (
 // Sample represents a sample of an NMT in EDS.
 type Sample struct {
 	SampleID
-
-	// SampleProofType of the Sample
-	SampleProofType SampleProofType
-	// SampleProof of SampleShare inclusion in the NMT
-	SampleProof nmt.Proof
-	// SampleShare is a share being sampled
-	SampleShare share.Share
+	*share.ShareWithProof
 }
 
 // NewSample constructs a new Sample.
-func NewSample(id SampleID, shr share.Share, proof nmt.Proof, proofTp SampleProofType) *Sample {
+func NewSample(id SampleID, s *share.ShareWithProof) *Sample {
 	return &Sample{
-		SampleID:        id,
-		SampleProofType: proofTp,
-		SampleProof:     proof,
-		SampleShare:     shr,
+		SampleID:       id,
+		ShareWithProof: s,
 	}
 }
 
@@ -92,7 +82,12 @@ func NewSampleFromEDS(
 		return nil, fmt.Errorf("while proving range share over NMT: %w", err)
 	}
 
-	return NewSample(id, shrs[shrIdx], prf, proofType), nil
+	sp := &share.ShareWithProof{
+		Share: shrs[shrIdx],
+		Proof: &prf,
+		Axis:  proofType,
+	}
+	return NewSample(id, sp), nil
 }
 
 // SampleFromBlock converts blocks.Block into Sample.
@@ -100,12 +95,16 @@ func SampleFromBlock(blk blocks.Block) (*Sample, error) {
 	if err := validateCID(blk.Cid()); err != nil {
 		return nil, err
 	}
-	return SampleFromBinary(blk.RawData())
+	sample := new(shwappb.SampleResponse)
+	if err := sample.Unmarshal(blk.RawData()); err != nil {
+		return nil, err
+	}
+	return SampleFromProto(sample)
 }
 
 // IPLDBlock converts Sample to an IPLD block for Bitswap compatibility.
 func (s *Sample) IPLDBlock() (blocks.Block, error) {
-	data, err := s.MarshalBinary()
+	data, err := s.ToProto().Marshal()
 	if err != nil {
 		return nil, err
 	}
@@ -114,40 +113,22 @@ func (s *Sample) IPLDBlock() (blocks.Block, error) {
 }
 
 // MarshalBinary marshals Sample to binary.
-func (s *Sample) MarshalBinary() ([]byte, error) {
-	id := s.SampleID.MarshalBinary()
-	proof := &nmtpb.Proof{}
-	proof.Nodes = s.SampleProof.Nodes()
-	proof.End = int64(s.SampleProof.End())
-	proof.Start = int64(s.SampleProof.Start())
-	proof.IsMaxNamespaceIgnored = s.SampleProof.IsMaxNamespaceIDIgnored()
-	proof.LeafHash = s.SampleProof.LeafHash()
-
-	return (&shwappb.Sample{
-		SampleId:    id,
-		ProofType:   shwappb.ProofType(s.SampleProofType),
-		SampleProof: proof,
-		SampleShare: s.SampleShare,
-	}).Marshal()
+func (s *Sample) ToProto() *shwappb.SampleResponse {
+	return &shwappb.SampleResponse{
+		SampleId: s.SampleID.MarshalBinary(),
+		Sample:   s.ShareWithProof.ToProto(),
+	}
 }
 
 // SampleFromBinary unmarshal Sample from binary.
-func SampleFromBinary(data []byte) (*Sample, error) {
-	proto := &shwappb.Sample{}
-	if err := proto.Unmarshal(data); err != nil {
-		return nil, err
-	}
-
-	sid, err := SampleIdFromBinary(proto.SampleId)
+func SampleFromProto(sampleProto *shwappb.SampleResponse) (*Sample, error) {
+	id, err := SampleIdFromBinary(sampleProto.SampleId)
 	if err != nil {
 		return nil, err
 	}
-
 	return &Sample{
-		SampleID:        sid,
-		SampleProofType: SampleProofType(proto.ProofType),
-		SampleProof:     nmt.ProtoToProof(*proto.SampleProof),
-		SampleShare:     proto.SampleShare,
+		SampleID:       id,
+		ShareWithProof: share.ShareWithProofFromProto(sampleProto.Sample),
 	}, nil
 }
 
@@ -157,22 +138,18 @@ func (s *Sample) Verify(root *share.Root) error {
 		return err
 	}
 
-	if s.SampleProofType != RowProofType && s.SampleProofType != ColProofType {
-		return fmt.Errorf("invalid SampleProofType: %d", s.SampleProofType)
+	if s.Axis != RowProofType && s.Axis != ColProofType {
+		return fmt.Errorf("invalid SampleProofType: %d", s.Axis)
 	}
 
 	sqrLn := len(root.RowRoots)
-	namespace := share.ParitySharesNamespace
-	if int(s.RowIndex) < sqrLn/2 && int(s.ShareIndex) < sqrLn/2 {
-		namespace = share.GetNamespace(s.SampleShare)
-	}
-
 	rootHash := root.RowRoots[s.RowIndex]
-	if s.SampleProofType == ColProofType {
+	if s.Axis == ColProofType {
 		rootHash = root.ColumnRoots[s.ShareIndex]
 	}
 
-	if !s.SampleProof.VerifyInclusion(hashFn(), namespace.ToNMT(), [][]byte{s.SampleShare}, rootHash) {
+	x, y := int(s.RowIndex), int(s.ShareIndex)
+	if !s.Validate(rootHash, x, y, sqrLn) {
 		return errors.New("invalid Sample")
 	}
 

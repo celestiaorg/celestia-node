@@ -18,14 +18,18 @@ func TestSample(t *testing.T) {
 	sample, err := NewSampleFromEDS(RowProofType, 1, square, 1)
 	require.NoError(t, err)
 
-	data, err := sample.MarshalBinary()
-	require.NoError(t, err)
-
+	// test block encoding
 	blk, err := sample.IPLDBlock()
 	require.NoError(t, err)
 	assert.EqualValues(t, blk.Cid(), sample.Cid())
 
-	sampleOut, err := SampleFromBinary(data)
+	sampleOut, err := SampleFromBlock(blk)
+	require.NoError(t, err)
+	assert.EqualValues(t, sample, sampleOut)
+
+	// test proto encoding
+	pb := sample.ToProto()
+	sampleOut, err = SampleFromProto(pb)
 	require.NoError(t, err)
 	assert.EqualValues(t, sample, sampleOut)
 

@@ -3,6 +3,7 @@ package shwap
 import (
 	"crypto/sha256"
 	"fmt"
+	shwap_pb "github.com/celestiaorg/celestia-node/share/shwap/pb"
 )
 
 // SampleHasher implements hash.Hash interface for Sample.
@@ -12,7 +13,13 @@ type SampleHasher struct {
 
 // Write expects a marshaled Sample to validate.
 func (h *SampleHasher) Write(data []byte) (int, error) {
-	s, err := SampleFromBinary(data)
+	samplepb := &shwap_pb.SampleResponse{}
+	if err := samplepb.Unmarshal(data); err != nil {
+		err = fmt.Errorf("unmarshaling SampleResponse: %w", err)
+		log.Error(err)
+		return 0, err
+	}
+	s, err := SampleFromProto(samplepb)
 	if err != nil {
 		err = fmt.Errorf("unmarshaling Sample: %w", err)
 		log.Error(err)

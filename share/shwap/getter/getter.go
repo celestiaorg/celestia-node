@@ -93,7 +93,7 @@ func (g *Getter) GetShares(ctx context.Context, hdr *header.ExtendedHeader, smpl
 			return nil, fmt.Errorf("getting sample from block: %w", err)
 		}
 		shrIdx := int(sample.SampleID.RowIndex)*len(hdr.DAH.RowRoots) + int(sample.SampleID.ShareIndex)
-		shares[shrIdx] = sample.SampleShare
+		shares[shrIdx] = sample.Share
 	}
 
 	ordered := make([]share.Share, len(shares))
