@@ -63,5 +63,8 @@ func newSampleFromEDS(
 	if err != nil {
 		return nil, fmt.Errorf("while getting share: %w", err)
 	}
-	return NewSample(id, shareWithProof), nil
+	return &Sample{
+		SampleID:       id,
+		ShareWithProof: shareWithProof,
+	}, nil
 }

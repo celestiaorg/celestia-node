@@ -112,7 +112,10 @@ func (sid SampleID) BlockFromFile(ctx context.Context, f file.EdsFile) (blocks.B
 		return nil, fmt.Errorf("while getting share with proof: %w", err)
 	}
 
-	s := NewSample(sid, shr)
+	s := &Sample{
+		SampleID:       sid,
+		ShareWithProof: shr,
+	}
 	blk, err := s.IPLDBlock()
 	if err != nil {
 		return nil, fmt.Errorf("while coverting to IPLD block: %w", err)

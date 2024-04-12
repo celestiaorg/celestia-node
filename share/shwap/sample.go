@@ -13,14 +13,6 @@ type Sample struct {
 	*share.ShareWithProof
 }
 
-// NewSample constructs a new Sample.
-func NewSample(id SampleID, s *share.ShareWithProof) *Sample {
-	return &Sample{
-		SampleID:       id,
-		ShareWithProof: s,
-	}
-}
-
 // SampleFromBlock converts blocks.Block into Sample.
 func SampleFromBlock(blk blocks.Block) (*Sample, error) {
 	if err := validateCID(blk.Cid()); err != nil {
@@ -43,7 +35,7 @@ func (s *Sample) IPLDBlock() (blocks.Block, error) {
 	return blocks.NewBlockWithCid(data, s.Cid())
 }
 
-// MarshalBinary marshals Sample to binary.
+// ToProto marshals Sample to proto.
 func (s *Sample) ToProto() *shwappb.SampleResponse {
 	return &shwappb.SampleResponse{
 		SampleId: s.SampleID.MarshalBinary(),
@@ -51,7 +43,7 @@ func (s *Sample) ToProto() *shwappb.SampleResponse {
 	}
 }
 
-// SampleFromBinary unmarshal Sample from binary.
+// SampleFromProto unmarshal Sample from proto.
 func SampleFromProto(sampleProto *shwappb.SampleResponse) (*Sample, error) {
 	id, err := SampleIdFromBinary(sampleProto.SampleId)
 	if err != nil {
