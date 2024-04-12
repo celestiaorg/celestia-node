@@ -8,10 +8,11 @@ import (
 
 // SampleHasher implements hash.Hash interface for Sample.
 type SampleHasher struct {
-	data []byte
+	cid []byte
 }
 
 // Write expects a marshaled Sample to validate.
+// TODO:(@walldiss) do we need support for partial(multiple) writes?
 func (h *SampleHasher) Write(data []byte) (int, error) {
 	samplepb := &shwap_pb.SampleResponse{}
 	if err := samplepb.Unmarshal(data); err != nil {
@@ -38,22 +39,19 @@ func (h *SampleHasher) Write(data []byte) (int, error) {
 		return 0, err
 	}
 
-	h.data = data
+	const pbOffset = 2
+	h.cid = data[pbOffset : SampleIDSize+pbOffset]
 	return len(data), nil
 }
 
 // Sum returns the "multihash" of the SampleID.
 func (h *SampleHasher) Sum([]byte) []byte {
-	if h.data == nil {
-		return nil
-	}
-	const pbOffset = 2
-	return h.data[pbOffset : SampleIDSize+pbOffset]
+	return h.cid
 }
 
 // Reset resets the Hash to its initial state.
 func (h *SampleHasher) Reset() {
-	h.data = nil
+	h.cid = nil
 }
 
 // Size returns the number of bytes Sum will return.
