@@ -4,6 +4,7 @@ import (
 	"context"
 	"crypto/sha256"
 	"errors"
+	"math"
 
 	"github.com/ipfs/boxo/blockservice"
 	"github.com/ipfs/go-cid"
@@ -126,7 +127,7 @@ func getProofsAt(
 	index,
 	total int,
 ) (nmt.Proof, error) {
-	proofPath := make([]cid.Cid, 0)
+	proofPath := make([]cid.Cid, 0, int(math.Sqrt(float64(total))))
 	proofPath, err := ipld.GetProof(ctx, bGetter, root, proofPath, index, total)
 	if err != nil {
 		return nmt.Proof{}, err
