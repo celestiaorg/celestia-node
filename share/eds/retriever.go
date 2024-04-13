@@ -128,11 +128,7 @@ type retrievalSession struct {
 func (r *Retriever) newSession(ctx context.Context, dah *da.DataAvailabilityHeader) (*retrievalSession, error) {
 	size := len(dah.RowRoots)
 
-	adder := ipld.NewNmtNodeAdder(
-		ctx,
-		r.bServ,
-		ipld.MaxSizeBatchOption(size),
-	)
+	adder := ipld.NewNmtNodeAdder(ctx, r.bServ, ipld.MaxSizeBatchOption(size))
 	proofsVisitor := ipld.ProofsAdderFromCtx(ctx).VisitFn()
 	visitor := func(hash []byte, children ...[]byte) {
 		// use proofs adder if provided, to cache collected proofs while recomputing the eds
