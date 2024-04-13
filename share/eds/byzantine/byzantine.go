@@ -48,21 +48,13 @@ func NewErrByzantine(
 			continue
 		}
 
-		var x, y int
-		if errByz.Axis == rsmt2d.Row {
-			x = index
-			y = int(errByz.Index)
-		} else {
-			x = int(errByz.Index)
-			y = index
-		}
 		index, share := index, share
 		go func() {
-			share, err := getShareWithProof(ctx, bGetter, dah, share, x, y)
+			share, err := GetShareWithProof(ctx, bGetter, dah, share, errByz.Axis, int(errByz.Index), index)
 			if err != nil {
 				log.Warn("requesting proof failed",
 					"errByz", errByz,
-					"x", x, "y", y,
+					"shareIndex", index,
 					"err", err)
 				return
 			}

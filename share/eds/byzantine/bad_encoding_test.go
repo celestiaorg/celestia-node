@@ -171,17 +171,17 @@ func TestIncorrectBadEncodingFraudProof(t *testing.T) {
 	require.NoError(t, err)
 
 	// get an arbitrary row
-	row := uint(squareSize / 2)
-	rowShares := eds.Row(row)
-	rowRoot := dah.RowRoots[row]
-	rootCid := ipld.MustCidFromNamespacedSha256(rowRoot)
-
-	shareProofs, err := GetProofsForShares(ctx, bServ, rootCid, rowShares, rsmt2d.Row)
-	require.NoError(t, err)
+	rowIdx := squareSize / 2
+	shareProofs := make([]*ShareWithProof, 0, eds.Width())
+	for i := range shareProofs {
+		proof, err := GetShareWithProof(ctx, bServ, dah, shares[i], rsmt2d.Row, rowIdx, i)
+		require.NoError(t, err)
+		shareProofs = append(shareProofs, proof)
+	}
 
 	// create a fake error for data that was encoded correctly
 	fakeError := ErrByzantine{
-		Index:  uint32(row),
+		Index:  uint32(rowIdx),
 		Shares: shareProofs,
 		Axis:   rsmt2d.Row,
 	}

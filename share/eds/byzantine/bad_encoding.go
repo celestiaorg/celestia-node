@@ -12,7 +12,6 @@ import (
 	"github.com/celestiaorg/celestia-node/header"
 	"github.com/celestiaorg/celestia-node/share"
 	pb "github.com/celestiaorg/celestia-node/share/eds/byzantine/pb"
-	"github.com/celestiaorg/celestia-node/share/ipld"
 )
 
 const (
@@ -183,15 +182,7 @@ func (p *BadEncodingProof) Validate(hdr *header.ExtendedHeader) error {
 			continue
 		}
 		// validate inclusion of the share into one of the DAHeader roots
-		var x, y int
-		if p.Axis == rsmt2d.Row {
-			x, y = index, int(p.Index)
-		} else {
-			x, y = int(p.Index), index
-		}
-		root := getRoot(hdr.DAH, shr.Axis, x, y)
-		rootCid := ipld.MustCidFromNamespacedSha256(root)
-		if ok := shr.Validate(rootCid, x, y, width); !ok {
+		if ok := shr.Validate(hdr.DAH, p.Axis, int(p.Index), index); !ok {
 			log.Debugf("%s: %s at index %d", invalidProofPrefix, errIncorrectShare, index)
 			return errIncorrectShare
 		}
@@ -250,11 +241,4 @@ func (p *BadEncodingProof) Validate(hdr *header.ExtendedHeader) error {
 		return errNMTTreeRootsMatch
 	}
 	return nil
-}
-
-func getRoot(root *share.Root, axisType rsmt2d.Axis, x, y int) []byte {
-	if axisType == rsmt2d.Row {
-		return root.RowRoots[y]
-	}
-	return root.ColumnRoots[x]
 }

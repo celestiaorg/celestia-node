@@ -31,8 +31,17 @@ type ShareWithProof struct {
 }
 
 // Validate validates inclusion of the share under the given root CID.
-func (s *ShareWithProof) Validate(root cid.Cid, x, y, edsSize int) bool {
-	isParity := x >= edsSize/2 || y >= edsSize/2
+func (s *ShareWithProof) Validate(dah *share.Root, axisType rsmt2d.Axis, axisIdx, shrIdx int) bool {
+	var rootHash []byte
+	switch axisType {
+	case rsmt2d.Row:
+		rootHash = rootHashForCoordinates(dah, s.Axis, shrIdx, axisIdx)
+	case rsmt2d.Col:
+		rootHash = rootHashForCoordinates(dah, s.Axis, axisIdx, shrIdx)
+	}
+
+	edsSize := len(dah.RowRoots)
+	isParity := shrIdx >= edsSize/2
 	namespace := share.ParitySharesNamespace
 	if !isParity {
 		namespace = share.GetNamespace(s.Share)
@@ -41,7 +50,7 @@ func (s *ShareWithProof) Validate(root cid.Cid, x, y, edsSize int) bool {
 		sha256.New(), // TODO(@Wondertan): This should be defined somewhere globally
 		namespace.ToNMT(),
 		[][]byte{s.Share},
-		ipld.NamespacedSha256FromCID(root),
+		rootHash,
 	)
 }
 
@@ -63,61 +72,39 @@ func (s *ShareWithProof) ShareWithProofToProto() *pb.Share {
 	}
 }
 
-// GetProofsForShares fetches Merkle proofs for the given shares
-// and returns the result as an array of ShareWithProof.
-func GetProofsForShares(
-	ctx context.Context,
-	bGetter blockservice.BlockGetter,
-	root cid.Cid,
-	shares [][]byte,
-	axisType rsmt2d.Axis,
-) ([]*ShareWithProof, error) {
-	sharesWithProofs := make([]*ShareWithProof, len(shares))
-	for index, share := range shares {
-		if share != nil {
-			proof, err := getProofsAt(ctx, bGetter, root, index, len(shares))
-			if err != nil {
-				return nil, err
-			}
-			sharesWithProofs[index] = &ShareWithProof{
-				Share: share,
-				Proof: &proof,
-				Axis:  axisType,
-			}
-		}
-	}
-	return sharesWithProofs, nil
-}
-
-// getShareWithProof attempts to get a share with proof for the given share. It first tries to get a row proof
+// GetShareWithProof attempts to get a share with proof for the given share. It first tries to get a row proof
 // and if that fails or proof is invalid, it tries to get a column proof.
-func getShareWithProof(
+func GetShareWithProof(
 	ctx context.Context,
 	bGetter blockservice.BlockGetter,
 	dah *share.Root,
 	share share.Share,
-	x, y int,
+	axisType rsmt2d.Axis, axisIdx, shrIdx int,
 ) (*ShareWithProof, error) {
+	// If the axis is column, we need to swap the indices
+	if axisType == rsmt2d.Col {
+		axisIdx, shrIdx, axisType = shrIdx, axisIdx, rsmt2d.Row
+	}
 	width := len(dah.RowRoots)
 	// try row proofs
-	root := dah.RowRoots[y]
+	root := dah.RowRoots[axisIdx]
 	rootCid := ipld.MustCidFromNamespacedSha256(root)
-	proof, err := getProofsAt(ctx, bGetter, rootCid, x, width)
+	proof, err := getProofsAt(ctx, bGetter, rootCid, shrIdx, width)
 	if err == nil {
 		shareWithProof := &ShareWithProof{
 			Share: share,
 			Proof: &proof,
 			Axis:  rsmt2d.Row,
 		}
-		if shareWithProof.Validate(rootCid, x, y, width) {
+		if shareWithProof.Validate(dah, axisType, axisIdx, shrIdx) {
 			return shareWithProof, nil
 		}
 	}
 
 	// try column proofs
-	root = dah.ColumnRoots[x]
+	root = dah.ColumnRoots[shrIdx]
 	rootCid = ipld.MustCidFromNamespacedSha256(root)
-	proof, err = getProofsAt(ctx, bGetter, rootCid, y, width)
+	proof, err = getProofsAt(ctx, bGetter, rootCid, axisIdx, width)
 	if err != nil {
 		return nil, err
 	}
@@ -126,7 +113,7 @@ func getShareWithProof(
 		Proof: &proof,
 		Axis:  rsmt2d.Col,
 	}
-	if shareWithProof.Validate(rootCid, x, y, width) {
+	if shareWithProof.Validate(dah, axisType, axisIdx, shrIdx) {
 		return shareWithProof, nil
 	}
 	return nil, errors.New("failed to collect proof")
@@ -177,4 +164,11 @@ func ProtoToProof(protoProof *nmt_pb.Proof) nmt.Proof {
 		protoProof.Nodes,
 		protoProof.IsMaxNamespaceIgnored,
 	)
+}
+
+func rootHashForCoordinates(r *share.Root, axisType rsmt2d.Axis, x, y int) []byte {
+	if axisType == rsmt2d.Row {
+		return r.RowRoots[y]
+	}
+	return r.ColumnRoots[x]
 }
