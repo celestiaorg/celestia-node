@@ -133,21 +133,17 @@ func (r *Retriever) newSession(ctx context.Context, dah *da.DataAvailabilityHead
 		r.bServ,
 		ipld.MaxSizeBatchOption(size),
 	)
+	proofsVisitor := ipld.ProofsAdderFromCtx(ctx).VisitFn()
+	visitor := func(hash []byte, children ...[]byte) {
+		// use proofs adder if provided, to cache collected proofs while recomputing the eds
+		if proofsVisitor != nil {
+			proofsVisitor(hash, children...)
+		}
+		adder.Visit(hash, children...)
+	}
 
 	treeFn := func(_ rsmt2d.Axis, index uint) rsmt2d.Tree {
-		// use proofs adder if provided, to cache collected proofs while recomputing the eds
-		var opts []nmt.Option
-
-		proofsAdder := ipld.ProofsAdderFromCtx(ctx)
-		visitor := func(hash []byte, children ...[]byte) {
-			if proofsAdder != nil {
-				proofsAdder.VisitFn()(hash, children...)
-			}
-			adder.Visit(hash, children...)
-		}
-		opts = append(opts, nmt.NodeVisitor(visitor))
-
-		tree := wrapper.NewErasuredNamespacedMerkleTree(uint64(size)/2, index, opts...)
+		tree := wrapper.NewErasuredNamespacedMerkleTree(uint64(size)/2, index, nmt.NodeVisitor(visitor))
 		return &tree
 	}
 
