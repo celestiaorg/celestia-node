@@ -1,16 +1,18 @@
 package state
 
 import (
-	"github.com/cosmos/cosmos-sdk/crypto/keyring"
+	kr "github.com/cosmos/cosmos-sdk/crypto/keyring"
 	"go.uber.org/fx"
+
+	"github.com/celestiaorg/celestia-node/libs/fxutil"
 )
 
-// WithKeyringSigner overrides the default keyring signer constructed
+// WithKeyring overrides the default keyring constructed
 // by the node.
-func WithKeyring(keyring keyring.Keyring) fx.Option {
-	return fx.Replace(keyring)
+func WithKeyring(keyring kr.Keyring) fx.Option {
+	return fxutil.ReplaceAs(keyring, new(kr.Keyring))
 }
 
-func WithKeyName(name string) fx.Option {
+func WithKeyName(name AccName) fx.Option {
 	return fx.Replace(name)
 }
