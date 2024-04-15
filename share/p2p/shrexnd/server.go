@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"github.com/celestiaorg/celestia-node/share/ipld"
 	"time"
 
 	"github.com/libp2p/go-libp2p/core/host"
@@ -187,10 +188,19 @@ func (srv *Server) getNamespaceData(ctx context.Context,
 	}
 	defer utils.CloseAndLog(log, "file", file)
 
+	if toRow > file.Size()/2 {
+		// TODO(@Walldiss): needs refactoring for better handling
+		return nil, pb.StatusCode_NOT_FOUND, fmt.Errorf("toRow: (%d) exceeds file ods size: (%d)", toRow, file.Size())
+	}
+
 	namespacedRows := make(share.NamespacedShares, 0, toRow-fromRow+1)
 	for rowIdx := fromRow; rowIdx < toRow; rowIdx++ {
 		data, err := file.Data(ctx, namespace, rowIdx)
 		if err != nil {
+			if errors.Is(err, ipld.ErrNamespaceOutsideRange) {
+				// TODO(@Walldiss): needs refactoring for better handling
+				return nil, pb.StatusCode_NOT_FOUND, fmt.Errorf("namespace outside range: %w for row %d", err, rowIdx)
+			}
 			return nil, pb.StatusCode_INTERNAL, fmt.Errorf("retrieving data: %w", err)
 		}
 		namespacedRows = append(namespacedRows, data)
@@ -254,5 +264,8 @@ func (srv *Server) observeStatus(ctx context.Context, status pb.StatusCode) {
 
 // validateRequest checks correctness of the request
 func validateRequest(req pb.GetSharesByNamespaceRequest) error {
+	if req.ToRow < req.FromRow {
+		return fmt.Errorf("invalid request: ToRow must be greater than FromRow")
+	}
 	return share.Namespace(req.Namespace).ValidateForData()
 }
