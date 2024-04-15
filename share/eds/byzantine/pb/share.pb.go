@@ -177,7 +177,7 @@ func (m *BadEncoding) GetAxis() Axis {
 }
 
 func init() {
-	proto.RegisterEnum("share.eds.byzantine.pb.ProofType", Axis_name, Axis_value)
+	proto.RegisterEnum("share.eds.byzantine.pb.Axis", Axis_name, Axis_value)
 	proto.RegisterType((*Share)(nil), "share.eds.byzantine.pb.Share")
 	proto.RegisterType((*BadEncoding)(nil), "share.eds.byzantine.pb.BadEncoding")
 }
@@ -629,7 +629,7 @@ func (m *BadEncoding) Unmarshal(dAtA []byte) error {
 			}
 		case 5:
 			if wireType != 0 {
-				return fmt.Errorf("proto: wrong wireType = %d for field ProofType", wireType)
+				return fmt.Errorf("proto: wrong wireType = %d for field Axis", wireType)
 			}
 			m.Axis = 0
 			for shift := uint(0); ; shift += 7 {

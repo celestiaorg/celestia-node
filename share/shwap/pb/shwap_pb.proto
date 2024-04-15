@@ -2,17 +2,17 @@ syntax = "proto3";
 
 import "types.proto";
 
-message RowResponse {
+message RowBlock {
     bytes row_id = 1;
     Row row = 2;
 }
 
-message SampleResponse {
+message SampleBlock {
     bytes sample_id = 1;
     ShareWithProof sample = 2;
 }
 
-message DataResponse {
+message DataBlock {
     bytes data_id = 1;
     Data data = 2;
 }

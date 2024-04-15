@@ -12,9 +12,8 @@ type SampleHasher struct {
 }
 
 // Write expects a marshaled Sample to validate.
-// TODO:(@walldiss) do we need support for partial(multiple) writes?
 func (h *SampleHasher) Write(data []byte) (int, error) {
-	samplepb := &shwap_pb.SampleResponse{}
+	samplepb := &shwap_pb.SampleBlock{}
 	if err := samplepb.Unmarshal(data); err != nil {
 		err = fmt.Errorf("unmarshaling SampleResponse: %w", err)
 		log.Error(err)

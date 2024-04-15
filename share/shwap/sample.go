@@ -18,7 +18,7 @@ func SampleFromBlock(blk blocks.Block) (*Sample, error) {
 	if err := validateCID(blk.Cid()); err != nil {
 		return nil, err
 	}
-	sample := new(shwappb.SampleResponse)
+	sample := new(shwappb.SampleBlock)
 	if err := sample.Unmarshal(blk.RawData()); err != nil {
 		return nil, err
 	}
@@ -36,15 +36,15 @@ func (s *Sample) IPLDBlock() (blocks.Block, error) {
 }
 
 // ToProto marshals Sample to proto.
-func (s *Sample) ToProto() *shwappb.SampleResponse {
-	return &shwappb.SampleResponse{
+func (s *Sample) ToProto() *shwappb.SampleBlock {
+	return &shwappb.SampleBlock{
 		SampleId: s.SampleID.MarshalBinary(),
 		Sample:   s.ShareWithProof.ToProto(),
 	}
 }
 
 // SampleFromProto unmarshal Sample from proto.
-func SampleFromProto(sampleProto *shwappb.SampleResponse) (*Sample, error) {
+func SampleFromProto(sampleProto *shwappb.SampleBlock) (*Sample, error) {
 	id, err := SampleIdFromBinary(sampleProto.SampleId)
 	if err != nil {
 		return nil, err
