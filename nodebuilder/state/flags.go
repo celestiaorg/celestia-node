@@ -3,6 +3,7 @@ package state
 import (
 	"fmt"
 
+	sdktypes "github.com/cosmos/cosmos-sdk/types"
 	"github.com/spf13/cobra"
 	flag "github.com/spf13/pflag"
 )
@@ -36,5 +37,13 @@ func ParseFlags(cmd *cobra.Command, cfg *Config) {
 	}
 
 	cfg.KeyringBackend = cmd.Flag(keyringBackendFlag).Value.String()
-	cfg.GranterAddress = cmd.Flag(granterAddressFlag).Value.String()
+
+	addr := cmd.Flag(granterAddressFlag).Value.String()
+	if addr != "" {
+		sdkAddress, err := sdktypes.AccAddressFromBech32(addr)
+		if err != nil {
+			panic(err)
+		}
+		cfg.GranterAddress = sdkAddress
+	}
 }

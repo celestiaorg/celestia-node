@@ -49,6 +49,17 @@ const (
 	gasMultiplier = 1.1
 )
 
+// Option is the functional option that is applied to the coreAccessor instance
+// to configure parameters.
+type Option func(ca *CoreAccessor)
+
+// WithGranter is a functional option to configure the granter address parameter.
+func WithGranter(addr AccAddress) Option {
+	return func(ca *CoreAccessor) {
+		ca.granter = addr
+	}
+}
+
 // CoreAccessor implements service over a gRPC connection
 // with a celestia-core node.
 type CoreAccessor struct {
@@ -94,29 +105,27 @@ func NewCoreAccessor(
 	coreIP,
 	rpcPort string,
 	grpcPort string,
-	granter string,
-) (*CoreAccessor, error) {
+	options ...Option,
+) *CoreAccessor {
 	// create verifier
 	prt := merkle.DefaultProofRuntime()
 	prt.RegisterOpDecoder(storetypes.ProofOpIAVLCommitment, storetypes.CommitmentOpDecoder)
 	prt.RegisterOpDecoder(storetypes.ProofOpSimpleMerkleCommitment, storetypes.CommitmentOpDecoder)
 
-	var (
-		sdkAddress = AccAddress{}
-		err        error
-	)
-	if granter != "" {
-		sdkAddress, err = sdktypes.AccAddressFromBech32(granter)
-	}
-	return &CoreAccessor{
+	ca := &CoreAccessor{
 		signer:   signer,
 		getter:   getter,
 		coreIP:   coreIP,
 		rpcPort:  rpcPort,
 		grpcPort: grpcPort,
 		prt:      prt,
-		granter:  sdkAddress,
-	}, err
+	}
+
+	for _, opt := range options {
+		opt(ca)
+	}
+	return ca
+
 }
 
 func (ca *CoreAccessor) Start(ctx context.Context) error {

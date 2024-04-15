@@ -6,6 +6,10 @@ import (
 	logging "github.com/ipfs/go-log/v2"
 	"go.uber.org/fx"
 
+	apptypes "github.com/celestiaorg/celestia-app/x/blob/types"
+	libfraud "github.com/celestiaorg/go-fraud"
+	"github.com/celestiaorg/go-header/sync"
+
 	"github.com/celestiaorg/celestia-node/header"
 	"github.com/celestiaorg/celestia-node/libs/fxutil"
 	"github.com/celestiaorg/celestia-node/nodebuilder/core"
@@ -26,7 +30,14 @@ func ConstructModule(tp node.Type, cfg *Config, coreCfg *core.Config) fx.Option 
 		fx.Supply(*cfg),
 		fx.Supply(cfg.GranterAddress),
 		fx.Error(cfgErr),
-		fxutil.ProvideIf(coreCfg.IsEndpointConfigured(), fx.Annotate(coreAccessor,
+		fxutil.ProvideIf(coreCfg.IsEndpointConfigured(), fx.Annotate(
+			func(
+				signer *apptypes.KeyringSigner,
+				sync *sync.Syncer[*header.ExtendedHeader],
+				fraudServ libfraud.Service[*header.ExtendedHeader],
+			) (*state.CoreAccessor, Module, *modfraud.ServiceBreaker[*state.CoreAccessor, *header.ExtendedHeader]) {
+				return coreAccessor(*coreCfg, signer, sync, fraudServ, state.WithGranter(cfg.GranterAddress))
+			},
 			fx.OnStart(func(ctx context.Context,
 				breaker *modfraud.ServiceBreaker[*state.CoreAccessor, *header.ExtendedHeader]) error {
 				return breaker.Start(ctx)

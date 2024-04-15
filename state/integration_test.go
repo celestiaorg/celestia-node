@@ -50,13 +50,12 @@ func (s *IntegrationTestSuite) SetupSuite() {
 	s.accounts = cfg.Accounts
 
 	signer := blobtypes.NewKeyringSigner(s.cctx.Keyring, s.accounts[0], s.cctx.ChainID)
-	accessor, err := NewCoreAccessor(signer, localHeader{s.cctx.Client}, "", "", "", "")
-	require.NoError(s.T(), err)
+	accessor := NewCoreAccessor(signer, localHeader{s.cctx.Client}, "", "", "")
 	setClients(accessor, s.cctx.GRPCClient, s.cctx.Client)
 	s.accessor = accessor
 
 	// required to ensure the Head request is non-nil
-	_, err = s.cctx.WaitForHeight(3)
+	_, err := s.cctx.WaitForHeight(3)
 	require.NoError(s.T(), err)
 }
 
