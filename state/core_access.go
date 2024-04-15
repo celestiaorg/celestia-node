@@ -13,6 +13,7 @@ import (
 	nodeservice "github.com/cosmos/cosmos-sdk/client/grpc/node"
 	storetypes "github.com/cosmos/cosmos-sdk/store/types"
 	sdktypes "github.com/cosmos/cosmos-sdk/types"
+	sdkerrors "github.com/cosmos/cosmos-sdk/types/errors"
 	sdktx "github.com/cosmos/cosmos-sdk/types/tx"
 	auth "github.com/cosmos/cosmos-sdk/x/auth/types"
 	banktypes "github.com/cosmos/cosmos-sdk/x/bank/types"
@@ -78,9 +79,10 @@ type CoreAccessor struct {
 	// to set a global min gas price that correct processes conform to.
 	minGasPrice float64
 
-	// granterEnabled indicates that node is run in a `grantee` mode. This means, that all
-	// transactions will be paid by the granter.
-	granterEnabled bool
+	// granter stores the address of the external node that will pay for all transactions, submitted
+	// by the local node.
+	// empty granter means that the local node will pay for the transactions.
+	granter AccAddress
 }
 
 // NewCoreAccessor dials the given celestia-core endpoint and
@@ -92,21 +94,29 @@ func NewCoreAccessor(
 	coreIP,
 	rpcPort string,
 	grpcPort string,
-	granterEnabled bool,
-) *CoreAccessor {
+	granter string,
+) (*CoreAccessor, error) {
 	// create verifier
 	prt := merkle.DefaultProofRuntime()
 	prt.RegisterOpDecoder(storetypes.ProofOpIAVLCommitment, storetypes.CommitmentOpDecoder)
 	prt.RegisterOpDecoder(storetypes.ProofOpSimpleMerkleCommitment, storetypes.CommitmentOpDecoder)
-	return &CoreAccessor{
-		signer:         signer,
-		getter:         getter,
-		coreIP:         coreIP,
-		rpcPort:        rpcPort,
-		grpcPort:       grpcPort,
-		prt:            prt,
-		granterEnabled: granterEnabled,
+
+	var (
+		sdkAddress = AccAddress{}
+		err        error
+	)
+	if granter != "" {
+		sdkAddress, err = sdktypes.AccAddressFromBech32(granter)
 	}
+	return &CoreAccessor{
+		signer:   signer,
+		getter:   getter,
+		coreIP:   coreIP,
+		rpcPort:  rpcPort,
+		grpcPort: grpcPort,
+		prt:      prt,
+		granter:  sdkAddress,
+	}, err
 }
 
 func (ca *CoreAccessor) Start(ctx context.Context) error {
@@ -228,12 +238,11 @@ func (ca *CoreAccessor) SubmitPayForBlob(
 
 	minGasPrice := ca.getMinGasPrice()
 
-	feeGrant, err := ca.getGranter(ctx)
-	if err != nil {
-		return nil, err
-	}
+	var feeGrant apptypes.TxBuilderOption
 
-	if feeGrant != nil {
+	// set granter and update gasLimit in case node run in a grantee mode
+	if !ca.granter.Empty() {
+		feeGrant = apptypes.SetFeeGranter(ca.granter)
 		gasLim = uint64(float64(gasLim) * gasMultiplier)
 	}
 	// set the fee for the user as the minimum gas price multiplied by the gas limit
@@ -280,6 +289,10 @@ func (ca *CoreAccessor) SubmitPayForBlob(
 
 		if response != nil && response.Code != 0 {
 			err = errors.Join(err, sdkErrors.ABCIError(response.Codespace, response.Code, response.Logs.String()))
+		}
+
+		if err != nil && errors.Is(err, sdkerrors.ErrNotFound) && !ca.granter.Empty() {
+			return response, errors.New("granter has revoked the grant")
 		}
 		return response, err
 	}
@@ -647,31 +660,4 @@ func (ca *CoreAccessor) queryMinimumGasPrice(
 func withFee(fee Int) apptypes.TxBuilderOption {
 	gasFee := sdktypes.NewCoins(sdktypes.NewCoin(app.BondDenom, fee))
 	return apptypes.SetFeeAmount(gasFee)
-}
-
-func (ca *CoreAccessor) getGranter(ctx context.Context) (apptypes.TxBuilderOption, error) {
-	// check if the granter flag was enabled.
-	if !ca.granterEnabled {
-		return nil, nil
-	}
-
-	addr, err := ca.signer.GetSignerInfo().GetAddress()
-	if err != nil {
-		return nil, err
-	}
-
-	resp, err := ca.feeGrantCli.Allowances(ctx, &feegrant.QueryAllowancesRequest{Grantee: addr.String()})
-	if err != nil {
-		return nil, err
-	}
-
-	for _, g := range resp.GetAllowances() {
-		appAddr, err := sdktypes.AccAddressFromBech32(g.GetGranter())
-		if err != nil {
-			log.Warnw("parsing granter address", "err", err)
-			continue
-		}
-		return apptypes.SetFeeGranter(appAddr), nil
-	}
-	return nil, errors.New("granter was not found")
 }

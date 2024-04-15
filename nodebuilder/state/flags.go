@@ -11,7 +11,7 @@ var (
 	keyringAccNameFlag = "keyring.accname"
 	keyringBackendFlag = "keyring.backend"
 
-	granterEnabledFlag = "granter.enabled"
+	granterAddressFlag = "granter.address"
 )
 
 // Flags gives a set of hardcoded State flags.
@@ -23,7 +23,8 @@ func Flags() *flag.FlagSet {
 	flags.String(keyringBackendFlag, defaultKeyringBackend, fmt.Sprintf("Directs node's keyring signer to use the given "+
 		"backend. Default is %s.", defaultKeyringBackend))
 
-	flags.Bool(granterEnabledFlag, false, fmt.Sprintf("Allows to run the node in a grantee mode. Default is %v.", false))
+	flags.String(granterAddressFlag, "", "External node's address that will pay for all transactions, submitted by "+
+		"the local node.")
 	return flags
 }
 
@@ -35,10 +36,5 @@ func ParseFlags(cmd *cobra.Command, cfg *Config) {
 	}
 
 	cfg.KeyringBackend = cmd.Flag(keyringBackendFlag).Value.String()
-
-	enabled, err := cmd.Flags().GetBool(granterEnabledFlag)
-	if err != nil {
-		panic(err)
-	}
-	cfg.GranterEnabled = enabled
+	cfg.GranterAddress = cmd.Flag(granterAddressFlag).Value.String()
 }
