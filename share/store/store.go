@@ -200,7 +200,7 @@ func (s *Store) GetByHash(ctx context.Context, datahash share.DataHash) (file.Ed
 	tNow := time.Now()
 	f, err := s.getByHash(datahash)
 	s.metrics.observeGet(ctx, time.Since(tNow), err != nil)
-	return f, err
+	return wrappedFile(f), err
 }
 
 func (s *Store) getByHash(datahash share.DataHash) (file.EdsFile, error) {
@@ -216,7 +216,7 @@ func (s *Store) getByHash(datahash share.DataHash) (file.EdsFile, error) {
 		}
 		return nil, fmt.Errorf("opening ODS file: %w", err)
 	}
-	return wrappedFile(f), nil
+	return f, nil
 }
 
 func (s *Store) LinkHashToHeight(_ context.Context, datahash share.DataHash, height uint64) error {
@@ -260,7 +260,7 @@ func (s *Store) GetByHeight(ctx context.Context, height uint64) (file.EdsFile, e
 	tNow := time.Now()
 	f, err := s.getByHeight(height)
 	s.metrics.observeGet(ctx, time.Since(tNow), err != nil)
-	return f, err
+	return wrappedFile(f), err
 }
 
 func (s *Store) getByHeight(height uint64) (file.EdsFile, error) {
@@ -281,7 +281,7 @@ func (s *Store) getByHeight(height uint64) (file.EdsFile, error) {
 		}
 		return nil, fmt.Errorf("opening ODS file: %w", err)
 	}
-	return wrappedFile(f), nil
+	return f, nil
 }
 
 func (s *Store) HasByHash(ctx context.Context, datahash share.DataHash) (bool, error) {
@@ -390,13 +390,13 @@ func (s *Store) remove(height uint64) error {
 
 func fileLoader(f file.EdsFile) cache.OpenFileFn {
 	return func(ctx context.Context) (file.EdsFile, error) {
-		return wrappedFile(f), nil
+		withCache := file.WithProofsCache(f)
+		return wrappedFile(withCache), nil
 	}
 }
 
 func wrappedFile(f file.EdsFile) file.EdsFile {
-	withCache := file.WithProofsCache(f)
-	closedOnce := file.WithClosedOnce(withCache)
+	closedOnce := file.WithClosedOnce(f)
 	sanityChecked := file.WithValidation(closedOnce)
 	return sanityChecked
 }
