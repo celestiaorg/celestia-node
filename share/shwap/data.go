@@ -18,17 +18,14 @@ import (
 
 type Data struct {
 	DataID
-
-	DataShares []share.Share
-	DataProof  nmt.Proof
+	share.NamespacedRow
 }
 
 // NewData constructs a new Data.
-func NewData(id DataID, shares []share.Share, proof nmt.Proof) *Data {
+func NewData(id DataID, nr share.NamespacedRow) *Data {
 	return &Data{
-		DataID:     id,
-		DataShares: shares,
-		DataProof:  proof,
+		DataID:        id,
+		NamespacedRow: nr,
 	}
 }
 

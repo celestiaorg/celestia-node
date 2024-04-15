@@ -1,9 +1,6 @@
 package shwap
 
 import (
-	"context"
-	"fmt"
-	"github.com/celestiaorg/celestia-node/share/store/file"
 	"github.com/celestiaorg/rsmt2d"
 	"testing"
 
@@ -19,7 +16,7 @@ func TestSample(t *testing.T) {
 	root, err := share.NewRoot(square)
 	require.NoError(t, err)
 
-	sample, err := newSampleFromEDS(1, 1, square, 1)
+	sample, err := newSampleFromEDS(square, 1, rsmt2d.Row, 1, 1)
 	require.NoError(t, err)
 
 	// test block encoding
@@ -41,30 +38,24 @@ func TestSample(t *testing.T) {
 	require.NoError(t, err)
 }
 
-// newSampleFromEDS samples the EDS and constructs a new row-proven Sample.
-func newSampleFromEDS(
-	x, y int,
-	square *rsmt2d.ExtendedDataSquare,
-	height uint64,
-) (*Sample, error) {
+func newSampleFromEDS(square *rsmt2d.ExtendedDataSquare, height uint64, proofAxis rsmt2d.Axis, x, y int) (*Sample, error) {
+	axisIdx, shrIdx, smplIdx := uint(x), uint(y), uint(x)+uint(y)*(square.Width())
+	if proofAxis == rsmt2d.Col {
+		axisIdx, shrIdx, smplIdx = uint(y), uint(x), uint(y)+uint(x)*(square.Width())
+	}
+
 	root, err := share.NewRoot(square)
 	if err != nil {
 		return nil, err
 	}
 
-	smplIdx := x + y*len(square.Row(0))
-	id, err := NewSampleID(height, smplIdx, root)
+	id, err := NewSampleID(height, int(smplIdx), root)
 	if err != nil {
 		return nil, err
 	}
-
-	f := file.MemFile{Eds: square}
-	shareWithProof, err := f.Share(context.TODO(), x, y)
+	sp, err := share.ShareWithProofFromEDS(square, rsmt2d.Row, int(axisIdx), int(shrIdx))
 	if err != nil {
-		return nil, fmt.Errorf("while getting share: %w", err)
+		return nil, err
 	}
-	return &Sample{
-		SampleID:       id,
-		ShareWithProof: shareWithProof,
-	}, nil
+	return &Sample{SampleID: id, ShareWithProof: sp}, nil
 }

@@ -1,6 +1,7 @@
 package shwap
 
 import (
+	"github.com/celestiaorg/rsmt2d"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -20,7 +21,7 @@ func TestSampleHasher(t *testing.T) {
 	root, err := share.NewRoot(square)
 	require.NoError(t, err)
 
-	sample, err := newSampleFromEDS(1, 10, square, 1)
+	sample, err := newSampleFromEDS(square, 1, rsmt2d.Row, 1, 1)
 	require.NoError(t, err)
 
 	globalRootsCache.Store(sample.SampleID, root)

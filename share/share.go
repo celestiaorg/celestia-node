@@ -5,6 +5,7 @@ import (
 	"crypto/sha256"
 	"encoding/hex"
 	"fmt"
+	"github.com/celestiaorg/celestia-app/pkg/wrapper"
 	types_pb "github.com/celestiaorg/celestia-node/share/pb"
 	nmt_pb "github.com/celestiaorg/nmt/pb"
 
@@ -95,6 +96,44 @@ func (s *ShareWithProof) ToProto() *types_pb.ShareWithProof {
 		},
 		ProofType: types_pb.Axis(s.ProofType),
 	}
+}
+
+// newSampleFromEDS samples the EDS and constructs a new row-proven Sample.
+func ShareWithProofFromEDS(
+	square *rsmt2d.ExtendedDataSquare,
+	proofType rsmt2d.Axis,
+	axisIdx, shrIdx int,
+) (*ShareWithProof, error) {
+	// TODO(@Wondertan): Should be an rsmt2d method
+	var shrs [][]byte
+	switch proofType {
+	case rsmt2d.Row:
+		shrs = square.Row(uint(axisIdx))
+	case rsmt2d.Col:
+		shrs = square.Col(uint(axisIdx))
+	default:
+		panic("invalid axis")
+	}
+
+	tree := wrapper.NewErasuredNamespacedMerkleTree(uint64(square.Width()/2), uint(axisIdx))
+	for _, shr := range shrs {
+		err := tree.Push(shr)
+		if err != nil {
+			return nil, fmt.Errorf("while pushing shares to NMT: %w", err)
+		}
+	}
+
+	prf, err := tree.ProveRange(shrIdx, shrIdx+1)
+	if err != nil {
+		return nil, fmt.Errorf("while proving range share over NMT: %w", err)
+	}
+
+	sp := &ShareWithProof{
+		Share:     shrs[shrIdx],
+		Proof:     &prf,
+		ProofType: proofType,
+	}
+	return sp, nil
 }
 
 func ShareWithProofFromProto(s *types_pb.ShareWithProof) *ShareWithProof {

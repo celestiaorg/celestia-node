@@ -45,7 +45,7 @@ func TestSampleRoundtripGetBlock(t *testing.T) {
 	width := int(eds.Width())
 	for x := 0; x < width; x++ {
 		for y := 0; y < width; y++ {
-			smpl, err := newSampleFromEDS(x, y, eds, height) // TODO: Col, return Sample is always Row
+			smpl, err := newSampleFromEDS(eds, height, rsmt2d.Row, x, y) // TODO: Col
 			require.NoError(t, err)
 
 			globalRootsCache.Store(smpl.SampleID, root)
@@ -80,7 +80,7 @@ func TestSampleRoundtripGetBlocks(t *testing.T) {
 	width := int(eds.Width())
 	for x := 0; x < width; x++ {
 		for y := 0; y < width; y++ {
-			smpl, err := newSampleFromEDS(x, y, eds, height) // TODO: Col, return Sample is always Row
+			smpl, err := newSampleFromEDS(eds, height, rsmt2d.Row, x, y) // TODO: Col
 			require.NoError(t, err)
 			set.Add(smpl.Cid())
 			globalRootsCache.Store(smpl.SampleID, root)
