@@ -24,8 +24,7 @@ func Flags() *flag.FlagSet {
 	flags.String(keyringBackendFlag, defaultKeyringBackend, fmt.Sprintf("Directs node's keyring signer to use the given "+
 		"backend. Default is %s.", defaultKeyringBackend))
 
-	flags.String(granterAddressFlag, "", "External node's address that will pay for all transactions, submitted by "+
-		"the local node.")
+	flags.String(granterAddressFlag, "", "Account address that will pay for all transactions submitted from the node.")
 	return flags
 }
 
