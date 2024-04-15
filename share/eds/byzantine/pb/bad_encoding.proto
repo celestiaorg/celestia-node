@@ -1,0 +1,12 @@
+syntax = "proto3";
+
+package share.eds.byzantine.pb;
+import "types.proto";
+
+message BadEncoding {
+  bytes HeaderHash = 1;
+  uint64 Height   = 2;
+  repeated ShareWithProof Shares = 3;
+  uint32 Index    = 4;
+  Axis Axis    = 5;
+}

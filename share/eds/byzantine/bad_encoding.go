@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"errors"
 	"fmt"
+	types "github.com/celestiaorg/celestia-node/share/pb"
 
 	logging "github.com/ipfs/go-log/v2"
 
@@ -73,9 +74,9 @@ func (p *BadEncodingProof) Height() uint64 {
 
 // MarshalBinary converts BadEncodingProof to binary.
 func (p *BadEncodingProof) MarshalBinary() ([]byte, error) {
-	shares := make([]*pb.Share, 0, len(p.Shares))
+	shares := make([]*types.ShareWithProof, 0, len(p.Shares))
 	for _, share := range p.Shares {
-		shares = append(shares, ShareWithProofToProto(share))
+		shares = append(shares, share.ToProto())
 	}
 
 	badEncodingFraudProof := pb.BadEncoding{
@@ -83,7 +84,7 @@ func (p *BadEncodingProof) MarshalBinary() ([]byte, error) {
 		Height:     p.BlockHeight,
 		Shares:     shares,
 		Index:      p.Index,
-		Axis:       pb.Axis(p.Axis),
+		Axis:       types.Axis(p.Axis),
 	}
 	return badEncodingFraudProof.Marshal()
 }
@@ -94,11 +95,15 @@ func (p *BadEncodingProof) UnmarshalBinary(data []byte) error {
 	if err := in.Unmarshal(data); err != nil {
 		return err
 	}
-	axisType := rsmt2d.Axis(in.Axis)
+
+	var shares []*share.ShareWithProof
+	for _, sh := range in.Shares {
+		shares = append(shares, share.ShareWithProofFromProto(sh))
+	}
 	befp := &BadEncodingProof{
 		headerHash:  in.HeaderHash,
 		BlockHeight: in.Height,
-		Shares:      ProtoToShare(in.Shares, axisType),
+		Shares:      shares,
 		Index:       in.Index,
 		Axis:        rsmt2d.Axis(in.Axis),
 	}
@@ -260,39 +265,6 @@ func (p *BadEncodingProof) Validate(hdr *header.ExtendedHeader) error {
 		return errNMTTreeRootsMatch
 	}
 	return nil
-}
-
-func ShareWithProofToProto(s *share.ShareWithProof) *pb.Share {
-	if s == nil {
-		return &pb.Share{}
-	}
-
-	return &pb.Share{
-		Data: s.Share,
-		Proof: &nmt_pb.Proof{
-			Start:                 int64(s.Proof.Start()),
-			End:                   int64(s.Proof.End()),
-			Nodes:                 s.Proof.Nodes(),
-			LeafHash:              s.Proof.LeafHash(),
-			IsMaxNamespaceIgnored: s.Proof.IsMaxNamespaceIDIgnored(),
-		},
-	}
-}
-
-func ProtoToShare(protoShares []*pb.Share, proofAxis rsmt2d.Axis) []*share.ShareWithProof {
-	shares := make([]*share.ShareWithProof, len(protoShares))
-	for i, sh := range protoShares {
-		if sh.Proof == nil {
-			continue
-		}
-		proof := ProtoToProof(sh.Proof)
-		shares[i] = &share.ShareWithProof{
-			Share:     sh.Data,
-			Proof:     &proof,
-			ProofType: proofAxis,
-		}
-	}
-	return shares
 }
 
 func ProtoToProof(protoProof *nmt_pb.Proof) nmt.Proof {
