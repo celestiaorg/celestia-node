@@ -13,6 +13,7 @@ func WithKeyring(keyring kr.Keyring) fx.Option {
 	return fxutil.ReplaceAs(keyring, new(kr.Keyring))
 }
 
+// WithKeyName configures the signer to use the given key.
 func WithKeyName(name AccName) fx.Option {
 	return fx.Replace(name)
 }
