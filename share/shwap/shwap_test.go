@@ -43,23 +43,25 @@ func TestSampleRoundtripGetBlock(t *testing.T) {
 	client := remoteClient(ctx, t, b)
 
 	width := int(eds.Width())
-	for x := 0; x < width; x++ {
-		for y := 0; y < width; y++ {
-			smpl, err := newSampleFromEDS(eds, height, rsmt2d.Row, x, y) // TODO: Col
-			require.NoError(t, err)
+	for _, proofAxis := range []rsmt2d.Axis{rsmt2d.Row, rsmt2d.Col} {
+		for x := 0; x < width; x++ {
+			for y := 0; y < width; y++ {
+				smpl, err := newSampleFromEDS(eds, height, proofAxis, x, y)
+				require.NoError(t, err)
 
-			globalRootsCache.Store(smpl.SampleID, root)
+				globalRootsCache.Store(smpl.SampleID, root)
 
-			cid := smpl.Cid()
-			blkOut, err := client.GetBlock(ctx, cid)
-			require.NoError(t, err)
-			require.EqualValues(t, cid, blkOut.Cid())
+				cid := smpl.Cid()
+				blkOut, err := client.GetBlock(ctx, cid)
+				require.NoError(t, err)
+				require.EqualValues(t, cid, blkOut.Cid())
 
-			smpl, err = SampleFromBlock(blkOut)
-			require.NoError(t, err)
+				smpl, err = SampleFromBlock(blkOut)
+				require.NoError(t, err)
 
-			err = smpl.Verify(root)
-			require.NoError(t, err)
+				err = smpl.Verify(root)
+				require.NoError(t, err)
+			}
 		}
 	}
 }
@@ -78,12 +80,14 @@ func TestSampleRoundtripGetBlocks(t *testing.T) {
 
 	set := cid.NewSet()
 	width := int(eds.Width())
-	for x := 0; x < width; x++ {
-		for y := 0; y < width; y++ {
-			smpl, err := newSampleFromEDS(eds, height, rsmt2d.Row, x, y) // TODO: Col
-			require.NoError(t, err)
-			set.Add(smpl.Cid())
-			globalRootsCache.Store(smpl.SampleID, root)
+	for _, proofAxis := range []rsmt2d.Axis{rsmt2d.Row, rsmt2d.Col} {
+		for x := 0; x < width; x++ {
+			for y := 0; y < width; y++ {
+				smpl, err := newSampleFromEDS(eds, height, proofAxis, x, y)
+				require.NoError(t, err)
+				set.Add(smpl.Cid())
+				globalRootsCache.Store(smpl.SampleID, root)
+			}
 		}
 	}
 
