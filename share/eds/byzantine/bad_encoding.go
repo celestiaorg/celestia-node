@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"errors"
 	"fmt"
-	types "github.com/celestiaorg/celestia-node/share/pb"
 
 	logging "github.com/ipfs/go-log/v2"
 
@@ -17,6 +16,7 @@ import (
 	"github.com/celestiaorg/celestia-node/header"
 	"github.com/celestiaorg/celestia-node/share"
 	pb "github.com/celestiaorg/celestia-node/share/eds/byzantine/pb"
+	types "github.com/celestiaorg/celestia-node/share/pb"
 )
 
 var log = logging.Logger("share/byzantine")

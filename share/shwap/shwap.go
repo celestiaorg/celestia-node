@@ -1,7 +1,6 @@
 package shwap
 
 import (
-	"crypto/sha256"
 	"fmt"
 	"hash"
 	"sync"
@@ -40,10 +39,6 @@ const (
 	mhPrefixSize = 4
 )
 
-var (
-	hashFn = sha256.New
-)
-
 func init() {
 	// Register hashers for new multihashes
 	mh.Register(rowMultihashCode, func() hash.Hash {
@@ -58,6 +53,7 @@ func init() {
 }
 
 // TODO(@walldiss): store refscount along with roots to avoid verify errors on parallel requests
+// - store roots by height only, to avoid storing the same root multiple times
 var globalRootsCache sync.Map
 
 func getRoot(key any) (*share.Root, error) {

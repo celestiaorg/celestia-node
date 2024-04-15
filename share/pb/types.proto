@@ -14,7 +14,7 @@ message ShareWithProof {
     Axis proof_type = 3;
 }
 
-message Data {
+message NamespacedRow {
     repeated bytes shares = 1;
     proof.pb.Proof proof = 2;
 }

@@ -120,7 +120,7 @@ func (s DataID) BlockFromFile(ctx context.Context, f file.EdsFile) (blocks.Block
 		return nil, fmt.Errorf("while getting Data: %w", err)
 	}
 
-	d := NewData(s, data.Shares, *data.Proof)
+	d := NewData(s, data)
 	blk, err := d.IPLDBlock()
 	if err != nil {
 		return nil, fmt.Errorf("while coverting Data to IPLD block: %w", err)

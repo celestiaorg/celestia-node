@@ -14,5 +14,5 @@ message SampleBlock {
 
 message DataBlock {
     bytes data_id = 1;
-    Data data = 2;
+    NamespacedRow data = 2;
 }

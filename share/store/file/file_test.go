@@ -94,7 +94,7 @@ func testData(t *testing.T, f EdsFile, namespace share.Namespace, dah *share.Roo
 		if !namespace.IsOutsideRange(root, root) {
 			nd, err := f.Data(context.Background(), namespace, i)
 			require.NoError(t, err)
-			ok := nd.Verify(root, namespace)
+			ok := nd.VerifyInclusion(root, namespace)
 			require.True(t, ok)
 		}
 	}

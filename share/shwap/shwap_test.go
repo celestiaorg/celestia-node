@@ -194,12 +194,10 @@ func TestDataRoundtripGetBlock(t *testing.T) {
 	height := b.AddEds(eds)
 	client := remoteClient(ctx, t, b)
 
-	nds, err := NewDataFromEDS(eds, height, namespace)
+	nds, err := newDataFromEDS(eds, height, namespace)
 	require.NoError(t, err)
 
 	for _, nd := range nds {
-		globalRootsCache.Store(nd.DataID, root)
-
 		cid := nd.Cid()
 		blkOut, err := client.GetBlock(ctx, cid)
 		require.NoError(t, err)
@@ -223,7 +221,7 @@ func TestDataRoundtripGetBlocks(t *testing.T) {
 	height := b.AddEds(eds)
 	client := remoteClient(ctx, t, b)
 
-	nds, err := NewDataFromEDS(eds, height, namespace)
+	nds, err := newDataFromEDS(eds, height, namespace)
 	require.NoError(t, err)
 
 	set := cid.NewSet()

@@ -176,7 +176,7 @@ package light
 //
 //			shares, err := getter.GetSharesByNamespace(context.Background(), eh, randNamespace)
 //			require.NoError(t, err)
-//			require.NoError(t, shares.Verify(root, randNamespace))
+//			require.NoError(t, shares.VerifyInclusion(root, randNamespace))
 //			flattened := shares.Flatten()
 //			require.Len(t, flattened, tt.expectedShareCount)
 //			for _, value := range flattened {
@@ -203,7 +203,7 @@ package light
 //
 //			shares, err := getter.GetSharesByNamespace(context.Background(), eh, lastNID)
 //			require.NoError(t, err)
-//			require.NoError(t, shares.Verify(root, lastNID))
+//			require.NoError(t, shares.VerifyInclusion(root, lastNID))
 //		})
 //	}
 //}

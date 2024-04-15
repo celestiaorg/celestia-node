@@ -3,13 +3,14 @@ package share
 import (
 	"crypto/sha256"
 	"fmt"
-	"github.com/celestiaorg/celestia-app/pkg/wrapper"
-	types_pb "github.com/celestiaorg/celestia-node/share/pb"
-	nmt_pb "github.com/celestiaorg/nmt/pb"
 
 	"github.com/celestiaorg/celestia-app/pkg/appconsts"
+	"github.com/celestiaorg/celestia-app/pkg/wrapper"
 	"github.com/celestiaorg/nmt"
+	nmt_pb "github.com/celestiaorg/nmt/pb"
 	"github.com/celestiaorg/rsmt2d"
+
+	types_pb "github.com/celestiaorg/celestia-node/share/pb"
 )
 
 var (

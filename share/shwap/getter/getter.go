@@ -204,8 +204,8 @@ func (g *Getter) GetSharesByNamespace(
 		}
 
 		nShrs[int(data.RowIndex)-from] = share.NamespacedRow{
-			Shares: data.DataShares,
-			Proof:  &data.DataProof,
+			Shares: data.Shares,
+			Proof:  data.Proof,
 		}
 	}
 

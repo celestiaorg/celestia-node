@@ -3,6 +3,7 @@ package shwap
 import (
 	"crypto/sha256"
 	"fmt"
+	shwappb "github.com/celestiaorg/celestia-node/share/shwap/pb"
 )
 
 // DataHasher implements hash.Hash interface for Data.
@@ -12,7 +13,14 @@ type DataHasher struct {
 
 // Write expects a marshaled Data to validate.
 func (h *DataHasher) Write(data []byte) (int, error) {
-	d, err := DataFromBinary(data)
+	datapb := &shwappb.DataBlock{}
+	if err := datapb.Unmarshal(data); err != nil {
+		err = fmt.Errorf("unmarshaling DataBlock: %w", err)
+		log.Error(err)
+		return 0, err
+	}
+
+	d, err := DataFromProto(datapb)
 	if err != nil {
 		err = fmt.Errorf("unmarshaling Data: %w", err)
 		log.Error(err)

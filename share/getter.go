@@ -3,6 +3,7 @@ package share
 import (
 	"context"
 	"errors"
+
 	"github.com/celestiaorg/rsmt2d"
 
 	"github.com/celestiaorg/celestia-node/header"
@@ -32,8 +33,8 @@ type Getter interface {
 
 	// GetSharesByNamespace gets all shares from an EDS within the given namespace.
 	// Shares are returned in a row-by-row order if the namespace spans multiple rows.
-	// Inclusion of returned data could be verified using Verify method on NamespacedShares.
+	// Inclusion of returned data could be verified using VerifyInclusion method on NamespacedShares.
 	// If no shares are found for target namespace non-inclusion could be also verified by calling
-	// Verify method.
+	// VerifyInclusion method.
 	GetSharesByNamespace(context.Context, *header.ExtendedHeader, Namespace) (NamespacedShares, error)
 }

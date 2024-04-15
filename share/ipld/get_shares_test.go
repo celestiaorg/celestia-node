@@ -5,7 +5,6 @@ import (
 	"context"
 	"crypto/sha256"
 	"errors"
-	"github.com/celestiaorg/celestia-node/share/testing/edstest"
 	mrand "math/rand"
 	"sort"
 	"strconv"
@@ -22,6 +21,7 @@ import (
 
 	"github.com/celestiaorg/celestia-node/libs/utils"
 	"github.com/celestiaorg/celestia-node/share"
+	"github.com/celestiaorg/celestia-node/share/testing/edstest"
 	"github.com/celestiaorg/celestia-node/share/testing/sharetest"
 )
 

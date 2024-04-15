@@ -3,6 +3,7 @@ package shwap
 import (
 	"crypto/sha256"
 	"fmt"
+
 	shwap_pb "github.com/celestiaorg/celestia-node/share/shwap/pb"
 )
 
