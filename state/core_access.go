@@ -39,16 +39,16 @@ import (
 	"github.com/celestiaorg/celestia-node/header"
 )
 
-var (
-	log              = logging.Logger("state")
-	ErrInvalidAmount = errors.New("state: amount must be greater than zero")
-)
-
 const (
-	maxRetries = 5
-
 	// gasMultiplier is used to increase gas limit in case if tx has additional options.
 	gasMultiplier = 1.1
+	maxRetries    = 5
+)
+
+var (
+	ErrInvalidAmount = errors.New("state: amount must be greater than zero")
+
+	log = logging.Logger("state")
 )
 
 // Option is the functional option that is applied to the coreAccessor instance
@@ -257,11 +257,10 @@ func (ca *CoreAccessor) SubmitPayForBlob(
 
 	minGasPrice := ca.getMinGasPrice()
 
-	var feeGrant apptypes.TxBuilderOption
-
+	var feeGrant user.TxOption
 	// set granter and update gasLimit in case node run in a grantee mode
 	if !ca.granter.Empty() {
-		feeGrant = apptypes.SetFeeGranter(ca.granter)
+		feeGrant = user.SetFeeGranter(ca.granter)
 		gasLim = uint64(float64(gasLim) * gasMultiplier)
 	}
 	// set the fee for the user as the minimum gas price multiplied by the gas limit
@@ -273,7 +272,7 @@ func (ca *CoreAccessor) SubmitPayForBlob(
 
 	var lastErr error
 	for attempt := 0; attempt < maxRetries; attempt++ {
-		options := []apptypes.TxBuilderOption{apptypes.SetGasLimit(gasLim), withFee(fee)}
+		options := []user.TxOption{user.SetGasLimit(gasLim), withFee(fee)}
 		if feeGrant != nil {
 			options = append(options, feeGrant)
 		}
@@ -589,7 +588,12 @@ func (ca *CoreAccessor) GrantFee(
 	fee Int,
 	gasLim uint64,
 ) (*TxResponse, error) {
-	granter, err := ca.signer.GetSignerInfo().GetAddress()
+	signer, err := ca.getSigner(ctx)
+	if err != nil {
+		return nil, err
+	}
+
+	granter, err := signer.GetSignerInfo().GetAddress()
 	if err != nil {
 		return nil, err
 	}
@@ -605,11 +609,7 @@ func (ca *CoreAccessor) GrantFee(
 		return nil, nil
 	}
 
-	signedTx, err := ca.constructSignedTx(ctx, msg, apptypes.SetGasLimit(gasLim), withFee(fee))
-	if err != nil {
-		return nil, err
-	}
-	return ca.SubmitTx(ctx, signedTx)
+	return signer.SubmitTx(ctx, []sdktypes.Msg{msg}, user.SetGasLimit(gasLim), withFee(fee))
 }
 
 func (ca *CoreAccessor) RevokeGrantFee(
@@ -618,18 +618,18 @@ func (ca *CoreAccessor) RevokeGrantFee(
 	fee Int,
 	gasLim uint64,
 ) (*TxResponse, error) {
-	granter, err := ca.signer.GetSignerInfo().GetAddress()
+	signer, err := ca.getSigner(ctx)
+	if err != nil {
+		return nil, err
+	}
+
+	granter, err := signer.GetSignerInfo().GetAddress()
 	if err != nil {
 		return nil, err
 	}
 
 	msg := feegrant.NewMsgRevokeAllowance(granter, grantee)
-	signedTx, err := ca.constructSignedTx(ctx, &msg, apptypes.SetGasLimit(gasLim), withFee(fee))
-	if err != nil {
-		return nil, err
-	}
-
-	return ca.SubmitTx(ca.ctx, signedTx)
+	return signer.SubmitTx(ctx, []sdktypes.Msg{&msg}, user.SetGasLimit(gasLim), withFee(fee))
 }
 
 func (ca *CoreAccessor) LastPayForBlob() int64 {
@@ -695,4 +695,9 @@ func (ca *CoreAccessor) setupSigner(ctx context.Context) error {
 	var err error
 	ca.signer, err = user.SetupSigner(ctx, ca.keyring, ca.coreConn, ca.addr, encCfg)
 	return err
+}
+
+func withFee(fee Int) user.TxOption {
+	gasFee := sdktypes.NewCoins(sdktypes.NewCoin(app.BondDenom, fee))
+	return user.SetFeeAmount(gasFee)
 }

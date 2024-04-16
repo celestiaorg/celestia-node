@@ -22,12 +22,21 @@ func coreAccessor(
 	sync *sync.Syncer[*header.ExtendedHeader],
 	fraudServ libfraud.Service[*header.ExtendedHeader],
 	opts []state.Option,
-) (*state.CoreAccessor, Module, *modfraud.ServiceBreaker[*state.CoreAccessor, *header.ExtendedHeader]) {
-	ca := state.NewCoreAccessor(keyring, keyname, sync, corecfg.IP, corecfg.RPCPort, corecfg.GRPCPort, opts...)
+) (
+	*state.CoreAccessor,
+	Module,
+	*modfraud.ServiceBreaker[*state.CoreAccessor, *header.ExtendedHeader],
+	error,
+) {
+	ca, err := state.NewCoreAccessor(keyring, keyname, sync, corecfg.IP, corecfg.RPCPort, corecfg.GRPCPort, opts...)
+	if err != nil {
+		return nil, nil, nil, err
+	}
+
 	sBreaker := &modfraud.ServiceBreaker[*state.CoreAccessor, *header.ExtendedHeader]{
 		Service:   ca,
 		FraudType: byzantine.BadEncoding,
 		FraudServ: fraudServ,
 	}
-	return ca, ca, sBreaker
+	return ca, ca, sBreaker, nil
 }
