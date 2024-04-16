@@ -18,7 +18,7 @@ import (
 func coreAccessor(
 	corecfg core.Config,
 	keyring keyring.Keyring,
-	keyname string,
+	keyname AccName,
 	sync *sync.Syncer[*header.ExtendedHeader],
 	fraudServ libfraud.Service[*header.ExtendedHeader],
 	opts []state.Option,
@@ -28,7 +28,8 @@ func coreAccessor(
 	*modfraud.ServiceBreaker[*state.CoreAccessor, *header.ExtendedHeader],
 	error,
 ) {
-	ca, err := state.NewCoreAccessor(keyring, keyname, sync, corecfg.IP, corecfg.RPCPort, corecfg.GRPCPort, opts...)
+	ca, err := state.NewCoreAccessor(keyring, string(keyname), sync, corecfg.IP, corecfg.RPCPort, corecfg.GRPCPort,
+		opts...)
 	if err != nil {
 		return nil, nil, nil, err
 	}
