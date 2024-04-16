@@ -130,6 +130,21 @@ func (mr *MockModuleMockRecorder) Delegate(arg0, arg1, arg2, arg3, arg4 interfac
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Delegate", reflect.TypeOf((*MockModule)(nil).Delegate), arg0, arg1, arg2, arg3, arg4)
 }
 
+// GrantFee mocks base method.
+func (m *MockModule) GrantFee(arg0 context.Context, arg1 types.AccAddress, arg2, arg3 math.Int, arg4 uint64) (*types.TxResponse, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "GrantFee", arg0, arg1, arg2, arg3, arg4)
+	ret0, _ := ret[0].(*types.TxResponse)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// GrantFee indicates an expected call of GrantFee.
+func (mr *MockModuleMockRecorder) GrantFee(arg0, arg1, arg2, arg3, arg4 interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GrantFee", reflect.TypeOf((*MockModule)(nil).GrantFee), arg0, arg1, arg2, arg3, arg4)
+}
+
 // QueryDelegation mocks base method.
 func (m *MockModule) QueryDelegation(arg0 context.Context, arg1 types.ValAddress) (*types0.QueryDelegationResponse, error) {
 	m.ctrl.T.Helper()
@@ -173,6 +188,21 @@ func (m *MockModule) QueryUnbonding(arg0 context.Context, arg1 types.ValAddress)
 func (mr *MockModuleMockRecorder) QueryUnbonding(arg0, arg1 interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "QueryUnbonding", reflect.TypeOf((*MockModule)(nil).QueryUnbonding), arg0, arg1)
+}
+
+// RevokeGrantFee mocks base method.
+func (m *MockModule) RevokeGrantFee(arg0 context.Context, arg1 types.AccAddress, arg2 math.Int, arg3 uint64) (*types.TxResponse, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "RevokeGrantFee", arg0, arg1, arg2, arg3)
+	ret0, _ := ret[0].(*types.TxResponse)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// RevokeGrantFee indicates an expected call of RevokeGrantFee.
+func (mr *MockModuleMockRecorder) RevokeGrantFee(arg0, arg1, arg2, arg3 interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "RevokeGrantFee", reflect.TypeOf((*MockModule)(nil).RevokeGrantFee), arg0, arg1, arg2, arg3)
 }
 
 // SubmitPayForBlob mocks base method.
