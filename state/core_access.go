@@ -593,10 +593,7 @@ func (ca *CoreAccessor) GrantFee(
 		return nil, err
 	}
 
-	granter, err := signer.GetSignerInfo().GetAddress()
-	if err != nil {
-		return nil, err
-	}
+	granter := signer.Address()
 
 	allowance := &feegrant.BasicAllowance{}
 	if !amount.IsZero() {
@@ -623,10 +620,7 @@ func (ca *CoreAccessor) RevokeGrantFee(
 		return nil, err
 	}
 
-	granter, err := signer.GetSignerInfo().GetAddress()
-	if err != nil {
-		return nil, err
-	}
+	granter := signer.Address()
 
 	msg := feegrant.NewMsgRevokeAllowance(granter, grantee)
 	return signer.SubmitTx(ctx, []sdktypes.Msg{&msg}, user.SetGasLimit(gasLim), withFee(fee))
