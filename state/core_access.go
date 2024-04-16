@@ -13,9 +13,11 @@ import (
 	nodeservice "github.com/cosmos/cosmos-sdk/client/grpc/node"
 	storetypes "github.com/cosmos/cosmos-sdk/store/types"
 	sdktypes "github.com/cosmos/cosmos-sdk/types"
+	sdkerrors "github.com/cosmos/cosmos-sdk/types/errors"
 	sdktx "github.com/cosmos/cosmos-sdk/types/tx"
 	auth "github.com/cosmos/cosmos-sdk/x/auth/types"
 	banktypes "github.com/cosmos/cosmos-sdk/x/bank/types"
+	"github.com/cosmos/cosmos-sdk/x/feegrant"
 	stakingtypes "github.com/cosmos/cosmos-sdk/x/staking/types"
 	logging "github.com/ipfs/go-log/v2"
 	"github.com/tendermint/tendermint/crypto/merkle"
@@ -40,7 +42,23 @@ var (
 	ErrInvalidAmount = errors.New("state: amount must be greater than zero")
 )
 
-const maxRetries = 5
+const (
+	maxRetries = 5
+
+	// gasMultiplier is used to increase gas limit in case if tx has additional options.
+	gasMultiplier = 1.1
+)
+
+// Option is the functional option that is applied to the coreAccessor instance
+// to configure parameters.
+type Option func(ca *CoreAccessor)
+
+// WithGranter is a functional option to configure the granter address parameter.
+func WithGranter(addr AccAddress) Option {
+	return func(ca *CoreAccessor) {
+		ca.granter = addr
+	}
+}
 
 // CoreAccessor implements service over a gRPC connection
 // with a celestia-core node.
@@ -51,8 +69,9 @@ type CoreAccessor struct {
 	signer *apptypes.KeyringSigner
 	getter libhead.Head[*header.ExtendedHeader]
 
-	stakingCli stakingtypes.QueryClient
-	rpcCli     rpcclient.ABCIClient
+	stakingCli  stakingtypes.QueryClient
+	feeGrantCli feegrant.QueryClient
+	rpcCli      rpcclient.ABCIClient
 
 	prt *merkle.ProofRuntime
 
@@ -70,6 +89,11 @@ type CoreAccessor struct {
 	// will find a proposer that does accept the transaction. Better would be
 	// to set a global min gas price that correct processes conform to.
 	minGasPrice float64
+
+	// granter stores the address of the external node that will pay for all transactions, submitted
+	// by the local node.
+	// empty granter means that the local node will pay for the transactions.
+	granter AccAddress
 }
 
 // NewCoreAccessor dials the given celestia-core endpoint and
@@ -81,12 +105,14 @@ func NewCoreAccessor(
 	coreIP,
 	rpcPort string,
 	grpcPort string,
+	options ...Option,
 ) *CoreAccessor {
 	// create verifier
 	prt := merkle.DefaultProofRuntime()
 	prt.RegisterOpDecoder(storetypes.ProofOpIAVLCommitment, storetypes.CommitmentOpDecoder)
 	prt.RegisterOpDecoder(storetypes.ProofOpSimpleMerkleCommitment, storetypes.CommitmentOpDecoder)
-	return &CoreAccessor{
+
+	ca := &CoreAccessor{
 		signer:   signer,
 		getter:   getter,
 		coreIP:   coreIP,
@@ -94,6 +120,12 @@ func NewCoreAccessor(
 		grpcPort: grpcPort,
 		prt:      prt,
 	}
+
+	for _, opt := range options {
+		opt(ca)
+	}
+	return ca
+
 }
 
 func (ca *CoreAccessor) Start(ctx context.Context) error {
@@ -117,6 +149,7 @@ func (ca *CoreAccessor) Start(ctx context.Context) error {
 	// create the staking query client
 	stakingCli := stakingtypes.NewQueryClient(ca.coreConn)
 	ca.stakingCli = stakingCli
+	ca.feeGrantCli = feegrant.NewQueryClient(ca.coreConn)
 	// create ABCI query client
 	cli, err := http.New(fmt.Sprintf("http://%s:%s", ca.coreIP, ca.rpcPort), "/websocket")
 	if err != nil {
@@ -214,6 +247,13 @@ func (ca *CoreAccessor) SubmitPayForBlob(
 
 	minGasPrice := ca.getMinGasPrice()
 
+	var feeGrant apptypes.TxBuilderOption
+
+	// set granter and update gasLimit in case node run in a grantee mode
+	if !ca.granter.Empty() {
+		feeGrant = apptypes.SetFeeGranter(ca.granter)
+		gasLim = uint64(float64(gasLim) * gasMultiplier)
+	}
 	// set the fee for the user as the minimum gas price multiplied by the gas limit
 	estimatedFee := false
 	if fee.IsNegative() {
@@ -223,14 +263,17 @@ func (ca *CoreAccessor) SubmitPayForBlob(
 
 	var lastErr error
 	for attempt := 0; attempt < maxRetries; attempt++ {
+		options := []apptypes.TxBuilderOption{apptypes.SetGasLimit(gasLim), withFee(fee)}
+		if feeGrant != nil {
+			options = append(options, feeGrant)
+		}
 		response, err := appblob.SubmitPayForBlob(
 			ctx,
 			ca.signer,
 			ca.coreConn,
 			sdktx.BroadcastMode_BROADCAST_MODE_BLOCK,
 			appblobs,
-			apptypes.SetGasLimit(gasLim),
-			withFee(fee),
+			options...,
 		)
 
 		// the node is capable of changing the min gas price at any time so we must be able to detect it and
@@ -255,6 +298,10 @@ func (ca *CoreAccessor) SubmitPayForBlob(
 
 		if response != nil && response.Code != 0 {
 			err = errors.Join(err, sdkErrors.ABCIError(response.Codespace, response.Code, response.Logs.String()))
+		}
+
+		if err != nil && errors.Is(err, sdkerrors.ErrNotFound) && !ca.granter.Empty() {
+			return response, errors.New("granter has revoked the grant")
 		}
 		return response, err
 	}
@@ -520,6 +567,56 @@ func (ca *CoreAccessor) QueryRedelegations(
 		SrcValidatorAddr: srcValAddr.String(),
 		DstValidatorAddr: dstValAddr.String(),
 	})
+}
+
+func (ca *CoreAccessor) GrantFee(
+	ctx context.Context,
+	grantee AccAddress,
+	amount,
+	fee Int,
+	gasLim uint64,
+) (*TxResponse, error) {
+	granter, err := ca.signer.GetSignerInfo().GetAddress()
+	if err != nil {
+		return nil, err
+	}
+
+	allowance := &feegrant.BasicAllowance{}
+	if !amount.IsZero() {
+		// set spend limit
+		allowance.SpendLimit = sdktypes.NewCoins(sdktypes.NewCoin(app.BondDenom, amount))
+	}
+
+	msg, err := feegrant.NewMsgGrantAllowance(allowance, granter, grantee)
+	if err != nil {
+		return nil, nil
+	}
+
+	signedTx, err := ca.constructSignedTx(ctx, msg, apptypes.SetGasLimit(gasLim), withFee(fee))
+	if err != nil {
+		return nil, err
+	}
+	return ca.SubmitTx(ctx, signedTx)
+}
+
+func (ca *CoreAccessor) RevokeGrantFee(
+	ctx context.Context,
+	grantee AccAddress,
+	fee Int,
+	gasLim uint64,
+) (*TxResponse, error) {
+	granter, err := ca.signer.GetSignerInfo().GetAddress()
+	if err != nil {
+		return nil, err
+	}
+
+	msg := feegrant.NewMsgRevokeAllowance(granter, grantee)
+	signedTx, err := ca.constructSignedTx(ctx, &msg, apptypes.SetGasLimit(gasLim), withFee(fee))
+	if err != nil {
+		return nil, err
+	}
+
+	return ca.SubmitTx(ca.ctx, signedTx)
 }
 
 func (ca *CoreAccessor) LastPayForBlob() int64 {
