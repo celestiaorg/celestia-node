@@ -4,6 +4,7 @@ package nodebuilder
 
 import (
 	"context"
+	"fmt"
 	"strconv"
 	"testing"
 	"time"
@@ -194,7 +195,10 @@ func TestDiscoverOpened(t *testing.T) {
 
 		mockDefaultNodeStorePath := func(tp string, n string) (string, error) {
 			key := n + "_" + tp
-			return dirMap[key], nil
+			if dir, ok := dirMap[key]; ok {
+				return dir, nil
+			}
+			return "", fmt.Errorf("no store for %s_%s", n, tp)
 		}
 		DefaultNodeStorePath = mockDefaultNodeStorePath
 

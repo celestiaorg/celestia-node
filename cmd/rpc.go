@@ -44,15 +44,16 @@ func RPCFlags() *flag.FlagSet {
 
 func InitClient(cmd *cobra.Command, _ []string) error {
 	if authTokenFlag == "" {
+		rootErrMsg := "cant access the auth token"
+
 		storePath, err := getStorePath(cmd)
 		if err != nil {
-			return err
+			return fmt.Errorf("%s: %v", rootErrMsg, err)
 		}
 
-		// load config to get the request url and auth settings
 		cfg, err := nodebuilder.LoadConfig(filepath.Join(storePath, "config.toml"))
 		if err != nil {
-			return fmt.Errorf("cant load in config: %v", err)
+			return fmt.Errorf("%s: root directory was not specified: %v", rootErrMsg, err)
 		}
 
 		if requestURL == "" {
@@ -65,7 +66,7 @@ func InitClient(cmd *cobra.Command, _ []string) error {
 		} else {
 			token, err := getToken(storePath)
 			if err != nil {
-				return fmt.Errorf("cant get the access to the auth token: %v", err)
+				return fmt.Errorf("%s: %v", rootErrMsg, err)
 			}
 
 			authTokenFlag = token
@@ -88,19 +89,13 @@ func getStorePath(cmd *cobra.Command) (string, error) {
 		return cmd.Flag(nodeStoreFlag).Value.String(), nil
 	}
 
-	errMsg := "cant get the access to the auth token: token/node-store flag was not specified"
-
 	// try to detect a running node
 	path, err := nodebuilder.DiscoverOpened()
 	if err != nil {
-		return "", fmt.Errorf("%s: %w", errMsg, err)
+		return "", fmt.Errorf("token/node-store flag was not specified: %w", err)
 	}
 
-	if path != "" {
-		return path, nil
-	}
-
-	return "", errors.New(errMsg)
+	return path, nil
 }
 
 func getToken(path string) (string, error) {
@@ -118,7 +113,6 @@ func getToken(path string) (string, error) {
 		fmt.Printf("error getting the JWT secret: %v", err)
 		return "", err
 	}
-
 	return buildJWTToken(key.Body, perms.AllPerms)
 }
 

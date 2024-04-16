@@ -160,15 +160,15 @@ type fsStore struct {
 // If multiple nodes are running, it only returns the path of the first found node.
 // Network is favored over node type.
 //
-// Network preference order: Mainnet, Mocha, Arabica, Private
+// Network preference order: Mainnet, Mocha, Arabica, Private, Custom
 // Type preference order: Bridge, Full, Light
 func DiscoverOpened() (string, error) {
-	defaultNetwork := []p2p.Network{p2p.Mainnet, p2p.Mocha, p2p.Arabica, p2p.Private}
-	nodeTypes := []nodemod.Type{nodemod.Bridge, nodemod.Full, nodemod.Light}
+	defaultNetwork := p2p.GetOrderedNetworks()
+	nodeTypes := nodemod.GetOrderedTypes()
 
-	for _, network := range defaultNetwork {
+	for _, n := range defaultNetwork {
 		for _, tp := range nodeTypes {
-			path, err := DefaultNodeStorePath(tp.String(), network.String())
+			path, err := DefaultNodeStorePath(tp.String(), n.String())
 			if err != nil {
 				return "", err
 			}
