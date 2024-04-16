@@ -29,7 +29,7 @@ func Flags() *flag.FlagSet {
 }
 
 // ParseFlags parses State flags from the given cmd and saves them to the passed config.
-func ParseFlags(cmd *cobra.Command, cfg *Config) {
+func ParseFlags(cmd *cobra.Command, cfg *Config) error {
 	keyringAccName := cmd.Flag(keyringAccNameFlag).Value.String()
 	if keyringAccName != "" {
 		cfg.KeyringAccName = keyringAccName
@@ -38,11 +38,11 @@ func ParseFlags(cmd *cobra.Command, cfg *Config) {
 	cfg.KeyringBackend = cmd.Flag(keyringBackendFlag).Value.String()
 
 	addr := cmd.Flag(granterAddressFlag).Value.String()
-	if addr != "" {
-		sdkAddress, err := sdktypes.AccAddressFromBech32(addr)
-		if err != nil {
-			panic(err)
-		}
-		cfg.GranterAddress = sdkAddress
+	if addr == "" {
+		return nil
 	}
+
+	sdkAddress, err := sdktypes.AccAddressFromBech32(addr)
+	cfg.GranterAddress = sdkAddress
+	return err
 }
