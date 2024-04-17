@@ -1,7 +1,6 @@
 package shwap
 
 import (
-	"github.com/celestiaorg/celestia-node/share"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -21,24 +20,24 @@ func TestDataHasher(t *testing.T) {
 	namespace := sharetest.RandV0Namespace()
 	square, root := edstest.RandEDSWithNamespace(t, namespace, size*size, size)
 
-	data, err := share.NewNamespacedSharesFromEDS(square, namespace)
-	require.NoError(t, err)
-	rowData := data[0]
-	id, err := NewDataID(1, 1, namespace, root)
+	datas, err := newDataFromEDS(square, 1, namespace)
+	data := datas[0]
+
+	err = data.Validate(root, int(data.DataID.RowIndex), namespace)
 	require.NoError(t, err)
 
-	dat, err := rowData.ToProto().Marshal()
+	bin, err := data.ToProto().Marshal()
 	require.NoError(t, err)
 
-	n, err := hasher.Write(dat)
+	n, err := hasher.Write(bin)
 	require.NoError(t, err)
-	assert.EqualValues(t, len(dat), n)
+	assert.EqualValues(t, len(bin), n)
 
 	digest := hasher.Sum(nil)
-	idBin := id.MarshalBinary()
+	idBin := data.DataID.MarshalBinary()
 	assert.EqualValues(t, idBin, digest)
 
 	hasher.Reset()
 	digest = hasher.Sum(nil)
-	assert.NotEqualValues(t, digest, id)
+	assert.NotEqualValues(t, digest, idBin)
 }

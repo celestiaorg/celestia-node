@@ -62,7 +62,7 @@ func (row NamespacedRow) Validate(dah *Root, rowIdx int, namespace Namespace) er
 	}
 
 	rowRoot := dah.RowRoots[rowIdx]
-	if !namespace.IsOutsideRange(rowRoot, rowRoot) {
+	if namespace.IsOutsideRange(rowRoot, rowRoot) {
 		return fmt.Errorf("namespace is outside of the range")
 	}
 
@@ -132,16 +132,19 @@ func NewNamespacedSharesFromEDS(
 
 func NamespacedRowFromShares(row []Share, namespace Namespace, axisIdx int) (NamespacedRow, error) {
 	var from, amount int
-	for i, shr := range row {
-		if namespace.Equals(GetNamespace(shr)) {
-			if len(row) == 0 {
+	for i := range len(row) / 2 {
+		if namespace.Equals(GetNamespace(row[i])) {
+			if amount == 0 {
 				from = i
 			}
 			amount++
 		}
 	}
+	if amount == 0 {
+		return NamespacedRow{}, fmt.Errorf("no shares in namespace")
+	}
 
-	namespacedShares := make([][]byte, 0, amount)
+	namespacedShares := make([][]byte, amount)
 	copy(namespacedShares, row[from:from+amount])
 
 	tree := wrapper.NewErasuredNamespacedMerkleTree(uint64(len(row)/2), uint(axisIdx))
@@ -158,7 +161,7 @@ func NamespacedRowFromShares(row []Share, namespace Namespace, axisIdx int) (Nam
 	}
 
 	return NamespacedRow{
-		Shares: row,
+		Shares: namespacedShares,
 		Proof:  &proof,
 	}, nil
 }
