@@ -30,14 +30,12 @@ func coreAccessor(
 ) {
 	ca, err := state.NewCoreAccessor(keyring, string(keyname), sync, corecfg.IP, corecfg.RPCPort, corecfg.GRPCPort,
 		opts...)
-	if err != nil {
-		return nil, nil, nil, err
-	}
 
 	sBreaker := &modfraud.ServiceBreaker[*state.CoreAccessor, *header.ExtendedHeader]{
 		Service:   ca,
 		FraudType: byzantine.BadEncoding,
 		FraudServ: fraudServ,
 	}
-	return ca, ca, sBreaker, nil
+
+	return ca, ca, sBreaker, err
 }
