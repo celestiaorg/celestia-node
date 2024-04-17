@@ -160,7 +160,6 @@ func (e DummySessionExchange) GetBlock(ctx context.Context, k cid.Cid) (blocks.B
 		return nil, fmt.Errorf("block was not found locally (offline): %w", err)
 	}
 	if err != nil {
-		fmt.Println("ERROR", err)
 		return nil, err
 	}
 	rbcid, err := k.Prefix().Sum(blk.RawData())

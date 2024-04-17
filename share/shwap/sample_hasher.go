@@ -16,7 +16,7 @@ type SampleHasher struct {
 func (h *SampleHasher) Write(data []byte) (int, error) {
 	samplepb := &shwap_pb.SampleBlock{}
 	if err := samplepb.Unmarshal(data); err != nil {
-		err = fmt.Errorf("unmarshaling SampleResponse: %w", err)
+		err = fmt.Errorf("unmarshaling SampleBlock: %w", err)
 		log.Error(err)
 		return 0, err
 	}

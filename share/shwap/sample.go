@@ -61,6 +61,6 @@ func (s *Sample) Verify(root *share.Root) error {
 		return err
 	}
 
-	x, y := int(s.RowIndex), int(s.ShareIndex)
+	x, y := int(s.ShareIndex), int(s.RowIndex)
 	return s.Validate(root, x, y)
 }

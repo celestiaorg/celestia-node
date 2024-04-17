@@ -17,7 +17,7 @@ func TestSample(t *testing.T) {
 	root, err := share.NewRoot(square)
 	require.NoError(t, err)
 
-	sample, err := newSampleFromEDS(square, 1, rsmt2d.Row, 1, 1)
+	sample, err := newSampleFromEDS(square, 1, rsmt2d.Row, 0, 1)
 	require.NoError(t, err)
 
 	// test block encoding
@@ -39,12 +39,16 @@ func TestSample(t *testing.T) {
 	require.NoError(t, err)
 }
 
-func newSampleFromEDS(square *rsmt2d.ExtendedDataSquare, height uint64, proofAxis rsmt2d.Axis, x, y int) (*Sample, error) {
-	axisIdx, shrIdx, smplIdx := uint(x), uint(y), uint(x)+uint(y)*(square.Width())
+func newSampleFromEDS(
+	square *rsmt2d.ExtendedDataSquare,
+	height uint64,
+	proofAxis rsmt2d.Axis,
+	axisIdx, shrIdx int,
+) (*Sample, error) {
+	smplIdx := uint(shrIdx) + uint(axisIdx)*(square.Width())
 	if proofAxis == rsmt2d.Col {
-		axisIdx, shrIdx, smplIdx = uint(y), uint(x), uint(y)+uint(x)*(square.Width())
+		smplIdx = uint(axisIdx) + uint(shrIdx)*(square.Width())
 	}
-
 	root, err := share.NewRoot(square)
 	if err != nil {
 		return nil, err
@@ -54,7 +58,7 @@ func newSampleFromEDS(square *rsmt2d.ExtendedDataSquare, height uint64, proofAxi
 	if err != nil {
 		return nil, err
 	}
-	sp, err := share.ShareWithProofFromEDS(square, rsmt2d.Row, int(axisIdx), int(shrIdx))
+	sp, err := share.ShareWithProofFromEDS(square, proofAxis, int(axisIdx), int(shrIdx))
 	if err != nil {
 		return nil, err
 	}

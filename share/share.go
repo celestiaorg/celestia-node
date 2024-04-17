@@ -75,6 +75,7 @@ func (s *ShareWithProof) VerifyInclusion(dah *Root, x, y int) bool {
 	if !isParity {
 		namespace = GetNamespace(s.Share)
 	}
+
 	return s.Proof.VerifyInclusion(
 		sha256.New(), // TODO(@Wondertan): This should be defined somewhere globally
 		namespace.ToNMT(),
