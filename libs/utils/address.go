@@ -37,9 +37,5 @@ func ValidateAddr(addr string) (string, error) {
 		return addr, nil
 	}
 
-	resolved, err := net.ResolveIPAddr("ip4", addr)
-	if err != nil {
-		return addr, err
-	}
-	return resolved.String(), nil
+	return addr, nil
 }
