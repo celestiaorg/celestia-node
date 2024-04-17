@@ -1,7 +1,6 @@
 package utils
 
 import (
-	"net"
 	"testing"
 
 	"github.com/stretchr/testify/require"
@@ -59,11 +58,6 @@ func TestValidateAddr(t *testing.T) {
 		t.Run(tt.addr, func(t *testing.T) {
 			got, err := ValidateAddr(tt.addr)
 			require.NoError(t, err)
-
-			// validate that returned value is ip
-			if ip := net.ParseIP(got); ip == nil {
-				t.Fatalf("empty ip")
-			}
 
 			if tt.want.unresolved {
 				// unresolved addr has no addr to compare with

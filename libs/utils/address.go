@@ -37,5 +37,10 @@ func ValidateAddr(addr string) (string, error) {
 		return addr, nil
 	}
 
+	_, err = net.LookupHost(addr)
+	if err != nil {
+		return "", err
+	}
+
 	return addr, nil
 }
