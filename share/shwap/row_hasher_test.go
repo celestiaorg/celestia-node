@@ -6,7 +6,6 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"github.com/celestiaorg/celestia-node/share"
 	"github.com/celestiaorg/celestia-node/share/testing/edstest"
 )
 
@@ -17,15 +16,10 @@ func TestRowHasher(t *testing.T) {
 	assert.Error(t, err)
 
 	square := edstest.RandEDS(t, 2)
-	root, err := share.NewRoot(square)
+	row, err := newRowFromEDS(square, 1, 1)
 	require.NoError(t, err)
 
-	row, err := NewRowFromEDS(2, 1, square)
-	require.NoError(t, err)
-
-	globalRootsCache.Store(row.RowID, root)
-
-	data, err := row.MarshalBinary()
+	data, err := row.ToProto().Marshal()
 	require.NoError(t, err)
 
 	n, err := hasher.Write(data)
@@ -33,10 +27,10 @@ func TestRowHasher(t *testing.T) {
 	assert.EqualValues(t, len(data), n)
 
 	digest := hasher.Sum(nil)
-	id := row.RowID.MarshalBinary()
-	assert.EqualValues(t, id, digest)
+	idBin := row.RowID.MarshalBinary()
+	assert.EqualValues(t, idBin, digest)
 
 	hasher.Reset()
 	digest = hasher.Sum(nil)
-	assert.NotEqualValues(t, digest, id)
+	assert.NotEqualValues(t, digest, idBin)
 }

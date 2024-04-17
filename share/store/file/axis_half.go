@@ -11,6 +11,14 @@ type AxisHalf struct {
 	IsParity bool
 }
 
+// FIXME: file.AxisHalf will be removed in the future in favor of share.HalfAxis
+func (a AxisHalf) ToHalfAxis() share.HalfAxis {
+	return share.HalfAxis{
+		Shares:   a.Shares,
+		IsParity: a.IsParity,
+	}
+}
+
 func (a AxisHalf) Extended() ([]share.Share, error) {
 	if a.IsParity {
 		return reconstructShares(codec, a.Shares)

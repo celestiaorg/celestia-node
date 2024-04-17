@@ -121,7 +121,7 @@ func TestRowRoundtripGetBlock(t *testing.T) {
 
 	width := int(eds.Width())
 	for i := 0; i < width; i++ {
-		row, err := NewRowFromEDS(height, i, eds)
+		row, err := newRowFromEDS(eds, height, i)
 		require.NoError(t, err)
 
 		cid := row.Cid()
@@ -151,7 +151,7 @@ func TestRowRoundtripGetBlocks(t *testing.T) {
 	set := cid.NewSet()
 	width := int(eds.Width())
 	for i := 0; i < width; i++ {
-		row, err := NewRowFromEDS(height, i, eds)
+		row, err := newRowFromEDS(eds, height, i)
 		require.NoError(t, err)
 		set.Add(row.Cid())
 	}

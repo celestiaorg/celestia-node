@@ -48,22 +48,23 @@ func (Axis) EnumDescriptor() ([]byte, []int) {
 	return fileDescriptor_b405f12ecc363d82, []int{0}
 }
 
-type Row struct {
-	RowHalf [][]byte `protobuf:"bytes,1,rep,name=row_half,json=rowHalf,proto3" json:"row_half,omitempty"`
+type HalfAxis struct {
+	Shares   [][]byte `protobuf:"bytes,1,rep,name=shares,proto3" json:"shares,omitempty"`
+	IsParity bool     `protobuf:"varint,2,opt,name=is_parity,json=isParity,proto3" json:"is_parity,omitempty"`
 }
 
-func (m *Row) Reset()         { *m = Row{} }
-func (m *Row) String() string { return proto.CompactTextString(m) }
-func (*Row) ProtoMessage()    {}
-func (*Row) Descriptor() ([]byte, []int) {
+func (m *HalfAxis) Reset()         { *m = HalfAxis{} }
+func (m *HalfAxis) String() string { return proto.CompactTextString(m) }
+func (*HalfAxis) ProtoMessage()    {}
+func (*HalfAxis) Descriptor() ([]byte, []int) {
 	return fileDescriptor_b405f12ecc363d82, []int{0}
 }
-func (m *Row) XXX_Unmarshal(b []byte) error {
+func (m *HalfAxis) XXX_Unmarshal(b []byte) error {
 	return m.Unmarshal(b)
 }
-func (m *Row) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+func (m *HalfAxis) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
 	if deterministic {
-		return xxx_messageInfo_Row.Marshal(b, m, deterministic)
+		return xxx_messageInfo_HalfAxis.Marshal(b, m, deterministic)
 	} else {
 		b = b[:cap(b)]
 		n, err := m.MarshalToSizedBuffer(b)
@@ -73,23 +74,30 @@ func (m *Row) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
 		return b[:n], nil
 	}
 }
-func (m *Row) XXX_Merge(src proto.Message) {
-	xxx_messageInfo_Row.Merge(m, src)
+func (m *HalfAxis) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_HalfAxis.Merge(m, src)
 }
-func (m *Row) XXX_Size() int {
+func (m *HalfAxis) XXX_Size() int {
 	return m.Size()
 }
-func (m *Row) XXX_DiscardUnknown() {
-	xxx_messageInfo_Row.DiscardUnknown(m)
+func (m *HalfAxis) XXX_DiscardUnknown() {
+	xxx_messageInfo_HalfAxis.DiscardUnknown(m)
 }
 
-var xxx_messageInfo_Row proto.InternalMessageInfo
+var xxx_messageInfo_HalfAxis proto.InternalMessageInfo
 
-func (m *Row) GetRowHalf() [][]byte {
+func (m *HalfAxis) GetShares() [][]byte {
 	if m != nil {
-		return m.RowHalf
+		return m.Shares
 	}
 	return nil
+}
+
+func (m *HalfAxis) GetIsParity() bool {
+	if m != nil {
+		return m.IsParity
+	}
+	return false
 }
 
 type ShareWithProof struct {
@@ -152,23 +160,23 @@ func (m *ShareWithProof) GetProofType() Axis {
 	return Axis_ROW
 }
 
-type NamespacedData struct {
+type NamespacedRow struct {
 	Shares [][]byte  `protobuf:"bytes,1,rep,name=shares,proto3" json:"shares,omitempty"`
 	Proof  *pb.Proof `protobuf:"bytes,2,opt,name=proof,proto3" json:"proof,omitempty"`
 }
 
-func (m *NamespacedData) Reset()         { *m = NamespacedData{} }
-func (m *NamespacedData) String() string { return proto.CompactTextString(m) }
-func (*NamespacedData) ProtoMessage()    {}
-func (*NamespacedData) Descriptor() ([]byte, []int) {
+func (m *NamespacedRow) Reset()         { *m = NamespacedRow{} }
+func (m *NamespacedRow) String() string { return proto.CompactTextString(m) }
+func (*NamespacedRow) ProtoMessage()    {}
+func (*NamespacedRow) Descriptor() ([]byte, []int) {
 	return fileDescriptor_b405f12ecc363d82, []int{2}
 }
-func (m *NamespacedData) XXX_Unmarshal(b []byte) error {
+func (m *NamespacedRow) XXX_Unmarshal(b []byte) error {
 	return m.Unmarshal(b)
 }
-func (m *NamespacedData) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+func (m *NamespacedRow) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
 	if deterministic {
-		return xxx_messageInfo_NamespacedData.Marshal(b, m, deterministic)
+		return xxx_messageInfo_NamespacedRow.Marshal(b, m, deterministic)
 	} else {
 		b = b[:cap(b)]
 		n, err := m.MarshalToSizedBuffer(b)
@@ -178,26 +186,26 @@ func (m *NamespacedData) XXX_Marshal(b []byte, deterministic bool) ([]byte, erro
 		return b[:n], nil
 	}
 }
-func (m *NamespacedData) XXX_Merge(src proto.Message) {
-	xxx_messageInfo_NamespacedData.Merge(m, src)
+func (m *NamespacedRow) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_NamespacedRow.Merge(m, src)
 }
-func (m *NamespacedData) XXX_Size() int {
+func (m *NamespacedRow) XXX_Size() int {
 	return m.Size()
 }
-func (m *NamespacedData) XXX_DiscardUnknown() {
-	xxx_messageInfo_NamespacedData.DiscardUnknown(m)
+func (m *NamespacedRow) XXX_DiscardUnknown() {
+	xxx_messageInfo_NamespacedRow.DiscardUnknown(m)
 }
 
-var xxx_messageInfo_NamespacedData proto.InternalMessageInfo
+var xxx_messageInfo_NamespacedRow proto.InternalMessageInfo
 
-func (m *NamespacedData) GetShares() [][]byte {
+func (m *NamespacedRow) GetShares() [][]byte {
 	if m != nil {
 		return m.Shares
 	}
 	return nil
 }
 
-func (m *NamespacedData) GetProof() *pb.Proof {
+func (m *NamespacedRow) GetProof() *pb.Proof {
 	if m != nil {
 		return m.Proof
 	}
@@ -206,37 +214,37 @@ func (m *NamespacedData) GetProof() *pb.Proof {
 
 func init() {
 	proto.RegisterEnum("Axis", Axis_name, Axis_value)
-	proto.RegisterType((*Row)(nil), "Row")
+	proto.RegisterType((*HalfAxis)(nil), "HalfAxis")
 	proto.RegisterType((*ShareWithProof)(nil), "ShareWithProof")
-	proto.RegisterType((*NamespacedData)(nil), "NamespacedData")
+	proto.RegisterType((*NamespacedRow)(nil), "NamespacedRow")
 }
 
 func init() { proto.RegisterFile("share/pb/types.proto", fileDescriptor_b405f12ecc363d82) }
 
 var fileDescriptor_b405f12ecc363d82 = []byte{
-	// 299 bytes of a gzipped FileDescriptorProto
+	// 303 bytes of a gzipped FileDescriptorProto
 	0x1f, 0x8b, 0x08, 0x00, 0x00, 0x00, 0x00, 0x00, 0x02, 0xff, 0xe2, 0x12, 0x29, 0xce, 0x48, 0x2c,
 	0x4a, 0xd5, 0x2f, 0x48, 0xd2, 0x2f, 0xa9, 0x2c, 0x48, 0x2d, 0xd6, 0x2b, 0x28, 0xca, 0x2f, 0xc9,
-	0x97, 0xe2, 0x2b, 0x48, 0xd2, 0x2f, 0x28, 0xca, 0xcf, 0x4f, 0x83, 0xf0, 0x95, 0x14, 0xb8, 0x98,
-	0x83, 0xf2, 0xcb, 0x85, 0x24, 0xb9, 0x38, 0x8a, 0xf2, 0xcb, 0xe3, 0x33, 0x12, 0x73, 0xd2, 0x24,
-	0x18, 0x15, 0x98, 0x35, 0x78, 0x82, 0xd8, 0x8b, 0xf2, 0xcb, 0x3d, 0x12, 0x73, 0xd2, 0x94, 0x8a,
-	0xb9, 0xf8, 0x82, 0x41, 0x26, 0x85, 0x67, 0x96, 0x64, 0x04, 0x80, 0x74, 0x0a, 0x89, 0x70, 0xb1,
-	0x82, 0xcd, 0x96, 0x60, 0x54, 0x60, 0xd4, 0xe0, 0x09, 0x82, 0x70, 0x84, 0x54, 0xb9, 0x58, 0xc1,
-	0x06, 0x4b, 0x30, 0x29, 0x30, 0x6a, 0x70, 0x1b, 0xf1, 0xeb, 0x41, 0xad, 0x49, 0xd2, 0x03, 0xeb,
-	0x0a, 0x82, 0xc8, 0x0a, 0xa9, 0x70, 0x71, 0x81, 0x19, 0xf1, 0x20, 0x57, 0x49, 0x30, 0x2b, 0x30,
-	0x6a, 0xf0, 0x19, 0xb1, 0xea, 0x39, 0x56, 0x64, 0x16, 0x07, 0x71, 0x82, 0x25, 0x42, 0x2a, 0x0b,
-	0x52, 0x95, 0xfc, 0xb9, 0xf8, 0xfc, 0x12, 0x73, 0x53, 0x8b, 0x0b, 0x12, 0x93, 0x53, 0x53, 0x5c,
-	0x12, 0x4b, 0x12, 0x85, 0xc4, 0xb8, 0xd8, 0xc0, 0xf6, 0x14, 0x43, 0xdd, 0x07, 0xe5, 0x11, 0x69,
-	0xad, 0x96, 0x04, 0x17, 0x0b, 0xc8, 0x0e, 0x21, 0x76, 0x2e, 0xe6, 0x20, 0xff, 0x70, 0x01, 0x06,
-	0x10, 0xc3, 0xd9, 0xdf, 0x47, 0x80, 0xd1, 0xc9, 0xf7, 0xc4, 0x23, 0x39, 0xc6, 0x0b, 0x8f, 0xe4,
-	0x18, 0x1f, 0x3c, 0x92, 0x63, 0x9c, 0xf0, 0x58, 0x8e, 0xe1, 0xc2, 0x63, 0x39, 0x86, 0x1b, 0x8f,
-	0xe5, 0x18, 0xa2, 0x8c, 0xd3, 0x33, 0x4b, 0x32, 0x4a, 0x93, 0xf4, 0x92, 0xf3, 0x73, 0xf5, 0x93,
-	0x53, 0x73, 0x52, 0x8b, 0x4b, 0x32, 0x13, 0xf3, 0x8b, 0xd2, 0xe1, 0x6c, 0xdd, 0xbc, 0xfc, 0x94,
-	0x54, 0x7d, 0x58, 0x30, 0x5b, 0x83, 0x83, 0x39, 0x89, 0x0d, 0x1c, 0xae, 0xc6, 0x80, 0x00, 0x00,
-	0x00, 0xff, 0xff, 0x49, 0xc4, 0xf0, 0x0e, 0x7f, 0x01, 0x00, 0x00,
+	0x97, 0xe2, 0x2b, 0x48, 0xd2, 0x2f, 0x28, 0xca, 0xcf, 0x4f, 0x83, 0xf0, 0x95, 0xec, 0xb9, 0x38,
+	0x3c, 0x12, 0x73, 0xd2, 0x1c, 0x2b, 0x32, 0x8b, 0x85, 0xc4, 0xb8, 0xd8, 0xc0, 0x7a, 0x8a, 0x25,
+	0x18, 0x15, 0x98, 0x35, 0x78, 0x82, 0xa0, 0x3c, 0x21, 0x69, 0x2e, 0xce, 0xcc, 0xe2, 0xf8, 0x82,
+	0xc4, 0xa2, 0xcc, 0x92, 0x4a, 0x09, 0x26, 0x05, 0x46, 0x0d, 0x8e, 0x20, 0x8e, 0xcc, 0xe2, 0x00,
+	0x30, 0x5f, 0xa9, 0x98, 0x8b, 0x2f, 0x18, 0xa4, 0x2c, 0x3c, 0xb3, 0x24, 0x23, 0x00, 0x64, 0xb0,
+	0x90, 0x08, 0x17, 0x2b, 0x58, 0xa3, 0x04, 0xa3, 0x02, 0xa3, 0x06, 0x4f, 0x10, 0x84, 0x23, 0xa4,
+	0xca, 0xc5, 0x0a, 0xb6, 0x17, 0x6c, 0x00, 0xb7, 0x11, 0xbf, 0x1e, 0xd4, 0x15, 0x49, 0x7a, 0x60,
+	0x5d, 0x41, 0x10, 0x59, 0x21, 0x15, 0x2e, 0x2e, 0x30, 0x23, 0x1e, 0xe4, 0x68, 0x09, 0x66, 0x05,
+	0x46, 0x0d, 0x3e, 0x23, 0x56, 0x3d, 0x90, 0xf3, 0x82, 0x38, 0xc1, 0x12, 0x21, 0x95, 0x05, 0xa9,
+	0x4a, 0x7e, 0x5c, 0xbc, 0x7e, 0x89, 0xb9, 0xa9, 0xc5, 0x05, 0x89, 0xc9, 0xa9, 0x29, 0x41, 0xf9,
+	0xe5, 0x38, 0x9d, 0x4e, 0x9c, 0xad, 0x5a, 0x12, 0x5c, 0x2c, 0xe0, 0x10, 0x60, 0xe7, 0x62, 0x0e,
+	0xf2, 0x0f, 0x17, 0x60, 0x00, 0x31, 0x9c, 0xfd, 0x7d, 0x04, 0x18, 0x9d, 0x7c, 0x4f, 0x3c, 0x92,
+	0x63, 0xbc, 0xf0, 0x48, 0x8e, 0xf1, 0xc1, 0x23, 0x39, 0xc6, 0x09, 0x8f, 0xe5, 0x18, 0x2e, 0x3c,
+	0x96, 0x63, 0xb8, 0xf1, 0x58, 0x8e, 0x21, 0xca, 0x38, 0x3d, 0xb3, 0x24, 0xa3, 0x34, 0x49, 0x2f,
+	0x39, 0x3f, 0x57, 0x3f, 0x39, 0x35, 0x27, 0xb5, 0xb8, 0x24, 0x33, 0x31, 0xbf, 0x28, 0x1d, 0xce,
+	0xd6, 0xcd, 0xcb, 0x4f, 0x49, 0xd5, 0x87, 0x45, 0x82, 0x35, 0x38, 0x12, 0x92, 0xd8, 0xc0, 0xa1,
+	0x6e, 0x0c, 0x08, 0x00, 0x00, 0xff, 0xff, 0xff, 0x88, 0xa3, 0xaa, 0x9d, 0x01, 0x00, 0x00,
 }
 
-func (m *Row) Marshal() (dAtA []byte, err error) {
+func (m *HalfAxis) Marshal() (dAtA []byte, err error) {
 	size := m.Size()
 	dAtA = make([]byte, size)
 	n, err := m.MarshalToSizedBuffer(dAtA[:size])
@@ -246,21 +254,31 @@ func (m *Row) Marshal() (dAtA []byte, err error) {
 	return dAtA[:n], nil
 }
 
-func (m *Row) MarshalTo(dAtA []byte) (int, error) {
+func (m *HalfAxis) MarshalTo(dAtA []byte) (int, error) {
 	size := m.Size()
 	return m.MarshalToSizedBuffer(dAtA[:size])
 }
 
-func (m *Row) MarshalToSizedBuffer(dAtA []byte) (int, error) {
+func (m *HalfAxis) MarshalToSizedBuffer(dAtA []byte) (int, error) {
 	i := len(dAtA)
 	_ = i
 	var l int
 	_ = l
-	if len(m.RowHalf) > 0 {
-		for iNdEx := len(m.RowHalf) - 1; iNdEx >= 0; iNdEx-- {
-			i -= len(m.RowHalf[iNdEx])
-			copy(dAtA[i:], m.RowHalf[iNdEx])
-			i = encodeVarintTypes(dAtA, i, uint64(len(m.RowHalf[iNdEx])))
+	if m.IsParity {
+		i--
+		if m.IsParity {
+			dAtA[i] = 1
+		} else {
+			dAtA[i] = 0
+		}
+		i--
+		dAtA[i] = 0x10
+	}
+	if len(m.Shares) > 0 {
+		for iNdEx := len(m.Shares) - 1; iNdEx >= 0; iNdEx-- {
+			i -= len(m.Shares[iNdEx])
+			copy(dAtA[i:], m.Shares[iNdEx])
+			i = encodeVarintTypes(dAtA, i, uint64(len(m.Shares[iNdEx])))
 			i--
 			dAtA[i] = 0xa
 		}
@@ -315,7 +333,7 @@ func (m *ShareWithProof) MarshalToSizedBuffer(dAtA []byte) (int, error) {
 	return len(dAtA) - i, nil
 }
 
-func (m *NamespacedData) Marshal() (dAtA []byte, err error) {
+func (m *NamespacedRow) Marshal() (dAtA []byte, err error) {
 	size := m.Size()
 	dAtA = make([]byte, size)
 	n, err := m.MarshalToSizedBuffer(dAtA[:size])
@@ -325,12 +343,12 @@ func (m *NamespacedData) Marshal() (dAtA []byte, err error) {
 	return dAtA[:n], nil
 }
 
-func (m *NamespacedData) MarshalTo(dAtA []byte) (int, error) {
+func (m *NamespacedRow) MarshalTo(dAtA []byte) (int, error) {
 	size := m.Size()
 	return m.MarshalToSizedBuffer(dAtA[:size])
 }
 
-func (m *NamespacedData) MarshalToSizedBuffer(dAtA []byte) (int, error) {
+func (m *NamespacedRow) MarshalToSizedBuffer(dAtA []byte) (int, error) {
 	i := len(dAtA)
 	_ = i
 	var l int
@@ -370,17 +388,20 @@ func encodeVarintTypes(dAtA []byte, offset int, v uint64) int {
 	dAtA[offset] = uint8(v)
 	return base
 }
-func (m *Row) Size() (n int) {
+func (m *HalfAxis) Size() (n int) {
 	if m == nil {
 		return 0
 	}
 	var l int
 	_ = l
-	if len(m.RowHalf) > 0 {
-		for _, b := range m.RowHalf {
+	if len(m.Shares) > 0 {
+		for _, b := range m.Shares {
 			l = len(b)
 			n += 1 + l + sovTypes(uint64(l))
 		}
+	}
+	if m.IsParity {
+		n += 2
 	}
 	return n
 }
@@ -405,7 +426,7 @@ func (m *ShareWithProof) Size() (n int) {
 	return n
 }
 
-func (m *NamespacedData) Size() (n int) {
+func (m *NamespacedRow) Size() (n int) {
 	if m == nil {
 		return 0
 	}
@@ -430,7 +451,7 @@ func sovTypes(x uint64) (n int) {
 func sozTypes(x uint64) (n int) {
 	return sovTypes(uint64((x << 1) ^ uint64((int64(x) >> 63))))
 }
-func (m *Row) Unmarshal(dAtA []byte) error {
+func (m *HalfAxis) Unmarshal(dAtA []byte) error {
 	l := len(dAtA)
 	iNdEx := 0
 	for iNdEx < l {
@@ -453,15 +474,15 @@ func (m *Row) Unmarshal(dAtA []byte) error {
 		fieldNum := int32(wire >> 3)
 		wireType := int(wire & 0x7)
 		if wireType == 4 {
-			return fmt.Errorf("proto: Row: wiretype end group for non-group")
+			return fmt.Errorf("proto: HalfAxis: wiretype end group for non-group")
 		}
 		if fieldNum <= 0 {
-			return fmt.Errorf("proto: Row: illegal tag %d (wire type %d)", fieldNum, wire)
+			return fmt.Errorf("proto: HalfAxis: illegal tag %d (wire type %d)", fieldNum, wire)
 		}
 		switch fieldNum {
 		case 1:
 			if wireType != 2 {
-				return fmt.Errorf("proto: wrong wireType = %d for field RowHalf", wireType)
+				return fmt.Errorf("proto: wrong wireType = %d for field Shares", wireType)
 			}
 			var byteLen int
 			for shift := uint(0); ; shift += 7 {
@@ -488,9 +509,29 @@ func (m *Row) Unmarshal(dAtA []byte) error {
 			if postIndex > l {
 				return io.ErrUnexpectedEOF
 			}
-			m.RowHalf = append(m.RowHalf, make([]byte, postIndex-iNdEx))
-			copy(m.RowHalf[len(m.RowHalf)-1], dAtA[iNdEx:postIndex])
+			m.Shares = append(m.Shares, make([]byte, postIndex-iNdEx))
+			copy(m.Shares[len(m.Shares)-1], dAtA[iNdEx:postIndex])
 			iNdEx = postIndex
+		case 2:
+			if wireType != 0 {
+				return fmt.Errorf("proto: wrong wireType = %d for field IsParity", wireType)
+			}
+			var v int
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowTypes
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := dAtA[iNdEx]
+				iNdEx++
+				v |= int(b&0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+			m.IsParity = bool(v != 0)
 		default:
 			iNdEx = preIndex
 			skippy, err := skipTypes(dAtA[iNdEx:])
@@ -651,7 +692,7 @@ func (m *ShareWithProof) Unmarshal(dAtA []byte) error {
 	}
 	return nil
 }
-func (m *NamespacedData) Unmarshal(dAtA []byte) error {
+func (m *NamespacedRow) Unmarshal(dAtA []byte) error {
 	l := len(dAtA)
 	iNdEx := 0
 	for iNdEx < l {
@@ -674,10 +715,10 @@ func (m *NamespacedData) Unmarshal(dAtA []byte) error {
 		fieldNum := int32(wire >> 3)
 		wireType := int(wire & 0x7)
 		if wireType == 4 {
-			return fmt.Errorf("proto: NamespacedData: wiretype end group for non-group")
+			return fmt.Errorf("proto: NamespacedRow: wiretype end group for non-group")
 		}
 		if fieldNum <= 0 {
-			return fmt.Errorf("proto: NamespacedData: illegal tag %d (wire type %d)", fieldNum, wire)
+			return fmt.Errorf("proto: NamespacedRow: illegal tag %d (wire type %d)", fieldNum, wire)
 		}
 		switch fieldNum {
 		case 1:

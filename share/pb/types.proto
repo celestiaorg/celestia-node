@@ -4,8 +4,9 @@ option go_package = "github.com/celestiaorg/celestia-node/share/pb;types";
 
 import "pb/proof.proto"; // celestiaorg/nmt/pb/proof.proto
 
-message Row {
-    repeated bytes row_half = 1;
+message HalfAxis {
+    repeated bytes shares = 1;
+    bool is_parity = 2;
 }
 
 message ShareWithProof {

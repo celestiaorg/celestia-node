@@ -107,17 +107,7 @@ func (rid RowID) BlockFromFile(ctx context.Context, f file.EdsFile) (blocks.Bloc
 		return nil, fmt.Errorf("while getting AxisHalf: %w", err)
 	}
 
-	shares := axisHalf.Shares
-	// If it's a parity axis, we need to get the left half of the shares
-	if axisHalf.IsParity {
-		axis, err := axisHalf.Extended()
-		if err != nil {
-			return nil, fmt.Errorf("while getting extended shares: %w", err)
-		}
-		shares = axis[:len(axis)/2]
-	}
-
-	s := NewRow(rid, shares)
+	s := NewRow(rid, axisHalf.ToHalfAxis())
 	blk, err := s.IPLDBlock()
 	if err != nil {
 		return nil, fmt.Errorf("while coverting to IPLD block: %w", err)

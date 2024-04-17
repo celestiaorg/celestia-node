@@ -3,6 +3,7 @@ package shwap
 import (
 	"crypto/sha256"
 	"fmt"
+	shwappb "github.com/celestiaorg/celestia-node/share/shwap/pb"
 )
 
 // RowHasher implements hash.Hash interface for Row.
@@ -12,7 +13,14 @@ type RowHasher struct {
 
 // Write expects a marshaled Row to validate.
 func (h *RowHasher) Write(data []byte) (int, error) {
-	row, err := RowFromBinary(data)
+	rowpb := &shwappb.RowBlock{}
+	if err := rowpb.Unmarshal(data); err != nil {
+		err = fmt.Errorf("unmarshaling RowBlock: %w", err)
+		log.Error(err)
+		return 0, err
+
+	}
+	row, err := RowFromProto(rowpb)
 	if err != nil {
 		err = fmt.Errorf("unmarshaling Row: %w", err)
 		log.Error(err)

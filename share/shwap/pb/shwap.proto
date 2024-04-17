@@ -4,7 +4,7 @@ import "types.proto";
 
 message RowBlock {
     bytes row_id = 1;
-    Row row = 2;
+    HalfAxis row = 2;
 }
 
 message SampleBlock {
