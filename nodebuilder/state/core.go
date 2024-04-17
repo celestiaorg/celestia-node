@@ -29,7 +29,7 @@ func coreAccessor(
 		corecfg.RPC.Port,
 		corecfg.GRPCHost(),
 		corecfg.GRPC.Port,
-    opts...
+		opts...,
 	)
 
 	sBreaker := &modfraud.ServiceBreaker[*state.CoreAccessor, *header.ExtendedHeader]{
