@@ -163,8 +163,8 @@ type fsStore struct {
 // Network preference order: Mainnet, Mocha, Arabica, Private, Custom
 // Type preference order: Bridge, Full, Light
 func DiscoverOpened() (string, error) {
-	defaultNetwork := p2p.GetOrderedNetworks()
-	nodeTypes := nodemod.GetOrderedTypes()
+	defaultNetwork := p2p.GetNetworks()
+	nodeTypes := nodemod.GetTypes()
 
 	for _, n := range defaultNetwork {
 		for _, tp := range nodeTypes {

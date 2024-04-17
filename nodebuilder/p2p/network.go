@@ -73,7 +73,7 @@ var networkAliases = map[string]Network{
 var orderedNetworks = []Network{Mainnet, Mocha, Arabica, Private}
 
 // GetOrderedNetworks provides a list of all known networks in order of priority.
-func GetOrderedNetworks() []Network {
+func GetNetworks() []Network {
 	return append([]Network(nil), orderedNetworks...)
 }
 
@@ -87,7 +87,7 @@ func listAvailableNetworks() string {
 			networks = append(networks, net.String())
 		}
 	}
-	
+
 	return strings.Join(networks, ", ")
 }
 
