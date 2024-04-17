@@ -19,6 +19,7 @@ func coreAccessor(
 	signer *apptypes.KeyringSigner,
 	sync *sync.Syncer[*header.ExtendedHeader],
 	fraudServ libfraud.Service[*header.ExtendedHeader],
+	opts []state.Option,
 ) (*state.CoreAccessor, Module, *modfraud.ServiceBreaker[*state.CoreAccessor, *header.ExtendedHeader]) {
 	ca := state.NewCoreAccessor(
 		signer,
@@ -28,11 +29,13 @@ func coreAccessor(
 		corecfg.RPC.Port,
 		corecfg.GRPCHost(),
 		corecfg.GRPC.Port,
+    opts...
 	)
 
-	return ca, ca, &modfraud.ServiceBreaker[*state.CoreAccessor, *header.ExtendedHeader]{
+	sBreaker := &modfraud.ServiceBreaker[*state.CoreAccessor, *header.ExtendedHeader]{
 		Service:   ca,
 		FraudType: byzantine.BadEncoding,
 		FraudServ: fraudServ,
 	}
+	return ca, ca, sBreaker
 }

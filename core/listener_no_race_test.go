@@ -25,21 +25,15 @@ func TestListenerWithNonEmptyBlocks(t *testing.T) {
 
 	// create one block to store as Head in local store and then unsubscribe from block events
 	cfg := DefaultTestConfig()
-	cfg.ChainID = networkID
+	cfg.ChainID = testChainID
 	fetcher, cctx := createCoreFetcher(t, cfg)
 	eds := createEdsPubSub(ctx, t)
 
 	store := createStore(t)
-	err := store.Start(ctx)
-	require.NoError(t, err)
-	t.Cleanup(func() {
-		err = store.Stop(ctx)
-		require.NoError(t, err)
-	})
 
 	// create Listener and start listening
-	cl := createListener(ctx, t, fetcher, ps0, eds, store, networkID)
-	err = cl.Start(ctx)
+	cl := createListener(ctx, t, fetcher, ps0, eds, store, testChainID)
+	err := cl.Start(ctx)
 	require.NoError(t, err)
 
 	// listen for eds hashes broadcasted through eds-sub and ensure store has

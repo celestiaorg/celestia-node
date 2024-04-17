@@ -15,11 +15,12 @@ import (
 
 	"github.com/celestiaorg/celestia-node/header"
 	nodep2p "github.com/celestiaorg/celestia-node/nodebuilder/p2p"
+	"github.com/celestiaorg/celestia-node/pruner"
 	"github.com/celestiaorg/celestia-node/share/eds"
 	"github.com/celestiaorg/celestia-node/share/p2p/shrexsub"
 )
 
-const networkID = "private"
+const testChainID = "private"
 
 // TestListener tests the lifecycle of the core listener.
 func TestListener(t *testing.T) {
@@ -31,7 +32,7 @@ func TestListener(t *testing.T) {
 	subscriber, err := p2p.NewSubscriber[*header.ExtendedHeader](
 		ps1,
 		header.MsgID,
-		p2p.WithSubscriberNetworkID(networkID),
+		p2p.WithSubscriberNetworkID(testChainID),
 	)
 	require.NoError(t, err)
 	err = subscriber.SetVerifier(func(context.Context, *header.ExtendedHeader) error {
@@ -45,13 +46,13 @@ func TestListener(t *testing.T) {
 
 	// create one block to store as Head in local store and then unsubscribe from block events
 	cfg := DefaultTestConfig()
-	cfg.ChainID = networkID
+	cfg.ChainID = testChainID
 	fetcher, _ := createCoreFetcher(t, cfg)
 
 	eds := createEdsPubSub(ctx, t)
 
 	// create Listener and start listening
-	cl := createListener(ctx, t, fetcher, ps0, eds, createStore(t), networkID)
+	cl := createListener(ctx, t, fetcher, ps0, eds, createStore(t), testChainID)
 	err = cl.Start(ctx)
 	require.NoError(t, err)
 
@@ -79,17 +80,11 @@ func TestListenerWithWrongChainRPC(t *testing.T) {
 
 	// create one block to store as Head in local store and then unsubscribe from block events
 	cfg := DefaultTestConfig()
-	cfg.ChainID = networkID
+	cfg.ChainID = testChainID
 	fetcher, _ := createCoreFetcher(t, cfg)
 	eds := createEdsPubSub(ctx, t)
 
 	store := createStore(t)
-	err := store.Start(ctx)
-	require.NoError(t, err)
-	t.Cleanup(func() {
-		err = store.Stop(ctx)
-		require.NoError(t, err)
-	})
 
 	// create Listener and start listening
 	cl := createListener(ctx, t, fetcher, ps0, eds, store, "wrong-chain-rpc")
@@ -98,6 +93,42 @@ func TestListenerWithWrongChainRPC(t *testing.T) {
 
 	err = cl.listen(ctx, sub)
 	assert.ErrorIs(t, err, errInvalidSubscription)
+}
+
+// TestListener_DoesNotStoreHistoric tests the (unlikely) case that
+// blocks come through the listener's subscription that are actually
+// older than the sampling window.
+func TestListener_DoesNotStoreHistoric(t *testing.T) {
+	ctx, cancel := context.WithTimeout(context.Background(), time.Minute)
+	t.Cleanup(cancel)
+
+	// create mocknet with two pubsub endpoints
+	ps0, _ := createMocknetWithTwoPubsubEndpoints(ctx, t)
+
+	// create one block to store as Head in local store and then unsubscribe from block events
+	cfg := DefaultTestConfig()
+	cfg.ChainID = testChainID
+	fetcher, cctx := createCoreFetcher(t, cfg)
+	eds := createEdsPubSub(ctx, t)
+
+	store := createStore(t)
+
+	// create Listener and start listening
+	opt := WithAvailabilityWindow(pruner.AvailabilityWindow(time.Nanosecond))
+	cl := createListener(ctx, t, fetcher, ps0, eds, store, testChainID, opt)
+
+	dataRoots := generateNonEmptyBlocks(t, ctx, fetcher, cfg, cctx)
+
+	err := cl.Start(ctx)
+	require.NoError(t, err)
+
+	// ensure none of the EDSes were stored
+	for _, hash := range dataRoots {
+		has, err := store.Has(ctx, hash)
+		require.NoError(t, err)
+		assert.False(t, has)
+	}
+
 }
 
 func createMocknetWithTwoPubsubEndpoints(ctx context.Context, t *testing.T) (*pubsub.PubSub, *pubsub.PubSub) {
@@ -143,8 +174,9 @@ func createListener(
 	edsSub *shrexsub.PubSub,
 	store *eds.Store,
 	chainID string,
+	opts ...Option,
 ) *Listener {
-	p2pSub, err := p2p.NewSubscriber[*header.ExtendedHeader](ps, header.MsgID, p2p.WithSubscriberNetworkID(networkID))
+	p2pSub, err := p2p.NewSubscriber[*header.ExtendedHeader](ps, header.MsgID, p2p.WithSubscriberNetworkID(testChainID))
 	require.NoError(t, err)
 
 	err = p2pSub.Start(ctx)
@@ -158,7 +190,7 @@ func createListener(
 	})
 
 	listener, err := NewListener(p2pSub, fetcher, edsSub.Broadcast, header.MakeExtendedHeader,
-		store, nodep2p.BlockTime, WithChainID(nodep2p.Network(chainID)))
+		store, nodep2p.BlockTime, append(opts, WithChainID(nodep2p.Network(chainID)))...)
 	require.NoError(t, err)
 	return listener
 }
