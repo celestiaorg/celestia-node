@@ -69,11 +69,12 @@ type CoreAccessor struct {
 	cancel context.CancelFunc
 
 	keyring keyring.Keyring
+	addr    sdktypes.AccAddress
 	// TODO: (@cmwaters) - once multiple keys within a signer is supported,
 	// this will no longer be necessary.
 	// ref: https://github.com/celestiaorg/celestia-app/issues/3259
-	signer *user.Signer
-	addr   sdktypes.AccAddress
+	signerMu sync.Mutex
+	signer   *user.Signer
 
 	getter libhead.Head[*header.ExtendedHeader]
 
@@ -175,7 +176,7 @@ func (ca *CoreAccessor) Start(ctx context.Context) error {
 	}
 	ca.rpcCli = cli
 
-	err = ca.setupSigner(ctx)
+	ca.signer, err = ca.setupSigner(ctx)
 	if err != nil {
 		log.Warnw("failed to set up signer, check if node's account is funded", "err", err)
 	}
@@ -674,21 +675,21 @@ func (ca *CoreAccessor) queryMinimumGasPrice(
 }
 
 func (ca *CoreAccessor) getSigner(ctx context.Context) (*user.Signer, error) {
-	if ca.signer == nil {
-		err := ca.setupSigner(ctx)
-		if err != nil {
-			return nil, err
-		}
-	}
-	return ca.signer, nil
-}
+	ca.signerMu.Lock()
+	defer ca.signerMu.Unlock()
 
-func (ca *CoreAccessor) setupSigner(ctx context.Context) error {
-	encCfg := encoding.MakeConfig(app.ModuleEncodingRegisters...)
+	if ca.signer != nil {
+		return ca.signer, nil
+	}
 
 	var err error
-	ca.signer, err = user.SetupSigner(ctx, ca.keyring, ca.coreConn, ca.addr, encCfg)
-	return err
+	ca.signer, err = ca.setupSigner(ctx)
+	return ca.signer, err
+}
+
+func (ca *CoreAccessor) setupSigner(ctx context.Context) (*user.Signer, error) {
+	encCfg := encoding.MakeConfig(app.ModuleEncodingRegisters...)
+	return user.SetupSigner(ctx, ca.keyring, ca.coreConn, ca.addr, encCfg)
 }
 
 func withFee(fee Int) user.TxOption {
