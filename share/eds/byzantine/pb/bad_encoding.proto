@@ -8,5 +8,5 @@ message BadEncoding {
   uint64 Height   = 2;
   repeated ShareWithProof Shares = 3;
   uint32 Index    = 4;
-  Axis Axis    = 5;
+  AxisType Axis    = 5;
 }

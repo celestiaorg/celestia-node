@@ -94,7 +94,7 @@ func (s *ShareWithProof) ToProto() *types_pb.ShareWithProof {
 			LeafHash:              s.Proof.LeafHash(),
 			IsMaxNamespaceIgnored: s.Proof.IsMaxNamespaceIDIgnored(),
 		},
-		ProofType: types_pb.Axis(s.ProofType),
+		ProofType: types_pb.AxisType(s.ProofType),
 	}
 }
 

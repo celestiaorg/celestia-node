@@ -12,7 +12,7 @@ message HalfAxis {
 message ShareWithProof {
     bytes share = 1;
     proof.pb.Proof proof = 2;
-    Axis proof_type = 3;
+    AxisType proof_type = 3;
 }
 
 message NamespacedRow {
@@ -20,7 +20,7 @@ message NamespacedRow {
     proof.pb.Proof proof = 2;
 }
 
-enum Axis {
+enum AxisType {
     ROW = 0;
     COL = 1;
 }

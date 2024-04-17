@@ -84,7 +84,7 @@ func (p *BadEncodingProof) MarshalBinary() ([]byte, error) {
 		Height:     p.BlockHeight,
 		Shares:     shares,
 		Index:      p.Index,
-		Axis:       types.Axis(p.Axis),
+		Axis:       types.AxisType(p.Axis),
 	}
 	return badEncodingFraudProof.Marshal()
 }

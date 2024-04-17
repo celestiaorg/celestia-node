@@ -225,7 +225,7 @@ func (n Namespace) AddInt(val int) (Namespace, error) {
 
 	// Handle any remaining carry
 	if carry != 0 {
-		return nil, errors.New("n overflow")
+		return nil, errors.New("namespace overflow")
 	}
 
 	return result, nil
