@@ -77,17 +77,17 @@ func GetOrderedNetworks() []Network {
 	return append([]Network(nil), orderedNetworks...)
 }
 
-// listAvailableNetworks provides a string listing all known long-standing networks for things like CLI hints.
+// listAvailableNetworks provides a string listing all known long-standing networks for things
+// like CLI hints.
 func listAvailableNetworks() string {
-    var networks []string
-    for _, net := range orderedNetworks {
+	var networks []string
+	for _, net := range orderedNetworks {
 		// "private" networks are configured via env vars, so skip
-        if net != Private {
-            networks = append(networks, net.String())
-        }
-    }
-
-    return strings.Join(networks, ", ")
+		if net != Private {
+			networks = append(networks, net.String())
+		}
+	}
+	return strings.Join(networks, ", ")
 }
 
 // addCustomNetwork adds a custom network to the list of known networks.
