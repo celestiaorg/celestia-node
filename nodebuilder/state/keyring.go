@@ -8,12 +8,12 @@ import (
 
 const DefaultAccountName = "my_celes_key"
 
-type AccName string
+type AccountName string
 
 // Keyring constructs a new keyring.
 // NOTE: we construct keyring before constructing node for easier UX
 // as having keyring-backend set to `file` prompts user for password.
-func Keyring(cfg Config, ks keystore.Keystore) (kr.Keyring, AccName, error) {
+func Keyring(cfg Config, ks keystore.Keystore) (kr.Keyring, AccountName, error) {
 	ring := ks.Keyring()
 	var info *kr.Record
 	// if custom keyringAccName provided, find key for that name
@@ -34,5 +34,5 @@ func Keyring(cfg Config, ks keystore.Keystore) (kr.Keyring, AccName, error) {
 		info = keyInfo
 	}
 
-	return ring, AccName(info.Name), nil
+	return ring, AccountName(info.Name), nil
 }

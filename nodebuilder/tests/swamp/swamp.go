@@ -259,7 +259,7 @@ func (s *Swamp) NewNodeWithStore(
 ) *nodebuilder.Node {
 	options = append(options,
 		state.WithKeyring(s.ClientContext.Keyring),
-		state.WithKeyName(state.AccName(s.Accounts[0])),
+		state.WithKeyName(state.AccountName(s.Accounts[0])),
 	)
 
 	switch tp {

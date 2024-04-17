@@ -14,6 +14,6 @@ func WithKeyring(keyring kr.Keyring) fx.Option {
 }
 
 // WithKeyName configures the signer to use the given key.
-func WithKeyName(name AccName) fx.Option {
+func WithKeyName(name AccountName) fx.Option {
 	return fx.Replace(name)
 }

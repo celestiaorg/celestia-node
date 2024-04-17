@@ -31,7 +31,7 @@ func ConstructModule(tp node.Type, cfg *Config, coreCfg *core.Config) fx.Option 
 		fx.Supply(*cfg),
 		fx.Error(cfgErr),
 		fx.Supply(opts),
-		fx.Provide(func(ks keystore.Keystore) (keyring.Keyring, AccName, error) {
+		fx.Provide(func(ks keystore.Keystore) (keyring.Keyring, AccountName, error) {
 			return Keyring(*cfg, ks)
 		}),
 		fxutil.ProvideIf(coreCfg.IsEndpointConfigured(), fx.Annotate(

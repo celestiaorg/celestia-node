@@ -18,7 +18,7 @@ import (
 func coreAccessor(
 	corecfg core.Config,
 	keyring keyring.Keyring,
-	keyname AccName,
+	keyname AccountName,
 	sync *sync.Syncer[*header.ExtendedHeader],
 	fraudServ libfraud.Service[*header.ExtendedHeader],
 	opts []state.Option,
