@@ -49,8 +49,6 @@ func TestSampleRoundtripGetBlock(t *testing.T) {
 				smpl, err := newSampleFromEDS(eds, height, proofAxis, x, y)
 				require.NoError(t, err)
 
-				globalRootsCache.Store(smpl.SampleID, root)
-
 				cid := smpl.Cid()
 				blkOut, err := client.GetBlock(ctx, cid)
 				require.NoError(t, err)
@@ -66,7 +64,6 @@ func TestSampleRoundtripGetBlock(t *testing.T) {
 	}
 }
 
-// TODO: Debug why is it flaky
 func TestSampleRoundtripGetBlocks(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second*5)
 	defer cancel()
@@ -86,7 +83,6 @@ func TestSampleRoundtripGetBlocks(t *testing.T) {
 				smpl, err := newSampleFromEDS(eds, height, proofAxis, x, y)
 				require.NoError(t, err)
 				set.Add(smpl.Cid())
-				globalRootsCache.Store(smpl.SampleID, root)
 			}
 		}
 	}
@@ -128,8 +124,6 @@ func TestRowRoundtripGetBlock(t *testing.T) {
 		row, err := NewRowFromEDS(height, i, eds)
 		require.NoError(t, err)
 
-		globalRootsCache.Store(row.RowID, root)
-
 		cid := row.Cid()
 		blkOut, err := client.GetBlock(ctx, cid)
 		require.NoError(t, err)
@@ -160,7 +154,6 @@ func TestRowRoundtripGetBlocks(t *testing.T) {
 		row, err := NewRowFromEDS(height, i, eds)
 		require.NoError(t, err)
 		set.Add(row.Cid())
-		globalRootsCache.Store(row.RowID, root)
 	}
 
 	blks, err := client.GetBlocks(ctx, set.Keys())
@@ -227,7 +220,6 @@ func TestDataRoundtripGetBlocks(t *testing.T) {
 	set := cid.NewSet()
 	for _, nd := range nds {
 		set.Add(nd.Cid())
-		globalRootsCache.Store(nd.DataID, root)
 	}
 
 	blks, err := client.GetBlocks(ctx, set.Keys())

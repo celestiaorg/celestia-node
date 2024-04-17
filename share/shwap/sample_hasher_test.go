@@ -8,7 +8,6 @@ import (
 
 	"github.com/celestiaorg/rsmt2d"
 
-	"github.com/celestiaorg/celestia-node/share"
 	"github.com/celestiaorg/celestia-node/share/testing/edstest"
 )
 
@@ -19,13 +18,8 @@ func TestSampleHasher(t *testing.T) {
 	assert.Error(t, err)
 
 	square := edstest.RandEDS(t, 2)
-	root, err := share.NewRoot(square)
-	require.NoError(t, err)
-
 	sample, err := newSampleFromEDS(square, 1, rsmt2d.Row, 1, 1)
 	require.NoError(t, err)
-
-	globalRootsCache.Store(sample.SampleID, root)
 
 	data, err := sample.ToProto().Marshal()
 	require.NoError(t, err)
