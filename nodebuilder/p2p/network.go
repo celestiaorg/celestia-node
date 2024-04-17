@@ -87,6 +87,7 @@ func listAvailableNetworks() string {
 			networks = append(networks, net.String())
 		}
 	}
+	
 	return strings.Join(networks, ", ")
 }
 
