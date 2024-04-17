@@ -674,6 +674,9 @@ func (ca *CoreAccessor) queryMinimumGasPrice(
 	return coins.AmountOf(app.BondDenom).MustFloat64(), nil
 }
 
+// getSigner returns the signer if it has already been constructed, otherwise
+// it will attempt to set it up. The signer can only be constructed if the account
+// exists / is funded.
 func (ca *CoreAccessor) getSigner(ctx context.Context) (*user.Signer, error) {
 	ca.signerMu.Lock()
 	defer ca.signerMu.Unlock()
