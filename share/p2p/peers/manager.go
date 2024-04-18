@@ -167,7 +167,7 @@ func (m *Manager) Stop(ctx context.Context) error {
 	m.cancel()
 
 	if err := m.metrics.close(); err != nil {
-		log.Errorw("closing metrics", "err", err)
+		log.Warnw("closing metrics", "err", err)
 	}
 
 	// we do not need to wait for headersub and disconnected peers to finish
