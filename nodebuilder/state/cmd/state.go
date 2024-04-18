@@ -12,6 +12,10 @@ import (
 	"github.com/celestiaorg/celestia-node/state"
 )
 
+var (
+	amount uint64
+)
+
 func init() {
 	Cmd.AddCommand(
 		accountAddressCmd,
@@ -26,6 +30,16 @@ func init() {
 		queryDelegationCmd,
 		queryUnbondingCmd,
 		queryRedelegationCmd,
+		grantFeeCmd,
+		revokeGrantFeeCmd,
+	)
+
+	grantFeeCmd.PersistentFlags().Uint64Var(
+		&amount,
+		"amount",
+		0,
+		"specifies the spend limit(in utia) for the grantee.\n"+
+			"The default value is 0 which means the grantee does not have a spend limit.",
 	)
 }
 
@@ -399,6 +413,75 @@ var queryRedelegationCmd = &cobra.Command{
 			dstAddr.Address.(state.ValAddress),
 		)
 		return cmdnode.PrintOutput(response, err, nil)
+	},
+}
+
+var grantFeeCmd = &cobra.Command{
+	Use: "grant-fee [granteeAddress] [fee] [gasLimit]",
+	Short: "Grant an allowance to a specified grantee account to pay the fees for their transactions.\n" +
+		"Grantee can spend any amount of tokens in case the spend limit is not set.",
+	Args: cobra.ExactArgs(3),
+	RunE: func(cmd *cobra.Command, args []string) error {
+		client, err := cmdnode.ParseClientFromCtx(cmd.Context())
+		if err != nil {
+			return err
+		}
+		defer client.Close()
+
+		granteeAddr, err := parseAddressFromString(args[0])
+		if err != nil {
+			return fmt.Errorf("error parsing an address:%v", err)
+		}
+
+		fee, err := strconv.ParseInt(args[1], 10, 64)
+		if err != nil {
+			return fmt.Errorf("error parsing a fee:%v", err)
+		}
+		gasLimit, err := strconv.ParseUint(args[2], 10, 64)
+		if err != nil {
+			return fmt.Errorf("error parsing a gas limit:%v", err)
+		}
+
+		txResponse, err := client.State.GrantFee(
+			cmd.Context(),
+			granteeAddr.Address.(state.AccAddress),
+			math.NewInt(int64(amount)), math.NewInt(fee), gasLimit,
+		)
+		return cmdnode.PrintOutput(txResponse, err, nil)
+	},
+}
+
+var revokeGrantFeeCmd = &cobra.Command{
+	Use:   "revoke-grant-fee [granteeAddress] [fee] [gasLimit]",
+	Short: "Removes permission for grantee to submit PFB transactions which will be paid by granter.",
+	Args:  cobra.ExactArgs(3),
+	RunE: func(cmd *cobra.Command, args []string) error {
+		client, err := cmdnode.ParseClientFromCtx(cmd.Context())
+		if err != nil {
+			return err
+		}
+		defer client.Close()
+
+		granteeAddr, err := parseAddressFromString(args[0])
+		if err != nil {
+			return fmt.Errorf("error parsing an address:%v", err)
+		}
+
+		fee, err := strconv.ParseInt(args[1], 10, 64)
+		if err != nil {
+			return fmt.Errorf("error parsing a fee:%v", err)
+		}
+		gasLimit, err := strconv.ParseUint(args[2], 10, 64)
+		if err != nil {
+			return fmt.Errorf("error parsing a gas limit:%v", err)
+		}
+
+		txResponse, err := client.State.RevokeGrantFee(
+			cmd.Context(),
+			granteeAddr.Address.(state.AccAddress),
+			math.NewInt(fee), gasLimit,
+		)
+		return cmdnode.PrintOutput(txResponse, err, nil)
 	},
 }
 
