@@ -16,7 +16,7 @@ import (
 )
 
 func TestGetProof(t *testing.T) {
-	const width = 4
+	const width = 8
 
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second*2)
 	defer cancel()
@@ -29,17 +29,17 @@ func TestGetProof(t *testing.T) {
 	dah, err := da.NewDataAvailabilityHeader(in)
 	require.NoError(t, err)
 
-	for _, axisType := range []rsmt2d.Axis{rsmt2d.Row, rsmt2d.Col} {
+	for _, proofType := range []rsmt2d.Axis{rsmt2d.Row, rsmt2d.Col} {
 		var roots [][]byte
-		switch axisType {
+		switch proofType {
 		case rsmt2d.Row:
 			roots = dah.RowRoots
 		case rsmt2d.Col:
 			roots = dah.ColumnRoots
 		}
-		for axisIdx := 0; axisIdx < width; axisIdx++ {
+		for axisIdx := 0; axisIdx < width*2; axisIdx++ {
 			rootCid := ipld.MustCidFromNamespacedSha256(roots[axisIdx])
-			for shrIdx := 0; shrIdx < width; shrIdx++ {
+			for shrIdx := 0; shrIdx < width*2; shrIdx++ {
 				proof, err := getProofsAt(ctx, bServ, rootCid, shrIdx, int(in.Width()))
 				require.NoError(t, err)
 				node, err := ipld.GetLeaf(ctx, bServ, rootCid, shrIdx, int(in.Width()))
@@ -47,9 +47,16 @@ func TestGetProof(t *testing.T) {
 				inclusion := &ShareWithProof{
 					Share: share.GetData(node.RawData()),
 					Proof: &proof,
-					Axis:  axisType,
+					Axis:  proofType,
 				}
-				require.True(t, inclusion.Validate(&dah, axisType, axisIdx, shrIdx))
+				require.True(t, inclusion.Validate(&dah, proofType, axisIdx, shrIdx))
+				// swap axis indexes to test if validation still works against the orthogonal coordinate
+				switch proofType {
+				case rsmt2d.Row:
+					require.True(t, inclusion.Validate(&dah, rsmt2d.Col, shrIdx, axisIdx))
+				case rsmt2d.Col:
+					require.True(t, inclusion.Validate(&dah, rsmt2d.Row, shrIdx, axisIdx))
+				}
 			}
 		}
 	}

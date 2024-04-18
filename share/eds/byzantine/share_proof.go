@@ -42,7 +42,7 @@ func (s *ShareWithProof) Validate(dah *share.Root, axisType rsmt2d.Axis, axisIdx
 	}
 
 	edsSize := len(dah.RowRoots)
-	isParity := shrIdx >= edsSize/2
+	isParity := shrIdx >= edsSize/2 || axisIdx >= edsSize/2
 	namespace := share.ParitySharesNamespace
 	if !isParity {
 		namespace = share.GetNamespace(s.Share)
@@ -82,7 +82,6 @@ func GetShareWithProof(
 	share share.Share,
 	axisType rsmt2d.Axis, axisIdx, shrIdx int,
 ) (*ShareWithProof, error) {
-	// If the axis is column, we need to swap the indices
 	if axisType == rsmt2d.Col {
 		axisIdx, shrIdx, axisType = shrIdx, axisIdx, rsmt2d.Row
 	}
