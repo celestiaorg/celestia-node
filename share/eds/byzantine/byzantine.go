@@ -36,44 +36,30 @@ func NewErrByzantine(
 	errByz *rsmt2d.ErrByzantineData,
 ) error {
 	sharesWithProof := make([]*ShareWithProof, len(errByz.Shares))
-
-	type result struct {
-		share *ShareWithProof
-		index int
-	}
-	resultCh := make(chan *result)
 	bGetter := ipld.NewBlockservice(bStore, nil)
+	var count int
 	for index, share := range errByz.Shares {
-		if share == nil {
+		if len(share) == 0 {
+			continue
+		}
+		swp, err := GetShareWithProof(ctx, bGetter, dah, share, errByz.Axis, int(errByz.Index), index)
+		if err != nil {
+			log.Warn("requesting proof failed",
+				"errByz", errByz,
+				"shareIndex", index,
+				"err", err)
 			continue
 		}
 
-		index, share := index, share
-		go func() {
-			share, err := GetShareWithProof(ctx, bGetter, dah, share, errByz.Axis, int(errByz.Index), index)
-			if err != nil {
-				log.Warn("requesting proof failed",
-					"errByz", errByz,
-					"shareIndex", index,
-					"err", err)
-				return
-			}
-
-			select {
-			case resultCh <- &result{share, index}:
-			case <-ctx.Done():
-				return
-			}
-		}()
+		sharesWithProof[index] = swp
+		// it is enough to collect half of the shares to construct the befp
+		if count++; count >= len(dah.RowRoots)/2 {
+			break
+		}
 	}
 
-	for i := 0; i < len(dah.RowRoots)/2; i++ {
-		select {
-		case t := <-resultCh:
-			sharesWithProof[t.index] = t.share
-		case <-ctx.Done():
-			return ipld.ErrNodeNotFound
-		}
+	if count < len(dah.RowRoots)/2 {
+		return fmt.Errorf("failed to collect proof")
 	}
 
 	return &ErrByzantine{

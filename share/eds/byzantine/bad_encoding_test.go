@@ -222,15 +222,15 @@ func TestBEFP_ValidateOutOfOrderShares(t *testing.T) {
 	)
 	require.NoError(t, err, "failure to recompute the extended data square")
 
-	err = batchAddr.Commit()
-	require.NoError(t, err)
-
 	dah, err := da.NewDataAvailabilityHeader(eds)
 	require.NoError(t, err)
 
 	var errRsmt2d *rsmt2d.ErrByzantineData
 	err = eds.Repair(dah.RowRoots, dah.ColumnRoots)
 	require.ErrorAs(t, err, &errRsmt2d)
+
+	err = batchAddr.Commit()
+	require.NoError(t, err)
 
 	byzantine := NewErrByzantine(ctx, bServ.Blockstore(), &dah, errRsmt2d)
 	var errByz *ErrByzantine
