@@ -21,10 +21,14 @@ var log = logging.Logger("module/state")
 func ConstructModule(tp node.Type, cfg *Config, coreCfg *core.Config) fx.Option {
 	// sanitize config values before constructing module
 	cfgErr := cfg.Validate()
-
+	opts := make([]state.Option, 0)
+	if !cfg.GranterAddress.Empty() {
+		opts = append(opts, state.WithGranter(cfg.GranterAddress))
+	}
 	baseComponents := fx.Options(
 		fx.Supply(*cfg),
 		fx.Error(cfgErr),
+		fx.Supply(opts),
 		fxutil.ProvideIf(coreCfg.IsEndpointConfigured(), fx.Annotate(
 			coreAccessor,
 			fx.OnStart(func(ctx context.Context,
