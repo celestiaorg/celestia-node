@@ -1,7 +1,6 @@
 package main
 
 import (
-	"context"
 	"encoding/json"
 	"os"
 
@@ -11,7 +10,7 @@ import (
 	"github.com/celestiaorg/celestia-node/nodebuilder"
 )
 
-var rootCmd = &cobra.Command{
+var docgenCmd = &cobra.Command{
 	Use:   "docgen [packages]",
 	Short: "docgen generates the openrpc documentation for Celestia Node packages",
 	RunE: func(_ *cobra.Command, moduleNames []string) error {
@@ -41,15 +40,4 @@ var rootCmd = &cobra.Command{
 		_, err = os.Stdout.Write(jsonOut)
 		return err
 	},
-}
-
-func main() {
-	err := run()
-	if err != nil {
-		os.Exit(1)
-	}
-}
-
-func run() error {
-	return rootCmd.ExecuteContext(context.Background())
 }
