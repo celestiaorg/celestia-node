@@ -44,7 +44,7 @@ func RPCFlags() *flag.FlagSet {
 
 func InitClient(cmd *cobra.Command, _ []string) error {
 	if authTokenFlag == "" {
-		rootErrMsg := "cant access the auth token"
+		rootErrMsg := "can't access the auth token"
 
 		storePath, err := getStorePath(cmd)
 		if err != nil {
