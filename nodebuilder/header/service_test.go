@@ -3,6 +3,7 @@ package header
 import (
 	"context"
 	"fmt"
+	"errors"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -29,7 +30,7 @@ type errorSyncer[H libhead.Header[H]] struct{}
 
 func (d *errorSyncer[H]) Head(context.Context, ...libhead.HeadOption[H]) (H, error) {
 	var zero H
-	return zero, fmt.Errorf("dummy error")
+	return zero, errors.New("dummy error")
 }
 
 func (d *errorSyncer[H]) State() sync.State {
@@ -37,5 +38,5 @@ func (d *errorSyncer[H]) State() sync.State {
 }
 
 func (d *errorSyncer[H]) SyncWait(context.Context) error {
-	return fmt.Errorf("dummy error")
+	return errors.New("dummy error")
 }

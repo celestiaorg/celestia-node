@@ -3,6 +3,7 @@ package nodebuilder
 import (
 	"errors"
 	"fmt"
+	"errors"
 	"os"
 	"path/filepath"
 	"runtime"
@@ -115,7 +116,7 @@ func (f *fsStore) PutConfig(cfg *Config) error {
 
 func (f *fsStore) Keystore() (_ keystore.Keystore, err error) {
 	if f.keys == nil {
-		return nil, fmt.Errorf("node: no Keystore found")
+		return nil, errors.New("node: no Keystore found")
 	}
 	return f.keys, nil
 }

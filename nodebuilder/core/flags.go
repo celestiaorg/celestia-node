@@ -2,6 +2,7 @@ package core
 
 import (
 	"fmt"
+	"errors"
 
 	"github.com/spf13/cobra"
 	flag "github.com/spf13/pflag"
@@ -45,7 +46,7 @@ func ParseFlags(
 	coreIP := cmd.Flag(coreFlag).Value.String()
 	if coreIP == "" {
 		if cmd.Flag(coreGRPCFlag).Changed || cmd.Flag(coreRPCFlag).Changed {
-			return fmt.Errorf("cannot specify RPC/gRPC ports without specifying an IP address for --core.ip")
+			return errors.New("cannot specify RPC/gRPC ports without specifying an IP address for --core.ip")
 		}
 		return nil
 	}

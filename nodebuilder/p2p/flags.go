@@ -2,6 +2,7 @@ package p2p
 
 import (
 	"fmt"
+	"errors"
 	"os"
 	"strings"
 
@@ -100,7 +101,7 @@ func parseNetworkFromEnv() (Network, error) {
 		// ensure at least custom network is set
 		params := strings.Split(custom, ":")
 		if len(params) == 0 {
-			return network, fmt.Errorf("params: must provide at least <network_ID> to use a custom network")
+			return network, errors.New("params: must provide at least <network_ID> to use a custom network")
 		}
 		netID := params[0]
 		network = Network(netID)

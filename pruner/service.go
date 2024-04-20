@@ -3,6 +3,7 @@ package pruner
 import (
 	"context"
 	"fmt"
+	"errors"
 	"time"
 
 	"github.com/ipfs/go-datastore"
@@ -90,7 +91,7 @@ func (s *Service) Stop(ctx context.Context) error {
 	case <-s.doneCh:
 		return nil
 	case <-ctx.Done():
-		return fmt.Errorf("pruner unable to exit within context deadline")
+		return errors.New("pruner unable to exit within context deadline")
 	}
 }
 

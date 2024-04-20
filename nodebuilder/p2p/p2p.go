@@ -3,6 +3,7 @@ package p2p
 import (
 	"context"
 	"fmt"
+	"errors"
 	"reflect"
 
 	pubsub "github.com/libp2p/go-libp2p-pubsub"
@@ -178,7 +179,7 @@ func (m *module) BandwidthForProtocol(_ context.Context, proto protocol.ID) (met
 func (m *module) ResourceState(context.Context) (rcmgr.ResourceManagerStat, error) {
 	rms, ok := m.rm.(rcmgr.ResourceManagerState)
 	if !ok {
-		return rcmgr.ResourceManagerStat{}, fmt.Errorf("network.resourceManager does not implement " +
+		return rcmgr.ResourceManagerStat{}, errors.New("network.resourceManager does not implement " +
 			"rcmgr.ResourceManagerState")
 	}
 	return rms.Stat(), nil

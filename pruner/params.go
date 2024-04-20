@@ -2,6 +2,7 @@ package pruner
 
 import (
 	"fmt"
+	"errors"
 	"time"
 )
 
@@ -15,7 +16,7 @@ type Params struct {
 
 func (p *Params) Validate() error {
 	if p.pruneCycle == time.Duration(0) {
-		return fmt.Errorf("invalid GC cycle given, value should be positive and non-zero")
+		return errors.New("invalid GC cycle given, value should be positive and non-zero")
 	}
 	return nil
 }

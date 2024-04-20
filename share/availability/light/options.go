@@ -2,6 +2,7 @@ package light
 
 import (
 	"fmt"
+	"errors"
 )
 
 // SampleAmount specifies the minimum required amount of samples a light node must perform
@@ -30,7 +31,7 @@ func DefaultParameters() Parameters {
 // Validate validates the values in Parameters
 func (p *Parameters) Validate() error {
 	if p.SampleAmount <= 0 {
-		return fmt.Errorf(
+		return errors.New(
 			"light availability: invalid option: value %s was %s, where it should be %s",
 			"SampleAmount",
 			"<= 0", // current value
