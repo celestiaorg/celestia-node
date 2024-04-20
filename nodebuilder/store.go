@@ -10,17 +10,14 @@ import (
 	"sync"
 	"time"
 
-	"github.com/cosmos/cosmos-sdk/crypto/keyring"
-	"github.com/dgraph-io/badger/v4/options"
-	"github.com/gofrs/flock"
-	"github.com/ipfs/go-datastore"
-	dsbadger "github.com/ipfs/go-ds-badger4"
-	"github.com/mitchellh/go-homedir"
-
 	"github.com/celestiaorg/celestia-node/libs/keystore"
 	nodemod "github.com/celestiaorg/celestia-node/nodebuilder/node"
 	"github.com/celestiaorg/celestia-node/nodebuilder/p2p"
 	"github.com/celestiaorg/celestia-node/share"
+	"github.com/cosmos/cosmos-sdk/crypto/keyring"
+	"github.com/dgraph-io/badger/v4/options"
+	"github.com/gofrs/flock"
+	dsbadger "github.com/ipfs/go-ds-badger4"
 )
 
 var (
@@ -115,7 +112,7 @@ func (f *fsStore) PutConfig(cfg *Config) error {
 
 func (f *fsStore) Keystore() (_ keystore.Keystore, err error) {
 	if f.keys == nil {
-		return nil, fmt.Errorf("node: no Keystore found")
+		return nil, errors.New("node: no Keystore found")
 	}
 	return f.keys, nil
 }

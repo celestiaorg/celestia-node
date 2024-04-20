@@ -2,11 +2,10 @@ package pruner
 
 import (
 	"context"
-	"fmt"
+	"errors"
 	"testing"
 	"time"
 
-	"github.com/ipfs/go-datastore"
 	"github.com/ipfs/go-datastore/sync"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -312,7 +311,7 @@ func (mp *mockPruner) Prune(_ context.Context, h *header.ExtendedHeader) error {
 				return nil
 			}
 			mp.failHeight[fail]++
-			return fmt.Errorf("failed to prune")
+			return errors.New("failed to prune")
 		}
 	}
 	mp.deletedHeaderHashes = append(mp.deletedHeaderHashes, pruned{hash: h.Hash().String(), height: h.Height()})
