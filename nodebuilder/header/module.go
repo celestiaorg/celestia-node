@@ -50,7 +50,6 @@ func ConstructModule[H libhead.Header[H]](tp node.Type, cfg *Config) fx.Option {
 				return breaker.Stop(ctx)
 			}),
 		)),
-		fx.Invoke(func(*modfraud.ServiceBreaker[*sync.Syncer[H], H]) {}), // ensure ServiceBreaker is constructed
 		fx.Provide(fx.Annotate(
 			func(ps *pubsub.PubSub, network modp2p.Network) (*p2p.Subscriber[H], error) {
 				opts := []p2p.SubscriberOption{p2p.WithSubscriberNetworkID(network.String())}
