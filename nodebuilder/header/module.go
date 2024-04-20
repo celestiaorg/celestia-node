@@ -34,8 +34,9 @@ func ConstructModule[H libhead.Header[H]](tp node.Type, cfg *Config) fx.Option {
 		fx.Provide(func(subscriber *p2p.Subscriber[H]) libhead.Subscriber[H] {
 			return subscriber
 		}),
+		fx.Provide(newSyncer[H]),
 		fx.Provide(fx.Annotate(
-			newSyncer[H],
+			newFraudedSyncer[H],
 			fx.OnStart(func(
 				ctx context.Context,
 				breaker *modfraud.ServiceBreaker[*sync.Syncer[H], H],
@@ -49,6 +50,7 @@ func ConstructModule[H libhead.Header[H]](tp node.Type, cfg *Config) fx.Option {
 				return breaker.Stop(ctx)
 			}),
 		)),
+		fx.Invoke(func(*modfraud.ServiceBreaker[*sync.Syncer[H], H]) {}), // ensure ServiceBreaker is constructed
 		fx.Provide(fx.Annotate(
 			func(ps *pubsub.PubSub, network modp2p.Network) (*p2p.Subscriber[H], error) {
 				opts := []p2p.SubscriberOption{p2p.WithSubscriberNetworkID(network.String())}
