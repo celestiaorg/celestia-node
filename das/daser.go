@@ -132,6 +132,11 @@ func (d *DASer) Stop(ctx context.Context) error {
 	}
 
 	d.cancel()
+
+	if err := d.sampler.metrics.close(); err != nil {
+		log.Warnw("closing metrics", "err", err)
+	}
+
 	if err = d.sampler.wait(ctx); err != nil {
 		return fmt.Errorf("DASer force quit: %w", err)
 	}
