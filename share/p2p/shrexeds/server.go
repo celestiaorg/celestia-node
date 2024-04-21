@@ -52,7 +52,10 @@ func NewServer(params *Parameters, host host.Host, store *eds.Store) (*Server, e
 
 func (s *Server) Start(context.Context) error {
 	s.ctx, s.cancel = context.WithCancel(context.Background())
-	s.host.SetStreamHandler(s.protocolID, s.middleware.RateLimitHandler(s.handleStream))
+	handler := s.handleStream
+	withRateLimit := s.middleware.RateLimitHandler(handler)
+	withRecovery := p2p.RecoveryMiddleware(withRateLimit)
+	s.host.SetStreamHandler(s.protocolID, withRecovery)
 	return nil
 }
 
