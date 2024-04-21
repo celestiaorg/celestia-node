@@ -92,12 +92,12 @@ func NewListener(
 }
 
 // Start kicks off the Listener listener loop.
-func (cl *Listener) Start(context.Context) error {
+func (cl *Listener) Start(ctx context.Context) error {
 	if cl.cancel != nil {
 		return fmt.Errorf("listener: already started")
 	}
 
-	ctx, cancel := context.WithCancel(context.Background())
+	ctx, cancel := context.WithCancel(ctx)
 	cl.cancel = cancel
 
 	sub, err := cl.fetcher.SubscribeNewBlockEvent(ctx)
