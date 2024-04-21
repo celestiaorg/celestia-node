@@ -28,8 +28,8 @@ func (n NoopCache) Remove(shard.Key) error {
 	return nil
 }
 
-func (n NoopCache) EnableMetrics() error {
-	return nil
+func (n NoopCache) EnableMetrics() (CloseMetricsFn, error) {
+	return func() error { return nil }, nil
 }
 
 var _ Accessor = (*NoopAccessor)(nil)
