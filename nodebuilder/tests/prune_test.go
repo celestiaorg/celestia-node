@@ -3,6 +3,7 @@ package tests
 import (
 	"bytes"
 	"context"
+	"go.uber.org/fx"
 	"testing"
 	"time"
 
@@ -58,12 +59,16 @@ func TestArchivalBlobSync(t *testing.T) {
 
 	pruningCfg := nodebuilder.DefaultConfig(node.Bridge)
 	pruningCfg.Pruner.EnableService = true
-	prunerOpt := fxutil.ReplaceAs(pruner.AvailabilityWindow(time.Millisecond), new(pruner.AvailabilityWindow))
+
+	testAvailWindow := pruner.AvailabilityWindow(time.Millisecond)
+	prunerOpts := fx.Options(
+		fxutil.ReplaceAs(testAvailWindow, new(pruner.AvailabilityWindow)),
+	)
 
 	err = archivalBN.Stop(ctx)
 	require.NoError(t, err)
 
-	pruningBN := sw.NewNodeWithConfig(node.Bridge, pruningCfg, prunerOpt)
+	pruningBN := sw.NewNodeWithConfig(node.Bridge, pruningCfg, prunerOpts)
 	sw.SetBootstrapper(t, pruningBN)
 	err = pruningBN.Start(ctx)
 	require.NoError(t, err)
@@ -75,7 +80,7 @@ func TestArchivalBlobSync(t *testing.T) {
 	pruningCfg.Pruner.EnableService = true
 	pruningFulls := make([]*nodebuilder.Node, 0, 3)
 	for i := 0; i < 3; i++ {
-		pruningFN := sw.NewNodeWithConfig(node.Full, pruningCfg)
+		pruningFN := sw.NewNodeWithConfig(node.Full, pruningCfg, prunerOpts)
 		err = pruningFN.Start(ctx)
 		require.NoError(t, err)
 
@@ -131,7 +136,7 @@ func TestArchivalBlobSync(t *testing.T) {
 		}
 	}
 
-	ln := sw.NewLightNode()
+	ln := sw.NewLightNode(prunerOpts)
 	err = ln.Start(ctx)
 	require.NoError(t, err)
 

@@ -28,7 +28,7 @@ const (
 	archivalNodesTag = "archival"
 )
 
-func newDiscovery(cfg *disc.Parameters,
+func newFullDiscovery(cfg *disc.Parameters,
 ) func(routing.ContentRouting, host.Host, *peers.Manager) (*disc.Discovery, error) {
 	return func(
 		r routing.ContentRouting,

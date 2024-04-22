@@ -2,14 +2,14 @@ package share
 
 import (
 	"context"
-
+	"fmt"
 	"github.com/ipfs/go-datastore"
 	"github.com/libp2p/go-libp2p/core/host"
-	"github.com/libp2p/go-libp2p/core/peer"
 	"github.com/libp2p/go-libp2p/core/routing"
 	routingdisc "github.com/libp2p/go-libp2p/p2p/discovery/routing"
 	"github.com/libp2p/go-libp2p/p2p/net/conngater"
 	"go.uber.org/fx"
+	"time"
 
 	libhead "github.com/celestiaorg/go-header"
 	"github.com/celestiaorg/go-header/sync"
@@ -17,7 +17,8 @@ import (
 	"github.com/celestiaorg/celestia-node/header"
 	"github.com/celestiaorg/celestia-node/nodebuilder/node"
 	modp2p "github.com/celestiaorg/celestia-node/nodebuilder/p2p"
-	"github.com/celestiaorg/celestia-node/nodebuilder/pruner"
+	modprune "github.com/celestiaorg/celestia-node/nodebuilder/pruner"
+	"github.com/celestiaorg/celestia-node/pruner"
 	"github.com/celestiaorg/celestia-node/share"
 	"github.com/celestiaorg/celestia-node/share/availability/full"
 	"github.com/celestiaorg/celestia-node/share/availability/light"
@@ -40,7 +41,7 @@ func ConstructModule(tp node.Type, cfg *Config, options ...fx.Option) fx.Option 
 		fx.Options(options...),
 		fx.Provide(newShareModule),
 		peerManagerComponents(tp, cfg),
-		discoveryComponents(cfg),
+		fullDiscoveryComponents(cfg),
 		shrexSubComponents(),
 		archivalComponents(cfg),
 	)
@@ -105,11 +106,11 @@ func ConstructModule(tp node.Type, cfg *Config, options ...fx.Option) fx.Option 
 	}
 }
 
-func discoveryComponents(cfg *Config) fx.Option {
+func fullDiscoveryComponents(cfg *Config) fx.Option {
 	return fx.Options(
 		fx.Invoke(func(_ *disc.Discovery) {}),
 		fx.Provide(fx.Annotate(
-			newDiscovery(cfg.Discovery),
+			newFullDiscovery(cfg.Discovery),
 			fx.OnStart(func(ctx context.Context, d *disc.Discovery) error {
 				return d.Start(ctx)
 			}),
@@ -185,11 +186,15 @@ func shrexGetterComponents(cfg *Config) fx.Option {
 		// shrex-getter
 		fx.Provide(fx.Annotate(
 			func(
+				tp node.Type,
 				edsClient *shrexeds.Client,
 				ndClient *shrexnd.Client,
 				man *peers.Manager,
+				window pruner.AvailabilityWindow,
 				opts []getters.Option,
 			) *getters.ShrexGetter {
+				opts = append(opts, getters.WithAvailabilityWindow(window))
+				fmt.Println("\n\n CONSTRUCTING SHREX GETTER WITH WINDOW: ", time.Duration(window).String(), "TYPE: ", tp.String())
 				return getters.NewShrexGetter(edsClient, ndClient, man, opts...)
 			},
 			fx.OnStart(func(ctx context.Context, getter *getters.ShrexGetter) error {
@@ -294,67 +299,66 @@ func lightAvailabilityComponents(cfg *Config) fx.Option {
 
 func archivalComponents(cfg *Config) fx.Option {
 	return fx.Options(
-		// archival service discovery
-		fx.Provide(func(
-			lc fx.Lifecycle,
-			pruneCfg *pruner.Config,
-			d *disc.Discovery,
-			h host.Host,
-			r routing.ContentRouting,
-			opt disc.Option,
-		) ([]*disc.Discovery, error) {
-			// if pruner is enabled, no archival service is necessary
-			if pruneCfg.EnableService {
-				// TODO @renaynay: remove bc pruned nodes should still be able to query archival
-				// only full node discovery is needed
-				return []*disc.Discovery{d}, nil
-			}
-
-			archivalDisc, err := disc.NewDiscovery(
-				cfg.Discovery,
-				h,
-				routingdisc.NewRoutingDiscovery(r),
-				archivalNodesTag,
-				opt,
-			)
-			if err != nil {
-				return nil, err
-			}
-
-			lc.Append(fx.Hook{
-				OnStart: archivalDisc.Start,
-				OnStop:  archivalDisc.Stop,
-			})
-
-			return []*disc.Discovery{d, archivalDisc}, nil
-		}),
-
-		// archival peer manager
-		fx.Provide(func(
-			lc fx.Lifecycle,
-			pruneCfg *pruner.Config,
-			params peers.Parameters,
-			h host.Host,
-			gater *conngater.BasicConnectionGater,
-		) ([]getters.Option, disc.Option, error) {
-			opts := make([]getters.Option, 0)
-			if pruneCfg.EnableService {
-				// if pruner is enabled, no archival service is necessary
-				return opts, disc.WithOnPeersUpdate(func(peer.ID, bool) {}), nil
-			}
-
-			// archival node peer manager
-			archivalPeerManager, err := peers.NewManager(params, h, gater)
-			if err != nil {
-				return nil, nil, err
-			}
-			lc.Append(fx.Hook{
-				OnStart: archivalPeerManager.Start,
-				OnStop:  archivalPeerManager.Stop,
-			})
-
-			opts = append(opts, getters.WithArchivalPeerManager(archivalPeerManager))
-			return opts, disc.WithOnPeersUpdate(archivalPeerManager.UpdateNodePool), nil
-		}),
+		archivalDiscovery(cfg),
+		archivalPeerManager(),
 	)
+}
+
+func archivalDiscovery(cfg *Config) fx.Option {
+	return fx.Provide(func(
+		lc fx.Lifecycle,
+		tp node.Type,
+		pruneCfg *modprune.Config,
+		d *disc.Discovery,
+		h host.Host,
+		r routing.ContentRouting,
+		opt disc.Option,
+	) ([]*disc.Discovery, error) {
+		// if pruner is enabled for BN, no archival service is necessary
+		if tp == node.Bridge && pruneCfg.EnableService {
+			// TODO @renaynay: remove bc pruned nodes should still be able to query archival
+			// only full node discovery is needed
+			return []*disc.Discovery{d}, nil
+		}
+
+		archivalDisc, err := disc.NewDiscovery(
+			cfg.Discovery,
+			h,
+			routingdisc.NewRoutingDiscovery(r),
+			archivalNodesTag,
+			opt,
+		)
+		if err != nil {
+			return nil, err
+		}
+
+		lc.Append(fx.Hook{
+			OnStart: archivalDisc.Start,
+			OnStop:  archivalDisc.Stop,
+		})
+
+		return []*disc.Discovery{d, archivalDisc}, nil
+	})
+}
+
+func archivalPeerManager() fx.Option {
+	return fx.Provide(func(
+		lc fx.Lifecycle,
+		pruneCfg *modprune.Config,
+		params peers.Parameters,
+		h host.Host,
+		gater *conngater.BasicConnectionGater,
+	) ([]getters.Option, disc.Option, error) {
+		archivalPeerManager, err := peers.NewManager(params, h, gater)
+		if err != nil {
+			return nil, nil, err
+		}
+		lc.Append(fx.Hook{
+			OnStart: archivalPeerManager.Start,
+			OnStop:  archivalPeerManager.Stop,
+		})
+
+		opts := []getters.Option{getters.WithArchivalPeerManager(archivalPeerManager)}
+		return opts, disc.WithOnPeersUpdate(archivalPeerManager.UpdateNodePool), nil
+	})
 }

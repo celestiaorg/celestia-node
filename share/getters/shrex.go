@@ -101,6 +101,8 @@ type ShrexGetter struct {
 	// attempt multiple peers in scope of one request before context timeout is reached
 	minAttemptsCount int
 
+	availabilityWindow pruner.AvailabilityWindow
+
 	metrics *metrics
 }
 
@@ -116,6 +118,10 @@ func NewShrexGetter(
 		fullPeerManager:   peerManager,
 		minRequestTimeout: defaultMinRequestTimeout,
 		minAttemptsCount:  defaultMinAttemptsCount,
+		// shrex-getter uses the sampling window rather than the pruning window
+		// to route requests (as the pruning window acts as a buffer for block
+		// retention)
+		availabilityWindow: light.Window,
 	}
 
 	for _, opt := range opts {
@@ -289,8 +295,9 @@ func (sg *ShrexGetter) getPeer(
 	ctx context.Context,
 	header *header.ExtendedHeader,
 ) (libpeer.ID, peers.DoneFunc, error) {
-	// TODO @renaynay: HOW TO BEST FORCE ARCHIVAL TEST
-	if sg.archivalPeerManager != nil && !pruner.IsWithinAvailabilityWindow(header.Time(), light.Window) {
+	log.Errorw("getPeer called with", "availabilityWindow", sg.availabilityWindow)
+	if sg.archivalPeerManager != nil && !pruner.IsWithinAvailabilityWindow(header.Time(), sg.availabilityWindow) {
+		log.Errorw("RYAN THIS LOG SHOULD HIT --- HI HELLO")
 		return sg.archivalPeerManager.Peer(ctx, header.DAH.Hash(), header.Height())
 	}
 	return sg.fullPeerManager.Peer(ctx, header.DAH.Hash(), header.Height())
