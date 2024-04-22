@@ -109,7 +109,6 @@ func hasEndpointRegistered(router *mux.Router, path string, method string) bool 
 		}
 		return nil
 	})
-
 	if err != nil {
 		fmt.Println("Error walking through routes:", err)
 		return false

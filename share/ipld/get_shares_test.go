@@ -152,7 +152,7 @@ func TestGetSharesByNamespace(t *testing.T) {
 	t.Cleanup(cancel)
 	bServ := NewMemBlockservice()
 
-	var tests = []struct {
+	tests := []struct {
 		rawData []share.Share
 	}{
 		{rawData: sharetest.RandShares(t, 4)},
@@ -262,7 +262,7 @@ func TestCollectLeavesByNamespace_AbsentNamespaceId(t *testing.T) {
 		copy(share.GetNamespace(shr), maxIncluded)
 	}
 
-	var tests = []struct {
+	tests := []struct {
 		name             string
 		data             []share.Share
 		missingNamespace share.Namespace
@@ -329,7 +329,7 @@ func TestGetSharesWithProofsByNamespace(t *testing.T) {
 	t.Cleanup(cancel)
 	bServ := NewMemBlockservice()
 
-	var tests = []struct {
+	tests := []struct {
 		rawData []share.Share
 	}{
 		{rawData: sharetest.RandShares(t, 4)},

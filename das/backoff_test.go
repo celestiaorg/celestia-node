@@ -30,7 +30,8 @@ func Test_exponentialBackoff(t *testing.T) {
 				4 * time.Minute,
 				16 * time.Minute,
 				64 * time.Minute,
-			}},
+			},
+		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {

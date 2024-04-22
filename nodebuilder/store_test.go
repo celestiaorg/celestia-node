@@ -28,7 +28,7 @@ import (
 )
 
 func TestRepo(t *testing.T) {
-	var tests = []struct {
+	tests := []struct {
 		tp node.Type
 	}{
 		{tp: node.Bridge}, {tp: node.Light}, {tp: node.Full},

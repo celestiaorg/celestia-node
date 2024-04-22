@@ -23,9 +23,7 @@ import (
 	"github.com/celestiaorg/celestia-node/share"
 )
 
-var (
-	log = logging.Logger("ipld")
-)
+var log = logging.Logger("ipld")
 
 const (
 	// Below used multiformats (one codec, one multihash) seem free:

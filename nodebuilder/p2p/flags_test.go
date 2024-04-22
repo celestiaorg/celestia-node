@@ -79,12 +79,10 @@ func TestParseNetwork_emptyFlag(t *testing.T) {
 
 	_, err = ParseNetwork(cmd)
 	assert.Error(t, err)
-
 }
 
 // Set empty network flag and ensure error returned
 func TestParseNetwork_emptyEnvEmptyFlag(t *testing.T) {
-
 	t.Setenv(EnvCustomNetwork, "")
 
 	cmd := createCmdWithNetworkFlag()
@@ -93,12 +91,10 @@ func TestParseNetwork_emptyEnvEmptyFlag(t *testing.T) {
 
 	_, err = ParseNetwork(cmd)
 	require.Error(t, err)
-
 }
 
 // Env overrides empty flag to take precedence
 func TestParseNetwork_envOverridesEmptyFlag(t *testing.T) {
-
 	t.Setenv(EnvCustomNetwork, "custom-network")
 
 	cmd := createCmdWithNetworkFlag()
@@ -108,12 +104,10 @@ func TestParseNetwork_envOverridesEmptyFlag(t *testing.T) {
 	network, err := ParseNetwork(cmd)
 	require.NoError(t, err)
 	assert.Equal(t, Network("custom-network"), network)
-
 }
 
 // Explicitly set flag but env should still override
 func TestParseNetwork_envOverridesFlag(t *testing.T) {
-
 	t.Setenv(EnvCustomNetwork, "custom-network")
 
 	cmd := createCmdWithNetworkFlag()
@@ -123,5 +117,4 @@ func TestParseNetwork_envOverridesFlag(t *testing.T) {
 	network, err := ParseNetwork(cmd)
 	require.NoError(t, err)
 	assert.Equal(t, Network("custom-network"), network)
-
 }
