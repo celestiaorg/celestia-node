@@ -62,7 +62,7 @@ func storeEDS(
 	store *eds.Store,
 	window pruner.AvailabilityWindow,
 ) error {
-	if eds == nil {
+	if eds.Equals(share.EmptyExtendedDataSquare()) {
 		return nil
 	}
 
