@@ -3,6 +3,7 @@ run:
 
 linters:
   enable:
+    - bidichk
     - bodyclose
      # - depguard as of v1.54.2, the default config throws errors on our repo
     - dogsled
@@ -11,6 +12,7 @@ linters:
     # - funlen
     # - gochecknoglobals
     # - gochecknoinits
+    - exportloopref
     - gocheckcompilerdirectives
     - goconst
     - gocritic
