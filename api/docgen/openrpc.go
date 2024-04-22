@@ -1,7 +1,5 @@
 // Package docgen generates an OpenRPC spec for the Celestia Node. It has been inspired by and
 // adapted from Filecoin's Lotus API implementation.
-
-//nolint:revive
 package docgen
 
 import (
