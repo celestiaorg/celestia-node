@@ -11,6 +11,7 @@ linters:
     # - funlen
     # - gochecknoglobals
     # - gochecknoinits
+    - gocheckcompilerdirectives
     - goconst
     - gocritic
     # - gocyclo
