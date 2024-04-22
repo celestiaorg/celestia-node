@@ -29,6 +29,7 @@ linters:
     # - maligned
     - nakedret
     - prealloc
+    - protogetter
     # - scopelint - deprecated since v1.39. exportloopref will be used instead
     - exportloopref
     - staticcheck
