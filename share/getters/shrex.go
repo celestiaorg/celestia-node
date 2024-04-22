@@ -17,7 +17,7 @@ import (
 	"github.com/celestiaorg/celestia-node/header"
 	"github.com/celestiaorg/celestia-node/libs/utils"
 	"github.com/celestiaorg/celestia-node/pruner"
-	"github.com/celestiaorg/celestia-node/pruner/full"
+	"github.com/celestiaorg/celestia-node/pruner/light"
 	"github.com/celestiaorg/celestia-node/share"
 	"github.com/celestiaorg/celestia-node/share/ipld"
 	"github.com/celestiaorg/celestia-node/share/p2p"
@@ -289,9 +289,8 @@ func (sg *ShrexGetter) getPeer(
 	ctx context.Context,
 	header *header.ExtendedHeader,
 ) (libpeer.ID, peers.DoneFunc, error) {
-	// TODO @renaynay: CHANGE TO LIGHT WINDOW
 	// TODO @renaynay: HOW TO BEST FORCE ARCHIVAL TEST
-	if sg.archivalPeerManager != nil && !pruner.IsWithinAvailabilityWindow(header.Time(), full.Window) {
+	if sg.archivalPeerManager != nil && !pruner.IsWithinAvailabilityWindow(header.Time(), light.Window) {
 		return sg.archivalPeerManager.Peer(ctx, header.DAH.Hash(), header.Height())
 	}
 	return sg.fullPeerManager.Peer(ctx, header.DAH.Hash(), header.Height())
