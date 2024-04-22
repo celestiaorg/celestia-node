@@ -26,6 +26,7 @@ linters:
     - ineffassign
     # - interfacer
     - lll
+    - loggercheck
     - misspell
     # - maligned
     - nakedret
