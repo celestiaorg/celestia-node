@@ -68,3 +68,5 @@ linters-settings:
     local-prefixes: github.com/celestiaorg/celestia-node
   dupl:
     threshold: 200
+  gofumpt:
+    extra-rules: true

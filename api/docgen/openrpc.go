@@ -92,7 +92,7 @@ func ParseCommentsFromNodebuilderModules(moduleNames ...string) (Comments, Comme
 	return nodeComments, permComments
 }
 
-func NewOpenRPCDocument(comments Comments, permissions Comments) *go_openrpc_reflect.Document {
+func NewOpenRPCDocument(comments, permissions Comments) *go_openrpc_reflect.Document {
 	d := &go_openrpc_reflect.Document{}
 
 	d.WithMeta(&go_openrpc_reflect.MetaT{

@@ -86,7 +86,7 @@ func TestRegisterEndpoints(t *testing.T) {
 	}
 }
 
-func hasEndpointRegistered(router *mux.Router, path string, method string) bool {
+func hasEndpointRegistered(router *mux.Router, path, method string) bool {
 	var registered bool
 	err := router.Walk(func(route *mux.Route, router *mux.Router, ancestors []*mux.Route) error {
 		template, err := route.GetPathTemplate()
