@@ -44,7 +44,7 @@ func NewShareWithProof(index int, share share.Share, pathToLeaf []cid.Cid) *Shar
 // Validate validates inclusion of the share under the given root CID.
 func (s *ShareWithProof) Validate(root cid.Cid) bool {
 	return s.Proof.VerifyInclusion(
-		share.NewSHA256Hasher(), // TODO(@Wondertan): This should be defined somewhere globally
+		share.NewSHA256Hasher(),
 		share.GetNamespace(s.Share).ToNMT(),
 		[][]byte{share.GetData(s.Share)},
 		ipld.NamespacedSha256FromCID(root),
