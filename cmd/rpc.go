@@ -48,12 +48,12 @@ func InitClient(cmd *cobra.Command, _ []string) error {
 
 		storePath, err := getStorePath(cmd)
 		if err != nil {
-			return fmt.Errorf("%s: %v", rootErrMsg, err)
+			return fmt.Errorf("%s: %w", rootErrMsg, err)
 		}
 
 		cfg, err := nodebuilder.LoadConfig(filepath.Join(storePath, "config.toml"))
 		if err != nil {
-			return fmt.Errorf("%s: root directory was not specified: %v", rootErrMsg, err)
+			return fmt.Errorf("%s: root directory was not specified: %w", rootErrMsg, err)
 		}
 
 		if requestURL == "" {
@@ -66,7 +66,7 @@ func InitClient(cmd *cobra.Command, _ []string) error {
 		} else {
 			token, err := getToken(storePath)
 			if err != nil {
-				return fmt.Errorf("%s: %v", rootErrMsg, err)
+				return fmt.Errorf("%s: %w", rootErrMsg, err)
 			}
 
 			authTokenFlag = token
