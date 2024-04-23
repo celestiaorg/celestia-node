@@ -48,23 +48,48 @@ func (AxisType) EnumDescriptor() ([]byte, []int) {
 	return fileDescriptor_b405f12ecc363d82, []int{0}
 }
 
-type HalfAxis struct {
-	Shares   [][]byte `protobuf:"bytes,1,rep,name=shares,proto3" json:"shares,omitempty"`
-	IsParity bool     `protobuf:"varint,2,opt,name=is_parity,json=isParity,proto3" json:"is_parity,omitempty"`
+type Row_HalfSide int32
+
+const (
+	Row_LEFT  Row_HalfSide = 0
+	Row_RIGHT Row_HalfSide = 1
+)
+
+var Row_HalfSide_name = map[int32]string{
+	0: "LEFT",
+	1: "RIGHT",
 }
 
-func (m *HalfAxis) Reset()         { *m = HalfAxis{} }
-func (m *HalfAxis) String() string { return proto.CompactTextString(m) }
-func (*HalfAxis) ProtoMessage()    {}
-func (*HalfAxis) Descriptor() ([]byte, []int) {
+var Row_HalfSide_value = map[string]int32{
+	"LEFT":  0,
+	"RIGHT": 1,
+}
+
+func (x Row_HalfSide) String() string {
+	return proto.EnumName(Row_HalfSide_name, int32(x))
+}
+
+func (Row_HalfSide) EnumDescriptor() ([]byte, []int) {
+	return fileDescriptor_b405f12ecc363d82, []int{0, 0}
+}
+
+type Row struct {
+	SharesHalf []*Share     `protobuf:"bytes,1,rep,name=shares_half,json=sharesHalf,proto3" json:"shares_half,omitempty"`
+	HalfSide   Row_HalfSide `protobuf:"varint,2,opt,name=half_side,json=halfSide,proto3,enum=Row_HalfSide" json:"half_side,omitempty"`
+}
+
+func (m *Row) Reset()         { *m = Row{} }
+func (m *Row) String() string { return proto.CompactTextString(m) }
+func (*Row) ProtoMessage()    {}
+func (*Row) Descriptor() ([]byte, []int) {
 	return fileDescriptor_b405f12ecc363d82, []int{0}
 }
-func (m *HalfAxis) XXX_Unmarshal(b []byte) error {
+func (m *Row) XXX_Unmarshal(b []byte) error {
 	return m.Unmarshal(b)
 }
-func (m *HalfAxis) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+func (m *Row) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
 	if deterministic {
-		return xxx_messageInfo_HalfAxis.Marshal(b, m, deterministic)
+		return xxx_messageInfo_Row.Marshal(b, m, deterministic)
 	} else {
 		b = b[:cap(b)]
 		n, err := m.MarshalToSizedBuffer(b)
@@ -74,50 +99,50 @@ func (m *HalfAxis) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
 		return b[:n], nil
 	}
 }
-func (m *HalfAxis) XXX_Merge(src proto.Message) {
-	xxx_messageInfo_HalfAxis.Merge(m, src)
+func (m *Row) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_Row.Merge(m, src)
 }
-func (m *HalfAxis) XXX_Size() int {
+func (m *Row) XXX_Size() int {
 	return m.Size()
 }
-func (m *HalfAxis) XXX_DiscardUnknown() {
-	xxx_messageInfo_HalfAxis.DiscardUnknown(m)
+func (m *Row) XXX_DiscardUnknown() {
+	xxx_messageInfo_Row.DiscardUnknown(m)
 }
 
-var xxx_messageInfo_HalfAxis proto.InternalMessageInfo
+var xxx_messageInfo_Row proto.InternalMessageInfo
 
-func (m *HalfAxis) GetShares() [][]byte {
+func (m *Row) GetSharesHalf() []*Share {
 	if m != nil {
-		return m.Shares
+		return m.SharesHalf
 	}
 	return nil
 }
 
-func (m *HalfAxis) GetIsParity() bool {
+func (m *Row) GetHalfSide() Row_HalfSide {
 	if m != nil {
-		return m.IsParity
+		return m.HalfSide
 	}
-	return false
+	return Row_LEFT
 }
 
-type ShareWithProof struct {
-	Share     []byte    `protobuf:"bytes,1,opt,name=share,proto3" json:"share,omitempty"`
+type Sample struct {
+	Share     *Share    `protobuf:"bytes,1,opt,name=share,proto3" json:"share,omitempty"`
 	Proof     *pb.Proof `protobuf:"bytes,2,opt,name=proof,proto3" json:"proof,omitempty"`
 	ProofType AxisType  `protobuf:"varint,3,opt,name=proof_type,json=proofType,proto3,enum=AxisType" json:"proof_type,omitempty"`
 }
 
-func (m *ShareWithProof) Reset()         { *m = ShareWithProof{} }
-func (m *ShareWithProof) String() string { return proto.CompactTextString(m) }
-func (*ShareWithProof) ProtoMessage()    {}
-func (*ShareWithProof) Descriptor() ([]byte, []int) {
+func (m *Sample) Reset()         { *m = Sample{} }
+func (m *Sample) String() string { return proto.CompactTextString(m) }
+func (*Sample) ProtoMessage()    {}
+func (*Sample) Descriptor() ([]byte, []int) {
 	return fileDescriptor_b405f12ecc363d82, []int{1}
 }
-func (m *ShareWithProof) XXX_Unmarshal(b []byte) error {
+func (m *Sample) XXX_Unmarshal(b []byte) error {
 	return m.Unmarshal(b)
 }
-func (m *ShareWithProof) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+func (m *Sample) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
 	if deterministic {
-		return xxx_messageInfo_ShareWithProof.Marshal(b, m, deterministic)
+		return xxx_messageInfo_Sample.Marshal(b, m, deterministic)
 	} else {
 		b = b[:cap(b)]
 		n, err := m.MarshalToSizedBuffer(b)
@@ -127,56 +152,56 @@ func (m *ShareWithProof) XXX_Marshal(b []byte, deterministic bool) ([]byte, erro
 		return b[:n], nil
 	}
 }
-func (m *ShareWithProof) XXX_Merge(src proto.Message) {
-	xxx_messageInfo_ShareWithProof.Merge(m, src)
+func (m *Sample) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_Sample.Merge(m, src)
 }
-func (m *ShareWithProof) XXX_Size() int {
+func (m *Sample) XXX_Size() int {
 	return m.Size()
 }
-func (m *ShareWithProof) XXX_DiscardUnknown() {
-	xxx_messageInfo_ShareWithProof.DiscardUnknown(m)
+func (m *Sample) XXX_DiscardUnknown() {
+	xxx_messageInfo_Sample.DiscardUnknown(m)
 }
 
-var xxx_messageInfo_ShareWithProof proto.InternalMessageInfo
+var xxx_messageInfo_Sample proto.InternalMessageInfo
 
-func (m *ShareWithProof) GetShare() []byte {
+func (m *Sample) GetShare() *Share {
 	if m != nil {
 		return m.Share
 	}
 	return nil
 }
 
-func (m *ShareWithProof) GetProof() *pb.Proof {
+func (m *Sample) GetProof() *pb.Proof {
 	if m != nil {
 		return m.Proof
 	}
 	return nil
 }
 
-func (m *ShareWithProof) GetProofType() AxisType {
+func (m *Sample) GetProofType() AxisType {
 	if m != nil {
 		return m.ProofType
 	}
 	return AxisType_ROW
 }
 
-type NamespacedRow struct {
-	Shares [][]byte  `protobuf:"bytes,1,rep,name=shares,proto3" json:"shares,omitempty"`
+type RowNamespaceData struct {
+	Shares []*Share  `protobuf:"bytes,1,rep,name=shares,proto3" json:"shares,omitempty"`
 	Proof  *pb.Proof `protobuf:"bytes,2,opt,name=proof,proto3" json:"proof,omitempty"`
 }
 
-func (m *NamespacedRow) Reset()         { *m = NamespacedRow{} }
-func (m *NamespacedRow) String() string { return proto.CompactTextString(m) }
-func (*NamespacedRow) ProtoMessage()    {}
-func (*NamespacedRow) Descriptor() ([]byte, []int) {
+func (m *RowNamespaceData) Reset()         { *m = RowNamespaceData{} }
+func (m *RowNamespaceData) String() string { return proto.CompactTextString(m) }
+func (*RowNamespaceData) ProtoMessage()    {}
+func (*RowNamespaceData) Descriptor() ([]byte, []int) {
 	return fileDescriptor_b405f12ecc363d82, []int{2}
 }
-func (m *NamespacedRow) XXX_Unmarshal(b []byte) error {
+func (m *RowNamespaceData) XXX_Unmarshal(b []byte) error {
 	return m.Unmarshal(b)
 }
-func (m *NamespacedRow) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+func (m *RowNamespaceData) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
 	if deterministic {
-		return xxx_messageInfo_NamespacedRow.Marshal(b, m, deterministic)
+		return xxx_messageInfo_RowNamespaceData.Marshal(b, m, deterministic)
 	} else {
 		b = b[:cap(b)]
 		n, err := m.MarshalToSizedBuffer(b)
@@ -186,66 +211,116 @@ func (m *NamespacedRow) XXX_Marshal(b []byte, deterministic bool) ([]byte, error
 		return b[:n], nil
 	}
 }
-func (m *NamespacedRow) XXX_Merge(src proto.Message) {
-	xxx_messageInfo_NamespacedRow.Merge(m, src)
+func (m *RowNamespaceData) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_RowNamespaceData.Merge(m, src)
 }
-func (m *NamespacedRow) XXX_Size() int {
+func (m *RowNamespaceData) XXX_Size() int {
 	return m.Size()
 }
-func (m *NamespacedRow) XXX_DiscardUnknown() {
-	xxx_messageInfo_NamespacedRow.DiscardUnknown(m)
+func (m *RowNamespaceData) XXX_DiscardUnknown() {
+	xxx_messageInfo_RowNamespaceData.DiscardUnknown(m)
 }
 
-var xxx_messageInfo_NamespacedRow proto.InternalMessageInfo
+var xxx_messageInfo_RowNamespaceData proto.InternalMessageInfo
 
-func (m *NamespacedRow) GetShares() [][]byte {
+func (m *RowNamespaceData) GetShares() []*Share {
 	if m != nil {
 		return m.Shares
 	}
 	return nil
 }
 
-func (m *NamespacedRow) GetProof() *pb.Proof {
+func (m *RowNamespaceData) GetProof() *pb.Proof {
 	if m != nil {
 		return m.Proof
 	}
 	return nil
 }
 
+type Share struct {
+	Data []byte `protobuf:"bytes,1,opt,name=data,proto3" json:"data,omitempty"`
+}
+
+func (m *Share) Reset()         { *m = Share{} }
+func (m *Share) String() string { return proto.CompactTextString(m) }
+func (*Share) ProtoMessage()    {}
+func (*Share) Descriptor() ([]byte, []int) {
+	return fileDescriptor_b405f12ecc363d82, []int{3}
+}
+func (m *Share) XXX_Unmarshal(b []byte) error {
+	return m.Unmarshal(b)
+}
+func (m *Share) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+	if deterministic {
+		return xxx_messageInfo_Share.Marshal(b, m, deterministic)
+	} else {
+		b = b[:cap(b)]
+		n, err := m.MarshalToSizedBuffer(b)
+		if err != nil {
+			return nil, err
+		}
+		return b[:n], nil
+	}
+}
+func (m *Share) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_Share.Merge(m, src)
+}
+func (m *Share) XXX_Size() int {
+	return m.Size()
+}
+func (m *Share) XXX_DiscardUnknown() {
+	xxx_messageInfo_Share.DiscardUnknown(m)
+}
+
+var xxx_messageInfo_Share proto.InternalMessageInfo
+
+func (m *Share) GetData() []byte {
+	if m != nil {
+		return m.Data
+	}
+	return nil
+}
+
 func init() {
 	proto.RegisterEnum("AxisType", AxisType_name, AxisType_value)
-	proto.RegisterType((*HalfAxis)(nil), "HalfAxis")
-	proto.RegisterType((*ShareWithProof)(nil), "ShareWithProof")
-	proto.RegisterType((*NamespacedRow)(nil), "NamespacedRow")
+	proto.RegisterEnum("Row_HalfSide", Row_HalfSide_name, Row_HalfSide_value)
+	proto.RegisterType((*Row)(nil), "Row")
+	proto.RegisterType((*Sample)(nil), "Sample")
+	proto.RegisterType((*RowNamespaceData)(nil), "RowNamespaceData")
+	proto.RegisterType((*Share)(nil), "Share")
 }
 
 func init() { proto.RegisterFile("share/pb/types.proto", fileDescriptor_b405f12ecc363d82) }
 
 var fileDescriptor_b405f12ecc363d82 = []byte{
-	// 306 bytes of a gzipped FileDescriptorProto
-	0x1f, 0x8b, 0x08, 0x00, 0x00, 0x00, 0x00, 0x00, 0x02, 0xff, 0xe2, 0x12, 0x29, 0xce, 0x48, 0x2c,
-	0x4a, 0xd5, 0x2f, 0x48, 0xd2, 0x2f, 0xa9, 0x2c, 0x48, 0x2d, 0xd6, 0x2b, 0x28, 0xca, 0x2f, 0xc9,
-	0x97, 0xe2, 0x2b, 0x48, 0xd2, 0x2f, 0x28, 0xca, 0xcf, 0x4f, 0x83, 0xf0, 0x95, 0xec, 0xb9, 0x38,
-	0x3c, 0x12, 0x73, 0xd2, 0x1c, 0x2b, 0x32, 0x8b, 0x85, 0xc4, 0xb8, 0xd8, 0xc0, 0x7a, 0x8a, 0x25,
-	0x18, 0x15, 0x98, 0x35, 0x78, 0x82, 0xa0, 0x3c, 0x21, 0x69, 0x2e, 0xce, 0xcc, 0xe2, 0xf8, 0x82,
-	0xc4, 0xa2, 0xcc, 0x92, 0x4a, 0x09, 0x26, 0x05, 0x46, 0x0d, 0x8e, 0x20, 0x8e, 0xcc, 0xe2, 0x00,
-	0x30, 0x5f, 0xa9, 0x9c, 0x8b, 0x2f, 0x18, 0xa4, 0x2c, 0x3c, 0xb3, 0x24, 0x23, 0x00, 0x64, 0xb0,
-	0x90, 0x08, 0x17, 0x2b, 0x58, 0xa3, 0x04, 0xa3, 0x02, 0xa3, 0x06, 0x4f, 0x10, 0x84, 0x23, 0xa4,
-	0xca, 0xc5, 0x0a, 0xb6, 0x17, 0x6c, 0x00, 0xb7, 0x11, 0xbf, 0x1e, 0xd4, 0x15, 0x49, 0x7a, 0x60,
-	0x5d, 0x41, 0x10, 0x59, 0x21, 0x0d, 0x2e, 0x2e, 0x30, 0x23, 0x1e, 0xe4, 0x68, 0x09, 0x66, 0x05,
-	0x46, 0x0d, 0x3e, 0x23, 0x4e, 0x3d, 0x90, 0xf3, 0x42, 0x2a, 0x0b, 0x52, 0x83, 0x38, 0xc1, 0x92,
-	0x20, 0xa6, 0x92, 0x1f, 0x17, 0xaf, 0x5f, 0x62, 0x6e, 0x6a, 0x71, 0x41, 0x62, 0x72, 0x6a, 0x4a,
-	0x50, 0x7e, 0x39, 0x4e, 0xe7, 0x13, 0x67, 0xb3, 0x96, 0x0c, 0x17, 0x07, 0xcc, 0x1a, 0x21, 0x76,
-	0x2e, 0xe6, 0x20, 0xff, 0x70, 0x01, 0x06, 0x10, 0xc3, 0xd9, 0xdf, 0x47, 0x80, 0xd1, 0xc9, 0xf7,
-	0xc4, 0x23, 0x39, 0xc6, 0x0b, 0x8f, 0xe4, 0x18, 0x1f, 0x3c, 0x92, 0x63, 0x9c, 0xf0, 0x58, 0x8e,
-	0xe1, 0xc2, 0x63, 0x39, 0x86, 0x1b, 0x8f, 0xe5, 0x18, 0xa2, 0x8c, 0xd3, 0x33, 0x4b, 0x32, 0x4a,
-	0x93, 0xf4, 0x92, 0xf3, 0x73, 0xf5, 0x93, 0x53, 0x73, 0x52, 0x8b, 0x4b, 0x32, 0x13, 0xf3, 0x8b,
-	0xd2, 0xe1, 0x6c, 0xdd, 0xbc, 0xfc, 0x94, 0x54, 0x7d, 0x58, 0x64, 0x58, 0x83, 0x23, 0x23, 0x89,
-	0x0d, 0x1c, 0xfa, 0xc6, 0x80, 0x00, 0x00, 0x00, 0xff, 0xff, 0x30, 0x1a, 0x4b, 0x51, 0xa5, 0x01,
-	0x00, 0x00,
+	// 369 bytes of a gzipped FileDescriptorProto
+	0x1f, 0x8b, 0x08, 0x00, 0x00, 0x00, 0x00, 0x00, 0x02, 0xff, 0x8c, 0x91, 0xcd, 0x6a, 0xdb, 0x40,
+	0x14, 0x85, 0x35, 0x95, 0xa5, 0x4a, 0xd7, 0xad, 0x2b, 0x86, 0x2e, 0x44, 0x6b, 0x54, 0x23, 0x28,
+	0x35, 0x86, 0x8e, 0xc0, 0x5e, 0x76, 0xd5, 0x7f, 0x07, 0x9c, 0x38, 0x8c, 0x0d, 0x21, 0xd9, 0x98,
+	0x91, 0x35, 0xb6, 0x04, 0x72, 0x66, 0x90, 0x14, 0x14, 0x93, 0x97, 0xc8, 0x63, 0x65, 0xe9, 0x65,
+	0x96, 0xc1, 0x7e, 0x91, 0xa0, 0x91, 0x1d, 0x42, 0x56, 0xd9, 0x7d, 0x73, 0xce, 0x1d, 0xee, 0x39,
+	0x5c, 0xf8, 0x98, 0xc7, 0x2c, 0xe3, 0x81, 0x0c, 0x83, 0x62, 0x2d, 0x79, 0x4e, 0x64, 0x26, 0x0a,
+	0xf1, 0xa9, 0x25, 0xc3, 0x40, 0x66, 0x42, 0x2c, 0xea, 0xb7, 0x7f, 0x03, 0x3a, 0x15, 0x25, 0xfe,
+	0x06, 0x4d, 0x35, 0x9e, 0xcf, 0x62, 0x96, 0x2e, 0x5c, 0xd4, 0xd1, 0xbb, 0xcd, 0xbe, 0x49, 0x26,
+	0x95, 0x46, 0xa1, 0xb6, 0x86, 0x2c, 0x5d, 0xe0, 0x1e, 0xd8, 0xd5, 0xc4, 0x2c, 0x4f, 0x22, 0xee,
+	0xbe, 0xe9, 0xa0, 0x6e, 0xab, 0xff, 0x9e, 0x50, 0x51, 0x92, 0xca, 0x9d, 0x24, 0x11, 0xa7, 0x56,
+	0xbc, 0x27, 0xff, 0x0b, 0x58, 0x07, 0x15, 0x5b, 0xd0, 0x18, 0xfd, 0xfd, 0x37, 0x75, 0x34, 0x6c,
+	0x83, 0x41, 0x8f, 0xfe, 0x0f, 0xa7, 0x0e, 0xf2, 0x4b, 0x30, 0x27, 0x6c, 0x25, 0x53, 0x8e, 0xdb,
+	0x60, 0xa8, 0x25, 0x2e, 0xea, 0xa0, 0x67, 0x9b, 0x6b, 0x11, 0x7f, 0x05, 0x43, 0x65, 0x56, 0x0b,
+	0x9b, 0xfd, 0x0f, 0x64, 0xdf, 0x20, 0x24, 0xa7, 0x15, 0xd0, 0xda, 0xc5, 0x5d, 0x00, 0x05, 0xb3,
+	0xaa, 0xb0, 0xab, 0xab, 0x70, 0x36, 0xf9, 0x79, 0x9d, 0xe4, 0xd3, 0xb5, 0xe4, 0xd4, 0x56, 0x66,
+	0x85, 0xfe, 0x39, 0x38, 0x54, 0x94, 0x27, 0x6c, 0xc5, 0x73, 0xc9, 0xe6, 0xfc, 0x0f, 0x2b, 0x18,
+	0xf6, 0xc0, 0xac, 0x7b, 0xbe, 0x68, 0xbf, 0x57, 0x5f, 0x19, 0xc2, 0xff, 0x0c, 0x86, 0xfa, 0x87,
+	0x31, 0x34, 0x22, 0x56, 0x30, 0xd5, 0xe8, 0x1d, 0x55, 0xdc, 0x6b, 0x83, 0x75, 0x88, 0x83, 0xdf,
+	0x82, 0x4e, 0xc7, 0x67, 0x8e, 0x56, 0xc1, 0xef, 0xf1, 0xc8, 0x41, 0xbf, 0x8e, 0xef, 0xb6, 0x1e,
+	0xda, 0x6c, 0x3d, 0xf4, 0xb0, 0xf5, 0xd0, 0xed, 0xce, 0xd3, 0x36, 0x3b, 0x4f, 0xbb, 0xdf, 0x79,
+	0xda, 0xc5, 0x60, 0x99, 0x14, 0xf1, 0x55, 0x48, 0xe6, 0x62, 0x15, 0xcc, 0x79, 0xca, 0xf3, 0x22,
+	0x61, 0x22, 0x5b, 0x3e, 0xf1, 0xf7, 0x4b, 0x11, 0xf1, 0xe0, 0x70, 0xf0, 0x1f, 0xea, 0xe0, 0xa1,
+	0xa9, 0x2e, 0x3c, 0x78, 0x0c, 0x00, 0x00, 0xff, 0xff, 0xec, 0x1b, 0x64, 0x91, 0x09, 0x02, 0x00,
+	0x00,
 }
 
-func (m *HalfAxis) Marshal() (dAtA []byte, err error) {
+func (m *Row) Marshal() (dAtA []byte, err error) {
 	size := m.Size()
 	dAtA = make([]byte, size)
 	n, err := m.MarshalToSizedBuffer(dAtA[:size])
@@ -255,31 +330,31 @@ func (m *HalfAxis) Marshal() (dAtA []byte, err error) {
 	return dAtA[:n], nil
 }
 
-func (m *HalfAxis) MarshalTo(dAtA []byte) (int, error) {
+func (m *Row) MarshalTo(dAtA []byte) (int, error) {
 	size := m.Size()
 	return m.MarshalToSizedBuffer(dAtA[:size])
 }
 
-func (m *HalfAxis) MarshalToSizedBuffer(dAtA []byte) (int, error) {
+func (m *Row) MarshalToSizedBuffer(dAtA []byte) (int, error) {
 	i := len(dAtA)
 	_ = i
 	var l int
 	_ = l
-	if m.IsParity {
-		i--
-		if m.IsParity {
-			dAtA[i] = 1
-		} else {
-			dAtA[i] = 0
-		}
+	if m.HalfSide != 0 {
+		i = encodeVarintTypes(dAtA, i, uint64(m.HalfSide))
 		i--
 		dAtA[i] = 0x10
 	}
-	if len(m.Shares) > 0 {
-		for iNdEx := len(m.Shares) - 1; iNdEx >= 0; iNdEx-- {
-			i -= len(m.Shares[iNdEx])
-			copy(dAtA[i:], m.Shares[iNdEx])
-			i = encodeVarintTypes(dAtA, i, uint64(len(m.Shares[iNdEx])))
+	if len(m.SharesHalf) > 0 {
+		for iNdEx := len(m.SharesHalf) - 1; iNdEx >= 0; iNdEx-- {
+			{
+				size, err := m.SharesHalf[iNdEx].MarshalToSizedBuffer(dAtA[:i])
+				if err != nil {
+					return 0, err
+				}
+				i -= size
+				i = encodeVarintTypes(dAtA, i, uint64(size))
+			}
 			i--
 			dAtA[i] = 0xa
 		}
@@ -287,7 +362,7 @@ func (m *HalfAxis) MarshalToSizedBuffer(dAtA []byte) (int, error) {
 	return len(dAtA) - i, nil
 }
 
-func (m *ShareWithProof) Marshal() (dAtA []byte, err error) {
+func (m *Sample) Marshal() (dAtA []byte, err error) {
 	size := m.Size()
 	dAtA = make([]byte, size)
 	n, err := m.MarshalToSizedBuffer(dAtA[:size])
@@ -297,12 +372,12 @@ func (m *ShareWithProof) Marshal() (dAtA []byte, err error) {
 	return dAtA[:n], nil
 }
 
-func (m *ShareWithProof) MarshalTo(dAtA []byte) (int, error) {
+func (m *Sample) MarshalTo(dAtA []byte) (int, error) {
 	size := m.Size()
 	return m.MarshalToSizedBuffer(dAtA[:size])
 }
 
-func (m *ShareWithProof) MarshalToSizedBuffer(dAtA []byte) (int, error) {
+func (m *Sample) MarshalToSizedBuffer(dAtA []byte) (int, error) {
 	i := len(dAtA)
 	_ = i
 	var l int
@@ -324,17 +399,22 @@ func (m *ShareWithProof) MarshalToSizedBuffer(dAtA []byte) (int, error) {
 		i--
 		dAtA[i] = 0x12
 	}
-	if len(m.Share) > 0 {
-		i -= len(m.Share)
-		copy(dAtA[i:], m.Share)
-		i = encodeVarintTypes(dAtA, i, uint64(len(m.Share)))
+	if m.Share != nil {
+		{
+			size, err := m.Share.MarshalToSizedBuffer(dAtA[:i])
+			if err != nil {
+				return 0, err
+			}
+			i -= size
+			i = encodeVarintTypes(dAtA, i, uint64(size))
+		}
 		i--
 		dAtA[i] = 0xa
 	}
 	return len(dAtA) - i, nil
 }
 
-func (m *NamespacedRow) Marshal() (dAtA []byte, err error) {
+func (m *RowNamespaceData) Marshal() (dAtA []byte, err error) {
 	size := m.Size()
 	dAtA = make([]byte, size)
 	n, err := m.MarshalToSizedBuffer(dAtA[:size])
@@ -344,12 +424,12 @@ func (m *NamespacedRow) Marshal() (dAtA []byte, err error) {
 	return dAtA[:n], nil
 }
 
-func (m *NamespacedRow) MarshalTo(dAtA []byte) (int, error) {
+func (m *RowNamespaceData) MarshalTo(dAtA []byte) (int, error) {
 	size := m.Size()
 	return m.MarshalToSizedBuffer(dAtA[:size])
 }
 
-func (m *NamespacedRow) MarshalToSizedBuffer(dAtA []byte) (int, error) {
+func (m *RowNamespaceData) MarshalToSizedBuffer(dAtA []byte) (int, error) {
 	i := len(dAtA)
 	_ = i
 	var l int
@@ -368,12 +448,47 @@ func (m *NamespacedRow) MarshalToSizedBuffer(dAtA []byte) (int, error) {
 	}
 	if len(m.Shares) > 0 {
 		for iNdEx := len(m.Shares) - 1; iNdEx >= 0; iNdEx-- {
-			i -= len(m.Shares[iNdEx])
-			copy(dAtA[i:], m.Shares[iNdEx])
-			i = encodeVarintTypes(dAtA, i, uint64(len(m.Shares[iNdEx])))
+			{
+				size, err := m.Shares[iNdEx].MarshalToSizedBuffer(dAtA[:i])
+				if err != nil {
+					return 0, err
+				}
+				i -= size
+				i = encodeVarintTypes(dAtA, i, uint64(size))
+			}
 			i--
 			dAtA[i] = 0xa
 		}
+	}
+	return len(dAtA) - i, nil
+}
+
+func (m *Share) Marshal() (dAtA []byte, err error) {
+	size := m.Size()
+	dAtA = make([]byte, size)
+	n, err := m.MarshalToSizedBuffer(dAtA[:size])
+	if err != nil {
+		return nil, err
+	}
+	return dAtA[:n], nil
+}
+
+func (m *Share) MarshalTo(dAtA []byte) (int, error) {
+	size := m.Size()
+	return m.MarshalToSizedBuffer(dAtA[:size])
+}
+
+func (m *Share) MarshalToSizedBuffer(dAtA []byte) (int, error) {
+	i := len(dAtA)
+	_ = i
+	var l int
+	_ = l
+	if len(m.Data) > 0 {
+		i -= len(m.Data)
+		copy(dAtA[i:], m.Data)
+		i = encodeVarintTypes(dAtA, i, uint64(len(m.Data)))
+		i--
+		dAtA[i] = 0xa
 	}
 	return len(dAtA) - i, nil
 }
@@ -389,32 +504,32 @@ func encodeVarintTypes(dAtA []byte, offset int, v uint64) int {
 	dAtA[offset] = uint8(v)
 	return base
 }
-func (m *HalfAxis) Size() (n int) {
+func (m *Row) Size() (n int) {
 	if m == nil {
 		return 0
 	}
 	var l int
 	_ = l
-	if len(m.Shares) > 0 {
-		for _, b := range m.Shares {
-			l = len(b)
+	if len(m.SharesHalf) > 0 {
+		for _, e := range m.SharesHalf {
+			l = e.Size()
 			n += 1 + l + sovTypes(uint64(l))
 		}
 	}
-	if m.IsParity {
-		n += 2
+	if m.HalfSide != 0 {
+		n += 1 + sovTypes(uint64(m.HalfSide))
 	}
 	return n
 }
 
-func (m *ShareWithProof) Size() (n int) {
+func (m *Sample) Size() (n int) {
 	if m == nil {
 		return 0
 	}
 	var l int
 	_ = l
-	l = len(m.Share)
-	if l > 0 {
+	if m.Share != nil {
+		l = m.Share.Size()
 		n += 1 + l + sovTypes(uint64(l))
 	}
 	if m.Proof != nil {
@@ -427,20 +542,33 @@ func (m *ShareWithProof) Size() (n int) {
 	return n
 }
 
-func (m *NamespacedRow) Size() (n int) {
+func (m *RowNamespaceData) Size() (n int) {
 	if m == nil {
 		return 0
 	}
 	var l int
 	_ = l
 	if len(m.Shares) > 0 {
-		for _, b := range m.Shares {
-			l = len(b)
+		for _, e := range m.Shares {
+			l = e.Size()
 			n += 1 + l + sovTypes(uint64(l))
 		}
 	}
 	if m.Proof != nil {
 		l = m.Proof.Size()
+		n += 1 + l + sovTypes(uint64(l))
+	}
+	return n
+}
+
+func (m *Share) Size() (n int) {
+	if m == nil {
+		return 0
+	}
+	var l int
+	_ = l
+	l = len(m.Data)
+	if l > 0 {
 		n += 1 + l + sovTypes(uint64(l))
 	}
 	return n
@@ -452,7 +580,7 @@ func sovTypes(x uint64) (n int) {
 func sozTypes(x uint64) (n int) {
 	return sovTypes(uint64((x << 1) ^ uint64((int64(x) >> 63))))
 }
-func (m *HalfAxis) Unmarshal(dAtA []byte) error {
+func (m *Row) Unmarshal(dAtA []byte) error {
 	l := len(dAtA)
 	iNdEx := 0
 	for iNdEx < l {
@@ -475,17 +603,17 @@ func (m *HalfAxis) Unmarshal(dAtA []byte) error {
 		fieldNum := int32(wire >> 3)
 		wireType := int(wire & 0x7)
 		if wireType == 4 {
-			return fmt.Errorf("proto: HalfAxis: wiretype end group for non-group")
+			return fmt.Errorf("proto: Row: wiretype end group for non-group")
 		}
 		if fieldNum <= 0 {
-			return fmt.Errorf("proto: HalfAxis: illegal tag %d (wire type %d)", fieldNum, wire)
+			return fmt.Errorf("proto: Row: illegal tag %d (wire type %d)", fieldNum, wire)
 		}
 		switch fieldNum {
 		case 1:
 			if wireType != 2 {
-				return fmt.Errorf("proto: wrong wireType = %d for field Shares", wireType)
+				return fmt.Errorf("proto: wrong wireType = %d for field SharesHalf", wireType)
 			}
-			var byteLen int
+			var msglen int
 			for shift := uint(0); ; shift += 7 {
 				if shift >= 64 {
 					return ErrIntOverflowTypes
@@ -495,29 +623,31 @@ func (m *HalfAxis) Unmarshal(dAtA []byte) error {
 				}
 				b := dAtA[iNdEx]
 				iNdEx++
-				byteLen |= int(b&0x7F) << shift
+				msglen |= int(b&0x7F) << shift
 				if b < 0x80 {
 					break
 				}
 			}
-			if byteLen < 0 {
+			if msglen < 0 {
 				return ErrInvalidLengthTypes
 			}
-			postIndex := iNdEx + byteLen
+			postIndex := iNdEx + msglen
 			if postIndex < 0 {
 				return ErrInvalidLengthTypes
 			}
 			if postIndex > l {
 				return io.ErrUnexpectedEOF
 			}
-			m.Shares = append(m.Shares, make([]byte, postIndex-iNdEx))
-			copy(m.Shares[len(m.Shares)-1], dAtA[iNdEx:postIndex])
+			m.SharesHalf = append(m.SharesHalf, &Share{})
+			if err := m.SharesHalf[len(m.SharesHalf)-1].Unmarshal(dAtA[iNdEx:postIndex]); err != nil {
+				return err
+			}
 			iNdEx = postIndex
 		case 2:
 			if wireType != 0 {
-				return fmt.Errorf("proto: wrong wireType = %d for field IsParity", wireType)
+				return fmt.Errorf("proto: wrong wireType = %d for field HalfSide", wireType)
 			}
-			var v int
+			m.HalfSide = 0
 			for shift := uint(0); ; shift += 7 {
 				if shift >= 64 {
 					return ErrIntOverflowTypes
@@ -527,12 +657,11 @@ func (m *HalfAxis) Unmarshal(dAtA []byte) error {
 				}
 				b := dAtA[iNdEx]
 				iNdEx++
-				v |= int(b&0x7F) << shift
+				m.HalfSide |= Row_HalfSide(b&0x7F) << shift
 				if b < 0x80 {
 					break
 				}
 			}
-			m.IsParity = bool(v != 0)
 		default:
 			iNdEx = preIndex
 			skippy, err := skipTypes(dAtA[iNdEx:])
@@ -554,7 +683,7 @@ func (m *HalfAxis) Unmarshal(dAtA []byte) error {
 	}
 	return nil
 }
-func (m *ShareWithProof) Unmarshal(dAtA []byte) error {
+func (m *Sample) Unmarshal(dAtA []byte) error {
 	l := len(dAtA)
 	iNdEx := 0
 	for iNdEx < l {
@@ -577,17 +706,17 @@ func (m *ShareWithProof) Unmarshal(dAtA []byte) error {
 		fieldNum := int32(wire >> 3)
 		wireType := int(wire & 0x7)
 		if wireType == 4 {
-			return fmt.Errorf("proto: ShareWithProof: wiretype end group for non-group")
+			return fmt.Errorf("proto: Sample: wiretype end group for non-group")
 		}
 		if fieldNum <= 0 {
-			return fmt.Errorf("proto: ShareWithProof: illegal tag %d (wire type %d)", fieldNum, wire)
+			return fmt.Errorf("proto: Sample: illegal tag %d (wire type %d)", fieldNum, wire)
 		}
 		switch fieldNum {
 		case 1:
 			if wireType != 2 {
 				return fmt.Errorf("proto: wrong wireType = %d for field Share", wireType)
 			}
-			var byteLen int
+			var msglen int
 			for shift := uint(0); ; shift += 7 {
 				if shift >= 64 {
 					return ErrIntOverflowTypes
@@ -597,24 +726,26 @@ func (m *ShareWithProof) Unmarshal(dAtA []byte) error {
 				}
 				b := dAtA[iNdEx]
 				iNdEx++
-				byteLen |= int(b&0x7F) << shift
+				msglen |= int(b&0x7F) << shift
 				if b < 0x80 {
 					break
 				}
 			}
-			if byteLen < 0 {
+			if msglen < 0 {
 				return ErrInvalidLengthTypes
 			}
-			postIndex := iNdEx + byteLen
+			postIndex := iNdEx + msglen
 			if postIndex < 0 {
 				return ErrInvalidLengthTypes
 			}
 			if postIndex > l {
 				return io.ErrUnexpectedEOF
 			}
-			m.Share = append(m.Share[:0], dAtA[iNdEx:postIndex]...)
 			if m.Share == nil {
-				m.Share = []byte{}
+				m.Share = &Share{}
+			}
+			if err := m.Share.Unmarshal(dAtA[iNdEx:postIndex]); err != nil {
+				return err
 			}
 			iNdEx = postIndex
 		case 2:
@@ -693,7 +824,7 @@ func (m *ShareWithProof) Unmarshal(dAtA []byte) error {
 	}
 	return nil
 }
-func (m *NamespacedRow) Unmarshal(dAtA []byte) error {
+func (m *RowNamespaceData) Unmarshal(dAtA []byte) error {
 	l := len(dAtA)
 	iNdEx := 0
 	for iNdEx < l {
@@ -716,17 +847,17 @@ func (m *NamespacedRow) Unmarshal(dAtA []byte) error {
 		fieldNum := int32(wire >> 3)
 		wireType := int(wire & 0x7)
 		if wireType == 4 {
-			return fmt.Errorf("proto: NamespacedRow: wiretype end group for non-group")
+			return fmt.Errorf("proto: RowNamespaceData: wiretype end group for non-group")
 		}
 		if fieldNum <= 0 {
-			return fmt.Errorf("proto: NamespacedRow: illegal tag %d (wire type %d)", fieldNum, wire)
+			return fmt.Errorf("proto: RowNamespaceData: illegal tag %d (wire type %d)", fieldNum, wire)
 		}
 		switch fieldNum {
 		case 1:
 			if wireType != 2 {
-				return fmt.Errorf("proto: wrong wireType = %d for field Shares", wireType)
+				return fmt.Errorf("proto: wrong wireType = %d for field halfShares", wireType)
 			}
-			var byteLen int
+			var msglen int
 			for shift := uint(0); ; shift += 7 {
 				if shift >= 64 {
 					return ErrIntOverflowTypes
@@ -736,23 +867,25 @@ func (m *NamespacedRow) Unmarshal(dAtA []byte) error {
 				}
 				b := dAtA[iNdEx]
 				iNdEx++
-				byteLen |= int(b&0x7F) << shift
+				msglen |= int(b&0x7F) << shift
 				if b < 0x80 {
 					break
 				}
 			}
-			if byteLen < 0 {
+			if msglen < 0 {
 				return ErrInvalidLengthTypes
 			}
-			postIndex := iNdEx + byteLen
+			postIndex := iNdEx + msglen
 			if postIndex < 0 {
 				return ErrInvalidLengthTypes
 			}
 			if postIndex > l {
 				return io.ErrUnexpectedEOF
 			}
-			m.Shares = append(m.Shares, make([]byte, postIndex-iNdEx))
-			copy(m.Shares[len(m.Shares)-1], dAtA[iNdEx:postIndex])
+			m.Shares = append(m.Shares, &Share{})
+			if err := m.Shares[len(m.Shares)-1].Unmarshal(dAtA[iNdEx:postIndex]); err != nil {
+				return err
+			}
 			iNdEx = postIndex
 		case 2:
 			if wireType != 2 {
@@ -788,6 +921,90 @@ func (m *NamespacedRow) Unmarshal(dAtA []byte) error {
 			}
 			if err := m.Proof.Unmarshal(dAtA[iNdEx:postIndex]); err != nil {
 				return err
+			}
+			iNdEx = postIndex
+		default:
+			iNdEx = preIndex
+			skippy, err := skipTypes(dAtA[iNdEx:])
+			if err != nil {
+				return err
+			}
+			if (skippy < 0) || (iNdEx+skippy) < 0 {
+				return ErrInvalidLengthTypes
+			}
+			if (iNdEx + skippy) > l {
+				return io.ErrUnexpectedEOF
+			}
+			iNdEx += skippy
+		}
+	}
+
+	if iNdEx > l {
+		return io.ErrUnexpectedEOF
+	}
+	return nil
+}
+func (m *Share) Unmarshal(dAtA []byte) error {
+	l := len(dAtA)
+	iNdEx := 0
+	for iNdEx < l {
+		preIndex := iNdEx
+		var wire uint64
+		for shift := uint(0); ; shift += 7 {
+			if shift >= 64 {
+				return ErrIntOverflowTypes
+			}
+			if iNdEx >= l {
+				return io.ErrUnexpectedEOF
+			}
+			b := dAtA[iNdEx]
+			iNdEx++
+			wire |= uint64(b&0x7F) << shift
+			if b < 0x80 {
+				break
+			}
+		}
+		fieldNum := int32(wire >> 3)
+		wireType := int(wire & 0x7)
+		if wireType == 4 {
+			return fmt.Errorf("proto: Share: wiretype end group for non-group")
+		}
+		if fieldNum <= 0 {
+			return fmt.Errorf("proto: Share: illegal tag %d (wire type %d)", fieldNum, wire)
+		}
+		switch fieldNum {
+		case 1:
+			if wireType != 2 {
+				return fmt.Errorf("proto: wrong wireType = %d for field Data", wireType)
+			}
+			var byteLen int
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowTypes
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := dAtA[iNdEx]
+				iNdEx++
+				byteLen |= int(b&0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+			if byteLen < 0 {
+				return ErrInvalidLengthTypes
+			}
+			postIndex := iNdEx + byteLen
+			if postIndex < 0 {
+				return ErrInvalidLengthTypes
+			}
+			if postIndex > l {
+				return io.ErrUnexpectedEOF
+			}
+			m.Data = append(m.Data[:0], dAtA[iNdEx:postIndex]...)
+			if m.Data == nil {
+				m.Data = []byte{}
 			}
 			iNdEx = postIndex
 		default:

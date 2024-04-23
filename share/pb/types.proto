@@ -4,20 +4,29 @@ option go_package = "github.com/celestiaorg/celestia-node/share/pb;types";
 
 import "pb/proof.proto"; // celestiaorg/nmt/pb/proof.proto
 
-message HalfAxis {
-    repeated bytes shares = 1;
-    bool is_parity = 2;
+message Row {
+    repeated Share shares_half = 1;
+    HalfSide half_side= 2;
+
+    enum HalfSide {
+        LEFT = 0;
+        RIGHT = 1;
+    }
 }
 
-message ShareWithProof {
-    bytes share = 1;
+message Sample {
+    Share share = 1;
     proof.pb.Proof proof = 2;
     AxisType proof_type = 3;
 }
 
-message NamespacedRow {
-    repeated bytes shares = 1;
+message RowNamespaceData {
+    repeated Share shares = 1;
     proof.pb.Proof proof = 2;
+}
+
+message Share {
+    bytes data = 1;
 }
 
 enum AxisType {

@@ -156,7 +156,7 @@ func TestShrexGetter(t *testing.T) {
 			Height:   height,
 		})
 
-		namespace, err := maxNamesapce.AddInt(1)
+		namespace, err := maxNamespace.AddInt(1)
 		require.NoError(t, err)
 		// check for namespace to be not in root
 		require.Len(t, ipld.FilterRootByNamespace(dah, namespace), 0)

@@ -58,9 +58,9 @@ func (seg *SingleEDSGetter) GetEDS(
 	return seg.EDS, nil
 }
 
-// GetSharesByNamespace returns NamespacedShares from a kept EDS if the correct root is given.
+// GetSharesByNamespace returns NamespacedData from a kept EDS if the correct root is given.
 func (seg *SingleEDSGetter) GetSharesByNamespace(context.Context, *header.ExtendedHeader, share.Namespace,
-) (share.NamespacedShares, error) {
+) (share.NamespacedData, error) {
 	panic("SingleEDSGetter: GetSharesByNamespace is not implemented")
 }
 

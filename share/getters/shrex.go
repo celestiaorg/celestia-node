@@ -190,7 +190,7 @@ func (sg *ShrexGetter) GetSharesByNamespace(
 	ctx context.Context,
 	header *header.ExtendedHeader,
 	namespace share.Namespace,
-) (share.NamespacedShares, error) {
+) (share.NamespacedData, error) {
 	if err := namespace.ValidateForData(); err != nil {
 		return nil, err
 	}
@@ -210,7 +210,7 @@ func (sg *ShrexGetter) GetSharesByNamespace(
 	fromRow, toRow := share.RowRangeForNamespace(dah, namespace)
 	if fromRow == toRow {
 		// target namespace is out of bounds of all rows in the EDS
-		return []share.NamespacedRow{}, nil
+		return []share.RowNamespaceData{}, nil
 	}
 
 	for {

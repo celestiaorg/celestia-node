@@ -215,7 +215,7 @@ func (f *OdsFile) readCol(axisIdx, quadrantIdx int) ([]share.Share, error) {
 	return shrs, nil
 }
 
-func (f *OdsFile) Share(ctx context.Context, x, y int) (*share.ShareWithProof, error) {
+func (f *OdsFile) Share(ctx context.Context, x, y int) (*share.Sample, error) {
 	axisType, axisIdx, shrIdx := rsmt2d.Row, y, x
 	// if the share is in the third quadrant, we need to switch axis type to column because it
 	// is more efficient to read single column than reading full ods to calculate single row
@@ -231,10 +231,10 @@ func (f *OdsFile) Share(ctx context.Context, x, y int) (*share.ShareWithProof, e
 	return shareWithProof(axis, axisType, axisIdx, shrIdx)
 }
 
-func (f *OdsFile) Data(ctx context.Context, namespace share.Namespace, rowIdx int) (share.NamespacedRow, error) {
+func (f *OdsFile) Data(ctx context.Context, namespace share.Namespace, rowIdx int) (share.RowNamespaceData, error) {
 	shares, err := f.axis(ctx, rsmt2d.Row, rowIdx)
 	if err != nil {
-		return share.NamespacedRow{}, err
+		return share.RowNamespaceData{}, err
 	}
 	return ndDataFromShares(shares, namespace, rowIdx)
 }
@@ -248,7 +248,7 @@ func (f *OdsFile) EDS(_ context.Context) (*rsmt2d.ExtendedDataSquare, error) {
 	return f.ods.eds()
 }
 
-func shareWithProof(shares []share.Share, axisType rsmt2d.Axis, axisIdx, shrIdx int) (*share.ShareWithProof, error) {
+func shareWithProof(shares []share.Share, axisType rsmt2d.Axis, axisIdx, shrIdx int) (*share.Sample, error) {
 	tree := wrapper.NewErasuredNamespacedMerkleTree(uint64(len(shares)/2), uint(axisIdx))
 	for _, shr := range shares {
 		err := tree.Push(shr)
@@ -262,7 +262,7 @@ func shareWithProof(shares []share.Share, axisType rsmt2d.Axis, axisIdx, shrIdx 
 		return nil, err
 	}
 
-	return &share.ShareWithProof{
+	return &share.Sample{
 		Share:     shares[shrIdx],
 		Proof:     &proof,
 		ProofType: axisType,

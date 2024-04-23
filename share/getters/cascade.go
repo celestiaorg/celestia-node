@@ -69,19 +69,19 @@ func (cg *CascadeGetter) GetEDS(
 	return cascadeGetters(ctx, cg.getters, get)
 }
 
-// GetSharesByNamespace gets NamespacedShares from any of registered share.Getters in cascading
+// GetSharesByNamespace gets NamespacedData from any of registered share.Getters in cascading
 // order.
 func (cg *CascadeGetter) GetSharesByNamespace(
 	ctx context.Context,
 	header *header.ExtendedHeader,
 	namespace share.Namespace,
-) (share.NamespacedShares, error) {
+) (share.NamespacedData, error) {
 	ctx, span := tracer.Start(ctx, "cascade/get-shares-by-namespace", trace.WithAttributes(
 		attribute.String("namespace", namespace.String()),
 	))
 	defer span.End()
 
-	get := func(ctx context.Context, get share.Getter) (share.NamespacedShares, error) {
+	get := func(ctx context.Context, get share.Getter) (share.NamespacedData, error) {
 		return get.GetSharesByNamespace(ctx, header, namespace)
 	}
 

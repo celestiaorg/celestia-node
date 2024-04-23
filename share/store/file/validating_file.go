@@ -22,7 +22,7 @@ func WithValidation(f EdsFile) EdsFile {
 	return &validatingFile{EdsFile: f}
 }
 
-func (f *validatingFile) Share(ctx context.Context, x, y int) (*share.ShareWithProof, error) {
+func (f *validatingFile) Share(ctx context.Context, x, y int) (*share.Sample, error) {
 	if err := validateIndexBounds(f, x); err != nil {
 		return nil, fmt.Errorf("col: %w", err)
 	}
@@ -39,9 +39,9 @@ func (f *validatingFile) AxisHalf(ctx context.Context, axisType rsmt2d.Axis, axi
 	return f.EdsFile.AxisHalf(ctx, axisType, axisIdx)
 }
 
-func (f *validatingFile) Data(ctx context.Context, namespace share.Namespace, rowIdx int) (share.NamespacedRow, error) {
+func (f *validatingFile) Data(ctx context.Context, namespace share.Namespace, rowIdx int) (share.RowNamespaceData, error) {
 	if err := validateIndexBounds(f, rowIdx); err != nil {
-		return share.NamespacedRow{}, fmt.Errorf("row: %w", err)
+		return share.RowNamespaceData{}, fmt.Errorf("row: %w", err)
 	}
 	return f.EdsFile.Data(ctx, namespace, rowIdx)
 }

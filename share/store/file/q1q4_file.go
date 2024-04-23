@@ -76,7 +76,7 @@ func (f *Q1Q4File) AxisHalf(_ context.Context, axisType rsmt2d.Axis, axisIdx int
 	}, nil
 }
 
-func (f *Q1Q4File) Share(ctx context.Context, x, y int) (*share.ShareWithProof, error) {
+func (f *Q1Q4File) Share(ctx context.Context, x, y int) (*share.Sample, error) {
 	half, err := f.AxisHalf(ctx, rsmt2d.Row, y)
 	if err != nil {
 		return nil, fmt.Errorf("reading axis: %w", err)
@@ -88,14 +88,14 @@ func (f *Q1Q4File) Share(ctx context.Context, x, y int) (*share.ShareWithProof, 
 	return shareWithProof(shares, rsmt2d.Row, y, x)
 }
 
-func (f *Q1Q4File) Data(ctx context.Context, namespace share.Namespace, rowIdx int) (share.NamespacedRow, error) {
+func (f *Q1Q4File) Data(ctx context.Context, namespace share.Namespace, rowIdx int) (share.RowNamespaceData, error) {
 	half, err := f.AxisHalf(ctx, rsmt2d.Row, rowIdx)
 	if err != nil {
-		return share.NamespacedRow{}, fmt.Errorf("reading axis: %w", err)
+		return share.RowNamespaceData{}, fmt.Errorf("reading axis: %w", err)
 	}
 	shares, err := half.Extended()
 	if err != nil {
-		return share.NamespacedRow{}, fmt.Errorf("extending shares: %w", err)
+		return share.RowNamespaceData{}, fmt.Errorf("extending shares: %w", err)
 	}
 	return ndDataFromShares(shares, namespace, rowIdx)
 }

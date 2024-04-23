@@ -4,15 +4,15 @@ import "types.proto";
 
 message RowBlock {
     bytes row_id = 1;
-    HalfAxis row = 2;
+    Row row = 2;
 }
 
 message SampleBlock {
     bytes sample_id = 1;
-    ShareWithProof sample = 2;
+    Sample sample = 2;
 }
 
-message DataBlock {
+message RowNamespaceDataBlock {
     bytes data_id = 1;
-    NamespacedRow data = 2;
+    RowNamespaceData data = 2;
 }

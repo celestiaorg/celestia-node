@@ -25,6 +25,6 @@ func (r ReconstructionGetter) GetEDS(ctx context.Context, header *header.Extende
 	return r.retriever.Retrieve(ctx, header)
 }
 
-func (r ReconstructionGetter) GetSharesByNamespace(ctx context.Context, header *header.ExtendedHeader, namespace share.Namespace) (share.NamespacedShares, error) {
+func (r ReconstructionGetter) GetSharesByNamespace(ctx context.Context, header *header.ExtendedHeader, namespace share.Namespace) (share.NamespacedData, error) {
 	return nil, share.ErrOperationNotSupported
 }

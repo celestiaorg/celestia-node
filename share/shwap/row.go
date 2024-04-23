@@ -12,11 +12,11 @@ type Row struct {
 	RowID
 
 	// RowShares is the original non erasure-coded half of the Row.
-	RowShares share.HalfAxis
+	RowShares share.Row
 }
 
 // NewRow constructs a new Row.
-func NewRow(id RowID, halfAxis share.HalfAxis) *Row {
+func NewRow(id RowID, halfAxis share.Row) *Row {
 	return &Row{
 		RowID:     id,
 		RowShares: halfAxis,
@@ -59,7 +59,7 @@ func (r *Row) Verify(root *share.Root) error {
 	if err := r.RowID.Verify(root); err != nil {
 		return err
 	}
-	shares, err := r.RowShares.ToShares()
+	shares, err := r.RowShares.Shares()
 	if err != nil {
 		return err
 	}
@@ -73,6 +73,6 @@ func RowFromProto(rowProto *shwappb.RowBlock) (*Row, error) {
 	}
 	return &Row{
 		RowID:     id,
-		RowShares: share.HalfAxisFromProto(rowProto.Row),
+		RowShares: share.RowFromProto(rowProto.Row),
 	}, nil
 }

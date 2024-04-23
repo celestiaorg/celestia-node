@@ -46,7 +46,7 @@ func WithProofsCache(f EdsFile) EdsFile {
 	}
 }
 
-func (f *proofsCacheFile) Share(ctx context.Context, x, y int) (*share.ShareWithProof, error) {
+func (f *proofsCacheFile) Share(ctx context.Context, x, y int) (*share.Sample, error) {
 	axisType, axisIdx, shrIdx := rsmt2d.Row, y, x
 	ax, err := f.axisWithProofs(ctx, axisType, axisIdx)
 	if err != nil {
@@ -134,18 +134,18 @@ func (f *proofsCacheFile) AxisHalf(ctx context.Context, axisType rsmt2d.Axis, ax
 	return half, nil
 }
 
-func (f *proofsCacheFile) Data(ctx context.Context, namespace share.Namespace, rowIdx int) (share.NamespacedRow, error) {
+func (f *proofsCacheFile) Data(ctx context.Context, namespace share.Namespace, rowIdx int) (share.RowNamespaceData, error) {
 	ax, err := f.axisWithProofs(ctx, rsmt2d.Row, rowIdx)
 	if err != nil {
-		return share.NamespacedRow{}, err
+		return share.RowNamespaceData{}, err
 	}
 
 	row, proof, err := ipld.GetSharesByNamespace(ctx, ax.proofs, ax.root, namespace, f.Size())
 	if err != nil {
-		return share.NamespacedRow{}, fmt.Errorf("Shares by namespace %s for row %v: %w", namespace.String(), rowIdx, err)
+		return share.RowNamespaceData{}, fmt.Errorf("Shares by namespace %s for row %v: %w", namespace.String(), rowIdx, err)
 	}
 
-	return share.NamespacedRow{
+	return share.RowNamespaceData{
 		Shares: row,
 		Proof:  proof,
 	}, nil

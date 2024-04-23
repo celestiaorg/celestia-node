@@ -20,7 +20,7 @@ import (
 // Merkle Proof for each share.
 type ErrByzantine struct {
 	Index  uint32
-	Shares []*share.ShareWithProof
+	Shares []*share.Sample
 	Axis   rsmt2d.Axis
 }
 
@@ -46,10 +46,10 @@ func NewErrByzantine(
 		axisType = rsmt2d.Col
 	}
 
-	sharesWithProof := make([]*share.ShareWithProof, len(errByz.Shares))
+	sharesWithProof := make([]*share.Sample, len(errByz.Shares))
 
 	type result struct {
-		share *share.ShareWithProof
+		share *share.Sample
 		index int
 	}
 	resultCh := make(chan *result)

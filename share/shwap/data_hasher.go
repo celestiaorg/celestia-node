@@ -13,7 +13,7 @@ type DataHasher struct {
 
 // Write expects a marshaled Data to validate.
 func (h *DataHasher) Write(data []byte) (int, error) {
-	datapb := &shwappb.DataBlock{}
+	datapb := &shwappb.RowNamespaceDataBlock{}
 	if err := datapb.Unmarshal(data); err != nil {
 		err = fmt.Errorf("unmarshaling DataBlock: %w", err)
 		log.Error(err)

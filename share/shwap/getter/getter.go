@@ -143,7 +143,12 @@ func (g *Getter) GetEDS(ctx context.Context, hdr *header.ExtendedHeader) (*rsmt2
 
 	shrs := make([]share.Share, 0, sqrLn*sqrLn)
 	for _, row := range rows {
-		shrs = append(shrs, row.RowShares...)
+		rowShares, err := row.RowShares.Shares()
+		if err != nil {
+			return nil, err
+		}
+		leftHalf := rowShares[:sqrLn/2]
+		shrs = append(shrs, leftHalf...)
 	}
 
 	square, err := rsmt2d.ComputeExtendedDataSquare(
@@ -171,14 +176,14 @@ func (g *Getter) GetSharesByNamespace(
 	ctx context.Context,
 	hdr *header.ExtendedHeader,
 	ns share.Namespace,
-) (share.NamespacedShares, error) {
+) (share.NamespacedData, error) {
 	if err := ns.ValidateForData(); err != nil {
 		return nil, err
 	}
 
 	from, to := share.RowRangeForNamespace(hdr.DAH, ns)
 	if from == to {
-		return share.NamespacedShares{}, nil
+		return share.NamespacedData{}, nil
 	}
 
 	cids := make([]cid.Cid, 0, to-from)
@@ -196,14 +201,14 @@ func (g *Getter) GetSharesByNamespace(
 		return nil, fmt.Errorf("getting blocks: %w", err)
 	}
 
-	nShrs := make([]share.NamespacedRow, len(blks))
+	nShrs := make([]share.RowNamespaceData, len(blks))
 	for _, blk := range blks {
 		data, err := shwap.DataFromBlock(blk)
 		if err != nil {
 			return nil, fmt.Errorf("getting row from block: %w", err)
 		}
 
-		nShrs[int(data.RowIndex)-from] = share.NamespacedRow{
+		nShrs[int(data.RowIndex)-from] = share.RowNamespaceData{
 			Shares: data.Shares,
 			Proof:  data.Proof,
 		}

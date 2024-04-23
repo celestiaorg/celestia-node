@@ -45,14 +45,14 @@ func NewClient(params *Parameters, host host.Host) (*Client, error) {
 }
 
 // RequestND requests namespaced data from the given peer.
-// Returns NamespacedShares with unverified inclusion proofs against the share.Root.
+// Returns NamespacedData with unverified inclusion proofs against the share.Root.
 func (c *Client) RequestND(
 	ctx context.Context,
 	height uint64,
 	fromRow, toRow int,
 	namespace share.Namespace,
 	peer peer.ID,
-) (share.NamespacedShares, error) {
+) (share.NamespacedData, error) {
 	if err := namespace.ValidateForData(); err != nil {
 		return nil, err
 	}
@@ -86,7 +86,7 @@ func (c *Client) doRequest(
 	fromRow, toRow int,
 	namespace share.Namespace,
 	peerID peer.ID,
-) (share.NamespacedShares, error) {
+) (share.NamespacedData, error) {
 	stream, err := c.host.NewStream(ctx, peerID, c.protocolID)
 	if err != nil {
 		return nil, err
@@ -137,12 +137,12 @@ func (c *Client) readStatus(ctx context.Context, stream network.Stream) error {
 	return c.convertStatusToErr(ctx, resp.Status)
 }
 
-// readNamespacedShares converts proto Rows to share.NamespacedShares
+// readNamespacedShares converts proto Rows to share.NamespacedData
 func (c *Client) readNamespacedShares(
 	ctx context.Context,
 	stream network.Stream,
-) (share.NamespacedShares, error) {
-	var shares share.NamespacedShares
+) (share.NamespacedData, error) {
+	var shares share.NamespacedData
 	for {
 		var row pb.NamespaceRowResponse
 		_, err := serde.Read(stream, &row)
@@ -173,7 +173,7 @@ func (c *Client) readNamespacedShares(
 				)
 			}
 		}
-		shares = append(shares, share.NamespacedRow{
+		shares = append(shares, share.RowNamespaceData{
 			Shares: row.Shares,
 			Proof:  &proof,
 		})

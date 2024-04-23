@@ -161,15 +161,15 @@ func GetLeaves(ctx context.Context,
 }
 
 // GetSharesWithProofs fetches Merkle proofs for the given shares
-// and returns the result as an array of ShareWithProof.
+// and returns the result as an array of Sample.
 func GetSharesWithProofs(
 	ctx context.Context,
 	bGetter blockservice.BlockGetter,
 	rootHash []byte,
 	shares [][]byte,
 	axisType rsmt2d.Axis,
-) ([]*share.ShareWithProof, error) {
-	proofs := make([]*share.ShareWithProof, len(shares))
+) ([]*share.Sample, error) {
+	proofs := make([]*share.Sample, len(shares))
 	for index, share := range shares {
 		if share != nil {
 			proof, err := GetShareWithProof(ctx, bGetter, rootHash, index, len(shares), axisType)
@@ -190,7 +190,7 @@ func GetShareWithProof(
 	index,
 	total int,
 	axisType rsmt2d.Axis,
-) (*share.ShareWithProof, error) {
+) (*share.Sample, error) {
 	rootCid := MustCidFromNamespacedSha256(rootHash)
 	proof := make([]cid.Cid, 0)
 	// TODO(@vgonkivs): Combine GetLeafData and getProofNodes in one function as the are traversing the same
@@ -205,7 +205,7 @@ func GetShareWithProof(
 		return nil, err
 	}
 
-	return &share.ShareWithProof{
+	return &share.Sample{
 		Share:     share.GetData(leaf.RawData()),
 		Proof:     buildProof(nodes, index),
 		ProofType: axisType,

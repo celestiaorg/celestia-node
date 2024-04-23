@@ -51,7 +51,7 @@ func (f *MemFile) Size() int {
 func (f *MemFile) Share(
 	_ context.Context,
 	x, y int,
-) (*share.ShareWithProof, error) {
+) (*share.Sample, error) {
 	axisType := rsmt2d.Row
 	axisIdx, shrIdx := y, x
 
@@ -69,7 +69,7 @@ func (f *MemFile) Share(
 		return nil, err
 	}
 
-	return &share.ShareWithProof{
+	return &share.Sample{
 		Share:     shares[shrIdx],
 		Proof:     &proof,
 		ProofType: axisType,
@@ -83,7 +83,7 @@ func (f *MemFile) AxisHalf(_ context.Context, axisType rsmt2d.Axis, axisIdx int)
 	}, nil
 }
 
-func (f *MemFile) Data(_ context.Context, namespace share.Namespace, rowIdx int) (share.NamespacedRow, error) {
+func (f *MemFile) Data(_ context.Context, namespace share.Namespace, rowIdx int) (share.RowNamespaceData, error) {
 	shares := getAxis(f.Eds, rsmt2d.Row, rowIdx)
 	return ndDataFromShares(shares, namespace, rowIdx)
 }
@@ -103,7 +103,7 @@ func getAxis(eds *rsmt2d.ExtendedDataSquare, axisType rsmt2d.Axis, axisIdx int) 
 	}
 }
 
-func ndDataFromShares(shares []share.Share, namespace share.Namespace, rowIdx int) (share.NamespacedRow, error) {
+func ndDataFromShares(shares []share.Share, namespace share.Namespace, rowIdx int) (share.RowNamespaceData, error) {
 	bserv := ipld.NewMemBlockservice()
 	batchAdder := ipld.NewNmtNodeAdder(context.TODO(), bserv, ipld.MaxSizeBatchOption(len(shares)))
 	tree := wrapper.NewErasuredNamespacedMerkleTree(uint64(len(shares)/2), uint(rowIdx),
@@ -111,25 +111,25 @@ func ndDataFromShares(shares []share.Share, namespace share.Namespace, rowIdx in
 	for _, shr := range shares {
 		err := tree.Push(shr)
 		if err != nil {
-			return share.NamespacedRow{}, err
+			return share.RowNamespaceData{}, err
 		}
 	}
 
 	root, err := tree.Root()
 	if err != nil {
-		return share.NamespacedRow{}, err
+		return share.RowNamespaceData{}, err
 	}
 
 	err = batchAdder.Commit()
 	if err != nil {
-		return share.NamespacedRow{}, err
+		return share.RowNamespaceData{}, err
 	}
 
 	row, proof, err := ipld.GetSharesByNamespace(context.TODO(), bserv, root, namespace, len(shares))
 	if err != nil {
-		return share.NamespacedRow{}, err
+		return share.RowNamespaceData{}, err
 	}
-	return share.NamespacedRow{
+	return share.RowNamespaceData{
 		Shares: row,
 		Proof:  proof,
 	}, nil

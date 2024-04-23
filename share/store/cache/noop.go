@@ -56,7 +56,7 @@ func (n NoopFile) DataHash() share.DataHash {
 	return nil
 }
 
-func (n NoopFile) Share(ctx context.Context, x, y int) (*share.ShareWithProof, error) {
+func (n NoopFile) Share(ctx context.Context, x, y int) (*share.Sample, error) {
 	return nil, nil
 }
 
@@ -64,8 +64,8 @@ func (n NoopFile) AxisHalf(ctx context.Context, axisType rsmt2d.Axis, axisIdx in
 	return file.AxisHalf{}, nil
 }
 
-func (n NoopFile) Data(ctx context.Context, namespace share.Namespace, rowIdx int) (share.NamespacedRow, error) {
-	return share.NamespacedRow{}, nil
+func (n NoopFile) Data(ctx context.Context, namespace share.Namespace, rowIdx int) (share.RowNamespaceData, error) {
+	return share.RowNamespaceData{}, nil
 }
 
 func (n NoopFile) EDS(ctx context.Context) (*rsmt2d.ExtendedDataSquare, error) {

@@ -68,10 +68,10 @@ func (mr *MockModuleMockRecorder) GetShare(arg0, arg1, arg2, arg3 interface{}) *
 }
 
 // GetSharesByNamespace mocks base method.
-func (m *MockModule) GetSharesByNamespace(arg0 context.Context, arg1 *header.ExtendedHeader, arg2 share.Namespace) (share.NamespacedShares, error) {
+func (m *MockModule) GetSharesByNamespace(arg0 context.Context, arg1 *header.ExtendedHeader, arg2 share.Namespace) (share.NamespacedData, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "GetSharesByNamespace", arg0, arg1, arg2)
-	ret0, _ := ret[0].(share.NamespacedShares)
+	ret0, _ := ret[0].(share.NamespacedData)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }

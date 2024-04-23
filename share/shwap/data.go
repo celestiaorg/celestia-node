@@ -9,14 +9,14 @@ import (
 
 type Data struct {
 	DataID
-	share.NamespacedRow
+	share.RowNamespaceData
 }
 
 // NewData constructs a new Data.
-func NewData(id DataID, nr share.NamespacedRow) *Data {
+func NewData(id DataID, nr share.RowNamespaceData) *Data {
 	return &Data{
-		DataID:        id,
-		NamespacedRow: nr,
+		DataID:           id,
+		RowNamespaceData: nr,
 	}
 }
 
@@ -26,7 +26,7 @@ func DataFromBlock(blk blocks.Block) (*Data, error) {
 		return nil, err
 	}
 
-	var data shwappb.DataBlock
+	var data shwappb.RowNamespaceDataBlock
 	if err := data.Unmarshal(blk.RawData()); err != nil {
 		return nil, err
 
@@ -50,23 +50,23 @@ func (s *Data) Verify(root *share.Root) error {
 		return err
 	}
 
-	return s.NamespacedRow.Validate(root, int(s.DataID.RowIndex), s.DataID.Namespace())
+	return s.RowNamespaceData.Validate(root, int(s.DataID.RowIndex), s.DataID.Namespace())
 }
 
-func (s *Data) ToProto() *shwappb.DataBlock {
-	return &shwappb.DataBlock{
+func (s *Data) ToProto() *shwappb.RowNamespaceDataBlock {
+	return &shwappb.RowNamespaceDataBlock{
 		DataId: s.DataID.MarshalBinary(),
-		Data:   s.NamespacedRow.ToProto(),
+		Data:   s.RowNamespaceData.ToProto(),
 	}
 }
 
-func DataFromProto(dataProto *shwappb.DataBlock) (*Data, error) {
+func DataFromProto(dataProto *shwappb.RowNamespaceDataBlock) (*Data, error) {
 	id, err := DataIDFromBinary(dataProto.DataId)
 	if err != nil {
 		return nil, err
 	}
 	return &Data{
-		DataID:        id,
-		NamespacedRow: share.NamespacedRowFromProto(dataProto.Data),
+		DataID:           id,
+		RowNamespaceData: share.NamespacedRowFromProto(dataProto.Data),
 	}, nil
 }

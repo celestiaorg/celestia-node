@@ -30,10 +30,10 @@ const (
 type BadEncodingProof struct {
 	headerHash  []byte
 	BlockHeight uint64
-	// ShareWithProof contains all shares from row or col.
+	// Sample contains all shares from row or col.
 	// Shares that did not pass verification in rsmt2d will be nil.
 	// For non-nil shares MerkleProofs are computed.
-	Shares []*share.ShareWithProof
+	Shares []*share.Sample
 	// Index represents the row/col index where ErrByzantineRow/ErrByzantineColl occurred.
 	Index uint32
 	// Axis represents the axis that verification failed on.
@@ -74,7 +74,7 @@ func (p *BadEncodingProof) Height() uint64 {
 
 // MarshalBinary converts BadEncodingProof to binary.
 func (p *BadEncodingProof) MarshalBinary() ([]byte, error) {
-	shares := make([]*types.ShareWithProof, 0, len(p.Shares))
+	shares := make([]*types.Sample, 0, len(p.Shares))
 	for _, share := range p.Shares {
 		shares = append(shares, share.ToProto())
 	}
@@ -96,9 +96,9 @@ func (p *BadEncodingProof) UnmarshalBinary(data []byte) error {
 		return err
 	}
 
-	var shares []*share.ShareWithProof
+	var shares []*share.Sample
 	for _, sh := range in.Shares {
-		shares = append(shares, share.ShareWithProofFromProto(sh))
+		shares = append(shares, share.SampleFromProto(sh))
 	}
 	befp := &BadEncodingProof{
 		headerHash:  in.HeaderHash,

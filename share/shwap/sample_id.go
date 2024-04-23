@@ -113,8 +113,8 @@ func (sid SampleID) BlockFromFile(ctx context.Context, f file.EdsFile) (blocks.B
 	}
 
 	s := &Sample{
-		SampleID:       sid,
-		ShareWithProof: shr,
+		SampleID: sid,
+		Sample:   shr,
 	}
 	blk, err := s.IPLDBlock()
 	if err != nil {

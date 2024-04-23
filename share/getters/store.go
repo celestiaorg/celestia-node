@@ -109,7 +109,7 @@ func (sg *StoreGetter) GetSharesByNamespace(
 	ctx context.Context,
 	header *header.ExtendedHeader,
 	namespace share.Namespace,
-) (shares share.NamespacedShares, err error) {
+) (shares share.NamespacedData, err error) {
 	ctx, span := tracer.Start(ctx, "store/get-shares-by-namespace", trace.WithAttributes(
 		attribute.String("namespace", namespace.String()),
 	))
@@ -121,7 +121,7 @@ func (sg *StoreGetter) GetSharesByNamespace(
 	from, to := share.RowRangeForNamespace(header.DAH, namespace)
 	if from == to {
 		// target namespace is out of bounds of all rows in the EDS
-		return share.NamespacedShares{}, nil
+		return share.NamespacedData{}, nil
 	}
 
 	file, err := sg.store.GetByHeight(ctx, header.Height())
@@ -134,7 +134,7 @@ func (sg *StoreGetter) GetSharesByNamespace(
 	}
 	defer utils.CloseAndLog(log, "file", file)
 
-	shares = make(share.NamespacedShares, 0, to-from+1)
+	shares = make(share.NamespacedData, 0, to-from+1)
 	for row := from; row < to; row++ {
 		data, err := file.Data(ctx, namespace, row)
 		if err != nil {

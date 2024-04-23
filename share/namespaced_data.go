@@ -12,11 +12,11 @@ import (
 	types_pb "github.com/celestiaorg/celestia-node/share/pb"
 )
 
-// NamespacedShares represents all shares with proofs within a specific namespace of an EDS.
-type NamespacedShares []NamespacedRow
+// NamespacedData represents all shares with proofs within a specific namespace of an EDS.
+type NamespacedData []RowNamespaceData
 
-// Flatten returns the concatenated slice of all NamespacedRow shares.
-func (ns NamespacedShares) Flatten() []Share {
+// Flatten returns the concatenated slice of all RowNamespaceData shares.
+func (ns NamespacedData) Flatten() []Share {
 	shares := make([]Share, 0)
 	for _, row := range ns {
 		shares = append(shares, row.Shares...)
@@ -24,14 +24,14 @@ func (ns NamespacedShares) Flatten() []Share {
 	return shares
 }
 
-// NamespacedRow represents all shares with proofs within a specific namespace of a single EDS row.
-type NamespacedRow struct {
+// RowNamespaceData represents all shares with proofs within a specific namespace of a single EDS row.
+type RowNamespaceData struct {
 	Shares []Share    `json:"shares"`
 	Proof  *nmt.Proof `json:"proof"`
 }
 
-// Verify validates NamespacedShares by checking every row with nmt inclusion proof.
-func (ns NamespacedShares) Verify(root *Root, namespace Namespace) error {
+// Verify validates NamespacedData by checking every row with nmt inclusion proof.
+func (ns NamespacedData) Verify(root *Root, namespace Namespace) error {
 	var originalRoots [][]byte
 	for _, row := range root.RowRoots {
 		if !namespace.IsOutsideRange(row, row) {
@@ -56,8 +56,8 @@ func (ns NamespacedShares) Verify(root *Root, namespace Namespace) error {
 	return nil
 }
 
-func (row NamespacedRow) Validate(dah *Root, rowIdx int, namespace Namespace) error {
-	if len(row.Shares) == 0 && row.Proof.IsEmptyProof() {
+func (rnd RowNamespaceData) Validate(dah *Root, rowIdx int, namespace Namespace) error {
+	if len(rnd.Shares) == 0 && rnd.Proof.IsEmptyProof() {
 		return fmt.Errorf("empty Data")
 	}
 
@@ -66,22 +66,21 @@ func (row NamespacedRow) Validate(dah *Root, rowIdx int, namespace Namespace) er
 		return fmt.Errorf("namespace is outside of the range")
 	}
 
-	if !row.VerifyInclusion(rowRoot, namespace) {
+	if !rnd.VerifyInclusion(rowRoot, namespace) {
 		return fmt.Errorf("invalid inclusion proof")
 	}
 	return nil
 }
 
 // VerifyInclusion validates the row using nmt inclusion proof.
-func (row NamespacedRow) VerifyInclusion(rowRoot []byte, namespace Namespace) bool {
+func (rnd RowNamespaceData) VerifyInclusion(rowRoot []byte, namespace Namespace) bool {
 	// construct nmt leaves from shares by prepending namespace
-	leaves := make([][]byte, 0, len(row.Shares))
-	for _, shr := range row.Shares {
+	leaves := make([][]byte, 0, len(rnd.Shares))
+	for _, shr := range rnd.Shares {
 		leaves = append(leaves, append(GetNamespace(shr), shr...))
 	}
-
 	// verify namespace
-	return row.Proof.VerifyNamespace(
+	return rnd.Proof.VerifyNamespace(
 		sha256.New(),
 		namespace.ToNMT(),
 		leaves,
@@ -89,15 +88,15 @@ func (row NamespacedRow) VerifyInclusion(rowRoot []byte, namespace Namespace) bo
 	)
 }
 
-func (row NamespacedRow) ToProto() *types_pb.NamespacedRow {
-	return &types_pb.NamespacedRow{
-		Shares: row.Shares,
+func (rnd RowNamespaceData) ToProto() *types_pb.RowNamespaceData {
+	return &types_pb.RowNamespaceData{
+		Shares: Shares(rnd.Shares).ToProto(),
 		Proof: &nmt_pb.Proof{
-			Start:                 int64(row.Proof.Start()),
-			End:                   int64(row.Proof.End()),
-			Nodes:                 row.Proof.Nodes(),
-			LeafHash:              row.Proof.LeafHash(),
-			IsMaxNamespaceIgnored: row.Proof.IsMaxNamespaceIDIgnored(),
+			Start:                 int64(rnd.Proof.Start()),
+			End:                   int64(rnd.Proof.End()),
+			Nodes:                 rnd.Proof.Nodes(),
+			LeafHash:              rnd.Proof.LeafHash(),
+			IsMaxNamespaceIgnored: rnd.Proof.IsMaxNamespaceIDIgnored(),
 		},
 	}
 }
@@ -106,13 +105,13 @@ func (row NamespacedRow) ToProto() *types_pb.NamespacedRow {
 func NewNamespacedSharesFromEDS(
 	square *rsmt2d.ExtendedDataSquare,
 	namespace Namespace,
-) (NamespacedShares, error) {
+) (NamespacedData, error) {
 	root, err := NewRoot(square)
 	if err != nil {
 		return nil, fmt.Errorf("while computing root: %w", err)
 	}
 
-	var rows NamespacedShares //nolint:prealloc// we don't know how many rows with needed namespace there are
+	var rows NamespacedData //nolint:prealloc// we don't know how many rows with needed namespace there are
 	for rowIdx, rowRoot := range root.RowRoots {
 		if namespace.IsOutsideRange(rowRoot, rowRoot) {
 			continue
@@ -130,7 +129,7 @@ func NewNamespacedSharesFromEDS(
 	return rows, nil
 }
 
-func NamespacedRowFromShares(row []Share, namespace Namespace, axisIdx int) (NamespacedRow, error) {
+func NamespacedRowFromShares(row []Share, namespace Namespace, axisIdx int) (RowNamespaceData, error) {
 	var from, amount int
 	for i := range len(row) / 2 {
 		if namespace.Equals(GetNamespace(row[i])) {
@@ -141,7 +140,7 @@ func NamespacedRowFromShares(row []Share, namespace Namespace, axisIdx int) (Nam
 		}
 	}
 	if amount == 0 {
-		return NamespacedRow{}, fmt.Errorf("no shares in namespace")
+		return RowNamespaceData{}, fmt.Errorf("no shares in namespace")
 	}
 
 	namespacedShares := make([][]byte, amount)
@@ -151,30 +150,43 @@ func NamespacedRowFromShares(row []Share, namespace Namespace, axisIdx int) (Nam
 	for _, shr := range row {
 		err := tree.Push(shr)
 		if err != nil {
-			return NamespacedRow{}, fmt.Errorf("while pushing shares to NMT: %w", err)
+			return RowNamespaceData{}, fmt.Errorf("while pushing shares to NMT: %w", err)
 		}
 	}
 
 	proof, err := tree.ProveRange(from, from+amount)
 	if err != nil {
-		return NamespacedRow{}, fmt.Errorf("while proving range over NMT: %w", err)
+		return RowNamespaceData{}, fmt.Errorf("while proving range over NMT: %w", err)
 	}
 
-	return NamespacedRow{
+	return RowNamespaceData{
 		Shares: namespacedShares,
 		Proof:  &proof,
 	}, nil
 }
 
-func NamespacedRowFromProto(row *types_pb.NamespacedRow) NamespacedRow {
-	proof := nmt.NewInclusionProof(
-		int(row.Proof.Start),
-		int(row.Proof.End),
-		row.Proof.Nodes,
-		row.Proof.IsMaxNamespaceIgnored,
-	)
-	return NamespacedRow{
-		Shares: row.Shares,
+func NamespacedRowFromProto(row *types_pb.RowNamespaceData) RowNamespaceData {
+	var proof nmt.Proof
+	if row.GetProof().GetLeafHash() != nil {
+		proof = nmt.NewAbsenceProof(
+			int(row.GetProof().GetStart()),
+			int(row.GetProof().GetEnd()),
+			row.GetProof().GetNodes(),
+			row.GetProof().GetLeafHash(),
+			row.GetProof().GetIsMaxNamespaceIgnored(),
+		)
+	} else {
+		proof = nmt.NewInclusionProof(
+			int(row.GetProof().GetStart()),
+			int(row.GetProof().GetEnd()),
+			row.GetProof().GetNodes(),
+			row.GetProof().GetIsMaxNamespaceIgnored(),
+		)
+
+	}
+
+	return RowNamespaceData{
+		Shares: SharesFromProto(row.GetShares()),
 		Proof:  &proof,
 	}
 }

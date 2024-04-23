@@ -10,7 +10,7 @@ import (
 // Sample represents a sample of an NMT in EDS.
 type Sample struct {
 	SampleID
-	*share.ShareWithProof
+	*share.Sample
 }
 
 // SampleFromBlock converts blocks.Block into Sample.
@@ -39,7 +39,7 @@ func (s *Sample) IPLDBlock() (blocks.Block, error) {
 func (s *Sample) ToProto() *shwappb.SampleBlock {
 	return &shwappb.SampleBlock{
 		SampleId: s.SampleID.MarshalBinary(),
-		Sample:   s.ShareWithProof.ToProto(),
+		Sample:   s.Sample.ToProto(),
 	}
 }
 
@@ -50,8 +50,8 @@ func SampleFromProto(sampleProto *shwappb.SampleBlock) (*Sample, error) {
 		return nil, err
 	}
 	return &Sample{
-		SampleID:       id,
-		ShareWithProof: share.ShareWithProofFromProto(sampleProto.Sample),
+		SampleID: id,
+		Sample:   share.SampleFromProto(sampleProto.Sample),
 	}, nil
 }
 

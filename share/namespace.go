@@ -37,7 +37,7 @@ type Namespace []byte
 
 // NewBlobNamespaceV0 takes a variable size byte slice and creates a valid version 0 Blob Namespace.
 // The byte slice must be <= 10 bytes.
-// If it is less than 10 bytes, it will be left padded to size 10 with 0s.
+// If it is less than 10 bytes, it will be Left padded to size 10 with 0s.
 // Use predefined namespaces above, if non-blob namespace is needed.
 func NewBlobNamespaceV0(id []byte) (Namespace, error) {
 	if len(id) == 0 || len(id) > appns.NamespaceVersionZeroIDSize {

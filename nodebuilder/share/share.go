@@ -39,7 +39,7 @@ type Module interface {
 	// Shares are returned in a row-by-row order if the namespace spans multiple rows.
 	GetSharesByNamespace(
 		ctx context.Context, header *header.ExtendedHeader, namespace share.Namespace,
-	) (share.NamespacedShares, error)
+	) (share.NamespacedData, error)
 }
 
 // API is a wrapper around Module for the RPC.
@@ -60,7 +60,7 @@ type API struct {
 			ctx context.Context,
 			header *header.ExtendedHeader,
 			namespace share.Namespace,
-		) (share.NamespacedShares, error) `perm:"read"`
+		) (share.NamespacedData, error) `perm:"read"`
 	}
 }
 
@@ -80,7 +80,7 @@ func (api *API) GetSharesByNamespace(
 	ctx context.Context,
 	header *header.ExtendedHeader,
 	namespace share.Namespace,
-) (share.NamespacedShares, error) {
+) (share.NamespacedData, error) {
 	return api.Internal.GetSharesByNamespace(ctx, header, namespace)
 }
 

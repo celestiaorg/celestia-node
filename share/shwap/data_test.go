@@ -37,7 +37,7 @@ func TestData(t *testing.T) {
 		bin, err := data.ToProto().Marshal()
 		require.NoError(t, err)
 
-		var datapb shwappb.DataBlock
+		var datapb shwappb.RowNamespaceDataBlock
 		err = datapb.Unmarshal(bin)
 		require.NoError(t, err)
 
@@ -68,8 +68,8 @@ func newDataFromEDS(square *rsmt2d.ExtendedDataSquare, height uint64, namespace 
 
 			id, err := NewDataID(height, uint16(i), namespace, root)
 			datas = append(datas, &Data{
-				DataID:        id,
-				NamespacedRow: nr,
+				DataID:           id,
+				RowNamespaceData: nr,
 			})
 		}
 	}

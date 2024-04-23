@@ -1,7 +1,6 @@
 package shwap
 
 import (
-	"fmt"
 	shwappb "github.com/celestiaorg/celestia-node/share/shwap/pb"
 	"github.com/celestiaorg/rsmt2d"
 	"testing"
@@ -21,7 +20,6 @@ func TestRow(t *testing.T) {
 	row, err := newRowFromEDS(square, 1, 1)
 	require.NoError(t, err)
 
-	fmt.Println("len", len(row.RowShares.Shares), "rowShares", row.RowShares.IsParity)
 	err = row.Verify(root)
 	require.NoError(t, err)
 	data, err := row.ToProto().Marshal()
@@ -54,7 +52,7 @@ func newRowFromEDS(square *rsmt2d.ExtendedDataSquare, height uint64, idx int) (*
 		return nil, err
 	}
 
-	shares := share.NewHalfAxisFromEDS(square, rsmt2d.Row, idx, false)
+	shares := share.NewRowFromEDS(square, idx, share.Right)
 	return &Row{
 		RowID:     id,
 		RowShares: shares,

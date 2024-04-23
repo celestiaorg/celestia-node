@@ -58,9 +58,9 @@ func newSampleFromEDS(
 	if err != nil {
 		return nil, err
 	}
-	sp, err := share.ShareWithProofFromEDS(square, proofAxis, int(axisIdx), int(shrIdx))
+	sp, err := share.SampleFromEDS(square, proofAxis, int(axisIdx), int(shrIdx))
 	if err != nil {
 		return nil, err
 	}
-	return &Sample{SampleID: id, ShareWithProof: sp}, nil
+	return &Sample{SampleID: id, Sample: sp}, nil
 }

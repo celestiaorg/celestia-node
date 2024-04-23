@@ -55,7 +55,7 @@ func (c *closeOnceFile) DataHash() share.DataHash {
 	return c.datahash
 }
 
-func (c *closeOnceFile) Share(ctx context.Context, x, y int) (*share.ShareWithProof, error) {
+func (c *closeOnceFile) Share(ctx context.Context, x, y int) (*share.Sample, error) {
 	if c.closed.Load() {
 		return nil, errFileClosed
 	}
@@ -69,9 +69,9 @@ func (c *closeOnceFile) AxisHalf(ctx context.Context, axisType rsmt2d.Axis, axis
 	return c.f.AxisHalf(ctx, axisType, axisIdx)
 }
 
-func (c *closeOnceFile) Data(ctx context.Context, namespace share.Namespace, rowIdx int) (share.NamespacedRow, error) {
+func (c *closeOnceFile) Data(ctx context.Context, namespace share.Namespace, rowIdx int) (share.RowNamespaceData, error) {
 	if c.closed.Load() {
-		return share.NamespacedRow{}, errFileClosed
+		return share.RowNamespaceData{}, errFileClosed
 	}
 	return c.f.Data(ctx, namespace, rowIdx)
 }

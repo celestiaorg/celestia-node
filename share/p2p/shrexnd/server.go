@@ -177,7 +177,7 @@ func (srv *Server) getNamespaceData(ctx context.Context,
 	height uint64,
 	namespace share.Namespace,
 	fromRow, toRow int,
-) (share.NamespacedShares, pb.StatusCode, error) {
+) (share.NamespacedData, pb.StatusCode, error) {
 	file, err := srv.store.GetByHeight(ctx, height)
 	if err != nil {
 		if errors.Is(err, store.ErrNotFound) {
@@ -187,7 +187,7 @@ func (srv *Server) getNamespaceData(ctx context.Context,
 	}
 	defer utils.CloseAndLog(log, "file", file)
 
-	namespacedRows := make(share.NamespacedShares, 0, toRow-fromRow+1)
+	namespacedRows := make(share.NamespacedData, 0, toRow-fromRow+1)
 	for rowIdx := fromRow; rowIdx < toRow; rowIdx++ {
 		data, err := file.Data(ctx, namespace, rowIdx)
 		if err != nil {
@@ -221,7 +221,7 @@ func (srv *Server) respondStatus(
 }
 
 // sendNamespacedShares encodes shares into proto messages and sends it to client
-func (srv *Server) sendNamespacedShares(shares share.NamespacedShares, stream network.Stream) error {
+func (srv *Server) sendNamespacedShares(shares share.NamespacedData, stream network.Stream) error {
 	for _, row := range shares {
 		row := &pb.NamespaceRowResponse{
 			Shares: row.Shares,

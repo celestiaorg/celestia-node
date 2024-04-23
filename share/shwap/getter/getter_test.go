@@ -15,7 +15,6 @@ import (
 	"github.com/ipfs/go-datastore"
 	ds_sync "github.com/ipfs/go-datastore/sync"
 	format "github.com/ipfs/go-ipld-format"
-	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
 	"github.com/celestiaorg/celestia-app/pkg/da"
@@ -48,7 +47,7 @@ func TestGetter(t *testing.T) {
 	t.Run("GetShares", func(t *testing.T) {
 		idxs := rand.Perm(int(square.Width() ^ 2))[:10]
 		shrs, err := get.GetShares(ctx, hdr, idxs...)
-		assert.NoError(t, err)
+		require.NoError(t, err)
 
 		for i, shrs := range shrs {
 			idx := idxs[i]
@@ -66,7 +65,7 @@ func TestGetter(t *testing.T) {
 		idxs := []int{0, 1, 2, 3}
 		square := share.EmptyExtendedDataSquare()
 		shrs, err := get.GetShares(ctx, eh, idxs...)
-		assert.NoError(t, err)
+		require.NoError(t, err)
 
 		for i, shrs := range shrs {
 			idx := idxs[i]
@@ -82,11 +81,11 @@ func TestGetter(t *testing.T) {
 		t.Cleanup(cancel)
 
 		eds, err := get.GetEDS(ctx, hdr)
-		assert.NoError(t, err)
-		assert.NotNil(t, eds)
+		require.NoError(t, err)
+		require.NotNil(t, eds)
 
 		ok := eds.Equals(square)
-		assert.True(t, ok)
+		require.True(t, ok)
 	})
 
 	t.Run("GetEDS empty", func(t *testing.T) {
@@ -97,8 +96,8 @@ func TestGetter(t *testing.T) {
 		eh := headertest.RandExtendedHeaderWithRoot(t, &emptyRoot)
 
 		eds, err := get.GetEDS(ctx, eh)
-		assert.NoError(t, err)
-		assert.NotNil(t, eds)
+		require.NoError(t, err)
+		require.NotNil(t, eds)
 
 		dah, err := share.NewRoot(eds)
 		require.NoError(t, err)
@@ -107,17 +106,17 @@ func TestGetter(t *testing.T) {
 
 	t.Run("GetSharesByNamespace", func(t *testing.T) {
 		nshrs, err := get.GetSharesByNamespace(ctx, hdr, ns)
-		assert.NoError(t, err)
-		assert.NoError(t, nshrs.Verify(root, ns))
-		assert.NotEmpty(t, nshrs.Flatten())
+		require.NoError(t, err)
+		require.NoError(t, nshrs.Verify(root, ns))
+		require.NotEmpty(t, nshrs.Flatten())
 
 		t.Run("NamespaceOutsideOfRoot", func(t *testing.T) {
 			randNamespace := sharetest.RandV0Namespace()
 			emptyShares, err := get.GetSharesByNamespace(ctx, hdr, randNamespace)
-			assert.NoError(t, err)
-			assert.Empty(t, emptyShares)
-			assert.NoError(t, emptyShares.Verify(root, randNamespace))
-			assert.Empty(t, emptyShares.Flatten())
+			require.NoError(t, err)
+			require.Empty(t, emptyShares)
+			require.NoError(t, emptyShares.Verify(root, randNamespace))
+			require.Empty(t, emptyShares.Flatten())
 		})
 
 		t.Run("NamespaceInsideOfRoot", func(t *testing.T) {
@@ -138,10 +137,10 @@ func TestGetter(t *testing.T) {
 			require.Len(t, ipld.FilterRootByNamespace(root, ns), 1)
 
 			emptyShares, err := get.GetSharesByNamespace(ctx, hdr, ns)
-			assert.NoError(t, err)
-			assert.NotNil(t, emptyShares[0].Proof)
-			assert.NoError(t, emptyShares.Verify(root, ns))
-			assert.Empty(t, emptyShares.Flatten())
+			require.NoError(t, err)
+			require.NotNil(t, emptyShares[0].Proof)
+			require.NoError(t, emptyShares.Verify(root, ns))
+			require.Empty(t, emptyShares.Flatten())
 		})
 	})
 }
