@@ -54,7 +54,10 @@ func NewServer(params *Parameters, host host.Host, store *eds.Store) (*Server, e
 	ctx, cancel := context.WithCancel(context.Background())
 	srv.cancel = cancel
 
-	srv.handler = srv.middleware.RateLimitHandler(srv.streamHandler(ctx))
+	handler := srv.streamHandler(ctx)
+	withRateLimit := srv.middleware.RateLimitHandler(handler)
+	withRecovery := p2p.RecoveryMiddleware(withRateLimit)
+	srv.handler = withRecovery
 	return srv, nil
 }
 
