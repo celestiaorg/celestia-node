@@ -50,6 +50,7 @@ func (s *ShareWithProof) Validate(dah *share.Root, axisType rsmt2d.Axis, axisIdx
 		share.NewSHA256Hasher(),
 		namespace.ToNMT(),
 		[][]byte{s.Share},
+		rootHash,
 	)
 }
 
