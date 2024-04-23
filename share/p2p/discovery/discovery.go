@@ -114,7 +114,12 @@ func (d *Discovery) Start(context.Context) error {
 
 func (d *Discovery) Stop(context.Context) error {
 	d.cancel()
-	return d.metrics.close()
+
+	if err := d.metrics.close(); err != nil {
+		log.Warnw("failed to close metrics", "err", err)
+	}
+
+	return nil
 }
 
 // Peers provides a list of discovered peers in the given topic.
