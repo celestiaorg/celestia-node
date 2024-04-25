@@ -91,7 +91,7 @@ func (r *Retriever) Retrieve(ctx context.Context, dah *da.DataAvailabilityHeader
 				// computed during the session
 				ses.close(false)
 				span.RecordError(err)
-				return nil, byzantine.NewErrByzantine(ctx, r.bServ, dah, errByz)
+				return nil, byzantine.NewErrByzantine(ctx, r.bServ.Blockstore(), dah, errByz)
 			}
 
 			log.Warnw("not enough shares to reconstruct data square, requesting more...", "err", err)

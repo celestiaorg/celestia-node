@@ -61,7 +61,7 @@ const (
 func init() {
 	// required for Bitswap to hash and verify inbound data correctly
 	mhcore.Register(sha256NamespaceFlagged, func() hash.Hash {
-		nh := nmt.NewNmtHasher(sha256.New(), share.NamespaceSize, true)
+		nh := nmt.NewNmtHasher(share.NewSHA256Hasher(), share.NamespaceSize, true)
 		nh.Reset()
 		return nh
 	})

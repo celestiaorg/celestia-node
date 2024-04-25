@@ -2,7 +2,6 @@ package share
 
 import (
 	"context"
-	"crypto/sha256"
 	"errors"
 	"fmt"
 
@@ -90,7 +89,7 @@ func (row *NamespacedRow) verify(rowRoot []byte, namespace Namespace) bool {
 
 	// verify namespace
 	return row.Proof.VerifyNamespace(
-		sha256.New(),
+		NewSHA256Hasher(),
 		namespace.ToNMT(),
 		leaves,
 		rowRoot,
