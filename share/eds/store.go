@@ -159,6 +159,11 @@ func (s *Store) Start(ctx context.Context) error {
 // Stop stops the underlying DAGStore.
 func (s *Store) Stop(context.Context) error {
 	defer s.cancel()
+
+	if err := s.metrics.close(); err != nil {
+		log.Warnw("failed to close metrics", "err", err)
+	}
+
 	if err := s.invertedIdx.close(); err != nil {
 		return err
 	}

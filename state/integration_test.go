@@ -18,7 +18,6 @@ import (
 	"github.com/celestiaorg/celestia-app/app"
 	"github.com/celestiaorg/celestia-app/test/util/testfactory"
 	"github.com/celestiaorg/celestia-app/test/util/testnode"
-	blobtypes "github.com/celestiaorg/celestia-app/x/blob/types"
 	libhead "github.com/celestiaorg/go-header"
 
 	"github.com/celestiaorg/celestia-node/core"
@@ -49,13 +48,13 @@ func (s *IntegrationTestSuite) SetupSuite() {
 	s.cctx = core.StartTestNodeWithConfig(s.T(), cfg)
 	s.accounts = cfg.Accounts
 
-	signer := blobtypes.NewKeyringSigner(s.cctx.Keyring, s.accounts[0], s.cctx.ChainID)
-	accessor := NewCoreAccessor(signer, localHeader{s.cctx.Client}, "", "", "")
+	accessor, err := NewCoreAccessor(s.cctx.Keyring, s.accounts[0], localHeader{s.cctx.Client}, "", "", "")
+	require.NoError(s.T(), err)
 	setClients(accessor, s.cctx.GRPCClient, s.cctx.Client)
 	s.accessor = accessor
 
 	// required to ensure the Head request is non-nil
-	_, err := s.cctx.WaitForHeight(3)
+	_, err = s.cctx.WaitForHeight(3)
 	require.NoError(s.T(), err)
 }
 

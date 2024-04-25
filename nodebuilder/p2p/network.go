@@ -2,6 +2,7 @@ package p2p
 
 import (
 	"errors"
+	"strings"
 	"time"
 
 	"github.com/libp2p/go-libp2p/core/peer"
@@ -68,16 +69,31 @@ var networkAliases = map[string]Network{
 	"private": Private,
 }
 
-// listProvidedNetworks provides a string listing all known long-standing networks for things like
-// command hints.
-func listProvidedNetworks() string {
-	var networks string
-	for net := range networksList {
-		// "private" network isn't really a choosable option, so skip
+// orderedNetworks is a list of all known networks in order of priority.
+var orderedNetworks = []Network{Mainnet, Mocha, Arabica, Private}
+
+// GetOrderedNetworks provides a list of all known networks in order of priority.
+func GetNetworks() []Network {
+	return append([]Network(nil), orderedNetworks...)
+}
+
+// listAvailableNetworks provides a string listing all known long-standing networks for things
+// like CLI hints.
+func listAvailableNetworks() string {
+	var networks []string
+	for _, net := range orderedNetworks {
+		// "private" networks are configured via env vars, so skip
 		if net != Private {
-			networks += string(net) + ", "
+			networks = append(networks, net.String())
 		}
 	}
-	// chop off trailing ", "
-	return networks[:len(networks)-2]
+
+	return strings.Join(networks, ", ")
+}
+
+// addCustomNetwork adds a custom network to the list of known networks.
+func addCustomNetwork(network Network) {
+	networksList[network] = struct{}{}
+	networkAliases[network.String()] = network
+	orderedNetworks = append(orderedNetworks, network)
 }

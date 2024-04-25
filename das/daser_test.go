@@ -164,6 +164,9 @@ func TestDASer_stopsAfter_BEFP(t *testing.T) {
 	getter := func(ctx context.Context, height uint64) (*header.ExtendedHeader, error) {
 		return mockGet.GetByHeight(ctx, height)
 	}
+	headGetter := func(ctx context.Context) (*header.ExtendedHeader, error) {
+		return mockGet.Head(ctx)
+	}
 	unmarshaler := fraud.MultiUnmarshaler[*header.ExtendedHeader]{
 		Unmarshalers: map[fraud.ProofType]func([]byte) (fraud.Proof[*header.ExtendedHeader], error){
 			byzantine.BadEncoding: func(data []byte) (fraud.Proof[*header.ExtendedHeader], error) {
@@ -176,6 +179,7 @@ func TestDASer_stopsAfter_BEFP(t *testing.T) {
 	fserv := fraudserv.NewProofService[*header.ExtendedHeader](ps,
 		net.Hosts()[0],
 		getter,
+		headGetter,
 		unmarshaler,
 		ds,
 		false,
