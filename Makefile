@@ -73,7 +73,7 @@ else
 endif
 .PHONY: install
 
-## install-global: Install the celestia-node binary (on systems that support GNU coreutils, i.e. Linux).
+## install-global: Install the celestia-node binary (only for systems that support GNU coreutils, i.e. Linux).
 install-global:
 	@echo "--> Installing Celestia"
 	@install -v ./build/* -t ${PREFIX}/bin
