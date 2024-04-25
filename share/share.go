@@ -2,8 +2,10 @@ package share
 
 import (
 	"bytes"
+	"crypto/sha256"
 	"encoding/hex"
 	"fmt"
+	"hash"
 
 	"github.com/celestiaorg/celestia-app/pkg/appconsts"
 )
@@ -70,4 +72,9 @@ func MustDataHashFromString(datahash string) DataHash {
 		panic(fmt.Sprintf("datahash validation: passed hex string failed: %s", err))
 	}
 	return dh
+}
+
+// NewSHA256Hasher returns a new instance of a SHA-256 hasher.
+func NewSHA256Hasher() hash.Hash {
+	return sha256.New()
 }

@@ -2,7 +2,6 @@ package byzantine
 
 import (
 	"context"
-	"crypto/sha256"
 	"hash"
 	"testing"
 	"time"
@@ -254,7 +253,7 @@ func newNamespacedBlockService() *namespacedBlockService {
 	sha256NamespaceFlagged := uint64(0x7701)
 	// register the nmt hasher to validate the order of namespaces
 	mhcore.Register(sha256NamespaceFlagged, func() hash.Hash {
-		nh := nmt.NewNmtHasher(sha256.New(), share.NamespaceSize, true)
+		nh := nmt.NewNmtHasher(share.NewSHA256Hasher(), share.NamespaceSize, true)
 		nh.Reset()
 		return nh
 	})
@@ -267,7 +266,7 @@ func newNamespacedBlockService() *namespacedBlockService {
 		Codec:   sha256NamespaceFlagged,
 		MhType:  sha256NamespaceFlagged,
 		// equals to NmtHasher.Size()
-		MhLength: sha256.New().Size() + 2*share.NamespaceSize,
+		MhLength: share.NewSHA256Hasher().Size() + 2*share.NamespaceSize,
 	}
 	return bs
 }
