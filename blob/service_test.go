@@ -3,7 +3,6 @@ package blob
 import (
 	"bytes"
 	"context"
-	"crypto/sha256"
 	"encoding/json"
 	"fmt"
 	"sort"
@@ -203,7 +202,7 @@ func TestBlobService_Get(t *testing.T) {
 						for _, p := range *proof {
 							from := to
 							to = p.End() - p.Start() + from
-							eq := p.VerifyInclusion(sha256.New(), namespace.ToNMT(), rawShares[from:to], row)
+							eq := p.VerifyInclusion(share.NewSHA256Hasher(), namespace.ToNMT(), rawShares[from:to], row)
 							if eq == true {
 								return
 							}
