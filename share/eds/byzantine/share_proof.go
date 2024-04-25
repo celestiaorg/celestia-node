@@ -2,7 +2,6 @@ package byzantine
 
 import (
 	"context"
-	"crypto/sha256"
 	"errors"
 	"math"
 
@@ -48,7 +47,7 @@ func (s *ShareWithProof) Validate(dah *share.Root, axisType rsmt2d.Axis, axisIdx
 		namespace = share.GetNamespace(s.Share)
 	}
 	return s.Proof.VerifyInclusion(
-		sha256.New(), // TODO(@Wondertan): This should be defined somewhere globally
+		share.NewSHA256Hasher(),
 		namespace.ToNMT(),
 		[][]byte{s.Share},
 		rootHash,
