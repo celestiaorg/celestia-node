@@ -2,7 +2,6 @@ package byzantine
 
 import (
 	"context"
-	"crypto/sha256"
 	"hash"
 	"testing"
 	"time"
@@ -41,7 +40,7 @@ func TestBEFP_Validate(t *testing.T) {
 	err = square.Repair(dah.RowRoots, dah.ColumnRoots)
 	require.ErrorAs(t, err, &errRsmt2d)
 
-	byzantine := NewErrByzantine(ctx, bServ, &dah, errRsmt2d)
+	byzantine := NewErrByzantine(ctx, bServ.Blockstore(), &dah, errRsmt2d)
 	var errByz *ErrByzantine
 	require.ErrorAs(t, byzantine, &errByz)
 
@@ -71,7 +70,7 @@ func TestBEFP_Validate(t *testing.T) {
 				err = ipld.ImportEDS(ctx, validSquare, bServ)
 				require.NoError(t, err)
 				validShares := validSquare.Flattened()
-				errInvalidByz := NewErrByzantine(ctx, bServ, &validDah,
+				errInvalidByz := NewErrByzantine(ctx, bServ.Blockstore(), &validDah,
 					&rsmt2d.ErrByzantineData{
 						Axis:   rsmt2d.Row,
 						Index:  0,
@@ -93,7 +92,7 @@ func TestBEFP_Validate(t *testing.T) {
 				// break the first shareWithProof to test negative case
 				sh := sharetest.RandShares(t, 2)
 				nmtProof := nmt.NewInclusionProof(0, 1, nil, false)
-				befp.Shares[0] = &ShareWithProof{sh[0], &nmtProof}
+				befp.Shares[0] = &ShareWithProof{sh[0], &nmtProof, rsmt2d.Row}
 				return proof.Validate(&header.ExtendedHeader{DAH: &dah})
 			},
 			expectedResult: func(err error) {
@@ -171,16 +170,17 @@ func TestIncorrectBadEncodingFraudProof(t *testing.T) {
 	require.NoError(t, err)
 
 	// get an arbitrary row
-	row := uint(squareSize / 2)
-	rowShares := eds.Row(row)
-	rowRoot := dah.RowRoots[row]
-
-	shareProofs, err := GetProofsForShares(ctx, bServ, ipld.MustCidFromNamespacedSha256(rowRoot), rowShares)
-	require.NoError(t, err)
+	rowIdx := squareSize / 2
+	shareProofs := make([]*ShareWithProof, 0, eds.Width())
+	for i := range shareProofs {
+		proof, err := GetShareWithProof(ctx, bServ, dah, shares[i], rsmt2d.Row, rowIdx, i)
+		require.NoError(t, err)
+		shareProofs = append(shareProofs, proof)
+	}
 
 	// create a fake error for data that was encoded correctly
 	fakeError := ErrByzantine{
-		Index:  uint32(row),
+		Index:  uint32(rowIdx),
 		Shares: shareProofs,
 		Axis:   rsmt2d.Row,
 	}
@@ -203,7 +203,7 @@ func TestIncorrectBadEncodingFraudProof(t *testing.T) {
 }
 
 func TestBEFP_ValidateOutOfOrderShares(t *testing.T) {
-	ctx, cancel := context.WithTimeout(context.Background(), time.Second*30)
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second*5)
 	t.Cleanup(cancel)
 
 	size := 4
@@ -221,9 +221,6 @@ func TestBEFP_ValidateOutOfOrderShares(t *testing.T) {
 	)
 	require.NoError(t, err, "failure to recompute the extended data square")
 
-	err = batchAddr.Commit()
-	require.NoError(t, err)
-
 	dah, err := da.NewDataAvailabilityHeader(eds)
 	require.NoError(t, err)
 
@@ -231,7 +228,10 @@ func TestBEFP_ValidateOutOfOrderShares(t *testing.T) {
 	err = eds.Repair(dah.RowRoots, dah.ColumnRoots)
 	require.ErrorAs(t, err, &errRsmt2d)
 
-	byzantine := NewErrByzantine(ctx, bServ, &dah, errRsmt2d)
+	err = batchAddr.Commit()
+	require.NoError(t, err)
+
+	byzantine := NewErrByzantine(ctx, bServ.Blockstore(), &dah, errRsmt2d)
 	var errByz *ErrByzantine
 	require.ErrorAs(t, byzantine, &errByz)
 
@@ -253,7 +253,7 @@ func newNamespacedBlockService() *namespacedBlockService {
 	sha256NamespaceFlagged := uint64(0x7701)
 	// register the nmt hasher to validate the order of namespaces
 	mhcore.Register(sha256NamespaceFlagged, func() hash.Hash {
-		nh := nmt.NewNmtHasher(sha256.New(), share.NamespaceSize, true)
+		nh := nmt.NewNmtHasher(share.NewSHA256Hasher(), share.NamespaceSize, true)
 		nh.Reset()
 		return nh
 	})
@@ -266,7 +266,7 @@ func newNamespacedBlockService() *namespacedBlockService {
 		Codec:   sha256NamespaceFlagged,
 		MhType:  sha256NamespaceFlagged,
 		// equals to NmtHasher.Size()
-		MhLength: sha256.New().Size() + 2*share.NamespaceSize,
+		MhLength: share.NewSHA256Hasher().Size() + 2*share.NamespaceSize,
 	}
 	return bs
 }
