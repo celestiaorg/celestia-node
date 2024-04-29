@@ -610,7 +610,7 @@ func (ca *CoreAccessor) GrantFee(
 
 	msg, err := feegrant.NewMsgGrantAllowance(allowance, granter, grantee)
 	if err != nil {
-		return nil, nil
+		return nil, err
 	}
 
 	resp, err := signer.SubmitTx(ctx, []sdktypes.Msg{msg}, user.SetGasLimit(gasLim), withFee(fee))

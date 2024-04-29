@@ -432,9 +432,9 @@ func (m getterStub) GetRangeByHeight(
 	*header.ExtendedHeader,
 	uint64,
 ) ([]*header.ExtendedHeader, error) {
-	return nil, nil
+	panic("implement me")
 }
 
 func (m getterStub) Get(context.Context, libhead.Hash) (*header.ExtendedHeader, error) {
-	return nil, nil
+	panic("implement me")
 }
