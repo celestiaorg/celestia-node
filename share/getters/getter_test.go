@@ -117,7 +117,7 @@ func TestStoreGetter(t *testing.T) {
 		assert.Len(t, shares.Flatten(), 2)
 
 		// 'corrupt' existing CAR by overwriting with a random EDS
-		f, err := os.OpenFile(tmpDir+"/blocks/"+eh.DAH.String(), os.O_WRONLY, 0644)
+		f, err := os.OpenFile(tmpDir+"/blocks/"+eh.DAH.String(), os.O_WRONLY, 0o644)
 		require.NoError(t, err)
 		edsToOverwriteWith, eh := randomEDS(t)
 		err = eds.WriteEDS(ctx, edsToOverwriteWith, f)

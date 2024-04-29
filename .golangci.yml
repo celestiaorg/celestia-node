@@ -16,6 +16,7 @@ linters:
     # - gocyclo
     # - godox
     - gofmt
+    - gofumpt
     - goimports
     # - golint - deprecated since v1.41. revive will be used instead
     - revive
@@ -67,3 +68,5 @@ linters-settings:
     local-prefixes: github.com/celestiaorg/celestia-node
   dupl:
     threshold: 200
+  gofumpt:
+    extra-rules: true

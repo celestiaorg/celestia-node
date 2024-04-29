@@ -23,7 +23,7 @@ func Listen(listen []string) func(h hst.Host) (err error) {
 }
 
 // addrsFactory returns a constructor for AddrsFactory.
-func addrsFactory(announce []string, noAnnounce []string) func() (_ p2pconfig.AddrsFactory, err error) {
+func addrsFactory(announce, noAnnounce []string) func() (_ p2pconfig.AddrsFactory, err error) {
 	return func() (_ p2pconfig.AddrsFactory, err error) {
 		// Convert maAnnounce strings to Multiaddresses
 		maAnnounce := make([]ma.Multiaddr, len(announce))
