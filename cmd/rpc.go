@@ -53,7 +53,7 @@ func InitClient(cmd *cobra.Command, _ []string) error {
 		storePath := cmd.Flag(nodeStoreFlag).Value.String()
 		token, err := getToken(storePath)
 		if err != nil {
-			return fmt.Errorf("cant get the access to the auth token: %v", err)
+			return fmt.Errorf("cant get the access to the auth token: %w", err)
 		}
 		authTokenFlag = token
 	}

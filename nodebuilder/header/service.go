@@ -2,6 +2,7 @@ package header
 
 import (
 	"context"
+	"errors"
 	"fmt"
 
 	libhead "github.com/celestiaorg/go-header"
@@ -125,7 +126,7 @@ func (s *Service) Subscribe(ctx context.Context) (<-chan *header.ExtendedHeader,
 		for {
 			h, err := subscription.NextHeader(ctx)
 			if err != nil {
-				if err != context.DeadlineExceeded && err != context.Canceled {
+				if !errors.Is(err, context.DeadlineExceeded) && !errors.Is(err, context.Canceled) {
 					log.Errorw("fetching header from subscription", "err", err)
 				}
 				return
