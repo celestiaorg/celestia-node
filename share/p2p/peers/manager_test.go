@@ -454,7 +454,6 @@ func TestIntegration(t *testing.T) {
 		case <-ctx.Done():
 			require.NoError(t, ctx.Err())
 		}
-
 	})
 }
 
@@ -478,7 +477,6 @@ func testManager(ctx context.Context, headerSub libhead.Subscriber[*header.Exten
 		connGater,
 		WithShrexSubPools(shrexSub, headerSub),
 	)
-
 	if err != nil {
 		return nil, err
 	}

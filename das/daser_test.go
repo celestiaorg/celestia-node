@@ -263,7 +263,7 @@ func TestDASer_SamplingWindow(t *testing.T) {
 		WithSamplingWindow(time.Second))
 	require.NoError(t, err)
 
-	var tests = []struct {
+	tests := []struct {
 		timestamp    time.Time
 		withinWindow bool
 	}{
@@ -282,7 +282,6 @@ func TestDASer_SamplingWindow(t *testing.T) {
 			assert.Equal(t, tt.withinWindow, daser.isWithinSamplingWindow(eh))
 		})
 	}
-
 }
 
 // createDASerSubcomponents takes numGetter (number of headers
@@ -403,7 +402,8 @@ type benchGetterStub struct {
 
 func newBenchGetter() benchGetterStub {
 	return benchGetterStub{header: &header.ExtendedHeader{
-		DAH: &share.Root{RowRoots: make([][]byte, 0)}}}
+		DAH: &share.Root{RowRoots: make([][]byte, 0)},
+	}}
 }
 
 func (m benchGetterStub) GetByHeight(context.Context, uint64) (*header.ExtendedHeader, error) {
@@ -423,7 +423,8 @@ func (m getterStub) GetByHeight(_ context.Context, height uint64) (*header.Exten
 	return &header.ExtendedHeader{
 		Commit:    &types.Commit{},
 		RawHeader: header.RawHeader{Height: int64(height)},
-		DAH:       &share.Root{RowRoots: make([][]byte, 0)}}, nil
+		DAH:       &share.Root{RowRoots: make([][]byte, 0)},
+	}, nil
 }
 
 func (m getterStub) GetRangeByHeight(
