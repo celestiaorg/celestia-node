@@ -83,8 +83,8 @@ func (s *TestSuite) genesis() *header.ExtendedHeader {
 }
 
 func MakeCommit(blockID types.BlockID, height int64, round int32,
-	voteSet *types.VoteSet, validators []types.PrivValidator, now time.Time) (*types.Commit, error) {
-
+	voteSet *types.VoteSet, validators []types.PrivValidator, now time.Time,
+) (*types.Commit, error) {
 	// all sign
 	for i := 0; i < len(validators); i++ {
 		pubKey, err := validators[i].GetPubKey()
@@ -157,7 +157,8 @@ func (s *TestSuite) NextHeader() *header.ExtendedHeader {
 }
 
 func (s *TestSuite) GenRawHeader(
-	height uint64, lastHeader, lastCommit, dataHash libhead.Hash) *header.RawHeader {
+	height uint64, lastHeader, lastCommit, dataHash libhead.Hash,
+) *header.RawHeader {
 	rh := RandRawHeader(s.t)
 	rh.Height = int64(height)
 	rh.LastBlockID = types.BlockID{Hash: bytes.HexBytes(lastHeader)}

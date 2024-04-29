@@ -324,7 +324,8 @@ func (ca *CoreAccessor) BalanceForAddress(ctx context.Context, addr Address) (*B
 	err = ca.prt.VerifyValueFromKeys(
 		result.Response.GetProofOps(),
 		head.AppHash,
-		[][]byte{[]byte(banktypes.StoreKey),
+		[][]byte{
+			[]byte(banktypes.StoreKey),
 			prefixedAccountKey,
 		}, value)
 	if err != nil {
@@ -506,6 +507,7 @@ func (ca *CoreAccessor) QueryUnbonding(
 		ValidatorAddr: valAddr.String(),
 	})
 }
+
 func (ca *CoreAccessor) QueryRedelegations(
 	ctx context.Context,
 	srcValAddr,

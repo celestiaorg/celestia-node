@@ -28,11 +28,13 @@ func ConstructModule(tp node.Type, cfg *Config, coreCfg *core.Config) fx.Option 
 		fxutil.ProvideIf(coreCfg.IsEndpointConfigured(), fx.Annotate(
 			coreAccessor,
 			fx.OnStart(func(ctx context.Context,
-				breaker *modfraud.ServiceBreaker[*state.CoreAccessor, *header.ExtendedHeader]) error {
+				breaker *modfraud.ServiceBreaker[*state.CoreAccessor, *header.ExtendedHeader],
+			) error {
 				return breaker.Start(ctx)
 			}),
 			fx.OnStop(func(ctx context.Context,
-				breaker *modfraud.ServiceBreaker[*state.CoreAccessor, *header.ExtendedHeader]) error {
+				breaker *modfraud.ServiceBreaker[*state.CoreAccessor, *header.ExtendedHeader],
+			) error {
 				return breaker.Stop(ctx)
 			}),
 		)),

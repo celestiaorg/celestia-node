@@ -247,7 +247,7 @@ func (cl *Listener) handleNewSignedBlock(ctx context.Context, b types.EventDataS
 		if err != nil && !errors.Is(err, context.Canceled) {
 			log.Errorw("listener: broadcasting data hash",
 				"height", b.Header.Height,
-				"hash", b.Header.Hash(), "err", err) //TODO: hash or datahash?
+				"hash", b.Header.Hash(), "err", err) // TODO: hash or datahash?
 		}
 	}
 

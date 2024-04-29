@@ -28,7 +28,7 @@ func TestGetProof(t *testing.T) {
 
 	dah, err := da.NewDataAvailabilityHeader(in)
 	require.NoError(t, err)
-	var tests = []struct {
+	tests := []struct {
 		roots [][]byte
 	}{
 		{dah.RowRoots},

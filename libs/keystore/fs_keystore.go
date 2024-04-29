@@ -24,7 +24,7 @@ type fsKeystore struct {
 // NewFSKeystore creates a new Keystore over OS filesystem.
 // The path must point to a directory. It is created automatically if necessary.
 func NewFSKeystore(path string, ring keyring.Keyring) (Keystore, error) {
-	err := os.Mkdir(path, 0755)
+	err := os.Mkdir(path, 0o755)
 	if err != nil && !os.IsExist(err) {
 		return nil, fmt.Errorf("keystore: failed to make a dir: %w", err)
 	}
@@ -49,7 +49,7 @@ func (f *fsKeystore) Put(n KeyName, pk PrivKey) error {
 		return fmt.Errorf("keystore: failed to marshal key '%s': %w", n, err)
 	}
 
-	err = os.WriteFile(path, data, 0600)
+	err = os.WriteFile(path, data, 0o600)
 	if err != nil {
 		return fmt.Errorf("keystore: failed to write key '%s': %w", n, err)
 	}
@@ -138,7 +138,7 @@ func (f *fsKeystore) pathTo(file string) string {
 }
 
 func checkPerms(perms os.FileMode) error {
-	if perms&0077 != 0 {
+	if perms&0o077 != 0 {
 		return fmt.Errorf("required: 0600, got: %#o", perms)
 	}
 	return nil

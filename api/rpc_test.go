@@ -139,7 +139,7 @@ func TestAuthedRPC(t *testing.T) {
 	adminToken, err := perms.NewTokenWithPerms(signer, perms.AllPerms)
 	require.NoError(t, err)
 
-	var tests = []struct {
+	tests := []struct {
 		perm  int
 		token string
 	}{
@@ -280,7 +280,6 @@ func implementsMarshaler(t *testing.T, typ reflect.Type) {
 	default:
 		return
 	}
-
 }
 
 // setupNodeWithAuthedRPC sets up a node and overrides its JWT

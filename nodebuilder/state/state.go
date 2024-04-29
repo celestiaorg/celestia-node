@@ -18,7 +18,6 @@ var _ Module = (*API)(nil)
 //go:generate mockgen -destination=mocks/api.go -package=mocks . Module
 //nolint:dupl
 type Module interface {
-
 	// AccountAddress retrieves the address of the node's account/signer
 	AccountAddress(ctx context.Context) (state.Address, error)
 	// Balance retrieves the Celestia coin balance for the node's account/signer

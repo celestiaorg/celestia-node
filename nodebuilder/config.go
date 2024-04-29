@@ -152,7 +152,7 @@ func UpdateConfig(tp node.Type, path string) (err error) {
 
 // updateConfig merges new values from the new config into the old
 // config, returning the updated old config.
-func updateConfig(oldCfg *Config, newCfg *Config) (*Config, error) {
+func updateConfig(oldCfg, newCfg *Config) (*Config, error) {
 	err := mergo.Merge(oldCfg, newCfg, mergo.WithOverrideEmptySlice)
 	return oldCfg, err
 }

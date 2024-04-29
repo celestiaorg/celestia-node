@@ -89,7 +89,6 @@ func TestSubmitPayForBlob(t *testing.T) {
 			}
 		})
 	}
-
 }
 
 func extractPort(addr string) string {

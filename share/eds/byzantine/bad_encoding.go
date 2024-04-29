@@ -110,9 +110,7 @@ var (
 	errNMTTreeRootsMatch       = errors.New("recomputed root matches the DAH root")
 )
 
-var (
-	invalidProofPrefix = fmt.Sprintf("invalid %s proof", BadEncoding)
-)
+var invalidProofPrefix = fmt.Sprintf("invalid %s proof", BadEncoding)
 
 // Validate ensures that fraud proof is correct.
 // Validate checks that provided Merkle Proofs correspond to the shares,
