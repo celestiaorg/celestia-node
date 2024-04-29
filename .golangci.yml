@@ -3,6 +3,7 @@ run:
 
 linters:
   enable:
+    - bidichk
     - bodyclose
      # - depguard as of v1.54.2, the default config throws errors on our repo
     - dogsled
@@ -12,6 +13,8 @@ linters:
     # - funlen
     # - gochecknoglobals
     # - gochecknoinits
+    - exportloopref
+    - gocheckcompilerdirectives
     - goconst
     - gocritic
     # - gocyclo
@@ -27,6 +30,7 @@ linters:
     - ineffassign
     # - interfacer
     - lll
+    - loggercheck
     - misspell
     # - maligned
     - nakedret
@@ -34,6 +38,7 @@ linters:
     - nilnil
     - nolintlint
     - prealloc
+    - protogetter
     # - scopelint - deprecated since v1.39. exportloopref will be used instead
     - exportloopref
     - staticcheck
@@ -45,6 +50,8 @@ linters:
     # - whitespace
     # - wsl
     # - gocognit
+    - wastedassign
+    - whitespace
     - nolintlint
     - asciicheck
 

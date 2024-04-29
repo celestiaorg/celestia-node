@@ -1,7 +1,5 @@
 // Package docgen generates an OpenRPC spec for the Celestia Node. It has been inspired by and
 // adapted from Filecoin's Lotus API implementation.
-
-//nolint:revive
 package docgen
 
 import (
@@ -163,7 +161,7 @@ func NewOpenRPCDocument(comments, permissions Comments) *go_openrpc_reflect.Docu
 	}
 
 	// remove the default implementation from the method descriptions
-	appReflector.FnGetMethodDescription = func(r reflect.Value, m reflect.Method, funcDecl *ast.FuncDecl) (string, error) {
+	appReflector.FnGetMethodDescription = func(_ reflect.Value, m reflect.Method, _ *ast.FuncDecl) (string, error) {
 		if v, ok := permissions[m.Name]; ok {
 			return "Auth level: " + v, nil
 		}
@@ -172,14 +170,14 @@ func NewOpenRPCDocument(comments, permissions Comments) *go_openrpc_reflect.Docu
 
 	appReflector.FnGetMethodName = func(
 		moduleName string,
-		r reflect.Value,
+		_ reflect.Value,
 		m reflect.Method,
-		funcDecl *ast.FuncDecl,
+		_ *ast.FuncDecl,
 	) (string, error) {
 		return moduleName + "." + m.Name, nil
 	}
 
-	appReflector.FnGetMethodSummary = func(r reflect.Value, m reflect.Method, funcDecl *ast.FuncDecl) (string, error) {
+	appReflector.FnGetMethodSummary = func(_ reflect.Value, m reflect.Method, _ *ast.FuncDecl) (string, error) {
 		if v, ok := comments[extractPackageNameFromAPIMethod(m)+m.Name]; ok {
 			return v, nil
 		}
