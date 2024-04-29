@@ -3,7 +3,6 @@ package ipld
 import (
 	"bytes"
 	"context"
-	"crypto/sha256"
 	"errors"
 	mrand "math/rand"
 	"sort"
@@ -152,7 +151,7 @@ func TestGetSharesByNamespace(t *testing.T) {
 	t.Cleanup(cancel)
 	bServ := NewMemBlockservice()
 
-	var tests = []struct {
+	tests := []struct {
 		rawData []share.Share
 	}{
 		{rawData: sharetest.RandShares(t, 4)},
@@ -262,7 +261,7 @@ func TestCollectLeavesByNamespace_AbsentNamespaceId(t *testing.T) {
 		copy(share.GetNamespace(shr), maxIncluded)
 	}
 
-	var tests = []struct {
+	tests := []struct {
 		name             string
 		data             []share.Share
 		missingNamespace share.Namespace
@@ -329,7 +328,7 @@ func TestGetSharesWithProofsByNamespace(t *testing.T) {
 	t.Cleanup(cancel)
 	bServ := NewMemBlockservice()
 
-	var tests = []struct {
+	tests := []struct {
 		rawData []share.Share
 	}{
 		{rawData: sharetest.RandShares(t, 4)},
@@ -384,7 +383,7 @@ func TestGetSharesWithProofsByNamespace(t *testing.T) {
 
 					// verify namespace
 					verified := proof.VerifyNamespace(
-						sha256.New(),
+						share.NewSHA256Hasher(),
 						namespace.ToNMT(),
 						leaves,
 						NamespacedSha256FromCID(rcid))
@@ -392,7 +391,7 @@ func TestGetSharesWithProofsByNamespace(t *testing.T) {
 
 					// verify inclusion
 					verified = proof.VerifyInclusion(
-						sha256.New(),
+						share.NewSHA256Hasher(),
 						namespace.ToNMT(),
 						rowShares,
 						NamespacedSha256FromCID(rcid))
@@ -483,7 +482,7 @@ func assertNoRowContainsNID(
 
 		// if no error returned, check absence proof
 		foundAbsenceRows++
-		verified := data.Proof().VerifyNamespace(sha256.New(), namespace.ToNMT(), nil, rowRoot)
+		verified := data.Proof().VerifyNamespace(share.NewSHA256Hasher(), namespace.ToNMT(), nil, rowRoot)
 		require.True(t, verified)
 	}
 

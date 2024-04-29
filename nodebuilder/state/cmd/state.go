@@ -12,9 +12,7 @@ import (
 	"github.com/celestiaorg/celestia-node/state"
 )
 
-var (
-	amount uint64
-)
+var amount uint64
 
 func init() {
 	Cmd.AddCommand(

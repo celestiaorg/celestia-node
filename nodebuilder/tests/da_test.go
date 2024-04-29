@@ -70,7 +70,7 @@ func TestDaModule(t *testing.T) {
 	ids, err := fullClient.DA.Submit(ctx, daBlobs, -1, namespace)
 	require.NoError(t, err)
 
-	var test = []struct {
+	test := []struct {
 		name string
 		doFn func(t *testing.T)
 	}{

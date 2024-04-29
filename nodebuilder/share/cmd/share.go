@@ -42,7 +42,6 @@ var sharesAvailableCmd = &cobra.Command{
 		defer client.Close()
 
 		eh, err := getExtendedHeaderFromCmdArg(cmd.Context(), client, args[0])
-
 		if err != nil {
 			return err
 		}
@@ -80,7 +79,6 @@ var getSharesByNamespaceCmd = &cobra.Command{
 		defer client.Close()
 
 		eh, err := getExtendedHeaderFromCmdArg(cmd.Context(), client, args[0])
-
 		if err != nil {
 			return err
 		}
@@ -107,7 +105,6 @@ var getShare = &cobra.Command{
 		defer client.Close()
 
 		eh, err := getExtendedHeaderFromCmdArg(cmd.Context(), client, args[0])
-
 		if err != nil {
 			return err
 		}
@@ -156,7 +153,6 @@ var getEDS = &cobra.Command{
 		defer client.Close()
 
 		eh, err := getExtendedHeaderFromCmdArg(cmd.Context(), client, args[0])
-
 		if err != nil {
 			return err
 		}

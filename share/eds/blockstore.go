@@ -47,7 +47,7 @@ func (bs *blockstore) Has(ctx context.Context, cid cid.Cid) (bool, error) {
 		// key wasn't found in top level blockstore, but could be in datastore while being reconstructed
 		dsHas, dsErr := bs.ds.Has(ctx, dshelp.MultihashToDsKey(cid.Hash()))
 		if dsErr != nil {
-			return false, nil
+			return false, nil //nolint:nilerr // return false if error
 		}
 		return dsHas, nil
 	}

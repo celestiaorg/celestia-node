@@ -308,9 +308,9 @@ func (ca *CoreAccessor) SubmitPayForBlob(
 		}
 
 		if err != nil && errors.Is(err, sdkerrors.ErrNotFound) && !ca.granter.Empty() {
-			return response, errors.New("granter has revoked the grant")
+			return unsetTx(response), errors.New("granter has revoked the grant")
 		}
-		return response, err
+		return unsetTx(response), err
 	}
 	return nil, fmt.Errorf("failed to submit blobs after %d attempts: %w", maxRetries, lastErr)
 }
@@ -370,7 +370,8 @@ func (ca *CoreAccessor) BalanceForAddress(ctx context.Context, addr Address) (*B
 	err = ca.prt.VerifyValueFromKeys(
 		result.Response.GetProofOps(),
 		head.AppHash,
-		[][]byte{[]byte(banktypes.StoreKey),
+		[][]byte{
+			[]byte(banktypes.StoreKey),
 			prefixedAccountKey,
 		}, value)
 	if err != nil {
@@ -388,7 +389,7 @@ func (ca *CoreAccessor) SubmitTx(ctx context.Context, tx Tx) (*TxResponse, error
 	if err != nil {
 		return nil, err
 	}
-	return txResp.TxResponse, nil
+	return unsetTx(txResp.TxResponse), nil
 }
 
 func (ca *CoreAccessor) SubmitTxWithBroadcastMode(
@@ -400,7 +401,7 @@ func (ca *CoreAccessor) SubmitTxWithBroadcastMode(
 	if err != nil {
 		return nil, err
 	}
-	return txResp.TxResponse, nil
+	return unsetTx(txResp.TxResponse), nil
 }
 
 func (ca *CoreAccessor) Transfer(
@@ -428,8 +429,8 @@ func (ca *CoreAccessor) Transfer(
 			return nil, fmt.Errorf("estimating gas: %w", err)
 		}
 	}
-
-	return signer.SubmitTx(ctx, []sdktypes.Msg{msg}, user.SetGasLimit(gasLim), user.SetFee(fee.Uint64()))
+	resp, err := signer.SubmitTx(ctx, []sdktypes.Msg{msg}, user.SetGasLimit(gasLim), user.SetFee(fee.Uint64()))
+	return unsetTx(resp), err
 }
 
 func (ca *CoreAccessor) CancelUnbondingDelegation(
@@ -459,7 +460,8 @@ func (ca *CoreAccessor) CancelUnbondingDelegation(
 		}
 	}
 
-	return signer.SubmitTx(ctx, []sdktypes.Msg{msg}, user.SetGasLimit(gasLim), user.SetFee(fee.Uint64()))
+	resp, err := signer.SubmitTx(ctx, []sdktypes.Msg{msg}, user.SetGasLimit(gasLim), user.SetFee(fee.Uint64()))
+	return unsetTx(resp), err
 }
 
 func (ca *CoreAccessor) BeginRedelegate(
@@ -489,7 +491,8 @@ func (ca *CoreAccessor) BeginRedelegate(
 		}
 	}
 
-	return signer.SubmitTx(ctx, []sdktypes.Msg{msg}, user.SetGasLimit(gasLim), user.SetFee(fee.Uint64()))
+	resp, err := signer.SubmitTx(ctx, []sdktypes.Msg{msg}, user.SetGasLimit(gasLim), user.SetFee(fee.Uint64()))
+	return unsetTx(resp), err
 }
 
 func (ca *CoreAccessor) Undelegate(
@@ -517,7 +520,8 @@ func (ca *CoreAccessor) Undelegate(
 			return nil, fmt.Errorf("estimating gas: %w", err)
 		}
 	}
-	return signer.SubmitTx(ctx, []sdktypes.Msg{msg}, user.SetGasLimit(gasLim), user.SetFee(fee.Uint64()))
+	resp, err := signer.SubmitTx(ctx, []sdktypes.Msg{msg}, user.SetGasLimit(gasLim), user.SetFee(fee.Uint64()))
+	return unsetTx(resp), err
 }
 
 func (ca *CoreAccessor) Delegate(
@@ -545,7 +549,8 @@ func (ca *CoreAccessor) Delegate(
 			return nil, fmt.Errorf("estimating gas: %w", err)
 		}
 	}
-	return signer.SubmitTx(ctx, []sdktypes.Msg{msg}, user.SetGasLimit(gasLim), user.SetFee(fee.Uint64()))
+	resp, err := signer.SubmitTx(ctx, []sdktypes.Msg{msg}, user.SetGasLimit(gasLim), user.SetFee(fee.Uint64()))
+	return unsetTx(resp), err
 }
 
 func (ca *CoreAccessor) QueryDelegation(
@@ -569,6 +574,7 @@ func (ca *CoreAccessor) QueryUnbonding(
 		ValidatorAddr: valAddr.String(),
 	})
 }
+
 func (ca *CoreAccessor) QueryRedelegations(
 	ctx context.Context,
 	srcValAddr,
@@ -604,10 +610,11 @@ func (ca *CoreAccessor) GrantFee(
 
 	msg, err := feegrant.NewMsgGrantAllowance(allowance, granter, grantee)
 	if err != nil {
-		return nil, nil
+		return nil, err
 	}
 
-	return signer.SubmitTx(ctx, []sdktypes.Msg{msg}, user.SetGasLimit(gasLim), withFee(fee))
+	resp, err := signer.SubmitTx(ctx, []sdktypes.Msg{msg}, user.SetGasLimit(gasLim), withFee(fee))
+	return unsetTx(resp), err
 }
 
 func (ca *CoreAccessor) RevokeGrantFee(
@@ -624,7 +631,8 @@ func (ca *CoreAccessor) RevokeGrantFee(
 	granter := signer.Address()
 
 	msg := feegrant.NewMsgRevokeAllowance(granter, grantee)
-	return signer.SubmitTx(ctx, []sdktypes.Msg{&msg}, user.SetGasLimit(gasLim), withFee(fee))
+	resp, err := signer.SubmitTx(ctx, []sdktypes.Msg{&msg}, user.SetGasLimit(gasLim), withFee(fee))
+	return unsetTx(resp), err
 }
 
 func (ca *CoreAccessor) LastPayForBlob() int64 {
@@ -698,4 +706,18 @@ func (ca *CoreAccessor) setupSigner(ctx context.Context) (*user.Signer, error) {
 func withFee(fee Int) user.TxOption {
 	gasFee := sdktypes.NewCoins(sdktypes.NewCoin(app.BondDenom, fee))
 	return user.SetFeeAmount(gasFee)
+}
+
+// THIS IS A TEMPORARY SOLUTION!!!
+// unsetTx helps to fix issue in TxResponse marshaling. Marshaling TxReponse
+// fails because `TxResponse.Tx` is not empty but does not contain respective codec
+// for encoding using the standard `json.MarshalJSON()`. It becomes empty when
+// https://github.com/celestiaorg/celestia-core/issues/1281 will be merged.
+// The `TxResponse.Tx` contains the transaction that is sent to the cosmos-sdk in the form
+// in which it is processed there, so the user should not be aware of it.
+func unsetTx(txResponse *TxResponse) *TxResponse {
+	if txResponse != nil && txResponse.Tx != nil {
+		txResponse.Tx = nil
+	}
+	return txResponse
 }
