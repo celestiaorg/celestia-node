@@ -8,7 +8,7 @@ import (
 )
 
 func TestSanitizeAddr(t *testing.T) {
-	var tests = []struct {
+	tests := []struct {
 		addr string
 		want string
 		err  error
@@ -39,7 +39,7 @@ func TestValidateAddr(t *testing.T) {
 		addr       string
 		unresolved bool
 	}
-	var tests = []struct {
+	tests := []struct {
 		addr string
 		want want
 	}{

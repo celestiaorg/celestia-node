@@ -61,7 +61,7 @@ func (s *Server) verifyAuth(_ context.Context, token string) ([]auth.Permission,
 
 // RegisterService registers a service onto the RPC server. All methods on the service will then be
 // exposed over the RPC.
-func (s *Server) RegisterService(namespace string, service interface{}, out interface{}) {
+func (s *Server) RegisterService(namespace string, service, out interface{}) {
 	if s.authDisabled {
 		s.rpc.Register(namespace, service)
 		return

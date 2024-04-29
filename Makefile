@@ -111,9 +111,9 @@ install-key:
 ## fmt: Formats only *.go (excluding *.pb.go *pb_test.go). Runs `gofmt & goimports` internally.
 fmt: sort-imports
 	@find . -name '*.go' -type f -not -path "*.git*" -not -name '*.pb.go' -not -name '*pb_test.go' | xargs gofmt -w -s
-	@find . -name '*.go' -type f -not -path "*.git*"  -not -name '*.pb.go' -not -name '*pb_test.go' | xargs goimports -w -local github.com/celestiaorg
 	@go mod tidy -compat=1.20
 	@cfmt -w -m=100 ./...
+	@gofumpt -w -extra .
 	@markdownlint --fix --quiet --config .markdownlint.yaml .
 .PHONY: fmt
 

@@ -294,7 +294,7 @@ func (d *Discovery) discover(ctx context.Context) bool {
 			wg.Go(func() error {
 				if findCtx.Err() != nil {
 					log.Debug("find has been canceled, skip peer")
-					return nil
+					return nil //nolint:nilerr
 				}
 
 				// we don't pass findCtx so that we don't cancel in progress connections
