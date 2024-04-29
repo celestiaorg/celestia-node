@@ -296,10 +296,10 @@ func (ca *CoreAccessor) BalanceForAddress(ctx context.Context, addr Address) (*B
 		Prove:  true,
 	}
 	opts := rpcclient.ABCIQueryOptions{
-		Height: abciReq.Height,
-		Prove:  abciReq.Prove,
+		Height: abciReq.GetHeight(),
+		Prove:  abciReq.GetProve(),
 	}
-	result, err := ca.rpcCli.ABCIQueryWithOptions(ctx, abciReq.Path, abciReq.Data, opts)
+	result, err := ca.rpcCli.ABCIQueryWithOptions(ctx, abciReq.GetPath(), abciReq.GetData(), opts)
 	if err != nil {
 		return nil, err
 	}

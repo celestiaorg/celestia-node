@@ -45,7 +45,6 @@ func TestTimedQueue(t *testing.T) {
 		case <-popCh:
 		case <-time.After(ttl):
 			t.Fatal("first item is not released")
-
 		}
 		require.Equal(t, queue.len(), 1)
 
