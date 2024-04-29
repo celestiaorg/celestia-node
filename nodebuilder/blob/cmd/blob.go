@@ -73,17 +73,17 @@ var getCmd = &cobra.Command{
 
 		height, err := strconv.ParseUint(args[0], 10, 64)
 		if err != nil {
-			return fmt.Errorf("error parsing a height:%v", err)
+			return fmt.Errorf("error parsing a height: %w", err)
 		}
 
 		namespace, err := cmdnode.ParseV0Namespace(args[1])
 		if err != nil {
-			return fmt.Errorf("error parsing a namespace:%v", err)
+			return fmt.Errorf("error parsing a namespace: %w", err)
 		}
 
 		commitment, err := base64.StdEncoding.DecodeString(args[2])
 		if err != nil {
-			return fmt.Errorf("error parsing a commitment:%v", err)
+			return fmt.Errorf("error parsing a commitment: %w", err)
 		}
 
 		blob, err := client.Blob.Get(cmd.Context(), height, namespace, commitment)
@@ -109,12 +109,12 @@ var getAllCmd = &cobra.Command{
 
 		height, err := strconv.ParseUint(args[0], 10, 64)
 		if err != nil {
-			return fmt.Errorf("error parsing a height:%v", err)
+			return fmt.Errorf("error parsing a height: %w", err)
 		}
 
 		namespace, err := cmdnode.ParseV0Namespace(args[1])
 		if err != nil {
-			return fmt.Errorf("error parsing a namespace:%v", err)
+			return fmt.Errorf("error parsing a namespace: %w", err)
 		}
 
 		blobs, err := client.Blob.GetAll(cmd.Context(), height, []share.Namespace{namespace})
@@ -224,12 +224,12 @@ var submitCmd = &cobra.Command{
 func getBlobFromArguments(namespaceArg, blobArg string) (*blob.Blob, error) {
 	namespace, err := cmdnode.ParseV0Namespace(namespaceArg)
 	if err != nil {
-		return nil, fmt.Errorf("error parsing a namespace:%v", err)
+		return nil, fmt.Errorf("error parsing a namespace: %w", err)
 	}
 
 	parsedBlob, err := blob.NewBlobV0(namespace, []byte(blobArg))
 	if err != nil {
-		return nil, fmt.Errorf("error creating a blob:%v", err)
+		return nil, fmt.Errorf("error creating a blob: %w", err)
 	}
 
 	return parsedBlob, nil
@@ -248,17 +248,17 @@ var getProofCmd = &cobra.Command{
 
 		height, err := strconv.ParseUint(args[0], 10, 64)
 		if err != nil {
-			return fmt.Errorf("error parsing a height:%v", err)
+			return fmt.Errorf("error parsing a height: %w", err)
 		}
 
 		namespace, err := cmdnode.ParseV0Namespace(args[1])
 		if err != nil {
-			return fmt.Errorf("error parsing a namespace:%v", err)
+			return fmt.Errorf("error parsing a namespace: %w", err)
 		}
 
 		commitment, err := base64.StdEncoding.DecodeString(args[2])
 		if err != nil {
-			return fmt.Errorf("error parsing a commitment:%v", err)
+			return fmt.Errorf("error parsing a commitment: %w", err)
 		}
 
 		proof, err := client.Blob.GetProof(cmd.Context(), height, namespace, commitment)

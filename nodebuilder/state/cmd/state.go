@@ -95,7 +95,7 @@ var balanceForAddressCmd = &cobra.Command{
 
 		addr, err := parseAddressFromString(args[0])
 		if err != nil {
-			return fmt.Errorf("error parsing an address:%v", err)
+			return fmt.Errorf("error parsing an address: %w", err)
 		}
 
 		balance, err := client.State.BalanceForAddress(cmd.Context(), addr)
@@ -116,20 +116,20 @@ var transferCmd = &cobra.Command{
 
 		addr, err := parseAddressFromString(args[0])
 		if err != nil {
-			return fmt.Errorf("error parsing an address:%v", err)
+			return fmt.Errorf("error parsing an address: %w", err)
 		}
 
 		amount, err := strconv.ParseInt(args[1], 10, 64)
 		if err != nil {
-			return fmt.Errorf("error parsing an amount:%v", err)
+			return fmt.Errorf("error parsing an amount: %w", err)
 		}
 		fee, err := strconv.ParseInt(args[2], 10, 64)
 		if err != nil {
-			return fmt.Errorf("error parsing a fee:%v", err)
+			return fmt.Errorf("error parsing a fee: %w", err)
 		}
 		gasLimit, err := strconv.ParseUint(args[3], 10, 64)
 		if err != nil {
-			return fmt.Errorf("error parsing a gas limit:%v", err)
+			return fmt.Errorf("error parsing a gas limit: %w", err)
 		}
 
 		txResponse, err := client.State.Transfer(
@@ -155,7 +155,7 @@ var submitTxCmd = &cobra.Command{
 
 		decoded, err := hex.DecodeString(args[0])
 		if err != nil {
-			return fmt.Errorf("failed to decode tx: %v", err)
+			return fmt.Errorf("failed to decode tx: %w", err)
 		}
 		txResponse, err := client.State.SubmitTx(
 			cmd.Context(),
@@ -178,27 +178,27 @@ var cancelUnbondingDelegationCmd = &cobra.Command{
 
 		addr, err := parseAddressFromString(args[0])
 		if err != nil {
-			return fmt.Errorf("error parsing an address:%v", err)
+			return fmt.Errorf("error parsing an address: %w", err)
 		}
 
 		amount, err := strconv.ParseInt(args[1], 10, 64)
 		if err != nil {
-			return fmt.Errorf("error parsing an amount:%v", err)
+			return fmt.Errorf("error parsing an amount: %w", err)
 		}
 
 		height, err := strconv.ParseInt(args[2], 10, 64)
 		if err != nil {
-			return fmt.Errorf("error parsing a fee:%v", err)
+			return fmt.Errorf("error parsing a fee: %w", err)
 		}
 
 		fee, err := strconv.ParseInt(args[3], 10, 64)
 		if err != nil {
-			return fmt.Errorf("error parsing a fee:%v", err)
+			return fmt.Errorf("error parsing a fee: %w", err)
 		}
 
 		gasLimit, err := strconv.ParseUint(args[4], 10, 64)
 		if err != nil {
-			return fmt.Errorf("error parsing a gas limit:%v", err)
+			return fmt.Errorf("error parsing a gas limit: %w", err)
 		}
 
 		txResponse, err := client.State.CancelUnbondingDelegation(
@@ -226,26 +226,26 @@ var beginRedelegateCmd = &cobra.Command{
 
 		srcAddr, err := parseAddressFromString(args[0])
 		if err != nil {
-			return fmt.Errorf("error parsing an address:%v", err)
+			return fmt.Errorf("error parsing an address: %w", err)
 		}
 
 		dstAddr, err := parseAddressFromString(args[1])
 		if err != nil {
-			return fmt.Errorf("error parsing an address:%v", err)
+			return fmt.Errorf("error parsing an address: %w", err)
 		}
 
 		amount, err := strconv.ParseInt(args[2], 10, 64)
 		if err != nil {
-			return fmt.Errorf("error parsing an amount:%v", err)
+			return fmt.Errorf("error parsing an amount: %w", err)
 		}
 
 		fee, err := strconv.ParseInt(args[3], 10, 64)
 		if err != nil {
-			return fmt.Errorf("error parsing a fee:%v", err)
+			return fmt.Errorf("error parsing a fee: %w", err)
 		}
 		gasLimit, err := strconv.ParseUint(args[4], 10, 64)
 		if err != nil {
-			return fmt.Errorf("error parsing a gas limit:%v", err)
+			return fmt.Errorf("error parsing a gas limit: %w", err)
 		}
 
 		txResponse, err := client.State.BeginRedelegate(
@@ -273,20 +273,20 @@ var undelegateCmd = &cobra.Command{
 
 		addr, err := parseAddressFromString(args[0])
 		if err != nil {
-			return fmt.Errorf("error parsing an address:%v", err)
+			return fmt.Errorf("error parsing an address: %w", err)
 		}
 
 		amount, err := strconv.ParseInt(args[1], 10, 64)
 		if err != nil {
-			return fmt.Errorf("error parsing an amount:%v", err)
+			return fmt.Errorf("error parsing an amount: %w", err)
 		}
 		fee, err := strconv.ParseInt(args[2], 10, 64)
 		if err != nil {
-			return fmt.Errorf("error parsing a fee:%v", err)
+			return fmt.Errorf("error parsing a fee: %w", err)
 		}
 		gasLimit, err := strconv.ParseUint(args[3], 10, 64)
 		if err != nil {
-			return fmt.Errorf("error parsing a gas limit:%v", err)
+			return fmt.Errorf("error parsing a gas limit: %w", err)
 		}
 
 		txResponse, err := client.State.Undelegate(
@@ -313,22 +313,22 @@ var delegateCmd = &cobra.Command{
 
 		addr, err := parseAddressFromString(args[0])
 		if err != nil {
-			return fmt.Errorf("error parsing an address:%v", err)
+			return fmt.Errorf("error parsing an address: %w", err)
 		}
 
 		amount, err := strconv.ParseInt(args[1], 10, 64)
 		if err != nil {
-			return fmt.Errorf("error parsing an amount:%v", err)
+			return fmt.Errorf("error parsing an amount: %w", err)
 		}
 
 		fee, err := strconv.ParseInt(args[2], 10, 64)
 		if err != nil {
-			return fmt.Errorf("error parsing a fee:%v", err)
+			return fmt.Errorf("error parsing a fee: %w", err)
 		}
 
 		gasLimit, err := strconv.ParseUint(args[3], 10, 64)
 		if err != nil {
-			return fmt.Errorf("error parsing a gas limit:%v", err)
+			return fmt.Errorf("error parsing a gas limit: %w", err)
 		}
 
 		txResponse, err := client.State.Delegate(
@@ -355,7 +355,7 @@ var queryDelegationCmd = &cobra.Command{
 
 		addr, err := parseAddressFromString(args[0])
 		if err != nil {
-			return fmt.Errorf("error parsing an address:%v", err)
+			return fmt.Errorf("error parsing an address: %w", err)
 		}
 
 		balance, err := client.State.QueryDelegation(cmd.Context(), addr.Address.(state.ValAddress))
@@ -376,7 +376,7 @@ var queryUnbondingCmd = &cobra.Command{
 
 		addr, err := parseAddressFromString(args[0])
 		if err != nil {
-			return fmt.Errorf("error parsing an address:%v", err)
+			return fmt.Errorf("error parsing an address: %w", err)
 		}
 
 		response, err := client.State.QueryUnbonding(cmd.Context(), addr.Address.(state.ValAddress))
@@ -397,12 +397,12 @@ var queryRedelegationCmd = &cobra.Command{
 
 		srcAddr, err := parseAddressFromString(args[0])
 		if err != nil {
-			return fmt.Errorf("error parsing a src address:%v", err)
+			return fmt.Errorf("error parsing a src address: %w", err)
 		}
 
 		dstAddr, err := parseAddressFromString(args[1])
 		if err != nil {
-			return fmt.Errorf("error parsing a dst address:%v", err)
+			return fmt.Errorf("error parsing a dst address: %w", err)
 		}
 
 		response, err := client.State.QueryRedelegations(
@@ -428,16 +428,16 @@ var grantFeeCmd = &cobra.Command{
 
 		granteeAddr, err := parseAddressFromString(args[0])
 		if err != nil {
-			return fmt.Errorf("error parsing an address:%v", err)
+			return fmt.Errorf("error parsing an address: %w", err)
 		}
 
 		fee, err := strconv.ParseInt(args[1], 10, 64)
 		if err != nil {
-			return fmt.Errorf("error parsing a fee:%v", err)
+			return fmt.Errorf("error parsing a fee: %w", err)
 		}
 		gasLimit, err := strconv.ParseUint(args[2], 10, 64)
 		if err != nil {
-			return fmt.Errorf("error parsing a gas limit:%v", err)
+			return fmt.Errorf("error parsing a gas limit: %w", err)
 		}
 
 		txResponse, err := client.State.GrantFee(
@@ -462,16 +462,16 @@ var revokeGrantFeeCmd = &cobra.Command{
 
 		granteeAddr, err := parseAddressFromString(args[0])
 		if err != nil {
-			return fmt.Errorf("error parsing an address:%v", err)
+			return fmt.Errorf("error parsing an address: %w", err)
 		}
 
 		fee, err := strconv.ParseInt(args[1], 10, 64)
 		if err != nil {
-			return fmt.Errorf("error parsing a fee:%v", err)
+			return fmt.Errorf("error parsing a fee: %w", err)
 		}
 		gasLimit, err := strconv.ParseUint(args[2], 10, 64)
 		if err != nil {
-			return fmt.Errorf("error parsing a gas limit:%v", err)
+			return fmt.Errorf("error parsing a gas limit: %w", err)
 		}
 
 		txResponse, err := client.State.RevokeGrantFee(
