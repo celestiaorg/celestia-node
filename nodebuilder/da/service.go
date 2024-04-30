@@ -15,6 +15,7 @@ import (
 	"github.com/celestiaorg/celestia-node/blob"
 	nodeblob "github.com/celestiaorg/celestia-node/nodebuilder/blob"
 	"github.com/celestiaorg/celestia-node/share"
+	"github.com/celestiaorg/celestia-node/state/options"
 )
 
 var _ da.DA = (*Service)(nil)
@@ -110,7 +111,20 @@ func (s *Service) Submit(
 		return nil, err
 	}
 
-	height, err := s.blobServ.Submit(ctx, blobs, blob.GasPrice(gasPrice))
+	opts := options.DefaultTxOptions()
+	if blob.DefaultGasPrice() == blob.GasPrice(gasPrice) {
+		blobSizes := make([]uint32, len(blobs))
+		for i, blob := range blobs {
+			blobSizes[i] = uint32(len(blob.Data))
+		}
+		opts.EstimateGasForBlobs(blobSizes)
+		err = opts.CalculateFee(gasPrice)
+		if err != nil {
+			return nil, err
+		}
+	}
+
+	height, err := s.blobServ.Submit(ctx, blobs, opts)
 	if err != nil {
 		log.Error("failed to submit blobs", "height", height, "gas price", gasPrice)
 		return nil, err

@@ -8,6 +8,7 @@ import (
 
 	"github.com/celestiaorg/celestia-node/blob"
 	"github.com/celestiaorg/celestia-node/state"
+	"github.com/celestiaorg/celestia-node/state/options"
 )
 
 var ErrNoStateAccess = errors.New("node is running without state access. run with --core.ip <CORE NODE IP> to resolve")
@@ -35,8 +36,8 @@ func (s stubbedStateModule) BalanceForAddress(
 func (s stubbedStateModule) Transfer(
 	_ context.Context,
 	_ state.AccAddress,
-	_, _ state.Int,
-	_ uint64,
+	_ state.Int,
+	_ *options.TxOptions,
 ) (*state.TxResponse, error) {
 	return nil, ErrNoStateAccess
 }
@@ -47,9 +48,8 @@ func (s stubbedStateModule) SubmitTx(context.Context, state.Tx) (*state.TxRespon
 
 func (s stubbedStateModule) SubmitPayForBlob(
 	context.Context,
-	state.Int,
-	uint64,
 	[]*blob.Blob,
+	*options.TxOptions,
 ) (*state.TxResponse, error) {
 	return nil, ErrNoStateAccess
 }
@@ -57,8 +57,8 @@ func (s stubbedStateModule) SubmitPayForBlob(
 func (s stubbedStateModule) CancelUnbondingDelegation(
 	_ context.Context,
 	_ state.ValAddress,
-	_, _, _ state.Int,
-	_ uint64,
+	_, _ state.Int,
+	_ *options.TxOptions,
 ) (*state.TxResponse, error) {
 	return nil, ErrNoStateAccess
 }
@@ -66,8 +66,8 @@ func (s stubbedStateModule) CancelUnbondingDelegation(
 func (s stubbedStateModule) BeginRedelegate(
 	_ context.Context,
 	_, _ state.ValAddress,
-	_, _ state.Int,
-	_ uint64,
+	_ state.Int,
+	_ *options.TxOptions,
 ) (*state.TxResponse, error) {
 	return nil, ErrNoStateAccess
 }
@@ -75,8 +75,8 @@ func (s stubbedStateModule) BeginRedelegate(
 func (s stubbedStateModule) Undelegate(
 	_ context.Context,
 	_ state.ValAddress,
-	_, _ state.Int,
-	_ uint64,
+	_ state.Int,
+	_ *options.TxOptions,
 ) (*state.TxResponse, error) {
 	return nil, ErrNoStateAccess
 }
@@ -84,8 +84,8 @@ func (s stubbedStateModule) Undelegate(
 func (s stubbedStateModule) Delegate(
 	_ context.Context,
 	_ state.ValAddress,
-	_, _ state.Int,
-	_ uint64,
+	_ state.Int,
+	_ *options.TxOptions,
 ) (*state.TxResponse, error) {
 	return nil, ErrNoStateAccess
 }
@@ -114,9 +114,8 @@ func (s stubbedStateModule) QueryRedelegations(
 func (s stubbedStateModule) GrantFee(
 	_ context.Context,
 	_ state.AccAddress,
-	_,
 	_ state.Int,
-	_ uint64,
+	_ *options.TxOptions,
 ) (*state.TxResponse, error) {
 	return nil, ErrNoStateAccess
 }
@@ -124,8 +123,7 @@ func (s stubbedStateModule) GrantFee(
 func (s stubbedStateModule) RevokeGrantFee(
 	_ context.Context,
 	_ state.AccAddress,
-	_ state.Int,
-	_ uint64,
+	_ *options.TxOptions,
 ) (*state.TxResponse, error) {
 	return nil, ErrNoStateAccess
 }
