@@ -10,6 +10,7 @@ import (
 
 	blob "github.com/celestiaorg/celestia-node/blob"
 	share "github.com/celestiaorg/celestia-node/share"
+	options "github.com/celestiaorg/celestia-node/state/options"
 	gomock "github.com/golang/mock/gomock"
 )
 
@@ -97,7 +98,7 @@ func (mr *MockModuleMockRecorder) Included(arg0, arg1, arg2, arg3, arg4 interfac
 }
 
 // Submit mocks base method.
-func (m *MockModule) Submit(arg0 context.Context, arg1 []*blob.Blob, arg2 blob.GasPrice) (uint64, error) {
+func (m *MockModule) Submit(arg0 context.Context, arg1 []*blob.Blob, arg2 *options.TxOptions) (uint64, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "Submit", arg0, arg1, arg2)
 	ret0, _ := ret[0].(uint64)

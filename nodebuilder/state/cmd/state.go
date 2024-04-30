@@ -9,9 +9,20 @@ import (
 
 	cmdnode "github.com/celestiaorg/celestia-node/cmd"
 	"github.com/celestiaorg/celestia-node/state"
+	"github.com/celestiaorg/celestia-node/state/options"
 )
 
-var amount uint64
+var (
+	amount uint64
+
+	fee int64
+
+	gasLimit uint64
+
+	account string
+
+	granter string
+)
 
 func init() {
 	Cmd.AddCommand(
@@ -37,6 +48,16 @@ func init() {
 		"specifies the spend limit(in utia) for the grantee.\n"+
 			"The default value is 0 which means the grantee does not have a spend limit.",
 	)
+
+	// apply option flags for all txs that require `TxOptions`.
+	applyFlags(
+		transferCmd,
+		cancelUnbondingDelegationCmd,
+		beginRedelegateCmd,
+		undelegateCmd,
+		delegateCmd,
+		grantFeeCmd,
+		revokeGrantFeeCmd)
 }
 
 var Cmd = &cobra.Command{
@@ -102,9 +123,9 @@ var balanceForAddressCmd = &cobra.Command{
 }
 
 var transferCmd = &cobra.Command{
-	Use:   "transfer [address] [amount] [fee] [gasLimit]",
+	Use:   "transfer [address] [amount]",
 	Short: "Sends the given amount of coins from default wallet of the node to the given account address.",
-	Args:  cobra.ExactArgs(4),
+	Args:  cobra.ExactArgs(2),
 	RunE: func(cmd *cobra.Command, args []string) error {
 		client, err := cmdnode.ParseClientFromCtx(cmd.Context())
 		if err != nil {
@@ -121,29 +142,25 @@ var transferCmd = &cobra.Command{
 		if err != nil {
 			return fmt.Errorf("error parsing an amount: %w", err)
 		}
-		fee, err := strconv.ParseInt(args[2], 10, 64)
-		if err != nil {
-			return fmt.Errorf("error parsing a fee: %w", err)
-		}
-		gasLimit, err := strconv.ParseUint(args[3], 10, 64)
-		if err != nil {
-			return fmt.Errorf("error parsing a gas limit: %w", err)
-		}
+
+		opts := options.DefaultTxOptions()
+		opts.SetFeeAmount(fee)
+		opts.GasLimit = gasLimit
 
 		txResponse, err := client.State.Transfer(
 			cmd.Context(),
 			addr.Address.(state.AccAddress),
 			math.NewInt(amount),
-			math.NewInt(fee), gasLimit,
+			opts,
 		)
 		return cmdnode.PrintOutput(txResponse, err, nil)
 	},
 }
 
 var cancelUnbondingDelegationCmd = &cobra.Command{
-	Use:   "cancel-unbonding-delegation [address] [amount] [height] [fee] [gasLimit]",
+	Use:   "cancel-unbonding-delegation [address] [amount] [height]",
 	Short: "Cancels a user's pending undelegation from a validator.",
-	Args:  cobra.ExactArgs(5),
+	Args:  cobra.ExactArgs(3),
 	RunE: func(cmd *cobra.Command, args []string) error {
 		client, err := cmdnode.ParseClientFromCtx(cmd.Context())
 		if err != nil {
@@ -166,32 +183,25 @@ var cancelUnbondingDelegationCmd = &cobra.Command{
 			return fmt.Errorf("error parsing a fee: %w", err)
 		}
 
-		fee, err := strconv.ParseInt(args[3], 10, 64)
-		if err != nil {
-			return fmt.Errorf("error parsing a fee: %w", err)
-		}
-
-		gasLimit, err := strconv.ParseUint(args[4], 10, 64)
-		if err != nil {
-			return fmt.Errorf("error parsing a gas limit: %w", err)
-		}
+		opts := options.DefaultTxOptions()
+		opts.SetFeeAmount(fee)
+		opts.GasLimit = gasLimit
 
 		txResponse, err := client.State.CancelUnbondingDelegation(
 			cmd.Context(),
 			addr.Address.(state.ValAddress),
 			math.NewInt(amount),
 			math.NewInt(height),
-			math.NewInt(fee),
-			gasLimit,
+			opts,
 		)
 		return cmdnode.PrintOutput(txResponse, err, nil)
 	},
 }
 
 var beginRedelegateCmd = &cobra.Command{
-	Use:   "begin-redelegate [srcAddress] [dstAddress] [amount] [fee] [gasLimit]",
+	Use:   "begin-redelegate [srcAddress] [dstAddress] [amount]",
 	Short: "Sends a user's delegated tokens to a new validator for redelegation",
-	Args:  cobra.ExactArgs(5),
+	Args:  cobra.ExactArgs(3),
 	RunE: func(cmd *cobra.Command, args []string) error {
 		client, err := cmdnode.ParseClientFromCtx(cmd.Context())
 		if err != nil {
@@ -214,29 +224,24 @@ var beginRedelegateCmd = &cobra.Command{
 			return fmt.Errorf("error parsing an amount: %w", err)
 		}
 
-		fee, err := strconv.ParseInt(args[3], 10, 64)
-		if err != nil {
-			return fmt.Errorf("error parsing a fee: %w", err)
-		}
-		gasLimit, err := strconv.ParseUint(args[4], 10, 64)
-		if err != nil {
-			return fmt.Errorf("error parsing a gas limit: %w", err)
-		}
+		opts := options.DefaultTxOptions()
+		opts.SetFeeAmount(fee)
+		opts.GasLimit = gasLimit
 
 		txResponse, err := client.State.BeginRedelegate(
 			cmd.Context(),
 			srcAddr.Address.(state.ValAddress),
 			dstAddr.Address.(state.ValAddress),
 			math.NewInt(amount),
-			math.NewInt(fee),
-			gasLimit,
+			opts,
 		)
 		return cmdnode.PrintOutput(txResponse, err, nil)
 	},
 }
 
+//nolint:dupl
 var undelegateCmd = &cobra.Command{
-	Use:   "undelegate [valAddress] [amount] [fee] [gasLimit]",
+	Use:   "undelegate [valAddress] [amount]",
 	Short: "Undelegates a user's delegated tokens, unbonding them from the current validator.",
 	Args:  cobra.ExactArgs(4),
 	RunE: func(cmd *cobra.Command, args []string) error {
@@ -255,28 +260,34 @@ var undelegateCmd = &cobra.Command{
 		if err != nil {
 			return fmt.Errorf("error parsing an amount: %w", err)
 		}
+
 		fee, err := strconv.ParseInt(args[2], 10, 64)
 		if err != nil {
 			return fmt.Errorf("error parsing a fee: %w", err)
 		}
+
 		gasLimit, err := strconv.ParseUint(args[3], 10, 64)
 		if err != nil {
 			return fmt.Errorf("error parsing a gas limit: %w", err)
 		}
 
+		opts := options.DefaultTxOptions()
+		opts.SetFeeAmount(fee)
+		opts.GasLimit = gasLimit
+
 		txResponse, err := client.State.Undelegate(
 			cmd.Context(),
 			addr.Address.(state.ValAddress),
 			math.NewInt(amount),
-			math.NewInt(fee),
-			gasLimit,
+			opts,
 		)
 		return cmdnode.PrintOutput(txResponse, err, nil)
 	},
 }
 
+//nolint:dupl
 var delegateCmd = &cobra.Command{
-	Use:   "delegate [valAddress] [amount] [fee] [gasLimit]",
+	Use:   "delegate [valAddress] [amount]",
 	Short: "Sends a user's liquid tokens to a validator for delegation.",
 	Args:  cobra.ExactArgs(4),
 	RunE: func(cmd *cobra.Command, args []string) error {
@@ -306,12 +317,15 @@ var delegateCmd = &cobra.Command{
 			return fmt.Errorf("error parsing a gas limit: %w", err)
 		}
 
+		opts := options.DefaultTxOptions()
+		opts.SetFeeAmount(fee)
+		opts.GasLimit = gasLimit
+
 		txResponse, err := client.State.Delegate(
 			cmd.Context(),
 			addr.Address.(state.ValAddress),
 			math.NewInt(amount),
-			math.NewInt(fee),
-			gasLimit,
+			opts,
 		)
 		return cmdnode.PrintOutput(txResponse, err, nil)
 	},
@@ -390,10 +404,10 @@ var queryRedelegationCmd = &cobra.Command{
 }
 
 var grantFeeCmd = &cobra.Command{
-	Use: "grant-fee [granteeAddress] [fee] [gasLimit]",
+	Use: "grant-fee [granteeAddress]",
 	Short: "Grant an allowance to a specified grantee account to pay the fees for their transactions.\n" +
 		"Grantee can spend any amount of tokens in case the spend limit is not set.",
-	Args: cobra.ExactArgs(3),
+	Args: cobra.ExactArgs(1),
 	RunE: func(cmd *cobra.Command, args []string) error {
 		client, err := cmdnode.ParseClientFromCtx(cmd.Context())
 		if err != nil {
@@ -406,28 +420,23 @@ var grantFeeCmd = &cobra.Command{
 			return fmt.Errorf("error parsing an address: %w", err)
 		}
 
-		fee, err := strconv.ParseInt(args[1], 10, 64)
-		if err != nil {
-			return fmt.Errorf("error parsing a fee: %w", err)
-		}
-		gasLimit, err := strconv.ParseUint(args[2], 10, 64)
-		if err != nil {
-			return fmt.Errorf("error parsing a gas limit: %w", err)
-		}
+		opts := options.DefaultTxOptions()
+		opts.SetFeeAmount(fee)
+		opts.GasLimit = gasLimit
 
 		txResponse, err := client.State.GrantFee(
 			cmd.Context(),
 			granteeAddr.Address.(state.AccAddress),
-			math.NewInt(int64(amount)), math.NewInt(fee), gasLimit,
+			math.NewInt(int64(amount)), opts,
 		)
 		return cmdnode.PrintOutput(txResponse, err, nil)
 	},
 }
 
 var revokeGrantFeeCmd = &cobra.Command{
-	Use:   "revoke-grant-fee [granteeAddress] [fee] [gasLimit]",
+	Use:   "revoke-grant-fee [granteeAddress]",
 	Short: "Removes permission for grantee to submit PFB transactions which will be paid by granter.",
-	Args:  cobra.ExactArgs(3),
+	Args:  cobra.ExactArgs(1),
 	RunE: func(cmd *cobra.Command, args []string) error {
 		client, err := cmdnode.ParseClientFromCtx(cmd.Context())
 		if err != nil {
@@ -440,19 +449,14 @@ var revokeGrantFeeCmd = &cobra.Command{
 			return fmt.Errorf("error parsing an address: %w", err)
 		}
 
-		fee, err := strconv.ParseInt(args[1], 10, 64)
-		if err != nil {
-			return fmt.Errorf("error parsing a fee: %w", err)
-		}
-		gasLimit, err := strconv.ParseUint(args[2], 10, 64)
-		if err != nil {
-			return fmt.Errorf("error parsing a gas limit: %w", err)
-		}
+		opts := options.DefaultTxOptions()
+		opts.SetFeeAmount(fee)
+		opts.GasLimit = gasLimit
 
 		txResponse, err := client.State.RevokeGrantFee(
 			cmd.Context(),
 			granteeAddr.Address.(state.AccAddress),
-			math.NewInt(fee), gasLimit,
+			opts,
 		)
 		return cmdnode.PrintOutput(txResponse, err, nil)
 	},
@@ -465,4 +469,44 @@ func parseAddressFromString(addrStr string) (state.Address, error) {
 		return address, err
 	}
 	return address, nil
+}
+
+func applyFlags(cmds ...*cobra.Command) {
+	for _, cmd := range cmds {
+		cmd.PersistentFlags().Int64Var(
+			&fee,
+			"fee",
+			-1,
+			"Specifies fee(in utia) for tx submission.\n"+
+				"Fee will be set to default(-1) if no value is passed.",
+		)
+
+		cmd.PersistentFlags().Uint64Var(
+			&gasLimit,
+			"gas.limit",
+			0,
+			"Specifies gas limit (in utia) for tx submission.\n"+
+				"Gas Limit will be set to default(0) if no value is passed",
+		)
+
+		cmd.PersistentFlags().String(
+			account,
+			"",
+			"Specifies the signer address.\n"+
+				"Account address will be set to an empty string in case no value is passed.\n"+
+				"Note: Address should be passed as Bench32 address.\n"+
+				"Example: celestiaxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+		)
+
+		cmd.PersistentFlags().String(
+			granter,
+			"",
+			"Specifies the address that can pay fees on behalf of the signer.\n"+
+				"If no value is passed, the granter address will be set to an empty string.\n"+
+				"The granter must submit the transaction to pay for the grantee's (signer's) transactions.\n"+
+				"By default, this will be set to an empty string, meaning the signer will pay the fees.\n"+
+				"Note: The granter should be provided as a Bech32 address.\n"+
+				"Example: celestiaxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+		)
+	}
 }

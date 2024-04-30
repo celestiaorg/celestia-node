@@ -4,26 +4,22 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"math"
 	"slices"
 	"sync"
 
-	sdkmath "cosmossdk.io/math"
 	"github.com/cosmos/cosmos-sdk/types"
-	auth "github.com/cosmos/cosmos-sdk/x/auth/types"
 	logging "github.com/ipfs/go-log/v2"
 	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/codes"
 	"go.opentelemetry.io/otel/trace"
 
-	"github.com/celestiaorg/celestia-app/pkg/appconsts"
 	"github.com/celestiaorg/celestia-app/pkg/shares"
-	blobtypes "github.com/celestiaorg/celestia-app/x/blob/types"
 
 	"github.com/celestiaorg/celestia-node/header"
 	"github.com/celestiaorg/celestia-node/libs/utils"
 	"github.com/celestiaorg/celestia-node/share"
+	"github.com/celestiaorg/celestia-node/state/options"
 )
 
 var (
@@ -48,7 +44,7 @@ func DefaultGasPrice() GasPrice {
 // avoid a circular dependency between the blob and the state package, since the state package needs
 // the blob.Blob type for this signature.
 type Submitter interface {
-	SubmitPayForBlob(ctx context.Context, fee sdkmath.Int, gasLim uint64, blobs []*Blob) (*types.TxResponse, error)
+	SubmitPayForBlob(context.Context, []*Blob, *options.TxOptions) (*types.TxResponse, error)
 }
 
 type Service struct {
@@ -91,20 +87,10 @@ func DefaultSubmitOptions() *SubmitOptions {
 // Allows sending multiple Blobs atomically synchronously.
 // Uses default wallet registered on the Node.
 // Handles gas estimation and fee calculation.
-func (s *Service) Submit(ctx context.Context, blobs []*Blob, gasPrice GasPrice) (uint64, error) {
+func (s *Service) Submit(ctx context.Context, blobs []*Blob, txOptions *options.TxOptions) (uint64, error) {
 	log.Debugw("submitting blobs", "amount", len(blobs))
 
-	options := DefaultSubmitOptions()
-	if gasPrice >= 0 {
-		blobSizes := make([]uint32, len(blobs))
-		for i, blob := range blobs {
-			blobSizes[i] = uint32(len(blob.Data))
-		}
-		options.GasLimit = blobtypes.EstimateGas(blobSizes, appconsts.DefaultGasPerBlobByte, auth.DefaultTxSizeCostPerByte)
-		options.Fee = types.NewInt(int64(math.Ceil(float64(gasPrice) * float64(options.GasLimit)))).Int64()
-	}
-
-	resp, err := s.blobSubmitter.SubmitPayForBlob(ctx, types.NewInt(options.Fee), options.GasLimit, blobs)
+	resp, err := s.blobSubmitter.SubmitPayForBlob(ctx, blobs, txOptions)
 	if err != nil {
 		return 0, err
 	}

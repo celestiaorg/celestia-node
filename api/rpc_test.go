@@ -39,6 +39,7 @@ import (
 	statemod "github.com/celestiaorg/celestia-node/nodebuilder/state"
 	stateMock "github.com/celestiaorg/celestia-node/nodebuilder/state/mocks"
 	"github.com/celestiaorg/celestia-node/state"
+	"github.com/celestiaorg/celestia-node/state/options"
 )
 
 func TestRPCCallsUnderlyingNode(t *testing.T) {
@@ -200,14 +201,14 @@ func TestAuthedRPC(t *testing.T) {
 			expectedResp := &state.TxResponse{}
 			if tt.perm > 2 {
 				server.State.EXPECT().Delegate(gomock.Any(), gomock.Any(),
-					gomock.Any(), gomock.Any(), gomock.Any()).Return(expectedResp, nil)
+					gomock.Any(), gomock.Any()).Return(expectedResp, nil)
 				txResp, err := rpcClient.State.Delegate(ctx,
-					state.ValAddress{}, state.Int{}, state.Int{}, 0)
+					state.ValAddress{}, state.Int{}, options.DefaultTxOptions())
 				require.NoError(t, err)
 				require.Equal(t, expectedResp, txResp)
 			} else {
 				_, err := rpcClient.State.Delegate(ctx,
-					state.ValAddress{}, state.Int{}, state.Int{}, 0)
+					state.ValAddress{}, state.Int{}, options.DefaultTxOptions())
 				require.Error(t, err)
 				require.ErrorContains(t, err, "missing permission")
 			}

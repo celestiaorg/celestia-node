@@ -14,12 +14,19 @@ import (
 	"github.com/celestiaorg/celestia-node/blob"
 	cmdnode "github.com/celestiaorg/celestia-node/cmd"
 	"github.com/celestiaorg/celestia-node/share"
+	"github.com/celestiaorg/celestia-node/state/options"
 )
 
 var (
 	base64Flag bool
 
-	gasPrice float64
+	fee int64
+
+	gasLimit uint64
+
+	account string
+
+	granter string
 
 	// flagFileInput allows the user to provide file path to the json file
 	// for submitting multiple blobs.
@@ -33,25 +40,52 @@ func init() {
 		&base64Flag,
 		"base64",
 		false,
-		"printed blob's data and namespace as base64 strings",
+		"Printed blob's data and namespace as base64 strings",
 	)
 
 	getAllCmd.PersistentFlags().BoolVar(
 		&base64Flag,
 		"base64",
 		false,
-		"printed blob's data and namespace as base64 strings",
+		"Printed blob's data and namespace as base64 strings",
 	)
 
-	submitCmd.PersistentFlags().Float64Var(
-		&gasPrice,
-		"gas.price",
-		float64(blob.DefaultGasPrice()),
-		"specifies gas price (in utia) for blob submission.\n"+
-			"Gas price will be set to default (0.002) if no value is passed",
+	submitCmd.PersistentFlags().Int64Var(
+		&fee,
+		"fee",
+		-1,
+		"Specifies fee(in utia) for blob submission.\n"+
+			"Fee will be set to default(-1) if no value is passed.",
 	)
 
-	submitCmd.PersistentFlags().String(flagFileInput, "", "Specify the file input")
+	submitCmd.PersistentFlags().Uint64Var(
+		&gasLimit,
+		"gas.limit",
+		0,
+		"Specifies gas limit (in utia) for blob submission.\n"+
+			"Gas Limit will be set to default(0) if no value is passed",
+	)
+
+	submitCmd.PersistentFlags().String(
+		account,
+		"",
+		"Specifies the signer address.\n"+
+			"Account address will be set to an empty string in case no value is passed.\n"+
+			"Note: Address should be passed as Bench32 address.\n"+
+			"Example: celestiaxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+	)
+
+	submitCmd.PersistentFlags().String(
+		granter,
+		"",
+		"Specifies the address that can pay fees on behalf of the signer."+
+			"If no value is passed, the granter address will be set to an empty string."+
+			"The granter must submit the transaction to pay for the grantee's (signer's) transactions."+
+			"By default, this will be set to an empty string, meaning the signer will pay the fees."+
+			"Note: The granter should be provided as a Bech32 address.",
+	)
+
+	submitCmd.PersistentFlags().String(flagFileInput, "", "Specifies the file input")
 }
 
 var Cmd = &cobra.Command{
@@ -200,21 +234,26 @@ var submitCmd = &cobra.Command{
 			jsonBlobs = append(jsonBlobs, blobJSON{Namespace: args[0], BlobData: args[1]})
 		}
 
-		var blobs []*blob.Blob
+		var resultBlobs []*blob.Blob
 		var commitments []blob.Commitment
 		for _, jsonBlob := range jsonBlobs {
 			blob, err := getBlobFromArguments(jsonBlob.Namespace, jsonBlob.BlobData)
 			if err != nil {
 				return err
 			}
-			blobs = append(blobs, blob)
+			resultBlobs = append(resultBlobs, blob)
 			commitments = append(commitments, blob.Commitment)
 		}
 
+		opts := options.DefaultTxOptions()
+		opts.SetFeeAmount(fee)
+		opts.GasLimit = gasLimit
+		opts.Account = account
+		opts.Granter = granter
 		height, err := client.Blob.Submit(
 			cmd.Context(),
-			blobs,
-			blob.GasPrice(gasPrice),
+			resultBlobs,
+			opts,
 		)
 
 		response := struct {

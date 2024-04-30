@@ -1,6 +1,8 @@
 package state
 
 import (
+	"fmt"
+
 	kr "github.com/cosmos/cosmos-sdk/crypto/keyring"
 
 	"github.com/celestiaorg/celestia-node/libs/keystore"
@@ -16,15 +18,20 @@ type AccountName string
 func Keyring(cfg Config, ks keystore.Keystore) (kr.Keyring, AccountName, error) {
 	ring := ks.Keyring()
 	var info *kr.Record
-	// if custom keyringAccName provided, find key for that name
-	if cfg.KeyringAccName != "" {
-		keyInfo, err := ring.Key(cfg.KeyringAccName)
+
+	// go through all keys in the config and check their availability in the KeyStore.
+	for _, accName := range cfg.KeyringKeyNames {
+		keyInfo, err := ring.Key(accName)
 		if err != nil {
-			log.Errorw("failed to find key by given name", "keyring.accname", cfg.KeyringAccName)
+			err = fmt.Errorf("key not found in keystore: %s", accName)
 			return nil, "", err
 		}
-		info = keyInfo
-	} else {
+		if info == nil {
+			info = keyInfo
+		}
+	}
+	// set the default key in case config does not provide any keys.
+	if info == nil {
 		// use default key
 		keyInfo, err := ring.Key(DefaultAccountName)
 		if err != nil {

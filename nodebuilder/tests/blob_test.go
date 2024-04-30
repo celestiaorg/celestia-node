@@ -18,6 +18,7 @@ import (
 	"github.com/celestiaorg/celestia-node/nodebuilder/node"
 	"github.com/celestiaorg/celestia-node/nodebuilder/tests/swamp"
 	"github.com/celestiaorg/celestia-node/share"
+	"github.com/celestiaorg/celestia-node/state/options"
 )
 
 func TestBlobModule(t *testing.T) {
@@ -58,7 +59,7 @@ func TestBlobModule(t *testing.T) {
 	fullClient := getAdminClient(ctx, fullNode, t)
 	lightClient := getAdminClient(ctx, lightNode, t)
 
-	height, err := fullClient.Blob.Submit(ctx, blobs, blob.DefaultGasPrice())
+	height, err := fullClient.Blob.Submit(ctx, blobs, options.DefaultTxOptions())
 	require.NoError(t, err)
 
 	_, err = fullClient.Header.WaitForHeight(ctx, height)
@@ -145,7 +146,7 @@ func TestBlobModule(t *testing.T) {
 				)
 				require.NoError(t, err)
 
-				height, err := fullClient.Blob.Submit(ctx, []*blob.Blob{b, b}, blob.DefaultGasPrice())
+				height, err := fullClient.Blob.Submit(ctx, []*blob.Blob{b, b}, options.DefaultTxOptions())
 				require.NoError(t, err)
 
 				_, err = fullClient.Header.WaitForHeight(ctx, height)
@@ -174,7 +175,7 @@ func TestBlobModule(t *testing.T) {
 			// different pfbs.
 			name: "Submit the same blob in different pfb",
 			doFn: func(t *testing.T) {
-				h, err := fullClient.Blob.Submit(ctx, []*blob.Blob{blobs[0]}, blob.DefaultGasPrice())
+				h, err := fullClient.Blob.Submit(ctx, []*blob.Blob{blobs[0]}, options.DefaultTxOptions())
 				require.NoError(t, err)
 
 				_, err = fullClient.Header.WaitForHeight(ctx, h)

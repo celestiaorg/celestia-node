@@ -31,6 +31,7 @@ import (
 	"github.com/celestiaorg/celestia-node/share"
 	"github.com/celestiaorg/celestia-node/share/eds/byzantine"
 	"github.com/celestiaorg/celestia-node/state"
+	"github.com/celestiaorg/celestia-node/state/options"
 )
 
 //go:embed "exampledata/extendedHeader.json"
@@ -177,8 +178,18 @@ func init() {
 	if err != nil {
 		panic(err)
 	}
-
 	addToExampleValues(libhead.Hash(hash))
+
+	proof := nmt.NewInclusionProof(0, 4, [][]byte{[]byte("test")}, true)
+	blobProof = &blob.Proof{&proof}
+	addToExampleValues(blobProof)
+
+	txOptions := options.DefaultTxOptions()
+	txOptions.Account = "celestia1fcw3wrlhzk4pf5y68m4009pzyg97p2ftaezl6y"
+	txOptions.GasLimit = 142225
+	txOptions.SetFeeAmount(2_000)
+	txOptions.Granter = "celestia1hakc56ax66ypjcmwj8w6hyr2c4g8cfs3wesguc"
+	addToExampleValues(txOptions)
 }
 
 func addToExampleValues(v interface{}) {
