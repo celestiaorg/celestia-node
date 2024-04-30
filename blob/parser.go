@@ -20,7 +20,8 @@ type parser struct {
 	verifyFn func(blob *Blob) bool
 }
 
-// NOTE: passing shares here needed to detect padding shares(as we do not need this check in addShares)
+// NOTE: passing shares here needed to detect padding shares(as we do not need this check in
+// addShares)
 func (p *parser) set(index int, shrs []shares.Share) ([]shares.Share, error) {
 	if len(shrs) == 0 {
 		return nil, errEmptyShares

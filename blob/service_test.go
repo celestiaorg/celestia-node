@@ -48,7 +48,7 @@ func TestBlobService_Get(t *testing.T) {
 	require.NoError(t, err)
 
 	service := createService(ctx, t, append(blobs0, blobs1...))
-	var test = []struct {
+	test := []struct {
 		name           string
 		doFn           func() (interface{}, error)
 		expectedResult func(interface{}, error)
@@ -304,7 +304,6 @@ func TestBlobService_Get(t *testing.T) {
 				assert.Empty(t, blobs)
 				require.Error(t, err)
 				require.ErrorIs(t, err, ErrBlobNotFound)
-
 			},
 		},
 		{

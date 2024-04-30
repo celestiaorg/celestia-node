@@ -3,6 +3,7 @@ package pruner
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 
 	"github.com/ipfs/go-datastore"
@@ -31,7 +32,7 @@ func (s *Service) initializeCheckpoint(ctx context.Context) error {
 func (s *Service) loadCheckpoint(ctx context.Context) error {
 	bin, err := s.ds.Get(ctx, checkpointKey)
 	if err != nil {
-		if err == datastore.ErrNotFound {
+		if errors.Is(err, datastore.ErrNotFound) {
 			return s.initializeCheckpoint(ctx)
 		}
 		return fmt.Errorf("failed to load checkpoint: %w", err)

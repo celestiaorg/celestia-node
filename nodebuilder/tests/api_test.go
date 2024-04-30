@@ -62,7 +62,6 @@ func TestNodeModule(t *testing.T) {
 	perms, err = client.Node.AuthVerify(ctx, writeJWT)
 	require.NoError(t, err)
 	require.Equal(t, perms, writePerms)
-
 }
 
 func TestGetByHeight(t *testing.T) {

@@ -16,7 +16,7 @@ import (
 // TestNamespaceFromCID checks that deriving the Namespaced hash from
 // the given CID works correctly.
 func TestNamespaceFromCID(t *testing.T) {
-	var tests = []struct {
+	tests := []struct {
 		eds *rsmt2d.ExtendedDataSquare
 	}{
 		// note that the number of shares must be a power of two

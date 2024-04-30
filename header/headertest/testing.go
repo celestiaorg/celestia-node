@@ -94,7 +94,6 @@ func MakeCommit(
 	blockID types.BlockID, height int64, round int32,
 	voteSet *types.VoteSet, validators []types.PrivValidator, now time.Time,
 ) (*types.Commit, error) {
-
 	// all sign
 	for i := 0; i < len(validators); i++ {
 		pubKey, err := validators[i].GetPubKey()
