@@ -2,6 +2,7 @@ package header
 
 import (
 	"context"
+	"errors"
 	"fmt"
 
 	libhead "github.com/celestiaorg/go-header"
@@ -9,6 +10,7 @@ import (
 	"github.com/celestiaorg/go-header/sync"
 
 	"github.com/celestiaorg/celestia-node/header"
+	modfraud "github.com/celestiaorg/celestia-node/nodebuilder/fraud"
 )
 
 // Service represents the header Service that can be started / stopped on a node.
@@ -33,14 +35,15 @@ type syncer interface {
 
 // newHeaderService creates a new instance of header Service.
 func newHeaderService(
-	syncer *sync.Syncer[*header.ExtendedHeader],
+	// getting Syncer wrapped in ServiceBreaker so we ensure service breaker is constructed
+	syncer *modfraud.ServiceBreaker[*sync.Syncer[*header.ExtendedHeader], *header.ExtendedHeader],
 	sub libhead.Subscriber[*header.ExtendedHeader],
 	p2pServer *p2p.ExchangeServer[*header.ExtendedHeader],
 	ex libhead.Exchange[*header.ExtendedHeader],
 	store libhead.Store[*header.ExtendedHeader],
 ) Module {
 	return &Service{
-		syncer:    syncer,
+		syncer:    syncer.Service,
 		sub:       sub,
 		p2pServer: p2pServer,
 		ex:        ex,
@@ -123,7 +126,7 @@ func (s *Service) Subscribe(ctx context.Context) (<-chan *header.ExtendedHeader,
 		for {
 			h, err := subscription.NextHeader(ctx)
 			if err != nil {
-				if err != context.DeadlineExceeded && err != context.Canceled {
+				if !errors.Is(err, context.DeadlineExceeded) && !errors.Is(err, context.Canceled) {
 					log.Errorw("fetching header from subscription", "err", err)
 				}
 				return

@@ -128,7 +128,6 @@ func TestListener_DoesNotStoreHistoric(t *testing.T) {
 		require.NoError(t, err)
 		assert.False(t, has)
 	}
-
 }
 
 func createMocknetWithTwoPubsubEndpoints(ctx context.Context, t *testing.T) (*pubsub.PubSub, *pubsub.PubSub) {

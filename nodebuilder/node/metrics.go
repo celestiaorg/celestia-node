@@ -2,12 +2,17 @@ package node
 
 import (
 	"context"
+	"fmt"
 	"time"
 
+	logging "github.com/ipfs/go-log/v2"
 	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/metric"
+	"go.uber.org/fx"
 )
+
+var log = logging.Logger("module/node")
 
 var meter = otel.Meter("node")
 
@@ -17,7 +22,7 @@ var (
 )
 
 // WithMetrics registers node metrics.
-func WithMetrics() error {
+func WithMetrics(lc fx.Lifecycle) error {
 	nodeStartTS, err := meter.Int64ObservableGauge(
 		"node_start_ts",
 		metric.WithDescription("timestamp when the node was started"),
@@ -66,7 +71,18 @@ func WithMetrics() error {
 		return nil
 	}
 
-	_, err = meter.RegisterCallback(callback, nodeStartTS, totalNodeRunTime, buildInfoGauge)
+	clientReg, err := meter.RegisterCallback(callback, nodeStartTS, totalNodeRunTime, buildInfoGauge)
+	if err != nil {
+		return fmt.Errorf("failed to register metrics callback: %w", err)
+	}
 
-	return err
+	lc.Append(
+		fx.Hook{OnStop: func(context.Context) error {
+			if err := clientReg.Unregister(); err != nil {
+				log.Warn("failed to close metrics", "err", err)
+			}
+			return nil
+		}},
+	)
+	return nil
 }

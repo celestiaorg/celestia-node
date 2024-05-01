@@ -3,7 +3,6 @@ package eds
 import (
 	"bytes"
 	"context"
-	"crypto/sha256"
 	"errors"
 	"fmt"
 	"io"
@@ -68,7 +67,7 @@ func writeHeader(eds *rsmt2d.ExtendedDataSquare, w io.Writer) error {
 
 // writeQuadrants reorders the shares to quadrant order and writes them to the CARv1 file.
 func writeQuadrants(eds *rsmt2d.ExtendedDataSquare, w io.Writer) error {
-	hasher := nmt.NewNmtHasher(sha256.New(), share.NamespaceSize, ipld.NMTIgnoreMaxNamespace)
+	hasher := nmt.NewNmtHasher(share.NewSHA256Hasher(), share.NamespaceSize, ipld.NMTIgnoreMaxNamespace)
 	shares := quadrantOrder(eds)
 	for _, share := range shares {
 		leaf, err := hasher.HashLeaf(share)

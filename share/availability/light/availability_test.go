@@ -148,7 +148,7 @@ func TestGetShare(t *testing.T) {
 }
 
 func TestService_GetSharesByNamespace(t *testing.T) {
-	var tests = []struct {
+	tests := []struct {
 		squareSize         int
 		expectedShareCount int
 	}{
@@ -232,7 +232,7 @@ func TestService_GetSharesByNamespaceNotFound(t *testing.T) {
 }
 
 func BenchmarkService_GetSharesByNamespace(b *testing.B) {
-	var tests = []struct {
+	tests := []struct {
 		amountShares int
 	}{
 		{amountShares: 4},
