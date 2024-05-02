@@ -103,7 +103,7 @@ func (f *BlockFetcher) Commit(ctx context.Context, height *int64) (*types.Commit
 // ValidatorSet queries Core for the ValidatorSet from the
 // block at the given height.
 func (f *BlockFetcher) ValidatorSet(ctx context.Context, height *int64) (*types.ValidatorSet, error) {
-	var perPage = 100
+	perPage := 100
 
 	vals, total := make([]*types.Validator, 0), -1
 	for page := 1; len(vals) != total; page++ {

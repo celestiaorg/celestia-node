@@ -36,11 +36,21 @@ func TestSubmitPayForBlob(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
-	signer := blobtypes.NewKeyringSigner(cctx.Keyring, accounts[0], cctx.ChainID)
 	coreIP := "127.0.0.1"
-	ca := NewCoreAccessor(signer, nil, "http", coreIP, extractPort(rpcAddr), coreIP, extractPort(grpcAddr))
+	ca, err := NewCoreAccessor(
+		cctx.Keyring,
+		accounts[0],
+		nil,
+		"http",
+		coreIP,
+		extractPort(rpcAddr),
+		coreIP,
+		extractPort(grpcAddr),
+	)
+	require.NoError(t, err)
+
 	// start the accessor
-	err := ca.Start(ctx)
+	err = ca.Start(ctx)
 	require.NoError(t, err)
 	t.Cleanup(func() {
 		_ = ca.Stop(ctx)
@@ -90,7 +100,6 @@ func TestSubmitPayForBlob(t *testing.T) {
 			}
 		})
 	}
-
 }
 
 func extractPort(addr string) string {

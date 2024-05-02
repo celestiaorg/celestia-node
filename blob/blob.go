@@ -62,7 +62,6 @@ func (p Proof) equal(input Proof) error {
 		if !bytes.Equal(proof.LeafHash(), input[i].LeafHash()) {
 			return ErrInvalidProof
 		}
-
 	}
 	return nil
 }

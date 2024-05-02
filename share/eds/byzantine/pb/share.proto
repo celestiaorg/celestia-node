@@ -6,6 +6,7 @@ import "pb/proof.proto";
 message Share {
   bytes Data = 1;
   proof.pb.Proof Proof = 2;
+  axis ProofAxis = 3;
 }
 
 enum axis {

@@ -109,7 +109,12 @@ func (cl *Listener) Start(context.Context) error {
 }
 
 // Stop stops the listener loop.
-func (cl *Listener) Stop(context.Context) error {
+func (cl *Listener) Stop(ctx context.Context) error {
+	err := cl.fetcher.UnsubscribeNewBlockEvent(ctx)
+	if err != nil {
+		log.Warnw("listener: unsubscribing from new block event", "err", err)
+	}
+
 	cl.cancel()
 	cl.cancel = nil
 	return cl.metrics.Close()
@@ -243,7 +248,7 @@ func (cl *Listener) handleNewSignedBlock(ctx context.Context, b types.EventDataS
 		if err != nil && !errors.Is(err, context.Canceled) {
 			log.Errorw("listener: broadcasting data hash",
 				"height", b.Header.Height,
-				"hash", b.Header.Hash(), "err", err) //TODO: hash or datahash?
+				"hash", b.Header.Hash(), "err", err) // TODO: hash or datahash?
 		}
 	}
 

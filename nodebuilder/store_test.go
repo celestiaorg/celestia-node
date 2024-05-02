@@ -28,7 +28,7 @@ import (
 )
 
 func TestRepo(t *testing.T) {
-	var tests = []struct {
+	tests := []struct {
 		tp node.Type
 	}{
 		{tp: node.Bridge}, {tp: node.Light}, {tp: node.Full},
@@ -167,7 +167,7 @@ func TestDiscoverOpened(t *testing.T) {
 	t.Run("single open store", func(t *testing.T) {
 		_, dir := initAndOpenStore(t, node.Full)
 
-		mockDefaultNodeStorePath := func(t string, n string) (string, error) {
+		mockDefaultNodeStorePath := func(t, n string) (string, error) {
 			return dir, nil
 		}
 		DefaultNodeStorePath = mockDefaultNodeStorePath
@@ -193,7 +193,7 @@ func TestDiscoverOpened(t *testing.T) {
 			}
 		}
 
-		mockDefaultNodeStorePath := func(tp string, n string) (string, error) {
+		mockDefaultNodeStorePath := func(tp, n string) (string, error) {
 			key := n + "_" + tp
 			if dir, ok := dirMap[key]; ok {
 				return dir, nil
@@ -218,7 +218,7 @@ func TestDiscoverOpened(t *testing.T) {
 
 	t.Run("no opened store", func(t *testing.T) {
 		dir := t.TempDir()
-		mockDefaultNodeStorePath := func(t string, n string) (string, error) {
+		mockDefaultNodeStorePath := func(t, n string) (string, error) {
 			return dir, nil
 		}
 		DefaultNodeStorePath = mockDefaultNodeStorePath

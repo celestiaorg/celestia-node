@@ -11,6 +11,7 @@ import (
 	sdkErrors "cosmossdk.io/errors"
 	"github.com/cosmos/cosmos-sdk/api/tendermint/abci"
 	nodeservice "github.com/cosmos/cosmos-sdk/client/grpc/node"
+	"github.com/cosmos/cosmos-sdk/crypto/keyring"
 	storetypes "github.com/cosmos/cosmos-sdk/store/types"
 	sdktypes "github.com/cosmos/cosmos-sdk/types"
 	sdkerrors "github.com/cosmos/cosmos-sdk/types/errors"
@@ -27,9 +28,10 @@ import (
 	"google.golang.org/grpc/credentials/insecure"
 
 	"github.com/celestiaorg/celestia-app/app"
+	"github.com/celestiaorg/celestia-app/app/encoding"
 	apperrors "github.com/celestiaorg/celestia-app/app/errors"
 	"github.com/celestiaorg/celestia-app/pkg/appconsts"
-	appblob "github.com/celestiaorg/celestia-app/x/blob"
+	"github.com/celestiaorg/celestia-app/pkg/user"
 	apptypes "github.com/celestiaorg/celestia-app/x/blob/types"
 	libhead "github.com/celestiaorg/go-header"
 
@@ -37,16 +39,16 @@ import (
 	"github.com/celestiaorg/celestia-node/header"
 )
 
-var (
-	log              = logging.Logger("state")
-	ErrInvalidAmount = errors.New("state: amount must be greater than zero")
-)
-
 const (
-	maxRetries = 5
-
 	// gasMultiplier is used to increase gas limit in case if tx has additional options.
 	gasMultiplier = 1.1
+	maxRetries    = 5
+)
+
+var (
+	ErrInvalidAmount = errors.New("state: amount must be greater than zero")
+
+	log = logging.Logger("state")
 )
 
 // Option is the functional option that is applied to the coreAccessor instance
@@ -66,7 +68,14 @@ type CoreAccessor struct {
 	ctx    context.Context
 	cancel context.CancelFunc
 
-	signer *apptypes.KeyringSigner
+	keyring keyring.Keyring
+	addr    sdktypes.AccAddress
+	// TODO: (@cmwaters) - once multiple keys within a signer is supported,
+	// this will no longer be necessary.
+	// ref: https://github.com/celestiaorg/celestia-app/issues/3259
+	signerMu sync.Mutex
+	signer   *user.Signer
+
 	getter libhead.Head[*header.ExtendedHeader]
 
 	stakingCli  stakingtypes.QueryClient
@@ -103,7 +112,8 @@ type CoreAccessor struct {
 // constructs and returns a new CoreAccessor (state service) with the active
 // connection.
 func NewCoreAccessor(
-	signer *apptypes.KeyringSigner,
+	keyring keyring.Keyring,
+	keyname string,
 	getter libhead.Head[*header.ExtendedHeader],
 	rpcScheme,
 	rpcHost,
@@ -111,14 +121,24 @@ func NewCoreAccessor(
 	grpcHost,
 	grpcPort string,
 	options ...Option,
-) *CoreAccessor {
+) (*CoreAccessor, error) {
 	// create verifier
 	prt := merkle.DefaultProofRuntime()
 	prt.RegisterOpDecoder(storetypes.ProofOpIAVLCommitment, storetypes.CommitmentOpDecoder)
 	prt.RegisterOpDecoder(storetypes.ProofOpSimpleMerkleCommitment, storetypes.CommitmentOpDecoder)
 
+	record, err := keyring.Key(keyname)
+	if err != nil {
+		return nil, fmt.Errorf("getting key %s: %w", keyname, err)
+	}
+	addr, err := record.GetAddress()
+	if err != nil {
+		return nil, fmt.Errorf("getting address for key %s: %w", keyname, err)
+	}
+
 	ca := &CoreAccessor{
-		signer:    signer,
+		keyring:   keyring,
+		addr:      addr,
 		getter:    getter,
 		rpcScheme: rpcScheme,
 		rpcHost:   rpcHost,
@@ -131,7 +151,8 @@ func NewCoreAccessor(
 	for _, opt := range options {
 		opt(ca)
 	}
-	return ca
+
+	return ca, nil
 }
 
 func (ca *CoreAccessor) Start(ctx context.Context) error {
@@ -163,6 +184,11 @@ func (ca *CoreAccessor) Start(ctx context.Context) error {
 		return err
 	}
 	ca.rpcCli = cli
+
+	ca.signer, err = ca.setupSigner(ctx)
+	if err != nil {
+		log.Warnw("failed to set up signer, check if node's account is funded", "err", err)
+	}
 
 	ca.minGasPrice, err = ca.queryMinimumGasPrice(ctx)
 	if err != nil {
@@ -198,24 +224,6 @@ func (ca *CoreAccessor) cancelCtx() {
 	ca.cancel = nil
 }
 
-func (ca *CoreAccessor) constructSignedTx(
-	ctx context.Context,
-	msg sdktypes.Msg,
-	opts ...apptypes.TxBuilderOption,
-) ([]byte, error) {
-	// should be called first in order to make a valid tx
-	err := ca.signer.QueryAccountNumber(ctx, ca.coreConn)
-	if err != nil {
-		return nil, err
-	}
-
-	tx, err := ca.signer.BuildSignedTx(ca.signer.NewTxBuilder(opts...), msg)
-	if err != nil {
-		return nil, err
-	}
-	return ca.signer.EncodeTx(tx)
-}
-
 // SubmitPayForBlob builds, signs, and synchronously submits a MsgPayForBlob. It blocks until the
 // transaction is committed and returns the TxResponse. If gasLim is set to 0, the method will
 // automatically estimate the gas limit. If the fee is negative, the method will use the nodes min
@@ -226,6 +234,11 @@ func (ca *CoreAccessor) SubmitPayForBlob(
 	gasLim uint64,
 	blobs []*blob.Blob,
 ) (*TxResponse, error) {
+	signer, err := ca.getSigner(ctx)
+	if err != nil {
+		return nil, err
+	}
+
 	if len(blobs) == 0 {
 		return nil, errors.New("state: no blobs provided")
 	}
@@ -254,11 +267,10 @@ func (ca *CoreAccessor) SubmitPayForBlob(
 
 	minGasPrice := ca.getMinGasPrice()
 
-	var feeGrant apptypes.TxBuilderOption
-
+	var feeGrant user.TxOption
 	// set granter and update gasLimit in case node run in a grantee mode
 	if !ca.granter.Empty() {
-		feeGrant = apptypes.SetFeeGranter(ca.granter)
+		feeGrant = user.SetFeeGranter(ca.granter)
 		gasLim = uint64(float64(gasLim) * gasMultiplier)
 	}
 	// set the fee for the user as the minimum gas price multiplied by the gas limit
@@ -270,15 +282,12 @@ func (ca *CoreAccessor) SubmitPayForBlob(
 
 	var lastErr error
 	for attempt := 0; attempt < maxRetries; attempt++ {
-		options := []apptypes.TxBuilderOption{apptypes.SetGasLimit(gasLim), withFee(fee)}
+		options := []user.TxOption{user.SetGasLimit(gasLim), withFee(fee)}
 		if feeGrant != nil {
 			options = append(options, feeGrant)
 		}
-		response, err := appblob.SubmitPayForBlob(
+		response, err := signer.SubmitPayForBlob(
 			ctx,
-			ca.signer,
-			ca.coreConn,
-			sdktx.BroadcastMode_BROADCAST_MODE_BLOCK,
 			appblobs,
 			options...,
 		)
@@ -308,27 +317,19 @@ func (ca *CoreAccessor) SubmitPayForBlob(
 		}
 
 		if err != nil && errors.Is(err, sdkerrors.ErrNotFound) && !ca.granter.Empty() {
-			return response, errors.New("granter has revoked the grant")
+			return unsetTx(response), errors.New("granter has revoked the grant")
 		}
-		return response, err
+		return unsetTx(response), err
 	}
 	return nil, fmt.Errorf("failed to submit blobs after %d attempts: %w", maxRetries, lastErr)
 }
 
 func (ca *CoreAccessor) AccountAddress(context.Context) (Address, error) {
-	addr, err := ca.signer.GetSignerInfo().GetAddress()
-	if err != nil {
-		return Address{nil}, err
-	}
-	return Address{addr}, nil
+	return Address{ca.addr}, nil
 }
 
 func (ca *CoreAccessor) Balance(ctx context.Context) (*Balance, error) {
-	addr, err := ca.signer.GetSignerInfo().GetAddress()
-	if err != nil {
-		return nil, err
-	}
-	return ca.BalanceForAddress(ctx, Address{addr})
+	return ca.BalanceForAddress(ctx, Address{ca.addr})
 }
 
 func (ca *CoreAccessor) BalanceForAddress(ctx context.Context, addr Address) (*Balance, error) {
@@ -350,10 +351,10 @@ func (ca *CoreAccessor) BalanceForAddress(ctx context.Context, addr Address) (*B
 		Prove:  true,
 	}
 	opts := rpcclient.ABCIQueryOptions{
-		Height: abciReq.Height,
-		Prove:  abciReq.Prove,
+		Height: abciReq.GetHeight(),
+		Prove:  abciReq.GetProve(),
 	}
-	result, err := ca.rpcCli.ABCIQueryWithOptions(ctx, abciReq.Path, abciReq.Data, opts)
+	result, err := ca.rpcCli.ABCIQueryWithOptions(ctx, abciReq.GetPath(), abciReq.GetData(), opts)
 	if err != nil {
 		return nil, err
 	}
@@ -378,7 +379,8 @@ func (ca *CoreAccessor) BalanceForAddress(ctx context.Context, addr Address) (*B
 	err = ca.prt.VerifyValueFromKeys(
 		result.Response.GetProofOps(),
 		head.AppHash,
-		[][]byte{[]byte(banktypes.StoreKey),
+		[][]byte{
+			[]byte(banktypes.StoreKey),
 			prefixedAccountKey,
 		}, value)
 	if err != nil {
@@ -396,7 +398,7 @@ func (ca *CoreAccessor) SubmitTx(ctx context.Context, tx Tx) (*TxResponse, error
 	if err != nil {
 		return nil, err
 	}
-	return txResp.TxResponse, nil
+	return unsetTx(txResp.TxResponse), nil
 }
 
 func (ca *CoreAccessor) SubmitTxWithBroadcastMode(
@@ -408,7 +410,7 @@ func (ca *CoreAccessor) SubmitTxWithBroadcastMode(
 	if err != nil {
 		return nil, err
 	}
-	return txResp.TxResponse, nil
+	return unsetTx(txResp.TxResponse), nil
 }
 
 func (ca *CoreAccessor) Transfer(
@@ -418,21 +420,26 @@ func (ca *CoreAccessor) Transfer(
 	fee Int,
 	gasLim uint64,
 ) (*TxResponse, error) {
+	signer, err := ca.getSigner(ctx)
+	if err != nil {
+		return nil, err
+	}
+
 	if amount.IsNil() || amount.Int64() <= 0 {
 		return nil, ErrInvalidAmount
 	}
 
-	from, err := ca.signer.GetSignerInfo().GetAddress()
-	if err != nil {
-		return nil, err
-	}
 	coins := sdktypes.NewCoins(sdktypes.NewCoin(app.BondDenom, amount))
-	msg := banktypes.NewMsgSend(from, addr, coins)
-	signedTx, err := ca.constructSignedTx(ctx, msg, apptypes.SetGasLimit(gasLim), withFee(fee))
-	if err != nil {
-		return nil, err
+	msg := banktypes.NewMsgSend(signer.Address(), addr, coins)
+	if gasLim == 0 {
+		var err error
+		gasLim, err = signer.EstimateGas(ctx, []sdktypes.Msg{msg})
+		if err != nil {
+			return nil, fmt.Errorf("estimating gas: %w", err)
+		}
 	}
-	return ca.SubmitTx(ctx, signedTx)
+	resp, err := signer.SubmitTx(ctx, []sdktypes.Msg{msg}, user.SetGasLimit(gasLim), user.SetFee(fee.Uint64()))
+	return unsetTx(resp), err
 }
 
 func (ca *CoreAccessor) CancelUnbondingDelegation(
@@ -443,21 +450,27 @@ func (ca *CoreAccessor) CancelUnbondingDelegation(
 	fee Int,
 	gasLim uint64,
 ) (*TxResponse, error) {
+	signer, err := ca.getSigner(ctx)
+	if err != nil {
+		return nil, err
+	}
+
 	if amount.IsNil() || amount.Int64() <= 0 {
 		return nil, ErrInvalidAmount
 	}
 
-	from, err := ca.signer.GetSignerInfo().GetAddress()
-	if err != nil {
-		return nil, err
-	}
 	coins := sdktypes.NewCoin(app.BondDenom, amount)
-	msg := stakingtypes.NewMsgCancelUnbondingDelegation(from, valAddr, height.Int64(), coins)
-	signedTx, err := ca.constructSignedTx(ctx, msg, apptypes.SetGasLimit(gasLim), withFee(fee))
-	if err != nil {
-		return nil, err
+	msg := stakingtypes.NewMsgCancelUnbondingDelegation(signer.Address(), valAddr, height.Int64(), coins)
+	if gasLim == 0 {
+		var err error
+		gasLim, err = signer.EstimateGas(ctx, []sdktypes.Msg{msg})
+		if err != nil {
+			return nil, fmt.Errorf("estimating gas: %w", err)
+		}
 	}
-	return ca.SubmitTx(ctx, signedTx)
+
+	resp, err := signer.SubmitTx(ctx, []sdktypes.Msg{msg}, user.SetGasLimit(gasLim), user.SetFee(fee.Uint64()))
+	return unsetTx(resp), err
 }
 
 func (ca *CoreAccessor) BeginRedelegate(
@@ -468,21 +481,27 @@ func (ca *CoreAccessor) BeginRedelegate(
 	fee Int,
 	gasLim uint64,
 ) (*TxResponse, error) {
+	signer, err := ca.getSigner(ctx)
+	if err != nil {
+		return nil, err
+	}
+
 	if amount.IsNil() || amount.Int64() <= 0 {
 		return nil, ErrInvalidAmount
 	}
 
-	from, err := ca.signer.GetSignerInfo().GetAddress()
-	if err != nil {
-		return nil, err
-	}
 	coins := sdktypes.NewCoin(app.BondDenom, amount)
-	msg := stakingtypes.NewMsgBeginRedelegate(from, srcValAddr, dstValAddr, coins)
-	signedTx, err := ca.constructSignedTx(ctx, msg, apptypes.SetGasLimit(gasLim), withFee(fee))
-	if err != nil {
-		return nil, err
+	msg := stakingtypes.NewMsgBeginRedelegate(signer.Address(), srcValAddr, dstValAddr, coins)
+	if gasLim == 0 {
+		var err error
+		gasLim, err = signer.EstimateGas(ctx, []sdktypes.Msg{msg})
+		if err != nil {
+			return nil, fmt.Errorf("estimating gas: %w", err)
+		}
 	}
-	return ca.SubmitTx(ctx, signedTx)
+
+	resp, err := signer.SubmitTx(ctx, []sdktypes.Msg{msg}, user.SetGasLimit(gasLim), user.SetFee(fee.Uint64()))
+	return unsetTx(resp), err
 }
 
 func (ca *CoreAccessor) Undelegate(
@@ -492,21 +511,26 @@ func (ca *CoreAccessor) Undelegate(
 	fee Int,
 	gasLim uint64,
 ) (*TxResponse, error) {
+	signer, err := ca.getSigner(ctx)
+	if err != nil {
+		return nil, err
+	}
+
 	if amount.IsNil() || amount.Int64() <= 0 {
 		return nil, ErrInvalidAmount
 	}
 
-	from, err := ca.signer.GetSignerInfo().GetAddress()
-	if err != nil {
-		return nil, err
-	}
 	coins := sdktypes.NewCoin(app.BondDenom, amount)
-	msg := stakingtypes.NewMsgUndelegate(from, delAddr, coins)
-	signedTx, err := ca.constructSignedTx(ctx, msg, apptypes.SetGasLimit(gasLim), withFee(fee))
-	if err != nil {
-		return nil, err
+	msg := stakingtypes.NewMsgUndelegate(signer.Address(), delAddr, coins)
+	if gasLim == 0 {
+		var err error
+		gasLim, err = signer.EstimateGas(ctx, []sdktypes.Msg{msg})
+		if err != nil {
+			return nil, fmt.Errorf("estimating gas: %w", err)
+		}
 	}
-	return ca.SubmitTx(ctx, signedTx)
+	resp, err := signer.SubmitTx(ctx, []sdktypes.Msg{msg}, user.SetGasLimit(gasLim), user.SetFee(fee.Uint64()))
+	return unsetTx(resp), err
 }
 
 func (ca *CoreAccessor) Delegate(
@@ -516,31 +540,33 @@ func (ca *CoreAccessor) Delegate(
 	fee Int,
 	gasLim uint64,
 ) (*TxResponse, error) {
+	signer, err := ca.getSigner(ctx)
+	if err != nil {
+		return nil, err
+	}
+
 	if amount.IsNil() || amount.Int64() <= 0 {
 		return nil, ErrInvalidAmount
 	}
 
-	from, err := ca.signer.GetSignerInfo().GetAddress()
-	if err != nil {
-		return nil, err
-	}
 	coins := sdktypes.NewCoin(app.BondDenom, amount)
-	msg := stakingtypes.NewMsgDelegate(from, delAddr, coins)
-	signedTx, err := ca.constructSignedTx(ctx, msg, apptypes.SetGasLimit(gasLim), withFee(fee))
-	if err != nil {
-		return nil, err
+	msg := stakingtypes.NewMsgDelegate(signer.Address(), delAddr, coins)
+	if gasLim == 0 {
+		var err error
+		gasLim, err = signer.EstimateGas(ctx, []sdktypes.Msg{msg})
+		if err != nil {
+			return nil, fmt.Errorf("estimating gas: %w", err)
+		}
 	}
-	return ca.SubmitTx(ctx, signedTx)
+	resp, err := signer.SubmitTx(ctx, []sdktypes.Msg{msg}, user.SetGasLimit(gasLim), user.SetFee(fee.Uint64()))
+	return unsetTx(resp), err
 }
 
 func (ca *CoreAccessor) QueryDelegation(
 	ctx context.Context,
 	valAddr ValAddress,
 ) (*stakingtypes.QueryDelegationResponse, error) {
-	delAddr, err := ca.signer.GetSignerInfo().GetAddress()
-	if err != nil {
-		return nil, err
-	}
+	delAddr := ca.addr
 	return ca.stakingCli.Delegation(ctx, &stakingtypes.QueryDelegationRequest{
 		DelegatorAddr: delAddr.String(),
 		ValidatorAddr: valAddr.String(),
@@ -551,24 +577,19 @@ func (ca *CoreAccessor) QueryUnbonding(
 	ctx context.Context,
 	valAddr ValAddress,
 ) (*stakingtypes.QueryUnbondingDelegationResponse, error) {
-	delAddr, err := ca.signer.GetSignerInfo().GetAddress()
-	if err != nil {
-		return nil, err
-	}
+	delAddr := ca.addr
 	return ca.stakingCli.UnbondingDelegation(ctx, &stakingtypes.QueryUnbondingDelegationRequest{
 		DelegatorAddr: delAddr.String(),
 		ValidatorAddr: valAddr.String(),
 	})
 }
+
 func (ca *CoreAccessor) QueryRedelegations(
 	ctx context.Context,
 	srcValAddr,
 	dstValAddr ValAddress,
 ) (*stakingtypes.QueryRedelegationsResponse, error) {
-	delAddr, err := ca.signer.GetSignerInfo().GetAddress()
-	if err != nil {
-		return nil, err
-	}
+	delAddr := ca.addr
 	return ca.stakingCli.Redelegations(ctx, &stakingtypes.QueryRedelegationsRequest{
 		DelegatorAddr:    delAddr.String(),
 		SrcValidatorAddr: srcValAddr.String(),
@@ -583,10 +604,12 @@ func (ca *CoreAccessor) GrantFee(
 	fee Int,
 	gasLim uint64,
 ) (*TxResponse, error) {
-	granter, err := ca.signer.GetSignerInfo().GetAddress()
+	signer, err := ca.getSigner(ctx)
 	if err != nil {
 		return nil, err
 	}
+
+	granter := signer.Address()
 
 	allowance := &feegrant.BasicAllowance{}
 	if !amount.IsZero() {
@@ -596,14 +619,11 @@ func (ca *CoreAccessor) GrantFee(
 
 	msg, err := feegrant.NewMsgGrantAllowance(allowance, granter, grantee)
 	if err != nil {
-		return nil, nil
-	}
-
-	signedTx, err := ca.constructSignedTx(ctx, msg, apptypes.SetGasLimit(gasLim), withFee(fee))
-	if err != nil {
 		return nil, err
 	}
-	return ca.SubmitTx(ctx, signedTx)
+
+	resp, err := signer.SubmitTx(ctx, []sdktypes.Msg{msg}, user.SetGasLimit(gasLim), withFee(fee))
+	return unsetTx(resp), err
 }
 
 func (ca *CoreAccessor) RevokeGrantFee(
@@ -612,18 +632,16 @@ func (ca *CoreAccessor) RevokeGrantFee(
 	fee Int,
 	gasLim uint64,
 ) (*TxResponse, error) {
-	granter, err := ca.signer.GetSignerInfo().GetAddress()
+	signer, err := ca.getSigner(ctx)
 	if err != nil {
 		return nil, err
 	}
+
+	granter := signer.Address()
 
 	msg := feegrant.NewMsgRevokeAllowance(granter, grantee)
-	signedTx, err := ca.constructSignedTx(ctx, &msg, apptypes.SetGasLimit(gasLim), withFee(fee))
-	if err != nil {
-		return nil, err
-	}
-
-	return ca.SubmitTx(ca.ctx, signedTx)
+	resp, err := signer.SubmitTx(ctx, []sdktypes.Msg{&msg}, user.SetGasLimit(gasLim), withFee(fee))
+	return unsetTx(resp), err
 }
 
 func (ca *CoreAccessor) LastPayForBlob() int64 {
@@ -673,7 +691,42 @@ func (ca *CoreAccessor) queryMinimumGasPrice(
 	return coins.AmountOf(app.BondDenom).MustFloat64(), nil
 }
 
-func withFee(fee Int) apptypes.TxBuilderOption {
+// getSigner returns the signer if it has already been constructed, otherwise
+// it will attempt to set it up. The signer can only be constructed if the account
+// exists / is funded.
+func (ca *CoreAccessor) getSigner(ctx context.Context) (*user.Signer, error) {
+	ca.signerMu.Lock()
+	defer ca.signerMu.Unlock()
+
+	if ca.signer != nil {
+		return ca.signer, nil
+	}
+
+	var err error
+	ca.signer, err = ca.setupSigner(ctx)
+	return ca.signer, err
+}
+
+func (ca *CoreAccessor) setupSigner(ctx context.Context) (*user.Signer, error) {
+	encCfg := encoding.MakeConfig(app.ModuleEncodingRegisters...)
+	return user.SetupSigner(ctx, ca.keyring, ca.coreConn, ca.addr, encCfg)
+}
+
+func withFee(fee Int) user.TxOption {
 	gasFee := sdktypes.NewCoins(sdktypes.NewCoin(app.BondDenom, fee))
-	return apptypes.SetFeeAmount(gasFee)
+	return user.SetFeeAmount(gasFee)
+}
+
+// THIS IS A TEMPORARY SOLUTION!!!
+// unsetTx helps to fix issue in TxResponse marshaling. Marshaling TxReponse
+// fails because `TxResponse.Tx` is not empty but does not contain respective codec
+// for encoding using the standard `json.MarshalJSON()`. It becomes empty when
+// https://github.com/celestiaorg/celestia-core/issues/1281 will be merged.
+// The `TxResponse.Tx` contains the transaction that is sent to the cosmos-sdk in the form
+// in which it is processed there, so the user should not be aware of it.
+func unsetTx(txResponse *TxResponse) *TxResponse {
+	if txResponse != nil && txResponse.Tx != nil {
+		txResponse.Tx = nil
+	}
+	return txResponse
 }

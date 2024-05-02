@@ -39,8 +39,10 @@ type DASer struct {
 	running        int32
 }
 
-type listenFn func(context.Context, *header.ExtendedHeader)
-type sampleFn func(context.Context, *header.ExtendedHeader) error
+type (
+	listenFn func(context.Context, *header.ExtendedHeader)
+	sampleFn func(context.Context, *header.ExtendedHeader) error
+)
 
 // NewDASer creates a new DASer.
 func NewDASer(
@@ -132,6 +134,11 @@ func (d *DASer) Stop(ctx context.Context) error {
 	}
 
 	d.cancel()
+
+	if err := d.sampler.metrics.close(); err != nil {
+		log.Warnw("closing metrics", "err", err)
+	}
+
 	if err = d.sampler.wait(ctx); err != nil {
 		return fmt.Errorf("DASer force quit: %w", err)
 	}

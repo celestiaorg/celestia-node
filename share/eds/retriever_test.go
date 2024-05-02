@@ -206,7 +206,7 @@ func BenchmarkNewErrByzantineData(b *testing.B) {
 			b.StartTimer()
 
 			for i := 0; i < b.N; i++ {
-				err = byzantine.NewErrByzantine(ctx, bServ, h.DAH, errByz)
+				err = byzantine.NewErrByzantine(ctx, bServ.Blockstore(), h.DAH, errByz)
 				require.NotNil(t, err)
 			}
 		})
