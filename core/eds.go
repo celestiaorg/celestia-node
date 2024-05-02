@@ -28,7 +28,7 @@ import (
 // nil is returned in place of the eds.
 func extendBlock(data types.Data, appVersion uint64, options ...nmt.Option) (*rsmt2d.ExtendedDataSquare, error) {
 	if app.IsEmptyBlock(data, appVersion) {
-		return nil, nil
+		return share.EmptyExtendedDataSquare(), nil
 	}
 
 	// Construct the data square from the block's transactions
@@ -62,7 +62,7 @@ func storeEDS(
 	store *eds.Store,
 	window pruner.AvailabilityWindow,
 ) error {
-	if eds == nil {
+	if eds.Equals(share.EmptyExtendedDataSquare()) {
 		return nil
 	}
 

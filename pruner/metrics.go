@@ -8,9 +8,7 @@ import (
 	"go.opentelemetry.io/otel/metric"
 )
 
-var (
-	meter = otel.Meter("storage_pruner")
-)
+var meter = otel.Meter("storage_pruner")
 
 type metrics struct {
 	prunedCounter metric.Int64Counter

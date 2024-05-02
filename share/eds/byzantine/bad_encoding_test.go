@@ -47,7 +47,7 @@ func TestBEFP_Validate(t *testing.T) {
 	proof := CreateBadEncodingProof([]byte("hash"), 0, errByz)
 	befp, ok := proof.(*BadEncodingProof)
 	require.True(t, ok)
-	var test = []struct {
+	test := []struct {
 		name           string
 		prepareFn      func() error
 		expectedResult func(error)

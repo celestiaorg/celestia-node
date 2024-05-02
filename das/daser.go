@@ -39,8 +39,10 @@ type DASer struct {
 	running        int32
 }
 
-type listenFn func(context.Context, *header.ExtendedHeader)
-type sampleFn func(context.Context, *header.ExtendedHeader) error
+type (
+	listenFn func(context.Context, *header.ExtendedHeader)
+	sampleFn func(context.Context, *header.ExtendedHeader) error
+)
 
 // NewDASer creates a new DASer.
 func NewDASer(

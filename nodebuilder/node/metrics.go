@@ -2,6 +2,7 @@ package node
 
 import (
 	"context"
+	"fmt"
 	"time"
 
 	logging "github.com/ipfs/go-log/v2"
@@ -72,7 +73,7 @@ func WithMetrics(lc fx.Lifecycle) error {
 
 	clientReg, err := meter.RegisterCallback(callback, nodeStartTS, totalNodeRunTime, buildInfoGauge)
 	if err != nil {
-		return nil
+		return fmt.Errorf("failed to register metrics callback: %w", err)
 	}
 
 	lc.Append(

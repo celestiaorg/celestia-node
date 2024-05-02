@@ -38,7 +38,7 @@ func ODSReader(carReader io.Reader) (io.Reader, error) {
 	// first LdRead reads the full CAR header to determine amount of shares in the ODS
 	data, err := util.LdRead(odsR.carReader)
 	if err != nil {
-		return nil, fmt.Errorf("reading header: %v", err)
+		return nil, fmt.Errorf("reading header: %w", err)
 	}
 
 	var header car.CarHeader
@@ -79,7 +79,7 @@ func (r *bufferedODSReader) readLeaf() error {
 
 	l, err := binary.ReadUvarint(r.carReader)
 	if err != nil {
-		if err == io.EOF {
+		if errors.Is(err, io.EOF) {
 			return io.ErrUnexpectedEOF // don't silently pretend this is a clean EOF
 		}
 		return err
