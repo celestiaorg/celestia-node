@@ -3,13 +3,14 @@ package share
 import (
 	"context"
 	"fmt"
+	"time"
+
 	"github.com/ipfs/go-datastore"
 	"github.com/libp2p/go-libp2p/core/host"
 	"github.com/libp2p/go-libp2p/core/routing"
 	routingdisc "github.com/libp2p/go-libp2p/p2p/discovery/routing"
 	"github.com/libp2p/go-libp2p/p2p/net/conngater"
 	"go.uber.org/fx"
-	"time"
 
 	libhead "github.com/celestiaorg/go-header"
 	"github.com/celestiaorg/go-header/sync"
@@ -43,6 +44,7 @@ func ConstructModule(tp node.Type, cfg *Config, options ...fx.Option) fx.Option 
 		peerManagerComponents(tp, cfg),
 		fullDiscoveryComponents(cfg),
 		shrexSubComponents(),
+		shrexGetterComponents(cfg),
 		archivalComponents(cfg),
 	)
 
@@ -51,7 +53,7 @@ func ConstructModule(tp node.Type, cfg *Config, options ...fx.Option) fx.Option 
 		shrexServerComponents(cfg),
 		edsStoreComponents(cfg),
 		fullAvailabilityComponents(),
-		shrexGetterComponents(cfg),
+		advertiseHooks(),
 		fx.Provide(func(shrexSub *shrexsub.PubSub) shrexsub.BroadcastFn {
 			return shrexSub.Broadcast
 		}),
@@ -87,7 +89,6 @@ func ConstructModule(tp node.Type, cfg *Config, options ...fx.Option) fx.Option 
 		return fx.Module(
 			"share",
 			baseComponents,
-			shrexGetterComponents(cfg),
 			lightAvailabilityComponents(cfg),
 			fx.Invoke(ensureEmptyEDSInBS),
 			fx.Provide(getters.NewIPLDGetter),
@@ -98,8 +99,9 @@ func ConstructModule(tp node.Type, cfg *Config, options ...fx.Option) fx.Option 
 					return nil
 				}
 			}),
-			// needed to invoke archival discovery
-			fx.Invoke(func(_ []*disc.Discovery) {}),
+			// needed to invoke archival discovery lifecycle as no other
+			// component takes it.
+			fx.Invoke(func(_ map[string]*disc.Discovery) {}),
 		)
 	default:
 		panic("invalid node type")
@@ -263,15 +265,7 @@ func edsStoreComponents(cfg *Config) fx.Option {
 
 func fullAvailabilityComponents() fx.Option {
 	return fx.Options(
-		fx.Provide(fx.Annotate(
-			full.NewShareAvailability,
-			fx.OnStart(func(ctx context.Context, avail *full.ShareAvailability) error {
-				return avail.Start(ctx)
-			}),
-			fx.OnStop(func(ctx context.Context, avail *full.ShareAvailability) error {
-				return avail.Stop(ctx)
-			}),
-		)),
+		fx.Provide(full.NewShareAvailability),
 		fx.Provide(func(avail *full.ShareAvailability) share.Availability {
 			return avail
 		}),
@@ -305,46 +299,45 @@ func archivalComponents(cfg *Config) fx.Option {
 }
 
 func archivalDiscovery(cfg *Config) fx.Option {
-	return fx.Provide(func(
-		lc fx.Lifecycle,
-		tp node.Type,
-		pruneCfg *modprune.Config,
-		d *disc.Discovery,
-		h host.Host,
-		r routing.ContentRouting,
-		opt disc.Option,
-	) ([]*disc.Discovery, error) {
-		// if pruner is enabled for BN, no archival service is necessary
-		if tp == node.Bridge && pruneCfg.EnableService {
-			// TODO @renaynay: remove bc pruned nodes should still be able to query archival
-			// only full node discovery is needed
-			return []*disc.Discovery{d}, nil
-		}
+	return fx.Options(
+		fx.Provide(func(
+			lc fx.Lifecycle,
+			tp node.Type,
+			pruneCfg *modprune.Config,
+			d *disc.Discovery,
+			h host.Host,
+			r routing.ContentRouting,
+			opt disc.Option,
+		) (map[string]*disc.Discovery, error) {
+			// if pruner is enabled for BN, no archival service is necessary
+			if tp == node.Bridge && pruneCfg.EnableService {
+				return map[string]*disc.Discovery{"full": d}, nil
+			}
 
-		archivalDisc, err := disc.NewDiscovery(
-			cfg.Discovery,
-			h,
-			routingdisc.NewRoutingDiscovery(r),
-			archivalNodesTag,
-			opt,
-		)
-		if err != nil {
-			return nil, err
-		}
+			archivalDisc, err := disc.NewDiscovery(
+				cfg.Discovery,
+				h,
+				routingdisc.NewRoutingDiscovery(r),
+				archivalNodesTag,
+				opt,
+			)
+			if err != nil {
+				return nil, err
+			}
 
-		lc.Append(fx.Hook{
-			OnStart: archivalDisc.Start,
-			OnStop:  archivalDisc.Stop,
-		})
+			lc.Append(fx.Hook{
+				OnStart: archivalDisc.Start,
+				OnStop:  archivalDisc.Stop,
+			})
 
-		return []*disc.Discovery{d, archivalDisc}, nil
-	})
+			return map[string]*disc.Discovery{"full": d, "archival": archivalDisc}, nil
+		}),
+	)
 }
 
 func archivalPeerManager() fx.Option {
 	return fx.Provide(func(
 		lc fx.Lifecycle,
-		pruneCfg *modprune.Config,
 		params peers.Parameters,
 		h host.Host,
 		gater *conngater.BasicConnectionGater,
@@ -360,5 +353,42 @@ func archivalPeerManager() fx.Option {
 
 		opts := []getters.Option{getters.WithArchivalPeerManager(archivalPeerManager)}
 		return opts, disc.WithOnPeersUpdate(archivalPeerManager.UpdateNodePool), nil
+	})
+}
+
+// advertiseHooks provides the lifecycle hooks for both `full` and, if
+// applicable, `archival` discovery.
+func advertiseHooks() fx.Option {
+	return fx.Invoke(func(lc fx.Lifecycle, tp node.Type, cfg *modprune.Config, discs map[string]*disc.Discovery) error {
+		if tp == node.Light {
+			// do not advertise on `full` or `archival` topics
+			return nil
+		}
+
+		// start advertising on `full` node topic as both FNs and BNs (regardless of pruning status)
+		// are considered `full` on the celestia DA network
+		fullDisc, ok := discs["full"]
+		if !ok {
+			return fmt.Errorf("expected full discovery component to be provided")
+		}
+		lc.Append(fx.Hook{
+			OnStart: fullDisc.StartAdvertising,
+			OnStop:  fullDisc.StopAdvertising,
+		})
+
+		// if the BN or FN is not in pruning mode, it is `archival`, so
+		// advertise on the `archival` topic
+		if !cfg.EnableService {
+			archivalDisc, ok := discs["archival"]
+			if !ok {
+				return fmt.Errorf("expected archival discovery component to be provided")
+			}
+			lc.Append(fx.Hook{
+				OnStart: archivalDisc.StartAdvertising,
+				OnStop:  archivalDisc.StopAdvertising,
+			})
+		}
+
+		return nil
 	})
 }

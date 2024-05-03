@@ -26,17 +26,23 @@ func ConstructModule(tp node.Type, cfg *Config) fx.Option {
 			// even if pruning is not enabled.
 			return fx.Options(
 				baseComponents,
-				fx.Supply(light.Window),
+				fx.Provide(func() pruner.AvailabilityWindow {
+					return light.Window
+				}),
 			)
 		case node.Full:
 			return fx.Options(
 				baseComponents,
-				fx.Supply(archival.Window),
+				fx.Provide(func() pruner.AvailabilityWindow {
+					return archival.Window
+				}),
 			)
 		case node.Bridge:
 			return fx.Options(
 				baseComponents,
-				fx.Supply(archival.Window),
+				fx.Provide(func() pruner.AvailabilityWindow {
+					return archival.Window
+				}),
 				fx.Provide(func() []core.Option {
 					return []core.Option{}
 				}),
@@ -69,7 +75,9 @@ func ConstructModule(tp node.Type, cfg *Config) fx.Option {
 			fx.Provide(func(store *eds.Store) pruner.Pruner {
 				return full.NewPruner(store)
 			}),
-			fx.Supply(full.Window),
+			fx.Provide(func() pruner.AvailabilityWindow {
+				return full.Window
+			}),
 		)
 	case node.Bridge:
 		return fx.Module("prune",
@@ -77,7 +85,9 @@ func ConstructModule(tp node.Type, cfg *Config) fx.Option {
 			fx.Provide(func(store *eds.Store) pruner.Pruner {
 				return full.NewPruner(store)
 			}),
-			fx.Supply(full.Window),
+			fx.Provide(func() pruner.AvailabilityWindow {
+				return full.Window
+			}),
 			fx.Provide(func(window pruner.AvailabilityWindow) []core.Option {
 				return []core.Option{core.WithAvailabilityWindow(window)}
 			}),
@@ -86,7 +96,9 @@ func ConstructModule(tp node.Type, cfg *Config) fx.Option {
 	//  in which case, this can be enabled.
 	case node.Light:
 		return fx.Module("prune",
-			fx.Supply(light.Window),
+			fx.Provide(func() pruner.AvailabilityWindow {
+				return light.Window
+			}),
 		)
 	default:
 		panic("unknown node type")

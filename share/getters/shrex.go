@@ -295,10 +295,9 @@ func (sg *ShrexGetter) getPeer(
 	ctx context.Context,
 	header *header.ExtendedHeader,
 ) (libpeer.ID, peers.DoneFunc, error) {
-	log.Errorw("getPeer called with", "availabilityWindow", sg.availabilityWindow)
 	if sg.archivalPeerManager != nil && !pruner.IsWithinAvailabilityWindow(header.Time(), sg.availabilityWindow) {
-		log.Errorw("RYAN THIS LOG SHOULD HIT --- HI HELLO")
-		return sg.archivalPeerManager.Peer(ctx, header.DAH.Hash(), header.Height())
+		p, df, err := sg.archivalPeerManager.Peer(ctx, header.DAH.Hash(), header.Height())
+		return p, df, err
 	}
 	return sg.fullPeerManager.Peer(ctx, header.DAH.Hash(), header.Height())
 }

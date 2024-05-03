@@ -13,7 +13,6 @@ import (
 	"github.com/celestiaorg/celestia-node/share/eds"
 	"github.com/celestiaorg/celestia-node/share/eds/byzantine"
 	"github.com/celestiaorg/celestia-node/share/ipld"
-	"github.com/celestiaorg/celestia-node/share/p2p/discovery"
 )
 
 var log = logging.Logger("share/full")
@@ -24,38 +23,17 @@ var log = logging.Logger("share/full")
 type ShareAvailability struct {
 	store  *eds.Store
 	getter share.Getter
-	disc   []*discovery.Discovery
-
-	cancel context.CancelFunc
 }
 
 // NewShareAvailability creates a new full ShareAvailability.
 func NewShareAvailability(
 	store *eds.Store,
 	getter share.Getter,
-	disc []*discovery.Discovery,
 ) *ShareAvailability {
 	return &ShareAvailability{
 		store:  store,
 		getter: getter,
-		disc:   disc,
 	}
-}
-
-func (fa *ShareAvailability) Start(context.Context) error {
-	ctx, cancel := context.WithCancel(context.Background())
-	fa.cancel = cancel
-
-	for _, disc := range fa.disc {
-		go disc.Advertise(ctx)
-	}
-
-	return nil
-}
-
-func (fa *ShareAvailability) Stop(context.Context) error {
-	fa.cancel()
-	return nil
 }
 
 // SharesAvailable reconstructs the data committed to the given Root by requesting

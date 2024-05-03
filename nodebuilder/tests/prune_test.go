@@ -3,16 +3,15 @@ package tests
 import (
 	"bytes"
 	"context"
-	"go.uber.org/fx"
 	"testing"
 	"time"
 
 	"github.com/libp2p/go-libp2p/core/host"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"go.uber.org/fx"
 
 	"github.com/celestiaorg/celestia-node/blob"
-	"github.com/celestiaorg/celestia-node/libs/fxutil"
 	"github.com/celestiaorg/celestia-node/nodebuilder"
 	"github.com/celestiaorg/celestia-node/nodebuilder/das"
 	"github.com/celestiaorg/celestia-node/nodebuilder/node"
@@ -62,7 +61,7 @@ func TestArchivalBlobSync(t *testing.T) {
 
 	testAvailWindow := pruner.AvailabilityWindow(time.Millisecond)
 	prunerOpts := fx.Options(
-		fxutil.ReplaceAs(testAvailWindow, new(pruner.AvailabilityWindow)),
+		fx.Replace(testAvailWindow),
 	)
 
 	err = archivalBN.Stop(ctx)
@@ -93,12 +92,9 @@ func TestArchivalBlobSync(t *testing.T) {
 		root   share.DataHash
 	}
 
-	t.Log("89")
-
 	archivalBlobs := make([]*archivalBlob, 0)
 	i := 1
 	for {
-		t.Log("getting block by height", "height", i)
 		eh, err := archivalFN.HeaderServ.GetByHeight(ctx, uint64(i))
 		require.NoError(t, err)
 
@@ -111,7 +107,6 @@ func TestArchivalBlobSync(t *testing.T) {
 		require.NoError(t, err)
 		ns, err := share.NamespaceFromBytes(shr[:share.NamespaceSize])
 		require.NoError(t, err)
-		t.Log("SHAREEEEEEE: ", ns.String())
 
 		blobs, err := archivalFN.BlobServ.GetAll(ctx, uint64(i), []share.Namespace{ns})
 		require.NoError(t, err)
