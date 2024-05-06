@@ -337,6 +337,7 @@ func (ca *CoreAccessor) BalanceForAddress(ctx context.Context, addr Address) (*B
 
 	result, err := ca.abciQueryCli.ABCIQuery(ctx, req)
 	if err != nil || result.Code != 0 {
+		err = fmt.Errorf("failed to query for balance: %w; result log: %s", err, result.Log)
 		return nil, err
 	}
 
@@ -354,20 +355,23 @@ func (ca *CoreAccessor) BalanceForAddress(ctx context.Context, addr Address) (*B
 	if !ok {
 		return nil, fmt.Errorf("cannot convert %s into sdktypes.Int", string(value))
 	}
+
+	if result.GetProofOps() == nil {
+		return nil, fmt.Errorf("failed to get proofs for balance of address %s", addr.String())
+	}
+
 	// verify balance
-	var proofOps *crypto.ProofOps
-	if result.GetProofOps() != nil {
-		proofOps = &crypto.ProofOps{
-			Ops: make([]crypto.ProofOp, len(result.ProofOps.Ops)),
-		}
-		for i, proofOp := range result.ProofOps.Ops {
-			proofOps.Ops[i] = crypto.ProofOp{
-				Type: proofOp.Type,
-				Key:  proofOp.Key,
-				Data: proofOp.Data,
-			}
+	proofOps := &crypto.ProofOps{
+		Ops: make([]crypto.ProofOp, len(result.ProofOps.Ops)),
+	}
+	for i, proofOp := range result.ProofOps.Ops {
+		proofOps.Ops[i] = crypto.ProofOp{
+			Type: proofOp.Type,
+			Key:  proofOp.Key,
+			Data: proofOp.Data,
 		}
 	}
+
 	err = ca.prt.VerifyValueFromKeys(
 		proofOps,
 		head.AppHash,
