@@ -154,7 +154,6 @@ func initializeTraces(
 		return fmt.Errorf("creating OTLP trace exporter: %w", err)
 	}
 
-	var tp trace.TracerProvider
 	traceProvider := tracesdk.NewTracerProvider(
 		tracesdk.WithSampler(tracesdk.AlwaysSample()),
 		// Always be sure to batch in production.
@@ -164,8 +163,10 @@ func initializeTraces(
 			semconv.SchemaURL,
 			semconv.ServiceNamespaceKey.String(nodeType.String()),
 			semconv.ServiceNameKey.String(fmt.Sprintf("%s/%s", network.String(), peerID.String()))),
-		))
-	tp = traceProvider
+		),
+	)
+
+	var tp trace.TracerProvider = traceProvider
 	if len(pyroOpts) > 0 {
 		tp = otelpyroscope.NewTracerProvider(tp, pyroOpts...)
 	}
