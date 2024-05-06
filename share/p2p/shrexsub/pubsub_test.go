@@ -39,7 +39,7 @@ func TestPubSub(t *testing.T) {
 	subs, err := pSub2.Subscribe()
 	require.NoError(t, err)
 
-	var tests = []struct {
+	tests := []struct {
 		name        string
 		notif       Notification
 		errExpected bool
@@ -120,5 +120,4 @@ func TestPubSub(t *testing.T) {
 			require.Equal(t, tt.notif, got)
 		})
 	}
-
 }

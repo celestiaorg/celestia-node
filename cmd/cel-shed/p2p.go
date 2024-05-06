@@ -22,7 +22,7 @@ var p2pCmd = &cobra.Command{
 var p2pNewKeyCmd = &cobra.Command{
 	Use:   "new-key",
 	Short: "Generate and print new Ed25519 private key for p2p networking",
-	RunE: func(cmd *cobra.Command, _ []string) error { //nolint:revive
+	RunE: func(_ *cobra.Command, _ []string) error {
 		privkey, _, err := crypto.GenerateEd25519Key(rand.Reader)
 		if err != nil {
 			return err
@@ -42,7 +42,7 @@ var p2pNewKeyCmd = &cobra.Command{
 var p2pPeerIDCmd = &cobra.Command{
 	Use:   "peer-id",
 	Short: "Get peer-id out of public or private Ed25519 key",
-	RunE: func(cmd *cobra.Command, args []string) error { //nolint:revive
+	RunE: func(_ *cobra.Command, args []string) error {
 		decKey, err := hex.DecodeString(args[0])
 		if err != nil {
 			return err

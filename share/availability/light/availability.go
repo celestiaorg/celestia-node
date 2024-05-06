@@ -128,7 +128,8 @@ func (la *ShareAvailability) SharesAvailable(ctx context.Context, header *header
 	wg.Wait()
 
 	if errors.Is(ctx.Err(), context.Canceled) {
-		// Availability did not complete due to context cancellation, return context error instead of share.ErrNotAvailable
+		// Availability did not complete due to context cancellation, return context error instead of
+		// share.ErrNotAvailable
 		return ctx.Err()
 	}
 

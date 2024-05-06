@@ -73,7 +73,7 @@ func (c *Client) RequestND(
 			return nil, context.DeadlineExceeded
 		}
 	}
-	if err != p2p.ErrNotFound && err != p2p.ErrRateLimited {
+	if !errors.Is(err, p2p.ErrNotFound) && !errors.Is(err, p2p.ErrRateLimited) {
 		log.Warnw("client-nd: peer returned err", "err", err)
 	}
 	return nil, err

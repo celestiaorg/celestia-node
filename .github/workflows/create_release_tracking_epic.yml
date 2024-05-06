@@ -4,7 +4,7 @@ name: Create Release Tracking Epic
 # on slack for tracking the deployment of a release to testnets and mainnet.
 on:
   release:
-    types: [published]
+    types: [released]
 jobs:
   trigger_issue:
     uses: celestiaorg/.github/.github/workflows/reusable_create_release_tracking_epic.yml@v0.4.1

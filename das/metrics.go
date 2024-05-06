@@ -29,6 +29,8 @@ type metrics struct {
 	newHead       metric.Int64Counter
 
 	lastSampledTS uint64
+
+	clientReg metric.Registration
 }
 
 func (d *DASer) InitMetrics() error {
@@ -119,7 +121,7 @@ func (d *DASer) InitMetrics() error {
 		return nil
 	}
 
-	_, err = meter.RegisterCallback(callback,
+	d.sampler.metrics.clientReg, err = meter.RegisterCallback(callback,
 		lastSampledTS,
 		busyWorkers,
 		networkHead,
@@ -131,6 +133,13 @@ func (d *DASer) InitMetrics() error {
 	}
 
 	return nil
+}
+
+func (m *metrics) close() error {
+	if m == nil {
+		return nil
+	}
+	return m.clientReg.Unregister()
 }
 
 // observeSample records the time it took to sample a header +

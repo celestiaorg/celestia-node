@@ -185,7 +185,7 @@ func DiscoverOpened() (string, error) {
 
 // DefaultNodeStorePath constructs the default node store path using the given
 // node type and network.
-var DefaultNodeStorePath = func(tp string, network string) (string, error) {
+var DefaultNodeStorePath = func(tp, network string) (string, error) {
 	home := os.Getenv("CELESTIA_HOME")
 
 	if home == "" {

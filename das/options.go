@@ -13,7 +13,7 @@ var ErrInvalidOption = errors.New("das: invalid option")
 
 // errInvalidOptionValue is a utility function to dedup code for error-returning
 // when dealing with invalid parameter values
-func errInvalidOptionValue(optionName string, value string) error {
+func errInvalidOptionValue(optionName, value string) error {
 	return fmt.Errorf("%w: value %s cannot be %s", ErrInvalidOption, optionName, value)
 }
 

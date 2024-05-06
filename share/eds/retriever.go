@@ -87,11 +87,11 @@ func (r *Retriever) Retrieve(ctx context.Context, dah *da.DataAvailabilityHeader
 			// check to ensure it is not a catastrophic ErrByzantine case, otherwise handle accordingly
 			var errByz *rsmt2d.ErrByzantineData
 			if errors.As(err, &errByz) {
-				// session should be closed before constructing the Byzantine error to allow constructor to access nmt proofs
-				// computed during the session
+				// session should be closed before constructing the Byzantine error to allow constructor to access
+				// nmt proofs computed during the session
 				ses.close(false)
 				span.RecordError(err)
-				return nil, byzantine.NewErrByzantine(ctx, r.bServ, dah, errByz)
+				return nil, byzantine.NewErrByzantine(ctx, r.bServ.Blockstore(), dah, errByz)
 			}
 
 			log.Warnw("not enough shares to reconstruct data square, requesting more...", "err", err)

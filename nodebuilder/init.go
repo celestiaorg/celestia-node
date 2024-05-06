@@ -146,7 +146,7 @@ func IsInit(path string) bool {
 	return false
 }
 
-const perms = 0755
+const perms = 0o755
 
 // initRoot initializes(creates) directory if not created and check if it is writable
 func initRoot(path string) error {
