@@ -54,6 +54,7 @@ linters:
     - whitespace
     - nolintlint
     - asciicheck
+    - dupword
 
 issues:
   exclude-rules:
@@ -81,3 +82,14 @@ linters-settings:
     threshold: 200
   gofumpt:
     extra-rules: true
+  dupword:
+    # Keywords for detecting duplicate words.
+    # If this list is not empty, only the words defined in this list will be detected.
+    # Default: []
+    keywords: []
+
+    # Keywords used to ignore detection.
+    # Default: []
+    ignore:
+      - "D"
+      - "L"
