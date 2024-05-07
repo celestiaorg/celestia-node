@@ -11,6 +11,7 @@ import (
 	"go.opentelemetry.io/otel/metric"
 
 	"github.com/celestiaorg/celestia-node/header"
+	"github.com/celestiaorg/celestia-node/libs/utils"
 )
 
 const (
@@ -19,9 +20,7 @@ const (
 	failedLabel      = "failed"
 )
 
-var (
-	meter = otel.Meter("das")
-)
+var meter = otel.Meter("das")
 
 type metrics struct {
 	sampled       metric.Int64Counter
@@ -30,6 +29,8 @@ type metrics struct {
 	newHead       metric.Int64Counter
 
 	lastSampledTS uint64
+
+	clientReg metric.Registration
 }
 
 func (d *DASer) InitMetrics() error {
@@ -120,7 +121,7 @@ func (d *DASer) InitMetrics() error {
 		return nil
 	}
 
-	_, err = meter.RegisterCallback(callback,
+	d.sampler.metrics.clientReg, err = meter.RegisterCallback(callback,
 		lastSampledTS,
 		busyWorkers,
 		networkHead,
@@ -132,6 +133,13 @@ func (d *DASer) InitMetrics() error {
 	}
 
 	return nil
+}
+
+func (m *metrics) close() error {
+	if m == nil {
+		return nil
+	}
+	return m.clientReg.Unregister()
 }
 
 // observeSample records the time it took to sample a header +
@@ -146,9 +154,9 @@ func (m *metrics) observeSample(
 	if m == nil {
 		return
 	}
-	if ctx.Err() != nil {
-		ctx = context.Background()
-	}
+
+	ctx = utils.ResetContextOnError(ctx)
+
 	m.sampleTime.Record(ctx, sampleTime.Seconds(),
 		metric.WithAttributes(
 			attribute.Bool(failedLabel, err != nil),
@@ -171,9 +179,7 @@ func (m *metrics) observeGetHeader(ctx context.Context, d time.Duration) {
 	if m == nil {
 		return
 	}
-	if ctx.Err() != nil {
-		ctx = context.Background()
-	}
+	ctx = utils.ResetContextOnError(ctx)
 	m.getHeaderTime.Record(ctx, d.Seconds())
 }
 
@@ -182,8 +188,6 @@ func (m *metrics) observeNewHead(ctx context.Context) {
 	if m == nil {
 		return
 	}
-	if ctx.Err() != nil {
-		ctx = context.Background()
-	}
+	ctx = utils.ResetContextOnError(ctx)
 	m.newHead.Add(ctx, 1)
 }

@@ -3,21 +3,34 @@ package rpc
 import (
 	"fmt"
 	"strconv"
+	"strings"
 
 	"github.com/celestiaorg/celestia-node/libs/utils"
 )
 
 type Config struct {
-	Address string
-	Port    string
+	Address  string
+	Port     string
+	SkipAuth bool
 }
 
 func DefaultConfig() Config {
 	return Config{
-		Address: "0.0.0.0",
+		Address: defaultBindAddress,
 		// do NOT expose the same port as celestia-core by default so that both can run on the same machine
-		Port: "26658",
+		Port:     defaultPort,
+		SkipAuth: false,
 	}
+}
+
+func (cfg *Config) RequestURL() string {
+	if strings.HasPrefix(cfg.Address, "://") {
+		parts := strings.Split(cfg.Address, "://")
+		return fmt.Sprintf("%s://%s:%s", parts[0], parts[1], cfg.Port)
+	}
+
+	// Default to HTTP if no protocol is specified
+	return fmt.Sprintf("http://%s:%s", cfg.Address, cfg.Port)
 }
 
 func (cfg *Config) Validate() error {

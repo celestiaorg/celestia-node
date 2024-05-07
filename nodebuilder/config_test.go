@@ -69,7 +69,7 @@ var outdatedConfig = `
   KeyringBackend = "test"
 
 [P2P]
-  ListenAddresses = ["/ip4/0.0.0.0/udp/2121/quic-v1", "/ip6/::/udp/2121/quic-v1", "/ip4/0.0.0.0/tcp/2121", 
+  ListenAddresses = ["/ip4/0.0.0.0/udp/2121/quic-v1", "/ip6/::/udp/2121/quic-v1", "/ip4/0.0.0.0/tcp/2121",
 "/ip6/::/tcp/2121"]
   AnnounceAddresses = []
   NoAnnounceAddresses = ["/ip4/0.0.0.0/udp/2121/quic-v1", "/ip4/127.0.0.1/udp/2121/quic-v1", "/ip6/::/udp/2121/quic-v1",
@@ -91,7 +91,7 @@ var outdatedConfig = `
 [Gateway]
   Address = "0.0.0.0"
   Port = "26659"
-  Enabled = true 
+  Enabled = true
 
 [Share]
   PeersLimit = 5

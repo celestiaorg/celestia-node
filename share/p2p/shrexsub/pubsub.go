@@ -91,7 +91,16 @@ func (s *PubSub) AddValidator(v ValidatorFn) error {
 	return s.pubSub.RegisterTopicValidator(s.pubsubTopic, v.validate)
 }
 
-func (v ValidatorFn) validate(ctx context.Context, p peer.ID, msg *pubsub.Message) pubsub.ValidationResult {
+func (v ValidatorFn) validate(ctx context.Context, p peer.ID, msg *pubsub.Message) (res pubsub.ValidationResult) {
+	defer func() {
+		r := recover()
+		if r != nil {
+			err := fmt.Errorf("PANIC while processing shrexsub msg: %s", r)
+			log.Error(err)
+			res = pubsub.ValidationReject
+		}
+	}()
+
 	var pbmsg pb.RecentEDSNotification
 	if err := pbmsg.Unmarshal(msg.Data); err != nil {
 		log.Debugw("validator: unmarshal error", "err", err)

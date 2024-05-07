@@ -224,12 +224,3 @@ func (p *pool) len() int {
 	defer p.m.RUnlock()
 	return p.activeCount
 }
-
-// reset will reset the pool to its initial state.
-func (p *pool) reset() {
-	lock := &p.m
-	lock.Lock()
-	defer lock.Lock()
-	// swap the pool with an empty one
-	*p = *newPool(time.Second)
-}

@@ -2,6 +2,7 @@ package core
 
 import (
 	"context"
+	"errors"
 	"fmt"
 
 	logging "github.com/ipfs/go-log/v2"
@@ -102,7 +103,7 @@ func (f *BlockFetcher) Commit(ctx context.Context, height *int64) (*types.Commit
 // ValidatorSet queries Core for the ValidatorSet from the
 // block at the given height.
 func (f *BlockFetcher) ValidatorSet(ctx context.Context, height *int64) (*types.ValidatorSet, error) {
-	var perPage = 100
+	perPage := 100
 
 	vals, total := make([]*types.Validator, 0), -1
 	for page := 1; len(vals) != total; page++ {
@@ -127,7 +128,7 @@ func (f *BlockFetcher) ValidatorSet(ctx context.Context, height *int64) (*types.
 func (f *BlockFetcher) SubscribeNewBlockEvent(ctx context.Context) (<-chan types.EventDataSignedBlock, error) {
 	// start the client if not started yet
 	if !f.client.IsRunning() {
-		return nil, fmt.Errorf("client not running")
+		return nil, errors.New("client not running")
 	}
 
 	ctx, cancel := context.WithCancel(ctx)

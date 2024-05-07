@@ -10,12 +10,12 @@ import (
 	"github.com/ipfs/boxo/exchange/offline"
 	"github.com/ipfs/go-datastore"
 	ds_sync "github.com/ipfs/go-datastore/sync"
+	dsbadger "github.com/ipfs/go-ds-badger4"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
 	"github.com/celestiaorg/celestia-app/pkg/da"
 	"github.com/celestiaorg/celestia-app/pkg/wrapper"
-	dsbadger "github.com/celestiaorg/go-ds-badger4"
 	"github.com/celestiaorg/rsmt2d"
 
 	"github.com/celestiaorg/celestia-node/header"
@@ -117,7 +117,7 @@ func TestStoreGetter(t *testing.T) {
 		assert.Len(t, shares.Flatten(), 2)
 
 		// 'corrupt' existing CAR by overwriting with a random EDS
-		f, err := os.OpenFile(tmpDir+"/blocks/"+eh.DAH.String(), os.O_WRONLY, 0644)
+		f, err := os.OpenFile(tmpDir+"/blocks/"+eh.DAH.String(), os.O_WRONLY, 0o644)
 		require.NoError(t, err)
 		edsToOverwriteWith, eh := randomEDS(t)
 		err = eds.WriteEDS(ctx, edsToOverwriteWith, f)
@@ -231,7 +231,7 @@ func TestIPLDGetter(t *testing.T) {
 		require.NoError(t, err)
 		require.Empty(t, emptyShares.Flatten())
 
-		// nid doesnt exist in root
+		// nid doesn't exist in root
 		emptyRoot := da.MinDataAvailabilityHeader()
 		eh.DAH = &emptyRoot
 		emptyShares, err = sg.GetSharesByNamespace(ctx, eh, namespace)

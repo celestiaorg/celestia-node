@@ -28,6 +28,7 @@ func NewPeerIDStore(ctx context.Context, ds datastore.Datastore) (*PeerIDStore, 
 	pidstore := &PeerIDStore{
 		ds: namespace.Wrap(ds, storePrefix),
 	}
+
 	// check if pidstore is already initialized, and if not,
 	// initialize the pidstore
 	exists, err := pidstore.ds.Has(ctx, peersKey)
@@ -37,6 +38,14 @@ func NewPeerIDStore(ctx context.Context, ds datastore.Datastore) (*PeerIDStore, 
 	if !exists {
 		return pidstore, pidstore.Put(ctx, []peer.ID{})
 	}
+
+	// if pidstore exists, ensure its contents are uncorrupted
+	_, err = pidstore.Load(ctx)
+	if err != nil {
+		log.Warn("pidstore: corrupted pidstore detected, resetting...", "err", err)
+		return pidstore, pidstore.reset(ctx)
+	}
+
 	return pidstore, nil
 }
 
@@ -74,4 +83,15 @@ func (p *PeerIDStore) Put(ctx context.Context, peers []peer.ID) error {
 
 	log.Infow("Persisted peers successfully", "amount", len(peers))
 	return nil
+}
+
+// reset resets the pidstore in case of corruption.
+func (p *PeerIDStore) reset(ctx context.Context) error {
+	log.Warn("pidstore: resetting the pidstore...")
+	err := p.ds.Delete(ctx, peersKey)
+	if err != nil {
+		return fmt.Errorf("pidstore: error resetting datastore: %w", err)
+	}
+
+	return p.Put(ctx, []peer.ID{})
 }

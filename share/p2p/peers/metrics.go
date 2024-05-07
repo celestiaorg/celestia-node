@@ -12,6 +12,7 @@ import (
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/metric"
 
+	"github.com/celestiaorg/celestia-node/libs/utils"
 	"github.com/celestiaorg/celestia-node/share/p2p/shrexsub"
 )
 
@@ -39,19 +40,14 @@ const (
 	poolStatusKey                    = "pool_status"
 	poolStatusCreated     poolStatus = "created"
 	poolStatusValidated   poolStatus = "validated"
-	poolStatusSynced      poolStatus = "synced"
 	poolStatusBlacklisted poolStatus = "blacklisted"
 	// Pool status model:
 	//        	created(unvalidated)
 	//  	/						\
-	//  validated(unsynced)  	  blacklisted
-	//			|
-	//  	  synced
+	//  validated  	 			 blacklisted
 )
 
-var (
-	meter = otel.Meter("shrex_peer_manager")
-)
+var meter = otel.Meter("shrex_peer_manager")
 
 type blacklistPeerReason string
 
@@ -72,6 +68,8 @@ type metrics struct {
 	fullNodesPool            metric.Int64ObservableGauge // attributes: pool_status
 	blacklistedPeersByReason sync.Map
 	blacklistedPeers         metric.Int64ObservableGauge // attributes: blacklist_reason
+
+	clientReg metric.Registration
 }
 
 func initMetrics(manager *Manager) (*metrics, error) {
@@ -134,17 +132,17 @@ func initMetrics(manager *Manager) (*metrics, error) {
 		blacklistedPeers:         blacklisted,
 	}
 
-	callback := func(ctx context.Context, observer metric.Observer) error {
+	callback := func(_ context.Context, observer metric.Observer) error {
 		for poolStatus, count := range manager.shrexPools() {
 			observer.ObserveInt64(shrexPools, count,
 				metric.WithAttributes(
 					attribute.String(poolStatusKey, string(poolStatus))))
 		}
 
-		observer.ObserveInt64(fullNodesPool, int64(manager.fullNodes.len()),
+		observer.ObserveInt64(fullNodesPool, int64(manager.nodes.len()),
 			metric.WithAttributes(
 				attribute.String(peerStatusKey, string(peerStatusActive))))
-		observer.ObserveInt64(fullNodesPool, int64(manager.fullNodes.cooldown.len()),
+		observer.ObserveInt64(fullNodesPool, int64(manager.nodes.cooldown.len()),
 			metric.WithAttributes(
 				attribute.String(peerStatusKey, string(peerStatusCooldown))))
 
@@ -158,11 +156,18 @@ func initMetrics(manager *Manager) (*metrics, error) {
 		})
 		return nil
 	}
-	_, err = meter.RegisterCallback(callback, shrexPools, fullNodesPool, blacklisted)
+	metrics.clientReg, err = meter.RegisterCallback(callback, shrexPools, fullNodesPool, blacklisted)
 	if err != nil {
 		return nil, fmt.Errorf("registering metrics callback: %w", err)
 	}
 	return metrics, nil
+}
+
+func (m *metrics) close() error {
+	if m == nil {
+		return nil
+	}
+	return m.clientReg.Unregister()
 }
 
 func (m *metrics) observeGetPeer(
@@ -172,9 +177,7 @@ func (m *metrics) observeGetPeer(
 	if m == nil {
 		return
 	}
-	if ctx.Err() != nil {
-		ctx = context.Background()
-	}
+	ctx = utils.ResetContextOnError(ctx)
 	m.getPeer.Add(ctx, 1,
 		metric.WithAttributes(
 			attribute.String(sourceKey, string(source)),
@@ -225,9 +228,7 @@ func (m *metrics) validationObserver(validator shrexsub.ValidatorFn) shrexsub.Va
 			resStr = "unknown"
 		}
 
-		if ctx.Err() != nil {
-			ctx = context.Background()
-		}
+		ctx = utils.ResetContextOnError(ctx)
 
 		m.validationResult.Add(ctx, 1,
 			metric.WithAttributes(
@@ -263,11 +264,6 @@ func (m *Manager) shrexPools() map[poolStatus]int64 {
 	for _, p := range m.pools {
 		if !p.isValidatedDataHash.Load() {
 			shrexPools[poolStatusCreated]++
-			continue
-		}
-
-		if p.isSynced.Load() {
-			shrexPools[poolStatusSynced]++
 			continue
 		}
 

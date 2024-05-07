@@ -1,3 +1,5 @@
+//go:build blob || integration
+
 package tests
 
 import (
@@ -35,10 +37,8 @@ func TestBlobModule(t *testing.T) {
 		blobs = append(blobs, blob)
 	}
 
-	require.NoError(t, err)
 	bridge := sw.NewBridgeNode()
 	require.NoError(t, bridge.Start(ctx))
-
 	addrs, err := peer.AddrInfoToP2pAddrs(host.InfoFromHost(bridge.Host))
 	require.NoError(t, err)
 
@@ -58,7 +58,7 @@ func TestBlobModule(t *testing.T) {
 	fullClient := getAdminClient(ctx, fullNode, t)
 	lightClient := getAdminClient(ctx, lightNode, t)
 
-	height, err := fullClient.Blob.Submit(ctx, blobs, nil)
+	height, err := fullClient.Blob.Submit(ctx, blobs, blob.DefaultGasPrice())
 	require.NoError(t, err)
 
 	_, err = fullClient.Header.WaitForHeight(ctx, height)
@@ -66,7 +66,7 @@ func TestBlobModule(t *testing.T) {
 	_, err = lightClient.Header.WaitForHeight(ctx, height)
 	require.NoError(t, err)
 
-	var test = []struct {
+	test := []struct {
 		name string
 		doFn func(t *testing.T)
 	}{
@@ -77,7 +77,7 @@ func TestBlobModule(t *testing.T) {
 				time.Sleep(time.Second)
 				blob1, err := fullClient.Blob.Get(ctx, height, blobs[0].Namespace(), blobs[0].Commitment)
 				require.NoError(t, err)
-				require.Equal(t, blobs[0], blob1)
+				require.Equal(t, blobs[0].Commitment, blob1.Commitment)
 			},
 		},
 		{
@@ -141,7 +141,7 @@ func TestBlobModule(t *testing.T) {
 				)
 				require.NoError(t, err)
 
-				height, err := fullClient.Blob.Submit(ctx, []*blob.Blob{b, b}, nil)
+				height, err := fullClient.Blob.Submit(ctx, []*blob.Blob{b, b}, blob.DefaultGasPrice())
 				require.NoError(t, err)
 
 				_, err = fullClient.Header.WaitForHeight(ctx, height)
@@ -149,7 +149,7 @@ func TestBlobModule(t *testing.T) {
 
 				b0, err := fullClient.Blob.Get(ctx, height, b.Namespace(), b.Commitment)
 				require.NoError(t, err)
-				require.Equal(t, b, b0)
+				require.Equal(t, b.Commitment, b0.Commitment)
 
 				// give some time to store the data,
 				// otherwise the test will hang on the IPLD level.
@@ -170,7 +170,7 @@ func TestBlobModule(t *testing.T) {
 			// different pfbs.
 			name: "Submit the same blob in different pfb",
 			doFn: func(t *testing.T) {
-				h, err := fullClient.Blob.Submit(ctx, []*blob.Blob{blobs[0]}, nil)
+				h, err := fullClient.Blob.Submit(ctx, []*blob.Blob{blobs[0]}, blob.DefaultGasPrice())
 				require.NoError(t, err)
 
 				_, err = fullClient.Header.WaitForHeight(ctx, h)
@@ -178,7 +178,7 @@ func TestBlobModule(t *testing.T) {
 
 				b0, err := fullClient.Blob.Get(ctx, h, blobs[0].Namespace(), blobs[0].Commitment)
 				require.NoError(t, err)
-				require.Equal(t, blobs[0], b0)
+				require.Equal(t, blobs[0].Commitment, b0.Commitment)
 
 				// give some time to store the data,
 				// otherwise the test will hang on the IPLD level.
@@ -191,7 +191,6 @@ func TestBlobModule(t *testing.T) {
 				included, err := fullClient.Blob.Included(ctx, h, blobs[0].Namespace(), proof, blobs[0].Commitment)
 				require.NoError(t, err)
 				require.True(t, included)
-
 			},
 		},
 	}

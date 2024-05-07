@@ -7,6 +7,8 @@ import (
 	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/metric"
+
+	"github.com/celestiaorg/celestia-node/libs/utils"
 )
 
 var meter = otel.Meter("shrex/eds")
@@ -35,9 +37,7 @@ func (m *Metrics) ObserveRequests(ctx context.Context, count int64, status statu
 	if m == nil {
 		return
 	}
-	if ctx.Err() != nil {
-		ctx = context.Background()
-	}
+	ctx = utils.ResetContextOnError(ctx)
 	m.totalRequestCounter.Add(ctx, count,
 		metric.WithAttributes(
 			attribute.String("status", string(status)),

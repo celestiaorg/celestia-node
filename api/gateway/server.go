@@ -36,6 +36,10 @@ func NewServer(address, port string) *Server {
 	return server
 }
 
+func (s *Server) Router() *mux.Router {
+	return s.srvMux
+}
+
 // Start starts the gateway Server, listening on the given address.
 func (s *Server) Start(context.Context) error {
 	couldStart := s.started.CompareAndSwap(false, true)

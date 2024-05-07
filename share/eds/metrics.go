@@ -2,11 +2,14 @@ package eds
 
 import (
 	"context"
+	"errors"
 	"time"
 
 	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/metric"
+
+	"github.com/celestiaorg/celestia-node/libs/utils"
 )
 
 const (
@@ -27,9 +30,7 @@ const (
 	dagstoreShardStatusKey = "shard_status"
 )
 
-var (
-	meter = otel.Meter("eds_store")
-)
+var meter = otel.Meter("eds_store")
 
 type putResult string
 
@@ -49,6 +50,9 @@ type metrics struct {
 
 	longOpTime metric.Float64Histogram
 	gcTime     metric.Float64Histogram
+
+	clientReg metric.Registration
+	closerFn  func() error
 }
 
 func (s *Store) WithMetrics() error {
@@ -124,11 +128,12 @@ func (s *Store) WithMetrics() error {
 		return err
 	}
 
-	if err = s.cache.Load().EnableMetrics(); err != nil {
+	closerFn, err := s.cache.Load().EnableMetrics()
+	if err != nil {
 		return err
 	}
 
-	callback := func(ctx context.Context, observer metric.Observer) error {
+	callback := func(_ context.Context, observer metric.Observer) error {
 		stats := s.dgstr.Stats()
 		for status, amount := range stats {
 			observer.ObserveInt64(dagStoreShards, int64(amount),
@@ -139,7 +144,8 @@ func (s *Store) WithMetrics() error {
 		return nil
 	}
 
-	if _, err := meter.RegisterCallback(callback, dagStoreShards); err != nil {
+	clientReg, err := meter.RegisterCallback(callback, dagStoreShards)
+	if err != nil {
 		return err
 	}
 
@@ -155,17 +161,25 @@ func (s *Store) WithMetrics() error {
 		shardFailureCount:    shardFailureCount,
 		longOpTime:           longOpTime,
 		gcTime:               gcTime,
+		clientReg:            clientReg,
+		closerFn:             closerFn,
 	}
 	return nil
+}
+
+func (m *metrics) close() error {
+	if m == nil {
+		return nil
+	}
+
+	return errors.Join(m.closerFn(), m.clientReg.Unregister())
 }
 
 func (m *metrics) observeGCtime(ctx context.Context, dur time.Duration, failed bool) {
 	if m == nil {
 		return
 	}
-	if ctx.Err() != nil {
-		ctx = context.Background()
-	}
+	ctx = utils.ResetContextOnError(ctx)
 	m.gcTime.Record(ctx, dur.Seconds(), metric.WithAttributes(
 		attribute.Bool(failedKey, failed)))
 }
@@ -174,9 +188,7 @@ func (m *metrics) observeShardFailure(ctx context.Context, shardKey string) {
 	if m == nil {
 		return
 	}
-	if ctx.Err() != nil {
-		ctx = context.Background()
-	}
+	ctx = utils.ResetContextOnError(ctx)
 
 	m.shardFailureCount.Add(ctx, 1, metric.WithAttributes(attribute.String("shard_key", shardKey)))
 }
@@ -185,9 +197,7 @@ func (m *metrics) observePut(ctx context.Context, dur time.Duration, result putR
 	if m == nil {
 		return
 	}
-	if ctx.Err() != nil {
-		ctx = context.Background()
-	}
+	ctx = utils.ResetContextOnError(ctx)
 
 	m.putTime.Record(ctx, dur.Seconds(), metric.WithAttributes(
 		attribute.String(putResultKey, string(result)),
@@ -198,9 +208,7 @@ func (m *metrics) observeLongOp(ctx context.Context, opName string, dur time.Dur
 	if m == nil {
 		return
 	}
-	if ctx.Err() != nil {
-		ctx = context.Background()
-	}
+	ctx = utils.ResetContextOnError(ctx)
 
 	m.longOpTime.Record(ctx, dur.Seconds(), metric.WithAttributes(
 		attribute.String(opNameKey, opName),
@@ -211,9 +219,7 @@ func (m *metrics) observeGetCAR(ctx context.Context, dur time.Duration, failed b
 	if m == nil {
 		return
 	}
-	if ctx.Err() != nil {
-		ctx = context.Background()
-	}
+	ctx = utils.ResetContextOnError(ctx)
 
 	m.getCARTime.Record(ctx, dur.Seconds(), metric.WithAttributes(
 		attribute.Bool(failedKey, failed)))
@@ -223,9 +229,7 @@ func (m *metrics) observeCARBlockstore(ctx context.Context, dur time.Duration, f
 	if m == nil {
 		return
 	}
-	if ctx.Err() != nil {
-		ctx = context.Background()
-	}
+	ctx = utils.ResetContextOnError(ctx)
 
 	m.getCARBlockstoreTime.Record(ctx, dur.Seconds(), metric.WithAttributes(
 		attribute.Bool(failedKey, failed)))
@@ -235,9 +239,7 @@ func (m *metrics) observeGetDAH(ctx context.Context, dur time.Duration, failed b
 	if m == nil {
 		return
 	}
-	if ctx.Err() != nil {
-		ctx = context.Background()
-	}
+	ctx = utils.ResetContextOnError(ctx)
 
 	m.getDAHTime.Record(ctx, dur.Seconds(), metric.WithAttributes(
 		attribute.Bool(failedKey, failed)))
@@ -247,9 +249,7 @@ func (m *metrics) observeRemove(ctx context.Context, dur time.Duration, failed b
 	if m == nil {
 		return
 	}
-	if ctx.Err() != nil {
-		ctx = context.Background()
-	}
+	ctx = utils.ResetContextOnError(ctx)
 
 	m.removeTime.Record(ctx, dur.Seconds(), metric.WithAttributes(
 		attribute.Bool(failedKey, failed)))
@@ -259,9 +259,7 @@ func (m *metrics) observeGet(ctx context.Context, dur time.Duration, failed bool
 	if m == nil {
 		return
 	}
-	if ctx.Err() != nil {
-		ctx = context.Background()
-	}
+	ctx = utils.ResetContextOnError(ctx)
 
 	m.getTime.Record(ctx, dur.Seconds(), metric.WithAttributes(
 		attribute.Bool(failedKey, failed)))
@@ -271,9 +269,7 @@ func (m *metrics) observeHas(ctx context.Context, dur time.Duration, failed bool
 	if m == nil {
 		return
 	}
-	if ctx.Err() != nil {
-		ctx = context.Background()
-	}
+	ctx = utils.ResetContextOnError(ctx)
 
 	m.hasTime.Record(ctx, dur.Seconds(), metric.WithAttributes(
 		attribute.Bool(failedKey, failed)))
@@ -283,9 +279,7 @@ func (m *metrics) observeList(ctx context.Context, dur time.Duration, failed boo
 	if m == nil {
 		return
 	}
-	if ctx.Err() != nil {
-		ctx = context.Background()
-	}
+	ctx = utils.ResetContextOnError(ctx)
 
 	m.listTime.Record(ctx, dur.Seconds(), metric.WithAttributes(
 		attribute.Bool(failedKey, failed)))

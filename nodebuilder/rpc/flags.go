@@ -1,13 +1,18 @@
 package rpc
 
 import (
+	"fmt"
+
+	logging "github.com/ipfs/go-log/v2"
 	"github.com/spf13/cobra"
 	flag "github.com/spf13/pflag"
 )
 
 var (
+	log      = logging.Logger("rpc")
 	addrFlag = "rpc.addr"
 	portFlag = "rpc.port"
+	authFlag = "rpc.skip-auth"
 )
 
 // Flags gives a set of hardcoded node/rpc package flags.
@@ -17,12 +22,17 @@ func Flags() *flag.FlagSet {
 	flags.String(
 		addrFlag,
 		"",
-		"Set a custom RPC listen address (default: localhost)",
+		fmt.Sprintf("Set a custom RPC listen address (default: %s)", defaultBindAddress),
 	)
 	flags.String(
 		portFlag,
 		"",
-		"Set a custom RPC port (default: 26658)",
+		fmt.Sprintf("Set a custom RPC port (default: %s)", defaultPort),
+	)
+	flags.Bool(
+		authFlag,
+		false,
+		"Skips authentication for RPC requests",
 	)
 
 	return flags
@@ -37,5 +47,13 @@ func ParseFlags(cmd *cobra.Command, cfg *Config) {
 	port := cmd.Flag(portFlag).Value.String()
 	if port != "" {
 		cfg.Port = port
+	}
+	ok, err := cmd.Flags().GetBool(authFlag)
+	if err != nil {
+		panic(err)
+	}
+	if ok {
+		log.Warn("RPC authentication is disabled")
+		cfg.SkipAuth = true
 	}
 }

@@ -69,11 +69,10 @@ func newP2PExchange[H libhead.Header[H]](
 // newSyncer constructs new Syncer for headers.
 func newSyncer[H libhead.Header[H]](
 	ex libhead.Exchange[H],
-	fservice libfraud.Service[H],
 	store libhead.Store[H],
 	sub libhead.Subscriber[H],
 	cfg Config,
-) (*sync.Syncer[H], *modfraud.ServiceBreaker[*sync.Syncer[H], H], error) {
+) (*sync.Syncer[H], error) {
 	opts := []sync.Option{sync.WithParams(cfg.Syncer), sync.WithBlockTime(modp2p.BlockTime)}
 	if MetricsEnabled {
 		opts = append(opts, sync.WithMetrics())
@@ -81,14 +80,21 @@ func newSyncer[H libhead.Header[H]](
 
 	syncer, err := sync.NewSyncer[H](ex, store, sub, opts...)
 	if err != nil {
-		return nil, nil, err
+		return nil, err
 	}
 
-	return syncer, &modfraud.ServiceBreaker[*sync.Syncer[H], H]{
+	return syncer, nil
+}
+
+func newFraudedSyncer[H libhead.Header[H]](
+	fservice libfraud.Service[H],
+	syncer *sync.Syncer[H],
+) *modfraud.ServiceBreaker[*sync.Syncer[H], H] {
+	return &modfraud.ServiceBreaker[*sync.Syncer[H], H]{
 		Service:   syncer,
 		FraudType: byzantine.BadEncoding,
 		FraudServ: fservice,
-	}, nil
+	}
 }
 
 // newInitStore constructs an initialized store
@@ -99,16 +105,14 @@ func newInitStore[H libhead.Header[H]](
 	ds datastore.Batching,
 	ex libhead.Exchange[H],
 ) (libhead.Store[H], error) {
-	s, err := store.NewStore[H](ds, store.WithParams(cfg.Store))
-	if err != nil {
-		return nil, err
+	opts := []store.Option{store.WithParams(cfg.Store)}
+	if MetricsEnabled {
+		opts = append(opts, store.WithMetrics())
 	}
 
-	if MetricsEnabled {
-		err = libhead.WithMetrics[H](s)
-		if err != nil {
-			return nil, err
-		}
+	s, err := store.NewStore[H](ds, opts...)
+	if err != nil {
+		return nil, err
 	}
 
 	trustedHash, err := cfg.trustedHash(net)

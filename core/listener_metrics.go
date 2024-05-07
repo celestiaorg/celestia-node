@@ -6,6 +6,8 @@ import (
 
 	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/metric"
+
+	"github.com/celestiaorg/celestia-node/libs/utils"
 )
 
 var meter = otel.Meter("core")
@@ -53,9 +55,7 @@ func (m *listenerMetrics) observe(ctx context.Context, observeFn func(ctx contex
 		return
 	}
 
-	if ctx.Err() != nil {
-		ctx = context.Background()
-	}
+	ctx = utils.ResetContextOnError(ctx)
 
 	observeFn(ctx)
 }

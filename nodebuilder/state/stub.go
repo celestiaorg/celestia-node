@@ -17,10 +17,6 @@ var ErrNoStateAccess = errors.New("node is running without state access. run wit
 // to a core endpoint.
 type stubbedStateModule struct{}
 
-func (s stubbedStateModule) IsStopped(context.Context) bool {
-	return true
-}
-
 func (s stubbedStateModule) AccountAddress(context.Context) (state.Address, error) {
 	return state.Address{}, ErrNoStateAccess
 }
@@ -112,5 +108,24 @@ func (s stubbedStateModule) QueryRedelegations(
 	_ context.Context,
 	_, _ state.ValAddress,
 ) (*types.QueryRedelegationsResponse, error) {
+	return nil, ErrNoStateAccess
+}
+
+func (s stubbedStateModule) GrantFee(
+	_ context.Context,
+	_ state.AccAddress,
+	_,
+	_ state.Int,
+	_ uint64,
+) (*state.TxResponse, error) {
+	return nil, ErrNoStateAccess
+}
+
+func (s stubbedStateModule) RevokeGrantFee(
+	_ context.Context,
+	_ state.AccAddress,
+	_ state.Int,
+	_ uint64,
+) (*state.TxResponse, error) {
 	return nil, ErrNoStateAccess
 }

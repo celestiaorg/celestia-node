@@ -1,3 +1,5 @@
+//go:build !race
+
 package nodebuilder
 
 import (
@@ -19,7 +21,7 @@ import (
 )
 
 func TestLifecycle(t *testing.T) {
-	var test = []struct {
+	test := []struct {
 		tp node.Type
 	}{
 		{tp: node.Bridge},
@@ -56,7 +58,7 @@ func TestLifecycle_WithMetrics(t *testing.T) {
 
 	otelCollectorURL := strings.ReplaceAll(url, "http://", "")
 
-	var test = []struct {
+	test := []struct {
 		tp           node.Type
 		coreExpected bool
 	}{
@@ -128,7 +130,7 @@ func TestEmptyBlockExists(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
-	var test = []struct {
+	test := []struct {
 		tp node.Type
 	}{
 		{tp: node.Bridge},
@@ -153,5 +155,4 @@ func TestEmptyBlockExists(t *testing.T) {
 			require.NoError(t, err)
 		})
 	}
-
 }

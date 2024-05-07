@@ -2,6 +2,7 @@ package das
 
 import (
 	"context"
+	"strconv"
 	"testing"
 	"time"
 
@@ -163,6 +164,9 @@ func TestDASer_stopsAfter_BEFP(t *testing.T) {
 	getter := func(ctx context.Context, height uint64) (*header.ExtendedHeader, error) {
 		return mockGet.GetByHeight(ctx, height)
 	}
+	headGetter := func(ctx context.Context) (*header.ExtendedHeader, error) {
+		return mockGet.Head(ctx)
+	}
 	unmarshaler := fraud.MultiUnmarshaler[*header.ExtendedHeader]{
 		Unmarshalers: map[fraud.ProofType]func([]byte) (fraud.Proof[*header.ExtendedHeader], error){
 			byzantine.BadEncoding: func(data []byte) (fraud.Proof[*header.ExtendedHeader], error) {
@@ -175,6 +179,7 @@ func TestDASer_stopsAfter_BEFP(t *testing.T) {
 	fserv := fraudserv.NewProofService[*header.ExtendedHeader](ps,
 		net.Hosts()[0],
 		getter,
+		headGetter,
 		unmarshaler,
 		ds,
 		false,
@@ -241,6 +246,41 @@ func TestDASerSampleTimeout(t *testing.T) {
 	case <-doneCh:
 	case <-ctx.Done():
 		t.Fatal("call context didn't timeout in time")
+	}
+}
+
+// TestDASer_SamplingWindow tests the sampling window determination
+// for headers.
+func TestDASer_SamplingWindow(t *testing.T) {
+	ds := ds_sync.MutexWrap(datastore.NewMapDatastore())
+	sub := new(headertest.Subscriber)
+	fserv := &fraudtest.DummyService[*header.ExtendedHeader]{}
+	getter := getterStub{}
+	avail := mocks.NewMockAvailability(gomock.NewController(t))
+
+	// create and start DASer
+	daser, err := NewDASer(avail, sub, getter, ds, fserv, newBroadcastMock(1),
+		WithSamplingWindow(time.Second))
+	require.NoError(t, err)
+
+	tests := []struct {
+		timestamp    time.Time
+		withinWindow bool
+	}{
+		{timestamp: time.Now().Add(-(time.Second * 5)), withinWindow: false},
+		{timestamp: time.Now().Add(-(time.Millisecond * 800)), withinWindow: true},
+		{timestamp: time.Now().Add(-(time.Hour)), withinWindow: false},
+		{timestamp: time.Now().Add(-(time.Hour * 24 * 30)), withinWindow: false},
+		{timestamp: time.Now(), withinWindow: true},
+	}
+
+	for i, tt := range tests {
+		t.Run(strconv.Itoa(i), func(t *testing.T) {
+			eh := headertest.RandExtendedHeader(t)
+			eh.RawHeader.Time = tt.timestamp
+
+			assert.Equal(t, tt.withinWindow, daser.isWithinSamplingWindow(eh))
+		})
 	}
 }
 
@@ -362,7 +402,8 @@ type benchGetterStub struct {
 
 func newBenchGetter() benchGetterStub {
 	return benchGetterStub{header: &header.ExtendedHeader{
-		DAH: &share.Root{RowRoots: make([][]byte, 0)}}}
+		DAH: &share.Root{RowRoots: make([][]byte, 0)},
+	}}
 }
 
 func (m benchGetterStub) GetByHeight(context.Context, uint64) (*header.ExtendedHeader, error) {
@@ -382,7 +423,8 @@ func (m getterStub) GetByHeight(_ context.Context, height uint64) (*header.Exten
 	return &header.ExtendedHeader{
 		Commit:    &types.Commit{},
 		RawHeader: header.RawHeader{Height: int64(height)},
-		DAH:       &share.Root{RowRoots: make([][]byte, 0)}}, nil
+		DAH:       &share.Root{RowRoots: make([][]byte, 0)},
+	}, nil
 }
 
 func (m getterStub) GetRangeByHeight(
@@ -390,9 +432,9 @@ func (m getterStub) GetRangeByHeight(
 	*header.ExtendedHeader,
 	uint64,
 ) ([]*header.ExtendedHeader, error) {
-	return nil, nil
+	panic("implement me")
 }
 
 func (m getterStub) Get(context.Context, libhead.Hash) (*header.ExtendedHeader, error) {
-	return nil, nil
+	panic("implement me")
 }

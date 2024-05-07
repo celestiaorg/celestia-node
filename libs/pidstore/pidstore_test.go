@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/ipfs/go-datastore"
+	"github.com/ipfs/go-datastore/namespace"
 	"github.com/ipfs/go-datastore/sync"
 	"github.com/libp2p/go-libp2p/core/crypto"
 	"github.com/libp2p/go-libp2p/core/peer"
@@ -21,12 +22,33 @@ func TestPutLoad(t *testing.T) {
 
 	ds := sync.MutexWrap(datastore.NewMapDatastore())
 
-	t.Run("unitialized-pidstore", func(t *testing.T) {
+	t.Run("uninitialized-pidstore", func(t *testing.T) {
 		testPutLoad(ctx, ds, t)
 	})
 	t.Run("initialized-pidstore", func(t *testing.T) {
 		testPutLoad(ctx, ds, t)
 	})
+}
+
+// TestCorruptedPidstore tests whether a pidstore can detect
+// corruption and reset itself on construction.
+func TestCorruptedPidstore(t *testing.T) {
+	ctx, cancel := context.WithTimeout(context.Background(), time.Minute)
+	defer t.Cleanup(cancel)
+
+	ds := sync.MutexWrap(datastore.NewMapDatastore())
+
+	// intentionally corrupt the store
+	wrappedDS := namespace.Wrap(ds, storePrefix)
+	err := wrappedDS.Put(ctx, peersKey, []byte("corrupted"))
+	require.NoError(t, err)
+
+	pidstore, err := NewPeerIDStore(ctx, ds)
+	require.NoError(t, err)
+
+	got, err := pidstore.Load(ctx)
+	require.NoError(t, err)
+	assert.Equal(t, []peer.ID{}, got)
 }
 
 func testPutLoad(ctx context.Context, ds datastore.Datastore, t *testing.T) {

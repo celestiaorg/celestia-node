@@ -222,10 +222,13 @@ func (bc *AccessorCache) Remove(key shard.Key) error {
 }
 
 // EnableMetrics enables metrics for the cache.
-func (bc *AccessorCache) EnableMetrics() error {
+func (bc *AccessorCache) EnableMetrics() (CloseMetricsFn, error) {
 	var err error
 	bc.metrics, err = newMetrics(bc)
-	return err
+	if err != nil {
+		return nil, err
+	}
+	return bc.metrics.close, err
 }
 
 // refCloser manages references to accessor from provided reader and removes the ref, when the

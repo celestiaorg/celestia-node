@@ -2,7 +2,6 @@ package p2p
 
 import (
 	"fmt"
-	"slices"
 
 	p2pconfig "github.com/libp2p/go-libp2p/config"
 	hst "github.com/libp2p/go-libp2p/core/host"
@@ -12,38 +11,26 @@ import (
 // Listen returns invoke function that starts listening for inbound connections with libp2p.Host.
 func Listen(listen []string) func(h hst.Host) (err error) {
 	return func(h hst.Host) (err error) {
-		maListen := make([]ma.Multiaddr, 0, len(listen))
-		for _, addr := range listen {
-			maddr, err := ma.NewMultiaddr(addr)
+		maListen := make([]ma.Multiaddr, len(listen))
+		for i, addr := range listen {
+			maListen[i], err = ma.NewMultiaddr(addr)
 			if err != nil {
-				return fmt.Errorf("failure to parse config.P2P.ListenAddresses: %s", err)
+				return fmt.Errorf("failure to parse config.P2P.ListenAddresses: %w", err)
 			}
-
-			if !enableQUIC {
-				// TODO(@WonderTan): Remove this check when QUIC is stable
-				if slices.ContainsFunc(maddr.Protocols(), func(p ma.Protocol) bool {
-					return p.Code == ma.P_QUIC_V1 || p.Code == ma.P_WEBTRANSPORT
-				}) {
-					continue
-				}
-			}
-
-			maListen = append(maListen, maddr)
 		}
-
 		return h.Network().Listen(maListen...)
 	}
 }
 
 // addrsFactory returns a constructor for AddrsFactory.
-func addrsFactory(announce []string, noAnnounce []string) func() (_ p2pconfig.AddrsFactory, err error) {
+func addrsFactory(announce, noAnnounce []string) func() (_ p2pconfig.AddrsFactory, err error) {
 	return func() (_ p2pconfig.AddrsFactory, err error) {
 		// Convert maAnnounce strings to Multiaddresses
 		maAnnounce := make([]ma.Multiaddr, len(announce))
 		for i, addr := range announce {
 			maAnnounce[i], err = ma.NewMultiaddr(addr)
 			if err != nil {
-				return nil, fmt.Errorf("failure to parse config.P2P.AnnounceAddresses: %s", err)
+				return nil, fmt.Errorf("failure to parse config.P2P.AnnounceAddresses: %w", err)
 			}
 		}
 
@@ -53,7 +40,7 @@ func addrsFactory(announce []string, noAnnounce []string) func() (_ p2pconfig.Ad
 		for _, addr := range noAnnounce {
 			maddr, err := ma.NewMultiaddr(addr)
 			if err != nil {
-				return nil, fmt.Errorf("failure to parse config.P2P.NoAnnounceAddresses: %s", err)
+				return nil, fmt.Errorf("failure to parse config.P2P.NoAnnounceAddresses: %w", err)
 			}
 			maNoAnnounce[string(maddr.Bytes())] = true
 		}

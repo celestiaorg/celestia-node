@@ -1,6 +1,8 @@
 package gateway
 
 import (
+	"fmt"
+
 	"github.com/spf13/cobra"
 	flag "github.com/spf13/pflag"
 )
@@ -23,12 +25,12 @@ func Flags() *flag.FlagSet {
 	flags.String(
 		addrFlag,
 		"",
-		"Set a custom gateway listen address (default: localhost)",
+		fmt.Sprintf("Set a custom gateway listen address (default: %s)", defaultBindAddress),
 	)
 	flags.String(
 		portFlag,
 		"",
-		"Set a custom gateway port (default: 26659)",
+		fmt.Sprintf("Set a custom gateway port (default: %s)", defaultPort),
 	)
 
 	return flags

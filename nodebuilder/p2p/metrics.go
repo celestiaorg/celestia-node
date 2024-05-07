@@ -41,7 +41,7 @@ func prometheusMetrics(lifecycle fx.Lifecycle, registerer prometheus.Registerer)
 	}
 
 	lifecycle.Append(fx.Hook{
-		OnStart: func(ctx context.Context) error {
+		OnStart: func(_ context.Context) error {
 			go func() {
 				if err := promHTTPServer.ListenAndServe(); err != nil {
 					log.Errorf("Error starting Prometheus metrics exporter http server: %s", err)

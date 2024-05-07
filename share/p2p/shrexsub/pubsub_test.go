@@ -39,13 +39,13 @@ func TestPubSub(t *testing.T) {
 	subs, err := pSub2.Subscribe()
 	require.NoError(t, err)
 
-	var tests = []struct {
+	tests := []struct {
 		name        string
 		notif       Notification
 		errExpected bool
 	}{
 		{
-			name: "vaild height, valid hash",
+			name: "valid height, valid hash",
 			notif: Notification{
 				Height:   1,
 				DataHash: rand.Bytes(32),
@@ -120,5 +120,4 @@ func TestPubSub(t *testing.T) {
 			require.Equal(t, tt.notif, got)
 		})
 	}
-
 }

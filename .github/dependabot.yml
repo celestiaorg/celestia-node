@@ -21,6 +21,9 @@ updates:
       - renaynay
     labels:
       - kind:deps
+    ignore:
+      - dependency-name: "*otel*"
+        update-types: ["version-update:semver-patch"]
     groups:
       otel:
         patterns:

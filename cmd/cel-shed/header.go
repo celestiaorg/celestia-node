@@ -1,6 +1,7 @@
 package main
 
 import (
+	"errors"
 	"fmt"
 	"strconv"
 	"strings"
@@ -30,12 +31,12 @@ Custom store path is not supported yet.`,
 	SilenceUsage: true,
 	RunE: func(cmd *cobra.Command, args []string) error {
 		if len(args) != 3 {
-			return fmt.Errorf("not enough arguments")
+			return errors.New("not enough arguments")
 		}
 
 		tp := node.ParseType(args[0])
 		if !tp.IsValid() {
-			return fmt.Errorf("invalid node-type")
+			return errors.New("invalid node-type")
 		}
 
 		network := args[1]

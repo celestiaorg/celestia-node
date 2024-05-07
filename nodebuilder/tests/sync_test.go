@@ -1,3 +1,5 @@
+//go:build sync || integration
+
 package tests
 
 import (
@@ -16,7 +18,7 @@ import (
 const (
 	numBlocks = 20
 	bsize     = 16
-	btime     = time.Millisecond * 300
+	sbtime    = time.Millisecond * 300
 )
 
 /*
@@ -45,7 +47,7 @@ func TestSyncAgainstBridge_NonEmptyChain(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), swamp.DefaultTestTimeout)
 	t.Cleanup(cancel)
 
-	sw := swamp.NewSwamp(t, swamp.WithBlockTime(btime))
+	sw := swamp.NewSwamp(t, swamp.WithBlockTime(sbtime))
 	// wait for core network to fill 20 blocks
 	fillDn := swamp.FillBlocks(ctx, sw.ClientContext, sw.Accounts, bsize, numBlocks)
 	sw.WaitTillHeight(ctx, numBlocks)
@@ -138,7 +140,7 @@ func TestSyncAgainstBridge_EmptyChain(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), swamp.DefaultTestTimeout)
 	t.Cleanup(cancel)
 
-	sw := swamp.NewSwamp(t, swamp.WithBlockTime(btime))
+	sw := swamp.NewSwamp(t, swamp.WithBlockTime(sbtime))
 	sw.WaitTillHeight(ctx, numBlocks)
 
 	// create bridge node and set it as the bootstrapper for the suite
@@ -211,6 +213,10 @@ Steps:
 9. Check LN is synced to height 40
 */
 func TestSyncStartStopLightWithBridge(t *testing.T) {
+	if testing.Short() {
+		t.Skip("skipping TestSyncStartStopLightWithBridge test in short mode.")
+	}
+
 	ctx, cancel := context.WithTimeout(context.Background(), swamp.DefaultTestTimeout)
 	defer cancel()
 

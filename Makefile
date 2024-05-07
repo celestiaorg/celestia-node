@@ -2,7 +2,10 @@ SHELL=/usr/bin/env bash
 PROJECTNAME=$(shell basename "$(PWD)")
 DIR_FULLPATH=$(shell pwd)
 versioningPath := "github.com/celestiaorg/celestia-node/nodebuilder/node"
+OS := $(shell uname -s)
 LDFLAGS=-ldflags="-X '$(versioningPath).buildTime=$(shell date)' -X '$(versioningPath).lastCommit=$(shell git rev-parse HEAD)' -X '$(versioningPath).semanticVersion=$(shell git describe --tags --dirty=-dev 2>/dev/null || git rev-parse --abbrev-ref HEAD)'"
+TAGS=integration
+SHORT=
 ifeq (${PREFIX},)
 	PREFIX := /usr/local
 endif
@@ -12,6 +15,11 @@ ifeq ($(ENABLE_VERBOSE),true)
 else
 	VERBOSE =
 	LOG_AND_FILTER =
+endif
+ifeq ($(SHORT),true)
+	INTEGRATION_RUN_LENGTH = -short
+else
+	INTEGRATION_RUN_LENGTH =
 endif
 ## help: Get more info on make commands.
 help: Makefile
@@ -56,11 +64,19 @@ deps:
 	@go mod download
 .PHONY: deps
 
-## install: Install all build binaries into the $PREFIX (/usr/local/ by default) directory.
+## install: Install the celestia-node binary.
 install:
+ifeq ($(OS),Darwin)
+	@$(MAKE) go-install
+else
+	@$(MAKE) install-global
+endif
+.PHONY: install
+
+install-global:
 	@echo "--> Installing Celestia"
 	@install -v ./build/* -t ${PREFIX}/bin/
-.PHONY: install
+.PHONY: install-global
 
 ## go-install: Build and install the celestia-node binary into the GOBIN directory.
 go-install:
@@ -95,9 +111,9 @@ install-key:
 ## fmt: Formats only *.go (excluding *.pb.go *pb_test.go). Runs `gofmt & goimports` internally.
 fmt: sort-imports
 	@find . -name '*.go' -type f -not -path "*.git*" -not -name '*.pb.go' -not -name '*pb_test.go' | xargs gofmt -w -s
-	@find . -name '*.go' -type f -not -path "*.git*"  -not -name '*.pb.go' -not -name '*pb_test.go' | xargs goimports -w -local github.com/celestiaorg
 	@go mod tidy -compat=1.20
 	@cfmt -w -m=100 ./...
+	@gofumpt -w -extra .
 	@markdownlint --fix --quiet --config .markdownlint.yaml .
 .PHONY: fmt
 
@@ -118,28 +134,20 @@ test-unit:
 ## test-unit-race: Running unit tests with data race detector
 test-unit-race:
 	@echo "--> Running unit tests with data race detector"
-	@go test -race `go list ./... | grep -v nodebuilder/tests`
+	@go test $(VERBOSE) -race -covermode=atomic -coverprofile=coverage.txt `go list ./... | grep -v nodebuilder/tests` $(LOG_AND_FILTER)
 .PHONY: test-unit-race
 
-## test-swamp: Running swamp tests located in nodebuilder/tests
-test-swamp:
-	@echo "--> Running swamp tests"
-	@go test ./nodebuilder/tests
-.PHONY: test-swamp
+## test-integration: Running /integration tests located in nodebuilder/tests
+test-integration:
+	@echo "--> Running integrations tests $(VERBOSE) -tags=$(TAGS) $(INTEGRATION_RUN_LENGTH)"
+	@go test $(VERBOSE) -tags=$(TAGS) $(INTEGRATION_RUN_LENGTH) ./nodebuilder/tests
+.PHONY: test-integration
 
-## test-swamp-race: Running swamp tests with data race detector located in node/tests
-test-swamp-race:
-	@echo "--> Running swamp tests with data race detector"
-	@go test -race ./nodebuilder/tests
-.PHONY: test-swamp-race
-
-## test: Running both unit and swamp tests
-test:
-	@echo "--> Running all tests without data race detector"
-	@go test ./...
-	@echo "--> Running all tests with data race detector"
-	@go test -race ./...
-.PHONY: test
+## test-integration-race: Running integration tests with data race detector located in node/tests
+test-integration-race:
+	@echo "--> Running integration tests with data race detector -tags=$(TAGS)"
+	@go test -race -tags=$(TAGS) ./nodebuilder/tests
+.PHONY: test-integration-race
 
 ## benchmark: Running all benchmarks
 benchmark:
@@ -164,11 +172,10 @@ pb-gen:
 	done;
 .PHONY: pb-gen
 
-
 ## openrpc-gen: Generate OpenRPC spec for Celestia-Node's RPC api
 openrpc-gen:
 	@echo "--> Generating OpenRPC spec"
-	@go run ./cmd/docgen fraud header state share das p2p node blob
+	@go run ./cmd/docgen fraud header state share das p2p node blob da
 .PHONY: openrpc-gen
 
 ## lint-imports: Lint only Go imports.
@@ -221,7 +228,6 @@ goreleaser-release:
 .PHONY: goreleaser-release
 
 # Copied from https://github.com/dgraph-io/badger/blob/main/Makefile
-
 USER_ID      = $(shell id -u)
 HAS_JEMALLOC = $(shell test -f /usr/local/lib/libjemalloc.a && echo "jemalloc")
 JEMALLOC_URL = "https://github.com/jemalloc/jemalloc/releases/download/5.2.1/jemalloc-5.2.1.tar.bz2"
