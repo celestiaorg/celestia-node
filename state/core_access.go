@@ -342,7 +342,7 @@ func (ca *CoreAccessor) BalanceForAddress(ctx context.Context, addr Address) (*B
 	}
 
 	// unmarshal balance information
-	value := result.Value
+	value := result.GetValue()
 	// if the value returned is empty, the account balance does not yet exist
 	if len(value) == 0 {
 		log.Errorf("balance for account %s does not exist at block height %d", addr.String(), head.Height()-1)
