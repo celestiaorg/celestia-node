@@ -3,7 +3,6 @@ package share
 import (
 	"context"
 	"fmt"
-	"time"
 
 	"github.com/ipfs/go-datastore"
 	"github.com/libp2p/go-libp2p/core/host"
@@ -188,7 +187,6 @@ func shrexGetterComponents(cfg *Config) fx.Option {
 		// shrex-getter
 		fx.Provide(fx.Annotate(
 			func(
-				tp node.Type,
 				edsClient *shrexeds.Client,
 				ndClient *shrexnd.Client,
 				man *peers.Manager,
@@ -196,7 +194,6 @@ func shrexGetterComponents(cfg *Config) fx.Option {
 				opts []getters.Option,
 			) *getters.ShrexGetter {
 				opts = append(opts, getters.WithAvailabilityWindow(window))
-				fmt.Println("\n\n CONSTRUCTING SHREX GETTER WITH WINDOW: ", time.Duration(window).String(), "TYPE: ", tp.String())
 				return getters.NewShrexGetter(edsClient, ndClient, man, opts...)
 			},
 			fx.OnStart(func(ctx context.Context, getter *getters.ShrexGetter) error {
