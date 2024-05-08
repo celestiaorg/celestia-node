@@ -345,18 +345,20 @@ func archivalPeerManager() fx.Option {
 		params peers.Parameters,
 		h host.Host,
 		gater *conngater.BasicConnectionGater,
-	) ([]getters.Option, disc.Option, error) {
+		fullManager *peers.Manager,
+	) ([]*peers.Manager, []getters.Option, disc.Option, error) {
 		archivalPeerManager, err := peers.NewManager(params, h, gater, peers.WithTag("archival"))
 		if err != nil {
-			return nil, nil, err
+			return nil, nil, nil, err
 		}
 		lc.Append(fx.Hook{
 			OnStart: archivalPeerManager.Start,
 			OnStop:  archivalPeerManager.Stop,
 		})
 
+		managers := []*peers.Manager{fullManager, archivalPeerManager}
 		opts := []getters.Option{getters.WithArchivalPeerManager(archivalPeerManager)}
-		return opts, disc.WithOnPeersUpdate(archivalPeerManager.UpdateNodePool), nil
+		return managers, opts, disc.WithOnPeersUpdate(archivalPeerManager.UpdateNodePool), nil
 	})
 }
 
