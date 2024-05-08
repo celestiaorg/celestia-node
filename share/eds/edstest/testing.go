@@ -34,8 +34,8 @@ func RandEDS(t require.TestingT, size int) *rsmt2d.ExtendedDataSquare {
 	return eds
 }
 
-// RandEDSWithNamespace generates EDS with given square size. Returned EDS will have namespacedAmount of
-// shares with the given namespace.
+// RandEDSWithNamespace generates EDS with given square size. Returned EDS will have
+// namespacedAmount of shares with the given namespace.
 func RandEDSWithNamespace(
 	t require.TestingT,
 	namespace share.Namespace,
