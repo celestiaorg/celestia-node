@@ -18,7 +18,7 @@ func (s *Service) findPruneableHeaders(
 	ctx context.Context,
 	lastPruned *header.ExtendedHeader,
 ) ([]*header.ExtendedHeader, error) {
-	pruneCutoff := time.Now().UTC().Add(time.Duration(-s.window))
+	pruneCutoff := time.Now().UTC().Add(-s.window.Duration())
 
 	if !lastPruned.Time().UTC().Before(pruneCutoff) {
 		// this can happen when the network is young and all blocks
