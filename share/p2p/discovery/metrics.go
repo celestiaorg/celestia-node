@@ -53,43 +53,43 @@ func (d *Discovery) WithMetrics() error {
 }
 
 func initMetrics(d *Discovery) (*metrics, error) {
-	peersAmount, err := meter.Int64ObservableGauge("discovery_amount_of_peers",
+	peersAmount, err := meter.Int64ObservableGauge(fmt.Sprintf("%s_discovery_amount_of_peers", d.tag),
 		metric.WithDescription("amount of peers in discovery set"))
 	if err != nil {
 		return nil, err
 	}
 
-	discoveryResult, err := meter.Int64Counter("discovery_find_peers_result",
+	discoveryResult, err := meter.Int64Counter(fmt.Sprintf("%s_discovery_find_peers_result", d.tag),
 		metric.WithDescription("result of find peers run"))
 	if err != nil {
 		return nil, err
 	}
 
-	handlePeerResultCounter, err := meter.Int64Counter("discovery_handler_peer_result",
+	handlePeerResultCounter, err := meter.Int64Counter(fmt.Sprintf("%s_discovery_handler_peer_result", d.tag),
 		metric.WithDescription("result handling found peer"))
 	if err != nil {
 		return nil, err
 	}
 
-	advertise, err := meter.Int64Counter("discovery_advertise_event",
+	advertise, err := meter.Int64Counter(fmt.Sprintf("%s_discovery_advertise_event", d.tag),
 		metric.WithDescription("advertise events counter"))
 	if err != nil {
 		return nil, err
 	}
 
-	peerAdded, err := meter.Int64Counter("discovery_add_peer",
+	peerAdded, err := meter.Int64Counter(fmt.Sprintf("%s_discovery_add_peer", d.tag),
 		metric.WithDescription("add peer to discovery set counter"))
 	if err != nil {
 		return nil, err
 	}
 
-	peerRemoved, err := meter.Int64Counter("discovery_remove_peer",
+	peerRemoved, err := meter.Int64Counter(fmt.Sprintf("%s_discovery_remove_peer", d.tag),
 		metric.WithDescription("remove peer from discovery set counter"))
 	if err != nil {
 		return nil, err
 	}
 
-	backOffSize, err := meter.Int64ObservableGauge("discovery_backoff_amount",
+	backOffSize, err := meter.Int64ObservableGauge(fmt.Sprintf("%s_discovery_backoff_amount", d.tag),
 		metric.WithDescription("amount of peers in backoff"))
 	if err != nil {
 		return nil, err

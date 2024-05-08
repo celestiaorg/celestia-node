@@ -145,12 +145,19 @@ func peerManagerComponents(tp node.Type, cfg *Config) fx.Option {
 						host,
 						connGater,
 						peers.WithShrexSubPools(shrexSub, headerSub),
+						peers.WithTag("full"),
 					)
 				},
 			),
 		)
 	case node.Bridge:
-		return fx.Provide(peers.NewManager)
+		return fx.Provide(func(
+			params peers.Parameters,
+			host host.Host,
+			connGater *conngater.BasicConnectionGater,
+		) (*peers.Manager, error) {
+			return peers.NewManager(params, host, connGater, peers.WithTag("full"))
+		})
 	default:
 		panic("invalid node type")
 	}
@@ -339,7 +346,7 @@ func archivalPeerManager() fx.Option {
 		h host.Host,
 		gater *conngater.BasicConnectionGater,
 	) ([]getters.Option, disc.Option, error) {
-		archivalPeerManager, err := peers.NewManager(params, h, gater)
+		archivalPeerManager, err := peers.NewManager(params, h, gater, peers.WithTag("archival"))
 		if err != nil {
 			return nil, nil, err
 		}

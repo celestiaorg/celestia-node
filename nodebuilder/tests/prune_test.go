@@ -64,6 +64,8 @@ func TestArchivalBlobSync(t *testing.T) {
 		fx.Replace(testAvailWindow),
 	)
 
+	// stop the archival BN to force LN to have to discover
+	// the archival FN later
 	err = archivalBN.Stop(ctx)
 	require.NoError(t, err)
 
@@ -123,6 +125,8 @@ func TestArchivalBlobSync(t *testing.T) {
 		i++
 	}
 
+	// ensure pruned FNs don't have the blocks associated
+	// with the historical blobs
 	for _, pruned := range pruningFulls {
 		for _, b := range archivalBlobs {
 			has, err := pruned.EDSStore.Has(ctx, b.root)
@@ -135,6 +139,8 @@ func TestArchivalBlobSync(t *testing.T) {
 	err = ln.Start(ctx)
 	require.NoError(t, err)
 
+	// ensure LN can retrieve all archival blobs from the
+	// archival FN
 	for _, b := range archivalBlobs {
 		_, err = ln.HeaderServ.WaitForHeight(ctx, b.height)
 		require.NoError(t, err)
