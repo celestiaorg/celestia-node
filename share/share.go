@@ -101,3 +101,11 @@ func MustDataHashFromString(datahash string) DataHash {
 func NewSHA256Hasher() hash.Hash {
 	return sha256.New()
 }
+
+// RootHashForCoordinates returns the root hash for the given coordinates.
+func RootHashForCoordinates(r *Root, axisType rsmt2d.Axis, colIdx, rowIdx uint) []byte {
+	if axisType == rsmt2d.Row {
+		return r.RowRoots[rowIdx]
+	}
+	return r.ColumnRoots[colIdx]
+}
