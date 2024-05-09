@@ -10,7 +10,7 @@ import (
 	"github.com/celestiaorg/rsmt2d"
 
 	"github.com/celestiaorg/celestia-node/share"
-	types_pb "github.com/celestiaorg/celestia-node/share/shwap/proto"
+	pb "github.com/celestiaorg/celestia-node/share/shwap/proto"
 )
 
 // NamespacedData stores collections of RowNamespaceData, each representing shares and their proofs
@@ -88,8 +88,8 @@ func (rnd RowNamespaceData) VerifyInclusion(rowRoot []byte, namespace share.Name
 }
 
 // ToProto converts RowNamespaceData to its protobuf representation for serialization.
-func (rnd RowNamespaceData) ToProto() *types_pb.RowNamespaceData {
-	return &types_pb.RowNamespaceData{
+func (rnd RowNamespaceData) ToProto() *pb.RowNamespaceData {
+	return &pb.RowNamespaceData{
 		Shares: SharesToProto(rnd.Shares),
 		Proof: &nmt_pb.Proof{
 			Start:                 int64(rnd.Proof.Start()),
@@ -140,6 +140,10 @@ func NamespacedRowFromShares(shares []share.Share, namespace share.Namespace, ro
 				from = i
 			}
 			count++
+			continue
+		}
+		if count > 0 {
+			break
 		}
 	}
 	if count == 0 {
@@ -167,7 +171,7 @@ func NamespacedRowFromShares(shares []share.Share, namespace share.Namespace, ro
 	}, nil
 }
 
-func NamespacedRowFromProto(row *types_pb.RowNamespaceData) RowNamespaceData {
+func NamespacedRowFromProto(row *pb.RowNamespaceData) RowNamespaceData {
 	var proof nmt.Proof
 	if row.GetProof().GetLeafHash() != nil {
 		proof = nmt.NewAbsenceProof(

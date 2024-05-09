@@ -8,7 +8,7 @@ import (
 	"github.com/celestiaorg/rsmt2d"
 
 	"github.com/celestiaorg/celestia-node/share"
-	types_pb "github.com/celestiaorg/celestia-node/share/shwap/proto"
+	pb "github.com/celestiaorg/celestia-node/share/shwap/proto"
 )
 
 // RowSide enumerates the possible sides of a row within an Extended Data Square (EDS).
@@ -92,15 +92,15 @@ func (r Row) Shares() ([]share.Share, error) {
 }
 
 // ToProto converts the Row to its protobuf representation.
-func (r Row) ToProto() *types_pb.Row {
-	return &types_pb.Row{
+func (r Row) ToProto() *pb.Row {
+	return &pb.Row{
 		SharesHalf: SharesToProto(r.halfShares),
 		HalfSide:   r.side.ToProto(),
 	}
 }
 
 // RowFromProto converts a protobuf Row to a Row structure.
-func RowFromProto(r *types_pb.Row) Row {
+func RowFromProto(r *pb.Row) Row {
 	return Row{
 		halfShares: SharesFromProto(r.SharesHalf),
 		side:       sideFromProto(r.GetHalfSide()),
@@ -123,16 +123,16 @@ func NewRowFromEDS(square *rsmt2d.ExtendedDataSquare, idx int, side RowSide) Row
 }
 
 // ToProto converts a RowSide to its protobuf representation.
-func (s RowSide) ToProto() types_pb.Row_HalfSide {
+func (s RowSide) ToProto() pb.Row_HalfSide {
 	if s == Left {
-		return types_pb.Row_LEFT
+		return pb.Row_LEFT
 	}
-	return types_pb.Row_RIGHT
+	return pb.Row_RIGHT
 }
 
 // sideFromProto converts a protobuf Row_HalfSide back to a RowSide.
-func sideFromProto(side types_pb.Row_HalfSide) RowSide {
-	if side == types_pb.Row_LEFT {
+func sideFromProto(side pb.Row_HalfSide) RowSide {
+	if side == pb.Row_LEFT {
 		return Left
 	}
 	return Right

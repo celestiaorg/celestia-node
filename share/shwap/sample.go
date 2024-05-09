@@ -10,7 +10,7 @@ import (
 	"github.com/celestiaorg/rsmt2d"
 
 	"github.com/celestiaorg/celestia-node/share"
-	types_pb "github.com/celestiaorg/celestia-node/share/shwap/proto"
+	pb "github.com/celestiaorg/celestia-node/share/shwap/proto"
 )
 
 // Sample represents a data share along with its Merkle proof, used to validate the share's
@@ -35,14 +35,9 @@ func (s *Sample) Validate(dah *share.Root, colIdx, rowIdx int) error {
 
 // VerifyInclusion checks if the share is included in the given root hash at the specified indices.
 func (s *Sample) VerifyInclusion(dah *share.Root, colIdx, rowIdx int) bool {
-	rootHash := share.RootHashForCoordinates(dah, s.ProofType, uint(colIdx), uint(rowIdx))
 	size := len(dah.RowRoots)
-	isParity := colIdx >= size/2 || rowIdx >= size/2
-	namespace := share.ParitySharesNamespace
-	if !isParity {
-		namespace = share.GetNamespace(s.Share)
-	}
-
+	namespace := inclusionNamespace(s.Share, colIdx, rowIdx, size)
+	rootHash := share.RootHashForCoordinates(dah, s.ProofType, uint(colIdx), uint(rowIdx))
 	return s.Proof.VerifyInclusion(
 		sha256.New(), // Utilizes sha256, should be consistent throughout the application.
 		namespace.ToNMT(),
@@ -51,10 +46,22 @@ func (s *Sample) VerifyInclusion(dah *share.Root, colIdx, rowIdx int) bool {
 	)
 }
 
+// inclusionNamespace returns the namespace for the share based on its position in the square.
+// Shares from extended part of the square are considered parity shares. It means that
+// parity shares are located outside of first quadrant of the square. According to the nmt
+// specification, the parity shares are prefixed with the namespace of the parity shares.
+func inclusionNamespace(sh share.Share, colIdx, rowIdx int, squareSize int) share.Namespace {
+	isParity := colIdx >= squareSize/2 || rowIdx >= squareSize/2
+	if isParity {
+		return share.ParitySharesNamespace
+	}
+	return share.GetNamespace(sh)
+}
+
 // ToProto converts a Sample into its protobuf representation for serialization purposes.
-func (s *Sample) ToProto() *types_pb.Sample {
-	return &types_pb.Sample{
-		Share: &types_pb.Share{Data: s.Share},
+func (s *Sample) ToProto() *pb.Sample {
+	return &pb.Sample{
+		Share: &pb.Share{Data: s.Share},
 		Proof: &nmt_pb.Proof{
 			Start:                 int64(s.Proof.Start()),
 			End:                   int64(s.Proof.End()),
@@ -62,7 +69,7 @@ func (s *Sample) ToProto() *types_pb.Sample {
 			LeafHash:              s.Proof.LeafHash(),
 			IsMaxNamespaceIgnored: s.Proof.IsMaxNamespaceIDIgnored(),
 		},
-		ProofType: types_pb.AxisType(s.ProofType),
+		ProofType: pb.AxisType(s.ProofType),
 	}
 }
 
@@ -104,7 +111,7 @@ func SampleFromEDS(
 }
 
 // SampleFromProto converts a protobuf Sample back into its domain model equivalent.
-func SampleFromProto(s *types_pb.Sample) *Sample {
+func SampleFromProto(s *pb.Sample) *Sample {
 	proof := nmt.NewInclusionProof(
 		int(s.GetProof().GetStart()),
 		int(s.GetProof().GetEnd()),
