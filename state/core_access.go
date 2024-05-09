@@ -9,8 +9,8 @@ import (
 	"time"
 
 	sdkErrors "cosmossdk.io/errors"
-	"github.com/cosmos/cosmos-sdk/api/tendermint/abci"
 	nodeservice "github.com/cosmos/cosmos-sdk/client/grpc/node"
+	"github.com/cosmos/cosmos-sdk/client/grpc/tmservice"
 	"github.com/cosmos/cosmos-sdk/crypto/keyring"
 	storetypes "github.com/cosmos/cosmos-sdk/store/types"
 	sdktypes "github.com/cosmos/cosmos-sdk/types"
@@ -22,8 +22,7 @@ import (
 	stakingtypes "github.com/cosmos/cosmos-sdk/x/staking/types"
 	logging "github.com/ipfs/go-log/v2"
 	"github.com/tendermint/tendermint/crypto/merkle"
-	rpcclient "github.com/tendermint/tendermint/rpc/client"
-	"github.com/tendermint/tendermint/rpc/client/http"
+	"github.com/tendermint/tendermint/proto/tendermint/crypto"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
 
@@ -78,15 +77,14 @@ type CoreAccessor struct {
 
 	getter libhead.Head[*header.ExtendedHeader]
 
-	stakingCli  stakingtypes.QueryClient
-	feeGrantCli feegrant.QueryClient
-	rpcCli      rpcclient.ABCIClient
+	stakingCli   stakingtypes.QueryClient
+	feeGrantCli  feegrant.QueryClient
+	abciQueryCli tmservice.ServiceClient
 
 	prt *merkle.ProofRuntime
 
 	coreConn *grpc.ClientConn
 	coreIP   string
-	rpcPort  string
 	grpcPort string
 
 	// these fields are mutatable and thus need to be protected by a mutex
@@ -113,7 +111,6 @@ func NewCoreAccessor(
 	keyname string,
 	getter libhead.Head[*header.ExtendedHeader],
 	coreIP,
-	rpcPort string,
 	grpcPort string,
 	options ...Option,
 ) (*CoreAccessor, error) {
@@ -136,7 +133,6 @@ func NewCoreAccessor(
 		addr:     addr,
 		getter:   getter,
 		coreIP:   coreIP,
-		rpcPort:  rpcPort,
 		grpcPort: grpcPort,
 		prt:      prt,
 	}
@@ -166,16 +162,13 @@ func (ca *CoreAccessor) Start(ctx context.Context) error {
 	ca.coreConn = client
 
 	// create the staking query client
-	stakingCli := stakingtypes.NewQueryClient(ca.coreConn)
-	ca.stakingCli = stakingCli
+	ca.stakingCli = stakingtypes.NewQueryClient(ca.coreConn)
 	ca.feeGrantCli = feegrant.NewQueryClient(ca.coreConn)
-	// create ABCI query client
-	cli, err := http.New(fmt.Sprintf("http://%s:%s", ca.coreIP, ca.rpcPort), "/websocket")
-	if err != nil {
-		return err
-	}
-	ca.rpcCli = cli
 
+	// create ABCI query client
+	ca.abciQueryCli = tmservice.NewServiceClient(ca.coreConn)
+
+	// set up signer to handle tx submission
 	ca.signer, err = ca.setupSigner(ctx)
 	if err != nil {
 		log.Warnw("failed to set up signer, check if node's account is funded", "err", err)
@@ -334,26 +327,22 @@ func (ca *CoreAccessor) BalanceForAddress(ctx context.Context, addr Address) (*B
 	// TODO @renaynay: once https://github.com/cosmos/cosmos-sdk/pull/12674 is merged, use this method
 	// instead
 	prefixedAccountKey := append(banktypes.CreateAccountBalancesPrefix(addr.Bytes()), []byte(app.BondDenom)...)
-	abciReq := abci.RequestQuery{
+	req := &tmservice.ABCIQueryRequest{
+		Data: prefixedAccountKey,
 		// TODO @renayay: once https://github.com/cosmos/cosmos-sdk/pull/12674 is merged, use const instead
 		Path:   fmt.Sprintf("store/%s/key", banktypes.StoreKey),
 		Height: int64(head.Height() - 1),
-		Data:   prefixedAccountKey,
 		Prove:  true,
 	}
-	opts := rpcclient.ABCIQueryOptions{
-		Height: abciReq.GetHeight(),
-		Prove:  abciReq.GetProve(),
-	}
-	result, err := ca.rpcCli.ABCIQueryWithOptions(ctx, abciReq.GetPath(), abciReq.GetData(), opts)
-	if err != nil {
+
+	result, err := ca.abciQueryCli.ABCIQuery(ctx, req)
+	if err != nil || result.GetCode() != 0 {
+		err = fmt.Errorf("failed to query for balance: %w; result log: %s", err, result.GetLog())
 		return nil, err
 	}
-	if !result.Response.IsOK() {
-		return nil, sdkErrorToGRPCError(result.Response)
-	}
+
 	// unmarshal balance information
-	value := result.Response.Value
+	value := result.GetValue()
 	// if the value returned is empty, the account balance does not yet exist
 	if len(value) == 0 {
 		log.Errorf("balance for account %s does not exist at block height %d", addr.String(), head.Height()-1)
@@ -366,9 +355,25 @@ func (ca *CoreAccessor) BalanceForAddress(ctx context.Context, addr Address) (*B
 	if !ok {
 		return nil, fmt.Errorf("cannot convert %s into sdktypes.Int", string(value))
 	}
+
+	if result.GetProofOps() == nil {
+		return nil, fmt.Errorf("failed to get proofs for balance of address %s", addr.String())
+	}
+
 	// verify balance
+	proofOps := &crypto.ProofOps{
+		Ops: make([]crypto.ProofOp, len(result.ProofOps.Ops)),
+	}
+	for i, proofOp := range result.ProofOps.Ops {
+		proofOps.Ops[i] = crypto.ProofOp{
+			Type: proofOp.Type,
+			Key:  proofOp.Key,
+			Data: proofOp.Data,
+		}
+	}
+
 	err = ca.prt.VerifyValueFromKeys(
-		result.Response.GetProofOps(),
+		proofOps,
 		head.AppHash,
 		[][]byte{
 			[]byte(banktypes.StoreKey),
