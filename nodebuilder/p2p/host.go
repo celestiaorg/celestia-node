@@ -26,7 +26,6 @@ import (
 // if any top-level operation on the Host is provided with PeerID(Hash(PbK)) only.
 func routedHost(base HostBase, r routing.PeerRouting) hst.Host {
 	return routedhost.Wrap(base, r)
-
 }
 
 func newUserAgent() *UserAgent {
