@@ -10,21 +10,17 @@ import (
 	"github.com/celestiaorg/celestia-app/pkg/appconsts"
 )
 
-var (
-	// DefaultRSMT2DCodec sets the default rsmt2d.Codec for shares.
-	DefaultRSMT2DCodec = appconsts.DefaultCodec
-)
+// DefaultRSMT2DCodec sets the default rsmt2d.Codec for shares.
+var DefaultRSMT2DCodec = appconsts.DefaultCodec
 
 const (
 	// Size is a system-wide size of a share, including both data and namespace GetNamespace
 	Size = appconsts.ShareSize
 )
 
-var (
-	// MaxSquareSize is currently the maximum size supported for unerasured data in
-	// rsmt2d.ExtendedDataSquare.
-	MaxSquareSize = appconsts.SquareSizeUpperBound(appconsts.LatestVersion)
-)
+// MaxSquareSize is currently the maximum size supported for unerasured data in
+// rsmt2d.ExtendedDataSquare.
+var MaxSquareSize = appconsts.SquareSizeUpperBound(appconsts.LatestVersion)
 
 // Share contains the raw share data without the corresponding namespace.
 // NOTE: Alias for the byte is chosen to keep maximal compatibility, especially with rsmt2d.

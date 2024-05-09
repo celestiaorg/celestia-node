@@ -285,7 +285,7 @@ func addToNamespace(namespace share.Namespace, val int) (share.Namespace, error)
 	// Perform addition byte by byte
 	var carry int
 	for i := len(namespace) - 1; i >= 0; i-- {
-		sum := 0
+		var sum int
 		if val > 0 {
 			sum = int(namespace[i]) + int(result[i]) + carry
 		} else {

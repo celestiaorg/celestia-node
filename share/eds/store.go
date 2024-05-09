@@ -242,7 +242,7 @@ func (s *Store) put(ctx context.Context, root share.DataHash, square *rsmt2d.Ext
 	}
 
 	key := root.String()
-	f, err := os.OpenFile(s.basepath+blocksPath+key, os.O_CREATE|os.O_WRONLY, 0600)
+	f, err := os.OpenFile(s.basepath+blocksPath+key, os.O_CREATE|os.O_WRONLY, 0o600)
 	if err != nil {
 		return err
 	}
@@ -566,10 +566,10 @@ func (s *Store) Has(ctx context.Context, root share.DataHash) (has bool, err err
 func (s *Store) has(_ context.Context, root share.DataHash) (bool, error) {
 	key := root.String()
 	info, err := s.dgstr.GetShardInfo(shard.KeyFromString(key))
-	switch err {
-	case nil:
+	switch {
+	case err == nil:
 		return true, info.Error
-	case dagstore.ErrShardUnknown:
+	case errors.Is(err, dagstore.ErrShardUnknown):
 		return false, info.Error
 	default:
 		return false, err

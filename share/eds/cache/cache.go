@@ -16,9 +16,7 @@ var (
 	meter = otel.Meter("eds_store_cache")
 )
 
-var (
-	errCacheMiss = errors.New("accessor not found in blockstore cache")
-)
+var errCacheMiss = errors.New("accessor not found in blockstore cache")
 
 type CloseMetricsFn func() error
 
