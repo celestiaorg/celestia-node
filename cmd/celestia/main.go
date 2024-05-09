@@ -31,6 +31,7 @@ func init() {
 		bridgeCmd,
 		lightCmd,
 		fullCmd,
+		docgenCmd,
 		versionCmd,
 	)
 	rootCmd.SetHelpCommand(&cobra.Command{})
