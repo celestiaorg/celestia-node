@@ -10,13 +10,15 @@ func TestUserAgent(t *testing.T) {
 	tests := []struct {
 		name     string
 		net      Network
+		tp       node.Type
 		build    *node.BuildInfo
 		expected string
 	}{
 		{
 			name:     "Testnet",
 			net:      "testnet",
-			expected: "celestia-node/testnet/v1.0.0/abcdefg",
+			tp:       node.Full,
+			expected: "celestia-node/testnet/full/v1.0.0/abcdefg",
 			build: &node.BuildInfo{
 				SemanticVersion: "1.0.0",
 				LastCommit:      "abcdefg",
@@ -25,16 +27,17 @@ func TestUserAgent(t *testing.T) {
 		{
 			name:     "Mainnet",
 			net:      "mainnet",
-			expected: "celestia-node/mainnet/v1.0.0/abcdefg",
+			expected: "celestia-node/mainnet/light/v1.0.0/abcdefg",
+			tp:       node.Light,
 			build: &node.BuildInfo{
 				SemanticVersion: "1.0.0",
 				LastCommit:      "abcdefg",
 			},
 		},
 		{
-			name:     "Empty LastCommit",
+			name:     "Empty LastCommit, Empty NodeType",
 			net:      "testnet",
-			expected: "celestia-node/testnet/unknown/unknown",
+			expected: "celestia-node/testnet/unknown/unknown/unknown",
 			build: &node.BuildInfo{
 				SemanticVersion: "",
 				LastCommit:      "",
@@ -44,7 +47,7 @@ func TestUserAgent(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			userAgent := newUserAgent().WithNetwork(tt.net)
+			userAgent := newUserAgent().WithNetwork(tt.net).WithNodeType(tt.tp)
 			userAgent.build = tt.build
 
 			if userAgent.String() != tt.expected {

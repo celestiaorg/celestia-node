@@ -3,6 +3,7 @@ package p2p
 import (
 	"context"
 	"fmt"
+	"strings"
 
 	"github.com/libp2p/go-libp2p"
 	p2pconfig "github.com/libp2p/go-libp2p/config"
@@ -30,8 +31,9 @@ func routedHost(base HostBase, r routing.PeerRouting) hst.Host {
 
 func newUserAgent() *UserAgent {
 	return &UserAgent{
-		network: "",
-		build:   node.GetBuildInfo(),
+		network:  "",
+		nodeType: 0,
+		build:    node.GetBuildInfo(),
 	}
 }
 
@@ -40,15 +42,22 @@ func (ua *UserAgent) WithNetwork(net Network) *UserAgent {
 	return ua
 }
 
+func (ua *UserAgent) WithNodeType(tp node.Type) *UserAgent {
+	ua.nodeType = tp
+	return ua
+}
+
 type UserAgent struct {
-	network Network
-	build   *node.BuildInfo
+	network  Network
+	nodeType node.Type
+	build    *node.BuildInfo
 }
 
 func (ua *UserAgent) String() string {
 	return fmt.Sprintf(
-		"celestia-node/%s/%s/%s",
+		"celestia-node/%s/%s/%s/%s",
 		ua.network,
+		strings.ToLower(ua.nodeType.String()),
 		ua.build.GetSemanticVersion(),
 		ua.build.CommitShortSha(),
 	)
@@ -56,7 +65,7 @@ func (ua *UserAgent) String() string {
 
 // host returns constructor for Host.
 func host(params hostParams) (HostBase, error) {
-	ua := newUserAgent().WithNetwork(params.Net)
+	ua := newUserAgent().WithNetwork(params.Net).WithNodeType(params.Tp)
 
 	opts := []libp2p.Option{
 		libp2p.NoListenAddrs, // do not listen automatically
