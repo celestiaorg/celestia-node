@@ -54,6 +54,7 @@ linters:
     - whitespace
     - nolintlint
     - asciicheck
+    - dupword
 
 issues:
   exclude-rules:

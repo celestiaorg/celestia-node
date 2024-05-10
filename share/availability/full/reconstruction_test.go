@@ -164,6 +164,8 @@ func TestShareAvailable_ConnectedFullNodes(t *testing.T) {
 // connected to isolated light nodes subnetworks, which do not have enough nodes
 // to reconstruct the data, but once ShareAvailability nodes connect, they can
 // collectively reconstruct it.
+//
+//nolint:dupword
 func TestShareAvailable_DisconnectedFullNodes(t *testing.T) {
 	// S - Source
 	// L - Light Node

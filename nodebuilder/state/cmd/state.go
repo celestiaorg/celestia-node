@@ -1,7 +1,6 @@
 package cmd
 
 import (
-	"encoding/hex"
 	"fmt"
 	"strconv"
 
@@ -20,7 +19,6 @@ func init() {
 		balanceCmd,
 		balanceForAddressCmd,
 		transferCmd,
-		submitTxCmd,
 		cancelUnbondingDelegationCmd,
 		beginRedelegateCmd,
 		undelegateCmd,
@@ -137,29 +135,6 @@ var transferCmd = &cobra.Command{
 			addr.Address.(state.AccAddress),
 			math.NewInt(amount),
 			math.NewInt(fee), gasLimit,
-		)
-		return cmdnode.PrintOutput(txResponse, err, nil)
-	},
-}
-
-var submitTxCmd = &cobra.Command{
-	Use:   "submit-tx [tx]",
-	Short: "Submits the given transaction/message to the Celestia network and blocks until the tx is included in a block.",
-	Args:  cobra.ExactArgs(1),
-	RunE: func(cmd *cobra.Command, args []string) error {
-		client, err := cmdnode.ParseClientFromCtx(cmd.Context())
-		if err != nil {
-			return err
-		}
-		defer client.Close()
-
-		decoded, err := hex.DecodeString(args[0])
-		if err != nil {
-			return fmt.Errorf("failed to decode tx: %w", err)
-		}
-		txResponse, err := client.State.SubmitTx(
-			cmd.Context(),
-			decoded,
 		)
 		return cmdnode.PrintOutput(txResponse, err, nil)
 	},
