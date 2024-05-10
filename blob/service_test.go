@@ -132,7 +132,9 @@ func TestBlobService_Get(t *testing.T) {
 		{
 			name: "get all with different namespaces",
 			doFn: func() (interface{}, error) {
-				b, err := service.GetAll(ctx, 1, []share.Namespace{blobs0[0].Namespace(), blobs0[1].Namespace()})
+				nid, err := share.NewBlobNamespaceV0(tmrand.Bytes(7))
+				require.NoError(t, err)
+				b, err := service.GetAll(ctx, 1, []share.Namespace{blobs0[0].Namespace(), nid, blobs0[1].Namespace()})
 				return b, err
 			},
 			expectedResult: func(res interface{}, err error) {
@@ -142,6 +144,9 @@ func TestBlobService_Get(t *testing.T) {
 				assert.True(t, ok)
 				assert.NotEmpty(t, blobs)
 				assert.Len(t, blobs, 2)
+				// check the order
+				require.True(t, bytes.Equal(blobs[0].Namespace(), blobs0[0].Namespace()))
+				require.True(t, bytes.Equal(blobs[1].Namespace(), blobs0[1].Namespace()))
 			},
 		},
 		{
