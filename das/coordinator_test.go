@@ -470,7 +470,6 @@ func (o *checkOrder) addInterval(start, end uint64) *checkOrder {
 			return o
 		}
 		start--
-
 	}
 	return o
 }

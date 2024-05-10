@@ -15,7 +15,7 @@ type Sample struct {
 
 // SampleSquare randomly picks *num* unique points from the given *width* square
 // and returns them as samples.
-func SampleSquare(squareWidth int, num int) ([]Sample, error) {
+func SampleSquare(squareWidth, num int) ([]Sample, error) {
 	ss := newSquareSampler(squareWidth, num)
 	err := ss.generateSample(num)
 	if err != nil {
@@ -29,7 +29,7 @@ type squareSampler struct {
 	smpls       map[Sample]struct{}
 }
 
-func newSquareSampler(squareWidth int, expectedSamples int) *squareSampler {
+func newSquareSampler(squareWidth, expectedSamples int) *squareSampler {
 	return &squareSampler{
 		squareWidth: squareWidth,
 		smpls:       make(map[Sample]struct{}, expectedSamples),

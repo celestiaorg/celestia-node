@@ -227,7 +227,7 @@ func writeRandomEDS(t *testing.T) *rsmt2d.ExtendedDataSquare {
 	tmpDir := t.TempDir()
 	err := os.Chdir(tmpDir)
 	require.NoError(t, err, "error changing to the temporary test directory")
-	f, err := os.OpenFile("test.car", os.O_WRONLY|os.O_CREATE, 0600)
+	f, err := os.OpenFile("test.car", os.O_WRONLY|os.O_CREATE, 0o600)
 	require.NoError(t, err, "error opening file")
 
 	eds := edstest.RandEDS(t, 4)
@@ -239,7 +239,7 @@ func writeRandomEDS(t *testing.T) *rsmt2d.ExtendedDataSquare {
 
 func openWrittenEDS(t *testing.T) *os.File {
 	t.Helper()
-	f, err := os.OpenFile("test.car", os.O_RDONLY, 0600)
+	f, err := os.OpenFile("test.car", os.O_RDONLY, 0o600)
 	require.NoError(t, err, "error opening file")
 	return f
 }
@@ -261,7 +261,7 @@ func createTestData(t *testing.T, testDir string) { //nolint:unused
 	require.NoError(t, err, "changing to the directory")
 	os.RemoveAll("example.car")
 	require.NoError(t, err, "removing old file")
-	f, err := os.OpenFile("example.car", os.O_WRONLY|os.O_CREATE, 0600)
+	f, err := os.OpenFile("example.car", os.O_WRONLY|os.O_CREATE, 0o600)
 	require.NoError(t, err, "opening file")
 
 	eds := edstest.RandEDS(t, 4)
@@ -275,7 +275,7 @@ func createTestData(t *testing.T, testDir string) { //nolint:unused
 	require.NoError(t, err, "marshaling example root")
 	os.RemoveAll("example-root.json")
 	require.NoError(t, err, "removing old file")
-	f, err = os.OpenFile("example-root.json", os.O_WRONLY|os.O_CREATE, 0600)
+	f, err = os.OpenFile("example-root.json", os.O_WRONLY|os.O_CREATE, 0o600)
 	require.NoError(t, err, "opening file")
 	_, err = f.Write(header)
 	require.NoError(t, err, "writing example root to file")

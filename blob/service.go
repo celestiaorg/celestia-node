@@ -239,9 +239,9 @@ func (s *Service) Included(
 		return blob.compareCommitments(commitment)
 	}}
 	_, resProof, err := s.retrieve(ctx, height, namespace, sharesParser)
-	switch err {
-	case nil:
-	case ErrBlobNotFound:
+	switch {
+	case err == nil:
+	case errors.Is(err, ErrBlobNotFound):
 		return false, nil
 	default:
 		return false, err

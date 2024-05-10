@@ -31,7 +31,7 @@ func testModule(tp node.Type) fx.Option {
 }
 
 func TestModuleBuild(t *testing.T) {
-	var test = []struct {
+	test := []struct {
 		tp node.Type
 	}{
 		{tp: node.Bridge},
@@ -49,7 +49,7 @@ func TestModuleBuild(t *testing.T) {
 }
 
 func TestModuleBuild_WithMetrics(t *testing.T) {
-	var test = []struct {
+	test := []struct {
 		tp node.Type
 	}{
 		{tp: node.Full},
