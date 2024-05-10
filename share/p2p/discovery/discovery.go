@@ -57,8 +57,6 @@ type Discovery struct {
 
 	cancel context.CancelFunc
 
-	advertiseCancelFunc context.CancelFunc
-
 	params *Parameters
 }
 
@@ -196,19 +194,6 @@ func (d *Discovery) Advertise(ctx context.Context) {
 			return
 		}
 	}
-}
-
-func (d *Discovery) StartAdvertising(context.Context) error {
-	ctx, cancel := context.WithCancel(context.Background())
-	d.advertiseCancelFunc = cancel
-
-	go d.Advertise(ctx)
-	return nil
-}
-
-func (d *Discovery) StopAdvertising(context.Context) error {
-	d.advertiseCancelFunc()
-	return nil
 }
 
 // discoveryLoop ensures we always have '~peerLimit' connected peers.

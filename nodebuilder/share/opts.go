@@ -23,8 +23,12 @@ func WithPeerManagerMetrics(managers []*peers.Manager) error {
 
 // WithDiscoveryMetrics is a utility function to turn on discovery metrics and that is expected to
 // be "invoked" by the fx lifecycle.
-func WithDiscoveryMetrics(d *disc.Discovery) error {
-	return d.WithMetrics()
+func WithDiscoveryMetrics(discs []*disc.Discovery) error {
+	var err error
+	for _, disc := range discs {
+		err = errors.Join(err, disc.WithMetrics())
+	}
+	return err
 }
 
 func WithShrexClientMetrics(edsClient *shrexeds.Client, ndClient *shrexnd.Client) error {

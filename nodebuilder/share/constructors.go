@@ -12,6 +12,7 @@ import (
 
 	"github.com/celestiaorg/celestia-app/pkg/da"
 
+	"github.com/celestiaorg/celestia-node/nodebuilder/node"
 	"github.com/celestiaorg/celestia-node/share"
 	"github.com/celestiaorg/celestia-node/share/eds"
 	"github.com/celestiaorg/celestia-node/share/getters"
@@ -29,14 +30,20 @@ const (
 )
 
 func newFullDiscovery(cfg *disc.Parameters,
-) func(routing.ContentRouting, host.Host, *peers.Manager) (*disc.Discovery, error) {
+) func(node.Type, routing.ContentRouting, host.Host, *peers.Manager) (*disc.Discovery, error) {
 	return func(
+		tp node.Type,
 		r routing.ContentRouting,
 		h host.Host,
 		manager *peers.Manager,
 	) (*disc.Discovery, error) {
+		discConfig := *cfg
+		if tp == node.Full || tp == node.Bridge {
+			discConfig.EnableAdvertise = true
+		}
+
 		return disc.NewDiscovery(
-			cfg,
+			&discConfig,
 			h,
 			routingdisc.NewRoutingDiscovery(r),
 			fullNodesTag,
