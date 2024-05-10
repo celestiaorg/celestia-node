@@ -289,7 +289,7 @@ func TestBlobService_Get(t *testing.T) {
 			},
 		},
 		{
-			name: "get all not found",
+			name: "empty result and err when blobs wer not found ",
 			doFn: func() (interface{}, error) {
 				nid, err := share.NewBlobNamespaceV0(tmrand.Bytes(7))
 				require.NoError(t, err)
@@ -299,7 +299,7 @@ func TestBlobService_Get(t *testing.T) {
 				blobs, ok := i.([]*Blob)
 				require.True(t, ok)
 				assert.Empty(t, blobs)
-				assert.ErrorIs(t, err, ErrBlobNotFound)
+				assert.Empty(t, err)
 			},
 		},
 		{

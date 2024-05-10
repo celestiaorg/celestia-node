@@ -1,5 +1,3 @@
-//go:build blob || integration
-
 package tests
 
 import (
@@ -127,6 +125,10 @@ func TestBlobModule(t *testing.T) {
 				assert.Nil(t, b)
 				require.Error(t, err)
 				require.ErrorContains(t, err, blob.ErrBlobNotFound.Error())
+
+				blobs, err := fullClient.Blob.GetAll(ctx, height, []share.Namespace{newBlob.Namespace()})
+				require.NoError(t, err)
+				assert.Empty(t, blobs)
 			},
 		},
 		{

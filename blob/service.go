@@ -5,6 +5,8 @@ import (
 	"errors"
 	"fmt"
 	"math"
+	"slices"
+	"sync"
 
 	sdkmath "cosmossdk.io/math"
 	"github.com/cosmos/cosmos-sdk/types"
@@ -170,46 +172,32 @@ func (s *Service) GetAll(ctx context.Context, height uint64, namespaces []share.
 	}
 
 	var (
-		blobs = make([]*Blob, 0)
-
-		blobsCh = make(chan []*Blob, 1)
-		errCh   = make(chan error, 1)
+		resultBlobs = make([][]*Blob, len(namespaces))
+		resultErr   = make([]error, len(namespaces))
+		wg          = sync.WaitGroup{}
 	)
-
 	for i, namespace := range namespaces {
+		wg.Add(1)
 		go func(i int, namespace share.Namespace) {
 			log.Debugw("retrieving all blobs from", "namespace", namespace.String(), "height", height)
-			blobs, err := s.getBlobs(ctx, namespace, header)
-			if err != nil {
-				err = fmt.Errorf("getting blobs for namespace(%s): %w", namespace.String(), err)
-				errCh <- err
-				log.Debug(err)
-				return
-			}
+			defer wg.Done()
 
-			log.Debugw("receiving blobs", "height", height, "total", len(blobs))
-			blobsCh <- blobs
+			blobs, err := s.getBlobs(ctx, namespace, header)
+			switch {
+			case err == nil:
+				log.Debugw("receiving blobs", "height", height, "total", len(blobs))
+				resultBlobs[i] = blobs
+			case errors.Is(err, ErrBlobNotFound):
+			default:
+				log.Debug("getting blobs for namespace(%s): %w", namespace.String(), err)
+				resultErr[i] = err
+			}
 		}(i, namespace)
 	}
+	wg.Wait()
 
-	for range namespaces {
-		select {
-		case <-ctx.Done():
-			return blobs, ctx.Err()
-		case b := <-blobsCh:
-			blobs = append(blobs, b...)
-		case resultErr := <-errCh:
-			if errors.Is(resultErr, ErrBlobNotFound) {
-				continue
-
-			}
-			err = errors.Join(err, resultErr)
-		}
-	}
-
-	if len(blobs) == 0 && err == nil {
-		err = ErrBlobNotFound
-	}
+	blobs := slices.Concat(resultBlobs...)
+	err = errors.Join(resultErr...)
 	return blobs, err
 }
 
