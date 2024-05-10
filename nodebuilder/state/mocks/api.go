@@ -14,7 +14,6 @@ import (
 	types0 "github.com/cosmos/cosmos-sdk/x/staking/types"
 	gomock "github.com/golang/mock/gomock"
 	types1 "github.com/tendermint/tendermint/proto/tendermint/types"
-	types2 "github.com/tendermint/tendermint/types"
 )
 
 // MockModule is a mock of Module interface.
@@ -218,21 +217,6 @@ func (m *MockModule) SubmitPayForBlob(arg0 context.Context, arg1 []*types1.Blob,
 func (mr *MockModuleMockRecorder) SubmitPayForBlob(arg0, arg1, arg2 interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "SubmitPayForBlob", reflect.TypeOf((*MockModule)(nil).SubmitPayForBlob), arg0, arg1, arg2)
-}
-
-// SubmitTx mocks base method.
-func (m *MockModule) SubmitTx(arg0 context.Context, arg1 types2.Tx) (*types.TxResponse, error) {
-	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "SubmitTx", arg0, arg1)
-	ret0, _ := ret[0].(*types.TxResponse)
-	ret1, _ := ret[1].(error)
-	return ret0, ret1
-}
-
-// SubmitTx indicates an expected call of SubmitTx.
-func (mr *MockModuleMockRecorder) SubmitTx(arg0, arg1 interface{}) *gomock.Call {
-	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "SubmitTx", reflect.TypeOf((*MockModule)(nil).SubmitTx), arg0, arg1)
 }
 
 // Transfer mocks base method.
