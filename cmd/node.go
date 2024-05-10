@@ -9,6 +9,7 @@ import (
 	"github.com/celestiaorg/celestia-node/nodebuilder/header"
 	"github.com/celestiaorg/celestia-node/nodebuilder/node"
 	"github.com/celestiaorg/celestia-node/nodebuilder/p2p"
+	"github.com/celestiaorg/celestia-node/nodebuilder/pruner"
 	"github.com/celestiaorg/celestia-node/nodebuilder/rpc"
 	"github.com/celestiaorg/celestia-node/nodebuilder/state"
 )
@@ -22,6 +23,7 @@ func NewBridge(options ...func(*cobra.Command, []*pflag.FlagSet)) *cobra.Command
 		rpc.Flags(),
 		gateway.Flags(),
 		state.Flags(),
+		pruner.Flags(),
 	}
 	cmd := &cobra.Command{
 		Use:   "bridge [subcommand]",
@@ -72,6 +74,7 @@ func NewFull(options ...func(*cobra.Command, []*pflag.FlagSet)) *cobra.Command {
 		rpc.Flags(),
 		gateway.Flags(),
 		state.Flags(),
+		pruner.Flags(),
 	}
 	cmd := &cobra.Command{
 		Use:   "full [subcommand]",

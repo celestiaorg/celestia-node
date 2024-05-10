@@ -15,6 +15,7 @@ import (
 	"github.com/celestiaorg/nmt"
 
 	"github.com/celestiaorg/celestia-node/header"
+	"github.com/celestiaorg/celestia-node/pruner"
 	"github.com/celestiaorg/celestia-node/share/eds"
 	"github.com/celestiaorg/celestia-node/share/ipld"
 	"github.com/celestiaorg/celestia-node/share/p2p/shrexsub"
@@ -37,8 +38,9 @@ var (
 type Listener struct {
 	fetcher *BlockFetcher
 
-	construct header.ConstructFn
-	store     *eds.Store
+	construct          header.ConstructFn
+	store              *eds.Store
+	availabilityWindow pruner.AvailabilityWindow
 
 	headerBroadcaster libhead.Broadcaster[*header.ExtendedHeader]
 	hashBroadcaster   shrexsub.BroadcastFn
@@ -60,9 +62,9 @@ func NewListener(
 	blocktime time.Duration,
 	opts ...Option,
 ) (*Listener, error) {
-	p := new(params)
+	p := defaultParams()
 	for _, opt := range opts {
-		opt(p)
+		opt(&p)
 	}
 
 	var (
@@ -77,21 +79,22 @@ func NewListener(
 	}
 
 	return &Listener{
-		fetcher:           fetcher,
-		headerBroadcaster: bcast,
-		hashBroadcaster:   hashBroadcaster,
-		construct:         construct,
-		store:             store,
-		listenerTimeout:   5 * blocktime,
-		metrics:           metrics,
-		chainID:           p.chainID,
+		fetcher:            fetcher,
+		headerBroadcaster:  bcast,
+		hashBroadcaster:    hashBroadcaster,
+		construct:          construct,
+		store:              store,
+		availabilityWindow: p.availabilityWindow,
+		listenerTimeout:    5 * blocktime,
+		metrics:            metrics,
+		chainID:            p.chainID,
 	}, nil
 }
 
 // Start kicks off the Listener listener loop.
 func (cl *Listener) Start(context.Context) error {
 	if cl.cancel != nil {
-		return errors.New("listener: already started")
+		return fmt.Errorf("listener: already started")
 	}
 
 	ctx, cancel := context.WithCancel(context.Background())
@@ -106,7 +109,12 @@ func (cl *Listener) Start(context.Context) error {
 }
 
 // Stop stops the listener loop.
-func (cl *Listener) Stop(context.Context) error {
+func (cl *Listener) Stop(ctx context.Context) error {
+	err := cl.fetcher.UnsubscribeNewBlockEvent(ctx)
+	if err != nil {
+		log.Warnw("listener: unsubscribing from new block event", "err", err)
+	}
+
 	cl.cancel()
 	cl.cancel = nil
 	return cl.metrics.Close()
@@ -221,9 +229,7 @@ func (cl *Listener) handleNewSignedBlock(ctx context.Context, b types.EventDataS
 		panic(fmt.Errorf("making extended header: %w", err))
 	}
 
-	// attempt to store block data if not empty
-	ctx = ipld.CtxWithProofsAdder(ctx, adder)
-	err = storeEDS(ctx, b.Header.DataHash.Bytes(), eds, cl.store)
+	err = storeEDS(ctx, eh, eds, adder, cl.store, cl.availabilityWindow)
 	if err != nil {
 		return fmt.Errorf("storing EDS: %w", err)
 	}
@@ -242,7 +248,7 @@ func (cl *Listener) handleNewSignedBlock(ctx context.Context, b types.EventDataS
 		if err != nil && !errors.Is(err, context.Canceled) {
 			log.Errorw("listener: broadcasting data hash",
 				"height", b.Header.Height,
-				"hash", b.Header.Hash(), "err", err) //TODO: hash or datahash?
+				"hash", b.Header.Hash(), "err", err) // TODO: hash or datahash?
 		}
 	}
 

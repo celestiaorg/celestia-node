@@ -54,7 +54,10 @@ func NewServer(params *Parameters, host host.Host, store *eds.Store) (*Server, e
 	ctx, cancel := context.WithCancel(context.Background())
 	srv.cancel = cancel
 
-	srv.handler = srv.middleware.RateLimitHandler(srv.streamHandler(ctx))
+	handler := srv.streamHandler(ctx)
+	withRateLimit := srv.middleware.RateLimitHandler(handler)
+	withRecovery := p2p.RecoveryMiddleware(withRateLimit)
+	srv.handler = withRecovery
 	return srv, nil
 }
 
@@ -155,7 +158,6 @@ func (srv *Server) readRequest(
 	_, err = serde.Read(stream, &req)
 	if err != nil {
 		return nil, fmt.Errorf("reading request: %w", err)
-
 	}
 
 	logger.Debugw("new request")
@@ -172,7 +174,8 @@ func (srv *Server) readRequest(
 }
 
 func (srv *Server) getNamespaceData(ctx context.Context,
-	hash share.DataHash, namespace share.Namespace) (share.NamespacedShares, pb.StatusCode, error) {
+	hash share.DataHash, namespace share.Namespace,
+) (share.NamespacedShares, pb.StatusCode, error) {
 	dah, err := srv.store.GetDAH(ctx, hash)
 	if err != nil {
 		if errors.Is(err, eds.ErrNotFound) {

@@ -3,6 +3,7 @@ package da
 import (
 	"context"
 	"encoding/binary"
+	"encoding/json"
 	"fmt"
 	"strings"
 
@@ -83,7 +84,7 @@ func (s *Service) GetProofs(ctx context.Context, ids []da.ID, namespace da.Names
 		if err != nil {
 			return nil, err
 		}
-		proofs[i], err = proof.MarshalJSON()
+		proofs[i], err = json.Marshal(proof)
 		if err != nil {
 			return nil, err
 		}
@@ -153,7 +154,7 @@ func (s *Service) Validate(
 	proofs := make([]*blob.Proof, len(ids))
 	for i, daProof := range daProofs {
 		blobProof := &blob.Proof{}
-		err := blobProof.UnmarshalJSON(daProof)
+		err := json.Unmarshal(daProof, blobProof)
 		if err != nil {
 			return nil, err
 		}
@@ -167,7 +168,7 @@ func (s *Service) Validate(
 		// value is fine for us
 		fmt.Println("proof", proofs[i] == nil, "commitment", commitment == nil)
 		isIncluded, _ := s.blobServ.Included(ctx, height, namespace, proofs[i], commitment)
-		included = append(included, isIncluded)
+		included[i] = isIncluded
 	}
 	return included, nil
 }

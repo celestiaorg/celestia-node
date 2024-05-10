@@ -2,7 +2,7 @@
 Package das contains the most important functionality provided by celestia-node.
 It contains logic for running data availability sampling (DAS) routines on block
 headers in the network. DAS is the process of verifying the availability of
-block data by sampling chunks or shares of those blocks.
+block data by sampling shares of those blocks.
 
 Package das can confirm the availability of block data in the network via the
 Availability interface which is implemented both in `full` and `light` mode.

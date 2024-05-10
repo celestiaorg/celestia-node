@@ -18,7 +18,6 @@ var _ Module = (*API)(nil)
 //go:generate mockgen -destination=mocks/api.go -package=mocks . Module
 //nolint:dupl
 type Module interface {
-
 	// AccountAddress retrieves the address of the node's account/signer
 	AccountAddress(ctx context.Context) (state.Address, error)
 	// Balance retrieves the Celestia coin balance for the node's account/signer
@@ -92,6 +91,21 @@ type Module interface {
 		srcValAddr,
 		dstValAddr state.ValAddress,
 	) (*types.QueryRedelegationsResponse, error)
+
+	GrantFee(
+		ctx context.Context,
+		grantee state.AccAddress,
+		amount,
+		fee state.Int,
+		gasLim uint64,
+	) (*state.TxResponse, error)
+
+	RevokeGrantFee(
+		ctx context.Context,
+		grantee state.AccAddress,
+		fee state.Int,
+		gasLim uint64,
+	) (*state.TxResponse, error)
 }
 
 // API is a wrapper around Module for the RPC.
@@ -160,6 +174,20 @@ type API struct {
 			srcValAddr,
 			dstValAddr state.ValAddress,
 		) (*types.QueryRedelegationsResponse, error) `perm:"read"`
+		GrantFee func(
+			ctx context.Context,
+			grantee state.AccAddress,
+			amount,
+			fee state.Int,
+			gasLim uint64,
+		) (*state.TxResponse, error) `perm:"write"`
+
+		RevokeGrantFee func(
+			ctx context.Context,
+			grantee state.AccAddress,
+			fee state.Int,
+			gasLim uint64,
+		) (*state.TxResponse, error) `perm:"write"`
 	}
 }
 
@@ -255,4 +283,23 @@ func (api *API) QueryRedelegations(
 
 func (api *API) Balance(ctx context.Context) (*state.Balance, error) {
 	return api.Internal.Balance(ctx)
+}
+
+func (api *API) GrantFee(
+	ctx context.Context,
+	grantee state.AccAddress,
+	amount,
+	fee state.Int,
+	gasLim uint64,
+) (*state.TxResponse, error) {
+	return api.Internal.GrantFee(ctx, grantee, amount, fee, gasLim)
+}
+
+func (api *API) RevokeGrantFee(
+	ctx context.Context,
+	grantee state.AccAddress,
+	fee state.Int,
+	gasLim uint64,
+) (*state.TxResponse, error) {
+	return api.Internal.RevokeGrantFee(ctx, grantee, fee, gasLim)
 }

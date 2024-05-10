@@ -114,10 +114,15 @@ func (d *Discovery) Start(context.Context) error {
 
 func (d *Discovery) Stop(context.Context) error {
 	d.cancel()
+
+	if err := d.metrics.close(); err != nil {
+		log.Warnw("failed to close metrics", "err", err)
+	}
+
 	return nil
 }
 
-// Peers provides a list of discovered peers in the "full" topic.
+// Peers provides a list of discovered peers in the given topic.
 // If Discovery hasn't found any peers, it blocks until at least one peer is found.
 func (d *Discovery) Peers(ctx context.Context) ([]peer.ID, error) {
 	return d.set.Peers(ctx)
@@ -212,9 +217,9 @@ func (d *Discovery) discoveryLoop(ctx context.Context) {
 		case <-warnTicker.C:
 			if d.set.Size() < d.set.Limit() {
 				log.Warnf(
-					"Potentially degraded connectivity, unable to discover the desired amount of full node peers in %v. "+
+					"Potentially degraded connectivity, unable to discover the desired amount of %s peers in %v. "+
 						"Number of peers discovered: %d. Required: %d.",
-					logInterval, d.set.Size(), d.set.Limit(),
+					d.tag, logInterval, d.set.Size(), d.set.Limit(),
 				)
 			}
 			// Do not break the loop; just continue
@@ -289,7 +294,7 @@ func (d *Discovery) discover(ctx context.Context) bool {
 			wg.Go(func() error {
 				if findCtx.Err() != nil {
 					log.Debug("find has been canceled, skip peer")
-					return nil
+					return nil //nolint:nilerr
 				}
 
 				// we don't pass findCtx so that we don't cancel in progress connections

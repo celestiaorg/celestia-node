@@ -1,19 +1,21 @@
 package nodebuilder
 
 import (
+	"fmt"
 	"io"
 	"os"
 
 	"github.com/BurntSushi/toml"
+	"github.com/gofrs/flock"
 	"github.com/imdario/mergo"
 
-	"github.com/celestiaorg/celestia-node/libs/fslock"
 	"github.com/celestiaorg/celestia-node/nodebuilder/core"
 	"github.com/celestiaorg/celestia-node/nodebuilder/das"
 	"github.com/celestiaorg/celestia-node/nodebuilder/gateway"
 	"github.com/celestiaorg/celestia-node/nodebuilder/header"
 	"github.com/celestiaorg/celestia-node/nodebuilder/node"
 	"github.com/celestiaorg/celestia-node/nodebuilder/p2p"
+	"github.com/celestiaorg/celestia-node/nodebuilder/pruner"
 	"github.com/celestiaorg/celestia-node/nodebuilder/rpc"
 	"github.com/celestiaorg/celestia-node/nodebuilder/share"
 	"github.com/celestiaorg/celestia-node/nodebuilder/state"
@@ -34,6 +36,7 @@ type Config struct {
 	Share   share.Config
 	Header  header.Config
 	DASer   das.Config `toml:",omitempty"`
+	Pruner  pruner.Config
 }
 
 // DefaultConfig provides a default Config for a given Node Type 'tp'.
@@ -48,6 +51,7 @@ func DefaultConfig(tp node.Type) *Config {
 		Gateway: gateway.DefaultConfig(),
 		Share:   share.DefaultConfig(tp),
 		Header:  header.DefaultConfig(tp),
+		Pruner:  pruner.DefaultConfig(),
 	}
 
 	switch tp {
@@ -91,14 +95,15 @@ func RemoveConfig(path string) (err error) {
 		return
 	}
 
-	flock, err := fslock.Lock(lockPath(path))
+	flk := flock.New(lockPath(path))
+	ok, err := flk.TryLock()
 	if err != nil {
-		if err == fslock.ErrLocked {
-			err = ErrOpened
-		}
-		return
+		return fmt.Errorf("locking file: %w", err)
 	}
-	defer flock.Unlock() //nolint: errcheck
+	if !ok {
+		return ErrOpened
+	}
+	defer flk.Unlock() //nolint:errcheck
 
 	return removeConfig(configPath(path))
 }
@@ -117,14 +122,15 @@ func UpdateConfig(tp node.Type, path string) (err error) {
 		return err
 	}
 
-	flock, err := fslock.Lock(lockPath(path))
+	flk := flock.New(lockPath(path))
+	ok, err := flk.TryLock()
 	if err != nil {
-		if err == fslock.ErrLocked {
-			err = ErrOpened
-		}
-		return err
+		return fmt.Errorf("locking file: %w", err)
 	}
-	defer flock.Unlock() //nolint: errcheck
+	if !ok {
+		return ErrOpened
+	}
+	defer flk.Unlock() //nolint:errcheck
 
 	newCfg := DefaultConfig(tp)
 
@@ -149,7 +155,7 @@ func UpdateConfig(tp node.Type, path string) (err error) {
 
 // updateConfig merges new values from the new config into the old
 // config, returning the updated old config.
-func updateConfig(oldCfg *Config, newCfg *Config) (*Config, error) {
+func updateConfig(oldCfg, newCfg *Config) (*Config, error) {
 	err := mergo.Merge(oldCfg, newCfg, mergo.WithOverrideEmptySlice)
 	return oldCfg, err
 }
