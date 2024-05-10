@@ -14,12 +14,6 @@ func (h *Handler) RegisterEndpoints(rpc *Server) {
 	)
 
 	rpc.RegisterHandlerFunc(
-		submitTxEndpoint,
-		h.handleSubmitTx,
-		http.MethodPost,
-	)
-
-	rpc.RegisterHandlerFunc(
 		healthEndpoint,
 		h.handleHealthRequest,
 		http.MethodGet,

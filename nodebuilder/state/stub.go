@@ -41,10 +41,6 @@ func (s stubbedStateModule) Transfer(
 	return nil, ErrNoStateAccess
 }
 
-func (s stubbedStateModule) SubmitTx(context.Context, state.Tx) (*state.TxResponse, error) {
-	return nil, ErrNoStateAccess
-}
-
 func (s stubbedStateModule) SubmitPayForBlob(
 	context.Context,
 	state.Int,

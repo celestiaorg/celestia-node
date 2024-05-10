@@ -30,16 +30,11 @@ type Module interface {
 	// the node's current head (head-1). This is due to the fact that for block N, the block's
 	// `AppHash` is the result of applying the previous block's transaction list.
 	BalanceForAddress(ctx context.Context, addr state.Address) (*state.Balance, error)
-
 	// Transfer sends the given amount of coins from default wallet of the node to the given account
 	// address.
 	Transfer(
 		ctx context.Context, to state.AccAddress, amount, fee state.Int, gasLimit uint64,
 	) (*state.TxResponse, error)
-	// SubmitTx submits the given transaction/message to the
-	// Celestia network and blocks until the tx is included in
-	// a block.
-	SubmitTx(ctx context.Context, tx state.Tx) (*state.TxResponse, error)
 	// SubmitPayForBlob builds, signs and submits a PayForBlob transaction.
 	SubmitPayForBlob(
 		ctx context.Context,
@@ -47,7 +42,6 @@ type Module interface {
 		gasLim uint64,
 		blobs []*blob.Blob,
 	) (*state.TxResponse, error)
-
 	// CancelUnbondingDelegation cancels a user's pending undelegation from a validator.
 	CancelUnbondingDelegation(
 		ctx context.Context,
@@ -124,7 +118,6 @@ type API struct {
 			fee state.Int,
 			gasLimit uint64,
 		) (*state.TxResponse, error) `perm:"write"`
-		SubmitTx         func(ctx context.Context, tx state.Tx) (*state.TxResponse, error) `perm:"read"`
 		SubmitPayForBlob func(
 			ctx context.Context,
 			fee state.Int,
@@ -207,10 +200,6 @@ func (api *API) Transfer(
 	gasLimit uint64,
 ) (*state.TxResponse, error) {
 	return api.Internal.Transfer(ctx, to, amount, fee, gasLimit)
-}
-
-func (api *API) SubmitTx(ctx context.Context, tx state.Tx) (*state.TxResponse, error) {
-	return api.Internal.SubmitTx(ctx, tx)
 }
 
 func (api *API) SubmitPayForBlob(
