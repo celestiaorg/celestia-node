@@ -1,6 +1,8 @@
 package gateway
 
-import "net/http"
+import (
+	"net/http"
+)
 
 const (
 	healthEndpoint = "/status/health"

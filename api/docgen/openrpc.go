@@ -90,12 +90,12 @@ func ParseCommentsFromNodebuilderModules(moduleNames ...string) (Comments, Comme
 	return nodeComments, permComments
 }
 
-func NewOpenRPCDocument(comments Comments, permissions Comments) *go_openrpc_reflect.Document {
+func NewOpenRPCDocument(comments, permissions Comments) *go_openrpc_reflect.Document {
 	d := &go_openrpc_reflect.Document{}
 
 	d.WithMeta(&go_openrpc_reflect.MetaT{
 		GetServersFn: func() func(listeners []net.Listener) (*meta_schema.Servers, error) {
-			return func(listeners []net.Listener) (*meta_schema.Servers, error) {
+			return func(_ []net.Listener) (*meta_schema.Servers, error) {
 				return nil, nil
 			}
 		},
@@ -161,7 +161,7 @@ func NewOpenRPCDocument(comments Comments, permissions Comments) *go_openrpc_ref
 	}
 
 	// remove the default implementation from the method descriptions
-	appReflector.FnGetMethodDescription = func(r reflect.Value, m reflect.Method, funcDecl *ast.FuncDecl) (string, error) {
+	appReflector.FnGetMethodDescription = func(_ reflect.Value, m reflect.Method, _ *ast.FuncDecl) (string, error) {
 		if v, ok := permissions[m.Name]; ok {
 			return "Auth level: " + v, nil
 		}
@@ -170,14 +170,14 @@ func NewOpenRPCDocument(comments Comments, permissions Comments) *go_openrpc_ref
 
 	appReflector.FnGetMethodName = func(
 		moduleName string,
-		r reflect.Value,
+		_ reflect.Value,
 		m reflect.Method,
-		funcDecl *ast.FuncDecl,
+		_ *ast.FuncDecl,
 	) (string, error) {
 		return moduleName + "." + m.Name, nil
 	}
 
-	appReflector.FnGetMethodSummary = func(r reflect.Value, m reflect.Method, funcDecl *ast.FuncDecl) (string, error) {
+	appReflector.FnGetMethodSummary = func(_ reflect.Value, m reflect.Method, _ *ast.FuncDecl) (string, error) {
 		if v, ok := comments[extractPackageNameFromAPIMethod(m)+m.Name]; ok {
 			return v, nil
 		}

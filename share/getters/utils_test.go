@@ -31,63 +31,72 @@ func Test_ErrorContains(t *testing.T) {
 		args args
 		want bool
 	}{
-		{"nil err",
+		{
+			"nil err",
 			args{
 				err:    nil,
 				target: err1,
 			},
 			false,
 		},
-		{"nil target",
+		{
+			"nil target",
 			args{
 				err:    err1,
 				target: nil,
 			},
 			true,
 		},
-		{"errors.Is true",
+		{
+			"errors.Is true",
 			args{
 				err:    w1(err1),
 				target: err1,
 			},
 			true,
 		},
-		{"errors.Is false",
+		{
+			"errors.Is false",
 			args{
 				err:    w1(err1),
 				target: err2,
 			},
 			false,
 		},
-		{"same wrap but different base error",
+		{
+			"same wrap but different base error",
 			args{
 				err:    w1(err1),
 				target: w1(err2),
 			},
 			false,
 		},
-		{"both wrapped true",
+		{
+			"both wrapped true",
 			args{
 				err:    w1(err1),
 				target: w2(err1),
 			},
 			true,
 		},
-		{"both wrapped false",
+		{
+			"both wrapped false",
 			args{
 				err:    w1(err1),
 				target: w2(err2),
 			},
 			false,
 		},
-		{"multierr first in slice",
+		{
+			"multierr first in slice",
 			args{
 				err:    errors.Join(w1(err1), w2(err2)),
 				target: w2(err1),
 			},
 			true,
 		},
-		{"multierr second in slice",
+		{
+			"multierr second in slice",
 			args{
 				err:    errors.Join(w1(err1), w2(err2)),
 				target: w1(err2),

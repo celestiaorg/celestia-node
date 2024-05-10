@@ -35,7 +35,7 @@ Peers must bidirectionally point to each other. (Format: multiformats.io/multiad
 		DefaultNetwork.String(),
 		fmt.Sprintf("The name of the network to connect to, e.g. %s. Must be passed on "+
 			"both init and start to take effect. Assumes mainnet (%s) unless otherwise specified.",
-			listProvidedNetworks(),
+			listAvailableNetworks(),
 			DefaultNetwork.String()),
 	)
 
@@ -74,7 +74,7 @@ func ParseNetwork(cmd *cobra.Command) (Network, error) {
 	parsed := cmd.Flag(networkFlag).Value.String()
 	switch parsed {
 	case "":
-		return "", fmt.Errorf("no network provided, allowed values: %s", listProvidedNetworks())
+		return "", fmt.Errorf("no network provided, allowed values: %s", listAvailableNetworks())
 
 	case DefaultNetwork.String():
 		return DefaultNetwork, nil
@@ -83,7 +83,7 @@ func ParseNetwork(cmd *cobra.Command) (Network, error) {
 		if net, err := Network(parsed).Validate(); err == nil {
 			return net, nil
 		}
-		return "", fmt.Errorf("invalid network specified: %s, allowed values: %s", parsed, listProvidedNetworks())
+		return "", fmt.Errorf("invalid network specified: %s, allowed values: %s", parsed, listAvailableNetworks())
 	}
 }
 
@@ -104,7 +104,7 @@ func parseNetworkFromEnv() (Network, error) {
 		}
 		netID := params[0]
 		network = Network(netID)
-		networksList[network] = struct{}{}
+		addCustomNetwork(network)
 		// check if genesis hash provided and register it if exists
 		if len(params) >= 2 {
 			genHash := params[1]

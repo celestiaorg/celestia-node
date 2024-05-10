@@ -1,6 +1,7 @@
 package das
 
 import (
+	"errors"
 	"fmt"
 	"time"
 )
@@ -8,11 +9,11 @@ import (
 // ErrInvalidOption is an error that is returned by Parameters.Validate
 // when supplied with invalid values.
 // This error will also be returned by NewDASer if supplied with an invalid option
-var ErrInvalidOption = fmt.Errorf("das: invalid option")
+var ErrInvalidOption = errors.New("das: invalid option")
 
 // errInvalidOptionValue is a utility function to dedup code for error-returning
 // when dealing with invalid parameter values
-func errInvalidOptionValue(optionName string, value string) error {
+func errInvalidOptionValue(optionName, value string) error {
 	return fmt.Errorf("%w: value %s cannot be %s", ErrInvalidOption, optionName, value)
 }
 

@@ -22,7 +22,7 @@ func TestPutLoad(t *testing.T) {
 
 	ds := sync.MutexWrap(datastore.NewMapDatastore())
 
-	t.Run("unitialized-pidstore", func(t *testing.T) {
+	t.Run("uninitialized-pidstore", func(t *testing.T) {
 		testPutLoad(ctx, ds, t)
 	})
 	t.Run("initialized-pidstore", func(t *testing.T) {
