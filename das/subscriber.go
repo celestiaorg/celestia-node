@@ -24,17 +24,22 @@ func (s *subscriber) run(ctx context.Context, sub libhead.Subscription[*header.E
 	defer sub.Cancel()
 
 	for {
-		h, err := sub.NextHeader(ctx)
-		if err != nil {
-			if errors.Is(err, context.Canceled) {
-				return
+		select {
+		case <-ctx.Done():
+			return
+		default:
+			h, err := sub.NextHeader(ctx)
+			if err != nil {
+				if errors.Is(err, context.Canceled) {
+					return
+				}
+
+				log.Errorw("failed to get next header", "err", err)
+				continue
 			}
+			log.Debugw("new header received via subscription", "height", h.Height())
 
-			log.Errorw("failed to get next header", "err", err)
-			continue
+			emit(ctx, h)
 		}
-		log.Debugw("new header received via subscription", "height", h.Height())
-
-		emit(ctx, h)
 	}
 }

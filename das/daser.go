@@ -34,9 +34,8 @@ type DASer struct {
 	store      checkpointStore
 	subscriber subscriber
 
-	cancel         context.CancelFunc
-	subscriberDone chan struct{}
-	running        int32
+	cancel  context.CancelFunc
+	running int32
 }
 
 type (
@@ -55,14 +54,13 @@ func NewDASer(
 	options ...Option,
 ) (*DASer, error) {
 	d := &DASer{
-		params:         DefaultParameters(),
-		da:             da,
-		bcast:          bcast,
-		hsub:           hsub,
-		getter:         getter,
-		store:          newCheckpointStore(dstore),
-		subscriber:     newSubscriber(),
-		subscriberDone: make(chan struct{}),
+		params:     DefaultParameters(),
+		da:         da,
+		bcast:      bcast,
+		hsub:       hsub,
+		getter:     getter,
+		store:      newCheckpointStore(dstore),
+		subscriber: newSubscriber(),
 	}
 
 	for _, applyOpt := range options {
