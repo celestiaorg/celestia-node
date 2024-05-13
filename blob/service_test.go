@@ -16,8 +16,10 @@ import (
 	tmrand "github.com/tendermint/tendermint/libs/rand"
 
 	"github.com/celestiaorg/celestia-app/pkg/appconsts"
+	appns "github.com/celestiaorg/celestia-app/pkg/namespace"
 	"github.com/celestiaorg/celestia-app/pkg/shares"
 	"github.com/celestiaorg/go-header/store"
+
 
 	"github.com/celestiaorg/celestia-node/blob/blobtest"
 	"github.com/celestiaorg/celestia-node/header"
@@ -294,9 +296,9 @@ func TestBlobService_Get(t *testing.T) {
 			},
 		},
 		{
-			name: "empty result and err when blobs wer not found ",
+			name: "empty result and err when blobs were not found ",
 			doFn: func() (interface{}, error) {
-				nid, err := share.NewBlobNamespaceV0(tmrand.Bytes(7))
+				nid, err := share.NewBlobNamespaceV0(tmrand.Bytes(appns.NamespaceVersionZeroIDSize))
 				require.NoError(t, err)
 				return service.GetAll(ctx, 1, []share.Namespace{nid})
 			},
@@ -523,8 +525,9 @@ func TestAllPaddingSharesInEDS(t *testing.T) {
 	}
 
 	service := NewService(nil, getters.NewIPLDGetter(bs), fn)
-	_, err = service.GetAll(ctx, 1, []share.Namespace{nid})
-	require.Error(t, err)
+	newBlobs, err := service.GetAll(ctx, 1, []share.Namespace{nid})
+	require.NoError(t, err)
+	assert.Empty(t, newBlobs)
 }
 
 func TestSkipPaddingsAndRetrieveBlob(t *testing.T) {

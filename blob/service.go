@@ -192,7 +192,7 @@ func (s *Service) GetAll(ctx context.Context, height uint64, namespaces []share.
 			blobs, err := s.getBlobs(ctx, namespace, header)
 			switch {
 			case err == nil:
-				log.Debugw("receiving blobs", "height", height, "total", len(blobs))
+				log.Infow("retrieved blobs", "height", height, "total", len(blobs))
 				resultBlobs[i] = blobs
 			case errors.Is(err, ErrBlobNotFound):
 			default:
