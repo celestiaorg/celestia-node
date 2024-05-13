@@ -21,7 +21,7 @@ func ConstructModule(tp node.Type, cfg *Config) fx.Option {
 			// light nodes are still subject to sampling within window
 			// even if pruning is not enabled.
 			return fx.Options(
-				fx.Supply(light.Window),
+				fx.Supply(archival.Window),
 			)
 		case node.Full:
 			return fx.Options(
@@ -78,8 +78,7 @@ func ConstructModule(tp node.Type, cfg *Config) fx.Option {
 		return fx.Module("prune",
 			baseComponents,
 			fx.Provide(light.NewPruner),
-			fx.Supply(light.Window),
-			fx.Provide(light.NewPruner),
+			fx.Supply(archival.Window),
 		)
 	default:
 		panic("unknown node type")
