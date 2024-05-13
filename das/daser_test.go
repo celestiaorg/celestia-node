@@ -24,6 +24,7 @@ import (
 	"github.com/celestiaorg/celestia-node/header"
 	"github.com/celestiaorg/celestia-node/header/headertest"
 	headerfraud "github.com/celestiaorg/celestia-node/header/headertest/fraud"
+	"github.com/celestiaorg/celestia-node/pruner"
 	"github.com/celestiaorg/celestia-node/share"
 	"github.com/celestiaorg/celestia-node/share/availability/full"
 	"github.com/celestiaorg/celestia-node/share/availability/light"
@@ -260,7 +261,7 @@ func TestDASer_SamplingWindow(t *testing.T) {
 
 	// create and start DASer
 	daser, err := NewDASer(avail, sub, getter, ds, fserv, newBroadcastMock(1),
-		WithSamplingWindow(time.Second))
+		WithSamplingWindow(pruner.AvailabilityWindow(time.Second)))
 	require.NoError(t, err)
 
 	tests := []struct {
