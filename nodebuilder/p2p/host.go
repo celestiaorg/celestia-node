@@ -3,6 +3,7 @@ package p2p
 import (
 	"context"
 	"fmt"
+	"strings"
 
 	"github.com/libp2p/go-libp2p"
 	p2pconfig "github.com/libp2p/go-libp2p/config"
@@ -28,8 +29,44 @@ func routedHost(base HostBase, r routing.PeerRouting) hst.Host {
 	return routedhost.Wrap(base, r)
 }
 
+func newUserAgent() *UserAgent {
+	return &UserAgent{
+		network:  "",
+		nodeType: 0,
+		build:    node.GetBuildInfo(),
+	}
+}
+
+func (ua *UserAgent) WithNetwork(net Network) *UserAgent {
+	ua.network = net
+	return ua
+}
+
+func (ua *UserAgent) WithNodeType(tp node.Type) *UserAgent {
+	ua.nodeType = tp
+	return ua
+}
+
+type UserAgent struct {
+	network  Network
+	nodeType node.Type
+	build    *node.BuildInfo
+}
+
+func (ua *UserAgent) String() string {
+	return fmt.Sprintf(
+		"celestia-node/%s/%s/%s/%s",
+		ua.network,
+		strings.ToLower(ua.nodeType.String()),
+		ua.build.GetSemanticVersion(),
+		ua.build.CommitShortSha(),
+	)
+}
+
 // host returns constructor for Host.
 func host(params hostParams) (HostBase, error) {
+	ua := newUserAgent().WithNetwork(params.Net).WithNodeType(params.Tp)
+
 	opts := []libp2p.Option{
 		libp2p.NoListenAddrs, // do not listen automatically
 		libp2p.AddrsFactory(params.AddrF),
@@ -37,7 +74,7 @@ func host(params hostParams) (HostBase, error) {
 		libp2p.Peerstore(params.PStore),
 		libp2p.ConnectionManager(params.ConnMngr),
 		libp2p.ConnectionGater(params.ConnGater),
-		libp2p.UserAgent(fmt.Sprintf("celestia-%s", params.Net)),
+		libp2p.UserAgent(ua.String()),
 		libp2p.NATPortMap(), // enables upnp
 		libp2p.DisableRelay(),
 		libp2p.BandwidthReporter(params.Bandwidth),

@@ -7,6 +7,7 @@ import (
 	"testing"
 
 	"github.com/cosmos/cosmos-sdk/client/flags"
+	"github.com/cosmos/cosmos-sdk/client/grpc/tmservice"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	stakingtypes "github.com/cosmos/cosmos-sdk/x/staking/types"
 	"github.com/stretchr/testify/require"
@@ -48,9 +49,9 @@ func (s *IntegrationTestSuite) SetupSuite() {
 	s.cctx = core.StartTestNodeWithConfig(s.T(), cfg)
 	s.accounts = cfg.Accounts
 
-	accessor, err := NewCoreAccessor(s.cctx.Keyring, s.accounts[0], localHeader{s.cctx.Client}, "", "", "")
+	accessor, err := NewCoreAccessor(s.cctx.Keyring, s.accounts[0], localHeader{s.cctx.Client}, "", "")
 	require.NoError(s.T(), err)
-	setClients(accessor, s.cctx.GRPCClient, s.cctx.Client)
+	setClients(accessor, s.cctx.GRPCClient)
 	s.accessor = accessor
 
 	// required to ensure the Head request is non-nil
@@ -58,13 +59,13 @@ func (s *IntegrationTestSuite) SetupSuite() {
 	require.NoError(s.T(), err)
 }
 
-func setClients(ca *CoreAccessor, conn *grpc.ClientConn, abciCli rpcclient.ABCIClient) {
+func setClients(ca *CoreAccessor, conn *grpc.ClientConn) {
 	ca.coreConn = conn
 	// create the staking query client
 	stakingCli := stakingtypes.NewQueryClient(ca.coreConn)
 	ca.stakingCli = stakingCli
 
-	ca.rpcCli = abciCli
+	ca.abciQueryCli = tmservice.NewServiceClient(ca.coreConn)
 }
 
 func (s *IntegrationTestSuite) TearDownSuite() {
