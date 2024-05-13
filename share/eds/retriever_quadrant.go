@@ -68,7 +68,7 @@ func newQuadrants(dah *da.DataAvailabilityHeader) []*quadrant {
 		}
 
 		for i := range quadrants {
-			// convert quadrant 1D into into 2D coordinates
+			// convert quadrant 1D into 2D coordinates
 			x, y := i%2, i/2
 			quadrants[i] = &quadrant{
 				roots:  roots[qsize*y : qsize*(y+1)],

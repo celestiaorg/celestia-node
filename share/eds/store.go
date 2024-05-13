@@ -173,6 +173,7 @@ func (s *Store) Stop(context.Context) error {
 // gc periodically removes all inactive or errored shards.
 func (s *Store) gc(ctx context.Context) {
 	ticker := time.NewTicker(s.gcInterval)
+	defer ticker.Stop()
 	for {
 		select {
 		case <-ctx.Done():

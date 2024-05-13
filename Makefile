@@ -73,9 +73,10 @@ else
 endif
 .PHONY: install
 
+## install-global: Install the celestia-node binary (only for systems that support GNU coreutils, i.e. Linux).
 install-global:
 	@echo "--> Installing Celestia"
-	@install -v ./build/* -t ${PREFIX}/bin/
+	@install -v ./build/* -t ${PREFIX}/bin
 .PHONY: install-global
 
 ## go-install: Build and install the celestia-node binary into the GOBIN directory.
@@ -175,7 +176,7 @@ pb-gen:
 ## openrpc-gen: Generate OpenRPC spec for Celestia-Node's RPC api
 openrpc-gen:
 	@echo "--> Generating OpenRPC spec"
-	@go run ./cmd/docgen fraud header state share das p2p node blob da
+	@go run ${LDFLAGS} ./cmd/celestia docgen
 .PHONY: openrpc-gen
 
 ## lint-imports: Lint only Go imports.

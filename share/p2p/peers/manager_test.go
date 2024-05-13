@@ -83,7 +83,7 @@ func TestManager(t *testing.T) {
 		manager, err := testManager(ctx, headerSub)
 		require.NoError(t, err)
 
-		// own messages should be be accepted
+		// own messages should be accepted
 		msg := newShrexSubMsg(h)
 		result := manager.Validate(ctx, manager.host.ID(), msg)
 		require.Equal(t, pubsub.ValidationAccept, result)
