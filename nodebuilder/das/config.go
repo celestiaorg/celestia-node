@@ -7,7 +7,6 @@ import (
 	"github.com/celestiaorg/celestia-node/das"
 	"github.com/celestiaorg/celestia-node/nodebuilder/node"
 	modp2p "github.com/celestiaorg/celestia-node/nodebuilder/p2p"
-	"github.com/celestiaorg/celestia-node/pruner/light"
 )
 
 // Config contains configuration parameters for the DASer (or DASing process)
@@ -24,7 +23,6 @@ func DefaultConfig(tp node.Type) Config {
 	switch tp {
 	case node.Light:
 		cfg.SampleTimeout = modp2p.BlockTime * time.Duration(cfg.ConcurrencyLimit)
-		cfg.SamplingWindow = light.Window.Duration()
 	case node.Full:
 		// Default value for DASer concurrency limit is based on dasing using ipld getter.
 		// Full node will primarily use shrex protocol for sampling, that is much more efficient and can
