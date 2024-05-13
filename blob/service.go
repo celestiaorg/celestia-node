@@ -164,7 +164,14 @@ func (s *Service) GetProof(
 }
 
 // GetAll returns all blobs under the given namespaces at the given height.
-// GetAll can return blobs and an error in case if some requests failed.
+// If all blobs were found without any errors, the user will receive a list of blobs.
+// If the BlobService couldn't find any blobs under the requested namespaces,
+// the user will receive an empty list of blobs along with an empty error.
+// If some of the requested namespaces were not found, the user will receive all the found blobs and an empty error.
+// If there were internal errors during some of the requests,
+// the user will receive all found blobs along with a combined error message.
+//
+// All blobs will preserve the order of the namespaces that were requested.
 func (s *Service) GetAll(ctx context.Context, height uint64, namespaces []share.Namespace) ([]*Blob, error) {
 	header, err := s.headerGetter(ctx, height)
 	if err != nil {
@@ -189,7 +196,7 @@ func (s *Service) GetAll(ctx context.Context, height uint64, namespaces []share.
 				resultBlobs[i] = blobs
 			case errors.Is(err, ErrBlobNotFound):
 			default:
-				log.Debug("getting blobs for namespace(%s): %w", namespace.String(), err)
+				log.Debugf("getting blobs for namespace(%s): %v", namespace.String(), err)
 				resultErr[i] = err
 			}
 		}(i, namespace)
