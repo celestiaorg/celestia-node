@@ -4,6 +4,7 @@ import (
 	"context"
 
 	"github.com/ipfs/boxo/blockservice"
+	"github.com/ipfs/boxo/blockstore"
 	"github.com/ipfs/go-datastore"
 
 	"github.com/celestiaorg/celestia-node/header"
@@ -16,8 +17,8 @@ type Pruner struct {
 	ds    datastore.Datastore
 }
 
-func NewPruner(bserv blockservice.BlockService, ds datastore.Datastore) *Pruner {
-	return &Pruner{bserv: bserv, ds: ds}
+func NewPruner(bstore blockstore.Blockstore, ds datastore.Datastore) *Pruner {
+	return &Pruner{bserv: blockservice.New(bstore, nil), ds: ds}
 }
 
 func (p *Pruner) Prune(ctx context.Context, h *header.ExtendedHeader) error {
