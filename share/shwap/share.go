@@ -1,6 +1,8 @@
 package shwap
 
 import (
+	"fmt"
+
 	"github.com/celestiaorg/celestia-node/share"
 	pb "github.com/celestiaorg/celestia-node/share/shwap/proto"
 )
@@ -34,4 +36,13 @@ func SharesFromProto(shrs []*pb.Share) []share.Share {
 		shares[i] = ShareFromProto(shr)
 	}
 	return shares
+}
+
+func ValidateShares(shares []share.Share) error {
+	for i, shr := range shares {
+		if err := share.ValidateShare(shr); err != nil {
+			return fmt.Errorf("while validating share at index %d: %w", i, err)
+		}
+	}
+	return nil
 }

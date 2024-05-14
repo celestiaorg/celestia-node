@@ -22,20 +22,18 @@ type SampleID struct {
 // NewSampleID constructs a new SampleID using the provided block height, sample index, and a root
 // structure for validation. It calculates the row and share index based on the sample index and
 // the length of the row roots.
-func NewSampleID(height uint64, smplIdx int, root *share.Root) (SampleID, error) {
+func NewSampleID(height uint64, rowIdx, colIdx int, root *share.Root) (SampleID, error) {
 	if root == nil || len(root.RowRoots) == 0 {
 		return SampleID{}, fmt.Errorf("invalid root: root is nil or empty")
 	}
-	sqrLn := len(root.RowRoots)
-	rowIdx, shrIdx := uint16(smplIdx/sqrLn), uint16(smplIdx%sqrLn)
 	sid := SampleID{
 		RowID: RowID{
 			EdsID: EdsID{
 				Height: height,
 			},
-			RowIndex: rowIdx,
+			RowIndex: uint16(rowIdx),
 		},
-		ShareIndex: shrIdx,
+		ShareIndex: uint16(colIdx),
 	}
 
 	if err := sid.Verify(root); err != nil {

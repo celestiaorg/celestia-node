@@ -15,7 +15,7 @@ func TestSampleID(t *testing.T) {
 	root, err := share.NewRoot(square)
 	require.NoError(t, err)
 
-	id, err := NewSampleID(1, 1, root)
+	id, err := NewSampleID(1, 1, 1, root)
 	require.NoError(t, err)
 
 	data := id.MarshalBinary()

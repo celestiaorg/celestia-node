@@ -2,6 +2,7 @@ package shwap
 
 import (
 	"crypto/sha256"
+	"errors"
 	"fmt"
 
 	"github.com/celestiaorg/celestia-app/pkg/wrapper"
@@ -23,39 +24,33 @@ type Sample struct {
 
 // Validate checks the inclusion of the share using its Merkle proof under the specified root.
 // Returns an error if the proof is invalid or does not correspond to the indicated proof type.
-func (s *Sample) Validate(dah *share.Root, colIdx, rowIdx int) error {
+func (s *Sample) Validate(dah *share.Root, rowIdx, colIdx int) error {
+	if err := share.ValidateShare(s.Share); err != nil {
+		return err
+	}
+	if s.Proof == nil {
+		return errors.New("nil proof")
+	}
 	if s.ProofType != rsmt2d.Row && s.ProofType != rsmt2d.Col {
 		return fmt.Errorf("invalid SampleProofType: %d", s.ProofType)
 	}
-	if !s.VerifyInclusion(dah, colIdx, rowIdx) {
+	if !s.VerifyInclusion(dah, rowIdx, colIdx) {
 		return fmt.Errorf("share proof is invalid")
 	}
 	return nil
 }
 
 // VerifyInclusion checks if the share is included in the given root hash at the specified indices.
-func (s *Sample) VerifyInclusion(dah *share.Root, colIdx, rowIdx int) bool {
+func (s *Sample) VerifyInclusion(dah *share.Root, rowIdx, colIdx int) bool {
 	size := len(dah.RowRoots)
-	namespace := inclusionNamespace(s.Share, colIdx, rowIdx, size)
-	rootHash := share.RootHashForCoordinates(dah, s.ProofType, uint(colIdx), uint(rowIdx))
+	namespace := inclusionNamespace(s.Share, rowIdx, colIdx, size)
+	rootHash := share.RootHashForCoordinates(dah, s.ProofType, uint(rowIdx), uint(colIdx))
 	return s.Proof.VerifyInclusion(
 		sha256.New(), // Utilizes sha256, should be consistent throughout the application.
 		namespace.ToNMT(),
 		[][]byte{s.Share},
 		rootHash,
 	)
-}
-
-// inclusionNamespace returns the namespace for the share based on its position in the square.
-// Shares from extended part of the square are considered parity shares. It means that
-// parity shares are located outside of first quadrant of the square. According to the nmt
-// specification, the parity shares are prefixed with the namespace of the parity shares.
-func inclusionNamespace(sh share.Share, colIdx, rowIdx int, squareSize int) share.Namespace {
-	isParity := colIdx >= squareSize/2 || rowIdx >= squareSize/2
-	if isParity {
-		return share.ParitySharesNamespace
-	}
-	return share.GetNamespace(sh)
 }
 
 // ToProto converts a Sample into its protobuf representation for serialization purposes.
@@ -78,14 +73,17 @@ func (s *Sample) ToProto() *pb.Sample {
 func SampleFromEDS(
 	square *rsmt2d.ExtendedDataSquare,
 	proofType rsmt2d.Axis,
-	axisIdx, shrIdx int,
+	rowIdx, colIdx int,
 ) (*Sample, error) {
-	var shrs [][]byte
+	var shrs []share.Share
+	var axisIdx, shrIdx int
 	switch proofType {
 	case rsmt2d.Row:
-		shrs = square.Row(uint(axisIdx))
+		axisIdx, shrIdx = rowIdx, colIdx
+		shrs = square.Row(uint(rowIdx))
 	case rsmt2d.Col:
-		shrs = square.Col(uint(axisIdx))
+		axisIdx, shrIdx = colIdx, rowIdx
+		shrs = square.Col(uint(colIdx))
 	default:
 		return nil, fmt.Errorf("invalid proof type: %d", proofType)
 	}
@@ -123,4 +121,16 @@ func SampleFromProto(s *pb.Sample) *Sample {
 		Proof:     &proof,
 		ProofType: rsmt2d.Axis(s.GetProofType()),
 	}
+}
+
+// inclusionNamespace returns the namespace for the share based on its position in the square.
+// Shares from extended part of the square are considered parity shares. It means that
+// parity shares are located outside of first quadrant of the square. According to the nmt
+// specification, the parity shares are prefixed with the namespace of the parity shares.
+func inclusionNamespace(sh share.Share, rowIdx, colIdx, squareSize int) share.Namespace {
+	isParity := colIdx >= squareSize/2 || rowIdx >= squareSize/2
+	if isParity {
+		return share.ParitySharesNamespace
+	}
+	return share.GetNamespace(sh)
 }

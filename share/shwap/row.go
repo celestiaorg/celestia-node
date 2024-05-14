@@ -43,6 +43,9 @@ func (r Row) Validate(dah *share.Root, idx int) error {
 	if len(r.halfShares) != expectedShares {
 		return fmt.Errorf("shares size doesn't match root size: %d != %d", len(r.halfShares), expectedShares)
 	}
+	if err := ValidateShares(r.halfShares); err != nil {
+		return fmt.Errorf("invalid shares: %w", err)
+	}
 	if r.side != Left && r.side != Right {
 		return fmt.Errorf("invalid RowSide: %d", r.side)
 	}

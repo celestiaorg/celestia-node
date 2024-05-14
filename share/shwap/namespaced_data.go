@@ -56,9 +56,17 @@ func (ns NamespacedData) Verify(root *share.Root, namespace share.Namespace) err
 	return nil
 }
 
-func (rnd RowNamespaceData) Validate(dah *share.Root, rowIdx int, namespace share.Namespace) error {
-	if len(rnd.Shares) == 0 && rnd.Proof.IsEmptyProof() {
-		return fmt.Errorf("row contains no data or proof")
+func (rnd RowNamespaceData) Validate(dah *share.Root, namespace share.Namespace, rowIdx int) error {
+	if len(rnd.Shares) == 0 && !rnd.Proof.IsOfAbsence() {
+		return fmt.Errorf("empty shares with non-absence proof for row %d", rowIdx)
+	}
+
+	if len(rnd.Shares) > 0 && rnd.Proof.IsOfAbsence() {
+		return fmt.Errorf("non-empty shares with absence proof for row %d", rowIdx)
+	}
+
+	if err := ValidateShares(rnd.Shares); err != nil {
+		return fmt.Errorf("invalid shares: %w", err)
 	}
 
 	rowRoot := dah.RowRoots[rowIdx]
