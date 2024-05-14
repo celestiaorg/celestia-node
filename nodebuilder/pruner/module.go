@@ -43,9 +43,10 @@ func ConstructModule(tp node.Type, cfg *Config) fx.Option {
 	// TODO: Eventually, light nodes will be capable of pruning samples
 	//  in which case, this can be enabled.
 	case node.Light:
-		fx.Provide(light.NewPruner)
 		return fx.Module("prune",
 			baseComponents,
+			fx.Provide(light.NewPruner),
+			fx.Supply(light.Window),
 		)
 	case node.Full:
 		opts := baseComponents
