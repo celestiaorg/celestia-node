@@ -112,11 +112,11 @@ func (s *Service) run() {
 	}
 
 	for {
+		lastPrunedHeader = s.prune(s.ctx, lastPrunedHeader)
 		select {
 		case <-s.ctx.Done():
 			return
 		case <-ticker.C:
-			lastPrunedHeader = s.prune(s.ctx, lastPrunedHeader)
 		}
 	}
 }
@@ -127,6 +127,12 @@ func (s *Service) prune(
 ) *header.ExtendedHeader {
 	// prioritize retrying previously-failed headers
 	s.retryFailed(s.ctx)
+
+	now := time.Now()
+	log.Debug("pruning round start")
+	defer func() {
+		log.Debugw("pruning round finished", "took", time.Since(now))
+	}()
 
 	for {
 		select {
