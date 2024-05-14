@@ -38,13 +38,7 @@ func (p *Pruner) Prune(ctx context.Context, h *header.ExtendedHeader) error {
 		}
 	}
 
-	key := rootKey(dah)
-	err := p.ds.Delete(ctx, key)
-	if err != nil {
-		return err
-	}
-
-	return nil
+	return p.ds.Delete(ctx, rootKey(dah))
 }
 
 func rootKey(root *share.Root) datastore.Key {
