@@ -113,6 +113,11 @@ func (s *Service) run() {
 
 	for {
 		lastPrunedHeader = s.prune(s.ctx, lastPrunedHeader)
+		// pruning may take a while beyond ticker's time
+		// and this ensures we don't do idle spins right after the pruning
+		// and ensures the is always pruneCycle period between each run
+		ticker.Reset(s.params.pruneCycle)
+
 		select {
 		case <-s.ctx.Done():
 			return
