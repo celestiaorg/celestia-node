@@ -79,6 +79,7 @@ func ConstructModule(tp node.Type, cfg *Config) fx.Option {
 			baseComponents,
 			fx.Provide(light.NewPruner),
 			fx.Supply(light.Window),
+			fx.Provide(light.NewPruner),
 		)
 	default:
 		panic("unknown node type")
