@@ -75,8 +75,9 @@ func ConstructModule(tp node.Type, cfg *Config) fx.Option {
 			}),
 		)
 	case node.Light:
-		fx.Provide(light.NewPruner)
 		return fx.Module("prune",
+			baseComponents,
+			fx.Provide(light.NewPruner),
 			fx.Supply(light.Window),
 		)
 	default:
