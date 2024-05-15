@@ -1,5 +1,4 @@
-//go:build ignore
-// +build ignore
+//go:build rpcequivalence
 
 package api
 
