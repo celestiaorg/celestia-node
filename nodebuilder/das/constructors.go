@@ -3,7 +3,6 @@ package das
 import (
 	"context"
 	"fmt"
-	"time"
 
 	"github.com/ipfs/go-datastore"
 
@@ -49,7 +48,7 @@ func newDASer(
 	availWindow pruner.AvailabilityWindow,
 	options ...das.Option,
 ) (*das.DASer, *modfraud.ServiceBreaker[*das.DASer, *header.ExtendedHeader], error) {
-	options = append(options, das.WithSamplingWindow(time.Duration(availWindow)))
+	options = append(options, das.WithSamplingWindow(availWindow))
 
 	ds, err := das.NewDASer(da, hsub, store, batching, fraudServ, bFn, options...)
 	if err != nil {

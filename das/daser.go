@@ -185,10 +185,10 @@ func (d *DASer) sample(ctx context.Context, h *header.ExtendedHeader) error {
 
 func (d *DASer) isWithinSamplingWindow(eh *header.ExtendedHeader) bool {
 	// if sampling window is not set, then all headers are within the window
-	if d.params.SamplingWindow == 0 {
+	if d.params.samplingWindow.Duration() == 0 {
 		return true
 	}
-	return time.Since(eh.Time()) <= d.params.SamplingWindow
+	return time.Since(eh.Time()) <= d.params.samplingWindow.Duration()
 }
 
 // SamplingStats returns the current statistics over the DA sampling process.
