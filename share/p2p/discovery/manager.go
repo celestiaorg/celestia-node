@@ -21,11 +21,13 @@ func (m *Manager) Start(context.Context) error {
 	ctx, cancel := context.WithCancel(context.Background())
 	m.cancel = cancel
 
-	var err error
 	for _, d := range m.discs {
-		err = errors.Join(err, d.Start(ctx))
+		err := d.Start(ctx)
 		if err != nil {
 			log.Errorw("failed to start discovery", "err", err)
+
+			m.cancel()
+			return err
 		}
 		log.Infow("starting discovery", "topic", d.tag)
 
@@ -34,7 +36,7 @@ func (m *Manager) Start(context.Context) error {
 			go d.Advertise(ctx)
 		}
 	}
-	return err
+	return nil
 }
 
 func (m *Manager) Stop(ctx context.Context) error {
