@@ -203,7 +203,6 @@ func ExampleValue(t, parent reflect.Type) (interface{}, error) {
 	case reflect.Interface:
 		return struct{}{}, nil
 	}
-
 	return nil, fmt.Errorf("failed to retrieve example value for type: %s on parent '%s')", t, parent)
 }
 

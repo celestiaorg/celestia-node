@@ -68,6 +68,8 @@ type metrics struct {
 	fullNodesPool            metric.Int64ObservableGauge // attributes: pool_status
 	blacklistedPeersByReason sync.Map
 	blacklistedPeers         metric.Int64ObservableGauge // attributes: blacklist_reason
+
+	clientReg metric.Registration
 }
 
 func initMetrics(manager *Manager) (*metrics, error) {
@@ -130,7 +132,7 @@ func initMetrics(manager *Manager) (*metrics, error) {
 		blacklistedPeers:         blacklisted,
 	}
 
-	callback := func(ctx context.Context, observer metric.Observer) error {
+	callback := func(_ context.Context, observer metric.Observer) error {
 		for poolStatus, count := range manager.shrexPools() {
 			observer.ObserveInt64(shrexPools, count,
 				metric.WithAttributes(
@@ -154,11 +156,18 @@ func initMetrics(manager *Manager) (*metrics, error) {
 		})
 		return nil
 	}
-	_, err = meter.RegisterCallback(callback, shrexPools, fullNodesPool, blacklisted)
+	metrics.clientReg, err = meter.RegisterCallback(callback, shrexPools, fullNodesPool, blacklisted)
 	if err != nil {
 		return nil, fmt.Errorf("registering metrics callback: %w", err)
 	}
 	return metrics, nil
+}
+
+func (m *metrics) close() error {
+	if m == nil {
+		return nil
+	}
+	return m.clientReg.Unregister()
 }
 
 func (m *metrics) observeGetPeer(

@@ -2,6 +2,8 @@ package state
 
 import (
 	"github.com/cosmos/cosmos-sdk/crypto/keyring"
+
+	"github.com/celestiaorg/celestia-node/state"
 )
 
 var defaultKeyringBackend = keyring.BackendTest
@@ -11,12 +13,14 @@ var defaultKeyringBackend = keyring.BackendTest
 type Config struct {
 	KeyringAccName string
 	KeyringBackend string
+	GranterAddress state.AccAddress
 }
 
 func DefaultConfig() Config {
 	return Config{
 		KeyringAccName: "",
 		KeyringBackend: defaultKeyringBackend,
+		GranterAddress: state.AccAddress{},
 	}
 }
 

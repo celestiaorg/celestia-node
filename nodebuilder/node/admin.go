@@ -10,7 +10,7 @@ import (
 	"github.com/celestiaorg/celestia-node/libs/authtoken"
 )
 
-const APIVersion = "v0.11.0"
+var APIVersion = GetBuildInfo().SemanticVersion
 
 type module struct {
 	tp     Type

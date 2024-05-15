@@ -110,3 +110,22 @@ func (s stubbedStateModule) QueryRedelegations(
 ) (*types.QueryRedelegationsResponse, error) {
 	return nil, ErrNoStateAccess
 }
+
+func (s stubbedStateModule) GrantFee(
+	_ context.Context,
+	_ state.AccAddress,
+	_,
+	_ state.Int,
+	_ uint64,
+) (*state.TxResponse, error) {
+	return nil, ErrNoStateAccess
+}
+
+func (s stubbedStateModule) RevokeGrantFee(
+	_ context.Context,
+	_ state.AccAddress,
+	_ state.Int,
+	_ uint64,
+) (*state.TxResponse, error) {
+	return nil, ErrNoStateAccess
+}

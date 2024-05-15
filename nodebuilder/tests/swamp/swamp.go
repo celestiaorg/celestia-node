@@ -22,7 +22,6 @@ import (
 	"golang.org/x/exp/maps"
 
 	"github.com/celestiaorg/celestia-app/test/util/testnode"
-	apptypes "github.com/celestiaorg/celestia-app/x/blob/types"
 	libhead "github.com/celestiaorg/go-header"
 
 	"github.com/celestiaorg/celestia-node/core"
@@ -258,9 +257,9 @@ func (s *Swamp) NewNodeWithStore(
 	store nodebuilder.Store,
 	options ...fx.Option,
 ) *nodebuilder.Node {
-	signer := apptypes.NewKeyringSigner(s.ClientContext.Keyring, s.Accounts[0], s.ClientContext.ChainID)
 	options = append(options,
-		state.WithKeyringSigner(signer),
+		state.WithKeyring(s.ClientContext.Keyring),
+		state.WithKeyName(state.AccountName(s.Accounts[0])),
 	)
 
 	switch tp {

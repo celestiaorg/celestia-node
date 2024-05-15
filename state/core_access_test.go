@@ -32,14 +32,14 @@ func TestSubmitPayForBlob(t *testing.T) {
 	appConf.MinGasPrices = fmt.Sprintf("0.002%s", app.BondDenom)
 
 	config := testnode.DefaultConfig().WithTendermintConfig(tmCfg).WithAppConfig(appConf).WithAccounts(accounts)
-	cctx, rpcAddr, grpcAddr := testnode.NewNetwork(t, config)
+	cctx, _, grpcAddr := testnode.NewNetwork(t, config)
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
-	signer := blobtypes.NewKeyringSigner(cctx.Keyring, accounts[0], cctx.ChainID)
-	ca := NewCoreAccessor(signer, nil, "127.0.0.1", extractPort(rpcAddr), extractPort(grpcAddr))
+	ca, err := NewCoreAccessor(cctx.Keyring, accounts[0], nil, "127.0.0.1", extractPort(grpcAddr))
+	require.NoError(t, err)
 	// start the accessor
-	err := ca.Start(ctx)
+	err = ca.Start(ctx)
 	require.NoError(t, err)
 	t.Cleanup(func() {
 		_ = ca.Stop(ctx)
@@ -89,7 +89,6 @@ func TestSubmitPayForBlob(t *testing.T) {
 			}
 		})
 	}
-
 }
 
 func extractPort(addr string) string {

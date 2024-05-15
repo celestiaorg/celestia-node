@@ -69,7 +69,7 @@ var edsStoreStress = &cobra.Command{
 	Use:          "stress",
 	Short:        `Runs eds.Store stress test over default node.Store Datastore backend (e.g. Badger).`,
 	SilenceUsage: true,
-	RunE: func(cmd *cobra.Command, args []string) (err error) {
+	RunE: func(cmd *cobra.Command, _ []string) (err error) {
 		// expose expvar vars over http
 		go http.ListenAndServe(":9999", http.DefaultServeMux) //nolint:errcheck,gosec
 

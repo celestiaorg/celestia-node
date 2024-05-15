@@ -3,9 +3,7 @@ package cmd
 import (
 	"context"
 	"fmt"
-	"os"
 	"path/filepath"
-	"strings"
 
 	"github.com/mitchellh/go-homedir"
 	"github.com/spf13/cobra"
@@ -44,7 +42,7 @@ func ParseNodeFlags(ctx context.Context, cmd *cobra.Command, network p2p.Network
 	if store == "" {
 		tp := NodeType(ctx)
 		var err error
-		store, err = DefaultNodeStorePath(tp.String(), network.String())
+		store, err = nodebuilder.DefaultNodeStorePath(tp.String(), network.String())
 		if err != nil {
 			return ctx, err
 		}
@@ -73,28 +71,4 @@ func ParseNodeFlags(ctx context.Context, cmd *cobra.Command, network p2p.Network
 		}
 	}
 	return ctx, nil
-}
-
-// DefaultNodeStorePath constructs the default node store path using the given
-// node type and network.
-func DefaultNodeStorePath(tp string, network string) (string, error) {
-	home := os.Getenv("CELESTIA_HOME")
-
-	if home == "" {
-		var err error
-		home, err = os.UserHomeDir()
-		if err != nil {
-			return "", err
-		}
-	}
-	if network == p2p.Mainnet.String() {
-		return fmt.Sprintf("%s/.celestia-%s", home, strings.ToLower(tp)), nil
-	}
-	// only include network name in path for testnets and custom networks
-	return fmt.Sprintf(
-		"%s/.celestia-%s-%s",
-		home,
-		strings.ToLower(tp),
-		strings.ToLower(network),
-	), nil
 }

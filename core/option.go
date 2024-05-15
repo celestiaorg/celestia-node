@@ -1,13 +1,23 @@
 package core
 
-import "github.com/celestiaorg/celestia-node/nodebuilder/p2p"
+import (
+	"github.com/celestiaorg/celestia-node/nodebuilder/p2p"
+	"github.com/celestiaorg/celestia-node/pruner"
+	"github.com/celestiaorg/celestia-node/pruner/archival"
+)
 
 type Option func(*params)
 
 type params struct {
-	metrics bool
+	metrics            bool
+	chainID            string
+	availabilityWindow pruner.AvailabilityWindow
+}
 
-	chainID string
+func defaultParams() params {
+	return params{
+		availabilityWindow: archival.Window,
+	}
 }
 
 // WithMetrics is a functional option that enables metrics
@@ -21,5 +31,11 @@ func WithMetrics() Option {
 func WithChainID(id p2p.Network) Option {
 	return func(p *params) {
 		p.chainID = id.String()
+	}
+}
+
+func WithAvailabilityWindow(window pruner.AvailabilityWindow) Option {
+	return func(p *params) {
+		p.availabilityWindow = window
 	}
 }
