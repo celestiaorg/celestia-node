@@ -91,7 +91,7 @@ type Module interface {
 		srcValAddr,
 		dstValAddr state.ValAddress,
 	) (*types.QueryRedelegationsResponse, error)
-
+	// GrantFee grants the given amount of fee to the given grantee.
 	GrantFee(
 		ctx context.Context,
 		grantee state.AccAddress,
@@ -99,7 +99,7 @@ type Module interface {
 		fee state.Int,
 		gasLim uint64,
 	) (*state.TxResponse, error)
-
+	// RevokeGrantFee revokes the given amount of fee from the given grantee.
 	RevokeGrantFee(
 		ctx context.Context,
 		grantee state.AccAddress,
