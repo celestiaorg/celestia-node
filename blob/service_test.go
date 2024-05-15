@@ -3,8 +3,11 @@ package blob
 import (
 	"bytes"
 	"context"
+	"encoding/hex"
 	"encoding/json"
 	"fmt"
+	"io"
+	"os"
 	"sort"
 	"testing"
 	"time"
@@ -18,6 +21,7 @@ import (
 	"github.com/celestiaorg/celestia-app/pkg/appconsts"
 	"github.com/celestiaorg/celestia-app/pkg/shares"
 	"github.com/celestiaorg/go-header/store"
+	"github.com/celestiaorg/rsmt2d"
 
 	"github.com/celestiaorg/celestia-node/blob/blobtest"
 	"github.com/celestiaorg/celestia-node/header"
@@ -489,6 +493,66 @@ func TestService_GetAllWithoutPadding(t *testing.T) {
 
 		assert.Equal(t, sh, resultShares[shareOffset])
 		shareOffset += shares.SparseSharesNeeded(uint32(len(blob.Data)))
+	}
+}
+
+// TestRetrieveBlobsFromRealEds takes the real data, submitted to mocha-4 and
+// ensures that all blobs under `0x51cc1a73d65f95f6bde6` namespace will be retrieved successfully.
+// At the first step it retrieves all blobs under the given namespace:
+// the amount of the blobs is known and equal to 6. Then it ensures that each blob has a correct index inside the eds
+// by requesting share and comparing them.
+func TestRetrieveBlobsFromRealEds(t *testing.T) {
+	f, err := os.OpenFile("example/eds.json", os.O_RDONLY, os.ModePerm)
+	require.NoError(t, err)
+	defer f.Close()
+
+	buff, err := io.ReadAll(f)
+	require.NoError(t, err)
+
+	eds := &rsmt2d.ExtendedDataSquare{}
+	err = eds.UnmarshalJSON(buff)
+	require.NoError(t, err)
+
+	ods := eds.FlattenedODS()
+	bServ := ipld.NewMemBlockservice()
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second*10)
+	t.Cleanup(cancel)
+
+	recomputedEds, err := ipld.AddShares(ctx, ods, bServ)
+	require.NoError(t, err)
+	h := headertest.ExtendedHeaderFromEDS(t, 1, recomputedEds)
+	fn := func(ctx context.Context, u uint64) (*header.ExtendedHeader, error) {
+		return h, nil
+	}
+
+	ipldGetter := getters.NewIPLDGetter(bServ)
+	s := NewService(nil, ipldGetter, fn)
+	str, err := hex.DecodeString("51cc1a73d65f95f6bde6")
+	require.NoError(t, err)
+
+	ns, err := share.NewBlobNamespaceV0(str)
+	require.NoError(t, err)
+	require.NoError(t, ns.ValidateForData())
+
+	blobs, err := s.GetAll(context.Background(), 1, []share.Namespace{ns})
+	require.NoError(t, err)
+	require.Equal(t, len(blobs), 6)
+
+	resultShare, err := BlobsToShares(blobs...)
+	require.NoError(t, err)
+	shareOffset := 0
+	for i := range blobs {
+		row, col := calculateIndex(len(h.DAH.RowRoots), blobs[i].index)
+		sh, err := s.shareGetter.GetShare(ctx, h, row, col)
+		require.NoError(t, err)
+		require.True(t, bytes.Equal(sh, resultShare[shareOffset]),
+			fmt.Sprintf("issue on %d blob. ROW:%d, COL: %d, blobIndex:%d", i, row, col, blobs[i].index),
+		)
+		shareOffset += shares.SparseSharesNeeded(uint32(len(blobs[i].Data)))
+
+		// extra step to check that blob can be found by the commitment.
+		_, err = s.Get(ctx, 1, blobs[i].Namespace(), blobs[i].Commitment)
+		require.NoError(t, err)
 	}
 }
 
