@@ -73,54 +73,54 @@ type metrics struct {
 }
 
 func initMetrics(manager *Manager) (*metrics, error) {
-	getPeer, err := meter.Int64Counter(fmt.Sprintf("%s_peer_manager_get_peer_counter", manager.tag),
+	getPeer, err := meter.Int64Counter(manager.tag+"_peer_manager_get_peer_counter",
 		metric.WithDescription("get peer counter"))
 	if err != nil {
 		return nil, err
 	}
 
 	getPeerWaitTimeHistogram, err := meter.Int64Histogram(
-		fmt.Sprintf("%s_peer_manager_get_peer_ms_time_hist", manager.tag),
+		manager.tag+"_peer_manager_get_peer_ms_time_hist",
 		metric.WithDescription("get peer time histogram(ms), observed only for async get(is_instant = false)"))
 	if err != nil {
 		return nil, err
 	}
 
 	getPeerPoolSizeHistogram, err := meter.Int64Histogram(
-		fmt.Sprintf("%s_peer_manager_get_peer_pool_size_hist", manager.tag),
+		manager.tag+"_peer_manager_get_peer_pool_size_hist",
 		metric.WithDescription("amount of available active peers in pool at time when get was called"))
 	if err != nil {
 		return nil, err
 	}
 
-	doneResult, err := meter.Int64Counter(fmt.Sprintf("%s_peer_manager_done_result_counter", manager.tag),
+	doneResult, err := meter.Int64Counter(manager.tag+"_peer_manager_done_result_counter",
 		metric.WithDescription("done results counter"))
 	if err != nil {
 		return nil, err
 	}
 
 	validationResult, err := meter.Int64Counter(
-		fmt.Sprintf("%s_peer_manager_validation_result_counter", manager.tag),
+		manager.tag+"_peer_manager_validation_result_counter",
 		metric.WithDescription("validation result counter"))
 	if err != nil {
 		return nil, err
 	}
 
-	shrexPools, err := meter.Int64ObservableGauge(fmt.Sprintf("%s_peer_manager_pools_gauge", manager.tag),
+	shrexPools, err := meter.Int64ObservableGauge(manager.tag+"_peer_manager_pools_gauge",
 		metric.WithDescription("pools amount"))
 	if err != nil {
 		return nil, err
 	}
 
 	discoveredPool, err := meter.Int64ObservableGauge(
-		fmt.Sprintf("%s_peer_manager_discovered_nodes_gauge", manager.tag),
+		manager.tag+"_peer_manager_discovered_nodes_gauge",
 		metric.WithDescription("discovered nodes pool peers amount"))
 	if err != nil {
 		return nil, err
 	}
 
 	blacklisted, err := meter.Int64ObservableGauge(
-		fmt.Sprintf("%speer_manager_blacklisted_peers", manager.tag),
+		manager.tag+"peer_manager_blacklisted_peers",
 		metric.WithDescription("blacklisted peers amount"))
 	if err != nil {
 		return nil, err

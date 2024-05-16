@@ -53,43 +53,43 @@ func (d *Discovery) WithMetrics() error {
 }
 
 func initMetrics(d *Discovery) (*metrics, error) {
-	peersAmount, err := meter.Int64ObservableGauge(fmt.Sprintf("%s_discovery_amount_of_peers", d.tag),
+	peersAmount, err := meter.Int64ObservableGauge(d.tag+"_discovery_amount_of_peers",
 		metric.WithDescription("amount of peers in discovery set"))
 	if err != nil {
 		return nil, err
 	}
 
-	discoveryResult, err := meter.Int64Counter(fmt.Sprintf("%s_discovery_find_peers_result", d.tag),
+	discoveryResult, err := meter.Int64Counter(d.tag+"_discovery_find_peers_result",
 		metric.WithDescription("result of find peers run"))
 	if err != nil {
 		return nil, err
 	}
 
-	handlePeerResultCounter, err := meter.Int64Counter(fmt.Sprintf("%s_discovery_handler_peer_result", d.tag),
+	handlePeerResultCounter, err := meter.Int64Counter(d.tag+"_discovery_handler_peer_result",
 		metric.WithDescription("result handling found peer"))
 	if err != nil {
 		return nil, err
 	}
 
-	advertise, err := meter.Int64Counter(fmt.Sprintf("%s_discovery_advertise_event", d.tag),
+	advertise, err := meter.Int64Counter(d.tag+"_discovery_advertise_event",
 		metric.WithDescription("advertise events counter"))
 	if err != nil {
 		return nil, err
 	}
 
-	peerAdded, err := meter.Int64Counter(fmt.Sprintf("%s_discovery_add_peer", d.tag),
+	peerAdded, err := meter.Int64Counter(d.tag+"_discovery_add_peer",
 		metric.WithDescription("add peer to discovery set counter"))
 	if err != nil {
 		return nil, err
 	}
 
-	peerRemoved, err := meter.Int64Counter(fmt.Sprintf("%s_discovery_remove_peer", d.tag),
+	peerRemoved, err := meter.Int64Counter(d.tag+"_discovery_remove_peer",
 		metric.WithDescription("remove peer from discovery set counter"))
 	if err != nil {
 		return nil, err
 	}
 
-	backOffSize, err := meter.Int64ObservableGauge(fmt.Sprintf("%s_discovery_backoff_amount", d.tag),
+	backOffSize, err := meter.Int64ObservableGauge(d.tag+"_discovery_backoff_amount",
 		metric.WithDescription("amount of peers in backoff"))
 	if err != nil {
 		return nil, err
