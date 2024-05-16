@@ -39,10 +39,10 @@ func ConstructModule(tp node.Type, cfg *Config, options ...fx.Option) fx.Option 
 		fx.Error(cfgErr),
 		fx.Options(options...),
 		fx.Provide(newShareModule),
-		peerManagerComponents(tp, cfg),
 		shrexSubComponents(),
 		shrexGetterComponents(cfg),
 		discoveryComponents(cfg),
+		peerManagerComponents(tp, cfg),
 	)
 
 	bridgeAndFullComponents := fx.Options(
@@ -101,14 +101,12 @@ func ConstructModule(tp node.Type, cfg *Config, options ...fx.Option) fx.Option 
 	}
 }
 
-func fullDiscoveryComponents(cfg *Config) fx.Option {
-	return fx.Provide(newFullDiscovery(cfg.Discovery))
-}
-
 func peerManagerComponents(tp node.Type, cfg *Config) fx.Option {
+	archivalPeerMan := archivalPeerManager()
 	switch tp {
 	case node.Full, node.Light:
 		return fx.Options(
+			archivalPeerMan,
 			fx.Provide(func() peers.Parameters {
 				return cfg.PeerManagerParams
 			}),
@@ -128,19 +126,22 @@ func peerManagerComponents(tp node.Type, cfg *Config) fx.Option {
 						host,
 						connGater,
 						peers.WithShrexSubPools(shrexSub, headerSub),
-						peers.WithTag("full"),
+						peers.WithTag(fullNodesTag),
 					)
 				},
 			),
 		)
 	case node.Bridge:
-		return fx.Provide(func(
-			params peers.Parameters,
-			host host.Host,
-			connGater *conngater.BasicConnectionGater,
-		) (*peers.Manager, error) {
-			return peers.NewManager(params, host, connGater, peers.WithTag("full"))
-		})
+		return fx.Options(
+			archivalPeerMan,
+			fx.Provide(func(
+				params peers.Parameters,
+				host host.Host,
+				connGater *conngater.BasicConnectionGater,
+			) (*peers.Manager, error) {
+				return peers.NewManager(params, host, connGater, peers.WithTag(fullNodesTag))
+			}),
+		)
 	default:
 		panic("invalid node type")
 	}
@@ -281,9 +282,8 @@ func lightAvailabilityComponents(cfg *Config) fx.Option {
 func discoveryComponents(cfg *Config) fx.Option {
 	return fx.Options(
 		discoveryManager(),
-		fullDiscoveryComponents(cfg),
+		fx.Provide(newFullDiscovery),
 		archivalDiscoveryComponents(cfg),
-		archivalPeerManager(),
 	)
 }
 
@@ -326,7 +326,7 @@ func archivalPeerManager() fx.Option {
 		gater *conngater.BasicConnectionGater,
 		fullManager *peers.Manager,
 	) ([]*peers.Manager, []getters.Option, disc.Option, error) {
-		archivalPeerManager, err := peers.NewManager(params, h, gater, peers.WithTag("archival"))
+		archivalPeerManager, err := peers.NewManager(params, h, gater, peers.WithTag(archivalNodesTag))
 		if err != nil {
 			return nil, nil, nil, err
 		}
