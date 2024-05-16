@@ -330,6 +330,8 @@ func (s *Service) retrieve(
 				shrs, err = sharesParser.set(rowIndex*len(header.DAH.RowRoots)+index, appShares)
 				if err != nil {
 					if errors.Is(err, errEmptyShares) {
+						// reset parser as `skipPadding` can update next blob's index
+						sharesParser.reset()
 						appShares = nil
 						break
 					}

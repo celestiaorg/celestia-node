@@ -3,11 +3,8 @@ package blob
 import (
 	"bytes"
 	"context"
-	"encoding/hex"
 	"encoding/json"
 	"fmt"
-	"io"
-	"os"
 	"sort"
 	"testing"
 	"time"
@@ -21,7 +18,6 @@ import (
 	"github.com/celestiaorg/celestia-app/pkg/appconsts"
 	"github.com/celestiaorg/celestia-app/pkg/shares"
 	"github.com/celestiaorg/go-header/store"
-	"github.com/celestiaorg/rsmt2d"
 
 	"github.com/celestiaorg/celestia-node/blob/blobtest"
 	"github.com/celestiaorg/celestia-node/header"
@@ -429,130 +425,74 @@ func TestService_Get(t *testing.T) {
 	}
 }
 
+// TestService_GetAllWithoutPadding it retrieves all blobs under the given namespace:
+// the amount of the blobs is known and equal to 6. Then it ensures that each blob has a correct index inside the eds
+// by requesting share and comparing them.
 func TestService_GetAllWithoutPadding(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second*5)
 	t.Cleanup(cancel)
 
-	appBlob, err := blobtest.GenerateV0Blobs([]int{9, 5}, true)
+	appBlob, err := blobtest.GenerateV0Blobs([]int{9, 5, 15, 4, 24}, true)
 	require.NoError(t, err)
 	blobs, err := convertBlobs(appBlob...)
 	require.NoError(t, err)
 
-	ns1, ns2 := blobs[0].Namespace().ToAppNamespace(), blobs[1].Namespace().ToAppNamespace()
+	var (
+		ns        = blobs[0].Namespace().ToAppNamespace()
+		rawShares = make([][]byte, 0)
+	)
 
-	padding0, err := shares.NamespacePaddingShare(ns1, appconsts.ShareVersionZero)
+	padding, err := shares.NamespacePaddingShare(ns, appconsts.ShareVersionZero)
 	require.NoError(t, err)
-	padding1, err := shares.NamespacePaddingShare(ns2, appconsts.ShareVersionZero)
-	require.NoError(t, err)
-	rawShares0, err := BlobsToShares(blobs[0])
-	require.NoError(t, err)
-	rawShares1, err := BlobsToShares(blobs[1])
-	require.NoError(t, err)
-	rawShares := make([][]byte, 0)
 
-	// create shares in correct order with padding shares
-	if bytes.Compare(blobs[0].Namespace(), blobs[1].Namespace()) <= 0 {
-		rawShares = append(rawShares, append(rawShares0, padding0.ToBytes())...)
-		rawShares = append(rawShares, append(rawShares1, padding1.ToBytes())...)
-	} else {
-		rawShares = append(rawShares, append(rawShares1, padding1.ToBytes())...)
-		rawShares = append(rawShares, append(rawShares0, padding0.ToBytes())...)
+	for i := 0; i < 2; i++ {
+		sh, err := BlobsToShares(blobs[i])
+		require.NoError(t, err)
+		rawShares = append(rawShares, append(sh, padding.ToBytes())...)
 	}
 
+	sh, err := BlobsToShares(blobs[2])
+	require.NoError(t, err)
+	rawShares = append(rawShares, append(sh, padding.ToBytes(), padding.ToBytes())...)
+
+	sh, err = BlobsToShares(blobs[3])
+	require.NoError(t, err)
+	rawShares = append(rawShares, append(sh, padding.ToBytes(), padding.ToBytes(), padding.ToBytes())...)
+
+	sh, err = BlobsToShares(blobs[4])
+	require.NoError(t, err)
+	rawShares = append(rawShares, sh...)
+
 	bs := ipld.NewMemBlockservice()
-	batching := ds_sync.MutexWrap(ds.NewMapDatastore())
-	headerStore, err := store.NewStore[*header.ExtendedHeader](batching)
 	require.NoError(t, err)
 	eds, err := ipld.AddShares(ctx, rawShares, bs)
 	require.NoError(t, err)
 
 	h := headertest.ExtendedHeaderFromEDS(t, 1, eds)
-	err = headerStore.Init(ctx, h)
-	require.NoError(t, err)
 
 	fn := func(ctx context.Context, height uint64) (*header.ExtendedHeader, error) {
-		return headerStore.GetByHeight(ctx, height)
+		return h, nil
 	}
 
 	service := NewService(nil, getters.NewIPLDGetter(bs), fn)
 
-	blobs, err = service.GetAll(ctx, 1, []share.Namespace{blobs[0].Namespace(), blobs[1].Namespace()})
+	newBlobs, err := service.GetAll(ctx, 1, []share.Namespace{blobs[0].Namespace()})
+	require.NoError(t, err)
+	assert.Equal(t, len(newBlobs), len(blobs))
+
+	resultShares, err := BlobsToShares(newBlobs...)
 	require.NoError(t, err)
 
-	resultShares, err := BlobsToShares(blobs...)
-	require.NoError(t, err)
-	sort.Slice(blobs, func(i, j int) bool {
-		val := bytes.Compare(blobs[i].NamespaceId, blobs[j].NamespaceId)
-		return val < 0
-	})
 	shareOffset := 0
-	for _, blob := range blobs {
+	for i, blob := range newBlobs {
+		require.True(t, blobs[i].compareCommitments(blob.Commitment))
+
 		row, col := calculateIndex(len(h.DAH.RowRoots), blob.index)
 		sh, err := service.shareGetter.GetShare(ctx, h, row, col)
 		require.NoError(t, err)
 
 		assert.Equal(t, sh, resultShares[shareOffset])
 		shareOffset += shares.SparseSharesNeeded(uint32(len(blob.Data)))
-	}
-}
-
-// TestRetrieveBlobsFromRealEds takes the real data, submitted to mocha-4 and
-// ensures that all blobs under `0x51cc1a73d65f95f6bde6` namespace will be retrieved successfully.
-// At the first step it retrieves all blobs under the given namespace:
-// the amount of the blobs is known and equal to 6. Then it ensures that each blob has a correct index inside the eds
-// by requesting share and comparing them.
-func TestRetrieveBlobsFromRealEds(t *testing.T) {
-	f, err := os.OpenFile("example/eds.json", os.O_RDONLY, os.ModePerm)
-	require.NoError(t, err)
-	defer f.Close()
-
-	buff, err := io.ReadAll(f)
-	require.NoError(t, err)
-
-	eds := &rsmt2d.ExtendedDataSquare{}
-	err = eds.UnmarshalJSON(buff)
-	require.NoError(t, err)
-
-	ods := eds.FlattenedODS()
-	bServ := ipld.NewMemBlockservice()
-	ctx, cancel := context.WithTimeout(context.Background(), time.Second*10)
-	t.Cleanup(cancel)
-
-	recomputedEds, err := ipld.AddShares(ctx, ods, bServ)
-	require.NoError(t, err)
-	h := headertest.ExtendedHeaderFromEDS(t, 1, recomputedEds)
-	fn := func(ctx context.Context, u uint64) (*header.ExtendedHeader, error) {
-		return h, nil
-	}
-
-	ipldGetter := getters.NewIPLDGetter(bServ)
-	s := NewService(nil, ipldGetter, fn)
-	str, err := hex.DecodeString("51cc1a73d65f95f6bde6")
-	require.NoError(t, err)
-
-	ns, err := share.NewBlobNamespaceV0(str)
-	require.NoError(t, err)
-	require.NoError(t, ns.ValidateForData())
-
-	blobs, err := s.GetAll(context.Background(), 1, []share.Namespace{ns})
-	require.NoError(t, err)
-	require.Equal(t, len(blobs), 6)
-
-	resultShare, err := BlobsToShares(blobs...)
-	require.NoError(t, err)
-	shareOffset := 0
-	for i := range blobs {
-		row, col := calculateIndex(len(h.DAH.RowRoots), blobs[i].index)
-		sh, err := s.shareGetter.GetShare(ctx, h, row, col)
-		require.NoError(t, err)
-		require.True(t, bytes.Equal(sh, resultShare[shareOffset]),
-			fmt.Sprintf("issue on %d blob. ROW:%d, COL: %d, blobIndex:%d", i, row, col, blobs[i].index),
-		)
-		shareOffset += shares.SparseSharesNeeded(uint32(len(blobs[i].Data)))
-
-		// extra step to check that blob can be found by the commitment.
-		_, err = s.Get(ctx, 1, blobs[i].Namespace(), blobs[i].Commitment)
-		require.NoError(t, err)
 	}
 }
 
