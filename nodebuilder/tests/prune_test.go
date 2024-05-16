@@ -20,16 +20,16 @@ import (
 	"github.com/celestiaorg/celestia-node/share"
 )
 
-// 1 BN w/ pruning
-// 3 FN w/ pruning
-// 1 FN archival
+// TestArchivalBlobSync tests whether a LN is able to sync historical blobs from
+// an archival node in a network dominated by pruned nodes.
+//
+// 1 BN w/ pruning, 3 FN w/ pruning, 1 FN archival
 
 // turn on archival BN
 // archival FN syncs against BN
 // turn off archival BN
 // turn on pruning BN
 // spin up 3 pruning FNs, connect
-
 // spin up 1 LN that syncs historic blobs
 func TestArchivalBlobSync(t *testing.T) {
 	const (
