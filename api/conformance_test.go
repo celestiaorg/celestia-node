@@ -1,4 +1,4 @@
-//go:build rpcequivalence
+//go:build conformance
 
 package api
 
