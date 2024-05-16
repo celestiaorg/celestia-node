@@ -17,8 +17,8 @@ func NewManager(discs []*Discovery) *Manager {
 	}
 }
 
-func (m *Manager) Start(context.Context) error {
-	ctx, cancel := context.WithCancel(context.Background())
+func (m *Manager) Start(ctx context.Context) error {
+	advertiseCtx, cancel := context.WithCancel(context.Background())
 	m.cancel = cancel
 
 	for _, d := range m.discs {
@@ -33,7 +33,7 @@ func (m *Manager) Start(context.Context) error {
 
 		if d.params.EnableAdvertise {
 			log.Infow("advertising to topic", "topic", d.tag)
-			go d.Advertise(ctx)
+			go d.Advertise(advertiseCtx)
 		}
 	}
 	return nil
