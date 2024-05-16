@@ -9,15 +9,14 @@ import (
 	"testing"
 	"time"
 
+	"github.com/celestiaorg/celestia-app/pkg/appconsts"
+	"github.com/celestiaorg/celestia-app/pkg/shares"
+	"github.com/celestiaorg/go-header/store"
 	ds "github.com/ipfs/go-datastore"
 	ds_sync "github.com/ipfs/go-datastore/sync"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	tmrand "github.com/tendermint/tendermint/libs/rand"
-
-	"github.com/celestiaorg/celestia-app/pkg/appconsts"
-	"github.com/celestiaorg/celestia-app/pkg/shares"
-	"github.com/celestiaorg/go-header/store"
 
 	"github.com/celestiaorg/celestia-node/blob/blobtest"
 	"github.com/celestiaorg/celestia-node/header"
@@ -494,6 +493,36 @@ func TestService_GetAllWithoutPadding(t *testing.T) {
 		assert.Equal(t, sh, resultShares[shareOffset])
 		shareOffset += shares.SparseSharesNeeded(uint32(len(blob.Data)))
 	}
+}
+
+func TestAllPaddingSharesInEDS(t *testing.T) {
+	nid, err := share.NewBlobNamespaceV0(tmrand.Bytes(7))
+	require.NoError(t, err)
+	padding, err := shares.NamespacePaddingShare(nid.ToAppNamespace(), appconsts.ShareVersionZero)
+	require.NoError(t, err)
+
+	rawShares := make([]share.Share, 16)
+	for i := 0; i < 16; i++ {
+		rawShares[i] = padding.ToBytes()
+	}
+
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second*5)
+	t.Cleanup(cancel)
+
+	bs := ipld.NewMemBlockservice()
+	require.NoError(t, err)
+	eds, err := ipld.AddShares(ctx, rawShares, bs)
+	require.NoError(t, err)
+
+	h := headertest.ExtendedHeaderFromEDS(t, 1, eds)
+
+	fn := func(ctx context.Context, height uint64) (*header.ExtendedHeader, error) {
+		return h, nil
+	}
+
+	service := NewService(nil, getters.NewIPLDGetter(bs), fn)
+	_, err = service.GetAll(ctx, 1, []share.Namespace{nid})
+	require.Error(t, err)
 }
 
 // BenchmarkGetByCommitment-12    	    1869	    571663 ns/op	 1085371 B/op	    6414 allocs/op
