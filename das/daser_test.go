@@ -283,7 +283,7 @@ func TestDASer_SamplingWindow(t *testing.T) {
 			assert.Equal(
 				t,
 				tt.withinWindow,
-				pruner.IsWithinAvailabilityWindow(eh.Time(), pruner.AvailabilityWindow(daser.params.SamplingWindow)),
+				pruner.IsWithinAvailabilityWindow(eh.Time(), daser.params.samplingWindow),
 			)
 		})
 	}
