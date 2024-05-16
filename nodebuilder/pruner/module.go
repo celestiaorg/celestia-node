@@ -17,13 +17,10 @@ import (
 func ConstructModule(tp node.Type, cfg *Config) fx.Option {
 	baseComponents := fx.Options(
 		fx.Supply(cfg),
+		availWindow(tp, cfg.EnableService),
 	)
 
-	if !cfg.EnableService {
-		return disabledPrunerComponents(tp, baseComponents)
-	}
-
-	baseComponents = fx.Options(
+	fullAndBridgeComponents := fx.Options(
 		baseComponents,
 		fx.Provide(fx.Annotate(
 			newPrunerService,
@@ -37,38 +34,39 @@ func ConstructModule(tp node.Type, cfg *Config) fx.Option {
 		// This is necessary to invoke the pruner service as independent thanks to a
 		// quirk in FX.
 		fx.Invoke(func(_ *pruner.Service) {}),
+		fx.Provide(func(store *eds.Store) pruner.Pruner {
+			return full.NewPruner(store)
+		}),
 	)
 
 	switch tp {
-	case node.Full:
-		return fx.Module("prune",
-			baseComponents,
-			fx.Provide(func(store *eds.Store) pruner.Pruner {
-				return full.NewPruner(store)
-			}),
-			fx.Provide(func() pruner.AvailabilityWindow {
-				return full.Window
-			}),
-		)
-	case node.Bridge:
-		return fx.Module("prune",
-			baseComponents,
-			fx.Provide(func(store *eds.Store) pruner.Pruner {
-				return full.NewPruner(store)
-			}),
-			fx.Provide(func() pruner.AvailabilityWindow {
-				return full.Window
-			}),
-			fx.Provide(func(window pruner.AvailabilityWindow) []core.Option {
-				return []core.Option{core.WithAvailabilityWindow(window)}
-			}),
-		)
 	// TODO: Eventually, light nodes will be capable of pruning samples
 	//  in which case, this can be enabled.
 	case node.Light:
 		return fx.Module("prune",
-			fx.Provide(func() pruner.AvailabilityWindow {
-				return light.Window
+			baseComponents,
+		)
+	case node.Full:
+		opts := baseComponents
+		if cfg.EnableService {
+			opts = fullAndBridgeComponents
+		}
+		return fx.Module("prune",
+			opts,
+		)
+	case node.Bridge:
+		if cfg.EnableService {
+			return fx.Module("prune",
+				fullAndBridgeComponents,
+				fx.Provide(func(window pruner.AvailabilityWindow) []core.Option {
+					return []core.Option{core.WithAvailabilityWindow(window)}
+				}),
+			)
+		}
+		return fx.Module("prune",
+			baseComponents,
+			fx.Provide(func() []core.Option {
+				return []core.Option{}
 			}),
 		)
 	default:
@@ -76,34 +74,21 @@ func ConstructModule(tp node.Type, cfg *Config) fx.Option {
 	}
 }
 
-func disabledPrunerComponents(tp node.Type, baseComponents fx.Option) fx.Option {
+func availWindow(tp node.Type, pruneEnabled bool) fx.Option {
 	switch tp {
 	case node.Light:
 		// light nodes are still subject to sampling within window
 		// even if pruning is not enabled.
-		return fx.Options(
-			baseComponents,
-			fx.Provide(func() pruner.AvailabilityWindow {
-				return light.Window
-			}),
-		)
-	case node.Full:
-		return fx.Options(
-			baseComponents,
-			fx.Provide(func() pruner.AvailabilityWindow {
-				return archival.Window
-			}),
-		)
-	case node.Bridge:
-		return fx.Options(
-			baseComponents,
-			fx.Provide(func() pruner.AvailabilityWindow {
-				return archival.Window
-			}),
-			fx.Provide(func() []core.Option {
-				return []core.Option{}
-			}),
-		)
+		return fx.Provide(func() pruner.AvailabilityWindow {
+			return light.Window
+		})
+	case node.Full, node.Bridge:
+		return fx.Provide(func() pruner.AvailabilityWindow {
+			if pruneEnabled {
+				return full.Window
+			}
+			return archival.Window
+		})
 	default:
 		panic("unknown node type")
 	}
