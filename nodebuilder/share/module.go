@@ -298,8 +298,12 @@ func archivalDiscoveryComponents(cfg *Config) fx.Option {
 			opt disc.Option,
 		) ([]*disc.Discovery, error) {
 			discConfig := *cfg.Discovery
-			if (tp == node.Bridge || tp == node.Full) && !pruneCfg.EnableService {
-				discConfig.EnableAdvertise = true
+			if tp == node.Bridge || tp == node.Full && pruneCfg.EnableService {
+				// TODO @renaynay: EnableAdvertise is true by default for bridges and fulls and
+				//  as there is no separation for configs per discovery instance, we have to
+				//  do this ugly check here to disable advertisement on the archival topic if
+				//  pruning is enabled.
+				discConfig.EnableAdvertise = false
 			}
 
 			archivalDisc, err := disc.NewDiscovery(
