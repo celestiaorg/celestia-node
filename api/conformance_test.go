@@ -75,7 +75,7 @@ func compareStructs(t *testing.T, structA, structB interface{}, moduleName strin
 	typeB := reflect.TypeOf(structB)
 
 	if typeA.NumField() != typeB.NumField() {
-		t.Fatalf("%s API has a comflicting number of fields: %d != %d", moduleName, typeA.NumField(), typeB.NumField())
+		t.Fatalf("%s API has a conflicting number of fields: %d != %d", moduleName, typeA.NumField(), typeB.NumField())
 	}
 
 	fieldsA := map[string]reflect.StructField{}
