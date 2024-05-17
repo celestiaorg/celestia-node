@@ -1,7 +1,6 @@
 package shwap
 
 import (
-	"crypto/sha256"
 	"fmt"
 
 	"github.com/celestiaorg/celestia-app/pkg/wrapper"
@@ -57,16 +56,18 @@ func (ns NamespacedData) Verify(root *share.Root, namespace share.Namespace) err
 }
 
 func (rnd RowNamespaceData) Validate(dah *share.Root, namespace share.Namespace, rowIdx int) error {
+	if rnd.Proof == nil || rnd.Proof.IsEmptyProof() {
+		return fmt.Errorf("nil proof for row %d", rowIdx)
+	}
+	if err := ValidateShares(rnd.Shares); err != nil {
+		return fmt.Errorf("invalid shares: %w", err)
+	}
+
 	if len(rnd.Shares) == 0 && !rnd.Proof.IsOfAbsence() {
 		return fmt.Errorf("empty shares with non-absence proof for row %d", rowIdx)
 	}
-
 	if len(rnd.Shares) > 0 && rnd.Proof.IsOfAbsence() {
 		return fmt.Errorf("non-empty shares with absence proof for row %d", rowIdx)
-	}
-
-	if err := ValidateShares(rnd.Shares); err != nil {
-		return fmt.Errorf("invalid shares: %w", err)
 	}
 
 	rowRoot := dah.RowRoots[rowIdx]
@@ -88,7 +89,7 @@ func (rnd RowNamespaceData) VerifyInclusion(rowRoot []byte, namespace share.Name
 		leaves = append(leaves, append(namespaceBytes, shr...))
 	}
 	return rnd.Proof.VerifyNamespace(
-		sha256.New(),
+		share.NewSHA256Hasher(),
 		namespace.ToNMT(),
 		leaves,
 		rowRoot,

@@ -1,7 +1,6 @@
 package shwap
 
 import (
-	"crypto/sha256"
 	"errors"
 	"fmt"
 
@@ -25,11 +24,11 @@ type Sample struct {
 // Validate checks the inclusion of the share using its Merkle proof under the specified root.
 // Returns an error if the proof is invalid or does not correspond to the indicated proof type.
 func (s *Sample) Validate(dah *share.Root, rowIdx, colIdx int) error {
+	if s.Proof == nil || s.Proof.IsEmptyProof() {
+		return errors.New("nil proof")
+	}
 	if err := share.ValidateShare(s.Share); err != nil {
 		return err
-	}
-	if s.Proof == nil {
-		return errors.New("nil proof")
 	}
 	if s.ProofType != rsmt2d.Row && s.ProofType != rsmt2d.Col {
 		return fmt.Errorf("invalid SampleProofType: %d", s.ProofType)
@@ -46,7 +45,7 @@ func (s *Sample) VerifyInclusion(dah *share.Root, rowIdx, colIdx int) bool {
 	namespace := inclusionNamespace(s.Share, rowIdx, colIdx, size)
 	rootHash := share.RootHashForCoordinates(dah, s.ProofType, uint(rowIdx), uint(colIdx))
 	return s.Proof.VerifyInclusion(
-		sha256.New(), // Utilizes sha256, should be consistent throughout the application.
+		share.NewSHA256Hasher(),
 		namespace.ToNMT(),
 		[][]byte{s.Share},
 		rootHash,
