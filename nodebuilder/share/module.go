@@ -5,25 +5,16 @@ import (
 
 	"github.com/ipfs/go-datastore"
 	"github.com/libp2p/go-libp2p/core/host"
-	"github.com/libp2p/go-libp2p/core/routing"
-	routingdisc "github.com/libp2p/go-libp2p/p2p/discovery/routing"
-	"github.com/libp2p/go-libp2p/p2p/net/conngater"
 	"go.uber.org/fx"
 
-	libhead "github.com/celestiaorg/go-header"
-	"github.com/celestiaorg/go-header/sync"
-
-	"github.com/celestiaorg/celestia-node/header"
 	"github.com/celestiaorg/celestia-node/nodebuilder/node"
 	modp2p "github.com/celestiaorg/celestia-node/nodebuilder/p2p"
-	modprune "github.com/celestiaorg/celestia-node/nodebuilder/pruner"
 	"github.com/celestiaorg/celestia-node/pruner"
 	"github.com/celestiaorg/celestia-node/share"
 	"github.com/celestiaorg/celestia-node/share/availability/full"
 	"github.com/celestiaorg/celestia-node/share/availability/light"
 	"github.com/celestiaorg/celestia-node/share/eds"
 	"github.com/celestiaorg/celestia-node/share/getters"
-	disc "github.com/celestiaorg/celestia-node/share/p2p/discovery"
 	"github.com/celestiaorg/celestia-node/share/p2p/peers"
 	"github.com/celestiaorg/celestia-node/share/p2p/shrexeds"
 	"github.com/celestiaorg/celestia-node/share/p2p/shrexnd"
@@ -39,20 +30,9 @@ func ConstructModule(tp node.Type, cfg *Config, options ...fx.Option) fx.Option 
 		fx.Error(cfgErr),
 		fx.Options(options...),
 		fx.Provide(newShareModule),
-		shrexSubComponents(),
-		shrexGetterComponents(cfg),
-		discoveryComponents(cfg),
-		peerManagerComponents(tp, cfg),
-	)
-
-	bridgeAndFullComponents := fx.Options(
-		fx.Provide(getters.NewStoreGetter),
-		shrexServerComponents(cfg),
-		edsStoreComponents(cfg),
-		fullAvailabilityComponents(),
-		fx.Provide(func(shrexSub *shrexsub.PubSub) shrexsub.BroadcastFn {
-			return shrexSub.Broadcast
-		}),
+		availabilityComponents(tp, cfg),
+		shrexComponents(tp, cfg),
+		peerComponents(tp, cfg),
 	)
 
 	switch tp {
@@ -60,24 +40,14 @@ func ConstructModule(tp node.Type, cfg *Config, options ...fx.Option) fx.Option 
 		return fx.Module(
 			"share",
 			baseComponents,
-			bridgeAndFullComponents,
-			fx.Provide(func() peers.Parameters {
-				return cfg.PeerManagerParams
-			}),
+			edsStoreComponents(cfg),
 			fx.Provide(bridgeGetter),
-			fx.Invoke(func(lc fx.Lifecycle, sub *shrexsub.PubSub) error {
-				lc.Append(fx.Hook{
-					OnStart: sub.Start,
-					OnStop:  sub.Stop,
-				})
-				return nil
-			}),
 		)
 	case node.Full:
 		return fx.Module(
 			"share",
 			baseComponents,
-			bridgeAndFullComponents,
+			edsStoreComponents(cfg),
 			fx.Provide(getters.NewIPLDGetter),
 			fx.Provide(fullGetter),
 		)
@@ -85,80 +55,20 @@ func ConstructModule(tp node.Type, cfg *Config, options ...fx.Option) fx.Option 
 		return fx.Module(
 			"share",
 			baseComponents,
-			lightAvailabilityComponents(cfg),
 			fx.Invoke(ensureEmptyEDSInBS),
 			fx.Provide(getters.NewIPLDGetter),
 			fx.Provide(lightGetter),
-			// shrexsub broadcaster stub for daser
-			fx.Provide(func() shrexsub.BroadcastFn {
-				return func(context.Context, shrexsub.Notification) error {
-					return nil
-				}
-			}),
 		)
 	default:
 		panic("invalid node type")
 	}
 }
 
-func peerManagerComponents(tp node.Type, cfg *Config) fx.Option {
-	archivalPeerMan := archivalPeerManager()
-	switch tp {
-	case node.Full, node.Light:
-		return fx.Options(
-			archivalPeerMan,
-			fx.Provide(func() peers.Parameters {
-				return cfg.PeerManagerParams
-			}),
-			fx.Provide(
-				func(
-					params peers.Parameters,
-					host host.Host,
-					connGater *conngater.BasicConnectionGater,
-					shrexSub *shrexsub.PubSub,
-					headerSub libhead.Subscriber[*header.ExtendedHeader],
-					// we must ensure Syncer is started before PeerManager
-					// so that Syncer registers header validator before PeerManager subscribes to headers
-					_ *sync.Syncer[*header.ExtendedHeader],
-				) (*peers.Manager, error) {
-					return peers.NewManager(
-						params,
-						host,
-						connGater,
-						peers.WithShrexSubPools(shrexSub, headerSub),
-						peers.WithTag(fullNodesTag),
-					)
-				},
-			),
-		)
-	case node.Bridge:
-		return fx.Options(
-			archivalPeerMan,
-			fx.Provide(func(
-				params peers.Parameters,
-				host host.Host,
-				connGater *conngater.BasicConnectionGater,
-			) (*peers.Manager, error) {
-				return peers.NewManager(params, host, connGater, peers.WithTag(fullNodesTag))
-			}),
-		)
-	default:
-		panic("invalid node type")
-	}
-}
-
-func shrexSubComponents() fx.Option {
-	return fx.Provide(
+func shrexComponents(tp node.Type, cfg *Config) fx.Option {
+	opts := fx.Provide(
 		func(ctx context.Context, h host.Host, network modp2p.Network) (*shrexsub.PubSub, error) {
 			return shrexsub.NewPubSub(ctx, h, network.String())
 		},
-	)
-}
-
-// shrexGetterComponents provides components for a shrex getter that
-// is capable of requesting
-func shrexGetterComponents(cfg *Config) fx.Option {
-	return fx.Options(
 		// shrex-nd client
 		fx.Provide(
 			func(host host.Host, network modp2p.Network) (*shrexnd.Client, error) {
@@ -195,6 +105,46 @@ func shrexGetterComponents(cfg *Config) fx.Option {
 			}),
 		)),
 	)
+
+	switch tp {
+	case node.Light:
+		return fx.Options(
+			opts,
+			// shrexsub broadcaster stub for daser
+			fx.Provide(func() shrexsub.BroadcastFn {
+				return func(context.Context, shrexsub.Notification) error {
+					return nil
+				}
+			}),
+		)
+	case node.Full:
+		return fx.Options(
+			opts,
+			shrexServerComponents(cfg),
+			fx.Provide(getters.NewStoreGetter),
+			fx.Provide(func(shrexSub *shrexsub.PubSub) shrexsub.BroadcastFn {
+				return shrexSub.Broadcast
+			}),
+		)
+	case node.Bridge:
+		return fx.Options(
+			opts,
+			shrexServerComponents(cfg),
+			fx.Provide(getters.NewStoreGetter),
+			fx.Provide(func(shrexSub *shrexsub.PubSub) shrexsub.BroadcastFn {
+				return shrexSub.Broadcast
+			}),
+			fx.Invoke(func(lc fx.Lifecycle, sub *shrexsub.PubSub) error {
+				lc.Append(fx.Hook{
+					OnStart: sub.Start,
+					OnStop:  sub.Stop,
+				})
+				return nil
+			}),
+		)
+	default:
+		panic("invalid node type")
+	}
 }
 
 func shrexServerComponents(cfg *Config) fx.Option {
@@ -251,115 +201,34 @@ func edsStoreComponents(cfg *Config) fx.Option {
 	)
 }
 
-func fullAvailabilityComponents() fx.Option {
-	return fx.Options(
-		fx.Provide(full.NewShareAvailability),
-		fx.Provide(func(avail *full.ShareAvailability) share.Availability {
-			return avail
-		}),
-	)
-}
-
-func lightAvailabilityComponents(cfg *Config) fx.Option {
-	return fx.Options(
-		fx.Provide(fx.Annotate(
-			light.NewShareAvailability,
-			fx.OnStop(func(ctx context.Context, la *light.ShareAvailability) error {
-				return la.Close(ctx)
-			}),
-		)),
-		fx.Provide(func() []light.Option {
-			return []light.Option{
-				light.WithSampleAmount(cfg.LightAvailability.SampleAmount),
-			}
-		}),
-		fx.Provide(func(avail *light.ShareAvailability) share.Availability {
-			return avail
-		}),
-	)
-}
-
-func discoveryComponents(cfg *Config) fx.Option {
-	return fx.Options(
-		discoveryManager(),
-		fx.Provide(newFullDiscovery),
-		archivalDiscoveryComponents(cfg),
-	)
-}
-
-func archivalDiscoveryComponents(cfg *Config) fx.Option {
-	return fx.Options(
-		fx.Provide(func(
-			tp node.Type,
-			pruneCfg *modprune.Config,
-			d *disc.Discovery,
-			h host.Host,
-			r routing.ContentRouting,
-			opt disc.Option,
-		) ([]*disc.Discovery, error) {
-			discConfig := *cfg.Discovery
-			if tp == node.Bridge || tp == node.Full && pruneCfg.EnableService {
-				// TODO @renaynay: EnableAdvertise is true by default for bridges and fulls and
-				//  as there is no separation for configs per discovery instance, we have to
-				//  do this ugly check here to disable advertisement on the archival topic if
-				//  pruning is enabled.
-				discConfig.EnableAdvertise = false
-			}
-
-			archivalDisc, err := disc.NewDiscovery(
-				&discConfig,
-				h,
-				routingdisc.NewRoutingDiscovery(r),
-				archivalNodesTag,
-				opt,
-			)
-			if err != nil {
-				return nil, err
-			}
-
-			return []*disc.Discovery{d, archivalDisc}, nil
-		}),
-	)
-}
-
-func archivalPeerManager() fx.Option {
-	return fx.Provide(func(
-		lc fx.Lifecycle,
-		params peers.Parameters,
-		h host.Host,
-		gater *conngater.BasicConnectionGater,
-		fullManager *peers.Manager,
-	) ([]*peers.Manager, []getters.Option, disc.Option, error) {
-		archivalPeerManager, err := peers.NewManager(params, h, gater, peers.WithTag(archivalNodesTag))
-		if err != nil {
-			return nil, nil, nil, err
-		}
-		lc.Append(fx.Hook{
-			OnStart: archivalPeerManager.Start,
-			OnStop:  archivalPeerManager.Stop,
-		})
-
-		managers := []*peers.Manager{fullManager, archivalPeerManager}
-		opts := []getters.Option{getters.WithArchivalPeerManager(archivalPeerManager)}
-		return managers, opts, disc.WithOnPeersUpdate(archivalPeerManager.UpdateNodePool), nil
-	})
-}
-
-func discoveryManager() fx.Option {
-	return fx.Options(
-		fx.Invoke(func(*disc.Manager) {}), // quirk in FX
-		fx.Provide(func(
-			lc fx.Lifecycle,
-			discs []*disc.Discovery,
-		) *disc.Manager {
-			manager := disc.NewManager(discs)
-			lc.Append(
-				fx.Hook{
-					OnStart: manager.Start,
-					OnStop:  manager.Stop,
+func availabilityComponents(tp node.Type, cfg *Config) fx.Option {
+	switch tp {
+	case node.Light:
+		return fx.Options(
+			fx.Provide(fx.Annotate(
+				func(getter share.Getter, ds datastore.Batching) *light.ShareAvailability {
+					return light.NewShareAvailability(
+						getter,
+						ds,
+						light.WithSampleAmount(cfg.LightAvailability.SampleAmount),
+					)
 				},
-			)
-			return manager
-		}),
-	)
+				fx.OnStop(func(ctx context.Context, la *light.ShareAvailability) error {
+					return la.Close(ctx)
+				}),
+			)),
+			fx.Provide(func(avail *light.ShareAvailability) share.Availability {
+				return avail
+			}),
+		)
+	case node.Bridge, node.Full:
+		return fx.Options(
+			fx.Provide(full.NewShareAvailability),
+			fx.Provide(func(avail *full.ShareAvailability) share.Availability {
+				return avail
+			}),
+		)
+	default:
+		panic("invalid node type")
+	}
 }

@@ -6,12 +6,12 @@ import (
 )
 
 type Manager struct {
-	discs []*Discovery
+	discs map[string]*Discovery
 
 	cancel context.CancelFunc
 }
 
-func NewManager(discs []*Discovery) *Manager {
+func NewManager(discs map[string]*Discovery) *Manager {
 	return &Manager{
 		discs: discs,
 	}
