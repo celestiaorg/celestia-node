@@ -525,6 +525,50 @@ func TestAllPaddingSharesInEDS(t *testing.T) {
 	require.Error(t, err)
 }
 
+func TestSkipPaddingsAndRetrieveBlob(t *testing.T) {
+	nid, err := share.NewBlobNamespaceV0(tmrand.Bytes(7))
+	require.NoError(t, err)
+	padding, err := shares.NamespacePaddingShare(nid.ToAppNamespace(), appconsts.ShareVersionZero)
+	require.NoError(t, err)
+
+	rawShares := make([]share.Share, 0, 64)
+	for i := 0; i < 58; i++ {
+		rawShares = append(rawShares, padding.ToBytes())
+	}
+
+	appBlob, err := blobtest.GenerateV0Blobs([]int{6}, true)
+	require.NoError(t, err)
+	appBlob[0].NamespaceVersion = nid[0]
+	appBlob[0].NamespaceID = nid[1:]
+
+	blobs, err := convertBlobs(appBlob...)
+	require.NoError(t, err)
+	sh, err := BlobsToShares(blobs[0])
+	require.NoError(t, err)
+
+	rawShares = append(rawShares, sh...)
+
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second*5)
+	t.Cleanup(cancel)
+
+	bs := ipld.NewMemBlockservice()
+	require.NoError(t, err)
+	eds, err := ipld.AddShares(ctx, rawShares, bs)
+	require.NoError(t, err)
+
+	h := headertest.ExtendedHeaderFromEDS(t, 1, eds)
+
+	fn := func(ctx context.Context, height uint64) (*header.ExtendedHeader, error) {
+		return h, nil
+	}
+
+	service := NewService(nil, getters.NewIPLDGetter(bs), fn)
+	newBlob, err := service.GetAll(ctx, 1, []share.Namespace{nid})
+	require.NoError(t, err)
+	require.Len(t, newBlob, 1)
+	require.True(t, newBlob[0].compareCommitments(blobs[0].Commitment))
+}
+
 // BenchmarkGetByCommitment-12    	    1869	    571663 ns/op	 1085371 B/op	    6414 allocs/op
 func BenchmarkGetByCommitment(b *testing.B) {
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second*5)

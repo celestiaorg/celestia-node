@@ -128,8 +128,8 @@ func (p *parser) skipPadding(shares []shares.Share) ([]shares.Share, error) {
 		}
 		offset++
 	}
-
-	p.index += offset
+	// set start index
+	p.index = offset
 	if len(shares) > offset {
 		return shares[offset:], nil
 	}
