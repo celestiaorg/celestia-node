@@ -117,19 +117,21 @@ func (p *parser) skipPadding(shares []shares.Share) ([]shares.Share, error) {
 		return nil, errEmptyShares
 	}
 
-	isPadding, err := shares[0].IsPadding()
-	if err != nil {
-		return nil, err
+	offset := 0
+	for _, sh := range shares {
+		isPadding, err := sh.IsPadding()
+		if err != nil {
+			return nil, err
+		}
+		if !isPadding {
+			break
+		}
+		offset++
 	}
-
-	if !isPadding {
-		return shares, nil
-	}
-
-	// update blob index if we are going to skip one share
-	p.index++
-	if len(shares) > 1 {
-		return shares[1:], nil
+	// set start index
+	p.index = offset
+	if len(shares) > offset {
+		return shares[offset:], nil
 	}
 	return nil, nil
 }
