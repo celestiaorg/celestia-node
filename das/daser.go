@@ -21,6 +21,11 @@ import (
 
 var log = logging.Logger("das")
 
+// errOutsideSamplingWindow is an error used to inform
+// the caller of Sample that the given header is outside
+// the sampling window.
+var errOutsideSamplingWindow = fmt.Errorf("skipping header outside of sampling window")
+
 // DASer continuously validates availability of data committed to headers.
 type DASer struct {
 	params Parameters
@@ -160,7 +165,7 @@ func (d *DASer) sample(ctx context.Context, h *header.ExtendedHeader) error {
 	if !d.isWithinSamplingWindow(h) {
 		log.Debugw("skipping header outside sampling window", "height", h.Height(),
 			"time", h.Time())
-		return nil
+		return errOutsideSamplingWindow
 	}
 
 	err := d.da.SharesAvailable(ctx, h)
@@ -180,10 +185,10 @@ func (d *DASer) sample(ctx context.Context, h *header.ExtendedHeader) error {
 
 func (d *DASer) isWithinSamplingWindow(eh *header.ExtendedHeader) bool {
 	// if sampling window is not set, then all headers are within the window
-	if d.params.SamplingWindow == 0 {
+	if d.params.samplingWindow.Duration() == 0 {
 		return true
 	}
-	return time.Since(eh.Time()) <= d.params.SamplingWindow
+	return time.Since(eh.Time()) <= d.params.samplingWindow.Duration()
 }
 
 // SamplingStats returns the current statistics over the DA sampling process.

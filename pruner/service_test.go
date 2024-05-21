@@ -188,7 +188,7 @@ func TestPrune_LargeNumberOfBlocks(t *testing.T) {
 	require.NoError(t, err)
 
 	// ensures availability window has passed
-	time.Sleep(time.Duration(availabilityWindow) + time.Millisecond*100)
+	time.Sleep(availabilityWindow.Duration() + time.Millisecond*100)
 
 	// trigger a prune job
 	lastPruned, err := serv.lastPruned(ctx)
@@ -273,7 +273,7 @@ func TestFindPruneableHeaders(t *testing.T) {
 			require.NoError(t, err)
 			require.Len(t, pruneable, tc.expectedLength)
 
-			pruneableCutoff := time.Now().Add(-time.Duration(tc.availWindow))
+			pruneableCutoff := time.Now().Add(-tc.availWindow.Duration())
 			// All returned headers are older than the availability window
 			for _, h := range pruneable {
 				require.WithinRange(t, h.Time(), tc.startTime, pruneableCutoff)

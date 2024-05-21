@@ -4,7 +4,7 @@ on:
   workflow_call:
     inputs:
       go-version:
-        description: 'Go version'
+        description: "Go version"
         required: true
         type: string
 
@@ -41,7 +41,7 @@ jobs:
           go-version: ${{ inputs.go-version }}
 
       - name: golangci-lint
-        uses: golangci/golangci-lint-action@v5.3.0
+        uses: golangci/golangci-lint-action@v6.0.1
         with:
           args: --timeout 10m
           version: v1.56
@@ -66,7 +66,7 @@ jobs:
         run: git diff --exit-code
 
   test_coverage:
-    needs: [lint, go_mod_tidy_check]
+    needs: [lint, go_mod_tidy_check, setup]
     name: Unit Tests Coverage
     strategy:
       fail-fast: false
