@@ -8,7 +8,7 @@ import (
 	"github.com/celestiaorg/rsmt2d"
 
 	"github.com/celestiaorg/celestia-node/share"
-	pb "github.com/celestiaorg/celestia-node/share/shwap/proto"
+	"github.com/celestiaorg/celestia-node/share/shwap/pb"
 )
 
 // RowSide enumerates the possible sides of a row within an Extended Data Square (EDS).

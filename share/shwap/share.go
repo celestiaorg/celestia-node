@@ -4,7 +4,7 @@ import (
 	"fmt"
 
 	"github.com/celestiaorg/celestia-node/share"
-	pb "github.com/celestiaorg/celestia-node/share/shwap/proto"
+	"github.com/celestiaorg/celestia-node/share/shwap/pb"
 )
 
 // ShareFromProto converts a protobuf Share object to the application's internal share

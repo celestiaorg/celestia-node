@@ -11,7 +11,7 @@ import (
 	"github.com/celestiaorg/rsmt2d"
 
 	"github.com/celestiaorg/celestia-node/share"
-	pb "github.com/celestiaorg/celestia-node/share/shwap/proto"
+	"github.com/celestiaorg/celestia-node/share/shwap/pb"
 )
 
 // Sample represents a data share along with its Merkle proof, used to validate the share's
