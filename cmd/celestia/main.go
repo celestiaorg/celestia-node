@@ -15,6 +15,7 @@ func WithSubcommands() func(*cobra.Command, []*pflag.FlagSet) {
 		c.AddCommand(
 			cmdnode.Init(flags...),
 			cmdnode.Start(cmdnode.WithFlagSet(flags)),
+			cmdnode.Run(cmdnode.WithFlagSet(flags)),
 			cmdnode.AuthCmd(flags...),
 			cmdnode.ResetStore(flags...),
 			cmdnode.RemoveConfigCmd(flags...),
