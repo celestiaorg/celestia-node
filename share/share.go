@@ -40,6 +40,14 @@ func GetData(s Share) []byte {
 	return s[NamespaceSize:]
 }
 
+// ValidateShare checks the size of a given share.
+func ValidateShare(s Share) error {
+	if len(s) != Size {
+		return fmt.Errorf("invalid share size: %d", len(s))
+	}
+	return nil
+}
+
 // ShareWithProof contains data with corresponding Merkle Proof
 type ShareWithProof struct { //nolint: revive
 	// Share is a full data including namespace
@@ -100,4 +108,12 @@ func MustDataHashFromString(datahash string) DataHash {
 // NewSHA256Hasher returns a new instance of a SHA-256 hasher.
 func NewSHA256Hasher() hash.Hash {
 	return sha256.New()
+}
+
+// RootHashForCoordinates returns the root hash for the given coordinates.
+func RootHashForCoordinates(r *Root, axisType rsmt2d.Axis, rowIdx, colIdx uint) []byte {
+	if axisType == rsmt2d.Row {
+		return r.RowRoots[rowIdx]
+	}
+	return r.ColumnRoots[colIdx]
 }
