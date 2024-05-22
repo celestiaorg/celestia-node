@@ -25,7 +25,10 @@ Options passed on start override configuration options only on start and are not
 
 			ctx, cancel := signal.NotifyContext(cmd.Context(), syscall.SIGINT, syscall.SIGTERM)
 			defer cancel()
-			node.Start(ctx)
+			err = node.Start(ctx)
+			if err != nil {
+				return err
+			}
 			<-ctx.Done()
 			cancel() // ensure we stop reading more signals for start context
 
