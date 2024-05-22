@@ -65,10 +65,11 @@ func ConstructModule(tp node.Type, cfg *Config, options ...fx.Option) fx.Option 
 }
 
 func shrexComponents(tp node.Type, cfg *Config) fx.Option {
-	opts := fx.Provide(
-		func(ctx context.Context, h host.Host, network modp2p.Network) (*shrexsub.PubSub, error) {
-			return shrexsub.NewPubSub(ctx, h, network.String())
-		},
+	opts := fx.Options(
+		fx.Provide(
+			func(ctx context.Context, h host.Host, network modp2p.Network) (*shrexsub.PubSub, error) {
+				return shrexsub.NewPubSub(ctx, h, network.String())
+			}),
 		// shrex-nd client
 		fx.Provide(
 			func(host host.Host, network modp2p.Network) (*shrexnd.Client, error) {
@@ -90,12 +91,16 @@ func shrexComponents(tp node.Type, cfg *Config) fx.Option {
 			func(
 				edsClient *shrexeds.Client,
 				ndClient *shrexnd.Client,
-				man *peers.Manager,
+				managers map[string]*peers.Manager,
 				window pruner.AvailabilityWindow,
-				opts []getters.Option,
 			) *getters.ShrexGetter {
-				opts = append(opts, getters.WithAvailabilityWindow(window))
-				return getters.NewShrexGetter(edsClient, ndClient, man, opts...)
+				return getters.NewShrexGetter(
+					edsClient,
+					ndClient,
+					managers[fullNodesTag],
+					managers[archivalNodesTag],
+					getters.WithAvailabilityWindow(window),
+				)
 			},
 			fx.OnStart(func(ctx context.Context, getter *getters.ShrexGetter) error {
 				return getter.Start(ctx)

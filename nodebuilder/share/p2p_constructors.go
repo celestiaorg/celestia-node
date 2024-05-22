@@ -30,7 +30,7 @@ const (
 func peerComponents(tp node.Type, cfg *Config) fx.Option {
 	return fx.Options(
 		discoveryManager(),
-		fullDiscoveryAndPeerManager(tp),
+		fullDiscoveryAndPeerManager(tp, cfg),
 		archivalDiscoveryAndPeerManager(tp, cfg),
 	)
 }
@@ -57,10 +57,9 @@ func discoveryManager() fx.Option {
 // fullDiscoveryAndPeerManager builds the discovery instance and peer manager
 // for the `full` tag. Every node type (Light, Full, and Bridge) must discovery
 // `full` nodes on the network.
-func fullDiscoveryAndPeerManager(tp node.Type) fx.Option {
+func fullDiscoveryAndPeerManager(tp node.Type, cfg *Config) fx.Option {
 	return fx.Provide(
 		func(
-			cfg *Config,
 			host host.Host,
 			r routing.ContentRouting,
 			connGater *conngater.BasicConnectionGater,
@@ -110,10 +109,11 @@ func archivalDiscoveryAndPeerManager(tp node.Type, cfg *Config) fx.Option {
 			lc fx.Lifecycle,
 			pruneCfg *modprune.Config,
 			d *disc.Discovery,
+			manager *peers.Manager,
 			h host.Host,
 			r routing.ContentRouting,
 			gater *conngater.BasicConnectionGater,
-		) (map[string]*disc.Discovery, error) {
+		) (map[string]*disc.Discovery, map[string]*peers.Manager, error) {
 			archivalPeerManager, err := peers.NewManager(
 				cfg.PeerManagerParams,
 				h,
@@ -121,7 +121,7 @@ func archivalDiscoveryAndPeerManager(tp node.Type, cfg *Config) fx.Option {
 				peers.WithTag(archivalNodesTag),
 			)
 			if err != nil {
-				return nil, err
+				return nil, nil, err
 			}
 			lc.Append(fx.Hook{
 				OnStart: archivalPeerManager.Start,
@@ -146,9 +146,12 @@ func archivalDiscoveryAndPeerManager(tp node.Type, cfg *Config) fx.Option {
 				disc.WithOnPeersUpdate(archivalPeerManager.UpdateNodePool),
 			)
 			if err != nil {
-				return nil, err
+				return nil, nil, err
 			}
 
-			return map[string]*disc.Discovery{fullNodesTag: d, archivalNodesTag: archivalDisc}, nil
+			discoveries := map[string]*disc.Discovery{fullNodesTag: d, archivalNodesTag: archivalDisc}
+			managers := map[string]*peers.Manager{fullNodesTag: manager, archivalNodesTag: archivalPeerManager}
+
+			return discoveries, managers, nil
 		})
 }

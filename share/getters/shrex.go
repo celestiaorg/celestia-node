@@ -91,8 +91,7 @@ type ShrexGetter struct {
 	edsClient *shrexeds.Client
 	ndClient  *shrexnd.Client
 
-	fullPeerManager *peers.Manager
-	// optional, non-nil when archival service is enabled
+	fullPeerManager     *peers.Manager
 	archivalPeerManager *peers.Manager
 
 	// minRequestTimeout limits minimal timeout given to single peer by getter for serving the request.
@@ -109,15 +108,17 @@ type ShrexGetter struct {
 func NewShrexGetter(
 	edsClient *shrexeds.Client,
 	ndClient *shrexnd.Client,
-	peerManager *peers.Manager,
+	fullPeerManager *peers.Manager,
+	archivalManager *peers.Manager,
 	opts ...Option,
 ) *ShrexGetter {
 	s := &ShrexGetter{
-		edsClient:         edsClient,
-		ndClient:          ndClient,
-		fullPeerManager:   peerManager,
-		minRequestTimeout: defaultMinRequestTimeout,
-		minAttemptsCount:  defaultMinAttemptsCount,
+		edsClient:           edsClient,
+		ndClient:            ndClient,
+		fullPeerManager:     fullPeerManager,
+		archivalPeerManager: archivalManager,
+		minRequestTimeout:   defaultMinRequestTimeout,
+		minAttemptsCount:    defaultMinAttemptsCount,
 		// shrex-getter uses the sampling window rather than the pruning window
 		// to route requests (as the pruning window acts as a buffer for block
 		// retention)
@@ -295,7 +296,7 @@ func (sg *ShrexGetter) getPeer(
 	ctx context.Context,
 	header *header.ExtendedHeader,
 ) (libpeer.ID, peers.DoneFunc, error) {
-	if sg.archivalPeerManager != nil && !pruner.IsWithinAvailabilityWindow(header.Time(), sg.availabilityWindow) {
+	if !pruner.IsWithinAvailabilityWindow(header.Time(), sg.availabilityWindow) {
 		p, df, err := sg.archivalPeerManager.Peer(ctx, header.DAH.Hash(), header.Height())
 		return p, df, err
 	}
