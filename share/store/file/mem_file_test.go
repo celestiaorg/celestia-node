@@ -1,4 +1,4 @@
-package store
+package file
 
 import (
 	"context"
@@ -19,13 +19,12 @@ func TestMemFileShare(t *testing.T) {
 	fl := &MemFile{Eds: eds}
 
 	width := int(eds.Width())
-	for x := 0; x < width; x++ {
-		for y := 0; y < width; y++ {
-			shr, err := fl.Share(context.TODO(), x, y)
+	for rowIdx := 0; rowIdx < width; rowIdx++ {
+		for colIdx := 0; colIdx < width; colIdx++ {
+			shr, err := fl.Share(context.TODO(), rowIdx, colIdx)
 			require.NoError(t, err)
 
-			axishash := root.RowRoots[y]
-			ok := shr.Validate(axishash, x, y, width)
+			ok := shr.VerifyInclusion(root, rowIdx, colIdx)
 			require.True(t, ok)
 		}
 	}
@@ -45,7 +44,7 @@ func TestMemFileDate(t *testing.T) {
 		if !namespace.IsOutsideRange(root, root) {
 			nd, err := file.Data(context.Background(), namespace, i)
 			require.NoError(t, err)
-			ok := nd.Verify(root, namespace)
+			ok := nd.VerifyInclusion(root, namespace)
 			require.True(t, ok)
 		}
 	}

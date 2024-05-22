@@ -174,8 +174,7 @@ func TestGetSharesByNamespace(t *testing.T) {
 			rowRoots, err := eds.RowRoots()
 			require.NoError(t, err)
 			for _, row := range rowRoots {
-				rcid := MustCidFromNamespacedSha256(row)
-				rowShares, _, err := GetSharesByNamespace(ctx, bServ, rcid, namespace, len(rowRoots))
+				rowShares, _, err := GetSharesByNamespace(ctx, bServ, row, namespace, len(rowRoots))
 				if errors.Is(err, ErrNamespaceOutsideRange) {
 					continue
 				}
@@ -363,8 +362,7 @@ func TestGetSharesWithProofsByNamespace(t *testing.T) {
 			rowRoots, err := eds.RowRoots()
 			require.NoError(t, err)
 			for _, row := range rowRoots {
-				rcid := MustCidFromNamespacedSha256(row)
-				rowShares, proof, err := GetSharesByNamespace(ctx, bServ, rcid, namespace, len(rowRoots))
+				rowShares, proof, err := GetSharesByNamespace(ctx, bServ, row, namespace, len(rowRoots))
 				if namespace.IsOutsideRange(row, row) {
 					require.ErrorIs(t, err, ErrNamespaceOutsideRange)
 					continue
@@ -386,7 +384,7 @@ func TestGetSharesWithProofsByNamespace(t *testing.T) {
 						share.NewSHA256Hasher(),
 						namespace.ToNMT(),
 						leaves,
-						NamespacedSha256FromCID(rcid))
+						row)
 					require.True(t, verified)
 
 					// verify inclusion
@@ -394,7 +392,7 @@ func TestGetSharesWithProofsByNamespace(t *testing.T) {
 						share.NewSHA256Hasher(),
 						namespace.ToNMT(),
 						rowShares,
-						NamespacedSha256FromCID(rcid))
+						row)
 					require.True(t, verified)
 				}
 			}
