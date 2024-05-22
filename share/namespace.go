@@ -185,9 +185,9 @@ func (n Namespace) IsGreaterOrEqualThan(target Namespace) bool {
 	return bytes.Compare(n, target) > -1
 }
 
-// Add adds arbitrary int value to namespace, treating namespace as big-endian
+// AddInt adds arbitrary int value to namespace, treating namespace as big-endian
 // implementation of int
-func (n Namespace) Add(val int) (Namespace, error) {
+func (n Namespace) AddInt(val int) (Namespace, error) {
 	if val == 0 {
 		return n, nil
 	}

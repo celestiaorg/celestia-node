@@ -39,7 +39,7 @@ func TestNamespacedRowFromSharesNonIncluded(t *testing.T) {
 	const odsSize = 8
 	// Test absent namespace
 	shares := sharetest.RandShares(t, odsSize)
-	absentNs, err := share.GetNamespace(shares[0]).Add(1)
+	absentNs, err := share.GetNamespace(shares[0]).AddInt(1)
 	require.NoError(t, err)
 
 	parity, err := share.DefaultRSMT2DCodec().Encode(shares)
