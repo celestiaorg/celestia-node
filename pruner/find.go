@@ -31,8 +31,9 @@ func (s *Service) findPruneableHeaders(
 		return nil, err
 	}
 
-	if lastPruned.Height() == estimatedCutoffHeight {
-		// nothing left to prune
+	// estimatedCutoffHeight must be at least greater than lastPruned.Height()+1
+	// to continue, otherwise, there is nothing left to prune
+	if estimatedCutoffHeight <= lastPruned.Height()+1 {
 		return nil, nil
 	}
 
