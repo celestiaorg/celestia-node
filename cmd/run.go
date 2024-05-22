@@ -1,6 +1,9 @@
 package cmd
 
 import (
+	"os/signal"
+	"syscall"
+
 	"github.com/spf13/cobra"
 )
 
@@ -26,14 +29,15 @@ func Run(options ...func(*cobra.Command)) *cobra.Command {
 				return err
 			}
 
-			go func() {
-				ctx := node.Start(ctx)
-				<-ctx.Done()
-				node.Stop(ctx)
-			}()
+			ctx, cancel := signal.NotifyContext(cmd.Context(), syscall.SIGINT, syscall.SIGTERM)
+			defer cancel()
+			node.Start(ctx)
+			<-ctx.Done()
+			cancel() // ensure we stop reading more signals for start context
 
-			err = <-node.Errors()
-			return err
+			ctx, cancel = signal.NotifyContext(cmd.Context(), syscall.SIGINT, syscall.SIGTERM)
+			defer cancel()
+			return node.Stop(ctx)
 		},
 	}
 	// Apply each passed option to the command

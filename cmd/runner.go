@@ -3,9 +3,7 @@ package cmd
 import (
 	"context"
 	"os"
-	"os/signal"
 	"path/filepath"
-	"syscall"
 
 	"github.com/celestiaorg/celestia-app/app"
 	"github.com/celestiaorg/celestia-app/app/encoding"
@@ -44,71 +42,44 @@ func (r *Runner) Init(ctx context.Context) error {
 	return nodebuilder.Init(config, StorePath(ctx), NodeType(ctx))
 }
 
-func (r *Runner) Start(ctx context.Context) context.Context {
-	ctx, cancel := signal.NotifyContext(ctx, syscall.SIGINT, syscall.SIGTERM)
+func (r *Runner) Start(ctx context.Context) error {
+	storePath := StorePath(ctx)
+	keysPath := filepath.Join(storePath, "keys")
 
-	go func() {
-		defer cancel()
+	encConf := encoding.MakeConfig(app.ModuleEncodingRegisters...)
+	ring, err := keyring.New(
+		app.Name,
+		r.config.State.KeyringBackend,
+		keysPath,
+		os.Stdin,
+		encConf.Codec,
+	)
+	if err != nil {
+		return err
+	}
 
-		storePath := StorePath(ctx)
-		keysPath := filepath.Join(storePath, "keys")
+	store, err := nodebuilder.OpenStore(storePath, ring)
+	if err != nil {
+		return err
+	}
 
-		encConf := encoding.MakeConfig(app.ModuleEncodingRegisters...)
-		ring, err := keyring.New(
-			app.Name,
-			r.config.State.KeyringBackend,
-			keysPath,
-			os.Stdin,
-			encConf.Codec,
-		)
-		if err != nil {
-			r.errChan <- err
-			return
-		}
+	node, err := nodebuilder.NewWithConfig(
+		NodeType(ctx),
+		Network(ctx),
+		store,
+		r.config,
+		NodeOptions(ctx)...,
+	)
+	if err != nil {
+		return err
+	}
 
-		store, err := nodebuilder.OpenStore(storePath, ring)
-		if err != nil {
-			r.errChan <- err
-			return
-		}
+	r.store = store
+	r.node = node
 
-		node, err := nodebuilder.NewWithConfig(
-			NodeType(ctx),
-			Network(ctx),
-			store,
-			r.config,
-			NodeOptions(ctx)...,
-		)
-		if err != nil {
-			r.errChan <- err
-			return
-		}
-
-		r.store = store
-		r.node = node
-
-		err = r.node.Start(ctx)
-		if err != nil {
-			r.errChan <- err
-			return
-		}
-	}()
-
-	return ctx
+	return r.node.Start(ctx)
 }
 
-func (r *Runner) Stop(ctx context.Context) <-chan struct{} {
-	ctx, cancel := signal.NotifyContext(ctx, syscall.SIGINT, syscall.SIGTERM)
-
-	go func() {
-		defer cancel()
-
-		err := r.node.Stop(ctx)
-		if err != nil {
-			r.errChan <- err
-			return
-		}
-	}()
-
-	return ctx.Done()
+func (r *Runner) Stop(ctx context.Context) error {
+	return r.node.Stop(ctx)
 }
