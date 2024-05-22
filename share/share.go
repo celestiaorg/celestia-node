@@ -117,3 +117,16 @@ func RootHashForCoordinates(r *Root, axisType rsmt2d.Axis, rowIdx, colIdx uint) 
 	}
 	return r.ColumnRoots[colIdx]
 }
+
+// FilterRootByNamespace returns the row roots from the given share.Root that contain the namespace.
+// It also returns the half open range of the roots that contain the namespace.
+func FilterRootByNamespace(root *Root, namespace Namespace) (rowRoots [][]byte, from, to int) {
+	for i, rowRoot := range root.RowRoots {
+		if !namespace.IsOutsideRange(rowRoot, rowRoot) {
+			rowRoots = append(rowRoots, rowRoot)
+			to = i
+		}
+	}
+	to++
+	return rowRoots, to - len(rowRoots), to
+}
