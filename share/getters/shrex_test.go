@@ -258,6 +258,7 @@ func testManager(
 		peers.DefaultParameters(),
 		host,
 		connGater,
+		"test",
 		peers.WithShrexSubPools(shrexSub, headerSub),
 	)
 	return manager, err

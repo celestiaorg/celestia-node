@@ -69,18 +69,18 @@ func fullDiscoveryAndPeerManager(tp node.Type, cfg *Config) fx.Option {
 			// so that Syncer registers header validator before PeerManager subscribes to headers
 			_ *sync.Syncer[*header.ExtendedHeader],
 		) (*peers.Manager, *disc.Discovery, error) {
-			managerOpts := []peers.Option{peers.WithTag(fullNodesTag)}
+			var managerOpts []peers.Option
 			if tp != node.Bridge {
 				// BNs do not need the overhead of shrexsub peer pools as
 				// BNs do not sync blocks off the DA network.
 				managerOpts = append(managerOpts, peers.WithShrexSubPools(shrexSub, headerSub))
 			}
 
-			// TODO @renaynay: where is this manager's lifecycle managed?
 			fullManager, err := peers.NewManager(
 				cfg.PeerManagerParams,
 				host,
 				connGater,
+				fullNodesTag,
 				managerOpts...,
 			)
 			if err != nil {
@@ -124,7 +124,7 @@ func archivalDiscoveryAndPeerManager(tp node.Type, cfg *Config) fx.Option {
 				cfg.PeerManagerParams,
 				h,
 				gater,
-				peers.WithTag(archivalNodesTag),
+				archivalNodesTag,
 			)
 			if err != nil {
 				return nil, nil, err

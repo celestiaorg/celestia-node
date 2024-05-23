@@ -82,10 +82,3 @@ func (m *Manager) WithMetrics() error {
 	m.metrics = metrics
 	return nil
 }
-
-func WithTag(tag string) func(manager *Manager) error {
-	return func(m *Manager) error {
-		m.tag = tag
-		return nil
-	}
-}

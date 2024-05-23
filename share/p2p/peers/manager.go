@@ -104,6 +104,7 @@ func NewManager(
 	params Parameters,
 	host host.Host,
 	connGater *conngater.BasicConnectionGater,
+	tag string,
 	options ...Option,
 ) (*Manager, error) {
 	if err := params.Validate(); err != nil {
@@ -118,6 +119,7 @@ func NewManager(
 		blacklistedHashes:     make(map[string]bool),
 		headerSubDone:         make(chan struct{}),
 		disconnectedPeersDone: make(chan struct{}),
+		tag:                   tag,
 	}
 
 	for _, opt := range options {
