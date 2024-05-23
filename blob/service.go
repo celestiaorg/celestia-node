@@ -111,8 +111,8 @@ func (s *Service) Submit(ctx context.Context, blobs []*Blob, gasPrice GasPrice) 
 }
 
 // Get retrieves all the blobs for given namespaces at the given height by commitment.
-// Get collects all namespaced data from the EDS, construct blobs
-// and compare commitments. `ErrBlobNotFound` can be returned in case blob was not found.
+// Get collects all namespaced data from the EDS, constructs blobs
+// and compares commitments. `ErrBlobNotFound` can be returned in case blob was not found.
 func (s *Service) Get(
 	ctx context.Context,
 	height uint64,

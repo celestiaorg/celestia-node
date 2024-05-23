@@ -7,7 +7,7 @@ import (
 	"github.com/celestiaorg/celestia-app/pkg/shares"
 )
 
-// parser helps to collect shares and transform them into blob.
+// parser helps to collect shares and transform them into a blob.
 // It can handle only one blob at a time.
 type parser struct {
 	// index is a position of the blob inside the EDS.
