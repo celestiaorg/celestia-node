@@ -39,11 +39,8 @@ func DefaultConfig(tp node.Type) Config {
 		PeerManagerParams: peers.DefaultParameters(),
 	}
 
-	switch tp {
-	case node.Light:
+	if tp == node.Light {
 		cfg.LightAvailability = light.DefaultParameters()
-	case node.Full, node.Bridge:
-		cfg.Discovery.EnableAdvertise = true
 	}
 
 	return cfg

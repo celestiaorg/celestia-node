@@ -87,12 +87,19 @@ func fullDiscoveryAndPeerManager(tp node.Type, cfg *Config) fx.Option {
 				return nil, nil, err
 			}
 
+			discOpts := []disc.Option{disc.WithOnPeersUpdate(fullManager.UpdateNodePool)}
+
+			if tp != node.Light {
+				// only FN and BNs should advertise to `full` topic
+				discOpts = append(discOpts, disc.WithAdvertise())
+			}
+
 			fullDisc, err := disc.NewDiscovery(
 				cfg.Discovery,
 				host,
 				routingdisc.NewRoutingDiscovery(r),
 				fullNodesTag,
-				disc.WithOnPeersUpdate(fullManager.UpdateNodePool),
+				discOpts...,
 			)
 			if err != nil {
 				return nil, nil, err
@@ -102,7 +109,7 @@ func fullDiscoveryAndPeerManager(tp node.Type, cfg *Config) fx.Option {
 		})
 }
 
-// TODO @renaynay: doc
+// archivalDiscoveryAndPeerManager TODO @renaynay
 func archivalDiscoveryAndPeerManager(tp node.Type, cfg *Config) fx.Option {
 	return fx.Provide(
 		func(
@@ -128,22 +135,18 @@ func archivalDiscoveryAndPeerManager(tp node.Type, cfg *Config) fx.Option {
 				OnStop:  archivalPeerManager.Stop,
 			})
 
-			discConfig := *cfg.Discovery
-			if tp == node.Bridge || tp == node.Full && pruneCfg.EnableService {
-				// TODO @renaynay: REMOVE THIS
-				// TODO @renaynay: EnableAdvertise is true by default for bridges and fulls and
-				//  as there is no separation for configs per discovery instance, we have to
-				//  do this ugly check here to disable advertisement on the archival topic if
-				//  pruning is enabled.
-				discConfig.EnableAdvertise = false
+			discOpts := []disc.Option{disc.WithOnPeersUpdate(archivalPeerManager.UpdateNodePool)}
+
+			if (tp == node.Bridge || tp == node.Full) && !pruneCfg.EnableService {
+				discOpts = append(discOpts, disc.WithAdvertise())
 			}
 
 			archivalDisc, err := disc.NewDiscovery(
-				&discConfig,
+				cfg.Discovery,
 				h,
 				routingdisc.NewRoutingDiscovery(r),
 				archivalNodesTag,
-				disc.WithOnPeersUpdate(archivalPeerManager.UpdateNodePool),
+				discOpts...,
 			)
 			if err != nil {
 				return nil, nil, err

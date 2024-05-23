@@ -48,8 +48,11 @@ type Discovery struct {
 	host      host.Host
 	disc      discovery.Discovery
 	connector *backoffConnector
+
 	// onUpdatedPeers will be called on peer set changes
 	onUpdatedPeers OnUpdatedPeers
+	// indicates whether the
+	advertise bool
 
 	triggerDisc chan struct{}
 
@@ -92,6 +95,7 @@ func NewDiscovery(
 		disc:           d,
 		connector:      newBackoffConnector(h, defaultBackoffFactory),
 		onUpdatedPeers: o.onUpdatedPeers,
+		advertise:      o.advertise,
 		params:         params,
 		triggerDisc:    make(chan struct{}),
 	}, nil

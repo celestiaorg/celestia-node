@@ -31,7 +31,7 @@ func (m *Manager) Start(ctx context.Context) error {
 		}
 		log.Infow("starting discovery", "topic", d.tag)
 
-		if d.params.EnableAdvertise {
+		if d.advertise {
 			log.Infow("advertising to topic", "topic", d.tag)
 			go d.Advertise(advertiseCtx)
 		}

@@ -12,9 +12,6 @@ type Parameters struct {
 	// PeersLimit defines the soft limit of FNs to connect to via discovery.
 	// Set 0 to disable.
 	PeersLimit uint
-	// EnableAdvertise enables advertisement on the Discovery instance's
-	// topic
-	EnableAdvertise bool
 	// AdvertiseInterval is a interval between advertising sessions.
 	// NOTE: only full and bridge can advertise themselves.
 	AdvertiseInterval time.Duration
@@ -24,6 +21,9 @@ type Parameters struct {
 type options struct {
 	// onUpdatedPeers will be called on peer set changes
 	onUpdatedPeers OnUpdatedPeers
+	// advertise indicates whether the node should also
+	// advertise to the discovery instance's topic
+	advertise bool
 }
 
 // Option is a function that configures Discovery Parameters
@@ -34,7 +34,6 @@ type Option func(*options)
 func DefaultParameters() *Parameters {
 	return &Parameters{
 		PeersLimit:        5,
-		EnableAdvertise:   false,
 		AdvertiseInterval: time.Hour,
 	}
 }
@@ -58,9 +57,16 @@ func WithOnPeersUpdate(f OnUpdatedPeers) Option {
 	}
 }
 
+func WithAdvertise() Option {
+	return func(p *options) {
+		p.advertise = true
+	}
+}
+
 func newOptions(opts ...Option) *options {
 	defaults := &options{
 		onUpdatedPeers: func(peer.ID, bool) {},
+		advertise:      false,
 	}
 
 	for _, opt := range opts {
