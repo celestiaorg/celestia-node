@@ -17,7 +17,6 @@ import (
 	"github.com/celestiaorg/celestia-node/header"
 	"github.com/celestiaorg/celestia-node/libs/utils"
 	"github.com/celestiaorg/celestia-node/pruner"
-	"github.com/celestiaorg/celestia-node/pruner/light"
 	"github.com/celestiaorg/celestia-node/share"
 	"github.com/celestiaorg/celestia-node/share/ipld"
 	"github.com/celestiaorg/celestia-node/share/p2p"
@@ -110,7 +109,7 @@ func NewShrexGetter(
 	ndClient *shrexnd.Client,
 	fullPeerManager *peers.Manager,
 	archivalManager *peers.Manager,
-	opts ...Option,
+	availWindow pruner.AvailabilityWindow,
 ) *ShrexGetter {
 	s := &ShrexGetter{
 		edsClient:           edsClient,
@@ -119,24 +118,26 @@ func NewShrexGetter(
 		archivalPeerManager: archivalManager,
 		minRequestTimeout:   defaultMinRequestTimeout,
 		minAttemptsCount:    defaultMinAttemptsCount,
-		// shrex-getter uses the sampling window rather than the pruning window
-		// to route requests (as the pruning window acts as a buffer for block
-		// retention)
-		availabilityWindow: light.Window,
+		availabilityWindow:  availWindow,
 	}
 
-	for _, opt := range opts {
-		opt(s)
-	}
 	return s
 }
 
 func (sg *ShrexGetter) Start(ctx context.Context) error {
-	return sg.fullPeerManager.Start(ctx)
+	err := sg.fullPeerManager.Start(ctx)
+	if err != nil {
+		return err
+	}
+	return sg.archivalPeerManager.Start(ctx)
 }
 
 func (sg *ShrexGetter) Stop(ctx context.Context) error {
-	return sg.fullPeerManager.Stop(ctx)
+	err := sg.fullPeerManager.Stop(ctx)
+	if err != nil {
+		return err
+	}
+	return sg.archivalPeerManager.Stop(ctx)
 }
 
 func (sg *ShrexGetter) GetShare(context.Context, *header.ExtendedHeader, int, int) (share.Share, error) {

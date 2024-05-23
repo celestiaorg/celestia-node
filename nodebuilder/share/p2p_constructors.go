@@ -113,7 +113,6 @@ func fullDiscoveryAndPeerManager(tp node.Type, cfg *Config) fx.Option {
 func archivalDiscoveryAndPeerManager(tp node.Type, cfg *Config) fx.Option {
 	return fx.Provide(
 		func(
-			lc fx.Lifecycle,
 			pruneCfg *modprune.Config,
 			d *disc.Discovery,
 			manager *peers.Manager,
@@ -130,10 +129,6 @@ func archivalDiscoveryAndPeerManager(tp node.Type, cfg *Config) fx.Option {
 			if err != nil {
 				return nil, nil, err
 			}
-			lc.Append(fx.Hook{
-				OnStart: archivalPeerManager.Start,
-				OnStop:  archivalPeerManager.Stop,
-			})
 
 			discOpts := []disc.Option{disc.WithOnPeersUpdate(archivalPeerManager.UpdateNodePool)}
 

@@ -99,7 +99,10 @@ func shrexComponents(tp node.Type, cfg *Config) fx.Option {
 					ndClient,
 					managers[fullNodesTag],
 					managers[archivalNodesTag],
-					getters.WithAvailabilityWindow(window),
+					// TODO @renaynay: Pruned FNs should pass `light.Window` to shrex getter
+					//  best route requests (as full.Window serves as a buffer for serving data while
+					//  the request router itself should just stick to light.Window)
+					window,
 				)
 			},
 			fx.OnStart(func(ctx context.Context, getter *getters.ShrexGetter) error {
