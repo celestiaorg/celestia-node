@@ -110,9 +110,9 @@ func RowFromProto(r *pb.Row) Row {
 	}
 }
 
-// NewRowFromEDS constructs a new Row from an Extended Data Square based on the specified index and
+// RowFromEDS constructs a new Row from an Extended Data Square based on the specified index and
 // side.
-func NewRowFromEDS(square *rsmt2d.ExtendedDataSquare, idx int, side RowSide) Row {
+func RowFromEDS(square *rsmt2d.ExtendedDataSquare, idx int, side RowSide) Row {
 	sqrLn := int(square.Width())
 	shares := square.Row(uint(idx))
 	var halfShares []share.Share
