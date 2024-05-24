@@ -33,22 +33,17 @@ type RowNamespaceData struct {
 
 // Verify checks the integrity of the NamespacedData against a provided root and namespace.
 func (ns NamespacedData) Verify(root *share.Root, namespace share.Namespace) error {
-	var originalRoots [][]byte
-	for _, rowRoot := range root.RowRoots {
-		if !namespace.IsOutsideRange(rowRoot, rowRoot) {
-			originalRoots = append(originalRoots, rowRoot)
-		}
-	}
+	rowRoots, _, _ := share.FilterRootByNamespace(root, namespace)
 
-	if len(originalRoots) != len(ns) {
-		return fmt.Errorf("expected %d rows, found %d rows", len(originalRoots), len(ns))
+	if len(rowRoots) != len(ns) {
+		return fmt.Errorf("expected %d rows, found %d rows", len(rowRoots), len(ns))
 	}
 
 	for i, row := range ns {
 		if row.Proof == nil || len(row.Shares) == 0 {
 			return fmt.Errorf("row %d is missing proofs or shares", i)
 		}
-		if !row.VerifyInclusion(originalRoots[i], namespace) {
+		if !row.VerifyInclusion(rowRoots[i], namespace) {
 			return fmt.Errorf("failed to verify row %d", i)
 		}
 	}
@@ -156,6 +151,8 @@ func NamespacedRowFromShares(shares []share.Share, namespace share.Namespace, ro
 		}
 	}
 	if count == 0 {
+		// FIXME: This should return Non-inclusion proofs instead. Need support in app wrapper to generate
+		// absence proofs.
 		return RowNamespaceData{}, fmt.Errorf("no shares found in the namespace for row %d", rowIndex)
 	}
 
