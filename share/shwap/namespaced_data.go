@@ -16,6 +16,12 @@ import (
 // within a namespace.
 type NamespacedData []RowNamespaceData
 
+// RowNamespaceData holds shares and their corresponding proof for a single row within a namespace.
+type RowNamespaceData struct {
+	Shares []share.Share `json:"shares"` // Shares within the namespace.
+	Proof  *nmt.Proof    `json:"proof"`  // Proof of the shares' inclusion in the namespace.
+}
+
 // Flatten combines all shares from all rows within the namespace into a single slice.
 func (ns NamespacedData) Flatten() []share.Share {
 	var shares []share.Share
@@ -25,26 +31,19 @@ func (ns NamespacedData) Flatten() []share.Share {
 	return shares
 }
 
-// RowNamespaceData holds shares and their corresponding proof for a single row within a namespace.
-type RowNamespaceData struct {
-	Shares []share.Share `json:"shares"` // Shares within the namespace.
-	Proof  *nmt.Proof    `json:"proof"`  // Proof of the shares' inclusion in the namespace.
-}
-
 // Verify checks the integrity of the NamespacedData against a provided root and namespace.
 func (ns NamespacedData) Verify(root *share.Root, namespace share.Namespace) error {
-	rowRoots, _, _ := share.FilterRootByNamespace(root, namespace)
+	rowIdxs := share.RowsWithNamespace(root, namespace)
 
-	if len(rowRoots) != len(ns) {
-		return fmt.Errorf("expected %d rows, found %d rows", len(rowRoots), len(ns))
+	if len(rowIdxs) != len(ns) {
+		return fmt.Errorf("expected %d rows, found %d rows", len(rowIdxs), len(ns))
 	}
 
-	for i, row := range ns {
-		if row.Proof == nil || len(row.Shares) == 0 {
-			return fmt.Errorf("row %d is missing proofs or shares", i)
-		}
-		if !row.VerifyInclusion(rowRoots[i], namespace) {
-			return fmt.Errorf("failed to verify row %d", i)
+	for i, rowIdx := range rowIdxs {
+		row := ns[i]
+		err := row.Validate(root, namespace, rowIdx)
+		if err != nil {
+			return fmt.Errorf("failed to validate row %d: %w", i, err)
 		}
 	}
 	return nil
