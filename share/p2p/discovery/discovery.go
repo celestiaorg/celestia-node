@@ -114,6 +114,11 @@ func (d *Discovery) Start(context.Context) error {
 
 func (d *Discovery) Stop(context.Context) error {
 	d.cancel()
+
+	if err := d.metrics.close(); err != nil {
+		log.Warnw("failed to close metrics", "err", err)
+	}
+
 	return nil
 }
 
@@ -289,7 +294,7 @@ func (d *Discovery) discover(ctx context.Context) bool {
 			wg.Go(func() error {
 				if findCtx.Err() != nil {
 					log.Debug("find has been canceled, skip peer")
-					return nil
+					return nil //nolint:nilerr
 				}
 
 				// we don't pass findCtx so that we don't cancel in progress connections

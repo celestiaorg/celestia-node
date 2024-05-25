@@ -19,7 +19,7 @@ func TestBlob(t *testing.T) {
 	blob, err := convertBlobs(appBlobs...)
 	require.NoError(t, err)
 
-	var test = []struct {
+	test := []struct {
 		name        string
 		expectedRes func(t *testing.T)
 	}{

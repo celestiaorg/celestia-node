@@ -15,9 +15,7 @@ const (
 	headerByHeightEndpoint = "/header"
 )
 
-var (
-	heightKey = "height"
-)
+var heightKey = "height"
 
 func (h *Handler) handleHeadRequest(w http.ResponseWriter, r *http.Request) {
 	head, err := h.header.LocalHead(r.Context())

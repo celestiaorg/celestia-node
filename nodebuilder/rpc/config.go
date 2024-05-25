@@ -3,6 +3,7 @@ package rpc
 import (
 	"fmt"
 	"strconv"
+	"strings"
 
 	"github.com/celestiaorg/celestia-node/libs/utils"
 )
@@ -20,6 +21,16 @@ func DefaultConfig() Config {
 		Port:     defaultPort,
 		SkipAuth: false,
 	}
+}
+
+func (cfg *Config) RequestURL() string {
+	if strings.HasPrefix(cfg.Address, "://") {
+		parts := strings.Split(cfg.Address, "://")
+		return fmt.Sprintf("%s://%s:%s", parts[0], parts[1], cfg.Port)
+	}
+
+	// Default to HTTP if no protocol is specified
+	return fmt.Sprintf("http://%s:%s", cfg.Address, cfg.Port)
 }
 
 func (cfg *Config) Validate() error {

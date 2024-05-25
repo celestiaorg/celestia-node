@@ -54,7 +54,7 @@ jobs:
 
   # Dockerfile Linting
   hadolint:
-    uses: celestiaorg/.github/.github/workflows/reusable_dockerfile_lint.yml@v0.2.8 # yamllint disable-line rule:line-length
+    uses: celestiaorg/.github/.github/workflows/reusable_dockerfile_lint.yml@v0.3.2 # yamllint disable-line rule:line-length
     with:
       dockerfile: Dockerfile
 
@@ -62,7 +62,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - uses: celestiaorg/.github/.github/actions/yamllint@v0.2.8
+      - uses: celestiaorg/.github/.github/actions/yamllint@v0.3.2
 
   markdown-lint:
     name: Markdown Lint
@@ -85,7 +85,7 @@ jobs:
   # If this was a workflow dispatch event, we need to generate and push a tag
   # for goreleaser to grab
   version_bump:
-    needs: [hadolint, yamllint, markdown-lint, go-ci]
+    needs: [hadolint, yamllint, markdown-lint, go-ci, setup]
     runs-on: ubuntu-latest
     permissions: "write-all"
     steps:
@@ -106,7 +106,7 @@ jobs:
 
   # Generate the release with goreleaser to include pre-built binaries
   goreleaser:
-    needs: version_bump
+    needs: [version_bump, setup]
     runs-on: ubuntu-latest
     if: |
       github.event_name == 'workflow_dispatch' ||
@@ -137,3 +137,18 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           GPG_FINGERPRINT: ${{ steps.import_gpg.outputs.fingerprint }}
+
+  upload-docs:
+    needs: goreleaser
+    if: github.event_name == 'release'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v3
+
+      - run: |
+          make openrpc-gen > openrpc.json
+          gh release upload ${{github.event.release.tag_name}} openrpc.json
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

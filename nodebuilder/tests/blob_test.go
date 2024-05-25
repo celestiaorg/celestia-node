@@ -37,10 +37,8 @@ func TestBlobModule(t *testing.T) {
 		blobs = append(blobs, blob)
 	}
 
-	require.NoError(t, err)
 	bridge := sw.NewBridgeNode()
 	require.NoError(t, bridge.Start(ctx))
-
 	addrs, err := peer.AddrInfoToP2pAddrs(host.InfoFromHost(bridge.Host))
 	require.NoError(t, err)
 
@@ -68,7 +66,7 @@ func TestBlobModule(t *testing.T) {
 	_, err = lightClient.Header.WaitForHeight(ctx, height)
 	require.NoError(t, err)
 
-	var test = []struct {
+	test := []struct {
 		name string
 		doFn func(t *testing.T)
 	}{
@@ -193,7 +191,6 @@ func TestBlobModule(t *testing.T) {
 				included, err := fullClient.Blob.Included(ctx, h, blobs[0].Namespace(), proof, blobs[0].Commitment)
 				require.NoError(t, err)
 				require.True(t, included)
-
 			},
 		},
 	}

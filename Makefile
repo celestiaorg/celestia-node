@@ -73,9 +73,10 @@ else
 endif
 .PHONY: install
 
+## install-global: Install the celestia-node binary (only for systems that support GNU coreutils, i.e. Linux).
 install-global:
 	@echo "--> Installing Celestia"
-	@install -v ./build/* -t ${PREFIX}/bin/
+	@install -v ./build/* -t ${PREFIX}/bin
 .PHONY: install-global
 
 ## go-install: Build and install the celestia-node binary into the GOBIN directory.
@@ -111,9 +112,9 @@ install-key:
 ## fmt: Formats only *.go (excluding *.pb.go *pb_test.go). Runs `gofmt & goimports` internally.
 fmt: sort-imports
 	@find . -name '*.go' -type f -not -path "*.git*" -not -name '*.pb.go' -not -name '*pb_test.go' | xargs gofmt -w -s
-	@find . -name '*.go' -type f -not -path "*.git*"  -not -name '*.pb.go' -not -name '*pb_test.go' | xargs goimports -w -local github.com/celestiaorg
 	@go mod tidy -compat=1.20
 	@cfmt -w -m=100 ./...
+	@gofumpt -w -extra .
 	@markdownlint --fix --quiet --config .markdownlint.yaml .
 .PHONY: fmt
 
@@ -174,8 +175,7 @@ pb-gen:
 
 ## openrpc-gen: Generate OpenRPC spec for Celestia-Node's RPC api
 openrpc-gen:
-	@echo "--> Generating OpenRPC spec"
-	@go run ./cmd/docgen fraud header state share das p2p node blob da
+	@go run ${LDFLAGS} ./cmd/celestia docgen
 .PHONY: openrpc-gen
 
 ## lint-imports: Lint only Go imports.

@@ -16,8 +16,11 @@ import (
 	"github.com/celestiaorg/nmt"
 	"github.com/celestiaorg/rsmt2d"
 
+	"github.com/celestiaorg/celestia-node/header"
+	"github.com/celestiaorg/celestia-node/pruner"
 	"github.com/celestiaorg/celestia-node/share"
 	"github.com/celestiaorg/celestia-node/share/eds"
+	"github.com/celestiaorg/celestia-node/share/ipld"
 )
 
 // extendBlock extends the given block data, returning the resulting
@@ -25,7 +28,7 @@ import (
 // nil is returned in place of the eds.
 func extendBlock(data types.Data, appVersion uint64, options ...nmt.Option) (*rsmt2d.ExtendedDataSquare, error) {
 	if app.IsEmptyBlock(data, appVersion) {
-		return nil, nil
+		return share.EmptyExtendedDataSquare(), nil
 	}
 
 	// Construct the data square from the block's transactions
@@ -51,14 +54,32 @@ func extendShares(s [][]byte, options ...nmt.Option) (*rsmt2d.ExtendedDataSquare
 }
 
 // storeEDS will only store extended block if it is not empty and doesn't already exist.
-func storeEDS(ctx context.Context, hash share.DataHash, eds *rsmt2d.ExtendedDataSquare, store *eds.Store) error {
-	if eds == nil {
+func storeEDS(
+	ctx context.Context,
+	eh *header.ExtendedHeader,
+	eds *rsmt2d.ExtendedDataSquare,
+	adder *ipld.ProofsAdder,
+	store *eds.Store,
+	window pruner.AvailabilityWindow,
+) error {
+	if eds.Equals(share.EmptyExtendedDataSquare()) {
 		return nil
 	}
-	err := store.Put(ctx, hash, eds)
+
+	if !pruner.IsWithinAvailabilityWindow(eh.Time(), window) {
+		log.Debugw("skipping storage of historic block", "height", eh.Height())
+		return nil
+	}
+
+	ctx = ipld.CtxWithProofsAdder(ctx, adder)
+
+	err := store.Put(ctx, share.DataHash(eh.DataHash), eds)
 	if errors.Is(err, dagstore.ErrShardExists) {
 		// block with given root already exists, return nil
 		return nil
+	}
+	if err == nil {
+		log.Debugw("stored EDS for height", "height", eh.Height())
 	}
 	return err
 }
