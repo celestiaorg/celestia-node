@@ -21,52 +21,6 @@ type Sample struct {
 	ProofType   rsmt2d.Axis // ProofType indicates whether the proof is against a row or a column.
 }
 
-// Validate checks the inclusion of the share using its Merkle proof under the specified root.
-// Returns an error if the proof is invalid or does not correspond to the indicated proof type.
-func (s Sample) Validate(dah *share.Root, rowIdx, colIdx int) error {
-	if s.Proof == nil || s.Proof.IsEmptyProof() {
-		return errors.New("nil proof")
-	}
-	if err := share.ValidateShare(s.Share); err != nil {
-		return err
-	}
-	if s.ProofType != rsmt2d.Row && s.ProofType != rsmt2d.Col {
-		return fmt.Errorf("invalid SampleProofType: %d", s.ProofType)
-	}
-	if !s.verifyInclusion(dah, rowIdx, colIdx) {
-		return fmt.Errorf("share proof is invalid")
-	}
-	return nil
-}
-
-// verifyInclusion checks if the share is included in the given root hash at the specified indices.
-func (s Sample) verifyInclusion(dah *share.Root, rowIdx, colIdx int) bool {
-	size := len(dah.RowRoots)
-	namespace := inclusionNamespace(s.Share, rowIdx, colIdx, size)
-	rootHash := share.RootHashForCoordinates(dah, s.ProofType, uint(rowIdx), uint(colIdx))
-	return s.Proof.VerifyInclusion(
-		share.NewSHA256Hasher(),
-		namespace.ToNMT(),
-		[][]byte{s.Share},
-		rootHash,
-	)
-}
-
-// ToProto converts a Sample into its protobuf representation for serialization purposes.
-func (s Sample) ToProto() *pb.Sample {
-	return &pb.Sample{
-		Share: &pb.Share{Data: s.Share},
-		Proof: &nmt_pb.Proof{
-			Start:                 int64(s.Proof.Start()),
-			End:                   int64(s.Proof.End()),
-			Nodes:                 s.Proof.Nodes(),
-			LeafHash:              s.Proof.LeafHash(),
-			IsMaxNamespaceIgnored: s.Proof.IsMaxNamespaceIDIgnored(),
-		},
-		ProofType: pb.AxisType(s.ProofType),
-	}
-}
-
 // SampleFromEDS samples a share from an Extended Data Square based on the provided index and axis.
 // This function generates a Merkle tree proof for the specified share.
 func SampleFromEDS(
@@ -120,6 +74,52 @@ func SampleFromProto(s *pb.Sample) Sample {
 		Proof:     &proof,
 		ProofType: rsmt2d.Axis(s.GetProofType()),
 	}
+}
+
+// ToProto converts a Sample into its protobuf representation for serialization purposes.
+func (s Sample) ToProto() *pb.Sample {
+	return &pb.Sample{
+		Share: &pb.Share{Data: s.Share},
+		Proof: &nmt_pb.Proof{
+			Start:                 int64(s.Proof.Start()),
+			End:                   int64(s.Proof.End()),
+			Nodes:                 s.Proof.Nodes(),
+			LeafHash:              s.Proof.LeafHash(),
+			IsMaxNamespaceIgnored: s.Proof.IsMaxNamespaceIDIgnored(),
+		},
+		ProofType: pb.AxisType(s.ProofType),
+	}
+}
+
+// Validate checks the inclusion of the share using its Merkle proof under the specified root.
+// Returns an error if the proof is invalid or does not correspond to the indicated proof type.
+func (s Sample) Validate(dah *share.Root, rowIdx, colIdx int) error {
+	if s.Proof == nil || s.Proof.IsEmptyProof() {
+		return errors.New("nil proof")
+	}
+	if err := share.ValidateShare(s.Share); err != nil {
+		return err
+	}
+	if s.ProofType != rsmt2d.Row && s.ProofType != rsmt2d.Col {
+		return fmt.Errorf("invalid SampleProofType: %d", s.ProofType)
+	}
+	if !s.verifyInclusion(dah, rowIdx, colIdx) {
+		return fmt.Errorf("share proof is invalid")
+	}
+	return nil
+}
+
+// verifyInclusion checks if the share is included in the given root hash at the specified indices.
+func (s Sample) verifyInclusion(dah *share.Root, rowIdx, colIdx int) bool {
+	size := len(dah.RowRoots)
+	namespace := inclusionNamespace(s.Share, rowIdx, colIdx, size)
+	rootHash := share.RootHashForCoordinates(dah, s.ProofType, uint(rowIdx), uint(colIdx))
+	return s.Proof.VerifyInclusion(
+		share.NewSHA256Hasher(),
+		namespace.ToNMT(),
+		[][]byte{s.Share},
+		rootHash,
+	)
 }
 
 // inclusionNamespace returns the namespace for the share based on its position in the square.

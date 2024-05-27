@@ -33,6 +33,51 @@ func NewRow(halfShares []share.Share, side RowSide) Row {
 	}
 }
 
+// RowFromEDS constructs a new Row from an Extended Data Square based on the specified index and
+// side.
+func RowFromEDS(square *rsmt2d.ExtendedDataSquare, idx int, side RowSide) Row {
+	sqrLn := int(square.Width())
+	shares := square.Row(uint(idx))
+	var halfShares []share.Share
+	if side == Right {
+		halfShares = shares[sqrLn/2:] // Take the right half of the shares.
+	} else {
+		halfShares = shares[:sqrLn/2] // Take the left half of the shares.
+	}
+
+	return NewRow(halfShares, side)
+}
+
+// RowFromProto converts a protobuf Row to a Row structure.
+func RowFromProto(r *pb.Row) Row {
+	return Row{
+		halfShares: SharesFromProto(r.SharesHalf),
+		side:       sideFromProto(r.GetHalfSide()),
+	}
+}
+
+// Shares reconstructs the complete row shares from the half provided, using RSMT2D for data
+// recovery if needed.
+func (r Row) Shares() ([]share.Share, error) {
+	shares := make([]share.Share, len(r.halfShares)*2)
+	offset := 0
+	if r.side == Right {
+		offset = len(r.halfShares) // Position the halfShares in the second half if it's the right side.
+	}
+	for i, share := range r.halfShares {
+		shares[i+offset] = share
+	}
+	return share.DefaultRSMT2DCodec().Decode(shares)
+}
+
+// ToProto converts the Row to its protobuf representation.
+func (r Row) ToProto() *pb.Row {
+	return &pb.Row{
+		SharesHalf: SharesToProto(r.halfShares),
+		HalfSide:   r.side.ToProto(),
+	}
+}
+
 // Validate checks if the row's shares match the expected number from the root data and validates
 // the side of the row.
 func (r Row) Validate(dah *share.Root, idx int) error {
@@ -78,51 +123,6 @@ func (r Row) verifyInclusion(dah *share.Root, idx int) error {
 		return fmt.Errorf("invalid root hash: %X != %X", root, dah.RowRoots[idx])
 	}
 	return nil
-}
-
-// Shares reconstructs the complete row shares from the half provided, using RSMT2D for data
-// recovery if needed.
-func (r Row) Shares() ([]share.Share, error) {
-	shares := make([]share.Share, len(r.halfShares)*2)
-	offset := 0
-	if r.side == Right {
-		offset = len(r.halfShares) // Position the halfShares in the second half if it's the right side.
-	}
-	for i, share := range r.halfShares {
-		shares[i+offset] = share
-	}
-	return share.DefaultRSMT2DCodec().Decode(shares)
-}
-
-// ToProto converts the Row to its protobuf representation.
-func (r Row) ToProto() *pb.Row {
-	return &pb.Row{
-		SharesHalf: SharesToProto(r.halfShares),
-		HalfSide:   r.side.ToProto(),
-	}
-}
-
-// RowFromProto converts a protobuf Row to a Row structure.
-func RowFromProto(r *pb.Row) Row {
-	return Row{
-		halfShares: SharesFromProto(r.SharesHalf),
-		side:       sideFromProto(r.GetHalfSide()),
-	}
-}
-
-// RowFromEDS constructs a new Row from an Extended Data Square based on the specified index and
-// side.
-func RowFromEDS(square *rsmt2d.ExtendedDataSquare, idx int, side RowSide) Row {
-	sqrLn := int(square.Width())
-	shares := square.Row(uint(idx))
-	var halfShares []share.Share
-	if side == Right {
-		halfShares = shares[sqrLn/2:] // Take the right half of the shares.
-	} else {
-		halfShares = shares[:sqrLn/2] // Take the left half of the shares.
-	}
-
-	return NewRow(halfShares, side)
 }
 
 // ToProto converts a RowSide to its protobuf representation.

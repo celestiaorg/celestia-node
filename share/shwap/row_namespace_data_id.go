@@ -41,15 +41,6 @@ func NewRowNamespaceDataID(
 	return did, nil
 }
 
-// MarshalBinary encodes RowNamespaceDataID into binary form.
-// NOTE: Proto is avoided because
-// * Its size is not deterministic which is required for IPLD.
-// * No support for uint16
-func (s RowNamespaceDataID) MarshalBinary() ([]byte, error) {
-	data := make([]byte, 0, RowNamespaceDataIDSize)
-	return s.appendTo(data), nil
-}
-
 // RowNamespaceDataIDFromBinary deserializes a RowNamespaceDataID from its binary form. It returns
 // an error if the binary data's length does not match the expected size.
 func RowNamespaceDataIDFromBinary(data []byte) (RowNamespaceDataID, error) {
@@ -73,6 +64,15 @@ func RowNamespaceDataIDFromBinary(data []byte) (RowNamespaceDataID, error) {
 		RowID:         rid,
 		DataNamespace: ns,
 	}, nil
+}
+
+// MarshalBinary encodes RowNamespaceDataID into binary form.
+// NOTE: Proto is avoided because
+// * Its size is not deterministic which is required for IPLD.
+// * No support for uint16
+func (s RowNamespaceDataID) MarshalBinary() ([]byte, error) {
+	data := make([]byte, 0, RowNamespaceDataIDSize)
+	return s.appendTo(data), nil
 }
 
 // Validate checks the validity of RowNamespaceDataID's fields, including the RowID and the

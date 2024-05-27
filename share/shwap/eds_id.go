@@ -25,13 +25,6 @@ func NewEdsID(height uint64, root *share.Root) (EdsID, error) {
 	return eid, eid.Validate(root)
 }
 
-// MarshalBinary encodes an EdsID into its binary form, primarily for storage or network
-// transmission.
-func (eid EdsID) MarshalBinary() ([]byte, error) {
-	data := make([]byte, 0, EdsIDSize)
-	return eid.appendTo(data), nil
-}
-
 // EdsIDFromBinary decodes a byte slice into an EdsID, validating the length of the data.
 // It returns an error if the data slice does not match the expected size of an EdsID.
 func EdsIDFromBinary(data []byte) (EdsID, error) {
@@ -42,6 +35,13 @@ func EdsIDFromBinary(data []byte) (EdsID, error) {
 		Height: binary.BigEndian.Uint64(data),
 	}
 	return rid, nil
+}
+
+// MarshalBinary encodes an EdsID into its binary form, primarily for storage or network
+// transmission.
+func (eid EdsID) MarshalBinary() ([]byte, error) {
+	data := make([]byte, 0, EdsIDSize)
+	return eid.appendTo(data), nil
 }
 
 // Validate checks the integrity of an EdsID's fields against the provided Root.

@@ -31,12 +31,6 @@ func NewRowID(height uint64, rowIdx int, root *share.Root) (RowID, error) {
 	return rid, rid.Validate(root)
 }
 
-// MarshalBinary encodes the RowID into a binary form for storage or network transmission.
-func (rid RowID) MarshalBinary() ([]byte, error) {
-	data := make([]byte, 0, RowIDSize)
-	return rid.appendTo(data), nil
-}
-
 // RowIDFromBinary decodes a RowID from its binary representation.
 // It returns an error if the input data does not conform to the expected size or content format.
 func RowIDFromBinary(data []byte) (RowID, error) {
@@ -51,6 +45,12 @@ func RowIDFromBinary(data []byte) (RowID, error) {
 		EdsID:    eid,
 		RowIndex: int(binary.BigEndian.Uint16(data[EdsIDSize:])),
 	}, nil
+}
+
+// MarshalBinary encodes the RowID into a binary form for storage or network transmission.
+func (rid RowID) MarshalBinary() ([]byte, error) {
+	data := make([]byte, 0, RowIDSize)
+	return rid.appendTo(data), nil
 }
 
 // Validate ensures the RowID's fields are valid given the specified root structure, particularly

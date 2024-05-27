@@ -40,15 +40,6 @@ func NewSampleID(height uint64, rowIdx, colIdx int, root *share.Root) (SampleID,
 	return sid, nil
 }
 
-// MarshalBinary encodes SampleID into binary form.
-// NOTE: Proto is avoided because
-// * Its size is not deterministic which is required for IPLD.
-// * No support for uint16
-func (sid SampleID) MarshalBinary() ([]byte, error) {
-	data := make([]byte, 0, SampleIDSize)
-	return sid.appendTo(data), nil
-}
-
 // SampleIDFromBinary deserializes a SampleID from binary data, ensuring the data length matches
 // the expected size.
 func SampleIDFromBinary(data []byte) (SampleID, error) {
@@ -65,6 +56,15 @@ func SampleIDFromBinary(data []byte) (SampleID, error) {
 		RowID:      rid,
 		ShareIndex: int(binary.BigEndian.Uint16(data[RowIDSize:])),
 	}, nil
+}
+
+// MarshalBinary encodes SampleID into binary form.
+// NOTE: Proto is avoided because
+// * Its size is not deterministic which is required for IPLD.
+// * No support for uint16
+func (sid SampleID) MarshalBinary() ([]byte, error) {
+	data := make([]byte, 0, SampleIDSize)
+	return sid.appendTo(data), nil
 }
 
 // Validate checks the validity of the SampleID by ensuring the ShareIndex is within the bounds of
