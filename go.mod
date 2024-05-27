@@ -98,7 +98,7 @@ require (
 	github.com/beorn7/perks v1.0.1 // indirect
 	github.com/bgentry/go-netrc v0.0.0-20140422174119-9fd32a8b3d3d // indirect
 	github.com/bgentry/speakeasy v0.1.0 // indirect
-	github.com/bits-and-blooms/bitset v1.7.0 // indirect
+	github.com/bits-and-blooms/bitset v1.10.0 // indirect
 	github.com/btcsuite/btcd/btcec/v2 v2.3.2 // indirect
 	github.com/celestiaorg/merkletree v0.0.0-20230308153949-c33506a7aa26 // indirect
 	github.com/celestiaorg/quantum-gravity-bridge/v2 v2.1.2 // indirect
@@ -122,7 +122,7 @@ require (
 	github.com/cosmos/iavl v0.19.6 // indirect
 	github.com/cosmos/ibc-go/v6 v6.3.0 // indirect
 	github.com/cosmos/ledger-cosmos-go v0.13.2 // indirect
-	github.com/crate-crypto/go-kzg-4844 v0.3.0 // indirect
+	github.com/crate-crypto/go-kzg-4844 v0.7.0 // indirect
 	github.com/creachadair/taskgroup v0.3.2 // indirect
 	github.com/cskr/pubsub v1.0.2 // indirect
 	github.com/danieljoos/wincred v1.1.2 // indirect
@@ -141,7 +141,7 @@ require (
 	github.com/elastic/gosigar v0.14.2 // indirect
 	github.com/etclabscore/go-jsonschema-walk v0.0.6 // indirect
 	github.com/ethereum/c-kzg-4844 v0.4.0 // indirect
-	github.com/ethereum/go-ethereum v1.13.2 // indirect
+	github.com/ethereum/go-ethereum v1.13.15 // indirect
 	github.com/felixge/httpsnoop v1.0.4 // indirect
 	github.com/flynn/noise v1.1.0 // indirect
 	github.com/francoispqt/gojay v1.2.13 // indirect
@@ -152,12 +152,11 @@ require (
 	github.com/go-logfmt/logfmt v0.6.0 // indirect
 	github.com/go-logr/logr v1.4.1 // indirect
 	github.com/go-logr/stdr v1.2.2 // indirect
-	github.com/go-ole/go-ole v1.2.6 // indirect
+	github.com/go-ole/go-ole v1.3.0 // indirect
 	github.com/go-openapi/jsonpointer v0.19.5 // indirect
 	github.com/go-openapi/jsonreference v0.19.4 // indirect
 	github.com/go-openapi/spec v0.19.11 // indirect
 	github.com/go-openapi/swag v0.19.11 // indirect
-	github.com/go-stack/stack v1.8.1 // indirect
 	github.com/go-task/slim-sprig v0.0.0-20230315185526-52ccab3ef572 // indirect
 	github.com/godbus/dbus v0.0.0-20190726142602-4481cbc300e2 // indirect
 	github.com/godbus/dbus/v5 v5.1.0 // indirect
@@ -196,7 +195,7 @@ require (
 	github.com/hashicorp/golang-lru/arc/v2 v2.0.5 // indirect
 	github.com/hashicorp/hcl v1.0.0 // indirect
 	github.com/hdevalence/ed25519consensus v0.0.0-20220222234857-c00d1f31bab3 // indirect
-	github.com/holiman/uint256 v1.2.3 // indirect
+	github.com/holiman/uint256 v1.2.4 // indirect
 	github.com/huin/goupnp v1.3.0 // indirect
 	github.com/iancoleman/orderedmap v0.1.0 // indirect
 	github.com/improbable-eng/grpc-web v0.15.0 // indirect
