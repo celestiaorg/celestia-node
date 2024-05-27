@@ -14,14 +14,16 @@ func TestDataID(t *testing.T) {
 	ns := sharetest.RandV0Namespace()
 	_, root := edstest.RandEDSWithNamespace(t, ns, 8, 4)
 
-	id, err := NewDataID(1, 1, ns, root)
+	id, err := NewRowNamespaceDataID(1, 1, ns, root)
 	require.NoError(t, err)
 
-	data := id.MarshalBinary()
-	sidOut, err := DataIDFromBinary(data)
+	data, err := id.MarshalBinary()
+	require.NoError(t, err)
+
+	sidOut, err := RowNamespaceDataIDFromBinary(data)
 	require.NoError(t, err)
 	assert.EqualValues(t, id, sidOut)
 
-	err = sidOut.Verify(root)
+	err = sidOut.Validate(root)
 	require.NoError(t, err)
 }
