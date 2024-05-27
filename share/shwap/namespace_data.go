@@ -23,19 +23,14 @@ func NamespacedDataFromEDS(
 		return nil, fmt.Errorf("error computing root: %w", err)
 	}
 
-	rows := make(NamespacedData, 0, len(root.RowRoots))
-	for rowIdx, rowRoot := range root.RowRoots {
-		if namespace.IsOutsideRange(rowRoot, rowRoot) {
-			continue
-		}
-
-		shares := square.Row(uint(rowIdx))
-		rowData, err := RowNamespaceDataFromShares(shares, namespace, rowIdx)
+	rowIdxs := share.RowsWithNamespace(root, namespace)
+	rows := make(NamespacedData, len(rowIdxs))
+	for i, idx := range rowIdxs {
+		shares := square.Row(uint(idx))
+		rows[i], err = RowNamespaceDataFromShares(shares, namespace, idx)
 		if err != nil {
-			return nil, fmt.Errorf("failed to process row %d: %w", rowIdx, err)
+			return nil, fmt.Errorf("failed to process row %d: %w", idx, err)
 		}
-
-		rows = append(rows, rowData)
 	}
 
 	return rows, nil

@@ -78,10 +78,10 @@ func TestValidateNamespacedRow(t *testing.T) {
 		require.NoError(t, err)
 		require.True(t, len(nd) > 0)
 
-		rowIdx := share.RowsWithNamespace(root, namespace)
-		require.Len(t, nd, len(rowIdx))
+		rowIdxs := share.RowsWithNamespace(root, namespace)
+		require.Len(t, nd, len(rowIdxs))
 
-		for i, rowIdx := range rowIdx {
+		for i, rowIdx := range rowIdxs {
 			err = nd[i].Validate(root, namespace, rowIdx)
 			require.NoError(t, err)
 		}
