@@ -29,28 +29,8 @@ const (
 // TODO @renaynay: rename
 func peerComponents(tp node.Type, cfg *Config) fx.Option {
 	return fx.Options(
-		discoveryManager(),
 		fullDiscoveryAndPeerManager(tp, cfg),
 		archivalDiscoveryAndPeerManager(tp, cfg),
-	)
-}
-
-func discoveryManager() fx.Option {
-	return fx.Options(
-		fx.Invoke(func(*disc.Manager) {}), // quirk in FX
-		fx.Provide(func(
-			lc fx.Lifecycle,
-			discs map[string]*disc.Discovery,
-		) *disc.Manager {
-			manager := disc.NewManager(discs)
-			lc.Append(
-				fx.Hook{
-					OnStart: manager.Start,
-					OnStop:  manager.Stop,
-				},
-			)
-			return manager
-		}),
 	)
 }
 
@@ -60,6 +40,7 @@ func discoveryManager() fx.Option {
 func fullDiscoveryAndPeerManager(tp node.Type, cfg *Config) fx.Option {
 	return fx.Provide(
 		func(
+			lc fx.Lifecycle,
 			host host.Host,
 			r routing.ContentRouting,
 			connGater *conngater.BasicConnectionGater,
@@ -104,6 +85,10 @@ func fullDiscoveryAndPeerManager(tp node.Type, cfg *Config) fx.Option {
 			if err != nil {
 				return nil, nil, err
 			}
+			lc.Append(fx.Hook{
+				OnStart: fullDisc.Start,
+				OnStop:  fullDisc.Stop,
+			})
 
 			return fullManager, fullDisc, nil
 		})
@@ -113,13 +98,14 @@ func fullDiscoveryAndPeerManager(tp node.Type, cfg *Config) fx.Option {
 func archivalDiscoveryAndPeerManager(tp node.Type, cfg *Config) fx.Option {
 	return fx.Provide(
 		func(
+			lc fx.Lifecycle,
 			pruneCfg *modprune.Config,
 			d *disc.Discovery,
 			manager *peers.Manager,
 			h host.Host,
 			r routing.ContentRouting,
 			gater *conngater.BasicConnectionGater,
-		) (map[string]*disc.Discovery, map[string]*peers.Manager, error) {
+		) (map[string]*peers.Manager, []*disc.Discovery, error) {
 			archivalPeerManager, err := peers.NewManager(
 				cfg.PeerManagerParams,
 				h,
@@ -146,10 +132,12 @@ func archivalDiscoveryAndPeerManager(tp node.Type, cfg *Config) fx.Option {
 			if err != nil {
 				return nil, nil, err
 			}
+			lc.Append(fx.Hook{
+				OnStart: archivalDisc.Start,
+				OnStop:  archivalDisc.Stop,
+			})
 
-			discoveries := map[string]*disc.Discovery{fullNodesTag: d, archivalNodesTag: archivalDisc}
 			managers := map[string]*peers.Manager{fullNodesTag: manager, archivalNodesTag: archivalPeerManager}
-
-			return discoveries, managers, nil
+			return managers, []*disc.Discovery{d, archivalDisc}, nil
 		})
 }

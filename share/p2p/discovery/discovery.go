@@ -114,6 +114,12 @@ func (d *Discovery) Start(context.Context) error {
 	go d.discoveryLoop(ctx)
 	go d.disconnectsLoop(ctx, sub)
 	go d.connector.GC(ctx)
+
+	if d.advertise {
+		log.Infow("advertising to topic", "topic", d.tag)
+		go d.Advertise(ctx)
+	}
+
 	return nil
 }
 
