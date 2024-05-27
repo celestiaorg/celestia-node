@@ -374,8 +374,8 @@ github.com/celestiaorg/go-libp2p-messenger v0.2.0 h1:/0MuPDcFamQMbw9xTZ73yImqgTO
 github.com/celestiaorg/go-libp2p-messenger v0.2.0/go.mod h1:s9PIhMi7ApOauIsfBcQwbr7m+HBzmVfDIS+QLdgzDSo=
 github.com/celestiaorg/merkletree v0.0.0-20230308153949-c33506a7aa26 h1:P2RI1xJ49EZ8cuHMcH+ZSBonfRDtBS8OS9Jdt1BWX3k=
 github.com/celestiaorg/merkletree v0.0.0-20230308153949-c33506a7aa26/go.mod h1:2m8ukndOegwB0PU0AfJCwDUQHqd7QQRlSXvQL5VToVY=
-github.com/celestiaorg/nmt v0.20.0 h1:9i7ultZ8Wv5ytt8ZRaxKQ5KOOMo4A2K2T/aPGjIlSas=
-github.com/celestiaorg/nmt v0.20.0/go.mod h1:Oz15Ub6YPez9uJV0heoU4WpFctxazuIhKyUtaYNio7E=
+github.com/celestiaorg/nmt v0.21.0 h1:81MBqxNn3orByoiCtdNVjwi5WsLgMkzHwP02ZMhTBHM=
+github.com/celestiaorg/nmt v0.21.0/go.mod h1:ia/EpCk0enD5yO5frcxoNoFToz2Ghtk2i+blmCRjIY8=
 github.com/celestiaorg/quantum-gravity-bridge/v2 v2.1.2 h1:Q8nr5SAtDW5gocrBwqwDJcSS/JedqU58WwQA2SP+nXw=
 github.com/celestiaorg/quantum-gravity-bridge/v2 v2.1.2/go.mod h1:s/LzLUw0WeYPJ6qdk4q46jKLOq7rc9Z5Mdrxtfpcigw=
 github.com/celestiaorg/rsmt2d v0.13.1 h1:eRhp79DKTkDojwInKVs1lRK6f6zJc1BVlmZfUfI19yQ=
@@ -2268,8 +2268,8 @@ github.com/tidwall/btree v1.5.0/go.mod h1:LGm8L/DZjPLmeWGjv5kFrY8dL4uVhMmzmmLYms
 github.com/tidwall/gjson v1.6.0/go.mod h1:P256ACg0Mn+j1RXIDXoss50DeIABTYK1PULOJHhxOls=
 github.com/tidwall/gjson v1.12.1/go.mod h1:/wbyibRr2FHMks5tjHJ5F8dMZh3AcwJEMf5vlfC0lxk=
 github.com/tidwall/gjson v1.14.0/go.mod h1:/wbyibRr2FHMks5tjHJ5F8dMZh3AcwJEMf5vlfC0lxk=
-github.com/tidwall/gjson v1.14.4 h1:uo0p8EbA09J7RQaflQ1aBRffTR7xedD2bcIVSYxLnkM=
-github.com/tidwall/gjson v1.14.4/go.mod h1:/wbyibRr2FHMks5tjHJ5F8dMZh3AcwJEMf5vlfC0lxk=
+github.com/tidwall/gjson v1.17.1 h1:wlYEnwqAHgzmhNUFfw7Xalt2JzQvsMx2Se4PcoFCT/U=
+github.com/tidwall/gjson v1.17.1/go.mod h1:/wbyibRr2FHMks5tjHJ5F8dMZh3AcwJEMf5vlfC0lxk=
 github.com/tidwall/match v1.0.1/go.mod h1:LujAq0jyVjBy028G1WhWfIzbpQfMO8bBZ6Tyb0+pL9E=
 github.com/tidwall/match v1.1.1 h1:+Ho715JplO36QYgwN9PGYNhgZvoUSc9X2c80KVTi+GA=
 github.com/tidwall/match v1.1.1/go.mod h1:eRSPERbgtNPcGhD8UCthc6PmLEQXEWd3PRB5JTxsfmM=
