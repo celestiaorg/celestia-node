@@ -31,8 +31,9 @@ func (com Commitment) Equal(c Commitment) bool {
 	return bytes.Equal(com, c)
 }
 
-// Proof is a collection of nmt.Proofs that verifies the inclusion of the data.
-// Proof proves the WHOLE namespaced data for the particular row.
+// The Proof is a set of nmt proofs that can be verified only through
+// the included method (due to limitation of the nmt https://github.com/celestiaorg/nmt/issues/218).
+// Proof proves the WHOLE namespaced data to the row roots.
 // TODO (@vgonkivs): rework `Proof` in order to prove a particular blob.
 // https://github.com/celestiaorg/celestia-node/issues/2303
 type Proof []*nmt.Proof

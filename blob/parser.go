@@ -7,21 +7,20 @@ import (
 	"github.com/celestiaorg/celestia-app/pkg/shares"
 )
 
-// parser is a helper struct that allows collecting shares and transforming them into the blob.
-// it contains all necessary information that is needed to build the blob:
-// * position of the blob inside the EDS;
-// * blob's length;
-// * shares needed to build the blob;
-// * extra condition to verify the final blob.
+// parser helps to collect shares and transform them into a blob.
+// It can handle only one blob at a time.
 type parser struct {
-	index    int
-	length   int
+	// index is a position of the blob inside the EDS.
+	index int
+	// length is an amount of the shares needed to build the blob.
+	length int
+	// shares is a set of shares to build the blob.
 	shares   []shares.Share
 	verifyFn func(blob *Blob) bool
 }
 
-// NOTE: passing shares here needed to detect padding shares(as we do not need this check in
-// addShares)
+// set tries to find the first blob's share by skipping padding shares and
+// sets the metadata of the blob(index and length)
 func (p *parser) set(index int, shrs []shares.Share) ([]shares.Share, error) {
 	if len(shrs) == 0 {
 		return nil, errEmptyShares
@@ -47,9 +46,9 @@ func (p *parser) set(index int, shrs []shares.Share) ([]shares.Share, error) {
 	return shrs, nil
 }
 
-// addShares sets shares until the blob is completed and returns extra shares back.
-// we do not need here extra condition to check padding shares as we do not expect it here.
-// it is possible only between two blobs.
+// addShares sets shares until the blob is completed and extra remaining shares back.
+// It assumes that the remaining shares required for blob completeness are correct and
+// do not include padding shares.
 func (p *parser) addShares(shares []shares.Share) (shrs []shares.Share, isComplete bool) {
 	index := -1
 	for i, sh := range shares {
@@ -71,7 +70,7 @@ func (p *parser) addShares(shares []shares.Share) (shrs []shares.Share, isComple
 	return shares[index+1:], true
 }
 
-// parse parses shares and creates the Blob.
+// parse ensures that correct amount of shares was collected and create a blob from the existing shares.
 func (p *parser) parse() (*Blob, error) {
 	if p.length != len(p.shares) {
 		return nil, fmt.Errorf("invalid shares amount. want:%d, have:%d", p.length, len(p.shares))
@@ -111,7 +110,8 @@ func (p *parser) parse() (*Blob, error) {
 	return blob, nil
 }
 
-// skipPadding skips first share in the range if this share is the Padding share.
+// skipPadding iterates through the shares until non-padding share will be found. It guarantees that
+// the returned set of shares will start with non-padding share(or empty set of shares).
 func (p *parser) skipPadding(shares []shares.Share) ([]shares.Share, error) {
 	if len(shares) == 0 {
 		return nil, errEmptyShares
@@ -147,6 +147,7 @@ func (p *parser) isEmpty() bool {
 	return p.index == 0 && p.length == 0 && len(p.shares) == 0
 }
 
+// reset cleans up parser, so it can be re-used within the same verify functionality.
 func (p *parser) reset() {
 	p.index = 0
 	p.length = 0
