@@ -42,7 +42,7 @@ var discoveryRetryTimeout = retryTimeout
 // Discovery combines advertise and discover services and allows to store discovered nodes.
 // TODO: The code here gets horribly hairy, so we should refactor this at some point
 type Discovery struct {
-	// Tag is used as rondezvous point for discovery service
+	// Tag is used as rendezvous point for discovery service
 	tag       string
 	set       *limitedSet
 	host      host.Host
@@ -51,7 +51,8 @@ type Discovery struct {
 
 	// onUpdatedPeers will be called on peer set changes
 	onUpdatedPeers OnUpdatedPeers
-	// indicates whether the
+	// indicates whether the discovery instance should also advertise
+	// to the topic
 	advertise bool
 
 	triggerDisc chan struct{}
