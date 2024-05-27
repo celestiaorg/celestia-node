@@ -44,7 +44,7 @@ func TestSampleValidate(t *testing.T) {
 				sample, err := SampleFromEDS(eds, proofType, rowIdx, colIdx)
 				require.NoError(t, err)
 
-				require.True(t, sample.VerifyInclusion(root, rowIdx, colIdx))
+				require.True(t, sample.verifyInclusion(root, rowIdx, colIdx))
 				require.NoError(t, sample.Validate(root, rowIdx, colIdx))
 			}
 		}
@@ -60,34 +60,34 @@ func TestSampleNegativeVerifyInclusion(t *testing.T) {
 
 	sample, err := SampleFromEDS(eds, rsmt2d.Row, 0, 0)
 	require.NoError(t, err)
-	included := sample.VerifyInclusion(root, 0, 0)
+	included := sample.verifyInclusion(root, 0, 0)
 	require.True(t, included)
 
 	// incorrect row index
-	included = sample.VerifyInclusion(root, 1, 0)
+	included = sample.verifyInclusion(root, 1, 0)
 	require.False(t, included)
 
 	// incorrect col index is not used in the inclusion proof verification
-	included = sample.VerifyInclusion(root, 0, 1)
+	included = sample.verifyInclusion(root, 0, 1)
 	require.True(t, included)
 
 	// Corrupt the share
 	sample.Share[0] ^= 0xFF
-	included = sample.VerifyInclusion(root, 0, 0)
+	included = sample.verifyInclusion(root, 0, 0)
 	require.False(t, included)
 
 	// incorrect proofType
 	sample, err = SampleFromEDS(eds, rsmt2d.Row, 0, 0)
 	require.NoError(t, err)
 	sample.ProofType = rsmt2d.Col
-	included = sample.VerifyInclusion(root, 0, 0)
+	included = sample.verifyInclusion(root, 0, 0)
 	require.False(t, included)
 
 	// Corrupt the last root hash byte
 	sample, err = SampleFromEDS(eds, rsmt2d.Row, 0, 0)
 	require.NoError(t, err)
 	root.RowRoots[0][len(root.RowRoots[0])-1] ^= 0xFF
-	included = sample.VerifyInclusion(root, 0, 0)
+	included = sample.verifyInclusion(root, 0, 0)
 	require.False(t, included)
 }
 

@@ -26,7 +26,7 @@ func TestNamespacedRowFromShares(t *testing.T) {
 		require.NoError(t, err)
 		extended := slices.Concat(shares, parity)
 
-		nr, err := NamespacedRowFromShares(extended, minNamespace, 0)
+		nr, err := RowNamespaceDataFromShares(extended, minNamespace, 0)
 		require.NoError(t, err)
 		require.Equal(t, namespacedAmount, len(nr.Shares))
 	}
@@ -46,7 +46,7 @@ func TestNamespacedRowFromSharesNonIncluded(t *testing.T) {
 	require.NoError(t, err)
 	extended := slices.Concat(shares, parity)
 
-	nr, err := NamespacedRowFromShares(extended, absentNs, 0)
+	nr, err := RowNamespaceDataFromShares(extended, absentNs, 0)
 	require.NoError(t, err)
 	require.Len(t, nr.Shares, 0)
 	require.True(t, nr.Proof.IsOfAbsence())
@@ -58,12 +58,12 @@ func TestNamespacedSharesFromEDS(t *testing.T) {
 	namespace := sharetest.RandV0Namespace()
 	for amount := 1; amount < sharesAmount; amount++ {
 		eds, root := edstest.RandEDSWithNamespace(t, namespace, amount, odsSize)
-		nd, err := NewNamespacedSharesFromEDS(eds, namespace)
+		nd, err := NamespacedDataFromEDS(eds, namespace)
 		require.NoError(t, err)
 		require.True(t, len(nd) > 0)
 		require.Len(t, nd.Flatten(), amount)
 
-		err = nd.Verify(root, namespace)
+		err = nd.Validate(root, namespace)
 		require.NoError(t, err)
 	}
 }
@@ -74,17 +74,16 @@ func TestValidateNamespacedRow(t *testing.T) {
 	namespace := sharetest.RandV0Namespace()
 	for amount := 1; amount < sharesAmount; amount++ {
 		eds, root := edstest.RandEDSWithNamespace(t, namespace, amount, odsSize)
-		nd, err := NewNamespacedSharesFromEDS(eds, namespace)
+		nd, err := NamespacedDataFromEDS(eds, namespace)
 		require.NoError(t, err)
 		require.True(t, len(nd) > 0)
 
-		_, from, to := share.FilterRootByNamespace(root, namespace)
-		require.Len(t, nd, to-from)
-		idx := from
-		for _, row := range nd {
-			err = row.Validate(root, namespace, idx)
+		rowIdxs := share.RowsWithNamespace(root, namespace)
+		require.Len(t, nd, len(rowIdxs))
+
+		for i, rowIdx := range rowIdxs {
+			err = nd[i].Validate(root, namespace, rowIdx)
 			require.NoError(t, err)
-			idx++
 		}
 	}
 }
@@ -93,12 +92,12 @@ func TestNamespacedRowProtoEncoding(t *testing.T) {
 	const odsSize = 8
 	namespace := sharetest.RandV0Namespace()
 	eds, _ := edstest.RandEDSWithNamespace(t, namespace, odsSize, odsSize)
-	nd, err := NewNamespacedSharesFromEDS(eds, namespace)
+	nd, err := NamespacedDataFromEDS(eds, namespace)
 	require.NoError(t, err)
 	require.True(t, len(nd) > 0)
 
 	expected := nd[0]
 	pb := expected.ToProto()
-	ndOut := NamespacedRowFromProto(pb)
+	ndOut := RowNamespaceDataFromProto(pb)
 	require.Equal(t, expected, ndOut)
 }

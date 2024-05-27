@@ -33,51 +33,27 @@ func NewRow(halfShares []share.Share, side RowSide) Row {
 	}
 }
 
-// Validate checks if the row's shares match the expected number from the root data and validates
-// the side of the row.
-func (r Row) Validate(dah *share.Root, idx int) error {
-	if len(r.halfShares) == 0 {
-		return fmt.Errorf("empty half row")
-	}
-	expectedShares := len(dah.RowRoots) / 2
-	if len(r.halfShares) != expectedShares {
-		return fmt.Errorf("shares size doesn't match root size: %d != %d", len(r.halfShares), expectedShares)
-	}
-	if err := ValidateShares(r.halfShares); err != nil {
-		return fmt.Errorf("invalid shares: %w", err)
-	}
-	if r.side != Left && r.side != Right {
-		return fmt.Errorf("invalid RowSide: %d", r.side)
+// RowFromEDS constructs a new Row from an Extended Data Square based on the specified index and
+// side.
+func RowFromEDS(square *rsmt2d.ExtendedDataSquare, idx int, side RowSide) Row {
+	sqrLn := int(square.Width())
+	shares := square.Row(uint(idx))
+	var halfShares []share.Share
+	if side == Right {
+		halfShares = shares[sqrLn/2:] // Take the right half of the shares.
+	} else {
+		halfShares = shares[:sqrLn/2] // Take the left half of the shares.
 	}
 
-	return r.VerifyRoot(dah, idx)
+	return NewRow(halfShares, side)
 }
 
-// VerifyRoot verifies the integrity of the row's shares against the provided root hash for the
-// given row index.
-func (r Row) VerifyRoot(dah *share.Root, idx int) error {
-	shrs, err := r.Shares()
-	if err != nil {
-		return fmt.Errorf("while extending shares: %w", err)
+// RowFromProto converts a protobuf Row to a Row structure.
+func RowFromProto(r *pb.Row) Row {
+	return Row{
+		halfShares: SharesFromProto(r.SharesHalf),
+		side:       sideFromProto(r.GetHalfSide()),
 	}
-
-	sqrLn := uint64(len(shrs) / 2)
-	tree := wrapper.NewErasuredNamespacedMerkleTree(sqrLn, uint(idx))
-	for _, s := range shrs {
-		if err := tree.Push(s); err != nil {
-			return fmt.Errorf("while pushing shares to NMT: %w", err)
-		}
-	}
-
-	root, err := tree.Root()
-	if err != nil {
-		return fmt.Errorf("while computing NMT root: %w", err)
-	}
-
-	if !bytes.Equal(dah.RowRoots[idx], root) {
-		return fmt.Errorf("invalid root hash: %X != %X", root, dah.RowRoots[idx])
-	}
-	return nil
 }
 
 // Shares reconstructs the complete row shares from the half provided, using RSMT2D for data
@@ -102,27 +78,51 @@ func (r Row) ToProto() *pb.Row {
 	}
 }
 
-// RowFromProto converts a protobuf Row to a Row structure.
-func RowFromProto(r *pb.Row) Row {
-	return Row{
-		halfShares: SharesFromProto(r.SharesHalf),
-		side:       sideFromProto(r.GetHalfSide()),
+// Validate checks if the row's shares match the expected number from the root data and validates
+// the side of the row.
+func (r Row) Validate(dah *share.Root, idx int) error {
+	if len(r.halfShares) == 0 {
+		return fmt.Errorf("empty half row")
 	}
+	expectedShares := len(dah.RowRoots) / 2
+	if len(r.halfShares) != expectedShares {
+		return fmt.Errorf("shares size doesn't match root size: %d != %d", len(r.halfShares), expectedShares)
+	}
+	if err := ValidateShares(r.halfShares); err != nil {
+		return fmt.Errorf("invalid shares: %w", err)
+	}
+	if r.side != Left && r.side != Right {
+		return fmt.Errorf("invalid RowSide: %d", r.side)
+	}
+
+	return r.verifyInclusion(dah, idx)
 }
 
-// RowFromEDS constructs a new Row from an Extended Data Square based on the specified index and
-// side.
-func RowFromEDS(square *rsmt2d.ExtendedDataSquare, idx int, side RowSide) Row {
-	sqrLn := int(square.Width())
-	shares := square.Row(uint(idx))
-	var halfShares []share.Share
-	if side == Right {
-		halfShares = shares[sqrLn/2:] // Take the right half of the shares.
-	} else {
-		halfShares = shares[:sqrLn/2] // Take the left half of the shares.
+// verifyInclusion verifies the integrity of the row's shares against the provided root hash for the
+// given row index.
+func (r Row) verifyInclusion(dah *share.Root, idx int) error {
+	shrs, err := r.Shares()
+	if err != nil {
+		return fmt.Errorf("while extending shares: %w", err)
 	}
 
-	return NewRow(halfShares, side)
+	sqrLn := uint64(len(shrs) / 2)
+	tree := wrapper.NewErasuredNamespacedMerkleTree(sqrLn, uint(idx))
+	for _, s := range shrs {
+		if err := tree.Push(s); err != nil {
+			return fmt.Errorf("while pushing shares to NMT: %w", err)
+		}
+	}
+
+	root, err := tree.Root()
+	if err != nil {
+		return fmt.Errorf("while computing NMT root: %w", err)
+	}
+
+	if !bytes.Equal(dah.RowRoots[idx], root) {
+		return fmt.Errorf("invalid root hash: %X != %X", root, dah.RowRoots[idx])
+	}
+	return nil
 }
 
 // ToProto converts a RowSide to its protobuf representation.

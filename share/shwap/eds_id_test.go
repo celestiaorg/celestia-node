@@ -18,11 +18,13 @@ func TestEdsID(t *testing.T) {
 	id, err := NewEdsID(2, root)
 	require.NoError(t, err)
 
-	data := id.MarshalBinary()
+	data, err := id.MarshalBinary()
+	require.NoError(t, err)
+
 	idOut, err := EdsIDFromBinary(data)
 	require.NoError(t, err)
 	assert.EqualValues(t, id, idOut)
 
-	err = idOut.Verify(root)
+	err = idOut.Validate(root)
 	require.NoError(t, err)
 }

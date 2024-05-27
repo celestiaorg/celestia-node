@@ -44,7 +44,7 @@ func TestRowValidate(t *testing.T) {
 		for _, side := range []RowSide{Left, Right} {
 			row := RowFromEDS(eds, rowIdx, side)
 
-			err := row.VerifyRoot(root, rowIdx)
+			err := row.Validate(root, rowIdx)
 			require.NoError(t, err)
 			err = row.Validate(root, rowIdx)
 			require.NoError(t, err)

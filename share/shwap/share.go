@@ -38,6 +38,7 @@ func SharesFromProto(shrs []*pb.Share) []share.Share {
 	return shares
 }
 
+// ValidateShares takes the slice of shares and checks their conformance to share format.
 func ValidateShares(shares []share.Share) error {
 	for i, shr := range shares {
 		if err := share.ValidateShare(shr); err != nil {
