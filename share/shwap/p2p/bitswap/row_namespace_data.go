@@ -95,18 +95,26 @@ func (rndid RowNamespaceDataID) BlockFromEDS(eds *rsmt2d.ExtendedDataSquare) (bl
 	return blk, nil
 }
 
-func (rndid RowNamespaceDataID) UnmarshalContainer(root *share.Root, data []byte) (shwap.RowNamespaceData, error) {
-	var rndBlk bitswapb.RowNamespaceDataBlock
-	if err := rndBlk.Unmarshal(data); err != nil {
-		return shwap.RowNamespaceData{}, fmt.Errorf("unmarshaling RowNamespaceDataBlock: %w", err)
-	}
+type RowNamespaceDataBlock struct {
+	RowNamespaceDataID
+	Data shwap.RowNamespaceData
+}
 
-	rnd := shwap.RowNamespaceDataFromProto(rndBlk.Data)
-	if err := rnd.Validate(root, rndid.DataNamespace, rndid.RowIndex); err != nil {
-		return shwap.RowNamespaceData{}, fmt.Errorf("validating RowNamespaceData: %w", err)
+func (r *RowNamespaceDataBlock) Verifier(root *share.Root) verify {
+	return func(data []byte) error {
+		var rndBlk bitswapb.RowNamespaceDataBlock
+		if err := rndBlk.Unmarshal(data); err != nil {
+			return fmt.Errorf("unmarshaling RowNamespaceDataBlock: %w", err)
+		}
+
+		r.Data = shwap.RowNamespaceDataFromProto(rndBlk.Data)
+		if err := r.Data.Validate(root, r.DataNamespace, r.RowIndex); err != nil {
+			return fmt.Errorf("validating RowNamespaceData: %w", err)
+		}
+
+		// NOTE: We don't have to validate ID in the RowBlock, as it's implicitly verified by string
+		// equality of globalVerifiers entry key(requesting side) and hasher accessing the entry(response
+		// verification)
+		return nil
 	}
-	// NOTE: We don't have to validate ID in the RowBlock, as it's implicitly verified by string
-	// equality of globalVerifiers entry key(requesting side) and hasher accessing the entry(response
-	// verification)
-	return rnd, nil
 }

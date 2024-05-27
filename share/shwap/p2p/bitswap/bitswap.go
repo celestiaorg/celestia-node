@@ -25,11 +25,13 @@ var log = logger.Logger("shwap/bitswap")
 //  * godoc
 //    * document steps required to add new id/container type
 
-type ID[C any] interface {
+type ID interface {
 	String() string
 	CID() cid.Cid
-	UnmarshalContainer(*share.Root, []byte) (C, error)
+	Verifier(root *share.Root) verify
 }
+
+type verify func(data []byte) error
 
 func RegisterID(mhcode, codec uint64, size int, bldrFn func(cid2 cid.Cid) (blockBuilder, error)) {
 	mh.Register(mhcode, func() hash.Hash {
@@ -45,33 +47,24 @@ func RegisterID(mhcode, codec uint64, size int, bldrFn func(cid2 cid.Cid) (block
 // GetContainers
 // Does not guarantee synchronization. Calling this func simultaneously with the same ID may cause
 // issues. TODO: Describe motivation
-func GetContainers[C any](ctx context.Context, fetcher exchange.Fetcher, root *share.Root, ids ...ID[C]) ([]C, error) {
+func GetContainers(ctx context.Context, fetcher exchange.Fetcher, root *share.Root, ids ...ID) error {
 	ctx, cancel := context.WithCancel(ctx)
 	defer cancel()
 
 	cids := make([]cid.Cid, len(ids))
-	cntrs := make([]C, len(ids))
 	for i, id := range ids {
 		i := i
 		cids[i] = id.CID()
 
 		idStr := id.String()
-		globalVerifiers.add(idStr, func(data []byte) error {
-			cntr, err := id.UnmarshalContainer(root, data)
-			if err != nil {
-				return err
-			}
-
-			cntrs[i] = cntr
-			return nil
-		})
+		globalVerifiers.add(idStr, id.Verifier(root))
 		defer globalVerifiers.release(idStr)
 	}
 
 	// must start getting only after verifiers are registered
 	blkCh, err := fetcher.GetBlocks(ctx, cids)
 	if err != nil {
-		return nil, fmt.Errorf("fetching bitswap blocks: %w", err)
+		return fmt.Errorf("fetching bitswap blocks: %w", err)
 	}
 
 	// GetBlocks handles ctx and closes blkCh, so we don't have to
@@ -81,12 +74,12 @@ func GetContainers[C any](ctx context.Context, fetcher exchange.Fetcher, root *s
 	}
 	if len(blks) != len(cids) {
 		if ctx.Err() != nil {
-			return nil, ctx.Err()
+			return ctx.Err()
 		}
-		return nil, fmt.Errorf("not all the containers were found")
+		return fmt.Errorf("not all the containers were found")
 	}
 
-	return cntrs, nil
+	return nil
 }
 
 var globalVerifiers verifiers
