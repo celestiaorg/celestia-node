@@ -1,0 +1,20 @@
+syntax = "proto3";
+package bitswap;
+option go_package = "github.com/celestiaorg/celestia-node/share/shwap/p2p/bitswap/pb";
+
+import "share/shwap/pb/shwap.proto";
+
+message RowBlock {
+  bytes row_id = 1;
+  shwap.Row row = 2;
+}
+
+message SampleBlock {
+  bytes sample_id = 1;
+  shwap.Sample sample = 2;
+}
+
+message RowNamespaceDataBlock {
+  bytes row_namespace_data_id = 1;
+  shwap.RowNamespaceData data = 2;
+}
