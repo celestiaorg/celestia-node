@@ -1,6 +1,7 @@
 package shwap
 
 import (
+	"crypto/sha256"
 	"fmt"
 
 	"github.com/celestiaorg/celestia-app/pkg/wrapper"
@@ -12,57 +13,26 @@ import (
 	"github.com/celestiaorg/celestia-node/share/shwap/pb"
 )
 
-// NamespacedData stores collections of RowNamespaceData, each representing shares and their proofs
-// within a namespace.
-type NamespacedData []RowNamespaceData
-
 // RowNamespaceData holds shares and their corresponding proof for a single row within a namespace.
 type RowNamespaceData struct {
 	Shares []share.Share `json:"shares"` // Shares within the namespace.
 	Proof  *nmt.Proof    `json:"proof"`  // Proof of the shares' inclusion in the namespace.
 }
 
-// Flatten combines all shares from all rows within the namespace into a single slice.
-func (ns NamespacedData) Flatten() []share.Share {
-	var shares []share.Share
-	for _, row := range ns {
-		shares = append(shares, row.Shares...)
-	}
-	return shares
-}
-
-// Verify checks the integrity of the NamespacedData against a provided root and namespace.
-func (ns NamespacedData) Verify(root *share.Root, namespace share.Namespace) error {
-	rowRoots, _, _ := share.FilterRootByNamespace(root, namespace)
-
-	if len(rowRoots) != len(ns) {
-		return fmt.Errorf("expected %d rows, found %d rows", len(rowRoots), len(ns))
-	}
-
-	for i, row := range ns {
-		if row.Proof == nil || len(row.Shares) == 0 {
-			return fmt.Errorf("row %d is missing proofs or shares", i)
-		}
-		if !row.VerifyInclusion(rowRoots[i], namespace) {
-			return fmt.Errorf("failed to verify row %d", i)
-		}
-	}
-	return nil
-}
-
 func (rnd RowNamespaceData) Validate(dah *share.Root, namespace share.Namespace, rowIdx int) error {
 	if rnd.Proof == nil || rnd.Proof.IsEmptyProof() {
-		return fmt.Errorf("nil proof for row %d", rowIdx)
+		return fmt.Errorf("nil proof")
 	}
-	if err := ValidateShares(rnd.Shares); err != nil {
-		return fmt.Errorf("invalid shares: %w", err)
-	}
-
 	if len(rnd.Shares) == 0 && !rnd.Proof.IsOfAbsence() {
 		return fmt.Errorf("empty shares with non-absence proof for row %d", rowIdx)
 	}
+
 	if len(rnd.Shares) > 0 && rnd.Proof.IsOfAbsence() {
 		return fmt.Errorf("non-empty shares with absence proof for row %d", rowIdx)
+	}
+
+	if err := ValidateShares(rnd.Shares); err != nil {
+		return fmt.Errorf("invalid shares: %w", err)
 	}
 
 	rowRoot := dah.RowRoots[rowIdx]
@@ -70,21 +40,21 @@ func (rnd RowNamespaceData) Validate(dah *share.Root, namespace share.Namespace,
 		return fmt.Errorf("namespace out of range for row %d", rowIdx)
 	}
 
-	if !rnd.VerifyInclusion(rowRoot, namespace) {
+	if !rnd.verifyInclusion(rowRoot, namespace) {
 		return fmt.Errorf("inclusion proof failed for row %d", rowIdx)
 	}
 	return nil
 }
 
-// VerifyInclusion checks the inclusion of the row's shares in the provided root using NMT.
-func (rnd RowNamespaceData) VerifyInclusion(rowRoot []byte, namespace share.Namespace) bool {
+// verifyInclusion checks the inclusion of the row's shares in the provided root using NMT.
+func (rnd RowNamespaceData) verifyInclusion(rowRoot []byte, namespace share.Namespace) bool {
 	leaves := make([][]byte, 0, len(rnd.Shares))
 	for _, shr := range rnd.Shares {
 		namespaceBytes := share.GetNamespace(shr)
 		leaves = append(leaves, append(namespaceBytes, shr...))
 	}
 	return rnd.Proof.VerifyNamespace(
-		share.NewSHA256Hasher(),
+		sha256.New(),
 		namespace.ToNMT(),
 		leaves,
 		rowRoot,
@@ -105,38 +75,27 @@ func (rnd RowNamespaceData) ToProto() *pb.RowNamespaceData {
 	}
 }
 
-// NewNamespacedSharesFromEDS extracts shares for a specific namespace from an EDS, considering
-// each row independently.
-func NewNamespacedSharesFromEDS(
-	square *rsmt2d.ExtendedDataSquare,
+func RowNamespaceDataFromEDS(
+	eds *rsmt2d.ExtendedDataSquare,
 	namespace share.Namespace,
-) (NamespacedData, error) {
-	root, err := share.NewRoot(square)
+	rowIdx int,
+) (RowNamespaceData, error) {
+	shares := eds.Row(uint(rowIdx))
+	rowData, err := RowNamespaceDataFromShares(shares, namespace, rowIdx)
 	if err != nil {
-		return nil, fmt.Errorf("error computing root: %w", err)
+		return RowNamespaceData{}, err
 	}
 
-	rows := make(NamespacedData, 0, len(root.RowRoots))
-	for rowIdx, rowRoot := range root.RowRoots {
-		if namespace.IsOutsideRange(rowRoot, rowRoot) {
-			continue
-		}
-
-		shares := square.Row(uint(rowIdx))
-		rowData, err := NamespacedRowFromShares(shares, namespace, rowIdx)
-		if err != nil {
-			return nil, fmt.Errorf("failed to process row %d: %w", rowIdx, err)
-		}
-
-		rows = append(rows, rowData)
-	}
-
-	return rows, nil
+	return rowData, nil
 }
 
-// NamespacedRowFromShares extracts and constructs a RowNamespaceData from shares within the
+// RowNamespaceDataFromShares extracts and constructs a RowNamespaceData from shares within the
 // specified namespace.
-func NamespacedRowFromShares(shares []share.Share, namespace share.Namespace, rowIndex int) (RowNamespaceData, error) {
+func RowNamespaceDataFromShares(
+	shares []share.Share,
+	namespace share.Namespace,
+	rowIndex int,
+) (RowNamespaceData, error) {
 	var from, count int
 	for i := range len(shares) / 2 {
 		if namespace.Equals(share.GetNamespace(shares[i])) {
@@ -177,7 +136,7 @@ func NamespacedRowFromShares(shares []share.Share, namespace share.Namespace, ro
 	}, nil
 }
 
-func NamespacedRowFromProto(row *pb.RowNamespaceData) RowNamespaceData {
+func RowNamespaceDataFromProto(row *pb.RowNamespaceData) RowNamespaceData {
 	var proof nmt.Proof
 	if row.GetProof().GetLeafHash() != nil {
 		proof = nmt.NewAbsenceProof(

@@ -13,10 +13,8 @@ const SampleIDSize = RowIDSize + 2
 
 // SampleID uniquely identifies a specific sample within a row of an Extended Data Square (EDS).
 type SampleID struct {
-	RowID // Embeds RowID to incorporate block height and row index.
-
-	// ShareIndex specifies the index of the sample within the row.
-	ShareIndex uint16
+	RowID          // Embeds RowID to incorporate block height and row index.
+	ShareIndex int // ShareIndex specifies the index of the sample within the row.
 }
 
 // NewSampleID constructs a new SampleID using the provided block height, sample index, and a root
@@ -31,12 +29,12 @@ func NewSampleID(height uint64, rowIdx, colIdx int, root *share.Root) (SampleID,
 			EdsID: EdsID{
 				Height: height,
 			},
-			RowIndex: uint16(rowIdx),
+			RowIndex: rowIdx,
 		},
-		ShareIndex: uint16(colIdx),
+		ShareIndex: colIdx,
 	}
 
-	if err := sid.Verify(root); err != nil {
+	if err := sid.Validate(root); err != nil {
 		return SampleID{}, err
 	}
 	return sid, nil
@@ -46,9 +44,9 @@ func NewSampleID(height uint64, rowIdx, colIdx int, root *share.Root) (SampleID,
 // NOTE: Proto is avoided because
 // * Its size is not deterministic which is required for IPLD.
 // * No support for uint16
-func (sid SampleID) MarshalBinary() []byte {
+func (sid SampleID) MarshalBinary() ([]byte, error) {
 	data := make([]byte, 0, SampleIDSize)
-	return sid.appendTo(data)
+	return sid.appendTo(data), nil
 }
 
 // SampleIDFromBinary deserializes a SampleID from binary data, ensuring the data length matches
@@ -63,19 +61,21 @@ func SampleIDFromBinary(data []byte) (SampleID, error) {
 		return SampleID{}, fmt.Errorf("error decoding RowID: %w", err)
 	}
 
-	shareIndex := binary.BigEndian.Uint16(data[RowIDSize:])
-	return SampleID{RowID: rid, ShareIndex: shareIndex}, nil
+	return SampleID{
+		RowID:      rid,
+		ShareIndex: int(binary.BigEndian.Uint16(data[RowIDSize:])),
+	}, nil
 }
 
-// Verify checks the validity of the SampleID by ensuring the ShareIndex is within the bounds of
+// Validate checks the validity of the SampleID by ensuring the ShareIndex is within the bounds of
 // the square size.
-func (sid SampleID) Verify(root *share.Root) error {
-	if err := sid.RowID.Verify(root); err != nil {
+func (sid SampleID) Validate(root *share.Root) error {
+	if err := sid.RowID.Validate(root); err != nil {
 		return err
 	}
 
 	sqrLn := len(root.ColumnRoots) // Assumes ColumnRoots is valid and populated.
-	if int(sid.ShareIndex) >= sqrLn {
+	if sid.ShareIndex >= sqrLn {
 		return fmt.Errorf("ShareIndex exceeds square size: %d >= %d", sid.ShareIndex, sqrLn)
 	}
 
@@ -86,5 +86,5 @@ func (sid SampleID) Verify(root *share.Root) error {
 // the serialized RowID.
 func (sid SampleID) appendTo(data []byte) []byte {
 	data = sid.RowID.appendTo(data)
-	return binary.BigEndian.AppendUint16(data, sid.ShareIndex)
+	return binary.BigEndian.AppendUint16(data, uint16(sid.ShareIndex))
 }

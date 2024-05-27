@@ -50,12 +50,12 @@ func (r Row) Validate(dah *share.Root, idx int) error {
 		return fmt.Errorf("invalid RowSide: %d", r.side)
 	}
 
-	return r.VerifyRoot(dah, idx)
+	return r.verifyInclusion(dah, idx)
 }
 
-// VerifyRoot verifies the integrity of the row's shares against the provided root hash for the
+// verifyInclusion verifies the integrity of the row's shares against the provided root hash for the
 // given row index.
-func (r Row) VerifyRoot(dah *share.Root, idx int) error {
+func (r Row) verifyInclusion(dah *share.Root, idx int) error {
 	shrs, err := r.Shares()
 	if err != nil {
 		return fmt.Errorf("while extending shares: %w", err)
