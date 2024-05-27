@@ -90,18 +90,26 @@ func (rid RowID) BlockFromEDS(eds *rsmt2d.ExtendedDataSquare) (blocks.Block, err
 	return blk, nil
 }
 
-func (rid RowID) UnmarshalContainer(root *share.Root, data []byte) (shwap.Row, error) {
-	var rowBlk bitswappb.RowBlock
-	if err := rowBlk.Unmarshal(data); err != nil {
-		return shwap.Row{}, fmt.Errorf("unmarshaling RowBlock: %w", err)
-	}
+type RowBlock struct {
+	RowID
+	Row shwap.Row
+}
 
-	row := shwap.RowFromProto(rowBlk.Row)
-	if err := row.Validate(root, rid.RowIndex); err != nil {
-		return shwap.Row{}, fmt.Errorf("validating Row: %w", err)
+func (r *RowBlock) Verifier(root *share.Root) verify {
+	return func(data []byte) error {
+		var rowBlk bitswappb.RowBlock
+		if err := rowBlk.Unmarshal(data); err != nil {
+			return fmt.Errorf("unmarshaling RowBlock: %w", err)
+		}
+
+		r.Row = shwap.RowFromProto(rowBlk.Row)
+		if err := r.Row.Validate(root, r.RowID.RowIndex); err != nil {
+			fmt.Errorf("validating Row: %w", err)
+		}
+
+		// NOTE: We don't have to validate ID in the RowBlock, as it's implicitly verified by string
+		// equality of globalVerifiers entry key(requesting side) and hasher accessing the entry(response
+		// verification)
+		return nil
 	}
-	// NOTE: We don't have to validate ID in the RowBlock, as it's implicitly verified by string
-	// equality of globalVerifiers entry key(requesting side) and hasher accessing the entry(response
-	// verification)
-	return row, nil
 }

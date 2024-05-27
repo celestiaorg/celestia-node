@@ -22,20 +22,21 @@ func TestRowNamespaceDataRoundtrip_GetContainers(t *testing.T) {
 	client := remoteClient(ctx, t, newTestBlockstore(eds))
 
 	rowIdxs := share.RowsWithNamespace(root, namespace)
-	ids := make([]ID[shwap.RowNamespaceData], len(rowIdxs))
+	nds := make([]*RowNamespaceDataBlock, len(rowIdxs))
+	ids := make([]ID, len(rowIdxs))
 	for i, rowIdx := range rowIdxs {
 		rid, err := shwap.NewRowNamespaceDataID(1, rowIdx, namespace, root)
 		require.NoError(t, err)
-		ids[i] = RowNamespaceDataID(rid)
+		//TODO(@walldiss): not sure if copy of RowNamespaceDataID type is needed in bitswap
+		nds[i] = &RowNamespaceDataBlock{RowNamespaceDataID: RowNamespaceDataID(rid)}
+		ids[i] = nds[i]
 	}
 
-	cntrs, err := GetContainers(ctx, client, root, ids...)
+	err := GetContainers(ctx, client, root, ids...)
 	require.NoError(t, err)
-	require.Len(t, cntrs, len(ids))
 
-	for i, cntr := range cntrs {
-		sid := ids[i].(RowNamespaceDataID)
-		err = cntr.Validate(root, sid.DataNamespace, sid.RowIndex)
+	for _, nd := range nds {
+		err = nd.Data.Validate(root, nd.RowNamespaceDataID.DataNamespace, nd.RowNamespaceDataID.RowIndex)
 		require.NoError(t, err)
 	}
 }

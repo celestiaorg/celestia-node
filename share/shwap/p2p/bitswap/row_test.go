@@ -16,26 +16,26 @@ func TestRowRoundtrip_GetContainers(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second*5)
 	defer cancel()
 
-	eds := edstest.RandEDS(t, 2)
+	eds := edstest.RandEDS(t, 4)
 	root, err := share.NewRoot(eds)
 	require.NoError(t, err)
 	client := remoteClient(ctx, t, newTestBlockstore(eds))
 
-	ids := make([]ID[shwap.Row], eds.Width())
+	ids := make([]ID, eds.Width())
+	data := make([]*RowBlock, eds.Width())
 	for i := range ids {
 		rid, err := shwap.NewRowID(1, i, root)
 		require.NoError(t, err)
 		log.Debugf("%X", RowID(rid).CID())
-		ids[i] = RowID(rid)
+		data[i] = &RowBlock{RowID: RowID(rid)}
+		ids[i] = data[i]
 	}
 
-	cntrs, err := GetContainers(ctx, client, root, ids...)
+	err = GetContainers(ctx, client, root, ids...)
 	require.NoError(t, err)
-	require.Len(t, cntrs, len(ids))
 
-	for i, cntr := range cntrs {
-		rid := ids[i].(RowID)
-		err = cntr.Validate(root, rid.RowIndex)
+	for _, row := range data {
+		err = row.Row.Validate(root, row.RowIndex)
 		require.NoError(t, err)
 	}
 
