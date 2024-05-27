@@ -71,7 +71,7 @@ func (cfg *Config) mutualPeers() (_ []peer.AddrInfo, err error) {
 	for i, addr := range cfg.MutualPeers {
 		maddrs[i], err = ma.NewMultiaddr(addr)
 		if err != nil {
-			return nil, fmt.Errorf("failure to parse config.P2P.MutualPeers: %s", err)
+			return nil, fmt.Errorf("failure to parse config.P2P.MutualPeers: %w", err)
 		}
 	}
 

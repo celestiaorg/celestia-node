@@ -7,8 +7,8 @@ import (
 	"testing"
 
 	"github.com/cosmos/cosmos-sdk/client/flags"
+	"github.com/cosmos/cosmos-sdk/client/grpc/tmservice"
 	sdk "github.com/cosmos/cosmos-sdk/types"
-	banktypes "github.com/cosmos/cosmos-sdk/x/bank/types"
 	stakingtypes "github.com/cosmos/cosmos-sdk/x/staking/types"
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
@@ -19,7 +19,6 @@ import (
 	"github.com/celestiaorg/celestia-app/app"
 	"github.com/celestiaorg/celestia-app/test/util/testfactory"
 	"github.com/celestiaorg/celestia-app/test/util/testnode"
-	blobtypes "github.com/celestiaorg/celestia-app/x/blob/types"
 	libhead "github.com/celestiaorg/go-header"
 
 	"github.com/celestiaorg/celestia-node/core"
@@ -50,26 +49,23 @@ func (s *IntegrationTestSuite) SetupSuite() {
 	s.cctx = core.StartTestNodeWithConfig(s.T(), cfg)
 	s.accounts = cfg.Accounts
 
-	signer := blobtypes.NewKeyringSigner(s.cctx.Keyring, s.accounts[0], s.cctx.ChainID)
-	accessor := NewCoreAccessor(signer, localHeader{s.cctx.Client}, "", "", "")
-	setClients(accessor, s.cctx.GRPCClient, s.cctx.Client)
+	accessor, err := NewCoreAccessor(s.cctx.Keyring, s.accounts[0], localHeader{s.cctx.Client}, "", "")
+	require.NoError(s.T(), err)
+	setClients(accessor, s.cctx.GRPCClient)
 	s.accessor = accessor
 
 	// required to ensure the Head request is non-nil
-	_, err := s.cctx.WaitForHeight(3)
+	_, err = s.cctx.WaitForHeight(3)
 	require.NoError(s.T(), err)
 }
 
-func setClients(ca *CoreAccessor, conn *grpc.ClientConn, abciCli rpcclient.ABCIClient) {
+func setClients(ca *CoreAccessor, conn *grpc.ClientConn) {
 	ca.coreConn = conn
-	// create the query client
-	queryCli := banktypes.NewQueryClient(ca.coreConn)
-	ca.queryCli = queryCli
 	// create the staking query client
 	stakingCli := stakingtypes.NewQueryClient(ca.coreConn)
 	ca.stakingCli = stakingCli
 
-	ca.rpcCli = abciCli
+	ca.abciQueryCli = tmservice.NewServiceClient(ca.coreConn)
 }
 
 func (s *IntegrationTestSuite) TearDownSuite() {

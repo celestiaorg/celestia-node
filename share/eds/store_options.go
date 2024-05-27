@@ -1,7 +1,7 @@
 package eds
 
 import (
-	"fmt"
+	"errors"
 	"time"
 )
 
@@ -29,15 +29,15 @@ func DefaultParameters() *Parameters {
 
 func (p *Parameters) Validate() error {
 	if p.GCInterval < 0 {
-		return fmt.Errorf("eds: GC interval cannot be negative")
+		return errors.New("eds: GC interval cannot be negative")
 	}
 
 	if p.RecentBlocksCacheSize < 1 {
-		return fmt.Errorf("eds: recent blocks cache size must be positive")
+		return errors.New("eds: recent blocks cache size must be positive")
 	}
 
 	if p.BlockstoreCacheSize < 1 {
-		return fmt.Errorf("eds: blockstore cache size must be positive")
+		return errors.New("eds: blockstore cache size must be positive")
 	}
 	return nil
 }

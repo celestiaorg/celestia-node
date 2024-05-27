@@ -15,7 +15,7 @@ func Listen(listen []string) func(h hst.Host) (err error) {
 		for i, addr := range listen {
 			maListen[i], err = ma.NewMultiaddr(addr)
 			if err != nil {
-				return fmt.Errorf("failure to parse config.P2P.ListenAddresses: %s", err)
+				return fmt.Errorf("failure to parse config.P2P.ListenAddresses: %w", err)
 			}
 		}
 		return h.Network().Listen(maListen...)
@@ -23,14 +23,14 @@ func Listen(listen []string) func(h hst.Host) (err error) {
 }
 
 // addrsFactory returns a constructor for AddrsFactory.
-func addrsFactory(announce []string, noAnnounce []string) func() (_ p2pconfig.AddrsFactory, err error) {
+func addrsFactory(announce, noAnnounce []string) func() (_ p2pconfig.AddrsFactory, err error) {
 	return func() (_ p2pconfig.AddrsFactory, err error) {
 		// Convert maAnnounce strings to Multiaddresses
 		maAnnounce := make([]ma.Multiaddr, len(announce))
 		for i, addr := range announce {
 			maAnnounce[i], err = ma.NewMultiaddr(addr)
 			if err != nil {
-				return nil, fmt.Errorf("failure to parse config.P2P.AnnounceAddresses: %s", err)
+				return nil, fmt.Errorf("failure to parse config.P2P.AnnounceAddresses: %w", err)
 			}
 		}
 
@@ -40,7 +40,7 @@ func addrsFactory(announce []string, noAnnounce []string) func() (_ p2pconfig.Ad
 		for _, addr := range noAnnounce {
 			maddr, err := ma.NewMultiaddr(addr)
 			if err != nil {
-				return nil, fmt.Errorf("failure to parse config.P2P.NoAnnounceAddresses: %s", err)
+				return nil, fmt.Errorf("failure to parse config.P2P.NoAnnounceAddresses: %w", err)
 			}
 			maNoAnnounce[string(maddr.Bytes())] = true
 		}

@@ -85,6 +85,7 @@ func (f *FraudMaker) MakeExtendedHeader(odsSize int, edsStore *eds.Store) header
 		return header.MakeExtendedHeader(h, comm, vals, eds)
 	}
 }
+
 func CreateFraudExtHeader(
 	t *testing.T,
 	eh *header.ExtendedHeader,

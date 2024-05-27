@@ -57,3 +57,11 @@ var stringToType = map[string]Type{
 	"Light":  Light,
 	"Full":   Full,
 }
+
+// orderedTypes is a slice of all valid types in order of priority.
+var orderedTypes = []Type{Bridge, Full, Light}
+
+// GetTypes returns a list of all known types in order of priority.
+func GetTypes() []Type {
+	return append([]Type(nil), orderedTypes...)
+}

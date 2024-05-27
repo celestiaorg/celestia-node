@@ -37,12 +37,12 @@ func newDiscovery(cfg *disc.Parameters,
 			h,
 			routingdisc.NewRoutingDiscovery(r),
 			fullNodesTag,
-			disc.WithOnPeersUpdate(manager.UpdateFullNodePool),
+			disc.WithOnPeersUpdate(manager.UpdateNodePool),
 		)
 	}
 }
 
-func newModule(getter share.Getter, avail share.Availability) Module {
+func newShareModule(getter share.Getter, avail share.Availability) Module {
 	return &module{getter, avail}
 }
 

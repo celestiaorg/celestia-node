@@ -2,6 +2,7 @@ package das
 
 import (
 	"context"
+	"errors"
 
 	libhead "github.com/celestiaorg/go-header"
 
@@ -25,7 +26,7 @@ func (s *subscriber) run(ctx context.Context, sub libhead.Subscription[*header.E
 	for {
 		h, err := sub.NextHeader(ctx)
 		if err != nil {
-			if err == context.Canceled {
+			if errors.Is(err, context.Canceled) {
 				return
 			}
 

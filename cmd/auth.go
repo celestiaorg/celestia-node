@@ -20,14 +20,14 @@ import (
 )
 
 func AuthCmd(fsets ...*flag.FlagSet) *cobra.Command {
-	var cmd = &cobra.Command{
+	cmd := &cobra.Command{
 		Use:   "auth [permission-level (e.g. read || write || admin)]",
 		Short: "Signs and outputs a hex-encoded JWT token with the given permissions.",
 		Long: "Signs and outputs a hex-encoded JWT token with the given permissions. NOTE: only use this command when " +
 			"the node has already been initialized and started.",
 		RunE: func(cmd *cobra.Command, args []string) error {
 			if len(args) != 1 {
-				return fmt.Errorf("must specify permissions")
+				return errors.New("must specify permissions")
 			}
 			permissions, err := convertToPerms(args[0])
 			if err != nil {
@@ -37,7 +37,6 @@ func AuthCmd(fsets ...*flag.FlagSet) *cobra.Command {
 			ks, err := newKeystore(StorePath(cmd.Context()))
 			if err != nil {
 				return err
-
 			}
 
 			key, err := ks.Get(nodemod.SecretName)

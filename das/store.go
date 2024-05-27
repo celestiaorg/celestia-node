@@ -27,7 +27,8 @@ type checkpointStore struct {
 func newCheckpointStore(ds datastore.Datastore) checkpointStore {
 	return checkpointStore{
 		namespace.Wrap(ds, storePrefix),
-		newDone("checkpoint store")}
+		newDone("checkpoint store"),
+	}
 }
 
 // load loads the DAS checkpoint from disk and returns it.
@@ -65,7 +66,8 @@ func (s *checkpointStore) store(ctx context.Context, cp checkpoint) error {
 func (s *checkpointStore) runBackgroundStore(
 	ctx context.Context,
 	storeInterval time.Duration,
-	getCheckpoint func(ctx context.Context) (checkpoint, error)) {
+	getCheckpoint func(ctx context.Context) (checkpoint, error),
+) {
 	defer s.indicateDone()
 
 	// runBackgroundStore could be disabled by setting storeInterval = 0
