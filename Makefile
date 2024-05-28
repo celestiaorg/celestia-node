@@ -175,7 +175,6 @@ pb-gen:
 
 ## openrpc-gen: Generate OpenRPC spec for Celestia-Node's RPC api
 openrpc-gen:
-	@echo "--> Generating OpenRPC spec"
 	@go run ${LDFLAGS} ./cmd/celestia docgen
 .PHONY: openrpc-gen
 
