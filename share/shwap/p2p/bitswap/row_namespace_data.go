@@ -22,72 +22,89 @@ const (
 )
 
 func init() {
-	RegisterID(
+	RegisterBlock(
 		rowNamespaceDataMultihashCode,
 		rowNamespaceDataCodec,
 		shwap.RowNamespaceDataIDSize,
 		func(cid cid.Cid) (blockBuilder, error) {
-			return RowNamespaceDataIDFromCID(cid)
+			return EmptyRowNamespaceDataBlockFromCID(cid)
 		},
 	)
 }
 
-type RowNamespaceDataID shwap.RowNamespaceDataID
+type RowNamespaceDataBlock struct {
+	ID        shwap.RowNamespaceDataID
+	Container *shwap.RowNamespaceData
+}
 
-// RowNamespaceDataIDFromCID coverts CID to RowNamespaceDataID.
-func RowNamespaceDataIDFromCID(cid cid.Cid) (RowNamespaceDataID, error) {
+func NewEmptyRowNamespaceDataBlock(
+	height uint64,
+	rowIdx int,
+	namespace share.Namespace,
+	root *share.Root,
+) (*RowNamespaceDataBlock, error) {
+	id, err := shwap.NewRowNamespaceDataID(height, rowIdx, namespace, root)
+	if err != nil {
+		return nil, err
+	}
+
+	return &RowNamespaceDataBlock{ID: id}, nil
+}
+
+// EmptyRowNamespaceDataBlockFromCID coverts CID to RowNamespaceDataBlock.
+func EmptyRowNamespaceDataBlockFromCID(cid cid.Cid) (*RowNamespaceDataBlock, error) {
 	rndidData, err := extractCID(cid)
 	if err != nil {
-		return RowNamespaceDataID{}, err
+		return nil, err
 	}
 
 	rndid, err := shwap.RowNamespaceDataIDFromBinary(rndidData)
 	if err != nil {
-		return RowNamespaceDataID{}, fmt.Errorf("unmarhalling RowNamespaceDataID: %w", err)
+		return nil, fmt.Errorf("unmarhalling RowNamespaceDataBlock: %w", err)
 	}
 
-	return RowNamespaceDataID(rndid), nil
+	return &RowNamespaceDataBlock{ID: rndid}, nil
 }
 
-func (rndid RowNamespaceDataID) String() string {
-	data, err := rndid.MarshalBinary()
+func (rndb *RowNamespaceDataBlock) IsEmpty() bool {
+	return rndb.Container == nil
+}
+
+func (rndb *RowNamespaceDataBlock) String() string {
+	data, err := rndb.ID.MarshalBinary()
 	if err != nil {
-		panic(fmt.Errorf("marshaling RowNamespaceDataID: %w", err))
+		panic(fmt.Errorf("marshaling RowNamespaceDataBlock: %w", err))
 	}
 
 	return string(data)
 }
 
-func (rndid RowNamespaceDataID) MarshalBinary() ([]byte, error) {
-	return shwap.RowNamespaceDataID(rndid).MarshalBinary()
+func (rndb *RowNamespaceDataBlock) CID() cid.Cid {
+	return encodeCID(rndb.ID, rowNamespaceDataMultihashCode, rowNamespaceDataCodec)
 }
 
-func (rndid RowNamespaceDataID) CID() cid.Cid {
-	return encodeCID(shwap.RowNamespaceDataID(rndid), rowNamespaceDataMultihashCode, rowNamespaceDataCodec)
-}
-
-func (rndid RowNamespaceDataID) BlockFromEDS(eds *rsmt2d.ExtendedDataSquare) (blocks.Block, error) {
-	rnd, err := shwap.RowNamespaceDataFromEDS(eds, rndid.DataNamespace, rndid.RowIndex)
+func (rndb *RowNamespaceDataBlock) BlockFromEDS(eds *rsmt2d.ExtendedDataSquare) (blocks.Block, error) {
+	rnd, err := shwap.RowNamespaceDataFromEDS(eds, rndb.ID.DataNamespace, rndb.ID.RowIndex)
 	if err != nil {
 		return nil, err
 	}
 
-	dataID, err := rndid.MarshalBinary()
-	if err != nil {
-		return nil, fmt.Errorf("marshaling RowNamespaceDataID: %w", err)
-	}
-
-	rndidBlk := bitswapb.RowNamespaceDataBlock{
-		RowNamespaceDataId: dataID,
-		Data:               rnd.ToProto(),
-	}
-
-	dataBlk, err := rndidBlk.Marshal()
+	rndID, err := rndb.ID.MarshalBinary()
 	if err != nil {
 		return nil, fmt.Errorf("marshaling RowNamespaceDataBlock: %w", err)
 	}
 
-	blk, err := blocks.NewBlockWithCid(dataBlk, rndid.CID())
+	rndidBlk := bitswapb.RowNamespaceDataBlock{
+		RowNamespaceDataId: rndID,
+		Data:               rnd.ToProto(),
+	}
+
+	blkData, err := rndidBlk.Marshal()
+	if err != nil {
+		return nil, fmt.Errorf("marshaling RowNamespaceDataBlock: %w", err)
+	}
+
+	blk, err := blocks.NewBlockWithCid(blkData, rndb.CID())
 	if err != nil {
 		return nil, fmt.Errorf("assembling block: %w", err)
 	}
@@ -95,24 +112,20 @@ func (rndid RowNamespaceDataID) BlockFromEDS(eds *rsmt2d.ExtendedDataSquare) (bl
 	return blk, nil
 }
 
-type RowNamespaceDataBlock struct {
-	RowNamespaceDataID
-	Data shwap.RowNamespaceData
-}
-
-func (r *RowNamespaceDataBlock) Verifier(root *share.Root) verify {
+func (rndb *RowNamespaceDataBlock) Populate(root *share.Root) PopulateFn {
 	return func(data []byte) error {
 		var rndBlk bitswapb.RowNamespaceDataBlock
 		if err := rndBlk.Unmarshal(data); err != nil {
 			return fmt.Errorf("unmarshaling RowNamespaceDataBlock: %w", err)
 		}
 
-		r.Data = shwap.RowNamespaceDataFromProto(rndBlk.Data)
-		if err := r.Data.Validate(root, r.DataNamespace, r.RowIndex); err != nil {
+		cntr := shwap.RowNamespaceDataFromProto(rndBlk.Data)
+		if err := cntr.Validate(root, rndb.ID.DataNamespace, rndb.ID.RowIndex); err != nil {
 			return fmt.Errorf("validating RowNamespaceData: %w", err)
 		}
+		rndb.Container = &cntr
 
-		// NOTE: We don't have to validate ID in the RowBlock, as it's implicitly verified by string
+		// NOTE: We don't have to validate Block in the RowBlock, as it's implicitly verified by string
 		// equality of globalVerifiers entry key(requesting side) and hasher accessing the entry(response
 		// verification)
 		return nil

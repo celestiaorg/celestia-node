@@ -9,7 +9,6 @@ import (
 
 	"github.com/celestiaorg/celestia-node/share"
 	"github.com/celestiaorg/celestia-node/share/eds/edstest"
-	"github.com/celestiaorg/celestia-node/share/shwap"
 )
 
 func TestRowRoundtrip_GetContainers(t *testing.T) {
@@ -21,26 +20,25 @@ func TestRowRoundtrip_GetContainers(t *testing.T) {
 	require.NoError(t, err)
 	client := remoteClient(ctx, t, newTestBlockstore(eds))
 
-	ids := make([]ID, eds.Width())
-	data := make([]*RowBlock, eds.Width())
-	for i := range ids {
-		rid, err := shwap.NewRowID(1, i, root)
+	blks := make([]Block, eds.Width())
+	for i := range blks {
+		blk, err := NewEmptyRowBlock(1, i, root)
 		require.NoError(t, err)
-		log.Debugf("%X", RowID(rid).CID())
-		data[i] = &RowBlock{RowID: RowID(rid)}
-		ids[i] = data[i]
+		blks[i] = blk
 	}
 
-	err = GetContainers(ctx, client, root, ids...)
+	err = Fetch(ctx, client, root, blks...)
 	require.NoError(t, err)
 
-	for _, row := range data {
-		err = row.Row.Validate(root, row.RowIndex)
+	for _, blk := range blks {
+		row := blk.(*RowBlock)
+		err = row.Container.Validate(root, row.ID.RowIndex)
 		require.NoError(t, err)
 	}
 
+	// TODO: Should be part of a different test
 	var entries int
-	globalVerifiers.Range(func(any, any) bool {
+	populators.Range(func(any, any) bool {
 		entries++
 		return true
 	})

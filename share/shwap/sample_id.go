@@ -44,7 +44,7 @@ func NewSampleID(height uint64, rowIdx, colIdx int, root *share.Root) (SampleID,
 // the expected size.
 func SampleIDFromBinary(data []byte) (SampleID, error) {
 	if len(data) != SampleIDSize {
-		return SampleID{}, fmt.Errorf("invalid SampleID data length: expected %d, got %d", SampleIDSize, len(data))
+		return SampleID{}, fmt.Errorf("invalid SampleBlock data length: expected %d, got %d", SampleIDSize, len(data))
 	}
 
 	rid, err := RowIDFromBinary(data[:RowIDSize])

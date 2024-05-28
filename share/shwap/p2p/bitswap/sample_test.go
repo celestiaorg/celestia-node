@@ -2,12 +2,13 @@ package bitswap
 
 import (
 	"context"
-	"github.com/celestiaorg/celestia-node/share"
-	"github.com/celestiaorg/celestia-node/share/eds/edstest"
-	"github.com/celestiaorg/celestia-node/share/shwap"
-	"github.com/stretchr/testify/require"
 	"testing"
 	"time"
+
+	"github.com/stretchr/testify/require"
+
+	"github.com/celestiaorg/celestia-node/share"
+	"github.com/celestiaorg/celestia-node/share/eds/edstest"
 )
 
 func TestSampleRoundtrip_GetContainers(t *testing.T) {
@@ -20,23 +21,21 @@ func TestSampleRoundtrip_GetContainers(t *testing.T) {
 	client := remoteClient(ctx, t, newTestBlockstore(eds))
 
 	width := int(eds.Width())
-	ids := make([]ID, 0, width*width)
-	samples := make([]*SampleBlock, 0, width*width)
+	blks := make([]Block, 0, width*width)
 	for x := 0; x < width; x++ {
 		for y := 0; y < width; y++ {
-			sid, err := shwap.NewSampleID(1, x, y, root)
+			blk, err := NewEmptySampleBlock(1, x, y, root)
 			require.NoError(t, err)
-			sampleBlock := &SampleBlock{SampleID: SampleID(sid)}
-			ids = append(ids, sampleBlock)
-			samples = append(samples, sampleBlock)
+			blks = append(blks, blk)
 		}
 	}
 
-	err = GetContainers(ctx, client, root, ids...)
+	err = Fetch(ctx, client, root, blks...)
 	require.NoError(t, err)
 
-	for _, sample := range samples {
-		err = sample.Sample.Validate(root, sample.RowIndex, sample.ShareIndex)
+	for _, sample := range blks {
+		blk := sample.(*SampleBlock)
+		err = blk.Container.Validate(root, blk.ID.RowIndex, blk.ID.ShareIndex)
 		require.NoError(t, err)
 	}
 }

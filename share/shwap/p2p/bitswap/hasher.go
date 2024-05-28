@@ -20,26 +20,27 @@ func (h *hasher) Write(data []byte) (int, error) {
 		log.Error()
 		return 0, err
 	}
-	// extract ID out of data
+	// extract Block out of data
 	// we do this on the raw data to:
 	//  * Avoid complicating hasher with generalized bytes -> type unmarshalling
 	//  * Avoid type allocations
 	id := data[pbOffset : h.IDSize+pbOffset]
 	// get registered verifier and use it to check data validity
-	ver := globalVerifiers.get(string(id))
-	if ver == nil {
+	val, ok := populators.Load(string(id))
+	if !ok {
 		err := fmt.Errorf("shwap/bitswap hasher: no verifier registered")
 		log.Error(err)
 		return 0, err
 	}
-	err := ver(data)
+	populate := val.(PopulateFn)
+	err := populate(data)
 	if err != nil {
 		err = fmt.Errorf("shwap/bitswap hasher: verifying data: %w", err)
 		log.Error(err)
 		return 0, err
 	}
 	// if correct set the id as resulting sum
-	// it's required for the sum to match the original ID
+	// it's required for the sum to match the original Block
 	// to satisfy hash contract
 	h.sum = id
 	return len(data), err

@@ -23,71 +23,83 @@ const (
 )
 
 func init() {
-	RegisterID(
+	RegisterBlock(
 		sampleMultihashCode,
 		sampleCodec,
 		shwap.SampleIDSize,
 		func(cid cid.Cid) (blockBuilder, error) {
-			return SampleIDFromCID(cid)
+			return EmptySampleBlockFromCID(cid)
 		},
 	)
 }
 
-type SampleID shwap.SampleID
-
-// SampleIDFromCID coverts CID to SampleID.
-func SampleIDFromCID(cid cid.Cid) (SampleID, error) {
-	sidData, err := extractCID(cid)
-	if err != nil {
-		return SampleID{}, err
-	}
-
-	sid, err := shwap.SampleIDFromBinary(sidData)
-	if err != nil {
-		return SampleID{}, fmt.Errorf("while unmarhaling SampleID: %w", err)
-	}
-
-	return SampleID(sid), nil
+type SampleBlock struct {
+	ID        shwap.SampleID
+	Container *shwap.Sample
 }
 
-func (sid SampleID) String() string {
-	data, err := sid.MarshalBinary()
-	if err != nil {
-		panic(fmt.Errorf("marshaling SampleID: %w", err))
-	}
-	return string(data)
-}
-
-func (sid SampleID) MarshalBinary() ([]byte, error) {
-	return shwap.SampleID(sid).MarshalBinary()
-}
-
-func (sid SampleID) CID() cid.Cid {
-	return encodeCID(shwap.SampleID(sid), sampleMultihashCode, sampleCodec)
-}
-
-func (sid SampleID) BlockFromEDS(eds *rsmt2d.ExtendedDataSquare) (blocks.Block, error) {
-	smpl, err := shwap.SampleFromEDS(eds, rsmt2d.Row, sid.RowIndex, sid.ShareIndex)
+func NewEmptySampleBlock(height uint64, rowIdx, colIdx int, root *share.Root) (*SampleBlock, error) {
+	id, err := shwap.NewSampleID(height, rowIdx, colIdx, root)
 	if err != nil {
 		return nil, err
 	}
 
-	dataID, err := sid.MarshalBinary()
+	return &SampleBlock{ID: id}, nil
+}
+
+// EmptySampleBlockFromCID coverts CID to SampleBlock.
+func EmptySampleBlockFromCID(cid cid.Cid) (*SampleBlock, error) {
+	sidData, err := extractCID(cid)
 	if err != nil {
-		return nil, fmt.Errorf("marshaling SampleID: %w", err)
+		return nil, err
 	}
 
-	smplBlk := bitswappb.SampleBlock{
-		SampleId: dataID,
-		Sample:   smpl.ToProto(),
+	sid, err := shwap.SampleIDFromBinary(sidData)
+	if err != nil {
+		return nil, fmt.Errorf("while unmarhaling SampleBlock: %w", err)
 	}
 
-	dataBlk, err := smplBlk.Marshal()
+	return &SampleBlock{ID: sid}, nil
+}
+
+func (sb *SampleBlock) IsEmpty() bool {
+	return sb.Container == nil
+}
+
+func (sb *SampleBlock) String() string {
+	data, err := sb.ID.MarshalBinary()
+	if err != nil {
+		panic(fmt.Errorf("marshaling SampleBlock: %w", err))
+	}
+	return string(data)
+}
+
+func (sb *SampleBlock) CID() cid.Cid {
+	return encodeCID(sb.ID, sampleMultihashCode, sampleCodec)
+}
+
+func (sb *SampleBlock) BlockFromEDS(eds *rsmt2d.ExtendedDataSquare) (blocks.Block, error) {
+	smpl, err := shwap.SampleFromEDS(eds, rsmt2d.Row, sb.ID.RowIndex, sb.ID.ShareIndex)
+	if err != nil {
+		return nil, err
+	}
+
+	smplID, err := sb.ID.MarshalBinary()
 	if err != nil {
 		return nil, fmt.Errorf("marshaling SampleBlock: %w", err)
 	}
 
-	blk, err := blocks.NewBlockWithCid(dataBlk, sid.CID())
+	smplBlk := bitswappb.SampleBlock{
+		SampleId: smplID,
+		Sample:   smpl.ToProto(),
+	}
+
+	blkData, err := smplBlk.Marshal()
+	if err != nil {
+		return nil, fmt.Errorf("marshaling SampleBlock: %w", err)
+	}
+
+	blk, err := blocks.NewBlockWithCid(blkData, sb.CID())
 	if err != nil {
 		return nil, fmt.Errorf("assembling block: %w", err)
 	}
@@ -95,23 +107,19 @@ func (sid SampleID) BlockFromEDS(eds *rsmt2d.ExtendedDataSquare) (blocks.Block, 
 	return blk, nil
 }
 
-type SampleBlock struct {
-	SampleID
-	Sample shwap.Sample
-}
-
-func (s *SampleBlock) Verifier(root *share.Root) verify {
+func (sb *SampleBlock) Populate(root *share.Root) PopulateFn {
 	return func(data []byte) error {
 		var sampleBlk bitswappb.SampleBlock
 		if err := sampleBlk.Unmarshal(data); err != nil {
 			return fmt.Errorf("unmarshaling SampleBlock: %w", err)
 		}
 
-		s.Sample = shwap.SampleFromProto(sampleBlk.Sample)
-		if err := s.Sample.Validate(root, s.RowIndex, s.ShareIndex); err != nil {
+		cntr := shwap.SampleFromProto(sampleBlk.Sample)
+		if err := cntr.Validate(root, sb.ID.RowIndex, sb.ID.ShareIndex); err != nil {
 			return fmt.Errorf("validating Sample: %w", err)
 		}
-		// NOTE: We don't have to validate ID in the RowBlock, as it's implicitly verified by string
+		sb.Container = &cntr
+		// NOTE: We don't have to validate Block in the RowBlock, as it's implicitly verified by string
 		// equality of globalVerifiers entry key(requesting side) and hasher accessing the entry(response
 		// verification)
 		return nil

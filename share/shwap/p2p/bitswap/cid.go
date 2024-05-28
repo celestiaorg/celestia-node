@@ -4,24 +4,9 @@ import (
 	"encoding"
 	"fmt"
 
-	blocks "github.com/ipfs/go-block-format"
 	"github.com/ipfs/go-cid"
 	mh "github.com/multiformats/go-multihash"
-
-	"github.com/celestiaorg/rsmt2d"
 )
-
-var specRegistry = make(map[uint64]idSpec)
-
-type idSpec struct {
-	size    int
-	codec   uint64
-	builder func(cid.Cid) (blockBuilder, error)
-}
-
-type blockBuilder interface {
-	BlockFromEDS(*rsmt2d.ExtendedDataSquare) (blocks.Block, error)
-}
 
 // DefaultAllowlist keeps default list of multihashes allowed in the network.
 // TODO(@Wondertan): Make it private and instead provide Blockservice constructor with injected
