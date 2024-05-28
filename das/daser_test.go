@@ -280,7 +280,11 @@ func TestDASer_SamplingWindow(t *testing.T) {
 			eh := headertest.RandExtendedHeader(t)
 			eh.RawHeader.Time = tt.timestamp
 
-			assert.Equal(t, tt.withinWindow, daser.isWithinSamplingWindow(eh))
+			assert.Equal(
+				t,
+				tt.withinWindow,
+				pruner.IsWithinAvailabilityWindow(eh.Time(), daser.params.samplingWindow),
+			)
 		})
 	}
 }

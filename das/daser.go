@@ -5,7 +5,6 @@ import (
 	"errors"
 	"fmt"
 	"sync/atomic"
-	"time"
 
 	"github.com/ipfs/go-datastore"
 	logging "github.com/ipfs/go-log/v2"
@@ -14,6 +13,7 @@ import (
 	libhead "github.com/celestiaorg/go-header"
 
 	"github.com/celestiaorg/celestia-node/header"
+	"github.com/celestiaorg/celestia-node/pruner"
 	"github.com/celestiaorg/celestia-node/share"
 	"github.com/celestiaorg/celestia-node/share/eds/byzantine"
 	"github.com/celestiaorg/celestia-node/share/p2p/shrexsub"
@@ -162,7 +162,7 @@ func (d *DASer) Stop(ctx context.Context) error {
 func (d *DASer) sample(ctx context.Context, h *header.ExtendedHeader) error {
 	// short-circuit if pruning is enabled and the header is outside the
 	// availability window
-	if !d.isWithinSamplingWindow(h) {
+	if !pruner.IsWithinAvailabilityWindow(h.Time(), d.params.samplingWindow) {
 		log.Debugw("skipping header outside sampling window", "height", h.Height(),
 			"time", h.Time())
 		return errOutsideSamplingWindow
@@ -181,14 +181,6 @@ func (d *DASer) sample(ctx context.Context, h *header.ExtendedHeader) error {
 		return err
 	}
 	return nil
-}
-
-func (d *DASer) isWithinSamplingWindow(eh *header.ExtendedHeader) bool {
-	// if sampling window is not set, then all headers are within the window
-	if d.params.samplingWindow.Duration() == 0 {
-		return true
-	}
-	return time.Since(eh.Time()) <= d.params.samplingWindow.Duration()
 }
 
 // SamplingStats returns the current statistics over the DA sampling process.
