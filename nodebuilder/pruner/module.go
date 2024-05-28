@@ -46,7 +46,6 @@ func ConstructModule(tp node.Type, cfg *Config) fx.Option {
 		return fx.Module("prune",
 			baseComponents,
 			fx.Provide(light.NewPruner),
-			fx.Supply(light.Window),
 		)
 	case node.Full:
 		opts := baseComponents
