@@ -414,6 +414,7 @@ func TestIntegration(t *testing.T) {
 			DefaultParameters(),
 			nil,
 			connGater,
+			"test",
 		)
 		require.NoError(t, err)
 
@@ -475,6 +476,7 @@ func testManager(ctx context.Context, headerSub libhead.Subscriber[*header.Exten
 		DefaultParameters(),
 		host,
 		connGater,
+		"test",
 		WithShrexSubPools(shrexSub, headerSub),
 	)
 	if err != nil {

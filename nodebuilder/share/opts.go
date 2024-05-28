@@ -1,6 +1,8 @@
 package share
 
 import (
+	"errors"
+
 	"github.com/celestiaorg/celestia-node/share/eds"
 	"github.com/celestiaorg/celestia-node/share/getters"
 	disc "github.com/celestiaorg/celestia-node/share/p2p/discovery"
@@ -11,14 +13,22 @@ import (
 
 // WithPeerManagerMetrics is a utility function to turn on peer manager metrics and that is
 // expected to be "invoked" by the fx lifecycle.
-func WithPeerManagerMetrics(m *peers.Manager) error {
-	return m.WithMetrics()
+func WithPeerManagerMetrics(managers map[string]*peers.Manager) error {
+	var err error
+	for _, m := range managers {
+		err = errors.Join(err, m.WithMetrics())
+	}
+	return err
 }
 
 // WithDiscoveryMetrics is a utility function to turn on discovery metrics and that is expected to
 // be "invoked" by the fx lifecycle.
-func WithDiscoveryMetrics(d *disc.Discovery) error {
-	return d.WithMetrics()
+func WithDiscoveryMetrics(discs []*disc.Discovery) error {
+	var err error
+	for _, disc := range discs {
+		err = errors.Join(err, disc.WithMetrics())
+	}
+	return err
 }
 
 func WithShrexClientMetrics(edsClient *shrexeds.Client, ndClient *shrexnd.Client) error {

@@ -13,7 +13,6 @@ type Parameters struct {
 	// Set 0 to disable.
 	PeersLimit uint
 	// AdvertiseInterval is a interval between advertising sessions.
-	// Set -1 to disable.
 	// NOTE: only full and bridge can advertise themselves.
 	AdvertiseInterval time.Duration
 }
@@ -22,6 +21,9 @@ type Parameters struct {
 type options struct {
 	// onUpdatedPeers will be called on peer set changes
 	onUpdatedPeers OnUpdatedPeers
+	// advertise indicates whether the node should also
+	// advertise to the discovery instance's topic
+	advertise bool
 }
 
 // Option is a function that configures Discovery Parameters
@@ -55,9 +57,16 @@ func WithOnPeersUpdate(f OnUpdatedPeers) Option {
 	}
 }
 
+func WithAdvertise() Option {
+	return func(p *options) {
+		p.advertise = true
+	}
+}
+
 func newOptions(opts ...Option) *options {
 	defaults := &options{
 		onUpdatedPeers: func(peer.ID, bool) {},
+		advertise:      false,
 	}
 
 	for _, opt := range opts {

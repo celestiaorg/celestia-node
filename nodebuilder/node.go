@@ -30,6 +30,7 @@ import (
 	"github.com/celestiaorg/celestia-node/nodebuilder/p2p"
 	"github.com/celestiaorg/celestia-node/nodebuilder/share"
 	"github.com/celestiaorg/celestia-node/nodebuilder/state"
+	"github.com/celestiaorg/celestia-node/share/eds"
 )
 
 var (
@@ -55,6 +56,9 @@ type Node struct {
 	// rpc components
 	RPCServer     *rpc.Server     // not optional
 	GatewayServer *gateway.Server `optional:"true"`
+
+	// block store
+	EDSStore *eds.Store `optional:"true"`
 
 	// p2p components
 	Host         host.Host
