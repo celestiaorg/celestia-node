@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"time"
 
+	libpeer "github.com/libp2p/go-libp2p/core/peer"
 	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/metric"
@@ -15,6 +16,7 @@ import (
 
 	"github.com/celestiaorg/celestia-node/header"
 	"github.com/celestiaorg/celestia-node/libs/utils"
+	"github.com/celestiaorg/celestia-node/pruner"
 	"github.com/celestiaorg/celestia-node/share"
 	"github.com/celestiaorg/celestia-node/share/ipld"
 	"github.com/celestiaorg/celestia-node/share/p2p"
@@ -88,7 +90,8 @@ type ShrexGetter struct {
 	edsClient *shrexeds.Client
 	ndClient  *shrexnd.Client
 
-	peerManager *peers.Manager
+	fullPeerManager     *peers.Manager
+	archivalPeerManager *peers.Manager
 
 	// minRequestTimeout limits minimal timeout given to single peer by getter for serving the request.
 	minRequestTimeout time.Duration
@@ -96,25 +99,45 @@ type ShrexGetter struct {
 	// attempt multiple peers in scope of one request before context timeout is reached
 	minAttemptsCount int
 
+	availabilityWindow pruner.AvailabilityWindow
+
 	metrics *metrics
 }
 
-func NewShrexGetter(edsClient *shrexeds.Client, ndClient *shrexnd.Client, peerManager *peers.Manager) *ShrexGetter {
-	return &ShrexGetter{
-		edsClient:         edsClient,
-		ndClient:          ndClient,
-		peerManager:       peerManager,
-		minRequestTimeout: defaultMinRequestTimeout,
-		minAttemptsCount:  defaultMinAttemptsCount,
+func NewShrexGetter(
+	edsClient *shrexeds.Client,
+	ndClient *shrexnd.Client,
+	fullPeerManager *peers.Manager,
+	archivalManager *peers.Manager,
+	availWindow pruner.AvailabilityWindow,
+) *ShrexGetter {
+	s := &ShrexGetter{
+		edsClient:           edsClient,
+		ndClient:            ndClient,
+		fullPeerManager:     fullPeerManager,
+		archivalPeerManager: archivalManager,
+		minRequestTimeout:   defaultMinRequestTimeout,
+		minAttemptsCount:    defaultMinAttemptsCount,
+		availabilityWindow:  availWindow,
 	}
+
+	return s
 }
 
 func (sg *ShrexGetter) Start(ctx context.Context) error {
-	return sg.peerManager.Start(ctx)
+	err := sg.fullPeerManager.Start(ctx)
+	if err != nil {
+		return err
+	}
+	return sg.archivalPeerManager.Start(ctx)
 }
 
 func (sg *ShrexGetter) Stop(ctx context.Context) error {
-	return sg.peerManager.Stop(ctx)
+	err := sg.fullPeerManager.Stop(ctx)
+	if err != nil {
+		return err
+	}
+	return sg.archivalPeerManager.Stop(ctx)
 }
 
 func (sg *ShrexGetter) GetShare(context.Context, *header.ExtendedHeader, int, int) (share.Share, error) {
@@ -122,10 +145,7 @@ func (sg *ShrexGetter) GetShare(context.Context, *header.ExtendedHeader, int, in
 }
 
 func (sg *ShrexGetter) GetEDS(ctx context.Context, header *header.ExtendedHeader) (*rsmt2d.ExtendedDataSquare, error) {
-	var (
-		attempt int
-		err     error
-	)
+	var err error
 	ctx, span := tracer.Start(ctx, "shrex/get-eds")
 	defer func() {
 		utils.SetStatusAndEnd(span, err)
@@ -135,6 +155,8 @@ func (sg *ShrexGetter) GetEDS(ctx context.Context, header *header.ExtendedHeader
 	if header.DAH.Equals(share.EmptyRoot()) {
 		return share.EmptyExtendedDataSquare(), nil
 	}
+
+	var attempt int
 	for {
 		if ctx.Err() != nil {
 			sg.metrics.recordEDSAttempt(ctx, attempt, false)
@@ -142,7 +164,8 @@ func (sg *ShrexGetter) GetEDS(ctx context.Context, header *header.ExtendedHeader
 		}
 		attempt++
 		start := time.Now()
-		peer, setStatus, getErr := sg.peerManager.Peer(ctx, header.DAH.Hash(), header.Height())
+
+		peer, setStatus, getErr := sg.getPeer(ctx, header)
 		if getErr != nil {
 			log.Debugw("eds: couldn't find peer",
 				"hash", header.DAH.String(),
@@ -218,7 +241,8 @@ func (sg *ShrexGetter) GetSharesByNamespace(
 		}
 		attempt++
 		start := time.Now()
-		peer, setStatus, getErr := sg.peerManager.Peer(ctx, header.DAH.Hash(), header.Height())
+
+		peer, setStatus, getErr := sg.getPeer(ctx, header)
 		if getErr != nil {
 			log.Debugw("nd: couldn't find peer",
 				"hash", dah.String(),
@@ -267,4 +291,15 @@ func (sg *ShrexGetter) GetSharesByNamespace(
 			"err", getErr,
 			"finished (s)", time.Since(reqStart))
 	}
+}
+
+func (sg *ShrexGetter) getPeer(
+	ctx context.Context,
+	header *header.ExtendedHeader,
+) (libpeer.ID, peers.DoneFunc, error) {
+	if !pruner.IsWithinAvailabilityWindow(header.Time(), sg.availabilityWindow) {
+		p, df, err := sg.archivalPeerManager.Peer(ctx, header.DAH.Hash(), header.Height())
+		return p, df, err
+	}
+	return sg.fullPeerManager.Peer(ctx, header.DAH.Hash(), header.Height())
 }
