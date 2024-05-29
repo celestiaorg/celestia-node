@@ -44,12 +44,13 @@ func GetShares(ctx context.Context, bg blockservice.BlockGetter, root cid.Cid, s
 func GetSharesByNamespace(
 	ctx context.Context,
 	bGetter blockservice.BlockGetter,
-	root cid.Cid,
+	root []byte,
 	namespace share.Namespace,
 	maxShares int,
 ) ([]share.Share, *nmt.Proof, error) {
+	rootCid := MustCidFromNamespacedSha256(root)
 	data := NewNamespaceData(maxShares, namespace, WithLeaves(), WithProofs())
-	err := data.CollectLeavesByNamespace(ctx, bGetter, root)
+	err := data.CollectLeavesByNamespace(ctx, bGetter, rootCid)
 	if err != nil {
 		return nil, nil, err
 	}
