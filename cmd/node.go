@@ -49,6 +49,7 @@ func NewLight(options ...func(*cobra.Command, []*pflag.FlagSet)) *cobra.Command 
 		rpc.Flags(),
 		gateway.Flags(),
 		state.Flags(),
+		pruner.Flags(),
 	}
 	cmd := &cobra.Command{
 		Use:   "light [subcommand]",
