@@ -1,7 +1,6 @@
 package shwap
 
 import (
-	"crypto/sha256"
 	"fmt"
 
 	"github.com/celestiaorg/celestia-app/pkg/wrapper"
@@ -158,7 +157,7 @@ func (rnd RowNamespaceData) verifyInclusion(rowRoot []byte, namespace share.Name
 		leaves = append(leaves, append(namespaceBytes, shr...))
 	}
 	return rnd.Proof.VerifyNamespace(
-		sha256.New(),
+		share.NewSHA256Hasher(),
 		namespace.ToNMT(),
 		leaves,
 		rowRoot,

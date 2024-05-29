@@ -121,24 +121,24 @@ func CollectSharesByNamespace(
 		utils.SetStatusAndEnd(span, err)
 	}()
 
-	rootCIDs := ipld.FilterRootByNamespace(root, namespace)
-	if len(rootCIDs) == 0 {
+	rowIdxs := share.RowsWithNamespace(root, namespace)
+	if len(rowIdxs) == 0 {
 		return []share.NamespacedRow{}, nil
 	}
 
 	errGroup, ctx := errgroup.WithContext(ctx)
-	shares = make([]share.NamespacedRow, len(rootCIDs))
-	for i, rootCID := range rootCIDs {
+	shares = make([]share.NamespacedRow, len(rowIdxs))
+	for i, rowIdx := range rowIdxs {
 		// shadow loop variables, to ensure correct values are captured
-		i, rootCID := i, rootCID
+		rowIdx, rowRoot := rowIdx, root.RowRoots[rowIdx]
 		errGroup.Go(func() error {
-			row, proof, err := ipld.GetSharesByNamespace(ctx, bg, rootCID, namespace, len(root.RowRoots))
+			row, proof, err := ipld.GetSharesByNamespace(ctx, bg, rowRoot, namespace, len(root.RowRoots))
 			shares[i] = share.NamespacedRow{
 				Shares: row,
 				Proof:  proof,
 			}
 			if err != nil {
-				return fmt.Errorf("retrieving shares by namespace %s for row %x: %w", namespace.String(), rootCID, err)
+				return fmt.Errorf("retrieving shares by namespace %s for row %d: %w", namespace.String(), rowIdx, err)
 			}
 			return nil
 		})
