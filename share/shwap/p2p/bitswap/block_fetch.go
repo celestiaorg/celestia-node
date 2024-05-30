@@ -47,10 +47,7 @@ func Fetch(ctx context.Context, fetcher exchange.Fetcher, root *share.Root, blks
 		return fmt.Errorf("fetching bitswap blocks: %w", err)
 	}
 
-	for blk := range blkCh {
-		if ctx.Err() != nil { // GetBlocks closes blkCh on ctx cancellation
-			return ctx.Err()
-		}
+	for blk := range blkCh { // GetBlocks closes blkCh on ctx cancellation
 		// check if the blk is a duplicate
 		id, ok := duplicate[blk.Cid()]
 		if !ok {
@@ -70,7 +67,7 @@ func Fetch(ctx context.Context, fetcher exchange.Fetcher, root *share.Root, blks
 		// towards simplicity has been made.
 	}
 
-	return nil
+	return ctx.Err()
 }
 
 // populators exists to communicate between Fetch and hasher.

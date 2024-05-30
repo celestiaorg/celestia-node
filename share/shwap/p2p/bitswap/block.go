@@ -12,11 +12,6 @@ import (
 
 var log = logger.Logger("shwap/bitswap")
 
-// TODO:
-//  * Coverage
-//  * godoc
-//    * document steps required to add new id/container type
-
 // PopulateFn is a closure produced by a Block that validates given
 // serialized Shwap container and populates the Block with it on success.
 type PopulateFn func([]byte) error

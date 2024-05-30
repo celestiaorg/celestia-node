@@ -35,7 +35,7 @@ func TestFetchDuplicates(t *testing.T) {
 	eds := edstest.RandEDS(t, 4)
 	root, err := share.NewRoot(eds)
 	require.NoError(t, err)
-	client := fetcher(ctx, t, newTestBlockstore(eds))
+	fetcher := fetcher(ctx, t, newTestBlockstore(eds))
 
 	var wg sync.WaitGroup
 	blks := make([]*RowBlock, 100)
@@ -50,7 +50,7 @@ func TestFetchDuplicates(t *testing.T) {
 			// this sleep ensures fetches aren't started simultaneously allowing to check for edge-cases
 			time.Sleep(time.Millisecond * time.Duration(rint))
 
-			err := Fetch(ctx, client, root, blk)
+			err := Fetch(ctx, fetcher, root, blk)
 			assert.NoError(t, err)
 			wg.Done()
 		}()
