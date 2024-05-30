@@ -114,6 +114,9 @@ func (rndb *RowNamespaceDataBlock) BlockFromEDS(eds *rsmt2d.ExtendedDataSquare) 
 
 func (rndb *RowNamespaceDataBlock) Populate(root *share.Root) PopulateFn {
 	return func(data []byte) error {
+		if !rndb.IsEmpty() {
+			return nil
+		}
 		var rndBlk bitswapb.RowNamespaceDataBlock
 		if err := rndBlk.Unmarshal(data); err != nil {
 			return fmt.Errorf("unmarshaling RowNamespaceDataBlock: %w", err)

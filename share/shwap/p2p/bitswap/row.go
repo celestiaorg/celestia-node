@@ -104,6 +104,9 @@ func (rb *RowBlock) BlockFromEDS(eds *rsmt2d.ExtendedDataSquare) (blocks.Block, 
 
 func (rb *RowBlock) Populate(root *share.Root) PopulateFn {
 	return func(data []byte) error {
+		if !rb.IsEmpty() {
+			return nil
+		}
 		var rowBlk bitswappb.RowBlock
 		if err := rowBlk.Unmarshal(data); err != nil {
 			return fmt.Errorf("unmarshaling RowBlock: %w", err)

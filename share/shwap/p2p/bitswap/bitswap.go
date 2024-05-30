@@ -6,7 +6,6 @@ import (
 	"sync"
 
 	"github.com/ipfs/boxo/exchange"
-	blocks "github.com/ipfs/go-block-format"
 	"github.com/ipfs/go-cid"
 	logger "github.com/ipfs/go-log/v2"
 
@@ -66,11 +65,12 @@ func Fetch(ctx context.Context, fetcher exchange.Fetcher, root *share.Root, ids 
 	}
 
 	// GetBlocks handles ctx and closes blkCh, so we don't have to
-	blks := make([]blocks.Block, 0, len(cids))
+	var amount int
 	for blk := range blkCh {
-		blks = append(blks, blk)
+		ids[amount].Populate(root)(blk.RawData())
+		amount++
 	}
-	if len(blks) != len(cids) {
+	if amount != len(cids) {
 		if ctx.Err() != nil {
 			return ctx.Err()
 		}

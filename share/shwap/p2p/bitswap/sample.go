@@ -109,6 +109,9 @@ func (sb *SampleBlock) BlockFromEDS(eds *rsmt2d.ExtendedDataSquare) (blocks.Bloc
 
 func (sb *SampleBlock) Populate(root *share.Root) PopulateFn {
 	return func(data []byte) error {
+		if !sb.IsEmpty() {
+			return nil
+		}
 		var sampleBlk bitswappb.SampleBlock
 		if err := sampleBlk.Unmarshal(data); err != nil {
 			return fmt.Errorf("unmarshaling SampleBlock: %w", err)
