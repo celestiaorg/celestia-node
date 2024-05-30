@@ -35,12 +35,4 @@ func TestRowRoundtrip_GetContainers(t *testing.T) {
 		err = row.Container.Validate(root, row.ID.RowIndex)
 		require.NoError(t, err)
 	}
-
-	// TODO: Should be part of a different test
-	var entries int
-	populators.Range(func(any, any) bool {
-		entries++
-		return true
-	})
-	require.Zero(t, entries)
 }

@@ -26,24 +26,25 @@ func (h *hasher) Write(data []byte) (int, error) {
 	//  * Avoid type allocations
 	id := data[pbOffset : h.IDSize+pbOffset]
 	// get registered verifier and use it to check data validity
-	val, ok := populators.Load(string(id))
+	populateFns, ok := populators.Load(string(id))
 	if !ok {
 		err := fmt.Errorf("shwap/bitswap hasher: no verifier registered")
 		log.Error(err)
 		return 0, err
 	}
-	populate := val.(PopulateFn)
-	err := populate(data)
-	if err != nil {
-		err = fmt.Errorf("shwap/bitswap hasher: verifying data: %w", err)
-		log.Error(err)
-		return 0, err
+	for populate := range populateFns {
+		err := (*populate)(data)
+		if err != nil {
+			err = fmt.Errorf("shwap/bitswap hasher: verifying data: %w", err)
+			log.Error(err)
+			return 0, err
+		}
 	}
 	// if correct set the id as resulting sum
 	// it's required for the sum to match the original Block
 	// to satisfy hash contract
 	h.sum = id
-	return len(data), err
+	return len(data), nil
 }
 
 func (h *hasher) Sum([]byte) []byte {
