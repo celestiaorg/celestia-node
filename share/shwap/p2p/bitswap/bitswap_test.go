@@ -3,7 +3,10 @@ package bitswap
 import (
 	"context"
 	"fmt"
+	"math/rand/v2"
+	"sync"
 	"testing"
+	"time"
 
 	"github.com/ipfs/boxo/bitswap"
 	"github.com/ipfs/boxo/bitswap/network"
@@ -16,10 +19,59 @@ import (
 	dssync "github.com/ipfs/go-datastore/sync"
 	record "github.com/libp2p/go-libp2p-record"
 	mocknet "github.com/libp2p/go-libp2p/p2p/net/mock"
+	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
 	"github.com/celestiaorg/rsmt2d"
+
+	"github.com/celestiaorg/celestia-node/logs"
+	"github.com/celestiaorg/celestia-node/share"
+	"github.com/celestiaorg/celestia-node/share/eds/edstest"
 )
+
+func TestFetchDuplicates(t *testing.T) {
+	logs.SetDebugLogging()
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second*5)
+	defer cancel()
+
+	eds := edstest.RandEDS(t, 4)
+	root, err := share.NewRoot(eds)
+	require.NoError(t, err)
+	client := remoteClient(ctx, t, newTestBlockstore(eds))
+
+	var wg sync.WaitGroup
+	var blks []*RowBlock
+	for range 100 {
+		blk, err := NewEmptyRowBlock(1, 0, root) // create the same Block ID
+		require.NoError(t, err)
+		blks = append(blks, blk)
+
+		wg.Add(1)
+		go func() {
+			rint := rand.IntN(10)
+			// this sleep ensures fetches aren't started simultaneously allowing to check for edge-cases
+			time.Sleep(time.Millisecond * time.Duration(rint))
+
+			err := Fetch(ctx, client, root, blk)
+			assert.NoError(t, err)
+			wg.Done()
+		}()
+
+	}
+	wg.Wait()
+
+	for _, blk := range blks {
+		t.Log(blk.IsEmpty())
+		assert.False(t, blk.IsEmpty())
+	}
+
+	var entries int
+	populators.mp.Range(func(any, any) bool {
+		entries++
+		return true
+	})
+	require.Zero(t, entries)
+}
 
 func remoteClient(ctx context.Context, t *testing.T, bstore blockstore.Blockstore) exchange.Fetcher {
 	net, err := mocknet.FullMeshLinked(2)
