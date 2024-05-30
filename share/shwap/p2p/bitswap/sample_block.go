@@ -27,17 +27,19 @@ func init() {
 		sampleMultihashCode,
 		sampleCodec,
 		shwap.SampleIDSize,
-		func(cid cid.Cid) (blockBuilder, error) {
+		func(cid cid.Cid) (Block, error) {
 			return EmptySampleBlockFromCID(cid)
 		},
 	)
 }
 
+// SampleBlock is a Bitswap compatible block for Shwap's Sample container.
 type SampleBlock struct {
 	ID        shwap.SampleID
 	Container *shwap.Sample
 }
 
+// NewEmptySampleBlock constructs a new empty SampleBlock.
 func NewEmptySampleBlock(height uint64, rowIdx, colIdx int, root *share.Root) (*SampleBlock, error) {
 	id, err := shwap.NewSampleID(height, rowIdx, colIdx, root)
 	if err != nil {
@@ -47,7 +49,7 @@ func NewEmptySampleBlock(height uint64, rowIdx, colIdx int, root *share.Root) (*
 	return &SampleBlock{ID: id}, nil
 }
 
-// EmptySampleBlockFromCID coverts CID to SampleBlock.
+// EmptySampleBlockFromCID constructs an empty SampleBlock out of the CID.
 func EmptySampleBlockFromCID(cid cid.Cid) (*SampleBlock, error) {
 	sidData, err := extractCID(cid)
 	if err != nil {
@@ -60,10 +62,6 @@ func EmptySampleBlockFromCID(cid cid.Cid) (*SampleBlock, error) {
 	}
 
 	return &SampleBlock{ID: sid}, nil
-}
-
-func (sb *SampleBlock) IsEmpty() bool {
-	return sb.Container == nil
 }
 
 func (sb *SampleBlock) String() string {
@@ -105,6 +103,10 @@ func (sb *SampleBlock) BlockFromEDS(eds *rsmt2d.ExtendedDataSquare) (blocks.Bloc
 	}
 
 	return blk, nil
+}
+
+func (sb *SampleBlock) IsEmpty() bool {
+	return sb.Container == nil
 }
 
 func (sb *SampleBlock) Populate(root *share.Root) PopulateFn {

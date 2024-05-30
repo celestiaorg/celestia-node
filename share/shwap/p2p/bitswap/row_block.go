@@ -26,17 +26,19 @@ func init() {
 		rowMultihashCode,
 		rowCodec,
 		shwap.RowIDSize,
-		func(cid cid.Cid) (blockBuilder, error) {
+		func(cid cid.Cid) (Block, error) {
 			return EmptyRowBlockFromCID(cid)
 		},
 	)
 }
 
+// RowBlock is a Bitswap compatible block for Shwap's Row container.
 type RowBlock struct {
 	ID        shwap.RowID
 	Container *shwap.Row
 }
 
+// NewEmptyRowBlock constructs a new empty RowBlock.
 func NewEmptyRowBlock(height uint64, rowIdx int, root *share.Root) (*RowBlock, error) {
 	id, err := shwap.NewRowID(height, rowIdx, root)
 	if err != nil {
@@ -46,7 +48,7 @@ func NewEmptyRowBlock(height uint64, rowIdx int, root *share.Root) (*RowBlock, e
 	return &RowBlock{ID: id}, nil
 }
 
-// EmptyRowBlockFromCID coverts CID to RowBlock.
+// EmptyRowBlockFromCID constructs an empty RowBlock out of the CID.
 func EmptyRowBlockFromCID(cid cid.Cid) (*RowBlock, error) {
 	ridData, err := extractCID(cid)
 	if err != nil {
@@ -58,10 +60,6 @@ func EmptyRowBlockFromCID(cid cid.Cid) (*RowBlock, error) {
 		return nil, fmt.Errorf("while unmarhaling RowBlock: %w", err)
 	}
 	return &RowBlock{ID: rid}, nil
-}
-
-func (rb *RowBlock) IsEmpty() bool {
-	return rb.Container == nil
 }
 
 func (rb *RowBlock) String() string {
@@ -100,6 +98,10 @@ func (rb *RowBlock) BlockFromEDS(eds *rsmt2d.ExtendedDataSquare) (blocks.Block, 
 	}
 
 	return blk, nil
+}
+
+func (rb *RowBlock) IsEmpty() bool {
+	return rb.Container == nil
 }
 
 func (rb *RowBlock) Populate(root *share.Root) PopulateFn {

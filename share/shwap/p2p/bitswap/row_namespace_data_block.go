@@ -26,17 +26,19 @@ func init() {
 		rowNamespaceDataMultihashCode,
 		rowNamespaceDataCodec,
 		shwap.RowNamespaceDataIDSize,
-		func(cid cid.Cid) (blockBuilder, error) {
+		func(cid cid.Cid) (Block, error) {
 			return EmptyRowNamespaceDataBlockFromCID(cid)
 		},
 	)
 }
 
+// RowNamespaceDataBlock is a Bitswap compatible block for Shwap's RowNamespaceData container.
 type RowNamespaceDataBlock struct {
 	ID        shwap.RowNamespaceDataID
 	Container *shwap.RowNamespaceData
 }
 
+// NewEmptyRowNamespaceDataBlock constructs a new empty RowNamespaceDataBlock.
 func NewEmptyRowNamespaceDataBlock(
 	height uint64,
 	rowIdx int,
@@ -51,7 +53,7 @@ func NewEmptyRowNamespaceDataBlock(
 	return &RowNamespaceDataBlock{ID: id}, nil
 }
 
-// EmptyRowNamespaceDataBlockFromCID coverts CID to RowNamespaceDataBlock.
+// EmptyRowNamespaceDataBlockFromCID constructs an empty RowNamespaceDataBlock out of the CID.
 func EmptyRowNamespaceDataBlockFromCID(cid cid.Cid) (*RowNamespaceDataBlock, error) {
 	rndidData, err := extractCID(cid)
 	if err != nil {
@@ -64,10 +66,6 @@ func EmptyRowNamespaceDataBlockFromCID(cid cid.Cid) (*RowNamespaceDataBlock, err
 	}
 
 	return &RowNamespaceDataBlock{ID: rndid}, nil
-}
-
-func (rndb *RowNamespaceDataBlock) IsEmpty() bool {
-	return rndb.Container == nil
 }
 
 func (rndb *RowNamespaceDataBlock) String() string {
@@ -110,6 +108,10 @@ func (rndb *RowNamespaceDataBlock) BlockFromEDS(eds *rsmt2d.ExtendedDataSquare) 
 	}
 
 	return blk, nil
+}
+
+func (rndb *RowNamespaceDataBlock) IsEmpty() bool {
+	return rndb.Container == nil
 }
 
 func (rndb *RowNamespaceDataBlock) Populate(root *share.Root) PopulateFn {

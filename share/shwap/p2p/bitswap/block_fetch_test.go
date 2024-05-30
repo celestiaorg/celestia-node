@@ -24,27 +24,25 @@ import (
 
 	"github.com/celestiaorg/rsmt2d"
 
-	"github.com/celestiaorg/celestia-node/logs"
 	"github.com/celestiaorg/celestia-node/share"
 	"github.com/celestiaorg/celestia-node/share/eds/edstest"
 )
 
 func TestFetchDuplicates(t *testing.T) {
-	logs.SetDebugLogging()
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second*5)
 	defer cancel()
 
 	eds := edstest.RandEDS(t, 4)
 	root, err := share.NewRoot(eds)
 	require.NoError(t, err)
-	client := remoteClient(ctx, t, newTestBlockstore(eds))
+	client := fetcher(ctx, t, newTestBlockstore(eds))
 
 	var wg sync.WaitGroup
-	var blks []*RowBlock
-	for range 100 {
+	blks := make([]*RowBlock, 100)
+	for i := range blks {
 		blk, err := NewEmptyRowBlock(1, 0, root) // create the same Block ID
 		require.NoError(t, err)
-		blks = append(blks, blk)
+		blks[i] = blk
 
 		wg.Add(1)
 		go func() {
@@ -56,12 +54,10 @@ func TestFetchDuplicates(t *testing.T) {
 			assert.NoError(t, err)
 			wg.Done()
 		}()
-
 	}
 	wg.Wait()
 
 	for _, blk := range blks {
-		t.Log(blk.IsEmpty())
 		assert.False(t, blk.IsEmpty())
 	}
 
@@ -73,7 +69,7 @@ func TestFetchDuplicates(t *testing.T) {
 	require.Zero(t, entries)
 }
 
-func remoteClient(ctx context.Context, t *testing.T, bstore blockstore.Blockstore) exchange.Fetcher {
+func fetcher(ctx context.Context, t *testing.T, bstore blockstore.Blockstore) exchange.Fetcher {
 	net, err := mocknet.FullMeshLinked(2)
 	require.NoError(t, err)
 

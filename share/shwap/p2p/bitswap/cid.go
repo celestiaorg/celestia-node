@@ -10,7 +10,8 @@ import (
 
 // DefaultAllowlist keeps default list of multihashes allowed in the network.
 // TODO(@Wondertan): Make it private and instead provide Blockservice constructor with injected
-// allowlist
+//
+//	allowlist
 var DefaultAllowlist allowlist
 
 type allowlist struct{}
@@ -21,6 +22,7 @@ func (a allowlist) IsAllowed(code uint64) bool {
 	return ok
 }
 
+// extractCID retrieves Shwap ID out of the CID.
 func extractCID(cid cid.Cid) ([]byte, error) {
 	if err := validateCID(cid); err != nil {
 		return nil, err
@@ -30,6 +32,7 @@ func extractCID(cid cid.Cid) ([]byte, error) {
 	return cid.Hash()[mhPrefixSize:], nil
 }
 
+// encodeCID encodes Shwap ID into the CID.
 func encodeCID(bm encoding.BinaryMarshaler, mhcode, codec uint64) cid.Cid {
 	data, err := bm.MarshalBinary()
 	if err != nil {
@@ -44,6 +47,7 @@ func encodeCID(bm encoding.BinaryMarshaler, mhcode, codec uint64) cid.Cid {
 	return cid.NewCidV1(codec, buf)
 }
 
+// validateCID checks correctness of the CID.
 func validateCID(cid cid.Cid) error {
 	prefix := cid.Prefix()
 	spec, ok := specRegistry[prefix.MhType]
