@@ -47,16 +47,22 @@ type Block interface {
 // cause issues. TODO: Describe motivation
 func Fetch(ctx context.Context, fetcher exchange.Fetcher, root *share.Root, ids ...Block) error {
 	cids := make([]cid.Cid, 0, len(ids))
+	missingIds := make(map[cid.Cid]Block)
 	for _, id := range ids {
 		if !id.IsEmpty() {
 			continue
 		}
-		cids = append(cids, id.CID())
+		cid := id.CID()
+		cids = append(cids, cid)
 
 		idStr := id.String()
-		populateFn := id.Populate(root)
-		populators.Store(idStr, &populateFn)
-		defer populators.Delete(idStr, &populateFn)
+		p := id.Populate(root)
+		_, exists := populators.LoadOrStore(idStr, p)
+		if exists {
+			missingIds[cid] = id
+		} else {
+			defer populators.Delete(idStr)
+		}
 	}
 
 	// must start getting only after verifiers are registered
@@ -68,7 +74,9 @@ func Fetch(ctx context.Context, fetcher exchange.Fetcher, root *share.Root, ids 
 	// GetBlocks handles ctx and closes blkCh, so we don't have to
 	var amount int
 	for blk := range blkCh {
-		ids[amount].Populate(root)(blk.RawData())
+		if id, ok := missingIds[blk.Cid()]; ok {
+			id.Populate(root)(blk.RawData())
+		}
 		amount++
 	}
 	if amount != len(cids) {
@@ -81,57 +89,4 @@ func Fetch(ctx context.Context, fetcher exchange.Fetcher, root *share.Root, ids 
 	return nil
 }
 
-var populators populatorsMap
-
-type populatorEntry struct {
-	sync.Mutex
-	funcs map[*PopulateFn]struct{}
-}
-
-func newPopulatorEntry(fn *PopulateFn) *populatorEntry {
-	return &populatorEntry{
-		funcs: map[*PopulateFn]struct{}{fn: {}},
-	}
-}
-
-type populatorsMap struct {
-	// use sync.Map to minimize contention between disjoint keys
-	// which is the dominant case
-	mp sync.Map
-	mu sync.Mutex
-}
-
-func (p *populatorsMap) Store(id string, fn *PopulateFn) {
-	val, ok := p.mp.LoadOrStore(id, newPopulatorEntry(fn))
-	if !ok {
-		return
-	}
-
-	entry := val.(*populatorEntry)
-	entry.Lock()
-	entry.funcs[fn] = struct{}{}
-	entry.Unlock()
-}
-
-func (p *populatorsMap) Load(id string) (map[*PopulateFn]struct{}, bool) {
-	val, ok := p.mp.Load(id)
-	if !ok {
-		return nil, false
-	}
-	return val.(*populatorEntry).funcs, ok
-}
-
-func (p *populatorsMap) Delete(id string, fn *PopulateFn) {
-	val, ok := p.mp.Load(id)
-	if !ok {
-		return
-	}
-
-	entry := val.(*populatorEntry)
-	entry.Lock()
-	delete(entry.funcs, fn)
-	if len(entry.funcs) == 0 {
-		p.mp.Delete(id)
-	}
-	entry.Unlock()
-}
+var populators sync.Map
