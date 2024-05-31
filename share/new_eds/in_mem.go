@@ -18,14 +18,17 @@ type InMem struct {
 	*rsmt2d.ExtendedDataSquare
 }
 
+// Close does nothing.
 func (eds InMem) Close() error {
 	return nil
 }
 
+// Size returns the size of the Extended Data Square.
 func (eds InMem) Size() int {
 	return int(eds.Width())
 }
 
+// Sample returns share and corresponding proof for row and column indices.
 func (eds InMem) Sample(
 	_ context.Context,
 	rowIdx, colIdx int,
@@ -70,6 +73,7 @@ func (eds InMem) SampleForProofAxis(
 	}, nil
 }
 
+// AxisHalf returns Shares for the first half of the axis of the given type and index.
 func (eds InMem) AxisHalf(_ context.Context, axisType rsmt2d.Axis, axisIdx int) (AxisHalf, error) {
 	return AxisHalf{
 		Shares:   getAxis(eds.ExtendedDataSquare, axisType, axisIdx)[:eds.Size()/2],
@@ -84,6 +88,7 @@ func (eds InMem) HalfRow(idx int, side shwap.RowSide) shwap.Row {
 	return shwap.RowFromShares(shares, side)
 }
 
+// RowData returns data for the given namespace and row index.
 func (eds InMem) RowData(_ context.Context, namespace share.Namespace, rowIdx int) (shwap.RowNamespaceData, error) {
 	shares := eds.Row(uint(rowIdx))
 	return shwap.RowNamespaceDataFromShares(shares, namespace, rowIdx)
@@ -111,6 +116,7 @@ func (eds InMem) NamespacedData(
 	return rows, nil
 }
 
+// EDS returns extended data square stored in the file.
 func (eds InMem) EDS(_ context.Context) (*rsmt2d.ExtendedDataSquare, error) {
 	return eds.ExtendedDataSquare, nil
 }
