@@ -1,4 +1,4 @@
-package file
+package eds
 
 import (
 	"context"
@@ -12,29 +12,30 @@ import (
 	"github.com/celestiaorg/celestia-node/share/shwap"
 )
 
-var _ EdsFile = (*MemFile)(nil)
+var _ EDS = InMem{}
 
-type MemFile struct {
-	Eds *rsmt2d.ExtendedDataSquare
+// InMem is an in-memory implementation of EDS.
+type InMem struct {
+	*rsmt2d.ExtendedDataSquare
 }
 
-func (f *MemFile) Close() error {
+func (eds InMem) Close() error {
 	return nil
 }
 
-func (f *MemFile) Size() int {
-	return int(f.Eds.Width())
+func (eds InMem) Size() int {
+	return int(eds.Width())
 }
 
-func (f *MemFile) Share(
+func (eds InMem) Share(
 	_ context.Context,
 	rowIdx, colIdx int,
 ) (*shwap.Sample, error) {
 	axisType := rsmt2d.Row
 	axisIdx, shrIdx := rowIdx, colIdx
 
-	shares := getAxis(f.Eds, axisType, axisIdx)
-	tree := wrapper.NewErasuredNamespacedMerkleTree(uint64(f.Size()/2), uint(axisIdx))
+	shares := getAxis(eds.ExtendedDataSquare, axisType, axisIdx)
+	tree := wrapper.NewErasuredNamespacedMerkleTree(uint64(eds.Size()/2), uint(axisIdx))
 	for _, shr := range shares {
 		err := tree.Push(shr)
 		if err != nil {
@@ -54,20 +55,20 @@ func (f *MemFile) Share(
 	}, nil
 }
 
-func (f *MemFile) AxisHalf(_ context.Context, axisType rsmt2d.Axis, axisIdx int) (AxisHalf, error) {
+func (eds InMem) AxisHalf(_ context.Context, axisType rsmt2d.Axis, axisIdx int) (AxisHalf, error) {
 	return AxisHalf{
-		Shares:   getAxis(f.Eds, axisType, axisIdx)[:f.Size()/2],
+		Shares:   getAxis(eds.ExtendedDataSquare, axisType, axisIdx)[:eds.Size()/2],
 		IsParity: false,
 	}, nil
 }
 
-func (f *MemFile) Data(_ context.Context, namespace share.Namespace, rowIdx int) (shwap.RowNamespaceData, error) {
-	shares := getAxis(f.Eds, rsmt2d.Row, rowIdx)
+func (eds InMem) Data(_ context.Context, namespace share.Namespace, rowIdx int) (shwap.RowNamespaceData, error) {
+	shares := getAxis(eds.ExtendedDataSquare, rsmt2d.Row, rowIdx)
 	return ndDataFromShares(shares, namespace, rowIdx)
 }
 
-func (f *MemFile) EDS(_ context.Context) (*rsmt2d.ExtendedDataSquare, error) {
-	return f.Eds, nil
+func (eds InMem) EDS(_ context.Context) (*rsmt2d.ExtendedDataSquare, error) {
+	return eds.ExtendedDataSquare, nil
 }
 
 func getAxis(eds *rsmt2d.ExtendedDataSquare, axisType rsmt2d.Axis, axisIdx int) []share.Share {

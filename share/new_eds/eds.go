@@ -1,4 +1,4 @@
-package file
+package eds
 
 import (
 	"context"
@@ -10,7 +10,7 @@ import (
 	"github.com/celestiaorg/celestia-node/share/shwap"
 )
 
-type EdsFile interface {
+type EDS interface {
 	io.Closer
 	// Size returns square size of the file.
 	Size() int
@@ -20,6 +20,6 @@ type EdsFile interface {
 	AxisHalf(ctx context.Context, axisType rsmt2d.Axis, axisIdx int) (AxisHalf, error)
 	// Data returns data for the given namespace and row index.
 	Data(ctx context.Context, namespace share.Namespace, rowIdx int) (shwap.RowNamespaceData, error)
-	// EDS returns extended data square stored in the file.
+	// InMem returns extended data square stored in the file.
 	EDS(ctx context.Context) (*rsmt2d.ExtendedDataSquare, error)
 }

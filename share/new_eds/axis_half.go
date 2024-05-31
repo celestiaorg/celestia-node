@@ -1,4 +1,4 @@
-package file
+package eds
 
 import (
 	"github.com/celestiaorg/celestia-node/share"

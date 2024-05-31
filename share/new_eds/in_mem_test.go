@@ -1,4 +1,4 @@
-package file
+package eds
 
 import (
 	"context"
@@ -16,7 +16,7 @@ func TestMemFileShare(t *testing.T) {
 	eds := edstest.RandEDS(t, 32)
 	root, err := share.NewRoot(eds)
 	require.NoError(t, err)
-	fl := &MemFile{Eds: eds}
+	fl := &InMem{ExtendedDataSquare: eds}
 
 	width := int(eds.Width())
 	for rowIdx := 0; rowIdx < width; rowIdx++ {
@@ -33,12 +33,12 @@ func TestMemFileShare(t *testing.T) {
 func TestMemFileDate(t *testing.T) {
 	size := 32
 
-	// generate EDS with random data and some shares with the same namespace
+	// generate InMem with random data and some shares with the same namespace
 	namespace := sharetest.RandV0Namespace()
 	amount := mrand.Intn(size*size-1) + 1
 	eds, dah := edstest.RandEDSWithNamespace(t, namespace, amount, size)
 
-	file := &MemFile{Eds: eds}
+	file := &InMem{ExtendedDataSquare: eds}
 
 	for i, root := range dah.RowRoots {
 		if !namespace.IsOutsideRange(root, root) {
