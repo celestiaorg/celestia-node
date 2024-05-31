@@ -11,7 +11,6 @@ import (
 	"github.com/tendermint/tendermint/light"
 	core "github.com/tendermint/tendermint/types"
 
-	"github.com/celestiaorg/celestia-app/pkg/appconsts"
 	v1 "github.com/celestiaorg/celestia-app/v2/pkg/appconsts/v1"
 	v2 "github.com/celestiaorg/celestia-app/v2/pkg/appconsts/v2"
 	"github.com/celestiaorg/celestia-app/v2/pkg/da"
@@ -117,8 +116,7 @@ func (eh *ExtendedHeader) Validate() error {
 	}
 
 	if eh.RawHeader.Version.App != v1.Version && eh.RawHeader.Version.App != v2.Version {
-		return fmt.Errorf("app version mismatch, expected: %d, got %d", appconsts.LatestVersion,
-			eh.RawHeader.Version.App)
+		return fmt.Errorf("app version mismatch, expected: %d or %d, got %d", v1.Version, v2.Version, eh.RawHeader.Version.App)
 	}
 
 	err = eh.Commit.ValidateBasic()
