@@ -32,7 +32,6 @@ require (
 	github.com/imdario/mergo v0.3.16
 	github.com/ipfs/boxo v0.20.0
 	github.com/ipfs/go-block-format v0.2.0
-	github.com/ipfs/go-blockservice v0.5.2
 	github.com/ipfs/go-cid v0.4.1
 	github.com/ipfs/go-datastore v0.6.0
 	github.com/ipfs/go-ds-badger4 v0.1.5
@@ -200,6 +199,7 @@ require (
 	github.com/improbable-eng/grpc-web v0.15.0 // indirect
 	github.com/inconshreveable/mousetrap v1.1.0 // indirect
 	github.com/ipfs/bbloom v0.0.4 // indirect
+	github.com/ipfs/go-blockservice v0.5.2 // indirect
 	github.com/ipfs/go-ipfs-blockstore v1.3.1 // indirect
 	github.com/ipfs/go-ipfs-delay v0.0.1 // indirect
 	github.com/ipfs/go-ipfs-ds-help v1.1.1 // indirect
