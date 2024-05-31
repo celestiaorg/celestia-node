@@ -10,6 +10,7 @@ import (
 	"github.com/celestiaorg/celestia-node/share/shwap"
 )
 
+// EDS is an interface for accessing extended data square data.
 type EDS interface {
 	io.Closer
 	// Size returns square size of the file.
@@ -20,6 +21,6 @@ type EDS interface {
 	AxisHalf(ctx context.Context, axisType rsmt2d.Axis, axisIdx int) (AxisHalf, error)
 	// Data returns data for the given namespace and row index.
 	Data(ctx context.Context, namespace share.Namespace, rowIdx int) (shwap.RowNamespaceData, error)
-	// InMem returns extended data square stored in the file.
+	// EDS returns extended data square stored in the file.
 	EDS(ctx context.Context) (*rsmt2d.ExtendedDataSquare, error)
 }
