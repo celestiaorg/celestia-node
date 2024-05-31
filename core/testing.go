@@ -33,8 +33,8 @@ func DefaultTestConfig() *testnode.Config {
 	cfg.TmConfig.Consensus.TimeoutCommit = time.Millisecond * 200
 
 	cfg = cfg.
-		WithAccounts(accounts).
-		WithSupressLogs(true)
+		WithFundedAccounts(accounts...).
+		WithSuppressLogs(true)
 
 	return cfg
 }

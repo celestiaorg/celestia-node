@@ -32,7 +32,7 @@ func extendBlock(data types.Data, appVersion uint64, options ...nmt.Option) (*rs
 	}
 
 	// Construct the data square from the block's transactions
-	dataSquare, err := square.Construct(data.Txs.ToSliceOfBytes(), appVersion, appconsts.SquareSizeUpperBound(appVersion))
+	dataSquare, err := square.Construct(data.Txs.ToSliceOfBytes(), appconsts.SquareSizeUpperBound(appVersion), appconsts.SubtreeRootThreshold(appVersion))
 	if err != nil {
 		return nil, err
 	}

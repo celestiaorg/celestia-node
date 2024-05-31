@@ -21,6 +21,7 @@ import (
 	"go.uber.org/fx"
 	"golang.org/x/exp/maps"
 
+	"github.com/celestiaorg/celestia-app/v2/test/util/genesis"
 	"github.com/celestiaorg/celestia-app/v2/test/util/testnode"
 	libhead "github.com/celestiaorg/go-header"
 
@@ -74,6 +75,8 @@ func NewSwamp(t *testing.T, options ...Option) *Swamp {
 		option(ic)
 	}
 
+	accounts := getAccountPubKeys(ic.Genesis.Accounts())
+
 	// Now, we are making an assumption that consensus mechanism is already tested out
 	// so, we are not creating bridge nodes with each one containing its own core client
 	// instead we are assigning all created BNs to 1 Core from the swamp
@@ -84,13 +87,20 @@ func NewSwamp(t *testing.T, options ...Option) *Swamp {
 		cfg:           ic,
 		Network:       mocknet.New(),
 		ClientContext: cctx,
-		Accounts:      ic.Accounts,
+		Accounts:      accounts,
 		nodes:         map[*nodebuilder.Node]struct{}{},
 	}
 
 	swp.t.Cleanup(swp.cleanup)
 	swp.setupGenesis()
 	return swp
+}
+
+func getAccountPubKeys(accounts []genesis.Account) (pubKeys []string) {
+	for _, account := range accounts {
+		pubKeys = append(pubKeys, account.PubKey.String())
+	}
+	return pubKeys
 }
 
 // cleanup frees up all the resources

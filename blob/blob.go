@@ -6,10 +6,12 @@ import (
 	"errors"
 	"fmt"
 
-	tmproto "github.com/tendermint/tendermint/proto/tendermint/types"
+	"github.com/tendermint/tendermint/crypto/merkle"
 
+	v1 "github.com/celestiaorg/celestia-app/pkg/appconsts/v1"
 	"github.com/celestiaorg/celestia-app/v2/pkg/appconsts"
-	"github.com/celestiaorg/celestia-app/v2/x/blob/types"
+	"github.com/celestiaorg/go-square/blob"
+	"github.com/celestiaorg/go-square/inclusion"
 	"github.com/celestiaorg/nmt"
 
 	"github.com/celestiaorg/celestia-node/share"
@@ -69,7 +71,7 @@ func (p Proof) equal(input Proof) error {
 
 // Blob represents any application-specific binary data that anyone can submit to Celestia.
 type Blob struct {
-	types.Blob `json:"blob"`
+	blob.Blob `json:"blob"`
 
 	Commitment Commitment `json:"commitment"`
 
@@ -97,14 +99,14 @@ func NewBlob(shareVersion uint8, namespace share.Namespace, data []byte) (*Blob,
 		return nil, err
 	}
 
-	blob := tmproto.Blob{
+	blob := blob.Blob{
 		NamespaceId:      namespace.ID(),
 		Data:             data,
 		ShareVersion:     uint32(shareVersion),
 		NamespaceVersion: uint32(namespace.Version()),
 	}
 
-	com, err := types.CreateCommitment(&blob)
+	com, err := inclusion.CreateCommitment(&blob, merkle.HashFromByteSlices, appconsts.SubtreeRootThreshold(v1.Version))
 	if err != nil {
 		return nil, err
 	}

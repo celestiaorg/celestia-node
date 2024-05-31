@@ -4,28 +4,27 @@ import (
 	"bytes"
 	"sort"
 
-	"github.com/tendermint/tendermint/types"
-
+	"github.com/celestiaorg/go-square/blob"
 	"github.com/celestiaorg/go-square/shares"
 
 	"github.com/celestiaorg/celestia-node/share"
 )
 
 // BlobsToShares accepts blobs and convert them to the Shares.
-func BlobsToShares(blobs ...*Blob) ([]share.Share, error) {
-	b := make([]types.Blob, len(blobs))
-	for i, blob := range blobs {
-		namespace := blob.Namespace()
-		b[i] = types.Blob{
-			NamespaceVersion: namespace[0],
-			NamespaceID:      namespace[1:],
-			Data:             blob.Data,
-			ShareVersion:     uint8(blob.ShareVersion),
+func BlobsToShares(nodeBlobs ...*Blob) ([]share.Share, error) {
+	b := make([]*blob.Blob, len(nodeBlobs))
+	for i, nodeBlob := range nodeBlobs {
+		namespace := nodeBlob.Namespace()
+		b[i] = &blob.Blob{
+			NamespaceVersion: uint32(namespace[0]),
+			NamespaceId:      namespace[1:],
+			Data:             nodeBlob.Data,
+			ShareVersion:     uint32(nodeBlob.ShareVersion),
 		}
 	}
 
 	sort.Slice(b, func(i, j int) bool {
-		val := bytes.Compare(b[i].NamespaceID, b[j].NamespaceID)
+		val := bytes.Compare(b[i].Namespace().Bytes(), b[j].Namespace().Bytes())
 		return val < 0
 	})
 

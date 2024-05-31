@@ -31,7 +31,7 @@ func TestSubmitPayForBlob(t *testing.T) {
 	appConf.API.Enable = true
 	appConf.MinGasPrices = fmt.Sprintf("0.002%s", app.BondDenom)
 
-	config := testnode.DefaultConfig().WithTendermintConfig(tmCfg).WithAppConfig(appConf).WithAccounts(accounts)
+	config := testnode.DefaultConfig().WithTendermintConfig(tmCfg).WithAppConfig(appConf).WithFundedAccounts(accounts...)
 	cctx, _, grpcAddr := testnode.NewNetwork(t, config)
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()

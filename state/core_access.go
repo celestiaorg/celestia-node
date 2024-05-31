@@ -34,8 +34,9 @@ import (
 	apptypes "github.com/celestiaorg/celestia-app/v2/x/blob/types"
 	libhead "github.com/celestiaorg/go-header"
 
-	"github.com/celestiaorg/celestia-node/blob"
+	nodeblob "github.com/celestiaorg/celestia-node/blob"
 	"github.com/celestiaorg/celestia-node/header"
+	squareblob "github.com/celestiaorg/go-square/blob"
 )
 
 const (
@@ -216,7 +217,7 @@ func (ca *CoreAccessor) SubmitPayForBlob(
 	ctx context.Context,
 	fee Int,
 	gasLim uint64,
-	blobs []*blob.Blob,
+	blobs []*nodeblob.Blob,
 ) (*TxResponse, error) {
 	signer, err := ca.getSigner(ctx)
 	if err != nil {
@@ -227,7 +228,7 @@ func (ca *CoreAccessor) SubmitPayForBlob(
 		return nil, errors.New("state: no blobs provided")
 	}
 
-	appblobs := make([]*apptypes.Blob, len(blobs))
+	appblobs := make([]*squareblob.Blob, len(blobs))
 	for i := range blobs {
 		if err := blobs[i].Namespace().ValidateForBlob(); err != nil {
 			return nil, err
@@ -402,7 +403,7 @@ func (ca *CoreAccessor) SubmitTxWithBroadcastMode(
 	tx Tx,
 	mode sdktx.BroadcastMode,
 ) (*TxResponse, error) {
-	txResp, err := apptypes.BroadcastTx(ctx, ca.coreConn, mode, tx)
+	txResp, err := ca.signer.BroadcastTx(ctx, tx)
 	if err != nil {
 		return nil, err
 	}

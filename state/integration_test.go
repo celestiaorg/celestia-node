@@ -17,7 +17,7 @@ import (
 	"google.golang.org/grpc"
 
 	"github.com/celestiaorg/celestia-app/v2/app"
-	"github.com/celestiaorg/celestia-app/v2/test/util/testfactory"
+	"github.com/celestiaorg/celestia-app/v2/test/util/genesis"
 	"github.com/celestiaorg/celestia-app/v2/test/util/testnode"
 	libhead "github.com/celestiaorg/go-header"
 
@@ -47,7 +47,7 @@ func (s *IntegrationTestSuite) SetupSuite() {
 
 	cfg := core.DefaultTestConfig()
 	s.cctx = core.StartTestNodeWithConfig(s.T(), cfg)
-	s.accounts = cfg.Accounts
+	s.accounts = getAccountPubKeys(cfg.Genesis.Accounts())
 
 	accessor, err := NewCoreAccessor(s.cctx.Keyring, s.accounts[0], localHeader{s.cctx.Client}, "", "")
 	require.NoError(s.T(), err)
@@ -57,6 +57,13 @@ func (s *IntegrationTestSuite) SetupSuite() {
 	// required to ensure the Head request is non-nil
 	_, err = s.cctx.WaitForHeight(3)
 	require.NoError(s.T(), err)
+}
+
+func getAccountPubKeys(accounts []genesis.Account) (pubKeys []string) {
+	for _, account := range accounts {
+		pubKeys = append(pubKeys, account.PubKey.String())
+	}
+	return pubKeys
 }
 
 func setClients(ca *CoreAccessor, conn *grpc.ClientConn) {
@@ -121,14 +128,14 @@ func (s *IntegrationTestSuite) TestGetBalance() {
 func (s *IntegrationTestSuite) TestGenerateJSONBlock() {
 	t := s.T()
 	t.Skip("skipping testdata generation test")
-	resp, err := s.cctx.FillBlock(4, s.accounts, flags.BroadcastSync)
+	resp, err := s.cctx.FillBlock(4, s.accounts[0], flags.BroadcastSync)
 	require := s.Require()
 	require.NoError(err)
 	require.Equal(abci.CodeTypeOK, resp.Code)
 	require.NoError(s.cctx.WaitForNextBlock())
 
 	// download the block that the tx was in
-	res, err := testfactory.QueryWithoutProof(s.cctx.Context, resp.TxHash)
+	res, err := testnode.QueryWithoutProof(s.cctx.Context, resp.TxHash)
 	require.NoError(err)
 
 	block, err := s.cctx.Client.Block(s.cctx.GoContext(), &res.Height)
