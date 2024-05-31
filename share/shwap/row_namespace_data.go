@@ -6,7 +6,6 @@ import (
 	"github.com/celestiaorg/celestia-app/pkg/wrapper"
 	"github.com/celestiaorg/nmt"
 	nmt_pb "github.com/celestiaorg/nmt/pb"
-	"github.com/celestiaorg/rsmt2d"
 
 	"github.com/celestiaorg/celestia-node/share"
 	"github.com/celestiaorg/celestia-node/share/shwap/pb"
@@ -16,22 +15,6 @@ import (
 type RowNamespaceData struct {
 	Shares []share.Share `json:"shares"` // Shares within the namespace.
 	Proof  *nmt.Proof    `json:"proof"`  // Proof of the shares' inclusion in the namespace.
-}
-
-// RowNamespaceDataFromEDS extracts and constructs a RowNamespaceData from the row of given EDS
-// identified by the index and the namespace.
-func RowNamespaceDataFromEDS(
-	eds *rsmt2d.ExtendedDataSquare,
-	namespace share.Namespace,
-	rowIdx int,
-) (RowNamespaceData, error) {
-	shares := eds.Row(uint(rowIdx))
-	rowData, err := RowNamespaceDataFromShares(shares, namespace, rowIdx)
-	if err != nil {
-		return RowNamespaceData{}, err
-	}
-
-	return rowData, nil
 }
 
 // RowNamespaceDataFromShares extracts and constructs a RowNamespaceData from shares within the

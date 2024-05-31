@@ -4,7 +4,6 @@ import (
 	"errors"
 	"fmt"
 
-	"github.com/celestiaorg/celestia-app/pkg/wrapper"
 	"github.com/celestiaorg/nmt"
 	nmt_pb "github.com/celestiaorg/nmt/pb"
 	"github.com/celestiaorg/rsmt2d"
@@ -13,52 +12,14 @@ import (
 	"github.com/celestiaorg/celestia-node/share/shwap/pb"
 )
 
+var ErrorFailedVerification = errors.New("failed to verify inclusion")
+
 // Sample represents a data share along with its Merkle proof, used to validate the share's
 // inclusion in a data square.
 type Sample struct {
 	share.Share             // Embeds the Share which includes the data with namespace.
 	Proof       *nmt.Proof  // Proof is the Merkle Proof validating the share's inclusion.
 	ProofType   rsmt2d.Axis // ProofType indicates whether the proof is against a row or a column.
-}
-
-// SampleFromEDS samples a share from an Extended Data Square based on the provided index and axis.
-// This function generates a Merkle tree proof for the specified share.
-func SampleFromEDS(
-	square *rsmt2d.ExtendedDataSquare,
-	proofType rsmt2d.Axis,
-	rowIdx, colIdx int,
-) (Sample, error) {
-	var shrs []share.Share
-	var axisIdx, shrIdx int
-	switch proofType {
-	case rsmt2d.Row:
-		axisIdx, shrIdx = rowIdx, colIdx
-		shrs = square.Row(uint(rowIdx))
-	case rsmt2d.Col:
-		axisIdx, shrIdx = colIdx, rowIdx
-		shrs = square.Col(uint(colIdx))
-	default:
-		return Sample{}, fmt.Errorf("invalid proof type: %d", proofType)
-	}
-
-	tree := wrapper.NewErasuredNamespacedMerkleTree(uint64(square.Width()/2), uint(axisIdx))
-	for _, shr := range shrs {
-		err := tree.Push(shr)
-		if err != nil {
-			return Sample{}, fmt.Errorf("while pushing shares to NMT: %w", err)
-		}
-	}
-
-	prf, err := tree.ProveRange(shrIdx, shrIdx+1)
-	if err != nil {
-		return Sample{}, fmt.Errorf("while proving range share over NMT: %w", err)
-	}
-
-	return Sample{
-		Share:     shrs[shrIdx],
-		Proof:     &prf,
-		ProofType: proofType,
-	}, nil
 }
 
 // SampleFromProto converts a protobuf Sample back into its domain model equivalent.
@@ -104,7 +65,7 @@ func (s Sample) Validate(dah *share.Root, rowIdx, colIdx int) error {
 		return fmt.Errorf("invalid SampleProofType: %d", s.ProofType)
 	}
 	if !s.verifyInclusion(dah, rowIdx, colIdx) {
-		return fmt.Errorf("share proof is invalid")
+		return ErrorFailedVerification
 	}
 	return nil
 }

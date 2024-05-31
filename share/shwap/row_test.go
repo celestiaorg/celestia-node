@@ -9,24 +9,23 @@ import (
 	"github.com/celestiaorg/celestia-node/share/eds/edstest"
 )
 
-func TestNewRowFromEDS(t *testing.T) {
+func TestRowFromShares(t *testing.T) {
 	const odsSize = 8
 	eds := edstest.RandEDS(t, odsSize)
 
 	for rowIdx := 0; rowIdx < odsSize*2; rowIdx++ {
 		for _, side := range []RowSide{Left, Right} {
-			row := RowFromEDS(eds, rowIdx, side)
-
-			want := eds.Row(uint(rowIdx))
-			shares, err := row.Shares()
+			shares := eds.Row(uint(rowIdx))
+			row := RowFromShares(shares, side)
+			extended, err := row.Shares()
 			require.NoError(t, err)
-			require.Equal(t, want, shares)
+			require.Equal(t, shares, extended)
 
 			var half []share.Share
 			if side == Right {
-				half = want[odsSize:]
+				half = shares[odsSize:]
 			} else {
-				half = want[:odsSize]
+				half = shares[:odsSize]
 			}
 			require.Equal(t, half, row.halfShares)
 			require.Equal(t, side, row.side)
@@ -42,7 +41,8 @@ func TestRowValidate(t *testing.T) {
 
 	for rowIdx := 0; rowIdx < odsSize*2; rowIdx++ {
 		for _, side := range []RowSide{Left, Right} {
-			row := RowFromEDS(eds, rowIdx, side)
+			shares := eds.Row(uint(rowIdx))
+			row := RowFromShares(shares, side)
 
 			err := row.Validate(root, rowIdx)
 			require.NoError(t, err)
@@ -56,7 +56,8 @@ func TestRowValidateNegativeCases(t *testing.T) {
 	eds := edstest.RandEDS(t, 8) // Generate a random Extended Data Square of size 8
 	root, err := share.NewRoot(eds)
 	require.NoError(t, err)
-	row := RowFromEDS(eds, 0, Left)
+	shares := eds.Row(0)
+	row := RowFromShares(shares, Left)
 
 	// Test with incorrect side specification
 	invalidSideRow := Row{halfShares: row.halfShares, side: RowSide(999)}
@@ -89,7 +90,8 @@ func TestRowProtoEncoding(t *testing.T) {
 
 	for rowIdx := 0; rowIdx < odsSize*2; rowIdx++ {
 		for _, side := range []RowSide{Left, Right} {
-			row := RowFromEDS(eds, rowIdx, side)
+			shares := eds.Row(uint(rowIdx))
+			row := RowFromShares(shares, side)
 
 			pb := row.ToProto()
 			rowOut := RowFromProto(pb)
@@ -105,7 +107,8 @@ func BenchmarkRowValidate(b *testing.B) {
 	eds := edstest.RandEDS(b, odsSize)
 	root, err := share.NewRoot(eds)
 	require.NoError(b, err)
-	row := RowFromEDS(eds, 0, Left)
+	shares := eds.Row(0)
+	row := RowFromShares(shares, Left)
 
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {

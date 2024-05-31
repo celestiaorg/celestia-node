@@ -2,13 +2,12 @@ package eds
 
 import (
 	"context"
+	"fmt"
 
 	"github.com/celestiaorg/celestia-app/pkg/wrapper"
-	"github.com/celestiaorg/nmt"
 	"github.com/celestiaorg/rsmt2d"
 
 	"github.com/celestiaorg/celestia-node/share"
-	"github.com/celestiaorg/celestia-node/share/ipld"
 	"github.com/celestiaorg/celestia-node/share/shwap"
 )
 
@@ -27,31 +26,47 @@ func (eds InMem) Size() int {
 	return int(eds.Width())
 }
 
-func (eds InMem) Share(
+func (eds InMem) Sample(
 	_ context.Context,
 	rowIdx, colIdx int,
-) (*shwap.Sample, error) {
-	axisType := rsmt2d.Row
-	axisIdx, shrIdx := rowIdx, colIdx
+) (shwap.Sample, error) {
+	return eds.SampleForProofAxis(rowIdx, colIdx, rsmt2d.Row)
+}
 
-	shares := getAxis(eds.ExtendedDataSquare, axisType, axisIdx)
-	tree := wrapper.NewErasuredNamespacedMerkleTree(uint64(eds.Size()/2), uint(axisIdx))
-	for _, shr := range shares {
+// SampleForProofAxis samples a share from an Extended Data Square based on the provided
+// row and column indices and proof axis. It returns a sample with the share and proof.
+func (eds InMem) SampleForProofAxis(
+	rowIdx, colIdx int,
+	proofType rsmt2d.Axis,
+) (shwap.Sample, error) {
+	var axisIdx, shrIdx int
+	switch proofType {
+	case rsmt2d.Row:
+		axisIdx, shrIdx = rowIdx, colIdx
+	case rsmt2d.Col:
+		axisIdx, shrIdx = colIdx, rowIdx
+	default:
+		return shwap.Sample{}, fmt.Errorf("invalid proof type: %d", proofType)
+	}
+	shrs := getAxis(eds.ExtendedDataSquare, proofType, axisIdx)
+
+	tree := wrapper.NewErasuredNamespacedMerkleTree(uint64(eds.Width()/2), uint(axisIdx))
+	for _, shr := range shrs {
 		err := tree.Push(shr)
 		if err != nil {
-			return nil, err
+			return shwap.Sample{}, fmt.Errorf("while pushing shares to NMT: %w", err)
 		}
 	}
 
-	proof, err := tree.ProveRange(shrIdx, shrIdx+1)
+	prf, err := tree.ProveRange(shrIdx, shrIdx+1)
 	if err != nil {
-		return nil, err
+		return shwap.Sample{}, fmt.Errorf("while proving range share over NMT: %w", err)
 	}
 
-	return &shwap.Sample{
-		Share:     shares[shrIdx],
-		Proof:     &proof,
-		ProofType: axisType,
+	return shwap.Sample{
+		Share:     shrs[shrIdx],
+		Proof:     &prf,
+		ProofType: proofType,
 	}, nil
 }
 
@@ -62,9 +77,38 @@ func (eds InMem) AxisHalf(_ context.Context, axisType rsmt2d.Axis, axisIdx int) 
 	}, nil
 }
 
-func (eds InMem) Data(_ context.Context, namespace share.Namespace, rowIdx int) (shwap.RowNamespaceData, error) {
-	shares := getAxis(eds.ExtendedDataSquare, rsmt2d.Row, rowIdx)
-	return ndDataFromShares(shares, namespace, rowIdx)
+// HalfRow constructs a new shwap.Row from an Extended Data Square based on the specified index and
+// side.
+func (eds InMem) HalfRow(idx int, side shwap.RowSide) shwap.Row {
+	shares := eds.ExtendedDataSquare.Row(uint(idx))
+	return shwap.RowFromShares(shares, side)
+}
+
+func (eds InMem) RowData(_ context.Context, namespace share.Namespace, rowIdx int) (shwap.RowNamespaceData, error) {
+	shares := eds.Row(uint(rowIdx))
+	return shwap.RowNamespaceDataFromShares(shares, namespace, rowIdx)
+}
+
+// NamespacedDataFromEDS extracts shares for a specific namespace from an EDS, considering
+// each row independently.
+func (eds InMem) NamespacedData(
+	namespace share.Namespace,
+) (shwap.NamespacedData, error) {
+	root, err := share.NewRoot(eds.ExtendedDataSquare)
+	if err != nil {
+		return nil, fmt.Errorf("error computing root: %w", err)
+	}
+
+	rowIdxs := share.RowsWithNamespace(root, namespace)
+	rows := make(shwap.NamespacedData, len(rowIdxs))
+	for i, idx := range rowIdxs {
+		rows[i], err = eds.RowData(context.TODO(), namespace, idx)
+		if err != nil {
+			return nil, fmt.Errorf("failed to process row %d: %w", idx, err)
+		}
+	}
+
+	return rows, nil
 }
 
 func (eds InMem) EDS(_ context.Context) (*rsmt2d.ExtendedDataSquare, error) {
@@ -80,36 +124,4 @@ func getAxis(eds *rsmt2d.ExtendedDataSquare, axisType rsmt2d.Axis, axisIdx int) 
 	default:
 		panic("unknown axis")
 	}
-}
-
-func ndDataFromShares(shares []share.Share, namespace share.Namespace, rowIdx int) (shwap.RowNamespaceData, error) {
-	bserv := ipld.NewMemBlockservice()
-	batchAdder := ipld.NewNmtNodeAdder(context.TODO(), bserv, ipld.MaxSizeBatchOption(len(shares)))
-	tree := wrapper.NewErasuredNamespacedMerkleTree(uint64(len(shares)/2), uint(rowIdx),
-		nmt.NodeVisitor(batchAdder.Visit))
-	for _, shr := range shares {
-		err := tree.Push(shr)
-		if err != nil {
-			return shwap.RowNamespaceData{}, err
-		}
-	}
-
-	root, err := tree.Root()
-	if err != nil {
-		return shwap.RowNamespaceData{}, err
-	}
-
-	err = batchAdder.Commit()
-	if err != nil {
-		return shwap.RowNamespaceData{}, err
-	}
-
-	row, proof, err := ipld.GetSharesByNamespace(context.TODO(), bserv, root, namespace, len(shares))
-	if err != nil {
-		return shwap.RowNamespaceData{}, err
-	}
-	return shwap.RowNamespaceData{
-		Shares: row,
-		Proof:  proof,
-	}, nil
 }

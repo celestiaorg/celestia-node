@@ -1,4 +1,4 @@
-package shwap
+package shwap_test
 
 import (
 	"bytes"
@@ -9,7 +9,9 @@ import (
 
 	"github.com/celestiaorg/celestia-node/share"
 	"github.com/celestiaorg/celestia-node/share/eds/edstest"
+	eds "github.com/celestiaorg/celestia-node/share/new_eds"
 	"github.com/celestiaorg/celestia-node/share/sharetest"
+	"github.com/celestiaorg/celestia-node/share/shwap"
 )
 
 func TestNamespacedRowFromShares(t *testing.T) {
@@ -26,7 +28,7 @@ func TestNamespacedRowFromShares(t *testing.T) {
 		require.NoError(t, err)
 		extended := slices.Concat(shares, parity)
 
-		nr, err := RowNamespaceDataFromShares(extended, minNamespace, 0)
+		nr, err := shwap.RowNamespaceDataFromShares(extended, minNamespace, 0)
 		require.NoError(t, err)
 		require.Equal(t, namespacedAmount, len(nr.Shares))
 	}
@@ -46,26 +48,10 @@ func TestNamespacedRowFromSharesNonIncluded(t *testing.T) {
 	require.NoError(t, err)
 	extended := slices.Concat(shares, parity)
 
-	nr, err := RowNamespaceDataFromShares(extended, absentNs, 0)
+	nr, err := shwap.RowNamespaceDataFromShares(extended, absentNs, 0)
 	require.NoError(t, err)
 	require.Len(t, nr.Shares, 0)
 	require.True(t, nr.Proof.IsOfAbsence())
-}
-
-func TestNamespacedSharesFromEDS(t *testing.T) {
-	const odsSize = 8
-	sharesAmount := odsSize * odsSize
-	namespace := sharetest.RandV0Namespace()
-	for amount := 1; amount < sharesAmount; amount++ {
-		eds, root := edstest.RandEDSWithNamespace(t, namespace, amount, odsSize)
-		nd, err := NamespacedDataFromEDS(eds, namespace)
-		require.NoError(t, err)
-		require.True(t, len(nd) > 0)
-		require.Len(t, nd.Flatten(), amount)
-
-		err = nd.Validate(root, namespace)
-		require.NoError(t, err)
-	}
 }
 
 func TestValidateNamespacedRow(t *testing.T) {
@@ -73,8 +59,9 @@ func TestValidateNamespacedRow(t *testing.T) {
 	sharesAmount := odsSize * odsSize
 	namespace := sharetest.RandV0Namespace()
 	for amount := 1; amount < sharesAmount; amount++ {
-		eds, root := edstest.RandEDSWithNamespace(t, namespace, amount, odsSize)
-		nd, err := NamespacedDataFromEDS(eds, namespace)
+		randEDS, root := edstest.RandEDSWithNamespace(t, namespace, amount, odsSize)
+		eds := eds.InMem{ExtendedDataSquare: randEDS}
+		nd, err := eds.NamespacedData(namespace)
 		require.NoError(t, err)
 		require.True(t, len(nd) > 0)
 
@@ -91,13 +78,14 @@ func TestValidateNamespacedRow(t *testing.T) {
 func TestNamespacedRowProtoEncoding(t *testing.T) {
 	const odsSize = 8
 	namespace := sharetest.RandV0Namespace()
-	eds, _ := edstest.RandEDSWithNamespace(t, namespace, odsSize, odsSize)
-	nd, err := NamespacedDataFromEDS(eds, namespace)
+	edss, _ := edstest.RandEDSWithNamespace(t, namespace, odsSize, odsSize)
+	eds := eds.InMem{ExtendedDataSquare: edss}
+	nd, err := eds.NamespacedData(namespace)
 	require.NoError(t, err)
 	require.True(t, len(nd) > 0)
 
 	expected := nd[0]
 	pb := expected.ToProto()
-	ndOut := RowNamespaceDataFromProto(pb)
+	ndOut := shwap.RowNamespaceDataFromProto(pb)
 	require.Equal(t, expected, ndOut)
 }

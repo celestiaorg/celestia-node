@@ -5,7 +5,6 @@ import (
 	"fmt"
 
 	"github.com/celestiaorg/celestia-app/pkg/wrapper"
-	"github.com/celestiaorg/rsmt2d"
 
 	"github.com/celestiaorg/celestia-node/share"
 	"github.com/celestiaorg/celestia-node/share/shwap/pb"
@@ -35,14 +34,12 @@ func NewRow(halfShares []share.Share, side RowSide) Row {
 
 // RowFromEDS constructs a new Row from an Extended Data Square based on the specified index and
 // side.
-func RowFromEDS(square *rsmt2d.ExtendedDataSquare, idx int, side RowSide) Row {
-	sqrLn := int(square.Width())
-	shares := square.Row(uint(idx))
+func RowFromShares(shares []share.Share, side RowSide) Row {
 	var halfShares []share.Share
 	if side == Right {
-		halfShares = shares[sqrLn/2:] // Take the right half of the shares.
+		halfShares = shares[len(shares)/2:] // Take the right half of the shares.
 	} else {
-		halfShares = shares[:sqrLn/2] // Take the left half of the shares.
+		halfShares = shares[:len(shares)/2] // Take the left half of the shares.
 	}
 
 	return NewRow(halfShares, side)
