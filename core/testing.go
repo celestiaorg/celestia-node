@@ -10,7 +10,7 @@ import (
 	tmconfig "github.com/tendermint/tendermint/config"
 	tmrand "github.com/tendermint/tendermint/libs/rand"
 
-	"github.com/celestiaorg/celestia-app/test/util/testnode"
+	"github.com/celestiaorg/celestia-app/v2/test/util/testnode"
 )
 
 // DefaultTestConfig returns the default testing configuration for Tendermint + Celestia App tandem.

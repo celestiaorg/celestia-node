@@ -12,7 +12,9 @@ import (
 	core "github.com/tendermint/tendermint/types"
 
 	"github.com/celestiaorg/celestia-app/pkg/appconsts"
-	"github.com/celestiaorg/celestia-app/pkg/da"
+	v1 "github.com/celestiaorg/celestia-app/v2/pkg/appconsts/v1"
+	v2 "github.com/celestiaorg/celestia-app/v2/pkg/appconsts/v2"
+	"github.com/celestiaorg/celestia-app/v2/pkg/da"
 	libhead "github.com/celestiaorg/go-header"
 	"github.com/celestiaorg/rsmt2d"
 )
@@ -114,7 +116,7 @@ func (eh *ExtendedHeader) Validate() error {
 		return fmt.Errorf("ValidateBasic error on RawHeader at height %d: %w", eh.Height(), err)
 	}
 
-	if eh.RawHeader.Version.App != appconsts.LatestVersion {
+	if eh.RawHeader.Version.App != v1.Version && eh.RawHeader.Version.App != v2.Version {
 		return fmt.Errorf("app version mismatch, expected: %d, got %d", appconsts.LatestVersion,
 			eh.RawHeader.Version.App)
 	}

@@ -8,7 +8,7 @@ import (
 	"github.com/stretchr/testify/require"
 	"github.com/tendermint/tendermint/types"
 
-	apptypes "github.com/celestiaorg/celestia-app/x/blob/types"
+	apptypes "github.com/celestiaorg/celestia-app/v2/x/blob/types"
 
 	"github.com/celestiaorg/celestia-node/blob/blobtest"
 )

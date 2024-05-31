@@ -6,7 +6,7 @@ import (
 
 	"github.com/tendermint/tendermint/types"
 
-	"github.com/celestiaorg/celestia-app/pkg/shares"
+	"github.com/celestiaorg/go-square/shares"
 
 	"github.com/celestiaorg/celestia-node/share"
 )
