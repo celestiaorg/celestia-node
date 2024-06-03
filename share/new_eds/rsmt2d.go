@@ -42,19 +42,11 @@ func (eds Rsmt2D) SampleForProofAxis(
 	rowIdx, colIdx int,
 	proofType rsmt2d.Axis,
 ) (shwap.Sample, error) {
-	var axisIdx, shrIdx int
-	switch proofType {
-	case rsmt2d.Row:
-		axisIdx, shrIdx = rowIdx, colIdx
-	case rsmt2d.Col:
-		axisIdx, shrIdx = colIdx, rowIdx
-	default:
-		return shwap.Sample{}, fmt.Errorf("invalid proof type: %d", proofType)
-	}
-	shrs := getAxis(eds.ExtendedDataSquare, proofType, axisIdx)
+	axisIdx, shrIdx := relativeIndexes(rowIdx, colIdx, proofType)
+	shares := getAxis(eds.ExtendedDataSquare, proofType, axisIdx)
 
 	tree := wrapper.NewErasuredNamespacedMerkleTree(uint64(eds.Width()/2), uint(axisIdx))
-	for _, shr := range shrs {
+	for _, shr := range shares {
 		err := tree.Push(shr)
 		if err != nil {
 			return shwap.Sample{}, fmt.Errorf("while pushing shares to NMT: %w", err)
@@ -67,7 +59,7 @@ func (eds Rsmt2D) SampleForProofAxis(
 	}
 
 	return shwap.Sample{
-		Share:     shrs[shrIdx],
+		Share:     shares[shrIdx],
 		Proof:     &prf,
 		ProofType: proofType,
 	}, nil
@@ -75,8 +67,10 @@ func (eds Rsmt2D) SampleForProofAxis(
 
 // AxisHalf returns Shares for the first half of the axis of the given type and index.
 func (eds Rsmt2D) AxisHalf(_ context.Context, axisType rsmt2d.Axis, axisIdx int) (AxisHalf, error) {
+	shares := getAxis(eds.ExtendedDataSquare, axisType, axisIdx)
+	halfShares := shares[:eds.Size()/2]
 	return AxisHalf{
-		Shares:   getAxis(eds.ExtendedDataSquare, axisType, axisIdx)[:eds.Size()/2],
+		Shares:   halfShares,
 		IsParity: false,
 	}, nil
 }
@@ -98,9 +92,9 @@ func (eds Rsmt2D) RowNamespaceData(
 	return shwap.RowNamespaceDataFromShares(shares, namespace, rowIdx)
 }
 
-// Flattened returns data shares extracted from the EDS.
+// Flattened returns data shares extracted from the EDS. It returns new copy of the shares each
+// time.
 func (eds Rsmt2D) Flattened(_ context.Context) ([]share.Share, error) {
-	// Flattened returns copy of shares, which is not efficient.
 	return eds.ExtendedDataSquare.Flattened(), nil
 }
 
@@ -112,5 +106,16 @@ func getAxis(eds *rsmt2d.ExtendedDataSquare, axisType rsmt2d.Axis, axisIdx int) 
 		return eds.Col(uint(axisIdx))
 	default:
 		panic("unknown axis")
+	}
+}
+
+func relativeIndexes(rowIdx, colIdx int, axisType rsmt2d.Axis) (axisIdx, shrIdx int) {
+	switch axisType {
+	case rsmt2d.Row:
+		return rowIdx, colIdx
+	case rsmt2d.Col:
+		return colIdx, rowIdx
+	default:
+		panic(fmt.Sprintf("invalid proof type: %d", axisType))
 	}
 }

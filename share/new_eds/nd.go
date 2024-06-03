@@ -9,7 +9,8 @@ import (
 )
 
 // NamespacedData extracts shares for a specific namespace from an EDS, considering
-// each row independently.
+// each row independently. It uses root to determine which rows to extract data from,
+// avoiding the need to recalculate the row roots for each row.
 func NamespacedData(
 	ctx context.Context,
 	root *share.Root,
