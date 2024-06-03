@@ -2,11 +2,11 @@ package pruner
 
 import (
 	"context"
-	"github.com/celestiaorg/celestia-node/libs/fxutil"
 
 	"go.uber.org/fx"
 
 	"github.com/celestiaorg/celestia-node/core"
+	"github.com/celestiaorg/celestia-node/libs/fxutil"
 	"github.com/celestiaorg/celestia-node/nodebuilder/node"
 	"github.com/celestiaorg/celestia-node/pruner"
 	"github.com/celestiaorg/celestia-node/pruner/archival"
