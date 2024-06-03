@@ -2,8 +2,10 @@ package shwap_test
 
 import (
 	"bytes"
+	"context"
 	"slices"
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/require"
 
@@ -55,13 +57,16 @@ func TestNamespacedRowFromSharesNonIncluded(t *testing.T) {
 }
 
 func TestValidateNamespacedRow(t *testing.T) {
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	t.Cleanup(cancel)
+
 	const odsSize = 8
 	sharesAmount := odsSize * odsSize
 	namespace := sharetest.RandV0Namespace()
 	for amount := 1; amount < sharesAmount; amount++ {
 		randEDS, root := edstest.RandEDSWithNamespace(t, namespace, amount, odsSize)
-		eds := eds.InMem{ExtendedDataSquare: randEDS}
-		nd, err := eds.NamespacedData(namespace)
+		rsmt2d := eds.Rsmt2D{ExtendedDataSquare: randEDS}
+		nd, err := eds.NamespacedData(ctx, root, rsmt2d, namespace)
 		require.NoError(t, err)
 		require.True(t, len(nd) > 0)
 
@@ -76,11 +81,14 @@ func TestValidateNamespacedRow(t *testing.T) {
 }
 
 func TestNamespacedRowProtoEncoding(t *testing.T) {
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	t.Cleanup(cancel)
+
 	const odsSize = 8
 	namespace := sharetest.RandV0Namespace()
-	edss, _ := edstest.RandEDSWithNamespace(t, namespace, odsSize, odsSize)
-	eds := eds.InMem{ExtendedDataSquare: edss}
-	nd, err := eds.NamespacedData(namespace)
+	randEDS, root := edstest.RandEDSWithNamespace(t, namespace, odsSize, odsSize)
+	rsmt2d := eds.Rsmt2D{ExtendedDataSquare: randEDS}
+	nd, err := eds.NamespacedData(ctx, root, rsmt2d, namespace)
 	require.NoError(t, err)
 	require.True(t, len(nd) > 0)
 

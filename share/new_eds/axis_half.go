@@ -5,7 +5,7 @@ import (
 	"github.com/celestiaorg/celestia-node/share/shwap"
 )
 
-// AxisHalf represents a half of a row or column in a shwap.
+// AxisHalf represents a half of data for a row or column in the EDS.
 type AxisHalf struct {
 	Shares []share.Share
 	// IsParity indicates whether the half is parity or data.

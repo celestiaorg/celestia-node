@@ -19,7 +19,7 @@ func TestSampleValidate(t *testing.T) {
 	randEDS := edstest.RandEDS(t, odsSize)
 	root, err := share.NewRoot(randEDS)
 	require.NoError(t, err)
-	inMem := eds.InMem{ExtendedDataSquare: randEDS}
+	inMem := eds.Rsmt2D{ExtendedDataSquare: randEDS}
 
 	for _, proofType := range []rsmt2d.Axis{rsmt2d.Row, rsmt2d.Col} {
 		for rowIdx := 0; rowIdx < odsSize*2; rowIdx++ {
@@ -39,7 +39,7 @@ func TestSampleNegativeVerifyInclusion(t *testing.T) {
 	randEDS := edstest.RandEDS(t, odsSize)
 	root, err := share.NewRoot(randEDS)
 	require.NoError(t, err)
-	inMem := eds.InMem{ExtendedDataSquare: randEDS}
+	inMem := eds.Rsmt2D{ExtendedDataSquare: randEDS}
 
 	sample, err := inMem.Sample(context.TODO(), 0, 0)
 	require.NoError(t, err)
@@ -73,7 +73,7 @@ func TestSampleNegativeVerifyInclusion(t *testing.T) {
 func TestSampleProtoEncoding(t *testing.T) {
 	const odsSize = 8
 	randEDS := edstest.RandEDS(t, odsSize)
-	inMem := eds.InMem{ExtendedDataSquare: randEDS}
+	inMem := eds.Rsmt2D{ExtendedDataSquare: randEDS}
 
 	for _, proofType := range []rsmt2d.Axis{rsmt2d.Row, rsmt2d.Col} {
 		for rowIdx := 0; rowIdx < odsSize*2; rowIdx++ {
@@ -97,7 +97,7 @@ func BenchmarkSampleValidate(b *testing.B) {
 	randEDS := edstest.RandEDS(b, odsSize)
 	root, err := share.NewRoot(randEDS)
 	require.NoError(b, err)
-	inMem := eds.InMem{ExtendedDataSquare: randEDS}
+	inMem := eds.Rsmt2D{ExtendedDataSquare: randEDS}
 	sample, err := inMem.SampleForProofAxis(0, 0, rsmt2d.Row)
 	require.NoError(b, err)
 

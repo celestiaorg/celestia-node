@@ -11,25 +11,25 @@ import (
 	"github.com/celestiaorg/celestia-node/share/shwap"
 )
 
-var _ EDS = InMem{}
+var _ Accessor = Rsmt2D{}
 
-// InMem is an in-memory implementation of EDS.
-type InMem struct {
+// Rsmt2D is a rsmt2d based in-memory implementation of Accessor.
+type Rsmt2D struct {
 	*rsmt2d.ExtendedDataSquare
 }
 
 // Close does nothing.
-func (eds InMem) Close() error {
+func (eds Rsmt2D) Close() error {
 	return nil
 }
 
 // Size returns the size of the Extended Data Square.
-func (eds InMem) Size() int {
+func (eds Rsmt2D) Size() int {
 	return int(eds.Width())
 }
 
 // Sample returns share and corresponding proof for row and column indices.
-func (eds InMem) Sample(
+func (eds Rsmt2D) Sample(
 	_ context.Context,
 	rowIdx, colIdx int,
 ) (shwap.Sample, error) {
@@ -38,7 +38,7 @@ func (eds InMem) Sample(
 
 // SampleForProofAxis samples a share from an Extended Data Square based on the provided
 // row and column indices and proof axis. It returns a sample with the share and proof.
-func (eds InMem) SampleForProofAxis(
+func (eds Rsmt2D) SampleForProofAxis(
 	rowIdx, colIdx int,
 	proofType rsmt2d.Axis,
 ) (shwap.Sample, error) {
@@ -74,7 +74,7 @@ func (eds InMem) SampleForProofAxis(
 }
 
 // AxisHalf returns Shares for the first half of the axis of the given type and index.
-func (eds InMem) AxisHalf(_ context.Context, axisType rsmt2d.Axis, axisIdx int) (AxisHalf, error) {
+func (eds Rsmt2D) AxisHalf(_ context.Context, axisType rsmt2d.Axis, axisIdx int) (AxisHalf, error) {
 	return AxisHalf{
 		Shares:   getAxis(eds.ExtendedDataSquare, axisType, axisIdx)[:eds.Size()/2],
 		IsParity: false,
@@ -83,42 +83,25 @@ func (eds InMem) AxisHalf(_ context.Context, axisType rsmt2d.Axis, axisIdx int) 
 
 // HalfRow constructs a new shwap.Row from an Extended Data Square based on the specified index and
 // side.
-func (eds InMem) HalfRow(idx int, side shwap.RowSide) shwap.Row {
+func (eds Rsmt2D) HalfRow(idx int, side shwap.RowSide) shwap.Row {
 	shares := eds.ExtendedDataSquare.Row(uint(idx))
 	return shwap.RowFromShares(shares, side)
 }
 
-// RowData returns data for the given namespace and row index.
-func (eds InMem) RowData(_ context.Context, namespace share.Namespace, rowIdx int) (shwap.RowNamespaceData, error) {
+// RowNamespaceData returns data for the given namespace and row index.
+func (eds Rsmt2D) RowNamespaceData(
+	_ context.Context,
+	namespace share.Namespace,
+	rowIdx int,
+) (shwap.RowNamespaceData, error) {
 	shares := eds.Row(uint(rowIdx))
 	return shwap.RowNamespaceDataFromShares(shares, namespace, rowIdx)
 }
 
-// NamespacedDataFromEDS extracts shares for a specific namespace from an EDS, considering
-// each row independently.
-func (eds InMem) NamespacedData(
-	namespace share.Namespace,
-) (shwap.NamespacedData, error) {
-	root, err := share.NewRoot(eds.ExtendedDataSquare)
-	if err != nil {
-		return nil, fmt.Errorf("error computing root: %w", err)
-	}
-
-	rowIdxs := share.RowsWithNamespace(root, namespace)
-	rows := make(shwap.NamespacedData, len(rowIdxs))
-	for i, idx := range rowIdxs {
-		rows[i], err = eds.RowData(context.TODO(), namespace, idx)
-		if err != nil {
-			return nil, fmt.Errorf("failed to process row %d: %w", idx, err)
-		}
-	}
-
-	return rows, nil
-}
-
-// EDS returns extended data square stored in the file.
-func (eds InMem) EDS(_ context.Context) (*rsmt2d.ExtendedDataSquare, error) {
-	return eds.ExtendedDataSquare, nil
+// Flattened returns data shares extracted from the EDS.
+func (eds Rsmt2D) Flattened(_ context.Context) ([]share.Share, error) {
+	// Flattened returns copy of shares, which is not efficient.
+	return eds.ExtendedDataSquare.Flattened(), nil
 }
 
 func getAxis(eds *rsmt2d.ExtendedDataSquare, axisType rsmt2d.Axis, axisIdx int) []share.Share {

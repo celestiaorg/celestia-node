@@ -10,7 +10,6 @@ import (
 
 	"github.com/celestiaorg/celestia-node/share"
 	"github.com/celestiaorg/celestia-node/share/eds/edstest"
-	"github.com/celestiaorg/celestia-node/share/sharetest"
 	"github.com/celestiaorg/celestia-node/share/shwap"
 )
 
@@ -45,28 +44,10 @@ func TestHalfRowFromInMem(t *testing.T) {
 	}
 }
 
-func TestInMemNamespacedData(t *testing.T) {
-	const odsSize = 8
-
-	sharesAmount := odsSize * odsSize
-	namespace := sharetest.RandV0Namespace()
-	for amount := 1; amount < sharesAmount; amount++ {
-		eds, root := edstest.RandEDSWithNamespace(t, namespace, amount, odsSize)
-		inMem := InMem{ExtendedDataSquare: eds}
-		nd, err := inMem.NamespacedData(namespace)
-		require.NoError(t, err)
-		require.True(t, len(nd) > 0)
-		require.Len(t, nd.Flatten(), amount)
-
-		err = nd.Validate(root, namespace)
-		require.NoError(t, err)
-	}
-}
-
 func TestInMemSampleForProofAxis(t *testing.T) {
 	const odsSize = 8
 	eds := edstest.RandEDS(t, odsSize)
-	inMem := InMem{ExtendedDataSquare: eds}
+	inMem := Rsmt2D{ExtendedDataSquare: eds}
 
 	for _, proofType := range []rsmt2d.Axis{rsmt2d.Row, rsmt2d.Col} {
 		for rowIdx := 0; rowIdx < odsSize*2; rowIdx++ {
@@ -85,9 +66,9 @@ func TestInMemSampleForProofAxis(t *testing.T) {
 	}
 }
 
-func randInMemEDS(t *testing.T, size int) (InMem, *share.Root) {
+func randInMemEDS(t *testing.T, size int) (Rsmt2D, *share.Root) {
 	eds := edstest.RandEDS(t, size)
 	root, err := share.NewRoot(eds)
 	require.NoError(t, err)
-	return InMem{ExtendedDataSquare: eds}, root
+	return Rsmt2D{ExtendedDataSquare: eds}, root
 }
