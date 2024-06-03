@@ -13,8 +13,8 @@ import (
 	"github.com/celestiaorg/celestia-node/share/shwap"
 )
 
-func TestMemFileSample(t *testing.T) {
-	eds, root := randInMemEDS(t, 8)
+func TestRsmt2dSample(t *testing.T) {
+	eds, root := randRsmt2dAccsessor(t, 8)
 
 	width := int(eds.Width())
 	for rowIdx := 0; rowIdx < width; rowIdx++ {
@@ -28,9 +28,9 @@ func TestMemFileSample(t *testing.T) {
 	}
 }
 
-func TestHalfRowFromInMem(t *testing.T) {
+func TestRsmt2dHalfRowFrom(t *testing.T) {
 	const odsSize = 8
-	eds, _ := randInMemEDS(t, odsSize)
+	eds, _ := randRsmt2dAccsessor(t, odsSize)
 
 	for rowIdx := 0; rowIdx < odsSize*2; rowIdx++ {
 		for _, side := range []shwap.RowSide{shwap.Left, shwap.Right} {
@@ -44,15 +44,15 @@ func TestHalfRowFromInMem(t *testing.T) {
 	}
 }
 
-func TestInMemSampleForProofAxis(t *testing.T) {
+func TestRsmt2dSampleForProofAxis(t *testing.T) {
 	const odsSize = 8
 	eds := edstest.RandEDS(t, odsSize)
-	inMem := Rsmt2D{ExtendedDataSquare: eds}
+	accessor := Rsmt2D{ExtendedDataSquare: eds}
 
 	for _, proofType := range []rsmt2d.Axis{rsmt2d.Row, rsmt2d.Col} {
 		for rowIdx := 0; rowIdx < odsSize*2; rowIdx++ {
 			for colIdx := 0; colIdx < odsSize*2; colIdx++ {
-				sample, err := inMem.SampleForProofAxis(rowIdx, colIdx, proofType)
+				sample, err := accessor.SampleForProofAxis(rowIdx, colIdx, proofType)
 				require.NoError(t, err)
 
 				want := eds.GetCell(uint(rowIdx), uint(colIdx))
@@ -66,7 +66,7 @@ func TestInMemSampleForProofAxis(t *testing.T) {
 	}
 }
 
-func randInMemEDS(t *testing.T, size int) (Rsmt2D, *share.Root) {
+func randRsmt2dAccsessor(t *testing.T, size int) (Rsmt2D, *share.Root) {
 	eds := edstest.RandEDS(t, size)
 	root, err := share.NewRoot(eds)
 	require.NoError(t, err)
