@@ -96,7 +96,7 @@ func TestStoreGetter(t *testing.T) {
 		randNamespace := sharetest.RandV0Namespace()
 		emptyShares, err := sg.GetSharesByNamespace(ctx, eh, randNamespace)
 		require.NoError(t, err)
-		require.Empty(t, emptyShares.Flatten())
+		require.Nil(t, emptyShares.Flatten())
 
 		// root not found
 		emptyRoot := da.MinDataAvailabilityHeader()
@@ -229,7 +229,7 @@ func TestIPLDGetter(t *testing.T) {
 		randNamespace := sharetest.RandV0Namespace()
 		emptyShares, err := sg.GetSharesByNamespace(ctx, eh, randNamespace)
 		require.NoError(t, err)
-		require.Empty(t, emptyShares.Flatten())
+		require.Nil(t, emptyShares.Flatten())
 
 		// nid doesn't exist in root
 		emptyRoot := da.MinDataAvailabilityHeader()
