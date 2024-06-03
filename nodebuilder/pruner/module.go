@@ -2,6 +2,7 @@ package pruner
 
 import (
 	"context"
+	"github.com/celestiaorg/celestia-node/libs/fxutil"
 
 	"go.uber.org/fx"
 
@@ -11,7 +12,6 @@ import (
 	"github.com/celestiaorg/celestia-node/pruner/archival"
 	"github.com/celestiaorg/celestia-node/pruner/full"
 	"github.com/celestiaorg/celestia-node/pruner/light"
-	"github.com/celestiaorg/celestia-node/share/eds"
 )
 
 func ConstructModule(tp node.Type, cfg *Config) fx.Option {
@@ -48,16 +48,13 @@ func ConstructModule(tp node.Type, cfg *Config) fx.Option {
 		}
 		return fx.Module("prune",
 			baseComponents,
-			fx.Provide(light.NewPruner),
 		)
 	case node.Full:
 		if cfg.EnableService {
 			return fx.Module("prune",
 				baseComponents,
 				prunerService,
-				fx.Provide(func(store *eds.Store) pruner.Pruner {
-					return full.NewPruner(store)
-				}),
+				fxutil.ProvideAs(full.NewPruner, new(pruner.Pruner)),
 			)
 		}
 		return fx.Module("prune", baseComponents)
@@ -66,9 +63,7 @@ func ConstructModule(tp node.Type, cfg *Config) fx.Option {
 			return fx.Module("prune",
 				baseComponents,
 				prunerService,
-				fx.Provide(func(store *eds.Store) pruner.Pruner {
-					return full.NewPruner(store)
-				}),
+				fxutil.ProvideAs(full.NewPruner, new(pruner.Pruner)),
 				fx.Provide(func(window pruner.AvailabilityWindow) []core.Option {
 					return []core.Option{core.WithAvailabilityWindow(window)}
 				}),
