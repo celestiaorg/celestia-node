@@ -20,8 +20,7 @@ func ConstructModule(tp node.Type, cfg *Config) fx.Option {
 		availWindow(tp, cfg.EnableService),
 	)
 
-	fullAndBridgeComponents := fx.Options(
-		baseComponents,
+	prunerService := fx.Options(
 		fx.Provide(fx.Annotate(
 			newPrunerService,
 			fx.OnStart(func(ctx context.Context, p *pruner.Service) error {
@@ -34,31 +33,42 @@ func ConstructModule(tp node.Type, cfg *Config) fx.Option {
 		// This is necessary to invoke the pruner service as independent thanks to a
 		// quirk in FX.
 		fx.Invoke(func(_ *pruner.Service) {}),
-		fx.Provide(func(store *eds.Store) pruner.Pruner {
-			return full.NewPruner(store)
-		}),
 	)
 
 	switch tp {
 	// TODO: Eventually, light nodes will be capable of pruning samples
 	//  in which case, this can be enabled.
 	case node.Light:
+		if cfg.EnableService {
+			return fx.Module("prune",
+				baseComponents,
+				prunerService,
+				fx.Provide(light.NewPruner),
+			)
+		}
 		return fx.Module("prune",
 			baseComponents,
 			fx.Provide(light.NewPruner),
 		)
 	case node.Full:
-		opts := baseComponents
 		if cfg.EnableService {
-			opts = fullAndBridgeComponents
+			return fx.Module("prune",
+				baseComponents,
+				prunerService,
+				fx.Provide(func(store *eds.Store) pruner.Pruner {
+					return full.NewPruner(store)
+				}),
+			)
 		}
-		return fx.Module("prune",
-			opts,
-		)
+		return fx.Module("prune", baseComponents)
 	case node.Bridge:
 		if cfg.EnableService {
 			return fx.Module("prune",
-				fullAndBridgeComponents,
+				baseComponents,
+				prunerService,
+				fx.Provide(func(store *eds.Store) pruner.Pruner {
+					return full.NewPruner(store)
+				}),
 				fx.Provide(func(window pruner.AvailabilityWindow) []core.Option {
 					return []core.Option{core.WithAvailabilityWindow(window)}
 				}),
