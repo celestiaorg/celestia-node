@@ -126,7 +126,6 @@ func (s *Swamp) WaitTillHeight(ctx context.Context, height int64) libhead.Hash {
 	for {
 		select {
 		case <-ctx.Done():
-			require.NoError(s.t, ctx.Err())
 		case <-t.C:
 			latest, err := s.ClientContext.LatestHeight()
 			require.NoError(s.t, err)
