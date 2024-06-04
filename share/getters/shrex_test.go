@@ -59,7 +59,7 @@ func TestShrexGetter(t *testing.T) {
 	archivalPeerManager, err := testManager(ctx, clHost, sub)
 	require.NoError(t, err)
 
-	getter := NewShrexGetter(edsClient, ndClient, fullPeerManager, archivalPeerManager, full.Window)
+	getter := NewShrexGetter(edsClient, ndClient, fullPeerManager, archivalPeerManager)
 	require.NoError(t, getter.Start(ctx))
 
 	t.Run("ND_Available, total data size > 1mb", func(t *testing.T) {
