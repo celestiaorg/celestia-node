@@ -9,7 +9,7 @@ import (
 
 	"github.com/celestiaorg/celestia-node/nodebuilder/node"
 	modp2p "github.com/celestiaorg/celestia-node/nodebuilder/p2p"
-	"github.com/celestiaorg/celestia-node/pruner"
+	lightprune "github.com/celestiaorg/celestia-node/pruner/light"
 	"github.com/celestiaorg/celestia-node/share"
 	"github.com/celestiaorg/celestia-node/share/availability/full"
 	"github.com/celestiaorg/celestia-node/share/availability/light"
@@ -92,17 +92,13 @@ func shrexComponents(tp node.Type, cfg *Config) fx.Option {
 				edsClient *shrexeds.Client,
 				ndClient *shrexnd.Client,
 				managers map[string]*peers.Manager,
-				window pruner.AvailabilityWindow,
 			) *getters.ShrexGetter {
 				return getters.NewShrexGetter(
 					edsClient,
 					ndClient,
 					managers[fullNodesTag],
 					managers[archivalNodesTag],
-					// TODO @renaynay: Pruned FNs should pass `light.Window` to shrex getter
-					//  best route requests (as full.Window serves as a buffer for serving data while
-					//  the request router itself should just stick to light.Window)
-					window,
+					lightprune.Window,
 				)
 			},
 			fx.OnStart(func(ctx context.Context, getter *getters.ShrexGetter) error {
