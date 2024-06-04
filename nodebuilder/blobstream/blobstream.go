@@ -28,10 +28,10 @@ type Module interface {
 }
 
 type Internal struct {
-	DataCommitment         func(ctx context.Context, start, end uint64) (*ResultDataCommitment, error)
-	DataRootInclusionProof func(ctx context.Context, height int64, start, end uint64) (*ResultDataRootInclusionProof, error)
-	ProveShares            func(ctx context.Context, height uint64, start, end uint64) (*ResultShareProof, error)
-	ProveCommitment        func(ctx context.Context, height uint64, namespace share.Namespace, shareCommitment bytes.HexBytes) (*ResultCommitmentProof, error)
+	DataCommitment         func(ctx context.Context, start, end uint64) (*ResultDataCommitment, error)                                                         `perm:"read"`
+	DataRootInclusionProof func(ctx context.Context, height int64, start, end uint64) (*ResultDataRootInclusionProof, error)                                   `perm:"read"`
+	ProveShares            func(ctx context.Context, height uint64, start, end uint64) (*ResultShareProof, error)                                              `perm:"read"`
+	ProveCommitment        func(ctx context.Context, height uint64, namespace share.Namespace, shareCommitment bytes.HexBytes) (*ResultCommitmentProof, error) `perm:"read"`
 }
 
 // API is a wrapper around the Module for RPC.
