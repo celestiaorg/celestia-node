@@ -68,15 +68,6 @@ func EmptyRowNamespaceDataBlockFromCID(cid cid.Cid) (*RowNamespaceDataBlock, err
 	return &RowNamespaceDataBlock{ID: rndid}, nil
 }
 
-func (rndb *RowNamespaceDataBlock) String() string {
-	data, err := rndb.ID.MarshalBinary()
-	if err != nil {
-		panic(fmt.Errorf("marshaling RowNamespaceDataID: %w", err))
-	}
-
-	return string(data)
-}
-
 func (rndb *RowNamespaceDataBlock) CID() cid.Cid {
 	return encodeCID(rndb.ID, rowNamespaceDataMultihashCode, rowNamespaceDataCodec)
 }
@@ -87,14 +78,10 @@ func (rndb *RowNamespaceDataBlock) BlockFromEDS(eds *rsmt2d.ExtendedDataSquare) 
 		return nil, err
 	}
 
-	rndID, err := rndb.ID.MarshalBinary()
-	if err != nil {
-		return nil, fmt.Errorf("marshaling RowNamespaceDataID: %w", err)
-	}
-
+	cid := rndb.CID()
 	rndBlk := bitswapb.RowNamespaceDataBlock{
-		RowNamespaceDataId: rndID,
-		Data:               rnd.ToProto(),
+		RowNamespaceDataCid: cid.Bytes(),
+		Data:                rnd.ToProto(),
 	}
 
 	blkData, err := rndBlk.Marshal()
@@ -102,7 +89,7 @@ func (rndb *RowNamespaceDataBlock) BlockFromEDS(eds *rsmt2d.ExtendedDataSquare) 
 		return nil, fmt.Errorf("marshaling RowNamespaceDataBlock: %w", err)
 	}
 
-	blk, err := blocks.NewBlockWithCid(blkData, rndb.CID())
+	blk, err := blocks.NewBlockWithCid(blkData, cid)
 	if err != nil {
 		return nil, fmt.Errorf("assembling Bitswap block: %w", err)
 	}

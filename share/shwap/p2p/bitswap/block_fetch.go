@@ -3,6 +3,7 @@ package bitswap
 import (
 	"context"
 	"crypto/sha256"
+	"encoding/binary"
 	"fmt"
 	"sync"
 
@@ -25,20 +26,19 @@ func Fetch(ctx context.Context, fetcher exchange.Fetcher, root *share.Root, blks
 			continue // skip populated Blocks
 		}
 
-		idStr := blk.String()
-		p := blk.PopulateFn(root)
 		cid := blk.CID()
 		cids = append(cids, cid)
+		p := blk.PopulateFn(root)
 		// store the PopulateFn s.t. hasher can access it
 		// and fill in the Block
-		_, exists := populatorFns.LoadOrStore(idStr, p)
+		_, exists := populatorFns.LoadOrStore(cid, p)
 		if exists {
 			// in case there is ongoing fetch happening for the same Block elsewhere
 			// and PopulateFn has already been set -- mark the Block as duplicate
 			duplicate[cid] = blk
 		} else {
 			// only do the cleanup if we stored the PopulateFn
-			defer populatorFns.Delete(idStr)
+			defer populatorFns.Delete(cid)
 		}
 	}
 
@@ -93,31 +93,51 @@ type hasher struct {
 }
 
 func (h *hasher) Write(data []byte) (int, error) {
-	const pbOffset = 2 // this assumes the protobuf serialization is in use
-	if len(data) < h.IDSize+pbOffset {
-		err := fmt.Errorf("shwap/bitswap hasher: insufficient data size")
-		log.Error()
-		return 0, err
+	if len(data) == 0 {
+		errMsg := "hasher: empty message"
+		log.Error(errMsg)
+		return 0, fmt.Errorf("shwap/bitswap: %s", errMsg)
 	}
-	// extract Block out of data
+
+	const pbTypeOffset = 1 // this assumes the protobuf serialization is in use
+	cidLen, ln := binary.Uvarint(data[pbTypeOffset:])
+	if ln <= 0 || len(data) < pbTypeOffset+ln+int(cidLen) {
+		errMsg := fmt.Sprintf("hasher: invalid message length: %d", ln)
+		log.Error(errMsg)
+		return 0, fmt.Errorf("shwap/bitswap: %s", errMsg)
+	}
+	// extract CID out of data
 	// we do this on the raw data to:
 	//  * Avoid complicating hasher with generalized bytes -> type unmarshalling
 	//  * Avoid type allocations
-	id := data[pbOffset : h.IDSize+pbOffset]
+	cidRaw := data[pbTypeOffset+ln : pbTypeOffset+ln+int(cidLen)]
+	cid, err := cid.Cast(cidRaw)
+	if err != nil {
+		err = fmt.Errorf("hasher: casting cid: %w", err)
+		log.Error(err)
+		return 0, fmt.Errorf("shwap/bitswap: %w", err)
+	}
+	// get ID out of CID and validate it
+	id, err := extractCID(cid)
+	if err != nil {
+		err = fmt.Errorf("hasher: validating cid: %w", err)
+		log.Error(err)
+		return 0, fmt.Errorf("shwap/bitswap: %w", err)
+	}
 	// get registered PopulateFn and use it to check data validity and
 	// pass it to Fetch caller
-	val, ok := populatorFns.Load(string(id))
+	val, ok := populatorFns.Load(cid)
 	if !ok {
-		err := fmt.Errorf("shwap/bitswap hasher: no verifier registered")
-		log.Error(err)
-		return 0, err
+		errMsg := "hasher: no verifier registered"
+		log.Error(errMsg)
+		return 0, fmt.Errorf("shwap/bitswap: %s", errMsg)
 	}
 	populate := val.(PopulateFn)
-	err := populate(data)
+	err = populate(data)
 	if err != nil {
-		err = fmt.Errorf("shwap/bitswap hasher: verifying data: %w", err)
+		err = fmt.Errorf("hasher: verifying data: %w", err)
 		log.Error(err)
-		return 0, err
+		return 0, fmt.Errorf("shwap/bitswap: %w", err)
 	}
 	// set the id as resulting sum
 	// it's required for the sum to match the requested ID

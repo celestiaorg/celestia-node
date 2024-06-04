@@ -20,10 +20,6 @@ type PopulateFn func([]byte) error
 // All Shwap containers must have a registerBlock-ed wrapper
 // implementing the interface to be compatible with Bitswap.
 type Block interface {
-	// String returns string representation of the Block
-	// to be used as map key. Might not be human-readable.
-	String() string
-
 	// CID returns Shwap ID of the Block formatted as CID.
 	CID() cid.Cid
 	// BlockFromEDS extract Bitswap Block out of the EDS.

@@ -62,14 +62,6 @@ func EmptyRowBlockFromCID(cid cid.Cid) (*RowBlock, error) {
 	return &RowBlock{ID: rid}, nil
 }
 
-func (rb *RowBlock) String() string {
-	data, err := rb.ID.MarshalBinary()
-	if err != nil {
-		panic(fmt.Errorf("marshaling RowID: %w", err))
-	}
-	return string(data)
-}
-
 func (rb *RowBlock) CID() cid.Cid {
 	return encodeCID(rb.ID, rowMultihashCode, rowCodec)
 }
@@ -77,14 +69,10 @@ func (rb *RowBlock) CID() cid.Cid {
 func (rb *RowBlock) BlockFromEDS(eds *rsmt2d.ExtendedDataSquare) (blocks.Block, error) {
 	row := shwap.RowFromEDS(eds, rb.ID.RowIndex, shwap.Left)
 
-	rowID, err := rb.ID.MarshalBinary()
-	if err != nil {
-		return nil, fmt.Errorf("marshaling RowID: %w", err)
-	}
-
+	cid := rb.CID()
 	rowBlk := bitswappb.RowBlock{
-		RowId: rowID,
-		Row:   row.ToProto(),
+		RowCid: cid.Bytes(),
+		Row:    row.ToProto(),
 	}
 
 	blkData, err := rowBlk.Marshal()
@@ -92,7 +80,7 @@ func (rb *RowBlock) BlockFromEDS(eds *rsmt2d.ExtendedDataSquare) (blocks.Block, 
 		return nil, fmt.Errorf("marshaling RowBlock: %w", err)
 	}
 
-	blk, err := blocks.NewBlockWithCid(blkData, rb.CID())
+	blk, err := blocks.NewBlockWithCid(blkData, cid)
 	if err != nil {
 		return nil, fmt.Errorf("assembling Bitswap block: %w", err)
 	}

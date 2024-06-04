@@ -64,14 +64,6 @@ func EmptySampleBlockFromCID(cid cid.Cid) (*SampleBlock, error) {
 	return &SampleBlock{ID: sid}, nil
 }
 
-func (sb *SampleBlock) String() string {
-	data, err := sb.ID.MarshalBinary()
-	if err != nil {
-		panic(fmt.Errorf("marshaling SampleID: %w", err))
-	}
-	return string(data)
-}
-
 func (sb *SampleBlock) CID() cid.Cid {
 	return encodeCID(sb.ID, sampleMultihashCode, sampleCodec)
 }
@@ -82,14 +74,10 @@ func (sb *SampleBlock) BlockFromEDS(eds *rsmt2d.ExtendedDataSquare) (blocks.Bloc
 		return nil, err
 	}
 
-	smplID, err := sb.ID.MarshalBinary()
-	if err != nil {
-		return nil, fmt.Errorf("marshaling SampleID: %w", err)
-	}
-
+	cid := sb.CID()
 	smplBlk := bitswappb.SampleBlock{
-		SampleId: smplID,
-		Sample:   smpl.ToProto(),
+		SampleCid: cid.Bytes(),
+		Sample:    smpl.ToProto(),
 	}
 
 	blkData, err := smplBlk.Marshal()
@@ -97,7 +85,7 @@ func (sb *SampleBlock) BlockFromEDS(eds *rsmt2d.ExtendedDataSquare) (blocks.Bloc
 		return nil, fmt.Errorf("marshaling SampleBlock: %w", err)
 	}
 
-	blk, err := blocks.NewBlockWithCid(blkData, sb.CID())
+	blk, err := blocks.NewBlockWithCid(blkData, cid)
 	if err != nil {
 		return nil, fmt.Errorf("assembling Bitswap block: %w", err)
 	}
