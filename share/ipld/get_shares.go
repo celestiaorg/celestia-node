@@ -55,6 +55,9 @@ func GetSharesByNamespace(
 	}
 
 	leaves := data.Leaves()
+	if len(leaves) == 0 {
+		return nil, data.Proof(), nil
+	}
 
 	shares := make([]share.Share, len(leaves))
 	for i, leaf := range leaves {
@@ -62,7 +65,7 @@ func GetSharesByNamespace(
 			shares[i] = leafToShare(leaf)
 		}
 	}
-	return shares, data.Proof(), err
+	return shares, data.Proof(), nil
 }
 
 // leafToShare converts an NMT leaf into a Share.
