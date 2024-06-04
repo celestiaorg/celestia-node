@@ -22,7 +22,7 @@ const (
 )
 
 func init() {
-	RegisterBlock(
+	registerBlock(
 		rowNamespaceDataMultihashCode,
 		rowNamespaceDataCodec,
 		shwap.RowNamespaceDataIDSize,
@@ -71,7 +71,7 @@ func EmptyRowNamespaceDataBlockFromCID(cid cid.Cid) (*RowNamespaceDataBlock, err
 func (rndb *RowNamespaceDataBlock) String() string {
 	data, err := rndb.ID.MarshalBinary()
 	if err != nil {
-		panic(fmt.Errorf("marshaling RowNamespaceDataBlock: %w", err))
+		panic(fmt.Errorf("marshaling RowNamespaceDataID: %w", err))
 	}
 
 	return string(data)
@@ -89,22 +89,22 @@ func (rndb *RowNamespaceDataBlock) BlockFromEDS(eds *rsmt2d.ExtendedDataSquare) 
 
 	rndID, err := rndb.ID.MarshalBinary()
 	if err != nil {
-		return nil, fmt.Errorf("marshaling RowNamespaceDataBlock: %w", err)
+		return nil, fmt.Errorf("marshaling RowNamespaceDataID: %w", err)
 	}
 
-	rndidBlk := bitswapb.RowNamespaceDataBlock{
+	rndBlk := bitswapb.RowNamespaceDataBlock{
 		RowNamespaceDataId: rndID,
 		Data:               rnd.ToProto(),
 	}
 
-	blkData, err := rndidBlk.Marshal()
+	blkData, err := rndBlk.Marshal()
 	if err != nil {
 		return nil, fmt.Errorf("marshaling RowNamespaceDataBlock: %w", err)
 	}
 
 	blk, err := blocks.NewBlockWithCid(blkData, rndb.CID())
 	if err != nil {
-		return nil, fmt.Errorf("assembling block: %w", err)
+		return nil, fmt.Errorf("assembling Bitswap block: %w", err)
 	}
 
 	return blk, nil
@@ -114,7 +114,7 @@ func (rndb *RowNamespaceDataBlock) IsEmpty() bool {
 	return rndb.Container == nil
 }
 
-func (rndb *RowNamespaceDataBlock) Populate(root *share.Root) PopulateFn {
+func (rndb *RowNamespaceDataBlock) PopulateFn(root *share.Root) PopulateFn {
 	return func(data []byte) error {
 		if !rndb.IsEmpty() {
 			return nil
@@ -130,7 +130,7 @@ func (rndb *RowNamespaceDataBlock) Populate(root *share.Root) PopulateFn {
 		}
 		rndb.Container = &cntr
 
-		// NOTE: We don't have to validate Block in the RowBlock, as it's implicitly verified by string
+		// NOTE: We don't have to validate ID in the RowBlock, as it's implicitly verified by string
 		// equality of globalVerifiers entry key(requesting side) and hasher accessing the entry(response
 		// verification)
 		return nil

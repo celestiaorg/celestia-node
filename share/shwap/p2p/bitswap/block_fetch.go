@@ -26,19 +26,19 @@ func Fetch(ctx context.Context, fetcher exchange.Fetcher, root *share.Root, blks
 		}
 
 		idStr := blk.String()
-		p := blk.Populate(root)
+		p := blk.PopulateFn(root)
 		cid := blk.CID()
 		cids = append(cids, cid)
 		// store the PopulateFn s.t. hasher can access it
 		// and fill in the Block
-		_, exists := populators.LoadOrStore(idStr, p)
+		_, exists := populatorFns.LoadOrStore(idStr, p)
 		if exists {
 			// in case there is ongoing fetch happening for the same Block elsewhere
 			// and PopulateFn has already been set -- mark the Block as duplicate
 			duplicate[cid] = blk
 		} else {
 			// only do the cleanup if we stored the PopulateFn
-			defer populators.Delete(idStr)
+			defer populatorFns.Delete(idStr)
 		}
 	}
 
@@ -55,7 +55,7 @@ func Fetch(ctx context.Context, fetcher exchange.Fetcher, root *share.Root, blks
 		}
 		// if it is, we have to populate it ourselves instead of hasher,
 		// as there is only one PopulateFN allowed per ID
-		err := id.Populate(root)(blk.RawData())
+		err := id.PopulateFn(root)(blk.RawData())
 		if err != nil {
 			// this case should never happen in practice
 			// and if so something is really wrong
@@ -70,7 +70,7 @@ func Fetch(ctx context.Context, fetcher exchange.Fetcher, root *share.Root, blks
 	return ctx.Err()
 }
 
-// populators exists to communicate between Fetch and hasher.
+// populatorFns exist to communicate between Fetch and hasher.
 //
 // Fetch registers PopulateFNs that hasher then uses to validate and populate Block responses coming
 // through Bitswap
@@ -81,7 +81,7 @@ func Fetch(ctx context.Context, fetcher exchange.Fetcher, root *share.Root, blks
 // message is received. It then uses PopulateFn to validate and fill in the respective Block
 //
 // sync.Map is used to minimize contention for disjoint keys
-var populators sync.Map
+var populatorFns sync.Map
 
 // hasher implements hash.Hash to be registered as custom multihash
 // hasher is the *hack* to inject custom verification logic into Bitswap
@@ -106,7 +106,7 @@ func (h *hasher) Write(data []byte) (int, error) {
 	id := data[pbOffset : h.IDSize+pbOffset]
 	// get registered PopulateFn and use it to check data validity and
 	// pass it to Fetch caller
-	val, ok := populators.Load(string(id))
+	val, ok := populatorFns.Load(string(id))
 	if !ok {
 		err := fmt.Errorf("shwap/bitswap hasher: no verifier registered")
 		log.Error(err)

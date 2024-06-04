@@ -62,7 +62,7 @@ func TestFetchDuplicates(t *testing.T) {
 	}
 
 	var entries int
-	populators.Range(func(any, any) bool {
+	populatorFns.Range(func(any, any) bool {
 		entries++
 		return true
 	})

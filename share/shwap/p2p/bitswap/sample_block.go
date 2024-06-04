@@ -23,7 +23,7 @@ const (
 )
 
 func init() {
-	RegisterBlock(
+	registerBlock(
 		sampleMultihashCode,
 		sampleCodec,
 		shwap.SampleIDSize,
@@ -67,7 +67,7 @@ func EmptySampleBlockFromCID(cid cid.Cid) (*SampleBlock, error) {
 func (sb *SampleBlock) String() string {
 	data, err := sb.ID.MarshalBinary()
 	if err != nil {
-		panic(fmt.Errorf("marshaling SampleBlock: %w", err))
+		panic(fmt.Errorf("marshaling SampleID: %w", err))
 	}
 	return string(data)
 }
@@ -84,7 +84,7 @@ func (sb *SampleBlock) BlockFromEDS(eds *rsmt2d.ExtendedDataSquare) (blocks.Bloc
 
 	smplID, err := sb.ID.MarshalBinary()
 	if err != nil {
-		return nil, fmt.Errorf("marshaling SampleBlock: %w", err)
+		return nil, fmt.Errorf("marshaling SampleID: %w", err)
 	}
 
 	smplBlk := bitswappb.SampleBlock{
@@ -99,7 +99,7 @@ func (sb *SampleBlock) BlockFromEDS(eds *rsmt2d.ExtendedDataSquare) (blocks.Bloc
 
 	blk, err := blocks.NewBlockWithCid(blkData, sb.CID())
 	if err != nil {
-		return nil, fmt.Errorf("assembling block: %w", err)
+		return nil, fmt.Errorf("assembling Bitswap block: %w", err)
 	}
 
 	return blk, nil
@@ -109,7 +109,7 @@ func (sb *SampleBlock) IsEmpty() bool {
 	return sb.Container == nil
 }
 
-func (sb *SampleBlock) Populate(root *share.Root) PopulateFn {
+func (sb *SampleBlock) PopulateFn(root *share.Root) PopulateFn {
 	return func(data []byte) error {
 		if !sb.IsEmpty() {
 			return nil
@@ -124,7 +124,8 @@ func (sb *SampleBlock) Populate(root *share.Root) PopulateFn {
 			return fmt.Errorf("validating Sample: %w", err)
 		}
 		sb.Container = &cntr
-		// NOTE: We don't have to validate Block in the RowBlock, as it's implicitly verified by string
+
+		// NOTE: We don't have to validate ID in the RowBlock, as it's implicitly verified by string
 		// equality of globalVerifiers entry key(requesting side) and hasher accessing the entry(response
 		// verification)
 		return nil

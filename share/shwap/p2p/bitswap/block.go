@@ -17,7 +17,7 @@ var log = logger.Logger("shwap/bitswap")
 type PopulateFn func([]byte) error
 
 // Block represents Bitswap compatible Shwap container.
-// All Shwap containers must have a RegisterBlock-ed wrapper
+// All Shwap containers must have a registerBlock-ed wrapper
 // implementing the interface to be compatible with Bitswap.
 type Block interface {
 	// String returns string representation of the Block
@@ -32,7 +32,7 @@ type Block interface {
 	// IsEmpty reports whether the Block been populated with Shwap container.
 	// If the Block is empty, it can be populated with Fetch.
 	IsEmpty() bool
-	// Populate returns closure that fills up the Block with Shwap container.
+	// PopulateFn returns closure that fills up the Block with Shwap container.
 	// Population involves data validation against the Root.
-	Populate(*share.Root) PopulateFn
+	PopulateFn(*share.Root) PopulateFn
 }
