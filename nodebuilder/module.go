@@ -2,6 +2,7 @@ package nodebuilder
 
 import (
 	"context"
+	"github.com/celestiaorg/celestia-node/nodebuilder/blobstream"
 
 	"go.uber.org/fx"
 
@@ -56,6 +57,7 @@ func ConstructModule(tp node.Type, network p2p.Network, cfg *Config, store Store
 		node.ConstructModule(tp),
 		pruner.ConstructModule(tp, &cfg.Pruner),
 		rpc.ConstructModule(tp, &cfg.RPC),
+		blobstream.ConstructModule(),
 	)
 
 	return fx.Module(

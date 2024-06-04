@@ -3,6 +3,7 @@ package api
 import (
 	"context"
 	"encoding/json"
+	"github.com/celestiaorg/celestia-node/nodebuilder/blobstream"
 	"reflect"
 	"strconv"
 	"testing"
@@ -22,6 +23,7 @@ import (
 	"github.com/celestiaorg/celestia-node/nodebuilder"
 	"github.com/celestiaorg/celestia-node/nodebuilder/blob"
 	blobMock "github.com/celestiaorg/celestia-node/nodebuilder/blob/mocks"
+	BlobstreamMock "github.com/celestiaorg/celestia-node/nodebuilder/blobstream/mocks"
 	"github.com/celestiaorg/celestia-node/nodebuilder/da"
 	daMock "github.com/celestiaorg/celestia-node/nodebuilder/da/mocks"
 	"github.com/celestiaorg/celestia-node/nodebuilder/das"
@@ -85,15 +87,16 @@ func TestRPCCallsUnderlyingNode(t *testing.T) {
 // api contains all modules that are made available as the node's
 // public API surface
 type api struct {
-	Fraud  fraud.Module
-	Header header.Module
-	State  statemod.Module
-	Share  share.Module
-	DAS    das.Module
-	Node   node.Module
-	P2P    p2p.Module
-	Blob   blob.Module
-	DA     da.Module
+	Fraud      fraud.Module
+	Header     header.Module
+	State      statemod.Module
+	Share      share.Module
+	DAS        das.Module
+	Node       node.Module
+	P2P        p2p.Module
+	Blob       blob.Module
+	DA         da.Module
+	Blobstream blobstream.Module
 }
 
 func TestModulesImplementFullAPI(t *testing.T) {
@@ -300,6 +303,7 @@ func setupNodeWithAuthedRPC(t *testing.T, auth jwt.Signer) (*nodebuilder.Node, *
 		nodeMock.NewMockModule(ctrl),
 		blobMock.NewMockModule(ctrl),
 		daMock.NewMockModule(ctrl),
+		BlobstreamMock.NewMockModule(ctrl),
 	}
 
 	// given the behavior of fx.Invoke, this invoke will be called last as it is added at the root
@@ -314,6 +318,7 @@ func setupNodeWithAuthedRPC(t *testing.T, auth jwt.Signer) (*nodebuilder.Node, *
 		srv.RegisterService("node", mockAPI.Node, &node.API{})
 		srv.RegisterService("blob", mockAPI.Blob, &blob.API{})
 		srv.RegisterService("da", mockAPI.DA, &da.API{})
+		srv.RegisterService("blobstream", mockAPI.Blobstream, &blobstream.API{})
 	})
 	// fx.Replace does not work here, but fx.Decorate does
 	nd := nodebuilder.TestNode(t, node.Full, invokeRPC, fx.Decorate(func() (jwt.Signer, error) {
@@ -330,13 +335,14 @@ func setupNodeWithAuthedRPC(t *testing.T, auth jwt.Signer) (*nodebuilder.Node, *
 }
 
 type mockAPI struct {
-	State  *stateMock.MockModule
-	Share  *shareMock.MockModule
-	Fraud  *fraudMock.MockModule
-	Header *headerMock.MockModule
-	Das    *dasMock.MockModule
-	P2P    *p2pMock.MockModule
-	Node   *nodeMock.MockModule
-	Blob   *blobMock.MockModule
-	DA     *daMock.MockModule
+	State      *stateMock.MockModule
+	Share      *shareMock.MockModule
+	Fraud      *fraudMock.MockModule
+	Header     *headerMock.MockModule
+	Das        *dasMock.MockModule
+	P2P        *p2pMock.MockModule
+	Node       *nodeMock.MockModule
+	Blob       *blobMock.MockModule
+	DA         *daMock.MockModule
+	Blobstream *BlobstreamMock.MockModule
 }

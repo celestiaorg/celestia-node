@@ -1,6 +1,7 @@
 package rpc
 
 import (
+	"github.com/celestiaorg/celestia-node/nodebuilder/blobstream"
 	"github.com/cristalhq/jwt"
 
 	"github.com/celestiaorg/celestia-node/api/rpc"
@@ -26,6 +27,7 @@ func registerEndpoints(
 	nodeMod node.Module,
 	blobMod blob.Module,
 	daMod da.Module,
+	blobstreamMod blobstream.Module,
 	serv *rpc.Server,
 ) {
 	serv.RegisterService("fraud", fraudMod, &fraud.API{})
@@ -37,6 +39,7 @@ func registerEndpoints(
 	serv.RegisterService("node", nodeMod, &node.API{})
 	serv.RegisterService("blob", blobMod, &blob.API{})
 	serv.RegisterService("da", daMod, &da.API{})
+	serv.RegisterService("blobstream", blobstreamMod, &blobstream.API{})
 }
 
 func server(cfg *Config, auth jwt.Signer) *rpc.Server {

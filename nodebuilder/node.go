@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"github.com/celestiaorg/celestia-node/nodebuilder/blobstream"
 	"strings"
 
 	"github.com/cristalhq/jwt"
@@ -69,14 +70,15 @@ type Node struct {
 	// p2p protocols
 	PubSub *pubsub.PubSub
 	// services
-	ShareServ  share.Module  // not optional
-	HeaderServ header.Module // not optional
-	StateServ  state.Module  // not optional
-	FraudServ  fraud.Module  // not optional
-	BlobServ   blob.Module   // not optional
-	DASer      das.Module    // not optional
-	AdminServ  node.Module   // not optional
-	DAMod      da.Module     // not optional
+	ShareServ     share.Module  // not optional
+	HeaderServ    header.Module // not optional
+	StateServ     state.Module  // not optional
+	FraudServ     fraud.Module  // not optional
+	BlobServ      blob.Module   // not optional
+	DASer         das.Module    // not optional
+	AdminServ     node.Module   // not optional
+	DAMod         da.Module     // not optional
+	BlobstreamMod blobstream.Module
 
 	// start and stop control ref internal fx.App lifecycle funcs to be called from Start and Stop
 	start, stop lifecycleFunc
