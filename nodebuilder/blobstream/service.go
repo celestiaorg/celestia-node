@@ -365,6 +365,9 @@ func (s *Service) ProveShares(ctx context.Context, height uint64, start, end uin
 // ProveCommitment generates a commitment proof for a share commitment.
 // It takes as argument the height of the block containing the blob of data, its
 // namespace and its share commitment.
+// Note: queries the whole EDS to generate the proof.
+// This can be improved once `GetProof` returns the proof only for the blob and not the whole
+// namespace.
 func (s *Service) ProveCommitment(ctx context.Context, height uint64, namespace share.Namespace, shareCommitment []byte) (*ResultCommitmentProof, error) {
 	log.Debugw("proving share commitment", "height", height, "commitment", shareCommitment, "namespace", namespace)
 	if height == 0 {
