@@ -5,6 +5,9 @@ import (
 	"context"
 	"encoding/hex"
 	"fmt"
+	"math"
+	"strconv"
+
 	"github.com/celestiaorg/celestia-app/pkg/appconsts"
 	appns "github.com/celestiaorg/celestia-app/pkg/namespace"
 	pkgproof "github.com/celestiaorg/celestia-app/pkg/proof"
@@ -17,8 +20,6 @@ import (
 	"github.com/celestiaorg/nmt"
 	logging "github.com/ipfs/go-log/v2"
 	"github.com/tendermint/tendermint/crypto/merkle"
-	"math"
-	"strconv"
 )
 
 var _ Module = (*Service)(nil)

@@ -7,13 +7,14 @@ import (
 	"encoding/hex"
 	"errors"
 	"fmt"
+	"math"
+	"testing"
+
 	nodeblob "github.com/celestiaorg/celestia-node/nodebuilder/blob"
 	headerServ "github.com/celestiaorg/celestia-node/nodebuilder/header"
 	shareServ "github.com/celestiaorg/celestia-node/nodebuilder/share"
 	libhead "github.com/celestiaorg/go-header"
 	"github.com/celestiaorg/go-header/sync"
-	"math"
-	"testing"
 
 	"github.com/celestiaorg/celestia-app/test/util/blobfactory"
 
@@ -922,7 +923,7 @@ type mockBlobService struct {
 }
 
 func (m mockBlobService) Submit(_ context.Context, _ []*blob.Blob, _ blob.GasPrice) (height uint64, _ error) {
-	//TODO implement me
+	// TODO implement me
 	panic("implement me")
 }
 
@@ -943,7 +944,7 @@ func (m mockBlobService) Get(ctx context.Context, height uint64, ns share.Namesp
 }
 
 func (m mockBlobService) GetAll(_ context.Context, height uint64, _ []share.Namespace) ([]*blob.Blob, error) {
-	//TODO implement me
+	// TODO implement me
 	panic("implement me")
 }
 
@@ -980,7 +981,7 @@ func (m mockBlobService) GetProof(ctx context.Context, height uint64, ns share.N
 }
 
 func (m mockBlobService) Included(_ context.Context, height uint64, _ share.Namespace, _ *blob.Proof, _ blob.Commitment) (bool, error) {
-	//TODO implement me
+	// TODO implement me
 	panic("implement me")
 }
 
@@ -991,7 +992,7 @@ type mockShareService struct {
 }
 
 func (m mockShareService) SharesAvailable(ctx context.Context, extendedHeader *header.ExtendedHeader) error {
-	//TODO implement me
+	// TODO implement me
 	panic("implement me")
 }
 
@@ -1010,7 +1011,7 @@ func (m mockShareService) GetEDS(ctx context.Context, header *header.ExtendedHea
 }
 
 func (m mockShareService) GetSharesByNamespace(ctx context.Context, header *header.ExtendedHeader, namespace share.Namespace) (share.NamespacedShares, error) {
-	//TODO implement me
+	// TODO implement me
 	panic("implement me")
 }
 
@@ -1031,12 +1032,12 @@ func (m mockHeaderService) LocalHead(ctx context.Context) (*header.ExtendedHeade
 }
 
 func (m mockHeaderService) GetByHash(ctx context.Context, hash libhead.Hash) (*header.ExtendedHeader, error) {
-	//TODO implement me
+	// TODO implement me
 	panic("implement me")
 }
 
 func (m mockHeaderService) GetRangeByHeight(ctx context.Context, from *header.ExtendedHeader, to uint64) ([]*header.ExtendedHeader, error) {
-	//TODO implement me
+	// TODO implement me
 	panic("implement me")
 }
 
@@ -1054,17 +1055,17 @@ func (m mockHeaderService) GetByHeight(ctx context.Context, height uint64) (*hea
 }
 
 func (m mockHeaderService) WaitForHeight(ctx context.Context, u uint64) (*header.ExtendedHeader, error) {
-	//TODO implement me
+	// TODO implement me
 	panic("implement me")
 }
 
 func (m mockHeaderService) SyncState(ctx context.Context) (sync.State, error) {
-	//TODO implement me
+	// TODO implement me
 	panic("implement me")
 }
 
 func (m mockHeaderService) SyncWait(ctx context.Context) error {
-	//TODO implement me
+	// TODO implement me
 	panic("implement me")
 }
 
@@ -1081,6 +1082,6 @@ func (m mockHeaderService) NetworkHead(ctx context.Context) (*header.ExtendedHea
 }
 
 func (m mockHeaderService) Subscribe(ctx context.Context) (<-chan *header.ExtendedHeader, error) {
-	//TODO implement me
+	// TODO implement me
 	panic("implement me")
 }

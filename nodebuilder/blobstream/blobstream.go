@@ -2,6 +2,7 @@ package blobstream
 
 import (
 	"context"
+
 	"github.com/celestiaorg/celestia-node/share"
 )
 
