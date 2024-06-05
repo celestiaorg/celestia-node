@@ -7,10 +7,11 @@ import (
 
 	"github.com/celestiaorg/celestia-app/pkg/appconsts"
 
-	"github.com/celestiaorg/celestia-node/share"
 	"github.com/celestiaorg/nmt"
 	"github.com/celestiaorg/nmt/namespace"
 	"github.com/tendermint/tendermint/crypto/merkle"
+
+	"github.com/celestiaorg/celestia-node/share"
 
 	"github.com/tendermint/tendermint/libs/bytes"
 	"github.com/tendermint/tendermint/types"
@@ -131,7 +132,12 @@ func (commitmentProof CommitmentProof) Verify(root []byte, subtreeRootThreshold 
 			return false, err
 		}
 		if !valid {
-			return false, fmt.Errorf("subtree root proof for range [%d, %d) is invalid", subtreeRootProof.Start(), subtreeRootProof.End())
+			return false,
+				fmt.Errorf(
+					"subtree root proof for range [%d, %d) is invalid",
+					subtreeRootProof.Start(),
+					subtreeRootProof.End(),
+				)
 		}
 		subtreeRootsCursor += len(ranges)
 	}
@@ -157,7 +163,10 @@ type SubtreeRootToCommitmentProof struct {
 }
 
 // Verify verifies that a share commitment commits to the provided subtree root.
-func (subtreeRootProof SubtreeRootToCommitmentProof) Verify(shareCommitment bytes.HexBytes, subtreeRoot []byte) (bool, error) {
+func (subtreeRootProof SubtreeRootToCommitmentProof) Verify(
+	shareCommitment bytes.HexBytes,
+	subtreeRoot []byte,
+) (bool, error) {
 	err := subtreeRootProof.Proof.Verify(shareCommitment.Bytes(), subtreeRoot)
 	if err != nil {
 		return false, err
@@ -177,7 +186,7 @@ type ShareToSubtreeRootProof struct {
 }
 
 // Verify verifies that a share commitment commits to the provided subtree root.
-func (shareToSubtreeRootProof ShareToSubtreeRootProof) Verify(subtreeRoot []byte, share []byte) (bool, error) {
+func (shareToSubtreeRootProof ShareToSubtreeRootProof) Verify(subtreeRoot, share []byte) (bool, error) {
 	err := shareToSubtreeRootProof.Proof.Verify(subtreeRoot, share)
 	if err != nil {
 		return false, err

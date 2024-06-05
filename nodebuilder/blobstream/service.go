@@ -12,14 +12,15 @@ import (
 	appns "github.com/celestiaorg/celestia-app/pkg/namespace"
 	pkgproof "github.com/celestiaorg/celestia-app/pkg/proof"
 	"github.com/celestiaorg/celestia-app/pkg/shares"
+	"github.com/celestiaorg/nmt"
+	logging "github.com/ipfs/go-log/v2"
+	"github.com/tendermint/tendermint/crypto/merkle"
+
 	"github.com/celestiaorg/celestia-node/blob"
 	nodeblob "github.com/celestiaorg/celestia-node/nodebuilder/blob"
 	headerServ "github.com/celestiaorg/celestia-node/nodebuilder/header"
 	shareServ "github.com/celestiaorg/celestia-node/nodebuilder/share"
 	"github.com/celestiaorg/celestia-node/share"
-	"github.com/celestiaorg/nmt"
-	logging "github.com/ipfs/go-log/v2"
-	"github.com/tendermint/tendermint/crypto/merkle"
 )
 
 var _ Module = (*Service)(nil)
@@ -71,7 +72,15 @@ func (s *Service) DataRootInclusionProof(
 	start,
 	end uint64,
 ) (*ResultDataRootInclusionProof, error) {
-	log.Debugw("validating the data root inclusion proof request", "start", start, "end", end, "height", height)
+	log.Debugw(
+		"validating the data root inclusion proof request",
+		"start",
+		start,
+		"end",
+		end,
+		"height",
+		height,
+	)
 	err := s.validateDataRootInclusionProofRequest(ctx, uint64(height), start, end)
 	if err != nil {
 		return nil, err
@@ -179,7 +188,7 @@ const dataCommitmentBlocksLimit = 10_000 // ~33 hours of blocks assuming 12-seco
 // validateDataCommitmentRange runs basic checks on the asc sorted list of
 // heights that will be used subsequently in generating data commitments over
 // the defined set of heights.
-func (s *Service) validateDataCommitmentRange(ctx context.Context, start uint64, end uint64) error {
+func (s *Service) validateDataCommitmentRange(ctx context.Context, start, end uint64) error {
 	if start == 0 {
 		return fmt.Errorf("the start block is 0")
 	}
@@ -243,7 +252,10 @@ func hashDataRootTuples(tuples []DataRootTuple) ([]byte, error) {
 
 // validateDataRootInclusionProofRequest validates the request to generate a data root
 // inclusion proof.
-func (s *Service) validateDataRootInclusionProofRequest(ctx context.Context, height uint64, start uint64, end uint64) error {
+func (s *Service) validateDataRootInclusionProofRequest(
+	ctx context.Context,
+	height, start, end uint64,
+) error {
 	err := s.validateDataCommitmentRange(ctx, start, end)
 	if err != nil {
 		return err
@@ -315,7 +327,7 @@ func (s *Service) fetchDataRootTuples(ctx context.Context, start, end uint64) ([
 // the proof and only querying them. However, that would require re-implementing the logic
 // in Core. Also, core also queries the whole EDS to generate the proof. So, it's fine for
 // now. In the future, when blocks get way bigger, we should revisit this and improve it.
-func (s *Service) ProveShares(ctx context.Context, height uint64, start, end uint64) (*ResultShareProof, error) {
+func (s *Service) ProveShares(ctx context.Context, height, start, end uint64) (*ResultShareProof, error) {
 	log.Debugw("proving share range", "start", start, "end", end, "height", height)
 	if height == 0 {
 		return nil, fmt.Errorf("height cannot be equal to 0")
@@ -368,20 +380,41 @@ func (s *Service) ProveShares(ctx context.Context, height uint64, start, end uin
 // Note: queries the whole EDS to generate the proof.
 // This can be improved once `GetProof` returns the proof only for the blob and not the whole
 // namespace.
-func (s *Service) ProveCommitment(ctx context.Context, height uint64, namespace share.Namespace, shareCommitment []byte) (*ResultCommitmentProof, error) {
+func (s *Service) ProveCommitment(
+	ctx context.Context,
+	height uint64,
+	namespace share.Namespace,
+	shareCommitment []byte,
+) (*ResultCommitmentProof, error) {
 	log.Debugw("proving share commitment", "height", height, "commitment", shareCommitment, "namespace", namespace)
 	if height == 0 {
 		return nil, fmt.Errorf("height cannot be equal to 0")
 	}
 
 	// get the blob to compute the subtree roots
-	log.Debugw("getting the blob", "height", height, "commitment", shareCommitment, "namespace", namespace)
+	log.Debugw(
+		"getting the blob",
+		"height",
+		height,
+		"commitment",
+		shareCommitment,
+		"namespace",
+		namespace,
+	)
 	blb, err := s.blobServ.Get(ctx, height, namespace, shareCommitment)
 	if err != nil {
 		return nil, err
 	}
 
-	log.Debugw("converting the blob to shares", "height", height, "commitment", shareCommitment, "namespace", namespace)
+	log.Debugw(
+		"converting the blob to shares",
+		"height",
+		height,
+		"commitment",
+		shareCommitment,
+		"namespace",
+		namespace,
+	)
 	blobShares, err := blob.BlobsToShares(blb)
 	if err != nil {
 		return nil, err
@@ -392,7 +425,11 @@ func (s *Service) ProveCommitment(ctx context.Context, height uint64, namespace 
 	}
 
 	// get the extended header
-	log.Debugw("getting the extended header", "height", height)
+	log.Debugw(
+		"getting the extended header",
+		"height",
+		height,
+	)
 	extendedHeader, err := s.headerServ.GetByHeight(ctx, height)
 	if err != nil {
 		return nil, err
@@ -420,8 +457,22 @@ func (s *Service) ProveCommitment(ctx context.Context, height uint64, namespace 
 		return nil, err
 	}
 
-	log.Debugw("generating the blob share proof for commitment", "commitment", shareCommitment, "start_share", blobSharesStartIndex, "end_share", blobSharesStartIndex+len(blobShares), "height", height)
-	sharesProof, err := pkgproof.NewShareInclusionProofFromEDS(eds, nID, shares.NewRange(blobSharesStartIndex, blobSharesStartIndex+len(blobShares)))
+	log.Debugw(
+		"generating the blob share proof for commitment",
+		"commitment",
+		shareCommitment,
+		"start_share",
+		blobSharesStartIndex,
+		"end_share",
+		blobSharesStartIndex+len(blobShares),
+		"height",
+		height,
+	)
+	sharesProof, err := pkgproof.NewShareInclusionProofFromEDS(
+		eds,
+		nID,
+		shares.NewRange(blobSharesStartIndex, blobSharesStartIndex+len(blobShares)),
+	)
 	if err != nil {
 		return nil, err
 	}
@@ -440,16 +491,33 @@ func (s *Service) ProveCommitment(ctx context.Context, height uint64, namespace 
 	}
 
 	// compute the subtree roots of the blob shares
-	log.Debugw("computing the subtree roots", "height", height, "commitment", shareCommitment, "namespace", namespace)
+	log.Debugw(
+		"computing the subtree roots",
+		"height",
+		height,
+		"commitment",
+		shareCommitment,
+		"namespace",
+		namespace,
+	)
 	subtreeRoots := make([][]byte, 0)
 	dataCursor := 0
 	for _, proof := range nmtProofs {
-		// TODO: do we want directly use the default subtree root threshold or want to allow specifying which version to use?
-		ranges, err := nmt.ToLeafRanges(proof.Start(), proof.End(), shares.SubTreeWidth(len(blobShares), appconsts.DefaultSubtreeRootThreshold))
+		// TODO: do we want directly use the default subtree root threshold
+		// or want to allow specifying which version to use?
+		ranges, err := nmt.ToLeafRanges(
+			proof.Start(),
+			proof.End(),
+			shares.SubTreeWidth(len(blobShares), appconsts.DefaultSubtreeRootThreshold),
+		)
 		if err != nil {
 			return nil, err
 		}
-		roots, err := computeSubtreeRoots(blobShares[dataCursor:dataCursor+proof.End()-proof.Start()], ranges, proof.Start())
+		roots, err := computeSubtreeRoots(
+			blobShares[dataCursor:dataCursor+proof.End()-proof.Start()],
+			ranges,
+			proof.Start(),
+		)
 		if err != nil {
 			return nil, err
 		}
@@ -457,7 +525,15 @@ func (s *Service) ProveCommitment(ctx context.Context, height uint64, namespace 
 		dataCursor += proof.End() - proof.Start()
 	}
 
-	log.Debugw("successfully proved the share commitment", "height", height, "commitment", shareCommitment, "namespace", namespace)
+	log.Debugw(
+		"successfully proved the share commitment",
+		"height",
+		height,
+		"commitment",
+		shareCommitment,
+		"namespace",
+		namespace,
+	)
 	commitmentProof := CommitmentProof{
 		SubtreeRoots:      subtreeRoots,
 		SubtreeRootProofs: nmtProofs,
@@ -483,7 +559,11 @@ func computeSubtreeRoots(shares []share.Share, ranges []nmt.LeafRange, offset in
 	}
 
 	// create a tree containing the shares to generate their subtree roots
-	tree := nmt.New(appconsts.NewBaseHashFunc(), nmt.IgnoreMaxNamespace(true), nmt.NamespaceIDSize(share.NamespaceSize))
+	tree := nmt.New(
+		appconsts.NewBaseHashFunc(),
+		nmt.IgnoreMaxNamespace(true),
+		nmt.NamespaceIDSize(share.NamespaceSize),
+	)
 	for _, sh := range shares {
 		leafData := make([]byte, 0)
 		leafData = append(append(leafData, share.GetNamespace(sh)...), sh...)
@@ -515,7 +595,10 @@ func uint64ToInt(number uint64) (int, error) {
 // ProveSubtreeRootToCommitment generates a subtree root to share commitment inclusion proof.
 // Note: this method is not part of the API. It will not be served by any endpoint, however,
 // it can be called directly programmatically.
-func ProveSubtreeRootToCommitment(subtreeRoots [][]byte, subtreeRootIndex uint64) (*ResultSubtreeRootToCommitmentProof, error) {
+func ProveSubtreeRootToCommitment(
+	subtreeRoots [][]byte,
+	subtreeRootIndex uint64,
+) (*ResultSubtreeRootToCommitmentProof, error) {
 	_, proofs := merkle.ProofsFromByteSlices(subtreeRoots)
 	return &ResultSubtreeRootToCommitmentProof{
 		SubtreeRootToCommitmentProof: SubtreeRootToCommitmentProof{
@@ -527,7 +610,10 @@ func ProveSubtreeRootToCommitment(subtreeRoots [][]byte, subtreeRootIndex uint64
 // ProveShareToSubtreeRoot generates a share to subtree root inclusion proof
 // Note: this method is not part of the API. It will not be served by any endpoint, however,
 // it can be called directly programmatically.
-func ProveShareToSubtreeRoot(shares [][]byte, shareIndex uint64) (*ResultShareToSubtreeRootProof, error) {
+func ProveShareToSubtreeRoot(
+	shares [][]byte,
+	shareIndex uint64,
+) (*ResultShareToSubtreeRootProof, error) {
 	_, proofs := merkle.ProofsFromByteSlices(shares)
 	return &ResultShareToSubtreeRootProof{
 		ShareToSubtreeRootProof: ShareToSubtreeRootProof{
