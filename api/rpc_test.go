@@ -3,11 +3,12 @@ package api
 import (
 	"context"
 	"encoding/json"
-	"github.com/celestiaorg/celestia-node/nodebuilder/blobstream"
 	"reflect"
 	"strconv"
 	"testing"
 	"time"
+
+	"github.com/celestiaorg/celestia-node/nodebuilder/blobstream"
 
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	"github.com/cristalhq/jwt"

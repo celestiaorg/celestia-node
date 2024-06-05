@@ -678,10 +678,10 @@ func (api *testAPI) addBlock(t *testing.T, numberOfBlobs, blobSize int) int {
 	kr := testfactory.GenerateKeyring(acc)
 	signer := types.NewKeyringSigner(kr, acc, "test")
 
-	var msgs []*types.MsgPayForBlobs
-	var blobs []*types.Blob
-	var nss []namespace.Namespace
-	var coreTxs coretypes.Txs
+	msgs := make([]*types.MsgPayForBlobs, 0)
+	blobs := make([]*types.Blob, 0)
+	nss := make([]namespace.Namespace, 0)
+	coreTxs := make(coretypes.Txs, 0)
 
 	for i := 0; i < numberOfBlobs; i++ {
 		ns, msg, blob, coreTx := createTestBlobTransaction(t, signer, blobSize)
@@ -691,7 +691,7 @@ func (api *testAPI) addBlock(t *testing.T, numberOfBlobs, blobSize int) int {
 		coreTxs = append(coreTxs, coreTx)
 	}
 
-	var txs coretypes.Txs
+	txs := make(coretypes.Txs, 0)
 	txs = append(txs, coreTxs...)
 	dataSquare, err := square.Construct(txs.ToSliceOfBytes(), appconsts.LatestVersion, appconsts.SquareSizeUpperBound(appconsts.LatestVersion))
 	require.NoError(t, err)
@@ -753,8 +753,8 @@ func generateCommitmentProofFromBlock(t *testing.T, block testBlock, blobIndex i
 	require.NoError(t, sharesProof.Validate(block.dataRoot))
 
 	// calculate the subtree roots
-	var subtreeRoots [][]byte
-	var dataCursor int
+	subtreeRoots := make([][]byte, 0)
+	dataCursor := 0
 	for _, proof := range sharesProof.ShareProofs {
 		ranges, err := nmt.ToLeafRanges(int(proof.Start), int(proof.End), shares.SubTreeWidth(len(blobShares), appconsts.DefaultSubtreeRootThreshold))
 		require.NoError(t, err)
@@ -765,7 +765,7 @@ func generateCommitmentProofFromBlock(t *testing.T, block testBlock, blobIndex i
 	}
 
 	// convert the nmt proof to be accepted by the commitment proof
-	var nmtProofs []*nmt.Proof
+	nmtProofs := make([]*nmt.Proof, 0)
 	for _, proof := range sharesProof.ShareProofs {
 		nmtProof := nmt.NewInclusionProof(int(proof.Start), int(proof.End), proof.Nodes, true)
 		nmtProofs = append(nmtProofs, &nmtProof)
@@ -785,11 +785,11 @@ func generateCommitmentProofFromBlock(t *testing.T, block testBlock, blobIndex i
 // generateTestBlocks generates a set of test blocks with a specific blob size and number of transactions
 func generateTestBlocks(t *testing.T, numberOfBlocks int, blobSize int, numberOfTransactions int) []testBlock {
 	require.Greater(t, numberOfBlocks, 1)
-	var blocks []testBlock
+	blocks := make([]testBlock, 0)
 	for i := 1; i <= numberOfBlocks; i++ {
 		nss, msgs, blobs, coreTxs := createTestBlobTransactions(t, numberOfTransactions, blobSize)
 
-		var txs coretypes.Txs
+		txs := make(coretypes.Txs, 0)
 		txs = append(txs, coreTxs...)
 		dataSquare, err := square.Construct(txs.ToSliceOfBytes(), appconsts.LatestVersion, appconsts.SquareSizeUpperBound(appconsts.LatestVersion))
 		require.NoError(t, err)
@@ -824,10 +824,10 @@ func createTestBlobTransactions(t *testing.T, numberOfTransactions int, size int
 	kr := testfactory.GenerateKeyring(acc)
 	signer := types.NewKeyringSigner(kr, acc, "test")
 
-	var nss []namespace.Namespace
-	var msgs []*types.MsgPayForBlobs
-	var blobs []*types.Blob
-	var coreTxs []coretypes.Tx
+	nss := make([]namespace.Namespace, 0)
+	msgs := make([]*types.MsgPayForBlobs, 0)
+	blobs := make([]*types.Blob, 0)
+	coreTxs := make([]coretypes.Tx, 0)
 	for i := 0; i < numberOfTransactions; i++ {
 		ns, msg, blob, coreTx := createTestBlobTransaction(t, signer, size+i*1000)
 		nss = append(nss, ns)
@@ -860,7 +860,7 @@ func createTestBlobTransaction(t *testing.T, signer *types.KeyringSigner, size i
 }
 
 func TestShareToSubtreeRootProof(t *testing.T) {
-	var shares [][]byte
+	shares := make([][]byte, 0)
 	// generate some shares
 	for i := 0; i < 10; i++ {
 		shares = append(shares, bytes.Repeat([]byte{0x1}, appconsts.ShareSize))
@@ -869,7 +869,7 @@ func TestShareToSubtreeRootProof(t *testing.T) {
 	subtreeRoot, expectedProofs := merkle.ProofsFromByteSlices(shares)
 
 	// calculate the actual proofs
-	var actualProofs []*ResultShareToSubtreeRootProof
+	actualProofs := make([]*ResultShareToSubtreeRootProof, 0)
 	for i := range shares {
 		proof, err := ProveShareToSubtreeRoot(shares, uint64(i))
 		require.NoError(t, err)
@@ -889,7 +889,7 @@ func TestShareToSubtreeRootProof(t *testing.T) {
 
 func TestSubtreeRootsToCommitmentProof(t *testing.T) {
 	rowRootSize := sha256.Size + 2*appconsts.NamespaceSize
-	var subtreeRoots [][]byte
+	subtreeRoots := make([][]byte, 0)
 	// generate some subtreeRoots
 	for i := 0; i < 10; i++ {
 		subtreeRoots = append(subtreeRoots, bytes.Repeat([]byte{0x1}, rowRootSize))
@@ -898,7 +898,7 @@ func TestSubtreeRootsToCommitmentProof(t *testing.T) {
 	shareCommitment, expectedProofs := merkle.ProofsFromByteSlices(subtreeRoots)
 
 	// calculate the actual proofs
-	var actualProofs []*ResultSubtreeRootToCommitmentProof
+	actualProofs := make([]*ResultSubtreeRootToCommitmentProof, 0)
 	for i := range subtreeRoots {
 		proof, err := ProveSubtreeRootToCommitment(subtreeRoots, uint64(i))
 		require.NoError(t, err)
@@ -962,7 +962,7 @@ func (m mockBlobService) GetProof(ctx context.Context, height uint64, ns share.N
 			if err != nil {
 				return nil, err
 			}
-			var nmtProofs []*nmt.Proof
+			nmtProofs := make([]*nmt.Proof, 0)
 			for _, proof := range proof.ShareProofs {
 				nmtProof := nmt.NewInclusionProof(int(proof.Start),
 					int(proof.End),

@@ -196,7 +196,7 @@ func (s *Service) validateDataCommitmentRange(ctx context.Context, start uint64,
 		return err
 	}
 	// the data commitment range is end exclusive
-	if end > uint64(currentHeader.Height())+1 {
+	if end > currentHeader.Height()+1 {
 		return fmt.Errorf(
 			"end block %d is higher than current chain height %d",
 			end,
@@ -209,7 +209,7 @@ func (s *Service) validateDataCommitmentRange(ctx context.Context, start uint64,
 		return err
 	}
 	// the data commitment range is end exclusive
-	if end > uint64(currentLocalHeader.Height())+1 {
+	if end > currentLocalHeader.Height()+1 {
 		return fmt.Errorf(
 			"end block %d is higher than local chain height %d. Wait for the node until it syncs up to %d",
 			end,
@@ -272,7 +272,7 @@ func proveDataRootTuples(tuples []DataRootTuple, height int64) (*merkle.Proof, e
 		if tuple.height != currentHeight+1 {
 			return nil, fmt.Errorf("the provided tuples are not consecutive %d vs %d", currentHeight, tuple.height)
 		}
-		currentHeight += 1
+		currentHeight++
 	}
 	dataRootEncodedTuples := make([][]byte, 0, len(tuples))
 	for _, tuple := range tuples {
@@ -427,7 +427,7 @@ func (s *Service) ProveCommitment(ctx context.Context, height uint64, namespace 
 	}
 
 	// convert the shares to row root proofs to nmt proofs
-	var nmtProofs []*nmt.Proof
+	nmtProofs := make([]*nmt.Proof, 0)
 	for _, proof := range sharesProof.ShareProofs {
 		nmtProof := nmt.NewInclusionProof(int(proof.Start),
 			int(proof.End),
@@ -441,8 +441,8 @@ func (s *Service) ProveCommitment(ctx context.Context, height uint64, namespace 
 
 	// compute the subtree roots of the blob shares
 	log.Debugw("computing the subtree roots", "height", height, "commitment", shareCommitment, "namespace", namespace)
-	var subtreeRoots [][]byte
-	var dataCursor int
+	subtreeRoots := make([][]byte, 0)
+	dataCursor := 0
 	for _, proof := range nmtProofs {
 		// TODO: do we want directly use the default subtree root threshold or want to allow specifying which version to use?
 		ranges, err := nmt.ToLeafRanges(proof.Start(), proof.End(), shares.SubTreeWidth(len(blobShares), appconsts.DefaultSubtreeRootThreshold))
@@ -485,7 +485,7 @@ func computeSubtreeRoots(shares []share.Share, ranges []nmt.LeafRange, offset in
 	// create a tree containing the shares to generate their subtree roots
 	tree := nmt.New(appconsts.NewBaseHashFunc(), nmt.IgnoreMaxNamespace(true), nmt.NamespaceIDSize(share.NamespaceSize))
 	for _, sh := range shares {
-		var leafData []byte
+		leafData := make([]byte, 0)
 		leafData = append(append(leafData, share.GetNamespace(sh)...), sh...)
 		err := tree.Push(leafData)
 		if err != nil {
@@ -494,7 +494,7 @@ func computeSubtreeRoots(shares []share.Share, ranges []nmt.LeafRange, offset in
 	}
 
 	// generate the subtree roots
-	var subtreeRoots [][]byte
+	subtreeRoots := make([][]byte, 0)
 	for _, rg := range ranges {
 		root, err := tree.ComputeSubtreeRoot(rg.Start-offset, rg.End-offset)
 		if err != nil {
