@@ -12,9 +12,9 @@ import (
 	"github.com/celestiaorg/celestia-node/share/shwap/pb"
 )
 
-// ErrorFailedVerification is returned when inclusion proof verification fails. It is returned
+// ErrFailedVerification is returned when inclusion proof verification fails. It is returned
 // when the data and the proof do not match trusted data root.
-var ErrorFailedVerification = errors.New("failed to verify inclusion")
+var ErrFailedVerification = errors.New("failed to verify inclusion")
 
 // Sample represents a data share along with its Merkle proof, used to validate the share's
 // inclusion in a data square.
@@ -67,7 +67,7 @@ func (s Sample) Validate(dah *share.Root, rowIdx, colIdx int) error {
 		return fmt.Errorf("invalid SampleProofType: %d", s.ProofType)
 	}
 	if !s.verifyInclusion(dah, rowIdx, colIdx) {
-		return ErrorFailedVerification
+		return ErrFailedVerification
 	}
 	return nil
 }

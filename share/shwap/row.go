@@ -93,7 +93,7 @@ func (r Row) Validate(dah *share.Root, idx int) error {
 	}
 
 	if err := r.verifyInclusion(dah, idx); err != nil {
-		return fmt.Errorf("%w: %w", ErrorFailedVerification, err)
+		return fmt.Errorf("%w: %w", ErrFailedVerification, err)
 	}
 	return nil
 }

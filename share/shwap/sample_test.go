@@ -48,26 +48,26 @@ func TestSampleNegativeVerifyInclusion(t *testing.T) {
 
 	// incorrect row index
 	err = sample.Validate(root, 1, 0)
-	require.ErrorIs(t, err, shwap.ErrorFailedVerification)
+	require.ErrorIs(t, err, shwap.ErrFailedVerification)
 
 	// Corrupt the share
 	sample.Share[0] ^= 0xFF
 	err = sample.Validate(root, 0, 0)
-	require.ErrorIs(t, err, shwap.ErrorFailedVerification)
+	require.ErrorIs(t, err, shwap.ErrFailedVerification)
 
 	// incorrect proofType
 	sample, err = inMem.Sample(context.Background(), 0, 0)
 	require.NoError(t, err)
 	sample.ProofType = rsmt2d.Col
 	err = sample.Validate(root, 0, 0)
-	require.ErrorIs(t, err, shwap.ErrorFailedVerification)
+	require.ErrorIs(t, err, shwap.ErrFailedVerification)
 
 	// Corrupt the last root hash byte
 	sample, err = inMem.Sample(context.Background(), 0, 0)
 	require.NoError(t, err)
 	root.RowRoots[0][len(root.RowRoots[0])-1] ^= 0xFF
 	err = sample.Validate(root, 0, 0)
-	require.ErrorIs(t, err, shwap.ErrorFailedVerification)
+	require.ErrorIs(t, err, shwap.ErrFailedVerification)
 }
 
 func TestSampleProtoEncoding(t *testing.T) {
