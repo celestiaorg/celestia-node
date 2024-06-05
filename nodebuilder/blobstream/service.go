@@ -163,7 +163,7 @@ type DataRootTuple struct {
 //
 // padding the hex representation of the height padded to 32 bytes concatenated to the data root.
 // For more information, refer to:
-// https://github.com/celestiaorg/quantum-gravity-bridge/blob/master/src/DataRootTuple.sol
+// https://github.com/celestiaorg/blobstream-contracts/blob/master/src/DataRootTuple.sol
 func EncodeDataRootTuple(height uint64, dataRoot [32]byte) ([]byte, error) {
 	paddedHeight, err := To32PaddedHexBytes(height)
 	if err != nil {
