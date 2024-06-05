@@ -20,26 +20,19 @@ import (
 // Blocks until either context is canceled or all Blocks are fetched and populated.
 func Fetch(ctx context.Context, fetcher exchange.Fetcher, root *share.Root, blks ...Block) error {
 	cids := make([]cid.Cid, 0, len(blks))
-	duplicate := make(map[cid.Cid]Block)
+	fetching := make(map[cid.Cid]Block)
 	for _, blk := range blks {
 		if !blk.IsEmpty() {
 			continue // skip populated Blocks
 		}
-
+		// memoize CID for reuse as it ain't free
 		cid := blk.CID()
+		fetching[cid] = blk // mark block as fetching
 		cids = append(cids, cid)
-		p := blk.PopulateFn(root)
 		// store the PopulateFn s.t. hasher can access it
 		// and fill in the Block
-		_, exists := populatorFns.LoadOrStore(cid, p)
-		if exists {
-			// in case there is ongoing fetch happening for the same Block elsewhere
-			// and PopulateFn has already been set -- mark the Block as duplicate
-			duplicate[cid] = blk
-		} else {
-			// only do the cleanup if we stored the PopulateFn
-			defer populatorFns.Delete(cid)
-		}
+		populate := blk.PopulateFn(root)
+		populatorFns.LoadOrStore(cid, populate)
 	}
 
 	blkCh, err := fetcher.GetBlocks(ctx, cids)
@@ -47,16 +40,17 @@ func Fetch(ctx context.Context, fetcher exchange.Fetcher, root *share.Root, blks
 		return fmt.Errorf("fetching bitswap blocks: %w", err)
 	}
 
-	for blk := range blkCh { // GetBlocks closes blkCh on ctx cancellation
-		// check if the blk is a duplicate
-		id, ok := duplicate[blk.Cid()]
-		if !ok {
+	for bitswapBlk := range blkCh { // GetBlocks closes blkCh on ctx cancellation
+		blk := fetching[bitswapBlk.Cid()]
+		if !blk.IsEmpty() {
+			// common case: the block was populated by the hasher, so skip
 			continue
 		}
-		// if it is, we have to populate it ourselves instead of hasher,
-		// as there is only one PopulateFN allowed per ID
-		err := id.PopulateFn(root)(blk.RawData())
+		// uncommon duplicate case: concurrent fetching of the same block,
+		// so we have to populate it ourselves instead of the hasher,
+		err := blk.PopulateFn(root)(bitswapBlk.RawData())
 		if err != nil {
+			// this means verification succeeded in the hasher but failed here
 			// this case should never happen in practice
 			// and if so something is really wrong
 			panic(fmt.Sprintf("populating duplicate block: %s", err))
@@ -126,7 +120,7 @@ func (h *hasher) Write(data []byte) (int, error) {
 	}
 	// get registered PopulateFn and use it to check data validity and
 	// pass it to Fetch caller
-	val, ok := populatorFns.Load(cid)
+	val, ok := populatorFns.LoadAndDelete(cid)
 	if !ok {
 		errMsg := "hasher: no verifier registered"
 		log.Error(errMsg)

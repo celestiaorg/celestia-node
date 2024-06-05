@@ -2,6 +2,7 @@ package bitswap
 
 import (
 	"fmt"
+	"sync/atomic"
 
 	blocks "github.com/ipfs/go-block-format"
 	"github.com/ipfs/go-cid"
@@ -34,8 +35,9 @@ func init() {
 
 // RowNamespaceDataBlock is a Bitswap compatible block for Shwap's RowNamespaceData container.
 type RowNamespaceDataBlock struct {
-	ID        shwap.RowNamespaceDataID
-	Container *shwap.RowNamespaceData
+	ID shwap.RowNamespaceDataID
+
+	container atomic.Pointer[shwap.RowNamespaceData]
 }
 
 // NewEmptyRowNamespaceDataBlock constructs a new empty RowNamespaceDataBlock.
@@ -98,7 +100,11 @@ func (rndb *RowNamespaceDataBlock) BlockFromEDS(eds *rsmt2d.ExtendedDataSquare) 
 }
 
 func (rndb *RowNamespaceDataBlock) IsEmpty() bool {
-	return rndb.Container == nil
+	return rndb.Container() == nil
+}
+
+func (rndb *RowNamespaceDataBlock) Container() *shwap.RowNamespaceData {
+	return rndb.container.Load()
 }
 
 func (rndb *RowNamespaceDataBlock) PopulateFn(root *share.Root) PopulateFn {
@@ -115,7 +121,7 @@ func (rndb *RowNamespaceDataBlock) PopulateFn(root *share.Root) PopulateFn {
 		if err := cntr.Validate(root, rndb.ID.DataNamespace, rndb.ID.RowIndex); err != nil {
 			return fmt.Errorf("validating RowNamespaceData: %w", err)
 		}
-		rndb.Container = &cntr
+		rndb.container.Store(&cntr)
 
 		// NOTE: We don't have to validate ID in the RowBlock, as it's implicitly verified by string
 		// equality of globalVerifiers entry key(requesting side) and hasher accessing the entry(response

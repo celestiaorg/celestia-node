@@ -33,7 +33,7 @@ func TestRowNamespaceDataRoundtrip_GetContainers(t *testing.T) {
 
 	for _, blk := range blks {
 		rnd := blk.(*RowNamespaceDataBlock)
-		err = rnd.Container.Validate(root, rnd.ID.DataNamespace, rnd.ID.RowIndex)
+		err = rnd.Container().Validate(root, rnd.ID.DataNamespace, rnd.ID.RowIndex)
 		require.NoError(t, err)
 	}
 }

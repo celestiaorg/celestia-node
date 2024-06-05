@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"math/rand/v2"
+	"runtime"
 	"sync"
 	"testing"
 	"time"
@@ -29,7 +30,8 @@ import (
 )
 
 func TestFetchDuplicates(t *testing.T) {
-	ctx, cancel := context.WithTimeout(context.Background(), time.Second*5)
+	runtime.GOMAXPROCS(3)
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second*1)
 	defer cancel()
 
 	eds := edstest.RandEDS(t, 4)
@@ -38,31 +40,33 @@ func TestFetchDuplicates(t *testing.T) {
 	fetcher := fetcher(ctx, t, newTestBlockstore(eds))
 
 	var wg sync.WaitGroup
-	blks := make([]*RowBlock, 100)
-	for i := range blks {
-		blk, err := NewEmptyRowBlock(1, 0, root) // create the same Block ID
-		require.NoError(t, err)
-		blks[i] = blk
+	for i := range 100 {
+		blks := make([]Block, eds.Width())
+		for i := range blks {
+			blk, err := NewEmptyRowBlock(1, i, root) // create the same Block ID
+			require.NoError(t, err)
+			blks[i] = blk
+		}
 
 		wg.Add(1)
-		go func() {
+		go func(i int) {
 			rint := rand.IntN(10)
 			// this sleep ensures fetches aren't started simultaneously allowing to check for edge-cases
 			time.Sleep(time.Millisecond * time.Duration(rint))
 
-			err := Fetch(ctx, fetcher, root, blk)
+			err := Fetch(ctx, fetcher, root, blks...)
 			assert.NoError(t, err)
+			for _, blk := range blks {
+				assert.False(t, blk.IsEmpty())
+			}
 			wg.Done()
-		}()
+		}(i)
 	}
 	wg.Wait()
 
-	for _, blk := range blks {
-		assert.False(t, blk.IsEmpty())
-	}
-
 	var entries int
-	populatorFns.Range(func(any, any) bool {
+	populatorFns.Range(func(key, _ any) bool {
+		populatorFns.Delete(key)
 		entries++
 		return true
 	})

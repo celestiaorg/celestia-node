@@ -2,6 +2,7 @@ package bitswap
 
 import (
 	"fmt"
+	"sync/atomic"
 
 	blocks "github.com/ipfs/go-block-format"
 	"github.com/ipfs/go-cid"
@@ -36,7 +37,7 @@ func init() {
 // SampleBlock is a Bitswap compatible block for Shwap's Sample container.
 type SampleBlock struct {
 	ID        shwap.SampleID
-	Container *shwap.Sample
+	container atomic.Pointer[shwap.Sample]
 }
 
 // NewEmptySampleBlock constructs a new empty SampleBlock.
@@ -94,7 +95,11 @@ func (sb *SampleBlock) BlockFromEDS(eds *rsmt2d.ExtendedDataSquare) (blocks.Bloc
 }
 
 func (sb *SampleBlock) IsEmpty() bool {
-	return sb.Container == nil
+	return sb.Container() == nil
+}
+
+func (sb *SampleBlock) Container() *shwap.Sample {
+	return sb.container.Load()
 }
 
 func (sb *SampleBlock) PopulateFn(root *share.Root) PopulateFn {
@@ -111,7 +116,7 @@ func (sb *SampleBlock) PopulateFn(root *share.Root) PopulateFn {
 		if err := cntr.Validate(root, sb.ID.RowIndex, sb.ID.ShareIndex); err != nil {
 			return fmt.Errorf("validating Sample: %w", err)
 		}
-		sb.Container = &cntr
+		sb.container.Store(&cntr)
 
 		// NOTE: We don't have to validate ID in the RowBlock, as it's implicitly verified by string
 		// equality of globalVerifiers entry key(requesting side) and hasher accessing the entry(response
