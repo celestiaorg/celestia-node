@@ -12,6 +12,8 @@ import (
 	"github.com/celestiaorg/celestia-node/share/shwap/pb"
 )
 
+// ErrorFailedVerification is returned when inclusion proof verification fails. It is returned
+// when the data and the proof do not match trusted data root.
 var ErrorFailedVerification = errors.New("failed to verify inclusion")
 
 // Sample represents a data share along with its Merkle proof, used to validate the share's

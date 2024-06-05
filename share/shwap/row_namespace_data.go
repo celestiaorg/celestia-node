@@ -127,7 +127,7 @@ func (rnd RowNamespaceData) Validate(dah *share.Root, namespace share.Namespace,
 	}
 
 	if !rnd.verifyInclusion(rowRoot, namespace) {
-		return fmt.Errorf("inclusion proof failed for row %d", rowIdx)
+		return fmt.Errorf("%w for row: %d", ErrorFailedVerification, rowIdx)
 	}
 	return nil
 }

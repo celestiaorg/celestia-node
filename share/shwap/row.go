@@ -92,7 +92,10 @@ func (r Row) Validate(dah *share.Root, idx int) error {
 		return fmt.Errorf("invalid RowSide: %d", r.side)
 	}
 
-	return r.verifyInclusion(dah, idx)
+	if err := r.verifyInclusion(dah, idx); err != nil {
+		return fmt.Errorf("%w: %w", ErrorFailedVerification, err)
+	}
+	return nil
 }
 
 // verifyInclusion verifies the integrity of the row's shares against the provided root hash for the

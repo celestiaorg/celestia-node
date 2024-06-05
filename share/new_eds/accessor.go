@@ -13,7 +13,7 @@ import (
 // Accessor is an interface for accessing extended data square data.
 type Accessor interface {
 	// Size returns square size of the Accessor.
-	Size() int
+	Size(ctx context.Context) int
 	// Sample returns share and corresponding proof for row and column indices. Implementation can
 	// choose which axis to use for proof. Chosen axis for proof should be indicated in the returned
 	// Sample.
@@ -23,8 +23,8 @@ type Accessor interface {
 	AxisHalf(ctx context.Context, axisType rsmt2d.Axis, axisIdx int) (AxisHalf, error)
 	// RowNamespaceData returns data for the given namespace and row index.
 	RowNamespaceData(ctx context.Context, namespace share.Namespace, rowIdx int) (shwap.RowNamespaceData, error)
-	// Flattened returns data shares extracted from the Accessor.
-	Flattened(ctx context.Context) ([]share.Share, error)
+	// Shares returns data shares extracted from the Accessor.
+	Shares(ctx context.Context) ([]share.Share, error)
 }
 
 // AccessorCloser is an interface that groups Accessor and io.Closer interfaces.

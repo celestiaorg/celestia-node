@@ -18,13 +18,8 @@ type Rsmt2D struct {
 	*rsmt2d.ExtendedDataSquare
 }
 
-// Close does nothing.
-func (eds Rsmt2D) Close() error {
-	return nil
-}
-
 // Size returns the size of the Extended Data Square.
-func (eds Rsmt2D) Size() int {
+func (eds Rsmt2D) Size(context.Context) int {
 	return int(eds.Width())
 }
 
@@ -68,7 +63,7 @@ func (eds Rsmt2D) SampleForProofAxis(
 // AxisHalf returns Shares for the first half of the axis of the given type and index.
 func (eds Rsmt2D) AxisHalf(_ context.Context, axisType rsmt2d.Axis, axisIdx int) (AxisHalf, error) {
 	shares := getAxis(eds.ExtendedDataSquare, axisType, axisIdx)
-	halfShares := shares[:eds.Size()/2]
+	halfShares := shares[:eds.Width()/2]
 	return AxisHalf{
 		Shares:   halfShares,
 		IsParity: false,
@@ -92,9 +87,9 @@ func (eds Rsmt2D) RowNamespaceData(
 	return shwap.RowNamespaceDataFromShares(shares, namespace, rowIdx)
 }
 
-// Flattened returns data shares extracted from the EDS. It returns new copy of the shares each
+// Shares returns data shares extracted from the EDS. It returns new copy of the shares each
 // time.
-func (eds Rsmt2D) Flattened(_ context.Context) ([]share.Share, error) {
+func (eds Rsmt2D) Shares(_ context.Context) ([]share.Share, error) {
 	return eds.ExtendedDataSquare.Flattened(), nil
 }
 
