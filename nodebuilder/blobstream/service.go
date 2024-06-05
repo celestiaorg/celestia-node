@@ -6,6 +6,7 @@ import (
 	"encoding/hex"
 	"fmt"
 	"github.com/celestiaorg/celestia-app/pkg/appconsts"
+	appns "github.com/celestiaorg/celestia-app/pkg/namespace"
 	pkgproof "github.com/celestiaorg/celestia-app/pkg/proof"
 	"github.com/celestiaorg/celestia-app/pkg/shares"
 	"github.com/celestiaorg/celestia-node/blob"
@@ -16,8 +17,6 @@ import (
 	"github.com/celestiaorg/nmt"
 	logging "github.com/ipfs/go-log/v2"
 	"github.com/tendermint/tendermint/crypto/merkle"
-	tmbytes "github.com/tendermint/tendermint/libs/bytes"
-	"github.com/tendermint/tendermint/types"
 	"math"
 	"strconv"
 )
@@ -365,36 +364,82 @@ func (s *Service) ProveShares(ctx context.Context, height uint64, start, end uin
 // ProveCommitment generates a commitment proof for a share commitment.
 // It takes as argument the height of the block containing the blob of data, its
 // namespace and its share commitment.
-func (s *Service) ProveCommitment(ctx context.Context, height uint64, namespace share.Namespace, shareCommitment tmbytes.HexBytes) (*ResultCommitmentProof, error) {
-	log.Debugw("proving share commitment", "height", height, "commitment", shareCommitment.Bytes(), "namespace", namespace)
+func (s *Service) ProveCommitment(ctx context.Context, height uint64, namespace share.Namespace, shareCommitment []byte) (*ResultCommitmentProof, error) {
+	log.Debugw("proving share commitment", "height", height, "commitment", shareCommitment, "namespace", namespace)
 	if height == 0 {
 		return nil, fmt.Errorf("height cannot be equal to 0")
 	}
 
-	// get the share to row root proofs. these proofs coincide with the subtree root to row root proofs.
-	log.Debugw("getting the blob proof", "height", height, "commitment", shareCommitment.Bytes(), "namespace", namespace)
-	shareToRowRootProofs, err := s.blobServ.GetProof(ctx, height, namespace, blob.Commitment(shareCommitment))
+	// get the blob to compute the subtree roots
+	log.Debugw("getting the blob", "height", height, "commitment", shareCommitment, "namespace", namespace)
+	blb, err := s.blobServ.Get(ctx, height, namespace, shareCommitment)
 	if err != nil {
 		return nil, err
 	}
 
-	// get the blob to compute the subtree roots
-	log.Debugw("getting the blob", "height", height, "commitment", shareCommitment.Bytes(), "namespace", namespace)
-	blb, err := s.blobServ.Get(ctx, height, namespace, shareCommitment.Bytes())
-	if err != nil {
-		return nil, err
-	}
 	log.Debugw("converting the blob to shares", "height", height, "commitment", shareCommitment, "namespace", namespace)
 	blobShares, err := blob.BlobsToShares(blb)
 	if err != nil {
 		return nil, err
+	}
+	if len(blobShares) == 0 {
+		// TODO we return the share commitment as hex or some other format?
+		return nil, fmt.Errorf("the blob shares for commitment %s are empty", hex.EncodeToString(shareCommitment))
+	}
+
+	// get the extended header
+	log.Debugw("getting the extended header", "height", height)
+	extendedHeader, err := s.headerServ.GetByHeight(ctx, height)
+	if err != nil {
+		return nil, err
+	}
+
+	log.Debugw("getting eds", "height", height)
+	eds, err := s.shareServ.GetEDS(ctx, extendedHeader)
+	if err != nil {
+		return nil, err
+	}
+
+	// find the blob shares in the EDS
+	blobSharesStartIndex := -1
+	for index, share := range eds.FlattenedODS() {
+		if bytes2.Equal(share, blobShares[0]) {
+			blobSharesStartIndex = index
+		}
+	}
+	if blobSharesStartIndex < 0 {
+		return nil, fmt.Errorf("couldn't find the blob shares in the ODS")
+	}
+
+	nID, err := appns.From(namespace)
+	if err != nil {
+		return nil, err
+	}
+
+	log.Debugw("generating the blob share proof for commitment", "commitment", shareCommitment, "start_share", blobSharesStartIndex, "end_share", blobSharesStartIndex+len(blobShares), "height", height)
+	sharesProof, err := pkgproof.NewShareInclusionProofFromEDS(eds, nID, shares.NewRange(blobSharesStartIndex, blobSharesStartIndex+len(blobShares)))
+	if err != nil {
+		return nil, err
+	}
+
+	// convert the shares to row root proofs to nmt proofs
+	var nmtProofs []*nmt.Proof
+	for _, proof := range sharesProof.ShareProofs {
+		nmtProof := nmt.NewInclusionProof(int(proof.Start),
+			int(proof.End),
+			proof.Nodes,
+			true)
+		nmtProofs = append(
+			nmtProofs,
+			&nmtProof,
+		)
 	}
 
 	// compute the subtree roots of the blob shares
 	log.Debugw("computing the subtree roots", "height", height, "commitment", shareCommitment, "namespace", namespace)
 	var subtreeRoots [][]byte
 	var dataCursor int
-	for _, proof := range *shareToRowRootProofs {
+	for _, proof := range nmtProofs {
 		// TODO: do we want directly use the default subtree root threshold or want to allow specifying which version to use?
 		ranges, err := nmt.ToLeafRanges(proof.Start(), proof.End(), shares.SubTreeWidth(len(blobShares), appconsts.DefaultSubtreeRootThreshold))
 		if err != nil {
@@ -408,74 +453,13 @@ func (s *Service) ProveCommitment(ctx context.Context, height uint64, namespace 
 		dataCursor += proof.End() - proof.Start()
 	}
 
-	// get the extended header to get the row/column roots
-	log.Debugw("getting the extended header", "height", height)
-	extendedHeader, err := s.headerServ.GetByHeight(ctx, height)
-	if err != nil {
-		return nil, err
-	}
-
-	// rowWidth is the width of the square's rows.
-	rowWidth := len(extendedHeader.DAH.ColumnRoots)
-
-	// finding the rows of the square that contain the blob
-	log.Debugw("getting the eds rows", "height", height)
-	startingRowIndex := -1
-	for index, row := range extendedHeader.DAH.RowRoots {
-		if startingRowIndex >= 0 {
-			// we found the starting row of the share data
-			break
-		}
-		if !namespace.IsOutsideRange(row, row) {
-			// we found the first row where the namespace data starts
-			// we should go over the row shares to find the row where the data lives
-			for i := 0; i < rowWidth; i++ {
-				// an alternative to this would be querying the whole EDS.
-				// if that's faster given the number of the queries to the network,
-				// we can change that in here.
-				sh, err := s.shareServ.GetShare(ctx, extendedHeader, index, i)
-				if err != nil {
-					return nil, err
-				}
-				if bytes2.Equal(sh, blobShares[0]) {
-					// if the queried share is the same as the blob's data first share,
-					// then we found the first row of our data.
-					startingRowIndex = index
-					break
-				}
-			}
-		}
-	}
-
-	if startingRowIndex < 0 {
-		return nil, fmt.Errorf("couldn't find the blob starting row")
-	}
-
-	// the blob's data row roots start at the starting row index, and span over the number of row proofs that we have
-	dataRowRoots := func() []tmbytes.HexBytes {
-		var tmBytesRowRoots []tmbytes.HexBytes
-		for _, rowRoot := range extendedHeader.DAH.RowRoots[startingRowIndex : startingRowIndex+len(*shareToRowRootProofs)] {
-			tmBytesRowRoots = append(tmBytesRowRoots, tmbytes.FromBytes(rowRoot)...)
-		}
-		return tmBytesRowRoots
-	}()
-
-	// generate all the row proofs
-	log.Debugw("generating the row roots proofs", "height", height)
-	_, allRowProofs := merkle.ProofsFromByteSlices(append(extendedHeader.DAH.RowRoots, extendedHeader.DAH.ColumnRoots...))
-
-	log.Debugw("successfuly proved the share commitment", "height", height, "commitment", shareCommitment, "namespace", namespace)
+	log.Debugw("successfully proved the share commitment", "height", height, "commitment", shareCommitment, "namespace", namespace)
 	commitmentProof := CommitmentProof{
 		SubtreeRoots:      subtreeRoots,
-		SubtreeRootProofs: *shareToRowRootProofs,
+		SubtreeRootProofs: nmtProofs,
 		NamespaceID:       namespace.ID(),
-		RowProof: types.RowProof{
-			RowRoots: dataRowRoots,
-			Proofs:   allRowProofs[startingRowIndex : startingRowIndex+len(*shareToRowRootProofs)],
-			StartRow: uint32(startingRowIndex), // these conversions are safe because we return if the startingRowIndex is strictly negative
-			EndRow:   uint32(startingRowIndex + len(*shareToRowRootProofs) - 1),
-		},
-		NamespaceVersion: namespace.Version(),
+		RowProof:          sharesProof.RowProof,
+		NamespaceVersion:  namespace.Version(),
 	}
 
 	return &ResultCommitmentProof{CommitmentProof: commitmentProof}, nil

@@ -3,7 +3,6 @@ package blobstream
 import (
 	"context"
 	"github.com/celestiaorg/celestia-node/share"
-	"github.com/tendermint/tendermint/libs/bytes"
 )
 
 var _ Module = (*API)(nil)
@@ -24,14 +23,14 @@ type Module interface {
 	// ProveShares generates a share proof for a share range.
 	ProveShares(ctx context.Context, height uint64, start, end uint64) (*ResultShareProof, error)
 	// ProveCommitment generates a commitment proof for a share commitment.
-	ProveCommitment(ctx context.Context, height uint64, namespace share.Namespace, shareCommitment bytes.HexBytes) (*ResultCommitmentProof, error)
+	ProveCommitment(ctx context.Context, height uint64, namespace share.Namespace, shareCommitment []byte) (*ResultCommitmentProof, error)
 }
 
 type Internal struct {
-	DataCommitment         func(ctx context.Context, start, end uint64) (*ResultDataCommitment, error)                                                         `perm:"read"`
-	DataRootInclusionProof func(ctx context.Context, height int64, start, end uint64) (*ResultDataRootInclusionProof, error)                                   `perm:"read"`
-	ProveShares            func(ctx context.Context, height uint64, start, end uint64) (*ResultShareProof, error)                                              `perm:"read"`
-	ProveCommitment        func(ctx context.Context, height uint64, namespace share.Namespace, shareCommitment bytes.HexBytes) (*ResultCommitmentProof, error) `perm:"read"`
+	DataCommitment         func(ctx context.Context, start, end uint64) (*ResultDataCommitment, error)                                                 `perm:"read"`
+	DataRootInclusionProof func(ctx context.Context, height int64, start, end uint64) (*ResultDataRootInclusionProof, error)                           `perm:"read"`
+	ProveShares            func(ctx context.Context, height uint64, start, end uint64) (*ResultShareProof, error)                                      `perm:"read"`
+	ProveCommitment        func(ctx context.Context, height uint64, namespace share.Namespace, shareCommitment []byte) (*ResultCommitmentProof, error) `perm:"read"`
 }
 
 // API is a wrapper around the Module for RPC.
@@ -51,6 +50,6 @@ func (api *API) ProveShares(ctx context.Context, height uint64, start, end uint6
 	return api.Internal.ProveShares(ctx, height, start, end)
 }
 
-func (api *API) ProveCommitment(ctx context.Context, height uint64, namespace share.Namespace, shareCommitment bytes.HexBytes) (*ResultCommitmentProof, error) {
+func (api *API) ProveCommitment(ctx context.Context, height uint64, namespace share.Namespace, shareCommitment []byte) (*ResultCommitmentProof, error) {
 	return api.Internal.ProveCommitment(ctx, height, namespace, shareCommitment)
 }
