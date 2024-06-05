@@ -118,9 +118,7 @@ func (sb *SampleBlock) PopulateFn(root *share.Root) PopulateFn {
 		}
 		sb.container.Store(&cntr)
 
-		// NOTE: We don't have to validate ID in the RowBlock, as it's implicitly verified by string
-		// equality of globalVerifiers entry key(requesting side) and hasher accessing the entry(response
-		// verification)
+		// NOTE: We don't have to validate the ID here, as it is verified in the hasher.
 		return nil
 	}
 }
