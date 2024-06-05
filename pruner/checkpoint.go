@@ -13,14 +13,15 @@ import (
 )
 
 var (
-	storePrefix           = datastore.NewKey("pruner")
-	checkpointKey         = datastore.NewKey("checkpoint")
-	errCheckpointNotFound = errors.New("checkpoint not found")
 	// ErrDisallowRevertToArchival is returned when a node has been run with pruner enabled before and
 	// launching it with archival mode.
 	ErrDisallowRevertToArchival = errors.New(
 		"node has been run with pruner enabled before, it is not safe to convert to an archival" +
 			"Run with --experimental-pruning enabled or consider re-initializing the store")
+
+	storePrefix           = datastore.NewKey("pruner")
+	checkpointKey         = datastore.NewKey("checkpoint")
+	errCheckpointNotFound = errors.New("checkpoint not found")
 )
 
 // checkpoint contains information related to the state of the
