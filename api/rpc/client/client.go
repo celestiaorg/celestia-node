@@ -3,8 +3,9 @@ package client
 import (
 	"context"
 	"fmt"
-	"github.com/celestiaorg/celestia-node/nodebuilder/blobstream"
 	"net/http"
+
+	"github.com/celestiaorg/celestia-node/nodebuilder/blobstream"
 
 	"github.com/filecoin-project/go-jsonrpc"
 

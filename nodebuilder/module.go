@@ -2,6 +2,7 @@ package nodebuilder
 
 import (
 	"context"
+
 	"github.com/celestiaorg/celestia-node/nodebuilder/blobstream"
 
 	"go.uber.org/fx"

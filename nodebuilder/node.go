@@ -4,8 +4,9 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"github.com/celestiaorg/celestia-node/nodebuilder/blobstream"
 	"strings"
+
+	"github.com/celestiaorg/celestia-node/nodebuilder/blobstream"
 
 	"github.com/cristalhq/jwt"
 	"github.com/ipfs/boxo/blockservice"
