@@ -41,7 +41,7 @@ func TestSampleNegativeVerifyInclusion(t *testing.T) {
 	require.NoError(t, err)
 	inMem := eds.Rsmt2D{ExtendedDataSquare: randEDS}
 
-	sample, err := inMem.Sample(context.TODO(), 0, 0)
+	sample, err := inMem.Sample(context.Background(), 0, 0)
 	require.NoError(t, err)
 	err = sample.Validate(root, 0, 0)
 	require.NoError(t, err)
@@ -56,14 +56,14 @@ func TestSampleNegativeVerifyInclusion(t *testing.T) {
 	require.ErrorIs(t, err, shwap.ErrorFailedVerification)
 
 	// incorrect proofType
-	sample, err = inMem.Sample(context.TODO(), 0, 0)
+	sample, err = inMem.Sample(context.Background(), 0, 0)
 	require.NoError(t, err)
 	sample.ProofType = rsmt2d.Col
 	err = sample.Validate(root, 0, 0)
 	require.ErrorIs(t, err, shwap.ErrorFailedVerification)
 
 	// Corrupt the last root hash byte
-	sample, err = inMem.Sample(context.TODO(), 0, 0)
+	sample, err = inMem.Sample(context.Background(), 0, 0)
 	require.NoError(t, err)
 	root.RowRoots[0][len(root.RowRoots[0])-1] ^= 0xFF
 	err = sample.Validate(root, 0, 0)
