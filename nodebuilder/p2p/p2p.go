@@ -11,7 +11,7 @@ import (
 	"github.com/libp2p/go-libp2p/core/network"
 	"github.com/libp2p/go-libp2p/core/peer"
 	"github.com/libp2p/go-libp2p/core/protocol"
-	basichost "github.com/libp2p/go-libp2p/p2p/host/basic"
+	"github.com/libp2p/go-libp2p/p2p/host/autonat"
 	rcmgr "github.com/libp2p/go-libp2p/p2p/host/resource-manager"
 	"github.com/libp2p/go-libp2p/p2p/net/conngater"
 )
@@ -129,11 +129,15 @@ func (m *module) Connectedness(_ context.Context, id peer.ID) (network.Connected
 	return m.host.Network().Connectedness(id), nil
 }
 
+type autoNatGetter interface {
+	GetAutoNat() autonat.AutoNAT
+}
+
 func (m *module) NATStatus(context.Context) (network.Reachability, error) {
-	basic, ok := m.host.(*basichost.BasicHost)
+	basic, ok := m.host.(autoNatGetter)
 	if !ok {
 		return 0, fmt.Errorf("unexpected implementation of host.Host, expected %s, got %T",
-			reflect.TypeOf(&basichost.BasicHost{}).String(), m.host)
+			reflect.TypeOf((*autoNatGetter)(nil)).String(), m.host)
 	}
 	return basic.GetAutoNat().Status(), nil
 }
