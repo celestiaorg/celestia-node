@@ -12,12 +12,17 @@ import (
 	"go.uber.org/fx"
 
 	"github.com/celestiaorg/celestia-node/blob"
+	"github.com/celestiaorg/celestia-node/libs/fxutil"
 	"github.com/celestiaorg/celestia-node/nodebuilder"
 	"github.com/celestiaorg/celestia-node/nodebuilder/das"
 	"github.com/celestiaorg/celestia-node/nodebuilder/node"
 	"github.com/celestiaorg/celestia-node/nodebuilder/tests/swamp"
 	"github.com/celestiaorg/celestia-node/pruner"
 	"github.com/celestiaorg/celestia-node/share"
+	"github.com/celestiaorg/celestia-node/share/getters"
+	"github.com/celestiaorg/celestia-node/share/p2p/peers"
+	"github.com/celestiaorg/celestia-node/share/p2p/shrexeds"
+	"github.com/celestiaorg/celestia-node/share/p2p/shrexnd"
 )
 
 // TestArchivalBlobSync tests whether a LN is able to sync historical blobs from
@@ -62,6 +67,19 @@ func TestArchivalBlobSync(t *testing.T) {
 	testAvailWindow := pruner.AvailabilityWindow(time.Millisecond)
 	prunerOpts := fx.Options(
 		fx.Replace(testAvailWindow),
+		fxutil.ReplaceAs(func(
+			edsClient *shrexeds.Client,
+			ndClient *shrexnd.Client,
+			managers map[string]*peers.Manager,
+		) *getters.ShrexGetter {
+			return getters.NewShrexGetter(
+				edsClient,
+				ndClient,
+				managers["full"],
+				managers["archival"],
+				testAvailWindow,
+			)
+		}, new(getters.ShrexGetter)),
 	)
 
 	// stop the archival BN to force LN to have to discover
