@@ -1,6 +1,7 @@
 package headertest
 
 import (
+	"fmt"
 	"strconv"
 	"testing"
 	"time"
@@ -22,12 +23,20 @@ func TestValidate(t *testing.T) {
 			extendedHeader: getExtendedHeader(t, 1),
 			wantErr:        nil,
 		},
+		{
+			extendedHeader: getExtendedHeader(t, 2),
+			wantErr:        nil,
+		},
+		{
+			extendedHeader: getExtendedHeader(t, 3),
+			wantErr:        fmt.Errorf("app version mismatch, expected: 1 or 2, got 3"),
+		},
 	}
 
-	for i, test := range testCases {
+	for i, tc := range testCases {
 		t.Run(strconv.Itoa(i), func(t *testing.T) {
-			got := test.extendedHeader.Validate()
-			assert.Equal(t, test.wantErr, got)
+			got := tc.extendedHeader.Validate()
+			assert.Equal(t, tc.wantErr, got)
 		})
 	}
 }
@@ -35,6 +44,7 @@ func TestValidate(t *testing.T) {
 func getExtendedHeader(t *testing.T, appVersion uint64) *header.ExtendedHeader {
 	validatorSet, privValidators := RandValidatorSet(1, 1)
 	rawHeader := RandRawHeader(t)
+	rawHeader.Version.App = appVersion
 	rawHeader.ValidatorsHash = validatorSet.Hash()
 
 	minHeader := da.MinDataAvailabilityHeader()
