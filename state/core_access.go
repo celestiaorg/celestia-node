@@ -24,6 +24,7 @@ import (
 	"github.com/tendermint/tendermint/crypto/merkle"
 	"github.com/tendermint/tendermint/proto/tendermint/crypto"
 	"google.golang.org/grpc"
+	"google.golang.org/grpc/connectivity"
 	"google.golang.org/grpc/credentials/insecure"
 
 	"github.com/celestiaorg/celestia-app/app"
@@ -151,14 +152,20 @@ func (ca *CoreAccessor) Start(ctx context.Context) error {
 
 	// dial given celestia-core endpoint
 	endpoint := fmt.Sprintf("%s:%s", ca.coreIP, ca.grpcPort)
-	client, err := grpc.DialContext(
-		ctx,
+	client, err := grpc.NewClient(
 		endpoint,
 		grpc.WithTransportCredentials(insecure.NewCredentials()),
 	)
 	if err != nil {
 		return err
 	}
+	// this ensures we can't start the node without core connection
+	client.Connect()
+	if !client.WaitForStateChange(ctx, connectivity.Ready) {
+		// hits the case when context is canceled
+		return fmt.Errorf("couldn't connect to core endpoint(%s): %w", endpoint, ctx.Err())
+	}
+
 	ca.coreConn = client
 
 	// create the staking query client
