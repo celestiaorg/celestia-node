@@ -90,7 +90,7 @@ func convertBlobs(appBlobs ...blob.Blob) ([]*Blob, error) {
 	blobs := make([]*Blob, 0, len(appBlobs))
 	for _, b := range appBlobs {
 		if b.ShareVersion > math.MaxUint8 {
-			return nil, fmt.Errorf("share version must be <= %d, but it was %d", math.MaxUint8, b.ShareVersion)
+			return nil, fmt.Errorf("share version %d is greater than max share version %d", b.ShareVersion, math.MaxUint8)
 		}
 		blob, err := NewBlob(uint8(b.ShareVersion), b.Namespace().Bytes(), b.Data)
 		if err != nil {
