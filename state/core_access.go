@@ -391,7 +391,7 @@ func (ca *CoreAccessor) BalanceForAddress(ctx context.Context, addr Address) (*B
 }
 
 func (ca *CoreAccessor) SubmitTx(ctx context.Context, tx Tx) (*TxResponse, error) {
-	txResp, err := apptypes.BroadcastTx(ctx, ca.coreConn, sdktx.BroadcastMode_BROADCAST_MODE_BLOCK, tx)
+	txResp, err := broadcastTx(ctx, ca.coreConn, sdktx.BroadcastMode_BROADCAST_MODE_BLOCK, tx)
 	if err != nil {
 		return nil, err
 	}
@@ -403,11 +403,25 @@ func (ca *CoreAccessor) SubmitTxWithBroadcastMode(
 	tx Tx,
 	mode sdktx.BroadcastMode,
 ) (*TxResponse, error) {
-	txResp, err := ca.signer.BroadcastTx(ctx, tx)
+	txResp, err := broadcastTx(ctx, ca.coreConn, mode, tx)
 	if err != nil {
 		return nil, err
 	}
 	return unsetTx(txResp.TxResponse), nil
+}
+
+// broadcastTx uses the provided grpc connection to broadcast a signed and
+// encoded transaction.
+func broadcastTx(ctx context.Context, conn *grpc.ClientConn, mode sdktx.BroadcastMode, txBytes []byte) (*sdktx.BroadcastTxResponse, error) {
+	txClient := sdktx.NewServiceClient(conn)
+
+	return txClient.BroadcastTx(
+		ctx,
+		&sdktx.BroadcastTxRequest{
+			Mode:    mode,
+			TxBytes: txBytes,
+		},
+	)
 }
 
 func (ca *CoreAccessor) Transfer(
