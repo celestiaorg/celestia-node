@@ -3,6 +3,7 @@ package pruner
 import (
 	"context"
 
+	"github.com/ipfs/go-datastore"
 	"go.uber.org/fx"
 
 	"github.com/celestiaorg/celestia-node/core"
@@ -44,6 +45,9 @@ func ConstructModule(tp node.Type, cfg *Config) fx.Option {
 				fx.Provide(light.NewPruner),
 			)
 		}
+		// We do not trigger DetectPreviousRun for Light nodes, to allow them to disable pruning at wish.
+		// They are not expected to store a samples outside the sampling window and so partially pruned is
+		// not a concern.
 		return fx.Module("prune",
 			baseComponents,
 		)
@@ -55,7 +59,12 @@ func ConstructModule(tp node.Type, cfg *Config) fx.Option {
 				fxutil.ProvideAs(full.NewPruner, new(pruner.Pruner)),
 			)
 		}
-		return fx.Module("prune", baseComponents)
+		return fx.Module("prune",
+			baseComponents,
+			fx.Invoke(func(ctx context.Context, ds datastore.Batching) error {
+				return pruner.DetectPreviousRun(ctx, ds)
+			}),
+		)
 	case node.Bridge:
 		if cfg.EnableService {
 			return fx.Module("prune",
@@ -69,6 +78,9 @@ func ConstructModule(tp node.Type, cfg *Config) fx.Option {
 		}
 		return fx.Module("prune",
 			baseComponents,
+			fx.Invoke(func(ctx context.Context, ds datastore.Batching) error {
+				return pruner.DetectPreviousRun(ctx, ds)
+			}),
 			fx.Provide(func() []core.Option {
 				return []core.Option{}
 			}),
