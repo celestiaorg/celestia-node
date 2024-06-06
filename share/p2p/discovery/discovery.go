@@ -120,6 +120,7 @@ func (d *Discovery) Start(context.Context) error {
 		go d.Advertise(ctx)
 	}
 
+	log.Infow("started discovery", "topic", d.tag)
 	return nil
 }
 
