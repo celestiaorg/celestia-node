@@ -70,7 +70,8 @@ func (p *parser) addShares(shares []shares.Share) (shrs []shares.Share, isComple
 	return shares[index+1:], true
 }
 
-// parse ensures that correct amount of shares was collected and create a blob from the existing shares.
+// parse ensures that correct amount of shares was collected and create a blob from the existing
+// shares.
 func (p *parser) parse() (*Blob, error) {
 	if p.length != len(p.shares) {
 		return nil, fmt.Errorf("invalid shares amount. want:%d, have:%d", p.length, len(p.shares))

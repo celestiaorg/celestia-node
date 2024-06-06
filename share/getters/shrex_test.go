@@ -22,6 +22,7 @@ import (
 	"github.com/celestiaorg/celestia-node/header"
 	"github.com/celestiaorg/celestia-node/header/headertest"
 	"github.com/celestiaorg/celestia-node/pruner/full"
+	"github.com/celestiaorg/celestia-node/pruner/light"
 	"github.com/celestiaorg/celestia-node/share"
 	"github.com/celestiaorg/celestia-node/share/eds"
 	"github.com/celestiaorg/celestia-node/share/eds/edstest"
@@ -59,7 +60,7 @@ func TestShrexGetter(t *testing.T) {
 	archivalPeerManager, err := testManager(ctx, clHost, sub)
 	require.NoError(t, err)
 
-	getter := NewShrexGetter(edsClient, ndClient, fullPeerManager, archivalPeerManager, full.Window)
+	getter := NewShrexGetter(edsClient, ndClient, fullPeerManager, archivalPeerManager, light.Window)
 	require.NoError(t, getter.Start(ctx))
 
 	t.Run("ND_Available, total data size > 1mb", func(t *testing.T) {
@@ -110,6 +111,7 @@ func TestShrexGetter(t *testing.T) {
 			Height:   1,
 		})
 
+		// namespace inside root range
 		nID, err := addToNamespace(maxNamespace, -1)
 		require.NoError(t, err)
 		// check for namespace to be between max and min namespace in root
@@ -118,7 +120,19 @@ func TestShrexGetter(t *testing.T) {
 		emptyShares, err := getter.GetSharesByNamespace(ctx, eh, nID)
 		require.NoError(t, err)
 		// no shares should be returned
-		require.Empty(t, emptyShares.Flatten())
+		require.Nil(t, emptyShares.Flatten())
+		require.Nil(t, emptyShares.Verify(dah, nID))
+
+		// namespace outside root range
+		nID, err = addToNamespace(maxNamespace, 1)
+		require.NoError(t, err)
+		// check for namespace to be not in root
+		require.Len(t, ipld.FilterRootByNamespace(dah, nID), 0)
+
+		emptyShares, err = getter.GetSharesByNamespace(ctx, eh, nID)
+		require.NoError(t, err)
+		// no shares should be returned
+		require.Nil(t, emptyShares.Flatten())
 		require.Nil(t, emptyShares.Verify(dah, nID))
 	})
 

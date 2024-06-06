@@ -12,12 +12,17 @@ import (
 	"go.uber.org/fx"
 
 	"github.com/celestiaorg/celestia-node/blob"
+	"github.com/celestiaorg/celestia-node/libs/fxutil"
 	"github.com/celestiaorg/celestia-node/nodebuilder"
 	"github.com/celestiaorg/celestia-node/nodebuilder/das"
 	"github.com/celestiaorg/celestia-node/nodebuilder/node"
 	"github.com/celestiaorg/celestia-node/nodebuilder/tests/swamp"
 	"github.com/celestiaorg/celestia-node/pruner"
 	"github.com/celestiaorg/celestia-node/share"
+	"github.com/celestiaorg/celestia-node/share/getters"
+	"github.com/celestiaorg/celestia-node/share/p2p/peers"
+	"github.com/celestiaorg/celestia-node/share/p2p/shrexeds"
+	"github.com/celestiaorg/celestia-node/share/p2p/shrexnd"
 )
 
 // TestArchivalBlobSync tests whether a LN is able to sync historical blobs from
@@ -62,6 +67,19 @@ func TestArchivalBlobSync(t *testing.T) {
 	testAvailWindow := pruner.AvailabilityWindow(time.Millisecond)
 	prunerOpts := fx.Options(
 		fx.Replace(testAvailWindow),
+		fxutil.ReplaceAs(func(
+			edsClient *shrexeds.Client,
+			ndClient *shrexnd.Client,
+			managers map[string]*peers.Manager,
+		) *getters.ShrexGetter {
+			return getters.NewShrexGetter(
+				edsClient,
+				ndClient,
+				managers["full"],
+				managers["archival"],
+				testAvailWindow,
+			)
+		}, new(getters.ShrexGetter)),
 	)
 
 	// stop the archival BN to force LN to have to discover
@@ -148,5 +166,29 @@ func TestArchivalBlobSync(t *testing.T) {
 		require.NoError(t, err)
 		assert.Equal(t, b.blob.Commitment, got.Commitment)
 		assert.Equal(t, b.blob.Data, got.Data)
+	}
+}
+
+func TestConvertFromPrunedToArchival(t *testing.T) {
+	sw := swamp.NewSwamp(t, swamp.WithBlockTime(time.Second))
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second*30)
+	t.Cleanup(cancel)
+
+	// Light nodes are allowed to disable pruning in wish
+	for _, nt := range []node.Type{node.Bridge, node.Full} {
+		pruningCfg := nodebuilder.DefaultConfig(nt)
+		pruningCfg.Pruner.EnableService = true
+		store := nodebuilder.MockStore(t, pruningCfg)
+		pruningNode := sw.MustNewNodeWithStore(nt, store)
+		err := pruningNode.Start(ctx)
+		require.NoError(t, err)
+		err = pruningNode.Stop(ctx)
+		require.NoError(t, err)
+
+		archivalCfg := nodebuilder.DefaultConfig(nt)
+		err = store.PutConfig(archivalCfg)
+		require.NoError(t, err)
+		_, err = sw.NewNodeWithStore(nt, store)
+		require.ErrorIs(t, err, pruner.ErrDisallowRevertToArchival, nt.String())
 	}
 }

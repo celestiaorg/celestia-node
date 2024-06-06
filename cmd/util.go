@@ -119,20 +119,14 @@ func PersistentPreRunEnv(cmd *cobra.Command, nodeType node.Type, _ []string) err
 	rpc_cfg.ParseFlags(cmd, &cfg.RPC)
 	gateway.ParseFlags(cmd, &cfg.Gateway)
 
+	pruner.ParseFlags(cmd, &cfg.Pruner)
 	switch nodeType {
-	case node.Light:
+	case node.Light, node.Full:
 		err = header.ParseFlags(cmd, &cfg.Header)
 		if err != nil {
 			return err
 		}
-	case node.Full:
-		err = header.ParseFlags(cmd, &cfg.Header)
-		if err != nil {
-			return err
-		}
-		pruner.ParseFlags(cmd, &cfg.Pruner)
 	case node.Bridge:
-		pruner.ParseFlags(cmd, &cfg.Pruner)
 	default:
 		panic(fmt.Sprintf("invalid node type: %v", nodeType))
 	}
