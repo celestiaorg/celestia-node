@@ -150,3 +150,27 @@ func TestArchivalBlobSync(t *testing.T) {
 		assert.Equal(t, b.blob.Data, got.Data)
 	}
 }
+
+func TestConvertFromPrunedToArchival(t *testing.T) {
+	sw := swamp.NewSwamp(t, swamp.WithBlockTime(time.Second))
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second*30)
+	t.Cleanup(cancel)
+
+	// Light nodes are allowed to disable pruning in wish
+	for _, nt := range []node.Type{node.Bridge, node.Full} {
+		pruningCfg := nodebuilder.DefaultConfig(nt)
+		pruningCfg.Pruner.EnableService = true
+		store := nodebuilder.MockStore(t, pruningCfg)
+		pruningNode := sw.MustNewNodeWithStore(nt, store)
+		err := pruningNode.Start(ctx)
+		require.NoError(t, err)
+		err = pruningNode.Stop(ctx)
+		require.NoError(t, err)
+
+		archivalCfg := nodebuilder.DefaultConfig(nt)
+		err = store.PutConfig(archivalCfg)
+		require.NoError(t, err)
+		_, err = sw.NewNodeWithStore(nt, store)
+		require.ErrorIs(t, err, pruner.ErrDisallowRevertToArchival, nt.String())
+	}
+}
