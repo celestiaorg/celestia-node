@@ -20,12 +20,12 @@ func GenerateV0Blobs(sizes []int, sameNamespace bool) ([]blob.Blob, error) {
 		size := rawBlobSize(appconsts.FirstSparseShareContentSize * size)
 		appBlob := testfactory.GenerateRandomBlob(size)
 		if !sameNamespace {
-			nid, err := share.NewBlobNamespaceV0(tmrand.Bytes(7))
+			namespace, err := share.NewBlobNamespaceV0(tmrand.Bytes(7))
 			if err != nil {
 				return nil, err
 			}
-			appBlob.NamespaceVersion = uint32(nid[0])
-			appBlob.NamespaceId = nid[1:]
+			appBlob.NamespaceVersion = uint32(namespace[0])
+			appBlob.NamespaceId = namespace[1:]
 		}
 
 		blobs = append(blobs, *appBlob)
