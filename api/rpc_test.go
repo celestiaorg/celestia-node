@@ -9,7 +9,7 @@ import (
 	"time"
 
 	sdk "github.com/cosmos/cosmos-sdk/types"
-	"github.com/cristalhq/jwt"
+	"github.com/cristalhq/jwt/v5"
 	"github.com/golang/mock/gomock"
 	"github.com/libp2p/go-libp2p/core/network"
 	"github.com/stretchr/testify/require"
@@ -46,7 +46,7 @@ func TestRPCCallsUnderlyingNode(t *testing.T) {
 	t.Cleanup(cancel)
 
 	// generate dummy signer and sign admin perms token with it
-	signer, err := jwt.NewHS256(make([]byte, 32))
+	signer, err := jwt.NewSignerHS(jwt.HS256, make([]byte, 32))
 	require.NoError(t, err)
 
 	nd, server := setupNodeWithAuthedRPC(t, signer)
@@ -123,7 +123,7 @@ func TestAuthedRPC(t *testing.T) {
 	t.Cleanup(cancel)
 
 	// generate dummy signer and sign admin perms token with it
-	signer, err := jwt.NewHS256(make([]byte, 32))
+	signer, err := jwt.NewSignerHS(jwt.HS256, make([]byte, 32))
 	require.NoError(t, err)
 
 	nd, server := setupNodeWithAuthedRPC(t, signer)

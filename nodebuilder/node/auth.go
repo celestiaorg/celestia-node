@@ -4,7 +4,7 @@ import (
 	"crypto/rand"
 	"io"
 
-	"github.com/cristalhq/jwt"
+	"github.com/cristalhq/jwt/v5"
 
 	"github.com/celestiaorg/celestia-node/libs/keystore"
 )
@@ -16,7 +16,7 @@ var SecretName = keystore.KeyName("jwt-secret.jwt")
 func secret(ks keystore.Keystore) (jwt.Signer, error) {
 	// if key already exists, use it
 	if pk, ok := existing(ks); ok {
-		return jwt.NewHS256(pk)
+		return jwt.NewSignerHS(jwt.HS256, pk)
 	}
 	// otherwise, generate and save new priv key
 	sk, err := io.ReadAll(io.LimitReader(rand.Reader, 32))
@@ -29,7 +29,7 @@ func secret(ks keystore.Keystore) (jwt.Signer, error) {
 		return nil, err
 	}
 
-	return jwt.NewHS256(sk)
+	return jwt.NewSignerHS(jwt.HS256, sk)
 }
 
 func existing(ks keystore.Keystore) ([]byte, bool) {
