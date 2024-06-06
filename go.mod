@@ -14,6 +14,7 @@ require (
 	github.com/celestiaorg/go-header v0.6.1
 	github.com/celestiaorg/go-libp2p-messenger v0.2.0
 	github.com/celestiaorg/go-square v1.0.1
+	github.com/celestiaorg/go-square/merkle v0.0.0-20240117232118-fd78256df076
 	github.com/celestiaorg/nmt v0.21.0
 	github.com/celestiaorg/rsmt2d v0.13.1
 	github.com/cosmos/cosmos-sdk v0.46.16
@@ -101,7 +102,6 @@ require (
 	github.com/bits-and-blooms/bitset v1.10.0 // indirect
 	github.com/btcsuite/btcd/btcec/v2 v2.3.2 // indirect
 	github.com/celestiaorg/blobstream-contracts/v3 v3.1.0 // indirect
-	github.com/celestiaorg/go-square/merkle v0.0.0-20240117232118-fd78256df076 // indirect
 	github.com/celestiaorg/merkletree v0.0.0-20230308153949-c33506a7aa26 // indirect
 	github.com/cenkalti/backoff/v4 v4.3.0 // indirect
 	github.com/cespare/xxhash v1.1.0 // indirect
