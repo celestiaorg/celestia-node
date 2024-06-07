@@ -71,7 +71,7 @@ func (p Proof) equal(input Proof) error {
 
 // Blob represents any application-specific binary data that anyone can submit to Celestia.
 type Blob struct {
-	blob.Blob `json:"blob"`
+	*blob.Blob `json:"blob"`
 
 	Commitment Commitment `json:"commitment"`
 
@@ -110,7 +110,7 @@ func NewBlob(shareVersion uint8, namespace share.Namespace, data []byte) (*Blob,
 	if err != nil {
 		return nil, err
 	}
-	return &Blob{Blob: blob, Commitment: com, namespace: namespace, index: -1}, nil
+	return &Blob{Blob: &blob, Commitment: com, namespace: namespace, index: -1}, nil
 }
 
 // Namespace returns blob's namespace.

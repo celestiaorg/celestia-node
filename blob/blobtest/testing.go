@@ -13,8 +13,8 @@ import (
 
 // GenerateV0Blobs is a test utility producing v0 share formatted blobs with the
 // requested size and random namespaces.
-func GenerateV0Blobs(sizes []int, sameNamespace bool) ([]blob.Blob, error) {
-	blobs := make([]blob.Blob, 0, len(sizes))
+func GenerateV0Blobs(sizes []int, sameNamespace bool) ([]*blob.Blob, error) {
+	blobs := make([]*blob.Blob, 0, len(sizes))
 
 	for _, size := range sizes {
 		size := rawBlobSize(appconsts.FirstSparseShareContentSize * size)
@@ -28,7 +28,7 @@ func GenerateV0Blobs(sizes []int, sameNamespace bool) ([]blob.Blob, error) {
 			appBlob.NamespaceId = namespace[1:]
 		}
 
-		blobs = append(blobs, *appBlob)
+		blobs = append(blobs, appBlob)
 	}
 	return blobs, nil
 }

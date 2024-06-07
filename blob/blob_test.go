@@ -42,7 +42,7 @@ func TestBlob(t *testing.T) {
 			name: "compare commitments",
 			expectedRes: func(t *testing.T) {
 				comm, err := inclusion.CreateCommitment(
-					&blob[0].Blob,
+					blob[0].Blob,
 					merkle.HashFromByteSlices,
 					appconsts.SubtreeRootThreshold(v1.Version),
 				)
@@ -90,7 +90,7 @@ func TestBlob(t *testing.T) {
 	}
 }
 
-func convertBlobs(appBlobs ...blob.Blob) ([]*Blob, error) {
+func convertBlobs(appBlobs ...*blob.Blob) ([]*Blob, error) {
 	blobs := make([]*Blob, 0, len(appBlobs))
 	for _, appBlob := range appBlobs {
 		if shareVersion := appBlob.GetShareVersion(); shareVersion > math.MaxUint8 {

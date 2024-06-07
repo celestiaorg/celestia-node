@@ -240,7 +240,7 @@ func (ca *CoreAccessor) SubmitPayForBlob(
 		if err := blobs[i].Namespace().ValidateForBlob(); err != nil {
 			return nil, err
 		}
-		appblobs[i] = &blobs[i].Blob
+		appblobs[i] = blobs[i].Blob
 	}
 
 	// we only estimate gas if the user wants us to (by setting the gasLim to 0). In the future we may
