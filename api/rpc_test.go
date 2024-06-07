@@ -294,7 +294,8 @@ func implementsMarshaler(t *testing.T, typ reflect.Type) {
 
 // setupNodeWithAuthedRPC sets up a node and overrides its JWT
 // signer with the given signer.
-func setupNodeWithAuthedRPC(t *testing.T, jwtSigner jwt.Signer, jwtVerifier jwt.Verifier) (*nodebuilder.Node, *mockAPI) {
+func setupNodeWithAuthedRPC(t *testing.T,
+	jwtSigner jwt.Signer, jwtVerifier jwt.Verifier) (*nodebuilder.Node, *mockAPI) {
 	ctx, cancel := context.WithCancel(context.Background())
 	t.Cleanup(cancel)
 
