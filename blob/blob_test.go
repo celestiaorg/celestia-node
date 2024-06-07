@@ -92,11 +92,11 @@ func TestBlob(t *testing.T) {
 
 func convertBlobs(appBlobs ...blob.Blob) ([]*Blob, error) {
 	blobs := make([]*Blob, 0, len(appBlobs))
-	for _, b := range appBlobs {
-		if shareVersion := b.GetShareVersion(); shareVersion > math.MaxUint8 {
+	for _, appBlob := range appBlobs {
+		if shareVersion := appBlob.GetShareVersion(); shareVersion > math.MaxUint8 {
 			return nil, fmt.Errorf("share version %d is greater than max share version %d", shareVersion, math.MaxUint8)
 		}
-		blob, err := NewBlob(uint8(b.GetShareVersion()), b.Namespace().Bytes(), b.GetData())
+		blob, err := NewBlob(uint8(appBlob.GetShareVersion()), appBlob.Namespace().Bytes(), appBlob.GetData())
 		if err != nil {
 			return nil, err
 		}
