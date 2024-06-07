@@ -36,31 +36,29 @@ type Module interface {
 	) (*ResultCommitmentProof, error)
 }
 
-type Internal struct {
-	DataCommitment func(
-		ctx context.Context,
-		start, end uint64,
-	) (*ResultDataCommitment, error) `perm:"read"`
-	DataRootInclusionProof func(
-		ctx context.Context,
-		height int64,
-		start, end uint64,
-	) (*ResultDataRootInclusionProof, error) `perm:"read"`
-	ProveShares func(
-		ctx context.Context,
-		height, start, end uint64,
-	) (*ResultShareProof, error) `perm:"read"`
-	ProveCommitment func(
-		ctx context.Context,
-		height uint64,
-		namespace share.Namespace,
-		shareCommitment []byte,
-	) (*ResultCommitmentProof, error) `perm:"read"`
-}
-
 // API is a wrapper around the Module for RPC.
 type API struct {
-	Internal Internal
+	Internal struct {
+		DataCommitment func(
+			ctx context.Context,
+			start, end uint64,
+		) (*ResultDataCommitment, error) `perm:"read"`
+		DataRootInclusionProof func(
+			ctx context.Context,
+			height int64,
+			start, end uint64,
+		) (*ResultDataRootInclusionProof, error) `perm:"read"`
+		ProveShares func(
+			ctx context.Context,
+			height, start, end uint64,
+		) (*ResultShareProof, error) `perm:"read"`
+		ProveCommitment func(
+			ctx context.Context,
+			height uint64,
+			namespace share.Namespace,
+			shareCommitment []byte,
+		) (*ResultCommitmentProof, error) `perm:"read"`
+	}
 }
 
 func (api *API) DataCommitment(
