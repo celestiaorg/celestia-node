@@ -34,10 +34,10 @@ import (
 	"github.com/celestiaorg/celestia-app/v2/pkg/user"
 	apptypes "github.com/celestiaorg/celestia-app/v2/x/blob/types"
 	libhead "github.com/celestiaorg/go-header"
+	squareblob "github.com/celestiaorg/go-square/blob"
 
 	nodeblob "github.com/celestiaorg/celestia-node/blob"
 	"github.com/celestiaorg/celestia-node/header"
-	squareblob "github.com/celestiaorg/go-square/blob"
 )
 
 const (
@@ -419,7 +419,12 @@ func (ca *CoreAccessor) SubmitTxWithBroadcastMode(
 
 // broadcastTx uses the provided grpc connection to broadcast a signed and
 // encoded transaction.
-func broadcastTx(ctx context.Context, conn *grpc.ClientConn, mode sdktx.BroadcastMode, txBytes []byte) (*sdktx.BroadcastTxResponse, error) {
+func broadcastTx(
+	ctx context.Context,
+	conn *grpc.ClientConn,
+	mode sdktx.BroadcastMode,
+	txBytes []byte,
+) (*sdktx.BroadcastTxResponse, error) {
 	txClient := sdktx.NewServiceClient(conn)
 
 	return txClient.BroadcastTx(

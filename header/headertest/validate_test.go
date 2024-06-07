@@ -6,12 +6,14 @@ import (
 	"testing"
 	"time"
 
-	"github.com/celestiaorg/celestia-app/pkg/da"
-	"github.com/celestiaorg/celestia-node/header"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	tmproto "github.com/tendermint/tendermint/proto/tendermint/types"
 	"github.com/tendermint/tendermint/types"
+
+	"github.com/celestiaorg/celestia-app/pkg/da"
+
+	"github.com/celestiaorg/celestia-node/header"
 )
 
 func TestValidate(t *testing.T) {

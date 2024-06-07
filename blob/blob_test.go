@@ -41,7 +41,11 @@ func TestBlob(t *testing.T) {
 		{
 			name: "compare commitments",
 			expectedRes: func(t *testing.T) {
-				comm, err := inclusion.CreateCommitment(&blob[0].Blob, merkle.HashFromByteSlices, appconsts.SubtreeRootThreshold(v1.Version))
+				comm, err := inclusion.CreateCommitment(
+					&blob[0].Blob,
+					merkle.HashFromByteSlices,
+					appconsts.SubtreeRootThreshold(v1.Version),
+				)
 				require.NoError(t, err)
 				assert.Equal(t, blob[0].Commitment, Commitment(comm))
 			},
@@ -75,7 +79,7 @@ func TestBlob(t *testing.T) {
 
 				newBlob := &Blob{}
 				require.NoError(t, newBlob.UnmarshalJSON(data))
-				require.True(t, bytes.Equal(blob[0].Blob.Data, newBlob.Data))
+				require.True(t, bytes.Equal(blob[0].Blob.GetData(), newBlob.Data))
 				require.True(t, bytes.Equal(blob[0].Commitment, newBlob.Commitment))
 			},
 		},
@@ -89,10 +93,10 @@ func TestBlob(t *testing.T) {
 func convertBlobs(appBlobs ...blob.Blob) ([]*Blob, error) {
 	blobs := make([]*Blob, 0, len(appBlobs))
 	for _, b := range appBlobs {
-		if b.ShareVersion > math.MaxUint8 {
-			return nil, fmt.Errorf("share version %d is greater than max share version %d", b.ShareVersion, math.MaxUint8)
+		if shareVersion := b.GetShareVersion(); shareVersion > math.MaxUint8 {
+			return nil, fmt.Errorf("share version %d is greater than max share version %d", shareVersion, math.MaxUint8)
 		}
-		blob, err := NewBlob(uint8(b.ShareVersion), b.Namespace().Bytes(), b.Data)
+		blob, err := NewBlob(uint8(b.GetShareVersion()), b.Namespace().Bytes(), b.GetData())
 		if err != nil {
 			return nil, err
 		}

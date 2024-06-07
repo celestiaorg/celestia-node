@@ -19,7 +19,7 @@ func BlobsToShares(nodeBlobs ...*Blob) ([]share.Share, error) {
 			NamespaceVersion: uint32(namespace[0]),
 			NamespaceId:      namespace[1:],
 			Data:             nodeBlob.Data,
-			ShareVersion:     uint32(nodeBlob.ShareVersion),
+			ShareVersion:     nodeBlob.ShareVersion,
 		}
 	}
 

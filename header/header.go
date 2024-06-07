@@ -116,7 +116,12 @@ func (eh *ExtendedHeader) Validate() error {
 	}
 
 	if eh.RawHeader.Version.App != v1.Version && eh.RawHeader.Version.App != v2.Version {
-		return fmt.Errorf("app version mismatch, expected: %d or %d, got %d", v1.Version, v2.Version, eh.RawHeader.Version.App)
+		return fmt.Errorf(
+			"app version mismatch, expected: %d or %d, got %d",
+			v1.Version,
+			v2.Version,
+			eh.RawHeader.Version.App,
+		)
 	}
 
 	err = eh.Commit.ValidateBasic()

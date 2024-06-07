@@ -7,10 +7,10 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/celestiaorg/celestia-app/v2/pkg/appconsts"
+	"github.com/celestiaorg/go-square/blob"
 	"github.com/celestiaorg/go-square/shares"
 
 	"github.com/celestiaorg/celestia-node/share/sharetest"
-	"github.com/celestiaorg/go-square/blob"
 )
 
 func Test_dataFromShares(t *testing.T) {
