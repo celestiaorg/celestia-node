@@ -11,6 +11,6 @@ func ConstructModule(tp Type) fx.Option {
 		fx.Provide(func(signer jwt.Signer, verifier jwt.Verifier) Module {
 			return newModule(tp, signer, verifier)
 		}),
-		fx.Provide(secret),
+		fx.Provide(jwtSignerAndVerifier),
 	)
 }
