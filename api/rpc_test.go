@@ -24,7 +24,7 @@ import (
 	"github.com/celestiaorg/celestia-node/nodebuilder"
 	"github.com/celestiaorg/celestia-node/nodebuilder/blob"
 	blobMock "github.com/celestiaorg/celestia-node/nodebuilder/blob/mocks"
-	BlobstreamMock "github.com/celestiaorg/celestia-node/nodebuilder/blobstream/mocks"
+	blobstreamMock "github.com/celestiaorg/celestia-node/nodebuilder/blobstream/mocks"
 	"github.com/celestiaorg/celestia-node/nodebuilder/da"
 	daMock "github.com/celestiaorg/celestia-node/nodebuilder/da/mocks"
 	"github.com/celestiaorg/celestia-node/nodebuilder/das"
@@ -304,7 +304,7 @@ func setupNodeWithAuthedRPC(t *testing.T, auth jwt.Signer) (*nodebuilder.Node, *
 		nodeMock.NewMockModule(ctrl),
 		blobMock.NewMockModule(ctrl),
 		daMock.NewMockModule(ctrl),
-		BlobstreamMock.NewMockModule(ctrl),
+		blobstreamMock.NewMockModule(ctrl),
 	}
 
 	// given the behavior of fx.Invoke, this invoke will be called last as it is added at the root
@@ -345,5 +345,5 @@ type mockAPI struct {
 	Node       *nodeMock.MockModule
 	Blob       *blobMock.MockModule
 	DA         *daMock.MockModule
-	Blobstream *BlobstreamMock.MockModule
+	Blobstream *blobstreamMock.MockModule
 }
