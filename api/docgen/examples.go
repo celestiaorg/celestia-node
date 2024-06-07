@@ -2,6 +2,8 @@ package docgen
 
 import (
 	_ "embed"
+	"encoding/base64"
+	"encoding/hex"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -19,7 +21,7 @@ import (
 	"golang.org/x/text/language"
 
 	"github.com/celestiaorg/go-fraud"
-	"github.com/celestiaorg/nmt"
+	libhead "github.com/celestiaorg/go-header"
 	"github.com/celestiaorg/rsmt2d"
 
 	"github.com/celestiaorg/celestia-node/blob"
@@ -42,6 +44,56 @@ var exampleTxResponse string
 
 //go:embed "exampledata/resourceManagerStats.json"
 var exampleResourceMngrStats string
+
+var exampleBlob = `{
+   "namespace":"AAAAAAAAAAAAAAAAAAAAAAAAAAAAAMJ/xGlNMdE=",
+   "data":"z8QyNztvogN7NYU27gI+nJgg1vMJtkK3vbduSDz7/8mhmos37I7duH51kkgouxrsdhdOBJ1431OmipNfVedbtwe6zQ06EbJBl/` +
+	`jk4QwwU3S29YBTUZcUfTzXpEJIuMrYzU6YPxN8Zce/KNdsEIy4zxdfxekXpvsgZMBhf83iYgfHvsFAoJmmCp/ORAUoAFf7tJ7cF8RZyA2` +
+	`0ftqRa1uhAmktxIb58abpGTG+TNgq3mjyvswECVykJYqGjqNtInyIx2EQOnVp2q69YHkegdoBvoOKzEFigQTdrL2TZBex4MhkrYt7Zf0D` +
+	`QyNMRkCPL/zKYE3bhvXNWMThWCmhD5TOApzirORXKOTB0nxhjDF/aFYkrS+IKBw1KfJ5isldWvmasJBWwRgDuli6Cty67vMMk7fUUTUf0` +
+	`St6rvQeftSoEVlC1xEw46+h5kIXaWiM0g/EzGIAdZHycUFWCSdnt3p7BS5ttEpSf1d6ZbVYYL2y0XguH41k54JqufEMAw9ukmaF0IbN9J` +
+	`k6fNefV1dsWTdCP6Mz6e+RTCd9DQGqb2VrsvMzx5uVidLD8ND79pvXgL1VzyhJaMTcjSfZK15jOxLwGh1arZc2gyTNiq2pu6wNz0tdJp+` +
+	`fFU+peG8rHN8=",
+   "share_version":0,
+   "commitment":"aHlbp+J9yub6hw/uhK6dP8hBLR2mFy78XNRRdLf2794=",
+   "index":-1
+}`
+
+var exampleBlobProof = `
+[{
+    "end":8,
+    "nodes":[
+	    "/////////////////////////////////////////////////////////////////////////////` +
+	`wuxStDHcZ7+b5byNQMVLJbzBT3wmObsThoQ0sCTjTCP"
+    ],
+    "is_max_namespace_ignored":true
+},
+{
+    "end":8,
+    "nodes":[
+	    "//////////////////////////////////////////////////////////////////////////////` +
+	`n1NeJxPU2bZUAccKZZ+LAu2Wj5ajbVYURV9ojhSKwp"
+    ],
+    "is_max_namespace_ignored":true
+},
+{
+    "end":8,
+    "nodes":[
+	    "/////////////////////////////////////////////////////////////////////////////` +
+	`0xK8BKnzDmwK0HR4ZJvyB4kh3jPPXGxaGPFoga8vPxF"
+    ],
+    "is_max_namespace_ignored":true
+},
+{
+    "end":7,
+    "nodes":[
+        "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAMJ/xGlNMdEAAAAAAAAAAAAAAAAAAAAAAAAAAAAAwn/EaU0x0` +
+	`UTO9HUGKjyjcv5U2gHeSjJ8S1rftqv6k8kxlVWW8e/7",
+        "/////////////////////////////////////////////////////////////////////////////` +
+	`wexh4khLQ9HQ2X6nh9wU5B+m6r+LWwPTEDTa5/CosDF"
+    ],
+    "is_max_namespace_ignored":true
+}]`
 
 var ExampleValues = map[reflect.Type]interface{}{
 	reflect.TypeOf(""):                       "string value",
@@ -68,6 +120,7 @@ var ExampleValues = map[reflect.Type]interface{}{
 		},
 	),
 	reflect.TypeOf((*error)(nil)).Elem(): errors.New("error"),
+	reflect.TypeOf(state.Balance{}):      state.Balance{Amount: sdk.NewInt(42), Denom: "utia"},
 }
 
 func init() {
@@ -111,6 +164,20 @@ func init() {
 		panic(err)
 	}
 
+	var exBlob *blob.Blob
+	err = json.Unmarshal([]byte(exampleBlob), &exBlob)
+	if err != nil {
+		panic(err)
+	}
+
+	var blobProof *blob.Proof
+	err = json.Unmarshal([]byte(exampleBlobProof), &blobProof)
+	if err != nil {
+		panic(err)
+	}
+
+	addToExampleValues(exBlob)
+	addToExampleValues(blobProof)
 	addToExampleValues(txResponse)
 	addToExampleValues(samplingStats)
 	addToExampleValues(extendedHeader)
@@ -135,21 +202,27 @@ func init() {
 	}
 	addToExampleValues(addrInfo)
 
-	namespace, err := share.NewBlobNamespaceV0([]byte{0x1, 0x2, 0x3, 0x4, 0x5, 0x6, 0x7, 0x8, 0x9, 0x10})
+	commitment, err := base64.StdEncoding.DecodeString("aHlbp+J9yub6hw/uhK6dP8hBLR2mFy78XNRRdLf2794=")
+	if err != nil {
+		panic(err)
+	}
+	addToExampleValues(blob.Commitment(commitment))
+
+	// randomly generated namespace that's used in the blob example above
+	// (AAAAAAAAAAAAAAAAAAAAAAAAAAAAAMJ/xGlNMdE=)
+	namespace, err := share.NewBlobNamespaceV0([]byte{0xc2, 0x7f, 0xc4, 0x69, 0x4d, 0x31, 0xd1})
 	if err != nil {
 		panic(err)
 	}
 	addToExampleValues(namespace)
 
-	generatedBlob, err := blob.NewBlobV0(namespace, []byte("This is an example of some blob data"))
+	hashStr := "453D0BC3CB88A2ED6F2E06021383B22C72D25D7741AE51B4CAE1AD34D72A3F07"
+	hash, err := hex.DecodeString(hashStr)
 	if err != nil {
 		panic(err)
 	}
-	addToExampleValues(generatedBlob)
 
-	proof := nmt.NewInclusionProof(0, 4, [][]byte{[]byte("test")}, true)
-	blobProof := &blob.Proof{&proof}
-	addToExampleValues(blobProof)
+	addToExampleValues(libhead.Hash(hash))
 }
 
 func addToExampleValues(v interface{}) {
