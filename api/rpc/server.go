@@ -45,14 +45,14 @@ func NewServer(address, port string, authDisabled bool, secret jwt.Signer) *Serv
 	srv.srv.Handler = &auth.Handler{
 		Verify: srv.verifyAuth,
 		Next: func(w http.ResponseWriter, r *http.Request) {
-			if origin := r.Header.Get("Origin"); origin != "" {
+			if origin := r.Header.Get("Origin"); origin != "" && authDisabled {
 				w.Header().Set("Access-Control-Allow-Origin", origin)
 				w.Header().Set("Access-Control-Allow-Methods", "POST, GET, OPTIONS, PUT, DELETE")
 				w.Header().Set("Access-Control-Allow-Headers",
 					"Accept, Content-Type, Content-Length, Accept-Encoding, X-CSRF-Token, Authorization")
 			}
 			// Stop here if its Preflighted OPTIONS request
-			if r.Method == "OPTIONS" {
+			if authDisabled && r.Method == "OPTIONS" {
 				return
 			}
 			rpc.ServeHTTP(w, r)

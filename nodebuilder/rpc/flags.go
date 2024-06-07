@@ -32,7 +32,7 @@ func Flags() *flag.FlagSet {
 	flags.Bool(
 		authFlag,
 		false,
-		"Skips authentication for RPC requests",
+		"Skips JWT authentication check and CORS policy check for RPC requests",
 	)
 
 	return flags
