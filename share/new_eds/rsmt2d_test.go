@@ -30,12 +30,12 @@ func TestMemFile(t *testing.T) {
 		TestAccessorAxisHalf(ctx, t, newAccessor, odsSize)
 	})
 
-	t.Run("Data", func(t *testing.T) {
+	t.Run("RowNamespaceData", func(t *testing.T) {
 		TestAccessorRowNamespaceData(ctx, t, newAccessor, odsSize)
 	})
 
-	t.Run("EDS", func(t *testing.T) {
-		TestAccessorEds(ctx, t, newAccessor, odsSize)
+	t.Run("Shares", func(t *testing.T) {
+		TestAccessorShares(ctx, t, newAccessor, odsSize)
 	})
 }
 

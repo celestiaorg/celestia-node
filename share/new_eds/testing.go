@@ -193,7 +193,7 @@ func TestAccessorAxisHalf(
 	})
 }
 
-func TestAccessorEds(
+func TestAccessorShares(
 	ctx context.Context,
 	t *testing.T,
 	createAccessor createAccessor,
@@ -204,7 +204,7 @@ func TestAccessorEds(
 
 	shares, err := fl.Shares(ctx)
 	require.NoError(t, err)
-	expected := eds.Flattened()
+	expected := eds.FlattenedODS()
 	require.Equal(t, expected, shares)
 }
 
