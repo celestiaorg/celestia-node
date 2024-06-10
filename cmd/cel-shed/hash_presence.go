@@ -15,7 +15,7 @@ import (
 var path string
 
 func init() {
-	rootCmd.PersistentFlags().StringVar(&path, "path", "", "Path to the node store")
+	rootCmd.PersistentFlags().StringVar(&path, "node.store", "", "Path to the node store")
 }
 
 var hashCmd = &cobra.Command{
