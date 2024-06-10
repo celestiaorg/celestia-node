@@ -8,6 +8,7 @@ import (
 	"github.com/celestiaorg/celestia-node/nodebuilder"
 	"github.com/celestiaorg/celestia-node/share"
 	"github.com/celestiaorg/celestia-node/share/eds"
+
 	"github.com/spf13/cobra"
 )
 
