@@ -164,10 +164,14 @@ func (rnd RowNamespaceData) Validate(dah *share.Root, namespace share.Namespace,
 // verifyInclusion checks the inclusion of the row's shares in the provided root using NMT.
 func (rnd RowNamespaceData) verifyInclusion(rowRoot []byte, namespace share.Namespace) bool {
 	leaves := make([][]byte, 0, len(rnd.Shares))
-	for _, shr := range rnd.Shares {
-		namespaceBytes := share.GetNamespace(shr)
-		leaves = append(leaves, append(namespaceBytes, shr...))
+	for _, sh := range rnd.Shares {
+		namespaceBytes := share.GetNamespace(sh)
+		leave := make([]byte, len(sh)+len(namespaceBytes))
+		copy(leave, namespaceBytes)
+		copy(leave[len(namespaceBytes):], sh)
+		leaves = append(leaves, leave)
 	}
+
 	return rnd.Proof.VerifyNamespace(
 		share.NewSHA256Hasher(),
 		namespace.ToNMT(),
