@@ -2,6 +2,8 @@ package main
 
 import (
 	"context"
+	"encoding/hex"
+	"encoding/json"
 	"errors"
 	"fmt"
 
@@ -24,7 +26,12 @@ var hashCmd = &cobra.Command{
 	Args:  cobra.ExactArgs(2),
 	RunE: func(_ *cobra.Command, args []string) error {
 		command := args[0]
-		rootHash := share.DataHash(args[1])
+
+		hexData, err := hex.DecodeString(args[1])
+		if err != nil {
+			return fmt.Errorf("failed to decode hex string: %w", err)
+		}
+		rootHash := share.DataHash(hexData)
 
 		nodestore, err := nodebuilder.OpenStore(path, nil)
 		if err != nil {
@@ -68,7 +75,14 @@ var hashCmd = &cobra.Command{
 				return err
 			}
 
-			fmt.Printf("Retrieved EDS for root hash %s: %v\n", rootHash, eds)
+			fmt.Printf("Retrieved EDS for root hash %s\n", rootHash)
+
+			output, err := json.MarshalIndent(eds, "", "  ")
+			if err != nil {
+				return err
+			}
+
+			fmt.Println(string(output))
 		default:
 			return fmt.Errorf("unknown command: %s", command)
 		}
