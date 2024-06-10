@@ -23,7 +23,7 @@ type Accessor interface {
 	AxisHalf(ctx context.Context, axisType rsmt2d.Axis, axisIdx int) (AxisHalf, error)
 	// RowNamespaceData returns data for the given namespace and row index.
 	RowNamespaceData(ctx context.Context, namespace share.Namespace, rowIdx int) (shwap.RowNamespaceData, error)
-	// Shares returns data shares extracted from the Accessor.
+	// Shares returns data (ODS) shares extracted from the Accessor.
 	Shares(ctx context.Context) ([]share.Share, error)
 }
 

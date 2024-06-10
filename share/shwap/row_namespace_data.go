@@ -1,8 +1,10 @@
 package shwap
 
 import (
+	"errors"
 	"fmt"
 
+	"github.com/celestiaorg/celestia-app/pkg/appconsts"
 	"github.com/celestiaorg/celestia-app/pkg/wrapper"
 	"github.com/celestiaorg/nmt"
 	nmt_pb "github.com/celestiaorg/nmt/pb"
@@ -10,6 +12,11 @@ import (
 	"github.com/celestiaorg/celestia-node/share"
 	"github.com/celestiaorg/celestia-node/share/shwap/pb"
 )
+
+// ErrNamespaceOutsideRange is returned by RowNamespaceDataFromShares when the target namespace is
+// outside of the namespace range for the given row. In this case, the implementation cannot return
+// the non-inclusion proof and will return ErrNamespaceOutsideRange.
+var ErrNamespaceOutsideRange = errors.New("target namespace is outside of namespace range for the given root")
 
 // RowNamespaceData holds shares and their corresponding proof for a single row within a namespace.
 type RowNamespaceData struct {
@@ -24,6 +31,28 @@ func RowNamespaceDataFromShares(
 	namespace share.Namespace,
 	rowIndex int,
 ) (RowNamespaceData, error) {
+	tree := wrapper.NewErasuredNamespacedMerkleTree(uint64(len(shares)/2), uint(rowIndex))
+	nmtTree := nmt.New(
+		appconsts.NewBaseHashFunc(),
+		nmt.NamespaceIDSize(appconsts.NamespaceSize),
+		nmt.IgnoreMaxNamespace(true),
+	)
+	tree.SetTree(nmtTree)
+
+	for _, shr := range shares {
+		if err := tree.Push(shr); err != nil {
+			return RowNamespaceData{}, fmt.Errorf("failed to build tree for row %d: %w", rowIndex, err)
+		}
+	}
+
+	root, err := tree.Root()
+	if err != nil {
+		return RowNamespaceData{}, fmt.Errorf("failed to get root for row %d: %w", rowIndex, err)
+	}
+	if namespace.IsOutsideRange(root, root) {
+		return RowNamespaceData{}, ErrNamespaceOutsideRange
+	}
+
 	var from, count int
 	for i := range len(shares) / 2 {
 		if namespace.Equals(share.GetNamespace(shares[i])) {
@@ -37,21 +66,21 @@ func RowNamespaceDataFromShares(
 			break
 		}
 	}
+
+	// if count is 0, then the namespace is not present in the shares. Return non-inclusion proof.
 	if count == 0 {
-		// FIXME: This should return Non-inclusion proofs instead. Need support in app wrapper to generate
-		// absence proofs.
-		return RowNamespaceData{}, fmt.Errorf("no shares found in the namespace for row %d", rowIndex)
+		proof, err := nmtTree.ProveNamespace(namespace.ToNMT())
+		if err != nil {
+			return RowNamespaceData{}, fmt.Errorf("failed to generate non-inclusion proof for row %d: %w", rowIndex, err)
+		}
+
+		return RowNamespaceData{
+			Proof: &proof,
+		}, nil
 	}
 
 	namespacedShares := make([]share.Share, count)
 	copy(namespacedShares, shares[from:from+count])
-
-	tree := wrapper.NewErasuredNamespacedMerkleTree(uint64(len(shares)/2), uint(rowIndex))
-	for _, shr := range shares {
-		if err := tree.Push(shr); err != nil {
-			return RowNamespaceData{}, fmt.Errorf("failed to build tree for row %d: %w", rowIndex, err)
-		}
-	}
 
 	proof, err := tree.ProveRange(from, from+count)
 	if err != nil {

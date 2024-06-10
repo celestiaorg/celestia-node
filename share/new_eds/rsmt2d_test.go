@@ -3,6 +3,7 @@ package eds
 import (
 	"context"
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/require"
 
@@ -13,22 +14,18 @@ import (
 	"github.com/celestiaorg/celestia-node/share/shwap"
 )
 
-func TestRsmt2dSample(t *testing.T) {
-	eds, root := randRsmt2dAccsessor(t, 8)
-
-	width := int(eds.Width())
-	for rowIdx := 0; rowIdx < width; rowIdx++ {
-		for colIdx := 0; colIdx < width; colIdx++ {
-			shr, err := eds.Sample(context.TODO(), rowIdx, colIdx)
-			require.NoError(t, err)
-
-			err = shr.Validate(root, rowIdx, colIdx)
-			require.NoError(t, err)
-		}
+func TestMemFile(t *testing.T) {
+	odsSize := 8
+	newAccessor := func(eds *rsmt2d.ExtendedDataSquare) Accessor {
+		return &Rsmt2D{ExtendedDataSquare: eds}
 	}
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second*5)
+	t.Cleanup(cancel)
+
+	TestSuiteAccessor(ctx, t, newAccessor, odsSize)
 }
 
-func TestRsmt2dHalfRowFrom(t *testing.T) {
+func TestRsmt2dHalfRow(t *testing.T) {
 	const odsSize = 8
 	eds, _ := randRsmt2dAccsessor(t, odsSize)
 

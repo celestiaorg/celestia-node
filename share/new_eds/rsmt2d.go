@@ -87,10 +87,10 @@ func (eds Rsmt2D) RowNamespaceData(
 	return shwap.RowNamespaceDataFromShares(shares, namespace, rowIdx)
 }
 
-// Shares returns data shares extracted from the EDS. It returns new copy of the shares each
+// Shares returns data (ODS) shares extracted from the EDS. It returns new copy of the shares each
 // time.
 func (eds Rsmt2D) Shares(_ context.Context) ([]share.Share, error) {
-	return eds.ExtendedDataSquare.Flattened(), nil
+	return eds.ExtendedDataSquare.FlattenedODS(), nil
 }
 
 func getAxis(eds *rsmt2d.ExtendedDataSquare, axisType rsmt2d.Axis, axisIdx int) []share.Share {
