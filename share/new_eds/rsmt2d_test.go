@@ -22,21 +22,7 @@ func TestMemFile(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second*5)
 	t.Cleanup(cancel)
 
-	t.Run("Sample", func(t *testing.T) {
-		TestAccessorSample(ctx, t, newAccessor, odsSize)
-	})
-
-	t.Run("AxisHalf", func(t *testing.T) {
-		TestAccessorAxisHalf(ctx, t, newAccessor, odsSize)
-	})
-
-	t.Run("RowNamespaceData", func(t *testing.T) {
-		TestAccessorRowNamespaceData(ctx, t, newAccessor, odsSize)
-	})
-
-	t.Run("Shares", func(t *testing.T) {
-		TestAccessorShares(ctx, t, newAccessor, odsSize)
-	})
+	TestSuiteAccessor(ctx, t, newAccessor, odsSize)
 }
 
 func TestRsmt2dHalfRow(t *testing.T) {

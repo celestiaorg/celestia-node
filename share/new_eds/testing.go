@@ -20,7 +20,31 @@ import (
 
 type createAccessor func(eds *rsmt2d.ExtendedDataSquare) Accessor
 
-func TestAccessorSample(
+// TestSuiteAccessor runs a suite of tests for the given Accessor implementation.
+func TestSuiteAccessor(
+	ctx context.Context,
+	t *testing.T,
+	createAccessor createAccessor,
+	odsSize int,
+) {
+	t.Run("Sample", func(t *testing.T) {
+		testAccessorSample(ctx, t, createAccessor, odsSize)
+	})
+
+	t.Run("AxisHalf", func(t *testing.T) {
+		testAccessorAxisHalf(ctx, t, createAccessor, odsSize)
+	})
+
+	t.Run("RowNamespaceData", func(t *testing.T) {
+		testAccessorRowNamespaceData(ctx, t, createAccessor, odsSize)
+	})
+
+	t.Run("Shares", func(t *testing.T) {
+		testAccessorShares(ctx, t, createAccessor, odsSize)
+	})
+}
+
+func testAccessorSample(
 	ctx context.Context,
 	t *testing.T,
 	createAccessor createAccessor,
@@ -70,7 +94,7 @@ func testSample(
 	require.NoError(t, err)
 }
 
-func TestAccessorRowNamespaceData(
+func testAccessorRowNamespaceData(
 	ctx context.Context,
 	t *testing.T,
 	createAccessor createAccessor,
@@ -139,7 +163,7 @@ func TestAccessorRowNamespaceData(
 	})
 }
 
-func TestAccessorAxisHalf(
+func testAccessorAxisHalf(
 	ctx context.Context,
 	t *testing.T,
 	createAccessor createAccessor,
@@ -193,7 +217,7 @@ func TestAccessorAxisHalf(
 	})
 }
 
-func TestAccessorShares(
+func testAccessorShares(
 	ctx context.Context,
 	t *testing.T,
 	createAccessor createAccessor,
