@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"errors"
 	"fmt"
 
 	"github.com/celestiaorg/celestia-node/nodebuilder"
@@ -28,6 +29,9 @@ var hashCmd = &cobra.Command{
 		if err != nil {
 			return err
 		}
+		defer func() {
+			err = errors.Join(err, nodestore.Close())
+		}()
 
 		datastore, err := nodestore.Datastore()
 		if err != nil {
