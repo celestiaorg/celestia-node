@@ -69,7 +69,7 @@ func (breaker *ServiceBreaker[S, H]) Stop(ctx context.Context) error {
 
 	if breaker.ctx.Err() != nil {
 		// short circuit if the service was already stopped
-		return nil //nolint:nilerr
+		return nil
 	}
 
 	breaker.sub.Cancel()
