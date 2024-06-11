@@ -12,7 +12,7 @@ type headerVersion uint8
 
 const (
 	headerVersionV0 headerVersion = 1
-	headerVOSize                  = 40
+	headerVOSize    int           = 40
 )
 
 type headerV0 struct {
@@ -46,7 +46,7 @@ func readHeader(r io.Reader) (*headerV0, error) {
 		return nil, fmt.Errorf("readHeader: %w", err)
 	}
 
-	switch headerVersion(version) {
+	switch version { //nolint:gocritic // gocritic wants to convert it to if statement.
 	case headerVersionV0:
 		h := &headerV0{}
 		_, err := h.ReadFrom(r)
@@ -62,7 +62,6 @@ func writeHeader(w io.Writer, h *headerV0) error {
 	}
 	if n != 1 {
 		return fmt.Errorf("writeHeader: wrote %d bytes, expected 1", n)
-
 	}
 	_, err = h.WriteTo(w)
 	return err
@@ -95,6 +94,5 @@ func (h *headerV0) ReadFrom(r io.Reader) (int64, error) {
 	h.shareSize = binary.LittleEndian.Uint16(bytesHeader[4:6])
 	h.squareSize = binary.LittleEndian.Uint16(bytesHeader[6:8])
 	h.datahash = bytesHeader[8:40]
-	fmt.Println(h.fileVersion, h.fileType, h.shareSize, h.squareSize)
-	return headerVOSize, err
+	return int64(headerVOSize), err
 }
