@@ -9,14 +9,15 @@ import (
 	"testing"
 	"time"
 
-	"github.com/celestiaorg/celestia-app/pkg/appconsts"
-	"github.com/celestiaorg/celestia-app/pkg/shares"
-	"github.com/celestiaorg/go-header/store"
 	ds "github.com/ipfs/go-datastore"
 	ds_sync "github.com/ipfs/go-datastore/sync"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	tmrand "github.com/tendermint/tendermint/libs/rand"
+
+	"github.com/celestiaorg/celestia-app/pkg/appconsts"
+	"github.com/celestiaorg/celestia-app/pkg/shares"
+	"github.com/celestiaorg/go-header/store"
 
 	"github.com/celestiaorg/celestia-node/blob/blobtest"
 	"github.com/celestiaorg/celestia-node/header"
@@ -425,8 +426,8 @@ func TestService_Get(t *testing.T) {
 }
 
 // TestService_GetAllWithoutPadding it retrieves all blobs under the given namespace:
-// the amount of the blobs is known and equal to 5. Then it ensures that each blob has a correct index inside the eds
-// by requesting share and comparing them.
+// the amount of the blobs is known and equal to 5. Then it ensures that each blob has a correct
+// index inside the eds by requesting share and comparing them.
 func TestService_GetAllWithoutPadding(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second*5)
 	t.Cleanup(cancel)

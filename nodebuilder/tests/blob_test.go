@@ -37,10 +37,8 @@ func TestBlobModule(t *testing.T) {
 		blobs = append(blobs, blob)
 	}
 
-	require.NoError(t, err)
 	bridge := sw.NewBridgeNode()
 	require.NoError(t, bridge.Start(ctx))
-
 	addrs, err := peer.AddrInfoToP2pAddrs(host.InfoFromHost(bridge.Host))
 	require.NoError(t, err)
 

@@ -3,11 +3,13 @@ package state
 import (
 	"context"
 
+	"github.com/cosmos/cosmos-sdk/crypto/keyring"
 	logging "github.com/ipfs/go-log/v2"
 	"go.uber.org/fx"
 
 	"github.com/celestiaorg/celestia-node/header"
 	"github.com/celestiaorg/celestia-node/libs/fxutil"
+	"github.com/celestiaorg/celestia-node/libs/keystore"
 	"github.com/celestiaorg/celestia-node/nodebuilder/core"
 	modfraud "github.com/celestiaorg/celestia-node/nodebuilder/fraud"
 	"github.com/celestiaorg/celestia-node/nodebuilder/node"
@@ -21,10 +23,12 @@ var log = logging.Logger("module/state")
 func ConstructModule(tp node.Type, cfg *Config, coreCfg *core.Config) fx.Option {
 	// sanitize config values before constructing module
 	cfgErr := cfg.Validate()
-
 	baseComponents := fx.Options(
 		fx.Supply(*cfg),
 		fx.Error(cfgErr),
+		fx.Provide(func(ks keystore.Keystore) (keyring.Keyring, AccountName, error) {
+			return Keyring(*cfg, ks)
+		}),
 		fxutil.ProvideIf(coreCfg.IsEndpointConfigured(), fx.Annotate(
 			coreAccessor,
 			fx.OnStart(func(ctx context.Context,
