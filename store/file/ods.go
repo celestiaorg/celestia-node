@@ -18,7 +18,7 @@ var _ eds.AccessorCloser = (*OdsFile)(nil)
 
 type OdsFile struct {
 	path string
-	hdr  *header
+	hdr  *headerV0
 	fl   *os.File
 
 	lock sync.RWMutex
@@ -55,12 +55,12 @@ func CreateOdsFile(
 		return nil, fmt.Errorf("file create: %w", err)
 	}
 
-	h := &header{
-		version:    fileV0,
-		fileType:   ods,
-		shareSize:  share.Size, // TODO: rsmt2d should expose this field
-		squareSize: uint16(eds.Width()),
-		datahash:   datahash,
+	h := &headerV0{
+		fileVersion: fileV0,
+		fileType:    ods,
+		shareSize:   share.Size, // TODO: rsmt2d should expose this field
+		squareSize:  uint16(eds.Width()),
+		datahash:    datahash,
 	}
 
 	err = writeOdsFile(f, h, eds)
@@ -68,16 +68,20 @@ func CreateOdsFile(
 		return nil, fmt.Errorf("writing ODS file: %w", err)
 	}
 
+	err = f.Sync()
+	if err != nil {
+		return nil, fmt.Errorf("syncing file: %w", err)
+	}
 	// TODO: fill ods field with data from eds
 	return &OdsFile{
 		path: path,
 		fl:   f,
 		hdr:  h,
-	}, f.Sync()
+	}, nil
 }
 
-func writeOdsFile(w io.Writer, h *header, eds *rsmt2d.ExtendedDataSquare) error {
-	_, err := h.WriteTo(w)
+func writeOdsFile(w io.Writer, h *headerV0, eds *rsmt2d.ExtendedDataSquare) error {
+	err := writeHeader(w, h)
 	if err != nil {
 		return err
 	}
@@ -207,7 +211,7 @@ func (f *OdsFile) readOds() error {
 	}
 
 	// reset file pointer to the beginning of the file shares data
-	_, err := f.fl.Seek(headerSize, io.SeekStart)
+	_, err := f.fl.Seek(int64(f.hdr.Size()), io.SeekStart)
 	if err != nil {
 		return fmt.Errorf("discarding header: %w", err)
 	}
@@ -227,7 +231,7 @@ func (f *OdsFile) readRow(idx int) ([]share.Share, error) {
 	shares := make([]share.Share, odsLn)
 
 	pos := idx * odsLn
-	offset := pos*shrLn + headerSize
+	offset := f.hdr.Size() + pos*shrLn
 
 	axsData := make([]byte, odsLn*shrLn)
 	if _, err := f.fl.ReadAt(axsData, int64(offset)); err != nil {
@@ -248,7 +252,7 @@ func (f *OdsFile) readCol(axisIdx, quadrantIdx int) ([]share.Share, error) {
 	shares := make([]share.Share, odsLn)
 	for i := range shares {
 		pos := axisIdx + i*odsLn
-		offset := pos*shrLn + headerSize + quadrantOffset
+		offset := f.hdr.Size() + quadrantOffset + pos*shrLn
 
 		shr := make(share.Share, shrLn)
 		if _, err := f.fl.ReadAt(shr, int64(offset)); err != nil {

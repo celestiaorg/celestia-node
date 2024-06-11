@@ -92,7 +92,6 @@ func (s square) computeAxisHalf(
 	g, ctx := errgroup.WithContext(ctx)
 	opposite := oppositeAxis(axisType)
 	for i := 0; i < s.size(); i++ {
-		i := i
 		g.Go(func() error {
 			original, err := s.axisHalf(ctx, opposite, i)
 			if err != nil {

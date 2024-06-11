@@ -68,21 +68,7 @@ func TestOdsFile(t *testing.T) {
 		return fl
 	}
 
-	t.Run("Sample", func(t *testing.T) {
-		eds.TestAccessorSample(ctx, t, createOdsFile, odsSize)
-	})
-
-	t.Run("AxisHalf", func(t *testing.T) {
-		eds.TestAccessorAxisHalf(ctx, t, createOdsFile, odsSize)
-	})
-
-	t.Run("RowNamespaceData", func(t *testing.T) {
-		eds.TestAccessorRowNamespaceData(ctx, t, createOdsFile, odsSize)
-	})
-
-	t.Run("Shares", func(t *testing.T) {
-		eds.TestAccessorShares(ctx, t, createOdsFile, odsSize)
-	})
+	eds.TestSuiteAccessor(ctx, t, createOdsFile, odsSize)
 }
 
 // ReconstructSome, default codec
