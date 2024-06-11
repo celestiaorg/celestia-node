@@ -2,6 +2,7 @@ package bitswap
 
 import (
 	"encoding"
+	"encoding/binary"
 	"fmt"
 
 	"github.com/ipfs/go-cid"
@@ -20,6 +21,25 @@ func (a allowlist) IsAllowed(code uint64) bool {
 	// we disable all codes except registered
 	_, ok := specRegistry[code]
 	return ok
+}
+
+// readCID reads out cid out of  bytes
+func readCID(data []byte) (cid.Cid, error) {
+	cidLen, ln := binary.Uvarint(data)
+	if ln <= 0 || len(data) < ln+int(cidLen) {
+		return cid.Undef, fmt.Errorf("invalid data length")
+	}
+	// extract CID out of data
+	// we do this on the raw data to:
+	//  * Avoid complicating hasher with generalized bytes -> type unmarshalling
+	//  * Avoid type allocations
+	cidRaw := data[ln : ln+int(cidLen)]
+	castCid, err := cid.Cast(cidRaw)
+	if err != nil {
+		return cid.Undef, fmt.Errorf("casting cid: %w", err)
+	}
+
+	return castCid, nil
 }
 
 // extractCID retrieves Shwap ID out of the CID.

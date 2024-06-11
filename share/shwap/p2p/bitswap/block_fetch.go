@@ -3,7 +3,6 @@ package bitswap
 import (
 	"context"
 	"crypto/sha256"
-	"encoding/binary"
 	"fmt"
 	"sync"
 
@@ -93,21 +92,13 @@ func (h *hasher) Write(data []byte) (int, error) {
 		return 0, fmt.Errorf("shwap/bitswap: %s", errMsg)
 	}
 
-	const pbTypeOffset = 1 // this assumes the protobuf serialization is in use
-	cidLen, ln := binary.Uvarint(data[pbTypeOffset:])
-	if ln <= 0 || len(data) < pbTypeOffset+ln+int(cidLen) {
-		errMsg := fmt.Sprintf("hasher: invalid message length: %d", ln)
-		log.Error(errMsg)
-		return 0, fmt.Errorf("shwap/bitswap: %s", errMsg)
-	}
-	// extract CID out of data
-	// we do this on the raw data to:
-	//  * Avoid complicating hasher with generalized bytes -> type unmarshalling
-	//  * Avoid type allocations
-	cidRaw := data[pbTypeOffset+ln : pbTypeOffset+ln+int(cidLen)]
-	cid, err := cid.Cast(cidRaw)
+	// cut off the first tag type byte out of protobuf data
+	const pbTypeOffset = 1
+	cidData := data[pbTypeOffset:]
+
+	cid, err := readCID(cidData)
 	if err != nil {
-		err = fmt.Errorf("hasher: casting cid: %w", err)
+		err = fmt.Errorf("hasher: reading cid: %w", err)
 		log.Error(err)
 		return 0, fmt.Errorf("shwap/bitswap: %w", err)
 	}
