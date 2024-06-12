@@ -18,6 +18,7 @@ import (
 	"github.com/celestiaorg/celestia-node/nodebuilder"
 	"github.com/celestiaorg/celestia-node/nodebuilder/node"
 	"github.com/celestiaorg/celestia-node/nodebuilder/tests/swamp"
+	"github.com/celestiaorg/celestia-node/state/options"
 )
 
 const (

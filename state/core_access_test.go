@@ -137,12 +137,7 @@ func TestTransfer(t *testing.T) {
 			opts.SetFeeAmount(tc.fee)
 			opts.GasLimit = tc.gasLim
 			if tc.account != "" {
-				key, err := ca.keyring.Key(accounts[2])
-				require.NoError(t, err)
-				addr, err := key.GetAddress()
-
-				require.NoError(t, err)
-				opts.Account = addr.String()
+				opts.Account = tc.account
 			}
 
 			key, err := ca.keyring.Key(accounts[1])
@@ -204,12 +199,7 @@ func TestDelegate(t *testing.T) {
 			opts.SetFeeAmount(tc.fee)
 			opts.GasLimit = tc.gasLim
 			if tc.account != "" {
-				key, err := ca.keyring.Key(accounts[2])
-				require.NoError(t, err)
-				addr, err := key.GetAddress()
-
-				require.NoError(t, err)
-				opts.Account = addr.String()
+				opts.Account = tc.account
 			}
 
 			resp, err := ca.Delegate(ctx, ValAddress(valAddr), sdktypes.NewInt(100_000), opts)
@@ -221,12 +211,7 @@ func TestDelegate(t *testing.T) {
 			opts.SetFeeAmount(tc.fee)
 			opts.GasLimit = tc.gasLim
 			if tc.account != "" {
-				key, err := ca.keyring.Key(accounts[2])
-				require.NoError(t, err)
-				addr, err := key.GetAddress()
-
-				require.NoError(t, err)
-				opts.Account = addr.String()
+				opts.Account = tc.account
 			}
 			resp, err = ca.Undelegate(ctx, ValAddress(valAddr), sdktypes.NewInt(100_000), opts)
 			require.NoError(t, err)

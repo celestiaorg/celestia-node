@@ -68,21 +68,6 @@ func NewService(
 	}
 }
 
-// SubmitOptions contains the information about fee and gasLimit price in order to configure the
-// Submit request.
-type SubmitOptions struct {
-	Fee      int64
-	GasLimit uint64
-}
-
-// DefaultSubmitOptions creates a default fee and gas price values.
-func DefaultSubmitOptions() *SubmitOptions {
-	return &SubmitOptions{
-		Fee:      -1,
-		GasLimit: 0,
-	}
-}
-
 // Submit sends PFB transaction and reports the height at which it was included.
 // Allows sending multiple Blobs atomically synchronously.
 // Uses default wallet registered on the Node.
