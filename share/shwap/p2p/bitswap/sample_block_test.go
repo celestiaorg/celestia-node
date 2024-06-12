@@ -18,7 +18,7 @@ func TestSampleRoundtrip_GetContainers(t *testing.T) {
 	eds := edstest.RandEDS(t, 8)
 	root, err := share.NewRoot(eds)
 	require.NoError(t, err)
-	client := fetcher(ctx, t, newTestBlockstore(eds))
+	client := fetcher(ctx, t, eds)
 
 	width := int(eds.Width())
 	blks := make([]Block, 0, width*width)

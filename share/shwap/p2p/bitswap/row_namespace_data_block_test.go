@@ -18,7 +18,7 @@ func TestRowNamespaceDataRoundtrip_GetContainers(t *testing.T) {
 
 	namespace := sharetest.RandV0Namespace()
 	eds, root := edstest.RandEDSWithNamespace(t, namespace, 64, 16)
-	client := fetcher(ctx, t, newTestBlockstore(eds))
+	client := fetcher(ctx, t, eds)
 
 	rowIdxs := share.RowsWithNamespace(root, namespace)
 	blks := make([]Block, len(rowIdxs))

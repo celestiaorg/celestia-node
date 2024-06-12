@@ -71,6 +71,10 @@ func (rb *RowBlock) CID() cid.Cid {
 	return encodeCID(rb.ID, rowMultihashCode, rowCodec)
 }
 
+func (rb *RowBlock) Height() uint64 {
+	return rb.ID.Height
+}
+
 func (rb *RowBlock) BlockFromEDS(ctx context.Context, eds eds.Accessor) (blocks.Block, error) {
 	half, err := eds.AxisHalf(ctx, rsmt2d.Row, rb.ID.RowIndex)
 	if err != nil {

@@ -71,6 +71,10 @@ func (sb *SampleBlock) CID() cid.Cid {
 	return encodeCID(sb.ID, sampleMultihashCode, sampleCodec)
 }
 
+func (sb *SampleBlock) Height() uint64 {
+	return sb.ID.Height
+}
+
 func (sb *SampleBlock) BlockFromEDS(ctx context.Context, eds eds.Accessor) (blocks.Block, error) {
 	smpl, err := eds.Sample(ctx, sb.ID.RowIndex, sb.ID.ShareIndex)
 	if err != nil {

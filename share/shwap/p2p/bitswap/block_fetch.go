@@ -67,7 +67,7 @@ func Fetch(ctx context.Context, fetcher exchange.Fetcher, root *share.Root, blks
 }
 
 // populate populates the data into a Block via PopulateFn
-// If populateFn is nil -- gets it from the global populatorFns.
+// If populate is nil -- gets it from the global populatorFns.
 func populate(populate PopulateFn, data []byte) ([]byte, error) {
 	var blk bitswappb.Block
 	err := blk.Unmarshal(data)
@@ -89,7 +89,7 @@ func populate(populate PopulateFn, data []byte) ([]byte, error) {
 		// pass it to Fetch caller
 		val, ok := populatorFns.LoadAndDelete(cid)
 		if !ok {
-			return nil, fmt.Errorf("no populator registered")
+			return nil, fmt.Errorf("no populator registered for %s", cid.String())
 		}
 		populate = val.(PopulateFn)
 	}

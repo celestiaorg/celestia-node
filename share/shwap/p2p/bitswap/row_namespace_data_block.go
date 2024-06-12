@@ -76,6 +76,10 @@ func (rndb *RowNamespaceDataBlock) CID() cid.Cid {
 	return encodeCID(rndb.ID, rowNamespaceDataMultihashCode, rowNamespaceDataCodec)
 }
 
+func (rndb *RowNamespaceDataBlock) Height() uint64 {
+	return rndb.ID.Height
+}
+
 func (rndb *RowNamespaceDataBlock) BlockFromEDS(ctx context.Context, eds eds.Accessor) (blocks.Block, error) {
 	rnd, err := eds.RowNamespaceData(ctx, rndb.ID.DataNamespace, rndb.ID.RowIndex)
 	if err != nil {

@@ -25,9 +25,12 @@ type PopulateFn func([]byte) error
 // Block represents Bitswap compatible Shwap container.
 // All Shwap containers must have a registerBlock-ed wrapper
 // implementing the interface to be compatible with Bitswap.
+// NOTE: This is not Blockchain block, but IPFS/Bitswap block/
 type Block interface {
 	// CID returns Shwap ID of the Block formatted as CID.
 	CID() cid.Cid
+	// Height reports the Height the Shwap Container data behind the Block is from.
+	Height() uint64
 	// BlockFromEDS extract Bitswap Block out of the EDS.
 	// TODO: Split into MarshalBinary and Populate
 	BlockFromEDS(context.Context, eds.Accessor) (blocks.Block, error)
