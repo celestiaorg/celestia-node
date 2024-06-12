@@ -7,11 +7,12 @@ import (
 	blocks "github.com/ipfs/go-block-format"
 	"github.com/ipfs/go-cid"
 
+	shwappb "github.com/celestiaorg/celestia-node/share/shwap/pb"
+
 	"github.com/celestiaorg/rsmt2d"
 
 	"github.com/celestiaorg/celestia-node/share"
 	"github.com/celestiaorg/celestia-node/share/shwap"
-	bitswappb "github.com/celestiaorg/celestia-node/share/shwap/p2p/bitswap/pb"
 )
 
 const (
@@ -75,20 +76,9 @@ func (sb *SampleBlock) BlockFromEDS(eds *rsmt2d.ExtendedDataSquare) (blocks.Bloc
 		return nil, err
 	}
 
-	cid := sb.CID()
-	smplBlk := bitswappb.SampleBlock{
-		SampleCid: cid.Bytes(),
-		Sample:    smpl.ToProto(),
-	}
-
-	blkData, err := smplBlk.Marshal()
+	blk, err := toBlock(sb.CID(), smpl.ToProto())
 	if err != nil {
-		return nil, fmt.Errorf("marshaling SampleBlock: %w", err)
-	}
-
-	blk, err := blocks.NewBlockWithCid(blkData, cid)
-	if err != nil {
-		return nil, fmt.Errorf("assembling Bitswap block: %w", err)
+		return nil, fmt.Errorf("converting Sample to Bitswap block: %w", err)
 	}
 
 	return blk, nil
@@ -107,18 +97,16 @@ func (sb *SampleBlock) PopulateFn(root *share.Root) PopulateFn {
 		if !sb.IsEmpty() {
 			return nil
 		}
-		var sampleBlk bitswappb.SampleBlock
-		if err := sampleBlk.Unmarshal(data); err != nil {
-			return fmt.Errorf("unmarshaling SampleBlock: %w", err)
+		var sample shwappb.Sample
+		if err := sample.Unmarshal(data); err != nil {
+			return fmt.Errorf("unmarshaling Sample: %w", err)
 		}
 
-		cntr := shwap.SampleFromProto(sampleBlk.Sample)
+		cntr := shwap.SampleFromProto(&sample)
 		if err := cntr.Validate(root, sb.ID.RowIndex, sb.ID.ShareIndex); err != nil {
 			return fmt.Errorf("validating Sample: %w", err)
 		}
 		sb.container.Store(&cntr)
-
-		// NOTE: We don't have to validate the ID here, as it is verified in the hasher.
 		return nil
 	}
 }

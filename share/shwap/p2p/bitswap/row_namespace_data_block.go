@@ -7,11 +7,12 @@ import (
 	blocks "github.com/ipfs/go-block-format"
 	"github.com/ipfs/go-cid"
 
+	shwappb "github.com/celestiaorg/celestia-node/share/shwap/pb"
+
 	"github.com/celestiaorg/rsmt2d"
 
 	"github.com/celestiaorg/celestia-node/share"
 	"github.com/celestiaorg/celestia-node/share/shwap"
-	bitswapb "github.com/celestiaorg/celestia-node/share/shwap/p2p/bitswap/pb"
 )
 
 const (
@@ -80,20 +81,9 @@ func (rndb *RowNamespaceDataBlock) BlockFromEDS(eds *rsmt2d.ExtendedDataSquare) 
 		return nil, err
 	}
 
-	cid := rndb.CID()
-	rndBlk := bitswapb.RowNamespaceDataBlock{
-		RowNamespaceDataCid: cid.Bytes(),
-		Data:                rnd.ToProto(),
-	}
-
-	blkData, err := rndBlk.Marshal()
+	blk, err := toBlock(rndb.CID(), rnd.ToProto())
 	if err != nil {
-		return nil, fmt.Errorf("marshaling RowNamespaceDataBlock: %w", err)
-	}
-
-	blk, err := blocks.NewBlockWithCid(blkData, cid)
-	if err != nil {
-		return nil, fmt.Errorf("assembling Bitswap block: %w", err)
+		return nil, fmt.Errorf("converting RowNamespaceData to Bitswap block: %w", err)
 	}
 
 	return blk, nil
@@ -112,18 +102,16 @@ func (rndb *RowNamespaceDataBlock) PopulateFn(root *share.Root) PopulateFn {
 		if !rndb.IsEmpty() {
 			return nil
 		}
-		var rndBlk bitswapb.RowNamespaceDataBlock
-		if err := rndBlk.Unmarshal(data); err != nil {
-			return fmt.Errorf("unmarshaling RowNamespaceDataBlock: %w", err)
+		var rnd shwappb.RowNamespaceData
+		if err := rnd.Unmarshal(data); err != nil {
+			return fmt.Errorf("unmarshaling RowNamespaceData: %w", err)
 		}
 
-		cntr := shwap.RowNamespaceDataFromProto(rndBlk.Data)
+		cntr := shwap.RowNamespaceDataFromProto(&rnd)
 		if err := cntr.Validate(root, rndb.ID.DataNamespace, rndb.ID.RowIndex); err != nil {
 			return fmt.Errorf("validating RowNamespaceData: %w", err)
 		}
 		rndb.container.Store(&cntr)
-
-		// NOTE: We don't have to validate the ID here, as it is verified in the hasher.
 		return nil
 	}
 }

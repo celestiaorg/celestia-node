@@ -9,6 +9,8 @@ import (
 	"github.com/ipfs/boxo/exchange"
 	"github.com/ipfs/go-cid"
 
+	bitswappb "github.com/celestiaorg/celestia-node/share/shwap/p2p/bitswap/pb"
+
 	"github.com/celestiaorg/celestia-node/share"
 )
 
@@ -47,7 +49,8 @@ func Fetch(ctx context.Context, fetcher exchange.Fetcher, root *share.Root, blks
 		}
 		// uncommon duplicate case: concurrent fetching of the same block,
 		// so we have to populate it ourselves instead of the hasher,
-		err := blk.PopulateFn(root)(bitswapBlk.RawData())
+		populateFn := blk.PopulateFn(root)
+		_, err := populate(populateFn, bitswapBlk.RawData())
 		if err != nil {
 			// this means verification succeeded in the hasher but failed here
 			// this case should never happen in practice
@@ -61,6 +64,42 @@ func Fetch(ctx context.Context, fetcher exchange.Fetcher, root *share.Root, blks
 	}
 
 	return ctx.Err()
+}
+
+// populate populates the data into a Block via PopulateFn
+// If populateFn is nil -- gets it from the global populatorFns.
+func populate(populate PopulateFn, data []byte) ([]byte, error) {
+	var blk bitswappb.Block
+	err := blk.Unmarshal(data)
+	if err != nil {
+		return nil, fmt.Errorf("unmarshalling block: %w", err)
+	}
+	cid, err := cid.Cast(blk.Cid)
+	if err != nil {
+		return nil, fmt.Errorf("casting cid: %w", err)
+	}
+	// get ID out of CID validating it
+	id, err := extractCID(cid)
+	if err != nil {
+		return nil, fmt.Errorf("validating cid: %w", err)
+	}
+
+	if populate == nil {
+		// get registered PopulateFn and use it to check data validity and
+		// pass it to Fetch caller
+		val, ok := populatorFns.LoadAndDelete(cid)
+		if !ok {
+			return nil, fmt.Errorf("no populator registered")
+		}
+		populate = val.(PopulateFn)
+	}
+
+	err = populate(blk.Container)
+	if err != nil {
+		return nil, fmt.Errorf("verifying data: %w", err)
+	}
+
+	return id, nil
 }
 
 // populatorFns exist to communicate between Fetch and hasher.
@@ -86,41 +125,9 @@ type hasher struct {
 }
 
 func (h *hasher) Write(data []byte) (int, error) {
-	if len(data) == 0 {
-		errMsg := "hasher: empty message"
-		log.Error(errMsg)
-		return 0, fmt.Errorf("shwap/bitswap: %s", errMsg)
-	}
-
-	// cut off the first tag type byte out of protobuf data
-	const pbTypeOffset = 1
-	cidData := data[pbTypeOffset:]
-
-	cid, err := readCID(cidData)
+	id, err := populate(nil, data)
 	if err != nil {
-		err = fmt.Errorf("hasher: reading cid: %w", err)
-		log.Error(err)
-		return 0, fmt.Errorf("shwap/bitswap: %w", err)
-	}
-	// get ID out of CID and validate it
-	id, err := extractCID(cid)
-	if err != nil {
-		err = fmt.Errorf("hasher: validating cid: %w", err)
-		log.Error(err)
-		return 0, fmt.Errorf("shwap/bitswap: %w", err)
-	}
-	// get registered PopulateFn and use it to check data validity and
-	// pass it to Fetch caller
-	val, ok := populatorFns.LoadAndDelete(cid)
-	if !ok {
-		errMsg := "hasher: no verifier registered"
-		log.Error(errMsg)
-		return 0, fmt.Errorf("shwap/bitswap: %s", errMsg)
-	}
-	populate := val.(PopulateFn)
-	err = populate(data)
-	if err != nil {
-		err = fmt.Errorf("hasher: verifying data: %w", err)
+		err = fmt.Errorf("hasher: %w", err)
 		log.Error(err)
 		return 0, fmt.Errorf("shwap/bitswap: %w", err)
 	}

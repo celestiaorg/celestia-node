@@ -11,7 +11,7 @@ import (
 
 	"github.com/celestiaorg/celestia-node/share"
 	"github.com/celestiaorg/celestia-node/share/shwap"
-	bitswappb "github.com/celestiaorg/celestia-node/share/shwap/p2p/bitswap/pb"
+	shwappb "github.com/celestiaorg/celestia-node/share/shwap/pb"
 )
 
 const (
@@ -70,21 +70,9 @@ func (rb *RowBlock) CID() cid.Cid {
 
 func (rb *RowBlock) BlockFromEDS(eds *rsmt2d.ExtendedDataSquare) (blocks.Block, error) {
 	row := shwap.RowFromEDS(eds, rb.ID.RowIndex, shwap.Left)
-
-	cid := rb.CID()
-	rowBlk := bitswappb.RowBlock{
-		RowCid: cid.Bytes(),
-		Row:    row.ToProto(),
-	}
-
-	blkData, err := rowBlk.Marshal()
+	blk, err := toBlock(rb.CID(), row.ToProto())
 	if err != nil {
-		return nil, fmt.Errorf("marshaling RowBlock: %w", err)
-	}
-
-	blk, err := blocks.NewBlockWithCid(blkData, cid)
-	if err != nil {
-		return nil, fmt.Errorf("assembling Bitswap block: %w", err)
+		return nil, fmt.Errorf("converting Row to Bitswap block: %w", err)
 	}
 
 	return blk, nil
@@ -103,18 +91,16 @@ func (rb *RowBlock) PopulateFn(root *share.Root) PopulateFn {
 		if !rb.IsEmpty() {
 			return nil
 		}
-		var rowBlk bitswappb.RowBlock
-		if err := rowBlk.Unmarshal(data); err != nil {
-			return fmt.Errorf("unmarshaling RowBlock: %w", err)
+		var row shwappb.Row
+		if err := row.Unmarshal(data); err != nil {
+			return fmt.Errorf("unmarshaling Row: %w", err)
 		}
 
-		cntr := shwap.RowFromProto(rowBlk.Row)
+		cntr := shwap.RowFromProto(&row)
 		if err := cntr.Validate(root, rb.ID.RowIndex); err != nil {
 			return fmt.Errorf("validating Row: %w", err)
 		}
 		rb.container.Store(&cntr)
-
-		// NOTE: We don't have to validate the ID here, as it is verified in the hasher.
 		return nil
 	}
 }
