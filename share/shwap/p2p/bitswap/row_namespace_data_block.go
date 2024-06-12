@@ -1,15 +1,16 @@
 package bitswap
 
 import (
+	"context"
 	"fmt"
 	"sync/atomic"
 
 	blocks "github.com/ipfs/go-block-format"
 	"github.com/ipfs/go-cid"
 
-	shwappb "github.com/celestiaorg/celestia-node/share/shwap/pb"
+	eds "github.com/celestiaorg/celestia-node/share/new_eds"
 
-	"github.com/celestiaorg/rsmt2d"
+	shwappb "github.com/celestiaorg/celestia-node/share/shwap/pb"
 
 	"github.com/celestiaorg/celestia-node/share"
 	"github.com/celestiaorg/celestia-node/share/shwap"
@@ -75,10 +76,10 @@ func (rndb *RowNamespaceDataBlock) CID() cid.Cid {
 	return encodeCID(rndb.ID, rowNamespaceDataMultihashCode, rowNamespaceDataCodec)
 }
 
-func (rndb *RowNamespaceDataBlock) BlockFromEDS(eds *rsmt2d.ExtendedDataSquare) (blocks.Block, error) {
-	rnd, err := shwap.RowNamespaceDataFromEDS(eds, rndb.ID.DataNamespace, rndb.ID.RowIndex)
+func (rndb *RowNamespaceDataBlock) BlockFromEDS(ctx context.Context, eds eds.Accessor) (blocks.Block, error) {
+	rnd, err := eds.RowNamespaceData(ctx, rndb.ID.DataNamespace, rndb.ID.RowIndex)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("getting RowNamespaceData: %w", err)
 	}
 
 	blk, err := toBlock(rndb.CID(), rnd.ToProto())

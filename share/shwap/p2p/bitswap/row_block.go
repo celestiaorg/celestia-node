@@ -1,11 +1,14 @@
 package bitswap
 
 import (
+	"context"
 	"fmt"
 	"sync/atomic"
 
 	blocks "github.com/ipfs/go-block-format"
 	"github.com/ipfs/go-cid"
+
+	eds "github.com/celestiaorg/celestia-node/share/new_eds"
 
 	"github.com/celestiaorg/rsmt2d"
 
@@ -68,9 +71,13 @@ func (rb *RowBlock) CID() cid.Cid {
 	return encodeCID(rb.ID, rowMultihashCode, rowCodec)
 }
 
-func (rb *RowBlock) BlockFromEDS(eds *rsmt2d.ExtendedDataSquare) (blocks.Block, error) {
-	row := shwap.RowFromEDS(eds, rb.ID.RowIndex, shwap.Left)
-	blk, err := toBlock(rb.CID(), row.ToProto())
+func (rb *RowBlock) BlockFromEDS(ctx context.Context, eds eds.Accessor) (blocks.Block, error) {
+	half, err := eds.AxisHalf(ctx, rsmt2d.Row, rb.ID.RowIndex)
+	if err != nil {
+		return nil, fmt.Errorf("getting Row AxisHalf: %w", err)
+	}
+
+	blk, err := toBlock(rb.CID(), half.ToRow().ToProto())
 	if err != nil {
 		return nil, fmt.Errorf("converting Row to Bitswap block: %w", err)
 	}

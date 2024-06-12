@@ -23,6 +23,8 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
+	eds "github.com/celestiaorg/celestia-node/share/new_eds"
+
 	"github.com/celestiaorg/rsmt2d"
 
 	"github.com/celestiaorg/celestia-node/share"
@@ -102,14 +104,14 @@ func fetcher(ctx context.Context, t *testing.T, bstore blockstore.Blockstore) ex
 }
 
 type testBlockstore struct {
-	eds *rsmt2d.ExtendedDataSquare
+	eds eds.Accessor
 }
 
-func newTestBlockstore(eds *rsmt2d.ExtendedDataSquare) *testBlockstore {
-	return &testBlockstore{eds: eds}
+func newTestBlockstore(rsmt2sEds *rsmt2d.ExtendedDataSquare) *testBlockstore {
+	return &testBlockstore{eds: eds.Rsmt2D{ExtendedDataSquare: rsmt2sEds}}
 }
 
-func (b *testBlockstore) Get(_ context.Context, cid cid.Cid) (blocks.Block, error) {
+func (b *testBlockstore) Get(ctx context.Context, cid cid.Cid) (blocks.Block, error) {
 	spec, ok := specRegistry[cid.Prefix().MhType]
 	if !ok {
 		return nil, fmt.Errorf("unsupported codec")
@@ -120,7 +122,7 @@ func (b *testBlockstore) Get(_ context.Context, cid cid.Cid) (blocks.Block, erro
 		return nil, err
 	}
 
-	return bldr.BlockFromEDS(b.eds)
+	return bldr.BlockFromEDS(ctx, b.eds)
 }
 
 func (b *testBlockstore) GetSize(ctx context.Context, cid cid.Cid) (int, error) {

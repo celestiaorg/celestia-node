@@ -1,15 +1,16 @@
 package bitswap
 
 import (
+	"context"
 	"fmt"
 	"sync/atomic"
 
 	blocks "github.com/ipfs/go-block-format"
 	"github.com/ipfs/go-cid"
 
-	shwappb "github.com/celestiaorg/celestia-node/share/shwap/pb"
+	eds "github.com/celestiaorg/celestia-node/share/new_eds"
 
-	"github.com/celestiaorg/rsmt2d"
+	shwappb "github.com/celestiaorg/celestia-node/share/shwap/pb"
 
 	"github.com/celestiaorg/celestia-node/share"
 	"github.com/celestiaorg/celestia-node/share/shwap"
@@ -70,10 +71,10 @@ func (sb *SampleBlock) CID() cid.Cid {
 	return encodeCID(sb.ID, sampleMultihashCode, sampleCodec)
 }
 
-func (sb *SampleBlock) BlockFromEDS(eds *rsmt2d.ExtendedDataSquare) (blocks.Block, error) {
-	smpl, err := shwap.SampleFromEDS(eds, rsmt2d.Row, sb.ID.RowIndex, sb.ID.ShareIndex)
+func (sb *SampleBlock) BlockFromEDS(ctx context.Context, eds eds.Accessor) (blocks.Block, error) {
+	smpl, err := eds.Sample(ctx, sb.ID.RowIndex, sb.ID.ShareIndex)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("getting Sample: %w", err)
 	}
 
 	blk, err := toBlock(sb.CID(), smpl.ToProto())

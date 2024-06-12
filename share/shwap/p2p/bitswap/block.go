@@ -1,6 +1,7 @@
 package bitswap
 
 import (
+	"context"
 	"fmt"
 
 	"github.com/gogo/protobuf/proto"
@@ -8,9 +9,9 @@ import (
 	"github.com/ipfs/go-cid"
 	logger "github.com/ipfs/go-log/v2"
 
-	bitswappb "github.com/celestiaorg/celestia-node/share/shwap/p2p/bitswap/pb"
+	eds "github.com/celestiaorg/celestia-node/share/new_eds"
 
-	"github.com/celestiaorg/rsmt2d"
+	bitswappb "github.com/celestiaorg/celestia-node/share/shwap/p2p/bitswap/pb"
 
 	"github.com/celestiaorg/celestia-node/share"
 )
@@ -29,7 +30,7 @@ type Block interface {
 	CID() cid.Cid
 	// BlockFromEDS extract Bitswap Block out of the EDS.
 	// TODO: Split into MarshalBinary and Populate
-	BlockFromEDS(*rsmt2d.ExtendedDataSquare) (blocks.Block, error)
+	BlockFromEDS(context.Context, eds.Accessor) (blocks.Block, error)
 
 	// IsEmpty reports whether the Block been populated with Shwap container.
 	// If the Block is empty, it can be populated with Fetch.
