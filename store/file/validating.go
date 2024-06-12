@@ -28,10 +28,10 @@ func WithValidation(f eds.AccessorCloser) eds.AccessorCloser {
 }
 
 func (f validation) Sample(ctx context.Context, rowIdx, colIdx int) (shwap.Sample, error) {
-	if err := validateIndexBounds(ctx, f, rowIdx); err != nil {
+	if err := validateIndexBounds(ctx, f, colIdx); err != nil {
 		return shwap.Sample{}, fmt.Errorf("col: %w", err)
 	}
-	if err := validateIndexBounds(ctx, f, colIdx); err != nil {
+	if err := validateIndexBounds(ctx, f, rowIdx); err != nil {
 		return shwap.Sample{}, fmt.Errorf("row: %w", err)
 	}
 	return f.AccessorCloser.Sample(ctx, rowIdx, colIdx)
