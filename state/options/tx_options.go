@@ -8,6 +8,7 @@ import (
 	"math"
 	"strings"
 
+	"github.com/cosmos/cosmos-sdk/crypto/keyring"
 	sdktypes "github.com/cosmos/cosmos-sdk/types"
 
 	"github.com/celestiaorg/celestia-app/pkg/user"
@@ -33,20 +34,18 @@ type TxOptions struct {
 	fee      *Fee
 	GasLimit uint64
 
-	// Specifies the key that should be used to sign transactions.
-	//  Should be a Bech32 string
-	// NOTE: This `Account` should be available in the `Keystore`.
+	// Specifies the key from the keystore associated with an account that
+	// will be used to sign transactions.
+	// NOTE: This `Account` must be available in the `Keystore`.
 	Account string
 	// Specifies the account that will pay for the transaction.
-	//	//  Should be a Bech32 string
+	// Input format Bech32.
 	Granter string
 }
 
 func DefaultTxOptions() *TxOptions {
 	return &TxOptions{
-		fee:      DefaultFee(),
-		GasLimit: 0,
-		Account:  "",
+		fee: DefaultFee(),
 	}
 }
 
@@ -89,15 +88,14 @@ func (options *TxOptions) SetFeeAmount(amount int64) {
 	}
 }
 
-// CalculateFee calculates fee amount as a `user.TxOption` that can be applied to the transactions,
-// based on the `minGasPrice` and `GasLimit`.
-// NOTE: it is very important to ensure that gas limit was set.
+// CalculateFee calculates fee amount based on the `minGasPrice` and `GasLimit`.
+// NOTE: GasLimit can't be 0.
 func (options *TxOptions) CalculateFee(minGasPrice float64) error {
 	if options.GasLimit == 0 {
 		return errNoGasProvided
 	}
 	if minGasPrice < 0 {
-		return errors.New("minimum gas price should be equal or greater than zero")
+		return errors.New(" gas price can't be negative")
 	}
 	options.fee.Amount = int64(math.Ceil(minGasPrice * float64(options.GasLimit)))
 	options.fee.isSet = true
@@ -112,15 +110,11 @@ func (options *TxOptions) IsFeeSet() bool {
 	return options.fee.isSet
 }
 
-// EstimateGas returns a gas limit as a `user.TxOption` that can be applied to the transactions.
-// GasLimit will be estimated in case it has not been set.
-// NOTE: final result of the estimation will be multiplied by the `gasMultiplier`(1.1) to cover additional сosts for the
-// options of the Tx, as not all options are counted in the `EstimateGas`
+// EstimateGas estimates gas in case it has not been set.
+// NOTE: final result of the estimation will be multiplied by the `gasMultiplier`(1.1) to cover additional costs.
 func (options *TxOptions) EstimateGas(ctx context.Context, client *user.TxClient, msg sdktypes.Msg) error {
 	if options.GasLimit == 0 {
-		// Gas estimation depends on the amount of bytes of the original TX, including all options(Fee, Granter, etc.),
-		// so, it is very important to pass ALL options that will be applied to the tx.
-		// 1utia as fee is ok at this point(as fee may not be calculated yet).
+		// set fee as 1utia helps to simulate the tx more reliably.
 		gasLimit, err := client.EstimateGas(ctx, []sdktypes.Msg{msg}, user.SetFee(1))
 		if err != nil {
 			return fmt.Errorf("estimating gas: %w", err)
@@ -140,13 +134,19 @@ func (options *TxOptions) EstimateGasForBlobs(blobSizes []uint32) {
 	}
 }
 
-func (options *TxOptions) GetAccount() (sdktypes.AccAddress, error) {
+// GetSigner retrieves the keystore by the provided account name and returns the account address.
+func (options *TxOptions) GetSigner(kr keyring.Keyring) (sdktypes.AccAddress, error) {
 	if options.Account == "" {
 		return nil, errNoAddressProvided
 	}
-	return parseAccAddressFromString(options.Account)
+	rec, err := kr.Key(options.Account)
+	if err != nil {
+		return nil, fmt.Errorf("getting account key: %w", err)
+	}
+	return rec.GetAddress()
 }
 
+// GetGranter converts provided granter address to the cosmos-sdk `AccAddress`
 func (options *TxOptions) GetGranter() (sdktypes.AccAddress, error) {
 	if options.Granter == "" {
 		return nil, fmt.Errorf("granter %s", errNoAddressProvided.Error())

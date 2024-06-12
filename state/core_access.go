@@ -231,18 +231,29 @@ func (ca *CoreAccessor) SubmitPayForBlob(
 		}
 	}
 
+	acc := ca.keyname
+	if options.Account != "" {
+		acc = options.Account
+	}
+
 	var lastErr error
 	for attempt := 0; attempt < maxRetries; attempt++ {
 		opts := []user.TxOption{user.SetGasLimit(options.GasLimit), user.SetFee(options.GetFee())}
 		if feeGrant != nil {
 			opts = append(opts, feeGrant)
 		}
-		response, err := ca.client.SubmitPayForBlob(
+		response, err := ca.client.BroadcastPayForBlobWithAccount(
 			ctx,
+			acc,
 			appblobs,
 			opts...,
 		)
+		if err != nil {
+			return nil, err
+		}
 
+		// TODO @vgonkivs: remove me to achieve async blob submission
+		response, err = ca.client.ConfirmTx(ctx, response.TxHash)
 		// the node is capable of changing the min gas price at any time so we must be able to detect it and
 		// update our version accordingly
 		if apperrors.IsInsufficientMinGasPrice(err) && !estimatedFee {
@@ -388,7 +399,7 @@ func (ca *CoreAccessor) Transfer(
 	signer := ca.client.DefaultAddress()
 	var err error
 	if options.Account != "" {
-		signer, err = options.GetAccount()
+		signer, err = options.GetSigner(ca.keyring)
 		if err != nil {
 			return nil, err
 		}
@@ -413,7 +424,7 @@ func (ca *CoreAccessor) CancelUnbondingDelegation(
 	signer := ca.client.DefaultAddress()
 	var err error
 	if options.Account != "" {
-		signer, err = options.GetAccount()
+		signer, err = options.GetSigner(ca.keyring)
 		if err != nil {
 			return nil, err
 		}
@@ -438,7 +449,7 @@ func (ca *CoreAccessor) BeginRedelegate(
 	signer := ca.client.DefaultAddress()
 	var err error
 	if options.Account != "" {
-		signer, err = options.GetAccount()
+		signer, err = options.GetSigner(ca.keyring)
 		if err != nil {
 			return nil, err
 		}
@@ -462,7 +473,7 @@ func (ca *CoreAccessor) Undelegate(
 	signer := ca.client.DefaultAddress()
 	var err error
 	if options.Account != "" {
-		signer, err = options.GetAccount()
+		signer, err = options.GetSigner(ca.keyring)
 		if err != nil {
 			return nil, err
 		}
@@ -486,7 +497,7 @@ func (ca *CoreAccessor) Delegate(
 	signer := ca.client.DefaultAddress()
 	var err error
 	if options.Account != "" {
-		signer, err = options.GetAccount()
+		signer, err = options.GetSigner(ca.keyring)
 		if err != nil {
 			return nil, err
 		}
@@ -541,7 +552,7 @@ func (ca *CoreAccessor) GrantFee(
 	granter := ca.client.DefaultAddress()
 	var err error
 	if options.Account != "" {
-		granter, err = options.GetAccount()
+		granter, err = options.GetSigner(ca.keyring)
 		if err != nil {
 			return nil, err
 		}
@@ -567,7 +578,7 @@ func (ca *CoreAccessor) RevokeGrantFee(
 	granter := ca.client.DefaultAddress()
 	var err error
 	if options.Account != "" {
-		granter, err = options.GetAccount()
+		granter, err = options.GetSigner(ca.keyring)
 		if err != nil {
 			return nil, err
 		}

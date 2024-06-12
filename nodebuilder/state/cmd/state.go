@@ -15,13 +15,13 @@ import (
 var (
 	amount uint64
 
-	fee int64
+	Fee int64
 
-	gasLimit uint64
+	GasLimit uint64
 
-	account string
+	Account string
 
-	granter string
+	Granter string
 )
 
 func init() {
@@ -50,7 +50,7 @@ func init() {
 	)
 
 	// apply option flags for all txs that require `TxOptions`.
-	applyFlags(
+	ApplyFlags(
 		transferCmd,
 		cancelUnbondingDelegationCmd,
 		beginRedelegateCmd,
@@ -144,8 +144,10 @@ var transferCmd = &cobra.Command{
 		}
 
 		opts := options.DefaultTxOptions()
-		opts.SetFeeAmount(fee)
-		opts.GasLimit = gasLimit
+		opts.SetFeeAmount(Fee)
+		opts.GasLimit = GasLimit
+		opts.Account = Account
+		opts.Granter = Granter
 
 		txResponse, err := client.State.Transfer(
 			cmd.Context(),
@@ -184,8 +186,10 @@ var cancelUnbondingDelegationCmd = &cobra.Command{
 		}
 
 		opts := options.DefaultTxOptions()
-		opts.SetFeeAmount(fee)
-		opts.GasLimit = gasLimit
+		opts.SetFeeAmount(Fee)
+		opts.GasLimit = GasLimit
+		opts.Account = Account
+		opts.Granter = Granter
 
 		txResponse, err := client.State.CancelUnbondingDelegation(
 			cmd.Context(),
@@ -225,8 +229,10 @@ var beginRedelegateCmd = &cobra.Command{
 		}
 
 		opts := options.DefaultTxOptions()
-		opts.SetFeeAmount(fee)
-		opts.GasLimit = gasLimit
+		opts.SetFeeAmount(Fee)
+		opts.GasLimit = GasLimit
+		opts.Account = Account
+		opts.Granter = Granter
 
 		txResponse, err := client.State.BeginRedelegate(
 			cmd.Context(),
@@ -274,6 +280,8 @@ var undelegateCmd = &cobra.Command{
 		opts := options.DefaultTxOptions()
 		opts.SetFeeAmount(fee)
 		opts.GasLimit = gasLimit
+		opts.Account = Account
+		opts.Granter = Granter
 
 		txResponse, err := client.State.Undelegate(
 			cmd.Context(),
@@ -320,6 +328,8 @@ var delegateCmd = &cobra.Command{
 		opts := options.DefaultTxOptions()
 		opts.SetFeeAmount(fee)
 		opts.GasLimit = gasLimit
+		opts.Account = Account
+		opts.Granter = Granter
 
 		txResponse, err := client.State.Delegate(
 			cmd.Context(),
@@ -421,8 +431,10 @@ var grantFeeCmd = &cobra.Command{
 		}
 
 		opts := options.DefaultTxOptions()
-		opts.SetFeeAmount(fee)
-		opts.GasLimit = gasLimit
+		opts.SetFeeAmount(Fee)
+		opts.GasLimit = GasLimit
+		opts.Account = Account
+		opts.Granter = Granter
 
 		txResponse, err := client.State.GrantFee(
 			cmd.Context(),
@@ -450,8 +462,10 @@ var revokeGrantFeeCmd = &cobra.Command{
 		}
 
 		opts := options.DefaultTxOptions()
-		opts.SetFeeAmount(fee)
-		opts.GasLimit = gasLimit
+		opts.SetFeeAmount(Fee)
+		opts.GasLimit = GasLimit
+		opts.Account = Account
+		opts.Granter = Granter
 
 		txResponse, err := client.State.RevokeGrantFee(
 			cmd.Context(),
@@ -471,38 +485,35 @@ func parseAddressFromString(addrStr string) (state.Address, error) {
 	return address, nil
 }
 
-func applyFlags(cmds ...*cobra.Command) {
+func ApplyFlags(cmds ...*cobra.Command) {
 	for _, cmd := range cmds {
 		cmd.PersistentFlags().Int64Var(
-			&fee,
+			&Fee,
 			"fee",
 			-1,
-			"Specifies fee(in utia) for tx submission.\n"+
-				"Fee will be set to default(-1) if no value is passed.",
+			"Specifies fee(in utia) for tx submission.",
 		)
 
 		cmd.PersistentFlags().Uint64Var(
-			&gasLimit,
+			&GasLimit,
 			"gas.limit",
 			0,
-			"Specifies gas limit (in utia) for tx submission.\n"+
-				"Gas Limit will be set to default(0) if no value is passed",
+			"Specifies gas limit (in utia) for tx submission. "+
+				"(default 0)",
 		)
 
-		cmd.PersistentFlags().String(
-			account,
+		cmd.PersistentFlags().StringVar(
+			&Account,
+			"account",
 			"",
-			"Specifies the signer address.\n"+
-				"Account address will be set to an empty string in case no value is passed.\n"+
-				"Note: Address should be passed as Bench32 address.\n"+
-				"Example: celestiaxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+			"Specifies the signer name from the keystore.",
 		)
 
-		cmd.PersistentFlags().String(
-			granter,
+		cmd.PersistentFlags().StringVar(
+			&Granter,
+			"granter",
 			"",
 			"Specifies the address that can pay fees on behalf of the signer.\n"+
-				"If no value is passed, the granter address will be set to an empty string.\n"+
 				"The granter must submit the transaction to pay for the grantee's (signer's) transactions.\n"+
 				"By default, this will be set to an empty string, meaning the signer will pay the fees.\n"+
 				"Note: The granter should be provided as a Bech32 address.\n"+
