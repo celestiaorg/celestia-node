@@ -84,7 +84,7 @@ var hashCmd = &cobra.Command{
 
 			fmt.Println(string(output))
 		default:
-			return fmt.Errorf("unknown command: %s", command)
+			return fmt.Errorf("unknown command: %s. Valid commands: has, exists, get", command)
 		}
 
 		return nil
