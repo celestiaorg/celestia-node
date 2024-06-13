@@ -46,13 +46,14 @@ func readHeader(r io.Reader) (*headerV0, error) {
 		return nil, fmt.Errorf("readHeader: %w", err)
 	}
 
-	switch version { //nolint:gocritic // gocritic wants to convert it to if statement.
+	switch version {
 	case headerVersionV0:
 		h := &headerV0{}
 		_, err := h.ReadFrom(r)
 		return h, err
+	default:
+		return nil, fmt.Errorf("unsupported header fileVersion: %d", version)
 	}
-	return nil, fmt.Errorf("unsupported header fileVersion: %d", version)
 }
 
 func writeHeader(w io.Writer, h *headerV0) error {
@@ -68,6 +69,7 @@ func writeHeader(w io.Writer, h *headerV0) error {
 }
 
 func (h *headerV0) Size() int {
+	// header size + 1 byte for header fileVersion
 	return headerVOSize + 1
 }
 
@@ -86,7 +88,7 @@ func (h *headerV0) ReadFrom(r io.Reader) (int64, error) {
 	bytesHeader := make([]byte, headerVOSize)
 	n, err := io.ReadFull(r, bytesHeader)
 	if n != headerVOSize {
-		return 0, fmt.Errorf("readHeader: read %d bytes, expected %d", len(bytesHeader), headerVOSize)
+		return 0, fmt.Errorf("headerV0 ReadFrom: read %d bytes, expected %d", len(bytesHeader), headerVOSize)
 	}
 
 	h.fileVersion = fileVersion(bytesHeader[0])
