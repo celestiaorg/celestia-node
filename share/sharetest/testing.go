@@ -5,6 +5,7 @@ import (
 	"math/rand"
 	"sort"
 	"sync"
+	"testing"
 	"time"
 
 	"github.com/stretchr/testify/require"
@@ -14,9 +15,8 @@ import (
 	"github.com/celestiaorg/celestia-node/share"
 )
 
-// RandShares generate 'total' amount of shares filled with random data. It uses require.TestingT
-// to be able to take both a *testing.T and a *testing.B.
-func RandShares(t require.TestingT, total int) []share.Share {
+// RandShares generate 'total' amount of shares filled with random data.
+func RandShares(t testing.TB, total int) []share.Share {
 	if total&(total-1) != 0 {
 		t.Errorf("total must be power of 2: %d", total)
 		t.FailNow()
@@ -38,7 +38,7 @@ func RandShares(t require.TestingT, total int) []share.Share {
 }
 
 // RandSharesWithNamespace is same the as RandShares, but sets same namespace for all shares.
-func RandSharesWithNamespace(t require.TestingT, namespace share.Namespace, total int) []share.Share {
+func RandSharesWithNamespace(t testing.TB, namespace share.Namespace, total int) []share.Share {
 	if total&(total-1) != 0 {
 		t.Errorf("total must be power of 2: %d", total)
 		t.FailNow()
