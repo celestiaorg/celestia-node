@@ -2,16 +2,11 @@ package bitswap
 
 import (
 	"context"
-	"fmt"
 
-	"github.com/gogo/protobuf/proto"
-	blocks "github.com/ipfs/go-block-format"
 	"github.com/ipfs/go-cid"
 	logger "github.com/ipfs/go-log/v2"
 
 	eds "github.com/celestiaorg/celestia-node/share/new_eds"
-
-	bitswappb "github.com/celestiaorg/celestia-node/share/shwap/p2p/bitswap/pb"
 
 	"github.com/celestiaorg/celestia-node/share"
 )
@@ -31,39 +26,16 @@ type Block interface {
 	CID() cid.Cid
 	// Height reports the Height the Shwap Container data behind the Block is from.
 	Height() uint64
-	// BlockFromEDS extract Bitswap Block out of the EDS.
-	// TODO: Split into MarshalBinary and Populate
-	BlockFromEDS(context.Context, eds.Accessor) (blocks.Block, error)
-
+	// Marshal serializes bytes of Shwap Container the Block holds.
+	// Must not include the Shwap ID.
+	Marshal() ([]byte, error)
+	// Populate fills up the Block with the Shwap container getting it out of the EDS
+	// Accessor.
+	Populate(context.Context, eds.Accessor) error
 	// IsEmpty reports whether the Block been populated with Shwap container.
 	// If the Block is empty, it can be populated with Fetch.
 	IsEmpty() bool
 	// PopulateFn returns closure that fills up the Block with Shwap container.
 	// Population involves data validation against the Root.
 	PopulateFn(*share.Root) PopulateFn
-}
-
-// toBlock converts given protobuf container into Bitswap Block.
-func toBlock(cid cid.Cid, container proto.Marshaler) (blocks.Block, error) {
-	containerData, err := container.Marshal()
-	if err != nil {
-		return nil, fmt.Errorf("marshaling container: %w", err)
-	}
-
-	blkProto := bitswappb.Block{
-		Cid:       cid.Bytes(),
-		Container: containerData,
-	}
-
-	blkData, err := blkProto.Marshal()
-	if err != nil {
-		return nil, fmt.Errorf("marshaling Block protobuf: %w", err)
-	}
-
-	blk, err := blocks.NewBlockWithCid(blkData, cid)
-	if err != nil {
-		return nil, fmt.Errorf("assembling Bitswap block: %w", err)
-	}
-
-	return blk, nil
 }

@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"sync/atomic"
 
-	blocks "github.com/ipfs/go-block-format"
 	"github.com/ipfs/go-cid"
 
 	eds "github.com/celestiaorg/celestia-node/share/new_eds"
@@ -75,18 +74,29 @@ func (rb *RowBlock) Height() uint64 {
 	return rb.ID.Height
 }
 
-func (rb *RowBlock) BlockFromEDS(ctx context.Context, eds eds.Accessor) (blocks.Block, error) {
+func (rb *RowBlock) Marshal() ([]byte, error) {
+	if rb.IsEmpty() {
+		return nil, fmt.Errorf("cannot marshal empty RowBlock")
+	}
+
+	container := rb.Container().ToProto()
+	containerData, err := container.Marshal()
+	if err != nil {
+		return nil, fmt.Errorf("marshaling RowBlock container: %w", err)
+	}
+
+	return containerData, nil
+}
+
+func (rb *RowBlock) Populate(ctx context.Context, eds eds.Accessor) error {
 	half, err := eds.AxisHalf(ctx, rsmt2d.Row, rb.ID.RowIndex)
 	if err != nil {
-		return nil, fmt.Errorf("getting Row AxisHalf: %w", err)
+		return fmt.Errorf("accessing Row AxisHalf: %w", err)
 	}
 
-	blk, err := toBlock(rb.CID(), half.ToRow().ToProto())
-	if err != nil {
-		return nil, fmt.Errorf("converting Row to Bitswap block: %w", err)
-	}
-
-	return blk, nil
+	row := half.ToRow()
+	rb.container.Store(&row)
+	return nil
 }
 
 func (rb *RowBlock) IsEmpty() bool {

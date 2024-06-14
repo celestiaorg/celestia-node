@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"sync/atomic"
 
-	blocks "github.com/ipfs/go-block-format"
 	"github.com/ipfs/go-cid"
 
 	eds "github.com/celestiaorg/celestia-node/share/new_eds"
@@ -80,18 +79,28 @@ func (rndb *RowNamespaceDataBlock) Height() uint64 {
 	return rndb.ID.Height
 }
 
-func (rndb *RowNamespaceDataBlock) BlockFromEDS(ctx context.Context, eds eds.Accessor) (blocks.Block, error) {
+func (rndb *RowNamespaceDataBlock) Marshal() ([]byte, error) {
+	if rndb.IsEmpty() {
+		return nil, fmt.Errorf("cannot marshal empty RowNamespaceDataBlock")
+	}
+
+	container := rndb.Container().ToProto()
+	containerData, err := container.Marshal()
+	if err != nil {
+		return nil, fmt.Errorf("marshaling RowNamespaceDataBlock container: %w", err)
+	}
+
+	return containerData, nil
+}
+
+func (rndb *RowNamespaceDataBlock) Populate(ctx context.Context, eds eds.Accessor) error {
 	rnd, err := eds.RowNamespaceData(ctx, rndb.ID.DataNamespace, rndb.ID.RowIndex)
 	if err != nil {
-		return nil, fmt.Errorf("getting RowNamespaceData: %w", err)
+		return fmt.Errorf("accessing RowNamespaceData: %w", err)
 	}
 
-	blk, err := toBlock(rndb.CID(), rnd.ToProto())
-	if err != nil {
-		return nil, fmt.Errorf("converting RowNamespaceData to Bitswap block: %w", err)
-	}
-
-	return blk, nil
+	rndb.container.Store(&rnd)
+	return nil
 }
 
 func (rndb *RowNamespaceDataBlock) IsEmpty() bool {

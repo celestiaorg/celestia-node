@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"sync/atomic"
 
-	blocks "github.com/ipfs/go-block-format"
 	"github.com/ipfs/go-cid"
 
 	eds "github.com/celestiaorg/celestia-node/share/new_eds"
@@ -75,18 +74,28 @@ func (sb *SampleBlock) Height() uint64 {
 	return sb.ID.Height
 }
 
-func (sb *SampleBlock) BlockFromEDS(ctx context.Context, eds eds.Accessor) (blocks.Block, error) {
+func (sb *SampleBlock) Marshal() ([]byte, error) {
+	if sb.IsEmpty() {
+		return nil, fmt.Errorf("cannot marshal empty SampleBlock")
+	}
+
+	container := sb.Container().ToProto()
+	containerData, err := container.Marshal()
+	if err != nil {
+		return nil, fmt.Errorf("marshaling SampleBlock container: %w", err)
+	}
+
+	return containerData, nil
+}
+
+func (sb *SampleBlock) Populate(ctx context.Context, eds eds.Accessor) error {
 	smpl, err := eds.Sample(ctx, sb.ID.RowIndex, sb.ID.ShareIndex)
 	if err != nil {
-		return nil, fmt.Errorf("getting Sample: %w", err)
+		return fmt.Errorf("accessing Sample: %w", err)
 	}
 
-	blk, err := toBlock(sb.CID(), smpl.ToProto())
-	if err != nil {
-		return nil, fmt.Errorf("converting Sample to Bitswap block: %w", err)
-	}
-
-	return blk, nil
+	sb.container.Store(&smpl)
+	return nil
 }
 
 func (sb *SampleBlock) IsEmpty() bool {
