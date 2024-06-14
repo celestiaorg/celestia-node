@@ -1,8 +1,8 @@
-//nolint:goconst
 package file
 
 import (
 	"context"
+	"strconv"
 	"testing"
 	"time"
 
@@ -62,13 +62,6 @@ func TestOdsFile(t *testing.T) {
 	t.Cleanup(cancel)
 
 	odsSize := 8
-	createOdsFile := func(eds *rsmt2d.ExtendedDataSquare) eds.Accessor {
-		path := t.TempDir() + "/testfile"
-		fl, err := CreateOdsFile(path, []byte{}, eds)
-		require.NoError(t, err)
-		return fl
-	}
-
 	eds.TestSuiteAccessor(ctx, t, createOdsFile, odsSize)
 }
 
@@ -90,14 +83,9 @@ func BenchmarkAxisFromOdsFile(b *testing.B) {
 	b.Cleanup(cancel)
 
 	minSize, maxSize := 32, 128
-	dir := b.TempDir()
-
 	newFile := func(size int) eds.Accessor {
 		eds := edstest.RandEDS(b, size)
-		path := dir + "/testfile"
-		f, err := CreateOdsFile(path, []byte{}, eds)
-		require.NoError(b, err)
-		return f
+		return createOdsFile(b, eds)
 	}
 	eds.BenchGetHalfAxisFromAccessor(ctx, b, newFile, minSize, maxSize)
 }
@@ -119,15 +107,16 @@ func BenchmarkShareFromOdsFile(b *testing.B) {
 	b.Cleanup(cancel)
 
 	minSize, maxSize := 32, 128
-	dir := b.TempDir()
-
 	newFile := func(size int) eds.Accessor {
 		eds := edstest.RandEDS(b, size)
-		path := dir + "/testfile"
-		f, err := CreateOdsFile(path, []byte{}, eds)
-		require.NoError(b, err)
-		return f
+		return createOdsFile(b, eds)
 	}
-
 	eds.BenchGetSampleFromAccessor(ctx, b, newFile, minSize, maxSize)
+}
+
+func createOdsFile(t testing.TB, eds *rsmt2d.ExtendedDataSquare) eds.Accessor {
+	path := t.TempDir() + "/testfile" + strconv.Itoa(rand.Intn(1000))
+	fl, err := CreateOdsFile(path, []byte{}, eds)
+	require.NoError(t, err)
+	return fl
 }

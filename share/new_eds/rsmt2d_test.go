@@ -16,7 +16,7 @@ import (
 
 func TestMemFile(t *testing.T) {
 	odsSize := 8
-	newAccessor := func(eds *rsmt2d.ExtendedDataSquare) Accessor {
+	newAccessor := func(tb testing.TB, eds *rsmt2d.ExtendedDataSquare) Accessor {
 		return &Rsmt2D{ExtendedDataSquare: eds}
 	}
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second*5)
