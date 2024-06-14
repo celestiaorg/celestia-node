@@ -30,10 +30,10 @@ func Fetch(ctx context.Context, fetcher exchange.Fetcher, root *share.Root, blks
 		cid := blk.CID()
 		fetching[cid] = blk // mark block as fetching
 		cids = append(cids, cid)
-		// store the PopulateFn s.t. hasher can access it
+		// store the UnmarshalFn s.t. hasher can access it
 		// and fill in the Block
-		populate := blk.PopulateFn(root)
-		populatorFns.LoadOrStore(cid, populate)
+		populate := blk.UnmarshalFn(root)
+		unmarshalFns.LoadOrStore(cid, populate)
 	}
 
 	blkCh, err := fetcher.GetBlocks(ctx, cids)
@@ -48,14 +48,14 @@ func Fetch(ctx context.Context, fetcher exchange.Fetcher, root *share.Root, blks
 			continue
 		}
 		// uncommon duplicate case: concurrent fetching of the same block,
-		// so we have to populate it ourselves instead of the hasher,
-		populateFn := blk.PopulateFn(root)
-		_, err := populate(populateFn, bitswapBlk.RawData())
+		// so we have to unmarshal it ourselves instead of the hasher,
+		unmarshalFn := blk.UnmarshalFn(root)
+		_, err := unmarshal(unmarshalFn, bitswapBlk.RawData())
 		if err != nil {
 			// this means verification succeeded in the hasher but failed here
 			// this case should never happen in practice
 			// and if so something is really wrong
-			panic(fmt.Sprintf("populating duplicate block: %s", err))
+			panic(fmt.Sprintf("unmarshaling duplicate block: %s", err))
 		}
 		// NOTE: This approach has a downside that we redo deserialization and computationally
 		// expensive computation for as many duplicates. We tried solutions that doesn't have this
@@ -66,9 +66,9 @@ func Fetch(ctx context.Context, fetcher exchange.Fetcher, root *share.Root, blks
 	return ctx.Err()
 }
 
-// populate populates the data into a Block via PopulateFn
-// If populate is nil -- gets it from the global populatorFns.
-func populate(populate PopulateFn, data []byte) ([]byte, error) {
+// unmarshal unmarshalls the Shwap Container data into a Block via UnmarshalFn
+// If unmarshalFn is nil -- gets it from the global unmarshalFns.
+func unmarshal(unmarshalFn UnmarshalFn, data []byte) ([]byte, error) {
 	var blk bitswappb.Block
 	err := blk.Unmarshal(data)
 	if err != nil {
@@ -84,17 +84,17 @@ func populate(populate PopulateFn, data []byte) ([]byte, error) {
 		return nil, fmt.Errorf("validating cid: %w", err)
 	}
 
-	if populate == nil {
-		// get registered PopulateFn and use it to check data validity and
+	if unmarshalFn == nil {
+		// get registered UnmarshalFn and use it to check data validity and
 		// pass it to Fetch caller
-		val, ok := populatorFns.LoadAndDelete(cid)
+		val, ok := unmarshalFns.LoadAndDelete(cid)
 		if !ok {
 			return nil, fmt.Errorf("no populator registered for %s", cid.String())
 		}
-		populate = val.(PopulateFn)
+		unmarshalFn = val.(UnmarshalFn)
 	}
 
-	err = populate(blk.Container)
+	err = unmarshalFn(blk.Container)
 	if err != nil {
 		return nil, fmt.Errorf("verifying data: %w", err)
 	}
@@ -102,18 +102,18 @@ func populate(populate PopulateFn, data []byte) ([]byte, error) {
 	return id, nil
 }
 
-// populatorFns exist to communicate between Fetch and hasher.
+// unmarshalFns exist to communicate between Fetch and hasher.
 //
-// Fetch registers PopulateFNs that hasher then uses to validate and populate Block responses coming
+// Fetch registers UnmarshalFNs that hasher then uses to validate and unmarshal Block responses coming
 // through Bitswap
 //
 // Bitswap does not provide *stateful* verification out of the box and by default
 // messages are verified by their respective MultiHashes that are registered globally.
-// For every Block type there is a global hasher registered that accesses stored PopulateFn once a
-// message is received. It then uses PopulateFn to validate and fill in the respective Block
+// For every Block type there is a global hasher registered that accesses stored UnmarshalFn once a
+// message is received. It then uses UnmarshalFn to validate and fill in the respective Block
 //
 // sync.Map is used to minimize contention for disjoint keys
-var populatorFns sync.Map
+var unmarshalFns sync.Map
 
 // hasher implements hash.Hash to be registered as custom multihash
 // hasher is the *hack* to inject custom verification logic into Bitswap
@@ -125,7 +125,7 @@ type hasher struct {
 }
 
 func (h *hasher) Write(data []byte) (int, error) {
-	id, err := populate(nil, data)
+	id, err := unmarshal(nil, data)
 	if err != nil {
 		err = fmt.Errorf("hasher: %w", err)
 		log.Error(err)

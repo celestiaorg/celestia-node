@@ -64,8 +64,8 @@ func TestFetchDuplicates(t *testing.T) {
 	wg.Wait()
 
 	var entries int
-	populatorFns.Range(func(key, _ any) bool {
-		populatorFns.Delete(key)
+	unmarshalFns.Range(func(key, _ any) bool {
+		unmarshalFns.Delete(key)
 		entries++
 		return true
 	})

@@ -111,7 +111,7 @@ func (rndb *RowNamespaceDataBlock) Container() *shwap.RowNamespaceData {
 	return rndb.container.Load()
 }
 
-func (rndb *RowNamespaceDataBlock) PopulateFn(root *share.Root) PopulateFn {
+func (rndb *RowNamespaceDataBlock) UnmarshalFn(root *share.Root) UnmarshalFn {
 	return func(data []byte) error {
 		if !rndb.IsEmpty() {
 			return nil

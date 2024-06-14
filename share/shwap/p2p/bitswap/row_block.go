@@ -107,7 +107,7 @@ func (rb *RowBlock) Container() *shwap.Row {
 	return rb.container.Load()
 }
 
-func (rb *RowBlock) PopulateFn(root *share.Root) PopulateFn {
+func (rb *RowBlock) UnmarshalFn(root *share.Root) UnmarshalFn {
 	return func(data []byte) error {
 		if !rb.IsEmpty() {
 			return nil

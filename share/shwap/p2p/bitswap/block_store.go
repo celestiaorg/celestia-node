@@ -37,7 +37,7 @@ func (b *Blockstore) Get(ctx context.Context, cid cid.Cid) (blocks.Block, error)
 	}
 
 	if err = blk.Populate(ctx, eds); err != nil {
-		return nil, fmt.Errorf("failed to populate Shwap Block: %w", err)
+		return nil, fmt.Errorf("failed to unmarshal Shwap Block: %w", err)
 	}
 
 	containerData, err := blk.Marshal()

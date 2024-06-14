@@ -106,7 +106,7 @@ func (sb *SampleBlock) Container() *shwap.Sample {
 	return sb.container.Load()
 }
 
-func (sb *SampleBlock) PopulateFn(root *share.Root) PopulateFn {
+func (sb *SampleBlock) UnmarshalFn(root *share.Root) UnmarshalFn {
 	return func(data []byte) error {
 		if !sb.IsEmpty() {
 			return nil
