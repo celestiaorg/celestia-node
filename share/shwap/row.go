@@ -75,6 +75,11 @@ func (r Row) ToProto() *pb.Row {
 	}
 }
 
+// IsEmpty reports whether the Row is empty, i.e. doesn't contain any shares.
+func (r Row) IsEmpty() bool {
+	return r.halfShares == nil
+}
+
 // Validate checks if the row's shares match the expected number from the root data and validates
 // the side of the row.
 func (r Row) Validate(dah *share.Root, idx int) error {

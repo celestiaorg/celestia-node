@@ -3,7 +3,6 @@ package bitswap
 import (
 	"context"
 	"fmt"
-	"sync/atomic"
 
 	"github.com/ipfs/go-cid"
 
@@ -39,7 +38,7 @@ func init() {
 type RowBlock struct {
 	ID shwap.RowID
 
-	container atomic.Pointer[shwap.Row]
+	Container shwap.Row
 }
 
 // NewEmptyRowBlock constructs a new empty RowBlock.
@@ -79,7 +78,7 @@ func (rb *RowBlock) Marshal() ([]byte, error) {
 		return nil, fmt.Errorf("cannot marshal empty RowBlock")
 	}
 
-	container := rb.Container().ToProto()
+	container := rb.Container.ToProto()
 	containerData, err := container.Marshal()
 	if err != nil {
 		return nil, fmt.Errorf("marshaling RowBlock container: %w", err)
@@ -94,17 +93,12 @@ func (rb *RowBlock) Populate(ctx context.Context, eds eds.Accessor) error {
 		return fmt.Errorf("accessing Row AxisHalf: %w", err)
 	}
 
-	row := half.ToRow()
-	rb.container.Store(&row)
+	rb.Container = half.ToRow()
 	return nil
 }
 
 func (rb *RowBlock) IsEmpty() bool {
-	return rb.Container() == nil
-}
-
-func (rb *RowBlock) Container() *shwap.Row {
-	return rb.container.Load()
+	return rb.Container.IsEmpty()
 }
 
 func (rb *RowBlock) UnmarshalFn(root *share.Root) UnmarshalFn {
@@ -121,7 +115,8 @@ func (rb *RowBlock) UnmarshalFn(root *share.Root) UnmarshalFn {
 		if err := cntr.Validate(root, rb.ID.RowIndex); err != nil {
 			return fmt.Errorf("validating Row: %w", err)
 		}
-		rb.container.Store(&cntr)
+
+		rb.Container = cntr
 		return nil
 	}
 }

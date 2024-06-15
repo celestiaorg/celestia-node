@@ -32,7 +32,7 @@ func TestRowRoundtrip_GetContainers(t *testing.T) {
 
 	for _, blk := range blks {
 		row := blk.(*RowBlock)
-		err = row.Container().Validate(root, row.ID.RowIndex)
+		err = row.Container.Validate(root, row.ID.RowIndex)
 		require.NoError(t, err)
 	}
 }

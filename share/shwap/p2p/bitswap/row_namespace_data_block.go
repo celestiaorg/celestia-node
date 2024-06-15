@@ -3,7 +3,6 @@ package bitswap
 import (
 	"context"
 	"fmt"
-	"sync/atomic"
 
 	"github.com/ipfs/go-cid"
 
@@ -38,7 +37,7 @@ func init() {
 type RowNamespaceDataBlock struct {
 	ID shwap.RowNamespaceDataID
 
-	container atomic.Pointer[shwap.RowNamespaceData]
+	Container shwap.RowNamespaceData
 }
 
 // NewEmptyRowNamespaceDataBlock constructs a new empty RowNamespaceDataBlock.
@@ -84,7 +83,7 @@ func (rndb *RowNamespaceDataBlock) Marshal() ([]byte, error) {
 		return nil, fmt.Errorf("cannot marshal empty RowNamespaceDataBlock")
 	}
 
-	container := rndb.Container().ToProto()
+	container := rndb.Container.ToProto()
 	containerData, err := container.Marshal()
 	if err != nil {
 		return nil, fmt.Errorf("marshaling RowNamespaceDataBlock container: %w", err)
@@ -99,16 +98,12 @@ func (rndb *RowNamespaceDataBlock) Populate(ctx context.Context, eds eds.Accesso
 		return fmt.Errorf("accessing RowNamespaceData: %w", err)
 	}
 
-	rndb.container.Store(&rnd)
+	rndb.Container = rnd
 	return nil
 }
 
 func (rndb *RowNamespaceDataBlock) IsEmpty() bool {
-	return rndb.Container() == nil
-}
-
-func (rndb *RowNamespaceDataBlock) Container() *shwap.RowNamespaceData {
-	return rndb.container.Load()
+	return rndb.Container.IsEmpty()
 }
 
 func (rndb *RowNamespaceDataBlock) UnmarshalFn(root *share.Root) UnmarshalFn {
@@ -125,7 +120,8 @@ func (rndb *RowNamespaceDataBlock) UnmarshalFn(root *share.Root) UnmarshalFn {
 		if err := cntr.Validate(root, rndb.ID.DataNamespace, rndb.ID.RowIndex); err != nil {
 			return fmt.Errorf("validating RowNamespaceData: %w", err)
 		}
-		rndb.container.Store(&cntr)
+
+		rndb.Container = cntr
 		return nil
 	}
 }

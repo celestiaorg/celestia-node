@@ -3,7 +3,6 @@ package bitswap
 import (
 	"context"
 	"fmt"
-	"sync/atomic"
 
 	"github.com/ipfs/go-cid"
 
@@ -38,7 +37,7 @@ func init() {
 // SampleBlock is a Bitswap compatible block for Shwap's Sample container.
 type SampleBlock struct {
 	ID        shwap.SampleID
-	container atomic.Pointer[shwap.Sample]
+	Container shwap.Sample
 }
 
 // NewEmptySampleBlock constructs a new empty SampleBlock.
@@ -79,7 +78,7 @@ func (sb *SampleBlock) Marshal() ([]byte, error) {
 		return nil, fmt.Errorf("cannot marshal empty SampleBlock")
 	}
 
-	container := sb.Container().ToProto()
+	container := sb.Container.ToProto()
 	containerData, err := container.Marshal()
 	if err != nil {
 		return nil, fmt.Errorf("marshaling SampleBlock container: %w", err)
@@ -94,16 +93,12 @@ func (sb *SampleBlock) Populate(ctx context.Context, eds eds.Accessor) error {
 		return fmt.Errorf("accessing Sample: %w", err)
 	}
 
-	sb.container.Store(&smpl)
+	sb.Container = smpl
 	return nil
 }
 
 func (sb *SampleBlock) IsEmpty() bool {
-	return sb.Container() == nil
-}
-
-func (sb *SampleBlock) Container() *shwap.Sample {
-	return sb.container.Load()
+	return sb.Container.IsEmpty()
 }
 
 func (sb *SampleBlock) UnmarshalFn(root *share.Root) UnmarshalFn {
@@ -120,7 +115,8 @@ func (sb *SampleBlock) UnmarshalFn(root *share.Root) UnmarshalFn {
 		if err := cntr.Validate(root, sb.ID.RowIndex, sb.ID.ShareIndex); err != nil {
 			return fmt.Errorf("validating Sample: %w", err)
 		}
-		sb.container.Store(&cntr)
+
+		sb.Container = cntr
 		return nil
 	}
 }

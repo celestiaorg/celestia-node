@@ -19,31 +19,44 @@ import (
 // Validates Block against the given Root and skips Blocks that are already populated.
 // Gracefully synchronize identical Blocks requested simultaneously.
 // Blocks until either context is canceled or all Blocks are fetched and populated.
-func Fetch(ctx context.Context, fetcher exchange.Fetcher, root *share.Root, blks ...Block) error {
+func Fetch(ctx context.Context, exchg exchange.Interface, root *share.Root, blks ...Block) error {
 	cids := make([]cid.Cid, 0, len(blks))
-	fetching := make(map[cid.Cid]Block)
+	duplicates := make(map[cid.Cid]Block)
 	for _, blk := range blks {
 		if !blk.IsEmpty() {
 			continue // skip populated Blocks
 		}
-		// memoize CID for reuse as it ain't free
-		cid := blk.CID()
-		fetching[cid] = blk // mark block as fetching
+
+		cid := blk.CID() // memoize CID for reuse as it ain't free
 		cids = append(cids, cid)
+
 		// store the UnmarshalFn s.t. hasher can access it
 		// and fill in the Block
-		populate := blk.UnmarshalFn(root)
-		unmarshalFns.LoadOrStore(cid, populate)
+		unmarshalFn := blk.UnmarshalFn(root)
+		_, exists := unmarshalFns.LoadOrStore(cid, unmarshalFn)
+		if exists {
+			// the unmarshalFn has already been stored for the cid
+			// means there is ongoing fetch happening for the same cid
+			duplicates[cid] = blk // so mark the Block as duplicate
+		} else {
+			// cleanup are by the original requester and
+			// only after we are sure we got the block
+			defer unmarshalFns.Delete(cid)
+		}
 	}
 
-	blkCh, err := fetcher.GetBlocks(ctx, cids)
+	blkCh, err := exchg.GetBlocks(ctx, cids)
 	if err != nil {
-		return fmt.Errorf("fetching bitswap blocks: %w", err)
+		return fmt.Errorf("requesting Bitswap blocks: %w", err)
 	}
 
 	for bitswapBlk := range blkCh { // GetBlocks closes blkCh on ctx cancellation
-		blk := fetching[bitswapBlk.Cid()]
-		if !blk.IsEmpty() {
+		if err := exchg.NotifyNewBlocks(ctx, bitswapBlk); err != nil {
+			log.Error("failed to notify new Bitswap blocks: %w", err)
+		}
+
+		blk, ok := duplicates[bitswapBlk.Cid()]
+		if !ok {
 			// common case: the block was populated by the hasher, so skip
 			continue
 		}
@@ -87,9 +100,9 @@ func unmarshal(unmarshalFn UnmarshalFn, data []byte) ([]byte, error) {
 	if unmarshalFn == nil {
 		// get registered UnmarshalFn and use it to check data validity and
 		// pass it to Fetch caller
-		val, ok := unmarshalFns.LoadAndDelete(cid)
+		val, ok := unmarshalFns.Load(cid)
 		if !ok {
-			return nil, fmt.Errorf("no populator registered for %s", cid.String())
+			return nil, fmt.Errorf("no unmarshallers registered for %s", cid.String())
 		}
 		unmarshalFn = val.(UnmarshalFn)
 	}
@@ -102,7 +115,7 @@ func unmarshal(unmarshalFn UnmarshalFn, data []byte) ([]byte, error) {
 	return id, nil
 }
 
-// unmarshalFns exist to communicate between Fetch and hasher.
+// unmarshalFns exist to communicate between Fetch and hasher, and it's global as a necessity
 //
 // Fetch registers UnmarshalFNs that hasher then uses to validate and unmarshal Block responses coming
 // through Bitswap
