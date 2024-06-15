@@ -33,7 +33,7 @@ func Fetch(ctx context.Context, exchg exchange.Interface, root *share.Root, blks
 		// store the UnmarshalFn s.t. hasher can access it
 		// and fill in the Block
 		unmarshalFn := blk.UnmarshalFn(root)
-		_, exists := unmarshalFns.LoadOrStore(cid, unmarshalFn)
+		_, exists := unmarshalFns.LoadOrStore(cid, &unmarshalEntry{UnmarshalFn: unmarshalFn})
 		if exists {
 			// the unmarshalFn has already been stored for the cid
 			// means there is ongoing fetch happening for the same cid
@@ -104,7 +104,11 @@ func unmarshal(unmarshalFn UnmarshalFn, data []byte) ([]byte, error) {
 		if !ok {
 			return nil, fmt.Errorf("no unmarshallers registered for %s", cid.String())
 		}
-		unmarshalFn = val.(UnmarshalFn)
+		entry := val.(*unmarshalEntry)
+
+		entry.Lock()
+		defer entry.Unlock()
+		unmarshalFn = entry.UnmarshalFn
 	}
 
 	err = unmarshalFn(blk.Container)
@@ -127,6 +131,11 @@ func unmarshal(unmarshalFn UnmarshalFn, data []byte) ([]byte, error) {
 //
 // sync.Map is used to minimize contention for disjoint keys
 var unmarshalFns sync.Map
+
+type unmarshalEntry struct {
+	sync.Mutex
+	UnmarshalFn
+}
 
 // hasher implements hash.Hash to be registered as custom multihash
 // hasher is the *hack* to inject custom verification logic into Bitswap
