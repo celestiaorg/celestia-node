@@ -8,20 +8,6 @@ import (
 	mh "github.com/multiformats/go-multihash"
 )
 
-// DefaultAllowlist keeps default list of multihashes allowed in the network.
-// TODO(@Wondertan): Make it private and instead provide Blockservice constructor with injected
-//
-//	allowlist
-var DefaultAllowlist allowlist
-
-type allowlist struct{}
-
-func (a allowlist) IsAllowed(code uint64) bool {
-	// we disable all codes except registered
-	_, ok := specRegistry[code]
-	return ok
-}
-
 // extractCID retrieves Shwap ID out of the CID.
 func extractCID(cid cid.Cid) ([]byte, error) {
 	if err := validateCID(cid); err != nil {
