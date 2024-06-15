@@ -15,7 +15,7 @@ func TestSampleRoundtrip_GetContainers(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second*5)
 	defer cancel()
 
-	eds := edstest.RandEDS(t, 8)
+	eds := edstest.RandEDS(t, 16)
 	root, err := share.NewRoot(eds)
 	require.NoError(t, err)
 	client := fetcher(ctx, t, eds)
@@ -30,8 +30,13 @@ func TestSampleRoundtrip_GetContainers(t *testing.T) {
 		}
 	}
 
-	err = Fetch(ctx, client, root, blks...)
-	require.NoError(t, err)
+	// NOTE: this the limiting number of items bitswap can do in a single Fetch
+	// going beyond that cause Bitswap to stall indefinitely
+	const maxPerFetch = 1024
+	for i := range len(blks) / maxPerFetch {
+		err = Fetch(ctx, client, root, blks[i*maxPerFetch:(i+1)*maxPerFetch]...)
+		require.NoError(t, err)
+	}
 
 	for _, sample := range blks {
 		blk := sample.(*SampleBlock)
