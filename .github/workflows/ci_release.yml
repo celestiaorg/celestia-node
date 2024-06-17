@@ -4,7 +4,6 @@ on:
   push:
     branches:
       - main
-      - ci/chore/golang-ci-warning
   release:
     types: [published]
   pull_request:
