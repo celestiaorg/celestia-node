@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"sync/atomic"
 
 	"github.com/celestiaorg/rsmt2d"
 
@@ -20,7 +21,7 @@ var ErrOutOfBounds = errors.New("index is out of bounds")
 // another  Accessor and performs bounds checks on index arguments.
 type validation struct {
 	Accessor
-	size int
+	size atomic.Int32
 }
 
 func WithValidation(f Accessor) Accessor {
@@ -28,10 +29,13 @@ func WithValidation(f Accessor) Accessor {
 }
 
 func (f validation) Size(ctx context.Context) int {
-	if f.size == 0 {
-		f.size = f.Accessor.Size(ctx)
+	size := f.size.Load()
+	if size == 0 {
+		loaded := f.Accessor.Size(ctx)
+		f.size.Store(int32(loaded))
+		return loaded
 	}
-	return f.Accessor.Size(ctx)
+	return int(size)
 }
 
 func (f validation) Sample(ctx context.Context, rowIdx, colIdx int) (shwap.Sample, error) {
