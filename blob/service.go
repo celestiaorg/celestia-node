@@ -31,7 +31,7 @@ var (
 )
 
 // GasPrice represents the amount to be paid per gas unit. Fee is set by
-// multiplying GasPrice by GasLimit, which is determined by the blob sizes.
+// multiplying GasPrice by Gas, which is determined by the blob sizes.
 type GasPrice float64
 
 // DefaultGasPrice returns the default gas price, letting node automatically

@@ -206,7 +206,7 @@ func (ca *CoreAccessor) SubmitPayForBlob(
 	}
 
 	var feeGrant user.TxOption
-	// set granter and update gasLimit in case node run in a grantee mode
+	// set granter and update gas in case node run in a grantee mode
 	if options.Granter != "" {
 		granter, err := options.GetGranter()
 		if err != nil {
@@ -238,7 +238,7 @@ func (ca *CoreAccessor) SubmitPayForBlob(
 
 	var lastErr error
 	for attempt := 0; attempt < maxRetries; attempt++ {
-		opts := []user.TxOption{user.SetGasLimit(options.GasLimit), user.SetFee(options.GetFee())}
+		opts := []user.TxOption{user.SetGasLimitAndFee(options.Gas, float64(options.GetFee()))}
 		if feeGrant != nil {
 			opts = append(opts, feeGrant)
 		}
@@ -258,7 +258,7 @@ func (ca *CoreAccessor) SubmitPayForBlob(
 		// update our version accordingly
 		if apperrors.IsInsufficientMinGasPrice(err) && !estimatedFee {
 			// The error message contains enough information to parse the new min gas price
-			minGasPrice, err = apperrors.ParseInsufficientMinGasPrice(err, minGasPrice, options.GasLimit)
+			minGasPrice, err = apperrors.ParseInsufficientMinGasPrice(err, minGasPrice, options.Gas)
 			if err != nil {
 				return nil, fmt.Errorf("parsing insufficient min gas price error: %w", err)
 			}
@@ -658,7 +658,7 @@ func (ca *CoreAccessor) submitMsg(
 		}
 	}
 
-	txOptions = append(txOptions, user.SetGasLimit(options.GasLimit), user.SetFee(options.GetFee()))
+	txOptions = append(txOptions, user.SetGasLimitAndFee(options.Gas, float64(options.GetFee())))
 
 	if options.Granter != "" {
 		granter, err := options.GetGranter()

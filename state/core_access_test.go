@@ -82,7 +82,7 @@ func TestSubmitPayForBlob(t *testing.T) {
 	for _, tc := range testcases {
 		t.Run(tc.name, func(t *testing.T) {
 			opts := options.DefaultTxOptions()
-			opts.GasLimit = tc.gasLim
+			opts.Gas = tc.gasLim
 			opts.SetFeeAmount(tc.fee.Int64())
 			opts.Account = accounts[2]
 			resp, err := ca.SubmitPayForBlob(ctx, tc.blobs, opts)
@@ -135,7 +135,7 @@ func TestTransfer(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			opts := options.DefaultTxOptions()
 			opts.SetFeeAmount(tc.fee)
-			opts.GasLimit = tc.gasLim
+			opts.Gas = tc.gasLim
 			if tc.account != "" {
 				opts.Account = tc.account
 			}
@@ -197,7 +197,7 @@ func TestDelegate(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			opts := options.DefaultTxOptions()
 			opts.SetFeeAmount(tc.fee)
-			opts.GasLimit = tc.gasLim
+			opts.Gas = tc.gasLim
 			if tc.account != "" {
 				opts.Account = tc.account
 			}
@@ -209,7 +209,7 @@ func TestDelegate(t *testing.T) {
 			// reset for empty case
 			opts = options.DefaultTxOptions()
 			opts.SetFeeAmount(tc.fee)
-			opts.GasLimit = tc.gasLim
+			opts.Gas = tc.gasLim
 			if tc.account != "" {
 				opts.Account = tc.account
 			}
