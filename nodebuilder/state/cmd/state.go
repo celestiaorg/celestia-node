@@ -17,7 +17,7 @@ var (
 
 	Fee int64
 
-	GasLimit uint64
+	Gas uint64
 
 	Account string
 
@@ -145,7 +145,7 @@ var transferCmd = &cobra.Command{
 
 		opts := options.DefaultTxOptions()
 		opts.SetFeeAmount(Fee)
-		opts.GasLimit = GasLimit
+		opts.Gas = Gas
 		opts.Account = Account
 		opts.Granter = Granter
 
@@ -187,7 +187,7 @@ var cancelUnbondingDelegationCmd = &cobra.Command{
 
 		opts := options.DefaultTxOptions()
 		opts.SetFeeAmount(Fee)
-		opts.GasLimit = GasLimit
+		opts.Gas = Gas
 		opts.Account = Account
 		opts.Granter = Granter
 
@@ -230,7 +230,7 @@ var beginRedelegateCmd = &cobra.Command{
 
 		opts := options.DefaultTxOptions()
 		opts.SetFeeAmount(Fee)
-		opts.GasLimit = GasLimit
+		opts.Gas = Gas
 		opts.Account = Account
 		opts.Granter = Granter
 
@@ -245,7 +245,6 @@ var beginRedelegateCmd = &cobra.Command{
 	},
 }
 
-//nolint:dupl
 var undelegateCmd = &cobra.Command{
 	Use:   "undelegate [valAddress] [amount]",
 	Short: "Undelegates a user's delegated tokens, unbonding them from the current validator.",
@@ -267,19 +266,9 @@ var undelegateCmd = &cobra.Command{
 			return fmt.Errorf("error parsing an amount: %w", err)
 		}
 
-		fee, err := strconv.ParseInt(args[2], 10, 64)
-		if err != nil {
-			return fmt.Errorf("error parsing a fee: %w", err)
-		}
-
-		gasLimit, err := strconv.ParseUint(args[3], 10, 64)
-		if err != nil {
-			return fmt.Errorf("error parsing a gas limit: %w", err)
-		}
-
 		opts := options.DefaultTxOptions()
-		opts.SetFeeAmount(fee)
-		opts.GasLimit = gasLimit
+		opts.SetFeeAmount(Fee)
+		opts.Gas = Gas
 		opts.Account = Account
 		opts.Granter = Granter
 
@@ -293,7 +282,6 @@ var undelegateCmd = &cobra.Command{
 	},
 }
 
-//nolint:dupl
 var delegateCmd = &cobra.Command{
 	Use:   "delegate [valAddress] [amount]",
 	Short: "Sends a user's liquid tokens to a validator for delegation.",
@@ -315,19 +303,9 @@ var delegateCmd = &cobra.Command{
 			return fmt.Errorf("error parsing an amount: %w", err)
 		}
 
-		fee, err := strconv.ParseInt(args[2], 10, 64)
-		if err != nil {
-			return fmt.Errorf("error parsing a fee: %w", err)
-		}
-
-		gasLimit, err := strconv.ParseUint(args[3], 10, 64)
-		if err != nil {
-			return fmt.Errorf("error parsing a gas limit: %w", err)
-		}
-
 		opts := options.DefaultTxOptions()
-		opts.SetFeeAmount(fee)
-		opts.GasLimit = gasLimit
+		opts.SetFeeAmount(Fee)
+		opts.Gas = Gas
 		opts.Account = Account
 		opts.Granter = Granter
 
@@ -432,7 +410,7 @@ var grantFeeCmd = &cobra.Command{
 
 		opts := options.DefaultTxOptions()
 		opts.SetFeeAmount(Fee)
-		opts.GasLimit = GasLimit
+		opts.Gas = Gas
 		opts.Account = Account
 		opts.Granter = Granter
 
@@ -463,7 +441,7 @@ var revokeGrantFeeCmd = &cobra.Command{
 
 		opts := options.DefaultTxOptions()
 		opts.SetFeeAmount(Fee)
-		opts.GasLimit = GasLimit
+		opts.Gas = Gas
 		opts.Account = Account
 		opts.Granter = Granter
 
@@ -495,8 +473,8 @@ func ApplyFlags(cmds ...*cobra.Command) {
 		)
 
 		cmd.PersistentFlags().Uint64Var(
-			&GasLimit,
-			"gas.limit",
+			&Gas,
+			"gas",
 			0,
 			"Specifies gas limit (in utia) for tx submission. "+
 				"(default 0)",

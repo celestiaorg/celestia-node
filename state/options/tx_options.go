@@ -31,8 +31,8 @@ var (
 // TxOptions specifies additional options that will be applied to the Tx.
 type TxOptions struct {
 	// fee is private since it has to be set through `SetFeeAmount`
-	fee      *Fee
-	GasLimit uint64
+	fee *Fee
+	Gas uint64
 
 	// Specifies the key from the keystore associated with an account that
 	// will be used to sign transactions.
@@ -50,18 +50,18 @@ func DefaultTxOptions() *TxOptions {
 }
 
 type jsonTxOptions struct {
-	Fee      *Fee   `json:"fee,omitempty"`
-	GasLimit uint64 `json:"gasLimit,omitempty"`
-	Account  string `json:"account,omitempty"`
-	Granter  string `json:"granter,omitempty"`
+	Fee     *Fee   `json:"fee,omitempty"`
+	Gas     uint64 `json:"gas,omitempty"`
+	Account string `json:"account,omitempty"`
+	Granter string `json:"granter,omitempty"`
 }
 
 func (options *TxOptions) MarshalJSON() ([]byte, error) {
 	jsonOpts := &jsonTxOptions{
-		Fee:      options.fee,
-		GasLimit: options.GasLimit,
-		Account:  options.Account,
-		Granter:  options.Granter,
+		Fee:     options.fee,
+		Gas:     options.Gas,
+		Account: options.Account,
+		Granter: options.Granter,
 	}
 	return json.Marshal(jsonOpts)
 }
@@ -74,7 +74,7 @@ func (options *TxOptions) UnmarshalJSON(data []byte) error {
 	}
 
 	options.fee = jsonOpts.Fee
-	options.GasLimit = jsonOpts.GasLimit
+	options.Gas = jsonOpts.Gas
 	options.Account = jsonOpts.Account
 	options.Granter = jsonOpts.Granter
 	return nil
@@ -88,16 +88,16 @@ func (options *TxOptions) SetFeeAmount(amount int64) {
 	}
 }
 
-// CalculateFee calculates fee amount based on the `minGasPrice` and `GasLimit`.
-// NOTE: GasLimit can't be 0.
+// CalculateFee calculates fee amount based on the `minGasPrice` and `Gas`.
+// NOTE: Gas can't be 0.
 func (options *TxOptions) CalculateFee(minGasPrice float64) error {
-	if options.GasLimit == 0 {
+	if options.Gas == 0 {
 		return errNoGasProvided
 	}
 	if minGasPrice < 0 {
 		return errors.New(" gas price can't be negative")
 	}
-	options.fee.Amount = int64(math.Ceil(minGasPrice * float64(options.GasLimit)))
+	options.fee.Amount = int64(math.Ceil(minGasPrice * float64(options.Gas)))
 	options.fee.isSet = true
 	return nil
 }
@@ -113,13 +113,13 @@ func (options *TxOptions) IsFeeSet() bool {
 // EstimateGas estimates gas in case it has not been set.
 // NOTE: final result of the estimation will be multiplied by the `gasMultiplier`(1.1) to cover additional costs.
 func (options *TxOptions) EstimateGas(ctx context.Context, client *user.TxClient, msg sdktypes.Msg) error {
-	if options.GasLimit == 0 {
+	if options.Gas == 0 {
 		// set fee as 1utia helps to simulate the tx more reliably.
-		gasLimit, err := client.EstimateGas(ctx, []sdktypes.Msg{msg}, user.SetFee(1))
+		gas, err := client.EstimateGas(ctx, []sdktypes.Msg{msg}, user.SetFee(1))
 		if err != nil {
 			return fmt.Errorf("estimating gas: %w", err)
 		}
-		options.GasLimit = uint64(float64(gasLimit) * gasMultiplier)
+		options.Gas = uint64(float64(gas) * gasMultiplier)
 	}
 	return nil
 }
@@ -128,9 +128,9 @@ func (options *TxOptions) EstimateGas(ctx context.Context, client *user.TxClient
 // NOTE: final result of the estimation will be multiplied by the `gasMultiplier`(1.1)
 // to cover additional options of the Tx.
 func (options *TxOptions) EstimateGasForBlobs(blobSizes []uint32) {
-	if options.GasLimit == 0 {
-		gasLimit := apptypes.DefaultEstimateGas(blobSizes)
-		options.GasLimit = uint64(float64(gasLimit) * gasMultiplier)
+	if options.Gas == 0 {
+		gas := apptypes.DefaultEstimateGas(blobSizes)
+		options.Gas = uint64(float64(gas) * gasMultiplier)
 	}
 }
 
