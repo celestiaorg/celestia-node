@@ -20,9 +20,9 @@ func TestCreateOdsFile(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	t.Cleanup(cancel)
 
-	path := t.TempDir() + "/testfile"
 	edsIn := edstest.RandEDS(t, 8)
 	datahash := share.DataHash(rand.Bytes(32))
+	path := t.TempDir() + "/" + datahash.String()
 	f, err := CreateOdsFile(path, datahash, edsIn)
 	require.NoError(t, err)
 
@@ -115,7 +115,7 @@ func BenchmarkShareFromOdsFile(b *testing.B) {
 }
 
 func createOdsFile(t testing.TB, eds *rsmt2d.ExtendedDataSquare) eds.Accessor {
-	path := t.TempDir() + "/testfile" + strconv.Itoa(rand.Intn(1000))
+	path := t.TempDir() + "/" + strconv.Itoa(rand.Intn(1000))
 	fl, err := CreateOdsFile(path, []byte{}, eds)
 	require.NoError(t, err)
 	return fl
