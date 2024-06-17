@@ -4,6 +4,7 @@ on:
   push:
     branches:
       - main
+      - ramin/coverage-integration
   release:
     types: [published]
   pull_request:
