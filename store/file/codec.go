@@ -6,6 +6,7 @@ import (
 	"github.com/klauspost/reedsolomon"
 )
 
+// TODO: codec will be removed after support for reconstructSome is added to rsmt2d.
 var codec Codec
 
 func init() {

@@ -22,7 +22,14 @@ type OdsFile struct {
 	fl   *os.File
 
 	lock sync.RWMutex
-	ods  square
+	// ods stores an in-memory cache of the original data square to enhance read performance. This cache is particularly
+	// beneficial for operations that require reading the entire square, such as:
+	// - Serving samples from the fourth quadrant of the square, which necessitates reconstructing data from all rows.
+	// - Streaming the entire ODS by Reader(), ensuring efficient data delivery without repeated file reads.
+	// - Serving full ods data by Shares().
+	// Storing the square in memory allows for efficient single-read operations, avoiding the need for piecemeal
+	// reads by rows or columns, and facilitates quick access to data for these operations.
+	ods square
 }
 
 // OpenOdsFile opens an existing file. File has to be closed after usage.
