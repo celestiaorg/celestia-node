@@ -1,9 +1,9 @@
-package file
+package eds
 
 import (
 	"context"
 	"errors"
-	"io"
+	"github.com/celestiaorg/celestia-node/share/shwap"
 	"testing"
 
 	"github.com/stretchr/testify/require"
@@ -11,8 +11,6 @@ import (
 	"github.com/celestiaorg/rsmt2d"
 
 	"github.com/celestiaorg/celestia-node/share/eds/edstest"
-	"github.com/celestiaorg/celestia-node/share/ipld"
-	eds "github.com/celestiaorg/celestia-node/share/new_eds"
 	"github.com/celestiaorg/celestia-node/share/sharetest"
 )
 
@@ -33,8 +31,8 @@ func TestValidation_Sample(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			randEDS := edstest.RandEDS(t, tt.odsSize)
-			accessor := &eds.Rsmt2D{ExtendedDataSquare: randEDS}
-			validation := WithValidation(withCloser(accessor, nil))
+			accessor := &Rsmt2D{ExtendedDataSquare: randEDS}
+			validation := WithValidation(WithCloser(accessor, nil))
 
 			_, err := validation.Sample(context.Background(), tt.rowIdx, tt.colIdx)
 			if tt.expectFail {
@@ -62,8 +60,8 @@ func TestValidation_AxisHalf(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			randEDS := edstest.RandEDS(t, tt.odsSize)
-			accessor := &eds.Rsmt2D{ExtendedDataSquare: randEDS}
-			validation := WithValidation(withCloser(accessor, nil))
+			accessor := &Rsmt2D{ExtendedDataSquare: randEDS}
+			validation := WithValidation(WithCloser(accessor, nil))
 
 			_, err := validation.AxisHalf(context.Background(), tt.axisType, tt.axisIdx)
 			if tt.expectFail {
@@ -90,25 +88,16 @@ func TestValidation_RowNamespaceData(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			randEDS := edstest.RandEDS(t, tt.odsSize)
-			accessor := &eds.Rsmt2D{ExtendedDataSquare: randEDS}
-			validation := WithValidation(withCloser(accessor, nil))
+			accessor := &Rsmt2D{ExtendedDataSquare: randEDS}
+			validation := WithValidation(WithCloser(accessor, nil))
 
 			ns := sharetest.RandV0Namespace()
 			_, err := validation.RowNamespaceData(context.Background(), ns, tt.rowIdx)
 			if tt.expectFail {
 				require.ErrorIs(t, err, ErrOutOfBounds)
 			} else {
-				require.True(t, err == nil || errors.Is(err, ipld.ErrNamespaceOutsideRange))
+				require.True(t, err == nil || errors.Is(err, shwap.ErrNamespaceOutsideRange), err)
 			}
 		})
 	}
-}
-
-func withCloser(accessor eds.Accessor, closer io.Closer) eds.AccessorCloser {
-	return &accessorCloser{Accessor: accessor, Closer: closer}
-}
-
-type accessorCloser struct {
-	eds.Accessor
-	io.Closer
 }
