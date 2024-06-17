@@ -1,4 +1,4 @@
-package file
+package eds
 
 import (
 	"context"
@@ -9,7 +9,6 @@ import (
 	"github.com/celestiaorg/rsmt2d"
 
 	"github.com/celestiaorg/celestia-node/share"
-	eds "github.com/celestiaorg/celestia-node/share/new_eds"
 	"github.com/celestiaorg/celestia-node/share/shwap"
 )
 
@@ -53,8 +52,8 @@ func (s *stubEdsAccessorCloser) Sample(context.Context, int, int) (shwap.Sample,
 	return shwap.Sample{}, nil
 }
 
-func (s *stubEdsAccessorCloser) AxisHalf(context.Context, rsmt2d.Axis, int) (eds.AxisHalf, error) {
-	return eds.AxisHalf{}, nil
+func (s *stubEdsAccessorCloser) AxisHalf(context.Context, rsmt2d.Axis, int) (AxisHalf, error) {
+	return AxisHalf{}, nil
 }
 
 func (s *stubEdsAccessorCloser) RowNamespaceData(

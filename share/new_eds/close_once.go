@@ -1,4 +1,4 @@
-package file
+package eds
 
 import (
 	"context"
@@ -8,20 +8,19 @@ import (
 	"github.com/celestiaorg/rsmt2d"
 
 	"github.com/celestiaorg/celestia-node/share"
-	eds "github.com/celestiaorg/celestia-node/share/new_eds"
 	"github.com/celestiaorg/celestia-node/share/shwap"
 )
 
-var _ eds.AccessorCloser = (*closeOnce)(nil)
+var _ AccessorCloser = (*closeOnce)(nil)
 
 var errAccessorClosed = errors.New("accessor is closed")
 
 type closeOnce struct {
-	f      eds.AccessorCloser
+	f      AccessorCloser
 	closed atomic.Bool
 }
 
-func WithClosedOnce(f eds.AccessorCloser) eds.AccessorCloser {
+func WithClosedOnce(f AccessorCloser) AccessorCloser {
 	return &closeOnce{f: f}
 }
 
@@ -53,9 +52,9 @@ func (c *closeOnce) AxisHalf(
 	ctx context.Context,
 	axisType rsmt2d.Axis,
 	axisIdx int,
-) (eds.AxisHalf, error) {
+) (AxisHalf, error) {
 	if c.closed.Load() {
-		return eds.AxisHalf{}, errAccessorClosed
+		return AxisHalf{}, errAccessorClosed
 	}
 	return c.f.AxisHalf(ctx, axisType, axisIdx)
 }
