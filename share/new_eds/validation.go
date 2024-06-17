@@ -20,10 +20,18 @@ var ErrOutOfBounds = errors.New("index is out of bounds")
 // another  Accessor and performs bounds checks on index arguments.
 type validation struct {
 	Accessor
+	size int
 }
 
 func WithValidation(f Accessor) Accessor {
 	return &validation{Accessor: f}
+}
+
+func (f validation) Size(ctx context.Context) int {
+	if f.size == 0 {
+		f.size = f.Accessor.Size(ctx)
+	}
+	return f.Accessor.Size(ctx)
 }
 
 func (f validation) Sample(ctx context.Context, rowIdx, colIdx int) (shwap.Sample, error) {
