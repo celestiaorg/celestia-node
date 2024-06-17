@@ -52,6 +52,10 @@ type Manager struct {
 	lock   sync.Mutex
 	params Parameters
 
+	// identifies the type of peers the manager
+	// is managing
+	tag string
+
 	// header subscription is necessary in order to Validate the inbound eds hash
 	headerSub libhead.Subscriber[*header.ExtendedHeader]
 	shrexSub  *shrexsub.PubSub
@@ -100,6 +104,7 @@ func NewManager(
 	params Parameters,
 	host host.Host,
 	connGater *conngater.BasicConnectionGater,
+	tag string,
 	options ...Option,
 ) (*Manager, error) {
 	if err := params.Validate(); err != nil {
@@ -114,6 +119,7 @@ func NewManager(
 		blacklistedHashes:     make(map[string]bool),
 		headerSubDone:         make(chan struct{}),
 		disconnectedPeersDone: make(chan struct{}),
+		tag:                   tag,
 	}
 
 	for _, opt := range options {
@@ -213,7 +219,7 @@ func (m *Manager) Peer(ctx context.Context, datahash share.DataHash, height uint
 	// obtained from discovery
 	peerID, ok = m.nodes.tryGet()
 	if ok {
-		return m.newPeer(ctx, datahash, peerID, sourceFullNodes, m.nodes.len(), 0)
+		return m.newPeer(ctx, datahash, peerID, sourceDiscoveredNodes, m.nodes.len(), 0)
 	}
 
 	// no peers are available right now, wait for the first one
@@ -225,7 +231,7 @@ func (m *Manager) Peer(ctx context.Context, datahash share.DataHash, height uint
 		}
 		return m.newPeer(ctx, datahash, peerID, sourceShrexSub, p.len(), time.Since(start))
 	case peerID = <-m.nodes.next(ctx):
-		return m.newPeer(ctx, datahash, peerID, sourceFullNodes, m.nodes.len(), time.Since(start))
+		return m.newPeer(ctx, datahash, peerID, sourceDiscoveredNodes, m.nodes.len(), time.Since(start))
 	case <-ctx.Done():
 		return "", nil, ctx.Err()
 	}
@@ -276,7 +282,7 @@ func (m *Manager) doneFunc(datahash share.DataHash, peerID peer.ID, source peerS
 		switch result {
 		case ResultNoop:
 		case ResultCooldownPeer:
-			if source == sourceFullNodes {
+			if source == sourceDiscoveredNodes {
 				m.nodes.putOnCooldown(peerID)
 				return
 			}

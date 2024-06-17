@@ -88,7 +88,7 @@ func TestFraudProofHandling(t *testing.T) {
 	cfg.Header.TrustedPeers = append(cfg.Header.TrustedPeers, addrs[0].String())
 	cfg.Share.UseShareExchange = false
 	store := nodebuilder.MockStore(t, cfg)
-	full := sw.NewNodeWithStore(node.Full, store)
+	full := sw.MustNewNodeWithStore(node.Full, store)
 
 	// 4.
 	err = full.Start(ctx)
@@ -147,7 +147,7 @@ func TestFraudProofHandling(t *testing.T) {
 	cfg = nodebuilder.DefaultConfig(node.Light)
 	cfg.Header.TrustedPeers = append(cfg.Header.TrustedPeers, addrs[0].String())
 	lnStore := nodebuilder.MockStore(t, cfg)
-	light := sw.NewNodeWithStore(node.Light, lnStore)
+	light := sw.MustNewNodeWithStore(node.Light, lnStore)
 	require.NoError(t, light.Start(ctx))
 	lightClient := getAdminClient(ctx, light, t)
 
@@ -165,7 +165,7 @@ func TestFraudProofHandling(t *testing.T) {
 	}
 
 	// 9.
-	fN := sw.NewNodeWithStore(node.Full, store)
+	fN := sw.MustNewNodeWithStore(node.Full, store)
 	err = fN.Start(ctx)
 	var fpExist *fraud.ErrFraudExists[*header.ExtendedHeader]
 	require.ErrorAs(t, err, &fpExist)

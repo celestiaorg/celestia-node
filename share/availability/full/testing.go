@@ -6,8 +6,6 @@ import (
 	"time"
 
 	"github.com/ipfs/go-datastore"
-	routinghelpers "github.com/libp2p/go-libp2p-routing-helpers"
-	"github.com/libp2p/go-libp2p/p2p/discovery/routing"
 	"github.com/stretchr/testify/require"
 
 	"github.com/celestiaorg/celestia-node/share"
@@ -44,13 +42,7 @@ func TestAvailability(t *testing.T, getter share.Getter) *ShareAvailability {
 	params := discovery.DefaultParameters()
 	params.AdvertiseInterval = time.Second
 	params.PeersLimit = 10
-	disc, err := discovery.NewDiscovery(
-		params,
-		nil,
-		routing.NewRoutingDiscovery(routinghelpers.Null{}),
-		"full",
-	)
-	require.NoError(t, err)
+
 	store, err := eds.NewStore(eds.DefaultParameters(), t.TempDir(), datastore.NewMapDatastore())
 	require.NoError(t, err)
 	err = store.Start(context.Background())
@@ -60,5 +52,5 @@ func TestAvailability(t *testing.T, getter share.Getter) *ShareAvailability {
 		err = store.Stop(context.Background())
 		require.NoError(t, err)
 	})
-	return NewShareAvailability(store, getter, disc)
+	return NewShareAvailability(store, getter)
 }

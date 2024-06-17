@@ -54,13 +54,15 @@ type NamespaceData struct {
 
 func NewNamespaceData(maxShares int, namespace share.Namespace, options ...Option) *NamespaceData {
 	data := &NamespaceData{
-		// we don't know where in the tree the leaves in the namespace are,
-		// so we keep track of the bounds to return the correct slice
-		// maxShares acts as a sentinel to know if we find any leaves
-		bounds:    fetchedBounds{int64(maxShares), 0},
 		maxShares: maxShares,
 		namespace: namespace,
 	}
+
+	// we don't know where in the tree the leaves in the namespace are,
+	// so we keep track of the bounds to return the correct slice
+	// maxShares acts as a sentinel to know if we find any leaves
+	data.bounds.lowest.Store(int64(maxShares))
+	data.bounds.highest.Store(0)
 
 	for _, opt := range options {
 		opt(data)
@@ -107,7 +109,7 @@ func (n *NamespaceData) addLeaf(pos int, nd ipld.Node) {
 
 // noLeaves checks that there are no leaves under the given root in the given namespace.
 func (n *NamespaceData) noLeaves() bool {
-	return n.bounds.lowest == int64(n.maxShares)
+	return n.bounds.lowest.Load() == int64(n.maxShares)
 }
 
 type direction int
@@ -138,7 +140,7 @@ func (n *NamespaceData) Leaves() []ipld.Node {
 	if n.leaves == nil || n.noLeaves() || n.isAbsentNamespace.Load() {
 		return nil
 	}
-	return n.leaves[n.bounds.lowest : n.bounds.highest+1]
+	return n.leaves[n.bounds.lowest.Load() : n.bounds.highest.Load()+1]
 }
 
 // Proof returns proofs within the bounds in case if `WithProofs` option was passed,
@@ -160,8 +162,8 @@ func (n *NamespaceData) Proof() *nmt.Proof {
 
 	if n.isAbsentNamespace.Load() {
 		proof := nmt.NewAbsenceProof(
-			int(n.bounds.lowest),
-			int(n.bounds.highest)+1,
+			int(n.bounds.lowest.Load()),
+			int(n.bounds.highest.Load())+1,
 			nodes,
 			NamespacedSha256FromCID(n.absenceProofLeaf.Cid()),
 			NMTIgnoreMaxNamespace,
@@ -169,8 +171,8 @@ func (n *NamespaceData) Proof() *nmt.Proof {
 		return &proof
 	}
 	proof := nmt.NewInclusionProof(
-		int(n.bounds.lowest),
-		int(n.bounds.highest)+1,
+		int(n.bounds.lowest.Load()),
+		int(n.bounds.highest.Load())+1,
 		nodes,
 		NMTIgnoreMaxNamespace,
 	)
@@ -311,24 +313,24 @@ func (n *NamespaceData) collectNDWithProofs(j job, links []*ipld.Link) []job {
 }
 
 type fetchedBounds struct {
-	lowest  int64
-	highest int64
+	lowest  atomic.Int64
+	highest atomic.Int64
 }
 
 // update checks if the passed index is outside the current bounds,
 // and updates the bounds atomically if it extends them.
 func (b *fetchedBounds) update(index int64) {
-	lowest := atomic.LoadInt64(&b.lowest)
+	lowest := b.lowest.Load()
 	// try to write index to the lower bound if appropriate, and retry until the atomic op is successful
 	// CAS ensures that we don't overwrite if the bound has been updated in another goroutine after the
 	// comparison here
-	for index < lowest && !atomic.CompareAndSwapInt64(&b.lowest, lowest, index) {
-		lowest = atomic.LoadInt64(&b.lowest)
+	for index < lowest && !b.lowest.CompareAndSwap(lowest, index) {
+		lowest = b.lowest.Load()
 	}
 	// we always run both checks because element can be both the lower and higher bound
 	// for example, if there is only one share in the namespace
-	highest := atomic.LoadInt64(&b.highest)
-	for index > highest && !atomic.CompareAndSwapInt64(&b.highest, highest, index) {
-		highest = atomic.LoadInt64(&b.highest)
+	highest := b.highest.Load()
+	for index > highest && !b.highest.CompareAndSwap(highest, index) {
+		highest = b.highest.Load()
 	}
 }
