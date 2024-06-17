@@ -3,7 +3,6 @@ package eds
 import (
 	"context"
 	"errors"
-	"github.com/celestiaorg/celestia-node/share/shwap"
 	"testing"
 
 	"github.com/stretchr/testify/require"
@@ -12,6 +11,7 @@ import (
 
 	"github.com/celestiaorg/celestia-node/share/eds/edstest"
 	"github.com/celestiaorg/celestia-node/share/sharetest"
+	"github.com/celestiaorg/celestia-node/share/shwap"
 )
 
 func TestValidation_Sample(t *testing.T) {
