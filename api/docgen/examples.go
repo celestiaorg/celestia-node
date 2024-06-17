@@ -45,55 +45,11 @@ var exampleTxResponse string
 //go:embed "exampledata/resourceManagerStats.json"
 var exampleResourceMngrStats string
 
-var exampleBlob = `{
-   "namespace":"AAAAAAAAAAAAAAAAAAAAAAAAAAAAAMJ/xGlNMdE=",
-   "data":"z8QyNztvogN7NYU27gI+nJgg1vMJtkK3vbduSDz7/8mhmos37I7duH51kkgouxrsdhdOBJ1431OmipNfVedbtwe6zQ06EbJBl/` +
-	`jk4QwwU3S29YBTUZcUfTzXpEJIuMrYzU6YPxN8Zce/KNdsEIy4zxdfxekXpvsgZMBhf83iYgfHvsFAoJmmCp/ORAUoAFf7tJ7cF8RZyA2` +
-	`0ftqRa1uhAmktxIb58abpGTG+TNgq3mjyvswECVykJYqGjqNtInyIx2EQOnVp2q69YHkegdoBvoOKzEFigQTdrL2TZBex4MhkrYt7Zf0D` +
-	`QyNMRkCPL/zKYE3bhvXNWMThWCmhD5TOApzirORXKOTB0nxhjDF/aFYkrS+IKBw1KfJ5isldWvmasJBWwRgDuli6Cty67vMMk7fUUTUf0` +
-	`St6rvQeftSoEVlC1xEw46+h5kIXaWiM0g/EzGIAdZHycUFWCSdnt3p7BS5ttEpSf1d6ZbVYYL2y0XguH41k54JqufEMAw9ukmaF0IbN9J` +
-	`k6fNefV1dsWTdCP6Mz6e+RTCd9DQGqb2VrsvMzx5uVidLD8ND79pvXgL1VzyhJaMTcjSfZK15jOxLwGh1arZc2gyTNiq2pu6wNz0tdJp+` +
-	`fFU+peG8rHN8=",
-   "share_version":0,
-   "commitment":"aHlbp+J9yub6hw/uhK6dP8hBLR2mFy78XNRRdLf2794=",
-   "index":-1
-}`
+//go:embed "exampledata/blob.json"
+var exampleBlob string
 
-var exampleBlobProof = `
-[{
-    "end":8,
-    "nodes":[
-	    "/////////////////////////////////////////////////////////////////////////////` +
-	`wuxStDHcZ7+b5byNQMVLJbzBT3wmObsThoQ0sCTjTCP"
-    ],
-    "is_max_namespace_ignored":true
-},
-{
-    "end":8,
-    "nodes":[
-	    "//////////////////////////////////////////////////////////////////////////////` +
-	`n1NeJxPU2bZUAccKZZ+LAu2Wj5ajbVYURV9ojhSKwp"
-    ],
-    "is_max_namespace_ignored":true
-},
-{
-    "end":8,
-    "nodes":[
-	    "/////////////////////////////////////////////////////////////////////////////` +
-	`0xK8BKnzDmwK0HR4ZJvyB4kh3jPPXGxaGPFoga8vPxF"
-    ],
-    "is_max_namespace_ignored":true
-},
-{
-    "end":7,
-    "nodes":[
-        "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAMJ/xGlNMdEAAAAAAAAAAAAAAAAAAAAAAAAAAAAAwn/EaU0x0` +
-	`UTO9HUGKjyjcv5U2gHeSjJ8S1rftqv6k8kxlVWW8e/7",
-        "/////////////////////////////////////////////////////////////////////////////` +
-	`wexh4khLQ9HQ2X6nh9wU5B+m6r+LWwPTEDTa5/CosDF"
-    ],
-    "is_max_namespace_ignored":true
-}]`
+//go:embed "exampledata/blobProof.json"
+var exampleBlobProof string
 
 var ExampleValues = map[reflect.Type]interface{}{
 	reflect.TypeOf(""):                       "string value",
