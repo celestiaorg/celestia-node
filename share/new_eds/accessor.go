@@ -32,3 +32,12 @@ type AccessorCloser interface {
 	Accessor
 	io.Closer
 }
+
+type accessorCloser struct {
+	Accessor
+	io.Closer
+}
+
+func WithCloser(a Accessor, c io.Closer) AccessorCloser {
+	return &accessorCloser{a, c}
+}
