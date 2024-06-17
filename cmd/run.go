@@ -19,7 +19,8 @@ func Run(options ...func(*cobra.Command)) *cobra.Command {
 		RunE: func(cmd *cobra.Command, _ []string) (err error) {
 			ctx := cmd.Context()
 
-			node, err := NewRunner(ctx)
+			config := NodeConfig(ctx)
+			node, err := NewRunner(&config)
 			if err != nil {
 				return err
 			}

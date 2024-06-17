@@ -18,13 +18,15 @@ Options passed on start override configuration options only on start and are not
 		SilenceUsage: true,
 		RunE: func(cmd *cobra.Command, _ []string) (err error) {
 			ctx := cmd.Context()
-			node, err := NewRunner(ctx)
+			config := NodeConfig(ctx)
+			node, err := NewRunner(&config)
 			if err != nil {
 				return err
 			}
 
 			ctx, cancel := signal.NotifyContext(cmd.Context(), syscall.SIGINT, syscall.SIGTERM)
 			defer cancel()
+
 			err = node.Start(ctx)
 			if err != nil {
 				return err

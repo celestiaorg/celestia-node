@@ -12,7 +12,8 @@ func Init(fsets ...*flag.FlagSet) *cobra.Command {
 		Short: "Initialization for Celestia Node. Passed flags have persisted effect.",
 		Args:  cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, _ []string) error {
-			node, err := NewRunner(cmd.Context())
+			config := NodeConfig(cmd.Context())
+			node, err := NewRunner(&config)
 			if err != nil {
 				return err
 			}

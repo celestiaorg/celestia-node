@@ -20,11 +20,9 @@ type Runner struct {
 	errChan chan error
 }
 
-func NewRunner(ctx context.Context) (*Runner, error) {
-	config := NodeConfig(ctx)
-
+func NewRunner(config *nodebuilder.Config) (*Runner, error) {
 	return &Runner{
-		config:  &config,
+		config:  config,
 		errChan: make(chan error, 1),
 	}, nil
 }
@@ -38,8 +36,11 @@ func (r *Runner) Finish() {
 }
 
 func (r *Runner) Init(ctx context.Context) error {
-	config := NodeConfig(ctx)
-	return nodebuilder.Init(config, StorePath(ctx), NodeType(ctx))
+	return nodebuilder.Init(
+		*r.config,
+		StorePath(ctx),
+		NodeType(ctx),
+	)
 }
 
 func (r *Runner) Start(ctx context.Context) error {
