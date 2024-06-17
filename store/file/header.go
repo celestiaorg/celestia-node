@@ -35,7 +35,7 @@ const (
 type fileType uint8
 
 const (
-	ods fileType = iota
+	ODS fileType = iota
 	q1q4
 )
 

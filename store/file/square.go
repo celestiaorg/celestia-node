@@ -19,11 +19,11 @@ type square [][]share.Share
 // positioned at the beginning of the Shares. It knows the size of the Shares and the size of the
 // square, so reads from reader are limited to exactly the amount of data required.
 func readSquare(r io.Reader, shareSize, edsSize int) (square, error) {
-	odsLn := edsSize / 2
+	ODSLn := edsSize / 2
 
-	square := make(square, odsLn)
+	square := make(square, ODSLn)
 	for i := range square {
-		square[i] = make([]share.Share, odsLn)
+		square[i] = make([]share.Share, ODSLn)
 		for j := range square[i] {
 			square[i][j] = make(share.Share, shareSize)
 		}
@@ -32,8 +32,8 @@ func readSquare(r io.Reader, shareSize, edsSize int) (square, error) {
 	// TODO(@walldiss): run benchmark to find optimal size for this buffer
 	br := bufio.NewReaderSize(r, 4096)
 	var total int
-	for i := 0; i < odsLn; i++ {
-		for j := 0; j < odsLn; j++ {
+	for i := 0; i < ODSLn; i++ {
+		for j := 0; j < ODSLn; j++ {
 			n, err := io.ReadFull(br, square[i][j])
 			if err != nil {
 				return nil, fmt.Errorf("reading share: %w, bytes read: %v", err, total+n)
@@ -81,6 +81,7 @@ func (s square) shares() ([]share.Share, error) {
 	return shares, nil
 }
 
+// TODO(@walldiss): make comments with diagram of computed axis. Add more comment on actual algo
 func (s square) computeAxisHalf(
 	ctx context.Context,
 	axisType rsmt2d.Axis,
@@ -100,7 +101,7 @@ func (s square) computeAxisHalf(
 
 			enc, err := codec.Encoder(s.size() * 2)
 			if err != nil {
-				return fmt.Errorf("encoder: %w", err)
+				return fmt.Errorf("getting encoder: %w", err)
 			}
 
 			shards := make([][]byte, s.size()*2)
