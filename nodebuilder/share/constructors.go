@@ -6,9 +6,6 @@ import (
 
 	"github.com/filecoin-project/dagstore"
 	"github.com/ipfs/boxo/blockservice"
-	"github.com/libp2p/go-libp2p/core/host"
-	"github.com/libp2p/go-libp2p/core/routing"
-	routingdisc "github.com/libp2p/go-libp2p/p2p/discovery/routing"
 
 	"github.com/celestiaorg/celestia-app/pkg/da"
 
@@ -16,31 +13,7 @@ import (
 	"github.com/celestiaorg/celestia-node/share/eds"
 	"github.com/celestiaorg/celestia-node/share/getters"
 	"github.com/celestiaorg/celestia-node/share/ipld"
-	disc "github.com/celestiaorg/celestia-node/share/p2p/discovery"
-	"github.com/celestiaorg/celestia-node/share/p2p/peers"
 )
-
-const (
-	// fullNodesTag is the tag used to identify full nodes in the discovery service.
-	fullNodesTag = "full"
-)
-
-func newDiscovery(cfg *disc.Parameters,
-) func(routing.ContentRouting, host.Host, *peers.Manager) (*disc.Discovery, error) {
-	return func(
-		r routing.ContentRouting,
-		h host.Host,
-		manager *peers.Manager,
-	) (*disc.Discovery, error) {
-		return disc.NewDiscovery(
-			cfg,
-			h,
-			routingdisc.NewRoutingDiscovery(r),
-			fullNodesTag,
-			disc.WithOnPeersUpdate(manager.UpdateNodePool),
-		)
-	}
-}
 
 func newShareModule(getter share.Getter, avail share.Availability) Module {
 	return &module{getter, avail}

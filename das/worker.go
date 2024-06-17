@@ -13,6 +13,8 @@ import (
 	"github.com/celestiaorg/celestia-node/share/p2p/shrexsub"
 )
 
+type jobType string
+
 const (
 	catchupJob jobType = "catchup"
 	recentJob  jobType = "recent"
@@ -36,8 +38,6 @@ type workerState struct {
 
 	curr uint64
 }
-
-type jobType string
 
 // job represents headers interval to be processed by worker
 type job struct {
@@ -75,11 +75,17 @@ func (w *worker) run(ctx context.Context, timeout time.Duration, resultCh chan<-
 	jobStart := time.Now()
 	log.Debugw("start sampling worker", "from", w.state.from, "to", w.state.to)
 
+	skipped := 0
+
 	for curr := w.state.from; curr <= w.state.to; curr++ {
 		err := w.sample(ctx, timeout, curr)
 		if errors.Is(err, context.Canceled) {
 			// sampling worker will resume upon restart
 			return
+		}
+		if errors.Is(err, errOutsideSamplingWindow) {
+			skipped++
+			err = nil
 		}
 		w.setResult(curr, err)
 	}
@@ -91,6 +97,7 @@ func (w *worker) run(ctx context.Context, timeout time.Duration, resultCh chan<-
 			"from", w.state.from,
 			"to", w.state.curr,
 			"errors", len(w.state.failed),
+			"# of headers skipped as outside of sampling window", skipped,
 			"finished (s)", time.Since(jobStart),
 		)
 	}
@@ -112,6 +119,12 @@ func (w *worker) sample(ctx context.Context, timeout time.Duration, height uint6
 	defer cancel()
 
 	err = w.sampleFn(ctx, h)
+	if errors.Is(err, errOutsideSamplingWindow) {
+		// if header is outside sampling window, do not log
+		// or record it.
+		return err
+	}
+
 	w.metrics.observeSample(ctx, h, time.Since(start), w.state.jobType, err)
 	if err != nil {
 		if !errors.Is(err, context.Canceled) {

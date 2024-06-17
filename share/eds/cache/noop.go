@@ -28,8 +28,8 @@ func (n NoopCache) Remove(shard.Key) error {
 	return nil
 }
 
-func (n NoopCache) EnableMetrics() error {
-	return nil
+func (n NoopCache) EnableMetrics() (CloseMetricsFn, error) {
+	return func() error { return nil }, nil
 }
 
 var _ Accessor = (*NoopAccessor)(nil)
@@ -38,7 +38,7 @@ var _ Accessor = (*NoopAccessor)(nil)
 type NoopAccessor struct{}
 
 func (n NoopAccessor) Blockstore() (dagstore.ReadBlockstore, error) {
-	return nil, nil
+	return nil, nil //nolint:nilnil
 }
 
 func (n NoopAccessor) Reader() io.Reader {

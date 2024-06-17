@@ -16,6 +16,7 @@ import (
 	"github.com/celestiaorg/celestia-node/nodebuilder/header"
 	"github.com/celestiaorg/celestia-node/nodebuilder/node"
 	"github.com/celestiaorg/celestia-node/nodebuilder/p2p"
+	"github.com/celestiaorg/celestia-node/nodebuilder/pruner"
 	rpc_cfg "github.com/celestiaorg/celestia-node/nodebuilder/rpc"
 	"github.com/celestiaorg/celestia-node/nodebuilder/state"
 	"github.com/celestiaorg/celestia-node/share"
@@ -105,21 +106,30 @@ func PersistentPreRunEnv(cmd *cobra.Command, nodeType node.Type, _ []string) err
 		return err
 	}
 
-	if nodeType != node.Bridge {
-		err = header.ParseFlags(cmd, &cfg.Header)
-		if err != nil {
-			return err
-		}
+	ctx, err = ParseMiscFlags(ctx, cmd)
+	if err != nil {
+		return err
 	}
 
-	ctx, err = ParseMiscFlags(ctx, cmd)
+	err = state.ParseFlags(cmd, &cfg.State)
 	if err != nil {
 		return err
 	}
 
 	rpc_cfg.ParseFlags(cmd, &cfg.RPC)
 	gateway.ParseFlags(cmd, &cfg.Gateway)
-	state.ParseFlags(cmd, &cfg.State)
+
+	pruner.ParseFlags(cmd, &cfg.Pruner)
+	switch nodeType {
+	case node.Light, node.Full:
+		err = header.ParseFlags(cmd, &cfg.Header)
+		if err != nil {
+			return err
+		}
+	case node.Bridge:
+	default:
+		panic(fmt.Sprintf("invalid node type: %v", nodeType))
+	}
 
 	// set config
 	ctx = WithNodeConfig(ctx, &cfg)

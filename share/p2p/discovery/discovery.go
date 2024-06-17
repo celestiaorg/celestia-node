@@ -42,14 +42,18 @@ var discoveryRetryTimeout = retryTimeout
 // Discovery combines advertise and discover services and allows to store discovered nodes.
 // TODO: The code here gets horribly hairy, so we should refactor this at some point
 type Discovery struct {
-	// Tag is used as rondezvous point for discovery service
+	// Tag is used as rendezvous point for discovery service
 	tag       string
 	set       *limitedSet
 	host      host.Host
 	disc      discovery.Discovery
 	connector *backoffConnector
+
 	// onUpdatedPeers will be called on peer set changes
 	onUpdatedPeers OnUpdatedPeers
+	// indicates whether the discovery instance should also advertise
+	// to the topic
+	advertise bool
 
 	triggerDisc chan struct{}
 
@@ -92,6 +96,7 @@ func NewDiscovery(
 		disc:           d,
 		connector:      newBackoffConnector(h, defaultBackoffFactory),
 		onUpdatedPeers: o.onUpdatedPeers,
+		advertise:      o.advertise,
 		params:         params,
 		triggerDisc:    make(chan struct{}),
 	}, nil
@@ -109,11 +114,23 @@ func (d *Discovery) Start(context.Context) error {
 	go d.discoveryLoop(ctx)
 	go d.disconnectsLoop(ctx, sub)
 	go d.connector.GC(ctx)
+
+	if d.advertise {
+		log.Infow("advertising to topic", "topic", d.tag)
+		go d.Advertise(ctx)
+	}
+
+	log.Infow("started discovery", "topic", d.tag)
 	return nil
 }
 
 func (d *Discovery) Stop(context.Context) error {
 	d.cancel()
+
+	if err := d.metrics.close(); err != nil {
+		log.Warnw("failed to close metrics", "err", err)
+	}
+
 	return nil
 }
 
@@ -153,6 +170,7 @@ func (d *Discovery) Advertise(ctx context.Context) {
 	timer := time.NewTimer(d.params.AdvertiseInterval)
 	defer timer.Stop()
 	for {
+		log.Infof("advertising to topic %s", d.tag)
 		_, err := d.disc.Advertise(ctx, d.tag)
 		d.metrics.observeAdvertise(ctx, err)
 		if err != nil {
@@ -177,7 +195,7 @@ func (d *Discovery) Advertise(ctx context.Context) {
 			}
 		}
 
-		log.Debugf("advertised")
+		log.Infof("successfully advertised to topic %s", d.tag)
 		if !timer.Stop() {
 			<-timer.C
 		}
@@ -252,13 +270,13 @@ func (d *Discovery) discover(ctx context.Context) bool {
 	size := d.set.Size()
 	want := d.set.Limit() - size
 	if want == 0 {
-		log.Debugw("reached soft peer limit, skipping discovery", "size", size)
+		log.Debugw("reached soft peer limit, skipping discovery", "topic", d.tag, "size", size)
 		return true
 	}
 	// TODO @renaynay: eventually, have a mechanism to catch if wanted amount of peers
 	//  has not been discovered in X amount of time so that users are warned of degraded
 	//  FN connectivity.
-	log.Debugw("discovering peers", "want", want)
+	log.Debugw("discovering peers", "topic", d.tag, "want", want)
 
 	// we use errgroup as it provide limits
 	var wg errgroup.Group
@@ -274,7 +292,7 @@ func (d *Discovery) discover(ctx context.Context) bool {
 
 	peers, err := d.disc.FindPeers(findCtx, d.tag)
 	if err != nil {
-		log.Error("unable to start discovery", "err", err)
+		log.Error("unable to start discovery", "topic", d.tag, "err", err)
 		return false
 	}
 
@@ -289,7 +307,7 @@ func (d *Discovery) discover(ctx context.Context) bool {
 			wg.Go(func() error {
 				if findCtx.Err() != nil {
 					log.Debug("find has been canceled, skip peer")
-					return nil
+					return nil //nolint:nilerr
 				}
 
 				// we don't pass findCtx so that we don't cancel in progress connections
@@ -299,12 +317,12 @@ func (d *Discovery) discover(ctx context.Context) bool {
 				}
 
 				size := d.set.Size()
-				log.Debugw("found peer", "peer", peer.ID.String(), "found_amount", size)
+				log.Debugw("found peer", "topic", d.tag, "peer", peer.ID.String(), "found_amount", size)
 				if size < d.set.Limit() {
 					return nil
 				}
 
-				log.Infow("discovered wanted peers", "amount", size)
+				log.Infow("discovered wanted peers", "topic", d.tag, "amount", size)
 				findCancel() // stop discovery when we are done
 				return nil
 			})
@@ -315,7 +333,7 @@ func (d *Discovery) discover(ctx context.Context) bool {
 
 		isEnoughPeers := d.set.Size() >= d.set.Limit()
 		d.metrics.observeFindPeers(ctx, isEnoughPeers)
-		log.Debugw("discovery finished", "discovered_wanted", isEnoughPeers)
+		log.Debugw("discovery finished", "topic", d.tag, "discovered_wanted", isEnoughPeers)
 		return isEnoughPeers
 	}
 }

@@ -2,7 +2,6 @@ package share
 
 import (
 	"context"
-	"crypto/sha256"
 	"errors"
 	"fmt"
 
@@ -44,7 +43,7 @@ type NamespacedShares []NamespacedRow
 
 // Flatten returns the concatenated slice of all NamespacedRow shares.
 func (ns NamespacedShares) Flatten() []Share {
-	shares := make([]Share, 0)
+	var shares []Share
 	for _, row := range ns {
 		shares = append(shares, row.Shares...)
 	}
@@ -90,7 +89,7 @@ func (row *NamespacedRow) verify(rowRoot []byte, namespace Namespace) bool {
 
 	// verify namespace
 	return row.Proof.VerifyNamespace(
-		sha256.New(),
+		NewSHA256Hasher(),
 		namespace.ToNMT(),
 		leaves,
 		rowRoot,

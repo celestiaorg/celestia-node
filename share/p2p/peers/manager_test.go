@@ -83,7 +83,7 @@ func TestManager(t *testing.T) {
 		manager, err := testManager(ctx, headerSub)
 		require.NoError(t, err)
 
-		// own messages should be be accepted
+		// own messages should be accepted
 		msg := newShrexSubMsg(h)
 		result := manager.Validate(ctx, manager.host.ID(), msg)
 		require.Equal(t, pubsub.ValidationAccept, result)
@@ -414,6 +414,7 @@ func TestIntegration(t *testing.T) {
 			DefaultParameters(),
 			nil,
 			connGater,
+			"test",
 		)
 		require.NoError(t, err)
 
@@ -454,7 +455,6 @@ func TestIntegration(t *testing.T) {
 		case <-ctx.Done():
 			require.NoError(t, ctx.Err())
 		}
-
 	})
 }
 
@@ -476,9 +476,9 @@ func testManager(ctx context.Context, headerSub libhead.Subscriber[*header.Exten
 		DefaultParameters(),
 		host,
 		connGater,
+		"test",
 		WithShrexSubPools(shrexSub, headerSub),
 	)
-
 	if err != nil {
 		return nil, err
 	}

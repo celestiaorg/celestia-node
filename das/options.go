@@ -4,6 +4,8 @@ import (
 	"errors"
 	"fmt"
 	"time"
+
+	"github.com/celestiaorg/celestia-node/pruner"
 )
 
 // ErrInvalidOption is an error that is returned by Parameters.Validate
@@ -13,7 +15,7 @@ var ErrInvalidOption = errors.New("das: invalid option")
 
 // errInvalidOptionValue is a utility function to dedup code for error-returning
 // when dealing with invalid parameter values
-func errInvalidOptionValue(optionName string, value string) error {
+func errInvalidOptionValue(optionName, value string) error {
 	return fmt.Errorf("%w: value %s cannot be %s", ErrInvalidOption, optionName, value)
 }
 
@@ -42,10 +44,10 @@ type Parameters struct {
 	// ConcurrencyLimit.
 	SampleTimeout time.Duration
 
-	// SamplingWindow determines the time window that headers should fall into
+	// samplingWindow determines the time window that headers should fall into
 	// in order to be sampled. If set to 0, the sampling window will include
 	// all headers.
-	SamplingWindow time.Duration
+	samplingWindow pruner.AvailabilityWindow
 }
 
 // DefaultParameters returns the default configuration values for the daser parameters
@@ -163,9 +165,9 @@ func WithSampleTimeout(sampleTimeout time.Duration) Option {
 }
 
 // WithSamplingWindow is a functional option to configure the DASer's
-// `SamplingWindow` parameter.
-func WithSamplingWindow(samplingWindow time.Duration) Option {
+// `samplingWindow` parameter.
+func WithSamplingWindow(samplingWindow pruner.AvailabilityWindow) Option {
 	return func(d *DASer) {
-		d.params.SamplingWindow = samplingWindow
+		d.params.samplingWindow = samplingWindow
 	}
 }

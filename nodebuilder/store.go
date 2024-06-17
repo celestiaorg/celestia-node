@@ -3,19 +3,23 @@ package nodebuilder
 import (
 	"errors"
 	"fmt"
+	"os"
 	"path/filepath"
 	"runtime"
+	"strings"
 	"sync"
 	"time"
 
 	"github.com/cosmos/cosmos-sdk/crypto/keyring"
 	"github.com/dgraph-io/badger/v4/options"
+	"github.com/gofrs/flock"
 	"github.com/ipfs/go-datastore"
 	dsbadger "github.com/ipfs/go-ds-badger4"
 	"github.com/mitchellh/go-homedir"
 
-	"github.com/celestiaorg/celestia-node/libs/fslock"
 	"github.com/celestiaorg/celestia-node/libs/keystore"
+	nodemod "github.com/celestiaorg/celestia-node/nodebuilder/node"
+	"github.com/celestiaorg/celestia-node/nodebuilder/p2p"
 	"github.com/celestiaorg/celestia-node/share"
 )
 
@@ -24,6 +28,8 @@ var (
 	ErrOpened = errors.New("node: store is in use")
 	// ErrNotInited is thrown on attempt to open Store without initialization.
 	ErrNotInited = errors.New("node: store is not initialized")
+	// ErrNoOpenStore is thrown when no opened Store is found, indicating that no node is running.
+	ErrNoOpenStore = errors.New("no opened Node Store found (no node is running)")
 )
 
 // Store encapsulates storage for the Node. Basically, it is the Store of all Stores.
@@ -58,28 +64,29 @@ func OpenStore(path string, ring keyring.Keyring) (Store, error) {
 		return nil, err
 	}
 
-	flock, err := fslock.Lock(lockPath(path))
+	flk := flock.New(lockPath(path))
+	ok, err := flk.TryLock()
 	if err != nil {
-		if err == fslock.ErrLocked {
-			return nil, ErrOpened
-		}
-		return nil, err
+		return nil, fmt.Errorf("locking file: %w", err)
+	}
+	if !ok {
+		return nil, ErrOpened
 	}
 
-	ok := IsInit(path)
-	if !ok {
-		flock.Unlock() //nolint:errcheck
-		return nil, ErrNotInited
+	if !IsInit(path) {
+		err := errors.Join(ErrNotInited, flk.Unlock())
+		return nil, err
 	}
 
 	ks, err := keystore.NewFSKeystore(keysPath(path), ring)
 	if err != nil {
+		err = errors.Join(err, flk.Unlock())
 		return nil, err
 	}
 
 	return &fsStore{
 		path:    path,
-		dirLock: flock,
+		dirLock: flk,
 		keys:    ks,
 	}, nil
 }
@@ -131,7 +138,7 @@ func (f *fsStore) Datastore() (datastore.Batching, error) {
 }
 
 func (f *fsStore) Close() (err error) {
-	err = errors.Join(err, f.dirLock.Unlock())
+	err = errors.Join(err, f.dirLock.Close())
 	f.dataMu.Lock()
 	if f.data != nil {
 		err = errors.Join(err, f.data.Close())
@@ -146,7 +153,74 @@ type fsStore struct {
 	dataMu  sync.Mutex
 	data    datastore.Batching
 	keys    keystore.Keystore
-	dirLock *fslock.Locker // protects directory
+	dirLock *flock.Flock // protects directory
+}
+
+// DiscoverOpened finds a path of an opened Node Store and returns its path.
+// If multiple nodes are running, it only returns the path of the first found node.
+// Network is favored over node type.
+//
+// Network preference order: Mainnet, Mocha, Arabica, Private, Custom
+// Type preference order: Bridge, Full, Light
+func DiscoverOpened() (string, error) {
+	defaultNetwork := p2p.GetNetworks()
+	nodeTypes := nodemod.GetTypes()
+
+	for _, n := range defaultNetwork {
+		for _, tp := range nodeTypes {
+			path, err := DefaultNodeStorePath(tp.String(), n.String())
+			if err != nil {
+				return "", err
+			}
+
+			ok, _ := IsOpened(path)
+			if ok {
+				return path, nil
+			}
+		}
+	}
+
+	return "", ErrNoOpenStore
+}
+
+// DefaultNodeStorePath constructs the default node store path using the given
+// node type and network.
+var DefaultNodeStorePath = func(tp, network string) (string, error) {
+	home := os.Getenv("CELESTIA_HOME")
+
+	if home == "" {
+		var err error
+		home, err = os.UserHomeDir()
+		if err != nil {
+			return "", err
+		}
+	}
+	if network == p2p.Mainnet.String() {
+		return fmt.Sprintf("%s/.celestia-%s", home, strings.ToLower(tp)), nil
+	}
+	// only include network name in path for testnets and custom networks
+	return fmt.Sprintf(
+		"%s/.celestia-%s-%s",
+		home,
+		strings.ToLower(tp),
+		strings.ToLower(network),
+	), nil
+}
+
+// IsOpened checks if the Store is opened in a directory by checking its file lock.
+func IsOpened(path string) (bool, error) {
+	flk := flock.New(lockPath(path))
+	ok, err := flk.TryLock()
+	if err != nil {
+		return false, fmt.Errorf("locking file: %w", err)
+	}
+
+	err = flk.Unlock()
+	if err != nil {
+		return false, fmt.Errorf("unlocking file: %w", err)
+	}
+
+	return !ok, nil
 }
 
 func storePath(path string) (string, error) {
@@ -158,7 +232,7 @@ func configPath(base string) string {
 }
 
 func lockPath(base string) string {
-	return filepath.Join(base, "lock")
+	return filepath.Join(base, ".lock")
 }
 
 func keysPath(base string) string {

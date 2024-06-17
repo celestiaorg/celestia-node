@@ -68,7 +68,7 @@ func (c *Client) RequestEDS(
 			return nil, context.DeadlineExceeded
 		}
 	}
-	if err != p2p.ErrNotFound {
+	if !errors.Is(err, p2p.ErrNotFound) {
 		log.Warnw("client: eds request to peer failed",
 			"peer", peer.String(),
 			"hash", dataHash.String(),

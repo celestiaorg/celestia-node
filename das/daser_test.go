@@ -24,6 +24,7 @@ import (
 	"github.com/celestiaorg/celestia-node/header"
 	"github.com/celestiaorg/celestia-node/header/headertest"
 	headerfraud "github.com/celestiaorg/celestia-node/header/headertest/fraud"
+	"github.com/celestiaorg/celestia-node/pruner"
 	"github.com/celestiaorg/celestia-node/share"
 	"github.com/celestiaorg/celestia-node/share/availability/full"
 	"github.com/celestiaorg/celestia-node/share/availability/light"
@@ -164,6 +165,9 @@ func TestDASer_stopsAfter_BEFP(t *testing.T) {
 	getter := func(ctx context.Context, height uint64) (*header.ExtendedHeader, error) {
 		return mockGet.GetByHeight(ctx, height)
 	}
+	headGetter := func(ctx context.Context) (*header.ExtendedHeader, error) {
+		return mockGet.Head(ctx)
+	}
 	unmarshaler := fraud.MultiUnmarshaler[*header.ExtendedHeader]{
 		Unmarshalers: map[fraud.ProofType]func([]byte) (fraud.Proof[*header.ExtendedHeader], error){
 			byzantine.BadEncoding: func(data []byte) (fraud.Proof[*header.ExtendedHeader], error) {
@@ -176,6 +180,7 @@ func TestDASer_stopsAfter_BEFP(t *testing.T) {
 	fserv := fraudserv.NewProofService[*header.ExtendedHeader](ps,
 		net.Hosts()[0],
 		getter,
+		headGetter,
 		unmarshaler,
 		ds,
 		false,
@@ -256,10 +261,10 @@ func TestDASer_SamplingWindow(t *testing.T) {
 
 	// create and start DASer
 	daser, err := NewDASer(avail, sub, getter, ds, fserv, newBroadcastMock(1),
-		WithSamplingWindow(time.Second))
+		WithSamplingWindow(pruner.AvailabilityWindow(time.Second)))
 	require.NoError(t, err)
 
-	var tests = []struct {
+	tests := []struct {
 		timestamp    time.Time
 		withinWindow bool
 	}{
@@ -275,10 +280,13 @@ func TestDASer_SamplingWindow(t *testing.T) {
 			eh := headertest.RandExtendedHeader(t)
 			eh.RawHeader.Time = tt.timestamp
 
-			assert.Equal(t, tt.withinWindow, daser.isWithinSamplingWindow(eh))
+			assert.Equal(
+				t,
+				tt.withinWindow,
+				pruner.IsWithinAvailabilityWindow(eh.Time(), daser.params.samplingWindow),
+			)
 		})
 	}
-
 }
 
 // createDASerSubcomponents takes numGetter (number of headers
@@ -399,7 +407,8 @@ type benchGetterStub struct {
 
 func newBenchGetter() benchGetterStub {
 	return benchGetterStub{header: &header.ExtendedHeader{
-		DAH: &share.Root{RowRoots: make([][]byte, 0)}}}
+		DAH: &share.Root{RowRoots: make([][]byte, 0)},
+	}}
 }
 
 func (m benchGetterStub) GetByHeight(context.Context, uint64) (*header.ExtendedHeader, error) {
@@ -419,7 +428,8 @@ func (m getterStub) GetByHeight(_ context.Context, height uint64) (*header.Exten
 	return &header.ExtendedHeader{
 		Commit:    &types.Commit{},
 		RawHeader: header.RawHeader{Height: int64(height)},
-		DAH:       &share.Root{RowRoots: make([][]byte, 0)}}, nil
+		DAH:       &share.Root{RowRoots: make([][]byte, 0)},
+	}, nil
 }
 
 func (m getterStub) GetRangeByHeight(
@@ -427,9 +437,9 @@ func (m getterStub) GetRangeByHeight(
 	*header.ExtendedHeader,
 	uint64,
 ) ([]*header.ExtendedHeader, error) {
-	return nil, nil
+	panic("implement me")
 }
 
 func (m getterStub) Get(context.Context, libhead.Hash) (*header.ExtendedHeader, error) {
-	return nil, nil
+	panic("implement me")
 }

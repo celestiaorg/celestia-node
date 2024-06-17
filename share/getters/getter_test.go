@@ -96,7 +96,7 @@ func TestStoreGetter(t *testing.T) {
 		randNamespace := sharetest.RandV0Namespace()
 		emptyShares, err := sg.GetSharesByNamespace(ctx, eh, randNamespace)
 		require.NoError(t, err)
-		require.Empty(t, emptyShares.Flatten())
+		require.Nil(t, emptyShares.Flatten())
 
 		// root not found
 		emptyRoot := da.MinDataAvailabilityHeader()
@@ -117,7 +117,7 @@ func TestStoreGetter(t *testing.T) {
 		assert.Len(t, shares.Flatten(), 2)
 
 		// 'corrupt' existing CAR by overwriting with a random EDS
-		f, err := os.OpenFile(tmpDir+"/blocks/"+eh.DAH.String(), os.O_WRONLY, 0644)
+		f, err := os.OpenFile(tmpDir+"/blocks/"+eh.DAH.String(), os.O_WRONLY, 0o644)
 		require.NoError(t, err)
 		edsToOverwriteWith, eh := randomEDS(t)
 		err = eds.WriteEDS(ctx, edsToOverwriteWith, f)
@@ -229,7 +229,7 @@ func TestIPLDGetter(t *testing.T) {
 		randNamespace := sharetest.RandV0Namespace()
 		emptyShares, err := sg.GetSharesByNamespace(ctx, eh, randNamespace)
 		require.NoError(t, err)
-		require.Empty(t, emptyShares.Flatten())
+		require.Nil(t, emptyShares.Flatten())
 
 		// nid doesn't exist in root
 		emptyRoot := da.MinDataAvailabilityHeader()
@@ -321,6 +321,8 @@ func randomEDS(t *testing.T) (*rsmt2d.ExtendedDataSquare, *header.ExtendedHeader
 
 // randomEDSWithDoubledNamespace generates a random EDS and ensures that there are two shares in the
 // middle that share a namespace.
+//
+//nolint:dupword
 func randomEDSWithDoubledNamespace(
 	t *testing.T,
 	size int,

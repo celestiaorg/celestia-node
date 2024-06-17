@@ -22,7 +22,6 @@ import (
 	"golang.org/x/exp/maps"
 
 	"github.com/celestiaorg/celestia-app/test/util/testnode"
-	apptypes "github.com/celestiaorg/celestia-app/x/blob/types"
 	libhead "github.com/celestiaorg/go-header"
 
 	"github.com/celestiaorg/celestia-node/core"
@@ -127,7 +126,6 @@ func (s *Swamp) WaitTillHeight(ctx context.Context, height int64) libhead.Hash {
 	for {
 		select {
 		case <-ctx.Done():
-			require.NoError(s.t, ctx.Err())
 		case <-t.C:
 			latest, err := s.ClientContext.LatestHeight()
 			require.NoError(s.t, err)
@@ -202,16 +200,16 @@ func (s *Swamp) DefaultTestConfig(tp node.Type) *nodebuilder.Config {
 }
 
 // NewBridgeNode creates a new instance of a BridgeNode providing a default config
-// and a mockstore to the NewNodeWithStore method
+// and a mockstore to the MustNewNodeWithStore method
 func (s *Swamp) NewBridgeNode(options ...fx.Option) *nodebuilder.Node {
 	cfg := s.DefaultTestConfig(node.Bridge)
 	store := nodebuilder.MockStore(s.t, cfg)
 
-	return s.NewNodeWithStore(node.Bridge, store, options...)
+	return s.MustNewNodeWithStore(node.Bridge, store, options...)
 }
 
 // NewFullNode creates a new instance of a FullNode providing a default config
-// and a mockstore to the NewNodeWithStore method
+// and a mockstore to the MustNewNodeWithStore method
 func (s *Swamp) NewFullNode(options ...fx.Option) *nodebuilder.Node {
 	cfg := s.DefaultTestConfig(node.Full)
 	cfg.Header.TrustedPeers = []string{
@@ -223,11 +221,11 @@ func (s *Swamp) NewFullNode(options ...fx.Option) *nodebuilder.Node {
 	}
 	store := nodebuilder.MockStore(s.t, cfg)
 
-	return s.NewNodeWithStore(node.Full, store, options...)
+	return s.MustNewNodeWithStore(node.Full, store, options...)
 }
 
 // NewLightNode creates a new instance of a LightNode providing a default config
-// and a mockstore to the NewNodeWithStore method
+// and a mockstore to the MustNewNodeWithStore method
 func (s *Swamp) NewLightNode(options ...fx.Option) *nodebuilder.Node {
 	cfg := s.DefaultTestConfig(node.Light)
 	cfg.Header.TrustedPeers = []string{
@@ -240,7 +238,7 @@ func (s *Swamp) NewLightNode(options ...fx.Option) *nodebuilder.Node {
 
 	store := nodebuilder.MockStore(s.t, cfg)
 
-	return s.NewNodeWithStore(node.Light, store, options...)
+	return s.MustNewNodeWithStore(node.Light, store, options...)
 }
 
 func (s *Swamp) NewNodeWithConfig(nodeType node.Type, cfg *nodebuilder.Config, options ...fx.Option) *nodebuilder.Node {
@@ -249,7 +247,18 @@ func (s *Swamp) NewNodeWithConfig(nodeType node.Type, cfg *nodebuilder.Config, o
 	for _, bootstrapper := range s.Bootstrappers {
 		cfg.Header.TrustedPeers = append(cfg.Header.TrustedPeers, bootstrapper.String())
 	}
-	return s.NewNodeWithStore(nodeType, store, options...)
+	return s.MustNewNodeWithStore(nodeType, store, options...)
+}
+
+// MustNewNodeWithStore creates a new instance of Node with predefined Store.
+func (s *Swamp) MustNewNodeWithStore(
+	tp node.Type,
+	store nodebuilder.Store,
+	options ...fx.Option,
+) *nodebuilder.Node {
+	nd, err := s.NewNodeWithStore(tp, store, options...)
+	require.NoError(s.t, err)
+	return nd
 }
 
 // NewNodeWithStore creates a new instance of Node with predefined Store.
@@ -257,10 +266,10 @@ func (s *Swamp) NewNodeWithStore(
 	tp node.Type,
 	store nodebuilder.Store,
 	options ...fx.Option,
-) *nodebuilder.Node {
-	signer := apptypes.NewKeyringSigner(s.ClientContext.Keyring, s.Accounts[0], s.ClientContext.ChainID)
+) (*nodebuilder.Node, error) {
 	options = append(options,
-		state.WithKeyringSigner(signer),
+		state.WithKeyring(s.ClientContext.Keyring),
+		state.WithKeyName(state.AccountName(s.Accounts[0])),
 	)
 
 	switch tp {
@@ -271,16 +280,21 @@ func (s *Swamp) NewNodeWithStore(
 	default:
 	}
 
-	nd := s.newNode(tp, store, options...)
+	nd, err := s.newNode(tp, store, options...)
+	if err != nil {
+		return nil, err
+	}
 	s.nodesMu.Lock()
 	s.nodes[nd] = struct{}{}
 	s.nodesMu.Unlock()
-	return nd
+	return nd, nil
 }
 
-func (s *Swamp) newNode(t node.Type, store nodebuilder.Store, options ...fx.Option) *nodebuilder.Node {
+func (s *Swamp) newNode(t node.Type, store nodebuilder.Store, options ...fx.Option) (*nodebuilder.Node, error) {
 	ks, err := store.Keystore()
-	require.NoError(s.t, err)
+	if err != nil {
+		return nil, err
+	}
 
 	// TODO(@Bidon15): If for some reason, we receive one of existing options
 	// like <core, host, hash> from the test case, we need to check them and not use
@@ -297,9 +311,7 @@ func (s *Swamp) newNode(t node.Type, store nodebuilder.Store, options ...fx.Opti
 			return store.Init(ctx, s.genesis)
 		}),
 	)
-	node, err := nodebuilder.New(t, p2p.Private, store, options...)
-	require.NoError(s.t, err)
-	return node
+	return nodebuilder.New(t, p2p.Private, store, options...)
 }
 
 // StopNode stops the node and removes from Swamp.
@@ -332,7 +344,7 @@ func (s *Swamp) Disconnect(t *testing.T, peerA, peerB *nodebuilder.Node) {
 // Swamp test suite. Every new full or light node created on the suite afterwards
 // will automatically add the suite's bootstrappers as trusted peers to their config.
 // NOTE: Bridge nodes do not automatically add the bootstrappers as trusted peers.
-// NOTE: Use `NewNodeWithStore` to avoid this automatic configuration.
+// NOTE: Use `MustNewNodeWithStore` to avoid this automatic configuration.
 func (s *Swamp) SetBootstrapper(t *testing.T, bootstrappers ...*nodebuilder.Node) {
 	for _, trusted := range bootstrappers {
 		addrs, err := peer.AddrInfoToP2pAddrs(host.InfoFromHost(trusted.Host))

@@ -31,40 +31,14 @@ func (com Commitment) Equal(c Commitment) bool {
 	return bytes.Equal(com, c)
 }
 
-// Proof is a collection of nmt.Proofs that verifies the inclusion of the data.
-// Proof proves the WHOLE namespaced data for the particular row.
+// The Proof is a set of nmt proofs that can be verified only through
+// the included method (due to limitation of the nmt https://github.com/celestiaorg/nmt/issues/218).
+// Proof proves the WHOLE namespaced data to the row roots.
 // TODO (@vgonkivs): rework `Proof` in order to prove a particular blob.
 // https://github.com/celestiaorg/celestia-node/issues/2303
 type Proof []*nmt.Proof
 
 func (p Proof) Len() int { return len(p) }
-
-func (p Proof) MarshalJSON() ([]byte, error) {
-	proofs := make([]string, 0, len(p))
-	for _, proof := range p {
-		proofBytes, err := proof.MarshalJSON()
-		if err != nil {
-			return nil, err
-		}
-		proofs = append(proofs, string(proofBytes))
-	}
-	return json.Marshal(proofs)
-}
-
-func (p *Proof) UnmarshalJSON(b []byte) error {
-	var proofs []string
-	if err := json.Unmarshal(b, &proofs); err != nil {
-		return err
-	}
-	for _, proof := range proofs {
-		var nmtProof nmt.Proof
-		if err := nmtProof.UnmarshalJSON([]byte(proof)); err != nil {
-			return err
-		}
-		*p = append(*p, &nmtProof)
-	}
-	return nil
-}
 
 // equal is a temporary method that compares two proofs.
 // should be removed in BlobService V1.
@@ -89,7 +63,6 @@ func (p Proof) equal(input Proof) error {
 		if !bytes.Equal(proof.LeafHash(), input[i].LeafHash()) {
 			return ErrInvalidProof
 		}
-
 	}
 	return nil
 }

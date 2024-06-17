@@ -4,10 +4,8 @@ on:
   push:
     branches:
       - main
-      - ramin/coverage-integration
-    # Trigger on version tags
-    tags:
-      - "v*"
+  release:
+    types: [published]
   pull_request:
   workflow_dispatch:
     inputs:
@@ -30,7 +28,7 @@ jobs:
     runs-on: ubuntu-latest
     env:
       # upgrade go version throughout pipeline here
-      GO_VERSION: "1.21"
+      GO_VERSION: "1.22"
     outputs:
       go-version: ${{ steps.set-vars.outputs.go-version }}
       branch: ${{ steps.trim_ref.outputs.branch }}
@@ -56,7 +54,7 @@ jobs:
 
   # Dockerfile Linting
   hadolint:
-    uses: celestiaorg/.github/.github/workflows/reusable_dockerfile_lint.yml@v0.2.8 # yamllint disable-line rule:line-length
+    uses: celestiaorg/.github/.github/workflows/reusable_dockerfile_lint.yml@v0.4.2 # yamllint disable-line rule:line-length
     with:
       dockerfile: Dockerfile
 
@@ -64,7 +62,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - uses: celestiaorg/.github/.github/actions/yamllint@v0.2.8
+      - uses: celestiaorg/.github/.github/actions/yamllint@v0.4.2
 
   markdown-lint:
     name: Markdown Lint
@@ -87,7 +85,7 @@ jobs:
   # If this was a workflow dispatch event, we need to generate and push a tag
   # for goreleaser to grab
   version_bump:
-    needs: [hadolint, yamllint, markdown-lint, go-ci]
+    needs: [hadolint, yamllint, markdown-lint, go-ci, setup]
     runs-on: ubuntu-latest
     permissions: "write-all"
     steps:
@@ -100,7 +98,7 @@ jobs:
         # version_bump section, it would skip and not run, which would result
         # in goreleaser not running either.
         if: ${{ github.event_name == 'workflow_dispatch' }}
-        uses: mathieudutour/github-tag-action@v6.1
+        uses: mathieudutour/github-tag-action@v6.2
         with:
           github_token: ${{ secrets.GITHUB_TOKEN }}
           default_bump: ${{ inputs.version }}
@@ -108,11 +106,11 @@ jobs:
 
   # Generate the release with goreleaser to include pre-built binaries
   goreleaser:
-    needs: version_bump
+    needs: [version_bump, setup]
     runs-on: ubuntu-latest
     if: |
       github.event_name == 'workflow_dispatch' ||
-      (github.event_name == 'push' && contains(github.ref, 'refs/tags/'))
+      github.event_name == 'release'
     permissions: "write-all"
     steps:
       - uses: actions/checkout@v4
@@ -131,7 +129,7 @@ jobs:
           passphrase: ${{ secrets.GPG_PASSPHRASE }}
 
       # Generate the binaries and release
-      - uses: goreleaser/goreleaser-action@v5
+      - uses: goreleaser/goreleaser-action@v6
         with:
           distribution: goreleaser
           version: latest
@@ -139,3 +137,18 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           GPG_FINGERPRINT: ${{ steps.import_gpg.outputs.fingerprint }}
+
+  upload-docs:
+    needs: goreleaser
+    if: github.event_name == 'release'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+
+      - run: |
+          make openrpc-gen > openrpc.json
+          gh release upload ${{github.event.release.tag_name}} openrpc.json
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

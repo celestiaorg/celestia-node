@@ -20,9 +20,9 @@ const (
 	isInstantKey  = "is_instant"
 	doneResultKey = "done_result"
 
-	sourceKey                  = "source"
-	sourceShrexSub  peerSource = "shrexsub"
-	sourceFullNodes peerSource = "full_nodes"
+	sourceKey                        = "source"
+	sourceShrexSub        peerSource = "shrexsub"
+	sourceDiscoveredNodes peerSource = "discovered_nodes"
 
 	blacklistPeerReasonKey                     = "blacklist_reason"
 	reasonInvalidHash      blacklistPeerReason = "invalid_hash"
@@ -65,55 +65,62 @@ type metrics struct {
 	validationResult         metric.Int64Counter   // attributes: validation_result
 
 	shrexPools               metric.Int64ObservableGauge // attributes: pool_status
-	fullNodesPool            metric.Int64ObservableGauge // attributes: pool_status
+	discoveredPool           metric.Int64ObservableGauge // attributes: pool_status
 	blacklistedPeersByReason sync.Map
 	blacklistedPeers         metric.Int64ObservableGauge // attributes: blacklist_reason
+
+	clientReg metric.Registration
 }
 
 func initMetrics(manager *Manager) (*metrics, error) {
-	getPeer, err := meter.Int64Counter("peer_manager_get_peer_counter",
+	getPeer, err := meter.Int64Counter(manager.tag+"_peer_manager_get_peer_counter",
 		metric.WithDescription("get peer counter"))
 	if err != nil {
 		return nil, err
 	}
 
-	getPeerWaitTimeHistogram, err := meter.Int64Histogram("peer_manager_get_peer_ms_time_hist",
+	getPeerWaitTimeHistogram, err := meter.Int64Histogram(
+		manager.tag+"_peer_manager_get_peer_ms_time_hist",
 		metric.WithDescription("get peer time histogram(ms), observed only for async get(is_instant = false)"))
 	if err != nil {
 		return nil, err
 	}
 
-	getPeerPoolSizeHistogram, err := meter.Int64Histogram("peer_manager_get_peer_pool_size_hist",
+	getPeerPoolSizeHistogram, err := meter.Int64Histogram(
+		manager.tag+"_peer_manager_get_peer_pool_size_hist",
 		metric.WithDescription("amount of available active peers in pool at time when get was called"))
 	if err != nil {
 		return nil, err
 	}
 
-	doneResult, err := meter.Int64Counter("peer_manager_done_result_counter",
+	doneResult, err := meter.Int64Counter(manager.tag+"_peer_manager_done_result_counter",
 		metric.WithDescription("done results counter"))
 	if err != nil {
 		return nil, err
 	}
 
-	validationResult, err := meter.Int64Counter("peer_manager_validation_result_counter",
+	validationResult, err := meter.Int64Counter(
+		manager.tag+"_peer_manager_validation_result_counter",
 		metric.WithDescription("validation result counter"))
 	if err != nil {
 		return nil, err
 	}
 
-	shrexPools, err := meter.Int64ObservableGauge("peer_manager_pools_gauge",
+	shrexPools, err := meter.Int64ObservableGauge(manager.tag+"_peer_manager_pools_gauge",
 		metric.WithDescription("pools amount"))
 	if err != nil {
 		return nil, err
 	}
 
-	fullNodesPool, err := meter.Int64ObservableGauge("peer_manager_full_nodes_gauge",
-		metric.WithDescription("full nodes pool peers amount"))
+	discoveredPool, err := meter.Int64ObservableGauge(
+		manager.tag+"_peer_manager_discovered_nodes_gauge",
+		metric.WithDescription("discovered nodes pool peers amount"))
 	if err != nil {
 		return nil, err
 	}
 
-	blacklisted, err := meter.Int64ObservableGauge("peer_manager_blacklisted_peers",
+	blacklisted, err := meter.Int64ObservableGauge(
+		manager.tag+"peer_manager_blacklisted_peers",
 		metric.WithDescription("blacklisted peers amount"))
 	if err != nil {
 		return nil, err
@@ -125,22 +132,22 @@ func initMetrics(manager *Manager) (*metrics, error) {
 		doneResult:               doneResult,
 		validationResult:         validationResult,
 		shrexPools:               shrexPools,
-		fullNodesPool:            fullNodesPool,
+		discoveredPool:           discoveredPool,
 		getPeerPoolSizeHistogram: getPeerPoolSizeHistogram,
 		blacklistedPeers:         blacklisted,
 	}
 
-	callback := func(ctx context.Context, observer metric.Observer) error {
+	callback := func(_ context.Context, observer metric.Observer) error {
 		for poolStatus, count := range manager.shrexPools() {
 			observer.ObserveInt64(shrexPools, count,
 				metric.WithAttributes(
 					attribute.String(poolStatusKey, string(poolStatus))))
 		}
 
-		observer.ObserveInt64(fullNodesPool, int64(manager.nodes.len()),
+		observer.ObserveInt64(discoveredPool, int64(manager.nodes.len()),
 			metric.WithAttributes(
 				attribute.String(peerStatusKey, string(peerStatusActive))))
-		observer.ObserveInt64(fullNodesPool, int64(manager.nodes.cooldown.len()),
+		observer.ObserveInt64(discoveredPool, int64(manager.nodes.cooldown.len()),
 			metric.WithAttributes(
 				attribute.String(peerStatusKey, string(peerStatusCooldown))))
 
@@ -154,11 +161,18 @@ func initMetrics(manager *Manager) (*metrics, error) {
 		})
 		return nil
 	}
-	_, err = meter.RegisterCallback(callback, shrexPools, fullNodesPool, blacklisted)
+	metrics.clientReg, err = meter.RegisterCallback(callback, shrexPools, discoveredPool, blacklisted)
 	if err != nil {
 		return nil, fmt.Errorf("registering metrics callback: %w", err)
 	}
 	return metrics, nil
+}
+
+func (m *metrics) close() error {
+	if m == nil {
+		return nil
+	}
+	return m.clientReg.Unregister()
 }
 
 func (m *metrics) observeGetPeer(

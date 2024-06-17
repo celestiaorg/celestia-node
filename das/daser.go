@@ -5,7 +5,6 @@ import (
 	"errors"
 	"fmt"
 	"sync/atomic"
-	"time"
 
 	"github.com/ipfs/go-datastore"
 	logging "github.com/ipfs/go-log/v2"
@@ -14,12 +13,18 @@ import (
 	libhead "github.com/celestiaorg/go-header"
 
 	"github.com/celestiaorg/celestia-node/header"
+	"github.com/celestiaorg/celestia-node/pruner"
 	"github.com/celestiaorg/celestia-node/share"
 	"github.com/celestiaorg/celestia-node/share/eds/byzantine"
 	"github.com/celestiaorg/celestia-node/share/p2p/shrexsub"
 )
 
 var log = logging.Logger("das")
+
+// errOutsideSamplingWindow is an error used to inform
+// the caller of Sample that the given header is outside
+// the sampling window.
+var errOutsideSamplingWindow = fmt.Errorf("skipping header outside of sampling window")
 
 // DASer continuously validates availability of data committed to headers.
 type DASer struct {
@@ -39,8 +44,10 @@ type DASer struct {
 	running        int32
 }
 
-type listenFn func(context.Context, *header.ExtendedHeader)
-type sampleFn func(context.Context, *header.ExtendedHeader) error
+type (
+	listenFn func(context.Context, *header.ExtendedHeader)
+	sampleFn func(context.Context, *header.ExtendedHeader) error
+)
 
 // NewDASer creates a new DASer.
 func NewDASer(
@@ -132,6 +139,11 @@ func (d *DASer) Stop(ctx context.Context) error {
 	}
 
 	d.cancel()
+
+	if err := d.sampler.metrics.close(); err != nil {
+		log.Warnw("closing metrics", "err", err)
+	}
+
 	if err = d.sampler.wait(ctx); err != nil {
 		return fmt.Errorf("DASer force quit: %w", err)
 	}
@@ -150,10 +162,10 @@ func (d *DASer) Stop(ctx context.Context) error {
 func (d *DASer) sample(ctx context.Context, h *header.ExtendedHeader) error {
 	// short-circuit if pruning is enabled and the header is outside the
 	// availability window
-	if !d.isWithinSamplingWindow(h) {
+	if !pruner.IsWithinAvailabilityWindow(h.Time(), d.params.samplingWindow) {
 		log.Debugw("skipping header outside sampling window", "height", h.Height(),
 			"time", h.Time())
-		return nil
+		return errOutsideSamplingWindow
 	}
 
 	err := d.da.SharesAvailable(ctx, h)
@@ -169,14 +181,6 @@ func (d *DASer) sample(ctx context.Context, h *header.ExtendedHeader) error {
 		return err
 	}
 	return nil
-}
-
-func (d *DASer) isWithinSamplingWindow(eh *header.ExtendedHeader) bool {
-	// if sampling window is not set, then all headers are within the window
-	if d.params.SamplingWindow == 0 {
-		return true
-	}
-	return time.Since(eh.Time()) <= d.params.SamplingWindow
 }
 
 // SamplingStats returns the current statistics over the DA sampling process.
