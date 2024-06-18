@@ -141,18 +141,15 @@ func (f *ODSFile) Sample(ctx context.Context, rowIdx, colIdx int) (shwap.Sample,
 
 // AxisHalf returns half of shares axis of the given type and index. Side is determined by
 // implementation. Implementations should indicate the side in the returned AxisHalf.
-func (f *ODSFile) AxisHalf(ctx context.Context, axisType rsmt2d.Axis, axisIdx int) (eds.AxisHalf, error) {
+func (f *ODSFile) AxisHalf(_ context.Context, axisType rsmt2d.Axis, axisIdx int) (eds.AxisHalf, error) {
 	// Read the axis from the file if the axis is a row and from the top half of the square, or if the
 	// axis is a column and from the left half of the square.
 	if axisIdx < f.size()/2 {
-		shares, err := f.readAxisHalf(axisType, axisIdx)
+		half, err := f.readAxisHalf(axisType, axisIdx)
 		if err != nil {
 			return eds.AxisHalf{}, fmt.Errorf("reading axis half: %w", err)
 		}
-		return eds.AxisHalf{
-			Shares:   shares,
-			IsParity: false,
-		}, nil
+		return half, nil
 	}
 
 	// if axis is from the second half of the square, read full ODS and compute the axis half
@@ -161,14 +158,11 @@ func (f *ODSFile) AxisHalf(ctx context.Context, axisType rsmt2d.Axis, axisIdx in
 		return eds.AxisHalf{}, err
 	}
 
-	shares, err := f.ods.computeAxisHalf(ctx, axisType, axisIdx)
+	half, err := f.ods.computeAxisHalf(axisType, axisIdx)
 	if err != nil {
 		return eds.AxisHalf{}, fmt.Errorf("computing axis half: %w", err)
 	}
-	return eds.AxisHalf{
-		Shares:   shares,
-		IsParity: false,
-	}, nil
+	return half, nil
 }
 
 // RowNamespaceData returns data for the given namespace and row index.
@@ -193,21 +187,29 @@ func (f *ODSFile) Shares(context.Context) ([]share.Share, error) {
 	return f.ods.shares()
 }
 
-func (f *ODSFile) readAxisHalf(axisType rsmt2d.Axis, axisIdx int) ([]share.Share, error) {
+func (f *ODSFile) readAxisHalf(axisType rsmt2d.Axis, axisIdx int) (eds.AxisHalf, error) {
 	f.lock.RLock()
 	ODS := f.ods
 	f.lock.RUnlock()
 	if ODS != nil {
-		return f.ods.axisHalf(context.Background(), axisType, axisIdx)
+		return f.ods.axisHalf(axisType, axisIdx)
 	}
 
 	switch axisType {
 	case rsmt2d.Col:
-		return f.readCol(axisIdx, 0)
+		col, err := f.readCol(axisIdx, 0)
+		return eds.AxisHalf{
+			Shares:   col,
+			IsParity: false,
+		}, err
 	case rsmt2d.Row:
-		return f.readRow(axisIdx)
+		row, err := f.readRow(axisIdx)
+		return eds.AxisHalf{
+			Shares:   row,
+			IsParity: false,
+		}, err
 	}
-	return nil, fmt.Errorf("unknown axis")
+	return eds.AxisHalf{}, fmt.Errorf("unknown axis")
 }
 
 func (f *ODSFile) readODS() error {
@@ -233,7 +235,7 @@ func (f *ODSFile) readODS() error {
 
 func (f *ODSFile) readRow(idx int) ([]share.Share, error) {
 	shrLn := int(f.hdr.shareSize)
-	ODSLn := int(f.size()) / 2
+	ODSLn := f.size() / 2
 
 	shares := make([]share.Share, ODSLn)
 
@@ -253,7 +255,7 @@ func (f *ODSFile) readRow(idx int) ([]share.Share, error) {
 
 func (f *ODSFile) readCol(axisIdx, quadrantIdx int) ([]share.Share, error) {
 	shrLn := int(f.hdr.shareSize)
-	ODSLn := int(f.size()) / 2
+	ODSLn := f.size() / 2
 	quadrantOffset := quadrantIdx * ODSLn * ODSLn * shrLn
 
 	shares := make([]share.Share, ODSLn)

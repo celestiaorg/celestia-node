@@ -2,7 +2,6 @@ package file
 
 import (
 	"bufio"
-	"context"
 	"fmt"
 	"io"
 
@@ -11,6 +10,7 @@ import (
 	"github.com/celestiaorg/rsmt2d"
 
 	"github.com/celestiaorg/celestia-node/share"
+	eds "github.com/celestiaorg/celestia-node/share/new_eds"
 )
 
 type square [][]share.Share
@@ -51,28 +51,6 @@ func (s square) size() int {
 	return len(s)
 }
 
-func (s square) axisHalf(_ context.Context, axisType rsmt2d.Axis, axisIdx int) ([]share.Share, error) {
-	if s == nil {
-		return nil, fmt.Errorf("square is nil")
-	}
-
-	if axisIdx >= s.size() {
-		return nil, fmt.Errorf("index is out of square bounds")
-	}
-
-	// square stores rows directly in high level slice, so we can return by accessing row by index
-	if axisType == rsmt2d.Row {
-		return s[axisIdx], nil
-	}
-
-	// construct half column from row ordered square
-	col := make([]share.Share, s.size())
-	for i := 0; i < s.size(); i++ {
-		col[i] = s[i][axisIdx]
-	}
-	return col, nil
-}
-
 func (s square) shares() ([]share.Share, error) {
 	shares := make([]share.Share, 0, s.size()*s.size())
 	for _, row := range s {
@@ -81,20 +59,49 @@ func (s square) shares() ([]share.Share, error) {
 	return shares, nil
 }
 
-// TODO(@walldiss): make comments with diagram of computed axis. Add more comment on actual algo
+func (s square) axisHalf(axisType rsmt2d.Axis, axisIdx int) (eds.AxisHalf, error) {
+	if s == nil {
+		return eds.AxisHalf{}, fmt.Errorf("square is nil")
+	}
+
+	if axisIdx >= s.size() {
+		return eds.AxisHalf{}, fmt.Errorf("index is out of square bounds")
+	}
+
+	// square stores rows directly in high level slice, so we can return by accessing row by index
+	if axisType == rsmt2d.Row {
+		row := s[axisIdx]
+		return eds.AxisHalf{
+			Shares:   row,
+			IsParity: false,
+		}, nil
+	}
+
+	// construct half column from row ordered square
+	col := make([]share.Share, s.size())
+	for i := 0; i < s.size(); i++ {
+		col[i] = s[i][axisIdx]
+	}
+	return eds.AxisHalf{
+		Shares:   col,
+		IsParity: false,
+	}, nil
+}
+
+// TODO(@walldiss): Add more comment on actual algo and support it with visual diagram of computed
+// axis.
 func (s square) computeAxisHalf(
-	ctx context.Context,
 	axisType rsmt2d.Axis,
 	axisIdx int,
-) ([]share.Share, error) {
+) (eds.AxisHalf, error) {
 	shares := make([]share.Share, s.size())
 
 	// extend opposite half of the square while collecting Shares for the first half of required axis
-	g, ctx := errgroup.WithContext(ctx)
+	g := errgroup.Group{}
 	opposite := oppositeAxis(axisType)
 	for i := 0; i < s.size(); i++ {
 		g.Go(func() error {
-			original, err := s.axisHalf(ctx, opposite, i)
+			half, err := s.axisHalf(opposite, i)
 			if err != nil {
 				return err
 			}
@@ -105,7 +112,11 @@ func (s square) computeAxisHalf(
 			}
 
 			shards := make([][]byte, s.size()*2)
-			copy(shards, original)
+			if half.IsParity {
+				copy(shards[s.size():], half.Shares)
+			} else {
+				copy(shards, half.Shares)
+			}
 
 			target := make([]bool, s.size()*2)
 			target[axisIdx] = true
@@ -121,7 +132,10 @@ func (s square) computeAxisHalf(
 	}
 
 	err := g.Wait()
-	return shares, err
+	return eds.AxisHalf{
+		Shares:   shares,
+		IsParity: false,
+	}, err
 }
 
 func oppositeAxis(axis rsmt2d.Axis) rsmt2d.Axis {

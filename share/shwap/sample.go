@@ -25,6 +25,8 @@ type Sample struct {
 	ProofType   rsmt2d.Axis // ProofType indicates whether the proof is against a row or a column.
 }
 
+// SampleFromShares creates a Sample from a list of shares, using the specified proof type and
+// the share index to be included in the sample.
 func SampleFromShares(shares []share.Share, proofType rsmt2d.Axis, axisIdx, shrIdx int) (Sample, error) {
 	tree := wrapper.NewErasuredNamespacedMerkleTree(uint64(len(shares)/2), uint(axisIdx))
 	for _, shr := range shares {
