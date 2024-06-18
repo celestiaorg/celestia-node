@@ -38,7 +38,7 @@ type TxOptions struct {
 	// Specifies the key from the keystore associated with an account that
 	// will be used to sign transactions.
 	// NOTE: This `Account` must be available in the `Keystore`.
-	Account string
+	AccountKey string
 	// Specifies the account that will pay for the transaction.
 	// Input format Bech32.
 	FeeGranterAddress string
@@ -53,7 +53,7 @@ func DefaultTxOptions() *TxOptions {
 type jsonTxOptions struct {
 	Fee               *Fee   `json:"fee,omitempty"`
 	Gas               uint64 `json:"gas,omitempty"`
-	Account           string `json:"account,omitempty"`
+	AccountKey        string `json:"account,omitempty"`
 	FeeGranterAddress string `json:"granter,omitempty"`
 }
 
@@ -61,7 +61,7 @@ func (options *TxOptions) MarshalJSON() ([]byte, error) {
 	jsonOpts := &jsonTxOptions{
 		Fee:               options.fee,
 		Gas:               options.Gas,
-		Account:           options.Account,
+		AccountKey:        options.AccountKey,
 		FeeGranterAddress: options.FeeGranterAddress,
 	}
 	return json.Marshal(jsonOpts)
@@ -76,7 +76,7 @@ func (options *TxOptions) UnmarshalJSON(data []byte) error {
 
 	options.fee = jsonOpts.Fee
 	options.Gas = jsonOpts.Gas
-	options.Account = jsonOpts.Account
+	options.AccountKey = jsonOpts.AccountKey
 	options.FeeGranterAddress = jsonOpts.FeeGranterAddress
 	return nil
 }
@@ -137,10 +137,10 @@ func (options *TxOptions) EstimateGasForBlobs(blobSizes []uint32) {
 
 // GetSigner retrieves the keystore by the provided account name and returns the account address.
 func (options *TxOptions) GetSigner(kr keyring.Keyring) (sdktypes.AccAddress, error) {
-	if options.Account == "" {
+	if options.AccountKey == "" {
 		return nil, errNoAddressProvided
 	}
-	rec, err := kr.Key(options.Account)
+	rec, err := kr.Key(options.AccountKey)
 	if err != nil {
 		return nil, fmt.Errorf("getting account key: %w", err)
 	}

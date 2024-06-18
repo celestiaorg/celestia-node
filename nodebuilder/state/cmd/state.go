@@ -19,7 +19,7 @@ var (
 
 	Gas uint64
 
-	Account string
+	AccountKey string
 
 	FeeGranterAddress string
 )
@@ -146,7 +146,7 @@ var transferCmd = &cobra.Command{
 		opts := options.DefaultTxOptions()
 		opts.SetFeeAmount(Fee)
 		opts.Gas = Gas
-		opts.Account = Account
+		opts.AccountKey = AccountKey
 		opts.FeeGranterAddress = FeeGranterAddress
 
 		txResponse, err := client.State.Transfer(
@@ -188,7 +188,7 @@ var cancelUnbondingDelegationCmd = &cobra.Command{
 		opts := options.DefaultTxOptions()
 		opts.SetFeeAmount(Fee)
 		opts.Gas = Gas
-		opts.Account = Account
+		opts.AccountKey = AccountKey
 		opts.FeeGranterAddress = FeeGranterAddress
 
 		txResponse, err := client.State.CancelUnbondingDelegation(
@@ -231,7 +231,7 @@ var beginRedelegateCmd = &cobra.Command{
 		opts := options.DefaultTxOptions()
 		opts.SetFeeAmount(Fee)
 		opts.Gas = Gas
-		opts.Account = Account
+		opts.AccountKey = AccountKey
 		opts.FeeGranterAddress = FeeGranterAddress
 
 		txResponse, err := client.State.BeginRedelegate(
@@ -269,7 +269,7 @@ var undelegateCmd = &cobra.Command{
 		opts := options.DefaultTxOptions()
 		opts.SetFeeAmount(Fee)
 		opts.Gas = Gas
-		opts.Account = Account
+		opts.AccountKey = AccountKey
 		opts.FeeGranterAddress = FeeGranterAddress
 
 		txResponse, err := client.State.Undelegate(
@@ -306,7 +306,7 @@ var delegateCmd = &cobra.Command{
 		opts := options.DefaultTxOptions()
 		opts.SetFeeAmount(Fee)
 		opts.Gas = Gas
-		opts.Account = Account
+		opts.AccountKey = AccountKey
 		opts.FeeGranterAddress = FeeGranterAddress
 
 		txResponse, err := client.State.Delegate(
@@ -411,7 +411,7 @@ var grantFeeCmd = &cobra.Command{
 		opts := options.DefaultTxOptions()
 		opts.SetFeeAmount(Fee)
 		opts.Gas = Gas
-		opts.Account = Account
+		opts.AccountKey = AccountKey
 		opts.FeeGranterAddress = FeeGranterAddress
 
 		txResponse, err := client.State.GrantFee(
@@ -442,7 +442,7 @@ var revokeGrantFeeCmd = &cobra.Command{
 		opts := options.DefaultTxOptions()
 		opts.SetFeeAmount(Fee)
 		opts.Gas = Gas
-		opts.Account = Account
+		opts.AccountKey = AccountKey
 		opts.FeeGranterAddress = FeeGranterAddress
 
 		txResponse, err := client.State.RevokeGrantFee(
@@ -481,8 +481,8 @@ func ApplyFlags(cmds ...*cobra.Command) {
 		)
 
 		cmd.PersistentFlags().StringVar(
-			&Account,
-			"account",
+			&AccountKey,
+			"account.key",
 			"",
 			"Specifies the signer name from the keystore.",
 		)

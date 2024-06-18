@@ -185,7 +185,7 @@ func init() {
 	addToExampleValues(blobProof)
 
 	txOptions := options.DefaultTxOptions()
-	txOptions.Account = "my_celes_key"
+	txOptions.AccountKey = "my_celes_key"
 	txOptions.Gas = 142225
 	txOptions.SetFeeAmount(2_000)
 	txOptions.FeeGranterAddress = "celestia1hakc56ax66ypjcmwj8w6hyr2c4g8cfs3wesguc"
