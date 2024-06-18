@@ -221,14 +221,16 @@ func (ca *CoreAccessor) SubmitPayForBlob(
 	}
 	options.EstimateGasForBlobs(blobSizes)
 
-	minGasPrice := ca.getMinGasPrice()
-	estimatedFee := options.IsFeeSet()
-	if !estimatedFee {
-		// calculate the fee in case user haven't specified it
-		err := options.CalculateFee(minGasPrice)
-		if err != nil {
-			return nil, err
-		}
+	if options.GetGasPrice() < 0 {
+		options.SetGasPrice(ca.getMinGasPrice())
+	}
+
+	fee, err := options.CalculateFee()
+	if err != nil {
+		return nil, err
+	}
+	if fee == 0 {
+		log.Warn("gas price wasn't provided. Transaction will be sent with 0 fee.")
 	}
 
 	acc := ca.keyname
@@ -238,7 +240,7 @@ func (ca *CoreAccessor) SubmitPayForBlob(
 
 	var lastErr error
 	for attempt := 0; attempt < maxRetries; attempt++ {
-		opts := []user.TxOption{user.SetGasLimitAndFee(options.Gas, float64(options.GetFee()))}
+		opts := []user.TxOption{user.SetGasLimitAndFee(options.Gas, float64(fee))}
 		if feeGrant != nil {
 			opts = append(opts, feeGrant)
 		}
@@ -256,16 +258,22 @@ func (ca *CoreAccessor) SubmitPayForBlob(
 		response, err = ca.client.ConfirmTx(ctx, response.TxHash)
 		// the node is capable of changing the min gas price at any time so we must be able to detect it and
 		// update our version accordingly
-		if apperrors.IsInsufficientMinGasPrice(err) && !estimatedFee {
+		if apperrors.IsInsufficientMinGasPrice(err) {
 			// The error message contains enough information to parse the new min gas price
-			minGasPrice, err = apperrors.ParseInsufficientMinGasPrice(err, minGasPrice, options.Gas)
+			gasPrice, err := apperrors.ParseInsufficientMinGasPrice(err, options.GetGasPrice(), options.Gas)
 			if err != nil {
 				return nil, fmt.Errorf("parsing insufficient min gas price error: %w", err)
 			}
-			ca.setMinGasPrice(minGasPrice)
+
+			// update minGasPrice in case `IsInsufficientMinGasPrice` is received
+			if gasPrice > ca.getMinGasPrice() {
+				ca.setMinGasPrice(gasPrice)
+			}
+
+			options.SetGasPrice(gasPrice)
 			lastErr = err
 			// explicitly recalculate fee based on the recent minGasPrice
-			err = options.CalculateFee(minGasPrice)
+			fee, err = options.CalculateFee()
 			if err != nil {
 				return nil, err
 			}
@@ -651,14 +659,19 @@ func (ca *CoreAccessor) submitMsg(
 		return nil, fmt.Errorf("estimating gas: %w", err)
 	}
 
-	if !options.IsFeeSet() {
-		err = options.CalculateFee(ca.minGasPrice)
-		if err != nil {
-			return nil, fmt.Errorf("calculating fee: %w", err)
-		}
+	if options.GetGasPrice() < 0 {
+		options.SetGasPrice(ca.getMinGasPrice())
 	}
 
-	txOptions = append(txOptions, user.SetGasLimitAndFee(options.Gas, float64(options.GetFee())))
+	fee, err := options.CalculateFee()
+	if err != nil {
+		return nil, err
+	}
+	if fee == 0 {
+		log.Warn("gas price wasn't provided. Transaction will be sent with 0 fee.")
+	}
+
+	txOptions = append(txOptions, user.SetGasLimitAndFee(options.Gas, float64(fee)))
 
 	if options.FeeGranterAddress != "" {
 		granter, err := options.GetFeeGranterAddress()

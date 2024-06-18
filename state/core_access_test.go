@@ -10,7 +10,6 @@ import (
 	"testing"
 	"time"
 
-	"cosmossdk.io/math"
 	sdktypes "github.com/cosmos/cosmos-sdk/types"
 	"github.com/stretchr/testify/require"
 
@@ -44,25 +43,25 @@ func TestSubmitPayForBlob(t *testing.T) {
 	require.Equal(t, appconsts.DefaultMinGasPrice, minGas)
 
 	testcases := []struct {
-		name   string
-		blobs  []*blob.Blob
-		fee    math.Int
-		gasLim uint64
-		expErr error
+		name     string
+		blobs    []*blob.Blob
+		gasPrice float64
+		gasLim   uint64
+		expErr   error
 	}{
 		{
-			name:   "empty blobs",
-			blobs:  []*blob.Blob{},
-			fee:    sdktypes.ZeroInt(),
-			gasLim: 0,
-			expErr: errors.New("state: no blobs provided"),
+			name:     "empty blobs",
+			blobs:    []*blob.Blob{},
+			gasPrice: options.DefaultPrice,
+			gasLim:   0,
+			expErr:   errors.New("state: no blobs provided"),
 		},
 		{
-			name:   "good blob with user provided gas and fees",
-			blobs:  []*blob.Blob{blobbyTheBlob},
-			fee:    sdktypes.NewInt(10_000), // roughly 0.12 utia per gas (should be good)
-			gasLim: blobtypes.DefaultEstimateGas([]uint32{uint32(len(blobbyTheBlob.Data))}),
-			expErr: nil,
+			name:     "good blob with user provided gas and fees",
+			blobs:    []*blob.Blob{blobbyTheBlob},
+			gasPrice: 0.005,
+			gasLim:   blobtypes.DefaultEstimateGas([]uint32{uint32(len(blobbyTheBlob.Data))}),
+			expErr:   nil,
 		},
 		// TODO: add more test cases. The problem right now is that the celestia-app doesn't
 		// correctly construct the node (doesn't pass the min gas price) hence the price on
@@ -83,7 +82,7 @@ func TestSubmitPayForBlob(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			opts := options.DefaultTxOptions()
 			opts.Gas = tc.gasLim
-			opts.SetFeeAmount(tc.fee.Int64())
+			opts.SetGasPrice(tc.gasPrice)
 			opts.AccountKey = accounts[2]
 			resp, err := ca.SubmitPayForBlob(ctx, tc.blobs, opts)
 			require.Equal(t, tc.expErr, err)
@@ -109,32 +108,32 @@ func TestTransfer(t *testing.T) {
 	require.Equal(t, appconsts.DefaultMinGasPrice, minGas)
 
 	testcases := []struct {
-		name    string
-		fee     int64
-		gasLim  uint64
-		account string
-		expErr  error
+		name     string
+		gasPrice float64
+		gasLim   uint64
+		account  string
+		expErr   error
 	}{
 		{
-			name:    "transfer without options",
-			fee:     -1,
-			gasLim:  0,
-			account: "",
-			expErr:  nil,
+			name:     "transfer without options",
+			gasPrice: options.DefaultPrice,
+			gasLim:   0,
+			account:  "",
+			expErr:   nil,
 		},
 		{
-			name:    "transfer with options",
-			fee:     2_000,
-			gasLim:  0,
-			account: accounts[2],
-			expErr:  nil,
+			name:     "transfer with options",
+			gasPrice: 0.005,
+			gasLim:   0,
+			account:  accounts[2],
+			expErr:   nil,
 		},
 	}
 
 	for _, tc := range testcases {
 		t.Run(tc.name, func(t *testing.T) {
 			opts := options.DefaultTxOptions()
-			opts.SetFeeAmount(tc.fee)
+			opts.SetGasPrice(tc.gasPrice)
 			opts.Gas = tc.gasLim
 			if tc.account != "" {
 				opts.AccountKey = tc.account
@@ -174,29 +173,29 @@ func TestDelegate(t *testing.T) {
 	require.NoError(t, err)
 
 	testcases := []struct {
-		name    string
-		fee     int64
-		gasLim  uint64
-		account string
+		name     string
+		gasPrice float64
+		gasLim   uint64
+		account  string
 	}{
 		{
-			name:    "delegate/undelegate without options",
-			fee:     -1,
-			gasLim:  0,
-			account: "",
+			name:     "delegate/undelegate without options",
+			gasPrice: options.DefaultPrice,
+			gasLim:   0,
+			account:  "",
 		},
 		{
-			name:    "delegate/undelegate with options",
-			fee:     2_000,
-			gasLim:  0,
-			account: accounts[2],
+			name:     "delegate/undelegate with options",
+			gasPrice: 0.005,
+			gasLim:   0,
+			account:  accounts[2],
 		},
 	}
 
 	for _, tc := range testcases {
 		t.Run(tc.name, func(t *testing.T) {
 			opts := options.DefaultTxOptions()
-			opts.SetFeeAmount(tc.fee)
+			opts.SetGasPrice(tc.gasPrice)
 			opts.Gas = tc.gasLim
 			if tc.account != "" {
 				opts.AccountKey = tc.account
@@ -208,7 +207,7 @@ func TestDelegate(t *testing.T) {
 
 			// reset for empty case
 			opts = options.DefaultTxOptions()
-			opts.SetFeeAmount(tc.fee)
+			opts.SetGasPrice(tc.gasPrice)
 			opts.Gas = tc.gasLim
 			if tc.account != "" {
 				opts.AccountKey = tc.account
