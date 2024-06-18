@@ -55,7 +55,7 @@ jobs:
 
   # Dockerfile Linting
   hadolint:
-    uses: celestiaorg/.github/.github/workflows/reusable_dockerfile_lint.yml@ci/ramin/update-python # yamllint disable-line rule:line-length
+    uses: celestiaorg/.github/.github/workflows/reusable_dockerfile_lint.yml@0.4.3 # yamllint disable-line rule:line-length
     with:
       dockerfile: Dockerfile
 
@@ -63,7 +63,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - uses: celestiaorg/.github/.github/actions/yamllint@v0.4.2
+      - uses: celestiaorg/.github/.github/actions/yamllint@v0.4.3
 
   markdown-lint:
     name: Markdown Lint
