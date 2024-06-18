@@ -208,7 +208,7 @@ var submitCmd = &cobra.Command{
 		opts := options.DefaultTxOptions()
 		opts.SetFeeAmount(state.Fee)
 		opts.Gas = state.Gas
-		opts.Account = state.Account
+		opts.AccountKey = state.AccountKey
 		opts.FeeGranterAddress = state.FeeGranterAddress
 		height, err := client.Blob.Submit(
 			cmd.Context(),

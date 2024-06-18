@@ -232,8 +232,8 @@ func (ca *CoreAccessor) SubmitPayForBlob(
 	}
 
 	acc := ca.keyname
-	if options.Account != "" {
-		acc = options.Account
+	if options.AccountKey != "" {
+		acc = options.AccountKey
 	}
 
 	var lastErr error
@@ -398,7 +398,7 @@ func (ca *CoreAccessor) Transfer(
 
 	signer := ca.client.DefaultAddress()
 	var err error
-	if options.Account != "" {
+	if options.AccountKey != "" {
 		signer, err = options.GetSigner(ca.keyring)
 		if err != nil {
 			return nil, err
@@ -423,7 +423,7 @@ func (ca *CoreAccessor) CancelUnbondingDelegation(
 
 	signer := ca.client.DefaultAddress()
 	var err error
-	if options.Account != "" {
+	if options.AccountKey != "" {
 		signer, err = options.GetSigner(ca.keyring)
 		if err != nil {
 			return nil, err
@@ -448,7 +448,7 @@ func (ca *CoreAccessor) BeginRedelegate(
 
 	signer := ca.client.DefaultAddress()
 	var err error
-	if options.Account != "" {
+	if options.AccountKey != "" {
 		signer, err = options.GetSigner(ca.keyring)
 		if err != nil {
 			return nil, err
@@ -472,7 +472,7 @@ func (ca *CoreAccessor) Undelegate(
 
 	signer := ca.client.DefaultAddress()
 	var err error
-	if options.Account != "" {
+	if options.AccountKey != "" {
 		signer, err = options.GetSigner(ca.keyring)
 		if err != nil {
 			return nil, err
@@ -496,7 +496,7 @@ func (ca *CoreAccessor) Delegate(
 
 	signer := ca.client.DefaultAddress()
 	var err error
-	if options.Account != "" {
+	if options.AccountKey != "" {
 		signer, err = options.GetSigner(ca.keyring)
 		if err != nil {
 			return nil, err
@@ -551,7 +551,7 @@ func (ca *CoreAccessor) GrantFee(
 ) (*TxResponse, error) {
 	granter := ca.client.DefaultAddress()
 	var err error
-	if options.Account != "" {
+	if options.AccountKey != "" {
 		granter, err = options.GetSigner(ca.keyring)
 		if err != nil {
 			return nil, err
@@ -577,7 +577,7 @@ func (ca *CoreAccessor) RevokeGrantFee(
 ) (*TxResponse, error) {
 	granter := ca.client.DefaultAddress()
 	var err error
-	if options.Account != "" {
+	if options.AccountKey != "" {
 		granter, err = options.GetSigner(ca.keyring)
 		if err != nil {
 			return nil, err
