@@ -32,6 +32,7 @@ var (
 type TxOptions struct {
 	// fee is private since it has to be set through `SetFeeAmount`
 	fee *Fee
+	// 0 Gas means users want us to calculate it for them.
 	Gas uint64
 
 	// Specifies the key from the keystore associated with an account that
@@ -40,7 +41,7 @@ type TxOptions struct {
 	Account string
 	// Specifies the account that will pay for the transaction.
 	// Input format Bech32.
-	Granter string
+	FeeGranterAddress string
 }
 
 func DefaultTxOptions() *TxOptions {
@@ -50,18 +51,18 @@ func DefaultTxOptions() *TxOptions {
 }
 
 type jsonTxOptions struct {
-	Fee     *Fee   `json:"fee,omitempty"`
-	Gas     uint64 `json:"gas,omitempty"`
-	Account string `json:"account,omitempty"`
-	Granter string `json:"granter,omitempty"`
+	Fee               *Fee   `json:"fee,omitempty"`
+	Gas               uint64 `json:"gas,omitempty"`
+	Account           string `json:"account,omitempty"`
+	FeeGranterAddress string `json:"granter,omitempty"`
 }
 
 func (options *TxOptions) MarshalJSON() ([]byte, error) {
 	jsonOpts := &jsonTxOptions{
-		Fee:     options.fee,
-		Gas:     options.Gas,
-		Account: options.Account,
-		Granter: options.Granter,
+		Fee:               options.fee,
+		Gas:               options.Gas,
+		Account:           options.Account,
+		FeeGranterAddress: options.FeeGranterAddress,
 	}
 	return json.Marshal(jsonOpts)
 }
@@ -76,7 +77,7 @@ func (options *TxOptions) UnmarshalJSON(data []byte) error {
 	options.fee = jsonOpts.Fee
 	options.Gas = jsonOpts.Gas
 	options.Account = jsonOpts.Account
-	options.Granter = jsonOpts.Granter
+	options.FeeGranterAddress = jsonOpts.FeeGranterAddress
 	return nil
 }
 
@@ -146,13 +147,13 @@ func (options *TxOptions) GetSigner(kr keyring.Keyring) (sdktypes.AccAddress, er
 	return rec.GetAddress()
 }
 
-// GetGranter converts provided granter address to the cosmos-sdk `AccAddress`
-func (options *TxOptions) GetGranter() (sdktypes.AccAddress, error) {
-	if options.Granter == "" {
-		return nil, fmt.Errorf("granter %s", errNoAddressProvided.Error())
+// GetFeeGranterAddress converts provided granter address to the cosmos-sdk `AccAddress`
+func (options *TxOptions) GetFeeGranterAddress() (sdktypes.AccAddress, error) {
+	if options.FeeGranterAddress == "" {
+		return nil, fmt.Errorf("granter address %s", errNoAddressProvided.Error())
 	}
 
-	return parseAccAddressFromString(options.Granter)
+	return parseAccAddressFromString(options.FeeGranterAddress)
 }
 
 type Fee struct {

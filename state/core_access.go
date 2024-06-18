@@ -207,8 +207,8 @@ func (ca *CoreAccessor) SubmitPayForBlob(
 
 	var feeGrant user.TxOption
 	// set granter and update gas in case node run in a grantee mode
-	if options.Granter != "" {
-		granter, err := options.GetGranter()
+	if options.FeeGranterAddress != "" {
+		granter, err := options.GetFeeGranterAddress()
 		if err != nil {
 			return nil, err
 		}
@@ -660,8 +660,8 @@ func (ca *CoreAccessor) submitMsg(
 
 	txOptions = append(txOptions, user.SetGasLimitAndFee(options.Gas, float64(options.GetFee())))
 
-	if options.Granter != "" {
-		granter, err := options.GetGranter()
+	if options.FeeGranterAddress != "" {
+		granter, err := options.GetFeeGranterAddress()
 		if err != nil {
 			return nil, fmt.Errorf("getting granter: %w", err)
 		}

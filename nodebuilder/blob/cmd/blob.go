@@ -209,7 +209,7 @@ var submitCmd = &cobra.Command{
 		opts.SetFeeAmount(state.Fee)
 		opts.Gas = state.Gas
 		opts.Account = state.Account
-		opts.Granter = state.Granter
+		opts.FeeGranterAddress = state.FeeGranterAddress
 		height, err := client.Blob.Submit(
 			cmd.Context(),
 			resultBlobs,
