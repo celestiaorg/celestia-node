@@ -467,7 +467,7 @@ func ApplyFlags(cmds ...*cobra.Command) {
 	for _, cmd := range cmds {
 		cmd.PersistentFlags().Float64Var(
 			&GasPrice,
-			"gas.price",
+			"gas-price",
 			-1,
 			"Specifies gas price for the fee calculation",
 		)
@@ -482,14 +482,14 @@ func ApplyFlags(cmds ...*cobra.Command) {
 
 		cmd.PersistentFlags().StringVar(
 			&AccountKey,
-			"account.key",
+			"account-key",
 			"",
 			"Specifies the signer name from the keystore.",
 		)
 
 		cmd.PersistentFlags().StringVar(
 			&FeeGranterAddress,
-			"granter.address",
+			"granter-address",
 			"",
 			"Specifies the address that can pay fees on behalf of the signer.\n"+
 				"The granter must submit the transaction to pay for the grantee's (signer's) transactions.\n"+
