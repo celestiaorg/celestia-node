@@ -206,7 +206,7 @@ var submitCmd = &cobra.Command{
 		}
 
 		opts := options.DefaultTxOptions()
-		opts.SetFeeAmount(state.Fee)
+		opts.SetGasPrice(state.GasPrice)
 		opts.Gas = state.Gas
 		opts.AccountKey = state.AccountKey
 		opts.FeeGranterAddress = state.FeeGranterAddress

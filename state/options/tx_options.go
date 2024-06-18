@@ -19,8 +19,7 @@ const (
 	// gasMultiplier is used to increase gas limit in case if tx has additional options.
 	gasMultiplier = 1.1
 
-	//	Since 0 is a valid fee input for the Tx, the default value is -1.
-	defaultFeeAmount = -1
+	DefaultPrice float64 = -1.0
 )
 
 var (
@@ -30,8 +29,10 @@ var (
 
 // TxOptions specifies additional options that will be applied to the Tx.
 type TxOptions struct {
-	// fee is private since it has to be set through `SetFeeAmount`
-	fee *Fee
+	// GasPrice represents the amount to be paid per gas unit.
+	// Negative GasPrice means user want us to use a minGasPrice,
+	// stored in node.
+	gasPrice *GasPrice
 	// 0 Gas means users want us to calculate it for them.
 	Gas uint64
 
@@ -46,20 +47,20 @@ type TxOptions struct {
 
 func DefaultTxOptions() *TxOptions {
 	return &TxOptions{
-		fee: DefaultFee(),
+		gasPrice: DefaultGasPrice(),
 	}
 }
 
 type jsonTxOptions struct {
-	Fee               *Fee   `json:"fee,omitempty"`
-	Gas               uint64 `json:"gas,omitempty"`
-	AccountKey        string `json:"account,omitempty"`
-	FeeGranterAddress string `json:"granter,omitempty"`
+	GasPrice          *GasPrice `json:"fee,omitempty"`
+	Gas               uint64    `json:"gas,omitempty"`
+	AccountKey        string    `json:"account,omitempty"`
+	FeeGranterAddress string    `json:"granter,omitempty"`
 }
 
 func (options *TxOptions) MarshalJSON() ([]byte, error) {
 	jsonOpts := &jsonTxOptions{
-		Fee:               options.fee,
+		GasPrice:          options.gasPrice,
 		Gas:               options.Gas,
 		AccountKey:        options.AccountKey,
 		FeeGranterAddress: options.FeeGranterAddress,
@@ -74,41 +75,47 @@ func (options *TxOptions) UnmarshalJSON(data []byte) error {
 		return fmt.Errorf("unmarshalling TxOptions:%w", err)
 	}
 
-	options.fee = jsonOpts.Fee
+	options.gasPrice = jsonOpts.GasPrice
 	options.Gas = jsonOpts.Gas
 	options.AccountKey = jsonOpts.AccountKey
 	options.FeeGranterAddress = jsonOpts.FeeGranterAddress
 	return nil
 }
 
-// SetFeeAmount sets fee for the transaction.
-func (options *TxOptions) SetFeeAmount(amount int64) {
-	if amount >= 0 {
-		options.fee.Amount = amount
-		options.fee.isSet = true
+// SetGasPrice sets fee for the transaction.
+func (options *TxOptions) SetGasPrice(price float64) {
+	if options.gasPrice == nil {
+		options.gasPrice = DefaultGasPrice()
 	}
+
+	if price >= 0 {
+		options.gasPrice.Price = price
+		options.gasPrice.isSet = true
+	}
+}
+
+func (options *TxOptions) GetGasPrice() float64 {
+	if options.gasPrice == nil {
+		options.gasPrice = DefaultGasPrice()
+	}
+	return options.gasPrice.Price
 }
 
 // CalculateFee calculates fee amount based on the `minGasPrice` and `Gas`.
 // NOTE: Gas can't be 0.
-func (options *TxOptions) CalculateFee(minGasPrice float64) error {
+func (options *TxOptions) CalculateFee() (int64, error) {
 	if options.Gas == 0 {
-		return errNoGasProvided
+		return 0, errNoGasProvided
 	}
-	if minGasPrice < 0 {
-		return errors.New(" gas price can't be negative")
+	if options.gasPrice == nil {
+		options.gasPrice = DefaultGasPrice()
 	}
-	options.fee.Amount = int64(math.Ceil(minGasPrice * float64(options.Gas)))
-	options.fee.isSet = true
-	return nil
-}
 
-func (options *TxOptions) GetFee() uint64 {
-	return uint64(options.fee.Amount)
-}
-
-func (options *TxOptions) IsFeeSet() bool {
-	return options.fee.isSet
+	if options.gasPrice.Price < 0 {
+		return 0, errors.New(" gas price can't be negative")
+	}
+	fee := int64(math.Ceil(options.gasPrice.Price * float64(options.Gas)))
+	return fee, nil
 }
 
 // EstimateGas estimates gas in case it has not been set.
@@ -156,42 +163,42 @@ func (options *TxOptions) GetFeeGranterAddress() (sdktypes.AccAddress, error) {
 	return parseAccAddressFromString(options.FeeGranterAddress)
 }
 
-type Fee struct {
-	Amount int64
-	isSet  bool
+type GasPrice struct {
+	Price float64
+	isSet bool
 }
 
-// DefaultFee creates a Fee struct with the default value of fee amount.
-func DefaultFee() *Fee {
-	return &Fee{
-		Amount: defaultFeeAmount,
+// DefaultGasPrice creates a Fee struct with the default value of fee amount.
+func DefaultGasPrice() *GasPrice {
+	return &GasPrice{
+		Price: DefaultPrice,
 	}
 }
 
-type jsonFee struct {
-	Amount int64 `json:"amount,omitempty"`
-	IsSet  bool  `json:"isSet,omitempty"`
+type jsonGasPrice struct {
+	Price float64 `json:"price,omitempty"`
+	IsSet bool    `json:"isSet,omitempty"`
 }
 
-func (f *Fee) MarshalJSON() ([]byte, error) {
-	fee := jsonFee{
-		Amount: f.Amount,
-		IsSet:  f.isSet,
+func (g *GasPrice) MarshalJSON() ([]byte, error) {
+	fee := jsonGasPrice{
+		Price: g.Price,
+		IsSet: g.isSet,
 	}
 	return json.Marshal(fee)
 }
 
-func (f *Fee) UnmarshalJSON(data []byte) error {
-	var fee jsonFee
-	err := json.Unmarshal(data, &fee)
+func (g *GasPrice) UnmarshalJSON(data []byte) error {
+	var gasPrice jsonGasPrice
+	err := json.Unmarshal(data, &gasPrice)
 	if err != nil {
 		return err
 	}
 
-	f.Amount = fee.Amount
-	f.isSet = fee.IsSet
-	if !f.isSet {
-		f.Amount = -1
+	g.Price = gasPrice.Price
+	g.isSet = gasPrice.IsSet
+	if !g.isSet {
+		g.Price = -1
 	}
 	return nil
 }

@@ -30,16 +30,6 @@ var (
 	tracer = otel.Tracer("blob/service")
 )
 
-// GasPrice represents the amount to be paid per gas unit. Fee is set by
-// multiplying GasPrice by Gas, which is determined by the blob sizes.
-type GasPrice float64
-
-// DefaultGasPrice returns the default gas price, letting node automatically
-// determine the Fee based on the passed blob sizes.
-func DefaultGasPrice() GasPrice {
-	return -1.0
-}
-
 // Submitter is an interface that allows submitting blobs to the celestia-core. It is used to
 // avoid a circular dependency between the blob and the state package, since the state package needs
 // the blob.Blob type for this signature.

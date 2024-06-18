@@ -112,17 +112,7 @@ func (s *Service) Submit(
 	}
 
 	opts := options.DefaultTxOptions()
-	if blob.DefaultGasPrice() == blob.GasPrice(gasPrice) {
-		blobSizes := make([]uint32, len(blobs))
-		for i, blob := range blobs {
-			blobSizes[i] = uint32(len(blob.Data))
-		}
-		opts.EstimateGasForBlobs(blobSizes)
-		err = opts.CalculateFee(gasPrice)
-		if err != nil {
-			return nil, err
-		}
-	}
+	opts.SetGasPrice(gasPrice)
 
 	height, err := s.blobServ.Submit(ctx, blobs, opts)
 	if err != nil {

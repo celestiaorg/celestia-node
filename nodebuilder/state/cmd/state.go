@@ -15,7 +15,7 @@ import (
 var (
 	amount uint64
 
-	Fee int64
+	GasPrice float64
 
 	Gas uint64
 
@@ -144,7 +144,7 @@ var transferCmd = &cobra.Command{
 		}
 
 		opts := options.DefaultTxOptions()
-		opts.SetFeeAmount(Fee)
+		opts.SetGasPrice(GasPrice)
 		opts.Gas = Gas
 		opts.AccountKey = AccountKey
 		opts.FeeGranterAddress = FeeGranterAddress
@@ -182,11 +182,11 @@ var cancelUnbondingDelegationCmd = &cobra.Command{
 
 		height, err := strconv.ParseInt(args[2], 10, 64)
 		if err != nil {
-			return fmt.Errorf("error parsing a fee: %w", err)
+			return fmt.Errorf("error parsing height: %w", err)
 		}
 
 		opts := options.DefaultTxOptions()
-		opts.SetFeeAmount(Fee)
+		opts.SetGasPrice(GasPrice)
 		opts.Gas = Gas
 		opts.AccountKey = AccountKey
 		opts.FeeGranterAddress = FeeGranterAddress
@@ -229,7 +229,7 @@ var beginRedelegateCmd = &cobra.Command{
 		}
 
 		opts := options.DefaultTxOptions()
-		opts.SetFeeAmount(Fee)
+		opts.SetGasPrice(GasPrice)
 		opts.Gas = Gas
 		opts.AccountKey = AccountKey
 		opts.FeeGranterAddress = FeeGranterAddress
@@ -267,7 +267,7 @@ var undelegateCmd = &cobra.Command{
 		}
 
 		opts := options.DefaultTxOptions()
-		opts.SetFeeAmount(Fee)
+		opts.SetGasPrice(GasPrice)
 		opts.Gas = Gas
 		opts.AccountKey = AccountKey
 		opts.FeeGranterAddress = FeeGranterAddress
@@ -304,7 +304,7 @@ var delegateCmd = &cobra.Command{
 		}
 
 		opts := options.DefaultTxOptions()
-		opts.SetFeeAmount(Fee)
+		opts.SetGasPrice(GasPrice)
 		opts.Gas = Gas
 		opts.AccountKey = AccountKey
 		opts.FeeGranterAddress = FeeGranterAddress
@@ -409,7 +409,7 @@ var grantFeeCmd = &cobra.Command{
 		}
 
 		opts := options.DefaultTxOptions()
-		opts.SetFeeAmount(Fee)
+		opts.SetGasPrice(GasPrice)
 		opts.Gas = Gas
 		opts.AccountKey = AccountKey
 		opts.FeeGranterAddress = FeeGranterAddress
@@ -440,7 +440,7 @@ var revokeGrantFeeCmd = &cobra.Command{
 		}
 
 		opts := options.DefaultTxOptions()
-		opts.SetFeeAmount(Fee)
+		opts.SetGasPrice(GasPrice)
 		opts.Gas = Gas
 		opts.AccountKey = AccountKey
 		opts.FeeGranterAddress = FeeGranterAddress
@@ -465,11 +465,11 @@ func parseAddressFromString(addrStr string) (state.Address, error) {
 
 func ApplyFlags(cmds ...*cobra.Command) {
 	for _, cmd := range cmds {
-		cmd.PersistentFlags().Int64Var(
-			&Fee,
-			"fee",
+		cmd.PersistentFlags().Float64Var(
+			&GasPrice,
+			"gas.price",
 			-1,
-			"Specifies fee(in utia) for tx submission.",
+			"Specifies gas price for the fee calculation",
 		)
 
 		cmd.PersistentFlags().Uint64Var(
