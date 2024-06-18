@@ -18,7 +18,6 @@ import (
 func WithMetrics() fx.Option {
 	return fx.Options(
 		fx.Provide(resourceManagerOpt(traceReporter)),
-		fx.Provide(prometheusRegisterer),
 		fx.Invoke(prometheusMetrics),
 	)
 }
@@ -33,11 +32,21 @@ const (
 )
 
 // prometheusMetrics option sets up native libp2p metrics up
-func prometheusMetrics(lifecycle fx.Lifecycle, registerer prometheus.Registerer) error {
-	registry := registerer.(*prometheus.Registry)
+func prometheusMetrics(lifecycle fx.Lifecycle,
+	peerID peer.ID,
+	nodeType node.Type,
+	network Network,
+) error {
+	reg := prometheus.NewRegistry()
+	labels := prometheus.Labels{
+		networkLabel:  network.String(),
+		nodeTypeLabel: nodeType.String(),
+		peerIDLabel:   peerID.String(),
+	}
+	wrapped := prometheus.WrapRegistererWith(labels, reg)
 
 	mux := http.NewServeMux()
-	handler := promhttp.HandlerFor(registry, promhttp.HandlerOpts{Registry: registerer})
+	handler := promhttp.HandlerFor(reg, promhttp.HandlerOpts{Registry: wrapped})
 	mux.Handle(promAgentEndpoint, handler)
 
 	// TODO(@Wondertan): Unify all the servers into one (See #2007)
@@ -63,18 +72,4 @@ func prometheusMetrics(lifecycle fx.Lifecycle, registerer prometheus.Registerer)
 		},
 	})
 	return nil
-}
-
-func prometheusRegisterer(
-	peerID peer.ID,
-	nodeType node.Type,
-	network Network,
-) prometheus.Registerer {
-	reg := prometheus.NewRegistry()
-	labels := prometheus.Labels{
-		networkLabel:  network.String(),
-		nodeTypeLabel: nodeType.String(),
-		peerIDLabel:   peerID.String(),
-	}
-	return prometheus.WrapRegistererWith(labels, reg)
 }
