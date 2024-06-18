@@ -29,7 +29,6 @@ func readSquare(r io.Reader, shareSize, edsSize int) (square, error) {
 		}
 	}
 
-	// TODO(@walldiss): run benchmark to find optimal size for this buffer
 	br := bufio.NewReaderSize(r, 4096)
 	var total int
 	for i := 0; i < ODSLn; i++ {
@@ -88,8 +87,6 @@ func (s square) axisHalf(axisType rsmt2d.Axis, axisIdx int) (eds.AxisHalf, error
 	}, nil
 }
 
-// TODO(@walldiss): Add more comment on actual algo and support it with visual diagram of computed
-// axis.
 func (s square) computeAxisHalf(
 	axisType rsmt2d.Axis,
 	axisIdx int,

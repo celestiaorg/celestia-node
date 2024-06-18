@@ -79,7 +79,7 @@ func CreateODSFile(
 	if err != nil {
 		return nil, fmt.Errorf("syncing file: %w", err)
 	}
-	// TODO: fill ods field with data from eds
+
 	return &ODSFile{
 		path: path,
 		fl:   f,
