@@ -4,7 +4,6 @@ on:
   push:
     branches:
       - main
-      - ci/ramin/remove-warning
   release:
     types: [published]
   pull_request:
