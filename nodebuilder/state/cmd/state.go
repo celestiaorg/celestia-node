@@ -21,7 +21,7 @@ var (
 
 	Account string
 
-	Granter string
+	FeeGranterAddress string
 )
 
 func init() {
@@ -147,7 +147,7 @@ var transferCmd = &cobra.Command{
 		opts.SetFeeAmount(Fee)
 		opts.Gas = Gas
 		opts.Account = Account
-		opts.Granter = Granter
+		opts.FeeGranterAddress = FeeGranterAddress
 
 		txResponse, err := client.State.Transfer(
 			cmd.Context(),
@@ -189,7 +189,7 @@ var cancelUnbondingDelegationCmd = &cobra.Command{
 		opts.SetFeeAmount(Fee)
 		opts.Gas = Gas
 		opts.Account = Account
-		opts.Granter = Granter
+		opts.FeeGranterAddress = FeeGranterAddress
 
 		txResponse, err := client.State.CancelUnbondingDelegation(
 			cmd.Context(),
@@ -232,7 +232,7 @@ var beginRedelegateCmd = &cobra.Command{
 		opts.SetFeeAmount(Fee)
 		opts.Gas = Gas
 		opts.Account = Account
-		opts.Granter = Granter
+		opts.FeeGranterAddress = FeeGranterAddress
 
 		txResponse, err := client.State.BeginRedelegate(
 			cmd.Context(),
@@ -270,7 +270,7 @@ var undelegateCmd = &cobra.Command{
 		opts.SetFeeAmount(Fee)
 		opts.Gas = Gas
 		opts.Account = Account
-		opts.Granter = Granter
+		opts.FeeGranterAddress = FeeGranterAddress
 
 		txResponse, err := client.State.Undelegate(
 			cmd.Context(),
@@ -307,7 +307,7 @@ var delegateCmd = &cobra.Command{
 		opts.SetFeeAmount(Fee)
 		opts.Gas = Gas
 		opts.Account = Account
-		opts.Granter = Granter
+		opts.FeeGranterAddress = FeeGranterAddress
 
 		txResponse, err := client.State.Delegate(
 			cmd.Context(),
@@ -412,7 +412,7 @@ var grantFeeCmd = &cobra.Command{
 		opts.SetFeeAmount(Fee)
 		opts.Gas = Gas
 		opts.Account = Account
-		opts.Granter = Granter
+		opts.FeeGranterAddress = FeeGranterAddress
 
 		txResponse, err := client.State.GrantFee(
 			cmd.Context(),
@@ -443,7 +443,7 @@ var revokeGrantFeeCmd = &cobra.Command{
 		opts.SetFeeAmount(Fee)
 		opts.Gas = Gas
 		opts.Account = Account
-		opts.Granter = Granter
+		opts.FeeGranterAddress = FeeGranterAddress
 
 		txResponse, err := client.State.RevokeGrantFee(
 			cmd.Context(),
@@ -488,8 +488,8 @@ func ApplyFlags(cmds ...*cobra.Command) {
 		)
 
 		cmd.PersistentFlags().StringVar(
-			&Granter,
-			"granter",
+			&FeeGranterAddress,
+			"granter.address",
 			"",
 			"Specifies the address that can pay fees on behalf of the signer.\n"+
 				"The granter must submit the transaction to pay for the grantee's (signer's) transactions.\n"+
