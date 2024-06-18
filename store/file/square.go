@@ -19,11 +19,11 @@ type square [][]share.Share
 // positioned at the beginning of the Shares. It knows the size of the Shares and the size of the
 // square, so reads from reader are limited to exactly the amount of data required.
 func readSquare(r io.Reader, shareSize, edsSize int) (square, error) {
-	ODSLn := edsSize / 2
+	odsLn := edsSize / 2
 
-	square := make(square, ODSLn)
+	square := make(square, odsLn)
 	for i := range square {
-		square[i] = make([]share.Share, ODSLn)
+		square[i] = make([]share.Share, odsLn)
 		for j := range square[i] {
 			square[i][j] = make(share.Share, shareSize)
 		}
@@ -31,8 +31,8 @@ func readSquare(r io.Reader, shareSize, edsSize int) (square, error) {
 
 	br := bufio.NewReaderSize(r, 4096)
 	var total int
-	for i := 0; i < ODSLn; i++ {
-		for j := 0; j < ODSLn; j++ {
+	for i := 0; i < odsLn; i++ {
+		for j := 0; j < odsLn; j++ {
 			n, err := io.ReadFull(br, square[i][j])
 			if err != nil {
 				return nil, fmt.Errorf("reading share: %w, bytes read: %v", err, total+n)

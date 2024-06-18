@@ -235,14 +235,14 @@ func (f *ODSFile) readODS() error {
 
 func (f *ODSFile) readRow(idx int) ([]share.Share, error) {
 	shrLn := int(f.hdr.shareSize)
-	ODSLn := f.size() / 2
+	odsLn := f.size() / 2
 
-	shares := make([]share.Share, ODSLn)
+	shares := make([]share.Share, odsLn)
 
-	pos := idx * ODSLn
+	pos := idx * odsLn
 	offset := f.hdr.Size() + pos*shrLn
 
-	axsData := make([]byte, ODSLn*shrLn)
+	axsData := make([]byte, odsLn*shrLn)
 	if _, err := f.fl.ReadAt(axsData, int64(offset)); err != nil {
 		return nil, err
 	}
@@ -255,12 +255,12 @@ func (f *ODSFile) readRow(idx int) ([]share.Share, error) {
 
 func (f *ODSFile) readCol(axisIdx, quadrantIdx int) ([]share.Share, error) {
 	shrLn := int(f.hdr.shareSize)
-	ODSLn := f.size() / 2
-	quadrantOffset := quadrantIdx * ODSLn * ODSLn * shrLn
+	odsLn := f.size() / 2
+	quadrantOffset := quadrantIdx * odsLn * odsLn * shrLn
 
-	shares := make([]share.Share, ODSLn)
+	shares := make([]share.Share, odsLn)
 	for i := range shares {
-		pos := axisIdx + i*ODSLn
+		pos := axisIdx + i*odsLn
 		offset := f.hdr.Size() + quadrantOffset + pos*shrLn
 
 		shr := make(share.Share, shrLn)
