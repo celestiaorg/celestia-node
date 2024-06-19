@@ -43,11 +43,11 @@ func NewTxOptions(attributes ...Attribute) Options {
 // txOptions specifies additional options that will be applied to the Tx.
 // Implements `Option` interface.
 type txOptions struct {
-	// GasPrice represents the amount to be paid per gas unit.
-	// Negative GasPrice means user want us to use a minGasPrice,
-	// stored in node.
+	// gasPrice represents the amount to be paid per gas unit.
+	// Negative gasPrice means user want us to use the minGasPrice
+	// defined in the node.
 	gasPrice float64
-	// 0 Gas means users want us to calculate it for them.
+	// 0 gas means users want us to calculate it for them.
 	gas uint64
 
 	// Specifies the key from the keystore associated with an account that
@@ -88,7 +88,7 @@ func (options *txOptions) UnmarshalJSON(data []byte) error {
 	var jsonOpts jsonTxOptions
 	err := json.Unmarshal(data, &jsonOpts)
 	if err != nil {
-		return fmt.Errorf("unmarshalling TxOptions:%w", err)
+		return fmt.Errorf("unmarshalling TxOptions: %w", err)
 	}
 
 	options.gasPrice = jsonOpts.GasPrice
