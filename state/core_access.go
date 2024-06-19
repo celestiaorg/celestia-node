@@ -54,9 +54,9 @@ type CoreAccessor struct {
 	ctx    context.Context
 	cancel context.CancelFunc
 
-	keyring keyring.Keyring
-	keyname string
-	client  *user.TxClient
+	keyring              keyring.Keyring
+	defaultSignerAccount string
+	client               *user.TxClient
 
 	getter libhead.Head[*header.ExtendedHeader]
 
@@ -98,12 +98,12 @@ func NewCoreAccessor(
 	prt.RegisterOpDecoder(storetypes.ProofOpSimpleMerkleCommitment, storetypes.CommitmentOpDecoder)
 
 	ca := &CoreAccessor{
-		keyring:  keyring,
-		keyname:  keyname,
-		getter:   getter,
-		coreIP:   coreIP,
-		grpcPort: grpcPort,
-		prt:      prt,
+		keyring:              keyring,
+		defaultSignerAccount: keyname,
+		getter:               getter,
+		coreIP:               coreIP,
+		grpcPort:             grpcPort,
+		prt:                  prt,
 	}
 
 	for _, opt := range options {
@@ -144,7 +144,7 @@ func (ca *CoreAccessor) Start(ctx context.Context) error {
 	ca.abciQueryCli = tmservice.NewServiceClient(ca.coreConn)
 
 	// set up signer to handle tx submission
-	ca.client, err = ca.setupTxClient(ctx, ca.keyname)
+	ca.client, err = ca.setupTxClient(ctx, ca.defaultSignerAccount)
 	if err != nil {
 		log.Warnw("failed to set up signer, check if node's account is funded", "err", err)
 	}
@@ -196,7 +196,6 @@ func (ca *CoreAccessor) SubmitPayForBlob(
 	}
 
 	var feeGrant user.TxOption
-	// set granter and update gas in case node run in a grantee mode
 	if options.FeeGranterAddress() != "" {
 		granter, err := parseAccAddressFromString(options.FeeGranterAddress())
 		if err != nil {
@@ -221,7 +220,7 @@ func (ca *CoreAccessor) SubmitPayForBlob(
 
 	fee := calculateFee(gas, gasPrice)
 
-	acc := ca.keyname
+	acc := ca.defaultSignerAccount
 	if options.AccountKey() != "" {
 		acc = options.AccountKey()
 	}
@@ -253,11 +252,7 @@ func (ca *CoreAccessor) SubmitPayForBlob(
 				return nil, fmt.Errorf("parsing insufficient min gas price error: %w", err)
 			}
 
-			// update minGasPrice in case `IsInsufficientMinGasPrice` is received
-			if gasPrice > ca.getMinGasPrice() {
-				ca.setMinGasPrice(gasPrice)
-			}
-
+			ca.setMinGasPrice(gasPrice)
 			lastErr = err
 			// explicitly recalculate fee based on the recent minGasPrice
 			fee = calculateFee(gas, gasPrice)
