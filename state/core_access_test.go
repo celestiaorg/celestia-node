@@ -16,11 +16,9 @@ import (
 	"github.com/celestiaorg/celestia-app/app"
 	"github.com/celestiaorg/celestia-app/pkg/appconsts"
 	"github.com/celestiaorg/celestia-app/test/util/testnode"
-	blobtypes "github.com/celestiaorg/celestia-app/x/blob/types"
+	apptypes "github.com/celestiaorg/celestia-app/x/blob/types"
 
-	"github.com/celestiaorg/celestia-node/blob"
 	"github.com/celestiaorg/celestia-node/share"
-	"github.com/celestiaorg/celestia-node/state/options"
 )
 
 func TestSubmitPayForBlob(t *testing.T) {
@@ -35,7 +33,7 @@ func TestSubmitPayForBlob(t *testing.T) {
 
 	ns, err := share.NewBlobNamespaceV0([]byte("namespace"))
 	require.NoError(t, err)
-	blobbyTheBlob, err := blob.NewBlobV0(ns, []byte("data"))
+	blobbyTheBlob, err := apptypes.NewBlob(ns.ToAppNamespace(), []byte("data"), 0)
 	require.NoError(t, err)
 
 	minGas, err := ca.queryMinimumGasPrice(ctx)
@@ -44,23 +42,23 @@ func TestSubmitPayForBlob(t *testing.T) {
 
 	testcases := []struct {
 		name     string
-		blobs    []*blob.Blob
+		blobs    []*apptypes.Blob
 		gasPrice float64
 		gasLim   uint64
 		expErr   error
 	}{
 		{
 			name:     "empty blobs",
-			blobs:    []*blob.Blob{},
-			gasPrice: options.DefaultPrice,
+			blobs:    []*apptypes.Blob{},
+			gasPrice: DefaultPrice,
 			gasLim:   0,
 			expErr:   errors.New("state: no blobs provided"),
 		},
 		{
 			name:     "good blob with user provided gas and fees",
-			blobs:    []*blob.Blob{blobbyTheBlob},
+			blobs:    []*apptypes.Blob{blobbyTheBlob},
 			gasPrice: 0.005,
-			gasLim:   blobtypes.DefaultEstimateGas([]uint32{uint32(len(blobbyTheBlob.Data))}),
+			gasLim:   apptypes.DefaultEstimateGas([]uint32{uint32(len(blobbyTheBlob.Data))}),
 			expErr:   nil,
 		},
 		// TODO: add more test cases. The problem right now is that the celestia-app doesn't
@@ -70,7 +68,7 @@ func TestSubmitPayForBlob(t *testing.T) {
 
 	for _, tc := range testcases {
 		t.Run(tc.name, func(t *testing.T) {
-			resp, err := ca.SubmitPayForBlob(ctx, tc.blobs, options.DefaultTxOptions())
+			resp, err := ca.SubmitPayForBlob(ctx, tc.blobs, NewTxOptions())
 			require.Equal(t, tc.expErr, err)
 			if err == nil {
 				require.EqualValues(t, 0, resp.Code)
@@ -80,10 +78,11 @@ func TestSubmitPayForBlob(t *testing.T) {
 
 	for _, tc := range testcases {
 		t.Run(tc.name, func(t *testing.T) {
-			opts := options.DefaultTxOptions()
-			opts.Gas = tc.gasLim
-			opts.SetGasPrice(tc.gasPrice)
-			opts.AccountKey = accounts[2]
+			opts := NewTxOptions(
+				WithGas(tc.gasLim),
+				WithGasPrice(tc.gasPrice),
+				WithAccountKey(accounts[2]),
+			)
 			resp, err := ca.SubmitPayForBlob(ctx, tc.blobs, opts)
 			require.Equal(t, tc.expErr, err)
 			if err == nil {
@@ -116,7 +115,7 @@ func TestTransfer(t *testing.T) {
 	}{
 		{
 			name:     "transfer without options",
-			gasPrice: options.DefaultPrice,
+			gasPrice: DefaultPrice,
 			gasLim:   0,
 			account:  "",
 			expErr:   nil,
@@ -132,13 +131,11 @@ func TestTransfer(t *testing.T) {
 
 	for _, tc := range testcases {
 		t.Run(tc.name, func(t *testing.T) {
-			opts := options.DefaultTxOptions()
-			opts.SetGasPrice(tc.gasPrice)
-			opts.Gas = tc.gasLim
-			if tc.account != "" {
-				opts.AccountKey = tc.account
-			}
-
+			opts := NewTxOptions(
+				WithGas(tc.gasLim),
+				WithGasPrice(tc.gasPrice),
+				WithAccountKey(accounts[2]),
+			)
 			key, err := ca.keyring.Key(accounts[1])
 			require.NoError(t, err)
 			addr, err := key.GetAddress()
@@ -180,7 +177,7 @@ func TestDelegate(t *testing.T) {
 	}{
 		{
 			name:     "delegate/undelegate without options",
-			gasPrice: options.DefaultPrice,
+			gasPrice: DefaultPrice,
 			gasLim:   0,
 			account:  "",
 		},
@@ -194,24 +191,15 @@ func TestDelegate(t *testing.T) {
 
 	for _, tc := range testcases {
 		t.Run(tc.name, func(t *testing.T) {
-			opts := options.DefaultTxOptions()
-			opts.SetGasPrice(tc.gasPrice)
-			opts.Gas = tc.gasLim
-			if tc.account != "" {
-				opts.AccountKey = tc.account
-			}
-
+			opts := NewTxOptions(
+				WithGas(tc.gasLim),
+				WithGasPrice(tc.gasPrice),
+				WithAccountKey(accounts[2]),
+			)
 			resp, err := ca.Delegate(ctx, ValAddress(valAddr), sdktypes.NewInt(100_000), opts)
 			require.NoError(t, err)
 			require.EqualValues(t, 0, resp.Code)
 
-			// reset for empty case
-			opts = options.DefaultTxOptions()
-			opts.SetGasPrice(tc.gasPrice)
-			opts.Gas = tc.gasLim
-			if tc.account != "" {
-				opts.AccountKey = tc.account
-			}
 			resp, err = ca.Undelegate(ctx, ValAddress(valAddr), sdktypes.NewInt(100_000), opts)
 			require.NoError(t, err)
 			require.EqualValues(t, 0, resp.Code)

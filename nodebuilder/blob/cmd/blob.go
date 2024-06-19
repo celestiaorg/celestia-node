@@ -14,7 +14,6 @@ import (
 	cmdnode "github.com/celestiaorg/celestia-node/cmd"
 	state "github.com/celestiaorg/celestia-node/nodebuilder/state/cmd"
 	"github.com/celestiaorg/celestia-node/share"
-	"github.com/celestiaorg/celestia-node/state/options"
 )
 
 var (
@@ -198,15 +197,10 @@ var submitCmd = &cobra.Command{
 			commitments = append(commitments, blob.Commitment)
 		}
 
-		opts := options.DefaultTxOptions()
-		opts.SetGasPrice(state.GasPrice)
-		opts.Gas = state.Gas
-		opts.AccountKey = state.AccountKey
-		opts.FeeGranterAddress = state.FeeGranterAddress
 		height, err := client.Blob.Submit(
 			cmd.Context(),
 			resultBlobs,
-			opts,
+			state.GetTxOptions(),
 		)
 
 		response := struct {

@@ -31,9 +31,7 @@ import (
 	apptypes "github.com/celestiaorg/celestia-app/x/blob/types"
 	libhead "github.com/celestiaorg/go-header"
 
-	"github.com/celestiaorg/celestia-node/blob"
 	"github.com/celestiaorg/celestia-node/header"
-	"github.com/celestiaorg/celestia-node/state/options"
 )
 
 const (
@@ -190,57 +188,47 @@ func (ca *CoreAccessor) cancelCtx() {
 // The user can specify additional options that can bee applied to the Tx.
 func (ca *CoreAccessor) SubmitPayForBlob(
 	ctx context.Context,
-	blobs []*blob.Blob,
-	options *options.TxOptions,
+	appblobs []*Blob,
+	options Options,
 ) (*TxResponse, error) {
-	if len(blobs) == 0 {
+	if len(appblobs) == 0 {
 		return nil, errors.New("state: no blobs provided")
-	}
-
-	appblobs := make([]*apptypes.Blob, len(blobs))
-	for i := range blobs {
-		if err := blobs[i].Namespace().ValidateForBlob(); err != nil {
-			return nil, err
-		}
-		appblobs[i] = &blobs[i].Blob
 	}
 
 	var feeGrant user.TxOption
 	// set granter and update gas in case node run in a grantee mode
-	if options.FeeGranterAddress != "" {
-		granter, err := options.GetFeeGranterAddress()
+	if options.FeeGranterAddress() != "" {
+		granter, err := parseAccAddressFromString(options.FeeGranterAddress())
 		if err != nil {
 			return nil, err
 		}
 		feeGrant = user.SetFeeGranter(granter)
 	}
 
-	blobSizes := make([]uint32, len(blobs))
-	for i, blob := range blobs {
-		blobSizes[i] = uint32(len(blob.Data))
+	gas := options.GasLimit()
+	if gas == 0 {
+		blobSizes := make([]uint32, len(appblobs))
+		for i, blob := range appblobs {
+			blobSizes[i] = uint32(len(blob.Data))
+		}
+		gas = estimateGasForBlobs(blobSizes)
 	}
-	options.EstimateGasForBlobs(blobSizes)
 
-	if options.GetGasPrice() < 0 {
-		options.SetGasPrice(ca.getMinGasPrice())
+	gasPrice := options.GasPrice()
+	if options.GasPrice() < 0 {
+		gasPrice = ca.getMinGasPrice()
 	}
 
-	fee, err := options.CalculateFee()
-	if err != nil {
-		return nil, err
-	}
-	if fee == 0 {
-		log.Warn("gas price wasn't provided. Transaction will be sent with 0 fee.")
-	}
+	fee := calculateFee(gas, gasPrice)
 
 	acc := ca.keyname
-	if options.AccountKey != "" {
-		acc = options.AccountKey
+	if options.AccountKey() != "" {
+		acc = options.AccountKey()
 	}
 
 	var lastErr error
 	for attempt := 0; attempt < maxRetries; attempt++ {
-		opts := []user.TxOption{user.SetGasLimitAndFee(options.Gas, float64(fee))}
+		opts := []user.TxOption{user.SetGasLimitAndFee(gas, float64(fee))}
 		if feeGrant != nil {
 			opts = append(opts, feeGrant)
 		}
@@ -260,7 +248,7 @@ func (ca *CoreAccessor) SubmitPayForBlob(
 		// update our version accordingly
 		if apperrors.IsInsufficientMinGasPrice(err) {
 			// The error message contains enough information to parse the new min gas price
-			gasPrice, err := apperrors.ParseInsufficientMinGasPrice(err, options.GetGasPrice(), options.Gas)
+			gasPrice, err = apperrors.ParseInsufficientMinGasPrice(err, gasPrice, gas)
 			if err != nil {
 				return nil, fmt.Errorf("parsing insufficient min gas price error: %w", err)
 			}
@@ -270,13 +258,9 @@ func (ca *CoreAccessor) SubmitPayForBlob(
 				ca.setMinGasPrice(gasPrice)
 			}
 
-			options.SetGasPrice(gasPrice)
 			lastErr = err
 			// explicitly recalculate fee based on the recent minGasPrice
-			fee, err = options.CalculateFee()
-			if err != nil {
-				return nil, err
-			}
+			fee = calculateFee(gas, gasPrice)
 			continue
 		}
 
@@ -398,7 +382,7 @@ func (ca *CoreAccessor) Transfer(
 	ctx context.Context,
 	addr AccAddress,
 	amount Int,
-	options *options.TxOptions,
+	options Options,
 ) (*TxResponse, error) {
 	if amount.IsNil() || amount.Int64() <= 0 {
 		return nil, ErrInvalidAmount
@@ -406,8 +390,8 @@ func (ca *CoreAccessor) Transfer(
 
 	signer := ca.client.DefaultAddress()
 	var err error
-	if options.AccountKey != "" {
-		signer, err = options.GetSigner(ca.keyring)
+	if options.AccountKey() != "" {
+		signer, err = parseAccountKey(ca.keyring, options.AccountKey())
 		if err != nil {
 			return nil, err
 		}
@@ -423,7 +407,7 @@ func (ca *CoreAccessor) CancelUnbondingDelegation(
 	valAddr ValAddress,
 	amount,
 	height Int,
-	options *options.TxOptions,
+	options Options,
 ) (*TxResponse, error) {
 	if amount.IsNil() || amount.Int64() <= 0 {
 		return nil, ErrInvalidAmount
@@ -431,8 +415,8 @@ func (ca *CoreAccessor) CancelUnbondingDelegation(
 
 	signer := ca.client.DefaultAddress()
 	var err error
-	if options.AccountKey != "" {
-		signer, err = options.GetSigner(ca.keyring)
+	if options.AccountKey() != "" {
+		signer, err = parseAccountKey(ca.keyring, options.AccountKey())
 		if err != nil {
 			return nil, err
 		}
@@ -448,7 +432,7 @@ func (ca *CoreAccessor) BeginRedelegate(
 	srcValAddr,
 	dstValAddr ValAddress,
 	amount Int,
-	options *options.TxOptions,
+	options Options,
 ) (*TxResponse, error) {
 	if amount.IsNil() || amount.Int64() <= 0 {
 		return nil, ErrInvalidAmount
@@ -456,8 +440,8 @@ func (ca *CoreAccessor) BeginRedelegate(
 
 	signer := ca.client.DefaultAddress()
 	var err error
-	if options.AccountKey != "" {
-		signer, err = options.GetSigner(ca.keyring)
+	if options.AccountKey() != "" {
+		signer, err = parseAccountKey(ca.keyring, options.AccountKey())
 		if err != nil {
 			return nil, err
 		}
@@ -472,7 +456,7 @@ func (ca *CoreAccessor) Undelegate(
 	ctx context.Context,
 	delAddr ValAddress,
 	amount Int,
-	options *options.TxOptions,
+	options Options,
 ) (*TxResponse, error) {
 	if amount.IsNil() || amount.Int64() <= 0 {
 		return nil, ErrInvalidAmount
@@ -480,8 +464,8 @@ func (ca *CoreAccessor) Undelegate(
 
 	signer := ca.client.DefaultAddress()
 	var err error
-	if options.AccountKey != "" {
-		signer, err = options.GetSigner(ca.keyring)
+	if options.AccountKey() != "" {
+		signer, err = parseAccountKey(ca.keyring, options.AccountKey())
 		if err != nil {
 			return nil, err
 		}
@@ -496,7 +480,7 @@ func (ca *CoreAccessor) Delegate(
 	ctx context.Context,
 	delAddr ValAddress,
 	amount Int,
-	options *options.TxOptions,
+	options Options,
 ) (*TxResponse, error) {
 	if amount.IsNil() || amount.Int64() <= 0 {
 		return nil, ErrInvalidAmount
@@ -504,8 +488,8 @@ func (ca *CoreAccessor) Delegate(
 
 	signer := ca.client.DefaultAddress()
 	var err error
-	if options.AccountKey != "" {
-		signer, err = options.GetSigner(ca.keyring)
+	if options.AccountKey() != "" {
+		signer, err = parseAccountKey(ca.keyring, options.AccountKey())
 		if err != nil {
 			return nil, err
 		}
@@ -555,16 +539,20 @@ func (ca *CoreAccessor) GrantFee(
 	ctx context.Context,
 	grantee AccAddress,
 	amount Int,
-	options *options.TxOptions,
+	options Options,
 ) (*TxResponse, error) {
-	granter := ca.client.DefaultAddress()
-	var err error
-	if options.AccountKey != "" {
-		granter, err = options.GetSigner(ca.keyring)
+	var (
+		granter = ca.client.DefaultAddress()
+		err     error
+	)
+
+	if options.AccountKey() != "" {
+		granter, err = parseAccountKey(ca.keyring, options.AccountKey())
 		if err != nil {
 			return nil, err
 		}
 	}
+
 	allowance := &feegrant.BasicAllowance{}
 	if !amount.IsZero() {
 		// set spend limit
@@ -581,12 +569,15 @@ func (ca *CoreAccessor) GrantFee(
 func (ca *CoreAccessor) RevokeGrantFee(
 	ctx context.Context,
 	grantee AccAddress,
-	options *options.TxOptions,
+	options Options,
 ) (*TxResponse, error) {
-	granter := ca.client.DefaultAddress()
-	var err error
-	if options.AccountKey != "" {
-		granter, err = options.GetSigner(ca.keyring)
+	var (
+		granter = ca.client.DefaultAddress()
+		err     error
+	)
+
+	if options.AccountKey() != "" {
+		granter, err = parseAccountKey(ca.keyring, options.AccountKey())
 		if err != nil {
 			return nil, err
 		}
@@ -645,36 +636,48 @@ func (ca *CoreAccessor) queryMinimumGasPrice(
 
 func (ca *CoreAccessor) setupTxClient(ctx context.Context, keyName string) (*user.TxClient, error) {
 	encCfg := encoding.MakeConfig(app.ModuleEncodingRegisters...)
-	return user.SetupTxClient(ctx, ca.keyring, ca.coreConn, encCfg, user.WithDefaultAccount(keyName))
+	// explicitly set default address. Otherwise, there could be a mismatch between defaultKey and defaultAddress.
+	rec, err := ca.keyring.Key(keyName)
+	if err != nil {
+		return nil, err
+	}
+	addr, err := rec.GetAddress()
+	if err != nil {
+		return nil, err
+	}
+
+	return user.SetupTxClient(ctx, ca.keyring, ca.coreConn, encCfg,
+		user.WithDefaultAccount(keyName), user.WithDefaultAddress(addr),
+	)
 }
 
 func (ca *CoreAccessor) submitMsg(
 	ctx context.Context,
 	msg sdktypes.Msg,
-	options *options.TxOptions,
+	options Options,
 ) (*TxResponse, error) {
 	txOptions := make([]user.TxOption, 0)
-	err := options.EstimateGas(ctx, ca.client, msg)
-	if err != nil {
-		return nil, fmt.Errorf("estimating gas: %w", err)
+	var (
+		gas = options.GasLimit()
+		err error
+	)
+	if gas == 0 {
+		gas, err = estimateGas(ctx, ca.client, msg)
+		if err != nil {
+			return nil, fmt.Errorf("estimating gas: %w", err)
+		}
 	}
 
-	if options.GetGasPrice() < 0 {
-		options.SetGasPrice(ca.getMinGasPrice())
+	gasPrice := options.GasPrice()
+	if gasPrice < 0 {
+		gasPrice = ca.minGasPrice
 	}
 
-	fee, err := options.CalculateFee()
-	if err != nil {
-		return nil, err
-	}
-	if fee == 0 {
-		log.Warn("gas price wasn't provided. Transaction will be sent with 0 fee.")
-	}
+	fee := calculateFee(gas, gasPrice)
+	txOptions = append(txOptions, user.SetGasLimitAndFee(gas, float64(fee)))
 
-	txOptions = append(txOptions, user.SetGasLimitAndFee(options.Gas, float64(fee)))
-
-	if options.FeeGranterAddress != "" {
-		granter, err := options.GetFeeGranterAddress()
+	if options.FeeGranterAddress() != "" {
+		granter, err := parseAccAddressFromString(options.FeeGranterAddress())
 		if err != nil {
 			return nil, fmt.Errorf("getting granter: %w", err)
 		}

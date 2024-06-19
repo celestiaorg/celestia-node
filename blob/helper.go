@@ -7,6 +7,7 @@ import (
 	"github.com/tendermint/tendermint/types"
 
 	"github.com/celestiaorg/celestia-app/pkg/shares"
+	apptypes "github.com/celestiaorg/celestia-app/x/blob/types"
 
 	"github.com/celestiaorg/celestia-node/share"
 )
@@ -34,6 +35,15 @@ func BlobsToShares(blobs ...*Blob) ([]share.Share, error) {
 		return nil, err
 	}
 	return shares.ToBytes(rawShares), nil
+}
+
+// ToAppBlobs convertc node's blobs to the app blobs.
+func ToAppBlobs(blobs ...*Blob) []*apptypes.Blob {
+	appBlobs := make([]*apptypes.Blob, 0, len(blobs))
+	for i := range blobs {
+		appBlobs[i] = &blobs[i].Blob
+	}
+	return appBlobs
 }
 
 // toAppShares converts node's raw shares to the app shares, skipping padding
