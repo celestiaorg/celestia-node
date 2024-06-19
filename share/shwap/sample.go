@@ -4,6 +4,7 @@ import (
 	"errors"
 	"fmt"
 
+	"github.com/celestiaorg/celestia-app/pkg/wrapper"
 	"github.com/celestiaorg/nmt"
 	nmt_pb "github.com/celestiaorg/nmt/pb"
 	"github.com/celestiaorg/rsmt2d"
@@ -22,6 +23,29 @@ type Sample struct {
 	share.Share             // Embeds the Share which includes the data with namespace.
 	Proof       *nmt.Proof  // Proof is the Merkle Proof validating the share's inclusion.
 	ProofType   rsmt2d.Axis // ProofType indicates whether the proof is against a row or a column.
+}
+
+// SampleFromShares creates a Sample from a list of shares, using the specified proof type and
+// the share index to be included in the sample.
+func SampleFromShares(shares []share.Share, proofType rsmt2d.Axis, axisIdx, shrIdx int) (Sample, error) {
+	tree := wrapper.NewErasuredNamespacedMerkleTree(uint64(len(shares)/2), uint(axisIdx))
+	for _, shr := range shares {
+		err := tree.Push(shr)
+		if err != nil {
+			return Sample{}, err
+		}
+	}
+
+	proof, err := tree.ProveRange(shrIdx, shrIdx+1)
+	if err != nil {
+		return Sample{}, err
+	}
+
+	return Sample{
+		Share:     shares[shrIdx],
+		Proof:     &proof,
+		ProofType: proofType,
+	}, nil
 }
 
 // SampleFromProto converts a protobuf Sample back into its domain model equivalent.
