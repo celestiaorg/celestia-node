@@ -242,8 +242,8 @@ func BenchGetHalfAxisFromAccessor(
 		f := newAccessor(size)
 
 		// loop over all possible axis types and quadrants
-		for _, axisType := range []rsmt2d.Axis{rsmt2d.Row, rsmt2d.Col} {
-			for _, squareHalf := range []int{0, 1} {
+		for _, squareHalf := range []int{0, 1} {
+			for _, axisType := range []rsmt2d.Axis{rsmt2d.Row, rsmt2d.Col} {
 				name := fmt.Sprintf("Size:%v/ProofType:%s/squareHalf:%s", size, axisType, strconv.Itoa(squareHalf))
 				b.Run(name, func(b *testing.B) {
 					b.ResetTimer()

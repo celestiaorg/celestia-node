@@ -82,7 +82,7 @@ func BenchmarkAxisFromODSFile(b *testing.B) {
 	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 	b.Cleanup(cancel)
 
-	minSize, maxSize := 32, 128
+	minSize, maxSize := 32, 32
 	newFile := func(size int) eds.Accessor {
 		eds := edstest.RandEDS(b, size)
 		return createODSFile(b, eds)
@@ -106,7 +106,7 @@ func BenchmarkShareFromODSFile(b *testing.B) {
 	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 	b.Cleanup(cancel)
 
-	minSize, maxSize := 32, 128
+	minSize, maxSize := 32, 32
 	newFile := func(size int) eds.Accessor {
 		eds := edstest.RandEDS(b, size)
 		return createODSFile(b, eds)

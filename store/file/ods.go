@@ -258,16 +258,14 @@ func (f *ODSFile) readCol(axisIdx, quadrantIdx int) ([]share.Share, error) {
 	odsLn := f.size() / 2
 	quadrantOffset := quadrantIdx * odsLn * odsLn * shrLn
 
-	shares := make([]share.Share, odsLn)
+	shares := memPools.get(odsLn).getHalfAxis()
 	for i := range shares {
 		pos := axisIdx + i*odsLn
 		offset := f.hdr.Size() + quadrantOffset + pos*shrLn
 
-		shr := make(share.Share, shrLn)
-		if _, err := f.fl.ReadAt(shr, int64(offset)); err != nil {
+		if _, err := f.fl.ReadAt(shares[i], int64(offset)); err != nil {
 			return nil, err
 		}
-		shares[i] = shr
 	}
 	return shares, nil
 }

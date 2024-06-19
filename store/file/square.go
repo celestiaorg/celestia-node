@@ -21,13 +21,8 @@ type square [][]share.Share
 func readSquare(r io.Reader, shareSize, edsSize int) (square, error) {
 	odsLn := edsSize / 2
 
-	square := make(square, odsLn)
-	for i := range square {
-		square[i] = make([]share.Share, odsLn)
-		for j := range square[i] {
-			square[i][j] = make(share.Share, shareSize)
-		}
-	}
+	// get pre-allocated square and buffer from memPools
+	square := memPools.get(odsLn).square()
 
 	br := bufio.NewReaderSize(r, 4096)
 	var total int
