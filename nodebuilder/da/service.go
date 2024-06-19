@@ -15,7 +15,7 @@ import (
 	"github.com/celestiaorg/celestia-node/blob"
 	nodeblob "github.com/celestiaorg/celestia-node/nodebuilder/blob"
 	"github.com/celestiaorg/celestia-node/share"
-	"github.com/celestiaorg/celestia-node/state/options"
+	"github.com/celestiaorg/celestia-node/state"
 )
 
 var _ da.DA = (*Service)(nil)
@@ -111,8 +111,7 @@ func (s *Service) Submit(
 		return nil, err
 	}
 
-	opts := options.DefaultTxOptions()
-	opts.SetGasPrice(gasPrice)
+	opts := state.NewTxOptions(state.WithGasPrice(gasPrice))
 
 	height, err := s.blobServ.Submit(ctx, blobs, opts)
 	if err != nil {

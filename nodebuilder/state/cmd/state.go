@@ -9,19 +9,18 @@ import (
 
 	cmdnode "github.com/celestiaorg/celestia-node/cmd"
 	"github.com/celestiaorg/celestia-node/state"
-	"github.com/celestiaorg/celestia-node/state/options"
 )
 
 var (
 	amount uint64
 
-	GasPrice float64
+	gasPrice float64
 
-	Gas uint64
+	gas uint64
 
-	AccountKey string
+	accountKey string
 
-	FeeGranterAddress string
+	feeGranterAddress string
 )
 
 func init() {
@@ -143,17 +142,11 @@ var transferCmd = &cobra.Command{
 			return fmt.Errorf("error parsing an amount: %w", err)
 		}
 
-		opts := options.DefaultTxOptions()
-		opts.SetGasPrice(GasPrice)
-		opts.Gas = Gas
-		opts.AccountKey = AccountKey
-		opts.FeeGranterAddress = FeeGranterAddress
-
 		txResponse, err := client.State.Transfer(
 			cmd.Context(),
 			addr.Address.(state.AccAddress),
 			math.NewInt(amount),
-			opts,
+			GetTxOptions(),
 		)
 		return cmdnode.PrintOutput(txResponse, err, nil)
 	},
@@ -185,18 +178,12 @@ var cancelUnbondingDelegationCmd = &cobra.Command{
 			return fmt.Errorf("error parsing height: %w", err)
 		}
 
-		opts := options.DefaultTxOptions()
-		opts.SetGasPrice(GasPrice)
-		opts.Gas = Gas
-		opts.AccountKey = AccountKey
-		opts.FeeGranterAddress = FeeGranterAddress
-
 		txResponse, err := client.State.CancelUnbondingDelegation(
 			cmd.Context(),
 			addr.Address.(state.ValAddress),
 			math.NewInt(amount),
 			math.NewInt(height),
-			opts,
+			GetTxOptions(),
 		)
 		return cmdnode.PrintOutput(txResponse, err, nil)
 	},
@@ -228,18 +215,12 @@ var beginRedelegateCmd = &cobra.Command{
 			return fmt.Errorf("error parsing an amount: %w", err)
 		}
 
-		opts := options.DefaultTxOptions()
-		opts.SetGasPrice(GasPrice)
-		opts.Gas = Gas
-		opts.AccountKey = AccountKey
-		opts.FeeGranterAddress = FeeGranterAddress
-
 		txResponse, err := client.State.BeginRedelegate(
 			cmd.Context(),
 			srcAddr.Address.(state.ValAddress),
 			dstAddr.Address.(state.ValAddress),
 			math.NewInt(amount),
-			opts,
+			GetTxOptions(),
 		)
 		return cmdnode.PrintOutput(txResponse, err, nil)
 	},
@@ -266,17 +247,11 @@ var undelegateCmd = &cobra.Command{
 			return fmt.Errorf("error parsing an amount: %w", err)
 		}
 
-		opts := options.DefaultTxOptions()
-		opts.SetGasPrice(GasPrice)
-		opts.Gas = Gas
-		opts.AccountKey = AccountKey
-		opts.FeeGranterAddress = FeeGranterAddress
-
 		txResponse, err := client.State.Undelegate(
 			cmd.Context(),
 			addr.Address.(state.ValAddress),
 			math.NewInt(amount),
-			opts,
+			GetTxOptions(),
 		)
 		return cmdnode.PrintOutput(txResponse, err, nil)
 	},
@@ -303,17 +278,11 @@ var delegateCmd = &cobra.Command{
 			return fmt.Errorf("error parsing an amount: %w", err)
 		}
 
-		opts := options.DefaultTxOptions()
-		opts.SetGasPrice(GasPrice)
-		opts.Gas = Gas
-		opts.AccountKey = AccountKey
-		opts.FeeGranterAddress = FeeGranterAddress
-
 		txResponse, err := client.State.Delegate(
 			cmd.Context(),
 			addr.Address.(state.ValAddress),
 			math.NewInt(amount),
-			opts,
+			GetTxOptions(),
 		)
 		return cmdnode.PrintOutput(txResponse, err, nil)
 	},
@@ -408,16 +377,10 @@ var grantFeeCmd = &cobra.Command{
 			return fmt.Errorf("error parsing an address: %w", err)
 		}
 
-		opts := options.DefaultTxOptions()
-		opts.SetGasPrice(GasPrice)
-		opts.Gas = Gas
-		opts.AccountKey = AccountKey
-		opts.FeeGranterAddress = FeeGranterAddress
-
 		txResponse, err := client.State.GrantFee(
 			cmd.Context(),
 			granteeAddr.Address.(state.AccAddress),
-			math.NewInt(int64(amount)), opts,
+			math.NewInt(int64(amount)), GetTxOptions(),
 		)
 		return cmdnode.PrintOutput(txResponse, err, nil)
 	},
@@ -439,16 +402,10 @@ var revokeGrantFeeCmd = &cobra.Command{
 			return fmt.Errorf("error parsing an address: %w", err)
 		}
 
-		opts := options.DefaultTxOptions()
-		opts.SetGasPrice(GasPrice)
-		opts.Gas = Gas
-		opts.AccountKey = AccountKey
-		opts.FeeGranterAddress = FeeGranterAddress
-
 		txResponse, err := client.State.RevokeGrantFee(
 			cmd.Context(),
 			granteeAddr.Address.(state.AccAddress),
-			opts,
+			GetTxOptions(),
 		)
 		return cmdnode.PrintOutput(txResponse, err, nil)
 	},
@@ -466,14 +423,14 @@ func parseAddressFromString(addrStr string) (state.Address, error) {
 func ApplyFlags(cmds ...*cobra.Command) {
 	for _, cmd := range cmds {
 		cmd.PersistentFlags().Float64Var(
-			&GasPrice,
-			"gas-price",
+			&gasPrice,
+			"gas.price",
 			-1,
 			"Specifies gas price for the fee calculation",
 		)
 
 		cmd.PersistentFlags().Uint64Var(
-			&Gas,
+			&gas,
 			"gas",
 			0,
 			"Specifies gas limit (in utia) for tx submission. "+
@@ -481,15 +438,15 @@ func ApplyFlags(cmds ...*cobra.Command) {
 		)
 
 		cmd.PersistentFlags().StringVar(
-			&AccountKey,
-			"account-key",
+			&accountKey,
+			"account.key",
 			"",
 			"Specifies the signer name from the keystore.",
 		)
 
 		cmd.PersistentFlags().StringVar(
-			&FeeGranterAddress,
-			"granter-address",
+			&feeGranterAddress,
+			"granter.address",
 			"",
 			"Specifies the address that can pay fees on behalf of the signer.\n"+
 				"The granter must submit the transaction to pay for the grantee's (signer's) transactions.\n"+
@@ -498,4 +455,13 @@ func ApplyFlags(cmds ...*cobra.Command) {
 				"Example: celestiaxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
 		)
 	}
+}
+
+func GetTxOptions() state.Options {
+	return state.NewTxOptions(
+		state.WithGasPrice(gasPrice),
+		state.WithGas(gas),
+		state.WithAccountKey(accountKey),
+		state.WithFeeGranterAddress(feeGranterAddress),
+	)
 }

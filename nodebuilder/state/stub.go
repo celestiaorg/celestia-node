@@ -6,9 +6,7 @@ import (
 
 	"github.com/cosmos/cosmos-sdk/x/staking/types"
 
-	"github.com/celestiaorg/celestia-node/blob"
 	"github.com/celestiaorg/celestia-node/state"
-	"github.com/celestiaorg/celestia-node/state/options"
 )
 
 var ErrNoStateAccess = errors.New("node is running without state access. run with --core.ip <CORE NODE IP> to resolve")
@@ -37,7 +35,7 @@ func (s stubbedStateModule) Transfer(
 	_ context.Context,
 	_ state.AccAddress,
 	_ state.Int,
-	_ *options.TxOptions,
+	_ state.Options,
 ) (*state.TxResponse, error) {
 	return nil, ErrNoStateAccess
 }
@@ -48,8 +46,8 @@ func (s stubbedStateModule) SubmitTx(context.Context, state.Tx) (*state.TxRespon
 
 func (s stubbedStateModule) SubmitPayForBlob(
 	context.Context,
-	[]*blob.Blob,
-	*options.TxOptions,
+	[]*state.Blob,
+	state.Options,
 ) (*state.TxResponse, error) {
 	return nil, ErrNoStateAccess
 }
@@ -58,7 +56,7 @@ func (s stubbedStateModule) CancelUnbondingDelegation(
 	_ context.Context,
 	_ state.ValAddress,
 	_, _ state.Int,
-	_ *options.TxOptions,
+	_ state.Options,
 ) (*state.TxResponse, error) {
 	return nil, ErrNoStateAccess
 }
@@ -67,7 +65,7 @@ func (s stubbedStateModule) BeginRedelegate(
 	_ context.Context,
 	_, _ state.ValAddress,
 	_ state.Int,
-	_ *options.TxOptions,
+	_ state.Options,
 ) (*state.TxResponse, error) {
 	return nil, ErrNoStateAccess
 }
@@ -76,7 +74,7 @@ func (s stubbedStateModule) Undelegate(
 	_ context.Context,
 	_ state.ValAddress,
 	_ state.Int,
-	_ *options.TxOptions,
+	_ state.Options,
 ) (*state.TxResponse, error) {
 	return nil, ErrNoStateAccess
 }
@@ -85,7 +83,7 @@ func (s stubbedStateModule) Delegate(
 	_ context.Context,
 	_ state.ValAddress,
 	_ state.Int,
-	_ *options.TxOptions,
+	_ state.Options,
 ) (*state.TxResponse, error) {
 	return nil, ErrNoStateAccess
 }
@@ -115,7 +113,7 @@ func (s stubbedStateModule) GrantFee(
 	_ context.Context,
 	_ state.AccAddress,
 	_ state.Int,
-	_ *options.TxOptions,
+	_ state.Options,
 ) (*state.TxResponse, error) {
 	return nil, ErrNoStateAccess
 }
@@ -123,7 +121,7 @@ func (s stubbedStateModule) GrantFee(
 func (s stubbedStateModule) RevokeGrantFee(
 	_ context.Context,
 	_ state.AccAddress,
-	_ *options.TxOptions,
+	_ state.Options,
 ) (*state.TxResponse, error) {
 	return nil, ErrNoStateAccess
 }

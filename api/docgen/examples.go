@@ -31,7 +31,6 @@ import (
 	"github.com/celestiaorg/celestia-node/share"
 	"github.com/celestiaorg/celestia-node/share/eds/byzantine"
 	"github.com/celestiaorg/celestia-node/state"
-	"github.com/celestiaorg/celestia-node/state/options"
 )
 
 //go:embed "exampledata/extendedHeader.json"
@@ -183,11 +182,12 @@ func init() {
 	blobProof = &blob.Proof{&proof}
 	addToExampleValues(blobProof)
 
-	txOptions := options.DefaultTxOptions()
-	txOptions.AccountKey = "my_celes_key"
-	txOptions.Gas = 142225
-	txOptions.SetGasPrice(0.002)
-	txOptions.FeeGranterAddress = "celestia1hakc56ax66ypjcmwj8w6hyr2c4g8cfs3wesguc"
+	txOptions := state.NewTxOptions(
+		state.WithGasPrice(0.002),
+		state.WithGas(142225),
+		state.WithAccountKey("my_celes_key"),
+		state.WithFeeGranterAddress("celestia1hakc56ax66ypjcmwj8w6hyr2c4g8cfs3wesguc"),
+	)
 	addToExampleValues(txOptions)
 }
 
