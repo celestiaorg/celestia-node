@@ -18,7 +18,7 @@ import (
 	"github.com/celestiaorg/celestia-node/share/shwap"
 )
 
-type createAccessor func(eds *rsmt2d.ExtendedDataSquare) Accessor
+type createAccessor func(testing.TB, *rsmt2d.ExtendedDataSquare) Accessor
 
 // TestSuiteAccessor runs a suite of tests for the given Accessor implementation.
 func TestSuiteAccessor(
@@ -51,7 +51,7 @@ func testAccessorSample(
 	odsSize int,
 ) {
 	eds := edstest.RandEDS(t, odsSize)
-	fl := createAccessor(eds)
+	fl := createAccessor(t, eds)
 
 	dah, err := share.NewRoot(eds)
 	require.NoError(t, err)
@@ -108,7 +108,7 @@ func testAccessorRowNamespaceData(
 		for amount := 1; amount < sharesAmount; amount++ {
 			// select random amount of shares, but not less than 1
 			eds, dah := edstest.RandEDSWithNamespace(t, namespace, amount, odsSize)
-			f := createAccessor(eds)
+			f := createAccessor(t, eds)
 
 			var actualSharesAmount int
 			// loop over all rows and check that the amount of shares in the namespace is equal to the expected
@@ -149,7 +149,7 @@ func testAccessorRowNamespaceData(
 			absentNs, err := share.Namespace(maxNs).AddInt(-1)
 			require.NoError(t, err)
 
-			f := createAccessor(eds)
+			f := createAccessor(t, eds)
 			rowData, err := f.RowNamespaceData(ctx, absentNs, i)
 			require.NoError(t, err)
 
@@ -170,7 +170,7 @@ func testAccessorAxisHalf(
 	odsSize int,
 ) {
 	eds := edstest.RandEDS(t, odsSize)
-	fl := createAccessor(eds)
+	fl := createAccessor(t, eds)
 
 	t.Run("single thread", func(t *testing.T) {
 		for _, axisType := range []rsmt2d.Axis{rsmt2d.Col, rsmt2d.Row} {
@@ -224,7 +224,7 @@ func testAccessorShares(
 	odsSize int,
 ) {
 	eds := edstest.RandEDS(t, odsSize)
-	fl := createAccessor(eds)
+	fl := createAccessor(t, eds)
 
 	shares, err := fl.Shares(ctx)
 	require.NoError(t, err)
