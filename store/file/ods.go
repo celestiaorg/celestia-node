@@ -64,7 +64,7 @@ func CreateODSFile(
 
 	h := &headerV0{
 		fileVersion: fileV0,
-		fileType:    ODS,
+		fileType:    ods,
 		shareSize:   share.Size,
 		squareSize:  uint16(eds.Width()),
 		datahash:    datahash,

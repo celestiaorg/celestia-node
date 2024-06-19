@@ -35,7 +35,7 @@ const (
 type fileType uint8
 
 const (
-	ODS fileType = iota
+	ods fileType = iota
 	q1q4
 )
 
@@ -57,12 +57,9 @@ func readHeader(r io.Reader) (*headerV0, error) {
 }
 
 func writeHeader(w io.Writer, h *headerV0) error {
-	n, err := w.Write([]byte{byte(headerVersionV0)})
+	err := binary.Write(w, binary.LittleEndian, headerVersionV0)
 	if err != nil {
 		return fmt.Errorf("writeHeader: %w", err)
-	}
-	if n != 1 {
-		return fmt.Errorf("writeHeader: wrote %d bytes, expected 1", n)
 	}
 	_, err = h.WriteTo(w)
 	return err
