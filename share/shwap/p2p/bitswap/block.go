@@ -15,7 +15,7 @@ var log = logger.Logger("shwap/bitswap")
 // Block represents Bitswap compatible Shwap container.
 // All Shwap containers must have a registerBlock-ed wrapper
 // implementing the interface to be compatible with Bitswap.
-// NOTE: This is not Blockchain block, but IPFS/Bitswap block/
+// NOTE: This is not Blockchain block, but IPFS/Bitswap block.
 type Block interface {
 	// CID returns Shwap ID of the Block formatted as CID.
 	CID() cid.Cid
