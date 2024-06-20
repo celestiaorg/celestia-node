@@ -40,7 +40,6 @@ type ResultCommitmentProof struct {
 }
 
 // CommitmentProof is an inclusion proof of a commitment to the data root.
-// TODO: Ask reviewers if we need protobuf definitions for this
 type CommitmentProof struct {
 	// SubtreeRoots are the subtree roots of the blob's data that are
 	// used to create the commitment.
