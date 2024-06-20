@@ -7,9 +7,8 @@ import (
 	blocks "github.com/ipfs/go-block-format"
 	"github.com/ipfs/go-cid"
 
-	bitswappb "github.com/celestiaorg/celestia-node/share/shwap/p2p/bitswap/pb"
-
 	eds "github.com/celestiaorg/celestia-node/share/new_eds"
+	bitswappb "github.com/celestiaorg/celestia-node/share/shwap/p2p/bitswap/pb"
 )
 
 type Accessors interface {

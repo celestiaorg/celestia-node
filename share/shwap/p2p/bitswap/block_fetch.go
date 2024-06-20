@@ -9,10 +9,16 @@ import (
 	"github.com/ipfs/boxo/exchange"
 	"github.com/ipfs/go-cid"
 
-	bitswappb "github.com/celestiaorg/celestia-node/share/shwap/p2p/bitswap/pb"
-
 	"github.com/celestiaorg/celestia-node/share"
+	bitswappb "github.com/celestiaorg/celestia-node/share/shwap/p2p/bitswap/pb"
 )
+
+// WithFetchSession instantiates a new Fetch session and saves it on the context.
+// Session reuses peers known to have Blocks without rediscovering.
+func WithFetchSession(ctx context.Context, exchg exchange.SessionExchange) context.Context {
+	fetcher := exchg.NewSession(ctx)
+	return context.WithValue(ctx, fetcherKey, fetcher)
+}
 
 // Fetch fetches and populates given Blocks using Fetcher wrapping Bitswap.
 //
@@ -20,6 +26,31 @@ import (
 // Gracefully synchronize identical Blocks requested simultaneously.
 // Blocks until either context is canceled or all Blocks are fetched and populated.
 func Fetch(ctx context.Context, exchg exchange.Interface, root *share.Root, blks ...Block) error {
+	for from, to := 0, 0; to < len(blks); { //nolint:wastedassign // it's not actually wasted
+		from, to = to, to+maxPerFetch
+		if to >= len(blks) {
+			to = len(blks)
+		}
+
+		err := fetch(ctx, exchg, root, blks[from:to]...)
+		if err != nil {
+			return err
+		}
+	}
+
+	return ctx.Err()
+}
+
+// maxPerFetch sets the limit for maximum items in a single fetch.
+// It's a heuristic coming from Bitswap, which apparently can't process more than ~1024 in a single
+// GetBlock call. Going beyond that stalls the call indefinitely.
+const maxPerFetch = 1024
+
+// fetch fetches given Blocks.
+// See [Fetch] for detailed description.
+func fetch(ctx context.Context, exchg exchange.Interface, root *share.Root, blks ...Block) error {
+	fetcher := getFetcher(ctx, exchg)
+
 	cids := make([]cid.Cid, 0, len(blks))
 	duplicates := make(map[cid.Cid]Block)
 	for _, blk := range blks {
@@ -45,7 +76,7 @@ func Fetch(ctx context.Context, exchg exchange.Interface, root *share.Root, blks
 		}
 	}
 
-	blkCh, err := exchg.GetBlocks(ctx, cids)
+	blkCh, err := fetcher.GetBlocks(ctx, cids)
 	if err != nil {
 		return fmt.Errorf("requesting Bitswap blocks: %w", err)
 	}
@@ -174,4 +205,19 @@ func (h *hasher) Size() int {
 
 func (h *hasher) BlockSize() int {
 	return sha256.BlockSize
+}
+
+type fetcherSessionKey struct{}
+
+var fetcherKey fetcherSessionKey
+
+// getFetcher takes context and a fetcher, if there is another fetcher in the context,
+// it gets returned.
+func getFetcher(ctx context.Context, fetcher exchange.Fetcher) exchange.Fetcher {
+	fetcherVal := ctx.Value(fetcherKey)
+	if fetcherVal == nil {
+		return fetcher
+	}
+
+	return fetcherVal.(exchange.Fetcher)
 }

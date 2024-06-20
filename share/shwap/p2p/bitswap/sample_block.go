@@ -6,12 +6,10 @@ import (
 
 	"github.com/ipfs/go-cid"
 
-	eds "github.com/celestiaorg/celestia-node/share/new_eds"
-
-	shwappb "github.com/celestiaorg/celestia-node/share/shwap/pb"
-
 	"github.com/celestiaorg/celestia-node/share"
+	eds "github.com/celestiaorg/celestia-node/share/new_eds"
 	"github.com/celestiaorg/celestia-node/share/shwap"
+	shwappb "github.com/celestiaorg/celestia-node/share/shwap/pb"
 )
 
 const (
