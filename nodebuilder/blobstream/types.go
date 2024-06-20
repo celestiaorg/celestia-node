@@ -71,7 +71,7 @@ func (commitmentProof *CommitmentProof) Validate() error {
 	if len(commitmentProof.SubtreeRootProofs) != len(commitmentProof.RowProof.Proofs) {
 		return fmt.Errorf(
 			"the number of subtree root proofs %d should be equal to the number of row root proofs %d",
-			len(commitmentProof.SubtreeRoots),
+			len(commitmentProof.SubtreeRootProofs),
 			len(commitmentProof.RowProof.Proofs),
 		)
 	}
