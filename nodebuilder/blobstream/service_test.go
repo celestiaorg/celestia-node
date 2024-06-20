@@ -377,7 +377,7 @@ func TestUint64ToInt(t *testing.T) {
 	}
 }
 
-func TestDataCommitment(t *testing.T) {
+func TestGetDataCommitment(t *testing.T) {
 	api := newTestAPI(t, 10, 1000, 10)
 	tests := map[string]struct {
 		start, end             uint64
