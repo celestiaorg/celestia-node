@@ -3,13 +3,12 @@ package nodebuilder
 import (
 	"context"
 
-	"github.com/celestiaorg/celestia-node/nodebuilder/blobstream"
-
 	"go.uber.org/fx"
 
 	"github.com/celestiaorg/celestia-node/header"
 	"github.com/celestiaorg/celestia-node/libs/fxutil"
 	"github.com/celestiaorg/celestia-node/nodebuilder/blob"
+	"github.com/celestiaorg/celestia-node/nodebuilder/blobstream"
 	"github.com/celestiaorg/celestia-node/nodebuilder/core"
 	"github.com/celestiaorg/celestia-node/nodebuilder/da"
 	"github.com/celestiaorg/celestia-node/nodebuilder/das"

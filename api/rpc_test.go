@@ -8,8 +8,6 @@ import (
 	"testing"
 	"time"
 
-	"github.com/celestiaorg/celestia-node/nodebuilder/blobstream"
-
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	"github.com/cristalhq/jwt"
 	"github.com/golang/mock/gomock"
@@ -24,6 +22,7 @@ import (
 	"github.com/celestiaorg/celestia-node/nodebuilder"
 	"github.com/celestiaorg/celestia-node/nodebuilder/blob"
 	blobMock "github.com/celestiaorg/celestia-node/nodebuilder/blob/mocks"
+	"github.com/celestiaorg/celestia-node/nodebuilder/blobstream"
 	blobstreamMock "github.com/celestiaorg/celestia-node/nodebuilder/blobstream/mocks"
 	"github.com/celestiaorg/celestia-node/nodebuilder/da"
 	daMock "github.com/celestiaorg/celestia-node/nodebuilder/da/mocks"

@@ -6,8 +6,6 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/celestiaorg/celestia-node/nodebuilder/blobstream"
-
 	"github.com/cristalhq/jwt"
 	"github.com/ipfs/boxo/blockservice"
 	"github.com/ipfs/boxo/exchange"
@@ -24,6 +22,7 @@ import (
 	"github.com/celestiaorg/celestia-node/api/gateway"
 	"github.com/celestiaorg/celestia-node/api/rpc"
 	"github.com/celestiaorg/celestia-node/nodebuilder/blob"
+	"github.com/celestiaorg/celestia-node/nodebuilder/blobstream"
 	"github.com/celestiaorg/celestia-node/nodebuilder/da"
 	"github.com/celestiaorg/celestia-node/nodebuilder/das"
 	"github.com/celestiaorg/celestia-node/nodebuilder/fraud"

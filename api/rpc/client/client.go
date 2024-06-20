@@ -5,12 +5,11 @@ import (
 	"fmt"
 	"net/http"
 
-	"github.com/celestiaorg/celestia-node/nodebuilder/blobstream"
-
 	"github.com/filecoin-project/go-jsonrpc"
 
 	"github.com/celestiaorg/celestia-node/api/rpc/perms"
 	"github.com/celestiaorg/celestia-node/nodebuilder/blob"
+	"github.com/celestiaorg/celestia-node/nodebuilder/blobstream"
 	"github.com/celestiaorg/celestia-node/nodebuilder/da"
 	"github.com/celestiaorg/celestia-node/nodebuilder/das"
 	"github.com/celestiaorg/celestia-node/nodebuilder/fraud"

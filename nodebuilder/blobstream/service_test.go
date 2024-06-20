@@ -10,14 +10,11 @@ import (
 	"math"
 	"testing"
 
-	libhead "github.com/celestiaorg/go-header"
-	"github.com/celestiaorg/go-header/sync"
-
-	nodeblob "github.com/celestiaorg/celestia-node/nodebuilder/blob"
-	headerServ "github.com/celestiaorg/celestia-node/nodebuilder/header"
-	shareServ "github.com/celestiaorg/celestia-node/nodebuilder/share"
-
-	"github.com/celestiaorg/celestia-app/test/util/blobfactory"
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
+	"github.com/tendermint/tendermint/crypto/merkle"
+	bytes2 "github.com/tendermint/tendermint/libs/bytes"
+	coretypes "github.com/tendermint/tendermint/types"
 
 	"github.com/celestiaorg/celestia-app/app"
 	"github.com/celestiaorg/celestia-app/app/encoding"
@@ -27,18 +24,19 @@ import (
 	pkgproof "github.com/celestiaorg/celestia-app/pkg/proof"
 	"github.com/celestiaorg/celestia-app/pkg/shares"
 	"github.com/celestiaorg/celestia-app/pkg/square"
+	"github.com/celestiaorg/celestia-app/test/util/blobfactory"
 	"github.com/celestiaorg/celestia-app/test/util/testfactory"
 	"github.com/celestiaorg/celestia-app/x/blob/types"
+	libhead "github.com/celestiaorg/go-header"
+	"github.com/celestiaorg/go-header/sync"
 	"github.com/celestiaorg/nmt"
 	"github.com/celestiaorg/rsmt2d"
-	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/require"
-	"github.com/tendermint/tendermint/crypto/merkle"
-	bytes2 "github.com/tendermint/tendermint/libs/bytes"
-	coretypes "github.com/tendermint/tendermint/types"
 
 	"github.com/celestiaorg/celestia-node/blob"
 	"github.com/celestiaorg/celestia-node/header"
+	nodeblob "github.com/celestiaorg/celestia-node/nodebuilder/blob"
+	headerServ "github.com/celestiaorg/celestia-node/nodebuilder/header"
+	shareServ "github.com/celestiaorg/celestia-node/nodebuilder/share"
 	"github.com/celestiaorg/celestia-node/share"
 )
 
@@ -935,7 +933,8 @@ func generateCommitmentProofFromBlock(
 	return ResultCommitmentProof{CommitmentProof: commitmentProof}
 }
 
-// generateTestBlocks generates a set of test blocks with a specific blob size and number of transactions
+// generateTestBlocks generates a set of test blocks with a specific blob size and number of
+// transactions
 func generateTestBlocks(
 	t *testing.T,
 	numberOfBlocks, blobSize, numberOfTransactions int,
@@ -1006,8 +1005,8 @@ func createTestBlobTransactions(
 	return nss, msgs, blobs, coreTxs
 }
 
-// createTestBlobTransaction creates a test blob transaction using a specific signer and a specific PFB size.
-// The size is in bytes.
+// createTestBlobTransaction creates a test blob transaction using a specific signer and a specific
+// PFB size. The size is in bytes.
 func createTestBlobTransaction(
 	t *testing.T,
 	signer *types.KeyringSigner,

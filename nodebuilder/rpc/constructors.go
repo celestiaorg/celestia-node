@@ -3,10 +3,9 @@ package rpc
 import (
 	"github.com/cristalhq/jwt"
 
-	"github.com/celestiaorg/celestia-node/nodebuilder/blobstream"
-
 	"github.com/celestiaorg/celestia-node/api/rpc"
 	"github.com/celestiaorg/celestia-node/nodebuilder/blob"
+	"github.com/celestiaorg/celestia-node/nodebuilder/blobstream"
 	"github.com/celestiaorg/celestia-node/nodebuilder/da"
 	"github.com/celestiaorg/celestia-node/nodebuilder/das"
 	"github.com/celestiaorg/celestia-node/nodebuilder/fraud"

@@ -3,18 +3,16 @@ package blobstream
 import (
 	"fmt"
 
-	"github.com/celestiaorg/celestia-app/pkg/shares"
-
-	"github.com/celestiaorg/celestia-app/pkg/appconsts"
-
-	"github.com/celestiaorg/nmt"
-	"github.com/celestiaorg/nmt/namespace"
 	"github.com/tendermint/tendermint/crypto/merkle"
-
-	"github.com/celestiaorg/celestia-node/share"
-
 	"github.com/tendermint/tendermint/libs/bytes"
 	"github.com/tendermint/tendermint/types"
+
+	"github.com/celestiaorg/celestia-app/pkg/appconsts"
+	"github.com/celestiaorg/celestia-app/pkg/shares"
+	"github.com/celestiaorg/nmt"
+	"github.com/celestiaorg/nmt/namespace"
+
+	"github.com/celestiaorg/celestia-node/share"
 )
 
 // ResultDataCommitment is the API response containing a data
@@ -111,7 +109,8 @@ func (commitmentProof CommitmentProof) Verify(root []byte, subtreeRootThreshold 
 	// use the computed total number of shares to calculate the subtree roots
 	// width.
 	// the subtree roots width is defined in ADR-013:
-	// https://github.com/celestiaorg/celestia-app/blob/main/docs/architecture/adr-013-non-interactive-default-rules-for-zero-padding.md
+	//
+	//https://github.com/celestiaorg/celestia-app/blob/main/docs/architecture/adr-013-non-interactive-default-rules-for-zero-padding.md
 	subtreeRootsWidth := shares.SubTreeWidth(numberOfShares, subtreeRootThreshold)
 
 	// verify the proof of the subtree roots
@@ -151,13 +150,15 @@ func (commitmentProof CommitmentProof) GenerateCommitment() bytes.HexBytes {
 	return merkle.HashFromByteSlices(commitmentProof.SubtreeRoots)
 }
 
-// ResultSubtreeRootToCommitmentProof is an API response that contains a SubtreeRootToCommitmentProof.
-// A subtree root to commitment proof is a proof of a subtree root to a share commitment.
+// ResultSubtreeRootToCommitmentProof is an API response that contains a
+// SubtreeRootToCommitmentProof. A subtree root to commitment proof is a proof of a subtree root to
+// a share commitment.
 type ResultSubtreeRootToCommitmentProof struct {
 	SubtreeRootToCommitmentProof SubtreeRootToCommitmentProof `json:"subtree_root_to_commitment_proof"`
 }
 
-// SubtreeRootToCommitmentProof a subtree root to commitment proof is a proof of a subtree root to a share commitment.
+// SubtreeRootToCommitmentProof a subtree root to commitment proof is a proof of a subtree root to
+// a share commitment.
 type SubtreeRootToCommitmentProof struct {
 	Proof merkle.Proof `json:"proof"`
 }
@@ -180,7 +181,8 @@ type ResultShareToSubtreeRootProof struct {
 	ShareToSubtreeRootProof ShareToSubtreeRootProof `json:"share_to_subtree_root_proof"`
 }
 
-// ShareToSubtreeRootProof a share to subtree root proof is an inclusion proof of a share to a subtree root.
+// ShareToSubtreeRootProof a share to subtree root proof is an inclusion proof of a share to a
+// subtree root.
 type ShareToSubtreeRootProof struct {
 	Proof merkle.Proof `json:"proof"`
 }

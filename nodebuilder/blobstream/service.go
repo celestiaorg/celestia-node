@@ -8,13 +8,14 @@ import (
 	"math"
 	"strconv"
 
+	logging "github.com/ipfs/go-log/v2"
+	"github.com/tendermint/tendermint/crypto/merkle"
+
 	"github.com/celestiaorg/celestia-app/pkg/appconsts"
 	appns "github.com/celestiaorg/celestia-app/pkg/namespace"
 	pkgproof "github.com/celestiaorg/celestia-app/pkg/proof"
 	"github.com/celestiaorg/celestia-app/pkg/shares"
 	"github.com/celestiaorg/nmt"
-	logging "github.com/ipfs/go-log/v2"
-	"github.com/tendermint/tendermint/crypto/merkle"
 
 	"github.com/celestiaorg/celestia-node/blob"
 	nodeblob "github.com/celestiaorg/celestia-node/nodebuilder/blob"
@@ -140,7 +141,8 @@ func To32PaddedHexBytes(number uint64) ([]byte, error) {
 
 // DataRootTuple contains the data that will be used to create the QGB commitments.
 // The commitments will be signed by orchestrators and submitted to an EVM chain via a relayer.
-// For more information: https://github.com/celestiaorg/quantum-gravity-bridge/blob/master/src/DataRootTuple.sol
+// For more information:
+// https://github.com/celestiaorg/quantum-gravity-bridge/blob/master/src/DataRootTuple.sol
 type DataRootTuple struct {
 	height   uint64
 	dataRoot [32]byte
@@ -229,8 +231,8 @@ func (s *Service) validateDataCommitmentRange(ctx context.Context, start, end ui
 	return nil
 }
 
-// hashDataRootTuples hashes a list of blocks data root tuples, i.e., height, data root and square size,
-// then returns their merkle root.
+// hashDataRootTuples hashes a list of blocks data root tuples, i.e., height, data root and square
+// size, then returns their merkle root.
 func hashDataRootTuples(tuples []DataRootTuple) ([]byte, error) {
 	if len(tuples) == 0 {
 		return nil, fmt.Errorf("cannot hash an empty list of data root tuples")
