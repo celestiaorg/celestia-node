@@ -178,10 +178,6 @@ func init() {
 	}
 	addToExampleValues(libhead.Hash(hash))
 
-	proof := nmt.NewInclusionProof(0, 4, [][]byte{[]byte("test")}, true)
-	blobProof = &blob.Proof{&proof}
-	addToExampleValues(blobProof)
-
 	txOptions := state.NewTxOptions(
 		state.WithGasPrice(0.002),
 		state.WithGas(142225),
