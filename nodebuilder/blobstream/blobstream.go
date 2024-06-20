@@ -27,6 +27,7 @@ type Module interface {
 
 	// ProveShares generates a share proof for a share range.
 	ProveShares(ctx context.Context, height, start, end uint64) (*ResultShareProof, error)
+
 	// ProveCommitment generates a commitment proof for a share commitment.
 	ProveCommitment(
 		ctx context.Context,
