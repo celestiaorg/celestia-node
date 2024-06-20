@@ -189,7 +189,7 @@ func (ca *CoreAccessor) cancelCtx() {
 func (ca *CoreAccessor) SubmitPayForBlob(
 	ctx context.Context,
 	appblobs []*Blob,
-	options Options,
+	options *TxOptions,
 ) (*TxResponse, error) {
 	if len(appblobs) == 0 {
 		return nil, errors.New("state: no blobs provided")
@@ -214,7 +214,7 @@ func (ca *CoreAccessor) SubmitPayForBlob(
 	}
 
 	gasPrice := options.GasPrice()
-	if options.GasPrice() < 0 {
+	if options.GasPrice() == DefaultPrice {
 		gasPrice = ca.getMinGasPrice()
 	}
 
@@ -377,7 +377,7 @@ func (ca *CoreAccessor) Transfer(
 	ctx context.Context,
 	addr AccAddress,
 	amount Int,
-	options Options,
+	options *TxOptions,
 ) (*TxResponse, error) {
 	if amount.IsNil() || amount.Int64() <= 0 {
 		return nil, ErrInvalidAmount
@@ -402,7 +402,7 @@ func (ca *CoreAccessor) CancelUnbondingDelegation(
 	valAddr ValAddress,
 	amount,
 	height Int,
-	options Options,
+	options *TxOptions,
 ) (*TxResponse, error) {
 	if amount.IsNil() || amount.Int64() <= 0 {
 		return nil, ErrInvalidAmount
@@ -427,7 +427,7 @@ func (ca *CoreAccessor) BeginRedelegate(
 	srcValAddr,
 	dstValAddr ValAddress,
 	amount Int,
-	options Options,
+	options *TxOptions,
 ) (*TxResponse, error) {
 	if amount.IsNil() || amount.Int64() <= 0 {
 		return nil, ErrInvalidAmount
@@ -451,7 +451,7 @@ func (ca *CoreAccessor) Undelegate(
 	ctx context.Context,
 	delAddr ValAddress,
 	amount Int,
-	options Options,
+	options *TxOptions,
 ) (*TxResponse, error) {
 	if amount.IsNil() || amount.Int64() <= 0 {
 		return nil, ErrInvalidAmount
@@ -475,7 +475,7 @@ func (ca *CoreAccessor) Delegate(
 	ctx context.Context,
 	delAddr ValAddress,
 	amount Int,
-	options Options,
+	options *TxOptions,
 ) (*TxResponse, error) {
 	if amount.IsNil() || amount.Int64() <= 0 {
 		return nil, ErrInvalidAmount
@@ -534,7 +534,7 @@ func (ca *CoreAccessor) GrantFee(
 	ctx context.Context,
 	grantee AccAddress,
 	amount Int,
-	options Options,
+	options *TxOptions,
 ) (*TxResponse, error) {
 	var (
 		granter = ca.client.DefaultAddress()
@@ -564,7 +564,7 @@ func (ca *CoreAccessor) GrantFee(
 func (ca *CoreAccessor) RevokeGrantFee(
 	ctx context.Context,
 	grantee AccAddress,
-	options Options,
+	options *TxOptions,
 ) (*TxResponse, error) {
 	var (
 		granter = ca.client.DefaultAddress()
@@ -649,7 +649,7 @@ func (ca *CoreAccessor) setupTxClient(ctx context.Context, keyName string) (*use
 func (ca *CoreAccessor) submitMsg(
 	ctx context.Context,
 	msg sdktypes.Msg,
-	options Options,
+	options *TxOptions,
 ) (*TxResponse, error) {
 	txOptions := make([]user.TxOption, 0)
 	var (
@@ -664,7 +664,7 @@ func (ca *CoreAccessor) submitMsg(
 	}
 
 	gasPrice := options.GasPrice()
-	if gasPrice < 0 {
+	if gasPrice == DefaultPrice {
 		gasPrice = ca.minGasPrice
 	}
 

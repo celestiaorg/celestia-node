@@ -35,7 +35,7 @@ func (s stubbedStateModule) Transfer(
 	_ context.Context,
 	_ state.AccAddress,
 	_ state.Int,
-	_ state.Options,
+	_ *state.TxOptions,
 ) (*state.TxResponse, error) {
 	return nil, ErrNoStateAccess
 }
@@ -47,7 +47,7 @@ func (s stubbedStateModule) SubmitTx(context.Context, state.Tx) (*state.TxRespon
 func (s stubbedStateModule) SubmitPayForBlob(
 	context.Context,
 	[]*state.Blob,
-	state.Options,
+	*state.TxOptions,
 ) (*state.TxResponse, error) {
 	return nil, ErrNoStateAccess
 }
@@ -56,7 +56,7 @@ func (s stubbedStateModule) CancelUnbondingDelegation(
 	_ context.Context,
 	_ state.ValAddress,
 	_, _ state.Int,
-	_ state.Options,
+	_ *state.TxOptions,
 ) (*state.TxResponse, error) {
 	return nil, ErrNoStateAccess
 }
@@ -65,7 +65,7 @@ func (s stubbedStateModule) BeginRedelegate(
 	_ context.Context,
 	_, _ state.ValAddress,
 	_ state.Int,
-	_ state.Options,
+	_ *state.TxOptions,
 ) (*state.TxResponse, error) {
 	return nil, ErrNoStateAccess
 }
@@ -74,7 +74,7 @@ func (s stubbedStateModule) Undelegate(
 	_ context.Context,
 	_ state.ValAddress,
 	_ state.Int,
-	_ state.Options,
+	_ *state.TxOptions,
 ) (*state.TxResponse, error) {
 	return nil, ErrNoStateAccess
 }
@@ -83,7 +83,7 @@ func (s stubbedStateModule) Delegate(
 	_ context.Context,
 	_ state.ValAddress,
 	_ state.Int,
-	_ state.Options,
+	_ *state.TxOptions,
 ) (*state.TxResponse, error) {
 	return nil, ErrNoStateAccess
 }
@@ -113,7 +113,7 @@ func (s stubbedStateModule) GrantFee(
 	_ context.Context,
 	_ state.AccAddress,
 	_ state.Int,
-	_ state.Options,
+	_ *state.TxOptions,
 ) (*state.TxResponse, error) {
 	return nil, ErrNoStateAccess
 }
@@ -121,7 +121,7 @@ func (s stubbedStateModule) GrantFee(
 func (s stubbedStateModule) RevokeGrantFee(
 	_ context.Context,
 	_ state.AccAddress,
-	_ state.Options,
+	_ *state.TxOptions,
 ) (*state.TxResponse, error) {
 	return nil, ErrNoStateAccess
 }
