@@ -422,7 +422,6 @@ func (s *Service) ProveCommitment(
 		return nil, err
 	}
 	if len(blobShares) == 0 {
-		// TODO we return the share commitment as hex or some other format?
 		return nil, fmt.Errorf("the blob shares for commitment %s are empty", hex.EncodeToString(shareCommitment))
 	}
 
