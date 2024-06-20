@@ -16,10 +16,10 @@ type Module interface {
 	// and then creates a new Merkle root of those data roots. The range is end exclusive.
 	GetDataCommitment(ctx context.Context, start, end uint64) (*ResultDataCommitment, error)
 
-	// DataRootInclusionProof creates an inclusion proof for the data root of block
+	// GetDataRootInclusionProof creates an inclusion proof for the data root of block
 	// height `height` in the set of blocks defined by `start` and `end`. The range
 	// is end exclusive.
-	DataRootInclusionProof(
+	GetDataRootInclusionProof(
 		ctx context.Context,
 		height int64,
 		start, end uint64,
@@ -43,7 +43,7 @@ type API struct {
 			ctx context.Context,
 			start, end uint64,
 		) (*ResultDataCommitment, error) `perm:"read"`
-		DataRootInclusionProof func(
+		GetDataRootInclusionProof func(
 			ctx context.Context,
 			height int64,
 			start, end uint64,
@@ -68,12 +68,12 @@ func (api *API) GetDataCommitment(
 	return api.Internal.GetDataCommitment(ctx, start, end)
 }
 
-func (api *API) DataRootInclusionProof(
+func (api *API) GetDataRootInclusionProof(
 	ctx context.Context,
 	height int64,
 	start, end uint64,
 ) (*ResultDataRootInclusionProof, error) {
-	return api.Internal.DataRootInclusionProof(ctx, height, start, end)
+	return api.Internal.GetDataRootInclusionProof(ctx, height, start, end)
 }
 
 func (api *API) ProveShares(

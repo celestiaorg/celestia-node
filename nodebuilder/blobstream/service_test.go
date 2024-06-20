@@ -450,7 +450,7 @@ func TestGetDataCommitment(t *testing.T) {
 	}
 }
 
-func TestDataRootInclusionProof(t *testing.T) {
+func TestGetDataRootInclusionProof(t *testing.T) {
 	api := newTestAPI(t, 10, 1000, 10)
 	tests := map[string]struct {
 		height        int64
@@ -554,7 +554,7 @@ func TestDataRootInclusionProof(t *testing.T) {
 
 	for name, tc := range tests {
 		t.Run(name, func(t *testing.T) {
-			result, err := api.blobService.DataRootInclusionProof(context.Background(), tc.height, tc.start, tc.end)
+			result, err := api.blobService.GetDataRootInclusionProof(context.Background(), tc.height, tc.start, tc.end)
 			if tc.expectErr {
 				assert.Error(t, err)
 			} else {

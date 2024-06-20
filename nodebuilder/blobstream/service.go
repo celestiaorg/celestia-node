@@ -64,10 +64,10 @@ func (s *Service) GetDataCommitment(ctx context.Context, start, end uint64) (*Re
 	return &ResultDataCommitment{DataCommitment: root}, nil
 }
 
-// DataRootInclusionProof creates an inclusion proof for the data root of block
+// GetDataRootInclusionProof creates an inclusion proof for the data root of block
 // height `height` in the set of blocks defined by `start` and `end`. The range
 // is end exclusive.
-func (s *Service) DataRootInclusionProof(
+func (s *Service) GetDataRootInclusionProof(
 	ctx context.Context,
 	height int64,
 	start,
