@@ -60,7 +60,7 @@ type CommitmentProof struct {
 // Validate performs basic validation to the commitment proof.
 // Note: it doesn't verify if the proof is valid or not.
 // Check Verify() for that.
-func (commitmentProof CommitmentProof) Validate() error {
+func (commitmentProof *CommitmentProof) Validate() error {
 	if len(commitmentProof.SubtreeRoots) < len(commitmentProof.SubtreeRootProofs) {
 		return fmt.Errorf(
 			"the number of subtree roots %d should be bigger than the number of subtree root proofs %d",
@@ -96,7 +96,7 @@ func (commitmentProof CommitmentProof) Validate() error {
 // to some data that was posted to a square.
 // Expects the commitment proof to be properly formulated and validated
 // using the Validate() function.
-func (commitmentProof CommitmentProof) Verify(root []byte, subtreeRootThreshold int) (bool, error) {
+func (commitmentProof *CommitmentProof) Verify(root []byte, subtreeRootThreshold int) (bool, error) {
 	nmtHasher := nmt.NewNmtHasher(appconsts.NewBaseHashFunc(), share.NamespaceSize, true)
 
 	// computes the total number of shares proven.
@@ -145,7 +145,7 @@ func (commitmentProof CommitmentProof) Verify(root []byte, subtreeRootThreshold 
 }
 
 // GenerateCommitment generates the share commitment of the corresponding subtree roots.
-func (commitmentProof CommitmentProof) GenerateCommitment() bytes.HexBytes {
+func (commitmentProof *CommitmentProof) GenerateCommitment() bytes.HexBytes {
 	return merkle.HashFromByteSlices(commitmentProof.SubtreeRoots)
 }
 
