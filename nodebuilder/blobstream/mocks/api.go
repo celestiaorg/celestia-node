@@ -11,7 +11,6 @@ import (
 	blobstream "github.com/celestiaorg/celestia-node/nodebuilder/blobstream"
 	share "github.com/celestiaorg/celestia-node/share"
 	gomock "github.com/golang/mock/gomock"
-	bytes "github.com/tendermint/tendermint/libs/bytes"
 )
 
 // MockModule is a mock of Module interface.
@@ -37,21 +36,6 @@ func (m *MockModule) EXPECT() *MockModuleMockRecorder {
 	return m.recorder
 }
 
-// DataCommitment mocks base method.
-func (m *MockModule) DataCommitment(arg0 context.Context, arg1, arg2 uint64) (*blobstream.ResultDataCommitment, error) {
-	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "DataCommitment", arg0, arg1, arg2)
-	ret0, _ := ret[0].(*blobstream.ResultDataCommitment)
-	ret1, _ := ret[1].(error)
-	return ret0, ret1
-}
-
-// DataCommitment indicates an expected call of DataCommitment.
-func (mr *MockModuleMockRecorder) DataCommitment(arg0, arg1, arg2 interface{}) *gomock.Call {
-	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "DataCommitment", reflect.TypeOf((*MockModule)(nil).DataCommitment), arg0, arg1, arg2)
-}
-
 // DataRootInclusionProof mocks base method.
 func (m *MockModule) DataRootInclusionProof(arg0 context.Context, arg1 int64, arg2, arg3 uint64) (*blobstream.ResultDataRootInclusionProof, error) {
 	m.ctrl.T.Helper()
@@ -67,8 +51,23 @@ func (mr *MockModuleMockRecorder) DataRootInclusionProof(arg0, arg1, arg2, arg3 
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "DataRootInclusionProof", reflect.TypeOf((*MockModule)(nil).DataRootInclusionProof), arg0, arg1, arg2, arg3)
 }
 
+// GetDataCommitment mocks base method.
+func (m *MockModule) GetDataCommitment(arg0 context.Context, arg1, arg2 uint64) (*blobstream.ResultDataCommitment, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "GetDataCommitment", arg0, arg1, arg2)
+	ret0, _ := ret[0].(*blobstream.ResultDataCommitment)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// GetDataCommitment indicates an expected call of GetDataCommitment.
+func (mr *MockModuleMockRecorder) GetDataCommitment(arg0, arg1, arg2 interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetDataCommitment", reflect.TypeOf((*MockModule)(nil).GetDataCommitment), arg0, arg1, arg2)
+}
+
 // ProveCommitment mocks base method.
-func (m *MockModule) ProveCommitment(arg0 context.Context, arg1 uint64, arg2 share.Namespace, arg3 bytes.HexBytes) (*blobstream.ResultCommitmentProof, error) {
+func (m *MockModule) ProveCommitment(arg0 context.Context, arg1 uint64, arg2 share.Namespace, arg3 []byte) (*blobstream.ResultCommitmentProof, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "ProveCommitment", arg0, arg1, arg2, arg3)
 	ret0, _ := ret[0].(*blobstream.ResultCommitmentProof)

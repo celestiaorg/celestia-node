@@ -42,9 +42,9 @@ func NewService(blobMod nodeblob.Module, headerMod headerServ.Module, shareMod s
 	}
 }
 
-// DataCommitment collects the data roots over a provided ordered range of blocks,
+// GetDataCommitment collects the data roots over a provided ordered range of blocks,
 // and then creates a new Merkle root of those data roots. The range is end exclusive.
-func (s *Service) DataCommitment(ctx context.Context, start, end uint64) (*ResultDataCommitment, error) {
+func (s *Service) GetDataCommitment(ctx context.Context, start, end uint64) (*ResultDataCommitment, error) {
 	log.Debugw("validating the data commitment range", "start", start, "end", end)
 	err := s.validateDataCommitmentRange(ctx, start, end)
 	if err != nil {

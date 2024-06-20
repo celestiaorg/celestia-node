@@ -439,7 +439,7 @@ func TestDataCommitment(t *testing.T) {
 
 	for name, tc := range tests {
 		t.Run(name, func(t *testing.T) {
-			result, err := api.blobService.DataCommitment(context.Background(), tc.start, tc.end)
+			result, err := api.blobService.GetDataCommitment(context.Background(), tc.start, tc.end)
 			if tc.expectErr {
 				assert.Error(t, err)
 			} else {

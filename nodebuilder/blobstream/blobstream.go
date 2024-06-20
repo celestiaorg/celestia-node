@@ -12,9 +12,9 @@ var _ Module = (*API)(nil)
 //
 //go:generate mockgen -destination=mocks/api.go -package=mocks . Module
 type Module interface {
-	// DataCommitment collects the data roots over a provided ordered range of blocks,
+	// GetDataCommitment collects the data roots over a provided ordered range of blocks,
 	// and then creates a new Merkle root of those data roots. The range is end exclusive.
-	DataCommitment(ctx context.Context, start, end uint64) (*ResultDataCommitment, error)
+	GetDataCommitment(ctx context.Context, start, end uint64) (*ResultDataCommitment, error)
 
 	// DataRootInclusionProof creates an inclusion proof for the data root of block
 	// height `height` in the set of blocks defined by `start` and `end`. The range
@@ -39,7 +39,7 @@ type Module interface {
 // API is a wrapper around the Module for RPC.
 type API struct {
 	Internal struct {
-		DataCommitment func(
+		GetDataCommitment func(
 			ctx context.Context,
 			start, end uint64,
 		) (*ResultDataCommitment, error) `perm:"read"`
@@ -61,11 +61,11 @@ type API struct {
 	}
 }
 
-func (api *API) DataCommitment(
+func (api *API) GetDataCommitment(
 	ctx context.Context,
 	start, end uint64,
 ) (*ResultDataCommitment, error) {
-	return api.Internal.DataCommitment(ctx, start, end)
+	return api.Internal.GetDataCommitment(ctx, start, end)
 }
 
 func (api *API) DataRootInclusionProof(
