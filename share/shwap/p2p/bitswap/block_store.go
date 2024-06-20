@@ -11,32 +11,36 @@ import (
 	bitswappb "github.com/celestiaorg/celestia-node/share/shwap/p2p/bitswap/pb"
 )
 
+// Accessors abstracts storage system that indexes and manages multiple eds.Accessors by network height.
 type Accessors interface {
+	// Get returns an Accessor by its height.
 	Get(ctx context.Context, height uint64) (eds.Accessor, error)
 }
 
+// Blockstore implements generalized Bitswap compatible storage over Shwap containers
+// that operates with Block and accesses data through Accessors.
 type Blockstore struct {
 	Accessors
 }
 
-func (b *Blockstore) Get(ctx context.Context, cid cid.Cid) (blocks.Block, error) {
+func (b *Blockstore) getBlock(ctx context.Context, cid cid.Cid) (blocks.Block, error) {
 	spec, ok := specRegistry[cid.Prefix().MhType]
 	if !ok {
-		return nil, fmt.Errorf("unsupported codec")
+		return nil, fmt.Errorf("unsupported Block type: %v", cid.Prefix().MhType)
 	}
 
 	blk, err := spec.builder(cid)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed to build a Block for %s: %w", spec.String(), err)
 	}
 
 	eds, err := b.Accessors.Get(ctx, blk.Height())
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("getting EDS Accessor for height %v: %w", blk.Height(), err)
 	}
 
 	if err = blk.Populate(ctx, eds); err != nil {
-		return nil, fmt.Errorf("failed to unmarshal Shwap Block: %w", err)
+		return nil, fmt.Errorf("failed to populate Shwap Block on height %v for %s: %w", blk.Height(), spec.String(), err)
 	}
 
 	containerData, err := blk.Marshal()
@@ -60,6 +64,16 @@ func (b *Blockstore) Get(ctx context.Context, cid cid.Cid) (blocks.Block, error)
 	}
 
 	return bitswapBlk, nil
+}
+
+func (b *Blockstore) Get(ctx context.Context, cid cid.Cid) (blocks.Block, error) {
+	blk, err := b.getBlock(ctx, cid)
+	if err != nil {
+		log.Errorf("blockstore: getting local block(%s): %s", cid, err)
+		return nil, err
+	}
+
+	return blk, nil
 }
 
 func (b *Blockstore) GetSize(ctx context.Context, cid cid.Cid) (int, error) {

@@ -50,7 +50,6 @@ const maxPerFetch = 1024
 // See [Fetch] for detailed description.
 func fetch(ctx context.Context, exchg exchange.Interface, root *share.Root, blks ...Block) error {
 	fetcher := getFetcher(ctx, exchg)
-
 	cids := make([]cid.Cid, 0, len(blks))
 	duplicates := make(map[cid.Cid]Block)
 	for _, blk := range blks {
@@ -122,14 +121,14 @@ func unmarshal(unmarshalFn UnmarshalFn, data []byte) ([]byte, error) {
 	if err != nil {
 		return nil, fmt.Errorf("casting cid: %w", err)
 	}
-	// get ID out of CID validating it
+	// getBlock ID out of CID validating it
 	id, err := extractCID(cid)
 	if err != nil {
 		return nil, fmt.Errorf("validating cid: %w", err)
 	}
 
 	if unmarshalFn == nil {
-		// get registered UnmarshalFn and use it to check data validity and
+		// getBlock registered UnmarshalFn and use it to check data validity and
 		// pass it to Fetch caller
 		val, ok := unmarshalFns.Load(cid)
 		if !ok {
