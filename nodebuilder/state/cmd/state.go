@@ -457,7 +457,7 @@ func ApplyFlags(cmds ...*cobra.Command) {
 	}
 }
 
-func GetTxOptions() state.Options {
+func GetTxOptions() *state.TxOptions {
 	return state.NewTxOptions(
 		state.WithGasPrice(gasPrice),
 		state.WithGas(gas),

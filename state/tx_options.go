@@ -5,7 +5,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"math"
-	"strings"
 
 	"github.com/cosmos/cosmos-sdk/crypto/keyring"
 	sdktypes "github.com/cosmos/cosmos-sdk/types"
@@ -20,33 +19,23 @@ const (
 	gasMultiplier = 1.1
 )
 
-// Options is an interface that represents a set of methods required for managing
-// transaction options.
-type Options interface {
-	GasPrice() float64
-	GasLimit() uint64
-	AccountKey() string
-	FeeGranterAddress() string
-
-	json.Marshaler
-	json.Unmarshaler
-}
-
-func NewTxOptions(attributes ...Attribute) Options {
-	options := &txOptions{gasPrice: DefaultPrice}
+func NewTxOptions(attributes ...Attribute) *TxOptions {
+	options := &TxOptions{gasPrice: DefaultPrice}
 	for _, attr := range attributes {
 		attr(options)
 	}
 	return options
 }
 
-// txOptions specifies additional options that will be applied to the Tx.
+// TxOptions specifies additional options that will be applied to the Tx.
 // Implements `Option` interface.
-type txOptions struct {
+type TxOptions struct {
 	// gasPrice represents the amount to be paid per gas unit.
 	// Negative gasPrice means user want us to use the minGasPrice
 	// defined in the node.
 	gasPrice float64
+	// since gasPrice can be 0, it is necessary to understand that user explicitly set it.
+	isGasPriceSet bool
 	// 0 gas means users want us to calculate it for them.
 	gas uint64
 
@@ -59,24 +48,31 @@ type txOptions struct {
 	feeGranterAddress string
 }
 
-func (options *txOptions) GasPrice() float64 { return options.gasPrice }
+func (options *TxOptions) GasPrice() float64 {
+	if !options.isGasPriceSet {
+		return DefaultPrice
+	}
+	return options.gasPrice
+}
 
-func (options *txOptions) GasLimit() uint64 { return options.gas }
+func (options *TxOptions) GasLimit() uint64 { return options.gas }
 
-func (options *txOptions) AccountKey() string { return options.accountKey }
+func (options *TxOptions) AccountKey() string { return options.accountKey }
 
-func (options *txOptions) FeeGranterAddress() string { return options.feeGranterAddress }
+func (options *TxOptions) FeeGranterAddress() string { return options.feeGranterAddress }
 
 type jsonTxOptions struct {
 	GasPrice          float64 `json:"gas_price,omitempty"`
+	IsGasPriceSet     bool    `json:"is_gas_price_set,omitempty"`
 	Gas               uint64  `json:"gas,omitempty"`
 	AccountKey        string  `json:"account_key,omitempty"`
 	FeeGranterAddress string  `json:"fee_granter_address,omitempty"`
 }
 
-func (options *txOptions) MarshalJSON() ([]byte, error) {
+func (options *TxOptions) MarshalJSON() ([]byte, error) {
 	jsonOpts := &jsonTxOptions{
 		GasPrice:          options.gasPrice,
+		IsGasPriceSet:     options.isGasPriceSet,
 		Gas:               options.gas,
 		AccountKey:        options.accountKey,
 		FeeGranterAddress: options.feeGranterAddress,
@@ -84,7 +80,7 @@ func (options *txOptions) MarshalJSON() ([]byte, error) {
 	return json.Marshal(jsonOpts)
 }
 
-func (options *txOptions) UnmarshalJSON(data []byte) error {
+func (options *TxOptions) UnmarshalJSON(data []byte) error {
 	var jsonOpts jsonTxOptions
 	err := json.Unmarshal(data, &jsonOpts)
 	if err != nil {
@@ -92,6 +88,7 @@ func (options *txOptions) UnmarshalJSON(data []byte) error {
 	}
 
 	options.gasPrice = jsonOpts.GasPrice
+	options.isGasPriceSet = jsonOpts.IsGasPriceSet
 	options.gas = jsonOpts.Gas
 	options.accountKey = jsonOpts.AccountKey
 	options.feeGranterAddress = jsonOpts.FeeGranterAddress
@@ -132,38 +129,40 @@ func parseAccountKey(kr keyring.Keyring, accountKey string) (sdktypes.AccAddress
 }
 
 func parseAccAddressFromString(addrStr string) (sdktypes.AccAddress, error) {
-	addrString := strings.Trim(addrStr, "\"")
-	return sdktypes.AccAddressFromBech32(addrString)
+	return sdktypes.AccAddressFromBech32(addrStr)
 }
 
 // Attribute is the functional option that is applied to the TxOption instance
 // to configure parameters.
-type Attribute func(options *txOptions)
+type Attribute func(options *TxOptions)
 
 // WithGasPrice is an attribute that allows to specify a GasPrice
 func WithGasPrice(gasPrice float64) Attribute {
-	return func(options *txOptions) {
-		options.gasPrice = gasPrice
+	return func(options *TxOptions) {
+		if gasPrice >= 0 {
+			options.gasPrice = gasPrice
+			options.isGasPriceSet = true
+		}
 	}
 }
 
 // WithGas is an attribute that allows to specify a Gas
 func WithGas(gas uint64) Attribute {
-	return func(options *txOptions) {
+	return func(options *TxOptions) {
 		options.gas = gas
 	}
 }
 
 // WithAccountKey is an attribute that allows to specify an AccountKey
 func WithAccountKey(key string) Attribute {
-	return func(options *txOptions) {
+	return func(options *TxOptions) {
 		options.accountKey = key
 	}
 }
 
 // WithFeeGranterAddress is an attribute that allows to specify a GranterAddress
 func WithFeeGranterAddress(granter string) Attribute {
-	return func(options *txOptions) {
+	return func(options *TxOptions) {
 		options.feeGranterAddress = granter
 	}
 }

@@ -86,7 +86,7 @@ func (mr *MockModuleMockRecorder) BalanceForAddress(arg0, arg1 interface{}) *gom
 }
 
 // BeginRedelegate mocks base method.
-func (m *MockModule) BeginRedelegate(arg0 context.Context, arg1, arg2 types.ValAddress, arg3 math.Int, arg4 state.Options) (*types.TxResponse, error) {
+func (m *MockModule) BeginRedelegate(arg0 context.Context, arg1, arg2 types.ValAddress, arg3 math.Int, arg4 *state.TxOptions) (*types.TxResponse, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "BeginRedelegate", arg0, arg1, arg2, arg3, arg4)
 	ret0, _ := ret[0].(*types.TxResponse)
@@ -101,7 +101,7 @@ func (mr *MockModuleMockRecorder) BeginRedelegate(arg0, arg1, arg2, arg3, arg4 i
 }
 
 // CancelUnbondingDelegation mocks base method.
-func (m *MockModule) CancelUnbondingDelegation(arg0 context.Context, arg1 types.ValAddress, arg2, arg3 math.Int, arg4 state.Options) (*types.TxResponse, error) {
+func (m *MockModule) CancelUnbondingDelegation(arg0 context.Context, arg1 types.ValAddress, arg2, arg3 math.Int, arg4 *state.TxOptions) (*types.TxResponse, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "CancelUnbondingDelegation", arg0, arg1, arg2, arg3, arg4)
 	ret0, _ := ret[0].(*types.TxResponse)
@@ -116,7 +116,7 @@ func (mr *MockModuleMockRecorder) CancelUnbondingDelegation(arg0, arg1, arg2, ar
 }
 
 // Delegate mocks base method.
-func (m *MockModule) Delegate(arg0 context.Context, arg1 types.ValAddress, arg2 math.Int, arg3 state.Options) (*types.TxResponse, error) {
+func (m *MockModule) Delegate(arg0 context.Context, arg1 types.ValAddress, arg2 math.Int, arg3 *state.TxOptions) (*types.TxResponse, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "Delegate", arg0, arg1, arg2, arg3)
 	ret0, _ := ret[0].(*types.TxResponse)
@@ -131,7 +131,7 @@ func (mr *MockModuleMockRecorder) Delegate(arg0, arg1, arg2, arg3 interface{}) *
 }
 
 // GrantFee mocks base method.
-func (m *MockModule) GrantFee(arg0 context.Context, arg1 types.AccAddress, arg2 math.Int, arg3 state.Options) (*types.TxResponse, error) {
+func (m *MockModule) GrantFee(arg0 context.Context, arg1 types.AccAddress, arg2 math.Int, arg3 *state.TxOptions) (*types.TxResponse, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "GrantFee", arg0, arg1, arg2, arg3)
 	ret0, _ := ret[0].(*types.TxResponse)
@@ -191,7 +191,7 @@ func (mr *MockModuleMockRecorder) QueryUnbonding(arg0, arg1 interface{}) *gomock
 }
 
 // RevokeGrantFee mocks base method.
-func (m *MockModule) RevokeGrantFee(arg0 context.Context, arg1 types.AccAddress, arg2 state.Options) (*types.TxResponse, error) {
+func (m *MockModule) RevokeGrantFee(arg0 context.Context, arg1 types.AccAddress, arg2 *state.TxOptions) (*types.TxResponse, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "RevokeGrantFee", arg0, arg1, arg2)
 	ret0, _ := ret[0].(*types.TxResponse)
@@ -206,7 +206,7 @@ func (mr *MockModuleMockRecorder) RevokeGrantFee(arg0, arg1, arg2 interface{}) *
 }
 
 // SubmitPayForBlob mocks base method.
-func (m *MockModule) SubmitPayForBlob(arg0 context.Context, arg1 []*types1.Blob, arg2 state.Options) (*types.TxResponse, error) {
+func (m *MockModule) SubmitPayForBlob(arg0 context.Context, arg1 []*types1.Blob, arg2 *state.TxOptions) (*types.TxResponse, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "SubmitPayForBlob", arg0, arg1, arg2)
 	ret0, _ := ret[0].(*types.TxResponse)
@@ -236,7 +236,7 @@ func (mr *MockModuleMockRecorder) SubmitTx(arg0, arg1 interface{}) *gomock.Call 
 }
 
 // Transfer mocks base method.
-func (m *MockModule) Transfer(arg0 context.Context, arg1 types.AccAddress, arg2 math.Int, arg3 state.Options) (*types.TxResponse, error) {
+func (m *MockModule) Transfer(arg0 context.Context, arg1 types.AccAddress, arg2 math.Int, arg3 *state.TxOptions) (*types.TxResponse, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "Transfer", arg0, arg1, arg2, arg3)
 	ret0, _ := ret[0].(*types.TxResponse)
@@ -251,7 +251,7 @@ func (mr *MockModuleMockRecorder) Transfer(arg0, arg1, arg2, arg3 interface{}) *
 }
 
 // Undelegate mocks base method.
-func (m *MockModule) Undelegate(arg0 context.Context, arg1 types.ValAddress, arg2 math.Int, arg3 state.Options) (*types.TxResponse, error) {
+func (m *MockModule) Undelegate(arg0 context.Context, arg1 types.ValAddress, arg2 math.Int, arg3 *state.TxOptions) (*types.TxResponse, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "Undelegate", arg0, arg1, arg2, arg3)
 	ret0, _ := ret[0].(*types.TxResponse)
