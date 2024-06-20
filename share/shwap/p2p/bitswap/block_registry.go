@@ -20,7 +20,7 @@ func registerBlock(mhcode, codec uint64, size int, bldrFn func(cid.Cid) (Block, 
 	}
 }
 
-// blockSpec holds
+// blockSpec holds constant metadata about particular Block types.
 type blockSpec struct {
 	size    int
 	codec   uint64
