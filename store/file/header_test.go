@@ -8,26 +8,9 @@ import (
 )
 
 // Due to bug on macOS we need to specify additional linker flags:
-// 	go test -v -run=^$ -fuzz=Fuzz_writeHeader -ldflags=-extldflags=-Wl,-ld_classic .
+// 	go test -v -run=^$ -fuzz=Fuzz_writeReadheader -ldflags=-extldflags=-Wl,-ld_classic .
 
-func Fuzz_readHeader(f *testing.F) {
-	f.Add([]byte(nil))
-	f.Add([]byte{0})
-	f.Add([]byte{1, 2, 3, 4})
-	f.Add([]byte{100: 123})
-	f.Add(bytes.Repeat([]byte{1}, 10))
-
-	f.Fuzz(func(t *testing.T, b []byte) {
-		r := bytes.NewReader(b)
-
-		_, err := readHeader(r)
-		if err != nil {
-			return
-		}
-	})
-}
-
-func Fuzz_writeHeader(f *testing.F) {
+func Fuzz_writeReadheader(f *testing.F) {
 	f.Add(uint8(0), uint8(0), uint16(0), uint16(0), []byte{31: 0})
 	f.Add(uint8(1), uint8(1), uint16(1), uint16(1), []byte{31: 0})
 	f.Add(uint8(1), uint8(1), uint16(1), uint16(1), []byte{100: 1})
