@@ -101,8 +101,8 @@ func (f *proofsCacheFile) axisWithProofs(ctx context.Context, axisType rsmt2d.Ax
 		ax.shares = shrs
 	}
 
-	// calculate proofs
-	adder := ipld.NewProofsAdder(f.Size(ctx), true)
+	// build proofs from Shares and cache them
+	adder := ipld.NewProofsAdder(c.Size(ctx), true)
 	tree := wrapper.NewErasuredNamespacedMerkleTree(
 		uint64(f.Size(ctx)/2),
 		uint(axisIdx),
