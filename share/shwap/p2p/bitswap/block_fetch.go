@@ -136,6 +136,9 @@ func unmarshal(unmarshalFn UnmarshalFn, data []byte) ([]byte, error) {
 		}
 		entry := val.(*unmarshalEntry)
 
+		// ensure UnmarshalFn is synchronized
+		// NOTE: Bitswap may call hasher.Write concurrently, which may call unmarshall concurrently
+		// this we need this synchronization.
 		entry.Lock()
 		defer entry.Unlock()
 		unmarshalFn = entry.UnmarshalFn
@@ -162,6 +165,7 @@ func unmarshal(unmarshalFn UnmarshalFn, data []byte) ([]byte, error) {
 // sync.Map is used to minimize contention for disjoint keys
 var unmarshalFns sync.Map
 
+// unmarshalEntry wraps UnmarshalFn with a mutex to protect it from concurrent access.
 type unmarshalEntry struct {
 	sync.Mutex
 	UnmarshalFn

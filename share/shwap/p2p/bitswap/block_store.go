@@ -11,16 +11,16 @@ import (
 	bitswappb "github.com/celestiaorg/celestia-node/share/shwap/p2p/bitswap/pb"
 )
 
-// Accessors abstracts storage system that indexes and manages multiple eds.Accessors by network height.
-type Accessors interface {
-	// Get returns an Accessor by its height.
-	Get(ctx context.Context, height uint64) (eds.Accessor, error)
+// AccessorGetter abstracts storage system that indexes and manages multiple eds.AccessorGetter by network height.
+type AccessorGetter interface {
+	// GetByHeight returns an Accessor by its height.
+	GetByHeight(ctx context.Context, height uint64) (eds.Accessor, error)
 }
 
 // Blockstore implements generalized Bitswap compatible storage over Shwap containers
-// that operates with Block and accesses data through Accessors.
+// that operates with Block and accesses data through AccessorGetter.
 type Blockstore struct {
-	Accessors
+	Getter AccessorGetter
 }
 
 func (b *Blockstore) getBlock(ctx context.Context, cid cid.Cid) (blocks.Block, error) {
@@ -34,7 +34,7 @@ func (b *Blockstore) getBlock(ctx context.Context, cid cid.Cid) (blocks.Block, e
 		return nil, fmt.Errorf("failed to build a Block for %s: %w", spec.String(), err)
 	}
 
-	eds, err := b.Accessors.Get(ctx, blk.Height())
+	eds, err := b.Getter.GetByHeight(ctx, blk.Height())
 	if err != nil {
 		return nil, fmt.Errorf("getting EDS Accessor for height %v: %w", blk.Height(), err)
 	}

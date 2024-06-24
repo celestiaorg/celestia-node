@@ -12,7 +12,7 @@ import (
 )
 
 func TestSampleRoundtrip_GetContainers(t *testing.T) {
-	ctx, cancel := context.WithTimeout(context.Background(), time.Second*50)
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second*5)
 	defer cancel()
 
 	eds := edstest.RandEDS(t, 32)
