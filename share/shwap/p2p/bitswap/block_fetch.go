@@ -54,10 +54,6 @@ func fetch(ctx context.Context, exchg exchange.Interface, root *share.Root, blks
 	cids := make([]cid.Cid, 0, len(blks))
 	duplicates := make(map[cid.Cid]Block)
 	for _, blk := range blks {
-		if !blk.IsEmpty() {
-			continue // skip populated Blocks
-		}
-
 		cid := blk.CID() // memoize CID for reuse as it ain't free
 		cids = append(cids, cid)
 
@@ -106,8 +102,20 @@ func fetch(ctx context.Context, exchg exchange.Interface, root *share.Root, blks
 		// problem, but they are *much* more complex. Considering this a rare edge-case the tradeoff
 		// towards simplicity has been made.
 	}
+	if ctx.Err() != nil {
+		return ctx.Err()
+	}
 
-	return ctx.Err()
+	for _, blk := range blks {
+		if blk.IsEmpty() {
+			// NOTE: This check verifies that Bitswap did it job correctly and gave us everything
+			// requested. If there is still an empty block somewhere this suggests there is a bug
+			// on the intersection of Bitswap and Fetch function.
+			return fmt.Errorf("got empty block from Bitswap: %s", blk.CID())
+		}
+	}
+
+	return nil
 }
 
 // unmarshal unmarshalls the Shwap Container data into a Block via UnmarshalFn
