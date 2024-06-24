@@ -26,7 +26,8 @@ func WithFetchSession(ctx context.Context, exchg exchange.SessionExchange) conte
 // Gracefully synchronize identical Blocks requested simultaneously.
 // Blocks until either context is canceled or all Blocks are fetched and populated.
 func Fetch(ctx context.Context, exchg exchange.Interface, root *share.Root, blks ...Block) error {
-	for from, to := 0, 0; to < len(blks); { //nolint:wastedassign // it's not actually wasted
+	var from, to int
+	for to < len(blks) {
 		from, to = to, to+maxPerFetch
 		if to >= len(blks) {
 			to = len(blks)
