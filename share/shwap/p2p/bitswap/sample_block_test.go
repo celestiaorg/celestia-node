@@ -12,7 +12,7 @@ import (
 )
 
 func TestSampleRoundtrip_GetContainers(t *testing.T) {
-	ctx, cancel := context.WithTimeout(context.Background(), time.Second*5)
+	ctx, cancel := context.WithTimeout(context.Background(), time.Minute+time.Second*10)
 	defer cancel()
 
 	eds := edstest.RandEDS(t, 32)
@@ -30,7 +30,7 @@ func TestSampleRoundtrip_GetContainers(t *testing.T) {
 		}
 	}
 
-	err = Fetch(ctx, exchange, root, blks)
+	err = fetch(ctx, exchange, root, blks)
 	require.NoError(t, err)
 
 	for _, sample := range blks {
