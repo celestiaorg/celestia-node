@@ -29,7 +29,8 @@ type ODSFile struct {
 	// repeated file reads. - Serving full ODS data by Shares().
 	// Storing the square in memory allows for efficient single-read operations, avoiding the need for
 	// piecemeal reads by rows or columns, and facilitates quick access to data for these operations.
-	ods square
+	ods          square
+	disableCache bool
 }
 
 // OpenODSFile opens an existing file. File has to be closed after usage.
@@ -153,12 +154,12 @@ func (f *ODSFile) AxisHalf(_ context.Context, axisType rsmt2d.Axis, axisIdx int)
 	}
 
 	// if axis is from the second half of the square, read full ODS and compute the axis half
-	err := f.readODS()
+	ods, err := f.readODS()
 	if err != nil {
 		return eds.AxisHalf{}, err
 	}
 
-	half, err := f.ods.computeAxisHalf(axisType, axisIdx)
+	half, err := ods.computeAxisHalf(axisType, axisIdx)
 	if err != nil {
 		return eds.AxisHalf{}, fmt.Errorf("computing axis half: %w", err)
 	}
@@ -180,11 +181,11 @@ func (f *ODSFile) RowNamespaceData(
 
 // Shares returns data shares extracted from the Accessor.
 func (f *ODSFile) Shares(context.Context) ([]share.Share, error) {
-	err := f.readODS()
+	ods, err := f.readODS()
 	if err != nil {
 		return nil, err
 	}
-	return f.ods.shares()
+	return ods.shares()
 }
 
 func (f *ODSFile) readAxisHalf(axisType rsmt2d.Axis, axisIdx int) (eds.AxisHalf, error) {
@@ -197,13 +198,13 @@ func (f *ODSFile) readAxisHalf(axisType rsmt2d.Axis, axisIdx int) (eds.AxisHalf,
 
 	switch axisType {
 	case rsmt2d.Col:
-		col, err := f.readCol(axisIdx, 0)
+		col, err := readCol(f.fl, f.hdr, axisIdx, 0)
 		return eds.AxisHalf{
 			Shares:   col,
 			IsParity: false,
 		}, err
 	case rsmt2d.Row:
-		row, err := f.readRow(axisIdx)
+		row, err := readRow(f.fl, f.hdr, axisIdx, 0)
 		return eds.AxisHalf{
 			Shares:   row,
 			IsParity: false,
@@ -212,38 +213,43 @@ func (f *ODSFile) readAxisHalf(axisType rsmt2d.Axis, axisIdx int) (eds.AxisHalf,
 	return eds.AxisHalf{}, fmt.Errorf("unknown axis")
 }
 
-func (f *ODSFile) readODS() error {
+func (f *ODSFile) readODS() (square, error) {
 	f.lock.Lock()
 	defer f.lock.Unlock()
 	if f.ods != nil {
-		return nil
+		return f.ods, nil
 	}
 
 	// reset file pointer to the beginning of the file shares data
 	_, err := f.fl.Seek(int64(f.hdr.Size()), io.SeekStart)
 	if err != nil {
-		return fmt.Errorf("discarding header: %w", err)
+		return nil, fmt.Errorf("discarding header: %w", err)
 	}
 
 	square, err := readSquare(f.fl, share.Size, f.size())
 	if err != nil {
-		return fmt.Errorf("reading ODS: %w", err)
+		return nil, fmt.Errorf("reading ODS: %w", err)
 	}
-	f.ods = square
-	return nil
+
+	if !f.disableCache {
+		fmt.Println("STORE ODS")
+		f.ods = square
+	}
+	return square, nil
 }
 
-func (f *ODSFile) readRow(idx int) ([]share.Share, error) {
-	shrLn := int(f.hdr.shareSize)
-	odsLn := f.size() / 2
+func readRow(fl io.ReaderAt, hdr *headerV0, rowIdx, quadrantIdx int) ([]share.Share, error) {
+	shrLn := int(hdr.shareSize)
+	odsLn := int(hdr.squareSize / 2)
+	quadrantOffset := quadrantIdx * odsLn * odsLn * shrLn
 
 	shares := make([]share.Share, odsLn)
 
-	pos := idx * odsLn
-	offset := f.hdr.Size() + pos*shrLn
+	pos := rowIdx * odsLn
+	offset := hdr.Size() + quadrantOffset + pos*shrLn
 
 	axsData := make([]byte, odsLn*shrLn)
-	if _, err := f.fl.ReadAt(axsData, int64(offset)); err != nil {
+	if _, err := fl.ReadAt(axsData, int64(offset)); err != nil {
 		return nil, err
 	}
 
@@ -253,18 +259,18 @@ func (f *ODSFile) readRow(idx int) ([]share.Share, error) {
 	return shares, nil
 }
 
-func (f *ODSFile) readCol(axisIdx, quadrantIdx int) ([]share.Share, error) {
-	shrLn := int(f.hdr.shareSize)
-	odsLn := f.size() / 2
+func readCol(fl io.ReaderAt, hdr *headerV0, colIdx, quadrantIdx int) ([]share.Share, error) {
+	shrLn := int(hdr.shareSize)
+	odsLn := int(hdr.squareSize / 2)
 	quadrantOffset := quadrantIdx * odsLn * odsLn * shrLn
 
 	shares := make([]share.Share, odsLn)
 	for i := range shares {
-		pos := axisIdx + i*odsLn
-		offset := f.hdr.Size() + quadrantOffset + pos*shrLn
+		pos := colIdx + i*odsLn
+		offset := hdr.Size() + quadrantOffset + pos*shrLn
 
 		shr := make(share.Share, shrLn)
-		if _, err := f.fl.ReadAt(shr, int64(offset)); err != nil {
+		if _, err := fl.ReadAt(shr, int64(offset)); err != nil {
 			return nil, err
 		}
 		shares[i] = shr

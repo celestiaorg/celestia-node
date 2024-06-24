@@ -246,6 +246,10 @@ func BenchGetHalfAxisFromAccessor(
 			for _, squareHalf := range []int{0, 1} {
 				name := fmt.Sprintf("Size:%v/ProofType:%s/squareHalf:%s", size, axisType, strconv.Itoa(squareHalf))
 				b.Run(name, func(b *testing.B) {
+					// warm up cache
+					_, err := f.AxisHalf(ctx, axisType, f.Size(ctx)/2*(squareHalf))
+					require.NoError(b, err)
+
 					b.ResetTimer()
 					for i := 0; i < b.N; i++ {
 						_, err := f.AxisHalf(ctx, axisType, f.Size(ctx)/2*(squareHalf))
