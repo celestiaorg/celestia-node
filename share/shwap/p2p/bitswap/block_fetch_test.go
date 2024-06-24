@@ -13,6 +13,8 @@ import (
 	"github.com/ipfs/boxo/blockstore"
 	"github.com/ipfs/boxo/exchange"
 	"github.com/ipfs/boxo/routing/offline"
+	blocks "github.com/ipfs/go-block-format"
+	"github.com/ipfs/go-cid"
 	ds "github.com/ipfs/go-datastore"
 	dssync "github.com/ipfs/go-datastore/sync"
 	record "github.com/libp2p/go-libp2p-record"
@@ -28,6 +30,43 @@ import (
 	eds "github.com/celestiaorg/celestia-node/share/new_eds"
 )
 
+func TestFetchOptions(t *testing.T) {
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second*1)
+	defer cancel()
+
+	eds := edstest.RandEDS(t, 4)
+	root, err := share.NewRoot(eds)
+	require.NoError(t, err)
+	exchange := newExchange(ctx, t, eds)
+
+	blks := make([]Block, eds.Width())
+	for i := range blks {
+		blk, err := NewEmptyRowBlock(1, i, root) // create the same Block ID
+		require.NoError(t, err)
+		blks[i] = blk
+	}
+
+	t.Run("WithBlockstore", func(t *testing.T) {
+		bstore := blockstore.NewBlockstore(ds.NewMapDatastore())
+		err := Fetch(ctx, exchange, root, blks, WithStore(bstore))
+		require.NoError(t, err)
+
+		for _, blk := range blks {
+			ok, err := bstore.Has(ctx, blk.CID())
+			require.NoError(t, err)
+			require.True(t, ok)
+		}
+	})
+
+	t.Run("WithFetcher", func(t *testing.T) {
+		session := exchange.NewSession(ctx)
+		fetcher := &testFetcher{Embedded: session}
+		err := Fetch(ctx, exchange, root, blks, WithFetcher(fetcher))
+		require.NoError(t, err)
+		require.Equal(t, len(blks), fetcher.Fetched)
+	})
+}
+
 func TestFetchDuplicates(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second*1)
 	defer cancel()
@@ -35,7 +74,7 @@ func TestFetchDuplicates(t *testing.T) {
 	eds := edstest.RandEDS(t, 4)
 	root, err := share.NewRoot(eds)
 	require.NoError(t, err)
-	fetcher := fetcher(ctx, t, eds)
+	exchange := newExchange(ctx, t, eds)
 
 	var wg sync.WaitGroup
 	for i := range 100 {
@@ -52,7 +91,7 @@ func TestFetchDuplicates(t *testing.T) {
 			// this sleep ensures fetches aren't started simultaneously, allowing to check for edge-cases
 			time.Sleep(time.Millisecond * time.Duration(rint))
 
-			err := Fetch(ctx, fetcher, root, blks...)
+			err := Fetch(ctx, exchange, root, blks)
 			assert.NoError(t, err)
 			for _, blk := range blks {
 				assert.False(t, blk.IsEmpty())
@@ -71,7 +110,7 @@ func TestFetchDuplicates(t *testing.T) {
 	require.Zero(t, entries)
 }
 
-func fetcher(ctx context.Context, t *testing.T, rsmt2dEds *rsmt2d.ExtendedDataSquare) exchange.SessionExchange {
+func newExchange(ctx context.Context, t *testing.T, rsmt2dEds *rsmt2d.ExtendedDataSquare) exchange.SessionExchange {
 	bstore := &Blockstore{
 		Getter: testAccessorGetter{
 			Accessor: eds.Rsmt2D{ExtendedDataSquare: rsmt2dEds},
@@ -126,4 +165,19 @@ type testAccessorGetter struct {
 
 func (t testAccessorGetter) GetByHeight(context.Context, uint64) (eds.Accessor, error) {
 	return t.Accessor, nil
+}
+
+type testFetcher struct {
+	Fetched int
+
+	Embedded exchange.Fetcher
+}
+
+func (t *testFetcher) GetBlock(context.Context, cid.Cid) (blocks.Block, error) {
+	panic("not implemented")
+}
+
+func (t *testFetcher) GetBlocks(ctx context.Context, cids []cid.Cid) (<-chan blocks.Block, error) {
+	t.Fetched += len(cids)
+	return t.Embedded.GetBlocks(ctx, cids)
 }

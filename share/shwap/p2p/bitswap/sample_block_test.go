@@ -18,7 +18,7 @@ func TestSampleRoundtrip_GetContainers(t *testing.T) {
 	eds := edstest.RandEDS(t, 32)
 	root, err := share.NewRoot(eds)
 	require.NoError(t, err)
-	client := fetcher(ctx, t, eds)
+	exchange := newExchange(ctx, t, eds)
 
 	width := int(eds.Width())
 	blks := make([]Block, 0, width*width)
@@ -30,8 +30,7 @@ func TestSampleRoundtrip_GetContainers(t *testing.T) {
 		}
 	}
 
-	ctx = WithFetchSession(ctx, client)
-	err = Fetch(ctx, client, root, blks...)
+	err = Fetch(ctx, exchange, root, blks)
 	require.NoError(t, err)
 
 	for _, sample := range blks {

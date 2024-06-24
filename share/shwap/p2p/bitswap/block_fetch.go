@@ -6,18 +6,28 @@ import (
 	"fmt"
 	"sync"
 
+	"github.com/ipfs/boxo/blockstore"
 	"github.com/ipfs/boxo/exchange"
+	blocks "github.com/ipfs/go-block-format"
 	"github.com/ipfs/go-cid"
 
 	"github.com/celestiaorg/celestia-node/share"
 	bitswappb "github.com/celestiaorg/celestia-node/share/shwap/p2p/bitswap/pb"
 )
 
-// WithFetchSession instantiates a new Fetch session and saves it on the context.
-// Session reuses peers known to have Blocks without rediscovering.
-func WithFetchSession(ctx context.Context, exchg exchange.SessionExchange) context.Context {
-	fetcher := exchg.NewSession(ctx)
-	return context.WithValue(ctx, fetcherKey, fetcher)
+// WithFetcher instructs [Fetch] to use the given Fetcher.
+// Useful for reusable Fetcher sessions.
+func WithFetcher(session exchange.Fetcher) FetchOption {
+	return func(options *fetchOptions) {
+		options.Session = session
+	}
+}
+
+// WithStore instructs [Fetch] to store all the fetched Blocks into the given Blockstore.
+func WithStore(store blockstore.Blockstore) FetchOption {
+	return func(options *fetchOptions) {
+		options.Store = store
+	}
 }
 
 // Fetch fetches and populates given Blocks using Fetcher wrapping Bitswap.
@@ -25,7 +35,7 @@ func WithFetchSession(ctx context.Context, exchg exchange.SessionExchange) conte
 // Validates Block against the given Root and skips Blocks that are already populated.
 // Gracefully synchronize identical Blocks requested simultaneously.
 // Blocks until either context is canceled or all Blocks are fetched and populated.
-func Fetch(ctx context.Context, exchg exchange.Interface, root *share.Root, blks ...Block) error {
+func Fetch(ctx context.Context, exchg exchange.Interface, root *share.Root, blks []Block, opts ...FetchOption) error {
 	var from, to int
 	for to < len(blks) {
 		from, to = to, to+maxPerFetch
@@ -33,7 +43,7 @@ func Fetch(ctx context.Context, exchg exchange.Interface, root *share.Root, blks
 			to = len(blks)
 		}
 
-		err := fetch(ctx, exchg, root, blks[from:to]...)
+		err := fetch(ctx, exchg, root, blks[from:to], opts...)
 		if err != nil {
 			return err
 		}
@@ -49,8 +59,13 @@ const maxPerFetch = 1024
 
 // fetch fetches given Blocks.
 // See [Fetch] for detailed description.
-func fetch(ctx context.Context, exchg exchange.Interface, root *share.Root, blks ...Block) error {
-	fetcher := getFetcher(ctx, exchg)
+func fetch(ctx context.Context, exchg exchange.Interface, root *share.Root, blks []Block, opts ...FetchOption) error {
+	var options fetchOptions
+	for _, opt := range opts {
+		opt(&options)
+	}
+
+	fetcher := options.getFetcher(exchg)
 	cids := make([]cid.Cid, 0, len(blks))
 	duplicates := make(map[cid.Cid]Block)
 	for _, blk := range blks {
@@ -78,29 +93,36 @@ func fetch(ctx context.Context, exchg exchange.Interface, root *share.Root, blks
 	}
 
 	for bitswapBlk := range blkCh { // GetBlocks closes blkCh on ctx cancellation
+		// NOTE: notification for duplicates is on purpose and to cover a flaky case
+		// It's harmless in practice to do additional notifications in case of duplicates
 		if err := exchg.NotifyNewBlocks(ctx, bitswapBlk); err != nil {
-			log.Error("failed to notify new Bitswap blocks: %w", err)
+			log.Error("failed to notify the new Bitswap block: %s", err)
 		}
 
 		blk, ok := duplicates[bitswapBlk.Cid()]
-		if !ok {
-			// common case: the block was populated by the hasher, so skip
+		if ok {
+			// uncommon duplicate case: concurrent fetching of the same block,
+			// so we have to unmarshal it ourselves instead of the hasher,
+			unmarshalFn := blk.UnmarshalFn(root)
+			_, err := unmarshal(unmarshalFn, bitswapBlk.RawData())
+			if err != nil {
+				// this means verification succeeded in the hasher but failed here
+				// this case should never happen in practice
+				// and if so something is really wrong
+				panic(fmt.Sprintf("unmarshaling duplicate block: %s", err))
+			}
+			// NOTE: This approach has a downside that we redo deserialization and computationally
+			// expensive computation for as many duplicates. We tried solutions that doesn't have this
+			// problem, but they are *much* more complex. Considering this a rare edge-case the tradeoff
+			// towards simplicity has been made.
 			continue
 		}
-		// uncommon duplicate case: concurrent fetching of the same block,
-		// so we have to unmarshal it ourselves instead of the hasher,
-		unmarshalFn := blk.UnmarshalFn(root)
-		_, err := unmarshal(unmarshalFn, bitswapBlk.RawData())
+		// common case: the block was populated by the hasher
+		// so store it if requested
+		err := options.store(ctx, bitswapBlk)
 		if err != nil {
-			// this means verification succeeded in the hasher but failed here
-			// this case should never happen in practice
-			// and if so something is really wrong
-			panic(fmt.Sprintf("unmarshaling duplicate block: %s", err))
+			log.Error("failed to store the new Bitswap block: %s", err)
 		}
-		// NOTE: This approach has a downside that we redo deserialization and computationally
-		// expensive computation for as many duplicates. We tried solutions that doesn't have this
-		// problem, but they are *much* more complex. Considering this a rare edge-case the tradeoff
-		// towards simplicity has been made.
 	}
 	if ctx.Err() != nil {
 		return ctx.Err()
@@ -219,17 +241,25 @@ func (h *hasher) BlockSize() int {
 	return sha256.BlockSize
 }
 
-type fetcherSessionKey struct{}
+type FetchOption func(*fetchOptions)
 
-var fetcherKey fetcherSessionKey
+type fetchOptions struct {
+	Session exchange.Fetcher
+	Store   blockstore.Blockstore
+}
 
-// getFetcher takes context and a fetcher, if there is another fetcher in the context,
-// it gets returned.
-func getFetcher(ctx context.Context, fetcher exchange.Fetcher) exchange.Fetcher {
-	fetcherVal := ctx.Value(fetcherKey)
-	if fetcherVal == nil {
-		return fetcher
+func (options *fetchOptions) getFetcher(exhng exchange.Interface) exchange.Fetcher {
+	if options.Session != nil {
+		return options.Session
 	}
 
-	return fetcherVal.(exchange.Fetcher)
+	return exhng
+}
+
+func (options *fetchOptions) store(ctx context.Context, blk blocks.Block) error {
+	if options.Store == nil {
+		return nil
+	}
+
+	return options.Store.Put(ctx, blk)
 }
