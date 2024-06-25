@@ -7,6 +7,11 @@ import (
 	"github.com/celestiaorg/celestia-node/libs/utils"
 )
 
+const (
+	DefaultRPCPort  = "26657"
+	DefaultGRPCPort = "9090"
+)
+
 var MetricsEnabled bool
 
 // Config combines all configuration fields for managing the relationship with a Core node.
@@ -21,8 +26,8 @@ type Config struct {
 func DefaultConfig() Config {
 	return Config{
 		IP:       "",
-		RPCPort:  "26657",
-		GRPCPort: "9090",
+		RPCPort:  DefaultRPCPort,
+		GRPCPort: DefaultGRPCPort,
 	}
 }
 

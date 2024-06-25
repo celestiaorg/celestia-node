@@ -53,6 +53,7 @@ func ParseNodeFlags(ctx context.Context, cmd *cobra.Command, network p2p.Network
 	if nodeConfig != "" {
 		// try to load config from given path
 		cfg, err := nodebuilder.LoadConfig(nodeConfig)
+
 		if err != nil {
 			return ctx, fmt.Errorf("cmd: while parsing '%s': %w", nodeConfigFlag, err)
 		}
