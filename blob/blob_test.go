@@ -9,8 +9,8 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"github.com/celestiaorg/celestia-app/pkg/appconsts"
-	v1 "github.com/celestiaorg/celestia-app/pkg/appconsts/v1"
+	"github.com/celestiaorg/celestia-app/v2/pkg/appconsts"
+	v1 "github.com/celestiaorg/celestia-app/v2/pkg/appconsts/v1"
 	apptypes "github.com/celestiaorg/celestia-app/v2/x/blob/types"
 	"github.com/celestiaorg/go-square/blob"
 	"github.com/celestiaorg/go-square/inclusion"

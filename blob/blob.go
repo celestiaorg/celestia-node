@@ -8,8 +8,8 @@ import (
 
 	"github.com/tendermint/tendermint/crypto/merkle"
 
-	v1 "github.com/celestiaorg/celestia-app/pkg/appconsts/v1"
 	"github.com/celestiaorg/celestia-app/v2/pkg/appconsts"
+	v1 "github.com/celestiaorg/celestia-app/v2/pkg/appconsts/v1"
 	"github.com/celestiaorg/go-square/blob"
 	"github.com/celestiaorg/go-square/inclusion"
 	"github.com/celestiaorg/nmt"
