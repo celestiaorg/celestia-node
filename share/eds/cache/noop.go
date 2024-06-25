@@ -38,7 +38,7 @@ var _ Accessor = (*NoopAccessor)(nil)
 type NoopAccessor struct{}
 
 func (n NoopAccessor) Blockstore() (dagstore.ReadBlockstore, error) {
-	return nil, nil //nolint:nilnil
+	return nil, nil
 }
 
 func (n NoopAccessor) Reader() io.Reader {
