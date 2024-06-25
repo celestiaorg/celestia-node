@@ -50,11 +50,14 @@ func ParseFlags(
 		return nil
 	}
 
-	if cmd.Flag(coreRPCFlag).Changed {
+	// in the case that the RPC port is not set, use the default port
+	// or in the case a value has been set via flag,
+	// set that as highest precedence
+	if cfg.RPCPort == "" || cmd.Flag(coreRPCFlag).Changed {
 		rpc := cmd.Flag(coreRPCFlag).Value.String()
 		cfg.RPCPort = rpc
 	}
-	if cmd.Flag(coreGRPCFlag).Changed {
+	if cfg.GRPCPort == "" || cmd.Flag(coreGRPCFlag).Changed {
 		grpc := cmd.Flag(coreGRPCFlag).Value.String()
 		cfg.GRPCPort = grpc
 	}

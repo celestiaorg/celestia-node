@@ -41,6 +41,17 @@ func TestParseFlags(t *testing.T) {
 			expectError: false,
 		},
 		{
+			name:     "only core.ip, empty port values",
+			args:     []string{"--core.ip=127.0.0.1"},
+			inputCfg: Config{},
+			expectedCfg: Config{
+				IP:       "127.0.0.1",
+				RPCPort:  DefaultRPCPort,
+				GRPCPort: DefaultGRPCPort,
+			},
+			expectError: false,
+		},
+		{
 			name: "no flags, values from input config.toml ",
 			args: []string{},
 			inputCfg: Config{
