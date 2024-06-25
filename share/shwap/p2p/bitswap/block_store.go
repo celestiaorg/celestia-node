@@ -8,7 +8,6 @@ import (
 	"github.com/ipfs/go-cid"
 
 	eds "github.com/celestiaorg/celestia-node/share/new_eds"
-	bitswappb "github.com/celestiaorg/celestia-node/share/shwap/p2p/bitswap/pb"
 )
 
 // AccessorGetter abstracts storage system that indexes and manages multiple eds.AccessorGetter by network height.
@@ -43,22 +42,12 @@ func (b *Blockstore) getBlock(ctx context.Context, cid cid.Cid) (blocks.Block, e
 		return nil, fmt.Errorf("failed to populate Shwap Block on height %v for %s: %w", blk.Height(), spec.String(), err)
 	}
 
-	containerData, err := blk.Marshal()
+	protoData, err := marshalProto(blk)
 	if err != nil {
-		return nil, fmt.Errorf("marshaling Shwap container: %w", err)
+		return nil, fmt.Errorf("failed to wrap Block with proto: %w", err)
 	}
 
-	blkProto := bitswappb.Block{
-		Cid:       cid.Bytes(),
-		Container: containerData,
-	}
-
-	blkData, err := blkProto.Marshal()
-	if err != nil {
-		return nil, fmt.Errorf("marshaling Bitswap Block protobuf: %w", err)
-	}
-
-	bitswapBlk, err := blocks.NewBlockWithCid(blkData, cid)
+	bitswapBlk, err := blocks.NewBlockWithCid(protoData, cid)
 	if err != nil {
 		return nil, fmt.Errorf("assembling Bitswap block: %w", err)
 	}

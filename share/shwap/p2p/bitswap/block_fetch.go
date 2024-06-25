@@ -12,7 +12,6 @@ import (
 	"github.com/ipfs/go-cid"
 
 	"github.com/celestiaorg/celestia-node/share"
-	bitswappb "github.com/celestiaorg/celestia-node/share/shwap/p2p/bitswap/pb"
 )
 
 // WithFetcher instructs [Fetch] to use the given Fetcher.
@@ -104,7 +103,7 @@ func fetch(ctx context.Context, exchg exchange.Interface, root *share.Root, blks
 			// uncommon duplicate case: concurrent fetching of the same block,
 			// so we have to unmarshal it ourselves instead of the hasher,
 			unmarshalFn := blk.UnmarshalFn(root)
-			_, err := unmarshal(unmarshalFn, bitswapBlk.RawData())
+			err := unmarshal(unmarshalFn, bitswapBlk.RawData())
 			if err != nil {
 				// this means verification succeeded in the hasher but failed here
 				// this case should never happen in practice
@@ -140,47 +139,19 @@ func fetch(ctx context.Context, exchg exchange.Interface, root *share.Root, blks
 	return nil
 }
 
-// unmarshal unmarshalls the Shwap Container data into a Block via UnmarshalFn
-// If unmarshalFn is nil -- gets it from the global unmarshalFns.
-func unmarshal(unmarshalFn UnmarshalFn, data []byte) ([]byte, error) {
-	var blk bitswappb.Block
-	err := blk.Unmarshal(data)
+// unmarshal unmarshalls the Shwap Container data into a Block with the given UnmarshalFn
+func unmarshal(unmarshalFn UnmarshalFn, data []byte) error {
+	_, containerData, err := unmarshalProto(data)
 	if err != nil {
-		return nil, fmt.Errorf("unmarshalling block: %w", err)
-	}
-	cid, err := cid.Cast(blk.Cid)
-	if err != nil {
-		return nil, fmt.Errorf("casting cid: %w", err)
-	}
-	// getBlock ID out of CID validating it
-	id, err := extractCID(cid)
-	if err != nil {
-		return nil, fmt.Errorf("validating cid: %w", err)
+		return err
 	}
 
-	if unmarshalFn == nil {
-		// getBlock registered UnmarshalFn and use it to check data validity and
-		// pass it to Fetch caller
-		val, ok := unmarshalFns.Load(cid)
-		if !ok {
-			return nil, fmt.Errorf("no unmarshallers registered for %s", cid.String())
-		}
-		entry := val.(*unmarshalEntry)
-
-		// ensure UnmarshalFn is synchronized
-		// NOTE: Bitswap may call hasher.Write concurrently, which may call unmarshall concurrently
-		// this we need this synchronization.
-		entry.Lock()
-		defer entry.Unlock()
-		unmarshalFn = entry.UnmarshalFn
-	}
-
-	err = unmarshalFn(blk.Container)
+	err = unmarshalFn(containerData)
 	if err != nil {
-		return nil, fmt.Errorf("verifying data: %w", err)
+		return fmt.Errorf("verifying and unmarshalling container data: %w", err)
 	}
 
-	return id, nil
+	return nil
 }
 
 // unmarshalFns exist to communicate between Fetch and hasher, and it's global as a necessity
@@ -212,17 +183,51 @@ type hasher struct {
 }
 
 func (h *hasher) Write(data []byte) (int, error) {
-	id, err := unmarshal(nil, data)
+	err := h.write(data)
 	if err != nil {
 		err = fmt.Errorf("hasher: %w", err)
 		log.Error(err)
 		return 0, fmt.Errorf("shwap/bitswap: %w", err)
 	}
+
+	return len(data), nil
+}
+
+func (h *hasher) write(data []byte) error {
+	cid, container, err := unmarshalProto(data)
+	if err != nil {
+		return fmt.Errorf("unmarshalling proto: %w", err)
+	}
+
+	// getBlock ID out of CID validating it
+	id, err := extractCID(cid)
+	if err != nil {
+		return fmt.Errorf("validating cid: %w", err)
+	}
+
+	// getBlock registered UnmarshalFn and use it to check data validity and
+	// pass it to Fetch caller
+	val, ok := unmarshalFns.Load(cid)
+	if !ok {
+		return fmt.Errorf("no unmarshallers registered for %s", cid.String())
+	}
+	entry := val.(*unmarshalEntry)
+
+	// ensure UnmarshalFn is synchronized
+	// NOTE: Bitswap may call hasher.Write concurrently, which may call unmarshall concurrently
+	// this we need this synchronization.
+	entry.Lock()
+	err = entry.UnmarshalFn(container)
+	if err != nil {
+		return fmt.Errorf("verifying and unmarshalling container data: %w", err)
+	}
+	entry.Unlock()
+
 	// set the id as resulting sum
 	// it's required for the sum to match the requested ID
 	// to satisfy hash contract and signal to Bitswap that data is correct
 	h.sum = id
-	return len(data), err
+	return nil
 }
 
 func (h *hasher) Sum([]byte) []byte {
