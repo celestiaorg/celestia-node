@@ -45,7 +45,7 @@ func validateCID(cid cid.Cid) error {
 		return fmt.Errorf("invalid CID codec %d", prefix.Codec)
 	}
 
-	if prefix.MhLength != spec.size {
+	if prefix.MhLength != spec.idSize {
 		return fmt.Errorf("invalid multihash length %d", prefix.MhLength)
 	}
 

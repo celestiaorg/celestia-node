@@ -11,14 +11,14 @@ import (
 	"github.com/celestiaorg/celestia-node/share/eds/edstest"
 )
 
-func TestSampleRoundtrip_GetContainers(t *testing.T) {
+func TestSample_FetchRoundtrip(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second*5)
 	defer cancel()
 
 	eds := edstest.RandEDS(t, 32)
 	root, err := share.NewRoot(eds)
 	require.NoError(t, err)
-	exchange := newExchange(ctx, t, eds)
+	exchange := newExchangeOverEDS(ctx, t, eds)
 
 	width := int(eds.Width())
 	blks := make([]Block, 0, width*width)

@@ -42,17 +42,7 @@ func (b *Blockstore) getBlock(ctx context.Context, cid cid.Cid) (blocks.Block, e
 		return nil, fmt.Errorf("failed to populate Shwap Block on height %v for %s: %w", blk.Height(), spec.String(), err)
 	}
 
-	protoData, err := marshalProto(blk)
-	if err != nil {
-		return nil, fmt.Errorf("failed to wrap Block with proto: %w", err)
-	}
-
-	bitswapBlk, err := blocks.NewBlockWithCid(protoData, cid)
-	if err != nil {
-		return nil, fmt.Errorf("assembling Bitswap block: %w", err)
-	}
-
-	return bitswapBlk, nil
+	return convertBitswap(blk)
 }
 
 func (b *Blockstore) Get(ctx context.Context, cid cid.Cid) (blocks.Block, error) {
@@ -100,3 +90,18 @@ func (b *Blockstore) DeleteBlock(context.Context, cid.Cid) error {
 func (b *Blockstore) AllKeysChan(context.Context) (<-chan cid.Cid, error) { panic("not implemented") }
 
 func (b *Blockstore) HashOnRead(bool) { panic("not implemented") }
+
+// convertBitswap converts and marshals Block to Bitswap Block.
+func convertBitswap(blk Block) (blocks.Block, error) {
+	protoData, err := marshalProto(blk)
+	if err != nil {
+		return nil, fmt.Errorf("failed to wrap Block with proto: %w", err)
+	}
+
+	bitswapBlk, err := blocks.NewBlockWithCid(protoData, blk.CID())
+	if err != nil {
+		return nil, fmt.Errorf("assembling Bitswap block: %w", err)
+	}
+
+	return bitswapBlk, nil
+}

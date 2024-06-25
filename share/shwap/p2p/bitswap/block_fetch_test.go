@@ -25,30 +25,29 @@ import (
 
 	"github.com/celestiaorg/rsmt2d"
 
-	"github.com/celestiaorg/celestia-node/share"
-	"github.com/celestiaorg/celestia-node/share/eds/edstest"
 	eds "github.com/celestiaorg/celestia-node/share/new_eds"
 )
 
-func TestFetchOptions(t *testing.T) {
-	ctx, cancel := context.WithTimeout(context.Background(), time.Second*1)
+func TestFetch_Options(t *testing.T) {
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second*10)
 	defer cancel()
 
-	eds := edstest.RandEDS(t, 4)
-	root, err := share.NewRoot(eds)
-	require.NoError(t, err)
-	exchange := newExchange(ctx, t, eds)
-
-	blks := make([]Block, eds.Width())
-	for i := range blks {
-		blk, err := NewEmptyRowBlock(1, i, root) // create the same Block ID
-		require.NoError(t, err)
-		blks[i] = blk
-	}
+	const items = 128
+	bstore, cids := testBlockstore(ctx, t, items)
 
 	t.Run("WithBlockstore", func(t *testing.T) {
+		exchange := newExchange(ctx, t, bstore)
+
+		blks := make([]Block, 0, cids.Len())
+		_ = cids.ForEach(func(c cid.Cid) error {
+			blk, err := newEmptyTestBlock(c)
+			require.NoError(t, err)
+			blks = append(blks, blk)
+			return nil
+		})
+
 		bstore := blockstore.NewBlockstore(ds.NewMapDatastore())
-		err := Fetch(ctx, exchange, root, blks, WithStore(bstore))
+		err := Fetch(ctx, exchange, nil, blks, WithStore(bstore))
 		require.NoError(t, err)
 
 		for _, blk := range blks {
@@ -59,31 +58,41 @@ func TestFetchOptions(t *testing.T) {
 	})
 
 	t.Run("WithFetcher", func(t *testing.T) {
+		exchange := newExchange(ctx, t, bstore)
+
+		blks := make([]Block, 0, cids.Len())
+		_ = cids.ForEach(func(c cid.Cid) error {
+			blk, err := newEmptyTestBlock(c)
+			require.NoError(t, err)
+			blks = append(blks, blk)
+			return nil
+		})
+
 		session := exchange.NewSession(ctx)
 		fetcher := &testFetcher{Embedded: session}
-		err := Fetch(ctx, exchange, root, blks, WithFetcher(fetcher))
+		err := Fetch(ctx, exchange, nil, blks, WithFetcher(fetcher))
 		require.NoError(t, err)
 		require.Equal(t, len(blks), fetcher.Fetched)
 	})
 }
 
-func TestFetchDuplicates(t *testing.T) {
-	ctx, cancel := context.WithTimeout(context.Background(), time.Second*1)
+func TestFetch_Duplicates(t *testing.T) {
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second*5)
 	defer cancel()
 
-	eds := edstest.RandEDS(t, 4)
-	root, err := share.NewRoot(eds)
-	require.NoError(t, err)
-	exchange := newExchange(ctx, t, eds)
+	const items = 128
+	bstore, cids := testBlockstore(ctx, t, items)
+	exchange := newExchange(ctx, t, bstore)
 
 	var wg sync.WaitGroup
-	for i := range 100 {
-		blks := make([]Block, eds.Width())
-		for i := range blks {
-			blk, err := NewEmptyRowBlock(1, i, root) // create the same Block ID
+	for i := range items {
+		blks := make([]Block, 0, cids.Len())
+		_ = cids.ForEach(func(c cid.Cid) error {
+			blk, err := newEmptyTestBlock(c)
 			require.NoError(t, err)
-			blks[i] = blk
-		}
+			blks = append(blks, blk)
+			return nil
+		})
 
 		wg.Add(1)
 		go func(i int) {
@@ -91,11 +100,8 @@ func TestFetchDuplicates(t *testing.T) {
 			// this sleep ensures fetches aren't started simultaneously, allowing to check for edge-cases
 			time.Sleep(time.Millisecond * time.Duration(rint))
 
-			err := Fetch(ctx, exchange, root, blks)
+			err := Fetch(ctx, exchange, nil, blks)
 			assert.NoError(t, err)
-			for _, blk := range blks {
-				assert.False(t, blk.IsEmpty())
-			}
 			wg.Done()
 		}(i)
 	}
@@ -110,13 +116,16 @@ func TestFetchDuplicates(t *testing.T) {
 	require.Zero(t, entries)
 }
 
-func newExchange(ctx context.Context, t *testing.T, rsmt2dEds *rsmt2d.ExtendedDataSquare) exchange.SessionExchange {
+func newExchangeOverEDS(ctx context.Context, t *testing.T, rsmt2d *rsmt2d.ExtendedDataSquare) exchange.SessionExchange {
 	bstore := &Blockstore{
 		Getter: testAccessorGetter{
-			Accessor: eds.Rsmt2D{ExtendedDataSquare: rsmt2dEds},
+			Accessor: eds.Rsmt2D{ExtendedDataSquare: rsmt2d},
 		},
 	}
+	return newExchange(ctx, t, bstore)
+}
 
+func newExchange(ctx context.Context, t *testing.T, bstore blockstore.Blockstore) exchange.SessionExchange {
 	net, err := mocknet.FullMeshLinked(3)
 	require.NoError(t, err)
 

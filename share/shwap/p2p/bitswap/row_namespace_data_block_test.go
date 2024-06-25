@@ -12,13 +12,13 @@ import (
 	"github.com/celestiaorg/celestia-node/share/sharetest"
 )
 
-func TestRowNamespaceDataRoundtrip_GetContainers(t *testing.T) {
+func TestRowNamespaceData_FetchRoundtrip(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second*5)
 	defer cancel()
 
 	namespace := sharetest.RandV0Namespace()
 	eds, root := edstest.RandEDSWithNamespace(t, namespace, 64, 16)
-	exchange := newExchange(ctx, t, eds)
+	exchange := newExchangeOverEDS(ctx, t, eds)
 
 	rowIdxs := share.RowsWithNamespace(root, namespace)
 	blks := make([]Block, len(rowIdxs))

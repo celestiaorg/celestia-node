@@ -9,12 +9,12 @@ import (
 )
 
 // registerBlock registers the new Block type and multihash for it.
-func registerBlock(mhcode, codec uint64, size int, bldrFn func(cid.Cid) (Block, error)) {
+func registerBlock(mhcode, codec uint64, idSize int, bldrFn func(cid.Cid) (Block, error)) {
 	mh.Register(mhcode, func() hash.Hash {
-		return &hasher{IDSize: size}
+		return &hasher{IDSize: idSize}
 	})
 	specRegistry[mhcode] = blockSpec{
-		size:    size,
+		idSize:  idSize,
 		codec:   codec,
 		builder: bldrFn,
 	}
@@ -22,13 +22,13 @@ func registerBlock(mhcode, codec uint64, size int, bldrFn func(cid.Cid) (Block, 
 
 // blockSpec holds constant metadata about particular Block types.
 type blockSpec struct {
-	size    int
+	idSize  int
 	codec   uint64
 	builder func(cid.Cid) (Block, error)
 }
 
 func (spec *blockSpec) String() string {
-	return fmt.Sprintf("BlockSpec{size: %d, codec: %d}", spec.size, spec.codec)
+	return fmt.Sprintf("BlockSpec{IDSize: %d, Codec: %d}", spec.idSize, spec.codec)
 }
 
 var specRegistry = make(map[uint64]blockSpec)
