@@ -268,7 +268,7 @@ type store struct {
 	edsStore *eds.Store
 }
 
-func newStore(ctx context.Context, t require.TestingT, params *eds.Parameters, dir string) store {
+func newStore(ctx context.Context, t testing.TB, params *eds.Parameters, dir string) store {
 	s, err := OpenStore(dir, nil)
 	require.NoError(t, err)
 	ds, err := s.Datastore()

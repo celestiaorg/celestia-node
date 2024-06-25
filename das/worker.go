@@ -13,6 +13,8 @@ import (
 	"github.com/celestiaorg/celestia-node/share/p2p/shrexsub"
 )
 
+type jobType string
+
 const (
 	catchupJob jobType = "catchup"
 	recentJob  jobType = "recent"
@@ -36,8 +38,6 @@ type workerState struct {
 
 	curr uint64
 }
-
-type jobType string
 
 // job represents headers interval to be processed by worker
 type job struct {

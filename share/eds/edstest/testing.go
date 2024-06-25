@@ -13,7 +13,7 @@ import (
 	"github.com/celestiaorg/celestia-node/share/sharetest"
 )
 
-func RandByzantineEDS(t *testing.T, size int, options ...nmt.Option) *rsmt2d.ExtendedDataSquare {
+func RandByzantineEDS(t testing.TB, size int, options ...nmt.Option) *rsmt2d.ExtendedDataSquare {
 	eds := RandEDS(t, size)
 	shares := eds.Flattened()
 	copy(share.GetData(shares[0]), share.GetData(shares[1])) // corrupting eds
@@ -25,9 +25,8 @@ func RandByzantineEDS(t *testing.T, size int, options ...nmt.Option) *rsmt2d.Ext
 	return eds
 }
 
-// RandEDS generates EDS filled with the random data with the given size for original square. It
-// uses require.TestingT to be able to take both a *testing.T and a *testing.B.
-func RandEDS(t require.TestingT, size int) *rsmt2d.ExtendedDataSquare {
+// RandEDS generates EDS filled with the random data with the given size for original square.
+func RandEDS(t testing.TB, size int) *rsmt2d.ExtendedDataSquare {
 	shares := sharetest.RandShares(t, size*size)
 	eds, err := rsmt2d.ComputeExtendedDataSquare(shares, share.DefaultRSMT2DCodec(), wrapper.NewConstructor(uint64(size)))
 	require.NoError(t, err, "failure to recompute the extended data square")
@@ -35,7 +34,7 @@ func RandEDS(t require.TestingT, size int) *rsmt2d.ExtendedDataSquare {
 }
 
 func RandEDSWithNamespace(
-	t require.TestingT,
+	t testing.TB,
 	namespace share.Namespace,
 	size int,
 ) (*rsmt2d.ExtendedDataSquare, *share.Root) {
