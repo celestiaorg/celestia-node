@@ -25,6 +25,7 @@ func (a AxisHalf) ToRow() shwap.Row {
 	return shwap.NewRow(a.Shares, side)
 }
 
+// Extended returns full axis shares from half axis shares.
 func (a AxisHalf) Extended() ([]share.Share, error) {
 	if a.IsParity {
 		return reconstructShares(a.Shares)
@@ -32,6 +33,7 @@ func (a AxisHalf) Extended() ([]share.Share, error) {
 	return extendShares(a.Shares)
 }
 
+// extendShares constructs full axis shares from original half axis shares.
 func extendShares(original []share.Share) ([]share.Share, error) {
 	if len(original) == 0 {
 		return nil, fmt.Errorf("original shares are empty")
@@ -55,7 +57,6 @@ func reconstructShares(parity []share.Share) ([]share.Share, error) {
 	}
 
 	sqLen := len(parity) * 2
-
 	shares := make([]share.Share, sqLen)
 	for i := sqLen / 2; i < sqLen; i++ {
 		shares[i] = parity[i-sqLen/2]
