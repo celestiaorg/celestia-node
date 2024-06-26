@@ -2,7 +2,6 @@ package file
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"io"
 
@@ -119,7 +118,7 @@ func writeQ4(w io.Writer, eds *rsmt2d.ExtendedDataSquare) error {
 func (f *Q1Q4File) readAxisHalfFromQ4(axisType rsmt2d.Axis, axisIdx int) (eds.AxisHalf, error) {
 	q4idx := axisIdx - f.ods.size()/2
 	if q4idx < 0 {
-		return eds.AxisHalf{}, errors.New("invalid index requested from Q4")
+		return eds.AxisHalf{}, fmt.Errorf("invalid axis index for Q4: %d", axisIdx)
 	}
 	switch axisType {
 	case rsmt2d.Col:
