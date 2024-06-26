@@ -37,6 +37,13 @@ func (cfg *Config) Validate() error {
 		return nil
 	}
 
+	if cfg.RPCPort == "" {
+		return fmt.Errorf("nodebuilder/core: rpc port is not set")
+	}
+	if cfg.GRPCPort == "" {
+		return fmt.Errorf("nodebuilder/core: grpc port is not set")
+	}
+
 	ip, err := utils.ValidateAddr(cfg.IP)
 	if err != nil {
 		return err

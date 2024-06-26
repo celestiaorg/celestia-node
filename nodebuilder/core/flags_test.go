@@ -49,7 +49,7 @@ func TestParseFlags(t *testing.T) {
 				RPCPort:  DefaultRPCPort,
 				GRPCPort: DefaultGRPCPort,
 			},
-			expectError: false,
+			expectError: true,
 		},
 		{
 			name: "no flags, values from input config.toml ",
