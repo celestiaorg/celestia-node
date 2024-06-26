@@ -133,6 +133,11 @@ func (rnd RowNamespaceData) ToProto() *pb.RowNamespaceData {
 	}
 }
 
+// IsEmpty reports whether the RowNamespaceData is empty, i.e. doesn't contain a proof.
+func (rnd RowNamespaceData) IsEmpty() bool {
+	return rnd.Proof == nil
+}
+
 // Validate checks validity of the RowNamespaceData against the Root, Namespace and Row index.
 func (rnd RowNamespaceData) Validate(dah *share.Root, namespace share.Namespace, rowIdx int) error {
 	if rnd.Proof == nil || rnd.Proof.IsEmptyProof() {
