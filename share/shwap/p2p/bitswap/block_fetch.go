@@ -52,8 +52,10 @@ func Fetch(ctx context.Context, exchg exchange.Interface, root *share.Root, blks
 }
 
 // maxPerFetch sets the limit for maximum items in a single fetch.
-// This limit comes from server side default limit size on max possible simultaneous CID WANTs from a peer.
-// https://github.com/ipfs/boxo/blob/dfd4a53ba828a368cec8d61c3fe12969ac6aa94c/bitswap/internal/defaults/defaults.go#L29-L30
+// This limit comes from server side default limit size on max possible simultaneous CID WANTs from
+// a peer.
+//
+//https:github.com/ipfs/boxo/blob/dfd4a53ba828a368cec8d61c3fe12969ac6aa94c/bitswap/internal/defaults/defaults.go#L29-L30
 const maxPerFetch = 1024
 
 // fetch fetches given Blocks.
