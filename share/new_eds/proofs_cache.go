@@ -7,17 +7,12 @@ import (
 	"sync"
 	"sync/atomic"
 
-	"github.com/ipfs/boxo/blockservice"
-	blocks "github.com/ipfs/go-block-format"
-	"github.com/ipfs/go-cid"
-
 	"github.com/celestiaorg/celestia-app/pkg/wrapper"
-	"github.com/celestiaorg/nmt"
-	"github.com/celestiaorg/rsmt2d"
-
 	"github.com/celestiaorg/celestia-node/share"
 	"github.com/celestiaorg/celestia-node/share/ipld"
 	"github.com/celestiaorg/celestia-node/share/shwap"
+	"github.com/ipfs/boxo/blockservice"
+	blocks "github.com/ipfs/go-block-format"
 )
 
 var _ Accessor = (*proofsCache)(nil)
@@ -57,7 +52,7 @@ type axisWithProofs struct {
 // WithProofsCache creates a new eds accessor with caching of proofs for rows and columns. It is
 // used to speed up the process of building proofs for rows and columns, reducing the number of
 // reads from the underlying accessor.
-func WithProofsCache(ctx context.Context, ac Accessor) Accessor {
+func WithProofsCache(ac Accessor) Accessor {
 	rows := make(map[int]axisWithProofs)
 	cols := make(map[int]axisWithProofs)
 	axisCache := []map[int]axisWithProofs{rows, cols}
