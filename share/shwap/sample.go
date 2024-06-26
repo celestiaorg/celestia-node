@@ -78,6 +78,11 @@ func (s Sample) ToProto() *pb.Sample {
 	}
 }
 
+// IsEmpty reports whether the Sample is empty, i.e. doesn't contain a proof.
+func (s Sample) IsEmpty() bool {
+	return s.Proof == nil
+}
+
 // Validate checks the inclusion of the share using its Merkle proof under the specified root.
 // Returns an error if the proof is invalid or does not correspond to the indicated proof type.
 func (s Sample) Validate(dah *share.Root, rowIdx, colIdx int) error {
