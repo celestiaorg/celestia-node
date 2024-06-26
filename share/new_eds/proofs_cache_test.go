@@ -15,7 +15,7 @@ func TestCache(t *testing.T) {
 
 	withProofsCache := func(tb testing.TB, inner *rsmt2d.ExtendedDataSquare) Accessor {
 		accessor := &Rsmt2D{ExtendedDataSquare: inner}
-		return WithProofsCache(ctx, accessor)
+		return WithProofsCache(accessor)
 	}
 
 	TestSuiteAccessor(ctx, t, withProofsCache, size)

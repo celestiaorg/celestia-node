@@ -7,12 +7,17 @@ import (
 	"sync"
 	"sync/atomic"
 
+	"github.com/ipfs/boxo/blockservice"
+	blocks "github.com/ipfs/go-block-format"
+	"github.com/ipfs/go-cid"
+
 	"github.com/celestiaorg/celestia-app/pkg/wrapper"
+	"github.com/celestiaorg/nmt"
+	"github.com/celestiaorg/rsmt2d"
+
 	"github.com/celestiaorg/celestia-node/share"
 	"github.com/celestiaorg/celestia-node/share/ipld"
 	"github.com/celestiaorg/celestia-node/share/shwap"
-	"github.com/ipfs/boxo/blockservice"
-	blocks "github.com/ipfs/go-block-format"
 )
 
 var _ Accessor = (*proofsCache)(nil)
