@@ -25,6 +25,9 @@ type Accessor interface {
 	RowNamespaceData(ctx context.Context, namespace share.Namespace, rowIdx int) (shwap.RowNamespaceData, error)
 	// Shares returns data (ODS) shares extracted from the Accessor.
 	Shares(ctx context.Context) ([]share.Share, error)
+	// Reader returns binary reader for the file (ODS) shares. It should read the shares from the
+	// ODS part of the square row by row.
+	Reader() (io.Reader, error)
 }
 
 // AccessorCloser is an interface that groups Accessor and io.Closer interfaces.

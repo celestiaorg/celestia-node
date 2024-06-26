@@ -187,6 +187,16 @@ func (f *ODSFile) Shares(context.Context) ([]share.Share, error) {
 	return f.ods.shares()
 }
 
+// Reader returns binary reader for the file. It reads the shares from the ODS part of the square
+// row by row.
+func (f *ODSFile) Reader() (io.Reader, error) {
+	err := f.readODS()
+	if err != nil {
+		return nil, err
+	}
+	return f.ods.reader()
+}
+
 func (f *ODSFile) readAxisHalf(axisType rsmt2d.Axis, axisIdx int) (eds.AxisHalf, error) {
 	f.lock.RLock()
 	ODS := f.ods

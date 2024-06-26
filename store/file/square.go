@@ -46,6 +46,15 @@ func readSquare(r io.Reader, shareSize, edsSize int) (square, error) {
 	return square, nil
 }
 
+func (s square) reader() (io.Reader, error) {
+	if s == nil {
+		return nil, fmt.Errorf("ods file not cached")
+	}
+	odsW := newODSWriter(s, s.size())
+	odsR := eds.NewBufferedReader(odsW)
+	return odsR, nil
+}
+
 func (s square) size() int {
 	return len(s)
 }
@@ -140,4 +149,35 @@ func oppositeAxis(axis rsmt2d.Axis) rsmt2d.Axis {
 		return rsmt2d.Row
 	}
 	return rsmt2d.Col
+}
+
+func newODSWriter(s square, size int) *odsWriter {
+	return &odsWriter{
+		ods:   s,
+		total: size * size,
+	}
+}
+
+type odsWriter struct {
+	ods square
+	// current is the amount of Shares stored in square that have been written by odsWriter. When
+	// current reaches total, odsWriter will prevent further reads by returning io.EOF
+	current, total int
+}
+
+func (w *odsWriter) WriteTo(writer io.Writer, limit int) (int, error) {
+	if w.current >= w.total {
+		return 0, io.EOF
+	}
+	var written int
+	for w.current < w.total && written < limit {
+		rowIdx, colIdx := w.current/(w.ods.size()), w.current%(w.ods.size())
+		n, err := writer.Write(w.ods[rowIdx][colIdx])
+		w.current++
+		written += n
+		if err != nil {
+			return written, err
+		}
+	}
+	return written, nil
 }

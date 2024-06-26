@@ -65,7 +65,7 @@ func TestValidateNamespacedRow(t *testing.T) {
 	namespace := sharetest.RandV0Namespace()
 	for amount := 1; amount < sharesAmount; amount++ {
 		randEDS, root := edstest.RandEDSWithNamespace(t, namespace, amount, odsSize)
-		rsmt2d := eds.Rsmt2D{ExtendedDataSquare: randEDS}
+		rsmt2d := &eds.Rsmt2D{ExtendedDataSquare: randEDS}
 		nd, err := eds.NamespacedData(ctx, root, rsmt2d, namespace)
 		require.NoError(t, err)
 		require.True(t, len(nd) > 0)
@@ -87,7 +87,7 @@ func TestNamespacedRowProtoEncoding(t *testing.T) {
 	const odsSize = 8
 	namespace := sharetest.RandV0Namespace()
 	randEDS, root := edstest.RandEDSWithNamespace(t, namespace, odsSize, odsSize)
-	rsmt2d := eds.Rsmt2D{ExtendedDataSquare: randEDS}
+	rsmt2d := &eds.Rsmt2D{ExtendedDataSquare: randEDS}
 	nd, err := eds.NamespacedData(ctx, root, rsmt2d, namespace)
 	require.NoError(t, err)
 	require.True(t, len(nd) > 0)

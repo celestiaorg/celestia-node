@@ -42,6 +42,10 @@ func TestSuiteAccessor(
 	t.Run("Shares", func(t *testing.T) {
 		testAccessorShares(ctx, t, createAccessor, odsSize)
 	})
+
+	t.Run("Reader", func(t *testing.T) {
+		testAccessorReader(ctx, t, createAccessor, odsSize)
+	})
 }
 
 func testAccessorSample(
@@ -230,6 +234,44 @@ func testAccessorShares(
 	require.NoError(t, err)
 	expected := eds.FlattenedODS()
 	require.Equal(t, expected, shares)
+}
+
+func testAccessorReader(
+	ctx context.Context,
+	t *testing.T,
+	createAccessor createAccessor,
+	odsSize int,
+) {
+	eds := edstest.RandEDS(t, odsSize)
+	f := createAccessor(t, eds)
+
+	// verify that the reader represented by file can be read from
+	// multiple times, without exhausting the underlying reader.
+	wg := sync.WaitGroup{}
+	for i := 0; i < 10; i++ {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			testReader(ctx, t, f)
+		}()
+	}
+	wg.Wait()
+}
+
+func testReader(ctx context.Context, t *testing.T, ac Accessor) {
+	reader, err := ac.Reader()
+	require.NoError(t, err)
+
+	newAccessor := &Rsmt2D{}
+	err = newAccessor.ReadFrom(ctx, reader, share.Size, ac.Size(ctx))
+	require.NoError(t, err)
+
+	require.Equal(t, ac.Size(ctx), newAccessor.Size(ctx))
+	expected, err := ac.Shares(ctx)
+	require.NoError(t, err)
+	actual, err := newAccessor.Shares(ctx)
+	require.NoError(t, err)
+	require.Equal(t, expected, actual)
 }
 
 func BenchGetHalfAxisFromAccessor(

@@ -14,7 +14,7 @@ import (
 	"github.com/celestiaorg/celestia-node/share/shwap"
 )
 
-func TestMemFile(t *testing.T) {
+func TestRsmt2dFile(t *testing.T) {
 	odsSize := 8
 	newAccessor := func(tb testing.TB, eds *rsmt2d.ExtendedDataSquare) Accessor {
 		return &Rsmt2D{ExtendedDataSquare: eds}

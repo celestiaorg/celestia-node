@@ -3,6 +3,7 @@ package eds
 import (
 	"context"
 	"errors"
+	"io"
 	"sync/atomic"
 
 	"github.com/celestiaorg/rsmt2d"
@@ -75,4 +76,11 @@ func (c *closeOnce) Shares(ctx context.Context) ([]share.Share, error) {
 		return nil, errAccessorClosed
 	}
 	return c.f.Shares(ctx)
+}
+
+func (c *closeOnce) Reader() (io.Reader, error) {
+	if c.closed.Load() {
+		return nil, errAccessorClosed
+	}
+	return c.f.Reader()
 }
