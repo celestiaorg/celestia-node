@@ -18,6 +18,7 @@ func TestExtendAxisHalf(t *testing.T) {
 
 	extended, err := original.Extended()
 	require.NoError(t, err)
+	require.Len(t, extended, len(shares)*2)
 
 	parity := AxisHalf{
 		Shares:   extended[len(shares):],
