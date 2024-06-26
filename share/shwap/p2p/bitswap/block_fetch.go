@@ -100,8 +100,9 @@ func fetch(ctx context.Context, exchg exchange.Interface, root *share.Root, blks
 
 		blk, ok := duplicates[bitswapBlk.Cid()]
 		if ok {
-			// uncommon duplicate case: concurrent fetching of the same block,
-			// so we have to unmarshal it ourselves instead of the hasher,
+			// uncommon duplicate case: concurrent fetching of the same block.
+			// The block hasn't been invoked inside hasher verification,
+			// so we have to unmarshal it ourselves.
 			unmarshalFn := blk.UnmarshalFn(root)
 			err := unmarshal(unmarshalFn, bitswapBlk.RawData())
 			if err != nil {

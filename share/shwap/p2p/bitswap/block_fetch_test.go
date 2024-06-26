@@ -12,12 +12,10 @@ import (
 	"github.com/ipfs/boxo/bitswap/server"
 	"github.com/ipfs/boxo/blockstore"
 	"github.com/ipfs/boxo/exchange"
-	"github.com/ipfs/boxo/routing/offline"
 	blocks "github.com/ipfs/go-block-format"
 	"github.com/ipfs/go-cid"
 	ds "github.com/ipfs/go-datastore"
-	dssync "github.com/ipfs/go-datastore/sync"
-	record "github.com/libp2p/go-libp2p-record"
+	routinghelpers "github.com/libp2p/go-libp2p-routing-helpers"
 	"github.com/libp2p/go-libp2p/core/host"
 	mocknet "github.com/libp2p/go-libp2p/p2p/net/mock"
 	"github.com/stretchr/testify/assert"
@@ -140,9 +138,7 @@ func newExchange(ctx context.Context, t *testing.T, bstore blockstore.Blockstore
 }
 
 func newServer(ctx context.Context, host host.Host, store blockstore.Blockstore) {
-	dstore := dssync.MutexWrap(ds.NewMapDatastore())
-	routing := offline.NewOfflineRouter(dstore, record.NamespacedValidator{})
-	net := network.NewFromIpfsHost(host, routing)
+	net := network.NewFromIpfsHost(host, routinghelpers.Null{})
 	server := server.New(
 		ctx,
 		net,
@@ -156,9 +152,7 @@ func newServer(ctx context.Context, host host.Host, store blockstore.Blockstore)
 }
 
 func newClient(ctx context.Context, host host.Host, store blockstore.Blockstore) *client.Client {
-	dstore := dssync.MutexWrap(ds.NewMapDatastore())
-	routing := offline.NewOfflineRouter(dstore, record.NamespacedValidator{})
-	net := network.NewFromIpfsHost(host, routing)
+	net := network.NewFromIpfsHost(host, routinghelpers.Null{})
 	client := client.New(
 		ctx,
 		net,
