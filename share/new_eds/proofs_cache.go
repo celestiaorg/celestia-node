@@ -57,10 +57,13 @@ type axisWithProofs struct {
 // WithProofsCache creates a new eds accessor with caching of proofs for rows and columns. It is
 // used to speed up the process of building proofs for rows and columns, reducing the number of
 // reads from the underlying accessor.
-func WithProofsCache(ac Accessor) Accessor {
+func WithProofsCache(ctx context.Context, ac Accessor) Accessor {
+	rows := make(map[int]axisWithProofs)
+	cols := make(map[int]axisWithProofs)
+	axisCache := []map[int]axisWithProofs{rows, cols}
 	return &proofsCache{
 		inner:     ac,
-		axisCache: []map[int]axisWithProofs{make(map[int]axisWithProofs), make(map[int]axisWithProofs)},
+		axisCache: axisCache,
 	}
 }
 

@@ -10,6 +10,8 @@ import (
 	"github.com/celestiaorg/nmt"
 )
 
+// GetProof fetches and returns the leaf's Merkle Proof.
+// It walks down the IPLD NMT tree until it reaches the leaf and returns collected proof
 func GetProof(
 	ctx context.Context,
 	bGetter blockservice.BlockGetter,
@@ -33,8 +35,6 @@ func GetProof(
 	return nmt.NewInclusionProof(shareIdx, shareIdx+1, rangeProofs, true), nil
 }
 
-// getProof fetches and returns the leaf's Merkle Proof.
-// It walks down the IPLD NMT tree until it reaches the leaf and returns collected proof
 func getProof(
 	ctx context.Context,
 	bGetter blockservice.BlockGetter,
