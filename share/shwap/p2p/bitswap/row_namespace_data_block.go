@@ -77,7 +77,7 @@ func (rndb *RowNamespaceDataBlock) Height() uint64 {
 }
 
 func (rndb *RowNamespaceDataBlock) Marshal() ([]byte, error) {
-	if rndb.IsEmpty() {
+	if rndb.Container.IsEmpty() {
 		return nil, fmt.Errorf("cannot marshal empty RowNamespaceDataBlock")
 	}
 
@@ -100,15 +100,12 @@ func (rndb *RowNamespaceDataBlock) Populate(ctx context.Context, eds eds.Accesso
 	return nil
 }
 
-func (rndb *RowNamespaceDataBlock) IsEmpty() bool {
-	return rndb.Container.IsEmpty()
-}
-
 func (rndb *RowNamespaceDataBlock) UnmarshalFn(root *share.Root) UnmarshalFn {
 	return func(data []byte) error {
-		if !rndb.IsEmpty() {
+		if !rndb.Container.IsEmpty() {
 			return nil
 		}
+
 		var rnd shwappb.RowNamespaceData
 		if err := rnd.Unmarshal(data); err != nil {
 			return fmt.Errorf("unmarshaling RowNamespaceData: %w", err)

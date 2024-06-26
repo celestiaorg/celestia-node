@@ -72,7 +72,7 @@ func (sb *SampleBlock) Height() uint64 {
 }
 
 func (sb *SampleBlock) Marshal() ([]byte, error) {
-	if sb.IsEmpty() {
+	if sb.Container.IsEmpty() {
 		return nil, fmt.Errorf("cannot marshal empty SampleBlock")
 	}
 
@@ -95,15 +95,12 @@ func (sb *SampleBlock) Populate(ctx context.Context, eds eds.Accessor) error {
 	return nil
 }
 
-func (sb *SampleBlock) IsEmpty() bool {
-	return sb.Container.IsEmpty()
-}
-
 func (sb *SampleBlock) UnmarshalFn(root *share.Root) UnmarshalFn {
 	return func(data []byte) error {
-		if !sb.IsEmpty() {
+		if !sb.Container.IsEmpty() {
 			return nil
 		}
+
 		var sample shwappb.Sample
 		if err := sample.Unmarshal(data); err != nil {
 			return fmt.Errorf("unmarshaling Sample: %w", err)

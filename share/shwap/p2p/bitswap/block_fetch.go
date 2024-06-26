@@ -124,24 +124,8 @@ func fetch(ctx context.Context, exchg exchange.Interface, root *share.Root, blks
 			log.Error("failed to store the new Bitswap block: %s", err)
 		}
 	}
-	if ctx.Err() != nil {
-		return ctx.Err()
-	}
 
-	var empty int
-	for _, blk := range blks {
-		if blk.IsEmpty() {
-			empty++
-		}
-	}
-	if empty > 0 {
-		// NOTE: This check verifies that Bitswap did it job correctly and gave us everything
-		// requested. If there is still an empty block somewhere this suggests there is a bug
-		// on the intersection of Bitswap and Fetch function.
-		return fmt.Errorf("got %d empty of %d blocks from Bitswap", empty, len(blks))
-	}
-
-	return nil
+	return ctx.Err()
 }
 
 // unmarshal unmarshalls the Shwap Container data into a Block with the given UnmarshalFn

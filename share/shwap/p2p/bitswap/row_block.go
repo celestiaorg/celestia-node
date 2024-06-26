@@ -73,7 +73,7 @@ func (rb *RowBlock) Height() uint64 {
 }
 
 func (rb *RowBlock) Marshal() ([]byte, error) {
-	if rb.IsEmpty() {
+	if rb.Container.IsEmpty() {
 		return nil, fmt.Errorf("cannot marshal empty RowBlock")
 	}
 
@@ -96,15 +96,12 @@ func (rb *RowBlock) Populate(ctx context.Context, eds eds.Accessor) error {
 	return nil
 }
 
-func (rb *RowBlock) IsEmpty() bool {
-	return rb.Container.IsEmpty()
-}
-
 func (rb *RowBlock) UnmarshalFn(root *share.Root) UnmarshalFn {
 	return func(data []byte) error {
-		if !rb.IsEmpty() {
+		if !rb.Container.IsEmpty() {
 			return nil
 		}
+
 		var row shwappb.Row
 		if err := row.Unmarshal(data); err != nil {
 			return fmt.Errorf("unmarshaling Row: %w", err)

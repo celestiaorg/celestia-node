@@ -22,8 +22,6 @@ type Block interface {
 	// Height reports the Height of the Shwap container behind the Block.
 	Height() uint64
 
-	// IsEmpty reports whether the Block holds respective Shwap container.
-	IsEmpty() bool
 	// Populate fills up the Block with the Shwap container getting it out of the EDS
 	// Accessor.
 	Populate(context.Context, eds.Accessor) error
