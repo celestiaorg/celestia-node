@@ -54,6 +54,7 @@ func ParseFlags(
 		rpc := cmd.Flag(coreRPCFlag).Value.String()
 		cfg.RPCPort = rpc
 	}
+
 	if cmd.Flag(coreGRPCFlag).Changed {
 		grpc := cmd.Flag(coreGRPCFlag).Value.String()
 		cfg.GRPCPort = grpc
