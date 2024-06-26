@@ -29,7 +29,10 @@ type ODSFile struct {
 	// repeated file reads. - Serving full ODS data by Shares().
 	// Storing the square in memory allows for efficient single-read operations, avoiding the need for
 	// piecemeal reads by rows or columns, and facilitates quick access to data for these operations.
-	ods          square
+	ods square
+	// disableCache is a flag that, when set to true, disables the in-memory cache of the original data
+	// Used for testing and benchmarking purposes, this flag allows for the evaluation of the
+	// performance.
 	disableCache bool
 }
 
@@ -232,7 +235,6 @@ func (f *ODSFile) readODS() (square, error) {
 	}
 
 	if !f.disableCache {
-		fmt.Println("STORE ODS")
 		f.ods = square
 	}
 	return square, nil

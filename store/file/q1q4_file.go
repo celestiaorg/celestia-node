@@ -15,6 +15,10 @@ import (
 
 var _ eds.AccessorCloser = (*Q1Q4File)(nil)
 
+// Q1Q4File represents a file that contains the first and fourth quadrants of an extended data
+// square. It extends the ODSFile with the ability to read the fourth quadrant of the square.
+// Reading from the fourth quadrant allows to serve samples from Q2 and Q4 quadrants of the square,
+// without the need to read entire Q1.
 type Q1Q4File struct {
 	ods *ODSFile
 }
@@ -73,14 +77,7 @@ func (f *Q1Q4File) AxisHalf(_ context.Context, axisType rsmt2d.Axis, axisIdx int
 		return half, nil
 	}
 
-	shares, err := f.readSharesFromQ4(axisType, axisIdx)
-	if err != nil {
-		return eds.AxisHalf{}, err
-	}
-	return eds.AxisHalf{
-		Shares:   shares,
-		IsParity: true,
-	}, nil
+	return f.readAxisHalfFromQ4(axisType, axisIdx)
 }
 
 func (f *Q1Q4File) RowNamespaceData(ctx context.Context,
@@ -119,17 +116,31 @@ func writeQ4(w io.Writer, eds *rsmt2d.ExtendedDataSquare) error {
 	return nil
 }
 
-func (f *Q1Q4File) readSharesFromQ4(axisType rsmt2d.Axis, axisIdx int) ([]share.Share, error) {
+func (f *Q1Q4File) readAxisHalfFromQ4(axisType rsmt2d.Axis, axisIdx int) (eds.AxisHalf, error) {
 	q4idx := axisIdx - f.ods.size()/2
 	if q4idx < 0 {
-		return nil, errors.New("invalid index requested from Q4")
+		return eds.AxisHalf{}, errors.New("invalid index requested from Q4")
 	}
 	switch axisType {
 	case rsmt2d.Col:
-		return readCol(f.ods.fl, f.ods.hdr, q4idx, 1)
+		shares, err := readCol(f.ods.fl, f.ods.hdr, q4idx, 1)
+		if err != nil {
+			return eds.AxisHalf{}, err
+		}
+		return eds.AxisHalf{
+			Shares:   shares,
+			IsParity: true,
+		}, nil
 	case rsmt2d.Row:
-		return readRow(f.ods.fl, f.ods.hdr, q4idx, 1)
+		shares, err := readRow(f.ods.fl, f.ods.hdr, q4idx, 1)
+		if err != nil {
+			return eds.AxisHalf{}, err
+		}
+		return eds.AxisHalf{
+			Shares:   shares,
+			IsParity: true,
+		}, nil
 	default:
-		return nil, fmt.Errorf("invalid axis type: %d", axisType)
+		return eds.AxisHalf{}, fmt.Errorf("invalid axis type: %d", axisType)
 	}
 }
