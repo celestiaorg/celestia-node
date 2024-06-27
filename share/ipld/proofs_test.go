@@ -1,4 +1,4 @@
-package byzantine
+package ipld
 
 import (
 	"context"
@@ -11,8 +11,8 @@ import (
 	"github.com/celestiaorg/rsmt2d"
 
 	"github.com/celestiaorg/celestia-node/share"
-	"github.com/celestiaorg/celestia-node/share/ipld"
 	"github.com/celestiaorg/celestia-node/share/sharetest"
+	"github.com/celestiaorg/celestia-node/share/shwap"
 )
 
 func TestGetProof(t *testing.T) {
@@ -20,10 +20,10 @@ func TestGetProof(t *testing.T) {
 
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second*2)
 	defer cancel()
-	bServ := ipld.NewMemBlockservice()
+	bServ := NewMemBlockservice()
 
 	shares := sharetest.RandShares(t, width*width)
-	in, err := ipld.AddShares(ctx, shares, bServ)
+	in, err := AddShares(ctx, shares, bServ)
 	require.NoError(t, err)
 
 	dah, err := da.NewDataAvailabilityHeader(in)
@@ -38,25 +38,28 @@ func TestGetProof(t *testing.T) {
 			roots = dah.ColumnRoots
 		}
 		for axisIdx := 0; axisIdx < width*2; axisIdx++ {
-			rootCid := ipld.MustCidFromNamespacedSha256(roots[axisIdx])
+			root := roots[axisIdx]
 			for shrIdx := 0; shrIdx < width*2; shrIdx++ {
-				proof, err := getProofsAt(ctx, bServ, rootCid, shrIdx, int(in.Width()))
+				proof, err := GetProof(ctx, bServ, root, shrIdx, int(in.Width()))
 				require.NoError(t, err)
-				node, err := ipld.GetLeaf(ctx, bServ, rootCid, shrIdx, int(in.Width()))
+				rootCid := MustCidFromNamespacedSha256(root)
+				node, err := GetLeaf(ctx, bServ, rootCid, shrIdx, int(in.Width()))
 				require.NoError(t, err)
-				inclusion := &ShareWithProof{
-					Share: share.GetData(node.RawData()),
-					Proof: &proof,
-					Axis:  proofType,
+
+				sample := shwap.Sample{
+					Share:     share.GetData(node.RawData()),
+					Proof:     &proof,
+					ProofType: proofType,
 				}
-				require.True(t, inclusion.Validate(&dah, proofType, axisIdx, shrIdx))
-				// swap axis indexes to test if validation still works against the orthogonal coordinate
+				var rowIdx, colIdx int
 				switch proofType {
 				case rsmt2d.Row:
-					require.True(t, inclusion.Validate(&dah, rsmt2d.Col, shrIdx, axisIdx))
+					rowIdx, colIdx = axisIdx, shrIdx
 				case rsmt2d.Col:
-					require.True(t, inclusion.Validate(&dah, rsmt2d.Row, shrIdx, axisIdx))
+					rowIdx, colIdx = shrIdx, axisIdx
 				}
+				err = sample.Validate(&dah, rowIdx, colIdx)
+				require.NoError(t, err)
 			}
 		}
 	}

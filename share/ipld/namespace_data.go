@@ -14,10 +14,10 @@ import (
 	"github.com/celestiaorg/nmt"
 
 	"github.com/celestiaorg/celestia-node/share"
+	"github.com/celestiaorg/celestia-node/share/shwap"
 )
 
-var ErrNamespaceOutsideRange = errors.New("share/ipld: " +
-	"target namespace is outside of namespace range for the given root")
+var ErrNamespaceOutsideRange = shwap.ErrNamespaceOutsideRange
 
 // Option is the functional option that is applied to the NamespaceData instance
 // to configure data that needs to be stored.
