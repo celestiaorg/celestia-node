@@ -13,7 +13,7 @@ import (
 // AccessorGetter abstracts storage system that indexes and manages multiple eds.AccessorGetter by network height.
 type AccessorGetter interface {
 	// GetByHeight returns an Accessor by its height.
-	GetByHeight(ctx context.Context, height uint64) (eds.Accessor, error)
+	GetByHeight(ctx context.Context, height uint64) (eds.AccessorCloser, error)
 }
 
 // Blockstore implements generalized Bitswap compatible storage over Shwap containers
@@ -37,6 +37,11 @@ func (b *Blockstore) getBlock(ctx context.Context, cid cid.Cid) (blocks.Block, e
 	if err != nil {
 		return nil, fmt.Errorf("getting EDS Accessor for height %v: %w", blk.Height(), err)
 	}
+	defer func() {
+		if err := eds.Close(); err != nil {
+			log.Warnf("failed to close EDS accessor for height %v: %s", blk.Height(), err)
+		}
+	}()
 
 	if err = blk.Populate(ctx, eds); err != nil {
 		return nil, fmt.Errorf("failed to populate Shwap Block on height %v for %s: %w", blk.Height(), spec.String(), err)

@@ -117,7 +117,7 @@ func TestFetch_Duplicates(t *testing.T) {
 func newExchangeOverEDS(ctx context.Context, t *testing.T, rsmt2d *rsmt2d.ExtendedDataSquare) exchange.SessionExchange {
 	bstore := &Blockstore{
 		Getter: testAccessorGetter{
-			Accessor: eds.Rsmt2D{ExtendedDataSquare: rsmt2d},
+			AccessorCloser: eds.WithCloser(eds.Rsmt2D{ExtendedDataSquare: rsmt2d}, nopCloser{}),
 		},
 	}
 	return newExchange(ctx, t, bstore)
@@ -163,11 +163,11 @@ func newClient(ctx context.Context, host host.Host, store blockstore.Blockstore)
 }
 
 type testAccessorGetter struct {
-	eds.Accessor
+	eds.AccessorCloser
 }
 
-func (t testAccessorGetter) GetByHeight(context.Context, uint64) (eds.Accessor, error) {
-	return t.Accessor, nil
+func (t testAccessorGetter) GetByHeight(context.Context, uint64) (eds.AccessorCloser, error) {
+	return t.AccessorCloser, nil
 }
 
 type testFetcher struct {
@@ -184,3 +184,7 @@ func (t *testFetcher) GetBlocks(ctx context.Context, cids []cid.Cid) (<-chan blo
 	t.Fetched += len(cids)
 	return t.Embedded.GetBlocks(ctx, cids)
 }
+
+type nopCloser struct{}
+
+func (nopCloser) Close() error { return nil }
