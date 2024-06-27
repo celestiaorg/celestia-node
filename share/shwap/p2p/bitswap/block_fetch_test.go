@@ -8,14 +8,12 @@ import (
 	"time"
 
 	"github.com/ipfs/boxo/bitswap/client"
-	"github.com/ipfs/boxo/bitswap/network"
 	"github.com/ipfs/boxo/bitswap/server"
 	"github.com/ipfs/boxo/blockstore"
 	"github.com/ipfs/boxo/exchange"
 	blocks "github.com/ipfs/go-block-format"
 	"github.com/ipfs/go-cid"
 	ds "github.com/ipfs/go-datastore"
-	routinghelpers "github.com/libp2p/go-libp2p-routing-helpers"
 	"github.com/libp2p/go-libp2p/core/host"
 	mocknet "github.com/libp2p/go-libp2p/p2p/net/mock"
 	"github.com/stretchr/testify/assert"
@@ -138,26 +136,20 @@ func newExchange(ctx context.Context, t *testing.T, bstore blockstore.Blockstore
 }
 
 func newServer(ctx context.Context, host host.Host, store blockstore.Blockstore) {
-	net := network.NewFromIpfsHost(host, routinghelpers.Null{})
-	server := server.New(
+	net := NewNetwork(host, "test")
+	server := NewServer(
 		ctx,
 		net,
 		store,
 		server.TaskWorkerCount(2),
 		server.EngineTaskWorkerCount(2),
-		server.ProvideEnabled(false),
-		server.SetSendDontHaves(false),
 	)
 	net.Start(server)
 }
 
 func newClient(ctx context.Context, host host.Host, store blockstore.Blockstore) *client.Client {
-	net := network.NewFromIpfsHost(host, routinghelpers.Null{})
-	client := client.New(
-		ctx,
-		net,
-		store,
-	)
+	net := NewNetwork(host, "test")
+	client := NewClient(ctx, net, store)
 	net.Start(client)
 	return client
 }
