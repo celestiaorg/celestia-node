@@ -48,9 +48,9 @@ func TestReadODSFromFile(t *testing.T) {
 	f, err := CreateODSFile(path, []byte{}, eds)
 	require.NoError(t, err)
 
-	err = f.readODS()
+	ods, err := f.readODS()
 	require.NoError(t, err)
-	for i, row := range f.ods {
+	for i, row := range ods {
 		original := eds.Row(uint(i))[:eds.Width()/2]
 		require.True(t, len(original) == len(row))
 		require.Equal(t, original, row)
@@ -65,19 +65,18 @@ func TestODSFile(t *testing.T) {
 	eds.TestSuiteAccessor(ctx, t, createODSFile, ODSSize)
 }
 
-// ReconstructSome, default codec
-// BenchmarkAxisFromODSFile/Size:32/Axis:row/squareHalf:first(original)-10         	  455848	      2588 ns/op
-// BenchmarkAxisFromODSFile/Size:32/Axis:row/squareHalf:second(extended)-10        	    9015	    203950 ns/op
-// BenchmarkAxisFromODSFile/Size:32/Axis:col/squareHalf:first(original)-10         	   52734	     21178 ns/op
-// BenchmarkAxisFromODSFile/Size:32/Axis:col/squareHalf:second(extended)-10        	    8830	    127452 ns/op
-// BenchmarkAxisFromODSFile/Size:64/Axis:row/squareHalf:first(original)-10         	  303834	      4763 ns/op
-// BenchmarkAxisFromODSFile/Size:64/Axis:row/squareHalf:second(extended)-10        	    2940	    426246 ns/op
-// BenchmarkAxisFromODSFile/Size:64/Axis:col/squareHalf:first(original)-10         	   27758	     42842 ns/op
-// BenchmarkAxisFromODSFile/Size:64/Axis:col/squareHalf:second(extended)-10        	    3385	    353868 ns/op
-// BenchmarkAxisFromODSFile/Size:128/Axis:row/squareHalf:first(original)-10        	  172086	      6455 ns/op
-// BenchmarkAxisFromODSFile/Size:128/Axis:row/squareHalf:second(extended)-10       	     672	   1550386 ns/op
-// BenchmarkAxisFromODSFile/Size:128/Axis:col/squareHalf:first(original)-10        	   14202	     84316 ns/op
-// BenchmarkAxisFromODSFile/Size:128/Axis:col/squareHalf:second(extended)-10       	     978	   1230980 ns/op
+// BenchmarkAxisFromODSFile/Size:32/ProofType:row/squareHalf:0-10         	  460231	      2555 ns/op
+// BenchmarkAxisFromODSFile/Size:32/ProofType:row/squareHalf:1-10         	    5320	    218609 ns/op
+// BenchmarkAxisFromODSFile/Size:32/ProofType:col/squareHalf:0-10         	 4572247	       256.7 ns/op
+// BenchmarkAxisFromODSFile/Size:32/ProofType:col/squareHalf:1-10         	    5170	    212567 ns/op
+// BenchmarkAxisFromODSFile/Size:64/ProofType:row/squareHalf:0-10         	  299281	      3777 ns/op
+// BenchmarkAxisFromODSFile/Size:64/ProofType:row/squareHalf:1-10         	    1646	    661930 ns/op
+// BenchmarkAxisFromODSFile/Size:64/ProofType:col/squareHalf:0-10         	 3318733	       359.1 ns/op
+// BenchmarkAxisFromODSFile/Size:64/ProofType:col/squareHalf:1-10         	    1600	    648482 ns/op
+// BenchmarkAxisFromODSFile/Size:128/ProofType:row/squareHalf:0-10        	  170642	      6347 ns/op
+// BenchmarkAxisFromODSFile/Size:128/ProofType:row/squareHalf:1-10        	     328	   3194674 ns/op
+// BenchmarkAxisFromODSFile/Size:128/ProofType:col/squareHalf:0-10        	 1931910	       640.9 ns/op
+// BenchmarkAxisFromODSFile/Size:128/ProofType:col/squareHalf:1-10        	     387	   3304090 ns/op
 func BenchmarkAxisFromODSFile(b *testing.B) {
 	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 	b.Cleanup(cancel)
@@ -90,19 +89,43 @@ func BenchmarkAxisFromODSFile(b *testing.B) {
 	eds.BenchGetHalfAxisFromAccessor(ctx, b, newFile, minSize, maxSize)
 }
 
-// BenchmarkShareFromODSFile/Size:32/Axis:row/squareHalf:first(original)-10         	   10339	    111328 ns/op
-// BenchmarkShareFromODSFile/Size:32/Axis:row/squareHalf:second(extended)-10        	    3392	    359180 ns/op
-// BenchmarkShareFromODSFile/Size:32/Axis:col/squareHalf:first(original)-10         	    8925	    131352 ns/op
-// BenchmarkShareFromODSFile/Size:32/Axis:col/squareHalf:second(extended)-10        	    3447	    346218 ns/op
-// BenchmarkShareFromODSFile/Size:64/Axis:row/squareHalf:first(original)-10         	    5503	    215833 ns/op
-// BenchmarkShareFromODSFile/Size:64/Axis:row/squareHalf:second(extended)-10        	    1231	   1001053 ns/op
-// BenchmarkShareFromODSFile/Size:64/Axis:col/squareHalf:first(original)-10         	    4711	    250001 ns/op
-// BenchmarkShareFromODSFile/Size:64/Axis:col/squareHalf:second(extended)-10        	    1315	    910079 ns/op
-// BenchmarkShareFromODSFile/Size:128/Axis:row/squareHalf:first(original)-10        	    2364	    435748 ns/op
-// BenchmarkShareFromODSFile/Size:128/Axis:row/squareHalf:second(extended)-10       	     358	   3330620 ns/op
-// BenchmarkShareFromODSFile/Size:128/Axis:col/squareHalf:first(original)-10        	    2114	    514642 ns/op
-// BenchmarkShareFromODSFile/Size:128/Axis:col/squareHalf:second(extended)-10       	     373	   3068104 ns/op
-func BenchmarkShareFromODSFile(b *testing.B) {
+// BenchmarkAxisFromODSFileDisabledCache/Size:32/ProofType:row/squareHalf:0-10         	  481326	      2447 ns/op
+// BenchmarkAxisFromODSFileDisabledCache/Size:32/ProofType:row/squareHalf:1-10         	    5134	    218191 ns/op
+// BenchmarkAxisFromODSFileDisabledCache/Size:32/ProofType:col/squareHalf:0-10         	   56260	     21109 ns/op
+// BenchmarkAxisFromODSFileDisabledCache/Size:32/ProofType:col/squareHalf:1-10         	    5608	    217877 ns/op
+// BenchmarkAxisFromODSFileDisabledCache/Size:64/ProofType:row/squareHalf:0-10         	  321994	      3941 ns/op
+// BenchmarkAxisFromODSFileDisabledCache/Size:64/ProofType:row/squareHalf:1-10         	    1237	    919419 ns/op
+// BenchmarkAxisFromODSFileDisabledCache/Size:64/ProofType:col/squareHalf:0-10         	   28233	     43209 ns/op
+// BenchmarkAxisFromODSFileDisabledCache/Size:64/ProofType:col/squareHalf:1-10         	    1334	    898654 ns/op
+// BenchmarkAxisFromODSFileDisabledCache/Size:128/ProofType:row/squareHalf:0-10        	  179788	      6839 ns/op
+// BenchmarkAxisFromODSFileDisabledCache/Size:128/ProofType:row/squareHalf:1-10        	     310	   3935097 ns/op
+// BenchmarkAxisFromODSFileDisabledCache/Size:128/ProofType:col/squareHalf:0-10        	   13867	     85854 ns/op
+// BenchmarkAxisFromODSFileDisabledCache/Size:128/ProofType:col/squareHalf:1-10        	     298	   3900021 ns/op
+func BenchmarkAxisFromODSFileDisabledCache(b *testing.B) {
+	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	b.Cleanup(cancel)
+
+	minSize, maxSize := 32, 128
+	newFile := func(size int) eds.Accessor {
+		eds := edstest.RandEDS(b, size)
+		return createODSFileDisabledCache(b, eds)
+	}
+	eds.BenchGetHalfAxisFromAccessor(ctx, b, newFile, minSize, maxSize)
+}
+
+// BenchmarkSampleFromODSFile/Size:32/quadrant:1-10         	   10908	    104872 ns/op
+// BenchmarkSampleFromODSFile/Size:32/quadrant:2-10         	    9906	    104641 ns/op
+// BenchmarkSampleFromODSFile/Size:32/quadrant:3-10         	    8983	    123384 ns/op
+// BenchmarkSampleFromODSFile/Size:32/quadrant:4-10         	    3476	    343850 ns/op
+// BenchmarkSampleFromODSFile/Size:64/quadrant:1-10         	    5835	    200151 ns/op
+// BenchmarkSampleFromODSFile/Size:64/quadrant:2-10         	    5401	    201271 ns/op
+// BenchmarkSampleFromODSFile/Size:64/quadrant:3-10         	    4648	    239045 ns/op
+// BenchmarkSampleFromODSFile/Size:64/quadrant:4-10         	    1263	    895983 ns/op
+// BenchmarkSampleFromODSFile/Size:128/quadrant:1-10        	    2475	    409687 ns/op
+// BenchmarkSampleFromODSFile/Size:128/quadrant:2-10        	    2790	    411153 ns/op
+// BenchmarkSampleFromODSFile/Size:128/quadrant:3-10        	    2286	    487123 ns/op
+// BenchmarkSampleFromODSFile/Size:128/quadrant:4-10        	     321	   3698735 ns/op
+func BenchmarkSampleFromODSFile(b *testing.B) {
 	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 	b.Cleanup(cancel)
 
@@ -114,9 +137,41 @@ func BenchmarkShareFromODSFile(b *testing.B) {
 	eds.BenchGetSampleFromAccessor(ctx, b, newFile, minSize, maxSize)
 }
 
+// BenchmarkSampleFromODSFileDisabledCache/Size:32/quadrant:1-10         	   11040	    106378 ns/op
+// BenchmarkSampleFromODSFileDisabledCache/Size:32/quadrant:2-10         	    9936	    106403 ns/op
+// BenchmarkSampleFromODSFileDisabledCache/Size:32/quadrant:3-10         	    8635	    124142 ns/op
+// BenchmarkSampleFromODSFileDisabledCache/Size:32/quadrant:4-10         	    1940	    596330 ns/op
+// BenchmarkSampleFromODSFileDisabledCache/Size:64/quadrant:1-10         	    5930	    199782 ns/op
+// BenchmarkSampleFromODSFileDisabledCache/Size:64/quadrant:2-10         	    5494	    201658 ns/op
+// BenchmarkSampleFromODSFileDisabledCache/Size:64/quadrant:3-10         	    4756	    237897 ns/op
+// BenchmarkSampleFromODSFileDisabledCache/Size:64/quadrant:4-10         	     638	   1874038 ns/op
+// BenchmarkSampleFromODSFileDisabledCache/Size:128/quadrant:1-10        	    2500	    408092 ns/op
+// BenchmarkSampleFromODSFileDisabledCache/Size:128/quadrant:2-10        	    2696	    410861 ns/op
+// BenchmarkSampleFromODSFileDisabledCache/Size:128/quadrant:3-10        	    2290	    490488 ns/op
+// BenchmarkSampleFromODSFileDisabledCache/Size:128/quadrant:4-10        	     159	   7660843 ns/op
+func BenchmarkSampleFromODSFileDisabledCache(b *testing.B) {
+	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	b.Cleanup(cancel)
+
+	minSize, maxSize := 32, 128
+	newFile := func(size int) eds.Accessor {
+		eds := edstest.RandEDS(b, size)
+		return createODSFileDisabledCache(b, eds)
+	}
+	eds.BenchGetSampleFromAccessor(ctx, b, newFile, minSize, maxSize)
+}
+
 func createODSFile(t testing.TB, eds *rsmt2d.ExtendedDataSquare) eds.Accessor {
 	path := t.TempDir() + "/" + strconv.Itoa(rand.Intn(1000))
 	fl, err := CreateODSFile(path, []byte{}, eds)
 	require.NoError(t, err)
+	return fl
+}
+
+func createODSFileDisabledCache(t testing.TB, eds *rsmt2d.ExtendedDataSquare) eds.Accessor {
+	path := t.TempDir() + "/" + strconv.Itoa(rand.Intn(1000))
+	fl, err := CreateODSFile(path, []byte{}, eds)
+	require.NoError(t, err)
+	fl.disableCache = true
 	return fl
 }
