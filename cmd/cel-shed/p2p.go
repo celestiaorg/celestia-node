@@ -4,14 +4,21 @@ import (
 	"crypto/rand"
 	"encoding/hex"
 	"fmt"
+	"os"
 
 	"github.com/libp2p/go-libp2p/core/crypto"
 	"github.com/libp2p/go-libp2p/core/peer"
 	"github.com/spf13/cobra"
+	"go.uber.org/fx"
+
+	"github.com/celestiaorg/celestia-node/nodebuilder"
+	"github.com/celestiaorg/celestia-node/nodebuilder/fraud"
+	"github.com/celestiaorg/celestia-node/nodebuilder/node"
+	"github.com/celestiaorg/celestia-node/nodebuilder/p2p"
 )
 
 func init() {
-	p2pCmd.AddCommand(p2pNewKeyCmd, p2pPeerIDCmd)
+	p2pCmd.AddCommand(p2pNewKeyCmd, p2pPeerIDCmd, p2pConnectBootstrappersCmd)
 }
 
 var p2pCmd = &cobra.Command{
@@ -71,6 +78,71 @@ var p2pPeerIDCmd = &cobra.Command{
 		}
 
 		fmt.Println(id.String())
+		return nil
+	},
+	Args: cobra.ExactArgs(1),
+}
+
+var p2pConnectBootstrappersCmd = &cobra.Command{
+	Use:   "connect-bootstrappers [network]",
+	Short: "Connect to bootstrappers of a certain network",
+	RunE: func(cmd *cobra.Command, args []string) error {
+		network := p2p.GetNetwork(args[0])
+		bootstrappers, _ := p2p.BootstrappersFor(network)
+
+		store := nodebuilder.NewMemStore()
+
+		cfg := p2p.DefaultConfig(node.Light)
+		modp2p := p2p.ConstructModule(node.Light, &cfg)
+
+		var mod p2p.Module
+		app := fx.New(
+			fx.NopLogger,
+			modp2p,
+			fx.Provide(fraud.Unmarshaler),
+			fx.Provide(cmd.Context),
+			fx.Provide(store.Keystore),
+			fx.Provide(store.Datastore),
+			fx.Supply(bootstrappers),
+			fx.Supply(network),
+			fx.Supply(node.Light),
+			fx.Invoke(func(modprov p2p.Module) {
+				mod = modprov
+			}),
+		)
+
+		err := app.Start(cmd.Context())
+		if err != nil {
+			return err
+		}
+		defer func() {
+			err := app.Stop(cmd.Context())
+			if err != nil {
+				fmt.Printf("failed to stop application: %v\n", err)
+			}
+		}()
+
+		p2pInfo, err := mod.Info(cmd.Context())
+		if err != nil {
+			return err
+		}
+
+		fmt.Fprintf(os.Stdout, "PeerID: %s\n", p2pInfo.ID)
+		for _, addr := range p2pInfo.Addrs {
+			fmt.Fprintf(os.Stdout, "Listening on: %s\n", addr.String())
+		}
+		fmt.Println()
+
+		for _, bootstrapper := range bootstrappers {
+			fmt.Fprintf(os.Stdout, "trying to connect bootstrapper: %s\n", bootstrapper)
+			err := mod.Connect(cmd.Context(), bootstrapper)
+			if err != nil {
+				fmt.Fprintf(os.Stdout, "failed to connect bootstrapper: %s\n", err)
+				continue
+			}
+			fmt.Println("connected")
+		}
+
 		return nil
 	},
 	Args: cobra.ExactArgs(1),

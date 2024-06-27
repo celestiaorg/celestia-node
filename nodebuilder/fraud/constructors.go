@@ -17,7 +17,7 @@ import (
 	"github.com/celestiaorg/celestia-node/nodebuilder/p2p"
 )
 
-func fraudUnmarshaler() fraud.ProofUnmarshaler[*header.ExtendedHeader] {
+func Unmarshaler() fraud.ProofUnmarshaler[*header.ExtendedHeader] {
 	return defaultProofUnmarshaler
 }
 

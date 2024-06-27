@@ -69,6 +69,10 @@ var networkAliases = map[string]Network{
 	"private": Private,
 }
 
+func GetNetwork(networkStr string) Network {
+	return networkAliases[networkStr]
+}
+
 // orderedNetworks is a list of all known networks in order of priority.
 var orderedNetworks = []Network{Mainnet, Mocha, Arabica, Private}
 

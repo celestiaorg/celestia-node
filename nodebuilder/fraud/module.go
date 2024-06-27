@@ -14,7 +14,7 @@ var log = logging.Logger("module/fraud")
 
 func ConstructModule(tp node.Type) fx.Option {
 	baseComponent := fx.Options(
-		fx.Provide(fraudUnmarshaler),
+		fx.Provide(Unmarshaler),
 		fx.Provide(func(serv fraud.Service[*header.ExtendedHeader]) fraud.Getter[*header.ExtendedHeader] {
 			return serv
 		}),
