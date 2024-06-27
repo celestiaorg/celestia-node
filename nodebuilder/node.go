@@ -6,7 +6,7 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/cristalhq/jwt"
+	"github.com/cristalhq/jwt/v5"
 	"github.com/ipfs/boxo/blockservice"
 	"github.com/ipfs/boxo/exchange"
 	logging "github.com/ipfs/go-log/v2"

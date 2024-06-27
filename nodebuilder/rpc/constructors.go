@@ -1,7 +1,7 @@
 package rpc
 
 import (
-	"github.com/cristalhq/jwt"
+	"github.com/cristalhq/jwt/v5"
 
 	"github.com/celestiaorg/celestia-node/api/rpc"
 	"github.com/celestiaorg/celestia-node/nodebuilder/blob"
@@ -39,6 +39,6 @@ func registerEndpoints(
 	serv.RegisterService("da", daMod, &da.API{})
 }
 
-func server(cfg *Config, auth jwt.Signer) *rpc.Server {
-	return rpc.NewServer(cfg.Address, cfg.Port, cfg.SkipAuth, auth)
+func server(cfg *Config, signer jwt.Signer, verifier jwt.Verifier) *rpc.Server {
+	return rpc.NewServer(cfg.Address, cfg.Port, cfg.SkipAuth, signer, verifier)
 }

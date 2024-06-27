@@ -7,7 +7,7 @@ import (
 	"io"
 	"path/filepath"
 
-	"github.com/cristalhq/jwt"
+	"github.com/cristalhq/jwt/v5"
 	"github.com/filecoin-project/go-jsonrpc/auth"
 	"github.com/mitchellh/go-homedir"
 	"github.com/spf13/cobra"
@@ -74,7 +74,7 @@ func newKeystore(path string) (keystore.Keystore, error) {
 }
 
 func buildJWTToken(body []byte, permissions []auth.Permission) (string, error) {
-	signer, err := jwt.NewHS256(body)
+	signer, err := jwt.NewSignerHS(jwt.HS256, body)
 	if err != nil {
 		return "", err
 	}
