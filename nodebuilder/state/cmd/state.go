@@ -12,15 +12,11 @@ import (
 )
 
 var (
-	amount uint64
-
-	gasPrice float64
-
-	gas uint64
-
-	accountKey string
-
+	accountKey        string
 	feeGranterAddress string
+	amount            uint64
+	gas               uint64
+	gasPrice          float64
 )
 
 func init() {
@@ -425,7 +421,7 @@ func ApplyFlags(cmds ...*cobra.Command) {
 		cmd.PersistentFlags().Float64Var(
 			&gasPrice,
 			"gas.price",
-			-1,
+			state.DefaultPrice,
 			"Specifies gas price for the fee calculation",
 		)
 

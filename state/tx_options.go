@@ -136,7 +136,9 @@ func parseAccAddressFromString(addrStr string) (sdktypes.AccAddress, error) {
 // to configure parameters.
 type Attribute func(options *TxOptions)
 
-// WithGasPrice is an attribute that allows to specify a GasPrice
+// WithGasPrice is an attribute that allows to specify a GasPrice, which is needed
+// to calculate the fee. In case GasPrice is not specified, the global GasPrice fetched from
+// celestia-app will be used.
 func WithGasPrice(gasPrice float64) Attribute {
 	return func(options *TxOptions) {
 		if gasPrice >= 0 {
@@ -146,21 +148,24 @@ func WithGasPrice(gasPrice float64) Attribute {
 	}
 }
 
-// WithGas is an attribute that allows to specify a Gas
+// WithGas is an attribute that allows to specify Gas.
+// Gas will be calculated in case it wasn't specified.
 func WithGas(gas uint64) Attribute {
 	return func(options *TxOptions) {
 		options.gas = gas
 	}
 }
 
-// WithAccountKey is an attribute that allows to specify an AccountKey
+// WithAccountKey is an attribute that allows you to specify an AccountKey, which is needed to
+// sign the transaction. This key should be associated with the address and stored
+// locally in the key store. Default Account will be used in case it wasn't specified.
 func WithAccountKey(key string) Attribute {
 	return func(options *TxOptions) {
 		options.accountKey = key
 	}
 }
 
-// WithFeeGranterAddress is an attribute that allows to specify a GranterAddress
+// WithFeeGranterAddress is an attribute that allows you to specify a GranterAddress to pay the fees.
 func WithFeeGranterAddress(granter string) Attribute {
 	return func(options *TxOptions) {
 		options.feeGranterAddress = granter

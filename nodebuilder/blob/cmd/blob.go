@@ -31,7 +31,7 @@ func init() {
 		&base64Flag,
 		"base64",
 		false,
-		"Printed blob's data a base64 string",
+		"Printed blob's data as a base64 string",
 	)
 
 	getAllCmd.PersistentFlags().BoolVar(

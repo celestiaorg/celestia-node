@@ -37,7 +37,7 @@ func BlobsToShares(blobs ...*Blob) ([]share.Share, error) {
 	return shares.ToBytes(rawShares), nil
 }
 
-// ToAppBlobs convertc node's blobs to the app blobs.
+// ToAppBlobs converts node's blob type to the blob type from celestia-app.
 func ToAppBlobs(blobs ...*Blob) []*apptypes.Blob {
 	appBlobs := make([]*apptypes.Blob, 0, len(blobs))
 	for i := range blobs {
