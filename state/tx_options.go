@@ -30,6 +30,15 @@ func NewTxOptions(attributes ...Attribute) *TxOptions {
 // TxOptions specifies additional options that will be applied to the Tx.
 // Implements `Option` interface.
 type TxOptions struct {
+	// Specifies the address from the keystore that will sign transactions.
+	// NOTE: Only `accountAddress` or `KeyName` should be passed.
+	// accountAddress is a primary options. This means If both the address and the key are specified,
+	// the address field will take priority.
+	signerAddress string
+	// Specifies the key from the keystore associated with an account that
+	// will be used to sign transactions.
+	// NOTE: This `Account` must be available in the `Keystore`.
+	keyName string
 	// gasPrice represents the amount to be paid per gas unit.
 	// Negative gasPrice means user want us to use the minGasPrice
 	// defined in the node.
@@ -39,10 +48,6 @@ type TxOptions struct {
 	// 0 gas means users want us to calculate it for them.
 	gas uint64
 
-	// Specifies the key from the keystore associated with an account that
-	// will be used to sign transactions.
-	// NOTE: This `Account` must be available in the `Keystore`.
-	accountKey string
 	// Specifies the account that will pay for the transaction.
 	// Input format Bech32.
 	feeGranterAddress string
@@ -57,7 +62,9 @@ func (options *TxOptions) GasPrice() float64 {
 
 func (options *TxOptions) GasLimit() uint64 { return options.gas }
 
-func (options *TxOptions) AccountKey() string { return options.accountKey }
+func (options *TxOptions) KeyName() string { return options.keyName }
+
+func (options *TxOptions) SignerAddress() string { return options.signerAddress }
 
 func (options *TxOptions) FeeGranterAddress() string { return options.feeGranterAddress }
 
@@ -65,16 +72,18 @@ type jsonTxOptions struct {
 	GasPrice          float64 `json:"gas_price,omitempty"`
 	IsGasPriceSet     bool    `json:"is_gas_price_set,omitempty"`
 	Gas               uint64  `json:"gas,omitempty"`
-	AccountKey        string  `json:"account_key,omitempty"`
+	KeyName           string  `json:"key_name,omitempty"`
+	SignerAddress     string  `json:"signer_address,omitempty"`
 	FeeGranterAddress string  `json:"fee_granter_address,omitempty"`
 }
 
 func (options *TxOptions) MarshalJSON() ([]byte, error) {
 	jsonOpts := &jsonTxOptions{
+		SignerAddress:     options.signerAddress,
+		KeyName:           options.keyName,
 		GasPrice:          options.gasPrice,
 		IsGasPriceSet:     options.isGasPriceSet,
 		Gas:               options.gas,
-		AccountKey:        options.accountKey,
 		FeeGranterAddress: options.feeGranterAddress,
 	}
 	return json.Marshal(jsonOpts)
@@ -87,10 +96,11 @@ func (options *TxOptions) UnmarshalJSON(data []byte) error {
 		return fmt.Errorf("unmarshalling TxOptions: %w", err)
 	}
 
+	options.keyName = jsonOpts.KeyName
+	options.signerAddress = jsonOpts.SignerAddress
 	options.gasPrice = jsonOpts.GasPrice
 	options.isGasPriceSet = jsonOpts.IsGasPriceSet
 	options.gas = jsonOpts.Gas
-	options.accountKey = jsonOpts.AccountKey
 	options.feeGranterAddress = jsonOpts.FeeGranterAddress
 	return nil
 }
@@ -156,12 +166,20 @@ func WithGas(gas uint64) Attribute {
 	}
 }
 
-// WithAccountKey is an attribute that allows you to specify an AccountKey, which is needed to
+// WithKeyName is an attribute that allows you to specify an KeyName, which is needed to
 // sign the transaction. This key should be associated with the address and stored
 // locally in the key store. Default Account will be used in case it wasn't specified.
-func WithAccountKey(key string) Attribute {
+func WithKeyName(key string) Attribute {
 	return func(options *TxOptions) {
-		options.accountKey = key
+		options.keyName = key
+	}
+}
+
+// WithSignerAddress is an attribute that allows you to specify an address, that will sign the transaction.
+// This address must be stored locally in the key store. Default signerAddress will be used in case it wasn't specified.
+func WithSignerAddress(address string) Attribute {
+	return func(options *TxOptions) {
+		options.signerAddress = address
 	}
 }
 
