@@ -1,17 +1,16 @@
 package core
 
 import (
-	"context"
 	"testing"
 	"time"
 
+	"github.com/celestiaorg/celestia-node/internal/testutils"
 	"github.com/stretchr/testify/require"
 	"github.com/tendermint/tendermint/types"
 )
 
 func TestRemoteClient_Status(t *testing.T) {
-	ctx, cancel := context.WithTimeout(context.Background(), time.Second*5)
-	t.Cleanup(cancel)
+	ctx := testutils.Context(t, 5*time.Second)
 
 	client := StartTestNode(t).Client
 	status, err := client.Status(ctx)
@@ -20,8 +19,7 @@ func TestRemoteClient_Status(t *testing.T) {
 }
 
 func TestRemoteClient_StartBlockSubscription_And_GetBlock(t *testing.T) {
-	ctx, cancel := context.WithTimeout(context.Background(), time.Second*10)
-	t.Cleanup(cancel)
+	ctx := testutils.Context(t, 10*time.Second)
 
 	client := StartTestNode(t).Client
 	eventChan, err := client.Subscribe(ctx, newBlockSubscriber, newDataSignedBlockQuery)
