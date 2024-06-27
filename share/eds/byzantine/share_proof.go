@@ -3,10 +3,8 @@ package byzantine
 import (
 	"context"
 	"errors"
-	"math"
 
 	"github.com/ipfs/boxo/blockservice"
-	"github.com/ipfs/go-cid"
 	logging "github.com/ipfs/go-log/v2"
 
 	"github.com/celestiaorg/nmt"
@@ -87,8 +85,7 @@ func GetShareWithProof(
 	width := len(dah.RowRoots)
 	// try row proofs
 	root := dah.RowRoots[axisIdx]
-	rootCid := ipld.MustCidFromNamespacedSha256(root)
-	proof, err := getProofsAt(ctx, bGetter, rootCid, shrIdx, width)
+	proof, err := ipld.GetProof(ctx, bGetter, root, shrIdx, width)
 	if err == nil {
 		shareWithProof := &ShareWithProof{
 			Share: share,
@@ -102,8 +99,7 @@ func GetShareWithProof(
 
 	// try column proofs
 	root = dah.ColumnRoots[shrIdx]
-	rootCid = ipld.MustCidFromNamespacedSha256(root)
-	proof, err = getProofsAt(ctx, bGetter, rootCid, axisIdx, width)
+	proof, err = ipld.GetProof(ctx, bGetter, root, axisIdx, width)
 	if err != nil {
 		return nil, err
 	}
@@ -116,28 +112,6 @@ func GetShareWithProof(
 		return shareWithProof, nil
 	}
 	return nil, errors.New("failed to collect proof")
-}
-
-func getProofsAt(
-	ctx context.Context,
-	bGetter blockservice.BlockGetter,
-	root cid.Cid,
-	index,
-	total int,
-) (nmt.Proof, error) {
-	proofPath := make([]cid.Cid, 0, int(math.Sqrt(float64(total))))
-	proofPath, err := ipld.GetProof(ctx, bGetter, root, proofPath, index, total)
-	if err != nil {
-		return nmt.Proof{}, err
-	}
-
-	rangeProofs := make([][]byte, 0, len(proofPath))
-	for i := len(proofPath) - 1; i >= 0; i-- {
-		node := ipld.NamespacedSha256FromCID(proofPath[i])
-		rangeProofs = append(rangeProofs, node)
-	}
-
-	return nmt.NewInclusionProof(index, index+1, rangeProofs, true), nil
 }
 
 func ProtoToShare(protoShares []*pb.Share) []*ShareWithProof {
