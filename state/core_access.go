@@ -224,8 +224,8 @@ func (ca *CoreAccessor) SubmitPayForBlob(
 	fee := calculateFee(gas, gasPrice)
 
 	acc := ca.defaultSignerAccount
-	if options.AccountKey() != "" {
-		acc = options.AccountKey()
+	if options.KeyName() != "" {
+		acc = options.KeyName()
 	}
 
 	var lastErr error
@@ -386,13 +386,9 @@ func (ca *CoreAccessor) Transfer(
 		return nil, ErrInvalidAmount
 	}
 
-	signer := ca.defaultSignerAddress
-	var err error
-	if options.AccountKey() != "" {
-		signer, err = parseAccountKey(ca.keyring, options.AccountKey())
-		if err != nil {
-			return nil, err
-		}
+	signer, err := ca.getSigner(options)
+	if err != nil {
+		return nil, err
 	}
 
 	coins := sdktypes.NewCoins(sdktypes.NewCoin(app.BondDenom, amount))
@@ -411,13 +407,9 @@ func (ca *CoreAccessor) CancelUnbondingDelegation(
 		return nil, ErrInvalidAmount
 	}
 
-	signer := ca.defaultSignerAddress
-	var err error
-	if options.AccountKey() != "" {
-		signer, err = parseAccountKey(ca.keyring, options.AccountKey())
-		if err != nil {
-			return nil, err
-		}
+	signer, err := ca.getSigner(options)
+	if err != nil {
+		return nil, err
 	}
 
 	coins := sdktypes.NewCoin(app.BondDenom, amount)
@@ -436,13 +428,9 @@ func (ca *CoreAccessor) BeginRedelegate(
 		return nil, ErrInvalidAmount
 	}
 
-	signer := ca.defaultSignerAddress
-	var err error
-	if options.AccountKey() != "" {
-		signer, err = parseAccountKey(ca.keyring, options.AccountKey())
-		if err != nil {
-			return nil, err
-		}
+	signer, err := ca.getSigner(options)
+	if err != nil {
+		return nil, err
 	}
 
 	coins := sdktypes.NewCoin(app.BondDenom, amount)
@@ -460,13 +448,9 @@ func (ca *CoreAccessor) Undelegate(
 		return nil, ErrInvalidAmount
 	}
 
-	signer := ca.defaultSignerAddress
-	var err error
-	if options.AccountKey() != "" {
-		signer, err = parseAccountKey(ca.keyring, options.AccountKey())
-		if err != nil {
-			return nil, err
-		}
+	signer, err := ca.getSigner(options)
+	if err != nil {
+		return nil, err
 	}
 
 	coins := sdktypes.NewCoin(app.BondDenom, amount)
@@ -484,13 +468,9 @@ func (ca *CoreAccessor) Delegate(
 		return nil, ErrInvalidAmount
 	}
 
-	signer := ca.defaultSignerAddress
-	var err error
-	if options.AccountKey() != "" {
-		signer, err = parseAccountKey(ca.keyring, options.AccountKey())
-		if err != nil {
-			return nil, err
-		}
+	signer, err := ca.getSigner(options)
+	if err != nil {
+		return nil, err
 	}
 
 	coins := sdktypes.NewCoin(app.BondDenom, amount)
@@ -539,16 +519,9 @@ func (ca *CoreAccessor) GrantFee(
 	amount Int,
 	options *TxOptions,
 ) (*TxResponse, error) {
-	var (
-		granter = ca.defaultSignerAddress
-		err     error
-	)
-
-	if options.AccountKey() != "" {
-		granter, err = parseAccountKey(ca.keyring, options.AccountKey())
-		if err != nil {
-			return nil, err
-		}
+	granter, err := ca.getSigner(options)
+	if err != nil {
+		return nil, err
 	}
 
 	allowance := &feegrant.BasicAllowance{}
@@ -569,16 +542,9 @@ func (ca *CoreAccessor) RevokeGrantFee(
 	grantee AccAddress,
 	options *TxOptions,
 ) (*TxResponse, error) {
-	var (
-		granter = ca.defaultSignerAddress
-		err     error
-	)
-
-	if options.AccountKey() != "" {
-		granter, err = parseAccountKey(ca.keyring, options.AccountKey())
-		if err != nil {
-			return nil, err
-		}
+	granter, err := ca.getSigner(options)
+	if err != nil {
+		return nil, err
 	}
 
 	msg := feegrant.NewMsgRevokeAllowance(granter, grantee)
@@ -684,6 +650,17 @@ func (ca *CoreAccessor) submitMsg(
 
 	resp, err := ca.client.SubmitTx(ctx, []sdktypes.Msg{msg}, txOptions...)
 	return unsetTx(resp), err
+}
+
+func (ca *CoreAccessor) getSigner(options *TxOptions) (AccAddress, error) {
+	switch {
+	case options.SignerAddress() != "":
+		return parseAccAddressFromString(options.SignerAddress())
+	case options.KeyName() != "":
+		return parseAccountKey(ca.keyring, options.KeyName())
+	default:
+		return ca.defaultSignerAddress, nil
+	}
 }
 
 // THIS IS A TEMPORARY SOLUTION!!!

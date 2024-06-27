@@ -81,7 +81,7 @@ func TestSubmitPayForBlob(t *testing.T) {
 			opts := NewTxOptions(
 				WithGas(tc.gasLim),
 				WithGasPrice(tc.gasPrice),
-				WithAccountKey(accounts[2]),
+				WithKeyName(accounts[2]),
 			)
 			resp, err := ca.SubmitPayForBlob(ctx, tc.blobs, opts)
 			require.Equal(t, tc.expErr, err)
@@ -134,7 +134,7 @@ func TestTransfer(t *testing.T) {
 			opts := NewTxOptions(
 				WithGas(tc.gasLim),
 				WithGasPrice(tc.gasPrice),
-				WithAccountKey(accounts[2]),
+				WithKeyName(accounts[2]),
 			)
 			key, err := ca.keyring.Key(accounts[1])
 			require.NoError(t, err)
@@ -194,7 +194,7 @@ func TestDelegate(t *testing.T) {
 			opts := NewTxOptions(
 				WithGas(tc.gasLim),
 				WithGasPrice(tc.gasPrice),
-				WithAccountKey(accounts[2]),
+				WithKeyName(accounts[2]),
 			)
 			resp, err := ca.Delegate(ctx, ValAddress(valAddr), sdktypes.NewInt(100_000), opts)
 			require.NoError(t, err)

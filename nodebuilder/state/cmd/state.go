@@ -8,15 +8,17 @@ import (
 	"github.com/spf13/cobra"
 
 	cmdnode "github.com/celestiaorg/celestia-node/cmd"
+	stateBuilder "github.com/celestiaorg/celestia-node/nodebuilder/state"
 	"github.com/celestiaorg/celestia-node/state"
 )
 
 var (
-	accountKey        string
-	feeGranterAddress string
-	amount            uint64
+	signer            string
+	keyName           string
 	gas               uint64
 	gasPrice          float64
+	feeGranterAddress string
+	amount            uint64
 )
 
 func init() {
@@ -418,6 +420,22 @@ func parseAddressFromString(addrStr string) (state.Address, error) {
 
 func ApplyFlags(cmds ...*cobra.Command) {
 	for _, cmd := range cmds {
+		cmd.PersistentFlags().StringVar(
+			&signer,
+			"signer",
+			"",
+			"Specifies the signer address from the keystore.\n"+
+				"If both the address and the key are specified, the address field will take priority.\n"+
+				"Note: The account address should be provided as a Bech32 address.",
+		)
+
+		cmd.PersistentFlags().StringVar(
+			&keyName,
+			"key.name",
+			stateBuilder.DefaultAccountName,
+			"Specifies the signer name from the keystore.",
+		)
+
 		cmd.PersistentFlags().Float64Var(
 			&gasPrice,
 			"gas.price",
@@ -431,13 +449,6 @@ func ApplyFlags(cmds ...*cobra.Command) {
 			0,
 			"Specifies gas limit (in utia) for tx submission. "+
 				"(default 0)",
-		)
-
-		cmd.PersistentFlags().StringVar(
-			&accountKey,
-			"account.key",
-			"",
-			"Specifies the signer name from the keystore.",
 		)
 
 		cmd.PersistentFlags().StringVar(
@@ -457,7 +468,8 @@ func GetTxOptions() *state.TxOptions {
 	return state.NewTxOptions(
 		state.WithGasPrice(gasPrice),
 		state.WithGas(gas),
-		state.WithAccountKey(accountKey),
+		state.WithKeyName(keyName),
+		state.WithSignerAddress(signer),
 		state.WithFeeGranterAddress(feeGranterAddress),
 	)
 }
