@@ -16,8 +16,10 @@ import (
 	tmrand "github.com/tendermint/tendermint/libs/rand"
 
 	"github.com/celestiaorg/celestia-app/pkg/appconsts"
+	appns "github.com/celestiaorg/celestia-app/pkg/namespace"
 	"github.com/celestiaorg/celestia-app/pkg/shares"
 	"github.com/celestiaorg/go-header/store"
+
 
 	"github.com/celestiaorg/celestia-node/blob/blobtest"
 	"github.com/celestiaorg/celestia-node/header"
@@ -132,7 +134,9 @@ func TestBlobService_Get(t *testing.T) {
 		{
 			name: "get all with different namespaces",
 			doFn: func() (interface{}, error) {
-				b, err := service.GetAll(ctx, 1, []share.Namespace{blobs0[0].Namespace(), blobs0[1].Namespace()})
+				nid, err := share.NewBlobNamespaceV0(tmrand.Bytes(7))
+				require.NoError(t, err)
+				b, err := service.GetAll(ctx, 1, []share.Namespace{blobs0[0].Namespace(), nid, blobs0[1].Namespace()})
 				return b, err
 			},
 			expectedResult: func(res interface{}, err error) {
@@ -141,7 +145,6 @@ func TestBlobService_Get(t *testing.T) {
 				blobs, ok := res.([]*Blob)
 				assert.True(t, ok)
 				assert.NotEmpty(t, blobs)
-
 				assert.Len(t, blobs, 2)
 				// check the order
 				require.True(t, bytes.Equal(blobs[0].Namespace(), blobs0[0].Namespace()))
@@ -293,17 +296,17 @@ func TestBlobService_Get(t *testing.T) {
 			},
 		},
 		{
-			name: "get all not found",
+			name: "empty result and err when blobs were not found ",
 			doFn: func() (interface{}, error) {
-				namespace := share.Namespace(tmrand.Bytes(share.NamespaceSize))
-				return service.GetAll(ctx, 1, []share.Namespace{namespace})
+				nid, err := share.NewBlobNamespaceV0(tmrand.Bytes(appns.NamespaceVersionZeroIDSize))
+				require.NoError(t, err)
+				return service.GetAll(ctx, 1, []share.Namespace{nid})
 			},
 			expectedResult: func(i interface{}, err error) {
 				blobs, ok := i.([]*Blob)
 				require.True(t, ok)
 				assert.Empty(t, blobs)
-				require.Error(t, err)
-				require.ErrorIs(t, err, ErrBlobNotFound)
+				assert.Empty(t, err)
 			},
 		},
 		{
@@ -522,8 +525,9 @@ func TestAllPaddingSharesInEDS(t *testing.T) {
 	}
 
 	service := NewService(nil, getters.NewIPLDGetter(bs), fn)
-	_, err = service.GetAll(ctx, 1, []share.Namespace{nid})
-	require.Error(t, err)
+	newBlobs, err := service.GetAll(ctx, 1, []share.Namespace{nid})
+	require.NoError(t, err)
+	assert.Empty(t, newBlobs)
 }
 
 func TestSkipPaddingsAndRetrieveBlob(t *testing.T) {
