@@ -307,7 +307,7 @@ func (s *Store) put(ctx context.Context, root share.DataHash, square *rsmt2d.Ext
 	return nil
 }
 
-// waitForResult waits for a result from the res channel for a maximum duration specified by
+// trackLateResult waits for a result from the res channel for a maximum duration specified by
 // maxWait. If the result is not received within the specified duration, it logs an error
 // indicating that the parent context has expired and the shard registration is stuck. If a result
 // is received, it checks for any error and logs appropriate messages.
