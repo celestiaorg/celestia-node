@@ -7,6 +7,8 @@ import (
 	"github.com/celestiaorg/celestia-node/share/shwap"
 )
 
+var codec = share.DefaultRSMT2DCodec()
+
 // AxisHalf represents a half of data for a row or column in the EDS.
 type AxisHalf struct {
 	Shares []share.Share
@@ -37,18 +39,18 @@ func extendShares(original []share.Share) ([]share.Share, error) {
 		return nil, fmt.Errorf("original shares are empty")
 	}
 
-	codec := share.DefaultRSMT2DCodec()
 	parity, err := codec.Encode(original)
 	if err != nil {
 		return nil, fmt.Errorf("encoding: %w", err)
 	}
-	shares := make([]share.Share, len(original)*2)
+
+	sqLen := len(original) * 2
+	shares := make([]share.Share, sqLen)
 	copy(shares, original)
-	copy(shares[len(original):], parity)
+	copy(shares[sqLen/2:], parity)
 	return shares, nil
 }
 
-// reconstructShares constructs full axis shares from parity half axis shares.
 func reconstructShares(parity []share.Share) ([]share.Share, error) {
 	if len(parity) == 0 {
 		return nil, fmt.Errorf("parity shares are empty")
@@ -59,9 +61,7 @@ func reconstructShares(parity []share.Share) ([]share.Share, error) {
 	for i := sqLen / 2; i < sqLen; i++ {
 		shares[i] = parity[i-sqLen/2]
 	}
-
-	codec := share.DefaultRSMT2DCodec()
-	shares, err := codec.Decode(shares)
+	_, err := codec.Decode(shares)
 	if err != nil {
 		return nil, fmt.Errorf("reconstructing: %w", err)
 	}

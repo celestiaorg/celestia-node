@@ -58,7 +58,7 @@ func (fa *ShareAvailability) SharesAvailable(ctx context.Context, header *header
 		return nil
 	}
 
-	adder := ipld.NewProofsAdder(len(dah.RowRoots))
+	adder := ipld.NewProofsAdder(len(dah.RowRoots), false)
 	ctx = ipld.CtxWithProofsAdder(ctx, adder)
 	defer adder.Purge()
 
