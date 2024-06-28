@@ -253,7 +253,7 @@ NetworkHead(ctx context.Context) (*header.ExtendedHeader, error)
       ctx context.Context, 
       nID namespace.ID, 
       data []byte,
-	  options *state.TxOptions,
+      options *state.TxOptions,
     ) (*state.TxResponse, error)
     // Transfer sends the given amount of coins from default wallet of the node 
     // to the given account address.
@@ -261,7 +261,7 @@ NetworkHead(ctx context.Context) (*header.ExtendedHeader, error)
       ctx context.Context, 
       to types.Address,
       amount types.Int,
-	  options *state.TxOptions,
+      options *state.TxOptions,
     ) (*state.TxResponse, error)
 
     // StateModule also provides StakingModule
@@ -298,7 +298,7 @@ yet.
         ctx context.Context, 
         delAddr state.ValAddress,
         amount state.Int,
-		options *state.TxOptions,
+        options *state.TxOptions,
     ) (*state.TxResponse, error)
 
     // CancelUnbondingDelegation cancels a user's pending undelegation from a 

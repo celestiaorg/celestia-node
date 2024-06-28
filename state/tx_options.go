@@ -31,8 +31,8 @@ func NewTxOptions(attributes ...Attribute) *TxOptions {
 // Implements `Option` interface.
 type TxOptions struct {
 	// Specifies the address from the keystore that will sign transactions.
-	// NOTE: Only `accountAddress` or `KeyName` should be passed.
-	// accountAddress is a primary options. This means If both the address and the key are specified,
+	// NOTE: Only `signerAddress` or `KeyName` should be passed.
+	// signerAddress is a primary options. This means If both the address and the key are specified,
 	// the address field will take priority.
 	signerAddress string
 	// Specifies the key from the keystore associated with an account that
