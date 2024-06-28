@@ -223,9 +223,18 @@ func (ca *CoreAccessor) SubmitPayForBlob(
 
 	fee := calculateFee(gas, gasPrice)
 
-	acc := ca.defaultSignerAccount
-	if options.KeyName() != "" {
-		acc = options.KeyName()
+	signer, err := ca.getSigner(options)
+	if err != nil {
+		return nil, err
+	}
+
+	accName := ca.defaultSignerAccount
+	if !signer.Equals(ca.defaultSignerAddress) {
+		account := ca.client.AccountByAddress(signer)
+		if account == nil {
+			return nil, fmt.Errorf("account for signer %s not found", signer)
+		}
+		accName = account.Name()
 	}
 
 	var lastErr error
@@ -236,7 +245,7 @@ func (ca *CoreAccessor) SubmitPayForBlob(
 		}
 		response, err := ca.client.BroadcastPayForBlobWithAccount(
 			ctx,
-			acc,
+			accName,
 			appblobs,
 			opts...,
 		)
@@ -656,7 +665,7 @@ func (ca *CoreAccessor) getSigner(options *TxOptions) (AccAddress, error) {
 	switch {
 	case options.SignerAddress() != "":
 		return parseAccAddressFromString(options.SignerAddress())
-	case options.KeyName() != "":
+	case options.KeyName() != "" && options.KeyName() != ca.defaultSignerAccount:
 		return parseAccountKey(ca.keyring, options.KeyName())
 	default:
 		return ca.defaultSignerAddress, nil

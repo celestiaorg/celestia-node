@@ -47,7 +47,6 @@ type TxOptions struct {
 	isGasPriceSet bool
 	// 0 gas means users want us to calculate it for them.
 	gas uint64
-
 	// Specifies the account that will pay for the transaction.
 	// Input format Bech32.
 	feeGranterAddress string
