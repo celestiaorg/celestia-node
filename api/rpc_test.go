@@ -202,12 +202,12 @@ func TestAuthedRPC(t *testing.T) {
 				server.State.EXPECT().Delegate(gomock.Any(), gomock.Any(),
 					gomock.Any(), gomock.Any()).Return(expectedResp, nil)
 				txResp, err := rpcClient.State.Delegate(ctx,
-					state.ValAddress{}, state.Int{}, state.NewTxOptions())
+					state.ValAddress{}, state.Int{}, state.NewTxConfig())
 				require.NoError(t, err)
 				require.Equal(t, expectedResp, txResp)
 			} else {
 				_, err := rpcClient.State.Delegate(ctx,
-					state.ValAddress{}, state.Int{}, state.NewTxOptions())
+					state.ValAddress{}, state.Int{}, state.NewTxConfig())
 				require.Error(t, err)
 				require.ErrorContains(t, err, "missing permission")
 			}

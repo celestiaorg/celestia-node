@@ -15,24 +15,24 @@ import (
 
 const (
 	DefaultPrice float64 = -1.0
-	// gasMultiplier is used to increase gas limit in case if tx has additional options.
+	// gasMultiplier is used to increase gas limit in case if tx has additional cfg.
 	gasMultiplier = 1.1
 )
 
-func NewTxOptions(attributes ...Attribute) *TxOptions {
-	options := &TxOptions{gasPrice: DefaultPrice}
+func NewTxConfig(attributes ...Attribute) *TxConfig {
+	options := &TxConfig{gasPrice: DefaultPrice}
 	for _, attr := range attributes {
 		attr(options)
 	}
 	return options
 }
 
-// TxOptions specifies additional options that will be applied to the Tx.
+// TxConfig specifies additional options that will be applied to the Tx.
 // Implements `Option` interface.
-type TxOptions struct {
+type TxConfig struct {
 	// Specifies the address from the keystore that will sign transactions.
 	// NOTE: Only `signerAddress` or `KeyName` should be passed.
-	// signerAddress is a primary options. This means If both the address and the key are specified,
+	// signerAddress is a primary cfg. This means If both the address and the key are specified,
 	// the address field will take priority.
 	signerAddress string
 	// Specifies the key from the keystore associated with an account that
@@ -52,22 +52,22 @@ type TxOptions struct {
 	feeGranterAddress string
 }
 
-func (options *TxOptions) GasPrice() float64 {
-	if !options.isGasPriceSet {
+func (cfg *TxConfig) GasPrice() float64 {
+	if !cfg.isGasPriceSet {
 		return DefaultPrice
 	}
-	return options.gasPrice
+	return cfg.gasPrice
 }
 
-func (options *TxOptions) GasLimit() uint64 { return options.gas }
+func (cfg *TxConfig) GasLimit() uint64 { return cfg.gas }
 
-func (options *TxOptions) KeyName() string { return options.keyName }
+func (cfg *TxConfig) KeyName() string { return cfg.keyName }
 
-func (options *TxOptions) SignerAddress() string { return options.signerAddress }
+func (cfg *TxConfig) SignerAddress() string { return cfg.signerAddress }
 
-func (options *TxOptions) FeeGranterAddress() string { return options.feeGranterAddress }
+func (cfg *TxConfig) FeeGranterAddress() string { return cfg.feeGranterAddress }
 
-type jsonTxOptions struct {
+type jsonTxConfig struct {
 	GasPrice          float64 `json:"gas_price,omitempty"`
 	IsGasPriceSet     bool    `json:"is_gas_price_set,omitempty"`
 	Gas               uint64  `json:"gas,omitempty"`
@@ -76,31 +76,31 @@ type jsonTxOptions struct {
 	FeeGranterAddress string  `json:"fee_granter_address,omitempty"`
 }
 
-func (options *TxOptions) MarshalJSON() ([]byte, error) {
-	jsonOpts := &jsonTxOptions{
-		SignerAddress:     options.signerAddress,
-		KeyName:           options.keyName,
-		GasPrice:          options.gasPrice,
-		IsGasPriceSet:     options.isGasPriceSet,
-		Gas:               options.gas,
-		FeeGranterAddress: options.feeGranterAddress,
+func (cfg *TxConfig) MarshalJSON() ([]byte, error) {
+	jsonOpts := &jsonTxConfig{
+		SignerAddress:     cfg.signerAddress,
+		KeyName:           cfg.keyName,
+		GasPrice:          cfg.gasPrice,
+		IsGasPriceSet:     cfg.isGasPriceSet,
+		Gas:               cfg.gas,
+		FeeGranterAddress: cfg.feeGranterAddress,
 	}
 	return json.Marshal(jsonOpts)
 }
 
-func (options *TxOptions) UnmarshalJSON(data []byte) error {
-	var jsonOpts jsonTxOptions
+func (cfg *TxConfig) UnmarshalJSON(data []byte) error {
+	var jsonOpts jsonTxConfig
 	err := json.Unmarshal(data, &jsonOpts)
 	if err != nil {
-		return fmt.Errorf("unmarshalling TxOptions: %w", err)
+		return fmt.Errorf("unmarshalling TxConfig: %w", err)
 	}
 
-	options.keyName = jsonOpts.KeyName
-	options.signerAddress = jsonOpts.SignerAddress
-	options.gasPrice = jsonOpts.GasPrice
-	options.isGasPriceSet = jsonOpts.IsGasPriceSet
-	options.gas = jsonOpts.Gas
-	options.feeGranterAddress = jsonOpts.FeeGranterAddress
+	cfg.keyName = jsonOpts.KeyName
+	cfg.signerAddress = jsonOpts.SignerAddress
+	cfg.gasPrice = jsonOpts.GasPrice
+	cfg.isGasPriceSet = jsonOpts.IsGasPriceSet
+	cfg.gas = jsonOpts.Gas
+	cfg.feeGranterAddress = jsonOpts.FeeGranterAddress
 	return nil
 }
 
@@ -143,16 +143,16 @@ func parseAccAddressFromString(addrStr string) (sdktypes.AccAddress, error) {
 
 // Attribute is the functional option that is applied to the TxOption instance
 // to configure parameters.
-type Attribute func(options *TxOptions)
+type Attribute func(cfg *TxConfig)
 
 // WithGasPrice is an attribute that allows to specify a GasPrice, which is needed
 // to calculate the fee. In case GasPrice is not specified, the global GasPrice fetched from
 // celestia-app will be used.
 func WithGasPrice(gasPrice float64) Attribute {
-	return func(options *TxOptions) {
+	return func(cfg *TxConfig) {
 		if gasPrice >= 0 {
-			options.gasPrice = gasPrice
-			options.isGasPriceSet = true
+			cfg.gasPrice = gasPrice
+			cfg.isGasPriceSet = true
 		}
 	}
 }
@@ -160,8 +160,8 @@ func WithGasPrice(gasPrice float64) Attribute {
 // WithGas is an attribute that allows to specify Gas.
 // Gas will be calculated in case it wasn't specified.
 func WithGas(gas uint64) Attribute {
-	return func(options *TxOptions) {
-		options.gas = gas
+	return func(cfg *TxConfig) {
+		cfg.gas = gas
 	}
 }
 
@@ -169,22 +169,22 @@ func WithGas(gas uint64) Attribute {
 // sign the transaction. This key should be associated with the address and stored
 // locally in the key store. Default Account will be used in case it wasn't specified.
 func WithKeyName(key string) Attribute {
-	return func(options *TxOptions) {
-		options.keyName = key
+	return func(cfg *TxConfig) {
+		cfg.keyName = key
 	}
 }
 
 // WithSignerAddress is an attribute that allows you to specify an address, that will sign the transaction.
 // This address must be stored locally in the key store. Default signerAddress will be used in case it wasn't specified.
 func WithSignerAddress(address string) Attribute {
-	return func(options *TxOptions) {
-		options.signerAddress = address
+	return func(cfg *TxConfig) {
+		cfg.signerAddress = address
 	}
 }
 
 // WithFeeGranterAddress is an attribute that allows you to specify a GranterAddress to pay the fees.
 func WithFeeGranterAddress(granter string) Attribute {
-	return func(options *TxOptions) {
-		options.feeGranterAddress = granter
+	return func(cfg *TxConfig) {
+		cfg.feeGranterAddress = granter
 	}
 }

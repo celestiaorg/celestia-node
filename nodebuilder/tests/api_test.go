@@ -117,7 +117,7 @@ func TestBlobRPC(t *testing.T) {
 	)
 	require.NoError(t, err)
 
-	height, err := rpcClient.Blob.Submit(ctx, []*blob.Blob{newBlob}, state.NewTxOptions())
+	height, err := rpcClient.Blob.Submit(ctx, []*blob.Blob{newBlob}, state.NewTxConfig())
 	require.NoError(t, err)
 	require.True(t, height != 0)
 }

@@ -34,7 +34,7 @@ var (
 // avoid a circular dependency between the blob and the state package, since the state package needs
 // the blob.Blob type for this signature.
 type Submitter interface {
-	SubmitPayForBlob(context.Context, []*state.Blob, *state.TxOptions) (*types.TxResponse, error)
+	SubmitPayForBlob(context.Context, []*state.Blob, *state.TxConfig) (*types.TxResponse, error)
 }
 
 type Service struct {
@@ -62,7 +62,7 @@ func NewService(
 // Allows sending multiple Blobs atomically synchronously.
 // Uses default wallet registered on the Node.
 // Handles gas estimation and fee calculation.
-func (s *Service) Submit(ctx context.Context, blobs []*Blob, txOptions *state.TxOptions) (uint64, error) {
+func (s *Service) Submit(ctx context.Context, blobs []*Blob, txConfig *state.TxConfig) (uint64, error) {
 	log.Debugw("submitting blobs", "amount", len(blobs))
 
 	appblobs := make([]*state.Blob, len(blobs))
@@ -73,7 +73,7 @@ func (s *Service) Submit(ctx context.Context, blobs []*Blob, txOptions *state.Tx
 		appblobs[i] = &blobs[i].Blob
 	}
 
-	resp, err := s.blobSubmitter.SubmitPayForBlob(ctx, appblobs, txOptions)
+	resp, err := s.blobSubmitter.SubmitPayForBlob(ctx, appblobs, txConfig)
 	if err != nil {
 		return 0, err
 	}

@@ -68,7 +68,7 @@ func TestSubmitPayForBlob(t *testing.T) {
 
 	for _, tc := range testcases {
 		t.Run(tc.name, func(t *testing.T) {
-			resp, err := ca.SubmitPayForBlob(ctx, tc.blobs, NewTxOptions())
+			resp, err := ca.SubmitPayForBlob(ctx, tc.blobs, NewTxConfig())
 			require.Equal(t, tc.expErr, err)
 			if err == nil {
 				require.EqualValues(t, 0, resp.Code)
@@ -78,7 +78,7 @@ func TestSubmitPayForBlob(t *testing.T) {
 
 	for _, tc := range testcases {
 		t.Run(tc.name, func(t *testing.T) {
-			opts := NewTxOptions(
+			opts := NewTxConfig(
 				WithGas(tc.gasLim),
 				WithGasPrice(tc.gasPrice),
 				WithKeyName(accounts[2]),
@@ -131,7 +131,7 @@ func TestTransfer(t *testing.T) {
 
 	for _, tc := range testcases {
 		t.Run(tc.name, func(t *testing.T) {
-			opts := NewTxOptions(
+			opts := NewTxConfig(
 				WithGas(tc.gasLim),
 				WithGasPrice(tc.gasPrice),
 				WithKeyName(accounts[2]),
@@ -191,7 +191,7 @@ func TestDelegate(t *testing.T) {
 
 	for _, tc := range testcases {
 		t.Run(tc.name, func(t *testing.T) {
-			opts := NewTxOptions(
+			opts := NewTxConfig(
 				WithGas(tc.gasLim),
 				WithGasPrice(tc.gasPrice),
 				WithKeyName(accounts[2]),

@@ -46,7 +46,7 @@ func init() {
 			"The default value is 0 which means the grantee does not have a spend limit.",
 	)
 
-	// apply option flags for all txs that require `TxOptions`.
+	// apply option flags for all txs that require `TxConfig`.
 	ApplyFlags(
 		transferCmd,
 		cancelUnbondingDelegationCmd,
@@ -144,7 +144,7 @@ var transferCmd = &cobra.Command{
 			cmd.Context(),
 			addr.Address.(state.AccAddress),
 			math.NewInt(amount),
-			GetTxOptions(),
+			GetTxConfig(),
 		)
 		return cmdnode.PrintOutput(txResponse, err, nil)
 	},
@@ -181,7 +181,7 @@ var cancelUnbondingDelegationCmd = &cobra.Command{
 			addr.Address.(state.ValAddress),
 			math.NewInt(amount),
 			math.NewInt(height),
-			GetTxOptions(),
+			GetTxConfig(),
 		)
 		return cmdnode.PrintOutput(txResponse, err, nil)
 	},
@@ -218,7 +218,7 @@ var beginRedelegateCmd = &cobra.Command{
 			srcAddr.Address.(state.ValAddress),
 			dstAddr.Address.(state.ValAddress),
 			math.NewInt(amount),
-			GetTxOptions(),
+			GetTxConfig(),
 		)
 		return cmdnode.PrintOutput(txResponse, err, nil)
 	},
@@ -249,7 +249,7 @@ var undelegateCmd = &cobra.Command{
 			cmd.Context(),
 			addr.Address.(state.ValAddress),
 			math.NewInt(amount),
-			GetTxOptions(),
+			GetTxConfig(),
 		)
 		return cmdnode.PrintOutput(txResponse, err, nil)
 	},
@@ -280,7 +280,7 @@ var delegateCmd = &cobra.Command{
 			cmd.Context(),
 			addr.Address.(state.ValAddress),
 			math.NewInt(amount),
-			GetTxOptions(),
+			GetTxConfig(),
 		)
 		return cmdnode.PrintOutput(txResponse, err, nil)
 	},
@@ -378,7 +378,7 @@ var grantFeeCmd = &cobra.Command{
 		txResponse, err := client.State.GrantFee(
 			cmd.Context(),
 			granteeAddr.Address.(state.AccAddress),
-			math.NewInt(int64(amount)), GetTxOptions(),
+			math.NewInt(int64(amount)), GetTxConfig(),
 		)
 		return cmdnode.PrintOutput(txResponse, err, nil)
 	},
@@ -403,7 +403,7 @@ var revokeGrantFeeCmd = &cobra.Command{
 		txResponse, err := client.State.RevokeGrantFee(
 			cmd.Context(),
 			granteeAddr.Address.(state.AccAddress),
-			GetTxOptions(),
+			GetTxConfig(),
 		)
 		return cmdnode.PrintOutput(txResponse, err, nil)
 	},
@@ -464,8 +464,8 @@ func ApplyFlags(cmds ...*cobra.Command) {
 	}
 }
 
-func GetTxOptions() *state.TxOptions {
-	return state.NewTxOptions(
+func GetTxConfig() *state.TxConfig {
+	return state.NewTxConfig(
 		state.WithGasPrice(gasPrice),
 		state.WithGas(gas),
 		state.WithKeyName(keyName),

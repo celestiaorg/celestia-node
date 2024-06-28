@@ -8,7 +8,7 @@ import (
 )
 
 func TestMarshallingOptions(t *testing.T) {
-	opts := NewTxOptions(
+	opts := NewTxConfig(
 		WithGas(10_000),
 		WithGasPrice(0.002),
 		WithKeyName("test"),
@@ -19,7 +19,7 @@ func TestMarshallingOptions(t *testing.T) {
 	data, err := json.Marshal(opts)
 	require.NoError(t, err)
 
-	newOpts := &TxOptions{}
+	newOpts := &TxConfig{}
 	err = json.Unmarshal(data, newOpts)
 	require.NoError(t, err)
 	require.Equal(t, opts, newOpts)

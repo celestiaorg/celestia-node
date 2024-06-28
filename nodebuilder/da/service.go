@@ -111,7 +111,7 @@ func (s *Service) Submit(
 		return nil, err
 	}
 
-	opts := state.NewTxOptions(state.WithGasPrice(gasPrice))
+	opts := state.NewTxConfig(state.WithGasPrice(gasPrice))
 
 	height, err := s.blobServ.Submit(ctx, blobs, opts)
 	if err != nil {

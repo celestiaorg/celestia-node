@@ -59,7 +59,7 @@ func TestBlobModule(t *testing.T) {
 	fullClient := getAdminClient(ctx, fullNode, t)
 	lightClient := getAdminClient(ctx, lightNode, t)
 
-	height, err := fullClient.Blob.Submit(ctx, blobs, state.NewTxOptions())
+	height, err := fullClient.Blob.Submit(ctx, blobs, state.NewTxConfig())
 	require.NoError(t, err)
 
 	_, err = fullClient.Header.WaitForHeight(ctx, height)
@@ -146,7 +146,7 @@ func TestBlobModule(t *testing.T) {
 				)
 				require.NoError(t, err)
 
-				height, err := fullClient.Blob.Submit(ctx, []*blob.Blob{b, b}, state.NewTxOptions())
+				height, err := fullClient.Blob.Submit(ctx, []*blob.Blob{b, b}, state.NewTxConfig())
 				require.NoError(t, err)
 
 				_, err = fullClient.Header.WaitForHeight(ctx, height)
@@ -175,7 +175,7 @@ func TestBlobModule(t *testing.T) {
 			// different pfbs.
 			name: "Submit the same blob in different pfb",
 			doFn: func(t *testing.T) {
-				h, err := fullClient.Blob.Submit(ctx, []*blob.Blob{blobs[0]}, state.NewTxOptions())
+				h, err := fullClient.Blob.Submit(ctx, []*blob.Blob{blobs[0]}, state.NewTxConfig())
 				require.NoError(t, err)
 
 				_, err = fullClient.Header.WaitForHeight(ctx, h)

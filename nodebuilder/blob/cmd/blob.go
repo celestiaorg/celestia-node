@@ -207,7 +207,7 @@ var submitCmd = &cobra.Command{
 		height, err := client.Blob.Submit(
 			cmd.Context(),
 			resultBlobs,
-			state.GetTxOptions(),
+			state.GetTxConfig(),
 		)
 
 		response := struct {

@@ -253,7 +253,7 @@ NetworkHead(ctx context.Context) (*header.ExtendedHeader, error)
       ctx context.Context, 
       nID namespace.ID, 
       data []byte,
-      options *state.TxOptions,
+      options *state.TxConfig,
     ) (*state.TxResponse, error)
     // Transfer sends the given amount of coins from default wallet of the node 
     // to the given account address.
@@ -261,7 +261,7 @@ NetworkHead(ctx context.Context) (*header.ExtendedHeader, error)
       ctx context.Context, 
       to types.Address,
       amount types.Int,
-      options *state.TxOptions,
+      options *state.TxConfig,
     ) (*state.TxResponse, error)
 
     // StateModule also provides StakingModule
@@ -282,7 +282,7 @@ yet.
         ctx context.Context, 
         delAddr state.ValAddress, 
         amount state.Int,
-        options *state.TxOptions,
+        options *state.TxConfig,
     ) (*state.TxResponse, error)
     // BeginRedelegate sends a user's delegated tokens to a new validator for redelegation.
     BeginRedelegate(
@@ -290,7 +290,7 @@ yet.
         srcValAddr,
         dstValAddr state.ValAddress,
         amount state.Int,
-        options *state.TxOptions, 
+        options *state.TxConfig, 
     ) (*state.TxResponse, error)
     // Undelegate undelegates a user's delegated tokens, unbonding them from the
     // current validator.
@@ -298,7 +298,7 @@ yet.
         ctx context.Context, 
         delAddr state.ValAddress,
         amount state.Int,
-        options *state.TxOptions,
+        options *state.TxConfig,
     ) (*state.TxResponse, error)
 
     // CancelUnbondingDelegation cancels a user's pending undelegation from a 
@@ -308,7 +308,7 @@ yet.
         valAddr state.ValAddress,
         amount types.Int,
         height types.Int,
-        options *state.TxOptions,
+        options *state.TxConfig,
     ) (*state.TxResponse, error)
 
     // QueryDelegation retrieves the delegation information between a delegator
@@ -399,7 +399,7 @@ type BankModule interface {
   SubmitPayForBlob(
     ctx context.Context,
     blobs []*state.Blob,
-    options *state.TxOptions, 
+    options *state.TxConfig, 
   ) (*state.TxResponse, error)	
   // Transfer sends the given amount of coins from default wallet of the node 
   // to the given account address.
@@ -407,7 +407,7 @@ type BankModule interface {
     ctx context.Context,
     to state.AccAddress, 
     amount state.Int, 
-    options *state.TxOptions,
+    options *state.TxConfig,
   ) (*state.TxResponse, error)
 }
 ```
