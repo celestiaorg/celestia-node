@@ -253,8 +253,7 @@ NetworkHead(ctx context.Context) (*header.ExtendedHeader, error)
       ctx context.Context, 
       nID namespace.ID, 
       data []byte,
-      fee types.Int,
-      gasLimit uint64,
+	  options *state.TxOptions,
     ) (*state.TxResponse, error)
     // Transfer sends the given amount of coins from default wallet of the node 
     // to the given account address.
@@ -262,8 +261,7 @@ NetworkHead(ctx context.Context) (*header.ExtendedHeader, error)
       ctx context.Context, 
       to types.Address,
       amount types.Int,
-      fee types.Int,
-      gasLimit uint64,
+	  options *state.TxOptions,
     ) (*state.TxResponse, error)
 
     // StateModule also provides StakingModule
@@ -284,8 +282,7 @@ yet.
         ctx context.Context, 
         delAddr state.ValAddress, 
         amount state.Int,
-        fee types.Int,
-        gasLim uint64,
+        options *state.TxOptions,
     ) (*state.TxResponse, error)
     // BeginRedelegate sends a user's delegated tokens to a new validator for redelegation.
     BeginRedelegate(
@@ -293,8 +290,7 @@ yet.
         srcValAddr,
         dstValAddr state.ValAddress,
         amount state.Int,
-        fee types.Int,
-        gasLim uint64, 
+        options *state.TxOptions, 
     ) (*state.TxResponse, error)
     // Undelegate undelegates a user's delegated tokens, unbonding them from the
     // current validator.
@@ -302,8 +298,7 @@ yet.
         ctx context.Context, 
         delAddr state.ValAddress,
         amount state.Int,
-        fee types.Int,
-        gasLim uint64,
+		options *state.TxOptions,
     ) (*state.TxResponse, error)
 
     // CancelUnbondingDelegation cancels a user's pending undelegation from a 
@@ -313,8 +308,7 @@ yet.
         valAddr state.ValAddress,
         amount types.Int,
         height types.Int,
-        fee types.Int,
-        gasLim uint64,
+        options *state.TxOptions,
     ) (*state.TxResponse, error)
 
     // QueryDelegation retrieves the delegation information between a delegator
@@ -404,17 +398,16 @@ type BankModule interface {
   // SubmitPayForBlob builds, signs and submits a PayForBlob transaction.
   SubmitPayForBlob(
     ctx context.Context,
-    nID namespace.ID,
-    data []byte,
-    gasLimit uint64,
-  ) (*state.TxResponse, error)
+    blobs []*state.Blob,
+    options *state.TxOptions, 
+  ) (*state.TxResponse, error)	
   // Transfer sends the given amount of coins from default wallet of the node 
   // to the given account address.
   Transfer(
     ctx context.Context,
-    to types.Address,
-    amount types.Int,
-    gasLimit uint64,
+    to state.AccAddress, 
+    amount state.Int, 
+    options *state.TxOptions,
   ) (*state.TxResponse, error)
 }
 ```
