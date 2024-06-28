@@ -187,27 +187,27 @@ func (ca *CoreAccessor) cancelCtx() {
 }
 
 // SubmitPayForBlob builds, signs, and synchronously submits a MsgPayForBlob with additional options defined
-// in `TxOptions`. It blocks until the transaction is committed and returns the TxResponse.
+// in `TxConfig`. It blocks until the transaction is committed and returns the TxResponse.
 // The user can specify additional options that can bee applied to the Tx.
 func (ca *CoreAccessor) SubmitPayForBlob(
 	ctx context.Context,
 	appblobs []*Blob,
-	options *TxOptions,
+	cfg *TxConfig,
 ) (*TxResponse, error) {
 	if len(appblobs) == 0 {
 		return nil, errors.New("state: no blobs provided")
 	}
 
 	var feeGrant user.TxOption
-	if options.FeeGranterAddress() != "" {
-		granter, err := parseAccAddressFromString(options.FeeGranterAddress())
+	if cfg.FeeGranterAddress() != "" {
+		granter, err := parseAccAddressFromString(cfg.FeeGranterAddress())
 		if err != nil {
 			return nil, err
 		}
 		feeGrant = user.SetFeeGranter(granter)
 	}
 
-	gas := options.GasLimit()
+	gas := cfg.GasLimit()
 	if gas == 0 {
 		blobSizes := make([]uint32, len(appblobs))
 		for i, blob := range appblobs {
@@ -216,14 +216,14 @@ func (ca *CoreAccessor) SubmitPayForBlob(
 		gas = estimateGasForBlobs(blobSizes)
 	}
 
-	gasPrice := options.GasPrice()
-	if options.GasPrice() == DefaultPrice {
+	gasPrice := cfg.GasPrice()
+	if cfg.GasPrice() == DefaultPrice {
 		gasPrice = ca.getMinGasPrice()
 	}
 
 	fee := calculateFee(gas, gasPrice)
 
-	signer, err := ca.getSigner(options)
+	signer, err := ca.getSigner(cfg)
 	if err != nil {
 		return nil, err
 	}
@@ -389,20 +389,20 @@ func (ca *CoreAccessor) Transfer(
 	ctx context.Context,
 	addr AccAddress,
 	amount Int,
-	options *TxOptions,
+	cfg *TxConfig,
 ) (*TxResponse, error) {
 	if amount.IsNil() || amount.Int64() <= 0 {
 		return nil, ErrInvalidAmount
 	}
 
-	signer, err := ca.getSigner(options)
+	signer, err := ca.getSigner(cfg)
 	if err != nil {
 		return nil, err
 	}
 
 	coins := sdktypes.NewCoins(sdktypes.NewCoin(app.BondDenom, amount))
 	msg := banktypes.NewMsgSend(signer, addr, coins)
-	return ca.submitMsg(ctx, msg, options)
+	return ca.submitMsg(ctx, msg, cfg)
 }
 
 func (ca *CoreAccessor) CancelUnbondingDelegation(
@@ -410,20 +410,20 @@ func (ca *CoreAccessor) CancelUnbondingDelegation(
 	valAddr ValAddress,
 	amount,
 	height Int,
-	options *TxOptions,
+	cfg *TxConfig,
 ) (*TxResponse, error) {
 	if amount.IsNil() || amount.Int64() <= 0 {
 		return nil, ErrInvalidAmount
 	}
 
-	signer, err := ca.getSigner(options)
+	signer, err := ca.getSigner(cfg)
 	if err != nil {
 		return nil, err
 	}
 
 	coins := sdktypes.NewCoin(app.BondDenom, amount)
 	msg := stakingtypes.NewMsgCancelUnbondingDelegation(signer, valAddr, height.Int64(), coins)
-	return ca.submitMsg(ctx, msg, options)
+	return ca.submitMsg(ctx, msg, cfg)
 }
 
 func (ca *CoreAccessor) BeginRedelegate(
@@ -431,60 +431,60 @@ func (ca *CoreAccessor) BeginRedelegate(
 	srcValAddr,
 	dstValAddr ValAddress,
 	amount Int,
-	options *TxOptions,
+	cfg *TxConfig,
 ) (*TxResponse, error) {
 	if amount.IsNil() || amount.Int64() <= 0 {
 		return nil, ErrInvalidAmount
 	}
 
-	signer, err := ca.getSigner(options)
+	signer, err := ca.getSigner(cfg)
 	if err != nil {
 		return nil, err
 	}
 
 	coins := sdktypes.NewCoin(app.BondDenom, amount)
 	msg := stakingtypes.NewMsgBeginRedelegate(signer, srcValAddr, dstValAddr, coins)
-	return ca.submitMsg(ctx, msg, options)
+	return ca.submitMsg(ctx, msg, cfg)
 }
 
 func (ca *CoreAccessor) Undelegate(
 	ctx context.Context,
 	delAddr ValAddress,
 	amount Int,
-	options *TxOptions,
+	cfg *TxConfig,
 ) (*TxResponse, error) {
 	if amount.IsNil() || amount.Int64() <= 0 {
 		return nil, ErrInvalidAmount
 	}
 
-	signer, err := ca.getSigner(options)
+	signer, err := ca.getSigner(cfg)
 	if err != nil {
 		return nil, err
 	}
 
 	coins := sdktypes.NewCoin(app.BondDenom, amount)
 	msg := stakingtypes.NewMsgUndelegate(signer, delAddr, coins)
-	return ca.submitMsg(ctx, msg, options)
+	return ca.submitMsg(ctx, msg, cfg)
 }
 
 func (ca *CoreAccessor) Delegate(
 	ctx context.Context,
 	delAddr ValAddress,
 	amount Int,
-	options *TxOptions,
+	cfg *TxConfig,
 ) (*TxResponse, error) {
 	if amount.IsNil() || amount.Int64() <= 0 {
 		return nil, ErrInvalidAmount
 	}
 
-	signer, err := ca.getSigner(options)
+	signer, err := ca.getSigner(cfg)
 	if err != nil {
 		return nil, err
 	}
 
 	coins := sdktypes.NewCoin(app.BondDenom, amount)
 	msg := stakingtypes.NewMsgDelegate(signer, delAddr, coins)
-	return ca.submitMsg(ctx, msg, options)
+	return ca.submitMsg(ctx, msg, cfg)
 }
 
 func (ca *CoreAccessor) QueryDelegation(
@@ -526,9 +526,9 @@ func (ca *CoreAccessor) GrantFee(
 	ctx context.Context,
 	grantee AccAddress,
 	amount Int,
-	options *TxOptions,
+	cfg *TxConfig,
 ) (*TxResponse, error) {
-	granter, err := ca.getSigner(options)
+	granter, err := ca.getSigner(cfg)
 	if err != nil {
 		return nil, err
 	}
@@ -543,21 +543,21 @@ func (ca *CoreAccessor) GrantFee(
 	if err != nil {
 		return nil, err
 	}
-	return ca.submitMsg(ctx, msg, options)
+	return ca.submitMsg(ctx, msg, cfg)
 }
 
 func (ca *CoreAccessor) RevokeGrantFee(
 	ctx context.Context,
 	grantee AccAddress,
-	options *TxOptions,
+	cfg *TxConfig,
 ) (*TxResponse, error) {
-	granter, err := ca.getSigner(options)
+	granter, err := ca.getSigner(cfg)
 	if err != nil {
 		return nil, err
 	}
 
 	msg := feegrant.NewMsgRevokeAllowance(granter, grantee)
-	return ca.submitMsg(ctx, &msg, options)
+	return ca.submitMsg(ctx, &msg, cfg)
 }
 
 func (ca *CoreAccessor) LastPayForBlob() int64 {
@@ -627,11 +627,11 @@ func (ca *CoreAccessor) setupTxClient(ctx context.Context, keyName string) (*use
 func (ca *CoreAccessor) submitMsg(
 	ctx context.Context,
 	msg sdktypes.Msg,
-	options *TxOptions,
+	cfg *TxConfig,
 ) (*TxResponse, error) {
-	txOptions := make([]user.TxOption, 0)
+	txConfig := make([]user.TxOption, 0)
 	var (
-		gas = options.GasLimit()
+		gas = cfg.GasLimit()
 		err error
 	)
 	if gas == 0 {
@@ -641,32 +641,32 @@ func (ca *CoreAccessor) submitMsg(
 		}
 	}
 
-	gasPrice := options.GasPrice()
+	gasPrice := cfg.GasPrice()
 	if gasPrice == DefaultPrice {
 		gasPrice = ca.minGasPrice
 	}
 
 	fee := calculateFee(gas, gasPrice)
-	txOptions = append(txOptions, user.SetGasLimitAndFee(gas, float64(fee)))
+	txConfig = append(txConfig, user.SetGasLimitAndFee(gas, float64(fee)))
 
-	if options.FeeGranterAddress() != "" {
-		granter, err := parseAccAddressFromString(options.FeeGranterAddress())
+	if cfg.FeeGranterAddress() != "" {
+		granter, err := parseAccAddressFromString(cfg.FeeGranterAddress())
 		if err != nil {
 			return nil, fmt.Errorf("getting granter: %w", err)
 		}
-		txOptions = append(txOptions, user.SetFeeGranter(granter))
+		txConfig = append(txConfig, user.SetFeeGranter(granter))
 	}
 
-	resp, err := ca.client.SubmitTx(ctx, []sdktypes.Msg{msg}, txOptions...)
+	resp, err := ca.client.SubmitTx(ctx, []sdktypes.Msg{msg}, txConfig...)
 	return unsetTx(resp), err
 }
 
-func (ca *CoreAccessor) getSigner(options *TxOptions) (AccAddress, error) {
+func (ca *CoreAccessor) getSigner(cfg *TxConfig) (AccAddress, error) {
 	switch {
-	case options.SignerAddress() != "":
-		return parseAccAddressFromString(options.SignerAddress())
-	case options.KeyName() != "" && options.KeyName() != ca.defaultSignerAccount:
-		return parseAccountKey(ca.keyring, options.KeyName())
+	case cfg.SignerAddress() != "":
+		return parseAccAddressFromString(cfg.SignerAddress())
+	case cfg.KeyName() != "" && cfg.KeyName() != ca.defaultSignerAccount:
+		return parseAccountKey(ca.keyring, cfg.KeyName())
 	default:
 		return ca.defaultSignerAddress, nil
 	}

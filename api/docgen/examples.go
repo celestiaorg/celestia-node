@@ -178,14 +178,14 @@ func init() {
 	}
 	addToExampleValues(libhead.Hash(hash))
 
-	txOptions := state.NewTxOptions(
+	txConfig := state.NewTxConfig(
 		state.WithGasPrice(0.002),
 		state.WithGas(142225),
 		state.WithKeyName("my_celes_key"),
 		state.WithSignerAddress("celestia1pjcmwj8w6hyr2c4wehakc5g8cfs36aysgucx66"),
 		state.WithFeeGranterAddress("celestia1hakc56ax66ypjcmwj8w6hyr2c4g8cfs3wesguc"),
 	)
-	addToExampleValues(txOptions)
+	addToExampleValues(txConfig)
 }
 
 func addToExampleValues(v interface{}) {
