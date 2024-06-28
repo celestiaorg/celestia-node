@@ -77,7 +77,7 @@ var getCmd = &cobra.Command{
 			return fmt.Errorf("error parsing a height: %w", err)
 		}
 
-		if !strings.Contains(args[1], "0x") {
+		if !strings.HasPrefix(args[1], "0x") {
 			return fmt.Errorf("only hex namespace is supported")
 		}
 		namespace, err := cmdnode.ParseV0Namespace(args[1])
@@ -117,7 +117,7 @@ var getAllCmd = &cobra.Command{
 		}
 
 		namespace, err := cmdnode.ParseV0Namespace(args[1])
-		if !strings.Contains(args[1], "0x") {
+		if !strings.HasPrefix(args[1], "0x") {
 			return fmt.Errorf("only hex namespace is supported")
 		}
 		if err != nil {
