@@ -41,6 +41,8 @@ type Module interface {
 		namespace share.Namespace,
 		shareCommitment []byte,
 	) (*blob.CommitmentProof, error)
+	// Subscribe to published blobs from the given namespace as they are included.
+	Subscribe(_ context.Context, _ share.Namespace) (<-chan *blob.BlobsubResponse, error)
 }
 
 type API struct {
@@ -80,6 +82,10 @@ type API struct {
 			namespace share.Namespace,
 			shareCommitment []byte,
 		) (*blob.CommitmentProof, error) `perm:"read"`
+		Subscribe func(
+			context.Context,
+			share.Namespace,
+		) (<-chan *blob.BlobsubResponse, error) `perm:"read"`
 	}
 }
 
@@ -126,4 +132,11 @@ func (api *API) Included(
 	commitment blob.Commitment,
 ) (bool, error) {
 	return api.Internal.Included(ctx, height, namespace, proof, commitment)
+}
+
+func (api *API) Subscribe(
+	ctx context.Context,
+	namespace share.Namespace,
+) (<-chan *blob.BlobsubResponse, error) {
+	return api.Internal.Subscribe(ctx, namespace)
 }

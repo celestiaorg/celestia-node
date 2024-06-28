@@ -470,7 +470,10 @@ func TestService_GetSingleBlobWithoutPadding(t *testing.T) {
 	fn := func(ctx context.Context, height uint64) (*header.ExtendedHeader, error) {
 		return headerStore.GetByHeight(ctx, height)
 	}
-	service := NewService(nil, getters.NewIPLDGetter(bs), fn)
+	fn2 := func(ctx context.Context) (<-chan *header.ExtendedHeader, error) {
+		return nil, fmt.Errorf("not implemented")
+	}
+	service := NewService(nil, getters.NewIPLDGetter(bs), fn, fn2)
 
 	newBlob, err := service.Get(ctx, 1, blobs[1].Namespace(), blobs[1].Commitment)
 	require.NoError(t, err)
@@ -567,8 +570,10 @@ func TestService_GetAllWithoutPadding(t *testing.T) {
 	fn := func(ctx context.Context, height uint64) (*header.ExtendedHeader, error) {
 		return h, nil
 	}
-
-	service := NewService(nil, getters.NewIPLDGetter(bs), fn)
+	fn2 := func(ctx context.Context) (<-chan *header.ExtendedHeader, error) {
+		return nil, fmt.Errorf("not implemented")
+	}
+	service := NewService(nil, getters.NewIPLDGetter(bs), fn, fn2)
 
 	newBlobs, err := service.GetAll(ctx, 1, []share.Namespace{blobs[0].Namespace()})
 	require.NoError(t, err)
@@ -614,10 +619,12 @@ func TestAllPaddingSharesInEDS(t *testing.T) {
 	fn := func(ctx context.Context, height uint64) (*header.ExtendedHeader, error) {
 		return h, nil
 	}
-
-	service := NewService(nil, getters.NewIPLDGetter(bs), fn)
+	fn2 := func(ctx context.Context) (<-chan *header.ExtendedHeader, error) {
+		return nil, fmt.Errorf("not implemented")
+	}
+	service := NewService(nil, getters.NewIPLDGetter(bs), fn, fn2)
 	newBlobs, err := service.GetAll(ctx, 1, []share.Namespace{nid})
-	require.NoError(t, err)
+	require.Error(t, err)
 	assert.Empty(t, newBlobs)
 }
 
@@ -657,8 +664,10 @@ func TestSkipPaddingsAndRetrieveBlob(t *testing.T) {
 	fn := func(ctx context.Context, height uint64) (*header.ExtendedHeader, error) {
 		return h, nil
 	}
-
-	service := NewService(nil, getters.NewIPLDGetter(bs), fn)
+	fn2 := func(ctx context.Context) (<-chan *header.ExtendedHeader, error) {
+		return nil, fmt.Errorf("not implemented")
+	}
+	service := NewService(nil, getters.NewIPLDGetter(bs), fn, fn2)
 	newBlob, err := service.GetAll(ctx, 1, []share.Namespace{nid})
 	require.NoError(t, err)
 	require.Len(t, newBlob, 1)
@@ -709,7 +718,10 @@ func createService(ctx context.Context, t testing.TB, blobs []*Blob) *Service {
 	fn := func(ctx context.Context, height uint64) (*header.ExtendedHeader, error) {
 		return headerStore.GetByHeight(ctx, height)
 	}
-	return NewService(nil, getters.NewIPLDGetter(bs), fn)
+	fn2 := func(ctx context.Context) (<-chan *header.ExtendedHeader, error) {
+		return nil, fmt.Errorf("not implemented")
+	}
+	return NewService(nil, getters.NewIPLDGetter(bs), fn, fn2)
 }
 
 // TestProveCommitmentAllCombinations tests proving all the commitments in a block.

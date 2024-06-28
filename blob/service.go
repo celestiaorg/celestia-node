@@ -55,18 +55,62 @@ type Service struct {
 	shareGetter share.Getter
 	// headerGetter fetches header by the provided height
 	headerGetter func(context.Context, uint64) (*header.ExtendedHeader, error)
+	headerSub    func(ctx context.Context) (<-chan *header.ExtendedHeader, error)
 }
 
 func NewService(
 	submitter Submitter,
 	getter share.Getter,
 	headerGetter func(context.Context, uint64) (*header.ExtendedHeader, error),
+	headerSub func(ctx context.Context) (<-chan *header.ExtendedHeader, error),
 ) *Service {
 	return &Service{
 		blobSubmitter: submitter,
 		shareGetter:   getter,
 		headerGetter:  headerGetter,
+		headerSub:     headerSub,
 	}
+}
+
+type BlobsubResponse struct {
+	blobs  []*Blob
+	height uint64
+}
+
+func (s *Service) Subscribe(ctx context.Context, ns share.Namespace) (<-chan *BlobsubResponse, error) {
+	headerCh, err := s.headerSub(ctx)
+	if err != nil {
+		return nil, err
+	}
+
+	blobCh := make(chan *BlobsubResponse)
+	go func() {
+		defer close(blobCh)
+
+		for {
+			select {
+			case header, ok := <-headerCh:
+				if !ok {
+					log.Errorw("header channel closed for blobsub", "namespace", ns.ID())
+					return
+				}
+				blobs, err := s.GetAll(ctx, header.Height(), []share.Namespace{ns})
+				if err != nil {
+					log.Errorw("failed to get blobs", "height", header.Height(), "namespace", ns.ID(), "err", err)
+					continue
+				}
+
+				select {
+				case <-ctx.Done():
+					return
+				case blobCh <- &BlobsubResponse{blobs: blobs, height: header.Height()}:
+				}
+			case <-ctx.Done():
+				return
+			}
+		}
+	}()
+	return blobCh, nil
 }
 
 // Submit sends PFB transaction and reports the height at which it was included.
