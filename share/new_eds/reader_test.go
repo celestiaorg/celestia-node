@@ -60,7 +60,7 @@ type randMinWriter struct {
 	*bytes.Reader
 }
 
-func (lwt randMinWriter) WriteTo(writer io.Writer, limit int) (int, error) {
+func (lwt randMinWriter) CopyAtLeast(writer io.Writer, limit int) (int, error) {
 	var amount int
 	for amount < limit {
 		bufLn := limit

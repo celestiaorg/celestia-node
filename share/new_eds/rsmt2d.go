@@ -94,32 +94,27 @@ func (eds *Rsmt2D) Shares(_ context.Context) ([]share.Share, error) {
 	return eds.ExtendedDataSquare.FlattenedODS(), nil
 }
 
+func (eds *Rsmt2D) Close() error {
+	return nil
+}
+
 // Reader returns binary reader for the file.
 func (eds *Rsmt2D) Reader() (io.Reader, error) {
-	reader := NewBufferedReader(&edsWriter{
-		eds:     eds.ExtendedDataSquare,
-		current: 0,
-		total:   eds.Width() * eds.Width() / 4,
-	})
+	edsCopy := newEDSCopy(eds)
+	reader := NewBufferedReader(edsCopy)
 	return reader, nil
 }
 
 // ReadFrom reads shares from the provided reader and constructs an Extended Data Square. Provided
 // reader should contain shares in row-major order.
-func (eds *Rsmt2D) ReadFrom(_ context.Context, r io.Reader, shareSize, edsSize int) error {
-	odsSize := edsSize / 2
-	shares, err := readShares(r, shareSize, odsSize)
-	if err != nil {
-		return fmt.Errorf("reading shares: %w", err)
-	}
+func Rsmt2DFromShares(shares []share.Share, odsSize int) (Rsmt2D, error) {
 	treeFn := wrapper.NewConstructor(uint64(odsSize))
-	square, err := rsmt2d.ComputeExtendedDataSquare(shares, share.DefaultRSMT2DCodec(), treeFn)
+	eds, err := rsmt2d.ComputeExtendedDataSquare(shares, share.DefaultRSMT2DCodec(), treeFn)
 	if err != nil {
-		return fmt.Errorf("computing extended data square: %w", err)
+		return Rsmt2D{}, fmt.Errorf("computing extended data square: %w", err)
 	}
 
-	eds.ExtendedDataSquare = square
-	return nil
+	return Rsmt2D{eds}, nil
 }
 
 func getAxis(eds *rsmt2d.ExtendedDataSquare, axisType rsmt2d.Axis, axisIdx int) []share.Share {
@@ -144,14 +139,22 @@ func relativeIndexes(rowIdx, colIdx int, axisType rsmt2d.Axis) (axisIdx, shrIdx 
 	}
 }
 
-type edsWriter struct {
-	eds *rsmt2d.ExtendedDataSquare
+type edsCopy struct {
+	eds *Rsmt2D
 	// current is the amount of Shares stored in square that have been read from reader. When current
 	// reaches total, bufferedODSReader will prevent further reads by returning io.EOF
 	current, total uint
 }
 
-func (w *edsWriter) WriteTo(writer io.Writer, limit int) (int, error) {
+func newEDSCopy(eds *Rsmt2D) *edsCopy {
+	return &edsCopy{
+		eds:     eds,
+		current: 0,
+		total:   eds.Width() * eds.Width() / 4,
+	}
+}
+
+func (w *edsCopy) CopyAtLeast(writer io.Writer, limit int) (int, error) {
 	// read Shares to the buffer until it has sufficient data to fill provided container or full square
 	// is read
 	if w.current >= w.total {
@@ -169,22 +172,4 @@ func (w *edsWriter) WriteTo(writer io.Writer, limit int) (int, error) {
 		}
 	}
 	return written, nil
-}
-
-func readShares(r io.Reader, shareSize, odsSize int) ([]share.Share, error) {
-	shares := make([]share.Share, odsSize*odsSize)
-	var total int
-	for i := range shares {
-		share := make(share.Share, shareSize)
-		n, err := io.ReadFull(r, share)
-		if err != nil {
-			return nil, fmt.Errorf("reading share: %w, bytes read: %v", err, total+n)
-		}
-		if n != shareSize {
-			return nil, fmt.Errorf("share size mismatch: expected %v, got %v", shareSize, n)
-		}
-		shares[i] = share
-		total += n
-	}
-	return shares, nil
 }

@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"io"
 	"sync"
 	"sync/atomic"
 
@@ -20,13 +21,13 @@ import (
 	"github.com/celestiaorg/celestia-node/share/shwap"
 )
 
-var _ Accessor = (*proofsCache)(nil)
+var _ AccessorStreamer = (*proofsCache)(nil)
 
 // proofsCache is eds accessor that caches proofs for rows and columns. It also caches extended
 // axis Shares. It is used to speed up the process of building proofs for rows and columns,
 // reducing the number of reads from the underlying accessor.
 type proofsCache struct {
-	inner Accessor
+	inner AccessorStreamer
 
 	// lock protects axisCache
 	lock sync.RWMutex
@@ -57,7 +58,7 @@ type axisWithProofs struct {
 // WithProofsCache creates a new eds accessor with caching of proofs for rows and columns. It is
 // used to speed up the process of building proofs for rows and columns, reducing the number of
 // reads from the underlying accessor.
-func WithProofsCache(ac Accessor) Accessor {
+func WithProofsCache(ac AccessorStreamer) AccessorStreamer {
 	rows := make(map[int]axisWithProofs)
 	cols := make(map[int]axisWithProofs)
 	axisCache := []map[int]axisWithProofs{rows, cols}
@@ -211,21 +212,28 @@ func (c *proofsCache) Shares(ctx context.Context) ([]share.Share, error) {
 	return shares, nil
 }
 
+func (c *proofsCache) Reader() (io.Reader, error) {
+	cacheCOpy := newCacheCopy(c, c.Size(context.TODO()))
+	reader := NewBufferedReader(cacheCOpy)
+	return reader, nil
+}
+
+func (c *proofsCache) Close() error {
+	return c.inner.Close()
+}
+
 func (c *proofsCache) axisShares(ctx context.Context, axisType rsmt2d.Axis, axisIdx int) ([]share.Share, error) {
 	ax, ok := c.getAxisFromCache(axisType, axisIdx)
 	if ok && ax.shares != nil {
 		return ax.shares, nil
 	}
 
-	if len(ax.half.Shares) == 0 {
-		half, err := c.AxisHalf(ctx, axisType, axisIdx)
-		if err != nil {
-			return nil, err
-		}
-		ax.half = half
+	half, err := c.AxisHalf(ctx, axisType, axisIdx)
+	if err != nil {
+		return nil, err
 	}
 
-	shares, err := ax.half.Extended()
+	shares, err := half.Extended()
 	if err != nil {
 		return nil, fmt.Errorf("extending shares: %w", err)
 	}
@@ -276,4 +284,55 @@ func (r rowProofsGetter) GetBlock(_ context.Context, c cid.Cid) (blocks.Block, e
 
 func (r rowProofsGetter) GetBlocks(_ context.Context, _ []cid.Cid) <-chan blocks.Block {
 	panic("not implemented")
+}
+
+type cacheCopy struct {
+	cache *proofsCache
+	// current is the amount of Shares stored in square that have been written by squareCopy. When
+	// current reaches total, squareCopy will prevent further reads by returning io.EOF
+	current, odsSize, total int
+}
+
+func newCacheCopy(cache *proofsCache, edsSize int) *cacheCopy {
+	return &cacheCopy{
+		cache:   cache,
+		odsSize: edsSize / 2,
+		total:   edsSize * edsSize / 4,
+	}
+}
+
+func (w *cacheCopy) CopyAtLeast(writer io.Writer, limit int) (int, error) {
+	// reader does not support context propagation and CopyAtLeast is expected to be non context
+	// dependent
+	ctx := context.TODO()
+	if w.current >= w.total {
+		return 0, io.EOF
+	}
+	var written int
+	for w.current < w.total && written < limit {
+		rowIdx, colIdx := w.current/(w.odsSize), w.current%(w.odsSize)
+		half, err := w.cache.AxisHalf(ctx, rsmt2d.Row, rowIdx)
+		if err != nil {
+			return written, fmt.Errorf("reading axis half: %w", err)
+		}
+
+		originalShares := half.Shares
+		// we need original part of half axis, obtain one from full axis if returned half is parity
+		if half.IsParity {
+			shares, err := w.cache.axisShares(ctx, rsmt2d.Row, rowIdx)
+			if err != nil {
+				return written, fmt.Errorf("reading axis shares: %w", err)
+			}
+			originalShares = shares[:w.odsSize]
+		}
+
+		share := originalShares[colIdx]
+		n, err := writer.Write(share)
+		w.current++
+		written += n
+		if err != nil {
+			return written, err
+		}
+	}
+	return written, nil
 }

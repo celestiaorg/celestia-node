@@ -1,7 +1,6 @@
 package file
 
 import (
-	"bufio"
 	"fmt"
 	"io"
 
@@ -21,27 +20,13 @@ type square [][]share.Share
 func readSquare(r io.Reader, shareSize, edsSize int) (square, error) {
 	odsLn := edsSize / 2
 
+	shares, err := eds.ReadShares(r, shareSize, odsLn)
+	if err != nil {
+		return nil, fmt.Errorf("reading shares: %w", err)
+	}
 	square := make(square, odsLn)
 	for i := range square {
-		square[i] = make([]share.Share, odsLn)
-		for j := range square[i] {
-			square[i][j] = make(share.Share, shareSize)
-		}
-	}
-
-	br := bufio.NewReaderSize(r, 4096)
-	var total int
-	for i := 0; i < odsLn; i++ {
-		for j := 0; j < odsLn; j++ {
-			n, err := io.ReadFull(br, square[i][j])
-			if err != nil {
-				return nil, fmt.Errorf("reading share: %w, bytes read: %v", err, total+n)
-			}
-			if n != shareSize {
-				return nil, fmt.Errorf("share size mismatch: expected %v, got %v", shareSize, n)
-			}
-			total += n
-		}
+		square[i] = shares[i*odsLn : (i+1)*odsLn]
 	}
 	return square, nil
 }
@@ -50,7 +35,7 @@ func (s square) reader() (io.Reader, error) {
 	if s == nil {
 		return nil, fmt.Errorf("ods file not cached")
 	}
-	odsW := newODSWriter(s, s.size())
+	odsW := newSquareCopy(s, s.size())
 	odsR := eds.NewBufferedReader(odsW)
 	return odsR, nil
 }
@@ -151,21 +136,21 @@ func oppositeAxis(axis rsmt2d.Axis) rsmt2d.Axis {
 	return rsmt2d.Col
 }
 
-func newODSWriter(s square, size int) *odsWriter {
-	return &odsWriter{
+type squareCopy struct {
+	ods square
+	// current is the amount of Shares stored in square that have been written by squareCopy. When
+	// current reaches total, squareCopy will prevent further reads by returning io.EOF
+	current, total int
+}
+
+func newSquareCopy(s square, size int) *squareCopy {
+	return &squareCopy{
 		ods:   s,
 		total: size * size,
 	}
 }
 
-type odsWriter struct {
-	ods square
-	// current is the amount of Shares stored in square that have been written by odsWriter. When
-	// current reaches total, odsWriter will prevent further reads by returning io.EOF
-	current, total int
-}
-
-func (w *odsWriter) WriteTo(writer io.Writer, limit int) (int, error) {
+func (w *squareCopy) CopyAtLeast(writer io.Writer, limit int) (int, error) {
 	if w.current >= w.total {
 		return 0, io.EOF
 	}

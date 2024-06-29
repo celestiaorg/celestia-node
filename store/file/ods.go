@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"slices"
 	"sync"
 
 	"github.com/celestiaorg/rsmt2d"
@@ -14,7 +15,7 @@ import (
 	"github.com/celestiaorg/celestia-node/share/shwap"
 )
 
-var _ eds.AccessorCloser = (*ODSFile)(nil)
+var _ eds.AccessorStreamer = (*ODSFile)(nil)
 
 type ODSFile struct {
 	path string
@@ -194,18 +195,24 @@ func (f *ODSFile) Shares(context.Context) ([]share.Share, error) {
 // Reader returns binary reader for the file. It reads the shares from the ODS part of the square
 // row by row.
 func (f *ODSFile) Reader() (io.Reader, error) {
-	err := f.readODS()
-	if err != nil {
-		return nil, err
+	f.lock.RLock()
+	ods := f.ods
+	f.lock.RUnlock()
+	if ods != nil {
+		return ods.reader()
 	}
-	return f.ods.reader()
+
+	offset := f.hdr.Size()
+	fileCopy := newfileCopy(f.fl, offset, int(f.hdr.shareSize), f.size())
+	reader := eds.NewBufferedReader(fileCopy)
+	return reader, nil
 }
 
 func (f *ODSFile) readAxisHalf(axisType rsmt2d.Axis, axisIdx int) (eds.AxisHalf, error) {
 	f.lock.RLock()
-	ODS := f.ods
+	ods := f.ods
 	f.lock.RUnlock()
-	if ODS != nil {
+	if ods != nil {
 		return f.ods.axisHalf(axisType, axisIdx)
 	}
 
@@ -227,11 +234,12 @@ func (f *ODSFile) readAxisHalf(axisType rsmt2d.Axis, axisIdx int) (eds.AxisHalf,
 }
 
 func (f *ODSFile) readODS() (square, error) {
-	f.lock.Lock()
-	defer f.lock.Unlock()
+	f.lock.RLock()
 	if f.ods != nil {
+		f.lock.RUnlock()
 		return f.ods, nil
 	}
+	f.lock.RUnlock()
 
 	// reset file pointer to the beginning of the file shares data
 	_, err := f.fl.Seek(int64(f.hdr.Size()), io.SeekStart)
@@ -245,7 +253,9 @@ func (f *ODSFile) readODS() (square, error) {
 	}
 
 	if !f.disableCache {
+		f.lock.Lock()
 		f.ods = square
+		f.lock.Unlock()
 	}
 	return square, nil
 }
@@ -297,4 +307,43 @@ func (f *ODSFile) axis(ctx context.Context, axisType rsmt2d.Axis, axisIdx int) (
 	}
 
 	return half.Extended()
+}
+
+type fileCopy struct {
+	r              io.ReaderAt
+	buf            []byte
+	shareSize      int
+	current, total int64
+}
+
+func newfileCopy(r io.ReaderAt, offset, shareSize, odsSize int) *fileCopy {
+	return &fileCopy{
+		r:         r,
+		shareSize: shareSize,
+		current:   int64(offset),
+		total:     int64(odsSize*odsSize*shareSize + offset),
+	}
+}
+
+func (w *fileCopy) CopyAtLeast(writer io.Writer, limit int) (int, error) {
+	if w.current >= w.total {
+		return 0, fmt.Errorf("done: %w", io.EOF)
+	}
+
+	// ensure buffer has enough capacity
+	w.buf = slices.Grow(w.buf, limit)[:limit]
+	var written int
+	for w.current < w.total && written < limit {
+		n, err := w.r.ReadAt(w.buf, w.current)
+		if err != nil {
+			return written, fmt.Errorf("reading from file: %w, %d", err, w.current)
+		}
+		n, err = writer.Write(w.buf[:n])
+		w.current += int64(n)
+		written += n
+		if err != nil {
+			return written, fmt.Errorf("writing: %w", err)
+		}
+	}
+	return written, nil
 }
