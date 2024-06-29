@@ -14,7 +14,7 @@ import (
 	"github.com/celestiaorg/celestia-node/share/shwap"
 )
 
-func TestRsmt2dFile(t *testing.T) {
+func TestRsmt2dAccessor(t *testing.T) {
 	odsSize := 8
 	newAccessor := func(tb testing.TB, eds *rsmt2d.ExtendedDataSquare) Accessor {
 		return &Rsmt2D{ExtendedDataSquare: eds}
@@ -23,6 +23,11 @@ func TestRsmt2dFile(t *testing.T) {
 	t.Cleanup(cancel)
 
 	TestSuiteAccessor(ctx, t, newAccessor, odsSize)
+
+	newStreamer := func(tb testing.TB, eds *rsmt2d.ExtendedDataSquare) AccessorStreamer {
+		return &Rsmt2D{ExtendedDataSquare: eds}
+	}
+	TestStreamer(ctx, t, newStreamer, odsSize)
 }
 
 func TestRsmt2dHalfRow(t *testing.T) {

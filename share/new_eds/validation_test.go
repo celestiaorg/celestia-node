@@ -32,7 +32,7 @@ func TestValidation_Sample(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			randEDS := edstest.RandEDS(t, tt.odsSize)
 			accessor := &Rsmt2D{ExtendedDataSquare: randEDS}
-			validation := WithValidation(WithCloser(accessor, nil))
+			validation := WithValidation(WithStreamer(accessor, nil))
 
 			_, err := validation.Sample(context.Background(), tt.rowIdx, tt.colIdx)
 			if tt.expectFail {
@@ -61,7 +61,7 @@ func TestValidation_AxisHalf(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			randEDS := edstest.RandEDS(t, tt.odsSize)
 			accessor := &Rsmt2D{ExtendedDataSquare: randEDS}
-			validation := WithValidation(WithCloser(accessor, nil))
+			validation := WithValidation(WithStreamer(accessor, nil))
 
 			_, err := validation.AxisHalf(context.Background(), tt.axisType, tt.axisIdx)
 			if tt.expectFail {
@@ -89,7 +89,7 @@ func TestValidation_RowNamespaceData(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			randEDS := edstest.RandEDS(t, tt.odsSize)
 			accessor := &Rsmt2D{ExtendedDataSquare: randEDS}
-			validation := WithValidation(WithCloser(accessor, nil))
+			validation := WithValidation(WithStreamer(accessor, nil))
 
 			ns := sharetest.RandV0Namespace()
 			_, err := validation.RowNamespaceData(context.Background(), ns, tt.rowIdx)

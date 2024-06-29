@@ -1,9 +1,10 @@
 package eds
 
 import (
-	"bytes"
-	crand "crypto/rand"
 	"errors"
+	"fmt"
+	"github.com/celestiaorg/celestia-node/share"
+	"github.com/celestiaorg/celestia-node/share/eds/edstest"
 	"io"
 	"math/rand"
 	"testing"
@@ -11,27 +12,31 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func TestNewBufferedReaderMany(t *testing.T) {
+func TestSharesReaderMany(t *testing.T) {
 	// create io.Writer that write random data
 	for i := 0; i < 10000; i++ {
-		TestNewBufferedReader(t)
+		TestSharesReader(t)
 	}
 }
 
-func TestNewBufferedReader(t *testing.T) {
+func TestSharesReader(t *testing.T) {
 	// create io.Writer that write random data
-	size := 200
-	randAmount := size + rand.Intn(size)
-	randBytes := make([]byte, randAmount)
-	_, err := crand.Read(randBytes)
-	require.NoError(t, err)
+	odsSize := 16
+	eds := edstest.RandEDS(t, odsSize)
+	getShare := func(rowIdx, colIdx int) ([]byte, error) {
+		fmt.Println("get", rowIdx, colIdx)
+		return eds.GetCell(uint(rowIdx), uint(colIdx)), nil
+	}
 
-	// randBytes := bytes.Repeat([]byte("1234567890"), 10)
-
-	reader := NewBufferedReader(randMinWriter{bytes.NewReader(randBytes)})
-	readBytes, err := readWithRandomBuffer(reader, size/10)
+	reader := NewSharesReader(odsSize, getShare)
+	readBytes, err := readWithRandomBuffer(reader, 1024)
 	require.NoError(t, err)
-	require.Equal(t, randBytes, readBytes)
+	expected := make([]byte, 0, odsSize*odsSize*share.Size)
+	for _, share := range eds.FlattenedODS() {
+		expected = append(expected, share...)
+	}
+	require.Len(t, readBytes, len(expected))
+	require.Equal(t, expected, readBytes)
 }
 
 // testRandReader reads from reader with buffers of random sizes.
@@ -50,36 +55,9 @@ func readWithRandomBuffer(reader io.Reader, maxBufSize int) ([]byte, error) {
 		}
 		data = append(data, buf...)
 		if errors.Is(err, io.EOF) {
+			fmt.Println("eof?")
 			break
 		}
 	}
 	return data, nil
-}
-
-type randMinWriter struct {
-	*bytes.Reader
-}
-
-func (lwt randMinWriter) WriteTo(writer io.Writer, limit int) (int, error) {
-	var amount int
-	for amount < limit {
-		bufLn := limit
-		if bufLn > 1 {
-			bufLn = rand.Intn(limit-1) + 1
-		}
-		buf := make([]byte, bufLn)
-		n, err := lwt.Read(buf)
-		if err != nil {
-			return amount, err
-		}
-		n, err = writer.Write(buf[:n])
-		amount += n
-		if err != nil {
-			return amount, err
-		}
-		if n < bufLn {
-			return amount, io.EOF
-		}
-	}
-	return amount, nil
 }

@@ -14,7 +14,7 @@ import (
 	"github.com/celestiaorg/celestia-node/share/shwap"
 )
 
-var _ eds.AccessorCloser = (*ODSFile)(nil)
+var _ eds.AccessorStreamer = (*ODSFile)(nil)
 
 type ODSFile struct {
 	path string
@@ -194,18 +194,23 @@ func (f *ODSFile) Shares(context.Context) ([]share.Share, error) {
 // Reader returns binary reader for the file. It reads the shares from the ODS part of the square
 // row by row.
 func (f *ODSFile) Reader() (io.Reader, error) {
-	err := f.readODS()
-	if err != nil {
-		return nil, err
+	f.lock.RLock()
+	ods := f.ods
+	f.lock.RUnlock()
+	if ods != nil {
+		return ods.reader()
 	}
-	return f.ods.reader()
+
+	offset := f.hdr.Size()
+	reader := newFileReader(f.fl, offset, int(f.hdr.shareSize), f.size())
+	return reader, nil
 }
 
 func (f *ODSFile) readAxisHalf(axisType rsmt2d.Axis, axisIdx int) (eds.AxisHalf, error) {
 	f.lock.RLock()
-	ODS := f.ods
+	ods := f.ods
 	f.lock.RUnlock()
-	if ODS != nil {
+	if ods != nil {
 		return f.ods.axisHalf(axisType, axisIdx)
 	}
 
@@ -227,11 +232,12 @@ func (f *ODSFile) readAxisHalf(axisType rsmt2d.Axis, axisIdx int) (eds.AxisHalf,
 }
 
 func (f *ODSFile) readODS() (square, error) {
-	f.lock.Lock()
-	defer f.lock.Unlock()
+	f.lock.RLock()
 	if f.ods != nil {
+		f.lock.RUnlock()
 		return f.ods, nil
 	}
+	f.lock.RUnlock()
 
 	// reset file pointer to the beginning of the file shares data
 	_, err := f.fl.Seek(int64(f.hdr.Size()), io.SeekStart)
@@ -245,7 +251,9 @@ func (f *ODSFile) readODS() (square, error) {
 	}
 
 	if !f.disableCache {
+		f.lock.Lock()
 		f.ods = square
+		f.lock.Unlock()
 	}
 	return square, nil
 }
@@ -297,4 +305,25 @@ func (f *ODSFile) axis(ctx context.Context, axisType rsmt2d.Axis, axisIdx int) (
 	}
 
 	return half.Extended()
+}
+
+type fileReader struct {
+	r              io.ReaderAt
+	current, total int64
+}
+
+func newFileReader(r io.ReaderAt, offset, shareSize, odsSize int) *fileReader {
+	return &fileReader{
+		r:       r,
+		current: int64(offset),
+		total:   int64(odsSize*odsSize*shareSize + offset),
+	}
+}
+
+func (w *fileReader) Read(p []byte) (int, error) {
+	if w.current >= w.total {
+		return 0, io.EOF
+	}
+
+	return w.r.ReadAt(p, w.current)
 }

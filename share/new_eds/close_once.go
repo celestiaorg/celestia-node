@@ -12,16 +12,16 @@ import (
 	"github.com/celestiaorg/celestia-node/share/shwap"
 )
 
-var _ AccessorCloser = (*closeOnce)(nil)
+var _ AccessorStreamer = (*closeOnce)(nil)
 
 var errAccessorClosed = errors.New("accessor is closed")
 
 type closeOnce struct {
-	f      AccessorCloser
+	f      AccessorStreamer
 	closed atomic.Bool
 }
 
-func WithClosedOnce(f AccessorCloser) AccessorCloser {
+func WithClosedOnce(f AccessorStreamer) AccessorStreamer {
 	return &closeOnce{f: f}
 }
 

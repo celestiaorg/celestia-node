@@ -18,7 +18,10 @@ import (
 	"github.com/celestiaorg/celestia-node/share/shwap"
 )
 
-type createAccessor func(testing.TB, *rsmt2d.ExtendedDataSquare) Accessor
+type (
+	createAccessor         func(testing.TB, *rsmt2d.ExtendedDataSquare) Accessor
+	createAccessorStreamer func(testing.TB, *rsmt2d.ExtendedDataSquare) AccessorStreamer
+)
 
 // TestSuiteAccessor runs a suite of tests for the given Accessor implementation.
 func TestSuiteAccessor(
@@ -42,9 +45,16 @@ func TestSuiteAccessor(
 	t.Run("Shares", func(t *testing.T) {
 		testAccessorShares(ctx, t, createAccessor, odsSize)
 	})
+}
 
+func TestStreamer(
+	ctx context.Context,
+	t *testing.T,
+	create createAccessorStreamer,
+	odsSize int,
+) {
 	t.Run("Reader", func(t *testing.T) {
-		testAccessorReader(ctx, t, createAccessor, odsSize)
+		testAccessorReader(ctx, t, create, odsSize)
 	})
 }
 
@@ -239,11 +249,11 @@ func testAccessorShares(
 func testAccessorReader(
 	ctx context.Context,
 	t *testing.T,
-	createAccessor createAccessor,
+	create createAccessorStreamer,
 	odsSize int,
 ) {
 	eds := edstest.RandEDS(t, odsSize)
-	f := createAccessor(t, eds)
+	f := create(t, eds)
 
 	// verify that the reader represented by file can be read from
 	// multiple times, without exhausting the underlying reader.
@@ -252,26 +262,22 @@ func testAccessorReader(
 		wg.Add(1)
 		go func() {
 			defer wg.Done()
-			testReader(ctx, t, f)
+			testReader(ctx, t, eds, f)
 		}()
 	}
 	wg.Wait()
 }
 
-func testReader(ctx context.Context, t *testing.T, ac Accessor) {
-	reader, err := ac.Reader()
+func testReader(ctx context.Context, t *testing.T, eds *rsmt2d.ExtendedDataSquare, as AccessorStreamer) {
+	reader, err := as.Reader()
 	require.NoError(t, err)
 
-	newAccessor := &Rsmt2D{}
-	err = newAccessor.ReadFrom(ctx, reader, share.Size, ac.Size(ctx))
+	odsSize := as.Size(ctx) / 2
+	shares, err := ReadShares(reader, share.Size, odsSize)
 	require.NoError(t, err)
-
-	require.Equal(t, ac.Size(ctx), newAccessor.Size(ctx))
-	expected, err := ac.Shares(ctx)
+	actual, err := Rsmt2DFromShares(shares, odsSize)
 	require.NoError(t, err)
-	actual, err := newAccessor.Shares(ctx)
-	require.NoError(t, err)
-	require.Equal(t, expected, actual)
+	require.True(t, eds.Equals(actual.ExtendedDataSquare))
 }
 
 func BenchGetHalfAxisFromAccessor(
