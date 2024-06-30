@@ -86,6 +86,7 @@ func pubSub(cfg Config, params pubSubParams) (*pubsub.PubSub, error) {
 		// specifying sub protocol helps to avoid conflicts with
 		// floodsub(because gossipsub supports floodsub protocol by default).
 		pubsub.WithGossipSubProtocols([]protocol.ID{pubsub.GossipSubID_v11}, pubsub.GossipSubDefaultFeatures),
+		pubsub.WithSeenMessagesTTL(5 * time.Minute),
 	}
 
 	return pubsub.NewGossipSub(
