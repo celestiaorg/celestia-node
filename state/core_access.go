@@ -15,7 +15,6 @@ import (
 	storetypes "github.com/cosmos/cosmos-sdk/store/types"
 	sdktypes "github.com/cosmos/cosmos-sdk/types"
 	sdkerrors "github.com/cosmos/cosmos-sdk/types/errors"
-	sdktx "github.com/cosmos/cosmos-sdk/types/tx"
 	auth "github.com/cosmos/cosmos-sdk/x/auth/types"
 	banktypes "github.com/cosmos/cosmos-sdk/x/bank/types"
 	"github.com/cosmos/cosmos-sdk/x/feegrant"
@@ -394,26 +393,6 @@ func (ca *CoreAccessor) BalanceForAddress(ctx context.Context, addr Address) (*B
 		Denom:  app.BondDenom,
 		Amount: coin,
 	}, nil
-}
-
-func (ca *CoreAccessor) SubmitTx(ctx context.Context, tx Tx) (*TxResponse, error) {
-	txResp, err := apptypes.BroadcastTx(ctx, ca.coreConn, sdktx.BroadcastMode_BROADCAST_MODE_BLOCK, tx)
-	if err != nil {
-		return nil, err
-	}
-	return unsetTx(txResp.TxResponse), nil
-}
-
-func (ca *CoreAccessor) SubmitTxWithBroadcastMode(
-	ctx context.Context,
-	tx Tx,
-	mode sdktx.BroadcastMode,
-) (*TxResponse, error) {
-	txResp, err := apptypes.BroadcastTx(ctx, ca.coreConn, mode, tx)
-	if err != nil {
-		return nil, err
-	}
-	return unsetTx(txResp.TxResponse), nil
 }
 
 func (ca *CoreAccessor) Transfer(

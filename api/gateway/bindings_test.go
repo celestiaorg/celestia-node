@@ -28,12 +28,6 @@ func TestRegisterEndpoints(t *testing.T) {
 			expected: true,
 		},
 		{
-			name:     "Submit transaction endpoint",
-			path:     submitTxEndpoint,
-			method:   http.MethodPost,
-			expected: true,
-		},
-		{
 			name:     "Get namespaced shares by height endpoint",
 			path:     fmt.Sprintf("%s/{%s}/height/{%s}", namespacedSharesEndpoint, namespaceKey, heightKey),
 			method:   http.MethodGet,
