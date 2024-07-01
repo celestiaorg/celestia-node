@@ -217,7 +217,7 @@ func (ca *CoreAccessor) SubmitPayForBlob(
 	}
 
 	gasPrice := cfg.GasPrice()
-	if cfg.GasPrice() == DefaultPrice {
+	if cfg.GasPrice() == DefaultGasPrice {
 		gasPrice = ca.getMinGasPrice()
 	}
 
@@ -642,7 +642,7 @@ func (ca *CoreAccessor) submitMsg(
 	}
 
 	gasPrice := cfg.GasPrice()
-	if gasPrice == DefaultPrice {
+	if gasPrice == DefaultGasPrice {
 		gasPrice = ca.minGasPrice
 	}
 
