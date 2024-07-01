@@ -18,7 +18,10 @@ import (
 	"github.com/celestiaorg/celestia-node/share/shwap"
 )
 
-type createAccessor func(testing.TB, *rsmt2d.ExtendedDataSquare) Accessor
+type (
+	createAccessor         func(testing.TB, *rsmt2d.ExtendedDataSquare) Accessor
+	createAccessorStreamer func(testing.TB, *rsmt2d.ExtendedDataSquare) AccessorStreamer
+)
 
 // TestSuiteAccessor runs a suite of tests for the given Accessor implementation.
 func TestSuiteAccessor(
@@ -41,6 +44,17 @@ func TestSuiteAccessor(
 
 	t.Run("Shares", func(t *testing.T) {
 		testAccessorShares(ctx, t, createAccessor, odsSize)
+	})
+}
+
+func TestStreamer(
+	ctx context.Context,
+	t *testing.T,
+	create createAccessorStreamer,
+	odsSize int,
+) {
+	t.Run("Reader", func(t *testing.T) {
+		testAccessorReader(ctx, t, create, odsSize)
 	})
 }
 
@@ -230,6 +244,39 @@ func testAccessorShares(
 	require.NoError(t, err)
 	expected := eds.FlattenedODS()
 	require.Equal(t, expected, shares)
+}
+
+func testAccessorReader(
+	ctx context.Context,
+	t *testing.T,
+	create createAccessorStreamer,
+	odsSize int,
+) {
+	eds := edstest.RandEDS(t, odsSize)
+	f := create(t, eds)
+
+	// verify that the reader represented by file can be read from
+	// multiple times, without exhausting the underlying reader.
+	wg := sync.WaitGroup{}
+	for i := 0; i < 10; i++ {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			testReader(ctx, t, eds, f)
+		}()
+	}
+	wg.Wait()
+}
+
+func testReader(ctx context.Context, t *testing.T, eds *rsmt2d.ExtendedDataSquare, as AccessorStreamer) {
+	reader, err := as.Reader()
+	require.NoError(t, err)
+
+	actual, err := ReadShares(reader, share.Size, as.Size(ctx)/2)
+	require.NoError(t, err)
+	expected := eds.FlattenedODS()
+	require.NoError(t, err)
+	require.Equal(t, expected, actual, "read incorrect shares")
 }
 
 func BenchGetHalfAxisFromAccessor(
