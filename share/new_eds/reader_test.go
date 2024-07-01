@@ -3,13 +3,14 @@ package eds
 import (
 	"errors"
 	"fmt"
-	"github.com/celestiaorg/celestia-node/share"
-	"github.com/celestiaorg/celestia-node/share/eds/edstest"
 	"io"
 	"math/rand"
 	"testing"
 
 	"github.com/stretchr/testify/require"
+
+	"github.com/celestiaorg/celestia-node/share"
+	"github.com/celestiaorg/celestia-node/share/eds/edstest"
 )
 
 func TestSharesReaderMany(t *testing.T) {

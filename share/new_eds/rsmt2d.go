@@ -108,8 +108,8 @@ func (eds *Rsmt2D) Reader() (io.Reader, error) {
 	return reader, nil
 }
 
-// Rsmt2DFromShares reads shares from the provided reader and constructs an Extended Data Square. Provided
-// reader should contain shares in row-major order.
+// Rsmt2DFromShares reads shares from the provided reader and constructs an Extended Data Square.
+// Provided reader should contain shares in row-major order.
 func Rsmt2DFromShares(shares []share.Share, odsSize int) (Rsmt2D, error) {
 	treeFn := wrapper.NewConstructor(uint64(odsSize))
 	eds, err := rsmt2d.ComputeExtendedDataSquare(shares, share.DefaultRSMT2DCodec(), treeFn)
