@@ -400,13 +400,13 @@ type BankModule interface {
     ctx context.Context,
     blobs []*state.Blob,
     options *state.TxConfig, 
-  ) (*state.TxResponse, error)	
+  ) (*state.TxResponse, error)
   // Transfer sends the given amount of coins from default wallet of the node 
   // to the given account address.
   Transfer(
     ctx context.Context,
-    to state.AccAddress, 
-    amount state.Int, 
+    to state.AccAddress,
+    amount state.Int,
     options *state.TxConfig,
   ) (*state.TxResponse, error)
 }
