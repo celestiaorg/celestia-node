@@ -14,6 +14,8 @@ import (
 )
 
 const (
+	// DefaultPrice specifies the default gas price value to be used when the user
+	// wants to use the global minimal gas price, which is fetched from the celestia-app.
 	DefaultPrice float64 = -1.0
 	// gasMultiplier is used to increase gas limit in case if tx has additional cfg.
 	gasMultiplier = 1.1
