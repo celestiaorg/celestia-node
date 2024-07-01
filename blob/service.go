@@ -30,6 +30,10 @@ var (
 	tracer = otel.Tracer("blob/service")
 )
 
+// SubmitOptions aliases TxOptions from state package allowing users
+// to specify options for SubmitPFB transaction.
+type SubmitOptions = state.TxConfig
+
 // Submitter is an interface that allows submitting blobs to the celestia-core. It is used to
 // avoid a circular dependency between the blob and the state package, since the state package needs
 // the blob.Blob type for this signature.
@@ -62,7 +66,7 @@ func NewService(
 // Allows sending multiple Blobs atomically synchronously.
 // Uses default wallet registered on the Node.
 // Handles gas estimation and fee calculation.
-func (s *Service) Submit(ctx context.Context, blobs []*Blob, txConfig *state.TxConfig) (uint64, error) {
+func (s *Service) Submit(ctx context.Context, blobs []*Blob, txConfig *SubmitOptions) (uint64, error) {
 	log.Debugw("submitting blobs", "amount", len(blobs))
 
 	appblobs := make([]*state.Blob, len(blobs))

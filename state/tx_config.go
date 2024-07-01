@@ -14,15 +14,18 @@ import (
 )
 
 const (
-	// DefaultPrice specifies the default gas price value to be used when the user
+	// DefaultGasPrice specifies the default gas price value to be used when the user
 	// wants to use the global minimal gas price, which is fetched from the celestia-app.
-	DefaultPrice float64 = -1.0
+	DefaultGasPrice float64 = -1.0
 	// gasMultiplier is used to increase gas limit in case if tx has additional cfg.
 	gasMultiplier = 1.1
 )
 
+// NewTxConfig constructs a new TxConfig with the provided attributes.
+// It starts with a DefaultGasPrice and then applies any additional
+// attributes provided through the variadic parameter.
 func NewTxConfig(attributes ...Attribute) *TxConfig {
-	options := &TxConfig{gasPrice: DefaultPrice}
+	options := &TxConfig{gasPrice: DefaultGasPrice}
 	for _, attr := range attributes {
 		attr(options)
 	}
@@ -56,7 +59,7 @@ type TxConfig struct {
 
 func (cfg *TxConfig) GasPrice() float64 {
 	if !cfg.isGasPriceSet {
-		return DefaultPrice
+		return DefaultGasPrice
 	}
 	return cfg.gasPrice
 }

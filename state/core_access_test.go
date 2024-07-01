@@ -50,7 +50,7 @@ func TestSubmitPayForBlob(t *testing.T) {
 		{
 			name:     "empty blobs",
 			blobs:    []*apptypes.Blob{},
-			gasPrice: DefaultPrice,
+			gasPrice: DefaultGasPrice,
 			gasLim:   0,
 			expErr:   errors.New("state: no blobs provided"),
 		},
@@ -115,7 +115,7 @@ func TestTransfer(t *testing.T) {
 	}{
 		{
 			name:     "transfer without options",
-			gasPrice: DefaultPrice,
+			gasPrice: DefaultGasPrice,
 			gasLim:   0,
 			account:  "",
 			expErr:   nil,
@@ -177,7 +177,7 @@ func TestDelegate(t *testing.T) {
 	}{
 		{
 			name:     "delegate/undelegate without options",
-			gasPrice: DefaultPrice,
+			gasPrice: DefaultGasPrice,
 			gasLim:   0,
 			account:  "",
 		},

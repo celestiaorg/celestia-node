@@ -439,7 +439,7 @@ func ApplyFlags(cmds ...*cobra.Command) {
 		cmd.PersistentFlags().Float64Var(
 			&gasPrice,
 			"gas.price",
-			state.DefaultPrice,
+			state.DefaultGasPrice,
 			"Specifies gas price for the fee calculation",
 		)
 
