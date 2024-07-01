@@ -49,13 +49,17 @@ type Submitter interface {
 }
 
 type Service struct {
+	// ctx represents the Service's lifecycle context.
+	ctx    context.Context
+	cancel context.CancelFunc
 	// accessor dials the given celestia-core endpoint to submit blobs.
 	blobSubmitter Submitter
 	// shareGetter retrieves the EDS to fetch all shares from the requested header.
 	shareGetter share.Getter
 	// headerGetter fetches header by the provided height
 	headerGetter func(context.Context, uint64) (*header.ExtendedHeader, error)
-	headerSub    func(ctx context.Context) (<-chan *header.ExtendedHeader, error)
+	// headerSub subscribes to new headers to supply to blob subscriptions.
+	headerSub func(ctx context.Context) (<-chan *header.ExtendedHeader, error)
 }
 
 func NewService(
@@ -72,12 +76,26 @@ func NewService(
 	}
 }
 
+func (s *Service) Start(context.Context) error {
+	s.ctx, s.cancel = context.WithCancel(context.Background())
+	return nil
+}
+
+func (s *Service) Stop(context.Context) error {
+	s.cancel()
+	return nil
+}
+
 type SubscriptionResponse struct {
 	Blobs  []*Blob
 	Height uint64
 }
 
 func (s *Service) Subscribe(ctx context.Context, ns share.Namespace) (<-chan *SubscriptionResponse, error) {
+	if s.ctx != nil {
+		return nil, fmt.Errorf("service has not been started")
+	}
+
 	headerCh, err := s.headerSub(ctx)
 	if err != nil {
 		return nil, err
@@ -95,6 +113,10 @@ func (s *Service) Subscribe(ctx context.Context, ns share.Namespace) (<-chan *Su
 					return
 				}
 				blobs, err := s.GetAll(ctx, header.Height(), []share.Namespace{ns})
+				if errors.Is(err, context.Canceled) || errors.Is(err, context.DeadlineExceeded) {
+					// context canceled, continuing would lead to unexpected missed heights for the client
+					return
+				}
 				if err != nil {
 					log.Errorw("failed to get blobs", "height", header.Height(), "namespace", ns.ID(), "err", err)
 					continue
@@ -106,6 +128,8 @@ func (s *Service) Subscribe(ctx context.Context, ns share.Namespace) (<-chan *Su
 				case blobCh <- &SubscriptionResponse{Blobs: blobs, Height: header.Height()}:
 				}
 			case <-ctx.Done():
+				return
+			case <-s.ctx.Done():
 				return
 			}
 		}

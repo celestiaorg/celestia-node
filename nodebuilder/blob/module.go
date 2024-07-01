@@ -24,13 +24,24 @@ func ConstructModule() fx.Option {
 				return service.Subscribe
 			},
 		),
-		fx.Provide(func(
-			state state.Module,
-			sGetter share.Getter,
-			getByHeightFn func(context.Context, uint64) (*header.ExtendedHeader, error),
-			subscribeFn func(context.Context) (<-chan *header.ExtendedHeader, error),
-		) Module {
-			return blob.NewService(state, sGetter, getByHeightFn, subscribeFn)
+		fx.Provide(fx.Annotate(
+			func(
+				state state.Module,
+				sGetter share.Getter,
+				getByHeightFn func(context.Context, uint64) (*header.ExtendedHeader, error),
+				subscribeFn func(context.Context) (<-chan *header.ExtendedHeader, error),
+			) *blob.Service {
+				return blob.NewService(state, sGetter, getByHeightFn, subscribeFn)
+			}),
+			fx.OnStart(func(ctx context.Context, serv *blob.Service) error {
+				return serv.Start(ctx)
+			}),
+			fx.OnStop(func(ctx context.Context, serv *blob.Service) error {
+				return serv.Stop(ctx)
+			}),
+		),
+		fx.Provide(func(serv *blob.Service) Module {
+			return serv
 		}),
 	)
 }
