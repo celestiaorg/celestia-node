@@ -72,18 +72,18 @@ func NewService(
 	}
 }
 
-type BlobsubResponse struct {
-	blobs  []*Blob
-	height uint64
+type SubscriptionResponse struct {
+	Blobs  []*Blob
+	Height uint64
 }
 
-func (s *Service) Subscribe(ctx context.Context, ns share.Namespace) (<-chan *BlobsubResponse, error) {
+func (s *Service) Subscribe(ctx context.Context, ns share.Namespace) (<-chan *SubscriptionResponse, error) {
 	headerCh, err := s.headerSub(ctx)
 	if err != nil {
 		return nil, err
 	}
 
-	blobCh := make(chan *BlobsubResponse)
+	blobCh := make(chan *SubscriptionResponse, 3)
 	go func() {
 		defer close(blobCh)
 
@@ -91,7 +91,7 @@ func (s *Service) Subscribe(ctx context.Context, ns share.Namespace) (<-chan *Bl
 			select {
 			case header, ok := <-headerCh:
 				if !ok {
-					log.Errorw("header channel closed for blobsub", "namespace", ns.ID())
+					log.Errorw("header channel closed for subscription", "namespace", ns.ID())
 					return
 				}
 				blobs, err := s.GetAll(ctx, header.Height(), []share.Namespace{ns})
@@ -103,7 +103,7 @@ func (s *Service) Subscribe(ctx context.Context, ns share.Namespace) (<-chan *Bl
 				select {
 				case <-ctx.Done():
 					return
-				case blobCh <- &BlobsubResponse{blobs: blobs, height: header.Height()}:
+				case blobCh <- &SubscriptionResponse{Blobs: blobs, Height: header.Height()}:
 				}
 			case <-ctx.Done():
 				return
