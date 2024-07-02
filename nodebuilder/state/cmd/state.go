@@ -8,7 +8,6 @@ import (
 	"github.com/spf13/cobra"
 
 	cmdnode "github.com/celestiaorg/celestia-node/cmd"
-	stateBuilder "github.com/celestiaorg/celestia-node/nodebuilder/state"
 	"github.com/celestiaorg/celestia-node/state"
 )
 
@@ -432,7 +431,7 @@ func ApplyFlags(cmds ...*cobra.Command) {
 		cmd.PersistentFlags().StringVar(
 			&keyName,
 			"key.name",
-			stateBuilder.DefaultAccountName,
+			"",
 			"Specifies the signer name from the keystore.",
 		)
 

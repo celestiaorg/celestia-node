@@ -4,7 +4,6 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"math"
 
 	"github.com/cosmos/cosmos-sdk/crypto/keyring"
 	sdktypes "github.com/cosmos/cosmos-sdk/types"
@@ -107,12 +106,6 @@ func (cfg *TxConfig) UnmarshalJSON(data []byte) error {
 	cfg.gas = jsonOpts.Gas
 	cfg.feeGranterAddress = jsonOpts.FeeGranterAddress
 	return nil
-}
-
-// calculateFee calculates fee amount based on the `minGasPrice` and `Gas`.
-func calculateFee(gas uint64, gasPrice float64) int64 {
-	fee := int64(math.Ceil(gasPrice * float64(gas)))
-	return fee
 }
 
 // estimateGas estimates gas in case it has not been set.

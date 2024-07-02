@@ -15,9 +15,9 @@ type AccountName string
 // as having keyring-backend set to `file` prompts user for password.
 func Keyring(cfg Config, ks keystore.Keystore) (kr.Keyring, AccountName, error) {
 	ring := ks.Keyring()
-	keyInfo, err := ring.Key(cfg.KeyringAccName)
+	keyInfo, err := ring.Key(cfg.KeyringKeyName)
 	if err != nil {
-		log.Errorw("could not access key in keyring", "keyring.accname", cfg.KeyringAccName)
+		log.Errorw("could not access key in keyring", "keyring.keyname", cfg.KeyringKeyName)
 		return nil, "", err
 	}
 	return ring, AccountName(keyInfo.Name), nil

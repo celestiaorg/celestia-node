@@ -9,13 +9,13 @@ var defaultKeyringBackend = keyring.BackendTest
 // Config contains configuration parameters for constructing
 // the node's keyring signer.
 type Config struct {
-	KeyringAccName string
+	KeyringKeyName string
 	KeyringBackend string
 }
 
 func DefaultConfig() Config {
 	return Config{
-		KeyringAccName: DefaultAccountName,
+		KeyringKeyName: DefaultAccountName,
 		KeyringBackend: defaultKeyringBackend,
 	}
 }
