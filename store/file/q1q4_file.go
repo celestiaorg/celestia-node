@@ -12,7 +12,7 @@ import (
 	"github.com/celestiaorg/celestia-node/share/shwap"
 )
 
-var _ eds.AccessorCloser = (*Q1Q4File)(nil)
+var _ eds.AccessorStreamer = (*Q1Q4File)(nil)
 
 // Q1Q4File represents a file that contains the first and fourth quadrants of an extended data
 // square. It extends the ODSFile with the ability to read the fourth quadrant of the square.
@@ -52,6 +52,11 @@ func CreateQ1Q4File(path string, datahash share.DataHash, eds *rsmt2d.ExtendedDa
 
 func (f *Q1Q4File) Size(ctx context.Context) int {
 	return f.ods.Size(ctx)
+}
+
+// DataHash returns data hash of the Accessor.
+func (f *Q1Q4File) DataHash(ctx context.Context) (share.DataHash, error) {
+	return f.ods.DataHash(ctx)
 }
 
 func (f *Q1Q4File) Sample(ctx context.Context, rowIdx, colIdx int) (shwap.Sample, error) {
@@ -96,6 +101,10 @@ func (f *Q1Q4File) RowNamespaceData(ctx context.Context,
 
 func (f *Q1Q4File) Shares(ctx context.Context) ([]share.Share, error) {
 	return f.ods.Shares(ctx)
+}
+
+func (f *Q1Q4File) Reader() (io.Reader, error) {
+	return f.ods.Reader()
 }
 
 func (f *Q1Q4File) Close() error {

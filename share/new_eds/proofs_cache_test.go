@@ -9,14 +9,19 @@ import (
 )
 
 func TestCache(t *testing.T) {
-	size := 8
+	ODSSize := 8
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second*5)
 	t.Cleanup(cancel)
 
-	withProofsCache := func(tb testing.TB, inner *rsmt2d.ExtendedDataSquare) Accessor {
+	newAccessor := func(tb testing.TB, inner *rsmt2d.ExtendedDataSquare) Accessor {
 		accessor := &Rsmt2D{ExtendedDataSquare: inner}
 		return WithProofsCache(accessor)
 	}
+	TestSuiteAccessor(ctx, t, newAccessor, ODSSize)
 
-	TestSuiteAccessor(ctx, t, withProofsCache, size)
+	newAccessorStreamer := func(tb testing.TB, inner *rsmt2d.ExtendedDataSquare) AccessorStreamer {
+		accessor := &Rsmt2D{ExtendedDataSquare: inner}
+		return WithProofsCache(accessor)
+	}
+	TestStreamer(ctx, t, newAccessorStreamer, ODSSize)
 }

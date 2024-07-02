@@ -2,7 +2,9 @@ package eds
 
 import (
 	"context"
+	"io"
 	"testing"
+	"testing/iotest"
 
 	"github.com/stretchr/testify/require"
 
@@ -48,6 +50,10 @@ func (s *stubEdsAccessorCloser) Size(context.Context) int {
 	return 0
 }
 
+func (s *stubEdsAccessorCloser) DataHash(context.Context) (share.DataHash, error) {
+	return nil, nil
+}
+
 func (s *stubEdsAccessorCloser) Sample(context.Context, int, int) (shwap.Sample, error) {
 	return shwap.Sample{}, nil
 }
@@ -66,6 +72,10 @@ func (s *stubEdsAccessorCloser) RowNamespaceData(
 
 func (s *stubEdsAccessorCloser) Shares(context.Context) ([]share.Share, error) {
 	return nil, nil
+}
+
+func (s *stubEdsAccessorCloser) Reader() (io.Reader, error) {
+	return iotest.ErrReader(nil), nil
 }
 
 func (s *stubEdsAccessorCloser) Close() error {

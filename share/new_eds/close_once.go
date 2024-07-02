@@ -3,6 +3,7 @@ package eds
 import (
 	"context"
 	"errors"
+	"io"
 	"sync/atomic"
 
 	"github.com/celestiaorg/rsmt2d"
@@ -11,16 +12,16 @@ import (
 	"github.com/celestiaorg/celestia-node/share/shwap"
 )
 
-var _ AccessorCloser = (*closeOnce)(nil)
+var _ AccessorStreamer = (*closeOnce)(nil)
 
 var errAccessorClosed = errors.New("accessor is closed")
 
 type closeOnce struct {
-	f      AccessorCloser
+	f      AccessorStreamer
 	closed atomic.Bool
 }
 
-func WithClosedOnce(f AccessorCloser) AccessorCloser {
+func WithClosedOnce(f AccessorStreamer) AccessorStreamer {
 	return &closeOnce{f: f}
 }
 
@@ -39,6 +40,14 @@ func (c *closeOnce) Size(ctx context.Context) int {
 		return 0
 	}
 	return c.f.Size(ctx)
+}
+
+// DataHash returns data hash of the Accessor.
+func (c *closeOnce) DataHash(ctx context.Context) (share.DataHash, error) {
+	if c.closed.Load() {
+		return nil, errAccessorClosed
+	}
+	return c.f.DataHash(ctx)
 }
 
 func (c *closeOnce) Sample(ctx context.Context, rowIdx, colIdx int) (shwap.Sample, error) {
@@ -75,4 +84,11 @@ func (c *closeOnce) Shares(ctx context.Context) ([]share.Share, error) {
 		return nil, errAccessorClosed
 	}
 	return c.f.Shares(ctx)
+}
+
+func (c *closeOnce) Reader() (io.Reader, error) {
+	if c.closed.Load() {
+		return nil, errAccessorClosed
+	}
+	return c.f.Reader()
 }
