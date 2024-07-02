@@ -10,7 +10,8 @@ import (
 	eds "github.com/celestiaorg/celestia-node/share/new_eds"
 )
 
-// AccessorGetter abstracts storage system that indexes and manages multiple eds.AccessorGetter by network height.
+// AccessorGetter abstracts storage system that indexes and manages multiple eds.AccessorGetter by
+// network height.
 type AccessorGetter interface {
 	// GetByHeight returns an Accessor by its height.
 	GetByHeight(ctx context.Context, height uint64) (eds.Accessor, error)

@@ -27,17 +27,24 @@ type Accessor interface {
 	Shares(ctx context.Context) ([]share.Share, error)
 }
 
-// AccessorCloser is an interface that groups Accessor and io.Closer interfaces.
-type AccessorCloser interface {
+// AccessorStreamer is an interface that groups Accessor and Streamer interfaces.
+type AccessorStreamer interface {
 	Accessor
+	Streamer
+}
+
+type Streamer interface {
+	// Reader returns binary reader for the shares. It should read the shares from the
+	// ODS part of the square row by row.
+	Reader() (io.Reader, error)
 	io.Closer
 }
 
-type accessorCloser struct {
+type accessorStreamer struct {
 	Accessor
-	io.Closer
+	Streamer
 }
 
-func WithCloser(a Accessor, c io.Closer) AccessorCloser {
-	return &accessorCloser{a, c}
+func AccessorAndStreamer(a Accessor, s Streamer) AccessorStreamer {
+	return &accessorStreamer{a, s}
 }
