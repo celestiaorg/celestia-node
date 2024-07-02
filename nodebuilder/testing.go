@@ -57,7 +57,7 @@ func TestNodeWithConfig(t *testing.T, tp node.Type, cfg *Config, opts ...fx.Opti
 	// create a key in the keystore to be used by the core accessor
 	_, _, err = kr.NewMnemonic(TestKeyringName, keyring.English, "", "", hd.Secp256k1)
 	require.NoError(t, err)
-	cfg.State.KeyringAccName = TestKeyringName
+	cfg.State.KeyringKeyName = TestKeyringName
 	_, accName, err := state.Keyring(cfg.State, ks)
 	require.NoError(t, err)
 	require.Equal(t, TestKeyringName, string(accName))

@@ -221,8 +221,6 @@ func (ca *CoreAccessor) SubmitPayForBlob(
 		gasPrice = ca.getMinGasPrice()
 	}
 
-	fee := calculateFee(gas, gasPrice)
-
 	signer, err := ca.getSigner(cfg)
 	if err != nil {
 		return nil, err
@@ -239,7 +237,7 @@ func (ca *CoreAccessor) SubmitPayForBlob(
 
 	var lastErr error
 	for attempt := 0; attempt < maxRetries; attempt++ {
-		opts := []user.TxOption{user.SetGasLimitAndFee(gas, float64(fee))}
+		opts := []user.TxOption{user.SetGasLimitAndFee(gas, gasPrice)}
 		if feeGrant != nil {
 			opts = append(opts, feeGrant)
 		}
@@ -266,8 +264,6 @@ func (ca *CoreAccessor) SubmitPayForBlob(
 
 			ca.setMinGasPrice(gasPrice)
 			lastErr = err
-			// explicitly recalculate fee based on the recent minGasPrice
-			fee = calculateFee(gas, gasPrice)
 			continue
 		}
 
@@ -646,8 +642,7 @@ func (ca *CoreAccessor) submitMsg(
 		gasPrice = ca.minGasPrice
 	}
 
-	fee := calculateFee(gas, gasPrice)
-	txConfig = append(txConfig, user.SetGasLimitAndFee(gas, float64(fee)))
+	txConfig = append(txConfig, user.SetGasLimitAndFee(gas, gasPrice))
 
 	if cfg.FeeGranterAddress() != "" {
 		granter, err := parseAccAddressFromString(cfg.FeeGranterAddress())
