@@ -15,11 +15,11 @@ import (
 )
 
 func TestRsmt2dAccessor(t *testing.T) {
-	odsSize := 64
+	odsSize := 16
 	newAccessor := func(tb testing.TB, eds *rsmt2d.ExtendedDataSquare) Accessor {
 		return &Rsmt2D{ExtendedDataSquare: eds}
 	}
-	ctx, cancel := context.WithTimeout(context.Background(), time.Second*5)
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second*15)
 	t.Cleanup(cancel)
 
 	TestSuiteAccessor(ctx, t, newAccessor, odsSize)

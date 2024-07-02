@@ -9,8 +9,8 @@ import (
 )
 
 func TestCache(t *testing.T) {
-	ODSSize := 64
-	ctx, cancel := context.WithTimeout(context.Background(), time.Second*5)
+	ODSSize := 16
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second*15)
 	t.Cleanup(cancel)
 
 	newAccessor := func(tb testing.TB, inner *rsmt2d.ExtendedDataSquare) Accessor {

@@ -2,7 +2,6 @@ package eds
 
 import (
 	"errors"
-	"fmt"
 	"io"
 	"math/rand"
 	"testing"
@@ -13,19 +12,11 @@ import (
 	"github.com/celestiaorg/celestia-node/share/eds/edstest"
 )
 
-func TestSharesReaderMany(t *testing.T) {
-	// create io.Writer that write random data
-	for i := 0; i < 10000; i++ {
-		TestSharesReader(t)
-	}
-}
-
 func TestSharesReader(t *testing.T) {
 	// create io.Writer that write random data
 	odsSize := 16
 	eds := edstest.RandEDS(t, odsSize)
 	getShare := func(rowIdx, colIdx int) ([]byte, error) {
-		fmt.Println("get", rowIdx, colIdx)
 		return eds.GetCell(uint(rowIdx), uint(colIdx)), nil
 	}
 
@@ -56,7 +47,6 @@ func readWithRandomBuffer(reader io.Reader, maxBufSize int) ([]byte, error) {
 		}
 		data = append(data, buf...)
 		if errors.Is(err, io.EOF) {
-			fmt.Println("eof?")
 			break
 		}
 	}

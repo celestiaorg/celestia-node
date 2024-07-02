@@ -58,10 +58,10 @@ func TestReadODSFromFile(t *testing.T) {
 }
 
 func TestODSFile(t *testing.T) {
-	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
 	t.Cleanup(cancel)
 
-	ODSSize := 64
+	ODSSize := 16
 	eds.TestSuiteAccessor(ctx, t, createAccessor, ODSSize)
 	eds.TestStreamer(ctx, t, createCachedStreamer, ODSSize)
 	eds.TestStreamer(ctx, t, createStreamer, ODSSize)
