@@ -109,11 +109,7 @@ func TestBlobRPC(t *testing.T) {
 	appBlobs, err := blobtest.GenerateV0Blobs([]int{8}, false)
 	require.NoError(t, err)
 
-	newBlob, err := blob.NewBlob(
-		appBlobs[0].ShareVersion,
-		append([]byte{appBlobs[0].NamespaceVersion}, appBlobs[0].NamespaceID...),
-		appBlobs[0].Data,
-	)
+	newBlob, err := convert(appBlobs[0])
 	require.NoError(t, err)
 
 	height, err := rpcClient.Blob.Submit(ctx, []*blob.Blob{newBlob}, blob.DefaultGasPrice())
