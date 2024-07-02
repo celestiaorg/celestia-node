@@ -2,7 +2,6 @@ package bitswap
 
 import (
 	"context"
-	"math/rand"
 	"sync"
 	"testing"
 	"time"
@@ -20,6 +19,7 @@ import (
 	mocknet "github.com/libp2p/go-libp2p/p2p/net/mock"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"math/rand/v2"
 
 	"github.com/celestiaorg/rsmt2d"
 
@@ -94,7 +94,7 @@ func TestFetch_Duplicates(t *testing.T) {
 
 		wg.Add(1)
 		go func(i int) {
-			rint := rand.Intn(10)
+			rint := rand.IntN(10)
 			// this sleep ensures fetches aren't started simultaneously, allowing to check for edge-cases
 			time.Sleep(time.Millisecond * time.Duration(rint))
 
