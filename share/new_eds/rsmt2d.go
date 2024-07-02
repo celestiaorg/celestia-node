@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"io"
 
+	"github.com/celestiaorg/celestia-app/pkg/da"
 	"github.com/celestiaorg/celestia-app/pkg/wrapper"
 	"github.com/celestiaorg/rsmt2d"
 
@@ -22,6 +23,12 @@ type Rsmt2D struct {
 // Size returns the size of the Extended Data Square.
 func (eds *Rsmt2D) Size(context.Context) int {
 	return int(eds.Width())
+}
+
+// DataHash returns data hash of the Accessor.
+func (eds *Rsmt2D) DataHash(context.Context) (share.DataHash, error) {
+	dah, _ := da.NewDataAvailabilityHeader(eds.ExtendedDataSquare)
+	return dah.Hash(), nil
 }
 
 // Sample returns share and corresponding proof for row and column indices.

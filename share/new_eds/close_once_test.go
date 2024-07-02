@@ -50,6 +50,10 @@ func (s *stubEdsAccessorCloser) Size(context.Context) int {
 	return 0
 }
 
+func (s *stubEdsAccessorCloser) DataHash(context.Context) (share.DataHash, error) {
+	return nil, nil
+}
+
 func (s *stubEdsAccessorCloser) Sample(context.Context, int, int) (shwap.Sample, error) {
 	return shwap.Sample{}, nil
 }

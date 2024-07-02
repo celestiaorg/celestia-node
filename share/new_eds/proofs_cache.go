@@ -77,6 +77,11 @@ func (c *proofsCache) Size(ctx context.Context) int {
 	return int(size)
 }
 
+// DataHash returns data hash of the Accessor.
+func (c *proofsCache) DataHash(ctx context.Context) (share.DataHash, error) {
+	return c.inner.DataHash(ctx)
+}
+
 func (c *proofsCache) Sample(ctx context.Context, rowIdx, colIdx int) (shwap.Sample, error) {
 	axisType, axisIdx, shrIdx := rsmt2d.Row, rowIdx, colIdx
 	ax, err := c.axisWithProofs(ctx, axisType, axisIdx)
