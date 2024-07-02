@@ -9,6 +9,7 @@ import (
 
 	"github.com/celestiaorg/celestia-node/api/rpc/perms"
 	"github.com/celestiaorg/celestia-node/nodebuilder/blob"
+	"github.com/celestiaorg/celestia-node/nodebuilder/blobstream"
 	"github.com/celestiaorg/celestia-node/nodebuilder/da"
 	"github.com/celestiaorg/celestia-node/nodebuilder/das"
 	"github.com/celestiaorg/celestia-node/nodebuilder/fraud"
@@ -26,15 +27,16 @@ var (
 )
 
 type Client struct {
-	Fraud  fraud.API
-	Header header.API
-	State  state.API
-	Share  share.API
-	DAS    das.API
-	P2P    p2p.API
-	Node   node.API
-	Blob   blob.API
-	DA     da.API
+	Fraud      fraud.API
+	Header     header.API
+	State      state.API
+	Share      share.API
+	DAS        das.API
+	P2P        p2p.API
+	Node       node.API
+	Blob       blob.API
+	DA         da.API
+	Blobstream blobstream.API
 
 	closer multiClientCloser
 }
@@ -85,14 +87,15 @@ func newClient(ctx context.Context, addr string, authHeader http.Header) (*Clien
 func moduleMap(client *Client) map[string]interface{} {
 	// TODO: this duplication of strings many times across the codebase can be avoided with issue #1176
 	return map[string]interface{}{
-		"share":  &client.Share.Internal,
-		"state":  &client.State.Internal,
-		"header": &client.Header.Internal,
-		"fraud":  &client.Fraud.Internal,
-		"das":    &client.DAS.Internal,
-		"p2p":    &client.P2P.Internal,
-		"node":   &client.Node.Internal,
-		"blob":   &client.Blob.Internal,
-		"da":     &client.DA.Internal,
+		"share":      &client.Share.Internal,
+		"state":      &client.State.Internal,
+		"header":     &client.Header.Internal,
+		"fraud":      &client.Fraud.Internal,
+		"das":        &client.DAS.Internal,
+		"p2p":        &client.P2P.Internal,
+		"node":       &client.Node.Internal,
+		"blob":       &client.Blob.Internal,
+		"da":         &client.DA.Internal,
+		"blobstream": &client.Blobstream.Internal,
 	}
 }
