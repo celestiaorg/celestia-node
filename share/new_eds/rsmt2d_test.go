@@ -14,15 +14,20 @@ import (
 	"github.com/celestiaorg/celestia-node/share/shwap"
 )
 
-func TestMemFile(t *testing.T) {
-	odsSize := 8
+func TestRsmt2dAccessor(t *testing.T) {
+	odsSize := 16
 	newAccessor := func(tb testing.TB, eds *rsmt2d.ExtendedDataSquare) Accessor {
 		return &Rsmt2D{ExtendedDataSquare: eds}
 	}
-	ctx, cancel := context.WithTimeout(context.Background(), time.Second*5)
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second*15)
 	t.Cleanup(cancel)
 
 	TestSuiteAccessor(ctx, t, newAccessor, odsSize)
+
+	newStreamer := func(tb testing.TB, eds *rsmt2d.ExtendedDataSquare) AccessorStreamer {
+		return &Rsmt2D{ExtendedDataSquare: eds}
+	}
+	TestStreamer(ctx, t, newStreamer, odsSize)
 }
 
 func TestRsmt2dHalfRow(t *testing.T) {

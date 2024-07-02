@@ -3,6 +3,7 @@ package eds
 import (
 	"context"
 	"errors"
+	"io"
 	"sync/atomic"
 
 	"github.com/celestiaorg/rsmt2d"
@@ -11,16 +12,16 @@ import (
 	"github.com/celestiaorg/celestia-node/share/shwap"
 )
 
-var _ AccessorCloser = (*closeOnce)(nil)
+var _ AccessorStreamer = (*closeOnce)(nil)
 
 var errAccessorClosed = errors.New("accessor is closed")
 
 type closeOnce struct {
-	f      AccessorCloser
+	f      AccessorStreamer
 	closed atomic.Bool
 }
 
-func WithClosedOnce(f AccessorCloser) AccessorCloser {
+func WithClosedOnce(f AccessorStreamer) AccessorStreamer {
 	return &closeOnce{f: f}
 }
 
@@ -75,4 +76,11 @@ func (c *closeOnce) Shares(ctx context.Context) ([]share.Share, error) {
 		return nil, errAccessorClosed
 	}
 	return c.f.Shares(ctx)
+}
+
+func (c *closeOnce) Reader() (io.Reader, error) {
+	if c.closed.Load() {
+		return nil, errAccessorClosed
+	}
+	return c.f.Reader()
 }

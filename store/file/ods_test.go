@@ -58,11 +58,13 @@ func TestReadODSFromFile(t *testing.T) {
 }
 
 func TestODSFile(t *testing.T) {
-	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
 	t.Cleanup(cancel)
 
-	ODSSize := 8
-	eds.TestSuiteAccessor(ctx, t, createODSFile, ODSSize)
+	ODSSize := 16
+	eds.TestSuiteAccessor(ctx, t, createAccessor, ODSSize)
+	eds.TestStreamer(ctx, t, createCachedStreamer, ODSSize)
+	eds.TestStreamer(ctx, t, createStreamer, ODSSize)
 }
 
 // BenchmarkAxisFromODSFile/Size:32/ProofType:row/squareHalf:0-10         	  460231	      2555 ns/op
@@ -161,7 +163,22 @@ func BenchmarkSampleFromODSFileDisabledCache(b *testing.B) {
 	eds.BenchGetSampleFromAccessor(ctx, b, newFile, minSize, maxSize)
 }
 
-func createODSFile(t testing.TB, eds *rsmt2d.ExtendedDataSquare) eds.Accessor {
+func createAccessor(t testing.TB, eds *rsmt2d.ExtendedDataSquare) eds.Accessor {
+	return createODSFile(t, eds)
+}
+
+func createStreamer(t testing.TB, eds *rsmt2d.ExtendedDataSquare) eds.AccessorStreamer {
+	return createODSFile(t, eds)
+}
+
+func createCachedStreamer(t testing.TB, eds *rsmt2d.ExtendedDataSquare) eds.AccessorStreamer {
+	f := createODSFile(t, eds)
+	_, err := f.readODS()
+	require.NoError(t, err)
+	return f
+}
+
+func createODSFile(t testing.TB, eds *rsmt2d.ExtendedDataSquare) *ODSFile {
 	path := t.TempDir() + "/" + strconv.Itoa(rand.Intn(1000))
 	fl, err := CreateODSFile(path, []byte{}, eds)
 	require.NoError(t, err)
