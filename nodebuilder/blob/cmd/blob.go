@@ -7,6 +7,7 @@ import (
 	"path/filepath"
 	"reflect"
 	"strconv"
+	"strings"
 
 	"github.com/spf13/cobra"
 
@@ -32,14 +33,14 @@ func init() {
 		&base64Flag,
 		"base64",
 		false,
-		"printed blob's data a base64 string",
+		"printed blob's data and namespace as base64 strings",
 	)
 
 	getAllCmd.PersistentFlags().BoolVar(
 		&base64Flag,
 		"base64",
 		false,
-		"printed blob's data as a base64 string",
+		"printed blob's data and namespace as base64 strings",
 	)
 
 	submitCmd.PersistentFlags().Float64Var(
@@ -76,6 +77,9 @@ var getCmd = &cobra.Command{
 			return fmt.Errorf("error parsing a height: %w", err)
 		}
 
+		if !strings.HasPrefix(args[1], "0x") {
+			return fmt.Errorf("only hex namespace is supported")
+		}
 		namespace, err := cmdnode.ParseV0Namespace(args[1])
 		if err != nil {
 			return fmt.Errorf("error parsing a namespace: %w", err)
@@ -88,7 +92,7 @@ var getCmd = &cobra.Command{
 
 		blob, err := client.Blob.Get(cmd.Context(), height, namespace, commitment)
 
-		formatter := formatData
+		formatter := formatData(args[1])
 		if base64Flag || err != nil {
 			formatter = nil
 		}
@@ -113,12 +117,15 @@ var getAllCmd = &cobra.Command{
 		}
 
 		namespace, err := cmdnode.ParseV0Namespace(args[1])
+		if !strings.HasPrefix(args[1], "0x") {
+			return fmt.Errorf("only hex namespace is supported")
+		}
 		if err != nil {
 			return fmt.Errorf("error parsing a namespace: %w", err)
 		}
 
 		blobs, err := client.Blob.GetAll(cmd.Context(), height, []share.Namespace{namespace})
-		formatter := formatData
+		formatter := formatData(args[1])
 		if base64Flag || err != nil {
 			formatter = nil
 		}
@@ -266,36 +273,38 @@ var getProofCmd = &cobra.Command{
 	},
 }
 
-func formatData(data interface{}) interface{} {
-	type tempBlob struct {
-		Namespace    []byte `json:"namespace"`
-		Data         string `json:"data"`
-		ShareVersion uint32 `json:"share_version"`
-		Commitment   []byte `json:"commitment"`
-		Index        int    `json:"index"`
-	}
-
-	if reflect.TypeOf(data).Kind() == reflect.Slice {
-		blobs := data.([]*blob.Blob)
-		result := make([]tempBlob, len(blobs))
-		for i, b := range blobs {
-			result[i] = tempBlob{
-				Namespace:    b.Namespace(),
-				Data:         string(b.Data),
-				ShareVersion: b.ShareVersion,
-				Commitment:   b.Commitment,
-				Index:        b.Index(),
-			}
+func formatData(ns string) func(interface{}) interface{} {
+	return func(data interface{}) interface{} {
+		type tempBlob struct {
+			Namespace    string `json:"namespace"`
+			Data         string `json:"data"`
+			ShareVersion uint32 `json:"share_version"`
+			Commitment   []byte `json:"commitment"`
+			Index        int    `json:"index"`
 		}
-		return result
-	}
 
-	b := data.(*blob.Blob)
-	return tempBlob{
-		Namespace:    b.Namespace(),
-		Data:         string(b.Data),
-		ShareVersion: b.ShareVersion,
-		Commitment:   b.Commitment,
-		Index:        b.Index(),
+		if reflect.TypeOf(data).Kind() == reflect.Slice {
+			blobs := data.([]*blob.Blob)
+			result := make([]tempBlob, len(blobs))
+			for i, b := range blobs {
+				result[i] = tempBlob{
+					Namespace:    ns,
+					Data:         string(b.Data),
+					ShareVersion: b.ShareVersion,
+					Commitment:   b.Commitment,
+					Index:        b.Index(),
+				}
+			}
+			return result
+		}
+
+		b := data.(*blob.Blob)
+		return tempBlob{
+			Namespace:    ns,
+			Data:         string(b.Data),
+			ShareVersion: b.ShareVersion,
+			Commitment:   b.Commitment,
+			Index:        b.Index(),
+		}
 	}
 }
