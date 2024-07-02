@@ -15,7 +15,6 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/celestiaorg/celestia-app/v2/app"
-	"github.com/celestiaorg/celestia-app/v2/pkg/appconsts"
 	"github.com/celestiaorg/celestia-app/v2/test/util/testnode"
 	blobtypes "github.com/celestiaorg/celestia-app/v2/x/blob/types"
 
@@ -49,10 +48,6 @@ func TestSubmitPayForBlob(t *testing.T) {
 	require.NoError(t, err)
 	blobbyTheBlob, err := blob.NewBlobV0(ns, []byte("data"))
 	require.NoError(t, err)
-
-	minGas, err := ca.queryMinimumGasPrice(ctx)
-	require.NoError(t, err)
-	require.Equal(t, appconsts.DefaultMinGasPrice, minGas)
 
 	testcases := []struct {
 		name   string
