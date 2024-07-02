@@ -68,7 +68,7 @@ func BenchmarkCodec(b *testing.B) {
 	}
 }
 
-func newShards(b require.TestingT, size int, fillParity bool) [][]byte {
+func newShards(b testing.TB, size int, fillParity bool) [][]byte {
 	shards := make([][]byte, size)
 	original := sharetest.RandShares(b, size/2)
 	copy(shards, original)

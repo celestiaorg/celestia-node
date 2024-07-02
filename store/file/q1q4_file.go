@@ -54,6 +54,11 @@ func (f *Q1Q4File) Size(ctx context.Context) int {
 	return f.ods.Size(ctx)
 }
 
+// DataHash returns data hash of the Accessor.
+func (f *Q1Q4File) DataHash(ctx context.Context) (share.DataHash, error) {
+	return f.ods.DataHash(ctx)
+}
+
 func (f *Q1Q4File) Sample(ctx context.Context, rowIdx, colIdx int) (shwap.Sample, error) {
 	// use native AxisHalf implementation, to read axis from Q4 quandrant when possible
 	half, err := f.AxisHalf(ctx, rsmt2d.Row, rowIdx)

@@ -300,6 +300,10 @@ func (m *mockAccessor) Size(context.Context) int {
 	panic("implement me")
 }
 
+func (m *mockAccessor) DataHash(context.Context) (share.DataHash, error) {
+	panic("implement me")
+}
+
 func (m *mockAccessor) Sample(context.Context, int, int) (shwap.Sample, error) {
 	panic("implement me")
 }

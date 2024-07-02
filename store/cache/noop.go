@@ -45,6 +45,11 @@ func (n NoopFile) Size(context.Context) int {
 	return 0
 }
 
+// DataHash returns data hash of the Accessor.
+func (n NoopFile) DataHash(context.Context) (share.DataHash, error) {
+	return nil, nil
+}
+
 func (n NoopFile) Sample(context.Context, int, int) (shwap.Sample, error) {
 	return shwap.Sample{}, nil
 }

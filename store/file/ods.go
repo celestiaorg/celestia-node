@@ -114,6 +114,11 @@ func (f *ODSFile) size() int {
 	return int(f.hdr.squareSize)
 }
 
+// DataHash returns data hash of the Accessor.
+func (f *ODSFile) DataHash(context.Context) (share.DataHash, error) {
+	return f.hdr.datahash, nil
+}
+
 // Close closes the file.
 func (f *ODSFile) Close() error {
 	return f.fl.Close()
