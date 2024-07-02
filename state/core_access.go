@@ -24,7 +24,6 @@ import (
 	"github.com/tendermint/tendermint/crypto/merkle"
 	"github.com/tendermint/tendermint/proto/tendermint/crypto"
 	"google.golang.org/grpc"
-	"google.golang.org/grpc/connectivity"
 	"google.golang.org/grpc/credentials/insecure"
 
 	"github.com/celestiaorg/celestia-app/v2/app"
@@ -36,7 +35,7 @@ import (
 	libhead "github.com/celestiaorg/go-header"
 	squareblob "github.com/celestiaorg/go-square/blob"
 
-	nodeblob "github.com/celestiaorg/celestia-node/blob"
+	"github.com/celestiaorg/celestia-node/blob"
 	"github.com/celestiaorg/celestia-node/header"
 )
 
@@ -70,9 +69,8 @@ type CoreAccessor struct {
 	cancel context.CancelFunc
 
 	keyring keyring.Keyring
-	addr    sdktypes.AccAddress
-
-	txClient *user.TxClient
+	keyname string
+	client  *user.TxClient
 
 	getter libhead.Head[*header.ExtendedHeader]
 
@@ -118,18 +116,9 @@ func NewCoreAccessor(
 	prt.RegisterOpDecoder(storetypes.ProofOpIAVLCommitment, storetypes.CommitmentOpDecoder)
 	prt.RegisterOpDecoder(storetypes.ProofOpSimpleMerkleCommitment, storetypes.CommitmentOpDecoder)
 
-	record, err := keyring.Key(keyname)
-	if err != nil {
-		return nil, fmt.Errorf("getting key %s: %w", keyname, err)
-	}
-	addr, err := record.GetAddress()
-	if err != nil {
-		return nil, fmt.Errorf("getting address for key %s: %w", keyname, err)
-	}
-
 	ca := &CoreAccessor{
 		keyring:  keyring,
-		addr:     addr,
+		keyname:  keyname,
 		getter:   getter,
 		coreIP:   coreIP,
 		grpcPort: grpcPort,
@@ -157,13 +146,6 @@ func (ca *CoreAccessor) Start(ctx context.Context) error {
 	if err != nil {
 		return err
 	}
-	// this ensures we can't start the node without core connection
-	client.Connect()
-	if !client.WaitForStateChange(ctx, connectivity.Ready) {
-		// hits the case when context is canceled
-		return fmt.Errorf("couldn't connect to core endpoint(%s): %w", endpoint, ctx.Err())
-	}
-
 	ca.coreConn = client
 
 	// create the staking query client
@@ -173,11 +155,10 @@ func (ca *CoreAccessor) Start(ctx context.Context) error {
 	// create ABCI query client
 	ca.abciQueryCli = tmservice.NewServiceClient(ca.coreConn)
 
-	// set up txClient to handle tx submission
-	encCfg := encoding.MakeConfig(app.ModuleEncodingRegisters...)
-	ca.txClient, err = user.SetupTxClient(ctx, ca.keyring, ca.coreConn, encCfg)
+	// set up signer to handle tx submission
+	ca.client, err = ca.setupTxClient(ctx, ca.keyname)
 	if err != nil {
-		log.Warnw("failed to set up tx client, check if node's account is funded", "err", err)
+		log.Warnw("failed to set up signer, check if node's account is funded", "err", err)
 	}
 
 	ca.minGasPrice, err = ca.queryMinimumGasPrice(ctx)
@@ -222,7 +203,7 @@ func (ca *CoreAccessor) SubmitPayForBlob(
 	ctx context.Context,
 	fee Int,
 	gasLim uint64,
-	blobs []*nodeblob.Blob,
+	blobs []*blob.Blob,
 ) (*TxResponse, error) {
 	if len(blobs) == 0 {
 		return nil, errors.New("state: no blobs provided")
@@ -271,7 +252,7 @@ func (ca *CoreAccessor) SubmitPayForBlob(
 		if feeGrant != nil {
 			options = append(options, feeGrant)
 		}
-		response, err := ca.txClient.SubmitPayForBlob(
+		response, err := ca.client.SubmitPayForBlob(
 			ctx,
 			appblobs,
 			options...,
@@ -310,11 +291,11 @@ func (ca *CoreAccessor) SubmitPayForBlob(
 }
 
 func (ca *CoreAccessor) AccountAddress(context.Context) (Address, error) {
-	return Address{ca.addr}, nil
+	return Address{ca.client.DefaultAddress()}, nil
 }
 
 func (ca *CoreAccessor) Balance(ctx context.Context) (*Balance, error) {
-	return ca.BalanceForAddress(ctx, Address{ca.addr})
+	return ca.BalanceForAddress(ctx, Address{ca.client.DefaultAddress()})
 }
 
 func (ca *CoreAccessor) BalanceForAddress(ctx context.Context, addr Address) (*Balance, error) {
@@ -410,25 +391,6 @@ func (ca *CoreAccessor) SubmitTxWithBroadcastMode(
 	return unsetTx(txResp.TxResponse), nil
 }
 
-// broadcastTx uses the provided grpc connection to broadcast a signed and
-// encoded transaction.
-func broadcastTx(
-	ctx context.Context,
-	conn *grpc.ClientConn,
-	mode sdktx.BroadcastMode,
-	txBytes []byte,
-) (*sdktx.BroadcastTxResponse, error) {
-	txClient := sdktx.NewServiceClient(conn)
-
-	return txClient.BroadcastTx(
-		ctx,
-		&sdktx.BroadcastTxRequest{
-			Mode:    mode,
-			TxBytes: txBytes,
-		},
-	)
-}
-
 func (ca *CoreAccessor) Transfer(
 	ctx context.Context,
 	addr AccAddress,
@@ -441,15 +403,15 @@ func (ca *CoreAccessor) Transfer(
 	}
 
 	coins := sdktypes.NewCoins(sdktypes.NewCoin(app.BondDenom, amount))
-	msg := banktypes.NewMsgSend(ca.txClient.DefaultAddress(), addr, coins)
+	msg := banktypes.NewMsgSend(ca.client.DefaultAddress(), addr, coins)
 	if gasLim == 0 {
 		var err error
-		gasLim, err = ca.txClient.EstimateGas(ctx, []sdktypes.Msg{msg})
+		gasLim, err = ca.client.EstimateGas(ctx, []sdktypes.Msg{msg})
 		if err != nil {
 			return nil, fmt.Errorf("estimating gas: %w", err)
 		}
 	}
-	resp, err := ca.txClient.SubmitTx(ctx, []sdktypes.Msg{msg}, user.SetGasLimit(gasLim), user.SetFee(fee.Uint64()))
+	resp, err := ca.client.SubmitTx(ctx, []sdktypes.Msg{msg}, user.SetGasLimit(gasLim), user.SetFee(fee.Uint64()))
 	return unsetTx(resp), err
 }
 
@@ -466,16 +428,16 @@ func (ca *CoreAccessor) CancelUnbondingDelegation(
 	}
 
 	coins := sdktypes.NewCoin(app.BondDenom, amount)
-	msg := stakingtypes.NewMsgCancelUnbondingDelegation(ca.txClient.DefaultAddress(), valAddr, height.Int64(), coins)
+	msg := stakingtypes.NewMsgCancelUnbondingDelegation(ca.client.DefaultAddress(), valAddr, height.Int64(), coins)
 	if gasLim == 0 {
 		var err error
-		gasLim, err = ca.txClient.EstimateGas(ctx, []sdktypes.Msg{msg})
+		gasLim, err = ca.client.EstimateGas(ctx, []sdktypes.Msg{msg})
 		if err != nil {
 			return nil, fmt.Errorf("estimating gas: %w", err)
 		}
 	}
 
-	resp, err := ca.txClient.SubmitTx(ctx, []sdktypes.Msg{msg}, user.SetGasLimit(gasLim), user.SetFee(fee.Uint64()))
+	resp, err := ca.client.SubmitTx(ctx, []sdktypes.Msg{msg}, user.SetGasLimit(gasLim), user.SetFee(fee.Uint64()))
 	return unsetTx(resp), err
 }
 
@@ -492,16 +454,16 @@ func (ca *CoreAccessor) BeginRedelegate(
 	}
 
 	coins := sdktypes.NewCoin(app.BondDenom, amount)
-	msg := stakingtypes.NewMsgBeginRedelegate(ca.txClient.DefaultAddress(), srcValAddr, dstValAddr, coins)
+	msg := stakingtypes.NewMsgBeginRedelegate(ca.client.DefaultAddress(), srcValAddr, dstValAddr, coins)
 	if gasLim == 0 {
 		var err error
-		gasLim, err = ca.txClient.EstimateGas(ctx, []sdktypes.Msg{msg})
+		gasLim, err = ca.client.EstimateGas(ctx, []sdktypes.Msg{msg})
 		if err != nil {
 			return nil, fmt.Errorf("estimating gas: %w", err)
 		}
 	}
 
-	resp, err := ca.txClient.SubmitTx(ctx, []sdktypes.Msg{msg}, user.SetGasLimit(gasLim), user.SetFee(fee.Uint64()))
+	resp, err := ca.client.SubmitTx(ctx, []sdktypes.Msg{msg}, user.SetGasLimit(gasLim), user.SetFee(fee.Uint64()))
 	return unsetTx(resp), err
 }
 
@@ -517,15 +479,15 @@ func (ca *CoreAccessor) Undelegate(
 	}
 
 	coins := sdktypes.NewCoin(app.BondDenom, amount)
-	msg := stakingtypes.NewMsgUndelegate(ca.txClient.DefaultAddress(), delAddr, coins)
+	msg := stakingtypes.NewMsgUndelegate(ca.client.DefaultAddress(), delAddr, coins)
 	if gasLim == 0 {
 		var err error
-		gasLim, err = ca.txClient.EstimateGas(ctx, []sdktypes.Msg{msg})
+		gasLim, err = ca.client.EstimateGas(ctx, []sdktypes.Msg{msg})
 		if err != nil {
 			return nil, fmt.Errorf("estimating gas: %w", err)
 		}
 	}
-	resp, err := ca.txClient.SubmitTx(ctx, []sdktypes.Msg{msg}, user.SetGasLimit(gasLim), user.SetFee(fee.Uint64()))
+	resp, err := ca.client.SubmitTx(ctx, []sdktypes.Msg{msg}, user.SetGasLimit(gasLim), user.SetFee(fee.Uint64()))
 	return unsetTx(resp), err
 }
 
@@ -541,15 +503,15 @@ func (ca *CoreAccessor) Delegate(
 	}
 
 	coins := sdktypes.NewCoin(app.BondDenom, amount)
-	msg := stakingtypes.NewMsgDelegate(ca.txClient.DefaultAddress(), delAddr, coins)
+	msg := stakingtypes.NewMsgDelegate(ca.client.DefaultAddress(), delAddr, coins)
 	if gasLim == 0 {
 		var err error
-		gasLim, err = ca.txClient.EstimateGas(ctx, []sdktypes.Msg{msg})
+		gasLim, err = ca.client.EstimateGas(ctx, []sdktypes.Msg{msg})
 		if err != nil {
 			return nil, fmt.Errorf("estimating gas: %w", err)
 		}
 	}
-	resp, err := ca.txClient.SubmitTx(ctx, []sdktypes.Msg{msg}, user.SetGasLimit(gasLim), user.SetFee(fee.Uint64()))
+	resp, err := ca.client.SubmitTx(ctx, []sdktypes.Msg{msg}, user.SetGasLimit(gasLim), user.SetFee(fee.Uint64()))
 	return unsetTx(resp), err
 }
 
@@ -557,7 +519,7 @@ func (ca *CoreAccessor) QueryDelegation(
 	ctx context.Context,
 	valAddr ValAddress,
 ) (*stakingtypes.QueryDelegationResponse, error) {
-	delAddr := ca.addr
+	delAddr := ca.client.DefaultAddress()
 	return ca.stakingCli.Delegation(ctx, &stakingtypes.QueryDelegationRequest{
 		DelegatorAddr: delAddr.String(),
 		ValidatorAddr: valAddr.String(),
@@ -568,7 +530,7 @@ func (ca *CoreAccessor) QueryUnbonding(
 	ctx context.Context,
 	valAddr ValAddress,
 ) (*stakingtypes.QueryUnbondingDelegationResponse, error) {
-	delAddr := ca.addr
+	delAddr := ca.client.DefaultAddress()
 	return ca.stakingCli.UnbondingDelegation(ctx, &stakingtypes.QueryUnbondingDelegationRequest{
 		DelegatorAddr: delAddr.String(),
 		ValidatorAddr: valAddr.String(),
@@ -580,7 +542,7 @@ func (ca *CoreAccessor) QueryRedelegations(
 	srcValAddr,
 	dstValAddr ValAddress,
 ) (*stakingtypes.QueryRedelegationsResponse, error) {
-	delAddr := ca.addr
+	delAddr := ca.client.DefaultAddress()
 	return ca.stakingCli.Redelegations(ctx, &stakingtypes.QueryRedelegationsRequest{
 		DelegatorAddr:    delAddr.String(),
 		SrcValidatorAddr: srcValAddr.String(),
@@ -595,7 +557,7 @@ func (ca *CoreAccessor) GrantFee(
 	fee Int,
 	gasLim uint64,
 ) (*TxResponse, error) {
-	granter := ca.txClient.DefaultAddress()
+	granter := ca.client.DefaultAddress()
 
 	allowance := &feegrant.BasicAllowance{}
 	if !amount.IsZero() {
@@ -608,7 +570,7 @@ func (ca *CoreAccessor) GrantFee(
 		return nil, err
 	}
 
-	resp, err := ca.txClient.SubmitTx(ctx, []sdktypes.Msg{msg}, user.SetGasLimit(gasLim), withFee(fee))
+	resp, err := ca.client.SubmitTx(ctx, []sdktypes.Msg{msg}, user.SetGasLimit(gasLim), withFee(fee))
 	return unsetTx(resp), err
 }
 
@@ -618,10 +580,10 @@ func (ca *CoreAccessor) RevokeGrantFee(
 	fee Int,
 	gasLim uint64,
 ) (*TxResponse, error) {
-	granter := ca.txClient.DefaultAddress()
+	granter := ca.client.DefaultAddress()
 
 	msg := feegrant.NewMsgRevokeAllowance(granter, grantee)
-	resp, err := ca.txClient.SubmitTx(ctx, []sdktypes.Msg{&msg}, user.SetGasLimit(gasLim), withFee(fee))
+	resp, err := ca.client.SubmitTx(ctx, []sdktypes.Msg{&msg}, user.SetGasLimit(gasLim), withFee(fee))
 	return unsetTx(resp), err
 }
 
@@ -672,6 +634,11 @@ func (ca *CoreAccessor) queryMinimumGasPrice(
 	return coins.AmountOf(app.BondDenom).MustFloat64(), nil
 }
 
+func (ca *CoreAccessor) setupTxClient(ctx context.Context, keyName string) (*user.TxClient, error) {
+	encCfg := encoding.MakeConfig(app.ModuleEncodingRegisters...)
+	return user.SetupTxClient(ctx, ca.keyring, ca.coreConn, encCfg, user.WithDefaultAccount(keyName))
+}
+
 func withFee(fee Int) user.TxOption {
 	gasFee := sdktypes.NewCoins(sdktypes.NewCoin(app.BondDenom, fee))
 	return user.SetFeeAmount(gasFee)
@@ -689,4 +656,23 @@ func unsetTx(txResponse *TxResponse) *TxResponse {
 		txResponse.Tx = nil
 	}
 	return txResponse
+}
+
+// broadcastTx uses the provided grpc connection to broadcast a signed and
+// encoded transaction.
+func broadcastTx(
+	ctx context.Context,
+	conn *grpc.ClientConn,
+	mode sdktx.BroadcastMode,
+	txBytes []byte,
+) (*sdktx.BroadcastTxResponse, error) {
+	txClient := sdktx.NewServiceClient(conn)
+
+	return txClient.BroadcastTx(
+		ctx,
+		&sdktx.BroadcastTxRequest{
+			Mode:    mode,
+			TxBytes: txBytes,
+		},
+	)
 }
