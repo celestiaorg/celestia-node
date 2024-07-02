@@ -12,13 +12,12 @@ import (
 
 	"github.com/celestiaorg/celestia-node/blob"
 	cmdnode "github.com/celestiaorg/celestia-node/cmd"
+	state "github.com/celestiaorg/celestia-node/nodebuilder/state/cmd"
 	"github.com/celestiaorg/celestia-node/share"
 )
 
 var (
 	base64Flag bool
-
-	gasPrice float64
 
 	// flagFileInput allows the user to provide file path to the json file
 	// for submitting multiple blobs.
@@ -32,25 +31,19 @@ func init() {
 		&base64Flag,
 		"base64",
 		false,
-		"printed blob's data a base64 string",
+		"Printed blob's data as a base64 string",
 	)
 
 	getAllCmd.PersistentFlags().BoolVar(
 		&base64Flag,
 		"base64",
 		false,
-		"printed blob's data as a base64 string",
+		"Printed blob's data as a base64 string",
 	)
 
-	submitCmd.PersistentFlags().Float64Var(
-		&gasPrice,
-		"gas.price",
-		float64(blob.DefaultGasPrice()),
-		"specifies gas price (in utia) for blob submission.\n"+
-			"Gas price will be set to default (0.002) if no value is passed",
-	)
+	state.ApplyFlags(submitCmd)
 
-	submitCmd.PersistentFlags().String(flagFileInput, "", "Specify the file input")
+	submitCmd.PersistentFlags().String(flagFileInput, "", "Specifies the file input")
 }
 
 var Cmd = &cobra.Command{
@@ -193,21 +186,21 @@ var submitCmd = &cobra.Command{
 			jsonBlobs = append(jsonBlobs, blobJSON{Namespace: args[0], BlobData: args[1]})
 		}
 
-		var blobs []*blob.Blob
+		var resultBlobs []*blob.Blob
 		var commitments []blob.Commitment
 		for _, jsonBlob := range jsonBlobs {
 			blob, err := getBlobFromArguments(jsonBlob.Namespace, jsonBlob.BlobData)
 			if err != nil {
 				return err
 			}
-			blobs = append(blobs, blob)
+			resultBlobs = append(resultBlobs, blob)
 			commitments = append(commitments, blob.Commitment)
 		}
 
 		height, err := client.Blob.Submit(
 			cmd.Context(),
-			blobs,
-			blob.GasPrice(gasPrice),
+			resultBlobs,
+			state.GetTxConfig(),
 		)
 
 		response := struct {

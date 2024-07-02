@@ -18,6 +18,7 @@ import (
 	"github.com/celestiaorg/celestia-node/nodebuilder"
 	"github.com/celestiaorg/celestia-node/nodebuilder/node"
 	"github.com/celestiaorg/celestia-node/nodebuilder/tests/swamp"
+	"github.com/celestiaorg/celestia-node/state"
 )
 
 const (
@@ -116,7 +117,7 @@ func TestBlobRPC(t *testing.T) {
 	)
 	require.NoError(t, err)
 
-	height, err := rpcClient.Blob.Submit(ctx, []*blob.Blob{newBlob}, blob.DefaultGasPrice())
+	height, err := rpcClient.Blob.Submit(ctx, []*blob.Blob{newBlob}, state.NewTxConfig())
 	require.NoError(t, err)
 	require.True(t, height != 0)
 }
