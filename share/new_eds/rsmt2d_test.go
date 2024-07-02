@@ -15,7 +15,7 @@ import (
 )
 
 func TestRsmt2dAccessor(t *testing.T) {
-	odsSize := 8
+	odsSize := 64
 	newAccessor := func(tb testing.TB, eds *rsmt2d.ExtendedDataSquare) Accessor {
 		return &Rsmt2D{ExtendedDataSquare: eds}
 	}

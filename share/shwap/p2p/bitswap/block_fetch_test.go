@@ -2,7 +2,7 @@ package bitswap
 
 import (
 	"context"
-	"math/rand/v2"
+	"math/rand"
 	"sync"
 	"testing"
 	"time"
@@ -94,7 +94,7 @@ func TestFetch_Duplicates(t *testing.T) {
 
 		wg.Add(1)
 		go func(i int) {
-			rint := rand.IntN(10)
+			rint := rand.Intn(10)
 			// this sleep ensures fetches aren't started simultaneously, allowing to check for edge-cases
 			time.Sleep(time.Millisecond * time.Duration(rint))
 

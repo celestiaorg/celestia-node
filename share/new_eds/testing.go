@@ -28,23 +28,29 @@ func TestSuiteAccessor(
 	ctx context.Context,
 	t *testing.T,
 	createAccessor createAccessor,
-	odsSize int,
+	maxSize int,
 ) {
-	t.Run("Sample", func(t *testing.T) {
-		testAccessorSample(ctx, t, createAccessor, odsSize)
-	})
+	minSize := 2
+	if !checkPowerOfTwo(maxSize) {
+		t.Errorf("minSize must be power of 2: %v", maxSize)
+	}
+	for size := minSize; size <= maxSize; size *= 2 {
+		t.Run(fmt.Sprintf("Sample:%d", size), func(t *testing.T) {
+			testAccessorSample(ctx, t, createAccessor, size)
+		})
 
-	t.Run("AxisHalf", func(t *testing.T) {
-		testAccessorAxisHalf(ctx, t, createAccessor, odsSize)
-	})
+		t.Run(fmt.Sprintf("AxisHalf:%d", size), func(t *testing.T) {
+			testAccessorAxisHalf(ctx, t, createAccessor, size)
+		})
 
-	t.Run("RowNamespaceData", func(t *testing.T) {
-		testAccessorRowNamespaceData(ctx, t, createAccessor, odsSize)
-	})
+		t.Run(fmt.Sprintf("RowNamespaceData:%d", size), func(t *testing.T) {
+			testAccessorRowNamespaceData(ctx, t, createAccessor, size)
+		})
 
-	t.Run("Shares", func(t *testing.T) {
-		testAccessorShares(ctx, t, createAccessor, odsSize)
-	})
+		t.Run(fmt.Sprintf("Shares:%d", size), func(t *testing.T) {
+			testAccessorShares(ctx, t, createAccessor, size)
+		})
+	}
 }
 
 func TestStreamer(
@@ -349,4 +355,12 @@ func (q quadrant) coordinates(edsSize int) (rowIdx, colIdx int) {
 	colIdx = edsSize/2*(int(q-1)%2) + 1
 	rowIdx = edsSize/2*(int(q-1)/2) + 1
 	return rowIdx, colIdx
+}
+
+func checkPowerOfTwo(n int) bool {
+	// added one corner case if n is zero it will also consider as power 2
+	if n == 0 {
+		return true
+	}
+	return n&(n-1) == 0
 }

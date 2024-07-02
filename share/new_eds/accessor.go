@@ -34,7 +34,7 @@ type AccessorStreamer interface {
 }
 
 type Streamer interface {
-	// Reader returns binary reader for the file (ODS) shares. It should read the shares from the
+	// Reader returns binary reader for the shares. It should read the shares from the
 	// ODS part of the square row by row.
 	Reader() (io.Reader, error)
 	io.Closer
@@ -45,6 +45,6 @@ type accessorStreamer struct {
 	Streamer
 }
 
-func WithStreamer(a Accessor, s Streamer) AccessorStreamer {
+func AccessorAndStreamer(a Accessor, s Streamer) AccessorStreamer {
 	return &accessorStreamer{a, s}
 }

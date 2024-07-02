@@ -269,7 +269,7 @@ func (c *proofsCache) getShare(rowIdx, colIdx int) ([]byte, error) {
 	// if share is from the same side of axis return share right away
 	if colIdx > odsSize == half.IsParity {
 		if half.IsParity {
-			colIdx = colIdx - odsSize
+			colIdx -= odsSize
 		}
 		return half.Shares[colIdx], nil
 	}

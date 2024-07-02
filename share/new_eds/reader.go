@@ -9,16 +9,7 @@ import (
 	"github.com/celestiaorg/celestia-node/share"
 )
 
-func NewSharesReader(odsSize int, getShare func(rowIdx, colIdx int) ([]byte, error)) *BufferedReader {
-	return &BufferedReader{
-		getShare: getShare,
-		buf:      bytes.NewBuffer(nil),
-		odsSize:  odsSize,
-		total:    odsSize * odsSize,
-	}
-}
-
-// BufferedReader will read Shares from inMemOds into the buffer.
+// BufferedReader will read Shares from getShare function into the buffer.
 // It exposes the buffer to be read by io.Reader interface implementation
 type BufferedReader struct {
 	buf      *bytes.Buffer
@@ -26,6 +17,15 @@ type BufferedReader struct {
 	// current is the amount of Shares stored in square that have been written by squareCopy. When
 	// current reaches total, squareCopy will prevent further reads by returning io.EOF
 	current, odsSize, total int
+}
+
+func NewSharesReader(odsSize int, getShare func(rowIdx, colIdx int) ([]byte, error)) *BufferedReader {
+	return &BufferedReader{
+		getShare: getShare,
+		buf:      bytes.NewBuffer(nil),
+		odsSize:  odsSize,
+		total:    odsSize * odsSize,
+	}
 }
 
 func (r *BufferedReader) Read(p []byte) (int, error) {
@@ -49,7 +49,7 @@ func (r *BufferedReader) Read(p []byte) (int, error) {
 		rowIdx, colIdx := r.current/r.odsSize, r.current%r.odsSize
 		share, err := r.getShare(rowIdx, colIdx)
 		if err != nil {
-			return 0, fmt.Errorf("get share; %w", err)
+			return 0, fmt.Errorf("get share: %w", err)
 		}
 
 		// copy share to provided buffer

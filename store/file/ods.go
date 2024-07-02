@@ -201,8 +201,9 @@ func (f *ODSFile) Reader() (io.Reader, error) {
 		return ods.reader()
 	}
 
-	offset := f.hdr.Size()
-	reader := newFileReader(f.fl, offset, int(f.hdr.shareSize), f.size())
+	offset := int64(f.hdr.Size())
+	total := int64(f.hdr.shareSize) * int64(f.size()*f.size()/4)
+	reader := io.NewSectionReader(f.fl, offset, total)
 	return reader, nil
 }
 
@@ -233,11 +234,11 @@ func (f *ODSFile) readAxisHalf(axisType rsmt2d.Axis, axisIdx int) (eds.AxisHalf,
 
 func (f *ODSFile) readODS() (square, error) {
 	f.lock.RLock()
-	if f.ods != nil {
-		f.lock.RUnlock()
-		return f.ods, nil
-	}
+	ods := f.ods
 	f.lock.RUnlock()
+	if ods != nil {
+		return ods, nil
+	}
 
 	// reset file pointer to the beginning of the file shares data
 	_, err := f.fl.Seek(int64(f.hdr.Size()), io.SeekStart)
@@ -305,25 +306,4 @@ func (f *ODSFile) axis(ctx context.Context, axisType rsmt2d.Axis, axisIdx int) (
 	}
 
 	return half.Extended()
-}
-
-type fileReader struct {
-	r              io.ReaderAt
-	current, total int64
-}
-
-func newFileReader(r io.ReaderAt, offset, shareSize, odsSize int) *fileReader {
-	return &fileReader{
-		r:       r,
-		current: int64(offset),
-		total:   int64(odsSize*odsSize*shareSize + offset),
-	}
-}
-
-func (w *fileReader) Read(p []byte) (int, error) {
-	if w.current >= w.total {
-		return 0, io.EOF
-	}
-
-	return w.r.ReadAt(p, w.current)
 }

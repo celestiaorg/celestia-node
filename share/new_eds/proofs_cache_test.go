@@ -9,7 +9,7 @@ import (
 )
 
 func TestCache(t *testing.T) {
-	ODSSize := 8
+	ODSSize := 64
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second*5)
 	t.Cleanup(cancel)
 
