@@ -25,7 +25,7 @@ RUN uname -a &&\
     CGO_ENABLED=${CGO_ENABLED} GOOS=${TARGETOS} GOARCH=${TARGETARCH} \
     make build && make cel-key
 
-FROM docker.io/alpine:3.20.0
+FROM docker.io/alpine:3.20.1
 
 # Read here why UID 10001: https://github.com/hexops/dockerfile/blob/main/README.md#do-not-use-a-uid-below-10000
 ARG UID=10001
