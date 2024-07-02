@@ -41,10 +41,10 @@ func TestCreateQ1Q4File(t *testing.T) {
 }
 
 func TestQ1Q4File(t *testing.T) {
-	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
 	t.Cleanup(cancel)
 
-	ODSSize := 8
+	ODSSize := 16
 	eds.TestSuiteAccessor(ctx, t, createQ1Q4File, ODSSize)
 }
 

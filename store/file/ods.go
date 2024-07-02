@@ -14,7 +14,7 @@ import (
 	"github.com/celestiaorg/celestia-node/share/shwap"
 )
 
-var _ eds.AccessorCloser = (*ODSFile)(nil)
+var _ eds.AccessorStreamer = (*ODSFile)(nil)
 
 type ODSFile struct {
 	path string
@@ -191,11 +191,27 @@ func (f *ODSFile) Shares(context.Context) ([]share.Share, error) {
 	return ods.shares()
 }
 
+// Reader returns binary reader for the file. It reads the shares from the ODS part of the square
+// row by row.
+func (f *ODSFile) Reader() (io.Reader, error) {
+	f.lock.RLock()
+	ods := f.ods
+	f.lock.RUnlock()
+	if ods != nil {
+		return ods.reader()
+	}
+
+	offset := int64(f.hdr.Size())
+	total := int64(f.hdr.shareSize) * int64(f.size()*f.size()/4)
+	reader := io.NewSectionReader(f.fl, offset, total)
+	return reader, nil
+}
+
 func (f *ODSFile) readAxisHalf(axisType rsmt2d.Axis, axisIdx int) (eds.AxisHalf, error) {
 	f.lock.RLock()
-	ODS := f.ods
+	ods := f.ods
 	f.lock.RUnlock()
-	if ODS != nil {
+	if ods != nil {
 		return f.ods.axisHalf(axisType, axisIdx)
 	}
 
@@ -217,10 +233,11 @@ func (f *ODSFile) readAxisHalf(axisType rsmt2d.Axis, axisIdx int) (eds.AxisHalf,
 }
 
 func (f *ODSFile) readODS() (square, error) {
-	f.lock.Lock()
-	defer f.lock.Unlock()
-	if f.ods != nil {
-		return f.ods, nil
+	f.lock.RLock()
+	ods := f.ods
+	f.lock.RUnlock()
+	if ods != nil {
+		return ods, nil
 	}
 
 	// reset file pointer to the beginning of the file shares data
@@ -235,7 +252,9 @@ func (f *ODSFile) readODS() (square, error) {
 	}
 
 	if !f.disableCache {
+		f.lock.Lock()
 		f.ods = square
+		f.lock.Unlock()
 	}
 	return square, nil
 }

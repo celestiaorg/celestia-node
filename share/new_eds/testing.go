@@ -18,29 +18,49 @@ import (
 	"github.com/celestiaorg/celestia-node/share/shwap"
 )
 
-type createAccessor func(testing.TB, *rsmt2d.ExtendedDataSquare) Accessor
+type (
+	createAccessor         func(testing.TB, *rsmt2d.ExtendedDataSquare) Accessor
+	createAccessorStreamer func(testing.TB, *rsmt2d.ExtendedDataSquare) AccessorStreamer
+)
 
 // TestSuiteAccessor runs a suite of tests for the given Accessor implementation.
 func TestSuiteAccessor(
 	ctx context.Context,
 	t *testing.T,
 	createAccessor createAccessor,
+	maxSize int,
+) {
+	minSize := 2
+	if !checkPowerOfTwo(maxSize) {
+		t.Errorf("minSize must be power of 2: %v", maxSize)
+	}
+	for size := minSize; size <= maxSize; size *= 2 {
+		t.Run(fmt.Sprintf("Sample:%d", size), func(t *testing.T) {
+			testAccessorSample(ctx, t, createAccessor, size)
+		})
+
+		t.Run(fmt.Sprintf("AxisHalf:%d", size), func(t *testing.T) {
+			testAccessorAxisHalf(ctx, t, createAccessor, size)
+		})
+
+		t.Run(fmt.Sprintf("RowNamespaceData:%d", size), func(t *testing.T) {
+			testAccessorRowNamespaceData(ctx, t, createAccessor, size)
+		})
+
+		t.Run(fmt.Sprintf("Shares:%d", size), func(t *testing.T) {
+			testAccessorShares(ctx, t, createAccessor, size)
+		})
+	}
+}
+
+func TestStreamer(
+	ctx context.Context,
+	t *testing.T,
+	create createAccessorStreamer,
 	odsSize int,
 ) {
-	t.Run("Sample", func(t *testing.T) {
-		testAccessorSample(ctx, t, createAccessor, odsSize)
-	})
-
-	t.Run("AxisHalf", func(t *testing.T) {
-		testAccessorAxisHalf(ctx, t, createAccessor, odsSize)
-	})
-
-	t.Run("RowNamespaceData", func(t *testing.T) {
-		testAccessorRowNamespaceData(ctx, t, createAccessor, odsSize)
-	})
-
-	t.Run("Shares", func(t *testing.T) {
-		testAccessorShares(ctx, t, createAccessor, odsSize)
+	t.Run("Reader", func(t *testing.T) {
+		testAccessorReader(ctx, t, create, odsSize)
 	})
 }
 
@@ -232,6 +252,40 @@ func testAccessorShares(
 	require.Equal(t, expected, shares)
 }
 
+func testAccessorReader(
+	ctx context.Context,
+	t *testing.T,
+	create createAccessorStreamer,
+	odsSize int,
+) {
+	eds := edstest.RandEDS(t, odsSize)
+	f := create(t, eds)
+
+	// verify that the reader represented by file can be read from
+	// multiple times, without exhausting the underlying reader.
+	wg := sync.WaitGroup{}
+	for i := 0; i < 10; i++ {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			testReader(ctx, t, eds, f)
+		}()
+	}
+	wg.Wait()
+}
+
+func testReader(ctx context.Context, t *testing.T, eds *rsmt2d.ExtendedDataSquare, as AccessorStreamer) {
+	reader, err := as.Reader()
+	require.NoError(t, err)
+
+	odsSize := as.Size(ctx) / 2
+	shares, err := ReadShares(reader, share.Size, odsSize)
+	require.NoError(t, err)
+	actual, err := Rsmt2DFromShares(shares, odsSize)
+	require.NoError(t, err)
+	require.True(t, eds.Equals(actual.ExtendedDataSquare))
+}
+
 func BenchGetHalfAxisFromAccessor(
 	ctx context.Context,
 	b *testing.B,
@@ -301,4 +355,12 @@ func (q quadrant) coordinates(edsSize int) (rowIdx, colIdx int) {
 	colIdx = edsSize/2*(int(q-1)%2) + 1
 	rowIdx = edsSize/2*(int(q-1)/2) + 1
 	return rowIdx, colIdx
+}
+
+func checkPowerOfTwo(n int) bool {
+	// added one corner case if n is zero it will also consider as power 2
+	if n == 0 {
+		return true
+	}
+	return n&(n-1) == 0
 }

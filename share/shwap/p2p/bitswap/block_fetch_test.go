@@ -117,7 +117,7 @@ func TestFetch_Duplicates(t *testing.T) {
 func newExchangeOverEDS(ctx context.Context, t *testing.T, rsmt2d *rsmt2d.ExtendedDataSquare) exchange.SessionExchange {
 	bstore := &Blockstore{
 		Getter: testAccessorGetter{
-			Accessor: eds.Rsmt2D{ExtendedDataSquare: rsmt2d},
+			Accessor: &eds.Rsmt2D{ExtendedDataSquare: rsmt2d},
 		},
 	}
 	return newExchange(ctx, t, bstore)
