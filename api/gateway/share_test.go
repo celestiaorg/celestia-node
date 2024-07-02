@@ -5,10 +5,10 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/require"
-	coretypes "github.com/tendermint/tendermint/types"
 
-	"github.com/celestiaorg/celestia-app/pkg/appconsts"
-	"github.com/celestiaorg/celestia-app/pkg/shares"
+	"github.com/celestiaorg/celestia-app/v2/pkg/appconsts"
+	"github.com/celestiaorg/go-square/blob"
+	"github.com/celestiaorg/go-square/shares"
 
 	"github.com/celestiaorg/celestia-node/share/sharetest"
 )
@@ -23,13 +23,13 @@ func Test_dataFromShares(t *testing.T) {
 	ns := sharetest.RandV0Namespace()
 	sss := shares.NewSparseShareSplitter()
 	for _, data := range testData {
-		b := coretypes.Blob{
+		b := blob.Blob{
 			Data:             data,
-			NamespaceID:      ns.ID(),
-			NamespaceVersion: ns.Version(),
-			ShareVersion:     appconsts.ShareVersionZero,
+			NamespaceId:      ns.ID(),
+			NamespaceVersion: uint32(ns.Version()),
+			ShareVersion:     uint32(appconsts.ShareVersionZero),
 		}
-		err := sss.Write(b)
+		err := sss.Write(&b)
 		require.NoError(t, err)
 	}
 

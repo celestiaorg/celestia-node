@@ -15,9 +15,9 @@ import (
 	"github.com/stretchr/testify/require"
 	tmrand "github.com/tendermint/tendermint/libs/rand"
 
-	"github.com/celestiaorg/celestia-app/pkg/appconsts"
-	"github.com/celestiaorg/celestia-app/pkg/shares"
+	"github.com/celestiaorg/celestia-app/v2/pkg/appconsts"
 	"github.com/celestiaorg/go-header/store"
+	"github.com/celestiaorg/go-square/shares"
 
 	"github.com/celestiaorg/celestia-node/blob/blobtest"
 	"github.com/celestiaorg/celestia-node/header"
@@ -539,8 +539,8 @@ func TestSkipPaddingsAndRetrieveBlob(t *testing.T) {
 
 	appBlob, err := blobtest.GenerateV0Blobs([]int{6}, true)
 	require.NoError(t, err)
-	appBlob[0].NamespaceVersion = nid[0]
-	appBlob[0].NamespaceID = nid[1:]
+	appBlob[0].NamespaceVersion = uint32(nid[0])
+	appBlob[0].NamespaceId = nid[1:]
 
 	blobs, err := convertBlobs(appBlob...)
 	require.NoError(t, err)

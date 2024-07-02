@@ -2,13 +2,19 @@ package blob
 
 import (
 	"bytes"
+	"fmt"
+	"math"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-	"github.com/tendermint/tendermint/types"
 
-	apptypes "github.com/celestiaorg/celestia-app/x/blob/types"
+	"github.com/celestiaorg/celestia-app/v2/pkg/appconsts"
+	v1 "github.com/celestiaorg/celestia-app/v2/pkg/appconsts/v1"
+	apptypes "github.com/celestiaorg/celestia-app/v2/x/blob/types"
+	"github.com/celestiaorg/go-square/blob"
+	"github.com/celestiaorg/go-square/inclusion"
+	"github.com/celestiaorg/go-square/merkle"
 
 	"github.com/celestiaorg/celestia-node/blob/blobtest"
 )
@@ -35,7 +41,11 @@ func TestBlob(t *testing.T) {
 		{
 			name: "compare commitments",
 			expectedRes: func(t *testing.T) {
-				comm, err := apptypes.CreateCommitment(&blob[0].Blob)
+				comm, err := inclusion.CreateCommitment(
+					blob[0].Blob,
+					merkle.HashFromByteSlices,
+					appconsts.SubtreeRootThreshold(v1.Version),
+				)
 				require.NoError(t, err)
 				assert.Equal(t, blob[0].Commitment, Commitment(comm))
 			},
@@ -69,7 +79,7 @@ func TestBlob(t *testing.T) {
 
 				newBlob := &Blob{}
 				require.NoError(t, newBlob.UnmarshalJSON(data))
-				require.True(t, bytes.Equal(blob[0].Blob.Data, newBlob.Data))
+				require.True(t, bytes.Equal(blob[0].Blob.GetData(), newBlob.Data))
 				require.True(t, bytes.Equal(blob[0].Commitment, newBlob.Commitment))
 			},
 		},
@@ -80,10 +90,13 @@ func TestBlob(t *testing.T) {
 	}
 }
 
-func convertBlobs(appBlobs ...types.Blob) ([]*Blob, error) {
+func convertBlobs(appBlobs ...*blob.Blob) ([]*Blob, error) {
 	blobs := make([]*Blob, 0, len(appBlobs))
-	for _, b := range appBlobs {
-		blob, err := NewBlob(b.ShareVersion, append([]byte{b.NamespaceVersion}, b.NamespaceID...), b.Data)
+	for _, appBlob := range appBlobs {
+		if shareVersion := appBlob.GetShareVersion(); shareVersion > math.MaxUint8 {
+			return nil, fmt.Errorf("share version %d is greater than max share version %d", shareVersion, math.MaxUint8)
+		}
+		blob, err := NewBlob(uint8(appBlob.GetShareVersion()), appBlob.Namespace().Bytes(), appBlob.GetData())
 		if err != nil {
 			return nil, err
 		}

@@ -3,7 +3,7 @@ package swamp
 import (
 	"time"
 
-	"github.com/celestiaorg/celestia-app/test/util/testnode"
+	"github.com/celestiaorg/celestia-app/v2/test/util/testnode"
 
 	"github.com/celestiaorg/celestia-node/core"
 )

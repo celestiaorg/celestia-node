@@ -7,7 +7,7 @@ import (
 	"fmt"
 	"hash"
 
-	"github.com/celestiaorg/celestia-app/pkg/appconsts"
+	"github.com/celestiaorg/celestia-app/v2/pkg/appconsts"
 )
 
 // DefaultRSMT2DCodec sets the default rsmt2d.Codec for shares.

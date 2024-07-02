@@ -10,7 +10,7 @@ import (
 
 	"github.com/stretchr/testify/require"
 
-	"github.com/celestiaorg/celestia-app/pkg/namespace"
+	"github.com/celestiaorg/go-square/namespace"
 
 	"github.com/celestiaorg/celestia-node/share"
 )

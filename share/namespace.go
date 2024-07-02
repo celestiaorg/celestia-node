@@ -5,7 +5,7 @@ import (
 	"encoding/hex"
 	"fmt"
 
-	appns "github.com/celestiaorg/celestia-app/pkg/namespace"
+	appns "github.com/celestiaorg/go-square/namespace"
 	"github.com/celestiaorg/nmt/namespace"
 )
 
