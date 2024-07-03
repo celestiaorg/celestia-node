@@ -16,8 +16,8 @@ type RowID struct {
 	RowIndex int // RowIndex specifies the position of the row within the data square.
 }
 
-// NewRowID creates a new RowID with the specified block height, row index, and validates it
-// against the provided eds size. It returns an error if the validation fails, ensuring the RowID
+// NewRowID creates a new RowID with the specified block height, row index, and EDS size.
+// It returns an error if the validation fails, ensuring the RowID
 // conforms to expected constraints.
 func NewRowID(height uint64, rowIdx, edsSize int) (RowID, error) {
 	rid := RowID{
@@ -26,7 +26,11 @@ func NewRowID(height uint64, rowIdx, edsSize int) (RowID, error) {
 		},
 		RowIndex: rowIdx,
 	}
-	return rid, rid.Verify(edsSize)
+	if err := rid.Verify(edsSize); err != nil {
+		return RowID{}, fmt.Errorf("verifying RowID: %w", err)
+	}
+
+	return rid, nil
 }
 
 // RowIDFromBinary decodes a RowID from its binary representation.
@@ -37,12 +41,18 @@ func RowIDFromBinary(data []byte) (RowID, error) {
 	}
 	eid, err := EdsIDFromBinary(data[:EdsIDSize])
 	if err != nil {
-		return RowID{}, fmt.Errorf("error decoding EdsID: %w", err)
+		return RowID{}, fmt.Errorf("decoding EdsID: %w", err)
 	}
-	return RowID{
+
+	rid := RowID{
 		EdsID:    eid,
 		RowIndex: int(binary.BigEndian.Uint16(data[EdsIDSize:])),
-	}, nil
+	}
+	if err := rid.Validate(); err != nil {
+		return RowID{}, fmt.Errorf("validating RowID: %w", err)
+	}
+
+	return rid, nil
 }
 
 // MarshalBinary encodes the RowID into a binary form for storage or network transmission.
@@ -51,25 +61,24 @@ func (rid RowID) MarshalBinary() ([]byte, error) {
 	return rid.appendTo(data), nil
 }
 
-// Verify ensures the RowID's fields are valid given the specified root structure, particularly
-// that the row index is within bounds.
+// Verify validates the RowID fields and verifies that RowIndex is within the bounds of
+// the square size
 func (rid RowID) Verify(edsSize int) error {
 	if edsSize == 0 {
 		return fmt.Errorf("provided EDS size is zero")
 	}
 
 	if rid.RowIndex >= edsSize {
-		return fmt.Errorf("RowIndex: %w: %d >= %d", ErrOutOfBounds, rid.RowIndex, edsSize)
+		return fmt.Errorf("%w, RowIndex: %d >= %d", ErrOutOfBounds, rid.RowIndex, edsSize)
 	}
 
 	return rid.Validate()
 }
 
-// Validate ensures the RowID's fields are valid given the specified root structure, particularly
-// that the row index is within bounds.
+// Validate performs basic field validation.
 func (rid RowID) Validate() error {
 	if rid.RowIndex < 0 {
-		return fmt.Errorf("RowIndex: %w: %d", ErrInvalidShwapID, rid.RowIndex)
+		return fmt.Errorf("%w: RowIndex: %d < 0", ErrInvalidShwapID, rid.RowIndex)
 	}
 	return rid.EdsID.Validate()
 }

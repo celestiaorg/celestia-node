@@ -21,8 +21,7 @@ type EdsID struct {
 	Height uint64 // Height specifies the block height.
 }
 
-// NewEdsID creates a new EdsID using the given height and verifies it against the provided Root.
-// It returns an error if the verification fails.
+// NewEdsID creates a new EdsID using the given height.
 func NewEdsID(height uint64) (EdsID, error) {
 	eid := EdsID{
 		Height: height,
@@ -36,10 +35,14 @@ func EdsIDFromBinary(data []byte) (EdsID, error) {
 	if len(data) != EdsIDSize {
 		return EdsID{}, fmt.Errorf("invalid EdsID data length: %d != %d", len(data), EdsIDSize)
 	}
-	rid := EdsID{
+	eid := EdsID{
 		Height: binary.BigEndian.Uint64(data),
 	}
-	return rid, nil
+	if err := eid.Validate(); err != nil {
+		return EdsID{}, fmt.Errorf("validating EdsID: %w", err)
+	}
+
+	return eid, nil
 }
 
 // MarshalBinary encodes an EdsID into its binary form, primarily for storage or network
@@ -53,7 +56,7 @@ func (eid EdsID) MarshalBinary() ([]byte, error) {
 // It ensures that the EdsID is not constructed with a zero Height and that the root is not nil.
 func (eid EdsID) Validate() error {
 	if eid.Height == 0 {
-		return fmt.Errorf("%w: Height: %d", ErrInvalidShwapID, eid.Height)
+		return fmt.Errorf("%w: Height == 0", ErrInvalidShwapID)
 	}
 	return nil
 }

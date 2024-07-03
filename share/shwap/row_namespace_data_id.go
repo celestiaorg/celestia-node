@@ -18,7 +18,7 @@ type RowNamespaceDataID struct {
 }
 
 // NewRowNamespaceDataID creates a new RowNamespaceDataID with the specified parameters. It
-// validates the RowNamespaceDataID against the provided Root before returning.
+// validates the RowNamespaceDataID against the provided EDS size.
 func NewRowNamespaceDataID(
 	height uint64,
 	rowIdx int,
@@ -36,7 +36,7 @@ func NewRowNamespaceDataID(
 	}
 
 	if err := did.Verify(edsSize); err != nil {
-		return RowNamespaceDataID{}, err
+		return RowNamespaceDataID{}, fmt.Errorf("verifying RowNamespaceDataID: %w", err)
 	}
 	return did, nil
 }
@@ -51,19 +51,18 @@ func RowNamespaceDataIDFromBinary(data []byte) (RowNamespaceDataID, error) {
 
 	rid, err := RowIDFromBinary(data[:RowIDSize])
 	if err != nil {
-		return RowNamespaceDataID{}, fmt.Errorf("error unmarshaling RowID: %w", err)
+		return RowNamespaceDataID{}, fmt.Errorf("unmarshaling RowID: %w", err)
 	}
 
-	nsData := data[RowIDSize:]
-	ns := share.Namespace(nsData)
-	if err := ns.ValidateForData(); err != nil {
-		return RowNamespaceDataID{}, fmt.Errorf("error validating DataNamespace: %w", err)
-	}
-
-	return RowNamespaceDataID{
+	rndid := RowNamespaceDataID{
 		RowID:         rid,
-		DataNamespace: ns,
-	}, nil
+		DataNamespace: data[RowIDSize:],
+	}
+	if err := rndid.Validate(); err != nil {
+		return RowNamespaceDataID{}, fmt.Errorf("validating RowNamespaceDataID: %w", err)
+	}
+
+	return rndid, nil
 }
 
 // MarshalBinary encodes RowNamespaceDataID into binary form.
@@ -75,24 +74,22 @@ func (s RowNamespaceDataID) MarshalBinary() ([]byte, error) {
 	return s.appendTo(data), nil
 }
 
-// Verify checks the validity of RowNamespaceDataID's fields, including the RowID and the
-// namespace.
+// Verify validates the RowNamespaceDataID and verifies the embedded RowID.
 func (s RowNamespaceDataID) Verify(edsSize int) error {
 	if err := s.RowID.Verify(edsSize); err != nil {
-		return fmt.Errorf("error validating RowID: %w", err)
+		return fmt.Errorf("error verifying RowID: %w", err)
 	}
 
 	return s.Validate()
 }
 
-// Validate checks the validity of RowNamespaceDataID's fields, including the RowID and the
-// namespace.
+// Validate performs basic field validation.
 func (s RowNamespaceDataID) Validate() error {
 	if err := s.RowID.Validate(); err != nil {
-		return fmt.Errorf("error validating RowID: %w", err)
+		return fmt.Errorf("validating RowID: %w", err)
 	}
 	if err := s.DataNamespace.ValidateForData(); err != nil {
-		return fmt.Errorf("%w: error validating DataNamespace: %w", ErrInvalidShwapID, err)
+		return fmt.Errorf("%w: validating DataNamespace: %w", ErrInvalidShwapID, err)
 	}
 
 	return nil

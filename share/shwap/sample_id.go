@@ -15,9 +15,8 @@ type SampleID struct {
 	ShareIndex int // ShareIndex specifies the index of the sample within the row.
 }
 
-// NewSampleID constructs a new SampleID using the provided block height, sample index, and a root
-// structure for validation. It calculates the row and share index based on the sample index and
-// the length of the row roots.
+// NewSampleID constructs a new SampleID using the provided block height, sample index, and EDS size.
+// It calculates the row and share index based on the sample index and EDS size.
 func NewSampleID(height uint64, rowIdx, colIdx, edsSize int) (SampleID, error) {
 	sid := SampleID{
 		RowID: RowID{
@@ -30,7 +29,7 @@ func NewSampleID(height uint64, rowIdx, colIdx, edsSize int) (SampleID, error) {
 	}
 
 	if err := sid.Verify(edsSize); err != nil {
-		return SampleID{}, err
+		return SampleID{}, fmt.Errorf("verifying SampleID: %w", err)
 	}
 	return sid, nil
 }
@@ -44,13 +43,18 @@ func SampleIDFromBinary(data []byte) (SampleID, error) {
 
 	rid, err := RowIDFromBinary(data[:RowIDSize])
 	if err != nil {
-		return SampleID{}, fmt.Errorf("error decoding RowID: %w", err)
+		return SampleID{}, fmt.Errorf("decoding RowID: %w", err)
 	}
 
-	return SampleID{
+	sid := SampleID{
 		RowID:      rid,
 		ShareIndex: int(binary.BigEndian.Uint16(data[RowIDSize:])),
-	}, nil
+	}
+	if err := sid.Validate(); err != nil {
+		return SampleID{}, fmt.Errorf("validating SampleID: %w", err)
+	}
+
+	return sid, nil
 }
 
 // MarshalBinary encodes SampleID into binary form.
@@ -62,21 +66,22 @@ func (sid SampleID) MarshalBinary() ([]byte, error) {
 	return sid.appendTo(data), nil
 }
 
-// Verify verifies the SampleID by ensuring the ShareIndex is within the bounds of
+// Verify validates the SampleID and verifies that the ShareIndex is within the bounds of
 // the square size.
 func (sid SampleID) Verify(edsSize int) error {
 	if err := sid.RowID.Verify(edsSize); err != nil {
-		return err
+		return fmt.Errorf("verifying RowID: %w", err)
 	}
 	if sid.ShareIndex >= edsSize {
-		return fmt.Errorf("ShareIndex: %w: %d >= %d", ErrOutOfBounds, sid.ShareIndex, edsSize)
+		return fmt.Errorf("%w: ShareIndex: %d >= %d", ErrOutOfBounds, sid.ShareIndex, edsSize)
 	}
 	return sid.Validate()
 }
 
+// Validate performs basic field validation.
 func (sid SampleID) Validate() error {
 	if sid.ShareIndex < 0 {
-		return fmt.Errorf("ShareIndex: %w: %d", ErrInvalidShwapID, sid.ShareIndex)
+		return fmt.Errorf("%w: ShareIndex: %d < 0", ErrInvalidShwapID, sid.ShareIndex)
 	}
 	return sid.RowID.Validate()
 }
