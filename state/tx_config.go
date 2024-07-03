@@ -32,7 +32,6 @@ func NewTxConfig(attributes ...Attribute) *TxConfig {
 }
 
 // TxConfig specifies additional options that will be applied to the Tx.
-// Implements `Option` interface.
 type TxConfig struct {
 	// Specifies the address from the keystore that will sign transactions.
 	// NOTE: Only `signerAddress` or `KeyName` should be passed.

@@ -33,7 +33,7 @@ type Module interface {
 	// Transfer sends the given amount of coins from default wallet of the node to the given account
 	// address.
 	Transfer(
-		ctx context.Context, to state.AccAddress, amount state.Int, options *state.TxConfig,
+		ctx context.Context, to state.AccAddress, amount state.Int, config *state.TxConfig,
 	) (*state.TxResponse, error)
 	// SubmitTx submits the given transaction/message to the
 	// Celestia network and blocks until the tx is included in
@@ -43,7 +43,7 @@ type Module interface {
 	SubmitPayForBlob(
 		ctx context.Context,
 		blobs []*state.Blob,
-		options *state.TxConfig,
+		config *state.TxConfig,
 	) (*state.TxResponse, error)
 	// CancelUnbondingDelegation cancels a user's pending undelegation from a validator.
 	CancelUnbondingDelegation(
@@ -51,7 +51,7 @@ type Module interface {
 		valAddr state.ValAddress,
 		amount,
 		height state.Int,
-		options *state.TxConfig,
+		config *state.TxConfig,
 	) (*state.TxResponse, error)
 	// BeginRedelegate sends a user's delegated tokens to a new validator for redelegation.
 	BeginRedelegate(
@@ -59,21 +59,21 @@ type Module interface {
 		srcValAddr,
 		dstValAddr state.ValAddress,
 		amount state.Int,
-		options *state.TxConfig,
+		config *state.TxConfig,
 	) (*state.TxResponse, error)
 	// Undelegate undelegates a user's delegated tokens, unbonding them from the current validator.
 	Undelegate(
 		ctx context.Context,
 		delAddr state.ValAddress,
 		amount state.Int,
-		options *state.TxConfig,
+		config *state.TxConfig,
 	) (*state.TxResponse, error)
 	// Delegate sends a user's liquid tokens to a validator for delegation.
 	Delegate(
 		ctx context.Context,
 		delAddr state.ValAddress,
 		amount state.Int,
-		options *state.TxConfig,
+		config *state.TxConfig,
 	) (*state.TxResponse, error)
 
 	// QueryDelegation retrieves the delegation information between a delegator and a validator.
@@ -91,13 +91,13 @@ type Module interface {
 		ctx context.Context,
 		grantee state.AccAddress,
 		amount state.Int,
-		options *state.TxConfig,
+		config *state.TxConfig,
 	) (*state.TxResponse, error)
 
 	RevokeGrantFee(
 		ctx context.Context,
 		grantee state.AccAddress,
-		options *state.TxConfig,
+		config *state.TxConfig,
 	) (*state.TxResponse, error)
 }
 
@@ -114,38 +114,38 @@ type API struct {
 			ctx context.Context,
 			to state.AccAddress,
 			amount state.Int,
-			options *state.TxConfig,
+			config *state.TxConfig,
 		) (*state.TxResponse, error) `perm:"write"`
 		SubmitTx         func(ctx context.Context, tx state.Tx) (*state.TxResponse, error) `perm:"read"`
 		SubmitPayForBlob func(
 			ctx context.Context,
 			blobs []*state.Blob,
-			options *state.TxConfig,
+			config *state.TxConfig,
 		) (*state.TxResponse, error) `perm:"write"`
 		CancelUnbondingDelegation func(
 			ctx context.Context,
 			valAddr state.ValAddress,
 			amount, height state.Int,
-			options *state.TxConfig,
+			config *state.TxConfig,
 		) (*state.TxResponse, error) `perm:"write"`
 		BeginRedelegate func(
 			ctx context.Context,
 			srcValAddr,
 			dstValAddr state.ValAddress,
 			amount state.Int,
-			options *state.TxConfig,
+			config *state.TxConfig,
 		) (*state.TxResponse, error) `perm:"write"`
 		Undelegate func(
 			ctx context.Context,
 			delAddr state.ValAddress,
 			amount state.Int,
-			options *state.TxConfig,
+			config *state.TxConfig,
 		) (*state.TxResponse, error) `perm:"write"`
 		Delegate func(
 			ctx context.Context,
 			delAddr state.ValAddress,
 			amount state.Int,
-			options *state.TxConfig,
+			config *state.TxConfig,
 		) (*state.TxResponse, error) `perm:"write"`
 		QueryDelegation func(
 			ctx context.Context,
@@ -164,12 +164,12 @@ type API struct {
 			ctx context.Context,
 			grantee state.AccAddress,
 			amount state.Int,
-			options *state.TxConfig,
+			config *state.TxConfig,
 		) (*state.TxResponse, error) `perm:"write"`
 		RevokeGrantFee func(
 			ctx context.Context,
 			grantee state.AccAddress,
-			options *state.TxConfig,
+			config *state.TxConfig,
 		) (*state.TxResponse, error) `perm:"write"`
 	}
 }
@@ -186,9 +186,9 @@ func (api *API) Transfer(
 	ctx context.Context,
 	to state.AccAddress,
 	amount state.Int,
-	options *state.TxConfig,
+	config *state.TxConfig,
 ) (*state.TxResponse, error) {
-	return api.Internal.Transfer(ctx, to, amount, options)
+	return api.Internal.Transfer(ctx, to, amount, config)
 }
 
 func (api *API) SubmitTx(ctx context.Context, tx state.Tx) (*state.TxResponse, error) {
@@ -198,45 +198,45 @@ func (api *API) SubmitTx(ctx context.Context, tx state.Tx) (*state.TxResponse, e
 func (api *API) SubmitPayForBlob(
 	ctx context.Context,
 	blobs []*state.Blob,
-	options *state.TxConfig,
+	config *state.TxConfig,
 ) (*state.TxResponse, error) {
-	return api.Internal.SubmitPayForBlob(ctx, blobs, options)
+	return api.Internal.SubmitPayForBlob(ctx, blobs, config)
 }
 
 func (api *API) CancelUnbondingDelegation(
 	ctx context.Context,
 	valAddr state.ValAddress,
 	amount, height state.Int,
-	options *state.TxConfig,
+	config *state.TxConfig,
 ) (*state.TxResponse, error) {
-	return api.Internal.CancelUnbondingDelegation(ctx, valAddr, amount, height, options)
+	return api.Internal.CancelUnbondingDelegation(ctx, valAddr, amount, height, config)
 }
 
 func (api *API) BeginRedelegate(
 	ctx context.Context,
 	srcValAddr, dstValAddr state.ValAddress,
 	amount state.Int,
-	options *state.TxConfig,
+	config *state.TxConfig,
 ) (*state.TxResponse, error) {
-	return api.Internal.BeginRedelegate(ctx, srcValAddr, dstValAddr, amount, options)
+	return api.Internal.BeginRedelegate(ctx, srcValAddr, dstValAddr, amount, config)
 }
 
 func (api *API) Undelegate(
 	ctx context.Context,
 	delAddr state.ValAddress,
 	amount state.Int,
-	options *state.TxConfig,
+	config *state.TxConfig,
 ) (*state.TxResponse, error) {
-	return api.Internal.Undelegate(ctx, delAddr, amount, options)
+	return api.Internal.Undelegate(ctx, delAddr, amount, config)
 }
 
 func (api *API) Delegate(
 	ctx context.Context,
 	delAddr state.ValAddress,
 	amount state.Int,
-	options *state.TxConfig,
+	config *state.TxConfig,
 ) (*state.TxResponse, error) {
-	return api.Internal.Delegate(ctx, delAddr, amount, options)
+	return api.Internal.Delegate(ctx, delAddr, amount, config)
 }
 
 func (api *API) QueryDelegation(ctx context.Context, valAddr state.ValAddress) (*types.QueryDelegationResponse, error) {
@@ -265,15 +265,15 @@ func (api *API) GrantFee(
 	ctx context.Context,
 	grantee state.AccAddress,
 	amount state.Int,
-	options *state.TxConfig,
+	config *state.TxConfig,
 ) (*state.TxResponse, error) {
-	return api.Internal.GrantFee(ctx, grantee, amount, options)
+	return api.Internal.GrantFee(ctx, grantee, amount, config)
 }
 
 func (api *API) RevokeGrantFee(
 	ctx context.Context,
 	grantee state.AccAddress,
-	options *state.TxConfig,
+	config *state.TxConfig,
 ) (*state.TxResponse, error) {
-	return api.Internal.RevokeGrantFee(ctx, grantee, options)
+	return api.Internal.RevokeGrantFee(ctx, grantee, config)
 }

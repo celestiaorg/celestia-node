@@ -52,7 +52,7 @@ func TestUpdateConfig(t *testing.T) {
 	// ensure this config field is now set after updating the config
 	require.Equal(t, newCfg.Share.PeerManagerParams, cfg.Share.PeerManagerParams)
 	// ensure old custom values were not changed
-	require.Equal(t, "thisshouldnthavechanged", cfg.State.KeyringKeyName)
+	require.Equal(t, "thisshouldnthavechanged", cfg.State.DefaultKeyName)
 	require.Equal(t, "7979", cfg.RPC.Port)
 	require.True(t, cfg.Gateway.Enabled)
 }
@@ -65,8 +65,8 @@ var outdatedConfig = `
   GRPCPort = "0"
 
 [State]
-  KeyringKeyName = "thisshouldnthavechanged"
-  KeyringBackend = "test"
+  DefaultKeyName = "thisshouldnthavechanged"
+  DefaultBackendName = "test"
 
 [P2P]
   ListenAddresses = ["/ip4/0.0.0.0/udp/2121/quic-v1", "/ip6/::/udp/2121/quic-v1", "/ip4/0.0.0.0/tcp/2121",
