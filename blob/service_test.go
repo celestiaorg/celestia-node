@@ -4,11 +4,13 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"sort"
 	"testing"
 	"time"
 
+	"github.com/golang/mock/gomock"
 	ds "github.com/ipfs/go-datastore"
 	ds_sync "github.com/ipfs/go-datastore/sync"
 	"github.com/stretchr/testify/assert"
@@ -20,10 +22,10 @@ import (
 	"github.com/celestiaorg/celestia-app/pkg/shares"
 	"github.com/celestiaorg/go-header/store"
 
-
 	"github.com/celestiaorg/celestia-node/blob/blobtest"
 	"github.com/celestiaorg/celestia-node/header"
 	"github.com/celestiaorg/celestia-node/header/headertest"
+	shareMock "github.com/celestiaorg/celestia-node/nodebuilder/share/mocks"
 	"github.com/celestiaorg/celestia-node/share"
 	"github.com/celestiaorg/celestia-node/share/getters"
 	"github.com/celestiaorg/celestia-node/share/ipld"
@@ -306,7 +308,7 @@ func TestBlobService_Get(t *testing.T) {
 				blobs, ok := i.([]*Blob)
 				require.True(t, ok)
 				assert.Empty(t, blobs)
-				assert.Empty(t, err)
+				assert.Nil(t, err)
 			},
 		},
 		{
@@ -326,6 +328,24 @@ func TestBlobService_Get(t *testing.T) {
 				newProof, err := service.GetProof(ctx, 1, blobs0[1].Namespace(), blobs0[1].Commitment)
 				require.NoError(t, err)
 				require.NoError(t, proof.equal(*newProof))
+			},
+		},
+		{
+			name: "internal error",
+			doFn: func() (interface{}, error) {
+				ctrl := gomock.NewController(t)
+				shareGetterMock := shareMock.NewMockModule(ctrl)
+				service.shareGetter = shareGetterMock
+				shareGetterMock.EXPECT().
+					GetSharesByNamespace(gomock.Any(), gomock.Any(), gomock.Any()).
+					Return(nil, errors.New("internal error"))
+				return service.GetAll(ctx, 1, []share.Namespace{blobs0[0].Namespace()})
+			},
+			expectedResult: func(res interface{}, err error) {
+				blobs, ok := res.([]*Blob)
+				require.True(t, ok)
+				assert.Empty(t, blobs)
+				require.Error(t, err)
 			},
 		},
 	}

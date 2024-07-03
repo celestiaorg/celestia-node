@@ -190,14 +190,13 @@ func (s *Service) GetAll(ctx context.Context, height uint64, namespaces []share.
 			defer wg.Done()
 
 			blobs, err := s.getBlobs(ctx, namespace, header)
-			switch {
-			case err == nil:
-				log.Infow("retrieved blobs", "height", height, "total", len(blobs))
-				resultBlobs[i] = blobs
-			case errors.Is(err, ErrBlobNotFound):
-			default:
+			if err != nil && !errors.Is(err, ErrBlobNotFound) {
 				log.Debugf("getting blobs for namespace(%s): %v", namespace.String(), err)
 				resultErr[i] = err
+			}
+			if len(blobs) > 0 {
+				log.Infow("retrieved blobs", "height", height, "total", len(blobs))
+				resultBlobs[i] = blobs
 			}
 		}(i, namespace)
 	}
@@ -412,8 +411,5 @@ func (s *Service) getBlobs(
 	sharesParser := &parser{verifyFn: verifyFn}
 
 	_, _, err = s.retrieve(ctx, header.Height(), namespace, sharesParser)
-	if len(blobs) == 0 {
-		return nil, ErrBlobNotFound
-	}
-	return blobs, nil
+	return blobs, err
 }
