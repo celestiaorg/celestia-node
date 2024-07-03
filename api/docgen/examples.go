@@ -2,6 +2,8 @@ package docgen
 
 import (
 	_ "embed"
+	"encoding/base64"
+	"encoding/hex"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -19,7 +21,7 @@ import (
 	"golang.org/x/text/language"
 
 	"github.com/celestiaorg/go-fraud"
-	"github.com/celestiaorg/nmt"
+	libhead "github.com/celestiaorg/go-header"
 	"github.com/celestiaorg/rsmt2d"
 
 	"github.com/celestiaorg/celestia-node/blob"
@@ -42,6 +44,12 @@ var exampleTxResponse string
 
 //go:embed "exampledata/resourceManagerStats.json"
 var exampleResourceMngrStats string
+
+//go:embed "exampledata/blob.json"
+var exampleBlob string
+
+//go:embed "exampledata/blobProof.json"
+var exampleBlobProof string
 
 var ExampleValues = map[reflect.Type]interface{}{
 	reflect.TypeOf(""):                       "string value",
@@ -68,6 +76,7 @@ var ExampleValues = map[reflect.Type]interface{}{
 		},
 	),
 	reflect.TypeOf((*error)(nil)).Elem(): errors.New("error"),
+	reflect.TypeOf(state.Balance{}):      state.Balance{Amount: sdk.NewInt(42), Denom: "utia"},
 }
 
 func init() {
@@ -111,6 +120,20 @@ func init() {
 		panic(err)
 	}
 
+	var exBlob *blob.Blob
+	err = json.Unmarshal([]byte(exampleBlob), &exBlob)
+	if err != nil {
+		panic(err)
+	}
+
+	var blobProof *blob.Proof
+	err = json.Unmarshal([]byte(exampleBlobProof), &blobProof)
+	if err != nil {
+		panic(err)
+	}
+
+	addToExampleValues(exBlob)
+	addToExampleValues(blobProof)
 	addToExampleValues(txResponse)
 	addToExampleValues(samplingStats)
 	addToExampleValues(extendedHeader)
@@ -135,21 +158,27 @@ func init() {
 	}
 	addToExampleValues(addrInfo)
 
-	namespace, err := share.NewBlobNamespaceV0([]byte{0x1, 0x2, 0x3, 0x4, 0x5, 0x6, 0x7, 0x8, 0x9, 0x10})
+	commitment, err := base64.StdEncoding.DecodeString("aHlbp+J9yub6hw/uhK6dP8hBLR2mFy78XNRRdLf2794=")
+	if err != nil {
+		panic(err)
+	}
+	addToExampleValues(blob.Commitment(commitment))
+
+	// randomly generated namespace that's used in the blob example above
+	// (AAAAAAAAAAAAAAAAAAAAAAAAAAAAAMJ/xGlNMdE=)
+	namespace, err := share.NewBlobNamespaceV0([]byte{0xc2, 0x7f, 0xc4, 0x69, 0x4d, 0x31, 0xd1})
 	if err != nil {
 		panic(err)
 	}
 	addToExampleValues(namespace)
 
-	generatedBlob, err := blob.NewBlobV0(namespace, []byte("This is an example of some blob data"))
+	hashStr := "453D0BC3CB88A2ED6F2E06021383B22C72D25D7741AE51B4CAE1AD34D72A3F07"
+	hash, err := hex.DecodeString(hashStr)
 	if err != nil {
 		panic(err)
 	}
-	addToExampleValues(generatedBlob)
 
-	proof := nmt.NewInclusionProof(0, 4, [][]byte{[]byte("test")}, true)
-	blobProof := &blob.Proof{&proof}
-	addToExampleValues(blobProof)
+	addToExampleValues(libhead.Hash(hash))
 }
 
 func addToExampleValues(v interface{}) {
