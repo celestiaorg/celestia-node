@@ -290,7 +290,7 @@ func (d *Discovery) discover(ctx context.Context) bool {
 		findCancel()
 	}()
 
-	peers, err := d.disc.FindPeers(findCtx, d.tag)
+	peers, err := d.disc.FindPeers(findCtx, d.tag, discovery.Limit(0))
 	if err != nil {
 		log.Error("unable to start discovery", "topic", d.tag, "err", err)
 		return false
