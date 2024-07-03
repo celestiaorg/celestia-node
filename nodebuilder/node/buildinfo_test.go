@@ -29,11 +29,17 @@ func TestGetSemanticVersion(t *testing.T) {
 		{
 			name: "Non-empty Semantic Version",
 			buildInfo: BuildInfo{
-				SemanticVersion: "1.2.3",
+				SemanticVersion: "v1.2.3",
 			},
 			expectedVersion: "v1.2.3",
 		},
-		// Add more test cases as needed
+		{
+			name: "Non-empty Semantic Version without v prefix",
+			buildInfo: BuildInfo{
+				SemanticVersion: "1.2.3",
+			},
+			expectedVersion: "1.2.3",
+		},
 	}
 
 	for _, tc := range tests {

@@ -32,7 +32,7 @@ func (b *BuildInfo) GetSemanticVersion() string {
 		return emptyValue
 	}
 
-	return fmt.Sprintf("v%s", b.SemanticVersion)
+	return fmt.Sprintf("%s", b.SemanticVersion)
 }
 
 func (b *BuildInfo) CommitShortSha() string {
