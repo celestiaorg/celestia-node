@@ -24,7 +24,7 @@ func TestSample_FetchRoundtrip(t *testing.T) {
 	blks := make([]Block, 0, width*width)
 	for x := 0; x < width; x++ {
 		for y := 0; y < width; y++ {
-			blk, err := NewEmptySampleBlock(1, x, y, root)
+			blk, err := NewEmptySampleBlock(1, x, y, len(root.RowRoots))
 			require.NoError(t, err)
 			blks = append(blks, blk)
 		}

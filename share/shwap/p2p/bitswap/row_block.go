@@ -41,8 +41,8 @@ type RowBlock struct {
 }
 
 // NewEmptyRowBlock constructs a new empty RowBlock.
-func NewEmptyRowBlock(height uint64, rowIdx int, root *share.Root) (*RowBlock, error) {
-	id, err := shwap.NewRowID(height, rowIdx, len(root.RowRoots))
+func NewEmptyRowBlock(height uint64, rowIdx, edsSize int) (*RowBlock, error) {
+	id, err := shwap.NewRowID(height, rowIdx, edsSize)
 	if err != nil {
 		return nil, err
 	}

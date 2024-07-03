@@ -15,8 +15,8 @@ type SampleID struct {
 	ShareIndex int // ShareIndex specifies the index of the sample within the row.
 }
 
-// NewSampleID constructs a new SampleID using the provided block height, sample index, and EDS size.
-// It calculates the row and share index based on the sample index and EDS size.
+// NewSampleID constructs a new SampleID using the provided block height, sample index, and EDS
+// size. It calculates the row and share index based on the sample index and EDS size.
 func NewSampleID(height uint64, rowIdx, colIdx, edsSize int) (SampleID, error) {
 	sid := SampleID{
 		RowID: RowID{
