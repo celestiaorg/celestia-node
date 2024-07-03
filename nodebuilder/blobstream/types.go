@@ -15,29 +15,12 @@ import (
 	"github.com/celestiaorg/celestia-node/share"
 )
 
-// ResultDataCommitment is the API response containing a data
-// commitment, aka data root tuple root.
-type ResultDataCommitment struct {
-	DataCommitment bytes.HexBytes `json:"data_commitment"`
-}
+// DataCommitment is the data root tuple root.
+type DataCommitment bytes.HexBytes
 
-// ResultDataRootInclusionProof is the API response containing the binary merkle
+// DataRootTupleInclusionProof is the binary merkle
 // inclusion proof of a height to a data commitment.
-type ResultDataRootInclusionProof struct {
-	Proof merkle.Proof `json:"proof"`
-}
-
-// ResultShareProof is the API response that contains a ShareProof.
-// A share proof is a proof of a set of shares to the data root.
-type ResultShareProof struct {
-	ShareProof types.ShareProof `json:"share_proof"`
-}
-
-// ResultCommitmentProof is an API response that contains a CommitmentProof.
-// A commitment proof is a proof of a blob share commitment to the data root.
-type ResultCommitmentProof struct {
-	CommitmentProof CommitmentProof `json:"commitment_proof"`
-}
+type DataRootTupleInclusionProof *merkle.Proof
 
 // CommitmentProof is an inclusion proof of a commitment to the data root.
 type CommitmentProof struct {

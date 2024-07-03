@@ -444,7 +444,7 @@ func TestGetDataCommitment(t *testing.T) {
 				assert.Error(t, err)
 			} else {
 				assert.NoError(t, err)
-				assert.Equal(t, tc.expectedDataCommitment, result.DataCommitment)
+				assert.Equal(t, tc.expectedDataCommitment, result)
 			}
 		})
 	}
@@ -559,7 +559,7 @@ func TestGetDataRootInclusionProof(t *testing.T) {
 				assert.Error(t, err)
 			} else {
 				assert.NoError(t, err)
-				assert.Equal(t, tc.expectedProof, result.Proof)
+				assert.Equal(t, tc.expectedProof, result)
 			}
 		})
 	}
@@ -570,7 +570,7 @@ func TestProveShares(t *testing.T) {
 	tests := map[string]struct {
 		height        uint64
 		start, end    uint64
-		expectedProof ResultShareProof
+		expectedProof coretypes.ShareProof
 		expectErr     bool
 	}{
 		"height == 0": {
@@ -605,7 +605,7 @@ func TestProveShares(t *testing.T) {
 			height: 6,
 			start:  0,
 			end:    2,
-			expectedProof: func() ResultShareProof {
+			expectedProof: func() coretypes.ShareProof {
 				proof, err := pkgproof.NewShareInclusionProofFromEDS(
 					api.blocks[6].eds,
 					namespace.PayForBlobNamespace,
@@ -613,7 +613,7 @@ func TestProveShares(t *testing.T) {
 				)
 				require.NoError(t, err)
 				require.NoError(t, proof.Validate(api.blocks[6].dataRoot))
-				return ResultShareProof{ShareProof: proof}
+				return proof
 			}(),
 		},
 	}
@@ -626,7 +626,7 @@ func TestProveShares(t *testing.T) {
 			} else {
 				assert.NoError(t, err)
 				assert.Equal(t, tc.expectedProof, *result)
-				assert.NoError(t, result.ShareProof.Validate(api.blocks[6].dataRoot))
+				assert.NoError(t, result.Validate(api.blocks[6].dataRoot))
 			}
 		})
 	}
@@ -639,7 +639,7 @@ func TestProveCommitment(t *testing.T) {
 		height        uint64
 		commitment    bytes2.HexBytes
 		ns            share.Namespace
-		expectedProof ResultCommitmentProof
+		expectedProof CommitmentProof
 		expectErr     bool
 	}{
 		"height == 0": {height: 0, expectErr: true},
@@ -647,12 +647,12 @@ func TestProveCommitment(t *testing.T) {
 			height:     6,
 			ns:         api.blocks[6].msgs[0].Namespaces[0],
 			commitment: api.blocks[6].msgs[0].ShareCommitments[0],
-			expectedProof: func() ResultCommitmentProof {
+			expectedProof: func() CommitmentProof {
 				commitmentProof := generateCommitmentProofFromBlock(t, api.blocks[6], 0)
 
 				// make sure we're creating a valid proof for the test
-				require.NoError(t, commitmentProof.CommitmentProof.Validate())
-				valid, err := commitmentProof.CommitmentProof.Verify(api.blocks[6].dataRoot, appconsts.DefaultSubtreeRootThreshold)
+				require.NoError(t, commitmentProof.Validate())
+				valid, err := commitmentProof.Verify(api.blocks[6].dataRoot, appconsts.DefaultSubtreeRootThreshold)
 				require.NoError(t, err)
 				require.True(t, valid)
 
@@ -669,8 +669,8 @@ func TestProveCommitment(t *testing.T) {
 			} else {
 				assert.NoError(t, err)
 				// make sure the actual proof can be validated and verified
-				assert.NoError(t, result.CommitmentProof.Validate())
-				valid, err := result.CommitmentProof.Verify(api.blocks[tc.height].dataRoot, appconsts.DefaultSubtreeRootThreshold)
+				assert.NoError(t, result.Validate())
+				valid, err := result.Verify(api.blocks[tc.height].dataRoot, appconsts.DefaultSubtreeRootThreshold)
 				assert.NoError(t, err)
 				assert.True(t, valid)
 
@@ -678,7 +678,7 @@ func TestProveCommitment(t *testing.T) {
 				assert.Equal(t, tc.expectedProof, *result)
 
 				// make sure the expected commitment commits to the subtree roots in the actual proof
-				actualCommitment, _ := merkle.ProofsFromByteSlices(result.CommitmentProof.SubtreeRoots)
+				actualCommitment, _ := merkle.ProofsFromByteSlices(result.SubtreeRoots)
 				assert.Equal(t, tc.commitment.Bytes(), actualCommitment)
 			}
 		})
@@ -724,8 +724,8 @@ func proveAllCommitments(t *testing.T, numberOfBlocks, blobSize int) {
 				require.NoError(t, err)
 
 				// make sure the actual commitment attests to the data
-				require.NoError(t, actualCommitmentProof.CommitmentProof.Validate())
-				valid, err := actualCommitmentProof.CommitmentProof.Verify(
+				require.NoError(t, actualCommitmentProof.Validate())
+				valid, err := actualCommitmentProof.Verify(
 					block.dataRoot,
 					appconsts.DefaultSubtreeRootThreshold,
 				)
@@ -734,8 +734,8 @@ func proveAllCommitments(t *testing.T, numberOfBlocks, blobSize int) {
 
 				// generate an expected proof and verify it's valid
 				expectedCommitmentProof := generateCommitmentProofFromBlock(t, block, msgIndex)
-				require.NoError(t, expectedCommitmentProof.CommitmentProof.Validate())
-				valid, err = expectedCommitmentProof.CommitmentProof.Verify(
+				require.NoError(t, expectedCommitmentProof.Validate())
+				valid, err = expectedCommitmentProof.Verify(
 					block.dataRoot,
 					appconsts.DefaultSubtreeRootThreshold,
 				)
@@ -746,7 +746,7 @@ func proveAllCommitments(t *testing.T, numberOfBlocks, blobSize int) {
 				assert.Equal(t, expectedCommitmentProof, *actualCommitmentProof)
 
 				// make sure the expected commitment commits to the subtree roots in the result proof
-				actualCommitment, _ := merkle.ProofsFromByteSlices(actualCommitmentProof.CommitmentProof.SubtreeRoots)
+				actualCommitment, _ := merkle.ProofsFromByteSlices(actualCommitmentProof.SubtreeRoots)
 				assert.Equal(t, msg.ShareCommitments[0], actualCommitment)
 			})
 		}
@@ -854,7 +854,7 @@ func generateCommitmentProofFromBlock(
 	t *testing.T,
 	block testBlock,
 	blobIndex int,
-) ResultCommitmentProof {
+) CommitmentProof {
 	// parse the namespace
 	ns, err := share.NamespaceFromBytes(
 		append(
@@ -930,7 +930,7 @@ func generateCommitmentProofFromBlock(
 		NamespaceVersion:  uint8(sharesProof.NamespaceVersion),
 	}
 
-	return ResultCommitmentProof{CommitmentProof: commitmentProof}
+	return commitmentProof
 }
 
 // generateTestBlocks generates a set of test blocks with a specific blob size and number of

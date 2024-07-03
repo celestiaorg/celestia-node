@@ -11,6 +11,7 @@ import (
 	blobstream "github.com/celestiaorg/celestia-node/nodebuilder/blobstream"
 	share "github.com/celestiaorg/celestia-node/share"
 	gomock "github.com/golang/mock/gomock"
+	types "github.com/tendermint/tendermint/types"
 )
 
 // MockModule is a mock of Module interface.
@@ -37,10 +38,10 @@ func (m *MockModule) EXPECT() *MockModuleMockRecorder {
 }
 
 // GetDataCommitment mocks base method.
-func (m *MockModule) GetDataCommitment(arg0 context.Context, arg1, arg2 uint64) (*blobstream.ResultDataCommitment, error) {
+func (m *MockModule) GetDataCommitment(arg0 context.Context, arg1, arg2 uint64) (*blobstream.DataCommitment, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "GetDataCommitment", arg0, arg1, arg2)
-	ret0, _ := ret[0].(*blobstream.ResultDataCommitment)
+	ret0, _ := ret[0].(*blobstream.DataCommitment)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
@@ -52,10 +53,10 @@ func (mr *MockModuleMockRecorder) GetDataCommitment(arg0, arg1, arg2 interface{}
 }
 
 // GetDataRootInclusionProof mocks base method.
-func (m *MockModule) GetDataRootInclusionProof(arg0 context.Context, arg1 int64, arg2, arg3 uint64) (*blobstream.ResultDataRootInclusionProof, error) {
+func (m *MockModule) GetDataRootInclusionProof(arg0 context.Context, arg1 int64, arg2, arg3 uint64) (*blobstream.DataRootTupleInclusionProof, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "GetDataRootInclusionProof", arg0, arg1, arg2, arg3)
-	ret0, _ := ret[0].(*blobstream.ResultDataRootInclusionProof)
+	ret0, _ := ret[0].(*blobstream.DataRootTupleInclusionProof)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
@@ -67,10 +68,10 @@ func (mr *MockModuleMockRecorder) GetDataRootInclusionProof(arg0, arg1, arg2, ar
 }
 
 // ProveCommitment mocks base method.
-func (m *MockModule) ProveCommitment(arg0 context.Context, arg1 uint64, arg2 share.Namespace, arg3 []byte) (*blobstream.ResultCommitmentProof, error) {
+func (m *MockModule) ProveCommitment(arg0 context.Context, arg1 uint64, arg2 share.Namespace, arg3 []byte) (*blobstream.CommitmentProof, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "ProveCommitment", arg0, arg1, arg2, arg3)
-	ret0, _ := ret[0].(*blobstream.ResultCommitmentProof)
+	ret0, _ := ret[0].(*blobstream.CommitmentProof)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
@@ -82,10 +83,10 @@ func (mr *MockModuleMockRecorder) ProveCommitment(arg0, arg1, arg2, arg3 interfa
 }
 
 // ProveShares mocks base method.
-func (m *MockModule) ProveShares(arg0 context.Context, arg1, arg2, arg3 uint64) (*blobstream.ResultShareProof, error) {
+func (m *MockModule) ProveShares(arg0 context.Context, arg1, arg2, arg3 uint64) (*types.ShareProof, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "ProveShares", arg0, arg1, arg2, arg3)
-	ret0, _ := ret[0].(*blobstream.ResultShareProof)
+	ret0, _ := ret[0].(*types.ShareProof)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }

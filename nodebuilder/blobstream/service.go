@@ -10,6 +10,7 @@ import (
 
 	logging "github.com/ipfs/go-log/v2"
 	"github.com/tendermint/tendermint/crypto/merkle"
+	"github.com/tendermint/tendermint/types"
 
 	"github.com/celestiaorg/celestia-app/pkg/appconsts"
 	appns "github.com/celestiaorg/celestia-app/pkg/namespace"
@@ -44,7 +45,7 @@ func NewService(blobMod nodeblob.Module, headerMod headerServ.Module, shareMod s
 
 // GetDataCommitment collects the data roots over a provided ordered range of blocks,
 // and then creates a new Merkle root of those data roots. The range is end exclusive.
-func (s *Service) GetDataCommitment(ctx context.Context, start, end uint64) (*ResultDataCommitment, error) {
+func (s *Service) GetDataCommitment(ctx context.Context, start, end uint64) (*DataCommitment, error) {
 	log.Debugw("validating the data commitment range", "start", start, "end", end)
 	err := s.validateDataCommitmentRange(ctx, start, end)
 	if err != nil {
@@ -61,7 +62,8 @@ func (s *Service) GetDataCommitment(ctx context.Context, start, end uint64) (*Re
 		return nil, err
 	}
 	// Create data commitment
-	return &ResultDataCommitment{DataCommitment: root}, nil
+	dataCommitment := DataCommitment(root)
+	return &dataCommitment, nil
 }
 
 // GetDataRootInclusionProof creates an inclusion proof for the data root of block
@@ -72,7 +74,7 @@ func (s *Service) GetDataRootInclusionProof(
 	height int64,
 	start,
 	end uint64,
-) (*ResultDataRootInclusionProof, error) {
+) (*DataRootTupleInclusionProof, error) {
 	log.Debugw(
 		"validating the data root inclusion proof request",
 		"start",
@@ -96,7 +98,8 @@ func (s *Service) GetDataRootInclusionProof(
 	if err != nil {
 		return nil, err
 	}
-	return &ResultDataRootInclusionProof{Proof: *proof}, nil
+	dataRootTupleInclusionProof := DataRootTupleInclusionProof(proof)
+	return &dataRootTupleInclusionProof, nil
 }
 
 // padBytes Pad bytes to given length
@@ -329,7 +332,7 @@ func (s *Service) fetchDataRootTuples(ctx context.Context, start, end uint64) ([
 // the proof and only querying them. However, that would require re-implementing the logic
 // in Core. Also, core also queries the whole EDS to generate the proof. So, it's fine for
 // now. In the future, when blocks get way bigger, we should revisit this and improve it.
-func (s *Service) ProveShares(ctx context.Context, height, start, end uint64) (*ResultShareProof, error) {
+func (s *Service) ProveShares(ctx context.Context, height, start, end uint64) (*types.ShareProof, error) {
 	log.Debugw("proving share range", "start", start, "end", end, "height", height)
 	if height == 0 {
 		return nil, fmt.Errorf("height cannot be equal to 0")
@@ -373,7 +376,7 @@ func (s *Service) ProveShares(ctx context.Context, height, start, end uint64) (*
 	if err != nil {
 		return nil, err
 	}
-	return &ResultShareProof{ShareProof: proof}, nil
+	return &proof, nil
 }
 
 // ProveCommitment generates a commitment proof for a share commitment.
@@ -387,7 +390,7 @@ func (s *Service) ProveCommitment(
 	height uint64,
 	namespace share.Namespace,
 	shareCommitment []byte,
-) (*ResultCommitmentProof, error) {
+) (*CommitmentProof, error) {
 	log.Debugw("proving share commitment", "height", height, "commitment", shareCommitment, "namespace", namespace)
 	if height == 0 {
 		return nil, fmt.Errorf("height cannot be equal to 0")
@@ -543,7 +546,7 @@ func (s *Service) ProveCommitment(
 		NamespaceVersion:  namespace.Version(),
 	}
 
-	return &ResultCommitmentProof{CommitmentProof: commitmentProof}, nil
+	return &commitmentProof, nil
 }
 
 // computeSubtreeRoots takes a set of shares and ranges and returns the corresponding subtree roots.
