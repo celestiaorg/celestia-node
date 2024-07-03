@@ -23,7 +23,7 @@ func NewRowNamespaceDataID(
 	height uint64,
 	rowIdx int,
 	namespace share.Namespace,
-	root *share.Root,
+	edsSize int,
 ) (RowNamespaceDataID, error) {
 	did := RowNamespaceDataID{
 		RowID: RowID{
@@ -35,7 +35,7 @@ func NewRowNamespaceDataID(
 		DataNamespace: namespace,
 	}
 
-	if err := did.Validate(root); err != nil {
+	if err := did.Verify(edsSize); err != nil {
 		return RowNamespaceDataID{}, err
 	}
 	return did, nil
@@ -75,14 +75,24 @@ func (s RowNamespaceDataID) MarshalBinary() ([]byte, error) {
 	return s.appendTo(data), nil
 }
 
+// Verify checks the validity of RowNamespaceDataID's fields, including the RowID and the
+// namespace.
+func (s RowNamespaceDataID) Verify(edsSize int) error {
+	if err := s.RowID.Verify(edsSize); err != nil {
+		return fmt.Errorf("error validating RowID: %w", err)
+	}
+
+	return s.Validate()
+}
+
 // Validate checks the validity of RowNamespaceDataID's fields, including the RowID and the
 // namespace.
-func (s RowNamespaceDataID) Validate(root *share.Root) error {
-	if err := s.RowID.Validate(root); err != nil {
+func (s RowNamespaceDataID) Validate() error {
+	if err := s.RowID.Validate(); err != nil {
 		return fmt.Errorf("error validating RowID: %w", err)
 	}
 	if err := s.DataNamespace.ValidateForData(); err != nil {
-		return fmt.Errorf("error validating DataNamespace: %w", err)
+		return fmt.Errorf("%w: error validating DataNamespace: %w", ErrInvalidShwapID, err)
 	}
 
 	return nil

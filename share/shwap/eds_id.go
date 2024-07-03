@@ -2,13 +2,18 @@ package shwap
 
 import (
 	"encoding/binary"
+	"errors"
 	"fmt"
-
-	"github.com/celestiaorg/celestia-node/share"
 )
 
 // EdsIDSize defines the byte size of the EdsID.
 const EdsIDSize = 8
+
+// ErrOutOfBounds is returned whenever an index is out of bounds.
+var (
+	ErrInvalidShwapID = errors.New("invalid shwap ID")
+	ErrOutOfBounds    = fmt.Errorf("index out of bounds: %w", ErrInvalidShwapID)
+)
 
 // EdsID represents a unique identifier for a row, using the height of the block
 // to identify the data square in the chain.
@@ -18,11 +23,11 @@ type EdsID struct {
 
 // NewEdsID creates a new EdsID using the given height and verifies it against the provided Root.
 // It returns an error if the verification fails.
-func NewEdsID(height uint64, root *share.Root) (EdsID, error) {
+func NewEdsID(height uint64) (EdsID, error) {
 	eid := EdsID{
 		Height: height,
 	}
-	return eid, eid.Validate(root)
+	return eid, eid.Validate()
 }
 
 // EdsIDFromBinary decodes a byte slice into an EdsID, validating the length of the data.
@@ -46,12 +51,9 @@ func (eid EdsID) MarshalBinary() ([]byte, error) {
 
 // Validate checks the integrity of an EdsID's fields against the provided Root.
 // It ensures that the EdsID is not constructed with a zero Height and that the root is not nil.
-func (eid EdsID) Validate(root *share.Root) error {
-	if root == nil {
-		return fmt.Errorf("provided Root is nil")
-	}
+func (eid EdsID) Validate() error {
 	if eid.Height == 0 {
-		return fmt.Errorf("height cannot be zero")
+		return fmt.Errorf("%w: Height: %d", ErrInvalidShwapID, eid.Height)
 	}
 	return nil
 }

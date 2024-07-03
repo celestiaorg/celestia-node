@@ -3,8 +3,6 @@ package shwap
 import (
 	"encoding/binary"
 	"fmt"
-
-	"github.com/celestiaorg/celestia-node/share"
 )
 
 // SampleIDSize defines the size of the SampleID in bytes, combining RowID size and 2 additional
@@ -20,10 +18,7 @@ type SampleID struct {
 // NewSampleID constructs a new SampleID using the provided block height, sample index, and a root
 // structure for validation. It calculates the row and share index based on the sample index and
 // the length of the row roots.
-func NewSampleID(height uint64, rowIdx, colIdx int, root *share.Root) (SampleID, error) {
-	if root == nil || len(root.RowRoots) == 0 {
-		return SampleID{}, fmt.Errorf("invalid root: root is nil or empty")
-	}
+func NewSampleID(height uint64, rowIdx, colIdx, edsSize int) (SampleID, error) {
 	sid := SampleID{
 		RowID: RowID{
 			EdsID: EdsID{
@@ -34,7 +29,7 @@ func NewSampleID(height uint64, rowIdx, colIdx int, root *share.Root) (SampleID,
 		ShareIndex: colIdx,
 	}
 
-	if err := sid.Validate(root); err != nil {
+	if err := sid.Verify(edsSize); err != nil {
 		return SampleID{}, err
 	}
 	return sid, nil
@@ -67,19 +62,23 @@ func (sid SampleID) MarshalBinary() ([]byte, error) {
 	return sid.appendTo(data), nil
 }
 
-// Validate checks the validity of the SampleID by ensuring the ShareIndex is within the bounds of
+// Verify verifies the SampleID by ensuring the ShareIndex is within the bounds of
 // the square size.
-func (sid SampleID) Validate(root *share.Root) error {
-	if err := sid.RowID.Validate(root); err != nil {
+func (sid SampleID) Verify(edsSize int) error {
+	if err := sid.RowID.Verify(edsSize); err != nil {
 		return err
 	}
-
-	sqrLn := len(root.ColumnRoots) // Assumes ColumnRoots is valid and populated.
-	if sid.ShareIndex >= sqrLn {
-		return fmt.Errorf("ShareIndex exceeds square size: %d >= %d", sid.ShareIndex, sqrLn)
+	if sid.ShareIndex >= edsSize {
+		return fmt.Errorf("ShareIndex: %w: %d >= %d", ErrOutOfBounds, sid.ShareIndex, edsSize)
 	}
+	return sid.Validate()
+}
 
-	return nil
+func (sid SampleID) Validate() error {
+	if sid.ShareIndex < 0 {
+		return fmt.Errorf("ShareIndex: %w: %d", ErrInvalidShwapID, sid.ShareIndex)
+	}
+	return sid.RowID.Validate()
 }
 
 // appendTo helps in constructing the binary representation by appending the encoded ShareIndex to

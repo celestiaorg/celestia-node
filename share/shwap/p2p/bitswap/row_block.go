@@ -42,7 +42,7 @@ type RowBlock struct {
 
 // NewEmptyRowBlock constructs a new empty RowBlock.
 func NewEmptyRowBlock(height uint64, rowIdx int, root *share.Root) (*RowBlock, error) {
-	id, err := shwap.NewRowID(height, rowIdx, root)
+	id, err := shwap.NewRowID(height, rowIdx, len(root.RowRoots))
 	if err != nil {
 		return nil, err
 	}

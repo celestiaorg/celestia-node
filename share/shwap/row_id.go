@@ -3,8 +3,6 @@ package shwap
 import (
 	"encoding/binary"
 	"fmt"
-
-	"github.com/celestiaorg/celestia-node/share"
 )
 
 // RowIDSize defines the size in bytes of RowID, consisting of the size of EdsID and 2 bytes for
@@ -19,16 +17,16 @@ type RowID struct {
 }
 
 // NewRowID creates a new RowID with the specified block height, row index, and validates it
-// against the provided Root. It returns an error if the validation fails, ensuring the RowID
+// against the provided eds size. It returns an error if the validation fails, ensuring the RowID
 // conforms to expected constraints.
-func NewRowID(height uint64, rowIdx int, root *share.Root) (RowID, error) {
+func NewRowID(height uint64, rowIdx, edsSize int) (RowID, error) {
 	rid := RowID{
 		EdsID: EdsID{
 			Height: height,
 		},
 		RowIndex: rowIdx,
 	}
-	return rid, rid.Validate(root)
+	return rid, rid.Verify(edsSize)
 }
 
 // RowIDFromBinary decodes a RowID from its binary representation.
@@ -53,22 +51,27 @@ func (rid RowID) MarshalBinary() ([]byte, error) {
 	return rid.appendTo(data), nil
 }
 
+// Verify ensures the RowID's fields are valid given the specified root structure, particularly
+// that the row index is within bounds.
+func (rid RowID) Verify(edsSize int) error {
+	if edsSize == 0 {
+		return fmt.Errorf("provided EDS size is zero")
+	}
+
+	if rid.RowIndex >= edsSize {
+		return fmt.Errorf("RowIndex: %w: %d >= %d", ErrOutOfBounds, rid.RowIndex, edsSize)
+	}
+
+	return rid.Validate()
+}
+
 // Validate ensures the RowID's fields are valid given the specified root structure, particularly
 // that the row index is within bounds.
-func (rid RowID) Validate(root *share.Root) error {
-	if err := rid.EdsID.Validate(root); err != nil {
-		return err
+func (rid RowID) Validate() error {
+	if rid.RowIndex < 0 {
+		return fmt.Errorf("RowIndex: %w: %d", ErrInvalidShwapID, rid.RowIndex)
 	}
-
-	if root == nil || len(root.RowRoots) == 0 {
-		return fmt.Errorf("provided root is nil or empty")
-	}
-
-	if rid.RowIndex >= len(root.RowRoots) {
-		return fmt.Errorf("RowIndex out of bounds: %d >= %d", rid.RowIndex, len(root.RowRoots))
-	}
-
-	return nil
+	return rid.EdsID.Validate()
 }
 
 // appendTo assists in binary encoding of RowID by appending the encoded fields to the given byte
