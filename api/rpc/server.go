@@ -8,7 +8,7 @@ import (
 	"sync/atomic"
 	"time"
 
-	"github.com/cristalhq/jwt"
+	"github.com/cristalhq/jwt/v5"
 	"github.com/filecoin-project/go-jsonrpc"
 	"github.com/filecoin-project/go-jsonrpc/auth"
 	logging "github.com/ipfs/go-log/v2"
@@ -27,10 +27,11 @@ type Server struct {
 
 	started atomic.Bool
 
-	auth jwt.Signer
+	signer   jwt.Signer
+	verifier jwt.Verifier
 }
 
-func NewServer(address, port string, authDisabled bool, secret jwt.Signer) *Server {
+func NewServer(address, port string, authDisabled bool, signer jwt.Signer, verifier jwt.Verifier) *Server {
 	rpc := jsonrpc.NewServer()
 	srv := &Server{
 		rpc: rpc,
@@ -39,7 +40,8 @@ func NewServer(address, port string, authDisabled bool, secret jwt.Signer) *Serv
 			// the amount of time allowed to read request headers. set to the default 2 seconds
 			ReadHeaderTimeout: 2 * time.Second,
 		},
-		auth:         secret,
+		signer:       signer,
+		verifier:     verifier,
 		authDisabled: authDisabled,
 	}
 	srv.srv.Handler = &auth.Handler{
@@ -56,7 +58,7 @@ func (s *Server) verifyAuth(_ context.Context, token string) ([]auth.Permission,
 	if s.authDisabled {
 		return perms.AllPerms, nil
 	}
-	return authtoken.ExtractSignedPermissions(s.auth, token)
+	return authtoken.ExtractSignedPermissions(s.verifier, token)
 }
 
 // RegisterService registers a service onto the RPC server. All methods on the service will then be

@@ -9,7 +9,7 @@ import (
 	"time"
 
 	sdk "github.com/cosmos/cosmos-sdk/types"
-	"github.com/cristalhq/jwt"
+	"github.com/cristalhq/jwt/v5"
 	"github.com/golang/mock/gomock"
 	"github.com/libp2p/go-libp2p/core/network"
 	"github.com/stretchr/testify/require"
@@ -46,10 +46,15 @@ func TestRPCCallsUnderlyingNode(t *testing.T) {
 	t.Cleanup(cancel)
 
 	// generate dummy signer and sign admin perms token with it
-	signer, err := jwt.NewHS256(make([]byte, 32))
+	key := make([]byte, 32)
+
+	signer, err := jwt.NewSignerHS(jwt.HS256, key)
 	require.NoError(t, err)
 
-	nd, server := setupNodeWithAuthedRPC(t, signer)
+	verifier, err := jwt.NewVerifierHS(jwt.HS256, key)
+	require.NoError(t, err)
+
+	nd, server := setupNodeWithAuthedRPC(t, signer, verifier)
 	url := nd.RPCServer.ListenAddr()
 
 	adminToken, err := perms.NewTokenWithPerms(signer, perms.AllPerms)
@@ -123,10 +128,15 @@ func TestAuthedRPC(t *testing.T) {
 	t.Cleanup(cancel)
 
 	// generate dummy signer and sign admin perms token with it
-	signer, err := jwt.NewHS256(make([]byte, 32))
+	key := make([]byte, 32)
+
+	signer, err := jwt.NewSignerHS(jwt.HS256, key)
 	require.NoError(t, err)
 
-	nd, server := setupNodeWithAuthedRPC(t, signer)
+	verifier, err := jwt.NewVerifierHS(jwt.HS256, key)
+	require.NoError(t, err)
+
+	nd, server := setupNodeWithAuthedRPC(t, signer, verifier)
 	url := nd.RPCServer.ListenAddr()
 
 	// create permissioned tokens
@@ -284,7 +294,9 @@ func implementsMarshaler(t *testing.T, typ reflect.Type) {
 
 // setupNodeWithAuthedRPC sets up a node and overrides its JWT
 // signer with the given signer.
-func setupNodeWithAuthedRPC(t *testing.T, auth jwt.Signer) (*nodebuilder.Node, *mockAPI) {
+func setupNodeWithAuthedRPC(t *testing.T,
+	jwtSigner jwt.Signer, jwtVerifier jwt.Verifier,
+) (*nodebuilder.Node, *mockAPI) {
 	ctx, cancel := context.WithCancel(context.Background())
 	t.Cleanup(cancel)
 
@@ -316,8 +328,8 @@ func setupNodeWithAuthedRPC(t *testing.T, auth jwt.Signer) (*nodebuilder.Node, *
 		srv.RegisterService("da", mockAPI.DA, &da.API{})
 	})
 	// fx.Replace does not work here, but fx.Decorate does
-	nd := nodebuilder.TestNode(t, node.Full, invokeRPC, fx.Decorate(func() (jwt.Signer, error) {
-		return auth, nil
+	nd := nodebuilder.TestNode(t, node.Full, invokeRPC, fx.Decorate(func() (jwt.Signer, jwt.Verifier, error) {
+		return jwtSigner, jwtVerifier, nil
 	}))
 	// start node
 	err := nd.Start(ctx)

@@ -20,7 +20,7 @@ func TestUserAgent(t *testing.T) {
 			tp:       node.Full,
 			expected: "celestia-node/testnet/full/v1.0.0/abcdefg",
 			build: &node.BuildInfo{
-				SemanticVersion: "1.0.0",
+				SemanticVersion: "v1.0.0",
 				LastCommit:      "abcdefg",
 			},
 		},
@@ -30,7 +30,7 @@ func TestUserAgent(t *testing.T) {
 			expected: "celestia-node/mainnet/light/v1.0.0/abcdefg",
 			tp:       node.Light,
 			build: &node.BuildInfo{
-				SemanticVersion: "1.0.0",
+				SemanticVersion: "v1.0.0",
 				LastCommit:      "abcdefg",
 			},
 		},
