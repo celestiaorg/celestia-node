@@ -191,7 +191,7 @@ func (s *Service) GetAll(ctx context.Context, height uint64, namespaces []share.
 
 			blobs, err := s.getBlobs(ctx, namespace, header)
 			if err != nil && !errors.Is(err, ErrBlobNotFound) {
-				log.Debugf("getting blobs for namespace(%s): %v", namespace.String(), err)
+				log.Errorf("getting blobs for namespaceID(%s): %v", namespace.ID().String(), err)
 				resultErr[i] = err
 			}
 			if len(blobs) > 0 {

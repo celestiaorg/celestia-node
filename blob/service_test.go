@@ -307,7 +307,7 @@ func TestBlobService_Get(t *testing.T) {
 			expectedResult: func(i interface{}, err error) {
 				blobs, ok := i.([]*Blob)
 				require.True(t, ok)
-				assert.Empty(t, blobs)
+				assert.Nil(t, blobs)
 				assert.Nil(t, err)
 			},
 		},
@@ -334,18 +334,29 @@ func TestBlobService_Get(t *testing.T) {
 			name: "internal error",
 			doFn: func() (interface{}, error) {
 				ctrl := gomock.NewController(t)
+				shareService := service.shareGetter
 				shareGetterMock := shareMock.NewMockModule(ctrl)
-				service.shareGetter = shareGetterMock
 				shareGetterMock.EXPECT().
 					GetSharesByNamespace(gomock.Any(), gomock.Any(), gomock.Any()).
-					Return(nil, errors.New("internal error"))
-				return service.GetAll(ctx, 1, []share.Namespace{blobs0[0].Namespace()})
+					DoAndReturn(
+						func(ctx context.Context, h *header.ExtendedHeader, ns share.Namespace) (share.NamespacedShares, error) {
+							if ns.Equals(blobs0[0].Namespace()) {
+								return nil, errors.New("internal error")
+							}
+							return shareService.GetSharesByNamespace(ctx, h, ns)
+						}).AnyTimes()
+
+				service.shareGetter = shareGetterMock
+				return service.GetAll(ctx, 1, []share.Namespace{blobs0[0].Namespace(), blobs1[0].Namespace()})
 			},
 			expectedResult: func(res interface{}, err error) {
 				blobs, ok := res.([]*Blob)
-				require.True(t, ok)
-				assert.Empty(t, blobs)
-				require.Error(t, err)
+				assert.True(t, ok)
+				assert.Error(t, err)
+				assert.Contains(t, err.Error(), "internal error")
+				assert.Equal(t, blobs[0].Namespace(), blobs1[0].Namespace())
+				assert.NotEmpty(t, blobs)
+				assert.Len(t, blobs, len(blobs1))
 			},
 		},
 	}
