@@ -20,13 +20,13 @@ const (
 	gasMultiplier = 1.1
 )
 
-// NewTxConfig constructs a new TxConfig with the provided attributes.
+// NewTxConfig constructs a new TxConfig with the provided options.
 // It starts with a DefaultGasPrice and then applies any additional
-// attributes provided through the variadic parameter.
-func NewTxConfig(attributes ...Attribute) *TxConfig {
+// options provided through the variadic parameter.
+func NewTxConfig(opts ...ConfigOption) *TxConfig {
 	options := &TxConfig{gasPrice: DefaultGasPrice}
-	for _, attr := range attributes {
-		attr(options)
+	for _, opt := range opts {
+		opt(options)
 	}
 	return options
 }
@@ -118,7 +118,7 @@ func estimateGas(ctx context.Context, client *user.TxClient, msg sdktypes.Msg) (
 	return uint64(float64(gas) * gasMultiplier), nil
 }
 
-// estimateGasForBlobs returns a gas limit as a `user.TxOption` that can be applied to the `MsgPayForBlob` transactions.
+// estimateGasForBlobs returns a gas limit that can be applied to the `MsgPayForBlob` transactions.
 // NOTE: final result of the estimation will be multiplied by the `gasMultiplier`(1.1)
 // to cover additional options of the Tx.
 func estimateGasForBlobs(blobSizes []uint32) uint64 {
@@ -138,14 +138,14 @@ func parseAccAddressFromString(addrStr string) (sdktypes.AccAddress, error) {
 	return sdktypes.AccAddressFromBech32(addrStr)
 }
 
-// Attribute is the functional option that is applied to the TxOption instance
+// ConfigOption is the functional option that is applied to the TxConfig instance
 // to configure parameters.
-type Attribute func(cfg *TxConfig)
+type ConfigOption func(cfg *TxConfig)
 
-// WithGasPrice is an attribute that allows to specify a GasPrice, which is needed
+// WithGasPrice is an option that allows to specify a GasPrice, which is needed
 // to calculate the fee. In case GasPrice is not specified, the global GasPrice fetched from
 // celestia-app will be used.
-func WithGasPrice(gasPrice float64) Attribute {
+func WithGasPrice(gasPrice float64) ConfigOption {
 	return func(cfg *TxConfig) {
 		if gasPrice >= 0 {
 			cfg.gasPrice = gasPrice
@@ -154,33 +154,33 @@ func WithGasPrice(gasPrice float64) Attribute {
 	}
 }
 
-// WithGas is an attribute that allows to specify Gas.
+// WithGas is an option that allows to specify Gas.
 // Gas will be calculated in case it wasn't specified.
-func WithGas(gas uint64) Attribute {
+func WithGas(gas uint64) ConfigOption {
 	return func(cfg *TxConfig) {
 		cfg.gas = gas
 	}
 }
 
-// WithKeyName is an attribute that allows you to specify an KeyName, which is needed to
+// WithKeyName is an option that allows you to specify an KeyName, which is needed to
 // sign the transaction. This key should be associated with the address and stored
 // locally in the key store. Default Account will be used in case it wasn't specified.
-func WithKeyName(key string) Attribute {
+func WithKeyName(key string) ConfigOption {
 	return func(cfg *TxConfig) {
 		cfg.keyName = key
 	}
 }
 
-// WithSignerAddress is an attribute that allows you to specify an address, that will sign the transaction.
+// WithSignerAddress is an option that allows you to specify an address, that will sign the transaction.
 // This address must be stored locally in the key store. Default signerAddress will be used in case it wasn't specified.
-func WithSignerAddress(address string) Attribute {
+func WithSignerAddress(address string) ConfigOption {
 	return func(cfg *TxConfig) {
 		cfg.signerAddress = address
 	}
 }
 
-// WithFeeGranterAddress is an attribute that allows you to specify a GranterAddress to pay the fees.
-func WithFeeGranterAddress(granter string) Attribute {
+// WithFeeGranterAddress is an option that allows you to specify a GranterAddress to pay the fees.
+func WithFeeGranterAddress(granter string) ConfigOption {
 	return func(cfg *TxConfig) {
 		cfg.feeGranterAddress = granter
 	}
