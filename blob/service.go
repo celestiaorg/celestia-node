@@ -4,26 +4,22 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"math"
 	"slices"
 	"sync"
 
-	sdkmath "cosmossdk.io/math"
 	"github.com/cosmos/cosmos-sdk/types"
-	auth "github.com/cosmos/cosmos-sdk/x/auth/types"
 	logging "github.com/ipfs/go-log/v2"
 	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/codes"
 	"go.opentelemetry.io/otel/trace"
 
-	"github.com/celestiaorg/celestia-app/pkg/appconsts"
 	"github.com/celestiaorg/celestia-app/pkg/shares"
-	blobtypes "github.com/celestiaorg/celestia-app/x/blob/types"
 
 	"github.com/celestiaorg/celestia-node/header"
 	"github.com/celestiaorg/celestia-node/libs/utils"
 	"github.com/celestiaorg/celestia-node/share"
+	"github.com/celestiaorg/celestia-node/state"
 )
 
 var (
@@ -34,21 +30,15 @@ var (
 	tracer = otel.Tracer("blob/service")
 )
 
-// GasPrice represents the amount to be paid per gas unit. Fee is set by
-// multiplying GasPrice by GasLimit, which is determined by the blob sizes.
-type GasPrice float64
-
-// DefaultGasPrice returns the default gas price, letting node automatically
-// determine the Fee based on the passed blob sizes.
-func DefaultGasPrice() GasPrice {
-	return -1.0
-}
+// SubmitOptions aliases TxOptions from state package allowing users
+// to specify options for SubmitPFB transaction.
+type SubmitOptions = state.TxConfig
 
 // Submitter is an interface that allows submitting blobs to the celestia-core. It is used to
 // avoid a circular dependency between the blob and the state package, since the state package needs
 // the blob.Blob type for this signature.
 type Submitter interface {
-	SubmitPayForBlob(ctx context.Context, fee sdkmath.Int, gasLim uint64, blobs []*Blob) (*types.TxResponse, error)
+	SubmitPayForBlob(context.Context, []*state.Blob, *state.TxConfig) (*types.TxResponse, error)
 }
 
 type Service struct {
@@ -72,39 +62,22 @@ func NewService(
 	}
 }
 
-// SubmitOptions contains the information about fee and gasLimit price in order to configure the
-// Submit request.
-type SubmitOptions struct {
-	Fee      int64
-	GasLimit uint64
-}
-
-// DefaultSubmitOptions creates a default fee and gas price values.
-func DefaultSubmitOptions() *SubmitOptions {
-	return &SubmitOptions{
-		Fee:      -1,
-		GasLimit: 0,
-	}
-}
-
 // Submit sends PFB transaction and reports the height at which it was included.
 // Allows sending multiple Blobs atomically synchronously.
 // Uses default wallet registered on the Node.
 // Handles gas estimation and fee calculation.
-func (s *Service) Submit(ctx context.Context, blobs []*Blob, gasPrice GasPrice) (uint64, error) {
+func (s *Service) Submit(ctx context.Context, blobs []*Blob, txConfig *SubmitOptions) (uint64, error) {
 	log.Debugw("submitting blobs", "amount", len(blobs))
 
-	options := DefaultSubmitOptions()
-	if gasPrice >= 0 {
-		blobSizes := make([]uint32, len(blobs))
-		for i, blob := range blobs {
-			blobSizes[i] = uint32(len(blob.Data))
+	appblobs := make([]*state.Blob, len(blobs))
+	for i := range blobs {
+		if err := blobs[i].Namespace().ValidateForBlob(); err != nil {
+			return 0, err
 		}
-		options.GasLimit = blobtypes.EstimateGas(blobSizes, appconsts.DefaultGasPerBlobByte, auth.DefaultTxSizeCostPerByte)
-		options.Fee = types.NewInt(int64(math.Ceil(float64(gasPrice) * float64(options.GasLimit)))).Int64()
+		appblobs[i] = &blobs[i].Blob
 	}
 
-	resp, err := s.blobSubmitter.SubmitPayForBlob(ctx, types.NewInt(options.Fee), options.GasLimit, blobs)
+	resp, err := s.blobSubmitter.SubmitPayForBlob(ctx, appblobs, txConfig)
 	if err != nil {
 		return 0, err
 	}

@@ -38,7 +38,7 @@ Options passed on start override configuration options only on start and are not
 			// TODO @renaynay: Include option for setting custom `userInput` parameter with
 			//  implementation of https://github.com/celestiaorg/celestia-node/issues/415.
 			encConf := encoding.MakeConfig(app.ModuleEncodingRegisters...)
-			ring, err := keyring.New(app.Name, cfg.State.KeyringBackend, keysPath, os.Stdin, encConf.Codec)
+			ring, err := keyring.New(app.Name, cfg.State.DefaultBackendName, keysPath, os.Stdin, encConf.Codec)
 			if err != nil {
 				return err
 			}
