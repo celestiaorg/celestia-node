@@ -195,7 +195,7 @@ func TestPrune_LargeNumberOfBlocks(t *testing.T) {
 	_ = serv.prune(ctx, lastPruned)
 
 	// ensure all headers have been pruned
-	assert.Equal(t, maxHeadersPerLoop*5, serv.checkpoint.LastPrunedHeight)
+	assert.Equal(t, uint64(maxHeadersPerLoop*5), serv.checkpoint.LastPrunedHeight)
 	assert.Len(t, serv.checkpoint.FailedHeaders, 0)
 }
 
