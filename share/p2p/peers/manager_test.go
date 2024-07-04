@@ -26,9 +26,13 @@ import (
 	"github.com/celestiaorg/celestia-node/share/p2p/shrexsub"
 )
 
+const (
+	defaultTimeout = time.Second * 5
+)
+
 func TestManager(t *testing.T) {
 	t.Run("Validate pool by headerSub", func(t *testing.T) {
-		ctx, cancel := context.WithTimeout(context.Background(), time.Second*5)
+		ctx, cancel := context.WithTimeout(context.Background(), defaultTimeout)
 		t.Cleanup(cancel)
 
 		// create headerSub mock
@@ -49,7 +53,7 @@ func TestManager(t *testing.T) {
 	})
 
 	t.Run("Validate pool by shrex.Getter", func(t *testing.T) {
-		ctx, cancel := context.WithTimeout(context.Background(), time.Second*5)
+		ctx, cancel := context.WithTimeout(context.Background(), defaultTimeout)
 		t.Cleanup(cancel)
 
 		h := testHeader()
@@ -72,7 +76,7 @@ func TestManager(t *testing.T) {
 	})
 
 	t.Run("validator", func(t *testing.T) {
-		ctx, cancel := context.WithTimeout(context.Background(), time.Second*5)
+		ctx, cancel := context.WithTimeout(context.Background(), defaultTimeout)
 		t.Cleanup(cancel)
 
 		// create headerSub mock
@@ -108,7 +112,7 @@ func TestManager(t *testing.T) {
 	})
 
 	t.Run("cleanup", func(t *testing.T) {
-		ctx, cancel := context.WithTimeout(context.Background(), time.Second*5)
+		ctx, cancel := context.WithTimeout(context.Background(), defaultTimeout)
 		t.Cleanup(cancel)
 
 		// create headerSub mock
@@ -153,7 +157,7 @@ func TestManager(t *testing.T) {
 	})
 
 	t.Run("no peers from shrex.Sub, get from discovery", func(t *testing.T) {
-		ctx, cancel := context.WithTimeout(context.Background(), time.Second*5)
+		ctx, cancel := context.WithTimeout(context.Background(), defaultTimeout)
 		t.Cleanup(cancel)
 
 		// create headerSub mock
@@ -176,7 +180,7 @@ func TestManager(t *testing.T) {
 	})
 
 	t.Run("no peers from shrex.Sub and from discovery. Wait", func(t *testing.T) {
-		ctx, cancel := context.WithTimeout(context.Background(), time.Second*5)
+		ctx, cancel := context.WithTimeout(context.Background(), defaultTimeout)
 		t.Cleanup(cancel)
 
 		// create headerSub mock
@@ -218,7 +222,7 @@ func TestManager(t *testing.T) {
 	})
 
 	t.Run("shrexSub sends a message lower than first headerSub header height, headerSub first", func(t *testing.T) {
-		ctx, cancel := context.WithTimeout(context.Background(), time.Second*5)
+		ctx, cancel := context.WithTimeout(context.Background(), defaultTimeout)
 		t.Cleanup(cancel)
 
 		h := testHeader()
@@ -251,7 +255,7 @@ func TestManager(t *testing.T) {
 	})
 
 	t.Run("shrexSub sends a message lower than first headerSub header height, shrexSub first", func(t *testing.T) {
-		ctx, cancel := context.WithTimeout(context.Background(), time.Second*5)
+		ctx, cancel := context.WithTimeout(context.Background(), defaultTimeout)
 		t.Cleanup(cancel)
 
 		h := testHeader()
@@ -289,7 +293,7 @@ func TestManager(t *testing.T) {
 	})
 
 	t.Run("pools store window", func(t *testing.T) {
-		ctx, cancel := context.WithTimeout(context.Background(), time.Second*5)
+		ctx, cancel := context.WithTimeout(context.Background(), defaultTimeout)
 		t.Cleanup(cancel)
 
 		h := testHeader()
@@ -322,7 +326,7 @@ func TestIntegration(t *testing.T) {
 	t.Run("get peer from shrexsub", func(t *testing.T) {
 		nw, err := mocknet.FullMeshLinked(2)
 		require.NoError(t, err)
-		ctx, cancel := context.WithTimeout(context.Background(), time.Second*5)
+		ctx, cancel := context.WithTimeout(context.Background(), defaultTimeout)
 		t.Cleanup(cancel)
 
 		bnPubSub, err := shrexsub.NewPubSub(ctx, nw.Hosts()[0], "test")
@@ -365,7 +369,7 @@ func TestIntegration(t *testing.T) {
 		fullNodesTag := "fullNodes"
 		nw, err := mocknet.FullMeshConnected(3)
 		require.NoError(t, err)
-		ctx, cancel := context.WithTimeout(context.Background(), time.Second*10)
+		ctx, cancel := context.WithTimeout(context.Background(), defaultTimeout)
 		t.Cleanup(cancel)
 
 		// set up bootstrapper
@@ -390,6 +394,9 @@ func TestIntegration(t *testing.T) {
 		bnHost := nw.Hosts()[1]
 		bnRouter, err := dht.New(ctx, bnHost, opts...)
 		require.NoError(t, err)
+
+		// hack
+		discovery.DiscoveryRetryTimeout = time.Millisecond * 100
 
 		params := discovery.DefaultParameters()
 		params.AdvertiseInterval = time.Second
@@ -450,6 +457,7 @@ func TestIntegration(t *testing.T) {
 		go bnDisc.Advertise(ctx)
 
 		select {
+
 		case <-waitCh:
 			require.Contains(t, fnPeerManager.nodes.peersList, bnHost.ID())
 		case <-ctx.Done():

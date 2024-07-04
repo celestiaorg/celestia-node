@@ -28,16 +28,17 @@ const (
 	// findPeersTimeout limits the FindPeers operation in time
 	findPeersTimeout = time.Minute
 
-	// retryTimeout defines time interval between discovery and advertise attempts.
-	retryTimeout = time.Second
+	// advertiseRetryTimeout defines time interval between advertise attempts.
+	advertiseRetryTimeout = time.Second * 1
 
 	// logInterval defines the time interval at which a warning message will be logged
 	// if the desired number of nodes is not detected.
 	logInterval = 5 * time.Minute
 )
 
-// discoveryRetryTimeout defines time interval between discovery attempts, needed for tests
-var discoveryRetryTimeout = retryTimeout
+// discoveryRetryTimeout defines time interval between discovery attempts
+// this is set independently for tests in discover_test.go
+var DiscoveryRetryTimeout = advertiseRetryTimeout * 60
 
 // Discovery combines advertise and discover services and allows to store discovered nodes.
 // TODO: The code here gets horribly hairy, so we should refactor this at some point
@@ -181,16 +182,13 @@ func (d *Discovery) Advertise(ctx context.Context) {
 
 			// we don't want retry indefinitely in busy loop
 			// internal discovery mechanism may need some time before attempts
-			errTimer := time.NewTimer(retryTimeout)
 			select {
-			case <-errTimer.C:
-				errTimer.Stop()
+			case <-time.After(advertiseRetryTimeout):
 				if !timer.Stop() {
 					<-timer.C
 				}
 				continue
 			case <-ctx.Done():
-				errTimer.Stop()
 				return
 			}
 		}
@@ -212,7 +210,7 @@ func (d *Discovery) Advertise(ctx context.Context) {
 // It initiates peer discovery upon request and restarts the process until the soft limit is
 // reached.
 func (d *Discovery) discoveryLoop(ctx context.Context) {
-	t := time.NewTicker(discoveryRetryTimeout)
+	t := time.NewTicker(DiscoveryRetryTimeout)
 	defer t.Stop()
 
 	warnTicker := time.NewTicker(logInterval)
