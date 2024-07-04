@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"math"
+	"slices"
 	"sync"
 
 	sdkmath "cosmossdk.io/math"
@@ -163,7 +164,14 @@ func (s *Service) GetProof(
 }
 
 // GetAll returns all blobs under the given namespaces at the given height.
-// GetAll can return blobs and an error in case if some requests failed.
+// If all blobs were found without any errors, the user will receive a list of blobs.
+// If the BlobService couldn't find any blobs under the requested namespaces,
+// the user will receive an empty list of blobs along with an empty error.
+// If some of the requested namespaces were not found, the user will receive all the found blobs and an empty error.
+// If there were internal errors during some of the requests,
+// the user will receive all found blobs along with a combined error message.
+//
+// All blobs will preserve the order of the namespaces that were requested.
 func (s *Service) GetAll(ctx context.Context, height uint64, namespaces []share.Namespace) ([]*Blob, error) {
 	header, err := s.headerGetter(ctx, height)
 	if err != nil {
@@ -173,40 +181,30 @@ func (s *Service) GetAll(ctx context.Context, height uint64, namespaces []share.
 	var (
 		resultBlobs = make([][]*Blob, len(namespaces))
 		resultErr   = make([]error, len(namespaces))
+		wg          = sync.WaitGroup{}
 	)
-
-	for _, namespace := range namespaces {
-		log.Debugw("performing GetAll request", "namespace", namespace.String(), "height", height)
-	}
-
-	wg := sync.WaitGroup{}
 	for i, namespace := range namespaces {
 		wg.Add(1)
 		go func(i int, namespace share.Namespace) {
+			log.Debugw("retrieving all blobs from", "namespace", namespace.String(), "height", height)
 			defer wg.Done()
-			blobs, err := s.getBlobs(ctx, namespace, header)
-			if err != nil {
-				resultErr[i] = fmt.Errorf("getting blobs for namespace(%s): %w", namespace.String(), err)
-				return
-			}
 
-			log.Debugw("receiving blobs", "height", height, "total", len(blobs))
-			resultBlobs[i] = blobs
+			blobs, err := s.getBlobs(ctx, namespace, header)
+			if err != nil && !errors.Is(err, ErrBlobNotFound) {
+				log.Errorf("getting blobs for namespaceID(%s): %v", namespace.ID().String(), err)
+				resultErr[i] = err
+			}
+			if len(blobs) > 0 {
+				log.Infow("retrieved blobs", "height", height, "total", len(blobs))
+				resultBlobs[i] = blobs
+			}
 		}(i, namespace)
 	}
 	wg.Wait()
 
-	blobs := make([]*Blob, 0)
-	for _, resBlobs := range resultBlobs {
-		if len(resBlobs) > 0 {
-			blobs = append(blobs, resBlobs...)
-		}
-	}
-
-	if len(blobs) == 0 {
-		resultErr = append(resultErr, ErrBlobNotFound)
-	}
-	return blobs, errors.Join(resultErr...)
+	blobs := slices.Concat(resultBlobs...)
+	err = errors.Join(resultErr...)
+	return blobs, err
 }
 
 // Included verifies that the blob was included in a specific height.
@@ -413,8 +411,5 @@ func (s *Service) getBlobs(
 	sharesParser := &parser{verifyFn: verifyFn}
 
 	_, _, err = s.retrieve(ctx, header.Height(), namespace, sharesParser)
-	if len(blobs) == 0 {
-		return nil, ErrBlobNotFound
-	}
-	return blobs, nil
+	return blobs, err
 }
