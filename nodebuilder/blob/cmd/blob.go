@@ -19,7 +19,7 @@ import (
 
 // flagFileInput allows the user to provide file path to the json file
 // for submitting multiple blobs.
-var	flagFileInput = "input-file"
+var flagFileInput = "input-file"
 
 func init() {
 	Cmd.AddCommand(getCmd, getAllCmd, submitCmd, getProofCmd)
@@ -37,9 +37,10 @@ var Cmd = &cobra.Command{
 }
 
 var getCmd = &cobra.Command{
-	Use:   "get [height] [namespace] [commitment]",
-	Args:  cobra.ExactArgs(3),
-	Short: "Returns the blob for the given namespace by commitment at a particular height.",
+	Use:  "get [height] [namespace] [commitment]",
+	Args: cobra.ExactArgs(3),
+	Short: "Returns the blob for the given namespace by commitment at a particular height.\n" +
+		"Note:\n* Both namespace and commitment input parameters are expected to be in their hex representation.",
 	PreRunE: func(_ *cobra.Command, args []string) error {
 		if !strings.HasPrefix(args[1], "0x") {
 			return fmt.Errorf("only hex namespace is supported")
@@ -77,9 +78,10 @@ var getCmd = &cobra.Command{
 }
 
 var getAllCmd = &cobra.Command{
-	Use:   "get-all [height] [namespace]",
-	Args:  cobra.ExactArgs(2),
-	Short: "Returns all blobs for the given namespace at a particular height.",
+	Use:  "get-all [height] [namespace]",
+	Args: cobra.ExactArgs(2),
+	Short: "Returns all blobs for the given namespace at a particular height.\n" +
+		"Note:\n* Namespace input parameter is expected to be in its hex representation.",
 	PreRunE: func(_ *cobra.Command, args []string) error {
 		if !strings.HasPrefix(args[1], "0x") {
 			return fmt.Errorf("only hex namespace is supported")
@@ -99,9 +101,6 @@ var getAllCmd = &cobra.Command{
 		}
 
 		namespace, err := cmdnode.ParseV0Namespace(args[1])
-		if !strings.HasPrefix(args[1], "0x") {
-			return fmt.Errorf("only hex namespace is supported")
-		}
 		if err != nil {
 			return fmt.Errorf("error parsing a namespace: %w", err)
 		}
@@ -134,7 +133,14 @@ var submitCmd = &cobra.Command{
 
 		return nil
 	},
-	Short: "Submit the blob(s) at the given namespace(s).\n" +
+	PreRunE: func(_ *cobra.Command, args []string) error {
+		if !strings.HasPrefix(args[0], "0x") {
+			return fmt.Errorf("only hex namespace is supported")
+		}
+		return nil
+	},
+	Short: "Submit the blob(s) at the given namespace(s) and " +
+		"returns the header height in which the blob(s) was/were include + the respective commitment(s).\n" +
 		"User can use namespace and blobData as argument for single blob submission \n" +
 		"or use --input-file flag with the path to a json file for multiple blobs submission, \n" +
 		`where the json file contains: 
@@ -152,7 +158,8 @@ var submitCmd = &cobra.Command{
 			]
 		}` +
 		"Note:\n" +
-		"* fee and gas limit params will be calculated automatically.\n",
+		"* Namespace input parameter is expected to be its their hex representation.\n" +
+		"* Commitment(s) output parameter(s) will be in the hex representation.",
 	RunE: func(cmd *cobra.Command, args []string) error {
 		client, err := cmdnode.ParseClientFromCtx(cmd.Context())
 		if err != nil {
@@ -222,9 +229,10 @@ func getBlobFromArguments(namespaceArg, blobArg string) (*blob.Blob, error) {
 }
 
 var getProofCmd = &cobra.Command{
-	Use:   "get-proof [height] [namespace] [commitment]",
-	Args:  cobra.ExactArgs(3),
-	Short: "Retrieves the blob in the given namespaces at the given height by commitment and returns its Proof.",
+	Use:  "get-proof [height] [namespace] [commitment]",
+	Args: cobra.ExactArgs(3),
+	Short: "Retrieves the blob in the given namespaces at the given height by commitment and returns its Proof.\n" +
+		"Note:\n* Both namespace and commitment input parameters are expected to be in their hex representation.",
 	PreRunE: func(_ *cobra.Command, args []string) error {
 		if !strings.HasPrefix(args[1], "0x") {
 			return fmt.Errorf("only hex namespace is supported")
