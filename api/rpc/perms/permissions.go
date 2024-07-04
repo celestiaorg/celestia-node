@@ -3,7 +3,7 @@ package perms
 import (
 	"encoding/json"
 
-	"github.com/cristalhq/jwt"
+	"github.com/cristalhq/jwt/v5"
 	"github.com/filecoin-project/go-jsonrpc/auth"
 )
 
@@ -28,9 +28,13 @@ func (j *JWTPayload) MarshalBinary() (data []byte, err error) {
 
 // NewTokenWithPerms generates and signs a new JWT token with the given secret
 // and given permissions.
-func NewTokenWithPerms(secret jwt.Signer, perms []auth.Permission) ([]byte, error) {
+func NewTokenWithPerms(signer jwt.Signer, perms []auth.Permission) ([]byte, error) {
 	p := &JWTPayload{
 		Allow: perms,
 	}
-	return jwt.NewTokenBuilder(secret).BuildBytes(p)
+	token, err := jwt.NewBuilder(signer).Build(p)
+	if err != nil {
+		return nil, err
+	}
+	return token.Bytes(), nil
 }

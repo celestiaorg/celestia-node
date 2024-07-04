@@ -146,9 +146,8 @@ jobs:
       contents: write
     steps:
       - uses: actions/checkout@v4
-
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       - run: |
           make openrpc-gen > openrpc.json
           gh release upload ${{github.event.release.tag_name}} openrpc.json
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
