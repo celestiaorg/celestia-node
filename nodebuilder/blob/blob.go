@@ -19,7 +19,15 @@ type Module interface {
 	Submit(_ context.Context, _ []*blob.Blob, _ blob.GasPrice) (height uint64, _ error)
 	// Get retrieves the blob by commitment under the given namespace and height.
 	Get(_ context.Context, height uint64, _ share.Namespace, _ blob.Commitment) (*blob.Blob, error)
-	// GetAll returns all blobs at the given height under the given namespaces.
+	// GetAll returns all blobs under the given namespaces at the given height.
+	// If all blobs were found without any errors, the user will receive a list of blobs.
+	// If the BlobService couldn't find any blobs under the requested namespaces,
+	// the user will receive an empty list of blobs along with an empty error.
+	// If some of the requested namespaces were not found, the user will receive all the found blobs and an empty error.
+	// If there were internal errors during some of the requests,
+	// the user will receive all found blobs along with a combined error message.
+	//
+	// All blobs will preserve the order of the namespaces that were requested.
 	GetAll(_ context.Context, height uint64, _ []share.Namespace) ([]*blob.Blob, error)
 	// GetProof retrieves proofs in the given namespaces at the given height by commitment.
 	GetProof(_ context.Context, height uint64, _ share.Namespace, _ blob.Commitment) (*blob.Proof, error)
