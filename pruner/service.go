@@ -9,7 +9,7 @@ import (
 	"github.com/ipfs/go-datastore/namespace"
 	logging "github.com/ipfs/go-log/v2"
 
-	hdr "github.com/celestiaorg/go-header"
+	libhead "github.com/celestiaorg/go-header"
 
 	"github.com/celestiaorg/celestia-node/header"
 )
@@ -21,7 +21,7 @@ type Service struct {
 	pruner Pruner
 	window AvailabilityWindow
 
-	getter hdr.Getter[*header.ExtendedHeader]
+	getter libhead.Getter[*header.ExtendedHeader]
 
 	ds         datastore.Datastore
 	checkpoint *checkpoint
@@ -39,7 +39,7 @@ type Service struct {
 func NewService(
 	p Pruner,
 	window AvailabilityWindow,
-	getter hdr.Getter[*header.ExtendedHeader],
+	getter libhead.Getter[*header.ExtendedHeader],
 	ds datastore.Datastore,
 	blockTime time.Duration,
 	opts ...Option,
