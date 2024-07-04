@@ -3,8 +3,6 @@ package shwap
 import (
 	"encoding/binary"
 	"fmt"
-
-	"github.com/celestiaorg/celestia-node/share"
 )
 
 // SampleIDSize defines the size of the SampleID in bytes, combining RowID size and 2 additional
@@ -17,13 +15,9 @@ type SampleID struct {
 	ShareIndex int // ShareIndex specifies the index of the sample within the row.
 }
 
-// NewSampleID constructs a new SampleID using the provided block height, sample index, and a root
-// structure for validation. It calculates the row and share index based on the sample index and
-// the length of the row roots.
-func NewSampleID(height uint64, rowIdx, colIdx int, root *share.Root) (SampleID, error) {
-	if root == nil || len(root.RowRoots) == 0 {
-		return SampleID{}, fmt.Errorf("invalid root: root is nil or empty")
-	}
+// NewSampleID constructs a new SampleID using the provided block height, sample index, and EDS
+// size. It calculates the row and share index based on the sample index and EDS size.
+func NewSampleID(height uint64, rowIdx, colIdx, edsSize int) (SampleID, error) {
 	sid := SampleID{
 		RowID: RowID{
 			EdsID: EdsID{
@@ -34,8 +28,8 @@ func NewSampleID(height uint64, rowIdx, colIdx int, root *share.Root) (SampleID,
 		ShareIndex: colIdx,
 	}
 
-	if err := sid.Validate(root); err != nil {
-		return SampleID{}, err
+	if err := sid.Verify(edsSize); err != nil {
+		return SampleID{}, fmt.Errorf("verifying SampleID: %w", err)
 	}
 	return sid, nil
 }
@@ -49,13 +43,18 @@ func SampleIDFromBinary(data []byte) (SampleID, error) {
 
 	rid, err := RowIDFromBinary(data[:RowIDSize])
 	if err != nil {
-		return SampleID{}, fmt.Errorf("error decoding RowID: %w", err)
+		return SampleID{}, fmt.Errorf("decoding RowID: %w", err)
 	}
 
-	return SampleID{
+	sid := SampleID{
 		RowID:      rid,
 		ShareIndex: int(binary.BigEndian.Uint16(data[RowIDSize:])),
-	}, nil
+	}
+	if err := sid.Validate(); err != nil {
+		return SampleID{}, fmt.Errorf("validating SampleID: %w", err)
+	}
+
+	return sid, nil
 }
 
 // MarshalBinary encodes SampleID into binary form.
@@ -67,19 +66,24 @@ func (sid SampleID) MarshalBinary() ([]byte, error) {
 	return sid.appendTo(data), nil
 }
 
-// Validate checks the validity of the SampleID by ensuring the ShareIndex is within the bounds of
+// Verify validates the SampleID and verifies that the ShareIndex is within the bounds of
 // the square size.
-func (sid SampleID) Validate(root *share.Root) error {
-	if err := sid.RowID.Validate(root); err != nil {
-		return err
+func (sid SampleID) Verify(edsSize int) error {
+	if err := sid.RowID.Verify(edsSize); err != nil {
+		return fmt.Errorf("verifying RowID: %w", err)
 	}
-
-	sqrLn := len(root.ColumnRoots) // Assumes ColumnRoots is valid and populated.
-	if sid.ShareIndex >= sqrLn {
-		return fmt.Errorf("ShareIndex exceeds square size: %d >= %d", sid.ShareIndex, sqrLn)
+	if sid.ShareIndex >= edsSize {
+		return fmt.Errorf("%w: ShareIndex: %d >= %d", ErrOutOfBounds, sid.ShareIndex, edsSize)
 	}
+	return sid.Validate()
+}
 
-	return nil
+// Validate performs basic field validation.
+func (sid SampleID) Validate() error {
+	if sid.ShareIndex < 0 {
+		return fmt.Errorf("%w: ShareIndex: %d < 0", ErrInvalidShwapID, sid.ShareIndex)
+	}
+	return sid.RowID.Validate()
 }
 
 // appendTo helps in constructing the binary representation by appending the encoded ShareIndex to

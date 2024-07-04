@@ -39,8 +39,8 @@ type SampleBlock struct {
 }
 
 // NewEmptySampleBlock constructs a new empty SampleBlock.
-func NewEmptySampleBlock(height uint64, rowIdx, colIdx int, root *share.Root) (*SampleBlock, error) {
-	id, err := shwap.NewSampleID(height, rowIdx, colIdx, root)
+func NewEmptySampleBlock(height uint64, rowIdx, colIdx, edsSize int) (*SampleBlock, error) {
+	id, err := shwap.NewSampleID(height, rowIdx, colIdx, edsSize)
 	if err != nil {
 		return nil, err
 	}
