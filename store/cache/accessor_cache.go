@@ -54,7 +54,7 @@ func NewAccessorCache(name string, cacheSize int) (*AccessorCache, error) {
 	// Instantiate the Accessor Cache.
 	bslru, err := lru.NewWithEvict[key, *accessor](cacheSize, bc.evictFn())
 	if err != nil {
-		return nil, fmt.Errorf("failed to instantiate accessor cache: %w", err)
+		return nil, fmt.Errorf("creating accessor cache %s: %w", name, err)
 	}
 	bc.cache = bslru
 	return bc, nil

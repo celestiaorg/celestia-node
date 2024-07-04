@@ -15,7 +15,7 @@ var (
 	meter = otel.Meter("store_cache")
 )
 
-var ErrCacheMiss = errors.New("accessor not found in blockstore cache")
+var ErrCacheMiss = errors.New("accessor not found in cache")
 
 type OpenAccessorFn func(context.Context) (eds.AccessorStreamer, error)
 

@@ -18,22 +18,22 @@ type metrics struct {
 }
 
 func newMetrics(bc *AccessorCache) (*metrics, error) {
-	metricsPrefix := "eds_blockstore_cache_" + bc.name
+	metricsPrefix := "eds_cache" + bc.name
 
 	evictedCounter, err := meter.Int64Counter(metricsPrefix+"_evicted_counter",
-		metric.WithDescription("eds blockstore cache evicted event counter"))
+		metric.WithDescription("eds cache evicted event counter"))
 	if err != nil {
 		return nil, err
 	}
 
 	getCounter, err := meter.Int64Counter(metricsPrefix+"_get_counter",
-		metric.WithDescription("eds blockstore cache evicted event counter"))
+		metric.WithDescription("eds cache get event counter"))
 	if err != nil {
 		return nil, err
 	}
 
 	cacheSize, err := meter.Int64ObservableGauge(metricsPrefix+"_size",
-		metric.WithDescription("total amount of items in blockstore cache"),
+		metric.WithDescription("total amount of items in cache"),
 	)
 	if err != nil {
 		return nil, err

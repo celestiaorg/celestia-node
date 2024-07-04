@@ -54,7 +54,7 @@ func TestAccessorCache(t *testing.T) {
 		require.NoError(t, err)
 	})
 
-	t.Run("get blockstore from accessor", func(t *testing.T) {
+	t.Run("get reader from accessor", func(t *testing.T) {
 		ctx, cancel := context.WithTimeout(context.Background(), time.Second)
 		defer cancel()
 		cache, err := NewAccessorCache("test", 1)
