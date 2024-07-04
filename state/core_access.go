@@ -13,7 +13,6 @@ import (
 	"github.com/cosmos/cosmos-sdk/crypto/keyring"
 	storetypes "github.com/cosmos/cosmos-sdk/store/types"
 	sdktypes "github.com/cosmos/cosmos-sdk/types"
-	sdktx "github.com/cosmos/cosmos-sdk/types/tx"
 	banktypes "github.com/cosmos/cosmos-sdk/x/bank/types"
 	"github.com/cosmos/cosmos-sdk/x/feegrant"
 	stakingtypes "github.com/cosmos/cosmos-sdk/x/staking/types"
@@ -28,7 +27,6 @@ import (
 	"github.com/celestiaorg/celestia-app/app/encoding"
 	apperrors "github.com/celestiaorg/celestia-app/app/errors"
 	"github.com/celestiaorg/celestia-app/pkg/user"
-	apptypes "github.com/celestiaorg/celestia-app/x/blob/types"
 	libhead "github.com/celestiaorg/go-header"
 
 	"github.com/celestiaorg/celestia-node/header"
@@ -359,26 +357,6 @@ func (ca *CoreAccessor) BalanceForAddress(ctx context.Context, addr Address) (*B
 		Denom:  app.BondDenom,
 		Amount: coin,
 	}, nil
-}
-
-func (ca *CoreAccessor) SubmitTx(ctx context.Context, tx Tx) (*TxResponse, error) {
-	txResp, err := apptypes.BroadcastTx(ctx, ca.coreConn, sdktx.BroadcastMode_BROADCAST_MODE_BLOCK, tx)
-	if err != nil {
-		return nil, err
-	}
-	return unsetTx(txResp.TxResponse), nil
-}
-
-func (ca *CoreAccessor) SubmitTxWithBroadcastMode(
-	ctx context.Context,
-	tx Tx,
-	mode sdktx.BroadcastMode,
-) (*TxResponse, error) {
-	txResp, err := apptypes.BroadcastTx(ctx, ca.coreConn, mode, tx)
-	if err != nil {
-		return nil, err
-	}
-	return unsetTx(txResp.TxResponse), nil
 }
 
 func (ca *CoreAccessor) Transfer(
