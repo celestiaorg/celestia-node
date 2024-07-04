@@ -10,7 +10,7 @@ import (
 // maxHeadersPerLoop is the maximum number of headers to fetch
 // for a prune loop (prevents fetching too many headers at a
 // time for nodes that have a large number of pruneable headers).
-var maxHeadersPerLoop = uint64(512)
+var maxHeadersPerLoop = 512
 
 // findPruneableHeaders returns all headers that are eligible for pruning
 // (outside the sampling window).
@@ -56,7 +56,7 @@ func (s *Service) findPruneableHeaders(
 	// loop we could increase by a range every iteration
 	headerCount := len(headers)
 	for {
-		if headerCount > int(maxHeadersPerLoop) {
+		if headerCount > maxHeadersPerLoop {
 			headers = headers[:maxHeadersPerLoop]
 			break
 		}
@@ -106,8 +106,8 @@ func (s *Service) calculateEstimatedCutoff(
 		estimatedCutoffHeight = head.Height()
 	}
 
-	if estimatedCutoffHeight-lastPruned.Height() > maxHeadersPerLoop {
-		estimatedCutoffHeight = lastPruned.Height() + maxHeadersPerLoop
+	if estimatedCutoffHeight-lastPruned.Height() > uint64(maxHeadersPerLoop) {
+		estimatedCutoffHeight = lastPruned.Height() + uint64(maxHeadersPerLoop)
 	}
 
 	return estimatedCutoffHeight, nil

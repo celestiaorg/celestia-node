@@ -159,10 +159,9 @@ func TestPrune_LargeNumberOfBlocks(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	t.Cleanup(cancel)
 
-	maxHeadersPerLoop = 10
-	t.Cleanup(func() {
-		maxHeadersPerLoop = 1024
-	})
+	var maxHeadersPerLoopOld int
+	maxHeadersPerLoopOld, maxHeadersPerLoop = maxHeadersPerLoop, 10
+	t.Cleanup(func() { maxHeadersPerLoop = maxHeadersPerLoopOld })
 
 	blockTime := time.Nanosecond
 	availabilityWindow := AvailabilityWindow(blockTime * 10)
@@ -170,7 +169,7 @@ func TestPrune_LargeNumberOfBlocks(t *testing.T) {
 	// all headers generated in suite are timestamped to time.Now(), so
 	// they will all be considered "pruneable" within the availability window
 	suite := headertest.NewTestSuite(t, 1, blockTime)
-	store := headertest.NewCustomStore(t, suite, int(maxHeadersPerLoop*6)) // add small buffer
+	store := headertest.NewCustomStore(t, suite, maxHeadersPerLoop*6) // add small buffer
 
 	mp := &mockPruner{failHeight: make(map[uint64]int, 0)}
 
