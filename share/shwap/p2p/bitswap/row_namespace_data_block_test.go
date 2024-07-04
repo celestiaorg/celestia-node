@@ -23,7 +23,7 @@ func TestRowNamespaceData_FetchRoundtrip(t *testing.T) {
 	rowIdxs := share.RowsWithNamespace(root, namespace)
 	blks := make([]Block, len(rowIdxs))
 	for i, rowIdx := range rowIdxs {
-		blk, err := NewEmptyRowNamespaceDataBlock(1, rowIdx, namespace, root)
+		blk, err := NewEmptyRowNamespaceDataBlock(1, rowIdx, namespace, len(root.RowRoots))
 		require.NoError(t, err)
 		blks[i] = blk
 	}

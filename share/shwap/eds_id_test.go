@@ -5,17 +5,10 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-
-	"github.com/celestiaorg/celestia-node/share"
-	"github.com/celestiaorg/celestia-node/share/eds/edstest"
 )
 
 func TestEdsID(t *testing.T) {
-	square := edstest.RandEDS(t, 2)
-	root, err := share.NewRoot(square)
-	require.NoError(t, err)
-
-	id, err := NewEdsID(2, root)
+	id, err := NewEdsID(2)
 	require.NoError(t, err)
 
 	data, err := id.MarshalBinary()
@@ -25,6 +18,6 @@ func TestEdsID(t *testing.T) {
 	require.NoError(t, err)
 	assert.EqualValues(t, id, idOut)
 
-	err = idOut.Validate(root)
+	err = idOut.Validate()
 	require.NoError(t, err)
 }

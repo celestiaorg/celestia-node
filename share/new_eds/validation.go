@@ -39,18 +39,17 @@ func (f validation) Size(ctx context.Context) int {
 }
 
 func (f validation) Sample(ctx context.Context, rowIdx, colIdx int) (shwap.Sample, error) {
-	if err := validateIndexBounds(ctx, f, colIdx); err != nil {
-		return shwap.Sample{}, fmt.Errorf("col: %w", err)
-	}
-	if err := validateIndexBounds(ctx, f, rowIdx); err != nil {
-		return shwap.Sample{}, fmt.Errorf("row: %w", err)
+	_, err := shwap.NewSampleID(1, rowIdx, colIdx, f.Size(ctx))
+	if err != nil {
+		return shwap.Sample{}, fmt.Errorf("sample validation: %w", err)
 	}
 	return f.Accessor.Sample(ctx, rowIdx, colIdx)
 }
 
 func (f validation) AxisHalf(ctx context.Context, axisType rsmt2d.Axis, axisIdx int) (AxisHalf, error) {
-	if err := validateIndexBounds(ctx, f, axisIdx); err != nil {
-		return AxisHalf{}, fmt.Errorf("%s: %w", axisType, err)
+	_, err := shwap.NewRowID(1, axisIdx, f.Size(ctx))
+	if err != nil {
+		return AxisHalf{}, fmt.Errorf("axis half validation: %w", err)
 	}
 	return f.Accessor.AxisHalf(ctx, axisType, axisIdx)
 }
@@ -60,17 +59,9 @@ func (f validation) RowNamespaceData(
 	namespace share.Namespace,
 	rowIdx int,
 ) (shwap.RowNamespaceData, error) {
-	if err := validateIndexBounds(ctx, f, rowIdx); err != nil {
-		return shwap.RowNamespaceData{}, fmt.Errorf("row: %w", err)
+	_, err := shwap.NewRowNamespaceDataID(1, rowIdx, namespace, f.Size(ctx))
+	if err != nil {
+		return shwap.RowNamespaceData{}, fmt.Errorf("row namespace data validation: %w", err)
 	}
 	return f.Accessor.RowNamespaceData(ctx, namespace, rowIdx)
-}
-
-// validateIndexBounds checks if the index is within the bounds of the eds.
-func validateIndexBounds(ctx context.Context, f Accessor, idx int) error {
-	size := f.Size(ctx)
-	if idx < 0 || idx >= size {
-		return fmt.Errorf("%w: index %d is out of bounds: [0, %d)", ErrOutOfBounds, idx, size)
-	}
-	return nil
 }

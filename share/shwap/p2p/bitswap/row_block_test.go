@@ -22,7 +22,7 @@ func TestRow_FetchRoundtrip(t *testing.T) {
 
 	blks := make([]Block, eds.Width())
 	for i := range blks {
-		blk, err := NewEmptyRowBlock(1, i, root)
+		blk, err := NewEmptyRowBlock(1, i, len(root.RowRoots))
 		require.NoError(t, err)
 		blks[i] = blk
 	}

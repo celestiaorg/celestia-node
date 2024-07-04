@@ -43,9 +43,9 @@ func NewEmptyRowNamespaceDataBlock(
 	height uint64,
 	rowIdx int,
 	namespace share.Namespace,
-	root *share.Root,
+	edsSize int,
 ) (*RowNamespaceDataBlock, error) {
-	id, err := shwap.NewRowNamespaceDataID(height, rowIdx, namespace, root)
+	id, err := shwap.NewRowNamespaceDataID(height, rowIdx, namespace, edsSize)
 	if err != nil {
 		return nil, err
 	}
