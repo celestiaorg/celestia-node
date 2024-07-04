@@ -138,8 +138,9 @@ func (s *Service) Get(
 	return
 }
 
-// GetProof returns an NMT inclusion proof for a blob within the specified namespace at the given
-// height, using the given commitment. It employs the same algorithm as service.Get() internally.
+// GetProof returns an NMT inclusion proof for a specified namespace to the respective row roots
+// on which the blob spans on at the given height, using the given commitment.
+// It employs the same algorithm as service.Get() internally.
 func (s *Service) GetProof(
 	ctx context.Context,
 	height uint64,
