@@ -15,6 +15,7 @@ const (
 type metrics struct {
 	getCounter     metric.Int64Counter
 	evictedCounter metric.Int64Counter
+	reg            metric.Registration
 }
 
 func newMetrics(bc *AccessorCache) (*metrics, error) {
@@ -43,11 +44,12 @@ func newMetrics(bc *AccessorCache) (*metrics, error) {
 		observer.ObserveInt64(cacheSize, int64(bc.cache.Len()))
 		return nil
 	}
-	_, err = meter.RegisterCallback(callback, cacheSize)
+	reg, err := meter.RegisterCallback(callback, cacheSize)
 
 	return &metrics{
 		getCounter:     getCounter,
 		evictedCounter: evictedCounter,
+		reg:            reg,
 	}, err
 }
 

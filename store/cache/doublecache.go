@@ -20,18 +20,18 @@ func NewDoubleCache(first, second Cache) *DoubleCache {
 }
 
 // Get looks for an item in all the caches one by one and returns the Cache found item.
-func (mc *DoubleCache) Get(key key) (eds.AccessorStreamer, error) {
-	accessor, err := mc.first.Get(key)
+func (mc *DoubleCache) Get(height uint64) (eds.AccessorStreamer, error) {
+	accessor, err := mc.first.Get(height)
 	if err == nil {
 		return accessor, nil
 	}
-	return mc.second.Get(key)
+	return mc.second.Get(height)
 }
 
 // Remove removes an item from all underlying caches
-func (mc *DoubleCache) Remove(key key) error {
-	err1 := mc.first.Remove(key)
-	err2 := mc.second.Remove(key)
+func (mc *DoubleCache) Remove(height uint64) error {
+	err1 := mc.first.Remove(height)
+	err2 := mc.second.Remove(height)
 	return errors.Join(err1, err2)
 }
 

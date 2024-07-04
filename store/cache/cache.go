@@ -19,19 +19,17 @@ var ErrCacheMiss = errors.New("accessor not found in cache")
 
 type OpenAccessorFn func(context.Context) (eds.AccessorStreamer, error)
 
-type key = uint64
-
 // Cache is an interface that defines the basic Cache operations.
 type Cache interface {
-	// Get returns the eds.AccessorStreamer for the given key.
-	Get(key) (eds.AccessorStreamer, error)
+	// Get returns the eds.AccessorStreamer for the given height.
+	Get(height uint64) (eds.AccessorStreamer, error)
 
 	// GetOrLoad attempts to get an item from the Cache and, if not found, invokes
 	// the provided loader function to load it into the Cache.
-	GetOrLoad(context.Context, key, OpenAccessorFn) (eds.AccessorStreamer, error)
+	GetOrLoad(ctx context.Context, height uint64, open OpenAccessorFn) (eds.AccessorStreamer, error)
 
 	// Remove removes an item from Cache.
-	Remove(key) error
+	Remove(height uint64) error
 
 	// EnableMetrics enables metrics in Cache
 	EnableMetrics() error

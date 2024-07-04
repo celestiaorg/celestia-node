@@ -16,15 +16,15 @@ var _ Cache = (*NoopCache)(nil)
 // NoopCache implements noop version of Cache interface
 type NoopCache struct{}
 
-func (n NoopCache) Get(key) (eds.AccessorStreamer, error) {
+func (n NoopCache) Get(uint64) (eds.AccessorStreamer, error) {
 	return nil, ErrCacheMiss
 }
 
-func (n NoopCache) GetOrLoad(ctx context.Context, _ key, loader OpenAccessorFn) (eds.AccessorStreamer, error) {
+func (n NoopCache) GetOrLoad(ctx context.Context, _ uint64, loader OpenAccessorFn) (eds.AccessorStreamer, error) {
 	return loader(ctx)
 }
 
-func (n NoopCache) Remove(key) error {
+func (n NoopCache) Remove(uint64) error {
 	return nil
 }
 

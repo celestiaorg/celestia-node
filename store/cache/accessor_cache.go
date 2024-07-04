@@ -21,12 +21,12 @@ type AccessorCache struct {
 	// The name is a prefix that will be used for cache metrics if they are enabled.
 	name string
 	// stripedLocks prevents simultaneous RW access to the accessor cache. Instead
-	// of using only one lock or one lock per key, we stripe the keys across 256 locks. 256 is
-	// chosen because it 0-255 is the range of values we get looking at the last byte of the key.
+	// of using only one lock or one lock per uint64, we stripe the uint64s across 256 locks. 256 is
+	// chosen because it 0-255 is the range of values we get looking at the last byte of the uint64.
 	stripedLocks [256]*sync.RWMutex
-	// Caches the accessor for a given key for accessor read affinity, i.e., further reads will likely
+	// Caches the accessor for a given uint64 for accessor read affinity, i.e., further reads will likely
 	// be from the same accessor. Maps (Datahash -> accessor).
-	cache *lru.Cache[key, *accessor]
+	cache *lru.Cache[uint64, *accessor]
 
 	metrics *metrics
 }
@@ -52,7 +52,7 @@ func NewAccessorCache(name string, cacheSize int) (*AccessorCache, error) {
 		bc.stripedLocks[i] = &sync.RWMutex{}
 	}
 	// Instantiate the Accessor Cache.
-	bslru, err := lru.NewWithEvict[key, *accessor](cacheSize, bc.evictFn())
+	bslru, err := lru.NewWithEvict[uint64, *accessor](cacheSize, bc.evictFn())
 	if err != nil {
 		return nil, fmt.Errorf("creating accessor cache %s: %w", name, err)
 	}
@@ -61,9 +61,9 @@ func NewAccessorCache(name string, cacheSize int) (*AccessorCache, error) {
 }
 
 // evictFn will be invoked when an item is evicted from the cache.
-func (bc *AccessorCache) evictFn() func(key, *accessor) {
-	return func(_ key, ac *accessor) {
-		// we can release accessor from cache early, while it is being closed in parallel routine
+func (bc *AccessorCache) evictFn() func(uint64, *accessor) {
+	return func(_ uint64, ac *accessor) {
+		// we don't want to block cache on close and can release accessor from cache early, while it is being closed in parallel routine
 		go func() {
 			err := ac.close()
 			if err != nil {
@@ -76,14 +76,14 @@ func (bc *AccessorCache) evictFn() func(key, *accessor) {
 	}
 }
 
-// Get retrieves the accessor for a given key from the Cache. If the Accessor is not in
+// Get retrieves the accessor for a given uint64 from the Cache. If the Accessor is not in
 // the Cache, it returns an ErrCacheMiss.
-func (bc *AccessorCache) Get(key key) (eds.AccessorStreamer, error) {
-	lk := bc.getLock(key)
+func (bc *AccessorCache) Get(height uint64) (eds.AccessorStreamer, error) {
+	lk := bc.getLock(height)
 	lk.RLock()
 	defer lk.RUnlock()
 
-	ac, ok := bc.cache.Get(key)
+	ac, ok := bc.cache.Get(height)
 	if !ok {
 		bc.metrics.observeGet(false)
 		return nil, ErrCacheMiss
@@ -95,12 +95,12 @@ func (bc *AccessorCache) Get(key key) (eds.AccessorStreamer, error) {
 
 // GetOrLoad attempts to get an item from the cache, and if not found, invokes
 // the provided loader function to load it.
-func (bc *AccessorCache) GetOrLoad(ctx context.Context, key key, loader OpenAccessorFn) (eds.AccessorStreamer, error) {
-	lk := bc.getLock(key)
+func (bc *AccessorCache) GetOrLoad(ctx context.Context, height uint64, loader OpenAccessorFn) (eds.AccessorStreamer, error) {
+	lk := bc.getLock(height)
 	lk.Lock()
 	defer lk.Unlock()
 
-	ac, ok := bc.cache.Get(key)
+	ac, ok := bc.cache.Get(height)
 	if ok {
 		// return accessor, only if it is not closed yet
 		accessorWithRef, err := newRefCloser(ac)
@@ -123,15 +123,15 @@ func (bc *AccessorCache) GetOrLoad(ctx context.Context, key key, loader OpenAcce
 	if err != nil {
 		return nil, err
 	}
-	bc.cache.Add(key, ac)
+	bc.cache.Add(height, ac)
 	return rc, nil
 }
 
-// Remove removes the Accessor for a given key from the cache.
-func (bc *AccessorCache) Remove(key key) error {
-	lk := bc.getLock(key)
+// Remove removes the Accessor for a given uint64 from the cache.
+func (bc *AccessorCache) Remove(height uint64) error {
+	lk := bc.getLock(height)
 	lk.RLock()
-	ac, ok := bc.cache.Get(key)
+	ac, ok := bc.cache.Get(height)
 	lk.RUnlock()
 	if !ok {
 		// item is not in cache
@@ -141,7 +141,7 @@ func (bc *AccessorCache) Remove(key key) error {
 		return err
 	}
 	// The cache will call evictFn on removal, where accessor close will be called.
-	bc.cache.Remove(key)
+	bc.cache.Remove(height)
 	return nil
 }
 
@@ -199,8 +199,7 @@ func (s *accessor) close() error {
 	return nil
 }
 
-// refCloser manages references to accessor from provided reader and removes the ref, when the
-// Close is called
+// refCloser exists for reference counting protection on accessor. It ensures that a caller can't decrement it more than once.
 type refCloser struct {
 	*accessor
 	closeFn func()
@@ -226,6 +225,6 @@ func (c *refCloser) Close() error {
 	return nil
 }
 
-func (bc *AccessorCache) getLock(k key) *sync.RWMutex {
+func (bc *AccessorCache) getLock(k uint64) *sync.RWMutex {
 	return bc.stripedLocks[byte(k%256)]
 }
