@@ -40,7 +40,7 @@ var getCmd = &cobra.Command{
 	Use:   "get [height] [namespace] [commitment]",
 	Args:  cobra.ExactArgs(3),
 	Short: "Returns the blob for the given namespace by commitment at a particular height.",
-	PreRunE: func(cmd *cobra.Command, args []string) error {
+	PreRunE: func(_ *cobra.Command, args []string) error {
 		if !strings.HasPrefix(args[1], "0x") {
 			return fmt.Errorf("only hex namespace is supported")
 		}
@@ -80,7 +80,7 @@ var getAllCmd = &cobra.Command{
 	Use:   "get-all [height] [namespace]",
 	Args:  cobra.ExactArgs(2),
 	Short: "Returns all blobs for the given namespace at a particular height.",
-	PreRunE: func(cmd *cobra.Command, args []string) error {
+	PreRunE: func(_ *cobra.Command, args []string) error {
 		if !strings.HasPrefix(args[1], "0x") {
 			return fmt.Errorf("only hex namespace is supported")
 		}
@@ -225,7 +225,7 @@ var getProofCmd = &cobra.Command{
 	Use:   "get-proof [height] [namespace] [commitment]",
 	Args:  cobra.ExactArgs(3),
 	Short: "Retrieves the blob in the given namespaces at the given height by commitment and returns its Proof.",
-	PreRunE: func(cmd *cobra.Command, args []string) error {
+	PreRunE: func(_ *cobra.Command, args []string) error {
 		if !strings.HasPrefix(args[1], "0x") {
 			return fmt.Errorf("only hex namespace is supported")
 		}
