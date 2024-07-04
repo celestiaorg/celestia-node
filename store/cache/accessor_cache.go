@@ -24,8 +24,8 @@ type AccessorCache struct {
 	// of using only one lock or one lock per uint64, we stripe the uint64s across 256 locks. 256 is
 	// chosen because it 0-255 is the range of values we get looking at the last byte of the uint64.
 	stripedLocks [256]*sync.RWMutex
-	// Caches the accessor for a given uint64 for accessor read affinity, i.e., further reads will likely
-	// be from the same accessor. Maps (Datahash -> accessor).
+	// Caches the accessor for a given uint64 for accessor read affinity, i.e., further reads will
+	// likely be from the same accessor. Maps (Datahash -> accessor).
 	cache *lru.Cache[uint64, *accessor]
 
 	metrics *metrics
@@ -63,7 +63,8 @@ func NewAccessorCache(name string, cacheSize int) (*AccessorCache, error) {
 // evictFn will be invoked when an item is evicted from the cache.
 func (bc *AccessorCache) evictFn() func(uint64, *accessor) {
 	return func(_ uint64, ac *accessor) {
-		// we don't want to block cache on close and can release accessor from cache early, while it is being closed in parallel routine
+		// we don't want to block cache on close and can release accessor from cache early, while it is
+		// being closed in parallel routine
 		go func() {
 			err := ac.close()
 			if err != nil {
@@ -95,7 +96,11 @@ func (bc *AccessorCache) Get(height uint64) (eds.AccessorStreamer, error) {
 
 // GetOrLoad attempts to get an item from the cache, and if not found, invokes
 // the provided loader function to load it.
-func (bc *AccessorCache) GetOrLoad(ctx context.Context, height uint64, loader OpenAccessorFn) (eds.AccessorStreamer, error) {
+func (bc *AccessorCache) GetOrLoad(
+	ctx context.Context,
+	height uint64,
+	loader OpenAccessorFn,
+) (eds.AccessorStreamer, error) {
 	lk := bc.getLock(height)
 	lk.Lock()
 	defer lk.Unlock()
@@ -199,7 +204,8 @@ func (s *accessor) close() error {
 	return nil
 }
 
-// refCloser exists for reference counting protection on accessor. It ensures that a caller can't decrement it more than once.
+// refCloser exists for reference counting protection on accessor. It ensures that a caller can't
+// decrement it more than once.
 type refCloser struct {
 	*accessor
 	closeFn func()
