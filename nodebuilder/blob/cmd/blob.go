@@ -1,7 +1,7 @@
 package cmd
 
 import (
-	"encoding/base64"
+	"encoding/hex"
 	"errors"
 	"fmt"
 	"path/filepath"
@@ -17,30 +17,12 @@ import (
 	"github.com/celestiaorg/celestia-node/share"
 )
 
-var (
-	base64Flag bool
-
-	// flagFileInput allows the user to provide file path to the json file
-	// for submitting multiple blobs.
-	flagFileInput = "input-file"
-)
+// flagFileInput allows the user to provide file path to the json file
+// for submitting multiple blobs.
+var flagFileInput = "input-file"
 
 func init() {
 	Cmd.AddCommand(getCmd, getAllCmd, submitCmd, getProofCmd)
-
-	getCmd.PersistentFlags().BoolVar(
-		&base64Flag,
-		"base64",
-		false,
-		"Printed blob's data and namespace as base64 strings",
-	)
-
-	getAllCmd.PersistentFlags().BoolVar(
-		&base64Flag,
-		"base64",
-		false,
-		"Printed blob's data and namespace as base64 strings",
-	)
 
 	state.ApplyFlags(submitCmd)
 
@@ -55,9 +37,19 @@ var Cmd = &cobra.Command{
 }
 
 var getCmd = &cobra.Command{
-	Use:   "get [height] [namespace] [commitment]",
-	Args:  cobra.ExactArgs(3),
-	Short: "Returns the blob for the given namespace by commitment at a particular height.",
+	Use:  "get [height] [namespace] [commitment]",
+	Args: cobra.ExactArgs(3),
+	Short: "Returns the blob for the given namespace by commitment at a particular height.\n" +
+		"Note:\n* Both namespace and commitment input parameters are expected to be in their hex representation.",
+	PreRunE: func(_ *cobra.Command, args []string) error {
+		if !strings.HasPrefix(args[1], "0x") {
+			return fmt.Errorf("only hex namespace is supported")
+		}
+		if !strings.HasPrefix(args[2], "0x") {
+			return fmt.Errorf("only hex commitment is supported")
+		}
+		return nil
+	},
 	RunE: func(cmd *cobra.Command, args []string) error {
 		client, err := cmdnode.ParseClientFromCtx(cmd.Context())
 		if err != nil {
@@ -70,33 +62,32 @@ var getCmd = &cobra.Command{
 			return fmt.Errorf("error parsing a height: %w", err)
 		}
 
-		if !strings.HasPrefix(args[1], "0x") {
-			return fmt.Errorf("only hex namespace is supported")
-		}
 		namespace, err := cmdnode.ParseV0Namespace(args[1])
 		if err != nil {
 			return fmt.Errorf("error parsing a namespace: %w", err)
 		}
 
-		commitment, err := base64.StdEncoding.DecodeString(args[2])
+		commitment, err := hex.DecodeString(args[2][2:])
 		if err != nil {
 			return fmt.Errorf("error parsing a commitment: %w", err)
 		}
 
 		blob, err := client.Blob.Get(cmd.Context(), height, namespace, commitment)
-
-		formatter := formatData(args[1])
-		if base64Flag || err != nil {
-			formatter = nil
-		}
-		return cmdnode.PrintOutput(blob, err, formatter)
+		return cmdnode.PrintOutput(blob, err, formatData(args[1]))
 	},
 }
 
 var getAllCmd = &cobra.Command{
-	Use:   "get-all [height] [namespace]",
-	Args:  cobra.ExactArgs(2),
-	Short: "Returns all blobs for the given namespace at a particular height.",
+	Use:  "get-all [height] [namespace]",
+	Args: cobra.ExactArgs(2),
+	Short: "Returns all blobs for the given namespace at a particular height.\n" +
+		"Note:\n* Namespace input parameter is expected to be in its hex representation.",
+	PreRunE: func(_ *cobra.Command, args []string) error {
+		if !strings.HasPrefix(args[1], "0x") {
+			return fmt.Errorf("only hex namespace is supported")
+		}
+		return nil
+	},
 	RunE: func(cmd *cobra.Command, args []string) error {
 		client, err := cmdnode.ParseClientFromCtx(cmd.Context())
 		if err != nil {
@@ -110,19 +101,12 @@ var getAllCmd = &cobra.Command{
 		}
 
 		namespace, err := cmdnode.ParseV0Namespace(args[1])
-		if !strings.HasPrefix(args[1], "0x") {
-			return fmt.Errorf("only hex namespace is supported")
-		}
 		if err != nil {
 			return fmt.Errorf("error parsing a namespace: %w", err)
 		}
 
 		blobs, err := client.Blob.GetAll(cmd.Context(), height, []share.Namespace{namespace})
-		formatter := formatData(args[1])
-		if base64Flag || err != nil {
-			formatter = nil
-		}
-		return cmdnode.PrintOutput(blobs, err, formatter)
+		return cmdnode.PrintOutput(blobs, err, formatData(args[1]))
 	},
 }
 
@@ -149,7 +133,14 @@ var submitCmd = &cobra.Command{
 
 		return nil
 	},
-	Short: "Submit the blob(s) at the given namespace(s).\n" +
+	PreRunE: func(_ *cobra.Command, args []string) error {
+		if !strings.HasPrefix(args[0], "0x") {
+			return fmt.Errorf("only hex namespace is supported")
+		}
+		return nil
+	},
+	Short: "Submit the blob(s) at the given namespace(s) and " +
+		"returns the header height in which the blob(s) was/were include + the respective commitment(s).\n" +
 		"User can use namespace and blobData as argument for single blob submission \n" +
 		"or use --input-file flag with the path to a json file for multiple blobs submission, \n" +
 		`where the json file contains: 
@@ -167,7 +158,8 @@ var submitCmd = &cobra.Command{
 			]
 		}` +
 		"Note:\n" +
-		"* fee and gas limit params will be calculated automatically.\n",
+		"* Namespace input parameter is expected to be its their hex representation.\n" +
+		"* Commitment(s) output parameter(s) will be in the hex representation.",
 	RunE: func(cmd *cobra.Command, args []string) error {
 		client, err := cmdnode.ParseClientFromCtx(cmd.Context())
 		if err != nil {
@@ -194,14 +186,15 @@ var submitCmd = &cobra.Command{
 		}
 
 		var resultBlobs []*blob.Blob
-		var commitments []blob.Commitment
+		var commitments []string
 		for _, jsonBlob := range jsonBlobs {
 			blob, err := getBlobFromArguments(jsonBlob.Namespace, jsonBlob.BlobData)
 			if err != nil {
 				return err
 			}
 			resultBlobs = append(resultBlobs, blob)
-			commitments = append(commitments, blob.Commitment)
+			hexedCommitment := hex.EncodeToString(blob.Commitment)
+			commitments = append(commitments, "0x"+hexedCommitment)
 		}
 
 		height, err := client.Blob.Submit(
@@ -211,8 +204,8 @@ var submitCmd = &cobra.Command{
 		)
 
 		response := struct {
-			Height      uint64            `json:"height"`
-			Commitments []blob.Commitment `json:"commitments"`
+			Height      uint64   `json:"height"`
+			Commitments []string `json:"commitments"`
 		}{
 			Height:      height,
 			Commitments: commitments,
@@ -236,9 +229,19 @@ func getBlobFromArguments(namespaceArg, blobArg string) (*blob.Blob, error) {
 }
 
 var getProofCmd = &cobra.Command{
-	Use:   "get-proof [height] [namespace] [commitment]",
-	Args:  cobra.ExactArgs(3),
-	Short: "Retrieves the blob in the given namespaces at the given height by commitment and returns its Proof.",
+	Use:  "get-proof [height] [namespace] [commitment]",
+	Args: cobra.ExactArgs(3),
+	Short: "Retrieves the blob in the given namespaces at the given height by commitment and returns its Proof.\n" +
+		"Note:\n* Both namespace and commitment input parameters are expected to be in their hex representation.",
+	PreRunE: func(_ *cobra.Command, args []string) error {
+		if !strings.HasPrefix(args[1], "0x") {
+			return fmt.Errorf("only hex namespace is supported")
+		}
+		if !strings.HasPrefix(args[2], "0x") {
+			return fmt.Errorf("only hex commitment is supported")
+		}
+		return nil
+	},
 	RunE: func(cmd *cobra.Command, args []string) error {
 		client, err := cmdnode.ParseClientFromCtx(cmd.Context())
 		if err != nil {
@@ -256,7 +259,7 @@ var getProofCmd = &cobra.Command{
 			return fmt.Errorf("error parsing a namespace: %w", err)
 		}
 
-		commitment, err := base64.StdEncoding.DecodeString(args[2])
+		commitment, err := hex.DecodeString(args[2][2:])
 		if err != nil {
 			return fmt.Errorf("error parsing a commitment: %w", err)
 		}
@@ -272,7 +275,7 @@ func formatData(ns string) func(interface{}) interface{} {
 			Namespace    string `json:"namespace"`
 			Data         string `json:"data"`
 			ShareVersion uint32 `json:"share_version"`
-			Commitment   []byte `json:"commitment"`
+			Commitment   string `json:"commitment"`
 			Index        int    `json:"index"`
 		}
 
@@ -284,7 +287,7 @@ func formatData(ns string) func(interface{}) interface{} {
 					Namespace:    ns,
 					Data:         string(b.Data),
 					ShareVersion: b.ShareVersion,
-					Commitment:   b.Commitment,
+					Commitment:   "0x" + hex.EncodeToString(b.Commitment),
 					Index:        b.Index(),
 				}
 			}
@@ -296,7 +299,7 @@ func formatData(ns string) func(interface{}) interface{} {
 			Namespace:    ns,
 			Data:         string(b.Data),
 			ShareVersion: b.ShareVersion,
-			Commitment:   b.Commitment,
+			Commitment:   "0x" + hex.EncodeToString(b.Commitment),
 			Index:        b.Index(),
 		}
 	}
