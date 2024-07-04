@@ -41,7 +41,7 @@ func TestDaModule(t *testing.T) {
 		blob, err := blob.NewBlob(
 			uint8(squareBlob.GetShareVersion()),
 			squareBlob.Namespace().Bytes(),
-			squareBlob.GetData()
+			squareBlob.GetData(),
 		)
 		require.NoError(t, err)
 		blobs = append(blobs, blob)
