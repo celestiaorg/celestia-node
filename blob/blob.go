@@ -148,18 +148,19 @@ func (b *Blob) MarshalJSON() ([]byte, error) {
 }
 
 func (b *Blob) UnmarshalJSON(data []byte) error {
-	var blob jsonBlob
-	err := json.Unmarshal(data, &blob)
+	var jsonBlob jsonBlob
+	err := json.Unmarshal(data, &jsonBlob)
 	if err != nil {
 		return err
 	}
 
-	b.Blob.NamespaceVersion = uint32(blob.Namespace.Version())
-	b.Blob.NamespaceId = blob.Namespace.ID()
-	b.Blob.Data = blob.Data
-	b.Blob.ShareVersion = blob.ShareVersion
-	b.Commitment = blob.Commitment
-	b.namespace = blob.Namespace
-	b.index = blob.Index
+	b.Blob = &blob.Blob{}
+	b.Blob.NamespaceVersion = uint32(jsonBlob.Namespace.Version())
+	b.Blob.NamespaceId = jsonBlob.Namespace.ID()
+	b.Blob.Data = jsonBlob.Data
+	b.Blob.ShareVersion = jsonBlob.ShareVersion
+	b.Commitment = jsonBlob.Commitment
+	b.namespace = jsonBlob.Namespace
+	b.index = jsonBlob.Index
 	return nil
 }
