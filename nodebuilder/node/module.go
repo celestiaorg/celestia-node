@@ -1,16 +1,16 @@
 package node
 
 import (
-	"github.com/cristalhq/jwt"
+	"github.com/cristalhq/jwt/v5"
 	"go.uber.org/fx"
 )
 
 func ConstructModule(tp Type) fx.Option {
 	return fx.Module(
 		"node",
-		fx.Provide(func(secret jwt.Signer) Module {
-			return newModule(tp, secret)
+		fx.Provide(func(signer jwt.Signer, verifier jwt.Verifier) Module {
+			return newModule(tp, signer, verifier)
 		}),
-		fx.Provide(secret),
+		fx.Provide(jwtSignerAndVerifier),
 	)
 }

@@ -28,7 +28,7 @@ jobs:
     runs-on: ubuntu-latest
     env:
       # upgrade go version throughout pipeline here
-      GO_VERSION: "1.22"
+      GO_VERSION: "1.22.4"
     outputs:
       go-version: ${{ steps.set-vars.outputs.go-version }}
       branch: ${{ steps.trim_ref.outputs.branch }}
@@ -146,9 +146,8 @@ jobs:
       contents: write
     steps:
       - uses: actions/checkout@v4
-
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       - run: |
           make openrpc-gen > openrpc.json
           gh release upload ${{github.event.release.tag_name}} openrpc.json
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
