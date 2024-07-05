@@ -5,7 +5,6 @@ import (
 
 	"github.com/cosmos/cosmos-sdk/x/staking/types"
 
-	"github.com/celestiaorg/celestia-node/blob"
 	"github.com/celestiaorg/celestia-node/state"
 )
 
@@ -30,55 +29,46 @@ type Module interface {
 	// the node's current head (head-1). This is due to the fact that for block N, the block's
 	// `AppHash` is the result of applying the previous block's transaction list.
 	BalanceForAddress(ctx context.Context, addr state.Address) (*state.Balance, error)
-
 	// Transfer sends the given amount of coins from default wallet of the node to the given account
 	// address.
 	Transfer(
-		ctx context.Context, to state.AccAddress, amount, fee state.Int, gasLimit uint64,
+		ctx context.Context, to state.AccAddress, amount state.Int, config *state.TxConfig,
 	) (*state.TxResponse, error)
-	// SubmitTx submits the given transaction/message to the
-	// Celestia network and blocks until the tx is included in
-	// a block.
-	SubmitTx(ctx context.Context, tx state.Tx) (*state.TxResponse, error)
 	// SubmitPayForBlob builds, signs and submits a PayForBlob transaction.
 	SubmitPayForBlob(
 		ctx context.Context,
-		fee state.Int,
-		gasLim uint64,
-		blobs []*blob.Blob,
+		blobs []*state.Blob,
+		config *state.TxConfig,
 	) (*state.TxResponse, error)
-
 	// CancelUnbondingDelegation cancels a user's pending undelegation from a validator.
 	CancelUnbondingDelegation(
 		ctx context.Context,
 		valAddr state.ValAddress,
 		amount,
-		height,
-		fee state.Int,
-		gasLim uint64,
+		height state.Int,
+		config *state.TxConfig,
 	) (*state.TxResponse, error)
 	// BeginRedelegate sends a user's delegated tokens to a new validator for redelegation.
 	BeginRedelegate(
 		ctx context.Context,
 		srcValAddr,
 		dstValAddr state.ValAddress,
-		amount,
-		fee state.Int,
-		gasLim uint64,
+		amount state.Int,
+		config *state.TxConfig,
 	) (*state.TxResponse, error)
 	// Undelegate undelegates a user's delegated tokens, unbonding them from the current validator.
 	Undelegate(
 		ctx context.Context,
 		delAddr state.ValAddress,
-		amount, fee state.Int,
-		gasLim uint64,
+		amount state.Int,
+		config *state.TxConfig,
 	) (*state.TxResponse, error)
 	// Delegate sends a user's liquid tokens to a validator for delegation.
 	Delegate(
 		ctx context.Context,
 		delAddr state.ValAddress,
-		amount, fee state.Int,
-		gasLim uint64,
+		amount state.Int,
+		config *state.TxConfig,
 	) (*state.TxResponse, error)
 
 	// QueryDelegation retrieves the delegation information between a delegator and a validator.
@@ -95,16 +85,14 @@ type Module interface {
 	GrantFee(
 		ctx context.Context,
 		grantee state.AccAddress,
-		amount,
-		fee state.Int,
-		gasLim uint64,
+		amount state.Int,
+		config *state.TxConfig,
 	) (*state.TxResponse, error)
 
 	RevokeGrantFee(
 		ctx context.Context,
 		grantee state.AccAddress,
-		fee state.Int,
-		gasLim uint64,
+		config *state.TxConfig,
 	) (*state.TxResponse, error)
 }
 
@@ -120,46 +108,38 @@ type API struct {
 		Transfer          func(
 			ctx context.Context,
 			to state.AccAddress,
-			amount,
-			fee state.Int,
-			gasLimit uint64,
+			amount state.Int,
+			config *state.TxConfig,
 		) (*state.TxResponse, error) `perm:"write"`
-		SubmitTx         func(ctx context.Context, tx state.Tx) (*state.TxResponse, error) `perm:"read"`
 		SubmitPayForBlob func(
 			ctx context.Context,
-			fee state.Int,
-			gasLim uint64,
-			blobs []*blob.Blob,
+			blobs []*state.Blob,
+			config *state.TxConfig,
 		) (*state.TxResponse, error) `perm:"write"`
 		CancelUnbondingDelegation func(
 			ctx context.Context,
 			valAddr state.ValAddress,
-			amount,
-			height,
-			fee state.Int,
-			gasLim uint64,
+			amount, height state.Int,
+			config *state.TxConfig,
 		) (*state.TxResponse, error) `perm:"write"`
 		BeginRedelegate func(
 			ctx context.Context,
 			srcValAddr,
 			dstValAddr state.ValAddress,
-			amount,
-			fee state.Int,
-			gasLim uint64,
+			amount state.Int,
+			config *state.TxConfig,
 		) (*state.TxResponse, error) `perm:"write"`
 		Undelegate func(
 			ctx context.Context,
 			delAddr state.ValAddress,
-			amount,
-			fee state.Int,
-			gasLim uint64,
+			amount state.Int,
+			config *state.TxConfig,
 		) (*state.TxResponse, error) `perm:"write"`
 		Delegate func(
 			ctx context.Context,
 			delAddr state.ValAddress,
-			amount,
-			fee state.Int,
-			gasLim uint64,
+			amount state.Int,
+			config *state.TxConfig,
 		) (*state.TxResponse, error) `perm:"write"`
 		QueryDelegation func(
 			ctx context.Context,
@@ -177,16 +157,13 @@ type API struct {
 		GrantFee func(
 			ctx context.Context,
 			grantee state.AccAddress,
-			amount,
-			fee state.Int,
-			gasLim uint64,
+			amount state.Int,
+			config *state.TxConfig,
 		) (*state.TxResponse, error) `perm:"write"`
-
 		RevokeGrantFee func(
 			ctx context.Context,
 			grantee state.AccAddress,
-			fee state.Int,
-			gasLim uint64,
+			config *state.TxConfig,
 		) (*state.TxResponse, error) `perm:"write"`
 	}
 }
@@ -202,65 +179,54 @@ func (api *API) BalanceForAddress(ctx context.Context, addr state.Address) (*sta
 func (api *API) Transfer(
 	ctx context.Context,
 	to state.AccAddress,
-	amount,
-	fee state.Int,
-	gasLimit uint64,
+	amount state.Int,
+	config *state.TxConfig,
 ) (*state.TxResponse, error) {
-	return api.Internal.Transfer(ctx, to, amount, fee, gasLimit)
-}
-
-func (api *API) SubmitTx(ctx context.Context, tx state.Tx) (*state.TxResponse, error) {
-	return api.Internal.SubmitTx(ctx, tx)
+	return api.Internal.Transfer(ctx, to, amount, config)
 }
 
 func (api *API) SubmitPayForBlob(
 	ctx context.Context,
-	fee state.Int,
-	gasLim uint64,
-	blobs []*blob.Blob,
+	blobs []*state.Blob,
+	config *state.TxConfig,
 ) (*state.TxResponse, error) {
-	return api.Internal.SubmitPayForBlob(ctx, fee, gasLim, blobs)
+	return api.Internal.SubmitPayForBlob(ctx, blobs, config)
 }
 
 func (api *API) CancelUnbondingDelegation(
 	ctx context.Context,
 	valAddr state.ValAddress,
-	amount,
-	height,
-	fee state.Int,
-	gasLim uint64,
+	amount, height state.Int,
+	config *state.TxConfig,
 ) (*state.TxResponse, error) {
-	return api.Internal.CancelUnbondingDelegation(ctx, valAddr, amount, height, fee, gasLim)
+	return api.Internal.CancelUnbondingDelegation(ctx, valAddr, amount, height, config)
 }
 
 func (api *API) BeginRedelegate(
 	ctx context.Context,
 	srcValAddr, dstValAddr state.ValAddress,
-	amount,
-	fee state.Int,
-	gasLim uint64,
+	amount state.Int,
+	config *state.TxConfig,
 ) (*state.TxResponse, error) {
-	return api.Internal.BeginRedelegate(ctx, srcValAddr, dstValAddr, amount, fee, gasLim)
+	return api.Internal.BeginRedelegate(ctx, srcValAddr, dstValAddr, amount, config)
 }
 
 func (api *API) Undelegate(
 	ctx context.Context,
 	delAddr state.ValAddress,
-	amount,
-	fee state.Int,
-	gasLim uint64,
+	amount state.Int,
+	config *state.TxConfig,
 ) (*state.TxResponse, error) {
-	return api.Internal.Undelegate(ctx, delAddr, amount, fee, gasLim)
+	return api.Internal.Undelegate(ctx, delAddr, amount, config)
 }
 
 func (api *API) Delegate(
 	ctx context.Context,
 	delAddr state.ValAddress,
-	amount,
-	fee state.Int,
-	gasLim uint64,
+	amount state.Int,
+	config *state.TxConfig,
 ) (*state.TxResponse, error) {
-	return api.Internal.Delegate(ctx, delAddr, amount, fee, gasLim)
+	return api.Internal.Delegate(ctx, delAddr, amount, config)
 }
 
 func (api *API) QueryDelegation(ctx context.Context, valAddr state.ValAddress) (*types.QueryDelegationResponse, error) {
@@ -288,18 +254,16 @@ func (api *API) Balance(ctx context.Context) (*state.Balance, error) {
 func (api *API) GrantFee(
 	ctx context.Context,
 	grantee state.AccAddress,
-	amount,
-	fee state.Int,
-	gasLim uint64,
+	amount state.Int,
+	config *state.TxConfig,
 ) (*state.TxResponse, error) {
-	return api.Internal.GrantFee(ctx, grantee, amount, fee, gasLim)
+	return api.Internal.GrantFee(ctx, grantee, amount, config)
 }
 
 func (api *API) RevokeGrantFee(
 	ctx context.Context,
 	grantee state.AccAddress,
-	fee state.Int,
-	gasLim uint64,
+	config *state.TxConfig,
 ) (*state.TxResponse, error) {
-	return api.Internal.RevokeGrantFee(ctx, grantee, fee, gasLim)
+	return api.Internal.RevokeGrantFee(ctx, grantee, config)
 }
