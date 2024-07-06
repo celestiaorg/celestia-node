@@ -20,6 +20,7 @@ import (
 	"github.com/celestiaorg/celestia-node/share/eds"
 	"github.com/celestiaorg/celestia-node/share/getters"
 	"github.com/celestiaorg/celestia-node/share/p2p/shrexnd"
+	"github.com/celestiaorg/celestia-node/share/shwap/p2p/shrex/shrex_getter"
 )
 
 func TestShrexNDFromLights(t *testing.T) {
@@ -200,7 +201,7 @@ func replaceShareGetter() fx.Option {
 			host host.Host,
 			store *eds.Store,
 			storeGetter *getters.StoreGetter,
-			shrexGetter *getters.ShrexGetter,
+			shrexGetter *shrex_getter.Getter,
 			network p2p.Network,
 		) share.Getter {
 			cascade := make([]share.Getter, 0, 2)

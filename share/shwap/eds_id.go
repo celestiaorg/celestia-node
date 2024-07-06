@@ -13,7 +13,6 @@ const EdsIDSize = 8
 // ErrOutOfBounds is returned whenever an index is out of bounds.
 var (
 	ErrInvalidShwapID = errors.New("invalid shwap ID")
-	ErrOutOfBounds    = fmt.Errorf("index out of bounds: %w", ErrInvalidShwapID)
 )
 
 // EdsID represents a unique identifier for a row, using the height of the block

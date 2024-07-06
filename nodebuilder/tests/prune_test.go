@@ -19,10 +19,10 @@ import (
 	"github.com/celestiaorg/celestia-node/nodebuilder/tests/swamp"
 	"github.com/celestiaorg/celestia-node/pruner"
 	"github.com/celestiaorg/celestia-node/share"
-	"github.com/celestiaorg/celestia-node/share/getters"
 	"github.com/celestiaorg/celestia-node/share/p2p/peers"
 	"github.com/celestiaorg/celestia-node/share/p2p/shrexeds"
 	"github.com/celestiaorg/celestia-node/share/p2p/shrexnd"
+	"github.com/celestiaorg/celestia-node/share/shwap/p2p/shrex/shrex_getter"
 )
 
 // TestArchivalBlobSync tests whether a LN is able to sync historical blobs from
@@ -71,15 +71,15 @@ func TestArchivalBlobSync(t *testing.T) {
 			edsClient *shrexeds.Client,
 			ndClient *shrexnd.Client,
 			managers map[string]*peers.Manager,
-		) *getters.ShrexGetter {
-			return getters.NewShrexGetter(
+		) *shrex_getter.Getter {
+			return shrex_getter.NewGetter(
 				edsClient,
 				ndClient,
 				managers["full"],
 				managers["archival"],
 				testAvailWindow,
 			)
-		}, new(getters.ShrexGetter)),
+		}, new(shrex_getter.Getter)),
 	)
 
 	// stop the archival BN to force LN to have to discover

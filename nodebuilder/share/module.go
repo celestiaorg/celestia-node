@@ -19,6 +19,7 @@ import (
 	"github.com/celestiaorg/celestia-node/share/p2p/shrexeds"
 	"github.com/celestiaorg/celestia-node/share/p2p/shrexnd"
 	"github.com/celestiaorg/celestia-node/share/p2p/shrexsub"
+	"github.com/celestiaorg/celestia-node/share/shwap/p2p/shrex/shrex_getter"
 )
 
 func ConstructModule(tp node.Type, cfg *Config, options ...fx.Option) fx.Option {
@@ -92,8 +93,8 @@ func shrexComponents(tp node.Type, cfg *Config) fx.Option {
 				edsClient *shrexeds.Client,
 				ndClient *shrexnd.Client,
 				managers map[string]*peers.Manager,
-			) *getters.ShrexGetter {
-				return getters.NewShrexGetter(
+			) *shrex_getter.Getter {
+				return shrex_getter.NewGetter(
 					edsClient,
 					ndClient,
 					managers[fullNodesTag],
@@ -101,10 +102,10 @@ func shrexComponents(tp node.Type, cfg *Config) fx.Option {
 					lightprune.Window,
 				)
 			},
-			fx.OnStart(func(ctx context.Context, getter *getters.ShrexGetter) error {
+			fx.OnStart(func(ctx context.Context, getter *shrex_getter.Getter) error {
 				return getter.Start(ctx)
 			}),
-			fx.OnStop(func(ctx context.Context, getter *getters.ShrexGetter) error {
+			fx.OnStop(func(ctx context.Context, getter *shrex_getter.Getter) error {
 				return getter.Stop(ctx)
 			}),
 		)),
