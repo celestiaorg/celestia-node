@@ -28,6 +28,7 @@ func E2ESimple(logger *log.Logger) error {
 	testNet.SetConsensusParams(app.DefaultInitialConsensusParams())
 
 	defer testNet.Cleanup()
+	defer testNet.NodeCleanup()
 
 	logger.Println("Creating testnet validators")
 	testnet.NoError("failed to create genesis nodes", testNet.CreateGenesisNodes(4, appVersion, 10000000, 0, testnet.DefaultResources))
@@ -44,14 +45,15 @@ func E2ESimple(logger *log.Logger) error {
 	logger.Println("Starting testnets")
 	testnet.NoError("failed to start testnets", testNet.Start())
 
-	err = testNet.CreateAndStartBridgeNodes(3, "bridge", nodeVersion, nodeTestnet.DefaultBridgeResources)
+	// FIXME: If you deploy more than one node of the same type, the keys will be the same
+	err = testNet.CreateAndStartBridgeNodes(1, "bridge", nodeVersion, nodeTestnet.DefaultBridgeResources)
 	testnet.NoError("failed to create and start bridge node", err)
-	err = testNet.CreateAndStartFullNodes(3, "full", nodeVersion, nodeTestnet.DefaultFullResources)
+	err = testNet.CreateAndStartFullNodes(1, "full", nodeVersion, nodeTestnet.DefaultFullResources)
 	testnet.NoError("failed to create and start full node", err)
-	err = testNet.CreateAndStartLightNodes(3, "light", nodeVersion, nodeTestnet.DefaultLightResources)
+	err = testNet.CreateAndStartLightNodes(1, "light", nodeVersion, nodeTestnet.DefaultLightResources)
 	testnet.NoError("failed to create and start light node", err)
 
-	// wait for 30 seconds
+	logger.Println("Waiting for 30 seconds")
 	time.Sleep(30 * time.Second)
 
 	logger.Println("Reading blockchain")
@@ -65,5 +67,16 @@ func E2ESimple(logger *log.Logger) error {
 	if totalTxs < 10 {
 		return fmt.Errorf("expected at least 10 transactions, got %d", totalTxs)
 	}
+
+	for _, node := range testNet.DaNodes() {
+		if node.Type == "full" || node.Type == "light" {
+			head, err := node.GetMetric("das_sampled_chain_head")
+			testnet.NoError("failed to get metric", err)
+			if head < 50 {
+				return fmt.Errorf("expected head to be greater than 50, got %f", head)
+			}
+		}
+	}
+
 	return nil
 }

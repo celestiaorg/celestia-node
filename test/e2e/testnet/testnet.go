@@ -6,13 +6,14 @@ import (
 	"github.com/celestiaorg/celestia-app/v2/test/e2e/testnet"
 	"github.com/celestiaorg/celestia-app/v2/test/util/genesis" // Updated this import
 	"github.com/celestiaorg/knuu/pkg/knuu"
+	"github.com/rs/zerolog/log"
 )
 
 // LocalTestnet extends the testnet from celestia-app
 type NodeTestnet struct {
 	testnet.Testnet
 	executor *knuu.Executor
-	nodes    []*knuu.Instance
+	nodes    []*Node
 }
 
 // NewLocalTestnet creates a new instance of LocalTestnet
@@ -25,7 +26,26 @@ func NewNodeTestnet(name string, seed int64, grafana *testnet.GrafanaInfo, chain
 	if err != nil {
 		return nil, err
 	}
-	return &NodeTestnet{*tn, executor, []*knuu.Instance{}}, nil
+	return &NodeTestnet{*tn, executor, []*Node{}}, nil
+}
+
+// DaNodes returns all DA nodes
+func (nt *NodeTestnet) DaNodes() []*Node {
+	return nt.nodes
+}
+
+// NodeCleanup cleans up the nodes
+func (nt *NodeTestnet) NodeCleanup() {
+	for _, node := range nt.nodes {
+		err := node.Instance.Destroy()
+		if err != nil {
+			log.Error().Err(err).Msg("error destroying node")
+		}
+	}
+	err := nt.executor.Destroy()
+	if err != nil {
+		log.Error().Err(err).Msg("error destroying executor")
+	}
 }
 
 // CreateBridgeNode creates a new bridge node

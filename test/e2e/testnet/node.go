@@ -4,12 +4,34 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"net/http"
 	"strconv"
 	"time"
 
 	"github.com/celestiaorg/celestia-app/v2/test/e2e/testnet"
 	"github.com/celestiaorg/knuu/pkg/knuu"
+	"github.com/prometheus/common/expfmt"
 )
+
+const (
+	rpcPort        = 26658
+	p2pPort        = 2121
+	prometheusPort = 9090
+	otlpRemotePort = 4318
+	dockerSrcURL   = "ghcr.io/celestiaorg/celestia-node"
+	remoteRootDir  = "/home/celestia"
+	txsimRootDir   = "/home/celestia"
+)
+
+type Node struct {
+	Name     string
+	Type     string `json:"type" validate:"oneof=bridge full light"`
+	Version  string
+	Instance *knuu.Instance
+
+	rpcProxyHost        string
+	prometheusProxyHost string
+}
 
 func initInstance(instanceName, version, nodeType, chainId, genesisHash string) (*knuu.Instance, error) {
 	instance, err := knuu.NewInstance(instanceName)
@@ -20,15 +42,15 @@ func initInstance(instanceName, version, nodeType, chainId, genesisHash string) 
 	if err != nil {
 		return nil, fmt.Errorf("Error setting image: %v", err)
 	}
-	err = instance.AddPortTCP(2121)
+	err = instance.AddPortTCP(p2pPort)
 	if err != nil {
 		return nil, fmt.Errorf("Error adding port: %v", err)
 	}
-	err = instance.AddPortTCP(26658)
+	err = instance.AddPortTCP(rpcPort)
 	if err != nil {
 		return nil, fmt.Errorf("Error adding port: %v", err)
 	}
-	_, err = instance.ExecuteCommand("celestia", nodeType, "init", "--node.store", "/home/celestia")
+	_, err = instance.ExecuteCommand("celestia", nodeType, "init", "--node.store", remoteRootDir)
 	if err != nil {
 		return nil, fmt.Errorf("Error executing command: %v", err)
 	}
@@ -40,6 +62,15 @@ func initInstance(instanceName, version, nodeType, chainId, genesisHash string) 
 	if err != nil {
 		return nil, fmt.Errorf("Error setting environment variable: %v", err)
 	}
+
+	err = instance.SetOtelEndpoint(otlpRemotePort)
+	if err != nil {
+		return nil, fmt.Errorf("Error setting otel endpoint: %v", err)
+	}
+	err = instance.SetPrometheusExporter(fmt.Sprintf("0.0.0.0:%d", prometheusPort))
+	if err != nil {
+		return nil, fmt.Errorf("Error setting prometheus exporter: %v", err)
+	}
 	return instance, nil
 }
 
@@ -49,7 +80,7 @@ func CreateBridge(
 	version string,
 	consensus *knuu.Instance,
 	resources testnet.Resources,
-) (*knuu.Instance, error) {
+) (*Node, error) {
 	chainId, err := ChainId(executor, consensus)
 	if err != nil {
 		return nil, fmt.Errorf("error getting chain ID: %w", err)
@@ -82,14 +113,25 @@ func CreateBridge(
 		"celestia",
 		"bridge",
 		"start",
-		"--node.store", "/home/celestia",
+		"--node.store", remoteRootDir,
 		"--core.ip", consensusIP,
+		"--rpc.addr", "0.0.0.0",
+		"--metrics",
+		"--metrics.endpoint", fmt.Sprintf("localhost:%d", otlpRemotePort),
+		"--metrics.tls=false",
 	)
 	if err != nil {
 		return nil, fmt.Errorf("error setting command: %w", err)
 	}
 
-	return bridge, nil
+	testNode := &Node{
+		Name:     instanceName,
+		Type:     "bridge",
+		Version:  version,
+		Instance: bridge,
+	}
+
+	return testNode, nil
 }
 
 func CreateAndStartBridge(
@@ -98,15 +140,27 @@ func CreateAndStartBridge(
 	version string,
 	consensus *knuu.Instance,
 	resources testnet.Resources,
-) (*knuu.Instance, error) {
+) (*Node, error) {
 	bridge, err := CreateBridge(executor, instanceName, version, consensus, resources)
 	if err != nil {
 		return nil, fmt.Errorf("error creating bridge: %w", err)
 	}
 
-	if err := bridge.Start(); err != nil {
+	if err := bridge.Instance.Start(); err != nil {
 		return nil, fmt.Errorf("error starting bridge: %w", err)
 	}
+
+	err, rpcProxyHost := bridge.Instance.AddHost(rpcPort)
+	if err != nil {
+		return nil, fmt.Errorf("error adding host: %w", err)
+	}
+	err, prometheusProxyHost := bridge.Instance.AddHost(prometheusPort)
+	if err != nil {
+		return nil, fmt.Errorf("error adding host: %w", err)
+	}
+
+	bridge.rpcProxyHost = rpcProxyHost
+	bridge.prometheusProxyHost = prometheusProxyHost
 
 	return bridge, nil
 }
@@ -117,9 +171,9 @@ func CreateNode(
 	version string,
 	nodeType string,
 	consensus *knuu.Instance,
-	trustedNode *knuu.Instance,
+	trustedNode *Node,
 	resources testnet.Resources,
-) (*knuu.Instance, error) {
+) (*Node, error) {
 	chainId, err := ChainId(executor, consensus)
 	if err != nil {
 		return nil, fmt.Errorf("error getting chain ID: %w", err)
@@ -134,12 +188,12 @@ func CreateNode(
 		return nil, fmt.Errorf("error creating instance: %w", err)
 	}
 
-	p2pInfoNode, err := trustedNode.ExecuteCommand("celestia", "p2p", "info", "--node.store", "/home/celestia")
+	p2pInfoNode, err := trustedNode.Instance.ExecuteCommand("celestia", "p2p", "info", "--node.store", remoteRootDir)
 	if err != nil {
 		return nil, fmt.Errorf("error getting p2p info: %w", err)
 	}
 
-	bridgeIP, err := trustedNode.GetIP()
+	bridgeIP, err := trustedNode.Instance.GetIP()
 	if err != nil {
 		return nil, fmt.Errorf("error getting IP: %w", err)
 	}
@@ -162,14 +216,24 @@ func CreateNode(
 	err = node.SetCommand(
 		"celestia",
 		nodeType, "start",
-		"--node.store", "/home/celestia",
+		"--node.store", remoteRootDir,
 		"--headers.trusted-peers", trustedPeers,
+		"--metrics",
+		"--metrics.endpoint", fmt.Sprintf("localhost:%d", otlpRemotePort),
+		"--metrics.tls=false",
 	)
 	if err != nil {
 		return nil, fmt.Errorf("error setting command: %w", err)
 	}
 
-	return node, nil
+	testNode := &Node{
+		Name:     instanceName,
+		Type:     nodeType,
+		Version:  version,
+		Instance: node,
+	}
+
+	return testNode, nil
 }
 
 func CreateAndStartNode(
@@ -178,19 +242,79 @@ func CreateAndStartNode(
 	version string,
 	nodeType string,
 	consensus *knuu.Instance,
-	trustedNode *knuu.Instance,
+	trustedNode *Node,
 	resources testnet.Resources,
-) (*knuu.Instance, error) {
+) (*Node, error) {
 	node, err := CreateNode(executor, instanceName, version, nodeType, consensus, trustedNode, resources)
 	if err != nil {
 		return nil, fmt.Errorf("error creating node: %w", err)
 	}
 
-	if err := node.Start(); err != nil {
+	if err := node.Instance.Start(); err != nil {
 		return nil, fmt.Errorf("error starting node: %w", err)
 	}
 
+	err, rpcProxyHost := node.Instance.AddHost(rpcPort)
+	if err != nil {
+		return nil, fmt.Errorf("error adding host: %w", err)
+	}
+	err, prometheusProxyHost := node.Instance.AddHost(prometheusPort)
+	if err != nil {
+		return nil, fmt.Errorf("error adding host: %w", err)
+	}
+
+	node.rpcProxyHost = rpcProxyHost
+	node.prometheusProxyHost = prometheusProxyHost
+
 	return node, nil
+}
+
+// GetMetric returns a metric from the node
+func (n *Node) GetMetric(metricName string) (float64, error) {
+	host := n.AddressPrometheus()
+
+	resp, err := http.Get(fmt.Sprintf("%s/metrics", host))
+	if err != nil {
+		return 0, fmt.Errorf("failed to fetch Prometheus data: %v", err)
+	}
+	defer resp.Body.Close()
+
+	parser := expfmt.TextParser{}
+	metricFamilies, err := parser.TextToMetricFamilies(resp.Body)
+	if err != nil {
+		return 0, fmt.Errorf("failed to parse Prometheus metrics: %v", err)
+	}
+
+	var metricValue float64
+	found := false
+
+	if metricFamily, ok := metricFamilies[metricName]; ok {
+		for _, metric := range metricFamily.GetMetric() {
+			switch {
+			case metric.Counter != nil:
+				metricValue = metric.Counter.GetValue()
+				found = true
+			case metric.Gauge != nil:
+				metricValue = metric.Gauge.GetValue()
+				found = true
+			case metric.Untyped != nil:
+				metricValue = metric.Untyped.GetValue()
+				found = true
+			case metric.Summary != nil:
+				metricValue = metric.Summary.GetSampleSum()
+				found = true
+			case metric.Histogram != nil:
+				metricValue = metric.Histogram.GetSampleSum()
+				found = true
+			}
+		}
+	}
+
+	if !found {
+		return 0, fmt.Errorf("metric not found")
+	}
+
+	return metricValue, nil
 }
 
 type JSONRPCError struct {
@@ -451,4 +575,15 @@ func hashFromBlock(block string) (string, error) {
 		return "", fmt.Errorf("error getting hash from block id")
 	}
 	return blockHash, nil
+}
+
+// AddressRPC returns an RPC endpoint address for the node.
+// This returns the proxy host that can be used to communicate with the node
+func (n Node) AddressRPC() string {
+	return n.rpcProxyHost
+}
+
+// AddressGRPC returns the GRPC endpoint address for the node.
+func (n Node) AddressPrometheus() string {
+	return n.prometheusProxyHost
 }
