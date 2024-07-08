@@ -3,7 +3,7 @@ package pruner
 import (
 	"github.com/ipfs/go-datastore"
 
-	hdr "github.com/celestiaorg/go-header"
+	libhead "github.com/celestiaorg/go-header"
 
 	"github.com/celestiaorg/celestia-node/header"
 	"github.com/celestiaorg/celestia-node/nodebuilder/p2p"
@@ -13,7 +13,7 @@ import (
 func newPrunerService(
 	p pruner.Pruner,
 	window pruner.AvailabilityWindow,
-	getter hdr.Store[*header.ExtendedHeader],
+	getter libhead.Store[*header.ExtendedHeader],
 	ds datastore.Batching,
 	opts ...pruner.Option,
 ) (*pruner.Service, error) {

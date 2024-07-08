@@ -76,7 +76,7 @@ func TestInit_generateNewKey(t *testing.T) {
 	cfg := DefaultConfig(node.Bridge)
 
 	encConf := encoding.MakeConfig(app.ModuleEncodingRegisters...)
-	ring, err := keyring.New(app.Name, cfg.State.KeyringBackend, t.TempDir(), os.Stdin, encConf.Codec)
+	ring, err := keyring.New(app.Name, cfg.State.DefaultBackendName, t.TempDir(), os.Stdin, encConf.Codec)
 	require.NoError(t, err)
 
 	originalKey, mn, err := generateNewKey(ring)
@@ -93,7 +93,7 @@ func TestInit_generateNewKey(t *testing.T) {
 	assert.Contains(t, addr.String(), "celestia")
 
 	// ensure account is recoverable from mnemonic
-	ring2, err := keyring.New(app.Name, cfg.State.KeyringBackend, t.TempDir(), os.Stdin, encConf.Codec)
+	ring2, err := keyring.New(app.Name, cfg.State.DefaultBackendName, t.TempDir(), os.Stdin, encConf.Codec)
 	require.NoError(t, err)
 	duplicateKey, err := ring2.NewAccount("test", mn, keyring.DefaultBIP39Passphrase, sdk.GetConfig().GetFullBIP44Path(),
 		hd.Secp256k1)
