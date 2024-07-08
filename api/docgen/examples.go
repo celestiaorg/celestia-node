@@ -60,7 +60,6 @@ var ExampleValues = map[reflect.Type]interface{}{
 	reflect.TypeOf(42):                       42,
 	reflect.TypeOf(byte(7)):                  byte(7),
 	reflect.TypeOf(float64(42)):              float64(42),
-	reflect.TypeOf(blob.GasPrice(0)):         blob.GasPrice(0.002),
 	reflect.TypeOf(true):                     true,
 	reflect.TypeOf([]byte{}):                 []byte("byte array"),
 	reflect.TypeOf(node.Full):                node.Full,
@@ -177,8 +176,16 @@ func init() {
 	if err != nil {
 		panic(err)
 	}
-
 	addToExampleValues(libhead.Hash(hash))
+
+	txConfig := state.NewTxConfig(
+		state.WithGasPrice(0.002),
+		state.WithGas(142225),
+		state.WithKeyName("my_celes_key"),
+		state.WithSignerAddress("celestia1pjcmwj8w6hyr2c4wehakc5g8cfs36aysgucx66"),
+		state.WithFeeGranterAddress("celestia1hakc56ax66ypjcmwj8w6hyr2c4g8cfs3wesguc"),
+	)
+	addToExampleValues(txConfig)
 }
 
 func addToExampleValues(v interface{}) {
