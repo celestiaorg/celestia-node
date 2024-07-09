@@ -20,6 +20,7 @@ import (
 	"github.com/celestiaorg/celestia-node/nodebuilder/node"
 	"github.com/celestiaorg/celestia-node/nodebuilder/tests/swamp"
 	"github.com/celestiaorg/celestia-node/share"
+	"github.com/celestiaorg/celestia-node/state"
 )
 
 func TestBlobModule(t *testing.T) {
@@ -60,7 +61,7 @@ func TestBlobModule(t *testing.T) {
 	fullClient := getAdminClient(ctx, fullNode, t)
 	lightClient := getAdminClient(ctx, lightNode, t)
 
-	height, err := fullClient.Blob.Submit(ctx, blobs, blob.DefaultGasPrice())
+	height, err := fullClient.Blob.Submit(ctx, blobs, state.NewTxConfig())
 	require.NoError(t, err)
 
 	_, err = fullClient.Header.WaitForHeight(ctx, height)
@@ -125,6 +126,10 @@ func TestBlobModule(t *testing.T) {
 				assert.Nil(t, b)
 				require.Error(t, err)
 				require.ErrorContains(t, err, blob.ErrBlobNotFound.Error())
+
+				blobs, err := fullClient.Blob.GetAll(ctx, height, []share.Namespace{newBlob.Namespace()})
+				require.NoError(t, err)
+				assert.Empty(t, blobs)
 			},
 		},
 		{
@@ -135,7 +140,7 @@ func TestBlobModule(t *testing.T) {
 				b, err := convert(appBlob[0])
 				require.NoError(t, err)
 
-				height, err := fullClient.Blob.Submit(ctx, []*blob.Blob{b, b}, blob.DefaultGasPrice())
+				height, err := fullClient.Blob.Submit(ctx, []*blob.Blob{b, b}, state.NewTxConfig())
 				require.NoError(t, err)
 
 				_, err = fullClient.Header.WaitForHeight(ctx, height)
@@ -164,7 +169,7 @@ func TestBlobModule(t *testing.T) {
 			// different pfbs.
 			name: "Submit the same blob in different pfb",
 			doFn: func(t *testing.T) {
-				h, err := fullClient.Blob.Submit(ctx, []*blob.Blob{blobs[0]}, blob.DefaultGasPrice())
+				h, err := fullClient.Blob.Submit(ctx, []*blob.Blob{blobs[0]}, state.NewTxConfig())
 				require.NoError(t, err)
 
 				_, err = fullClient.Header.WaitForHeight(ctx, h)

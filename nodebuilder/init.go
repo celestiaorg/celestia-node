@@ -192,11 +192,11 @@ func initDir(path string) error {
 func generateKeys(cfg Config, ksPath string) error {
 	encConf := encoding.MakeConfig(app.ModuleEncodingRegisters...)
 
-	if cfg.State.KeyringBackend == keyring.BackendTest {
+	if cfg.State.DefaultBackendName == keyring.BackendTest {
 		log.Warn("Detected plaintext keyring backend. For elevated security properties, consider using" +
 			" the `file` keyring backend.")
 	}
-	ring, err := keyring.New(app.Name, cfg.State.KeyringBackend, ksPath, os.Stdin, encConf.Codec)
+	ring, err := keyring.New(app.Name, cfg.State.DefaultBackendName, ksPath, os.Stdin, encConf.Codec)
 	if err != nil {
 		return err
 	}
@@ -228,6 +228,6 @@ func generateKeys(cfg Config, ksPath string) error {
 // generateNewKey generates and returns a new key on the given keyring called
 // "my_celes_key".
 func generateNewKey(ring keyring.Keyring) (*keyring.Record, string, error) {
-	return ring.NewMnemonic(state.DefaultAccountName, keyring.English, sdk.GetConfig().GetFullBIP44Path(),
+	return ring.NewMnemonic(state.DefaultKeyName, keyring.English, sdk.GetConfig().GetFullBIP44Path(),
 		keyring.DefaultBIP39Passphrase, hd.Secp256k1)
 }
