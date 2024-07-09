@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"slices"
 	"sync"
 
 	"github.com/cosmos/cosmos-sdk/types"
@@ -12,7 +13,6 @@ import (
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/codes"
 	"go.opentelemetry.io/otel/trace"
-	"slices"
 
 	"github.com/celestiaorg/go-square/shares"
 
