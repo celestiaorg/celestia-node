@@ -56,7 +56,7 @@ func TestSubmitPayForBlob(t *testing.T) {
 			name:     "good blob with user provided gas and fees",
 			blobs:    []*squareblob.Blob{blobbyTheBlob},
 			gasPrice: 0.005,
-			gasLim:   apptypes.DefaultEstimateGas([]uint32{uint32(len(blobbyTheBlob.Data))}),
+			gasLim:   apptypes.DefaultEstimateGas([]uint32{uint32(len(blobbyTheBlob.GetData()))}),
 			expErr:   nil,
 		},
 		// TODO: add more test cases. The problem right now is that the celestia-app doesn't

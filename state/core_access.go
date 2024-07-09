@@ -13,7 +13,6 @@ import (
 	"github.com/cosmos/cosmos-sdk/crypto/keyring"
 	storetypes "github.com/cosmos/cosmos-sdk/store/types"
 	sdktypes "github.com/cosmos/cosmos-sdk/types"
-	sdktx "github.com/cosmos/cosmos-sdk/types/tx"
 	banktypes "github.com/cosmos/cosmos-sdk/x/bank/types"
 	"github.com/cosmos/cosmos-sdk/x/feegrant"
 	stakingtypes "github.com/cosmos/cosmos-sdk/x/staking/types"
@@ -202,7 +201,7 @@ func (ca *CoreAccessor) SubmitPayForBlob(
 	if gas == 0 {
 		blobSizes := make([]uint32, len(appblobs))
 		for i, blob := range appblobs {
-			blobSizes[i] = uint32(len(blob.Data))
+			blobSizes[i] = uint32(len(blob.GetData()))
 		}
 		gas = estimateGasForBlobs(blobSizes)
 	}
@@ -650,23 +649,4 @@ func unsetTx(txResponse *TxResponse) *TxResponse {
 		txResponse.Tx = nil
 	}
 	return txResponse
-}
-
-// broadcastTx uses the provided grpc connection to broadcast a signed and
-// encoded transaction.
-func broadcastTx(
-	ctx context.Context,
-	conn *grpc.ClientConn,
-	mode sdktx.BroadcastMode,
-	txBytes []byte,
-) (*sdktx.BroadcastTxResponse, error) {
-	txClient := sdktx.NewServiceClient(conn)
-
-	return txClient.BroadcastTx(
-		ctx,
-		&sdktx.BroadcastTxRequest{
-			Mode:    mode,
-			TxBytes: txBytes,
-		},
-	)
 }
