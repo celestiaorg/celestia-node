@@ -25,7 +25,6 @@ func TestListenerWithNonEmptyBlocks(t *testing.T) {
 
 	// create one block to store as Head in local store and then unsubscribe from block events
 	cfg := DefaultTestConfig()
-	cfg.Genesis.ChainID = testChainID
 	fetcher, cctx := createCoreFetcher(t, cfg)
 	eds := createEdsPubSub(ctx, t)
 

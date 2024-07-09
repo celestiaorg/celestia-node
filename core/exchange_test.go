@@ -68,7 +68,6 @@ func TestExchange_DoNotStoreHistoric(t *testing.T) {
 	t.Cleanup(cancel)
 
 	cfg := DefaultTestConfig()
-	cfg.Genesis.ChainID = testChainID
 	fetcher, cctx := createCoreFetcher(t, cfg)
 
 	generateNonEmptyBlocks(t, ctx, fetcher, cfg, cctx)
