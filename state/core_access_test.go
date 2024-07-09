@@ -211,6 +211,8 @@ func extractPort(addr string) string {
 }
 
 func buildAccessor(t *testing.T) (*CoreAccessor, []string) {
+	chainID := "private"
+
 	t.Helper()
 	accounts := []genesis.KeyringAccount{
 		{
@@ -238,10 +240,12 @@ func buildAccessor(t *testing.T) (*CoreAccessor, []string) {
 	appConf.MinGasPrices = fmt.Sprintf("0.002%s", app.BondDenom)
 
 	g := genesis.NewDefaultGenesis().
+		WithChainID(chainID).
 		WithValidators(genesis.NewDefaultValidator(testnode.DefaultValidatorAccountName)).
 		WithConsensusParams(testnode.DefaultConsensusParams()).WithKeyringAccounts(accounts...)
 
 	config := testnode.DefaultConfig().
+		WithChainID(chainID).
 		WithTendermintConfig(tmCfg).
 		WithAppConfig(appConf).
 		WithGenesis(g)

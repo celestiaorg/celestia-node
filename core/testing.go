@@ -10,8 +10,11 @@ import (
 	tmconfig "github.com/tendermint/tendermint/config"
 	tmrand "github.com/tendermint/tendermint/libs/rand"
 
+	"github.com/celestiaorg/celestia-app/v2/test/util/genesis"
 	"github.com/celestiaorg/celestia-app/v2/test/util/testnode"
 )
+
+const chainID = "private"
 
 // DefaultTestConfig returns the default testing configuration for Tendermint + Celestia App tandem.
 //
@@ -32,9 +35,16 @@ func DefaultTestConfig() *testnode.Config {
 
 	cfg.TmConfig.Consensus.TimeoutCommit = time.Millisecond * 200
 
+	genesis := genesis.NewDefaultGenesis().
+		WithChainID(chainID).
+		WithValidators(genesis.NewDefaultValidator(testnode.DefaultValidatorAccountName)).
+		WithConsensusParams(testnode.DefaultConsensusParams())
+
 	cfg = cfg.
+		WithChainID(chainID).
 		WithFundedAccounts(accounts...).
-		WithSuppressLogs(true)
+		WithSuppressLogs(true).
+		WithGenesis(genesis)
 
 	return cfg
 }
