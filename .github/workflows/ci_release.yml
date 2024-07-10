@@ -4,6 +4,7 @@ on:
   push:
     branches:
       - main
+      - fix/ramin/reduce-discovery-retries
   release:
     types: [published]
   pull_request:
