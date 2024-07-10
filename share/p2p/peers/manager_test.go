@@ -395,11 +395,9 @@ func TestIntegration(t *testing.T) {
 		bnRouter, err := dht.New(ctx, bnHost, opts...)
 		require.NoError(t, err)
 
-		// hack
-		discovery.DiscoveryRetryTimeout = time.Millisecond * 100
-
 		params := discovery.DefaultParameters()
 		params.AdvertiseInterval = time.Second
+		params.DiscoveryRetryTimeout = time.Millisecond * 100
 
 		bnDisc, err := discovery.NewDiscovery(
 			params,
@@ -433,7 +431,7 @@ func TestIntegration(t *testing.T) {
 		}
 
 		// set up discovery for full node with hook to peer manager and check discovered peer
-		params = discovery.DefaultParameters()
+		params = discovery.TestParameters()
 		params.AdvertiseInterval = time.Second
 		params.PeersLimit = 10
 
