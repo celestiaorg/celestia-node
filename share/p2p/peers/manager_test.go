@@ -455,7 +455,6 @@ func TestIntegration(t *testing.T) {
 		go bnDisc.Advertise(ctx)
 
 		select {
-
 		case <-waitCh:
 			require.Contains(t, fnPeerManager.nodes.peersList, bnHost.ID())
 		case <-ctx.Done():
