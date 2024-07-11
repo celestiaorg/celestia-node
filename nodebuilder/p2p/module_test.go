@@ -23,6 +23,7 @@ func testModule(tp node.Type) fx.Option {
 		ConstructModule(tp, &cfg),
 		fx.Provide(context.Background),
 		fx.Supply(Private),
+		fx.Supply(TLSPath("")),
 		fx.Supply(Bootstrappers{}),
 		fx.Supply(tp),
 		fx.Provide(keystore.NewMapKeystore),
