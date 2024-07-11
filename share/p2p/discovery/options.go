@@ -21,7 +21,7 @@ type Parameters struct {
 	// NOTE: only full and bridge can advertise themselves.
 	AdvertiseInterval time.Duration
 
-	// advertiseRetryTimeout defines time interval between advertise attempts.
+	// AdvertiseRetryTimeout defines time interval between advertise attempts.
 	AdvertiseRetryTimeout time.Duration
 
 	// DiscoveryRetryTimeout defines time interval between discovery attempts
