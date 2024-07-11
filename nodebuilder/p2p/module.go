@@ -1,6 +1,8 @@
 package p2p
 
 import (
+	"crypto/tls"
+
 	logging "github.com/ipfs/go-log/v2"
 	"github.com/libp2p/go-libp2p/core/metrics"
 	"go.uber.org/fx"
@@ -15,10 +17,12 @@ var log = logging.Logger("module/p2p")
 func ConstructModule(tp node.Type, cfg *Config) fx.Option {
 	// sanitize config values before constructing module
 	cfgErr := cfg.Validate()
-
 	baseComponents := fx.Options(
-		fx.Supply(*cfg),
 		fx.Error(cfgErr),
+		fx.Supply(cfg),
+		fx.Provide(fx.Annotate(func(path TLSPath) (*tls.Config, error) {
+			return tlsConfig(cfg, string(path))
+		})),
 		fx.Provide(Key),
 		fx.Provide(id),
 		fx.Provide(peerStore),
@@ -34,7 +38,7 @@ func ConstructModule(tp node.Type, cfg *Config) fx.Option {
 		fx.Provide(addrsFactory(cfg.AnnounceAddresses, cfg.NoAnnounceAddresses)),
 		fx.Provide(metrics.NewBandwidthCounter),
 		fx.Provide(newModule),
-		fx.Invoke(Listen(cfg.ListenAddresses)),
+		fx.Invoke(Listen(cfg)),
 		fx.Provide(resourceManager),
 		fx.Provide(resourceManagerOpt(allowList)),
 	)

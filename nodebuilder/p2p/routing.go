@@ -21,7 +21,7 @@ func contentRouting(r routing.PeerRouting) routing.ContentRouting {
 
 // peerRouting provides constructor for PeerRouting over DHT.
 // Basically, this provides a way to discover peer addresses by respecting public keys.
-func peerRouting(cfg Config, tp node.Type, params routingParams) (routing.PeerRouting, error) {
+func peerRouting(cfg *Config, tp node.Type, params routingParams) (routing.PeerRouting, error) {
 	opts := []dht.Option{
 		dht.Mode(dht.ModeAuto),
 		dht.BootstrapPeers(params.Peers...),

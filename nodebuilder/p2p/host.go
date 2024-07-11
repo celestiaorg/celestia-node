@@ -2,6 +2,7 @@ package p2p
 
 import (
 	"context"
+	"crypto/tls"
 	"fmt"
 	"strings"
 
@@ -17,6 +18,10 @@ import (
 	"github.com/libp2p/go-libp2p/core/routing"
 	routedhost "github.com/libp2p/go-libp2p/p2p/host/routed"
 	"github.com/libp2p/go-libp2p/p2p/net/conngater"
+	quic "github.com/libp2p/go-libp2p/p2p/transport/quic"
+	"github.com/libp2p/go-libp2p/p2p/transport/tcp"
+	ws "github.com/libp2p/go-libp2p/p2p/transport/websocket"
+	webtransport "github.com/libp2p/go-libp2p/p2p/transport/webtransport"
 	"github.com/prometheus/client_golang/prometheus"
 	"go.uber.org/fx"
 
@@ -79,10 +84,22 @@ func host(params hostParams) (HostBase, error) {
 		libp2p.DisableRelay(),
 		libp2p.BandwidthReporter(params.Bandwidth),
 		libp2p.ResourceManager(params.ResourceManager),
+		libp2p.ChainOptions(
+			libp2p.Transport(tcp.NewTCPTransport),
+			libp2p.Transport(quic.NewTransport),
+			libp2p.Transport(webtransport.New),
+		),
 		// to clearly define what defaults we rely upon
 		libp2p.DefaultSecurity,
-		libp2p.DefaultTransports,
 		libp2p.DefaultMuxers,
+	}
+
+	if len(params.TLS.Certificates) > 0 {
+		opts = append(opts,
+			libp2p.ChainOptions(
+				libp2p.Transport(ws.New, ws.WithTLSConfig(params.TLS)),
+			),
+		)
 	}
 
 	if params.Registry != nil {
@@ -123,6 +140,7 @@ type hostParams struct {
 	ConnGater       *conngater.BasicConnectionGater
 	Bandwidth       *metrics.BandwidthCounter
 	ResourceManager network.ResourceManager
+	TLS             *tls.Config
 	Registry        prometheus.Registerer `optional:"true"`
 
 	Tp node.Type
