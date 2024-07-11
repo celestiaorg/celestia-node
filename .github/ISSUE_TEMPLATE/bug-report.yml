@@ -73,6 +73,13 @@ body:
         gists, pastebins links here
       render: Shell
   - type: textarea
+    id: stuck_node
+    attributes:
+      label: Is the node "stuck"? Has it stopped syncing?
+      description: Please share the state of the node e.g. what height is stuck at, what is the state of DAS?
+      placeholder: >
+        Please consult out RPC docs https://node-rpc-docs.celestia.org/and share output from das.SamplingStats
+  - type: textarea
     id: misc
     attributes:
       label: Notes
