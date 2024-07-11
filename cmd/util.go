@@ -111,11 +111,7 @@ func PersistentPreRunEnv(cmd *cobra.Command, nodeType node.Type, _ []string) err
 		return err
 	}
 
-	err = state.ParseFlags(cmd, &cfg.State)
-	if err != nil {
-		return err
-	}
-
+	state.ParseFlags(cmd, &cfg.State)
 	rpc_cfg.ParseFlags(cmd, &cfg.RPC)
 	gateway.ParseFlags(cmd, &cfg.Gateway)
 

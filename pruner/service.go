@@ -177,7 +177,7 @@ func (s *Service) prune(
 			return lastPrunedHeader
 		}
 
-		if uint64(len(headers)) < maxHeadersPerLoop {
+		if len(headers) < maxHeadersPerLoop {
 			// we've pruned all the blocks we can
 			return lastPrunedHeader
 		}

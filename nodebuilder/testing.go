@@ -16,9 +16,13 @@ import (
 	"github.com/celestiaorg/celestia-node/libs/fxutil"
 	"github.com/celestiaorg/celestia-node/nodebuilder/node"
 	"github.com/celestiaorg/celestia-node/nodebuilder/p2p"
+	"github.com/celestiaorg/celestia-node/nodebuilder/state"
 )
 
-const TestKeyringName = "test_celes"
+const (
+	TestKeyringName  = "test_celes"
+	TestKeyringName1 = "test_celes1"
+)
 
 // MockStore provides mock in memory Store for testing purposes.
 func MockStore(t *testing.T, cfg *Config) Store {
@@ -49,10 +53,14 @@ func TestNodeWithConfig(t *testing.T, tp node.Type, cfg *Config, opts ...fx.Opti
 	ks, err := store.Keystore()
 	require.NoError(t, err)
 	kr := ks.Keyring()
+
 	// create a key in the keystore to be used by the core accessor
 	_, _, err = kr.NewMnemonic(TestKeyringName, keyring.English, "", "", hd.Secp256k1)
 	require.NoError(t, err)
-	cfg.State.KeyringAccName = TestKeyringName
+	cfg.State.DefaultKeyName = TestKeyringName
+	_, accName, err := state.Keyring(cfg.State, ks)
+	require.NoError(t, err)
+	require.Equal(t, TestKeyringName, string(accName))
 
 	opts = append(opts,
 		// temp dir for the eds store FIXME: Should be in mem
