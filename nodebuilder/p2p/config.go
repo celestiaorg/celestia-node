@@ -40,6 +40,8 @@ type Config struct {
 func DefaultConfig(tp node.Type) Config {
 	return Config{
 		ListenAddresses: []string{
+			"/ip4/0.0.0.0/udp/2122/webrtc-direct",
+			"/ip6/::/udp/2122/webrtc-direct",
 			"/ip4/0.0.0.0/udp/2121/quic-v1/webtransport",
 			"/ip6/::/udp/2121/quic-v1/webtransport",
 			"/ip4/0.0.0.0/udp/2121/quic-v1",
@@ -49,6 +51,9 @@ func DefaultConfig(tp node.Type) Config {
 		},
 		AnnounceAddresses: []string{},
 		NoAnnounceAddresses: []string{
+			"/ip4/127.0.0.1/udp/2122/webrtc-direct",
+			"/ip4/0.0.0.0/udp/2122/webrtc-direct",
+			"/ip6/::/udp/2122/webrtc-direct",
 			"/ip4/127.0.0.1/udp/2121/quic-v1/webtransport",
 			"/ip4/0.0.0.0/udp/2121/quic-v1/webtransport",
 			"/ip6/::/udp/2121/quic-v1/webtransport",
