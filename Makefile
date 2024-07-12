@@ -228,8 +228,9 @@ goreleaser-release:
 .PHONY: goreleaser-release
 
 detect-breaking:
+	@which git
 	@CHANGED_FILES=$(git diff --name-only origin/main...HEAD)
-	@if [ -n "$$CHANGED_FILES" ]; then echo "Changed files: $$CHANGED_FILES"; fi
+	@echo "Changed files: $$CHANGED_FILES"
 	@FILE_CHANGED=false
 	@STRUCT_CHANGED=false
 	@for file in $$CHANGED_FILES; do \
@@ -237,7 +238,7 @@ detect-breaking:
 			FILE_CHANGED=true; \
 		fi; \
 		if [[ $$file == nodebuilder/*/config.go ]]; then \
-			if git diff origin/main...HEAD $$file | grep -qE 'type Config struct|^\s+\w+\s+Config'; then \
+			if git diff origin/main...HEAD "$$file" | grep -qE 'type Config struct|^\s+\w+\s+Config'; then \
 				STRUCT_CHANGED=true; \
 			fi; \
 		fi; \
