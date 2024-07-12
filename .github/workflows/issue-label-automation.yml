@@ -41,6 +41,9 @@ jobs:
           add-labels: "external"
           repo-token: ${{ secrets.GITHUB_TOKEN }}
 
+  # will attempt to apply a breaking label
+  # on opening the PR but not enforce it on repeated changes
+  # so we don't get trapped by false positives (for now)
   apply-breaking:
     runs-on: ubuntu-latest
     if: ${{ github.event_name == 'pull_request' && github.actor != 'dependabot[bot]' }}
