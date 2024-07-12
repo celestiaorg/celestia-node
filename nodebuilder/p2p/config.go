@@ -71,8 +71,14 @@ func DefaultConfig(tp node.Type) Config {
 func (cfg *Config) upgrade() {
 	cfg.ListenAddresses = append(
 		cfg.ListenAddresses,
-		"/ip4/0.0.0.0/tcp/2122/wss",
-		"/ip6/::/tcp/2122/wss",
+		"/dns4/0.0.0.0/tcp/2122/wss",
+		"/dns6/[::]/tcp/2122/wss",
+	)
+
+	cfg.AnnounceAddresses = append(
+		cfg.AnnounceAddresses,
+		"/dns4/127.0.0.1/tcp/2122/wss",
+		"/dns6/[::]/tcp/2122/wss",
 	)
 }
 
