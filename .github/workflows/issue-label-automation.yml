@@ -43,9 +43,8 @@ jobs:
 
   apply-breaking:
     runs-on: ubuntu-latest
-    if: ${{ github.actor != 'dependabot[bot]' }}
+    if: ${{ github.event_name == 'pull_request' && github.actor != 'dependabot[bot]' }}
     permissions:
-      issues: write
       pull-requests: write
 
     steps:
