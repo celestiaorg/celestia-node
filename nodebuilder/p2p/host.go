@@ -2,7 +2,6 @@ package p2p
 
 import (
 	"context"
-	"crypto/tls"
 	"fmt"
 	"strings"
 
@@ -20,7 +19,6 @@ import (
 	"github.com/libp2p/go-libp2p/p2p/net/conngater"
 	quic "github.com/libp2p/go-libp2p/p2p/transport/quic"
 	"github.com/libp2p/go-libp2p/p2p/transport/tcp"
-	ws "github.com/libp2p/go-libp2p/p2p/transport/websocket"
 	webtransport "github.com/libp2p/go-libp2p/p2p/transport/webtransport"
 	"github.com/prometheus/client_golang/prometheus"
 	"go.uber.org/fx"
@@ -84,22 +82,10 @@ func host(params hostParams) (HostBase, error) {
 		libp2p.DisableRelay(),
 		libp2p.BandwidthReporter(params.Bandwidth),
 		libp2p.ResourceManager(params.ResourceManager),
-		libp2p.ChainOptions(
-			libp2p.Transport(tcp.NewTCPTransport),
-			libp2p.Transport(quic.NewTransport),
-			libp2p.Transport(webtransport.New),
-		),
+		enableTransport(params.Cfg, params.TLS),
 		// to clearly define what defaults we rely upon
 		libp2p.DefaultSecurity,
 		libp2p.DefaultMuxers,
-	}
-
-	if len(params.TLS.Certificates) > 0 {
-		opts = append(opts,
-			libp2p.ChainOptions(
-				libp2p.Transport(ws.New, ws.WithTLSConfig(params.TLS)),
-			),
-		)
 	}
 
 	if params.Registry != nil {
@@ -125,11 +111,28 @@ func host(params hostParams) (HostBase, error) {
 	return h, nil
 }
 
+func enableTransport(cfg *Config, tls *tls) libp2p.Option {
+	options := []libp2p.Option{
+		libp2p.Transport(tcp.NewTCPTransport),
+		libp2p.Transport(quic.NewTransport),
+		libp2p.Transport(webtransport.New),
+	}
+
+	wsTransport := tls.transport()
+	if wsTransport != nil {
+		options = append(options, wsTransport)
+		tls.upgrade(cfg)
+	}
+	return libp2p.ChainOptions(options...)
+}
+
 type HostBase hst.Host
 
 type hostParams struct {
 	fx.In
 
+	Cfg             *Config
+	TLS             *tls
 	Net             Network
 	Lc              fx.Lifecycle
 	ID              peer.ID
@@ -140,7 +143,6 @@ type hostParams struct {
 	ConnGater       *conngater.BasicConnectionGater
 	Bandwidth       *metrics.BandwidthCounter
 	ResourceManager network.ResourceManager
-	TLS             *tls.Config
 	Registry        prometheus.Registerer `optional:"true"`
 
 	Tp node.Type

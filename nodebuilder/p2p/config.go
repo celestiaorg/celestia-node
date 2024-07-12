@@ -66,22 +66,6 @@ func DefaultConfig(tp node.Type) Config {
 	}
 }
 
-// Upgrade allows to use a secure websocket connection.
-// NOTE: Ensure TLS config was provided.
-func (cfg *Config) upgrade() {
-	cfg.ListenAddresses = append(
-		cfg.ListenAddresses,
-		"/dns4/0.0.0.0/tcp/2122/wss",
-		"/dns6/[::]/tcp/2122/wss",
-	)
-
-	cfg.AnnounceAddresses = append(
-		cfg.AnnounceAddresses,
-		"/dns4/127.0.0.1/tcp/2122/wss",
-		"/dns6/[::]/tcp/2122/wss",
-	)
-}
-
 func (cfg *Config) mutualPeers() (_ []peer.AddrInfo, err error) {
 	maddrs := make([]ma.Multiaddr, len(cfg.MutualPeers))
 	for i, addr := range cfg.MutualPeers {

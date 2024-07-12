@@ -1,8 +1,6 @@
 package p2p
 
 import (
-	"crypto/tls"
-
 	logging "github.com/ipfs/go-log/v2"
 	"github.com/libp2p/go-libp2p/core/metrics"
 	"go.uber.org/fx"
@@ -20,8 +18,8 @@ func ConstructModule(tp node.Type, cfg *Config) fx.Option {
 	baseComponents := fx.Options(
 		fx.Error(cfgErr),
 		fx.Supply(cfg),
-		fx.Provide(fx.Annotate(func(path TLSPath) (*tls.Config, error) {
-			return tlsConfig(cfg, string(path))
+		fx.Provide(fx.Annotate(func(path TLSPath) (*tls, error) {
+			return tlsConfig(string(path))
 		})),
 		fx.Provide(Key),
 		fx.Provide(id),
