@@ -227,6 +227,28 @@ goreleaser-release:
 	goreleaser release --clean --fail-fast --skip-publish
 .PHONY: goreleaser-release
 
+detect-breaking:
+	@CHANGED_FILES=$(git diff --name-only origin/main...HEAD)
+	@if [ -n "$$CHANGED_FILES" ]; then echo "Changed files: $$CHANGED_FILES"; fi
+	@FILE_CHANGED=false
+	@STRUCT_CHANGED=false
+	@for file in $$CHANGED_FILES; do \
+		if [[ $$file == *.proto ]]; then \
+			FILE_CHANGED=true; \
+		fi; \
+		if [[ $$file == nodebuilder/*/config.go ]]; then \
+			if git diff origin/main...HEAD $$file | grep -qE 'type Config struct|^\s+\w+\s+Config'; then \
+				STRUCT_CHANGED=true; \
+			fi; \
+		fi; \
+	done; \
+	if [ "$$FILE_CHANGED" = true ] || [ "$$STRUCT_CHANGED" = true ]; then \
+		exit 1; \
+	else \
+		exit 0; \
+	fi
+.PHONY: detect-breaking
+
 # Copied from https://github.com/dgraph-io/badger/blob/main/Makefile
 USER_ID      = $(shell id -u)
 HAS_JEMALLOC = $(shell test -f /usr/local/lib/libjemalloc.a && echo "jemalloc")
