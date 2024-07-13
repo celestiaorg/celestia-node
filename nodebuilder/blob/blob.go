@@ -45,11 +45,35 @@ type Module interface {
 
 type API struct {
 	Internal struct {
-		Submit             func(context.Context, []*blob.Blob, *blob.SubmitOptions) (uint64, error)                   `perm:"write"`
-		Get                func(context.Context, uint64, share.Namespace, blob.Commitment) (*blob.Blob, error)        `perm:"read"`
-		GetAll             func(context.Context, uint64, []share.Namespace) ([]*blob.Blob, error)                     `perm:"read"`
-		GetProof           func(context.Context, uint64, share.Namespace, blob.Commitment) (*blob.Proof, error)       `perm:"read"`
-		Included           func(context.Context, uint64, share.Namespace, *blob.Proof, blob.Commitment) (bool, error) `perm:"read"`
+		Submit func(
+			context.Context,
+			[]*blob.Blob,
+			*blob.SubmitOptions,
+		) (uint64, error) `perm:"write"`
+		Get func(
+			context.Context,
+			uint64,
+			share.Namespace,
+			blob.Commitment,
+		) (*blob.Blob, error) `perm:"read"`
+		GetAll func(
+			context.Context,
+			uint64,
+			[]share.Namespace,
+		) ([]*blob.Blob, error) `perm:"read"`
+		GetProof func(
+			context.Context,
+			uint64,
+			share.Namespace,
+			blob.Commitment,
+		) (*blob.Proof, error) `perm:"read"`
+		Included func(
+			context.Context,
+			uint64,
+			share.Namespace,
+			*blob.Proof,
+			blob.Commitment,
+		) (bool, error) `perm:"read"`
 		GetCommitmentProof func(
 			ctx context.Context,
 			height uint64,
