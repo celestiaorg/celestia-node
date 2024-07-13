@@ -120,6 +120,7 @@ func (d *Discovery) Start(context.Context) error {
 		go d.Advertise(ctx)
 	}
 
+	log.Infow("started discovery", "topic", d.tag)
 	return nil
 }
 
@@ -169,7 +170,7 @@ func (d *Discovery) Advertise(ctx context.Context) {
 	timer := time.NewTimer(d.params.AdvertiseInterval)
 	defer timer.Stop()
 	for {
-		log.Debugf("advertising to topic %s", d.tag)
+		log.Infof("advertising to topic %s", d.tag)
 		_, err := d.disc.Advertise(ctx, d.tag)
 		d.metrics.observeAdvertise(ctx, err)
 		if err != nil {
@@ -194,7 +195,7 @@ func (d *Discovery) Advertise(ctx context.Context) {
 			}
 		}
 
-		log.Debugf("successfully advertised to topic %s", d.tag)
+		log.Infof("successfully advertised to topic %s", d.tag)
 		if !timer.Stop() {
 			<-timer.C
 		}

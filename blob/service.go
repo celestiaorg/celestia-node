@@ -6,12 +6,10 @@ import (
 	"encoding/hex"
 	"errors"
 	"fmt"
-	"math"
+	"slices"
 	"sync"
 
-	sdkmath "cosmossdk.io/math"
 	"github.com/cosmos/cosmos-sdk/types"
-	auth "github.com/cosmos/cosmos-sdk/x/auth/types"
 	logging "github.com/ipfs/go-log/v2"
 	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/attribute"
@@ -29,6 +27,7 @@ import (
 	"github.com/celestiaorg/celestia-node/header"
 	"github.com/celestiaorg/celestia-node/libs/utils"
 	"github.com/celestiaorg/celestia-node/share"
+	"github.com/celestiaorg/celestia-node/state"
 )
 
 var (
@@ -39,21 +38,15 @@ var (
 	tracer = otel.Tracer("blob/service")
 )
 
-// GasPrice represents the amount to be paid per gas unit. Fee is set by
-// multiplying GasPrice by GasLimit, which is determined by the blob sizes.
-type GasPrice float64
-
-// DefaultGasPrice returns the default gas price, letting node automatically
-// determine the Fee based on the passed blob sizes.
-func DefaultGasPrice() GasPrice {
-	return -1.0
-}
+// SubmitOptions aliases TxOptions from state package allowing users
+// to specify options for SubmitPFB transaction.
+type SubmitOptions = state.TxConfig
 
 // Submitter is an interface that allows submitting blobs to the celestia-core. It is used to
 // avoid a circular dependency between the blob and the state package, since the state package needs
 // the blob.Blob type for this signature.
 type Submitter interface {
-	SubmitPayForBlob(ctx context.Context, fee sdkmath.Int, gasLim uint64, blobs []*Blob) (*types.TxResponse, error)
+	SubmitPayForBlob(context.Context, []*state.Blob, *state.TxConfig) (*types.TxResponse, error)
 }
 
 type Service struct {
@@ -77,48 +70,32 @@ func NewService(
 	}
 }
 
-// SubmitOptions contains the information about fee and gasLimit price in order to configure the
-// Submit request.
-type SubmitOptions struct {
-	Fee      int64
-	GasLimit uint64
-}
-
-// DefaultSubmitOptions creates a default fee and gas price values.
-func DefaultSubmitOptions() *SubmitOptions {
-	return &SubmitOptions{
-		Fee:      -1,
-		GasLimit: 0,
-	}
-}
-
 // Submit sends PFB transaction and reports the height at which it was included.
 // Allows sending multiple Blobs atomically synchronously.
 // Uses default wallet registered on the Node.
 // Handles gas estimation and fee calculation.
-func (s *Service) Submit(ctx context.Context, blobs []*Blob, gasPrice GasPrice) (uint64, error) {
+func (s *Service) Submit(ctx context.Context, blobs []*Blob, txConfig *SubmitOptions) (uint64, error) {
 	log.Debugw("submitting blobs", "amount", len(blobs))
 
-	options := DefaultSubmitOptions()
-	if gasPrice >= 0 {
-		blobSizes := make([]uint32, len(blobs))
-		for i, blob := range blobs {
-			blobSizes[i] = uint32(len(blob.Data))
+	appblobs := make([]*state.Blob, len(blobs))
+	for i := range blobs {
+		if err := blobs[i].Namespace().ValidateForBlob(); err != nil {
+			return 0, err
 		}
-		options.GasLimit = blobtypes.EstimateGas(blobSizes, appconsts.DefaultGasPerBlobByte, auth.DefaultTxSizeCostPerByte)
-		options.Fee = types.NewInt(int64(math.Ceil(float64(gasPrice) * float64(options.GasLimit)))).Int64()
+		appblobs[i] = &blobs[i].Blob
 	}
 
-	resp, err := s.blobSubmitter.SubmitPayForBlob(ctx, types.NewInt(options.Fee), options.GasLimit, blobs)
+	resp, err := s.blobSubmitter.SubmitPayForBlob(ctx, appblobs, txConfig)
 	if err != nil {
 		return 0, err
 	}
 	return uint64(resp.Height), nil
 }
 
-// Get retrieves all the blobs for given namespaces at the given height by commitment.
-// Get collects all namespaced data from the EDS, constructs blobs
-// and compares commitments. `ErrBlobNotFound` can be returned in case blob was not found.
+// Get retrieves a blob in a given namespace at the given height by commitment.
+// Get collects all namespaced data from the EDS, construct the blob
+// and compares the commitment argument.
+// `ErrBlobNotFound` can be returned in case blob was not found.
 func (s *Service) Get(
 	ctx context.Context,
 	height uint64,
@@ -142,9 +119,9 @@ func (s *Service) Get(
 	return
 }
 
-// GetProof retrieves all blobs in the given namespaces at the given height by commitment
-// and returns their Proof. It collects all namespaced data from the EDS, constructs blobs
-// and compares commitments.
+// GetProof returns an NMT inclusion proof for a specified namespace to the respective row roots
+// on which the blob spans on at the given height, using the given commitment.
+// It employs the same algorithm as service.Get() internally.
 func (s *Service) GetProof(
 	ctx context.Context,
 	height uint64,
@@ -169,7 +146,14 @@ func (s *Service) GetProof(
 }
 
 // GetAll returns all blobs under the given namespaces at the given height.
-// GetAll can return blobs and an error in case if some requests failed.
+// If all blobs were found without any errors, the user will receive a list of blobs.
+// If the BlobService couldn't find any blobs under the requested namespaces,
+// the user will receive an empty list of blobs along with an empty error.
+// If some of the requested namespaces were not found, the user will receive all the found blobs and an empty error.
+// If there were internal errors during some of the requests,
+// the user will receive all found blobs along with a combined error message.
+//
+// All blobs will preserve the order of the namespaces that were requested.
 func (s *Service) GetAll(ctx context.Context, height uint64, namespaces []share.Namespace) ([]*Blob, error) {
 	header, err := s.headerGetter(ctx, height)
 	if err != nil {
@@ -179,40 +163,30 @@ func (s *Service) GetAll(ctx context.Context, height uint64, namespaces []share.
 	var (
 		resultBlobs = make([][]*Blob, len(namespaces))
 		resultErr   = make([]error, len(namespaces))
+		wg          = sync.WaitGroup{}
 	)
-
-	for _, namespace := range namespaces {
-		log.Debugw("performing GetAll request", "namespace", namespace.String(), "height", height)
-	}
-
-	wg := sync.WaitGroup{}
 	for i, namespace := range namespaces {
 		wg.Add(1)
 		go func(i int, namespace share.Namespace) {
+			log.Debugw("retrieving all blobs from", "namespace", namespace.String(), "height", height)
 			defer wg.Done()
-			blobs, err := s.getBlobs(ctx, namespace, header)
-			if err != nil {
-				resultErr[i] = fmt.Errorf("getting blobs for namespace(%s): %w", namespace.String(), err)
-				return
-			}
 
-			log.Debugw("receiving blobs", "height", height, "total", len(blobs))
-			resultBlobs[i] = blobs
+			blobs, err := s.getBlobs(ctx, namespace, header)
+			if err != nil && !errors.Is(err, ErrBlobNotFound) {
+				log.Errorf("getting blobs for namespaceID(%s): %v", namespace.ID().String(), err)
+				resultErr[i] = err
+			}
+			if len(blobs) > 0 {
+				log.Infow("retrieved blobs", "height", height, "total", len(blobs))
+				resultBlobs[i] = blobs
+			}
 		}(i, namespace)
 	}
 	wg.Wait()
 
-	blobs := make([]*Blob, 0)
-	for _, resBlobs := range resultBlobs {
-		if len(resBlobs) > 0 {
-			blobs = append(blobs, resBlobs...)
-		}
-	}
-
-	if len(blobs) == 0 {
-		resultErr = append(resultErr, ErrBlobNotFound)
-	}
-	return blobs, errors.Join(resultErr...)
+	blobs := slices.Concat(resultBlobs...)
+	err = errors.Join(resultErr...)
+	return blobs, err
 }
 
 // Included verifies that the blob was included in a specific height.
@@ -419,10 +393,7 @@ func (s *Service) getBlobs(
 	sharesParser := &parser{verifyFn: verifyFn}
 
 	_, _, err = s.retrieve(ctx, header.Height(), namespace, sharesParser)
-	if len(blobs) == 0 {
-		return nil, ErrBlobNotFound
-	}
-	return blobs, nil
+	return blobs, err
 }
 
 func (s *Service) GetCommitmentProof(
