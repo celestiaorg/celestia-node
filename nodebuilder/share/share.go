@@ -16,6 +16,13 @@ import (
 
 var _ Module = (*API)(nil)
 
+// GetRangeResult wraps the return value of the GetRange endpoint
+// because Json-RPC doesn't support more than two return values.
+type GetRangeResult struct {
+	Shares []share.Share
+	Proof  *types.ShareProof
+}
+
 // Module provides access to any data square or block share on the network.
 //
 // All Get methods provided on Module follow the following flow:
@@ -46,7 +53,7 @@ type Module interface {
 		ctx context.Context, header *header.ExtendedHeader, namespace share.Namespace,
 	) (share.NamespacedShares, error)
 	// GetRange gets a list of shares and their corresponding proof.
-	GetRange(ctx context.Context, height uint64, start, end int) ([]share.Share, *types.ShareProof, error)
+	GetRange(ctx context.Context, height uint64, start, end int) (*GetRangeResult, error)
 }
 
 // API is a wrapper around Module for the RPC.
@@ -72,7 +79,7 @@ type API struct {
 			ctx context.Context,
 			height uint64,
 			start, end int,
-		) ([]share.Share, *types.ShareProof, error) `perm:"read"`
+		) (*GetRangeResult, error) `perm:"read"`
 	}
 }
 
@@ -88,7 +95,7 @@ func (api *API) GetEDS(ctx context.Context, header *header.ExtendedHeader) (*rsm
 	return api.Internal.GetEDS(ctx, header)
 }
 
-func (api *API) GetRange(ctx context.Context, height uint64, start, end int) ([]share.Share, *types.ShareProof, error) {
+func (api *API) GetRange(ctx context.Context, height uint64, start, end int) (*GetRangeResult, error) {
 	return api.Internal.GetRange(ctx, height, start, end)
 }
 
@@ -110,18 +117,24 @@ func (m module) SharesAvailable(ctx context.Context, header *header.ExtendedHead
 	return m.Availability.SharesAvailable(ctx, header)
 }
 
-func (m module) GetRange(ctx context.Context, height uint64, start, end int) ([]share.Share, *types.ShareProof, error) {
+func (m module) GetRange(ctx context.Context, height uint64, start, end int) (*GetRangeResult, error) {
 	if height == 0 {
-		return nil, nil, fmt.Errorf("height cannot be equal to 0")
+		return nil, fmt.Errorf("height cannot be equal to 0")
 	}
 	extendedHeader, err := m.hs.GetByHeight(ctx, height)
 	if err != nil {
-		return nil, nil, err
+		return nil, err
 	}
 	extendedDataSquare, err := m.GetEDS(ctx, extendedHeader)
 	if err != nil {
-		return nil, nil, err
+		return nil, err
 	}
 	proof, err := eds.ProveShares(extendedDataSquare, start, end)
-	return extendedDataSquare.FlattenedODS()[start:end], proof, err
+	if err != nil {
+		return nil, err
+	}
+	return &GetRangeResult{
+		extendedDataSquare.FlattenedODS()[start:end],
+		proof,
+	}, nil
 }
