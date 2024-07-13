@@ -20,7 +20,6 @@ import (
 	appns "github.com/celestiaorg/celestia-app/pkg/namespace"
 	pkgproof "github.com/celestiaorg/celestia-app/pkg/proof"
 	"github.com/celestiaorg/celestia-app/pkg/shares"
-	blobtypes "github.com/celestiaorg/celestia-app/x/blob/types"
 	"github.com/celestiaorg/nmt"
 	"github.com/celestiaorg/rsmt2d"
 

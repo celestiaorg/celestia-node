@@ -19,8 +19,8 @@ import (
 	tmrand "github.com/tendermint/tendermint/libs/rand"
 
 	"github.com/celestiaorg/celestia-app/pkg/appconsts"
-	pkgproof "github.com/celestiaorg/celestia-app/pkg/proof"
 	appns "github.com/celestiaorg/celestia-app/pkg/namespace"
+	pkgproof "github.com/celestiaorg/celestia-app/pkg/proof"
 	"github.com/celestiaorg/celestia-app/pkg/shares"
 	blobtypes "github.com/celestiaorg/celestia-app/x/blob/types"
 	"github.com/celestiaorg/go-header/store"
