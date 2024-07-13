@@ -8,7 +8,6 @@ import (
 	"github.com/celestiaorg/celestia-node/header"
 	"github.com/celestiaorg/celestia-node/libs/fxutil"
 	"github.com/celestiaorg/celestia-node/nodebuilder/blob"
-	"github.com/celestiaorg/celestia-node/nodebuilder/blobstream"
 	"github.com/celestiaorg/celestia-node/nodebuilder/core"
 	"github.com/celestiaorg/celestia-node/nodebuilder/da"
 	"github.com/celestiaorg/celestia-node/nodebuilder/das"
@@ -57,7 +56,6 @@ func ConstructModule(tp node.Type, network p2p.Network, cfg *Config, store Store
 		node.ConstructModule(tp),
 		pruner.ConstructModule(tp, &cfg.Pruner),
 		rpc.ConstructModule(tp, &cfg.RPC),
-		blobstream.ConstructModule(),
 	)
 
 	return fx.Module(

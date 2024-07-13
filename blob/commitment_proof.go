@@ -1,11 +1,10 @@
-package blobstream
+package blob
 
 import (
+	"bytes"
 	"fmt"
 
-	"github.com/tendermint/tendermint/crypto/merkle"
-	"github.com/tendermint/tendermint/libs/bytes"
-	"github.com/tendermint/tendermint/types"
+	coretypes "github.com/tendermint/tendermint/types"
 
 	"github.com/celestiaorg/celestia-app/pkg/appconsts"
 	"github.com/celestiaorg/celestia-app/pkg/shares"
@@ -15,12 +14,10 @@ import (
 	"github.com/celestiaorg/celestia-node/share"
 )
 
-// DataCommitment is the data root tuple root.
-type DataCommitment bytes.HexBytes
-
-// DataRootTupleInclusionProof is the binary merkle
-// inclusion proof of a height to a data commitment.
-type DataRootTupleInclusionProof *merkle.Proof
+// Commitment is a Merkle Root of the subtree built from shares of the Blob.
+// It is computed by splitting the blob into shares and building the Merkle subtree to be included
+// after Submit.
+type Commitment []byte
 
 // CommitmentProof is an inclusion proof of a commitment to the data root.
 type CommitmentProof struct {
@@ -36,8 +33,17 @@ type CommitmentProof struct {
 	NamespaceID namespace.ID `json:"namespace_id"`
 	// RowProof is the proof of the rows containing the blob's data to the
 	// data root.
-	RowProof         types.RowProof `json:"row_proof"`
-	NamespaceVersion uint8          `json:"namespace_version"`
+	RowProof         coretypes.RowProof `json:"row_proof"`
+	NamespaceVersion uint8              `json:"namespace_version"`
+}
+
+func (com Commitment) String() string {
+	return string(com)
+}
+
+// Equal ensures that commitments are the same
+func (com Commitment) Equal(c Commitment) bool {
+	return bytes.Equal(com, c)
 }
 
 // Validate performs basic validation to the commitment proof.
@@ -125,55 +131,4 @@ func (commitmentProof *CommitmentProof) Verify(root []byte, subtreeRootThreshold
 
 	// verify row roots to data root proof
 	return commitmentProof.RowProof.VerifyProof(root), nil
-}
-
-// GenerateCommitment generates the share commitment of the corresponding subtree roots.
-func (commitmentProof *CommitmentProof) GenerateCommitment() bytes.HexBytes {
-	return merkle.HashFromByteSlices(commitmentProof.SubtreeRoots)
-}
-
-// ResultSubtreeRootToCommitmentProof is an API response that contains a
-// SubtreeRootToCommitmentProof. A subtree root to commitment proof is a proof of a subtree root to
-// a share commitment.
-type ResultSubtreeRootToCommitmentProof struct {
-	SubtreeRootToCommitmentProof SubtreeRootToCommitmentProof `json:"subtree_root_to_commitment_proof"`
-}
-
-// SubtreeRootToCommitmentProof a subtree root to commitment proof is a proof of a subtree root to
-// a share commitment.
-type SubtreeRootToCommitmentProof struct {
-	Proof merkle.Proof `json:"proof"`
-}
-
-// Verify verifies that a share commitment commits to the provided subtree root.
-func (subtreeRootProof SubtreeRootToCommitmentProof) Verify(
-	shareCommitment bytes.HexBytes,
-	subtreeRoot []byte,
-) (bool, error) {
-	err := subtreeRootProof.Proof.Verify(shareCommitment.Bytes(), subtreeRoot)
-	if err != nil {
-		return false, err
-	}
-	return true, nil
-}
-
-// ResultShareToSubtreeRootProof is an API response that contains a ShareToSubtreeRootProof.
-// A share to subtree root proof is an inclusion proof of a share to a subtree root.
-type ResultShareToSubtreeRootProof struct {
-	ShareToSubtreeRootProof ShareToSubtreeRootProof `json:"share_to_subtree_root_proof"`
-}
-
-// ShareToSubtreeRootProof a share to subtree root proof is an inclusion proof of a share to a
-// subtree root.
-type ShareToSubtreeRootProof struct {
-	Proof merkle.Proof `json:"proof"`
-}
-
-// Verify verifies that a share commitment commits to the provided subtree root.
-func (shareToSubtreeRootProof ShareToSubtreeRootProof) Verify(subtreeRoot, share []byte) (bool, error) {
-	err := shareToSubtreeRootProof.Proof.Verify(subtreeRoot, share)
-	if err != nil {
-		return false, err
-	}
-	return true, nil
 }

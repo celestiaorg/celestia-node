@@ -11,7 +11,10 @@ import (
 	"github.com/ipfs/go-cid"
 	"github.com/ipld/go-car"
 	"github.com/ipld/go-car/util"
+	"github.com/tendermint/tendermint/types"
 
+	pkgproof "github.com/celestiaorg/celestia-app/pkg/proof"
+	"github.com/celestiaorg/celestia-app/pkg/shares"
 	"github.com/celestiaorg/celestia-app/pkg/wrapper"
 	"github.com/celestiaorg/nmt"
 	"github.com/celestiaorg/rsmt2d"
@@ -270,4 +273,31 @@ func ReadEDS(ctx context.Context, r io.Reader, root share.DataHash) (eds *rsmt2d
 		)
 	}
 	return eds, nil
+}
+
+// ProveShares generates a share proof for a share range.
+// The share range, defined by start and end, is end-exclusive.
+func ProveShares(eds *rsmt2d.ExtendedDataSquare, start, end int) (*types.ShareProof, error) {
+	log.Debugw("proving share range", "start", start, "end", end)
+	if start == end {
+		return nil, fmt.Errorf("start share cannot be equal to end share")
+	}
+	if start > end {
+		return nil, fmt.Errorf("start share %d cannot be greater than end share %d", start, end)
+	}
+
+	odsShares, err := shares.FromBytes(eds.FlattenedODS())
+	if err != nil {
+		return nil, err
+	}
+	nID, err := pkgproof.ParseNamespace(odsShares, start, end)
+	if err != nil {
+		return nil, err
+	}
+	log.Debugw("generating the share proof", "start", start, "end", end)
+	proof, err := pkgproof.NewShareInclusionProofFromEDS(eds, nID, shares.NewRange(start, end))
+	if err != nil {
+		return nil, err
+	}
+	return &proof, nil
 }

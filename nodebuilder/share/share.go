@@ -2,11 +2,16 @@ package share
 
 import (
 	"context"
+	"fmt"
+
+	"github.com/tendermint/tendermint/types"
 
 	"github.com/celestiaorg/rsmt2d"
 
 	"github.com/celestiaorg/celestia-node/header"
+	headerServ "github.com/celestiaorg/celestia-node/nodebuilder/header"
 	"github.com/celestiaorg/celestia-node/share"
+	"github.com/celestiaorg/celestia-node/share/eds"
 )
 
 var _ Module = (*API)(nil)
@@ -40,6 +45,8 @@ type Module interface {
 	GetSharesByNamespace(
 		ctx context.Context, header *header.ExtendedHeader, namespace share.Namespace,
 	) (share.NamespacedShares, error)
+	// GetRange gets a list of shares and their corresponding proof.
+	GetRange(ctx context.Context, height uint64, start, end int) ([]share.Share, *types.ShareProof, error)
 }
 
 // API is a wrapper around Module for the RPC.
@@ -61,6 +68,11 @@ type API struct {
 			header *header.ExtendedHeader,
 			namespace share.Namespace,
 		) (share.NamespacedShares, error) `perm:"read"`
+		GetRange func(
+			ctx context.Context,
+			height uint64,
+			start, end int,
+		) ([]share.Share, *types.ShareProof, error) `perm:"read"`
 	}
 }
 
@@ -76,6 +88,10 @@ func (api *API) GetEDS(ctx context.Context, header *header.ExtendedHeader) (*rsm
 	return api.Internal.GetEDS(ctx, header)
 }
 
+func (api *API) GetRange(ctx context.Context, height uint64, start, end int) ([]share.Share, *types.ShareProof, error) {
+	return api.Internal.GetRange(ctx, height, start, end)
+}
+
 func (api *API) GetSharesByNamespace(
 	ctx context.Context,
 	header *header.ExtendedHeader,
@@ -87,8 +103,25 @@ func (api *API) GetSharesByNamespace(
 type module struct {
 	share.Getter
 	share.Availability
+	hs headerServ.Module
 }
 
 func (m module) SharesAvailable(ctx context.Context, header *header.ExtendedHeader) error {
 	return m.Availability.SharesAvailable(ctx, header)
+}
+
+func (m module) GetRange(ctx context.Context, height uint64, start, end int) ([]share.Share, *types.ShareProof, error) {
+	if height == 0 {
+		return nil, nil, fmt.Errorf("height cannot be equal to 0")
+	}
+	extendedHeader, err := m.hs.GetByHeight(ctx, height)
+	if err != nil {
+		return nil, nil, err
+	}
+	extendedDataSquare, err := m.GetEDS(ctx, extendedHeader)
+	if err != nil {
+		return nil, nil, err
+	}
+	proof, err := eds.ProveShares(extendedDataSquare, start, end)
+	return extendedDataSquare.FlattenedODS()[start:end], proof, err
 }

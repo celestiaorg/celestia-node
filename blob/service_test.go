@@ -13,16 +13,22 @@ import (
 	ds_sync "github.com/ipfs/go-datastore/sync"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"github.com/tendermint/tendermint/crypto/merkle"
 	tmrand "github.com/tendermint/tendermint/libs/rand"
 
 	"github.com/celestiaorg/celestia-app/pkg/appconsts"
+	pkgproof "github.com/celestiaorg/celestia-app/pkg/proof"
 	"github.com/celestiaorg/celestia-app/pkg/shares"
+	blobtypes "github.com/celestiaorg/celestia-app/x/blob/types"
 	"github.com/celestiaorg/go-header/store"
+	"github.com/celestiaorg/nmt"
+	"github.com/celestiaorg/rsmt2d"
 
 	"github.com/celestiaorg/celestia-node/blob/blobtest"
 	"github.com/celestiaorg/celestia-node/header"
 	"github.com/celestiaorg/celestia-node/header/headertest"
 	"github.com/celestiaorg/celestia-node/share"
+	"github.com/celestiaorg/celestia-node/share/eds/edstest"
 	"github.com/celestiaorg/celestia-node/share/getters"
 	"github.com/celestiaorg/celestia-node/share/ipld"
 )
@@ -615,4 +621,146 @@ func createService(ctx context.Context, t testing.TB, blobs []*Blob) *Service {
 		return headerStore.GetByHeight(ctx, height)
 	}
 	return NewService(nil, getters.NewIPLDGetter(bs), fn)
+}
+
+// TestProveCommitmentAllCombinations tests proving all the commitments in a block.
+// The number of shares per blob increases with each blob to cover proving a large number
+// of possibilities.
+func TestProveCommitmentAllCombinations(t *testing.T) {
+	tests := map[string]struct {
+		blobSize int
+	}{
+		"very small blobs that take less than a share": {blobSize: 350},
+		"small blobs that take 2 shares":               {blobSize: 1000},
+		"small blobs that take ~10 shares":             {blobSize: 5000},
+		"large blobs ~100 shares":                      {blobSize: 50000},
+		"large blobs ~150 shares":                      {blobSize: 75000},
+		"large blobs ~300 shares":                      {blobSize: 150000},
+		"very large blobs ~1500 shares":                {blobSize: 750000},
+	}
+
+	for name, tc := range tests {
+		t.Run(name, func(t *testing.T) {
+			proveAndVerifyShareCommitments(t, tc.blobSize)
+		})
+	}
+}
+
+func proveAndVerifyShareCommitments(t *testing.T, blobSize int) {
+	msgs, blobs, nss, eds, _, _, dataRoot := edstest.GenerateTestBlock(t, blobSize, 10)
+	for msgIndex, msg := range msgs {
+		t.Run(fmt.Sprintf("msgIndex=%d", msgIndex), func(t *testing.T) {
+			blb, err := NewBlob(uint8(blobs[msgIndex].ShareVersion), nss[msgIndex].Bytes(), blobs[msgIndex].Data)
+			require.NoError(t, err)
+			blobShares, err := BlobsToShares(blb)
+			require.NoError(t, err)
+			// compute the commitment
+			actualCommitmentProof, err := ProveCommitment(eds, nss[msgIndex].Bytes(), blobShares)
+			require.NoError(t, err)
+
+			// make sure the actual commitment attests to the data
+			require.NoError(t, actualCommitmentProof.Validate())
+			valid, err := actualCommitmentProof.Verify(
+				dataRoot,
+				appconsts.DefaultSubtreeRootThreshold,
+			)
+			require.NoError(t, err)
+			require.True(t, valid)
+
+			// generate an expected proof and verify it's valid
+			expectedCommitmentProof := generateCommitmentProofFromBlock(t, eds, nss[msgIndex].Bytes(), blobs[msgIndex], dataRoot)
+			require.NoError(t, expectedCommitmentProof.Validate())
+			valid, err = expectedCommitmentProof.Verify(
+				dataRoot,
+				appconsts.DefaultSubtreeRootThreshold,
+			)
+			require.NoError(t, err)
+			require.True(t, valid)
+
+			// make sure the expected proof is the same as the actual on
+			assert.Equal(t, expectedCommitmentProof, *actualCommitmentProof)
+
+			// make sure the expected commitment commits to the subtree roots in the result proof
+			actualCommitment, _ := merkle.ProofsFromByteSlices(actualCommitmentProof.SubtreeRoots)
+			assert.Equal(t, msg.ShareCommitments[0], actualCommitment)
+		})
+	}
+}
+
+// generateCommitmentProofFromBlock takes a block and a PFB index and generates the commitment proof
+// using the traditional way of doing, instead of using the API.
+func generateCommitmentProofFromBlock(
+	t *testing.T,
+	eds *rsmt2d.ExtendedDataSquare,
+	ns share.Namespace,
+	blob *blobtypes.Blob,
+	dataRoot []byte,
+) CommitmentProof {
+	// create the blob from the data
+	blb, err := NewBlob(
+		uint8(blob.ShareVersion),
+		ns,
+		blob.Data,
+	)
+	require.NoError(t, err)
+
+	// convert the blob to a number of shares
+	blobShares, err := BlobsToShares(blb)
+	require.NoError(t, err)
+
+	// find the first share of the blob in the ODS
+	startShareIndex := -1
+	for i, sh := range eds.FlattenedODS() {
+		if bytes.Equal(sh, blobShares[0]) {
+			startShareIndex = i
+			break
+		}
+	}
+	require.Greater(t, startShareIndex, 0)
+
+	// create an inclusion proof of the blob using the share range instead of the commitment
+	sharesProof, err := pkgproof.NewShareInclusionProofFromEDS(
+		eds,
+		ns.ToAppNamespace(),
+		shares.NewRange(startShareIndex, startShareIndex+len(blobShares)),
+	)
+	require.NoError(t, err)
+	require.NoError(t, sharesProof.Validate(dataRoot))
+
+	// calculate the subtree roots
+	subtreeRoots := make([][]byte, 0)
+	dataCursor := 0
+	for _, proof := range sharesProof.ShareProofs {
+		ranges, err := nmt.ToLeafRanges(
+			int(proof.Start),
+			int(proof.End),
+			shares.SubTreeWidth(len(blobShares), appconsts.DefaultSubtreeRootThreshold),
+		)
+		require.NoError(t, err)
+		roots, err := computeSubtreeRoots(
+			blobShares[dataCursor:int32(dataCursor)+proof.End-proof.Start],
+			ranges,
+			int(proof.Start),
+		)
+		require.NoError(t, err)
+		subtreeRoots = append(subtreeRoots, roots...)
+		dataCursor += int(proof.End - proof.Start)
+	}
+
+	// convert the nmt proof to be accepted by the commitment proof
+	nmtProofs := make([]*nmt.Proof, 0)
+	for _, proof := range sharesProof.ShareProofs {
+		nmtProof := nmt.NewInclusionProof(int(proof.Start), int(proof.End), proof.Nodes, true)
+		nmtProofs = append(nmtProofs, &nmtProof)
+	}
+
+	commitmentProof := CommitmentProof{
+		SubtreeRoots:      subtreeRoots,
+		SubtreeRootProofs: nmtProofs,
+		NamespaceID:       sharesProof.NamespaceID,
+		RowProof:          sharesProof.RowProof,
+		NamespaceVersion:  uint8(sharesProof.NamespaceVersion),
+	}
+
+	return commitmentProof
 }

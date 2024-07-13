@@ -141,3 +141,62 @@ func (s *Service) Subscribe(ctx context.Context) (<-chan *header.ExtendedHeader,
 	}()
 	return headerCh, nil
 }
+
+// GetDataCommitment collects the data roots over a provided ordered range of blocks,
+// and then creates a new Merkle root of those data roots. The range is end exclusive.
+func (s *Service) GetDataCommitment(ctx context.Context, start, end uint64) (*DataCommitment, error) {
+	log.Debugw("validating the data commitment range", "start", start, "end", end)
+	err := s.validateDataCommitmentRange(ctx, start, end)
+	if err != nil {
+		return nil, err
+	}
+	log.Debugw("fetching the data root tuples", "start", start, "end", end)
+	tuples, err := s.fetchDataRootTuples(ctx, start, end)
+	if err != nil {
+		return nil, err
+	}
+	log.Debugw("hashing the data root tuples", "start", start, "end", end)
+	root, err := hashDataRootTuples(tuples)
+	if err != nil {
+		return nil, err
+	}
+	// Create data commitment
+	dataCommitment := DataCommitment(root)
+	return &dataCommitment, nil
+}
+
+// GetDataRootInclusionProof creates an inclusion proof for the data root of block
+// height `height` in the set of blocks defined by `start` and `end`. The range
+// is end exclusive.
+func (s *Service) GetDataRootInclusionProof(
+	ctx context.Context,
+	height int64,
+	start,
+	end uint64,
+) (*DataRootTupleInclusionProof, error) {
+	log.Debugw(
+		"validating the data root inclusion proof request",
+		"start",
+		start,
+		"end",
+		end,
+		"height",
+		height,
+	)
+	err := s.validateDataRootInclusionProofRequest(ctx, uint64(height), start, end)
+	if err != nil {
+		return nil, err
+	}
+	log.Debugw("fetching the data root tuples", "start", start, "end", end)
+	tuples, err := s.fetchDataRootTuples(ctx, start, end)
+	if err != nil {
+		return nil, err
+	}
+	log.Debugw("proving the data root tuples", "start", start, "end", end)
+	proof, err := proveDataRootTuples(tuples, height)
+	if err != nil {
+		return nil, err
+	}
+	dataRootTupleInclusionProof := DataRootTupleInclusionProof(proof)
+	return &dataRootTupleInclusionProof, nil
+}

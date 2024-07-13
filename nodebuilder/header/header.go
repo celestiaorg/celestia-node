@@ -43,6 +43,19 @@ type Module interface {
 
 	// Subscribe to recent ExtendedHeaders from the network.
 	Subscribe(ctx context.Context) (<-chan *header.ExtendedHeader, error)
+
+	// GetDataCommitment collects the data roots over a provided ordered range of blocks,
+	// and then creates a new Merkle root of those data roots. The range is end exclusive.
+	GetDataCommitment(ctx context.Context, start, end uint64) (*DataCommitment, error)
+
+	// GetDataRootInclusionProof creates an inclusion proof for the data root of block
+	// height `height` in the set of blocks defined by `start` and `end`. The range
+	// is end exclusive.
+	GetDataRootInclusionProof(
+		ctx context.Context,
+		height int64,
+		start, end uint64,
+	) (*DataRootTupleInclusionProof, error)
 }
 
 // API is a wrapper around Module for the RPC.
@@ -59,12 +72,18 @@ type API struct {
 			*header.ExtendedHeader,
 			uint64,
 		) ([]*header.ExtendedHeader, error) `perm:"read"`
-		GetByHeight   func(context.Context, uint64) (*header.ExtendedHeader, error)    `perm:"read"`
-		WaitForHeight func(context.Context, uint64) (*header.ExtendedHeader, error)    `perm:"read"`
-		SyncState     func(ctx context.Context) (sync.State, error)                    `perm:"read"`
-		SyncWait      func(ctx context.Context) error                                  `perm:"read"`
-		NetworkHead   func(ctx context.Context) (*header.ExtendedHeader, error)        `perm:"read"`
-		Subscribe     func(ctx context.Context) (<-chan *header.ExtendedHeader, error) `perm:"read"`
+		GetByHeight               func(context.Context, uint64) (*header.ExtendedHeader, error)         `perm:"read"`
+		WaitForHeight             func(context.Context, uint64) (*header.ExtendedHeader, error)         `perm:"read"`
+		SyncState                 func(ctx context.Context) (sync.State, error)                         `perm:"read"`
+		SyncWait                  func(ctx context.Context) error                                       `perm:"read"`
+		NetworkHead               func(ctx context.Context) (*header.ExtendedHeader, error)             `perm:"read"`
+		Subscribe                 func(ctx context.Context) (<-chan *header.ExtendedHeader, error)      `perm:"read"`
+		GetDataCommitment         func(ctx context.Context, start, end uint64) (*DataCommitment, error) `perm:"read"`
+		GetDataRootInclusionProof func(
+			ctx context.Context,
+			height int64,
+			start, end uint64,
+		) (*DataRootTupleInclusionProof, error) `perm:"read"`
 	}
 }
 
@@ -106,4 +125,16 @@ func (api *API) NetworkHead(ctx context.Context) (*header.ExtendedHeader, error)
 
 func (api *API) Subscribe(ctx context.Context) (<-chan *header.ExtendedHeader, error) {
 	return api.Internal.Subscribe(ctx)
+}
+
+func (api *API) GetDataCommitment(ctx context.Context, start, end uint64) (*DataCommitment, error) {
+	return api.Internal.GetDataCommitment(ctx, start, end)
+}
+
+func (api *API) GetDataRootInclusionProof(
+	ctx context.Context,
+	height int64,
+	start, end uint64,
+) (*DataRootTupleInclusionProof, error) {
+	return api.Internal.GetDataRootInclusionProof(ctx, height, start, end)
 }
