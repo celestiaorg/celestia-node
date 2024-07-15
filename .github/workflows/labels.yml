@@ -41,6 +41,9 @@ jobs:
 
       - name: Add label if breaking changes detected
         if: failure()
-        uses: andymckay/labeler@master
-        with:
-          add-labels: 'kind:break!'
+        run: gh issue edit "$NUMBER" --add-label "$LABELS"
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_REPO: ${{ github.repository }}
+          NUMBER: ${{ github.event.pull_request.number }}
+          LABELS: kind:break!
