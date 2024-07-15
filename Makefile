@@ -248,8 +248,10 @@ detect-breaking:
 		fi; \
 	done; \
 	if [ "$$FILE_CHANGED" = true ] || [ "$$STRUCT_CHANGED" = true ]; then \
+		echo "break detected"; \
 		exit 1; \
 	else \
+		echo "no break detected"; \
 		exit 0; \
 	fi
 .PHONY: detect-breaking
