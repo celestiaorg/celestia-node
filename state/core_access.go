@@ -184,9 +184,9 @@ func (ca *CoreAccessor) cancelCtx() {
 	ca.cancel = nil
 }
 
-// SubmitPayForBlob builds, signs, and synchronously submits a MsgPayForBlob with additional options defined
-// in `TxConfig`. It blocks until the transaction is committed and returns the TxResponse.
-// The user can specify additional options that can bee applied to the Tx.
+// SubmitPayForBlob builds, signs, and synchronously submits a MsgPayForBlob with additional
+// options defined in `TxConfig`. It blocks until the transaction is committed and returns the
+// TxResponse. The user can specify additional options that can bee applied to the Tx.
 func (ca *CoreAccessor) SubmitPayForBlob(
 	ctx context.Context,
 	appblobs []*Blob,
@@ -583,7 +583,8 @@ func (ca *CoreAccessor) queryMinimumGasPrice(
 
 func (ca *CoreAccessor) setupTxClient(ctx context.Context, keyName string) (*user.TxClient, error) {
 	encCfg := encoding.MakeConfig(app.ModuleEncodingRegisters...)
-	// explicitly set default address. Otherwise, there could be a mismatch between defaultKey and defaultAddress.
+	// explicitly set default address. Otherwise, there could be a mismatch between defaultKey and
+	// defaultAddress.
 	rec, err := ca.keyring.Key(keyName)
 	if err != nil {
 		return nil, err
