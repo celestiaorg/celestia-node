@@ -19,7 +19,6 @@ type Config struct {
 	IP       string
 	RPCPort  string
 	GRPCPort string
-	Poop     string
 }
 
 // DefaultConfig returns default configuration for managing the
