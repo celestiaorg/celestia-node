@@ -234,9 +234,6 @@ detect-breaking:
 	@FILE_CHANGED=false
 	@STRUCT_CHANGED=false
 	@for file in ${CHANGED_FILES}; do \
-		if echo $$file | grep -qE 'nodebuilder/.*/config\.go'; then \
-			FILE_CHANGED=true; \
-		fi; \
 		if echo $$file | grep -qE '\.proto$$'; then \
 			FILE_CHANGED=true; \
 		fi; \
