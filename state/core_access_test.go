@@ -272,6 +272,12 @@ func getNames(accounts []genesis.KeyringAccount) (names []string) {
 	return names
 }
 
+// customAppCreator is a temporary workaround to set the min gas price for the
+// testnode.
+//
+// This can be removed after
+// https://github.com/celestiaorg/celestia-app/pull/3680 merges and is
+// backported to celestia-app v2.x.x.
 func customAppCreator(minGasPrice string) sdkservertypes.AppCreator {
 	return func(_ tmlog.Logger, _ tmdb.DB, _ io.Writer, _ sdkservertypes.AppOptions) sdkservertypes.Application {
 		encodingConfig := encoding.MakeConfig(app.ModuleEncodingRegisters...)
