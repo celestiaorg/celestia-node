@@ -16,7 +16,7 @@ import (
 	rpcclient "github.com/tendermint/tendermint/rpc/client"
 	"google.golang.org/grpc"
 
-	"github.com/celestiaorg/celestia-app/v2/app"
+	"github.com/celestiaorg/celestia-app/v2/pkg/appconsts"
 	"github.com/celestiaorg/celestia-app/v2/test/util/genesis"
 	"github.com/celestiaorg/celestia-app/v2/test/util/testnode"
 	libhead "github.com/celestiaorg/go-header"
@@ -33,7 +33,9 @@ type IntegrationTestSuite struct {
 	suite.Suite
 
 	cleanups []func() error
-	accounts []string
+	accounts []genesis.Account
+	pubKeys  []string
+	keyname  string
 	cctx     testnode.Context
 
 	accessor *CoreAccessor
@@ -47,9 +49,15 @@ func (s *IntegrationTestSuite) SetupSuite() {
 
 	cfg := core.DefaultTestConfig()
 	s.cctx = core.StartTestNodeWithConfig(s.T(), cfg)
-	s.accounts = getAccountPubKeys(cfg.Genesis.Accounts())
+	s.accounts = cfg.Genesis.Accounts()
+	s.pubKeys = getPubKeys(cfg.Genesis.Accounts())
 
-	accessor, err := NewCoreAccessor(s.cctx.Keyring, s.accounts[0], localHeader{s.cctx.Client}, "", "")
+	records, err := cfg.Genesis.Keyring().List()
+	s.Require().NoError(err)
+	keyname := records[0].Name
+	s.keyname = keyname
+
+	accessor, err := NewCoreAccessor(s.cctx.Keyring, keyname, localHeader{s.cctx.Client}, "", "")
 	require.NoError(s.T(), err)
 	setClients(accessor, s.cctx.GRPCClient)
 	s.accessor = accessor
@@ -59,7 +67,7 @@ func (s *IntegrationTestSuite) SetupSuite() {
 	require.NoError(s.T(), err)
 }
 
-func getAccountPubKeys(accounts []genesis.Account) (pubKeys []string) {
+func getPubKeys(accounts []genesis.Account) (pubKeys []string) {
 	for _, account := range accounts {
 		pubKeys = append(pubKeys, account.PubKey.String())
 	}
@@ -115,11 +123,16 @@ func (l localHeader) Head(
 
 func (s *IntegrationTestSuite) TestGetBalance() {
 	require := s.Require()
-	expectedBal := sdk.NewCoin(app.BondDenom, sdk.NewInt(int64(99999999999999999)))
-	for _, acc := range s.accounts {
-		bal, err := s.accessor.BalanceForAddress(context.Background(), Address{s.getAddress(acc)})
+
+	for _, account := range s.accounts {
+		hexAddress := account.PubKey.Address().String()
+		sdkAddress, err := sdk.AccAddressFromHexUnsafe(hexAddress)
 		require.NoError(err)
-		require.Equal(&expectedBal, bal)
+
+		bal, err := s.accessor.BalanceForAddress(context.Background(), Address{sdkAddress})
+		require.NoError(err)
+		require.Equal(bal.Denom, appconsts.BondDenom)
+		require.True(bal.Amount.GT(sdk.NewInt(1))) // verify that each account has some balance
 	}
 }
 
@@ -128,7 +141,7 @@ func (s *IntegrationTestSuite) TestGetBalance() {
 func (s *IntegrationTestSuite) TestGenerateJSONBlock() {
 	t := s.T()
 	t.Skip("skipping testdata generation test")
-	resp, err := s.cctx.FillBlock(4, s.accounts[0], flags.BroadcastSync)
+	resp, err := s.cctx.FillBlock(4, s.keyname, flags.BroadcastSync)
 	require := s.Require()
 	require.NoError(err)
 	require.Equal(abci.CodeTypeOK, resp.Code)
