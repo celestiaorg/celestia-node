@@ -93,16 +93,6 @@ func (s *IntegrationTestSuite) TearDownSuite() {
 	}
 }
 
-func (s *IntegrationTestSuite) getAddress(acc string) sdk.Address {
-	rec, err := s.cctx.Keyring.Key(acc)
-	require.NoError(s.T(), err)
-
-	addr, err := rec.GetAddress()
-	require.NoError(s.T(), err)
-
-	return addr
-}
-
 type localHeader struct {
 	client rpcclient.Client
 }
