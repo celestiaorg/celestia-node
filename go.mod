@@ -351,6 +351,7 @@ require (
 )
 
 replace (
+	github.com/celestiaorg/celestia-app/v2 => github.com/rootulp/celestia-app/v2 v2.0.0-rc4
 	github.com/cosmos/cosmos-sdk => github.com/celestiaorg/cosmos-sdk v1.23.0-sdk-v0.46.16
 	github.com/filecoin-project/dagstore => github.com/celestiaorg/dagstore v0.0.0-20230824094345-537c012aa403
 	github.com/gogo/protobuf => github.com/regen-network/protobuf v1.3.3-alpha.regen.1
