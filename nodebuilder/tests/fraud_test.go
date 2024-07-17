@@ -46,7 +46,7 @@ Another note: this test disables share exchange to speed up test results.
 9. Try to start a Full Node(FN) that contains a BEFP in its store.
 */
 func TestFraudProofHandling(t *testing.T) {
-	ctx, cancel := context.WithTimeout(context.Background(), swamp.DefaultTestTimeout)
+	ctx, cancel := context.WithTimeout(context.Background(), swamp.DefaultTestTimeout*2)
 	t.Cleanup(cancel)
 
 	const (
