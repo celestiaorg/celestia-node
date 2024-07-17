@@ -84,7 +84,7 @@ func NewSwamp(t *testing.T, options ...Option) *Swamp {
 		cfg:           ic,
 		Network:       mocknet.New(),
 		ClientContext: cctx,
-		Accounts:      getAccounts(t, ic),
+		Accounts:      getAccounts(ic),
 		nodes:         map[*nodebuilder.Node]struct{}{},
 	}
 
@@ -93,11 +93,10 @@ func NewSwamp(t *testing.T, options ...Option) *Swamp {
 	return swp
 }
 
-func getAccounts(t *testing.T, config *testnode.Config) (accounts []string) {
-	// for _, account := range config.Genesis.Accounts() {
-	// 	// Blocked on https://github.com/celestiaorg/celestia-app/pull/3690
-	// 	// accounts = append(accounts, account.Name)
-	// }
+func getAccounts(config *testnode.Config) (accounts []string) {
+	for _, account := range config.Genesis.Accounts() {
+		accounts = append(accounts, account.Name)
+	}
 	return accounts
 }
 

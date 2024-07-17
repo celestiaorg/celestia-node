@@ -6,21 +6,14 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"io"
 	"strings"
 	"testing"
 	"time"
 
-	"github.com/cosmos/cosmos-sdk/baseapp"
-	sdkservertypes "github.com/cosmos/cosmos-sdk/server/types"
-	"github.com/cosmos/cosmos-sdk/simapp"
 	sdktypes "github.com/cosmos/cosmos-sdk/types"
 	"github.com/stretchr/testify/require"
-	tmlog "github.com/tendermint/tendermint/libs/log"
-	tmdb "github.com/tendermint/tm-db"
 
 	"github.com/celestiaorg/celestia-app/v2/app"
-	"github.com/celestiaorg/celestia-app/v2/app/encoding"
 	appconsts "github.com/celestiaorg/celestia-app/v2/pkg/appconsts"
 	genesis "github.com/celestiaorg/celestia-app/v2/test/util/genesis"
 	"github.com/celestiaorg/celestia-app/v2/test/util/testnode"
@@ -245,7 +238,7 @@ func buildAccessor(t *testing.T) (*CoreAccessor, []string) {
 	appConf := testnode.DefaultAppConfig()
 	appConf.API.Enable = true
 
-	appCreator := customAppCreator(fmt.Sprintf("0.002%s", app.BondDenom))
+	appCreator := testnode.CustomAppCreator(fmt.Sprintf("0.002%s", app.BondDenom))
 
 	g := genesis.NewDefaultGenesis().
 		WithChainID(chainID).
@@ -270,26 +263,4 @@ func getNames(accounts []genesis.KeyringAccount) (names []string) {
 		names = append(names, account.Name)
 	}
 	return names
-}
-
-// customAppCreator is a temporary workaround to set the min gas price for the
-// testnode.
-//
-// This can be removed after
-// https://github.com/celestiaorg/celestia-app/pull/3680 merges and is
-// backported to celestia-app v2.x.x.
-func customAppCreator(minGasPrice string) sdkservertypes.AppCreator {
-	return func(_ tmlog.Logger, _ tmdb.DB, _ io.Writer, _ sdkservertypes.AppOptions) sdkservertypes.Application {
-		encodingConfig := encoding.MakeConfig(app.ModuleEncodingRegisters...)
-		return app.New(
-			tmlog.NewNopLogger(),
-			tmdb.NewMemDB(),
-			nil, // trace store
-			0,   // invCheckPerid
-			encodingConfig,
-			0, // v2 upgrade height
-			simapp.EmptyAppOptions{},
-			baseapp.SetMinGasPrices(minGasPrice),
-		)
-	}
 }
