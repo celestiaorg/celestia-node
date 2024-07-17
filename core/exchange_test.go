@@ -152,7 +152,7 @@ func fillBlocks(
 		default:
 		}
 
-		_, err := cctx.FillBlock(16, cfg.Genesis.Accounts()[0].PubKey.String(), flags.BroadcastBlock)
+		_, err := cctx.FillBlock(16, cfg.Genesis.Accounts()[0].Name, flags.BroadcastBlock)
 		require.NoError(t, err)
 	}
 }
