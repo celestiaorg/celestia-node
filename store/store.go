@@ -24,18 +24,6 @@ var (
 	emptyAccessor = &eds.Rsmt2D{ExtendedDataSquare: share.EmptyExtendedDataSquare()}
 )
 
-// TODO(@walldiss):
-//  - add method to list files in store
-//  - persist store stats like
-// 		- amount of files
-//		- file types hist (ods/q1q4)
-//		- file size hist
-//		- amount of links hist
-//  - add handling of corrupted files / links
-//  - maintain in-memory missing files index / bloom-filter to fast return for not stored files.
-//  - lock store folder
-//  - add traces
-
 const (
 	blocksPath  = "/blocks/"
 	heightsPath = blocksPath + "heights/"
