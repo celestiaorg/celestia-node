@@ -105,14 +105,14 @@ func (s *Store) Put(
 	lock.lock()
 	defer lock.unlock()
 
+	path := s.basepath + blocksPath + datahash.String()
 	if datahash.IsEmptyRoot() {
-		err := s.createHeightLink(datahash, height)
+		err := s.ensureHeightLink(path, height)
 		return emptyAccessor, err
 	}
 
 	// ensure Q1Q4 file
-	filePath := s.basepath + blocksPath + datahash.String()
-	f, existed, err := file.CreateOrOpenQ1Q4File(filePath, datahash, square)
+	f, existed, err := file.CreateOrOpenQ1Q4File(path, datahash, square)
 	if existed {
 		s.metrics.observePutExist(ctx)
 	}
@@ -123,7 +123,7 @@ func (s *Store) Put(
 	s.metrics.observePut(ctx, time.Since(tNow), square.Width(), false)
 
 	// create hard link with height as name
-	err = s.createHeightLink(datahash, height)
+	err = s.ensureHeightLink(path, height)
 	if err != nil {
 		removeErr := s.removeFile(datahash)
 		return nil, fmt.Errorf("creating hard link: %w", errors.Join(err, removeErr))
@@ -156,11 +156,10 @@ func (s *Store) getByHash(datahash share.DataHash) (eds.AccessorStreamer, error)
 	return s.openFile(path)
 }
 
-func (s *Store) createHeightLink(datahash share.DataHash, height uint64) error {
-	filePath := s.basepath + blocksPath + datahash.String()
+func (s *Store) ensureHeightLink(path string, height uint64) error {
 	// create hard link with height as name
 	linkPath := s.basepath + heightsPath + strconv.Itoa(int(height))
-	err := os.Link(filePath, linkPath)
+	err := os.Link(path, linkPath)
 	if err != nil && !errors.Is(err, os.ErrExist) {
 		return fmt.Errorf("creating hard link: %w", err)
 	}
