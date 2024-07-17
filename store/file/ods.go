@@ -16,7 +16,7 @@ import (
 
 var _ eds.AccessorStreamer = (*ODSFile)(nil)
 
-var ErrFileIsEmpty = fmt.Errorf("file is empty")
+var ErrEmptyFile = fmt.Errorf("file is empty")
 
 type ODSFile struct {
 	path string

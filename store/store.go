@@ -106,7 +106,7 @@ func (s *Store) Put(
 	defer lock.unlock()
 
 	if datahash.IsEmptyRoot() {
-		err := s.addEmptyHeight(height)
+		err := s.createHeightLink(datahash, height)
 		return emptyAccessor, err
 	}
 
@@ -146,7 +146,8 @@ func (s *Store) createFile(
 	// create hard link with height as name
 	err = s.createHeightLink(datahash, height)
 	if err != nil {
-		return nil, fmt.Errorf("creating hard link: %w", err)
+		removeErr := s.removeFile(datahash)
+		return nil, fmt.Errorf("creating hard link: %w", errors.Join(err, removeErr))
 	}
 	return f, nil
 }
@@ -178,7 +179,7 @@ func (s *Store) createHeightLink(datahash share.DataHash, height uint64) error {
 	// create hard link with height as name
 	linkPath := s.basepath + heightsPath + strconv.Itoa(int(height))
 	err := os.Link(filePath, linkPath)
-	if err != nil {
+	if err != nil && !errors.Is(err, os.ErrExist) {
 		return fmt.Errorf("creating hard link: %w", err)
 	}
 	return nil
@@ -262,16 +263,23 @@ func (s *Store) openFile(path string) (eds.AccessorStreamer, error) {
 	if os.IsNotExist(err) {
 		return nil, ErrNotFound
 	}
-	if errors.Is(err, file.ErrFileIsEmpty) {
+	if errors.Is(err, file.ErrEmptyFile) {
 		return emptyAccessor, nil
 	}
 	return nil, fmt.Errorf("opening file: %w", err)
 }
 
 func (s *Store) remove(height uint64, dataRoot share.DataHash) error {
+	lock := s.stripLock.byHeight(height)
+	lock.Lock()
 	if err := s.removeLink(height); err != nil {
 		return fmt.Errorf("removing link: %w", err)
 	}
+	lock.Unlock()
+
+	dlock := s.stripLock.byDatahash(dataRoot)
+	dlock.Lock()
+	defer dlock.Unlock()
 	if err := s.removeFile(dataRoot); err != nil {
 		return fmt.Errorf("removing file: %w", err)
 	}
@@ -279,10 +287,6 @@ func (s *Store) remove(height uint64, dataRoot share.DataHash) error {
 }
 
 func (s *Store) removeLink(height uint64) error {
-	lock := s.stripLock.byHeight(height)
-	lock.Lock()
-	defer lock.Unlock()
-
 	if err := s.cache.Remove(height); err != nil {
 		return fmt.Errorf("removing from cache: %w", err)
 	}
@@ -301,10 +305,6 @@ func (s *Store) removeFile(hash share.DataHash) error {
 	if hash.IsEmptyRoot() {
 		return nil
 	}
-
-	dlock := s.stripLock.byDatahash(hash)
-	dlock.Lock()
-	defer dlock.Unlock()
 
 	hashPath := s.basepath + blocksPath + hash.String()
 	err := os.Remove(hashPath)
@@ -355,14 +355,6 @@ func pathExists(path string) (bool, error) {
 		return false, err
 	}
 	return true, nil
-}
-
-func (s *Store) addEmptyHeight(height uint64) error {
-	err := s.createHeightLink(share.EmptyRoot().Hash(), height)
-	if err != nil && !errors.Is(err, os.ErrExist) {
-		return fmt.Errorf("creating empty height link: %w", err)
-	}
-	return nil
 }
 
 func ensureEmptyFile(basepath string) error {

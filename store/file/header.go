@@ -46,7 +46,7 @@ func readHeader(r io.Reader) (*headerV0, error) {
 	err := binary.Read(r, binary.LittleEndian, &version)
 	if err != nil {
 		if errors.Is(err, io.EOF) {
-			return nil, ErrFileIsEmpty
+			return nil, ErrEmptyFile
 		}
 		return nil, fmt.Errorf("readHeader: %w", err)
 	}
