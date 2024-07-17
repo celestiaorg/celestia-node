@@ -23,11 +23,11 @@ func DefaultParameters() *Parameters {
 
 func (p *Parameters) Validate() error {
 	if p.RecentBlocksCacheSize < 1 {
-		return errors.New("recent blocks cache size must be positive")
+		return errors.New("recent eds cache size must be positive")
 	}
 
 	if p.AvailabilityCacheSize < 1 {
-		return errors.New("blockstore cache size must be positive")
+		return errors.New("availability cache size must be positive")
 	}
 	return nil
 }

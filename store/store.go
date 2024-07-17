@@ -25,6 +25,7 @@ var (
 )
 
 // TODO(@walldiss):
+//  - add method to list files in store
 //  - persist store stats like
 // 		- amount of files
 //		- file types hist (ods/q1q4)
@@ -78,7 +79,7 @@ func NewStore(params *Parameters, basePath string) (*Store, error) {
 		return nil, fmt.Errorf("ensure heights folder '%s': %w", heightsFolderPath, err)
 	}
 
-	err := createEmptyFile(basePath)
+	err := ensureEmptyFile(basePath)
 	if err != nil {
 		return nil, fmt.Errorf("creating empty file: %w", err)
 	}
@@ -122,23 +123,16 @@ func (s *Store) Put(
 	}
 
 	// short circuit if file exists
-	if has, _ := s.hasByHeight(height); has {
+	f, err := s.getByHeight(height)
+	if err == nil {
 		s.metrics.observePutExist(ctx)
-		return s.getByHeight(height)
+		return f, nil
 	}
 
-	filePath := s.basepath + blocksPath + datahash.String()
-	f, err := s.createFile(filePath, datahash, square)
+	f, err = s.createFile(datahash, height, square)
 	if err != nil {
 		s.metrics.observePut(ctx, time.Since(tNow), square.Width(), true)
 		return nil, fmt.Errorf("creating file: %w", err)
-	}
-
-	// create hard link with height as name
-	err = s.createHeightLink(datahash, height)
-	if err != nil {
-		s.metrics.observePut(ctx, time.Since(tNow), square.Width(), false)
-		return nil, fmt.Errorf("linking height: %w", err)
 	}
 	s.metrics.observePut(ctx, time.Since(tNow), square.Width(), false)
 
@@ -151,24 +145,20 @@ func (s *Store) Put(
 }
 
 func (s *Store) createFile(
-	filePath string,
 	datahash share.DataHash,
+	height uint64,
 	square *rsmt2d.ExtendedDataSquare,
 ) (eds.AccessorStreamer, error) {
-	// check if file with the same hash already exists
-	f, err := s.getByHash(datahash)
-	if err == nil {
-		return f, nil
-	}
-
-	if !errors.Is(err, ErrNotFound) {
-		return nil, fmt.Errorf("getting by hash: %w", err)
-	}
-
 	// create Q1Q4 file
-	f, err = file.CreateQ1Q4File(filePath, datahash, square)
+	filePath := s.basepath + blocksPath + datahash.String()
+	f, err := file.CreateQ1Q4File(filePath, datahash, square)
 	if err != nil {
 		return nil, fmt.Errorf("creating ODS file: %w", err)
+	}
+	// create hard link with height as name
+	err = s.createHeightLink(datahash, height)
+	if err != nil {
+		return nil, fmt.Errorf("creating hard link: %w", err)
 	}
 	return f, nil
 }
@@ -269,61 +259,11 @@ func (s *Store) hasByHeight(height uint64) (bool, error) {
 	return pathExists(path)
 }
 
-func (s *Store) Remove(ctx context.Context, height uint64) error {
-	lock := s.stripLock.byHeight(height)
-	lock.Lock()
-	defer lock.Unlock()
-
+func (s *Store) Remove(ctx context.Context, height uint64, dataRoot share.DataHash) error {
 	tNow := time.Now()
-	err := s.remove(ctx, height)
+	err := s.remove(height, dataRoot)
 	s.metrics.observeRemove(ctx, time.Since(tNow), err != nil)
 	return err
-}
-
-func (s *Store) remove(ctx context.Context, height uint64) error {
-	f, err := s.getByHeight(height)
-	if err != nil {
-		// short circuit if file not exists
-		if errors.Is(err, ErrNotFound) {
-			return nil
-		}
-		return fmt.Errorf("getting by height: %w", err)
-	}
-
-	hash, err := f.DataRoot(ctx)
-	if err != nil {
-		return fmt.Errorf("getting data hash: %w", err)
-	}
-	// close file to release the reference in the cache
-	if err = f.Close(); err != nil {
-		return fmt.Errorf("closing file on removal: %w", err)
-	}
-
-	// lock by datahash to prevent concurrent access to the same underlying file
-	// by GetByHash
-	dlock := s.stripLock.byDatahash(hash)
-	dlock.Lock()
-	defer dlock.Unlock()
-
-	if err = s.cache.Remove(height); err != nil {
-		return fmt.Errorf("removing from cache: %w", err)
-	}
-
-	// remove hard link by height
-	heightPath := s.basepath + heightsPath + fmt.Sprintf("%d", height)
-	if err = os.Remove(heightPath); err != nil {
-		return fmt.Errorf("removing by height: %w", err)
-	}
-
-	// remove file if not empty root
-	if !hash.IsEmptyRoot() {
-		hashPath := s.basepath + blocksPath + hash.String()
-		err = os.Remove(hashPath)
-		if err != nil {
-			return fmt.Errorf("removing by hash: %w", err)
-		}
-	}
-	return nil
 }
 
 func (s *Store) openFile(path string) (eds.AccessorStreamer, error) {
@@ -338,6 +278,52 @@ func (s *Store) openFile(path string) (eds.AccessorStreamer, error) {
 		return emptyAccessor, nil
 	}
 	return nil, fmt.Errorf("opening file: %w", err)
+}
+
+func (s *Store) remove(height uint64, dataRoot share.DataHash) error {
+	if err := s.removeLink(height); err != nil {
+		return fmt.Errorf("removing link: %w", err)
+	}
+	if err := s.removeFile(dataRoot); err != nil {
+		return fmt.Errorf("removing file: %w", err)
+	}
+	return nil
+}
+
+func (s *Store) removeLink(height uint64) error {
+	lock := s.stripLock.byHeight(height)
+	lock.Lock()
+	defer lock.Unlock()
+
+	if err := s.cache.Remove(height); err != nil {
+		return fmt.Errorf("removing from cache: %w", err)
+	}
+
+	// remove hard link by height
+	heightPath := s.basepath + heightsPath + fmt.Sprintf("%d", height)
+	err := os.Remove(heightPath)
+	if err != nil && !os.IsNotExist(err) {
+		return err
+	}
+	return nil
+}
+
+func (s *Store) removeFile(hash share.DataHash) error {
+	// we don't need to remove the empty file, it should always be there
+	if hash.IsEmptyRoot() {
+		return nil
+	}
+
+	dlock := s.stripLock.byDatahash(hash)
+	dlock.Lock()
+	defer dlock.Unlock()
+
+	hashPath := s.basepath + blocksPath + hash.String()
+	err := os.Remove(hashPath)
+	if err != nil && !os.IsNotExist(err) {
+		return err
+	}
+	return nil
 }
 
 func fileLoader(f eds.AccessorStreamer) cache.OpenAccessorFn {
@@ -384,18 +370,14 @@ func pathExists(path string) (bool, error) {
 }
 
 func (s *Store) addEmptyHeight(height uint64) error {
-	// short circuit if link exists
-	has, err := s.hasByHeight(height)
-	if err != nil {
-		return err
+	err := s.createHeightLink(share.EmptyRoot().Hash(), height)
+	if err != nil && !errors.Is(err, os.ErrExist) {
+		return fmt.Errorf("creating empty height link: %w", err)
 	}
-	if has {
-		return nil
-	}
-	return s.createHeightLink(share.EmptyRoot().Hash(), height)
+	return nil
 }
 
-func createEmptyFile(basepath string) error {
+func ensureEmptyFile(basepath string) error {
 	path := basepath + blocksPath + share.DataHash(share.EmptyRoot().Hash()).String()
 	ok, err := pathExists(path)
 	if err != nil {
