@@ -273,7 +273,7 @@ func BenchmarkStore(b *testing.B) {
 		b.ResetTimer()
 		for i := 0; i < b.N; i++ {
 			bytes := make([]byte, 5)
-			rand.Read(bytes)
+			rand.Read(bytes) //nolint:errcheck
 			h := share.DataHash(bytes)
 			f, _ := edsStore.Put(ctx, h, uint64(i), eds)
 			_ = f.Close()
