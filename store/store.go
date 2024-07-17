@@ -273,7 +273,7 @@ func (s *Store) removeLink(height uint64) error {
 	// remove hard link by height
 	heightPath := s.basepath + heightsPath + strconv.Itoa(int(height))
 	err := os.Remove(heightPath)
-	if err != nil && !os.IsNotExist(err) {
+	if err != nil && !errors.Is(err, os.ErrNotExist) {
 		return err
 	}
 	return nil
@@ -287,7 +287,7 @@ func (s *Store) removeFile(hash share.DataHash) error {
 
 	hashPath := s.basepath + blocksPath + hash.String()
 	err := os.Remove(hashPath)
-	if err != nil && !os.IsNotExist(err) {
+	if err != nil && !errors.Is(err, os.ErrNotExist) {
 		return err
 	}
 	return nil
@@ -309,7 +309,7 @@ func wrappedFile(f eds.AccessorStreamer) eds.AccessorStreamer {
 
 func ensureFolder(path string) error {
 	info, err := os.Stat(path)
-	if os.IsNotExist(err) {
+	if errors.Is(err, os.ErrNotExist) {
 		err = os.Mkdir(path, defaultDirPerm)
 		if err != nil {
 			return fmt.Errorf("creating blocks dir: %w", err)
@@ -328,7 +328,7 @@ func ensureFolder(path string) error {
 func pathExists(path string) (bool, error) {
 	_, err := os.Stat(path)
 	if err != nil {
-		if os.IsNotExist(err) {
+		if errors.Is(err, os.ErrNotExist) {
 			return false, nil
 		}
 		return false, err
