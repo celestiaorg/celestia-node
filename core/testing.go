@@ -33,18 +33,20 @@ func DefaultTestConfig() *testnode.Config {
 		accounts[i] = tmrand.Str(9)
 	}
 
-	cfg.TmConfig.Consensus.TimeoutCommit = time.Millisecond * 200
-
 	genesis := genesis.NewDefaultGenesis().
 		WithChainID(chainID).
 		WithValidators(genesis.NewDefaultValidator(testnode.DefaultValidatorAccountName)).
 		WithConsensusParams(testnode.DefaultConsensusParams())
 
+	tmConfig := testnode.DefaultTendermintConfig()
+	tmConfig.Consensus.TimeoutCommit = time.Millisecond * 200
+
 	cfg = cfg.
 		WithChainID(chainID).
 		WithFundedAccounts(accounts...).
 		WithSuppressLogs(true).
-		WithGenesis(genesis)
+		WithGenesis(genesis).
+		WithTendermintConfig(tmConfig)
 
 	return cfg
 }
