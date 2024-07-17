@@ -44,8 +44,9 @@ func TestListenerWithNonEmptyBlocks(t *testing.T) {
 	empty := share.EmptyRoot()
 	// TODO extract 16
 	for i := 0; i < 16; i++ {
-		cfg.Genesis.Accounts()
-		_, err := cctx.FillBlock(16, cfg.Genesis.Accounts()[0].PubKey.String(), flags.BroadcastBlock)
+		accounts := cfg.Genesis.Accounts()
+		require.Greater(t, len(accounts), 0)
+		_, err := cctx.FillBlock(16, accounts[0].Name, flags.BroadcastBlock)
 		require.NoError(t, err)
 		msg, err := sub.Next(ctx)
 		require.NoError(t, err)
