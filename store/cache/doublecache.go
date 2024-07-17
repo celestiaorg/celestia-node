@@ -2,6 +2,7 @@ package cache
 
 import (
 	"errors"
+	"fmt"
 
 	eds "github.com/celestiaorg/celestia-node/share/new_eds"
 )
@@ -43,9 +44,18 @@ func (mc *DoubleCache) Second() Cache {
 	return mc.second
 }
 
-func (mc *DoubleCache) EnableMetrics() error {
-	if err := mc.first.EnableMetrics(); err != nil {
-		return err
+func (mc *DoubleCache) EnableMetrics() (unreg func() error, err error) {
+	unreg1, err := mc.first.EnableMetrics()
+	if err != nil {
+		return nil, fmt.Errorf("while enabling metrics for first cache: %w", err)
 	}
-	return mc.second.EnableMetrics()
+	unreg2, err := mc.second.EnableMetrics()
+	if err != nil {
+		return unreg1, fmt.Errorf("while enabling metrics for second cache: %w", err)
+	}
+
+	unregFn := func() error {
+		return errors.Join(unreg1(), unreg2())
+	}
+	return unregFn, nil
 }

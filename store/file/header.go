@@ -2,6 +2,7 @@ package file
 
 import (
 	"encoding/binary"
+	"errors"
 	"fmt"
 	"io"
 
@@ -42,7 +43,11 @@ const (
 func readHeader(r io.Reader) (*headerV0, error) {
 	// read first byte to determine the fileVersion
 	var version headerVersion
-	if err := binary.Read(r, binary.LittleEndian, &version); err != nil {
+	err := binary.Read(r, binary.LittleEndian, &version)
+	if err != nil {
+		if errors.Is(err, io.EOF) {
+			return nil, ErrFileIsEmpty
+		}
 		return nil, fmt.Errorf("readHeader: %w", err)
 	}
 

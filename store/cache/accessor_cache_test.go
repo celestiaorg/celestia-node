@@ -300,7 +300,7 @@ func (m *mockAccessor) Size(context.Context) int {
 	panic("implement me")
 }
 
-func (m *mockAccessor) DataHash(context.Context) (share.DataHash, error) {
+func (m *mockAccessor) DataRoot(context.Context) (share.DataHash, error) {
 	panic("implement me")
 }
 

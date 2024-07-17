@@ -42,12 +42,12 @@ func (c *closeOnce) Size(ctx context.Context) int {
 	return c.f.Size(ctx)
 }
 
-// DataHash returns data hash of the Accessor.
-func (c *closeOnce) DataHash(ctx context.Context) (share.DataHash, error) {
+// DataRoot returns root hash of Accessor's underlying EDS.
+func (c *closeOnce) DataRoot(ctx context.Context) (share.DataHash, error) {
 	if c.closed.Load() {
 		return nil, errAccessorClosed
 	}
-	return c.f.DataHash(ctx)
+	return c.f.DataRoot(ctx)
 }
 
 func (c *closeOnce) Sample(ctx context.Context, rowIdx, colIdx int) (shwap.Sample, error) {

@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"io"
 
-	"github.com/celestiaorg/celestia-app/pkg/da"
 	"github.com/celestiaorg/celestia-app/pkg/wrapper"
 	"github.com/celestiaorg/rsmt2d"
 
@@ -25,9 +24,12 @@ func (eds *Rsmt2D) Size(context.Context) int {
 	return int(eds.Width())
 }
 
-// DataHash returns data hash of the Accessor.
-func (eds *Rsmt2D) DataHash(context.Context) (share.DataHash, error) {
-	dah, _ := da.NewDataAvailabilityHeader(eds.ExtendedDataSquare)
+// DataRoot returns data hash of the Accessor.
+func (eds *Rsmt2D) DataRoot(context.Context) (share.DataHash, error) {
+	dah, err := share.NewRoot(eds.ExtendedDataSquare)
+	if err != nil {
+		return share.DataHash{}, fmt.Errorf("while creating data root: %w", err)
+	}
 	return dah.Hash(), nil
 }
 

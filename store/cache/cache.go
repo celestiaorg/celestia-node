@@ -32,5 +32,5 @@ type Cache interface {
 	Remove(height uint64) error
 
 	// EnableMetrics enables metrics in Cache
-	EnableMetrics() error
+	EnableMetrics() (unreg func() error, err error)
 }

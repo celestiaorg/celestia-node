@@ -151,10 +151,9 @@ func (bc *AccessorCache) Remove(height uint64) error {
 }
 
 // EnableMetrics enables metrics for the cache.
-func (bc *AccessorCache) EnableMetrics() error {
-	var err error
+func (bc *AccessorCache) EnableMetrics() (unreg func() error, err error) {
 	bc.metrics, err = newMetrics(bc)
-	return err
+	return bc.metrics.reg.Unregister, err
 }
 
 func (s *accessor) addRef() error {

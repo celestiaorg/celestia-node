@@ -2,6 +2,7 @@ package store
 
 import (
 	"context"
+	"fmt"
 	"time"
 
 	"go.opentelemetry.io/otel"
@@ -22,6 +23,7 @@ type metrics struct {
 	get       metric.Float64Histogram
 	has       metric.Float64Histogram
 	remove    metric.Float64Histogram
+	unreg     func() error
 }
 
 func (s *Store) WithMetrics() error {
@@ -55,8 +57,9 @@ func (s *Store) WithMetrics() error {
 		return err
 	}
 
-	if err = s.cache.EnableMetrics(); err != nil {
-		return err
+	unreg, err := s.cache.EnableMetrics()
+	if err != nil {
+		return fmt.Errorf("while enabling metrics for cache: %w", err)
 	}
 
 	s.metrics = &metrics{
@@ -65,6 +68,7 @@ func (s *Store) WithMetrics() error {
 		get:       get,
 		has:       has,
 		remove:    remove,
+		unreg:     unreg,
 	}
 	return nil
 }
@@ -127,4 +131,11 @@ func (m *metrics) observeRemove(ctx context.Context, dur time.Duration, failed b
 
 	m.remove.Record(ctx, dur.Seconds(), metric.WithAttributes(
 		attribute.Bool(failedKey, failed)))
+}
+
+func (m *metrics) close() error {
+	if m == nil {
+		return nil
+	}
+	return m.unreg()
 }

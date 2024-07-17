@@ -16,7 +16,6 @@ import (
 	"github.com/celestiaorg/celestia-node/store/cache"
 )
 
-// TODO: add benchmarks for store
 func TestEDSStore(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second*5)
 	t.Cleanup(cancel)
@@ -220,7 +219,7 @@ func TestEDSStore(t *testing.T) {
 		// assert that the empty file is, in fact, empty
 		f, err := edsStore.GetByHash(ctx, dah.Hash())
 		require.NoError(t, err)
-		hash, err := f.DataHash(ctx)
+		hash, err := f.DataRoot(ctx)
 		require.NoError(t, err)
 		require.True(t, hash.IsEmptyRoot())
 	})
@@ -239,7 +238,7 @@ func TestEDSStore(t *testing.T) {
 		f, err := edsStore.Put(ctx, dah.Hash(), height, eds)
 		require.NoError(t, err)
 
-		hash, err := f.DataHash(ctx)
+		hash, err := f.DataRoot(ctx)
 		require.NoError(t, err)
 		require.True(t, hash.IsEmptyRoot())
 		require.NoError(t, f.Close())
@@ -247,7 +246,7 @@ func TestEDSStore(t *testing.T) {
 		// assert that the empty file can be accessed by height
 		f, err = edsStore.GetByHeight(ctx, height)
 		require.NoError(t, err)
-		hash, err = f.DataHash(ctx)
+		hash, err = f.DataRoot(ctx)
 		require.NoError(t, err)
 		require.True(t, hash.IsEmptyRoot())
 		require.NoError(t, f.Close())
@@ -279,7 +278,7 @@ func TestEDSStore(t *testing.T) {
 		for i := from; i <= to; i++ {
 			f, err := edsStore.GetByHeight(ctx, uint64(i))
 			require.NoError(t, err)
-			hash, err := f.DataHash(ctx)
+			hash, err := f.DataRoot(ctx)
 			require.NoError(t, err)
 			require.True(t, hash.IsEmptyRoot())
 			require.NoError(t, f.Close())

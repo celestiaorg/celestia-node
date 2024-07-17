@@ -54,9 +54,9 @@ func (f *Q1Q4File) Size(ctx context.Context) int {
 	return f.ods.Size(ctx)
 }
 
-// DataHash returns data hash of the Accessor.
-func (f *Q1Q4File) DataHash(ctx context.Context) (share.DataHash, error) {
-	return f.ods.DataHash(ctx)
+// DataRoot returns root hash of Accessor's underlying EDS.
+func (f *Q1Q4File) DataRoot(ctx context.Context) (share.DataHash, error) {
+	return f.ods.DataRoot(ctx)
 }
 
 func (f *Q1Q4File) Sample(ctx context.Context, rowIdx, colIdx int) (shwap.Sample, error) {

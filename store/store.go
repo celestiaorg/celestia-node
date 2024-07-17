@@ -2,14 +2,10 @@ package store
 
 import (
 	"context"
-	"encoding/gob"
 	"errors"
 	"fmt"
-	"io"
 	"os"
 	"strconv"
-	"sync"
-	"syscall"
 	"time"
 
 	logging "github.com/ipfs/go-log/v2"
@@ -25,11 +21,10 @@ import (
 var (
 	log = logging.Logger("share/eds")
 
-	emptyFile = &eds.Rsmt2D{ExtendedDataSquare: share.EmptyExtendedDataSquare()}
+	emptyAccessor = &eds.Rsmt2D{ExtendedDataSquare: share.EmptyExtendedDataSquare()}
 )
 
 // TODO(@walldiss):
-//  - periodically persist empty heights
 //  - persist store stats like
 // 		- amount of files
 //		- file types hist (ods/q1q4)
@@ -41,19 +36,18 @@ var (
 //  - add traces
 
 const (
-	blocksPath       = "/blocks/"
-	heightsPath      = blocksPath + "heights/"
-	emptyHeightsFile = heightsPath + "empty_heights"
+	blocksPath  = "/blocks/"
+	heightsPath = blocksPath + "heights/"
 
 	defaultDirPerm = 0o755
 )
 
 var ErrNotFound = errors.New("eds not found in store")
 
-// Store maintains (via DAGStore) a top-level index enabling granular and efficient random access to
-// every share and/or Merkle proof over every registered CARv1 file. The EDSStore provides a custom
-// blockstore interface implementation to achieve access. The main use-case is randomized sampling
-// over the whole chain of EDS block data and getting data by namespace.
+// Store is a storage for EDS files. It persists EDS files on disk in form of Q1Q4 files or ODS
+// files. It provides methods to put, get and remove EDS files. It has two caches: recent eds cache
+// and availability cache. Recent eds cache is used to cache recent blocks. Availability cache is
+// used to cache blocks that are accessed by sample requests. Store is thread-safe.
 type Store struct {
 	// basepath is the root directory of the store
 	basepath string
@@ -61,11 +55,7 @@ type Store struct {
 	cache *cache.DoubleCache
 	// stripedLocks is used to synchronize parallel operations
 	stripLock *striplock
-	// emptyHeights stores the heights of empty files
-	emptyHeights     map[uint64]struct{}
-	emptyHeightsLock sync.RWMutex
-
-	metrics *metrics
+	metrics   *metrics
 }
 
 // NewStore creates a new EDS Store under the given basepath and datastore.
@@ -88,39 +78,31 @@ func NewStore(params *Parameters, basePath string) (*Store, error) {
 		return nil, fmt.Errorf("ensure heights folder '%s': %w", heightsFolderPath, err)
 	}
 
-	// Ensure the empty heights file exists or is created.
-	emptyHeightsFilePath := basePath + emptyHeightsFile
-	if err := ensureFile(emptyHeightsFilePath); err != nil {
-		log.Errorf("Failed to ensure the empty heights file at '%s': %s", emptyHeightsFilePath, err)
-		return nil, fmt.Errorf("ensure empty heights file '%s': %w", emptyHeightsFilePath, err)
+	err := createEmptyFile(basePath)
+	if err != nil {
+		return nil, fmt.Errorf("creating empty file: %w", err)
 	}
 
-	recentBlocksCache, err := cache.NewAccessorCache("recent", 1)
+	recentEDSCache, err := cache.NewAccessorCache("recent", params.RecentBlocksCacheSize)
 	if err != nil {
-		return nil, fmt.Errorf("failed to create recent blocks cache: %w", err)
+		return nil, fmt.Errorf("failed to create recent eds cache: %w", err)
 	}
 
-	blockstoreCache, err := cache.NewAccessorCache("blockstore", 1)
+	availabilityCache, err := cache.NewAccessorCache("blockstore", params.AvailabilityCacheSize)
 	if err != nil {
-		return nil, fmt.Errorf("failed to create blockstore cache: %w", err)
-	}
-
-	emptyHeights, err := loadEmptyHeights(basePath)
-	if err != nil {
-		return nil, fmt.Errorf("loading empty heights: %w", err)
+		return nil, fmt.Errorf("failed to create availability cache: %w", err)
 	}
 
 	store := &Store{
-		basepath:     basePath,
-		cache:        cache.NewDoubleCache(recentBlocksCache, blockstoreCache),
-		stripLock:    newStripLock(1024),
-		emptyHeights: emptyHeights,
+		basepath:  basePath,
+		cache:     cache.NewDoubleCache(recentEDSCache, availabilityCache),
+		stripLock: newStripLock(1024),
 	}
 	return store, nil
 }
 
 func (s *Store) Close() error {
-	return s.storeEmptyHeights()
+	return s.metrics.close()
 }
 
 func (s *Store) Put(
@@ -135,8 +117,8 @@ func (s *Store) Put(
 	defer lock.unlock()
 
 	if datahash.IsEmptyRoot() {
-		s.addEmptyHeight(height)
-		return emptyFile, nil
+		err := s.addEmptyHeight(height)
+		return emptyAccessor, err
 	}
 
 	// short circuit if file exists
@@ -193,7 +175,7 @@ func (s *Store) createFile(
 
 func (s *Store) GetByHash(ctx context.Context, datahash share.DataHash) (eds.AccessorStreamer, error) {
 	if datahash.IsEmptyRoot() {
-		return emptyFile, nil
+		return emptyAccessor, nil
 	}
 	lock := s.stripLock.byDatahash(datahash)
 	lock.RLock()
@@ -207,42 +189,13 @@ func (s *Store) GetByHash(ctx context.Context, datahash share.DataHash) (eds.Acc
 
 func (s *Store) getByHash(datahash share.DataHash) (eds.AccessorStreamer, error) {
 	if datahash.IsEmptyRoot() {
-		return emptyFile, nil
+		return emptyAccessor, nil
 	}
-
 	path := s.basepath + blocksPath + datahash.String()
-	f, err := file.OpenQ1Q4File(path)
-	if err != nil {
-		if os.IsNotExist(err) {
-			return nil, ErrNotFound
-		}
-		return nil, fmt.Errorf("opening ODS file: %w", err)
-	}
-	return wrappedFile(f), nil
-}
-
-func (s *Store) LinkHashToHeight(_ context.Context, datahash share.DataHash, height uint64) error {
-	lock := s.stripLock.byDatahashAndHeight(datahash, height)
-	lock.lock()
-	defer lock.unlock()
-
-	if datahash.IsEmptyRoot() {
-		s.addEmptyHeight(height)
-		return nil
-	}
-
-	if has, _ := s.hasByHash(datahash); !has {
-		return errors.New("cannot link non-existing file")
-	}
-	return s.createHeightLink(datahash, height)
+	return s.openFile(path)
 }
 
 func (s *Store) createHeightLink(datahash share.DataHash, height uint64) error {
-	// short circuit if link exists
-	if has, _ := s.hasByHeight(height); has {
-		return nil
-	}
-
 	filePath := s.basepath + blocksPath + datahash.String()
 	// create hard link with height as name
 	linkPath := s.basepath + heightsPath + strconv.Itoa(int(height))
@@ -250,7 +203,6 @@ func (s *Store) createHeightLink(datahash share.DataHash, height uint64) error {
 	if err != nil {
 		return fmt.Errorf("creating hard link: %w", err)
 	}
-
 	return nil
 }
 
@@ -266,24 +218,12 @@ func (s *Store) GetByHeight(ctx context.Context, height uint64) (eds.AccessorStr
 }
 
 func (s *Store) getByHeight(height uint64) (eds.AccessorStreamer, error) {
-	if s.isEmptyHeight(height) {
-		return emptyFile, nil
-	}
-
 	f, err := s.cache.Get(height)
 	if err == nil {
 		return f, nil
 	}
-
 	path := s.basepath + heightsPath + fmt.Sprintf("%d", height)
-	f, err = file.OpenQ1Q4File(path)
-	if err != nil {
-		if os.IsNotExist(err) {
-			return nil, ErrNotFound
-		}
-		return nil, fmt.Errorf("opening ODS file: %w", err)
-	}
-	return wrappedFile(f), nil
+	return s.openFile(path)
 }
 
 func (s *Store) HasByHash(ctx context.Context, datahash share.DataHash) (bool, error) {
@@ -320,10 +260,6 @@ func (s *Store) HasByHeight(ctx context.Context, height uint64) (bool, error) {
 }
 
 func (s *Store) hasByHeight(height uint64) (bool, error) {
-	if s.isEmptyHeight(height) {
-		return true, nil
-	}
-
 	_, err := s.cache.Get(height)
 	if err == nil {
 		return true, nil
@@ -354,7 +290,7 @@ func (s *Store) remove(ctx context.Context, height uint64) error {
 		return fmt.Errorf("getting by height: %w", err)
 	}
 
-	hash, err := f.DataHash(ctx)
+	hash, err := f.DataRoot(ctx)
 	if err != nil {
 		return fmt.Errorf("getting data hash: %w", err)
 	}
@@ -364,7 +300,7 @@ func (s *Store) remove(ctx context.Context, height uint64) error {
 	}
 
 	// lock by datahash to prevent concurrent access to the same underlying file
-	// using links from different heights
+	// by GetByHash
 	dlock := s.stripLock.byDatahash(hash)
 	dlock.Lock()
 	defer dlock.Unlock()
@@ -379,18 +315,29 @@ func (s *Store) remove(ctx context.Context, height uint64) error {
 		return fmt.Errorf("removing by height: %w", err)
 	}
 
-	hashPath := s.basepath + blocksPath + hash.String()
-	count, err := linksCount(hashPath)
-	if err != nil {
-		return fmt.Errorf("counting links: %w", err)
-	}
-	if count == 1 {
+	// remove file if not empty root
+	if !hash.IsEmptyRoot() {
+		hashPath := s.basepath + blocksPath + hash.String()
 		err = os.Remove(hashPath)
 		if err != nil {
 			return fmt.Errorf("removing by hash: %w", err)
 		}
 	}
 	return nil
+}
+
+func (s *Store) openFile(path string) (eds.AccessorStreamer, error) {
+	f, err := file.OpenQ1Q4File(path)
+	if err == nil {
+		return wrappedFile(f), nil
+	}
+	if os.IsNotExist(err) {
+		return nil, ErrNotFound
+	}
+	if errors.Is(err, file.ErrFileIsEmpty) {
+		return emptyAccessor, nil
+	}
+	return nil, fmt.Errorf("opening file: %w", err)
 }
 
 func fileLoader(f eds.AccessorStreamer) cache.OpenAccessorFn {
@@ -400,9 +347,6 @@ func fileLoader(f eds.AccessorStreamer) cache.OpenAccessorFn {
 }
 
 func wrappedFile(f eds.AccessorStreamer) eds.AccessorStreamer {
-	if f == nil {
-		panic("aaa")
-	}
 	withCache := eds.WithProofsCache(f)
 	closedOnce := eds.WithClosedOnce(withCache)
 	sanityChecked := eds.WithValidation(closedOnce)
@@ -428,24 +372,6 @@ func ensureFolder(path string) error {
 	return nil
 }
 
-func ensureFile(path string) error {
-	info, err := os.Stat(path)
-	if os.IsNotExist(err) {
-		file, err := os.Create(path)
-		if err != nil {
-			return fmt.Errorf("creating file: %w", err)
-		}
-		return file.Close()
-	}
-	if err != nil {
-		return fmt.Errorf("checking file: %w", err)
-	}
-	if info.IsDir() {
-		return errors.New("expected file, got a dir")
-	}
-	return nil
-}
-
 func pathExists(path string) (bool, error) {
 	_, err := os.Stat(path)
 	if err != nil {
@@ -457,63 +383,33 @@ func pathExists(path string) (bool, error) {
 	return true, nil
 }
 
-func linksCount(path string) (int, error) {
-	info, err := os.Stat(path)
+func (s *Store) addEmptyHeight(height uint64) error {
+	// short circuit if link exists
+	has, err := s.hasByHeight(height)
 	if err != nil {
-		return 0, fmt.Errorf("checking file: %w", err)
+		return err
 	}
-
-	return int(info.Sys().(*syscall.Stat_t).Nlink), nil
+	if has {
+		return nil
+	}
+	return s.createHeightLink(share.EmptyRoot().Hash(), height)
 }
 
-func (s *Store) storeEmptyHeights() error {
-	file, err := os.OpenFile(s.basepath+emptyHeightsFile, os.O_WRONLY, os.ModePerm)
+func createEmptyFile(basepath string) error {
+	path := basepath + blocksPath + share.DataHash(share.EmptyRoot().Hash()).String()
+	ok, err := pathExists(path)
 	if err != nil {
-		return fmt.Errorf("opening empty heights file: %w", err)
+		return fmt.Errorf("checking empty root: %w", err)
 	}
-	defer closeAndLog(log, "empty heights file", file)
-
-	s.emptyHeightsLock.RLock()
-	defer s.emptyHeightsLock.RUnlock()
-
-	encoder := gob.NewEncoder(file)
-	if err := encoder.Encode(s.emptyHeights); err != nil {
-		return fmt.Errorf("encoding empty heights: %w", err)
+	if ok {
+		return nil
 	}
-
+	f, err := os.Create(path)
+	if err != nil {
+		return fmt.Errorf("creating empty root file: %w", err)
+	}
+	if err = f.Close(); err != nil {
+		return fmt.Errorf("closing empty root file: %w", err)
+	}
 	return nil
-}
-
-func loadEmptyHeights(basepath string) (map[uint64]struct{}, error) {
-	file, err := os.Open(basepath + emptyHeightsFile)
-	if err != nil {
-		return nil, fmt.Errorf("opening empty heights file: %w", err)
-	}
-	defer closeAndLog(log, "empty heights file", file)
-
-	emptyHeights := make(map[uint64]struct{})
-	err = gob.NewDecoder(file).Decode(&emptyHeights)
-	if err != nil && !errors.Is(err, io.EOF) {
-		return nil, fmt.Errorf("decoding empty heights file: %w", err)
-	}
-	return emptyHeights, nil
-}
-
-func (s *Store) isEmptyHeight(height uint64) bool {
-	s.emptyHeightsLock.RLock()
-	defer s.emptyHeightsLock.RUnlock()
-	_, ok := s.emptyHeights[height]
-	return ok
-}
-
-func (s *Store) addEmptyHeight(height uint64) {
-	s.emptyHeightsLock.Lock()
-	defer s.emptyHeightsLock.Unlock()
-	s.emptyHeights[height] = struct{}{}
-}
-
-func closeAndLog(log logging.StandardLogger, name string, closer io.Closer) {
-	if err := closer.Close(); err != nil {
-		log.Warnf("closing %s: %s", name, err)
-	}
 }

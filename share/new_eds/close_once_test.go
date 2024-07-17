@@ -50,7 +50,7 @@ func (s *stubEdsAccessorCloser) Size(context.Context) int {
 	return 0
 }
 
-func (s *stubEdsAccessorCloser) DataHash(context.Context) (share.DataHash, error) {
+func (s *stubEdsAccessorCloser) DataRoot(context.Context) (share.DataHash, error) {
 	return nil, nil
 }
 

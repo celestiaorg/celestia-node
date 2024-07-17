@@ -16,6 +16,8 @@ import (
 
 var _ eds.AccessorStreamer = (*ODSFile)(nil)
 
+var ErrFileIsEmpty = fmt.Errorf("file is empty")
+
 type ODSFile struct {
 	path string
 	hdr  *headerV0
@@ -114,8 +116,8 @@ func (f *ODSFile) size() int {
 	return int(f.hdr.squareSize)
 }
 
-// DataHash returns data hash of the Accessor.
-func (f *ODSFile) DataHash(context.Context) (share.DataHash, error) {
+// DataRoot returns root hash of Accessor's underlying EDS.
+func (f *ODSFile) DataRoot(context.Context) (share.DataHash, error) {
 	return f.hdr.datahash, nil
 }
 
