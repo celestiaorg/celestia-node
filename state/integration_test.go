@@ -34,8 +34,6 @@ type IntegrationTestSuite struct {
 
 	cleanups []func() error
 	accounts []genesis.Account
-	pubKeys  []string
-	keyname  string
 	cctx     testnode.Context
 
 	accessor *CoreAccessor
@@ -50,14 +48,11 @@ func (s *IntegrationTestSuite) SetupSuite() {
 	cfg := core.DefaultTestConfig()
 	s.cctx = core.StartTestNodeWithConfig(s.T(), cfg)
 	s.accounts = cfg.Genesis.Accounts()
-	s.pubKeys = getPubKeys(cfg.Genesis.Accounts())
 
-	records, err := cfg.Genesis.Keyring().List()
-	s.Require().NoError(err)
-	keyname := records[0].Name
-	s.keyname = keyname
+	s.Require().Greater(len(s.accounts), 0)
+	accountName := s.accounts[0].Name
 
-	accessor, err := NewCoreAccessor(s.cctx.Keyring, keyname, localHeader{s.cctx.Client}, "", "")
+	accessor, err := NewCoreAccessor(s.cctx.Keyring, accountName, localHeader{s.cctx.Client}, "", "")
 	require.NoError(s.T(), err)
 	setClients(accessor, s.cctx.GRPCClient)
 	s.accessor = accessor
@@ -65,13 +60,6 @@ func (s *IntegrationTestSuite) SetupSuite() {
 	// required to ensure the Head request is non-nil
 	_, err = s.cctx.WaitForHeight(3)
 	require.NoError(s.T(), err)
-}
-
-func getPubKeys(accounts []genesis.Account) (pubKeys []string) {
-	for _, account := range accounts {
-		pubKeys = append(pubKeys, account.PubKey.String())
-	}
-	return pubKeys
 }
 
 func setClients(ca *CoreAccessor, conn *grpc.ClientConn) {
@@ -131,7 +119,9 @@ func (s *IntegrationTestSuite) TestGetBalance() {
 func (s *IntegrationTestSuite) TestGenerateJSONBlock() {
 	t := s.T()
 	t.Skip("skipping testdata generation test")
-	resp, err := s.cctx.FillBlock(4, s.keyname, flags.BroadcastSync)
+	s.Require().Greater(len(s.accounts), 0)
+	accountName := s.accounts[0].Name
+	resp, err := s.cctx.FillBlock(4, accountName, flags.BroadcastSync)
 	require := s.Require()
 	require.NoError(err)
 	require.Equal(abci.CodeTypeOK, resp.Code)
