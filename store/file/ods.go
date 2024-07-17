@@ -2,6 +2,7 @@ package file
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"io"
 	"os"
@@ -18,7 +19,7 @@ var _ eds.AccessorStreamer = (*ODSFile)(nil)
 
 // ErrEmptyFile signals that the ODS file is empty.
 // This helps avoid storing empty block EDSes.
-var ErrEmptyFile = fmt.Errorf("file is empty")
+var ErrEmptyFile = errors.New("file is empty")
 
 type ODSFile struct {
 	path string
