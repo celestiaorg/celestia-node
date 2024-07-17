@@ -77,7 +77,7 @@ func NewStore(params *Parameters, basePath string) (*Store, error) {
 		return nil, fmt.Errorf("failed to create recent eds cache: %w", err)
 	}
 
-	availabilityCache, err := cache.NewAccessorCache("blockstore", params.AvailabilityCacheSize)
+	availabilityCache, err := cache.NewAccessorCache("availability", params.AvailabilityCacheSize)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create availability cache: %w", err)
 	}
@@ -141,7 +141,7 @@ func (s *Store) createFile(
 	filePath := s.basepath + blocksPath + datahash.String()
 	f, err := file.CreateQ1Q4File(filePath, datahash, square)
 	if err != nil {
-		return nil, fmt.Errorf("creating ODS file: %w", err)
+		return nil, fmt.Errorf("creating Q1Q4 file: %w", err)
 	}
 	// create hard link with height as name
 	err = s.createHeightLink(datahash, height)
@@ -167,9 +167,6 @@ func (s *Store) GetByHash(ctx context.Context, datahash share.DataHash) (eds.Acc
 }
 
 func (s *Store) getByHash(datahash share.DataHash) (eds.AccessorStreamer, error) {
-	if datahash.IsEmptyRoot() {
-		return emptyAccessor, nil
-	}
 	path := s.basepath + blocksPath + datahash.String()
 	return s.openFile(path)
 }
@@ -201,7 +198,7 @@ func (s *Store) getByHeight(height uint64) (eds.AccessorStreamer, error) {
 	if err == nil {
 		return f, nil
 	}
-	path := s.basepath + heightsPath + fmt.Sprintf("%d", height)
+	path := s.basepath + heightsPath + strconv.Itoa(int(height))
 	return s.openFile(path)
 }
 
@@ -220,9 +217,6 @@ func (s *Store) HasByHash(ctx context.Context, datahash share.DataHash) (bool, e
 }
 
 func (s *Store) hasByHash(datahash share.DataHash) (bool, error) {
-	if datahash.IsEmptyRoot() {
-		return true, nil
-	}
 	path := s.basepath + blocksPath + datahash.String()
 	return pathExists(path)
 }
@@ -244,7 +238,7 @@ func (s *Store) hasByHeight(height uint64) (bool, error) {
 		return true, nil
 	}
 
-	path := s.basepath + heightsPath + fmt.Sprintf("%d", height)
+	path := s.basepath + heightsPath + strconv.Itoa(int(height))
 	return pathExists(path)
 }
 
@@ -292,7 +286,7 @@ func (s *Store) removeLink(height uint64) error {
 	}
 
 	// remove hard link by height
-	heightPath := s.basepath + heightsPath + fmt.Sprintf("%d", height)
+	heightPath := s.basepath + heightsPath + strconv.Itoa(int(height))
 	err := os.Remove(heightPath)
 	if err != nil && !os.IsNotExist(err) {
 		return err
