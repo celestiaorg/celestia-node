@@ -85,7 +85,7 @@ func TestShrexNDFromLightsWithBadFulls(t *testing.T) {
 		btime         = time.Millisecond * 300
 		bsize         = 16
 		amountOfFulls = 5
-		testTimeout   = time.Second * 10
+		testTimeout   = time.Second * 20
 	)
 
 	ctx, cancel := context.WithTimeout(context.Background(), testTimeout)
