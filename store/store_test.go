@@ -2,12 +2,12 @@ package store
 
 import (
 	"context"
+	"crypto/rand"
+	"sync/atomic"
 	"testing"
 	"time"
 
 	"github.com/stretchr/testify/require"
-	"github.com/tendermint/tendermint/libs/rand"
-	"go.uber.org/atomic"
 
 	"github.com/celestiaorg/rsmt2d"
 
@@ -25,7 +25,8 @@ func TestEDSStore(t *testing.T) {
 
 	// disable cache
 	edsStore.cache = cache.NewDoubleCache(cache.NoopCache{}, cache.NoopCache{})
-	height := atomic.NewUint64(100)
+	height := atomic.Uint64{}
+	height.Store(100)
 
 	// PutRegistersShard tests if Put registers the shard on the underlying DAGStore
 	t.Run("Put", func(t *testing.T) {
@@ -271,7 +272,9 @@ func BenchmarkStore(b *testing.B) {
 	b.Run("put 128", func(b *testing.B) {
 		b.ResetTimer()
 		for i := 0; i < b.N; i++ {
-			h := share.DataHash(rand.Bytes(5))
+			bytes := make([]byte, 5)
+			rand.Read(bytes)
+			h := share.DataHash(bytes)
 			f, _ := edsStore.Put(ctx, h, uint64(i), eds)
 			_ = f.Close()
 		}
