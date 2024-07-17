@@ -44,6 +44,8 @@ func TestBlob(t *testing.T) {
 				comm, err := inclusion.CreateCommitment(
 					blob[0].Blob,
 					merkle.HashFromByteSlices,
+					// The argument to SubtreeRootThreshold is hardcoded to use
+					// v1.Version because it behaves identically to v2.Version.
 					appconsts.SubtreeRootThreshold(v1.Version),
 				)
 				require.NoError(t, err)

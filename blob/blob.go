@@ -106,6 +106,9 @@ func NewBlob(shareVersion uint8, namespace share.Namespace, data []byte) (*Blob,
 		NamespaceVersion: uint32(namespace.Version()),
 	}
 
+	// The argument to SubtreeRootThreshold is hardcoded to use v1.Version
+	// because it behaves identically to v2.Version and the containing function
+	// NewBlob does not have an app version parameter.
 	com, err := inclusion.CreateCommitment(&blob, merkle.HashFromByteSlices, appconsts.SubtreeRootThreshold(v1.Version))
 	if err != nil {
 		return nil, err
