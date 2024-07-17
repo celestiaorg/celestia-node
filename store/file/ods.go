@@ -66,7 +66,8 @@ func CreateODSFile(
 	datahash share.DataHash,
 	eds *rsmt2d.ExtendedDataSquare,
 ) (*ODSFile, error) {
-	f, err := os.Create(path)
+	mod := os.O_RDWR | os.O_CREATE | os.O_EXCL // ensure we fail if already exist
+	f, err := os.OpenFile(path, mod, 0o666)
 	if err != nil {
 		return nil, fmt.Errorf("file create: %w", err)
 	}

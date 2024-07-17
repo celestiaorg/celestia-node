@@ -110,46 +110,31 @@ func (s *Store) Put(
 		return emptyAccessor, err
 	}
 
-	// short circuit if file exists
-	f, err := s.getByHeight(height)
-	if err == nil {
+	// ensure Q1Q4 file
+	filePath := s.basepath + blocksPath + datahash.String()
+	f, existed, err := file.CreateOrOpenQ1Q4File(filePath, datahash, square)
+	if existed {
 		s.metrics.observePutExist(ctx)
-		return f, nil
 	}
-
-	f, err = s.createFile(datahash, height, square)
 	if err != nil {
 		s.metrics.observePut(ctx, time.Since(tNow), square.Width(), true)
-		return nil, fmt.Errorf("creating file: %w", err)
+		return nil, fmt.Errorf("creating Q1Q4 file: %w", err)
 	}
 	s.metrics.observePut(ctx, time.Since(tNow), square.Width(), false)
 
-	// put file in recent cache
-	f, err = s.cache.First().GetOrLoad(ctx, height, fileLoader(f))
-	if err != nil {
-		log.Warnf("failed to put file in recent cache: %s", err)
-	}
-	return f, nil
-}
-
-func (s *Store) createFile(
-	datahash share.DataHash,
-	height uint64,
-	square *rsmt2d.ExtendedDataSquare,
-) (eds.AccessorStreamer, error) {
-	// create Q1Q4 file
-	filePath := s.basepath + blocksPath + datahash.String()
-	f, err := file.CreateQ1Q4File(filePath, datahash, square)
-	if err != nil {
-		return nil, fmt.Errorf("creating Q1Q4 file: %w", err)
-	}
 	// create hard link with height as name
 	err = s.createHeightLink(datahash, height)
 	if err != nil {
 		removeErr := s.removeFile(datahash)
 		return nil, fmt.Errorf("creating hard link: %w", errors.Join(err, removeErr))
 	}
-	return f, nil
+
+	// put file in recent cache
+	accessor, err := s.cache.First().GetOrLoad(ctx, height, fileLoader(f))
+	if err != nil {
+		log.Warnf("failed to put file in recent cache: %s", err)
+	}
+	return accessor, nil
 }
 
 func (s *Store) GetByHash(ctx context.Context, datahash share.DataHash) (eds.AccessorStreamer, error) {
