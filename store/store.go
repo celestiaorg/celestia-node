@@ -137,6 +137,16 @@ func (s *Store) Put(
 	return accessor, nil
 }
 
+func (s *Store) ensureHeightLink(path string, height uint64) error {
+	// create hard link with height as name
+	linkPath := s.basepath + heightsPath + strconv.Itoa(int(height))
+	err := os.Link(path, linkPath)
+	if err != nil && !errors.Is(err, os.ErrExist) {
+		return fmt.Errorf("creating hard link: %w", err)
+	}
+	return nil
+}
+
 func (s *Store) GetByHash(ctx context.Context, datahash share.DataHash) (eds.AccessorStreamer, error) {
 	if datahash.IsEmptyRoot() {
 		return emptyAccessor, nil
@@ -154,16 +164,6 @@ func (s *Store) GetByHash(ctx context.Context, datahash share.DataHash) (eds.Acc
 func (s *Store) getByHash(datahash share.DataHash) (eds.AccessorStreamer, error) {
 	path := s.basepath + blocksPath + datahash.String()
 	return s.openFile(path)
-}
-
-func (s *Store) ensureHeightLink(path string, height uint64) error {
-	// create hard link with height as name
-	linkPath := s.basepath + heightsPath + strconv.Itoa(int(height))
-	err := os.Link(path, linkPath)
-	if err != nil && !errors.Is(err, os.ErrExist) {
-		return fmt.Errorf("creating hard link: %w", err)
-	}
-	return nil
 }
 
 func (s *Store) GetByHeight(ctx context.Context, height uint64) (eds.AccessorStreamer, error) {
@@ -184,6 +184,20 @@ func (s *Store) getByHeight(height uint64) (eds.AccessorStreamer, error) {
 	}
 	path := s.basepath + heightsPath + strconv.Itoa(int(height))
 	return s.openFile(path)
+}
+
+func (s *Store) openFile(path string) (eds.AccessorStreamer, error) {
+	f, err := file.OpenQ1Q4File(path)
+	if err == nil {
+		return wrappedFile(f), nil
+	}
+	if os.IsNotExist(err) {
+		return nil, ErrNotFound
+	}
+	if errors.Is(err, file.ErrEmptyFile) {
+		return emptyAccessor, nil
+	}
+	return nil, fmt.Errorf("opening file: %w", err)
 }
 
 func (s *Store) HasByHash(ctx context.Context, datahash share.DataHash) (bool, error) {
@@ -231,20 +245,6 @@ func (s *Store) Remove(ctx context.Context, height uint64, dataRoot share.DataHa
 	err := s.remove(height, dataRoot)
 	s.metrics.observeRemove(ctx, time.Since(tNow), err != nil)
 	return err
-}
-
-func (s *Store) openFile(path string) (eds.AccessorStreamer, error) {
-	f, err := file.OpenQ1Q4File(path)
-	if err == nil {
-		return wrappedFile(f), nil
-	}
-	if os.IsNotExist(err) {
-		return nil, ErrNotFound
-	}
-	if errors.Is(err, file.ErrEmptyFile) {
-		return emptyAccessor, nil
-	}
-	return nil, fmt.Errorf("opening file: %w", err)
 }
 
 func (s *Store) remove(height uint64, dataRoot share.DataHash) error {
