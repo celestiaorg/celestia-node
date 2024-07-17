@@ -120,19 +120,20 @@ func (s *Store) Put(
 		s.metrics.observePut(ctx, time.Since(tNow), square.Width(), true)
 		return nil, fmt.Errorf("creating Q1Q4 file: %w", err)
 	}
-	s.metrics.observePut(ctx, time.Since(tNow), square.Width(), false)
 
 	// create hard link with height as name
 	err = s.ensureHeightLink(path, height)
 	if err != nil {
+		s.metrics.observePut(ctx, time.Since(tNow), square.Width(), true)
 		removeErr := s.removeFile(datahash)
 		return nil, fmt.Errorf("creating hard link: %w", errors.Join(err, removeErr))
 	}
+	s.metrics.observePut(ctx, time.Since(tNow), square.Width(), false)
 
 	// put file in recent cache
 	accessor, err := s.cache.First().GetOrLoad(ctx, height, fileLoader(f))
 	if err != nil {
-		log.Warnf("failed to put file in recent cache: %s", err)
+		log.Errorf("failed to put file in recent cache: %s", err)
 	}
 	return accessor, nil
 }
