@@ -112,17 +112,19 @@ func (s *Store) Put(
 	}
 
 	f, err := file.CreateQ1Q4File(path, datahash, square)
-	if errors.Is(err, os.ErrExist) {
-		s.metrics.observePutExist(ctx)
-	} else if err != nil {
+	if err != nil {
+		if errors.Is(err, os.ErrExist) {
+			s.metrics.observePutExist(ctx)
+			return nil
+		}
 		s.metrics.observePut(ctx, time.Since(tNow), square.Width(), true)
 		return fmt.Errorf("creating Q1Q4 file: %w", err)
-	} else {
-		err = f.Close()
-		if err != nil {
-			s.metrics.observePut(ctx, time.Since(tNow), square.Width(), true)
-			return fmt.Errorf("closing created Q1Q4 file: %w", err)
-		}
+	}
+
+	err = f.Close()
+	if err != nil {
+		s.metrics.observePut(ctx, time.Since(tNow), square.Width(), true)
+		return fmt.Errorf("closing created Q1Q4 file: %w", err)
 	}
 
 	// create hard link with height as name
@@ -138,7 +140,7 @@ func (s *Store) Put(
 	eds := &eds.Rsmt2D{ExtendedDataSquare: square}
 	_, err = s.cache.First().GetOrLoad(ctx, height, accessorLoader(eds))
 	if err != nil {
-		log.Errorf("failed to put file in recent cache: %s", err)
+		log.Warnf("failed to put file in recent cache: %s", err)
 	}
 
 	return nil
