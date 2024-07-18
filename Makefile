@@ -123,7 +123,7 @@ lint: lint-imports
 	@echo "--> Running linter"
 	@golangci-lint run
 	@markdownlint --config .markdownlint.yaml '**/*.md'
-	@cfmt -m=100 ./...
+	@cfmt --m=120 ./...
 .PHONY: lint
 
 ## test-unit: Running unit tests
