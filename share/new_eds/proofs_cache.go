@@ -77,6 +77,10 @@ func (c *proofsCache) Size(ctx context.Context) int {
 	return int(size)
 }
 
+func (c *proofsCache) DataRoot(ctx context.Context) (share.DataHash, error) {
+	return c.inner.DataRoot(ctx)
+}
+
 func (c *proofsCache) Sample(ctx context.Context, rowIdx, colIdx int) (shwap.Sample, error) {
 	axisType, axisIdx, shrIdx := rsmt2d.Row, rowIdx, colIdx
 	ax, err := c.axisWithProofs(ctx, axisType, axisIdx)

@@ -2,6 +2,7 @@ package file
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"io"
 	"os"
@@ -15,6 +16,10 @@ import (
 )
 
 var _ eds.AccessorStreamer = (*ODSFile)(nil)
+
+// ErrEmptyFile signals that the ODS file is empty.
+// This helps avoid storing empty block EDSes.
+var ErrEmptyFile = errors.New("file is empty")
 
 type ODSFile struct {
 	path string
@@ -61,7 +66,8 @@ func CreateODSFile(
 	datahash share.DataHash,
 	eds *rsmt2d.ExtendedDataSquare,
 ) (*ODSFile, error) {
-	f, err := os.Create(path)
+	mod := os.O_RDWR | os.O_CREATE | os.O_EXCL // ensure we fail if already exist
+	f, err := os.OpenFile(path, mod, 0o666)
 	if err != nil {
 		return nil, fmt.Errorf("file create: %w", err)
 	}
@@ -112,6 +118,11 @@ func (f *ODSFile) Size(context.Context) int {
 
 func (f *ODSFile) size() int {
 	return int(f.hdr.squareSize)
+}
+
+// DataRoot returns root hash of Accessor's underlying EDS.
+func (f *ODSFile) DataRoot(context.Context) (share.DataHash, error) {
+	return f.hdr.datahash, nil
 }
 
 // Close closes the file.

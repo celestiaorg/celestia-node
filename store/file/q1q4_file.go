@@ -33,8 +33,7 @@ func OpenQ1Q4File(path string) (*Q1Q4File, error) {
 	}, nil
 }
 
-func CreateQ1Q4File(path string, datahash share.DataHash, eds *rsmt2d.ExtendedDataSquare,
-) (*Q1Q4File, error) {
+func CreateQ1Q4File(path string, datahash share.DataHash, eds *rsmt2d.ExtendedDataSquare) (*Q1Q4File, error) {
 	ods, err := CreateODSFile(path, datahash, eds)
 	if err != nil {
 		return nil, err
@@ -52,6 +51,11 @@ func CreateQ1Q4File(path string, datahash share.DataHash, eds *rsmt2d.ExtendedDa
 
 func (f *Q1Q4File) Size(ctx context.Context) int {
 	return f.ods.Size(ctx)
+}
+
+// DataRoot returns root hash of Accessor's underlying EDS.
+func (f *Q1Q4File) DataRoot(ctx context.Context) (share.DataHash, error) {
+	return f.ods.DataRoot(ctx)
 }
 
 func (f *Q1Q4File) Sample(ctx context.Context, rowIdx, colIdx int) (shwap.Sample, error) {

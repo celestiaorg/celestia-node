@@ -28,8 +28,9 @@ func (n NoopCache) Remove(uint64) error {
 	return nil
 }
 
-func (n NoopCache) EnableMetrics() error {
-	return nil
+func (n NoopCache) EnableMetrics() (unreg func() error, err error) {
+	noop := func() error { return nil }
+	return noop, nil
 }
 
 var _ eds.AccessorStreamer = NoopFile{}
@@ -43,6 +44,11 @@ func (n NoopFile) Reader() (io.Reader, error) {
 
 func (n NoopFile) Size(context.Context) int {
 	return 0
+}
+
+// DataRoot returns root hash of Accessor's underlying EDS.
+func (n NoopFile) DataRoot(context.Context) (share.DataHash, error) {
+	return nil, nil
 }
 
 func (n NoopFile) Sample(context.Context, int, int) (shwap.Sample, error) {
