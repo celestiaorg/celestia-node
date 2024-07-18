@@ -175,13 +175,16 @@ func (d *Discovery) Advertise(ctx context.Context) {
 
 			// we don't want retry indefinitely in busy loop
 			// internal discovery mechanism may need some time before attempts
+			errTimer := time.NewTimer(d.params.AdvertiseRetryTimeout)
 			select {
-			case <-time.After(d.params.AdvertiseRetryTimeout):
+			case <-errTimer.C:
+				errTimer.Stop()
 				if !timer.Stop() {
 					<-timer.C
 				}
 				continue
 			case <-ctx.Done():
+				errTimer.Stop()
 				return
 			}
 		}
