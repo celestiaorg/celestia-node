@@ -112,11 +112,12 @@ func (s *Store) Put(
 	}
 
 	f, err := file.CreateQ1Q4File(path, datahash, square)
+	if errors.Is(err, os.ErrExist) {
+		s.metrics.observePutExist(ctx)
+		return nil
+	}
+
 	if err != nil {
-		if errors.Is(err, os.ErrExist) {
-			s.metrics.observePutExist(ctx)
-			return nil
-		}
 		s.metrics.observePut(ctx, time.Since(tNow), square.Width(), true)
 		return fmt.Errorf("creating Q1Q4 file: %w", err)
 	}
@@ -130,8 +131,8 @@ func (s *Store) Put(
 	// create hard link with height as name
 	err = s.ensureHeightLink(path, height)
 	if err != nil {
-		s.metrics.observePut(ctx, time.Since(tNow), square.Width(), true)
 		removeErr := s.removeFile(datahash)
+		s.metrics.observePut(ctx, time.Since(tNow), square.Width(), true)
 		return fmt.Errorf("creating hard link: %w", errors.Join(err, removeErr))
 	}
 	s.metrics.observePut(ctx, time.Since(tNow), square.Width(), false)
