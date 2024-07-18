@@ -99,7 +99,7 @@ func (s *Store) Put(
 	datahash share.DataHash,
 	height uint64,
 	square *rsmt2d.ExtendedDataSquare,
-) (eds.AccessorStreamer, error) {
+) error {
 	tNow := time.Now()
 	lock := s.stripLock.byDatahashAndHeight(datahash, height)
 	lock.lock()
@@ -108,17 +108,21 @@ func (s *Store) Put(
 	path := s.basepath + blocksPath + datahash.String()
 	if datahash.IsEmptyRoot() {
 		err := s.ensureHeightLink(path, height)
-		return emptyAccessor, err
+		return err
 	}
 
-	// ensure Q1Q4 file
-	f, existed, err := file.CreateOrOpenQ1Q4File(path, datahash, square)
-	if existed {
+	f, err := file.CreateQ1Q4File(path, datahash, square)
+	if errors.Is(err, os.ErrExist) {
 		s.metrics.observePutExist(ctx)
-	}
-	if err != nil {
+	} else if err != nil {
 		s.metrics.observePut(ctx, time.Since(tNow), square.Width(), true)
-		return nil, fmt.Errorf("creating Q1Q4 file: %w", err)
+		return fmt.Errorf("creating Q1Q4 file: %w", err)
+	} else {
+		err = f.Close()
+		if err != nil {
+			s.metrics.observePut(ctx, time.Since(tNow), square.Width(), true)
+			return fmt.Errorf("closing created Q1Q4 file: %w", err)
+		}
 	}
 
 	// create hard link with height as name
@@ -126,16 +130,18 @@ func (s *Store) Put(
 	if err != nil {
 		s.metrics.observePut(ctx, time.Since(tNow), square.Width(), true)
 		removeErr := s.removeFile(datahash)
-		return nil, fmt.Errorf("creating hard link: %w", errors.Join(err, removeErr))
+		return fmt.Errorf("creating hard link: %w", errors.Join(err, removeErr))
 	}
 	s.metrics.observePut(ctx, time.Since(tNow), square.Width(), false)
 
 	// put file in recent cache
-	accessor, err := s.cache.First().GetOrLoad(ctx, height, fileLoader(f))
+	eds := &eds.Rsmt2D{ExtendedDataSquare: square}
+	_, err = s.cache.First().GetOrLoad(ctx, height, accessorLoader(eds))
 	if err != nil {
 		log.Errorf("failed to put file in recent cache: %s", err)
 	}
-	return accessor, nil
+
+	return nil
 }
 
 func (s *Store) ensureHeightLink(path string, height uint64) error {
@@ -190,7 +196,7 @@ func (s *Store) getByHeight(height uint64) (eds.AccessorStreamer, error) {
 func (s *Store) openFile(path string) (eds.AccessorStreamer, error) {
 	f, err := file.OpenQ1Q4File(path)
 	if err == nil {
-		return wrappedFile(f), nil
+		return wrapAccessor(f), nil
 	}
 	if os.IsNotExist(err) {
 		return nil, ErrNotFound
@@ -293,14 +299,14 @@ func (s *Store) removeFile(hash share.DataHash) error {
 	return nil
 }
 
-func fileLoader(f eds.AccessorStreamer) cache.OpenAccessorFn {
+func accessorLoader(accessor eds.AccessorStreamer) cache.OpenAccessorFn {
 	return func(context.Context) (eds.AccessorStreamer, error) {
-		return wrappedFile(f), nil
+		return wrapAccessor(accessor), nil
 	}
 }
 
-func wrappedFile(f eds.AccessorStreamer) eds.AccessorStreamer {
-	withCache := eds.WithProofsCache(f)
+func wrapAccessor(accessor eds.AccessorStreamer) eds.AccessorStreamer {
+	withCache := eds.WithProofsCache(accessor)
 	closedOnce := eds.WithClosedOnce(withCache)
 	sanityChecked := eds.WithValidation(closedOnce)
 	accessorStreamer := eds.AccessorAndStreamer(sanityChecked, closedOnce)

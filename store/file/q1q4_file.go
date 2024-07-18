@@ -2,10 +2,8 @@ package file
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"io"
-	"os"
 
 	"github.com/celestiaorg/rsmt2d"
 
@@ -22,29 +20,6 @@ var _ eds.AccessorStreamer = (*Q1Q4File)(nil)
 // without the need to read entire Q1.
 type Q1Q4File struct {
 	ods *ODSFile
-}
-
-// CreateOrOpenQ1Q4File creates a new Q1Q4File. If it detects it existed earlier it opens it instead
-// and reports that it existed with a bool.
-func CreateOrOpenQ1Q4File(
-	path string,
-	datahash share.DataHash,
-	eds *rsmt2d.ExtendedDataSquare,
-) (*Q1Q4File, bool, error) {
-	file, err := CreateQ1Q4File(path, datahash, eds)
-	switch {
-	default:
-		return nil, false, fmt.Errorf("creating Q1Q4 file: %w", err)
-	case errors.Is(err, os.ErrExist):
-		file, err = OpenQ1Q4File(path)
-		if err != nil {
-			return nil, true, fmt.Errorf("opening Q1Q4 file: %w", err)
-		}
-
-		return file, true, nil
-	case err == nil:
-		return file, false, nil
-	}
 }
 
 func OpenQ1Q4File(path string) (*Q1Q4File, error) {
