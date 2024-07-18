@@ -7,11 +7,6 @@ import (
 	"github.com/libp2p/go-libp2p/core/peer"
 )
 
-const (
-	defaultAdvertiseRetryTimeout = time.Second
-	defaultDiscoveryRetryTimeout = defaultAdvertiseRetryTimeout * 60
-)
-
 // Parameters is the set of Parameters that must be configured for the Discovery module
 type Parameters struct {
 	// PeersLimit defines the soft limit of FNs to connect to via discovery.
@@ -47,8 +42,8 @@ func DefaultParameters() *Parameters {
 	return &Parameters{
 		PeersLimit:            5,
 		AdvertiseInterval:     time.Hour,
-		AdvertiseRetryTimeout: defaultAdvertiseRetryTimeout,
-		DiscoveryRetryTimeout: defaultDiscoveryRetryTimeout,
+		AdvertiseRetryTimeout: time.Second,
+		DiscoveryRetryTimeout: time.Second * 60,
 	}
 }
 
