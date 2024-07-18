@@ -33,9 +33,8 @@ func TestEDSStore(t *testing.T) {
 		eds, dah := randomEDS(t)
 		height := height.Add(1)
 
-		f, err := edsStore.Put(ctx, dah.Hash(), height, eds)
+		err := edsStore.Put(ctx, dah.Hash(), height, eds)
 		require.NoError(t, err)
-		require.NoError(t, f.Close())
 
 		// file should become available by hash
 		has, err := edsStore.HasByHash(ctx, dah.Hash())
@@ -55,12 +54,11 @@ func TestEDSStore(t *testing.T) {
 		eds, dah := randomEDS(t)
 		height := height.Add(1)
 
-		f, err := edsStore.Put(ctx, dah.Hash(), height, eds)
+		err = edsStore.Put(ctx, dah.Hash(), height, eds)
 		require.NoError(t, err)
-		require.NoError(t, f.Close())
 
 		// file should be cached after put
-		f, err = edsStore.cache.Get(height)
+		f, err := edsStore.cache.Get(height)
 		require.NoError(t, err)
 		require.NoError(t, f.Close())
 
@@ -76,13 +74,11 @@ func TestEDSStore(t *testing.T) {
 		eds, dah := randomEDS(t)
 		height := height.Add(1)
 
-		f, err := edsStore.Put(ctx, dah.Hash(), height, eds)
+		err := edsStore.Put(ctx, dah.Hash(), height, eds)
 		require.NoError(t, err)
-		require.NoError(t, f.Close())
 
-		f, err = edsStore.Put(ctx, dah.Hash(), height, eds)
+		err = edsStore.Put(ctx, dah.Hash(), height, eds)
 		require.NoError(t, err)
-		require.NoError(t, f.Close())
 		// TODO: check amount of files in the store after the second Put
 		// after store supports listing
 	})
@@ -91,11 +87,10 @@ func TestEDSStore(t *testing.T) {
 		eds, dah := randomEDS(t)
 		height := height.Add(1)
 
-		f, err := edsStore.Put(ctx, dah.Hash(), height, eds)
+		err = edsStore.Put(ctx, dah.Hash(), height, eds)
 		require.NoError(t, err)
-		require.NoError(t, f.Close())
 
-		f, err = edsStore.GetByHeight(ctx, height)
+		f, err := edsStore.GetByHeight(ctx, height)
 		require.NoError(t, err)
 
 		// check that cached file is the same eds
@@ -106,15 +101,14 @@ func TestEDSStore(t *testing.T) {
 		require.Equal(t, expected, fromFile)
 	})
 
-	t.Run("GetByDataHash", func(t *testing.T) {
+	t.Run("GetByDataRoot", func(t *testing.T) {
 		eds, dah := randomEDS(t)
 		height := height.Add(1)
 
-		f, err := edsStore.Put(ctx, dah.Hash(), height, eds)
+		err := edsStore.Put(ctx, dah.Hash(), height, eds)
 		require.NoError(t, err)
-		require.NoError(t, f.Close())
 
-		f, err = edsStore.GetByHash(ctx, dah.Hash())
+		f, err := edsStore.GetByDataRoot(ctx, dah.Hash())
 		require.NoError(t, err)
 
 		// check that cached file is the same eds
@@ -140,7 +134,7 @@ func TestEDSStore(t *testing.T) {
 		_, err = edsStore.GetByHeight(ctx, height)
 		require.ErrorIs(t, err, ErrNotFound)
 
-		_, err = edsStore.GetByHash(ctx, dah.Hash())
+		_, err = edsStore.GetByDataRoot(ctx, dah.Hash())
 		require.ErrorIs(t, err, ErrNotFound)
 	})
 
@@ -152,9 +146,8 @@ func TestEDSStore(t *testing.T) {
 
 		eds, dah := randomEDS(t)
 		height := height.Add(1)
-		f, err := edsStore.Put(ctx, dah.Hash(), height, eds)
+		err = edsStore.Put(ctx, dah.Hash(), height, eds)
 		require.NoError(t, err)
-		require.NoError(t, f.Close())
 
 		err = edsStore.Remove(ctx, height, dah.Hash())
 		require.NoError(t, err)
@@ -189,7 +182,7 @@ func TestEDSStore(t *testing.T) {
 		require.True(t, has)
 
 		// assert that the empty file is, in fact, empty
-		f, err := edsStore.GetByHash(ctx, dah.Hash())
+		f, err := edsStore.GetByDataRoot(ctx, dah.Hash())
 		require.NoError(t, err)
 		hash, err := f.DataRoot(ctx)
 		require.NoError(t, err)
@@ -207,18 +200,13 @@ func TestEDSStore(t *testing.T) {
 		require.NoError(t, err)
 		require.False(t, has)
 
-		f, err := edsStore.Put(ctx, dah.Hash(), height, eds)
+		err = edsStore.Put(ctx, dah.Hash(), height, eds)
 		require.NoError(t, err)
-
-		hash, err := f.DataRoot(ctx)
-		require.NoError(t, err)
-		require.True(t, hash.IsEmptyRoot())
-		require.NoError(t, f.Close())
 
 		// assert that the empty file can be accessed by height
-		f, err = edsStore.GetByHeight(ctx, height)
+		f, err := edsStore.GetByHeight(ctx, height)
 		require.NoError(t, err)
-		hash, err = f.DataRoot(ctx)
+		hash, err := f.DataRoot(ctx)
 		require.NoError(t, err)
 		require.True(t, hash.IsEmptyRoot())
 		require.NoError(t, f.Close())
@@ -236,9 +224,8 @@ func TestEDSStore(t *testing.T) {
 
 		// store empty EDSs
 		for i := from; i <= to; i++ {
-			f, err := edsStore.Put(ctx, dah.Hash(), uint64(i), eds)
+			err := edsStore.Put(ctx, dah.Hash(), uint64(i), eds)
 			require.NoError(t, err)
-			require.NoError(t, f.Close())
 		}
 
 		// close and reopen the store to ensure that the empty files are persisted
@@ -275,8 +262,7 @@ func BenchmarkStore(b *testing.B) {
 			bytes := make([]byte, 5)
 			rand.Read(bytes) //nolint:errcheck
 			h := share.DataHash(bytes)
-			f, _ := edsStore.Put(ctx, h, uint64(i), eds)
-			_ = f.Close()
+			_ = edsStore.Put(ctx, h, uint64(i), eds)
 		}
 	})
 
@@ -293,9 +279,8 @@ func BenchmarkStore(b *testing.B) {
 		require.NoError(b, err)
 
 		height := uint64(1984)
-		f, err := edsStore.Put(ctx, dah.Hash(), height, eds)
+		err = edsStore.Put(ctx, dah.Hash(), height, eds)
 		require.NoError(b, err)
-		require.NoError(b, f.Close())
 
 		b.ResetTimer()
 		for i := 0; i < b.N; i++ {
@@ -317,13 +302,12 @@ func BenchmarkStore(b *testing.B) {
 		require.NoError(b, err)
 
 		height := uint64(1984)
-		f, err := edsStore.Put(ctx, dah.Hash(), height, eds)
+		err = edsStore.Put(ctx, dah.Hash(), height, eds)
 		require.NoError(b, err)
-		require.NoError(b, f.Close())
 
 		b.ResetTimer()
 		for i := 0; i < b.N; i++ {
-			f, err := edsStore.GetByHash(ctx, dah.Hash())
+			f, err := edsStore.GetByDataRoot(ctx, dah.Hash())
 			require.NoError(b, err)
 			require.NoError(b, f.Close())
 		}

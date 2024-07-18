@@ -172,7 +172,7 @@ func (s *Store) ensureHeightLink(path string, height uint64) error {
 	return nil
 }
 
-func (s *Store) GetByHash(ctx context.Context, datahash share.DataHash) (eds.AccessorStreamer, error) {
+func (s *Store) GetByDataRoot(ctx context.Context, datahash share.DataHash) (eds.AccessorStreamer, error) {
 	if datahash.IsEmptyRoot() {
 		return emptyAccessor, nil
 	}
@@ -181,12 +181,12 @@ func (s *Store) GetByHash(ctx context.Context, datahash share.DataHash) (eds.Acc
 	defer lock.RUnlock()
 
 	tNow := time.Now()
-	f, err := s.getByHash(datahash)
+	f, err := s.getByDataRoot(datahash)
 	s.metrics.observeGet(ctx, time.Since(tNow), err != nil)
 	return f, err
 }
 
-func (s *Store) getByHash(datahash share.DataHash) (eds.AccessorStreamer, error) {
+func (s *Store) getByDataRoot(datahash share.DataHash) (eds.AccessorStreamer, error) {
 	path := s.basepath + blocksPath + datahash.String()
 	return s.openFile(path)
 }
