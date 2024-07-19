@@ -13,8 +13,8 @@ import (
 	modfraud "github.com/celestiaorg/celestia-node/nodebuilder/fraud"
 )
 
-// ErrHeightNegative returned when the provided block height is <= 0.
-var ErrHeightNegative = errors.New("height is negative")
+// ErrHeightZero returned when the provided block height is equal to 0.
+var ErrHeightZero = errors.New("height is equal to 0")
 
 // Service represents the header Service that can be started / stopped on a node.
 // Service's main function is to manage its sub-services. Service can contain several
@@ -68,7 +68,7 @@ func (s *Service) GetRangeByHeight(
 
 func (s *Service) GetByHeight(ctx context.Context, height uint64) (*header.ExtendedHeader, error) {
 	if height == 0 {
-		return nil, ErrHeightNegative
+		return nil, ErrHeightZero
 	}
 	head, err := s.syncer.Head(ctx)
 	switch {
@@ -176,9 +176,7 @@ func (s *Service) GetDataRootTupleRoot(ctx context.Context, start, end uint64) (
 // is end exclusive.
 func (s *Service) GetDataRootTupleInclusionProof(
 	ctx context.Context,
-	height int64,
-	start,
-	end uint64,
+	height, start, end uint64,
 ) (*DataRootTupleInclusionProof, error) {
 	log.Debugw(
 		"validating the data root inclusion proof request",

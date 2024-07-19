@@ -55,8 +55,7 @@ type Module interface {
 	// It's in the header module because it only needs access to the headers to generate the proof.
 	GetDataRootTupleInclusionProof(
 		ctx context.Context,
-		height int64,
-		start, end uint64,
+		height, start, end uint64,
 	) (*DataRootTupleInclusionProof, error)
 }
 
@@ -83,8 +82,7 @@ type API struct {
 		GetDataRootTupleRoot           func(ctx context.Context, start, end uint64) (*DataRootTupleRoot, error) `perm:"read"`
 		GetDataRootTupleInclusionProof func(
 			ctx context.Context,
-			height int64,
-			start, end uint64,
+			height, start, end uint64,
 		) (*DataRootTupleInclusionProof, error) `perm:"read"`
 	}
 }
@@ -135,8 +133,7 @@ func (api *API) GetDataRootTupleRoot(ctx context.Context, start, end uint64) (*D
 
 func (api *API) GetDataRootTupleInclusionProof(
 	ctx context.Context,
-	height int64,
-	start, end uint64,
+	height, start, end uint64,
 ) (*DataRootTupleInclusionProof, error) {
 	return api.Internal.GetDataRootTupleInclusionProof(ctx, height, start, end)
 }

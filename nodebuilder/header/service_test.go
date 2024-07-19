@@ -182,21 +182,11 @@ func TestHashDataRootTuples(t *testing.T) {
 func TestProveDataRootTuples(t *testing.T) {
 	tests := map[string]struct {
 		tuples        []dataRootTuple
-		height        int64
+		height        uint64
 		expectedProof merkle.Proof
 		expectErr     bool
 	}{
 		"empty tuples list": {tuples: nil, expectErr: true},
-		"strictly negative height": {
-			height: -1,
-			tuples: []dataRootTuple{
-				{
-					height:   1,
-					dataRoot: [32]byte{0x1},
-				},
-			},
-			expectErr: true,
-		},
 		"non consecutive list of tuples at the beginning": {
 			tuples: []dataRootTuple{
 				{

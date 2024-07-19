@@ -110,7 +110,7 @@ const dataRootTupleRootBlocksLimit = 10_000 // ~33 hours of blocks assuming 12-s
 // the defined set of heights.
 func (s *Service) validateDataRootTupleRootRange(ctx context.Context, start, end uint64) error {
 	if start == 0 {
-		return ErrHeightNegative
+		return ErrHeightZero
 	}
 	if start >= end {
 		return fmt.Errorf("end block is smaller or equal to the start block")
@@ -192,12 +192,12 @@ func (s *Service) validateDataRootInclusionProofRequest(
 }
 
 // proveDataRootTuples returns the merkle inclusion proof for a height.
-func proveDataRootTuples(tuples []dataRootTuple, height int64) (*merkle.Proof, error) {
+func proveDataRootTuples(tuples []dataRootTuple, height uint64) (*merkle.Proof, error) {
 	if len(tuples) == 0 {
 		return nil, fmt.Errorf("cannot prove an empty list of tuples")
 	}
-	if height <= 0 {
-		return nil, ErrHeightNegative
+	if height == 0 {
+		return nil, ErrHeightZero
 	}
 	currentHeight := tuples[0].height - 1
 	for _, tuple := range tuples {
@@ -218,7 +218,7 @@ func proveDataRootTuples(tuples []dataRootTuple, height int64) (*merkle.Proof, e
 		dataRootEncodedTuples = append(dataRootEncodedTuples, encodedTuple)
 	}
 	_, proofs := merkle.ProofsFromByteSlices(dataRootEncodedTuples)
-	return proofs[height-int64(tuples[0].height)], nil
+	return proofs[height-tuples[0].height], nil
 }
 
 // fetchDataRootTuples takes an end exclusive range of heights and fetches its
