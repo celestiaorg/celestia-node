@@ -13,6 +13,9 @@ import (
 	modfraud "github.com/celestiaorg/celestia-node/nodebuilder/fraud"
 )
 
+// ErrHeightNegative returned when the provided block height is <= 0.
+var ErrHeightNegative = errors.New("height is negative")
+
 // Service represents the header Service that can be started / stopped on a node.
 // Service's main function is to manage its sub-services. Service can contain several
 // sub-services, such as Exchange, ExchangeServer, Syncer, and so forth.
@@ -64,6 +67,9 @@ func (s *Service) GetRangeByHeight(
 }
 
 func (s *Service) GetByHeight(ctx context.Context, height uint64) (*header.ExtendedHeader, error) {
+	if height == 0 {
+		return nil, ErrHeightNegative
+	}
 	head, err := s.syncer.Head(ctx)
 	switch {
 	case err != nil:

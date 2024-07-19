@@ -110,7 +110,7 @@ const dataCommitmentBlocksLimit = 10_000 // ~33 hours of blocks assuming 12-seco
 // the defined set of heights.
 func (s *Service) validateDataCommitmentRange(ctx context.Context, start, end uint64) error {
 	if start == 0 {
-		return fmt.Errorf("the start block is 0")
+		return ErrHeightNegative
 	}
 	if start >= end {
 		return fmt.Errorf("end block is smaller or equal to the start block")
@@ -196,8 +196,8 @@ func proveDataRootTuples(tuples []DataRootTuple, height int64) (*merkle.Proof, e
 	if len(tuples) == 0 {
 		return nil, fmt.Errorf("cannot prove an empty list of tuples")
 	}
-	if height < 0 {
-		return nil, fmt.Errorf("cannot prove a strictly negative height %d", height)
+	if height <= 0 {
+		return nil, ErrHeightNegative
 	}
 	currentHeight := tuples[0].height - 1
 	for _, tuple := range tuples {

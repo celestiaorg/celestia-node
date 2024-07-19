@@ -2,8 +2,6 @@ package share
 
 import (
 	"context"
-	"fmt"
-
 	"github.com/tendermint/tendermint/types"
 
 	"github.com/celestiaorg/rsmt2d"
@@ -118,9 +116,6 @@ func (m module) SharesAvailable(ctx context.Context, header *header.ExtendedHead
 }
 
 func (m module) GetRange(ctx context.Context, height uint64, start, end int) (*GetRangeResult, error) {
-	if height == 0 {
-		return nil, fmt.Errorf("height cannot be equal to 0")
-	}
 	extendedHeader, err := m.hs.GetByHeight(ctx, height)
 	if err != nil {
 		return nil, err
