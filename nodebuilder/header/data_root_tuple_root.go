@@ -187,13 +187,6 @@ func proveDataRootTuples(tuples []dataRootTuple, height uint64) (*merkle.Proof, 
 	if height == 0 {
 		return nil, ErrHeightZero
 	}
-	currentHeight := tuples[0].height - 1
-	for _, tuple := range tuples {
-		if tuple.height != currentHeight+1 {
-			return nil, fmt.Errorf("the provided tuples are not consecutive %d vs %d", currentHeight, tuple.height)
-		}
-		currentHeight++
-	}
 	dataRootEncodedTuples := make([][]byte, 0, len(tuples))
 	for _, tuple := range tuples {
 		encodedTuple, err := encodeDataRootTuple(
@@ -211,19 +204,21 @@ func proveDataRootTuples(tuples []dataRootTuple, height uint64) (*merkle.Proof, 
 
 // fetchDataRootTuples takes an end exclusive range of heights and fetches its
 // corresponding data root tuples.
+// end is not included in the range.
 func (s *Service) fetchDataRootTuples(ctx context.Context, start, end uint64) ([]dataRootTuple, error) {
 	tuples := make([]dataRootTuple, 0, end-start)
-	for height := start; height < end; height++ {
-		block, err := s.GetByHeight(ctx, height)
-		if err != nil {
-			return nil, err
-		}
-		if block == nil {
-			return nil, fmt.Errorf("couldn't load block %d", height)
-		}
+	startHeader, err := s.GetByHeight(ctx, start)
+	if err != nil {
+		return nil, err
+	}
+	headerRange, err := s.GetRangeByHeight(ctx, startHeader, end)
+	if err != nil {
+		return nil, err
+	}
+	for _, header := range headerRange {
 		tuples = append(tuples, dataRootTuple{
-			height:   block.Height(),
-			dataRoot: *(*[32]byte)(block.DataHash),
+			height:   header.Height(),
+			dataRoot: *(*[32]byte)(header.DataHash),
 		})
 	}
 	return tuples, nil
