@@ -105,9 +105,9 @@ func encodeDataRootTuple(height uint64, dataRoot [32]byte) ([]byte, error) {
 // It's a local parameter to protect the API from creating unnecessarily large commitments.
 const dataRootTupleRootBlocksLimit = 10_000 // ~33 hours of blocks assuming 12-second blocks.
 
-// validateDataRootTupleRootRange runs basic checks on the asc sorted list of
+// validateDataRootTupleRootRange runs basic checks on the ascending sorted list of
 // heights that will be used subsequently in generating data commitments over
-// the defined set of heights.
+// the defined set of heights by ensuring the range exists in the chain.
 func (s *Service) validateDataRootTupleRootRange(ctx context.Context, start, end uint64) error {
 	if start == 0 {
 		return ErrHeightZero
