@@ -69,7 +69,7 @@ func (mr *MockModuleMockRecorder) GetByHeight(arg0, arg1 interface{}) *gomock.Ca
 }
 
 // GetDataRootTupleInclusionProof mocks base method.
-func (m *MockModule) GetDataRootTupleInclusionProof(arg0 context.Context, arg1 int64, arg2, arg3 uint64) (*header0.DataRootTupleInclusionProof, error) {
+func (m *MockModule) GetDataRootTupleInclusionProof(arg0 context.Context, arg1, arg2, arg3 uint64) (*header0.DataRootTupleInclusionProof, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "GetDataRootTupleInclusionProof", arg0, arg1, arg2, arg3)
 	ret0, _ := ret[0].(*header0.DataRootTupleInclusionProof)
