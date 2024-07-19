@@ -6,7 +6,6 @@ import (
 	"encoding/hex"
 	"errors"
 	"fmt"
-	"slices"
 	"sync"
 
 	"github.com/cosmos/cosmos-sdk/types"
@@ -15,6 +14,7 @@ import (
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/codes"
 	"go.opentelemetry.io/otel/trace"
+	"slices"
 
 	"github.com/celestiaorg/celestia-app/pkg/appconsts"
 	appns "github.com/celestiaorg/celestia-app/pkg/namespace"
@@ -92,7 +92,7 @@ type SubscriptionResponse struct {
 }
 
 func (s *Service) Subscribe(ctx context.Context, ns share.Namespace) (<-chan *SubscriptionResponse, error) {
-	if s.ctx != nil {
+	if s.ctx == nil {
 		return nil, fmt.Errorf("service has not been started")
 	}
 
@@ -108,11 +108,14 @@ func (s *Service) Subscribe(ctx context.Context, ns share.Namespace) (<-chan *Su
 		for {
 			select {
 			case header, ok := <-headerCh:
+				if ctx.Err() != nil {
+					return
+				}
 				if !ok {
 					log.Errorw("header channel closed for subscription", "namespace", ns.ID())
 					return
 				}
-				blobs, err := s.GetAll(ctx, header.Height(), []share.Namespace{ns})
+				blobs, err := s.getAll(ctx, header, []share.Namespace{ns})
 				if errors.Is(err, context.Canceled) || errors.Is(err, context.DeadlineExceeded) {
 					// context canceled, continuing would lead to unexpected missed heights for the client
 					return
@@ -216,8 +219,8 @@ func (s *Service) GetProof(
 // If all blobs were found without any errors, the user will receive a list of blobs.
 // If the BlobService couldn't find any blobs under the requested namespaces,
 // the user will receive an empty list of blobs along with an empty error.
-// If some of the requested namespaces were not found, the user will receive all the found blobs and an empty error.
-// If there were internal errors during some of the requests,
+// If some of the requested namespaces were not found, the user will receive all the found blobs
+// and an empty error. If there were internal errors during some of the requests,
 // the user will receive all found blobs along with a combined error message.
 //
 // All blobs will preserve the order of the namespaces that were requested.
@@ -227,6 +230,11 @@ func (s *Service) GetAll(ctx context.Context, height uint64, namespaces []share.
 		return nil, err
 	}
 
+	return s.getAll(ctx, header, namespaces)
+}
+
+func (s *Service) getAll(ctx context.Context, header *header.ExtendedHeader, namespaces []share.Namespace) ([]*Blob, error) {
+	height := header.Height()
 	var (
 		resultBlobs = make([][]*Blob, len(namespaces))
 		resultErr   = make([]error, len(namespaces))
@@ -252,7 +260,7 @@ func (s *Service) GetAll(ctx context.Context, height uint64, namespaces []share.
 	wg.Wait()
 
 	blobs := slices.Concat(resultBlobs...)
-	err = errors.Join(resultErr...)
+	err := errors.Join(resultErr...)
 	return blobs, err
 }
 
