@@ -120,22 +120,9 @@ func (s *Service) validateDataRootTupleRootRange(ctx context.Context, start, end
 		return fmt.Errorf("the query exceeds the limit of allowed blocks %d", dataRootTupleRootBlocksLimit)
 	}
 
-	currentHeader, err := s.NetworkHead(ctx)
-	if err != nil {
-		return err
-	}
-	// the data commitment range is end exclusive
-	if end > currentHeader.Height()+1 {
-		return fmt.Errorf(
-			"end block %d is higher than current chain height %d",
-			end,
-			currentHeader.Height(),
-		)
-	}
-
 	currentLocalHeader, err := s.LocalHead(ctx)
 	if err != nil {
-		return err
+		return fmt.Errorf("couldn't get the local head to validate the data root tuple root range%w", err)
 	}
 	// the data commitment range is end exclusive
 	if end > currentLocalHeader.Height()+1 {
