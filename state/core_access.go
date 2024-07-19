@@ -71,7 +71,7 @@ type CoreAccessor struct {
 	coreIP   string
 	grpcPort string
 
-	// these fields are mutatable and thus need to be protected by a mutex
+	// these fields are mutable and thus need to be protected by a mutex
 	lock            sync.Mutex
 	lastPayForBlob  int64
 	payForBlobCount int64
