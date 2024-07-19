@@ -58,14 +58,6 @@ func to32PaddedHexBytes(number uint64) ([]byte, error) {
 	return paddedBytes, nil
 }
 
-// dataRootTuple contains the data that will be used to generate the Blobstream data root tuple
-// roots. For more information:
-// https://github.com/celestiaorg/blobstream-contracts/blob/master/src/DataRootTuple.sol
-type dataRootTuple struct {
-	height   uint64
-	dataRoot [32]byte
-}
-
 // encodeDataRootTuple takes a height and a data root, and returns the equivalent of
 // `abi.encode(...)` in Ethereum.
 // The encoded type is a dataRootTuple, which has the following ABI:
@@ -137,24 +129,13 @@ func (s *Service) validateDataRootTupleRootRange(ctx context.Context, start, end
 	return nil
 }
 
-// hashDataRootTuples hashes a list of blocks data root tuples, i.e., height, data root and square
-// size, then returns their merkle root.
-func hashDataRootTuples(tuples []dataRootTuple) ([]byte, error) {
-	if len(tuples) == 0 {
-		return nil, fmt.Errorf("cannot hash an empty list of data root tuples")
+// hashDataRootTuples hashes a list of encoded blocks data root tuples, i.e., height, data root and
+// square size, then returns their merkle root.
+func hashDataRootTuples(encodedDataRootTuples [][]byte) ([]byte, error) {
+	if len(encodedDataRootTuples) == 0 {
+		return nil, fmt.Errorf("cannot hash an empty list of encoded data root tuples")
 	}
-	dataRootEncodedTuples := make([][]byte, 0, len(tuples))
-	for _, tuple := range tuples {
-		encodedTuple, err := encodeDataRootTuple(
-			tuple.height,
-			tuple.dataRoot,
-		)
-		if err != nil {
-			return nil, err
-		}
-		dataRootEncodedTuples = append(dataRootEncodedTuples, encodedTuple)
-	}
-	root := merkle.HashFromByteSlices(dataRootEncodedTuples)
+	root := merkle.HashFromByteSlices(encodedDataRootTuples)
 	return root, nil
 }
 
@@ -180,33 +161,23 @@ func (s *Service) validateDataRootInclusionProofRequest(
 }
 
 // proveDataRootTuples returns the merkle inclusion proof for a height.
-func proveDataRootTuples(tuples []dataRootTuple, height uint64) (*merkle.Proof, error) {
-	if len(tuples) == 0 {
-		return nil, fmt.Errorf("cannot prove an empty list of tuples")
+// expects the list of encoded data root tuples to be ordered and the heights to be consecutive.
+func proveDataRootTuples(encodedDataRootTuples [][]byte, rangeStartHeight, height uint64) (*merkle.Proof, error) {
+	if len(encodedDataRootTuples) == 0 {
+		return nil, fmt.Errorf("cannot prove an empty list of encoded data root tuples")
 	}
-	if height == 0 {
+	if height == 0 || rangeStartHeight == 0 {
 		return nil, ErrHeightZero
 	}
-	dataRootEncodedTuples := make([][]byte, 0, len(tuples))
-	for _, tuple := range tuples {
-		encodedTuple, err := encodeDataRootTuple(
-			tuple.height,
-			tuple.dataRoot,
-		)
-		if err != nil {
-			return nil, err
-		}
-		dataRootEncodedTuples = append(dataRootEncodedTuples, encodedTuple)
-	}
-	_, proofs := merkle.ProofsFromByteSlices(dataRootEncodedTuples)
-	return proofs[height-tuples[0].height], nil
+	_, proofs := merkle.ProofsFromByteSlices(encodedDataRootTuples)
+	return proofs[height-rangeStartHeight], nil
 }
 
-// fetchDataRootTuples takes an end exclusive range of heights and fetches its
+// fetchEncodedDataRootTuples takes an end exclusive range of heights and fetches its
 // corresponding data root tuples.
 // end is not included in the range.
-func (s *Service) fetchDataRootTuples(ctx context.Context, start, end uint64) ([]dataRootTuple, error) {
-	tuples := make([]dataRootTuple, 0, end-start)
+func (s *Service) fetchEncodedDataRootTuples(ctx context.Context, start, end uint64) ([][]byte, error) {
+	encodedDataRootTuples := make([][]byte, 0, end-start)
 	startHeader, err := s.GetByHeight(ctx, start)
 	if err != nil {
 		return nil, err
@@ -216,10 +187,11 @@ func (s *Service) fetchDataRootTuples(ctx context.Context, start, end uint64) ([
 		return nil, err
 	}
 	for _, header := range headerRange {
-		tuples = append(tuples, dataRootTuple{
-			height:   header.Height(),
-			dataRoot: *(*[32]byte)(header.DataHash),
-		})
+		encodedDataRootTuple, err := encodeDataRootTuple(header.Height(), *(*[32]byte)(header.DataHash))
+		if err != nil {
+			return nil, err
+		}
+		encodedDataRootTuples = append(encodedDataRootTuples, encodedDataRootTuple)
 	}
-	return tuples, nil
+	return encodedDataRootTuples, nil
 }

@@ -141,22 +141,17 @@ func TestEncodeDataRootTuple(t *testing.T) {
 
 func TestHashDataRootTuples(t *testing.T) {
 	tests := map[string]struct {
-		tuples       []dataRootTuple
+		tuples       [][]byte
 		expectedHash []byte
 		expectErr    bool
 	}{
 		"empty tuples list": {tuples: nil, expectErr: true},
-		"valid list of data root tuples": {
-			tuples: []dataRootTuple{
-				{
-					height:   1,
-					dataRoot: [32]byte{0x1},
-				},
-				{
-					height:   2,
-					dataRoot: [32]byte{0x2},
-				},
-			},
+		"valid list of encoded data root tuples": {
+			tuples: func() [][]byte {
+				tuple1, _ := encodeDataRootTuple(1, [32]byte{0x1})
+				tuple2, _ := encodeDataRootTuple(2, [32]byte{0x2})
+				return [][]byte{tuple1, tuple2}
+			}(),
 			expectedHash: func() []byte {
 				tuple1, _ := encodeDataRootTuple(1, [32]byte{0x1})
 				tuple2, _ := encodeDataRootTuple(2, [32]byte{0x2})
@@ -181,146 +176,25 @@ func TestHashDataRootTuples(t *testing.T) {
 
 func TestProveDataRootTuples(t *testing.T) {
 	tests := map[string]struct {
-		tuples        []dataRootTuple
+		tuples        [][]byte
 		height        uint64
+		rangeStart    uint64
 		expectedProof merkle.Proof
 		expectErr     bool
 	}{
-		"empty tuples list": {tuples: nil, expectErr: true},
-		"non consecutive list of tuples at the beginning": {
-			tuples: []dataRootTuple{
-				{
-					height:   1,
-					dataRoot: [32]byte{0x1},
-				},
-				{
-					height:   3,
-					dataRoot: [32]byte{0x2},
-				},
-				{
-					height:   4,
-					dataRoot: [32]byte{0x4},
-				},
-			},
-			expectErr: true,
-		},
-		"non consecutive list of tuples in the middle": {
-			tuples: []dataRootTuple{
-				{
-					height:   1,
-					dataRoot: [32]byte{0x1},
-				},
-				{
-					height:   2,
-					dataRoot: [32]byte{0x2},
-				},
-				{
-					height:   3,
-					dataRoot: [32]byte{0x2},
-				},
-				{
-					height:   5,
-					dataRoot: [32]byte{0x4},
-				},
-				{
-					height:   6,
-					dataRoot: [32]byte{0x5},
-				},
-			},
-			expectErr: true,
-		},
-		"non consecutive list of tuples at the end": {
-			tuples: []dataRootTuple{
-				{
-					height:   1,
-					dataRoot: [32]byte{0x1},
-				},
-				{
-					height:   2,
-					dataRoot: [32]byte{0x2},
-				},
-				{
-					height:   4,
-					dataRoot: [32]byte{0x4},
-				},
-			},
-			expectErr: true,
-		},
-		"duplicate height at the beginning": {
-			tuples: []dataRootTuple{
-				{
-					height:   1,
-					dataRoot: [32]byte{0x1},
-				},
-				{
-					height:   1,
-					dataRoot: [32]byte{0x1},
-				},
-				{
-					height:   4,
-					dataRoot: [32]byte{0x4},
-				},
-			},
-			expectErr: true,
-		},
-		"duplicate height in the middle": {
-			tuples: []dataRootTuple{
-				{
-					height:   1,
-					dataRoot: [32]byte{0x1},
-				},
-				{
-					height:   2,
-					dataRoot: [32]byte{0x2},
-				},
-				{
-					height:   2,
-					dataRoot: [32]byte{0x2},
-				},
-				{
-					height:   3,
-					dataRoot: [32]byte{0x3},
-				},
-			},
-			expectErr: true,
-		},
-		"duplicate height at the end": {
-			tuples: []dataRootTuple{
-				{
-					height:   1,
-					dataRoot: [32]byte{0x1},
-				},
-				{
-					height:   2,
-					dataRoot: [32]byte{0x2},
-				},
-				{
-					height:   2,
-					dataRoot: [32]byte{0x2},
-				},
-			},
-			expectErr: true,
-		},
+		"empty tuples list":       {tuples: [][]byte{{0x1}}, expectErr: true},
+		"start height == 0":       {tuples: [][]byte{{0x1}}, expectErr: true},
+		"range start height == 0": {tuples: [][]byte{{0x1}}, expectErr: true},
 		"valid proof": {
-			height: 3,
-			tuples: []dataRootTuple{
-				{
-					height:   1,
-					dataRoot: [32]byte{0x1},
-				},
-				{
-					height:   2,
-					dataRoot: [32]byte{0x2},
-				},
-				{
-					height:   3,
-					dataRoot: [32]byte{0x3},
-				},
-				{
-					height:   4,
-					dataRoot: [32]byte{0x4},
-				},
-			},
+			height:     3,
+			rangeStart: 1,
+			tuples: func() [][]byte {
+				encodedTuple1, _ := encodeDataRootTuple(1, [32]byte{0x1})
+				encodedTuple2, _ := encodeDataRootTuple(2, [32]byte{0x2})
+				encodedTuple3, _ := encodeDataRootTuple(3, [32]byte{0x3})
+				encodedTuple4, _ := encodeDataRootTuple(4, [32]byte{0x4})
+				return [][]byte{encodedTuple1, encodedTuple2, encodedTuple3, encodedTuple4}
+			}(),
 			expectedProof: func() merkle.Proof {
 				encodedTuple1, _ := encodeDataRootTuple(1, [32]byte{0x1})
 				encodedTuple2, _ := encodeDataRootTuple(2, [32]byte{0x2})
@@ -334,7 +208,7 @@ func TestProveDataRootTuples(t *testing.T) {
 
 	for name, tc := range tests {
 		t.Run(name, func(t *testing.T) {
-			result, err := proveDataRootTuples(tc.tuples, tc.height)
+			result, err := proveDataRootTuples(tc.tuples, tc.rangeStart, tc.height)
 			if tc.expectErr {
 				assert.Error(t, err)
 			} else {

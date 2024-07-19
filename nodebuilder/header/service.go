@@ -157,12 +157,12 @@ func (s *Service) GetDataRootTupleRoot(ctx context.Context, start, end uint64) (
 		return nil, err
 	}
 	log.Debugw("fetching the data root tuples", "start", start, "end", end)
-	tuples, err := s.fetchDataRootTuples(ctx, start, end)
+	encodedDataRootTuples, err := s.fetchEncodedDataRootTuples(ctx, start, end)
 	if err != nil {
 		return nil, err
 	}
 	log.Debugw("hashing the data root tuples", "start", start, "end", end)
-	root, err := hashDataRootTuples(tuples)
+	root, err := hashDataRootTuples(encodedDataRootTuples)
 	if err != nil {
 		return nil, err
 	}
@@ -187,18 +187,18 @@ func (s *Service) GetDataRootTupleInclusionProof(
 		"height",
 		height,
 	)
-	err := s.validateDataRootInclusionProofRequest(ctx, uint64(height), start, end)
+	err := s.validateDataRootInclusionProofRequest(ctx, height, start, end)
 	if err != nil {
 		return nil, err
 	}
 	log.Debugw("fetching the data root tuples", "start", start, "end", end)
 
-	tuples, err := s.fetchDataRootTuples(ctx, start, end)
+	encodedDataRootTuples, err := s.fetchEncodedDataRootTuples(ctx, start, end)
 	if err != nil {
 		return nil, err
 	}
 	log.Debugw("proving the data root tuples", "start", start, "end", end)
-	proof, err := proveDataRootTuples(tuples, height)
+	proof, err := proveDataRootTuples(encodedDataRootTuples, start, height)
 	if err != nil {
 		return nil, err
 	}
