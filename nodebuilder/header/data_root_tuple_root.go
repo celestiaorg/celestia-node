@@ -36,9 +36,9 @@ func padBytes(byt []byte, length int) ([]byte, error) {
 	return tmp, nil
 }
 
-// To32PaddedHexBytes takes a number and returns its hex representation padded to 32 bytes.
+// to32PaddedHexBytes takes a number and returns its hex representation padded to 32 bytes.
 // Used to mimic the result of `abi.encode(number)` in Ethereum.
-func To32PaddedHexBytes(number uint64) ([]byte, error) {
+func to32PaddedHexBytes(number uint64) ([]byte, error) {
 	hexRepresentation := strconv.FormatUint(number, 16)
 	// Make sure hex representation has even length.
 	// The `strconv.FormatUint` can return odd length hex encodings.
@@ -58,17 +58,17 @@ func To32PaddedHexBytes(number uint64) ([]byte, error) {
 	return paddedBytes, nil
 }
 
-// DataRootTuple contains the data that will be used to generate the Blobstream data root tuple
+// dataRootTuple contains the data that will be used to generate the Blobstream data root tuple
 // roots. For more information:
 // https://github.com/celestiaorg/blobstream-contracts/blob/master/src/DataRootTuple.sol
-type DataRootTuple struct {
+type dataRootTuple struct {
 	height   uint64
 	dataRoot [32]byte
 }
 
-// EncodeDataRootTuple takes a height and a data root, and returns the equivalent of
+// encodeDataRootTuple takes a height and a data root, and returns the equivalent of
 // `abi.encode(...)` in Ethereum.
-// The encoded type is a DataRootTuple, which has the following ABI:
+// The encoded type is a dataRootTuple, which has the following ABI:
 //
 //	{
 //	  "components":[
@@ -93,8 +93,8 @@ type DataRootTuple struct {
 // padding the hex representation of the height padded to 32 bytes concatenated to the data root.
 // For more information, refer to:
 // https://github.com/celestiaorg/blobstream-contracts/blob/master/src/DataRootTuple.sol
-func EncodeDataRootTuple(height uint64, dataRoot [32]byte) ([]byte, error) {
-	paddedHeight, err := To32PaddedHexBytes(height)
+func encodeDataRootTuple(height uint64, dataRoot [32]byte) ([]byte, error) {
+	paddedHeight, err := to32PaddedHexBytes(height)
 	if err != nil {
 		return nil, err
 	}
@@ -151,13 +151,13 @@ func (s *Service) validateDataRootTupleRootRange(ctx context.Context, start, end
 
 // hashDataRootTuples hashes a list of blocks data root tuples, i.e., height, data root and square
 // size, then returns their merkle root.
-func hashDataRootTuples(tuples []DataRootTuple) ([]byte, error) {
+func hashDataRootTuples(tuples []dataRootTuple) ([]byte, error) {
 	if len(tuples) == 0 {
 		return nil, fmt.Errorf("cannot hash an empty list of data root tuples")
 	}
 	dataRootEncodedTuples := make([][]byte, 0, len(tuples))
 	for _, tuple := range tuples {
-		encodedTuple, err := EncodeDataRootTuple(
+		encodedTuple, err := encodeDataRootTuple(
 			tuple.height,
 			tuple.dataRoot,
 		)
@@ -192,7 +192,7 @@ func (s *Service) validateDataRootInclusionProofRequest(
 }
 
 // proveDataRootTuples returns the merkle inclusion proof for a height.
-func proveDataRootTuples(tuples []DataRootTuple, height int64) (*merkle.Proof, error) {
+func proveDataRootTuples(tuples []dataRootTuple, height int64) (*merkle.Proof, error) {
 	if len(tuples) == 0 {
 		return nil, fmt.Errorf("cannot prove an empty list of tuples")
 	}
@@ -208,7 +208,7 @@ func proveDataRootTuples(tuples []DataRootTuple, height int64) (*merkle.Proof, e
 	}
 	dataRootEncodedTuples := make([][]byte, 0, len(tuples))
 	for _, tuple := range tuples {
-		encodedTuple, err := EncodeDataRootTuple(
+		encodedTuple, err := encodeDataRootTuple(
 			tuple.height,
 			tuple.dataRoot,
 		)
@@ -223,8 +223,8 @@ func proveDataRootTuples(tuples []DataRootTuple, height int64) (*merkle.Proof, e
 
 // fetchDataRootTuples takes an end exclusive range of heights and fetches its
 // corresponding data root tuples.
-func (s *Service) fetchDataRootTuples(ctx context.Context, start, end uint64) ([]DataRootTuple, error) {
-	tuples := make([]DataRootTuple, 0, end-start)
+func (s *Service) fetchDataRootTuples(ctx context.Context, start, end uint64) ([]dataRootTuple, error) {
+	tuples := make([]dataRootTuple, 0, end-start)
 	for height := start; height < end; height++ {
 		block, err := s.GetByHeight(ctx, height)
 		if err != nil {
@@ -233,7 +233,7 @@ func (s *Service) fetchDataRootTuples(ctx context.Context, start, end uint64) ([
 		if block == nil {
 			return nil, fmt.Errorf("couldn't load block %d", height)
 		}
-		tuples = append(tuples, DataRootTuple{
+		tuples = append(tuples, dataRootTuple{
 			height:   block.Height(),
 			dataRoot: *(*[32]byte)(block.DataHash),
 		})
