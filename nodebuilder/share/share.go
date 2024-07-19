@@ -2,6 +2,7 @@ package share
 
 import (
 	"context"
+
 	"github.com/tendermint/tendermint/types"
 
 	"github.com/celestiaorg/rsmt2d"

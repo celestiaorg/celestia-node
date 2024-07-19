@@ -58,8 +58,8 @@ func To32PaddedHexBytes(number uint64) ([]byte, error) {
 	return paddedBytes, nil
 }
 
-// DataRootTuple contains the data that will be used to generate the Blobstream data root tuple roots.
-// For more information:
+// DataRootTuple contains the data that will be used to generate the Blobstream data root tuple
+// roots. For more information:
 // https://github.com/celestiaorg/blobstream-contracts/blob/master/src/DataRootTuple.sol
 type DataRootTuple struct {
 	height   uint64
