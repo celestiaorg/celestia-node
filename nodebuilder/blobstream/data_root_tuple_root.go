@@ -1,4 +1,4 @@
-package header
+package blobstream
 
 import (
 	"context"
@@ -8,6 +8,8 @@ import (
 
 	"github.com/tendermint/tendermint/crypto/merkle"
 	"github.com/tendermint/tendermint/libs/bytes"
+
+	"github.com/celestiaorg/celestia-node/nodebuilder/header"
 )
 
 // DataRootTupleRoot is the root of the merkle tree created
@@ -102,7 +104,7 @@ const dataRootTupleRootBlocksLimit = 10_000 // ~33 hours of blocks assuming 12-s
 // the defined set of heights by ensuring the range exists in the chain.
 func (s *Service) validateDataRootTupleRootRange(ctx context.Context, start, end uint64) error {
 	if start == 0 {
-		return ErrHeightZero
+		return header.ErrHeightZero
 	}
 	if start >= end {
 		return fmt.Errorf("end block is smaller or equal to the start block")
@@ -113,7 +115,7 @@ func (s *Service) validateDataRootTupleRootRange(ctx context.Context, start, end
 		return fmt.Errorf("the query exceeds the limit of allowed blocks %d", dataRootTupleRootBlocksLimit)
 	}
 
-	currentLocalHeader, err := s.LocalHead(ctx)
+	currentLocalHeader, err := s.headerServ.LocalHead(ctx)
 	if err != nil {
 		return fmt.Errorf("couldn't get the local head to validate the data root tuple root range%w", err)
 	}
@@ -167,7 +169,7 @@ func proveDataRootTuples(encodedDataRootTuples [][]byte, rangeStartHeight, heigh
 		return nil, fmt.Errorf("cannot prove an empty list of encoded data root tuples")
 	}
 	if height == 0 || rangeStartHeight == 0 {
-		return nil, ErrHeightZero
+		return nil, header.ErrHeightZero
 	}
 	_, proofs := merkle.ProofsFromByteSlices(encodedDataRootTuples)
 	return proofs[height-rangeStartHeight], nil
@@ -178,11 +180,11 @@ func proveDataRootTuples(encodedDataRootTuples [][]byte, rangeStartHeight, heigh
 // end is not included in the range.
 func (s *Service) fetchEncodedDataRootTuples(ctx context.Context, start, end uint64) ([][]byte, error) {
 	encodedDataRootTuples := make([][]byte, 0, end-start)
-	startHeader, err := s.GetByHeight(ctx, start)
+	startHeader, err := s.headerServ.GetByHeight(ctx, start)
 	if err != nil {
 		return nil, err
 	}
-	headerRange, err := s.GetRangeByHeight(ctx, startHeader, end)
+	headerRange, err := s.headerServ.GetRangeByHeight(ctx, startHeader, end)
 	if err != nil {
 		return nil, err
 	}

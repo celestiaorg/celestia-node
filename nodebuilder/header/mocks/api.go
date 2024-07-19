@@ -9,8 +9,7 @@ import (
 	reflect "reflect"
 
 	header "github.com/celestiaorg/celestia-node/header"
-	header0 "github.com/celestiaorg/celestia-node/nodebuilder/header"
-	header1 "github.com/celestiaorg/go-header"
+	header0 "github.com/celestiaorg/go-header"
 	sync "github.com/celestiaorg/go-header/sync"
 	gomock "github.com/golang/mock/gomock"
 )
@@ -39,7 +38,7 @@ func (m *MockModule) EXPECT() *MockModuleMockRecorder {
 }
 
 // GetByHash mocks base method.
-func (m *MockModule) GetByHash(arg0 context.Context, arg1 header1.Hash) (*header.ExtendedHeader, error) {
+func (m *MockModule) GetByHash(arg0 context.Context, arg1 header0.Hash) (*header.ExtendedHeader, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "GetByHash", arg0, arg1)
 	ret0, _ := ret[0].(*header.ExtendedHeader)
@@ -66,36 +65,6 @@ func (m *MockModule) GetByHeight(arg0 context.Context, arg1 uint64) (*header.Ext
 func (mr *MockModuleMockRecorder) GetByHeight(arg0, arg1 interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetByHeight", reflect.TypeOf((*MockModule)(nil).GetByHeight), arg0, arg1)
-}
-
-// GetDataRootTupleInclusionProof mocks base method.
-func (m *MockModule) GetDataRootTupleInclusionProof(arg0 context.Context, arg1, arg2, arg3 uint64) (*header0.DataRootTupleInclusionProof, error) {
-	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "GetDataRootTupleInclusionProof", arg0, arg1, arg2, arg3)
-	ret0, _ := ret[0].(*header0.DataRootTupleInclusionProof)
-	ret1, _ := ret[1].(error)
-	return ret0, ret1
-}
-
-// GetDataRootTupleInclusionProof indicates an expected call of GetDataRootTupleInclusionProof.
-func (mr *MockModuleMockRecorder) GetDataRootTupleInclusionProof(arg0, arg1, arg2, arg3 interface{}) *gomock.Call {
-	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetDataRootTupleInclusionProof", reflect.TypeOf((*MockModule)(nil).GetDataRootTupleInclusionProof), arg0, arg1, arg2, arg3)
-}
-
-// GetDataRootTupleRoot mocks base method.
-func (m *MockModule) GetDataRootTupleRoot(arg0 context.Context, arg1, arg2 uint64) (*header0.DataRootTupleRoot, error) {
-	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "GetDataRootTupleRoot", arg0, arg1, arg2)
-	ret0, _ := ret[0].(*header0.DataRootTupleRoot)
-	ret1, _ := ret[1].(error)
-	return ret0, ret1
-}
-
-// GetDataRootTupleRoot indicates an expected call of GetDataRootTupleRoot.
-func (mr *MockModuleMockRecorder) GetDataRootTupleRoot(arg0, arg1, arg2 interface{}) *gomock.Call {
-	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetDataRootTupleRoot", reflect.TypeOf((*MockModule)(nil).GetDataRootTupleRoot), arg0, arg1, arg2)
 }
 
 // GetRangeByHeight mocks base method.
