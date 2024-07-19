@@ -8,13 +8,14 @@ import (
 	"fmt"
 	"sync"
 
+	"slices"
+
 	"github.com/cosmos/cosmos-sdk/types"
 	logging "github.com/ipfs/go-log/v2"
 	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/codes"
 	"go.opentelemetry.io/otel/trace"
-	"slices"
 
 	"github.com/celestiaorg/celestia-app/pkg/appconsts"
 	appns "github.com/celestiaorg/celestia-app/pkg/namespace"
@@ -60,6 +61,10 @@ type Service struct {
 	headerGetter func(context.Context, uint64) (*header.ExtendedHeader, error)
 	// headerSub subscribes to new headers to supply to blob subscriptions.
 	headerSub func(ctx context.Context) (<-chan *header.ExtendedHeader, error)
+
+	// activeSubscriptions tracks the number of active subscriptions
+	activeSubscriptions sync.WaitGroup
+	mu                  sync.Mutex
 }
 
 func NewService(
@@ -82,7 +87,13 @@ func (s *Service) Start(context.Context) error {
 }
 
 func (s *Service) Stop(context.Context) error {
-	s.cancel()
+	s.mu.Lock()
+	if s.cancel != nil {
+		s.cancel()
+	}
+	s.mu.Unlock()
+
+	s.activeSubscriptions.Wait()
 	return nil
 }
 
@@ -92,17 +103,23 @@ type SubscriptionResponse struct {
 }
 
 func (s *Service) Subscribe(ctx context.Context, ns share.Namespace) (<-chan *SubscriptionResponse, error) {
+	s.mu.Lock()
 	if s.ctx == nil {
+		s.mu.Unlock()
 		return nil, fmt.Errorf("service has not been started")
 	}
+	s.activeSubscriptions.Add(1)
+	s.mu.Unlock()
 
 	headerCh, err := s.headerSub(ctx)
 	if err != nil {
+		s.activeSubscriptions.Done()
 		return nil, err
 	}
 
 	blobCh := make(chan *SubscriptionResponse, 3)
 	go func() {
+		defer s.activeSubscriptions.Done()
 		defer close(blobCh)
 
 		for {
