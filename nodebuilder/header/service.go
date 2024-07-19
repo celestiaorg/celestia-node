@@ -192,7 +192,7 @@ func (s *Service) GetDataRootTupleInclusionProof(
 		return nil, err
 	}
 	log.Debugw("fetching the data root tuples", "start", start, "end", end)
-	
+
 	tuples, err := s.fetchDataRootTuples(ctx, start, end)
 	if err != nil {
 		return nil, err
