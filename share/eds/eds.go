@@ -279,12 +279,6 @@ func ReadEDS(ctx context.Context, r io.Reader, root share.DataHash) (eds *rsmt2d
 // The share range, defined by start and end, is end-exclusive.
 func ProveShares(eds *rsmt2d.ExtendedDataSquare, start, end int) (*types.ShareProof, error) {
 	log.Debugw("proving share range", "start", start, "end", end)
-	if start == end {
-		return nil, fmt.Errorf("start share cannot be equal to end share")
-	}
-	if start > end {
-		return nil, fmt.Errorf("start share %d cannot be greater than end share %d", start, end)
-	}
 
 	odsShares, err := shares.FromBytes(eds.FlattenedODS())
 	if err != nil {
