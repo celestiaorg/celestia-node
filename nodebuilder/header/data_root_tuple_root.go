@@ -115,6 +115,7 @@ func (s *Service) validateDataRootTupleRootRange(ctx context.Context, start, end
 	if start >= end {
 		return fmt.Errorf("end block is smaller or equal to the start block")
 	}
+
 	heightsRange := end - start
 	if heightsRange > uint64(dataRootTupleRootBlocksLimit) {
 		return fmt.Errorf("the query exceeds the limit of allowed blocks %d", dataRootTupleRootBlocksLimit)
