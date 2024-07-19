@@ -10,8 +10,9 @@ import (
 	"github.com/tendermint/tendermint/libs/bytes"
 )
 
-// DataCommitment is the data root tuple root.
-type DataCommitment bytes.HexBytes
+// DataRootTupleRoot is the root of the merkle tree created
+// from a set of data root tuples.
+type DataRootTupleRoot bytes.HexBytes
 
 // DataRootTupleInclusionProof is the binary merkle
 // inclusion proof of a height to a data commitment.
@@ -57,10 +58,9 @@ func To32PaddedHexBytes(number uint64) ([]byte, error) {
 	return paddedBytes, nil
 }
 
-// DataRootTuple contains the data that will be used to create the QGB commitments.
-// The commitments will be signed by orchestrators and submitted to an EVM chain via a relayer.
+// DataRootTuple contains the data that will be used to generate the Blobstream data root tuple roots.
 // For more information:
-// https://github.com/celestiaorg/quantum-gravity-bridge/blob/master/src/DataRootTuple.sol
+// https://github.com/celestiaorg/blobstream-contracts/blob/master/src/DataRootTuple.sol
 type DataRootTuple struct {
 	height   uint64
 	dataRoot [32]byte
@@ -101,14 +101,14 @@ func EncodeDataRootTuple(height uint64, dataRoot [32]byte) ([]byte, error) {
 	return append(paddedHeight, dataRoot[:]...), nil
 }
 
-// dataCommitmentBlocksLimit The maximum number of blocks to be used to create a data commitment.
+// dataRootTupleRootBlocksLimit The maximum number of blocks to be used to create a data commitment.
 // It's a local parameter to protect the API from creating unnecessarily large commitments.
-const dataCommitmentBlocksLimit = 10_000 // ~33 hours of blocks assuming 12-second blocks.
+const dataRootTupleRootBlocksLimit = 10_000 // ~33 hours of blocks assuming 12-second blocks.
 
-// validateDataCommitmentRange runs basic checks on the asc sorted list of
+// validateDataRootTupleRootRange runs basic checks on the asc sorted list of
 // heights that will be used subsequently in generating data commitments over
 // the defined set of heights.
-func (s *Service) validateDataCommitmentRange(ctx context.Context, start, end uint64) error {
+func (s *Service) validateDataRootTupleRootRange(ctx context.Context, start, end uint64) error {
 	if start == 0 {
 		return ErrHeightNegative
 	}
@@ -116,8 +116,8 @@ func (s *Service) validateDataCommitmentRange(ctx context.Context, start, end ui
 		return fmt.Errorf("end block is smaller or equal to the start block")
 	}
 	heightsRange := end - start
-	if heightsRange > uint64(dataCommitmentBlocksLimit) {
-		return fmt.Errorf("the query exceeds the limit of allowed blocks %d", dataCommitmentBlocksLimit)
+	if heightsRange > uint64(dataRootTupleRootBlocksLimit) {
+		return fmt.Errorf("the query exceeds the limit of allowed blocks %d", dataRootTupleRootBlocksLimit)
 	}
 
 	currentHeader, err := s.NetworkHead(ctx)
@@ -176,7 +176,7 @@ func (s *Service) validateDataRootInclusionProofRequest(
 	ctx context.Context,
 	height, start, end uint64,
 ) error {
-	err := s.validateDataCommitmentRange(ctx, start, end)
+	err := s.validateDataRootTupleRootRange(ctx, start, end)
 	if err != nil {
 		return err
 	}

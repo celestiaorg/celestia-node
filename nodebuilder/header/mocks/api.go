@@ -68,34 +68,34 @@ func (mr *MockModuleMockRecorder) GetByHeight(arg0, arg1 interface{}) *gomock.Ca
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetByHeight", reflect.TypeOf((*MockModule)(nil).GetByHeight), arg0, arg1)
 }
 
-// GetDataCommitment mocks base method.
-func (m *MockModule) GetDataCommitment(arg0 context.Context, arg1, arg2 uint64) (*header0.DataCommitment, error) {
+// GetDataRootTupleInclusionProof mocks base method.
+func (m *MockModule) GetDataRootTupleInclusionProof(arg0 context.Context, arg1 int64, arg2, arg3 uint64) (*header0.DataRootTupleInclusionProof, error) {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "GetDataCommitment", arg0, arg1, arg2)
-	ret0, _ := ret[0].(*header0.DataCommitment)
-	ret1, _ := ret[1].(error)
-	return ret0, ret1
-}
-
-// GetDataCommitment indicates an expected call of GetDataCommitment.
-func (mr *MockModuleMockRecorder) GetDataCommitment(arg0, arg1, arg2 interface{}) *gomock.Call {
-	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetDataCommitment", reflect.TypeOf((*MockModule)(nil).GetDataCommitment), arg0, arg1, arg2)
-}
-
-// GetDataRootInclusionProof mocks base method.
-func (m *MockModule) GetDataRootInclusionProof(arg0 context.Context, arg1 int64, arg2, arg3 uint64) (*header0.DataRootTupleInclusionProof, error) {
-	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "GetDataRootInclusionProof", arg0, arg1, arg2, arg3)
+	ret := m.ctrl.Call(m, "GetDataRootTupleInclusionProof", arg0, arg1, arg2, arg3)
 	ret0, _ := ret[0].(*header0.DataRootTupleInclusionProof)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
 
-// GetDataRootInclusionProof indicates an expected call of GetDataRootInclusionProof.
-func (mr *MockModuleMockRecorder) GetDataRootInclusionProof(arg0, arg1, arg2, arg3 interface{}) *gomock.Call {
+// GetDataRootTupleInclusionProof indicates an expected call of GetDataRootTupleInclusionProof.
+func (mr *MockModuleMockRecorder) GetDataRootTupleInclusionProof(arg0, arg1, arg2, arg3 interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetDataRootInclusionProof", reflect.TypeOf((*MockModule)(nil).GetDataRootInclusionProof), arg0, arg1, arg2, arg3)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetDataRootTupleInclusionProof", reflect.TypeOf((*MockModule)(nil).GetDataRootTupleInclusionProof), arg0, arg1, arg2, arg3)
+}
+
+// GetDataRootTupleRoot mocks base method.
+func (m *MockModule) GetDataRootTupleRoot(arg0 context.Context, arg1, arg2 uint64) (*header0.DataRootTupleRoot, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "GetDataRootTupleRoot", arg0, arg1, arg2)
+	ret0, _ := ret[0].(*header0.DataRootTupleRoot)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// GetDataRootTupleRoot indicates an expected call of GetDataRootTupleRoot.
+func (mr *MockModuleMockRecorder) GetDataRootTupleRoot(arg0, arg1, arg2 interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetDataRootTupleRoot", reflect.TypeOf((*MockModule)(nil).GetDataRootTupleRoot), arg0, arg1, arg2)
 }
 
 // GetRangeByHeight mocks base method.

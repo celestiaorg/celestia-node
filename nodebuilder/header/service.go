@@ -148,11 +148,11 @@ func (s *Service) Subscribe(ctx context.Context) (<-chan *header.ExtendedHeader,
 	return headerCh, nil
 }
 
-// GetDataCommitment collects the data roots over a provided ordered range of blocks,
+// GetDataRootTupleRoot collects the data roots over a provided ordered range of blocks,
 // and then creates a new Merkle root of those data roots. The range is end exclusive.
-func (s *Service) GetDataCommitment(ctx context.Context, start, end uint64) (*DataCommitment, error) {
+func (s *Service) GetDataRootTupleRoot(ctx context.Context, start, end uint64) (*DataRootTupleRoot, error) {
 	log.Debugw("validating the data commitment range", "start", start, "end", end)
-	err := s.validateDataCommitmentRange(ctx, start, end)
+	err := s.validateDataRootTupleRootRange(ctx, start, end)
 	if err != nil {
 		return nil, err
 	}
@@ -167,14 +167,14 @@ func (s *Service) GetDataCommitment(ctx context.Context, start, end uint64) (*Da
 		return nil, err
 	}
 	// Create data commitment
-	dataCommitment := DataCommitment(root)
-	return &dataCommitment, nil
+	dataRootTupleRoot := DataRootTupleRoot(root)
+	return &dataRootTupleRoot, nil
 }
 
-// GetDataRootInclusionProof creates an inclusion proof for the data root of block
+// GetDataRootTupleInclusionProof creates an inclusion proof for the data root of block
 // height `height` in the set of blocks defined by `start` and `end`. The range
 // is end exclusive.
-func (s *Service) GetDataRootInclusionProof(
+func (s *Service) GetDataRootTupleInclusionProof(
 	ctx context.Context,
 	height int64,
 	start,
