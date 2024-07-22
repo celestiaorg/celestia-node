@@ -6,9 +6,8 @@ import (
 	"encoding/hex"
 	"errors"
 	"fmt"
-	"sync"
-
 	"slices"
+	"sync"
 
 	"github.com/cosmos/cosmos-sdk/types"
 	logging "github.com/ipfs/go-log/v2"
@@ -250,7 +249,11 @@ func (s *Service) GetAll(ctx context.Context, height uint64, namespaces []share.
 	return s.getAll(ctx, header, namespaces)
 }
 
-func (s *Service) getAll(ctx context.Context, header *header.ExtendedHeader, namespaces []share.Namespace) ([]*Blob, error) {
+func (s *Service) getAll(
+	ctx context.Context,
+	header *header.ExtendedHeader,
+	namespaces []share.Namespace
+) ([]*Blob, error) {
 	height := header.Height()
 	var (
 		resultBlobs = make([][]*Blob, len(namespaces))

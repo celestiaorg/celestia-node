@@ -674,6 +674,130 @@ func TestSkipPaddingsAndRetrieveBlob(t *testing.T) {
 	require.True(t, newBlob[0].compareCommitments(blobs[0].Commitment))
 }
 
+func TestService_Subscribe(t *testing.T) {
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second*10)
+	t.Cleanup(cancel)
+
+	appBlobs, err := blobtest.GenerateV0Blobs([]int{100, 200, 300}, true)
+	require.NoError(t, err)
+	blobs, err := convertBlobs(appBlobs...)
+	require.NoError(t, err)
+
+	service := createServiceWithSub(ctx, t, blobs)
+
+	t.Run("successful subscription", func(t *testing.T) {
+		ns := blobs[0].Namespace()
+		subCh, err := service.Subscribe(ctx, ns)
+		require.NoError(t, err)
+
+		for i := uint64(0); i < uint64(len(blobs)); i++ {
+			select {
+			case resp := <-subCh:
+				assert.Equal(t, i, resp.Height)
+				assert.Equal(t, blobs[i], resp.Blobs[0])
+			case <-time.After(time.Second * 2):
+				t.Fatalf("timeout waiting for subscription response %d", i)
+			}
+		}
+	})
+
+	t.Run("subscription with no matching blobs", func(t *testing.T) {
+		ns, err := share.NewBlobNamespaceV0([]byte("non-existing"))
+		require.NoError(t, err)
+
+		subCh, err := service.Subscribe(ctx, ns)
+		require.NoError(t, err)
+
+		// check that empty responses are received (as no matching blobs were found)
+		for i := uint64(0); i < uint64(len(blobs)); i++ {
+			select {
+			case resp := <-subCh:
+				assert.Empty(t, resp.Blobs)
+				assert.Equal(t, i, resp.Height)
+			case <-time.After(time.Second * 2):
+				t.Fatalf("timeout waiting for empty subscription response %d", i)
+			}
+		}
+	})
+
+	t.Run("subscription cancellation", func(t *testing.T) {
+		ns := blobs[0].Namespace()
+		subCtx, subCancel := context.WithCancel(ctx)
+		subCh, err := service.Subscribe(subCtx, ns)
+		require.NoError(t, err)
+
+		// cancel the subscription context after receiving the first response
+		select {
+		case <-subCh:
+			subCancel()
+		case <-time.After(time.Second * 2):
+			t.Fatal("timeout waiting for first subscription response")
+		}
+
+		// check that the subscription channel is closed
+		select {
+		case _, ok := <-subCh:
+			assert.False(t, ok, "expected subscription channel to be closed")
+		case <-time.After(time.Second * 2):
+			t.Fatal("timeout waiting for subscription channel to close")
+		}
+	})
+}
+
+func TestService_Subscribe_MultipleNamespaces(t *testing.T) {
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second*10)
+	t.Cleanup(cancel)
+
+	appBlobs1, err := blobtest.GenerateV0Blobs([]int{100, 200}, false)
+	require.NoError(t, err)
+	appBlobs2, err := blobtest.GenerateV0Blobs([]int{300, 400}, false)
+	require.NoError(t, err)
+
+	blobs1, err := convertBlobs(appBlobs1...)
+	require.NoError(t, err)
+	blobs2, err := convertBlobs(appBlobs2...)
+	require.NoError(t, err)
+
+	allBlobs := append(blobs1, blobs2...)
+
+	service := createServiceWithSub(ctx, t, allBlobs)
+
+	ns1 := blobs1[0].Namespace()
+	ns2 := blobs2[0].Namespace()
+
+	subCh1, err := service.Subscribe(ctx, ns1)
+	require.NoError(t, err)
+	subCh2, err := service.Subscribe(ctx, ns2)
+	require.NoError(t, err)
+
+	for i := uint64(0); i < uint64(len(allBlobs)); i++ {
+		select {
+		case resp := <-subCh1:
+			assert.Equal(t, i, resp.Height)
+			if i < uint64(len(blobs1)) {
+				assert.NotEmpty(t, resp.Blobs)
+				for _, b := range resp.Blobs {
+					assert.Equal(t, ns1, b.Namespace())
+				}
+			} else {
+				assert.Empty(t, resp.Blobs)
+			}
+		case resp := <-subCh2:
+			assert.Equal(t, i, resp.Height)
+			if i >= uint64(len(blobs1)) {
+				assert.NotEmpty(t, resp.Blobs)
+				for _, b := range resp.Blobs {
+					assert.Equal(t, ns2, b.Namespace())
+				}
+			} else {
+				assert.Empty(t, resp.Blobs)
+			}
+		case <-time.After(time.Second * 2):
+			t.Fatalf("timeout waiting for subscription responses %d", i)
+		}
+	}
+}
+
 // BenchmarkGetByCommitment-12    	    1869	    571663 ns/op	 1085371 B/op	    6414 allocs/op
 func BenchmarkGetByCommitment(b *testing.B) {
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second*5)
@@ -699,6 +823,42 @@ func BenchmarkGetByCommitment(b *testing.B) {
 		)
 		require.NoError(b, err)
 	}
+}
+
+func createServiceWithSub(ctx context.Context, t testing.TB, blobs []*Blob) *Service {
+	bs := ipld.NewMemBlockservice()
+	batching := ds_sync.MutexWrap(ds.NewMapDatastore())
+	headerStore, err := store.NewStore[*header.ExtendedHeader](batching)
+	require.NoError(t, err)
+	headers := make([]*header.ExtendedHeader, len(blobs))
+	for i, blob := range blobs {
+		rawShares, err := BlobsToShares(blob)
+		require.NoError(t, err)
+		eds, err := ipld.AddShares(ctx, rawShares, bs)
+		require.NoError(t, err)
+		headers[i] = headertest.ExtendedHeaderFromEDS(t, uint64(i), eds)
+	}
+
+	err = headerStore.Init(ctx, headers[0])
+	require.NoError(t, err)
+
+	err = headerStore.Append(ctx, headers[1:]...)
+	require.NoError(t, err)
+
+	fn := func(ctx context.Context, height uint64) (*header.ExtendedHeader, error) {
+		return headerStore.GetByHeight(ctx, height)
+	}
+	fn2 := func(ctx context.Context) (<-chan *header.ExtendedHeader, error) {
+		headerChan := make(chan *header.ExtendedHeader, len(headers))
+		defer func() {
+			for _, h := range headers {
+				time.Sleep(time.Millisecond * 500)
+				headerChan <- h
+			}
+		}()
+		return headerChan, nil
+	}
+	return NewService(nil, getters.NewIPLDGetter(bs), fn, fn2)
 }
 
 func createService(ctx context.Context, t testing.TB, blobs []*Blob) *Service {
