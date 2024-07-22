@@ -155,8 +155,8 @@ func (f *ODSFile) AxisRoots(context.Context) (*share.AxisRoots, error) {
 	rowRoots := make([][]byte, f.size())
 	colRoots := make([][]byte, f.size())
 	for i := 0; i < f.size(); i++ {
-		rowRoots[i] = roots[i*share.AxisRootsSize : (i+1)*share.AxisRootsSize]
-		colRoots[i] = roots[(f.size()+i)*share.AxisRootsSize : (f.size()+i+1)*share.AxisRootsSize]
+		rowRoots[i] = roots[i*share.AxisRootSize : (i+1)*share.AxisRootSize]
+		colRoots[i] = roots[(f.size()+i)*share.AxisRootSize : (f.size()+i+1)*share.AxisRootSize]
 	}
 	axisRoots := &share.AxisRoots{
 		RowRoots:    rowRoots,
@@ -289,7 +289,7 @@ func (f *ODSFile) sharesOffset() int {
 }
 
 func (f *ODSFile) axisRootsSize() int {
-	return share.AxisRootsSize * 2 * f.size()
+	return share.AxisRootSize * 2 * f.size()
 }
 
 func (f *ODSFile) readODS() (square, error) {

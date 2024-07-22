@@ -14,8 +14,8 @@ import (
 const (
 	// DataHashSize is the size of the DataHash.
 	DataHashSize = 32
-	// AxisRootsSize is the size of the single root in AxisRoots.
-	AxisRootsSize = 90
+	// AxisRootSize is the size of the single root in AxisRoots.
+	AxisRootSize = 90
 )
 
 // AxisRoots represents root commitment to multiple Shares.

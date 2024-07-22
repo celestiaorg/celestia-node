@@ -18,7 +18,7 @@ func NamespacedData(
 ) (shwap.NamespacedData, error) {
 	roots, err := eds.AxisRoots(ctx)
 	if err != nil {
-		return nil, fmt.Errorf("failed to get root: %w", err)
+		return nil, fmt.Errorf("failed to get AxisRoots: %w", err)
 	}
 	rowIdxs := share.RowsWithNamespace(roots, namespace)
 	rows := make(shwap.NamespacedData, len(rowIdxs))

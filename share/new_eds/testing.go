@@ -35,8 +35,8 @@ func TestSuiteAccessor(
 		t.Errorf("minSize must be power of 2: %v", maxSize)
 	}
 	for size := minSize; size <= maxSize; size *= 2 {
-		t.Run(fmt.Sprintf("DataRoot:%d", size), func(t *testing.T) {
-			testAccessorDataRoot(ctx, t, createAccessor, size)
+		t.Run(fmt.Sprintf("DataHash:%d", size), func(t *testing.T) {
+			testAccessorDataHash(ctx, t, createAccessor, size)
 		})
 
 		t.Run(fmt.Sprintf("AxisRoots:%d", size), func(t *testing.T) {
@@ -72,7 +72,7 @@ func TestStreamer(
 	})
 }
 
-func testAccessorDataRoot(
+func testAccessorDataHash(
 	ctx context.Context,
 	t *testing.T,
 	createAccessor createAccessor,
