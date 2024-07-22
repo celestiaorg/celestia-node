@@ -25,25 +25,25 @@ func TestBlockstore_Operations(t *testing.T) {
 	err = edsStore.Start(ctx)
 	require.NoError(t, err)
 
-	eds, dah := randomEDS(t)
-	err = edsStore.Put(ctx, dah.Hash(), eds)
+	eds, roots := randomEDS(t)
+	err = edsStore.Put(ctx, roots.Hash(), eds)
 	require.NoError(t, err)
 
-	r, err := edsStore.GetCAR(ctx, dah.Hash())
+	r, err := edsStore.GetCAR(ctx, roots.Hash())
 	require.NoError(t, err)
 	carReader, err := car.NewCarReader(r)
 	require.NoError(t, err)
 
 	topLevelBS := edsStore.Blockstore()
-	carBS, err := edsStore.CARBlockstore(ctx, dah.Hash())
+	carBS, err := edsStore.CARBlockstore(ctx, roots.Hash())
 	require.NoError(t, err)
 	defer func() {
 		require.NoError(t, carBS.Close())
 	}()
 
-	root, err := edsStore.GetDAH(ctx, dah.Hash())
+	root, err := edsStore.GetDAH(ctx, roots.Hash())
 	require.NoError(t, err)
-	require.True(t, dah.Equals(root))
+	require.True(t, roots.Equals(root))
 
 	blockstores := []dagstore.ReadBlockstore{topLevelBS, carBS}
 

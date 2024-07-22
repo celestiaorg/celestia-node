@@ -258,14 +258,14 @@ func ReadEDS(ctx context.Context, r io.Reader, root share.DataHash) (eds *rsmt2d
 		return nil, fmt.Errorf("share: computing eds: %w", err)
 	}
 
-	newDah, err := share.NewRoot(eds)
+	newRoots, err := share.NewAxisRoots(eds)
 	if err != nil {
 		return nil, err
 	}
-	if !bytes.Equal(newDah.Hash(), root) {
+	if !bytes.Equal(newRoots.Hash(), root) {
 		return nil, fmt.Errorf(
 			"share: content integrity mismatch: imported root %s doesn't match expected root %s",
-			newDah.Hash(),
+			newRoots.Hash(),
 			root,
 		)
 	}

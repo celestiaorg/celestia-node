@@ -17,7 +17,6 @@ import (
 	mhcore "github.com/multiformats/go-multihash/core"
 
 	"github.com/celestiaorg/celestia-app/pkg/appconsts"
-	"github.com/celestiaorg/celestia-app/pkg/da"
 	"github.com/celestiaorg/nmt"
 
 	"github.com/celestiaorg/celestia-node/share"
@@ -158,12 +157,12 @@ func MustCidFromNamespacedSha256(hash []byte) cid.Cid {
 
 // Translate transforms square coordinates into IPLD NMT tree path to a leaf node.
 // It also adds randomization to evenly spread fetching from Rows and Columns.
-func Translate(dah *da.DataAvailabilityHeader, row, col int) (cid.Cid, int) {
+func Translate(roots *share.AxisRoots, row, col int) (cid.Cid, int) {
 	if rand.Intn(2) == 0 { //nolint:gosec
-		return MustCidFromNamespacedSha256(dah.ColumnRoots[col]), row
+		return MustCidFromNamespacedSha256(roots.ColumnRoots[col]), row
 	}
 
-	return MustCidFromNamespacedSha256(dah.RowRoots[row]), col
+	return MustCidFromNamespacedSha256(roots.RowRoots[row]), col
 }
 
 // NamespacedSha256FromCID derives the Namespaced hash from the given CID.

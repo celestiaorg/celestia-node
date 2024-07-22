@@ -7,7 +7,6 @@ import (
 
 	"github.com/stretchr/testify/require"
 
-	"github.com/celestiaorg/celestia-app/pkg/da"
 	"github.com/celestiaorg/rsmt2d"
 
 	"github.com/celestiaorg/celestia-node/share"
@@ -26,16 +25,16 @@ func TestGetProof(t *testing.T) {
 	in, err := AddShares(ctx, shares, bServ)
 	require.NoError(t, err)
 
-	dah, err := da.NewDataAvailabilityHeader(in)
+	axisRoots, err := share.NewAxisRoots(in)
 	require.NoError(t, err)
 
 	for _, proofType := range []rsmt2d.Axis{rsmt2d.Row, rsmt2d.Col} {
 		var roots [][]byte
 		switch proofType {
 		case rsmt2d.Row:
-			roots = dah.RowRoots
+			roots = axisRoots.RowRoots
 		case rsmt2d.Col:
-			roots = dah.ColumnRoots
+			roots = axisRoots.ColumnRoots
 		}
 		for axisIdx := 0; axisIdx < width*2; axisIdx++ {
 			root := roots[axisIdx]
@@ -58,7 +57,7 @@ func TestGetProof(t *testing.T) {
 				case rsmt2d.Col:
 					rowIdx, colIdx = shrIdx, axisIdx
 				}
-				err = sample.Validate(&dah, rowIdx, colIdx)
+				err = sample.Validate(axisRoots, rowIdx, colIdx)
 				require.NoError(t, err)
 			}
 		}

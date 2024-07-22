@@ -23,7 +23,7 @@ func TestSharesAvailableCaches(t *testing.T) {
 	dah := eh.DAH
 	avail := TestAvailability(getter)
 
-	// cache doesn't have dah yet
+	// cache doesn't have eds yet
 	has, err := avail.ds.Has(ctx, rootKey(dah))
 	require.NoError(t, err)
 	require.False(t, has)
@@ -46,17 +46,17 @@ func TestSharesAvailableHitsCache(t *testing.T) {
 	getter, _ := GetterWithRandSquare(t, 16)
 	avail := TestAvailability(getter)
 
-	// create new dah, that is not available by getter
+	// create new roots, that is not available by getter
 	bServ := ipld.NewMemBlockservice()
-	dah := availability_test.RandFillBS(t, 16, bServ)
-	eh := headertest.RandExtendedHeaderWithRoot(t, dah)
+	roots := availability_test.RandFillBS(t, 16, bServ)
+	eh := headertest.RandExtendedHeaderWithRoot(t, roots)
 
-	// blockstore doesn't actually have the dah
+	// blockstore doesn't actually have the eds
 	err := avail.SharesAvailable(ctx, eh)
 	require.ErrorIs(t, err, share.ErrNotAvailable)
 
 	// put success result in cache
-	err = avail.ds.Put(ctx, rootKey(dah), []byte{})
+	err = avail.ds.Put(ctx, rootKey(roots), []byte{})
 	require.NoError(t, err)
 
 	// should hit cache after putting
@@ -71,7 +71,7 @@ func TestSharesAvailableEmptyRoot(t *testing.T) {
 	getter, _ := GetterWithRandSquare(t, 16)
 	avail := TestAvailability(getter)
 
-	eh := headertest.RandExtendedHeaderWithRoot(t, share.EmptyRoot())
+	eh := headertest.RandExtendedHeaderWithRoot(t, share.EmptyEDSRoots())
 	err := avail.SharesAvailable(ctx, eh)
 	require.NoError(t, err)
 }
@@ -83,17 +83,17 @@ func TestSharesAvailableFailed(t *testing.T) {
 	getter, _ := GetterWithRandSquare(t, 16)
 	avail := TestAvailability(getter)
 
-	// create new dah, that is not available by getter
+	// create new eds, that is not available by getter
 	bServ := ipld.NewMemBlockservice()
-	dah := availability_test.RandFillBS(t, 16, bServ)
-	eh := headertest.RandExtendedHeaderWithRoot(t, dah)
+	roots := availability_test.RandFillBS(t, 16, bServ)
+	eh := headertest.RandExtendedHeaderWithRoot(t, roots)
 
-	// blockstore doesn't actually have the dah, so it should fail
+	// blockstore doesn't actually have the eds, so it should fail
 	err := avail.SharesAvailable(ctx, eh)
 	require.ErrorIs(t, err, share.ErrNotAvailable)
 
 	// cache should have failed results now
-	result, err := avail.ds.Get(ctx, rootKey(dah))
+	result, err := avail.ds.Get(ctx, rootKey(roots))
 	require.NoError(t, err)
 
 	failed, err := decodeSamples(result)
@@ -216,10 +216,10 @@ func TestGetShares(t *testing.T) {
 
 	eds, err := getter.GetEDS(ctx, eh)
 	require.NoError(t, err)
-	gotDAH, err := share.NewRoot(eds)
+	gotRoots, err := share.NewAxisRoots(eds)
 	require.NoError(t, err)
 
-	require.True(t, eh.DAH.Equals(gotDAH))
+	require.True(t, eh.DAH.Equals(gotRoots))
 }
 
 func TestService_GetSharesByNamespaceNotFound(t *testing.T) {

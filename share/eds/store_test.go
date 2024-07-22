@@ -18,7 +18,6 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"github.com/celestiaorg/celestia-app/pkg/da"
 	"github.com/celestiaorg/rsmt2d"
 
 	"github.com/celestiaorg/celestia-node/share"
@@ -38,31 +37,31 @@ func TestEDSStore(t *testing.T) {
 
 	// PutRegistersShard tests if Put registers the shard on the underlying DAGStore
 	t.Run("PutRegistersShard", func(t *testing.T) {
-		eds, dah := randomEDS(t)
+		eds, roots := randomEDS(t)
 
 		// shard hasn't been registered yet
-		has, err := edsStore.Has(ctx, dah.Hash())
+		has, err := edsStore.Has(ctx, roots.Hash())
 		assert.False(t, has)
 		assert.NoError(t, err)
 
-		err = edsStore.Put(ctx, dah.Hash(), eds)
+		err = edsStore.Put(ctx, roots.Hash(), eds)
 		assert.NoError(t, err)
 
-		_, err = edsStore.dgstr.GetShardInfo(shard.KeyFromString(dah.String()))
+		_, err = edsStore.dgstr.GetShardInfo(shard.KeyFromString(roots.String()))
 		assert.NoError(t, err)
 	})
 
 	// PutIndexesEDS ensures that Putting an EDS indexes it into the car index
 	t.Run("PutIndexesEDS", func(t *testing.T) {
-		eds, dah := randomEDS(t)
+		eds, roots := randomEDS(t)
 
-		stat, _ := edsStore.carIdx.StatFullIndex(shard.KeyFromString(dah.String()))
+		stat, _ := edsStore.carIdx.StatFullIndex(shard.KeyFromString(roots.String()))
 		assert.False(t, stat.Exists)
 
-		err = edsStore.Put(ctx, dah.Hash(), eds)
+		err = edsStore.Put(ctx, roots.Hash(), eds)
 		assert.NoError(t, err)
 
-		stat, err = edsStore.carIdx.StatFullIndex(shard.KeyFromString(dah.String()))
+		stat, err = edsStore.carIdx.StatFullIndex(shard.KeyFromString(roots.String()))
 		assert.True(t, stat.Exists)
 		assert.NoError(t, err)
 	})
@@ -70,12 +69,12 @@ func TestEDSStore(t *testing.T) {
 	// GetCAR ensures that the reader returned from GetCAR is capable of reading the CAR header and
 	// ODS.
 	t.Run("GetCAR", func(t *testing.T) {
-		eds, dah := randomEDS(t)
+		eds, roots := randomEDS(t)
 
-		err = edsStore.Put(ctx, dah.Hash(), eds)
+		err = edsStore.Put(ctx, roots.Hash(), eds)
 		require.NoError(t, err)
 
-		r, err := edsStore.GetCAR(ctx, dah.Hash())
+		r, err := edsStore.GetCAR(ctx, roots.Hash())
 		assert.NoError(t, err)
 		defer func() {
 			require.NoError(t, r.Close())
@@ -106,48 +105,48 @@ func TestEDSStore(t *testing.T) {
 	})
 
 	t.Run("Remove", func(t *testing.T) {
-		eds, dah := randomEDS(t)
+		eds, roots := randomEDS(t)
 
-		err = edsStore.Put(ctx, dah.Hash(), eds)
+		err = edsStore.Put(ctx, roots.Hash(), eds)
 		require.NoError(t, err)
 
 		// assert that file now exists
-		_, err = os.Stat(edsStore.basepath + blocksPath + dah.String())
+		_, err = os.Stat(edsStore.basepath + blocksPath + roots.String())
 		assert.NoError(t, err)
 
 		// accessor will be registered in cache async on put, so give it some time to settle
 		time.Sleep(time.Millisecond * 100)
 
-		err = edsStore.Remove(ctx, dah.Hash())
+		err = edsStore.Remove(ctx, roots.Hash())
 		assert.NoError(t, err)
 
 		// shard should no longer be registered on the dagstore
-		_, err = edsStore.dgstr.GetShardInfo(shard.KeyFromString(dah.String()))
+		_, err = edsStore.dgstr.GetShardInfo(shard.KeyFromString(roots.String()))
 		assert.Error(t, err, "shard not found")
 
 		// shard should have been dropped from the index, which also removes the file under /index/
-		indexStat, err := edsStore.carIdx.StatFullIndex(shard.KeyFromString(dah.String()))
+		indexStat, err := edsStore.carIdx.StatFullIndex(shard.KeyFromString(roots.String()))
 		assert.NoError(t, err)
 		assert.False(t, indexStat.Exists)
 
 		// file no longer exists
-		_, err = os.Stat(edsStore.basepath + blocksPath + dah.String())
+		_, err = os.Stat(edsStore.basepath + blocksPath + roots.String())
 		assert.ErrorContains(t, err, "no such file or directory")
 	})
 
 	t.Run("Remove after OpShardFail", func(t *testing.T) {
-		eds, dah := randomEDS(t)
+		eds, roots := randomEDS(t)
 
-		err = edsStore.Put(ctx, dah.Hash(), eds)
+		err = edsStore.Put(ctx, roots.Hash(), eds)
 		require.NoError(t, err)
 
 		// assert that shard now exists
-		ok, err := edsStore.Has(ctx, dah.Hash())
+		ok, err := edsStore.Has(ctx, roots.Hash())
 		assert.NoError(t, err)
 		assert.True(t, ok)
 
 		// assert that file now exists
-		path := edsStore.basepath + blocksPath + dah.String()
+		path := edsStore.basepath + blocksPath + roots.String()
 		_, err = os.Stat(path)
 		assert.NoError(t, err)
 
@@ -158,10 +157,10 @@ func TestEDSStore(t *testing.T) {
 		time.Sleep(time.Millisecond * 100)
 
 		// remove non-failed accessor from cache
-		err = edsStore.cache.Load().Remove(shard.KeyFromString(dah.String()))
+		err = edsStore.cache.Load().Remove(shard.KeyFromString(roots.String()))
 		assert.NoError(t, err)
 
-		_, err = edsStore.GetCAR(ctx, dah.Hash())
+		_, err = edsStore.GetCAR(ctx, roots.Hash())
 		assert.Error(t, err)
 
 		ticker := time.NewTicker(time.Millisecond * 100)
@@ -169,7 +168,7 @@ func TestEDSStore(t *testing.T) {
 		for {
 			select {
 			case <-ticker.C:
-				has, err := edsStore.Has(ctx, dah.Hash())
+				has, err := edsStore.Has(ctx, roots.Hash())
 				if err == nil && !has {
 					// shard no longer exists after OpShardFail was detected from GetCAR call
 					return
@@ -181,30 +180,30 @@ func TestEDSStore(t *testing.T) {
 	})
 
 	t.Run("Has", func(t *testing.T) {
-		eds, dah := randomEDS(t)
+		eds, roots := randomEDS(t)
 
-		ok, err := edsStore.Has(ctx, dah.Hash())
+		ok, err := edsStore.Has(ctx, roots.Hash())
 		assert.NoError(t, err)
 		assert.False(t, ok)
 
-		err = edsStore.Put(ctx, dah.Hash(), eds)
+		err = edsStore.Put(ctx, roots.Hash(), eds)
 		assert.NoError(t, err)
 
-		ok, err = edsStore.Has(ctx, dah.Hash())
+		ok, err = edsStore.Has(ctx, roots.Hash())
 		assert.NoError(t, err)
 		assert.True(t, ok)
 	})
 
 	t.Run("RecentBlocksCache", func(t *testing.T) {
-		eds, dah := randomEDS(t)
-		err = edsStore.Put(ctx, dah.Hash(), eds)
+		eds, roots := randomEDS(t)
+		err = edsStore.Put(ctx, roots.Hash(), eds)
 		require.NoError(t, err)
 
 		// accessor will be registered in cache async on put, so give it some time to settle
 		time.Sleep(time.Millisecond * 100)
 
 		// check, that the key is in the cache after put
-		shardKey := shard.KeyFromString(dah.String())
+		shardKey := shard.KeyFromString(roots.String())
 		_, err = edsStore.cache.Load().Get(shardKey)
 		assert.NoError(t, err)
 	})
@@ -213,10 +212,10 @@ func TestEDSStore(t *testing.T) {
 		const amount = 10
 		hashes := make([]share.DataHash, 0, amount)
 		for range make([]byte, amount) {
-			eds, dah := randomEDS(t)
-			err = edsStore.Put(ctx, dah.Hash(), eds)
+			eds, roots := randomEDS(t)
+			err = edsStore.Put(ctx, roots.Hash(), eds)
 			require.NoError(t, err)
-			hashes = append(hashes, dah.Hash())
+			hashes = append(hashes, roots.Hash())
 		}
 
 		hashesOut, err := edsStore.List()
@@ -228,14 +227,14 @@ func TestEDSStore(t *testing.T) {
 
 	t.Run("Parallel put", func(t *testing.T) {
 		const amount = 20
-		eds, dah := randomEDS(t)
+		eds, roots := randomEDS(t)
 
 		wg := sync.WaitGroup{}
 		for i := 1; i < amount; i++ {
 			wg.Add(1)
 			go func() {
 				defer wg.Done()
-				err := edsStore.Put(ctx, dah.Hash(), eds)
+				err := edsStore.Put(ctx, roots.Hash(), eds)
 				if err != nil {
 					require.ErrorIs(t, err, dagstore.ErrShardExists)
 				}
@@ -243,11 +242,11 @@ func TestEDSStore(t *testing.T) {
 		}
 		wg.Wait()
 
-		eds, err := edsStore.Get(ctx, dah.Hash())
+		eds, err := edsStore.Get(ctx, roots.Hash())
 		require.NoError(t, err)
-		newDah, err := da.NewDataAvailabilityHeader(eds)
+		newRoots, err := share.NewAxisRoots(eds)
 		require.NoError(t, err)
-		require.Equal(t, dah.Hash(), newDah.Hash())
+		require.Equal(t, roots.Hash(), newRoots.Hash())
 	})
 }
 
@@ -264,10 +263,10 @@ func TestEDSStore_GC(t *testing.T) {
 	err = edsStore.Start(ctx)
 	require.NoError(t, err)
 
-	eds, dah := randomEDS(t)
-	shardKey := shard.KeyFromString(dah.String())
+	eds, roots := randomEDS(t)
+	shardKey := shard.KeyFromString(roots.String())
 
-	err = edsStore.Put(ctx, dah.Hash(), eds)
+	err = edsStore.Put(ctx, roots.Hash(), eds)
 	require.NoError(t, err)
 
 	// accessor will be registered in cache async on put, so give it some time to settle
@@ -275,7 +274,7 @@ func TestEDSStore_GC(t *testing.T) {
 
 	// remove links to the shard from cache
 	time.Sleep(time.Millisecond * 100)
-	key := shard.KeyFromString(share.DataHash(dah.Hash()).String())
+	key := shard.KeyFromString(share.DataHash(roots.Hash()).String())
 	err = edsStore.cache.Load().Remove(key)
 	require.NoError(t, err)
 
@@ -307,12 +306,12 @@ func Test_BlockstoreCache(t *testing.T) {
 	// store eds to the store with noopCache to allow clean cache after put
 	swap := edsStore.cache.Load()
 	edsStore.cache.Store(cache.NewDoubleCache(cache.NoopCache{}, cache.NoopCache{}))
-	eds, dah := randomEDS(t)
-	err = edsStore.Put(ctx, dah.Hash(), eds)
+	eds, roots := randomEDS(t)
+	err = edsStore.Put(ctx, roots.Hash(), eds)
 	require.NoError(t, err)
 
 	// get any key from saved eds
-	bs, err := edsStore.carBlockstore(ctx, dah.Hash())
+	bs, err := edsStore.carBlockstore(ctx, roots.Hash())
 	require.NoError(t, err)
 	defer func() {
 		require.NoError(t, bs.Close())
@@ -330,7 +329,7 @@ func Test_BlockstoreCache(t *testing.T) {
 	edsStore.cache.Store(swap)
 
 	// key shouldn't be in cache yet, check for returned errCacheMiss
-	shardKey := shard.KeyFromString(dah.String())
+	shardKey := shard.KeyFromString(roots.String())
 	_, err = edsStore.cache.Load().Get(shardKey)
 	require.Error(t, err)
 
@@ -354,26 +353,26 @@ func Test_CachedAccessor(t *testing.T) {
 	err = edsStore.Start(ctx)
 	require.NoError(t, err)
 
-	eds, dah := randomEDS(t)
-	err = edsStore.Put(ctx, dah.Hash(), eds)
+	eds, roots := randomEDS(t)
+	err = edsStore.Put(ctx, roots.Hash(), eds)
 	require.NoError(t, err)
 
 	// accessor will be registered in cache async on put, so give it some time to settle
 	time.Sleep(time.Millisecond * 100)
 
 	// accessor should be in cache
-	_, err = edsStore.cache.Load().Get(shard.KeyFromString(dah.String()))
+	_, err = edsStore.cache.Load().Get(shard.KeyFromString(roots.String()))
 	require.NoError(t, err)
 
 	// first read from cached accessor
-	carReader, err := edsStore.getCAR(ctx, dah.Hash())
+	carReader, err := edsStore.getCAR(ctx, roots.Hash())
 	require.NoError(t, err)
 	firstBlock, err := io.ReadAll(carReader)
 	require.NoError(t, err)
 	require.NoError(t, carReader.Close())
 
 	// second read from cached accessor
-	carReader, err = edsStore.getCAR(ctx, dah.Hash())
+	carReader, err = edsStore.getCAR(ctx, roots.Hash())
 	require.NoError(t, err)
 	secondBlock, err := io.ReadAll(carReader)
 	require.NoError(t, err)
@@ -395,26 +394,26 @@ func Test_NotCachedAccessor(t *testing.T) {
 	// replace cache with noopCache to
 	edsStore.cache.Store(cache.NewDoubleCache(cache.NoopCache{}, cache.NoopCache{}))
 
-	eds, dah := randomEDS(t)
-	err = edsStore.Put(ctx, dah.Hash(), eds)
+	eds, roots := randomEDS(t)
+	err = edsStore.Put(ctx, roots.Hash(), eds)
 	require.NoError(t, err)
 
 	// accessor will be registered in cache async on put, so give it some time to settle
 	time.Sleep(time.Millisecond * 100)
 
 	// accessor should not be in cache
-	_, err = edsStore.cache.Load().Get(shard.KeyFromString(dah.String()))
+	_, err = edsStore.cache.Load().Get(shard.KeyFromString(roots.String()))
 	require.Error(t, err)
 
 	// first read from direct accessor (not from cache)
-	carReader, err := edsStore.getCAR(ctx, dah.Hash())
+	carReader, err := edsStore.getCAR(ctx, roots.Hash())
 	require.NoError(t, err)
 	firstBlock, err := io.ReadAll(carReader)
 	require.NoError(t, err)
 	require.NoError(t, carReader.Close())
 
 	// second read from direct accessor (not from cache)
-	carReader, err = edsStore.getCAR(ctx, dah.Hash())
+	carReader, err = edsStore.getCAR(ctx, roots.Hash())
 	require.NoError(t, err)
 	secondBlock, err := io.ReadAll(carReader)
 	require.NoError(t, err)
@@ -440,11 +439,11 @@ func BenchmarkStore(b *testing.B) {
 			// pause the timer for initializing test data
 			b.StopTimer()
 			eds := edstest.RandEDS(b, 128)
-			dah, err := share.NewRoot(eds)
+			roots, err := share.NewAxisRoots(eds)
 			require.NoError(b, err)
 			b.StartTimer()
 
-			err = edsStore.Put(ctx, dah.Hash(), eds)
+			err = edsStore.Put(ctx, roots.Hash(), eds)
 			require.NoError(b, err)
 		}
 	})
@@ -456,12 +455,12 @@ func BenchmarkStore(b *testing.B) {
 			// pause the timer for initializing test data
 			b.StopTimer()
 			eds := edstest.RandEDS(b, 128)
-			dah, err := share.NewRoot(eds)
+			roots, err := share.NewAxisRoots(eds)
 			require.NoError(b, err)
-			_ = edsStore.Put(ctx, dah.Hash(), eds)
+			_ = edsStore.Put(ctx, roots.Hash(), eds)
 			b.StartTimer()
 
-			_, err = edsStore.Get(ctx, dah.Hash())
+			_, err = edsStore.Get(ctx, roots.Hash())
 			require.NoError(b, err)
 		}
 	})
@@ -496,13 +495,13 @@ func BenchmarkCacheEviction(b *testing.B) {
 	cids := make([]cid.Cid, blocks)
 	for i := range cids {
 		eds := edstest.RandEDS(b, size)
-		dah, err := da.NewDataAvailabilityHeader(eds)
+		roots, err := share.NewAxisRoots(eds)
 		require.NoError(b, err)
-		err = edsStore.Put(ctx, dah.Hash(), eds)
+		err = edsStore.Put(ctx, roots.Hash(), eds)
 		require.NoError(b, err)
 
 		// store cids for read loop later
-		cids[i] = ipld.MustCidFromNamespacedSha256(dah.RowRoots[0])
+		cids[i] = ipld.MustCidFromNamespacedSha256(roots.RowRoots[0])
 	}
 
 	// restart store to clear cache
@@ -530,10 +529,10 @@ func newStore(t *testing.T) (*Store, error) {
 	return NewStore(DefaultParameters(), t.TempDir(), ds)
 }
 
-func randomEDS(t *testing.T) (*rsmt2d.ExtendedDataSquare, *share.Root) {
+func randomEDS(t *testing.T) (*rsmt2d.ExtendedDataSquare, *share.AxisRoots) {
 	eds := edstest.RandEDS(t, 4)
-	dah, err := share.NewRoot(eds)
+	roots, err := share.NewAxisRoots(eds)
 	require.NoError(t, err)
 
-	return eds, dah
+	return eds, roots
 }

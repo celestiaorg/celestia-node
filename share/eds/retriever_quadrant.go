@@ -6,9 +6,9 @@ import (
 
 	"github.com/ipfs/go-cid"
 
-	"github.com/celestiaorg/celestia-app/pkg/da"
 	"github.com/celestiaorg/rsmt2d"
 
+	"github.com/celestiaorg/celestia-node/share"
 	"github.com/celestiaorg/celestia-node/share/ipld"
 )
 
@@ -49,11 +49,11 @@ type quadrant struct {
 // newQuadrants constructs a slice of quadrants from DAHeader.
 // There are always 4 quadrants per each source (row and col), so 8 in total.
 // The ordering of quadrants is random.
-func newQuadrants(dah *da.DataAvailabilityHeader) []*quadrant {
+func newQuadrants(roots *share.AxisRoots) []*quadrant {
 	// combine all the roots into one slice, so they can be easily accessible by index
 	daRoots := [][][]byte{
-		dah.RowRoots,
-		dah.ColumnRoots,
+		roots.RowRoots,
+		roots.ColumnRoots,
 	}
 	// create a quadrant slice for each source(row;col)
 	sources := [][]*quadrant{

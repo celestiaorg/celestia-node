@@ -83,9 +83,9 @@ func (s Sample) IsEmpty() bool {
 	return s.Proof == nil
 }
 
-// Validate checks the inclusion of the share using its Merkle proof under the specified root.
+// Validate checks the inclusion of the share using its Merkle proof under the specified AxisRoots.
 // Returns an error if the proof is invalid or does not correspond to the indicated proof type.
-func (s Sample) Validate(dah *share.Root, rowIdx, colIdx int) error {
+func (s Sample) Validate(roots *share.AxisRoots, rowIdx, colIdx int) error {
 	if s.Proof == nil || s.Proof.IsEmptyProof() {
 		return errors.New("nil proof")
 	}
@@ -95,17 +95,17 @@ func (s Sample) Validate(dah *share.Root, rowIdx, colIdx int) error {
 	if s.ProofType != rsmt2d.Row && s.ProofType != rsmt2d.Col {
 		return fmt.Errorf("invalid SampleProofType: %d", s.ProofType)
 	}
-	if !s.verifyInclusion(dah, rowIdx, colIdx) {
+	if !s.verifyInclusion(roots, rowIdx, colIdx) {
 		return ErrFailedVerification
 	}
 	return nil
 }
 
 // verifyInclusion checks if the share is included in the given root hash at the specified indices.
-func (s Sample) verifyInclusion(dah *share.Root, rowIdx, colIdx int) bool {
-	size := len(dah.RowRoots)
+func (s Sample) verifyInclusion(roots *share.AxisRoots, rowIdx, colIdx int) bool {
+	size := len(roots.RowRoots)
 	namespace := inclusionNamespace(s.Share, rowIdx, colIdx, size)
-	rootHash := share.RootHashForCoordinates(dah, s.ProofType, uint(rowIdx), uint(colIdx))
+	rootHash := share.RootHashForCoordinates(roots, s.ProofType, uint(rowIdx), uint(colIdx))
 	return s.Proof.VerifyInclusion(
 		share.NewSHA256Hasher(),
 		namespace.ToNMT(),

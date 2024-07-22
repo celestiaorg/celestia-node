@@ -29,16 +29,16 @@ type ShareWithProof struct {
 }
 
 // Validate validates inclusion of the share under the given root CID.
-func (s *ShareWithProof) Validate(dah *share.Root, axisType rsmt2d.Axis, axisIdx, shrIdx int) bool {
+func (s *ShareWithProof) Validate(roots *share.AxisRoots, axisType rsmt2d.Axis, axisIdx, shrIdx int) bool {
 	var rootHash []byte
 	switch axisType {
 	case rsmt2d.Row:
-		rootHash = rootHashForCoordinates(dah, s.Axis, shrIdx, axisIdx)
+		rootHash = rootHashForCoordinates(roots, s.Axis, shrIdx, axisIdx)
 	case rsmt2d.Col:
-		rootHash = rootHashForCoordinates(dah, s.Axis, axisIdx, shrIdx)
+		rootHash = rootHashForCoordinates(roots, s.Axis, axisIdx, shrIdx)
 	}
 
-	edsSize := len(dah.RowRoots)
+	edsSize := len(roots.RowRoots)
 	isParity := shrIdx >= edsSize/2 || axisIdx >= edsSize/2
 	namespace := share.ParitySharesNamespace
 	if !isParity {
@@ -75,16 +75,16 @@ func (s *ShareWithProof) ShareWithProofToProto() *pb.Share {
 func GetShareWithProof(
 	ctx context.Context,
 	bGetter blockservice.BlockGetter,
-	dah *share.Root,
+	roots *share.AxisRoots,
 	share share.Share,
 	axisType rsmt2d.Axis, axisIdx, shrIdx int,
 ) (*ShareWithProof, error) {
 	if axisType == rsmt2d.Col {
 		axisIdx, shrIdx, axisType = shrIdx, axisIdx, rsmt2d.Row
 	}
-	width := len(dah.RowRoots)
+	width := len(roots.RowRoots)
 	// try row proofs
-	root := dah.RowRoots[axisIdx]
+	root := roots.RowRoots[axisIdx]
 	proof, err := ipld.GetProof(ctx, bGetter, root, shrIdx, width)
 	if err == nil {
 		shareWithProof := &ShareWithProof{
@@ -92,13 +92,13 @@ func GetShareWithProof(
 			Proof: &proof,
 			Axis:  rsmt2d.Row,
 		}
-		if shareWithProof.Validate(dah, axisType, axisIdx, shrIdx) {
+		if shareWithProof.Validate(roots, axisType, axisIdx, shrIdx) {
 			return shareWithProof, nil
 		}
 	}
 
 	// try column proofs
-	root = dah.ColumnRoots[shrIdx]
+	root = roots.ColumnRoots[shrIdx]
 	proof, err = ipld.GetProof(ctx, bGetter, root, axisIdx, width)
 	if err != nil {
 		return nil, err
@@ -108,7 +108,7 @@ func GetShareWithProof(
 		Proof: &proof,
 		Axis:  rsmt2d.Col,
 	}
-	if shareWithProof.Validate(dah, axisType, axisIdx, shrIdx) {
+	if shareWithProof.Validate(roots, axisType, axisIdx, shrIdx) {
 		return shareWithProof, nil
 	}
 	return nil, errors.New("failed to collect proof")
@@ -139,7 +139,7 @@ func ProtoToProof(protoProof *nmt_pb.Proof) nmt.Proof {
 	)
 }
 
-func rootHashForCoordinates(r *share.Root, axisType rsmt2d.Axis, x, y int) []byte {
+func rootHashForCoordinates(r *share.AxisRoots, axisType rsmt2d.Axis, x, y int) []byte {
 	if axisType == rsmt2d.Row {
 		return r.RowRoots[y]
 	}

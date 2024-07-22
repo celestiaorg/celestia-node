@@ -7,8 +7,6 @@ import (
 	"github.com/filecoin-project/dagstore"
 	"github.com/ipfs/boxo/blockservice"
 
-	"github.com/celestiaorg/celestia-app/pkg/da"
-
 	"github.com/celestiaorg/celestia-node/share"
 	"github.com/celestiaorg/celestia-node/share/eds"
 	"github.com/celestiaorg/celestia-node/share/getters"
@@ -21,13 +19,13 @@ func newShareModule(getter share.Getter, avail share.Availability) Module {
 
 // ensureEmptyCARExists adds an empty EDS to the provided EDS store.
 func ensureEmptyCARExists(ctx context.Context, store *eds.Store) error {
-	emptyEDS := share.EmptyExtendedDataSquare()
-	emptyDAH, err := da.NewDataAvailabilityHeader(emptyEDS)
+	emptyEDS := share.EmptyEDS()
+	emptyRoots, err := share.NewAxisRoots(emptyEDS)
 	if err != nil {
 		return err
 	}
 
-	err = store.Put(ctx, emptyDAH.Hash(), emptyEDS)
+	err = store.Put(ctx, emptyRoots.Hash(), emptyEDS)
 	if errors.Is(err, dagstore.ErrShardExists) {
 		return nil
 	}

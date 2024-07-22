@@ -8,8 +8,6 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"github.com/celestiaorg/celestia-app/pkg/da"
-
 	"github.com/celestiaorg/celestia-node/header/headertest"
 	"github.com/celestiaorg/celestia-node/share"
 	availability_test "github.com/celestiaorg/celestia-node/share/availability/test"
@@ -37,9 +35,9 @@ func TestSharesAvailable_Full(t *testing.T) {
 	defer cancel()
 
 	// RandServiceWithSquare creates a NewShareAvailability inside, so we can test it
-	getter, dah := GetterWithRandSquare(t, 16)
+	getter, roots := GetterWithRandSquare(t, 16)
 
-	eh := headertest.RandExtendedHeaderWithRoot(t, dah)
+	eh := headertest.RandExtendedHeaderWithRoot(t, roots)
 	avail := TestAvailability(t, getter)
 	err := avail.SharesAvailable(ctx, eh)
 	assert.NoError(t, err)
@@ -50,13 +48,13 @@ func TestSharesAvailable_StoresToEDSStore(t *testing.T) {
 	defer cancel()
 
 	// RandServiceWithSquare creates a NewShareAvailability inside, so we can test it
-	getter, dah := GetterWithRandSquare(t, 16)
-	eh := headertest.RandExtendedHeaderWithRoot(t, dah)
+	getter, roots := GetterWithRandSquare(t, 16)
+	eh := headertest.RandExtendedHeaderWithRoot(t, roots)
 	avail := TestAvailability(t, getter)
 	err := avail.SharesAvailable(ctx, eh)
 	assert.NoError(t, err)
 
-	has, err := avail.store.Has(ctx, dah.Hash())
+	has, err := avail.store.Has(ctx, roots.Hash())
 	assert.NoError(t, err)
 	assert.True(t, has)
 }
@@ -68,8 +66,8 @@ func TestSharesAvailable_Full_ErrNotAvailable(t *testing.T) {
 	defer cancel()
 
 	eds := edstest.RandEDS(t, 4)
-	dah, err := da.NewDataAvailabilityHeader(eds)
-	eh := headertest.RandExtendedHeaderWithRoot(t, &dah)
+	roots, err := share.NewAxisRoots(eds)
+	eh := headertest.RandExtendedHeaderWithRoot(t, roots)
 	require.NoError(t, err)
 	avail := TestAvailability(t, getter)
 

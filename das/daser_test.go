@@ -335,9 +335,9 @@ func (m *mockGetter) fillSubWithHeaders(
 
 	index := 0
 	for i := startHeight; i < endHeight; i++ {
-		dah := availability_test.RandFillBS(t, 16, bServ)
+		roots := availability_test.RandFillBS(t, 16, bServ)
 
-		randHeader := headertest.RandExtendedHeaderWithRoot(t, dah)
+		randHeader := headertest.RandExtendedHeaderWithRoot(t, roots)
 		randHeader.RawHeader.Height = int64(i + 1)
 
 		sub.Headers[index] = randHeader
@@ -361,9 +361,9 @@ type mockGetter struct {
 
 func (m *mockGetter) generateHeaders(t *testing.T, bServ blockservice.BlockService, startHeight, endHeight int) {
 	for i := startHeight; i < endHeight; i++ {
-		dah := availability_test.RandFillBS(t, 16, bServ)
+		roots := availability_test.RandFillBS(t, 16, bServ)
 
-		randHeader := headertest.RandExtendedHeaderWithRoot(t, dah)
+		randHeader := headertest.RandExtendedHeaderWithRoot(t, roots)
 		randHeader.RawHeader.Height = int64(i + 1)
 
 		m.headers[int64(i+1)] = randHeader
@@ -407,7 +407,7 @@ type benchGetterStub struct {
 
 func newBenchGetter() benchGetterStub {
 	return benchGetterStub{header: &header.ExtendedHeader{
-		DAH: &share.Root{RowRoots: make([][]byte, 0)},
+		DAH: &share.AxisRoots{RowRoots: make([][]byte, 0)},
 	}}
 }
 
@@ -428,7 +428,7 @@ func (m getterStub) GetByHeight(_ context.Context, height uint64) (*header.Exten
 	return &header.ExtendedHeader{
 		Commit:    &types.Commit{},
 		RawHeader: header.RawHeader{Height: int64(height)},
-		DAH:       &share.Root{RowRoots: make([][]byte, 0)},
+		DAH:       &share.AxisRoots{RowRoots: make([][]byte, 0)},
 	}, nil
 }
 

@@ -13,7 +13,6 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"github.com/celestiaorg/celestia-app/pkg/da"
 	"github.com/celestiaorg/celestia-app/pkg/wrapper"
 	"github.com/celestiaorg/nmt"
 	"github.com/celestiaorg/rsmt2d"
@@ -93,12 +92,12 @@ func BenchmarkStore(b *testing.B) {
 						nmt.NodeVisitor(adder.VisitFn())),
 				)
 				require.NoError(b, err)
-				dah, err := da.NewDataAvailabilityHeader(eds)
+				roots, err := share.NewAxisRoots(eds)
 				require.NoError(b, err)
 				ctx := ipld.CtxWithProofsAdder(ctx, adder)
 
 				b.StartTimer()
-				err = store.edsStore.Put(ctx, dah.Hash(), eds)
+				err = store.edsStore.Put(ctx, roots.Hash(), eds)
 				b.StopTimer()
 				require.NoError(b, err)
 			}
@@ -109,11 +108,11 @@ func BenchmarkStore(b *testing.B) {
 			b.StopTimer()
 			for i := 0; i < b.N; i++ {
 				eds := edstest.RandEDS(b, size)
-				dah, err := da.NewDataAvailabilityHeader(eds)
+				roots, err := share.NewAxisRoots(eds)
 				require.NoError(b, err)
 
 				b.StartTimer()
-				err = store.edsStore.Put(ctx, dah.Hash(), eds)
+				err = store.edsStore.Put(ctx, roots.Hash(), eds)
 				b.StopTimer()
 				require.NoError(b, err)
 			}
@@ -139,13 +138,13 @@ func TestStoreRestart(t *testing.T) {
 	for i := range hashes {
 		edss := edstest.RandEDS(t, size)
 		require.NoError(t, err)
-		dah, err := da.NewDataAvailabilityHeader(edss)
+		roots, err := share.NewAxisRoots(edss)
 		require.NoError(t, err)
-		err = store.edsStore.Put(ctx, dah.Hash(), edss)
+		err = store.edsStore.Put(ctx, roots.Hash(), edss)
 		require.NoError(t, err)
 
 		// store hashes for read loop later
-		hashes[i] = dah.Hash()
+		hashes[i] = roots.Hash()
 	}
 
 	// restart store

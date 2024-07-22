@@ -40,13 +40,13 @@ func NewShareAvailability(
 // enough Shares from the network.
 func (fa *ShareAvailability) SharesAvailable(ctx context.Context, header *header.ExtendedHeader) error {
 	dah := header.DAH
-	// short-circuit if the given root is minimum DAH of an empty data square, to avoid datastore hit
-	if share.DataHash(dah.Hash()).IsEmptyRoot() {
+	// short-circuit if the given root is an empty data square, to avoid datastore hit
+	if share.DataHash(dah.Hash()).IsEmptyEDS() {
 		return nil
 	}
 
 	// we assume the caller of this method has already performed basic validation on the
-	// given dah/root. If for some reason this has not happened, the node should panic.
+	// given roots. If for some reason this has not happened, the node should panic.
 	if err := dah.ValidateBasic(); err != nil {
 		log.Errorw("Availability validation cannot be performed on a malformed DataAvailabilityHeader",
 			"err", err)

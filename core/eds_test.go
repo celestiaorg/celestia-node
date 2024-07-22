@@ -24,11 +24,11 @@ func TestTrulyEmptySquare(t *testing.T) {
 
 	eds, err := extendBlock(data, appconsts.LatestVersion)
 	require.NoError(t, err)
-	require.True(t, eds.Equals(share.EmptyExtendedDataSquare()))
+	require.True(t, eds.Equals(share.EmptyEDS()))
 }
 
-// TestEmptySquareWithZeroTxs tests that the DAH hash of a block with no transactions
-// is equal to the DAH hash for an empty root even if SquareSize is set to
+// TestEmptySquareWithZeroTxs tests that the datahash of a block with no transactions
+// is equal to the datahash of an empty eds, even if SquareSize is set to
 // something non-zero. Technically, this block data is invalid because the
 // construction of the square is deterministic, and the rules which dictate the
 // square size do not allow for empty block data. However, should that ever
@@ -40,13 +40,13 @@ func TestEmptySquareWithZeroTxs(t *testing.T) {
 
 	eds, err := extendBlock(data, appconsts.LatestVersion)
 	require.NoError(t, err)
-	require.True(t, eds.Equals(share.EmptyExtendedDataSquare()))
+	require.True(t, eds.Equals(share.EmptyEDS()))
 
 	// force extend the square using an empty block and compare with the min DAH
 	eds, err = app.ExtendBlock(data, appconsts.LatestVersion)
 	require.NoError(t, err)
 
-	dah, err := share.NewRoot(eds)
+	roots, err := share.NewAxisRoots(eds)
 	require.NoError(t, err)
-	assert.Equal(t, share.EmptyRoot().Hash(), dah.Hash())
+	assert.Equal(t, share.EmptyEDSRoots().Hash(), roots.Hash())
 }

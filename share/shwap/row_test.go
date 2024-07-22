@@ -36,7 +36,7 @@ func TestRowFromShares(t *testing.T) {
 func TestRowValidate(t *testing.T) {
 	const odsSize = 8
 	eds := edstest.RandEDS(t, odsSize)
-	root, err := share.NewRoot(eds)
+	root, err := share.NewAxisRoots(eds)
 	require.NoError(t, err)
 
 	for rowIdx := 0; rowIdx < odsSize*2; rowIdx++ {
@@ -54,7 +54,7 @@ func TestRowValidate(t *testing.T) {
 
 func TestRowValidateNegativeCases(t *testing.T) {
 	eds := edstest.RandEDS(t, 8) // Generate a random Extended Data Square of size 8
-	root, err := share.NewRoot(eds)
+	root, err := share.NewAxisRoots(eds)
 	require.NoError(t, err)
 	shares := eds.Row(0)
 	row := RowFromShares(shares, Left)
@@ -105,7 +105,7 @@ func TestRowProtoEncoding(t *testing.T) {
 func BenchmarkRowValidate(b *testing.B) {
 	const odsSize = 32
 	eds := edstest.RandEDS(b, odsSize)
-	root, err := share.NewRoot(eds)
+	root, err := share.NewAxisRoots(eds)
 	require.NoError(b, err)
 	shares := eds.Row(0)
 	row := RowFromShares(shares, Left)

@@ -11,8 +11,7 @@ import (
 
 	"github.com/ipfs/go-datastore"
 
-	"github.com/celestiaorg/celestia-app/pkg/da"
-
+	"github.com/celestiaorg/celestia-node/share"
 	"github.com/celestiaorg/celestia-node/share/eds"
 	"github.com/celestiaorg/celestia-node/share/eds/edstest"
 )
@@ -162,12 +161,12 @@ func (ss *EDSsser) put(ctx context.Context, t *testing.T) (time.Duration, error)
 
 	// divide by 2 to get ODS size as expected by RandEDS
 	square := edstest.RandEDS(t, ss.config.EDSSize/2)
-	dah, err := da.NewDataAvailabilityHeader(square)
+	roots, err := share.NewAxisRoots(square)
 	if err != nil {
 		return 0, err
 	}
 
 	now := time.Now()
-	err = ss.edsstore.Put(ctx, dah.Hash(), square)
+	err = ss.edsstore.Put(ctx, roots.Hash(), square)
 	return time.Since(now), err
 }

@@ -96,7 +96,7 @@ func TestExchange_DoNotStoreHistoric(t *testing.T) {
 
 	// ensure none of the "historic" EDSs were stored
 	for _, h := range headers {
-		if bytes.Equal(h.DataHash, share.EmptyRoot().Hash()) {
+		if bytes.Equal(h.DataHash, share.EmptyEDSRoots().Hash()) {
 			continue
 		}
 		has, err := store.Has(ctx, h.DAH.Hash())
@@ -128,8 +128,8 @@ func createStore(t *testing.T) *eds.Store {
 	require.NoError(t, err)
 
 	// store an empty square to initialize EDS store
-	eds := share.EmptyExtendedDataSquare()
-	err = store.Put(ctx, share.EmptyRoot().Hash(), eds)
+	eds := share.EmptyEDS()
+	err = store.Put(ctx, share.EmptyEDSRoots().Hash(), eds)
 	require.NoError(t, err)
 
 	t.Cleanup(func() {
@@ -187,7 +187,7 @@ func generateNonEmptyBlocks(
 		case b, ok := <-sub:
 			require.True(t, ok)
 
-			if !bytes.Equal(b.Data.Hash(), share.EmptyRoot().Hash()) {
+			if !bytes.Equal(b.Data.Hash(), share.EmptyEDSRoots().Hash()) {
 				hashes = append(hashes, share.DataHash(b.Data.Hash()))
 				i++
 			}

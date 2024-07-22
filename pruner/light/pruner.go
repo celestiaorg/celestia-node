@@ -24,7 +24,7 @@ func NewPruner(bstore blockstore.Blockstore, ds datastore.Batching) pruner.Prune
 
 func (p *Pruner) Prune(ctx context.Context, h *header.ExtendedHeader) error {
 	dah := h.DAH
-	if share.DataHash(dah.Hash()).IsEmptyRoot() {
+	if share.DataHash(dah.Hash()).IsEmptyEDS() {
 		return nil
 	}
 
@@ -41,6 +41,6 @@ func (p *Pruner) Prune(ctx context.Context, h *header.ExtendedHeader) error {
 	return p.ds.Delete(ctx, rootKey(dah))
 }
 
-func rootKey(root *share.Root) datastore.Key {
+func rootKey(root *share.AxisRoots) datastore.Key {
 	return datastore.NewKey(root.String())
 }

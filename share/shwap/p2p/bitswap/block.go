@@ -29,8 +29,8 @@ type Block interface {
 	// MUST exclude the Shwap ID.
 	Marshal() ([]byte, error)
 	// UnmarshalFn returns closure that unmarshal the Block with the Shwap container.
-	// Unmarshalling involves data validation against the given Root.
-	UnmarshalFn(*share.Root) UnmarshalFn
+	// Unmarshalling involves data validation against the given AxisRoots.
+	UnmarshalFn(*share.AxisRoots) UnmarshalFn
 }
 
 // UnmarshalFn is a closure produced by a Block that unmarshalls and validates

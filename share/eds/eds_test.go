@@ -17,7 +17,6 @@ import (
 	"github.com/tendermint/tendermint/libs/rand"
 
 	"github.com/celestiaorg/celestia-app/pkg/appconsts"
-	"github.com/celestiaorg/celestia-app/pkg/da"
 	"github.com/celestiaorg/rsmt2d"
 
 	"github.com/celestiaorg/celestia-node/share"
@@ -138,12 +137,12 @@ func TestWriteEDSInQuadrantOrder(t *testing.T) {
 
 func TestReadWriteRoundtrip(t *testing.T) {
 	eds := writeRandomEDS(t)
-	dah, err := share.NewRoot(eds)
+	roots, err := share.NewAxisRoots(eds)
 	require.NoError(t, err)
 	f := openWrittenEDS(t)
 	defer f.Close()
 
-	loaded, err := ReadEDS(context.Background(), f, dah.Hash())
+	loaded, err := ReadEDS(context.Background(), f, roots.Hash())
 	require.NoError(t, err, "error reading EDS from file")
 
 	rowRoots, err := eds.RowRoots()
@@ -163,28 +162,28 @@ func TestReadEDS(t *testing.T) {
 	f, err := f.Open("testdata/example.car")
 	require.NoError(t, err, "error opening file")
 
-	var dah da.DataAvailabilityHeader
-	err = json.Unmarshal([]byte(exampleRoot), &dah)
+	var roots share.AxisRoots
+	err = json.Unmarshal([]byte(exampleRoot), &roots)
 	require.NoError(t, err, "error unmarshaling example root")
 
-	loaded, err := ReadEDS(context.Background(), f, dah.Hash())
+	loaded, err := ReadEDS(context.Background(), f, roots.Hash())
 	require.NoError(t, err, "error reading EDS from file")
 	rowRoots, err := loaded.RowRoots()
 	require.NoError(t, err)
-	require.Equal(t, dah.RowRoots, rowRoots)
+	require.Equal(t, roots.RowRoots, rowRoots)
 	colRoots, err := loaded.ColRoots()
 	require.NoError(t, err)
-	require.Equal(t, dah.ColumnRoots, colRoots)
+	require.Equal(t, roots.ColumnRoots, colRoots)
 }
 
 func TestReadEDSContentIntegrityMismatch(t *testing.T) {
 	writeRandomEDS(t)
-	dah, err := da.NewDataAvailabilityHeader(edstest.RandEDS(t, 4))
+	roots, err := share.NewAxisRoots(edstest.RandEDS(t, 4))
 	require.NoError(t, err)
 	f := openWrittenEDS(t)
 	defer f.Close()
 
-	_, err = ReadEDS(context.Background(), f, dah.Hash())
+	_, err = ReadEDS(context.Background(), f, roots.Hash())
 	require.ErrorContains(t, err, "share: content integrity mismatch: imported root")
 }
 
@@ -196,7 +195,7 @@ func BenchmarkReadWriteEDS(b *testing.B) {
 	b.Cleanup(cancel)
 	for originalDataWidth := 4; originalDataWidth <= 64; originalDataWidth *= 2 {
 		eds := edstest.RandEDS(b, originalDataWidth)
-		dah, err := share.NewRoot(eds)
+		roots, err := share.NewAxisRoots(eds)
 		require.NoError(b, err)
 		b.Run(fmt.Sprintf("Writing %dx%d", originalDataWidth, originalDataWidth), func(b *testing.B) {
 			b.ReportAllocs()
@@ -213,7 +212,7 @@ func BenchmarkReadWriteEDS(b *testing.B) {
 				f := new(bytes.Buffer)
 				_ = WriteEDS(ctx, eds, f)
 				b.StartTimer()
-				_, err := ReadEDS(ctx, f, dah.Hash())
+				_, err := ReadEDS(ctx, f, roots.Hash())
 				require.NoError(b, err)
 			}
 		})
@@ -268,10 +267,10 @@ func createTestData(t *testing.T, testDir string) { //nolint:unused
 	err = WriteEDS(ctx, eds, f)
 	require.NoError(t, err, "writing EDS to file")
 	f.Close()
-	dah, err := share.NewRoot(eds)
+	roots, err := share.NewAxisRoots(eds)
 	require.NoError(t, err)
 
-	header, err := json.MarshalIndent(dah, "", "")
+	header, err := json.MarshalIndent(roots, "", "")
 	require.NoError(t, err, "marshaling example root")
 	os.RemoveAll("example-root.json")
 	require.NoError(t, err, "removing old file")
