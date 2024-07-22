@@ -117,7 +117,7 @@ func (s *Service) validateDataRootTupleRootRange(ctx context.Context, start, end
 
 	currentLocalHeader, err := s.headerServ.LocalHead(ctx)
 	if err != nil {
-		return fmt.Errorf("couldn't get the local head to validate the data root tuple root range%w", err)
+		return fmt.Errorf("could not get the local head to validate the data root tuple root range: %w", err)
 	}
 	// the data commitment range is end exclusive
 	if end > currentLocalHeader.Height()+1 {
