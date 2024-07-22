@@ -2,14 +2,12 @@ package store
 
 import (
 	"context"
-	"crypto/rand"
 	"sync/atomic"
 	"testing"
 	"time"
 
 	"github.com/stretchr/testify/require"
 
-	"github.com/celestiaorg/celestia-app/pkg/da"
 	"github.com/celestiaorg/rsmt2d"
 
 	"github.com/celestiaorg/celestia-node/share"
@@ -260,7 +258,7 @@ func BenchmarkStore(b *testing.B) {
 	b.Run("put 128", func(b *testing.B) {
 		b.ResetTimer()
 		for i := 0; i < b.N; i++ {
-			roots := randomAxisRoots(b)
+			roots := edstest.RandomAxisRoots(b, 1)
 			_ = edsStore.Put(ctx, roots, uint64(i), eds)
 		}
 	})
@@ -319,12 +317,4 @@ func randomEDS(t testing.TB) (*rsmt2d.ExtendedDataSquare, *share.AxisRoots) {
 	require.NoError(t, err)
 
 	return eds, roots
-}
-
-func randomAxisRoots(t testing.TB) *share.AxisRoots {
-	row := make([]byte, 32)
-	_, err := rand.Read(row)
-	require.NoError(t, err)
-	roots := da.DataAvailabilityHeader{RowRoots: [][]byte{row}}
-	return &roots
 }
