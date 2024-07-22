@@ -29,7 +29,7 @@ type ShareWithProof struct {
 }
 
 // Validate validates inclusion of the share under the given root CID.
-func (s *ShareWithProof) Validate(dah *share.Root, axisType rsmt2d.Axis, axisIdx, shrIdx int) bool {
+func (s *ShareWithProof) Validate(dah *share.AxisRoots, axisType rsmt2d.Axis, axisIdx, shrIdx int) bool {
 	var rootHash []byte
 	switch axisType {
 	case rsmt2d.Row:
@@ -75,7 +75,7 @@ func (s *ShareWithProof) ShareWithProofToProto() *pb.Share {
 func GetShareWithProof(
 	ctx context.Context,
 	bGetter blockservice.BlockGetter,
-	dah *share.Root,
+	dah *share.AxisRoots,
 	share share.Share,
 	axisType rsmt2d.Axis, axisIdx, shrIdx int,
 ) (*ShareWithProof, error) {
@@ -139,7 +139,7 @@ func ProtoToProof(protoProof *nmt_pb.Proof) nmt.Proof {
 	)
 }
 
-func rootHashForCoordinates(r *share.Root, axisType rsmt2d.Axis, x, y int) []byte {
+func rootHashForCoordinates(r *share.AxisRoots, axisType rsmt2d.Axis, x, y int) []byte {
 	if axisType == rsmt2d.Row {
 		return r.RowRoots[y]
 	}

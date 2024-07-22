@@ -31,7 +31,7 @@ func TestExchange_RequestND_NotFound(t *testing.T) {
 		ctx, cancel := context.WithTimeout(ctx, time.Second)
 		t.Cleanup(cancel)
 
-		root := share.Root{}
+		root := share.AxisRoots{}
 		namespace := sharetest.RandV0Namespace()
 		_, err := client.RequestND(ctx, &root, namespace, server.host.ID())
 		require.ErrorIs(t, err, p2p.ErrNotFound)
@@ -42,7 +42,7 @@ func TestExchange_RequestND_NotFound(t *testing.T) {
 		t.Cleanup(cancel)
 
 		eds := edstest.RandEDS(t, 4)
-		dah, err := share.NewRoot(eds)
+		dah, err := share.NewAxisRoots(eds)
 		require.NoError(t, err)
 		require.NoError(t, edsStore.Put(ctx, dah.Hash(), eds))
 

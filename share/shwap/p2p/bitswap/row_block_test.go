@@ -16,7 +16,7 @@ func TestRow_FetchRoundtrip(t *testing.T) {
 	defer cancel()
 
 	eds := edstest.RandEDS(t, 4)
-	root, err := share.NewRoot(eds)
+	root, err := share.NewAxisRoots(eds)
 	require.NoError(t, err)
 	exchange := newExchangeOverEDS(ctx, t, eds)
 

@@ -172,8 +172,8 @@ func TestEDSStore(t *testing.T) {
 	})
 
 	t.Run("empty EDS returned by hash", func(t *testing.T) {
-		eds := share.EmptyExtendedDataSquare()
-		dah, err := share.NewRoot(eds)
+		eds := share.EmptyEDS()
+		dah, err := share.NewAxisRoots(eds)
 		require.NoError(t, err)
 
 		// assert that the empty file exists
@@ -186,12 +186,12 @@ func TestEDSStore(t *testing.T) {
 		require.NoError(t, err)
 		hash, err := f.DataRoot(ctx)
 		require.NoError(t, err)
-		require.True(t, hash.IsEmptyRoot())
+		require.True(t, hash.IsEmptyEDS())
 	})
 
 	t.Run("empty EDS returned by height", func(t *testing.T) {
-		eds := share.EmptyExtendedDataSquare()
-		dah, err := share.NewRoot(eds)
+		eds := share.EmptyEDS()
+		dah, err := share.NewAxisRoots(eds)
 		require.NoError(t, err)
 		height := height.Add(1)
 
@@ -208,7 +208,7 @@ func TestEDSStore(t *testing.T) {
 		require.NoError(t, err)
 		hash, err := f.DataRoot(ctx)
 		require.NoError(t, err)
-		require.True(t, hash.IsEmptyRoot())
+		require.True(t, hash.IsEmptyEDS())
 		require.NoError(t, f.Close())
 	})
 
@@ -217,8 +217,8 @@ func TestEDSStore(t *testing.T) {
 		edsStore, err := NewStore(DefaultParameters(), dir)
 		require.NoError(t, err)
 
-		eds := share.EmptyExtendedDataSquare()
-		dah, err := share.NewRoot(eds)
+		eds := share.EmptyEDS()
+		dah, err := share.NewAxisRoots(eds)
 		require.NoError(t, err)
 		from, to := 10, 20
 
@@ -239,7 +239,7 @@ func TestEDSStore(t *testing.T) {
 			require.NoError(t, err)
 			hash, err := f.DataRoot(ctx)
 			require.NoError(t, err)
-			require.True(t, hash.IsEmptyRoot())
+			require.True(t, hash.IsEmptyEDS())
 			require.NoError(t, f.Close())
 		}
 	})
@@ -275,7 +275,7 @@ func BenchmarkStore(b *testing.B) {
 		// disable cache
 		edsStore.cache = cache.NewDoubleCache(cache.NoopCache{}, cache.NoopCache{})
 
-		dah, err := share.NewRoot(eds)
+		dah, err := share.NewAxisRoots(eds)
 		require.NoError(b, err)
 
 		height := uint64(1984)
@@ -298,7 +298,7 @@ func BenchmarkStore(b *testing.B) {
 		// disable cache
 		edsStore.cache = cache.NewDoubleCache(cache.NoopCache{}, cache.NoopCache{})
 
-		dah, err := share.NewRoot(eds)
+		dah, err := share.NewAxisRoots(eds)
 		require.NoError(b, err)
 
 		height := uint64(1984)
@@ -314,9 +314,9 @@ func BenchmarkStore(b *testing.B) {
 	})
 }
 
-func randomEDS(t *testing.T) (*rsmt2d.ExtendedDataSquare, *share.Root) {
+func randomEDS(t *testing.T) (*rsmt2d.ExtendedDataSquare, *share.AxisRoots) {
 	eds := edstest.RandEDS(t, 4)
-	dah, err := share.NewRoot(eds)
+	dah, err := share.NewAxisRoots(eds)
 	require.NoError(t, err)
 
 	return eds, dah

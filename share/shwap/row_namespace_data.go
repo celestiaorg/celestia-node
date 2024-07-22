@@ -138,8 +138,8 @@ func (rnd RowNamespaceData) IsEmpty() bool {
 	return rnd.Proof == nil
 }
 
-// Validate checks validity of the RowNamespaceData against the Root, Namespace and Row index.
-func (rnd RowNamespaceData) Validate(dah *share.Root, namespace share.Namespace, rowIdx int) error {
+// Validate checks validity of the RowNamespaceData against the AxisRoots, Namespace and Row index.
+func (rnd RowNamespaceData) Validate(dah *share.AxisRoots, namespace share.Namespace, rowIdx int) error {
 	if rnd.Proof == nil || rnd.Proof.IsEmptyProof() {
 		return fmt.Errorf("nil proof")
 	}

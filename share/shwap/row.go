@@ -82,7 +82,7 @@ func (r Row) IsEmpty() bool {
 
 // Validate checks if the row's shares match the expected number from the root data and validates
 // the side of the row.
-func (r Row) Validate(dah *share.Root, idx int) error {
+func (r Row) Validate(dah *share.AxisRoots, idx int) error {
 	if len(r.halfShares) == 0 {
 		return fmt.Errorf("empty half row")
 	}
@@ -105,7 +105,7 @@ func (r Row) Validate(dah *share.Root, idx int) error {
 
 // verifyInclusion verifies the integrity of the row's shares against the provided root hash for the
 // given row index.
-func (r Row) verifyInclusion(dah *share.Root, idx int) error {
+func (r Row) verifyInclusion(dah *share.AxisRoots, idx int) error {
 	shrs, err := r.Shares()
 	if err != nil {
 		return fmt.Errorf("while extending shares: %w", err)

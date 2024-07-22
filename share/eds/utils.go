@@ -62,7 +62,7 @@ func closeAndLog(name string, closer io.Closer) {
 func RetrieveNamespaceFromStore(
 	ctx context.Context,
 	store *Store,
-	dah *share.Root,
+	dah *share.AxisRoots,
 	namespace share.Namespace,
 ) (shares share.NamespacedShares, err error) {
 	if err = namespace.ValidateForData(); err != nil {
@@ -107,11 +107,11 @@ func RetrieveNamespaceFromStore(
 	return shares, nil
 }
 
-// CollectSharesByNamespace collects NamespaceShares within the given namespace from share.Root.
+// CollectSharesByNamespace collects NamespaceShares within the given namespace from EDS.
 func CollectSharesByNamespace(
 	ctx context.Context,
 	bg blockservice.BlockGetter,
-	root *share.Root,
+	root *share.AxisRoots,
 	namespace share.Namespace,
 ) (shares share.NamespacedShares, err error) {
 	ctx, span := tracer.Start(ctx, "collect-shares-by-namespace", trace.WithAttributes(

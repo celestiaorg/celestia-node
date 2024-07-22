@@ -19,7 +19,7 @@ import (
 // TestGetter provides a testing SingleEDSGetter and the root of the EDS it holds.
 func TestGetter(t *testing.T) (share.Getter, *header.ExtendedHeader) {
 	eds := edstest.RandEDS(t, 8)
-	dah, err := share.NewRoot(eds)
+	dah, err := share.NewAxisRoots(eds)
 	eh := headertest.RandExtendedHeaderWithRoot(t, dah)
 	require.NoError(t, err)
 	return &SingleEDSGetter{
@@ -64,7 +64,7 @@ func (seg *SingleEDSGetter) GetSharesByNamespace(context.Context, *header.Extend
 	panic("SingleEDSGetter: GetSharesByNamespace is not implemented")
 }
 
-func (seg *SingleEDSGetter) checkRoot(root *share.Root) error {
+func (seg *SingleEDSGetter) checkRoot(root *share.AxisRoots) error {
 	dah, err := da.NewDataAvailabilityHeader(seg.EDS)
 	if err != nil {
 		return err

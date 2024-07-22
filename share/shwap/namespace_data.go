@@ -20,7 +20,7 @@ func (ns NamespacedData) Flatten() []share.Share {
 }
 
 // Validate checks the integrity of the NamespacedData against a provided root and namespace.
-func (ns NamespacedData) Validate(root *share.Root, namespace share.Namespace) error {
+func (ns NamespacedData) Validate(root *share.AxisRoots, namespace share.Namespace) error {
 	rowIdxs := share.RowsWithNamespace(root, namespace)
 	if len(rowIdxs) != len(ns) {
 		return fmt.Errorf("expected %d rows, found %d rows", len(rowIdxs), len(ns))

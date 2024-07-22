@@ -31,10 +31,16 @@ func WithStore(store blockstore.Blockstore) FetchOption {
 
 // Fetch fetches and populates given Blocks using Fetcher wrapping Bitswap.
 //
-// Validates Block against the given Root and skips Blocks that are already populated.
+// Validates Block against the given AxisRoots and skips Blocks that are already populated.
 // Gracefully synchronize identical Blocks requested simultaneously.
 // Blocks until either context is canceled or all Blocks are fetched and populated.
-func Fetch(ctx context.Context, exchg exchange.Interface, root *share.Root, blks []Block, opts ...FetchOption) error {
+func Fetch(
+	ctx context.Context,
+	exchg exchange.Interface,
+	root *share.AxisRoots,
+	blks []Block,
+	opts ...FetchOption,
+) error {
 	var from, to int
 	for to < len(blks) {
 		from, to = to, to+maxPerFetch
@@ -60,7 +66,13 @@ const maxPerFetch = 1024
 
 // fetch fetches given Blocks.
 // See [Fetch] for detailed description.
-func fetch(ctx context.Context, exchg exchange.Interface, root *share.Root, blks []Block, opts ...FetchOption) error {
+func fetch(
+	ctx context.Context,
+	exchg exchange.Interface,
+	root *share.AxisRoots,
+	blks []Block,
+	opts ...FetchOption,
+) error {
 	var options fetchOptions
 	for _, opt := range opts {
 		opt(&options)

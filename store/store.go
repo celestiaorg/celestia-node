@@ -21,7 +21,7 @@ import (
 var (
 	log = logging.Logger("share/eds")
 
-	emptyAccessor = &eds.Rsmt2D{ExtendedDataSquare: share.EmptyExtendedDataSquare()}
+	emptyAccessor = &eds.Rsmt2D{ExtendedDataSquare: share.EmptyEDS()}
 )
 
 const (
@@ -106,7 +106,7 @@ func (s *Store) Put(
 	defer lock.unlock()
 
 	path := s.basepath + blocksPath + datahash.String()
-	if datahash.IsEmptyRoot() {
+	if datahash.IsEmptyEDS() {
 		err := s.ensureHeightLink(path, height)
 		return err
 	}
@@ -173,7 +173,7 @@ func (s *Store) ensureHeightLink(path string, height uint64) error {
 }
 
 func (s *Store) GetByDataRoot(ctx context.Context, datahash share.DataHash) (eds.AccessorStreamer, error) {
-	if datahash.IsEmptyRoot() {
+	if datahash.IsEmptyEDS() {
 		return emptyAccessor, nil
 	}
 	lock := s.stripLock.byDatahash(datahash)
@@ -226,7 +226,7 @@ func (s *Store) openFile(path string) (eds.AccessorStreamer, error) {
 }
 
 func (s *Store) HasByHash(ctx context.Context, datahash share.DataHash) (bool, error) {
-	if datahash.IsEmptyRoot() {
+	if datahash.IsEmptyEDS() {
 		return true, nil
 	}
 	lock := s.stripLock.byDatahash(datahash)
@@ -305,7 +305,7 @@ func (s *Store) removeLink(height uint64) error {
 
 func (s *Store) removeFile(hash share.DataHash) error {
 	// we don't need to remove the empty file, it should always be there
-	if hash.IsEmptyRoot() {
+	if hash.IsEmptyEDS() {
 		return nil
 	}
 
@@ -361,20 +361,20 @@ func pathExists(path string) (bool, error) {
 }
 
 func ensureEmptyFile(basepath string) error {
-	path := basepath + blocksPath + share.DataHash(share.EmptyRoot().Hash()).String()
+	path := basepath + blocksPath + share.DataHash(share.EmptyEDSRoot().Hash()).String()
 	ok, err := pathExists(path)
 	if err != nil {
-		return fmt.Errorf("checking empty root: %w", err)
+		return fmt.Errorf("checking empty file path: %w", err)
 	}
 	if ok {
 		return nil
 	}
 	f, err := os.Create(path)
 	if err != nil {
-		return fmt.Errorf("creating empty root file: %w", err)
+		return fmt.Errorf("creating empty eds file: %w", err)
 	}
 	if err = f.Close(); err != nil {
-		return fmt.Errorf("closing empty root file: %w", err)
+		return fmt.Errorf("closing empty eds file: %w", err)
 	}
 	return nil
 }

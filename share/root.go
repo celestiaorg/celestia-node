@@ -11,11 +11,11 @@ import (
 	"github.com/celestiaorg/rsmt2d"
 )
 
-// Root represents root commitment to multiple Shares.
+// AxisRoots represents root commitment to multiple Shares.
 // In practice, it is a commitment to all the Data in a square.
-type Root = da.DataAvailabilityHeader
+type AxisRoots = da.DataAvailabilityHeader
 
-// DataHash is a representation of the Root hash.
+// DataHash is a representation of the AxisRoots hash.
 type DataHash []byte
 
 func (dh DataHash) Validate() error {
@@ -29,9 +29,9 @@ func (dh DataHash) String() string {
 	return fmt.Sprintf("%X", []byte(dh))
 }
 
-// IsEmptyRoot check whether DataHash corresponds to the root of an empty block EDS.
-func (dh DataHash) IsEmptyRoot() bool {
-	return bytes.Equal(EmptyRoot().Hash(), dh)
+// IsEmptyEDS check whether DataHash corresponds to the root of an empty block EDS.
+func (dh DataHash) IsEmptyEDS() bool {
+	return bytes.Equal(EmptyEDSRoot().Hash(), dh)
 }
 
 // NewSHA256Hasher returns a new instance of a SHA-256 hasher.
@@ -39,9 +39,9 @@ func NewSHA256Hasher() hash.Hash {
 	return sha256.New()
 }
 
-// NewRoot generates Root(DataAvailabilityHeader) using the
+// NewAxisRoots generates AxisRoots(DataAvailabilityHeader) using the
 // provided extended data square.
-func NewRoot(eds *rsmt2d.ExtendedDataSquare) (*Root, error) {
+func NewAxisRoots(eds *rsmt2d.ExtendedDataSquare) (*AxisRoots, error) {
 	dah, err := da.NewDataAvailabilityHeader(eds)
 	if err != nil {
 		return nil, err
@@ -49,9 +49,9 @@ func NewRoot(eds *rsmt2d.ExtendedDataSquare) (*Root, error) {
 	return &dah, nil
 }
 
-// RowsWithNamespace inspects the Root for the Namespace and provides
+// RowsWithNamespace inspects the AxisRoots for the Namespace and provides
 // a slices of Row indexes containing the namespace.
-func RowsWithNamespace(root *Root, namespace Namespace) (idxs []int) {
+func RowsWithNamespace(root *AxisRoots, namespace Namespace) (idxs []int) {
 	for i, row := range root.RowRoots {
 		if !namespace.IsOutsideRange(row, row) {
 			idxs = append(idxs, i)
@@ -61,7 +61,7 @@ func RowsWithNamespace(root *Root, namespace Namespace) (idxs []int) {
 }
 
 // RootHashForCoordinates returns the root hash for the given coordinates.
-func RootHashForCoordinates(r *Root, axisType rsmt2d.Axis, rowIdx, colIdx uint) []byte {
+func RootHashForCoordinates(r *AxisRoots, axisType rsmt2d.Axis, rowIdx, colIdx uint) []byte {
 	if axisType == rsmt2d.Row {
 		return r.RowRoots[rowIdx]
 	}

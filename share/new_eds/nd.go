@@ -13,7 +13,7 @@ import (
 // avoiding the need to recalculate the row roots for each row.
 func NamespacedData(
 	ctx context.Context,
-	root *share.Root,
+	root *share.AxisRoots,
 	eds Accessor,
 	namespace share.Namespace,
 ) (shwap.NamespacedData, error) {

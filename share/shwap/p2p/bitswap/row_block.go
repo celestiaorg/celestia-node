@@ -96,7 +96,7 @@ func (rb *RowBlock) Populate(ctx context.Context, eds eds.Accessor) error {
 	return nil
 }
 
-func (rb *RowBlock) UnmarshalFn(root *share.Root) UnmarshalFn {
+func (rb *RowBlock) UnmarshalFn(root *share.AxisRoots) UnmarshalFn {
 	return func(data []byte) error {
 		if !rb.Container.IsEmpty() {
 			return nil

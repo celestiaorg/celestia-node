@@ -249,9 +249,9 @@ func newStore(t *testing.T) (*eds.Store, error) {
 	return eds.NewStore(eds.DefaultParameters(), t.TempDir(), ds)
 }
 
-func generateTestEDS(t *testing.T) (*rsmt2d.ExtendedDataSquare, *share.Root, share.Namespace) {
+func generateTestEDS(t *testing.T) (*rsmt2d.ExtendedDataSquare, *share.AxisRoots, share.Namespace) {
 	eds := edstest.RandEDS(t, 4)
-	dah, err := share.NewRoot(eds)
+	dah, err := share.NewAxisRoots(eds)
 	require.NoError(t, err)
 	max := nmt.MaxNamespace(dah.RowRoots[(len(dah.RowRoots))/2-1], share.NamespaceSize)
 	return eds, dah, max

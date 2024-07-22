@@ -68,9 +68,9 @@ func TestRsmt2dSampleForProofAxis(t *testing.T) {
 	}
 }
 
-func randRsmt2dAccsessor(t *testing.T, size int) (Rsmt2D, *share.Root) {
+func randRsmt2dAccsessor(t *testing.T, size int) (Rsmt2D, *share.AxisRoots) {
 	eds := edstest.RandEDS(t, size)
-	root, err := share.NewRoot(eds)
+	root, err := share.NewAxisRoots(eds)
 	require.NoError(t, err)
 	return Rsmt2D{ExtendedDataSquare: eds}, root
 }

@@ -23,8 +23,8 @@ func Test_EmptyCARExists(t *testing.T) {
 	err = edsStore.Start(ctx)
 	require.NoError(t, err)
 
-	eds := share.EmptyExtendedDataSquare()
-	dah, err := share.NewRoot(eds)
+	eds := share.EmptyEDS()
+	dah, err := share.NewAxisRoots(eds)
 	require.NoError(t, err)
 
 	// add empty EDS to store

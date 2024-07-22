@@ -411,7 +411,7 @@ func (s *Store) carBlockstore(
 }
 
 // GetDAH returns the DataAvailabilityHeader for the EDS identified by DataHash.
-func (s *Store) GetDAH(ctx context.Context, root share.DataHash) (*share.Root, error) {
+func (s *Store) GetDAH(ctx context.Context, root share.DataHash) (*share.AxisRoots, error) {
 	ctx, span := tracer.Start(ctx, "store/car-dah")
 	tnow := time.Now()
 	r, err := s.getDAH(ctx, root)
@@ -420,7 +420,7 @@ func (s *Store) GetDAH(ctx context.Context, root share.DataHash) (*share.Root, e
 	return r, err
 }
 
-func (s *Store) getDAH(ctx context.Context, root share.DataHash) (*share.Root, error) {
+func (s *Store) getDAH(ctx context.Context, root share.DataHash) (*share.AxisRoots, error) {
 	r, err := s.getCAR(ctx, root)
 	if err != nil {
 		return nil, fmt.Errorf("eds/store: failed to get CAR file: %w", err)
@@ -440,13 +440,13 @@ func (s *Store) getDAH(ctx context.Context, root share.DataHash) (*share.Root, e
 }
 
 // dahFromCARHeader returns the DataAvailabilityHeader stored in the CIDs of a CARv1 header.
-func dahFromCARHeader(carHeader *carv1.CarHeader) *share.Root {
+func dahFromCARHeader(carHeader *carv1.CarHeader) *share.AxisRoots {
 	rootCount := len(carHeader.Roots)
 	rootBytes := make([][]byte, 0, rootCount)
 	for _, root := range carHeader.Roots {
 		rootBytes = append(rootBytes, ipld.NamespacedSha256FromCID(root))
 	}
-	return &share.Root{
+	return &share.AxisRoots{
 		RowRoots:    rootBytes[:rootCount/2],
 		ColumnRoots: rootBytes[rootCount/2:],
 	}
@@ -474,7 +474,7 @@ func (s *Store) getAccessor(ctx context.Context, key shard.Key) (cache.Accessor,
 	}
 }
 
-// Remove removes EDS from Store by the given share.Root hash and cleans up all
+// Remove removes EDS from Store by the given datahash and cleans up all
 // the indexing.
 func (s *Store) Remove(ctx context.Context, root share.DataHash) error {
 	ctx, span := tracer.Start(ctx, "store/remove")
@@ -554,7 +554,7 @@ func (s *Store) get(ctx context.Context, root share.DataHash) (eds *rsmt2d.Exten
 	return eds, nil
 }
 
-// Has checks if EDS exists by the given share.Root hash.
+// Has checks if EDS exists by the given datahash.
 func (s *Store) Has(ctx context.Context, root share.DataHash) (has bool, err error) {
 	ctx, span := tracer.Start(ctx, "store/has")
 	tnow := time.Now()

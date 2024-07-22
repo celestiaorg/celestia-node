@@ -313,7 +313,7 @@ func BenchmarkIPLDGetterOverBusyCache(b *testing.B) {
 
 func randomEDS(t *testing.T) (*rsmt2d.ExtendedDataSquare, *header.ExtendedHeader) {
 	eds := edstest.RandEDS(t, 4)
-	dah, err := share.NewRoot(eds)
+	dah, err := share.NewAxisRoots(eds)
 	require.NoError(t, err)
 	eh := headertest.RandExtendedHeaderWithRoot(t, dah)
 	return eds, eh
@@ -348,7 +348,7 @@ func randomEDSWithDoubledNamespace(
 		wrapper.NewConstructor(uint64(size)),
 	)
 	require.NoError(t, err, "failure to recompute the extended data square")
-	dah, err := share.NewRoot(eds)
+	dah, err := share.NewAxisRoots(eds)
 	require.NoError(t, err)
 	eh := headertest.RandExtendedHeaderWithRoot(t, dah)
 

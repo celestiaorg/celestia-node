@@ -21,7 +21,7 @@ func newShareModule(getter share.Getter, avail share.Availability) Module {
 
 // ensureEmptyCARExists adds an empty EDS to the provided EDS store.
 func ensureEmptyCARExists(ctx context.Context, store *eds.Store) error {
-	emptyEDS := share.EmptyExtendedDataSquare()
+	emptyEDS := share.EmptyEDS()
 	emptyDAH, err := da.NewDataAvailabilityHeader(emptyEDS)
 	if err != nil {
 		return err

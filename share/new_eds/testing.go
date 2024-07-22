@@ -73,7 +73,7 @@ func testAccessorSample(
 	eds := edstest.RandEDS(t, odsSize)
 	fl := createAccessor(t, eds)
 
-	dah, err := share.NewRoot(eds)
+	dah, err := share.NewAxisRoots(eds)
 	require.NoError(t, err)
 
 	width := int(eds.Width())
@@ -104,7 +104,7 @@ func testSample(
 	ctx context.Context,
 	t *testing.T,
 	fl Accessor,
-	dah *share.Root,
+	dah *share.AxisRoots,
 	rowIdx, colIdx int,
 ) {
 	shr, err := fl.Sample(ctx, rowIdx, colIdx)
@@ -158,7 +158,7 @@ func testAccessorRowNamespaceData(
 	t.Run("not included", func(t *testing.T) {
 		// generate EDS with random data and some Shares with the same namespace
 		eds := edstest.RandEDS(t, odsSize)
-		dah, err := share.NewRoot(eds)
+		dah, err := share.NewAxisRoots(eds)
 		require.NoError(t, err)
 
 		// loop over first half of the rows, because the second half is parity and does not contain

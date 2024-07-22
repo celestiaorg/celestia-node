@@ -136,7 +136,7 @@ func TestEmptyBlockExists(t *testing.T) {
 		{tp: node.Bridge},
 		{tp: node.Full},
 		// technically doesn't need to be tested as a SharesAvailable call to
-		// light node short circuits on an empty Root
+		// light node short circuits on an empty AxisRoots
 		{tp: node.Light},
 	}
 	for i, tt := range test {
@@ -147,7 +147,7 @@ func TestEmptyBlockExists(t *testing.T) {
 
 			// ensure an empty block exists in store
 
-			eh := headertest.RandExtendedHeaderWithRoot(t, share.EmptyRoot())
+			eh := headertest.RandExtendedHeaderWithRoot(t, share.EmptyEDSRoot())
 			err = node.ShareServ.SharesAvailable(ctx, eh)
 			require.NoError(t, err)
 

@@ -26,7 +26,7 @@ func (eds *Rsmt2D) Size(context.Context) int {
 
 // DataRoot returns data hash of the Accessor.
 func (eds *Rsmt2D) DataRoot(context.Context) (share.DataHash, error) {
-	dah, err := share.NewRoot(eds.ExtendedDataSquare)
+	dah, err := share.NewAxisRoots(eds.ExtendedDataSquare)
 	if err != nil {
 		return share.DataHash{}, fmt.Errorf("while creating data root: %w", err)
 	}

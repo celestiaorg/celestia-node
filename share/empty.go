@@ -11,14 +11,14 @@ import (
 	"github.com/celestiaorg/rsmt2d"
 )
 
-// EmptyRoot returns Root of the empty block EDS.
-func EmptyRoot() *Root {
+// EmptyEDSRoot returns AxisRoots of the empty block EDS.
+func EmptyEDSRoot() *AxisRoots {
 	initEmpty()
 	return emptyBlockRoot
 }
 
-// EmptyExtendedDataSquare returns the EDS of the empty block data square.
-func EmptyExtendedDataSquare() *rsmt2d.ExtendedDataSquare {
+// EmptyEDS returns the EDS of the empty block data square.
+func EmptyEDS() *rsmt2d.ExtendedDataSquare {
 	initEmpty()
 	return emptyBlockEDS
 }
@@ -31,7 +31,7 @@ func EmptyBlockShares() []Share {
 
 var (
 	emptyMu          sync.Mutex
-	emptyBlockRoot   *Root
+	emptyBlockRoot   *AxisRoots
 	emptyBlockEDS    *rsmt2d.ExtendedDataSquare
 	emptyBlockShares []Share
 )
@@ -54,7 +54,7 @@ func initEmpty() {
 	}
 	emptyBlockEDS = eds
 
-	emptyBlockRoot, err = NewRoot(eds)
+	emptyBlockRoot, err = NewAxisRoots(eds)
 	if err != nil {
 		panic(fmt.Errorf("failed to create empty DAH: %w", err))
 	}

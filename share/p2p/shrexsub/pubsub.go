@@ -111,7 +111,7 @@ func (v ValidatorFn) validate(ctx context.Context, p peer.ID, msg *pubsub.Messag
 		DataHash: pbmsg.DataHash,
 		Height:   pbmsg.Height,
 	}
-	if n.Height == 0 || n.DataHash.IsEmptyRoot() || n.DataHash.Validate() != nil {
+	if n.Height == 0 || n.DataHash.IsEmptyEDS() || n.DataHash.Validate() != nil {
 		// hard reject malicious height (height 0 does not exist) and
 		// empty/invalid datahashes
 		return pubsub.ValidationReject
@@ -129,7 +129,7 @@ func (s *PubSub) Subscribe() (*Subscription, error) {
 
 // Broadcast sends the EDS notification (DataHash) to every connected peer.
 func (s *PubSub) Broadcast(ctx context.Context, notification Notification) error {
-	if notification.DataHash.IsEmptyRoot() {
+	if notification.DataHash.IsEmptyEDS() {
 		// no need to broadcast datahash of an empty block EDS
 		return nil
 	}

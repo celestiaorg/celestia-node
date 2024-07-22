@@ -17,7 +17,7 @@ import (
 func TestSampleValidate(t *testing.T) {
 	const odsSize = 8
 	randEDS := edstest.RandEDS(t, odsSize)
-	root, err := share.NewRoot(randEDS)
+	root, err := share.NewAxisRoots(randEDS)
 	require.NoError(t, err)
 	inMem := eds.Rsmt2D{ExtendedDataSquare: randEDS}
 
@@ -37,7 +37,7 @@ func TestSampleValidate(t *testing.T) {
 func TestSampleNegativeVerifyInclusion(t *testing.T) {
 	const odsSize = 8
 	randEDS := edstest.RandEDS(t, odsSize)
-	root, err := share.NewRoot(randEDS)
+	root, err := share.NewAxisRoots(randEDS)
 	require.NoError(t, err)
 	inMem := eds.Rsmt2D{ExtendedDataSquare: randEDS}
 
@@ -95,7 +95,7 @@ func TestSampleProtoEncoding(t *testing.T) {
 func BenchmarkSampleValidate(b *testing.B) {
 	const odsSize = 32
 	randEDS := edstest.RandEDS(b, odsSize)
-	root, err := share.NewRoot(randEDS)
+	root, err := share.NewAxisRoots(randEDS)
 	require.NoError(b, err)
 	inMem := eds.Rsmt2D{ExtendedDataSquare: randEDS}
 	sample, err := inMem.SampleForProofAxis(0, 0, rsmt2d.Row)

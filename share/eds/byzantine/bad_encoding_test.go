@@ -166,7 +166,7 @@ func TestIncorrectBadEncodingFraudProof(t *testing.T) {
 	eds, err := ipld.AddShares(ctx, shares, bServ)
 	require.NoError(t, err)
 
-	dah, err := share.NewRoot(eds)
+	dah, err := share.NewAxisRoots(eds)
 	require.NoError(t, err)
 
 	// get an arbitrary row

@@ -258,7 +258,7 @@ func ReadEDS(ctx context.Context, r io.Reader, root share.DataHash) (eds *rsmt2d
 		return nil, fmt.Errorf("share: computing eds: %w", err)
 	}
 
-	newDah, err := share.NewRoot(eds)
+	newDah, err := share.NewAxisRoots(eds)
 	if err != nil {
 		return nil, err
 	}

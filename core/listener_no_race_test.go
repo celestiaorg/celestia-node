@@ -42,7 +42,7 @@ func TestListenerWithNonEmptyBlocks(t *testing.T) {
 	require.NoError(t, err)
 	t.Cleanup(sub.Cancel)
 
-	empty := share.EmptyRoot()
+	empty := share.EmptyEDSRoot()
 	// TODO extract 16
 	for i := 0; i < 16; i++ {
 		_, err := cctx.FillBlock(16, cfg.Accounts, flags.BroadcastBlock)

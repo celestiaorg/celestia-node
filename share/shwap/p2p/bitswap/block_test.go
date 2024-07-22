@@ -103,7 +103,7 @@ func (t *testBlock) Marshal() ([]byte, error) {
 	return t.data, nil
 }
 
-func (t *testBlock) UnmarshalFn(*share.Root) UnmarshalFn {
+func (t *testBlock) UnmarshalFn(*share.AxisRoots) UnmarshalFn {
 	return func(bytes []byte) error {
 		t.data = bytes
 		time.Sleep(time.Millisecond * 1)

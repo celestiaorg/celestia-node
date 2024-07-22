@@ -95,7 +95,7 @@ func (sb *SampleBlock) Populate(ctx context.Context, eds eds.Accessor) error {
 	return nil
 }
 
-func (sb *SampleBlock) UnmarshalFn(root *share.Root) UnmarshalFn {
+func (sb *SampleBlock) UnmarshalFn(root *share.AxisRoots) UnmarshalFn {
 	return func(data []byte) error {
 		if !sb.Container.IsEmpty() {
 			return nil
