@@ -4,8 +4,9 @@ import (
 	"context"
 	"encoding/hex"
 	"fmt"
-	nodeheader "github.com/celestiaorg/celestia-node/header"
 	"strconv"
+
+	nodeheader "github.com/celestiaorg/celestia-node/header"
 
 	"github.com/tendermint/tendermint/crypto/merkle"
 	"github.com/tendermint/tendermint/libs/bytes"
