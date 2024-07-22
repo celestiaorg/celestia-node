@@ -37,12 +37,12 @@ func newTLS(path string) (*tls, error) {
 	return &tls{
 		Config: config,
 		ListenAddresses: []string{
-			"/dns4/0.0.0.0/tcp/2122/wss",
-			"/dns6/[::]/tcp/2122/wss",
+			"/ip4/0.0.0.0/tcp/2122/wss",
+			"/ip6/::/tcp/2122/wss",
 		},
 		NoAnnounceAddresses: []string{
-			"/dns4/127.0.0.1/tcp/2122/wss",
-			"/dns6/[::]/tcp/2122/wss",
+			"/ip4/127.0.0.1/tcp/2122/wss",
+			"/ip6/::/tcp/2122/wss",
 		},
 	}, nil
 }
