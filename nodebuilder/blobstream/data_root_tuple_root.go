@@ -98,7 +98,7 @@ func encodeDataRootTuple(height uint64, dataRoot [32]byte) ([]byte, error) {
 
 // dataRootTupleRootBlocksLimit The maximum number of blocks to be used to create a data commitment.
 // It's a local parameter to protect the API from creating unnecessarily large commitments.
-const dataRootTupleRootBlocksLimit = 10_000 // ~33 hours of blocks assuming 12-second blocks.
+const dataRootTupleRootBlocksLimit = 10_000 // ~27 hours of blocks assuming 10-second blocks.
 
 // validateDataRootTupleRootRange runs basic checks on the ascending sorted list of
 // heights that will be used subsequently in generating data commitments over
