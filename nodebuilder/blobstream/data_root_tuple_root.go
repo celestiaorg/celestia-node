@@ -182,7 +182,7 @@ func proveDataRootTuples(encodedDataRootTuples [][]byte, rangeStartHeight, heigh
 // end is not included in the range.
 func (s *Service) fetchEncodedDataRootTuples(ctx context.Context, start, end uint64) ([][]byte, error) {
 	encodedDataRootTuples := make([][]byte, 0, end-start)
-	headers := make([]*nodeheader.ExtendedHeader, 0)
+	headers := make([]*nodeheader.ExtendedHeader, 0, end-start)
 
 	startHeader, err := s.headerServ.GetByHeight(ctx, start)
 	if err != nil {
