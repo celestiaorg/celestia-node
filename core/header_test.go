@@ -37,7 +37,7 @@ func TestMakeExtendedHeaderForEmptyBlock(t *testing.T) {
 	headerExt, err := header.MakeExtendedHeader(&b.Header, comm, val, eds)
 	require.NoError(t, err)
 
-	assert.Equal(t, share.EmptyEDSRoot(), headerExt.DAH)
+	assert.Equal(t, share.EmptyEDSRoots(), headerExt.DAH)
 }
 
 func TestMismatchedDataHash_ComputedRoot(t *testing.T) {

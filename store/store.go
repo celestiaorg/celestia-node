@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"os"
+	"path/filepath"
 	"strconv"
 	"time"
 
@@ -25,8 +26,8 @@ var (
 )
 
 const (
-	blocksPath  = "/blocks/"
-	heightsPath = blocksPath + "heights/"
+	blocksPath  = "blocks"
+	heightsPath = blocksPath + "/heights"
 
 	defaultDirPerm = 0o755
 )
@@ -54,14 +55,14 @@ func NewStore(params *Parameters, basePath string) (*Store, error) {
 	}
 
 	// Ensure the blocks folder exists or is created.
-	blocksFolderPath := basePath + blocksPath
+	blocksFolderPath := filepath.Join(basePath, blocksPath)
 	if err := ensureFolder(blocksFolderPath); err != nil {
 		log.Errorf("Failed to ensure the existence of the blocks folder at '%s': %s", blocksFolderPath, err)
 		return nil, fmt.Errorf("ensure blocks folder '%s': %w", blocksFolderPath, err)
 	}
 
 	// Ensure the heights folder exists or is created.
-	heightsFolderPath := basePath + heightsPath
+	heightsFolderPath := filepath.Join(basePath, heightsPath)
 	if err := ensureFolder(heightsFolderPath); err != nil {
 		log.Errorf("Failed to ensure the existence of the heights folder at '%s': %s", heightsFolderPath, err)
 		return nil, fmt.Errorf("ensure heights folder '%s': %w", heightsFolderPath, err)
@@ -105,7 +106,7 @@ func (s *Store) Put(
 	lock.lock()
 	defer lock.unlock()
 
-	path := s.basepath + blocksPath + datahash.String()
+	path := filepath.Join(s.basepath, blocksPath, datahash.String())
 	if datahash.IsEmptyEDS() {
 		err := s.ensureHeightLink(path, height)
 		return err
@@ -164,7 +165,7 @@ func (s *Store) createFile(
 
 func (s *Store) ensureHeightLink(path string, height uint64) error {
 	// create hard link with height as name
-	linkPath := s.basepath + heightsPath + strconv.Itoa(int(height))
+	linkPath := filepath.Join(s.basepath, heightsPath, strconv.Itoa(int(height)))
 	err := os.Link(path, linkPath)
 	if err != nil && !errors.Is(err, os.ErrExist) {
 		return fmt.Errorf("creating hard link: %w", err)
@@ -187,7 +188,7 @@ func (s *Store) GetByDataRoot(ctx context.Context, datahash share.DataHash) (eds
 }
 
 func (s *Store) getByDataRoot(datahash share.DataHash) (eds.AccessorStreamer, error) {
-	path := s.basepath + blocksPath + datahash.String()
+	path := filepath.Join(s.basepath, blocksPath, datahash.String())
 	return s.openFile(path)
 }
 
@@ -207,7 +208,7 @@ func (s *Store) getByHeight(height uint64) (eds.AccessorStreamer, error) {
 	if err == nil {
 		return f, nil
 	}
-	path := s.basepath + heightsPath + strconv.Itoa(int(height))
+	path := filepath.Join(s.basepath, heightsPath, strconv.Itoa(int(height)))
 	return s.openFile(path)
 }
 
@@ -240,7 +241,7 @@ func (s *Store) HasByHash(ctx context.Context, datahash share.DataHash) (bool, e
 }
 
 func (s *Store) hasByHash(datahash share.DataHash) (bool, error) {
-	path := s.basepath + blocksPath + datahash.String()
+	path := filepath.Join(s.basepath, blocksPath, datahash.String())
 	return pathExists(path)
 }
 
@@ -261,7 +262,7 @@ func (s *Store) hasByHeight(height uint64) (bool, error) {
 		return true, nil
 	}
 
-	path := s.basepath + heightsPath + strconv.Itoa(int(height))
+	path := filepath.Join(s.basepath, heightsPath, strconv.Itoa(int(height)))
 	return pathExists(path)
 }
 
@@ -295,7 +296,7 @@ func (s *Store) removeLink(height uint64) error {
 	}
 
 	// remove hard link by height
-	heightPath := s.basepath + heightsPath + strconv.Itoa(int(height))
+	heightPath := filepath.Join(s.basepath, heightsPath, strconv.Itoa(int(height)))
 	err := os.Remove(heightPath)
 	if err != nil && !errors.Is(err, os.ErrNotExist) {
 		return err
@@ -309,7 +310,7 @@ func (s *Store) removeFile(hash share.DataHash) error {
 		return nil
 	}
 
-	hashPath := s.basepath + blocksPath + hash.String()
+	hashPath := filepath.Join(s.basepath, blocksPath, hash.String())
 	err := os.Remove(hashPath)
 	if err != nil && !errors.Is(err, os.ErrNotExist) {
 		return err
@@ -361,7 +362,8 @@ func pathExists(path string) (bool, error) {
 }
 
 func ensureEmptyFile(basepath string) error {
-	path := basepath + blocksPath + share.DataHash(share.EmptyEDSRoot().Hash()).String()
+	emptyFile := share.DataHash(share.EmptyEDSRoots().Hash()).String()
+	path := filepath.Join(basepath, blocksPath, emptyFile)
 	ok, err := pathExists(path)
 	if err != nil {
 		return fmt.Errorf("checking empty file path: %w", err)

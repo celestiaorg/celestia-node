@@ -71,7 +71,7 @@ func TestSharesAvailableEmptyRoot(t *testing.T) {
 	getter, _ := GetterWithRandSquare(t, 16)
 	avail := TestAvailability(getter)
 
-	eh := headertest.RandExtendedHeaderWithRoot(t, share.EmptyEDSRoot())
+	eh := headertest.RandExtendedHeaderWithRoot(t, share.EmptyEDSRoots())
 	err := avail.SharesAvailable(ctx, eh)
 	require.NoError(t, err)
 }

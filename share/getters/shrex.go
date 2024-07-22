@@ -152,7 +152,7 @@ func (sg *ShrexGetter) GetEDS(ctx context.Context, header *header.ExtendedHeader
 	}()
 
 	// short circuit if the data root is empty
-	if header.DAH.Equals(share.EmptyEDSRoot()) {
+	if header.DAH.Equals(share.EmptyEDSRoots()) {
 		return share.EmptyEDS(), nil
 	}
 

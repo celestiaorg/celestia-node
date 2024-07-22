@@ -118,7 +118,7 @@ func TestArchivalBlobSync(t *testing.T) {
 		eh, err := archivalFN.HeaderServ.GetByHeight(ctx, uint64(i))
 		require.NoError(t, err)
 
-		if bytes.Equal(eh.DataHash, share.EmptyEDSRoot().Hash()) {
+		if bytes.Equal(eh.DataHash, share.EmptyEDSRoots().Hash()) {
 			i++
 			continue
 		}

@@ -11,8 +11,8 @@ import (
 	"github.com/celestiaorg/rsmt2d"
 )
 
-// EmptyEDSRoot returns AxisRoots of the empty block EDS.
-func EmptyEDSRoot() *AxisRoots {
+// EmptyEDSRoots returns AxisRoots of the empty block EDS.
+func EmptyEDSRoots() *AxisRoots {
 	initEmpty()
 	return emptyBlockRoot
 }

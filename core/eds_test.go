@@ -48,5 +48,5 @@ func TestEmptySquareWithZeroTxs(t *testing.T) {
 
 	roots, err := share.NewAxisRoots(eds)
 	require.NoError(t, err)
-	assert.Equal(t, share.EmptyEDSRoot().Hash(), roots.Hash())
+	assert.Equal(t, share.EmptyEDSRoots().Hash(), roots.Hash())
 }

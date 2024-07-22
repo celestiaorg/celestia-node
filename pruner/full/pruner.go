@@ -26,7 +26,7 @@ func NewPruner(store *eds.Store) *Pruner {
 
 func (p *Pruner) Prune(ctx context.Context, eh *header.ExtendedHeader) error {
 	// short circuit on empty eds
-	if eh.DAH.Equals(share.EmptyEDSRoot()) {
+	if eh.DAH.Equals(share.EmptyEDSRoots()) {
 		return nil
 	}
 

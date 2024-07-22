@@ -66,7 +66,7 @@ func NewTestSuite(t *testing.T, numValidators int, blockTime time.Duration) *Tes
 }
 
 func (s *TestSuite) genesis() *header.ExtendedHeader {
-	dah := share.EmptyEDSRoot()
+	dah := share.EmptyEDSRoots()
 
 	gen := RandRawHeader(s.t)
 
@@ -152,7 +152,7 @@ func (s *TestSuite) NextHeader() *header.ExtendedHeader {
 		return s.head
 	}
 
-	dah := share.EmptyEDSRoot()
+	dah := share.EmptyEDSRoots()
 	height := s.Head().Height() + 1
 	rh := s.GenRawHeader(height, s.Head().Hash(), libhead.Hash(s.Head().Commit.Hash()), dah.Hash())
 	s.head = &header.ExtendedHeader{
@@ -229,7 +229,7 @@ func RandExtendedHeader(t testing.TB) *header.ExtendedHeader {
 }
 
 func RandExtendedHeaderAtTimestamp(t testing.TB, timestamp time.Time) *header.ExtendedHeader {
-	dah := share.EmptyEDSRoot()
+	dah := share.EmptyEDSRoots()
 
 	rh := RandRawHeader(t)
 	rh.DataHash = dah.Hash()

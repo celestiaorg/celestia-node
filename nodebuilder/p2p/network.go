@@ -2,6 +2,7 @@ package p2p
 
 import (
 	"errors"
+	"go.uber.org/zap"
 	"strings"
 	"time"
 
@@ -80,6 +81,7 @@ func GetNetworks() []Network {
 // listAvailableNetworks provides a string listing all known long-standing networks for things
 // like CLI hints.
 func listAvailableNetworks() string {
+	zap.New().
 	var networks []string
 	for _, net := range orderedNetworks {
 		// "private" networks are configured via env vars, so skip

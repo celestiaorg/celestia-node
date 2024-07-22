@@ -75,7 +75,7 @@ func TestStoreGetter(t *testing.T) {
 		assert.True(t, randEds.Equals(retrievedEDS))
 
 		// root not found
-		eh.DAH = share.EmptyEDSRoot()
+		eh.DAH = share.EmptyEDSRoots()
 		_, err = sg.GetEDS(ctx, eh)
 		require.ErrorIs(t, err, share.ErrNotFound)
 	})
@@ -97,7 +97,7 @@ func TestStoreGetter(t *testing.T) {
 		require.Nil(t, emptyShares.Flatten())
 
 		// root not found
-		eh.DAH = share.EmptyEDSRoot()
+		eh.DAH = share.EmptyEDSRoots()
 		_, err = sg.GetSharesByNamespace(ctx, eh, namespace)
 		require.ErrorIs(t, err, share.ErrNotFound)
 	})
@@ -229,7 +229,7 @@ func TestIPLDGetter(t *testing.T) {
 		require.Nil(t, emptyShares.Flatten())
 
 		// nid doesn't exist in root
-		eh.DAH = share.EmptyEDSRoot()
+		eh.DAH = share.EmptyEDSRoots()
 		emptyShares, err = sg.GetSharesByNamespace(ctx, eh, namespace)
 		require.NoError(t, err)
 		require.Empty(t, emptyShares.Flatten())
