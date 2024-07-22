@@ -120,8 +120,8 @@ func (f *ODSFile) size() int {
 	return int(f.hdr.squareSize)
 }
 
-// DataRoot returns root hash of Accessor's underlying EDS.
-func (f *ODSFile) DataRoot(context.Context) (share.DataHash, error) {
+// DataHash returns root hash of Accessor's underlying EDS.
+func (f *ODSFile) DataHash(context.Context) (share.DataHash, error) {
 	return f.hdr.datahash, nil
 }
 

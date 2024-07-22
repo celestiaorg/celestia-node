@@ -208,7 +208,7 @@ func (s *Store) watchForFailures(ctx context.Context) {
 	}
 }
 
-// Put stores the given data square with DataRoot's hash as a key.
+// Put stores the given data square with DataHash's hash as a key.
 //
 // The square is verified on the Exchange level, and Put only stores the square, trusting it.
 // The resulting file stores all the shares and NMT Merkle Proofs of the EDS.
@@ -335,7 +335,7 @@ func trackLateResult(opName string, res <-chan dagstore.ShardResult, metrics *me
 	}
 }
 
-// GetCAR takes a DataRoot and returns a buffered reader to the respective EDS serialized as a
+// GetCAR takes a DataHash and returns a buffered reader to the respective EDS serialized as a
 // CARv1 file.
 // The Reader strictly reads the CAR header and first quadrant (1/4) of the EDS, omitting all the
 // NMT Merkle proofs. Integrity of the store data is not verified.
@@ -522,7 +522,7 @@ func (s *Store) remove(ctx context.Context, root share.DataHash) (err error) {
 	return nil
 }
 
-// Get reads EDS out of Store by given DataRoot.
+// Get reads EDS out of Store by given DataHash.
 //
 // It reads only one quadrant(1/4) of the EDS and verifies the integrity of the stored data by
 // recomputing it.
