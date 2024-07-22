@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/hex"
 	"fmt"
+	nodeheader "github.com/celestiaorg/celestia-node/header"
 	"strconv"
 
 	"github.com/tendermint/tendermint/crypto/merkle"
@@ -180,15 +181,21 @@ func proveDataRootTuples(encodedDataRootTuples [][]byte, rangeStartHeight, heigh
 // end is not included in the range.
 func (s *Service) fetchEncodedDataRootTuples(ctx context.Context, start, end uint64) ([][]byte, error) {
 	encodedDataRootTuples := make([][]byte, 0, end-start)
+	headers := make([]*nodeheader.ExtendedHeader, 0)
+
 	startHeader, err := s.headerServ.GetByHeight(ctx, start)
 	if err != nil {
 		return nil, err
 	}
+	headers = append(headers, startHeader)
+
 	headerRange, err := s.headerServ.GetRangeByHeight(ctx, startHeader, end)
 	if err != nil {
 		return nil, err
 	}
-	for _, header := range headerRange {
+	headers = append(headers, headerRange...)
+
+	for _, header := range headers {
 		encodedDataRootTuple, err := encodeDataRootTuple(header.Height(), *(*[32]byte)(header.DataHash))
 		if err != nil {
 			return nil, err
