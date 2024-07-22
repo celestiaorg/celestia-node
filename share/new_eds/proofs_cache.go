@@ -29,8 +29,9 @@ var _ AccessorStreamer = (*proofsCache)(nil)
 type proofsCache struct {
 	inner AccessorStreamer
 
-	// lock protects axisCache
-	lock sync.RWMutex
+	// lock protects proofCache
+	lock       sync.RWMutex
+	rootsCache *share.AxisRoots
 	// axisCache caches the axis Shares and proofs. Index in the slice corresponds to the axis type.
 	// The map key is the index of the axis.
 	axisCache []map[int]axisWithProofs
@@ -79,6 +80,25 @@ func (c *proofsCache) Size(ctx context.Context) int {
 
 func (c *proofsCache) DataHash(ctx context.Context) (share.DataHash, error) {
 	return c.inner.DataHash(ctx)
+}
+
+func (c *proofsCache) AxisRoots(ctx context.Context) (*share.AxisRoots, error) {
+	c.lock.RLock()
+	roots := c.rootsCache
+	c.lock.RUnlock()
+	if roots != nil {
+		return roots, nil
+	}
+
+	// if roots are not in cache, read them from the inner accessor
+	roots, err := c.inner.AxisRoots(ctx)
+	if err != nil {
+		return nil, err
+	}
+	c.lock.Lock()
+	defer c.lock.Unlock()
+	c.rootsCache = roots
+	return roots, nil
 }
 
 func (c *proofsCache) Sample(ctx context.Context, rowIdx, colIdx int) (shwap.Sample, error) {

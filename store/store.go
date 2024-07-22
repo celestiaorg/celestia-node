@@ -97,22 +97,23 @@ func (s *Store) Close() error {
 
 func (s *Store) Put(
 	ctx context.Context,
-	datahash share.DataHash,
+	roots *share.AxisRoots,
 	height uint64,
 	square *rsmt2d.ExtendedDataSquare,
 ) error {
 	tNow := time.Now()
+	datahash := share.DataHash(roots.Hash())
 	lock := s.stripLock.byDatahashAndHeight(datahash, height)
 	lock.lock()
 	defer lock.unlock()
 
-	path := filepath.Join(s.basepath, blocksPath, datahash.String())
 	if datahash.IsEmptyEDS() {
+		path := filepath.Join(s.basepath, blocksPath, roots.String())
 		err := s.ensureHeightLink(path, height)
 		return err
 	}
 
-	exists, err := s.createFile(path, datahash, height, square)
+	exists, err := s.createFile(square, roots, height)
 	if exists {
 		s.metrics.observePutExist(ctx)
 		return nil
@@ -134,12 +135,12 @@ func (s *Store) Put(
 }
 
 func (s *Store) createFile(
-	path string,
-	datahash share.DataHash,
-	height uint64,
 	square *rsmt2d.ExtendedDataSquare,
+	roots *share.AxisRoots,
+	height uint64,
 ) (exists bool, err error) {
-	f, err := file.CreateQ1Q4File(path, datahash, square)
+	path := filepath.Join(s.basepath, blocksPath, roots.String())
+	f, err := file.CreateQ1Q4File(path, roots, square)
 	if errors.Is(err, os.ErrExist) {
 		return true, nil
 	}
@@ -157,7 +158,7 @@ func (s *Store) createFile(
 	err = s.ensureHeightLink(path, height)
 	if err != nil {
 		// remove the file if we failed to create a hard link
-		removeErr := s.removeFile(datahash)
+		removeErr := s.removeFile(roots.Hash())
 		return false, fmt.Errorf("creating hard link: %w", errors.Join(err, removeErr))
 	}
 	return false, nil

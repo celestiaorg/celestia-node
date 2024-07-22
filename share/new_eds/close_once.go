@@ -49,6 +49,14 @@ func (c *closeOnce) DataHash(ctx context.Context) (share.DataHash, error) {
 	return c.f.DataHash(ctx)
 }
 
+// AxisRoots returns AxisRoots of Accessor's underlying EDS.
+func (c *closeOnce) AxisRoots(ctx context.Context) (*share.AxisRoots, error) {
+	if c.closed.Load() {
+		return nil, errAccessorClosed
+	}
+	return c.f.AxisRoots(ctx)
+}
+
 func (c *closeOnce) Sample(ctx context.Context, rowIdx, colIdx int) (shwap.Sample, error) {
 	if c.closed.Load() {
 		return shwap.Sample{}, errAccessorClosed

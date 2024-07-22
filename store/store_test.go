@@ -9,6 +9,7 @@ import (
 
 	"github.com/stretchr/testify/require"
 
+	"github.com/celestiaorg/celestia-app/pkg/da"
 	"github.com/celestiaorg/rsmt2d"
 
 	"github.com/celestiaorg/celestia-node/share"
@@ -33,7 +34,7 @@ func TestEDSStore(t *testing.T) {
 		eds, roots := randomEDS(t)
 		height := height.Add(1)
 
-		err := edsStore.Put(ctx, roots.Hash(), height, eds)
+		err := edsStore.Put(ctx, roots, height, eds)
 		require.NoError(t, err)
 
 		// file should become available by hash
@@ -54,7 +55,7 @@ func TestEDSStore(t *testing.T) {
 		eds, roots := randomEDS(t)
 		height := height.Add(1)
 
-		err = edsStore.Put(ctx, roots.Hash(), height, eds)
+		err = edsStore.Put(ctx, roots, height, eds)
 		require.NoError(t, err)
 
 		// file should be cached after put
@@ -74,10 +75,10 @@ func TestEDSStore(t *testing.T) {
 		eds, roots := randomEDS(t)
 		height := height.Add(1)
 
-		err := edsStore.Put(ctx, roots.Hash(), height, eds)
+		err := edsStore.Put(ctx, roots, height, eds)
 		require.NoError(t, err)
 
-		err = edsStore.Put(ctx, roots.Hash(), height, eds)
+		err = edsStore.Put(ctx, roots, height, eds)
 		require.NoError(t, err)
 		// TODO: check amount of files in the store after the second Put
 		// after store supports listing
@@ -87,7 +88,7 @@ func TestEDSStore(t *testing.T) {
 		eds, roots := randomEDS(t)
 		height := height.Add(1)
 
-		err = edsStore.Put(ctx, roots.Hash(), height, eds)
+		err = edsStore.Put(ctx, roots, height, eds)
 		require.NoError(t, err)
 
 		f, err := edsStore.GetByHeight(ctx, height)
@@ -105,7 +106,7 @@ func TestEDSStore(t *testing.T) {
 		eds, roots := randomEDS(t)
 		height := height.Add(1)
 
-		err := edsStore.Put(ctx, roots.Hash(), height, eds)
+		err := edsStore.Put(ctx, roots, height, eds)
 		require.NoError(t, err)
 
 		f, err := edsStore.GetByDataRoot(ctx, roots.Hash())
@@ -146,7 +147,7 @@ func TestEDSStore(t *testing.T) {
 
 		eds, roots := randomEDS(t)
 		height := height.Add(1)
-		err = edsStore.Put(ctx, roots.Hash(), height, eds)
+		err = edsStore.Put(ctx, roots, height, eds)
 		require.NoError(t, err)
 
 		err = edsStore.Remove(ctx, height, roots.Hash())
@@ -200,7 +201,7 @@ func TestEDSStore(t *testing.T) {
 		require.NoError(t, err)
 		require.False(t, has)
 
-		err = edsStore.Put(ctx, roots.Hash(), height, eds)
+		err = edsStore.Put(ctx, roots, height, eds)
 		require.NoError(t, err)
 
 		// assert that the empty file can be accessed by height
@@ -224,7 +225,7 @@ func TestEDSStore(t *testing.T) {
 
 		// store empty EDSs
 		for i := from; i <= to; i++ {
-			err := edsStore.Put(ctx, roots.Hash(), uint64(i), eds)
+			err := edsStore.Put(ctx, roots, uint64(i), eds)
 			require.NoError(t, err)
 		}
 
@@ -255,19 +256,17 @@ func BenchmarkStore(b *testing.B) {
 	eds := edstest.RandEDS(b, 128)
 	require.NoError(b, err)
 
-	// BenchmarkStore/bench_put_128-10         	      27	  43968818 ns/op (~43ms)
+	// BenchmarkStore/bench_put_128-10         	      27	  79025268 ns/op (~79ms)
 	b.Run("put 128", func(b *testing.B) {
 		b.ResetTimer()
 		for i := 0; i < b.N; i++ {
-			bytes := make([]byte, 5)
-			rand.Read(bytes) //nolint:errcheck
-			h := share.DataHash(bytes)
-			_ = edsStore.Put(ctx, h, uint64(i), eds)
+			roots := randomAxisRoots(b)
+			_ = edsStore.Put(ctx, roots, uint64(i), eds)
 		}
 	})
 
 	// read 128 EDSs does not read full EDS, but only the header
-	// BenchmarkStore/bench_read_128-10         	   82766	     14678 ns/op (~14ms)
+	// BenchmarkStore/bench_read_128-10         	   82766	     14678 ns/op (~14mcs)
 	b.Run("open by height, 128", func(b *testing.B) {
 		edsStore, err := NewStore(DefaultParameters(), b.TempDir())
 		require.NoError(b, err)
@@ -279,7 +278,7 @@ func BenchmarkStore(b *testing.B) {
 		require.NoError(b, err)
 
 		height := uint64(1984)
-		err = edsStore.Put(ctx, roots.Hash(), height, eds)
+		err = edsStore.Put(ctx, roots, height, eds)
 		require.NoError(b, err)
 
 		b.ResetTimer()
@@ -290,7 +289,7 @@ func BenchmarkStore(b *testing.B) {
 		}
 	})
 
-	// BenchmarkStore/open_by_hash,_128-10         	   72921	     16799 ns/op (~16ms)
+	// BenchmarkStore/open_by_hash,_128-10         	   72921	     16799 ns/op (~16mcs)
 	b.Run("open by hash, 128", func(b *testing.B) {
 		edsStore, err := NewStore(DefaultParameters(), b.TempDir())
 		require.NoError(b, err)
@@ -302,7 +301,7 @@ func BenchmarkStore(b *testing.B) {
 		require.NoError(b, err)
 
 		height := uint64(1984)
-		err = edsStore.Put(ctx, roots.Hash(), height, eds)
+		err = edsStore.Put(ctx, roots, height, eds)
 		require.NoError(b, err)
 
 		b.ResetTimer()
@@ -314,10 +313,18 @@ func BenchmarkStore(b *testing.B) {
 	})
 }
 
-func randomEDS(t *testing.T) (*rsmt2d.ExtendedDataSquare, *share.AxisRoots) {
+func randomEDS(t testing.TB) (*rsmt2d.ExtendedDataSquare, *share.AxisRoots) {
 	eds := edstest.RandEDS(t, 4)
 	roots, err := share.NewAxisRoots(eds)
 	require.NoError(t, err)
 
 	return eds, roots
+}
+
+func randomAxisRoots(t testing.TB) *share.AxisRoots {
+	row := make([]byte, 32)
+	_, err := rand.Read(row)
+	require.NoError(t, err)
+	roots := da.DataAvailabilityHeader{RowRoots: [][]byte{row}}
+	return &roots
 }

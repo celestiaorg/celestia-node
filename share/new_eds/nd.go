@@ -13,13 +13,15 @@ import (
 // avoiding the need to recalculate the row roots for each row.
 func NamespacedData(
 	ctx context.Context,
-	root *share.AxisRoots,
 	eds Accessor,
 	namespace share.Namespace,
 ) (shwap.NamespacedData, error) {
-	rowIdxs := share.RowsWithNamespace(root, namespace)
+	roots, err := eds.AxisRoots(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get root: %w", err)
+	}
+	rowIdxs := share.RowsWithNamespace(roots, namespace)
 	rows := make(shwap.NamespacedData, len(rowIdxs))
-	var err error
 	for i, idx := range rowIdxs {
 		rows[i], err = eds.RowNamespaceData(ctx, namespace, idx)
 		if err != nil {

@@ -51,7 +51,11 @@ func (s *stubEdsAccessorCloser) Size(context.Context) int {
 }
 
 func (s *stubEdsAccessorCloser) DataHash(context.Context) (share.DataHash, error) {
-	return nil, nil
+	return share.DataHash{}, nil
+}
+
+func (s *stubEdsAccessorCloser) AxisRoots(context.Context) (*share.AxisRoots, error) {
+	return &share.AxisRoots{}, nil
 }
 
 func (s *stubEdsAccessorCloser) Sample(context.Context, int, int) (shwap.Sample, error) {

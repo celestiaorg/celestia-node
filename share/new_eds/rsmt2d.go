@@ -33,6 +33,15 @@ func (eds *Rsmt2D) DataHash(context.Context) (share.DataHash, error) {
 	return roots.Hash(), nil
 }
 
+// AxisRoots returns AxisRoots of the Accessor.
+func (eds *Rsmt2D) AxisRoots(context.Context) (*share.AxisRoots, error) {
+	roots, err := share.NewAxisRoots(eds.ExtendedDataSquare)
+	if err != nil {
+		return nil, fmt.Errorf("while creating axis roots: %w", err)
+	}
+	return roots, nil
+}
+
 // Sample returns share and corresponding proof for row and column indices.
 func (eds *Rsmt2D) Sample(
 	_ context.Context,

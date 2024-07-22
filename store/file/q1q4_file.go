@@ -33,8 +33,8 @@ func OpenQ1Q4File(path string) (*Q1Q4File, error) {
 	}, nil
 }
 
-func CreateQ1Q4File(path string, datahash share.DataHash, eds *rsmt2d.ExtendedDataSquare) (*Q1Q4File, error) {
-	ods, err := CreateODSFile(path, datahash, eds)
+func CreateQ1Q4File(path string, roots *share.AxisRoots, eds *rsmt2d.ExtendedDataSquare) (*Q1Q4File, error) {
+	ods, err := CreateODSFile(path, roots, eds)
 	if err != nil {
 		return nil, err
 	}
@@ -55,6 +55,10 @@ func (f *Q1Q4File) Size(ctx context.Context) int {
 
 func (f *Q1Q4File) DataHash(ctx context.Context) (share.DataHash, error) {
 	return f.ods.DataHash(ctx)
+}
+
+func (f *Q1Q4File) AxisRoots(ctx context.Context) (*share.AxisRoots, error) {
+	return f.ods.AxisRoots(ctx)
 }
 
 func (f *Q1Q4File) Sample(ctx context.Context, rowIdx, colIdx int) (shwap.Sample, error) {
@@ -127,9 +131,10 @@ func (f *Q1Q4File) readAxisHalfFromQ4(axisType rsmt2d.Axis, axisIdx int) (eds.Ax
 	if q4idx < 0 {
 		return eds.AxisHalf{}, fmt.Errorf("invalid axis index for Q4: %d", axisIdx)
 	}
+	offset := f.ods.sharesOffset()
 	switch axisType {
 	case rsmt2d.Col:
-		shares, err := readCol(f.ods.fl, f.ods.hdr, q4idx, 1)
+		shares, err := readCol(f.ods.fl, f.ods.hdr, offset, 1, q4idx)
 		if err != nil {
 			return eds.AxisHalf{}, err
 		}
@@ -138,7 +143,7 @@ func (f *Q1Q4File) readAxisHalfFromQ4(axisType rsmt2d.Axis, axisIdx int) (eds.Ax
 			IsParity: true,
 		}, nil
 	case rsmt2d.Row:
-		shares, err := readRow(f.ods.fl, f.ods.hdr, q4idx, 1)
+		shares, err := readRow(f.ods.fl, f.ods.hdr, offset, 1, q4idx)
 		if err != nil {
 			return eds.AxisHalf{}, err
 		}
