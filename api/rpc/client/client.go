@@ -42,13 +42,13 @@ type Client struct {
 	closer multiClientCloser
 }
 
-type ClientOption func(*clientConfig)
+type RPCClientOption func(*clientConfig)
 
 type clientConfig struct {
 	timeout time.Duration
 }
 
-func WithTimeout(timeout time.Duration) ClientOption {
+func WithTimeout(timeout time.Duration) RPCClientOption {
 	return func(c *clientConfig) {
 		c.timeout = timeout
 	}
@@ -78,7 +78,7 @@ func (c *Client) Close() {
 
 // NewClient creates a new Client with one connection per namespace with the
 // given token as the authorization token.
-func NewClient(ctx context.Context, addr, token string, opts ...ClientOption) (*Client, error) {
+func NewClient(ctx context.Context, addr, token string, opts ...RPCClientOption) (*Client, error) {
 	config := &clientConfig{}
 	for _, opt := range opts {
 		opt(config)
@@ -97,7 +97,14 @@ func newClient(ctx context.Context, addr string, authHeader http.Header, config 
 	}
 
 	for name, module := range moduleMap(&client) {
-		closer, err := jsonrpc.NewMergeClient(ctx, addr, name, []interface{}{module}, authHeader, jsonrpc.WithHTTPClient(httpClient))
+		closer, err := jsonrpc.NewMergeClient(
+			ctx,
+			addr,
+			name,
+			[]interface{}{module},
+			authHeader,
+			jsonrpc.WithHTTPClient(httpClient),
+		)
 		if err != nil {
 			return nil, err
 		}

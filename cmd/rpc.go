@@ -40,11 +40,11 @@ func RPCFlags() *flag.FlagSet {
 	)
 
 	fset.DurationVar(
-        &timeoutFlag,
-        "timeout",
-        0,
-        "Timeout for RPC requests (e.g. 30s, 1m)",
-    )
+		&timeoutFlag,
+		"timeout",
+		0,
+		"Timeout for RPC requests (e.g. 30s, 1m)",
+	)
 
 	storeFlag := NodeFlags().Lookup(nodeStoreFlag)
 	fset.AddFlag(storeFlag)
@@ -52,7 +52,7 @@ func RPCFlags() *flag.FlagSet {
 }
 
 func InitClient(cmd *cobra.Command, _ []string) error {
-		if authTokenFlag == "" {
+	if authTokenFlag == "" {
 		rootErrMsg := "cant access the auth token"
 
 		storePath, err := getStorePath(cmd)
@@ -82,7 +82,7 @@ func InitClient(cmd *cobra.Command, _ []string) error {
 		}
 	}
 
-	var opts []rpc.ClientOption
+	var opts []rpc.RPCClientOption
 	if timeoutFlag > 0 {
 		opts = append(opts, rpc.WithTimeout(timeoutFlag))
 	}
