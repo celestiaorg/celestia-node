@@ -77,8 +77,8 @@ func (c *proofsCache) Size(ctx context.Context) int {
 	return int(size)
 }
 
-func (c *proofsCache) DataRoot(ctx context.Context) (share.DataHash, error) {
-	return c.inner.DataRoot(ctx)
+func (c *proofsCache) DataHash(ctx context.Context) (share.DataHash, error) {
+	return c.inner.DataHash(ctx)
 }
 
 func (c *proofsCache) Sample(ctx context.Context, rowIdx, colIdx int) (shwap.Sample, error) {

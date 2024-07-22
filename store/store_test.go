@@ -184,7 +184,7 @@ func TestEDSStore(t *testing.T) {
 		// assert that the empty file is, in fact, empty
 		f, err := edsStore.GetByDataRoot(ctx, roots.Hash())
 		require.NoError(t, err)
-		hash, err := f.DataRoot(ctx)
+		hash, err := f.DataHash(ctx)
 		require.NoError(t, err)
 		require.True(t, hash.IsEmptyEDS())
 	})
@@ -206,7 +206,7 @@ func TestEDSStore(t *testing.T) {
 		// assert that the empty file can be accessed by height
 		f, err := edsStore.GetByHeight(ctx, height)
 		require.NoError(t, err)
-		hash, err := f.DataRoot(ctx)
+		hash, err := f.DataHash(ctx)
 		require.NoError(t, err)
 		require.True(t, hash.IsEmptyEDS())
 		require.NoError(t, f.Close())
@@ -237,7 +237,7 @@ func TestEDSStore(t *testing.T) {
 		for i := from; i <= to; i++ {
 			f, err := edsStore.GetByHeight(ctx, uint64(i))
 			require.NoError(t, err)
-			hash, err := f.DataRoot(ctx)
+			hash, err := f.DataHash(ctx)
 			require.NoError(t, err)
 			require.True(t, hash.IsEmptyEDS())
 			require.NoError(t, f.Close())

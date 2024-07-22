@@ -46,8 +46,8 @@ func (n NoopFile) Size(context.Context) int {
 	return 0
 }
 
-// DataRoot returns root hash of Accessor's underlying EDS.
-func (n NoopFile) DataRoot(context.Context) (share.DataHash, error) {
+// DataHash returns root hash of Accessor's underlying EDS.
+func (n NoopFile) DataHash(context.Context) (share.DataHash, error) {
 	return nil, nil
 }
 
