@@ -22,6 +22,6 @@ func TestNamespaceDataID(t *testing.T) {
 	require.NoError(t, err)
 	assert.EqualValues(t, id, sidOut)
 
-	err = sidOut.Verify()
+	err = sidOut.Validate()
 	require.NoError(t, err)
 }

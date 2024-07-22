@@ -6,25 +6,21 @@ import (
 	"github.com/celestiaorg/celestia-node/share"
 )
 
-// NamespaceDataIDSize defines the total size of a RowNamespaceDataID in bytes, combining the
-// size of a RowID and the size of a Namespace.
-const NamespaceDataIDSize = EdsIDSize + 4 + share.NamespaceSize
+// NamespaceDataIDSize defines the total size of a NamespaceDataID in bytes, combining the
+// size of a EdsID and the size of a Namespace.
+const NamespaceDataIDSize = EdsIDSize + share.NamespaceSize
 
-// RowNamespaceDataID uniquely identifies a piece of namespaced data within a row of an Extended
-// Data Square (EDS).
+// NamespaceDataID filters the data in the EDS by a specific namespace.
 type NamespaceDataID struct {
-	// Embedding EdsID to include the block height in RowID.
+	// Embedding EdsID to include the block height.
 	EdsID
-	// DataNamespace is a string representation of the namespace to facilitate comparisons.
+	// DataNamespace will be used to identify the data within the EDS.
 	DataNamespace share.Namespace
 }
 
-// NewNamespaceDataID creates a new RowNamespaceDataID with the specified parameters. It
-// validates the RowNamespaceDataID against the provided Root before returning.
-func NewNamespaceDataID(
-	height uint64,
-	namespace share.Namespace,
-) (NamespaceDataID, error) {
+// NewNamespaceDataID creates a new NamespaceDataID with the specified parameters. It
+// validates the namespace and returns an error if it is invalid.
+func NewNamespaceDataID(height uint64, namespace share.Namespace) (NamespaceDataID, error) {
 	ndid := NamespaceDataID{
 		EdsID: EdsID{
 			Height: height,
@@ -32,18 +28,18 @@ func NewNamespaceDataID(
 		DataNamespace: namespace,
 	}
 
-	if err := ndid.Verify(); err != nil {
+	if err := ndid.Validate(); err != nil {
 		return NamespaceDataID{}, err
 	}
 	return ndid, nil
 }
 
-// NamespaceDataIDFromBinary deserializes a RowNamespaceDataID from its binary form. It returns
+// NamespaceDataIDFromBinary deserializes a NamespaceDataID from its binary form. It returns
 // an error if the binary data's length does not match the expected size.
 func NamespaceDataIDFromBinary(data []byte) (NamespaceDataID, error) {
 	if len(data) != NamespaceDataIDSize {
 		return NamespaceDataID{},
-			fmt.Errorf("invalid RowNamespaceDataID length: expected %d, got %d", RowNamespaceDataIDSize, len(data))
+			fmt.Errorf("invalid NamespaceDataID length: expected %d, got %d", NamespaceDataIDSize, len(data))
 	}
 
 	edsID, err := EdsIDFromBinary(data[:EdsIDSize])
@@ -52,17 +48,17 @@ func NamespaceDataIDFromBinary(data []byte) (NamespaceDataID, error) {
 	}
 
 	ns := share.Namespace(data[EdsIDSize:])
-	if err := ns.ValidateForData(); err != nil {
-		return NamespaceDataID{}, fmt.Errorf("error validating DataNamespace: %w", err)
-	}
-
-	return NamespaceDataID{
+	ndid := NamespaceDataID{
 		EdsID:         edsID,
 		DataNamespace: ns,
-	}, nil
+	}
+	if err := ndid.Validate(); err != nil {
+		return NamespaceDataID{}, err
+	}
+	return ndid, nil
 }
 
-// MarshalBinary encodes RowNamespaceDataID into binary form.
+// MarshalBinary encodes NamespaceDataID into binary form.
 // NOTE: Proto is avoided because
 // * Its size is not deterministic which is required for IPLD.
 // * No support for uint16
@@ -71,12 +67,8 @@ func (ndid NamespaceDataID) MarshalBinary() ([]byte, error) {
 	return ndid.appendTo(data), nil
 }
 
-// Verify checks the validity of RowNamespaceDataID's fields, including the RowID and the
-// namespace.
-func (ndid NamespaceDataID) Verify() error {
-	return ndid.Validate()
-}
-
+// Validate checks if the NamespaceDataID is valid. It checks the validity of the EdsID and the
+// DataNamespace.
 func (ndid NamespaceDataID) Validate() error {
 	if err := ndid.EdsID.Validate(); err != nil {
 		return fmt.Errorf("error validating RowID: %w", err)
