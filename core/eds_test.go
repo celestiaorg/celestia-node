@@ -27,8 +27,8 @@ func TestTrulyEmptySquare(t *testing.T) {
 	require.True(t, eds.Equals(share.EmptyEDS()))
 }
 
-// TestEmptySquareWithZeroTxs tests that the DAH hash of a block with no transactions
-// is equal to the datahash for an empty eds even if SquareSize is set to
+// TestEmptySquareWithZeroTxs tests that the datahash of a block with no transactions
+// is equal to the datahash of an empty eds, even if SquareSize is set to
 // something non-zero. Technically, this block data is invalid because the
 // construction of the square is deterministic, and the rules which dictate the
 // square size do not allow for empty block data. However, should that ever
