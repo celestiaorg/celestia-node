@@ -25,12 +25,12 @@ func TestODSReader(t *testing.T) {
 	require.NoError(t, err)
 
 	// generate random eds data and put it into the store
-	eds, dah := randomEDS(t)
-	err = edsStore.Put(ctx, dah.Hash(), eds)
+	eds, roots := randomEDS(t)
+	err = edsStore.Put(ctx, roots.Hash(), eds)
 	require.NoError(t, err)
 
 	// get CAR reader from store
-	r, err := edsStore.GetCAR(ctx, dah.Hash())
+	r, err := edsStore.GetCAR(ctx, roots.Hash())
 	assert.NoError(t, err)
 	defer func() {
 		require.NoError(t, r.Close())
@@ -77,12 +77,12 @@ func TestODSReaderReconstruction(t *testing.T) {
 	require.NoError(t, err)
 
 	// generate random eds data and put it into the store
-	eds, dah := randomEDS(t)
-	err = edsStore.Put(ctx, dah.Hash(), eds)
+	eds, roots := randomEDS(t)
+	err = edsStore.Put(ctx, roots.Hash(), eds)
 	require.NoError(t, err)
 
 	// get CAR reader from store
-	r, err := edsStore.GetCAR(ctx, dah.Hash())
+	r, err := edsStore.GetCAR(ctx, roots.Hash())
 	assert.NoError(t, err)
 	defer func() {
 		require.NoError(t, r.Close())
@@ -93,7 +93,7 @@ func TestODSReaderReconstruction(t *testing.T) {
 	assert.NoError(t, err)
 
 	// reconstruct EDS from ODSReader
-	loaded, err := ReadEDS(ctx, odsR, dah.Hash())
+	loaded, err := ReadEDS(ctx, odsR, roots.Hash())
 	assert.NoError(t, err)
 
 	rowRoots, err := eds.RowRoots()

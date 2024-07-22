@@ -32,7 +32,7 @@ var Cmd = &cobra.Command{
 
 var sharesAvailableCmd = &cobra.Command{
 	Use:   "available",
-	Short: "Subjectively validates if Shares committed to the given AxisRoots are available on the Network.",
+	Short: "Subjectively validates if Shares committed to the given EDS are available on the Network.",
 	Args:  cobra.ExactArgs(1),
 	RunE: func(cmd *cobra.Command, args []string) error {
 		client, err := cmdnode.ParseClientFromCtx(cmd.Context())

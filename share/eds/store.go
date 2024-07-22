@@ -432,11 +432,11 @@ func (s *Store) getDAH(ctx context.Context, root share.DataHash) (*share.AxisRoo
 		return nil, fmt.Errorf("eds/store: failed to read car header: %w", err)
 	}
 
-	dah := dahFromCARHeader(carHeader)
-	if !bytes.Equal(dah.Hash(), root) {
+	roots := dahFromCARHeader(carHeader)
+	if !bytes.Equal(roots.Hash(), root) {
 		return nil, fmt.Errorf("eds/store: content integrity mismatch from CAR for root %x", root)
 	}
-	return dah, nil
+	return roots, nil
 }
 
 // dahFromCARHeader returns the DataAvailabilityHeader stored in the CIDs of a CARv1 header.

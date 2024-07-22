@@ -62,14 +62,14 @@ func closeAndLog(name string, closer io.Closer) {
 func RetrieveNamespaceFromStore(
 	ctx context.Context,
 	store *Store,
-	dah *share.AxisRoots,
+	roots *share.AxisRoots,
 	namespace share.Namespace,
 ) (shares share.NamespacedShares, err error) {
 	if err = namespace.ValidateForData(); err != nil {
 		return nil, err
 	}
 
-	bs, err := store.CARBlockstore(ctx, dah.Hash())
+	bs, err := store.CARBlockstore(ctx, roots.Hash())
 	if errors.Is(err, ErrNotFound) {
 		// convert error to satisfy getter interface contract
 		err = share.ErrNotFound
@@ -85,7 +85,7 @@ func RetrieveNamespaceFromStore(
 
 	// wrap the read-only CAR blockstore in a getter
 	blockGetter := NewBlockGetter(bs)
-	shares, err = CollectSharesByNamespace(ctx, blockGetter, dah, namespace)
+	shares, err = CollectSharesByNamespace(ctx, blockGetter, roots, namespace)
 	if errors.Is(err, ipld.ErrNodeNotFound) {
 		// IPLD node not found after the index pointed to this shard and the CAR
 		// blockstore has been opened successfully is a strong indicator of
@@ -94,7 +94,7 @@ func RetrieveNamespaceFromStore(
 		// Note that this recovery is manual and will only be restored by an RPC
 		// call to SharesAvailable that fetches the same datahash that was
 		// removed.
-		err = store.Remove(ctx, dah.Hash())
+		err = store.Remove(ctx, roots.Hash())
 		if err != nil {
 			log.Errorf("failed to remove CAR from store after detected corruption: %w", err)
 		}

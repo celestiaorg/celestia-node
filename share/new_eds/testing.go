@@ -73,14 +73,14 @@ func testAccessorSample(
 	eds := edstest.RandEDS(t, odsSize)
 	fl := createAccessor(t, eds)
 
-	dah, err := share.NewAxisRoots(eds)
+	roots, err := share.NewAxisRoots(eds)
 	require.NoError(t, err)
 
 	width := int(eds.Width())
 	t.Run("single thread", func(t *testing.T) {
 		for rowIdx := 0; rowIdx < width; rowIdx++ {
 			for colIdx := 0; colIdx < width; colIdx++ {
-				testSample(ctx, t, fl, dah, colIdx, rowIdx)
+				testSample(ctx, t, fl, roots, colIdx, rowIdx)
 			}
 		}
 	})
@@ -92,7 +92,7 @@ func testAccessorSample(
 				wg.Add(1)
 				go func(rowIdx, colIdx int) {
 					defer wg.Done()
-					testSample(ctx, t, fl, dah, rowIdx, colIdx)
+					testSample(ctx, t, fl, roots, rowIdx, colIdx)
 				}(rowIdx, colIdx)
 			}
 		}
@@ -104,13 +104,13 @@ func testSample(
 	ctx context.Context,
 	t *testing.T,
 	fl Accessor,
-	dah *share.AxisRoots,
+	roots *share.AxisRoots,
 	rowIdx, colIdx int,
 ) {
 	shr, err := fl.Sample(ctx, rowIdx, colIdx)
 	require.NoError(t, err)
 
-	err = shr.Validate(dah, rowIdx, colIdx)
+	err = shr.Validate(roots, rowIdx, colIdx)
 	require.NoError(t, err)
 }
 
@@ -127,13 +127,13 @@ func testAccessorRowNamespaceData(
 		// test with different amount of shares
 		for amount := 1; amount < sharesAmount; amount++ {
 			// select random amount of shares, but not less than 1
-			eds, dah := edstest.RandEDSWithNamespace(t, namespace, amount, odsSize)
+			eds, roots := edstest.RandEDSWithNamespace(t, namespace, amount, odsSize)
 			f := createAccessor(t, eds)
 
 			var actualSharesAmount int
 			// loop over all rows and check that the amount of shares in the namespace is equal to the expected
 			// amount
-			for i, root := range dah.RowRoots {
+			for i, root := range roots.RowRoots {
 				rowData, err := f.RowNamespaceData(ctx, namespace, i)
 
 				// namespace is not included in the row, so there should be no shares
@@ -146,7 +146,7 @@ func testAccessorRowNamespaceData(
 				actualSharesAmount += len(rowData.Shares)
 				require.NoError(t, err)
 				require.True(t, len(rowData.Shares) > 0)
-				err = rowData.Validate(dah, namespace, i)
+				err = rowData.Validate(roots, namespace, i)
 				require.NoError(t, err)
 			}
 
@@ -158,12 +158,12 @@ func testAccessorRowNamespaceData(
 	t.Run("not included", func(t *testing.T) {
 		// generate EDS with random data and some Shares with the same namespace
 		eds := edstest.RandEDS(t, odsSize)
-		dah, err := share.NewAxisRoots(eds)
+		roots, err := share.NewAxisRoots(eds)
 		require.NoError(t, err)
 
 		// loop over first half of the rows, because the second half is parity and does not contain
 		// namespaced shares
-		for i, root := range dah.RowRoots[:odsSize] {
+		for i, root := range roots.RowRoots[:odsSize] {
 			// select namespace that within the range of root namespaces, but is not included
 			maxNs := nmt.MaxNamespace(root, share.NamespaceSize)
 			absentNs, err := share.Namespace(maxNs).AddInt(-1)
@@ -177,7 +177,7 @@ func testAccessorRowNamespaceData(
 			require.Len(t, rowData.Shares, 0)
 			require.True(t, rowData.Proof.IsOfAbsence())
 
-			err = rowData.Validate(dah, absentNs, i)
+			err = rowData.Validate(roots, absentNs, i)
 			require.NoError(t, err)
 		}
 	})

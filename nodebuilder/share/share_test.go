@@ -24,7 +24,7 @@ func Test_EmptyCARExists(t *testing.T) {
 	require.NoError(t, err)
 
 	eds := share.EmptyEDS()
-	dah, err := share.NewAxisRoots(eds)
+	roots, err := share.NewAxisRoots(eds)
 	require.NoError(t, err)
 
 	// add empty EDS to store
@@ -32,12 +32,12 @@ func Test_EmptyCARExists(t *testing.T) {
 	assert.NoError(t, err)
 
 	// assert that the empty car exists
-	has, err := edsStore.Has(ctx, dah.Hash())
+	has, err := edsStore.Has(ctx, roots.Hash())
 	assert.True(t, has)
 	assert.NoError(t, err)
 
 	// assert that the empty car is, in fact, empty
-	emptyEds, err := edsStore.Get(ctx, dah.Hash())
+	emptyEds, err := edsStore.Get(ctx, roots.Hash())
 	assert.Equal(t, eds.Flattened(), emptyEds.Flattened())
 	assert.NoError(t, err)
 }

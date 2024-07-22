@@ -14,7 +14,6 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"github.com/celestiaorg/celestia-app/pkg/da"
 	"github.com/celestiaorg/celestia-app/pkg/wrapper"
 	"github.com/celestiaorg/rsmt2d"
 
@@ -76,8 +75,7 @@ func TestStoreGetter(t *testing.T) {
 		assert.True(t, randEds.Equals(retrievedEDS))
 
 		// root not found
-		emptyRoot := da.MinDataAvailabilityHeader()
-		eh.DAH = &emptyRoot
+		eh.DAH = share.EmptyEDSRoot()
 		_, err = sg.GetEDS(ctx, eh)
 		require.ErrorIs(t, err, share.ErrNotFound)
 	})
@@ -99,8 +97,7 @@ func TestStoreGetter(t *testing.T) {
 		require.Nil(t, emptyShares.Flatten())
 
 		// root not found
-		emptyRoot := da.MinDataAvailabilityHeader()
-		eh.DAH = &emptyRoot
+		eh.DAH = share.EmptyEDSRoot()
 		_, err = sg.GetSharesByNamespace(ctx, eh, namespace)
 		require.ErrorIs(t, err, share.ErrNotFound)
 	})
@@ -232,8 +229,7 @@ func TestIPLDGetter(t *testing.T) {
 		require.Nil(t, emptyShares.Flatten())
 
 		// nid doesn't exist in root
-		emptyRoot := da.MinDataAvailabilityHeader()
-		eh.DAH = &emptyRoot
+		eh.DAH = share.EmptyEDSRoot()
 		emptyShares, err = sg.GetSharesByNamespace(ctx, eh, namespace)
 		require.NoError(t, err)
 		require.Empty(t, emptyShares.Flatten())
@@ -271,13 +267,13 @@ func BenchmarkIPLDGetterOverBusyCache(b *testing.B) {
 	headers := make([]*header.ExtendedHeader, blocks)
 	for i := range headers {
 		eds := edstest.RandEDS(b, size)
-		dah, err := da.NewDataAvailabilityHeader(eds)
+		roots, err := share.NewAxisRoots(eds)
 		require.NoError(b, err)
-		err = edsStore.Put(ctx, dah.Hash(), eds)
+		err = edsStore.Put(ctx, roots.Hash(), eds)
 		require.NoError(b, err)
 
 		eh := headertest.RandExtendedHeader(b)
-		eh.DAH = &dah
+		eh.DAH = roots
 
 		// store cids for read loop later
 		headers[i] = eh
@@ -313,9 +309,9 @@ func BenchmarkIPLDGetterOverBusyCache(b *testing.B) {
 
 func randomEDS(t *testing.T) (*rsmt2d.ExtendedDataSquare, *header.ExtendedHeader) {
 	eds := edstest.RandEDS(t, 4)
-	dah, err := share.NewAxisRoots(eds)
+	roots, err := share.NewAxisRoots(eds)
 	require.NoError(t, err)
-	eh := headertest.RandExtendedHeaderWithRoot(t, dah)
+	eh := headertest.RandExtendedHeaderWithRoot(t, roots)
 	return eds, eh
 }
 
@@ -348,9 +344,9 @@ func randomEDSWithDoubledNamespace(
 		wrapper.NewConstructor(uint64(size)),
 	)
 	require.NoError(t, err, "failure to recompute the extended data square")
-	dah, err := share.NewAxisRoots(eds)
+	roots, err := share.NewAxisRoots(eds)
 	require.NoError(t, err)
-	eh := headertest.RandExtendedHeaderWithRoot(t, dah)
+	eh := headertest.RandExtendedHeaderWithRoot(t, roots)
 
 	return eds, share.GetNamespace(randShares[idx1]), eh
 }

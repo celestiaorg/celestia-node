@@ -70,17 +70,17 @@ func TestShrexGetter(t *testing.T) {
 		// generate test data
 		size := 64
 		namespace := sharetest.RandV0Namespace()
-		randEDS, dah := edstest.RandEDSWithNamespace(t, namespace, size*size, size)
-		eh := headertest.RandExtendedHeaderWithRoot(t, dah)
-		require.NoError(t, edsStore.Put(ctx, dah.Hash(), randEDS))
+		randEDS, roots := edstest.RandEDSWithNamespace(t, namespace, size*size, size)
+		eh := headertest.RandExtendedHeaderWithRoot(t, roots)
+		require.NoError(t, edsStore.Put(ctx, roots.Hash(), randEDS))
 		fullPeerManager.Validate(ctx, srvHost.ID(), shrexsub.Notification{
-			DataHash: dah.Hash(),
+			DataHash: roots.Hash(),
 			Height:   1,
 		})
 
 		got, err := getter.GetSharesByNamespace(ctx, eh, namespace)
 		require.NoError(t, err)
-		require.NoError(t, got.Verify(dah, namespace))
+		require.NoError(t, got.Verify(roots, namespace))
 	})
 
 	t.Run("ND_err_not_found", func(t *testing.T) {
@@ -88,10 +88,10 @@ func TestShrexGetter(t *testing.T) {
 		t.Cleanup(cancel)
 
 		// generate test data
-		_, dah, namespace := generateTestEDS(t)
-		eh := headertest.RandExtendedHeaderWithRoot(t, dah)
+		_, roots, namespace := generateTestEDS(t)
+		eh := headertest.RandExtendedHeaderWithRoot(t, roots)
 		fullPeerManager.Validate(ctx, srvHost.ID(), shrexsub.Notification{
-			DataHash: dah.Hash(),
+			DataHash: roots.Hash(),
 			Height:   1,
 		})
 
@@ -104,11 +104,11 @@ func TestShrexGetter(t *testing.T) {
 		t.Cleanup(cancel)
 
 		// generate test data
-		eds, dah, maxNamespace := generateTestEDS(t)
-		eh := headertest.RandExtendedHeaderWithRoot(t, dah)
-		require.NoError(t, edsStore.Put(ctx, dah.Hash(), eds))
+		eds, roots, maxNamespace := generateTestEDS(t)
+		eh := headertest.RandExtendedHeaderWithRoot(t, roots)
+		require.NoError(t, edsStore.Put(ctx, roots.Hash(), eds))
 		fullPeerManager.Validate(ctx, srvHost.ID(), shrexsub.Notification{
-			DataHash: dah.Hash(),
+			DataHash: roots.Hash(),
 			Height:   1,
 		})
 
@@ -116,25 +116,25 @@ func TestShrexGetter(t *testing.T) {
 		nID, err := addToNamespace(maxNamespace, -1)
 		require.NoError(t, err)
 		// check for namespace to be between max and min namespace in root
-		require.Len(t, ipld.FilterRootByNamespace(dah, nID), 1)
+		require.Len(t, ipld.FilterRootByNamespace(roots, nID), 1)
 
 		emptyShares, err := getter.GetSharesByNamespace(ctx, eh, nID)
 		require.NoError(t, err)
 		// no shares should be returned
 		require.Nil(t, emptyShares.Flatten())
-		require.Nil(t, emptyShares.Verify(dah, nID))
+		require.Nil(t, emptyShares.Verify(roots, nID))
 
 		// namespace outside root range
 		nID, err = addToNamespace(maxNamespace, 1)
 		require.NoError(t, err)
 		// check for namespace to be not in root
-		require.Len(t, ipld.FilterRootByNamespace(dah, nID), 0)
+		require.Len(t, ipld.FilterRootByNamespace(roots, nID), 0)
 
 		emptyShares, err = getter.GetSharesByNamespace(ctx, eh, nID)
 		require.NoError(t, err)
 		// no shares should be returned
 		require.Nil(t, emptyShares.Flatten())
-		require.Nil(t, emptyShares.Verify(dah, nID))
+		require.Nil(t, emptyShares.Verify(roots, nID))
 	})
 
 	t.Run("ND_namespace_not_in_dah", func(t *testing.T) {
@@ -142,24 +142,24 @@ func TestShrexGetter(t *testing.T) {
 		t.Cleanup(cancel)
 
 		// generate test data
-		eds, dah, maxNamespace := generateTestEDS(t)
-		eh := headertest.RandExtendedHeaderWithRoot(t, dah)
-		require.NoError(t, edsStore.Put(ctx, dah.Hash(), eds))
+		eds, roots, maxNamespace := generateTestEDS(t)
+		eh := headertest.RandExtendedHeaderWithRoot(t, roots)
+		require.NoError(t, edsStore.Put(ctx, roots.Hash(), eds))
 		fullPeerManager.Validate(ctx, srvHost.ID(), shrexsub.Notification{
-			DataHash: dah.Hash(),
+			DataHash: roots.Hash(),
 			Height:   1,
 		})
 
 		namespace, err := addToNamespace(maxNamespace, 1)
 		require.NoError(t, err)
 		// check for namespace to be not in root
-		require.Len(t, ipld.FilterRootByNamespace(dah, namespace), 0)
+		require.Len(t, ipld.FilterRootByNamespace(roots, namespace), 0)
 
 		emptyShares, err := getter.GetSharesByNamespace(ctx, eh, namespace)
 		require.NoError(t, err)
 		// no shares should be returned
 		require.Empty(t, emptyShares.Flatten())
-		require.Nil(t, emptyShares.Verify(dah, namespace))
+		require.Nil(t, emptyShares.Verify(roots, namespace))
 	})
 
 	t.Run("EDS_Available", func(t *testing.T) {
@@ -167,11 +167,11 @@ func TestShrexGetter(t *testing.T) {
 		t.Cleanup(cancel)
 
 		// generate test data
-		randEDS, dah, _ := generateTestEDS(t)
-		eh := headertest.RandExtendedHeaderWithRoot(t, dah)
-		require.NoError(t, edsStore.Put(ctx, dah.Hash(), randEDS))
+		randEDS, roots, _ := generateTestEDS(t)
+		eh := headertest.RandExtendedHeaderWithRoot(t, roots)
+		require.NoError(t, edsStore.Put(ctx, roots.Hash(), randEDS))
 		fullPeerManager.Validate(ctx, srvHost.ID(), shrexsub.Notification{
-			DataHash: dah.Hash(),
+			DataHash: roots.Hash(),
 			Height:   1,
 		})
 
@@ -184,10 +184,10 @@ func TestShrexGetter(t *testing.T) {
 		ctx, cancel := context.WithTimeout(ctx, time.Second)
 
 		// generate test data
-		_, dah, _ := generateTestEDS(t)
-		eh := headertest.RandExtendedHeaderWithRoot(t, dah)
+		_, roots, _ := generateTestEDS(t)
+		eh := headertest.RandExtendedHeaderWithRoot(t, roots)
 		fullPeerManager.Validate(ctx, srvHost.ID(), shrexsub.Notification{
-			DataHash: dah.Hash(),
+			DataHash: roots.Hash(),
 			Height:   1,
 		})
 
@@ -201,10 +201,10 @@ func TestShrexGetter(t *testing.T) {
 		t.Cleanup(cancel)
 
 		// generate test data
-		_, dah, _ := generateTestEDS(t)
-		eh := headertest.RandExtendedHeaderWithRoot(t, dah)
+		_, roots, _ := generateTestEDS(t)
+		eh := headertest.RandExtendedHeaderWithRoot(t, roots)
 		fullPeerManager.Validate(ctx, srvHost.ID(), shrexsub.Notification{
-			DataHash: dah.Hash(),
+			DataHash: roots.Hash(),
 			Height:   1,
 		})
 
@@ -251,10 +251,10 @@ func newStore(t *testing.T) (*eds.Store, error) {
 
 func generateTestEDS(t *testing.T) (*rsmt2d.ExtendedDataSquare, *share.AxisRoots, share.Namespace) {
 	eds := edstest.RandEDS(t, 4)
-	dah, err := share.NewAxisRoots(eds)
+	roots, err := share.NewAxisRoots(eds)
 	require.NoError(t, err)
-	max := nmt.MaxNamespace(dah.RowRoots[(len(dah.RowRoots))/2-1], share.NamespaceSize)
-	return eds, dah, max
+	max := nmt.MaxNamespace(roots.RowRoots[(len(roots.RowRoots))/2-1], share.NamespaceSize)
+	return eds, roots, max
 }
 
 func testManager(

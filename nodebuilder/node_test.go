@@ -136,7 +136,7 @@ func TestEmptyBlockExists(t *testing.T) {
 		{tp: node.Bridge},
 		{tp: node.Full},
 		// technically doesn't need to be tested as a SharesAvailable call to
-		// light node short circuits on an empty AxisRoots
+		// light node short circuits on an empty EDS
 		{tp: node.Light},
 	}
 	for i, tt := range test {

@@ -139,7 +139,7 @@ func (rnd RowNamespaceData) IsEmpty() bool {
 }
 
 // Validate checks validity of the RowNamespaceData against the AxisRoots, Namespace and Row index.
-func (rnd RowNamespaceData) Validate(dah *share.AxisRoots, namespace share.Namespace, rowIdx int) error {
+func (rnd RowNamespaceData) Validate(roots *share.AxisRoots, namespace share.Namespace, rowIdx int) error {
 	if rnd.Proof == nil || rnd.Proof.IsEmptyProof() {
 		return fmt.Errorf("nil proof")
 	}
@@ -155,7 +155,7 @@ func (rnd RowNamespaceData) Validate(dah *share.AxisRoots, namespace share.Names
 		return fmt.Errorf("invalid shares: %w", err)
 	}
 
-	rowRoot := dah.RowRoots[rowIdx]
+	rowRoot := roots.RowRoots[rowIdx]
 	if namespace.IsOutsideRange(rowRoot, rowRoot) {
 		return fmt.Errorf("namespace out of range for row %d", rowIdx)
 	}

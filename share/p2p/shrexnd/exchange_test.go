@@ -42,12 +42,12 @@ func TestExchange_RequestND_NotFound(t *testing.T) {
 		t.Cleanup(cancel)
 
 		eds := edstest.RandEDS(t, 4)
-		dah, err := share.NewAxisRoots(eds)
+		roots, err := share.NewAxisRoots(eds)
 		require.NoError(t, err)
-		require.NoError(t, edsStore.Put(ctx, dah.Hash(), eds))
+		require.NoError(t, edsStore.Put(ctx, roots.Hash(), eds))
 
 		namespace := sharetest.RandV0Namespace()
-		emptyShares, err := client.RequestND(ctx, dah, namespace, server.host.ID())
+		emptyShares, err := client.RequestND(ctx, roots, namespace, server.host.ID())
 		require.NoError(t, err)
 		require.Empty(t, emptyShares.Flatten())
 	})

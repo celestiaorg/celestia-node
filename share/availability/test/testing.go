@@ -32,9 +32,9 @@ func RandFillBS(t *testing.T, n int, bServ blockservice.BlockService) *share.Axi
 func FillBS(t *testing.T, bServ blockservice.BlockService, shares []share.Share) *share.AxisRoots {
 	eds, err := ipld.AddShares(context.TODO(), shares, bServ)
 	require.NoError(t, err)
-	dah, err := share.NewAxisRoots(eds)
+	roots, err := share.NewAxisRoots(eds)
 	require.NoError(t, err)
-	return dah
+	return roots
 }
 
 type TestNode struct {

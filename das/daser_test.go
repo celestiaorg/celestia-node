@@ -335,9 +335,9 @@ func (m *mockGetter) fillSubWithHeaders(
 
 	index := 0
 	for i := startHeight; i < endHeight; i++ {
-		dah := availability_test.RandFillBS(t, 16, bServ)
+		roots := availability_test.RandFillBS(t, 16, bServ)
 
-		randHeader := headertest.RandExtendedHeaderWithRoot(t, dah)
+		randHeader := headertest.RandExtendedHeaderWithRoot(t, roots)
 		randHeader.RawHeader.Height = int64(i + 1)
 
 		sub.Headers[index] = randHeader
@@ -361,9 +361,9 @@ type mockGetter struct {
 
 func (m *mockGetter) generateHeaders(t *testing.T, bServ blockservice.BlockService, startHeight, endHeight int) {
 	for i := startHeight; i < endHeight; i++ {
-		dah := availability_test.RandFillBS(t, 16, bServ)
+		roots := availability_test.RandFillBS(t, 16, bServ)
 
-		randHeader := headertest.RandExtendedHeaderWithRoot(t, dah)
+		randHeader := headertest.RandExtendedHeaderWithRoot(t, roots)
 		randHeader.RawHeader.Height = int64(i + 1)
 
 		m.headers[int64(i+1)] = randHeader

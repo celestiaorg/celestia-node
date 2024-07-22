@@ -176,7 +176,7 @@ func (srv *Server) readRequest(
 func (srv *Server) getNamespaceData(ctx context.Context,
 	hash share.DataHash, namespace share.Namespace,
 ) (share.NamespacedShares, pb.StatusCode, error) {
-	dah, err := srv.store.GetDAH(ctx, hash)
+	roots, err := srv.store.GetDAH(ctx, hash)
 	if err != nil {
 		if errors.Is(err, eds.ErrNotFound) {
 			return nil, pb.StatusCode_NOT_FOUND, nil
@@ -184,7 +184,7 @@ func (srv *Server) getNamespaceData(ctx context.Context,
 		return nil, pb.StatusCode_INTERNAL, fmt.Errorf("retrieving DAH: %w", err)
 	}
 
-	shares, err := eds.RetrieveNamespaceFromStore(ctx, srv.store, dah, namespace)
+	shares, err := eds.RetrieveNamespaceFromStore(ctx, srv.store, roots, namespace)
 	if err != nil {
 		return nil, pb.StatusCode_INTERNAL, fmt.Errorf("retrieving shares: %w", err)
 	}

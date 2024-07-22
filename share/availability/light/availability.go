@@ -61,7 +61,7 @@ func NewShareAvailability(
 // ExtendedHeader. This way SharesAvailable subjectively verifies that Shares are available.
 func (la *ShareAvailability) SharesAvailable(ctx context.Context, header *header.ExtendedHeader) error {
 	dah := header.DAH
-	// short-circuit if the given root is minimum DAH of an empty data square
+	// short-circuit if the given root is an empty data square
 	if share.DataHash(dah.Hash()).IsEmptyEDS() {
 		return nil
 	}

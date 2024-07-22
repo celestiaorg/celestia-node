@@ -82,11 +82,11 @@ func (r Row) IsEmpty() bool {
 
 // Validate checks if the row's shares match the expected number from the root data and validates
 // the side of the row.
-func (r Row) Validate(dah *share.AxisRoots, idx int) error {
+func (r Row) Validate(roots *share.AxisRoots, idx int) error {
 	if len(r.halfShares) == 0 {
 		return fmt.Errorf("empty half row")
 	}
-	expectedShares := len(dah.RowRoots) / 2
+	expectedShares := len(roots.RowRoots) / 2
 	if len(r.halfShares) != expectedShares {
 		return fmt.Errorf("shares size doesn't match root size: %d != %d", len(r.halfShares), expectedShares)
 	}
@@ -97,7 +97,7 @@ func (r Row) Validate(dah *share.AxisRoots, idx int) error {
 		return fmt.Errorf("invalid RowSide: %d", r.side)
 	}
 
-	if err := r.verifyInclusion(dah, idx); err != nil {
+	if err := r.verifyInclusion(roots, idx); err != nil {
 		return fmt.Errorf("%w: %w", ErrFailedVerification, err)
 	}
 	return nil
@@ -105,7 +105,7 @@ func (r Row) Validate(dah *share.AxisRoots, idx int) error {
 
 // verifyInclusion verifies the integrity of the row's shares against the provided root hash for the
 // given row index.
-func (r Row) verifyInclusion(dah *share.AxisRoots, idx int) error {
+func (r Row) verifyInclusion(roots *share.AxisRoots, idx int) error {
 	shrs, err := r.Shares()
 	if err != nil {
 		return fmt.Errorf("while extending shares: %w", err)
@@ -124,8 +124,8 @@ func (r Row) verifyInclusion(dah *share.AxisRoots, idx int) error {
 		return fmt.Errorf("while computing NMT root: %w", err)
 	}
 
-	if !bytes.Equal(dah.RowRoots[idx], root) {
-		return fmt.Errorf("invalid root hash: %X != %X", root, dah.RowRoots[idx])
+	if !bytes.Equal(roots.RowRoots[idx], root) {
+		return fmt.Errorf("invalid root hash: %X != %X", root, roots.RowRoots[idx])
 	}
 	return nil
 }

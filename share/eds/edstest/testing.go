@@ -43,7 +43,7 @@ func RandEDSWithNamespace(
 	shares := sharetest.RandSharesWithNamespace(t, namespace, namespacedAmount, size*size)
 	eds, err := rsmt2d.ComputeExtendedDataSquare(shares, share.DefaultRSMT2DCodec(), wrapper.NewConstructor(uint64(size)))
 	require.NoError(t, err, "failure to recompute the extended data square")
-	dah, err := share.NewAxisRoots(eds)
+	roots, err := share.NewAxisRoots(eds)
 	require.NoError(t, err)
-	return eds, dah
+	return eds, roots
 }
