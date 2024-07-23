@@ -44,7 +44,7 @@ func NamespaceDataIDFromBinary(data []byte) (NamespaceDataID, error) {
 
 	edsID, err := EdsIDFromBinary(data[:EdsIDSize])
 	if err != nil {
-		return NamespaceDataID{}, fmt.Errorf("error unmarshaling RowID: %w", err)
+		return NamespaceDataID{}, fmt.Errorf("error unmarshaling EDSID: %w", err)
 	}
 
 	ns := share.Namespace(data[EdsIDSize:])
@@ -71,10 +71,10 @@ func (ndid NamespaceDataID) MarshalBinary() ([]byte, error) {
 // DataNamespace.
 func (ndid NamespaceDataID) Validate() error {
 	if err := ndid.EdsID.Validate(); err != nil {
-		return fmt.Errorf("error validating RowID: %w", err)
+		return fmt.Errorf("validating RowID: %w", err)
 	}
 	if err := ndid.DataNamespace.ValidateForData(); err != nil {
-		return fmt.Errorf("%w: error validating DataNamespace: %w", ErrInvalidShwapID, err)
+		return fmt.Errorf("%w: validating DataNamespace: %w", ErrInvalidShwapID, err)
 	}
 	return nil
 }
