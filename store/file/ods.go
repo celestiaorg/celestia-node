@@ -108,21 +108,44 @@ func writeODSFile(w io.Writer, eds *rsmt2d.ExtendedDataSquare, axisRoots *share.
 		return nil, fmt.Errorf("writing axis roots: %w", err)
 	}
 
-	for _, shr := range eds.FlattenedODS() {
-		if _, err := w.Write(shr); err != nil {
-			return nil, fmt.Errorf("writing shares: %w", err)
-		}
+	// write quadrants
+	err = writeQuadrant(w, eds, 0)
+	if err != nil {
+		return nil, fmt.Errorf("writing Q1: %w", err)
 	}
 	return h, nil
 }
 
+func writeQuadrant(w io.Writer, eds *rsmt2d.ExtendedDataSquare, quadrantIdx int) error {
+	buf := make([]byte, 0, share.Size*eds.Width())
+	fromRow := quadrantIdx / 2 * int(eds.Width()) / 2
+	toRow := fromRow + int(eds.Width())/2
+
+	fromCol := quadrantIdx % 2 * int(eds.Width()) / 2
+	toCol := fromCol + int(eds.Width())/2
+
+	for rowIdx := fromRow; rowIdx < toRow; rowIdx++ {
+		row := eds.Row(uint(rowIdx))
+		for colIdx := fromCol; colIdx < toCol; colIdx++ {
+			buf = append(buf, row[colIdx]...)
+		}
+		if _, err := w.Write(buf); err != nil {
+			return fmt.Errorf("writing shares: %w", err)
+		}
+		buf = buf[:0]
+	}
+	return nil
+}
+
 func writeAxisRoots(w io.Writer, roots *share.AxisRoots) error {
+	buf := make([]byte, 0, share.AxisRootSize*len(roots.RowRoots))
 	for _, roots := range [][][]byte{roots.RowRoots, roots.ColumnRoots} {
 		for _, root := range roots {
-			if _, err := w.Write(root); err != nil {
-				return fmt.Errorf("writing axis root: %w", err)
-			}
+			buf = append(buf, root...)
 		}
+	}
+	if _, err := w.Write(buf); err != nil {
+		return fmt.Errorf("writing axis root: %w", err)
 	}
 	return nil
 }
