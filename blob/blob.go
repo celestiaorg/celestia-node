@@ -17,20 +17,6 @@ import (
 
 var errEmptyShares = errors.New("empty shares")
 
-// Commitment is a Merkle Root of the subtree built from shares of the Blob.
-// It is computed by splitting the blob into shares and building the Merkle subtree to be included
-// after Submit.
-type Commitment []byte
-
-func (com Commitment) String() string {
-	return string(com)
-}
-
-// Equal ensures that commitments are the same
-func (com Commitment) Equal(c Commitment) bool {
-	return bytes.Equal(com, c)
-}
-
 // The Proof is a set of nmt proofs that can be verified only through
 // the included method (due to limitation of the nmt https://github.com/celestiaorg/nmt/issues/218).
 // Proof proves the WHOLE namespaced data to the row roots.

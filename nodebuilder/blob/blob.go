@@ -34,15 +34,52 @@ type Module interface {
 	// Included checks whether a blob's given commitment(Merkle subtree root) is included at
 	// given height and under the namespace.
 	Included(_ context.Context, height uint64, _ share.Namespace, _ *blob.Proof, _ blob.Commitment) (bool, error)
+	// GetCommitmentProof generates a commitment proof for a share commitment.
+	GetCommitmentProof(
+		ctx context.Context,
+		height uint64,
+		namespace share.Namespace,
+		shareCommitment []byte,
+	) (*blob.CommitmentProof, error)
 }
 
 type API struct {
 	Internal struct {
-		Submit   func(context.Context, []*blob.Blob, *blob.SubmitOptions) (uint64, error)                   `perm:"write"`
-		Get      func(context.Context, uint64, share.Namespace, blob.Commitment) (*blob.Blob, error)        `perm:"read"`
-		GetAll   func(context.Context, uint64, []share.Namespace) ([]*blob.Blob, error)                     `perm:"read"`
-		GetProof func(context.Context, uint64, share.Namespace, blob.Commitment) (*blob.Proof, error)       `perm:"read"`
-		Included func(context.Context, uint64, share.Namespace, *blob.Proof, blob.Commitment) (bool, error) `perm:"read"`
+		Submit func(
+			context.Context,
+			[]*blob.Blob,
+			*blob.SubmitOptions,
+		) (uint64, error) `perm:"write"`
+		Get func(
+			context.Context,
+			uint64,
+			share.Namespace,
+			blob.Commitment,
+		) (*blob.Blob, error) `perm:"read"`
+		GetAll func(
+			context.Context,
+			uint64,
+			[]share.Namespace,
+		) ([]*blob.Blob, error) `perm:"read"`
+		GetProof func(
+			context.Context,
+			uint64,
+			share.Namespace,
+			blob.Commitment,
+		) (*blob.Proof, error) `perm:"read"`
+		Included func(
+			context.Context,
+			uint64,
+			share.Namespace,
+			*blob.Proof,
+			blob.Commitment,
+		) (bool, error) `perm:"read"`
+		GetCommitmentProof func(
+			ctx context.Context,
+			height uint64,
+			namespace share.Namespace,
+			shareCommitment []byte,
+		) (*blob.CommitmentProof, error) `perm:"read"`
 	}
 }
 
@@ -70,6 +107,15 @@ func (api *API) GetProof(
 	commitment blob.Commitment,
 ) (*blob.Proof, error) {
 	return api.Internal.GetProof(ctx, height, namespace, commitment)
+}
+
+func (api *API) GetCommitmentProof(
+	ctx context.Context,
+	height uint64,
+	namespace share.Namespace,
+	shareCommitment []byte,
+) (*blob.CommitmentProof, error) {
+	return api.Internal.GetCommitmentProof(ctx, height, namespace, shareCommitment)
 }
 
 func (api *API) Included(
