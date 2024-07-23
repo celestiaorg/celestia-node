@@ -50,17 +50,17 @@ func RandEDSWithNamespace(
 }
 
 // RandomAxisRoots generates random share.AxisRoots for the given eds size.
-func RandomAxisRoots(t testing.TB, size int) *share.AxisRoots {
-	roots := make([][]byte, size*2)
+func RandomAxisRoots(t testing.TB, edsSize int) *share.AxisRoots {
+	roots := make([][]byte, edsSize*2)
 	for i := range roots {
-		root := make([]byte, size)
+		root := make([]byte, edsSize)
 		_, err := rand.Read(root)
 		require.NoError(t, err)
 		roots[i] = root
 	}
 
-	rows := roots[:size]
-	cols := roots[size:]
+	rows := roots[:edsSize]
+	cols := roots[edsSize:]
 	return &share.AxisRoots{
 		RowRoots:    rows,
 		ColumnRoots: cols,
