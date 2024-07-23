@@ -39,6 +39,7 @@ func (g *Getter) Stop() {
 	g.cancel()
 }
 
+// GetShares uses [SampleBlock] and [Fetch] to get and verify samples for given coordinates.
 // TODO(@Wondertan): Rework API to get coordinates as a single param to make it ergonomic.
 func (g *Getter) GetShares(
 	ctx context.Context,
@@ -53,7 +54,7 @@ func (g *Getter) GetShares(
 		return nil, fmt.Errorf("empty coordinates")
 	}
 
-	blks := make([]Block, 0, len(rowIdxs))
+	blks := make([]Block, len(rowIdxs))
 	for i, rowIdx := range rowIdxs {
 		sid, err := NewEmptySampleBlock(hdr.Height(), rowIdx, colIdxs[i], len(hdr.DAH.RowRoots))
 		if err != nil {
@@ -93,6 +94,8 @@ func (g *Getter) GetShare(
 	return shrs[0], nil
 }
 
+// GetEDS uses [RowBlock] and [Fetch] to get half of the first EDS quadrant(ODS) and
+// recomputes the whole EDS from it.
 func (g *Getter) GetEDS(
 	ctx context.Context,
 	hdr *header.ExtendedHeader,
@@ -113,7 +116,7 @@ func (g *Getter) GetEDS(
 		return nil, err
 	}
 
-	shrs := make([]share.Share, 0, sqrLn*sqrLn)
+	shrs := make([]share.Share, 0, sqrLn/2*sqrLn/2)
 	for _, row := range blks {
 		rowShrs, err := row.(*RowBlock).Container.Shares()
 		if err != nil {
@@ -134,6 +137,8 @@ func (g *Getter) GetEDS(
 	return square, nil
 }
 
+// GetSharesByNamespace uses [RowNamespaceDataBlock] and [Fetch] to get all the data
+// by the given namespace.
 func (g *Getter) GetSharesByNamespace(
 	ctx context.Context,
 	hdr *header.ExtendedHeader,
