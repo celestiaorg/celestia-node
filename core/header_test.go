@@ -8,6 +8,8 @@ import (
 	"github.com/stretchr/testify/require"
 	"github.com/tendermint/tendermint/libs/rand"
 
+	"github.com/celestiaorg/celestia-app/pkg/appconsts"
+
 	"github.com/celestiaorg/celestia-node/header"
 	"github.com/celestiaorg/celestia-node/header/headertest"
 	"github.com/celestiaorg/celestia-node/share"
@@ -47,4 +49,12 @@ func TestMismatchedDataHash_ComputedRoot(t *testing.T) {
 	err := header.Validate()
 	assert.Contains(t, err.Error(), "mismatch between data hash commitment from"+
 		" core header and computed data root")
+}
+
+func TestBadAppVersion(t *testing.T) {
+	header := headertest.RandExtendedHeader(t)
+	header.RawHeader.Version.App = appconsts.LatestVersion + 1
+
+	err := header.Validate()
+	assert.Contains(t, err.Error(), "app version must be less than the latest app version")
 }
