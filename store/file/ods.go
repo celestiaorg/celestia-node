@@ -103,7 +103,6 @@ func writeODSFile(w io.Writer, eds *rsmt2d.ExtendedDataSquare, axisRoots *share.
 		return nil, fmt.Errorf("writing header: %w", err)
 	}
 
-	// write axisRoots
 	err = writeAxisRoots(w, axisRoots)
 	if err != nil {
 		return nil, fmt.Errorf("writing axis roots: %w", err)
@@ -142,7 +141,8 @@ func (f *ODSFile) DataHash(context.Context) (share.DataHash, error) {
 	return f.hdr.datahash, nil
 }
 
-// AxisRoots returns axis roots of the Accessor.
+// AxisRoots reads AxisRoots stored in the file. AxisRoots are stored after the header and before the
+// ODS data.
 func (f *ODSFile) AxisRoots(context.Context) (*share.AxisRoots, error) {
 	roots := make([]byte, f.axisRootsSize())
 	n, err := f.fl.ReadAt(roots, int64(f.hdr.Size()))
@@ -289,6 +289,8 @@ func (f *ODSFile) sharesOffset() int {
 }
 
 func (f *ODSFile) axisRootsSize() int {
+	// axis roots are stored in two parts: row roots and column roots, each part has size equal to
+	// the square size. Thus, the total amount of roots is equal to the square size * 2.
 	return share.AxisRootSize * 2 * f.size()
 }
 

@@ -6,7 +6,6 @@ import (
 
 	"github.com/stretchr/testify/require"
 
-	"github.com/celestiaorg/celestia-app/pkg/da"
 	"github.com/celestiaorg/celestia-app/pkg/wrapper"
 	"github.com/celestiaorg/nmt"
 	"github.com/celestiaorg/rsmt2d"
@@ -50,6 +49,7 @@ func RandEDSWithNamespace(
 	return eds, roots
 }
 
+// RandomAxisRoots generates random share.AxisRoots for the given eds size.
 func RandomAxisRoots(t testing.TB, size int) *share.AxisRoots {
 	roots := make([][]byte, size*2)
 	for i := range roots {
@@ -61,7 +61,7 @@ func RandomAxisRoots(t testing.TB, size int) *share.AxisRoots {
 
 	rows := roots[:size]
 	cols := roots[size:]
-	return &da.DataAvailabilityHeader{
+	return &share.AxisRoots{
 		RowRoots:    rows,
 		ColumnRoots: cols,
 	}
