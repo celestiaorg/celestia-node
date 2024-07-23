@@ -31,7 +31,7 @@ type proofsCache struct {
 
 	// lock protects proofCache
 	lock       sync.RWMutex
-	rootsCache *share.AxisRoots
+	rootsCache atomic.Pointer[share.AxisRoots]
 	// axisCache caches the axis Shares and proofs. Index in the slice corresponds to the axis type.
 	// The map key is the index of the axis.
 	axisCache []map[int]axisWithProofs
@@ -83,9 +83,7 @@ func (c *proofsCache) DataHash(ctx context.Context) (share.DataHash, error) {
 }
 
 func (c *proofsCache) AxisRoots(ctx context.Context) (*share.AxisRoots, error) {
-	c.lock.RLock()
-	roots := c.rootsCache
-	c.lock.RUnlock()
+	roots := c.rootsCache.Load()
 	if roots != nil {
 		return roots, nil
 	}
@@ -95,9 +93,7 @@ func (c *proofsCache) AxisRoots(ctx context.Context) (*share.AxisRoots, error) {
 	if err != nil {
 		return nil, err
 	}
-	c.lock.Lock()
-	defer c.lock.Unlock()
-	c.rootsCache = roots
+	c.rootsCache.Store(roots)
 	return roots, nil
 }
 
