@@ -131,7 +131,7 @@ func (s *Service) Subscribe(ctx context.Context, ns share.Namespace) (<-chan *Su
 			select {
 			case header, ok := <-headerCh:
 				if ctx.Err() != nil {
-					log.Debug("blobsub: cancelling subscription due to user context closing")
+					log.Debug("blobsub: canceling subscription due to user context closing")
 					return
 				}
 				if !ok {
@@ -141,7 +141,7 @@ func (s *Service) Subscribe(ctx context.Context, ns share.Namespace) (<-chan *Su
 				blobs, err := s.getAll(ctx, header, []share.Namespace{ns})
 				if errors.Is(err, context.Canceled) || errors.Is(err, context.DeadlineExceeded) {
 					// context canceled, continuing would lead to unexpected missed heights for the client
-					log.Debug("blobsub: cancelling subscription due to user context closing")
+					log.Debug("blobsub: canceling subscription due to user context closing")
 					return
 				}
 				if err != nil {
@@ -151,15 +151,15 @@ func (s *Service) Subscribe(ctx context.Context, ns share.Namespace) (<-chan *Su
 
 				select {
 				case <-ctx.Done():
-					log.Debug("blobsub: cancelling subscription with pending response due to user context closing")
+					log.Debug("blobsub: canceling subscription with pending response due to user context closing")
 					return
 				case blobCh <- &SubscriptionResponse{Blobs: blobs, Height: header.Height()}:
 				}
 			case <-ctx.Done():
-				log.Debug("blobsub: cancelling subscription due to user context closing")
+				log.Debug("blobsub: canceling subscription due to user context closing")
 				return
 			case <-s.ctx.Done():
-				log.Debug("blobsub: cancelling subscription due to service context closing")
+				log.Debug("blobsub: canceling subscription due to service context closing")
 				return
 			}
 		}

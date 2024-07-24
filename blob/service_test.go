@@ -394,7 +394,9 @@ func TestBlobService_Get(t *testing.T) {
 				shareGetterMock.EXPECT().
 					GetSharesByNamespace(gomock.Any(), gomock.Any(), gomock.Any()).
 					DoAndReturn(
-						func(ctx context.Context, h *header.ExtendedHeader, ns share.Namespace) (share.NamespacedShares, error) {
+						func(
+							ctx context.Context, h *header.ExtendedHeader, ns share.Namespace,
+						) (share.NamespacedShares, error) {
 							if ns.Equals(blobsWithDiffNamespaces[0].Namespace()) {
 								return nil, errors.New("internal error")
 							}
@@ -750,7 +752,8 @@ func TestService_Subscribe(t *testing.T) {
 		// cancel the subscription context after receiving the first response
 		select {
 		case <-subCh:
-			service.Stop(context.Background())
+			err = service.Stop(context.Background())
+			require.NoError(t, err)
 		case <-time.After(time.Second * 2):
 			t.Fatal("timeout waiting for first subscription response")
 		}
@@ -761,7 +764,6 @@ func TestService_Subscribe(t *testing.T) {
 		case <-time.After(time.Second * 2):
 			t.Fatal("timeout waiting for subscription channel to close")
 		}
-
 	})
 }
 
@@ -779,6 +781,7 @@ func TestService_Subscribe_MultipleNamespaces(t *testing.T) {
 	blobs2, err := convertBlobs(appBlobs2...)
 	require.NoError(t, err)
 
+	//nolint: gocritic
 	allBlobs := append(blobs1, blobs2...)
 
 	service := createServiceWithSub(ctx, t, allBlobs)
