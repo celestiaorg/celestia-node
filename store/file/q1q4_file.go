@@ -1,6 +1,7 @@
 package file
 
 import (
+	"bufio"
 	"context"
 	"fmt"
 	"io"
@@ -39,14 +40,38 @@ func CreateQ1Q4File(path string, roots *share.AxisRoots, eds *rsmt2d.ExtendedDat
 		return nil, err
 	}
 
-	err = writeQuadrant(ods.fl, eds, int(ods.hdr.shareSize), 3)
+	bufSize := int(eds.Width()) * int(ods.hdr.shareSize)
+	buf := bufio.NewWriterSize(ods.fl, bufSize)
+
+	err = writeQ4(buf, eds)
 	if err != nil {
 		return nil, fmt.Errorf("writing Q4: %w", err)
+	}
+
+	err = buf.Flush()
+	if err != nil {
+		return nil, fmt.Errorf("flushing Q4: %w", err)
 	}
 
 	return &Q1Q4File{
 		ods: ods,
 	}, nil
+}
+
+// writeQ4 writes the frth quadrant of the square to the writer. iIt writes the quadrant in row-major
+// order
+func writeQ4(w io.Writer, eds *rsmt2d.ExtendedDataSquare) error {
+	half := eds.Width() / 2
+	for i := range half {
+		for j := range half {
+			shr := eds.GetCell(i+half, j+half) // TODO: Avoid copying inside GetCell
+			_, err := w.Write(shr)
+			if err != nil {
+				return fmt.Errorf("writing share: %w", err)
+			}
+		}
+	}
+	return nil
 }
 
 func (f *Q1Q4File) Size(ctx context.Context) int {

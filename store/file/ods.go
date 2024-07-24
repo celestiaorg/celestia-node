@@ -73,9 +73,17 @@ func CreateODSFile(
 		return nil, fmt.Errorf("file create: %w", err)
 	}
 
-	h, err := writeODSFile(f, eds, roots)
+	bufSize := int(eds.Width()) * share.Size
+	buf := bufio.NewWriterSize(f, bufSize)
+
+	h, err := writeODSFile(buf, eds, roots)
 	if err != nil {
 		return nil, fmt.Errorf("writing ODS file: %w", err)
+	}
+
+	err = buf.Flush()
+	if err != nil {
+		return nil, fmt.Errorf("flushing ODS file: %w", err)
 	}
 
 	err = f.Sync()
@@ -110,35 +118,25 @@ func writeODSFile(w io.Writer, eds *rsmt2d.ExtendedDataSquare, axisRoots *share.
 	}
 
 	// write quadrants
-	err = writeQuadrant(w, eds, int(h.shareSize), 0)
+	err = writeQ1(w, eds)
 	if err != nil {
 		return nil, fmt.Errorf("writing Q1: %w", err)
 	}
+
 	return h, nil
 }
 
-// writeQuadrant writes the quadrant of the square to the writer. it writes the quadrant in row-major
-// order. It uses buffer to write the shares in bulk (row by row), which improves the write performance.
-func writeQuadrant(w io.Writer, eds *rsmt2d.ExtendedDataSquare, shareSize, quadrantIdx int) error {
-	fromRow := quadrantIdx / 2 * int(eds.Width()) / 2
-	toRow := fromRow + int(eds.Width())/2
-
-	fromCol := quadrantIdx % 2 * int(eds.Width()) / 2
-	toCol := fromCol + int(eds.Width())/2
-
-	buf := bufio.NewWriterSize(w, shareSize*int(eds.Width()))
-	for rowIdx := fromRow; rowIdx < toRow; rowIdx++ {
-		for colIdx := fromCol; colIdx < toCol; colIdx++ {
-			share := eds.GetCell(uint(rowIdx), uint(colIdx))
-			_, err := buf.Write(share)
+// writeQ1 writes the first quadrant of the square to the writer. It writes the quadrant in row-major
+// order
+func writeQ1(w io.Writer, eds *rsmt2d.ExtendedDataSquare) error {
+	for i := range eds.Width() / 2 {
+		for j := range eds.Width() / 2 {
+			shr := eds.GetCell(i, j) // TODO: Avoid copying inside GetCell
+			_, err := w.Write(shr)
 			if err != nil {
-				return fmt.Errorf("writing shares: %w", err)
+				return fmt.Errorf("writing share: %w", err)
 			}
 		}
-	}
-	err := buf.Flush()
-	if err != nil {
-		return fmt.Errorf("flushing buffer: %w", err)
 	}
 	return nil
 }
