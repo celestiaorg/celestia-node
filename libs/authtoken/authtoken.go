@@ -1,6 +1,7 @@
 package authtoken
 
 import (
+	"crypto/rand"
 	"encoding/json"
 
 	"github.com/cristalhq/jwt/v5"
@@ -26,8 +27,14 @@ func ExtractSignedPermissions(verifier jwt.Verifier, token string) ([]auth.Permi
 
 // NewSignedJWT returns a signed JWT token with the passed permissions and signer.
 func NewSignedJWT(signer jwt.Signer, permissions []auth.Permission) (string, error) {
+	var nonce [32]byte
+	if _, err := rand.Read(nonce[:]); err != nil {
+		return "", err
+	}
+
 	token, err := jwt.NewBuilder(signer).Build(&perms.JWTPayload{
 		Allow: permissions,
+		Nonce: nonce[:],
 	})
 	if err != nil {
 		return "", err
