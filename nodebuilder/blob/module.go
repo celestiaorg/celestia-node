@@ -32,14 +32,14 @@ func ConstructModule() fx.Option {
 				subscribeFn func(context.Context) (<-chan *header.ExtendedHeader, error),
 			) *blob.Service {
 				return blob.NewService(state, sGetter, getByHeightFn, subscribeFn)
-			}),
+			},
 			fx.OnStart(func(ctx context.Context, serv *blob.Service) error {
 				return serv.Start(ctx)
 			}),
 			fx.OnStop(func(ctx context.Context, serv *blob.Service) error {
 				return serv.Stop(ctx)
 			}),
-		),
+		)),
 		fx.Provide(func(serv *blob.Service) Module {
 			return serv
 		}),

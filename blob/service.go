@@ -122,7 +122,7 @@ func (s *Service) Subscribe(ctx context.Context, ns share.Namespace) (<-chan *Su
 		return nil, err
 	}
 
-	blobCh := make(chan *SubscriptionResponse, 3)
+	blobCh := make(chan *SubscriptionResponse, 16)
 	go func() {
 		defer s.activeSubscriptions.Done()
 		defer close(blobCh)
