@@ -4,11 +4,10 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/ipfs/boxo/blockstore"
-	"github.com/ipfs/boxo/exchange"
-
 	"github.com/celestiaorg/celestia-app/pkg/wrapper"
 	"github.com/celestiaorg/rsmt2d"
+	"github.com/ipfs/boxo/blockstore"
+	"github.com/ipfs/boxo/exchange"
 
 	"github.com/celestiaorg/celestia-node/header"
 	"github.com/celestiaorg/celestia-node/pruner"
@@ -97,6 +96,7 @@ func (g *Getter) GetShares(
 	return shares, nil
 }
 
+// GetShare uses [GetShare] to fetch and verify single share by the given coordinates.
 func (g *Getter) GetShare(
 	ctx context.Context,
 	hdr *header.ExtendedHeader,
@@ -116,6 +116,8 @@ func (g *Getter) GetShare(
 
 // GetEDS uses [RowBlock] and [Fetch] to get half of the first EDS quadrant(ODS) and
 // recomputes the whole EDS from it.
+// We fetch the ODS or Q1 to ensure better compatibility with archival nodes that only
+// store ODS and do not recompute other quadrants.
 func (g *Getter) GetEDS(
 	ctx context.Context,
 	hdr *header.ExtendedHeader,
@@ -138,15 +140,18 @@ func (g *Getter) GetEDS(
 	}
 
 	shrs := make([]share.Share, 0, sqrLn/2*sqrLn/2)
-	for _, row := range blks {
+	for i, row := range blks {
 		rowShrs, err := row.(*RowBlock).Container.Shares()
 		if err != nil {
 			return nil, fmt.Errorf("decoding Shares out of Row: %w", err)
 		}
-		shrs = append(shrs, rowShrs...)
+
+		for j, shr := range rowShrs {
+			shrs[i*j] = shr
+		}
 	}
 
-	square, err := rsmt2d.ComputeExtendedDataSquare(
+	square, err := rsmt2d.ImportExtendedDataSquare(
 		shrs,
 		share.DefaultRSMT2DCodec(),
 		wrapper.NewConstructor(uint64(sqrLn/2)),
@@ -159,7 +164,8 @@ func (g *Getter) GetEDS(
 }
 
 // GetSharesByNamespace uses [RowNamespaceDataBlock] and [Fetch] to get all the data
-// by the given namespace.
+// by the given namespace. If data spans over multiple rows, the request is split into
+// parallel RowNamespaceDataID requests per each row and then assembled back into NamespaceData.
 func (g *Getter) GetSharesByNamespace(
 	ctx context.Context,
 	hdr *header.ExtendedHeader,
