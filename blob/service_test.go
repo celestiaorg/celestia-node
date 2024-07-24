@@ -734,13 +734,34 @@ func TestService_Subscribe(t *testing.T) {
 			t.Fatal("timeout waiting for first subscription response")
 		}
 
-		// check that the subscription channel is closed
 		select {
 		case _, ok := <-subCh:
 			assert.False(t, ok, "expected subscription channel to be closed")
 		case <-time.After(time.Second * 2):
 			t.Fatal("timeout waiting for subscription channel to close")
 		}
+	})
+
+	t.Run("graceful shutdown", func(t *testing.T) {
+		ns := blobs[0].Namespace()
+		subCh, err := service.Subscribe(ctx, ns)
+		require.NoError(t, err)
+
+		// cancel the subscription context after receiving the first response
+		select {
+		case <-subCh:
+			service.Stop(context.Background())
+		case <-time.After(time.Second * 2):
+			t.Fatal("timeout waiting for first subscription response")
+		}
+
+		select {
+		case _, ok := <-subCh:
+			assert.False(t, ok, "expected subscription channel to be closed")
+		case <-time.After(time.Second * 2):
+			t.Fatal("timeout waiting for subscription channel to close")
+		}
+
 	})
 }
 

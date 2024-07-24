@@ -47,7 +47,6 @@ type Module interface {
 
 type API struct {
 	Internal struct {
-<<<<<<< HEAD
 		Submit func(
 			context.Context,
 			[]*blob.Blob,
