@@ -21,16 +21,20 @@ func TestCreateODSFile(t *testing.T) {
 	t.Cleanup(cancel)
 
 	edsIn := edstest.RandEDS(t, 8)
-	datahash := share.DataHash(rand.Bytes(32))
-	path := t.TempDir() + "/" + datahash.String()
-	f, err := CreateODSFile(path, datahash, edsIn)
+	roots, err := share.NewAxisRoots(edsIn)
+	require.NoError(t, err)
+	path := t.TempDir() + "/" + roots.String()
+	f, err := CreateODSFile(path, roots, edsIn)
 	require.NoError(t, err)
 
 	shares, err := f.Shares(ctx)
 	require.NoError(t, err)
 	expected := edsIn.FlattenedODS()
 	require.Equal(t, expected, shares)
-	require.Equal(t, datahash, f.hdr.datahash)
+	require.Equal(t, share.DataHash(roots.Hash()), f.hdr.datahash)
+	readRoots, err := share.NewAxisRoots(edsIn)
+	require.NoError(t, err)
+	require.True(t, roots.Equals(readRoots))
 	require.NoError(t, f.Close())
 
 	f, err = OpenODSFile(path)
@@ -38,14 +42,19 @@ func TestCreateODSFile(t *testing.T) {
 	shares, err = f.Shares(ctx)
 	require.NoError(t, err)
 	require.Equal(t, expected, shares)
-	require.Equal(t, datahash, f.hdr.datahash)
+	require.Equal(t, share.DataHash(roots.Hash()), f.hdr.datahash)
+	readRoots, err = share.NewAxisRoots(edsIn)
+	require.NoError(t, err)
+	require.True(t, roots.Equals(readRoots))
 	require.NoError(t, f.Close())
 }
 
 func TestReadODSFromFile(t *testing.T) {
 	eds := edstest.RandEDS(t, 8)
+	roots, err := share.NewAxisRoots(eds)
+	require.NoError(t, err)
 	path := t.TempDir() + "/testfile"
-	f, err := CreateODSFile(path, []byte{}, eds)
+	f, err := CreateODSFile(path, roots, eds)
 	require.NoError(t, err)
 
 	ods, err := f.readODS()
@@ -180,14 +189,18 @@ func createCachedStreamer(t testing.TB, eds *rsmt2d.ExtendedDataSquare) eds.Acce
 
 func createODSFile(t testing.TB, eds *rsmt2d.ExtendedDataSquare) *ODSFile {
 	path := t.TempDir() + "/" + strconv.Itoa(rand.Intn(1000))
-	fl, err := CreateODSFile(path, []byte{}, eds)
+	roots, err := share.NewAxisRoots(eds)
+	require.NoError(t, err)
+	fl, err := CreateODSFile(path, roots, eds)
 	require.NoError(t, err)
 	return fl
 }
 
 func createODSFileDisabledCache(t testing.TB, eds *rsmt2d.ExtendedDataSquare) eds.Accessor {
 	path := t.TempDir() + "/" + strconv.Itoa(rand.Intn(1000))
-	fl, err := CreateODSFile(path, []byte{}, eds)
+	roots, err := share.NewAxisRoots(eds)
+	require.NoError(t, err)
+	fl, err := CreateODSFile(path, roots, eds)
 	require.NoError(t, err)
 	fl.disableCache = true
 	return fl

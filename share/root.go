@@ -11,6 +11,13 @@ import (
 	"github.com/celestiaorg/rsmt2d"
 )
 
+const (
+	// DataHashSize is the size of the DataHash.
+	DataHashSize = 32
+	// AxisRootSize is the size of the single root in AxisRoots.
+	AxisRootSize = 90
+)
+
 // AxisRoots represents root commitment to multiple Shares.
 // In practice, it is a commitment to all the Data in a square.
 type AxisRoots = da.DataAvailabilityHeader
@@ -19,7 +26,7 @@ type AxisRoots = da.DataAvailabilityHeader
 type DataHash []byte
 
 func (dh DataHash) Validate() error {
-	if len(dh) != 32 {
+	if len(dh) != DataHashSize {
 		return fmt.Errorf("invalid hash size, expected 32, got %d", len(dh))
 	}
 	return nil

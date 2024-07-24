@@ -35,6 +35,14 @@ func TestSuiteAccessor(
 		t.Errorf("minSize must be power of 2: %v", maxSize)
 	}
 	for size := minSize; size <= maxSize; size *= 2 {
+		t.Run(fmt.Sprintf("DataHash:%d", size), func(t *testing.T) {
+			testAccessorDataHash(ctx, t, createAccessor, size)
+		})
+
+		t.Run(fmt.Sprintf("AxisRoots:%d", size), func(t *testing.T) {
+			testAccessorAxisRoots(ctx, t, createAccessor, size)
+		})
+
 		t.Run(fmt.Sprintf("Sample:%d", size), func(t *testing.T) {
 			testAccessorSample(ctx, t, createAccessor, size)
 		})
@@ -62,6 +70,40 @@ func TestStreamer(
 	t.Run("Reader", func(t *testing.T) {
 		testAccessorReader(ctx, t, create, odsSize)
 	})
+}
+
+func testAccessorDataHash(
+	ctx context.Context,
+	t *testing.T,
+	createAccessor createAccessor,
+	odsSize int,
+) {
+	eds := edstest.RandEDS(t, odsSize)
+	fl := createAccessor(t, eds)
+
+	roots, err := share.NewAxisRoots(eds)
+	require.NoError(t, err)
+
+	datahash, err := fl.DataHash(ctx)
+	require.NoError(t, err)
+	require.Equal(t, share.DataHash(roots.Hash()), datahash)
+}
+
+func testAccessorAxisRoots(
+	ctx context.Context,
+	t *testing.T,
+	createAccessor createAccessor,
+	odsSize int,
+) {
+	eds := edstest.RandEDS(t, odsSize)
+	fl := createAccessor(t, eds)
+
+	roots, err := share.NewAxisRoots(eds)
+	require.NoError(t, err)
+
+	axisRoots, err := fl.AxisRoots(ctx)
+	require.NoError(t, err)
+	require.True(t, roots.Equals(axisRoots))
 }
 
 func testAccessorSample(

@@ -21,7 +21,7 @@ func TestNamespacedData(t *testing.T) {
 	for amount := 1; amount < sharesAmount; amount++ {
 		eds, root := edstest.RandEDSWithNamespace(t, namespace, amount, odsSize)
 		rsmt2d := &Rsmt2D{ExtendedDataSquare: eds}
-		nd, err := NamespacedData(ctx, root, rsmt2d, namespace)
+		nd, err := NamespacedData(ctx, rsmt2d, namespace)
 		require.NoError(t, err)
 		require.True(t, len(nd) > 0)
 		require.Len(t, nd.Flatten(), amount)

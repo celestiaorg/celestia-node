@@ -1,6 +1,7 @@
 package edstest
 
 import (
+	"crypto/rand"
 	"testing"
 
 	"github.com/stretchr/testify/require"
@@ -46,4 +47,22 @@ func RandEDSWithNamespace(
 	roots, err := share.NewAxisRoots(eds)
 	require.NoError(t, err)
 	return eds, roots
+}
+
+// RandomAxisRoots generates random share.AxisRoots for the given eds size.
+func RandomAxisRoots(t testing.TB, edsSize int) *share.AxisRoots {
+	roots := make([][]byte, edsSize*2)
+	for i := range roots {
+		root := make([]byte, edsSize)
+		_, err := rand.Read(root)
+		require.NoError(t, err)
+		roots[i] = root
+	}
+
+	rows := roots[:edsSize]
+	cols := roots[edsSize:]
+	return &share.AxisRoots{
+		RowRoots:    rows,
+		ColumnRoots: cols,
+	}
 }

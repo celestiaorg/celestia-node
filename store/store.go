@@ -97,22 +97,22 @@ func (s *Store) Close() error {
 
 func (s *Store) Put(
 	ctx context.Context,
-	datahash share.DataHash,
+	roots *share.AxisRoots,
 	height uint64,
 	square *rsmt2d.ExtendedDataSquare,
 ) error {
 	tNow := time.Now()
+	datahash := share.DataHash(roots.Hash())
 	lock := s.stripLock.byDatahashAndHeight(datahash, height)
 	lock.lock()
 	defer lock.unlock()
 
-	path := filepath.Join(s.basepath, blocksPath, datahash.String())
 	if datahash.IsEmptyEDS() {
-		err := s.ensureHeightLink(path, height)
+		err := s.ensureHeightLink(roots.Hash(), height)
 		return err
 	}
 
-	exists, err := s.createFile(path, datahash, height, square)
+	exists, err := s.createFile(square, roots, height)
 	if exists {
 		s.metrics.observePutExist(ctx)
 		return nil
@@ -134,12 +134,12 @@ func (s *Store) Put(
 }
 
 func (s *Store) createFile(
-	path string,
-	datahash share.DataHash,
-	height uint64,
 	square *rsmt2d.ExtendedDataSquare,
+	roots *share.AxisRoots,
+	height uint64,
 ) (exists bool, err error) {
-	f, err := file.CreateQ1Q4File(path, datahash, square)
+	path := s.hashToPath(roots.Hash())
+	f, err := file.CreateQ1Q4File(path, roots, square)
 	if errors.Is(err, os.ErrExist) {
 		return true, nil
 	}
@@ -154,18 +154,19 @@ func (s *Store) createFile(
 	}
 
 	// create hard link with height as name
-	err = s.ensureHeightLink(path, height)
+	err = s.ensureHeightLink(roots.Hash(), height)
 	if err != nil {
 		// remove the file if we failed to create a hard link
-		removeErr := s.removeFile(datahash)
+		removeErr := s.removeFile(roots.Hash())
 		return false, fmt.Errorf("creating hard link: %w", errors.Join(err, removeErr))
 	}
 	return false, nil
 }
 
-func (s *Store) ensureHeightLink(path string, height uint64) error {
+func (s *Store) ensureHeightLink(datahash share.DataHash, height uint64) error {
+	path := s.hashToPath(datahash)
 	// create hard link with height as name
-	linkPath := filepath.Join(s.basepath, heightsPath, strconv.Itoa(int(height)))
+	linkPath := s.heightToPath(height)
 	err := os.Link(path, linkPath)
 	if err != nil && !errors.Is(err, os.ErrExist) {
 		return fmt.Errorf("creating hard link: %w", err)
@@ -188,7 +189,7 @@ func (s *Store) GetByDataRoot(ctx context.Context, datahash share.DataHash) (eds
 }
 
 func (s *Store) getByDataRoot(datahash share.DataHash) (eds.AccessorStreamer, error) {
-	path := filepath.Join(s.basepath, blocksPath, datahash.String())
+	path := s.hashToPath(datahash)
 	return s.openFile(path)
 }
 
@@ -208,7 +209,7 @@ func (s *Store) getByHeight(height uint64) (eds.AccessorStreamer, error) {
 	if err == nil {
 		return f, nil
 	}
-	path := filepath.Join(s.basepath, heightsPath, strconv.Itoa(int(height)))
+	path := s.heightToPath(height)
 	return s.openFile(path)
 }
 
@@ -241,7 +242,7 @@ func (s *Store) HasByHash(ctx context.Context, datahash share.DataHash) (bool, e
 }
 
 func (s *Store) hasByHash(datahash share.DataHash) (bool, error) {
-	path := filepath.Join(s.basepath, blocksPath, datahash.String())
+	path := s.hashToPath(datahash)
 	return pathExists(path)
 }
 
@@ -262,7 +263,7 @@ func (s *Store) hasByHeight(height uint64) (bool, error) {
 		return true, nil
 	}
 
-	path := filepath.Join(s.basepath, heightsPath, strconv.Itoa(int(height)))
+	path := s.heightToPath(height)
 	return pathExists(path)
 }
 
@@ -296,7 +297,7 @@ func (s *Store) removeLink(height uint64) error {
 	}
 
 	// remove hard link by height
-	heightPath := filepath.Join(s.basepath, heightsPath, strconv.Itoa(int(height)))
+	heightPath := s.heightToPath(height)
 	err := os.Remove(heightPath)
 	if err != nil && !errors.Is(err, os.ErrNotExist) {
 		return err
@@ -310,12 +311,20 @@ func (s *Store) removeFile(hash share.DataHash) error {
 		return nil
 	}
 
-	hashPath := filepath.Join(s.basepath, blocksPath, hash.String())
+	hashPath := s.hashToPath(hash)
 	err := os.Remove(hashPath)
 	if err != nil && !errors.Is(err, os.ErrNotExist) {
 		return err
 	}
 	return nil
+}
+
+func (s *Store) hashToPath(datahash share.DataHash) string {
+	return filepath.Join(s.basepath, blocksPath, datahash.String())
+}
+
+func (s *Store) heightToPath(height uint64) string {
+	return filepath.Join(s.basepath, heightsPath, strconv.Itoa(int(height)))
 }
 
 func accessorLoader(accessor eds.AccessorStreamer) cache.OpenAccessorFn {

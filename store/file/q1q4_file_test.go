@@ -21,9 +21,10 @@ func TestCreateQ1Q4File(t *testing.T) {
 	t.Cleanup(cancel)
 
 	edsIn := edstest.RandEDS(t, 8)
-	datahash := share.DataHash(rand.Bytes(32))
-	path := t.TempDir() + "/" + datahash.String()
-	f, err := CreateQ1Q4File(path, datahash, edsIn)
+	roots, err := share.NewAxisRoots(edsIn)
+	require.NoError(t, err)
+	path := t.TempDir() + "/" + roots.String()
+	f, err := CreateQ1Q4File(path, roots, edsIn)
 	require.NoError(t, err)
 
 	shares, err := f.Shares(ctx)
@@ -98,7 +99,9 @@ func BenchmarkSampleFromQ1Q4File(b *testing.B) {
 
 func createQ1Q4File(t testing.TB, eds *rsmt2d.ExtendedDataSquare) eds.Accessor {
 	path := t.TempDir() + "/" + strconv.Itoa(rand.Intn(1000))
-	fl, err := CreateQ1Q4File(path, []byte{}, eds)
+	roots, err := share.NewAxisRoots(eds)
+	require.NoError(t, err)
+	fl, err := CreateQ1Q4File(path, roots, eds)
 	require.NoError(t, err)
 	return fl
 }

@@ -25,17 +25,23 @@ var _ AccessorStreamer = (*proofsCache)(nil)
 
 // proofsCache is eds accessor that caches proofs for rows and columns. It also caches extended
 // axis Shares. It is used to speed up the process of building proofs for rows and columns,
-// reducing the number of reads from the underlying accessor.
+// reducing the number of reads from the underlying accessor. Cache does not synchronize access
+// to the underlying accessor.
 type proofsCache struct {
 	inner AccessorStreamer
 
-	// lock protects axisCache
-	lock sync.RWMutex
+	// size caches the size of the data square
+	size atomic.Int32
+	// dataHash caches the data hash
+	dataHash atomic.Pointer[share.DataHash]
+	// rootsCache caches the axis roots
+	rootsCache atomic.Pointer[share.AxisRoots]
+	// axisCacheLock protects proofCache
+	axisCacheLock sync.RWMutex
 	// axisCache caches the axis Shares and proofs. Index in the slice corresponds to the axis type.
 	// The map key is the index of the axis.
 	axisCache []map[int]axisWithProofs
-	// size caches the size of the data square
-	size atomic.Int32
+
 	// disableCache disables caching of rows for testing purposes
 	disableCache bool
 }
@@ -78,7 +84,31 @@ func (c *proofsCache) Size(ctx context.Context) int {
 }
 
 func (c *proofsCache) DataHash(ctx context.Context) (share.DataHash, error) {
-	return c.inner.DataHash(ctx)
+	dataHash := c.dataHash.Load()
+	if dataHash != nil {
+		return *dataHash, nil
+	}
+	loaded, err := c.inner.DataHash(ctx)
+	if err != nil {
+		return nil, err
+	}
+	c.dataHash.Store(&loaded)
+	return loaded, nil
+}
+
+func (c *proofsCache) AxisRoots(ctx context.Context) (*share.AxisRoots, error) {
+	roots := c.rootsCache.Load()
+	if roots != nil {
+		return roots, nil
+	}
+
+	// if roots are not in cache, read them from the inner accessor
+	roots, err := c.inner.AxisRoots(ctx)
+	if err != nil {
+		return nil, err
+	}
+	c.rootsCache.Store(roots)
+	return roots, nil
 }
 
 func (c *proofsCache) Sample(ctx context.Context, rowIdx, colIdx int) (shwap.Sample, error) {
@@ -250,14 +280,14 @@ func (c *proofsCache) axisShares(ctx context.Context, axisType rsmt2d.Axis, axis
 }
 
 func (c *proofsCache) storeAxisInCache(axisType rsmt2d.Axis, axisIdx int, axis axisWithProofs) {
-	c.lock.Lock()
-	defer c.lock.Unlock()
+	c.axisCacheLock.Lock()
+	defer c.axisCacheLock.Unlock()
 	c.axisCache[axisType][axisIdx] = axis
 }
 
 func (c *proofsCache) getAxisFromCache(axisType rsmt2d.Axis, axisIdx int) (axisWithProofs, bool) {
-	c.lock.RLock()
-	defer c.lock.RUnlock()
+	c.axisCacheLock.RLock()
+	defer c.axisCacheLock.RUnlock()
 	ax, ok := c.axisCache[axisType][axisIdx]
 	return ax, ok
 }

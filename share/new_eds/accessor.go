@@ -16,6 +16,8 @@ type Accessor interface {
 	Size(ctx context.Context) int
 	// DataHash returns data hash of the Accessor.
 	DataHash(ctx context.Context) (share.DataHash, error)
+	// AxisRoots returns share.AxisRoots (DataAvailabilityHeader) of the Accessor.
+	AxisRoots(ctx context.Context) (*share.AxisRoots, error)
 	// Sample returns share and corresponding proof for row and column indices. Implementation can
 	// choose which axis to use for proof. Chosen axis for proof should be indicated in the returned
 	// Sample.
