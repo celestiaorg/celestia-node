@@ -25,18 +25,19 @@ var _ AccessorStreamer = (*proofsCache)(nil)
 
 // proofsCache is eds accessor that caches proofs for rows and columns. It also caches extended
 // axis Shares. It is used to speed up the process of building proofs for rows and columns,
-// reducing the number of reads from the underlying accessor.
+// reducing the number of reads from the underlying accessor. Cache does not synchronize access
+// to the underlying accessor.
 type proofsCache struct {
 	inner AccessorStreamer
 
-	// lock protects proofCache
-	lock sync.RWMutex
 	// size caches the size of the data square
 	size atomic.Int32
 	// dataHash caches the data hash
 	dataHash atomic.Pointer[share.DataHash]
 	// rootsCache caches the axis roots
 	rootsCache atomic.Pointer[share.AxisRoots]
+	// axisCacheLock protects proofCache
+	axisCacheLock sync.RWMutex
 	// axisCache caches the axis Shares and proofs. Index in the slice corresponds to the axis type.
 	// The map key is the index of the axis.
 	axisCache []map[int]axisWithProofs
@@ -279,14 +280,14 @@ func (c *proofsCache) axisShares(ctx context.Context, axisType rsmt2d.Axis, axis
 }
 
 func (c *proofsCache) storeAxisInCache(axisType rsmt2d.Axis, axisIdx int, axis axisWithProofs) {
-	c.lock.Lock()
-	defer c.lock.Unlock()
+	c.axisCacheLock.Lock()
+	defer c.axisCacheLock.Unlock()
 	c.axisCache[axisType][axisIdx] = axis
 }
 
 func (c *proofsCache) getAxisFromCache(axisType rsmt2d.Axis, axisIdx int) (axisWithProofs, bool) {
-	c.lock.RLock()
-	defer c.lock.RUnlock()
+	c.axisCacheLock.RLock()
+	defer c.axisCacheLock.RUnlock()
 	ax, ok := c.axisCache[axisType][axisIdx]
 	return ax, ok
 }
