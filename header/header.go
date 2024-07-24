@@ -114,8 +114,8 @@ func (eh *ExtendedHeader) Validate() error {
 	}
 
 	if eh.RawHeader.Version.App > appconsts.LatestVersion {
-		return fmt.Errorf("app version must be less than the latest app version %d, got %d",
-			appconsts.LatestVersion, eh.RawHeader.Version.App)
+		return fmt.Errorf("header received at height %d has version %d, this node supports up to version %d. Please upgrade to support new version",
+			eh.RawHeader.Height, eh.RawHeader.Version.App, appconsts.LatestVersion)
 	}
 
 	err = eh.Commit.ValidateBasic()
