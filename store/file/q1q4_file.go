@@ -53,6 +53,11 @@ func CreateQ1Q4File(path string, roots *share.AxisRoots, eds *rsmt2d.ExtendedDat
 		return nil, fmt.Errorf("flushing Q4: %w", err)
 	}
 
+	err = ods.fl.Sync()
+	if err != nil {
+		return nil, fmt.Errorf("syncing file: %w", err)
+	}
+
 	return &Q1Q4File{
 		ods: ods,
 	}, nil
