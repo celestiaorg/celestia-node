@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"slices"
 	"sync"
+	"time"
 
 	"github.com/cosmos/cosmos-sdk/types"
 	logging "github.com/ipfs/go-log/v2"
@@ -101,6 +102,7 @@ func (s *Service) Stop(context.Context) error {
 type SubscriptionResponse struct {
 	Blobs  []*Blob
 	Height uint64
+	Error  error
 }
 
 func (s *Service) Subscribe(ctx context.Context, ns share.Namespace) (<-chan *SubscriptionResponse, error) {
@@ -127,6 +129,9 @@ func (s *Service) Subscribe(ctx context.Context, ns share.Namespace) (<-chan *Su
 		defer s.activeSubscriptions.Done()
 		defer close(blobCh)
 
+		ticker := time.NewTicker(time.Minute)
+		defer ticker.Stop()
+
 		for {
 			select {
 			case header, ok := <-headerCh:
@@ -138,15 +143,18 @@ func (s *Service) Subscribe(ctx context.Context, ns share.Namespace) (<-chan *Su
 					log.Errorw("header channel closed for subscription", "namespace", ns.ID())
 					return
 				}
+				if len(blobCh) == cap(blobCh)-1 {
+					log.Warn("blobsub: slow consumer detected, closing subscription")
+					// still send an error to the client even though it seems like they've stopped consuming messages
+					blobCh <- &SubscriptionResponse{Error: errors.New("canceling subscription due to slow consumption")}
+					return
+				}
+
 				blobs, err := s.getAll(ctx, header, []share.Namespace{ns})
 				if errors.Is(err, context.Canceled) || errors.Is(err, context.DeadlineExceeded) {
 					// context canceled, continuing would lead to unexpected missed heights for the client
 					log.Debug("blobsub: canceling subscription due to user context closing")
 					return
-				}
-				if err != nil {
-					log.Errorw("failed to get blobs", "height", header.Height(), "namespace", ns.ID(), "err", err)
-					continue
 				}
 
 				select {
