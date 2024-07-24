@@ -754,7 +754,7 @@ func TestService_Subscribe(t *testing.T) {
 		// cancel the subscription context after receiving the last response
 		for range blobs {
 			select {
-			case val, _ := <-subCh:
+			case val := <-subCh:
 				if val.Height == uint64(len(blobs)) {
 					err = service.Stop(context.Background())
 					require.NoError(t, err)
