@@ -30,13 +30,17 @@ type proofsCache struct {
 	inner AccessorStreamer
 
 	// lock protects proofCache
-	lock       sync.RWMutex
+	lock sync.RWMutex
+	// size caches the size of the data square
+	size atomic.Int32
+	// dataHash caches the data hash
+	dataHash atomic.Pointer[share.DataHash]
+	// rootsCache caches the axis roots
 	rootsCache atomic.Pointer[share.AxisRoots]
 	// axisCache caches the axis Shares and proofs. Index in the slice corresponds to the axis type.
 	// The map key is the index of the axis.
 	axisCache []map[int]axisWithProofs
-	// size caches the size of the data square
-	size atomic.Int32
+
 	// disableCache disables caching of rows for testing purposes
 	disableCache bool
 }
@@ -79,7 +83,16 @@ func (c *proofsCache) Size(ctx context.Context) int {
 }
 
 func (c *proofsCache) DataHash(ctx context.Context) (share.DataHash, error) {
-	return c.inner.DataHash(ctx)
+	dataHash := c.dataHash.Load()
+	if dataHash != nil {
+		return *dataHash, nil
+	}
+	loaded, err := c.inner.DataHash(ctx)
+	if err != nil {
+		return nil, err
+	}
+	c.dataHash.Store(&loaded)
+	return loaded, nil
 }
 
 func (c *proofsCache) AxisRoots(ctx context.Context) (*share.AxisRoots, error) {
