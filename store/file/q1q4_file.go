@@ -39,7 +39,7 @@ func CreateQ1Q4File(path string, roots *share.AxisRoots, eds *rsmt2d.ExtendedDat
 		return nil, err
 	}
 
-	err = writeQuadrant(ods.fl, eds, 3)
+	err = writeQuadrant(ods.fl, eds, int(ods.hdr.shareSize), 3)
 	if err != nil {
 		return nil, fmt.Errorf("writing Q4: %w", err)
 	}

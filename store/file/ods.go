@@ -1,6 +1,7 @@
 package file
 
 import (
+	"bufio"
 	"context"
 	"errors"
 	"fmt"
@@ -109,30 +110,35 @@ func writeODSFile(w io.Writer, eds *rsmt2d.ExtendedDataSquare, axisRoots *share.
 	}
 
 	// write quadrants
-	err = writeQuadrant(w, eds, 0)
+	err = writeQuadrant(w, eds, int(h.shareSize), 0)
 	if err != nil {
 		return nil, fmt.Errorf("writing Q1: %w", err)
 	}
 	return h, nil
 }
 
-func writeQuadrant(w io.Writer, eds *rsmt2d.ExtendedDataSquare, quadrantIdx int) error {
-	buf := make([]byte, 0, share.Size*eds.Width())
+// writeQuadrant writes the quadrant of the square to the writer. it writes the quadrant in row-major
+// order. It uses buffer to write the shares in bulk (row by row), which improves the write performance.
+func writeQuadrant(w io.Writer, eds *rsmt2d.ExtendedDataSquare, shareSize, quadrantIdx int) error {
 	fromRow := quadrantIdx / 2 * int(eds.Width()) / 2
 	toRow := fromRow + int(eds.Width())/2
 
 	fromCol := quadrantIdx % 2 * int(eds.Width()) / 2
 	toCol := fromCol + int(eds.Width())/2
 
+	buf := bufio.NewWriterSize(w, shareSize*int(eds.Width()))
 	for rowIdx := fromRow; rowIdx < toRow; rowIdx++ {
-		row := eds.Row(uint(rowIdx))
 		for colIdx := fromCol; colIdx < toCol; colIdx++ {
-			buf = append(buf, row[colIdx]...)
+			share := eds.GetCell(uint(rowIdx), uint(colIdx))
+			_, err := buf.Write(share)
+			if err != nil {
+				return fmt.Errorf("writing shares: %w", err)
+			}
 		}
-		if _, err := w.Write(buf); err != nil {
-			return fmt.Errorf("writing shares: %w", err)
-		}
-		buf = buf[:0]
+	}
+	err := buf.Flush()
+	if err != nil {
+		return fmt.Errorf("flushing buffer: %w", err)
 	}
 	return nil
 }
@@ -145,7 +151,7 @@ func writeAxisRoots(w io.Writer, roots *share.AxisRoots) error {
 		}
 	}
 	if _, err := w.Write(buf); err != nil {
-		return fmt.Errorf("writing axis root: %w", err)
+		return fmt.Errorf("writing axis roots: %w", err)
 	}
 	return nil
 }
