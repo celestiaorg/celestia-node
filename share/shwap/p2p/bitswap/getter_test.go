@@ -12,7 +12,7 @@ import (
 
 func TestEDSFromRows(t *testing.T) {
 	edsIn := edstest.RandEDS(t, 8)
-	roots, err := share.NewRoot(edsIn)
+	roots, err := share.NewAxisRoots(edsIn)
 	require.NoError(t, err)
 
 	rows := make([]shwap.Row, edsIn.Width()/2)

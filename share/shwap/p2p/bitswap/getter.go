@@ -67,7 +67,7 @@ func (g *Getter) GetShares(
 	rowIdxs, colIdxs []int,
 ) ([]share.Share, error) {
 	if len(rowIdxs) != len(colIdxs) {
-		return nil, fmt.Errorf("row indecies and col indecies must be same length")
+		return nil, fmt.Errorf("row indecies and col indices must be same length")
 	}
 
 	if len(rowIdxs) == 0 {
@@ -205,7 +205,7 @@ func (g *Getter) session(hdr *header.ExtendedHeader) exchange.Fetcher {
 }
 
 // edsFromRows imports given Rows and computes EDS out of them, assuming enough were Rows provided.
-func edsFromRows(roots *share.Root, rows []shwap.Row) (*rsmt2d.ExtendedDataSquare, error) {
+func edsFromRows(roots *share.AxisRoots, rows []shwap.Row) (*rsmt2d.ExtendedDataSquare, error) {
 	shrs := make([]share.Share, len(roots.RowRoots)*len(roots.RowRoots))
 	for i, row := range rows {
 		rowShrs, err := row.Shares()
