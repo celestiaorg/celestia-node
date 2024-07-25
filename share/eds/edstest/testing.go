@@ -26,8 +26,10 @@ import (
 	"github.com/celestiaorg/celestia-node/share/sharetest"
 )
 
-const accountName = "test-account"
-const testChainID = "private"
+const (
+	accountName = "test-account"
+	testChainID = "private"
+)
 
 func RandByzantineEDS(t testing.TB, size int, options ...nmt.Option) *rsmt2d.ExtendedDataSquare {
 	eds := RandEDS(t, size)

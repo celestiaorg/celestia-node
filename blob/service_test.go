@@ -736,7 +736,7 @@ func proveAndVerifyShareCommitments(t *testing.T, blobSize int) {
 	msgs, blobs, nss, eds, _, _, dataRoot := edstest.GenerateTestBlock(t, blobSize, 10)
 	for msgIndex, msg := range msgs {
 		t.Run(fmt.Sprintf("msgIndex=%d", msgIndex), func(t *testing.T) {
-			blb, err := NewBlob(uint8(blobs[msgIndex].ShareVersion), nss[msgIndex].Bytes(), blobs[msgIndex].Data)
+			blb, err := NewBlob(uint8(blobs[msgIndex].GetShareVersion()), nss[msgIndex].Bytes(), blobs[msgIndex].GetData())
 			require.NoError(t, err)
 			blobShares, err := BlobsToShares(blb)
 			require.NoError(t, err)
@@ -784,9 +784,9 @@ func generateCommitmentProofFromBlock(
 ) CommitmentProof {
 	// create the blob from the data
 	blb, err := NewBlob(
-		uint8(blob.ShareVersion),
+		uint8(blob.GetShareVersion()),
 		ns,
-		blob.Data,
+		blob.GetData(),
 	)
 	require.NoError(t, err)
 
