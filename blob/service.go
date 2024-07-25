@@ -541,9 +541,8 @@ func ProveCommitment(
 		SubtreeRoots:      subtreeRoots,
 		SubtreeRootProofs: nmtProofs,
 		NamespaceID:       namespace.ID(),
-		// @rach-id sharesProof.RowProof isn't compatible with the rowProof expected here
-		RowProof:         sharesProof.RowProof,
-		NamespaceVersion: namespace.Version(),
+		RowProof:          *sharesProof.RowProof,
+		NamespaceVersion:  namespace.Version(),
 	}
 	return &commitmentProof, nil
 }

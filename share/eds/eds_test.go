@@ -330,8 +330,7 @@ func TestProveShares(t *testing.T) {
 				)
 				require.NoError(t, err)
 				require.NoError(t, proof.Validate(dataRoot.Hash()))
-				// @rach-id proof isn't compatible with the proof expected here
-				return proof
+				return toCoreShareProof(proof)
 			}(),
 		},
 	}

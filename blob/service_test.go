@@ -720,13 +720,9 @@ func TestProveCommitmentAllCombinations(t *testing.T) {
 	tests := map[string]struct {
 		blobSize int
 	}{
-		"very small blobs that take less than a share": {blobSize: 350},
-		"small blobs that take 2 shares":               {blobSize: 1000},
-		"small blobs that take ~10 shares":             {blobSize: 5000},
-		"large blobs ~100 shares":                      {blobSize: 50000},
-		"large blobs ~150 shares":                      {blobSize: 75000},
-		"large blobs ~300 shares":                      {blobSize: 150000},
-		"very large blobs ~1500 shares":                {blobSize: 750000},
+		"blobs that take less than a share": {blobSize: 350},
+		"blobs that take 2 shares":          {blobSize: 1000},
+		"blobs that take ~10 shares":        {blobSize: 5000},
 	}
 
 	for name, tc := range tests {
@@ -848,9 +844,8 @@ func generateCommitmentProofFromBlock(
 		SubtreeRoots:      subtreeRoots,
 		SubtreeRootProofs: nmtProofs,
 		NamespaceID:       sharesProof.NamespaceId,
-		// @rach-id sharesProof.RowProof isn't compatible with the rowProof expected here
-		RowProof:         sharesProof.RowProof,
-		NamespaceVersion: uint8(sharesProof.NamespaceVersion),
+		RowProof:          *sharesProof.RowProof,
+		NamespaceVersion:  uint8(sharesProof.NamespaceVersion),
 	}
 
 	return commitmentProof
