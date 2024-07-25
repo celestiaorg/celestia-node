@@ -105,7 +105,7 @@ func (s *Store) Put(
 	accessor := &eds.Rsmt2D{ExtendedDataSquare: square}
 	_, err := s.cache.First().GetOrLoad(ctx, height, accessorLoader(accessor))
 	if err != nil {
-		log.Warnf("failed to put file in recent cache: %s", err)
+		log.Warnf("failed to put Accessor in the recent cache: %s", err)
 	}
 
 	tNow := time.Now()
