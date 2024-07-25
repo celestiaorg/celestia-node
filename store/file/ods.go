@@ -1,6 +1,7 @@
 package file
 
 import (
+	"bufio"
 	"context"
 	"errors"
 	"fmt"
@@ -16,6 +17,10 @@ import (
 )
 
 var _ eds.AccessorStreamer = (*ODSFile)(nil)
+
+// writeBufferSize defines buffer size for optimized batched writes into the file system.
+// TODO(@Wondertan): Consider making it configurable
+const writeBufferSize = 64 << 10
 
 // ErrEmptyFile signals that the ODS file is empty.
 // This helps avoid storing empty block EDSes.
@@ -72,9 +77,17 @@ func CreateODSFile(
 		return nil, fmt.Errorf("file create: %w", err)
 	}
 
-	h, err := writeODSFile(f, eds, roots)
+	// buffering gives us ~4x speed up
+	buf := bufio.NewWriterSize(f, writeBufferSize)
+
+	h, err := writeODSFile(buf, eds, roots)
 	if err != nil {
 		return nil, fmt.Errorf("writing ODS file: %w", err)
+	}
+
+	err = buf.Flush()
+	if err != nil {
+		return nil, fmt.Errorf("flushing ODS file: %w", err)
 	}
 
 	err = f.Sync()
@@ -108,22 +121,44 @@ func writeODSFile(w io.Writer, eds *rsmt2d.ExtendedDataSquare, axisRoots *share.
 		return nil, fmt.Errorf("writing axis roots: %w", err)
 	}
 
-	for _, shr := range eds.FlattenedODS() {
-		if _, err := w.Write(shr); err != nil {
-			return nil, fmt.Errorf("writing shares: %w", err)
-		}
+	// write quadrants
+	err = writeQ1(w, eds)
+	if err != nil {
+		return nil, fmt.Errorf("writing Q1: %w", err)
 	}
+
 	return h, nil
 }
 
-func writeAxisRoots(w io.Writer, roots *share.AxisRoots) error {
-	for _, roots := range [][][]byte{roots.RowRoots, roots.ColumnRoots} {
-		for _, root := range roots {
-			if _, err := w.Write(root); err != nil {
-				return fmt.Errorf("writing axis root: %w", err)
+// writeQ1 writes the first quadrant of the square to the writer. It writes the quadrant in row-major
+// order
+func writeQ1(w io.Writer, eds *rsmt2d.ExtendedDataSquare) error {
+	for i := range eds.Width() / 2 {
+		for j := range eds.Width() / 2 {
+			shr := eds.GetCell(i, j) // TODO: Avoid copying inside GetCell
+			_, err := w.Write(shr)
+			if err != nil {
+				return fmt.Errorf("writing share: %w", err)
 			}
 		}
 	}
+	return nil
+}
+
+// writeAxisRoots writes RowRoots followed by ColumnRoots.
+func writeAxisRoots(w io.Writer, roots *share.AxisRoots) error {
+	for _, root := range roots.RowRoots {
+		if _, err := w.Write(root); err != nil {
+			return fmt.Errorf("writing row roots: %w", err)
+		}
+	}
+
+	for _, root := range roots.ColumnRoots {
+		if _, err := w.Write(root); err != nil {
+			return fmt.Errorf("writing columm roots: %w", err)
+		}
+	}
+
 	return nil
 }
 

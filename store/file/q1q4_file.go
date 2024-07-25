@@ -1,6 +1,7 @@
 package file
 
 import (
+	"bufio"
 	"context"
 	"fmt"
 	"io"
@@ -39,14 +40,43 @@ func CreateQ1Q4File(path string, roots *share.AxisRoots, eds *rsmt2d.ExtendedDat
 		return nil, err
 	}
 
-	err = writeQ4(ods.fl, eds)
+	// buffering gives us ~4x speed up
+	buf := bufio.NewWriterSize(ods.fl, writeBufferSize)
+
+	err = writeQ4(buf, eds)
 	if err != nil {
 		return nil, fmt.Errorf("writing Q4: %w", err)
+	}
+
+	err = buf.Flush()
+	if err != nil {
+		return nil, fmt.Errorf("flushing Q4: %w", err)
+	}
+
+	err = ods.fl.Sync()
+	if err != nil {
+		return nil, fmt.Errorf("syncing file: %w", err)
 	}
 
 	return &Q1Q4File{
 		ods: ods,
 	}, nil
+}
+
+// writeQ4 writes the frth quadrant of the square to the writer. iIt writes the quadrant in row-major
+// order
+func writeQ4(w io.Writer, eds *rsmt2d.ExtendedDataSquare) error {
+	half := eds.Width() / 2
+	for i := range half {
+		for j := range half {
+			shr := eds.GetCell(i+half, j+half) // TODO: Avoid copying inside GetCell
+			_, err := w.Write(shr)
+			if err != nil {
+				return fmt.Errorf("writing share: %w", err)
+			}
+		}
+	}
+	return nil
 }
 
 func (f *Q1Q4File) Size(ctx context.Context) int {
@@ -111,19 +141,6 @@ func (f *Q1Q4File) Reader() (io.Reader, error) {
 
 func (f *Q1Q4File) Close() error {
 	return f.ods.Close()
-}
-
-func writeQ4(w io.Writer, eds *rsmt2d.ExtendedDataSquare) error {
-	odsLn := int(eds.Width()) / 2
-	for x := odsLn; x < int(eds.Width()); x++ {
-		for y := odsLn; y < int(eds.Width()); y++ {
-			_, err := w.Write(eds.GetCell(uint(x), uint(y)))
-			if err != nil {
-				return err
-			}
-		}
-	}
-	return nil
 }
 
 func (f *Q1Q4File) readAxisHalfFromQ4(axisType rsmt2d.Axis, axisIdx int) (eds.AxisHalf, error) {
