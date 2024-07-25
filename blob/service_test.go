@@ -848,9 +848,8 @@ func generateCommitmentProofFromBlock(
 		SubtreeRoots:      subtreeRoots,
 		SubtreeRootProofs: nmtProofs,
 		NamespaceID:       sharesProof.NamespaceId,
-		// @rach-id sharesProof.RowProof isn't compatible with the rowProof expected here
-		RowProof:         sharesProof.RowProof,
-		NamespaceVersion: uint8(sharesProof.NamespaceVersion),
+		RowProof:          *sharesProof.RowProof,
+		NamespaceVersion:  uint8(sharesProof.NamespaceVersion),
 	}
 
 	return commitmentProof

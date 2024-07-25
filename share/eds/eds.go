@@ -11,6 +11,9 @@ import (
 	"github.com/ipfs/go-cid"
 	"github.com/ipld/go-car"
 	"github.com/ipld/go-car/util"
+	"github.com/tendermint/tendermint/crypto/merkle"
+	corebytes "github.com/tendermint/tendermint/libs/bytes"
+	coretypes "github.com/tendermint/tendermint/proto/tendermint/types"
 	"github.com/tendermint/tendermint/types"
 
 	pkgproof "github.com/celestiaorg/celestia-app/v2/pkg/proof"
@@ -293,6 +296,50 @@ func ProveShares(eds *rsmt2d.ExtendedDataSquare, start, end int) (*types.SharePr
 	if err != nil {
 		return nil, err
 	}
-	// @rach-id proof isn't compatible with the proof expected here
-	return &proof, nil
+	coreProof := toCoreShareProof(proof)
+	return &coreProof, nil
+}
+
+// toCoreShareProof utility function that converts a share proof defined in app
+// to the share proof defined in node.
+// This will be removed once we unify both these proofs.
+// Reference issue: https://github.com/celestiaorg/celestia-app/issues/3734
+func toCoreShareProof(appShareProof pkgproof.ShareProof) types.ShareProof {
+	shareProofs := make([]*coretypes.NMTProof, 0)
+	for _, proof := range appShareProof.ShareProofs {
+		shareProofs = append(shareProofs, &coretypes.NMTProof{
+			Start:    proof.Start,
+			End:      proof.End,
+			Nodes:    proof.Nodes,
+			LeafHash: proof.LeafHash,
+		})
+	}
+
+	rowRoots := make([]corebytes.HexBytes, 0)
+	for _, rowRoot := range appShareProof.RowProof.RowRoots {
+		rowRoots = append(rowRoots, rowRoot)
+	}
+
+	rowProofs := make([]*merkle.Proof, 0)
+	for _, proof := range appShareProof.RowProof.Proofs {
+		rowProofs = append(rowProofs, &merkle.Proof{
+			Total:    proof.Total,
+			Index:    proof.Index,
+			LeafHash: proof.LeafHash,
+			Aunts:    proof.Aunts,
+		})
+	}
+
+	return types.ShareProof{
+		Data:        appShareProof.Data,
+		ShareProofs: shareProofs,
+		NamespaceID: appShareProof.NamespaceId,
+		RowProof: types.RowProof{
+			RowRoots: rowRoots,
+			Proofs:   rowProofs,
+			StartRow: appShareProof.RowProof.StartRow,
+			EndRow:   appShareProof.RowProof.EndRow,
+		},
+		NamespaceVersion: appShareProof.NamespaceVersion,
+	}
 }
