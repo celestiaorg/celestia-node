@@ -141,16 +141,20 @@ func writeQ1(w io.Writer, eds *rsmt2d.ExtendedDataSquare) error {
 	return nil
 }
 
+// writeAxisRoots writes RowRoots followed by ColumnRoots.
 func writeAxisRoots(w io.Writer, roots *share.AxisRoots) error {
-	buf := make([]byte, 0, share.AxisRootSize*len(roots.RowRoots))
-	for _, roots := range [][][]byte{roots.RowRoots, roots.ColumnRoots} {
-		for _, root := range roots {
-			buf = append(buf, root...)
+	for _, root := range roots.RowRoots {
+		if _, err := w.Write(root); err != nil {
+			return fmt.Errorf("writing columm roots: %w", err)
 		}
 	}
-	if _, err := w.Write(buf); err != nil {
-		return fmt.Errorf("writing axis roots: %w", err)
+
+	for _, root := range roots.ColumnRoots {
+		if _, err := w.Write(root); err != nil {
+			return fmt.Errorf("writing columm roots: %w", err)
+		}
 	}
+
 	return nil
 }
 
