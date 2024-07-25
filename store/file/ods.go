@@ -61,6 +61,8 @@ func OpenODSFile(path string) (*ODSFile, error) {
 	}, nil
 }
 
+const bufSize = 64 << 10
+
 // CreateODSFile creates a new file. File has to be closed after usage.
 func CreateODSFile(
 	path string,
@@ -73,7 +75,7 @@ func CreateODSFile(
 		return nil, fmt.Errorf("file create: %w", err)
 	}
 
-	bufSize := int(eds.Width()) * share.Size
+	// buffering gives us ~4x speed up
 	buf := bufio.NewWriterSize(f, bufSize)
 
 	h, err := writeODSFile(buf, eds, roots)
@@ -145,7 +147,7 @@ func writeQ1(w io.Writer, eds *rsmt2d.ExtendedDataSquare) error {
 func writeAxisRoots(w io.Writer, roots *share.AxisRoots) error {
 	for _, root := range roots.RowRoots {
 		if _, err := w.Write(root); err != nil {
-			return fmt.Errorf("writing columm roots: %w", err)
+			return fmt.Errorf("writing row roots: %w", err)
 		}
 	}
 

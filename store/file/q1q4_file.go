@@ -40,7 +40,7 @@ func CreateQ1Q4File(path string, roots *share.AxisRoots, eds *rsmt2d.ExtendedDat
 		return nil, err
 	}
 
-	bufSize := int(eds.Width()) * int(ods.hdr.shareSize)
+	// buffering gives us ~4x speed up
 	buf := bufio.NewWriterSize(ods.fl, bufSize)
 
 	err = writeQ4(buf, eds)
