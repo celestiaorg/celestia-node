@@ -316,12 +316,9 @@ func toCoreShareProof(appShareProof pkgproof.ShareProof) types.ShareProof {
 	}
 
 	rowRoots := make([]corebytes.HexBytes, 0)
-	for _, rowRoot := range appShareProof.RowProof.RowRoots {
-		rowRoots = append(rowRoots, rowRoot)
-	}
-
 	rowProofs := make([]*merkle.Proof, 0)
-	for _, proof := range appShareProof.RowProof.Proofs {
+	for index, proof := range appShareProof.RowProof.Proofs {
+		rowRoots = append(rowRoots, appShareProof.RowProof.RowRoots[index])
 		rowProofs = append(rowProofs, &merkle.Proof{
 			Total:    proof.Total,
 			Index:    proof.Index,
