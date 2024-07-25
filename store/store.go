@@ -101,6 +101,13 @@ func (s *Store) Put(
 	height uint64,
 	square *rsmt2d.ExtendedDataSquare,
 ) error {
+	// put to cache before writing to make it accessible while write is happening
+	accessor := &eds.Rsmt2D{ExtendedDataSquare: square}
+	_, err := s.cache.First().GetOrLoad(ctx, height, accessorLoader(accessor))
+	if err != nil {
+		log.Warnf("failed to put file in recent cache: %s", err)
+	}
+
 	tNow := time.Now()
 	datahash := share.DataHash(roots.Hash())
 	lock := s.stripLock.byDatahashAndHeight(datahash, height)
@@ -121,15 +128,8 @@ func (s *Store) Put(
 		s.metrics.observePut(ctx, time.Since(tNow), square.Width(), true)
 		return fmt.Errorf("creating file: %w", err)
 	}
+
 	s.metrics.observePut(ctx, time.Since(tNow), square.Width(), false)
-
-	// put file in recent cache
-	eds := &eds.Rsmt2D{ExtendedDataSquare: square}
-	_, err = s.cache.First().GetOrLoad(ctx, height, accessorLoader(eds))
-	if err != nil {
-		log.Warnf("failed to put file in recent cache: %s", err)
-	}
-
 	return nil
 }
 
