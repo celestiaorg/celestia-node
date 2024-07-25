@@ -25,7 +25,7 @@ var (
 // Getter interface provides a set of accessors for shares by the Root.
 // Automatically verifies integrity of shares(exceptions possible depending on the implementation).
 //
-//go:generate mockgen -destination=mocks/getter.go -package=mocks . Getter
+//go:generate mockgen -destination=getters/mock/getter.go -package=mock . Getter
 type Getter interface {
 	// GetShare gets a Share by coordinates in EDS.
 	GetShare(ctx context.Context, header *header.ExtendedHeader, row, col int) (share.Share, error)
