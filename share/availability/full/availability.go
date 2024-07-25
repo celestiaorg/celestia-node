@@ -5,14 +5,13 @@ import (
 	"errors"
 	"fmt"
 
-	"github.com/filecoin-project/dagstore"
 	logging "github.com/ipfs/go-log/v2"
 
 	"github.com/celestiaorg/celestia-node/header"
 	"github.com/celestiaorg/celestia-node/share"
-	"github.com/celestiaorg/celestia-node/share/eds"
 	"github.com/celestiaorg/celestia-node/share/eds/byzantine"
-	"github.com/celestiaorg/celestia-node/share/ipld"
+	"github.com/celestiaorg/celestia-node/share/shwap"
+	"github.com/celestiaorg/celestia-node/store"
 )
 
 var log = logging.Logger("share/full")
@@ -21,14 +20,14 @@ var log = logging.Logger("share/full")
 // recovery technique. It is considered "full" because it is required
 // to download enough shares to fully reconstruct the data square.
 type ShareAvailability struct {
-	store  *eds.Store
-	getter share.Getter
+	store  *store.Store
+	getter shwap.Getter
 }
 
 // NewShareAvailability creates a new full ShareAvailability.
 func NewShareAvailability(
-	store *eds.Store,
-	getter share.Getter,
+	store *store.Store,
+	getter shwap.Getter,
 ) *ShareAvailability {
 	return &ShareAvailability{
 		store:  store,
@@ -40,8 +39,9 @@ func NewShareAvailability(
 // enough Shares from the network.
 func (fa *ShareAvailability) SharesAvailable(ctx context.Context, header *header.ExtendedHeader) error {
 	dah := header.DAH
-	// short-circuit if the given root is an empty data square, to avoid datastore hit
+	// if the data square is empty, we can safely link the header height in the store to an empty EDS.
 	if share.DataHash(dah.Hash()).IsEmptyEDS() {
+		fa.store.Put(ctx, dah, header.Height(), share.EmptyEDS())
 		return nil
 	}
 
@@ -54,13 +54,9 @@ func (fa *ShareAvailability) SharesAvailable(ctx context.Context, header *header
 	}
 
 	// a hack to avoid loading the whole EDS in mem if we store it already.
-	if ok, _ := fa.store.Has(ctx, dah.Hash()); ok {
+	if ok, _ := fa.store.HasByHeight(ctx, header.Height()); ok {
 		return nil
 	}
-
-	adder := ipld.NewProofsAdder(len(dah.RowRoots), false)
-	ctx = ipld.CtxWithProofsAdder(ctx, adder)
-	defer adder.Purge()
 
 	eds, err := fa.getter.GetEDS(ctx, header)
 	if err != nil {
@@ -69,14 +65,14 @@ func (fa *ShareAvailability) SharesAvailable(ctx context.Context, header *header
 		}
 		log.Errorw("availability validation failed", "root", dah.String(), "err", err.Error())
 		var byzantineErr *byzantine.ErrByzantine
-		if errors.Is(err, share.ErrNotFound) || errors.Is(err, context.DeadlineExceeded) && !errors.As(err, &byzantineErr) {
+		if errors.Is(err, shwap.ErrNotFound) || errors.Is(err, context.DeadlineExceeded) && !errors.As(err, &byzantineErr) {
 			return share.ErrNotAvailable
 		}
 		return err
 	}
 
-	err = fa.store.Put(ctx, dah.Hash(), eds)
-	if err != nil && !errors.Is(err, dagstore.ErrShardExists) {
+	err = fa.store.Put(ctx, dah, header.Height(), eds)
+	if err != nil {
 		return fmt.Errorf("full availability: failed to store eds: %w", err)
 	}
 	return nil

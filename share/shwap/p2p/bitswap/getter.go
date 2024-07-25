@@ -161,7 +161,7 @@ func (g *Getter) GetSharesByNamespace(
 	ctx context.Context,
 	hdr *header.ExtendedHeader,
 	ns share.Namespace,
-) (share.NamespacedShares, error) {
+) (shwap.NamespaceData, error) {
 	if err := ns.ValidateForData(); err != nil {
 		return nil, err
 	}
@@ -183,10 +183,10 @@ func (g *Getter) GetSharesByNamespace(
 	}
 
 	// TODO(@Wondertan): this must use shwap types eventually
-	nsShrs := make(share.NamespacedShares, len(blks))
+	nsShrs := make(shwap.NamespaceData, len(blks))
 	for i, blk := range blks {
 		rnd := blk.(*RowNamespaceDataBlock).Container
-		nsShrs[i] = share.NamespacedRow{
+		nsShrs[i] = shwap.RowNamespaceData{
 			Shares: rnd.Shares,
 			Proof:  rnd.Proof,
 		}

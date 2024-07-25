@@ -3,28 +3,47 @@ package light
 import (
 	"context"
 	_ "embed"
-	"strconv"
+	"sync"
 	"testing"
 
+	"github.com/golang/mock/gomock"
+	"github.com/ipfs/go-datastore"
 	"github.com/stretchr/testify/require"
 
+	"github.com/celestiaorg/rsmt2d"
+
+	"github.com/celestiaorg/celestia-node/header"
 	"github.com/celestiaorg/celestia-node/header/headertest"
 	"github.com/celestiaorg/celestia-node/share"
-	availability_test "github.com/celestiaorg/celestia-node/share/availability/test"
-	"github.com/celestiaorg/celestia-node/share/ipld"
-	"github.com/celestiaorg/celestia-node/share/sharetest"
+	"github.com/celestiaorg/celestia-node/share/eds/edstest"
+	"github.com/celestiaorg/celestia-node/share/shwap"
+	"github.com/celestiaorg/celestia-node/share/shwap/getters/mock"
+	"github.com/celestiaorg/celestia-node/share/shwap/p2p/shrex"
 )
 
 func TestSharesAvailableCaches(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
-	getter, eh := GetterWithRandSquare(t, 16)
-	dah := eh.DAH
-	avail := TestAvailability(getter)
+	eds := edstest.RandEDS(t, 16)
+	roots, err := share.NewAxisRoots(eds)
+	require.NoError(t, err)
+	eh := headertest.RandExtendedHeaderWithRoot(t, roots)
+
+	getter := mock.NewMockGetter(gomock.NewController(t))
+	getter.EXPECT().
+		GetShare(gomock.Any(), eh, gomock.Any(), gomock.Any()).
+		DoAndReturn(
+			func(_ context.Context, _ *header.ExtendedHeader, row, col int) (share.Share, error) {
+				return eds.GetCell(uint(row), uint(col)), nil
+			}).
+		AnyTimes()
+
+	ds := datastore.NewMapDatastore()
+	avail := NewShareAvailability(getter, ds)
 
 	// cache doesn't have eds yet
-	has, err := avail.ds.Has(ctx, rootKey(dah))
+	has, err := avail.ds.Has(ctx, rootKey(roots))
 	require.NoError(t, err)
 	require.False(t, has)
 
@@ -32,7 +51,7 @@ func TestSharesAvailableCaches(t *testing.T) {
 	require.NoError(t, err)
 
 	// is now stored success result
-	result, err := avail.ds.Get(ctx, rootKey(dah))
+	result, err := avail.ds.Get(ctx, rootKey(roots))
 	require.NoError(t, err)
 	failed, err := decodeSamples(result)
 	require.NoError(t, err)
@@ -43,15 +62,21 @@ func TestSharesAvailableHitsCache(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
-	getter, _ := GetterWithRandSquare(t, 16)
-	avail := TestAvailability(getter)
+	// create getter that always return ErrNotFound
+	getter := mock.NewMockGetter(gomock.NewController(t))
+	getter.EXPECT().
+		GetShare(gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any()).
+		Return(nil, shrex.ErrNotFound).
+		AnyTimes()
 
-	// create new roots, that is not available by getter
-	bServ := ipld.NewMemBlockservice()
-	roots := availability_test.RandFillBS(t, 16, bServ)
+	ds := datastore.NewMapDatastore()
+	avail := NewShareAvailability(getter, ds)
+
+	// generate random header
+	roots := edstest.RandomAxisRoots(t, 16)
 	eh := headertest.RandExtendedHeaderWithRoot(t, roots)
 
-	// blockstore doesn't actually have the eds
+	// store doesn't actually have the eds
 	err := avail.SharesAvailable(ctx, eh)
 	require.ErrorIs(t, err, share.ErrNotAvailable)
 
@@ -68,9 +93,11 @@ func TestSharesAvailableEmptyRoot(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
-	getter, _ := GetterWithRandSquare(t, 16)
-	avail := TestAvailability(getter)
+	getter := mock.NewMockGetter(gomock.NewController(t))
+	ds := datastore.NewMapDatastore()
+	avail := NewShareAvailability(getter, ds)
 
+	// request for empty eds
 	eh := headertest.RandExtendedHeaderWithRoot(t, share.EmptyEDSRoots())
 	err := avail.SharesAvailable(ctx, eh)
 	require.NoError(t, err)
@@ -80,16 +107,22 @@ func TestSharesAvailableFailed(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
-	getter, _ := GetterWithRandSquare(t, 16)
-	avail := TestAvailability(getter)
+	getter := mock.NewMockGetter(gomock.NewController(t))
+	ds := datastore.NewMapDatastore()
+	avail := NewShareAvailability(getter, ds)
 
 	// create new eds, that is not available by getter
-	bServ := ipld.NewMemBlockservice()
-	roots := availability_test.RandFillBS(t, 16, bServ)
+	eds := edstest.RandEDS(t, 16)
+	roots, err := share.NewAxisRoots(eds)
+	require.NoError(t, err)
 	eh := headertest.RandExtendedHeaderWithRoot(t, roots)
 
-	// blockstore doesn't actually have the eds, so it should fail
-	err := avail.SharesAvailable(ctx, eh)
+	// getter doesn't have the eds, so it should fail
+	getter.EXPECT().
+		GetShare(gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any()).
+		Return(nil, shrex.ErrNotFound).
+		AnyTimes()
+	err = avail.SharesAvailable(ctx, eh)
 	require.ErrorIs(t, err, share.ErrNotAvailable)
 
 	// cache should have failed results now
@@ -116,142 +149,45 @@ func TestSharesAvailableFailed(t *testing.T) {
 	require.Empty(t, onceGetter.available)
 }
 
-func TestShareAvailableOverMocknet_Light(t *testing.T) {
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
-
-	net := availability_test.NewTestDAGNet(ctx, t)
-	_, root := RandNode(net, 16)
-	eh := headertest.RandExtendedHeader(t)
-	eh.DAH = root
-	nd := Node(net)
-	net.ConnectAll()
-
-	err := nd.SharesAvailable(ctx, eh)
-	require.NoError(t, err)
+type onceGetter struct {
+	*sync.Mutex
+	available map[Sample]struct{}
 }
 
-func TestGetShare(t *testing.T) {
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
-
-	n := 16
-	getter, eh := GetterWithRandSquare(t, n)
-
-	for i := range make([]bool, n) {
-		for j := range make([]bool, n) {
-			sh, err := getter.GetShare(ctx, eh, i, j)
-			require.NotNil(t, sh)
-			require.NoError(t, err)
-		}
+func newOnceGetter() onceGetter {
+	return onceGetter{
+		Mutex:     &sync.Mutex{},
+		available: make(map[Sample]struct{}),
 	}
 }
 
-func TestService_GetSharesByNamespace(t *testing.T) {
-	tests := []struct {
-		squareSize         int
-		expectedShareCount int
-	}{
-		{squareSize: 4, expectedShareCount: 2},
-		{squareSize: 16, expectedShareCount: 2},
-		{squareSize: 128, expectedShareCount: 2},
-	}
-
-	for _, tt := range tests {
-		t.Run("size: "+strconv.Itoa(tt.squareSize), func(t *testing.T) {
-			getter, bServ := EmptyGetter()
-			totalShares := tt.squareSize * tt.squareSize
-			randShares := sharetest.RandShares(t, totalShares)
-			idx1 := (totalShares - 1) / 2
-			idx2 := totalShares / 2
-			if tt.expectedShareCount > 1 {
-				// make it so that two rows have the same namespace
-				copy(share.GetNamespace(randShares[idx2]), share.GetNamespace(randShares[idx1]))
-			}
-			root := availability_test.FillBS(t, bServ, randShares)
-			eh := headertest.RandExtendedHeader(t)
-			eh.DAH = root
-			randNamespace := share.GetNamespace(randShares[idx1])
-
-			shares, err := getter.GetSharesByNamespace(context.Background(), eh, randNamespace)
-			require.NoError(t, err)
-			require.NoError(t, shares.Verify(root, randNamespace))
-			flattened := shares.Flatten()
-			require.Len(t, flattened, tt.expectedShareCount)
-			for _, value := range flattened {
-				require.Equal(t, randNamespace, share.GetNamespace(value))
-			}
-			if tt.expectedShareCount > 1 {
-				// idx1 is always smaller than idx2
-				require.Equal(t, randShares[idx1], flattened[0])
-				require.Equal(t, randShares[idx2], flattened[1])
-			}
-		})
-		t.Run("last two rows of a 4x4 square that have the same namespace have valid NMT proofs", func(t *testing.T) {
-			squareSize := 4
-			totalShares := squareSize * squareSize
-			getter, bServ := EmptyGetter()
-			randShares := sharetest.RandShares(t, totalShares)
-			lastNID := share.GetNamespace(randShares[totalShares-1])
-			for i := totalShares / 2; i < totalShares; i++ {
-				copy(share.GetNamespace(randShares[i]), lastNID)
-			}
-			root := availability_test.FillBS(t, bServ, randShares)
-			eh := headertest.RandExtendedHeader(t)
-			eh.DAH = root
-
-			shares, err := getter.GetSharesByNamespace(context.Background(), eh, lastNID)
-			require.NoError(t, err)
-			require.NoError(t, shares.Verify(root, lastNID))
-		})
+func (m onceGetter) AddSamples(samples []Sample) {
+	m.Lock()
+	defer m.Unlock()
+	for _, s := range samples {
+		m.available[s] = struct{}{}
 	}
 }
 
-func TestGetShares(t *testing.T) {
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
-
-	n := 16
-	getter, eh := GetterWithRandSquare(t, n)
-
-	eds, err := getter.GetEDS(ctx, eh)
-	require.NoError(t, err)
-	gotRoots, err := share.NewAxisRoots(eds)
-	require.NoError(t, err)
-
-	require.True(t, eh.DAH.Equals(gotRoots))
+func (m onceGetter) GetShare(_ context.Context, _ *header.ExtendedHeader, row, col int) (share.Share, error) {
+	m.Lock()
+	defer m.Unlock()
+	s := Sample{Row: uint16(row), Col: uint16(col)}
+	if _, ok := m.available[s]; ok {
+		delete(m.available, s)
+		return share.Share{}, nil
+	}
+	return share.Share{}, share.ErrNotAvailable
 }
 
-func TestService_GetSharesByNamespaceNotFound(t *testing.T) {
-	getter, eh := GetterWithRandSquare(t, 1)
-	eh.DAH.RowRoots = nil
-
-	emptyShares, err := getter.GetSharesByNamespace(context.Background(), eh, sharetest.RandV0Namespace())
-	require.NoError(t, err)
-	require.Empty(t, emptyShares.Flatten())
+func (m onceGetter) GetEDS(_ context.Context, _ *header.ExtendedHeader) (*rsmt2d.ExtendedDataSquare, error) {
+	panic("not implemented")
 }
 
-func BenchmarkService_GetSharesByNamespace(b *testing.B) {
-	tests := []struct {
-		amountShares int
-	}{
-		{amountShares: 4},
-		{amountShares: 16},
-		{amountShares: 128},
-	}
-
-	for _, tt := range tests {
-		b.Run(strconv.Itoa(tt.amountShares), func(b *testing.B) {
-			t := &testing.T{}
-			getter, eh := GetterWithRandSquare(t, tt.amountShares)
-			root := eh.DAH
-			randNamespace := root.RowRoots[(len(root.RowRoots)-1)/2][:share.NamespaceSize]
-			root.RowRoots[(len(root.RowRoots) / 2)] = root.RowRoots[(len(root.RowRoots)-1)/2]
-			b.ResetTimer()
-			for i := 0; i < b.N; i++ {
-				_, err := getter.GetSharesByNamespace(context.Background(), eh, randNamespace)
-				require.NoError(t, err)
-			}
-		})
-	}
+func (m onceGetter) GetSharesByNamespace(
+	_ context.Context,
+	_ *header.ExtendedHeader,
+	_ share.Namespace,
+) (shwap.NamespaceData, error) {
+	panic("not implemented")
 }
