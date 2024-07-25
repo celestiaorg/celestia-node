@@ -18,6 +18,10 @@ import (
 
 var _ eds.AccessorStreamer = (*ODSFile)(nil)
 
+// writeBufferSize defines buffer size for optimized batched writes into the file system.
+// TODO(@Wondertan): Consider making it configurable
+const writeBufferSize = 64 << 10
+
 // ErrEmptyFile signals that the ODS file is empty.
 // This helps avoid storing empty block EDSes.
 var ErrEmptyFile = errors.New("file is empty")
@@ -73,9 +77,17 @@ func CreateODSFile(
 		return nil, fmt.Errorf("file create: %w", err)
 	}
 
-	h, err := writeODSFile(f, eds, roots)
+	// buffering gives us ~4x speed up
+	buf := bufio.NewWriterSize(f, writeBufferSize)
+
+	h, err := writeODSFile(buf, eds, roots)
 	if err != nil {
 		return nil, fmt.Errorf("writing ODS file: %w", err)
+	}
+
+	err = buf.Flush()
+	if err != nil {
+		return nil, fmt.Errorf("flushing ODS file: %w", err)
 	}
 
 	err = f.Sync()
@@ -110,49 +122,43 @@ func writeODSFile(w io.Writer, eds *rsmt2d.ExtendedDataSquare, axisRoots *share.
 	}
 
 	// write quadrants
-	err = writeQuadrant(w, eds, int(h.shareSize), 0)
+	err = writeQ1(w, eds)
 	if err != nil {
 		return nil, fmt.Errorf("writing Q1: %w", err)
 	}
+
 	return h, nil
 }
 
-// writeQuadrant writes the quadrant of the square to the writer. it writes the quadrant in row-major
-// order. It uses buffer to write the shares in bulk (row by row), which improves the write performance.
-func writeQuadrant(w io.Writer, eds *rsmt2d.ExtendedDataSquare, shareSize, quadrantIdx int) error {
-	fromRow := quadrantIdx / 2 * int(eds.Width()) / 2
-	toRow := fromRow + int(eds.Width())/2
-
-	fromCol := quadrantIdx % 2 * int(eds.Width()) / 2
-	toCol := fromCol + int(eds.Width())/2
-
-	buf := bufio.NewWriterSize(w, shareSize*int(eds.Width()))
-	for rowIdx := fromRow; rowIdx < toRow; rowIdx++ {
-		for colIdx := fromCol; colIdx < toCol; colIdx++ {
-			share := eds.GetCell(uint(rowIdx), uint(colIdx))
-			_, err := buf.Write(share)
+// writeQ1 writes the first quadrant of the square to the writer. It writes the quadrant in row-major
+// order
+func writeQ1(w io.Writer, eds *rsmt2d.ExtendedDataSquare) error {
+	for i := range eds.Width() / 2 {
+		for j := range eds.Width() / 2 {
+			shr := eds.GetCell(i, j) // TODO: Avoid copying inside GetCell
+			_, err := w.Write(shr)
 			if err != nil {
-				return fmt.Errorf("writing shares: %w", err)
+				return fmt.Errorf("writing share: %w", err)
 			}
 		}
-	}
-	err := buf.Flush()
-	if err != nil {
-		return fmt.Errorf("flushing buffer: %w", err)
 	}
 	return nil
 }
 
+// writeAxisRoots writes RowRoots followed by ColumnRoots.
 func writeAxisRoots(w io.Writer, roots *share.AxisRoots) error {
-	buf := make([]byte, 0, share.AxisRootSize*len(roots.RowRoots))
-	for _, roots := range [][][]byte{roots.RowRoots, roots.ColumnRoots} {
-		for _, root := range roots {
-			buf = append(buf, root...)
+	for _, root := range roots.RowRoots {
+		if _, err := w.Write(root); err != nil {
+			return fmt.Errorf("writing row roots: %w", err)
 		}
 	}
-	if _, err := w.Write(buf); err != nil {
-		return fmt.Errorf("writing axis roots: %w", err)
+
+	for _, root := range roots.ColumnRoots {
+		if _, err := w.Write(root); err != nil {
+			return fmt.Errorf("writing columm roots: %w", err)
+		}
 	}
+
 	return nil
 }
 
