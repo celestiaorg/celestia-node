@@ -204,7 +204,8 @@ func (g *Getter) session(hdr *header.ExtendedHeader) exchange.Fetcher {
 	return g.archivalSession
 }
 
-// edsFromRows imports given Rows and computes EDS out of them, assuming enough were Rows provided.
+// edsFromRows imports given Rows and computes EDS out of them, assuming enough Rows were provided.
+// It is designed to reuse Row halves computed during verification on [Fetch] level.
 func edsFromRows(roots *share.AxisRoots, rows []shwap.Row) (*rsmt2d.ExtendedDataSquare, error) {
 	shrs := make([]share.Share, len(roots.RowRoots)*len(roots.RowRoots))
 	for i, row := range rows {
