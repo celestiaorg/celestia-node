@@ -19,7 +19,7 @@ import (
 var _ eds.AccessorStreamer = (*ODSFile)(nil)
 
 // writeBufferSize defines buffer size for optimized batched writes into the file system.
-// TODO(@Wondertan): Consider making it configurable and default being dynamic based on square size
+// TODO(@Wondertan): Consider making it configurable
 const writeBufferSize = 64 << 10
 
 // ErrEmptyFile signals that the ODS file is empty.
