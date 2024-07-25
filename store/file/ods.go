@@ -18,6 +18,10 @@ import (
 
 var _ eds.AccessorStreamer = (*ODSFile)(nil)
 
+// writeBufferSize defines buffer size for optimized batched writes into the file system.
+// TODO(@Wondertan): Consider making it configurable and default being dynamic based on square size
+const writeBufferSize = 64 << 10
+
 // ErrEmptyFile signals that the ODS file is empty.
 // This helps avoid storing empty block EDSes.
 var ErrEmptyFile = errors.New("file is empty")
@@ -61,8 +65,6 @@ func OpenODSFile(path string) (*ODSFile, error) {
 	}, nil
 }
 
-const bufSize = 64 << 10
-
 // CreateODSFile creates a new file. File has to be closed after usage.
 func CreateODSFile(
 	path string,
@@ -76,7 +78,7 @@ func CreateODSFile(
 	}
 
 	// buffering gives us ~4x speed up
-	buf := bufio.NewWriterSize(f, bufSize)
+	buf := bufio.NewWriterSize(f, writeBufferSize)
 
 	h, err := writeODSFile(buf, eds, roots)
 	if err != nil {
