@@ -499,10 +499,12 @@ func ProveCommitment(
 	// convert the shares to row root proofs to nmt proofs
 	nmtProofs := make([]*nmt.Proof, 0)
 	for _, proof := range sharesProof.ShareProofs {
-		nmtProof := nmt.NewInclusionProof(int(proof.Start),
+		nmtProof := nmt.NewInclusionProof(
+			int(proof.Start),
 			int(proof.End),
 			proof.Nodes,
-			true)
+			true,
+		)
 		nmtProofs = append(
 			nmtProofs,
 			&nmtProof,
