@@ -85,7 +85,7 @@ func NewListener(
 		construct:          construct,
 		store:              store,
 		availabilityWindow: p.availabilityWindow,
-		listenerTimeout:    5 * blocktime,
+		listenerTimeout:    5 * time.Second * 11,
 		metrics:            metrics,
 		chainID:            p.chainID,
 	}, nil
