@@ -60,8 +60,6 @@ type Service struct {
 	headerGetter func(context.Context, uint64) (*header.ExtendedHeader, error)
 	// headerSub subscribes to new headers to supply to blob subscriptions.
 	headerSub func(ctx context.Context) (<-chan *header.ExtendedHeader, error)
-
-	mu sync.Mutex
 }
 
 func NewService(
@@ -95,7 +93,6 @@ type SubscriptionResponse struct {
 
 func (s *Service) Subscribe(ctx context.Context, ns share.Namespace) (<-chan *SubscriptionResponse, error) {
 	if s.ctx == nil {
-		s.mu.Unlock()
 		return nil, fmt.Errorf("service has not been started")
 	}
 
