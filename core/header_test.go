@@ -2,6 +2,7 @@ package core
 
 import (
 	"context"
+	"fmt"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -56,5 +57,6 @@ func TestBadAppVersion(t *testing.T) {
 	header.RawHeader.Version.App = appconsts.LatestVersion + 1
 
 	err := header.Validate()
-	assert.Contains(t, err.Error(), "app version must be less than the latest app version")
+	assert.Contains(t, err.Error(), fmt.Sprintf("has version %d, this node supports up to version %d. Please "+
+		"upgrade to support new version", header.RawHeader.Version.App, appconsts.LatestVersion))
 }

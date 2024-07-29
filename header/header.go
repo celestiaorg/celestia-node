@@ -113,9 +113,9 @@ func (eh *ExtendedHeader) Validate() error {
 		return fmt.Errorf("ValidateBasic error on RawHeader at height %d: %w", eh.Height(), err)
 	}
 
-	if eh.RawHeader.Version.App > appconsts.LatestVersion {
+	if eh.RawHeader.Version.App > appconsts.LatestVersion || eh.RawHeader.Version.App == 0 {
 		return fmt.Errorf("header received at height %d has version %d, this node supports up to version %d. "+
-			"Please upgrade to support new version",
+			"Please upgrade to support new version. Note, 0 is not a valid version",
 			eh.RawHeader.Height, eh.RawHeader.Version.App, appconsts.LatestVersion)
 	}
 
