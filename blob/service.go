@@ -8,7 +8,6 @@ import (
 	"fmt"
 	"slices"
 	"sync"
-	"time"
 
 	"github.com/cosmos/cosmos-sdk/types"
 	logging "github.com/ipfs/go-log/v2"
@@ -62,10 +61,7 @@ type Service struct {
 	// headerSub subscribes to new headers to supply to blob subscriptions.
 	headerSub func(ctx context.Context) (<-chan *header.ExtendedHeader, error)
 
-	// activeSubscriptions tracks the number of active subscriptions
-	activeSubscriptions sync.WaitGroup
-	stopped             bool
-	mu                  sync.Mutex
+	mu sync.Mutex
 }
 
 func NewService(
@@ -88,49 +84,29 @@ func (s *Service) Start(context.Context) error {
 }
 
 func (s *Service) Stop(context.Context) error {
-	s.mu.Lock()
-	if s.cancel != nil {
-		s.stopped = true
-		s.cancel()
-	}
-	s.mu.Unlock()
-
-	s.activeSubscriptions.Wait()
+	s.cancel()
 	return nil
 }
 
 type SubscriptionResponse struct {
 	Blobs  []*Blob
 	Height uint64
-	Error  error
 }
 
 func (s *Service) Subscribe(ctx context.Context, ns share.Namespace) (<-chan *SubscriptionResponse, error) {
-	s.mu.Lock()
-	if s.stopped {
-		s.mu.Unlock()
-		return nil, fmt.Errorf("service has been stopped")
-	}
 	if s.ctx == nil {
 		s.mu.Unlock()
 		return nil, fmt.Errorf("service has not been started")
 	}
-	s.activeSubscriptions.Add(1)
-	s.mu.Unlock()
 
 	headerCh, err := s.headerSub(ctx)
 	if err != nil {
-		s.activeSubscriptions.Done()
 		return nil, err
 	}
 
 	blobCh := make(chan *SubscriptionResponse, 16)
 	go func() {
-		defer s.activeSubscriptions.Done()
 		defer close(blobCh)
-
-		ticker := time.NewTicker(time.Minute)
-		defer ticker.Stop()
 
 		for {
 			select {
@@ -143,14 +119,20 @@ func (s *Service) Subscribe(ctx context.Context, ns share.Namespace) (<-chan *Su
 					log.Errorw("header channel closed for subscription", "namespace", ns.ID())
 					return
 				}
+				// close subscription before buffer overflows
 				if len(blobCh) == cap(blobCh)-1 {
-					log.Warn("blobsub: slow consumer detected, closing subscription")
-					// still send an error to the client even though it seems like they've stopped consuming messages
-					blobCh <- &SubscriptionResponse{Error: errors.New("canceling subscription due to slow consumption")}
 					return
 				}
 
-				blobs, err := s.getAll(ctx, header, []share.Namespace{ns})
+				var blobs []*Blob
+				var err error
+				for {
+					blobs, err = s.getAll(ctx, header, []share.Namespace{ns})
+					if err == nil || ctx.Err() != nil {
+						// operation successful, break the loop
+						break
+					}
+				}
 				if errors.Is(err, context.Canceled) || errors.Is(err, context.DeadlineExceeded) {
 					// context canceled, continuing would lead to unexpected missed heights for the client
 					log.Debug("blobsub: canceling subscription due to user context closing")
