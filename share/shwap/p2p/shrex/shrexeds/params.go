@@ -9,7 +9,7 @@ import (
 	"github.com/celestiaorg/celestia-node/share/shwap/p2p/shrex"
 )
 
-const protocolString = "/shrex/v0.1.0/" + shwap.EDSName
+const protocolString = shrex.ProtocolString + shwap.EDSName
 
 var log = logging.Logger("shrex/eds")
 

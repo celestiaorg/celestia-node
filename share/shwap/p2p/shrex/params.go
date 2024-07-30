@@ -7,6 +7,9 @@ import (
 	"github.com/libp2p/go-libp2p/core/protocol"
 )
 
+// protocolString is the protocol string for the shrex protocol.
+const ProtocolString = "/shrex/v0.1.0/"
+
 // Parameters is the set of parameters that must be configured for the shrex/eds protocol.
 type Parameters struct {
 	// ServerReadTimeout sets the timeout for reading messages from the stream.
