@@ -41,17 +41,19 @@ func (nd NamespacedData) Validate(root *share.AxisRoots, namespace share.Namespa
 
 // ReadFrom reads the binary form of NamespacedData from the provided reader.
 func (nd *NamespacedData) ReadFrom(reader io.Reader) error {
+	var data []RowNamespaceData
 	for {
 		var pbRow pb.RowNamespaceData
 		_, err := serde.Read(reader, &pbRow)
 		if err != nil {
 			if errors.Is(err, io.EOF) {
 				// all rows have been read
+				*nd = data
 				return nil
 			}
 			return err
 		}
 		row := RowNamespaceDataFromProto(&pbRow)
-		*nd = append(*nd, row)
+		data = append(data, row)
 	}
 }
