@@ -133,7 +133,7 @@ func (s *Service) Subscribe(ctx context.Context, ns share.Namespace) (<-chan *Su
 				var err error
 				for {
 					blobs, err = s.getAll(ctx, header, []share.Namespace{ns})
-							if ctx.Err() != nil {
+					if ctx.Err() != nil {
 						// context canceled, continuing would lead to unexpected missed heights for the client
 						log.Debugw("blobsub: canceling subscription due to user ctx closing", "namespace", ns.ID())
 						return
