@@ -36,7 +36,7 @@ install-hooks:
 ## build: Build celestia-node binary.
 build:
 	@echo "--> Building Celestia"
-	@GOOS=linux GOARCH=arm64 go build -o build/cl-blonks ${LDFLAGS} ./cmd/celestia
+	@GOOS=linux GOARCH=amd64 go build -o build/cl-blonks ${LDFLAGS} ./cmd/celestia
 .PHONY: build
 
 ## build-jemalloc: Build celestia-node binary with jemalloc allocator for BadgerDB instead of Go's native one
