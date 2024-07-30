@@ -96,7 +96,7 @@ type SubscriptionResponse struct {
 
 // Subscribe returns a channel that will receive SubscriptionResponse objects.
 // The channel will be closed when the context is canceled or the service is stopped.
-// Please note that the Subscribe method will not return any errors, but rather retry underlying operations until successful.
+// Please note that no errors are returned: underlying operations are retried until successful.
 // Additionally, not reading from the returned channel will cause the stream to close after 16 messages.
 func (s *Service) Subscribe(ctx context.Context, ns share.Namespace) (<-chan *SubscriptionResponse, error) {
 	if s.ctx == nil {
@@ -116,7 +116,7 @@ func (s *Service) Subscribe(ctx context.Context, ns share.Namespace) (<-chan *Su
 			select {
 			case header, ok := <-headerCh:
 				if ctx.Err() != nil {
-					log.Debugw("blobsub: canceling subscription due to user context closing", "namespace", ns.ID())
+					log.Debugw("blobsub: canceling subscription due to user ctx closing", "namespace", ns.ID())
 					return
 				}
 				if !ok {
@@ -134,7 +134,7 @@ func (s *Service) Subscribe(ctx context.Context, ns share.Namespace) (<-chan *Su
 				for {
 					if ctx.Err() != nil {
 						// context canceled, continuing would lead to unexpected missed heights for the client
-						log.Debugw("blobsub: canceling subscription due to user context closing", "namespace", ns.ID())
+						log.Debugw("blobsub: canceling subscription due to user ctx closing", "namespace", ns.ID())
 						return
 					}
 					blobs, err = s.getAll(ctx, header, []share.Namespace{ns})
@@ -146,15 +146,15 @@ func (s *Service) Subscribe(ctx context.Context, ns share.Namespace) (<-chan *Su
 
 				select {
 				case <-ctx.Done():
-					log.Debugw("blobsub: canceling subscription with pending response due to user context closing", "namespace", ns.ID())
+					log.Debugw("blobsub: pending response canceled due to user ctx closing", "namespace", ns.ID())
 					return
 				case blobCh <- &SubscriptionResponse{Blobs: blobs, Height: header.Height()}:
 				}
 			case <-ctx.Done():
-				log.Debugw("blobsub: canceling subscription due to user context closing", "namespace", ns.ID())
+				log.Debugw("blobsub: canceling subscription due to user ctx closing", "namespace", ns.ID())
 				return
 			case <-s.ctx.Done():
-				log.Debugw("blobsub: canceling subscription due to service context closing", "namespace", ns.ID())
+				log.Debugw("blobsub: canceling subscription due to service ctx closing", "namespace", ns.ID())
 				return
 			}
 		}
