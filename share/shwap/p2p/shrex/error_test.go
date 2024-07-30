@@ -1,4 +1,4 @@
-package utils
+package shrex
 
 import (
 	"errors"
@@ -105,8 +105,8 @@ func Test_ErrorContains(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			assert.Equalf(t,
 				tt.want,
-				ErrorContains(tt.args.err, tt.args.target),
-				"ErrorContains(%v, %v)", tt.args.err, tt.args.target)
+				errorContains(tt.args.err, tt.args.target),
+				"errorContains(%v, %v)", tt.args.err, tt.args.target)
 		})
 	}
 }

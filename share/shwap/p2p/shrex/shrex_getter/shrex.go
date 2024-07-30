@@ -201,7 +201,7 @@ func (sg *Getter) GetEDS(ctx context.Context, header *header.ExtendedHeader) (*r
 			setStatus(peers.ResultCooldownPeer)
 		}
 
-		if !utils.ErrorContains(err, getErr) {
+		if !shrex.errorContains(err, getErr) {
 			err = errors.Join(err, getErr)
 		}
 		log.Debugw("eds: request failed",
@@ -285,7 +285,7 @@ func (sg *Getter) GetSharesByNamespace(
 			setStatus(peers.ResultCooldownPeer)
 		}
 
-		if !utils.ErrorContains(err, getErr) {
+		if !shrex.errorContains(err, getErr) {
 			err = errors.Join(err, getErr)
 		}
 		log.Debugw("nd: request failed",
