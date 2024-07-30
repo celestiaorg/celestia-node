@@ -4,7 +4,6 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"io"
 	"time"
 
 	"github.com/libp2p/go-libp2p/core/host"
@@ -13,13 +12,12 @@ import (
 	"go.uber.org/zap"
 
 	"github.com/celestiaorg/go-libp2p-messenger/serde"
-	nmt_pb "github.com/celestiaorg/nmt/pb"
 
 	"github.com/celestiaorg/celestia-node/libs/utils"
 	eds "github.com/celestiaorg/celestia-node/share/new_eds"
 	"github.com/celestiaorg/celestia-node/share/shwap"
 	"github.com/celestiaorg/celestia-node/share/shwap/p2p/shrex"
-	pb "github.com/celestiaorg/celestia-node/share/shwap/p2p/shrex/shrexnd/pb"
+	shrexpb "github.com/celestiaorg/celestia-node/share/shwap/p2p/shrex/pb"
 	"github.com/celestiaorg/celestia-node/store"
 )
 
@@ -118,7 +116,7 @@ func (srv *Server) handleNamespacedData(ctx context.Context, stream network.Stre
 	ctx, cancel := context.WithTimeout(ctx, srv.params.HandleRequestTimeout)
 	defer cancel()
 
-	shares, status, err := srv.getNamespaceData(ctx, ndid)
+	nd, status, err := srv.getNamespaceData(ctx, ndid)
 	if err != nil {
 		// server should respond with status regardless if there was an error getting data
 		sendErr := srv.respondStatus(ctx, logger, stream, status)
@@ -137,7 +135,7 @@ func (srv *Server) handleNamespacedData(ctx context.Context, stream network.Stre
 		return err
 	}
 
-	err = srv.sendNamespacedShares(shares, stream)
+	_, err = nd.WriteTo(stream)
 	if err != nil {
 		logger.Errorw("send nd data", "err", err)
 		srv.metrics.ObserveRequests(ctx, 1, shrex.StatusSendRespErr)
@@ -155,14 +153,10 @@ func (srv *Server) readRequest(
 		logger.Debugw("setting read deadline", "err", err)
 	}
 
-	req := make([]byte, shwap.NamespaceDataIDSize)
-	_, err = io.ReadFull(stream, req)
+	ndid := shwap.NamespaceDataID{}
+	_, err = ndid.ReadFrom(stream)
 	if err != nil {
 		return shwap.NamespaceDataID{}, fmt.Errorf("reading request: %w", err)
-	}
-	id, err := shwap.NamespaceDataIDFromBinary(req)
-	if err != nil {
-		return shwap.NamespaceDataID{}, fmt.Errorf("decoding request: %w", err)
 	}
 
 	logger.Debugw("new request")
@@ -171,32 +165,32 @@ func (srv *Server) readRequest(
 		logger.Debugw("closing read side of the stream", "err", err)
 	}
 
-	return id, nil
+	return ndid, nil
 }
 
-func (srv *Server) getNamespaceData(ctx context.Context, id shwap.NamespaceDataID) (shwap.NamespacedData, pb.StatusCode, error) {
+func (srv *Server) getNamespaceData(ctx context.Context, id shwap.NamespaceDataID) (shwap.NamespacedData, shrexpb.Status, error) {
 	file, err := srv.store.GetByHeight(ctx, id.Height)
 	if errors.Is(err, store.ErrNotFound) {
-		return nil, pb.StatusCode_NOT_FOUND, nil
+		return nil, shrexpb.Status_NOT_FOUND, nil
 	}
 	if err != nil {
-		return nil, pb.StatusCode_INTERNAL, fmt.Errorf("retrieving DAH: %w", err)
+		return nil, shrexpb.Status_INTERNAL, fmt.Errorf("retrieving DAH: %w", err)
 	}
 	defer utils.CloseAndLog(log, "file", file)
 
 	nd, err := eds.NamespacedData(ctx, file, id.DataNamespace)
 	if err != nil {
-		return nil, pb.StatusCode_INTERNAL, fmt.Errorf("getting nd: %w", err)
+		return nil, shrexpb.Status_INVALID, fmt.Errorf("getting nd: %w", err)
 	}
 
-	return nd, pb.StatusCode_OK, nil
+	return nd, shrexpb.Status_OK, nil
 }
 
 func (srv *Server) respondStatus(
 	ctx context.Context,
 	logger *zap.SugaredLogger,
 	stream network.Stream,
-	status pb.StatusCode,
+	status shrexpb.Status,
 ) error {
 	srv.observeStatus(ctx, status)
 
@@ -205,7 +199,7 @@ func (srv *Server) respondStatus(
 		logger.Debugw("setting write deadline", "err", err)
 	}
 
-	_, err = serde.Write(stream, &pb.GetSharesByNamespaceStatusResponse{Status: status})
+	_, err = serde.Write(stream, &shrexpb.Response{Status: status})
 	if err != nil {
 		return fmt.Errorf("writing response: %w", err)
 	}
@@ -213,34 +207,13 @@ func (srv *Server) respondStatus(
 	return nil
 }
 
-// sendNamespacedShares encodes shares into proto messages and sends it to client
-func (srv *Server) sendNamespacedShares(data shwap.NamespacedData, stream network.Stream) error {
-	for _, row := range data {
-		row := &pb.NamespaceRowResponse{
-			Shares: row.Shares,
-			Proof: &nmt_pb.Proof{
-				Start:                 int64(row.Proof.Start()),
-				End:                   int64(row.Proof.End()),
-				Nodes:                 row.Proof.Nodes(),
-				LeafHash:              row.Proof.LeafHash(),
-				IsMaxNamespaceIgnored: row.Proof.IsMaxNamespaceIDIgnored(),
-			},
-		}
-		_, err := serde.Write(stream, row)
-		if err != nil {
-			return fmt.Errorf("writing nd data to stream: %w", err)
-		}
-	}
-	return nil
-}
-
-func (srv *Server) observeStatus(ctx context.Context, status pb.StatusCode) {
+func (srv *Server) observeStatus(ctx context.Context, status shrexpb.Status) {
 	switch {
-	case status == pb.StatusCode_OK:
+	case status == shrexpb.Status_OK:
 		srv.metrics.ObserveRequests(ctx, 1, shrex.StatusSuccess)
-	case status == pb.StatusCode_NOT_FOUND:
+	case status != shrexpb.Status_NOT_FOUND:
 		srv.metrics.ObserveRequests(ctx, 1, shrex.StatusNotFound)
-	case status == pb.StatusCode_INTERNAL:
+	case status == shrexpb.Status_INVALID:
 		srv.metrics.ObserveRequests(ctx, 1, shrex.StatusInternalErr)
 	}
 }

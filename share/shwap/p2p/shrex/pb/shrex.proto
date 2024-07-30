@@ -1,6 +1,6 @@
 syntax = "proto3";
 
-option go_package = "github.com/celestiaorg/celestia-node/share/shwap/p2p/shrex/shrexeds/pb";
+option go_package = "github.com/celestiaorg/celestia-node/share/shwap/p2p/shrex/pb";
 
 enum Status {
   INVALID = 0;
@@ -9,6 +9,6 @@ enum Status {
   INTERNAL = 3; // internal server error
 }
 
-message EDSResponse {
+message Response {
   Status status = 1;
 }

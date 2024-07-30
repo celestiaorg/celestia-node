@@ -21,7 +21,7 @@ import (
 	eds "github.com/celestiaorg/celestia-node/share/new_eds"
 	"github.com/celestiaorg/celestia-node/share/shwap"
 	"github.com/celestiaorg/celestia-node/share/shwap/p2p/shrex"
-	pb "github.com/celestiaorg/celestia-node/share/shwap/p2p/shrex/shrexeds/pb"
+	shrexpb "github.com/celestiaorg/celestia-node/share/shwap/p2p/shrex/pb"
 )
 
 // Client is responsible for requesting EDSs for blocksync over the ShrEx/EDS protocol.
@@ -99,32 +99,27 @@ func (c *Client) doRequest(
 	defer stream.Close()
 
 	c.setStreamDeadlines(ctx, stream)
-
-	req, err := shwap.NewEdsID(height)
-	if err != nil {
-		return nil, fmt.Errorf("create request: %w", err)
-	}
-	rb, err := req.MarshalBinary()
-	if err != nil {
-		return nil, fmt.Errorf("marshal request: %w", err)
-	}
-
 	// request ODS
 	log.Debugw("client: requesting ods",
 		"height", height,
 		"peer", to.String())
-	_, err = stream.Write(rb)
+	id, err := shwap.NewEdsID(height)
+	if err != nil {
+		return nil, fmt.Errorf("create request: %w", err)
+	}
+	_, err = id.WriteTo(stream)
 	if err != nil {
 		stream.Reset() //nolint:errcheck
 		return nil, fmt.Errorf("write request to stream: %w", err)
 	}
+
 	err = stream.CloseWrite()
 	if err != nil {
 		log.Debugw("client: error closing write", "err", err)
 	}
 
 	// read and parse status from peer
-	resp := new(pb.EDSResponse)
+	resp := new(shrexpb.Response)
 	err = stream.SetReadDeadline(time.Now().Add(c.params.ServerReadTimeout))
 	if err != nil {
 		log.Debugw("client: failed to set read deadline for reading status", "err", err)
@@ -140,7 +135,7 @@ func (c *Client) doRequest(
 		return nil, fmt.Errorf("read status from stream: %w", err)
 	}
 	switch resp.Status {
-	case pb.Status_OK:
+	case shrexpb.Status_OK:
 		// reset stream deadlines to original values, since read deadline was changed during status read
 		c.setStreamDeadlines(ctx, stream)
 		// use header and ODS bytes to construct EDS and verify it against dataHash
@@ -150,13 +145,13 @@ func (c *Client) doRequest(
 		}
 		c.metrics.ObserveRequests(ctx, 1, shrex.StatusSuccess)
 		return eds, nil
-	case pb.Status_NOT_FOUND:
+	case shrexpb.Status_NOT_FOUND:
 		c.metrics.ObserveRequests(ctx, 1, shrex.StatusNotFound)
 		return nil, shrex.ErrNotFound
-	case pb.Status_INVALID:
+	case shrexpb.Status_INVALID:
 		log.Debug("client: invalid request")
 		fallthrough
-	case pb.Status_INTERNAL:
+	case shrexpb.Status_INTERNAL:
 		fallthrough
 	default:
 		c.metrics.ObserveRequests(ctx, 1, shrex.StatusInternalErr)

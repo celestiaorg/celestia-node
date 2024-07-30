@@ -18,7 +18,7 @@ import (
 	eds "github.com/celestiaorg/celestia-node/share/new_eds"
 	"github.com/celestiaorg/celestia-node/share/shwap"
 	"github.com/celestiaorg/celestia-node/share/shwap/p2p/shrex"
-	p2p_pb "github.com/celestiaorg/celestia-node/share/shwap/p2p/shrex/shrexeds/pb"
+	shrexpb "github.com/celestiaorg/celestia-node/share/shwap/p2p/shrex/pb"
 	"github.com/celestiaorg/celestia-node/store"
 )
 
@@ -94,18 +94,18 @@ func (s *Server) handleStream(stream network.Stream) {
 	// we do not close the reader, so that other requests will not need to re-open the file.
 	// closing is handled by the LRU cache.
 	file, err := s.store.GetByHeight(ctx, id.Height)
-	var status p2p_pb.Status
+	var status shrexpb.Status
 	switch {
 	case err == nil:
 		defer utils.CloseAndLog(logger, "file", file)
-		status = p2p_pb.Status_OK
+		status = shrexpb.Status_OK
 	case errors.Is(err, store.ErrNotFound):
 		logger.Warnw("server: request height not found")
 		s.metrics.ObserveRequests(ctx, 1, shrex.StatusNotFound)
-		status = p2p_pb.Status_NOT_FOUND
+		status = shrexpb.Status_NOT_FOUND
 	case err != nil:
 		logger.Errorw("server: get file", "err", err)
-		status = p2p_pb.Status_INTERNAL
+		status = shrexpb.Status_INTERNAL
 	}
 
 	// inform the client of our status
@@ -116,7 +116,7 @@ func (s *Server) handleStream(stream network.Stream) {
 		return
 	}
 	// if we cannot serve the EDS, we are already done
-	if status != p2p_pb.Status_OK {
+	if status != shrexpb.Status_OK {
 		err = stream.Close()
 		if err != nil {
 			logger.Debugw("server: closing stream", "err", err)
@@ -145,36 +145,31 @@ func (s *Server) readRequest(logger *zap.SugaredLogger, stream network.Stream) (
 		logger.Debugw("server: set read deadline", "err", err)
 	}
 
-	req := make([]byte, shwap.EdsIDSize)
-	_, err = io.ReadFull(stream, req)
+	edsIds := shwap.EdsID{}
+	_, err = edsIds.ReadFrom(stream)
 	if err != nil {
 		return shwap.EdsID{}, fmt.Errorf("reading request: %w", err)
-	}
-	id, err := shwap.EdsIDFromBinary(req)
-	if err != nil {
-		return shwap.EdsID{}, fmt.Errorf("parsing request: %w", err)
 	}
 	err = stream.CloseRead()
 	if err != nil {
 		logger.Debugw("server: closing read", "err", err)
 	}
-
-	return id, id.Validate()
+	return edsIds, nil
 }
 
-func (s *Server) writeStatus(logger *zap.SugaredLogger, status p2p_pb.Status, stream network.Stream) error {
+func (s *Server) writeStatus(logger *zap.SugaredLogger, status shrexpb.Status, stream network.Stream) error {
 	err := stream.SetWriteDeadline(time.Now().Add(s.params.ServerWriteTimeout))
 	if err != nil {
 		logger.Debugw("server: set write deadline", "err", err)
 	}
 
-	resp := &p2p_pb.EDSResponse{Status: status}
+	resp := &shrexpb.Response{Status: status}
 	_, err = serde.Write(stream, resp)
 	return err
 }
 
-func (s *Server) writeODS(logger *zap.SugaredLogger, stramer eds.Streamer, stream network.Stream) error {
-	reader, err := stramer.Reader()
+func (s *Server) writeODS(logger *zap.SugaredLogger, streamer eds.Streamer, stream network.Stream) error {
+	reader, err := streamer.Reader()
 	if err != nil {
 		return fmt.Errorf("getting ODS reader: %w", err)
 	}

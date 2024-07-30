@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/binary"
 	"errors"
+	"sync/atomic"
 	"testing"
 	"time"
 
@@ -14,7 +15,6 @@ import (
 	mocknet "github.com/libp2p/go-libp2p/p2p/net/mock"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-	"go.uber.org/atomic"
 
 	libhead "github.com/celestiaorg/go-header"
 	"github.com/celestiaorg/nmt"
@@ -62,7 +62,9 @@ func TestShrexGetter(t *testing.T) {
 	getter := NewGetter(edsClient, ndClient, fullPeerManager, archivalPeerManager, light.Window)
 	require.NoError(t, getter.Start(ctx))
 
-	height := atomic.NewUint64(1)
+	height := atomic.Uint64{}
+	height.Add(1)
+
 	t.Run("ND_Available, total data size > 1mb", func(t *testing.T) {
 		ctx, cancel := context.WithTimeout(ctx, time.Second*10)
 		t.Cleanup(cancel)

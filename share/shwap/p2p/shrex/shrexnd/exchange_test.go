@@ -3,6 +3,7 @@ package shrexnd
 import (
 	"context"
 	"sync"
+	"sync/atomic"
 	"testing"
 	"time"
 
@@ -10,7 +11,6 @@ import (
 	"github.com/libp2p/go-libp2p/core/network"
 	mocknet "github.com/libp2p/go-libp2p/p2p/net/mock"
 	"github.com/stretchr/testify/require"
-	"go.uber.org/atomic"
 
 	"github.com/celestiaorg/celestia-node/share"
 	"github.com/celestiaorg/celestia-node/share/eds/edstest"
@@ -25,7 +25,8 @@ func TestExchange_RequestND_NotFound(t *testing.T) {
 	edsStore, client, server := makeExchange(t)
 	require.NoError(t, server.Start(ctx))
 
-	height := atomic.NewUint64(1)
+	height := atomic.Uint64{}
+	height.Add(1)
 
 	t.Run("CAR_not_exist", func(t *testing.T) {
 		ctx, cancel := context.WithTimeout(ctx, time.Second)
