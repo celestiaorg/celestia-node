@@ -7,10 +7,11 @@ import (
 	"io"
 )
 
-// EdsIDSize defines the byte size of the EdsID.
 const (
+	// EdsIDSize defines the byte size of the EdsID.
 	EdsIDSize = 8
-	EDSName   = "eds_v0"
+	// EDSName is the name identifier for the Extended Data Square.
+	EDSName = "eds_v0"
 )
 
 // ErrOutOfBounds is returned whenever an index is out of bounds.

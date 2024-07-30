@@ -2,10 +2,10 @@ package shrexeds
 
 import (
 	"fmt"
-	"github.com/celestiaorg/celestia-node/share/shwap"
 
 	logging "github.com/ipfs/go-log/v2"
 
+	"github.com/celestiaorg/celestia-node/share/shwap"
 	"github.com/celestiaorg/celestia-node/share/shwap/p2p/shrex"
 )
 
