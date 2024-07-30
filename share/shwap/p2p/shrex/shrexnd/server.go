@@ -73,7 +73,7 @@ func (srv *Server) Stop(context.Context) error {
 
 func (srv *Server) streamHandler(ctx context.Context) network.StreamHandler {
 	return func(s network.Stream) {
-		err := srv.handleNamespacedData(ctx, s)
+		err := srv.handleNamespaceData(ctx, s)
 		if err != nil {
 			s.Reset() //nolint:errcheck
 			return
@@ -96,7 +96,7 @@ func (srv *Server) observeRateLimitedRequests() {
 	}
 }
 
-func (srv *Server) handleNamespacedData(ctx context.Context, stream network.Stream) error {
+func (srv *Server) handleNamespaceData(ctx context.Context, stream network.Stream) error {
 	logger := log.With("source", "server", "peer", stream.Conn().RemotePeer().String())
 	logger.Debug("handling nd request")
 
@@ -168,7 +168,7 @@ func (srv *Server) readRequest(
 	return ndid, nil
 }
 
-func (srv *Server) getNamespaceData(ctx context.Context, id shwap.NamespaceDataID) (shwap.NamespacedData, shrexpb.Status, error) {
+func (srv *Server) getNamespaceData(ctx context.Context, id shwap.NamespaceDataID) (shwap.NamespaceData, shrexpb.Status, error) {
 	file, err := srv.store.GetByHeight(ctx, id.Height)
 	if errors.Is(err, store.ErrNotFound) {
 		return nil, shrexpb.Status_NOT_FOUND, nil
@@ -178,7 +178,7 @@ func (srv *Server) getNamespaceData(ctx context.Context, id shwap.NamespaceDataI
 	}
 	defer utils.CloseAndLog(log, "file", file)
 
-	nd, err := eds.NamespacedData(ctx, file, id.DataNamespace)
+	nd, err := eds.NamespaceData(ctx, file, id.DataNamespace)
 	if err != nil {
 		return nil, shrexpb.Status_INVALID, fmt.Errorf("getting nd: %w", err)
 	}

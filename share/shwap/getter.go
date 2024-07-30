@@ -38,5 +38,5 @@ type Getter interface {
 	// Inclusion of returned data could be verified using Verify method on NamespacedShares.
 	// If no shares are found for target namespace non-inclusion could be also verified by calling
 	// Verify method.
-	GetSharesByNamespace(context.Context, *header.ExtendedHeader, share.Namespace) (NamespacedData, error)
+	GetSharesByNamespace(context.Context, *header.ExtendedHeader, share.Namespace) (NamespaceData, error)
 }

@@ -217,7 +217,7 @@ func (sg *Getter) GetSharesByNamespace(
 	ctx context.Context,
 	header *header.ExtendedHeader,
 	namespace share.Namespace,
-) (shwap.NamespacedData, error) {
+) (shwap.NamespaceData, error) {
 	if err := namespace.ValidateForData(); err != nil {
 		return nil, err
 	}
@@ -236,7 +236,7 @@ func (sg *Getter) GetSharesByNamespace(
 	dah := header.DAH
 	rowIdxs := share.RowsWithNamespace(dah, namespace)
 	if len(rowIdxs) == 0 {
-		return shwap.NamespacedData{}, nil
+		return shwap.NamespaceData{}, nil
 	}
 
 	for {

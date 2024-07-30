@@ -46,13 +46,13 @@ func NewClient(params *Parameters, host host.Host) (*Client, error) {
 }
 
 // RequestND requests namespaced data from the given peer.
-// Returns NamespacedData with unverified inclusion proofs against the share.Root.
+// Returns NamespaceData with unverified inclusion proofs against the share.Root.
 func (c *Client) RequestND(
 	ctx context.Context,
 	height uint64,
 	namespace share.Namespace,
 	peer peer.ID,
-) (shwap.NamespacedData, error) {
+) (shwap.NamespaceData, error) {
 	if err := namespace.ValidateForData(); err != nil {
 		return nil, err
 	}
@@ -85,7 +85,7 @@ func (c *Client) doRequest(
 	height uint64,
 	namespace share.Namespace,
 	peerID peer.ID,
-) (shwap.NamespacedData, error) {
+) (shwap.NamespaceData, error) {
 	streamOpenCtx, cancel := context.WithTimeout(ctx, c.params.ServerReadTimeout)
 	defer cancel()
 	stream, err := c.host.NewStream(streamOpenCtx, peerID, c.protocolID)
@@ -117,7 +117,7 @@ func (c *Client) doRequest(
 		return nil, err
 	}
 
-	nd := shwap.NamespacedData{}
+	nd := shwap.NamespaceData{}
 	_, err = nd.ReadFrom(stream)
 	if err != nil {
 		c.metrics.ObserveRequests(ctx, 1, shrex.StatusReadRespErr)
