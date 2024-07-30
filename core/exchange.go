@@ -17,7 +17,7 @@ import (
 	"github.com/celestiaorg/celestia-node/share/ipld"
 )
 
-const concurrencyLimit = 4
+const concurrencyLimit = 16
 
 type Exchange struct {
 	fetcher   *BlockFetcher
