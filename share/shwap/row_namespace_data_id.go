@@ -2,6 +2,7 @@ package shwap
 
 import (
 	"fmt"
+	"io"
 
 	"github.com/celestiaorg/celestia-node/share"
 )
@@ -65,6 +66,21 @@ func RowNamespaceDataIDFromBinary(data []byte) (RowNamespaceDataID, error) {
 	return rndid, nil
 }
 
+// ReadFrom reads the binary form of RowNamespaceDataID from the provided reader.
+func (s *RowNamespaceDataID) ReadFrom(r io.Reader) (int64, error) {
+	data := make([]byte, RowNamespaceDataIDSize)
+	n, err := r.Read(data)
+	if err != nil {
+		return int64(n), err
+	}
+	if n != RowNamespaceDataIDSize {
+		return int64(n), fmt.Errorf("RowNamespaceDataID: expected %d bytes, got %d", RowNamespaceDataIDSize, n)
+	}
+	id, err := RowNamespaceDataIDFromBinary(data)
+	*s = id
+	return int64(n), err
+}
+
 // MarshalBinary encodes RowNamespaceDataID into binary form.
 // NOTE: Proto is avoided because
 // * Its size is not deterministic which is required for IPLD.
@@ -72,6 +88,16 @@ func RowNamespaceDataIDFromBinary(data []byte) (RowNamespaceDataID, error) {
 func (s RowNamespaceDataID) MarshalBinary() ([]byte, error) {
 	data := make([]byte, 0, RowNamespaceDataIDSize)
 	return s.appendTo(data), nil
+}
+
+// WriteTo writes the binary form of RowNamespaceDataID to the provided writer.
+func (s RowNamespaceDataID) WriteTo(w io.Writer) (int64, error) {
+	data, err := s.MarshalBinary()
+	if err != nil {
+		return 0, err
+	}
+	n, err := w.Write(data)
+	return int64(n), err
 }
 
 // Verify validates the RowNamespaceDataID and verifies the embedded RowID.

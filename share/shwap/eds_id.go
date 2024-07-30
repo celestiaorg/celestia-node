@@ -4,6 +4,7 @@ import (
 	"encoding/binary"
 	"errors"
 	"fmt"
+	"io"
 )
 
 // EdsIDSize defines the byte size of the EdsID.
@@ -45,11 +46,36 @@ func EdsIDFromBinary(data []byte) (EdsID, error) {
 	return eid, nil
 }
 
+// ReadFrom reads the binary form of EdsID from the provided reader.
+func (eid *EdsID) ReadFrom(r io.Reader) (int64, error) {
+	data := make([]byte, EdsIDSize)
+	n, err := r.Read(data)
+	if err != nil {
+		return int64(n), err
+	}
+	if n != EdsIDSize {
+		return int64(n), fmt.Errorf("EdsID: expected %d bytes, got %d", EdsIDSize, n)
+	}
+	id, err := EdsIDFromBinary(data)
+	*eid = id
+	return int64(n), err
+}
+
 // MarshalBinary encodes an EdsID into its binary form, primarily for storage or network
 // transmission.
 func (eid EdsID) MarshalBinary() ([]byte, error) {
 	data := make([]byte, 0, EdsIDSize)
 	return eid.appendTo(data), nil
+}
+
+// WriteTo writes the binary form of EdsID to the provided writer.
+func (eid EdsID) WriteTo(w io.Writer) (int64, error) {
+	data, err := eid.MarshalBinary()
+	if err != nil {
+		return 0, err
+	}
+	n, err := w.Write(data)
+	return int64(n), err
 }
 
 // Validate checks the integrity of an EdsID's fields against the provided Root.

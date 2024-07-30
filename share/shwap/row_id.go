@@ -3,6 +3,7 @@ package shwap
 import (
 	"encoding/binary"
 	"fmt"
+	"io"
 )
 
 // RowIDSize defines the size in bytes of RowID, consisting of the size of EdsID and 2 bytes for
@@ -55,10 +56,33 @@ func RowIDFromBinary(data []byte) (RowID, error) {
 	return rid, nil
 }
 
+func (rid *RowID) ReadFrom(r io.Reader) (int64, error) {
+	data := make([]byte, RowIDSize)
+	n, err := r.Read(data)
+	if err != nil {
+		return int64(n), err
+	}
+	if n != RowIDSize {
+		return int64(n), fmt.Errorf("RowID: expected %d bytes, got %d", RowIDSize, n)
+	}
+	id, err := RowIDFromBinary(data)
+	*rid = id
+	return int64(n), err
+}
+
 // MarshalBinary encodes the RowID into a binary form for storage or network transmission.
 func (rid RowID) MarshalBinary() ([]byte, error) {
 	data := make([]byte, 0, RowIDSize)
 	return rid.appendTo(data), nil
+}
+
+func (rid RowID) WriteTo(w io.Writer) (int64, error) {
+	data, err := rid.MarshalBinary()
+	if err != nil {
+		return 0, err
+	}
+	n, err := w.Write(data)
+	return int64(n), err
 }
 
 // Verify validates the RowID fields and verifies that RowIndex is within the bounds of

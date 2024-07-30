@@ -2,6 +2,7 @@ package shwap
 
 import (
 	"fmt"
+	"io"
 
 	"github.com/celestiaorg/celestia-node/share"
 )
@@ -58,6 +59,21 @@ func NamespaceDataIDFromBinary(data []byte) (NamespaceDataID, error) {
 	return ndid, nil
 }
 
+// ReadFrom reads the binary form of NamespaceDataID from the provided reader.
+func (ndid *NamespaceDataID) ReadFrom(r io.Reader) (int64, error) {
+	data := make([]byte, NamespaceDataIDSize)
+	n, err := r.Read(data)
+	if err != nil {
+		return int64(n), err
+	}
+	if n != NamespaceDataIDSize {
+		return int64(n), fmt.Errorf("NamespaceDataID: expected %d bytes, got %d", NamespaceDataIDSize, n)
+	}
+	id, err := NamespaceDataIDFromBinary(data)
+	*ndid = id
+	return int64(n), err
+}
+
 // MarshalBinary encodes NamespaceDataID into binary form.
 // NOTE: Proto is avoided because
 // * Its size is not deterministic which is required for IPLD.
@@ -65,6 +81,16 @@ func NamespaceDataIDFromBinary(data []byte) (NamespaceDataID, error) {
 func (ndid NamespaceDataID) MarshalBinary() ([]byte, error) {
 	data := make([]byte, 0, NamespaceDataIDSize)
 	return ndid.appendTo(data), nil
+}
+
+// WriteTo writes the binary form of NamespaceDataID to the provided writer.
+func (ndid NamespaceDataID) WriteTo(w io.Writer) (int64, error) {
+	data, err := ndid.MarshalBinary()
+	if err != nil {
+		return 0, err
+	}
+	n, err := w.Write(data)
+	return int64(n), err
 }
 
 // Validate checks if the NamespaceDataID is valid. It checks the validity of the EdsID and the
