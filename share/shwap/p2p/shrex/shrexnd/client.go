@@ -109,7 +109,7 @@ func (c *Client) doRequest(
 
 	err = stream.CloseWrite()
 	if err != nil {
-		log.Debugw("client-nd: closing write side of the stream", "err", err)
+		log.Warnw("client-nd: closing write side of the stream", "err", err)
 	}
 
 	if err := c.readStatus(ctx, stream); err != nil {

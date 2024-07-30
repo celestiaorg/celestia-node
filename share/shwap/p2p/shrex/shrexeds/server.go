@@ -152,7 +152,7 @@ func (s *Server) readRequest(logger *zap.SugaredLogger, stream network.Stream) (
 	}
 	err = stream.CloseRead()
 	if err != nil {
-		logger.Debugw("server: closing read", "err", err)
+		logger.Warnw("server: closing read", "err", err)
 	}
 	return edsIds, nil
 }

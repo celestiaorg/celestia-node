@@ -112,6 +112,7 @@ func (srv *Server) handleNamespaceData(ctx context.Context, stream network.Strea
 		"namespace", ndid.DataNamespace.String(),
 		"height", ndid.Height,
 	)
+	logger.Debugw("new request")
 
 	ctx, cancel := context.WithTimeout(ctx, srv.params.HandleRequestTimeout)
 	defer cancel()
@@ -159,10 +160,9 @@ func (srv *Server) readRequest(
 		return shwap.NamespaceDataID{}, fmt.Errorf("reading request: %w", err)
 	}
 
-	logger.Debugw("new request")
 	err = stream.CloseRead()
 	if err != nil {
-		logger.Debugw("closing read side of the stream", "err", err)
+		logger.Warnw("closing read side of the stream", "err", err)
 	}
 
 	return ndid, nil

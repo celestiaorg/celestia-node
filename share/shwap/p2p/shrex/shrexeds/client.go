@@ -115,7 +115,7 @@ func (c *Client) doRequest(
 
 	err = stream.CloseWrite()
 	if err != nil {
-		log.Debugw("client: error closing write", "err", err)
+		log.Warnw("client: error closing write", "err", err)
 	}
 
 	// read and parse status from peer
