@@ -3,6 +3,7 @@ package shwap
 import (
 	"encoding/binary"
 	"fmt"
+	"io"
 )
 
 // SampleIDSize defines the size of the SampleID in bytes, combining RowID size and 2 additional
@@ -57,6 +58,24 @@ func SampleIDFromBinary(data []byte) (SampleID, error) {
 	return sid, nil
 }
 
+// ReadFrom reads the binary form of SampleID from the provided reader.
+func (sid *SampleID) ReadFrom(r io.Reader) (int64, error) {
+	data := make([]byte, SampleIDSize)
+	n, err := r.Read(data)
+	if err != nil {
+		return int64(n), err
+	}
+	if n != SampleIDSize {
+		return int64(n), fmt.Errorf("SampleID: expected %d bytes, got %d", SampleIDSize, n)
+	}
+	id, err := SampleIDFromBinary(data)
+	if err != nil {
+		return int64(n), fmt.Errorf("SampleIDFromBinary: %w", err)
+	}
+	*sid = id
+	return int64(n), nil
+}
+
 // MarshalBinary encodes SampleID into binary form.
 // NOTE: Proto is avoided because
 // * Its size is not deterministic which is required for IPLD.
@@ -64,6 +83,16 @@ func SampleIDFromBinary(data []byte) (SampleID, error) {
 func (sid SampleID) MarshalBinary() ([]byte, error) {
 	data := make([]byte, 0, SampleIDSize)
 	return sid.appendTo(data), nil
+}
+
+// WriteTo writes the binary form of SampleID to the provided writer.
+func (sid SampleID) WriteTo(w io.Writer) (int64, error) {
+	data, err := sid.MarshalBinary()
+	if err != nil {
+		return 0, err
+	}
+	n, err := w.Write(data)
+	return int64(n), err
 }
 
 // Verify validates the SampleID and verifies that the ShareIndex is within the bounds of

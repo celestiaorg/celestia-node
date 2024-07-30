@@ -1,6 +1,7 @@
 package shwap
 
 import (
+	"bytes"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -24,4 +25,23 @@ func TestNamespaceDataID(t *testing.T) {
 
 	err = sidOut.Validate()
 	require.NoError(t, err)
+}
+
+func TestNamespaceDataIDReaderWriter(t *testing.T) {
+	ns := sharetest.RandV0Namespace()
+
+	id, err := NewNamespaceDataID(1, ns)
+	require.NoError(t, err)
+
+	buf := bytes.NewBuffer(nil)
+	n, err := id.WriteTo(buf)
+	require.NoError(t, err)
+	require.Equal(t, int64(NamespaceDataIDSize), n)
+
+	ndidOut := NamespaceDataID{}
+	n, err = ndidOut.ReadFrom(buf)
+	require.NoError(t, err)
+	require.Equal(t, int64(NamespaceDataIDSize), n)
+
+	require.EqualValues(t, id, ndidOut)
 }
