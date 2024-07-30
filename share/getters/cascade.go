@@ -4,6 +4,8 @@ import (
 	"context"
 	"errors"
 
+	logging "github.com/ipfs/go-log/v2"
+	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/trace"
 
@@ -13,6 +15,11 @@ import (
 	"github.com/celestiaorg/celestia-node/libs/utils"
 	"github.com/celestiaorg/celestia-node/share"
 	"github.com/celestiaorg/celestia-node/share/eds/byzantine"
+)
+
+var (
+	tracer = otel.Tracer("share/getters")
+	log    = logging.Logger("share/getters")
 )
 
 var _ share.Getter = (*CascadeGetter)(nil)
@@ -125,14 +132,14 @@ func cascadeGetters[V any](
 
 		// we split the timeout between left getters
 		// once async cascadegetter is implemented, we can remove this
-		getCtx, cancel := ctxWithSplitTimeout(ctx, len(getters)-i, 0)
+		getCtx, cancel := utils.CtxWithSplitTimeout(ctx, len(getters)-i, 0)
 		val, getErr := get(getCtx, getter)
 		cancel()
 		if getErr == nil {
 			return val, nil
 		}
 
-		if errors.Is(getErr, errOperationNotSupported) {
+		if errors.Is(getErr, ErrOperationNotSupported) {
 			continue
 		}
 

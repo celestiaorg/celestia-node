@@ -13,6 +13,9 @@ import (
 	"github.com/celestiaorg/celestia-node/share/shwap/pb"
 )
 
+// SampleName is the name identifier for the sample container.
+const SampleName = "sample_v0"
+
 // ErrFailedVerification is returned when inclusion proof verification fails. It is returned
 // when the data and the proof do not match trusted data root.
 var ErrFailedVerification = errors.New("failed to verify inclusion")

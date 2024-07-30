@@ -11,12 +11,15 @@ import (
 	"github.com/celestiaorg/celestia-node/share/shwap/pb"
 )
 
-// NamespacedData stores collections of RowNamespaceData, each representing shares and their proofs
+// NamespaceDataName is the name identifier for the namespace data container.
+const NamespaceDataName = "nd_v0"
+
+// NamespaceData stores collections of RowNamespaceData, each representing shares and their proofs
 // within a namespace.
-type NamespacedData []RowNamespaceData
+type NamespaceData []RowNamespaceData
 
 // Flatten combines all shares from all rows within the namespace into a single slice.
-func (nd NamespacedData) Flatten() []share.Share {
+func (nd NamespaceData) Flatten() []share.Share {
 	var shares []share.Share
 	for _, row := range nd {
 		shares = append(shares, row.Shares...)
@@ -24,8 +27,8 @@ func (nd NamespacedData) Flatten() []share.Share {
 	return shares
 }
 
-// Validate checks the integrity of the NamespacedData against a provided root and namespace.
-func (nd NamespacedData) Validate(root *share.AxisRoots, namespace share.Namespace) error {
+// Validate checks the integrity of the NamespaceData against a provided root and namespace.
+func (nd NamespaceData) Validate(root *share.AxisRoots, namespace share.Namespace) error {
 	rowIdxs := share.RowsWithNamespace(root, namespace)
 	if len(rowIdxs) != len(nd) {
 		return fmt.Errorf("expected %d rows, found %d rows", len(rowIdxs), len(nd))
@@ -39,21 +42,37 @@ func (nd NamespacedData) Validate(root *share.AxisRoots, namespace share.Namespa
 	return nil
 }
 
-// ReadFrom reads the binary form of NamespacedData from the provided reader.
-func (nd *NamespacedData) ReadFrom(reader io.Reader) error {
+// ReadFrom reads the binary form of NamespaceData from the provided reader.
+func (nd *NamespaceData) ReadFrom(reader io.Reader) (int64, error) {
 	var data []RowNamespaceData
+	var n int64
 	for {
 		var pbRow pb.RowNamespaceData
-		_, err := serde.Read(reader, &pbRow)
+		nn, err := serde.Read(reader, &pbRow)
+		n += int64(nn)
 		if err != nil {
 			if errors.Is(err, io.EOF) {
 				// all rows have been read
 				*nd = data
-				return nil
+				return n, nil
 			}
-			return err
+			return n, err
 		}
 		row := RowNamespaceDataFromProto(&pbRow)
 		data = append(data, row)
 	}
+}
+
+// WriteTo writes the binary form of NamespaceData to the provided writer.
+func (nd NamespaceData) WriteTo(writer io.Writer) (int64, error) {
+	var n int64
+	for _, row := range nd {
+		pbRow := row.ToProto()
+		nn, err := serde.Write(writer, pbRow)
+		n += int64(nn)
+		if err != nil {
+			return n, err
+		}
+	}
+	return n, nil
 }

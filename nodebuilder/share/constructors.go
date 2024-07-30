@@ -11,6 +11,7 @@ import (
 	"github.com/celestiaorg/celestia-node/share/eds"
 	"github.com/celestiaorg/celestia-node/share/getters"
 	"github.com/celestiaorg/celestia-node/share/ipld"
+	"github.com/celestiaorg/celestia-node/share/shwap/p2p/shrex/shrex_getter"
 )
 
 func newShareModule(getter share.Getter, avail share.Availability) Module {
@@ -42,7 +43,7 @@ func ensureEmptyEDSInBS(ctx context.Context, bServ blockservice.BlockService) er
 }
 
 func lightGetter(
-	shrexGetter *getters.ShrexGetter,
+	shrexGetter *shrex_getter.Getter,
 	ipldGetter *getters.IPLDGetter,
 	cfg Config,
 ) share.Getter {
@@ -54,13 +55,13 @@ func lightGetter(
 	return getters.NewCascadeGetter(cascade)
 }
 
-// ShrexGetter is added to bridge nodes for the case that a shard is removed
+// Getter is added to bridge nodes for the case that a shard is removed
 // after detected shard corruption. This ensures the block is fetched and stored
 // by shrex the next time the data is retrieved (meaning shard recovery is
 // manual after corruption is detected).
 func bridgeGetter(
 	storeGetter *getters.StoreGetter,
-	shrexGetter *getters.ShrexGetter,
+	shrexGetter *shrex_getter.Getter,
 	cfg Config,
 ) share.Getter {
 	var cascade []share.Getter
@@ -73,7 +74,7 @@ func bridgeGetter(
 
 func fullGetter(
 	storeGetter *getters.StoreGetter,
-	shrexGetter *getters.ShrexGetter,
+	shrexGetter *shrex_getter.Getter,
 	ipldGetter *getters.IPLDGetter,
 	cfg Config,
 ) share.Getter {
