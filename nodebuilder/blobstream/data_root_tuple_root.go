@@ -6,11 +6,10 @@ import (
 	"fmt"
 	"strconv"
 
-	nodeheader "github.com/celestiaorg/celestia-node/header"
-
 	"github.com/tendermint/tendermint/crypto/merkle"
 	"github.com/tendermint/tendermint/libs/bytes"
 
+	nodeheader "github.com/celestiaorg/celestia-node/header"
 	"github.com/celestiaorg/celestia-node/nodebuilder/header"
 )
 
