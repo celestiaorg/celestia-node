@@ -89,7 +89,7 @@ func GenerateTestBlock(
 	dataSquare, err := square.Construct(
 		txs.ToSliceOfBytes(),
 		appconsts.SquareSizeUpperBound(appconsts.LatestVersion),
-		appconsts.SquareSizeUpperBound(appconsts.LatestVersion),
+		appconsts.SubtreeRootThreshold(appconsts.LatestVersion),
 	)
 	require.NoError(t, err)
 
