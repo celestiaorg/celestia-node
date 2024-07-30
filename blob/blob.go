@@ -109,6 +109,7 @@ func (b *Blob) Index() int {
 	return b.index
 }
 
+// Length returns the number of shares in the blob.
 func (b *Blob) Length() (int, error) {
 	s, err := BlobsToShares(b)
 	if err != nil {
@@ -116,7 +117,7 @@ func (b *Blob) Length() (int, error) {
 	}
 
 	if len(s) == 0 {
-		return 0, errors.New("incorrect number of shares")
+		return 0, errors.New("blob with zero shares received")
 	}
 
 	appShare, err := shares.NewShare(s[0])
@@ -124,12 +125,12 @@ func (b *Blob) Length() (int, error) {
 		return 0, err
 	}
 
-	length, err := appShare.SequenceLen()
+	seqLength, err := appShare.SequenceLen()
 	if err != nil {
 		return 0, err
 	}
 
-	return shares.SparseSharesNeeded(length), nil
+	return shares.SparseSharesNeeded(seqLength), nil
 }
 
 func (b *Blob) compareCommitments(com Commitment) bool {
