@@ -66,8 +66,11 @@ func (rid *RowID) ReadFrom(r io.Reader) (int64, error) {
 		return int64(n), fmt.Errorf("RowID: expected %d bytes, got %d", RowIDSize, n)
 	}
 	id, err := RowIDFromBinary(data)
+	if err != nil {
+		return int64(n), fmt.Errorf("RowIDFromBinary: %w", err)
+	}
 	*rid = id
-	return int64(n), err
+	return int64(n), nil
 }
 
 // MarshalBinary encodes the RowID into a binary form for storage or network transmission.

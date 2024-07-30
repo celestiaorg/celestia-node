@@ -69,8 +69,11 @@ func (sid *SampleID) ReadFrom(r io.Reader) (int64, error) {
 		return int64(n), fmt.Errorf("SampleID: expected %d bytes, got %d", SampleIDSize, n)
 	}
 	id, err := SampleIDFromBinary(data)
+	if err != nil {
+		return int64(n), fmt.Errorf("SampleIDFromBinary: %w", err)
+	}
 	*sid = id
-	return int64(n), err
+	return int64(n), nil
 }
 
 // MarshalBinary encodes SampleID into binary form.

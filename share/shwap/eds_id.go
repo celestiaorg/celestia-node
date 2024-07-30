@@ -57,8 +57,11 @@ func (eid *EdsID) ReadFrom(r io.Reader) (int64, error) {
 		return int64(n), fmt.Errorf("EdsID: expected %d bytes, got %d", EdsIDSize, n)
 	}
 	id, err := EdsIDFromBinary(data)
+	if err != nil {
+		return int64(n), fmt.Errorf("EdsIDFromBinary: %w", err)
+	}
 	*eid = id
-	return int64(n), err
+	return int64(n), nil
 }
 
 // MarshalBinary encodes an EdsID into its binary form, primarily for storage or network

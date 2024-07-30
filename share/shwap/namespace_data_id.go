@@ -70,8 +70,11 @@ func (ndid *NamespaceDataID) ReadFrom(r io.Reader) (int64, error) {
 		return int64(n), fmt.Errorf("NamespaceDataID: expected %d bytes, got %d", NamespaceDataIDSize, n)
 	}
 	id, err := NamespaceDataIDFromBinary(data)
+	if err != nil {
+		return int64(n), fmt.Errorf("NamespaceDataIDFromBinary: %w", err)
+	}
 	*ndid = id
-	return int64(n), err
+	return int64(n), nil
 }
 
 // MarshalBinary encodes NamespaceDataID into binary form.

@@ -77,8 +77,11 @@ func (s *RowNamespaceDataID) ReadFrom(r io.Reader) (int64, error) {
 		return int64(n), fmt.Errorf("RowNamespaceDataID: expected %d bytes, got %d", RowNamespaceDataIDSize, n)
 	}
 	id, err := RowNamespaceDataIDFromBinary(data)
+	if err != nil {
+		return int64(n), fmt.Errorf("RowNamespaceDataIDFromBinary: %w", err)
+	}
 	*s = id
-	return int64(n), err
+	return int64(n), nil
 }
 
 // MarshalBinary encodes RowNamespaceDataID into binary form.
