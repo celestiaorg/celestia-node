@@ -2,13 +2,14 @@ package shrexnd
 
 import (
 	"fmt"
+	"github.com/celestiaorg/celestia-node/share/shwap"
 
 	logging "github.com/ipfs/go-log/v2"
 
 	"github.com/celestiaorg/celestia-node/share/shwap/p2p/shrex"
 )
 
-const protocolString = "/shrex/nd/v0.1.0"
+const protocolString = "/shrex/v0.1.0" + shwap.NamespaceDataName
 
 var log = logging.Logger("shrex/nd")
 

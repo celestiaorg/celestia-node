@@ -11,6 +11,9 @@ import (
 	"github.com/celestiaorg/celestia-node/share/shwap/pb"
 )
 
+// NamespaceDataName is the name identifier for the namespace data container.
+const NamespaceDataName = "nd_v0"
+
 // NamespacedData stores collections of RowNamespaceData, each representing shares and their proofs
 // within a namespace.
 type NamespacedData []RowNamespaceData

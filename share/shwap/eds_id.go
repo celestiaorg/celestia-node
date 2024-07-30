@@ -8,7 +8,10 @@ import (
 )
 
 // EdsIDSize defines the byte size of the EdsID.
-const EdsIDSize = 8
+const (
+	EdsIDSize = 8
+	EDSName   = "eds_v0"
+)
 
 // ErrOutOfBounds is returned whenever an index is out of bounds.
 var (
