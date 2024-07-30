@@ -63,6 +63,7 @@ func (nd *NamespaceData) ReadFrom(reader io.Reader) (int64, error) {
 	}
 }
 
+// WriteTo writes the binary form of NamespaceData to the provided writer.
 func (nd NamespaceData) WriteTo(writer io.Writer) (int64, error) {
 	var n int64
 	for _, row := range nd {

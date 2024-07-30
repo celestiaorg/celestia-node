@@ -24,7 +24,6 @@ import (
 
 // Server is responsible for serving ODSs for blocksync over the ShrEx/EDS protocol.
 type Server struct {
-	ctx    context.Context
 	cancel context.CancelFunc
 
 	host       host.Host
@@ -53,8 +52,10 @@ func NewServer(params *Parameters, host host.Host, store *store.Store) (*Server,
 }
 
 func (s *Server) Start(context.Context) error {
-	s.ctx, s.cancel = context.WithCancel(context.Background())
-	s.host.SetStreamHandler(s.protocolID, s.middleware.RateLimitHandler(s.streamHandler(s.ctx)))
+	ctx, cancel := context.WithCancel(context.Background())
+	s.cancel = cancel
+
+	s.host.SetStreamHandler(s.protocolID, s.middleware.RateLimitHandler(s.streamHandler(ctx)))
 	return nil
 }
 
@@ -73,7 +74,7 @@ func (s *Server) observeRateLimitedRequests() {
 
 func (srv *Server) streamHandler(ctx context.Context) network.StreamHandler {
 	return func(s network.Stream) {
-		err := srv.handleEDS(s)
+		err := srv.handleEDS(ctx, s)
 		if err != nil {
 			s.Reset() //nolint:errcheck
 			return
@@ -85,7 +86,7 @@ func (srv *Server) streamHandler(ctx context.Context) network.StreamHandler {
 	}
 }
 
-func (s *Server) handleEDS(stream network.Stream) error {
+func (s *Server) handleEDS(ctx context.Context, stream network.Stream) error {
 	logger := log.With("peer", stream.Conn().RemotePeer().String())
 	logger.Debug("server: handling eds request")
 
@@ -98,7 +99,7 @@ func (s *Server) handleEDS(stream network.Stream) error {
 
 	logger = logger.With("height", id.Height)
 
-	ctx, cancel := context.WithTimeout(s.ctx, s.params.HandleRequestTimeout)
+	ctx, cancel := context.WithTimeout(ctx, s.params.HandleRequestTimeout)
 	defer cancel()
 
 	// determine whether the EDS is available in our store
