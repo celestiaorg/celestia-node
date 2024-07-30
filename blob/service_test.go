@@ -102,7 +102,7 @@ func TestBlobService_Get(t *testing.T) {
 				}
 			},
 		},
-		{
+		{ // not working
 			name: "verify indexes",
 			doFn: func() (interface{}, error) {
 				b0, err := service.Get(ctx, 1,
@@ -141,9 +141,10 @@ func TestBlobService_Get(t *testing.T) {
 					row, col := calculateIndex(len(h.DAH.RowRoots), blobs[i].index)
 					sh, err := service.shareGetter.GetShare(ctx, h, row, col)
 					require.NoError(t, err)
-					require.True(t, bytes.Equal(sh, resultShares[shareOffset]),
-						fmt.Sprintf("issue on %d attempt. ROW:%d, COL: %d, blobIndex:%d", i, row, col, blobs[i].index),
-					)
+					assert.Equal(t, sh, resultShares[shareOffset])
+					//require.True(t, bytes.Equal(sh, resultShares[shareOffset]),
+					//	fmt.Sprintf("issue on %d attempt. ROW:%d, COL: %d, blobIndex:%d", i, row, col, blobs[i].index),
+					//)
 					shareOffset += shares.SparseSharesNeeded(uint32(len(blobs[i].Data)))
 				}
 			},
@@ -209,7 +210,7 @@ func TestBlobService_Get(t *testing.T) {
 				assert.Empty(t, blobs[0])
 			},
 		},
-		{
+		{ // not working
 			name: "get proof",
 			doFn: func() (interface{}, error) {
 				proof, err := service.GetProof(ctx, 1,
@@ -228,18 +229,9 @@ func TestBlobService_Get(t *testing.T) {
 				assert.True(t, ok)
 
 				verifyFn := func(t *testing.T, rawShares [][]byte, proof *Proof, namespace share.Namespace) {
-					for _, row := range header.DAH.RowRoots {
-						to := 0
-						for _, p := range *proof {
-							from := to
-							to = p.End() - p.Start() + from
-							eq := p.VerifyInclusion(share.NewSHA256Hasher(), namespace.ToNMT(), rawShares[from:to], row)
-							if eq == true {
-								return
-							}
-						}
-					}
-					t.Fatal("could not prove the shares")
+					valid, err := proof.VerifyProof(rawShares, namespace, header.DataHash)
+					require.NoError(t, err)
+					require.True(t, valid)
 				}
 
 				rawShares, err := BlobsToShares(blobsWithDiffNamespaces[1])
@@ -342,7 +334,7 @@ func TestBlobService_Get(t *testing.T) {
 				originalDataWidth := len(h.DAH.RowRoots) / 2
 				sizes := []int{blobSize0, blobSize1}
 				for i, proof := range proofs {
-					require.True(t, sizes[i]/originalDataWidth+1 == proof.Len())
+					require.True(t, sizes[i]/originalDataWidth+1 == len(proof.ShareToRowRootProof))
 				}
 			},
 		},
@@ -382,7 +374,7 @@ func TestBlobService_Get(t *testing.T) {
 					blobsWithDiffNamespaces[1].Commitment,
 				)
 				require.NoError(t, err)
-				require.NoError(t, proof.equal(*newProof))
+				require.NoError(t, proof.equal(newProof))
 			},
 		},
 		{
@@ -392,13 +384,17 @@ func TestBlobService_Get(t *testing.T) {
 				shareService := service.shareGetter
 				shareGetterMock := shareMock.NewMockModule(ctrl)
 				shareGetterMock.EXPECT().
-					GetSharesByNamespace(gomock.Any(), gomock.Any(), gomock.Any()).
+					GetShare(gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any()).
 					DoAndReturn(
-						func(ctx context.Context, h *header.ExtendedHeader, ns share.Namespace) (share.NamespacedShares, error) {
-							if ns.Equals(blobsWithDiffNamespaces[0].Namespace()) {
+						func(ctx context.Context, header *header.ExtendedHeader, row, col int) (share.Share, error) {
+							sh, err := shareService.GetShare(ctx, header, row, col)
+							if err != nil {
+								return nil, err
+							}
+							if share.GetNamespace(sh).Equals(blobsWithDiffNamespaces[0].Namespace()) {
 								return nil, errors.New("internal error")
 							}
-							return shareService.GetSharesByNamespace(ctx, h, ns)
+							return shareService.GetShare(ctx, header, row, col)
 						}).AnyTimes()
 
 				service.shareGetter = shareGetterMock

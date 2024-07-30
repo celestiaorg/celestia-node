@@ -9,6 +9,10 @@ import (
 	"slices"
 	"sync"
 
+	"github.com/tendermint/tendermint/crypto/merkle"
+	"github.com/tendermint/tendermint/libs/bytes"
+	core "github.com/tendermint/tendermint/types"
+
 	"github.com/cosmos/cosmos-sdk/types"
 	logging "github.com/ipfs/go-log/v2"
 	"go.opentelemetry.io/otel"
@@ -221,7 +225,7 @@ func (s *Service) Included(
 	default:
 		return false, err
 	}
-	return true, resProof.equal(*proof)
+	return true, resProof.equal(proof)
 }
 
 // retrieve retrieves blobs and their proofs by requesting the whole namespace and
@@ -249,123 +253,170 @@ func (s *Service) retrieve(
 	headerGetterSpan.AddEvent("received eds", trace.WithAttributes(
 		attribute.Int64("eds-size", int64(len(header.DAH.RowRoots)))))
 
-	rowIndex := -1
+	// find the index of the row where the blob could start
+	startRowIndex := -1
 	for i, row := range header.DAH.RowRoots {
 		if !namespace.IsOutsideRange(row, row) {
-			rowIndex = i
+			startRowIndex = i
+			break
+		}
+	}
+	if startRowIndex == -1 {
+		return nil, nil, ErrBlobNotFound
+	}
+
+	// end exclusive index of the row root containing the namespace
+	endRowIndex := startRowIndex
+	for i, row := range header.DAH.RowRoots[startRowIndex:] {
+		if namespace.IsOutsideRange(row, row) {
+			endRowIndex = startRowIndex + i
 			break
 		}
 	}
 
-	getCtx, getSharesSpan := tracer.Start(ctx, "get-shares-by-namespace")
+	// calculate the square size
+	squareSize := len(header.DAH.RowRoots) / 2
 
-	// collect shares for the requested namespace
-	namespacedShares, err := s.shareGetter.GetSharesByNamespace(getCtx, header, namespace)
-	if err != nil {
-		if errors.Is(err, share.ErrNotFound) {
-			err = ErrBlobNotFound
+	// get all the shares of the rows containing the namespace
+	getCtx, getSharesSpan := tracer.Start(ctx, "get-all-shares-in-namespace")
+	// store the ODS shares of the rows containing the blob
+	rowsShares := make([]share.Share, 0, (endRowIndex-startRowIndex)*squareSize)
+	// store the EDS shares of the rows containing the blob
+	rowsWithParityShares := make([][]shares.Share, endRowIndex-startRowIndex)
+	for rowIndex := startRowIndex; rowIndex < endRowIndex; rowIndex++ {
+		for colIndex := 0; colIndex < squareSize*2; colIndex++ {
+			share, err := s.shareGetter.GetShare(ctx, header, rowIndex, colIndex)
+			if err != nil {
+				return nil, nil, err
+			}
+			if colIndex < squareSize {
+				rowsShares = append(rowsShares, share)
+			}
+			appShare, err := toAppShares(share)
+			if err != nil {
+				return nil, nil, err
+			}
+			rowsWithParityShares[rowIndex-startRowIndex] = append(rowsWithParityShares[rowIndex-startRowIndex], appShare[0])
 		}
-		getSharesSpan.SetStatus(codes.Error, err.Error())
-		return nil, nil, err
 	}
 
 	getSharesSpan.SetStatus(codes.Ok, "")
 	getSharesSpan.AddEvent("received shares", trace.WithAttributes(
-		attribute.Int64("eds-size", int64(len(header.DAH.RowRoots)))))
+		attribute.Int64("eds-size", int64(squareSize*2))))
 
-	var (
-		appShares = make([]shares.Share, 0)
-		proofs    = make(Proof, 0)
-	)
-
-	for _, row := range namespacedShares {
-		if len(row.Shares) == 0 {
-			// the above condition means that we've faced with an Absence Proof.
-			// This Proof proves that the namespace was not found in the DAH, so
-			// we can return `ErrBlobNotFound`.
-			return nil, nil, ErrBlobNotFound
-		}
-
-		appShares, err = toAppShares(row.Shares...)
+	// go over the shares until finding the requested blobs
+	for currentShareIndex := 0; currentShareIndex < len(rowsShares); {
+		currentShareApp, err := shares.NewShare(rowsShares[currentShareIndex])
 		if err != nil {
 			return nil, nil, err
 		}
 
-		proofs = append(proofs, row.Proof)
-		index := row.Proof.Start()
+		// skip if it's a padding share
+		isPadding, err := currentShareApp.IsPadding()
+		if err != nil {
+			return nil, nil, err
+		}
+		if isPadding {
+			currentShareIndex++
+			continue
+		}
+		isSequenceStart, err := currentShareApp.IsSequenceStart()
+		if err != nil {
+			return nil, nil, err
+		}
+		if isSequenceStart {
+			// calculate the blob length
+			sequenceLength, err := currentShareApp.SequenceLen()
+			if err != nil {
+				return nil, nil, err
+			}
+			blobLen := shares.SparseSharesNeeded(sequenceLength)
 
-		for {
-			var (
-				isComplete bool
-				shrs       []shares.Share
-				wasEmpty   = sharesParser.isEmpty()
-			)
-
-			if wasEmpty {
-				// create a parser if it is empty
-				shrs, err = sharesParser.set(rowIndex*len(header.DAH.RowRoots)+index, appShares)
-				if err != nil {
-					if errors.Is(err, errEmptyShares) {
-						// reset parser as `skipPadding` can update next blob's index
-						sharesParser.reset()
-						appShares = nil
-						break
-					}
-					return nil, nil, err
-				}
-
-				// update index and shares if padding shares were detected.
-				if len(appShares) != len(shrs) {
-					index += len(appShares) - len(shrs)
-					appShares = shrs
-				}
+			endShareIndex := currentShareIndex + blobLen
+			if endShareIndex > len(rowsShares) {
+				// this blob spans to the next row which has a namespace > requested namespace.
+				// this means that we can stop.
+				// TODO(@rach-id): should we return an error here? I don't think so
+				// since the share parser verifier sometimes returns false while getting the shares.
+				return nil, nil, ErrBlobNotFound
+			}
+			// convert the blob shares to app shares
+			blobShares := rowsShares[currentShareIndex:endShareIndex]
+			appBlobShares, err := toAppShares(blobShares...)
+			if err != nil {
+				return nil, nil, err
 			}
 
-			shrs, isComplete = sharesParser.addShares(appShares)
-			// move to the next row if the blob is incomplete
+			// parse the blob
+			sharesParser.length = blobLen
+			_, isComplete := sharesParser.addShares(appBlobShares)
 			if !isComplete {
-				appShares = nil
-				break
+				return nil, nil, fmt.Errorf("expected the shares to construct a full blob")
 			}
-			// otherwise construct blob
 			blob, err := sharesParser.parse()
 			if err != nil {
 				return nil, nil, err
 			}
 
+			// setting the index manually since we didn't use the parser.set() method
+			blob.index = currentShareIndex%squareSize + (startRowIndex+currentShareIndex/squareSize)*squareSize*2
+
 			if sharesParser.verify(blob) {
-				return blob, &proofs, nil
-			}
+				// now that we found the requested blob, we will create
+				// its inclusion proof.
+				blobStartRow := startRowIndex + currentShareIndex/squareSize
+				blobEndRow := startRowIndex + (currentShareIndex+blobLen)/squareSize
 
-			index += len(appShares) - len(shrs)
-			appShares = shrs
+				// create the row roots to data root inclusion proof
+				rowProofs := proveRowRootsToDataRoot(
+					append(header.DAH.RowRoots, header.DAH.ColumnRoots...),
+					blobStartRow,
+					blobEndRow+1,
+				)
+				rowRoots := make([]bytes.HexBytes, blobEndRow-blobStartRow+1)
+				for index, rowRoot := range header.DAH.RowRoots[blobStartRow : blobEndRow+1] {
+					rowRoots[index] = rowRoot
+				}
+
+				// create the share to row root proofs
+				shareToRowRootProofs, _, err := pkgproof.CreateShareToRowRootProofs(
+					squareSize,
+					rowsWithParityShares,
+					header.DAH.RowRoots[blobStartRow:blobEndRow+1],
+					currentShareIndex,
+					(currentShareIndex+blobLen)%squareSize,
+				)
+				if err != nil {
+					return nil, nil, err
+				}
+
+				proof := Proof{
+					ShareToRowRootProof: shareToRowRootProofs,
+					RowProof: core.RowProof{
+						RowRoots: rowRoots,
+						Proofs:   rowProofs,
+						StartRow: uint32(blobStartRow),
+						EndRow:   uint32(blobEndRow),
+					},
+				}
+				return blob, &proof, nil
+			}
 			sharesParser.reset()
-
-			if !wasEmpty {
-				// remove proofs for prev rows if verified blob spans multiple rows
-				proofs = proofs[len(proofs)-1:]
-			}
-		}
-
-		rowIndex++
-		if sharesParser.isEmpty() {
-			proofs = nil
+			currentShareIndex += blobLen
+		} else {
+			// this is a continuation of a previous blob
+			// we can skip
+			currentShareIndex++
 		}
 	}
+	return nil, nil, ErrBlobNotFound
+}
 
-	err = ErrBlobNotFound
-	for _, sh := range appShares {
-		ok, err := sh.IsPadding()
-		if err != nil {
-			return nil, nil, err
-		}
-		if !ok {
-			err = fmt.Errorf("incomplete blob with the "+
-				"namespace: %s detected at %d: %w", namespace.String(), height, err)
-			log.Error(err)
-		}
-	}
-	return nil, nil, err
+// proveRowRootsToDataRoot creates a set of binary merkle proofs for all the
+// roots defined by the range [start, end).
+func proveRowRootsToDataRoot(roots [][]byte, start int, end int) []*merkle.Proof {
+	_, proofs := merkle.ProofsFromByteSlices(roots)
+	return proofs[start:end]
 }
 
 // getBlobs retrieves the DAH and fetches all shares from the requested Namespace and converts

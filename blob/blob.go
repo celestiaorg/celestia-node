@@ -5,52 +5,117 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-
-	tmproto "github.com/tendermint/tendermint/proto/tendermint/types"
+	"math"
 
 	"github.com/celestiaorg/celestia-app/pkg/appconsts"
 	"github.com/celestiaorg/celestia-app/x/blob/types"
-	"github.com/celestiaorg/nmt"
-
 	"github.com/celestiaorg/celestia-node/share"
+	"github.com/celestiaorg/nmt"
+	"github.com/tendermint/tendermint/pkg/consts"
+	tmproto "github.com/tendermint/tendermint/proto/tendermint/types"
+	coretypes "github.com/tendermint/tendermint/types"
 )
 
 var errEmptyShares = errors.New("empty shares")
 
-// The Proof is a set of nmt proofs that can be verified only through
-// the included method (due to limitation of the nmt https://github.com/celestiaorg/nmt/issues/218).
-// Proof proves the WHOLE namespaced data to the row roots.
-// TODO (@vgonkivs): rework `Proof` in order to prove a particular blob.
-// https://github.com/celestiaorg/celestia-node/issues/2303
-type Proof []*nmt.Proof
-
-func (p Proof) Len() int { return len(p) }
+// Proof constructs the proof of a blob to the data root.
+type Proof struct {
+	// ShareToRowRootProof the proofs of the shares to the row roots they belong to.
+	// If the blob spans across multiple rows, then this will contain multiple proofs.
+	ShareToRowRootProof []*tmproto.NMTProof
+	// RowProof the proofs of the row roots containing the blob shares
+	// to the data root.
+	RowProof coretypes.RowProof
+}
 
 // equal is a temporary method that compares two proofs.
 // should be removed in BlobService V1.
-func (p Proof) equal(input Proof) error {
-	if p.Len() != input.Len() {
-		return ErrInvalidProof
-	}
-
-	for i, proof := range p {
-		pNodes := proof.Nodes()
-		inputNodes := input[i].Nodes()
-		for i, node := range pNodes {
-			if !bytes.Equal(node, inputNodes[i]) {
+func (p *Proof) equal(input *Proof) error {
+	// compare the NMT proofs
+	for i, proof := range p.ShareToRowRootProof {
+		if proof.Start != input.ShareToRowRootProof[i].Start {
+			// TODO(@rach-id): should we define specific errors for each case? that's better
+			// to know which part is not equal.
+			// Also, this error should be ErrProofNotEqual or similar, and not ErrInvalidProof
+			return ErrInvalidProof
+		}
+		if proof.End != input.ShareToRowRootProof[i].End {
+			// TODO(@rach-id): should we define specific errors for each case? that's better
+			// to know which part is not equal.
+			// Also, this error should be ErrProofNotEqual or similar, and not ErrInvalidProof
+			return ErrInvalidProof
+		}
+		for j, node := range proof.Nodes {
+			if !bytes.Equal(node, input.ShareToRowRootProof[i].Nodes[j]) {
 				return ErrInvalidProof
 			}
 		}
+	}
 
-		if proof.Start() != input[i].Start() || proof.End() != input[i].End() {
-			return ErrInvalidProof
-		}
-
-		if !bytes.Equal(proof.LeafHash(), input[i].LeafHash()) {
+	// compare the row proof
+	if p.RowProof.StartRow != input.RowProof.StartRow {
+		return ErrInvalidProof
+	}
+	if p.RowProof.EndRow != input.RowProof.EndRow {
+		return ErrInvalidProof
+	}
+	for index, rowRoot := range p.RowProof.RowRoots {
+		if !bytes.Equal(rowRoot, input.RowProof.RowRoots[index]) {
 			return ErrInvalidProof
 		}
 	}
+	for i, proof := range p.RowProof.Proofs {
+		if proof.Index != input.RowProof.Proofs[i].Index {
+			return ErrInvalidProof
+		}
+		if proof.Total != input.RowProof.Proofs[i].Total {
+			return ErrInvalidProof
+		}
+		for j, aunt := range proof.Aunts {
+			if !bytes.Equal(aunt, input.RowProof.Proofs[i].Aunts[j]) {
+				return ErrInvalidProof
+			}
+		}
+	}
 	return nil
+}
+
+// TODO(@rach-id): rename to Verify
+func (p *Proof) VerifyProof(rawShares [][]byte, namespace share.Namespace, dataRoot []byte) (bool, error) {
+	// verify the row proof
+	if !p.RowProof.VerifyProof(dataRoot) {
+		return false, errors.New("invalid row root to data root proof")
+	}
+
+	// verify the share proof
+	cursor := int32(0)
+	for i, proof := range p.ShareToRowRootProof {
+		nmtProof := nmt.NewInclusionProof(
+			int(proof.Start),
+			int(proof.End),
+			proof.Nodes,
+			true,
+		)
+		sharesUsed := proof.End - proof.Start
+		if namespace.Version() > math.MaxUint8 {
+			return false, errors.New("invalid namespace version")
+		}
+		ns := append([]byte{namespace.Version()}, namespace.ID()...)
+		if len(rawShares) < int(sharesUsed+cursor) {
+			return false, errors.New("invalid number of shares")
+		}
+		valid := nmtProof.VerifyInclusion(
+			consts.NewBaseHashFunc(),
+			ns,
+			rawShares[cursor:sharesUsed+cursor],
+			p.RowProof.RowRoots[i],
+		)
+		if !valid {
+			return false, nil
+		}
+		cursor += sharesUsed
+	}
+	return true, nil
 }
 
 // Blob represents any application-specific binary data that anyone can submit to Celestia.
