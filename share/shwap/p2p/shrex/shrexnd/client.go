@@ -15,6 +15,7 @@ import (
 
 	"github.com/celestiaorg/go-libp2p-messenger/serde"
 
+	"github.com/celestiaorg/celestia-node/libs/utils"
 	"github.com/celestiaorg/celestia-node/share"
 	"github.com/celestiaorg/celestia-node/share/shwap"
 	"github.com/celestiaorg/celestia-node/share/shwap/p2p/shrex"
@@ -85,11 +86,13 @@ func (c *Client) doRequest(
 	namespace share.Namespace,
 	peerID peer.ID,
 ) (shwap.NamespacedData, error) {
-	stream, err := c.host.NewStream(ctx, peerID, c.protocolID)
+	streamOpenCtx, cancel := context.WithTimeout(ctx, c.params.ServerReadTimeout)
+	defer cancel()
+	stream, err := c.host.NewStream(streamOpenCtx, peerID, c.protocolID)
 	if err != nil {
 		return nil, err
 	}
-	defer stream.Close()
+	defer utils.CloseAndLog(log, "client", stream)
 
 	c.setStreamDeadlines(ctx, stream)
 
@@ -101,7 +104,6 @@ func (c *Client) doRequest(
 	_, err = req.WriteTo(stream)
 	if err != nil {
 		c.metrics.ObserveRequests(ctx, 1, shrex.StatusSendReqErr)
-		stream.Reset() //nolint:errcheck
 		return nil, fmt.Errorf("client-nd: writing request: %w", err)
 	}
 
@@ -111,6 +113,7 @@ func (c *Client) doRequest(
 	}
 
 	if err := c.readStatus(ctx, stream); err != nil {
+		c.metrics.ObserveRequests(ctx, 1, shrex.StatusReadRespErr)
 		return nil, err
 	}
 

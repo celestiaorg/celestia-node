@@ -105,8 +105,8 @@ func Test_ErrorContains(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			assert.Equalf(t,
 				tt.want,
-				errorContains(tt.args.err, tt.args.target),
-				"errorContains(%v, %v)", tt.args.err, tt.args.target)
+				ErrorContains(tt.args.err, tt.args.target),
+				"ErrorContains(%v, %v)", tt.args.err, tt.args.target)
 		})
 	}
 }

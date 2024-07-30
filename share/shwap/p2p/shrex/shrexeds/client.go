@@ -17,6 +17,7 @@ import (
 	"github.com/celestiaorg/go-libp2p-messenger/serde"
 	"github.com/celestiaorg/rsmt2d"
 
+	"github.com/celestiaorg/celestia-node/libs/utils"
 	"github.com/celestiaorg/celestia-node/share"
 	eds "github.com/celestiaorg/celestia-node/share/new_eds"
 	"github.com/celestiaorg/celestia-node/share/shwap"
@@ -96,7 +97,7 @@ func (c *Client) doRequest(
 	if err != nil {
 		return nil, fmt.Errorf("open stream: %w", err)
 	}
-	defer stream.Close()
+	defer utils.CloseAndLog(log, "client", stream)
 
 	c.setStreamDeadlines(ctx, stream)
 	// request ODS
@@ -109,7 +110,6 @@ func (c *Client) doRequest(
 	}
 	_, err = id.WriteTo(stream)
 	if err != nil {
-		stream.Reset() //nolint:errcheck
 		return nil, fmt.Errorf("write request to stream: %w", err)
 	}
 
@@ -131,7 +131,6 @@ func (c *Client) doRequest(
 			c.metrics.ObserveRequests(ctx, 1, shrex.StatusRateLimited)
 			return nil, shrex.ErrNotFound
 		}
-		stream.Reset() //nolint:errcheck
 		return nil, fmt.Errorf("read status from stream: %w", err)
 	}
 	switch resp.Status {

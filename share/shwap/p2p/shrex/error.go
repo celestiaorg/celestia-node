@@ -2,8 +2,8 @@ package shrex
 
 import "errors"
 
-// errorContains reports whether any error in err's tree matches any error in targets tree.
-func errorContains(err, target error) bool {
+// ErrorContains reports whether any error in err's tree matches any error in targets tree.
+func ErrorContains(err, target error) bool {
 	if errors.Is(err, target) || target == nil {
 		return true
 	}
@@ -12,5 +12,5 @@ func errorContains(err, target error) bool {
 	if target == nil {
 		return false
 	}
-	return errorContains(err, target)
+	return ErrorContains(err, target)
 }

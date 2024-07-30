@@ -54,7 +54,7 @@ func NewServer(params *Parameters, host host.Host, store *store.Store) (*Server,
 
 func (s *Server) Start(context.Context) error {
 	s.ctx, s.cancel = context.WithCancel(context.Background())
-	s.host.SetStreamHandler(s.protocolID, s.middleware.RateLimitHandler(s.handleStream))
+	s.host.SetStreamHandler(s.protocolID, s.middleware.RateLimitHandler(s.streamHandler(s.ctx)))
 	return nil
 }
 
@@ -71,18 +71,29 @@ func (s *Server) observeRateLimitedRequests() {
 	}
 }
 
-func (s *Server) handleStream(stream network.Stream) {
+func (srv *Server) streamHandler(ctx context.Context) network.StreamHandler {
+	return func(s network.Stream) {
+		err := srv.handleEDS(s)
+		if err != nil {
+			s.Reset() //nolint:errcheck
+			return
+		}
+		srv.metrics.ObserveRequests(ctx, 1, shrex.StatusSuccess)
+		if err = s.Close(); err != nil {
+			log.Debugw("server: closing stream", "err", err)
+		}
+	}
+}
+
+func (s *Server) handleEDS(stream network.Stream) error {
 	logger := log.With("peer", stream.Conn().RemotePeer().String())
 	logger.Debug("server: handling eds request")
-
-	s.observeRateLimitedRequests()
 
 	// read request from stream to get the dataHash for store lookup
 	id, err := s.readRequest(logger, stream)
 	if err != nil {
 		logger.Warnw("server: reading request from stream", "err", err)
-		stream.Reset() //nolint:errcheck
-		return
+		return err
 	}
 
 	logger = logger.With("height", id.Height)
@@ -112,31 +123,20 @@ func (s *Server) handleStream(stream network.Stream) {
 	err = s.writeStatus(logger, status, stream)
 	if err != nil {
 		logger.Warnw("server: writing status to stream", "err", err)
-		stream.Reset() //nolint:errcheck
-		return
+		return err
 	}
 	// if we cannot serve the EDS, we are already done
 	if status != shrexpb.Status_OK {
-		err = stream.Close()
-		if err != nil {
-			logger.Debugw("server: closing stream", "err", err)
-		}
-		return
+		return nil
 	}
 
 	// start streaming the ODS to the client
 	err = s.writeODS(logger, file, stream)
 	if err != nil {
 		logger.Warnw("server: writing ods to stream", "err", err)
-		stream.Reset() //nolint:errcheck
-		return
+		return err
 	}
-
-	s.metrics.ObserveRequests(ctx, 1, shrex.StatusSuccess)
-	err = stream.Close()
-	if err != nil {
-		logger.Debugw("server: closing stream", "err", err)
-	}
+	return nil
 }
 
 func (s *Server) readRequest(logger *zap.SugaredLogger, stream network.Stream) (shwap.EdsID, error) {
