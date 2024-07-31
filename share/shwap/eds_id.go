@@ -2,22 +2,12 @@ package shwap
 
 import (
 	"encoding/binary"
-	"errors"
 	"fmt"
 	"io"
 )
 
-const (
-	// EdsIDSize defines the byte size of the EdsID.
-	EdsIDSize = 8
-	// EDSName is the name identifier for the Extended Data Square.
-	EDSName = "eds_v0"
-)
-
-// ErrOutOfBounds is returned whenever an index is out of bounds.
-var (
-	ErrInvalidShwapID = errors.New("invalid shwap ID")
-)
+// EdsIDSize defines the byte size of the EdsID.
+const EdsIDSize = 8
 
 // EdsID represents a unique identifier for a row, using the height of the block
 // to identify the data square in the chain.
@@ -88,7 +78,7 @@ func (eid EdsID) WriteTo(w io.Writer) (int64, error) {
 // It ensures that the EdsID is not constructed with a zero Height and that the root is not nil.
 func (eid EdsID) Validate() error {
 	if eid.Height == 0 {
-		return fmt.Errorf("%w: Height == 0", ErrInvalidShwapID)
+		return fmt.Errorf("%w: Height == 0", ErrInvalidID)
 	}
 	return nil
 }

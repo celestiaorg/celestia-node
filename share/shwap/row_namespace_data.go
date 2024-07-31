@@ -3,9 +3,11 @@ package shwap
 import (
 	"errors"
 	"fmt"
+	"io"
 
 	"github.com/celestiaorg/celestia-app/pkg/appconsts"
 	"github.com/celestiaorg/celestia-app/pkg/wrapper"
+	"github.com/celestiaorg/go-libp2p-messenger/serde"
 	"github.com/celestiaorg/nmt"
 	nmt_pb "github.com/celestiaorg/nmt/pb"
 
@@ -122,6 +124,18 @@ func RowNamespaceDataFromProto(row *pb.RowNamespaceData) RowNamespaceData {
 	}
 }
 
+// ReadRowNamespaceData reads length-delimited protobuf representation of RowNamespaceData and
+// returns it with total number of bytes written.
+func ReadRowNamespaceData(reader io.Reader) (RowNamespaceData, int, error) {
+	var pbrnd *pb.RowNamespaceData
+	n, err := serde.Read(reader, pbrnd)
+	if err != nil {
+		return RowNamespaceData{}, n, fmt.Errorf("reading RowNamespaceData: %w", err)
+	}
+
+	return RowNamespaceDataFromProto(pbrnd), n, nil
+}
+
 // ToProto converts RowNamespaceData to its protobuf representation for serialization.
 func (rnd RowNamespaceData) ToProto() *pb.RowNamespaceData {
 	return &pb.RowNamespaceData{
@@ -186,4 +200,15 @@ func (rnd RowNamespaceData) verifyInclusion(rowRoot []byte, namespace share.Name
 		leaves,
 		rowRoot,
 	)
+}
+
+// WriteTo writes length-delimited protobuf representation of RowNamespaceData.
+func (rnd RowNamespaceData) WriteTo(writer io.Writer) (int64, error) {
+	pbrnd := rnd.ToProto()
+	n, err := serde.Write(writer, pbrnd)
+	if err != nil {
+		return int64(n), fmt.Errorf("writing RowNamespaceData: %w", err)
+	}
+
+	return int64(n), nil
 }

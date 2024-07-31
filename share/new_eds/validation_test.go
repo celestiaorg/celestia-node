@@ -36,7 +36,7 @@ func TestValidation_Sample(t *testing.T) {
 
 			_, err := validation.Sample(context.Background(), tt.rowIdx, tt.colIdx)
 			if tt.expectFail {
-				require.ErrorIs(t, err, shwap.ErrInvalidShwapID)
+				require.ErrorIs(t, err, shwap.ErrInvalidID)
 			} else {
 				require.NoError(t, err)
 			}
@@ -65,7 +65,7 @@ func TestValidation_AxisHalf(t *testing.T) {
 
 			_, err := validation.AxisHalf(context.Background(), tt.axisType, tt.axisIdx)
 			if tt.expectFail {
-				require.ErrorIs(t, err, shwap.ErrInvalidShwapID)
+				require.ErrorIs(t, err, shwap.ErrInvalidID)
 			} else {
 				require.NoError(t, err)
 			}
@@ -94,7 +94,7 @@ func TestValidation_RowNamespaceData(t *testing.T) {
 			ns := sharetest.RandV0Namespace()
 			_, err := validation.RowNamespaceData(context.Background(), ns, tt.rowIdx)
 			if tt.expectFail {
-				require.ErrorIs(t, err, shwap.ErrInvalidShwapID)
+				require.ErrorIs(t, err, shwap.ErrInvalidID)
 			} else {
 				require.True(t, err == nil || errors.Is(err, shwap.ErrNamespaceOutsideRange), err)
 			}

@@ -105,7 +105,7 @@ func (rid RowID) Verify(edsSize int) error {
 // Validate performs basic field validation.
 func (rid RowID) Validate() error {
 	if rid.RowIndex < 0 {
-		return fmt.Errorf("%w: RowIndex: %d < 0", ErrInvalidShwapID, rid.RowIndex)
+		return fmt.Errorf("%w: RowIndex: %d < 0", ErrInvalidID, rid.RowIndex)
 	}
 	return rid.EdsID.Validate()
 }
