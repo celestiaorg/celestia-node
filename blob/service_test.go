@@ -102,7 +102,7 @@ func TestBlobService_Get(t *testing.T) {
 				}
 			},
 		},
-		{ // not working
+		{
 			name: "verify indexes",
 			doFn: func() (interface{}, error) {
 				b0, err := service.Get(ctx, 1,
@@ -141,10 +141,9 @@ func TestBlobService_Get(t *testing.T) {
 					row, col := calculateIndex(len(h.DAH.RowRoots), blobs[i].index)
 					sh, err := service.shareGetter.GetShare(ctx, h, row, col)
 					require.NoError(t, err)
-					assert.Equal(t, sh, resultShares[shareOffset])
-					//require.True(t, bytes.Equal(sh, resultShares[shareOffset]),
-					//	fmt.Sprintf("issue on %d attempt. ROW:%d, COL: %d, blobIndex:%d", i, row, col, blobs[i].index),
-					//)
+					require.True(t, bytes.Equal(sh, resultShares[shareOffset]),
+						fmt.Sprintf("issue on %d attempt. ROW:%d, COL: %d, blobIndex:%d", i, row, col, blobs[i].index),
+					)
 					shareOffset += shares.SparseSharesNeeded(uint32(len(blobs[i].Data)))
 				}
 			},

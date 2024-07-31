@@ -254,22 +254,22 @@ func (s *Service) retrieve(
 		attribute.Int64("eds-size", int64(len(header.DAH.RowRoots)))))
 
 	// find the index of the row where the blob could start
-	startRowIndex := -1
+	inclusiveNamespaceStartRowIndex := -1
 	for i, row := range header.DAH.RowRoots {
 		if !namespace.IsOutsideRange(row, row) {
-			startRowIndex = i
+			inclusiveNamespaceStartRowIndex = i
 			break
 		}
 	}
-	if startRowIndex == -1 {
+	if inclusiveNamespaceStartRowIndex == -1 {
 		return nil, nil, ErrBlobNotFound
 	}
 
 	// end exclusive index of the row root containing the namespace
-	endRowIndex := startRowIndex
-	for i, row := range header.DAH.RowRoots[startRowIndex:] {
+	exclusiveNamespaceEndRowIndex := inclusiveNamespaceStartRowIndex
+	for i, row := range header.DAH.RowRoots[inclusiveNamespaceStartRowIndex:] {
 		if namespace.IsOutsideRange(row, row) {
-			endRowIndex = startRowIndex + i
+			exclusiveNamespaceEndRowIndex = inclusiveNamespaceStartRowIndex + i
 			break
 		}
 	}
@@ -280,10 +280,10 @@ func (s *Service) retrieve(
 	// get all the shares of the rows containing the namespace
 	getCtx, getSharesSpan := tracer.Start(ctx, "get-all-shares-in-namespace")
 	// store the ODS shares of the rows containing the blob
-	rowsShares := make([]share.Share, 0, (endRowIndex-startRowIndex)*squareSize)
+	rowsShares := make([]share.Share, 0, (exclusiveNamespaceEndRowIndex-inclusiveNamespaceStartRowIndex)*squareSize)
 	// store the EDS shares of the rows containing the blob
-	rowsWithParityShares := make([][]shares.Share, endRowIndex-startRowIndex)
-	for rowIndex := startRowIndex; rowIndex < endRowIndex; rowIndex++ {
+	rowsWithParityShares := make([][]shares.Share, exclusiveNamespaceEndRowIndex-inclusiveNamespaceStartRowIndex)
+	for rowIndex := inclusiveNamespaceStartRowIndex; rowIndex < exclusiveNamespaceEndRowIndex; rowIndex++ {
 		for colIndex := 0; colIndex < squareSize*2; colIndex++ {
 			share, err := s.shareGetter.GetShare(ctx, header, rowIndex, colIndex)
 			if err != nil {
@@ -296,7 +296,7 @@ func (s *Service) retrieve(
 			if err != nil {
 				return nil, nil, err
 			}
-			rowsWithParityShares[rowIndex-startRowIndex] = append(rowsWithParityShares[rowIndex-startRowIndex], appShare[0])
+			rowsWithParityShares[rowIndex-inclusiveNamespaceStartRowIndex] = append(rowsWithParityShares[rowIndex-inclusiveNamespaceStartRowIndex], appShare[0])
 		}
 	}
 
@@ -359,31 +359,31 @@ func (s *Service) retrieve(
 			}
 
 			// setting the index manually since we didn't use the parser.set() method
-			blob.index = currentShareIndex%squareSize + (startRowIndex+currentShareIndex/squareSize)*squareSize*2
+			blob.index = currentShareIndex%squareSize + (inclusiveNamespaceStartRowIndex+currentShareIndex/squareSize)*squareSize*2
 
 			if sharesParser.verify(blob) {
 				// now that we found the requested blob, we will create
 				// its inclusion proof.
-				blobStartRow := startRowIndex + currentShareIndex/squareSize
-				blobEndRow := startRowIndex + (currentShareIndex+blobLen)/squareSize
+				inclusiveBlobStartRowIndex := inclusiveNamespaceStartRowIndex + currentShareIndex/squareSize
+				exclusiveBlobEndRowIndex := inclusiveBlobStartRowIndex + blobLen/squareSize + 1
 
 				// create the row roots to data root inclusion proof
 				rowProofs := proveRowRootsToDataRoot(
 					append(header.DAH.RowRoots, header.DAH.ColumnRoots...),
-					blobStartRow,
-					blobEndRow+1,
+					inclusiveBlobStartRowIndex,
+					exclusiveBlobEndRowIndex,
 				)
-				rowRoots := make([]bytes.HexBytes, blobEndRow-blobStartRow+1)
-				for index, rowRoot := range header.DAH.RowRoots[blobStartRow : blobEndRow+1] {
+				rowRoots := make([]bytes.HexBytes, exclusiveBlobEndRowIndex-inclusiveBlobStartRowIndex)
+				for index, rowRoot := range header.DAH.RowRoots[inclusiveBlobStartRowIndex:exclusiveBlobEndRowIndex] {
 					rowRoots[index] = rowRoot
 				}
 
 				// create the share to row root proofs
 				shareToRowRootProofs, _, err := pkgproof.CreateShareToRowRootProofs(
 					squareSize,
-					rowsWithParityShares,
-					header.DAH.RowRoots[blobStartRow:blobEndRow+1],
-					currentShareIndex,
+					rowsWithParityShares[inclusiveBlobStartRowIndex-inclusiveNamespaceStartRowIndex:exclusiveBlobEndRowIndex-inclusiveNamespaceStartRowIndex],
+					header.DAH.RowRoots[inclusiveBlobStartRowIndex:exclusiveBlobEndRowIndex],
+					currentShareIndex%squareSize,
 					(currentShareIndex+blobLen)%squareSize,
 				)
 				if err != nil {
@@ -395,8 +395,8 @@ func (s *Service) retrieve(
 					RowProof: core.RowProof{
 						RowRoots: rowRoots,
 						Proofs:   rowProofs,
-						StartRow: uint32(blobStartRow),
-						EndRow:   uint32(blobEndRow),
+						StartRow: uint32(inclusiveBlobStartRowIndex),
+						EndRow:   uint32(exclusiveBlobEndRowIndex),
 					},
 				}
 				return blob, &proof, nil
