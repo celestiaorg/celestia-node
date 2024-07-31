@@ -178,7 +178,7 @@ func (s *Store) GetByHash(ctx context.Context, datahash share.DataHash) (eds.Acc
 	if datahash.IsEmptyEDS() {
 		return emptyAccessor, nil
 	}
-	lock := s.stripLock.byDatahash(datahash)
+	lock := s.stripLock.byHash(datahash)
 	lock.RLock()
 	defer lock.RUnlock()
 
@@ -231,7 +231,7 @@ func (s *Store) HasByHash(ctx context.Context, datahash share.DataHash) (bool, e
 	if datahash.IsEmptyEDS() {
 		return true, nil
 	}
-	lock := s.stripLock.byDatahash(datahash)
+	lock := s.stripLock.byHash(datahash)
 	lock.RLock()
 	defer lock.RUnlock()
 
@@ -282,7 +282,7 @@ func (s *Store) remove(height uint64, datahash share.DataHash) error {
 	}
 	lock.Unlock()
 
-	dlock := s.stripLock.byDatahash(datahash)
+	dlock := s.stripLock.byHash(datahash)
 	dlock.Lock()
 	defer dlock.Unlock()
 	if err := s.removeFile(datahash); err != nil {
