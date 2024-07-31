@@ -83,8 +83,9 @@ func (p *Proof) equal(input *Proof) error {
 	return nil
 }
 
-// TODO(@rach-id): rename to Verify
-func (p *Proof) VerifyProof(rawShares [][]byte, namespace share.Namespace, dataRoot []byte) (bool, error) {
+// Verify takes a set of shares, a namespace and a data root, and verifies if the
+// provided shares are committed to by the data root.
+func (p *Proof) Verify(rawShares [][]byte, namespace share.Namespace, dataRoot []byte) (bool, error) {
 	// verify the row proof
 	if !p.RowProof.VerifyProof(dataRoot) {
 		return false, errors.New("invalid row root to data root proof")
