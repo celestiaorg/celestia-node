@@ -9,12 +9,11 @@ import (
 	"slices"
 	"sync"
 
+	"github.com/cosmos/cosmos-sdk/types"
+	logging "github.com/ipfs/go-log/v2"
 	"github.com/tendermint/tendermint/crypto/merkle"
 	"github.com/tendermint/tendermint/libs/bytes"
 	core "github.com/tendermint/tendermint/types"
-
-	"github.com/cosmos/cosmos-sdk/types"
-	logging "github.com/ipfs/go-log/v2"
 	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/codes"
@@ -365,7 +364,13 @@ func (s *Service) retrieve(
 				// now that we found the requested blob, we will create
 				// its inclusion proof.
 				inclusiveBlobStartRowIndex := inclusiveNamespaceStartRowIndex + currentShareIndex/squareSize
-				exclusiveBlobEndRowIndex := inclusiveBlobStartRowIndex + blobLen/squareSize + 1
+				exclusiveBlobEndRowIndex := inclusiveNamespaceStartRowIndex + endShareIndex/squareSize
+				if (currentShareIndex+blobLen)%squareSize != 0 {
+					// if the row is not complete with the blob shares,
+					// then we increment the exclusive blob end row index
+					// so that it's exclusive.
+					exclusiveBlobEndRowIndex++
+				}
 
 				// create the row roots to data root inclusion proof
 				rowProofs := proveRowRootsToDataRoot(
@@ -384,7 +389,7 @@ func (s *Service) retrieve(
 					rowsWithParityShares[inclusiveBlobStartRowIndex-inclusiveNamespaceStartRowIndex:exclusiveBlobEndRowIndex-inclusiveNamespaceStartRowIndex],
 					header.DAH.RowRoots[inclusiveBlobStartRowIndex:exclusiveBlobEndRowIndex],
 					currentShareIndex%squareSize,
-					(currentShareIndex+blobLen)%squareSize,
+					(endShareIndex-1)%squareSize,
 				)
 				if err != nil {
 					return nil, nil, err
@@ -414,7 +419,7 @@ func (s *Service) retrieve(
 
 // proveRowRootsToDataRoot creates a set of binary merkle proofs for all the
 // roots defined by the range [start, end).
-func proveRowRootsToDataRoot(roots [][]byte, start int, end int) []*merkle.Proof {
+func proveRowRootsToDataRoot(roots [][]byte, start, end int) []*merkle.Proof {
 	_, proofs := merkle.ProofsFromByteSlices(roots)
 	return proofs[start:end]
 }

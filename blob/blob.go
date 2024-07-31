@@ -7,13 +7,15 @@ import (
 	"fmt"
 	"math"
 
-	"github.com/celestiaorg/celestia-app/pkg/appconsts"
-	"github.com/celestiaorg/celestia-app/x/blob/types"
-	"github.com/celestiaorg/celestia-node/share"
-	"github.com/celestiaorg/nmt"
 	"github.com/tendermint/tendermint/pkg/consts"
 	tmproto "github.com/tendermint/tendermint/proto/tendermint/types"
 	coretypes "github.com/tendermint/tendermint/types"
+
+	"github.com/celestiaorg/celestia-app/pkg/appconsts"
+	"github.com/celestiaorg/celestia-app/x/blob/types"
+	"github.com/celestiaorg/nmt"
+
+	"github.com/celestiaorg/celestia-node/share"
 )
 
 var errEmptyShares = errors.New("empty shares")
