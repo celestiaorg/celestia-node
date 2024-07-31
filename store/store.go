@@ -13,6 +13,7 @@ import (
 
 	"github.com/celestiaorg/rsmt2d"
 
+	"github.com/celestiaorg/celestia-node/libs/utils"
 	"github.com/celestiaorg/celestia-node/share"
 	eds "github.com/celestiaorg/celestia-node/share/new_eds"
 	"github.com/celestiaorg/celestia-node/store/cache"
@@ -101,23 +102,30 @@ func (s *Store) Put(
 	height uint64,
 	square *rsmt2d.ExtendedDataSquare,
 ) error {
+	datahash := share.DataHash(roots.Hash())
+	// we don't need to store empty EDS, just link the height to the empty file
+	if datahash.IsEmptyEDS() {
+		lock := s.stripLock.byHeight(height)
+		lock.Lock()
+		err := s.ensureHeightLink(roots.Hash(), height)
+		lock.Unlock()
+		return err
+	}
+
 	// put to cache before writing to make it accessible while write is happening
 	accessor := &eds.Rsmt2D{ExtendedDataSquare: square}
-	_, err := s.cache.First().GetOrLoad(ctx, height, accessorLoader(accessor))
+	acc, err := s.cache.First().GetOrLoad(ctx, height, accessorLoader(accessor))
 	if err != nil {
 		log.Warnf("failed to put Accessor in the recent cache: %s", err)
+	} else {
+		// release the ref link to the accessor
+		utils.CloseAndLog(log, "recent accessor", acc)
 	}
 
 	tNow := time.Now()
-	datahash := share.DataHash(roots.Hash())
-	lock := s.stripLock.byDatahashAndHeight(datahash, height)
+	lock := s.stripLock.byHashAndHeight(datahash, height)
 	lock.lock()
 	defer lock.unlock()
-
-	if datahash.IsEmptyEDS() {
-		err := s.ensureHeightLink(roots.Hash(), height)
-		return err
-	}
 
 	exists, err := s.createFile(square, roots, height)
 	if exists {
