@@ -38,7 +38,7 @@ func (l *striplock) byHash(datahash share.DataHash) *sync.RWMutex {
 	return l.datahashes[lkIdx]
 }
 
-func (l *striplock) byDatahashAndHeight(datahash share.DataHash, height uint64) *multiLock {
+func (l *striplock) byHashAndHeight(datahash share.DataHash, height uint64) *multiLock {
 	return &multiLock{[]*sync.RWMutex{l.byHash(datahash), l.byHeight(height)}}
 }
 
