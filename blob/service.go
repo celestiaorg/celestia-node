@@ -500,6 +500,7 @@ func (s *Service) retrieve(
 				// create the share to row root proofs
 				shareToRowRootProofs, _, err := pkgproof.CreateShareToRowRootProofs(
 					squareSize,
+					//nolint:lll
 					rowsWithParityShares[inclusiveBlobStartRowIndex-inclusiveNamespaceStartRowIndex:exclusiveBlobEndRowIndex-inclusiveNamespaceStartRowIndex],
 					header.DAH.RowRoots[inclusiveBlobStartRowIndex:exclusiveBlobEndRowIndex],
 					currentShareIndex%squareSize,

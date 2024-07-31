@@ -18,6 +18,7 @@ import (
 	"github.com/celestiaorg/celestia-node/share"
 )
 
+//nolint:unused
 var errEmptyShares = errors.New("empty shares")
 
 // Proof constructs the proof of a blob to the data root.

@@ -21,6 +21,8 @@ type parser struct {
 
 // set tries to find the first blob's share by skipping padding shares and
 // sets the metadata of the blob(index and length)
+//
+//nolint:unused
 func (p *parser) set(index int, shrs []shares.Share) ([]shares.Share, error) {
 	if len(shrs) == 0 {
 		return nil, errEmptyShares
@@ -113,6 +115,8 @@ func (p *parser) parse() (*Blob, error) {
 
 // skipPadding iterates through the shares until non-padding share will be found. It guarantees that
 // the returned set of shares will start with non-padding share(or empty set of shares).
+//
+//nolint:unused
 func (p *parser) skipPadding(shares []shares.Share) ([]shares.Share, error) {
 	if len(shares) == 0 {
 		return nil, errEmptyShares
@@ -144,6 +148,7 @@ func (p *parser) verify(blob *Blob) bool {
 	return p.verifyFn(blob)
 }
 
+//nolint:unused
 func (p *parser) isEmpty() bool {
 	return p.index == 0 && p.length == 0 && len(p.shares) == 0
 }
