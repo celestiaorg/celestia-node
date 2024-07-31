@@ -14,10 +14,11 @@ import (
 	"github.com/celestiaorg/celestia-node/header/headertest"
 	"github.com/celestiaorg/celestia-node/share"
 	"github.com/celestiaorg/celestia-node/share/eds/edstest"
+	"github.com/celestiaorg/celestia-node/share/shwap"
 )
 
 // TestGetter provides a testing SingleEDSGetter and the root of the EDS it holds.
-func TestGetter(t *testing.T) (share.Getter, *header.ExtendedHeader) {
+func TestGetter(t *testing.T) (shwap.Getter, *header.ExtendedHeader) {
 	eds := edstest.RandEDS(t, 8)
 	roots, err := share.NewAxisRoots(eds)
 	eh := headertest.RandExtendedHeaderWithRoot(t, roots)
@@ -60,7 +61,7 @@ func (seg *SingleEDSGetter) GetEDS(
 
 // GetSharesByNamespace returns NamespacedShares from a kept EDS if the correct root is given.
 func (seg *SingleEDSGetter) GetSharesByNamespace(context.Context, *header.ExtendedHeader, share.Namespace,
-) (share.NamespacedShares, error) {
+) (shwap.NamespaceData, error) {
 	panic("SingleEDSGetter: GetSharesByNamespace is not implemented")
 }
 
