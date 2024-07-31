@@ -100,7 +100,8 @@ type SubscriptionResponse struct {
 // Subscribe returns a channel that will receive SubscriptionResponse objects.
 // The channel will be closed when the context is canceled or the service is stopped.
 // Please note that no errors are returned: underlying operations are retried until successful.
-// Additionally, not reading from the returned channel will cause the stream to close after 16 messages.
+// Additionally, not reading from the returned channel will cause the stream to close after 16
+// messages.
 func (s *Service) Subscribe(ctx context.Context, ns share.Namespace) (<-chan *SubscriptionResponse, error) {
 	if s.ctx == nil {
 		return nil, fmt.Errorf("service has not been started")
