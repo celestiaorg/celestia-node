@@ -17,11 +17,14 @@ import (
 	"github.com/stretchr/testify/require"
 	"github.com/tendermint/tendermint/crypto/merkle"
 	tmrand "github.com/tendermint/tendermint/libs/rand"
+	coretypes "github.com/tendermint/tendermint/types"
 
 	"github.com/celestiaorg/celestia-app/pkg/appconsts"
 	appns "github.com/celestiaorg/celestia-app/pkg/namespace"
 	pkgproof "github.com/celestiaorg/celestia-app/pkg/proof"
 	"github.com/celestiaorg/celestia-app/pkg/shares"
+	"github.com/celestiaorg/celestia-app/pkg/square"
+	"github.com/celestiaorg/celestia-app/test/util/testfactory"
 	blobtypes "github.com/celestiaorg/celestia-app/x/blob/types"
 	"github.com/celestiaorg/go-header/store"
 	"github.com/celestiaorg/nmt"
@@ -854,19 +857,38 @@ func BenchmarkGetByCommitment(b *testing.B) {
 	}
 }
 
-func createServiceWithSub(ctx context.Context, t testing.TB, blobs []*Blob) *Service {
+func createServiceWithSub(ctx context.Context, t *testing.T, blobs []*Blob) *Service {
+	acc := "test"
+	kr := testfactory.GenerateKeyring(acc)
+	signer := blobtypes.NewKeyringSigner(kr, acc, "test")
+	addr, err := signer.GetSignerInfo().GetAddress()
+	require.NoError(t, err)
+
 	bs := ipld.NewMemBlockservice()
 	batching := ds_sync.MutexWrap(ds.NewMapDatastore())
 	headerStore, err := store.NewStore[*header.ExtendedHeader](batching)
 	require.NoError(t, err)
 	edsses := make([]*rsmt2d.ExtendedDataSquare, len(blobs))
+
 	for i, blob := range blobs {
-		rawShares, err := BlobsToShares(blob)
+		msg, err := blobtypes.NewMsgPayForBlobs(
+			addr.String(),
+			&blob.Blob,
+		)
 		require.NoError(t, err)
-		eds, err := ipld.AddShares(ctx, rawShares, bs)
+		coreTx := edstest.BuildCoreTx(t, signer, msg, &blob.Blob)
+		dataSquare, err := square.Construct(
+			coretypes.Txs{coreTx}.ToSliceOfBytes(),
+			appconsts.LatestVersion,
+			appconsts.SquareSizeUpperBound(appconsts.LatestVersion),
+		)
+		require.NoError(t, err)
+
+		eds, err := ipld.AddShares(ctx, shares.ToBytes(dataSquare), bs)
 		require.NoError(t, err)
 		edsses[i] = eds
 	}
+
 	headers := headertest.ExtendedHeadersFromEdsses(t, edsses)
 
 	err = headerStore.Init(ctx, headers[0])
@@ -877,7 +899,6 @@ func createServiceWithSub(ctx context.Context, t testing.TB, blobs []*Blob) *Ser
 
 	fn := func(ctx context.Context, height uint64) (*header.ExtendedHeader, error) {
 		return headers[height-1], nil
-		// return headerStore.GetByHeight(ctx, height)
 	}
 	fn2 := func(ctx context.Context) (<-chan *header.ExtendedHeader, error) {
 		headerChan := make(chan *header.ExtendedHeader, len(headers))

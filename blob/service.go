@@ -424,6 +424,14 @@ func (s *Service) retrieve(
 			currentShareIndex++
 			continue
 		}
+		isCompactShare, err := currentShareApp.IsCompactShare()
+		if err != nil {
+			return nil, nil, err
+		}
+		if isCompactShare {
+			currentShareIndex++
+			continue
+		}
 		isSequenceStart, err := currentShareApp.IsSequenceStart()
 		if err != nil {
 			return nil, nil, err

@@ -4,6 +4,7 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/require"
+	tmproto "github.com/tendermint/tendermint/proto/tendermint/types"
 	coretypes "github.com/tendermint/tendermint/types"
 
 	"github.com/celestiaorg/celestia-app/app"
@@ -138,7 +139,16 @@ func createTestBlobTransaction(
 	ns := namespace.RandomBlobNamespace()
 	msg, blob := blobfactory.RandMsgPayForBlobsWithNamespaceAndSigner(addr.String(), ns, size)
 	require.NoError(t, err)
+	cTx := BuildCoreTx(t, signer, msg, blob)
+	return ns, msg, blob, cTx
+}
 
+func BuildCoreTx(
+	t *testing.T,
+	signer *types.KeyringSigner,
+	msg *types.MsgPayForBlobs,
+	blob *tmproto.Blob,
+) coretypes.Tx {
 	builder := signer.NewTxBuilder()
 	stx, err := signer.BuildSignedTx(builder, msg)
 	require.NoError(t, err)
@@ -146,5 +156,5 @@ func createTestBlobTransaction(
 	require.NoError(t, err)
 	cTx, err := coretypes.MarshalBlobTx(rawTx, blob)
 	require.NoError(t, err)
-	return ns, msg, blob, cTx
+	return cTx
 }
