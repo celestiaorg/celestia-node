@@ -322,6 +322,39 @@ func RandBlockID(testing.TB) types.BlockID {
 	return bid
 }
 
+func ExtendedHeadersFromEdsses(t testing.TB, edsses []*rsmt2d.ExtendedDataSquare) []*header.ExtendedHeader {
+	valSet, vals := RandValidatorSet(10, 10)
+	headers := make([]*header.ExtendedHeader, len(edsses))
+	for i, eds := range edsses {
+		gen := RandRawHeader(t)
+
+		dah, err := share.NewRoot(eds)
+		require.NoError(t, err)
+		gen.DataHash = dah.Hash()
+		gen.ValidatorsHash = valSet.Hash()
+		gen.NextValidatorsHash = valSet.Hash()
+		gen.Height = int64(i + 1)
+		if i > 0 {
+			gen.LastBlockID = headers[i-1].Commit.BlockID
+			gen.LastCommitHash = headers[i-1].Commit.Hash()
+		}
+		blockID := RandBlockID(t)
+		blockID.Hash = gen.Hash()
+		voteSet := types.NewVoteSet(gen.ChainID, gen.Height, 0, tmproto.PrecommitType, valSet)
+		commit, err := MakeCommit(blockID, gen.Height, 0, voteSet, vals, time.Now().UTC())
+		require.NoError(t, err)
+		eh := &header.ExtendedHeader{
+			RawHeader:    *gen,
+			Commit:       commit,
+			ValidatorSet: valSet,
+			DAH:          dah,
+		}
+		require.NoError(t, eh.Validate())
+		headers[i] = eh
+	}
+	return headers
+}
+
 func ExtendedHeaderFromEDS(t testing.TB, height uint64, eds *rsmt2d.ExtendedDataSquare) *header.ExtendedHeader {
 	valSet, vals := RandValidatorSet(10, 10)
 	gen := RandRawHeader(t)

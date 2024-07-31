@@ -395,7 +395,9 @@ func TestBlobService_Get(t *testing.T) {
 				shareGetterMock.EXPECT().
 					GetSharesByNamespace(gomock.Any(), gomock.Any(), gomock.Any()).
 					DoAndReturn(
-						func(ctx context.Context, h *header.ExtendedHeader, ns share.Namespace) (share.NamespacedShares, error) {
+						func(
+							ctx context.Context, h *header.ExtendedHeader, ns share.Namespace,
+						) (share.NamespacedShares, error) {
 							if ns.Equals(blobsWithDiffNamespaces[0].Namespace()) {
 								return nil, errors.New("internal error")
 							}
@@ -471,7 +473,10 @@ func TestService_GetSingleBlobWithoutPadding(t *testing.T) {
 	fn := func(ctx context.Context, height uint64) (*header.ExtendedHeader, error) {
 		return headerStore.GetByHeight(ctx, height)
 	}
-	service := NewService(nil, getters.NewIPLDGetter(bs), fn)
+	fn2 := func(ctx context.Context) (<-chan *header.ExtendedHeader, error) {
+		return nil, fmt.Errorf("not implemented")
+	}
+	service := NewService(nil, getters.NewIPLDGetter(bs), fn, fn2)
 
 	newBlob, err := service.Get(ctx, 1, blobs[1].Namespace(), blobs[1].Commitment)
 	require.NoError(t, err)
@@ -568,8 +573,10 @@ func TestService_GetAllWithoutPadding(t *testing.T) {
 	fn := func(ctx context.Context, height uint64) (*header.ExtendedHeader, error) {
 		return h, nil
 	}
-
-	service := NewService(nil, getters.NewIPLDGetter(bs), fn)
+	fn2 := func(ctx context.Context) (<-chan *header.ExtendedHeader, error) {
+		return nil, fmt.Errorf("not implemented")
+	}
+	service := NewService(nil, getters.NewIPLDGetter(bs), fn, fn2)
 
 	newBlobs, err := service.GetAll(ctx, 1, []share.Namespace{blobs[0].Namespace()})
 	require.NoError(t, err)
@@ -615,8 +622,10 @@ func TestAllPaddingSharesInEDS(t *testing.T) {
 	fn := func(ctx context.Context, height uint64) (*header.ExtendedHeader, error) {
 		return h, nil
 	}
-
-	service := NewService(nil, getters.NewIPLDGetter(bs), fn)
+	fn2 := func(ctx context.Context) (<-chan *header.ExtendedHeader, error) {
+		return nil, fmt.Errorf("not implemented")
+	}
+	service := NewService(nil, getters.NewIPLDGetter(bs), fn, fn2)
 	newBlobs, err := service.GetAll(ctx, 1, []share.Namespace{nid})
 	require.NoError(t, err)
 	assert.Empty(t, newBlobs)
@@ -658,12 +667,172 @@ func TestSkipPaddingsAndRetrieveBlob(t *testing.T) {
 	fn := func(ctx context.Context, height uint64) (*header.ExtendedHeader, error) {
 		return h, nil
 	}
-
-	service := NewService(nil, getters.NewIPLDGetter(bs), fn)
+	fn2 := func(ctx context.Context) (<-chan *header.ExtendedHeader, error) {
+		return nil, fmt.Errorf("not implemented")
+	}
+	service := NewService(nil, getters.NewIPLDGetter(bs), fn, fn2)
 	newBlob, err := service.GetAll(ctx, 1, []share.Namespace{nid})
 	require.NoError(t, err)
 	require.Len(t, newBlob, 1)
 	require.True(t, newBlob[0].compareCommitments(blobs[0].Commitment))
+}
+
+func TestService_Subscribe(t *testing.T) {
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second*10)
+	t.Cleanup(cancel)
+
+	appBlobs, err := blobtest.GenerateV0Blobs([]int{16, 16, 16}, true)
+	require.NoError(t, err)
+	blobs, err := convertBlobs(appBlobs...)
+	require.NoError(t, err)
+
+	service := createServiceWithSub(ctx, t, blobs)
+	err = service.Start(ctx)
+	require.NoError(t, err)
+
+	t.Run("successful subscription", func(t *testing.T) {
+		ns := blobs[0].Namespace()
+		subCh, err := service.Subscribe(ctx, ns)
+		require.NoError(t, err)
+
+		for i := uint64(0); i < uint64(len(blobs)); i++ {
+			select {
+			case resp := <-subCh:
+				assert.Equal(t, i+1, resp.Height)
+				assert.Equal(t, blobs[i].Data, resp.Blobs[0].Data)
+			case <-time.After(time.Second * 2):
+				t.Fatalf("timeout waiting for subscription response %d", i)
+			}
+		}
+	})
+
+	t.Run("subscription with no matching blobs", func(t *testing.T) {
+		ns, err := share.NewBlobNamespaceV0([]byte("nonexist"))
+		require.NoError(t, err)
+
+		subCh, err := service.Subscribe(ctx, ns)
+		require.NoError(t, err)
+
+		// check that empty responses are received (as no matching blobs were found)
+		for i := uint64(0); i < uint64(len(blobs)); i++ {
+			select {
+			case resp := <-subCh:
+				assert.Empty(t, resp.Blobs)
+				assert.Equal(t, i+1, resp.Height)
+			case <-time.After(time.Second * 2):
+				t.Fatalf("timeout waiting for empty subscription response %d", i)
+			}
+		}
+	})
+
+	t.Run("subscription cancellation", func(t *testing.T) {
+		ns := blobs[0].Namespace()
+		subCtx, subCancel := context.WithCancel(ctx)
+		subCh, err := service.Subscribe(subCtx, ns)
+		require.NoError(t, err)
+
+		// cancel the subscription context after receiving the first response
+		select {
+		case <-subCh:
+			subCancel()
+		case <-time.After(time.Second * 2):
+			t.Fatal("timeout waiting for first subscription response")
+		}
+
+		select {
+		case _, ok := <-subCh:
+			assert.False(t, ok, "expected subscription channel to be closed")
+		case <-time.After(time.Second * 2):
+			t.Fatal("timeout waiting for subscription channel to close")
+		}
+	})
+
+	t.Run("graceful shutdown", func(t *testing.T) {
+		ns := blobs[0].Namespace()
+		subCh, err := service.Subscribe(ctx, ns)
+		require.NoError(t, err)
+
+		// cancel the subscription context after receiving the last response
+		for range blobs {
+			select {
+			case val := <-subCh:
+				if val.Height == uint64(len(blobs)) {
+					err = service.Stop(context.Background())
+					require.NoError(t, err)
+				}
+			case <-time.After(time.Second * 2):
+				t.Fatal("timeout waiting for subscription response")
+			}
+		}
+
+		select {
+		case _, ok := <-subCh:
+			assert.False(t, ok, "expected subscription channel to be closed")
+		case <-time.After(time.Second * 2):
+			t.Fatal("timeout waiting for subscription channel to close")
+		}
+	})
+}
+
+func TestService_Subscribe_MultipleNamespaces(t *testing.T) {
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second*10)
+	t.Cleanup(cancel)
+
+	appBlobs1, err := blobtest.GenerateV0Blobs([]int{100, 100}, true)
+	require.NoError(t, err)
+	appBlobs2, err := blobtest.GenerateV0Blobs([]int{100, 100}, true)
+	for i := range appBlobs2 {
+		// if we don't do this, appBlobs1 and appBlobs2 will share a NS
+		appBlobs2[i].GetNamespaceId()[len(appBlobs2[i].GetNamespaceId())-1] = 0xDE
+	}
+	require.NoError(t, err)
+
+	blobs1, err := convertBlobs(appBlobs1...)
+	require.NoError(t, err)
+	blobs2, err := convertBlobs(appBlobs2...)
+	require.NoError(t, err)
+
+	//nolint: gocritic
+	allBlobs := append(blobs1, blobs2...)
+
+	service := createServiceWithSub(ctx, t, allBlobs)
+	err = service.Start(ctx)
+	require.NoError(t, err)
+
+	ns1 := blobs1[0].Namespace()
+	ns2 := blobs2[0].Namespace()
+
+	subCh1, err := service.Subscribe(ctx, ns1)
+	require.NoError(t, err)
+	subCh2, err := service.Subscribe(ctx, ns2)
+	require.NoError(t, err)
+
+	for i := uint64(0); i < uint64(len(allBlobs)); i++ {
+		select {
+		case resp := <-subCh1:
+			assert.Equal(t, i+1, resp.Height)
+			if i < uint64(len(blobs1)) {
+				assert.NotEmpty(t, resp.Blobs)
+				for _, b := range resp.Blobs {
+					assert.Equal(t, ns1, b.Namespace())
+				}
+			} else {
+				assert.Empty(t, resp.Blobs)
+			}
+		case resp := <-subCh2:
+			assert.Equal(t, i+1, resp.Height)
+			if i >= uint64(len(blobs1)) {
+				assert.NotEmpty(t, resp.Blobs)
+				for _, b := range resp.Blobs {
+					assert.Equal(t, ns2, b.Namespace())
+				}
+			} else {
+				assert.Empty(t, resp.Blobs)
+			}
+		case <-time.After(time.Second * 2):
+			t.Fatalf("timeout waiting for subscription responses %d", i)
+		}
+	}
 }
 
 // BenchmarkGetByCommitment-12    	    1869	    571663 ns/op	 1085371 B/op	    6414 allocs/op
@@ -693,6 +862,44 @@ func BenchmarkGetByCommitment(b *testing.B) {
 	}
 }
 
+func createServiceWithSub(ctx context.Context, t testing.TB, blobs []*Blob) *Service {
+	bs := ipld.NewMemBlockservice()
+	batching := ds_sync.MutexWrap(ds.NewMapDatastore())
+	headerStore, err := store.NewStore[*header.ExtendedHeader](batching)
+	require.NoError(t, err)
+	edsses := make([]*rsmt2d.ExtendedDataSquare, len(blobs))
+	for i, blob := range blobs {
+		rawShares, err := BlobsToShares(blob)
+		require.NoError(t, err)
+		eds, err := ipld.AddShares(ctx, rawShares, bs)
+		require.NoError(t, err)
+		edsses[i] = eds
+	}
+	headers := headertest.ExtendedHeadersFromEdsses(t, edsses)
+
+	err = headerStore.Init(ctx, headers[0])
+	require.NoError(t, err)
+
+	err = headerStore.Append(ctx, headers[1:]...)
+	require.NoError(t, err)
+
+	fn := func(ctx context.Context, height uint64) (*header.ExtendedHeader, error) {
+		return headers[height-1], nil
+		// return headerStore.GetByHeight(ctx, height)
+	}
+	fn2 := func(ctx context.Context) (<-chan *header.ExtendedHeader, error) {
+		headerChan := make(chan *header.ExtendedHeader, len(headers))
+		defer func() {
+			for _, h := range headers {
+				time.Sleep(time.Millisecond * 100)
+				headerChan <- h
+			}
+		}()
+		return headerChan, nil
+	}
+	return NewService(nil, getters.NewIPLDGetter(bs), fn, fn2)
+}
+
 func createService(ctx context.Context, t testing.TB, blobs []*Blob) *Service {
 	bs := ipld.NewMemBlockservice()
 	batching := ds_sync.MutexWrap(ds.NewMapDatastore())
@@ -710,7 +917,10 @@ func createService(ctx context.Context, t testing.TB, blobs []*Blob) *Service {
 	fn := func(ctx context.Context, height uint64) (*header.ExtendedHeader, error) {
 		return headerStore.GetByHeight(ctx, height)
 	}
-	return NewService(nil, getters.NewIPLDGetter(bs), fn)
+	fn2 := func(ctx context.Context) (<-chan *header.ExtendedHeader, error) {
+		return nil, fmt.Errorf("not implemented")
+	}
+	return NewService(nil, getters.NewIPLDGetter(bs), fn, fn2)
 }
 
 // TestProveCommitmentAllCombinations tests proving all the commitments in a block.
