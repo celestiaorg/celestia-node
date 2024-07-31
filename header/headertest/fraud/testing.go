@@ -5,7 +5,6 @@ import (
 	"testing"
 	"time"
 
-	"github.com/ipfs/boxo/blockservice"
 	"github.com/stretchr/testify/require"
 	"github.com/tendermint/tendermint/libs/bytes"
 	tmproto "github.com/tendermint/tendermint/proto/tendermint/types"
@@ -89,11 +88,8 @@ func (f *FraudMaker) MakeExtendedHeader(odsSize int, edsStore *eds.Store) header
 func CreateFraudExtHeader(
 	t *testing.T,
 	eh *header.ExtendedHeader,
-	serv blockservice.BlockService,
 ) *header.ExtendedHeader {
 	square := edstest.RandByzantineEDS(t, len(eh.DAH.RowRoots))
-	err := ipld.ImportEDS(context.Background(), square, serv)
-	require.NoError(t, err)
 	dah, err := da.NewDataAvailabilityHeader(square)
 	require.NoError(t, err)
 	eh.DAH = &dah
