@@ -318,7 +318,7 @@ func (s *Service) Included(
 	sharesParser := &parser{verifyFn: func(blob *Blob) bool {
 		return blob.compareCommitments(commitment)
 	}}
-	_, resProof, err := s.retrieve(ctx, height, namespace, sharesParser)
+	blob, _, err := s.retrieve(ctx, height, namespace, sharesParser)
 	switch {
 	case err == nil:
 	case errors.Is(err, ErrBlobNotFound):
@@ -326,7 +326,15 @@ func (s *Service) Included(
 	default:
 		return false, err
 	}
-	return true, resProof.equal(proof)
+	appShares, err := BlobsToShares(blob)
+	if err != nil {
+		return false, err
+	}
+	getter, err := s.headerGetter(ctx, height)
+	if err != nil {
+		return false, err
+	}
+	return proof.Verify(appShares, namespace, getter.DataHash)
 }
 
 // retrieve retrieves blobs and their proofs by requesting the whole namespace and

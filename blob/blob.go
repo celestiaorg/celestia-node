@@ -109,7 +109,7 @@ func (p *Proof) Verify(rawShares [][]byte, namespace share.Namespace, dataRoot [
 			p.RowProof.RowRoots[i],
 		)
 		if !valid {
-			return false, nil
+			return false, ErrInvalidProof
 		}
 		cursor += sharesUsed
 	}
