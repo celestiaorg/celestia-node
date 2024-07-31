@@ -5,8 +5,6 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"math"
-
 	"github.com/tendermint/tendermint/pkg/consts"
 	tmproto "github.com/tendermint/tendermint/proto/tendermint/types"
 	coretypes "github.com/tendermint/tendermint/types"
@@ -101,9 +99,6 @@ func (p *Proof) Verify(rawShares [][]byte, namespace share.Namespace, dataRoot [
 			true,
 		)
 		sharesUsed := proof.End - proof.Start
-		if namespace.Version() > math.MaxUint8 {
-			return false, errors.New("invalid namespace version")
-		}
 		ns := append([]byte{namespace.Version()}, namespace.ID()...)
 		if len(rawShares) < int(sharesUsed+cursor) {
 			return false, errors.New("invalid number of shares")

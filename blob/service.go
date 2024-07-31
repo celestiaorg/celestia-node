@@ -380,7 +380,7 @@ func (s *Service) retrieve(
 	squareSize := len(header.DAH.RowRoots) / 2
 
 	// get all the shares of the rows containing the namespace
-	getCtx, getSharesSpan := tracer.Start(ctx, "get-all-shares-in-namespace")
+	_, getSharesSpan := tracer.Start(ctx, "get-all-shares-in-namespace")
 	// store the ODS shares of the rows containing the blob
 	rowsShares := make([]share.Share, 0, (exclusiveNamespaceEndRowIndex-inclusiveNamespaceStartRowIndex)*squareSize)
 	// store the EDS shares of the rows containing the blob
@@ -398,7 +398,10 @@ func (s *Service) retrieve(
 			if err != nil {
 				return nil, nil, err
 			}
-			rowsWithParityShares[rowIndex-inclusiveNamespaceStartRowIndex] = append(rowsWithParityShares[rowIndex-inclusiveNamespaceStartRowIndex], appShare[0])
+			rowsWithParityShares[rowIndex-inclusiveNamespaceStartRowIndex] = append(
+				rowsWithParityShares[rowIndex-inclusiveNamespaceStartRowIndex],
+				appShare[0],
+			)
 		}
 	}
 
@@ -461,7 +464,8 @@ func (s *Service) retrieve(
 			}
 
 			// setting the index manually since we didn't use the parser.set() method
-			blob.index = currentShareIndex%squareSize + (inclusiveNamespaceStartRowIndex+currentShareIndex/squareSize)*squareSize*2
+			blob.index = currentShareIndex%squareSize +
+				(inclusiveNamespaceStartRowIndex+currentShareIndex/squareSize)*squareSize*2
 
 			if sharesParser.verify(blob) {
 				// now that we found the requested blob, we will create
