@@ -23,8 +23,8 @@ type Module interface {
 	// If all blobs were found without any errors, the user will receive a list of blobs.
 	// If the BlobService couldn't find any blobs under the requested namespaces,
 	// the user will receive an empty list of blobs along with an empty error.
-	// If some of the requested namespaces were not found, the user will receive all the found blobs and an empty error.
-	// If there were internal errors during some of the requests,
+	// If some of the requested namespaces were not found, the user will receive all the found blobs
+	// and an empty error. If there were internal errors during some of the requests,
 	// the user will receive all found blobs along with a combined error message.
 	//
 	// All blobs will preserve the order of the namespaces that were requested.
@@ -41,6 +41,8 @@ type Module interface {
 		namespace share.Namespace,
 		shareCommitment []byte,
 	) (*blob.CommitmentProof, error)
+	// Subscribe to published blobs from the given namespace as they are included.
+	Subscribe(_ context.Context, _ share.Namespace) (<-chan *blob.SubscriptionResponse, error)
 }
 
 type API struct {
@@ -80,6 +82,10 @@ type API struct {
 			namespace share.Namespace,
 			shareCommitment []byte,
 		) (*blob.CommitmentProof, error) `perm:"read"`
+		Subscribe func(
+			context.Context,
+			share.Namespace,
+		) (<-chan *blob.SubscriptionResponse, error) `perm:"read"`
 	}
 }
 
@@ -126,4 +132,11 @@ func (api *API) Included(
 	commitment blob.Commitment,
 ) (bool, error) {
 	return api.Internal.Included(ctx, height, namespace, proof, commitment)
+}
+
+func (api *API) Subscribe(
+	ctx context.Context,
+	namespace share.Namespace,
+) (<-chan *blob.SubscriptionResponse, error) {
+	return api.Internal.Subscribe(ctx, namespace)
 }
