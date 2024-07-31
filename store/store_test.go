@@ -100,14 +100,14 @@ func TestEDSStore(t *testing.T) {
 		require.Equal(t, expected, fromFile)
 	})
 
-	t.Run("GetByDataRoot", func(t *testing.T) {
+	t.Run("GetByHash", func(t *testing.T) {
 		eds, roots := randomEDS(t)
 		height := height.Add(1)
 
 		err := edsStore.Put(ctx, roots, height, eds)
 		require.NoError(t, err)
 
-		f, err := edsStore.GetByDataRoot(ctx, roots.Hash())
+		f, err := edsStore.GetByHash(ctx, roots.Hash())
 		require.NoError(t, err)
 
 		// check that cached file is the same eds
@@ -133,7 +133,7 @@ func TestEDSStore(t *testing.T) {
 		_, err = edsStore.GetByHeight(ctx, height)
 		require.ErrorIs(t, err, ErrNotFound)
 
-		_, err = edsStore.GetByDataRoot(ctx, roots.Hash())
+		_, err = edsStore.GetByHash(ctx, roots.Hash())
 		require.ErrorIs(t, err, ErrNotFound)
 	})
 
@@ -181,7 +181,7 @@ func TestEDSStore(t *testing.T) {
 		require.True(t, has)
 
 		// assert that the empty file is, in fact, empty
-		f, err := edsStore.GetByDataRoot(ctx, roots.Hash())
+		f, err := edsStore.GetByHash(ctx, roots.Hash())
 		require.NoError(t, err)
 		hash, err := f.DataHash(ctx)
 		require.NoError(t, err)
@@ -304,7 +304,7 @@ func BenchmarkStore(b *testing.B) {
 
 		b.ResetTimer()
 		for i := 0; i < b.N; i++ {
-			f, err := edsStore.GetByDataRoot(ctx, roots.Hash())
+			f, err := edsStore.GetByHash(ctx, roots.Hash())
 			require.NoError(b, err)
 			require.NoError(b, f.Close())
 		}

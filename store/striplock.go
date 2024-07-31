@@ -31,15 +31,15 @@ func (l *striplock) byHeight(height uint64) *sync.RWMutex {
 	return l.heights[lkIdx]
 }
 
-func (l *striplock) byDatahash(datahash share.DataHash) *sync.RWMutex {
-	// Use the last 2 bytes of the datahash as hash to distribute the locks
+func (l *striplock) byHash(datahash share.DataHash) *sync.RWMutex {
+	// Use the last 2 bytes of the hash as key to distribute the locks
 	last := uint16(datahash[len(datahash)-1]) | uint16(datahash[len(datahash)-2])<<8
 	lkIdx := last % uint16(len(l.datahashes))
 	return l.datahashes[lkIdx]
 }
 
 func (l *striplock) byDatahashAndHeight(datahash share.DataHash, height uint64) *multiLock {
-	return &multiLock{[]*sync.RWMutex{l.byDatahash(datahash), l.byHeight(height)}}
+	return &multiLock{[]*sync.RWMutex{l.byHash(datahash), l.byHeight(height)}}
 }
 
 func (m *multiLock) lock() {
