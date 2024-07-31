@@ -2,10 +2,8 @@ package core
 
 import (
 	"context"
-	"errors"
 	"fmt"
 
-	"github.com/filecoin-project/dagstore"
 	"github.com/tendermint/tendermint/types"
 
 	"github.com/celestiaorg/celestia-app/app"
@@ -19,8 +17,7 @@ import (
 	"github.com/celestiaorg/celestia-node/header"
 	"github.com/celestiaorg/celestia-node/pruner"
 	"github.com/celestiaorg/celestia-node/share"
-	"github.com/celestiaorg/celestia-node/share/eds"
-	"github.com/celestiaorg/celestia-node/share/ipld"
+	"github.com/celestiaorg/celestia-node/store"
 )
 
 // extendBlock extends the given block data, returning the resulting
@@ -58,26 +55,15 @@ func storeEDS(
 	ctx context.Context,
 	eh *header.ExtendedHeader,
 	eds *rsmt2d.ExtendedDataSquare,
-	adder *ipld.ProofsAdder,
-	store *eds.Store,
+	store *store.Store,
 	window pruner.AvailabilityWindow,
 ) error {
-	if eds.Equals(share.EmptyEDS()) {
-		return nil
-	}
-
 	if !pruner.IsWithinAvailabilityWindow(eh.Time(), window) {
 		log.Debugw("skipping storage of historic block", "height", eh.Height())
 		return nil
 	}
 
-	ctx = ipld.CtxWithProofsAdder(ctx, adder)
-
-	err := store.Put(ctx, share.DataHash(eh.DataHash), eds)
-	if errors.Is(err, dagstore.ErrShardExists) {
-		// block with given root already exists, return nil
-		return nil
-	}
+	err := store.Put(ctx, eh.DAH, eh.Height(), eds)
 	if err == nil {
 		log.Debugw("stored EDS for height", "height", eh.Height())
 	}
