@@ -174,7 +174,7 @@ func (s *Store) ensureHeightLink(datahash share.DataHash, height uint64) error {
 	return nil
 }
 
-func (s *Store) GetByDataRoot(ctx context.Context, datahash share.DataHash) (eds.AccessorStreamer, error) {
+func (s *Store) GetByHash(ctx context.Context, datahash share.DataHash) (eds.AccessorStreamer, error) {
 	if datahash.IsEmptyEDS() {
 		return emptyAccessor, nil
 	}
@@ -183,12 +183,12 @@ func (s *Store) GetByDataRoot(ctx context.Context, datahash share.DataHash) (eds
 	defer lock.RUnlock()
 
 	tNow := time.Now()
-	f, err := s.getByDataRoot(datahash)
+	f, err := s.getByHash(datahash)
 	s.metrics.observeGet(ctx, time.Since(tNow), err != nil)
 	return f, err
 }
 
-func (s *Store) getByDataRoot(datahash share.DataHash) (eds.AccessorStreamer, error) {
+func (s *Store) getByHash(datahash share.DataHash) (eds.AccessorStreamer, error) {
 	path := s.hashToPath(datahash)
 	return s.openFile(path)
 }
@@ -267,14 +267,14 @@ func (s *Store) hasByHeight(height uint64) (bool, error) {
 	return pathExists(path)
 }
 
-func (s *Store) Remove(ctx context.Context, height uint64, dataRoot share.DataHash) error {
+func (s *Store) Remove(ctx context.Context, height uint64, datahash share.DataHash) error {
 	tNow := time.Now()
-	err := s.remove(height, dataRoot)
+	err := s.remove(height, datahash)
 	s.metrics.observeRemove(ctx, time.Since(tNow), err != nil)
 	return err
 }
 
-func (s *Store) remove(height uint64, dataRoot share.DataHash) error {
+func (s *Store) remove(height uint64, datahash share.DataHash) error {
 	lock := s.stripLock.byHeight(height)
 	lock.Lock()
 	if err := s.removeLink(height); err != nil {
@@ -282,10 +282,10 @@ func (s *Store) remove(height uint64, dataRoot share.DataHash) error {
 	}
 	lock.Unlock()
 
-	dlock := s.stripLock.byDatahash(dataRoot)
+	dlock := s.stripLock.byDatahash(datahash)
 	dlock.Lock()
 	defer dlock.Unlock()
-	if err := s.removeFile(dataRoot); err != nil {
+	if err := s.removeFile(datahash); err != nil {
 		return fmt.Errorf("removing file: %w", err)
 	}
 	return nil
