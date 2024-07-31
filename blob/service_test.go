@@ -209,7 +209,7 @@ func TestBlobService_Get(t *testing.T) {
 				assert.Empty(t, blobs[0])
 			},
 		},
-		{ // not working
+		{
 			name: "get proof",
 			doFn: func() (interface{}, error) {
 				proof, err := service.GetProof(ctx, 1,
@@ -228,7 +228,7 @@ func TestBlobService_Get(t *testing.T) {
 				assert.True(t, ok)
 
 				verifyFn := func(t *testing.T, rawShares [][]byte, proof *Proof, namespace share.Namespace) {
-					valid, err := proof.VerifyProof(rawShares, namespace, header.DataHash)
+					valid, err := proof.Verify(rawShares, namespace, header.DataHash)
 					require.NoError(t, err)
 					require.True(t, valid)
 				}
