@@ -41,17 +41,17 @@ func (nd NamespaceData) Validate(root *share.AxisRoots, namespace share.Namespac
 	return nil
 }
 
-// ReadFrom reads up length-delimited NamespaceData protobuf from the provided reader.
+// ReadFrom reads NamespaceData from the provided reader implementing io.ReaderFrom.
+// It reads series of length-delimited RowNamespaceData until EOF draining the stream.
 func (nd *NamespaceData) ReadFrom(reader io.Reader) (int64, error) {
 	var ndNew []RowNamespaceData
 	var n int64
 	for {
-		rnd, nn, err := ReadRowNamespaceData(reader)
-		n += int64(nn)
+		var rnd RowNamespaceData
+		nn, err := rnd.ReadFrom(reader)
+		n += nn
 		if errors.Is(err, io.EOF) {
-			// all rows have been read
-			*nd = ndNew
-			return n, nil
+			break
 		}
 		if err != nil {
 			return n, err
@@ -59,9 +59,14 @@ func (nd *NamespaceData) ReadFrom(reader io.Reader) (int64, error) {
 
 		ndNew = append(ndNew, rnd)
 	}
+
+	// all rows have been read
+	*nd = ndNew
+	return n, nil
 }
 
 // WriteTo writes the length-delimited protobuf of NamespaceData to the provided writer.
+// implementing io.WriterTo.
 func (nd NamespaceData) WriteTo(writer io.Writer) (int64, error) {
 	var n int64
 	for _, rnd := range nd {

@@ -124,18 +124,6 @@ func RowNamespaceDataFromProto(row *pb.RowNamespaceData) RowNamespaceData {
 	}
 }
 
-// ReadRowNamespaceData reads length-delimited protobuf representation of RowNamespaceData and
-// returns it with total number of bytes written.
-func ReadRowNamespaceData(reader io.Reader) (RowNamespaceData, int, error) {
-	var pbrnd *pb.RowNamespaceData
-	n, err := serde.Read(reader, pbrnd)
-	if err != nil {
-		return RowNamespaceData{}, n, fmt.Errorf("reading RowNamespaceData: %w", err)
-	}
-
-	return RowNamespaceDataFromProto(pbrnd), n, nil
-}
-
 // ToProto converts RowNamespaceData to its protobuf representation for serialization.
 func (rnd RowNamespaceData) ToProto() *pb.RowNamespaceData {
 	return &pb.RowNamespaceData{
@@ -202,7 +190,21 @@ func (rnd RowNamespaceData) verifyInclusion(rowRoot []byte, namespace share.Name
 	)
 }
 
+// ReadFrom reads length-delimited protobuf representation of RowNamespaceData
+// implementing io.ReaderFrom.
+func (rnd *RowNamespaceData) ReadFrom(reader io.Reader) (int64, error) {
+	var pbrnd pb.RowNamespaceData
+	n, err := serde.Read(reader, &pbrnd)
+	if err != nil {
+		return int64(n), fmt.Errorf("reading RowNamespaceData: %w", err)
+	}
+
+	*rnd = RowNamespaceDataFromProto(&pbrnd)
+	return int64(n), nil
+}
+
 // WriteTo writes length-delimited protobuf representation of RowNamespaceData.
+// implementing io.WriterTo.
 func (rnd RowNamespaceData) WriteTo(writer io.Writer) (int64, error) {
 	pbrnd := rnd.ToProto()
 	n, err := serde.Write(writer, pbrnd)
