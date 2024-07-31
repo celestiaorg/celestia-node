@@ -448,8 +448,6 @@ func (s *Service) retrieve(
 			if endShareIndex > len(rowsShares) {
 				// this blob spans to the next row which has a namespace > requested namespace.
 				// this means that we can stop.
-				// TODO(@rach-id): should we return an error here? I don't think so
-				// since the share parser verifier sometimes returns false while getting the shares.
 				return nil, nil, ErrBlobNotFound
 			}
 			// convert the blob shares to app shares

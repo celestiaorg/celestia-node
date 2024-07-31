@@ -43,9 +43,6 @@ func (p *Proof) equal(input *Proof) error {
 			return ErrInvalidProof
 		}
 		if proof.End != input.ShareToRowRootProof[i].End {
-			// TODO(@rach-id): should we define specific errors for each case? that's better
-			// to know which part is not equal.
-			// Also, this error should be ErrProofNotEqual or similar, and not ErrInvalidProof
 			return ErrInvalidProof
 		}
 		for j, node := range proof.Nodes {
