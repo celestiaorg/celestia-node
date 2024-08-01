@@ -70,6 +70,15 @@ func (ua *UserAgent) String() string {
 func host(params hostParams) (HostBase, error) {
 	ua := newUserAgent().WithNetwork(params.Net).WithNodeType(params.Tp)
 
+	wss, isEnabled, err := enableWss()
+	if err != nil {
+		return nil, err
+	}
+
+	if isEnabled {
+		params.Cfg.Upgrade()
+	}
+
 	opts := []libp2p.Option{
 		libp2p.NoListenAddrs, // do not listen automatically
 		libp2p.AddrsFactory(params.AddrF),
@@ -82,7 +91,12 @@ func host(params hostParams) (HostBase, error) {
 		libp2p.DisableRelay(),
 		libp2p.BandwidthReporter(params.Bandwidth),
 		libp2p.ResourceManager(params.ResourceManager),
-		enableTransport(params.Cfg, params.TLS),
+		libp2p.ChainOptions(
+			libp2p.Transport(tcp.NewTCPTransport),
+			libp2p.Transport(quic.NewTransport),
+			libp2p.Transport(webtransport.New),
+			wss,
+		),
 		// to clearly define what defaults we rely upon
 		libp2p.DefaultSecurity,
 		libp2p.DefaultMuxers,
@@ -111,28 +125,12 @@ func host(params hostParams) (HostBase, error) {
 	return h, nil
 }
 
-func enableTransport(cfg *Config, tls *tls) libp2p.Option {
-	options := []libp2p.Option{
-		libp2p.Transport(tcp.NewTCPTransport),
-		libp2p.Transport(quic.NewTransport),
-		libp2p.Transport(webtransport.New),
-	}
-
-	wsTransport := tls.transport()
-	if wsTransport != nil {
-		options = append(options, wsTransport)
-		tls.upgrade(cfg)
-	}
-	return libp2p.ChainOptions(options...)
-}
-
 type HostBase hst.Host
 
 type hostParams struct {
 	fx.In
 
 	Cfg             *Config
-	TLS             *tls
 	Net             Network
 	Lc              fx.Lifecycle
 	ID              peer.ID

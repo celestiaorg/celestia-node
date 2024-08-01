@@ -33,7 +33,6 @@ func ConstructModule(tp node.Type, network p2p.Network, cfg *Config, store Store
 		fx.Supply(tp),
 		fx.Supply(network),
 		fx.Supply(ks),
-		fx.Supply(p2p.TLSPath(tlsPath(store.Path()))),
 		fx.Provide(p2p.BootstrappersFor),
 		fx.Provide(func(lc fx.Lifecycle) context.Context {
 			return fxutil.WithLifecycle(context.Background(), lc)

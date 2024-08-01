@@ -18,9 +18,6 @@ func ConstructModule(tp node.Type, cfg *Config) fx.Option {
 	baseComponents := fx.Options(
 		fx.Error(cfgErr),
 		fx.Supply(cfg),
-		fx.Provide(fx.Annotate(func(path TLSPath) (*tls, error) {
-			return tlsConfig(string(path))
-		})),
 		fx.Provide(Key),
 		fx.Provide(id),
 		fx.Provide(peerStore),
