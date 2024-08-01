@@ -230,15 +230,13 @@ func TestBlobService_Get(t *testing.T) {
 				proof, ok := res.(*Proof)
 				assert.True(t, ok)
 
-				verifyFn := func(t *testing.T, rawShares [][]byte, proof *Proof, namespace share.Namespace) {
-					valid, err := proof.Verify(rawShares, namespace, header.DataHash)
+				verifyFn := func(t *testing.T, blob *Blob, proof *Proof) {
+					valid, err := proof.Verify(blob, header.DataHash)
 					require.NoError(t, err)
 					require.True(t, valid)
 				}
 
-				rawShares, err := BlobsToShares(blobsWithDiffNamespaces[1])
-				require.NoError(t, err)
-				verifyFn(t, rawShares, proof, blobsWithDiffNamespaces[1].Namespace())
+				verifyFn(t, blobsWithDiffNamespaces[1], proof)
 			},
 		},
 		{

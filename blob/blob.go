@@ -80,15 +80,26 @@ func (p *Proof) equal(input *Proof) error {
 	return nil
 }
 
-// Verify takes a set of shares, a namespace and a data root, and verifies if the
+// Verify takes a blob and a data root and verifies if the
+// provided blob was committed to by the data root.
+func (p *Proof) Verify(blob *Blob, dataRoot []byte) (bool, error) {
+	rawShares, err := BlobsToShares(blob)
+	if err != nil {
+		return false, err
+	}
+	return p.VerifyShares(rawShares, blob.namespace, dataRoot)
+}
+
+// VerifyShares takes a set of shares, a namespace and a data root, and verifies if the
 // provided shares are committed to by the data root.
-func (p *Proof) Verify(rawShares [][]byte, namespace share.Namespace, dataRoot []byte) (bool, error) {
+func (p *Proof) VerifyShares(rawShares [][]byte, namespace share.Namespace, dataRoot []byte) (bool, error) {
 	// verify the row proof
 	if !p.RowProof.VerifyProof(dataRoot) {
 		return false, errors.New("invalid row root to data root proof")
 	}
 
 	// verify the share proof
+	ns := append([]byte{namespace.Version()}, namespace.ID()...)
 	cursor := int32(0)
 	for i, proof := range p.ShareToRowRootProof {
 		nmtProof := nmt.NewInclusionProof(
@@ -98,7 +109,6 @@ func (p *Proof) Verify(rawShares [][]byte, namespace share.Namespace, dataRoot [
 			true,
 		)
 		sharesUsed := proof.End - proof.Start
-		ns := append([]byte{namespace.Version()}, namespace.ID()...)
 		if len(rawShares) < int(sharesUsed+cursor) {
 			return false, errors.New("invalid number of shares")
 		}

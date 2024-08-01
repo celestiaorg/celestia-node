@@ -326,15 +326,11 @@ func (s *Service) Included(
 	default:
 		return false, err
 	}
-	appShares, err := BlobsToShares(blob)
-	if err != nil {
-		return false, err
-	}
 	getter, err := s.headerGetter(ctx, height)
 	if err != nil {
 		return false, err
 	}
-	return proof.Verify(appShares, namespace, getter.DataHash)
+	return proof.Verify(blob, getter.DataHash)
 }
 
 // retrieve retrieves blobs and their proofs by requesting the whole namespace and
