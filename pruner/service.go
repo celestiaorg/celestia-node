@@ -2,6 +2,7 @@ package pruner
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"time"
 
@@ -103,7 +104,7 @@ func (s *Service) run() {
 	defer ticker.Stop()
 
 	lastPrunedHeader, err := s.lastPruned(s.ctx)
-	if err != nil {
+	if err != nil && !errors.Is(err, header.ErrHeightZero) {
 		log.Errorw("failed to get last pruned header", "height", s.checkpoint.LastPrunedHeight,
 			"err", err)
 		log.Warn("exiting pruner service!")
@@ -126,6 +127,7 @@ func (s *Service) run() {
 	}
 }
 
+// prune accepts nil lastPrunedHeader as we may not have pruned any header at startup
 func (s *Service) prune(
 	ctx context.Context,
 	lastPrunedHeader *header.ExtendedHeader,

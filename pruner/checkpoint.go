@@ -79,7 +79,7 @@ func (s *Service) loadCheckpoint(ctx context.Context) error {
 	if err != nil {
 		if errors.Is(err, errCheckpointNotFound) {
 			s.checkpoint = &checkpoint{
-				LastPrunedHeight: 1,
+				LastPrunedHeight: 0,
 				FailedHeaders:    map[uint64]struct{}{},
 			}
 			return storeCheckpoint(ctx, s.ds, s.checkpoint)
