@@ -182,7 +182,6 @@ func (g *Getter) GetSharesByNamespace(
 		return nil, err
 	}
 
-	// TODO(@Wondertan): this must use shwap types eventually
 	nsShrs := make(shwap.NamespaceData, len(blks))
 	for i, blk := range blks {
 		rnd := blk.(*RowNamespaceDataBlock).Container

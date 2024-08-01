@@ -41,8 +41,8 @@ func (fa *ShareAvailability) SharesAvailable(ctx context.Context, header *header
 	dah := header.DAH
 	// if the data square is empty, we can safely link the header height in the store to an empty EDS.
 	if share.DataHash(dah.Hash()).IsEmptyEDS() {
-		fa.store.Put(ctx, dah, header.Height(), share.EmptyEDS())
-		return nil
+		err := fa.store.Put(ctx, dah, header.Height(), share.EmptyEDS())
+		return fmt.Errorf("put empty EDS: %w", err)
 	}
 
 	// we assume the caller of this method has already performed basic validation on the
