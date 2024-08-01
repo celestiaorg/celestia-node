@@ -34,43 +34,40 @@ func (p *Proof) equal(input *Proof) error {
 	// compare the NMT proofs
 	for i, proof := range p.ShareToRowRootProof {
 		if proof.Start != input.ShareToRowRootProof[i].Start {
-			// TODO(@rach-id): should we define specific errors for each case? that's better
-			// to know which part is not equal.
-			// Also, this error should be ErrProofNotEqual or similar, and not ErrInvalidProof
-			return ErrInvalidProof
+			return fmt.Errorf("%w: unnequal share proof %d start", ErrInvalidProof, i)
 		}
 		if proof.End != input.ShareToRowRootProof[i].End {
-			return ErrInvalidProof
+			return fmt.Errorf("%w: unnequal share proof %d end", ErrInvalidProof, i)
 		}
 		for j, node := range proof.Nodes {
 			if !bytes.Equal(node, input.ShareToRowRootProof[i].Nodes[j]) {
-				return ErrInvalidProof
+				return fmt.Errorf("%w: unnequal share proof %d side nodes", ErrInvalidProof, i)
 			}
 		}
 	}
 
 	// compare the row proof
 	if p.RowProof.StartRow != input.RowProof.StartRow {
-		return ErrInvalidProof
+		return fmt.Errorf("%w: unnequal row proof start", ErrInvalidProof)
 	}
 	if p.RowProof.EndRow != input.RowProof.EndRow {
-		return ErrInvalidProof
+		return fmt.Errorf("%w: unnequal row proof end", ErrInvalidProof)
 	}
 	for index, rowRoot := range p.RowProof.RowRoots {
 		if !bytes.Equal(rowRoot, input.RowProof.RowRoots[index]) {
-			return ErrInvalidProof
+			return fmt.Errorf("%w: unnequal row proof row root %d", ErrInvalidProof, index)
 		}
 	}
 	for i, proof := range p.RowProof.Proofs {
 		if proof.Index != input.RowProof.Proofs[i].Index {
-			return ErrInvalidProof
+			return fmt.Errorf("%w: unnequal row proof row proof %d index", ErrInvalidProof, i)
 		}
 		if proof.Total != input.RowProof.Proofs[i].Total {
-			return ErrInvalidProof
+			return fmt.Errorf("%w: unnequal row proof row proof %d total", ErrInvalidProof, i)
 		}
 		for j, aunt := range proof.Aunts {
 			if !bytes.Equal(aunt, input.RowProof.Proofs[i].Aunts[j]) {
-				return ErrInvalidProof
+				return fmt.Errorf("%w: unnequal row proof row proof %d aunts", ErrInvalidProof, i)
 			}
 		}
 	}
