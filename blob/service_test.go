@@ -279,8 +279,6 @@ func TestBlobService_Get(t *testing.T) {
 				require.ErrorIs(t, err, ErrInvalidProof)
 				included, ok := res.(bool)
 				require.True(t, ok)
-				// This is supposed to be false not true.
-				// we're querying blob[1]'s proof and verifying it against blob[0], no?
 				require.False(t, included)
 			},
 		},
