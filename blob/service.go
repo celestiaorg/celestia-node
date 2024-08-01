@@ -19,6 +19,7 @@ import (
 	"github.com/celestiaorg/celestia-node/header"
 	"github.com/celestiaorg/celestia-node/libs/utils"
 	"github.com/celestiaorg/celestia-node/share"
+	"github.com/celestiaorg/celestia-node/share/shwap"
 	"github.com/celestiaorg/celestia-node/state"
 )
 
@@ -45,14 +46,14 @@ type Service struct {
 	// accessor dials the given celestia-core endpoint to submit blobs.
 	blobSubmitter Submitter
 	// shareGetter retrieves the EDS to fetch all shares from the requested header.
-	shareGetter share.Getter
+	shareGetter shwap.Getter
 	// headerGetter fetches header by the provided height
 	headerGetter func(context.Context, uint64) (*header.ExtendedHeader, error)
 }
 
 func NewService(
 	submitter Submitter,
-	getter share.Getter,
+	getter shwap.Getter,
 	headerGetter func(context.Context, uint64) (*header.ExtendedHeader, error),
 ) *Service {
 	return &Service{
