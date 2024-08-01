@@ -369,12 +369,11 @@ func TestBlobService_Get(t *testing.T) {
 				var proof Proof
 				require.NoError(t, json.Unmarshal(jsonData, &proof))
 
-				newProof, err := service.GetProof(ctx, 1,
-					blobsWithDiffNamespaces[1].Namespace(),
-					blobsWithDiffNamespaces[1].Commitment,
-				)
+				header, err := service.headerGetter(ctx, 1)
 				require.NoError(t, err)
-				require.NoError(t, proof.equal(newProof))
+				valid, err := proof.Verify(blobsWithDiffNamespaces[1], header.DataHash)
+				require.NoError(t, err)
+				require.True(t, valid)
 			},
 		},
 		{
