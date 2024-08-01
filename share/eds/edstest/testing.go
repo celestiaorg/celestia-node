@@ -143,6 +143,9 @@ func createTestBlobTransaction(
 	return ns, msg, blob, cTx
 }
 
+// BuildCoreTx takes a signer, a message and a blob and creates a core transaction.
+// The core transaction is the final form of a transaction that gets pushed
+// into the square builder.
 func BuildCoreTx(
 	t *testing.T,
 	signer *types.KeyringSigner,
