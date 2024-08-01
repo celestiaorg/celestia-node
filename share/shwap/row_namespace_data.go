@@ -3,9 +3,11 @@ package shwap
 import (
 	"errors"
 	"fmt"
+	"io"
 
 	"github.com/celestiaorg/celestia-app/pkg/appconsts"
 	"github.com/celestiaorg/celestia-app/pkg/wrapper"
+	"github.com/celestiaorg/go-libp2p-messenger/serde"
 	"github.com/celestiaorg/nmt"
 	nmt_pb "github.com/celestiaorg/nmt/pb"
 
@@ -186,4 +188,29 @@ func (rnd RowNamespaceData) verifyInclusion(rowRoot []byte, namespace share.Name
 		leaves,
 		rowRoot,
 	)
+}
+
+// ReadFrom reads length-delimited protobuf representation of RowNamespaceData
+// implementing io.ReaderFrom.
+func (rnd *RowNamespaceData) ReadFrom(reader io.Reader) (int64, error) {
+	var pbrnd pb.RowNamespaceData
+	n, err := serde.Read(reader, &pbrnd)
+	if err != nil {
+		return int64(n), fmt.Errorf("reading RowNamespaceData: %w", err)
+	}
+
+	*rnd = RowNamespaceDataFromProto(&pbrnd)
+	return int64(n), nil
+}
+
+// WriteTo writes length-delimited protobuf representation of RowNamespaceData.
+// implementing io.WriterTo.
+func (rnd RowNamespaceData) WriteTo(writer io.Writer) (int64, error) {
+	pbrnd := rnd.ToProto()
+	n, err := serde.Write(writer, pbrnd)
+	if err != nil {
+		return int64(n), fmt.Errorf("writing RowNamespaceData: %w", err)
+	}
+
+	return int64(n), nil
 }

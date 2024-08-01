@@ -103,7 +103,7 @@ func (ndid NamespaceDataID) Validate() error {
 		return fmt.Errorf("validating RowID: %w", err)
 	}
 	if err := ndid.DataNamespace.ValidateForData(); err != nil {
-		return fmt.Errorf("%w: validating DataNamespace: %w", ErrInvalidShwapID, err)
+		return fmt.Errorf("%w: validating DataNamespace: %w", ErrInvalidID, err)
 	}
 	return nil
 }

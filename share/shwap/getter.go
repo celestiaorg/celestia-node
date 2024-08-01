@@ -17,9 +17,11 @@ var (
 	ErrOperationNotSupported = errors.New("operation is not supported")
 	// ErrNotFound is used to indicate that requested data could not be found.
 	ErrNotFound = errors.New("data not found")
+	// ErrInvalidID is used to indicate that an ID failed validation.
+	ErrInvalidID = errors.New("invalid shwap ID")
 	// ErrOutOfBounds is used to indicate that a passed row or column index is out of bounds of the
 	// square size.
-	ErrOutOfBounds = fmt.Errorf("index out of bounds: %w", ErrInvalidShwapID)
+	ErrOutOfBounds = fmt.Errorf("index out of bounds: %w", ErrInvalidID)
 )
 
 // Getter interface provides a set of accessors for shares by the Root.

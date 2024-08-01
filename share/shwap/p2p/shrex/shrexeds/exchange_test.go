@@ -75,7 +75,7 @@ func TestExchange_RequestEDS(t *testing.T) {
 		emptyRoot := share.EmptyEDSRoots()
 		height := uint64(0)
 		requestedEDS, err := client.RequestEDS(ctx, emptyRoot, height, server.host.ID())
-		assert.ErrorIs(t, err, shwap.ErrInvalidShwapID)
+		assert.ErrorIs(t, err, shwap.ErrInvalidID)
 		assert.Nil(t, requestedEDS)
 	})
 

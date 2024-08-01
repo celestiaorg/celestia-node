@@ -110,7 +110,7 @@ func (sid SampleID) Verify(edsSize int) error {
 // Validate performs basic field validation.
 func (sid SampleID) Validate() error {
 	if sid.ShareIndex < 0 {
-		return fmt.Errorf("%w: ShareIndex: %d < 0", ErrInvalidShwapID, sid.ShareIndex)
+		return fmt.Errorf("%w: ShareIndex: %d < 0", ErrInvalidID, sid.ShareIndex)
 	}
 	return sid.RowID.Validate()
 }

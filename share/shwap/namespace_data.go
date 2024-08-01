@@ -5,10 +5,7 @@ import (
 	"fmt"
 	"io"
 
-	"github.com/celestiaorg/go-libp2p-messenger/serde"
-
 	"github.com/celestiaorg/celestia-node/share"
-	"github.com/celestiaorg/celestia-node/share/shwap/pb"
 )
 
 // NamespaceDataName is the name identifier for the namespace data container.
@@ -16,6 +13,8 @@ const NamespaceDataName = "nd_v0"
 
 // NamespaceData stores collections of RowNamespaceData, each representing shares and their proofs
 // within a namespace.
+// NOTE: NamespaceData does not have it protobuf Container representation and its only *streamed*
+// as RowNamespaceData. The protobuf might be added as need comes.
 type NamespaceData []RowNamespaceData
 
 // Flatten combines all shares from all rows within the namespace into a single slice.
@@ -42,34 +41,37 @@ func (nd NamespaceData) Validate(root *share.AxisRoots, namespace share.Namespac
 	return nil
 }
 
-// ReadFrom reads the binary form of NamespaceData from the provided reader.
+// ReadFrom reads NamespaceData from the provided reader implementing io.ReaderFrom.
+// It reads series of length-delimited RowNamespaceData until EOF draining the stream.
 func (nd *NamespaceData) ReadFrom(reader io.Reader) (int64, error) {
-	var data []RowNamespaceData
+	var ndNew []RowNamespaceData
 	var n int64
 	for {
-		var pbRow pb.RowNamespaceData
-		nn, err := serde.Read(reader, &pbRow)
-		n += int64(nn)
+		var rnd RowNamespaceData
+		nn, err := rnd.ReadFrom(reader)
+		n += nn
+		if errors.Is(err, io.EOF) {
+			break
+		}
 		if err != nil {
-			if errors.Is(err, io.EOF) {
-				// all rows have been read
-				*nd = data
-				return n, nil
-			}
 			return n, err
 		}
-		row := RowNamespaceDataFromProto(&pbRow)
-		data = append(data, row)
+
+		ndNew = append(ndNew, rnd)
 	}
+
+	// all rows have been read
+	*nd = ndNew
+	return n, nil
 }
 
-// WriteTo writes the binary form of NamespaceData to the provided writer.
+// WriteTo writes the length-delimited protobuf of NamespaceData to the provided writer.
+// implementing io.WriterTo.
 func (nd NamespaceData) WriteTo(writer io.Writer) (int64, error) {
 	var n int64
-	for _, row := range nd {
-		pbRow := row.ToProto()
-		nn, err := serde.Write(writer, pbRow)
-		n += int64(nn)
+	for _, rnd := range nd {
+		nn, err := rnd.WriteTo(writer)
+		n += nn
 		if err != nil {
 			return n, err
 		}
