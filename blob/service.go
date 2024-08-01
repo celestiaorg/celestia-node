@@ -472,9 +472,20 @@ func (s *Service) retrieve(
 				return nil, nil, err
 			}
 
+			// number of shares per EDS row
+			numberOfSharesPerEDSRow := squareSize * 2
+			// number of shares from square start to namespace start
+			sharesFromSquareStartToNsStart := inclusiveNamespaceStartRowIndex * numberOfSharesPerEDSRow
+			// number of rows from namespace start row to current row
+			rowsFromNsStartToCurrentRow := currentShareIndex / squareSize
+			// number of shares from namespace row start to current row
+			sharesFromNsStartToCurrentRow := rowsFromNsStartToCurrentRow * squareSize * 2
+			// number of shares from the beginning of current row to current share
+			sharesFromCurrentRowStart := currentShareIndex % squareSize
 			// setting the index manually since we didn't use the parser.set() method
-			blob.index = currentShareIndex%squareSize +
-				(inclusiveNamespaceStartRowIndex+currentShareIndex/squareSize)*squareSize*2
+			blob.index = sharesFromSquareStartToNsStart +
+				sharesFromNsStartToCurrentRow +
+				sharesFromCurrentRowStart
 
 			if blob.Namespace().Equals(namespace) && sharesParser.verify(blob) {
 				// now that we found the requested blob, we will create
