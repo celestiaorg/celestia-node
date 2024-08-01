@@ -52,7 +52,7 @@ func (cg *CascadeGetter) GetShare(
 
 	upperBound := len(header.DAH.RowRoots)
 	if row >= upperBound || col >= upperBound {
-		err := share.ErrOutOfBounds
+		err := shwap.ErrOutOfBounds
 		span.RecordError(err)
 		return nil, err
 	}
