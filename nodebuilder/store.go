@@ -257,8 +257,6 @@ func dataPath(base string) string {
 	return filepath.Join(base, "data")
 }
 
-func tlsPath(base string) string { return filepath.Join(base, "tls") }
-
 // constraintBadgerConfig returns BadgerDB configuration optimized for low memory usage and more frequent
 // compaction which prevents memory spikes.
 // This is particularly important for LNs with restricted memory resources.

@@ -2,21 +2,20 @@ package p2p
 
 import (
 	cfg "crypto/tls"
-	"github.com/libp2p/go-libp2p"
-	ws "github.com/libp2p/go-libp2p/p2p/transport/websocket"
 	"os"
 
-	"github.com/celestiaorg/celestia-node/libs/utils"
-)
+	"github.com/libp2p/go-libp2p"
+	ws "github.com/libp2p/go-libp2p/p2p/transport/websocket"
 
-var (
-	tlsPath = "TLS_PATH"
+	"github.com/celestiaorg/celestia-node/libs/utils"
 )
 
 const (
 	cert = "/cert.pem"
 	key  = "/key.pem"
 )
+
+var tlsPath = "TLS_PATH"
 
 func enableWss() (libp2p.Option, bool, error) {
 	path := os.Getenv(tlsPath)
