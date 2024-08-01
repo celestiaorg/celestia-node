@@ -476,7 +476,7 @@ func (s *Service) retrieve(
 			blob.index = currentShareIndex%squareSize +
 				(inclusiveNamespaceStartRowIndex+currentShareIndex/squareSize)*squareSize*2
 
-			if sharesParser.verify(blob) {
+			if blob.Namespace().Equals(namespace) && sharesParser.verify(blob) {
 				// now that we found the requested blob, we will create
 				// its inclusion proof.
 				inclusiveBlobStartRowIndex := inclusiveNamespaceStartRowIndex + currentShareIndex/squareSize
