@@ -305,7 +305,7 @@ func ProveShares(eds *rsmt2d.ExtendedDataSquare, start, end int) (*types.SharePr
 // This will be removed once we unify both these proofs.
 // Reference issue: https://github.com/celestiaorg/celestia-app/issues/3734
 func toCoreShareProof(appShareProof pkgproof.ShareProof) types.ShareProof {
-	shareProofs := make([]*coretypes.NMTProof, len(appShareProof.ShareProofs))
+	shareProofs := make([]*coretypes.NMTProof, 0)
 	for _, proof := range appShareProof.ShareProofs {
 		shareProofs = append(shareProofs, &coretypes.NMTProof{
 			Start:    proof.Start,
@@ -315,8 +315,8 @@ func toCoreShareProof(appShareProof pkgproof.ShareProof) types.ShareProof {
 		})
 	}
 
-	rowRoots := make([]corebytes.HexBytes, len(appShareProof.RowProof.Proofs))
-	rowProofs := make([]*merkle.Proof, len(appShareProof.RowProof.Proofs))
+	rowRoots := make([]corebytes.HexBytes, 0)
+	rowProofs := make([]*merkle.Proof, 0)
 	for index, proof := range appShareProof.RowProof.Proofs {
 		rowRoots = append(rowRoots, appShareProof.RowProof.RowRoots[index])
 		rowProofs = append(rowProofs, &merkle.Proof{
