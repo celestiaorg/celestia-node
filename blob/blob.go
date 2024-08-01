@@ -9,7 +9,7 @@ import (
 	"github.com/tendermint/tendermint/crypto/merkle"
 
 	"github.com/celestiaorg/celestia-app/v2/pkg/appconsts"
-	v1 "github.com/celestiaorg/celestia-app/v2/pkg/appconsts/v1"
+	v2 "github.com/celestiaorg/celestia-app/v2/pkg/appconsts/v2"
 	"github.com/celestiaorg/go-square/blob"
 	"github.com/celestiaorg/go-square/inclusion"
 	"github.com/celestiaorg/go-square/shares"
@@ -17,6 +17,9 @@ import (
 
 	"github.com/celestiaorg/celestia-node/share"
 )
+
+// appVersion is the current application version of celestia-app.
+const appVersion = v2.Version
 
 var errEmptyShares = errors.New("empty shares")
 
@@ -93,10 +96,7 @@ func NewBlob(shareVersion uint8, namespace share.Namespace, data []byte) (*Blob,
 		NamespaceVersion: uint32(namespace.Version()),
 	}
 
-	// The argument to SubtreeRootThreshold is hardcoded to use v1.Version
-	// because it behaves identically to v2.Version and the containing function
-	// NewBlob does not have an app version parameter.
-	com, err := inclusion.CreateCommitment(&blob, merkle.HashFromByteSlices, appconsts.SubtreeRootThreshold(v1.Version))
+	com, err := inclusion.CreateCommitment(&blob, merkle.HashFromByteSlices, appconsts.SubtreeRootThreshold(appVersion))
 	if err != nil {
 		return nil, err
 	}

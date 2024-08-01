@@ -10,7 +10,6 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/celestiaorg/celestia-app/v2/pkg/appconsts"
-	v1 "github.com/celestiaorg/celestia-app/v2/pkg/appconsts/v1"
 	apptypes "github.com/celestiaorg/celestia-app/v2/x/blob/types"
 	"github.com/celestiaorg/go-square/blob"
 	"github.com/celestiaorg/go-square/inclusion"
@@ -45,9 +44,7 @@ func TestBlob(t *testing.T) {
 				comm, err := inclusion.CreateCommitment(
 					blob[0].Blob,
 					merkle.HashFromByteSlices,
-					// The argument to SubtreeRootThreshold is hardcoded to use
-					// v1.Version because it behaves identically to v2.Version.
-					appconsts.SubtreeRootThreshold(v1.Version),
+					appconsts.SubtreeRootThreshold(appVersion),
 				)
 				require.NoError(t, err)
 				assert.Equal(t, blob[0].Commitment, Commitment(comm))
