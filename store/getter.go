@@ -33,7 +33,8 @@ func (g *Getter) GetShare(ctx context.Context, h *header.ExtendedHeader, row, co
 	logger := log.With(
 		"height", h.Height(),
 		"row", row,
-		col, "col")
+		"col", col,
+	)
 	defer utils.CloseAndLog(logger, "getter/sample", acc)
 
 	sample, err := acc.Sample(ctx, row, col)
