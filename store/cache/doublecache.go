@@ -37,10 +37,12 @@ func (mc *DoubleCache) GetOrLoad(
 	height uint64,
 	loader OpenAccessorFn,
 ) (eds.AccessorStreamer, error) {
+	// look-up in second cache first
 	accessor, err := mc.second.Get(height)
 	if err == nil {
 		return accessor, nil
 	}
+	// not found in second, get or load from first one
 	return mc.first.GetOrLoad(ctx, height, loader)
 }
 
