@@ -392,13 +392,13 @@ func (s *Service) retrieve(
 	// get all the shares of the rows containing the namespace
 	_, getSharesSpan := tracer.Start(ctx, "get-all-shares-in-namespace")
 	// store the ODS shares of the rows containing the blob
-	rowsShares := make([]share.Share, 0, (exclusiveNamespaceEndRowIndex-inclusiveNamespaceStartRowIndex)*squareSize)
+	odsShares := make([]share.Share, 0, (exclusiveNamespaceEndRowIndex-inclusiveNamespaceStartRowIndex)*squareSize)
 	// store the EDS shares of the rows containing the blob
 	rowsWithParityShares := make([][]shares.Share, exclusiveNamespaceEndRowIndex-inclusiveNamespaceStartRowIndex)
 
 	for rowIndex := inclusiveNamespaceStartRowIndex; rowIndex < exclusiveNamespaceEndRowIndex; rowIndex++ {
 		rowShares := eds.Row(uint(rowIndex))
-		rowsShares = append(rowsShares, rowShares[:squareSize]...)
+		odsShares = append(odsShares, rowShares[:squareSize]...)
 		rowAppShares, err := toAppShares(rowShares...)
 		if err != nil {
 			return nil, nil, err
@@ -411,8 +411,8 @@ func (s *Service) retrieve(
 		attribute.Int64("eds-size", int64(squareSize*2))))
 
 	// go over the shares until finding the requested blobs
-	for currentShareIndex := 0; currentShareIndex < len(rowsShares); {
-		currentShareApp, err := shares.NewShare(rowsShares[currentShareIndex])
+	for currentShareIndex := 0; currentShareIndex < len(odsShares); {
+		currentShareApp, err := shares.NewShare(odsShares[currentShareIndex])
 		if err != nil {
 			return nil, nil, err
 		}
@@ -447,13 +447,13 @@ func (s *Service) retrieve(
 			blobLen := shares.SparseSharesNeeded(sequenceLength)
 
 			endShareIndex := currentShareIndex + blobLen
-			if endShareIndex > len(rowsShares) {
+			if endShareIndex > len(odsShares) {
 				// this blob spans to the next row which has a namespace > requested namespace.
 				// this means that we can stop.
 				return nil, nil, ErrBlobNotFound
 			}
 			// convert the blob shares to app shares
-			blobShares := rowsShares[currentShareIndex:endShareIndex]
+			blobShares := odsShares[currentShareIndex:endShareIndex]
 			appBlobShares, err := toAppShares(blobShares...)
 			if err != nil {
 				return nil, nil, err
