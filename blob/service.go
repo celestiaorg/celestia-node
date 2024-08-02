@@ -397,20 +397,13 @@ func (s *Service) retrieve(
 	rowsWithParityShares := make([][]shares.Share, exclusiveNamespaceEndRowIndex-inclusiveNamespaceStartRowIndex)
 
 	for rowIndex := inclusiveNamespaceStartRowIndex; rowIndex < exclusiveNamespaceEndRowIndex; rowIndex++ {
-		for colIndex := 0; colIndex < squareSize*2; colIndex++ {
-			share := eds.GetCell(uint(rowIndex), uint(colIndex))
-			if colIndex < squareSize {
-				rowsShares = append(rowsShares, share)
-			}
-			appShare, err := toAppShares(share)
-			if err != nil {
-				return nil, nil, err
-			}
-			rowsWithParityShares[rowIndex-inclusiveNamespaceStartRowIndex] = append(
-				rowsWithParityShares[rowIndex-inclusiveNamespaceStartRowIndex],
-				appShare[0],
-			)
+		rowShares := eds.Row(uint(rowIndex))
+		rowsShares = append(rowsShares, rowShares[:squareSize]...)
+		rowAppShares, err := toAppShares(rowShares...)
+		if err != nil {
+			return nil, nil, err
 		}
+		rowsWithParityShares[rowIndex-inclusiveNamespaceStartRowIndex] = rowAppShares
 	}
 
 	getSharesSpan.SetStatus(codes.Ok, "")
