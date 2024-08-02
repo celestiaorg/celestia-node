@@ -39,7 +39,7 @@ func BlobsToShares(blobs ...*Blob) ([]share.Share, error) {
 
 // ToAppBlobs converts node's blob type to the blob type from celestia-app.
 func ToAppBlobs(blobs ...*Blob) []*apptypes.Blob {
-	appBlobs := make([]*apptypes.Blob, 0, len(blobs))
+	appBlobs := make([]*apptypes.Blob, len(blobs))
 	for i := range blobs {
 		appBlobs[i] = &blobs[i].Blob
 	}

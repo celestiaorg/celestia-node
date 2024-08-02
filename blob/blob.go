@@ -34,6 +34,13 @@ type Proof struct {
 // Verify takes a blob and a data root and verifies if the
 // provided blob was committed to by the data root.
 func (p *Proof) Verify(blob *Blob, dataRoot []byte) (bool, error) {
+	blobCommitment, err := types.CreateCommitment(ToAppBlobs(blob)[0])
+	if err != nil {
+		return false, err
+	}
+	if !blob.Commitment.Equal(blobCommitment) {
+		return false, fmt.Errorf("%w: generated commitment does not match the provided blob commitment", ErrInvalidProof)
+	}
 	rawShares, err := BlobsToShares(blob)
 	if err != nil {
 		return false, err
@@ -46,7 +53,7 @@ func (p *Proof) Verify(blob *Blob, dataRoot []byte) (bool, error) {
 func (p *Proof) VerifyShares(rawShares [][]byte, namespace share.Namespace, dataRoot []byte) (bool, error) {
 	// verify the row proof
 	if !p.RowProof.VerifyProof(dataRoot) {
-		return false, errors.New("invalid row root to data root proof")
+		return false, fmt.Errorf("%w: invalid row root to data root proof", ErrInvalidProof)
 	}
 
 	// verify the share proof
@@ -61,7 +68,7 @@ func (p *Proof) VerifyShares(rawShares [][]byte, namespace share.Namespace, data
 		)
 		sharesUsed := proof.End - proof.Start
 		if len(rawShares) < int(sharesUsed+cursor) {
-			return false, errors.New("invalid number of shares")
+			return false, fmt.Errorf("%w: invalid number of shares", ErrInvalidProof)
 		}
 		valid := nmtProof.VerifyInclusion(
 			consts.NewBaseHashFunc(),
