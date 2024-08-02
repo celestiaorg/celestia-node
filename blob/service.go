@@ -446,14 +446,14 @@ func (s *Service) retrieve(
 			}
 			blobLen := shares.SparseSharesNeeded(sequenceLength)
 
-			endShareIndex := currentShareIndex + blobLen
-			if endShareIndex > len(odsShares) {
+			exclusiveEndShareIndex := currentShareIndex + blobLen
+			if exclusiveEndShareIndex > len(odsShares) {
 				// this blob spans to the next row which has a namespace > requested namespace.
 				// this means that we can stop.
 				return nil, nil, ErrBlobNotFound
 			}
 			// convert the blob shares to app shares
-			blobShares := odsShares[currentShareIndex:endShareIndex]
+			blobShares := odsShares[currentShareIndex:exclusiveEndShareIndex]
 			appBlobShares, err := toAppShares(blobShares...)
 			if err != nil {
 				return nil, nil, err
@@ -489,7 +489,7 @@ func (s *Service) retrieve(
 				// now that we found the requested blob, we will create
 				// its inclusion proof.
 				inclusiveBlobStartRowIndex := inclusiveNamespaceStartRowIndex + currentShareIndex/squareSize
-				exclusiveBlobEndRowIndex := inclusiveNamespaceStartRowIndex + endShareIndex/squareSize
+				exclusiveBlobEndRowIndex := inclusiveNamespaceStartRowIndex + exclusiveEndShareIndex/squareSize
 				if (currentShareIndex+blobLen)%squareSize != 0 {
 					// if the row is not complete with the blob shares,
 					// then we increment the exclusive blob end row index
@@ -515,7 +515,7 @@ func (s *Service) retrieve(
 					edsShares[inclusiveBlobStartRowIndex-inclusiveNamespaceStartRowIndex:exclusiveBlobEndRowIndex-inclusiveNamespaceStartRowIndex],
 					header.DAH.RowRoots[inclusiveBlobStartRowIndex:exclusiveBlobEndRowIndex],
 					currentShareIndex%squareSize,
-					(endShareIndex-1)%squareSize,
+					(exclusiveEndShareIndex-1)%squareSize,
 				)
 				if err != nil {
 					return nil, nil, err
