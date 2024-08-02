@@ -477,7 +477,7 @@ func (s *Service) retrieve(
 			// number of rows from namespace start row to current row
 			rowsFromNsStartToCurrentRow := currentShareIndex / squareSize
 			// number of shares from namespace row start to current row
-			sharesFromNsStartToCurrentRow := rowsFromNsStartToCurrentRow * squareSize * 2
+			sharesFromNsStartToCurrentRow := rowsFromNsStartToCurrentRow * numberOfSharesPerEDSRow
 			// number of shares from the beginning of current row to current share
 			sharesFromCurrentRowStart := currentShareIndex % squareSize
 			// setting the index manually since we didn't use the parser.set() method
