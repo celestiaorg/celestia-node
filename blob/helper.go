@@ -35,7 +35,7 @@ func BlobsToShares(nodeBlobs ...*Blob) ([]share.Share, error) {
 
 // ToAppBlobs converts node's blob type to the blob type from go-square.
 func ToAppBlobs(blobs ...*Blob) []*squareblob.Blob {
-	appBlobs := make([]*squareblob.Blob, 0, len(blobs))
+	appBlobs := make([]*squareblob.Blob, len(blobs))
 	for i := range blobs {
 		appBlobs[i] = blobs[i].Blob
 	}
