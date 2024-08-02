@@ -12,21 +12,31 @@ import (
 )
 
 func TestVerify(t *testing.T) {
-	h := NewTestSuite(t, 2, 0).GenExtendedHeaders(3)
-	trusted, untrustedAdj, untrustedNonAdj := h[0], h[1], h[2]
+	h := NewTestSuite(t, 2, 0).GenExtendedHeaders(5)
+
+	trustedNonAdjBack, trustedAdjBack := h[0], h[1]
+	trusted := h[2]
+	untrustedAdj, untrustedNonAdj := h[3], h[4]
+
 	tests := []struct {
 		prepare func() *header.ExtendedHeader
 		err     error
 	}{
 		{
+			prepare: func() *header.ExtendedHeader { return trustedNonAdjBack },
+			err:     nil,
+		},
+		{
+			prepare: func() *header.ExtendedHeader { return trustedAdjBack },
+			err:     nil,
+		},
+		{
 			prepare: func() *header.ExtendedHeader { return untrustedAdj },
 			err:     nil,
 		},
 		{
-			prepare: func() *header.ExtendedHeader {
-				return untrustedNonAdj
-			},
-			err: nil,
+			prepare: func() *header.ExtendedHeader { return untrustedNonAdj },
+			err:     nil,
 		},
 		{
 			prepare: func() *header.ExtendedHeader {
