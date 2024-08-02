@@ -394,7 +394,7 @@ func (s *Service) retrieve(
 	// store the ODS shares of the rows containing the blob
 	odsShares := make([]share.Share, 0, (exclusiveNamespaceEndRowIndex-inclusiveNamespaceStartRowIndex)*squareSize)
 	// store the EDS shares of the rows containing the blob
-	rowsWithParityShares := make([][]shares.Share, exclusiveNamespaceEndRowIndex-inclusiveNamespaceStartRowIndex)
+	edsShares := make([][]shares.Share, exclusiveNamespaceEndRowIndex-inclusiveNamespaceStartRowIndex)
 
 	for rowIndex := inclusiveNamespaceStartRowIndex; rowIndex < exclusiveNamespaceEndRowIndex; rowIndex++ {
 		rowShares := eds.Row(uint(rowIndex))
@@ -403,7 +403,7 @@ func (s *Service) retrieve(
 		if err != nil {
 			return nil, nil, err
 		}
-		rowsWithParityShares[rowIndex-inclusiveNamespaceStartRowIndex] = rowAppShares
+		edsShares[rowIndex-inclusiveNamespaceStartRowIndex] = rowAppShares
 	}
 
 	getSharesSpan.SetStatus(codes.Ok, "")
@@ -512,7 +512,7 @@ func (s *Service) retrieve(
 				shareToRowRootProofs, _, err := pkgproof.CreateShareToRowRootProofs(
 					squareSize,
 					//nolint:lll
-					rowsWithParityShares[inclusiveBlobStartRowIndex-inclusiveNamespaceStartRowIndex:exclusiveBlobEndRowIndex-inclusiveNamespaceStartRowIndex],
+					edsShares[inclusiveBlobStartRowIndex-inclusiveNamespaceStartRowIndex:exclusiveBlobEndRowIndex-inclusiveNamespaceStartRowIndex],
 					header.DAH.RowRoots[inclusiveBlobStartRowIndex:exclusiveBlobEndRowIndex],
 					currentShareIndex%squareSize,
 					(endShareIndex-1)%squareSize,
