@@ -376,11 +376,14 @@ func (s *Service) retrieve(
 
 	// end exclusive index of the row root containing the namespace
 	exclusiveNamespaceEndRowIndex := inclusiveNamespaceStartRowIndex
-	for i, row := range header.DAH.RowRoots[inclusiveNamespaceStartRowIndex:] {
+	for _, row := range header.DAH.RowRoots[inclusiveNamespaceStartRowIndex:] {
 		if namespace.IsOutsideRange(row, row) {
-			exclusiveNamespaceEndRowIndex = inclusiveNamespaceStartRowIndex + i
 			break
 		}
+		exclusiveNamespaceEndRowIndex++
+	}
+	if exclusiveNamespaceEndRowIndex == inclusiveNamespaceStartRowIndex {
+		return nil, nil, fmt.Errorf("couldn't find the row index of the namespace end")
 	}
 
 	// calculate the square size
