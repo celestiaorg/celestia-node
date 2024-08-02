@@ -203,6 +203,7 @@ func TestBlobModule(t *testing.T) {
 }
 
 // convert converts a squareblob.Blob to a blob.Blob.
+// convert may be deduplicated with convertBlobs from the blob package.
 func convert(squareBlob *squareblob.Blob) (nodeBlob *blob.Blob, err error) {
 	return blob.NewBlob(uint8(squareBlob.GetShareVersion()), squareBlob.Namespace().Bytes(), squareBlob.GetData())
 }
