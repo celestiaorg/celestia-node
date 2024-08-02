@@ -17,10 +17,11 @@ import (
 	"github.com/celestiaorg/celestia-node/nodebuilder/p2p"
 	"github.com/celestiaorg/celestia-node/nodebuilder/tests/swamp"
 	"github.com/celestiaorg/celestia-node/share"
-	"github.com/celestiaorg/celestia-node/share/eds"
-	"github.com/celestiaorg/celestia-node/share/getters"
-	"github.com/celestiaorg/celestia-node/share/p2p/shrexnd"
+	"github.com/celestiaorg/celestia-node/share/shwap"
+	"github.com/celestiaorg/celestia-node/share/shwap/getters"
 	"github.com/celestiaorg/celestia-node/share/shwap/p2p/shrex/shrex_getter"
+	"github.com/celestiaorg/celestia-node/share/shwap/p2p/shrex/shrexnd"
+	"github.com/celestiaorg/celestia-node/store"
 )
 
 func TestShrexNDFromLights(t *testing.T) {
@@ -178,7 +179,7 @@ func replaceNDServer(cfg *nodebuilder.Config, handler network.StreamHandler) fx.
 	return fx.Decorate(fx.Annotate(
 		func(
 			host host.Host,
-			store *eds.Store,
+			store *store.Store,
 			network p2p.Network,
 		) (*shrexnd.Server, error) {
 			cfg.Share.ShrExNDParams.WithNetworkID(network.String())
@@ -199,12 +200,12 @@ func replaceShareGetter() fx.Option {
 	return fx.Decorate(fx.Annotate(
 		func(
 			host host.Host,
-			store *eds.Store,
-			storeGetter *getters.StoreGetter,
+			store *store.Store,
+			storeGetter *store.Getter,
 			shrexGetter *shrex_getter.Getter,
 			network p2p.Network,
-		) share.Getter {
-			cascade := make([]share.Getter, 0, 2)
+		) shwap.Getter {
+			cascade := make([]shwap.Getter, 0, 2)
 			cascade = append(cascade, storeGetter)
 			cascade = append(cascade, shrexGetter)
 			return getters.NewCascadeGetter(cascade)

@@ -137,7 +137,7 @@ func TestDASer_Restart(t *testing.T) {
 }
 
 // TODO(@walldiss): BEFP test will not work until BEFP-shwap integration
-//func TestDASer_stopsAfter_BEFP(t *testing.T) {
+// func TestDASer_stopsAfter_BEFP(t *testing.T) {
 //	ctx, cancel := context.WithTimeout(context.Background(), time.Second*20)
 //	t.Cleanup(cancel)
 //

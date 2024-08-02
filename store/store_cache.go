@@ -26,7 +26,10 @@ func (s *Store) WithCache(name string, size int) (*CachedStore, error) {
 	}
 
 	wrappedCache := cache.NewDoubleCache(s.cache, newCache)
-	s.metrics.addCacheMetrics(wrappedCache)
+	err = s.metrics.addCacheMetrics(wrappedCache)
+	if err != nil {
+		return nil, fmt.Errorf("failed to add cache metrics: %w", err)
+	}
 	// update parent store cache to allow it to read from both caches
 	s.cache = wrappedCache
 	return &CachedStore{
@@ -39,7 +42,7 @@ func (s *Store) WithCache(name string, size int) (*CachedStore, error) {
 func (cs *CachedStore) GetByHeight(ctx context.Context, height uint64) (eds.AccessorStreamer, error) {
 	acc, err := cs.combinedCache.First().Get(height)
 	if err == nil {
-		return acc, err
+		return acc, nil
 	}
 	return cs.combinedCache.Second().GetOrLoad(ctx, height, cs.openFile(height))
 }

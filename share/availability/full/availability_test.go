@@ -23,12 +23,14 @@ func TestSharesAvailable(t *testing.T) {
 	// RandServiceWithSquare creates a NewShareAvailability inside, so we can test it
 	eds := edstest.RandEDS(t, 16)
 	roots, err := share.NewAxisRoots(eds)
+	require.NoError(t, err)
 	eh := headertest.RandExtendedHeaderWithRoot(t, roots)
 
 	getter := mock.NewMockGetter(gomock.NewController(t))
 	getter.EXPECT().GetEDS(gomock.Any(), eh).Return(eds, nil)
 
 	store, err := store.NewStore(store.DefaultParameters(), t.TempDir())
+	require.NoError(t, err)
 	avail := NewShareAvailability(store, getter)
 	err = avail.SharesAvailable(ctx, eh)
 	require.NoError(t, err)
@@ -50,10 +52,12 @@ func TestSharesAvailable_StoredEds(t *testing.T) {
 
 	eds := edstest.RandEDS(t, 4)
 	roots, err := share.NewAxisRoots(eds)
+	require.NoError(t, err)
 	eh := headertest.RandExtendedHeaderWithRoot(t, roots)
 	require.NoError(t, err)
 
 	store, err := store.NewStore(store.DefaultParameters(), t.TempDir())
+	require.NoError(t, err)
 	avail := NewShareAvailability(store, nil)
 
 	err = store.Put(ctx, roots, eh.Height(), eds)
@@ -83,6 +87,7 @@ func TestSharesAvailable_ErrNotAvailable(t *testing.T) {
 	require.NoError(t, err)
 
 	store, err := store.NewStore(store.DefaultParameters(), t.TempDir())
+	require.NoError(t, err)
 	avail := NewShareAvailability(store, getter)
 
 	errors := []error{shwap.ErrNotFound, context.DeadlineExceeded}

@@ -16,9 +16,9 @@ import (
 
 	"github.com/celestiaorg/celestia-node/header"
 	"github.com/celestiaorg/celestia-node/header/headertest"
-	"github.com/celestiaorg/celestia-node/share/eds"
 	"github.com/celestiaorg/celestia-node/share/eds/edstest"
 	"github.com/celestiaorg/celestia-node/share/ipld"
+	"github.com/celestiaorg/celestia-node/store"
 )
 
 // FraudMaker allows to produce an invalid header at the specified height in order to produce the
@@ -44,7 +44,7 @@ func NewFraudMaker(t *testing.T, height int64, vals []types.PrivValidator, valSe
 	}
 }
 
-func (f *FraudMaker) MakeExtendedHeader(odsSize int, edsStore *eds.Store) header.ConstructFn {
+func (f *FraudMaker) MakeExtendedHeader(odsSize int, edsStore *store.Store) header.ConstructFn {
 	return func(
 		h *types.Header,
 		comm *types.Commit,
@@ -64,7 +64,7 @@ func (f *FraudMaker) MakeExtendedHeader(odsSize int, edsStore *eds.Store) header
 			hdr.DataHash = dah.Hash()
 
 			ctx := ipld.CtxWithProofsAdder(context.Background(), adder)
-			require.NoError(f.t, edsStore.Put(ctx, h.DataHash.Bytes(), square))
+			require.NoError(f.t, edsStore.Put(ctx, &dah, uint64(h.Height), square))
 
 			*eds = *square
 		}

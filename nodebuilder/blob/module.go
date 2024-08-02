@@ -9,7 +9,7 @@ import (
 	"github.com/celestiaorg/celestia-node/header"
 	headerService "github.com/celestiaorg/celestia-node/nodebuilder/header"
 	"github.com/celestiaorg/celestia-node/nodebuilder/state"
-	"github.com/celestiaorg/celestia-node/share"
+	"github.com/celestiaorg/celestia-node/share/shwap"
 )
 
 func ConstructModule() fx.Option {
@@ -20,7 +20,7 @@ func ConstructModule() fx.Option {
 			}),
 		fx.Provide(func(
 			state state.Module,
-			sGetter share.Getter,
+			sGetter shwap.Getter,
 			getByHeightFn func(context.Context, uint64) (*header.ExtendedHeader, error),
 		) Module {
 			return blob.NewService(state, sGetter, getByHeightFn)

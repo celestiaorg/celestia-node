@@ -231,7 +231,7 @@ func TestEDSStore(t *testing.T) {
 		}
 
 		// close and reopen the store to ensure that the empty files are persisted
-		require.NoError(t, edsStore.Close())
+		require.NoError(t, edsStore.Stop(ctx))
 		edsStore, err = NewStore(DefaultParameters(), dir)
 		require.NoError(t, err)
 

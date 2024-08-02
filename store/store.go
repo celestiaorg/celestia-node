@@ -88,7 +88,7 @@ func NewStore(params *Parameters, basePath string) (*Store, error) {
 	return store, nil
 }
 
-func (s *Store) Close() error {
+func (s *Store) Stop(context.Context) error {
 	return s.metrics.close()
 }
 

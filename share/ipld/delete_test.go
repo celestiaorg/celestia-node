@@ -2,6 +2,7 @@ package ipld
 
 import (
 	"context"
+	"github.com/ipfs/boxo/exchange"
 	"testing"
 	"time"
 
@@ -70,7 +71,11 @@ func TestDeleteNode_Sample(t *testing.T) {
 	require.NoError(t, err)
 
 	bstore := blockstore.NewBlockstore(sync.MutexWrap(datastore.NewMapDatastore()))
-	light := NewBlockservice(bstore, offline.Exchange(full.Blockstore()))
+	exch := &fakeSessionExchange{
+		Interface: offline.Exchange(full.Blockstore()),
+		session:   offline.Exchange(full.Blockstore()),
+	}
+	light := NewBlockservice(bstore, exch)
 
 	cid := MustCidFromNamespacedSha256(rowRoots[0])
 	_, err = GetShare(ctx, light, cid, 0, len(rowRoots))
@@ -98,4 +103,18 @@ func TestDeleteNode_Sample(t *testing.T) {
 		postDeleteCount++
 	}
 	require.Zero(t, postDeleteCount)
+}
+
+var _ exchange.SessionExchange = (*fakeSessionExchange)(nil)
+
+type fakeSessionExchange struct {
+	exchange.Interface
+	session exchange.Fetcher
+}
+
+func (fe *fakeSessionExchange) NewSession(ctx context.Context) exchange.Fetcher {
+	if ctx == nil {
+		panic("nil context")
+	}
+	return fe.session
 }

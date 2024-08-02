@@ -7,6 +7,7 @@ import (
 
 	"github.com/celestiaorg/celestia-node/header"
 	"github.com/celestiaorg/celestia-node/share"
+	"github.com/celestiaorg/celestia-node/share/shwap"
 )
 
 var _ Module = (*API)(nil)
@@ -39,7 +40,7 @@ type Module interface {
 	// Shares are returned in a row-by-row order if the namespace spans multiple rows.
 	GetSharesByNamespace(
 		ctx context.Context, header *header.ExtendedHeader, namespace share.Namespace,
-	) (share.NamespacedShares, error)
+	) (shwap.NamespaceData, error)
 }
 
 // API is a wrapper around Module for the RPC.
@@ -60,7 +61,7 @@ type API struct {
 			ctx context.Context,
 			header *header.ExtendedHeader,
 			namespace share.Namespace,
-		) (share.NamespacedShares, error) `perm:"read"`
+		) (shwap.NamespaceData, error) `perm:"read"`
 	}
 }
 
@@ -80,12 +81,12 @@ func (api *API) GetSharesByNamespace(
 	ctx context.Context,
 	header *header.ExtendedHeader,
 	namespace share.Namespace,
-) (share.NamespacedShares, error) {
+) (shwap.NamespaceData, error) {
 	return api.Internal.GetSharesByNamespace(ctx, header, namespace)
 }
 
 type module struct {
-	share.Getter
+	shwap.Getter
 	share.Availability
 }
 

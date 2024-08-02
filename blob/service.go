@@ -256,7 +256,7 @@ func (s *Service) retrieve(
 	// collect shares for the requested namespace
 	namespacedShares, err := s.shareGetter.GetSharesByNamespace(getCtx, header, namespace)
 	if err != nil {
-		if errors.Is(err, share.ErrNotFound) {
+		if errors.Is(err, shwap.ErrNotFound) {
 			err = ErrBlobNotFound
 		}
 		getSharesSpan.SetStatus(codes.Error, err.Error())

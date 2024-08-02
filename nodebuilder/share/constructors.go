@@ -1,57 +1,28 @@
 package share
 
 import (
-	"context"
-	"errors"
-
-	"github.com/filecoin-project/dagstore"
-	"github.com/ipfs/boxo/blockservice"
-
 	"github.com/celestiaorg/celestia-node/share"
-	"github.com/celestiaorg/celestia-node/share/eds"
-	"github.com/celestiaorg/celestia-node/share/getters"
-	"github.com/celestiaorg/celestia-node/share/ipld"
+	"github.com/celestiaorg/celestia-node/share/shwap"
+	"github.com/celestiaorg/celestia-node/share/shwap/getters"
+	"github.com/celestiaorg/celestia-node/share/shwap/p2p/bitswap"
 	"github.com/celestiaorg/celestia-node/share/shwap/p2p/shrex/shrex_getter"
+	"github.com/celestiaorg/celestia-node/store"
 )
 
-func newShareModule(getter share.Getter, avail share.Availability) Module {
+func newShareModule(getter shwap.Getter, avail share.Availability) Module {
 	return &module{getter, avail}
-}
-
-// ensureEmptyCARExists adds an empty EDS to the provided EDS store.
-func ensureEmptyCARExists(ctx context.Context, store *eds.Store) error {
-	emptyEDS := share.EmptyEDS()
-	emptyRoots, err := share.NewAxisRoots(emptyEDS)
-	if err != nil {
-		return err
-	}
-
-	err = store.Put(ctx, emptyRoots.Hash(), emptyEDS)
-	if errors.Is(err, dagstore.ErrShardExists) {
-		return nil
-	}
-	return err
-}
-
-// ensureEmptyEDSInBS checks if the given DAG contains an empty block data square.
-// If it does not, it stores an empty block. This optimization exists to prevent
-// redundant storing of empty block data so that it is only stored once and returned
-// upon request for a block with an empty data square.
-func ensureEmptyEDSInBS(ctx context.Context, bServ blockservice.BlockService) error {
-	_, err := ipld.AddShares(ctx, share.EmptyBlockShares(), bServ)
-	return err
 }
 
 func lightGetter(
 	shrexGetter *shrex_getter.Getter,
-	ipldGetter *getters.IPLDGetter,
+	bitswapGetter *bitswap.Getter,
 	cfg Config,
-) share.Getter {
-	var cascade []share.Getter
+) shwap.Getter {
+	var cascade []shwap.Getter
 	if cfg.UseShareExchange {
 		cascade = append(cascade, shrexGetter)
 	}
-	cascade = append(cascade, ipldGetter)
+	cascade = append(cascade, bitswapGetter)
 	return getters.NewCascadeGetter(cascade)
 }
 
@@ -60,11 +31,11 @@ func lightGetter(
 // by shrex the next time the data is retrieved (meaning shard recovery is
 // manual after corruption is detected).
 func bridgeGetter(
-	storeGetter *getters.StoreGetter,
+	storeGetter *store.Getter,
 	shrexGetter *shrex_getter.Getter,
 	cfg Config,
-) share.Getter {
-	var cascade []share.Getter
+) shwap.Getter {
+	var cascade []shwap.Getter
 	cascade = append(cascade, storeGetter)
 	if cfg.UseShareExchange {
 		cascade = append(cascade, shrexGetter)
@@ -73,16 +44,14 @@ func bridgeGetter(
 }
 
 func fullGetter(
-	storeGetter *getters.StoreGetter,
+	storeGetter *store.Getter,
 	shrexGetter *shrex_getter.Getter,
-	ipldGetter *getters.IPLDGetter,
 	cfg Config,
-) share.Getter {
-	var cascade []share.Getter
+) shwap.Getter {
+	var cascade []shwap.Getter
 	cascade = append(cascade, storeGetter)
 	if cfg.UseShareExchange {
 		cascade = append(cascade, shrexGetter)
 	}
-	cascade = append(cascade, ipldGetter)
 	return getters.NewCascadeGetter(cascade)
 }

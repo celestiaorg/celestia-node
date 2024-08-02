@@ -13,13 +13,14 @@ import (
 	"github.com/celestiaorg/celestia-node/share"
 	"github.com/celestiaorg/celestia-node/share/availability/full"
 	"github.com/celestiaorg/celestia-node/share/availability/light"
-	"github.com/celestiaorg/celestia-node/share/eds"
-	"github.com/celestiaorg/celestia-node/share/getters"
-	"github.com/celestiaorg/celestia-node/share/p2p/peers"
-	"github.com/celestiaorg/celestia-node/share/p2p/shrexeds"
-	"github.com/celestiaorg/celestia-node/share/p2p/shrexnd"
-	"github.com/celestiaorg/celestia-node/share/p2p/shrexsub"
+	"github.com/celestiaorg/celestia-node/share/shwap"
+	"github.com/celestiaorg/celestia-node/share/shwap/p2p/bitswap"
+	"github.com/celestiaorg/celestia-node/share/shwap/p2p/shrex/peers"
 	"github.com/celestiaorg/celestia-node/share/shwap/p2p/shrex/shrex_getter"
+	"github.com/celestiaorg/celestia-node/share/shwap/p2p/shrex/shrexeds"
+	"github.com/celestiaorg/celestia-node/share/shwap/p2p/shrex/shrexnd"
+	"github.com/celestiaorg/celestia-node/share/shwap/p2p/shrex/shrexsub"
+	"github.com/celestiaorg/celestia-node/store"
 )
 
 func ConstructModule(tp node.Type, cfg *Config, options ...fx.Option) fx.Option {
@@ -31,6 +32,7 @@ func ConstructModule(tp node.Type, cfg *Config, options ...fx.Option) fx.Option 
 		fx.Error(cfgErr),
 		fx.Options(options...),
 		fx.Provide(newShareModule),
+		fx.Provide(bitswap.NewGetter),
 		availabilityComponents(tp, cfg),
 		shrexComponents(tp, cfg),
 		peerComponents(tp, cfg),
@@ -49,15 +51,12 @@ func ConstructModule(tp node.Type, cfg *Config, options ...fx.Option) fx.Option 
 			"share",
 			baseComponents,
 			edsStoreComponents(cfg),
-			fx.Provide(getters.NewIPLDGetter),
 			fx.Provide(fullGetter),
 		)
 	case node.Light:
 		return fx.Module(
 			"share",
 			baseComponents,
-			fx.Invoke(ensureEmptyEDSInBS),
-			fx.Provide(getters.NewIPLDGetter),
 			fx.Provide(lightGetter),
 		)
 	default:
@@ -126,7 +125,7 @@ func shrexComponents(tp node.Type, cfg *Config) fx.Option {
 		return fx.Options(
 			opts,
 			shrexServerComponents(cfg),
-			fx.Provide(getters.NewStoreGetter),
+			fx.Provide(store.NewGetter),
 			fx.Provide(func(shrexSub *shrexsub.PubSub) shrexsub.BroadcastFn {
 				return shrexSub.Broadcast
 			}),
@@ -135,7 +134,7 @@ func shrexComponents(tp node.Type, cfg *Config) fx.Option {
 		return fx.Options(
 			opts,
 			shrexServerComponents(cfg),
-			fx.Provide(getters.NewStoreGetter),
+			fx.Provide(store.NewGetter),
 			fx.Provide(func(shrexSub *shrexsub.PubSub) shrexsub.BroadcastFn {
 				return shrexSub.Broadcast
 			}),
@@ -156,7 +155,7 @@ func shrexServerComponents(cfg *Config) fx.Option {
 	return fx.Options(
 		fx.Invoke(func(_ *shrexeds.Server, _ *shrexnd.Server) {}),
 		fx.Provide(fx.Annotate(
-			func(host host.Host, store *eds.Store, network modp2p.Network) (*shrexeds.Server, error) {
+			func(host host.Host, store *store.Store, network modp2p.Network) (*shrexeds.Server, error) {
 				cfg.ShrExEDSParams.WithNetworkID(network.String())
 				return shrexeds.NewServer(cfg.ShrExEDSParams, host, store)
 			},
@@ -170,7 +169,7 @@ func shrexServerComponents(cfg *Config) fx.Option {
 		fx.Provide(fx.Annotate(
 			func(
 				host host.Host,
-				store *eds.Store,
+				store *store.Store,
 				network modp2p.Network,
 			) (*shrexnd.Server, error) {
 				cfg.ShrExNDParams.WithNetworkID(network.String())
@@ -189,17 +188,10 @@ func shrexServerComponents(cfg *Config) fx.Option {
 func edsStoreComponents(cfg *Config) fx.Option {
 	return fx.Options(
 		fx.Provide(fx.Annotate(
-			func(path node.StorePath, ds datastore.Batching) (*eds.Store, error) {
-				return eds.NewStore(cfg.EDSStoreParams, string(path), ds)
+			func(path node.StorePath) (*store.Store, error) {
+				return store.NewStore(cfg.EDSStoreParams, string(path))
 			},
-			fx.OnStart(func(ctx context.Context, store *eds.Store) error {
-				err := store.Start(ctx)
-				if err != nil {
-					return err
-				}
-				return ensureEmptyCARExists(ctx, store)
-			}),
-			fx.OnStop(func(ctx context.Context, store *eds.Store) error {
+			fx.OnStop(func(ctx context.Context, store *store.Store) error {
 				return store.Stop(ctx)
 			}),
 		)),
@@ -211,7 +203,7 @@ func availabilityComponents(tp node.Type, cfg *Config) fx.Option {
 	case node.Light:
 		return fx.Options(
 			fx.Provide(fx.Annotate(
-				func(getter share.Getter, ds datastore.Batching) *light.ShareAvailability {
+				func(getter shwap.Getter, ds datastore.Batching) *light.ShareAvailability {
 					return light.NewShareAvailability(
 						getter,
 						ds,

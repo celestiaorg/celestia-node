@@ -72,15 +72,15 @@ func (s *Server) observeRateLimitedRequests() {
 	}
 }
 
-func (srv *Server) streamHandler(ctx context.Context) network.StreamHandler {
-	return func(s network.Stream) {
-		err := srv.handleEDS(ctx, s)
+func (s *Server) streamHandler(ctx context.Context) network.StreamHandler {
+	return func(stream network.Stream) {
+		err := s.handleEDS(ctx, stream)
 		if err != nil {
-			s.Reset() //nolint:errcheck
+			stream.Reset() //nolint:errcheck
 			return
 		}
-		srv.metrics.ObserveRequests(ctx, 1, shrex.StatusSuccess)
-		if err = s.Close(); err != nil {
+		s.metrics.ObserveRequests(ctx, 1, shrex.StatusSuccess)
+		if err = stream.Close(); err != nil {
 			log.Debugw("server: closing stream", "err", err)
 		}
 	}
@@ -89,6 +89,7 @@ func (srv *Server) streamHandler(ctx context.Context) network.StreamHandler {
 func (s *Server) handleEDS(ctx context.Context, stream network.Stream) error {
 	logger := log.With("peer", stream.Conn().RemotePeer().String())
 	logger.Debug("server: handling eds request")
+	s.observeRateLimitedRequests()
 
 	// read request from stream to get the dataHash for store lookup
 	id, err := s.readRequest(logger, stream)
@@ -146,8 +147,8 @@ func (s *Server) readRequest(logger *zap.SugaredLogger, stream network.Stream) (
 		logger.Debugw("server: set read deadline", "err", err)
 	}
 
-	edsIds := shwap.EdsID{}
-	_, err = edsIds.ReadFrom(stream)
+	edsIDs := shwap.EdsID{}
+	_, err = edsIDs.ReadFrom(stream)
 	if err != nil {
 		return shwap.EdsID{}, fmt.Errorf("reading request: %w", err)
 	}
@@ -155,7 +156,7 @@ func (s *Server) readRequest(logger *zap.SugaredLogger, stream network.Stream) (
 	if err != nil {
 		logger.Warnw("server: closing read", "err", err)
 	}
-	return edsIds, nil
+	return edsIDs, nil
 }
 
 func (s *Server) writeStatus(logger *zap.SugaredLogger, status shrexpb.Status, stream network.Stream) error {

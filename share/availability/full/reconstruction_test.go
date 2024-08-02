@@ -2,7 +2,7 @@
 package full
 
 //
-//import (
+// import (
 //	"context"
 //	"sync"
 //	"testing"
@@ -18,14 +18,14 @@ package full
 //	"github.com/celestiaorg/celestia-node/share/eds"
 //)
 //
-//func init() {
+// func init() {
 //	eds.RetrieveQuadrantTimeout = time.Millisecond * 100 // to speed up tests
 //}
 //
 //// TestShareAvailable_OneFullNode asserts that a full node can ensure
 //// data is available (reconstruct data square) while being connected to
 //// light nodes only.
-//func TestShareAvailable_OneFullNode(t *testing.T) {
+// func TestShareAvailable_OneFullNode(t *testing.T) {
 //	// NOTE: Numbers are taken from the original 'Fraud and Data Availability Proofs' paper
 //	light.DefaultSampleAmount = 20 // s
 //	const (
@@ -81,7 +81,7 @@ package full
 //// connect to the source node which has the data. After light node connect to the
 //// source, full node must be able to finish the availability process started in
 //// the beginning.
-//func TestShareAvailable_ConnectedFullNodes(t *testing.T) {
+// func TestShareAvailable_ConnectedFullNodes(t *testing.T) {
 //	// NOTE: Numbers are taken from the original 'Fraud and Data Availability Proofs' paper
 //	light.DefaultSampleAmount = 20 // s
 //	const (
@@ -166,7 +166,7 @@ package full
 //// collectively reconstruct it.
 ////
 ////nolint:dupword
-//func TestShareAvailable_DisconnectedFullNodes(t *testing.T) {
+// func TestShareAvailable_DisconnectedFullNodes(t *testing.T) {
 //	// S - Source
 //	// L - Light Node
 //	// F - Full Node

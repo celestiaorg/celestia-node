@@ -13,9 +13,9 @@ import (
 	"github.com/celestiaorg/celestia-node/header"
 	"github.com/celestiaorg/celestia-node/nodebuilder/node"
 	modprune "github.com/celestiaorg/celestia-node/nodebuilder/pruner"
-	disc "github.com/celestiaorg/celestia-node/share/p2p/discovery"
-	"github.com/celestiaorg/celestia-node/share/p2p/peers"
-	"github.com/celestiaorg/celestia-node/share/p2p/shrexsub"
+	"github.com/celestiaorg/celestia-node/share/shwap/p2p/discovery"
+	"github.com/celestiaorg/celestia-node/share/shwap/p2p/shrex/peers"
+	"github.com/celestiaorg/celestia-node/share/shwap/p2p/shrex/shrexsub"
 )
 
 const (
@@ -49,7 +49,7 @@ func fullDiscoveryAndPeerManager(tp node.Type, cfg *Config) fx.Option {
 			// we must ensure Syncer is started before PeerManager
 			// so that Syncer registers header validator before PeerManager subscribes to headers
 			_ *sync.Syncer[*header.ExtendedHeader],
-		) (*peers.Manager, *disc.Discovery, error) {
+		) (*peers.Manager, *discovery.Discovery, error) {
 			var managerOpts []peers.Option
 			if tp != node.Bridge {
 				// BNs do not need the overhead of shrexsub peer pools as
@@ -68,14 +68,14 @@ func fullDiscoveryAndPeerManager(tp node.Type, cfg *Config) fx.Option {
 				return nil, nil, err
 			}
 
-			discOpts := []disc.Option{disc.WithOnPeersUpdate(fullManager.UpdateNodePool)}
+			discOpts := []discovery.Option{discovery.WithOnPeersUpdate(fullManager.UpdateNodePool)}
 
 			if tp != node.Light {
 				// only FN and BNs should advertise to `full` topic
-				discOpts = append(discOpts, disc.WithAdvertise())
+				discOpts = append(discOpts, discovery.WithAdvertise())
 			}
 
-			fullDisc, err := disc.NewDiscovery(
+			fullDisc, err := discovery.NewDiscovery(
 				cfg.Discovery,
 				host,
 				routingdisc.NewRoutingDiscovery(r),
@@ -100,12 +100,12 @@ func archivalDiscoveryAndPeerManager(tp node.Type, cfg *Config) fx.Option {
 		func(
 			lc fx.Lifecycle,
 			pruneCfg *modprune.Config,
-			d *disc.Discovery,
+			d *discovery.Discovery,
 			manager *peers.Manager,
 			h host.Host,
 			r routing.ContentRouting,
 			gater *conngater.BasicConnectionGater,
-		) (map[string]*peers.Manager, []*disc.Discovery, error) {
+		) (map[string]*peers.Manager, []*discovery.Discovery, error) {
 			archivalPeerManager, err := peers.NewManager(
 				cfg.PeerManagerParams,
 				h,
@@ -116,13 +116,13 @@ func archivalDiscoveryAndPeerManager(tp node.Type, cfg *Config) fx.Option {
 				return nil, nil, err
 			}
 
-			discOpts := []disc.Option{disc.WithOnPeersUpdate(archivalPeerManager.UpdateNodePool)}
+			discOpts := []discovery.Option{discovery.WithOnPeersUpdate(archivalPeerManager.UpdateNodePool)}
 
 			if (tp == node.Bridge || tp == node.Full) && !pruneCfg.EnableService {
-				discOpts = append(discOpts, disc.WithAdvertise())
+				discOpts = append(discOpts, discovery.WithAdvertise())
 			}
 
-			archivalDisc, err := disc.NewDiscovery(
+			archivalDisc, err := discovery.NewDiscovery(
 				cfg.Discovery,
 				h,
 				routingdisc.NewRoutingDiscovery(r),
@@ -138,6 +138,6 @@ func archivalDiscoveryAndPeerManager(tp node.Type, cfg *Config) fx.Option {
 			})
 
 			managers := map[string]*peers.Manager{fullNodesTag: manager, archivalNodesTag: archivalPeerManager}
-			return managers, []*disc.Discovery{d, archivalDisc}, nil
+			return managers, []*discovery.Discovery{d, archivalDisc}, nil
 		})
 }

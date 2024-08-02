@@ -16,7 +16,8 @@ import (
 	"github.com/libp2p/go-libp2p/core/protocol"
 	"go.uber.org/fx"
 
-	"github.com/celestiaorg/celestia-node/share/eds"
+	"github.com/celestiaorg/celestia-node/share/shwap/p2p/bitswap"
+	"github.com/celestiaorg/celestia-node/store"
 )
 
 const (
@@ -26,10 +27,13 @@ const (
 	defaultBloomFilterHashes = 7
 	// default size of arc cache in blockStore
 	defaultARCCacheSize = 64 << 10
+	// TODO(@walldiss): expose cache size to cfg
+	// default blockstore cache size
+	defaultBlockstoreCacheSize = 128
 )
 
 // dataExchange provides a constructor for IPFS block's DataExchange over BitSwap.
-func dataExchange(params bitSwapParams) exchange.Interface {
+func dataExchange(params bitSwapParams) exchange.SessionExchange {
 	prefix := protocolID(params.Net)
 	net := network.NewFromIpfsHost(params.Host, &routinghelpers.Null{}, network.Prefix(prefix))
 	srvr := server.New(
@@ -76,10 +80,15 @@ func blockstoreFromDatastore(ctx context.Context, ds datastore.Batching) (blocks
 	)
 }
 
-func blockstoreFromEDSStore(ctx context.Context, store *eds.Store) (blockstore.Blockstore, error) {
+func blockstoreFromEDSStore(ctx context.Context, store *store.Store) (blockstore.Blockstore, error) {
+	withCache, err := store.WithCache("blockstore", defaultBlockstoreCacheSize)
+	if err != nil {
+		return nil, fmt.Errorf("create cached store for blockstore:%w", err)
+	}
+	bs := &bitswap.Blockstore{Getter: withCache}
 	return blockstore.CachedBlockstore(
 		ctx,
-		store.Blockstore(),
+		bs,
 		blockstore.CacheOpts{
 			HasTwoQueueCacheSize: defaultARCCacheSize,
 		},

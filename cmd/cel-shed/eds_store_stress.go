@@ -23,6 +23,7 @@ import (
 const (
 	edsStorePathFlag   = "path"
 	edsWritesFlag      = "writes"
+	edsWriteFrom       = "init_height"
 	edsSizeFlag        = "size"
 	edsDisableLogFlag  = "disable-log"
 	edsLogStatFreqFlag = "log-stat-freq"
@@ -119,12 +120,14 @@ var edsStoreStress = &cobra.Command{
 		disableLog, _ := cmd.Flags().GetBool(edsDisableLogFlag)
 		logFreq, _ := cmd.Flags().GetInt(edsLogStatFreqFlag)
 		edsWrites, _ := cmd.Flags().GetInt(edsWritesFlag)
+		writeFrom, _ := cmd.Flags().GetInt(edsWriteFrom)
 		edsSize, _ := cmd.Flags().GetInt(edsSizeFlag)
 		putTimeout, _ := cmd.Flags().GetInt(putTimeoutFlag)
 
 		cfg := edssser.Config{
 			EDSSize:     edsSize,
 			EDSWrites:   edsWrites,
+			WriteFrom:   writeFrom,
 			EnableLog:   !disableLog,
 			LogFilePath: path,
 			StatLogFreq: logFreq,
@@ -144,12 +147,7 @@ var edsStoreStress = &cobra.Command{
 			err = errors.Join(err, nodestore.Close())
 		}()
 
-		datastore, err := nodestore.Datastore()
-		if err != nil {
-			return err
-		}
-
-		stresser, err := edssser.NewEDSsser(path, datastore, cfg)
+		stresser, err := edssser.NewEDSsser(path, cfg)
 		if err != nil {
 			return err
 		}

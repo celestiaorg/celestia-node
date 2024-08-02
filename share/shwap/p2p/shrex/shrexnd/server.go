@@ -168,7 +168,10 @@ func (srv *Server) readRequest(
 	return ndid, nil
 }
 
-func (srv *Server) getNamespaceData(ctx context.Context, id shwap.NamespaceDataID) (shwap.NamespaceData, shrexpb.Status, error) {
+func (srv *Server) getNamespaceData(
+	ctx context.Context,
+	id shwap.NamespaceDataID,
+) (shwap.NamespaceData, shrexpb.Status, error) {
 	file, err := srv.store.GetByHeight(ctx, id.Height)
 	if errors.Is(err, store.ErrNotFound) {
 		return nil, shrexpb.Status_NOT_FOUND, nil
