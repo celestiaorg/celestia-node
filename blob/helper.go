@@ -1,7 +1,6 @@
 package blob
 
 import (
-	"bytes"
 	"sort"
 
 	squareblob "github.com/celestiaorg/go-square/blob"
@@ -24,8 +23,7 @@ func BlobsToShares(nodeBlobs ...*Blob) ([]share.Share, error) {
 	}
 
 	sort.Slice(b, func(i, j int) bool {
-		val := bytes.Compare(b[i].Namespace().Bytes(), b[j].Namespace().Bytes())
-		return val < 0
+		return b[i].Namespace().Compare(b[j].Namespace()) < 0
 	})
 
 	rawShares, err := shares.SplitBlobs(b...)
