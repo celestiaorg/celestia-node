@@ -152,7 +152,9 @@ func (bc *AccessorCache) Remove(height uint64) error {
 
 // EnableMetrics enables metrics for the cache.
 func (bc *AccessorCache) EnableMetrics() (unreg func() error, err error) {
-	bc.metrics, err = newMetrics(bc)
+	if bc.metrics == nil {
+		bc.metrics, err = newMetrics(bc)
+	}
 	return bc.metrics.reg.Unregister, err
 }
 

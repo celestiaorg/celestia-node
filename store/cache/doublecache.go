@@ -1,6 +1,7 @@
 package cache
 
 import (
+	"context"
 	"errors"
 	"fmt"
 
@@ -27,6 +28,20 @@ func (mc *DoubleCache) Get(height uint64) (eds.AccessorStreamer, error) {
 		return accessor, nil
 	}
 	return mc.second.Get(height)
+}
+
+// GetOrLoad attempts to get an item from the both caches and, if not found, invokes
+// the provided loader function to load it into the first Cache.
+func (mc *DoubleCache) GetOrLoad(
+	ctx context.Context,
+	height uint64,
+	loader OpenAccessorFn,
+) (eds.AccessorStreamer, error) {
+	accessor, err := mc.second.Get(height)
+	if err == nil {
+		return accessor, nil
+	}
+	return mc.first.GetOrLoad(ctx, height, loader)
 }
 
 // Remove removes an item from all underlying caches

@@ -8,6 +8,8 @@ import (
 	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/metric"
+
+	"github.com/celestiaorg/celestia-node/store/cache"
 )
 
 const (
@@ -57,19 +59,26 @@ func (s *Store) WithMetrics() error {
 		return err
 	}
 
-	unreg, err := s.cache.EnableMetrics()
-	if err != nil {
-		return fmt.Errorf("while enabling metrics for cache: %w", err)
-	}
-
 	s.metrics = &metrics{
 		put:       put,
 		putExists: putExists,
 		get:       get,
 		has:       has,
 		remove:    remove,
-		unreg:     unreg,
 	}
+	return s.metrics.addCacheMetrics(s.cache)
+}
+
+// addCacheMetrics adds cache metrics to store metrics
+func (m *metrics) addCacheMetrics(c cache.Cache) error {
+	if m == nil || c == nil {
+		return nil
+	}
+	unreg, err := c.EnableMetrics()
+	if err != nil {
+		return fmt.Errorf("while enabling metrics for cache: %w", err)
+	}
+	m.unreg = unreg
 	return nil
 }
 
