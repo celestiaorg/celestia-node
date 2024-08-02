@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 
+	"github.com/tendermint/tendermint/crypto/merkle"
 	"github.com/tendermint/tendermint/pkg/consts"
 	tmproto "github.com/tendermint/tendermint/proto/tendermint/types"
 	coretypes "github.com/tendermint/tendermint/types"
@@ -201,4 +202,11 @@ func (b *Blob) UnmarshalJSON(data []byte) error {
 	b.namespace = blob.Namespace
 	b.index = blob.Index
 	return nil
+}
+
+// proveRowRootsToDataRoot creates a set of binary merkle proofs for all the
+// roots defined by the range [start, end).
+func proveRowRootsToDataRoot(roots [][]byte, start, end int) []*merkle.Proof {
+	_, proofs := merkle.ProofsFromByteSlices(roots)
+	return proofs[start:end]
 }

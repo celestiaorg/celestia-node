@@ -11,7 +11,6 @@ import (
 
 	"github.com/cosmos/cosmos-sdk/types"
 	logging "github.com/ipfs/go-log/v2"
-	"github.com/tendermint/tendermint/crypto/merkle"
 	"github.com/tendermint/tendermint/libs/bytes"
 	core "github.com/tendermint/tendermint/types"
 	"go.opentelemetry.io/otel"
@@ -488,7 +487,7 @@ func (s *Service) retrieve(
 			if blob.Namespace().Equals(namespace) && sharesParser.verify(blob) {
 				// now that we found the requested blob, we will create
 				// its inclusion proof.
-				inclusiveBlobStartRowIndex := inclusiveNamespaceStartRowIndex + currentShareIndex/squareSize
+				inclusiveBlobStartRowIndex := blob.index / (squareSize * 2)
 				exclusiveBlobEndRowIndex := inclusiveNamespaceStartRowIndex + exclusiveEndShareIndex/squareSize
 				if (currentShareIndex+blobLen)%squareSize != 0 {
 					// if the row is not complete with the blob shares,
@@ -541,13 +540,6 @@ func (s *Service) retrieve(
 		}
 	}
 	return nil, nil, ErrBlobNotFound
-}
-
-// proveRowRootsToDataRoot creates a set of binary merkle proofs for all the
-// roots defined by the range [start, end).
-func proveRowRootsToDataRoot(roots [][]byte, start, end int) []*merkle.Proof {
-	_, proofs := merkle.ProofsFromByteSlices(roots)
-	return proofs[start:end]
 }
 
 // getBlobs retrieves the DAH and fetches all shares from the requested Namespace and converts
