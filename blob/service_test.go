@@ -380,20 +380,12 @@ func TestBlobService_Get(t *testing.T) {
 			name: "internal error",
 			doFn: func() (interface{}, error) {
 				ctrl := gomock.NewController(t)
-				shareService := service.shareGetter
 				shareGetterMock := shareMock.NewMockModule(ctrl)
 				shareGetterMock.EXPECT().
-					GetShare(gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any()).
+					GetEDS(gomock.Any(), gomock.Any()).
 					DoAndReturn(
-						func(ctx context.Context, header *header.ExtendedHeader, row, col int) (share.Share, error) {
-							sh, err := shareService.GetShare(ctx, header, row, col)
-							if err != nil {
-								return nil, err
-							}
-							if share.GetNamespace(sh).Equals(blobsWithDiffNamespaces[0].Namespace()) {
-								return nil, errors.New("internal error")
-							}
-							return shareService.GetShare(ctx, header, row, col)
+						func(context.Context, *header.ExtendedHeader) (*rsmt2d.ExtendedDataSquare, error) {
+							return nil, errors.New("internal error")
 						}).AnyTimes()
 
 				service.shareGetter = shareGetterMock
@@ -405,13 +397,8 @@ func TestBlobService_Get(t *testing.T) {
 				)
 			},
 			expectedResult: func(res interface{}, err error) {
-				blobs, ok := res.([]*Blob)
-				assert.True(t, ok)
 				assert.Error(t, err)
 				assert.Contains(t, err.Error(), "internal error")
-				assert.Equal(t, blobs[0].Namespace(), blobsWithSameNamespace[0].Namespace())
-				assert.NotEmpty(t, blobs)
-				assert.Len(t, blobs, len(blobsWithSameNamespace))
 			},
 		},
 	}

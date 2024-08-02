@@ -354,6 +354,10 @@ func (s *Service) retrieve(
 		return nil, nil, err
 	}
 
+	eds, err := s.shareGetter.GetEDS(ctx, header)
+	if err != nil {
+		return nil, nil, err
+	}
 	headerGetterSpan.SetStatus(codes.Ok, "")
 	headerGetterSpan.AddEvent("received eds", trace.WithAttributes(
 		attribute.Int64("eds-size", int64(len(header.DAH.RowRoots)))))
@@ -388,12 +392,10 @@ func (s *Service) retrieve(
 	rowsShares := make([]share.Share, 0, (exclusiveNamespaceEndRowIndex-inclusiveNamespaceStartRowIndex)*squareSize)
 	// store the EDS shares of the rows containing the blob
 	rowsWithParityShares := make([][]shares.Share, exclusiveNamespaceEndRowIndex-inclusiveNamespaceStartRowIndex)
+
 	for rowIndex := inclusiveNamespaceStartRowIndex; rowIndex < exclusiveNamespaceEndRowIndex; rowIndex++ {
 		for colIndex := 0; colIndex < squareSize*2; colIndex++ {
-			share, err := s.shareGetter.GetShare(ctx, header, rowIndex, colIndex)
-			if err != nil {
-				return nil, nil, err
-			}
+			share := eds.GetCell(uint(rowIndex), uint(colIndex))
 			if colIndex < squareSize {
 				rowsShares = append(rowsShares, share)
 			}
