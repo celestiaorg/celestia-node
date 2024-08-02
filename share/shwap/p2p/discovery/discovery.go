@@ -34,6 +34,10 @@ const (
 	// logInterval defines the time interval at which a warning message will be logged
 	// if the desired number of nodes is not detected.
 	logInterval = 5 * time.Minute
+
+	// discovery version is a prefix for all tags used in discovery. It is bumped when
+	// there are protocol breaking changes.
+	version = "v1"
 )
 
 // discoveryRetryTimeout defines time interval between discovery attempts, needed for tests
@@ -42,8 +46,11 @@ var discoveryRetryTimeout = retryTimeout
 // Discovery combines advertise and discover services and allows to store discovered nodes.
 // TODO: The code here gets horribly hairy, so we should refactor this at some point
 type Discovery struct {
-	// Tag is used as rendezvous point for discovery service
-	tag       string
+	// tag is used to specify topic for discovery
+	tag string
+	// topic contains tag and current version of discovery protocol and is used as
+	// rendezvous point for discovery service
+	topic     string
 	set       *limitedSet
 	host      host.Host
 	disc      discovery.Discovery
@@ -91,6 +98,7 @@ func NewDiscovery(
 	o := newOptions(opts...)
 	return &Discovery{
 		tag:            tag,
+		topic:          fmt.Sprintf("%s/%s", version, tag),
 		set:            newLimitedSet(params.PeersLimit),
 		host:           h,
 		disc:           d,
@@ -116,11 +124,11 @@ func (d *Discovery) Start(context.Context) error {
 	go d.connector.GC(ctx)
 
 	if d.advertise {
-		log.Infow("advertising to topic", "topic", d.tag)
+		log.Infow("advertising to topic", "topic", d.topic)
 		go d.Advertise(ctx)
 	}
 
-	log.Infow("started discovery", "topic", d.tag)
+	log.Infow("started discovery", "topic", d.topic)
 	return nil
 }
 
@@ -147,7 +155,7 @@ func (d *Discovery) Discard(id peer.ID) bool {
 		return false
 	}
 
-	d.host.ConnManager().Unprotect(id, d.tag)
+	d.host.ConnManager().Unprotect(id, d.topic)
 	d.connector.Backoff(id)
 	d.set.Remove(id)
 	d.onUpdatedPeers(id, false)
@@ -170,14 +178,14 @@ func (d *Discovery) Advertise(ctx context.Context) {
 	timer := time.NewTimer(d.params.AdvertiseInterval)
 	defer timer.Stop()
 	for {
-		log.Infof("advertising to topic %s", d.tag)
-		_, err := d.disc.Advertise(ctx, d.tag)
+		log.Infof("advertising to topic %s", d.topic)
+		_, err := d.disc.Advertise(ctx, d.topic)
 		d.metrics.observeAdvertise(ctx, err)
 		if err != nil {
 			if ctx.Err() != nil {
 				return
 			}
-			log.Warnw("error advertising", "rendezvous", d.tag, "err", err)
+			log.Warnw("error advertising", "rendezvous", d.topic, "err", err)
 
 			// we don't want retry indefinitely in busy loop
 			// internal discovery mechanism may need some time before attempts
@@ -195,7 +203,7 @@ func (d *Discovery) Advertise(ctx context.Context) {
 			}
 		}
 
-		log.Infof("successfully advertised to topic %s", d.tag)
+		log.Infof("successfully advertised to topic %s", d.topic)
 		if !timer.Stop() {
 			<-timer.C
 		}
@@ -232,7 +240,7 @@ func (d *Discovery) discoveryLoop(ctx context.Context) {
 				log.Warnf(
 					"Potentially degraded connectivity, unable to discover the desired amount of %s peers in %v. "+
 						"Number of peers discovered: %d. Required: %d.",
-					d.tag, logInterval, d.set.Size(), d.set.Limit(),
+					d.topic, logInterval, d.set.Size(), d.set.Limit(),
 				)
 			}
 			// Do not break the loop; just continue
@@ -270,13 +278,13 @@ func (d *Discovery) discover(ctx context.Context) bool {
 	size := d.set.Size()
 	want := d.set.Limit() - size
 	if want == 0 {
-		log.Debugw("reached soft peer limit, skipping discovery", "topic", d.tag, "size", size)
+		log.Debugw("reached soft peer limit, skipping discovery", "topic", d.topic, "size", size)
 		return true
 	}
 	// TODO @renaynay: eventually, have a mechanism to catch if wanted amount of peers
 	//  has not been discovered in X amount of time so that users are warned of degraded
 	//  FN connectivity.
-	log.Debugw("discovering peers", "topic", d.tag, "want", want)
+	log.Debugw("discovering peers", "topic", d.topic, "want", want)
 
 	// we use errgroup as it provide limits
 	var wg errgroup.Group
@@ -290,9 +298,9 @@ func (d *Discovery) discover(ctx context.Context) bool {
 		findCancel()
 	}()
 
-	peers, err := d.disc.FindPeers(findCtx, d.tag)
+	peers, err := d.disc.FindPeers(findCtx, d.topic)
 	if err != nil {
-		log.Error("unable to start discovery", "topic", d.tag, "err", err)
+		log.Error("unable to start discovery", "topic", d.topic, "err", err)
 		return false
 	}
 
@@ -317,12 +325,12 @@ func (d *Discovery) discover(ctx context.Context) bool {
 				}
 
 				size := d.set.Size()
-				log.Debugw("found peer", "topic", d.tag, "peer", peer.ID.String(), "found_amount", size)
+				log.Debugw("found peer", "topic", d.topic, "peer", peer.ID.String(), "found_amount", size)
 				if size < d.set.Limit() {
 					return nil
 				}
 
-				log.Infow("discovered wanted peers", "topic", d.tag, "amount", size)
+				log.Infow("discovered wanted peers", "topic", d.topic, "amount", size)
 				findCancel() // stop discovery when we are done
 				return nil
 			})
@@ -333,7 +341,7 @@ func (d *Discovery) discover(ctx context.Context) bool {
 
 		isEnoughPeers := d.set.Size() >= d.set.Limit()
 		d.metrics.observeFindPeers(ctx, isEnoughPeers)
-		log.Debugw("discovery finished", "topic", d.tag, "discovered_wanted", isEnoughPeers)
+		log.Debugw("discovery finished", "topic", d.topic, "discovered_wanted", isEnoughPeers)
 		return isEnoughPeers
 	}
 }
@@ -385,7 +393,7 @@ func (d *Discovery) handleDiscoveredPeer(ctx context.Context, peer peer.AddrInfo
 	// NOTE: This is does not protect from remote killing the connection.
 	//  In the future, we should design a protocol that keeps bidirectional agreement on whether
 	//  connection should be kept or not, similar to mesh link in GossipSub.
-	d.host.ConnManager().Protect(peer.ID, d.tag)
+	d.host.ConnManager().Protect(peer.ID, d.topic)
 	return true
 }
 
