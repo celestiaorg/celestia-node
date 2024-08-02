@@ -38,7 +38,11 @@ func TestDaModule(t *testing.T) {
 	daBlobs := make([][]byte, 0, len(appBlobs0)+len(appBlobs1))
 
 	for _, squareBlob := range append(appBlobs0, appBlobs1...) {
-		blob, err := convert(squareBlob)
+		blob, err := blob.NewBlob(
+			uint8(squareBlob.GetShareVersion()),
+			squareBlob.Namespace().Bytes(),
+			squareBlob.GetData(),
+		)
 		require.NoError(t, err)
 		blobs = append(blobs, blob)
 		daBlobs = append(daBlobs, blob.Data)
