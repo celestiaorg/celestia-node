@@ -131,11 +131,16 @@ func writeODSFile(w io.Writer, eds *rsmt2d.ExtendedDataSquare, axisRoots *share.
 }
 
 // writeQ1 writes the first quadrant of the square to the writer. It writes the quadrant in row-major
-// order
+// order. Write finishes once all the shares are written or on the first instance of tail padding share.
+// Tail padding share are constant and aren't stored.
 func writeQ1(w io.Writer, eds *rsmt2d.ExtendedDataSquare) error {
 	for i := range eds.Width() / 2 {
 		for j := range eds.Width() / 2 {
 			shr := eds.GetCell(i, j) // TODO: Avoid copying inside GetCell
+			if share.GetNamespace(shr).Equals(share.TailPaddingNamespace) {
+				return nil
+			}
+
 			_, err := w.Write(shr)
 			if err != nil {
 				return fmt.Errorf("writing share: %w", err)
@@ -357,7 +362,9 @@ func (f *ODSFile) readODS() (square, error) {
 	return square, nil
 }
 
-func readRow(fl io.ReaderAt, hdr *headerV0, sharesOffset, quadrantIdx, rowIdx int) ([]share.Share, error) {
+// readRow reads specific Row from the file in a single IO operation.
+// If some or all shares are missing, tail padding shares are returned instead.
+func readRow(fl *os.File, hdr *headerV0, sharesOffset, quadrantIdx, rowIdx int) ([]share.Share, error) {
 	shrLn := int(hdr.shareSize)
 	odsLn := int(hdr.squareSize / 2)
 	quadrantOffset := quadrantIdx * odsLn * odsLn * shrLn
@@ -368,17 +375,25 @@ func readRow(fl io.ReaderAt, hdr *headerV0, sharesOffset, quadrantIdx, rowIdx in
 	offset := sharesOffset + quadrantOffset + rowOffset
 
 	axsData := make([]byte, odsLn*shrLn)
-	if _, err := fl.ReadAt(axsData, int64(offset)); err != nil {
+	n, err := fl.ReadAt(axsData, int64(offset))
+	if err != nil && !errors.Is(err, io.EOF) {
 		return nil, err
 	}
 
+	shrsRead := n / shrLn
 	for i := range shares {
+		if i > shrsRead-1 {
+			shares[i] = share.TailPadding
+			continue
+		}
 		shares[i] = axsData[i*shrLn : (i+1)*shrLn]
 	}
 	return shares, nil
 }
 
-func readCol(fl io.ReaderAt, hdr *headerV0, sharesOffset, quadrantIdx, colIdx int) ([]share.Share, error) {
+// readCol reads specific Col from the file in a single IO operation.
+// If some or all shares are missing, tail padding shares are returned instead.
+func readCol(fl *os.File, hdr *headerV0, sharesOffset, quadrantIdx, colIdx int) ([]share.Share, error) {
 	shrLn := int(hdr.shareSize)
 	odsLn := int(hdr.squareSize / 2)
 	quadrantOffset := quadrantIdx * odsLn * odsLn * shrLn
@@ -389,9 +404,14 @@ func readCol(fl io.ReaderAt, hdr *headerV0, sharesOffset, quadrantIdx, colIdx in
 		offset := sharesOffset + quadrantOffset + pos*shrLn
 
 		shr := make(share.Share, shrLn)
-		if _, err := fl.ReadAt(shr, int64(offset)); err != nil {
+		n, err := fl.ReadAt(shr, int64(offset))
+		if err != nil && !errors.Is(err, io.EOF) {
 			return nil, err
 		}
+		if n == 0 {
+			shr = share.TailPadding
+		}
+
 		shares[i] = shr
 	}
 	return shares, nil

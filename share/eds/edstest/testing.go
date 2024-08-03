@@ -2,11 +2,11 @@ package edstest
 
 import (
 	"crypto/rand"
-	appshares "github.com/celestiaorg/celestia-app/pkg/shares"
 	"testing"
 
 	"github.com/stretchr/testify/require"
 
+	appshares "github.com/celestiaorg/celestia-app/pkg/shares"
 	"github.com/celestiaorg/celestia-app/pkg/wrapper"
 	"github.com/celestiaorg/nmt"
 	"github.com/celestiaorg/rsmt2d"

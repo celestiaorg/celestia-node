@@ -3,10 +3,13 @@ package eds
 import (
 	"bytes"
 	"context"
+	"errors"
 	"fmt"
-	"github.com/celestiaorg/celestia-node/share"
-	"github.com/celestiaorg/rsmt2d"
 	"io"
+
+	"github.com/celestiaorg/rsmt2d"
+
+	"github.com/celestiaorg/celestia-node/share"
 )
 
 // ReadEDS reads up EDS out of the io.Reader until io.EOF.
@@ -38,13 +41,17 @@ func ReadEDS(ctx context.Context, reader io.Reader, root *share.AxisRoots) (*rsm
 }
 
 // ReadShares reads shares from the provided io.Reader until EOF. If EOF is reached, the remaining shares
-// are populated as padding share. Provided reader must contain shares in row-major order.
+// are populated as tail padding shares. Provided reader must contain shares in row-major order.
 func ReadShares(r io.Reader, shareSize, odsSize int) ([]share.Share, error) {
 	shares := make([]share.Share, odsSize*odsSize)
 	var total int
 	for i := range shares {
 		shr := make(share.Share, shareSize)
 		n, err := io.ReadFull(r, shr)
+		if errors.Is(err, io.EOF) {
+			shares[i] = share.TailPadding
+			continue
+		}
 		if err != nil {
 			return nil, fmt.Errorf("reading share: %w, bytes read: %v", err, total+n)
 		}
