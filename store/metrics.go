@@ -2,6 +2,7 @@ package store
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"time"
 
@@ -57,9 +58,14 @@ func (s *Store) WithMetrics() error {
 		return err
 	}
 
-	unreg, err := s.cache.EnableMetrics()
+	unregRecent, err := s.recent.EnableMetrics()
 	if err != nil {
-		return fmt.Errorf("while enabling metrics for cache: %w", err)
+		return fmt.Errorf("while enabling metrics for recent cache: %w", err)
+	}
+
+	unregAvail, err := s.recent.EnableMetrics()
+	if err != nil {
+		return fmt.Errorf("while enabling metrics for availability cache: %w", err)
 	}
 
 	s.metrics = &metrics{
@@ -68,7 +74,9 @@ func (s *Store) WithMetrics() error {
 		get:       get,
 		has:       has,
 		remove:    remove,
-		unreg:     unreg,
+		unreg: func() error {
+			return errors.Join(unregRecent(), unregAvail())
+		},
 	}
 	return nil
 }

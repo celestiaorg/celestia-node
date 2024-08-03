@@ -12,6 +12,7 @@ import (
 
 	"github.com/celestiaorg/celestia-node/share"
 	"github.com/celestiaorg/celestia-node/share/eds/edstest"
+	"github.com/celestiaorg/celestia-node/share/new_eds"
 	"github.com/celestiaorg/celestia-node/store/cache"
 )
 
@@ -19,11 +20,9 @@ func TestEDSStore(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second*5)
 	t.Cleanup(cancel)
 
-	edsStore, err := NewStore(DefaultParameters(), t.TempDir())
+	edsStore, err := NewStore(paramsNoCache(), t.TempDir())
 	require.NoError(t, err)
 
-	// disable cache
-	edsStore.cache = cache.NewDoubleCache(cache.NoopCache{}, cache.NoopCache{})
 	height := atomic.Uint64{}
 	height.Store(100)
 
@@ -57,7 +56,7 @@ func TestEDSStore(t *testing.T) {
 		require.NoError(t, err)
 
 		// file should be cached after put
-		f, err := edsStore.cache.Get(height)
+		f, err := edsStore.recent.Get(height)
 		require.NoError(t, err)
 		require.NoError(t, f.Close())
 
@@ -138,9 +137,12 @@ func TestEDSStore(t *testing.T) {
 	})
 
 	t.Run("Remove", func(t *testing.T) {
+		edsStore, err := NewStore(DefaultParameters(), t.TempDir())
+		require.NoError(t, err)
+
 		// removing file that does not exist should be noop
 		missingHeight := height.Add(1)
-		err := edsStore.Remove(ctx, missingHeight, share.DataHash{0x01, 0x02})
+		err = edsStore.Remove(ctx, missingHeight, share.DataHash{0x01, 0x02})
 		require.NoError(t, err)
 
 		eds, roots := randomEDS(t)
@@ -152,7 +154,7 @@ func TestEDSStore(t *testing.T) {
 		require.NoError(t, err)
 
 		// file should be removed from cache
-		_, err = edsStore.cache.Get(height)
+		_, err = edsStore.recent.Get(height)
 		require.ErrorIs(t, err, cache.ErrCacheMiss)
 
 		// file should not be accessible by hash
@@ -242,6 +244,27 @@ func TestEDSStore(t *testing.T) {
 			require.NoError(t, f.Close())
 		}
 	})
+
+	t.Run("AvailabilityCache", func(t *testing.T) {
+		edsStore, err := NewStore(DefaultParameters(), t.TempDir())
+		require.NoError(t, err)
+
+		square, roots := randomEDS(t)
+		var acsr eds.AccessorStreamer = &eds.Rsmt2D{ExtendedDataSquare: square}
+
+		err = edsStore.Cache(10, acsr)
+		require.NoError(t, err)
+
+		acsr, err = edsStore.GetByHeight(ctx, 10)
+		require.NoError(t, err)
+		require.NoError(t, acsr.Close())
+
+		err = edsStore.Remove(ctx, 10, roots.Hash())
+		require.NoError(t, err)
+
+		acsr, err = edsStore.GetByHeight(ctx, 10)
+		require.Error(t, err)
+	})
 }
 
 func BenchmarkStore(b *testing.B) {
@@ -266,11 +289,8 @@ func BenchmarkStore(b *testing.B) {
 	// read 128 EDSs does not read full EDS, but only the header
 	// BenchmarkStore/bench_read_128-10         	   82766	     14678 ns/op (~14mcs)
 	b.Run("open by height, 128", func(b *testing.B) {
-		edsStore, err := NewStore(DefaultParameters(), b.TempDir())
+		edsStore, err := NewStore(paramsNoCache(), b.TempDir())
 		require.NoError(b, err)
-
-		// disable cache
-		edsStore.cache = cache.NewDoubleCache(cache.NoopCache{}, cache.NoopCache{})
 
 		roots, err := share.NewAxisRoots(eds)
 		require.NoError(b, err)
@@ -289,11 +309,8 @@ func BenchmarkStore(b *testing.B) {
 
 	// BenchmarkStore/open_by_hash,_128-10         	   72921	     16799 ns/op (~16mcs)
 	b.Run("open by hash, 128", func(b *testing.B) {
-		edsStore, err := NewStore(DefaultParameters(), b.TempDir())
+		edsStore, err := NewStore(paramsNoCache(), b.TempDir())
 		require.NoError(b, err)
-
-		// disable cache
-		edsStore.cache = cache.NewDoubleCache(cache.NoopCache{}, cache.NoopCache{})
 
 		roots, err := share.NewAxisRoots(eds)
 		require.NoError(b, err)
@@ -317,4 +334,11 @@ func randomEDS(t testing.TB) (*rsmt2d.ExtendedDataSquare, *share.AxisRoots) {
 	require.NoError(t, err)
 
 	return eds, roots
+}
+
+func paramsNoCache() *Parameters {
+	params := DefaultParameters()
+	params.AvailabilityCacheSize = 0
+	params.RecentBlocksCacheSize = 0
+	return params
 }

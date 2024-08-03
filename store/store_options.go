@@ -1,15 +1,11 @@
 package store
 
-import (
-	"errors"
-)
-
 type Parameters struct {
-	// RecentBlocksCacheSize is the size of the cache for recent blocks.
+	// RecentBlocksCacheSize is the size of the cache for recent blocks. Set 0 to disable cache.
 	RecentBlocksCacheSize int
 
 	// AvailabilityCacheSize is the size of the cache for accessors requested for serving availability
-	// samples.
+	// samples. Set 0 to disable cache.
 	AvailabilityCacheSize int
 }
 
@@ -22,12 +18,5 @@ func DefaultParameters() *Parameters {
 }
 
 func (p *Parameters) Validate() error {
-	if p.RecentBlocksCacheSize < 1 {
-		return errors.New("recent eds cache size must be positive")
-	}
-
-	if p.AvailabilityCacheSize < 1 {
-		return errors.New("availability cache size must be positive")
-	}
 	return nil
 }
