@@ -1,11 +1,11 @@
 package store
 
 type Parameters struct {
-	// RecentBlocksCacheSize is the size of the cache for recent blocks. Set 0 to disable cache.
+	// RecentBlocksCacheSize is the size of the cache for recent blocks. Set 0 to disable this cache.
 	RecentBlocksCacheSize int
 
 	// AvailabilityCacheSize is the size of the cache for accessors requested for serving availability
-	// samples. Set 0 to disable cache.
+	// samples. Set 0 to disable this cache.
 	AvailabilityCacheSize int
 }
 

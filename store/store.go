@@ -301,7 +301,7 @@ func (s *Store) hasByHeight(height uint64) (bool, error) {
 
 	acsr, err = s.availability.Get(height)
 	if err == nil {
-		utils.CloseAndLog(log, "recent accessor", acsr)
+		utils.CloseAndLog(log, "availability accessor", acsr)
 		return true, nil
 	}
 
