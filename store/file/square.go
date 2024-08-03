@@ -38,7 +38,7 @@ func (s square) reader() (io.Reader, error) {
 	getShare := func(rowIdx, colIdx int) ([]byte, error) {
 		return s[rowIdx][colIdx], nil
 	}
-	reader := eds.NewSharesReader(s.size(), getShare)
+	reader := eds.NewShareReader(s.size(), getShare)
 	return reader, nil
 }
 

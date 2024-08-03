@@ -122,19 +122,19 @@ func (eds *Rsmt2D) Reader() (io.Reader, error) {
 		return eds.GetCell(uint(rowIdx), uint(colIdx)), nil
 	}
 	odsSize := int(eds.Width() / 2)
-	reader := NewSharesReader(odsSize, getShare)
+	reader := NewShareReader(odsSize, getShare)
 	return reader, nil
 }
 
 // Rsmt2DFromShares constructs an Extended Data Square from shares.
-func Rsmt2DFromShares(shares []share.Share, odsSize int) (Rsmt2D, error) {
+func Rsmt2DFromShares(shares []share.Share, odsSize int) (*Rsmt2D, error) {
 	treeFn := wrapper.NewConstructor(uint64(odsSize))
 	eds, err := rsmt2d.ComputeExtendedDataSquare(shares, share.DefaultRSMT2DCodec(), treeFn)
 	if err != nil {
-		return Rsmt2D{}, fmt.Errorf("computing extended data square: %w", err)
+		return &Rsmt2D{}, fmt.Errorf("computing extended data square: %w", err)
 	}
 
-	return Rsmt2D{eds}, nil
+	return &Rsmt2D{eds}, nil
 }
 
 func getAxis(eds *rsmt2d.ExtendedDataSquare, axisType rsmt2d.Axis, axisIdx int) []share.Share {

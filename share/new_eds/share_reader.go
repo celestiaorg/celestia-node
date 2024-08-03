@@ -5,22 +5,25 @@ import (
 	"errors"
 	"fmt"
 	"io"
-
-	"github.com/celestiaorg/celestia-node/share"
 )
 
-// BufferedReader will read Shares from getShare function into the buffer.
-// It exposes the buffer to be read by io.Reader interface implementation
-type BufferedReader struct {
-	buf      *bytes.Buffer
+// ShareReader implement io.Reader over general function that gets shares by
+// their respective Row and Col coordinates.
+// It enables share streaming over arbitrary storages.
+type ShareReader struct {
+	// getShare general share getting function for share retrieval
 	getShare func(rowIdx, colIdx int) ([]byte, error)
+
+	// buf buffers shares from partial reads with default size
+	buf *bytes.Buffer
 	// current is the amount of Shares stored in square that have been written by squareCopy. When
 	// current reaches total, squareCopy will prevent further reads by returning io.EOF
 	current, odsSize, total int
 }
 
-func NewSharesReader(odsSize int, getShare func(rowIdx, colIdx int) ([]byte, error)) *BufferedReader {
-	return &BufferedReader{
+// NewShareReader constructs a new ShareGetter from underlying ODS size and general share getting function.
+func NewShareReader(odsSize int, getShare func(rowIdx, colIdx int) ([]byte, error)) *ShareReader {
+	return &ShareReader{
 		getShare: getShare,
 		buf:      bytes.NewBuffer(nil),
 		odsSize:  odsSize,
@@ -28,7 +31,7 @@ func NewSharesReader(odsSize int, getShare func(rowIdx, colIdx int) ([]byte, err
 	}
 }
 
-func (r *BufferedReader) Read(p []byte) (int, error) {
+func (r *ShareReader) Read(p []byte) (int, error) {
 	if r.current >= r.total && r.buf.Len() == 0 {
 		return 0, io.EOF
 	}
@@ -74,24 +77,4 @@ func (r *BufferedReader) Read(p []byte) (int, error) {
 		return written, nil
 	}
 	return written, nil
-}
-
-// ReadShares reads shares from the provided reader and constructs an Extended Data Square. Provided
-// reader should contain shares in row-major order.
-func ReadShares(r io.Reader, shareSize, odsSize int) ([]share.Share, error) {
-	shares := make([]share.Share, odsSize*odsSize)
-	var total int
-	for i := range shares {
-		share := make(share.Share, shareSize)
-		n, err := io.ReadFull(r, share)
-		if err != nil {
-			return nil, fmt.Errorf("reading share: %w, bytes read: %v", err, total+n)
-		}
-		if n != shareSize {
-			return nil, fmt.Errorf("share size mismatch: expected %v, got %v", shareSize, n)
-		}
-		shares[i] = share
-		total += n
-	}
-	return shares, nil
 }

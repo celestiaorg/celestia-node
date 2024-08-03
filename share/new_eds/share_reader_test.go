@@ -12,7 +12,7 @@ import (
 	"github.com/celestiaorg/celestia-node/share/eds/edstest"
 )
 
-func TestSharesReader(t *testing.T) {
+func TestShareReader(t *testing.T) {
 	// create io.Writer that write random data
 	odsSize := 16
 	eds := edstest.RandEDS(t, odsSize)
@@ -20,7 +20,7 @@ func TestSharesReader(t *testing.T) {
 		return eds.GetCell(uint(rowIdx), uint(colIdx)), nil
 	}
 
-	reader := NewSharesReader(odsSize, getShare)
+	reader := NewShareReader(odsSize, getShare)
 	readBytes, err := readWithRandomBuffer(reader, 1024)
 	require.NoError(t, err)
 	expected := make([]byte, 0, odsSize*odsSize*share.Size)
