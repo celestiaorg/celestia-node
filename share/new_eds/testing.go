@@ -3,6 +3,7 @@ package eds
 import (
 	"context"
 	"fmt"
+	"math/rand/v2"
 	"strconv"
 	"sync"
 	"testing"
@@ -35,20 +36,23 @@ func TestSuiteAccessor(
 		t.Errorf("minSize must be power of 2: %v", maxSize)
 	}
 	for size := minSize; size <= maxSize; size *= 2 {
+		padding := rand.IntN(size)
+		eds := edstest.RandEDSWithTailPadding(t, size, padding)
+
 		t.Run(fmt.Sprintf("DataHash:%d", size), func(t *testing.T) {
-			testAccessorDataHash(ctx, t, createAccessor, size)
+			testAccessorDataHash(ctx, t, createAccessor, eds)
 		})
 
 		t.Run(fmt.Sprintf("AxisRoots:%d", size), func(t *testing.T) {
-			testAccessorAxisRoots(ctx, t, createAccessor, size)
+			testAccessorAxisRoots(ctx, t, createAccessor, eds)
 		})
 
 		t.Run(fmt.Sprintf("Sample:%d", size), func(t *testing.T) {
-			testAccessorSample(ctx, t, createAccessor, size)
+			testAccessorSample(ctx, t, createAccessor, eds)
 		})
 
 		t.Run(fmt.Sprintf("AxisHalf:%d", size), func(t *testing.T) {
-			testAccessorAxisHalf(ctx, t, createAccessor, size)
+			testAccessorAxisHalf(ctx, t, createAccessor, eds)
 		})
 
 		t.Run(fmt.Sprintf("RowNamespaceData:%d", size), func(t *testing.T) {
@@ -56,7 +60,7 @@ func TestSuiteAccessor(
 		})
 
 		t.Run(fmt.Sprintf("Shares:%d", size), func(t *testing.T) {
-			testAccessorShares(ctx, t, createAccessor, size)
+			testAccessorShares(ctx, t, createAccessor, eds)
 		})
 	}
 }
@@ -67,8 +71,14 @@ func TestStreamer(
 	create createAccessorStreamer,
 	odsSize int,
 ) {
-	t.Run("Reader", func(t *testing.T) {
-		testAccessorReader(ctx, t, create, odsSize)
+	padding := rand.IntN(odsSize)
+	eds := edstest.RandEDSWithTailPadding(t, odsSize, padding)
+
+	t.Run("ReaderConcurrent", func(t *testing.T) {
+		testAccessorReader(ctx, t, create, eds)
+	})
+	t.Run("ReaderPadding", func(t *testing.T) {
+		testAccessorReaderPadding(ctx, t, create, eds)
 	})
 }
 
@@ -76,9 +86,8 @@ func testAccessorDataHash(
 	ctx context.Context,
 	t *testing.T,
 	createAccessor createAccessor,
-	odsSize int,
+	eds *rsmt2d.ExtendedDataSquare,
 ) {
-	eds := edstest.RandEDS(t, odsSize)
 	fl := createAccessor(t, eds)
 
 	roots, err := share.NewAxisRoots(eds)
@@ -93,9 +102,8 @@ func testAccessorAxisRoots(
 	ctx context.Context,
 	t *testing.T,
 	createAccessor createAccessor,
-	odsSize int,
+	eds *rsmt2d.ExtendedDataSquare,
 ) {
-	eds := edstest.RandEDS(t, odsSize)
 	fl := createAccessor(t, eds)
 
 	roots, err := share.NewAxisRoots(eds)
@@ -110,9 +118,8 @@ func testAccessorSample(
 	ctx context.Context,
 	t *testing.T,
 	createAccessor createAccessor,
-	odsSize int,
+	eds *rsmt2d.ExtendedDataSquare,
 ) {
-	eds := edstest.RandEDS(t, odsSize)
 	fl := createAccessor(t, eds)
 
 	roots, err := share.NewAxisRoots(eds)
@@ -229,9 +236,9 @@ func testAccessorAxisHalf(
 	ctx context.Context,
 	t *testing.T,
 	createAccessor createAccessor,
-	odsSize int,
+	eds *rsmt2d.ExtendedDataSquare,
 ) {
-	eds := edstest.RandEDS(t, odsSize)
+	odsSize := int(eds.Width() / 2)
 	fl := createAccessor(t, eds)
 
 	t.Run("single thread", func(t *testing.T) {
@@ -283,9 +290,8 @@ func testAccessorShares(
 	ctx context.Context,
 	t *testing.T,
 	createAccessor createAccessor,
-	odsSize int,
+	eds *rsmt2d.ExtendedDataSquare,
 ) {
-	eds := edstest.RandEDS(t, odsSize)
 	fl := createAccessor(t, eds)
 
 	shares, err := fl.Shares(ctx)
@@ -294,13 +300,22 @@ func testAccessorShares(
 	require.Equal(t, expected, shares)
 }
 
+func testAccessorReaderPadding(
+	ctx context.Context,
+	t *testing.T,
+	create createAccessorStreamer,
+	eds *rsmt2d.ExtendedDataSquare,
+) {
+	f := create(t, eds)
+	testReader(ctx, t, eds, f)
+}
+
 func testAccessorReader(
 	ctx context.Context,
 	t *testing.T,
 	create createAccessorStreamer,
-	odsSize int,
+	eds *rsmt2d.ExtendedDataSquare,
 ) {
-	eds := edstest.RandEDS(t, odsSize)
 	f := create(t, eds)
 
 	// verify that the reader represented by file can be read from
@@ -320,12 +335,12 @@ func testReader(ctx context.Context, t *testing.T, eds *rsmt2d.ExtendedDataSquar
 	reader, err := as.Reader()
 	require.NoError(t, err)
 
-	odsSize := as.Size(ctx) / 2
-	shares, err := ReadShares(reader, share.Size, odsSize)
+	roots, err := as.AxisRoots(ctx)
 	require.NoError(t, err)
-	actual, err := Rsmt2DFromShares(shares, odsSize)
+
+	actual, err := ReadEDS(ctx, reader, roots)
 	require.NoError(t, err)
-	require.True(t, eds.Equals(actual.ExtendedDataSquare))
+	require.True(t, eds.Equals(actual))
 }
 
 func BenchGetHalfAxisFromAccessor(

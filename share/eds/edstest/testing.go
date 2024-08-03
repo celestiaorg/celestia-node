@@ -2,6 +2,7 @@ package edstest
 
 import (
 	"crypto/rand"
+	appshares "github.com/celestiaorg/celestia-app/pkg/shares"
 	"testing"
 
 	"github.com/stretchr/testify/require"
@@ -14,22 +15,35 @@ import (
 	"github.com/celestiaorg/celestia-node/share/sharetest"
 )
 
-func RandByzantineEDS(t testing.TB, size int, options ...nmt.Option) *rsmt2d.ExtendedDataSquare {
-	eds := RandEDS(t, size)
+func RandByzantineEDS(t testing.TB, odsSize int, options ...nmt.Option) *rsmt2d.ExtendedDataSquare {
+	eds := RandEDS(t, odsSize)
 	shares := eds.Flattened()
 	copy(share.GetData(shares[0]), share.GetData(shares[1])) // corrupting eds
 	eds, err := rsmt2d.ImportExtendedDataSquare(shares,
 		share.DefaultRSMT2DCodec(),
-		wrapper.NewConstructor(uint64(size),
+		wrapper.NewConstructor(uint64(odsSize),
 			options...))
 	require.NoError(t, err, "failure to recompute the extended data square")
 	return eds
 }
 
 // RandEDS generates EDS filled with the random data with the given size for original square.
-func RandEDS(t testing.TB, size int) *rsmt2d.ExtendedDataSquare {
-	shares := sharetest.RandShares(t, size*size)
-	eds, err := rsmt2d.ComputeExtendedDataSquare(shares, share.DefaultRSMT2DCodec(), wrapper.NewConstructor(uint64(size)))
+func RandEDS(t testing.TB, odsSize int) *rsmt2d.ExtendedDataSquare {
+	shares := sharetest.RandShares(t, odsSize*odsSize)
+	eds, err := rsmt2d.ComputeExtendedDataSquare(shares, share.DefaultRSMT2DCodec(), wrapper.NewConstructor(uint64(odsSize)))
+	require.NoError(t, err, "failure to recompute the extended data square")
+	return eds
+}
+
+// RandEDSWithTailPadding generates EDS of given ODS size filled with randomized and tail padding shares.
+func RandEDSWithTailPadding(t testing.TB, odsSize, padding int) *rsmt2d.ExtendedDataSquare {
+	shares := sharetest.RandShares(t, odsSize*odsSize)
+	for i := len(shares) - padding; i < len(shares); i++ {
+		paddingShare := appshares.TailPaddingShare()
+		shares[i] = paddingShare.ToBytes()
+	}
+
+	eds, err := rsmt2d.ComputeExtendedDataSquare(shares, share.DefaultRSMT2DCodec(), wrapper.NewConstructor(uint64(odsSize)))
 	require.NoError(t, err, "failure to recompute the extended data square")
 	return eds
 }
@@ -39,10 +53,10 @@ func RandEDS(t testing.TB, size int) *rsmt2d.ExtendedDataSquare {
 func RandEDSWithNamespace(
 	t testing.TB,
 	namespace share.Namespace,
-	namespacedAmount, size int,
+	namespacedAmount, odsSize int,
 ) (*rsmt2d.ExtendedDataSquare, *share.AxisRoots) {
-	shares := sharetest.RandSharesWithNamespace(t, namespace, namespacedAmount, size*size)
-	eds, err := rsmt2d.ComputeExtendedDataSquare(shares, share.DefaultRSMT2DCodec(), wrapper.NewConstructor(uint64(size)))
+	shares := sharetest.RandSharesWithNamespace(t, namespace, namespacedAmount, odsSize*odsSize)
+	eds, err := rsmt2d.ComputeExtendedDataSquare(shares, share.DefaultRSMT2DCodec(), wrapper.NewConstructor(uint64(odsSize)))
 	require.NoError(t, err, "failure to recompute the extended data square")
 	roots, err := share.NewAxisRoots(eds)
 	require.NoError(t, err)
