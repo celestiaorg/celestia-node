@@ -256,7 +256,7 @@ func (c *proofsCache) Shares(ctx context.Context) ([]share.Share, error) {
 
 func (c *proofsCache) Reader() (io.Reader, error) {
 	odsSize := c.Size(context.TODO()) / 2
-	reader := NewSharesReader(odsSize, c.getShare)
+	reader := NewShareReader(odsSize, c.getShare)
 	return reader, nil
 }
 
