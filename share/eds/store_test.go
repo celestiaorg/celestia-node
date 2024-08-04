@@ -382,7 +382,7 @@ func Test_CachedAccessor(t *testing.T) {
 	require.Equal(t, firstBlock, secondBlock)
 }
 
-// Test_CachedAccessor verifies that the reader represented by a accessor obtained directly from
+// Test_NotCachedAccessor verifies that the reader represented by a accessor obtained directly from
 // dagstore can be read from multiple times, without exhausting the underlying reader.
 func Test_NotCachedAccessor(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
