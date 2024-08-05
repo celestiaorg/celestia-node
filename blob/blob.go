@@ -33,7 +33,7 @@ type Proof struct {
 }
 
 // Verify takes a blob and a data root and verifies if the
-// provided blob was committed to by the data root.
+// provided blob was committed to the given data root.
 func (p *Proof) Verify(blob *Blob, dataRoot []byte) (bool, error) {
 	blobCommitment, err := types.CreateCommitment(ToAppBlobs(blob)[0])
 	if err != nil {
