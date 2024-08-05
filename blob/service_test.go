@@ -1119,11 +1119,12 @@ func TestBlobVerify(t *testing.T) {
 			expectErr: true,
 		},
 		{
-			name:     "invalid proof",
+			name:     "invalid row proof",
 			dataRoot: dataRoot,
 			proof: func() Proof {
 				p := blobProof
-				p.ShareToRowRootProof = p.ShareToRowRootProof[1:]
+				p.RowToDataRootProof.StartRow = 10
+				p.RowToDataRootProof.EndRow = 15
 				return p
 			}(),
 			blob:      *blob,
