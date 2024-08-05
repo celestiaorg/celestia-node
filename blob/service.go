@@ -522,7 +522,7 @@ func (s *Service) retrieve(
 
 				proof := Proof{
 					ShareToRowRootProof: shareToRowRootProofs,
-					RowProof: core.RowProof{
+					RowToDataRootProof: core.RowProof{
 						RowRoots: rowRoots,
 						Proofs:   rowProofs,
 						StartRow: uint32(inclusiveBlobStartRowIndex),

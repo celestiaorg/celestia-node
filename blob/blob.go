@@ -27,9 +27,9 @@ type Proof struct {
 	// ShareToRowRootProof the proofs of the shares to the row roots they belong to.
 	// If the blob spans across multiple rows, then this will contain multiple proofs.
 	ShareToRowRootProof []*tmproto.NMTProof
-	// RowProof the proofs of the row roots containing the blob shares
+	// RowToDataRootProof the proofs of the row roots containing the blob shares
 	// to the data root.
-	RowProof coretypes.RowProof
+	RowToDataRootProof coretypes.RowProof
 }
 
 // Verify takes a blob and a data root and verifies if the
@@ -53,7 +53,7 @@ func (p *Proof) Verify(blob *Blob, dataRoot []byte) (bool, error) {
 // provided shares are committed to by the data root.
 func (p *Proof) VerifyShares(rawShares [][]byte, namespace share.Namespace, dataRoot []byte) (bool, error) {
 	// verify the row proof
-	if !p.RowProof.VerifyProof(dataRoot) {
+	if !p.RowToDataRootProof.VerifyProof(dataRoot) {
 		return false, fmt.Errorf("%w: invalid row root to data root proof", ErrInvalidProof)
 	}
 
@@ -75,7 +75,7 @@ func (p *Proof) VerifyShares(rawShares [][]byte, namespace share.Namespace, data
 			consts.NewBaseHashFunc(),
 			ns,
 			rawShares[cursor:sharesUsed+cursor],
-			p.RowProof.RowRoots[i],
+			p.RowToDataRootProof.RowRoots[i],
 		)
 		if !valid {
 			return false, ErrInvalidProof
