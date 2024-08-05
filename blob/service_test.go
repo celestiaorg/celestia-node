@@ -1061,3 +1061,124 @@ func generateCommitmentProofFromBlock(
 
 	return commitmentProof
 }
+
+func TestBlobVerify(t *testing.T) {
+	_, blobs, nss, eds, _, _, dataRoot := edstest.GenerateTestBlock(t, 80, 10)
+
+	// create the blob from the data
+	blob, err := NewBlob(
+		uint8(blobs[5].ShareVersion),
+		nss[5].Bytes(),
+		blobs[5].Data,
+	)
+	require.NoError(t, err)
+
+	// convert the blob to a number of shares
+	blobShares, err := BlobsToShares(blob)
+	require.NoError(t, err)
+
+	// find the first share of the blob in the ODS
+	startShareIndex := -1
+	for i, sh := range eds.FlattenedODS() {
+		if bytes.Equal(sh, blobShares[0]) {
+			startShareIndex = i
+			break
+		}
+	}
+	require.Greater(t, startShareIndex, 0)
+
+	// create an inclusion proof of the blob using the share range instead of the commitment
+	sharesProof, err := pkgproof.NewShareInclusionProofFromEDS(
+		eds,
+		nss[5],
+		shares.NewRange(startShareIndex, startShareIndex+len(blobShares)),
+	)
+	require.NoError(t, err)
+	require.NoError(t, sharesProof.Validate(dataRoot))
+
+	blobProof := Proof{
+		ShareToRowRootProof: sharesProof.ShareProofs,
+		RowToDataRootProof:  sharesProof.RowProof,
+	}
+	tests := []struct {
+		name      string
+		blob      Blob
+		proof     Proof
+		dataRoot  []byte
+		expectErr bool
+	}{
+		{
+			name:     "invalid blob commitment",
+			dataRoot: dataRoot,
+			proof:    blobProof,
+			blob: func() Blob {
+				b := *blob
+				b.Commitment = []byte{0x1}
+				return b
+			}(),
+			expectErr: true,
+		},
+		{
+			name:     "invalid proof",
+			dataRoot: dataRoot,
+			proof: func() Proof {
+				p := blobProof
+				p.ShareToRowRootProof = p.ShareToRowRootProof[1:]
+				return p
+			}(),
+			blob:      *blob,
+			expectErr: true,
+		},
+		{
+			name:     "malformed blob and proof",
+			dataRoot: dataRoot,
+			proof: func() Proof {
+				p := blobProof
+				p.ShareToRowRootProof = p.ShareToRowRootProof[1:]
+				return p
+			}(),
+			blob: func() Blob {
+				b := *blob
+				b.Commitment = []byte{0x1}
+				return b
+			}(),
+			expectErr: true,
+		},
+		{
+			name:     "mismatched number of share proofs and row proofs",
+			dataRoot: dataRoot,
+			proof: func() Proof {
+				p := blobProof
+				p.ShareToRowRootProof = p.ShareToRowRootProof[1:]
+				return p
+			}(),
+			blob:      *blob,
+			expectErr: true,
+		},
+		{
+			name:      "invalid data root",
+			dataRoot:  []byte{0x1, 0x2},
+			proof:     blobProof,
+			blob:      *blob,
+			expectErr: true,
+		},
+		{
+			name:     "valid proof",
+			dataRoot: dataRoot,
+			blob:     *blob,
+			proof:    blobProof,
+		},
+	}
+
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			valid, err := test.proof.Verify(&test.blob, test.dataRoot)
+			if test.expectErr {
+				assert.Error(t, err)
+			} else {
+				assert.NoError(t, err)
+				assert.True(t, valid)
+			}
+		})
+	}
+}
