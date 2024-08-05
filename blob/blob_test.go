@@ -2,8 +2,6 @@ package blob
 
 import (
 	"bytes"
-	"fmt"
-	"math"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -101,9 +99,6 @@ func TestBlob(t *testing.T) {
 func convertBlobs(appBlobs ...*blob.Blob) ([]*Blob, error) {
 	blobs := make([]*Blob, 0, len(appBlobs))
 	for _, appBlob := range appBlobs {
-		if shareVersion := appBlob.GetShareVersion(); shareVersion > math.MaxUint8 {
-			return nil, fmt.Errorf("share version %d is greater than max share version %d", shareVersion, math.MaxUint8)
-		}
 		blob, err := NewBlob(uint8(appBlob.GetShareVersion()), appBlob.Namespace().Bytes(), appBlob.GetData())
 		if err != nil {
 			return nil, err
