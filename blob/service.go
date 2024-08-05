@@ -527,7 +527,7 @@ func (s *Service) retrieve(
 						RowRoots: rowRoots,
 						Proofs:   rowProofs,
 						StartRow: uint32(inclusiveBlobStartRowIndex),
-						EndRow:   uint32(exclusiveBlobEndRowIndex),
+						EndRow:   uint32(exclusiveBlobEndRowIndex) - 1,
 					},
 				}
 				return blob, &proof, nil

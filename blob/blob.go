@@ -56,9 +56,6 @@ func (p *Proof) VerifyShares(rawShares [][]byte, namespace share.Namespace, data
 	if err := p.RowToDataRootProof.Validate(dataRoot); err != nil {
 		return false, fmt.Errorf("%w: invalid row root to data root proof", err)
 	}
-	if !p.RowToDataRootProof.VerifyProof(dataRoot) {
-		return false, fmt.Errorf("%w: invalid row root to data root proof", ErrInvalidProof)
-	}
 
 	// verify the share proof
 	ns := append([]byte{namespace.Version()}, namespace.ID()...)
