@@ -594,7 +594,7 @@ func (ca *CoreAccessor) setupTxClient(ctx context.Context, keyName string) (*use
 	}
 	ca.defaultSignerAddress = addr
 	return user.SetupTxClient(ctx, ca.keyring, ca.coreConn, encCfg,
-		user.WithDefaultAccount(keyName),
+		user.WithDefaultAccount(keyName), user.WithDefaultAddress(addr),
 	)
 }
 
