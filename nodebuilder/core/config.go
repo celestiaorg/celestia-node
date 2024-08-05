@@ -44,7 +44,7 @@ func (cfg *Config) Validate() error {
 		return fmt.Errorf("nodebuilder/core: grpc port is not set")
 	}
 
-	ip, err := utils.ValidateAddrPreservingHostname(cfg.IP)
+	ip, err := utils.SanitizeAddr(cfg.IP)
 	if err != nil {
 		return err
 	}
