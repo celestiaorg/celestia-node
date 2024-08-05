@@ -507,11 +507,12 @@ func (s *Service) retrieve(
 					rowRoots[index] = rowRoot
 				}
 
+				edsShareStart := inclusiveBlobStartRowIndex - inclusiveNamespaceStartRowIndex
+				edsShareEnd := exclusiveBlobEndRowIndex - inclusiveNamespaceStartRowIndex
 				// create the share to row root proofs
 				shareToRowRootProofs, _, err := pkgproof.CreateShareToRowRootProofs(
 					squareSize,
-					//nolint:lll
-					edsShares[inclusiveBlobStartRowIndex-inclusiveNamespaceStartRowIndex:exclusiveBlobEndRowIndex-inclusiveNamespaceStartRowIndex],
+					edsShares[edsShareStart:edsShareEnd],
 					header.DAH.RowRoots[inclusiveBlobStartRowIndex:exclusiveBlobEndRowIndex],
 					currentShareIndex%squareSize,
 					(exclusiveEndShareIndex-1)%squareSize,
