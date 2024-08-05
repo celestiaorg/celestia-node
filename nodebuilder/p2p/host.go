@@ -70,7 +70,7 @@ func (ua *UserAgent) String() string {
 func host(params hostParams) (HostBase, error) {
 	ua := newUserAgent().WithNetwork(params.Net).WithNodeType(params.Tp)
 
-	wss, isEnabled, err := enableWss()
+	tlsCfg, isEnabled, err := tlsEnabled()
 	if err != nil {
 		return nil, err
 	}
@@ -95,7 +95,7 @@ func host(params hostParams) (HostBase, error) {
 			libp2p.Transport(tcp.NewTCPTransport),
 			libp2p.Transport(quic.NewTransport),
 			libp2p.Transport(webtransport.New),
-			wss,
+			wsTransport(tlsCfg),
 		),
 		// to clearly define what defaults we rely upon
 		libp2p.DefaultSecurity,

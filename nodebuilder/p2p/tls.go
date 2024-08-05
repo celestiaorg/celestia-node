@@ -16,18 +16,19 @@ const (
 	key  = "key.pem"
 )
 
-var tlsPath = "TLS_PATH"
+var tlsPath = "CELESTIA_TLS_PATH"
 
-// enableWss checks whether `tlsPath` is not empty and creates a certificates
-// to enable a websocket transport.
-func enableWss() (libp2p.Option, bool, error) {
+// tlsEnabled checks whether `tlsPath` is not empty and creates a certificate.
+// it returns the cfg itself, the bool flag that specifies whether the config was created
+// and an error.
+func tlsEnabled() (*tls.Config, bool, error) {
 	path := os.Getenv(tlsPath)
 	certPath := filepath.Join(path, cert)
 	keyPath := filepath.Join(path, key)
 
 	exist := utils.Exists(certPath) && utils.Exists(keyPath)
 	if !exist {
-		return libp2p.Transport(ws.New), exist, nil
+		return nil, false, nil
 	}
 
 	var certificates []tls.Certificate
@@ -36,7 +37,15 @@ func enableWss() (libp2p.Option, bool, error) {
 		return nil, false, err
 	}
 	certificates = append(certificates, cert)
-	config := &tls.Config{MinVersion: tls.VersionTLS12, Certificates: certificates}
+	return &tls.Config{MinVersion: tls.VersionTLS12, Certificates: certificates}, true, nil
+}
 
-	return libp2p.Transport(ws.New, ws.WithTLSConfig(config)), true, nil
+// wsTransport enables a support for the secure websocket connection
+// using the passed tls config. The connection will be insecure in case
+// config is empty.
+func wsTransport(config *tls.Config) libp2p.Option {
+	if config == nil {
+		return libp2p.Transport(ws.New)
+	}
+	return libp2p.Transport(ws.New, ws.WithTLSConfig(config))
 }

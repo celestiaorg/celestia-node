@@ -273,7 +273,6 @@ func (ca *CoreAccessor) SubmitPayForBlob(
 		if response != nil && response.Code != 0 {
 			err = errors.Join(err, sdkErrors.ABCIError(response.Codespace, response.Code, response.Logs.String()))
 		}
-		fmt.Println("TX HASH ", response.TxHash)
 		return unsetTx(response), err
 	}
 	return nil, fmt.Errorf("failed to submit blobs after %d attempts: %w", maxRetries, lastErr)
