@@ -61,16 +61,16 @@ func (p *Proof) VerifyShares(rawShares [][]byte, namespace share.Namespace, data
 	ns := append([]byte{namespace.Version()}, namespace.ID()...)
 	cursor := int32(0)
 	for i, proof := range p.ShareToRowRootProof {
+		sharesUsed := proof.End - proof.Start
+		if len(rawShares) < int(sharesUsed+cursor) {
+			return false, fmt.Errorf("%w: invalid number of shares", ErrInvalidProof)
+		}
 		nmtProof := nmt.NewInclusionProof(
 			int(proof.Start),
 			int(proof.End),
 			proof.Nodes,
 			true,
 		)
-		sharesUsed := proof.End - proof.Start
-		if len(rawShares) < int(sharesUsed+cursor) {
-			return false, fmt.Errorf("%w: invalid number of shares", ErrInvalidProof)
-		}
 		valid := nmtProof.VerifyInclusion(
 			consts.NewBaseHashFunc(),
 			ns,
