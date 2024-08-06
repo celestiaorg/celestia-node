@@ -32,8 +32,9 @@ import (
 )
 
 var (
-	ErrBlobNotFound = errors.New("blob: not found")
-	ErrInvalidProof = errors.New("blob: invalid proof")
+	ErrBlobNotFound       = errors.New("blob: not found")
+	ErrInvalidProof       = errors.New("blob: invalid proof")
+	ErrMismatchCommitment = errors.New("blob: mismatched commitment")
 
 	log    = logging.Logger("blob")
 	tracer = otel.Tracer("blob/service")
