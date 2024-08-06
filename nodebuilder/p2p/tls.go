@@ -23,9 +23,13 @@ var tlsPath = "CELESTIA_TLS_PATH"
 // and an error.
 func tlsEnabled() (*tls.Config, bool, error) {
 	path := os.Getenv(tlsPath)
+	if path == "" {
+		log.Debug("the CELESTIA_TLS_PATH was not set")
+		return nil, false, nil
+	}
+
 	certPath := filepath.Join(path, cert)
 	keyPath := filepath.Join(path, key)
-
 	exist := utils.Exists(certPath) && utils.Exists(keyPath)
 	if !exist {
 		return nil, false, nil
@@ -37,7 +41,11 @@ func tlsEnabled() (*tls.Config, bool, error) {
 		return nil, false, err
 	}
 	certificates = append(certificates, cert)
-	return &tls.Config{MinVersion: tls.VersionTLS12, Certificates: certificates}, true, nil
+
+	return &tls.Config{
+		MinVersion:   tls.VersionTLS12,
+		Certificates: certificates,
+	}, true, nil
 }
 
 // wsTransport enables a support for the secure websocket connection
@@ -45,7 +53,10 @@ func tlsEnabled() (*tls.Config, bool, error) {
 // config is empty.
 func wsTransport(config *tls.Config) libp2p.Option {
 	if config == nil {
+		log.Info("using a default ws transport")
 		return libp2p.Transport(ws.New)
 	}
+
+	log.Info("using a wss transport with tlsConfig")
 	return libp2p.Transport(ws.New, ws.WithTLSConfig(config))
 }
