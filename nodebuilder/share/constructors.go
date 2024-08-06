@@ -9,14 +9,15 @@ import (
 
 	"github.com/celestiaorg/celestia-app/pkg/da"
 
+	headerServ "github.com/celestiaorg/celestia-node/nodebuilder/header"
 	"github.com/celestiaorg/celestia-node/share"
 	"github.com/celestiaorg/celestia-node/share/eds"
 	"github.com/celestiaorg/celestia-node/share/getters"
 	"github.com/celestiaorg/celestia-node/share/ipld"
 )
 
-func newShareModule(getter share.Getter, avail share.Availability) Module {
-	return &module{getter, avail}
+func newShareModule(getter share.Getter, avail share.Availability, header headerServ.Module) Module {
+	return &module{getter, avail, header}
 }
 
 // ensureEmptyCARExists adds an empty EDS to the provided EDS store.

@@ -9,10 +9,10 @@ import (
 )
 
 // Listen returns invoke function that starts listening for inbound connections with libp2p.Host.
-func Listen(listen []string) func(h hst.Host) (err error) {
+func Listen(cfg *Config) func(h hst.Host) (err error) {
 	return func(h hst.Host) (err error) {
-		maListen := make([]ma.Multiaddr, len(listen))
-		for i, addr := range listen {
+		maListen := make([]ma.Multiaddr, len(cfg.ListenAddresses))
+		for i, addr := range cfg.ListenAddresses {
 			maListen[i], err = ma.NewMultiaddr(addr)
 			if err != nil {
 				return fmt.Errorf("failure to parse config.P2P.ListenAddresses: %w", err)

@@ -14,7 +14,8 @@ import (
 )
 
 func TestBlob(t *testing.T) {
-	appBlobs, err := blobtest.GenerateV0Blobs([]int{16}, false)
+	length := 16
+	appBlobs, err := blobtest.GenerateV0Blobs([]int{length}, false)
 	require.NoError(t, err)
 	blob, err := convertBlobs(appBlobs...)
 	require.NoError(t, err)
@@ -46,6 +47,14 @@ func TestBlob(t *testing.T) {
 				ns := blob[0].Namespace().ToAppNamespace()
 				require.NoError(t, err)
 				require.NoError(t, apptypes.ValidateBlobNamespace(ns))
+			},
+		},
+		{
+			name: "verify length",
+			expectedRes: func(t *testing.T) {
+				blobLength, err := blob[0].Length()
+				require.NoError(t, err)
+				assert.Equal(t, length, blobLength)
 			},
 		},
 		{
