@@ -3,6 +3,7 @@ package p2p
 import (
 	"context"
 	"fmt"
+	libp2pwebrtc "github.com/libp2p/go-libp2p/p2p/transport/webrtc"
 	"strings"
 
 	"github.com/libp2p/go-libp2p"
@@ -95,6 +96,7 @@ func host(params hostParams) (HostBase, error) {
 			libp2p.Transport(tcp.NewTCPTransport),
 			libp2p.Transport(quic.NewTransport),
 			libp2p.Transport(webtransport.New),
+			libp2p.Transport(libp2pwebrtc.New),
 			wsTransport(tlsCfg),
 		),
 		// to clearly define what defaults we rely upon
