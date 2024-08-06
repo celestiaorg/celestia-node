@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"net/http"
+	"time"
 
 	"github.com/filecoin-project/go-jsonrpc"
 
@@ -41,6 +42,18 @@ type Client struct {
 	closer multiClientCloser
 }
 
+type RPCClientOption func(*clientConfig)
+
+type clientConfig struct {
+	timeout time.Duration
+}
+
+func WithTimeout(timeout time.Duration) RPCClientOption {
+	return func(c *clientConfig) {
+		c.timeout = timeout
+	}
+}
+
 // multiClientCloser is a wrapper struct to close clients across multiple namespaces.
 type multiClientCloser struct {
 	closers []jsonrpc.ClientCloser
@@ -65,22 +78,40 @@ func (c *Client) Close() {
 
 // NewClient creates a new Client with one connection per namespace with the
 // given token as the authorization token.
-func NewClient(ctx context.Context, addr, token string) (*Client, error) {
+func NewClient(ctx context.Context, addr, token string, opts ...RPCClientOption) (*Client, error) {
+	config := &clientConfig{}
+	for _, opt := range opts {
+		opt(config)
+	}
+
 	authHeader := http.Header{perms.AuthKey: []string{fmt.Sprintf("Bearer %s", token)}}
-	return newClient(ctx, addr, authHeader)
+	return newClient(ctx, addr, authHeader, config)
 }
 
-func newClient(ctx context.Context, addr string, authHeader http.Header) (*Client, error) {
-	var multiCloser multiClientCloser
+func newClient(ctx context.Context, addr string, authHeader http.Header, config *clientConfig) (*Client, error) {
 	var client Client
+	var multiCloser multiClientCloser
+
+	httpClient := &http.Client{
+		Timeout: config.timeout,
+	}
+
 	for name, module := range moduleMap(&client) {
-		closer, err := jsonrpc.NewClient(ctx, addr, name, module, authHeader)
+		closer, err := jsonrpc.NewMergeClient(
+			ctx,
+			addr,
+			name,
+			[]interface{}{module},
+			authHeader,
+			jsonrpc.WithHTTPClient(httpClient),
+		)
 		if err != nil {
 			return nil, err
 		}
 		multiCloser.register(closer)
 	}
 
+	client.closer = multiCloser
 	return &client, nil
 }
 
