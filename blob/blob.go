@@ -9,6 +9,7 @@ import (
 	tmproto "github.com/tendermint/tendermint/proto/tendermint/types"
 
 	"github.com/celestiaorg/celestia-app/pkg/appconsts"
+	"github.com/celestiaorg/celestia-app/pkg/shares"
 	"github.com/celestiaorg/celestia-app/x/blob/types"
 	"github.com/celestiaorg/nmt"
 
@@ -106,6 +107,30 @@ func (b *Blob) Namespace() share.Namespace {
 // Only retrieved, on-chain blobs will have the index set. Default is -1.
 func (b *Blob) Index() int {
 	return b.index
+}
+
+// Length returns the number of shares in the blob.
+func (b *Blob) Length() (int, error) {
+	s, err := BlobsToShares(b)
+	if err != nil {
+		return 0, err
+	}
+
+	if len(s) == 0 {
+		return 0, errors.New("blob with zero shares received")
+	}
+
+	appShare, err := shares.NewShare(s[0])
+	if err != nil {
+		return 0, err
+	}
+
+	seqLength, err := appShare.SequenceLen()
+	if err != nil {
+		return 0, err
+	}
+
+	return shares.SparseSharesNeeded(seqLength), nil
 }
 
 func (b *Blob) compareCommitments(com Commitment) bool {

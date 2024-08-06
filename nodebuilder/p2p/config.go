@@ -86,3 +86,18 @@ func (cfg *Config) Validate() error {
 	}
 	return nil
 }
+
+// Upgrade updates the `ListenAddresses` and `NoAnnounceAddresses` to
+// include support for websocket connections.
+func (cfg *Config) Upgrade() {
+	cfg.ListenAddresses = append(
+		cfg.ListenAddresses,
+		"/ip4/0.0.0.0/tcp/2122/wss",
+		"/ip6/::/tcp/2122/wss",
+	)
+	cfg.NoAnnounceAddresses = append(
+		cfg.NoAnnounceAddresses,
+		"/ip4/127.0.0.1/tcp/2122/wss",
+		"/ip6/::/tcp/2122/wss",
+	)
+}
