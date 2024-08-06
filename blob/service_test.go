@@ -1063,7 +1063,7 @@ func generateCommitmentProofFromBlock(
 }
 
 func TestBlobVerify(t *testing.T) {
-	_, blobs, nss, eds, _, _, dataRoot := edstest.GenerateTestBlock(t, 80, 10)
+	_, blobs, nss, eds, _, _, dataRoot := edstest.GenerateTestBlock(t, 200, 10)
 
 	// create the blob from the data
 	blob, err := NewBlob(
