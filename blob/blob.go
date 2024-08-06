@@ -40,7 +40,10 @@ func (p *Proof) Verify(blob *Blob, dataRoot []byte) (bool, error) {
 		return false, err
 	}
 	if !blob.Commitment.Equal(blobCommitment) {
-		return false, fmt.Errorf("%w: generated commitment does not match the provided blob commitment", ErrMismatchCommitment)
+		return false, fmt.Errorf(
+			"%w: generated commitment does not match the provided blob commitment",
+			ErrMismatchCommitment,
+		)
 	}
 	rawShares, err := BlobsToShares(blob)
 	if err != nil {
