@@ -3,6 +3,7 @@ package p2p
 import (
 	"context"
 	"fmt"
+	libp2pwebrtc "github.com/libp2p/go-libp2p/p2p/transport/webrtc"
 	"strings"
 
 	"github.com/libp2p/go-libp2p"
