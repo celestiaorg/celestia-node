@@ -35,16 +35,14 @@ func tlsEnabled() (*tls.Config, bool, error) {
 		return nil, false, nil
 	}
 
-	var certificates []tls.Certificate
 	cert, err := tls.LoadX509KeyPair(certPath, keyPath)
 	if err != nil {
 		return nil, false, err
 	}
-	certificates = append(certificates, cert)
 
 	return &tls.Config{
 		MinVersion:   tls.VersionTLS12,
-		Certificates: certificates,
+		Certificates: []tls.Certificate{cert},
 	}, true, nil
 }
 
