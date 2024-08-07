@@ -5,6 +5,7 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/require"
+	tmproto "github.com/tendermint/tendermint/proto/tendermint/types"
 	coretypes "github.com/tendermint/tendermint/types"
 
 	"github.com/celestiaorg/celestia-app/v3/app"
@@ -194,4 +195,23 @@ func createTestBlobTransaction(
 	cTx, _, err := signer.CreatePayForBlobs(accountName, []*libshare.Blob{b})
 	require.NoError(t, err)
 	return ns, msg, b, cTx
+}
+
+// BuildCoreTx takes a signer, a message and a blob and creates a core transaction.
+// The core transaction is the final form of a transaction that gets pushed
+// into the square builder.
+func BuildCoreTx(
+	t *testing.T,
+	signer *types.KeyringSigner,
+	msg *types.MsgPayForBlobs,
+	blob *tmproto.Blob,
+) coretypes.Tx {
+	builder := signer.NewTxBuilder()
+	stx, err := signer.BuildSignedTx(builder, msg)
+	require.NoError(t, err)
+	rawTx, err := encoding.MakeConfig(app.ModuleEncodingRegisters...).TxConfig.TxEncoder()(stx)
+	require.NoError(t, err)
+	cTx, err := coretypes.MarshalBlobTx(rawTx, blob)
+	require.NoError(t, err)
+	return cTx
 }

@@ -11,49 +11,78 @@ import (
 	"github.com/celestiaorg/go-square/v2/inclusion"
 	libshare "github.com/celestiaorg/go-square/v2/share"
 	"github.com/celestiaorg/nmt"
+	"github.com/tendermint/tendermint/pkg/consts"
+	tmproto "github.com/tendermint/tendermint/proto/tendermint/types"
+	coretypes "github.com/tendermint/tendermint/types"
 )
 
-// appVersion is the current application version of celestia-app.
-const appVersion = appconsts.LatestVersion
-
+//nolint:unused
 var errEmptyShares = errors.New("empty shares")
 
-var subtreeRootThreshold = appconsts.SubtreeRootThreshold(appVersion)
+// Proof constructs the proof of a blob to the data root.
+type Proof struct {
+	// ShareToRowRootProof the proofs of the shares to the row roots they belong to.
+	// If the blob spans across multiple rows, then this will contain multiple proofs.
+	ShareToRowRootProof []*tmproto.NMTProof
+	// RowToDataRootProof the proofs of the row roots containing the blob shares
+	// to the data root.
+	RowToDataRootProof coretypes.RowProof
+}
 
-// The Proof is a set of nmt proofs that can be verified only through
-// the included method (due to limitation of the nmt https://github.com/celestiaorg/nmt/issues/218).
-// Proof proves the WHOLE namespaced data to the row roots.
-// TODO (@vgonkivs): rework `Proof` in order to prove a particular blob.
-// https://github.com/celestiaorg/celestia-node/issues/2303
-type Proof []*nmt.Proof
+// Verify takes a blob and a data root and verifies if the
+// provided blob was committed to the given data root.
+func (p *Proof) Verify(blob *Blob, dataRoot []byte) (bool, error) {
+	blobCommitment, err := inclusion.CreateCommitment(blob.Blob, merkle.HashFromByteSlices, appconsts.DefaultSubtreeRootThreshold)
+	if err != nil {
+		return false, err
+	}
+	if !blob.Commitment.Equal(blobCommitment) {
+		return false, fmt.Errorf(
+			"%w: generated commitment does not match the provided blob commitment",
+			ErrMismatchCommitment,
+		)
+	}
+	shares, err := BlobsToShares(blob)
+	if err != nil {
+		return false, err
+	}
+	return p.VerifyShares(libshare.ToBytes(shares), blob.Namespace(), dataRoot)
+}
 
-func (p Proof) Len() int { return len(p) }
-
-// equal is a temporary method that compares two proofs.
-// should be removed in BlobService V1.
-func (p Proof) equal(input Proof) error {
-	if p.Len() != input.Len() {
-		return ErrInvalidProof
+// VerifyShares takes a set of shares, a namespace and a data root, and verifies if the
+// provided shares are committed to by the data root.
+func (p *Proof) VerifyShares(rawShares [][]byte, namespace libshare.Namespace, dataRoot []byte) (bool, error) {
+	// verify the row proof
+	if err := p.RowToDataRootProof.Validate(dataRoot); err != nil {
+		return false, fmt.Errorf("%w: invalid row root to data root proof", err)
 	}
 
-	for i, proof := range p {
-		pNodes := proof.Nodes()
-		inputNodes := input[i].Nodes()
-		for i, node := range pNodes {
-			if !bytes.Equal(node, inputNodes[i]) {
-				return ErrInvalidProof
-			}
+	// verify the share proof
+	ns := append([]byte{namespace.Version()}, namespace.ID()...)
+	cursor := int32(0)
+	for i, proof := range p.ShareToRowRootProof {
+		sharesUsed := proof.End - proof.Start
+		if len(rawShares) < int(sharesUsed+cursor) {
+			return false, fmt.Errorf("%w: invalid number of shares", ErrInvalidProof)
 		}
-
-		if proof.Start() != input[i].Start() || proof.End() != input[i].End() {
-			return ErrInvalidProof
+		nmtProof := nmt.NewInclusionProof(
+			int(proof.Start),
+			int(proof.End),
+			proof.Nodes,
+			true,
+		)
+		valid := nmtProof.VerifyInclusion(
+			consts.NewBaseHashFunc(),
+			ns,
+			rawShares[cursor:sharesUsed+cursor],
+			p.RowToDataRootProof.RowRoots[i],
+		)
+		if !valid {
+			return false, ErrInvalidProof
 		}
-
-		if !bytes.Equal(proof.LeafHash(), input[i].LeafHash()) {
-			return ErrInvalidProof
-		}
+		cursor += sharesUsed
 	}
-	return nil
+	return true, nil
 }
 
 // Blob represents any application-specific binary data that anyone can submit to Celestia.
@@ -94,7 +123,7 @@ func NewBlob(shareVersion uint8, namespace libshare.Namespace, data, signer []by
 		return nil, err
 	}
 
-	com, err := inclusion.CreateCommitment(libBlob, merkle.HashFromByteSlices, subtreeRootThreshold)
+	com, err := inclusion.CreateCommitment(libBlob, merkle.HashFromByteSlices, appconsts.DefaultSubtreeRootThreshold)
 	if err != nil {
 		return nil, err
 	}
@@ -176,4 +205,11 @@ func (b *Blob) UnmarshalJSON(data []byte) error {
 	blob.index = jsonBlob.Index
 	*b = *blob
 	return nil
+}
+
+// proveRowRootsToDataRoot creates a set of binary merkle proofs for all the
+// roots defined by the range [start, end).
+func proveRowRootsToDataRoot(roots [][]byte, start, end int) []*merkle.Proof {
+	_, proofs := merkle.ProofsFromByteSlices(roots)
+	return proofs[start:end]
 }
