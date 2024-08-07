@@ -15,8 +15,8 @@ func TestStore_WithCache(t *testing.T) {
 	height := atomic.Uint64{}
 	height.Store(1)
 
-	t.Run("don't exist in first combinedCache", func(t *testing.T) {
-		// create store with no combinedCache
+	t.Run("don't exist in first cache", func(t *testing.T) {
+		// create store with no cache
 		params := paramsNoCache()
 		store, err := NewStore(params, t.TempDir())
 		require.NoError(t, err)
@@ -28,13 +28,13 @@ func TestStore_WithCache(t *testing.T) {
 		err = store.Put(ctx, roots, height, eds)
 		require.NoError(t, err)
 
-		// check that the height is not in the combinedCache (combinedCache was disabled)
+		// check that the height is not in the cache (cache was disabled)
 		_, err = store.cache.Get(height)
 		require.ErrorIs(t, err, cache.ErrCacheMiss)
 
 		cachedStore, err := store.WithCache("test", 10)
 		require.NoError(t, err)
-		// load accessor to secondary combinedCache by calling GetByHeight on cached store
+		// load accessor to secondary cache by calling GetByHeight on cached store
 		_, err = cachedStore.GetByHeight(ctx, height)
 		require.NoError(t, err)
 
@@ -45,7 +45,7 @@ func TestStore_WithCache(t *testing.T) {
 		require.NoError(t, err)
 	})
 
-	t.Run("exists in first combinedCache", func(t *testing.T) {
+	t.Run("exists in first cache", func(t *testing.T) {
 		store, err := NewStore(DefaultParameters(), t.TempDir())
 		require.NoError(t, err)
 

@@ -5,7 +5,7 @@ import (
 )
 
 type Parameters struct {
-	// RecentBlocksCacheSize is the size of the combinedCache for recent blocks.
+	// RecentBlocksCacheSize is the size of the cache for recent blocks.
 	RecentBlocksCacheSize int
 }
 
@@ -18,7 +18,7 @@ func DefaultParameters() *Parameters {
 
 func (p *Parameters) Validate() error {
 	if p.RecentBlocksCacheSize < 0 {
-		return errors.New("recent eds combinedCache size cannot be negative")
+		return errors.New("recent eds cache size cannot be negative")
 	}
 	return nil
 }

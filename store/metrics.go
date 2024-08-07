@@ -69,14 +69,14 @@ func (s *Store) WithMetrics() error {
 	return s.metrics.addCacheMetrics(s.cache)
 }
 
-// addCacheMetrics adds combinedCache metrics to store metrics
+// addCacheMetrics adds cache metrics to store metrics
 func (m *metrics) addCacheMetrics(c cache.Cache) error {
 	if m == nil {
 		return nil
 	}
 	unreg, err := c.EnableMetrics()
 	if err != nil {
-		return fmt.Errorf("while enabling metrics for combinedCache: %w", err)
+		return fmt.Errorf("while enabling metrics for cache: %w", err)
 	}
 	m.unreg = unreg
 	return nil

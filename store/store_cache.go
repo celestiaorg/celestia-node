@@ -22,7 +22,7 @@ type CachedStore struct {
 func (s *Store) WithCache(name string, size int) (*CachedStore, error) {
 	newCache, err := cache.NewAccessorCache(name, size)
 	if err != nil {
-		return nil, fmt.Errorf("failed to create %s combinedCache: %w", name, err)
+		return nil, fmt.Errorf("failed to create %s cache: %w", name, err)
 	}
 
 	wrappedCache := cache.NewDoubleCache(s.cache, newCache)
@@ -47,7 +47,7 @@ func (cs *CachedStore) GetByHeight(ctx context.Context, height uint64) (eds.Acce
 func (cs *CachedStore) openFile(height uint64) cache.OpenAccessorFn {
 	return func(ctx context.Context) (eds.AccessorStreamer, error) {
 		// open file directly wihout calling GetByHeight of inner getter to
-		// avoid hitting store combinedCache second time
+		// avoid hitting store cache second time
 		path := cs.store.heightToPath(height)
 		return cs.store.openFile(path)
 	}
