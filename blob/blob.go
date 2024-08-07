@@ -19,7 +19,6 @@ import (
 	"github.com/celestiaorg/celestia-node/share"
 )
 
-//nolint:unused
 var errEmptyShares = errors.New("empty shares")
 
 // Proof constructs the proof of a blob to the data root.
@@ -35,35 +34,6 @@ type Proof struct {
 // namespaceToRowRootProof a proof of a set of namespace shares to the row
 // roots they belong to.
 type namespaceToRowRootProof []*nmt.Proof
-
-func (p namespaceToRowRootProof) Len() int { return len(p) }
-
-// equal is a temporary method that compares two proofs.
-// should be removed in BlobService V1.
-func (p namespaceToRowRootProof) equal(input namespaceToRowRootProof) error {
-	if p.Len() != input.Len() {
-		return ErrInvalidProof
-	}
-
-	for i, proof := range p {
-		pNodes := proof.Nodes()
-		inputNodes := input[i].Nodes()
-		for i, node := range pNodes {
-			if !bytes.Equal(node, inputNodes[i]) {
-				return ErrInvalidProof
-			}
-		}
-
-		if proof.Start() != input[i].Start() || proof.End() != input[i].End() {
-			return ErrInvalidProof
-		}
-
-		if !bytes.Equal(proof.LeafHash(), input[i].LeafHash()) {
-			return ErrInvalidProof
-		}
-	}
-	return nil
-}
 
 // Verify takes a blob and a data root and verifies if the
 // provided blob was committed to the given data root.
