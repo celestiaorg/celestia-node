@@ -17,6 +17,7 @@ import (
 	"github.com/stretchr/testify/require"
 	"github.com/tendermint/tendermint/crypto/merkle"
 	tmrand "github.com/tendermint/tendermint/libs/rand"
+	"github.com/tendermint/tendermint/proto/tendermint/types"
 	coretypes "github.com/tendermint/tendermint/types"
 
 	"github.com/celestiaorg/celestia-app/pkg/appconsts"
@@ -1165,9 +1166,15 @@ func TestBlobVerify(t *testing.T) {
 			name:     "malformed blob and proof",
 			dataRoot: dataRoot,
 			proof: func() Proof {
-				p := blobProof
-				p.ShareToRowRootProof = p.ShareToRowRootProof[1:]
-				return p
+				return Proof{
+					ShareToRowRootProof: []*types.NMTProof{{
+						Start:    1,
+						End:      3,
+						Nodes:    [][]byte{{0x01}},
+						LeafHash: nil,
+					}},
+					RowToDataRootProof: blobProof.RowToDataRootProof,
+				}
 			}(),
 			blob: func() Blob {
 				b := *blob
@@ -1181,7 +1188,7 @@ func TestBlobVerify(t *testing.T) {
 			dataRoot: dataRoot,
 			proof: func() Proof {
 				p := blobProof
-				p.ShareToRowRootProof = p.ShareToRowRootProof[1:]
+				p.ShareToRowRootProof[0].End = 15
 				return p
 			}(),
 			blob:      *blob,
@@ -1198,7 +1205,20 @@ func TestBlobVerify(t *testing.T) {
 			name:     "valid proof",
 			dataRoot: dataRoot,
 			blob:     *blob,
-			proof:    blobProof,
+			proof: func() Proof {
+				sharesProof, err := pkgproof.NewShareInclusionProofFromEDS(
+					eds,
+					nss[5],
+					shares.NewRange(startShareIndex, startShareIndex+len(blobShares)),
+				)
+				require.NoError(t, err)
+				require.NoError(t, sharesProof.Validate(dataRoot))
+
+				return Proof{
+					ShareToRowRootProof: sharesProof.ShareProofs,
+					RowToDataRootProof:  sharesProof.RowProof,
+				}
+			}(),
 		},
 	}
 
