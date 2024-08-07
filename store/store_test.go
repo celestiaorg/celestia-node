@@ -19,7 +19,7 @@ func TestEDSStore(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second*5)
 	t.Cleanup(cancel)
 
-	edsStore, err := NewStore(DefaultParameters(), t.TempDir())
+	edsStore, err := NewStore(paramsNoCache(), t.TempDir())
 	require.NoError(t, err)
 
 	// disable cache
@@ -138,9 +138,12 @@ func TestEDSStore(t *testing.T) {
 	})
 
 	t.Run("Remove", func(t *testing.T) {
+		edsStore, err := NewStore(DefaultParameters(), t.TempDir())
+		require.NoError(t, err)
+
 		// removing file that does not exist should be noop
 		missingHeight := height.Add(1)
-		err := edsStore.Remove(ctx, missingHeight, share.DataHash{0x01, 0x02})
+		err = edsStore.Remove(ctx, missingHeight, share.DataHash{0x01, 0x02})
 		require.NoError(t, err)
 
 		eds, roots := randomEDS(t)
@@ -248,14 +251,15 @@ func BenchmarkStore(b *testing.B) {
 	ctx, cancel := context.WithCancel(context.Background())
 	b.Cleanup(cancel)
 
-	edsStore, err := NewStore(DefaultParameters(), b.TempDir())
-	require.NoError(b, err)
-
 	eds := edstest.RandEDS(b, 128)
+	roots, err := share.NewAxisRoots(eds)
 	require.NoError(b, err)
 
 	// BenchmarkStore/bench_put_128-10         	      27	  19209780 ns/op (~19ms)
 	b.Run("put 128", func(b *testing.B) {
+		edsStore, err := NewStore(paramsNoCache(), b.TempDir())
+		require.NoError(b, err)
+
 		b.ResetTimer()
 		for i := 0; i < b.N; i++ {
 			roots := edstest.RandomAxisRoots(b, 1)
@@ -266,13 +270,7 @@ func BenchmarkStore(b *testing.B) {
 	// read 128 EDSs does not read full EDS, but only the header
 	// BenchmarkStore/bench_read_128-10         	   82766	     14678 ns/op (~14mcs)
 	b.Run("open by height, 128", func(b *testing.B) {
-		edsStore, err := NewStore(DefaultParameters(), b.TempDir())
-		require.NoError(b, err)
-
-		// disable cache
-		edsStore.cache = cache.NewDoubleCache(cache.NoopCache{}, cache.NoopCache{})
-
-		roots, err := share.NewAxisRoots(eds)
+		edsStore, err := NewStore(paramsNoCache(), b.TempDir())
 		require.NoError(b, err)
 
 		height := uint64(1984)
@@ -290,12 +288,6 @@ func BenchmarkStore(b *testing.B) {
 	// BenchmarkStore/open_by_hash,_128-10         	   72921	     16799 ns/op (~16mcs)
 	b.Run("open by hash, 128", func(b *testing.B) {
 		edsStore, err := NewStore(DefaultParameters(), b.TempDir())
-		require.NoError(b, err)
-
-		// disable cache
-		edsStore.cache = cache.NewDoubleCache(cache.NoopCache{}, cache.NoopCache{})
-
-		roots, err := share.NewAxisRoots(eds)
 		require.NoError(b, err)
 
 		height := uint64(1984)

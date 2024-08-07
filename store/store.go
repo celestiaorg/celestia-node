@@ -43,7 +43,7 @@ type Store struct {
 	// basepath is the root directory of the store
 	basepath string
 	// cache is used to cache recent blocks and blocks that are accessed frequently
-	cache *cache.DoubleCache
+	cache cache.Cache
 	// stripedLocks is used to synchronize parallel operations
 	stripLock *striplock
 	metrics   *metrics
@@ -74,19 +74,19 @@ func NewStore(params *Parameters, basePath string) (*Store, error) {
 		return nil, fmt.Errorf("creating empty file: %w", err)
 	}
 
-	recentEDSCache, err := cache.NewAccessorCache("recent", params.RecentBlocksCacheSize)
-	if err != nil {
-		return nil, fmt.Errorf("failed to create recent eds cache: %w", err)
-	}
+	var recentCache cache.Cache
+	recentCache = cache.NoopCache{}
+	if params.RecentBlocksCacheSize > 0 {
+		recentCache, err = cache.NewAccessorCache("recent", params.RecentBlocksCacheSize)
+		if err != nil {
+			return nil, fmt.Errorf("failed to create recent eds cache: %w", err)
+		}
 
-	availabilityCache, err := cache.NewAccessorCache("availability", params.AvailabilityCacheSize)
-	if err != nil {
-		return nil, fmt.Errorf("failed to create availability cache: %w", err)
 	}
 
 	store := &Store{
 		basepath:  basePath,
-		cache:     cache.NewDoubleCache(recentEDSCache, availabilityCache),
+		cache:     recentCache,
 		stripLock: newStripLock(1024),
 	}
 	return store, nil
@@ -114,7 +114,7 @@ func (s *Store) Put(
 
 	// put to cache before writing to make it accessible while write is happening
 	accessor := &eds.Rsmt2D{ExtendedDataSquare: square}
-	acc, err := s.cache.First().GetOrLoad(ctx, height, accessorLoader(accessor))
+	acc, err := s.cache.GetOrLoad(ctx, height, accessorLoader(accessor))
 	if err != nil {
 		log.Warnf("failed to put Accessor in the recent cache: %s", err)
 	} else {
