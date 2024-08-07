@@ -15,9 +15,9 @@ func TestStore_WithCache(t *testing.T) {
 	height := atomic.Uint64{}
 	height.Store(1)
 
-	t.Run("don't exist in first cache", func(t *testing.T) {
-		params := DefaultParameters()
-		params.RecentBlocksCacheSize = 0
+	t.Run("don't exist in first combinedCache", func(t *testing.T) {
+		// create store with no combinedCache
+		params := paramsNoCache()
 		store, err := NewStore(params, t.TempDir())
 		require.NoError(t, err)
 
@@ -28,23 +28,24 @@ func TestStore_WithCache(t *testing.T) {
 		err = store.Put(ctx, roots, height, eds)
 		require.NoError(t, err)
 
+		// check that the height is not in the combinedCache (combinedCache was disabled)
 		_, err = store.cache.Get(height)
 		require.ErrorIs(t, err, cache.ErrCacheMiss)
 
-		withCache, err := store.WithCache("test", 10)
+		cachedStore, err := store.WithCache("test", 10)
 		require.NoError(t, err)
-		// load accessor to withCache inner cache by calling GetByHeight
-		_, err = withCache.GetByHeight(ctx, height)
+		// load accessor to secondary combinedCache by calling GetByHeight on cached store
+		_, err = cachedStore.GetByHeight(ctx, height)
 		require.NoError(t, err)
 
-		// loaded accessor should be available in both caches
-		_, err = withCache.cache.Get(height)
-		require.NoError(t, err)
+		// loaded accessor should be available in both original store and wrapped store
 		_, err = store.cache.Get(height)
+		require.NoError(t, err)
+		_, err = cachedStore.combinedCache.Get(height)
 		require.NoError(t, err)
 	})
 
-	t.Run("exists in first cache", func(t *testing.T) {
+	t.Run("exists in first combinedCache", func(t *testing.T) {
 		store, err := NewStore(DefaultParameters(), t.TempDir())
 		require.NoError(t, err)
 
@@ -63,7 +64,13 @@ func TestStore_WithCache(t *testing.T) {
 		_, err = withCache.GetByHeight(ctx, height)
 		require.NoError(t, err)
 
-		_, err = withCache.cache.Second().Get(height)
+		_, err = withCache.combinedCache.Second().Get(height)
 		require.ErrorIs(t, err, cache.ErrCacheMiss)
 	})
+}
+
+func paramsNoCache() *Parameters {
+	params := DefaultParameters()
+	params.RecentBlocksCacheSize = 0
+	return params
 }

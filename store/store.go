@@ -36,9 +36,9 @@ const (
 var ErrNotFound = errors.New("eds not found in store")
 
 // Store is a storage for EDS files. It persists EDS files on disk in form of Q1Q4 files or ODS
-// files. It provides methods to put, get and remove EDS files. It has two caches: recent eds cache
-// and availability cache. Recent eds cache is used to cache recent blocks. Availability cache is
-// used to cache blocks that are accessed by sample requests. Store is thread-safe.
+// files. It provides methods to put, get and remove EDS files. It has two caches: recent eds combinedCache
+// and availability combinedCache. Recent eds combinedCache is used to combinedCache recent blocks. Availability combinedCache is
+// used to combinedCache blocks that are accessed by sample requests. Store is thread-safe.
 type Store struct {
 	// basepath is the root directory of the store
 	basepath string
@@ -79,7 +79,7 @@ func NewStore(params *Parameters, basePath string) (*Store, error) {
 	if params.RecentBlocksCacheSize > 0 {
 		recentCache, err = cache.NewAccessorCache("recent", params.RecentBlocksCacheSize)
 		if err != nil {
-			return nil, fmt.Errorf("failed to create recent eds cache: %w", err)
+			return nil, fmt.Errorf("failed to create recent eds combinedCache: %w", err)
 		}
 
 	}
@@ -112,11 +112,11 @@ func (s *Store) Put(
 		return err
 	}
 
-	// put to cache before writing to make it accessible while write is happening
+	// put to combinedCache before writing to make it accessible while write is happening
 	accessor := &eds.Rsmt2D{ExtendedDataSquare: square}
 	acc, err := s.cache.GetOrLoad(ctx, height, accessorLoader(accessor))
 	if err != nil {
-		log.Warnf("failed to put Accessor in the recent cache: %s", err)
+		log.Warnf("failed to put Accessor in the recent combinedCache: %s", err)
 	} else {
 		// release the ref link to the accessor
 		utils.CloseAndLog(log, "recent accessor", acc)
@@ -301,7 +301,7 @@ func (s *Store) remove(height uint64, datahash share.DataHash) error {
 
 func (s *Store) removeLink(height uint64) error {
 	if err := s.cache.Remove(height); err != nil {
-		return fmt.Errorf("removing from cache: %w", err)
+		return fmt.Errorf("removing from combinedCache: %w", err)
 	}
 
 	// remove hard link by height

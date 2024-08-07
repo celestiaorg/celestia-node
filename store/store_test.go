@@ -22,7 +22,7 @@ func TestEDSStore(t *testing.T) {
 	edsStore, err := NewStore(DefaultParameters(), t.TempDir())
 	require.NoError(t, err)
 
-	// disable cache
+	// disable combinedCache
 	edsStore.cache = cache.NewDoubleCache(cache.NoopCache{}, cache.NoopCache{})
 	height := atomic.Uint64{}
 	height.Store(100)
@@ -151,7 +151,7 @@ func TestEDSStore(t *testing.T) {
 		err = edsStore.Remove(ctx, height, roots.Hash())
 		require.NoError(t, err)
 
-		// file should be removed from cache
+		// file should be removed from combinedCache
 		_, err = edsStore.cache.Get(height)
 		require.ErrorIs(t, err, cache.ErrCacheMiss)
 
@@ -269,7 +269,7 @@ func BenchmarkStore(b *testing.B) {
 		edsStore, err := NewStore(DefaultParameters(), b.TempDir())
 		require.NoError(b, err)
 
-		// disable cache
+		// disable combinedCache
 		edsStore.cache = cache.NewDoubleCache(cache.NoopCache{}, cache.NoopCache{})
 
 		roots, err := share.NewAxisRoots(eds)
@@ -292,7 +292,7 @@ func BenchmarkStore(b *testing.B) {
 		edsStore, err := NewStore(DefaultParameters(), b.TempDir())
 		require.NoError(b, err)
 
-		// disable cache
+		// disable combinedCache
 		edsStore.cache = cache.NewDoubleCache(cache.NoopCache{}, cache.NoopCache{})
 
 		roots, err := share.NewAxisRoots(eds)

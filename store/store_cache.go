@@ -8,43 +8,47 @@ import (
 	"github.com/celestiaorg/celestia-node/store/cache"
 )
 
-// CachedStore wraps Store with cache, that put items into cache on every GetByHeight
-// call. It updates parent Store cache, to allow it to read from additionally created cache.
+// CachedStore is a store with an additional cache layer. New cache layer is created on top of the
+// original store cache. Parent store cache will be able to read from the new cache layer, but will
+// not be able to write to it. Making parent store cache and CachedStore cache independent for writes.
 type CachedStore struct {
-	inner *Store
-	cache *cache.DoubleCache
+	store         *Store
+	combinedCache *cache.DoubleCache
 }
 
-// WithCache creates new CachedStore with cache of the specified size.
+// WithCache wraps store with extra layer of cache. Created caching layer will have read access to original
+// store cache and will duplicate it's content. It updates parent store cache, to allow it to
+// read from additionally created cache layer.
 func (s *Store) WithCache(name string, size int) (*CachedStore, error) {
 	newCache, err := cache.NewAccessorCache(name, size)
 	if err != nil {
-		return nil, fmt.Errorf("failed to create availability cache: %w", err)
+		return nil, fmt.Errorf("failed to create %s combinedCache: %w", name, err)
 	}
 
 	wrappedCache := cache.NewDoubleCache(s.cache, newCache)
 	s.metrics.addCacheMetrics(wrappedCache)
+	// update parent store cache to allow it to read from both caches
 	s.cache = wrappedCache
 	return &CachedStore{
-		inner: s,
-		cache: wrappedCache,
+		store:         s,
+		combinedCache: wrappedCache,
 	}, nil
 }
 
 // GetByHeight returns accessor for given height and puts it into cache.
-func (s *CachedStore) GetByHeight(ctx context.Context, height uint64) (eds.AccessorStreamer, error) {
-	acc, err := s.cache.First().Get(height)
+func (cs *CachedStore) GetByHeight(ctx context.Context, height uint64) (eds.AccessorStreamer, error) {
+	acc, err := cs.combinedCache.First().Get(height)
 	if err == nil {
 		return acc, err
 	}
-	return s.cache.Second().GetOrLoad(ctx, height, s.openFile(height))
+	return cs.combinedCache.Second().GetOrLoad(ctx, height, cs.openFile(height))
 }
 
-func (s *CachedStore) openFile(height uint64) cache.OpenAccessorFn {
+func (cs *CachedStore) openFile(height uint64) cache.OpenAccessorFn {
 	return func(ctx context.Context) (eds.AccessorStreamer, error) {
 		// open file directly wihout calling GetByHeight of inner getter to
-		// avoid hitting store cache second time
-		path := s.inner.heightToPath(height)
-		return s.inner.openFile(path)
+		// avoid hitting store combinedCache second time
+		path := cs.store.heightToPath(height)
+		return cs.store.openFile(path)
 	}
 }
