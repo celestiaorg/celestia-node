@@ -30,7 +30,7 @@ func EmptyBlockShares() []Share {
 }
 
 var (
-	emptyMu          sync.Mutex
+	emptyOnce        sync.Once
 	emptyBlockRoot   *Root
 	emptyBlockEDS    *rsmt2d.ExtendedDataSquare
 	emptyBlockShares []Share
@@ -38,12 +38,10 @@ var (
 
 // initEmpty enables lazy initialization for constant empty block data.
 func initEmpty() {
-	emptyMu.Lock()
-	defer emptyMu.Unlock()
-	if emptyBlockRoot != nil {
-		return
-	}
+	emptyOnce.Do(computeEmpty)
+}
 
+func computeEmpty() {
 	// compute empty block EDS and DAH for it
 	result := shares.TailPaddingShares(appconsts.MinShareCount)
 	emptyBlockShares = shares.ToBytes(result)
