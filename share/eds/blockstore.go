@@ -83,14 +83,12 @@ func (bs *blockstore) Get(ctx context.Context, cid cid.Cid) (blocks.Block, error
 	return nil, err
 }
 
-const maxDataSize = max(share_ipld.InnerNodeSize, share_ipld.LeafNodeSize)
-
 func (bs *blockstore) GetSize(ctx context.Context, cid cid.Cid) (int, error) {
 	if enableFixedDataSize {
 		// For now we return a fixed result, which is a max of possible values (see above).
 		// Motivation behind such behaviour is described here:
 		// https://github.com/celestiaorg/celestia-node/issues/3630
-		return maxDataSize, nil
+		return share_ipld.LeafNodeSize, nil
 	}
 
 	blockstr, err := bs.getReadOnlyBlockstore(ctx, cid)
