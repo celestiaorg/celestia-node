@@ -11,6 +11,7 @@ import (
 	"github.com/tendermint/tendermint/light"
 	core "github.com/tendermint/tendermint/types"
 
+	"github.com/celestiaorg/celestia-app/pkg/appconsts"
 	"github.com/celestiaorg/celestia-app/v2/pkg/da"
 	libhead "github.com/celestiaorg/go-header"
 	"github.com/celestiaorg/rsmt2d"
@@ -113,7 +114,7 @@ func (eh *ExtendedHeader) Validate() error {
 		return fmt.Errorf("ValidateBasic error on RawHeader at height %d: %w", eh.Height(), err)
 	}
 
-	if eh.RawHeader.Version.App > appconsts.LatestVersion || eh.RawHeader.Version.App == 0 {
+	if eh.RawHeader.Version.App == 0 || eh.RawHeader.Version.App > appconsts.LatestVersion {
 		return fmt.Errorf("header received at height %d has version %d, this node supports up "+
 			"to version %d. Please upgrade to support new version. Note, 0 is not a valid version",
 			eh.RawHeader.Height, eh.RawHeader.Version.App, appconsts.LatestVersion)
