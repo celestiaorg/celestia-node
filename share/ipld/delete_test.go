@@ -2,7 +2,6 @@ package ipld
 
 import (
 	"context"
-	"github.com/ipfs/boxo/exchange"
 	"testing"
 	"time"
 
