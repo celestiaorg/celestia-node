@@ -524,6 +524,7 @@ func (s *Service) retrieveBlobProof(
 
 	eds, err := s.shareGetter.GetEDS(ctx, header)
 	if err != nil {
+		headerGetterSpan.SetStatus(codes.Error, err.Error())
 		return nil, nil, err
 	}
 	headerGetterSpan.SetStatus(codes.Ok, "")
