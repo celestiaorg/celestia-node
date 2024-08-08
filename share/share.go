@@ -5,6 +5,7 @@ import (
 	"fmt"
 
 	"github.com/celestiaorg/celestia-app/pkg/appconsts"
+	appshares "github.com/celestiaorg/celestia-app/pkg/shares"
 	"github.com/celestiaorg/nmt"
 	"github.com/celestiaorg/rsmt2d"
 )
@@ -20,6 +21,9 @@ const (
 // MaxSquareSize is currently the maximum size supported for unerasured data in
 // rsmt2d.ExtendedDataSquare.
 var MaxSquareSize = appconsts.SquareSizeUpperBound(appconsts.LatestVersion)
+
+// TailPadding is a constant tail padding share exported for reuse
+var TailPadding Share
 
 // Share contains the raw share data without the corresponding namespace.
 // NOTE: Alias for the byte is chosen to keep maximal compatibility, especially with rsmt2d.
@@ -68,4 +72,9 @@ func (s *ShareWithProof) Validate(rootHash []byte, x, y, edsSize int) bool {
 		[][]byte{s.Share},
 		rootHash,
 	)
+}
+
+func init() {
+	shr := appshares.TailPaddingShare()
+	TailPadding = shr.ToBytes()
 }

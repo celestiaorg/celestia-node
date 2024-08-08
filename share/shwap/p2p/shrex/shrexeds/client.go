@@ -1,7 +1,6 @@
 package shrexeds
 
 import (
-	"bytes"
 	"context"
 	"errors"
 	"fmt"
@@ -138,7 +137,7 @@ func (c *Client) doRequest(
 		// reset stream deadlines to original values, since read deadline was changed during status read
 		c.setStreamDeadlines(ctx, stream)
 		// use header and ODS bytes to construct EDS and verify it against dataHash
-		eds, err := readEds(ctx, stream, root)
+		eds, err := eds.ReadEDS(ctx, stream, root)
 		if err != nil {
 			return nil, fmt.Errorf("read eds from stream: %w", err)
 		}
@@ -156,32 +155,6 @@ func (c *Client) doRequest(
 		c.metrics.ObserveRequests(ctx, 1, shrex.StatusInternalErr)
 		return nil, shrex.ErrInvalidResponse
 	}
-}
-
-func readEds(ctx context.Context, stream network.Stream, root *share.AxisRoots) (*rsmt2d.ExtendedDataSquare, error) {
-	odsSize := len(root.RowRoots) / 2
-	shares, err := eds.ReadShares(stream, share.Size, odsSize)
-	if err != nil {
-		return nil, fmt.Errorf("failed to read eds from ods bytes: %w", err)
-	}
-
-	// verify that the EDS hash matches the expected hash
-	rsmt2d, err := eds.Rsmt2DFromShares(shares, odsSize)
-	if err != nil {
-		return nil, fmt.Errorf("failed to create rsmt2d from shares: %w", err)
-	}
-	datahash, err := rsmt2d.DataHash(ctx)
-	if err != nil {
-		return nil, fmt.Errorf("failed to calculate data hash: %w", err)
-	}
-	if !bytes.Equal(datahash, root.Hash()) {
-		return nil, fmt.Errorf(
-			"content integrity mismatch: imported root %s doesn't match expected root %s",
-			datahash,
-			root.Hash(),
-		)
-	}
-	return rsmt2d.ExtendedDataSquare, nil
 }
 
 func (c *Client) setStreamDeadlines(ctx context.Context, stream network.Stream) {

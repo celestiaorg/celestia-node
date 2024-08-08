@@ -5,8 +5,6 @@ import (
 	"errors"
 	"fmt"
 	"io"
-
-	"github.com/celestiaorg/celestia-node/share"
 )
 
 // BufferedReader will read Shares from getShare function into the buffer.
@@ -74,24 +72,4 @@ func (r *BufferedReader) Read(p []byte) (int, error) {
 		return written, nil
 	}
 	return written, nil
-}
-
-// ReadShares reads shares from the provided reader and constructs an Extended Data Square. Provided
-// reader should contain shares in row-major order.
-func ReadShares(r io.Reader, shareSize, odsSize int) ([]share.Share, error) {
-	shares := make([]share.Share, odsSize*odsSize)
-	var total int
-	for i := range shares {
-		share := make(share.Share, shareSize)
-		n, err := io.ReadFull(r, share)
-		if err != nil {
-			return nil, fmt.Errorf("reading share: %w, bytes read: %v", err, total+n)
-		}
-		if n != shareSize {
-			return nil, fmt.Errorf("share size mismatch: expected %v, got %v", shareSize, n)
-		}
-		shares[i] = share
-		total += n
-	}
-	return shares, nil
 }
