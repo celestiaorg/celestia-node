@@ -1,6 +1,7 @@
 package perms
 
 import (
+	"crypto/rand"
 	"encoding/json"
 
 	"github.com/cristalhq/jwt/v5"
@@ -20,6 +21,7 @@ var AuthKey = "Authorization"
 // permissions into for token signing/verifying.
 type JWTPayload struct {
 	Allow []auth.Permission
+	Nonce []byte
 }
 
 func (j *JWTPayload) MarshalBinary() (data []byte, err error) {
@@ -29,8 +31,14 @@ func (j *JWTPayload) MarshalBinary() (data []byte, err error) {
 // NewTokenWithPerms generates and signs a new JWT token with the given secret
 // and given permissions.
 func NewTokenWithPerms(signer jwt.Signer, perms []auth.Permission) ([]byte, error) {
+	var nonce [32]byte
+	if _, err := rand.Read(nonce[:]); err != nil {
+		return nil, err
+	}
+
 	p := &JWTPayload{
 		Allow: perms,
+		Nonce: nonce[:],
 	}
 	token, err := jwt.NewBuilder(signer).Build(p)
 	if err != nil {
