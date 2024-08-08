@@ -86,7 +86,7 @@ func (bs *blockstore) Get(ctx context.Context, cid cid.Cid) (blocks.Block, error
 func (bs *blockstore) GetSize(ctx context.Context, cid cid.Cid) (int, error) {
 	if enableFixedDataSize {
 		// For now we return a fixed result, which is a max of possible values (see above).
-		// Motivation behind such behaviour is described here:
+		// Motivation behind such behavior is described here:
 		// https://github.com/celestiaorg/celestia-node/issues/3630
 		return share_ipld.LeafNodeSize, nil
 	}
