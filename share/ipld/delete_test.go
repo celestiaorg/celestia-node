@@ -2,11 +2,11 @@ package ipld
 
 import (
 	"context"
-	"github.com/ipfs/boxo/exchange"
 	"testing"
 	"time"
 
 	"github.com/ipfs/boxo/blockstore"
+	"github.com/ipfs/boxo/exchange"
 	"github.com/ipfs/boxo/exchange/offline"
 	"github.com/ipfs/go-datastore"
 	"github.com/ipfs/go-datastore/sync"

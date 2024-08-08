@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/ipfs/boxo/bitswap"
 	"github.com/ipfs/boxo/bitswap/client"
 	"github.com/ipfs/boxo/bitswap/network"
 	"github.com/ipfs/boxo/bitswap/server"
@@ -82,17 +83,22 @@ func NewClient(
 	ctx context.Context,
 	net network.BitSwapNetwork,
 	bstore blockstore.Blockstore,
+	opts ...client.Option,
 ) *client.Client {
-	return client.New(
-		ctx,
-		net,
-		bstore,
+	opts = append(
+		opts,
 		client.SetSimulateDontHavesOnTimeout(simulateDontHaves),
 		client.ProviderSearchDelay(providerSearchDelay),
 		client.RebroadcastDelay(delay.Fixed(rebroadcastDelay)),
 		// Prevents Has calls to Blockstore for metric that counts duplicates
 		// Unnecessary for our use case, so we can save some disk lookups.
 		client.WithoutDuplicatedBlockStats(),
+	)
+	return client.New(
+		ctx,
+		net,
+		bstore,
+		opts...,
 	)
 }
 
@@ -112,13 +118,35 @@ func NewServer(
 		server.WithTargetMessageSize(targetMessageSize),
 		server.MaxOutstandingBytesPerPeer(outstandingBytesPerPeer),
 	)
+	return server.New(ctx, net, bstore, opts...)
+}
 
-	return server.New(
-		ctx,
-		net,
-		bstore,
-		opts...,
+// New constructs Bitswap client and server with parameters optimized for Shwap protocol composition.
+func New(
+	ctx context.Context,
+	net network.BitSwapNetwork,
+	bstore blockstore.Blockstore,
+	opts ...bitswap.Option,
+) *bitswap.Bitswap {
+	opts = append(
+		opts,
+		// client options
+		bitswap.SetSimulateDontHavesOnTimeout(simulateDontHaves),
+		bitswap.ProviderSearchDelay(providerSearchDelay),
+		bitswap.RebroadcastDelay(delay.Fixed(rebroadcastDelay)),
+		// Prevents Has calls to Blockstore for metric that counts duplicates
+		// Unnecessary for our use case, so we can save some disk lookups.
+		bitswap.WithoutDuplicatedBlockStats(),
+
+		// server options
+		bitswap.ProvideEnabled(providesEnabled),
+		bitswap.SetSendDontHaves(sendDontHaves),
+		bitswap.MaxQueuedWantlistEntriesPerPeer(maxServerWantListsPerPeer),
+		bitswap.WithTargetMessageSize(targetMessageSize),
+		bitswap.MaxOutstandingBytesPerPeer(outstandingBytesPerPeer),
 	)
+
+	return bitswap.New(ctx, net, bstore, opts...)
 }
 
 // TODO(@Wondertan): We have to use the protocol defined by Bitswap here
