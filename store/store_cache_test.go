@@ -35,14 +35,17 @@ func TestStore_WithCache(t *testing.T) {
 		cachedStore, err := store.WithCache("test", 10)
 		require.NoError(t, err)
 		// load accessor to secondary cache by calling GetByHeight on cached store
-		_, err = cachedStore.GetByHeight(ctx, height)
+		acc, err := cachedStore.GetByHeight(ctx, height)
 		require.NoError(t, err)
+		require.NoError(t, acc.Close())
 
 		// loaded accessor should be available in both original store and wrapped store
-		_, err = store.cache.Get(height)
+		acc, err = store.cache.Get(height)
 		require.NoError(t, err)
-		_, err = cachedStore.combinedCache.Get(height)
+		require.NoError(t, acc.Close())
+		acc, err = cachedStore.combinedCache.Get(height)
 		require.NoError(t, err)
+		require.NoError(t, acc.Close())
 	})
 
 	t.Run("exists in first cache", func(t *testing.T) {
@@ -56,13 +59,15 @@ func TestStore_WithCache(t *testing.T) {
 		err = store.Put(ctx, roots, height, eds)
 		require.NoError(t, err)
 
-		_, err = store.cache.Get(height)
+		acc, err := store.cache.Get(height)
 		require.NoError(t, err)
+		require.NoError(t, acc.Close())
 
 		withCache, err := store.WithCache("test", 10)
 		require.NoError(t, err)
-		_, err = withCache.GetByHeight(ctx, height)
+		acc, err = withCache.GetByHeight(ctx, height)
 		require.NoError(t, err)
+		require.NoError(t, acc.Close())
 
 		_, err = withCache.combinedCache.Second().Get(height)
 		require.ErrorIs(t, err, cache.ErrCacheMiss)

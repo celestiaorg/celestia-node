@@ -266,8 +266,9 @@ func (s *Store) HasByHeight(ctx context.Context, height uint64) (bool, error) {
 }
 
 func (s *Store) hasByHeight(height uint64) (bool, error) {
-	_, err := s.cache.Get(height)
+	acc, err := s.cache.Get(height)
 	if err == nil {
+		utils.CloseAndLog(log, "accessor", acc)
 		return true, nil
 	}
 
