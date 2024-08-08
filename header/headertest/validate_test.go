@@ -1,7 +1,6 @@
 package headertest
 
 import (
-	"fmt"
 	"strconv"
 	"testing"
 	"time"
@@ -19,26 +18,30 @@ import (
 func TestValidate(t *testing.T) {
 	testCases := []struct {
 		extendedHeader *header.ExtendedHeader
-		wantErr        error
+		wantErr        string
 	}{
 		{
 			extendedHeader: getExtendedHeader(t, 1),
-			wantErr:        nil,
+			wantErr:        "",
 		},
 		{
 			extendedHeader: getExtendedHeader(t, 2),
-			wantErr:        nil,
+			wantErr:        "",
 		},
 		{
 			extendedHeader: getExtendedHeader(t, 3),
-			wantErr:        fmt.Errorf("app version mismatch, expected: 1 or 2, got 3"),
+			wantErr:        "has version 3, this node supports up to version 2. Please upgrade to support new version. Note, 0 is not a valid version",
 		},
 	}
 
 	for i, tc := range testCases {
 		t.Run(strconv.Itoa(i), func(t *testing.T) {
 			got := tc.extendedHeader.Validate()
-			assert.Equal(t, tc.wantErr, got)
+			if tc.wantErr == "" {
+				assert.NoError(t, got)
+				return
+			}
+			assert.ErrorContains(t, got, tc.wantErr)
 		})
 	}
 }
