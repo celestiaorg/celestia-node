@@ -3,8 +3,6 @@ package p2p
 import (
 	"context"
 	"fmt"
-	"slices"
-
 	"github.com/ipfs/boxo/bitswap"
 	"github.com/ipfs/boxo/bitswap/network"
 	"github.com/ipfs/boxo/blockstore"
@@ -32,18 +30,17 @@ func dataExchange(params bitSwapParams) exchange.Interface {
 	prefix := protocolID(params.Net)
 	net := network.NewFromIpfsHost(params.Host, &routinghelpers.Null{}, network.Prefix(prefix))
 
-	srvOpts := []bitswap.Option{
+	opts := []bitswap.Option{
+		// Server options
 		bitswap.ProvideEnabled(false), // we don't provide blocks over DHT
 		// NOTE: These below are required for our protocol to work reliably.
 		// // See https://github.com/celestiaorg/celestia-node/issues/732
 		bitswap.SetSendDontHaves(false),
-	}
-	clOpts := []bitswap.Option{
+
+		// Client options
 		bitswap.SetSimulateDontHavesOnTimeout(false),
 		bitswap.WithoutDuplicatedBlockStats(),
 	}
-
-	opts := slices.Concat(srvOpts, clOpts)
 	bs := bitswap.New(params.Ctx, net, params.Bs, opts...)
 
 	params.Lifecycle.Append(fx.Hook{
