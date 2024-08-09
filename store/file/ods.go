@@ -162,9 +162,14 @@ func writeAxisRoots(w io.Writer, roots *share.AxisRoots) error {
 	return nil
 }
 
-// Size returns square size of the Accessor.
+// Size returns EDS size stored in file's header.
 func (f *ODSFile) Size(context.Context) int {
 	return f.size()
+}
+
+// ShareSize reports size of shares stored defined in file's header.
+func (f *ODSFile) ShareSize() int {
+	return int(f.hdr.shareSize)
 }
 
 func (f *ODSFile) size() int {
@@ -293,6 +298,20 @@ func (f *ODSFile) Reader() (io.Reader, error) {
 	return reader, nil
 }
 
+func (f *ODSFile) axis(ctx context.Context, axisType rsmt2d.Axis, axisIdx int) ([]share.Share, error) {
+	half, err := f.AxisHalf(ctx, axisType, axisIdx)
+	if err != nil {
+		return nil, err
+	}
+
+	axis, err := half.Extended()
+	if err != nil {
+		return nil, fmt.Errorf("extending axis half: %w", err)
+	}
+
+	return axis, nil
+}
+
 func (f *ODSFile) readAxisHalf(axisType rsmt2d.Axis, axisIdx int) (eds.AxisHalf, error) {
 	f.lock.RLock()
 	ods := f.ods
@@ -301,22 +320,22 @@ func (f *ODSFile) readAxisHalf(axisType rsmt2d.Axis, axisIdx int) (eds.AxisHalf,
 		return f.ods.axisHalf(axisType, axisIdx)
 	}
 
-	offset := f.sharesOffset()
-	switch axisType {
-	case rsmt2d.Col:
-		col, err := readCol(f.fl, f.hdr, offset, 0, axisIdx)
-		return eds.AxisHalf{
-			Shares:   col,
-			IsParity: false,
-		}, err
-	case rsmt2d.Row:
-		row, err := readRow(f.fl, f.hdr, offset, 0, axisIdx)
-		return eds.AxisHalf{
-			Shares:   row,
-			IsParity: false,
-		}, err
+	axisHalf, err := readAxisHalf(
+		f.fl,
+		axisType,
+		f.ShareSize(),
+		f.size(),
+		f.sharesOffset(),
+		axisIdx,
+	)
+	if err != nil {
+		return eds.AxisHalf{}, fmt.Errorf("reading axis half: %w", err)
 	}
-	return eds.AxisHalf{}, fmt.Errorf("unknown axis")
+
+	return eds.AxisHalf{
+		Shares:   axisHalf,
+		IsParity: false,
+	}, nil
 }
 
 func (f *ODSFile) sharesOffset() int {
@@ -338,7 +357,7 @@ func (f *ODSFile) readODS() (square, error) {
 	}
 
 	// reset file pointer to the beginning of the file shares data
-	offset := f.hdr.Size() + f.axisRootsSize()
+	offset := f.sharesOffset()
 	_, err := f.fl.Seek(int64(offset), io.SeekStart)
 	if err != nil {
 		return nil, fmt.Errorf("discarding header: %w", err)
@@ -357,16 +376,23 @@ func (f *ODSFile) readODS() (square, error) {
 	return square, nil
 }
 
-func readRow(fl io.ReaderAt, hdr *headerV0, sharesOffset, quadrantIdx, rowIdx int) ([]share.Share, error) {
-	shrLn := int(hdr.shareSize)
-	odsLn := int(hdr.squareSize / 2)
-	quadrantOffset := quadrantIdx * odsLn * odsLn * shrLn
+func readAxisHalf(r io.ReaderAt, axisTp rsmt2d.Axis, shrLn, edsLn, offset, axisIdx int) ([]share.Share, error) {
+	switch axisTp {
+	case rsmt2d.Row:
+		return readRowHalf(r, shrLn, edsLn, offset, axisIdx)
+	case rsmt2d.Col:
+		return readColHalf(r, shrLn, edsLn, offset, axisIdx)
+	default:
+		return nil, fmt.Errorf("unknown axis")
+	}
+}
+
+func readRowHalf(fl io.ReaderAt, shrLn, edsLn, offset, rowIdx int) ([]share.Share, error) {
+	odsLn := edsLn / 2
+	rowOffset := rowIdx * odsLn * shrLn
+	offset = offset + rowOffset
 
 	shares := make([]share.Share, odsLn)
-
-	rowOffset := rowIdx * odsLn * shrLn
-	offset := sharesOffset + quadrantOffset + rowOffset
-
 	axsData := make([]byte, odsLn*shrLn)
 	if _, err := fl.ReadAt(axsData, int64(offset)); err != nil {
 		return nil, err
@@ -378,15 +404,12 @@ func readRow(fl io.ReaderAt, hdr *headerV0, sharesOffset, quadrantIdx, rowIdx in
 	return shares, nil
 }
 
-func readCol(fl io.ReaderAt, hdr *headerV0, sharesOffset, quadrantIdx, colIdx int) ([]share.Share, error) {
-	shrLn := int(hdr.shareSize)
-	odsLn := int(hdr.squareSize / 2)
-	quadrantOffset := quadrantIdx * odsLn * odsLn * shrLn
-
+func readColHalf(fl io.ReaderAt, shrLn, edsLn, offset, colIdx int) ([]share.Share, error) {
+	odsLn := edsLn / 2
 	shares := make([]share.Share, odsLn)
 	for i := range shares {
 		pos := colIdx + i*odsLn
-		offset := sharesOffset + quadrantOffset + pos*shrLn
+		offset := offset + pos*shrLn
 
 		shr := make(share.Share, shrLn)
 		if _, err := fl.ReadAt(shr, int64(offset)); err != nil {
@@ -395,13 +418,4 @@ func readCol(fl io.ReaderAt, hdr *headerV0, sharesOffset, quadrantIdx, colIdx in
 		shares[i] = shr
 	}
 	return shares, nil
-}
-
-func (f *ODSFile) axis(ctx context.Context, axisType rsmt2d.Axis, axisIdx int) ([]share.Share, error) {
-	half, err := f.AxisHalf(ctx, axisType, axisIdx)
-	if err != nil {
-		return nil, err
-	}
-
-	return half.Extended()
 }
