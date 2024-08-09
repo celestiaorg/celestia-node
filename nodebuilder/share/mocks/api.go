@@ -12,6 +12,7 @@ import (
 	share "github.com/celestiaorg/celestia-node/share"
 	rsmt2d "github.com/celestiaorg/rsmt2d"
 	gomock "github.com/golang/mock/gomock"
+	types "github.com/tendermint/tendermint/types"
 )
 
 // MockModule is a mock of Module interface.
@@ -50,6 +51,22 @@ func (m *MockModule) GetEDS(arg0 context.Context, arg1 *header.ExtendedHeader) (
 func (mr *MockModuleMockRecorder) GetEDS(arg0, arg1 interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetEDS", reflect.TypeOf((*MockModule)(nil).GetEDS), arg0, arg1)
+}
+
+// GetRange mocks base method.
+func (m *MockModule) GetRange(arg0 context.Context, arg1 uint64, arg2, arg3 int) ([][]byte, *types.ShareProof, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "GetRange", arg0, arg1, arg2, arg3)
+	ret0, _ := ret[0].([][]byte)
+	ret1, _ := ret[1].(*types.ShareProof)
+	ret2, _ := ret[2].(error)
+	return ret0, ret1, ret2
+}
+
+// GetRange indicates an expected call of GetRange.
+func (mr *MockModuleMockRecorder) GetRange(arg0, arg1, arg2, arg3 interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetRange", reflect.TypeOf((*MockModule)(nil).GetRange), arg0, arg1, arg2, arg3)
 }
 
 // GetShare mocks base method.

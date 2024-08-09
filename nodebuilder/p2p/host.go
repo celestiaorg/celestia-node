@@ -17,6 +17,10 @@ import (
 	"github.com/libp2p/go-libp2p/core/routing"
 	routedhost "github.com/libp2p/go-libp2p/p2p/host/routed"
 	"github.com/libp2p/go-libp2p/p2p/net/conngater"
+	quic "github.com/libp2p/go-libp2p/p2p/transport/quic"
+	"github.com/libp2p/go-libp2p/p2p/transport/tcp"
+	libp2pwebrtc "github.com/libp2p/go-libp2p/p2p/transport/webrtc"
+	webtransport "github.com/libp2p/go-libp2p/p2p/transport/webtransport"
 	"github.com/prometheus/client_golang/prometheus"
 	"go.uber.org/fx"
 
@@ -67,6 +71,15 @@ func (ua *UserAgent) String() string {
 func host(params hostParams) (HostBase, error) {
 	ua := newUserAgent().WithNetwork(params.Net).WithNodeType(params.Tp)
 
+	tlsCfg, isEnabled, err := tlsEnabled()
+	if err != nil {
+		return nil, err
+	}
+
+	if isEnabled {
+		params.Cfg.Upgrade()
+	}
+
 	opts := []libp2p.Option{
 		libp2p.NoListenAddrs, // do not listen automatically
 		libp2p.AddrsFactory(params.AddrF),
@@ -79,9 +92,15 @@ func host(params hostParams) (HostBase, error) {
 		libp2p.DisableRelay(),
 		libp2p.BandwidthReporter(params.Bandwidth),
 		libp2p.ResourceManager(params.ResourceManager),
+		libp2p.ChainOptions(
+			libp2p.Transport(tcp.NewTCPTransport),
+			libp2p.Transport(quic.NewTransport),
+			libp2p.Transport(webtransport.New),
+			libp2p.Transport(libp2pwebrtc.New),
+			wsTransport(tlsCfg),
+		),
 		// to clearly define what defaults we rely upon
 		libp2p.DefaultSecurity,
-		libp2p.DefaultTransports,
 		libp2p.DefaultMuxers,
 	}
 
@@ -113,6 +132,7 @@ type HostBase hst.Host
 type hostParams struct {
 	fx.In
 
+	Cfg             *Config
 	Net             Network
 	Lc              fx.Lifecycle
 	ID              peer.ID
