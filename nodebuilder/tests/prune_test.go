@@ -37,6 +37,11 @@ import (
 // spin up 3 pruning FNs, connect
 // spin up 1 LN that syncs historic blobs
 func TestArchivalBlobSync(t *testing.T) {
+	if testing.Short() {
+		// TODO: https://github.com/celestiaorg/celestia-node/issues/3636
+		t.Skip()
+	}
+
 	const (
 		blocks = 50
 		btime  = time.Millisecond * 300
