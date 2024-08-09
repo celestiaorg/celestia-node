@@ -8,7 +8,7 @@ import (
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	coretypes "github.com/tendermint/tendermint/types"
 
-	apptypes "github.com/celestiaorg/celestia-app/x/blob/types"
+	squareblob "github.com/celestiaorg/go-square/blob"
 )
 
 // Balance is an alias to the Coin type from Cosmos-SDK.
@@ -26,8 +26,8 @@ type Address struct {
 	sdk.Address
 }
 
-// Blob is an alias of Blob from celestia-app.
-type Blob = apptypes.Blob
+// Blob is an alias of Blob from go-square.
+type Blob = squareblob.Blob
 
 // ValAddress is an alias to the ValAddress type from Cosmos-SDK.
 type ValAddress = sdk.ValAddress

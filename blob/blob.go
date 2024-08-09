@@ -6,30 +6,22 @@ import (
 	"errors"
 	"fmt"
 
-	tmproto "github.com/tendermint/tendermint/proto/tendermint/types"
+	"github.com/tendermint/tendermint/crypto/merkle"
 
-	"github.com/celestiaorg/celestia-app/pkg/appconsts"
-	"github.com/celestiaorg/celestia-app/x/blob/types"
+	"github.com/celestiaorg/celestia-app/v2/pkg/appconsts"
+	v2 "github.com/celestiaorg/celestia-app/v2/pkg/appconsts/v2"
+	"github.com/celestiaorg/go-square/blob"
+	"github.com/celestiaorg/go-square/inclusion"
+	"github.com/celestiaorg/go-square/shares"
 	"github.com/celestiaorg/nmt"
 
 	"github.com/celestiaorg/celestia-node/share"
 )
 
+// appVersion is the current application version of celestia-app.
+const appVersion = v2.Version
+
 var errEmptyShares = errors.New("empty shares")
-
-// Commitment is a Merkle Root of the subtree built from shares of the Blob.
-// It is computed by splitting the blob into shares and building the Merkle subtree to be included
-// after Submit.
-type Commitment []byte
-
-func (com Commitment) String() string {
-	return string(com)
-}
-
-// Equal ensures that commitments are the same
-func (com Commitment) Equal(c Commitment) bool {
-	return bytes.Equal(com, c)
-}
 
 // The Proof is a set of nmt proofs that can be verified only through
 // the included method (due to limitation of the nmt https://github.com/celestiaorg/nmt/issues/218).
@@ -69,7 +61,7 @@ func (p Proof) equal(input Proof) error {
 
 // Blob represents any application-specific binary data that anyone can submit to Celestia.
 type Blob struct {
-	types.Blob `json:"blob"`
+	*blob.Blob `json:"blob"`
 
 	Commitment Commitment `json:"commitment"`
 
@@ -97,18 +89,18 @@ func NewBlob(shareVersion uint8, namespace share.Namespace, data []byte) (*Blob,
 		return nil, err
 	}
 
-	blob := tmproto.Blob{
+	blob := blob.Blob{
 		NamespaceId:      namespace.ID(),
 		Data:             data,
 		ShareVersion:     uint32(shareVersion),
 		NamespaceVersion: uint32(namespace.Version()),
 	}
 
-	com, err := types.CreateCommitment(&blob)
+	com, err := inclusion.CreateCommitment(&blob, merkle.HashFromByteSlices, appconsts.SubtreeRootThreshold(appVersion))
 	if err != nil {
 		return nil, err
 	}
-	return &Blob{Blob: blob, Commitment: com, namespace: namespace, index: -1}, nil
+	return &Blob{Blob: &blob, Commitment: com, namespace: namespace, index: -1}, nil
 }
 
 // Namespace returns blob's namespace.
@@ -120,6 +112,30 @@ func (b *Blob) Namespace() share.Namespace {
 // Only retrieved, on-chain blobs will have the index set. Default is -1.
 func (b *Blob) Index() int {
 	return b.index
+}
+
+// Length returns the number of shares in the blob.
+func (b *Blob) Length() (int, error) {
+	s, err := BlobsToShares(b)
+	if err != nil {
+		return 0, err
+	}
+
+	if len(s) == 0 {
+		return 0, errors.New("blob with zero shares received")
+	}
+
+	appShare, err := shares.NewShare(s[0])
+	if err != nil {
+		return 0, err
+	}
+
+	seqLength, err := appShare.SequenceLen()
+	if err != nil {
+		return 0, err
+	}
+
+	return shares.SparseSharesNeeded(seqLength), nil
 }
 
 func (b *Blob) compareCommitments(com Commitment) bool {
@@ -146,18 +162,19 @@ func (b *Blob) MarshalJSON() ([]byte, error) {
 }
 
 func (b *Blob) UnmarshalJSON(data []byte) error {
-	var blob jsonBlob
-	err := json.Unmarshal(data, &blob)
+	var jsonBlob jsonBlob
+	err := json.Unmarshal(data, &jsonBlob)
 	if err != nil {
 		return err
 	}
 
-	b.Blob.NamespaceVersion = uint32(blob.Namespace.Version())
-	b.Blob.NamespaceId = blob.Namespace.ID()
-	b.Blob.Data = blob.Data
-	b.Blob.ShareVersion = blob.ShareVersion
-	b.Commitment = blob.Commitment
-	b.namespace = blob.Namespace
-	b.index = blob.Index
+	b.Blob = &blob.Blob{}
+	b.Blob.NamespaceVersion = uint32(jsonBlob.Namespace.Version())
+	b.Blob.NamespaceId = jsonBlob.Namespace.ID()
+	b.Blob.Data = jsonBlob.Data
+	b.Blob.ShareVersion = jsonBlob.ShareVersion
+	b.Commitment = jsonBlob.Commitment
+	b.namespace = jsonBlob.Namespace
+	b.index = jsonBlob.Index
 	return nil
 }

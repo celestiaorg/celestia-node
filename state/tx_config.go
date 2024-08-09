@@ -8,8 +8,8 @@ import (
 	"github.com/cosmos/cosmos-sdk/crypto/keyring"
 	sdktypes "github.com/cosmos/cosmos-sdk/types"
 
-	"github.com/celestiaorg/celestia-app/pkg/user"
-	apptypes "github.com/celestiaorg/celestia-app/x/blob/types"
+	"github.com/celestiaorg/celestia-app/v2/pkg/user"
+	apptypes "github.com/celestiaorg/celestia-app/v2/x/blob/types"
 )
 
 const (
@@ -108,7 +108,8 @@ func (cfg *TxConfig) UnmarshalJSON(data []byte) error {
 }
 
 // estimateGas estimates gas in case it has not been set.
-// NOTE: final result of the estimation will be multiplied by the `gasMultiplier`(1.1) to cover additional costs.
+// NOTE: final result of the estimation will be multiplied by the `gasMultiplier`(1.1) to cover
+// additional costs.
 func estimateGas(ctx context.Context, client *user.TxClient, msg sdktypes.Msg) (uint64, error) {
 	// set fee as 1utia helps to simulate the tx more reliably.
 	gas, err := client.EstimateGas(ctx, []sdktypes.Msg{msg}, user.SetFee(1))
@@ -171,8 +172,9 @@ func WithKeyName(key string) ConfigOption {
 	}
 }
 
-// WithSignerAddress is an option that allows you to specify an address, that will sign the transaction.
-// This address must be stored locally in the key store. Default signerAddress will be used in case it wasn't specified.
+// WithSignerAddress is an option that allows you to specify an address, that will sign the
+// transaction. This address must be stored locally in the key store. Default signerAddress will be
+// used in case it wasn't specified.
 func WithSignerAddress(address string) ConfigOption {
 	return func(cfg *TxConfig) {
 		cfg.signerAddress = address
