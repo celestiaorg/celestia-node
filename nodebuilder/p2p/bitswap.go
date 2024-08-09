@@ -2,12 +2,9 @@ package p2p
 
 import (
 	"context"
-	"errors"
 	"fmt"
-
-	"github.com/ipfs/boxo/bitswap/client"
+	"github.com/ipfs/boxo/bitswap"
 	"github.com/ipfs/boxo/bitswap/network"
-	"github.com/ipfs/boxo/bitswap/server"
 	"github.com/ipfs/boxo/blockstore"
 	"github.com/ipfs/boxo/exchange"
 	"github.com/ipfs/go-datastore"
@@ -32,36 +29,26 @@ const (
 func dataExchange(params bitSwapParams) exchange.Interface {
 	prefix := protocolID(params.Net)
 	net := network.NewFromIpfsHost(params.Host, &routinghelpers.Null{}, network.Prefix(prefix))
-	srvr := server.New(
-		params.Ctx,
-		net,
-		params.Bs,
-		server.ProvideEnabled(false), // we don't provide blocks over DHT
+
+	opts := []bitswap.Option{
+		// Server options
+		bitswap.ProvideEnabled(false), // we don't provide blocks over DHT
 		// NOTE: These below are required for our protocol to work reliably.
 		// // See https://github.com/celestiaorg/celestia-node/issues/732
-		server.SetSendDontHaves(false),
-	)
+		bitswap.SetSendDontHaves(false),
 
-	clnt := client.New(
-		params.Ctx,
-		net,
-		params.Bs,
-		client.WithBlockReceivedNotifier(srvr),
-		client.SetSimulateDontHavesOnTimeout(false),
-		client.WithoutDuplicatedBlockStats(),
-	)
-	net.Start(srvr, clnt) // starting with hook does not work
+		// Client options
+		bitswap.SetSimulateDontHavesOnTimeout(false),
+		bitswap.WithoutDuplicatedBlockStats(),
+	}
+	bs := bitswap.New(params.Ctx, net, params.Bs, opts...)
 
 	params.Lifecycle.Append(fx.Hook{
 		OnStop: func(_ context.Context) (err error) {
-			err = errors.Join(err, clnt.Close())
-			err = errors.Join(err, srvr.Close())
-			net.Stop()
-			return err
+			return bs.Close()
 		},
 	})
-
-	return clnt
+	return bs
 }
 
 func blockstoreFromDatastore(ctx context.Context, ds datastore.Batching) (blockstore.Blockstore, error) {
