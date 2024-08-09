@@ -4,6 +4,9 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"os"
+
+	share_ipld "github.com/celestiaorg/celestia-node/share/ipld"
 
 	bstore "github.com/ipfs/boxo/blockstore"
 	"github.com/ipfs/boxo/datastore/dshelp"
@@ -13,6 +16,8 @@ import (
 	"github.com/ipfs/go-datastore/namespace"
 	ipld "github.com/ipfs/go-ipld-format"
 )
+
+var enableFixedDataSize = os.Getenv("CELESTIA_CONST_DATA_SIZE") == "1"
 
 var _ bstore.Blockstore = (*blockstore)(nil)
 
@@ -80,6 +85,13 @@ func (bs *blockstore) Get(ctx context.Context, cid cid.Cid) (blocks.Block, error
 }
 
 func (bs *blockstore) GetSize(ctx context.Context, cid cid.Cid) (int, error) {
+	if enableFixedDataSize {
+		// For now we return a fixed result, which is a max of possible values (see above).
+		// Motivation behind such behavior is described here:
+		// https://github.com/celestiaorg/celestia-node/issues/3630
+		return share_ipld.LeafNodeSize, nil
+	}
+
 	blockstr, err := bs.getReadOnlyBlockstore(ctx, cid)
 	if err == nil {
 		defer closeAndLog("blockstore", blockstr)
