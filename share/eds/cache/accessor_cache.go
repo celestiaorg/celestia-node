@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"runtime"
 	"sync"
 	"sync/atomic"
 	"time"
@@ -97,10 +98,12 @@ func (s *accessorWithBlockstore) close() error {
 	done := s.done
 	s.Unlock()
 
+	// wait until all references are released or timeout is reached. If timeout is reached, log an
+	// error and close the accessor forcefully.
 	select {
 	case <-done:
 	case <-time.After(defaultCloseTimeout):
-		return fmt.Errorf("closing accessor, some readers didn't close the accessor within timeout,"+
+		log.Errorf("closing accessor, some readers didn't close the accessor within timeout,"+
 			" amount left: %v", s.refs.Load())
 	}
 	if err := s.shardAccessor.Close(); err != nil {
@@ -235,7 +238,8 @@ func (bc *AccessorCache) EnableMetrics() (CloseMetricsFn, error) {
 // Close is called
 type refCloser struct {
 	*accessorWithBlockstore
-	closeFn func()
+	closed    atomic.Bool
+	removeRef func()
 }
 
 // newRefCloser creates new refCloser
@@ -244,17 +248,31 @@ func newRefCloser(abs *accessorWithBlockstore) (*refCloser, error) {
 		return nil, err
 	}
 
-	var closeOnce sync.Once
-	return &refCloser{
+	rf := &refCloser{
 		accessorWithBlockstore: abs,
-		closeFn: func() {
-			closeOnce.Do(abs.removeRef)
-		},
-	}, nil
+		removeRef:              abs.removeRef,
+	}
+	// Set finalizer to ensure that accessor is closed when refCloser is garbage collected.
+	// We expect that refCloser will be closed explicitly by the caller. If it is not closed,
+	// we log an error.
+	runtime.SetFinalizer(rf, func(rf *refCloser) {
+		if rf.close() {
+			log.Errorf("refCloser for accessor was garbage collected before Close was called")
+		}
+	})
+	return rf, nil
+}
+
+func (c *refCloser) close() bool {
+	if c.closed.CompareAndSwap(false, true) {
+		c.removeRef()
+		return true
+	}
+	return false
 }
 
 func (c *refCloser) Close() error {
-	c.closeFn()
+	c.close()
 	return nil
 }
 
