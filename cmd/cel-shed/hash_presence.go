@@ -4,7 +4,6 @@ import (
 	"context"
 	"encoding/hex"
 	"encoding/json"
-	"errors"
 	"fmt"
 
 	"github.com/celestiaorg/celestia-node/nodebuilder"
@@ -38,7 +37,9 @@ var hashCmd = &cobra.Command{
 			return err
 		}
 		defer func() {
-			err = errors.Join(err, nodestore.Close())
+			if err := nodestore.Close(); err != nil {
+				fmt.Println("Error closing store:", err)
+			}
 		}()
 
 		datastore, err := nodestore.Datastore()
@@ -55,6 +56,11 @@ var hashCmd = &cobra.Command{
 			fmt.Println("Error starting store:", err)
 			return err
 		}
+		defer func() {
+			if err := store.Stop(context.Background()); err != nil {
+				fmt.Println("Error stopping store:", err)
+			}
+		}()
 
 		switch command {
 		case "has", "exists":
