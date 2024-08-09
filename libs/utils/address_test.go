@@ -53,6 +53,8 @@ func TestValidateAddr(t *testing.T) {
 		{addr: "https://celestia.org", want: want{unresolved: true}},
 		// Testcase: hostname is valid, but no schema
 		{addr: "celestia.org", want: want{unresolved: true}},
+		// Testcase: localhost
+		{addr: "localhost", want: want{addr: "127.0.0.1"}},
 	}
 
 	for _, tt := range tests {

@@ -4,6 +4,7 @@ import (
 	"errors"
 	"fmt"
 	"net"
+	"net/netip"
 	"strings"
 )
 
@@ -24,19 +25,21 @@ func SanitizeAddr(addr string) (string, error) {
 	return addr, nil
 }
 
-// ValidateAddr sanitizes the given address and verifies that it is a valid IP or hostname. The
-// sanitized address is returned.
+// ValidateAddr sanitizes the given address and verifies that it
+// is a valid IP or hostname. The sanitized address is returned.
 func ValidateAddr(addr string) (string, error) {
 	addr, err := SanitizeAddr(addr)
 	if err != nil {
 		return addr, err
 	}
 
-	ip := net.ParseIP(addr)
-	if ip != nil {
-		return addr, nil
+	// if the address is a valid IP, return it
+	ip, err := netip.ParseAddr(addr)
+	if err == nil {
+		return ip.String(), nil
 	}
 
+	// if the address is not a valid IP, resolve it
 	resolved, err := net.ResolveIPAddr("ip4", addr)
 	if err != nil {
 		return addr, err
