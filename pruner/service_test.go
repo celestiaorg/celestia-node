@@ -54,8 +54,9 @@ func TestService(t *testing.T) {
 
 	time.Sleep(time.Millisecond * 2)
 
-	lastPruned, err := serv.lastPruned(ctx)
-	require.NoError(t, err)
+	// as last prune height is 0, there is no existing last prune
+	var lastPruned *header.ExtendedHeader
+	// trigger a prune job
 	lastPruned = serv.prune(ctx, lastPruned)
 
 	assert.Greater(t, lastPruned.Height(), uint64(2))
@@ -97,9 +98,9 @@ func TestService_FailedAreRecorded(t *testing.T) {
 	// ensures at least 13 blocks are prune-able
 	time.Sleep(time.Millisecond * 50)
 
+	// as last prune height is 0, there is no existing last prune
+	var lastPruned *header.ExtendedHeader
 	// trigger a prune job
-	lastPruned, err := serv.lastPruned(ctx)
-	require.NoError(t, err)
 	_ = serv.prune(ctx, lastPruned)
 
 	assert.Len(t, serv.checkpoint.FailedHeaders, 3)
@@ -138,7 +139,7 @@ func TestServiceCheckpointing(t *testing.T) {
 	require.NoError(t, err)
 
 	// ensure checkpoint was initialized correctly
-	assert.Equal(t, uint64(1), serv.checkpoint.LastPrunedHeight)
+	assert.Equal(t, uint64(0), serv.checkpoint.LastPrunedHeight)
 	assert.Empty(t, serv.checkpoint.FailedHeaders)
 
 	// update checkpoint
@@ -189,9 +190,9 @@ func TestPrune_LargeNumberOfBlocks(t *testing.T) {
 	// ensures availability window has passed
 	time.Sleep(availabilityWindow.Duration() + time.Millisecond*100)
 
+	// as last prune height is 0, there is no existing last prune
+	var lastPruned *header.ExtendedHeader
 	// trigger a prune job
-	lastPruned, err := serv.lastPruned(ctx)
-	require.NoError(t, err)
 	_ = serv.prune(ctx, lastPruned)
 
 	// ensure all headers have been pruned
@@ -265,8 +266,8 @@ func TestFindPruneableHeaders(t *testing.T) {
 			err = serv.Start(ctx)
 			require.NoError(t, err)
 
-			lastPruned, err := serv.lastPruned(ctx)
-			require.NoError(t, err)
+			// as last prune height is 0, there is no existing last prune
+			var lastPruned *header.ExtendedHeader
 
 			pruneable, err := serv.findPruneableHeaders(ctx, lastPruned)
 			require.NoError(t, err)

@@ -17,6 +17,9 @@ import (
 	"github.com/celestiaorg/rsmt2d"
 )
 
+// ErrHeightZero returned when the provided block height is equal to 0.
+var ErrHeightZero = errors.New("height is equal to 0")
+
 // ConstructFn aliases a function that creates an ExtendedHeader.
 type ConstructFn = func(
 	*core.Header,
@@ -82,7 +85,11 @@ func (eh *ExtendedHeader) ChainID() string {
 	return eh.RawHeader.ChainID
 }
 
+// Height is safe to use when ExtendedHeader is nil -> it will return default value 0
 func (eh *ExtendedHeader) Height() uint64 {
+	if eh == nil {
+		return 0
+	}
 	return uint64(eh.RawHeader.Height)
 }
 
