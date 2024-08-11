@@ -2,7 +2,6 @@ package file
 
 import (
 	"encoding/binary"
-	"errors"
 	"fmt"
 	"io"
 
@@ -37,7 +36,7 @@ type fileType uint8
 
 const (
 	ods fileType = iota
-	q1q4
+	q4
 )
 
 func readHeader(r io.Reader) (*headerV0, error) {
@@ -45,9 +44,6 @@ func readHeader(r io.Reader) (*headerV0, error) {
 	var version headerVersion
 	err := binary.Read(r, binary.LittleEndian, &version)
 	if err != nil {
-		if errors.Is(err, io.EOF) {
-			return nil, ErrEmptyFile
-		}
 		return nil, fmt.Errorf("readHeader: %w", err)
 	}
 
@@ -68,6 +64,14 @@ func writeHeader(w io.Writer, h *headerV0) error {
 	}
 	_, err = h.WriteTo(w)
 	return err
+}
+
+func (h *headerV0) SquareSize() int {
+	return int(h.squareSize)
+}
+
+func (h *headerV0) ShareSize() int {
+	return int(h.shareSize)
 }
 
 func (h *headerV0) Size() int {

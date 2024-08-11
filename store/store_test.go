@@ -19,7 +19,8 @@ func TestEDSStore(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second*5)
 	t.Cleanup(cancel)
 
-	edsStore, err := NewStore(paramsNoCache(), t.TempDir())
+	dir := t.TempDir()
+	edsStore, err := NewStore(paramsNoCache(), dir)
 	require.NoError(t, err)
 
 	// disable cache
@@ -27,7 +28,6 @@ func TestEDSStore(t *testing.T) {
 	height := atomic.Uint64{}
 	height.Store(100)
 
-	// PutRegistersShard tests if Put registers the shard on the underlying DAGStore
 	t.Run("Put", func(t *testing.T) {
 		eds, roots := randomEDS(t)
 		height := height.Add(1)
@@ -244,6 +244,15 @@ func TestEDSStore(t *testing.T) {
 			require.True(t, hash.IsEmptyEDS())
 			require.NoError(t, f.Close())
 		}
+	})
+
+	t.Run("reopen", func(t *testing.T) {
+		// tests that store can be reopened
+		err = edsStore.Close()
+		require.NoError(t, err)
+
+		edsStore, err = NewStore(paramsNoCache(), dir)
+		require.NoError(t, err)
 	})
 }
 

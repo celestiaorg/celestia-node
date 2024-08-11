@@ -16,20 +16,14 @@ import (
 	"github.com/celestiaorg/celestia-node/share/shwap"
 )
 
-var _ eds.AccessorStreamer = (*ODSFile)(nil)
+var _ eds.AccessorStreamer = (*ODS)(nil)
 
-// writeBufferSize defines buffer size for optimized batched writes into the file system.
-// TODO(@Wondertan): Consider making it configurable
-const writeBufferSize = 64 << 10
-
-// ErrEmptyFile signals that the ODS file is empty.
-// This helps avoid storing empty block EDSes.
-var ErrEmptyFile = errors.New("file is empty")
-
-type ODSFile struct {
-	path string
-	hdr  *headerV0
-	fl   *os.File
+// ODS implements eds.Accessor as an FS file.
+// It stores the original data square(ODS), which is the first quadrant of EDS,
+// and it's metadata in file's header.
+type ODS struct {
+	hdr *headerV0
+	fl  *os.File
 
 	lock sync.RWMutex
 	// ods stores an in-memory cache of the original data square to enhance read performance. This
@@ -46,93 +40,68 @@ type ODSFile struct {
 	disableCache bool
 }
 
-// OpenODSFile opens an existing file. File has to be closed after usage.
-func OpenODSFile(path string) (*ODSFile, error) {
-	f, err := os.Open(path)
-	if err != nil {
-		return nil, err
-	}
-
-	h, err := readHeader(f)
-	if err != nil {
-		return nil, err
-	}
-
-	return &ODSFile{
-		path: path,
-		hdr:  h,
-		fl:   f,
-	}, nil
-}
-
-// CreateODSFile creates a new file. File has to be closed after usage.
-func CreateODSFile(
+// CreateODS creates a new file under given FS path and
+// writes the ODS into it out of given EDS.
+// It ensures FS is synced after writing finishes.
+// It may leave partially written file if any of the writes fail.
+func CreateODS(
 	path string,
 	roots *share.AxisRoots,
 	eds *rsmt2d.ExtendedDataSquare,
-) (*ODSFile, error) {
+) error {
 	mod := os.O_RDWR | os.O_CREATE | os.O_EXCL // ensure we fail if already exist
-	f, err := os.OpenFile(path, mod, 0o666)
+	f, err := os.OpenFile(path, mod, filePermissions)
 	if err != nil {
-		return nil, fmt.Errorf("file create: %w", err)
+		return fmt.Errorf("creating file: %w", err)
 	}
 
-	// buffering gives us ~4x speed up
-	buf := bufio.NewWriterSize(f, writeBufferSize)
-
-	h, err := writeODSFile(buf, eds, roots)
-	if err != nil {
-		return nil, fmt.Errorf("writing ODS file: %w", err)
-	}
-
-	err = buf.Flush()
-	if err != nil {
-		return nil, fmt.Errorf("flushing ODS file: %w", err)
-	}
-
-	err = f.Sync()
-	if err != nil {
-		return nil, fmt.Errorf("syncing file: %w", err)
-	}
-
-	return &ODSFile{
-		path: path,
-		fl:   f,
-		hdr:  h,
-	}, nil
-}
-
-func writeODSFile(w io.Writer, eds *rsmt2d.ExtendedDataSquare, axisRoots *share.AxisRoots) (*headerV0, error) {
-	// write header
-	h := &headerV0{
+	hdr := &headerV0{
 		fileVersion: fileV0,
 		fileType:    ods,
 		shareSize:   share.Size,
 		squareSize:  uint16(eds.Width()),
-		datahash:    axisRoots.Hash(),
-	}
-	err := writeHeader(w, h)
-	if err != nil {
-		return nil, fmt.Errorf("writing header: %w", err)
+		datahash:    roots.Hash(),
 	}
 
-	err = writeAxisRoots(w, axisRoots)
-	if err != nil {
-		return nil, fmt.Errorf("writing axis roots: %w", err)
+	err = writeODSFile(f, roots, eds, hdr)
+	if errClose := f.Close(); errClose != nil {
+		err = errors.Join(err, fmt.Errorf("closing created ODS file: %w", errClose))
 	}
 
-	// write quadrants
-	err = writeQ1(w, eds)
-	if err != nil {
-		return nil, fmt.Errorf("writing Q1: %w", err)
-	}
-
-	return h, nil
+	return err
 }
 
-// writeQ1 writes the first quadrant of the square to the writer. It writes the quadrant in row-major
+// writeQ4File full ODS content into OS File.
+func writeODSFile(f *os.File, axisRoots *share.AxisRoots, eds *rsmt2d.ExtendedDataSquare, hdr *headerV0) error {
+	// buffering gives us ~4x speed up
+	buf := bufio.NewWriterSize(f, writeBufferSize)
+
+	if err := writeHeader(f, hdr); err != nil {
+		return fmt.Errorf("writing header: %w", err)
+	}
+
+	if err := writeAxisRoots(buf, axisRoots); err != nil {
+		return fmt.Errorf("writing axis roots: %w", err)
+	}
+
+	if err := writeODS(buf, eds); err != nil {
+		return fmt.Errorf("writing ODS: %w", err)
+	}
+
+	if err := buf.Flush(); err != nil {
+		return fmt.Errorf("flushing ODS file: %w", err)
+	}
+
+	if err := f.Sync(); err != nil {
+		return fmt.Errorf("syncing file: %w", err)
+	}
+
+	return nil
+}
+
+// writeODS writes the first quadrant(ODS) of the square to the writer. It writes the quadrant in row-major
 // order
-func writeQ1(w io.Writer, eds *rsmt2d.ExtendedDataSquare) error {
+func writeODS(w io.Writer, eds *rsmt2d.ExtendedDataSquare) error {
 	for i := range eds.Width() / 2 {
 		for j := range eds.Width() / 2 {
 			shr := eds.GetCell(i, j) // TODO: Avoid copying inside GetCell
@@ -162,41 +131,61 @@ func writeAxisRoots(w io.Writer, roots *share.AxisRoots) error {
 	return nil
 }
 
+// OpenODS opens an existing ODS file under given FS path.
+// It only reads the header with metadata. The other content
+// of the File is read lazily.
+// If file is empty, the ErrEmptyFile is returned.
+// File must be closed after usage.
+func OpenODS(path string) (*ODS, error) {
+	f, err := os.Open(path)
+	if err != nil {
+		return nil, err
+	}
+
+	h, err := readHeader(f)
+	if errors.Is(err, io.EOF) {
+		return nil, ErrEmptyFile
+	}
+	if err != nil {
+		return nil, err
+	}
+
+	return &ODS{
+		hdr: h,
+		fl:  f,
+	}, nil
+}
+
 // Size returns EDS size stored in file's header.
-func (f *ODSFile) Size(context.Context) int {
-	return f.size()
+func (o *ODS) Size(context.Context) int {
+	return o.size()
 }
 
-// ShareSize reports size of shares stored defined in file's header.
-func (f *ODSFile) ShareSize() int {
-	return int(f.hdr.shareSize)
-}
-
-func (f *ODSFile) size() int {
-	return int(f.hdr.squareSize)
+func (o *ODS) size() int {
+	return int(o.hdr.squareSize)
 }
 
 // DataHash returns root hash of Accessor's underlying EDS.
-func (f *ODSFile) DataHash(context.Context) (share.DataHash, error) {
-	return f.hdr.datahash, nil
+func (o *ODS) DataHash(context.Context) (share.DataHash, error) {
+	return o.hdr.datahash, nil
 }
 
 // AxisRoots reads AxisRoots stored in the file. AxisRoots are stored after the header and before the
 // ODS data.
-func (f *ODSFile) AxisRoots(context.Context) (*share.AxisRoots, error) {
-	roots := make([]byte, f.axisRootsSize())
-	n, err := f.fl.ReadAt(roots, int64(f.hdr.Size()))
+func (o *ODS) AxisRoots(context.Context) (*share.AxisRoots, error) {
+	roots := make([]byte, o.axisRootsSize())
+	n, err := o.fl.ReadAt(roots, int64(o.hdr.Size()))
 	if err != nil {
 		return nil, fmt.Errorf("reading axis roots: %w", err)
 	}
 	if n != len(roots) {
 		return nil, fmt.Errorf("reading axis roots: expected %d bytes, got %d", len(roots), n)
 	}
-	rowRoots := make([][]byte, f.size())
-	colRoots := make([][]byte, f.size())
-	for i := 0; i < f.size(); i++ {
+	rowRoots := make([][]byte, o.size())
+	colRoots := make([][]byte, o.size())
+	for i := 0; i < o.size(); i++ {
 		rowRoots[i] = roots[i*share.AxisRootSize : (i+1)*share.AxisRootSize]
-		colRoots[i] = roots[(f.size()+i)*share.AxisRootSize : (f.size()+i+1)*share.AxisRootSize]
+		colRoots[i] = roots[(o.size()+i)*share.AxisRootSize : (o.size()+i+1)*share.AxisRootSize]
 	}
 	axisRoots := &share.AxisRoots{
 		RowRoots:    rowRoots,
@@ -206,14 +195,14 @@ func (f *ODSFile) AxisRoots(context.Context) (*share.AxisRoots, error) {
 }
 
 // Close closes the file.
-func (f *ODSFile) Close() error {
-	return f.fl.Close()
+func (o *ODS) Close() error {
+	return o.fl.Close()
 }
 
 // Sample returns share and corresponding proof for row and column indices. Implementation can
 // choose which axis to use for proof. Chosen axis for proof should be indicated in the returned
 // Sample.
-func (f *ODSFile) Sample(ctx context.Context, rowIdx, colIdx int) (shwap.Sample, error) {
+func (o *ODS) Sample(ctx context.Context, rowIdx, colIdx int) (shwap.Sample, error) {
 	// Sample proof axis is selected to optimize read performance.
 	// - For the first and second quadrants, we read the row axis because it is more efficient to read
 	//   single row than reading full ODS to calculate single column
@@ -222,11 +211,11 @@ func (f *ODSFile) Sample(ctx context.Context, rowIdx, colIdx int) (shwap.Sample,
 	// - For the fourth quadrant, it does not matter which axis we read because we need to read full ODS
 	//   to calculate the sample
 	axisType, axisIdx, shrIdx := rsmt2d.Row, rowIdx, colIdx
-	if colIdx < f.size()/2 && rowIdx >= f.size()/2 {
+	if colIdx < o.size()/2 && rowIdx >= o.size()/2 {
 		axisType, axisIdx, shrIdx = rsmt2d.Col, colIdx, rowIdx
 	}
 
-	axis, err := f.axis(ctx, axisType, axisIdx)
+	axis, err := o.axis(ctx, axisType, axisIdx)
 	if err != nil {
 		return shwap.Sample{}, fmt.Errorf("reading axis: %w", err)
 	}
@@ -236,11 +225,11 @@ func (f *ODSFile) Sample(ctx context.Context, rowIdx, colIdx int) (shwap.Sample,
 
 // AxisHalf returns half of shares axis of the given type and index. Side is determined by
 // implementation. Implementations should indicate the side in the returned AxisHalf.
-func (f *ODSFile) AxisHalf(_ context.Context, axisType rsmt2d.Axis, axisIdx int) (eds.AxisHalf, error) {
+func (o *ODS) AxisHalf(_ context.Context, axisType rsmt2d.Axis, axisIdx int) (eds.AxisHalf, error) {
 	// Read the axis from the file if the axis is a row and from the top half of the square, or if the
 	// axis is a column and from the left half of the square.
-	if axisIdx < f.size()/2 {
-		half, err := f.readAxisHalf(axisType, axisIdx)
+	if axisIdx < o.size()/2 {
+		half, err := o.readAxisHalf(axisType, axisIdx)
 		if err != nil {
 			return eds.AxisHalf{}, fmt.Errorf("reading axis half: %w", err)
 		}
@@ -248,7 +237,7 @@ func (f *ODSFile) AxisHalf(_ context.Context, axisType rsmt2d.Axis, axisIdx int)
 	}
 
 	// if axis is from the second half of the square, read full ODS and compute the axis half
-	ods, err := f.readODS()
+	ods, err := o.readODS()
 	if err != nil {
 		return eds.AxisHalf{}, err
 	}
@@ -261,12 +250,12 @@ func (f *ODSFile) AxisHalf(_ context.Context, axisType rsmt2d.Axis, axisIdx int)
 }
 
 // RowNamespaceData returns data for the given namespace and row index.
-func (f *ODSFile) RowNamespaceData(
+func (o *ODS) RowNamespaceData(
 	ctx context.Context,
 	namespace share.Namespace,
 	rowIdx int,
 ) (shwap.RowNamespaceData, error) {
-	shares, err := f.axis(ctx, rsmt2d.Row, rowIdx)
+	shares, err := o.axis(ctx, rsmt2d.Row, rowIdx)
 	if err != nil {
 		return shwap.RowNamespaceData{}, err
 	}
@@ -274,8 +263,8 @@ func (f *ODSFile) RowNamespaceData(
 }
 
 // Shares returns data shares extracted from the Accessor.
-func (f *ODSFile) Shares(context.Context) ([]share.Share, error) {
-	ods, err := f.readODS()
+func (o *ODS) Shares(context.Context) ([]share.Share, error) {
+	ods, err := o.readODS()
 	if err != nil {
 		return nil, err
 	}
@@ -284,22 +273,22 @@ func (f *ODSFile) Shares(context.Context) ([]share.Share, error) {
 
 // Reader returns binary reader for the file. It reads the shares from the ODS part of the square
 // row by row.
-func (f *ODSFile) Reader() (io.Reader, error) {
-	f.lock.RLock()
-	ods := f.ods
-	f.lock.RUnlock()
+func (o *ODS) Reader() (io.Reader, error) {
+	o.lock.RLock()
+	ods := o.ods
+	o.lock.RUnlock()
 	if ods != nil {
 		return ods.reader()
 	}
 
-	offset := f.sharesOffset()
-	total := int64(f.hdr.shareSize) * int64(f.size()*f.size()/4)
-	reader := io.NewSectionReader(f.fl, int64(offset), total)
+	offset := o.sharesOffset()
+	total := int64(o.hdr.shareSize) * int64(o.size()*o.size()/4)
+	reader := io.NewSectionReader(o.fl, int64(offset), total)
 	return reader, nil
 }
 
-func (f *ODSFile) axis(ctx context.Context, axisType rsmt2d.Axis, axisIdx int) ([]share.Share, error) {
-	half, err := f.AxisHalf(ctx, axisType, axisIdx)
+func (o *ODS) axis(ctx context.Context, axisType rsmt2d.Axis, axisIdx int) ([]share.Share, error) {
+	half, err := o.AxisHalf(ctx, axisType, axisIdx)
 	if err != nil {
 		return nil, err
 	}
@@ -312,20 +301,20 @@ func (f *ODSFile) axis(ctx context.Context, axisType rsmt2d.Axis, axisIdx int) (
 	return axis, nil
 }
 
-func (f *ODSFile) readAxisHalf(axisType rsmt2d.Axis, axisIdx int) (eds.AxisHalf, error) {
-	f.lock.RLock()
-	ods := f.ods
-	f.lock.RUnlock()
+func (o *ODS) readAxisHalf(axisType rsmt2d.Axis, axisIdx int) (eds.AxisHalf, error) {
+	o.lock.RLock()
+	ods := o.ods
+	o.lock.RUnlock()
 	if ods != nil {
-		return f.ods.axisHalf(axisType, axisIdx)
+		return o.ods.axisHalf(axisType, axisIdx)
 	}
 
 	axisHalf, err := readAxisHalf(
-		f.fl,
+		o.fl,
 		axisType,
-		f.ShareSize(),
-		f.size(),
-		f.sharesOffset(),
+		o.hdr.ShareSize(),
+		o.size(),
+		o.sharesOffset(),
 		axisIdx,
 	)
 	if err != nil {
@@ -338,40 +327,40 @@ func (f *ODSFile) readAxisHalf(axisType rsmt2d.Axis, axisIdx int) (eds.AxisHalf,
 	}, nil
 }
 
-func (f *ODSFile) sharesOffset() int {
-	return f.hdr.Size() + f.axisRootsSize()
+func (o *ODS) sharesOffset() int {
+	return o.hdr.Size() + o.axisRootsSize()
 }
 
-func (f *ODSFile) axisRootsSize() int {
+func (o *ODS) axisRootsSize() int {
 	// axis roots are stored in two parts: row roots and column roots, each part has size equal to
 	// the square size. Thus, the total amount of roots is equal to the square size * 2.
-	return share.AxisRootSize * 2 * f.size()
+	return share.AxisRootSize * 2 * o.size()
 }
 
-func (f *ODSFile) readODS() (square, error) {
-	f.lock.RLock()
-	ods := f.ods
-	f.lock.RUnlock()
+func (o *ODS) readODS() (square, error) {
+	o.lock.RLock()
+	ods := o.ods
+	o.lock.RUnlock()
 	if ods != nil {
 		return ods, nil
 	}
 
 	// reset file pointer to the beginning of the file shares data
-	offset := f.sharesOffset()
-	_, err := f.fl.Seek(int64(offset), io.SeekStart)
+	offset := o.sharesOffset()
+	_, err := o.fl.Seek(int64(offset), io.SeekStart)
 	if err != nil {
 		return nil, fmt.Errorf("discarding header: %w", err)
 	}
 
-	square, err := readSquare(f.fl, share.Size, f.size())
+	square, err := readSquare(o.fl, share.Size, o.size())
 	if err != nil {
 		return nil, fmt.Errorf("reading ODS: %w", err)
 	}
 
-	if !f.disableCache {
-		f.lock.Lock()
-		f.ods = square
-		f.lock.Unlock()
+	if !o.disableCache {
+		o.lock.Lock()
+		o.ods = square
+		o.lock.Unlock()
 	}
 	return square, nil
 }
