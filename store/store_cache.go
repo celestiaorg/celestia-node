@@ -45,10 +45,10 @@ func (cs *CachedStore) GetByHeight(ctx context.Context, height uint64) (eds.Acce
 }
 
 func (cs *CachedStore) openFile(height uint64) cache.OpenAccessorFn {
-	return func(ctx context.Context) (eds.AccessorStreamer, error) {
+	return func(context.Context) (eds.AccessorStreamer, error) {
 		// open file directly wihout calling GetByHeight of inner getter to
 		// avoid hitting store cache second time
-		path := cs.store.heightToPath(height)
-		return cs.store.openFile(path)
+		path := cs.store.heightToPath(height, "")
+		return cs.store.openODSQ4(path)
 	}
 }

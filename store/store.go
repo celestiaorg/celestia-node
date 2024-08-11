@@ -27,9 +27,10 @@ var (
 )
 
 const (
-	blocksPath  = "blocks"
-	heightsPath = blocksPath + "/heights"
-
+	blocksPath     = "blocks"
+	heightsPath    = blocksPath + "/heights"
+	odsFileExt     = ".ods"
+	q4FileExt      = ".q4"
 	defaultDirPerm = 0o755
 )
 
@@ -51,37 +52,29 @@ type Store struct {
 
 // NewStore creates a new EDS Store under the given basepath and datastore.
 func NewStore(params *Parameters, basePath string) (*Store, error) {
-	if err := params.Validate(); err != nil {
+	err := params.Validate()
+	if err != nil {
 		return nil, err
 	}
 
-	// Ensure the blocks folder exists or is created.
-	blocksFolderPath := filepath.Join(basePath, blocksPath)
-	if err := ensureFolder(blocksFolderPath); err != nil {
-		log.Errorf("Failed to ensure the existence of the blocks folder at '%s': %s", blocksFolderPath, err)
-		return nil, fmt.Errorf("ensure blocks folder '%s': %w", blocksFolderPath, err)
+	// ensure the blocks dir exists
+	blocksDir := filepath.Join(basePath, blocksPath)
+	if err := mkdir(blocksDir); err != nil {
+		return nil, fmt.Errorf("ensuring blocks directory: %w", err)
 	}
 
-	// Ensure the heights folder exists or is created.
-	heightsFolderPath := filepath.Join(basePath, heightsPath)
-	if err := ensureFolder(heightsFolderPath); err != nil {
-		log.Errorf("Failed to ensure the existence of the heights folder at '%s': %s", heightsFolderPath, err)
-		return nil, fmt.Errorf("ensure heights folder '%s': %w", heightsFolderPath, err)
+	// ensure the heights dir exists
+	heightsDir := filepath.Join(basePath, heightsPath)
+	if err := mkdir(heightsDir); err != nil {
+		return nil, fmt.Errorf("ensuring heights directory: %w", err)
 	}
 
-	err := ensureEmptyFile(basePath)
-	if err != nil {
-		return nil, fmt.Errorf("creating empty file: %w", err)
-	}
-
-	var recentCache cache.Cache
-	recentCache = cache.NoopCache{}
+	var recentCache cache.Cache = cache.NoopCache{}
 	if params.RecentBlocksCacheSize > 0 {
 		recentCache, err = cache.NewAccessorCache("recent", params.RecentBlocksCacheSize)
 		if err != nil {
 			return nil, fmt.Errorf("failed to create recent eds cache: %w", err)
 		}
-
 	}
 
 	store := &Store{
@@ -89,7 +82,8 @@ func NewStore(params *Parameters, basePath string) (*Store, error) {
 		cache:     recentCache,
 		stripLock: newStripLock(1024),
 	}
-	return store, nil
+
+	return store, store.ensureEmptyFile()
 }
 
 func (s *Store) Close() error {
@@ -107,7 +101,7 @@ func (s *Store) Put(
 	if datahash.IsEmptyEDS() {
 		lock := s.stripLock.byHeight(height)
 		lock.Lock()
-		err := s.ensureHeightLink(roots.Hash(), height)
+		err := s.linkHeight(datahash, height)
 		lock.Unlock()
 		return err
 	}
@@ -145,41 +139,58 @@ func (s *Store) createFile(
 	square *rsmt2d.ExtendedDataSquare,
 	roots *share.AxisRoots,
 	height uint64,
-) (exists bool, err error) {
-	path := s.hashToPath(roots.Hash())
-	f, err := file.CreateQ1Q4File(path, roots, square)
+) (bool, error) {
+	pathODS := s.hashToPath(roots.Hash(), odsFileExt)
+	pathQ4 := s.hashToPath(roots.Hash(), q4FileExt)
+
+	err := file.CreateODSQ4(pathODS, pathQ4, roots, square)
 	if errors.Is(err, os.ErrExist) {
+		// TODO(@Wondertan): Should we verify that the exist file is correct?
 		return true, nil
 	}
-
 	if err != nil {
-		return false, fmt.Errorf("creating Q1Q4 file: %w", err)
-	}
-
-	err = f.Close()
-	if err != nil {
-		return false, fmt.Errorf("closing created Q1Q4 file: %w", err)
+		return false, errors.Join(
+			fmt.Errorf("creating ODSQ4 file: %w", err),
+			// ensure we don't have partial writes
+			remove(pathODS),
+			remove(pathQ4),
+		)
 	}
 
 	// create hard link with height as name
-	err = s.ensureHeightLink(roots.Hash(), height)
+	err = s.linkHeight(roots.Hash(), height)
 	if err != nil {
-		// remove the file if we failed to create a hard link
-		removeErr := s.removeFile(roots.Hash())
-		return false, fmt.Errorf("creating hard link: %w", errors.Join(err, removeErr))
+		// ensure we don't have partial writes if any operation fails
+		return false, errors.Join(
+			fmt.Errorf("hardlinking height: %w", err),
+			remove(pathODS),
+			remove(pathQ4),
+			s.removeLink(height),
+		)
 	}
 	return false, nil
 }
 
-func (s *Store) ensureHeightLink(datahash share.DataHash, height uint64) error {
-	path := s.hashToPath(datahash)
+func (s *Store) linkHeight(datahash share.DataHash, height uint64) error {
 	// create hard link with height as name
-	linkPath := s.heightToPath(height)
-	err := os.Link(path, linkPath)
-	if err != nil && !errors.Is(err, os.ErrExist) {
-		return fmt.Errorf("creating hard link: %w", err)
-	}
-	return nil
+	pathOds := s.hashToPath(datahash, odsFileExt)
+	linktoOds := s.heightToPath(height, odsFileExt)
+	pathQ4 := s.hashToPath(datahash, q4FileExt)
+	linktoQ4 := s.heightToPath(height, q4FileExt)
+	return errors.Join(
+		link(pathOds, linktoOds),
+		link(pathQ4, linktoQ4),
+	)
+}
+
+func (s *Store) ensureEmptyFile() error {
+	empty := share.DataHash(share.EmptyEDSRoots().Hash())
+	pathOds := s.hashToPath(empty, odsFileExt)
+	pathQ4 := s.hashToPath(empty, q4FileExt)
+	return errors.Join(
+		createEmpty(pathOds),
+		createEmpty(pathQ4),
+	)
 }
 
 func (s *Store) GetByHash(ctx context.Context, datahash share.DataHash) (eds.AccessorStreamer, error) {
@@ -197,8 +208,8 @@ func (s *Store) GetByHash(ctx context.Context, datahash share.DataHash) (eds.Acc
 }
 
 func (s *Store) getByHash(datahash share.DataHash) (eds.AccessorStreamer, error) {
-	path := s.hashToPath(datahash)
-	return s.openFile(path)
+	path := s.hashToPath(datahash, "")
+	return s.openODSQ4(path)
 }
 
 func (s *Store) GetByHeight(ctx context.Context, height uint64) (eds.AccessorStreamer, error) {
@@ -217,28 +228,33 @@ func (s *Store) getByHeight(height uint64) (eds.AccessorStreamer, error) {
 	if err == nil {
 		return f, nil
 	}
-	path := s.heightToPath(height)
-	return s.openFile(path)
+
+	path := s.heightToPath(height, "")
+	return s.openODSQ4(path)
 }
 
-func (s *Store) openFile(path string) (eds.AccessorStreamer, error) {
-	f, err := file.OpenQ1Q4File(path)
-	if err == nil {
-		return wrapAccessor(f), nil
-	}
-	if os.IsNotExist(err) {
+// openODSQ4 opens ODSQ4 Accessor.
+// It opens ODS file first, reads up its DataHash and constructs the path for Q4
+// This done as Q4 is not indexed(hardlinked) and there is no other way to Q4 by height only.
+func (s *Store) openODSQ4(path string) (eds.AccessorStreamer, error) {
+	odsq4, err := file.OpenODSQ4(path+odsFileExt, path+q4FileExt)
+	switch {
+	case errors.Is(err, os.ErrNotExist):
 		return nil, ErrNotFound
-	}
-	if errors.Is(err, file.ErrEmptyFile) {
+	case errors.Is(err, file.ErrEmptyFile):
 		return emptyAccessor, nil
+	case err != nil:
+		return nil, fmt.Errorf("opening ODSQ4: %w", err)
 	}
-	return nil, fmt.Errorf("opening file: %w", err)
+
+	return wrapAccessor(odsq4), nil
 }
 
 func (s *Store) HasByHash(ctx context.Context, datahash share.DataHash) (bool, error) {
 	if datahash.IsEmptyEDS() {
 		return true, nil
 	}
+
 	lock := s.stripLock.byHash(datahash)
 	lock.RLock()
 	defer lock.RUnlock()
@@ -250,8 +266,9 @@ func (s *Store) HasByHash(ctx context.Context, datahash share.DataHash) (bool, e
 }
 
 func (s *Store) hasByHash(datahash share.DataHash) (bool, error) {
-	path := s.hashToPath(datahash)
-	return pathExists(path)
+	// For now, we assume that if ODS exists, the Q4 exists as well.
+	path := s.hashToPath(datahash, odsFileExt)
+	return exists(path)
 }
 
 func (s *Store) HasByHeight(ctx context.Context, height uint64) (bool, error) {
@@ -272,8 +289,9 @@ func (s *Store) hasByHeight(height uint64) (bool, error) {
 		return true, nil
 	}
 
-	path := s.heightToPath(height)
-	return pathExists(path)
+	// For now, we assume that if ODS exists, the Q4 exists as well.
+	pathODS := s.heightToPath(height, odsFileExt)
+	return exists(pathODS)
 }
 
 func (s *Store) Remove(ctx context.Context, height uint64, datahash share.DataHash) error {
@@ -305,13 +323,12 @@ func (s *Store) removeLink(height uint64) error {
 		return fmt.Errorf("removing from cache: %w", err)
 	}
 
-	// remove hard link by height
-	heightPath := s.heightToPath(height)
-	err := os.Remove(heightPath)
-	if err != nil && !errors.Is(err, os.ErrNotExist) {
-		return err
-	}
-	return nil
+	pathODS := s.heightToPath(height, odsFileExt)
+	pathQ4 := s.heightToPath(height, q4FileExt)
+	return errors.Join(
+		remove(pathODS),
+		remove(pathQ4),
+	)
 }
 
 func (s *Store) removeFile(hash share.DataHash) error {
@@ -320,20 +337,20 @@ func (s *Store) removeFile(hash share.DataHash) error {
 		return nil
 	}
 
-	hashPath := s.hashToPath(hash)
-	err := os.Remove(hashPath)
-	if err != nil && !errors.Is(err, os.ErrNotExist) {
-		return err
-	}
-	return nil
+	pathODS := s.hashToPath(hash, odsFileExt)
+	pathQ4 := s.hashToPath(hash, q4FileExt)
+	return errors.Join(
+		remove(pathODS),
+		remove(pathQ4),
+	)
 }
 
-func (s *Store) hashToPath(datahash share.DataHash) string {
-	return filepath.Join(s.basepath, blocksPath, datahash.String())
+func (s *Store) hashToPath(datahash share.DataHash, ext string) string {
+	return filepath.Join(s.basepath, blocksPath, datahash.String()) + ext
 }
 
-func (s *Store) heightToPath(height uint64) string {
-	return filepath.Join(s.basepath, heightsPath, strconv.Itoa(int(height)))
+func (s *Store) heightToPath(height uint64, ext string) string {
+	return filepath.Join(s.basepath, heightsPath, strconv.Itoa(int(height))) + ext
 }
 
 func accessorLoader(accessor eds.AccessorStreamer) cache.OpenAccessorFn {
@@ -350,51 +367,50 @@ func wrapAccessor(accessor eds.AccessorStreamer) eds.AccessorStreamer {
 	return accessorStreamer
 }
 
-func ensureFolder(path string) error {
-	info, err := os.Stat(path)
-	if errors.Is(err, os.ErrNotExist) {
-		err = os.Mkdir(path, defaultDirPerm)
-		if err != nil {
-			return fmt.Errorf("creating blocks dir: %w", err)
-		}
-		return nil
+func mkdir(path string) error {
+	err := os.Mkdir(path, defaultDirPerm)
+	if err != nil && !errors.Is(err, os.ErrExist) {
+		return fmt.Errorf("making directory '%s': %w", path, err)
 	}
-	if err != nil {
-		return fmt.Errorf("checking dir: %w", err)
-	}
-	if !info.IsDir() {
-		return errors.New("expected dir, got a file")
+
+	return nil
+}
+
+func link(filepath, linkpath string) error {
+	err := os.Link(filepath, linkpath)
+	if err != nil && !errors.Is(err, os.ErrExist) {
+		return fmt.Errorf("creating hardlink (%s -> %s): %w", filepath, linkpath, err)
 	}
 	return nil
 }
 
-func pathExists(path string) (bool, error) {
+func exists(path string) (bool, error) {
 	_, err := os.Stat(path)
-	if err != nil {
-		if errors.Is(err, os.ErrNotExist) {
-			return false, nil
-		}
-		return false, err
+	switch {
+	case err == nil:
+		return true, nil
+	case errors.Is(err, os.ErrNotExist):
+		return false, nil
+	default:
+		return false, fmt.Errorf("checking file existence '%s': %w", path, err)
 	}
-	return true, nil
 }
 
-func ensureEmptyFile(basepath string) error {
-	emptyFile := share.DataHash(share.EmptyEDSRoots().Hash()).String()
-	path := filepath.Join(basepath, blocksPath, emptyFile)
-	ok, err := pathExists(path)
-	if err != nil {
-		return fmt.Errorf("checking empty file path: %w", err)
+func remove(path string) error {
+	err := os.Remove(path)
+	if err != nil && !errors.Is(err, os.ErrNotExist) {
+		return fmt.Errorf("removing file '%s': %w", path, err)
 	}
-	if ok {
-		return nil
-	}
+	return nil
+}
+
+func createEmpty(path string) error {
 	f, err := os.Create(path)
 	if err != nil {
-		return fmt.Errorf("creating empty eds file: %w", err)
+		return fmt.Errorf("creating empty file: %w", err)
 	}
 	if err = f.Close(); err != nil {
-		return fmt.Errorf("closing empty eds file: %w", err)
+		return fmt.Errorf("closing empty file: %w", err)
 	}
 	return nil
 }

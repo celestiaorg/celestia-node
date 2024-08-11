@@ -21,41 +21,26 @@ func TestCreateODSFile(t *testing.T) {
 	t.Cleanup(cancel)
 
 	edsIn := edstest.RandEDS(t, 8)
-	roots, err := share.NewAxisRoots(edsIn)
-	require.NoError(t, err)
-	path := t.TempDir() + "/" + roots.String()
-	f, err := CreateODSFile(path, roots, edsIn)
+	f := createODSFile(t, edsIn)
+	readRoots, err := share.NewAxisRoots(edsIn)
 	require.NoError(t, err)
 
 	shares, err := f.Shares(ctx)
 	require.NoError(t, err)
+
 	expected := edsIn.FlattenedODS()
 	require.Equal(t, expected, shares)
-	require.Equal(t, share.DataHash(roots.Hash()), f.hdr.datahash)
-	readRoots, err := share.NewAxisRoots(edsIn)
-	require.NoError(t, err)
-	require.True(t, roots.Equals(readRoots))
-	require.NoError(t, f.Close())
 
-	f, err = OpenODSFile(path)
+	roots, err := f.AxisRoots(ctx)
 	require.NoError(t, err)
-	shares, err = f.Shares(ctx)
-	require.NoError(t, err)
-	require.Equal(t, expected, shares)
 	require.Equal(t, share.DataHash(roots.Hash()), f.hdr.datahash)
-	readRoots, err = share.NewAxisRoots(edsIn)
-	require.NoError(t, err)
 	require.True(t, roots.Equals(readRoots))
 	require.NoError(t, f.Close())
 }
 
 func TestReadODSFromFile(t *testing.T) {
 	eds := edstest.RandEDS(t, 8)
-	roots, err := share.NewAxisRoots(eds)
-	require.NoError(t, err)
-	path := t.TempDir() + "/testfile"
-	f, err := CreateODSFile(path, roots, eds)
-	require.NoError(t, err)
+	f := createODSFile(t, eds)
 
 	ods, err := f.readODS()
 	require.NoError(t, err)
@@ -187,21 +172,23 @@ func createCachedStreamer(t testing.TB, eds *rsmt2d.ExtendedDataSquare) eds.Acce
 	return f
 }
 
-func createODSFile(t testing.TB, eds *rsmt2d.ExtendedDataSquare) *ODSFile {
+func createODSFile(t testing.TB, eds *rsmt2d.ExtendedDataSquare) *ODS {
 	path := t.TempDir() + "/" + strconv.Itoa(rand.Intn(1000))
 	roots, err := share.NewAxisRoots(eds)
 	require.NoError(t, err)
-	fl, err := CreateODSFile(path, roots, eds)
+	err = CreateODS(path, roots, eds)
 	require.NoError(t, err)
-	return fl
+	ods, err := OpenODS(path)
+	return ods
 }
 
 func createODSFileDisabledCache(t testing.TB, eds *rsmt2d.ExtendedDataSquare) eds.Accessor {
 	path := t.TempDir() + "/" + strconv.Itoa(rand.Intn(1000))
 	roots, err := share.NewAxisRoots(eds)
 	require.NoError(t, err)
-	fl, err := CreateODSFile(path, roots, eds)
+	err = CreateODS(path, roots, eds)
 	require.NoError(t, err)
-	fl.disableCache = true
-	return fl
+	ods, err := OpenODS(path)
+	ods.disableCache = true
+	return ods
 }
