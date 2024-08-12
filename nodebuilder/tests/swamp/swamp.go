@@ -21,7 +21,7 @@ import (
 	"go.uber.org/fx"
 	"golang.org/x/exp/maps"
 
-	"github.com/celestiaorg/celestia-app/v2/test/util/testnode"
+	"github.com/celestiaorg/celestia-app/test/util/testnode"
 	libhead "github.com/celestiaorg/go-header"
 
 	"github.com/celestiaorg/celestia-node/core"
@@ -94,8 +94,8 @@ func NewSwamp(t *testing.T, options ...Option) *Swamp {
 }
 
 func getAccounts(config *testnode.Config) (accounts []string) {
-	for _, account := range config.Genesis.Accounts() {
-		accounts = append(accounts, account.Name)
+	for _, account := range config.Accounts {
+		accounts = append(accounts, account)
 	}
 	return accounts
 }
