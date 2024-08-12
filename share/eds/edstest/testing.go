@@ -6,22 +6,29 @@ import (
 	"github.com/stretchr/testify/require"
 	coretypes "github.com/tendermint/tendermint/types"
 
-	"github.com/celestiaorg/celestia-app/app"
-	"github.com/celestiaorg/celestia-app/app/encoding"
-	"github.com/celestiaorg/celestia-app/pkg/appconsts"
-	"github.com/celestiaorg/celestia-app/pkg/da"
-	"github.com/celestiaorg/celestia-app/pkg/namespace"
-	"github.com/celestiaorg/celestia-app/pkg/shares"
-	"github.com/celestiaorg/celestia-app/pkg/square"
-	"github.com/celestiaorg/celestia-app/pkg/wrapper"
-	"github.com/celestiaorg/celestia-app/test/util/blobfactory"
-	"github.com/celestiaorg/celestia-app/test/util/testfactory"
-	"github.com/celestiaorg/celestia-app/x/blob/types"
+	"github.com/celestiaorg/celestia-app/v2/app"
+	"github.com/celestiaorg/celestia-app/v2/app/encoding"
+	"github.com/celestiaorg/celestia-app/v2/pkg/appconsts"
+	"github.com/celestiaorg/celestia-app/v2/pkg/da"
+	"github.com/celestiaorg/celestia-app/v2/pkg/user"
+	"github.com/celestiaorg/celestia-app/v2/pkg/wrapper"
+	"github.com/celestiaorg/celestia-app/v2/test/util/blobfactory"
+	"github.com/celestiaorg/celestia-app/v2/test/util/testfactory"
+	"github.com/celestiaorg/celestia-app/v2/x/blob/types"
+	"github.com/celestiaorg/go-square/blob"
+	"github.com/celestiaorg/go-square/namespace"
+	"github.com/celestiaorg/go-square/shares"
+	"github.com/celestiaorg/go-square/square"
 	"github.com/celestiaorg/nmt"
 	"github.com/celestiaorg/rsmt2d"
 
 	"github.com/celestiaorg/celestia-node/share"
 	"github.com/celestiaorg/celestia-node/share/sharetest"
+)
+
+const (
+	accountName = "test-account"
+	testChainID = "private"
 )
 
 func RandByzantineEDS(t testing.TB, size int, options ...nmt.Option) *rsmt2d.ExtendedDataSquare {
@@ -64,7 +71,7 @@ func GenerateTestBlock(
 	blobSize, numberOfTransactions int,
 ) (
 	[]*types.MsgPayForBlobs,
-	[]*types.Blob,
+	[]*blob.Blob,
 	[]namespace.Namespace,
 	*rsmt2d.ExtendedDataSquare,
 	coretypes.Txs,
@@ -81,8 +88,8 @@ func GenerateTestBlock(
 	txs = append(txs, coreTxs...)
 	dataSquare, err := square.Construct(
 		txs.ToSliceOfBytes(),
-		appconsts.LatestVersion,
 		appconsts.SquareSizeUpperBound(appconsts.LatestVersion),
+		appconsts.SubtreeRootThreshold(appconsts.LatestVersion),
 	)
 	require.NoError(t, err)
 
@@ -105,15 +112,17 @@ func GenerateTestBlock(
 func createTestBlobTransactions(
 	t *testing.T,
 	numberOfTransactions, size int,
-) ([]namespace.Namespace, []*types.MsgPayForBlobs, []*types.Blob, []coretypes.Tx) {
-	acc := "blobstream-api-tests"
-	kr := testfactory.GenerateKeyring(acc)
-	signer := types.NewKeyringSigner(kr, acc, "test")
-
+) ([]namespace.Namespace, []*types.MsgPayForBlobs, []*blob.Blob, []coretypes.Tx) {
 	nss := make([]namespace.Namespace, 0)
 	msgs := make([]*types.MsgPayForBlobs, 0)
-	blobs := make([]*types.Blob, 0)
+	blobs := make([]*blob.Blob, 0)
 	coreTxs := make([]coretypes.Tx, 0)
+	config := encoding.MakeConfig(app.ModuleEncodingRegisters...)
+	keyring := testfactory.TestKeyring(config.Codec, accountName)
+	account := user.NewAccount(accountName, 0, 0)
+	signer, err := user.NewSigner(keyring, config.TxConfig, testChainID, appconsts.LatestVersion, account)
+	require.NoError(t, err)
+
 	for i := 0; i < numberOfTransactions; i++ {
 		ns, msg, blob, coreTx := createTestBlobTransaction(t, signer, size+i*1000)
 		nss = append(nss, ns)
@@ -129,22 +138,13 @@ func createTestBlobTransactions(
 // PFB size. The size is in bytes.
 func createTestBlobTransaction(
 	t *testing.T,
-	signer *types.KeyringSigner,
+	signer *user.Signer,
 	size int,
-) (namespace.Namespace, *types.MsgPayForBlobs, *types.Blob, coretypes.Tx) {
-	addr, err := signer.GetSignerInfo().GetAddress()
-	require.NoError(t, err)
-
+) (namespace.Namespace, *types.MsgPayForBlobs, *blob.Blob, coretypes.Tx) {
 	ns := namespace.RandomBlobNamespace()
-	msg, blob := blobfactory.RandMsgPayForBlobsWithNamespaceAndSigner(addr.String(), ns, size)
+	account := signer.Account(accountName)
+	msg, b := blobfactory.RandMsgPayForBlobsWithNamespaceAndSigner(account.Address().String(), ns, size)
+	cTx, _, err := signer.CreatePayForBlobs(accountName, []*blob.Blob{b})
 	require.NoError(t, err)
-
-	builder := signer.NewTxBuilder()
-	stx, err := signer.BuildSignedTx(builder, msg)
-	require.NoError(t, err)
-	rawTx, err := encoding.MakeConfig(app.ModuleEncodingRegisters...).TxConfig.TxEncoder()(stx)
-	require.NoError(t, err)
-	cTx, err := coretypes.MarshalBlobTx(rawTx, blob)
-	require.NoError(t, err)
-	return ns, msg, blob, cTx
+	return ns, msg, b, cTx
 }
