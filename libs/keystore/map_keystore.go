@@ -6,8 +6,8 @@ import (
 
 	"github.com/cosmos/cosmos-sdk/crypto/keyring"
 
-	"github.com/celestiaorg/celestia-app/app"
-	"github.com/celestiaorg/celestia-app/app/encoding"
+	"github.com/celestiaorg/celestia-app/v2/app"
+	"github.com/celestiaorg/celestia-app/v2/app/encoding"
 )
 
 // mapKeystore is a simple in-memory Keystore implementation.

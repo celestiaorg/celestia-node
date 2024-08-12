@@ -17,11 +17,11 @@ import (
 	"github.com/tendermint/tendermint/libs/rand"
 	coretypes "github.com/tendermint/tendermint/types"
 
-	"github.com/celestiaorg/celestia-app/pkg/appconsts"
-	"github.com/celestiaorg/celestia-app/pkg/da"
-	"github.com/celestiaorg/celestia-app/pkg/namespace"
-	pkgproof "github.com/celestiaorg/celestia-app/pkg/proof"
-	"github.com/celestiaorg/celestia-app/pkg/shares"
+	"github.com/celestiaorg/celestia-app/v2/pkg/appconsts"
+	"github.com/celestiaorg/celestia-app/v2/pkg/da"
+	pkgproof "github.com/celestiaorg/celestia-app/v2/pkg/proof"
+	"github.com/celestiaorg/go-square/namespace"
+	"github.com/celestiaorg/go-square/shares"
 	"github.com/celestiaorg/rsmt2d"
 
 	"github.com/celestiaorg/celestia-node/share"
@@ -330,7 +330,7 @@ func TestProveShares(t *testing.T) {
 				)
 				require.NoError(t, err)
 				require.NoError(t, proof.Validate(dataRoot.Hash()))
-				return proof
+				return toCoreShareProof(proof)
 			}(),
 		},
 	}
