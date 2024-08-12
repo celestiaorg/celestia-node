@@ -55,10 +55,6 @@ type CoreAccessor struct {
 	keyring keyring.Keyring
 	client  *user.TxClient
 
-	// TODO: remove in scope of https://github.com/celestiaorg/celestia-node/issues/3515
-	defaultSignerAccount string
-	defaultSignerAddress AccAddress
-
 	getter libhead.Head[*header.ExtendedHeader]
 
 	stakingCli   stakingtypes.QueryClient
@@ -99,13 +95,13 @@ func NewCoreAccessor(
 	prt.RegisterOpDecoder(storetypes.ProofOpSimpleMerkleCommitment, storetypes.CommitmentOpDecoder)
 
 	ca := &CoreAccessor{
-		keyring:              keyring,
-		defaultSignerAccount: keyname,
-		getter:               getter,
-		coreIP:               coreIP,
-		grpcPort:             grpcPort,
-		prt:                  prt,
+		keyring:  keyring,
+		getter:   getter,
+		coreIP:   coreIP,
+		grpcPort: grpcPort,
+		prt:      prt,
 	}
+	_ = user.WithDefaultAccount(keyname)
 
 	for _, opt := range options {
 		opt(ca)
@@ -145,7 +141,7 @@ func (ca *CoreAccessor) Start(ctx context.Context) error {
 	ca.abciQueryCli = tmservice.NewServiceClient(ca.coreConn)
 
 	// set up signer to handle tx submission
-	ca.client, err = ca.setupTxClient(ctx, ca.defaultSignerAccount)
+	ca.client, err = ca.setupTxClient(ctx, ca.client.DefaultAccountName())
 	if err != nil {
 		log.Warnw("failed to set up signer, check if node's account is funded", "err", err)
 	}
@@ -224,8 +220,8 @@ func (ca *CoreAccessor) SubmitPayForBlob(
 		return nil, err
 	}
 
-	accName := ca.defaultSignerAccount
-	if !signer.Equals(ca.defaultSignerAddress) {
+	accName := ca.client.DefaultAccountName()
+	if !signer.Equals(ca.client.DefaultAddress()) {
 		account := ca.client.AccountByAddress(signer)
 		if account == nil {
 			return nil, fmt.Errorf("account for signer %s not found", signer)
@@ -279,11 +275,11 @@ func (ca *CoreAccessor) SubmitPayForBlob(
 }
 
 func (ca *CoreAccessor) AccountAddress(context.Context) (Address, error) {
-	return Address{ca.defaultSignerAddress}, nil
+	return Address{ca.client.DefaultAddress()}, nil
 }
 
 func (ca *CoreAccessor) Balance(ctx context.Context) (*Balance, error) {
-	return ca.BalanceForAddress(ctx, Address{ca.defaultSignerAddress})
+	return ca.BalanceForAddress(ctx, Address{ca.client.DefaultAddress()})
 }
 
 func (ca *CoreAccessor) BalanceForAddress(ctx context.Context, addr Address) (*Balance, error) {
@@ -465,7 +461,7 @@ func (ca *CoreAccessor) QueryDelegation(
 	ctx context.Context,
 	valAddr ValAddress,
 ) (*stakingtypes.QueryDelegationResponse, error) {
-	delAddr := ca.defaultSignerAddress
+	delAddr := ca.client.DefaultAddress()
 	return ca.stakingCli.Delegation(ctx, &stakingtypes.QueryDelegationRequest{
 		DelegatorAddr: delAddr.String(),
 		ValidatorAddr: valAddr.String(),
@@ -476,7 +472,7 @@ func (ca *CoreAccessor) QueryUnbonding(
 	ctx context.Context,
 	valAddr ValAddress,
 ) (*stakingtypes.QueryUnbondingDelegationResponse, error) {
-	delAddr := ca.defaultSignerAddress
+	delAddr := ca.client.DefaultAddress()
 	return ca.stakingCli.UnbondingDelegation(ctx, &stakingtypes.QueryUnbondingDelegationRequest{
 		DelegatorAddr: delAddr.String(),
 		ValidatorAddr: valAddr.String(),
@@ -488,7 +484,7 @@ func (ca *CoreAccessor) QueryRedelegations(
 	srcValAddr,
 	dstValAddr ValAddress,
 ) (*stakingtypes.QueryRedelegationsResponse, error) {
-	delAddr := ca.defaultSignerAddress
+	delAddr := ca.client.DefaultAddress()
 	return ca.stakingCli.Redelegations(ctx, &stakingtypes.QueryRedelegationsRequest{
 		DelegatorAddr:    delAddr.String(),
 		SrcValidatorAddr: srcValAddr.String(),
@@ -583,19 +579,8 @@ func (ca *CoreAccessor) queryMinimumGasPrice(
 
 func (ca *CoreAccessor) setupTxClient(ctx context.Context, keyName string) (*user.TxClient, error) {
 	encCfg := encoding.MakeConfig(app.ModuleEncodingRegisters...)
-	// explicitly set default address. Otherwise, there could be a mismatch between defaultKey and
-	// defaultAddress.
-	rec, err := ca.keyring.Key(keyName)
-	if err != nil {
-		return nil, err
-	}
-	addr, err := rec.GetAddress()
-	if err != nil {
-		return nil, err
-	}
-	ca.defaultSignerAddress = addr
 	return user.SetupTxClient(ctx, ca.keyring, ca.coreConn, encCfg,
-		user.WithDefaultAccount(keyName), user.WithDefaultAddress(addr),
+		user.WithDefaultAccount(keyName),
 	)
 }
 
@@ -639,10 +624,10 @@ func (ca *CoreAccessor) getSigner(cfg *TxConfig) (AccAddress, error) {
 	switch {
 	case cfg.SignerAddress() != "":
 		return parseAccAddressFromString(cfg.SignerAddress())
-	case cfg.KeyName() != "" && cfg.KeyName() != ca.defaultSignerAccount:
+	case cfg.KeyName() != "" && cfg.KeyName() != ca.client.DefaultAccountName():
 		return parseAccountKey(ca.keyring, cfg.KeyName())
 	default:
-		return ca.defaultSignerAddress, nil
+		return ca.client.DefaultAddress(), nil
 	}
 }
 
