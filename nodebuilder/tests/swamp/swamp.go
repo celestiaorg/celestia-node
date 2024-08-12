@@ -21,7 +21,7 @@ import (
 	"go.uber.org/fx"
 	"golang.org/x/exp/maps"
 
-	"github.com/celestiaorg/celestia-app/test/util/testnode"
+	"github.com/celestiaorg/celestia-app/v2/test/util/testnode"
 	libhead "github.com/celestiaorg/go-header"
 
 	"github.com/celestiaorg/celestia-node/core"
@@ -84,13 +84,20 @@ func NewSwamp(t *testing.T, options ...Option) *Swamp {
 		cfg:           ic,
 		Network:       mocknet.New(),
 		ClientContext: cctx,
-		Accounts:      ic.Accounts,
+		Accounts:      getAccounts(ic),
 		nodes:         map[*nodebuilder.Node]struct{}{},
 	}
 
 	swp.t.Cleanup(swp.cleanup)
 	swp.setupGenesis()
 	return swp
+}
+
+func getAccounts(config *testnode.Config) (accounts []string) {
+	for _, account := range config.Genesis.Accounts() {
+		accounts = append(accounts, account.Name)
+	}
+	return accounts
 }
 
 // cleanup frees up all the resources

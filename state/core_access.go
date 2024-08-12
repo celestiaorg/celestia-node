@@ -23,10 +23,10 @@ import (
 	"google.golang.org/grpc/connectivity"
 	"google.golang.org/grpc/credentials/insecure"
 
-	"github.com/celestiaorg/celestia-app/app"
-	"github.com/celestiaorg/celestia-app/app/encoding"
-	apperrors "github.com/celestiaorg/celestia-app/app/errors"
-	"github.com/celestiaorg/celestia-app/pkg/user"
+	"github.com/celestiaorg/celestia-app/v2/app"
+	"github.com/celestiaorg/celestia-app/v2/app/encoding"
+	apperrors "github.com/celestiaorg/celestia-app/v2/app/errors"
+	"github.com/celestiaorg/celestia-app/v2/pkg/user"
 	libhead "github.com/celestiaorg/go-header"
 
 	"github.com/celestiaorg/celestia-node/header"
@@ -209,7 +209,7 @@ func (ca *CoreAccessor) SubmitPayForBlob(
 	if gas == 0 {
 		blobSizes := make([]uint32, len(appblobs))
 		for i, blob := range appblobs {
-			blobSizes[i] = uint32(len(blob.Data))
+			blobSizes[i] = uint32(len(blob.GetData()))
 		}
 		gas = estimateGasForBlobs(blobSizes)
 	}
@@ -235,7 +235,7 @@ func (ca *CoreAccessor) SubmitPayForBlob(
 
 	var lastErr error
 	for attempt := 0; attempt < maxRetries; attempt++ {
-		opts := []user.TxOption{user.SetGasLimitAndFee(gas, gasPrice)}
+		opts := []user.TxOption{user.SetGasLimitAndGasPrice(gas, gasPrice)}
 		if feeGrant != nil {
 			opts = append(opts, feeGrant)
 		}
@@ -621,7 +621,7 @@ func (ca *CoreAccessor) submitMsg(
 		gasPrice = ca.minGasPrice
 	}
 
-	txConfig = append(txConfig, user.SetGasLimitAndFee(gas, gasPrice))
+	txConfig = append(txConfig, user.SetGasLimitAndGasPrice(gas, gasPrice))
 
 	if cfg.FeeGranterAddress() != "" {
 		granter, err := parseAccAddressFromString(cfg.FeeGranterAddress())
