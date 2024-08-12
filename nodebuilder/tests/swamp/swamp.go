@@ -21,7 +21,7 @@ import (
 	"go.uber.org/fx"
 	"golang.org/x/exp/maps"
 
-	"github.com/celestiaorg/celestia-app/test/util/testnode"
+	"github.com/celestiaorg/celestia-app/v2/test/util/testnode"
 	libhead "github.com/celestiaorg/go-header"
 
 	"github.com/celestiaorg/celestia-node/core"

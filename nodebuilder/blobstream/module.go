@@ -1,6 +1,8 @@
 package blobstream
 
-import "go.uber.org/fx"
+import (
+	"go.uber.org/fx"
+)
 
 func ConstructModule() fx.Option {
 	return fx.Module("blobstream",
