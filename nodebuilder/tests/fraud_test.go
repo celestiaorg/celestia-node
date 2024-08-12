@@ -69,11 +69,11 @@ func TestFraudProofHandling(t *testing.T) {
 		_ = edsStore.Stop(ctx)
 	})
 
-	cfg := nodebuilder.DefaultConfig(node.Bridge)
 	// 1.
+	cfgBridge := nodebuilder.DefaultConfig(node.Bridge)
 	bridge := sw.NewNodeWithConfig(
 		node.Bridge,
-		cfg,
+		cfgBridge,
 		core.WithHeaderConstructFn(fMaker.MakeExtendedHeader(16, edsStore)),
 		fx.Replace(edsStore),
 	)
@@ -82,12 +82,12 @@ func TestFraudProofHandling(t *testing.T) {
 	require.NoError(t, err)
 
 	// 3.
-	cfg = nodebuilder.DefaultConfig(node.Full)
+	cfgFull := nodebuilder.DefaultConfig(node.Full)
 	addrs, err := peer.AddrInfoToP2pAddrs(host.InfoFromHost(bridge.Host))
 	require.NoError(t, err)
-	cfg.Header.TrustedPeers = append(cfg.Header.TrustedPeers, addrs[0].String())
-	cfg.Share.UseShareExchange = false
-	store := nodebuilder.MockStore(t, cfg)
+	cfgFull.Header.TrustedPeers = append(cfgFull.Header.TrustedPeers, addrs[0].String())
+	cfgFull.Share.UseShareExchange = false
+	store := nodebuilder.MockStore(t, cfgFull)
 	full := sw.MustNewNodeWithStore(node.Full, store)
 
 	// 4.
@@ -144,9 +144,9 @@ func TestFraudProofHandling(t *testing.T) {
 	require.ErrorIs(t, err, context.DeadlineExceeded)
 
 	// 7.
-	cfg = nodebuilder.DefaultConfig(node.Light)
-	cfg.Header.TrustedPeers = append(cfg.Header.TrustedPeers, addrs[0].String())
-	lnStore := nodebuilder.MockStore(t, cfg)
+	cfgLight := nodebuilder.DefaultConfig(node.Light)
+	cfgLight.Header.TrustedPeers = append(cfgLight.Header.TrustedPeers, addrs[0].String())
+	lnStore := nodebuilder.MockStore(t, cfgLight)
 	light := sw.MustNewNodeWithStore(node.Light, lnStore)
 	require.NoError(t, light.Start(ctx))
 	lightClient := getAdminClient(ctx, light, t)
