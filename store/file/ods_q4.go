@@ -75,11 +75,6 @@ func (odsq4 *ODSQ4) getQ4() (eds.Accessor, error) {
 	}
 
 	q4, err := odsq4.q4Open()
-	if errors.Is(err, ErrEmptyFile) {
-		// return empty accessor if the file is empty.
-		// empty file signals block.
-		return eds.EmptyAccessor, nil
-	}
 	if err != nil {
 		return nil, fmt.Errorf("failed to open Q4: %w", err)
 	}

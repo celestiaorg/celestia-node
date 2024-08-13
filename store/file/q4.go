@@ -109,9 +109,6 @@ func OpenQ4(path string) (*Q4, error) {
 	}
 
 	hdr, err := readHeader(f)
-	if errors.Is(err, io.EOF) {
-		return nil, ErrEmptyFile
-	}
 	if err != nil {
 		return nil, err
 	}
