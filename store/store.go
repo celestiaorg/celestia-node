@@ -21,7 +21,7 @@ import (
 )
 
 var (
-	log = logging.Logger("share/eds")
+	log = logging.Logger("edsstore")
 )
 
 const (
