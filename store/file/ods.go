@@ -143,9 +143,6 @@ func OpenODS(path string) (*ODS, error) {
 	}
 
 	h, err := readHeader(f)
-	if errors.Is(err, io.EOF) {
-		return nil, ErrEmptyFile
-	}
 	if err != nil {
 		return nil, err
 	}

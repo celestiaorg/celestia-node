@@ -81,7 +81,11 @@ func NewStore(params *Parameters, basePath string) (*Store, error) {
 		stripLock: newStripLock(1024),
 	}
 
-	return store, store.ensureEmptyFile()
+	if err := store.populateEmptyFile(); err != nil {
+		return nil, fmt.Errorf("ensuring empty EDS: %w", err)
+	}
+
+	return store, nil
 }
 
 func (s *Store) Close() error {
@@ -181,14 +185,24 @@ func (s *Store) linkHeight(datahash share.DataHash, height uint64) error {
 	)
 }
 
-func (s *Store) ensureEmptyFile() error {
-	empty := share.DataHash(share.EmptyEDSRoots().Hash())
-	pathOds := s.hashToPath(empty, odsFileExt)
-	pathQ4 := s.hashToPath(empty, q4FileExt)
-	return errors.Join(
-		createEmpty(pathOds),
-		createEmpty(pathQ4),
-	)
+// populateEmptyFile writes fresh empty EDS file on disk.
+// It overrides existing empty file to ensure disk format is always consistent with the canonical
+// in-mem representation.
+func (s *Store) populateEmptyFile() error {
+	pathOds := s.hashToPath(share.EmptyEDSDataHash(), odsFileExt)
+	pathQ4 := s.hashToPath(share.EmptyEDSDataHash(), q4FileExt)
+
+	err := errors.Join(remove(pathOds), remove(pathQ4))
+	if err != nil {
+		return fmt.Errorf("cleaning old empty EDS file: %w", err)
+	}
+
+	err = file.CreateODSQ4(pathOds, pathQ4, share.EmptyEDSRoots(), eds.EmptyAccessor.ExtendedDataSquare)
+	if err != nil {
+		return fmt.Errorf("creating fresh empty EDS file: %w", err)
+	}
+
+	return nil
 }
 
 func (s *Store) GetByHash(ctx context.Context, datahash share.DataHash) (eds.AccessorStreamer, error) {
@@ -396,17 +410,6 @@ func remove(path string) error {
 	err := os.Remove(path)
 	if err != nil && !errors.Is(err, os.ErrNotExist) {
 		return fmt.Errorf("removing file '%s': %w", path, err)
-	}
-	return nil
-}
-
-func createEmpty(path string) error {
-	f, err := os.Create(path)
-	if err != nil {
-		return fmt.Errorf("creating empty file: %w", err)
-	}
-	if err = f.Close(); err != nil {
-		return fmt.Errorf("closing empty file: %w", err)
 	}
 	return nil
 }
