@@ -18,12 +18,13 @@ import (
 	"github.com/tendermint/tendermint/crypto/merkle"
 	tmrand "github.com/tendermint/tendermint/libs/rand"
 
-	"github.com/celestiaorg/celestia-app/pkg/appconsts"
-	appns "github.com/celestiaorg/celestia-app/pkg/namespace"
-	pkgproof "github.com/celestiaorg/celestia-app/pkg/proof"
-	"github.com/celestiaorg/celestia-app/pkg/shares"
-	blobtypes "github.com/celestiaorg/celestia-app/x/blob/types"
+	"github.com/celestiaorg/celestia-app/v2/pkg/appconsts"
+	pkgproof "github.com/celestiaorg/celestia-app/v2/pkg/proof"
 	"github.com/celestiaorg/go-header/store"
+	"github.com/celestiaorg/go-square/blob"
+	"github.com/celestiaorg/go-square/inclusion"
+	squarens "github.com/celestiaorg/go-square/namespace"
+	"github.com/celestiaorg/go-square/shares"
 	"github.com/celestiaorg/nmt"
 	"github.com/celestiaorg/rsmt2d"
 
@@ -349,7 +350,7 @@ func TestBlobService_Get(t *testing.T) {
 		{
 			name: "empty result and err when blobs were not found ",
 			doFn: func() (interface{}, error) {
-				nid, err := share.NewBlobNamespaceV0(tmrand.Bytes(appns.NamespaceVersionZeroIDSize))
+				nid, err := share.NewBlobNamespaceV0(tmrand.Bytes(squarens.NamespaceVersionZeroIDSize))
 				require.NoError(t, err)
 				return service.GetAll(ctx, 1, []share.Namespace{nid})
 			},
@@ -643,8 +644,8 @@ func TestSkipPaddingsAndRetrieveBlob(t *testing.T) {
 
 	appBlob, err := blobtest.GenerateV0Blobs([]int{6}, true)
 	require.NoError(t, err)
-	appBlob[0].NamespaceVersion = nid[0]
-	appBlob[0].NamespaceID = nid[1:]
+	appBlob[0].NamespaceVersion = uint32(nid[0])
+	appBlob[0].NamespaceId = nid[1:]
 
 	blobs, err := convertBlobs(appBlob...)
 	require.NoError(t, err)
@@ -782,7 +783,7 @@ func TestService_Subscribe_MultipleNamespaces(t *testing.T) {
 	appBlobs2, err := blobtest.GenerateV0Blobs([]int{100, 100}, true)
 	for i := range appBlobs2 {
 		// if we don't do this, appBlobs1 and appBlobs2 will share a NS
-		appBlobs2[i].NamespaceID[len(appBlobs2[i].NamespaceID)-1] = 0xDE
+		appBlobs2[i].GetNamespaceId()[len(appBlobs2[i].GetNamespaceId())-1] = 0xDE
 	}
 	require.NoError(t, err)
 
@@ -929,13 +930,13 @@ func TestProveCommitmentAllCombinations(t *testing.T) {
 	tests := map[string]struct {
 		blobSize int
 	}{
-		"very small blobs that take less than a share": {blobSize: 350},
-		"small blobs that take 2 shares":               {blobSize: 1000},
-		"small blobs that take ~10 shares":             {blobSize: 5000},
-		"large blobs ~100 shares":                      {blobSize: 50000},
-		"large blobs ~150 shares":                      {blobSize: 75000},
-		"large blobs ~300 shares":                      {blobSize: 150000},
-		"very large blobs ~1500 shares":                {blobSize: 750000},
+		"blobs that take less than a share": {blobSize: 350},
+		"blobs that take 2 shares":          {blobSize: 1000},
+		"blobs that take ~10 shares":        {blobSize: 5000},
+		"large blobs ~100 shares":           {blobSize: 50000},
+		"large blobs ~150 shares":           {blobSize: 75000},
+		"large blobs ~300 shares":           {blobSize: 150000},
+		"very large blobs ~1500 shares":     {blobSize: 750000},
 	}
 
 	for name, tc := range tests {
@@ -949,7 +950,7 @@ func proveAndVerifyShareCommitments(t *testing.T, blobSize int) {
 	msgs, blobs, nss, eds, _, _, dataRoot := edstest.GenerateTestBlock(t, blobSize, 10)
 	for msgIndex, msg := range msgs {
 		t.Run(fmt.Sprintf("msgIndex=%d", msgIndex), func(t *testing.T) {
-			blb, err := NewBlob(uint8(blobs[msgIndex].ShareVersion), nss[msgIndex].Bytes(), blobs[msgIndex].Data)
+			blb, err := NewBlob(uint8(blobs[msgIndex].GetShareVersion()), nss[msgIndex].Bytes(), blobs[msgIndex].GetData())
 			require.NoError(t, err)
 			blobShares, err := BlobsToShares(blb)
 			require.NoError(t, err)
@@ -992,14 +993,14 @@ func generateCommitmentProofFromBlock(
 	t *testing.T,
 	eds *rsmt2d.ExtendedDataSquare,
 	ns share.Namespace,
-	blob *blobtypes.Blob,
+	blob *blob.Blob,
 	dataRoot []byte,
 ) CommitmentProof {
 	// create the blob from the data
 	blb, err := NewBlob(
-		uint8(blob.ShareVersion),
+		uint8(blob.GetShareVersion()),
 		ns,
-		blob.Data,
+		blob.GetData(),
 	)
 	require.NoError(t, err)
 
@@ -1033,7 +1034,7 @@ func generateCommitmentProofFromBlock(
 		ranges, err := nmt.ToLeafRanges(
 			int(proof.Start),
 			int(proof.End),
-			shares.SubTreeWidth(len(blobShares), appconsts.DefaultSubtreeRootThreshold),
+			inclusion.SubTreeWidth(len(blobShares), appconsts.DefaultSubtreeRootThreshold),
 		)
 		require.NoError(t, err)
 		roots, err := computeSubtreeRoots(
@@ -1056,8 +1057,8 @@ func generateCommitmentProofFromBlock(
 	commitmentProof := CommitmentProof{
 		SubtreeRoots:      subtreeRoots,
 		SubtreeRootProofs: nmtProofs,
-		NamespaceID:       sharesProof.NamespaceID,
-		RowProof:          sharesProof.RowProof,
+		NamespaceID:       sharesProof.NamespaceId,
+		RowProof:          *sharesProof.RowProof,
 		NamespaceVersion:  uint8(sharesProof.NamespaceVersion),
 	}
 
