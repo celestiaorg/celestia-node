@@ -22,8 +22,6 @@ import (
 
 var (
 	log = logging.Logger("share/eds")
-
-	emptyAccessor = &eds.Rsmt2D{ExtendedDataSquare: share.EmptyEDS()}
 )
 
 const (
@@ -195,7 +193,7 @@ func (s *Store) ensureEmptyFile() error {
 
 func (s *Store) GetByHash(ctx context.Context, datahash share.DataHash) (eds.AccessorStreamer, error) {
 	if datahash.IsEmptyEDS() {
-		return emptyAccessor, nil
+		return eds.EmptyAccessor, nil
 	}
 	lock := s.stripLock.byHash(datahash)
 	lock.RLock()
@@ -241,8 +239,6 @@ func (s *Store) openODSQ4(path string) (eds.AccessorStreamer, error) {
 	switch {
 	case errors.Is(err, os.ErrNotExist):
 		return nil, ErrNotFound
-	case errors.Is(err, file.ErrEmptyFile):
-		return emptyAccessor, nil
 	case err != nil:
 		return nil, fmt.Errorf("opening ODSQ4: %w", err)
 	}

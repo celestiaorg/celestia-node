@@ -5,6 +5,8 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"sync"
+	"sync/atomic"
 
 	"github.com/celestiaorg/rsmt2d"
 
@@ -20,8 +22,12 @@ var _ eds.AccessorStreamer = (*ODSQ4)(nil)
 // Reading from the fourth quadrant allows to serve samples from Q2 and Q3 quadrants of the square,
 // without reading entire Q1.
 type ODSQ4 struct {
-	Ods *ODS
-	Q4  *Q4
+	ods *ODS
+
+	q4Open   func() (*Q4, error)
+	q4Mu     sync.Mutex
+	q4Opened atomic.Bool
+	q4       *Q4
 }
 
 // CreateODSQ4 creates ODS and Q4 files under the given FS paths.
@@ -41,36 +47,62 @@ func CreateODSQ4(
 	return nil
 }
 
-// OpenODSQ4 open ODS and Q4 files under the given FS path
+// OpenODSQ4 lazily opens ODS and Q4 files under the given FS paths
 // and combines them into ODSQ4.
 func OpenODSQ4(pathODS, pathQ4 string) (*ODSQ4, error) {
 	ods, err := OpenODS(pathODS)
 	if err != nil {
-		return nil, fmt.Errorf("failed to open ODS file: %w", err)
+		return nil, fmt.Errorf("failed to open ODS: %w", err)
 	}
 
-	q4, err := OpenQ4(pathQ4)
+	return &ODSQ4{
+		ods: ods,
+		q4Open: func() (*Q4, error) {
+			return OpenQ4(pathQ4)
+		},
+	}, nil
+}
+
+func (odsq4 *ODSQ4) getQ4() (eds.Accessor, error) {
+	if odsq4.q4Opened.Load() {
+		return odsq4.q4, nil
+	}
+
+	odsq4.q4Mu.Lock()
+	defer odsq4.q4Mu.Unlock()
+	if odsq4.q4Opened.Load() {
+		return odsq4.q4, nil
+	}
+
+	q4, err := odsq4.q4Open()
+	if errors.Is(err, ErrEmptyFile) {
+		// return empty accessor if the file is empty.
+		// empty file signals block.
+		return eds.EmptyAccessor, nil
+	}
 	if err != nil {
-		return nil, fmt.Errorf("failed to open Q4 file: %w", err)
+		return nil, fmt.Errorf("failed to open Q4: %w", err)
 	}
 
-	return &ODSQ4{Ods: ods, Q4: q4}, nil
+	odsq4.q4Opened.Store(true)
+	odsq4.q4 = q4
+	return q4, nil
 }
 
 func (odsq4 *ODSQ4) Size(ctx context.Context) int {
-	return odsq4.Ods.Size(ctx)
+	return odsq4.ods.Size(ctx)
 }
 
 func (odsq4 *ODSQ4) DataHash(ctx context.Context) (share.DataHash, error) {
-	return odsq4.Ods.DataHash(ctx)
+	return odsq4.ods.DataHash(ctx)
 }
 
 func (odsq4 *ODSQ4) AxisRoots(ctx context.Context) (*share.AxisRoots, error) {
-	return odsq4.Ods.AxisRoots(ctx)
+	return odsq4.ods.AxisRoots(ctx)
 }
 
 func (odsq4 *ODSQ4) Sample(ctx context.Context, rowIdx, colIdx int) (shwap.Sample, error) {
-	// use native AxisHalf implementation, to read axis from Q4 quadrant when possible
+	// use native AxisHalf implementation, to read axis from q4 quadrant when possible
 	half, err := odsq4.AxisHalf(ctx, rsmt2d.Row, rowIdx)
 	if err != nil {
 		return shwap.Sample{}, fmt.Errorf("reading axis: %w", err)
@@ -84,15 +116,23 @@ func (odsq4 *ODSQ4) Sample(ctx context.Context, rowIdx, colIdx int) (shwap.Sampl
 
 func (odsq4 *ODSQ4) AxisHalf(ctx context.Context, axisType rsmt2d.Axis, axisIdx int) (eds.AxisHalf, error) {
 	size := odsq4.Size(ctx) // TODO(@Wondertan): Should return error.
-	if axisIdx < size/2 {
-		half, err := odsq4.Ods.AxisHalf(ctx, axisType, axisIdx)
+
+	var acsr eds.Accessor = odsq4.ods
+	if axisIdx >= size/2 {
+		q4, err := odsq4.getQ4()
 		if err != nil {
-			return eds.AxisHalf{}, fmt.Errorf("reading axis half: %w", err)
+			return eds.AxisHalf{}, err
 		}
-		return half, nil
+
+		acsr = q4
 	}
 
-	return odsq4.Q4.AxisHalf(ctx, axisType, axisIdx)
+	half, err := acsr.AxisHalf(ctx, axisType, axisIdx)
+	if err != nil {
+		return eds.AxisHalf{}, fmt.Errorf("reading axis half: %w", err)
+	}
+
+	return half, nil
 }
 
 func (odsq4 *ODSQ4) RowNamespaceData(ctx context.Context,
@@ -111,16 +151,25 @@ func (odsq4 *ODSQ4) RowNamespaceData(ctx context.Context,
 }
 
 func (odsq4 *ODSQ4) Shares(ctx context.Context) ([]share.Share, error) {
-	return odsq4.Ods.Shares(ctx)
+	return odsq4.ods.Shares(ctx)
 }
 
 func (odsq4 *ODSQ4) Reader() (io.Reader, error) {
-	return odsq4.Ods.Reader()
+	return odsq4.ods.Reader()
 }
 
 func (odsq4 *ODSQ4) Close() error {
-	return errors.Join(
-		odsq4.Ods.Close(),
-		odsq4.Q4.Close(),
-	)
+	err := odsq4.ods.Close()
+	if err != nil {
+		err = fmt.Errorf("closing ODS file: %w", err)
+	}
+
+	if odsq4.q4Opened.Load() {
+		errQ4 := odsq4.q4.Close()
+		if err != nil {
+			errQ4 = fmt.Errorf("closing Q4 file: %w", errQ4)
+			err = errors.Join(err, errQ4)
+		}
+	}
+	return err
 }
