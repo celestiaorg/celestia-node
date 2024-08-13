@@ -264,7 +264,7 @@ func BenchmarkStore(b *testing.B) {
 	roots, err := share.NewAxisRoots(eds)
 	require.NoError(b, err)
 
-	// BenchmarkStore/bench_put_128-10         	      27	  19209780 ns/op (~19ms)
+	// BenchmarkStore/put_128-16         	     100	  10481547 ns/op
 	b.Run("put 128", func(b *testing.B) {
 		edsStore, err := NewStore(paramsNoCache(), b.TempDir())
 		require.NoError(b, err)
@@ -277,7 +277,7 @@ func BenchmarkStore(b *testing.B) {
 	})
 
 	// read 128 EDSs does not read full EDS, but only the header
-	// BenchmarkStore/bench_read_128-10         	   82766	     14678 ns/op (~14mcs)
+	// BenchmarkStore/open_by_height,_128-16         	 1585693	       747.6 ns/op (~7mcs)
 	b.Run("open by height, 128", func(b *testing.B) {
 		edsStore, err := NewStore(paramsNoCache(), b.TempDir())
 		require.NoError(b, err)
@@ -294,7 +294,7 @@ func BenchmarkStore(b *testing.B) {
 		}
 	})
 
-	// BenchmarkStore/open_by_hash,_128-10         	   72921	     16799 ns/op (~16mcs)
+	// BenchmarkStore/open_by_hash,_128-16           	 1240942	       945.9 ns/op (~9mcs)
 	b.Run("open by hash, 128", func(b *testing.B) {
 		edsStore, err := NewStore(DefaultParameters(), b.TempDir())
 		require.NoError(b, err)
