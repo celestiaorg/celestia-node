@@ -141,10 +141,18 @@ func (c *proofsCache) axisWithProofs(ctx context.Context, axisType rsmt2d.Axis, 
 	}
 
 	if !ok {
-		// if shares are not in cache, read them from the inner accessor
-		shares, err := c.axisShares(ctx, axisType, axisIdx)
+		// if axis is not in cache, read it from the inner accessor
+		half, err := c.inner.AxisHalf(ctx, axisType, axisIdx)
 		if err != nil {
-			return axisWithProofs{}, fmt.Errorf("get axis: %w", err)
+			return axisWithProofs{}, fmt.Errorf("reading axis half from inner accessor: %w", err)
+		}
+		ax.half = half
+	}
+
+	if len(ax.shares) == 0 {
+		shares, err := ax.half.Extended()
+		if err != nil {
+			return axisWithProofs{}, fmt.Errorf("reading axis shares: %w", err)
 		}
 		ax.shares = shares
 	}
@@ -258,16 +266,20 @@ func (c *proofsCache) Close() error {
 
 func (c *proofsCache) axisShares(ctx context.Context, axisType rsmt2d.Axis, axisIdx int) ([]share.Share, error) {
 	ax, ok := c.getAxisFromCache(axisType, axisIdx)
-	if ok && ax.shares != nil {
+	if ok && len(ax.shares) != 0 {
 		return ax.shares, nil
 	}
 
-	half, err := c.AxisHalf(ctx, axisType, axisIdx)
-	if err != nil {
-		return nil, err
+	if !ok {
+		// if axis is not in cache, read it from the inner accessor
+		half, err := c.inner.AxisHalf(ctx, axisType, axisIdx)
+		if err != nil {
+			return nil, fmt.Errorf("reading axis half from inner accessor: %w", err)
+		}
+		ax.half = half
 	}
 
-	shares, err := half.Extended()
+	shares, err := ax.half.Extended()
 	if err != nil {
 		return nil, fmt.Errorf("extending shares: %w", err)
 	}
