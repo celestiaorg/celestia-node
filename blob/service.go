@@ -16,10 +16,11 @@ import (
 	"go.opentelemetry.io/otel/codes"
 	"go.opentelemetry.io/otel/trace"
 
-	"github.com/celestiaorg/celestia-app/pkg/appconsts"
-	appns "github.com/celestiaorg/celestia-app/pkg/namespace"
-	pkgproof "github.com/celestiaorg/celestia-app/pkg/proof"
-	"github.com/celestiaorg/celestia-app/pkg/shares"
+	"github.com/celestiaorg/celestia-app/v2/pkg/appconsts"
+	pkgproof "github.com/celestiaorg/celestia-app/v2/pkg/proof"
+	"github.com/celestiaorg/go-square/inclusion"
+	appns "github.com/celestiaorg/go-square/namespace"
+	"github.com/celestiaorg/go-square/shares"
 	"github.com/celestiaorg/nmt"
 	"github.com/celestiaorg/rsmt2d"
 
@@ -169,15 +170,15 @@ func (s *Service) Subscribe(ctx context.Context, ns share.Namespace) (<-chan *Su
 func (s *Service) Submit(ctx context.Context, blobs []*Blob, txConfig *SubmitOptions) (uint64, error) {
 	log.Debugw("submitting blobs", "amount", len(blobs))
 
-	appblobs := make([]*state.Blob, len(blobs))
+	squareBlobs := make([]*state.Blob, len(blobs))
 	for i := range blobs {
 		if err := blobs[i].Namespace().ValidateForBlob(); err != nil {
 			return 0, err
 		}
-		appblobs[i] = &blobs[i].Blob
+		squareBlobs[i] = blobs[i].Blob
 	}
 
-	resp, err := s.blobSubmitter.SubmitPayForBlob(ctx, appblobs, txConfig)
+	resp, err := s.blobSubmitter.SubmitPayForBlob(ctx, squareBlobs, txConfig)
 	if err != nil {
 		return 0, err
 	}
@@ -600,10 +601,12 @@ func ProveCommitment(
 	// convert the shares to row root proofs to nmt proofs
 	nmtProofs := make([]*nmt.Proof, 0)
 	for _, proof := range sharesProof.ShareProofs {
-		nmtProof := nmt.NewInclusionProof(int(proof.Start),
+		nmtProof := nmt.NewInclusionProof(
+			int(proof.Start),
 			int(proof.End),
 			proof.Nodes,
-			true)
+			true,
+		)
 		nmtProofs = append(
 			nmtProofs,
 			&nmtProof,
@@ -620,7 +623,7 @@ func ProveCommitment(
 		ranges, err := nmt.ToLeafRanges(
 			proof.Start(),
 			proof.End(),
-			shares.SubTreeWidth(len(blobShares), appconsts.DefaultSubtreeRootThreshold),
+			inclusion.SubTreeWidth(len(blobShares), appconsts.DefaultSubtreeRootThreshold),
 		)
 		if err != nil {
 			return nil, err
@@ -642,7 +645,7 @@ func ProveCommitment(
 		SubtreeRoots:      subtreeRoots,
 		SubtreeRootProofs: nmtProofs,
 		NamespaceID:       namespace.ID(),
-		RowProof:          sharesProof.RowProof,
+		RowProof:          *sharesProof.RowProof,
 		NamespaceVersion:  namespace.Version(),
 	}
 	return &commitmentProof, nil

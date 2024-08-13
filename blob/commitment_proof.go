@@ -4,10 +4,9 @@ import (
 	"bytes"
 	"fmt"
 
-	coretypes "github.com/tendermint/tendermint/types"
-
-	"github.com/celestiaorg/celestia-app/pkg/appconsts"
-	"github.com/celestiaorg/celestia-app/pkg/shares"
+	"github.com/celestiaorg/celestia-app/v2/pkg/appconsts"
+	"github.com/celestiaorg/celestia-app/v2/pkg/proof"
+	"github.com/celestiaorg/go-square/inclusion"
 	"github.com/celestiaorg/nmt"
 	"github.com/celestiaorg/nmt/namespace"
 
@@ -33,8 +32,8 @@ type CommitmentProof struct {
 	NamespaceID namespace.ID `json:"namespace_id"`
 	// RowProof is the proof of the rows containing the blob's data to the
 	// data root.
-	RowProof         coretypes.RowProof `json:"row_proof"`
-	NamespaceVersion uint8              `json:"namespace_version"`
+	RowProof         proof.RowProof `json:"row_proof"`
+	NamespaceVersion uint8          `json:"namespace_version"`
 }
 
 func (com Commitment) String() string {
@@ -99,7 +98,7 @@ func (commitmentProof *CommitmentProof) Verify(root []byte, subtreeRootThreshold
 	// the subtree roots width is defined in ADR-013:
 	//
 	//https://github.com/celestiaorg/celestia-app/blob/main/docs/architecture/adr-013-non-interactive-default-rules-for-zero-padding.md
-	subtreeRootsWidth := shares.SubTreeWidth(numberOfShares, subtreeRootThreshold)
+	subtreeRootsWidth := inclusion.SubTreeWidth(numberOfShares, subtreeRootThreshold)
 
 	// verify the proof of the subtree roots
 	subtreeRootsCursor := 0

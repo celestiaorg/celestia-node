@@ -13,10 +13,12 @@ import (
 	sdktypes "github.com/cosmos/cosmos-sdk/types"
 	"github.com/stretchr/testify/require"
 
-	"github.com/celestiaorg/celestia-app/app"
-	"github.com/celestiaorg/celestia-app/pkg/appconsts"
-	"github.com/celestiaorg/celestia-app/test/util/testnode"
-	apptypes "github.com/celestiaorg/celestia-app/x/blob/types"
+	"github.com/celestiaorg/celestia-app/v2/app"
+	appconsts "github.com/celestiaorg/celestia-app/v2/pkg/appconsts"
+	genesis "github.com/celestiaorg/celestia-app/v2/test/util/genesis"
+	"github.com/celestiaorg/celestia-app/v2/test/util/testnode"
+	apptypes "github.com/celestiaorg/celestia-app/v2/x/blob/types"
+	squareblob "github.com/celestiaorg/go-square/blob"
 
 	"github.com/celestiaorg/celestia-node/share"
 )
@@ -36,29 +38,25 @@ func TestSubmitPayForBlob(t *testing.T) {
 	blobbyTheBlob, err := apptypes.NewBlob(ns.ToAppNamespace(), []byte("data"), 0)
 	require.NoError(t, err)
 
-	minGas, err := ca.queryMinimumGasPrice(ctx)
-	require.NoError(t, err)
-	require.Equal(t, appconsts.DefaultMinGasPrice, minGas)
-
 	testcases := []struct {
 		name     string
-		blobs    []*apptypes.Blob
+		blobs    []*squareblob.Blob
 		gasPrice float64
 		gasLim   uint64
 		expErr   error
 	}{
 		{
 			name:     "empty blobs",
-			blobs:    []*apptypes.Blob{},
+			blobs:    []*squareblob.Blob{},
 			gasPrice: DefaultGasPrice,
 			gasLim:   0,
 			expErr:   errors.New("state: no blobs provided"),
 		},
 		{
 			name:     "good blob with user provided gas and fees",
-			blobs:    []*apptypes.Blob{blobbyTheBlob},
+			blobs:    []*squareblob.Blob{blobbyTheBlob},
 			gasPrice: 0.005,
-			gasLim:   apptypes.DefaultEstimateGas([]uint32{uint32(len(blobbyTheBlob.Data))}),
+			gasLim:   apptypes.DefaultEstimateGas([]uint32{uint32(len(blobbyTheBlob.GetData()))}),
 			expErr:   nil,
 		},
 		// TODO: add more test cases. The problem right now is that the celestia-app doesn't
@@ -213,19 +211,56 @@ func extractPort(addr string) string {
 }
 
 func buildAccessor(t *testing.T) (*CoreAccessor, []string) {
+	chainID := "private"
+
 	t.Helper()
-	accounts := []string{"jimmy", "carl", "sheen", "cindy"}
+	accounts := []genesis.KeyringAccount{
+		{
+			Name:          "jimmy",
+			InitialTokens: 100_000_000,
+		},
+		{
+			Name:          "carl",
+			InitialTokens: 100_000_000,
+		},
+		{
+			Name:          "sheen",
+			InitialTokens: 100_000_000,
+		},
+		{
+			Name:          "cindy",
+			InitialTokens: 100_000_000,
+		},
+	}
 	tmCfg := testnode.DefaultTendermintConfig()
 	tmCfg.Consensus.TimeoutCommit = time.Millisecond * 1
 
 	appConf := testnode.DefaultAppConfig()
 	appConf.API.Enable = true
-	appConf.MinGasPrices = fmt.Sprintf("0.002%s", app.BondDenom)
 
-	config := testnode.DefaultConfig().WithTendermintConfig(tmCfg).WithAppConfig(appConf).WithAccounts(accounts)
+	appCreator := testnode.CustomAppCreator(fmt.Sprintf("0.002%s", app.BondDenom))
+
+	g := genesis.NewDefaultGenesis().
+		WithChainID(chainID).
+		WithValidators(genesis.NewDefaultValidator(testnode.DefaultValidatorAccountName)).
+		WithConsensusParams(testnode.DefaultConsensusParams()).WithKeyringAccounts(accounts...)
+
+	config := testnode.DefaultConfig().
+		WithChainID(chainID).
+		WithTendermintConfig(tmCfg).
+		WithAppConfig(appConf).
+		WithGenesis(g).
+		WithAppCreator(appCreator) // needed until https://github.com/celestiaorg/celestia-app/pull/3680 merges
 	cctx, _, grpcAddr := testnode.NewNetwork(t, config)
 
-	ca, err := NewCoreAccessor(cctx.Keyring, accounts[0], nil, "127.0.0.1", extractPort(grpcAddr))
+	ca, err := NewCoreAccessor(cctx.Keyring, accounts[0].Name, nil, "127.0.0.1", extractPort(grpcAddr))
 	require.NoError(t, err)
-	return ca, accounts
+	return ca, getNames(accounts)
+}
+
+func getNames(accounts []genesis.KeyringAccount) (names []string) {
+	for _, account := range accounts {
+		names = append(names, account.Name)
+	}
+	return names
 }

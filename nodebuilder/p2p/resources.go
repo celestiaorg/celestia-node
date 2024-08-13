@@ -25,7 +25,7 @@ func autoscaleResources() rcmgr.ConcreteLimitConfig {
 	return limits.AutoScale()
 }
 
-func allowList(ctx context.Context, cfg Config, bootstrappers Bootstrappers) (rcmgr.Option, error) {
+func allowList(ctx context.Context, cfg *Config, bootstrappers Bootstrappers) (rcmgr.Option, error) {
 	mutual, err := cfg.mutualPeers()
 	if err != nil {
 		return nil, err
