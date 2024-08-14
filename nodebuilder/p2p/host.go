@@ -97,12 +97,12 @@ func host(params hostParams) (HostBase, error) {
 			libp2p.Transport(quic.NewTransport),
 			libp2p.Transport(webtransport.New),
 			libp2p.Transport(libp2pwebrtc.New),
-			wsTransport(tlsCfg),
 		),
 		// to clearly define what defaults we rely upon
 		libp2p.DefaultSecurity,
 		libp2p.DefaultMuxers,
 	}
+	wsTransport(tlsCfg)
 
 	if params.Registry != nil {
 		opts = append(opts, libp2p.PrometheusRegisterer(params.Registry))
