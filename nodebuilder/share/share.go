@@ -62,7 +62,7 @@ type API struct {
 			ctx context.Context,
 			header *header.ExtendedHeader,
 			namespace share.Namespace,
-		) (shwap.NamespaceData, error) `perm:"read"`
+		) (NamespacedShares, error) `perm:"read"`
 	}
 }
 
@@ -83,11 +83,7 @@ func (api *API) GetSharesByNamespace(
 	header *header.ExtendedHeader,
 	namespace share.Namespace,
 ) (NamespacedShares, error) {
-	nd, err := api.Internal.GetSharesByNamespace(ctx, header, namespace)
-	if err != nil {
-		return nil, err
-	}
-	return convertToNamespacedShares(nd), nil
+	return api.Internal.GetSharesByNamespace(ctx, header, namespace)
 }
 
 type module struct {
