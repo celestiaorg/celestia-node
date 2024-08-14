@@ -1,4 +1,4 @@
-package p2p
+package share
 
 import (
 	"context"
@@ -12,6 +12,7 @@ import (
 	"go.uber.org/fx"
 
 	"github.com/celestiaorg/celestia-node/nodebuilder/node"
+	"github.com/celestiaorg/celestia-node/nodebuilder/p2p"
 	"github.com/celestiaorg/celestia-node/share/shwap/p2p/bitswap"
 	"github.com/celestiaorg/celestia-node/store"
 )
@@ -71,11 +72,11 @@ type bitSwapParams struct {
 
 	Lifecycle fx.Lifecycle
 	Ctx       context.Context
-	Net       Network
+	Net       p2p.Network
 	Host      hst.Host
 	Bs        blockstore.Blockstore
 }
 
-func protocolID(network Network) protocol.ID {
+func protocolID(network p2p.Network) protocol.ID {
 	return protocol.ID(fmt.Sprintf("/celestia/%s", network))
 }

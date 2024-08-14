@@ -2,6 +2,7 @@ package bitswap
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"time"
 
@@ -14,7 +15,6 @@ import (
 	routinghelpers "github.com/libp2p/go-libp2p-routing-helpers"
 	"github.com/libp2p/go-libp2p/core/host"
 	"github.com/libp2p/go-libp2p/core/protocol"
-	"go.uber.org/multierr"
 )
 
 // Client constants
@@ -135,14 +135,14 @@ func New(
 }
 
 func (bs *Bitswap) NotifyNewBlocks(ctx context.Context, blks ...blocks.Block) error {
-	return multierr.Combine(
+	return errors.Join(
 		bs.Client.NotifyNewBlocks(ctx, blks...),
 		bs.Server.NotifyNewBlocks(ctx, blks...),
 	)
 }
 
 func (bs *Bitswap) Close() error {
-	return multierr.Combine(
+	return errors.Join(
 		bs.Client.Close(),
 		bs.Server.Close(),
 	)

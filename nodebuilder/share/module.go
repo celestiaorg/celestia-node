@@ -32,9 +32,9 @@ func ConstructModule(tp node.Type, cfg *Config, options ...fx.Option) fx.Option 
 		fx.Error(cfgErr),
 		fx.Options(options...),
 		fx.Provide(newShareModule),
-		fx.Provide(bitswap.NewGetter),
 		availabilityComponents(tp, cfg),
 		shrexComponents(tp, cfg),
+		bitswapComponents(tp),
 		peerComponents(tp, cfg),
 	)
 
@@ -51,6 +51,27 @@ func ConstructModule(tp node.Type, cfg *Config, options ...fx.Option) fx.Option 
 			"share",
 			baseComponents,
 			fx.Provide(lightGetter),
+		)
+	default:
+		panic("invalid node type")
+	}
+}
+
+func bitswapComponents(tp node.Type) fx.Option {
+	opts := fx.Options(
+		fx.Provide(dataExchange),
+		fx.Provide(bitswap.NewGetter),
+	)
+	switch tp {
+	case node.Light:
+		return fx.Options(
+			opts,
+			fx.Provide(blockstoreFromDatastore),
+		)
+	case node.Full, node.Bridge:
+		return fx.Options(
+			opts,
+			fx.Provide(blockstoreFromEDSStore),
 		)
 	default:
 		panic("invalid node type")

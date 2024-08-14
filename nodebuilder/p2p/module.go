@@ -27,7 +27,6 @@ func ConstructModule(tp node.Type, cfg *Config) fx.Option {
 		fx.Provide(host),
 		fx.Provide(routedHost),
 		fx.Provide(pubSub),
-		fx.Provide(dataExchange),
 		fx.Provide(ipld.NewBlockservice),
 		fx.Provide(peerRouting),
 		fx.Provide(contentRouting),
@@ -44,14 +43,12 @@ func ConstructModule(tp node.Type, cfg *Config) fx.Option {
 		return fx.Module(
 			"p2p",
 			baseComponents,
-			fx.Provide(blockstoreFromEDSStore),
 			fx.Provide(infiniteResources),
 		)
 	case node.Light:
 		return fx.Module(
 			"p2p",
 			baseComponents,
-			fx.Provide(blockstoreFromDatastore),
 			fx.Provide(autoscaleResources),
 		)
 	default:
