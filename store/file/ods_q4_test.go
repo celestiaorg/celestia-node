@@ -39,18 +39,18 @@ func TestODSQ4File(t *testing.T) {
 	eds.TestStreamer(ctx, t, createODSAccessorStreamer, ODSSize)
 }
 
-// BenchmarkAxisFromODSQ4File/Size:32/ProofType:row/squareHalf:0-10         	  481144	      2413 ns/op
-// BenchmarkAxisFromODSQ4File/Size:32/ProofType:row/squareHalf:1-10         	  479437	      2431 ns/op
-// BenchmarkAxisFromODSQ4File/Size:32/ProofType:col/squareHalf:0-10         	   56775	     21272 ns/op
-// BenchmarkAxisFromODSQ4File/Size:32/ProofType:col/squareHalf:1-10         	   57283	     20941 ns/op
-// BenchmarkAxisFromODSQ4File/Size:64/ProofType:row/squareHalf:0-10         	  301357	      3870 ns/op
-// BenchmarkAxisFromODSQ4File/Size:64/ProofType:row/squareHalf:1-10         	  329796	      3913 ns/op
-// BenchmarkAxisFromODSQ4File/Size:64/ProofType:col/squareHalf:0-10         	   28035	     42560 ns/op
-// BenchmarkAxisFromODSQ4File/Size:64/ProofType:col/squareHalf:1-10         	   28179	     42447 ns/op
-// BenchmarkAxisFromODSQ4File/Size:128/ProofType:row/squareHalf:0-10        	  170607	      6368 ns/op
-// BenchmarkAxisFromODSQ4File/Size:128/ProofType:row/squareHalf:1-10        	  184579	      6517 ns/op
-// BenchmarkAxisFromODSQ4File/Size:128/ProofType:col/squareHalf:0-10        	   13952	     84004 ns/op
-// BenchmarkAxisFromODSQ4File/Size:128/ProofType:col/squareHalf:1-10        	   14398	     83240 ns/op
+// BenchmarkAxisFromODSQ4File/Size:32/ProofType:row/squareHalf:0-16         	  354836	      3345 ns/op
+// BenchmarkAxisFromODSQ4File/Size:32/ProofType:row/squareHalf:1-16         	  339547	      3187 ns/op
+// BenchmarkAxisFromODSQ4File/Size:32/ProofType:col/squareHalf:0-16         	   69364	     16440 ns/op
+// BenchmarkAxisFromODSQ4File/Size:32/ProofType:col/squareHalf:1-16         	   66928	     15964 ns/op
+// BenchmarkAxisFromODSQ4File/Size:64/ProofType:row/squareHalf:0-16         	  223290	      5184 ns/op
+// BenchmarkAxisFromODSQ4File/Size:64/ProofType:row/squareHalf:1-16         	  194018	      5240 ns/op
+// BenchmarkAxisFromODSQ4File/Size:64/ProofType:col/squareHalf:0-16         	   39949	     29549 ns/op
+// BenchmarkAxisFromODSQ4File/Size:64/ProofType:col/squareHalf:1-16         	   39356	     29912 ns/op
+// BenchmarkAxisFromODSQ4File/Size:128/ProofType:row/squareHalf:0-16        	  134220	      8903 ns/op
+// BenchmarkAxisFromODSQ4File/Size:128/ProofType:row/squareHalf:1-16        	  125110	      8789 ns/op
+// BenchmarkAxisFromODSQ4File/Size:128/ProofType:col/squareHalf:0-16        	   15075	     74996 ns/op
+// BenchmarkAxisFromODSQ4File/Size:128/ProofType:col/squareHalf:1-16        	   15530	     74855 ns/op
 func BenchmarkAxisFromODSQ4File(b *testing.B) {
 	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 	b.Cleanup(cancel)
@@ -63,18 +63,18 @@ func BenchmarkAxisFromODSQ4File(b *testing.B) {
 	eds.BenchGetHalfAxisFromAccessor(ctx, b, newFile, minSize, maxSize)
 }
 
-// BenchmarkSampleFromODSQ4File/Size:32/quadrant:1-10         	   11000	    103665 ns/op
-// BenchmarkSampleFromODSQ4File/Size:32/quadrant:2-10         	    9757	    105395 ns/op
-// BenchmarkSampleFromODSQ4File/Size:32/quadrant:3-10         	    8880	    119081 ns/op
-// BenchmarkSampleFromODSQ4File/Size:32/quadrant:4-10         	    9049	    118572 ns/op
-// BenchmarkSampleFromODSQ4File/Size:64/quadrant:1-10         	    5372	    200685 ns/op
-// BenchmarkSampleFromODSQ4File/Size:64/quadrant:2-10         	    5499	    200007 ns/op
-// BenchmarkSampleFromODSQ4File/Size:64/quadrant:3-10         	    4879	    233044 ns/op
-// BenchmarkSampleFromODSQ4File/Size:64/quadrant:4-10         	    4802	    232696 ns/op
-// BenchmarkSampleFromODSQ4File/Size:128/quadrant:1-10        	    2810	    398169 ns/op
-// BenchmarkSampleFromODSQ4File/Size:128/quadrant:2-10        	    2830	    407077 ns/op
-// BenchmarkSampleFromODSQ4File/Size:128/quadrant:3-10        	    2434	    478656 ns/op
-// BenchmarkSampleFromODSQ4File/Size:128/quadrant:4-10        	    2368	    478021 ns/op
+// BenchmarkSampleFromODSQ4File/Size:32/quadrant:1-16         	   14260	     82827 ns/op
+// BenchmarkSampleFromODSQ4File/Size:32/quadrant:2-16         	   14281	     85465 ns/op
+// BenchmarkSampleFromODSQ4File/Size:32/quadrant:3-16         	   12938	     91213 ns/op
+// BenchmarkSampleFromODSQ4File/Size:32/quadrant:4-16         	   12934	     94077 ns/op
+// BenchmarkSampleFromODSQ4File/Size:64/quadrant:1-16         	    7497	    172978 ns/op
+// BenchmarkSampleFromODSQ4File/Size:64/quadrant:2-16         	    6332	    191139 ns/op
+// BenchmarkSampleFromODSQ4File/Size:64/quadrant:3-16         	    5852	    214140 ns/op
+// BenchmarkSampleFromODSQ4File/Size:64/quadrant:4-16         	    5899	    215875 ns/op
+// BenchmarkSampleFromODSQ4File/Size:128/quadrant:1-16        	    3520	    399728 ns/op
+// BenchmarkSampleFromODSQ4File/Size:128/quadrant:2-16        	    3242	    410557 ns/op
+// BenchmarkSampleFromODSQ4File/Size:128/quadrant:3-16        	    2590	    424491 ns/op
+// BenchmarkSampleFromODSQ4File/Size:128/quadrant:4-16        	    2812	    444697 ns/op
 func BenchmarkSampleFromODSQ4File(b *testing.B) {
 	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 	b.Cleanup(cancel)
