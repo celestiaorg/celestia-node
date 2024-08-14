@@ -257,7 +257,7 @@ func newRefCloser(abs *accessorWithBlockstore) (*refCloser, error) {
 	// we log an error.
 	runtime.SetFinalizer(rf, func(rf *refCloser) {
 		if rf.close() {
-			log.Errorf("refCloser for accessor was garbage collected before Close was called")
+			log.Error("refCloser for accessor was garbage collected before Close was called")
 		}
 	})
 	return rf, nil
