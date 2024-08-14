@@ -147,8 +147,8 @@ func (s *Server) readRequest(logger *zap.SugaredLogger, stream network.Stream) (
 		logger.Debugw("server: set read deadline", "err", err)
 	}
 
-	edsIDs := shwap.EdsID{}
-	_, err = edsIDs.ReadFrom(stream)
+	edsID := shwap.EdsID{}
+	_, err = edsID.ReadFrom(stream)
 	if err != nil {
 		return shwap.EdsID{}, fmt.Errorf("reading request: %w", err)
 	}
@@ -156,7 +156,7 @@ func (s *Server) readRequest(logger *zap.SugaredLogger, stream network.Stream) (
 	if err != nil {
 		logger.Warnw("server: closing read", "err", err)
 	}
-	return edsIDs, nil
+	return edsID, nil
 }
 
 func (s *Server) writeStatus(logger *zap.SugaredLogger, status shrexpb.Status, stream network.Stream) error {

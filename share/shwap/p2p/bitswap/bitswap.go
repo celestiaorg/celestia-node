@@ -5,15 +5,16 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/ipfs/boxo/bitswap"
 	"github.com/ipfs/boxo/bitswap/client"
 	"github.com/ipfs/boxo/bitswap/network"
 	"github.com/ipfs/boxo/bitswap/server"
 	"github.com/ipfs/boxo/blockstore"
+	blocks "github.com/ipfs/go-block-format"
 	delay "github.com/ipfs/go-ipfs-delay"
 	routinghelpers "github.com/libp2p/go-libp2p-routing-helpers"
 	"github.com/libp2p/go-libp2p/core/host"
 	"github.com/libp2p/go-libp2p/core/protocol"
+	"go.uber.org/multierr"
 )
 
 // Client constants
@@ -83,17 +84,15 @@ func NewClient(
 	ctx context.Context,
 	net network.BitSwapNetwork,
 	bstore blockstore.Blockstore,
-	opts ...client.Option,
 ) *client.Client {
-	opts = append(
-		opts,
+	opts := []client.Option{
 		client.SetSimulateDontHavesOnTimeout(simulateDontHaves),
 		client.ProviderSearchDelay(providerSearchDelay),
 		client.RebroadcastDelay(delay.Fixed(rebroadcastDelay)),
 		// Prevents Has calls to Blockstore for metric that counts duplicates
 		// Unnecessary for our use case, so we can save some disk lookups.
 		client.WithoutDuplicatedBlockStats(),
-	)
+	}
 	return client.New(
 		ctx,
 		net,
@@ -108,45 +107,45 @@ func NewServer(
 	ctx context.Context,
 	net network.BitSwapNetwork,
 	bstore blockstore.Blockstore,
-	opts ...server.Option,
 ) *server.Server {
-	opts = append(
-		opts,
+	opts := []server.Option{
 		server.ProvideEnabled(providesEnabled),
 		server.SetSendDontHaves(sendDontHaves),
 		server.MaxQueuedWantlistEntriesPerPeer(maxServerWantListsPerPeer),
 		server.WithTargetMessageSize(targetMessageSize),
 		server.MaxOutstandingBytesPerPeer(outstandingBytesPerPeer),
-	)
+	}
 	return server.New(ctx, net, bstore, opts...)
 }
 
-// New constructs Bitswap client and server with parameters optimized for Shwap protocol composition.
+type Bitswap struct {
+	*client.Client
+	*server.Server
+}
+
 func New(
 	ctx context.Context,
 	net network.BitSwapNetwork,
 	bstore blockstore.Blockstore,
-	opts ...bitswap.Option,
-) *bitswap.Bitswap {
-	opts = append(
-		opts,
-		// client options
-		bitswap.SetSimulateDontHavesOnTimeout(simulateDontHaves),
-		bitswap.ProviderSearchDelay(providerSearchDelay),
-		bitswap.RebroadcastDelay(delay.Fixed(rebroadcastDelay)),
-		// Prevents Has calls to Blockstore for metric that counts duplicates
-		// Unnecessary for our use case, so we can save some disk lookups.
-		bitswap.WithoutDuplicatedBlockStats(),
+) *Bitswap {
+	return &Bitswap{
+		Client: NewClient(ctx, net, bstore),
+		Server: NewServer(ctx, net, bstore),
+	}
+}
 
-		// server options
-		bitswap.ProvideEnabled(providesEnabled),
-		bitswap.SetSendDontHaves(sendDontHaves),
-		bitswap.MaxQueuedWantlistEntriesPerPeer(maxServerWantListsPerPeer),
-		bitswap.WithTargetMessageSize(targetMessageSize),
-		bitswap.MaxOutstandingBytesPerPeer(outstandingBytesPerPeer),
+func (bs *Bitswap) NotifyNewBlocks(ctx context.Context, blks ...blocks.Block) error {
+	return multierr.Combine(
+		bs.Client.NotifyNewBlocks(ctx, blks...),
+		bs.Server.NotifyNewBlocks(ctx, blks...),
 	)
+}
 
-	return bitswap.New(ctx, net, bstore, opts...)
+func (bs *Bitswap) Close() error {
+	return multierr.Combine(
+		bs.Client.Close(),
+		bs.Server.Close(),
+	)
 }
 
 // TODO(@Wondertan): We have to use the protocol defined by Bitswap here

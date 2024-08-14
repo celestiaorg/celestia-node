@@ -17,12 +17,6 @@ import (
 )
 
 const (
-	// default size of bloom filter in blockStore
-	defaultBloomFilterSize = 512 << 10
-	// default amount of hash functions defined for bloom filter
-	defaultBloomFilterHashes = 7
-	// default size of arc cache in blockStore
-	defaultARCCacheSize = 64 << 10
 	// TODO(@walldiss): expose cache size to cfg
 	// default blockstore cache size
 	defaultBlockstoreCacheSize = 128
@@ -36,10 +30,11 @@ func dataExchange(tp node.Type, params bitSwapParams) exchange.SessionExchange {
 	switch tp {
 	case node.Full, node.Bridge:
 		bs := bitswap.New(params.Ctx, net, params.Bs)
+		net.Start(bs.Client, bs.Server)
 		params.Lifecycle.Append(fx.Hook{
 			OnStop: func(_ context.Context) (err error) {
-				bs.Close()
-				return err
+				net.Stop()
+				return bs.Close()
 			},
 		})
 		return bs
@@ -49,8 +44,7 @@ func dataExchange(tp node.Type, params bitSwapParams) exchange.SessionExchange {
 		params.Lifecycle.Append(fx.Hook{
 			OnStop: func(_ context.Context) (err error) {
 				net.Stop()
-				cl.Close()
-				return err
+				return cl.Close()
 			},
 		})
 		return cl
@@ -59,31 +53,17 @@ func dataExchange(tp node.Type, params bitSwapParams) exchange.SessionExchange {
 	}
 }
 
-func blockstoreFromDatastore(ctx context.Context, ds datastore.Batching) (blockstore.Blockstore, error) {
-	return blockstore.CachedBlockstore(
-		ctx,
-		blockstore.NewBlockstore(ds),
-		blockstore.CacheOpts{
-			HasBloomFilterSize:   defaultBloomFilterSize,
-			HasBloomFilterHashes: defaultBloomFilterHashes,
-			HasTwoQueueCacheSize: defaultARCCacheSize,
-		},
-	)
+func blockstoreFromDatastore(ds datastore.Batching) (blockstore.Blockstore, error) {
+	return blockstore.NewBlockstore(ds), nil
 }
 
-func blockstoreFromEDSStore(ctx context.Context, store *store.Store) (blockstore.Blockstore, error) {
+func blockstoreFromEDSStore(store *store.Store) (blockstore.Blockstore, error) {
 	withCache, err := store.WithCache("blockstore", defaultBlockstoreCacheSize)
 	if err != nil {
 		return nil, fmt.Errorf("create cached store for blockstore:%w", err)
 	}
 	bs := &bitswap.Blockstore{Getter: withCache}
-	return blockstore.CachedBlockstore(
-		ctx,
-		bs,
-		blockstore.CacheOpts{
-			HasTwoQueueCacheSize: defaultARCCacheSize,
-		},
-	)
+	return bs, nil
 }
 
 type bitSwapParams struct {

@@ -1,3 +1,5 @@
+//go:build reconstruction || integration
+
 package tests
 
 import (

@@ -2,7 +2,6 @@ package full
 
 import (
 	"context"
-	"errors"
 
 	logging "github.com/ipfs/go-log/v2"
 
@@ -26,7 +25,7 @@ func (p *Pruner) Prune(ctx context.Context, eh *header.ExtendedHeader) error {
 	log.Debugf("pruning header %s", eh.DAH.Hash())
 
 	err := p.store.Remove(ctx, eh.Height(), eh.DAH.Hash())
-	if err != nil && !errors.Is(err, store.ErrNotFound) {
+	if err != nil {
 		return err
 	}
 	return nil
