@@ -10,6 +10,9 @@ import (
 	"github.com/celestiaorg/celestia-node/share/shwap"
 )
 
+// EmptyAccessor is an accessor of an empty EDS block.
+var EmptyAccessor = &Rsmt2D{ExtendedDataSquare: share.EmptyEDS()}
+
 // Accessor is an interface for accessing extended data square data.
 type Accessor interface {
 	// Size returns square size of the Accessor.

@@ -11,10 +11,16 @@ import (
 	"github.com/celestiaorg/rsmt2d"
 )
 
+// EmptyEDSDataHash returns DataHash of the empty block EDS.
+func EmptyEDSDataHash() DataHash {
+	initEmpty()
+	return emptyBlockDataHash
+}
+
 // EmptyEDSRoots returns AxisRoots of the empty block EDS.
 func EmptyEDSRoots() *AxisRoots {
 	initEmpty()
-	return emptyBlockRoot
+	return emptyBlockRoots
 }
 
 // EmptyEDS returns the EDS of the empty block data square.
@@ -30,17 +36,18 @@ func EmptyBlockShares() []Share {
 }
 
 var (
-	emptyMu          sync.Mutex
-	emptyBlockRoot   *AxisRoots
-	emptyBlockEDS    *rsmt2d.ExtendedDataSquare
-	emptyBlockShares []Share
+	emptyMu            sync.Mutex
+	emptyBlockDataHash DataHash
+	emptyBlockRoots    *AxisRoots
+	emptyBlockEDS      *rsmt2d.ExtendedDataSquare
+	emptyBlockShares   []Share
 )
 
 // initEmpty enables lazy initialization for constant empty block data.
 func initEmpty() {
 	emptyMu.Lock()
 	defer emptyMu.Unlock()
-	if emptyBlockRoot != nil {
+	if emptyBlockRoots != nil {
 		return
 	}
 
@@ -54,16 +61,16 @@ func initEmpty() {
 	}
 	emptyBlockEDS = eds
 
-	emptyBlockRoot, err = NewAxisRoots(eds)
+	emptyBlockRoots, err = NewAxisRoots(eds)
 	if err != nil {
 		panic(fmt.Errorf("failed to create empty DAH: %w", err))
 	}
 	minDAH := da.MinDataAvailabilityHeader()
-	if !bytes.Equal(minDAH.Hash(), emptyBlockRoot.Hash()) {
+	if !bytes.Equal(minDAH.Hash(), emptyBlockRoots.Hash()) {
 		panic(fmt.Sprintf("mismatch in calculated minimum DAH and minimum DAH from celestia-app, "+
-			"expected %s, got %s", minDAH.String(), emptyBlockRoot.String()))
+			"expected %s, got %s", minDAH.String(), emptyBlockRoots.String()))
 	}
 
 	// precompute Hash, so it's cached internally to avoid potential races
-	emptyBlockRoot.Hash()
+	emptyBlockDataHash = emptyBlockRoots.Hash()
 }
