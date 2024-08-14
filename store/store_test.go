@@ -264,7 +264,7 @@ func BenchmarkStore(b *testing.B) {
 	roots, err := share.NewAxisRoots(eds)
 	require.NoError(b, err)
 
-	// BenchmarkStore/put_128-16         	     100	  10481547 ns/op
+	// BenchmarkStore/put_128-16         	     186	   6623266 ns/op
 	b.Run("put 128", func(b *testing.B) {
 		edsStore, err := NewStore(paramsNoCache(), b.TempDir())
 		require.NoError(b, err)

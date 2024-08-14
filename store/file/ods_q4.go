@@ -36,19 +36,32 @@ func CreateODSQ4(
 	roots *share.AxisRoots,
 	eds *rsmt2d.ExtendedDataSquare,
 ) error {
+	errCh := make(chan error)
+	go func() {
+		// doing this async shaves off ~27% of time for 128 ODS
+		// for bigger ODSes the discrepancy is even bigger
+		err := CreateQ4(pathQ4, roots, eds)
+		if err != nil {
+			err = fmt.Errorf("сreating Q4 file: %w", err)
+		}
+
+		errCh <- err
+	}()
+
 	if err := CreateODS(pathODS, roots, eds); err != nil {
-		return fmt.Errorf("failed to create ODS file: %w", err)
+		return fmt.Errorf("creating ODS file: %w", err)
 	}
 
-	if err := CreateQ4(pathQ4, roots, eds); err != nil {
-		return fmt.Errorf("failed to create Q4 file: %w", err)
+	err := <-errCh
+	if err != nil {
+		return err
 	}
 
 	return nil
 }
 
-// OpenODSQ4 lazily opens ODS and Q4 files under the given FS paths
-// and combines them into ODSQ4.
+// OpenODSQ4 opens ODS file under the given FS path. The Q4 is opened lazily
+// on demand.
 func OpenODSQ4(pathODS, pathQ4 string) (*ODSQ4, error) {
 	ods, err := OpenODS(pathODS)
 	if err != nil {
