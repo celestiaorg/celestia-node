@@ -39,19 +39,12 @@ func ConstructModule(tp node.Type, cfg *Config, options ...fx.Option) fx.Option 
 	)
 
 	switch tp {
-	case node.Bridge:
+	case node.Bridge, node.Full:
 		return fx.Module(
 			"share",
 			baseComponents,
 			edsStoreComponents(cfg),
-			fx.Provide(bridgeGetter),
-		)
-	case node.Full:
-		return fx.Module(
-			"share",
-			baseComponents,
-			edsStoreComponents(cfg),
-			fx.Provide(fullGetter),
+			fx.Provide(bridgeAndFullGetter),
 		)
 	case node.Light:
 		return fx.Module(

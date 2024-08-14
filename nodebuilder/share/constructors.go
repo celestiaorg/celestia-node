@@ -26,13 +26,13 @@ func lightGetter(
 	return getters.NewCascadeGetter(cascade)
 }
 
-// Getter is added to bridge nodes for the case that a shard is removed
-// after detected shard corruption. This ensures the block is fetched and stored
-// by shrex the next time the data is retrieved (meaning shard recovery is
-// manual after corruption is detected).
-func bridgeGetter(
+// Getter is added to bridge nodes for the case where Bridge nodes are
+// running in a pruned mode. This ensures the block can be retrieved from
+// the network if it was pruned from the local store.
+func bridgeAndFullGetter(
 	storeGetter *store.Getter,
 	shrexGetter *shrex_getter.Getter,
+	bitswapGetter *bitswap.Getter,
 	cfg Config,
 ) shwap.Getter {
 	var cascade []shwap.Getter
@@ -40,18 +40,6 @@ func bridgeGetter(
 	if cfg.UseShareExchange {
 		cascade = append(cascade, shrexGetter)
 	}
-	return getters.NewCascadeGetter(cascade)
-}
-
-func fullGetter(
-	storeGetter *store.Getter,
-	shrexGetter *shrex_getter.Getter,
-	cfg Config,
-) shwap.Getter {
-	var cascade []shwap.Getter
-	cascade = append(cascade, storeGetter)
-	if cfg.UseShareExchange {
-		cascade = append(cascade, shrexGetter)
-	}
+	cascade = append(cascade, bitswapGetter)
 	return getters.NewCascadeGetter(cascade)
 }
