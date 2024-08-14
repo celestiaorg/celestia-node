@@ -23,7 +23,7 @@ const (
 	defaultBlockstoreCacheSize = 128
 )
 
-// dataExchange provides a constructor for IPFS block's DataExchange over BitSwap.
+// dataExchange constructs Exchange(Bitswap Composition) for Shwap
 func dataExchange(tp node.Type, params bitSwapParams) exchange.SessionExchange {
 	prefix := protocolID(params.Net)
 	net := bitswap.NewNetwork(params.Host, prefix)

@@ -89,6 +89,9 @@ func (s *Server) streamHandler(ctx context.Context) network.StreamHandler {
 func (s *Server) handleEDS(ctx context.Context, stream network.Stream) error {
 	logger := log.With("peer", stream.Conn().RemotePeer().String())
 	logger.Debug("server: handling eds request")
+	// observe rate limited requests is draining the counter for rate limited requests
+	// since last handleStream call. This is not optimal observing strategy, but it is
+	// good enough for now. Will be improved in shrex unification PR.
 	s.observeRateLimitedRequests()
 
 	// read request from stream to get the dataHash for store lookup
