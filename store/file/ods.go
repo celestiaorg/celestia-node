@@ -376,7 +376,7 @@ func readAxisHalf(r io.ReaderAt, axisTp rsmt2d.Axis, shrLn, edsLn, offset, axisI
 func readRowHalf(fl io.ReaderAt, shrLn, edsLn, offset, rowIdx int) ([]share.Share, error) {
 	odsLn := edsLn / 2
 	rowOffset := rowIdx * odsLn * shrLn
-	offset = offset + rowOffset
+	offset += rowOffset
 
 	shares := make([]share.Share, odsLn)
 	axsData := make([]byte, odsLn*shrLn)

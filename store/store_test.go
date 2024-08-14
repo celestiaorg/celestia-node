@@ -248,7 +248,7 @@ func TestEDSStore(t *testing.T) {
 
 	t.Run("reopen", func(t *testing.T) {
 		// tests that store can be reopened
-		err = edsStore.Close()
+		err = edsStore.Stop(ctx)
 		require.NoError(t, err)
 
 		edsStore, err = NewStore(paramsNoCache(), dir)

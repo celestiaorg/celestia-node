@@ -180,6 +180,7 @@ func createODSFile(t testing.TB, eds *rsmt2d.ExtendedDataSquare) *ODS {
 	err = CreateODS(path, roots, eds)
 	require.NoError(t, err)
 	ods, err := OpenODS(path)
+	require.NoError(t, err)
 	return ods
 }
 
@@ -190,6 +191,7 @@ func createODSFileDisabledCache(t testing.TB, eds *rsmt2d.ExtendedDataSquare) ed
 	err = CreateODS(path, roots, eds)
 	require.NoError(t, err)
 	ods, err := OpenODS(path)
+	require.NoError(t, err)
 	ods.disableCache = true
 	return ods
 }
