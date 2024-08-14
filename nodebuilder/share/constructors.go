@@ -7,6 +7,7 @@ import (
 	"github.com/filecoin-project/dagstore"
 	"github.com/ipfs/boxo/blockservice"
 
+	headerServ "github.com/celestiaorg/celestia-node/nodebuilder/header"
 	"github.com/celestiaorg/celestia-node/share"
 	"github.com/celestiaorg/celestia-node/share/eds"
 	"github.com/celestiaorg/celestia-node/share/getters"
@@ -14,8 +15,8 @@ import (
 	"github.com/celestiaorg/celestia-node/share/shwap/p2p/shrex/shrex_getter"
 )
 
-func newShareModule(getter share.Getter, avail share.Availability) Module {
-	return &module{getter, avail}
+func newShareModule(getter share.Getter, avail share.Availability, header headerServ.Module) Module {
+	return &module{getter, avail, header}
 }
 
 // ensureEmptyCARExists adds an empty EDS to the provided EDS store.

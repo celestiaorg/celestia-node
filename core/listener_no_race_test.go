@@ -26,7 +26,6 @@ func TestListenerWithNonEmptyBlocks(t *testing.T) {
 
 	// create one block to store as Head in local store and then unsubscribe from block events
 	cfg := DefaultTestConfig()
-	cfg.ChainID = testChainID
 	fetcher, cctx := createCoreFetcher(t, cfg)
 	eds := createEdsPubSub(ctx, t)
 
@@ -47,7 +46,9 @@ func TestListenerWithNonEmptyBlocks(t *testing.T) {
 	empty := share.EmptyEDSRoots()
 	// TODO extract 16
 	for i := 0; i < 16; i++ {
-		_, err := cctx.FillBlock(16, cfg.Accounts, flags.BroadcastBlock)
+		accounts := cfg.Genesis.Accounts()
+		require.Greater(t, len(accounts), 0)
+		_, err := cctx.FillBlock(16, accounts[0].Name, flags.BroadcastBlock)
 		require.NoError(t, err)
 		msg, err := sub.Next(ctx)
 		require.NoError(t, err)

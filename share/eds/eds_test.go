@@ -15,8 +15,12 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/tendermint/tendermint/libs/rand"
+	coretypes "github.com/tendermint/tendermint/types"
 
-	"github.com/celestiaorg/celestia-app/pkg/appconsts"
+	"github.com/celestiaorg/celestia-app/v2/pkg/appconsts"
+	pkgproof "github.com/celestiaorg/celestia-app/v2/pkg/proof"
+	"github.com/celestiaorg/go-square/namespace"
+	"github.com/celestiaorg/go-square/shares"
 	"github.com/celestiaorg/rsmt2d"
 
 	"github.com/celestiaorg/celestia-node/share"
@@ -279,4 +283,68 @@ func createTestData(t *testing.T, testDir string) { //nolint:unused
 	_, err = f.Write(header)
 	require.NoError(t, err, "writing example root to file")
 	f.Close()
+}
+
+func TestProveShares(t *testing.T) {
+	ns := namespace.RandomBlobNamespace()
+	eds, dataRoot := edstest.RandEDSWithNamespace(
+		t,
+		ns.Bytes(),
+		16,
+		16,
+	)
+
+	tests := map[string]struct {
+		start, end    int
+		expectedProof coretypes.ShareProof
+		expectErr     bool
+	}{
+		"start share == end share": {
+			start:     2,
+			end:       2,
+			expectErr: true,
+		},
+		"start share > end share": {
+			start:     3,
+			end:       2,
+			expectErr: true,
+		},
+		"start share > number of shares in the block": {
+			start:     2000,
+			end:       2010,
+			expectErr: true,
+		},
+		"end share > number of shares in the block": {
+			start:     1,
+			end:       2010,
+			expectErr: true,
+		},
+		"valid case": {
+			start: 0,
+			end:   2,
+			expectedProof: func() coretypes.ShareProof {
+				proof, err := pkgproof.NewShareInclusionProofFromEDS(
+					eds,
+					ns,
+					shares.NewRange(0, 2),
+				)
+				require.NoError(t, err)
+				require.NoError(t, proof.Validate(dataRoot.Hash()))
+				return toCoreShareProof(proof)
+			}(),
+		},
+	}
+
+	for name, tc := range tests {
+		t.Run(name, func(t *testing.T) {
+			result, err := ProveShares(eds, tc.start, tc.end)
+			if tc.expectErr {
+				assert.Error(t, err)
+			} else {
+				assert.NoError(t, err)
+				assert.Equal(t, tc.expectedProof, *result)
+				assert.NoError(t, result.Validate(dataRoot.Hash()))
+			}
+		})
+	}
 }

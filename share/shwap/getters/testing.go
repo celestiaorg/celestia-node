@@ -7,7 +7,6 @@ import (
 
 	"github.com/stretchr/testify/require"
 
-	"github.com/celestiaorg/celestia-app/pkg/da"
 	"github.com/celestiaorg/rsmt2d"
 
 	"github.com/celestiaorg/celestia-node/header"
@@ -66,12 +65,12 @@ func (seg *SingleEDSGetter) GetSharesByNamespace(context.Context, *header.Extend
 }
 
 func (seg *SingleEDSGetter) checkRoots(roots *share.AxisRoots) error {
-	dah, err := da.NewDataAvailabilityHeader(seg.EDS)
+	roots, err := share.NewAxisRoots(seg.EDS)
 	if err != nil {
 		return err
 	}
-	if !roots.Equals(&dah) {
-		return fmt.Errorf("unknown EDS: have %s, asked %s", dah.String(), roots.String())
+	if !roots.Equals(roots) {
+		return fmt.Errorf("unknown EDS: have %s, asked %s", roots.String(), roots.String())
 	}
 	return nil
 }

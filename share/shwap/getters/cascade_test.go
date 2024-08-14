@@ -67,6 +67,13 @@ func TestCascade(t *testing.T) {
 			return nil, ctx.Err()
 		}).AnyTimes()
 
+	stuckGetter := mock.NewMockGetter(ctrl)
+	stuckGetter.EXPECT().GetEDS(gomock.Any(), gomock.Any()).
+		DoAndReturn(func(ctx context.Context, _ *header.ExtendedHeader) (*rsmt2d.ExtendedDataSquare, error) {
+			<-ctx.Done()
+			return nil, ctx.Err()
+		}).AnyTimes()
+
 	get := func(ctx context.Context, get shwap.Getter) (*rsmt2d.ExtendedDataSquare, error) {
 		return get.GetEDS(ctx, nil)
 	}
@@ -113,6 +120,12 @@ func TestCascade(t *testing.T) {
 
 	t.Run("Single", func(t *testing.T) {
 		getters := []shwap.Getter{successGetter}
+		_, err := cascadeGetters(ctx, getters, get)
+		assert.NoError(t, err)
+	})
+
+	t.Run("Stuck getter", func(t *testing.T) {
+		getters := []shwap.Getter{stuckGetter, successGetter}
 		_, err := cascadeGetters(ctx, getters, get)
 		assert.NoError(t, err)
 	})

@@ -44,6 +44,8 @@ func DefaultConfig(tp node.Type) Config {
 			"/ip6/::/udp/2121/quic-v1/webtransport",
 			"/ip4/0.0.0.0/udp/2121/quic-v1",
 			"/ip6/::/udp/2121/quic-v1",
+			"/ip4/0.0.0.0/udp/2121/webrtc-direct",
+			"/ip6/::/udp/2121/webrtc-direct",
 			"/ip4/0.0.0.0/tcp/2121",
 			"/ip6/::/tcp/2121",
 		},
@@ -55,6 +57,9 @@ func DefaultConfig(tp node.Type) Config {
 			"/ip4/0.0.0.0/udp/2121/quic-v1",
 			"/ip4/127.0.0.1/udp/2121/quic-v1",
 			"/ip6/::/udp/2121/quic-v1",
+			"/ip4/0.0.0.0/udp/2121/webrtc-direct",
+			"/ip4/127.0.0.1/udp/2121/webrtc-direct",
+			"/ip6/::/udp/2121/webrtc-direct",
 			"/ip4/0.0.0.0/tcp/2121",
 			"/ip4/127.0.0.1/tcp/2121",
 			"/ip6/::/tcp/2121",
@@ -85,4 +90,19 @@ func (cfg *Config) Validate() error {
 		log.Warnf("routingTableRefreshPeriod is not valid. restoring to default value: %d", cfg.RoutingTableRefreshPeriod)
 	}
 	return nil
+}
+
+// Upgrade updates the `ListenAddresses` and `NoAnnounceAddresses` to
+// include support for websocket connections.
+func (cfg *Config) Upgrade() {
+	cfg.ListenAddresses = append(
+		cfg.ListenAddresses,
+		"/ip4/0.0.0.0/tcp/2122/wss",
+		"/ip6/::/tcp/2122/wss",
+	)
+	cfg.NoAnnounceAddresses = append(
+		cfg.NoAnnounceAddresses,
+		"/ip4/127.0.0.1/tcp/2122/wss",
+		"/ip6/::/tcp/2122/wss",
+	)
 }

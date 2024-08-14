@@ -7,7 +7,7 @@ import (
 	"fmt"
 	"hash"
 
-	"github.com/celestiaorg/celestia-app/pkg/da"
+	"github.com/celestiaorg/celestia-app/v2/pkg/da"
 	"github.com/celestiaorg/rsmt2d"
 )
 

@@ -3,6 +3,7 @@ package getters
 import (
 	"context"
 	"errors"
+	"time"
 
 	logging "github.com/ipfs/go-log/v2"
 	"go.opentelemetry.io/otel"
@@ -127,13 +128,21 @@ func cascadeGetters[V any](
 		}
 	}()
 
+	minTimeout := time.Duration(0)
+	_, ok := ctx.Deadline()
+	if !ok {
+		// in this case minTimeout will be applied for all getters,so each of them
+		// will have 1 minute timeout.
+		minTimeout = time.Minute
+	}
+
 	for i, getter := range getters {
 		log.Debugf("cascade: launching getter #%d", i)
 		span.AddEvent("getter launched", trace.WithAttributes(attribute.Int("getter_idx", i)))
 
 		// we split the timeout between left getters
 		// once async cascadegetter is implemented, we can remove this
-		getCtx, cancel := utils.CtxWithSplitTimeout(ctx, len(getters)-i, 0)
+		getCtx, cancel := utils.CtxWithSplitTimeout(ctx, len(getters)-i, minTimeout)
 		val, getErr := get(getCtx, getter)
 		cancel()
 		if getErr == nil {

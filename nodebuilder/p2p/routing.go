@@ -21,9 +21,8 @@ func contentRouting(r routing.PeerRouting) routing.ContentRouting {
 
 // peerRouting provides constructor for PeerRouting over DHT.
 // Basically, this provides a way to discover peer addresses by respecting public keys.
-func peerRouting(cfg Config, tp node.Type, params routingParams) (routing.PeerRouting, error) {
+func peerRouting(cfg *Config, tp node.Type, params routingParams) (routing.PeerRouting, error) {
 	opts := []dht.Option{
-		dht.Mode(dht.ModeAuto),
 		dht.BootstrapPeers(params.Peers...),
 		dht.ProtocolPrefix(protocol.ID(fmt.Sprintf("/celestia/%s", params.Net))),
 		dht.Datastore(params.DataStore),
@@ -36,10 +35,17 @@ func peerRouting(cfg Config, tp node.Type, params routingParams) (routing.PeerRo
 		)
 	}
 
-	if tp == node.Bridge || tp == node.Full {
+	switch tp {
+	case node.Light:
+		opts = append(opts,
+			dht.Mode(dht.ModeClient),
+		)
+	case node.Bridge, node.Full:
 		opts = append(opts,
 			dht.Mode(dht.ModeServer),
 		)
+	default:
+		return nil, fmt.Errorf("unsupported node type: %s", tp)
 	}
 
 	d, err := dht.New(params.Ctx, params.Host, opts...)

@@ -5,9 +5,9 @@ import (
 	"fmt"
 	"sync"
 
-	"github.com/celestiaorg/celestia-app/pkg/appconsts"
-	"github.com/celestiaorg/celestia-app/pkg/da"
-	"github.com/celestiaorg/celestia-app/pkg/shares"
+	"github.com/celestiaorg/celestia-app/v2/pkg/appconsts"
+	"github.com/celestiaorg/celestia-app/v2/pkg/da"
+	"github.com/celestiaorg/go-square/shares"
 	"github.com/celestiaorg/rsmt2d"
 )
 
@@ -30,7 +30,7 @@ func EmptyBlockShares() []Share {
 }
 
 var (
-	emptyMu          sync.Mutex
+	emptyOnce        sync.Once
 	emptyBlockRoot   *AxisRoots
 	emptyBlockEDS    *rsmt2d.ExtendedDataSquare
 	emptyBlockShares []Share
@@ -38,12 +38,10 @@ var (
 
 // initEmpty enables lazy initialization for constant empty block data.
 func initEmpty() {
-	emptyMu.Lock()
-	defer emptyMu.Unlock()
-	if emptyBlockRoot != nil {
-		return
-	}
+	emptyOnce.Do(computeEmpty)
+}
 
+func computeEmpty() {
 	// compute empty block EDS and DAH for it
 	result := shares.TailPaddingShares(appconsts.MinShareCount)
 	emptyBlockShares = shares.ToBytes(result)

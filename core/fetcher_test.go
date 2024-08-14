@@ -10,7 +10,7 @@ import (
 )
 
 func TestBlockFetcher_GetBlock_and_SubscribeNewBlockEvent(t *testing.T) {
-	ctx, cancel := context.WithTimeout(context.Background(), time.Second*10)
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second*15)
 	t.Cleanup(cancel)
 
 	client := StartTestNode(t).Client

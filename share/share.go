@@ -4,7 +4,7 @@ import (
 	"crypto/sha256"
 	"fmt"
 
-	"github.com/celestiaorg/celestia-app/pkg/appconsts"
+	"github.com/celestiaorg/celestia-app/v2/pkg/appconsts"
 	"github.com/celestiaorg/nmt"
 	"github.com/celestiaorg/rsmt2d"
 )
