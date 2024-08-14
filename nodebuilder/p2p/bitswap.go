@@ -11,6 +11,7 @@ import (
 	"github.com/libp2p/go-libp2p/core/protocol"
 	"go.uber.org/fx"
 
+	"github.com/celestiaorg/celestia-node/nodebuilder/node"
 	"github.com/celestiaorg/celestia-node/share/shwap/p2p/bitswap"
 	"github.com/celestiaorg/celestia-node/store"
 )
@@ -28,18 +29,34 @@ const (
 )
 
 // dataExchange provides a constructor for IPFS block's DataExchange over BitSwap.
-func dataExchange(params bitSwapParams) exchange.SessionExchange {
+func dataExchange(tp node.Type, params bitSwapParams) exchange.SessionExchange {
 	prefix := protocolID(params.Net)
 	net := bitswap.NewNetwork(params.Host, prefix)
-	bs := bitswap.New(params.Ctx, net, params.Bs)
 
-	params.Lifecycle.Append(fx.Hook{
-		OnStop: func(_ context.Context) (err error) {
-			bs.Close()
-			return err
-		},
-	})
-	return bs
+	switch tp {
+	case node.Full, node.Bridge:
+		bs := bitswap.New(params.Ctx, net, params.Bs)
+		params.Lifecycle.Append(fx.Hook{
+			OnStop: func(_ context.Context) (err error) {
+				bs.Close()
+				return err
+			},
+		})
+		return bs
+	case node.Light:
+		cl := bitswap.NewClient(params.Ctx, net, params.Bs)
+		net.Start(cl)
+		params.Lifecycle.Append(fx.Hook{
+			OnStop: func(_ context.Context) (err error) {
+				net.Stop()
+				cl.Close()
+				return err
+			},
+		})
+		return cl
+	default:
+		panic(fmt.Sprintf("unsupported node type: %v", tp))
+	}
 }
 
 func blockstoreFromDatastore(ctx context.Context, ds datastore.Batching) (blockstore.Blockstore, error) {
