@@ -38,7 +38,7 @@ func (dh DataHash) String() string {
 
 // IsEmptyEDS check whether DataHash corresponds to the root of an empty block EDS.
 func (dh DataHash) IsEmptyEDS() bool {
-	return bytes.Equal(EmptyEDSRoots().Hash(), dh)
+	return bytes.Equal(EmptyEDSDataHash(), dh)
 }
 
 // NewSHA256Hasher returns a new instance of a SHA-256 hasher.
