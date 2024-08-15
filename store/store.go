@@ -20,9 +20,7 @@ import (
 	"github.com/celestiaorg/celestia-node/store/file"
 )
 
-var (
-	log = logging.Logger("edsstore")
-)
+var log = logging.Logger("edsstore")
 
 const (
 	blocksPath     = "blocks"
@@ -88,7 +86,7 @@ func NewStore(params *Parameters, basePath string) (*Store, error) {
 	return store, nil
 }
 
-func (s *Store) Close() error {
+func (s *Store) Stop(context.Context) error {
 	return s.metrics.close()
 }
 
@@ -247,7 +245,7 @@ func (s *Store) getByHeight(height uint64) (eds.AccessorStreamer, error) {
 
 // openODSQ4 opens ODSQ4 Accessor.
 // It opens ODS file first, reads up its DataHash and constructs the path for Q4
-// This done as Q4 is not indexed(hardlinked) and there is no other way to Q4 by height only.
+// This done as Q4 is not indexed(hard-linked) and there is no other way to Q4 by height only.
 func (s *Store) openODSQ4(path string) (eds.AccessorStreamer, error) {
 	odsq4, err := file.OpenODSQ4(path+odsFileExt, path+q4FileExt)
 	switch {

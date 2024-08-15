@@ -1,4 +1,4 @@
-package shrex_getter
+package shrex_getter //nolint:revive,stylecheck // underscore in pkg name will be fixed with shrex refactoring
 
 import (
 	"context"

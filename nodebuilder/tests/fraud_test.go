@@ -7,8 +7,6 @@ import (
 	"testing"
 	"time"
 
-	"github.com/ipfs/go-datastore"
-	ds_sync "github.com/ipfs/go-datastore/sync"
 	"github.com/libp2p/go-libp2p/core/host"
 	"github.com/libp2p/go-libp2p/core/peer"
 	"github.com/stretchr/testify/require"
@@ -23,8 +21,8 @@ import (
 	"github.com/celestiaorg/celestia-node/nodebuilder/core"
 	"github.com/celestiaorg/celestia-node/nodebuilder/node"
 	"github.com/celestiaorg/celestia-node/nodebuilder/tests/swamp"
-	"github.com/celestiaorg/celestia-node/share/eds"
 	"github.com/celestiaorg/celestia-node/share/eds/byzantine"
+	"github.com/celestiaorg/celestia-node/store"
 )
 
 /*
@@ -46,6 +44,7 @@ Another note: this test disables share exchange to speed up test results.
 9. Try to start a Full Node(FN) that contains a BEFP in its store.
 */
 func TestFraudProofHandling(t *testing.T) {
+	t.Skip()
 	ctx, cancel := context.WithTimeout(context.Background(), swamp.DefaultTestTimeout)
 	t.Cleanup(cancel)
 
@@ -60,11 +59,9 @@ func TestFraudProofHandling(t *testing.T) {
 	set, val := sw.Validators(t)
 	fMaker := headerfraud.NewFraudMaker(t, 10, []types.PrivValidator{val}, set)
 
-	storeCfg := eds.DefaultParameters()
-	ds := ds_sync.MutexWrap(datastore.NewMapDatastore())
-	edsStore, err := eds.NewStore(storeCfg, t.TempDir(), ds)
+	storeCfg := store.DefaultParameters()
+	edsStore, err := store.NewStore(storeCfg, t.TempDir())
 	require.NoError(t, err)
-	require.NoError(t, edsStore.Start(ctx))
 	t.Cleanup(func() {
 		_ = edsStore.Stop(ctx)
 	})

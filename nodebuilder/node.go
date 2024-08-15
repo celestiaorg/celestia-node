@@ -30,7 +30,7 @@ import (
 	"github.com/celestiaorg/celestia-node/nodebuilder/p2p"
 	"github.com/celestiaorg/celestia-node/nodebuilder/share"
 	"github.com/celestiaorg/celestia-node/nodebuilder/state"
-	"github.com/celestiaorg/celestia-node/share/eds"
+	"github.com/celestiaorg/celestia-node/store"
 )
 
 var (
@@ -58,13 +58,13 @@ type Node struct {
 	GatewayServer *gateway.Server `optional:"true"`
 
 	// block store
-	EDSStore *eds.Store `optional:"true"`
+	EDSStore *store.Store `optional:"true"`
 
 	// p2p components
 	Host         host.Host
 	ConnGater    *conngater.BasicConnectionGater
 	Routing      routing.PeerRouting
-	DataExchange exchange.Interface
+	DataExchange exchange.SessionExchange
 	BlockService blockservice.BlockService
 	// p2p protocols
 	PubSub *pubsub.PubSub

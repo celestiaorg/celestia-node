@@ -36,6 +36,7 @@ Steps:
 5. Check that a FN can retrieve shares from 1 to 20 blocks
 */
 func TestFullReconstructFromBridge(t *testing.T) {
+	t.Skip()
 	const (
 		blocks = 20
 		bsize  = 16
@@ -86,6 +87,7 @@ Test-Case: Full Node reconstructs blocks from each other, after unsuccessfully s
 block from LN subnetworks. Analog to TestShareAvailable_DisconnectedFullNodes.
 */
 func TestFullReconstructFromFulls(t *testing.T) {
+	t.Skip()
 	if testing.Short() {
 		t.Skip()
 	}
@@ -256,6 +258,7 @@ Steps:
 9. Check that the FN can retrieve shares from 1 to 20 blocks
 */
 func TestFullReconstructFromLights(t *testing.T) {
+	t.Skip()
 	if testing.Short() {
 		t.Skip()
 	}

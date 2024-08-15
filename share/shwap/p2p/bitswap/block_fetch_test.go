@@ -8,7 +8,6 @@ import (
 	"time"
 
 	"github.com/ipfs/boxo/bitswap/client"
-	"github.com/ipfs/boxo/bitswap/server"
 	"github.com/ipfs/boxo/blockstore"
 	"github.com/ipfs/boxo/exchange"
 	blocks "github.com/ipfs/go-block-format"
@@ -141,8 +140,6 @@ func newServer(ctx context.Context, host host.Host, store blockstore.Blockstore)
 		ctx,
 		net,
 		store,
-		server.TaskWorkerCount(2),
-		server.EngineTaskWorkerCount(2),
 	)
 	net.Start(server)
 }

@@ -9,16 +9,15 @@ import (
 	"testing"
 	"time"
 
-	"github.com/ipfs/go-datastore"
-
 	"github.com/celestiaorg/celestia-node/share"
-	"github.com/celestiaorg/celestia-node/share/eds"
 	"github.com/celestiaorg/celestia-node/share/eds/edstest"
+	"github.com/celestiaorg/celestia-node/store"
 )
 
 type Config struct {
 	EDSSize     int
 	EDSWrites   int
+	WriteFrom   int
 	EnableLog   bool
 	LogFilePath string
 	StatLogFreq int
@@ -28,25 +27,23 @@ type Config struct {
 // EDSsser stand for EDS Store Stresser.
 type EDSsser struct {
 	config     Config
-	datastore  datastore.Batching
 	edsstoreMu sync.Mutex
-	edsstore   *eds.Store
+	edsstore   *store.Store
 
 	statsFileMu sync.Mutex
 	statsFile   *os.File
 }
 
-func NewEDSsser(path string, datastore datastore.Batching, cfg Config) (*EDSsser, error) {
-	storeCfg := eds.DefaultParameters()
-	edsstore, err := eds.NewStore(storeCfg, path, datastore)
+func NewEDSsser(path string, cfg Config) (*EDSsser, error) {
+	storeCfg := store.DefaultParameters()
+	edsstore, err := store.NewStore(storeCfg, path)
 	if err != nil {
 		return nil, err
 	}
 
 	return &EDSsser{
-		config:    cfg,
-		datastore: datastore,
-		edsstore:  edsstore,
+		config:   cfg,
+		edsstore: edsstore,
 	}, nil
 }
 
@@ -54,23 +51,14 @@ func (ss *EDSsser) Run(ctx context.Context) (stats Stats, err error) {
 	ss.edsstoreMu.Lock()
 	defer ss.edsstoreMu.Unlock()
 
-	err = ss.edsstore.Start(ctx)
-	if err != nil {
-		return stats, err
-	}
 	defer func() {
 		err = errors.Join(err, ss.edsstore.Stop(ctx))
 	}()
 
-	edsHashes, err := ss.edsstore.List()
-	if err != nil {
-		return stats, err
-	}
-	fmt.Printf("recovered %d EDSes\n\n", len(edsHashes))
-
 	t := &testing.T{}
-	for toWrite := ss.config.EDSWrites - len(edsHashes); ctx.Err() == nil && toWrite > 0; toWrite-- {
-		took, err := ss.put(ctx, t)
+	writeTo := ss.config.WriteFrom + ss.config.EDSWrites
+	for height := ss.config.WriteFrom; ctx.Err() == nil && height < writeTo; height++ {
+		took, err := ss.put(ctx, t, height)
 
 		stats.TotalWritten++
 		stats.TotalTime += took
@@ -152,7 +140,7 @@ AvgTime %s
 	)
 }
 
-func (ss *EDSsser) put(ctx context.Context, t *testing.T) (time.Duration, error) {
+func (ss *EDSsser) put(ctx context.Context, t *testing.T, height int) (time.Duration, error) {
 	ctx, cancel := context.WithTimeout(ctx, ss.config.OpTimeout)
 	if ss.config.OpTimeout == 0 {
 		ctx, cancel = context.WithCancel(ctx)
@@ -167,6 +155,6 @@ func (ss *EDSsser) put(ctx context.Context, t *testing.T) (time.Duration, error)
 	}
 
 	now := time.Now()
-	err = ss.edsstore.Put(ctx, roots.Hash(), square)
+	err = ss.edsstore.Put(ctx, roots, uint64(height), square)
 	return time.Since(now), err
 }

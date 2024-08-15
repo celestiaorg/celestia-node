@@ -2,6 +2,7 @@ package bitswap
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"time"
 
@@ -9,6 +10,7 @@ import (
 	"github.com/ipfs/boxo/bitswap/network"
 	"github.com/ipfs/boxo/bitswap/server"
 	"github.com/ipfs/boxo/blockstore"
+	blocks "github.com/ipfs/go-block-format"
 	delay "github.com/ipfs/go-ipfs-delay"
 	routinghelpers "github.com/libp2p/go-libp2p-routing-helpers"
 	"github.com/libp2p/go-libp2p/core/host"
@@ -83,16 +85,19 @@ func NewClient(
 	net network.BitSwapNetwork,
 	bstore blockstore.Blockstore,
 ) *client.Client {
-	return client.New(
-		ctx,
-		net,
-		bstore,
+	opts := []client.Option{
 		client.SetSimulateDontHavesOnTimeout(simulateDontHaves),
 		client.ProviderSearchDelay(providerSearchDelay),
 		client.RebroadcastDelay(delay.Fixed(rebroadcastDelay)),
 		// Prevents Has calls to Blockstore for metric that counts duplicates
 		// Unnecessary for our use case, so we can save some disk lookups.
 		client.WithoutDuplicatedBlockStats(),
+	}
+	return client.New(
+		ctx,
+		net,
+		bstore,
+		opts...,
 	)
 }
 
@@ -102,22 +107,44 @@ func NewServer(
 	ctx context.Context,
 	net network.BitSwapNetwork,
 	bstore blockstore.Blockstore,
-	opts ...server.Option,
 ) *server.Server {
-	opts = append(
-		opts,
+	opts := []server.Option{
 		server.ProvideEnabled(providesEnabled),
 		server.SetSendDontHaves(sendDontHaves),
 		server.MaxQueuedWantlistEntriesPerPeer(maxServerWantListsPerPeer),
 		server.WithTargetMessageSize(targetMessageSize),
 		server.MaxOutstandingBytesPerPeer(outstandingBytesPerPeer),
-	)
+	}
+	return server.New(ctx, net, bstore, opts...)
+}
 
-	return server.New(
-		ctx,
-		net,
-		bstore,
-		opts...,
+type Bitswap struct {
+	*client.Client
+	*server.Server
+}
+
+func New(
+	ctx context.Context,
+	net network.BitSwapNetwork,
+	bstore blockstore.Blockstore,
+) *Bitswap {
+	return &Bitswap{
+		Client: NewClient(ctx, net, bstore),
+		Server: NewServer(ctx, net, bstore),
+	}
+}
+
+func (bs *Bitswap) NotifyNewBlocks(ctx context.Context, blks ...blocks.Block) error {
+	return errors.Join(
+		bs.Client.NotifyNewBlocks(ctx, blks...),
+		bs.Server.NotifyNewBlocks(ctx, blks...),
+	)
+}
+
+func (bs *Bitswap) Close() error {
+	return errors.Join(
+		bs.Client.Close(),
+		bs.Server.Close(),
 	)
 }
 

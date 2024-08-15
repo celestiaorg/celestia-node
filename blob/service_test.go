@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"slices"
 	"sort"
 	"testing"
 	"time"
@@ -54,8 +55,9 @@ func TestBlobService_Get(t *testing.T) {
 	blobsWithSameNamespace, err := convertBlobs(appBlobs...)
 	require.NoError(t, err)
 
-	blobs := append(blobsWithDiffNamespaces, blobsWithSameNamespace...)
+	blobs := slices.Concat(blobsWithDiffNamespaces, blobsWithSameNamespace)
 	shares, err := BlobsToShares(blobs...)
+	require.NoError(t, err)
 	service := createService(ctx, t, shares)
 	test := []struct {
 		name           string
@@ -484,6 +486,7 @@ func TestService_Get(t *testing.T) {
 	require.NoError(t, err)
 
 	shares, err := BlobsToShares(blobs...)
+	require.NoError(t, err)
 	service := createService(ctx, t, shares)
 
 	h, err := service.headerGetter(ctx, 1)
@@ -632,6 +635,7 @@ func BenchmarkGetByCommitment(b *testing.B) {
 	require.NoError(b, err)
 
 	shares, err := BlobsToShares(blobs...)
+	require.NoError(b, err)
 	service := createService(ctx, b, shares)
 	indexer := &parser{}
 	b.ResetTimer()
@@ -655,8 +659,9 @@ func createService(ctx context.Context, t testing.TB, shares []share.Share) *Ser
 		shares,
 		share.DefaultRSMT2DCodec(),
 		wrapper.NewConstructor(uint64(odsSize)))
+	require.NoError(t, err)
 
-	accessor := &eds.Rsmt2D{square}
+	accessor := &eds.Rsmt2D{ExtendedDataSquare: square}
 	ctrl := gomock.NewController(t)
 	shareGetter := mock.NewMockGetter(ctrl)
 	shareGetter.EXPECT().GetSharesByNamespace(gomock.Any(), gomock.Any(), gomock.Any()).AnyTimes().

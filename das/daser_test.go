@@ -53,7 +53,7 @@ func TestDASerLifecycle(t *testing.T) {
 		checkpoint, err := daser.store.load(ctx)
 		require.NoError(t, err)
 		// ensure checkpoint is stored at 30
-		assert.EqualValues(t, 30, checkpoint.SampleFrom-1)
+		require.EqualValues(t, 30, checkpoint.SampleFrom-1)
 	}()
 
 	// wait for mock to indicate that catchup is done
@@ -64,10 +64,7 @@ func TestDASerLifecycle(t *testing.T) {
 	}
 
 	// wait for DASer to indicate done
-	assert.NoError(t, daser.WaitCatchUp(ctx))
-
-	// give catch-up routine a second to finish up sampling last header
-	assert.NoError(t, daser.sampler.state.waitCatchUp(ctx))
+	require.NoError(t, waitHeight(ctx, daser, 30))
 }
 
 func TestDASer_Restart(t *testing.T) {
@@ -95,7 +92,7 @@ func TestDASer_Restart(t *testing.T) {
 	}
 
 	// wait for DASer to indicate done
-	assert.NoError(t, daser.WaitCatchUp(ctx))
+	require.NoError(t, waitHeight(ctx, daser, 30))
 
 	err = daser.Stop(ctx)
 	require.NoError(t, err)
@@ -125,7 +122,7 @@ func TestDASer_Restart(t *testing.T) {
 	case <-mockGet.doneCh:
 	}
 
-	assert.NoError(t, daser.sampler.state.waitCatchUp(ctx))
+	require.NoError(t, waitHeight(ctx, daser, 60))
 	err = daser.Stop(restartCtx)
 	require.NoError(t, err)
 
@@ -137,7 +134,7 @@ func TestDASer_Restart(t *testing.T) {
 }
 
 // TODO(@walldiss): BEFP test will not work until BEFP-shwap integration
-//func TestDASer_stopsAfter_BEFP(t *testing.T) {
+// func TestDASer_stopsAfter_BEFP(t *testing.T) {
 //	ctx, cancel := context.WithTimeout(context.Background(), time.Second*20)
 //	t.Cleanup(cancel)
 //
@@ -437,4 +434,23 @@ func (m getterStub) GetRangeByHeight(
 
 func (m getterStub) Get(context.Context, libhead.Hash) (*header.ExtendedHeader, error) {
 	panic("implement me")
+}
+
+// waitHeight waits for the DASer to catch up to the given height. It will return an error if the
+// DASer fails to catch up to the given height within the timeout.
+func waitHeight(ctx context.Context, daser *DASer, height uint64) error {
+	for {
+		err := daser.WaitCatchUp(ctx)
+		if err != nil {
+			return err
+		}
+		stats, err := daser.SamplingStats(ctx)
+		if err != nil {
+			return err
+		}
+		if stats.SampledChainHead == height {
+			return nil
+		}
+		time.Sleep(time.Millisecond * 100)
+	}
 }
