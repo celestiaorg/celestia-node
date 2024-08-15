@@ -438,7 +438,7 @@ func (m getterStub) Get(context.Context, libhead.Hash) (*header.ExtendedHeader, 
 
 // waitHeight waits for the DASer to catch up to the given height. It will return an error if the
 // DASer fails to catch up to the given height within the timeout.
-func waitHeight(ctx context.Context, daser *DASer, height int) error {
+func waitHeight(ctx context.Context, daser *DASer, height uint64) error {
 	for {
 		err := daser.WaitCatchUp(ctx)
 		if err != nil {
@@ -448,7 +448,7 @@ func waitHeight(ctx context.Context, daser *DASer, height int) error {
 		if err != nil {
 			return err
 		}
-		if stats.SampledChainHead == uint64(height) {
+		if stats.SampledChainHead == height {
 			return nil
 		}
 		time.Sleep(time.Millisecond * 100)
