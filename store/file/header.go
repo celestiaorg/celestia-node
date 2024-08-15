@@ -79,6 +79,20 @@ func (h *headerV0) Size() int {
 	return headerVOSize + 1
 }
 
+func (h *headerV0) RootsSize() int {
+	// axis roots are stored in two parts: row roots and column roots, each part has size equal to
+	// the square size. Thus, the total amount of roots is equal to the square size * 2.
+	return share.AxisRootSize * h.SquareSize() * 2
+}
+
+func (h *headerV0) Offset() int {
+	return h.Size()
+}
+
+func (h *headerV0) OffsetWithRoots() int {
+	return h.RootsSize() + h.Offset()
+}
+
 func (h *headerV0) WriteTo(w io.Writer) (int64, error) {
 	buf := make([]byte, headerVOSize)
 	buf[0] = byte(h.fileVersion)

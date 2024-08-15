@@ -5,6 +5,7 @@ import (
 	"fmt"
 
 	"github.com/celestiaorg/celestia-app/pkg/appconsts"
+	appshares "github.com/celestiaorg/celestia-app/pkg/shares"
 	"github.com/celestiaorg/nmt"
 	"github.com/celestiaorg/rsmt2d"
 )
@@ -45,6 +46,11 @@ func ValidateShare(s Share) error {
 	return nil
 }
 
+// TailPadding is a constant tail padding share exported for reuse
+func TailPadding() Share {
+	return tailPadding
+}
+
 // ShareWithProof contains data with corresponding Merkle Proof
 type ShareWithProof struct { //nolint: revive
 	// Share is a full data including namespace
@@ -68,4 +74,11 @@ func (s *ShareWithProof) Validate(rootHash []byte, x, y, edsSize int) bool {
 		[][]byte{s.Share},
 		rootHash,
 	)
+}
+
+var tailPadding Share
+
+func init() {
+	shr := appshares.TailPaddingShare()
+	tailPadding = shr.ToBytes()
 }
