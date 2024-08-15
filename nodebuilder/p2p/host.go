@@ -92,14 +92,14 @@ func host(params hostParams) (HostBase, error) {
 		libp2p.DisableRelay(),
 		libp2p.BandwidthReporter(params.Bandwidth),
 		libp2p.ResourceManager(params.ResourceManager),
+		// to clearly define what defaults we rely upon
+		libp2p.DefaultSecurity,
 		libp2p.ChainOptions(
 			libp2p.Transport(tcp.NewTCPTransport),
 			libp2p.Transport(quic.NewTransport),
 			libp2p.Transport(webtransport.New),
 			libp2p.Transport(libp2pwebrtc.New),
 		),
-		// to clearly define what defaults we rely upon
-		libp2p.DefaultSecurity,
 		libp2p.DefaultMuxers,
 	}
 	wsTransport(tlsCfg)
