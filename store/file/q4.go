@@ -130,7 +130,7 @@ func (q4 *Q4) AxisHalf(ctx context.Context, axisType rsmt2d.Axis, axisIdx int) (
 		return eds.AxisHalf{}, fmt.Errorf("invalid axis index for Q4: %d", axisIdx)
 	}
 
-	axisHalf, err := readAxisHalf(q4.file, axisType, q4.hdr.ShareSize(), size, q4.hdr.Size(), q4AxisIdx)
+	axisHalf, err := readAxisHalf(q4.file, axisType, axisIdx, q4.hdr, q4.hdr.Offset())
 	if err != nil {
 		return eds.AxisHalf{}, fmt.Errorf("reading axis half: %w", err)
 	}
