@@ -4,8 +4,9 @@ import (
 	"bytes"
 	"context"
 	"fmt"
-	"github.com/celestiaorg/celestia-node/share"
 	"io"
+
+	"github.com/celestiaorg/celestia-node/share"
 )
 
 // ReadAccessor reads up EDS out of the io.Reader until io.EOF and provides.
