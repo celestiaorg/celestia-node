@@ -4,6 +4,7 @@ on:
   push:
     branches:
       - main
+      - fix/ci/revive
   release:
     types: [published]
   pull_request:
