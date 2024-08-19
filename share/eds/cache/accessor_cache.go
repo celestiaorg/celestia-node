@@ -5,7 +5,6 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"runtime"
 	"sync"
 	"sync/atomic"
 	"time"
@@ -238,8 +237,7 @@ func (bc *AccessorCache) EnableMetrics() (CloseMetricsFn, error) {
 // Close is called
 type refCloser struct {
 	*accessorWithBlockstore
-	closed    atomic.Bool
-	removeRef func()
+	closeFn func()
 }
 
 // newRefCloser creates new refCloser
@@ -248,31 +246,17 @@ func newRefCloser(abs *accessorWithBlockstore) (*refCloser, error) {
 		return nil, err
 	}
 
-	rf := &refCloser{
+	var closeOnce sync.Once
+	return &refCloser{
 		accessorWithBlockstore: abs,
-		removeRef:              abs.removeRef,
-	}
-	// Set finalizer to ensure that accessor is closed when refCloser is garbage collected.
-	// We expect that refCloser will be closed explicitly by the caller. If it is not closed,
-	// we log an error.
-	runtime.SetFinalizer(rf, func(rf *refCloser) {
-		if rf.close() {
-			log.Error("refCloser for accessor was garbage collected before Close was called")
-		}
-	})
-	return rf, nil
-}
-
-func (c *refCloser) close() bool {
-	if c.closed.CompareAndSwap(false, true) {
-		c.removeRef()
-		return true
-	}
-	return false
+		closeFn: func() {
+			closeOnce.Do(abs.removeRef)
+		},
+	}, nil
 }
 
 func (c *refCloser) Close() error {
-	c.close()
+	c.closeFn()
 	return nil
 }
 
