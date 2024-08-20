@@ -59,7 +59,7 @@ func NewListener(
 	hashBroadcaster shrexsub.BroadcastFn,
 	construct header.ConstructFn,
 	store *eds.Store,
-	blocktime time.Duration,
+	_ time.Duration,
 	opts ...Option,
 ) (*Listener, error) {
 	p := defaultParams()
@@ -85,7 +85,7 @@ func NewListener(
 		construct:          construct,
 		store:              store,
 		availabilityWindow: p.availabilityWindow,
-		listenerTimeout:    5 * blocktime,
+		listenerTimeout:    time.Minute,
 		metrics:            metrics,
 		chainID:            p.chainID,
 	}, nil
