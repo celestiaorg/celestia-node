@@ -5,6 +5,8 @@ import (
 	"errors"
 	"time"
 
+	logging "github.com/ipfs/go-log/v2"
+	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/trace"
 
@@ -14,26 +16,32 @@ import (
 	"github.com/celestiaorg/celestia-node/libs/utils"
 	"github.com/celestiaorg/celestia-node/share"
 	"github.com/celestiaorg/celestia-node/share/eds/byzantine"
+	"github.com/celestiaorg/celestia-node/share/shwap"
 )
 
-var _ share.Getter = (*CascadeGetter)(nil)
+var (
+	tracer = otel.Tracer("share/getters")
+	log    = logging.Logger("share/getters")
+)
 
-// CascadeGetter implements custom share.Getter that composes multiple Getter implementations in
+var _ shwap.Getter = (*CascadeGetter)(nil)
+
+// CascadeGetter implements custom shwap.Getter that composes multiple Getter implementations in
 // "cascading" order.
 //
 // See cascade func for details on cascading.
 type CascadeGetter struct {
-	getters []share.Getter
+	getters []shwap.Getter
 }
 
-// NewCascadeGetter instantiates a new CascadeGetter from given share.Getters with given interval.
-func NewCascadeGetter(getters []share.Getter) *CascadeGetter {
+// NewCascadeGetter instantiates a new CascadeGetter from given shwap.Getters with given interval.
+func NewCascadeGetter(getters []shwap.Getter) *CascadeGetter {
 	return &CascadeGetter{
 		getters: getters,
 	}
 }
 
-// GetShare gets a share from any of registered share.Getters in cascading order.
+// GetShare gets a share from any of registered shwap.Getters in cascading order.
 func (cg *CascadeGetter) GetShare(
 	ctx context.Context, header *header.ExtendedHeader, row, col int,
 ) (share.Share, error) {
@@ -45,44 +53,44 @@ func (cg *CascadeGetter) GetShare(
 
 	upperBound := len(header.DAH.RowRoots)
 	if row >= upperBound || col >= upperBound {
-		err := share.ErrOutOfBounds
+		err := shwap.ErrOutOfBounds
 		span.RecordError(err)
 		return nil, err
 	}
-	get := func(ctx context.Context, get share.Getter) (share.Share, error) {
+	get := func(ctx context.Context, get shwap.Getter) (share.Share, error) {
 		return get.GetShare(ctx, header, row, col)
 	}
 
 	return cascadeGetters(ctx, cg.getters, get)
 }
 
-// GetEDS gets a full EDS from any of registered share.Getters in cascading order.
+// GetEDS gets a full EDS from any of registered shwap.Getters in cascading order.
 func (cg *CascadeGetter) GetEDS(
 	ctx context.Context, header *header.ExtendedHeader,
 ) (*rsmt2d.ExtendedDataSquare, error) {
 	ctx, span := tracer.Start(ctx, "cascade/get-eds")
 	defer span.End()
 
-	get := func(ctx context.Context, get share.Getter) (*rsmt2d.ExtendedDataSquare, error) {
+	get := func(ctx context.Context, get shwap.Getter) (*rsmt2d.ExtendedDataSquare, error) {
 		return get.GetEDS(ctx, header)
 	}
 
 	return cascadeGetters(ctx, cg.getters, get)
 }
 
-// GetSharesByNamespace gets NamespacedShares from any of registered share.Getters in cascading
+// GetSharesByNamespace gets NamespacedShares from any of registered shwap.Getters in cascading
 // order.
 func (cg *CascadeGetter) GetSharesByNamespace(
 	ctx context.Context,
 	header *header.ExtendedHeader,
 	namespace share.Namespace,
-) (share.NamespacedShares, error) {
+) (shwap.NamespaceData, error) {
 	ctx, span := tracer.Start(ctx, "cascade/get-shares-by-namespace", trace.WithAttributes(
 		attribute.String("namespace", namespace.String()),
 	))
 	defer span.End()
 
-	get := func(ctx context.Context, get share.Getter) (share.NamespacedShares, error) {
+	get := func(ctx context.Context, get shwap.Getter) (shwap.NamespaceData, error) {
 		return get.GetSharesByNamespace(ctx, header, namespace)
 	}
 
@@ -99,8 +107,8 @@ func (cg *CascadeGetter) GetSharesByNamespace(
 // NOTE: New source attempts after interval do suspend running sources in progress.
 func cascadeGetters[V any](
 	ctx context.Context,
-	getters []share.Getter,
-	get func(context.Context, share.Getter) (V, error),
+	getters []shwap.Getter,
+	get func(context.Context, shwap.Getter) (V, error),
 ) (V, error) {
 	var (
 		zero V
@@ -134,14 +142,14 @@ func cascadeGetters[V any](
 
 		// we split the timeout between left getters
 		// once async cascadegetter is implemented, we can remove this
-		getCtx, cancel := ctxWithSplitTimeout(ctx, len(getters)-i, minTimeout)
+		getCtx, cancel := utils.CtxWithSplitTimeout(ctx, len(getters)-i, minTimeout)
 		val, getErr := get(getCtx, getter)
 		cancel()
 		if getErr == nil {
 			return val, nil
 		}
 
-		if errors.Is(getErr, errOperationNotSupported) {
+		if errors.Is(getErr, shwap.ErrOperationNotSupported) {
 			continue
 		}
 

@@ -4,7 +4,7 @@ import (
 	"bytes"
 	"fmt"
 
-	"github.com/celestiaorg/celestia-app/pkg/wrapper"
+	"github.com/celestiaorg/celestia-app/v2/pkg/wrapper"
 
 	"github.com/celestiaorg/celestia-node/share"
 	"github.com/celestiaorg/celestia-node/share/shwap/pb"

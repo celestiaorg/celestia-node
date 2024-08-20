@@ -328,9 +328,9 @@ func ExtendedHeadersFromEdsses(t testing.TB, edsses []*rsmt2d.ExtendedDataSquare
 	for i, eds := range edsses {
 		gen := RandRawHeader(t)
 
-		dah, err := share.NewRoot(eds)
+		roots, err := share.NewAxisRoots(eds)
 		require.NoError(t, err)
-		gen.DataHash = dah.Hash()
+		gen.DataHash = roots.Hash()
 		gen.ValidatorsHash = valSet.Hash()
 		gen.NextValidatorsHash = valSet.Hash()
 		gen.Height = int64(i + 1)
@@ -347,7 +347,7 @@ func ExtendedHeadersFromEdsses(t testing.TB, edsses []*rsmt2d.ExtendedDataSquare
 			RawHeader:    *gen,
 			Commit:       commit,
 			ValidatorSet: valSet,
-			DAH:          dah,
+			DAH:          roots,
 		}
 		require.NoError(t, eh.Validate())
 		headers[i] = eh

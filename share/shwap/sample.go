@@ -4,7 +4,7 @@ import (
 	"errors"
 	"fmt"
 
-	"github.com/celestiaorg/celestia-app/pkg/wrapper"
+	"github.com/celestiaorg/celestia-app/v2/pkg/wrapper"
 	"github.com/celestiaorg/nmt"
 	nmt_pb "github.com/celestiaorg/nmt/pb"
 	"github.com/celestiaorg/rsmt2d"

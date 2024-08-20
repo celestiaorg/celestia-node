@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"slices"
 	"sort"
 	"testing"
 	"time"
@@ -20,22 +21,25 @@ import (
 
 	"github.com/celestiaorg/celestia-app/v2/pkg/appconsts"
 	pkgproof "github.com/celestiaorg/celestia-app/v2/pkg/proof"
+	"github.com/celestiaorg/celestia-app/v2/pkg/wrapper"
 	"github.com/celestiaorg/go-header/store"
 	"github.com/celestiaorg/go-square/blob"
 	"github.com/celestiaorg/go-square/inclusion"
 	squarens "github.com/celestiaorg/go-square/namespace"
-	"github.com/celestiaorg/go-square/shares"
+	appshares "github.com/celestiaorg/go-square/shares"
 	"github.com/celestiaorg/nmt"
 	"github.com/celestiaorg/rsmt2d"
 
 	"github.com/celestiaorg/celestia-node/blob/blobtest"
 	"github.com/celestiaorg/celestia-node/header"
 	"github.com/celestiaorg/celestia-node/header/headertest"
-	shareMock "github.com/celestiaorg/celestia-node/nodebuilder/share/mocks"
+	"github.com/celestiaorg/celestia-node/libs/utils"
 	"github.com/celestiaorg/celestia-node/share"
 	"github.com/celestiaorg/celestia-node/share/eds/edstest"
-	"github.com/celestiaorg/celestia-node/share/getters"
 	"github.com/celestiaorg/celestia-node/share/ipld"
+	eds "github.com/celestiaorg/celestia-node/share/new_eds"
+	"github.com/celestiaorg/celestia-node/share/shwap"
+	"github.com/celestiaorg/celestia-node/share/shwap/getters/mock"
 )
 
 func TestBlobService_Get(t *testing.T) {
@@ -58,7 +62,10 @@ func TestBlobService_Get(t *testing.T) {
 	blobsWithSameNamespace, err := convertBlobs(appBlobs...)
 	require.NoError(t, err)
 
-	service := createService(ctx, t, append(blobsWithDiffNamespaces, blobsWithSameNamespace...))
+	blobs := slices.Concat(blobsWithDiffNamespaces, blobsWithSameNamespace)
+	shares, err := BlobsToShares(blobs...)
+	require.NoError(t, err)
+	service := createService(ctx, t, shares)
 	test := []struct {
 		name           string
 		doFn           func() (interface{}, error)
@@ -145,7 +152,7 @@ func TestBlobService_Get(t *testing.T) {
 					require.True(t, bytes.Equal(sh, resultShares[shareOffset]),
 						fmt.Sprintf("issue on %d attempt. ROW:%d, COL: %d, blobIndex:%d", i, row, col, blobs[i].index),
 					)
-					shareOffset += shares.SparseSharesNeeded(uint32(len(blobs[i].Data)))
+					shareOffset += appshares.SparseSharesNeeded(uint32(len(blobs[i].Data)))
 				}
 			},
 		},
@@ -390,21 +397,21 @@ func TestBlobService_Get(t *testing.T) {
 			name: "internal error",
 			doFn: func() (interface{}, error) {
 				ctrl := gomock.NewController(t)
-				shareService := service.shareGetter
-				shareGetterMock := shareMock.NewMockModule(ctrl)
-				shareGetterMock.EXPECT().
+				innerGetter := service.shareGetter
+				getterWrapper := mock.NewMockGetter(ctrl)
+				getterWrapper.EXPECT().
 					GetSharesByNamespace(gomock.Any(), gomock.Any(), gomock.Any()).
 					DoAndReturn(
 						func(
 							ctx context.Context, h *header.ExtendedHeader, ns share.Namespace,
-						) (share.NamespacedShares, error) {
+						) (shwap.NamespaceData, error) {
 							if ns.Equals(blobsWithDiffNamespaces[0].Namespace()) {
 								return nil, errors.New("internal error")
 							}
-							return shareService.GetSharesByNamespace(ctx, h, ns)
+							return innerGetter.GetSharesByNamespace(ctx, h, ns)
 						}).AnyTimes()
 
-				service.shareGetter = shareGetterMock
+				service.shareGetter = getterWrapper
 				return service.GetAll(ctx, 1,
 					[]share.Namespace{
 						blobsWithDiffNamespaces[0].Namespace(),
@@ -446,9 +453,9 @@ func TestService_GetSingleBlobWithoutPadding(t *testing.T) {
 
 	ns1, ns2 := blobs[0].Namespace().ToAppNamespace(), blobs[1].Namespace().ToAppNamespace()
 
-	padding0, err := shares.NamespacePaddingShare(ns1, appconsts.ShareVersionZero)
+	padding0, err := appshares.NamespacePaddingShare(ns1, appconsts.ShareVersionZero)
 	require.NoError(t, err)
-	padding1, err := shares.NamespacePaddingShare(ns2, appconsts.ShareVersionZero)
+	padding1, err := appshares.NamespacePaddingShare(ns2, appconsts.ShareVersionZero)
 	require.NoError(t, err)
 	rawShares0, err := BlobsToShares(blobs[0])
 	require.NoError(t, err)
@@ -458,31 +465,16 @@ func TestService_GetSingleBlobWithoutPadding(t *testing.T) {
 	rawShares := make([][]byte, 0)
 	rawShares = append(rawShares, append(rawShares0, padding0.ToBytes())...)
 	rawShares = append(rawShares, append(rawShares1, padding1.ToBytes())...)
-
-	bs := ipld.NewMemBlockservice()
-	batching := ds_sync.MutexWrap(ds.NewMapDatastore())
-	headerStore, err := store.NewStore[*header.ExtendedHeader](batching)
-	require.NoError(t, err)
-	eds, err := ipld.AddShares(ctx, rawShares, bs)
-	require.NoError(t, err)
-
-	h := headertest.ExtendedHeaderFromEDS(t, 1, eds)
-	err = headerStore.Init(ctx, h)
-	require.NoError(t, err)
-
-	fn := func(ctx context.Context, height uint64) (*header.ExtendedHeader, error) {
-		return headerStore.GetByHeight(ctx, height)
-	}
-	fn2 := func(ctx context.Context) (<-chan *header.ExtendedHeader, error) {
-		return nil, fmt.Errorf("not implemented")
-	}
-	service := NewService(nil, getters.NewIPLDGetter(bs), fn, fn2)
+	service := createService(ctx, t, rawShares)
 
 	newBlob, err := service.Get(ctx, 1, blobs[1].Namespace(), blobs[1].Commitment)
 	require.NoError(t, err)
 	assert.Equal(t, newBlob.Commitment, blobs[1].Commitment)
 
 	resultShares, err := BlobsToShares(newBlob)
+	require.NoError(t, err)
+
+	h, err := service.headerGetter(ctx, 1)
 	require.NoError(t, err)
 	row, col := calculateIndex(len(h.DAH.RowRoots), newBlob.index)
 	sh, err := service.shareGetter.GetShare(ctx, h, row, col)
@@ -502,7 +494,9 @@ func TestService_Get(t *testing.T) {
 	blobs, err := convertBlobs(appBlobs...)
 	require.NoError(t, err)
 
-	service := createService(ctx, t, blobs)
+	shares, err := BlobsToShares(blobs...)
+	require.NoError(t, err)
+	service := createService(ctx, t, shares)
 
 	h, err := service.headerGetter(ctx, 1)
 	require.NoError(t, err)
@@ -521,7 +515,7 @@ func TestService_Get(t *testing.T) {
 		require.NoError(t, err)
 
 		assert.Equal(t, sh, resultShares[shareOffset], fmt.Sprintf("issue on %d attempt", i))
-		shareOffset += shares.SparseSharesNeeded(uint32(len(blob.Data)))
+		shareOffset += appshares.SparseSharesNeeded(uint32(len(blob.Data)))
 	}
 }
 
@@ -542,7 +536,7 @@ func TestService_GetAllWithoutPadding(t *testing.T) {
 		rawShares = make([][]byte, 0)
 	)
 
-	padding, err := shares.NamespacePaddingShare(ns, appconsts.ShareVersionZero)
+	padding, err := appshares.NamespacePaddingShare(ns, appconsts.ShareVersionZero)
 	require.NoError(t, err)
 
 	for i := 0; i < 2; i++ {
@@ -562,21 +556,7 @@ func TestService_GetAllWithoutPadding(t *testing.T) {
 	sh, err = BlobsToShares(blobs[4])
 	require.NoError(t, err)
 	rawShares = append(rawShares, sh...)
-
-	bs := ipld.NewMemBlockservice()
-	require.NoError(t, err)
-	eds, err := ipld.AddShares(ctx, rawShares, bs)
-	require.NoError(t, err)
-
-	h := headertest.ExtendedHeaderFromEDS(t, 1, eds)
-
-	fn := func(ctx context.Context, height uint64) (*header.ExtendedHeader, error) {
-		return h, nil
-	}
-	fn2 := func(ctx context.Context) (<-chan *header.ExtendedHeader, error) {
-		return nil, fmt.Errorf("not implemented")
-	}
-	service := NewService(nil, getters.NewIPLDGetter(bs), fn, fn2)
+	service := createService(ctx, t, rawShares)
 
 	newBlobs, err := service.GetAll(ctx, 1, []share.Namespace{blobs[0].Namespace()})
 	require.NoError(t, err)
@@ -585,6 +565,8 @@ func TestService_GetAllWithoutPadding(t *testing.T) {
 	resultShares, err := BlobsToShares(newBlobs...)
 	require.NoError(t, err)
 
+	h, err := service.headerGetter(ctx, 1)
+	require.NoError(t, err)
 	shareOffset := 0
 	for i, blob := range newBlobs {
 		require.True(t, blobs[i].compareCommitments(blob.Commitment))
@@ -594,14 +576,14 @@ func TestService_GetAllWithoutPadding(t *testing.T) {
 		require.NoError(t, err)
 
 		assert.Equal(t, sh, resultShares[shareOffset])
-		shareOffset += shares.SparseSharesNeeded(uint32(len(blob.Data)))
+		shareOffset += appshares.SparseSharesNeeded(uint32(len(blob.Data)))
 	}
 }
 
 func TestAllPaddingSharesInEDS(t *testing.T) {
 	nid, err := share.NewBlobNamespaceV0(tmrand.Bytes(7))
 	require.NoError(t, err)
-	padding, err := shares.NamespacePaddingShare(nid.ToAppNamespace(), appconsts.ShareVersionZero)
+	padding, err := appshares.NamespacePaddingShare(nid.ToAppNamespace(), appconsts.ShareVersionZero)
 	require.NoError(t, err)
 
 	rawShares := make([]share.Share, 16)
@@ -612,20 +594,7 @@ func TestAllPaddingSharesInEDS(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second*5)
 	t.Cleanup(cancel)
 
-	bs := ipld.NewMemBlockservice()
-	require.NoError(t, err)
-	eds, err := ipld.AddShares(ctx, rawShares, bs)
-	require.NoError(t, err)
-
-	h := headertest.ExtendedHeaderFromEDS(t, 1, eds)
-
-	fn := func(ctx context.Context, height uint64) (*header.ExtendedHeader, error) {
-		return h, nil
-	}
-	fn2 := func(ctx context.Context) (<-chan *header.ExtendedHeader, error) {
-		return nil, fmt.Errorf("not implemented")
-	}
-	service := NewService(nil, getters.NewIPLDGetter(bs), fn, fn2)
+	service := createService(ctx, t, rawShares)
 	newBlobs, err := service.GetAll(ctx, 1, []share.Namespace{nid})
 	require.NoError(t, err)
 	assert.Empty(t, newBlobs)
@@ -634,7 +603,7 @@ func TestAllPaddingSharesInEDS(t *testing.T) {
 func TestSkipPaddingsAndRetrieveBlob(t *testing.T) {
 	nid, err := share.NewBlobNamespaceV0(tmrand.Bytes(7))
 	require.NoError(t, err)
-	padding, err := shares.NamespacePaddingShare(nid.ToAppNamespace(), appconsts.ShareVersionZero)
+	padding, err := appshares.NamespacePaddingShare(nid.ToAppNamespace(), appconsts.ShareVersionZero)
 	require.NoError(t, err)
 
 	rawShares := make([]share.Share, 0, 64)
@@ -657,20 +626,7 @@ func TestSkipPaddingsAndRetrieveBlob(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second*5)
 	t.Cleanup(cancel)
 
-	bs := ipld.NewMemBlockservice()
-	require.NoError(t, err)
-	eds, err := ipld.AddShares(ctx, rawShares, bs)
-	require.NoError(t, err)
-
-	h := headertest.ExtendedHeaderFromEDS(t, 1, eds)
-
-	fn := func(ctx context.Context, height uint64) (*header.ExtendedHeader, error) {
-		return h, nil
-	}
-	fn2 := func(ctx context.Context) (<-chan *header.ExtendedHeader, error) {
-		return nil, fmt.Errorf("not implemented")
-	}
-	service := NewService(nil, getters.NewIPLDGetter(bs), fn, fn2)
+	service := createService(ctx, t, rawShares)
 	newBlob, err := service.GetAll(ctx, 1, []share.Namespace{nid})
 	require.NoError(t, err)
 	require.Len(t, newBlob, 1)
@@ -845,7 +801,9 @@ func BenchmarkGetByCommitment(b *testing.B) {
 	blobs, err := convertBlobs(appBlobs...)
 	require.NoError(b, err)
 
-	service := createService(ctx, b, blobs)
+	shares, err := BlobsToShares(blobs...)
+	require.NoError(b, err)
+	service := createService(ctx, b, shares)
 	indexer := &parser{}
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
@@ -897,20 +855,46 @@ func createServiceWithSub(ctx context.Context, t testing.TB, blobs []*Blob) *Ser
 		}()
 		return headerChan, nil
 	}
-	return NewService(nil, getters.NewIPLDGetter(bs), fn, fn2)
+	ctrl := gomock.NewController(t)
+	shareGetter := mock.NewMockGetter(ctrl)
+
+	shareGetter.EXPECT().GetSharesByNamespace(gomock.Any(), gomock.Any(), gomock.Any()).AnyTimes().
+		DoAndReturn(func(ctx context.Context, h *header.ExtendedHeader, ns share.Namespace) (shwap.NamespaceData, error) {
+			idx := int(h.Height()) - 1
+			accessor := &eds.Rsmt2D{ExtendedDataSquare: edsses[idx]}
+			nd, err := eds.NamespaceData(ctx, accessor, ns)
+			return nd, err
+		})
+	return NewService(nil, shareGetter, fn, fn2)
 }
 
-func createService(ctx context.Context, t testing.TB, blobs []*Blob) *Service {
-	bs := ipld.NewMemBlockservice()
+func createService(ctx context.Context, t testing.TB, shares []share.Share) *Service {
+	odsSize := int(utils.SquareSize(len(shares)))
+	square, err := rsmt2d.ComputeExtendedDataSquare(
+		shares,
+		share.DefaultRSMT2DCodec(),
+		wrapper.NewConstructor(uint64(odsSize)))
+	require.NoError(t, err)
+
+	accessor := &eds.Rsmt2D{ExtendedDataSquare: square}
+	ctrl := gomock.NewController(t)
+	shareGetter := mock.NewMockGetter(ctrl)
+	shareGetter.EXPECT().GetSharesByNamespace(gomock.Any(), gomock.Any(), gomock.Any()).AnyTimes().
+		DoAndReturn(func(ctx context.Context, h *header.ExtendedHeader, ns share.Namespace) (shwap.NamespaceData, error) {
+			nd, err := eds.NamespaceData(ctx, accessor, ns)
+			return nd, err
+		})
+	shareGetter.EXPECT().GetShare(gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any()).AnyTimes().
+		DoAndReturn(func(ctx context.Context, h *header.ExtendedHeader, row, col int) (share.Share, error) {
+			s, err := accessor.Sample(ctx, row, col)
+			return s.Share, err
+		})
+
+	// create header and put it into the store
+	h := headertest.ExtendedHeaderFromEDS(t, 1, square)
 	batching := ds_sync.MutexWrap(ds.NewMapDatastore())
 	headerStore, err := store.NewStore[*header.ExtendedHeader](batching)
 	require.NoError(t, err)
-	rawShares, err := BlobsToShares(blobs...)
-	require.NoError(t, err)
-	eds, err := ipld.AddShares(ctx, rawShares, bs)
-	require.NoError(t, err)
-
-	h := headertest.ExtendedHeaderFromEDS(t, 1, eds)
 	err = headerStore.Init(ctx, h)
 	require.NoError(t, err)
 
@@ -920,7 +904,7 @@ func createService(ctx context.Context, t testing.TB, blobs []*Blob) *Service {
 	fn2 := func(ctx context.Context) (<-chan *header.ExtendedHeader, error) {
 		return nil, fmt.Errorf("not implemented")
 	}
-	return NewService(nil, getters.NewIPLDGetter(bs), fn, fn2)
+	return NewService(nil, shareGetter, fn, fn2)
 }
 
 // TestProveCommitmentAllCombinations tests proving all the commitments in a block.
@@ -1022,7 +1006,7 @@ func generateCommitmentProofFromBlock(
 	sharesProof, err := pkgproof.NewShareInclusionProofFromEDS(
 		eds,
 		ns.ToAppNamespace(),
-		shares.NewRange(startShareIndex, startShareIndex+len(blobShares)),
+		appshares.NewRange(startShareIndex, startShareIndex+len(blobShares)),
 	)
 	require.NoError(t, err)
 	require.NoError(t, sharesProof.Validate(dataRoot))

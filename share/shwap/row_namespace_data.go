@@ -5,8 +5,8 @@ import (
 	"fmt"
 	"io"
 
-	"github.com/celestiaorg/celestia-app/pkg/appconsts"
-	"github.com/celestiaorg/celestia-app/pkg/wrapper"
+	"github.com/celestiaorg/celestia-app/v2/pkg/appconsts"
+	"github.com/celestiaorg/celestia-app/v2/pkg/wrapper"
 	"github.com/celestiaorg/go-libp2p-messenger/serde"
 	"github.com/celestiaorg/nmt"
 	nmt_pb "github.com/celestiaorg/nmt/pb"
