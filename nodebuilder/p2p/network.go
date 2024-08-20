@@ -22,7 +22,7 @@ const (
 	Mainnet Network = "celestia"
 	// BlockTime is a network block time.
 	// TODO @renaynay @Wondertan (#790)
-	BlockTime = 6 * time.Second
+	BlockTime = 100 * time.Millisecond
 )
 
 // Network is a type definition for DA network run by Celestia Node.
