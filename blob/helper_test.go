@@ -4,11 +4,12 @@ import (
 	"bytes"
 	"testing"
 
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
+
 	"github.com/celestiaorg/celestia-app/v2/pkg/appconsts"
 	squareblob "github.com/celestiaorg/go-square/blob"
 	"github.com/celestiaorg/go-square/namespace"
-	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/require"
 )
 
 func TestBlobsToShares(t *testing.T) {
