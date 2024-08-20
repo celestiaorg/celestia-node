@@ -39,11 +39,11 @@ const (
 	// NmtHashSize is the size of a digest created by an NMT in bytes.
 	NmtHashSize = 2*share.NamespaceSize + sha256.Size
 
-	// innerNodeSize is the size of data in inner nodes.
-	innerNodeSize = NmtHashSize * 2
+	// InnerNodeSize is the size of data in inner nodes.
+	InnerNodeSize = NmtHashSize * 2
 
-	// leafNodeSize is the size of data in leaf nodes.
-	leafNodeSize = share.NamespaceSize + appconsts.ShareSize
+	// LeafNodeSize is the size of data in leaf nodes.
+	LeafNodeSize = share.NamespaceSize + appconsts.ShareSize
 
 	// cidPrefixSize is the size of the prepended buffer of the CID encoding
 	// for NamespacedSha256. For more information, see:
@@ -100,12 +100,12 @@ func (n nmtNode) Links() []*ipld.Link {
 	switch len(n.RawData()) {
 	default:
 		panic(fmt.Sprintf("unexpected size %v", len(n.RawData())))
-	case innerNodeSize:
+	case InnerNodeSize:
 		leftCid := MustCidFromNamespacedSha256(n.RawData()[:NmtHashSize])
 		rightCid := MustCidFromNamespacedSha256(n.RawData()[NmtHashSize:])
 
 		return []*ipld.Link{{Cid: leftCid}, {Cid: rightCid}}
-	case leafNodeSize:
+	case LeafNodeSize:
 		return nil
 	}
 }
