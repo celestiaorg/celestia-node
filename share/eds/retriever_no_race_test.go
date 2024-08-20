@@ -9,7 +9,8 @@ import (
 
 	"github.com/stretchr/testify/require"
 
-	"github.com/celestiaorg/celestia-app/pkg/wrapper"
+	"github.com/celestiaorg/celestia-app/v2/pkg/da"
+	"github.com/celestiaorg/celestia-app/v2/pkg/wrapper"
 	"github.com/celestiaorg/nmt"
 	"github.com/celestiaorg/rsmt2d"
 
@@ -45,10 +46,10 @@ func TestRetriever_ByzantineError(t *testing.T) {
 	require.NoError(t, err)
 
 	// ensure we rcv an error
-	roots, err := share.NewAxisRoots(attackerEDS)
+	dah, err := da.NewDataAvailabilityHeader(attackerEDS)
 	require.NoError(t, err)
 	r := NewRetriever(bserv)
-	_, err = r.Retrieve(ctx, roots)
+	_, err = r.Retrieve(ctx, &dah)
 	var errByz *byzantine.ErrByzantine
 	require.ErrorAs(t, err, &errByz)
 }

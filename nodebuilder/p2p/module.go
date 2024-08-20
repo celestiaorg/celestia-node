@@ -15,10 +15,9 @@ var log = logging.Logger("module/p2p")
 func ConstructModule(tp node.Type, cfg *Config) fx.Option {
 	// sanitize config values before constructing module
 	cfgErr := cfg.Validate()
-
 	baseComponents := fx.Options(
-		fx.Supply(*cfg),
 		fx.Error(cfgErr),
+		fx.Supply(cfg),
 		fx.Provide(Key),
 		fx.Provide(id),
 		fx.Provide(peerStore),
@@ -33,7 +32,7 @@ func ConstructModule(tp node.Type, cfg *Config) fx.Option {
 		fx.Provide(addrsFactory(cfg.AnnounceAddresses, cfg.NoAnnounceAddresses)),
 		fx.Provide(metrics.NewBandwidthCounter),
 		fx.Provide(newModule),
-		fx.Invoke(Listen(cfg.ListenAddresses)),
+		fx.Invoke(Listen(cfg)),
 		fx.Provide(resourceManager),
 		fx.Provide(resourceManagerOpt(allowList)),
 	)

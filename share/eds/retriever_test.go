@@ -11,6 +11,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
+	"github.com/celestiaorg/celestia-app/v2/pkg/da"
 	"github.com/celestiaorg/rsmt2d"
 
 	"github.com/celestiaorg/celestia-node/header"
@@ -55,9 +56,9 @@ func TestRetriever_Retrieve(t *testing.T) {
 			ctx, cancel := context.WithTimeout(ctx, time.Minute*5) // the timeout is big for the max size which is long
 			defer cancel()
 
-			roots, err := share.NewAxisRoots(in)
+			dah, err := da.NewDataAvailabilityHeader(in)
 			require.NoError(t, err)
-			out, err := r.Retrieve(ctx, roots)
+			out, err := r.Retrieve(ctx, &dah)
 			require.NoError(t, err)
 			assert.True(t, in.Equals(out))
 		})
@@ -80,9 +81,9 @@ func TestRetriever_MultipleRandQuadrants(t *testing.T) {
 	in, err := ipld.AddShares(ctx, shares, bServ)
 	require.NoError(t, err)
 
-	roots, err := share.NewAxisRoots(in)
+	dah, err := da.NewDataAvailabilityHeader(in)
 	require.NoError(t, err)
-	ses, err := r.newSession(ctx, roots)
+	ses, err := r.newSession(ctx, &dah)
 	require.NoError(t, err)
 
 	// wait until two additional quadrants requested

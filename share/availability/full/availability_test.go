@@ -3,94 +3,77 @@ package full
 import (
 	"context"
 	"testing"
-	"time"
 
 	"github.com/golang/mock/gomock"
+	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+
+	"github.com/celestiaorg/celestia-app/v2/pkg/da"
 
 	"github.com/celestiaorg/celestia-node/header/headertest"
 	"github.com/celestiaorg/celestia-node/share"
+	availability_test "github.com/celestiaorg/celestia-node/share/availability/test"
 	"github.com/celestiaorg/celestia-node/share/eds/edstest"
-	"github.com/celestiaorg/celestia-node/share/shwap"
-	"github.com/celestiaorg/celestia-node/share/shwap/getters/mock"
-	"github.com/celestiaorg/celestia-node/store"
+	"github.com/celestiaorg/celestia-node/share/mocks"
 )
 
-func TestSharesAvailable(t *testing.T) {
-	ctx, cancel := context.WithTimeout(context.Background(), time.Second)
+func TestShareAvailableOverMocknet_Full(t *testing.T) {
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	net := availability_test.NewTestDAGNet(ctx, t)
+	_, root := RandNode(net, 32)
+
+	eh := headertest.RandExtendedHeaderWithRoot(t, root)
+	nd := Node(net)
+	net.ConnectAll()
+
+	err := nd.SharesAvailable(ctx, eh)
+	assert.NoError(t, err)
+}
+
+func TestSharesAvailable_Full(t *testing.T) {
+	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
 	// RandServiceWithSquare creates a NewShareAvailability inside, so we can test it
-	eds := edstest.RandEDS(t, 16)
-	roots, err := share.NewAxisRoots(eds)
-	require.NoError(t, err)
-	eh := headertest.RandExtendedHeaderWithRoot(t, roots)
+	getter, dah := GetterWithRandSquare(t, 16)
 
-	getter := mock.NewMockGetter(gomock.NewController(t))
-	getter.EXPECT().GetEDS(gomock.Any(), eh).Return(eds, nil)
-
-	store, err := store.NewStore(store.DefaultParameters(), t.TempDir())
-	require.NoError(t, err)
-	avail := NewShareAvailability(store, getter)
-	err = avail.SharesAvailable(ctx, eh)
-	require.NoError(t, err)
-
-	// Check if the store has the root
-	has, err := store.HasByHash(ctx, roots.Hash())
-	require.NoError(t, err)
-	require.True(t, has)
-
-	// Check if the store has the root linked to the height
-	has, err = store.HasByHeight(ctx, eh.Height())
-	require.NoError(t, err)
-	require.True(t, has)
+	eh := headertest.RandExtendedHeaderWithRoot(t, dah)
+	avail := TestAvailability(t, getter)
+	err := avail.SharesAvailable(ctx, eh)
+	assert.NoError(t, err)
 }
 
-func TestSharesAvailable_StoredEds(t *testing.T) {
-	ctx, cancel := context.WithTimeout(context.Background(), time.Second)
+func TestSharesAvailable_StoresToEDSStore(t *testing.T) {
+	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
-	eds := edstest.RandEDS(t, 4)
-	roots, err := share.NewAxisRoots(eds)
-	require.NoError(t, err)
-	eh := headertest.RandExtendedHeaderWithRoot(t, roots)
-	require.NoError(t, err)
+	// RandServiceWithSquare creates a NewShareAvailability inside, so we can test it
+	getter, dah := GetterWithRandSquare(t, 16)
+	eh := headertest.RandExtendedHeaderWithRoot(t, dah)
+	avail := TestAvailability(t, getter)
+	err := avail.SharesAvailable(ctx, eh)
+	assert.NoError(t, err)
 
-	store, err := store.NewStore(store.DefaultParameters(), t.TempDir())
-	require.NoError(t, err)
-	avail := NewShareAvailability(store, nil)
-
-	err = store.Put(ctx, roots, eh.Height(), eds)
-	require.NoError(t, err)
-
-	has, err := store.HasByHeight(ctx, eh.Height())
-	require.NoError(t, err)
-	require.True(t, has)
-
-	err = avail.SharesAvailable(ctx, eh)
-	require.NoError(t, err)
-
-	has, err = store.HasByHeight(ctx, eh.Height())
-	require.NoError(t, err)
-	require.True(t, has)
+	has, err := avail.store.Has(ctx, dah.Hash())
+	assert.NoError(t, err)
+	assert.True(t, has)
 }
 
-func TestSharesAvailable_ErrNotAvailable(t *testing.T) {
+func TestSharesAvailable_Full_ErrNotAvailable(t *testing.T) {
 	ctrl := gomock.NewController(t)
-	getter := mock.NewMockGetter(ctrl)
-	ctx, cancel := context.WithTimeout(context.Background(), time.Second)
+	getter := mocks.NewMockGetter(ctrl)
+	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
 	eds := edstest.RandEDS(t, 4)
-	roots, err := share.NewAxisRoots(eds)
-	eh := headertest.RandExtendedHeaderWithRoot(t, roots)
+	dah, err := da.NewDataAvailabilityHeader(eds)
+	eh := headertest.RandExtendedHeaderWithRoot(t, &dah)
 	require.NoError(t, err)
+	avail := TestAvailability(t, getter)
 
-	store, err := store.NewStore(store.DefaultParameters(), t.TempDir())
-	require.NoError(t, err)
-	avail := NewShareAvailability(store, getter)
-
-	errors := []error{shwap.ErrNotFound, context.DeadlineExceeded}
+	errors := []error{share.ErrNotFound, context.DeadlineExceeded}
 	for _, getterErr := range errors {
 		getter.EXPECT().GetEDS(gomock.Any(), gomock.Any()).Return(nil, getterErr)
 		err := avail.SharesAvailable(ctx, eh)

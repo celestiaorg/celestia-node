@@ -6,9 +6,9 @@ import (
 
 	"github.com/ipfs/boxo/blockstore"
 
+	"github.com/celestiaorg/celestia-app/v2/pkg/da"
 	"github.com/celestiaorg/rsmt2d"
 
-	"github.com/celestiaorg/celestia-node/share"
 	"github.com/celestiaorg/celestia-node/share/ipld"
 )
 
@@ -32,7 +32,7 @@ func (e *ErrByzantine) Error() string {
 func NewErrByzantine(
 	ctx context.Context,
 	bStore blockstore.Blockstore,
-	roots *share.AxisRoots,
+	dah *da.DataAvailabilityHeader,
 	errByz *rsmt2d.ErrByzantineData,
 ) error {
 	sharesWithProof := make([]*ShareWithProof, len(errByz.Shares))
@@ -42,7 +42,7 @@ func NewErrByzantine(
 		if len(share) == 0 {
 			continue
 		}
-		swp, err := GetShareWithProof(ctx, bGetter, roots, share, errByz.Axis, int(errByz.Index), index)
+		swp, err := GetShareWithProof(ctx, bGetter, dah, share, errByz.Axis, int(errByz.Index), index)
 		if err != nil {
 			log.Warn("requesting proof failed",
 				"errByz", errByz,
@@ -53,12 +53,12 @@ func NewErrByzantine(
 
 		sharesWithProof[index] = swp
 		// it is enough to collect half of the shares to construct the befp
-		if count++; count >= len(roots.RowRoots)/2 {
+		if count++; count >= len(dah.RowRoots)/2 {
 			break
 		}
 	}
 
-	if count < len(roots.RowRoots)/2 {
+	if count < len(dah.RowRoots)/2 {
 		return fmt.Errorf("failed to collect proof")
 	}
 
