@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+
 	ds "github.com/ipfs/go-datastore"
 	"github.com/ipfs/go-datastore/namespace"
 	"github.com/spf13/cobra"
@@ -72,7 +73,7 @@ var clearDASCheckpointCmd = &cobra.Command{
 			return err
 		}
 
-		bs, err = wrappedDS.Get(context.Background(), ds.NewKey("checkpoint"))
+		_, err = wrappedDS.Get(context.Background(), ds.NewKey("checkpoint"))
 		if !errors.Is(err, ds.ErrNotFound) {
 			fmt.Println("ERROR!!: ", err)
 			return err
