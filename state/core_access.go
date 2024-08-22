@@ -265,15 +265,14 @@ func (ca *CoreAccessor) SubmitPayForBlob(
 		}
 
 		if err != nil {
-			executionErr := err.(*user.ExecutionError)
-			return nil, fmt.Errorf(err.Error(), executionErr.ErrorLog)
+			return nil, err
 		}
 
 		// metrics should only be counted on a successful PFD tx
 		if confirmTxResp.Code == 0 {
 			ca.markSuccessfulPFB()
-			return convertToSdkTxResponse(confirmTxResp), nil
 		}
+		return convertToSdkTxResponse(confirmTxResp), nil
 	}
 	return nil, fmt.Errorf("failed to submit blobs after %d attempts: %w", maxRetries, lastErr)
 }
