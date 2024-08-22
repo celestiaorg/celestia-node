@@ -13,7 +13,7 @@ import (
 	"github.com/stretchr/testify/require"
 	core "github.com/tendermint/tendermint/types"
 
-	"github.com/celestiaorg/celestia-app/test/util/malicious"
+	"github.com/celestiaorg/celestia-app/v2/test/util/malicious"
 	"github.com/celestiaorg/nmt"
 	"github.com/celestiaorg/rsmt2d"
 

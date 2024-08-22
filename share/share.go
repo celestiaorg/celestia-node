@@ -4,8 +4,8 @@ import (
 	"crypto/sha256"
 	"fmt"
 
-	"github.com/celestiaorg/celestia-app/pkg/appconsts"
-	appshares "github.com/celestiaorg/celestia-app/pkg/shares"
+	"github.com/celestiaorg/celestia-app/v2/pkg/appconsts"
+	"github.com/celestiaorg/go-square/shares"
 	"github.com/celestiaorg/nmt"
 	"github.com/celestiaorg/rsmt2d"
 )
@@ -79,6 +79,6 @@ func (s *ShareWithProof) Validate(rootHash []byte, x, y, edsSize int) bool {
 var tailPadding Share
 
 func init() {
-	shr := appshares.TailPaddingShare()
+	shr := shares.TailPaddingShare()
 	tailPadding = shr.ToBytes()
 }

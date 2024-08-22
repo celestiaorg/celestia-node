@@ -1,6 +1,7 @@
 package share
 
 import (
+	headerServ "github.com/celestiaorg/celestia-node/nodebuilder/header"
 	"github.com/celestiaorg/celestia-node/share"
 	"github.com/celestiaorg/celestia-node/share/shwap"
 	"github.com/celestiaorg/celestia-node/share/shwap/getters"
@@ -9,8 +10,8 @@ import (
 	"github.com/celestiaorg/celestia-node/store"
 )
 
-func newShareModule(getter shwap.Getter, avail share.Availability) Module {
-	return &module{getter, avail}
+func newShareModule(getter shwap.Getter, avail share.Availability, header headerServ.Module) Module {
+	return &module{getter, avail, header}
 }
 
 func lightGetter(

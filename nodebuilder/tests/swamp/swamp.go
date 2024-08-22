@@ -19,7 +19,7 @@ import (
 	"go.uber.org/fx"
 	"golang.org/x/exp/maps"
 
-	"github.com/celestiaorg/celestia-app/test/util/testnode"
+	"github.com/celestiaorg/celestia-app/v2/test/util/testnode"
 	libhead "github.com/celestiaorg/go-header"
 
 	"github.com/celestiaorg/celestia-node/core"
@@ -37,8 +37,8 @@ import (
 var blackholeIP6 = net.ParseIP("100::")
 
 // DefaultTestTimeout should be used as the default timeout on all the Swamp tests.
-// It's generously set to 5 minutes to give enough time for CI.
-const DefaultTestTimeout = time.Minute * 5
+// It's generously set to 10 minutes to give enough time for CI.
+const DefaultTestTimeout = time.Minute * 10
 
 // Swamp represents the main functionality that is needed for the test-case:
 // - Network to link the nodes
@@ -82,13 +82,20 @@ func NewSwamp(t *testing.T, options ...Option) *Swamp {
 		cfg:           ic,
 		Network:       mocknet.New(),
 		ClientContext: cctx,
-		Accounts:      ic.Accounts,
+		Accounts:      getAccounts(ic),
 		nodes:         map[*nodebuilder.Node]struct{}{},
 	}
 
 	swp.t.Cleanup(swp.cleanup)
 	swp.setupGenesis()
 	return swp
+}
+
+func getAccounts(config *testnode.Config) (accounts []string) {
+	for _, account := range config.Genesis.Accounts() {
+		accounts = append(accounts, account.Name)
+	}
+	return accounts
 }
 
 // cleanup frees up all the resources

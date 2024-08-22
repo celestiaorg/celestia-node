@@ -55,7 +55,7 @@ func TestFraudProofHandling(t *testing.T) {
 	)
 
 	sw := swamp.NewSwamp(t, swamp.WithBlockTime(blockTime))
-	fillDn := swamp.FillBlocks(ctx, sw.ClientContext, sw.Accounts, blockSize, blocks)
+	fillDn := swamp.FillBlocks(ctx, sw.ClientContext, sw.Accounts[0], blockSize, blocks)
 	set, val := sw.Validators(t)
 	fMaker := headerfraud.NewFraudMaker(t, 10, []types.PrivValidator{val}, set)
 

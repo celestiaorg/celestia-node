@@ -65,5 +65,7 @@ changelog:
     exclude:
       - "^docs:"
       - "^test:"
+release:
+  prerelease: auto
 git:
-  prerelease_suffix: "-"
+  prerelease_suffix: "-rc*"

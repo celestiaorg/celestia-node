@@ -35,7 +35,7 @@ func TestShrexNDFromLights(t *testing.T) {
 	t.Cleanup(cancel)
 
 	sw := swamp.NewSwamp(t, swamp.WithBlockTime(btime))
-	fillDn := swamp.FillBlocks(ctx, sw.ClientContext, sw.Accounts, bsize, blocks)
+	fillDn := swamp.FillBlocks(ctx, sw.ClientContext, sw.Accounts[0], bsize, blocks)
 
 	bridge := sw.NewBridgeNode()
 	sw.SetBootstrapper(t, bridge)
@@ -87,14 +87,14 @@ func TestShrexNDFromLightsWithBadFulls(t *testing.T) {
 		btime         = time.Millisecond * 300
 		bsize         = 16
 		amountOfFulls = 5
-		testTimeout   = time.Second * 10
+		testTimeout   = time.Second * 20
 	)
 
 	ctx, cancel := context.WithTimeout(context.Background(), testTimeout)
 	t.Cleanup(cancel)
 
 	sw := swamp.NewSwamp(t, swamp.WithBlockTime(btime))
-	fillDn := swamp.FillBlocks(ctx, sw.ClientContext, sw.Accounts, bsize, blocks)
+	fillDn := swamp.FillBlocks(ctx, sw.ClientContext, sw.Accounts[0], bsize, blocks)
 
 	bridge := sw.NewBridgeNode()
 	sw.SetBootstrapper(t, bridge)

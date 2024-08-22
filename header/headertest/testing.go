@@ -17,7 +17,7 @@ import (
 	"github.com/tendermint/tendermint/types"
 	tmtime "github.com/tendermint/tendermint/types/time"
 
-	"github.com/celestiaorg/celestia-app/pkg/da"
+	"github.com/celestiaorg/celestia-app/v2/pkg/da"
 	libhead "github.com/celestiaorg/go-header"
 	"github.com/celestiaorg/go-header/headertest"
 	"github.com/celestiaorg/rsmt2d"
@@ -320,6 +320,39 @@ func RandBlockID(testing.TB) types.BlockID {
 	_, _ = rand.Read(bid.Hash)
 	_, _ = rand.Read(bid.PartSetHeader.Hash)
 	return bid
+}
+
+func ExtendedHeadersFromEdsses(t testing.TB, edsses []*rsmt2d.ExtendedDataSquare) []*header.ExtendedHeader {
+	valSet, vals := RandValidatorSet(10, 10)
+	headers := make([]*header.ExtendedHeader, len(edsses))
+	for i, eds := range edsses {
+		gen := RandRawHeader(t)
+
+		roots, err := share.NewAxisRoots(eds)
+		require.NoError(t, err)
+		gen.DataHash = roots.Hash()
+		gen.ValidatorsHash = valSet.Hash()
+		gen.NextValidatorsHash = valSet.Hash()
+		gen.Height = int64(i + 1)
+		if i > 0 {
+			gen.LastBlockID = headers[i-1].Commit.BlockID
+			gen.LastCommitHash = headers[i-1].Commit.Hash()
+		}
+		blockID := RandBlockID(t)
+		blockID.Hash = gen.Hash()
+		voteSet := types.NewVoteSet(gen.ChainID, gen.Height, 0, tmproto.PrecommitType, valSet)
+		commit, err := MakeCommit(blockID, gen.Height, 0, voteSet, vals, time.Now().UTC())
+		require.NoError(t, err)
+		eh := &header.ExtendedHeader{
+			RawHeader:    *gen,
+			Commit:       commit,
+			ValidatorSet: valSet,
+			DAH:          roots,
+		}
+		require.NoError(t, eh.Validate())
+		headers[i] = eh
+	}
+	return headers
 }
 
 func ExtendedHeaderFromEDS(t testing.TB, height uint64, eds *rsmt2d.ExtendedDataSquare) *header.ExtendedHeader {

@@ -16,13 +16,18 @@ import (
 	ds_sync "github.com/ipfs/go-datastore/sync"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"github.com/tendermint/tendermint/crypto/merkle"
 	tmrand "github.com/tendermint/tendermint/libs/rand"
 
-	"github.com/celestiaorg/celestia-app/pkg/appconsts"
-	appns "github.com/celestiaorg/celestia-app/pkg/namespace"
-	appshares "github.com/celestiaorg/celestia-app/pkg/shares"
-	"github.com/celestiaorg/celestia-app/pkg/wrapper"
+	"github.com/celestiaorg/celestia-app/v2/pkg/appconsts"
+	pkgproof "github.com/celestiaorg/celestia-app/v2/pkg/proof"
+	"github.com/celestiaorg/celestia-app/v2/pkg/wrapper"
 	"github.com/celestiaorg/go-header/store"
+	"github.com/celestiaorg/go-square/blob"
+	"github.com/celestiaorg/go-square/inclusion"
+	squarens "github.com/celestiaorg/go-square/namespace"
+	appshares "github.com/celestiaorg/go-square/shares"
+	"github.com/celestiaorg/nmt"
 	"github.com/celestiaorg/rsmt2d"
 
 	"github.com/celestiaorg/celestia-node/blob/blobtest"
@@ -30,6 +35,8 @@ import (
 	"github.com/celestiaorg/celestia-node/header/headertest"
 	"github.com/celestiaorg/celestia-node/libs/utils"
 	"github.com/celestiaorg/celestia-node/share"
+	"github.com/celestiaorg/celestia-node/share/eds/edstest"
+	"github.com/celestiaorg/celestia-node/share/ipld"
 	eds "github.com/celestiaorg/celestia-node/share/new_eds"
 	"github.com/celestiaorg/celestia-node/share/shwap"
 	"github.com/celestiaorg/celestia-node/share/shwap/getters/mock"
@@ -350,7 +357,7 @@ func TestBlobService_Get(t *testing.T) {
 		{
 			name: "empty result and err when blobs were not found ",
 			doFn: func() (interface{}, error) {
-				nid, err := share.NewBlobNamespaceV0(tmrand.Bytes(appns.NamespaceVersionZeroIDSize))
+				nid, err := share.NewBlobNamespaceV0(tmrand.Bytes(squarens.NamespaceVersionZeroIDSize))
 				require.NoError(t, err)
 				return service.GetAll(ctx, 1, []share.Namespace{nid})
 			},
@@ -395,7 +402,9 @@ func TestBlobService_Get(t *testing.T) {
 				getterWrapper.EXPECT().
 					GetSharesByNamespace(gomock.Any(), gomock.Any(), gomock.Any()).
 					DoAndReturn(
-						func(ctx context.Context, h *header.ExtendedHeader, ns share.Namespace) (shwap.NamespaceData, error) {
+						func(
+							ctx context.Context, h *header.ExtendedHeader, ns share.Namespace,
+						) (shwap.NamespaceData, error) {
 							if ns.Equals(blobsWithDiffNamespaces[0].Namespace()) {
 								return nil, errors.New("internal error")
 							}
@@ -604,8 +613,8 @@ func TestSkipPaddingsAndRetrieveBlob(t *testing.T) {
 
 	appBlob, err := blobtest.GenerateV0Blobs([]int{6}, true)
 	require.NoError(t, err)
-	appBlob[0].NamespaceVersion = nid[0]
-	appBlob[0].NamespaceID = nid[1:]
+	appBlob[0].NamespaceVersion = uint32(nid[0])
+	appBlob[0].NamespaceId = nid[1:]
 
 	blobs, err := convertBlobs(appBlob...)
 	require.NoError(t, err)
@@ -622,6 +631,164 @@ func TestSkipPaddingsAndRetrieveBlob(t *testing.T) {
 	require.NoError(t, err)
 	require.Len(t, newBlob, 1)
 	require.True(t, newBlob[0].compareCommitments(blobs[0].Commitment))
+}
+
+func TestService_Subscribe(t *testing.T) {
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second*10)
+	t.Cleanup(cancel)
+
+	appBlobs, err := blobtest.GenerateV0Blobs([]int{16, 16, 16}, true)
+	require.NoError(t, err)
+	blobs, err := convertBlobs(appBlobs...)
+	require.NoError(t, err)
+
+	service := createServiceWithSub(ctx, t, blobs)
+	err = service.Start(ctx)
+	require.NoError(t, err)
+
+	t.Run("successful subscription", func(t *testing.T) {
+		ns := blobs[0].Namespace()
+		subCh, err := service.Subscribe(ctx, ns)
+		require.NoError(t, err)
+
+		for i := uint64(0); i < uint64(len(blobs)); i++ {
+			select {
+			case resp := <-subCh:
+				assert.Equal(t, i+1, resp.Height)
+				assert.Equal(t, blobs[i].Data, resp.Blobs[0].Data)
+			case <-time.After(time.Second * 2):
+				t.Fatalf("timeout waiting for subscription response %d", i)
+			}
+		}
+	})
+
+	t.Run("subscription with no matching blobs", func(t *testing.T) {
+		ns, err := share.NewBlobNamespaceV0([]byte("nonexist"))
+		require.NoError(t, err)
+
+		subCh, err := service.Subscribe(ctx, ns)
+		require.NoError(t, err)
+
+		// check that empty responses are received (as no matching blobs were found)
+		for i := uint64(0); i < uint64(len(blobs)); i++ {
+			select {
+			case resp := <-subCh:
+				assert.Empty(t, resp.Blobs)
+				assert.Equal(t, i+1, resp.Height)
+			case <-time.After(time.Second * 2):
+				t.Fatalf("timeout waiting for empty subscription response %d", i)
+			}
+		}
+	})
+
+	t.Run("subscription cancellation", func(t *testing.T) {
+		ns := blobs[0].Namespace()
+		subCtx, subCancel := context.WithCancel(ctx)
+		subCh, err := service.Subscribe(subCtx, ns)
+		require.NoError(t, err)
+
+		// cancel the subscription context after receiving the first response
+		select {
+		case <-subCh:
+			subCancel()
+		case <-time.After(time.Second * 2):
+			t.Fatal("timeout waiting for first subscription response")
+		}
+
+		select {
+		case _, ok := <-subCh:
+			assert.False(t, ok, "expected subscription channel to be closed")
+		case <-time.After(time.Second * 2):
+			t.Fatal("timeout waiting for subscription channel to close")
+		}
+	})
+
+	t.Run("graceful shutdown", func(t *testing.T) {
+		ns := blobs[0].Namespace()
+		subCh, err := service.Subscribe(ctx, ns)
+		require.NoError(t, err)
+
+		// cancel the subscription context after receiving the last response
+		for range blobs {
+			select {
+			case val := <-subCh:
+				if val.Height == uint64(len(blobs)) {
+					err = service.Stop(context.Background())
+					require.NoError(t, err)
+				}
+			case <-time.After(time.Second * 2):
+				t.Fatal("timeout waiting for subscription response")
+			}
+		}
+
+		select {
+		case _, ok := <-subCh:
+			assert.False(t, ok, "expected subscription channel to be closed")
+		case <-time.After(time.Second * 2):
+			t.Fatal("timeout waiting for subscription channel to close")
+		}
+	})
+}
+
+func TestService_Subscribe_MultipleNamespaces(t *testing.T) {
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second*10)
+	t.Cleanup(cancel)
+
+	appBlobs1, err := blobtest.GenerateV0Blobs([]int{100, 100}, true)
+	require.NoError(t, err)
+	appBlobs2, err := blobtest.GenerateV0Blobs([]int{100, 100}, true)
+	for i := range appBlobs2 {
+		// if we don't do this, appBlobs1 and appBlobs2 will share a NS
+		appBlobs2[i].GetNamespaceId()[len(appBlobs2[i].GetNamespaceId())-1] = 0xDE
+	}
+	require.NoError(t, err)
+
+	blobs1, err := convertBlobs(appBlobs1...)
+	require.NoError(t, err)
+	blobs2, err := convertBlobs(appBlobs2...)
+	require.NoError(t, err)
+
+	//nolint: gocritic
+	allBlobs := append(blobs1, blobs2...)
+
+	service := createServiceWithSub(ctx, t, allBlobs)
+	err = service.Start(ctx)
+	require.NoError(t, err)
+
+	ns1 := blobs1[0].Namespace()
+	ns2 := blobs2[0].Namespace()
+
+	subCh1, err := service.Subscribe(ctx, ns1)
+	require.NoError(t, err)
+	subCh2, err := service.Subscribe(ctx, ns2)
+	require.NoError(t, err)
+
+	for i := uint64(0); i < uint64(len(allBlobs)); i++ {
+		select {
+		case resp := <-subCh1:
+			assert.Equal(t, i+1, resp.Height)
+			if i < uint64(len(blobs1)) {
+				assert.NotEmpty(t, resp.Blobs)
+				for _, b := range resp.Blobs {
+					assert.Equal(t, ns1, b.Namespace())
+				}
+			} else {
+				assert.Empty(t, resp.Blobs)
+			}
+		case resp := <-subCh2:
+			assert.Equal(t, i+1, resp.Height)
+			if i >= uint64(len(blobs1)) {
+				assert.NotEmpty(t, resp.Blobs)
+				for _, b := range resp.Blobs {
+					assert.Equal(t, ns2, b.Namespace())
+				}
+			} else {
+				assert.Empty(t, resp.Blobs)
+			}
+		case <-time.After(time.Second * 2):
+			t.Fatalf("timeout waiting for subscription responses %d", i)
+		}
+	}
 }
 
 // BenchmarkGetByCommitment-12    	    1869	    571663 ns/op	 1085371 B/op	    6414 allocs/op
@@ -651,6 +818,54 @@ func BenchmarkGetByCommitment(b *testing.B) {
 		)
 		require.NoError(b, err)
 	}
+}
+
+func createServiceWithSub(ctx context.Context, t testing.TB, blobs []*Blob) *Service {
+	bs := ipld.NewMemBlockservice()
+	batching := ds_sync.MutexWrap(ds.NewMapDatastore())
+	headerStore, err := store.NewStore[*header.ExtendedHeader](batching)
+	require.NoError(t, err)
+	edsses := make([]*rsmt2d.ExtendedDataSquare, len(blobs))
+	for i, blob := range blobs {
+		rawShares, err := BlobsToShares(blob)
+		require.NoError(t, err)
+		eds, err := ipld.AddShares(ctx, rawShares, bs)
+		require.NoError(t, err)
+		edsses[i] = eds
+	}
+	headers := headertest.ExtendedHeadersFromEdsses(t, edsses)
+
+	err = headerStore.Init(ctx, headers[0])
+	require.NoError(t, err)
+
+	err = headerStore.Append(ctx, headers[1:]...)
+	require.NoError(t, err)
+
+	fn := func(ctx context.Context, height uint64) (*header.ExtendedHeader, error) {
+		return headers[height-1], nil
+		// return headerStore.GetByHeight(ctx, height)
+	}
+	fn2 := func(ctx context.Context) (<-chan *header.ExtendedHeader, error) {
+		headerChan := make(chan *header.ExtendedHeader, len(headers))
+		defer func() {
+			for _, h := range headers {
+				time.Sleep(time.Millisecond * 100)
+				headerChan <- h
+			}
+		}()
+		return headerChan, nil
+	}
+	ctrl := gomock.NewController(t)
+	shareGetter := mock.NewMockGetter(ctrl)
+
+	shareGetter.EXPECT().GetSharesByNamespace(gomock.Any(), gomock.Any(), gomock.Any()).AnyTimes().
+		DoAndReturn(func(ctx context.Context, h *header.ExtendedHeader, ns share.Namespace) (shwap.NamespaceData, error) {
+			idx := int(h.Height()) - 1
+			accessor := &eds.Rsmt2D{ExtendedDataSquare: edsses[idx]}
+			nd, err := eds.NamespaceData(ctx, accessor, ns)
+			return nd, err
+		})
+	return NewService(nil, shareGetter, fn, fn2)
 }
 
 func createService(ctx context.Context, t testing.TB, shares []share.Share) *Service {
@@ -686,5 +901,150 @@ func createService(ctx context.Context, t testing.TB, shares []share.Share) *Ser
 	fn := func(ctx context.Context, height uint64) (*header.ExtendedHeader, error) {
 		return headerStore.GetByHeight(ctx, height)
 	}
-	return NewService(nil, shareGetter, fn)
+	fn2 := func(ctx context.Context) (<-chan *header.ExtendedHeader, error) {
+		return nil, fmt.Errorf("not implemented")
+	}
+	return NewService(nil, shareGetter, fn, fn2)
+}
+
+// TestProveCommitmentAllCombinations tests proving all the commitments in a block.
+// The number of shares per blob increases with each blob to cover proving a large number
+// of possibilities.
+func TestProveCommitmentAllCombinations(t *testing.T) {
+	tests := map[string]struct {
+		blobSize int
+	}{
+		"blobs that take less than a share": {blobSize: 350},
+		"blobs that take 2 shares":          {blobSize: 1000},
+		"blobs that take ~10 shares":        {blobSize: 5000},
+		"large blobs ~100 shares":           {blobSize: 50000},
+		"large blobs ~150 shares":           {blobSize: 75000},
+		"large blobs ~300 shares":           {blobSize: 150000},
+		"very large blobs ~1500 shares":     {blobSize: 750000},
+	}
+
+	for name, tc := range tests {
+		t.Run(name, func(t *testing.T) {
+			proveAndVerifyShareCommitments(t, tc.blobSize)
+		})
+	}
+}
+
+func proveAndVerifyShareCommitments(t *testing.T, blobSize int) {
+	msgs, blobs, nss, eds, _, _, dataRoot := edstest.GenerateTestBlock(t, blobSize, 10)
+	for msgIndex, msg := range msgs {
+		t.Run(fmt.Sprintf("msgIndex=%d", msgIndex), func(t *testing.T) {
+			blb, err := NewBlob(uint8(blobs[msgIndex].GetShareVersion()), nss[msgIndex].Bytes(), blobs[msgIndex].GetData())
+			require.NoError(t, err)
+			blobShares, err := BlobsToShares(blb)
+			require.NoError(t, err)
+			// compute the commitment
+			actualCommitmentProof, err := ProveCommitment(eds, nss[msgIndex].Bytes(), blobShares)
+			require.NoError(t, err)
+
+			// make sure the actual commitment attests to the data
+			require.NoError(t, actualCommitmentProof.Validate())
+			valid, err := actualCommitmentProof.Verify(
+				dataRoot,
+				appconsts.DefaultSubtreeRootThreshold,
+			)
+			require.NoError(t, err)
+			require.True(t, valid)
+
+			// generate an expected proof and verify it's valid
+			expectedCommitmentProof := generateCommitmentProofFromBlock(t, eds, nss[msgIndex].Bytes(), blobs[msgIndex], dataRoot)
+			require.NoError(t, expectedCommitmentProof.Validate())
+			valid, err = expectedCommitmentProof.Verify(
+				dataRoot,
+				appconsts.DefaultSubtreeRootThreshold,
+			)
+			require.NoError(t, err)
+			require.True(t, valid)
+
+			// make sure the expected proof is the same as the actual on
+			assert.Equal(t, expectedCommitmentProof, *actualCommitmentProof)
+
+			// make sure the expected commitment commits to the subtree roots in the result proof
+			actualCommitment, _ := merkle.ProofsFromByteSlices(actualCommitmentProof.SubtreeRoots)
+			assert.Equal(t, msg.ShareCommitments[0], actualCommitment)
+		})
+	}
+}
+
+// generateCommitmentProofFromBlock takes a block and a PFB index and generates the commitment proof
+// using the traditional way of doing, instead of using the API.
+func generateCommitmentProofFromBlock(
+	t *testing.T,
+	eds *rsmt2d.ExtendedDataSquare,
+	ns share.Namespace,
+	blob *blob.Blob,
+	dataRoot []byte,
+) CommitmentProof {
+	// create the blob from the data
+	blb, err := NewBlob(
+		uint8(blob.GetShareVersion()),
+		ns,
+		blob.GetData(),
+	)
+	require.NoError(t, err)
+
+	// convert the blob to a number of shares
+	blobShares, err := BlobsToShares(blb)
+	require.NoError(t, err)
+
+	// find the first share of the blob in the ODS
+	startShareIndex := -1
+	for i, sh := range eds.FlattenedODS() {
+		if bytes.Equal(sh, blobShares[0]) {
+			startShareIndex = i
+			break
+		}
+	}
+	require.Greater(t, startShareIndex, 0)
+
+	// create an inclusion proof of the blob using the share range instead of the commitment
+	sharesProof, err := pkgproof.NewShareInclusionProofFromEDS(
+		eds,
+		ns.ToAppNamespace(),
+		appshares.NewRange(startShareIndex, startShareIndex+len(blobShares)),
+	)
+	require.NoError(t, err)
+	require.NoError(t, sharesProof.Validate(dataRoot))
+
+	// calculate the subtree roots
+	subtreeRoots := make([][]byte, 0)
+	dataCursor := 0
+	for _, proof := range sharesProof.ShareProofs {
+		ranges, err := nmt.ToLeafRanges(
+			int(proof.Start),
+			int(proof.End),
+			inclusion.SubTreeWidth(len(blobShares), appconsts.DefaultSubtreeRootThreshold),
+		)
+		require.NoError(t, err)
+		roots, err := computeSubtreeRoots(
+			blobShares[dataCursor:int32(dataCursor)+proof.End-proof.Start],
+			ranges,
+			int(proof.Start),
+		)
+		require.NoError(t, err)
+		subtreeRoots = append(subtreeRoots, roots...)
+		dataCursor += int(proof.End - proof.Start)
+	}
+
+	// convert the nmt proof to be accepted by the commitment proof
+	nmtProofs := make([]*nmt.Proof, 0)
+	for _, proof := range sharesProof.ShareProofs {
+		nmtProof := nmt.NewInclusionProof(int(proof.Start), int(proof.End), proof.Nodes, true)
+		nmtProofs = append(nmtProofs, &nmtProof)
+	}
+
+	commitmentProof := CommitmentProof{
+		SubtreeRoots:      subtreeRoots,
+		SubtreeRootProofs: nmtProofs,
+		NamespaceID:       sharesProof.NamespaceId,
+		RowProof:          *sharesProof.RowProof,
+		NamespaceVersion:  uint8(sharesProof.NamespaceVersion),
+	}
+
+	return commitmentProof
 }
