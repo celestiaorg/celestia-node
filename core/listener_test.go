@@ -46,7 +46,7 @@ func TestListener(t *testing.T) {
 
 	// create one block to store as Head in local store and then unsubscribe from block events
 	cfg := DefaultTestConfig()
-	cfg.ChainID = testChainID
+	cfg.Genesis.ChainID = testChainID
 	fetcher, _ := createCoreFetcher(t, cfg)
 
 	eds := createEdsPubSub(ctx, t)
@@ -80,7 +80,7 @@ func TestListenerWithWrongChainRPC(t *testing.T) {
 
 	// create one block to store as Head in local store and then unsubscribe from block events
 	cfg := DefaultTestConfig()
-	cfg.ChainID = testChainID
+	cfg.Genesis.ChainID = testChainID
 	fetcher, _ := createCoreFetcher(t, cfg)
 	eds := createEdsPubSub(ctx, t)
 
@@ -107,7 +107,7 @@ func TestListener_DoesNotStoreHistoric(t *testing.T) {
 
 	// create one block to store as Head in local store and then unsubscribe from block events
 	cfg := DefaultTestConfig()
-	cfg.ChainID = testChainID
+	cfg.Genesis.ChainID = testChainID
 	fetcher, cctx := createCoreFetcher(t, cfg)
 	eds := createEdsPubSub(ctx, t)
 

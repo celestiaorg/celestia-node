@@ -13,6 +13,8 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
+	squareblob "github.com/celestiaorg/go-square/blob"
+
 	"github.com/celestiaorg/celestia-node/blob"
 	"github.com/celestiaorg/celestia-node/blob/blobtest"
 	"github.com/celestiaorg/celestia-node/nodebuilder/node"
@@ -32,8 +34,8 @@ func TestBlobModule(t *testing.T) {
 	require.NoError(t, err)
 	blobs := make([]*blob.Blob, 0, len(appBlobs0)+len(appBlobs1))
 
-	for _, b := range append(appBlobs0, appBlobs1...) {
-		blob, err := blob.NewBlob(b.ShareVersion, append([]byte{b.NamespaceVersion}, b.NamespaceID...), b.Data)
+	for _, squareBlob := range append(appBlobs0, appBlobs1...) {
+		blob, err := convert(squareBlob)
 		require.NoError(t, err)
 		blobs = append(blobs, blob)
 	}
@@ -117,11 +119,7 @@ func TestBlobModule(t *testing.T) {
 			doFn: func(t *testing.T) {
 				appBlob, err := blobtest.GenerateV0Blobs([]int{4}, false)
 				require.NoError(t, err)
-				newBlob, err := blob.NewBlob(
-					appBlob[0].ShareVersion,
-					append([]byte{appBlob[0].NamespaceVersion}, appBlob[0].NamespaceID...),
-					appBlob[0].Data,
-				)
+				newBlob, err := convert(appBlob[0])
 				require.NoError(t, err)
 
 				b, err := fullClient.Blob.Get(ctx, height, newBlob.Namespace(), newBlob.Commitment)
@@ -139,11 +137,7 @@ func TestBlobModule(t *testing.T) {
 			doFn: func(t *testing.T) {
 				appBlob, err := blobtest.GenerateV0Blobs([]int{8, 4}, true)
 				require.NoError(t, err)
-				b, err := blob.NewBlob(
-					appBlob[0].ShareVersion,
-					append([]byte{appBlob[0].NamespaceVersion}, appBlob[0].NamespaceID...),
-					appBlob[0].Data,
-				)
+				b, err := convert(appBlob[0])
 				require.NoError(t, err)
 
 				height, err := fullClient.Blob.Submit(ctx, []*blob.Blob{b, b}, state.NewTxConfig())
@@ -206,4 +200,10 @@ func TestBlobModule(t *testing.T) {
 			tt.doFn(t)
 		})
 	}
+}
+
+// convert converts a squareblob.Blob to a blob.Blob.
+// convert may be deduplicated with convertBlobs from the blob package.
+func convert(squareBlob *squareblob.Blob) (nodeBlob *blob.Blob, err error) {
+	return blob.NewBlob(uint8(squareBlob.GetShareVersion()), squareBlob.Namespace().Bytes(), squareBlob.GetData())
 }

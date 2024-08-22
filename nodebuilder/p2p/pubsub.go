@@ -40,7 +40,7 @@ func init() {
 }
 
 // pubSub provides a constructor for PubSub protocol with GossipSub routing.
-func pubSub(cfg Config, params pubSubParams) (*pubsub.PubSub, error) {
+func pubSub(cfg *Config, params pubSubParams) (*pubsub.PubSub, error) {
 	fpeers, err := cfg.mutualPeers()
 	if err != nil {
 		return nil, err
@@ -122,7 +122,7 @@ func topicScoreParams(params pubSubParams) map[string]*pubsub.TopicScoreParams {
 	return mp
 }
 
-func peerScoreParams(bootstrappers Bootstrappers, cfg Config) (*pubsub.PeerScoreParams, error) {
+func peerScoreParams(bootstrappers Bootstrappers, cfg *Config) (*pubsub.PeerScoreParams, error) {
 	bootstrapperSet := map[peer.ID]struct{}{}
 	for _, b := range bootstrappers {
 		bootstrapperSet[b.ID] = struct{}{}

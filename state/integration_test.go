@@ -16,9 +16,9 @@ import (
 	rpcclient "github.com/tendermint/tendermint/rpc/client"
 	"google.golang.org/grpc"
 
-	"github.com/celestiaorg/celestia-app/app"
-	"github.com/celestiaorg/celestia-app/test/util/testfactory"
-	"github.com/celestiaorg/celestia-app/test/util/testnode"
+	"github.com/celestiaorg/celestia-app/v2/pkg/appconsts"
+	"github.com/celestiaorg/celestia-app/v2/test/util/genesis"
+	"github.com/celestiaorg/celestia-app/v2/test/util/testnode"
 	libhead "github.com/celestiaorg/go-header"
 
 	"github.com/celestiaorg/celestia-node/core"
@@ -33,7 +33,7 @@ type IntegrationTestSuite struct {
 	suite.Suite
 
 	cleanups []func() error
-	accounts []string
+	accounts []genesis.Account
 	cctx     testnode.Context
 
 	accessor *CoreAccessor
@@ -47,9 +47,12 @@ func (s *IntegrationTestSuite) SetupSuite() {
 
 	cfg := core.DefaultTestConfig()
 	s.cctx = core.StartTestNodeWithConfig(s.T(), cfg)
-	s.accounts = cfg.Accounts
+	s.accounts = cfg.Genesis.Accounts()
 
-	accessor, err := NewCoreAccessor(s.cctx.Keyring, s.accounts[0], localHeader{s.cctx.Client}, "", "")
+	s.Require().Greater(len(s.accounts), 0)
+	accountName := s.accounts[0].Name
+
+	accessor, err := NewCoreAccessor(s.cctx.Keyring, accountName, localHeader{s.cctx.Client}, "", "")
 	require.NoError(s.T(), err)
 	setClients(accessor, s.cctx.GRPCClient)
 	s.accessor = accessor
@@ -78,16 +81,6 @@ func (s *IntegrationTestSuite) TearDownSuite() {
 	}
 }
 
-func (s *IntegrationTestSuite) getAddress(acc string) sdk.Address {
-	rec, err := s.cctx.Keyring.Key(acc)
-	require.NoError(s.T(), err)
-
-	addr, err := rec.GetAddress()
-	require.NoError(s.T(), err)
-
-	return addr
-}
-
 type localHeader struct {
 	client rpcclient.Client
 }
@@ -108,11 +101,16 @@ func (l localHeader) Head(
 
 func (s *IntegrationTestSuite) TestGetBalance() {
 	require := s.Require()
-	expectedBal := sdk.NewCoin(app.BondDenom, sdk.NewInt(int64(99999999999999999)))
-	for _, acc := range s.accounts {
-		bal, err := s.accessor.BalanceForAddress(context.Background(), Address{s.getAddress(acc)})
+
+	for _, account := range s.accounts {
+		hexAddress := account.PubKey.Address().String()
+		sdkAddress, err := sdk.AccAddressFromHexUnsafe(hexAddress)
 		require.NoError(err)
-		require.Equal(&expectedBal, bal)
+
+		bal, err := s.accessor.BalanceForAddress(context.Background(), Address{sdkAddress})
+		require.NoError(err)
+		require.Equal(bal.Denom, appconsts.BondDenom)
+		require.True(bal.Amount.GT(sdk.NewInt(1))) // verify that each account has some balance
 	}
 }
 
@@ -121,14 +119,16 @@ func (s *IntegrationTestSuite) TestGetBalance() {
 func (s *IntegrationTestSuite) TestGenerateJSONBlock() {
 	t := s.T()
 	t.Skip("skipping testdata generation test")
-	resp, err := s.cctx.FillBlock(4, s.accounts, flags.BroadcastSync)
+	s.Require().Greater(len(s.accounts), 0)
+	accountName := s.accounts[0].Name
+	resp, err := s.cctx.FillBlock(4, accountName, flags.BroadcastSync)
 	require := s.Require()
 	require.NoError(err)
 	require.Equal(abci.CodeTypeOK, resp.Code)
 	require.NoError(s.cctx.WaitForNextBlock())
 
 	// download the block that the tx was in
-	res, err := testfactory.QueryWithoutProof(s.cctx.Context, resp.TxHash)
+	res, err := testnode.QueryWithoutProof(s.cctx.Context, resp.TxHash)
 	require.NoError(err)
 
 	block, err := s.cctx.Client.Block(s.cctx.GoContext(), &res.Height)

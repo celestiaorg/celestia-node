@@ -7,7 +7,7 @@ import (
 	"github.com/filecoin-project/dagstore"
 	"github.com/ipfs/boxo/blockservice"
 
-	"github.com/celestiaorg/celestia-app/pkg/da"
+	"github.com/celestiaorg/celestia-app/v2/pkg/da"
 
 	headerServ "github.com/celestiaorg/celestia-node/nodebuilder/header"
 	"github.com/celestiaorg/celestia-node/share"

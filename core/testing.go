@@ -10,8 +10,11 @@ import (
 	tmconfig "github.com/tendermint/tendermint/config"
 	tmrand "github.com/tendermint/tendermint/libs/rand"
 
-	"github.com/celestiaorg/celestia-app/test/util/testnode"
+	"github.com/celestiaorg/celestia-app/v2/test/util/genesis"
+	"github.com/celestiaorg/celestia-app/v2/test/util/testnode"
 )
+
+const chainID = "private"
 
 // DefaultTestConfig returns the default testing configuration for Tendermint + Celestia App tandem.
 //
@@ -21,22 +24,20 @@ import (
 //
 // Additionally, it instructs Tendermint + Celestia App tandem to setup 10 funded accounts.
 func DefaultTestConfig() *testnode.Config {
-	cfg := testnode.DefaultConfig()
+	genesis := genesis.NewDefaultGenesis().
+		WithChainID(chainID).
+		WithValidators(genesis.NewDefaultValidator(testnode.DefaultValidatorAccountName)).
+		WithConsensusParams(testnode.DefaultConsensusParams())
 
-	// instructs creating funded accounts
-	// 10 usually is enough for testing
-	accounts := make([]string, 10)
-	for i := range accounts {
-		accounts[i] = tmrand.Str(9)
-	}
+	tmConfig := testnode.DefaultTendermintConfig()
+	tmConfig.Consensus.TimeoutCommit = time.Millisecond * 200
 
-	cfg.TmConfig.Consensus.TimeoutCommit = time.Millisecond * 200
-
-	cfg = cfg.
-		WithAccounts(accounts).
-		WithSupressLogs(true)
-
-	return cfg
+	return testnode.DefaultConfig().
+		WithChainID(chainID).
+		WithFundedAccounts(generateRandomAccounts(10)...). // 10 usually is enough for testing
+		WithGenesis(genesis).
+		WithTendermintConfig(tmConfig).
+		WithSuppressLogs(true)
 }
 
 // StartTestNode simply starts Tendermint and Celestia App tandem with default testing
@@ -78,4 +79,13 @@ func getEndpoint(cfg *tmconfig.Config) (string, string, error) {
 		return "", "", err
 	}
 	return host, url.Port(), nil
+}
+
+// generateRandomAccounts generates n random account names.
+func generateRandomAccounts(n int) []string {
+	accounts := make([]string, n)
+	for i := range accounts {
+		accounts[i] = tmrand.Str(9)
+	}
+	return accounts
 }

@@ -5,7 +5,7 @@ package header_pb
 
 import (
 	fmt "fmt"
-	da "github.com/celestiaorg/celestia-app/proto/celestia/da"
+	da "github.com/celestiaorg/celestia-app/v2/proto/celestia/core/v1/da"
 	proto "github.com/gogo/protobuf/proto"
 	types "github.com/tendermint/tendermint/proto/tendermint/types"
 	io "io"
