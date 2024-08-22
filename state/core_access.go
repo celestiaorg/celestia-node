@@ -238,20 +238,10 @@ func (ca *CoreAccessor) SubmitPayForBlob(
 		if feeGrant != nil {
 			opts = append(opts, feeGrant)
 		}
-		response, err := ca.client.BroadcastPayForBlobWithAccount(
-			ctx,
-			accName,
-			appblobs,
-			opts...,
-		)
-		if err != nil {
-			return nil, err
-		}
 
-		// TODO @vgonkivs: remove me to achieve async blob submission
-		confirmTxResp, err := ca.client.ConfirmTx(ctx, response.TxHash)
-		// the node is capable of changing the min gas price at any time so we must be able to detect it and
-		// update our version accordingly
+		response, err := ca.client.SubmitPayForBlobWithAccount(ctx, accName, appblobs, opts...)
+		// Network min gas price can be updated through governance in app
+		// If that's the case, we parse the insufficient min gas price error message and update the gas price
 		if apperrors.IsInsufficientMinGasPrice(err) {
 			// The error message contains enough information to parse the new min gas price
 			gasPrice, err = apperrors.ParseInsufficientMinGasPrice(err, gasPrice, gas)
@@ -269,10 +259,10 @@ func (ca *CoreAccessor) SubmitPayForBlob(
 		}
 
 		// metrics should only be counted on a successful PFD tx
-		if confirmTxResp.Code == 0 {
+		if response.Code == 0 {
 			ca.markSuccessfulPFB()
 		}
-		return convertToSdkTxResponse(confirmTxResp), nil
+		return convertToSdkTxResponse(response), nil
 	}
 	return nil, fmt.Errorf("failed to submit blobs after %d attempts: %w", maxRetries, lastErr)
 }
