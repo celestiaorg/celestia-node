@@ -13,6 +13,9 @@ import (
 	modfraud "github.com/celestiaorg/celestia-node/nodebuilder/fraud"
 )
 
+// ErrHeightZero returned when the provided block height is equal to 0.
+var ErrHeightZero = errors.New("height is equal to 0")
+
 // Service represents the header Service that can be started / stopped on a node.
 // Service's main function is to manage its sub-services. Service can contain several
 // sub-services, such as Exchange, ExchangeServer, Syncer, and so forth.
@@ -64,6 +67,9 @@ func (s *Service) GetRangeByHeight(
 }
 
 func (s *Service) GetByHeight(ctx context.Context, height uint64) (*header.ExtendedHeader, error) {
+	if height == 0 {
+		return nil, ErrHeightZero
+	}
 	head, err := s.syncer.Head(ctx)
 	switch {
 	case err != nil:

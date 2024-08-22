@@ -12,7 +12,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"github.com/celestiaorg/celestia-app/test/util/testnode"
+	"github.com/celestiaorg/celestia-app/v2/test/util/testnode"
 
 	"github.com/celestiaorg/celestia-node/header"
 	"github.com/celestiaorg/celestia-node/pruner"
@@ -25,7 +25,6 @@ func TestCoreExchange_RequestHeaders(t *testing.T) {
 	t.Cleanup(cancel)
 
 	cfg := DefaultTestConfig()
-	cfg.ChainID = testChainID
 	fetcher, cctx := createCoreFetcher(t, cfg)
 
 	generateNonEmptyBlocks(t, ctx, fetcher, cfg, cctx)
@@ -69,7 +68,6 @@ func TestExchange_DoNotStoreHistoric(t *testing.T) {
 	t.Cleanup(cancel)
 
 	cfg := DefaultTestConfig()
-	cfg.ChainID = testChainID
 	fetcher, cctx := createCoreFetcher(t, cfg)
 
 	generateNonEmptyBlocks(t, ctx, fetcher, cfg, cctx)
@@ -154,7 +152,7 @@ func fillBlocks(
 		default:
 		}
 
-		_, err := cctx.FillBlock(16, cfg.Accounts, flags.BroadcastBlock)
+		_, err := cctx.FillBlock(16, cfg.Genesis.Accounts()[0].Name, flags.BroadcastBlock)
 		require.NoError(t, err)
 	}
 }

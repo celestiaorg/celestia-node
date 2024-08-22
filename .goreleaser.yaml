@@ -58,12 +58,14 @@ signs:
         "${artifact}",
       ]
 snapshot:
-  name_template: "{{ incpatch .Version }}-next"
+  version_template: "{{ incpatch .Version }}-next"
 changelog:
   sort: asc
   filters:
     exclude:
       - "^docs:"
       - "^test:"
+release:
+  prerelease: auto
 git:
-  prerelease_suffix: "-"
+  prerelease_suffix: "-rc*"

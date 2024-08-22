@@ -22,6 +22,8 @@ import (
 	"github.com/celestiaorg/celestia-node/nodebuilder"
 	"github.com/celestiaorg/celestia-node/nodebuilder/blob"
 	blobMock "github.com/celestiaorg/celestia-node/nodebuilder/blob/mocks"
+	"github.com/celestiaorg/celestia-node/nodebuilder/blobstream"
+	blobstreamMock "github.com/celestiaorg/celestia-node/nodebuilder/blobstream/mocks"
 	"github.com/celestiaorg/celestia-node/nodebuilder/da"
 	daMock "github.com/celestiaorg/celestia-node/nodebuilder/da/mocks"
 	"github.com/celestiaorg/celestia-node/nodebuilder/das"
@@ -90,15 +92,16 @@ func TestRPCCallsUnderlyingNode(t *testing.T) {
 // api contains all modules that are made available as the node's
 // public API surface
 type api struct {
-	Fraud  fraud.Module
-	Header header.Module
-	State  statemod.Module
-	Share  share.Module
-	DAS    das.Module
-	Node   node.Module
-	P2P    p2p.Module
-	Blob   blob.Module
-	DA     da.Module
+	Fraud      fraud.Module
+	Header     header.Module
+	State      statemod.Module
+	Share      share.Module
+	DAS        das.Module
+	Node       node.Module
+	P2P        p2p.Module
+	Blob       blob.Module
+	DA         da.Module
+	Blobstream blobstream.Module
 }
 
 func TestModulesImplementFullAPI(t *testing.T) {
@@ -312,6 +315,7 @@ func setupNodeWithAuthedRPC(t *testing.T,
 		nodeMock.NewMockModule(ctrl),
 		blobMock.NewMockModule(ctrl),
 		daMock.NewMockModule(ctrl),
+		blobstreamMock.NewMockModule(ctrl),
 	}
 
 	// given the behavior of fx.Invoke, this invoke will be called last as it is added at the root
@@ -342,13 +346,14 @@ func setupNodeWithAuthedRPC(t *testing.T,
 }
 
 type mockAPI struct {
-	State  *stateMock.MockModule
-	Share  *shareMock.MockModule
-	Fraud  *fraudMock.MockModule
-	Header *headerMock.MockModule
-	Das    *dasMock.MockModule
-	P2P    *p2pMock.MockModule
-	Node   *nodeMock.MockModule
-	Blob   *blobMock.MockModule
-	DA     *daMock.MockModule
+	State      *stateMock.MockModule
+	Share      *shareMock.MockModule
+	Fraud      *fraudMock.MockModule
+	Header     *headerMock.MockModule
+	Das        *dasMock.MockModule
+	P2P        *p2pMock.MockModule
+	Node       *nodeMock.MockModule
+	Blob       *blobMock.MockModule
+	DA         *daMock.MockModule
+	Blobstream *blobstreamMock.MockModule
 }
