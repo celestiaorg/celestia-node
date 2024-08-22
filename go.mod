@@ -3,7 +3,6 @@ module github.com/celestiaorg/celestia-node
 go 1.22.6
 
 require (
-	cosmossdk.io/errors v1.0.1
 	cosmossdk.io/math v1.3.0
 	github.com/BurntSushi/toml v1.4.0
 	github.com/alecthomas/jsonschema v0.0.0-20220216202328-9eeeec9d044b
@@ -83,6 +82,7 @@ require (
 	cloud.google.com/go/compute/metadata v0.3.0 // indirect
 	cloud.google.com/go/iam v1.1.6 // indirect
 	cloud.google.com/go/storage v1.38.0 // indirect
+	cosmossdk.io/errors v1.0.1 // indirect
 	filippo.io/edwards25519 v1.0.0-rc.1 // indirect
 	github.com/99designs/go-keychain v0.0.0-20191008050251-8e49817e8af4 // indirect
 	github.com/99designs/keyring v1.2.2 // indirect
@@ -358,5 +358,5 @@ replace (
 	github.com/gogo/protobuf => github.com/regen-network/protobuf v1.3.3-alpha.regen.1
 	// broken goleveldb needs to be replaced for the cosmos-sdk and celestia-app
 	github.com/syndtr/goleveldb => github.com/syndtr/goleveldb v1.0.1-0.20210819022825-2ae1ddf74ef7
-	github.com/tendermint/tendermint => github.com/celestiaorg/celestia-core v1.38.0-tm-v0.34.29
+	github.com/tendermint/tendermint => github.com/celestiaorg/celestia-core v1.40.0-tm-v0.34.29
 )
