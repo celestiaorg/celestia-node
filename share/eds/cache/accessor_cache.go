@@ -97,10 +97,12 @@ func (s *accessorWithBlockstore) close() error {
 	done := s.done
 	s.Unlock()
 
+	// wait until all references are released or timeout is reached. If timeout is reached, log an
+	// error and close the accessor forcefully.
 	select {
 	case <-done:
 	case <-time.After(defaultCloseTimeout):
-		return fmt.Errorf("closing accessor, some readers didn't close the accessor within timeout,"+
+		log.Errorf("closing accessor, some readers didn't close the accessor within timeout,"+
 			" amount left: %v", s.refs.Load())
 	}
 	if err := s.shardAccessor.Close(); err != nil {
