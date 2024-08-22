@@ -6,8 +6,6 @@ import (
 	"fmt"
 	"os"
 
-	share_ipld "github.com/celestiaorg/celestia-node/share/ipld"
-
 	bstore "github.com/ipfs/boxo/blockstore"
 	"github.com/ipfs/boxo/datastore/dshelp"
 	blocks "github.com/ipfs/go-block-format"
@@ -15,6 +13,8 @@ import (
 	"github.com/ipfs/go-datastore"
 	"github.com/ipfs/go-datastore/namespace"
 	ipld "github.com/ipfs/go-ipld-format"
+
+	share_ipld "github.com/celestiaorg/celestia-node/share/ipld"
 )
 
 var enableFixedDataSize = os.Getenv("CELESTIA_CONST_DATA_SIZE") == "1"

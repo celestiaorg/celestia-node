@@ -49,7 +49,7 @@ jobs:
 
   lint-imports:
     needs: [setup]
-    name: Sort Imports
+    name: Lint Imports
     runs-on: ubuntu-latest
 
     steps:
