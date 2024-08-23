@@ -47,6 +47,24 @@ jobs:
           version: v1.60
           skip-cache: true
 
+  lint-imports:
+    needs: [setup]
+    name: Lint Imports
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-go@v5
+        with:
+          go-version: ${{ inputs.go-version }}
+
+      - name: install goimports-reviser
+        run: go install -v github.com/incu6us/goimports-reviser/v3@latest
+
+      - name: lint imports
+        run: make lint-imports
+
   go_mod_tidy_check:
     needs: [setup]
     name: Go Mod Tidy Check
