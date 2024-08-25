@@ -15,6 +15,13 @@ type Parameters struct {
 	// AdvertiseInterval is a interval between advertising sessions.
 	// NOTE: only full and bridge can advertise themselves.
 	AdvertiseInterval time.Duration
+
+	// AdvertiseRetryTimeout defines time interval between advertise attempts.
+	AdvertiseRetryTimeout time.Duration
+
+	// DiscoveryRetryTimeout defines time interval between discovery attempts
+	// this is set independently for tests in discover_test.go
+	DiscoveryRetryTimeout time.Duration
 }
 
 // options is the set of options that can be configured for the Discovery module
@@ -33,13 +40,33 @@ type Option func(*options)
 // for the Discovery module
 func DefaultParameters() *Parameters {
 	return &Parameters{
-		PeersLimit:        5,
-		AdvertiseInterval: time.Hour,
+		PeersLimit:            5,
+		AdvertiseInterval:     time.Hour,
+		AdvertiseRetryTimeout: time.Second,
+		DiscoveryRetryTimeout: time.Second * 60,
 	}
+}
+
+// TestParameters returns the default Parameters' configuration values
+// for the Discovery module, with some changes for configuration
+// during tests
+func TestParameters() *Parameters {
+	p := DefaultParameters()
+	p.AdvertiseInterval = time.Second * 1
+	p.DiscoveryRetryTimeout = time.Millisecond * 50
+	return p
 }
 
 // Validate validates the values in Parameters
 func (p *Parameters) Validate() error {
+	if p.AdvertiseRetryTimeout <= 0 {
+		return fmt.Errorf("discovery: advertise retry timeout cannot be zero or negative")
+	}
+
+	if p.DiscoveryRetryTimeout <= 0 {
+		return fmt.Errorf("discovery: discovery retry timeout cannot be zero or negative")
+	}
+
 	if p.PeersLimit <= 0 {
 		return fmt.Errorf("discovery: peers limit cannot be zero or negative")
 	}

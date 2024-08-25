@@ -26,8 +26,6 @@ const (
 func TestDiscovery(t *testing.T) {
 	const nodes = 10 // higher number brings higher coverage
 
-	discoveryRetryTimeout = time.Millisecond * 100 // defined in discovery.go
-
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second*20)
 	t.Cleanup(cancel)
 
@@ -43,7 +41,7 @@ func TestDiscovery(t *testing.T) {
 	}
 
 	host, routingDisc := tn.peer()
-	params := DefaultParameters()
+	params := TestParameters()
 	params.PeersLimit = nodes
 
 	// start discovery listener service for peerA
@@ -103,7 +101,7 @@ func TestDiscoveryTagged(t *testing.T) {
 	// sub will discover both peers, but on different tags
 	sub, routingDisc := tn.peer()
 
-	params := DefaultParameters()
+	params := TestParameters()
 
 	// create 2 discovery services for sub, each with a different tag
 	done1 := make(chan struct{})
