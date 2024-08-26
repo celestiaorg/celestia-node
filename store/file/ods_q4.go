@@ -172,9 +172,11 @@ func (odsq4 *ODSQ4) Close() error {
 		err = fmt.Errorf("closing ODS file: %w", err)
 	}
 
+	odsq4.q4Mu.Lock() // wait in case file is being opened
+	defer odsq4.q4Mu.Unlock()
 	if odsq4.q4Opened.Load() {
 		errQ4 := odsq4.q4.Close()
-		if err != nil {
+		if errQ4 != nil {
 			errQ4 = fmt.Errorf("closing Q4 file: %w", errQ4)
 			err = errors.Join(err, errQ4)
 		}
