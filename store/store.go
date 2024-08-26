@@ -219,7 +219,7 @@ func (s *Store) GetByHash(ctx context.Context, datahash share.DataHash) (eds.Acc
 
 func (s *Store) getByHash(datahash share.DataHash) (eds.AccessorStreamer, error) {
 	path := s.hashToPath(datahash, "")
-	return s.openODSQ4(path)
+	return s.openAccessor(path)
 }
 
 func (s *Store) GetByHeight(ctx context.Context, height uint64) (eds.AccessorStreamer, error) {
@@ -240,21 +240,22 @@ func (s *Store) getByHeight(height uint64) (eds.AccessorStreamer, error) {
 	}
 
 	path := s.heightToPath(height, "")
-	return s.openODSQ4(path)
+	return s.openAccessor(path)
 }
 
-// openODSQ4 opens ODSQ4 Accessor.
+// openAccessor opens ODSQ4 Accessor.
 // It opens ODS file first, reads up its DataHash and constructs the path for Q4
 // This done as Q4 is not indexed(hard-linked) and there is no other way to Q4 by height only.
-func (s *Store) openODSQ4(path string) (eds.AccessorStreamer, error) {
-	odsq4, err := file.OpenODSQ4(path+odsFileExt, path+q4FileExt)
+func (s *Store) openAccessor(path string) (eds.AccessorStreamer, error) {
+	ods, err := file.OpenODS(path + odsFileExt)
 	switch {
 	case errors.Is(err, os.ErrNotExist):
 		return nil, ErrNotFound
 	case err != nil:
-		return nil, fmt.Errorf("opening ODSQ4: %w", err)
+		return nil, fmt.Errorf("opening ODS: %w", err)
 	}
 
+	odsq4 := file.ODSWithQ4(ods, path+q4FileExt)
 	return wrapAccessor(odsq4), nil
 }
 

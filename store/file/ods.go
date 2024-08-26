@@ -93,9 +93,9 @@ func writeODSFile(f *os.File, axisRoots *share.AxisRoots, eds *rsmt2d.ExtendedDa
 	return nil
 }
 
-// writeODS writes the first quadrant(ODS) of the square to the writer. It writes the quadrant in row-major
-// order. Write finishes once all the shares are written or on the first instance of tail padding share.
-// Tail padding share are constant and aren't stored.
+// writeODS writes the first quadrant(ODS) of the square to the writer. It writes the quadrant in
+// row-major order. Write finishes once all the shares are written or on the first instance of tail
+// padding share. Tail padding share are constant and aren't stored.
 func writeODS(w io.Writer, eds *rsmt2d.ExtendedDataSquare) error {
 	for i := range eds.Width() / 2 {
 		for j := range eds.Width() / 2 {
@@ -166,8 +166,8 @@ func (o *ODS) DataHash(context.Context) (share.DataHash, error) {
 	return o.hdr.datahash, nil
 }
 
-// AxisRoots reads AxisRoots stored in the file. AxisRoots are stored after the header and before the
-// ODS data.
+// AxisRoots reads AxisRoots stored in the file. AxisRoots are stored after the header and before
+// the ODS data.
 func (o *ODS) AxisRoots(context.Context) (*share.AxisRoots, error) {
 	roots := make([]byte, o.hdr.RootsSize())
 	n, err := o.fl.ReadAt(roots, int64(o.hdr.Size()))

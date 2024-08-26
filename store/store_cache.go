@@ -52,6 +52,6 @@ func (cs *CachedStore) openFile(height uint64) cache.OpenAccessorFn {
 		// open file directly wihout calling GetByHeight of inner getter to
 		// avoid hitting store cache second time
 		path := cs.store.heightToPath(height, "")
-		return cs.store.openODSQ4(path)
+		return cs.store.openAccessor(path)
 	}
 }

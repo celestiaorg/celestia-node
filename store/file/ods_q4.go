@@ -20,15 +20,17 @@ var _ eds.AccessorStreamer = (*ODSQ4)(nil)
 
 // ODSQ4 is an Accessor that combines ODS and Q4 files.
 // It extends the ODS with the ability to read Q4 of the EDS.
-// Reading from the fourth quadrant allows to serve samples from Q2 and Q3 quadrants of the square,
-// without reading entire Q1.
+// Reading from the fourth quadrant allows to efficiently read samples from Q2 and Q4 quadrants of
+// the square, as well as reading columns from Q3 and Q4 quadrants. Reading from Q4 in those cases
+// is more efficient than reading from Q1, because it would require reading the whole Q1 quadrant
+// and reconstructing the data from it. It opens Q4 file lazily on the first read attempt.
 type ODSQ4 struct {
 	ods *ODS
 
 	pathQ4   string
 	q4Mu     sync.Mutex
 	q4Opened atomic.Bool
-	q4       *Q4
+	q4       *q4
 }
 
 // CreateODSQ4 creates ODS and Q4 files under the given FS paths.
@@ -41,7 +43,7 @@ func CreateODSQ4(
 	go func() {
 		// doing this async shaves off ~27% of time for 128 ODS
 		// for bigger ODSes the discrepancy is even bigger
-		err := CreateQ4(pathQ4, roots, eds)
+		err := createQ4(pathQ4, eds)
 		if err != nil {
 			err = fmt.Errorf("сreating Q4 file: %w", err)
 		}
@@ -61,21 +63,15 @@ func CreateODSQ4(
 	return nil
 }
 
-// OpenODSQ4 opens ODS file under the given FS path. The Q4 is opened lazily
-// on demand.
-func OpenODSQ4(pathODS, pathQ4 string) (*ODSQ4, error) {
-	ods, err := OpenODS(pathODS)
-	if err != nil {
-		return nil, fmt.Errorf("failed to open ODS: %w", err)
-	}
-
+// ODSWithQ4 returns ODSQ4 instance over ODS. It opens Q4 file lazily under the given path.
+func ODSWithQ4(ods *ODS, pathQ4 string) *ODSQ4 {
 	return &ODSQ4{
 		ods:    ods,
 		pathQ4: pathQ4,
-	}, nil
+	}
 }
 
-func (odsq4 *ODSQ4) tryLoadQ4() *Q4 {
+func (odsq4 *ODSQ4) tryLoadQ4() *q4 {
 	// If Q4 was attempted to be opened before, return.
 	if odsq4.q4Opened.Load() {
 		return odsq4.q4
@@ -89,7 +85,7 @@ func (odsq4 *ODSQ4) tryLoadQ4() *Q4 {
 		return odsq4.q4
 	}
 
-	q4, err := OpenQ4(odsq4.pathQ4)
+	q4, err := openQ4(odsq4.pathQ4, odsq4.ods.hdr)
 	if errors.Is(err, os.ErrNotExist) {
 		return nil
 	}
@@ -131,19 +127,14 @@ func (odsq4 *ODSQ4) Sample(ctx context.Context, rowIdx, colIdx int) (shwap.Sampl
 func (odsq4 *ODSQ4) AxisHalf(ctx context.Context, axisType rsmt2d.Axis, axisIdx int) (eds.AxisHalf, error) {
 	size := odsq4.Size(ctx) // TODO(@Wondertan): Should return error.
 
-	var acsr eds.Accessor = odsq4.ods
 	if axisIdx >= size/2 {
+		// lazy load Q4 file and read axis from it if loaded
 		if q4 := odsq4.tryLoadQ4(); q4 != nil {
-			acsr = odsq4.q4
+			return q4.axisHalf(axisType, axisIdx)
 		}
 	}
 
-	half, err := acsr.AxisHalf(ctx, axisType, axisIdx)
-	if err != nil {
-		return eds.AxisHalf{}, fmt.Errorf("reading axis half: %w", err)
-	}
-
-	return half, nil
+	return odsq4.ods.AxisHalf(ctx, axisType, axisIdx)
 }
 
 func (odsq4 *ODSQ4) RowNamespaceData(ctx context.Context,
@@ -178,7 +169,7 @@ func (odsq4 *ODSQ4) Close() error {
 	odsq4.q4Mu.Lock() // wait in case file is being opened
 	defer odsq4.q4Mu.Unlock()
 	if odsq4.q4Opened.Load() {
-		errQ4 := odsq4.q4.Close()
+		errQ4 := odsq4.q4.close()
 		if errQ4 != nil {
 			errQ4 = fmt.Errorf("closing Q4 file: %w", errQ4)
 			err = errors.Join(err, errQ4)

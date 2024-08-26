@@ -102,7 +102,7 @@ func createODSQ4File(t testing.TB, eds *rsmt2d.ExtendedDataSquare) *ODSQ4 {
 	pathODS, pathQ4 := path+".ods", path+".q4"
 	err = CreateODSQ4(pathODS, pathQ4, roots, eds)
 	require.NoError(t, err)
-	odsq4, err := OpenODSQ4(pathODS, pathQ4)
+	ods, err := OpenODS(pathODS)
 	require.NoError(t, err)
-	return odsq4
+	return ODSWithQ4(ods, pathQ4)
 }
