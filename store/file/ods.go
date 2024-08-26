@@ -56,7 +56,6 @@ func CreateODS(
 
 	hdr := &headerV0{
 		fileVersion: fileV0,
-		fileType:    ods,
 		shareSize:   share.Size,
 		squareSize:  uint16(eds.Width()),
 		datahash:    roots.Hash(),

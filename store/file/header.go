@@ -8,16 +8,14 @@ import (
 	"github.com/celestiaorg/celestia-node/share"
 )
 
+const headerVOSize int = 40
+
 type headerVersion uint8
 
-const (
-	headerVersionV0 headerVersion = 1
-	headerVOSize    int           = 40
-)
+const headerVersionV0 headerVersion = iota + 1
 
 type headerV0 struct {
 	fileVersion fileVersion
-	fileType    fileType
 
 	// Taken directly from EDS
 	shareSize  uint16
@@ -30,13 +28,6 @@ type fileVersion uint8
 
 const (
 	fileV0 fileVersion = iota + 1
-)
-
-type fileType uint8
-
-const (
-	ods fileType = iota
-	q4
 )
 
 func readHeader(r io.Reader) (*headerV0, error) {
@@ -96,7 +87,6 @@ func (h *headerV0) OffsetWithRoots() int {
 func (h *headerV0) WriteTo(w io.Writer) (int64, error) {
 	buf := make([]byte, headerVOSize)
 	buf[0] = byte(h.fileVersion)
-	buf[1] = byte(h.fileType)
 	binary.LittleEndian.PutUint16(buf[4:6], h.shareSize)
 	binary.LittleEndian.PutUint16(buf[6:8], h.squareSize)
 	copy(buf[8:40], h.datahash)
@@ -112,7 +102,6 @@ func (h *headerV0) ReadFrom(r io.Reader) (int64, error) {
 	}
 
 	h.fileVersion = fileVersion(bytesHeader[0])
-	h.fileType = fileType(bytesHeader[1])
 	h.shareSize = binary.LittleEndian.Uint16(bytesHeader[4:6])
 	h.squareSize = binary.LittleEndian.Uint16(bytesHeader[6:8])
 	h.datahash = bytesHeader[8:40]

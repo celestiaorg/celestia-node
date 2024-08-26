@@ -42,7 +42,6 @@ func CreateQ4(
 
 	hdr := &headerV0{
 		fileVersion: fileV0,
-		fileType:    q4,
 		shareSize:   share.Size,
 		squareSize:  uint16(eds.Width()),
 		datahash:    roots.Hash(),
