@@ -175,12 +175,7 @@ func (s *Store) linkHeight(datahash share.DataHash, height uint64) error {
 	// create hard link with height as name
 	pathOds := s.hashToPath(datahash, odsFileExt)
 	linktoOds := s.heightToPath(height, odsFileExt)
-	pathQ4 := s.hashToPath(datahash, q4FileExt)
-	linktoQ4 := s.heightToPath(height, q4FileExt)
-	return errors.Join(
-		link(pathOds, linktoOds),
-		link(pathQ4, linktoQ4),
-	)
+	return link(pathOds, linktoOds)
 }
 
 // populateEmptyFile writes fresh empty EDS file on disk.
@@ -212,14 +207,14 @@ func (s *Store) GetByHash(ctx context.Context, datahash share.DataHash) (eds.Acc
 	defer lock.RUnlock()
 
 	tNow := time.Now()
-	f, err := s.getByHash(datahash)
+	f, err := s.getByHash(ctx, datahash)
 	s.metrics.observeGet(ctx, time.Since(tNow), err != nil)
 	return f, err
 }
 
-func (s *Store) getByHash(datahash share.DataHash) (eds.AccessorStreamer, error) {
-	path := s.hashToPath(datahash, "")
-	return s.openAccessor(path)
+func (s *Store) getByHash(ctx context.Context, datahash share.DataHash) (eds.AccessorStreamer, error) {
+	path := s.hashToPath(datahash, odsFileExt)
+	return s.openAccessor(ctx, path)
 }
 
 func (s *Store) GetByHeight(ctx context.Context, height uint64) (eds.AccessorStreamer, error) {
@@ -228,35 +223,42 @@ func (s *Store) GetByHeight(ctx context.Context, height uint64) (eds.AccessorStr
 	defer lock.RUnlock()
 
 	tNow := time.Now()
-	f, err := s.getByHeight(height)
+	f, err := s.getByHeight(ctx, height)
 	s.metrics.observeGet(ctx, time.Since(tNow), err != nil)
 	return f, err
 }
 
-func (s *Store) getByHeight(height uint64) (eds.AccessorStreamer, error) {
+func (s *Store) getByHeight(ctx context.Context, height uint64) (eds.AccessorStreamer, error) {
 	f, err := s.cache.Get(height)
 	if err == nil {
 		return f, nil
 	}
 
-	path := s.heightToPath(height, "")
-	return s.openAccessor(path)
+	path := s.heightToPath(height, odsFileExt)
+	return s.openAccessor(ctx, path)
 }
 
 // openAccessor opens ODSQ4 Accessor.
 // It opens ODS file first, reads up its DataHash and constructs the path for Q4
 // This done as Q4 is not indexed(hard-linked) and there is no other way to Q4 by height only.
-func (s *Store) openAccessor(path string) (eds.AccessorStreamer, error) {
-	ods, err := file.OpenODS(path + odsFileExt)
-	switch {
-	case errors.Is(err, os.ErrNotExist):
+func (s *Store) openAccessor(ctx context.Context, path string) (eds.AccessorStreamer, error) {
+	ods, err := file.OpenODS(path)
+	if errors.Is(err, os.ErrNotExist) {
 		return nil, ErrNotFound
-	case err != nil:
-		return nil, fmt.Errorf("opening ODS: %w", err)
+	}
+	if err != nil {
+		return nil, fmt.Errorf("failed to open ODS: %w", err)
 	}
 
-	odsq4 := file.ODSWithQ4(ods, path+q4FileExt)
-	return wrapAccessor(odsq4), nil
+	// read datahash from ODS and construct Q4 path
+	datahash, err := ods.DataHash(ctx)
+	if err != nil {
+		utils.CloseAndLog(log, "open ods", ods)
+		return nil, fmt.Errorf("reading datahash: %w", err)
+	}
+	pathQ4 := s.hashToPath(datahash, q4FileExt)
+	odsQ4 := file.ODSWithQ4(ods, pathQ4)
+	return wrapAccessor(odsQ4), nil
 }
 
 func (s *Store) HasByHash(ctx context.Context, datahash share.DataHash) (bool, error) {
@@ -333,11 +335,7 @@ func (s *Store) removeLink(height uint64) error {
 	}
 
 	pathODS := s.heightToPath(height, odsFileExt)
-	pathQ4 := s.heightToPath(height, q4FileExt)
-	return errors.Join(
-		remove(pathODS),
-		remove(pathQ4),
-	)
+	return remove(pathODS)
 }
 
 func (s *Store) removeFile(hash share.DataHash) error {
