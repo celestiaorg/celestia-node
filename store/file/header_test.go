@@ -27,7 +27,6 @@ func Fuzz_writeReadheader(f *testing.F) {
 
 		testHdr := headerV0{
 			fileVersion: fileVersion(ver),
-			fileType:    fileType(typ),
 			shareSize:   shs,
 			squareSize:  sqs,
 			datahash:    b,
@@ -44,8 +43,6 @@ func Fuzz_writeReadheader(f *testing.F) {
 			return
 		}
 
-		require.Equal(t, hdr.fileType, testHdr.fileType)
-		require.Equal(t, hdr.fileType, testHdr.fileType)
 		require.Equal(t, hdr.shareSize, testHdr.shareSize)
 		require.Equal(t, hdr.squareSize, testHdr.squareSize)
 		require.Equal(t, hdr.datahash, testHdr.datahash)

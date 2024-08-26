@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"os"
 	"sync"
 	"sync/atomic"
 
@@ -24,7 +25,7 @@ var _ eds.AccessorStreamer = (*ODSQ4)(nil)
 type ODSQ4 struct {
 	ods *ODS
 
-	q4Open   func() (*Q4, error)
+	pathQ4   string
 	q4Mu     sync.Mutex
 	q4Opened atomic.Bool
 	q4       *Q4
@@ -69,32 +70,37 @@ func OpenODSQ4(pathODS, pathQ4 string) (*ODSQ4, error) {
 	}
 
 	return &ODSQ4{
-		ods: ods,
-		q4Open: func() (*Q4, error) {
-			return OpenQ4(pathQ4)
-		},
+		ods:    ods,
+		pathQ4: pathQ4,
 	}, nil
 }
 
-func (odsq4 *ODSQ4) getQ4() (eds.Accessor, error) {
+func (odsq4 *ODSQ4) tryLoadQ4() *Q4 {
+	// If Q4 was attempted to be opened before, return.
 	if odsq4.q4Opened.Load() {
-		return odsq4.q4, nil
+		return odsq4.q4
 	}
 
 	odsq4.q4Mu.Lock()
 	defer odsq4.q4Mu.Unlock()
-	if odsq4.q4Opened.Load() {
-		return odsq4.q4, nil
+	// update bool to make sure we try opening only once
+	// no matter if the try was successful or failed.
+	if opened := odsq4.q4Opened.Swap(true); opened {
+		return odsq4.q4
 	}
 
-	q4, err := odsq4.q4Open()
+	q4, err := OpenQ4(odsq4.pathQ4)
+	if errors.Is(err, os.ErrNotExist) {
+		return nil
+	}
+
 	if err != nil {
-		return nil, fmt.Errorf("failed to open Q4: %w", err)
+		log.Errorf("opening Q4 file %s: %s", odsq4.pathQ4, err)
+		return nil
 	}
 
-	odsq4.q4Opened.Store(true)
 	odsq4.q4 = q4
-	return q4, nil
+	return q4
 }
 
 func (odsq4 *ODSQ4) Size(ctx context.Context) int {
@@ -127,12 +133,9 @@ func (odsq4 *ODSQ4) AxisHalf(ctx context.Context, axisType rsmt2d.Axis, axisIdx 
 
 	var acsr eds.Accessor = odsq4.ods
 	if axisIdx >= size/2 {
-		q4, err := odsq4.getQ4()
-		if err != nil {
-			return eds.AxisHalf{}, err
+		if q4 := odsq4.tryLoadQ4(); q4 != nil {
+			acsr = odsq4.q4
 		}
-
-		acsr = q4
 	}
 
 	half, err := acsr.AxisHalf(ctx, axisType, axisIdx)
