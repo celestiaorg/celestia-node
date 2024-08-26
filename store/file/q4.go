@@ -28,7 +28,6 @@ type Q4 struct {
 
 // CreateQ4 creates a new file under given FS path and
 // writes the Q4 into it out of given EDS.
-// It ensures FS is synced after writing finishes.
 // It may leave partially written file if any of the writes fail.
 func CreateQ4(
 	path string,
@@ -72,10 +71,6 @@ func writeQ4File(f *os.File, eds *rsmt2d.ExtendedDataSquare, hdr *headerV0) erro
 
 	if err := buf.Flush(); err != nil {
 		return fmt.Errorf("flushing Q4: %w", err)
-	}
-
-	if err := f.Sync(); err != nil {
-		return fmt.Errorf("syncing Q4 file: %w", err)
 	}
 
 	return nil

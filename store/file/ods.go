@@ -42,7 +42,6 @@ type ODS struct {
 
 // CreateODS creates a new file under given FS path and
 // writes the ODS into it out of given EDS.
-// It ensures FS is synced after writing finishes.
 // It may leave partially written file if any of the writes fail.
 func CreateODS(
 	path string,
@@ -52,7 +51,7 @@ func CreateODS(
 	mod := os.O_RDWR | os.O_CREATE | os.O_EXCL // ensure we fail if already exist
 	f, err := os.OpenFile(path, mod, filePermissions)
 	if err != nil {
-		return fmt.Errorf("creating file: %w", err)
+		return fmt.Errorf("creating ODS file: %w", err)
 	}
 
 	hdr := &headerV0{
@@ -90,10 +89,6 @@ func writeODSFile(f *os.File, axisRoots *share.AxisRoots, eds *rsmt2d.ExtendedDa
 
 	if err := buf.Flush(); err != nil {
 		return fmt.Errorf("flushing ODS file: %w", err)
-	}
-
-	if err := f.Sync(); err != nil {
-		return fmt.Errorf("syncing file: %w", err)
 	}
 
 	return nil
