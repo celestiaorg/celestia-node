@@ -8,7 +8,9 @@ import (
 	"github.com/celestiaorg/celestia-node/share"
 )
 
-const headerVOSize int = 40
+// headerVOSize is the size of the headerV0 in bytes. It has more space than the headerV0 struct
+// to allow for future extensions of the header without breaking compatibility.
+const headerVOSize int = 64
 
 type headerVersion uint8
 
@@ -87,9 +89,9 @@ func (h *headerV0) OffsetWithRoots() int {
 func (h *headerV0) WriteTo(w io.Writer) (int64, error) {
 	buf := make([]byte, headerVOSize)
 	buf[0] = byte(h.fileVersion)
-	binary.LittleEndian.PutUint16(buf[4:6], h.shareSize)
-	binary.LittleEndian.PutUint16(buf[6:8], h.squareSize)
-	copy(buf[8:40], h.datahash)
+	binary.LittleEndian.PutUint16(buf[28:30], h.shareSize)
+	binary.LittleEndian.PutUint16(buf[30:32], h.squareSize)
+	copy(buf[32:64], h.datahash)
 	n, err := w.Write(buf)
 	return int64(n), err
 }
@@ -102,8 +104,8 @@ func (h *headerV0) ReadFrom(r io.Reader) (int64, error) {
 	}
 
 	h.fileVersion = fileVersion(bytesHeader[0])
-	h.shareSize = binary.LittleEndian.Uint16(bytesHeader[4:6])
-	h.squareSize = binary.LittleEndian.Uint16(bytesHeader[6:8])
-	h.datahash = bytesHeader[8:40]
+	h.shareSize = binary.LittleEndian.Uint16(bytesHeader[28:30])
+	h.squareSize = binary.LittleEndian.Uint16(bytesHeader[30:32])
+	h.datahash = bytesHeader[32:64]
 	return int64(headerVOSize), err
 }
