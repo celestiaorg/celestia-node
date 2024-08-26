@@ -4,6 +4,7 @@ message EDSRequest {
   bytes hash = 1; // identifies the requested EDS.
 }
 
+BREAK ME HARD
 enum Status {
   INVALID = 0;
   OK = 1; // data found
