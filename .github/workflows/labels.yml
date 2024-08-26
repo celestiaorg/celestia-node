@@ -25,8 +25,8 @@ jobs:
   apply-breaking:
     runs-on: ubuntu-latest
     if: |
-      (github.event.action == 'opened' || 
-      github.event.action == 'synchronize' || 
+      (github.event.action == 'opened' ||
+      github.event.action == 'synchronize' ||
       github.event.action == 'reopened') &&
       github.actor != 'dependabot[bot]'
     permissions:
@@ -38,17 +38,13 @@ jobs:
         with:
           fetch-depth: 0
 
-      - name: Fetch and check out base branch
-        run: |
-          git fetch origin ${{ github.event.pull_request.base.ref }}
-          git checkout ${{ github.event.pull_request.base.ref }}
-
       - name: Run check for breaking
         id: breaking_change
+        env:
+          BASE_BRANCH: ${{ github.event.pull_request.base.ref }}
         run: |
-          git merge --no-commit --no-ff ${{ github.sha }}
+          git fetch origin $BASE_BRANCH
           make detect-breaking
-        continue-on-error: true  # Continue even if this step fails, so we can still label the PR
 
       - name: Add label if breaking changes detected
         if: failure()
