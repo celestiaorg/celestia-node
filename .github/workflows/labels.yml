@@ -43,7 +43,9 @@ jobs:
         env:
           BASE_BRANCH: ${{ github.event.pull_request.base.ref }}
         run: |
+          echo "Base Branch:" $BASE_BRANCH
           git fetch origin $BASE_BRANCH
+          echo "Detect breaking"
           make detect-breaking
 
       - name: Add label if breaking changes detected
