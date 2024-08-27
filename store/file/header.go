@@ -78,12 +78,8 @@ func (h *headerV0) RootsSize() int {
 	return share.AxisRootSize * h.SquareSize() * 2
 }
 
-func (h *headerV0) Offset() int {
-	return h.Size()
-}
-
 func (h *headerV0) OffsetWithRoots() int {
-	return h.RootsSize() + h.Offset()
+	return h.RootsSize() + h.Size()
 }
 
 func (h *headerV0) WriteTo(w io.Writer) (int64, error) {
