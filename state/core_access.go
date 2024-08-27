@@ -635,7 +635,7 @@ func (ca *CoreAccessor) getSigner(cfg *TxConfig) (AccAddress, error) {
 	}
 }
 
-// ConvertToTxResponse converts the user.TxResponse to sdk.TxResponse.
+// convertToTxResponse converts the user.TxResponse to sdk.TxResponse.
 // This is a temporary workaround in order to avoid breaking the api.
 func convertToSdkTxResponse(resp *user.TxResponse) *TxResponse {
 	return &TxResponse{
