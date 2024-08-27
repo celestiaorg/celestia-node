@@ -56,9 +56,9 @@ func TestODSFile(t *testing.T) {
 	t.Cleanup(cancel)
 
 	ODSSize := 16
-	eds.TestSuiteAccessor(ctx, t, createAccessor, ODSSize)
+	eds.TestSuiteAccessor(ctx, t, createODSAccessor, ODSSize)
 	eds.TestStreamer(ctx, t, createCachedStreamer, ODSSize)
-	eds.TestStreamer(ctx, t, createStreamer, ODSSize)
+	eds.TestStreamer(ctx, t, createODSAccessorStreamer, ODSSize)
 }
 
 // BenchmarkAxisFromODSFile/Size:32/ProofType:row/squareHalf:0-16         	  382011	      3104 ns/op
@@ -158,11 +158,11 @@ func BenchmarkSampleFromODSFileDisabledCache(b *testing.B) {
 	eds.BenchGetSampleFromAccessor(ctx, b, newFile, minSize, maxSize)
 }
 
-func createAccessor(t testing.TB, eds *rsmt2d.ExtendedDataSquare) eds.Accessor {
+func createODSAccessorStreamer(t testing.TB, eds *rsmt2d.ExtendedDataSquare) eds.AccessorStreamer {
 	return createODSFile(t, eds)
 }
 
-func createStreamer(t testing.TB, eds *rsmt2d.ExtendedDataSquare) eds.AccessorStreamer {
+func createODSAccessor(t testing.TB, eds *rsmt2d.ExtendedDataSquare) eds.Accessor {
 	return createODSFile(t, eds)
 }
 
