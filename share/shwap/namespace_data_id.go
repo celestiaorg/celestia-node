@@ -62,7 +62,7 @@ func NamespaceDataIDFromBinary(data []byte) (NamespaceDataID, error) {
 // ReadFrom reads the binary form of NamespaceDataID from the provided reader.
 func (ndid *NamespaceDataID) ReadFrom(r io.Reader) (int64, error) {
 	data := make([]byte, NamespaceDataIDSize)
-	n, err := r.Read(data)
+	n, err := io.ReadFull(r, data)
 	if err != nil {
 		return int64(n), err
 	}
