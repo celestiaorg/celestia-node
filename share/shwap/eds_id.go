@@ -42,7 +42,7 @@ func EdsIDFromBinary(data []byte) (EdsID, error) {
 // ReadFrom reads the binary form of EdsID from the provided reader.
 func (eid *EdsID) ReadFrom(r io.Reader) (int64, error) {
 	data := make([]byte, EdsIDSize)
-	n, err := r.Read(data)
+	n, err := io.ReadFull(r, data)
 	if err != nil {
 		return int64(n), err
 	}

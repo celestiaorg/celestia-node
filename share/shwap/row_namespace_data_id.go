@@ -69,7 +69,7 @@ func RowNamespaceDataIDFromBinary(data []byte) (RowNamespaceDataID, error) {
 // ReadFrom reads the binary form of RowNamespaceDataID from the provided reader.
 func (s *RowNamespaceDataID) ReadFrom(r io.Reader) (int64, error) {
 	data := make([]byte, RowNamespaceDataIDSize)
-	n, err := r.Read(data)
+	n, err := io.ReadFull(r, data)
 	if err != nil {
 		return int64(n), err
 	}
