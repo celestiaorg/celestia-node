@@ -58,7 +58,7 @@ func RowIDFromBinary(data []byte) (RowID, error) {
 
 func (rid *RowID) ReadFrom(r io.Reader) (int64, error) {
 	data := make([]byte, RowIDSize)
-	n, err := r.Read(data)
+	n, err := io.ReadFull(r, data)
 	if err != nil {
 		return int64(n), err
 	}

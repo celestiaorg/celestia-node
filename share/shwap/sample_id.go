@@ -61,7 +61,7 @@ func SampleIDFromBinary(data []byte) (SampleID, error) {
 // ReadFrom reads the binary form of SampleID from the provided reader.
 func (sid *SampleID) ReadFrom(r io.Reader) (int64, error) {
 	data := make([]byte, SampleIDSize)
-	n, err := r.Read(data)
+	n, err := io.ReadFull(r, data)
 	if err != nil {
 		return int64(n), err
 	}
