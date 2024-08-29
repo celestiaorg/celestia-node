@@ -21,7 +21,6 @@ import (
 	"github.com/libp2p/go-libp2p/p2p/transport/tcp"
 	libp2pwebrtc "github.com/libp2p/go-libp2p/p2p/transport/webrtc"
 	webtransport "github.com/libp2p/go-libp2p/p2p/transport/webtransport"
-	"github.com/prometheus/client_golang/prometheus"
 	"go.uber.org/fx"
 
 	"github.com/celestiaorg/celestia-node/nodebuilder/node"
@@ -81,6 +80,7 @@ func host(params hostParams) (HostBase, error) {
 	}
 
 	opts := []libp2p.Option{
+		params.metricOpt,
 		libp2p.NoListenAddrs, // do not listen automatically
 		libp2p.AddrsFactory(params.AddrF),
 		libp2p.Identity(params.Key),
@@ -102,12 +102,6 @@ func host(params hostParams) (HostBase, error) {
 		// to clearly define what defaults we rely upon
 		libp2p.DefaultSecurity,
 		libp2p.DefaultMuxers,
-	}
-
-	if params.Registry != nil {
-		opts = append(opts, libp2p.PrometheusRegisterer(params.Registry))
-	} else {
-		opts = append(opts, libp2p.DisableMetrics())
 	}
 
 	// All node types except light (bridge, full) will enable NATService
@@ -143,7 +137,7 @@ type hostParams struct {
 	ConnGater       *conngater.BasicConnectionGater
 	Bandwidth       *metrics.BandwidthCounter
 	ResourceManager network.ResourceManager
-	Registry        prometheus.Registerer `optional:"true"`
+	metricOpt       libp2p.Option
 
 	Tp node.Type
 }
