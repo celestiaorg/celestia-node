@@ -9,7 +9,7 @@ import (
 	"github.com/ipfs/boxo/blockstore"
 	"github.com/ipfs/boxo/exchange"
 	"github.com/ipfs/go-datastore"
-	metricsprometheus "github.com/ipfs/go-metrics-prometheus"
+	metrics "github.com/ipfs/go-metrics-prometheus"
 	routinghelpers "github.com/libp2p/go-libp2p-routing-helpers"
 	hst "github.com/libp2p/go-libp2p/core/host"
 	"github.com/libp2p/go-libp2p/core/protocol"
@@ -90,5 +90,5 @@ func protocolID(network Network) protocol.ID {
 }
 
 func enableBitswapMetrics() {
-	metricsprometheus.Inject()
+	metrics.Inject()
 }
