@@ -4,7 +4,6 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"os"
 
 	bstore "github.com/ipfs/boxo/blockstore"
 	"github.com/ipfs/boxo/datastore/dshelp"
@@ -16,8 +15,6 @@ import (
 
 	share_ipld "github.com/celestiaorg/celestia-node/share/ipld"
 )
-
-var enableFixedDataSize = os.Getenv("CELESTIA_CONST_DATA_SIZE") == "1"
 
 var _ bstore.Blockstore = (*blockstore)(nil)
 
@@ -85,31 +82,10 @@ func (bs *blockstore) Get(ctx context.Context, cid cid.Cid) (blocks.Block, error
 }
 
 func (bs *blockstore) GetSize(ctx context.Context, cid cid.Cid) (int, error) {
-	if enableFixedDataSize {
-		// For now we return a fixed result, which is a max of possible values (see above).
-		// Motivation behind such behavior is described here:
-		// https://github.com/celestiaorg/celestia-node/issues/3630
-		return share_ipld.LeafNodeSize, nil
-	}
-
-	blockstr, err := bs.getReadOnlyBlockstore(ctx, cid)
-	if err == nil {
-		defer closeAndLog("blockstore", blockstr)
-		return blockstr.GetSize(ctx, cid)
-	}
-
-	if errors.Is(err, ErrNotFound) || errors.Is(err, ErrNotFoundInIndex) {
-		k := dshelp.MultihashToDsKey(cid.Hash())
-		size, err := bs.ds.GetSize(ctx, k)
-		if err == nil {
-			return size, nil
-		}
-		// nmt's GetSize expects an ipld.ErrNotFound when a cid is not found.
-		return 0, ipld.ErrNotFound{Cid: cid}
-	}
-
-	log.Debugf("failed to get size for cid %s: %s", cid, err)
-	return 0, err
+	// For now we return a fixed result, which is a max of possible values (see above).
+	// Motivation behind such behavior is described here:
+	// https://github.com/celestiaorg/celestia-node/issues/3630
+	return share_ipld.LeafNodeSize, nil
 }
 
 func (bs *blockstore) DeleteBlock(ctx context.Context, cid cid.Cid) error {
