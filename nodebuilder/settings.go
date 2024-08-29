@@ -9,6 +9,8 @@ import (
 	"github.com/grafana/pyroscope-go"
 	logging "github.com/ipfs/go-log/v2"
 	"github.com/libp2p/go-libp2p/core/peer"
+	"github.com/prometheus/client_golang/prometheus"
+	otel_prom "go.opentelemetry.io/contrib/bridges/prometheus"
 	"go.opentelemetry.io/contrib/instrumentation/runtime"
 	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/exporters/otlp/otlpmetric/otlpmetrichttp"
@@ -82,7 +84,6 @@ func WithMetrics(metricOpts []otlpmetrichttp.Option, nodeType node.Type) fx.Opti
 	modhead.MetricsEnabled = true
 	modcore.MetricsEnabled = true
 	modprune.MetricsEnabled = true
-
 	baseComponents := fx.Options(
 		fx.Supply(metricOpts),
 		fx.Invoke(initializeMetrics),
@@ -203,11 +204,14 @@ func initializeMetrics(
 		return err
 	}
 
+	promProducer := prometheusMetricsProducer(peerID, nodeType, network)
 	provider := sdk.NewMeterProvider(
 		sdk.WithReader(
 			sdk.NewPeriodicReader(exp,
+				sdk.WithProducer(promProducer),
 				sdk.WithTimeout(defaultMetricsCollectInterval),
-				sdk.WithInterval(defaultMetricsCollectInterval))),
+				sdk.WithInterval(defaultMetricsCollectInterval)),
+		),
 		sdk.WithResource(
 			resource.NewWithAttributes(
 				semconv.SchemaURL,
@@ -242,4 +246,26 @@ type loggingErrorHandler struct{}
 
 func (loggingErrorHandler) Handle(err error) {
 	metricsLogger.Error(err)
+}
+
+const (
+	networkLabel  = "network"
+	nodeTypeLabel = "node_type"
+	peerIDLabel   = "peer_id"
+)
+
+func prometheusMetricsProducer(
+	peerID peer.ID,
+	nodeType node.Type,
+	network p2p.Network,
+) sdk.Producer {
+	reg := prometheus.NewRegistry()
+	labels := prometheus.Labels{
+		networkLabel:  network.String(),
+		nodeTypeLabel: nodeType.String(),
+		peerIDLabel:   peerID.String(),
+	}
+	wrapped := prometheus.WrapRegistererWith(labels, reg)
+	prometheus.DefaultRegisterer = wrapped
+	return otel_prom.NewMetricProducer(otel_prom.WithGatherer(reg))
 }
