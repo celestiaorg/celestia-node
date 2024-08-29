@@ -81,7 +81,7 @@ func (bs *blockstore) Get(ctx context.Context, cid cid.Cid) (blocks.Block, error
 	return nil, err
 }
 
-func (bs *blockstore) GetSize(ctx context.Context, cid cid.Cid) (int, error) {
+func (bs *blockstore) GetSize(context.Context, cid.Cid) (int, error) {
 	// For now we return a fixed result, which is a max of possible values (see above).
 	// Motivation behind such behavior is described here:
 	// https://github.com/celestiaorg/celestia-node/issues/3630
