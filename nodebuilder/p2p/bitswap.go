@@ -9,6 +9,7 @@ import (
 	"github.com/ipfs/boxo/blockstore"
 	"github.com/ipfs/boxo/exchange"
 	"github.com/ipfs/go-datastore"
+	metricsprometheus "github.com/ipfs/go-metrics-prometheus"
 	routinghelpers "github.com/libp2p/go-libp2p-routing-helpers"
 	hst "github.com/libp2p/go-libp2p/core/host"
 	"github.com/libp2p/go-libp2p/core/protocol"
@@ -86,4 +87,8 @@ type bitSwapParams struct {
 
 func protocolID(network Network) protocol.ID {
 	return protocol.ID(fmt.Sprintf("/celestia/%s", network))
+}
+
+func enableBitswapMetrics() {
+	metricsprometheus.Inject()
 }
