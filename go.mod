@@ -72,8 +72,8 @@ require (
 	go.uber.org/zap v1.27.0
 	golang.org/x/crypto v0.25.0
 	golang.org/x/exp v0.0.0-20240719175910-8a7402abbf56
-	golang.org/x/sync v0.7.0
-	golang.org/x/text v0.16.0
+	golang.org/x/sync v0.8.0
+	golang.org/x/text v0.17.0
 	google.golang.org/grpc v1.65.0
 	google.golang.org/protobuf v1.34.2
 )
