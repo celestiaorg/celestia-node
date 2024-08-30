@@ -90,5 +90,5 @@ func protocolID(network Network) protocol.ID {
 }
 
 func enableBitswapMetrics() {
-	metrics.Inject()
+	_ = metrics.Inject()
 }
