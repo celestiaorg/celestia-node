@@ -39,6 +39,7 @@ require (
 	github.com/ipfs/go-ipld-cbor v0.1.0
 	github.com/ipfs/go-ipld-format v0.6.0
 	github.com/ipfs/go-log/v2 v2.5.1
+	github.com/ipfs/go-metrics-prometheus v0.0.2
 	github.com/ipld/go-car v0.6.2
 	github.com/libp2p/go-libp2p v0.36.2
 	github.com/libp2p/go-libp2p-kad-dht v0.26.1
