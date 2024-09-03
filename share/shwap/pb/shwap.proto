@@ -34,3 +34,8 @@ enum AxisType {
     ROW = 0;
     COL = 1;
 }
+
+message RangeNamespaceData {
+    repeated RowNamespaceData data = 1;
+    Sample sample = 2;
+}

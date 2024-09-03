@@ -5,6 +5,8 @@ import (
 	"fmt"
 	"io"
 
+	"github.com/celestiaorg/nmt"
+
 	"github.com/celestiaorg/celestia-node/share"
 )
 
@@ -77,4 +79,13 @@ func (nd NamespaceData) WriteTo(writer io.Writer) (int64, error) {
 		}
 	}
 	return n, nil
+}
+
+// Proofs iterates over each row and collects proofs.
+func (nd NamespaceData) Proofs() []*nmt.Proof {
+	proofs := make([]*nmt.Proof, len(nd))
+	for i, row := range nd {
+		proofs[i] = row.Proof
+	}
+	return proofs
 }
