@@ -82,12 +82,12 @@ func InitClient(cmd *cobra.Command, _ []string) error {
 		}
 	}
 
-	var opts []rpc.RPCClientOption
 	if timeoutFlag > 0 {
-		opts = append(opts, rpc.WithTimeout(timeoutFlag))
+		ctx, _ := context.WithTimeout(cmd.Context(), timeoutFlag)
+		cmd.SetContext(ctx)
 	}
 
-	client, err := rpc.NewClient(cmd.Context(), requestURL, authTokenFlag, opts...)
+	client, err := rpc.NewClient(cmd.Context(), requestURL, authTokenFlag)
 	if err != nil {
 		return err
 	}
