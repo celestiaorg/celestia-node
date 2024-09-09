@@ -57,7 +57,7 @@ jobs:
           make detect-breaking
 
       - name: Add label if breaking changes detected
-        if: failure() && steps.check_label.outputs == 'false'
+        if: ${{ failure() && steps.check_label.outputs == 'false' }}
         run: |
           echo "Applying 'kind:break!' label to PR #${{ github.event.pull_request.number }}."
           gh pr edit ${{ github.event.pull_request.number }} --add-label "kind:break!"
