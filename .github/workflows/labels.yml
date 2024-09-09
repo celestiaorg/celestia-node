@@ -32,6 +32,8 @@ jobs:
       pull-requests: write
       contents: read
 
+    outputs:
+        exists: ${{ steps.check_label.outputs.exists }}
     steps:
       - uses: actions/checkout@v4
         with:
