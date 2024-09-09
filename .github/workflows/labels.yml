@@ -45,15 +45,11 @@ jobs:
         run: |
           echo "Base Branch:" "$BASE_BRANCH"
           git fetch origin "$BASE_BRANCH"
-          echo "Detect breaking"
           make detect-breaking
 
       - name: Add label if breaking changes detected
         if: failure()
-        run: |
-          gh issue edit "$NUMBER" --add-label "$LABELS" || echo "Label already exists or failed to apply label."
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          GH_REPO: ${{ github.repository }}
-          NUMBER: ${{ github.event.pull_request.number }}
-          LABELS: kind:break!
+        uses: actions-ecosystem/action-add-labels@v1
+        with:
+          labels: |
+            kind:break!
