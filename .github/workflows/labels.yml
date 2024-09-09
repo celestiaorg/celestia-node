@@ -50,6 +50,7 @@ jobs:
         id: breaking_check
         env:
           BASE_BRANCH: ${{ github.event.pull_request.base.ref }}
+        continue-on-error: true  # This allows the job to continue even if breaking changes are detected
         run: |
           echo "Base Branch: $BASE_BRANCH"
           git fetch origin "$BASE_BRANCH"
@@ -68,10 +69,6 @@ jobs:
           fi
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-
-      - name: Debug label existence check
-        run: |
-          echo "Label check result: ${{ env.label_exists }}"
 
       - name: Add 'kind:break!' label if breaking changes detected
         if: ${{ failure() && env.label_exists == 'false' }}
