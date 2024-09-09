@@ -27,7 +27,8 @@ jobs:
     if: |
       (github.event.action == 'opened' ||
       github.event.action == 'synchronize' ||
-      github.event.action == 'reopened') &&
+      github.event.action == 'reopened' || 
+      github.event.action == 'edited') &&
       github.actor != 'dependabot[bot]'
     permissions:
       pull-requests: write
