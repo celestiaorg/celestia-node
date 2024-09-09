@@ -57,6 +57,7 @@ jobs:
 
       - name: Check if 'kind:break!' label is already present
         id: label_check
+        if: failure()
         run: |
           LABEL_EXISTS=$(gh pr view ${{ github.event.pull_request.number }} --json labels --jq '.labels | map(.name) | contains(["kind:break!"])')
           echo "Label exists: $LABEL_EXISTS"
