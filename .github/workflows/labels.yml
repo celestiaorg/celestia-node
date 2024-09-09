@@ -18,16 +18,12 @@ jobs:
           count: 1
           labels: "kind:fix, kind:misc, kind:break!, kind:refactor, kind:feat, kind:deps, kind:docs, kind:ci, kind:chore, kind:testing" # yamllint disable-line rule:line-length
 
-  # will attempt to apply a breaking label
-  # on opening the PR but not enforce it on repeated changes
-  # so we don't get trapped by false positives (for now)
-  # we can expand to all cases after
   apply-breaking:
     runs-on: ubuntu-latest
     if: |
       (github.event.action == 'opened' ||
       github.event.action == 'synchronize' ||
-      github.event.action == 'reopened' || 
+      github.event.action == 'reopened' ||
       github.event.action == 'edited' ||
       github.event.action == 'labeled' ||
       github.event.action == 'unlabeled') &&
@@ -41,21 +37,24 @@ jobs:
         with:
           fetch-depth: 0
 
-      - name: Run check for breaking
-        id: breaking_change
-        env:
-          BASE_BRANCH: ${{ github.event.pull_request.base.ref }}
+      - name: Set up GitHub CLI
         run: |
-          echo "Base Branch:" "$BASE_BRANCH"
-          git fetch origin "$BASE_BRANCH"
-          make detect-breaking
-
+          sudo apt-get install -y gh
       - name: Check if 'kind:break!' label is already present
         id: check_label
         run: |
           gh pr view ${{ github.event.pull_request.number }} --json labels --jq '.labels | map(.name) | contains(["kind:break!"])'
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Run check for breaking changes
+        id: breaking_change
+        env:
+          BASE_BRANCH: ${{ github.event.pull_request.base.ref }}
+        run: |
+          echo "Base Branch: $BASE_BRANCH"
+          git fetch origin "$BASE_BRANCH"
+          make detect-breaking
 
       - name: Add label if breaking changes detected
         if: failure() && steps.check_label.outputs == 'false'
@@ -64,3 +63,7 @@ jobs:
           gh pr edit ${{ github.event.pull_request.number }} --add-label "kind:break!"
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Label already exists or apply failed
+        if: failure() && steps.check_label.outputs == 'true'
+        run: echo "Label already exists or failed to apply label."
