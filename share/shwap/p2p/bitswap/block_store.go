@@ -24,14 +24,9 @@ type Blockstore struct {
 }
 
 func (b *Blockstore) getBlock(ctx context.Context, cid cid.Cid) (blocks.Block, error) {
-	spec, ok := specRegistry[cid.Prefix().MhType]
-	if !ok {
-		return nil, fmt.Errorf("unsupported Block type: %v", cid.Prefix().MhType)
-	}
-
-	blk, err := spec.builder(cid)
+	blk, err := EmptyBlock(cid)
 	if err != nil {
-		return nil, fmt.Errorf("failed to build a Block for %s: %w", spec.String(), err)
+		return nil, err
 	}
 
 	eds, err := b.Getter.GetByHeight(ctx, blk.Height())
@@ -45,7 +40,7 @@ func (b *Blockstore) getBlock(ctx context.Context, cid cid.Cid) (blocks.Block, e
 	}()
 
 	if err = blk.Populate(ctx, eds); err != nil {
-		return nil, fmt.Errorf("failed to populate Shwap Block on height %v for %s: %w", blk.Height(), spec.String(), err)
+		return nil, fmt.Errorf("failed to populate Shwap Block on height %v: %w", blk.Height(), err)
 	}
 
 	return convertBitswap(blk)
