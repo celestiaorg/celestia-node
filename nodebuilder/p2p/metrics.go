@@ -19,6 +19,7 @@ func WithMetrics() fx.Option {
 	return fx.Options(
 		fx.Provide(resourceManagerOpt(traceReporter)),
 		fx.Invoke(prometheusMetrics),
+		fx.Invoke(enableBitswapMetrics),
 	)
 }
 

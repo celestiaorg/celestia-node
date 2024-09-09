@@ -143,7 +143,7 @@ test-unit-race:
 ## test-integration: Run integration tests located in nodebuilder/tests.
 test-integration:
 	@echo "--> Running integrations tests $(VERBOSE) -tags=$(TAGS) $(INTEGRATION_RUN_LENGTH)"
-	@go test $(VERBOSE) -tags=$(TAGS) $(INTEGRATION_RUN_LENGTH) ./nodebuilder/tests
+	@go test $(VERBOSE) -timeout=20m -tags=$(TAGS) $(INTEGRATION_RUN_LENGTH) ./nodebuilder/tests
 .PHONY: test-integration
 
 ## test-integration-race: Run integration tests with data race detector located in nodebuilder/tests.
