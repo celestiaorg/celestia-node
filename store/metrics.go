@@ -24,7 +24,8 @@ type metrics struct {
 	putExists metric.Int64Counter
 	get       metric.Float64Histogram
 	has       metric.Float64Histogram
-	remove    metric.Float64Histogram
+	removeAll metric.Float64Histogram
+	removeQ4  metric.Float64Histogram
 	unreg     func() error
 }
 
@@ -53,8 +54,14 @@ func (s *Store) WithMetrics() error {
 		return err
 	}
 
-	remove, err := meter.Float64Histogram("eds_store_remove_time_histogram",
-		metric.WithDescription("eds store remove time histogram(s)"))
+	removeQ4, err := meter.Float64Histogram("eds_store_remove_q4_time_histogram",
+		metric.WithDescription("eds store remove q4 data time histogram(s)"))
+	if err != nil {
+		return err
+	}
+
+	removeAll, err := meter.Float64Histogram("eds_store_remove_all_time_histogram",
+		metric.WithDescription("eds store remove all data time histogram(s)"))
 	if err != nil {
 		return err
 	}
@@ -64,7 +71,8 @@ func (s *Store) WithMetrics() error {
 		putExists: putExists,
 		get:       get,
 		has:       has,
-		remove:    remove,
+		removeAll: removeAll,
+		removeQ4:  removeQ4,
 	}
 	return s.metrics.addCacheMetrics(s.cache)
 }
@@ -130,7 +138,7 @@ func (m *metrics) observeHas(ctx context.Context, dur time.Duration, failed bool
 		attribute.Bool(failedKey, failed)))
 }
 
-func (m *metrics) observeRemove(ctx context.Context, dur time.Duration, failed bool) {
+func (m *metrics) observeRemoveAll(ctx context.Context, dur time.Duration, failed bool) {
 	if m == nil {
 		return
 	}
@@ -138,7 +146,19 @@ func (m *metrics) observeRemove(ctx context.Context, dur time.Duration, failed b
 		ctx = context.Background()
 	}
 
-	m.remove.Record(ctx, dur.Seconds(), metric.WithAttributes(
+	m.removeAll.Record(ctx, dur.Seconds(), metric.WithAttributes(
+		attribute.Bool(failedKey, failed)))
+}
+
+func (m *metrics) observeRemoveQ4(ctx context.Context, dur time.Duration, failed bool) {
+	if m == nil {
+		return
+	}
+	if ctx.Err() != nil {
+		ctx = context.Background()
+	}
+
+	m.removeQ4.Record(ctx, dur.Seconds(), metric.WithAttributes(
 		attribute.Bool(failedKey, failed)))
 }
 

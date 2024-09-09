@@ -2,6 +2,8 @@ package store
 
 import (
 	"context"
+	"os"
+	"path"
 	"sync/atomic"
 	"testing"
 	"time"
@@ -24,26 +26,25 @@ func TestEDSStore(t *testing.T) {
 	require.NoError(t, err)
 
 	// disable cache
-	edsStore.cache = cache.NewDoubleCache(cache.NoopCache{}, cache.NoopCache{})
 	height := atomic.Uint64{}
 	height.Store(100)
 
 	t.Run("Put", func(t *testing.T) {
+		dir := t.TempDir()
+		edsStore, err := NewStore(paramsNoCache(), dir)
+		require.NoError(t, err)
+
 		eds, roots := randomEDS(t)
 		height := height.Add(1)
 
-		err := edsStore.Put(ctx, roots, height, eds)
+		err = edsStore.Put(ctx, roots, height, eds)
 		require.NoError(t, err)
 
-		// file should become available by hash
-		has, err := edsStore.HasByHash(ctx, roots.Hash())
-		require.NoError(t, err)
-		require.True(t, has)
+		// file should exist in the store
+		hasByHashAndHeight(t, edsStore, ctx, roots.Hash(), height, true, true)
 
-		// file should become available by height
-		has, err = edsStore.HasByHeight(ctx, height)
-		require.NoError(t, err)
-		require.True(t, has)
+		// block folder should contain ods and q4 files for the block and 1 link
+		ensureAmountFileAndLinks(t, dir, 2, 1)
 	})
 
 	t.Run("Cached after Put", func(t *testing.T) {
@@ -70,16 +71,23 @@ func TestEDSStore(t *testing.T) {
 	})
 
 	t.Run("Second Put should be noop", func(t *testing.T) {
+		dir := t.TempDir()
+		edsStore, err := NewStore(paramsNoCache(), dir)
+		require.NoError(t, err)
+
 		eds, roots := randomEDS(t)
 		height := height.Add(1)
 
-		err := edsStore.Put(ctx, roots, height, eds)
+		err = edsStore.Put(ctx, roots, height, eds)
 		require.NoError(t, err)
+		// ensure file is written. There should be only ods + q4 files and 1 link
+		ensureAmountFileAndLinks(t, dir, 2, 1)
 
 		err = edsStore.Put(ctx, roots, height, eds)
 		require.NoError(t, err)
-		// TODO: check amount of files in the store after the second Put
-		// after store supports listing
+
+		// ensure file is not duplicated.
+		ensureAmountFileAndLinks(t, dir, 2, 1)
 	})
 
 	t.Run("GetByHeight", func(t *testing.T) {
@@ -122,13 +130,8 @@ func TestEDSStore(t *testing.T) {
 		_, roots := randomEDS(t)
 		height := height.Add(1)
 
-		has, err := edsStore.HasByHash(ctx, roots.Hash())
-		require.NoError(t, err)
-		require.False(t, has)
-
-		has, err = edsStore.HasByHeight(ctx, height)
-		require.NoError(t, err)
-		require.False(t, has)
+		// file does not exist
+		hasByHashAndHeight(t, edsStore, ctx, roots.Hash(), height, false, false)
 
 		_, err = edsStore.GetByHeight(ctx, height)
 		require.ErrorIs(t, err, ErrNotFound)
@@ -137,40 +140,118 @@ func TestEDSStore(t *testing.T) {
 		require.ErrorIs(t, err, ErrNotFound)
 	})
 
-	t.Run("Remove", func(t *testing.T) {
-		edsStore, err := NewStore(DefaultParameters(), t.TempDir())
-		require.NoError(t, err)
+	t.Run("RemoveAll", func(t *testing.T) {
+		t.Run("empty file", func(t *testing.T) {
+			dir := t.TempDir()
+			edsStore, err := NewStore(DefaultParameters(), dir)
+			require.NoError(t, err)
 
-		// removing file that does not exist should be noop
-		missingHeight := height.Add(1)
-		err = edsStore.Remove(ctx, missingHeight, share.DataHash{0x01, 0x02})
-		require.NoError(t, err)
+			height := height.Add(1)
+			hash := share.EmptyEDSDataHash()
+			err = edsStore.Put(ctx, share.EmptyEDSRoots(), height, share.EmptyEDS())
+			require.NoError(t, err)
+			ensureAmountFileAndLinks(t, dir, 0, 1)
 
-		eds, roots := randomEDS(t)
-		height := height.Add(1)
-		err = edsStore.Put(ctx, roots, height, eds)
-		require.NoError(t, err)
+			err = edsStore.RemoveAll(ctx, height, hash)
+			require.NoError(t, err)
 
-		err = edsStore.Remove(ctx, height, roots.Hash())
-		require.NoError(t, err)
+			// file should be removed from cache
+			_, err = edsStore.cache.Get(height)
+			require.ErrorIs(t, err, cache.ErrCacheMiss)
 
-		// file should be removed from cache
-		_, err = edsStore.cache.Get(height)
-		require.ErrorIs(t, err, cache.ErrCacheMiss)
+			// empty file should be accessible by hash, but not by height
+			hasByHashAndHeight(t, edsStore, ctx, hash, height, true, false)
 
-		// file should not be accessible by hash
-		has, err := edsStore.HasByHash(ctx, roots.Hash())
-		require.NoError(t, err)
-		require.False(t, has)
+			// ensure all files and links are removed
+			ensureAmountFileAndLinks(t, dir, 0, 0)
+		})
 
-		// subsequent remove should be noop
-		err = edsStore.Remove(ctx, height, roots.Hash())
-		require.NoError(t, err)
+		t.Run("non-empty file", func(t *testing.T) {
+			dir := t.TempDir()
+			edsStore, err := NewStore(DefaultParameters(), dir)
+			require.NoError(t, err)
 
-		// file should not be accessible by height
-		has, err = edsStore.HasByHeight(ctx, height)
-		require.NoError(t, err)
-		require.False(t, has)
+			// removing file that does not exist should be noop
+			missingHeight := height.Add(1)
+			err = edsStore.RemoveAll(ctx, missingHeight, share.DataHash{0x01, 0x02})
+			require.NoError(t, err)
+
+			eds, roots := randomEDS(t)
+			height := height.Add(1)
+			err = edsStore.Put(ctx, roots, height, eds)
+			require.NoError(t, err)
+			// ensure file is written
+			ensureAmountFileAndLinks(t, dir, 2, 1)
+
+			err = edsStore.RemoveAll(ctx, height, roots.Hash())
+			require.NoError(t, err)
+
+			// file should be removed from cache
+			_, err = edsStore.cache.Get(height)
+			require.ErrorIs(t, err, cache.ErrCacheMiss)
+
+			// file should not be accessible by hash or height
+			hasByHashAndHeight(t, edsStore, ctx, roots.Hash(), height, false, false)
+
+			// ensure file and link are removed
+			ensureAmountFileAndLinks(t, dir, 0, 0)
+
+			// subsequent removeAll should be noop
+			err = edsStore.RemoveAll(ctx, height, roots.Hash())
+			require.NoError(t, err)
+		})
+	})
+
+	t.Run("RemoveQ4", func(t *testing.T) {
+		t.Run("empty file", func(t *testing.T) {
+			dir := t.TempDir()
+			edsStore, err := NewStore(DefaultParameters(), dir)
+			require.NoError(t, err)
+
+			height := height.Add(1)
+			hash := share.EmptyEDSDataHash()
+			err = edsStore.Put(ctx, share.EmptyEDSRoots(), height, share.EmptyEDS())
+			require.NoError(t, err)
+			// empty file is not counted as a file
+			ensureAmountFileAndLinks(t, dir, 0, 1)
+
+			err = edsStore.RemoveQ4(ctx, height, hash)
+			require.NoError(t, err)
+
+			// file should be removed from cache
+			_, err = edsStore.cache.Get(height)
+			require.ErrorIs(t, err, cache.ErrCacheMiss)
+
+			// empty file should be accessible by hash and by height
+			hasByHashAndHeight(t, edsStore, ctx, hash, height, true, true)
+
+			// ensure ods file and link are not removed
+			ensureAmountFileAndLinks(t, dir, 0, 1)
+		})
+
+		t.Run("non-empty file", func(t *testing.T) {
+			dir := t.TempDir()
+			edsStore, err := NewStore(DefaultParameters(), dir)
+			require.NoError(t, err)
+
+			square, roots := randomEDS(t)
+			height := height.Add(1)
+			err = edsStore.Put(ctx, roots, height, square)
+			require.NoError(t, err)
+
+			err = edsStore.RemoveQ4(ctx, height, roots.Hash())
+			require.NoError(t, err)
+
+			// file should be removed from cache
+			_, err = edsStore.cache.Get(height)
+			require.ErrorIs(t, err, cache.ErrCacheMiss)
+
+			// ODS file should be accessible by hash and by height
+			hasByHashAndHeight(t, edsStore, ctx, roots.Hash(), height, true, true)
+
+			// ensure ods file and link are not removed
+			ensureAmountFileAndLinks(t, dir, 1, 1)
+		})
 	})
 
 	t.Run("empty EDS returned by hash", func(t *testing.T) {
@@ -318,4 +399,37 @@ func randomEDS(t testing.TB) (*rsmt2d.ExtendedDataSquare, *share.AxisRoots) {
 	require.NoError(t, err)
 
 	return eds, roots
+}
+
+func ensureAmountFileAndLinks(t testing.TB, dir string, files, links int) {
+	// add empty file ods and q4 parts and heights folder to the count
+	files += 3
+	// ensure block folder contains the correct amount of files
+	blockPath := path.Join(dir, blocksPath)
+	entries, err := os.ReadDir(blockPath)
+	require.NoError(t, err)
+	require.Len(t, entries, files)
+
+	// ensure heights folder contains the correct amount of links
+	linksPath := path.Join(dir, heightsPath)
+	entries, err = os.ReadDir(linksPath)
+	require.NoError(t, err)
+	require.Len(t, entries, links)
+}
+
+func hasByHashAndHeight(
+	t testing.TB,
+	store *Store,
+	ctx context.Context,
+	hash share.DataHash,
+	height uint64,
+	hasByHash, hasByHeight bool,
+) {
+	has, err := store.HasByHash(ctx, hash)
+	require.NoError(t, err)
+	require.Equal(t, hasByHash, has)
+
+	has, err = store.HasByHeight(ctx, height)
+	require.NoError(t, err)
+	require.Equal(t, hasByHeight, has)
 }
