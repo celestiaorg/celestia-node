@@ -7,7 +7,6 @@ import (
 	"sync"
 	"time"
 
-	sdkErrors "cosmossdk.io/errors"
 	nodeservice "github.com/cosmos/cosmos-sdk/client/grpc/node"
 	"github.com/cosmos/cosmos-sdk/client/grpc/tmservice"
 	"github.com/cosmos/cosmos-sdk/crypto/keyring"
@@ -239,20 +238,10 @@ func (ca *CoreAccessor) SubmitPayForBlob(
 		if feeGrant != nil {
 			opts = append(opts, feeGrant)
 		}
-		response, err := ca.client.BroadcastPayForBlobWithAccount(
-			ctx,
-			accName,
-			appblobs,
-			opts...,
-		)
-		if err != nil {
-			return nil, err
-		}
 
-		// TODO @vgonkivs: remove me to achieve async blob submission
-		response, err = ca.client.ConfirmTx(ctx, response.TxHash)
-		// the node is capable of changing the min gas price at any time so we must be able to detect it and
-		// update our version accordingly
+		response, err := ca.client.SubmitPayForBlobWithAccount(ctx, accName, appblobs, opts...)
+		// Network min gas price can be updated through governance in app
+		// If that's the case, we parse the insufficient min gas price error message and update the gas price
 		if apperrors.IsInsufficientMinGasPrice(err) {
 			// The error message contains enough information to parse the new min gas price
 			gasPrice, err = apperrors.ParseInsufficientMinGasPrice(err, gasPrice, gas)
@@ -265,15 +254,15 @@ func (ca *CoreAccessor) SubmitPayForBlob(
 			continue
 		}
 
-		// metrics should only be counted on a successful PFD tx
-		if err == nil && response.Code == 0 {
-			ca.markSuccessfulPFB()
+		if err != nil {
+			return nil, err
 		}
 
-		if response != nil && response.Code != 0 {
-			err = errors.Join(err, sdkErrors.ABCIError(response.Codespace, response.Code, response.Logs.String()))
+		// metrics should only be counted on a successful PFD tx
+		if response.Code == 0 {
+			ca.markSuccessfulPFB()
 		}
-		return unsetTx(response), err
+		return convertToSdkTxResponse(response), nil
 	}
 	return nil, fmt.Errorf("failed to submit blobs after %d attempts: %w", maxRetries, lastErr)
 }
@@ -632,7 +621,7 @@ func (ca *CoreAccessor) submitMsg(
 	}
 
 	resp, err := ca.client.SubmitTx(ctx, []sdktypes.Msg{msg}, txConfig...)
-	return unsetTx(resp), err
+	return convertToSdkTxResponse(resp), err
 }
 
 func (ca *CoreAccessor) getSigner(cfg *TxConfig) (AccAddress, error) {
@@ -646,16 +635,12 @@ func (ca *CoreAccessor) getSigner(cfg *TxConfig) (AccAddress, error) {
 	}
 }
 
-// THIS IS A TEMPORARY SOLUTION!!!
-// unsetTx helps to fix issue in TxResponse marshaling. Marshaling TxReponse
-// fails because `TxResponse.Tx` is not empty but does not contain respective codec
-// for encoding using the standard `json.MarshalJSON()`. It becomes empty when
-// https://github.com/celestiaorg/celestia-core/issues/1281 will be merged.
-// The `TxResponse.Tx` contains the transaction that is sent to the cosmos-sdk in the form
-// in which it is processed there, so the user should not be aware of it.
-func unsetTx(txResponse *TxResponse) *TxResponse {
-	if txResponse != nil && txResponse.Tx != nil {
-		txResponse.Tx = nil
+// convertToTxResponse converts the user.TxResponse to sdk.TxResponse.
+// This is a temporary workaround in order to avoid breaking the api.
+func convertToSdkTxResponse(resp *user.TxResponse) *TxResponse {
+	return &TxResponse{
+		Code:   resp.Code,
+		TxHash: resp.TxHash,
+		Height: resp.Height,
 	}
-	return txResponse
 }
