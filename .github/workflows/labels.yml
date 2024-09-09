@@ -49,10 +49,8 @@ jobs:
 
       - name: Add label if breaking changes detected
         if: failure()
-        uses: actions-ecosystem/action-add-labels@v1
-        with:
-          labels: |
-            kind:break!
+        run: |
+          gh pr edit "$NUMBER" --add-label "$LABELS" || echo "Label already exists or failed to apply label."
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           GH_REPO: ${{ github.repository }}
