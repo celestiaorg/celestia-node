@@ -14,10 +14,6 @@ import (
 
 const (
 	defaultRoutingRefreshPeriod = time.Minute
-
-	// discovery version is a prefix for all tags used in discovery. It is bumped when
-	// there are protocol breaking changes.
-	version = "v1"
 )
 
 // PeerRouting provides constructor for PeerRouting over DHT.
@@ -32,7 +28,7 @@ func NewDHT(
 ) (*dht.IpfsDHT, error) {
 	opts := []dht.Option{
 		dht.BootstrapPeers(bootsrappers...),
-		dht.ProtocolPrefix(protocol.ID(fmt.Sprintf("/celestia/%s/%s", prefix, version))),
+		dht.ProtocolPrefix(protocol.ID(fmt.Sprintf("/celestia/%s", prefix))),
 		dht.Datastore(dataStore),
 		dht.RoutingTableRefreshPeriod(defaultRoutingRefreshPeriod),
 		dht.Mode(mode),
