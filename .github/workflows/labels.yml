@@ -1,4 +1,4 @@
-name: Required Labels
+name: Required Labels and Breaking Change Detection
 
 on:
   pull_request:
@@ -9,16 +9,21 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  label:
+  # Check that the PR has required labels
+  required-labels:
     runs-on: ubuntu-latest
     steps:
-      - uses: mheap/github-action-required-labels@v5
+      - uses: actions/checkout@v4
+
+      - name: Check required labels
+        uses: mheap/github-action-required-labels@v5
         with:
           mode: minimum
           count: 1
           labels: "kind:fix, kind:misc, kind:break!, kind:refactor, kind:feat, kind:deps, kind:docs, kind:ci, kind:chore, kind:testing" # yamllint disable-line rule:line-length
 
-  apply-breaking:
+  # Check for breaking changes and add 'kind:break!' label if detected
+  check-breaking:
     runs-on: ubuntu-latest
     if: |
       (github.event.action == 'opened' ||
@@ -32,8 +37,6 @@ jobs:
       pull-requests: write
       contents: read
 
-    outputs:
-        exists: ${{ steps.check_label.outputs.exists }}
     steps:
       - uses: actions/checkout@v4
         with:
@@ -42,17 +45,9 @@ jobs:
       - name: Set up GitHub CLI
         run: |
           sudo apt-get install -y gh
-      - name: Check if 'kind:break!' label is already present
-        id: check_label
-        run: |
-          EXISTS=$(gh pr view ${{ github.event.pull_request.number }} --json labels --jq '.labels | map(.name) | contains(["kind:break!"])')
-          echo "Label exists: $EXISTS"
-          echo "::set-output name=exists::$EXISTS"
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Run check for breaking changes
-        id: breaking_change
+      - name: Run breaking change detection script
+        id: breaking_check
         env:
           BASE_BRANCH: ${{ github.event.pull_request.base.ref }}
         run: |
@@ -60,15 +55,31 @@ jobs:
           git fetch origin "$BASE_BRANCH"
           make detect-breaking
 
-      - name: Add label if breaking changes detected
-        if: failure()
+      - name: Check if 'kind:break!' label is already present
+        id: label_check
         run: |
-          echo "Label check result2: ${{ steps.check_label.outputs.exits }}"
-          echo "Applying 'kind:break!' label to PR #${{ github.event.pull_request.number }}."
+          LABEL_EXISTS=$(gh pr view ${{ github.event.pull_request.number }} --json labels --jq '.labels | map(.name) | contains(["kind:break!"])')
+          echo "Label exists: $LABEL_EXISTS"
+          if [[ "$LABEL_EXISTS" == "true" ]]; then
+            echo "label_exists=true" >> $GITHUB_ENV
+          else
+            echo "label_exists=false" >> $GITHUB_ENV
+          fi
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Debug label existence check
+        run: |
+          echo "Label check result: ${{ env.label_exists }}"
+
+      - name: Add 'kind:break!' label if breaking changes detected
+        if: ${{ failure() && env.label_exists == 'false' }}
+        run: |
+          echo "Breaking changes detected, adding 'kind:break!' label to PR #${{ github.event.pull_request.number }}."
           gh pr edit ${{ github.event.pull_request.number }} --add-label "kind:break!"
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Label already exists or apply failed
-        if: failure() && steps.check_label.outputs.exists == 'true'
-        run: echo "Label already exists or failed to apply label."
+        if: ${{ failure() && env.label_exists == 'true' }}
+        run: echo "The 'kind:break!' label already exists or could not be added."
