@@ -13,11 +13,14 @@ func SetAllLoggers(level logging.LogLevel) {
 	_ = logging.SetLogLevel("dht", "ERROR")
 	_ = logging.SetLogLevel("swarm2", "WARN")
 	_ = logging.SetLogLevel("bitswap", "WARN")
-	_ = logging.SetLogLevel("bitswap-client", "WARN")
+	_ = logging.SetLogLevel("bitswap/client", "WARN")
+	_ = logging.SetLogLevel("bitswap/client/msgq", "WARN")
+	_ = logging.SetLogLevel("bitswap/network", "ERROR")
+	_ = logging.SetLogLevel("bitswap/session", "WARN")
+	_ = logging.SetLogLevel("bitswap/server", "WARN")
 	_ = logging.SetLogLevel("connmgr", "WARN")
 	_ = logging.SetLogLevel("nat", "INFO")
 	_ = logging.SetLogLevel("dht/RtRefreshManager", "FATAL")
-	_ = logging.SetLogLevel("bitswap_network", "ERROR")
 	_ = logging.SetLogLevel("badger", "INFO")
 	_ = logging.SetLogLevel("basichost", "INFO")
 	_ = logging.SetLogLevel("pubsub", "WARN")
@@ -27,7 +30,6 @@ func SetAllLoggers(level logging.LogLevel) {
 	_ = logging.SetLogLevel("dagstore", "WARN")
 	_ = logging.SetLogLevel("dagstore/upgrader", "WARN")
 	_ = logging.SetLogLevel("fx", "FATAL")
-	_ = logging.SetLogLevel("bitswap-server", "WARN")
 }
 
 func SetDebugLogging() {
