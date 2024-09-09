@@ -301,7 +301,6 @@ func BenchmarkIPLDGetterOverBusyCache(b *testing.B) {
 	g := sync.WaitGroup{}
 	g.Add(blocks)
 	for _, h := range headers {
-		h := h
 		go func() {
 			defer g.Done()
 			_, err := getter.GetEDS(ctx, h)
