@@ -50,12 +50,17 @@ jobs:
           git fetch origin "$BASE_BRANCH"
           make detect-breaking
 
-      - name: Add label if breaking changes detected
-        if: failure()
+      - name: Check if 'kind:break!' label is already present
+        id: check_label
         run: |
-          gh pr edit "$NUMBER" --add-label "$LABELS" || echo "Label already exists or failed to apply label."
+          gh pr view ${{ github.event.pull_request.number }} --json labels --jq '.labels | map(.name) | contains(["kind:break!"])'
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          GH_REPO: ${{ github.repository }}
-          NUMBER: ${{ github.event.pull_request.number }}
-          LABELS: kind:break!
+
+      - name: Add label if breaking changes detected
+        if: failure() && steps.check_label.outputs == 'false'
+        run: |
+          echo "Applying 'kind:break!' label to PR #${{ github.event.pull_request.number }}."
+          gh pr edit ${{ github.event.pull_request.number }} --add-label "kind:break!"
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
