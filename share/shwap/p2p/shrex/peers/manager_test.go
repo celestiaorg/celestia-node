@@ -364,6 +364,7 @@ func TestIntegration(t *testing.T) {
 
 	t.Run("get peer from discovery", func(t *testing.T) {
 		fullNodesTag := "fullNodes"
+		version := "v1"
 		nw, err := mocknet.FullMeshConnected(3)
 		require.NoError(t, err)
 		ctx, cancel := context.WithTimeout(context.Background(), time.Second*10)
@@ -399,6 +400,7 @@ func TestIntegration(t *testing.T) {
 			params,
 			bnHost,
 			routingdisc.NewRoutingDiscovery(bnRouter),
+			version,
 			fullNodesTag,
 		)
 		require.NoError(t, err)
@@ -435,6 +437,7 @@ func TestIntegration(t *testing.T) {
 			params,
 			fnHost,
 			routingdisc.NewRoutingDiscovery(fnRouter),
+			version,
 			fullNodesTag,
 			discovery.WithOnPeersUpdate(fnPeerManager.UpdateNodePool),
 			discovery.WithOnPeersUpdate(checkDiscoveredPeer),

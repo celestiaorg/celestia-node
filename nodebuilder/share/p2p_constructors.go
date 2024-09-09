@@ -25,6 +25,10 @@ const (
 	// archivalNodesTag is the tag used to identify archival nodes in the
 	// discovery service.
 	archivalNodesTag = "archival"
+
+	// discovery version is a prefix for all tags used in discovery. It is bumped when
+	// there are protocol breaking changes.
+	version = "v1"
 )
 
 // TODO @renaynay: rename
@@ -81,6 +85,7 @@ func fullDiscoveryAndPeerManager(tp node.Type, cfg *Config) fx.Option {
 				cfg.Discovery,
 				host,
 				disc,
+				version,
 				fullNodesTag,
 				discOpts...,
 			)
@@ -128,6 +133,7 @@ func archivalDiscoveryAndPeerManager(tp node.Type, cfg *Config) fx.Option {
 				cfg.Discovery,
 				h,
 				disc,
+				version,
 				archivalNodesTag,
 				discOpts...,
 			)

@@ -34,10 +34,6 @@ const (
 	// logInterval defines the time interval at which a warning message will be logged
 	// if the desired number of nodes is not detected.
 	logInterval = 5 * time.Minute
-
-	// discovery version is a prefix for all tags used in discovery. It is bumped when
-	// there are protocol breaking changes.
-	version = "v1"
 )
 
 // discoveryRetryTimeout defines time interval between discovery attempts, needed for tests
@@ -85,6 +81,7 @@ func NewDiscovery(
 	params *Parameters,
 	h host.Host,
 	d discovery.Discovery,
+	prefix string,
 	tag string,
 	opts ...Option,
 ) (*Discovery, error) {
@@ -98,7 +95,7 @@ func NewDiscovery(
 	o := newOptions(opts...)
 	return &Discovery{
 		tag:            tag,
-		topic:          fmt.Sprintf("/%s/%s", version, tag),
+		topic:          fmt.Sprintf("/%s/%s", prefix, tag),
 		set:            newLimitedSet(params.PeersLimit),
 		host:           h,
 		disc:           d,
