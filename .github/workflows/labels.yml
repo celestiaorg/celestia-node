@@ -43,7 +43,9 @@ jobs:
       - name: Check if 'kind:break!' label is already present
         id: check_label
         run: |
-          gh pr view ${{ github.event.pull_request.number }} --json labels --jq '.labels | map(.name) | contains(["kind:break!"])'
+          EXISTS=$(gh pr view ${{ github.event.pull_request.number }} --json labels --jq '.labels | map(.name) | contains(["kind:break!"])')
+          echo "Label exists: $EXISTS"
+          echo "::set-output name=exists::$EXISTS"
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
@@ -59,7 +61,6 @@ jobs:
       - name: Add label if breaking changes detected
         if: failure()
         run: |
-          echo "Label check result: ${{ steps.check_label.outputs }}"
           echo "Label check result2: ${{ steps.check_label.outputs.exits }}"
           echo "Applying 'kind:break!' label to PR #${{ github.event.pull_request.number }}."
           gh pr edit ${{ github.event.pull_request.number }} --add-label "kind:break!"
@@ -67,5 +68,5 @@ jobs:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Label already exists or apply failed
-        if: failure() && steps.check_label.outputs == 'true'
+        if: failure() && steps.check_label.outputs.exists == 'true'
         run: echo "Label already exists or failed to apply label."
