@@ -45,7 +45,6 @@ jobs:
         with:
           args: --timeout 10m
           version: v1.60
-          skip-cache: true
 
   lint-imports:
     needs: [setup]
@@ -83,7 +82,7 @@ jobs:
         run: git diff --exit-code
 
   test_coverage:
-    needs: [lint, go_mod_tidy_check, setup]
+    needs: [setup]
     name: Unit Tests Coverage
     strategy:
       fail-fast: false
@@ -146,7 +145,7 @@ jobs:
 
   integration_test:
     name: Integration Tests
-    needs: [lint, go_mod_tidy_check]
+    needs: [go_mod_tidy_check, lint, lint-imports, test_coverage]
     uses: ./.github/workflows/integration-tests.yml
     with:
       go-version: ${{ inputs.go-version }}
