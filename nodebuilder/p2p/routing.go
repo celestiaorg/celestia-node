@@ -32,6 +32,12 @@ func newDHT(
 		return nil, fmt.Errorf("unsupported node type: %s", tp)
 	}
 
+	// no bootstrappers for a bootstrapper ¯\_(ツ)_/¯
+	// otherwise dht.Bootstrap(OnStart hook) will deadlock
+	if isBootstrapper() {
+		bootsrappers = nil
+	}
+
 	dht, err := discovery.NewDHT(ctx, network.String(), bootsrappers, host, dataStore, mode)
 	if err != nil {
 		return nil, err
