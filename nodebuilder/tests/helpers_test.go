@@ -30,6 +30,5 @@ func getAdminClient(ctx context.Context, nd *nodebuilder.Node, t *testing.T) *cl
 }
 
 func setTimeInterval(cfg *nodebuilder.Config, interval time.Duration) {
-	cfg.P2P.RoutingTableRefreshPeriod = interval
 	cfg.Share.Discovery.AdvertiseInterval = interval
 }
