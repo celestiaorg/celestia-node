@@ -24,7 +24,7 @@ func NewPruner(store *store.Store) *Pruner {
 func (p *Pruner) Prune(ctx context.Context, eh *header.ExtendedHeader) error {
 	log.Debugf("pruning header %s", eh.DAH.Hash())
 
-	err := p.store.RemoveAll(ctx, eh.Height(), eh.DAH.Hash())
+	err := p.store.RemoveODSQ4(ctx, eh.Height(), eh.DAH.Hash())
 	if err != nil {
 		return err
 	}

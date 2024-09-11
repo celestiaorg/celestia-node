@@ -20,13 +20,13 @@ const (
 var meter = otel.Meter("store")
 
 type metrics struct {
-	put       metric.Float64Histogram
-	putExists metric.Int64Counter
-	get       metric.Float64Histogram
-	has       metric.Float64Histogram
-	removeAll metric.Float64Histogram
-	removeQ4  metric.Float64Histogram
-	unreg     func() error
+	put         metric.Float64Histogram
+	putExists   metric.Int64Counter
+	get         metric.Float64Histogram
+	has         metric.Float64Histogram
+	removeODSQ4 metric.Float64Histogram
+	removeQ4    metric.Float64Histogram
+	unreg       func() error
 }
 
 func (s *Store) WithMetrics() error {
@@ -60,19 +60,19 @@ func (s *Store) WithMetrics() error {
 		return err
 	}
 
-	removeAll, err := meter.Float64Histogram("eds_store_remove_all_time_histogram",
-		metric.WithDescription("eds store remove all data time histogram(s)"))
+	removeODSQ4, err := meter.Float64Histogram("eds_store_remove_odsq4_time_histogram",
+		metric.WithDescription("eds store remove odsq4 file data time histogram(s)"))
 	if err != nil {
 		return err
 	}
 
 	s.metrics = &metrics{
-		put:       put,
-		putExists: putExists,
-		get:       get,
-		has:       has,
-		removeAll: removeAll,
-		removeQ4:  removeQ4,
+		put:         put,
+		putExists:   putExists,
+		get:         get,
+		has:         has,
+		removeODSQ4: removeODSQ4,
+		removeQ4:    removeQ4,
 	}
 	return s.metrics.addCacheMetrics(s.cache)
 }
@@ -138,7 +138,7 @@ func (m *metrics) observeHas(ctx context.Context, dur time.Duration, failed bool
 		attribute.Bool(failedKey, failed)))
 }
 
-func (m *metrics) observeRemoveAll(ctx context.Context, dur time.Duration, failed bool) {
+func (m *metrics) observeRemoveODSQ4(ctx context.Context, dur time.Duration, failed bool) {
 	if m == nil {
 		return
 	}
@@ -146,7 +146,7 @@ func (m *metrics) observeRemoveAll(ctx context.Context, dur time.Duration, faile
 		ctx = context.Background()
 	}
 
-	m.removeAll.Record(ctx, dur.Seconds(), metric.WithAttributes(
+	m.removeODSQ4.Record(ctx, dur.Seconds(), metric.WithAttributes(
 		attribute.Bool(failedKey, failed)))
 }
 

@@ -140,7 +140,7 @@ func TestEDSStore(t *testing.T) {
 		require.ErrorIs(t, err, ErrNotFound)
 	})
 
-	t.Run("RemoveAll", func(t *testing.T) {
+	t.Run("RemoveODSQ4", func(t *testing.T) {
 		t.Run("empty file", func(t *testing.T) {
 			dir := t.TempDir()
 			edsStore, err := NewStore(DefaultParameters(), dir)
@@ -152,7 +152,7 @@ func TestEDSStore(t *testing.T) {
 			require.NoError(t, err)
 			ensureAmountFileAndLinks(t, dir, 0, 1)
 
-			err = edsStore.RemoveAll(ctx, height, hash)
+			err = edsStore.RemoveODSQ4(ctx, height, hash)
 			require.NoError(t, err)
 
 			// file should be removed from cache
@@ -173,7 +173,7 @@ func TestEDSStore(t *testing.T) {
 
 			// removing file that does not exist should be noop
 			missingHeight := height.Add(1)
-			err = edsStore.RemoveAll(ctx, missingHeight, share.DataHash{0x01, 0x02})
+			err = edsStore.RemoveODSQ4(ctx, missingHeight, share.DataHash{0x01, 0x02})
 			require.NoError(t, err)
 
 			eds, roots := randomEDS(t)
@@ -183,7 +183,7 @@ func TestEDSStore(t *testing.T) {
 			// ensure file is written
 			ensureAmountFileAndLinks(t, dir, 2, 1)
 
-			err = edsStore.RemoveAll(ctx, height, roots.Hash())
+			err = edsStore.RemoveODSQ4(ctx, height, roots.Hash())
 			require.NoError(t, err)
 
 			// file should be removed from cache
@@ -196,8 +196,8 @@ func TestEDSStore(t *testing.T) {
 			// ensure file and link are removed
 			ensureAmountFileAndLinks(t, dir, 0, 0)
 
-			// subsequent removeAll should be noop
-			err = edsStore.RemoveAll(ctx, height, roots.Hash())
+			// subsequent removeODSQ4 should be noop
+			err = edsStore.RemoveODSQ4(ctx, height, roots.Hash())
 			require.NoError(t, err)
 		})
 	})
