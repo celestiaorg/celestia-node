@@ -20,12 +20,13 @@ const (
 var meter = otel.Meter("store")
 
 type metrics struct {
-	put       metric.Float64Histogram
-	putExists metric.Int64Counter
-	get       metric.Float64Histogram
-	has       metric.Float64Histogram
-	remove    metric.Float64Histogram
-	unreg     func() error
+	put         metric.Float64Histogram
+	putExists   metric.Int64Counter
+	get         metric.Float64Histogram
+	has         metric.Float64Histogram
+	removeODSQ4 metric.Float64Histogram
+	removeQ4    metric.Float64Histogram
+	unreg       func() error
 }
 
 func (s *Store) WithMetrics() error {
@@ -53,18 +54,25 @@ func (s *Store) WithMetrics() error {
 		return err
 	}
 
-	remove, err := meter.Float64Histogram("eds_store_remove_time_histogram",
-		metric.WithDescription("eds store remove time histogram(s)"))
+	removeQ4, err := meter.Float64Histogram("eds_store_remove_q4_time_histogram",
+		metric.WithDescription("eds store remove q4 data time histogram(s)"))
+	if err != nil {
+		return err
+	}
+
+	removeODSQ4, err := meter.Float64Histogram("eds_store_remove_odsq4_time_histogram",
+		metric.WithDescription("eds store remove odsq4 file data time histogram(s)"))
 	if err != nil {
 		return err
 	}
 
 	s.metrics = &metrics{
-		put:       put,
-		putExists: putExists,
-		get:       get,
-		has:       has,
-		remove:    remove,
+		put:         put,
+		putExists:   putExists,
+		get:         get,
+		has:         has,
+		removeODSQ4: removeODSQ4,
+		removeQ4:    removeQ4,
 	}
 	return s.metrics.addCacheMetrics(s.cache)
 }
@@ -130,7 +138,7 @@ func (m *metrics) observeHas(ctx context.Context, dur time.Duration, failed bool
 		attribute.Bool(failedKey, failed)))
 }
 
-func (m *metrics) observeRemove(ctx context.Context, dur time.Duration, failed bool) {
+func (m *metrics) observeRemoveODSQ4(ctx context.Context, dur time.Duration, failed bool) {
 	if m == nil {
 		return
 	}
@@ -138,7 +146,19 @@ func (m *metrics) observeRemove(ctx context.Context, dur time.Duration, failed b
 		ctx = context.Background()
 	}
 
-	m.remove.Record(ctx, dur.Seconds(), metric.WithAttributes(
+	m.removeODSQ4.Record(ctx, dur.Seconds(), metric.WithAttributes(
+		attribute.Bool(failedKey, failed)))
+}
+
+func (m *metrics) observeRemoveQ4(ctx context.Context, dur time.Duration, failed bool) {
+	if m == nil {
+		return
+	}
+	if ctx.Err() != nil {
+		ctx = context.Background()
+	}
+
+	m.removeQ4.Record(ctx, dur.Seconds(), metric.WithAttributes(
 		attribute.Bool(failedKey, failed)))
 }
 
