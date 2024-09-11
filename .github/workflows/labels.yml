@@ -26,12 +26,6 @@ jobs:
   check-breaking:
     runs-on: ubuntu-latest
     if: |
-      (github.event.action == 'opened' ||
-      github.event.action == 'synchronize' ||
-      github.event.action == 'reopened' ||
-      github.event.action == 'edited' ||
-      github.event.action == 'labeled' ||
-      github.event.action == 'unlabeled') &&
       github.actor != 'dependabot[bot]'
     permissions:
       pull-requests: write
@@ -62,11 +56,7 @@ jobs:
         run: |
           LABEL_EXISTS=$(gh pr view ${{ github.event.pull_request.number }} --json labels --jq '.labels | map(.name) | contains(["kind:break!"])')
           echo "Label exists: $LABEL_EXISTS"
-          if [[ "$LABEL_EXISTS" == "true" ]]; then
-            echo "label_exists=true" >> $GITHUB_ENV
-          else
-            echo "label_exists=false" >> $GITHUB_ENV
-          fi
+         echo "label_exists=${{ $LABEL_EXISTS }}" >> $GITHUB_ENV
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
