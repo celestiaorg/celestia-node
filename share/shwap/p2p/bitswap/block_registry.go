@@ -8,6 +8,21 @@ import (
 	mh "github.com/multiformats/go-multihash"
 )
 
+// EmptyBlock constructs an empty Block with type in the given CID.
+func EmptyBlock(cid cid.Cid) (Block, error) {
+	spec, ok := specRegistry[cid.Prefix().MhType]
+	if !ok {
+		return nil, fmt.Errorf("unsupported Block type: %v", cid.Prefix().MhType)
+	}
+
+	blk, err := spec.builder(cid)
+	if err != nil {
+		return nil, fmt.Errorf("failed to build a Block for %s: %w", spec.String(), err)
+	}
+
+	return blk, nil
+}
+
 // registerBlock registers the new Block type and multihash for it.
 func registerBlock(mhcode, codec uint64, idSize int, bldrFn func(cid.Cid) (Block, error)) {
 	mh.Register(mhcode, func() hash.Hash {

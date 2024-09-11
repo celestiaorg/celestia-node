@@ -1,8 +1,9 @@
 package share
 
 import (
+	dht "github.com/libp2p/go-libp2p-kad-dht"
+	p2pdisc "github.com/libp2p/go-libp2p/core/discovery"
 	"github.com/libp2p/go-libp2p/core/host"
-	"github.com/libp2p/go-libp2p/core/routing"
 	routingdisc "github.com/libp2p/go-libp2p/p2p/discovery/routing"
 	"github.com/libp2p/go-libp2p/p2p/net/conngater"
 	"go.uber.org/fx"
@@ -24,11 +25,16 @@ const (
 	// archivalNodesTag is the tag used to identify archival nodes in the
 	// discovery service.
 	archivalNodesTag = "archival"
+
+	// discovery version is a prefix for all tags used in discovery. It is bumped when
+	// there are protocol breaking changes.
+	version = "v1"
 )
 
 // TODO @renaynay: rename
 func peerComponents(tp node.Type, cfg *Config) fx.Option {
 	return fx.Options(
+		fx.Provide(routingDiscovery),
 		fullDiscoveryAndPeerManager(tp, cfg),
 		archivalDiscoveryAndPeerManager(tp, cfg),
 	)
@@ -42,8 +48,8 @@ func fullDiscoveryAndPeerManager(tp node.Type, cfg *Config) fx.Option {
 		func(
 			lc fx.Lifecycle,
 			host host.Host,
-			r routing.ContentRouting,
 			connGater *conngater.BasicConnectionGater,
+			disc p2pdisc.Discovery,
 			shrexSub *shrexsub.PubSub,
 			headerSub libhead.Subscriber[*header.ExtendedHeader],
 			// we must ensure Syncer is started before PeerManager
@@ -78,7 +84,8 @@ func fullDiscoveryAndPeerManager(tp node.Type, cfg *Config) fx.Option {
 			fullDisc, err := discovery.NewDiscovery(
 				cfg.Discovery,
 				host,
-				routingdisc.NewRoutingDiscovery(r),
+				disc,
+				version,
 				fullNodesTag,
 				discOpts...,
 			)
@@ -100,10 +107,10 @@ func archivalDiscoveryAndPeerManager(tp node.Type, cfg *Config) fx.Option {
 		func(
 			lc fx.Lifecycle,
 			pruneCfg *modprune.Config,
-			d *discovery.Discovery,
-			manager *peers.Manager,
+			fullDisc *discovery.Discovery,
+			fullManager *peers.Manager,
 			h host.Host,
-			r routing.ContentRouting,
+			disc p2pdisc.Discovery,
 			gater *conngater.BasicConnectionGater,
 		) (map[string]*peers.Manager, []*discovery.Discovery, error) {
 			archivalPeerManager, err := peers.NewManager(
@@ -125,7 +132,8 @@ func archivalDiscoveryAndPeerManager(tp node.Type, cfg *Config) fx.Option {
 			archivalDisc, err := discovery.NewDiscovery(
 				cfg.Discovery,
 				h,
-				routingdisc.NewRoutingDiscovery(r),
+				disc,
+				version,
 				archivalNodesTag,
 				discOpts...,
 			)
@@ -137,7 +145,11 @@ func archivalDiscoveryAndPeerManager(tp node.Type, cfg *Config) fx.Option {
 				OnStop:  archivalDisc.Stop,
 			})
 
-			managers := map[string]*peers.Manager{fullNodesTag: manager, archivalNodesTag: archivalPeerManager}
-			return managers, []*discovery.Discovery{d, archivalDisc}, nil
+			managers := map[string]*peers.Manager{fullNodesTag: fullManager, archivalNodesTag: archivalPeerManager}
+			return managers, []*discovery.Discovery{fullDisc, archivalDisc}, nil
 		})
+}
+
+func routingDiscovery(dht *dht.IpfsDHT) p2pdisc.Discovery {
+	return routingdisc.NewRoutingDiscovery(dht)
 }

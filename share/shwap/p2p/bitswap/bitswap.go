@@ -159,5 +159,5 @@ func shwapProtocolID(network protocol.ID) protocol.ID {
 	if network == "" {
 		return ""
 	}
-	return protocol.ID(fmt.Sprintf("/%s/shwap", network))
+	return protocol.ID(fmt.Sprintf("%s/shwap", network))
 }

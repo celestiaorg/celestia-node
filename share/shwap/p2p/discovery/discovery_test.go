@@ -21,6 +21,7 @@ import (
 
 const (
 	fullNodesTag = "full"
+	version      = "v1"
 )
 
 func TestDiscovery(t *testing.T) {
@@ -56,7 +57,7 @@ func TestDiscovery(t *testing.T) {
 	discs := make([]*Discovery, nodes)
 	for i := range discs {
 		host, routingDisc := tn.peer()
-		disc, err := NewDiscovery(params, host, routingDisc, fullNodesTag)
+		disc, err := NewDiscovery(params, host, routingDisc, version, fullNodesTag)
 		require.NoError(t, err)
 		go disc.Advertise(tn.ctx)
 		discs[i] = tn.startNewDiscovery(params, host, routingDisc, fullNodesTag)
@@ -166,7 +167,7 @@ func (t *testnet) startNewDiscovery(
 	tag string,
 	opts ...Option,
 ) *Discovery {
-	disc, err := NewDiscovery(params, hst, routingDisc, tag, opts...)
+	disc, err := NewDiscovery(params, hst, routingDisc, version, tag, opts...)
 	require.NoError(t.T, err)
 	err = disc.Start(t.ctx)
 	require.NoError(t.T, err)

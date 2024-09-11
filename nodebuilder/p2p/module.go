@@ -14,9 +14,7 @@ var log = logging.Logger("module/p2p")
 // ConstructModule collects all the components and services related to p2p.
 func ConstructModule(tp node.Type, cfg *Config) fx.Option {
 	// sanitize config values before constructing module
-	cfgErr := cfg.Validate()
 	baseComponents := fx.Options(
-		fx.Error(cfgErr),
 		fx.Supply(cfg),
 		fx.Provide(Key),
 		fx.Provide(id),
@@ -28,7 +26,7 @@ func ConstructModule(tp node.Type, cfg *Config) fx.Option {
 		fx.Provide(pubSub),
 		fx.Provide(ipld.NewBlockservice),
 		fx.Provide(peerRouting),
-		fx.Provide(contentRouting),
+		fx.Provide(newDHT),
 		fx.Provide(addrsFactory(cfg.AnnounceAddresses, cfg.NoAnnounceAddresses)),
 		fx.Provide(metrics.NewBandwidthCounter),
 		fx.Provide(newModule),
