@@ -2,10 +2,12 @@ package main
 
 import (
 	"fmt"
-	"github.com/celestiaorg/celestia-node/share/shwap/p2p/bitswap"
+	"reflect"
+
 	"github.com/ipfs/go-cid"
 	"github.com/spf13/cobra"
-	"reflect"
+
+	"github.com/celestiaorg/celestia-node/share/shwap/p2p/bitswap"
 )
 
 func init() {
