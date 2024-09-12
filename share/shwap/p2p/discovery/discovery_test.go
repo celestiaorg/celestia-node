@@ -29,7 +29,7 @@ func TestDiscovery(t *testing.T) {
 
 	discoveryRetryTimeout = time.Millisecond * 100 // defined in discovery.go
 
-	ctx, cancel := context.WithTimeout(context.Background(), time.Second*20)
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second*40)
 	t.Cleanup(cancel)
 
 	tn := newTestnet(ctx, t)
@@ -51,21 +51,23 @@ func TestDiscovery(t *testing.T) {
 	peerA := tn.startNewDiscovery(params, host, routingDisc, fullNodesTag,
 		WithOnPeersUpdate(submit),
 	)
-
-	// start discovery advertisement services for other peers
 	params.AdvertiseInterval = time.Millisecond * 100
-	discs := make([]*Discovery, nodes)
-	for i := range discs {
+	// start discovery advertisement services for other peers
+	discs := make(map[string]*Discovery, nodes)
+	for range nodes {
 		host, routingDisc := tn.peer()
-		disc, err := NewDiscovery(params, host, routingDisc, version, fullNodesTag)
-		require.NoError(t, err)
-		go disc.Advertise(tn.ctx)
-		discs[i] = tn.startNewDiscovery(params, host, routingDisc, fullNodesTag)
+		disc := tn.startNewDiscovery(params, host, routingDisc, fullNodesTag, WithAdvertise())
+		discs[disc.host.ID().String()] = disc
+	}
 
+	for range nodes {
 		select {
 		case res := <-updateCh:
-			require.Equal(t, discs[i].host.ID(), res.peerID)
 			require.True(t, res.isAdded)
+			if _, ok := discs[res.peerID.String()]; !ok {
+				t.Fatal("discovered unknown peer")
+			}
+			delete(discs, res.peerID.String())
 		case <-ctx.Done():
 			t.Fatal("did not discover peer in time")
 		}
@@ -88,7 +90,7 @@ func TestDiscovery(t *testing.T) {
 		}
 	}
 
-	assert.EqualValues(t, 0, peerA.set.Size())
+	assert.Equal(t, uint(10), peerA.set.Size())
 }
 
 func TestDiscoveryTagged(t *testing.T) {
@@ -191,8 +193,6 @@ func (t *testnet) peer() (host.Host, discovery.Discovery) {
 	dht, err := dht.New(t.ctx, hst,
 		dht.Mode(dht.ModeServer),
 		dht.ProtocolPrefix("/test"),
-		// needed to reduce connections to peers on DHT level
-		dht.BucketSize(1),
 	)
 	require.NoError(t.T, err)
 

@@ -44,7 +44,6 @@ func TestRetriever_Retrieve(t *testing.T) {
 		{"128x128(max)", share.MaxSquareSize},
 	}
 	for _, tc := range tests {
-		tc := tc
 		t.Run(tc.name, func(t *testing.T) {
 			// generate EDS
 			shares := sharetest.RandShares(t, tc.squareSize*tc.squareSize)

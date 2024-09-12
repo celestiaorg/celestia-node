@@ -102,7 +102,6 @@ func (ce *Exchange) getRangeByHeight(ctx context.Context, from, amount uint64) (
 	errGroup, ctx := errgroup.WithContext(ctx)
 	errGroup.SetLimit(concurrencyLimit)
 	for i := range headers {
-		i := i
 		errGroup.Go(func() error {
 			extHeader, err := ce.GetByHeight(ctx, from+uint64(i))
 			if err != nil {

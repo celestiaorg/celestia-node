@@ -70,8 +70,6 @@ func TestBlockRecovery(t *testing.T) {
 		{"missing all but one shares", allShares, true, "failed to solve data square", extendedShareCount - 1},
 	}
 	for _, tc := range testCases {
-		tc := tc
-
 		t.Run(tc.name, func(t *testing.T) {
 			squareSize := utils.SquareSize(len(tc.shares))
 
