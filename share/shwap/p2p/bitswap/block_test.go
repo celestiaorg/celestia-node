@@ -104,7 +104,7 @@ func (t *testBlock) Marshal() ([]byte, error) {
 }
 
 func (t *testBlock) UnmarshalFn(*share.AxisRoots) UnmarshalFn {
-	return func(bytes []byte) error {
+	return func(bytes, _ []byte) error {
 		t.data = bytes
 		time.Sleep(time.Millisecond * 1)
 		return nil

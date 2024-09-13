@@ -34,5 +34,5 @@ type Block interface {
 }
 
 // UnmarshalFn is a closure produced by a Block that unmarshalls and validates
-// the given serialized bytes of a Shwap container and populates the Block with it on success.
-type UnmarshalFn func([]byte) error
+// the given serialized bytes of a Shwap container with ID and populates the Block with it on success.
+type UnmarshalFn func(container, id []byte) error

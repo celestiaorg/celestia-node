@@ -97,19 +97,28 @@ func (rb *RowBlock) Populate(ctx context.Context, eds eds.Accessor) error {
 }
 
 func (rb *RowBlock) UnmarshalFn(root *share.AxisRoots) UnmarshalFn {
-	return func(data []byte) error {
+	return func(cntrData, idData []byte) error {
 		if !rb.Container.IsEmpty() {
 			return nil
 		}
 
+		rid, err := shwap.RowIDFromBinary(idData)
+		if err != nil {
+			return fmt.Errorf("unmarhaling RowID: %w", err)
+		}
+
+		if !rb.ID.Equals(rid) {
+			return fmt.Errorf("requested %+v doesnt match given %+v", rb.ID, rid)
+		}
+
 		var row shwappb.Row
-		if err := row.Unmarshal(data); err != nil {
-			return fmt.Errorf("unmarshaling Row: %w", err)
+		if err := row.Unmarshal(cntrData); err != nil {
+			return fmt.Errorf("unmarshaling Row for %+v: %w", rb.ID, err)
 		}
 
 		cntr := shwap.RowFromProto(&row)
 		if err := cntr.Validate(root, rb.ID.RowIndex); err != nil {
-			return fmt.Errorf("validating Row: %w", err)
+			return fmt.Errorf("validating Row for %+v: %w", rb.ID, err)
 		}
 
 		rb.Container = cntr
