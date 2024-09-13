@@ -21,6 +21,7 @@ func TestEdsID(t *testing.T) {
 
 	err = idOut.Validate()
 	require.NoError(t, err)
+	require.True(t, id.Equals(idOut))
 }
 
 func TestEdsIDReaderWriter(t *testing.T) {

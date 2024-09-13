@@ -56,6 +56,12 @@ func RowIDFromBinary(data []byte) (RowID, error) {
 	return rid, nil
 }
 
+// Equals checks equality of RowID.
+func (rid *RowID) Equals(other RowID) bool {
+	return rid.EdsID.Equals(other.EdsID) && rid.RowIndex == other.RowIndex
+}
+
+// ReadFrom reads the binary form of RowID from the provided reader.
 func (rid *RowID) ReadFrom(r io.Reader) (int64, error) {
 	data := make([]byte, RowIDSize)
 	n, err := io.ReadFull(r, data)
@@ -79,6 +85,7 @@ func (rid RowID) MarshalBinary() ([]byte, error) {
 	return rid.appendTo(data), nil
 }
 
+// WriteTo writes the binary form of RowID to the provided writer.
 func (rid RowID) WriteTo(w io.Writer) (int64, error) {
 	data, err := rid.MarshalBinary()
 	if err != nil {

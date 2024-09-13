@@ -23,6 +23,7 @@ func TestSampleID(t *testing.T) {
 
 	err = idOut.Verify(edsSize)
 	require.NoError(t, err)
+	require.True(t, id.Equals(idOut))
 }
 
 func TestSampleIDReaderWriter(t *testing.T) {

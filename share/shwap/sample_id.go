@@ -58,6 +58,11 @@ func SampleIDFromBinary(data []byte) (SampleID, error) {
 	return sid, nil
 }
 
+// Equals checks equality of SampleID.
+func (sid *SampleID) Equals(other SampleID) bool {
+	return sid.RowID.Equals(other.RowID) && sid.ShareIndex == other.ShareIndex
+}
+
 // ReadFrom reads the binary form of SampleID from the provided reader.
 func (sid *SampleID) ReadFrom(r io.Reader) (int64, error) {
 	data := make([]byte, SampleIDSize)

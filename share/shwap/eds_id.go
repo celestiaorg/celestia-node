@@ -39,6 +39,11 @@ func EdsIDFromBinary(data []byte) (EdsID, error) {
 	return eid, nil
 }
 
+// Equals checks equality of EdsIDs.
+func (eid *EdsID) Equals(other EdsID) bool {
+	return eid.Height == other.Height
+}
+
 // ReadFrom reads the binary form of EdsID from the provided reader.
 func (eid *EdsID) ReadFrom(r io.Reader) (int64, error) {
 	data := make([]byte, EdsIDSize)

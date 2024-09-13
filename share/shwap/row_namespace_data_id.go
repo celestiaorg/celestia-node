@@ -66,8 +66,13 @@ func RowNamespaceDataIDFromBinary(data []byte) (RowNamespaceDataID, error) {
 	return rndid, nil
 }
 
+// Equals checks equality of RowNamespaceDataID.
+func (rndid *RowNamespaceDataID) Equals(other RowNamespaceDataID) bool {
+	return rndid.RowID.Equals(other.RowID) && rndid.DataNamespace.Equals(other.DataNamespace)
+}
+
 // ReadFrom reads the binary form of RowNamespaceDataID from the provided reader.
-func (s *RowNamespaceDataID) ReadFrom(r io.Reader) (int64, error) {
+func (rndid *RowNamespaceDataID) ReadFrom(r io.Reader) (int64, error) {
 	data := make([]byte, RowNamespaceDataIDSize)
 	n, err := io.ReadFull(r, data)
 	if err != nil {
@@ -80,7 +85,7 @@ func (s *RowNamespaceDataID) ReadFrom(r io.Reader) (int64, error) {
 	if err != nil {
 		return int64(n), fmt.Errorf("RowNamespaceDataIDFromBinary: %w", err)
 	}
-	*s = id
+	*rndid = id
 	return int64(n), nil
 }
 
@@ -88,14 +93,14 @@ func (s *RowNamespaceDataID) ReadFrom(r io.Reader) (int64, error) {
 // NOTE: Proto is avoided because
 // * Its size is not deterministic which is required for IPLD.
 // * No support for uint16
-func (s RowNamespaceDataID) MarshalBinary() ([]byte, error) {
+func (rndid RowNamespaceDataID) MarshalBinary() ([]byte, error) {
 	data := make([]byte, 0, RowNamespaceDataIDSize)
-	return s.appendTo(data), nil
+	return rndid.appendTo(data), nil
 }
 
 // WriteTo writes the binary form of RowNamespaceDataID to the provided writer.
-func (s RowNamespaceDataID) WriteTo(w io.Writer) (int64, error) {
-	data, err := s.MarshalBinary()
+func (rndid RowNamespaceDataID) WriteTo(w io.Writer) (int64, error) {
+	data, err := rndid.MarshalBinary()
 	if err != nil {
 		return 0, err
 	}
@@ -104,20 +109,20 @@ func (s RowNamespaceDataID) WriteTo(w io.Writer) (int64, error) {
 }
 
 // Verify validates the RowNamespaceDataID and verifies the embedded RowID.
-func (s RowNamespaceDataID) Verify(edsSize int) error {
-	if err := s.RowID.Verify(edsSize); err != nil {
+func (rndid RowNamespaceDataID) Verify(edsSize int) error {
+	if err := rndid.RowID.Verify(edsSize); err != nil {
 		return fmt.Errorf("error verifying RowID: %w", err)
 	}
 
-	return s.Validate()
+	return rndid.Validate()
 }
 
 // Validate performs basic field validation.
-func (s RowNamespaceDataID) Validate() error {
-	if err := s.RowID.Validate(); err != nil {
+func (rndid RowNamespaceDataID) Validate() error {
+	if err := rndid.RowID.Validate(); err != nil {
 		return fmt.Errorf("validating RowID: %w", err)
 	}
-	if err := s.DataNamespace.ValidateForData(); err != nil {
+	if err := rndid.DataNamespace.ValidateForData(); err != nil {
 		return fmt.Errorf("%w: validating DataNamespace: %w", ErrInvalidID, err)
 	}
 
@@ -125,7 +130,7 @@ func (s RowNamespaceDataID) Validate() error {
 }
 
 // appendTo helps in appending the binary form of DataNamespace to the serialized RowID data.
-func (s RowNamespaceDataID) appendTo(data []byte) []byte {
-	data = s.RowID.appendTo(data)
-	return append(data, s.DataNamespace...)
+func (rndid RowNamespaceDataID) appendTo(data []byte) []byte {
+	data = rndid.RowID.appendTo(data)
+	return append(data, rndid.DataNamespace...)
 }

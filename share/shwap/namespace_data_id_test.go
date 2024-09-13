@@ -25,6 +25,7 @@ func TestNamespaceDataID(t *testing.T) {
 
 	err = sidOut.Validate()
 	require.NoError(t, err)
+	require.True(t, id.Equals(sidOut))
 }
 
 func TestNamespaceDataIDReaderWriter(t *testing.T) {
