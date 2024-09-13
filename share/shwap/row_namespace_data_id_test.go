@@ -26,6 +26,7 @@ func TestRowNamespaceDataID(t *testing.T) {
 
 	err = sidOut.Verify(edsSize)
 	require.NoError(t, err)
+	require.True(t, id.Equals(sidOut))
 }
 
 func TestRowNamespaceDataIDReaderWriter(t *testing.T) {

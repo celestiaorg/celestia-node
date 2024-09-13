@@ -59,6 +59,11 @@ func NamespaceDataIDFromBinary(data []byte) (NamespaceDataID, error) {
 	return ndid, nil
 }
 
+// Equals checks equality of NamespaceDataID.
+func (ndid *NamespaceDataID) Equals(other NamespaceDataID) bool {
+	return ndid.EdsID.Equals(other.EdsID) && ndid.DataNamespace.Equals(other.DataNamespace)
+}
+
 // ReadFrom reads the binary form of NamespaceDataID from the provided reader.
 func (ndid *NamespaceDataID) ReadFrom(r io.Reader) (int64, error) {
 	data := make([]byte, NamespaceDataIDSize)
