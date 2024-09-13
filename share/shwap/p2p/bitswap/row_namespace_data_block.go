@@ -101,19 +101,28 @@ func (rndb *RowNamespaceDataBlock) Populate(ctx context.Context, eds eds.Accesso
 }
 
 func (rndb *RowNamespaceDataBlock) UnmarshalFn(root *share.AxisRoots) UnmarshalFn {
-	return func(data []byte) error {
+	return func(cntrData, idData []byte) error {
 		if !rndb.Container.IsEmpty() {
 			return nil
 		}
 
+		rndid, err := shwap.RowNamespaceDataIDFromBinary(idData)
+		if err != nil {
+			return fmt.Errorf("unmarhaling RowNamespaceDataID: %w", err)
+		}
+
+		if !rndb.ID.Equals(rndid) {
+			return fmt.Errorf("requested %+v doesnt match given %+v", rndb.ID, rndid)
+		}
+
 		var rnd shwappb.RowNamespaceData
-		if err := rnd.Unmarshal(data); err != nil {
-			return fmt.Errorf("unmarshaling RowNamespaceData: %w", err)
+		if err := rnd.Unmarshal(cntrData); err != nil {
+			return fmt.Errorf("unmarshaling RowNamespaceData for %+v: %w", rndb.ID, err)
 		}
 
 		cntr := shwap.RowNamespaceDataFromProto(&rnd)
 		if err := cntr.Validate(root, rndb.ID.DataNamespace, rndb.ID.RowIndex); err != nil {
-			return fmt.Errorf("validating RowNamespaceData: %w", err)
+			return fmt.Errorf("validating RowNamespaceData for %+v: %w", rndb.ID, err)
 		}
 
 		rndb.Container = cntr

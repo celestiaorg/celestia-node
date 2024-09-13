@@ -96,19 +96,28 @@ func (sb *SampleBlock) Populate(ctx context.Context, eds eds.Accessor) error {
 }
 
 func (sb *SampleBlock) UnmarshalFn(root *share.AxisRoots) UnmarshalFn {
-	return func(data []byte) error {
+	return func(cntrData, idData []byte) error {
 		if !sb.Container.IsEmpty() {
 			return nil
 		}
 
+		sid, err := shwap.SampleIDFromBinary(idData)
+		if err != nil {
+			return fmt.Errorf("unmarhaling SampleID: %w", err)
+		}
+
+		if !sb.ID.Equals(sid) {
+			return fmt.Errorf("requested %+v doesnt match given %+v", sb.ID, sid)
+		}
+
 		var sample shwappb.Sample
-		if err := sample.Unmarshal(data); err != nil {
-			return fmt.Errorf("unmarshaling Sample: %w", err)
+		if err := sample.Unmarshal(cntrData); err != nil {
+			return fmt.Errorf("unmarshaling Sample for %+v: %w", sb.ID, err)
 		}
 
 		cntr := shwap.SampleFromProto(&sample)
 		if err := cntr.Validate(root, sb.ID.RowIndex, sb.ID.ShareIndex); err != nil {
-			return fmt.Errorf("validating Sample: %w", err)
+			return fmt.Errorf("validating Sample for %+v: %w", sb.ID, err)
 		}
 
 		sb.Container = cntr

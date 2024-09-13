@@ -137,12 +137,17 @@ func fetch(
 
 // unmarshal unmarshalls the Shwap Container data into a Block with the given UnmarshalFn
 func unmarshal(unmarshalFn UnmarshalFn, data []byte) error {
-	_, containerData, err := unmarshalProto(data)
+	cid, containerData, err := unmarshalProto(data)
 	if err != nil {
 		return err
 	}
 
-	err = unmarshalFn(containerData)
+	id, err := extractCID(cid)
+	if err != nil {
+		return fmt.Errorf("validating cid: %w", err)
+	}
+
+	err = unmarshalFn(containerData, id)
 	if err != nil {
 		return fmt.Errorf("verifying and unmarshalling container data: %w", err)
 	}
@@ -195,7 +200,7 @@ func (h *hasher) write(data []byte) error {
 		return fmt.Errorf("unmarshalling proto: %w", err)
 	}
 
-	// getBlock ID out of CID validating it
+	// get ID out of CID while validating it
 	id, err := extractCID(cid)
 	if err != nil {
 		return fmt.Errorf("validating cid: %w", err)
@@ -213,7 +218,7 @@ func (h *hasher) write(data []byte) error {
 	// NOTE: Bitswap may call hasher.Write concurrently, which may call unmarshall concurrently
 	// this we need this synchronization.
 	entry.Lock()
-	err = entry.UnmarshalFn(container)
+	err = entry.UnmarshalFn(container, id)
 	if err != nil {
 		return fmt.Errorf("verifying and unmarshalling container data: %w", err)
 	}
