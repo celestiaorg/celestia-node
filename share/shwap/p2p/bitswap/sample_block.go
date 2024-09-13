@@ -50,7 +50,7 @@ func NewEmptySampleBlock(height uint64, rowIdx, colIdx, edsSize int) (*SampleBlo
 
 // EmptySampleBlockFromCID constructs an empty SampleBlock out of the CID.
 func EmptySampleBlockFromCID(cid cid.Cid) (*SampleBlock, error) {
-	sidData, err := extractCID(cid)
+	sidData, err := extractFromCID(cid)
 	if err != nil {
 		return nil, err
 	}
@@ -64,7 +64,7 @@ func EmptySampleBlockFromCID(cid cid.Cid) (*SampleBlock, error) {
 }
 
 func (sb *SampleBlock) CID() cid.Cid {
-	return encodeCID(sb.ID, sampleMultihashCode, sampleCodec)
+	return encodeToCID(sb.ID, sampleMultihashCode, sampleCodec)
 }
 
 func (sb *SampleBlock) Height() uint64 {
