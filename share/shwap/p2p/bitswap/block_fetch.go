@@ -142,9 +142,9 @@ func unmarshal(unmarshalFn UnmarshalFn, data []byte) error {
 		return err
 	}
 
-	id, err := extractCID(cid)
+	id, err := extractFromCID(cid)
 	if err != nil {
-		return fmt.Errorf("validating cid: %w", err)
+		return err
 	}
 
 	err = unmarshalFn(containerData, id)
@@ -201,12 +201,12 @@ func (h *hasher) write(data []byte) error {
 	}
 
 	// get ID out of CID while validating it
-	id, err := extractCID(cid)
+	id, err := extractFromCID(cid)
 	if err != nil {
-		return fmt.Errorf("validating cid: %w", err)
+		return err
 	}
 
-	// getBlock registered UnmarshalFn and use it to check data validity and
+	// get registered UnmarshalFn and use it to check data validity and
 	// pass it to Fetch caller
 	val, ok := unmarshalFns.Load(cid)
 	if !ok {

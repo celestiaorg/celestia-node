@@ -52,7 +52,7 @@ func NewEmptyRowBlock(height uint64, rowIdx, edsSize int) (*RowBlock, error) {
 
 // EmptyRowBlockFromCID constructs an empty RowBlock out of the CID.
 func EmptyRowBlockFromCID(cid cid.Cid) (*RowBlock, error) {
-	ridData, err := extractCID(cid)
+	ridData, err := extractFromCID(cid)
 	if err != nil {
 		return nil, err
 	}
@@ -65,7 +65,7 @@ func EmptyRowBlockFromCID(cid cid.Cid) (*RowBlock, error) {
 }
 
 func (rb *RowBlock) CID() cid.Cid {
-	return encodeCID(rb.ID, rowMultihashCode, rowCodec)
+	return encodeToCID(rb.ID, rowMultihashCode, rowCodec)
 }
 
 func (rb *RowBlock) Height() uint64 {

@@ -8,18 +8,18 @@ import (
 	mh "github.com/multiformats/go-multihash"
 )
 
-// extractCID retrieves Shwap ID out of the CID.
-func extractCID(cid cid.Cid) ([]byte, error) {
+// extractFromCID retrieves Shwap ID out of the CID.
+func extractFromCID(cid cid.Cid) ([]byte, error) {
 	if err := validateCID(cid); err != nil {
-		return nil, err
+		return nil, fmt.Errorf("invalid cid %s: %w", cid, err)
 	}
 	// mhPrefixSize is the size of the multihash prefix that used to cut it off.
 	const mhPrefixSize = 4
 	return cid.Hash()[mhPrefixSize:], nil
 }
 
-// encodeCID encodes Shwap ID into the CID.
-func encodeCID(bm encoding.BinaryMarshaler, mhcode, codec uint64) cid.Cid {
+// encodeToCID encodes Shwap ID into the CID.
+func encodeToCID(bm encoding.BinaryMarshaler, mhcode, codec uint64) cid.Cid {
 	data, err := bm.MarshalBinary()
 	if err != nil {
 		panic(fmt.Errorf("marshaling for CID: %w", err))

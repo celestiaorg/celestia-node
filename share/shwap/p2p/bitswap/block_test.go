@@ -73,7 +73,7 @@ func newTestBlock(id int) *testBlock {
 }
 
 func newEmptyTestBlock(cid cid.Cid) (*testBlock, error) {
-	idData, err := extractCID(cid)
+	idData, err := extractFromCID(cid)
 	if err != nil {
 		return nil, err
 	}
@@ -88,7 +88,7 @@ func newEmptyTestBlock(cid cid.Cid) (*testBlock, error) {
 }
 
 func (t *testBlock) CID() cid.Cid {
-	return encodeCID(t.id, testMultihashCode, testCodec)
+	return encodeToCID(t.id, testMultihashCode, testCodec)
 }
 
 func (t *testBlock) Height() uint64 {

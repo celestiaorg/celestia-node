@@ -55,7 +55,7 @@ func NewEmptyRowNamespaceDataBlock(
 
 // EmptyRowNamespaceDataBlockFromCID constructs an empty RowNamespaceDataBlock out of the CID.
 func EmptyRowNamespaceDataBlockFromCID(cid cid.Cid) (*RowNamespaceDataBlock, error) {
-	rndidData, err := extractCID(cid)
+	rndidData, err := extractFromCID(cid)
 	if err != nil {
 		return nil, err
 	}
@@ -69,7 +69,7 @@ func EmptyRowNamespaceDataBlockFromCID(cid cid.Cid) (*RowNamespaceDataBlock, err
 }
 
 func (rndb *RowNamespaceDataBlock) CID() cid.Cid {
-	return encodeCID(rndb.ID, rowNamespaceDataMultihashCode, rowNamespaceDataCodec)
+	return encodeToCID(rndb.ID, rowNamespaceDataMultihashCode, rowNamespaceDataCodec)
 }
 
 func (rndb *RowNamespaceDataBlock) Height() uint64 {
