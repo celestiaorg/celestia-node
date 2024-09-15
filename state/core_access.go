@@ -151,8 +151,9 @@ func (ca *CoreAccessor) Start(ctx context.Context) error {
 		return fmt.Errorf("failed to get node info: %w", err)
 	}
 
-	if resp.DefaultNodeInfo.Network != ca.network {
-		return fmt.Errorf("wrong network provided in core.ip url for chain id: %s", ca.network)
+	defaultNetwork := resp.GetDefaultNodeInfo().GetNetwork()
+	if defaultNetwork != ca.network {
+		return fmt.Errorf("wrong network in core.ip endpoint, expected %s, got %s", defaultNetwork, ca.network)
 	}
 
 	// set up signer to handle tx submission
