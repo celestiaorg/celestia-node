@@ -129,8 +129,6 @@ func CollectSharesByNamespace(
 	errGroup, ctx := errgroup.WithContext(ctx)
 	shares = make([]share.NamespacedRow, len(rootCIDs))
 	for i, rootCID := range rootCIDs {
-		// shadow loop variables, to ensure correct values are captured
-		i, rootCID := i, rootCID
 		errGroup.Go(func() error {
 			row, proof, err := ipld.GetSharesByNamespace(ctx, bg, rootCID, namespace, len(root.RowRoots))
 			shares[i] = share.NamespacedRow{

@@ -80,11 +80,11 @@ func TestParseFlags(t *testing.T) {
 
 			err := cmd.Flags().Set(addrFlag, test.addrFlag)
 			if err != nil {
-				t.Errorf(err.Error())
+				t.Errorf("error setting addrFlag: %s", err)
 			}
 			err = cmd.Flags().Set(portFlag, test.portFlag)
 			if err != nil {
-				t.Errorf(err.Error())
+				t.Errorf("error setting portFlag: %s", err)
 			}
 
 			ParseFlags(cmd, cfg)
