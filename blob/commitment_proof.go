@@ -2,6 +2,7 @@ package blob
 
 import (
 	"bytes"
+	"errors"
 	"fmt"
 
 	"github.com/celestiaorg/celestia-app/v2/pkg/appconsts"
@@ -85,12 +86,25 @@ func (commitmentProof *CommitmentProof) Validate() error {
 // Expects the commitment proof to be properly formulated and validated
 // using the Validate() function.
 func (commitmentProof *CommitmentProof) Verify(root []byte, subtreeRootThreshold int) (bool, error) {
+	if len(root) == 0 {
+		return false, errors.New("root must be non-empty")
+	}
+
+	rp := commitmentProof.RowProof
+	if err := rp.Validate(root); err != nil {
+		return false, err
+	}
+
 	nmtHasher := nmt.NewNmtHasher(appconsts.NewBaseHashFunc(), share.NamespaceSize, true)
 
 	// computes the total number of shares proven.
 	numberOfShares := 0
 	for _, proof := range commitmentProof.SubtreeRootProofs {
 		numberOfShares += proof.End() - proof.Start()
+	}
+
+	if subtreeRootThreshold <= 0 {
+		return false, errors.New("subtreeRootThreshould must be > 0")
 	}
 
 	// use the computed total number of shares to calculate the subtree roots
@@ -107,6 +121,15 @@ func (commitmentProof *CommitmentProof) Verify(root []byte, subtreeRootThreshold
 		ranges, err := nmt.ToLeafRanges(subtreeRootProof.Start(), subtreeRootProof.End(), subtreeRootsWidth)
 		if err != nil {
 			return false, err
+		}
+
+		if len(commitmentProof.SubtreeRoots) < subtreeRootsCursor {
+			return false, fmt.Errorf("len(commitmentProof.SubtreeRoots)=%d < subtreeRootsCursor=%d",
+				len(commitmentProof.SubtreeRoots), subtreeRootsCursor)
+		}
+		if len(commitmentProof.SubtreeRoots) < subtreeRootsCursor+len(ranges) {
+			return false, fmt.Errorf("len(commitmentProof.SubtreeRoots)=%d < subtreeRootsCursor+len(ranges)=%d",
+				len(commitmentProof.SubtreeRoots), subtreeRootsCursor+len(ranges))
 		}
 		valid, err := subtreeRootProof.VerifySubtreeRootInclusion(
 			nmtHasher,
