@@ -79,13 +79,12 @@ func (odsq4 *ODSQ4) tryLoadQ4() *q4 {
 
 	odsq4.q4Mu.Lock()
 	defer odsq4.q4Mu.Unlock()
-	// update bool to make sure we try opening only once
-	// no matter if the try was successful or failed.
 	if odsq4.q4OpenAttempted.Load() {
 		return odsq4.q4
 	}
 
 	q4, err := openQ4(odsq4.pathQ4, odsq4.ods.hdr)
+	// store q4 opened bool before updating atomic value to allow next read attempts to use it
 	odsq4.q4 = q4
 	// even if error occurred, store q4 opened bool to avoid trying to open it again
 	odsq4.q4OpenAttempted.Store(true)
