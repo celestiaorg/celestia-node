@@ -70,20 +70,22 @@ func TestSuiteAccessor(
 	}
 }
 
-func testEDSes(t *testing.T, size int) map[string]*rsmt2d.ExtendedDataSquare {
-	fullEDS := edstest.RandEDS(t, size)
+func testEDSes(t *testing.T, sizes ...int) map[string]*rsmt2d.ExtendedDataSquare {
+	testEDSes := make(map[string]*rsmt2d.ExtendedDataSquare)
+	for _, size := range sizes {
+		fullEDS := edstest.RandEDS(t, size)
+		testEDSes[fmt.Sprintf("FullODS:%d", size)] = fullEDS
 
-	var padding int
-	for padding < 1 {
-		padding = rand.IntN(size * size) //nolint:gosec
+		var padding int
+		for padding < 1 {
+			padding = rand.IntN(size * size) //nolint:gosec
+		}
+		paddingEds := edstest.RandEDSWithTailPadding(t, size, padding)
+		testEDSes[fmt.Sprintf("PaddedODS:%d", size)] = paddingEds
 	}
 
-	paddingEds := edstest.RandEDSWithTailPadding(t, size, padding)
-
-	return map[string]*rsmt2d.ExtendedDataSquare{
-		fmt.Sprintf("FullODS:%d", size):   fullEDS,
-		fmt.Sprintf("PaddedODS:%d", size): paddingEds,
-	}
+	testEDSes["EmptyODS"] = share.EmptyEDS()
+	return testEDSes
 }
 
 func TestStreamer(
