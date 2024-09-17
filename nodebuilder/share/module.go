@@ -2,7 +2,9 @@ package share
 
 import (
 	"context"
+	"fmt"
 
+	"github.com/ipfs/boxo/blockstore"
 	"github.com/ipfs/go-datastore"
 	"github.com/libp2p/go-libp2p/core/host"
 	"go.uber.org/fx"
@@ -25,16 +27,18 @@ import (
 
 func ConstructModule(tp node.Type, cfg *Config, options ...fx.Option) fx.Option {
 	// sanitize config values before constructing module
-	cfgErr := cfg.Validate(tp)
+	err := cfg.Validate(tp)
+	if err != nil {
+		return fx.Error(fmt.Errorf("nodebuilder/share: validate config: %w", err))
+	}
 
 	baseComponents := fx.Options(
 		fx.Supply(*cfg),
-		fx.Error(cfgErr),
 		fx.Options(options...),
 		fx.Provide(newShareModule),
 		availabilityComponents(tp, cfg),
 		shrexComponents(tp, cfg),
-		bitswapComponents(tp),
+		bitswapComponents(tp, cfg),
 		peerComponents(tp, cfg),
 	)
 
@@ -57,7 +61,7 @@ func ConstructModule(tp node.Type, cfg *Config, options ...fx.Option) fx.Option 
 	}
 }
 
-func bitswapComponents(tp node.Type) fx.Option {
+func bitswapComponents(tp node.Type, cfg *Config) fx.Option {
 	opts := fx.Options(
 		fx.Provide(dataExchange),
 		fx.Provide(bitswap.NewGetter),
@@ -71,7 +75,9 @@ func bitswapComponents(tp node.Type) fx.Option {
 	case node.Full, node.Bridge:
 		return fx.Options(
 			opts,
-			fx.Provide(blockstoreFromEDSStore),
+			fx.Provide(func(store *store.Store) (blockstore.Blockstore, error) {
+				return blockstoreFromEDSStore(store, int(cfg.BlockStoreCacheSize))
+			}),
 		)
 	default:
 		panic("invalid node type")
