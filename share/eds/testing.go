@@ -170,6 +170,24 @@ func testAccessorSample(
 		}
 		wg.Wait()
 	})
+
+	t.Run("random", func(t *testing.T) {
+		t.Parallel()
+		acc := createAccessor(t, eds)
+		roots, err := share.NewAxisRoots(eds)
+		require.NoError(t, err)
+
+		wg := sync.WaitGroup{}
+		for range 1000 {
+			wg.Add(1)
+			go func() {
+				defer wg.Done()
+				rowIdx, colIdx := rand.IntN(width), rand.IntN(width)
+				testSample(ctx, t, acc, roots, rowIdx, colIdx)
+			}()
+		}
+		wg.Wait()
+	})
 }
 
 func testSample(
