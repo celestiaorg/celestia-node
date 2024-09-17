@@ -20,6 +20,9 @@ type CachedStore struct {
 // store cache and will duplicate it's content. It updates parent store cache, to allow it to
 // read from additionally created cache layer.
 func (s *Store) WithCache(name string, size int) (*CachedStore, error) {
+	if size <= 0 {
+		return nil, fmt.Errorf("cache size must be positive, got %d", size)
+	}
 	newCache, err := cache.NewAccessorCache(name, size)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create %s cache: %w", name, err)
