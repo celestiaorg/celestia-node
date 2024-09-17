@@ -317,31 +317,33 @@ func (o *ODS) readAxisHalf(axisType rsmt2d.Axis, axisIdx int) (eds.AxisHalf, err
 }
 
 func (o *ODS) readODS() (square, error) {
-	o.lock.RLock()
-	ods := o.ods
-	o.lock.RUnlock()
-	if ods != nil {
-		return ods, nil
+	if !o.disableCache {
+		o.lock.RLock()
+		ods := o.ods
+		o.lock.RUnlock()
+		if ods != nil {
+			return ods, nil
+		}
+
+		// not cached, read and cache
+		o.lock.Lock()
+		defer o.lock.Unlock()
 	}
 
-	// reset file pointer to the beginning of the file shares data
 	offset := o.hdr.OffsetWithRoots()
-	_, err := o.fl.Seek(int64(offset), io.SeekStart)
-	if err != nil {
-		return nil, fmt.Errorf("discarding header: %w", err)
-	}
-
-	square, err := readSquare(o.fl, share.Size, o.size())
+	shareSize := o.hdr.ShareSize()
+	odsBytes := o.hdr.SquareSize() / 2
+	odsSizeInBytes := shareSize * odsBytes * odsBytes
+	reader := io.NewSectionReader(o.fl, int64(offset), int64(odsSizeInBytes))
+	ods, err := readSquare(reader, shareSize, o.size())
 	if err != nil {
 		return nil, fmt.Errorf("reading ODS: %w", err)
 	}
 
 	if !o.disableCache {
-		o.lock.Lock()
-		o.ods = square
-		o.lock.Unlock()
+		o.ods = ods
 	}
-	return square, nil
+	return ods, nil
 }
 
 func readAxisHalf(r io.ReaderAt, axisTp rsmt2d.Axis, axisIdx int, hdr *headerV0, offset int) ([]share.Share, error) {
