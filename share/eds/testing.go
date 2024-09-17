@@ -369,11 +369,12 @@ func testReader(ctx context.Context, t *testing.T, eds *rsmt2d.ExtendedDataSquar
 func BenchGetHalfAxisFromAccessor(
 	ctx context.Context,
 	b *testing.B,
-	newAccessor func(size int) Accessor,
+	createAccessor createAccessor,
 	minOdsSize, maxOdsSize int,
 ) {
 	for size := minOdsSize; size <= maxOdsSize; size *= 2 {
-		f := newAccessor(size)
+		eds := edstest.RandEDS(b, size)
+		acc := createAccessor(b, eds)
 
 		// loop over all possible axis types and quadrants
 		for _, axisType := range []rsmt2d.Axis{rsmt2d.Row, rsmt2d.Col} {
@@ -381,12 +382,12 @@ func BenchGetHalfAxisFromAccessor(
 				name := fmt.Sprintf("Size:%v/ProofType:%s/squareHalf:%s", size, axisType, strconv.Itoa(squareHalf))
 				b.Run(name, func(b *testing.B) {
 					// warm up cache
-					_, err := f.AxisHalf(ctx, axisType, f.Size(ctx)/2*(squareHalf))
+					_, err := acc.AxisHalf(ctx, axisType, acc.Size(ctx)/2*(squareHalf))
 					require.NoError(b, err)
 
 					b.ResetTimer()
 					for i := 0; i < b.N; i++ {
-						_, err := f.AxisHalf(ctx, axisType, f.Size(ctx)/2*(squareHalf))
+						_, err := acc.AxisHalf(ctx, axisType, acc.Size(ctx)/2*(squareHalf))
 						require.NoError(b, err)
 					}
 				})
@@ -398,24 +399,25 @@ func BenchGetHalfAxisFromAccessor(
 func BenchGetSampleFromAccessor(
 	ctx context.Context,
 	b *testing.B,
-	newAccessor func(size int) Accessor,
+	createAccessor createAccessor,
 	minOdsSize, maxOdsSize int,
 ) {
 	for size := minOdsSize; size <= maxOdsSize; size *= 2 {
-		f := newAccessor(size)
+		eds := edstest.RandEDS(b, size)
+		acc := createAccessor(b, eds)
 
 		// loop over all possible axis types and quadrants
 		for _, q := range quadrants {
 			name := fmt.Sprintf("Size:%v/quadrant:%s", size, q)
 			b.Run(name, func(b *testing.B) {
-				rowIdx, colIdx := q.coordinates(f.Size(ctx))
+				rowIdx, colIdx := q.coordinates(acc.Size(ctx))
 				// warm up cache
-				_, err := f.Sample(ctx, rowIdx, colIdx)
+				_, err := acc.Sample(ctx, rowIdx, colIdx)
 				require.NoError(b, err, q.String())
 
 				b.ResetTimer()
 				for i := 0; i < b.N; i++ {
-					_, err := f.Sample(ctx, rowIdx, colIdx)
+					_, err := acc.Sample(ctx, rowIdx, colIdx)
 					require.NoError(b, err)
 				}
 			})
