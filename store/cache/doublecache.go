@@ -5,7 +5,7 @@ import (
 	"errors"
 	"fmt"
 
-	eds "github.com/celestiaorg/celestia-node/share/new_eds"
+	"github.com/celestiaorg/celestia-node/share/eds"
 )
 
 // DoubleCache represents a Cache that looks into multiple caches one by one.

@@ -413,15 +413,15 @@ func BenchGetSampleFromAccessor(
 	}
 }
 
-type quadrant int
+type quadrantIdx int
 
-var quadrants = []quadrant{1, 2, 3, 4}
+var quadrants = []quadrantIdx{1, 2, 3, 4}
 
-func (q quadrant) String() string {
+func (q quadrantIdx) String() string {
 	return strconv.Itoa(int(q))
 }
 
-func (q quadrant) coordinates(edsSize int) (rowIdx, colIdx int) {
+func (q quadrantIdx) coordinates(edsSize int) (rowIdx, colIdx int) {
 	colIdx = edsSize/2*(int(q-1)%2) + 1
 	rowIdx = edsSize/2*(int(q-1)/2) + 1
 	return rowIdx, colIdx

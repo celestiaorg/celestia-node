@@ -10,7 +10,7 @@ import (
 	"github.com/celestiaorg/celestia-node/header"
 	"github.com/celestiaorg/celestia-node/libs/utils"
 	"github.com/celestiaorg/celestia-node/share"
-	eds "github.com/celestiaorg/celestia-node/share/new_eds"
+	"github.com/celestiaorg/celestia-node/share/eds"
 	"github.com/celestiaorg/celestia-node/share/shwap"
 )
 

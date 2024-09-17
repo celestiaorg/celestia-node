@@ -14,7 +14,7 @@ import (
 	"github.com/celestiaorg/go-libp2p-messenger/serde"
 
 	"github.com/celestiaorg/celestia-node/libs/utils"
-	eds "github.com/celestiaorg/celestia-node/share/new_eds"
+	"github.com/celestiaorg/celestia-node/share/eds"
 	"github.com/celestiaorg/celestia-node/share/shwap"
 	"github.com/celestiaorg/celestia-node/share/shwap/p2p/shrex"
 	shrexpb "github.com/celestiaorg/celestia-node/share/shwap/p2p/shrex/pb"
