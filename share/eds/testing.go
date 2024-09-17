@@ -108,14 +108,14 @@ func testAccessorDataHash(
 	createAccessor createAccessor,
 	eds *rsmt2d.ExtendedDataSquare,
 ) {
-	fl := createAccessor(t, eds)
+	acc := createAccessor(t, eds)
 
-	roots, err := share.NewAxisRoots(eds)
+	expected, err := share.NewAxisRoots(eds)
 	require.NoError(t, err)
 
-	datahash, err := fl.DataHash(ctx)
+	datahash, err := acc.DataHash(ctx)
 	require.NoError(t, err)
-	require.Equal(t, share.DataHash(roots.Hash()), datahash)
+	require.Equal(t, share.DataHash(expected.Hash()), datahash)
 }
 
 func testAccessorAxisRoots(
@@ -124,14 +124,14 @@ func testAccessorAxisRoots(
 	createAccessor createAccessor,
 	eds *rsmt2d.ExtendedDataSquare,
 ) {
-	fl := createAccessor(t, eds)
+	acc := createAccessor(t, eds)
 
-	roots, err := share.NewAxisRoots(eds)
+	expected, err := share.NewAxisRoots(eds)
 	require.NoError(t, err)
 
-	axisRoots, err := fl.AxisRoots(ctx)
+	roots, err := acc.AxisRoots(ctx)
 	require.NoError(t, err)
-	require.True(t, roots.Equals(axisRoots))
+	require.True(t, expected.Equals(roots))
 }
 
 func testAccessorSample(
@@ -193,11 +193,11 @@ func testAccessorSample(
 func testSample(
 	ctx context.Context,
 	t *testing.T,
-	fl Accessor,
+	acc Accessor,
 	roots *share.AxisRoots,
 	rowIdx, colIdx int,
 ) {
-	shr, err := fl.Sample(ctx, rowIdx, colIdx)
+	shr, err := acc.Sample(ctx, rowIdx, colIdx)
 	require.NoError(t, err)
 
 	err = shr.Validate(roots, rowIdx, colIdx)
@@ -219,13 +219,13 @@ func testAccessorRowNamespaceData(
 		for amount := 1; amount < sharesAmount; amount++ {
 			// select random amount of shares, but not less than 1
 			eds, roots := edstest.RandEDSWithNamespace(t, namespace, amount, odsSize)
-			f := createAccessor(t, eds)
+			acc := createAccessor(t, eds)
 
 			var actualSharesAmount int
 			// loop over all rows and check that the amount of shares in the namespace is equal to the expected
 			// amount
 			for i, root := range roots.RowRoots {
-				rowData, err := f.RowNamespaceData(ctx, namespace, i)
+				rowData, err := acc.RowNamespaceData(ctx, namespace, i)
 
 				// namespace is not included in the row, so there should be no shares
 				if namespace.IsOutsideRange(root, root) {
@@ -261,8 +261,8 @@ func testAccessorRowNamespaceData(
 			absentNs, err := share.Namespace(maxNs).AddInt(-1)
 			require.NoError(t, err)
 
-			f := createAccessor(t, eds)
-			rowData, err := f.RowNamespaceData(ctx, absentNs, i)
+			acc := createAccessor(t, eds)
+			rowData, err := acc.RowNamespaceData(ctx, absentNs, i)
 			require.NoError(t, err)
 
 			// namespace is not included in the row, so there should be no shares
@@ -282,12 +282,12 @@ func testAccessorAxisHalf(
 	eds *rsmt2d.ExtendedDataSquare,
 ) {
 	odsSize := int(eds.Width() / 2)
-	fl := createAccessor(t, eds)
+	acc := createAccessor(t, eds)
 
 	t.Run("single thread", func(t *testing.T) {
 		for _, axisType := range []rsmt2d.Axis{rsmt2d.Col, rsmt2d.Row} {
 			for axisIdx := 0; axisIdx < int(eds.Width()); axisIdx++ {
-				half, err := fl.AxisHalf(ctx, axisType, axisIdx)
+				half, err := acc.AxisHalf(ctx, axisType, axisIdx)
 				require.NoError(t, err)
 				require.Len(t, half.Shares, odsSize)
 
@@ -311,7 +311,7 @@ func testAccessorAxisHalf(
 				wg.Add(1)
 				go func(axisType rsmt2d.Axis, idx int) {
 					defer wg.Done()
-					half, err := fl.AxisHalf(ctx, axisType, idx)
+					half, err := acc.AxisHalf(ctx, axisType, idx)
 					require.NoError(t, err)
 					require.Len(t, half.Shares, odsSize)
 
@@ -355,19 +355,19 @@ func testAccessorShares(
 func testAccessorReader(
 	ctx context.Context,
 	t *testing.T,
-	create createAccessorStreamer,
+	createAccessor createAccessorStreamer,
 	eds *rsmt2d.ExtendedDataSquare,
 ) {
-	f := create(t, eds)
+	acc := createAccessor(t, eds)
 
-	// verify that the reader represented by file can be read from
+	// verify that the reader represented by accessor can be read from
 	// multiple times, without exhausting the underlying reader.
 	wg := sync.WaitGroup{}
 	for i := 0; i < 10; i++ {
 		wg.Add(1)
 		go func() {
 			defer wg.Done()
-			testReader(ctx, t, eds, f)
+			testReader(ctx, t, eds, acc)
 		}()
 	}
 	wg.Wait()
@@ -377,7 +377,7 @@ func testReader(ctx context.Context, t *testing.T, eds *rsmt2d.ExtendedDataSquar
 	reader, err := as.Reader()
 	require.NoError(t, err)
 
-	roots, err := as.AxisRoots(ctx)
+	roots, err := share.NewAxisRoots(eds)
 	require.NoError(t, err)
 
 	actual, err := ReadAccessor(ctx, reader, roots)
