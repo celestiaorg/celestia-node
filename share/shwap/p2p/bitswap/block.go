@@ -7,7 +7,7 @@ import (
 	logger "github.com/ipfs/go-log/v2"
 
 	"github.com/celestiaorg/celestia-node/share"
-	eds "github.com/celestiaorg/celestia-node/share/new_eds"
+	"github.com/celestiaorg/celestia-node/share/eds"
 )
 
 var log = logger.Logger("shwap/bitswap")

@@ -12,8 +12,8 @@ import (
 	"github.com/celestiaorg/rsmt2d"
 
 	"github.com/celestiaorg/celestia-node/share"
+	"github.com/celestiaorg/celestia-node/share/eds"
 	"github.com/celestiaorg/celestia-node/share/eds/edstest"
-	eds "github.com/celestiaorg/celestia-node/share/new_eds"
 )
 
 func TestCreateODSQ4File(t *testing.T) {

@@ -7,7 +7,7 @@ import (
 	blocks "github.com/ipfs/go-block-format"
 	"github.com/ipfs/go-cid"
 
-	eds "github.com/celestiaorg/celestia-node/share/new_eds"
+	"github.com/celestiaorg/celestia-node/share/eds"
 )
 
 // AccessorGetter abstracts storage system that indexes and manages multiple eds.AccessorGetter by

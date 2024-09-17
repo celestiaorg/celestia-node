@@ -7,7 +7,7 @@ import (
 	logging "github.com/ipfs/go-log/v2"
 	"go.opentelemetry.io/otel"
 
-	eds "github.com/celestiaorg/celestia-node/share/new_eds"
+	"github.com/celestiaorg/celestia-node/share/eds"
 )
 
 var (

@@ -20,7 +20,7 @@ import (
 
 	"github.com/celestiaorg/rsmt2d"
 
-	eds "github.com/celestiaorg/celestia-node/share/new_eds"
+	"github.com/celestiaorg/celestia-node/share/eds"
 )
 
 func TestFetch_Options(t *testing.T) {

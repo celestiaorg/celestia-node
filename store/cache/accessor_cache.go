@@ -10,7 +10,7 @@ import (
 
 	lru "github.com/hashicorp/golang-lru/v2"
 
-	eds "github.com/celestiaorg/celestia-node/share/new_eds"
+	"github.com/celestiaorg/celestia-node/share/eds"
 )
 
 const defaultCloseTimeout = time.Minute
