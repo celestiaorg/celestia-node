@@ -169,13 +169,7 @@ func createODSFile(t testing.TB, eds *rsmt2d.ExtendedDataSquare) *ODS {
 }
 
 func createODSFileDisabledCache(t testing.TB, eds *rsmt2d.ExtendedDataSquare) eds.Accessor {
-	path := t.TempDir() + "/" + strconv.Itoa(rand.Intn(1000))
-	roots, err := share.NewAxisRoots(eds)
-	require.NoError(t, err)
-	err = CreateODS(path, roots, eds)
-	require.NoError(t, err)
-	ods, err := OpenODS(path)
-	require.NoError(t, err)
+	ods := createODSFile(t, eds)
 	ods.disableCache = true
 	return ods
 }
