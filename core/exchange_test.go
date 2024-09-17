@@ -1,6 +1,7 @@
 package core
 
 import (
+	"bytes"
 	"context"
 	"testing"
 	"time"
@@ -167,6 +168,9 @@ func generateNonEmptyBlocks(
 		case b, ok := <-sub:
 			require.True(t, ok)
 
+			if bytes.Equal(share.EmptyEDSDataHash(), b.Data.Hash()) {
+				continue
+			}
 			hashes = append(hashes, share.DataHash(b.Data.Hash()))
 			i++
 		case <-ctx.Done():
