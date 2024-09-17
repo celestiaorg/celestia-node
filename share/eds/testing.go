@@ -317,12 +317,20 @@ func testAccessorShares(
 	createAccessor createAccessor,
 	eds *rsmt2d.ExtendedDataSquare,
 ) {
-	fl := createAccessor(t, eds)
+	acc := createAccessor(t, eds)
 
-	shares, err := fl.Shares(ctx)
-	require.NoError(t, err)
-	expected := eds.FlattenedODS()
-	require.Equal(t, expected, shares)
+	wg := sync.WaitGroup{}
+	for i := 0; i < 10; i++ {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			shares, err := acc.Shares(ctx)
+			require.NoError(t, err)
+			expected := eds.FlattenedODS()
+			require.Equal(t, expected, shares)
+		}()
+	}
+	wg.Wait()
 }
 
 func testAccessorReader(
