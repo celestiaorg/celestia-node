@@ -140,30 +140,31 @@ func testAccessorSample(
 	createAccessor createAccessor,
 	eds *rsmt2d.ExtendedDataSquare,
 ) {
-	fl := createAccessor(t, eds)
-
-	roots, err := share.NewAxisRoots(eds)
-	require.NoError(t, err)
-
 	width := int(eds.Width())
 	t.Run("single thread", func(t *testing.T) {
+		acc := createAccessor(t, eds)
+		roots, err := share.NewAxisRoots(eds)
+		require.NoError(t, err)
 		// t.Parallel() this fails the test for some reason
 		for rowIdx := 0; rowIdx < width; rowIdx++ {
 			for colIdx := 0; colIdx < width; colIdx++ {
-				testSample(ctx, t, fl, roots, colIdx, rowIdx)
+				testSample(ctx, t, acc, roots, colIdx, rowIdx)
 			}
 		}
 	})
 
 	t.Run("parallel", func(t *testing.T) {
 		t.Parallel()
+		acc := createAccessor(t, eds)
+		roots, err := share.NewAxisRoots(eds)
+		require.NoError(t, err)
 		wg := sync.WaitGroup{}
 		for rowIdx := 0; rowIdx < width; rowIdx++ {
 			for colIdx := 0; colIdx < width; colIdx++ {
 				wg.Add(1)
 				go func(rowIdx, colIdx int) {
 					defer wg.Done()
-					testSample(ctx, t, fl, roots, rowIdx, colIdx)
+					testSample(ctx, t, acc, roots, rowIdx, colIdx)
 				}(rowIdx, colIdx)
 			}
 		}
