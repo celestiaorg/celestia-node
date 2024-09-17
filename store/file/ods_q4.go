@@ -27,10 +27,10 @@ var _ eds.AccessorStreamer = (*ODSQ4)(nil)
 type ODSQ4 struct {
 	ods *ODS
 
-	pathQ4   string
-	q4Mu     sync.Mutex
-	q4Opened atomic.Bool
-	q4       *q4
+	pathQ4          string
+	q4Mu            sync.Mutex
+	q4OpenAttempted atomic.Bool
+	q4              *q4
 }
 
 // CreateODSQ4 creates ODS and Q4 files under the given FS paths.
@@ -73,29 +73,28 @@ func ODSWithQ4(ods *ODS, pathQ4 string) *ODSQ4 {
 
 func (odsq4 *ODSQ4) tryLoadQ4() *q4 {
 	// If Q4 was attempted to be opened before, return.
-	if odsq4.q4Opened.Load() {
+	if odsq4.q4OpenAttempted.Load() {
 		return odsq4.q4
 	}
 
 	odsq4.q4Mu.Lock()
 	defer odsq4.q4Mu.Unlock()
-	// update bool to make sure we try opening only once
-	// no matter if the try was successful or failed.
-	if opened := odsq4.q4Opened.Swap(true); opened {
+	if odsq4.q4OpenAttempted.Load() {
 		return odsq4.q4
 	}
 
 	q4, err := openQ4(odsq4.pathQ4, odsq4.ods.hdr)
+	// store q4 opened bool before updating atomic value to allow next read attempts to use it
+	odsq4.q4 = q4
+	// even if error occurred, store q4 opened bool to avoid trying to open it again
+	odsq4.q4OpenAttempted.Store(true)
 	if errors.Is(err, os.ErrNotExist) {
 		return nil
 	}
-
 	if err != nil {
 		log.Errorf("opening Q4 file %s: %s", odsq4.pathQ4, err)
 		return nil
 	}
-
-	odsq4.q4 = q4
 	return q4
 }
 
@@ -168,7 +167,7 @@ func (odsq4 *ODSQ4) Close() error {
 
 	odsq4.q4Mu.Lock() // wait in case file is being opened
 	defer odsq4.q4Mu.Unlock()
-	if odsq4.q4Opened.Load() {
+	if odsq4.q4 != nil {
 		errQ4 := odsq4.q4.close()
 		if errQ4 != nil {
 			errQ4 = fmt.Errorf("closing Q4 file: %w", errQ4)
