@@ -17,12 +17,6 @@ import (
 	"github.com/celestiaorg/celestia-node/store"
 )
 
-const (
-	// TODO(@walldiss): expose cache size to cfg
-	// default blockstore cache size
-	defaultBlockstoreCacheSize = 128
-)
-
 // dataExchange constructs Exchange(Bitswap Composition) for Shwap
 func dataExchange(tp node.Type, params bitSwapParams) exchange.SessionExchange {
 	prefix := protocolID(params.Net)
@@ -58,8 +52,12 @@ func blockstoreFromDatastore(ds datastore.Batching) (blockstore.Blockstore, erro
 	return blockstore.NewBlockstore(ds), nil
 }
 
-func blockstoreFromEDSStore(store *store.Store) (blockstore.Blockstore, error) {
-	withCache, err := store.WithCache("blockstore", defaultBlockstoreCacheSize)
+func blockstoreFromEDSStore(store *store.Store, blockStoreCacheSize int) (blockstore.Blockstore, error) {
+	if blockStoreCacheSize == 0 {
+		// no cache, return plain blockstore
+		return &bitswap.Blockstore{Getter: store}, nil
+	}
+	withCache, err := store.WithCache("blockstore", blockStoreCacheSize)
 	if err != nil {
 		return nil, fmt.Errorf("create cached store for blockstore:%w", err)
 	}
