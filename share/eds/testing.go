@@ -70,20 +70,22 @@ func TestSuiteAccessor(
 	}
 }
 
-func testEDSes(t *testing.T, size int) map[string]*rsmt2d.ExtendedDataSquare {
-	fullEDS := edstest.RandEDS(t, size)
+func testEDSes(t *testing.T, sizes ...int) map[string]*rsmt2d.ExtendedDataSquare {
+	testEDSes := make(map[string]*rsmt2d.ExtendedDataSquare)
+	for _, size := range sizes {
+		fullEDS := edstest.RandEDS(t, size)
+		testEDSes[fmt.Sprintf("FullODS:%d", size)] = fullEDS
 
-	var padding int
-	for padding < 1 {
-		padding = rand.IntN(size * size) //nolint:gosec
+		var padding int
+		for padding < 1 {
+			padding = rand.IntN(size * size) //nolint:gosec
+		}
+		paddingEds := edstest.RandEDSWithTailPadding(t, size, padding)
+		testEDSes[fmt.Sprintf("PaddedODS:%d", size)] = paddingEds
 	}
 
-	paddingEds := edstest.RandEDSWithTailPadding(t, size, padding)
-
-	return map[string]*rsmt2d.ExtendedDataSquare{
-		fmt.Sprintf("FullODS:%d", size):   fullEDS,
-		fmt.Sprintf("PaddedODS:%d", size): paddingEds,
-	}
+	testEDSes["EmptyODS"] = share.EmptyEDS()
+	return testEDSes
 }
 
 func TestStreamer(
@@ -106,14 +108,14 @@ func testAccessorDataHash(
 	createAccessor createAccessor,
 	eds *rsmt2d.ExtendedDataSquare,
 ) {
-	fl := createAccessor(t, eds)
+	acc := createAccessor(t, eds)
 
-	roots, err := share.NewAxisRoots(eds)
+	expected, err := share.NewAxisRoots(eds)
 	require.NoError(t, err)
 
-	datahash, err := fl.DataHash(ctx)
+	datahash, err := acc.DataHash(ctx)
 	require.NoError(t, err)
-	require.Equal(t, share.DataHash(roots.Hash()), datahash)
+	require.Equal(t, share.DataHash(expected.Hash()), datahash)
 }
 
 func testAccessorAxisRoots(
@@ -122,14 +124,14 @@ func testAccessorAxisRoots(
 	createAccessor createAccessor,
 	eds *rsmt2d.ExtendedDataSquare,
 ) {
-	fl := createAccessor(t, eds)
+	acc := createAccessor(t, eds)
 
-	roots, err := share.NewAxisRoots(eds)
+	expected, err := share.NewAxisRoots(eds)
 	require.NoError(t, err)
 
-	axisRoots, err := fl.AxisRoots(ctx)
+	roots, err := acc.AxisRoots(ctx)
 	require.NoError(t, err)
-	require.True(t, roots.Equals(axisRoots))
+	require.True(t, expected.Equals(roots))
 }
 
 func testAccessorSample(
@@ -138,32 +140,51 @@ func testAccessorSample(
 	createAccessor createAccessor,
 	eds *rsmt2d.ExtendedDataSquare,
 ) {
-	fl := createAccessor(t, eds)
-
-	roots, err := share.NewAxisRoots(eds)
-	require.NoError(t, err)
-
 	width := int(eds.Width())
 	t.Run("single thread", func(t *testing.T) {
+		acc := createAccessor(t, eds)
+		roots, err := share.NewAxisRoots(eds)
+		require.NoError(t, err)
 		// t.Parallel() this fails the test for some reason
 		for rowIdx := 0; rowIdx < width; rowIdx++ {
 			for colIdx := 0; colIdx < width; colIdx++ {
-				testSample(ctx, t, fl, roots, colIdx, rowIdx)
+				testSample(ctx, t, acc, roots, colIdx, rowIdx)
 			}
 		}
 	})
 
 	t.Run("parallel", func(t *testing.T) {
 		t.Parallel()
+		acc := createAccessor(t, eds)
+		roots, err := share.NewAxisRoots(eds)
+		require.NoError(t, err)
 		wg := sync.WaitGroup{}
 		for rowIdx := 0; rowIdx < width; rowIdx++ {
 			for colIdx := 0; colIdx < width; colIdx++ {
 				wg.Add(1)
 				go func(rowIdx, colIdx int) {
 					defer wg.Done()
-					testSample(ctx, t, fl, roots, rowIdx, colIdx)
+					testSample(ctx, t, acc, roots, rowIdx, colIdx)
 				}(rowIdx, colIdx)
 			}
+		}
+		wg.Wait()
+	})
+
+	t.Run("random", func(t *testing.T) {
+		t.Parallel()
+		acc := createAccessor(t, eds)
+		roots, err := share.NewAxisRoots(eds)
+		require.NoError(t, err)
+
+		wg := sync.WaitGroup{}
+		for range 1000 {
+			wg.Add(1)
+			go func() {
+				defer wg.Done()
+				rowIdx, colIdx := rand.IntN(width), rand.IntN(width) //nolint:gosec
+				testSample(ctx, t, acc, roots, rowIdx, colIdx)
+			}()
 		}
 		wg.Wait()
 	})
@@ -172,11 +193,11 @@ func testAccessorSample(
 func testSample(
 	ctx context.Context,
 	t *testing.T,
-	fl Accessor,
+	acc Accessor,
 	roots *share.AxisRoots,
 	rowIdx, colIdx int,
 ) {
-	shr, err := fl.Sample(ctx, rowIdx, colIdx)
+	shr, err := acc.Sample(ctx, rowIdx, colIdx)
 	require.NoError(t, err)
 
 	err = shr.Validate(roots, rowIdx, colIdx)
@@ -198,13 +219,13 @@ func testAccessorRowNamespaceData(
 		for amount := 1; amount < sharesAmount; amount++ {
 			// select random amount of shares, but not less than 1
 			eds, roots := edstest.RandEDSWithNamespace(t, namespace, amount, odsSize)
-			f := createAccessor(t, eds)
+			acc := createAccessor(t, eds)
 
 			var actualSharesAmount int
 			// loop over all rows and check that the amount of shares in the namespace is equal to the expected
 			// amount
 			for i, root := range roots.RowRoots {
-				rowData, err := f.RowNamespaceData(ctx, namespace, i)
+				rowData, err := acc.RowNamespaceData(ctx, namespace, i)
 
 				// namespace is not included in the row, so there should be no shares
 				if namespace.IsOutsideRange(root, root) {
@@ -240,8 +261,8 @@ func testAccessorRowNamespaceData(
 			absentNs, err := share.Namespace(maxNs).AddInt(-1)
 			require.NoError(t, err)
 
-			f := createAccessor(t, eds)
-			rowData, err := f.RowNamespaceData(ctx, absentNs, i)
+			acc := createAccessor(t, eds)
+			rowData, err := acc.RowNamespaceData(ctx, absentNs, i)
 			require.NoError(t, err)
 
 			// namespace is not included in the row, so there should be no shares
@@ -261,12 +282,12 @@ func testAccessorAxisHalf(
 	eds *rsmt2d.ExtendedDataSquare,
 ) {
 	odsSize := int(eds.Width() / 2)
-	fl := createAccessor(t, eds)
+	acc := createAccessor(t, eds)
 
 	t.Run("single thread", func(t *testing.T) {
 		for _, axisType := range []rsmt2d.Axis{rsmt2d.Col, rsmt2d.Row} {
 			for axisIdx := 0; axisIdx < int(eds.Width()); axisIdx++ {
-				half, err := fl.AxisHalf(ctx, axisType, axisIdx)
+				half, err := acc.AxisHalf(ctx, axisType, axisIdx)
 				require.NoError(t, err)
 				require.Len(t, half.Shares, odsSize)
 
@@ -290,7 +311,7 @@ func testAccessorAxisHalf(
 				wg.Add(1)
 				go func(axisType rsmt2d.Axis, idx int) {
 					defer wg.Done()
-					half, err := fl.AxisHalf(ctx, axisType, idx)
+					half, err := acc.AxisHalf(ctx, axisType, idx)
 					require.NoError(t, err)
 					require.Len(t, half.Shares, odsSize)
 
@@ -315,30 +336,38 @@ func testAccessorShares(
 	createAccessor createAccessor,
 	eds *rsmt2d.ExtendedDataSquare,
 ) {
-	fl := createAccessor(t, eds)
+	acc := createAccessor(t, eds)
 
-	shares, err := fl.Shares(ctx)
-	require.NoError(t, err)
-	expected := eds.FlattenedODS()
-	require.Equal(t, expected, shares)
+	wg := sync.WaitGroup{}
+	for i := 0; i < 10; i++ {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			shares, err := acc.Shares(ctx)
+			require.NoError(t, err)
+			expected := eds.FlattenedODS()
+			require.Equal(t, expected, shares)
+		}()
+	}
+	wg.Wait()
 }
 
 func testAccessorReader(
 	ctx context.Context,
 	t *testing.T,
-	create createAccessorStreamer,
+	createAccessor createAccessorStreamer,
 	eds *rsmt2d.ExtendedDataSquare,
 ) {
-	f := create(t, eds)
+	acc := createAccessor(t, eds)
 
-	// verify that the reader represented by file can be read from
+	// verify that the reader represented by accessor can be read from
 	// multiple times, without exhausting the underlying reader.
 	wg := sync.WaitGroup{}
 	for i := 0; i < 10; i++ {
 		wg.Add(1)
 		go func() {
 			defer wg.Done()
-			testReader(ctx, t, eds, f)
+			testReader(ctx, t, eds, acc)
 		}()
 	}
 	wg.Wait()
@@ -348,7 +377,7 @@ func testReader(ctx context.Context, t *testing.T, eds *rsmt2d.ExtendedDataSquar
 	reader, err := as.Reader()
 	require.NoError(t, err)
 
-	roots, err := as.AxisRoots(ctx)
+	roots, err := share.NewAxisRoots(eds)
 	require.NoError(t, err)
 
 	actual, err := ReadAccessor(ctx, reader, roots)
@@ -359,11 +388,12 @@ func testReader(ctx context.Context, t *testing.T, eds *rsmt2d.ExtendedDataSquar
 func BenchGetHalfAxisFromAccessor(
 	ctx context.Context,
 	b *testing.B,
-	newAccessor func(size int) Accessor,
+	createAccessor createAccessor,
 	minOdsSize, maxOdsSize int,
 ) {
 	for size := minOdsSize; size <= maxOdsSize; size *= 2 {
-		f := newAccessor(size)
+		eds := edstest.RandEDS(b, size)
+		acc := createAccessor(b, eds)
 
 		// loop over all possible axis types and quadrants
 		for _, axisType := range []rsmt2d.Axis{rsmt2d.Row, rsmt2d.Col} {
@@ -371,12 +401,12 @@ func BenchGetHalfAxisFromAccessor(
 				name := fmt.Sprintf("Size:%v/ProofType:%s/squareHalf:%s", size, axisType, strconv.Itoa(squareHalf))
 				b.Run(name, func(b *testing.B) {
 					// warm up cache
-					_, err := f.AxisHalf(ctx, axisType, f.Size(ctx)/2*(squareHalf))
+					_, err := acc.AxisHalf(ctx, axisType, acc.Size(ctx)/2*(squareHalf))
 					require.NoError(b, err)
 
 					b.ResetTimer()
 					for i := 0; i < b.N; i++ {
-						_, err := f.AxisHalf(ctx, axisType, f.Size(ctx)/2*(squareHalf))
+						_, err := acc.AxisHalf(ctx, axisType, acc.Size(ctx)/2*(squareHalf))
 						require.NoError(b, err)
 					}
 				})
@@ -388,24 +418,25 @@ func BenchGetHalfAxisFromAccessor(
 func BenchGetSampleFromAccessor(
 	ctx context.Context,
 	b *testing.B,
-	newAccessor func(size int) Accessor,
+	createAccessor createAccessor,
 	minOdsSize, maxOdsSize int,
 ) {
 	for size := minOdsSize; size <= maxOdsSize; size *= 2 {
-		f := newAccessor(size)
+		eds := edstest.RandEDS(b, size)
+		acc := createAccessor(b, eds)
 
 		// loop over all possible axis types and quadrants
 		for _, q := range quadrants {
 			name := fmt.Sprintf("Size:%v/quadrant:%s", size, q)
 			b.Run(name, func(b *testing.B) {
-				rowIdx, colIdx := q.coordinates(f.Size(ctx))
+				rowIdx, colIdx := q.coordinates(acc.Size(ctx))
 				// warm up cache
-				_, err := f.Sample(ctx, rowIdx, colIdx)
+				_, err := acc.Sample(ctx, rowIdx, colIdx)
 				require.NoError(b, err, q.String())
 
 				b.ResetTimer()
 				for i := 0; i < b.N; i++ {
-					_, err := f.Sample(ctx, rowIdx, colIdx)
+					_, err := acc.Sample(ctx, rowIdx, colIdx)
 					require.NoError(b, err)
 				}
 			})

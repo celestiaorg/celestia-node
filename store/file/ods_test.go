@@ -78,11 +78,7 @@ func BenchmarkAxisFromODSFile(b *testing.B) {
 	b.Cleanup(cancel)
 
 	minSize, maxSize := 32, 128
-	newFile := func(size int) eds.Accessor {
-		eds := edstest.RandEDS(b, size)
-		return createODSFile(b, eds)
-	}
-	eds.BenchGetHalfAxisFromAccessor(ctx, b, newFile, minSize, maxSize)
+	eds.BenchGetHalfAxisFromAccessor(ctx, b, createODSAccessor, minSize, maxSize)
 }
 
 // BenchmarkAxisFromODSFileDisabledCache/Size:32/ProofType:row/squareHalf:0-16         	  378975	      3141 ns/op
@@ -102,11 +98,7 @@ func BenchmarkAxisFromODSFileDisabledCache(b *testing.B) {
 	b.Cleanup(cancel)
 
 	minSize, maxSize := 32, 128
-	newFile := func(size int) eds.Accessor {
-		eds := edstest.RandEDS(b, size)
-		return createODSFileDisabledCache(b, eds)
-	}
-	eds.BenchGetHalfAxisFromAccessor(ctx, b, newFile, minSize, maxSize)
+	eds.BenchGetHalfAxisFromAccessor(ctx, b, createODSFileDisabledCache, minSize, maxSize)
 }
 
 // BenchmarkSampleFromODSFile/Size:32/quadrant:1-16         	   13684	     87558 ns/op
@@ -126,11 +118,7 @@ func BenchmarkSampleFromODSFile(b *testing.B) {
 	b.Cleanup(cancel)
 
 	minSize, maxSize := 32, 128
-	newFile := func(size int) eds.Accessor {
-		eds := edstest.RandEDS(b, size)
-		return createODSFile(b, eds)
-	}
-	eds.BenchGetSampleFromAccessor(ctx, b, newFile, minSize, maxSize)
+	eds.BenchGetSampleFromAccessor(ctx, b, createODSAccessor, minSize, maxSize)
 }
 
 // BenchmarkSampleFromODSFileDisabledCache/Size:32/quadrant:1
@@ -151,11 +139,7 @@ func BenchmarkSampleFromODSFileDisabledCache(b *testing.B) {
 	b.Cleanup(cancel)
 
 	minSize, maxSize := 32, 128
-	newFile := func(size int) eds.Accessor {
-		eds := edstest.RandEDS(b, size)
-		return createODSFileDisabledCache(b, eds)
-	}
-	eds.BenchGetSampleFromAccessor(ctx, b, newFile, minSize, maxSize)
+	eds.BenchGetSampleFromAccessor(ctx, b, createODSFileDisabledCache, minSize, maxSize)
 }
 
 func createODSAccessorStreamer(t testing.TB, eds *rsmt2d.ExtendedDataSquare) eds.AccessorStreamer {
@@ -185,13 +169,7 @@ func createODSFile(t testing.TB, eds *rsmt2d.ExtendedDataSquare) *ODS {
 }
 
 func createODSFileDisabledCache(t testing.TB, eds *rsmt2d.ExtendedDataSquare) eds.Accessor {
-	path := t.TempDir() + "/" + strconv.Itoa(rand.Intn(1000))
-	roots, err := share.NewAxisRoots(eds)
-	require.NoError(t, err)
-	err = CreateODS(path, roots, eds)
-	require.NoError(t, err)
-	ods, err := OpenODS(path)
-	require.NoError(t, err)
+	ods := createODSFile(t, eds)
 	ods.disableCache = true
 	return ods
 }

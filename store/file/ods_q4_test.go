@@ -56,11 +56,7 @@ func BenchmarkAxisFromODSQ4File(b *testing.B) {
 	b.Cleanup(cancel)
 
 	minSize, maxSize := 32, 128
-	newFile := func(size int) eds.Accessor {
-		eds := edstest.RandEDS(b, size)
-		return createODSQ4File(b, eds)
-	}
-	eds.BenchGetHalfAxisFromAccessor(ctx, b, newFile, minSize, maxSize)
+	eds.BenchGetHalfAxisFromAccessor(ctx, b, createODSQ4Accessor, minSize, maxSize)
 }
 
 // BenchmarkSampleFromODSQ4File/Size:32/quadrant:1-16         	   14260	     82827 ns/op
@@ -80,11 +76,7 @@ func BenchmarkSampleFromODSQ4File(b *testing.B) {
 	b.Cleanup(cancel)
 
 	minSize, maxSize := 32, 128
-	newFile := func(size int) eds.Accessor {
-		eds := edstest.RandEDS(b, size)
-		return createODSQ4File(b, eds)
-	}
-	eds.BenchGetSampleFromAccessor(ctx, b, newFile, minSize, maxSize)
+	eds.BenchGetSampleFromAccessor(ctx, b, createODSQ4Accessor, minSize, maxSize)
 }
 
 func createODSQ4AccessorStreamer(t testing.TB, eds *rsmt2d.ExtendedDataSquare) eds.AccessorStreamer {
