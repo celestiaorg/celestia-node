@@ -235,7 +235,7 @@ func (s *Service) GetProof(
 	}}
 
 	_, proof, err = s.retrieve(ctx, height, namespace, sharesParser)
-	return proof, nil
+	return
 }
 
 // GetAll returns all blobs under the given namespaces at the given height.
