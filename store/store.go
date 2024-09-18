@@ -101,7 +101,7 @@ func (s *Store) Put(
 	if datahash.IsEmptyEDS() {
 		lock := s.stripLock.byHeight(height)
 		lock.Lock()
-		err := s.linkHeight(datahash, height)
+		err := s.symLinkHeight(datahash, height)
 		lock.Unlock()
 		return err
 	}
@@ -158,7 +158,7 @@ func (s *Store) createFile(
 	}
 
 	// create hard link with height as name
-	err = s.linkHeight(roots.Hash(), height)
+	err = s.hardLinkHeight(roots.Hash(), height)
 	if err != nil {
 		// ensure we don't have partial writes if any operation fails
 		removeErr := s.removeODSQ4(height, roots.Hash())
@@ -170,11 +170,18 @@ func (s *Store) createFile(
 	return false, nil
 }
 
-func (s *Store) linkHeight(datahash share.DataHash, height uint64) error {
+func (s *Store) hardLinkHeight(datahash share.DataHash, height uint64) error {
 	// create hard link with height as name
 	pathOds := s.hashToPath(datahash, odsFileExt)
 	linktoOds := s.heightToPath(height, odsFileExt)
-	return link(pathOds, linktoOds)
+	return hardLink(pathOds, linktoOds)
+}
+
+func (s *Store) symLinkHeight(datahash share.DataHash, height uint64) error {
+	// create hard link with height as name
+	pathOds := s.hashToPath(datahash, odsFileExt)
+	linktoOds := s.heightToPath(height, odsFileExt)
+	return symLink(pathOds, linktoOds)
 }
 
 // populateEmptyFile writes fresh empty EDS file on disk.
@@ -407,10 +414,18 @@ func mkdir(path string) error {
 	return nil
 }
 
-func link(filepath, linkpath string) error {
+func hardLink(filepath, linkpath string) error {
 	err := os.Link(filepath, linkpath)
 	if err != nil && !errors.Is(err, os.ErrExist) {
 		return fmt.Errorf("creating hardlink (%s -> %s): %w", filepath, linkpath, err)
+	}
+	return nil
+}
+
+func symLink(filepath, linkpath string) error {
+	err := os.Symlink(filepath, linkpath)
+	if err != nil && !errors.Is(err, os.ErrExist) {
+		return fmt.Errorf("creating symlink (%s -> %s): %w", filepath, linkpath, err)
 	}
 	return nil
 }
