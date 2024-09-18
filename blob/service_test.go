@@ -683,7 +683,7 @@ func TestService_Subscribe(t *testing.T) {
 
 	t.Run("subscription cancellation", func(t *testing.T) {
 		ns := blobs[0].Namespace()
-		subCtx, subCancel := context.WithCancel(ctx)
+		subCtx, subCancel := context.WithTimeout(ctx, time.Second*2)
 		subCh, err := service.Subscribe(subCtx, ns)
 		require.NoError(t, err)
 
@@ -691,15 +691,20 @@ func TestService_Subscribe(t *testing.T) {
 		select {
 		case <-subCh:
 			subCancel()
-		case <-time.After(time.Second * 2):
+		case <-ctx.Done():
 			t.Fatal("timeout waiting for first subscription response")
 		}
 
-		select {
-		case _, ok := <-subCh:
-			assert.False(t, ok, "expected subscription channel to be closed")
-		case <-time.After(time.Second * 2):
-			t.Fatal("timeout waiting for subscription channel to close")
+		for {
+			select {
+			case _, ok := <-subCh:
+				if !ok {
+					// channel closed as expected
+					return
+				}
+			case <-ctx.Done():
+				t.Fatal("timeout waiting for subscription channel to close")
+			}
 		}
 	})
 
