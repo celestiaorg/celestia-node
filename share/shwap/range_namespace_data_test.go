@@ -2,6 +2,7 @@ package shwap_test
 
 import (
 	"context"
+	"fmt"
 	"github.com/celestiaorg/celestia-node/share/eds/edstest"
 	eds "github.com/celestiaorg/celestia-node/share/new_eds"
 	"github.com/celestiaorg/celestia-node/share/sharetest"
@@ -37,17 +38,30 @@ func TestRangeNamespaceData(t *testing.T) {
 
 	sampleID, err := shwap.NewSampleID(1, nsRowStart, col, edsSize)
 	require.NoError(t, err)
-	sample, err := extended.Sample(context.Background(), nsRowStart, col)
-	require.NoError(t, err)
+	for i := 1; i <= odsSize; i++ {
+		t.Run(fmt.Sprintf("range of %d shares", i), func(t *testing.T) {
+			dataID, err := shwap.NewRangeNamespaceDataID(sampleID, ns, uint16(i), false, edsSize)
+			require.NoError(t, err)
 
-	nsDataRange, err := eds.NamespaceData(context.Background(), extended, ns)
-	require.NoError(t, err)
+			rngdata, err := extended.RangeNamespaceData(
+				context.Background(),
+				dataID.RangeNamespace,
+				dataID.RowIndex,
+				dataID.ShareIndex,
+				dataID.Length,
+				dataID.ProofsOnly,
+			)
+			require.NoError(t, err)
 
-	data := shwap.NewRangeNamespaceData(nsDataRange, &sample)
+			roots, err := extended.AxisRoots(context.Background())
+			require.NoError(t, err)
 
-	dataID, err := shwap.NewRangeNamespaceDataID(sampleID, ns, odsSize, false, edsSize)
-	require.NoError(t, err)
+			err = rngdata.Verify(roots, &dataID)
+			require.NoError(t, err)
 
-	err = data.Verify(root, &dataID)
-	require.NoError(t, err)
+			protoRng := rngdata.RangeNamespaceDataToProto()
+			data := shwap.ProtoToRangeNamespaceData(protoRng)
+			assert.EqualValues(t, rngdata, data)
+		})
+	}
 }

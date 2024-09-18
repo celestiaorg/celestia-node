@@ -5,7 +5,6 @@ import (
 	"errors"
 	"fmt"
 
-	"github.com/celestiaorg/celestia-node/libs/utils"
 	"github.com/celestiaorg/celestia-node/share"
 	"io"
 )
@@ -109,10 +108,10 @@ func (rngid RangeNamespaceDataID) Verify(edsSize int) error {
 		return fmt.Errorf("RangeNamespaceDataID: sample id verification: %w", err)
 	}
 
-	odsSize := uint16(utils.SquareSize(edsSize))
 	endIndex := uint16(rngid.SampleID.ShareIndex) + rngid.Length
 
-	if endIndex > odsSize {
+	// check that end index is not bigger than amount of shares in the ODS.
+	if endIndex > uint16(edsSize) {
 		return errors.New("RangeNamespaceDataID: end index exceeds ODS length")
 	}
 	return nil
@@ -127,18 +126,16 @@ func (rngid RangeNamespaceDataID) Validate() error {
 }
 
 // appendTo helps in constructing the binary representation  of RangeNamespaceDataID
-// by appending all encoded fields to the serialized. // REWORK COMMENT
+// by appending all encoded fields.
 func (rngid RangeNamespaceDataID) appendTo(data []byte) []byte {
 	data = rngid.SampleID.appendTo(data)
 	data = append(data, rngid.RangeNamespace...)
 	data = binary.BigEndian.AppendUint16(data, rngid.Length)
 
-	// TODO: rework
 	if rngid.ProofsOnly {
 		data = binary.BigEndian.AppendUint16(data, 1)
 	} else {
 		data = binary.BigEndian.AppendUint16(data, 0)
 	}
-
 	return data
 }

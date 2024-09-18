@@ -106,6 +106,49 @@ func (eds *Rsmt2D) RowNamespaceData(
 	return shwap.RowNamespaceDataFromShares(shares, namespace, rowIdx)
 }
 
+// RangeNamespaceData builds a namespace range from the given coordinates and the length of the
+// range.
+// NOTE: The result may contain only proofs.
+func (eds *Rsmt2D) RangeNamespaceData(
+	ctx context.Context,
+	ns share.Namespace,
+	rowStartIdx, colStartIdx int,
+	length uint16,
+	proofsOnly bool,
+) (shwap.RangeNamespaceData, error) {
+	sample, err := eds.Sample(ctx, rowStartIdx, colStartIdx)
+	if err != nil {
+		return shwap.RangeNamespaceData{}, err
+	}
+
+	odsSize := int(eds.Width() / 2)
+
+	startIndex := rowStartIdx*odsSize + colStartIdx
+	endIndex := startIndex + int(length) - 1 // -1 because startIndex is also a part of the range
+
+	rowEndIdx := endIndex / odsSize
+	colEndIdx := endIndex % odsSize
+
+	rawShares := make([][]share.Share, 0, rowEndIdx-rowStartIdx+1)
+	for from := rowStartIdx; from <= rowEndIdx; from++ {
+		sh := eds.Row(uint(from))
+		rawShares = append(rawShares, sh)
+	}
+
+	nsData, err := shwap.RangedNamespaceDataFromShares(rawShares, ns, rowStartIdx, colStartIdx, colEndIdx+1)
+	if err != nil {
+		return shwap.RangeNamespaceData{}, err
+	}
+
+	// clear share if user specified this
+	if proofsOnly {
+		for i := range nsData {
+			nsData[i].Shares = make([][]byte, 0)
+		}
+	}
+	return shwap.NewRangeNamespaceData(nsData, sample), nil
+}
+
 // Shares returns data (ODS) shares extracted from the EDS. It returns new copy of the shares each
 // time.
 func (eds *Rsmt2D) Shares(_ context.Context) ([]share.Share, error) {
