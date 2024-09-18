@@ -174,7 +174,12 @@ func (s *Store) linkHeight(datahash share.DataHash, height uint64) error {
 	// create hard link with height as name
 	pathOds := s.hashToPath(datahash, odsFileExt)
 	linktoOds := s.heightToPath(height, odsFileExt)
-	return link(pathOds, linktoOds)
+	if datahash.IsEmptyEDS() {
+		// empty EDS is always symlinked, because there is limited number of hardlinks
+		// for the same file in some filesystems (ext4)
+		return symlink(pathOds, linktoOds)
+	}
+	return hardLink(pathOds, linktoOds)
 }
 
 // populateEmptyFile writes fresh empty EDS file on disk.
@@ -407,10 +412,18 @@ func mkdir(path string) error {
 	return nil
 }
 
-func link(filepath, linkpath string) error {
+func hardLink(filepath, linkpath string) error {
 	err := os.Link(filepath, linkpath)
 	if err != nil && !errors.Is(err, os.ErrExist) {
 		return fmt.Errorf("creating hardlink (%s -> %s): %w", filepath, linkpath, err)
+	}
+	return nil
+}
+
+func symlink(filepath, linkpath string) error {
+	err := os.Symlink(filepath, linkpath)
+	if err != nil && !errors.Is(err, os.ErrExist) {
+		return fmt.Errorf("creating symlink (%s -> %s): %w", filepath, linkpath, err)
 	}
 	return nil
 }
