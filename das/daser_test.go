@@ -209,7 +209,7 @@ func TestDASer_stopsAfter_BEFP(t *testing.T) {
 		require.NoError(t, res)
 	}
 	// wait for manager to finish catchup
-	require.True(t, daser.running.Load() == 0)
+	require.False(t, daser.running.Load())
 }
 
 func TestDASerSampleTimeout(t *testing.T) {
