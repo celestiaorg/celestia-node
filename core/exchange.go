@@ -15,7 +15,7 @@ import (
 	"github.com/celestiaorg/celestia-node/store"
 )
 
-const concurrencyLimit = 4
+const concurrencyLimit = 16
 
 type Exchange struct {
 	fetcher   *BlockFetcher
