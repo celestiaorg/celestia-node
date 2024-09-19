@@ -9,6 +9,9 @@ updates:
     open-pull-requests-limit: 10
     labels:
       - kind:deps
+    groups:
+      patch-updates:
+          applies-to: version-updates
   - package-ecosystem: gomod
     directory: "/"
     schedule:
@@ -25,6 +28,8 @@ updates:
       - dependency-name: "*otel*"
         update-types: ["version-update:semver-patch"]
     groups:
+      patch-updates:
+        applies-to: version-updates
       otel:
         patterns:
           - "go.opentelemetry.io/otel*"
@@ -37,3 +42,6 @@ updates:
     open-pull-requests-limit: 10
     labels:
       - kind:deps
+    groups:
+      patch-updates:
+        applies-to: version-updates
