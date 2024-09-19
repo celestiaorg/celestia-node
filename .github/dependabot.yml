@@ -11,7 +11,7 @@ updates:
       - kind:deps
     groups:
       patch-updates:
-          applies-to: version-updates
+        applies-to: version-updates
   - package-ecosystem: gomod
     directory: "/"
     schedule:
