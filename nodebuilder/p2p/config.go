@@ -34,6 +34,9 @@ type Config struct {
 
 	// Allowlist for IPColocation PubSub parameter, a list of string CIDRs
 	IPColocationWhitelist []string
+
+	// enableMetrics enables prometheus metrics collection in libp2p
+	enableMetrics bool
 }
 
 // DefaultConfig returns default configuration for P2P subsystem.

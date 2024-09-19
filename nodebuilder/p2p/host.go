@@ -104,7 +104,10 @@ func host(params hostParams) (HostBase, error) {
 		libp2p.DefaultMuxers,
 	}
 
-	if params.Registry != nil {
+	if params.Cfg.enableMetrics {
+		if params.Registry == nil {
+			panic("metrics enabled but no prometheus registry provided")
+		}
 		opts = append(opts, libp2p.PrometheusRegisterer(params.Registry))
 	} else {
 		opts = append(opts, libp2p.DisableMetrics())
