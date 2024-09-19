@@ -12,6 +12,8 @@ updates:
     groups:
       patch-updates:
         applies-to: version-updates
+        update-types:
+          - "patch"
   - package-ecosystem: gomod
     directory: "/"
     schedule:
@@ -30,6 +32,8 @@ updates:
     groups:
       patch-updates:
         applies-to: version-updates
+        update-types:
+          - "patch"
       otel:
         patterns:
           - "go.opentelemetry.io/otel*"
@@ -45,3 +49,5 @@ updates:
     groups:
       patch-updates:
         applies-to: version-updates
+        update-types:
+          - "patch"
