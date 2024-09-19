@@ -141,7 +141,6 @@ func TestDaModule(t *testing.T) {
 	}
 
 	for _, tt := range test {
-		tt := tt
 		t.Run(tt.name, func(t *testing.T) {
 			tt.doFn(t)
 		})
