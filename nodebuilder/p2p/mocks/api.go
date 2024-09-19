@@ -260,6 +260,21 @@ func (mr *MockModuleMockRecorder) PubSubPeers(arg0, arg1 interface{}) *gomock.Ca
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "PubSubPeers", reflect.TypeOf((*MockModule)(nil).PubSubPeers), arg0, arg1)
 }
 
+// PubSubTopics mocks base method.
+func (m *MockModule) PubSubTopics(arg0 context.Context) ([]string, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "PubSubTopics", arg0)
+	ret0, _ := ret[0].([]string)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// PubSubTopics indicates an expected call of PubSubTopics.
+func (mr *MockModuleMockRecorder) PubSubTopics(arg0 interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "PubSubTopics", reflect.TypeOf((*MockModule)(nil).PubSubTopics), arg0)
+}
+
 // ResourceState mocks base method.
 func (m *MockModule) ResourceState(arg0 context.Context) (rcmgr.ResourceManagerStat, error) {
 	m.ctrl.T.Helper()
