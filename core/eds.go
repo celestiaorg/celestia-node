@@ -16,6 +16,7 @@ import (
 
 	"github.com/celestiaorg/celestia-node/header"
 	"github.com/celestiaorg/celestia-node/pruner"
+	"github.com/celestiaorg/celestia-node/pruner/full"
 	"github.com/celestiaorg/celestia-node/share"
 	"github.com/celestiaorg/celestia-node/store"
 )
@@ -67,7 +68,13 @@ func storeEDS(
 		return nil
 	}
 
-	err := store.Put(ctx, eh.DAH, eh.Height(), eds)
+	var err error
+	// archival nodes should not store Q4 outside the availability window.
+	if pruner.IsWithinAvailabilityWindow(eh.Time(), full.Window) {
+		err = store.PutODSQ4(ctx, eh.DAH, eh.Height(), eds)
+	} else {
+		err = store.PutODS(ctx, eh.DAH, eh.Height(), eds)
+	}
 	if err == nil {
 		log.Debugw("stored EDS for height", "height", eh.Height())
 	}

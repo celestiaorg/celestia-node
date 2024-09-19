@@ -33,7 +33,7 @@ func TestExchange_RequestEDS(t *testing.T) {
 		roots, err := share.NewAxisRoots(eds)
 		require.NoError(t, err)
 		height := uint64(1)
-		err = store.Put(ctx, roots, height, eds)
+		err = store.PutODSQ4(ctx, roots, height, eds)
 		require.NoError(t, err)
 
 		requestedEDS, err := client.RequestEDS(ctx, roots, height, server.host.ID())
@@ -51,7 +51,7 @@ func TestExchange_RequestEDS(t *testing.T) {
 		lock := make(chan struct{})
 		go func() {
 			<-lock
-			err := store.Put(ctx, roots, height, eds)
+			err := store.PutODSQ4(ctx, roots, height, eds)
 			require.NoError(t, err)
 			lock <- struct{}{}
 		}()

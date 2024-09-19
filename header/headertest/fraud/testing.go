@@ -64,7 +64,7 @@ func (f *FraudMaker) MakeExtendedHeader(odsSize int, edsStore *store.Store) head
 			hdr.DataHash = dah.Hash()
 
 			ctx := ipld.CtxWithProofsAdder(context.Background(), adder)
-			require.NoError(f.t, edsStore.Put(ctx, &dah, uint64(h.Height), square))
+			require.NoError(f.t, edsStore.PutODSQ4(ctx, &dah, uint64(h.Height), square))
 
 			*eds = *square
 		}
