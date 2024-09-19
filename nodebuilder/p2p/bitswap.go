@@ -13,6 +13,7 @@ import (
 	routinghelpers "github.com/libp2p/go-libp2p-routing-helpers"
 	hst "github.com/libp2p/go-libp2p/core/host"
 	"github.com/libp2p/go-libp2p/core/protocol"
+	"github.com/prometheus/client_golang/prometheus"
 	"go.uber.org/fx"
 
 	"github.com/celestiaorg/celestia-node/share/eds"
@@ -29,6 +30,7 @@ const (
 
 // dataExchange provides a constructor for IPFS block's DataExchange over BitSwap.
 func dataExchange(params bitSwapParams) exchange.Interface {
+	fmt.Println("START BITSWAP")
 	prefix := protocolID(params.Net)
 	net := network.NewFromIpfsHost(params.Host, &routinghelpers.Null{}, network.Prefix(prefix))
 
@@ -83,6 +85,9 @@ type bitSwapParams struct {
 	Net       Network
 	Host      hst.Host
 	Bs        blockstore.Blockstore
+	// Registerer is unused, it is in dependency graph to ensure that prometheus metrics are enabled before bitswap
+	// is started.
+	Registerer prometheus.Registerer `optional:"true"`
 }
 
 func protocolID(network Network) protocol.ID {
