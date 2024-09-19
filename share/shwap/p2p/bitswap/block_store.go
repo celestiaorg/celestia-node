@@ -2,12 +2,15 @@ package bitswap
 
 import (
 	"context"
+	"errors"
 	"fmt"
 
 	blocks "github.com/ipfs/go-block-format"
 	"github.com/ipfs/go-cid"
+	ipld "github.com/ipfs/go-ipld-format"
 
 	"github.com/celestiaorg/celestia-node/share/eds"
+	"github.com/celestiaorg/celestia-node/store"
 )
 
 // AccessorGetter abstracts storage system that indexes and manages multiple eds.AccessorGetter by
@@ -29,17 +32,21 @@ func (b *Blockstore) getBlock(ctx context.Context, cid cid.Cid) (blocks.Block, e
 		return nil, err
 	}
 
-	eds, err := b.Getter.GetByHeight(ctx, blk.Height())
+	acc, err := b.Getter.GetByHeight(ctx, blk.Height())
+	if errors.Is(err, store.ErrNotFound) {
+		log.Debugf("no EDS Accessor for height %v found", blk.Height())
+		return nil, ipld.ErrNotFound{Cid: cid}
+	}
 	if err != nil {
 		return nil, fmt.Errorf("getting EDS Accessor for height %v: %w", blk.Height(), err)
 	}
 	defer func() {
-		if err := eds.Close(); err != nil {
+		if err := acc.Close(); err != nil {
 			log.Warnf("failed to close EDS accessor for height %v: %s", blk.Height(), err)
 		}
 	}()
 
-	if err = blk.Populate(ctx, eds); err != nil {
+	if err = blk.Populate(ctx, acc); err != nil {
 		return nil, fmt.Errorf("failed to populate Shwap Block on height %v: %w", blk.Height(), err)
 	}
 
