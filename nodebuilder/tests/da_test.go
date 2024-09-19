@@ -138,6 +138,30 @@ func TestDaModule(t *testing.T) {
 				}
 			},
 		},
+		{
+			name: "SubmitWithOptions - valid",
+			doFn: func(t *testing.T) {
+				ids, err := fullClient.DA.SubmitWithOptions(ctx, daBlobs, -1, namespace, []byte(`{"KeyName": "validator"}`))
+				require.NoError(t, err)
+				require.NotEmpty(t, ids)
+			},
+		},
+		{
+			name: "SubmitWithOptions - invalid JSON",
+			doFn: func(t *testing.T) {
+				ids, err := fullClient.DA.SubmitWithOptions(ctx, daBlobs, -1, namespace, []byte("not JSON"))
+				require.Error(t, err)
+				require.Nil(t, ids)
+			},
+		},
+		{
+			name: "SubmitWithOptions - invalid key name",
+			doFn: func(t *testing.T) {
+				ids, err := fullClient.DA.SubmitWithOptions(ctx, daBlobs, -1, namespace, []byte(`{"KeyName": "invalid"}`))
+				require.Error(t, err)
+				require.Nil(t, ids)
+			},
+		},
 	}
 
 	for _, tt := range test {
