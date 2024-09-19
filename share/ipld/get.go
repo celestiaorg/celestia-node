@@ -201,15 +201,15 @@ func GetProof(
 // when fully done.
 type chanGroup struct {
 	jobs    chan job
-	counter int64
+	counter atomic.Int64
 }
 
 func (w *chanGroup) add(count int64) {
-	atomic.AddInt64(&w.counter, count)
+	w.counter.Add(count)
 }
 
 func (w *chanGroup) done() {
-	numRemaining := atomic.AddInt64(&w.counter, -1)
+	numRemaining := w.counter.Add(-1)
 
 	// Close channel if this job was the last one
 	if numRemaining == 0 {
