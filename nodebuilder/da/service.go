@@ -153,18 +153,23 @@ func (s *Service) SubmitWithOptions(
 }
 
 func parseOptions(options []byte) ([]state.ConfigOption, error) {
+	var opts []state.ConfigOption
+
 	parsedOpts := struct {
 		KeyName           string
 		SignerAddress     string
 		FeeGranterAddress string
 	}{}
 
+	if len(options) == 0 {
+		return opts, nil
+	}
+
 	err := json.Unmarshal(options, &parsedOpts)
 	if err != nil {
 		return nil, err
 	}
 
-	var opts []state.ConfigOption
 	if parsedOpts.KeyName != "" {
 		opts = append(opts, state.WithKeyName(parsedOpts.KeyName))
 	}
