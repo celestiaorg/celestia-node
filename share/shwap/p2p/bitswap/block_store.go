@@ -18,6 +18,8 @@ import (
 type AccessorGetter interface {
 	// GetByHeight returns an Accessor by its height.
 	GetByHeight(ctx context.Context, height uint64) (eds.AccessorStreamer, error)
+	// HasByHeight reports whether an Accessor for the height exists.
+	HasByHeight(ctx context.Context, height uint64) (bool, error)
 }
 
 // Blockstore implements generalized Bitswap compatible storage over Shwap containers
@@ -64,10 +66,9 @@ func (b *Blockstore) Get(ctx context.Context, cid cid.Cid) (blocks.Block, error)
 }
 
 func (b *Blockstore) GetSize(ctx context.Context, cid cid.Cid) (int, error) {
-	// TODO(@Wondertan): There must be a way to derive size without reading, proving, serializing and
-	//  allocating Sample's block.Block or we could do hashing
-	// NOTE:Bitswap uses GetSize also to determine if we have content stored or not
-	// so simply returning constant size is not an option
+	// TODO(@Wondertan): Bitswap checks the size of the data(GetSize) before serving it via Get. This means
+	//  GetSize may do an unnecessary read from disk which we can avoid by either caching on Blockstore level
+	//  or returning constant size(we know at that point that we have requested data)
 	blk, err := b.Get(ctx, cid)
 	if err != nil {
 		return 0, err
@@ -76,9 +77,14 @@ func (b *Blockstore) GetSize(ctx context.Context, cid cid.Cid) (int, error) {
 }
 
 func (b *Blockstore) Has(ctx context.Context, cid cid.Cid) (bool, error) {
-	_, err := b.Get(ctx, cid)
+	blk, err := EmptyBlock(cid)
 	if err != nil {
 		return false, err
+	}
+
+	_, err = b.Getter.HasByHeight(ctx, blk.Height())
+	if err != nil {
+		return false, fmt.Errorf("checking EDS Accessor for height %v: %w", blk.Height(), err)
 	}
 	return true, nil
 }
