@@ -19,7 +19,7 @@ import (
 )
 
 func TestAccessorCache(t *testing.T) {
-	t.Run("add / get item from cache", func(t *testing.T) {
+	t.Run("add / has / get item from cache", func(t *testing.T) {
 		ctx, cancel := context.WithTimeout(context.Background(), time.Second)
 		defer cancel()
 		cache, err := NewAccessorCache("test", 1)
@@ -43,6 +43,8 @@ func TestAccessorCache(t *testing.T) {
 		require.NoError(t, err)
 
 		// check if item exists
+		has := cache.Has(height)
+		require.True(t, has)
 		got, err := cache.Get(height)
 		require.NoError(t, err)
 		reader, err = got.Reader()
@@ -100,6 +102,8 @@ func TestAccessorCache(t *testing.T) {
 		mock.checkClosed(t, true)
 
 		// check if item exists
+		has := cache.Has(height)
+		require.False(t, has)
 		_, err = cache.Get(height)
 		require.ErrorIs(t, err, ErrCacheMiss)
 	})
@@ -164,6 +168,8 @@ func TestAccessorCache(t *testing.T) {
 		mock.checkClosed(t, true)
 
 		// first item should be evicted from cache
+		has := cache.Has(height)
+		require.False(t, has)
 		_, err = cache.Get(height)
 		require.ErrorIs(t, err, ErrCacheMiss)
 	})

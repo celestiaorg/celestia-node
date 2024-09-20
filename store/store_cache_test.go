@@ -72,6 +72,33 @@ func TestStore_WithCache(t *testing.T) {
 		_, err = withCache.combinedCache.Second().Get(height)
 		require.ErrorIs(t, err, cache.ErrCacheMiss)
 	})
+
+	t.Run("Has", func(t *testing.T) {
+		store, err := NewStore(DefaultParameters(), t.TempDir())
+		require.NoError(t, err)
+
+		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+		t.Cleanup(cancel)
+		eds, roots := randomEDS(t)
+		height := height.Add(1)
+		err = store.PutODSQ4(ctx, roots, height, eds)
+		require.NoError(t, err)
+
+		withCache, err := store.WithCache("test", 10)
+		require.NoError(t, err)
+
+		has, err := withCache.HasByHeight(ctx, height)
+		require.NoError(t, err)
+		require.True(t, has)
+
+		// load up into cache
+		acc, err := withCache.GetByHeight(ctx, height)
+		require.NoError(t, err)
+		require.NoError(t, acc.Close())
+
+		has = withCache.combinedCache.Has(height)
+		require.True(t, has)
+	})
 }
 
 func paramsNoCache() *Parameters {

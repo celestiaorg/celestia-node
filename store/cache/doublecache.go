@@ -21,6 +21,11 @@ func NewDoubleCache(first, second Cache) *DoubleCache {
 	}
 }
 
+// Has checks if accessor for the height is present on the AccessorCache.
+func (mc *DoubleCache) Has(height uint64) bool {
+	return mc.first.Has(height) || mc.second.Has(height)
+}
+
 // Get looks for an item in all the caches one by one and returns the Cache found item.
 func (mc *DoubleCache) Get(height uint64) (eds.AccessorStreamer, error) {
 	accessor, err := mc.first.Get(height)

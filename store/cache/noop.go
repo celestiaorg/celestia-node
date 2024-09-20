@@ -16,6 +16,10 @@ var _ Cache = (*NoopCache)(nil)
 // NoopCache implements noop version of Cache interface
 type NoopCache struct{}
 
+func (n NoopCache) Has(uint64) bool {
+	return false
+}
+
 func (n NoopCache) Get(uint64) (eds.AccessorStreamer, error) {
 	return nil, ErrCacheMiss
 }
