@@ -14,6 +14,7 @@ import (
 
 const (
 	failedKey = "failed"
+	withQ4Key = "with_q4"
 	sizeKey   = "eds_size"
 )
 
@@ -90,7 +91,13 @@ func (m *metrics) addCacheMetrics(c cache.Cache) error {
 	return nil
 }
 
-func (m *metrics) observePut(ctx context.Context, dur time.Duration, size uint, failed bool) {
+func (m *metrics) observePut(
+	ctx context.Context,
+	dur time.Duration,
+	size uint,
+	withQ4 bool,
+	failed bool,
+) {
 	if m == nil {
 		return
 	}
@@ -100,7 +107,10 @@ func (m *metrics) observePut(ctx context.Context, dur time.Duration, size uint, 
 
 	m.put.Record(ctx, dur.Seconds(), metric.WithAttributes(
 		attribute.Bool(failedKey, failed),
-		attribute.Int(sizeKey, int(size))))
+		attribute.Bool(withQ4Key, withQ4),
+		attribute.Int(sizeKey, int(size)),
+	),
+	)
 }
 
 func (m *metrics) observePutExist(ctx context.Context) {

@@ -77,7 +77,7 @@ func TestShrexGetter(t *testing.T) {
 		eh := headertest.RandExtendedHeaderWithRoot(t, roots)
 		eh.RawHeader.Height = int64(height)
 
-		err = edsStore.Put(ctx, roots, height, randEDS)
+		err = edsStore.PutODSQ4(ctx, roots, height, randEDS)
 		require.NoError(t, err)
 		fullPeerManager.Validate(ctx, srvHost.ID(), shrexsub.Notification{
 			DataHash: roots.Hash(),
@@ -118,7 +118,7 @@ func TestShrexGetter(t *testing.T) {
 		eh := headertest.RandExtendedHeaderWithRoot(t, roots)
 		eh.RawHeader.Height = int64(height)
 
-		err = edsStore.Put(ctx, roots, height, eds)
+		err = edsStore.PutODSQ4(ctx, roots, height, eds)
 		require.NoError(t, err)
 		fullPeerManager.Validate(ctx, srvHost.ID(), shrexsub.Notification{
 			DataHash: roots.Hash(),
@@ -160,7 +160,7 @@ func TestShrexGetter(t *testing.T) {
 		eh := headertest.RandExtendedHeaderWithRoot(t, roots)
 		eh.RawHeader.Height = int64(height)
 
-		err = edsStore.Put(ctx, roots, height, eds)
+		err = edsStore.PutODSQ4(ctx, roots, height, eds)
 		require.NoError(t, err)
 		fullPeerManager.Validate(ctx, srvHost.ID(), shrexsub.Notification{
 			DataHash: roots.Hash(),
@@ -189,7 +189,7 @@ func TestShrexGetter(t *testing.T) {
 		eh := headertest.RandExtendedHeaderWithRoot(t, roots)
 		eh.RawHeader.Height = int64(height)
 
-		err = edsStore.Put(ctx, roots, height, randEDS)
+		err = edsStore.PutODSQ4(ctx, roots, height, randEDS)
 		require.NoError(t, err)
 		fullPeerManager.Validate(ctx, srvHost.ID(), shrexsub.Notification{
 			DataHash: roots.Hash(),

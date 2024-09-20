@@ -29,7 +29,7 @@ func TestStoreGetter(t *testing.T) {
 		height := height.Add(1)
 		eh.RawHeader.Height = int64(height)
 
-		err := edsStore.Put(ctx, eh.DAH, height, eds)
+		err := edsStore.PutODSQ4(ctx, eh.DAH, height, eds)
 		require.NoError(t, err)
 
 		squareSize := int(eds.Width())
@@ -52,7 +52,7 @@ func TestStoreGetter(t *testing.T) {
 		height := height.Add(1)
 		eh.RawHeader.Height = int64(height)
 
-		err := edsStore.Put(ctx, eh.DAH, height, eds)
+		err := edsStore.PutODSQ4(ctx, eh.DAH, height, eds)
 		require.NoError(t, err)
 
 		retrievedEDS, err := sg.GetEDS(ctx, eh)
@@ -71,7 +71,7 @@ func TestStoreGetter(t *testing.T) {
 		eh := headertest.RandExtendedHeaderWithRoot(t, roots)
 		height := height.Add(1)
 		eh.RawHeader.Height = int64(height)
-		err := edsStore.Put(ctx, eh.DAH, height, eds)
+		err := edsStore.PutODSQ4(ctx, eh.DAH, height, eds)
 		require.NoError(t, err)
 
 		shares, err := sg.GetSharesByNamespace(ctx, eh, ns)

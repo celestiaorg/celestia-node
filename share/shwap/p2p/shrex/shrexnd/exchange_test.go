@@ -47,7 +47,7 @@ func TestExchange_RequestND_NotFound(t *testing.T) {
 		require.NoError(t, err)
 
 		height := height.Add(1)
-		err = edsStore.Put(ctx, roots, height, eds)
+		err = edsStore.PutODSQ4(ctx, roots, height, eds)
 		require.NoError(t, err)
 
 		namespace := sharetest.RandV0Namespace()

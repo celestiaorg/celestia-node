@@ -37,7 +37,7 @@ func TestEDSStore(t *testing.T) {
 		eds, roots := randomEDS(t)
 		height := height.Add(1)
 
-		err = edsStore.Put(ctx, roots, height, eds)
+		err = edsStore.PutODSQ4(ctx, roots, height, eds)
 		require.NoError(t, err)
 
 		// file should exist in the store
@@ -54,7 +54,7 @@ func TestEDSStore(t *testing.T) {
 		eds, roots := randomEDS(t)
 		height := height.Add(1)
 
-		err = edsStore.Put(ctx, roots, height, eds)
+		err = edsStore.PutODSQ4(ctx, roots, height, eds)
 		require.NoError(t, err)
 
 		// file should be cached after put
@@ -78,12 +78,12 @@ func TestEDSStore(t *testing.T) {
 		eds, roots := randomEDS(t)
 		height := height.Add(1)
 
-		err = edsStore.Put(ctx, roots, height, eds)
+		err = edsStore.PutODSQ4(ctx, roots, height, eds)
 		require.NoError(t, err)
 		// ensure file is written. There should be only ods + q4 files and 1 link
 		ensureAmountFileAndLinks(t, dir, 2, 1)
 
-		err = edsStore.Put(ctx, roots, height, eds)
+		err = edsStore.PutODSQ4(ctx, roots, height, eds)
 		require.NoError(t, err)
 
 		// ensure file is not duplicated.
@@ -94,7 +94,7 @@ func TestEDSStore(t *testing.T) {
 		eds, roots := randomEDS(t)
 		height := height.Add(1)
 
-		err = edsStore.Put(ctx, roots, height, eds)
+		err = edsStore.PutODSQ4(ctx, roots, height, eds)
 		require.NoError(t, err)
 
 		f, err := edsStore.GetByHeight(ctx, height)
@@ -112,7 +112,7 @@ func TestEDSStore(t *testing.T) {
 		eds, roots := randomEDS(t)
 		height := height.Add(1)
 
-		err := edsStore.Put(ctx, roots, height, eds)
+		err := edsStore.PutODSQ4(ctx, roots, height, eds)
 		require.NoError(t, err)
 
 		f, err := edsStore.GetByHash(ctx, roots.Hash())
@@ -148,7 +148,7 @@ func TestEDSStore(t *testing.T) {
 
 			height := height.Add(1)
 			hash := share.EmptyEDSDataHash()
-			err = edsStore.Put(ctx, share.EmptyEDSRoots(), height, share.EmptyEDS())
+			err = edsStore.PutODSQ4(ctx, share.EmptyEDSRoots(), height, share.EmptyEDS())
 			require.NoError(t, err)
 			ensureAmountFileAndLinks(t, dir, 0, 1)
 
@@ -178,7 +178,7 @@ func TestEDSStore(t *testing.T) {
 
 			eds, roots := randomEDS(t)
 			height := height.Add(1)
-			err = edsStore.Put(ctx, roots, height, eds)
+			err = edsStore.PutODSQ4(ctx, roots, height, eds)
 			require.NoError(t, err)
 			// ensure file is written
 			ensureAmountFileAndLinks(t, dir, 2, 1)
@@ -210,7 +210,7 @@ func TestEDSStore(t *testing.T) {
 
 			height := height.Add(1)
 			hash := share.EmptyEDSDataHash()
-			err = edsStore.Put(ctx, share.EmptyEDSRoots(), height, share.EmptyEDS())
+			err = edsStore.PutODSQ4(ctx, share.EmptyEDSRoots(), height, share.EmptyEDS())
 			require.NoError(t, err)
 			// empty file is not counted as a file
 			ensureAmountFileAndLinks(t, dir, 0, 1)
@@ -236,7 +236,7 @@ func TestEDSStore(t *testing.T) {
 
 			square, roots := randomEDS(t)
 			height := height.Add(1)
-			err = edsStore.Put(ctx, roots, height, square)
+			err = edsStore.PutODSQ4(ctx, roots, height, square)
 			require.NoError(t, err)
 
 			err = edsStore.RemoveQ4(ctx, height, roots.Hash())
@@ -283,7 +283,7 @@ func TestEDSStore(t *testing.T) {
 		require.NoError(t, err)
 		require.False(t, has)
 
-		err = edsStore.Put(ctx, roots, height, eds)
+		err = edsStore.PutODSQ4(ctx, roots, height, eds)
 		require.NoError(t, err)
 
 		// assert that the empty file can be accessed by height
@@ -307,7 +307,7 @@ func TestEDSStore(t *testing.T) {
 
 		// store empty EDSs
 		for i := from; i <= to; i++ {
-			err := edsStore.Put(ctx, roots, uint64(i), eds)
+			err := edsStore.PutODSQ4(ctx, roots, uint64(i), eds)
 			require.NoError(t, err)
 		}
 
@@ -353,7 +353,7 @@ func BenchmarkStore(b *testing.B) {
 		b.ResetTimer()
 		for i := 0; i < b.N; i++ {
 			roots := edstest.RandomAxisRoots(b, 1)
-			_ = edsStore.Put(ctx, roots, uint64(i), eds)
+			_ = edsStore.PutODSQ4(ctx, roots, uint64(i), eds)
 		}
 	})
 
@@ -364,7 +364,7 @@ func BenchmarkStore(b *testing.B) {
 		require.NoError(b, err)
 
 		height := uint64(1984)
-		err = edsStore.Put(ctx, roots, height, eds)
+		err = edsStore.PutODSQ4(ctx, roots, height, eds)
 		require.NoError(b, err)
 
 		b.ResetTimer()
@@ -381,7 +381,7 @@ func BenchmarkStore(b *testing.B) {
 		require.NoError(b, err)
 
 		height := uint64(1984)
-		err = edsStore.Put(ctx, roots, height, eds)
+		err = edsStore.PutODSQ4(ctx, roots, height, eds)
 		require.NoError(b, err)
 
 		b.ResetTimer()

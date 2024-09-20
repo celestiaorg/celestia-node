@@ -90,11 +90,30 @@ func (s *Store) Stop(context.Context) error {
 	return s.metrics.close()
 }
 
-func (s *Store) Put(
+func (s *Store) PutODSQ4(
 	ctx context.Context,
 	roots *share.AxisRoots,
 	height uint64,
 	square *rsmt2d.ExtendedDataSquare,
+) error {
+	return s.put(ctx, roots, height, square, true)
+}
+
+func (s *Store) PutODS(
+	ctx context.Context,
+	roots *share.AxisRoots,
+	height uint64,
+	square *rsmt2d.ExtendedDataSquare,
+) error {
+	return s.put(ctx, roots, height, square, false)
+}
+
+func (s *Store) put(
+	ctx context.Context,
+	roots *share.AxisRoots,
+	height uint64,
+	square *rsmt2d.ExtendedDataSquare,
+	writeQ4 bool,
 ) error {
 	datahash := share.DataHash(roots.Hash())
 	// we don't need to store empty EDS, just link the height to the empty file
@@ -121,21 +140,27 @@ func (s *Store) Put(
 	lock.lock()
 	defer lock.unlock()
 
-	exists, err := s.createFile(square, roots, height)
+	var exists bool
+	if writeQ4 {
+		exists, err = s.createODSQ4File(square, roots, height)
+	} else {
+		exists, err = s.createODSFile(square, roots, height)
+	}
+
 	if exists {
 		s.metrics.observePutExist(ctx)
 		return nil
 	}
 	if err != nil {
-		s.metrics.observePut(ctx, time.Since(tNow), square.Width(), true)
+		s.metrics.observePut(ctx, time.Since(tNow), square.Width(), writeQ4, true)
 		return fmt.Errorf("creating file: %w", err)
 	}
 
-	s.metrics.observePut(ctx, time.Since(tNow), square.Width(), false)
+	s.metrics.observePut(ctx, time.Since(tNow), square.Width(), writeQ4, false)
 	return nil
 }
 
-func (s *Store) createFile(
+func (s *Store) createODSQ4File(
 	square *rsmt2d.ExtendedDataSquare,
 	roots *share.AxisRoots,
 	height uint64,
@@ -162,6 +187,39 @@ func (s *Store) createFile(
 	if err != nil {
 		// ensure we don't have partial writes if any operation fails
 		removeErr := s.removeODSQ4(height, roots.Hash())
+		return false, errors.Join(
+			fmt.Errorf("hardlinking height: %w", err),
+			removeErr,
+		)
+	}
+	return false, nil
+}
+
+func (s *Store) createODSFile(
+	square *rsmt2d.ExtendedDataSquare,
+	roots *share.AxisRoots,
+	height uint64,
+) (bool, error) {
+	pathODS := s.hashToPath(roots.Hash(), odsFileExt)
+	err := file.CreateODS(pathODS, roots, square)
+	if errors.Is(err, os.ErrExist) {
+		// TODO(@Wondertan): Should we verify that the exist file is correct?
+		return true, nil
+	}
+	if err != nil {
+		// ensure we don't have partial writes if any operation fails
+		removeErr := s.removeODS(height, roots.Hash())
+		return false, errors.Join(
+			fmt.Errorf("creating ODS file: %w", err),
+			removeErr,
+		)
+	}
+
+	// create hard link with height as name
+	err = s.linkHeight(roots.Hash(), height)
+	if err != nil {
+		// ensure we don't have partial writes if any operation fails
+		removeErr := s.removeODS(height, roots.Hash())
 		return false, errors.Join(
 			fmt.Errorf("hardlinking height: %w", err),
 			removeErr,

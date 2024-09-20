@@ -25,7 +25,7 @@ func TestStore_WithCache(t *testing.T) {
 		t.Cleanup(cancel)
 		eds, roots := randomEDS(t)
 		height := height.Add(1)
-		err = store.Put(ctx, roots, height, eds)
+		err = store.PutODSQ4(ctx, roots, height, eds)
 		require.NoError(t, err)
 
 		// check that the height is not in the cache (cache was disabled)
@@ -56,7 +56,7 @@ func TestStore_WithCache(t *testing.T) {
 		t.Cleanup(cancel)
 		eds, roots := randomEDS(t)
 		height := height.Add(1)
-		err = store.Put(ctx, roots, height, eds)
+		err = store.PutODSQ4(ctx, roots, height, eds)
 		require.NoError(t, err)
 
 		acc, err := store.cache.Get(height)

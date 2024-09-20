@@ -60,7 +60,7 @@ func TestSharesAvailable_StoredEds(t *testing.T) {
 	require.NoError(t, err)
 	avail := NewShareAvailability(store, nil)
 
-	err = store.Put(ctx, roots, eh.Height(), eds)
+	err = store.PutODSQ4(ctx, roots, eh.Height(), eds)
 	require.NoError(t, err)
 
 	has, err := store.HasByHeight(ctx, eh.Height())

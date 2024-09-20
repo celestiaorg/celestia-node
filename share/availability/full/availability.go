@@ -8,6 +8,8 @@ import (
 	logging "github.com/ipfs/go-log/v2"
 
 	"github.com/celestiaorg/celestia-node/header"
+	"github.com/celestiaorg/celestia-node/pruner"
+	"github.com/celestiaorg/celestia-node/pruner/full"
 	"github.com/celestiaorg/celestia-node/share"
 	"github.com/celestiaorg/celestia-node/share/eds/byzantine"
 	"github.com/celestiaorg/celestia-node/share/shwap"
@@ -41,7 +43,7 @@ func (fa *ShareAvailability) SharesAvailable(ctx context.Context, header *header
 	dah := header.DAH
 	// if the data square is empty, we can safely link the header height in the store to an empty EDS.
 	if share.DataHash(dah.Hash()).IsEmptyEDS() {
-		err := fa.store.Put(ctx, dah, header.Height(), share.EmptyEDS())
+		err := fa.store.PutODSQ4(ctx, dah, header.Height(), share.EmptyEDS())
 		if err != nil {
 			return fmt.Errorf("put empty EDS: %w", err)
 		}
@@ -74,7 +76,13 @@ func (fa *ShareAvailability) SharesAvailable(ctx context.Context, header *header
 		return err
 	}
 
-	err = fa.store.Put(ctx, dah, header.Height(), eds)
+	// archival nodes should not store Q4 outside the availability window.
+	if pruner.IsWithinAvailabilityWindow(header.Time(), full.Window) {
+		err = fa.store.PutODSQ4(ctx, dah, header.Height(), eds)
+	} else {
+		err = fa.store.PutODS(ctx, dah, header.Height(), eds)
+	}
+
 	if err != nil {
 		return fmt.Errorf("full availability: failed to store eds: %w", err)
 	}

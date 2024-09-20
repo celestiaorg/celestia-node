@@ -155,6 +155,6 @@ func (ss *EDSsser) put(ctx context.Context, t *testing.T, height int) (time.Dura
 	}
 
 	now := time.Now()
-	err = ss.edsstore.Put(ctx, roots, uint64(height), square)
+	err = ss.edsstore.PutODSQ4(ctx, roots, uint64(height), square)
 	return time.Since(now), err
 }
