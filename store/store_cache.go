@@ -41,6 +41,15 @@ func (s *Store) WithCache(name string, size int) (*CachedStore, error) {
 	}, nil
 }
 
+// HasByHeight checks if accessor for the height is present.
+func (cs *CachedStore) HasByHeight(ctx context.Context, height uint64) (bool, error) {
+	if cs.combinedCache.Has(height) {
+		return true, nil
+	}
+
+	return cs.store.HasByHeight(ctx, height)
+}
+
 // GetByHeight returns accessor for given height and puts it into cache.
 func (cs *CachedStore) GetByHeight(ctx context.Context, height uint64) (eds.AccessorStreamer, error) {
 	acc, err := cs.combinedCache.First().Get(height)
@@ -52,7 +61,7 @@ func (cs *CachedStore) GetByHeight(ctx context.Context, height uint64) (eds.Acce
 
 func (cs *CachedStore) openFile(height uint64) cache.OpenAccessorFn {
 	return func(ctx context.Context) (eds.AccessorStreamer, error) {
-		// open file directly wihout calling GetByHeight of inner getter to
+		// open file directly without calling GetByHeight of inner getter to
 		// avoid hitting store cache second time
 		path := cs.store.heightToPath(height, odsFileExt)
 		return cs.store.openAccessor(ctx, path)

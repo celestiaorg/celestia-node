@@ -21,6 +21,9 @@ type OpenAccessorFn func(context.Context) (eds.AccessorStreamer, error)
 
 // Cache is an interface that defines the basic Cache operations.
 type Cache interface {
+	// Has checks if the Cache contains the eds.AccessorStreamer for the given height.
+	Has(height uint64) bool
+
 	// Get returns the eds.AccessorStreamer for the given height.
 	Get(height uint64) (eds.AccessorStreamer, error)
 
