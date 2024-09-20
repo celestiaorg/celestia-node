@@ -159,6 +159,10 @@ func (t testAccessorGetter) GetByHeight(context.Context, uint64) (eds.AccessorSt
 	return t.AccessorStreamer, nil
 }
 
+func (t testAccessorGetter) HasByHeight(context.Context, uint64) (bool, error) {
+	return true, nil
+}
+
 type testFetcher struct {
 	Fetched int
 
