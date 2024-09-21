@@ -56,7 +56,6 @@ func (b *Blockstore) getBlock(ctx context.Context, cid cid.Cid) (blocks.Block, e
 func (b *Blockstore) Get(ctx context.Context, cid cid.Cid) (blocks.Block, error) {
 	blk, err := b.getBlock(ctx, cid)
 	if err != nil {
-		log.Errorf("blockstore: getting local block(%s): %s", cid, err)
 		return nil, err
 	}
 
