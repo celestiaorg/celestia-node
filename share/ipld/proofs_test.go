@@ -57,7 +57,7 @@ func TestGetProof(t *testing.T) {
 				case rsmt2d.Col:
 					rowIdx, colIdx = shrIdx, axisIdx
 				}
-				err = sample.Validate(axisRoots, rowIdx, colIdx)
+				err = sample.Verify(axisRoots, rowIdx, colIdx)
 				require.NoError(t, err)
 			}
 		}

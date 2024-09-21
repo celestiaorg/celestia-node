@@ -27,7 +27,7 @@ import (
 )
 
 func TestManager(t *testing.T) {
-	t.Run("Validate pool by headerSub", func(t *testing.T) {
+	t.Run("Verify pool by headerSub", func(t *testing.T) {
 		ctx, cancel := context.WithTimeout(context.Background(), time.Second*5)
 		t.Cleanup(cancel)
 
@@ -48,7 +48,7 @@ func TestManager(t *testing.T) {
 		stopManager(t, manager)
 	})
 
-	t.Run("Validate pool by shrex.Getter", func(t *testing.T) {
+	t.Run("Verify pool by shrex.Getter", func(t *testing.T) {
 		ctx, cancel := context.WithTimeout(context.Background(), time.Second*5)
 		t.Cleanup(cancel)
 

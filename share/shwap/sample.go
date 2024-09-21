@@ -86,9 +86,9 @@ func (s Sample) IsEmpty() bool {
 	return s.Proof == nil
 }
 
-// Validate checks the inclusion of the share using its Merkle proof under the specified AxisRoots.
+// Verify checks the inclusion of the share using its Merkle proof under the specified AxisRoots.
 // Returns an error if the proof is invalid or does not correspond to the indicated proof type.
-func (s Sample) Validate(roots *share.AxisRoots, rowIdx, colIdx int) error {
+func (s Sample) Verify(roots *share.AxisRoots, rowIdx, colIdx int) error {
 	if s.Proof == nil || s.Proof.IsEmptyProof() {
 		return errors.New("nil proof")
 	}

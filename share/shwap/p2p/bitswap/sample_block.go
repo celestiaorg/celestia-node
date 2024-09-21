@@ -116,7 +116,7 @@ func (sb *SampleBlock) UnmarshalFn(root *share.AxisRoots) UnmarshalFn {
 		}
 
 		cntr := shwap.SampleFromProto(&sample)
-		if err := cntr.Validate(root, sb.ID.RowIndex, sb.ID.ShareIndex); err != nil {
+		if err := cntr.Verify(root, sb.ID.RowIndex, sb.ID.ShareIndex); err != nil {
 			return fmt.Errorf("validating Sample for %+v: %w", sb.ID, err)
 		}
 

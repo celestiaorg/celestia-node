@@ -44,9 +44,9 @@ func TestRowValidate(t *testing.T) {
 			shares := eds.Row(uint(rowIdx))
 			row := RowFromShares(shares, side)
 
-			err := row.Validate(root, rowIdx)
+			err := row.Verify(root, rowIdx)
 			require.NoError(t, err)
-			err = row.Validate(root, rowIdx)
+			err = row.Verify(root, rowIdx)
 			require.NoError(t, err)
 		}
 	}
@@ -61,7 +61,7 @@ func TestRowValidateNegativeCases(t *testing.T) {
 
 	// Test with incorrect side specification
 	invalidSideRow := Row{halfShares: row.halfShares, side: RowSide(999)}
-	err = invalidSideRow.Validate(root, 0)
+	err = invalidSideRow.Verify(root, 0)
 	require.Error(t, err, "should error on invalid row side")
 
 	// Test with invalid shares (more shares than expected)
@@ -70,17 +70,17 @@ func TestRowValidateNegativeCases(t *testing.T) {
 		incorrectShares[i] = eds.GetCell(uint(i), 0)
 	}
 	invalidRow := Row{halfShares: incorrectShares, side: Left}
-	err = invalidRow.Validate(root, 0)
+	err = invalidRow.Verify(root, 0)
 	require.Error(t, err, "should error on incorrect number of shares")
 
 	// Test with empty shares
 	emptyRow := Row{halfShares: []share.Share{}, side: Left}
-	err = emptyRow.Validate(root, 0)
+	err = emptyRow.Verify(root, 0)
 	require.Error(t, err, "should error on empty halfShares")
 
 	// Doesn't match root. Corrupt root hash
 	root.RowRoots[0][len(root.RowRoots[0])-1] ^= 0xFF
-	err = row.Validate(root, 0)
+	err = row.Verify(root, 0)
 	require.Error(t, err, "should error on invalid root hash")
 }
 
@@ -112,6 +112,6 @@ func BenchmarkRowValidate(b *testing.B) {
 
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
-		_ = row.Validate(root, 0)
+		_ = row.Verify(root, 0)
 	}
 }

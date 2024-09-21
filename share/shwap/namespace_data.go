@@ -26,15 +26,15 @@ func (nd NamespaceData) Flatten() []share.Share {
 	return shares
 }
 
-// Validate checks the integrity of the NamespaceData against a provided root and namespace.
-func (nd NamespaceData) Validate(root *share.AxisRoots, namespace share.Namespace) error {
+// Verify checks the integrity of the NamespaceData against a provided root and namespace.
+func (nd NamespaceData) Verify(root *share.AxisRoots, namespace share.Namespace) error {
 	rowIdxs := share.RowsWithNamespace(root, namespace)
 	if len(rowIdxs) != len(nd) {
 		return fmt.Errorf("expected %d rows, found %d rows", len(rowIdxs), len(nd))
 	}
 
 	for i, row := range nd {
-		if err := row.Validate(root, namespace, rowIdxs[i]); err != nil {
+		if err := row.Verify(root, namespace, rowIdxs[i]); err != nil {
 			return fmt.Errorf("validating row: %w", err)
 		}
 	}

@@ -27,7 +27,7 @@ func TestSampleValidate(t *testing.T) {
 				sample, err := inMem.SampleForProofAxis(rowIdx, colIdx, proofType)
 				require.NoError(t, err)
 
-				require.NoError(t, sample.Validate(root, rowIdx, colIdx))
+				require.NoError(t, sample.Verify(root, rowIdx, colIdx))
 			}
 		}
 	}
@@ -43,30 +43,30 @@ func TestSampleNegativeVerifyInclusion(t *testing.T) {
 
 	sample, err := inMem.Sample(context.Background(), 0, 0)
 	require.NoError(t, err)
-	err = sample.Validate(root, 0, 0)
+	err = sample.Verify(root, 0, 0)
 	require.NoError(t, err)
 
 	// incorrect row index
-	err = sample.Validate(root, 1, 0)
+	err = sample.Verify(root, 1, 0)
 	require.ErrorIs(t, err, shwap.ErrFailedVerification)
 
 	// Corrupt the share
 	sample.Share[0] ^= 0xFF
-	err = sample.Validate(root, 0, 0)
+	err = sample.Verify(root, 0, 0)
 	require.ErrorIs(t, err, shwap.ErrFailedVerification)
 
 	// incorrect proofType
 	sample, err = inMem.Sample(context.Background(), 0, 0)
 	require.NoError(t, err)
 	sample.ProofType = rsmt2d.Col
-	err = sample.Validate(root, 0, 0)
+	err = sample.Verify(root, 0, 0)
 	require.ErrorIs(t, err, shwap.ErrFailedVerification)
 
 	// Corrupt the last root hash byte
 	sample, err = inMem.Sample(context.Background(), 0, 0)
 	require.NoError(t, err)
 	root.RowRoots[0][len(root.RowRoots[0])-1] ^= 0xFF
-	err = sample.Validate(root, 0, 0)
+	err = sample.Verify(root, 0, 0)
 	require.ErrorIs(t, err, shwap.ErrFailedVerification)
 }
 
@@ -103,6 +103,6 @@ func BenchmarkSampleValidate(b *testing.B) {
 
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
-		_ = sample.Validate(root, 0, 0)
+		_ = sample.Verify(root, 0, 0)
 	}
 }

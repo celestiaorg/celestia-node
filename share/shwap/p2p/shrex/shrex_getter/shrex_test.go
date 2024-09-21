@@ -86,7 +86,7 @@ func TestShrexGetter(t *testing.T) {
 
 		got, err := getter.GetSharesByNamespace(ctx, eh, namespace)
 		require.NoError(t, err)
-		require.NoError(t, got.Validate(roots, namespace))
+		require.NoError(t, got.Verify(roots, namespace))
 	})
 
 	t.Run("ND_err_not_found", func(t *testing.T) {
@@ -135,7 +135,7 @@ func TestShrexGetter(t *testing.T) {
 		require.NoError(t, err)
 		// no shares should be returned
 		require.Nil(t, emptyShares.Flatten())
-		require.Nil(t, emptyShares.Validate(roots, nID))
+		require.Nil(t, emptyShares.Verify(roots, nID))
 
 		// namespace outside root range
 		nID, err = addToNamespace(maxNamespace, 1)
@@ -147,7 +147,7 @@ func TestShrexGetter(t *testing.T) {
 		require.NoError(t, err)
 		// no shares should be returned
 		require.Nil(t, emptyShares.Flatten())
-		require.Nil(t, emptyShares.Validate(roots, nID))
+		require.Nil(t, emptyShares.Verify(roots, nID))
 	})
 
 	t.Run("ND_namespace_not_in_dah", func(t *testing.T) {
@@ -176,7 +176,7 @@ func TestShrexGetter(t *testing.T) {
 		require.NoError(t, err)
 		// no shares should be returned
 		require.Empty(t, emptyShares.Flatten())
-		require.Nil(t, emptyShares.Validate(roots, namespace))
+		require.Nil(t, emptyShares.Verify(roots, namespace))
 	})
 
 	t.Run("EDS_Available", func(t *testing.T) {

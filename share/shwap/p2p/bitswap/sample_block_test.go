@@ -35,7 +35,7 @@ func TestSample_FetchRoundtrip(t *testing.T) {
 
 	for _, sample := range blks {
 		blk := sample.(*SampleBlock)
-		err = blk.Container.Validate(root, blk.ID.RowIndex, blk.ID.ShareIndex)
+		err = blk.Container.Verify(root, blk.ID.RowIndex, blk.ID.ShareIndex)
 		require.NoError(t, err)
 	}
 }

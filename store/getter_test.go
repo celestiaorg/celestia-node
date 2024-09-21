@@ -76,7 +76,7 @@ func TestStoreGetter(t *testing.T) {
 
 		shares, err := sg.GetSharesByNamespace(ctx, eh, ns)
 		require.NoError(t, err)
-		require.NoError(t, shares.Validate(eh.DAH, ns))
+		require.NoError(t, shares.Verify(eh.DAH, ns))
 
 		// namespace not found
 		randNamespace := sharetest.RandV0Namespace()

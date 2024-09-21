@@ -26,7 +26,7 @@ func TestNamespaceData(t *testing.T) {
 		require.True(t, len(nd) > 0)
 		require.Len(t, nd.Flatten(), amount)
 
-		err = nd.Validate(root, namespace)
+		err = nd.Verify(root, namespace)
 		require.NoError(t, err)
 	}
 }

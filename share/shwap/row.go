@@ -35,7 +35,7 @@ func NewRow(halfShares []share.Share, side RowSide) Row {
 	}
 }
 
-// RowFromEDS constructs a new Row from an Extended Data Square based on the specified index and
+// RowFromShares constructs a new Row from an Extended Data Square based on the specified index and
 // side.
 func RowFromShares(shares []share.Share, side RowSide) Row {
 	var halfShares []share.Share
@@ -83,9 +83,9 @@ func (r Row) IsEmpty() bool {
 	return r.halfShares == nil
 }
 
-// Validate checks if the row's shares match the expected number from the root data and validates
+// Verify checks if the row's shares match the expected number from the root data and validates
 // the side of the row.
-func (r Row) Validate(roots *share.AxisRoots, idx int) error {
+func (r Row) Verify(roots *share.AxisRoots, idx int) error {
 	if len(r.halfShares) == 0 {
 		return fmt.Errorf("empty half row")
 	}

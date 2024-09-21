@@ -200,7 +200,7 @@ func testSample(
 	shr, err := acc.Sample(ctx, rowIdx, colIdx)
 	require.NoError(t, err)
 
-	err = shr.Validate(roots, rowIdx, colIdx)
+	err = shr.Verify(roots, rowIdx, colIdx)
 	require.NoError(t, err)
 }
 
@@ -237,7 +237,7 @@ func testAccessorRowNamespaceData(
 				actualSharesAmount += len(rowData.Shares)
 				require.NoError(t, err)
 				require.True(t, len(rowData.Shares) > 0)
-				err = rowData.Validate(roots, namespace, i)
+				err = rowData.Verify(roots, namespace, i)
 				require.NoError(t, err)
 			}
 
@@ -269,7 +269,7 @@ func testAccessorRowNamespaceData(
 			require.Len(t, rowData.Shares, 0)
 			require.True(t, rowData.Proof.IsOfAbsence())
 
-			err = rowData.Validate(roots, absentNs, i)
+			err = rowData.Verify(roots, absentNs, i)
 			require.NoError(t, err)
 		}
 	})

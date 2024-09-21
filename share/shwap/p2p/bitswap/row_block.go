@@ -117,7 +117,7 @@ func (rb *RowBlock) UnmarshalFn(root *share.AxisRoots) UnmarshalFn {
 		}
 
 		cntr := shwap.RowFromProto(&row)
-		if err := cntr.Validate(root, rb.ID.RowIndex); err != nil {
+		if err := cntr.Verify(root, rb.ID.RowIndex); err != nil {
 			return fmt.Errorf("validating Row for %+v: %w", rb.ID, err)
 		}
 

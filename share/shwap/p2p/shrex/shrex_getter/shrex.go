@@ -265,7 +265,7 @@ func (sg *Getter) GetSharesByNamespace(
 		switch {
 		case getErr == nil:
 			// both inclusion and non-inclusion cases needs verification
-			if verErr := nd.Validate(dah, namespace); verErr != nil {
+			if verErr := nd.Verify(dah, namespace); verErr != nil {
 				getErr = verErr
 				setStatus(peers.ResultBlacklistPeer)
 				break
