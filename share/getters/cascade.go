@@ -89,7 +89,7 @@ func (cg *CascadeGetter) GetSharesByNamespace(
 	return cascadeGetters(ctx, cg.getters, get)
 }
 
-// cascade implements a cascading retry algorithm for getting a value from multiple sources.
+// cascadeGetters implements a cascading retry algorithm for getting a value from multiple sources.
 // Cascading implies trying the sources one-by-one in the given order with the
 // given interval until either:
 //   - One of the sources returns the value
