@@ -1,49 +1,73 @@
-name: Required Labels
+name: Required Labels and Breaking Change Detection
 
 on:
   pull_request:
-    types: [opened, labeled, unlabeled, synchronize]
+    types: [opened, labeled, unlabeled, synchronize, edited]
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.head_ref || github.run_id }}
   cancel-in-progress: true
 
 jobs:
-  label:
+  # Check that the PR has required labels
+  required-labels:
     runs-on: ubuntu-latest
     steps:
-      - uses: mheap/github-action-required-labels@v5
+      - uses: actions/checkout@v4
+
+      - name: Check required labels
+        uses: mheap/github-action-required-labels@v5
         with:
           mode: minimum
           count: 1
           labels: "kind:fix, kind:misc, kind:break!, kind:refactor, kind:feat, kind:deps, kind:docs, kind:ci, kind:chore, kind:testing" # yamllint disable-line rule:line-length
 
-  # will attempt to apply a breaking label
-  # on opening the PR but not enforce it on repeated changes
-  # so we don't get trapped by false positives (for now)
-  # we can expand to all cases after
-  apply-breaking:
+  # Check for breaking changes and add 'kind:break!' label if detected
+  check-breaking:
     runs-on: ubuntu-latest
-    if: ${{ github.event.action == 'opened' && github.actor != 'dependabot[bot]' }}
+    if: |
+      github.actor != 'dependabot[bot]'
     permissions:
       pull-requests: write
+      contents: read
 
     steps:
       - uses: actions/checkout@v4
         with:
           fetch-depth: 0
 
-      - name: Run check for breaking
-        id: breaking_change
+      - name: Set up GitHub CLI
         run: |
-          git fetch origin main
+          sudo apt-get install -y gh
+
+      - name: Run breaking change detection script
+        id: breaking_check
+        env:
+          BASE_BRANCH: ${{ github.event.pull_request.base.ref }}
+        continue-on-error: true  # This allows the job to continue even if breaking changes are detected
+        run: |
+          echo "Base Branch: $BASE_BRANCH"
+          git fetch origin "$BASE_BRANCH"
           make detect-breaking
 
-      - name: Add label if breaking changes detected
+      - name: Check if 'kind:break!' label is already present
+        id: label_check
         if: failure()
-        run: gh issue edit "$NUMBER" --add-label "$LABELS"
+        run: |
+          LABEL_EXISTS=$(gh pr view ${{ github.event.pull_request.number }} --json labels --jq '.labels | map(.name) | contains(["kind:break!"])')
+          echo "Label exists: $LABEL_EXISTS"
+         echo "label_exists=${{ $LABEL_EXISTS }}" >> $GITHUB_ENV
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          GH_REPO: ${{ github.repository }}
-          NUMBER: ${{ github.event.pull_request.number }}
-          LABELS: kind:break!
+
+      - name: Add 'kind:break!' label if breaking changes detected
+        if: ${{ failure() && env.label_exists == 'false' }}
+        run: |
+          echo "Breaking changes detected, adding 'kind:break!' label to PR #${{ github.event.pull_request.number }}."
+          gh pr edit ${{ github.event.pull_request.number }} --add-label "kind:break!"
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Label already exists or apply failed
+        if: ${{ failure() && env.label_exists == 'true' }}
+        run: echo "The 'kind:break!' label already exists or could not be added."
