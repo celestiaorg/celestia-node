@@ -115,7 +115,7 @@ type retrievalSession struct {
 	// https://github.com/celestiaorg/rsmt2d/issues/135
 	squareQuadrants  []*quadrant
 	squareCellsLks   [][]sync.Mutex
-	squareCellsCount uint32
+	squareCellsCount atomic.Uint32
 	squareSig        chan struct{}
 	squareDn         chan struct{}
 	squareLk         sync.RWMutex
@@ -319,7 +319,7 @@ func (rs *retrievalSession) doRequest(ctx context.Context, q *quadrant) {
 				//  but it is totally fine for the happy case and for now.
 				//  The earlier we correctly know that we have the full square - the earlier
 				//  we cancel ongoing requests - the less data is being wastedly transferred.
-				if atomic.AddUint32(&rs.squareCellsCount, 1) >= uint32(size*size) {
+				if rs.squareCellsCount.Add(1) >= uint32(size*size) {
 					select {
 					case rs.squareSig <- struct{}{}:
 					default:
