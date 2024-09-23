@@ -2,6 +2,9 @@ module github.com/celestiaorg/celestia-node
 
 go 1.23.0
 
+// set build directive until golang/go#69312 is fixed
+godebug asynctimerchan=1
+
 require (
 	cosmossdk.io/math v1.3.0
 	github.com/BurntSushi/toml v1.4.0
