@@ -19,7 +19,7 @@ func WithMetrics() fx.Option {
 	return fx.Options(
 		fx.Provide(resourceManagerOpt(traceReporter)),
 		fx.Provide(prometheusMetrics),
-		fx.Invoke(enableBitswapMetrics),
+		fx.Provide(enableBitswapMetrics),
 	)
 }
 
@@ -45,6 +45,10 @@ func prometheusMetrics(lifecycle fx.Lifecycle,
 		peerIDLabel:   peerID.String(),
 	}
 	wrapped := prometheus.WrapRegistererWith(labels, reg)
+	// Set the default global registerer to the wrapped one with labels. This way all the metrics
+	// registered with the default registerer will be labeled with the provided labels. It is important
+	// because unlike libp2p metrics, bitswap metrics are registered with the default global registerer.
+	prometheus.DefaultRegisterer = wrapped
 
 	mux := http.NewServeMux()
 	handler := promhttp.HandlerFor(reg, promhttp.HandlerOpts{Registry: wrapped})

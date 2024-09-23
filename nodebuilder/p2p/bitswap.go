@@ -9,10 +9,12 @@ import (
 	"github.com/ipfs/boxo/blockstore"
 	"github.com/ipfs/boxo/exchange"
 	"github.com/ipfs/go-datastore"
-	metrics "github.com/ipfs/go-metrics-prometheus"
+	ipfsmetrics "github.com/ipfs/go-metrics-interface"
+	ipfsprom "github.com/ipfs/go-metrics-prometheus"
 	routinghelpers "github.com/libp2p/go-libp2p-routing-helpers"
 	hst "github.com/libp2p/go-libp2p/core/host"
 	"github.com/libp2p/go-libp2p/core/protocol"
+	"github.com/prometheus/client_golang/prometheus"
 	"go.uber.org/fx"
 
 	"github.com/celestiaorg/celestia-node/share/eds"
@@ -43,7 +45,14 @@ func dataExchange(params bitSwapParams) exchange.Interface {
 		bitswap.SetSimulateDontHavesOnTimeout(false),
 		bitswap.WithoutDuplicatedBlockStats(),
 	}
-	bs := bitswap.New(params.Ctx, net, params.Bs, opts...)
+
+	ctx := params.Ctx
+	if params.Metrics != nil {
+		// metrics scope is required for prometheus metrics and will be used as metrics name
+		// prefix
+		ctx = ipfsmetrics.CtxScope(ctx, "bitswap")
+	}
+	bs := bitswap.New(ctx, net, params.Bs, opts...)
 
 	params.Lifecycle.Append(fx.Hook{
 		OnStop: func(_ context.Context) (err error) {
@@ -53,7 +62,16 @@ func dataExchange(params bitSwapParams) exchange.Interface {
 	return bs
 }
 
-func blockstoreFromDatastore(ctx context.Context, ds datastore.Batching) (blockstore.Blockstore, error) {
+func blockstoreFromDatastore(
+	ctx context.Context,
+	ds datastore.Batching,
+	b blockstoreParams,
+) (blockstore.Blockstore, error) {
+	if b.Metrics != nil {
+		// metrics scope is required for prometheus metrics and will be used as metrics name
+		// prefix
+		ctx = ipfsmetrics.CtxScope(ctx, "blockstore")
+	}
 	return blockstore.CachedBlockstore(
 		ctx,
 		blockstore.NewBlockstore(ds),
@@ -65,7 +83,16 @@ func blockstoreFromDatastore(ctx context.Context, ds datastore.Batching) (blocks
 	)
 }
 
-func blockstoreFromEDSStore(ctx context.Context, store *eds.Store) (blockstore.Blockstore, error) {
+func blockstoreFromEDSStore(
+	ctx context.Context,
+	store *eds.Store,
+	b blockstoreParams,
+) (blockstore.Blockstore, error) {
+	if b.Metrics != nil {
+		// metrics scope is required for prometheus metrics and will be used as metrics name
+		// prefix
+		ctx = ipfsmetrics.CtxScope(ctx, "blockstore")
+	}
 	return blockstore.CachedBlockstore(
 		ctx,
 		store.Blockstore(),
@@ -73,6 +100,13 @@ func blockstoreFromEDSStore(ctx context.Context, store *eds.Store) (blockstore.B
 			HasTwoQueueCacheSize: defaultARCCacheSize,
 		},
 	)
+}
+
+type blockstoreParams struct {
+	fx.In
+	// Metrics is unused, it is in dependency graph to ensure that prometheus metrics are enabled before bitswap
+	// is started.
+	Metrics *bitswapMetrics `optional:"true"`
 }
 
 type bitSwapParams struct {
@@ -83,12 +117,22 @@ type bitSwapParams struct {
 	Net       Network
 	Host      hst.Host
 	Bs        blockstore.Blockstore
+	// Metrics is unused, it is in dependency graph to ensure that prometheus metrics are enabled before bitswap
+	// is started.
+	Metrics *bitswapMetrics `optional:"true"`
 }
 
 func protocolID(network Network) protocol.ID {
 	return protocol.ID(fmt.Sprintf("/celestia/%s", network))
 }
 
-func enableBitswapMetrics() {
-	_ = metrics.Inject()
+type bitswapMetrics struct{}
+
+func enableBitswapMetrics(_ prometheus.Registerer) *bitswapMetrics {
+	err := ipfsprom.Inject()
+	if err != nil {
+		log.Errorf("failed to inject bitswap metrics: %s", err)
+		return nil
+	}
+	return &bitswapMetrics{}
 }
