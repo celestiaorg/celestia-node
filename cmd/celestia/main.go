@@ -1,4 +1,3 @@
-//go:debug asynctimerchan=1
 package main
 
 import (
