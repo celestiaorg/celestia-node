@@ -20,7 +20,7 @@ type RangeNamespaceDataID struct {
 	//  RangeNamespace is a string representation of the namespace of the requested range.
 	RangeNamespace share.Namespace
 	// Length is a number of shares to of the requested range.
-	Length uint16
+	Length uint32
 	// ProofsOnly specifies whether user expects to get Proofs only.
 	ProofsOnly bool
 }
@@ -28,7 +28,7 @@ type RangeNamespaceDataID struct {
 func NewRangeNamespaceDataID(
 	sampleID SampleID,
 	namespace share.Namespace,
-	length uint16,
+	length uint32,
 	proofsOnly bool,
 	edsSize int,
 ) (RangeNamespaceDataID, error) {
@@ -58,13 +58,13 @@ func RangeNamespaceDataIDFromBinary(data []byte) (RangeNamespaceDataID, error) {
 	if err != nil {
 		return RangeNamespaceDataID{}, fmt.Errorf("converting SampleId from binary: %w", err)
 	}
-
-	return RangeNamespaceDataID{
+	rngId := RangeNamespaceDataID{
 		SampleID:       sid,
 		RangeNamespace: data[SampleIDSize : SampleIDSize+share.NamespaceSize],
-		Length:         binary.BigEndian.Uint16(data[SampleIDSize+share.NamespaceSize : SampleIDSize+share.NamespaceSize+2]),
+		Length:         binary.BigEndian.Uint32(data[SampleIDSize+share.NamespaceSize : SampleIDSize+share.NamespaceSize+2]),
 		ProofsOnly:     data[len(data)-1] == 1,
-	}, nil
+	}
+	return rngId, rngId.Validate()
 }
 
 // ReadFrom reads the binary form of RangeNamespaceDataID from the provided reader.
@@ -104,14 +104,18 @@ func (rngid RangeNamespaceDataID) WriteTo(w io.Writer) (int64, error) {
 // Verify validates the RangeNamespaceDataID fields and verifies that number of the requested shares
 // does not exceed the number of shares inside the ODS.
 func (rngid RangeNamespaceDataID) Verify(edsSize int) error {
+	err := rngid.RangeNamespace.Validate()
+	if err != nil {
+		return err
+	}
 	if err := rngid.SampleID.Verify(edsSize); err != nil {
 		return fmt.Errorf("RangeNamespaceDataID: sample id verification: %w", err)
 	}
 
-	endIndex := uint16(rngid.SampleID.ShareIndex) + rngid.Length
+	endIndex := uint32(rngid.SampleID.ShareIndex) + rngid.Length
 
 	// check that end index is not bigger than amount of shares in the ODS.
-	if endIndex > uint16(edsSize) {
+	if endIndex > uint32(edsSize) {
 		return errors.New("RangeNamespaceDataID: end index exceeds ODS length")
 	}
 	return nil
@@ -130,7 +134,7 @@ func (rngid RangeNamespaceDataID) Validate() error {
 func (rngid RangeNamespaceDataID) appendTo(data []byte) []byte {
 	data = rngid.SampleID.appendTo(data)
 	data = append(data, rngid.RangeNamespace...)
-	data = binary.BigEndian.AppendUint16(data, rngid.Length)
+	data = binary.BigEndian.AppendUint32(data, rngid.Length)
 
 	if rngid.ProofsOnly {
 		data = binary.BigEndian.AppendUint16(data, 1)

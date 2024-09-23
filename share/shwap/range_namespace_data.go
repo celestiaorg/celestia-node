@@ -131,7 +131,7 @@ func (rngdata *RangeNamespaceData) Verify(root *share.AxisRoots, req *RangeNames
 			root.RowRoots[rowStart+i],
 		)
 		if !verified {
-			return fmt.Errorf("RangeNamespaceData: proof verification failed at row: %d", rowStart+i)
+			return fmt.Errorf("RangeNamespaceData: %w at row: %d", ErrFailedVerification, rowStart+i)
 		}
 	}
 	return nil

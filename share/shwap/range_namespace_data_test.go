@@ -40,7 +40,7 @@ func TestRangeNamespaceData(t *testing.T) {
 	require.NoError(t, err)
 	for i := 1; i <= odsSize; i++ {
 		t.Run(fmt.Sprintf("range of %d shares", i), func(t *testing.T) {
-			dataID, err := shwap.NewRangeNamespaceDataID(sampleID, ns, uint16(i), false, edsSize)
+			dataID, err := shwap.NewRangeNamespaceDataID(sampleID, ns, uint32(i), false, edsSize)
 			require.NoError(t, err)
 
 			rngdata, err := extended.RangeNamespaceData(

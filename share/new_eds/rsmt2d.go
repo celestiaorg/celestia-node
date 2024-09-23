@@ -113,7 +113,7 @@ func (eds *Rsmt2D) RangeNamespaceData(
 	ctx context.Context,
 	ns share.Namespace,
 	rowStartIdx, colStartIdx int,
-	length uint16,
+	length uint32,
 	proofsOnly bool,
 ) (shwap.RangeNamespaceData, error) {
 	sample, err := eds.Sample(ctx, rowStartIdx, colStartIdx)
