@@ -18,7 +18,7 @@ import (
 func WithMetrics() fx.Option {
 	return fx.Options(
 		fx.Provide(resourceManagerOpt(traceReporter)),
-		fx.Invoke(prometheusMetrics),
+		fx.Provide(prometheusMetrics),
 		fx.Invoke(enableBitswapMetrics),
 	)
 }
@@ -37,7 +37,7 @@ func prometheusMetrics(lifecycle fx.Lifecycle,
 	peerID peer.ID,
 	nodeType node.Type,
 	network Network,
-) error {
+) (prometheus.Registerer, error) {
 	reg := prometheus.NewRegistry()
 	labels := prometheus.Labels{
 		networkLabel:  network.String(),
@@ -72,5 +72,5 @@ func prometheusMetrics(lifecycle fx.Lifecycle,
 			return promHTTPServer.Shutdown(ctx)
 		},
 	})
-	return nil
+	return wrapped, nil
 }
