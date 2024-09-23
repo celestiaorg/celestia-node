@@ -4,9 +4,10 @@ import (
 	"testing"
 
 	"github.com/celestiaorg/celestia-app/v2/pkg/proof"
-	"github.com/celestiaorg/celestia-node/blob"
 	"github.com/celestiaorg/nmt"
 	"github.com/celestiaorg/nmt/pb"
+
+	"github.com/celestiaorg/celestia-node/blob"
 )
 
 // Reported at https://github.com/celestiaorg/celestia-node/issues/3731.
