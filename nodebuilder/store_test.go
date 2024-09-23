@@ -167,7 +167,7 @@ func TestDiscoverOpened(t *testing.T) {
 	t.Run("single open store", func(t *testing.T) {
 		_, dir := initAndOpenStore(t, node.Full)
 
-		mockDefaultNodeStorePath := func(t, n string) (string, error) {
+		mockDefaultNodeStorePath := func(t node.Type, n p2p.Network) (string, error) {
 			return dir, nil
 		}
 		DefaultNodeStorePath = mockDefaultNodeStorePath
@@ -193,8 +193,8 @@ func TestDiscoverOpened(t *testing.T) {
 			}
 		}
 
-		mockDefaultNodeStorePath := func(tp, n string) (string, error) {
-			key := n + "_" + tp
+		mockDefaultNodeStorePath := func(tp node.Type, n p2p.Network) (string, error) {
+			key := n.String() + "_" + tp.String()
 			if dir, ok := dirMap[key]; ok {
 				return dir, nil
 			}
@@ -218,7 +218,7 @@ func TestDiscoverOpened(t *testing.T) {
 
 	t.Run("no opened store", func(t *testing.T) {
 		dir := t.TempDir()
-		mockDefaultNodeStorePath := func(t, n string) (string, error) {
+		mockDefaultNodeStorePath := func(t node.Type, n p2p.Network) (string, error) {
 			return dir, nil
 		}
 		DefaultNodeStorePath = mockDefaultNodeStorePath
