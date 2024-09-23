@@ -369,6 +369,19 @@ func TestBlobService_Get(t *testing.T) {
 			},
 		},
 		{
+			name: "err during proof request",
+			doFn: func() (interface{}, error) {
+				proof, err := service.GetProof(ctx, 1,
+					blobsWithDiffNamespaces[0].Namespace(),
+					blobsWithDiffNamespaces[1].Commitment,
+				)
+				return proof, err
+			},
+			expectedResult: func(_ interface{}, err error) {
+				require.Error(t, err)
+			},
+		},
+		{
 			name: "marshal proof",
 			doFn: func() (interface{}, error) {
 				proof, err := service.GetProof(ctx, 1,

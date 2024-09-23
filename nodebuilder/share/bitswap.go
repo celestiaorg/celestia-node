@@ -7,8 +7,11 @@ import (
 	"github.com/ipfs/boxo/blockstore"
 	"github.com/ipfs/boxo/exchange"
 	"github.com/ipfs/go-datastore"
+	ipfsmetrics "github.com/ipfs/go-metrics-interface"
+	ipfsprom "github.com/ipfs/go-metrics-prometheus"
 	hst "github.com/libp2p/go-libp2p/core/host"
 	"github.com/libp2p/go-libp2p/core/protocol"
+	"github.com/prometheus/client_golang/prometheus"
 	"go.uber.org/fx"
 
 	"github.com/celestiaorg/celestia-node/nodebuilder/node"
@@ -21,6 +24,15 @@ import (
 func dataExchange(tp node.Type, params bitSwapParams) exchange.SessionExchange {
 	prefix := protocolID(params.Net)
 	net := bitswap.NewNetwork(params.Host, prefix)
+
+	if params.PromReg != nil {
+		// metrics scope is required for prometheus metrics and will be used as metrics name prefix
+		params.Ctx = ipfsmetrics.CtxScope(params.Ctx, "bitswap")
+		err := ipfsprom.Inject()
+		if err != nil {
+			return nil
+		}
+	}
 
 	switch tp {
 	case node.Full, node.Bridge:
@@ -73,6 +85,7 @@ type bitSwapParams struct {
 	Net       p2p.Network
 	Host      hst.Host
 	Bs        blockstore.Blockstore
+	PromReg   prometheus.Registerer `optional:"true"`
 }
 
 func protocolID(network p2p.Network) protocol.ID {
