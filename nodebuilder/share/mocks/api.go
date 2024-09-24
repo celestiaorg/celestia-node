@@ -9,11 +9,10 @@ import (
 	reflect "reflect"
 
 	header "github.com/celestiaorg/celestia-node/header"
-	share "github.com/celestiaorg/celestia-node/share"
-	shwap "github.com/celestiaorg/celestia-node/share/shwap"
+	share "github.com/celestiaorg/celestia-node/nodebuilder/share"
+	share0 "github.com/celestiaorg/celestia-node/share"
 	rsmt2d "github.com/celestiaorg/rsmt2d"
 	gomock "github.com/golang/mock/gomock"
-	types "github.com/tendermint/tendermint/types"
 )
 
 // MockModule is a mock of Module interface.
@@ -55,13 +54,12 @@ func (mr *MockModuleMockRecorder) GetEDS(arg0, arg1 interface{}) *gomock.Call {
 }
 
 // GetRange mocks base method.
-func (m *MockModule) GetRange(arg0 context.Context, arg1 uint64, arg2, arg3 int) ([][]byte, *types.ShareProof, error) {
+func (m *MockModule) GetRange(arg0 context.Context, arg1 uint64, arg2, arg3 int) (*share.GetRangeResult, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "GetRange", arg0, arg1, arg2, arg3)
-	ret0, _ := ret[0].([][]byte)
-	ret1, _ := ret[1].(*types.ShareProof)
-	ret2, _ := ret[2].(error)
-	return ret0, ret1, ret2
+	ret0, _ := ret[0].(*share.GetRangeResult)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
 }
 
 // GetRange indicates an expected call of GetRange.
@@ -86,10 +84,10 @@ func (mr *MockModuleMockRecorder) GetShare(arg0, arg1, arg2, arg3 interface{}) *
 }
 
 // GetSharesByNamespace mocks base method.
-func (m *MockModule) GetSharesByNamespace(arg0 context.Context, arg1 *header.ExtendedHeader, arg2 share.Namespace) (shwap.NamespaceData, error) {
+func (m *MockModule) GetSharesByNamespace(arg0 context.Context, arg1 *header.ExtendedHeader, arg2 share0.Namespace) (share.NamespacedShares, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "GetSharesByNamespace", arg0, arg1, arg2)
-	ret0, _ := ret[0].(shwap.NamespaceData)
+	ret0, _ := ret[0].(share.NamespacedShares)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
