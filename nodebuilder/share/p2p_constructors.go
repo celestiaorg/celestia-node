@@ -28,7 +28,7 @@ const (
 
 	// discovery version is a prefix for all tags used in discovery. It is bumped when
 	// there are protocol breaking changes.
-	version = "v1"
+	version = "v0.1.0"
 )
 
 // TODO @renaynay: rename
