@@ -16,8 +16,8 @@ import (
 	"github.com/celestiaorg/celestia-node/header"
 	nodep2p "github.com/celestiaorg/celestia-node/nodebuilder/p2p"
 	"github.com/celestiaorg/celestia-node/pruner"
-	"github.com/celestiaorg/celestia-node/share/eds"
-	"github.com/celestiaorg/celestia-node/share/p2p/shrexsub"
+	"github.com/celestiaorg/celestia-node/share/shwap/p2p/shrex/shrexsub"
+	"github.com/celestiaorg/celestia-node/store"
 )
 
 const testChainID = "private"
@@ -52,7 +52,9 @@ func TestListener(t *testing.T) {
 	eds := createEdsPubSub(ctx, t)
 
 	// create Listener and start listening
-	cl := createListener(ctx, t, fetcher, ps0, eds, createStore(t), testChainID)
+	store, err := store.NewStore(store.DefaultParameters(), t.TempDir())
+	require.NoError(t, err)
+	cl := createListener(ctx, t, fetcher, ps0, eds, store, testChainID)
 	err = cl.Start(ctx)
 	require.NoError(t, err)
 
@@ -84,7 +86,8 @@ func TestListenerWithWrongChainRPC(t *testing.T) {
 	fetcher, _ := createCoreFetcher(t, cfg)
 	eds := createEdsPubSub(ctx, t)
 
-	store := createStore(t)
+	store, err := store.NewStore(store.DefaultParameters(), t.TempDir())
+	require.NoError(t, err)
 
 	// create Listener and start listening
 	cl := createListener(ctx, t, fetcher, ps0, eds, store, "wrong-chain-rpc")
@@ -111,7 +114,8 @@ func TestListener_DoesNotStoreHistoric(t *testing.T) {
 	fetcher, cctx := createCoreFetcher(t, cfg)
 	eds := createEdsPubSub(ctx, t)
 
-	store := createStore(t)
+	store, err := store.NewStore(store.DefaultParameters(), t.TempDir())
+	require.NoError(t, err)
 
 	// create Listener and start listening
 	opt := WithAvailabilityWindow(pruner.AvailabilityWindow(time.Nanosecond))
@@ -119,12 +123,12 @@ func TestListener_DoesNotStoreHistoric(t *testing.T) {
 
 	dataRoots := generateNonEmptyBlocks(t, ctx, fetcher, cfg, cctx)
 
-	err := cl.Start(ctx)
+	err = cl.Start(ctx)
 	require.NoError(t, err)
 
 	// ensure none of the EDSes were stored
 	for _, hash := range dataRoots {
-		has, err := store.Has(ctx, hash)
+		has, err := store.HasByHash(ctx, hash)
 		require.NoError(t, err)
 		assert.False(t, has)
 	}
@@ -171,7 +175,7 @@ func createListener(
 	fetcher *BlockFetcher,
 	ps *pubsub.PubSub,
 	edsSub *shrexsub.PubSub,
-	store *eds.Store,
+	store *store.Store,
 	chainID string,
 	opts ...Option,
 ) *Listener {
