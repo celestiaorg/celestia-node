@@ -11,14 +11,23 @@ on:
       - "v[0-9]+.[0-9]+.[0-9]+-alpha.[0-9]+"
       - "v[0-9]+.[0-9]+.[0-9]+-beta.[0-9]+"
       - "v[0-9]+.[0-9]+.[0-9]+-rc[0-9]+"
+      - "v[0-9]+.[0-9]+.[0-9]+-arabica"
+      - "v[0-9]+.[0-9]+.[0-9]+-mocha"
   pull_request:
+  workflow_dispatch:
+    inputs:
+      ref:
+        description: "The checkout reference (ie tag, branch, sha)"
+        required: true
+        type: string
 
 jobs:
   docker-security-build:
     permissions:
       contents: write
       packages: write
-    uses: celestiaorg/.github/.github/workflows/reusable_dockerfile_pipeline.yml@v0.4.3 # yamllint disable-line rule:line-length
+    uses: celestiaorg/.github/.github/workflows/reusable_dockerfile_pipeline.yml@v0.4.4 # yamllint disable-line rule:line-length
     with:
       dockerfile: Dockerfile
+      checkout_ref: ${{ github.event.inputs.ref }}
     secrets: inherit
