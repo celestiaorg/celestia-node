@@ -33,6 +33,21 @@ type Service struct {
 	headerGetter func(context.Context, uint64) (*header.ExtendedHeader, error)
 }
 
+// SubmitOptions defines options for blob submission using SubmitWithOptions.
+//
+// SubmitWithOptions expects JSON serialized version of this struct; all fields are optional.
+type SubmitOptions struct {
+	// KeyName is the name of key from the keystore used to sign transactions.
+	KeyName string
+
+	// SignerAddress is the address that signs the transaction.
+	// This address must be stored locally in the key store.
+	SignerAddress string
+
+	// FeeGranterAddress specifies the account that will pay for the transaction fee.
+	FeeGranterAddress string
+}
+
 func NewService(
 	blobMod nodeblob.Module,
 	headerGetter func(context.Context, uint64) (*header.ExtendedHeader, error),
@@ -155,16 +170,11 @@ func (s *Service) SubmitWithOptions(
 func parseOptions(options []byte) ([]state.ConfigOption, error) {
 	var opts []state.ConfigOption
 
-	parsedOpts := struct {
-		KeyName           string
-		SignerAddress     string
-		FeeGranterAddress string
-	}{}
-
 	if len(options) == 0 {
 		return opts, nil
 	}
 
+	parsedOpts := SubmitOptions{}
 	err := json.Unmarshal(options, &parsedOpts)
 	if err != nil {
 		return nil, err
