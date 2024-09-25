@@ -12,11 +12,12 @@ import (
 	"github.com/stretchr/testify/require"
 	"github.com/tendermint/tendermint/libs/rand"
 
+	"github.com/celestiaorg/go-square/v2/share"
 	"github.com/celestiaorg/rsmt2d"
 
-	"github.com/celestiaorg/celestia-node/share"
-	"github.com/celestiaorg/celestia-node/share/eds"
-	"github.com/celestiaorg/celestia-node/share/eds/edstest"
+	"github.com/celestiaorg/celestia-node/square"
+	"github.com/celestiaorg/celestia-node/square/eds"
+	"github.com/celestiaorg/celestia-node/square/eds/edstest"
 )
 
 func TestCreateODSFile(t *testing.T) {
@@ -25,18 +26,18 @@ func TestCreateODSFile(t *testing.T) {
 
 	edsIn := edstest.RandEDS(t, 8)
 	f := createODSFile(t, edsIn)
-	readRoots, err := share.NewAxisRoots(edsIn)
+	readRoots, err := square.NewAxisRoots(edsIn)
 	require.NoError(t, err)
 
 	shares, err := f.Shares(ctx)
 	require.NoError(t, err)
 
 	expected := edsIn.FlattenedODS()
-	require.Equal(t, expected, shares)
+	require.Equal(t, expected, share.ToBytes(shares))
 
 	roots, err := f.AxisRoots(ctx)
 	require.NoError(t, err)
-	require.Equal(t, share.DataHash(roots.Hash()), f.hdr.datahash)
+	require.Equal(t, square.DataHash(roots.Hash()), f.hdr.datahash)
 	require.True(t, roots.Equals(readRoots))
 	require.NoError(t, f.Close())
 }
@@ -50,7 +51,7 @@ func TestReadODSFromFile(t *testing.T) {
 	for i, row := range ods {
 		original := eds.Row(uint(i))[:eds.Width()/2]
 		require.True(t, len(original) == len(row))
-		require.Equal(t, original, row)
+		require.Equal(t, original, share.ToBytes(row))
 	}
 }
 
@@ -250,7 +251,7 @@ func createCachedStreamer(t testing.TB, eds *rsmt2d.ExtendedDataSquare) eds.Acce
 
 func createODSFile(t testing.TB, eds *rsmt2d.ExtendedDataSquare) *ODS {
 	path := t.TempDir() + "/" + strconv.Itoa(rand.Intn(1000))
-	roots, err := share.NewAxisRoots(eds)
+	roots, err := square.NewAxisRoots(eds)
 	require.NoError(t, err)
 	err = CreateODS(path, roots, eds)
 	require.NoError(t, err)

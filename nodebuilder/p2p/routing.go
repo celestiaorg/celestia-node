@@ -10,7 +10,7 @@ import (
 	"go.uber.org/fx"
 
 	"github.com/celestiaorg/celestia-node/nodebuilder/node"
-	"github.com/celestiaorg/celestia-node/share/shwap/p2p/discovery"
+	"github.com/celestiaorg/celestia-node/square/shwap/p2p/discovery"
 )
 
 func newDHT(

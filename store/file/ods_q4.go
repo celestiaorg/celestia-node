@@ -9,11 +9,12 @@ import (
 	"sync"
 	"sync/atomic"
 
+	"github.com/celestiaorg/go-square/v2/share"
 	"github.com/celestiaorg/rsmt2d"
 
-	"github.com/celestiaorg/celestia-node/share"
-	"github.com/celestiaorg/celestia-node/share/eds"
-	"github.com/celestiaorg/celestia-node/share/shwap"
+	"github.com/celestiaorg/celestia-node/square"
+	"github.com/celestiaorg/celestia-node/square/eds"
+	"github.com/celestiaorg/celestia-node/square/shwap"
 )
 
 var _ eds.AccessorStreamer = (*ODSQ4)(nil)
@@ -36,7 +37,7 @@ type ODSQ4 struct {
 // CreateODSQ4 creates ODS and Q4 files under the given FS paths.
 func CreateODSQ4(
 	pathODS, pathQ4 string,
-	roots *share.AxisRoots,
+	roots *square.AxisRoots,
 	eds *rsmt2d.ExtendedDataSquare,
 ) error {
 	errCh := make(chan error)
@@ -113,11 +114,11 @@ func (odsq4 *ODSQ4) Size(ctx context.Context) int {
 	return odsq4.ods.Size(ctx)
 }
 
-func (odsq4 *ODSQ4) DataHash(ctx context.Context) (share.DataHash, error) {
+func (odsq4 *ODSQ4) DataHash(ctx context.Context) (square.DataHash, error) {
 	return odsq4.ods.DataHash(ctx)
 }
 
-func (odsq4 *ODSQ4) AxisRoots(ctx context.Context) (*share.AxisRoots, error) {
+func (odsq4 *ODSQ4) AxisRoots(ctx context.Context) (*square.AxisRoots, error) {
 	return odsq4.ods.AxisRoots(ctx)
 }
 

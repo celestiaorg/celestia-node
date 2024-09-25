@@ -9,11 +9,12 @@ import (
 	"os"
 	"sync"
 
+	"github.com/celestiaorg/go-square/v2/share"
 	"github.com/celestiaorg/rsmt2d"
 
-	"github.com/celestiaorg/celestia-node/share"
-	"github.com/celestiaorg/celestia-node/share/eds"
-	"github.com/celestiaorg/celestia-node/share/shwap"
+	"github.com/celestiaorg/celestia-node/square"
+	"github.com/celestiaorg/celestia-node/square/eds"
+	"github.com/celestiaorg/celestia-node/square/shwap"
 )
 
 var _ eds.AccessorStreamer = (*ODS)(nil)
@@ -33,7 +34,7 @@ type ODS struct {
 	// repeated file reads. - Serving full ODS data by Shares().
 	// Storing the square in memory allows for efficient single-read operations, avoiding the need for
 	// piecemeal reads by rows or columns, and facilitates quick access to data for these operations.
-	ods square
+	ods dataSquare
 	// disableCache is a flag that, when set to true, disables the in-memory cache of the original data
 	// Used for testing and benchmarking purposes, this flag allows for the evaluation of the
 	// performance.
@@ -45,7 +46,7 @@ type ODS struct {
 // It may leave partially written file if any of the writes fail.
 func CreateODS(
 	path string,
-	roots *share.AxisRoots,
+	roots *square.AxisRoots,
 	eds *rsmt2d.ExtendedDataSquare,
 ) error {
 	mod := os.O_RDWR | os.O_CREATE | os.O_EXCL // ensure we fail if already exist
@@ -71,7 +72,7 @@ func CreateODS(
 }
 
 // writeQ4File full ODS content into OS File.
-func writeODSFile(f *os.File, axisRoots *share.AxisRoots, eds *rsmt2d.ExtendedDataSquare, hdr *headerV0) error {
+func writeODSFile(f *os.File, axisRoots *square.AxisRoots, eds *rsmt2d.ExtendedDataSquare, hdr *headerV0) error {
 	// buffering gives us ~4x speed up
 	buf := bufio.NewWriterSize(f, writeBufferSize)
 
@@ -101,11 +102,15 @@ func writeODS(w io.Writer, eds *rsmt2d.ExtendedDataSquare) error {
 	for i := range eds.Width() / 2 {
 		for j := range eds.Width() / 2 {
 			shr := eds.GetCell(i, j) // TODO: Avoid copying inside GetCell
-			if share.GetNamespace(shr).Equals(share.TailPaddingNamespace) {
+			ns, err := share.NewNamespace(shr[share.VersionIndex], shr[share.VersionIndex:share.NamespaceIDSize])
+			if err != nil {
+				return fmt.Errorf("creating namespace: %w", err)
+			}
+			if ns.Equals(share.TailPaddingNamespace) {
 				return nil
 			}
 
-			_, err := w.Write(shr)
+			_, err = w.Write(shr)
 			if err != nil {
 				return fmt.Errorf("writing share: %w", err)
 			}
@@ -115,7 +120,7 @@ func writeODS(w io.Writer, eds *rsmt2d.ExtendedDataSquare) error {
 }
 
 // writeAxisRoots writes RowRoots followed by ColumnRoots.
-func writeAxisRoots(w io.Writer, roots *share.AxisRoots) error {
+func writeAxisRoots(w io.Writer, roots *square.AxisRoots) error {
 	for _, root := range roots.RowRoots {
 		if _, err := w.Write(root); err != nil {
 			return fmt.Errorf("writing row roots: %w", err)
@@ -184,13 +189,13 @@ func (o *ODS) size() int {
 }
 
 // DataHash returns root hash of Accessor's underlying EDS.
-func (o *ODS) DataHash(context.Context) (share.DataHash, error) {
+func (o *ODS) DataHash(context.Context) (square.DataHash, error) {
 	return o.hdr.datahash, nil
 }
 
 // AxisRoots reads AxisRoots stored in the file. AxisRoots are stored after the header and before
 // the ODS data.
-func (o *ODS) AxisRoots(context.Context) (*share.AxisRoots, error) {
+func (o *ODS) AxisRoots(context.Context) (*square.AxisRoots, error) {
 	roots := make([]byte, o.hdr.RootsSize())
 	n, err := o.fl.ReadAt(roots, int64(o.hdr.Size()))
 	if err != nil {
@@ -202,10 +207,10 @@ func (o *ODS) AxisRoots(context.Context) (*share.AxisRoots, error) {
 	rowRoots := make([][]byte, o.size())
 	colRoots := make([][]byte, o.size())
 	for i := 0; i < o.size(); i++ {
-		rowRoots[i] = roots[i*share.AxisRootSize : (i+1)*share.AxisRootSize]
-		colRoots[i] = roots[(o.size()+i)*share.AxisRootSize : (o.size()+i+1)*share.AxisRootSize]
+		rowRoots[i] = roots[i*square.AxisRootSize : (i+1)*square.AxisRootSize]
+		colRoots[i] = roots[(o.size()+i)*square.AxisRootSize : (o.size()+i+1)*square.AxisRootSize]
 	}
-	axisRoots := &share.AxisRoots{
+	axisRoots := &square.AxisRoots{
 		RowRoots:    rowRoots,
 		ColumnRoots: colRoots,
 	}
@@ -338,7 +343,7 @@ func (o *ODS) readAxisHalf(axisType rsmt2d.Axis, axisIdx int) (eds.AxisHalf, err
 	}, nil
 }
 
-func (o *ODS) readODS() (square, error) {
+func (o *ODS) readODS() (dataSquare, error) {
 	if !o.disableCache {
 		o.lock.RLock()
 		ods := o.ods
@@ -399,10 +404,14 @@ func readRowHalf(r io.ReaderAt, rowIdx int, hdr *headerV0, offset int) ([]share.
 		if i > shrsRead-1 {
 			// partial or empty row was read
 			// fill the rest with tail padding it
-			shares[i] = share.TailPadding()
+			shares[i] = share.TailPaddingShare()
 			continue
 		}
-		shares[i] = axsData[i*hdr.ShareSize() : (i+1)*hdr.ShareSize()]
+		sh, err := share.NewShare(axsData[i*hdr.ShareSize() : (i+1)*hdr.ShareSize()])
+		if err != nil {
+			return nil, err
+		}
+		shares[i] = *sh
 	}
 	return shares, nil
 }
@@ -416,7 +425,7 @@ func readColHalf(r io.ReaderAt, colIdx int, hdr *headerV0, offset int) ([]share.
 		pos := colIdx + i*odsLn
 		offset := offset + pos*hdr.ShareSize()
 
-		shr := make(share.Share, hdr.ShareSize())
+		shr := make([]byte, hdr.ShareSize())
 		n, err := r.ReadAt(shr, int64(offset))
 		if err != nil && !errors.Is(err, io.EOF) {
 			// unknown error
@@ -426,12 +435,17 @@ func readColHalf(r io.ReaderAt, colIdx int, hdr *headerV0, offset int) ([]share.
 			// no shares left
 			// fill the rest with tail padding
 			for ; i < len(shares); i++ {
-				shares[i] = share.TailPadding()
+				shares[i] = share.TailPaddingShare()
 			}
 			return shares, nil
 		}
+
+		sh, err := share.NewShare(shr)
+		if err != nil {
+			return nil, err
+		}
 		// we got a share
-		shares[i] = shr
+		shares[i] = *sh
 	}
 	return shares, nil
 }

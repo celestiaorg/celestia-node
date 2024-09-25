@@ -22,14 +22,15 @@ import (
 
 	"github.com/celestiaorg/go-fraud"
 	libhead "github.com/celestiaorg/go-header"
+	"github.com/celestiaorg/go-square/v2/share"
 	"github.com/celestiaorg/rsmt2d"
 
 	"github.com/celestiaorg/celestia-node/blob"
 	"github.com/celestiaorg/celestia-node/das"
 	"github.com/celestiaorg/celestia-node/header"
 	"github.com/celestiaorg/celestia-node/nodebuilder/node"
-	"github.com/celestiaorg/celestia-node/share"
-	"github.com/celestiaorg/celestia-node/share/eds/byzantine"
+	"github.com/celestiaorg/celestia-node/square"
+	"github.com/celestiaorg/celestia-node/square/eds/byzantine"
 	"github.com/celestiaorg/celestia-node/state"
 )
 
@@ -79,7 +80,7 @@ var ExampleValues = map[reflect.Type]interface{}{
 }
 
 func init() {
-	addToExampleValues(share.EmptyEDS())
+	addToExampleValues(square.EmptyEDS())
 	addr, err := sdk.AccAddressFromBech32("celestia1377k5an3f94v6wyaceu0cf4nq6gk2jtpc46g7h")
 	if err != nil {
 		panic(err)
@@ -165,7 +166,7 @@ func init() {
 
 	// randomly generated namespace that's used in the blob example above
 	// (AAAAAAAAAAAAAAAAAAAAAAAAAAAAAMJ/xGlNMdE=)
-	namespace, err := share.NewBlobNamespaceV0([]byte{0xc2, 0x7f, 0xc4, 0x69, 0x4d, 0x31, 0xd1})
+	namespace, err := share.NewV0Namespace([]byte{0xc2, 0x7f, 0xc4, 0x69, 0x4d, 0x31, 0xd1})
 	if err != nil {
 		panic(err)
 	}

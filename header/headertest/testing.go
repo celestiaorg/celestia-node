@@ -17,13 +17,13 @@ import (
 	"github.com/tendermint/tendermint/types"
 	tmtime "github.com/tendermint/tendermint/types/time"
 
-	"github.com/celestiaorg/celestia-app/v2/pkg/da"
+	"github.com/celestiaorg/celestia-app/v3/pkg/da"
 	libhead "github.com/celestiaorg/go-header"
 	"github.com/celestiaorg/go-header/headertest"
 	"github.com/celestiaorg/rsmt2d"
 
 	"github.com/celestiaorg/celestia-node/header"
-	"github.com/celestiaorg/celestia-node/share"
+	"github.com/celestiaorg/celestia-node/square"
 )
 
 // TestSuite provides everything you need to test chain of Headers.
@@ -66,7 +66,7 @@ func NewTestSuite(t *testing.T, numValidators int, blockTime time.Duration) *Tes
 }
 
 func (s *TestSuite) genesis() *header.ExtendedHeader {
-	dah := share.EmptyEDSRoots()
+	dah := square.EmptyEDSRoots()
 
 	gen := RandRawHeader(s.t)
 
@@ -152,7 +152,7 @@ func (s *TestSuite) NextHeader() *header.ExtendedHeader {
 		return s.head
 	}
 
-	dah := share.EmptyEDSRoots()
+	dah := square.EmptyEDSRoots()
 	height := s.Head().Height() + 1
 	rh := s.GenRawHeader(height, s.Head().Hash(), libhead.Hash(s.Head().Commit.Hash()), dah.Hash())
 	s.head = &header.ExtendedHeader{
@@ -229,7 +229,7 @@ func RandExtendedHeader(t testing.TB) *header.ExtendedHeader {
 }
 
 func RandExtendedHeaderAtTimestamp(t testing.TB, timestamp time.Time) *header.ExtendedHeader {
-	dah := share.EmptyEDSRoots()
+	dah := square.EmptyEDSRoots()
 
 	rh := RandRawHeader(t)
 	rh.DataHash = dah.Hash()
@@ -328,7 +328,7 @@ func ExtendedHeadersFromEdsses(t testing.TB, edsses []*rsmt2d.ExtendedDataSquare
 	for i, eds := range edsses {
 		gen := RandRawHeader(t)
 
-		roots, err := share.NewAxisRoots(eds)
+		roots, err := square.NewAxisRoots(eds)
 		require.NoError(t, err)
 		gen.DataHash = roots.Hash()
 		gen.ValidatorsHash = valSet.Hash()
@@ -358,7 +358,7 @@ func ExtendedHeadersFromEdsses(t testing.TB, edsses []*rsmt2d.ExtendedDataSquare
 func ExtendedHeaderFromEDS(t testing.TB, height uint64, eds *rsmt2d.ExtendedDataSquare) *header.ExtendedHeader {
 	valSet, vals := RandValidatorSet(10, 10)
 	gen := RandRawHeader(t)
-	dah, err := share.NewAxisRoots(eds)
+	dah, err := square.NewAxisRoots(eds)
 	require.NoError(t, err)
 
 	gen.DataHash = dah.Hash()
