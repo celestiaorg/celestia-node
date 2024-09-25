@@ -3,7 +3,7 @@ package store
 import (
 	"sync"
 
-	"github.com/celestiaorg/celestia-node/share"
+	"github.com/celestiaorg/celestia-node/square"
 )
 
 // TODO: move to utils
@@ -31,14 +31,14 @@ func (l *striplock) byHeight(height uint64) *sync.RWMutex {
 	return l.heights[lkIdx]
 }
 
-func (l *striplock) byHash(datahash share.DataHash) *sync.RWMutex {
+func (l *striplock) byHash(datahash square.DataHash) *sync.RWMutex {
 	// Use the last 2 bytes of the hash as key to distribute the locks
 	last := uint16(datahash[len(datahash)-1]) | uint16(datahash[len(datahash)-2])<<8
 	lkIdx := last % uint16(len(l.datahashes))
 	return l.datahashes[lkIdx]
 }
 
-func (l *striplock) byHashAndHeight(datahash share.DataHash, height uint64) *multiLock {
+func (l *striplock) byHashAndHeight(datahash square.DataHash, height uint64) *multiLock {
 	return &multiLock{[]*sync.RWMutex{l.byHash(datahash), l.byHeight(height)}}
 }
 

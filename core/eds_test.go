@@ -7,10 +7,10 @@ import (
 	"github.com/stretchr/testify/require"
 	"github.com/tendermint/tendermint/types"
 
-	"github.com/celestiaorg/celestia-app/v2/app"
-	"github.com/celestiaorg/celestia-app/v2/pkg/appconsts"
+	"github.com/celestiaorg/celestia-app/v3/app"
+	"github.com/celestiaorg/celestia-app/v3/pkg/appconsts"
 
-	"github.com/celestiaorg/celestia-node/share"
+	"github.com/celestiaorg/celestia-node/square"
 )
 
 // TestTrulyEmptySquare ensures that a truly empty square (square size 1 and no
@@ -24,7 +24,7 @@ func TestTrulyEmptySquare(t *testing.T) {
 
 	eds, err := extendBlock(data, appconsts.LatestVersion)
 	require.NoError(t, err)
-	require.True(t, eds.Equals(share.EmptyEDS()))
+	require.True(t, eds.Equals(square.EmptyEDS()))
 }
 
 // TestEmptySquareWithZeroTxs tests that the datahash of a block with no transactions
@@ -40,13 +40,13 @@ func TestEmptySquareWithZeroTxs(t *testing.T) {
 
 	eds, err := extendBlock(data, appconsts.LatestVersion)
 	require.NoError(t, err)
-	require.True(t, eds.Equals(share.EmptyEDS()))
+	require.True(t, eds.Equals(square.EmptyEDS()))
 
 	// force extend the square using an empty block and compare with the min DAH
 	eds, err = app.ExtendBlock(data, appconsts.LatestVersion)
 	require.NoError(t, err)
 
-	roots, err := share.NewAxisRoots(eds)
+	roots, err := square.NewAxisRoots(eds)
 	require.NoError(t, err)
-	assert.Equal(t, share.EmptyEDSRoots().Hash(), roots.Hash())
+	assert.Equal(t, square.EmptyEDSRoots().Hash(), roots.Hash())
 }

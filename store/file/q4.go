@@ -9,7 +9,7 @@ import (
 
 	"github.com/celestiaorg/rsmt2d"
 
-	"github.com/celestiaorg/celestia-node/share/eds"
+	"github.com/celestiaorg/celestia-node/square/eds"
 )
 
 // q4 stores the fourth quadrant of the square.

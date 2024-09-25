@@ -10,10 +10,11 @@ import (
 
 	"github.com/stretchr/testify/require"
 
+	"github.com/celestiaorg/go-square/v2/share"
 	"github.com/celestiaorg/rsmt2d"
 
-	"github.com/celestiaorg/celestia-node/share"
-	"github.com/celestiaorg/celestia-node/share/eds/edstest"
+	"github.com/celestiaorg/celestia-node/square"
+	"github.com/celestiaorg/celestia-node/square/eds/edstest"
 	"github.com/celestiaorg/celestia-node/store/cache"
 )
 
@@ -67,7 +68,7 @@ func TestEDSStore(t *testing.T) {
 		require.NoError(t, err)
 		require.NoError(t, f.Close())
 		expected := eds.FlattenedODS()
-		require.Equal(t, expected, fromFile)
+		require.Equal(t, expected, share.ToBytes(fromFile))
 	})
 
 	t.Run("Second Put should be noop", func(t *testing.T) {
@@ -105,7 +106,7 @@ func TestEDSStore(t *testing.T) {
 		require.NoError(t, err)
 		require.NoError(t, f.Close())
 		expected := eds.FlattenedODS()
-		require.Equal(t, expected, fromFile)
+		require.Equal(t, expected, share.ToBytes(fromFile))
 	})
 
 	t.Run("GetByHash", func(t *testing.T) {
@@ -123,7 +124,7 @@ func TestEDSStore(t *testing.T) {
 		require.NoError(t, err)
 		require.NoError(t, f.Close())
 		expected := eds.FlattenedODS()
-		require.Equal(t, expected, fromFile)
+		require.Equal(t, expected, share.ToBytes(fromFile))
 	})
 
 	t.Run("Does not exist", func(t *testing.T) {
@@ -147,8 +148,8 @@ func TestEDSStore(t *testing.T) {
 			require.NoError(t, err)
 
 			height := height.Add(1)
-			hash := share.EmptyEDSDataHash()
-			err = edsStore.PutODSQ4(ctx, share.EmptyEDSRoots(), height, share.EmptyEDS())
+			hash := square.EmptyEDSDataHash()
+			err = edsStore.PutODSQ4(ctx, square.EmptyEDSRoots(), height, square.EmptyEDS())
 			require.NoError(t, err)
 			ensureAmountFileAndLinks(t, dir, 0, 1)
 
@@ -173,7 +174,7 @@ func TestEDSStore(t *testing.T) {
 
 			// removing file that does not exist should be noop
 			missingHeight := height.Add(1)
-			err = edsStore.RemoveODSQ4(ctx, missingHeight, share.DataHash{0x01, 0x02})
+			err = edsStore.RemoveODSQ4(ctx, missingHeight, square.DataHash{0x01, 0x02})
 			require.NoError(t, err)
 
 			eds, roots := randomEDS(t)
@@ -209,8 +210,8 @@ func TestEDSStore(t *testing.T) {
 			require.NoError(t, err)
 
 			height := height.Add(1)
-			hash := share.EmptyEDSDataHash()
-			err = edsStore.PutODSQ4(ctx, share.EmptyEDSRoots(), height, share.EmptyEDS())
+			hash := square.EmptyEDSDataHash()
+			err = edsStore.PutODSQ4(ctx, square.EmptyEDSRoots(), height, square.EmptyEDS())
 			require.NoError(t, err)
 			// empty file is not counted as a file
 			ensureAmountFileAndLinks(t, dir, 0, 1)
@@ -255,8 +256,8 @@ func TestEDSStore(t *testing.T) {
 	})
 
 	t.Run("empty EDS returned by hash", func(t *testing.T) {
-		eds := share.EmptyEDS()
-		roots, err := share.NewAxisRoots(eds)
+		eds := square.EmptyEDS()
+		roots, err := square.NewAxisRoots(eds)
 		require.NoError(t, err)
 
 		// assert that the empty file exists
@@ -273,8 +274,8 @@ func TestEDSStore(t *testing.T) {
 	})
 
 	t.Run("empty EDS returned by height", func(t *testing.T) {
-		eds := share.EmptyEDS()
-		roots, err := share.NewAxisRoots(eds)
+		eds := square.EmptyEDS()
+		roots, err := square.NewAxisRoots(eds)
 		require.NoError(t, err)
 		height := height.Add(1)
 
@@ -300,8 +301,8 @@ func TestEDSStore(t *testing.T) {
 		edsStore, err := NewStore(DefaultParameters(), dir)
 		require.NoError(t, err)
 
-		eds := share.EmptyEDS()
-		roots, err := share.NewAxisRoots(eds)
+		eds := square.EmptyEDS()
+		roots, err := square.NewAxisRoots(eds)
 		require.NoError(t, err)
 		from, to := 10, 20
 
@@ -342,7 +343,7 @@ func BenchmarkStore(b *testing.B) {
 	b.Cleanup(cancel)
 
 	eds := edstest.RandEDS(b, 128)
-	roots, err := share.NewAxisRoots(eds)
+	roots, err := square.NewAxisRoots(eds)
 	require.NoError(b, err)
 
 	// BenchmarkStore/put_128-16         	     186	   6623266 ns/op
@@ -393,9 +394,9 @@ func BenchmarkStore(b *testing.B) {
 	})
 }
 
-func randomEDS(t testing.TB) (*rsmt2d.ExtendedDataSquare, *share.AxisRoots) {
+func randomEDS(t testing.TB) (*rsmt2d.ExtendedDataSquare, *square.AxisRoots) {
 	eds := edstest.RandEDS(t, 4)
-	roots, err := share.NewAxisRoots(eds)
+	roots, err := square.NewAxisRoots(eds)
 	require.NoError(t, err)
 
 	return eds, roots
@@ -421,7 +422,7 @@ func hasByHashAndHeight(
 	t testing.TB,
 	store *Store,
 	ctx context.Context,
-	hash share.DataHash,
+	hash square.DataHash,
 	height uint64,
 	hasByHash, hasByHeight bool,
 ) {

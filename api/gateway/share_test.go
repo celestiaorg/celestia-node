@@ -6,11 +6,7 @@ import (
 
 	"github.com/stretchr/testify/require"
 
-	"github.com/celestiaorg/celestia-app/v2/pkg/appconsts"
-	"github.com/celestiaorg/go-square/blob"
-	"github.com/celestiaorg/go-square/shares"
-
-	"github.com/celestiaorg/celestia-node/share/sharetest"
+	"github.com/celestiaorg/go-square/v2/share"
 )
 
 func Test_dataFromShares(t *testing.T) {
@@ -20,17 +16,12 @@ func Test_dataFromShares(t *testing.T) {
 		[]byte("BEEEEAHP"),
 	}
 
-	ns := sharetest.RandV0Namespace()
-	sss := shares.NewSparseShareSplitter()
+	ns := share.RandomNamespace()
+	sss := share.NewSparseShareSplitter()
 	for _, data := range testData {
-		b := blob.Blob{
-			Data:             data,
-			NamespaceId:      ns.ID(),
-			NamespaceVersion: uint32(ns.Version()),
-			ShareVersion:     uint32(appconsts.ShareVersionZero),
-		}
-		err := sss.Write(&b)
+		b, err := share.NewBlob(ns, data, share.ShareVersionZero, nil)
 		require.NoError(t, err)
+		require.NoError(t, sss.Write(b))
 	}
 
 	sssShares := sss.Export()
@@ -41,7 +32,9 @@ func Test_dataFromShares(t *testing.T) {
 		rawSSSShares[i] = d
 	}
 
-	parsedSSSShares, err := dataFromShares(rawSSSShares)
+	shrs, err := share.FromBytes(rawSSSShares)
+	require.NoError(t, err)
+	parsedSSSShares, err := dataFromShares(shrs)
 	require.NoError(t, err)
 
 	require.Equal(t, testData, parsedSSSShares)

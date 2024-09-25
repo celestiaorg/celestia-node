@@ -14,8 +14,8 @@ import (
 	"github.com/celestiaorg/rsmt2d"
 
 	"github.com/celestiaorg/celestia-node/libs/utils"
-	"github.com/celestiaorg/celestia-node/share"
-	"github.com/celestiaorg/celestia-node/share/eds"
+	"github.com/celestiaorg/celestia-node/square"
+	"github.com/celestiaorg/celestia-node/square/eds"
 	"github.com/celestiaorg/celestia-node/store/cache"
 	"github.com/celestiaorg/celestia-node/store/file"
 )
@@ -92,7 +92,7 @@ func (s *Store) Stop(context.Context) error {
 
 func (s *Store) PutODSQ4(
 	ctx context.Context,
-	roots *share.AxisRoots,
+	roots *square.AxisRoots,
 	height uint64,
 	square *rsmt2d.ExtendedDataSquare,
 ) error {
@@ -101,7 +101,7 @@ func (s *Store) PutODSQ4(
 
 func (s *Store) PutODS(
 	ctx context.Context,
-	roots *share.AxisRoots,
+	roots *square.AxisRoots,
 	height uint64,
 	square *rsmt2d.ExtendedDataSquare,
 ) error {
@@ -110,12 +110,12 @@ func (s *Store) PutODS(
 
 func (s *Store) put(
 	ctx context.Context,
-	roots *share.AxisRoots,
+	roots *square.AxisRoots,
 	height uint64,
-	square *rsmt2d.ExtendedDataSquare,
+	dataSquare *rsmt2d.ExtendedDataSquare,
 	writeQ4 bool,
 ) error {
-	datahash := share.DataHash(roots.Hash())
+	datahash := square.DataHash(roots.Hash())
 	// we don't need to store empty EDS, just link the height to the empty file
 	if datahash.IsEmptyEDS() {
 		lock := s.stripLock.byHeight(height)
@@ -126,7 +126,7 @@ func (s *Store) put(
 	}
 
 	// put to cache before writing to make it accessible while write is happening
-	accessor := &eds.Rsmt2D{ExtendedDataSquare: square}
+	accessor := &eds.Rsmt2D{ExtendedDataSquare: dataSquare}
 	acc, err := s.cache.GetOrLoad(ctx, height, accessorLoader(accessor))
 	if err != nil {
 		log.Warnf("failed to put Accessor in the recent cache: %s", err)
@@ -142,9 +142,9 @@ func (s *Store) put(
 
 	var exists bool
 	if writeQ4 {
-		exists, err = s.createODSQ4File(square, roots, height)
+		exists, err = s.createODSQ4File(dataSquare, roots, height)
 	} else {
-		exists, err = s.createODSFile(square, roots, height)
+		exists, err = s.createODSFile(dataSquare, roots, height)
 	}
 
 	if exists {
@@ -152,17 +152,17 @@ func (s *Store) put(
 		return nil
 	}
 	if err != nil {
-		s.metrics.observePut(ctx, time.Since(tNow), square.Width(), writeQ4, true)
+		s.metrics.observePut(ctx, time.Since(tNow), dataSquare.Width(), writeQ4, true)
 		return fmt.Errorf("creating file: %w", err)
 	}
 
-	s.metrics.observePut(ctx, time.Since(tNow), square.Width(), writeQ4, false)
+	s.metrics.observePut(ctx, time.Since(tNow), dataSquare.Width(), writeQ4, false)
 	return nil
 }
 
 func (s *Store) createODSQ4File(
 	square *rsmt2d.ExtendedDataSquare,
-	roots *share.AxisRoots,
+	roots *square.AxisRoots,
 	height uint64,
 ) (bool, error) {
 	pathODS := s.hashToPath(roots.Hash(), odsFileExt)
@@ -197,7 +197,7 @@ func (s *Store) createODSQ4File(
 
 func (s *Store) createODSFile(
 	square *rsmt2d.ExtendedDataSquare,
-	roots *share.AxisRoots,
+	roots *square.AxisRoots,
 	height uint64,
 ) (bool, error) {
 	pathODS := s.hashToPath(roots.Hash(), odsFileExt)
@@ -228,7 +228,7 @@ func (s *Store) createODSFile(
 	return false, nil
 }
 
-func (s *Store) linkHeight(datahash share.DataHash, height uint64) error {
+func (s *Store) linkHeight(datahash square.DataHash, height uint64) error {
 	// create hard link with height as name
 	pathOds := s.hashToPath(datahash, odsFileExt)
 	linktoOds := s.heightToPath(height, odsFileExt)
@@ -244,15 +244,15 @@ func (s *Store) linkHeight(datahash share.DataHash, height uint64) error {
 // It overrides existing empty file to ensure disk format is always consistent with the canonical
 // in-mem representation.
 func (s *Store) populateEmptyFile() error {
-	pathOds := s.hashToPath(share.EmptyEDSDataHash(), odsFileExt)
-	pathQ4 := s.hashToPath(share.EmptyEDSDataHash(), q4FileExt)
+	pathOds := s.hashToPath(square.EmptyEDSDataHash(), odsFileExt)
+	pathQ4 := s.hashToPath(square.EmptyEDSDataHash(), q4FileExt)
 
 	err := errors.Join(remove(pathOds), remove(pathQ4))
 	if err != nil {
 		return fmt.Errorf("cleaning old empty EDS file: %w", err)
 	}
 
-	err = file.CreateODSQ4(pathOds, pathQ4, share.EmptyEDSRoots(), eds.EmptyAccessor.ExtendedDataSquare)
+	err = file.CreateODSQ4(pathOds, pathQ4, square.EmptyEDSRoots(), eds.EmptyAccessor.ExtendedDataSquare)
 	if err != nil {
 		return fmt.Errorf("creating fresh empty EDS file: %w", err)
 	}
@@ -260,7 +260,7 @@ func (s *Store) populateEmptyFile() error {
 	return nil
 }
 
-func (s *Store) GetByHash(ctx context.Context, datahash share.DataHash) (eds.AccessorStreamer, error) {
+func (s *Store) GetByHash(ctx context.Context, datahash square.DataHash) (eds.AccessorStreamer, error) {
 	if datahash.IsEmptyEDS() {
 		return eds.EmptyAccessor, nil
 	}
@@ -274,7 +274,7 @@ func (s *Store) GetByHash(ctx context.Context, datahash share.DataHash) (eds.Acc
 	return f, err
 }
 
-func (s *Store) getByHash(ctx context.Context, datahash share.DataHash) (eds.AccessorStreamer, error) {
+func (s *Store) getByHash(ctx context.Context, datahash square.DataHash) (eds.AccessorStreamer, error) {
 	path := s.hashToPath(datahash, odsFileExt)
 	return s.openAccessor(ctx, path)
 }
@@ -323,7 +323,7 @@ func (s *Store) openAccessor(ctx context.Context, path string) (eds.AccessorStre
 	return wrapAccessor(odsQ4), nil
 }
 
-func (s *Store) HasByHash(ctx context.Context, datahash share.DataHash) (bool, error) {
+func (s *Store) HasByHash(ctx context.Context, datahash square.DataHash) (bool, error) {
 	if datahash.IsEmptyEDS() {
 		return true, nil
 	}
@@ -338,7 +338,7 @@ func (s *Store) HasByHash(ctx context.Context, datahash share.DataHash) (bool, e
 	return exist, err
 }
 
-func (s *Store) hasByHash(datahash share.DataHash) (bool, error) {
+func (s *Store) hasByHash(datahash square.DataHash) (bool, error) {
 	// For now, we assume that if ODS exists, the Q4 exists as well.
 	path := s.hashToPath(datahash, odsFileExt)
 	return exists(path)
@@ -365,7 +365,7 @@ func (s *Store) hasByHeight(height uint64) (bool, error) {
 	return exists(pathODS)
 }
 
-func (s *Store) RemoveODSQ4(ctx context.Context, height uint64, datahash share.DataHash) error {
+func (s *Store) RemoveODSQ4(ctx context.Context, height uint64, datahash square.DataHash) error {
 	lock := s.stripLock.byHashAndHeight(datahash, height)
 	lock.lock()
 	defer lock.unlock()
@@ -376,7 +376,7 @@ func (s *Store) RemoveODSQ4(ctx context.Context, height uint64, datahash share.D
 	return err
 }
 
-func (s *Store) removeODSQ4(height uint64, datahash share.DataHash) error {
+func (s *Store) removeODSQ4(height uint64, datahash square.DataHash) error {
 	if err := s.removeODS(height, datahash); err != nil {
 		return fmt.Errorf("removing ODS: %w", err)
 	}
@@ -386,7 +386,7 @@ func (s *Store) removeODSQ4(height uint64, datahash share.DataHash) error {
 	return nil
 }
 
-func (s *Store) removeODS(height uint64, datahash share.DataHash) error {
+func (s *Store) removeODS(height uint64, datahash square.DataHash) error {
 	if err := s.cache.Remove(height); err != nil {
 		return fmt.Errorf("removing from cache: %w", err)
 	}
@@ -408,7 +408,7 @@ func (s *Store) removeODS(height uint64, datahash share.DataHash) error {
 	return nil
 }
 
-func (s *Store) RemoveQ4(ctx context.Context, height uint64, datahash share.DataHash) error {
+func (s *Store) RemoveQ4(ctx context.Context, height uint64, datahash square.DataHash) error {
 	lock := s.stripLock.byHashAndHeight(datahash, height)
 	lock.lock()
 	defer lock.unlock()
@@ -419,7 +419,7 @@ func (s *Store) RemoveQ4(ctx context.Context, height uint64, datahash share.Data
 	return err
 }
 
-func (s *Store) removeQ4(height uint64, datahash share.DataHash) error {
+func (s *Store) removeQ4(height uint64, datahash square.DataHash) error {
 	// if datahash is empty, we don't need to remove the Q4 file
 	if datahash.IsEmptyEDS() {
 		return nil
@@ -437,7 +437,7 @@ func (s *Store) removeQ4(height uint64, datahash share.DataHash) error {
 	return nil
 }
 
-func (s *Store) hashToPath(datahash share.DataHash, ext string) string {
+func (s *Store) hashToPath(datahash square.DataHash, ext string) string {
 	return filepath.Join(s.basepath, blocksPath, datahash.String()) + ext
 }
 

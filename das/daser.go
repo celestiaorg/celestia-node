@@ -14,9 +14,9 @@ import (
 
 	"github.com/celestiaorg/celestia-node/header"
 	"github.com/celestiaorg/celestia-node/pruner"
-	"github.com/celestiaorg/celestia-node/share"
-	"github.com/celestiaorg/celestia-node/share/eds/byzantine"
-	"github.com/celestiaorg/celestia-node/share/shwap/p2p/shrex/shrexsub"
+	"github.com/celestiaorg/celestia-node/square"
+	"github.com/celestiaorg/celestia-node/square/eds/byzantine"
+	"github.com/celestiaorg/celestia-node/square/shwap/p2p/shrex/shrexsub"
 )
 
 var log = logging.Logger("das")
@@ -30,7 +30,7 @@ var errOutsideSamplingWindow = fmt.Errorf("skipping header outside of sampling w
 type DASer struct {
 	params Parameters
 
-	da     share.Availability
+	da     square.Availability
 	bcast  fraud.Broadcaster[*header.ExtendedHeader]
 	hsub   libhead.Subscriber[*header.ExtendedHeader] // listens for new headers in the network
 	getter libhead.Getter[*header.ExtendedHeader]     // retrieves past headers
@@ -51,7 +51,7 @@ type (
 
 // NewDASer creates a new DASer.
 func NewDASer(
-	da share.Availability,
+	da square.Availability,
 	hsub libhead.Subscriber[*header.ExtendedHeader],
 	getter libhead.Getter[*header.ExtendedHeader],
 	dstore datastore.Datastore,
