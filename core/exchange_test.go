@@ -10,11 +10,11 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"github.com/celestiaorg/celestia-app/v2/test/util/testnode"
+	"github.com/celestiaorg/celestia-app/v3/test/util/testnode"
 
 	"github.com/celestiaorg/celestia-node/header"
 	"github.com/celestiaorg/celestia-node/pruner"
-	"github.com/celestiaorg/celestia-node/share"
+	"github.com/celestiaorg/celestia-node/square"
 	"github.com/celestiaorg/celestia-node/store"
 )
 
@@ -103,7 +103,7 @@ func TestExchange_DoNotStoreHistoric(t *testing.T) {
 		assert.False(t, has)
 
 		// empty EDSs are expected to exist in the store, so we skip them
-		if h.DAH.Equals(share.EmptyEDSRoots()) {
+		if h.DAH.Equals(square.EmptyEDSRoots()) {
 			continue
 		}
 		has, err = store.HasByHash(ctx, h.DAH.Hash())
@@ -147,7 +147,7 @@ func generateNonEmptyBlocks(
 	fetcher *BlockFetcher,
 	cfg *testnode.Config,
 	cctx testnode.Context,
-) []share.DataHash {
+) []square.DataHash {
 	// generate several non-empty blocks
 	generateCtx, generateCtxCancel := context.WithCancel(context.Background())
 
@@ -160,7 +160,7 @@ func generateNonEmptyBlocks(
 
 	go fillBlocks(t, generateCtx, cfg, cctx)
 
-	hashes := make([]share.DataHash, 0, 20)
+	hashes := make([]square.DataHash, 0, 20)
 
 	i := 0
 	for i < 20 {
@@ -168,10 +168,10 @@ func generateNonEmptyBlocks(
 		case b, ok := <-sub:
 			require.True(t, ok)
 
-			if bytes.Equal(share.EmptyEDSDataHash(), b.Data.Hash()) {
+			if bytes.Equal(square.EmptyEDSDataHash(), b.Data.Hash()) {
 				continue
 			}
-			hashes = append(hashes, share.DataHash(b.Data.Hash()))
+			hashes = append(hashes, square.DataHash(b.Data.Hash()))
 			i++
 		case <-ctx.Done():
 			t.Fatal("failed to fill blocks within timeout")

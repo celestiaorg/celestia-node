@@ -13,13 +13,12 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	squareblob "github.com/celestiaorg/go-square/blob"
+	"github.com/celestiaorg/go-square/v2/share"
 
 	"github.com/celestiaorg/celestia-node/blob"
 	"github.com/celestiaorg/celestia-node/blob/blobtest"
 	"github.com/celestiaorg/celestia-node/nodebuilder/node"
 	"github.com/celestiaorg/celestia-node/nodebuilder/tests/swamp"
-	"github.com/celestiaorg/celestia-node/share"
 	"github.com/celestiaorg/celestia-node/state"
 )
 
@@ -204,6 +203,6 @@ func TestBlobModule(t *testing.T) {
 
 // convert converts a squareblob.Blob to a blob.Blob.
 // convert may be deduplicated with convertBlobs from the blob package.
-func convert(squareBlob *squareblob.Blob) (nodeBlob *blob.Blob, err error) {
-	return blob.NewBlob(uint8(squareBlob.GetShareVersion()), squareBlob.Namespace().Bytes(), squareBlob.GetData())
+func convert(squareBlob *share.Blob) (nodeBlob *blob.Blob, err error) {
+	return blob.NewBlob(squareBlob.ShareVersion(), squareBlob.Namespace(), squareBlob.Data(), squareBlob.Signer())
 }

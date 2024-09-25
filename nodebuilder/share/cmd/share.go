@@ -8,10 +8,11 @@ import (
 
 	"github.com/spf13/cobra"
 
+	"github.com/celestiaorg/go-square/v2/share"
+
 	rpc "github.com/celestiaorg/celestia-node/api/rpc/client"
 	cmdnode "github.com/celestiaorg/celestia-node/cmd"
 	"github.com/celestiaorg/celestia-node/header"
-	"github.com/celestiaorg/celestia-node/share"
 )
 
 func init() {
@@ -127,14 +128,14 @@ var getShare = &cobra.Command{
 				return data
 			}
 
-			ns := hex.EncodeToString(share.GetNamespace(sh))
+			ns := hex.EncodeToString(sh.Namespace().Bytes())
 
 			return struct {
 				Namespace string `json:"namespace"`
 				Data      []byte `json:"data"`
 			}{
 				Namespace: ns,
-				Data:      share.GetData(sh),
+				Data:      sh.RawData(),
 			}
 		}
 		return cmdnode.PrintOutput(s, err, formatter)

@@ -9,8 +9,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/celestiaorg/celestia-node/share"
-	"github.com/celestiaorg/celestia-node/share/eds/edstest"
+	"github.com/celestiaorg/celestia-node/square"
+	"github.com/celestiaorg/celestia-node/square/eds/edstest"
 	"github.com/celestiaorg/celestia-node/store"
 )
 
@@ -148,13 +148,13 @@ func (ss *EDSsser) put(ctx context.Context, t *testing.T, height int) (time.Dura
 	defer cancel()
 
 	// divide by 2 to get ODS size as expected by RandEDS
-	square := edstest.RandEDS(t, ss.config.EDSSize/2)
-	roots, err := share.NewAxisRoots(square)
+	dataSquare := edstest.RandEDS(t, ss.config.EDSSize/2)
+	roots, err := square.NewAxisRoots(dataSquare)
 	if err != nil {
 		return 0, err
 	}
 
 	now := time.Now()
-	err = ss.edsstore.PutODSQ4(ctx, roots, uint64(height), square)
+	err = ss.edsstore.PutODSQ4(ctx, roots, uint64(height), dataSquare)
 	return time.Since(now), err
 }

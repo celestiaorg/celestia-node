@@ -1,7 +1,7 @@
 package blob
 
 import (
-	bytes2 "bytes"
+	"bytes"
 	"context"
 	"encoding/hex"
 	"errors"
@@ -16,18 +16,16 @@ import (
 	"go.opentelemetry.io/otel/codes"
 	"go.opentelemetry.io/otel/trace"
 
-	"github.com/celestiaorg/celestia-app/v2/pkg/appconsts"
-	pkgproof "github.com/celestiaorg/celestia-app/v2/pkg/proof"
-	"github.com/celestiaorg/go-square/inclusion"
-	appns "github.com/celestiaorg/go-square/namespace"
-	"github.com/celestiaorg/go-square/shares"
+	"github.com/celestiaorg/celestia-app/v3/pkg/appconsts"
+	pkgproof "github.com/celestiaorg/celestia-app/v3/pkg/proof"
+	"github.com/celestiaorg/go-square/v2/inclusion"
+	"github.com/celestiaorg/go-square/v2/share"
 	"github.com/celestiaorg/nmt"
 	"github.com/celestiaorg/rsmt2d"
 
 	"github.com/celestiaorg/celestia-node/header"
 	"github.com/celestiaorg/celestia-node/libs/utils"
-	"github.com/celestiaorg/celestia-node/share"
-	"github.com/celestiaorg/celestia-node/share/shwap"
+	"github.com/celestiaorg/celestia-node/square/shwap"
 	"github.com/celestiaorg/celestia-node/state"
 )
 
@@ -171,9 +169,9 @@ func (s *Service) Subscribe(ctx context.Context, ns share.Namespace) (<-chan *Su
 func (s *Service) Submit(ctx context.Context, blobs []*Blob, txConfig *SubmitOptions) (uint64, error) {
 	log.Debugw("submitting blobs", "amount", len(blobs))
 
-	squareBlobs := make([]*state.Blob, len(blobs))
+	squareBlobs := make([]*share.Blob, len(blobs))
 	for i := range blobs {
-		if err := blobs[i].Namespace().ValidateForBlob(); err != nil {
+		if err := share.ValidateForData(blobs[i].Namespace()); err != nil {
 			return 0, err
 		}
 		squareBlobs[i] = blobs[i].Blob
@@ -276,7 +274,7 @@ func (s *Service) getAll(
 
 			blobs, err := s.getBlobs(ctx, namespace, header)
 			if err != nil && !errors.Is(err, ErrBlobNotFound) {
-				log.Errorf("getting blobs for namespaceID(%s): %v", namespace.ID().String(), err)
+				log.Errorf("getting blobs for namespaceID(%s): %v", hex.EncodeToString(namespace.ID()), err)
 				resultErr[i] = err
 			}
 			if len(blobs) > 0 {
@@ -378,7 +376,7 @@ func (s *Service) retrieve(
 		attribute.Int64("eds-size", int64(len(header.DAH.RowRoots)))))
 
 	var (
-		appShares = make([]shares.Share, 0)
+		appShares = make([]share.Share, 0)
 		proofs    = make(Proof, 0)
 	)
 
@@ -390,18 +388,14 @@ func (s *Service) retrieve(
 			return nil, nil, ErrBlobNotFound
 		}
 
-		appShares, err = toAppShares(row.Shares...)
-		if err != nil {
-			return nil, nil, err
-		}
-
+		appShares = row.Shares
 		proofs = append(proofs, row.Proof)
 		index := row.Proof.Start()
 
 		for {
 			var (
 				isComplete bool
-				shrs       []shares.Share
+				shrs       []share.Share
 				wasEmpty   = sharesParser.isEmpty()
 			)
 
@@ -459,11 +453,7 @@ func (s *Service) retrieve(
 
 	err = ErrBlobNotFound
 	for _, sh := range appShares {
-		ok, err := sh.IsPadding()
-		if err != nil {
-			return nil, nil, err
-		}
-		if !ok {
+		if !sh.IsPadding() {
 			err = fmt.Errorf("incomplete blob with the "+
 				"namespace: %s detected at %d: %w", namespace.String(), height, err)
 			log.Error(err)
@@ -570,17 +560,12 @@ func ProveCommitment(
 	// find the blob shares in the EDS
 	blobSharesStartIndex := -1
 	for index, share := range eds.FlattenedODS() {
-		if bytes2.Equal(share, blobShares[0]) {
+		if bytes.Equal(share, blobShares[0].ToBytes()) {
 			blobSharesStartIndex = index
 		}
 	}
 	if blobSharesStartIndex < 0 {
 		return nil, fmt.Errorf("couldn't find the blob shares in the ODS")
-	}
-
-	nID, err := appns.From(namespace)
-	if err != nil {
-		return nil, err
 	}
 
 	log.Debugw(
@@ -592,8 +577,8 @@ func ProveCommitment(
 	)
 	sharesProof, err := pkgproof.NewShareInclusionProofFromEDS(
 		eds,
-		nID,
-		shares.NewRange(blobSharesStartIndex, blobSharesStartIndex+len(blobShares)),
+		namespace,
+		share.NewRange(blobSharesStartIndex, blobSharesStartIndex+len(blobShares)),
 	)
 	if err != nil {
 		return nil, err
@@ -624,7 +609,7 @@ func ProveCommitment(
 		ranges, err := nmt.ToLeafRanges(
 			proof.Start(),
 			proof.End(),
-			inclusion.SubTreeWidth(len(blobShares), appconsts.DefaultSubtreeRootThreshold),
+			inclusion.SubTreeWidth(len(blobShares), subtreeRootThreshold),
 		)
 		if err != nil {
 			return nil, err
@@ -673,7 +658,7 @@ func computeSubtreeRoots(shares []share.Share, ranges []nmt.LeafRange, offset in
 	)
 	for _, sh := range shares {
 		leafData := make([]byte, 0)
-		leafData = append(append(leafData, share.GetNamespace(sh)...), sh...)
+		leafData = append(append(leafData, sh.Namespace().Bytes()...), sh.ToBytes()...)
 		err := tree.Push(leafData)
 		if err != nil {
 			return nil, err

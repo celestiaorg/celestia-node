@@ -10,7 +10,7 @@ import (
 	libhead "github.com/celestiaorg/go-header"
 
 	"github.com/celestiaorg/celestia-node/header"
-	"github.com/celestiaorg/celestia-node/share/shwap/p2p/shrex/shrexsub"
+	"github.com/celestiaorg/celestia-node/square/shwap/p2p/shrex/shrexsub"
 )
 
 type jobType string

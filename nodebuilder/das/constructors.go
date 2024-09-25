@@ -13,9 +13,9 @@ import (
 	"github.com/celestiaorg/celestia-node/header"
 	modfraud "github.com/celestiaorg/celestia-node/nodebuilder/fraud"
 	"github.com/celestiaorg/celestia-node/pruner"
-	"github.com/celestiaorg/celestia-node/share"
-	"github.com/celestiaorg/celestia-node/share/eds/byzantine"
-	"github.com/celestiaorg/celestia-node/share/shwap/p2p/shrex/shrexsub"
+	"github.com/celestiaorg/celestia-node/square"
+	"github.com/celestiaorg/celestia-node/square/eds/byzantine"
+	"github.com/celestiaorg/celestia-node/square/shwap/p2p/shrex/shrexsub"
 )
 
 var _ Module = (*daserStub)(nil)
@@ -39,7 +39,7 @@ func newDaserStub() Module {
 }
 
 func newDASer(
-	da share.Availability,
+	da square.Availability,
 	hsub libhead.Subscriber[*header.ExtendedHeader],
 	store libhead.Store[*header.ExtendedHeader],
 	batching datastore.Batching,

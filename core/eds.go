@@ -6,18 +6,19 @@ import (
 
 	"github.com/tendermint/tendermint/types"
 
-	"github.com/celestiaorg/celestia-app/v2/app"
-	"github.com/celestiaorg/celestia-app/v2/pkg/appconsts"
-	"github.com/celestiaorg/celestia-app/v2/pkg/wrapper"
+	"github.com/celestiaorg/celestia-app/v3/app"
+	"github.com/celestiaorg/celestia-app/v3/pkg/appconsts"
+	"github.com/celestiaorg/celestia-app/v3/pkg/wrapper"
 	"github.com/celestiaorg/go-square/shares"
-	"github.com/celestiaorg/go-square/square"
+	libSquare "github.com/celestiaorg/go-square/v2"
+	"github.com/celestiaorg/go-square/v2/share"
 	"github.com/celestiaorg/nmt"
 	"github.com/celestiaorg/rsmt2d"
 
 	"github.com/celestiaorg/celestia-node/header"
 	"github.com/celestiaorg/celestia-node/pruner"
 	"github.com/celestiaorg/celestia-node/pruner/full"
-	"github.com/celestiaorg/celestia-node/share"
+	"github.com/celestiaorg/celestia-node/square"
 	"github.com/celestiaorg/celestia-node/store"
 )
 
@@ -26,11 +27,11 @@ import (
 // nil is returned in place of the eds.
 func extendBlock(data types.Data, appVersion uint64, options ...nmt.Option) (*rsmt2d.ExtendedDataSquare, error) {
 	if app.IsEmptyBlock(data, appVersion) {
-		return share.EmptyEDS(), nil
+		return square.EmptyEDS(), nil
 	}
 
 	// Construct the data square from the block's transactions
-	dataSquare, err := square.Construct(
+	dataSquare, err := libSquare.Construct(
 		data.Txs.ToSliceOfBytes(),
 		appconsts.SquareSizeUpperBound(appVersion),
 		appconsts.SubtreeRootThreshold(appVersion),
@@ -38,7 +39,7 @@ func extendBlock(data types.Data, appVersion uint64, options ...nmt.Option) (*rs
 	if err != nil {
 		return nil, err
 	}
-	return extendShares(shares.ToBytes(dataSquare), options...)
+	return extendShares(share.ToBytes(dataSquare), options...)
 }
 
 func extendShares(s [][]byte, options ...nmt.Option) (*rsmt2d.ExtendedDataSquare, error) {
@@ -48,7 +49,7 @@ func extendShares(s [][]byte, options ...nmt.Option) (*rsmt2d.ExtendedDataSquare
 	}
 	// here we construct a tree
 	// Note: uses the nmt wrapper to construct the tree.
-	squareSize := square.Size(len(s))
+	squareSize := libSquare.Size(len(s))
 	return rsmt2d.ComputeExtendedDataSquare(s,
 		appconsts.DefaultCodec(),
 		wrapper.NewConstructor(uint64(squareSize),

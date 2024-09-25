@@ -22,10 +22,10 @@ import (
 	"google.golang.org/grpc/connectivity"
 	"google.golang.org/grpc/credentials/insecure"
 
-	"github.com/celestiaorg/celestia-app/v2/app"
-	"github.com/celestiaorg/celestia-app/v2/app/encoding"
-	apperrors "github.com/celestiaorg/celestia-app/v2/app/errors"
-	"github.com/celestiaorg/celestia-app/v2/pkg/user"
+	"github.com/celestiaorg/celestia-app/v3/app"
+	"github.com/celestiaorg/celestia-app/v3/app/encoding"
+	apperrors "github.com/celestiaorg/celestia-app/v3/app/errors"
+	"github.com/celestiaorg/celestia-app/v3/pkg/user"
 	libhead "github.com/celestiaorg/go-header"
 
 	"github.com/celestiaorg/celestia-node/header"
@@ -220,7 +220,7 @@ func (ca *CoreAccessor) SubmitPayForBlob(
 	if gas == 0 {
 		blobSizes := make([]uint32, len(appblobs))
 		for i, blob := range appblobs {
-			blobSizes[i] = uint32(len(blob.GetData()))
+			blobSizes[i] = uint32(len(blob.Data()))
 		}
 		gas = estimateGasForBlobs(blobSizes)
 	}

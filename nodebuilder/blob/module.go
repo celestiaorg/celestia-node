@@ -9,7 +9,7 @@ import (
 	"github.com/celestiaorg/celestia-node/header"
 	headerService "github.com/celestiaorg/celestia-node/nodebuilder/header"
 	"github.com/celestiaorg/celestia-node/nodebuilder/state"
-	"github.com/celestiaorg/celestia-node/share/shwap"
+	"github.com/celestiaorg/celestia-node/square/shwap"
 )
 
 func ConstructModule() fx.Option {

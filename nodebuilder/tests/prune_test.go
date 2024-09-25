@@ -5,6 +5,7 @@ package tests
 import (
 	"bytes"
 	"context"
+	"github.com/celestiaorg/go-square/v2/share"
 	"testing"
 	"time"
 
@@ -20,11 +21,11 @@ import (
 	"github.com/celestiaorg/celestia-node/nodebuilder/node"
 	"github.com/celestiaorg/celestia-node/nodebuilder/tests/swamp"
 	"github.com/celestiaorg/celestia-node/pruner"
-	"github.com/celestiaorg/celestia-node/share"
-	"github.com/celestiaorg/celestia-node/share/shwap/p2p/shrex/peers"
-	"github.com/celestiaorg/celestia-node/share/shwap/p2p/shrex/shrex_getter"
-	"github.com/celestiaorg/celestia-node/share/shwap/p2p/shrex/shrexeds"
-	"github.com/celestiaorg/celestia-node/share/shwap/p2p/shrex/shrexnd"
+	"github.com/celestiaorg/celestia-node/square"
+	"github.com/celestiaorg/celestia-node/square/shwap/p2p/shrex/peers"
+	"github.com/celestiaorg/celestia-node/square/shwap/p2p/shrex/shrex_getter"
+	"github.com/celestiaorg/celestia-node/square/shwap/p2p/shrex/shrexeds"
+	"github.com/celestiaorg/celestia-node/square/shwap/p2p/shrex/shrexnd"
 )
 
 // TestArchivalBlobSync tests whether a LN is able to sync historical blobs from
@@ -116,7 +117,7 @@ func TestArchivalBlobSync(t *testing.T) {
 	type archivalBlob struct {
 		blob   *blob.Blob
 		height uint64
-		root   share.DataHash
+		root   square.DataHash
 	}
 
 	archivalBlobs := make([]*archivalBlob, 0)
@@ -125,17 +126,15 @@ func TestArchivalBlobSync(t *testing.T) {
 		eh, err := archivalFN.HeaderServ.GetByHeight(ctx, uint64(i))
 		require.NoError(t, err)
 
-		if bytes.Equal(eh.DataHash, share.EmptyEDSRoots().Hash()) {
+		if bytes.Equal(eh.DataHash, square.EmptyEDSRoots().Hash()) {
 			i++
 			continue
 		}
 
 		shr, err := archivalFN.ShareServ.GetShare(ctx, eh, 2, 2)
 		require.NoError(t, err)
-		ns, err := share.NamespaceFromBytes(shr[:share.NamespaceSize])
-		require.NoError(t, err)
 
-		blobs, err := archivalFN.BlobServ.GetAll(ctx, uint64(i), []share.Namespace{ns})
+		blobs, err := archivalFN.BlobServ.GetAll(ctx, uint64(i), []share.Namespace{shr.Namespace()})
 		require.NoError(t, err)
 
 		archivalBlobs = append(archivalBlobs, &archivalBlob{
@@ -172,7 +171,7 @@ func TestArchivalBlobSync(t *testing.T) {
 		got, err := ln.BlobServ.Get(ctx, b.height, b.blob.Namespace(), b.blob.Commitment)
 		require.NoError(t, err)
 		assert.Equal(t, b.blob.Commitment, got.Commitment)
-		assert.Equal(t, b.blob.Data, got.Data)
+		assert.Equal(t, b.blob.Data(), got.Data())
 	}
 }
 

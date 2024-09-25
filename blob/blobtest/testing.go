@@ -1,31 +1,34 @@
 package blobtest
 
 import (
+	"fmt"
+
 	tmrand "github.com/tendermint/tendermint/libs/rand"
 
-	"github.com/celestiaorg/celestia-app/v2/pkg/appconsts"
-	"github.com/celestiaorg/celestia-app/v2/test/util/testfactory"
-	"github.com/celestiaorg/go-square/blob"
+	"github.com/celestiaorg/celestia-app/v3/test/util/testfactory"
 	"github.com/celestiaorg/go-square/shares"
-
-	"github.com/celestiaorg/celestia-node/share"
+	"github.com/celestiaorg/go-square/v2/share"
 )
 
 // GenerateV0Blobs is a test utility producing v0 share formatted blobs with the
 // requested size and random namespaces.
-func GenerateV0Blobs(sizes []int, sameNamespace bool) ([]*blob.Blob, error) {
-	blobs := make([]*blob.Blob, 0, len(sizes))
-
+func GenerateV0Blobs(sizes []int, sameNamespace bool) ([]*share.Blob, error) {
+	blobs := make([]*share.Blob, 0, len(sizes))
 	for _, size := range sizes {
-		size := rawBlobSize(appconsts.FirstSparseShareContentSize * size)
+		size := RawBlobSize(share.FirstSparseShareContentSize * size)
 		appBlob := testfactory.GenerateRandomBlob(size)
 		if !sameNamespace {
-			namespace, err := share.NewBlobNamespaceV0(tmrand.Bytes(7))
+			namespace, err := share.NewV0Namespace(tmrand.Bytes(7))
 			if err != nil {
 				return nil, err
 			}
-			appBlob.NamespaceVersion = uint32(namespace[0])
-			appBlob.NamespaceId = namespace[1:]
+			if namespace.IsReserved() {
+				return nil, fmt.Errorf("reserved namespace")
+			}
+			appBlob, err = share.NewV0Blob(namespace, appBlob.Data())
+			if err != nil {
+				return nil, err
+			}
 		}
 
 		blobs = append(blobs, appBlob)
@@ -33,6 +36,6 @@ func GenerateV0Blobs(sizes []int, sameNamespace bool) ([]*blob.Blob, error) {
 	return blobs, nil
 }
 
-func rawBlobSize(totalSize int) int {
+func RawBlobSize(totalSize int) int {
 	return totalSize - shares.DelimLen(uint64(totalSize))
 }

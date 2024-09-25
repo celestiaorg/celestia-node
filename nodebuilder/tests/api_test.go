@@ -111,9 +111,10 @@ func TestBlobRPC(t *testing.T) {
 	require.NoError(t, err)
 
 	newBlob, err := blob.NewBlob(
-		uint8(appBlobs[0].GetShareVersion()),
-		appBlobs[0].Namespace().Bytes(),
-		appBlobs[0].GetData(),
+		appBlobs[0].ShareVersion(),
+		appBlobs[0].Namespace(),
+		appBlobs[0].Data(),
+		appBlobs[0].Signer(),
 	)
 	require.NoError(t, err)
 

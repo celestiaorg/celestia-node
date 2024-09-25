@@ -4,22 +4,23 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 
-	"github.com/celestiaorg/celestia-node/share"
+	"github.com/celestiaorg/go-square/v2/share"
 )
 
 func Test_parseNamespaceID(t *testing.T) {
 	type testCase struct {
 		name    string
 		param   string
-		want    share.Namespace
+		want    []byte
 		wantErr bool
 	}
 	testCases := []testCase{
 		{
 			param: "0x0c204d39600fddd3",
 			name:  "8 byte hex encoded namespace ID gets left padded",
-			want: share.Namespace{
+			want: []byte{
 				0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0,
 				0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0xc, 0x20, 0x4d, 0x39, 0x60, 0xf, 0xdd, 0xd3,
 			},
@@ -28,7 +29,7 @@ func Test_parseNamespaceID(t *testing.T) {
 		{
 			name:  "10 byte hex encoded namespace ID",
 			param: "0x42690c204d39600fddd3",
-			want: share.Namespace{
+			want: []byte{
 				0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0,
 				0x0, 0x0, 0x0, 0x0, 0x42, 0x69, 0xc, 0x20, 0x4d, 0x39, 0x60, 0xf, 0xdd, 0xd3,
 			},
@@ -37,7 +38,7 @@ func Test_parseNamespaceID(t *testing.T) {
 		{
 			name:  "29 byte hex encoded namespace ID",
 			param: "0x0000000000000000000000000000000000000001010101010101010101",
-			want: share.Namespace{
+			want: []byte{
 				0x0,                                                                                      // namespace version
 				0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, // v0 ID prefix
 				0x01, 0x01, 0x01, 0x01, 0x01, 0x01, 0x01, 0x01, 0x01, 0x01, // namespace ID
@@ -47,13 +48,13 @@ func Test_parseNamespaceID(t *testing.T) {
 		{
 			name:    "11 byte hex encoded namespace ID returns error",
 			param:   "0x42690c204d39600fddd3a3",
-			want:    share.Namespace{},
+			want:    nil,
 			wantErr: true,
 		},
 		{
 			name:  "10 byte base64 encoded namespace ID",
 			param: "QmkMIE05YA/d0w==",
-			want: share.Namespace{
+			want: []byte{
 				0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0,
 				0x0, 0x0, 0x0, 0x0, 0x42, 0x69, 0xc, 0x20, 0x4d, 0x39, 0x60, 0xf, 0xdd, 0xd3,
 			},
@@ -62,7 +63,7 @@ func Test_parseNamespaceID(t *testing.T) {
 		{
 			name:    "not base64 or hex encoded namespace ID returns error",
 			param:   "5748493939429",
-			want:    share.Namespace{},
+			want:    nil,
 			wantErr: true,
 		},
 	}
@@ -74,8 +75,11 @@ func Test_parseNamespaceID(t *testing.T) {
 				assert.Error(t, err)
 				return
 			}
+
 			assert.NoError(t, err)
-			assert.Equal(t, tc.want, got)
+			ns, err := share.NewNamespaceFromBytes(tc.want)
+			require.NoError(t, err)
+			assert.Equal(t, ns, got)
 		})
 	}
 }

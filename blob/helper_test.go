@@ -7,52 +7,37 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"github.com/celestiaorg/celestia-app/v2/pkg/appconsts"
-	squareblob "github.com/celestiaorg/go-square/blob"
-	"github.com/celestiaorg/go-square/namespace"
+	"github.com/celestiaorg/go-square/v2/share"
 )
 
 func TestBlobsToShares(t *testing.T) {
 	t.Run("should sort blobs by namespace in ascending order", func(t *testing.T) {
-		namespaceA := namespace.MustNewV0(bytes.Repeat([]byte{0xa}, 10)).Bytes()
-		namespaceB := namespace.MustNewV0(bytes.Repeat([]byte{0xb}, 10)).Bytes()
+		namespaceA := share.MustNewV0Namespace(bytes.Repeat([]byte{0xa}, 10))
+		namespaceB := share.MustNewV0Namespace(bytes.Repeat([]byte{0xb}, 10))
 
-		blobA, err := NewBlob(appconsts.ShareVersionZero, namespaceA, []byte("dataA"))
+		blobA, err := NewBlob(share.ShareVersionZero, namespaceA, []byte("dataA"), nil)
 		require.NoError(t, err)
-		blobB, err := NewBlob(appconsts.ShareVersionZero, namespaceB, []byte("dataB"))
+		blobB, err := NewBlob(share.ShareVersionZero, namespaceB, []byte("dataB"), nil)
 		require.NoError(t, err)
 
 		got, err := BlobsToShares(blobB, blobA)
 		require.NoError(t, err)
-		assert.Equal(t, got[0][:appconsts.NamespaceSize], namespaceA)
-		assert.Equal(t, got[1][:appconsts.NamespaceSize], namespaceB)
-		assert.IsIncreasing(t, got)
+		assert.Equal(t, got[0].Namespace(), namespaceA)
+		assert.Equal(t, got[1].Namespace(), namespaceB)
+		assert.True(t, got[0].Namespace().IsLessThan(got[1].Namespace()))
 	})
 }
 
 func TestToAppBlobs(t *testing.T) {
-	namespaceA := namespace.MustNewV0(bytes.Repeat([]byte{0xa}, 10))
-	namespaceB := namespace.MustNewV0(bytes.Repeat([]byte{0xb}, 10))
+	namespaceA := share.MustNewV0Namespace(bytes.Repeat([]byte{0xa}, 10))
+	namespaceB := share.MustNewV0Namespace(bytes.Repeat([]byte{0xb}, 10))
 
-	blobA, err := NewBlob(appconsts.ShareVersionZero, namespaceA.Bytes(), []byte("dataA"))
+	blobA, err := NewBlob(share.ShareVersionZero, namespaceA, []byte("dataA"), nil)
 	require.NoError(t, err)
-	blobB, err := NewBlob(appconsts.ShareVersionZero, namespaceB.Bytes(), []byte("dataB"))
+	blobB, err := NewBlob(share.ShareVersionZero, namespaceB, []byte("dataB"), nil)
 	require.NoError(t, err)
 
 	got := ToAppBlobs(blobA, blobB)
-	want := []*squareblob.Blob{
-		{
-			NamespaceId:      blobA.NamespaceId,
-			NamespaceVersion: blobA.NamespaceVersion,
-			Data:             blobA.Data,
-			ShareVersion:     blobA.ShareVersion,
-		},
-		{
-			NamespaceId:      blobB.NamespaceId,
-			NamespaceVersion: blobB.NamespaceVersion,
-			Data:             blobB.Data,
-			ShareVersion:     blobB.ShareVersion,
-		},
-	}
-	assert.Equal(t, want, got)
+
+	assert.Equal(t, []*share.Blob{blobA.Blob, blobB.Blob}, got)
 }

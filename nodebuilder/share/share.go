@@ -5,14 +5,15 @@ import (
 
 	"github.com/tendermint/tendermint/types"
 
+	"github.com/celestiaorg/go-square/v2/share"
 	"github.com/celestiaorg/nmt"
 	"github.com/celestiaorg/rsmt2d"
 
 	"github.com/celestiaorg/celestia-node/header"
 	headerServ "github.com/celestiaorg/celestia-node/nodebuilder/header"
-	"github.com/celestiaorg/celestia-node/share"
-	"github.com/celestiaorg/celestia-node/share/eds"
-	"github.com/celestiaorg/celestia-node/share/shwap"
+	"github.com/celestiaorg/celestia-node/square"
+	"github.com/celestiaorg/celestia-node/square/eds"
+	"github.com/celestiaorg/celestia-node/square/shwap"
 )
 
 var _ Module = (*API)(nil)
@@ -109,7 +110,7 @@ func (api *API) GetSharesByNamespace(
 
 type module struct {
 	shwap.Getter
-	share.Availability
+	square.Availability
 	hs headerServ.Module
 }
 
@@ -131,9 +132,14 @@ func (m module) GetRange(ctx context.Context, height uint64, start, end int) (*G
 	if err != nil {
 		return nil, err
 	}
+
+	shares, err := share.FromBytes(extendedDataSquare.FlattenedODS()[start:end])
+	if err != nil {
+		return nil, err
+	}
 	return &GetRangeResult{
-		extendedDataSquare.FlattenedODS()[start:end],
-		proof,
+		Shares: shares,
+		Proof:  proof,
 	}, nil
 }
 

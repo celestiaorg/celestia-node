@@ -11,6 +11,8 @@ import (
 	"github.com/spf13/cobra"
 	flag "github.com/spf13/pflag"
 
+	"github.com/celestiaorg/go-square/v2/share"
+
 	"github.com/celestiaorg/celestia-node/nodebuilder/core"
 	"github.com/celestiaorg/celestia-node/nodebuilder/gateway"
 	"github.com/celestiaorg/celestia-node/nodebuilder/header"
@@ -19,7 +21,6 @@ import (
 	"github.com/celestiaorg/celestia-node/nodebuilder/pruner"
 	rpc_cfg "github.com/celestiaorg/celestia-node/nodebuilder/rpc"
 	"github.com/celestiaorg/celestia-node/nodebuilder/state"
-	"github.com/celestiaorg/celestia-node/share"
 )
 
 func PrintOutput(data interface{}, err error, formatData func(interface{}) interface{}) error {
@@ -50,11 +51,11 @@ func PrintOutput(data interface{}, err error, formatData func(interface{}) inter
 func ParseV0Namespace(param string) (share.Namespace, error) {
 	userBytes, err := DecodeToBytes(param)
 	if err != nil {
-		return nil, err
+		return share.Namespace{}, err
 	}
 
 	// if the namespace ID is <= 10 bytes, left pad it with 0s
-	return share.NewBlobNamespaceV0(userBytes)
+	return share.NewV0Namespace(userBytes)
 }
 
 // DecodeToBytes decodes a Base64 or hex input string into a byte slice.
