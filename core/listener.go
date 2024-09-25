@@ -87,7 +87,6 @@ func NewListener(
 		listenerTimeout:    5 * blocktime,
 		metrics:            metrics,
 		chainID:            p.chainID,
-		closed:             make(chan struct{}),
 	}, nil
 }
 
@@ -99,6 +98,7 @@ func (cl *Listener) Start(context.Context) error {
 
 	ctx, cancel := context.WithCancel(context.Background())
 	cl.cancel = cancel
+	cl.closed = make(chan struct{})
 
 	sub, err := cl.fetcher.SubscribeNewBlockEvent(ctx)
 	if err != nil {
@@ -116,10 +116,10 @@ func (cl *Listener) Stop(ctx context.Context) error {
 	}
 
 	cl.cancel()
-	cl.cancel = nil
-
 	select {
 	case <-cl.closed:
+		cl.cancel = nil
+		cl.closed = nil
 	case <-ctx.Done():
 		return ctx.Err()
 	}
