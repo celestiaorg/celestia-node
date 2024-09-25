@@ -79,7 +79,7 @@ var ExampleValues = map[reflect.Type]interface{}{
 }
 
 func init() {
-	addToExampleValues(share.EmptyExtendedDataSquare())
+	addToExampleValues(share.EmptyEDS())
 	addr, err := sdk.AccAddressFromBech32("celestia1377k5an3f94v6wyaceu0cf4nq6gk2jtpc46g7h")
 	if err != nil {
 		panic(err)

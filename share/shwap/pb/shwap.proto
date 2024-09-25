@@ -1,0 +1,36 @@
+// Defined in CIP-19 https://github.com/celestiaorg/CIPs/blob/82aeb7dfc472105a11babffd548c730c899a3d24/cips/cip-19.md
+syntax = "proto3";
+package shwap;
+option go_package = "github.com/celestiaorg/celestia-node/share/shwap/pb";
+
+import "pb/proof.proto"; // celestiaorg/nmt/pb/proof.proto
+
+message Row {
+    repeated Share shares_half = 1;
+    HalfSide half_side= 2;
+
+    enum HalfSide {
+        LEFT = 0;
+        RIGHT = 1;
+    }
+}
+
+message Sample {
+    Share share = 1;
+    proof.pb.Proof proof = 2;
+    AxisType proof_type = 3;
+}
+
+message RowNamespaceData {
+    repeated Share shares = 1;
+    proof.pb.Proof proof = 2;
+}
+
+message Share {
+    bytes data = 1;
+}
+
+enum AxisType {
+    ROW = 0;
+    COL = 1;
+}
