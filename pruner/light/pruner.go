@@ -9,8 +9,8 @@ import (
 
 	"github.com/celestiaorg/celestia-node/header"
 	"github.com/celestiaorg/celestia-node/pruner"
-	"github.com/celestiaorg/celestia-node/share"
-	"github.com/celestiaorg/celestia-node/share/ipld"
+	"github.com/celestiaorg/celestia-node/square"
+	"github.com/celestiaorg/celestia-node/square/ipld"
 )
 
 type Pruner struct {
@@ -24,7 +24,7 @@ func NewPruner(bstore blockstore.Blockstore, ds datastore.Batching) pruner.Prune
 
 func (p *Pruner) Prune(ctx context.Context, h *header.ExtendedHeader) error {
 	dah := h.DAH
-	if share.DataHash(dah.Hash()).IsEmptyEDS() {
+	if square.DataHash(dah.Hash()).IsEmptyEDS() {
 		return nil
 	}
 
@@ -41,6 +41,6 @@ func (p *Pruner) Prune(ctx context.Context, h *header.ExtendedHeader) error {
 	return p.ds.Delete(ctx, rootKey(dah))
 }
 
-func rootKey(root *share.AxisRoots) datastore.Key {
+func rootKey(root *square.AxisRoots) datastore.Key {
 	return datastore.NewKey(root.String())
 }

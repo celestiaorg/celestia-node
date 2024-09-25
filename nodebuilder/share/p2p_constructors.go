@@ -14,9 +14,9 @@ import (
 	"github.com/celestiaorg/celestia-node/header"
 	"github.com/celestiaorg/celestia-node/nodebuilder/node"
 	modprune "github.com/celestiaorg/celestia-node/nodebuilder/pruner"
-	"github.com/celestiaorg/celestia-node/share/shwap/p2p/discovery"
-	"github.com/celestiaorg/celestia-node/share/shwap/p2p/shrex/peers"
-	"github.com/celestiaorg/celestia-node/share/shwap/p2p/shrex/shrexsub"
+	"github.com/celestiaorg/celestia-node/square/shwap/p2p/discovery"
+	"github.com/celestiaorg/celestia-node/square/shwap/p2p/shrex/peers"
+	"github.com/celestiaorg/celestia-node/square/shwap/p2p/shrex/shrexsub"
 )
 
 const (
