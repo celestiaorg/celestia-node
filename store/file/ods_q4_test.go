@@ -9,11 +9,12 @@ import (
 	"github.com/stretchr/testify/require"
 	"github.com/tendermint/tendermint/libs/rand"
 
+	"github.com/celestiaorg/go-square/v2/share"
 	"github.com/celestiaorg/rsmt2d"
 
-	"github.com/celestiaorg/celestia-node/share"
-	"github.com/celestiaorg/celestia-node/share/eds"
-	"github.com/celestiaorg/celestia-node/share/eds/edstest"
+	"github.com/celestiaorg/celestia-node/square"
+	"github.com/celestiaorg/celestia-node/square/eds"
+	"github.com/celestiaorg/celestia-node/square/eds/edstest"
 )
 
 func TestCreateODSQ4File(t *testing.T) {
@@ -26,7 +27,7 @@ func TestCreateODSQ4File(t *testing.T) {
 	shares, err := odsq4.Shares(ctx)
 	require.NoError(t, err)
 	expected := edsIn.FlattenedODS()
-	require.Equal(t, expected, shares)
+	require.Equal(t, expected, share.ToBytes(shares))
 	require.NoError(t, odsq4.Close())
 }
 
@@ -89,7 +90,7 @@ func createODSQ4Accessor(t testing.TB, eds *rsmt2d.ExtendedDataSquare) eds.Acces
 
 func createODSQ4File(t testing.TB, eds *rsmt2d.ExtendedDataSquare) *ODSQ4 {
 	path := t.TempDir() + "/" + strconv.Itoa(rand.Intn(1000))
-	roots, err := share.NewAxisRoots(eds)
+	roots, err := square.NewAxisRoots(eds)
 	require.NoError(t, err)
 	pathODS, pathQ4 := path+".ods", path+".q4"
 	err = CreateODSQ4(pathODS, pathQ4, roots, eds)

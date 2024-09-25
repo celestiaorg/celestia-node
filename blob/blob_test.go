@@ -7,11 +7,9 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"github.com/celestiaorg/celestia-app/v2/pkg/appconsts"
-	apptypes "github.com/celestiaorg/celestia-app/v2/x/blob/types"
-	"github.com/celestiaorg/go-square/blob"
-	"github.com/celestiaorg/go-square/inclusion"
 	"github.com/celestiaorg/go-square/merkle"
+	"github.com/celestiaorg/go-square/v2/inclusion"
+	"github.com/celestiaorg/go-square/v2/share"
 
 	"github.com/celestiaorg/celestia-node/blob/blobtest"
 )
@@ -42,7 +40,7 @@ func TestBlob(t *testing.T) {
 				comm, err := inclusion.CreateCommitment(
 					blob[0].Blob,
 					merkle.HashFromByteSlices,
-					appconsts.SubtreeRootThreshold(appVersion),
+					subtreeRootThreshold,
 				)
 				require.NoError(t, err)
 				assert.Equal(t, blob[0].Commitment, Commitment(comm))
@@ -51,9 +49,8 @@ func TestBlob(t *testing.T) {
 		{
 			name: "verify namespace",
 			expectedRes: func(t *testing.T) {
-				ns := blob[0].Namespace().ToAppNamespace()
-				require.NoError(t, err)
-				require.NoError(t, apptypes.ValidateBlobNamespace(ns))
+				ns := blob[0].Namespace()
+				require.NoError(t, share.ValidateUserNamespace(ns.Version(), ns.ID()))
 			},
 		},
 		{
@@ -67,9 +64,7 @@ func TestBlob(t *testing.T) {
 		{
 			name: "shares to blobs",
 			expectedRes: func(t *testing.T) {
-				sh, err := BlobsToShares(blob...)
-				require.NoError(t, err)
-				shares, err := toAppShares(sh...)
+				shares, err := BlobsToShares(blob...)
 				require.NoError(t, err)
 				p := &parser{length: len(shares), shares: shares}
 				b, err := p.parse()
@@ -85,7 +80,7 @@ func TestBlob(t *testing.T) {
 
 				newBlob := &Blob{}
 				require.NoError(t, newBlob.UnmarshalJSON(data))
-				require.True(t, bytes.Equal(blob[0].Blob.GetData(), newBlob.Data))
+				require.True(t, bytes.Equal(blob[0].Blob.Data(), newBlob.Data()))
 				require.True(t, bytes.Equal(blob[0].Commitment, newBlob.Commitment))
 			},
 		},
@@ -96,10 +91,10 @@ func TestBlob(t *testing.T) {
 	}
 }
 
-func convertBlobs(appBlobs ...*blob.Blob) ([]*Blob, error) {
+func convertBlobs(appBlobs ...*share.Blob) ([]*Blob, error) {
 	blobs := make([]*Blob, 0, len(appBlobs))
 	for _, appBlob := range appBlobs {
-		blob, err := NewBlob(uint8(appBlob.GetShareVersion()), appBlob.Namespace().Bytes(), appBlob.GetData())
+		blob, err := NewBlob(appBlob.ShareVersion(), appBlob.Namespace(), appBlob.Data(), appBlob.Signer())
 		if err != nil {
 			return nil, err
 		}

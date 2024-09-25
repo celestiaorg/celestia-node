@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"io"
 
-	"github.com/celestiaorg/celestia-node/share"
+	"github.com/celestiaorg/celestia-node/square"
 )
 
 // headerVOSize is the size of the headerV0 in bytes. It has more space than the headerV0 struct
@@ -23,7 +23,7 @@ type headerV0 struct {
 	shareSize  uint16
 	squareSize uint16
 
-	datahash share.DataHash
+	datahash square.DataHash
 }
 
 type fileVersion uint8
@@ -75,7 +75,7 @@ func (h *headerV0) Size() int {
 func (h *headerV0) RootsSize() int {
 	// axis roots are stored in two parts: row roots and column roots, each part has size equal to
 	// the square size. Thus, the total amount of roots is equal to the square size * 2.
-	return share.AxisRootSize * h.SquareSize() * 2
+	return square.AxisRootSize * h.SquareSize() * 2
 }
 
 func (h *headerV0) OffsetWithRoots() int {
