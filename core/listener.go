@@ -49,6 +49,7 @@ type Listener struct {
 
 	listenerTimeout time.Duration
 	cancel          context.CancelFunc
+	closed          chan struct{}
 }
 
 func NewListener(
@@ -86,6 +87,7 @@ func NewListener(
 		listenerTimeout:    5 * blocktime,
 		metrics:            metrics,
 		chainID:            p.chainID,
+		closed:             make(chan struct{}),
 	}, nil
 }
 
@@ -115,12 +117,24 @@ func (cl *Listener) Stop(ctx context.Context) error {
 
 	cl.cancel()
 	cl.cancel = nil
-	return cl.metrics.Close()
+
+	select {
+	case <-cl.closed:
+	case <-ctx.Done():
+		return ctx.Err()
+	}
+
+	err = cl.metrics.Close()
+	if err != nil {
+		log.Warnw("listener: closing metrics", "err", err)
+	}
+	return nil
 }
 
 // runSubscriber runs a subscriber to receive event data of new signed blocks. It will attempt to
 // resubscribe in case error happens during listening of subscription
 func (cl *Listener) runSubscriber(ctx context.Context, sub <-chan types.EventDataSignedBlock) {
+	defer close(cl.closed)
 	for {
 		err := cl.listen(ctx, sub)
 		if ctx.Err() != nil {
@@ -129,7 +143,7 @@ func (cl *Listener) runSubscriber(ctx context.Context, sub <-chan types.EventDat
 		}
 		if errors.Is(err, errInvalidSubscription) {
 			// stop node if there is a critical issue with the block subscription
-			log.Fatalf("listener: %v", err)
+			log.Fatalf("listener: %v", err) //nolint:gocritic
 		}
 
 		log.Warnw("listener: subscriber error, resubscribing...", "err", err)
