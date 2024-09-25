@@ -20,7 +20,7 @@ require (
 	github.com/celestiaorg/rsmt2d v0.13.1
 	github.com/cosmos/cosmos-sdk v0.46.16
 	github.com/cristalhq/jwt/v5 v5.4.0
-	github.com/dgraph-io/badger/v4 v4.2.1-0.20240106094458-1c417aa3799c
+	github.com/dgraph-io/badger/v4 v4.3.0
 	github.com/etclabscore/go-openrpc-reflect v0.0.37
 	github.com/filecoin-project/go-jsonrpc v0.6.0
 	github.com/gammazero/workerpool v1.1.3
@@ -135,7 +135,7 @@ require (
 	github.com/decred/dcrd/dcrec/secp256k1/v4 v4.3.0 // indirect
 	github.com/desertbit/timer v0.0.0-20180107155436-c41aec40b27f // indirect
 	github.com/dgraph-io/badger/v2 v2.2007.4 // indirect
-	github.com/dgraph-io/ristretto v0.1.1 // indirect
+	github.com/dgraph-io/ristretto v0.1.2-0.20240116140435-c67e07994f91 // indirect
 	github.com/dgryski/go-farm v0.0.0-20200201041132-a6ae2369ad13 // indirect
 	github.com/docker/go-units v0.5.0 // indirect
 	github.com/dustin/go-humanize v1.0.1 // indirect
@@ -163,7 +163,6 @@ require (
 	github.com/godbus/dbus v0.0.0-20190726142602-4481cbc300e2 // indirect
 	github.com/godbus/dbus/v5 v5.1.0 // indirect
 	github.com/gogo/gateway v1.1.0 // indirect
-	github.com/golang/glog v1.2.1 // indirect
 	github.com/golang/groupcache v0.0.0-20210331224755-41bb18bfe9da // indirect
 	github.com/golang/protobuf v1.5.4 // indirect
 	github.com/golang/snappy v0.0.5-0.20220116011046-fa5810519dcb // indirect
