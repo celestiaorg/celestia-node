@@ -137,6 +137,7 @@ Full node:
 8. Wait for FN DASer to catch up to network head
 */
 func TestSyncAgainstBridge_EmptyChain(t *testing.T) {
+	defer swamp.IgnoreLevelDBPanic(t)
 	ctx, cancel := context.WithTimeout(context.Background(), swamp.DefaultTestTimeout)
 	t.Cleanup(cancel)
 
@@ -213,6 +214,7 @@ Steps:
 9. Check LN is synced to height 40
 */
 func TestSyncStartStopLightWithBridge(t *testing.T) {
+	defer swamp.IgnoreLevelDBPanic(t)
 	if testing.Short() {
 		t.Skip("skipping TestSyncStartStopLightWithBridge test in short mode.")
 	}
@@ -284,6 +286,7 @@ Steps:
 10. Check LN is synced to network head
 */
 func TestSyncLightAgainstFull(t *testing.T) {
+	defer swamp.IgnoreLevelDBPanic(t)
 	ctx, cancel := context.WithTimeout(context.Background(), swamp.DefaultTestTimeout)
 	t.Cleanup(cancel)
 
@@ -363,6 +366,7 @@ Steps:
 9. Check LN is synced to network head.
 */
 func TestSyncLightWithTrustedPeers(t *testing.T) {
+	defer swamp.IgnoreLevelDBPanic(t)
 	ctx, cancel := context.WithTimeout(context.Background(), swamp.DefaultTestTimeout)
 	t.Cleanup(cancel)
 

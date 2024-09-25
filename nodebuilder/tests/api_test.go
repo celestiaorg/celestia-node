@@ -26,6 +26,7 @@ const (
 )
 
 func TestNodeModule(t *testing.T) {
+	defer swamp.IgnoreLevelDBPanic(t)
 	ctx, cancel := context.WithTimeout(context.Background(), swamp.DefaultTestTimeout)
 	t.Cleanup(cancel)
 
@@ -66,6 +67,7 @@ func TestNodeModule(t *testing.T) {
 }
 
 func TestGetByHeight(t *testing.T) {
+	defer swamp.IgnoreLevelDBPanic(t)
 	ctx, cancel := context.WithTimeout(context.Background(), swamp.DefaultTestTimeout)
 	t.Cleanup(cancel)
 
@@ -95,6 +97,7 @@ func TestGetByHeight(t *testing.T) {
 
 // TestBlobRPC ensures that blobs can be submitted via rpc
 func TestBlobRPC(t *testing.T) {
+	defer swamp.IgnoreLevelDBPanic(t)
 	ctx, cancel := context.WithTimeout(context.Background(), swamp.DefaultTestTimeout)
 	t.Cleanup(cancel)
 
@@ -125,6 +128,7 @@ func TestBlobRPC(t *testing.T) {
 // TestHeaderSubscription ensures that the header subscription over RPC works
 // as intended and gets canceled successfully after rpc context cancellation.
 func TestHeaderSubscription(t *testing.T) {
+	defer swamp.IgnoreLevelDBPanic(t)
 	ctx, cancel := context.WithTimeout(context.Background(), swamp.DefaultTestTimeout)
 	t.Cleanup(cancel)
 

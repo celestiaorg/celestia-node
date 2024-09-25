@@ -23,6 +23,7 @@ import (
 )
 
 func TestDaModule(t *testing.T) {
+	defer swamp.IgnoreLevelDBPanic(t)
 	ctx, cancel := context.WithTimeout(context.Background(), 25*time.Second)
 	t.Cleanup(cancel)
 	sw := swamp.NewSwamp(t, swamp.WithBlockTime(time.Second))

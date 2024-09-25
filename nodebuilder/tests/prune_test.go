@@ -39,6 +39,7 @@ import (
 // spin up 3 pruning FNs, connect
 // spin up 1 LN that syncs historic blobs
 func TestArchivalBlobSync(t *testing.T) {
+	defer swamp.IgnoreLevelDBPanic(t)
 	const (
 		blocks = 50
 		btime  = time.Millisecond * 300
@@ -172,6 +173,7 @@ func TestArchivalBlobSync(t *testing.T) {
 }
 
 func TestConvertFromPrunedToArchival(t *testing.T) {
+	defer swamp.IgnoreLevelDBPanic(t)
 	sw := swamp.NewSwamp(t, swamp.WithBlockTime(time.Second))
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second*30)
 	t.Cleanup(cancel)

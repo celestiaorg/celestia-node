@@ -28,6 +28,7 @@ Steps:
 5. Check that nodes are connected to bridge
 */
 func TestBridgeNodeAsBootstrapper(t *testing.T) {
+	defer swamp.IgnoreLevelDBPanic(t)
 	ctx, cancel := context.WithTimeout(context.Background(), swamp.DefaultTestTimeout)
 	t.Cleanup(cancel)
 
@@ -67,6 +68,7 @@ Steps:
  7. Check that full and light nodes are connected to each other
 */
 func TestFullDiscoveryViaBootstrapper(t *testing.T) {
+	defer swamp.IgnoreLevelDBPanic(t)
 	ctx, cancel := context.WithTimeout(context.Background(), swamp.DefaultTestTimeout)
 	t.Cleanup(cancel)
 
@@ -141,6 +143,7 @@ Steps:
 *NOTE*: this test will take some time because it relies on several cycles of peer discovery
 */
 func TestRestartNodeDiscovery(t *testing.T) {
+	defer swamp.IgnoreLevelDBPanic(t)
 	ctx, cancel := context.WithTimeout(context.Background(), swamp.DefaultTestTimeout)
 	t.Cleanup(cancel)
 

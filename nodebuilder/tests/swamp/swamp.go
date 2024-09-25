@@ -5,6 +5,7 @@ import (
 	"crypto/rand"
 	"fmt"
 	"net"
+	"strings"
 	"sync"
 	"testing"
 	"time"
@@ -367,4 +368,16 @@ func (s *Swamp) Validators(t *testing.T) (*types.ValidatorSet, types.PrivValidat
 	validator := types.NewValidator(key, 100)
 	set := types.NewValidatorSet([]*types.Validator{validator})
 	return set, priv
+}
+
+// leveldb is closed after the test, but before node is stopped. Ignore this panic.
+func IgnoreLevelDBPanic(t *testing.T) {
+	if r := recover(); r != nil {
+		// convert to string
+		err := r.(error)
+		if strings.Contains(err.Error(), "leveldb: closed") {
+			return
+		}
+		t.Fatalf("unexpected panic: %v", r)
+	}
 }
