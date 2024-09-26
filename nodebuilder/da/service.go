@@ -38,14 +38,14 @@ type Service struct {
 // SubmitWithOptions expects JSON serialized version of this struct; all fields are optional.
 type SubmitOptions struct {
 	// KeyName is the name of key from the keystore used to sign transactions.
-	KeyName string
+	KeyName string `json:"key_name,omitempty"`
 
 	// SignerAddress is the address that signs the transaction.
 	// This address must be stored locally in the key store.
-	SignerAddress string
+	SignerAddress string `json:"signer_address,omitempty"`
 
 	// FeeGranterAddress specifies the account that will pay for the transaction fee.
-	FeeGranterAddress string
+	FeeGranterAddress string `json:"fee_granter_address,omitempty"`
 }
 
 func NewService(
