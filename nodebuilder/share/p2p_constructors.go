@@ -26,9 +26,9 @@ const (
 	// discovery service.
 	archivalNodesTag = "archival"
 
-	// discovery version is a prefix for all tags used in discovery. It is bumped when
-	// there are protocol breaking changes.
-	version = "v0.1.0"
+	// protocolVersion is a prefix for all tags used in discovery. It is bumped when
+	// there are protocol breaking changes to prevent new software version to discover older versions.
+	protocolVersion = "v0.1.0"
 )
 
 // TODO @renaynay: rename
@@ -85,8 +85,8 @@ func fullDiscoveryAndPeerManager(tp node.Type, cfg *Config) fx.Option {
 				cfg.Discovery,
 				host,
 				disc,
-				version,
 				fullNodesTag,
+				protocolVersion,
 				discOpts...,
 			)
 			if err != nil {
@@ -133,7 +133,7 @@ func archivalDiscoveryAndPeerManager(tp node.Type, cfg *Config) fx.Option {
 				cfg.Discovery,
 				h,
 				disc,
-				version,
+				protocolVersion,
 				archivalNodesTag,
 				discOpts...,
 			)
