@@ -77,12 +77,15 @@ func (f OnUpdatedPeers) add(next OnUpdatedPeers) OnUpdatedPeers {
 }
 
 // NewDiscovery constructs a new discovery.
+// It accepts tag which is a rendezvous point/topic for peers
+// to advertise and discover each other. Tag suffix is used to create
+// subnetworks within a tag, e.g. for different protocol versions yet running
+// over the same p2p network.
 func NewDiscovery(
 	params *Parameters,
 	h host.Host,
 	d discovery.Discovery,
-	prefix string,
-	tag string,
+	tag, tagSuffix string,
 	opts ...Option,
 ) (*Discovery, error) {
 	if err := params.Validate(); err != nil {
@@ -95,7 +98,7 @@ func NewDiscovery(
 	o := newOptions(opts...)
 	return &Discovery{
 		tag:            tag,
-		topic:          fmt.Sprintf("/%s/%s", prefix, tag),
+		topic:          fmt.Sprintf("/%s/%s", tag, tagSuffix),
 		set:            newLimitedSet(params.PeersLimit),
 		host:           h,
 		disc:           d,
