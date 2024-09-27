@@ -23,7 +23,7 @@ COPY . .
 
 RUN uname -a &&\
     CGO_ENABLED=${CGO_ENABLED} GOOS=${TARGETOS} GOARCH=${TARGETARCH} \
-    make build && make cel-key
+    make build && make cel-key && make cel-shed
 
 FROM docker.io/alpine:3.20.2
 
@@ -54,6 +54,7 @@ RUN uname -a &&\
 # Copy in the binary
 COPY --from=builder /src/build/celestia /bin/celestia
 COPY --from=builder /src/./cel-key /bin/cel-key
+COPY --from=builder /src/./cel-shed /bin/cel-shed
 
 COPY --chown=${USER_NAME}:${USER_NAME} docker/entrypoint.sh /opt/entrypoint.sh
 
