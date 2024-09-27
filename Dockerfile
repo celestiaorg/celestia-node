@@ -1,4 +1,4 @@
-FROM --platform=$BUILDPLATFORM docker.io/golang:1.23-alpine3.20 as builder
+FROM --platform=$BUILDPLATFORM docker.io/golang:1.23-alpine3.20 AS builder
 
 ARG TARGETPLATFORM
 ARG BUILDPLATFORM
@@ -34,8 +34,8 @@ ARG USER_NAME=celestia
 ENV CELESTIA_HOME=/home/${USER_NAME}
 
 # Default node type can be overwritten in deployment manifest
-ENV NODE_TYPE bridge
-ENV P2P_NETWORK mocha
+ENV NODE_TYPE=bridge
+ENV P2P_NETWORK=mocha
 
 # hadolint ignore=DL3018
 RUN uname -a &&\
