@@ -168,6 +168,12 @@ var p2pConnectBootstrappersCmd = &cobra.Command{
 }
 
 func init() {
-	p2pConnectBootstrappersCmd.Flags().BoolVar(&errorOnAnyFailure, "err-any", false, "Return error if at least one bootstrapper is not reachable")
-	p2pConnectBootstrappersCmd.Flags().BoolVar(&errorOnAllFailure, "err-all", false, "Return error if no bootstrapper is reachable")
+	p2pConnectBootstrappersCmd.Flags().BoolVar(
+		&errorOnAnyFailure, "err-any", false,
+		"Return error if at least one bootstrapper is not reachable",
+	)
+	p2pConnectBootstrappersCmd.Flags().BoolVar(
+		&errorOnAllFailure, "err-all", false,
+		"Return error if no bootstrapper is reachable",
+	)
 }
