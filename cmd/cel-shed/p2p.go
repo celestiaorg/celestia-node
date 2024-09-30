@@ -1,11 +1,13 @@
 package main
 
 import (
+	"context"
 	"crypto/rand"
 	"encoding/hex"
 	"fmt"
 	"os"
 	"sync"
+	"time"
 
 	"github.com/libp2p/go-libp2p/core/crypto"
 	"github.com/libp2p/go-libp2p/core/peer"
@@ -87,6 +89,7 @@ var p2pPeerIDCmd = &cobra.Command{
 var (
 	errorOnAnyFailure bool
 	errorOnAllFailure bool
+	connectionTimeout time.Duration
 )
 
 var p2pConnectBootstrappersCmd = &cobra.Command{
@@ -96,6 +99,9 @@ var p2pConnectBootstrappersCmd = &cobra.Command{
 		if errorOnAnyFailure && errorOnAllFailure {
 			return fmt.Errorf("only one of --err-any and --err-all can be specified")
 		}
+
+		ctx, cancel := context.WithTimeout(cmd.Context(), connectionTimeout)
+		defer cancel()
 
 		network := p2p.GetNetwork(args[0])
 		bootstrappers, err := p2p.BootstrappersFor(network)
@@ -123,16 +129,16 @@ var p2pConnectBootstrappersCmd = &cobra.Command{
 			}),
 		)
 
-		if err := app.Start(cmd.Context()); err != nil {
+		if err := app.Start(ctx); err != nil {
 			return fmt.Errorf("failed to start app: %w", err)
 		}
 		defer func() {
-			if err := app.Stop(cmd.Context()); err != nil {
+			if err := app.Stop(ctx); err != nil {
 				fmt.Printf("failed to stop application: %v\n", err)
 			}
 		}()
 
-		p2pInfo, err := mod.Info(cmd.Context())
+		p2pInfo, err := mod.Info(ctx)
 		if err != nil {
 			return fmt.Errorf("failed to get p2p info: %w", err)
 		}
@@ -153,7 +159,7 @@ var p2pConnectBootstrappersCmd = &cobra.Command{
 			go func(bootstrapper peer.AddrInfo) {
 				defer wg.Done()
 				fmt.Printf("Attempting to connect to bootstrapper: %s\n", bootstrapper)
-				if err := mod.Connect(cmd.Context(), bootstrapper); err != nil {
+				if err := mod.Connect(ctx, bootstrapper); err != nil {
 					fmt.Printf("Error: Failed to connect to bootstrapper %s. Reason: %v\n", bootstrapper, err)
 					mu.Lock()
 					failedConnections++
@@ -194,5 +200,9 @@ func init() {
 	p2pConnectBootstrappersCmd.Flags().BoolVar(
 		&errorOnAllFailure, "err-all", false,
 		"Return error if no bootstrapper is reachable",
+	)
+	p2pConnectBootstrappersCmd.Flags().DurationVar(
+		&connectionTimeout, "timeout", 10*time.Second,
+		"Timeout duration for the entire bootstrapper connection process",
 	)
 }
