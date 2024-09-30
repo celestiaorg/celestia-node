@@ -133,8 +133,8 @@ func archivalDiscoveryAndPeerManager(tp node.Type, cfg *Config) fx.Option {
 				cfg.Discovery,
 				h,
 				disc,
-				protocolVersion,
 				archivalNodesTag,
+				protocolVersion,
 				discOpts...,
 			)
 			if err != nil {
