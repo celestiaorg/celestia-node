@@ -5,6 +5,7 @@ import (
 	"encoding/hex"
 	"fmt"
 	"os"
+	"sync"
 
 	"github.com/libp2p/go-libp2p/core/crypto"
 	"github.com/libp2p/go-libp2p/core/peer"
@@ -92,6 +93,10 @@ var p2pConnectBootstrappersCmd = &cobra.Command{
 	Use:   "connect-bootstrappers [network]",
 	Short: "Connect to bootstrappers of a certain network",
 	RunE: func(cmd *cobra.Command, args []string) error {
+		if errorOnAnyFailure && errorOnAllFailure {
+			return fmt.Errorf("only one of --err-any and --err-all can be specified")
+		}
+
 		network := p2p.GetNetwork(args[0])
 		bootstrappers, err := p2p.BootstrappersFor(network)
 		if err != nil {
@@ -140,25 +145,38 @@ var p2pConnectBootstrappersCmd = &cobra.Command{
 
 		successfulConnections := 0
 		failedConnections := 0
+		var wg sync.WaitGroup
+		var mu sync.Mutex
+
 		for _, bootstrapper := range bootstrappers {
-			fmt.Printf("trying to connect to bootstrapper: %s\n", bootstrapper)
-			if err := mod.Connect(cmd.Context(), bootstrapper); err != nil {
-				fmt.Printf("failed to connect to bootstrapper: %v\n", err)
-				failedConnections++
-				continue
-			}
-			fmt.Println("connected")
-			successfulConnections++
+			wg.Add(1)
+			go func(bootstrapper peer.AddrInfo) {
+				defer wg.Done()
+				fmt.Printf("Attempting to connect to bootstrapper: %s\n", bootstrapper)
+				if err := mod.Connect(cmd.Context(), bootstrapper); err != nil {
+					fmt.Printf("Error: Failed to connect to bootstrapper %s. Reason: %v\n", bootstrapper, err)
+					mu.Lock()
+					failedConnections++
+					mu.Unlock()
+					return
+				}
+				fmt.Printf("Success: Connected to bootstrapper: %s\n", bootstrapper)
+				mu.Lock()
+				successfulConnections++
+				mu.Unlock()
+			}(bootstrapper)
 		}
+
+		wg.Wait()
 
 		if failedConnections == len(bootstrappers) && errorOnAllFailure {
 			fmt.Println()
-			fmt.Printf("failed to connect to all bootstrappers\n")
+			fmt.Println("failed to connect to all bootstrappers")
 			os.Exit(1)
 			return nil
 		} else if failedConnections > 0 && errorOnAnyFailure {
 			fmt.Println()
-			fmt.Printf("failed to connect to some bootstrappers\n")
+			fmt.Println("failed to connect to some bootstrappers")
 			os.Exit(1)
 			return nil
 		}
