@@ -114,7 +114,7 @@ func NewServer(
 	opts := []server.Option{
 		server.ProvideEnabled(providesEnabled),
 		server.SetSendDontHaves(sendDontHaves),
-		server.MaxQueuedWantlistEntriesPerPeer(maxServerWantListsPerPeer),
+		server.MaxQueuedWantlistEntriesPerPeer(0), // attempt to see if this fixes anything
 		server.WithTargetMessageSize(targetMessageSize),
 		server.MaxOutstandingBytesPerPeer(outstandingBytesPerPeer),
 		server.WithWantHaveReplaceSize(replaceHasWithBlockMaxSize),
