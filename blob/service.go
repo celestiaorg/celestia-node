@@ -365,6 +365,9 @@ func (s *Service) retrieve(
 			break
 		}
 	}
+	if rowIndex == -1 {
+		return nil, nil, fmt.Errorf("couldn't find rows containing the required namespace")
+	}
 
 	getCtx, getSharesSpan := tracer.Start(ctx, "get-shares-by-namespace")
 
