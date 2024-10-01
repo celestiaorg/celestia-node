@@ -50,7 +50,7 @@ const (
 	// client stuck for sometime.
 	// Thus, we make the limit a bit generous, so we minimize the chances of this happening.
 	// This is relevant until https://github.com/ipfs/boxo/pull/629#discussion_r1653362485 is fixed.
-	maxServerWantListsPerPeer = 8096
+	maxServerWantListsPerPeer = 8096 * 128
 	// targetMessageSize defines how much data Bitswap will aim to pack within a single message, before
 	// splitting it up in multiple. Bitswap first looks up the size of the requested data across
 	// multiple requests and only after reads up the data in portions one-by-one targeting the
