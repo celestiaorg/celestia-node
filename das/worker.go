@@ -10,7 +10,7 @@ import (
 	libhead "github.com/celestiaorg/go-header"
 
 	"github.com/celestiaorg/celestia-node/header"
-	"github.com/celestiaorg/celestia-node/share/p2p/shrexsub"
+	"github.com/celestiaorg/celestia-node/share/shwap/p2p/shrex/shrexsub"
 )
 
 type jobType string
@@ -163,7 +163,7 @@ func (w *worker) sample(ctx context.Context, timeout time.Duration, height uint6
 		"type", w.state.jobType,
 		"height", h.Height(),
 		"hash", h.Hash(),
-		"square width", len(h.DAH.RowRoots),
+		"EDS square width", len(h.DAH.RowRoots),
 		"data root", h.DAH.String(),
 		"finished (s)", time.Since(start),
 	)

@@ -16,7 +16,7 @@ import (
 	"go.opentelemetry.io/otel/codes"
 	"go.opentelemetry.io/otel/trace"
 
-	"github.com/celestiaorg/celestia-app/pkg/appconsts"
+	"github.com/celestiaorg/celestia-app/v2/pkg/appconsts"
 	pkgproof "github.com/celestiaorg/celestia-app/v2/pkg/proof"
 	"github.com/celestiaorg/go-square/inclusion"
 	appns "github.com/celestiaorg/go-square/namespace"
@@ -27,6 +27,7 @@ import (
 	"github.com/celestiaorg/celestia-node/header"
 	"github.com/celestiaorg/celestia-node/libs/utils"
 	"github.com/celestiaorg/celestia-node/share"
+	"github.com/celestiaorg/celestia-node/share/shwap"
 	"github.com/celestiaorg/celestia-node/state"
 )
 
@@ -56,7 +57,7 @@ type Service struct {
 	// accessor dials the given celestia-core endpoint to submit blobs.
 	blobSubmitter Submitter
 	// shareGetter retrieves the EDS to fetch all shares from the requested header.
-	shareGetter share.Getter
+	shareGetter shwap.Getter
 	// headerGetter fetches header by the provided height
 	headerGetter func(context.Context, uint64) (*header.ExtendedHeader, error)
 	// headerSub subscribes to new headers to supply to blob subscriptions.
@@ -65,7 +66,7 @@ type Service struct {
 
 func NewService(
 	submitter Submitter,
-	getter share.Getter,
+	getter shwap.Getter,
 	headerGetter func(context.Context, uint64) (*header.ExtendedHeader, error),
 	headerSub func(ctx context.Context) (<-chan *header.ExtendedHeader, error),
 ) *Service {
@@ -235,7 +236,7 @@ func (s *Service) GetProof(
 	}}
 
 	_, proof, err = s.retrieve(ctx, height, namespace, sharesParser)
-	return proof, nil
+	return proof, err
 }
 
 // GetAll returns all blobs under the given namespaces at the given height.
@@ -365,7 +366,7 @@ func (s *Service) retrieve(
 	// collect shares for the requested namespace
 	namespacedShares, err := s.shareGetter.GetSharesByNamespace(getCtx, header, namespace)
 	if err != nil {
-		if errors.Is(err, share.ErrNotFound) {
+		if errors.Is(err, shwap.ErrNotFound) {
 			err = ErrBlobNotFound
 		}
 		getSharesSpan.SetStatus(codes.Error, err.Error())

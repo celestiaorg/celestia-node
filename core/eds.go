@@ -2,10 +2,8 @@ package core
 
 import (
 	"context"
-	"errors"
 	"fmt"
 
-	"github.com/filecoin-project/dagstore"
 	"github.com/tendermint/tendermint/types"
 
 	"github.com/celestiaorg/celestia-app/v2/app"
@@ -18,9 +16,9 @@ import (
 
 	"github.com/celestiaorg/celestia-node/header"
 	"github.com/celestiaorg/celestia-node/pruner"
+	"github.com/celestiaorg/celestia-node/pruner/full"
 	"github.com/celestiaorg/celestia-node/share"
-	"github.com/celestiaorg/celestia-node/share/eds"
-	"github.com/celestiaorg/celestia-node/share/ipld"
+	"github.com/celestiaorg/celestia-node/store"
 )
 
 // extendBlock extends the given block data, returning the resulting
@@ -28,7 +26,7 @@ import (
 // nil is returned in place of the eds.
 func extendBlock(data types.Data, appVersion uint64, options ...nmt.Option) (*rsmt2d.ExtendedDataSquare, error) {
 	if app.IsEmptyBlock(data, appVersion) {
-		return share.EmptyExtendedDataSquare(), nil
+		return share.EmptyEDS(), nil
 	}
 
 	// Construct the data square from the block's transactions
@@ -62,25 +60,20 @@ func storeEDS(
 	ctx context.Context,
 	eh *header.ExtendedHeader,
 	eds *rsmt2d.ExtendedDataSquare,
-	adder *ipld.ProofsAdder,
-	store *eds.Store,
+	store *store.Store,
 	window pruner.AvailabilityWindow,
 ) error {
-	if eds.Equals(share.EmptyExtendedDataSquare()) {
-		return nil
-	}
-
 	if !pruner.IsWithinAvailabilityWindow(eh.Time(), window) {
 		log.Debugw("skipping storage of historic block", "height", eh.Height())
 		return nil
 	}
 
-	ctx = ipld.CtxWithProofsAdder(ctx, adder)
-
-	err := store.Put(ctx, share.DataHash(eh.DataHash), eds)
-	if errors.Is(err, dagstore.ErrShardExists) {
-		// block with given root already exists, return nil
-		return nil
+	var err error
+	// archival nodes should not store Q4 outside the availability window.
+	if pruner.IsWithinAvailabilityWindow(eh.Time(), full.Window) {
+		err = store.PutODSQ4(ctx, eh.DAH, eh.Height(), eds)
+	} else {
+		err = store.PutODS(ctx, eh.DAH, eh.Height(), eds)
 	}
 	if err == nil {
 		log.Debugw("stored EDS for height", "height", eh.Height())

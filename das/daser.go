@@ -16,7 +16,7 @@ import (
 	"github.com/celestiaorg/celestia-node/pruner"
 	"github.com/celestiaorg/celestia-node/share"
 	"github.com/celestiaorg/celestia-node/share/eds/byzantine"
-	"github.com/celestiaorg/celestia-node/share/p2p/shrexsub"
+	"github.com/celestiaorg/celestia-node/share/shwap/p2p/shrex/shrexsub"
 )
 
 var log = logging.Logger("das")
@@ -41,7 +41,7 @@ type DASer struct {
 
 	cancel         context.CancelFunc
 	subscriberDone chan struct{}
-	running        int32
+	running        atomic.Bool
 }
 
 type (
@@ -85,7 +85,7 @@ func NewDASer(
 
 // Start initiates subscription for new ExtendedHeaders and spawns a sampling routine.
 func (d *DASer) Start(ctx context.Context) error {
-	if !atomic.CompareAndSwapInt32(&d.running, 0, 1) {
+	if !d.running.CompareAndSwap(false, true) {
 		return errors.New("da: DASer already started")
 	}
 
@@ -124,7 +124,7 @@ func (d *DASer) Start(ctx context.Context) error {
 
 // Stop stops sampling.
 func (d *DASer) Stop(ctx context.Context) error {
-	if !atomic.CompareAndSwapInt32(&d.running, 1, 0) {
+	if !d.running.CompareAndSwap(true, false) {
 		return nil
 	}
 

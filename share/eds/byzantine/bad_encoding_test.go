@@ -13,7 +13,6 @@ import (
 	"github.com/stretchr/testify/require"
 	core "github.com/tendermint/tendermint/types"
 
-	"github.com/celestiaorg/celestia-app/v2/pkg/da"
 	"github.com/celestiaorg/celestia-app/v2/test/util/malicious"
 	"github.com/celestiaorg/nmt"
 	"github.com/celestiaorg/rsmt2d"
@@ -31,16 +30,16 @@ func TestBEFP_Validate(t *testing.T) {
 	bServ := ipld.NewMemBlockservice()
 
 	square := edstest.RandByzantineEDS(t, 16)
-	dah, err := da.NewDataAvailabilityHeader(square)
+	roots, err := share.NewAxisRoots(square)
 	require.NoError(t, err)
 	err = ipld.ImportEDS(ctx, square, bServ)
 	require.NoError(t, err)
 
 	var errRsmt2d *rsmt2d.ErrByzantineData
-	err = square.Repair(dah.RowRoots, dah.ColumnRoots)
+	err = square.Repair(roots.RowRoots, roots.ColumnRoots)
 	require.ErrorAs(t, err, &errRsmt2d)
 
-	byzantine := NewErrByzantine(ctx, bServ.Blockstore(), &dah, errRsmt2d)
+	byzantine := NewErrByzantine(ctx, bServ.Blockstore(), roots, errRsmt2d)
 	var errByz *ErrByzantine
 	require.ErrorAs(t, byzantine, &errByz)
 
@@ -55,7 +54,7 @@ func TestBEFP_Validate(t *testing.T) {
 		{
 			name: "valid BEFP",
 			prepareFn: func() error {
-				return proof.Validate(&header.ExtendedHeader{DAH: &dah})
+				return proof.Validate(&header.ExtendedHeader{DAH: roots})
 			},
 			expectedResult: func(err error) {
 				require.NoError(t, err)
@@ -65,12 +64,12 @@ func TestBEFP_Validate(t *testing.T) {
 			name: "invalid BEFP for valid header",
 			prepareFn: func() error {
 				validSquare := edstest.RandEDS(t, 2)
-				validDah, err := da.NewDataAvailabilityHeader(validSquare)
+				validRoots, err := share.NewAxisRoots(validSquare)
 				require.NoError(t, err)
 				err = ipld.ImportEDS(ctx, validSquare, bServ)
 				require.NoError(t, err)
 				validShares := validSquare.Flattened()
-				errInvalidByz := NewErrByzantine(ctx, bServ.Blockstore(), &validDah,
+				errInvalidByz := NewErrByzantine(ctx, bServ.Blockstore(), validRoots,
 					&rsmt2d.ErrByzantineData{
 						Axis:   rsmt2d.Row,
 						Index:  0,
@@ -80,7 +79,7 @@ func TestBEFP_Validate(t *testing.T) {
 				var errInvalid *ErrByzantine
 				require.ErrorAs(t, errInvalidByz, &errInvalid)
 				invalidBefp := CreateBadEncodingProof([]byte("hash"), 0, errInvalid)
-				return invalidBefp.Validate(&header.ExtendedHeader{DAH: &validDah})
+				return invalidBefp.Validate(&header.ExtendedHeader{DAH: validRoots})
 			},
 			expectedResult: func(err error) {
 				require.ErrorIs(t, err, errNMTTreeRootsMatch)
@@ -93,7 +92,7 @@ func TestBEFP_Validate(t *testing.T) {
 				sh := sharetest.RandShares(t, 2)
 				nmtProof := nmt.NewInclusionProof(0, 1, nil, false)
 				befp.Shares[0] = &ShareWithProof{sh[0], &nmtProof, rsmt2d.Row}
-				return proof.Validate(&header.ExtendedHeader{DAH: &dah})
+				return proof.Validate(&header.ExtendedHeader{DAH: roots})
 			},
 			expectedResult: func(err error) {
 				require.ErrorIs(t, err, errIncorrectShare)
@@ -103,7 +102,7 @@ func TestBEFP_Validate(t *testing.T) {
 			name: "invalid amount of shares",
 			prepareFn: func() error {
 				befp.Shares = befp.Shares[0 : len(befp.Shares)/2]
-				return proof.Validate(&header.ExtendedHeader{DAH: &dah})
+				return proof.Validate(&header.ExtendedHeader{DAH: roots})
 			},
 			expectedResult: func(err error) {
 				require.ErrorIs(t, err, errIncorrectAmountOfShares)
@@ -113,7 +112,7 @@ func TestBEFP_Validate(t *testing.T) {
 			name: "not enough shares to recompute the root",
 			prepareFn: func() error {
 				befp.Shares[0] = nil
-				return proof.Validate(&header.ExtendedHeader{DAH: &dah})
+				return proof.Validate(&header.ExtendedHeader{DAH: roots})
 			},
 			expectedResult: func(err error) {
 				require.ErrorIs(t, err, errIncorrectAmountOfShares)
@@ -123,7 +122,7 @@ func TestBEFP_Validate(t *testing.T) {
 			name: "index out of bounds",
 			prepareFn: func() error {
 				befp.Index = 100
-				return proof.Validate(&header.ExtendedHeader{DAH: &dah})
+				return proof.Validate(&header.ExtendedHeader{DAH: roots})
 			},
 			expectedResult: func(err error) {
 				require.ErrorIs(t, err, errIncorrectIndex)
@@ -136,7 +135,7 @@ func TestBEFP_Validate(t *testing.T) {
 					RawHeader: core.Header{
 						Height: 42,
 					},
-					DAH: &dah,
+					DAH: roots,
 				})
 			},
 			expectedResult: func(err error) {
@@ -166,14 +165,14 @@ func TestIncorrectBadEncodingFraudProof(t *testing.T) {
 	eds, err := ipld.AddShares(ctx, shares, bServ)
 	require.NoError(t, err)
 
-	dah, err := share.NewRoot(eds)
+	roots, err := share.NewAxisRoots(eds)
 	require.NoError(t, err)
 
 	// get an arbitrary row
 	rowIdx := squareSize / 2
 	shareProofs := make([]*ShareWithProof, 0, eds.Width())
 	for i := range shareProofs {
-		proof, err := GetShareWithProof(ctx, bServ, dah, shares[i], rsmt2d.Row, rowIdx, i)
+		proof, err := GetShareWithProof(ctx, bServ, roots, shares[i], rsmt2d.Row, rowIdx, i)
 		require.NoError(t, err)
 		shareProofs = append(shareProofs, proof)
 	}
@@ -189,7 +188,7 @@ func TestIncorrectBadEncodingFraudProof(t *testing.T) {
 		RawHeader: core.Header{
 			Height: 420,
 		},
-		DAH: dah,
+		DAH: roots,
 		Commit: &core.Commit{
 			BlockID: core.BlockID{
 				Hash: []byte("made up hash"),
@@ -221,22 +220,22 @@ func TestBEFP_ValidateOutOfOrderShares(t *testing.T) {
 	)
 	require.NoError(t, err, "failure to recompute the extended data square")
 
-	dah, err := da.NewDataAvailabilityHeader(eds)
+	roots, err := share.NewAxisRoots(eds)
 	require.NoError(t, err)
 
 	var errRsmt2d *rsmt2d.ErrByzantineData
-	err = eds.Repair(dah.RowRoots, dah.ColumnRoots)
+	err = eds.Repair(roots.RowRoots, roots.ColumnRoots)
 	require.ErrorAs(t, err, &errRsmt2d)
 
 	err = batchAddr.Commit()
 	require.NoError(t, err)
 
-	byzantine := NewErrByzantine(ctx, bServ.Blockstore(), &dah, errRsmt2d)
+	byzantine := NewErrByzantine(ctx, bServ.Blockstore(), roots, errRsmt2d)
 	var errByz *ErrByzantine
 	require.ErrorAs(t, byzantine, &errByz)
 
 	befp := CreateBadEncodingProof([]byte("hash"), 0, errByz)
-	err = befp.Validate(&header.ExtendedHeader{DAH: &dah})
+	err = befp.Validate(&header.ExtendedHeader{DAH: roots})
 	require.NoError(t, err)
 }
 
