@@ -58,8 +58,6 @@ COPY --from=builder /src/build/celestia /bin/celestia
 COPY --from=builder /src/./cel-key /bin/cel-key
 COPY --from=builder /src/./cel-shed /bin/cel-shed
 
-RUN cel-shed --help
-
 COPY --chown=${USER_NAME}:${USER_NAME} docker/entrypoint.sh /opt/entrypoint.sh
 
 USER ${USER_NAME}
