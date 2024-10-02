@@ -16,7 +16,6 @@ import (
 	coretypes "github.com/tendermint/tendermint/types"
 )
 
-//nolint:unused
 var errEmptyShares = errors.New("empty shares")
 
 // Proof constructs the proof of a blob to the data root.
@@ -28,6 +27,10 @@ type Proof struct {
 	// to the data root.
 	RowToDataRootProof coretypes.RowProof
 }
+
+// namespaceToRowRootProof a proof of a set of namespace shares to the row
+// roots they belong to.
+type namespaceToRowRootProof []*nmt.Proof
 
 // Verify takes a blob and a data root and verifies if the
 // provided blob was committed to the given data root.

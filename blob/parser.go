@@ -123,7 +123,6 @@ func (p *parser) verify(blob *Blob) bool {
 	return p.verifyFn(blob)
 }
 
-//nolint:unused
 func (p *parser) isEmpty() bool {
 	return p.index == 0 && p.length == 0 && len(p.shares) == 0
 }

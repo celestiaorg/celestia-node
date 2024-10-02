@@ -237,7 +237,7 @@ func (s *Service) GetProof(
 		return blob.compareCommitments(commitment)
 	}}
 
-	_, proof, err = s.retrieve(ctx, height, namespace, sharesParser)
+	_, proof, err = s.retrieveBlobProof(ctx, height, namespace, sharesParser)
 	return proof, err
 }
 
@@ -342,7 +342,7 @@ func (s *Service) retrieve(
 	height uint64,
 	namespace libshare.Namespace,
 	sharesParser *parser,
-) (_ *Blob, _ *Proof, err error) {
+) (_ *Blob, _ *namespaceToRowRootProof, err error) {
 	log.Infow("requesting blob",
 		"height", height,
 		"namespace", namespace.String())
@@ -355,13 +355,148 @@ func (s *Service) retrieve(
 		return nil, nil, err
 	}
 
-	eds, err := s.shareGetter.GetEDS(ctx, header)
+	headerGetterSpan.SetStatus(codes.Ok, "")
+	headerGetterSpan.AddEvent("received header", trace.WithAttributes(
+		attribute.Int64("eds-size", int64(len(header.DAH.RowRoots)))))
+
+	rowIndex := -1
+	for i, row := range header.DAH.RowRoots {
+		outside, err := share.IsOutsideRange(namespace, row, row)
+		if err != nil {
+			return nil, nil, err
+		}
+		if !outside {
+			rowIndex = i
+			break
+		}
+	}
+
+	// Note: there is no need to check whether the row index is different from -1
+	// because it will be handled at the end to return the correct error.
+
+	getCtx, getSharesSpan := tracer.Start(ctx, "get-shares-by-namespace")
+
+	// collect shares for the requested namespace
+	namespacedShares, err := s.shareGetter.GetNamespaceData(getCtx, header, namespace)
 	if err != nil {
+		if errors.Is(err, shwap.ErrNotFound) {
+			err = ErrBlobNotFound
+		}
+		getSharesSpan.SetStatus(codes.Error, err.Error())
 		return nil, nil, err
 	}
-	headerGetterSpan.SetStatus(codes.Ok, "")
-	headerGetterSpan.AddEvent("received eds", trace.WithAttributes(
+
+	getSharesSpan.SetStatus(codes.Ok, "")
+	getSharesSpan.AddEvent("received shares", trace.WithAttributes(
 		attribute.Int64("eds-size", int64(len(header.DAH.RowRoots)))))
+
+	var (
+		appShares = make([]libshare.Share, 0)
+		proofs    = make(namespaceToRowRootProof, 0)
+	)
+
+	for _, row := range namespacedShares {
+		if len(row.Shares) == 0 {
+			// the above condition means that we've faced with an Absence Proof.
+			// This Proof proves that the namespace was not found in the DAH, so
+			// we can return `ErrBlobNotFound`.
+			return nil, nil, ErrBlobNotFound
+		}
+
+		appShares = row.Shares
+		proofs = append(proofs, row.Proof)
+		index := row.Proof.Start()
+
+		for {
+			var (
+				isComplete bool
+				shrs       []libshare.Share
+				wasEmpty   = sharesParser.isEmpty()
+			)
+
+			if wasEmpty {
+				// create a parser if it is empty
+				shrs, err = sharesParser.set(rowIndex*len(header.DAH.RowRoots)+index, appShares)
+				if err != nil {
+					if errors.Is(err, errEmptyShares) {
+						// reset parser as `skipPadding` can update next blob's index
+						sharesParser.reset()
+						appShares = nil
+						break
+					}
+					return nil, nil, err
+				}
+
+				// update index and shares if padding shares were detected.
+				if len(appShares) != len(shrs) {
+					index += len(appShares) - len(shrs)
+					appShares = shrs
+				}
+			}
+
+			shrs, isComplete = sharesParser.addShares(appShares)
+			// move to the next row if the blob is incomplete
+			if !isComplete {
+				appShares = nil
+				break
+			}
+			// otherwise construct blob
+			blob, err := sharesParser.parse()
+			if err != nil {
+				return nil, nil, err
+			}
+
+			if sharesParser.verify(blob) {
+				return blob, &proofs, nil
+			}
+
+			index += len(appShares) - len(shrs)
+			appShares = shrs
+			sharesParser.reset()
+
+			if !wasEmpty {
+				// remove proofs for prev rows if verified blob spans multiple rows
+				proofs = proofs[len(proofs)-1:]
+			}
+		}
+
+		rowIndex++
+		if sharesParser.isEmpty() {
+			proofs = nil
+		}
+	}
+
+	err = ErrBlobNotFound
+	for _, sh := range appShares {
+		if !sh.IsPadding() {
+			err = fmt.Errorf("incomplete blob with the "+
+				"namespace: %s detected at %d: %w", namespace.String(), height, err)
+			log.Error(err)
+		}
+	}
+	return nil, nil, err
+}
+
+// retrieve retrieves blobs and their proofs by requesting the whole namespace and
+// comparing Commitments.
+// Retrieving is stopped once the `verify` condition in shareParser is met.
+func (s *Service) retrieveBlobProof(
+	ctx context.Context,
+	height uint64,
+	namespace libshare.Namespace,
+	sharesParser *parser,
+) (_ *Blob, _ *Proof, err error) {
+	log.Infow("requesting blob proof",
+		"height", height,
+		"namespace", namespace.String())
+
+	getCtx, headerGetterSpan := tracer.Start(ctx, "header-getter")
+
+	header, err := s.headerGetter(getCtx, height)
+	if err != nil {
+		headerGetterSpan.SetStatus(codes.Error, err.Error())
+		return nil, nil, err
+	}
 
 	// find the index of the row where the blob could start
 	inclusiveNamespaceStartRowIndex := -1
@@ -395,6 +530,15 @@ func (s *Service) retrieve(
 	if exclusiveNamespaceEndRowIndex == inclusiveNamespaceStartRowIndex {
 		return nil, nil, fmt.Errorf("couldn't find the row index of the namespace end")
 	}
+
+	eds, err := s.shareGetter.GetEDS(ctx, header)
+	if err != nil {
+		headerGetterSpan.SetStatus(codes.Error, err.Error())
+		return nil, nil, err
+	}
+	headerGetterSpan.SetStatus(codes.Ok, "")
+	headerGetterSpan.AddEvent("received eds", trace.WithAttributes(
+		attribute.Int64("eds-size", int64(len(header.DAH.RowRoots)))))
 
 	// calculate the square size
 	squareSize := len(header.DAH.RowRoots) / 2

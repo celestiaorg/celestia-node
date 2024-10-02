@@ -18,6 +18,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	tmrand "github.com/tendermint/tendermint/libs/rand"
+	"github.com/tendermint/tendermint/proto/tendermint/types"
 	coretypes "github.com/tendermint/tendermint/types"
 
 	"github.com/celestiaorg/celestia-app/v3/pkg/appconsts"
@@ -400,12 +401,18 @@ func TestBlobService_Get(t *testing.T) {
 			name: "internal error",
 			doFn: func() (interface{}, error) {
 				ctrl := gomock.NewController(t)
+				shareService := service.shareGetter
 				shareGetterMock := shareMock.NewMockModule(ctrl)
 				shareGetterMock.EXPECT().
-					GetEDS(gomock.Any(), gomock.Any()).
+					GetSharesByNamespace(gomock.Any(), gomock.Any(), gomock.Any()).
 					DoAndReturn(
-						func(context.Context, *header.ExtendedHeader) (*rsmt2d.ExtendedDataSquare, error) {
-							return nil, errors.New("internal error")
+						func(
+							ctx context.Context, h *header.ExtendedHeader, ns share.Namespace,
+						) (share.NamespacedShares, error) {
+							if ns.Equals(blobsWithDiffNamespaces[0].Namespace()) {
+								return nil, errors.New("internal error")
+							}
+							return shareService.GetSharesByNamespace(ctx, h, ns)
 						}).AnyTimes()
 
 				service.shareGetter = getterWrapper
@@ -415,6 +422,31 @@ func TestBlobService_Get(t *testing.T) {
 						blobsWithSameNamespace[0].Namespace(),
 					},
 				)
+			},
+			expectedResult: func(res interface{}, err error) {
+				blobs, ok := res.([]*Blob)
+				assert.True(t, ok)
+				assert.Error(t, err)
+				assert.Contains(t, err.Error(), "internal error")
+				assert.Equal(t, blobs[0].Namespace(), blobsWithSameNamespace[0].Namespace())
+				assert.NotEmpty(t, blobs)
+				assert.Len(t, blobs, len(blobsWithSameNamespace))
+			},
+		},
+		{
+			name: "get blob internal error",
+			doFn: func() (interface{}, error) {
+				ctrl := gomock.NewController(t)
+				shareGetterMock := shareMock.NewMockModule(ctrl)
+				shareGetterMock.EXPECT().
+					GetEDS(gomock.Any(), gomock.Any()).
+					DoAndReturn(
+						func(context.Context, *header.ExtendedHeader) (*rsmt2d.ExtendedDataSquare, error) {
+							return nil, errors.New("internal error")
+						}).AnyTimes()
+
+				service.shareGetter = shareGetterMock
+				return service.GetProof(ctx, 1, blobsWithDiffNamespaces[0].Namespace(), blobsWithDiffNamespaces[0].Commitment)
 			},
 			expectedResult: func(res interface{}, err error) {
 				assert.Error(t, err)
@@ -1147,9 +1179,15 @@ func TestBlobVerify(t *testing.T) {
 			name:     "malformed blob and proof",
 			dataRoot: dataRoot,
 			proof: func() Proof {
-				p := blobProof
-				p.ShareToRowRootProof = p.ShareToRowRootProof[1:]
-				return p
+				return Proof{
+					ShareToRowRootProof: []*types.NMTProof{{
+						Start:    1,
+						End:      3,
+						Nodes:    [][]byte{{0x01}},
+						LeafHash: nil,
+					}},
+					RowToDataRootProof: blobProof.RowToDataRootProof,
+				}
 			}(),
 			blob: func() Blob {
 				b := *blob
@@ -1163,7 +1201,7 @@ func TestBlobVerify(t *testing.T) {
 			dataRoot: dataRoot,
 			proof: func() Proof {
 				p := blobProof
-				p.ShareToRowRootProof = p.ShareToRowRootProof[1:]
+				p.ShareToRowRootProof[0].End = 15
 				return p
 			}(),
 			blob:      *blob,
@@ -1180,7 +1218,20 @@ func TestBlobVerify(t *testing.T) {
 			name:     "valid proof",
 			dataRoot: dataRoot,
 			blob:     *blob,
-			proof:    blobProof,
+			proof: func() Proof {
+				sharesProof, err := pkgproof.NewShareInclusionProofFromEDS(
+					eds,
+					nss[5],
+					shares.NewRange(startShareIndex, startShareIndex+len(blobShares)),
+				)
+				require.NoError(t, err)
+				require.NoError(t, sharesProof.Validate(dataRoot))
+
+				return Proof{
+					ShareToRowRootProof: sharesProof.ShareProofs,
+					RowToDataRootProof:  sharesProof.RowProof,
+				}
+			}(),
 		},
 	}
 
