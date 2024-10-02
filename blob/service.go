@@ -489,7 +489,7 @@ func (s *Service) retrieveBlobProof(
 	namespace share.Namespace,
 	sharesParser *parser,
 ) (_ *Blob, _ *Proof, err error) {
-	log.Infow("requesting blob",
+	log.Infow("requesting blob proof",
 		"height", height,
 		"namespace", namespace.String())
 
