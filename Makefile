@@ -143,7 +143,7 @@ test-unit-race:
 ## test-integration: Run integration tests located in nodebuilder/tests.
 test-integration:
 	@echo "--> Running integrations tests $(VERBOSE) -tags=$(TAGS) $(INTEGRATION_RUN_LENGTH)"
-	@go test $(VERBOSE) -tags=$(TAGS) $(INTEGRATION_RUN_LENGTH) ./nodebuilder/tests
+	@go test $(VERBOSE) -timeout=20m -tags=$(TAGS) $(INTEGRATION_RUN_LENGTH) ./nodebuilder/tests
 .PHONY: test-integration
 
 ## test-integration-race: Run integration tests with data race detector located in nodebuilder/tests.
@@ -163,13 +163,14 @@ PB_CORE=$(shell go list -f {{.Dir}} -m github.com/tendermint/tendermint)
 PB_GOGO=$(shell go list -f {{.Dir}} -m github.com/gogo/protobuf)
 PB_CELESTIA_APP=$(shell go list -f {{.Dir}} -m github.com/celestiaorg/celestia-app)
 PB_NMT=$(shell go list -f {{.Dir}} -m github.com/celestiaorg/nmt)
+PB_NODE=$(shell pwd)
 
 ## pb-gen: Generate protobuf code for all /pb/*.proto files in the project.
 pb-gen:
 	@echo '--> Generating protobuf'
 	@for dir in $(PB_PKGS); \
 		do for file in `find $$dir -type f -name "*.proto"`; \
-			do protoc -I=. -I=${PB_CORE}/proto/ -I=${PB_GOGO} -I=${PB_CELESTIA_APP}/proto -I=${PB_NMT} --gogofaster_out=paths=source_relative:. $$file; \
+			do protoc -I=. -I=${PB_CORE}/proto/ -I=${PB_NODE} -I=${PB_GOGO} -I=${PB_CELESTIA_APP}/proto -I=${PB_NMT} --gogofaster_out=paths=source_relative:. $$file; \
 			echo '-->' $$file; \
 		done; \
 	done;

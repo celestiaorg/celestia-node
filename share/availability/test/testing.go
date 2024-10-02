@@ -20,26 +20,27 @@ import (
 	"github.com/celestiaorg/celestia-node/share"
 	"github.com/celestiaorg/celestia-node/share/ipld"
 	"github.com/celestiaorg/celestia-node/share/sharetest"
+	"github.com/celestiaorg/celestia-node/share/shwap"
 )
 
 // RandFillBS fills the given BlockService with a random block of a given size.
-func RandFillBS(t *testing.T, n int, bServ blockservice.BlockService) *share.Root {
+func RandFillBS(t *testing.T, n int, bServ blockservice.BlockService) *share.AxisRoots {
 	shares := sharetest.RandShares(t, n*n)
 	return FillBS(t, bServ, shares)
 }
 
 // FillBS fills the given BlockService with the given shares.
-func FillBS(t *testing.T, bServ blockservice.BlockService, shares []share.Share) *share.Root {
+func FillBS(t *testing.T, bServ blockservice.BlockService, shares []share.Share) *share.AxisRoots {
 	eds, err := ipld.AddShares(context.TODO(), shares, bServ)
 	require.NoError(t, err)
-	dah, err := share.NewRoot(eds)
+	roots, err := share.NewAxisRoots(eds)
 	require.NoError(t, err)
-	return dah
+	return roots
 }
 
 type TestNode struct {
 	net *TestDagNet
-	share.Getter
+	shwap.Getter
 	share.Availability
 	blockservice.BlockService
 	host.Host

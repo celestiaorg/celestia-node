@@ -34,6 +34,7 @@ func init() {
 		peerBandwidthCmd,
 		bandwidthForProtocolCmd,
 		pubsubPeersCmd,
+		pubsubTopicsCmd,
 	)
 }
 
@@ -572,5 +573,29 @@ var pubsubPeersCmd = &cobra.Command{
 			}
 		}
 		return cmdnode.PrintOutput(peers, err, formatter)
+	},
+}
+
+var pubsubTopicsCmd = &cobra.Command{
+	Use:   "pubsub-topics ",
+	Short: "Lists pubsub(GossipSub) topics the node participates in",
+	Args:  cobra.NoArgs,
+	RunE: func(cmd *cobra.Command, _ []string) error {
+		client, err := cmdnode.ParseClientFromCtx(cmd.Context())
+		if err != nil {
+			return err
+		}
+		defer client.Close()
+
+		topics, err := client.P2P.PubSubTopics(cmd.Context())
+		formatter := func(data interface{}) interface{} {
+			conPeers := data.([]string)
+			return struct {
+				Topics []string `json:"topics"`
+			}{
+				Topics: conPeers,
+			}
+		}
+		return cmdnode.PrintOutput(topics, err, formatter)
 	},
 }

@@ -15,7 +15,6 @@ import (
 	"go.opentelemetry.io/otel/codes"
 	"go.opentelemetry.io/otel/trace"
 
-	"github.com/celestiaorg/celestia-app/v2/pkg/da"
 	"github.com/celestiaorg/celestia-app/v2/pkg/wrapper"
 	"github.com/celestiaorg/nmt"
 	"github.com/celestiaorg/rsmt2d"
@@ -57,18 +56,18 @@ func NewRetriever(bServ blockservice.BlockService) *Retriever {
 // data square and reconstructs the other three quadrants (3/4). If the requested quadrant is not
 // available within RetrieveQuadrantTimeout, it starts requesting another quadrant until either the
 // data is reconstructed, context is canceled or ErrByzantine is generated.
-func (r *Retriever) Retrieve(ctx context.Context, dah *da.DataAvailabilityHeader) (*rsmt2d.ExtendedDataSquare, error) {
+func (r *Retriever) Retrieve(ctx context.Context, roots *share.AxisRoots) (*rsmt2d.ExtendedDataSquare, error) {
 	ctx, cancel := context.WithCancel(ctx)
 	defer cancel() // cancels all the ongoing requests if reconstruction succeeds early
 
 	ctx, span := tracer.Start(ctx, "retrieve-square")
 	defer span.End()
 	span.SetAttributes(
-		attribute.Int("size", len(dah.RowRoots)),
+		attribute.Int("size", len(roots.RowRoots)),
 	)
 
-	log.Debugw("retrieving data square", "data_hash", dah.String(), "size", len(dah.RowRoots))
-	ses, err := r.newSession(ctx, dah)
+	log.Debugw("retrieving data square", "data_hash", roots.String(), "size", len(roots.RowRoots))
+	ses, err := r.newSession(ctx, roots)
 	if err != nil {
 		return nil, err
 	}
@@ -91,7 +90,7 @@ func (r *Retriever) Retrieve(ctx context.Context, dah *da.DataAvailabilityHeader
 				// nmt proofs computed during the session
 				ses.close(false)
 				span.RecordError(err)
-				return nil, byzantine.NewErrByzantine(ctx, r.bServ.Blockstore(), dah, errByz)
+				return nil, byzantine.NewErrByzantine(ctx, r.bServ.Blockstore(), roots, errByz)
 			}
 
 			log.Warnw("not enough shares to reconstruct data square, requesting more...", "err", err)
@@ -107,7 +106,7 @@ func (r *Retriever) Retrieve(ctx context.Context, dah *da.DataAvailabilityHeader
 // quadrant request retries. Also, provides an API
 // to reconstruct the block once enough shares are fetched.
 type retrievalSession struct {
-	dah   *da.DataAvailabilityHeader
+	roots *share.AxisRoots
 	bget  blockservice.BlockGetter
 	adder *ipld.NmtNodeAdder
 
@@ -115,7 +114,7 @@ type retrievalSession struct {
 	// https://github.com/celestiaorg/rsmt2d/issues/135
 	squareQuadrants  []*quadrant
 	squareCellsLks   [][]sync.Mutex
-	squareCellsCount uint32
+	squareCellsCount atomic.Uint32
 	squareSig        chan struct{}
 	squareDn         chan struct{}
 	squareLk         sync.RWMutex
@@ -125,8 +124,8 @@ type retrievalSession struct {
 }
 
 // newSession creates a new retrieval session and kicks off requesting process.
-func (r *Retriever) newSession(ctx context.Context, dah *da.DataAvailabilityHeader) (*retrievalSession, error) {
-	size := len(dah.RowRoots)
+func (r *Retriever) newSession(ctx context.Context, roots *share.AxisRoots) (*retrievalSession, error) {
+	size := len(roots.RowRoots)
 
 	adder := ipld.NewNmtNodeAdder(ctx, r.bServ, ipld.MaxSizeBatchOption(size))
 	proofsVisitor := ipld.ProofsAdderFromCtx(ctx).VisitFn()
@@ -149,10 +148,10 @@ func (r *Retriever) newSession(ctx context.Context, dah *da.DataAvailabilityHead
 	}
 
 	ses := &retrievalSession{
-		dah:             dah,
+		roots:           roots,
 		bget:            blockservice.NewSession(ctx, r.bServ),
 		adder:           adder,
-		squareQuadrants: newQuadrants(dah),
+		squareQuadrants: newQuadrants(roots),
 		squareCellsLks:  make([][]sync.Mutex, size),
 		squareSig:       make(chan struct{}, 1),
 		squareDn:        make(chan struct{}),
@@ -187,12 +186,12 @@ func (rs *retrievalSession) Reconstruct(ctx context.Context) (*rsmt2d.ExtendedDa
 	defer span.End()
 
 	// and try to repair with what we have
-	err := rs.square.Repair(rs.dah.RowRoots, rs.dah.ColumnRoots)
+	err := rs.square.Repair(rs.roots.RowRoots, rs.roots.ColumnRoots)
 	if err != nil {
 		span.RecordError(err)
 		return nil, err
 	}
-	log.Infow("data square reconstructed", "data_hash", rs.dah.String(), "size", len(rs.dah.RowRoots))
+	log.Infow("data square reconstructed", "data_hash", rs.roots.String(), "size", len(rs.roots.RowRoots))
 	close(rs.squareDn)
 	return rs.square, nil
 }
@@ -319,7 +318,7 @@ func (rs *retrievalSession) doRequest(ctx context.Context, q *quadrant) {
 				//  but it is totally fine for the happy case and for now.
 				//  The earlier we correctly know that we have the full square - the earlier
 				//  we cancel ongoing requests - the less data is being wastedly transferred.
-				if atomic.AddUint32(&rs.squareCellsCount, 1) >= uint32(size*size) {
+				if rs.squareCellsCount.Add(1) >= uint32(size*size) {
 					select {
 					case rs.squareSig <- struct{}{}:
 					default:

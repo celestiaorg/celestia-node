@@ -1,3 +1,5 @@
+//go:build pruning || integration
+
 package tests
 
 import (
@@ -19,10 +21,10 @@ import (
 	"github.com/celestiaorg/celestia-node/nodebuilder/tests/swamp"
 	"github.com/celestiaorg/celestia-node/pruner"
 	"github.com/celestiaorg/celestia-node/share"
-	"github.com/celestiaorg/celestia-node/share/getters"
-	"github.com/celestiaorg/celestia-node/share/p2p/peers"
-	"github.com/celestiaorg/celestia-node/share/p2p/shrexeds"
-	"github.com/celestiaorg/celestia-node/share/p2p/shrexnd"
+	"github.com/celestiaorg/celestia-node/share/shwap/p2p/shrex/peers"
+	"github.com/celestiaorg/celestia-node/share/shwap/p2p/shrex/shrex_getter"
+	"github.com/celestiaorg/celestia-node/share/shwap/p2p/shrex/shrexeds"
+	"github.com/celestiaorg/celestia-node/share/shwap/p2p/shrex/shrexnd"
 )
 
 // TestArchivalBlobSync tests whether a LN is able to sync historical blobs from
@@ -71,15 +73,15 @@ func TestArchivalBlobSync(t *testing.T) {
 			edsClient *shrexeds.Client,
 			ndClient *shrexnd.Client,
 			managers map[string]*peers.Manager,
-		) *getters.ShrexGetter {
-			return getters.NewShrexGetter(
+		) *shrex_getter.Getter {
+			return shrex_getter.NewGetter(
 				edsClient,
 				ndClient,
 				managers["full"],
 				managers["archival"],
 				testAvailWindow,
 			)
-		}, new(getters.ShrexGetter)),
+		}, new(shrex_getter.Getter)),
 	)
 
 	// stop the archival BN to force LN to have to discover
@@ -118,7 +120,7 @@ func TestArchivalBlobSync(t *testing.T) {
 		eh, err := archivalFN.HeaderServ.GetByHeight(ctx, uint64(i))
 		require.NoError(t, err)
 
-		if bytes.Equal(eh.DataHash, share.EmptyRoot().Hash()) {
+		if bytes.Equal(eh.DataHash, share.EmptyEDSRoots().Hash()) {
 			i++
 			continue
 		}
@@ -147,7 +149,7 @@ func TestArchivalBlobSync(t *testing.T) {
 	// with the historical blobs
 	for _, pruned := range pruningFulls {
 		for _, b := range archivalBlobs {
-			has, err := pruned.EDSStore.Has(ctx, b.root)
+			has, err := pruned.EDSStore.HasByHeight(ctx, b.height)
 			require.NoError(t, err)
 			assert.False(t, has)
 		}
