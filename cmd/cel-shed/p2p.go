@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"os"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	"github.com/libp2p/go-libp2p/core/crypto"
@@ -149,10 +150,9 @@ var p2pConnectBootstrappersCmd = &cobra.Command{
 		}
 		fmt.Println()
 
-		successfulConnections := 0
-		failedConnections := 0
+		var successfulConnections atomic.Int32
+		var failedConnections atomic.Int32
 		var wg sync.WaitGroup
-		var mu sync.Mutex
 
 		for _, bootstrapper := range bootstrappers {
 			wg.Add(1)
@@ -161,26 +161,22 @@ var p2pConnectBootstrappersCmd = &cobra.Command{
 				fmt.Printf("Attempting to connect to bootstrapper: %s\n", bootstrapper)
 				if err := mod.Connect(ctx, bootstrapper); err != nil {
 					fmt.Printf("Error: Failed to connect to bootstrapper %s. Reason: %v\n", bootstrapper, err)
-					mu.Lock()
-					failedConnections++
-					mu.Unlock()
+					failedConnections.Add(1)
 					return
 				}
 				fmt.Printf("Success: Connected to bootstrapper: %s\n", bootstrapper)
-				mu.Lock()
-				successfulConnections++
-				mu.Unlock()
+				successfulConnections.Add(1)
 			}(bootstrapper)
 		}
 
 		wg.Wait()
 
-		if failedConnections == len(bootstrappers) && errorOnAllFailure {
+		if failedConnections.Load() == int32(len(bootstrappers)) && errorOnAllFailure {
 			fmt.Println()
 			fmt.Println("failed to connect to all bootstrappers")
 			os.Exit(1)
 			return nil
-		} else if failedConnections > 0 && errorOnAnyFailure {
+		} else if failedConnections.Load() > 0 && errorOnAnyFailure {
 			fmt.Println()
 			fmt.Println("failed to connect to some bootstrappers")
 			os.Exit(1)
