@@ -13,6 +13,7 @@ import (
 	"github.com/celestiaorg/celestia-app/v2/pkg/appconsts"
 
 	"github.com/celestiaorg/celestia-node/blob"
+	"github.com/celestiaorg/celestia-node/header"
 	nodeblob "github.com/celestiaorg/celestia-node/nodebuilder/blob"
 	"github.com/celestiaorg/celestia-node/share"
 	"github.com/celestiaorg/celestia-node/state"
@@ -28,12 +29,32 @@ var log = logging.Logger("go-da")
 const heightLen = 8
 
 type Service struct {
-	blobServ nodeblob.Module
+	blobServ     nodeblob.Module
+	headerGetter func(context.Context, uint64) (*header.ExtendedHeader, error)
 }
 
-func NewService(blobMod nodeblob.Module) *Service {
+// SubmitOptions defines options for blob submission using SubmitWithOptions.
+//
+// SubmitWithOptions expects JSON serialized version of this struct; all fields are optional.
+type SubmitOptions struct {
+	// KeyName is the name of key from the keystore used to sign transactions.
+	KeyName string `json:"key_name,omitempty"`
+
+	// SignerAddress is the address that signs the transaction.
+	// This address must be stored locally in the key store.
+	SignerAddress string `json:"signer_address,omitempty"`
+
+	// FeeGranterAddress specifies the account that will pay for the transaction fee.
+	FeeGranterAddress string `json:"fee_granter_address,omitempty"`
+}
+
+func NewService(
+	blobMod nodeblob.Module,
+	headerGetter func(context.Context, uint64) (*header.ExtendedHeader, error),
+) *Service {
 	return &Service{
-		blobServ: blobMod,
+		blobServ:     blobMod,
+		headerGetter: headerGetter,
 	}
 }
 
@@ -59,21 +80,25 @@ func (s *Service) Get(ctx context.Context, ids []da.ID, ns da.Namespace) ([]da.B
 }
 
 // GetIDs returns IDs of all Blobs located in DA at given height.
-func (s *Service) GetIDs(ctx context.Context, height uint64, namespace da.Namespace) ([]da.ID, error) {
+func (s *Service) GetIDs(ctx context.Context, height uint64, namespace da.Namespace) (*da.GetIDsResult, error) {
 	var ids []da.ID //nolint:prealloc
 	log.Debugw("getting ids", "height", height, "namespace", share.Namespace(namespace))
 	blobs, err := s.blobServ.GetAll(ctx, height, []share.Namespace{namespace})
 	log.Debugw("got ids", "height", height, "namespace", share.Namespace(namespace))
 	if err != nil {
 		if strings.Contains(err.Error(), blob.ErrBlobNotFound.Error()) {
-			return nil, nil
+			return nil, nil //nolint:nilnil
 		}
 		return nil, err
 	}
 	for _, b := range blobs {
 		ids = append(ids, MakeID(height, b.Commitment))
 	}
-	return ids, nil
+	h, err := s.headerGetter(ctx, height)
+	if err != nil {
+		return nil, err
+	}
+	return &da.GetIDsResult{IDs: ids, Timestamp: h.Time()}, nil
 }
 
 // GetProofs returns inclusion Proofs for all Blobs located in DA at given height.
@@ -106,14 +131,30 @@ func (s *Service) Submit(
 	gasPrice float64,
 	namespace da.Namespace,
 ) ([]da.ID, error) {
+	return s.SubmitWithOptions(ctx, daBlobs, gasPrice, namespace, nil)
+}
+
+// SubmitWithOptions submits the Blobs to Data Availability layer.
+func (s *Service) SubmitWithOptions(
+	ctx context.Context,
+	daBlobs []da.Blob,
+	gasPrice float64,
+	namespace da.Namespace,
+	options []byte,
+) ([]da.ID, error) {
 	blobs, _, err := s.blobsAndCommitments(daBlobs, namespace)
 	if err != nil {
 		return nil, err
 	}
 
-	opts := state.NewTxConfig(state.WithGasPrice(gasPrice))
+	opts, err := parseOptions(options)
+	if err != nil {
+		return nil, err
+	}
+	opts = append(opts, state.WithGasPrice(gasPrice))
+	cfg := state.NewTxConfig(opts...)
 
-	height, err := s.blobServ.Submit(ctx, blobs, opts)
+	height, err := s.blobServ.Submit(ctx, blobs, cfg)
 	if err != nil {
 		log.Error("failed to submit blobs", "height", height, "gas price", gasPrice)
 		return nil, err
@@ -124,6 +165,31 @@ func (s *Service) Submit(
 		ids[i] = MakeID(height, blob.Commitment)
 	}
 	return ids, nil
+}
+
+func parseOptions(options []byte) ([]state.ConfigOption, error) {
+	var opts []state.ConfigOption
+
+	if len(options) == 0 {
+		return opts, nil
+	}
+
+	parsedOpts := SubmitOptions{}
+	err := json.Unmarshal(options, &parsedOpts)
+	if err != nil {
+		return nil, err
+	}
+
+	if parsedOpts.KeyName != "" {
+		opts = append(opts, state.WithKeyName(parsedOpts.KeyName))
+	}
+	if parsedOpts.SignerAddress != "" {
+		opts = append(opts, state.WithSignerAddress(parsedOpts.SignerAddress))
+	}
+	if parsedOpts.FeeGranterAddress != "" {
+		opts = append(opts, state.WithFeeGranterAddress(parsedOpts.FeeGranterAddress))
+	}
+	return opts, nil
 }
 
 // blobsAndCommitments converts []da.Blob to []*blob.Blob and generates corresponding
