@@ -695,8 +695,11 @@ func TestService_Subscribe(t *testing.T) {
 	})
 
 	t.Run("subscription cancellation", func(t *testing.T) {
-		ns := blobs[0].Namespace()
 		subCtx, subCancel := context.WithTimeout(ctx, time.Second*2)
+		t.Cleanup(subCancel)
+
+		ns := blobs[0].Namespace()
+
 		subCh, err := service.Subscribe(subCtx, ns)
 		require.NoError(t, err)
 
