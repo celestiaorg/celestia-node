@@ -1,23 +1,26 @@
 package edstest
 
 import (
+	"crypto/rand"
 	"testing"
 
 	"github.com/stretchr/testify/require"
 	tmproto "github.com/tendermint/tendermint/proto/tendermint/types"
 	coretypes "github.com/tendermint/tendermint/types"
 
-	"github.com/celestiaorg/celestia-app/app"
-	"github.com/celestiaorg/celestia-app/app/encoding"
-	"github.com/celestiaorg/celestia-app/pkg/appconsts"
-	"github.com/celestiaorg/celestia-app/pkg/da"
-	"github.com/celestiaorg/celestia-app/pkg/namespace"
-	"github.com/celestiaorg/celestia-app/pkg/shares"
-	"github.com/celestiaorg/celestia-app/pkg/square"
-	"github.com/celestiaorg/celestia-app/pkg/wrapper"
-	"github.com/celestiaorg/celestia-app/test/util/blobfactory"
-	"github.com/celestiaorg/celestia-app/test/util/testfactory"
-	"github.com/celestiaorg/celestia-app/x/blob/types"
+	"github.com/celestiaorg/celestia-app/v2/app"
+	"github.com/celestiaorg/celestia-app/v2/app/encoding"
+	"github.com/celestiaorg/celestia-app/v2/pkg/appconsts"
+	"github.com/celestiaorg/celestia-app/v2/pkg/da"
+	"github.com/celestiaorg/celestia-app/v2/pkg/user"
+	"github.com/celestiaorg/celestia-app/v2/pkg/wrapper"
+	"github.com/celestiaorg/celestia-app/v2/test/util/blobfactory"
+	"github.com/celestiaorg/celestia-app/v2/test/util/testfactory"
+	"github.com/celestiaorg/celestia-app/v2/x/blob/types"
+	"github.com/celestiaorg/go-square/blob"
+	"github.com/celestiaorg/go-square/namespace"
+	appshares "github.com/celestiaorg/go-square/shares"
+	"github.com/celestiaorg/go-square/square"
 	"github.com/celestiaorg/nmt"
 	"github.com/celestiaorg/rsmt2d"
 
@@ -25,37 +28,88 @@ import (
 	"github.com/celestiaorg/celestia-node/share/sharetest"
 )
 
-func RandByzantineEDS(t testing.TB, size int, options ...nmt.Option) *rsmt2d.ExtendedDataSquare {
-	eds := RandEDS(t, size)
+const (
+	accountName = "test-account"
+	testChainID = "private"
+)
+
+func RandByzantineEDS(t testing.TB, odsSize int, options ...nmt.Option) *rsmt2d.ExtendedDataSquare {
+	eds := RandEDS(t, odsSize)
 	shares := eds.Flattened()
 	copy(share.GetData(shares[0]), share.GetData(shares[1])) // corrupting eds
-	eds, err := rsmt2d.ImportExtendedDataSquare(shares,
+	eds, err := rsmt2d.ImportExtendedDataSquare(
+		shares,
 		share.DefaultRSMT2DCodec(),
-		wrapper.NewConstructor(uint64(size),
-			options...))
+		wrapper.NewConstructor(uint64(odsSize), options...),
+	)
 	require.NoError(t, err, "failure to recompute the extended data square")
 	return eds
 }
 
 // RandEDS generates EDS filled with the random data with the given size for original square.
-func RandEDS(t testing.TB, size int) *rsmt2d.ExtendedDataSquare {
-	shares := sharetest.RandShares(t, size*size)
-	eds, err := rsmt2d.ComputeExtendedDataSquare(shares, share.DefaultRSMT2DCodec(), wrapper.NewConstructor(uint64(size)))
+func RandEDS(t testing.TB, odsSize int) *rsmt2d.ExtendedDataSquare {
+	shares := sharetest.RandShares(t, odsSize*odsSize)
+	eds, err := rsmt2d.ComputeExtendedDataSquare(
+		shares,
+		share.DefaultRSMT2DCodec(),
+		wrapper.NewConstructor(uint64(odsSize)),
+	)
 	require.NoError(t, err, "failure to recompute the extended data square")
 	return eds
 }
 
+// RandEDSWithTailPadding generates EDS of given ODS size filled with randomized and tail padding shares.
+func RandEDSWithTailPadding(t testing.TB, odsSize, padding int) *rsmt2d.ExtendedDataSquare {
+	shares := sharetest.RandShares(t, odsSize*odsSize)
+	for i := len(shares) - padding; i < len(shares); i++ {
+		paddingShare := appshares.TailPaddingShare()
+		shares[i] = paddingShare.ToBytes()
+	}
+
+	eds, err := rsmt2d.ComputeExtendedDataSquare(
+		shares,
+		share.DefaultRSMT2DCodec(),
+		wrapper.NewConstructor(uint64(odsSize)),
+	)
+	require.NoError(t, err, "failure to recompute the extended data square")
+	return eds
+}
+
+// RandEDSWithNamespace generates EDS with given square size. Returned EDS will have
+// namespacedAmount of shares with the given namespace.
 func RandEDSWithNamespace(
 	t testing.TB,
 	namespace share.Namespace,
-	size int,
-) (*rsmt2d.ExtendedDataSquare, *share.Root) {
-	shares := sharetest.RandSharesWithNamespace(t, namespace, size*size)
-	eds, err := rsmt2d.ComputeExtendedDataSquare(shares, share.DefaultRSMT2DCodec(), wrapper.NewConstructor(uint64(size)))
+	namespacedAmount, odsSize int,
+) (*rsmt2d.ExtendedDataSquare, *share.AxisRoots) {
+	shares := sharetest.RandSharesWithNamespace(t, namespace, namespacedAmount, odsSize*odsSize)
+	eds, err := rsmt2d.ComputeExtendedDataSquare(
+		shares,
+		share.DefaultRSMT2DCodec(),
+		wrapper.NewConstructor(uint64(odsSize)),
+	)
 	require.NoError(t, err, "failure to recompute the extended data square")
-	dah, err := share.NewRoot(eds)
+	roots, err := share.NewAxisRoots(eds)
 	require.NoError(t, err)
-	return eds, dah
+	return eds, roots
+}
+
+// RandomAxisRoots generates random share.AxisRoots for the given eds size.
+func RandomAxisRoots(t testing.TB, edsSize int) *share.AxisRoots {
+	roots := make([][]byte, edsSize*2)
+	for i := range roots {
+		root := make([]byte, edsSize)
+		_, err := rand.Read(root)
+		require.NoError(t, err)
+		roots[i] = root
+	}
+
+	rows := roots[:edsSize]
+	cols := roots[edsSize:]
+	return &share.AxisRoots{
+		RowRoots:    rows,
+		ColumnRoots: cols,
+	}
 }
 
 // GenerateTestBlock generates a set of test blocks with a specific blob size and number of
@@ -65,7 +119,7 @@ func GenerateTestBlock(
 	blobSize, numberOfTransactions int,
 ) (
 	[]*types.MsgPayForBlobs,
-	[]*types.Blob,
+	[]*blob.Blob,
 	[]namespace.Namespace,
 	*rsmt2d.ExtendedDataSquare,
 	coretypes.Txs,
@@ -82,13 +136,13 @@ func GenerateTestBlock(
 	txs = append(txs, coreTxs...)
 	dataSquare, err := square.Construct(
 		txs.ToSliceOfBytes(),
-		appconsts.LatestVersion,
 		appconsts.SquareSizeUpperBound(appconsts.LatestVersion),
+		appconsts.SubtreeRootThreshold(appconsts.LatestVersion),
 	)
 	require.NoError(t, err)
 
 	// erasure the data square which we use to create the data root.
-	eds, err := da.ExtendShares(shares.ToBytes(dataSquare))
+	eds, err := da.ExtendShares(appshares.ToBytes(dataSquare))
 	require.NoError(t, err)
 
 	// create the new data root by creating the data availability header (merkle
@@ -106,15 +160,17 @@ func GenerateTestBlock(
 func createTestBlobTransactions(
 	t *testing.T,
 	numberOfTransactions, size int,
-) ([]namespace.Namespace, []*types.MsgPayForBlobs, []*types.Blob, []coretypes.Tx) {
-	acc := "blobstream-api-tests"
-	kr := testfactory.GenerateKeyring(acc)
-	signer := types.NewKeyringSigner(kr, acc, "test")
-
+) ([]namespace.Namespace, []*types.MsgPayForBlobs, []*blob.Blob, []coretypes.Tx) {
 	nss := make([]namespace.Namespace, 0)
 	msgs := make([]*types.MsgPayForBlobs, 0)
-	blobs := make([]*types.Blob, 0)
+	blobs := make([]*blob.Blob, 0)
 	coreTxs := make([]coretypes.Tx, 0)
+	config := encoding.MakeConfig(app.ModuleEncodingRegisters...)
+	keyring := testfactory.TestKeyring(config.Codec, accountName)
+	account := user.NewAccount(accountName, 0, 0)
+	signer, err := user.NewSigner(keyring, config.TxConfig, testChainID, appconsts.LatestVersion, account)
+	require.NoError(t, err)
+
 	for i := 0; i < numberOfTransactions; i++ {
 		ns, msg, blob, coreTx := createTestBlobTransaction(t, signer, size+i*1000)
 		nss = append(nss, ns)
@@ -130,14 +186,12 @@ func createTestBlobTransactions(
 // PFB size. The size is in bytes.
 func createTestBlobTransaction(
 	t *testing.T,
-	signer *types.KeyringSigner,
+	signer *user.Signer,
 	size int,
-) (namespace.Namespace, *types.MsgPayForBlobs, *types.Blob, coretypes.Tx) {
-	addr, err := signer.GetSignerInfo().GetAddress()
-	require.NoError(t, err)
-
+) (namespace.Namespace, *types.MsgPayForBlobs, *blob.Blob, coretypes.Tx) {
 	ns := namespace.RandomBlobNamespace()
-	msg, blob := blobfactory.RandMsgPayForBlobsWithNamespaceAndSigner(addr.String(), ns, size)
+	account := signer.Account(accountName)
+	msg, blob := blobfactory.RandMsgPayForBlobsWithNamespaceAndSigner(account.Address().String(), ns, size)
 	require.NoError(t, err)
 	cTx := BuildCoreTx(t, signer, msg, blob)
 	return ns, msg, blob, cTx
@@ -152,12 +206,7 @@ func BuildCoreTx(
 	msg *types.MsgPayForBlobs,
 	blob *tmproto.Blob,
 ) coretypes.Tx {
-	builder := signer.NewTxBuilder()
-	stx, err := signer.BuildSignedTx(builder, msg)
+	cTx, _, err := signer.CreatePayForBlobs(accountName, []*blob.Blob{blob})
 	require.NoError(t, err)
-	rawTx, err := encoding.MakeConfig(app.ModuleEncodingRegisters...).TxConfig.TxEncoder()(stx)
-	require.NoError(t, err)
-	cTx, err := coretypes.MarshalBlobTx(rawTx, blob)
-	require.NoError(t, err)
-	return cTx
+	return ns, msg, blob, cTx
 }

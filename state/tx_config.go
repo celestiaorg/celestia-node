@@ -8,8 +8,8 @@ import (
 	"github.com/cosmos/cosmos-sdk/crypto/keyring"
 	sdktypes "github.com/cosmos/cosmos-sdk/types"
 
-	"github.com/celestiaorg/celestia-app/pkg/user"
-	apptypes "github.com/celestiaorg/celestia-app/x/blob/types"
+	"github.com/celestiaorg/celestia-app/v2/pkg/user"
+	apptypes "github.com/celestiaorg/celestia-app/v2/x/blob/types"
 )
 
 const (

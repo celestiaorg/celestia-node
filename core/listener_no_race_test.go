@@ -12,6 +12,7 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/celestiaorg/celestia-node/share"
+	"github.com/celestiaorg/celestia-node/store"
 )
 
 // TestListenerWithNonEmptyBlocks ensures that non-empty blocks are actually
@@ -25,15 +26,15 @@ func TestListenerWithNonEmptyBlocks(t *testing.T) {
 
 	// create one block to store as Head in local store and then unsubscribe from block events
 	cfg := DefaultTestConfig()
-	cfg.ChainID = testChainID
 	fetcher, cctx := createCoreFetcher(t, cfg)
 	eds := createEdsPubSub(ctx, t)
 
-	store := createStore(t)
+	store, err := store.NewStore(store.DefaultParameters(), t.TempDir())
+	require.NoError(t, err)
 
 	// create Listener and start listening
 	cl := createListener(ctx, t, fetcher, ps0, eds, store, testChainID)
-	err := cl.Start(ctx)
+	err = cl.Start(ctx)
 	require.NoError(t, err)
 
 	// listen for eds hashes broadcasted through eds-sub and ensure store has
@@ -42,10 +43,12 @@ func TestListenerWithNonEmptyBlocks(t *testing.T) {
 	require.NoError(t, err)
 	t.Cleanup(sub.Cancel)
 
-	empty := share.EmptyRoot()
+	empty := share.EmptyEDSRoots()
 	// TODO extract 16
 	for i := 0; i < 16; i++ {
-		_, err := cctx.FillBlock(16, cfg.Accounts, flags.BroadcastBlock)
+		accounts := cfg.Genesis.Accounts()
+		require.Greater(t, len(accounts), 0)
+		_, err := cctx.FillBlock(16, accounts[0].Name, flags.BroadcastBlock)
 		require.NoError(t, err)
 		msg, err := sub.Next(ctx)
 		require.NoError(t, err)
@@ -54,7 +57,11 @@ func TestListenerWithNonEmptyBlocks(t *testing.T) {
 			continue
 		}
 
-		has, err := store.Has(ctx, msg.DataHash)
+		has, err := store.HasByHash(ctx, msg.DataHash)
+		require.NoError(t, err)
+		require.True(t, has)
+
+		has, err = store.HasByHeight(ctx, msg.Height)
 		require.NoError(t, err)
 		require.True(t, has)
 	}

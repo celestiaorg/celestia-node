@@ -2,15 +2,12 @@ package p2p
 
 import (
 	"fmt"
-	"time"
 
 	"github.com/libp2p/go-libp2p/core/peer"
 	ma "github.com/multiformats/go-multiaddr"
 
 	"github.com/celestiaorg/celestia-node/nodebuilder/node"
 )
-
-const defaultRoutingRefreshPeriod = time.Minute
 
 // Config combines all configuration fields for P2P subsystem.
 type Config struct {
@@ -29,8 +26,7 @@ type Config struct {
 	// This is enabled by default for Bootstrappers.
 	PeerExchange bool
 	// ConnManager is a configuration tuple for ConnectionManager.
-	ConnManager               connManagerConfig
-	RoutingTableRefreshPeriod time.Duration
+	ConnManager connManagerConfig
 
 	// Allowlist for IPColocation PubSub parameter, a list of string CIDRs
 	IPColocationWhitelist []string
@@ -64,10 +60,9 @@ func DefaultConfig(tp node.Type) Config {
 			"/ip4/127.0.0.1/tcp/2121",
 			"/ip6/::/tcp/2121",
 		},
-		MutualPeers:               []string{},
-		PeerExchange:              tp == node.Bridge || tp == node.Full,
-		ConnManager:               defaultConnManagerConfig(tp),
-		RoutingTableRefreshPeriod: defaultRoutingRefreshPeriod,
+		MutualPeers:  []string{},
+		PeerExchange: tp == node.Bridge || tp == node.Full,
+		ConnManager:  defaultConnManagerConfig(tp),
 	}
 }
 
@@ -81,15 +76,6 @@ func (cfg *Config) mutualPeers() (_ []peer.AddrInfo, err error) {
 	}
 
 	return peer.AddrInfosFromP2pAddrs(maddrs...)
-}
-
-// Validate performs basic validation of the config.
-func (cfg *Config) Validate() error {
-	if cfg.RoutingTableRefreshPeriod <= 0 {
-		cfg.RoutingTableRefreshPeriod = defaultRoutingRefreshPeriod
-		log.Warnf("routingTableRefreshPeriod is not valid. restoring to default value: %d", cfg.RoutingTableRefreshPeriod)
-	}
-	return nil
 }
 
 // Upgrade updates the `ListenAddresses` and `NoAnnounceAddresses` to

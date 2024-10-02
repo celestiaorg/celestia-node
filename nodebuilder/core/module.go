@@ -12,8 +12,8 @@ import (
 	"github.com/celestiaorg/celestia-node/libs/fxutil"
 	"github.com/celestiaorg/celestia-node/nodebuilder/node"
 	"github.com/celestiaorg/celestia-node/nodebuilder/p2p"
-	"github.com/celestiaorg/celestia-node/share/eds"
-	"github.com/celestiaorg/celestia-node/share/p2p/shrexsub"
+	"github.com/celestiaorg/celestia-node/share/shwap/p2p/shrex/shrexsub"
+	"github.com/celestiaorg/celestia-node/store"
 )
 
 // ConstructModule collects all the components and services related to managing the relationship
@@ -38,7 +38,7 @@ func ConstructModule(tp node.Type, cfg *Config, options ...fx.Option) fx.Option 
 			fxutil.ProvideAs(
 				func(
 					fetcher *core.BlockFetcher,
-					store *eds.Store,
+					store *store.Store,
 					construct header.ConstructFn,
 					opts []core.Option,
 				) (*core.Exchange, error) {
@@ -55,7 +55,7 @@ func ConstructModule(tp node.Type, cfg *Config, options ...fx.Option) fx.Option 
 					fetcher *core.BlockFetcher,
 					pubsub *shrexsub.PubSub,
 					construct header.ConstructFn,
-					store *eds.Store,
+					store *store.Store,
 					chainID p2p.Network,
 					opts []core.Option,
 				) (*core.Listener, error) {

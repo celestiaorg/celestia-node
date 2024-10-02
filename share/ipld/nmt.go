@@ -16,8 +16,7 @@ import (
 	mh "github.com/multiformats/go-multihash"
 	mhcore "github.com/multiformats/go-multihash/core"
 
-	"github.com/celestiaorg/celestia-app/pkg/appconsts"
-	"github.com/celestiaorg/celestia-app/pkg/da"
+	"github.com/celestiaorg/celestia-app/v2/pkg/appconsts"
 	"github.com/celestiaorg/nmt"
 
 	"github.com/celestiaorg/celestia-node/share"
@@ -39,11 +38,11 @@ const (
 	// NmtHashSize is the size of a digest created by an NMT in bytes.
 	NmtHashSize = 2*share.NamespaceSize + sha256.Size
 
-	// innerNodeSize is the size of data in inner nodes.
-	innerNodeSize = NmtHashSize * 2
+	// InnerNodeSize is the size of data in inner nodes.
+	InnerNodeSize = NmtHashSize * 2
 
-	// leafNodeSize is the size of data in leaf nodes.
-	leafNodeSize = share.NamespaceSize + appconsts.ShareSize
+	// LeafNodeSize is the size of data in leaf nodes.
+	LeafNodeSize = share.NamespaceSize + appconsts.ShareSize
 
 	// cidPrefixSize is the size of the prepended buffer of the CID encoding
 	// for NamespacedSha256. For more information, see:
@@ -100,12 +99,12 @@ func (n nmtNode) Links() []*ipld.Link {
 	switch len(n.RawData()) {
 	default:
 		panic(fmt.Sprintf("unexpected size %v", len(n.RawData())))
-	case innerNodeSize:
+	case InnerNodeSize:
 		leftCid := MustCidFromNamespacedSha256(n.RawData()[:NmtHashSize])
 		rightCid := MustCidFromNamespacedSha256(n.RawData()[NmtHashSize:])
 
 		return []*ipld.Link{{Cid: leftCid}, {Cid: rightCid}}
-	case leafNodeSize:
+	case LeafNodeSize:
 		return nil
 	}
 }
@@ -158,12 +157,12 @@ func MustCidFromNamespacedSha256(hash []byte) cid.Cid {
 
 // Translate transforms square coordinates into IPLD NMT tree path to a leaf node.
 // It also adds randomization to evenly spread fetching from Rows and Columns.
-func Translate(dah *da.DataAvailabilityHeader, row, col int) (cid.Cid, int) {
+func Translate(roots *share.AxisRoots, row, col int) (cid.Cid, int) {
 	if rand.Intn(2) == 0 { //nolint:gosec
-		return MustCidFromNamespacedSha256(dah.ColumnRoots[col]), row
+		return MustCidFromNamespacedSha256(roots.ColumnRoots[col]), row
 	}
 
-	return MustCidFromNamespacedSha256(dah.RowRoots[row]), col
+	return MustCidFromNamespacedSha256(roots.RowRoots[row]), col
 }
 
 // NamespacedSha256FromCID derives the Namespaced hash from the given CID.

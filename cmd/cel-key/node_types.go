@@ -10,6 +10,7 @@ import (
 	flag "github.com/spf13/pflag"
 
 	"github.com/celestiaorg/celestia-node/nodebuilder"
+	nodemod "github.com/celestiaorg/celestia-node/nodebuilder/node"
 	"github.com/celestiaorg/celestia-node/nodebuilder/p2p"
 )
 
@@ -42,32 +43,27 @@ func ParseDirectoryFlags(cmd *cobra.Command) error {
 		return nil
 	}
 
-	nodeType := cmd.Flag(nodeDirKey).Value.String()
-	if nodeType == "" {
-		return errors.New("no node type provided")
+	nodeTypeStr := cmd.Flag(nodeDirKey).Value.String()
+	nodeType := nodemod.ParseType(nodeTypeStr)
+	if !nodeType.IsValid() {
+		return errors.New("no or invalid node type provided")
 	}
 
-	network := cmd.Flag(networkKey).Value.String()
-	if net, err := p2p.Network(network).Validate(); err == nil {
-		network = string(net)
-	} else {
-		fmt.Println("WARNING: unknown network specified: ", network)
+	network, err := p2p.ParseNetwork(cmd)
+	if err != nil {
+		return err
 	}
-	switch nodeType {
-	case "bridge", "full", "light":
-		path, err := nodebuilder.DefaultNodeStorePath(nodeType, network)
-		if err != nil {
-			return err
-		}
 
-		keyPath := fmt.Sprintf("%s/keys", path)
-		fmt.Println("using directory: ", keyPath)
-		if err := cmd.Flags().Set(sdkflags.FlagKeyringDir, keyPath); err != nil {
-			return err
-		}
-	default:
-		return fmt.Errorf("node type %s is not valid. Provided node types: (bridge || full || light)",
-			nodeType)
+	path, err := nodebuilder.DefaultNodeStorePath(nodeType, network)
+	if err != nil {
+		return err
 	}
+
+	keyPath := fmt.Sprintf("%s/keys", path)
+	fmt.Println("using directory: ", keyPath)
+	if err := cmd.Flags().Set(sdkflags.FlagKeyringDir, keyPath); err != nil {
+		return err
+	}
+
 	return nil
 }

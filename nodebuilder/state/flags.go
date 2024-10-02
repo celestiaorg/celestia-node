@@ -27,6 +27,10 @@ func Flags() *flag.FlagSet {
 
 // ParseFlags parses State flags from the given cmd and saves them to the passed config.
 func ParseFlags(cmd *cobra.Command, cfg *Config) {
-	cfg.DefaultKeyName = cmd.Flag(keyringKeyNameFlag).Value.String()
-	cfg.DefaultBackendName = cmd.Flag(keyringBackendFlag).Value.String()
+	if cmd.Flag(keyringKeyNameFlag).Changed {
+		cfg.DefaultKeyName = cmd.Flag(keyringKeyNameFlag).Value.String()
+	}
+	if cmd.Flag(keyringBackendFlag).Changed {
+		cfg.DefaultBackendName = cmd.Flag(keyringBackendFlag).Value.String()
+	}
 }
