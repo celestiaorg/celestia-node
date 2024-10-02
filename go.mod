@@ -1,6 +1,6 @@
 module github.com/celestiaorg/celestia-node
 
-go 1.23.0
+go 1.23.2
 
 require (
 	cosmossdk.io/math v1.3.0
