@@ -1,0 +1,2 @@
+go test fuzz v1
+[]byte("{\"Commitment_proof\":{\"row_proof\":{\"proofs\":[{}]}},\"suB_threshold\":1}")
