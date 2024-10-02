@@ -2,7 +2,6 @@ package bitswap
 
 import (
 	"context"
-	"math/rand/v2"
 	"sync"
 	"testing"
 	"time"
@@ -17,6 +16,7 @@ import (
 	mocknet "github.com/libp2p/go-libp2p/p2p/net/mock"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"math/rand/v2"
 
 	"github.com/celestiaorg/rsmt2d"
 
