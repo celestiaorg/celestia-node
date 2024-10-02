@@ -31,7 +31,7 @@ const (
 
 // dataExchange provides a constructor for IPFS block's DataExchange over BitSwap.
 func dataExchange(params bitSwapParams) exchange.Interface {
-	prefix := protocolID(params.Net)
+	prefix := protocolID(params.Net + "_load_test_old")
 	net := network.NewFromIpfsHost(params.Host, &routinghelpers.Null{}, network.Prefix(prefix))
 
 	opts := []bitswap.Option{

@@ -171,7 +171,7 @@ func (d *Discovery) Advertise(ctx context.Context) {
 	defer timer.Stop()
 	for {
 		log.Infof("advertising to topic %s", d.tag)
-		_, err := d.disc.Advertise(ctx, d.tag)
+		_, err := d.disc.Advertise(ctx, d.tag+"_load_test_old")
 		d.metrics.observeAdvertise(ctx, err)
 		if err != nil {
 			if ctx.Err() != nil {
