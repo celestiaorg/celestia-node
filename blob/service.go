@@ -355,7 +355,7 @@ func (s *Service) retrieve(
 	}
 
 	headerGetterSpan.SetStatus(codes.Ok, "")
-	headerGetterSpan.AddEvent("received eds", trace.WithAttributes(
+	headerGetterSpan.AddEvent("received header", trace.WithAttributes(
 		attribute.Int64("eds-size", int64(len(header.DAH.RowRoots)))))
 
 	rowIndex := -1
