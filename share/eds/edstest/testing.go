@@ -1,6 +1,7 @@
 package edstest
 
 import (
+	"crypto/rand"
 	"testing"
 
 	"github.com/stretchr/testify/require"
@@ -17,7 +18,7 @@ import (
 	"github.com/celestiaorg/celestia-app/v2/x/blob/types"
 	"github.com/celestiaorg/go-square/blob"
 	"github.com/celestiaorg/go-square/namespace"
-	"github.com/celestiaorg/go-square/shares"
+	appshares "github.com/celestiaorg/go-square/shares"
 	"github.com/celestiaorg/go-square/square"
 	"github.com/celestiaorg/nmt"
 	"github.com/celestiaorg/rsmt2d"
@@ -31,37 +32,83 @@ const (
 	testChainID = "private"
 )
 
-func RandByzantineEDS(t testing.TB, size int, options ...nmt.Option) *rsmt2d.ExtendedDataSquare {
-	eds := RandEDS(t, size)
+func RandByzantineEDS(t testing.TB, odsSize int, options ...nmt.Option) *rsmt2d.ExtendedDataSquare {
+	eds := RandEDS(t, odsSize)
 	shares := eds.Flattened()
 	copy(share.GetData(shares[0]), share.GetData(shares[1])) // corrupting eds
-	eds, err := rsmt2d.ImportExtendedDataSquare(shares,
+	eds, err := rsmt2d.ImportExtendedDataSquare(
+		shares,
 		share.DefaultRSMT2DCodec(),
-		wrapper.NewConstructor(uint64(size),
-			options...))
+		wrapper.NewConstructor(uint64(odsSize), options...),
+	)
 	require.NoError(t, err, "failure to recompute the extended data square")
 	return eds
 }
 
 // RandEDS generates EDS filled with the random data with the given size for original square.
-func RandEDS(t testing.TB, size int) *rsmt2d.ExtendedDataSquare {
-	shares := sharetest.RandShares(t, size*size)
-	eds, err := rsmt2d.ComputeExtendedDataSquare(shares, share.DefaultRSMT2DCodec(), wrapper.NewConstructor(uint64(size)))
+func RandEDS(t testing.TB, odsSize int) *rsmt2d.ExtendedDataSquare {
+	shares := sharetest.RandShares(t, odsSize*odsSize)
+	eds, err := rsmt2d.ComputeExtendedDataSquare(
+		shares,
+		share.DefaultRSMT2DCodec(),
+		wrapper.NewConstructor(uint64(odsSize)),
+	)
 	require.NoError(t, err, "failure to recompute the extended data square")
 	return eds
 }
 
+// RandEDSWithTailPadding generates EDS of given ODS size filled with randomized and tail padding shares.
+func RandEDSWithTailPadding(t testing.TB, odsSize, padding int) *rsmt2d.ExtendedDataSquare {
+	shares := sharetest.RandShares(t, odsSize*odsSize)
+	for i := len(shares) - padding; i < len(shares); i++ {
+		paddingShare := appshares.TailPaddingShare()
+		shares[i] = paddingShare.ToBytes()
+	}
+
+	eds, err := rsmt2d.ComputeExtendedDataSquare(
+		shares,
+		share.DefaultRSMT2DCodec(),
+		wrapper.NewConstructor(uint64(odsSize)),
+	)
+	require.NoError(t, err, "failure to recompute the extended data square")
+	return eds
+}
+
+// RandEDSWithNamespace generates EDS with given square size. Returned EDS will have
+// namespacedAmount of shares with the given namespace.
 func RandEDSWithNamespace(
 	t testing.TB,
 	namespace share.Namespace,
-	size int,
-) (*rsmt2d.ExtendedDataSquare, *share.Root) {
-	shares := sharetest.RandSharesWithNamespace(t, namespace, size*size)
-	eds, err := rsmt2d.ComputeExtendedDataSquare(shares, share.DefaultRSMT2DCodec(), wrapper.NewConstructor(uint64(size)))
+	namespacedAmount, odsSize int,
+) (*rsmt2d.ExtendedDataSquare, *share.AxisRoots) {
+	shares := sharetest.RandSharesWithNamespace(t, namespace, namespacedAmount, odsSize*odsSize)
+	eds, err := rsmt2d.ComputeExtendedDataSquare(
+		shares,
+		share.DefaultRSMT2DCodec(),
+		wrapper.NewConstructor(uint64(odsSize)),
+	)
 	require.NoError(t, err, "failure to recompute the extended data square")
-	dah, err := share.NewRoot(eds)
+	roots, err := share.NewAxisRoots(eds)
 	require.NoError(t, err)
-	return eds, dah
+	return eds, roots
+}
+
+// RandomAxisRoots generates random share.AxisRoots for the given eds size.
+func RandomAxisRoots(t testing.TB, edsSize int) *share.AxisRoots {
+	roots := make([][]byte, edsSize*2)
+	for i := range roots {
+		root := make([]byte, edsSize)
+		_, err := rand.Read(root)
+		require.NoError(t, err)
+		roots[i] = root
+	}
+
+	rows := roots[:edsSize]
+	cols := roots[edsSize:]
+	return &share.AxisRoots{
+		RowRoots:    rows,
+		ColumnRoots: cols,
+	}
 }
 
 // GenerateTestBlock generates a set of test blocks with a specific blob size and number of
@@ -94,7 +141,7 @@ func GenerateTestBlock(
 	require.NoError(t, err)
 
 	// erasure the data square which we use to create the data root.
-	eds, err := da.ExtendShares(shares.ToBytes(dataSquare))
+	eds, err := da.ExtendShares(appshares.ToBytes(dataSquare))
 	require.NoError(t, err)
 
 	// create the new data root by creating the data availability header (merkle

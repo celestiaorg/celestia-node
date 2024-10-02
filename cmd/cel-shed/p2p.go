@@ -1,17 +1,28 @@
 package main
 
 import (
+	"context"
 	"crypto/rand"
 	"encoding/hex"
 	"fmt"
+	"os"
+	"sync"
+	"sync/atomic"
+	"time"
 
 	"github.com/libp2p/go-libp2p/core/crypto"
 	"github.com/libp2p/go-libp2p/core/peer"
 	"github.com/spf13/cobra"
+	"go.uber.org/fx"
+
+	"github.com/celestiaorg/celestia-node/nodebuilder"
+	"github.com/celestiaorg/celestia-node/nodebuilder/fraud"
+	"github.com/celestiaorg/celestia-node/nodebuilder/node"
+	"github.com/celestiaorg/celestia-node/nodebuilder/p2p"
 )
 
 func init() {
-	p2pCmd.AddCommand(p2pNewKeyCmd, p2pPeerIDCmd)
+	p2pCmd.AddCommand(p2pNewKeyCmd, p2pPeerIDCmd, p2pConnectBootstrappersCmd)
 }
 
 var p2pCmd = &cobra.Command{
@@ -74,4 +85,120 @@ var p2pPeerIDCmd = &cobra.Command{
 		return nil
 	},
 	Args: cobra.ExactArgs(1),
+}
+
+var (
+	errorOnAnyFailure bool
+	errorOnAllFailure bool
+	connectionTimeout time.Duration
+)
+
+var p2pConnectBootstrappersCmd = &cobra.Command{
+	Use:   "connect-bootstrappers [network]",
+	Short: "Connect to bootstrappers of a certain network",
+	RunE: func(cmd *cobra.Command, args []string) error {
+		if errorOnAnyFailure && errorOnAllFailure {
+			return fmt.Errorf("only one of --err-any and --err-all can be specified")
+		}
+
+		ctx, cancel := context.WithTimeout(cmd.Context(), connectionTimeout)
+		defer cancel()
+
+		network := p2p.GetNetwork(args[0])
+		bootstrappers, err := p2p.BootstrappersFor(network)
+		if err != nil {
+			return fmt.Errorf("failed to get bootstrappers: %w", err)
+		}
+
+		store := nodebuilder.NewMemStore()
+		cfg := p2p.DefaultConfig(node.Light)
+		modp2p := p2p.ConstructModule(node.Light, &cfg)
+
+		var mod p2p.Module
+		app := fx.New(
+			fx.NopLogger,
+			modp2p,
+			fx.Provide(fraud.Unmarshaler),
+			fx.Provide(cmd.Context),
+			fx.Provide(store.Keystore),
+			fx.Provide(store.Datastore),
+			fx.Supply(bootstrappers),
+			fx.Supply(network),
+			fx.Supply(node.Light),
+			fx.Invoke(func(modprov p2p.Module) {
+				mod = modprov
+			}),
+		)
+
+		if err := app.Start(ctx); err != nil {
+			return fmt.Errorf("failed to start app: %w", err)
+		}
+		defer func() {
+			if err := app.Stop(ctx); err != nil {
+				fmt.Printf("failed to stop application: %v\n", err)
+			}
+		}()
+
+		p2pInfo, err := mod.Info(ctx)
+		if err != nil {
+			return fmt.Errorf("failed to get p2p info: %w", err)
+		}
+
+		fmt.Printf("PeerID: %s\n", p2pInfo.ID)
+		for _, addr := range p2pInfo.Addrs {
+			fmt.Printf("Listening on: %s\n", addr.String())
+		}
+		fmt.Println()
+
+		var successfulConnections atomic.Int32
+		var failedConnections atomic.Int32
+		var wg sync.WaitGroup
+
+		for _, bootstrapper := range bootstrappers {
+			wg.Add(1)
+			go func(bootstrapper peer.AddrInfo) {
+				defer wg.Done()
+				fmt.Printf("Attempting to connect to bootstrapper: %s\n", bootstrapper)
+				if err := mod.Connect(ctx, bootstrapper); err != nil {
+					fmt.Printf("Error: Failed to connect to bootstrapper %s. Reason: %v\n", bootstrapper, err)
+					failedConnections.Add(1)
+					return
+				}
+				fmt.Printf("Success: Connected to bootstrapper: %s\n", bootstrapper)
+				successfulConnections.Add(1)
+			}(bootstrapper)
+		}
+
+		wg.Wait()
+
+		if failedConnections.Load() == int32(len(bootstrappers)) && errorOnAllFailure {
+			fmt.Println()
+			fmt.Println("failed to connect to all bootstrappers")
+			os.Exit(1)
+			return nil
+		} else if failedConnections.Load() > 0 && errorOnAnyFailure {
+			fmt.Println()
+			fmt.Println("failed to connect to some bootstrappers")
+			os.Exit(1)
+			return nil
+		}
+
+		return nil
+	},
+	Args: cobra.ExactArgs(1),
+}
+
+func init() {
+	p2pConnectBootstrappersCmd.Flags().BoolVar(
+		&errorOnAnyFailure, "err-any", false,
+		"Return error if at least one bootstrapper is not reachable",
+	)
+	p2pConnectBootstrappersCmd.Flags().BoolVar(
+		&errorOnAllFailure, "err-all", false,
+		"Return error if no bootstrapper is reachable",
+	)
+	p2pConnectBootstrappersCmd.Flags().DurationVar(
+		&connectionTimeout, "timeout", 10*time.Second,
+		"Timeout duration for the entire bootstrapper connection process",
+	)
 }

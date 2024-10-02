@@ -149,12 +149,12 @@ func ParseMiscFlags(ctx context.Context, cmd *cobra.Command) (context.Context, e
 		}
 	}
 
-	ok, err := cmd.Flags().GetBool(pprofFlag)
+	enablePprof, err := cmd.Flags().GetBool(pprofFlag)
 	if err != nil {
 		panic(err)
 	}
 
-	if ok {
+	if enablePprof {
 		// TODO(@Wondertan): Eventually, this should be registered on http server in RPC
 		//  by passing the http.Server with preregistered pprof handlers to the node.
 		//  Node should not register pprof itself.
@@ -174,12 +174,12 @@ func ParseMiscFlags(ctx context.Context, cmd *cobra.Command) (context.Context, e
 		}()
 	}
 
-	ok, err = cmd.Flags().GetBool(pyroscopeFlag)
+	enablePyro, err := cmd.Flags().GetBool(pyroscopeFlag)
 	if err != nil {
 		panic(err)
 	}
 
-	if ok {
+	if enablePyro {
 		ctx = WithNodeOptions(ctx,
 			nodebuilder.WithPyroscope(
 				cmd.Flag(pyroscopeEndpoint).Value.String(),
@@ -188,12 +188,12 @@ func ParseMiscFlags(ctx context.Context, cmd *cobra.Command) (context.Context, e
 		)
 	}
 
-	ok, err = cmd.Flags().GetBool(tracingFlag)
+	enableTracing, err := cmd.Flags().GetBool(tracingFlag)
 	if err != nil {
 		panic(err)
 	}
 
-	if ok {
+	if enableTracing {
 		opts := []otlptracehttp.Option{
 			otlptracehttp.WithCompression(otlptracehttp.GzipCompression),
 			otlptracehttp.WithEndpoint(cmd.Flag(tracingEndpointFlag).Value.String()),
@@ -205,11 +205,11 @@ func ParseMiscFlags(ctx context.Context, cmd *cobra.Command) (context.Context, e
 		}
 
 		pyroOpts := make([]otelpyroscope.Option, 0)
-		ok, err = cmd.Flags().GetBool(pyroscopeTracing)
+		enablePyroTracing, err := cmd.Flags().GetBool(pyroscopeTracing)
 		if err != nil {
 			panic(err)
 		}
-		if ok {
+		if enablePyroTracing {
 			pyroOpts = append(pyroOpts,
 				otelpyroscope.WithAppName("celestia.da-node"),
 				otelpyroscope.WithPyroscopeURL(cmd.Flag(pyroscopeEndpoint).Value.String()),
@@ -222,12 +222,12 @@ func ParseMiscFlags(ctx context.Context, cmd *cobra.Command) (context.Context, e
 		ctx = WithNodeOptions(ctx, nodebuilder.WithTraces(opts, pyroOpts))
 	}
 
-	ok, err = cmd.Flags().GetBool(metricsFlag)
+	enableMetrics, err := cmd.Flags().GetBool(metricsFlag)
 	if err != nil {
 		panic(err)
 	}
 
-	if ok {
+	if enableMetrics {
 		opts := []otlpmetrichttp.Option{
 			otlpmetrichttp.WithCompression(otlpmetrichttp.GzipCompression),
 			otlpmetrichttp.WithEndpoint(cmd.Flag(metricsEndpointFlag).Value.String()),
@@ -241,13 +241,13 @@ func ParseMiscFlags(ctx context.Context, cmd *cobra.Command) (context.Context, e
 		ctx = WithNodeOptions(ctx, nodebuilder.WithMetrics(opts, NodeType(ctx)))
 	}
 
-	ok, err = cmd.Flags().GetBool(p2pMetrics)
+	enablep2pMetrics, err := cmd.Flags().GetBool(p2pMetrics)
 	if err != nil {
 		panic(err)
 	}
 
-	if ok {
-		if metricsEnabled, _ := cmd.Flags().GetBool(metricsFlag); !metricsEnabled {
+	if enablep2pMetrics {
+		if !enableMetrics {
 			log.Error("--p2p.metrics used without --metrics being enabled")
 		} else {
 			ctx = WithNodeOptions(ctx, modp2p.WithMetrics())

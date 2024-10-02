@@ -201,7 +201,7 @@ func (eh *ExtendedHeader) Verify(untrst *ExtendedHeader) error {
 	if err := eh.ValidatorSet.VerifyCommitLightTrusting(eh.ChainID(), untrst.Commit, light.DefaultTrustLevel); err != nil {
 		return &libhead.VerifyError{
 			Reason:      fmt.Errorf("%w: %w", ErrVerifyCommitLightTrustingFailed, err),
-			SoftFailure: true,
+			SoftFailure: core.IsErrNotEnoughVotingPowerSigned(err),
 		}
 	}
 	return nil
