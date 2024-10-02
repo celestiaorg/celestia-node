@@ -11,6 +11,7 @@ import (
 	"time"
 
 	sdktypes "github.com/cosmos/cosmos-sdk/types"
+	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
 	"github.com/celestiaorg/celestia-app/v2/app"
@@ -148,6 +149,15 @@ func TestTransfer(t *testing.T) {
 	}
 }
 
+func TestChainIDMismatch(t *testing.T) {
+	ctx := context.Background()
+	ca, _ := buildAccessor(t)
+	ca.network = "mismatch"
+	// start the accessor
+	err := ca.Start(ctx)
+	assert.ErrorContains(t, err, "wrong network")
+}
+
 func TestDelegate(t *testing.T) {
 	ctx := context.Background()
 	ca, accounts := buildAccessor(t)
@@ -253,7 +263,7 @@ func buildAccessor(t *testing.T) (*CoreAccessor, []string) {
 		WithAppCreator(appCreator) // needed until https://github.com/celestiaorg/celestia-app/pull/3680 merges
 	cctx, _, grpcAddr := testnode.NewNetwork(t, config)
 
-	ca, err := NewCoreAccessor(cctx.Keyring, accounts[0].Name, nil, "127.0.0.1", extractPort(grpcAddr))
+	ca, err := NewCoreAccessor(cctx.Keyring, accounts[0].Name, nil, "127.0.0.1", extractPort(grpcAddr), chainID)
 	require.NoError(t, err)
 	return ca, getNames(accounts)
 }
