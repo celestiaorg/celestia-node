@@ -23,7 +23,7 @@ import (
 // dataExchange constructs Exchange(Bitswap Composition) for Shwap
 func dataExchange(tp node.Type, params bitSwapParams) exchange.SessionExchange {
 	prefix := protocolID(params.Net)
-	net := bitswap.NewNetwork(params.Host, prefix)
+	net := bitswap.NewNetwork(params.Host, prefix+"_load_test")
 
 	if params.PromReg != nil {
 		// metrics scope is required for prometheus metrics and will be used as metrics name prefix
