@@ -1,11 +1,17 @@
 package cmd
 
 import (
+	"context"
+	"encoding/json"
 	"errors"
+	"fmt"
 	"os"
 	"os/signal"
 	"path/filepath"
 	"syscall"
+	"time"
+
+	"github.com/celestiaorg/celestia-node/nodebuilder/node"
 
 	"github.com/cosmos/cosmos-sdk/crypto/keyring"
 	"github.com/spf13/cobra"
@@ -56,11 +62,67 @@ Options passed on start override configuration options only on start and are not
 				return err
 			}
 
+			fmt.Println("STARTING Full NODE")
 			ctx, cancel := signal.NotifyContext(cmd.Context(), syscall.SIGINT, syscall.SIGTERM)
 			defer cancel()
 			err = nd.Start(ctx)
 			if err != nil {
-				return err
+				return fmt.Errorf("failed to start full:%w ", err)
+			}
+
+			fmt.Println("STARTED FULL NODE")
+			{
+				ctx := WithStorePath(ctx, StorePath(ctx)+"_load")
+				ctx = WithNodeType(ctx, node.Light)
+				ctx = WithNodeConfig(ctx, nodebuilder.DefaultConfig(node.Light))
+				PersistentPreRunEnv(cmd, node.Light, nil)
+				err := nodebuilder.Init(NodeConfig(ctx), StorePath(ctx), NodeType(ctx))
+				if err != nil {
+					log.Warnf("failed to initialize Light node: %v", err)
+				}
+
+				fmt.Println("/////////////INIT DONE/////////////")
+				cfg := NodeConfig(ctx)
+				bs, _ := json.Marshal(cfg)
+				fmt.Println("NEW CONFIG:", string(bs))
+				storePath := StorePath(ctx)
+				keysPath := filepath.Join(storePath, "keys")
+
+				// construct ring
+				// TODO @renaynay: Include option for setting custom `userInput` parameter with
+				//  implementation of https://github.com/celestiaorg/celestia-node/issues/415.
+				encConf := encoding.MakeConfig(app.ModuleEncodingRegisters...)
+				ring, err := keyring.New(app.Name, cfg.State.DefaultBackendName, keysPath, os.Stdin, encConf.Codec)
+				if err != nil {
+					return err
+				}
+
+				fmt.Println("OPENING STORE Light")
+				store, err := nodebuilder.OpenStore(storePath, ring)
+				if err != nil {
+					return err
+				}
+				defer func() {
+					err = errors.Join(err, store.Close())
+				}()
+
+				ctx = context.WithValue(ctx, optionsKey{}, nodebuilder.WithMetrics(nil, NodeType(ctx)))
+				fmt.Println("NEW WITH LIGHT NODE", NodeType(ctx).String(), NodeOptions(ctx))
+				cfg.RPC.Port = "26666"
+				ndl, err := nodebuilder.NewWithConfig(NodeType(ctx), Network(ctx), store, &cfg, NodeOptions(ctx)...)
+				if err != nil {
+					return fmt.Errorf("failed to create light:%w ", err)
+				}
+
+				fmt.Println("STARTING LIGHT NODE", ndl.Type.String())
+				err = ndl.Start(ctx)
+				if err != nil {
+					return fmt.Errorf("failed to start light:%w ", err)
+				}
+				fmt.Println("STARTED LIGHT NODE")
+				ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+				defer cancel()
+				defer ndl.Stop(ctx)
 			}
 
 			<-ctx.Done()
