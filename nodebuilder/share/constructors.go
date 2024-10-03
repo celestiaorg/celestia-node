@@ -85,6 +85,6 @@ func fullGetter(
 	if cfg.UseShareExchange {
 		cascade = append(cascade, shrexGetter)
 	}
-	cascade = append(cascade, ipldGetter)
+	// cascade = append(cascade, ipldGetter)
 	return getters.NewCascadeGetter(cascade)
 }
