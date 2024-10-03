@@ -63,7 +63,7 @@ func newSamplingCoordinator(
 }
 
 func (sc *samplingCoordinator) run(ctx context.Context, cp checkpoint) {
-	if sc.concurrencyLimit == 512 {
+	if sc.concurrencyLimit > 20 {
 		fmt.Println("LOOK FOR HEADERS")
 		for i := sampleFrom; i < sampleTo; i++ {
 			h, err := sc.getter.GetByHeight(ctx, uint64(i))
@@ -123,7 +123,7 @@ func (sc *samplingCoordinator) run(ctx context.Context, cp checkpoint) {
 
 // runWorker runs job in separate worker go-routine
 func (sc *samplingCoordinator) runWorker(ctx context.Context, j job) {
-	w := newWorker(j, sc.getter, sc.sampleFn, sc.broadcastFn, sc.metrics, sc.concurrencyLimit == 512)
+	w := newWorker(j, sc.getter, sc.sampleFn, sc.broadcastFn, sc.metrics, sc.concurrencyLimit > 20)
 	sc.state.putInProgress(j.id, w.getState)
 
 	// launch worker go-routine
