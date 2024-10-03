@@ -11,6 +11,10 @@ import (
 	"syscall"
 	"time"
 
+	"go.uber.org/fx"
+
+	"go.opentelemetry.io/otel/exporters/otlp/otlpmetric/otlpmetrichttp"
+
 	"github.com/celestiaorg/celestia-node/nodebuilder/node"
 
 	"github.com/cosmos/cosmos-sdk/crypto/keyring"
@@ -106,7 +110,16 @@ Options passed on start override configuration options only on start and are not
 					err = errors.Join(err, store.Close())
 				}()
 
-				ctx = context.WithValue(ctx, optionsKey{}, nodebuilder.WithMetrics(nil, NodeType(ctx)))
+				opts := []otlpmetrichttp.Option{
+					otlpmetrichttp.WithCompression(otlpmetrichttp.GzipCompression),
+					otlpmetrichttp.WithEndpoint(cmd.Flag(metricsEndpointFlag).Value.String()),
+				}
+				if ok, err := cmd.Flags().GetBool(metricsTlS); err != nil {
+					panic(err)
+				} else if !ok {
+					opts = append(opts, otlpmetrichttp.WithInsecure())
+				}
+				ctx = context.WithValue(ctx, optionsKey{}, []fx.Option{nodebuilder.WithMetrics(opts, NodeType(ctx))})
 				fmt.Println("NEW WITH LIGHT NODE", NodeType(ctx).String(), NodeOptions(ctx))
 				cfg.RPC.Port = "26666"
 				ndl, err := nodebuilder.NewWithConfig(NodeType(ctx), Network(ctx), store, &cfg, NodeOptions(ctx)...)
