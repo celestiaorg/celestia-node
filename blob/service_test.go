@@ -28,6 +28,7 @@ import (
 	blobtypes "github.com/celestiaorg/celestia-app/v3/x/blob/types"
 	"github.com/celestiaorg/go-header/store"
 	"github.com/celestiaorg/go-square/merkle"
+	libsquare "github.com/celestiaorg/go-square/v2"
 	"github.com/celestiaorg/go-square/v2/inclusion"
 	libshare "github.com/celestiaorg/go-square/v2/share"
 	"github.com/celestiaorg/nmt"
@@ -407,8 +408,8 @@ func TestBlobService_Get(t *testing.T) {
 					GetSharesByNamespace(gomock.Any(), gomock.Any(), gomock.Any()).
 					DoAndReturn(
 						func(
-							ctx context.Context, h *header.ExtendedHeader, ns share.Namespace,
-						) (share.NamespacedShares, error) {
+							ctx context.Context, h *header.ExtendedHeader, ns libshare.Namespace,
+						) (shwap.NamespaceData, error) {
 							if ns.Equals(blobsWithDiffNamespaces[0].Namespace()) {
 								return nil, errors.New("internal error")
 							}
@@ -437,7 +438,7 @@ func TestBlobService_Get(t *testing.T) {
 			name: "get blob internal error",
 			doFn: func() (interface{}, error) {
 				ctrl := gomock.NewController(t)
-				shareGetterMock := shareMock.NewMockModule(ctrl)
+				shareGetterMock := mock.NewMockGetter(ctrl)
 				shareGetterMock.EXPECT().
 					GetEDS(gomock.Any(), gomock.Any()).
 					DoAndReturn(
@@ -852,9 +853,10 @@ func BenchmarkGetByCommitment(b *testing.B) {
 
 func createServiceWithSub(ctx context.Context, t *testing.T, blobs []*Blob) *Service {
 	acc := "test"
-	kr := testfactory.GenerateKeyring(acc)
-	signer := blobtypes.NewKeyringSigner(kr, acc, "test")
-	addr, err := signer.GetSignerInfo().GetAddress()
+	config := encoding.MakeConfig(app.ModuleEncodingRegisters...)
+	keyring := testfactory.TestKeyring(config.Codec, acc)
+	account := user.NewAccount(acc, 0, 0)
+	signer, err := user.NewSigner(keyring, config.TxConfig, testfactory.ChainID, appconsts.LatestVersion, account)
 	require.NoError(t, err)
 
 	bs := ipld.NewMemBlockservice()
@@ -864,20 +866,16 @@ func createServiceWithSub(ctx context.Context, t *testing.T, blobs []*Blob) *Ser
 	edsses := make([]*rsmt2d.ExtendedDataSquare, len(blobs))
 
 	for i, blob := range blobs {
-		msg, err := blobtypes.NewMsgPayForBlobs(
-			addr.String(),
-			&blob.Blob,
-		)
 		require.NoError(t, err)
-		coreTx := edstest.BuildCoreTx(t, signer, msg, &blob.Blob)
-		dataSquare, err := square.Construct(
+		coreTx := edstest.BuildCoreTx(t, signer, acc, blob.Blob)
+		dataSquare, err := libsquare.Construct(
 			coretypes.Txs{coreTx}.ToSliceOfBytes(),
-			appconsts.LatestVersion,
 			appconsts.SquareSizeUpperBound(appconsts.LatestVersion),
+			appconsts.SubtreeRootThreshold(appconsts.LatestVersion),
 		)
 		require.NoError(t, err)
 
-		eds, err := ipld.AddShares(ctx, shares.ToBytes(dataSquare), bs)
+		eds, err := ipld.AddShares(ctx, dataSquare, bs)
 		require.NoError(t, err)
 		edsses[i] = eds
 	}
@@ -936,6 +934,10 @@ func createService(ctx context.Context, t testing.TB, shares []libshare.Share) *
 		DoAndReturn(func(ctx context.Context, h *header.ExtendedHeader, row, col int) (libshare.Share, error) {
 			s, err := accessor.Sample(ctx, row, col)
 			return s.Share, err
+		})
+	shareGetter.EXPECT().GetEDS(gomock.Any(), gomock.Any()).AnyTimes().
+		DoAndReturn(func(context.Context, *header.ExtendedHeader) (*rsmt2d.ExtendedDataSquare, error) {
+			return square, nil
 		})
 
 	// create header and put it into the store
@@ -1066,7 +1068,7 @@ func generateCommitmentProofFromBlock(
 		ranges, err := nmt.ToLeafRanges(
 			int(proof.Start),
 			int(proof.End),
-			inclusion.SubTreeWidth(len(blobShares), subtreeRootThreshold),
+			inclusion.SubTreeWidth(len(blobShares), appconsts.DefaultSubtreeRootThreshold),
 		)
 		require.NoError(t, err)
 		roots, err := computeSubtreeRoots(
@@ -1141,9 +1143,20 @@ func TestBlobVerify(t *testing.T) {
 	require.NoError(t, err)
 	require.NoError(t, sharesProof.Validate(dataRoot))
 
+	tmShareToRowRootProofs := make([]*types.NMTProof, 0, len(sharesProof.ShareProofs))
+	for _, proof := range sharesProof.ShareProofs {
+		tmShareToRowRootProofs = append(tmShareToRowRootProofs, &types.NMTProof{
+			Start:    proof.Start,
+			End:      proof.End,
+			Nodes:    proof.Nodes,
+			LeafHash: proof.LeafHash,
+		})
+	}
+
+	coreRowProof := toCoreRowProof(sharesProof.RowProof)
 	blobProof := Proof{
-		ShareToRowRootProof: sharesProof.ShareProofs,
-		RowToDataRootProof:  sharesProof.RowProof,
+		ShareToRowRootProof: tmShareToRowRootProofs,
+		RowToDataRootProof:  coreRowProof,
 	}
 	tests := []struct {
 		name      string
@@ -1222,14 +1235,25 @@ func TestBlobVerify(t *testing.T) {
 				sharesProof, err := pkgproof.NewShareInclusionProofFromEDS(
 					eds,
 					nss[5],
-					shares.NewRange(startShareIndex, startShareIndex+len(blobShares)),
+					libshare.NewRange(startShareIndex, startShareIndex+len(blobShares)),
 				)
 				require.NoError(t, err)
 				require.NoError(t, sharesProof.Validate(dataRoot))
 
+				tmShareToRowRootProofs := make([]*types.NMTProof, 0, len(sharesProof.ShareProofs))
+				for _, proof := range sharesProof.ShareProofs {
+					tmShareToRowRootProofs = append(tmShareToRowRootProofs, &types.NMTProof{
+						Start:    proof.Start,
+						End:      proof.End,
+						Nodes:    proof.Nodes,
+						LeafHash: proof.LeafHash,
+					})
+				}
+
+				coreRowProof := toCoreRowProof(sharesProof.RowProof)
 				return Proof{
-					ShareToRowRootProof: sharesProof.ShareProofs,
-					RowToDataRootProof:  sharesProof.RowProof,
+					ShareToRowRootProof: tmShareToRowRootProofs,
+					RowToDataRootProof:  coreRowProof,
 				}
 			}(),
 		},
@@ -1245,5 +1269,25 @@ func TestBlobVerify(t *testing.T) {
 				assert.True(t, valid)
 			}
 		})
+	}
+}
+
+func toCoreRowProof(proof *pkgproof.RowProof) coretypes.RowProof {
+	tmRowRoots := make([]bytes2.HexBytes, 0, len(proof.RowRoots))
+	tmRowProofs := make([]*merkle.Proof, 0, len(proof.RowRoots))
+	for index, root := range proof.RowRoots {
+		tmRowRoots = append(tmRowRoots, root)
+		tmRowProofs = append(tmRowProofs, &merkle.Proof{
+			Total:    proof.Proofs[index].Total,
+			Index:    proof.Proofs[index].Index,
+			LeafHash: proof.Proofs[index].LeafHash,
+			Aunts:    proof.Proofs[index].Aunts,
+		})
+	}
+	return coretypes.RowProof{
+		RowRoots: tmRowRoots,
+		Proofs:   tmRowProofs,
+		StartRow: proof.StartRow,
+		EndRow:   proof.EndRow,
 	}
 }
