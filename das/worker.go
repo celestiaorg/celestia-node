@@ -4,7 +4,6 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"math/rand"
 	"os"
 	"sync"
 	"time"
@@ -18,11 +17,19 @@ import (
 var (
 	sampleFromStr     = os.Getenv("SAMPLE_FROM")
 	sampleFrom        int
-	defaultSampleFrom = 5555
+	defaultSampleFrom = 11
 	sampleToStr       = os.Getenv("SAMPLE_TO")
 	sampleTo          int
-	defaultSampleTo   = 2000000
+	defaultSampleTo   = 200000
+
+	lk           sync.Mutex
+	heightsStack = make([]*header.ExtendedHeader, 0)
 )
+
+type headerC struct {
+	count int
+	h     *header.ExtendedHeader
+}
 
 type jobType string
 
@@ -92,18 +99,25 @@ func (w *worker) run(ctx context.Context, timeout time.Duration, resultCh chan<-
 	skipped := 0
 
 	if w.isLoadtest {
+		if w.state.jobType == recentJob {
+			// fmt.Println("LOADTEST: skip recent")
+			return
+		}
 		for {
-			rnd := rand.Intn(sampleTo-sampleFrom) + sampleFrom
-			fmt.Println("LOADTEST", rnd)
-			err := w.sample(ctx, time.Minute, uint64(rnd))
+			now := time.Now()
+			err := w.sample(ctx, time.Second*50, 0, true)
 			if err != nil {
-				log.Warn("LOADTEST: failed to sample header", "height", rnd, "err", err)
+				// fmt.Println("LOADTEST: failed to sample header", "height", rnd, time.Since(now), "err", err)
+				continue
 			}
-			fmt.Println("LOADTEST DONE!", rnd, err)
+			if time.Since(now) > time.Second*5 {
+				fmt.Println("LOADTEST: took too long", time.Since(now))
+			}
 		}
 	}
+
 	for curr := w.state.from; curr <= w.state.to; curr++ {
-		err := w.sample(ctx, timeout, curr)
+		err := w.sample(ctx, timeout, curr, false)
 		if errors.Is(err, context.Canceled) {
 			// sampling worker will resume upon restart
 			return
@@ -133,17 +147,35 @@ func (w *worker) run(ctx context.Context, timeout time.Duration, resultCh chan<-
 	}
 }
 
-func (w *worker) sample(ctx context.Context, timeout time.Duration, height uint64) error {
-	h, err := w.getHeader(ctx, height)
-	if err != nil {
-		return err
+func (w *worker) sample(ctx context.Context, timeout time.Duration, height uint64, isLoadTest bool) error {
+	var h *header.ExtendedHeader
+	if isLoadTest {
+		lk.Lock()
+		if len(heightsStack) <= 0 {
+			lk.Unlock()
+			panic("no headers to sample")
+		}
+		h = heightsStack[len(heightsStack)-1]
+		heightsStack = heightsStack[:len(heightsStack)-1]
+		lk.Unlock()
+		defer func() {
+			lk.Lock()
+			heightsStack = append(heightsStack, h)
+			lk.Unlock()
+		}()
+	} else {
+		hh, err := w.getHeader(ctx, height)
+		if err != nil {
+			return err
+		}
+		h = hh
 	}
 
 	start := time.Now()
 	ctx, cancel := context.WithTimeout(ctx, timeout)
 	defer cancel()
 
-	err = w.sampleFn(ctx, h)
+	err := w.sampleFn(ctx, h)
 	if errors.Is(err, errOutsideSamplingWindow) {
 		// if header is outside sampling window, do not log
 		// or record it.
@@ -185,6 +217,7 @@ func (w *worker) sample(ctx context.Context, timeout time.Duration, height uint6
 
 	logout(
 		"sampled header",
+		"is_load_test", w.isLoadtest,
 		"type", w.state.jobType,
 		"height", h.Height(),
 		"hash", h.Hash(),

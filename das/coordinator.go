@@ -2,6 +2,7 @@ package das
 
 import (
 	"context"
+	"fmt"
 	"sync"
 	"time"
 
@@ -62,6 +63,26 @@ func newSamplingCoordinator(
 }
 
 func (sc *samplingCoordinator) run(ctx context.Context, cp checkpoint) {
+	if sc.concurrencyLimit == 512 {
+		fmt.Println("LOOK FOR HEADERS")
+		for i := sampleFrom; i < sampleTo; i++ {
+			h, err := sc.getter.GetByHeight(ctx, uint64(i))
+			if err != nil {
+				continue
+			}
+			if len(h.DAH.RowRoots) > 63 {
+				heightsStack = append(heightsStack, h)
+				if len(heightsStack) > sc.concurrencyLimit+10 {
+					break
+				}
+				fmt.Println("////////////////found ", len(heightsStack), i)
+			}
+		}
+		if len(heightsStack) < sc.concurrencyLimit+5 {
+			log.Fatalf("didn't find enough headers: %v", len(heightsStack))
+		}
+	}
+
 	sc.state.resumeFromCheckpoint(cp)
 
 	// resume workers
@@ -102,7 +123,7 @@ func (sc *samplingCoordinator) run(ctx context.Context, cp checkpoint) {
 
 // runWorker runs job in separate worker go-routine
 func (sc *samplingCoordinator) runWorker(ctx context.Context, j job) {
-	w := newWorker(j, sc.getter, sc.sampleFn, sc.broadcastFn, sc.metrics, sc.concurrencyLimit == 256)
+	w := newWorker(j, sc.getter, sc.sampleFn, sc.broadcastFn, sc.metrics, sc.concurrencyLimit == 512)
 	sc.state.putInProgress(j.id, w.getState)
 
 	// launch worker go-routine
