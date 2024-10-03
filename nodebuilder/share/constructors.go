@@ -57,6 +57,6 @@ func bridgeAndFullGetter(
 	if cfg.UseShareExchange {
 		cascade = append(cascade, shrexGetter)
 	}
-	cascade = append(cascade, bitswapGetter)
+	// cascade = append(cascade, bitswapGetter)
 	return getters.NewCascadeGetter(cascade)
 }
