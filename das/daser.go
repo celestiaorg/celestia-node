@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"strconv"
 	"sync/atomic"
 
 	"github.com/ipfs/go-datastore"
@@ -13,7 +14,6 @@ import (
 	libhead "github.com/celestiaorg/go-header"
 
 	"github.com/celestiaorg/celestia-node/header"
-	"github.com/celestiaorg/celestia-node/pruner"
 	"github.com/celestiaorg/celestia-node/share"
 	"github.com/celestiaorg/celestia-node/share/eds/byzantine"
 	"github.com/celestiaorg/celestia-node/share/shwap/p2p/shrex/shrexsub"
@@ -68,6 +68,26 @@ func NewDASer(
 		store:          newCheckpointStore(dstore),
 		subscriber:     newSubscriber(),
 		subscriberDone: make(chan struct{}),
+	}
+
+	if sampleFromStr == "" {
+		sampleFrom = defaultSampleFrom
+	} else {
+		var err error
+		sampleFrom, err = strconv.Atoi(sampleFromStr)
+		if err != nil {
+			panic(err)
+		}
+	}
+
+	if sampleToStr == "" {
+		sampleTo = defaultSampleTo
+	} else {
+		var err error
+		sampleTo, err = strconv.Atoi(sampleToStr)
+		if err != nil {
+			panic(err)
+		}
 	}
 
 	for _, applyOpt := range options {
@@ -162,11 +182,11 @@ func (d *DASer) Stop(ctx context.Context) error {
 func (d *DASer) sample(ctx context.Context, h *header.ExtendedHeader) error {
 	// short-circuit if pruning is enabled and the header is outside the
 	// availability window
-	if !pruner.IsWithinAvailabilityWindow(h.Time(), d.params.samplingWindow) {
-		log.Debugw("skipping header outside sampling window", "height", h.Height(),
-			"time", h.Time())
-		return errOutsideSamplingWindow
-	}
+	//if !pruner.IsWithinAvailabilityWindow(h.Time(), d.params.samplingWindow) {
+	//	log.Debugw("skipping header outside sampling window", "height", h.Height(),
+	//		"time", h.Time())
+	//	return errOutsideSamplingWindow
+	//}
 
 	err := d.da.SharesAvailable(ctx, h)
 	if err != nil {
