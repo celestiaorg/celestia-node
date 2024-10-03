@@ -89,7 +89,6 @@ func TestDaModule(t *testing.T) {
 		{
 			name: "GetProofs + Validate",
 			doFn: func(t *testing.T) {
-				t.Skip()
 				h, _ := da.SplitID(ids[0])
 				lightClient.Header.WaitForHeight(ctx, h)
 				proofs, err := lightClient.DA.GetProofs(ctx, ids, namespace)
@@ -105,11 +104,13 @@ func TestDaModule(t *testing.T) {
 		{
 			name: "GetIDs",
 			doFn: func(t *testing.T) {
-				t.Skip()
 				height, _ := da.SplitID(ids[0])
-				ids2, err := fullClient.DA.GetIDs(ctx, height, namespace)
+				result, err := fullClient.DA.GetIDs(ctx, height, namespace)
 				require.NoError(t, err)
-				require.EqualValues(t, ids, ids2)
+				require.EqualValues(t, ids, result.IDs)
+				header, err := lightClient.Header.GetByHeight(ctx, height)
+				require.NoError(t, err)
+				require.EqualValues(t, header.Time(), result.Timestamp)
 			},
 		},
 		{
@@ -128,8 +129,7 @@ func TestDaModule(t *testing.T) {
 		{
 			name: "Commit",
 			doFn: func(t *testing.T) {
-				t.Skip()
-				fetched, err := fullClient.DA.Commit(ctx, ids, namespace)
+				fetched, err := fullClient.DA.Commit(ctx, daBlobs, namespace)
 				require.NoError(t, err)
 				require.Len(t, fetched, len(ids))
 				for i := range fetched {
@@ -138,10 +138,33 @@ func TestDaModule(t *testing.T) {
 				}
 			},
 		},
+		{
+			name: "SubmitWithOptions - valid",
+			doFn: func(t *testing.T) {
+				ids, err := fullClient.DA.SubmitWithOptions(ctx, daBlobs, -1, namespace, []byte(`{"key_name": "validator"}`))
+				require.NoError(t, err)
+				require.NotEmpty(t, ids)
+			},
+		},
+		{
+			name: "SubmitWithOptions - invalid JSON",
+			doFn: func(t *testing.T) {
+				ids, err := fullClient.DA.SubmitWithOptions(ctx, daBlobs, -1, namespace, []byte("not JSON"))
+				require.Error(t, err)
+				require.Nil(t, ids)
+			},
+		},
+		{
+			name: "SubmitWithOptions - invalid key name",
+			doFn: func(t *testing.T) {
+				ids, err := fullClient.DA.SubmitWithOptions(ctx, daBlobs, -1, namespace, []byte(`{"key_name": "invalid"}`))
+				require.Error(t, err)
+				require.Nil(t, ids)
+			},
+		},
 	}
 
 	for _, tt := range test {
-		tt := tt
 		t.Run(tt.name, func(t *testing.T) {
 			tt.doFn(t)
 		})

@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"path/filepath"
+	"time"
 
 	"github.com/spf13/cobra"
 	flag "github.com/spf13/pflag"
@@ -18,6 +19,7 @@ import (
 var (
 	requestURL    string
 	authTokenFlag string
+	timeoutFlag   time.Duration
 )
 
 func RPCFlags() *flag.FlagSet {
@@ -35,6 +37,13 @@ func RPCFlags() *flag.FlagSet {
 		"token",
 		"",
 		"Authorization token",
+	)
+
+	fset.DurationVar(
+		&timeoutFlag,
+		"timeout",
+		0,
+		"Timeout for RPC requests (e.g. 30s, 1m)",
 	)
 
 	storeFlag := NodeFlags().Lookup(nodeStoreFlag)
@@ -71,6 +80,12 @@ func InitClient(cmd *cobra.Command, _ []string) error {
 
 			authTokenFlag = token
 		}
+	}
+
+	if timeoutFlag > 0 {
+		// we don't cancel, because we want to keep this context alive outside the InitClient Function
+		ctx, _ := context.WithTimeout(cmd.Context(), timeoutFlag) //nolint:govet
+		cmd.SetContext(ctx)
 	}
 
 	client, err := rpc.NewClient(cmd.Context(), requestURL, authTokenFlag)
