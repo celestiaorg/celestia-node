@@ -4,6 +4,8 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"math/rand"
+	"os"
 	"sync"
 	"time"
 
@@ -11,6 +13,15 @@ import (
 
 	"github.com/celestiaorg/celestia-node/header"
 	"github.com/celestiaorg/celestia-node/share/p2p/shrexsub"
+)
+
+var (
+	sampleFromStr     = os.Getenv("SAMPLE_FROM")
+	sampleFrom        int
+	defaultSampleFrom = 5555
+	sampleToStr       = os.Getenv("SAMPLE_TO")
+	sampleTo          int
+	defaultSampleTo   = 2000000
 )
 
 type jobType string
@@ -22,8 +33,9 @@ const (
 )
 
 type worker struct {
-	lock  sync.Mutex
-	state workerState
+	lock       sync.Mutex
+	state      workerState
+	isLoadtest bool
 
 	getter    libhead.Getter[*header.ExtendedHeader]
 	sampleFn  sampleFn
@@ -55,12 +67,14 @@ func newWorker(j job,
 	sample sampleFn,
 	broadcast shrexsub.BroadcastFn,
 	metrics *metrics,
+	isLoadTest bool,
 ) worker {
 	return worker{
-		getter:    getter,
-		sampleFn:  sample,
-		broadcast: broadcast,
-		metrics:   metrics,
+		getter:     getter,
+		sampleFn:   sample,
+		broadcast:  broadcast,
+		metrics:    metrics,
+		isLoadtest: isLoadTest,
 		state: workerState{
 			curr: j.from,
 			result: result{
@@ -77,6 +91,17 @@ func (w *worker) run(ctx context.Context, timeout time.Duration, resultCh chan<-
 
 	skipped := 0
 
+	if w.isLoadtest {
+		for {
+			rnd := rand.Intn(sampleTo-sampleFrom) + sampleFrom
+			fmt.Println("LOADTEST", rnd)
+			err := w.sample(ctx, time.Minute, uint64(rnd))
+			if err != nil {
+				log.Warn("LOADTEST: failed to sample header", "height", rnd, "err", err)
+			}
+			fmt.Println("LOADTEST DONE!", rnd, err)
+		}
+	}
 	for curr := w.state.from; curr <= w.state.to; curr++ {
 		err := w.sample(ctx, timeout, curr)
 		if errors.Is(err, context.Canceled) {

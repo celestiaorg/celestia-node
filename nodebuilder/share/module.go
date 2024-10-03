@@ -3,6 +3,8 @@ package share
 import (
 	"context"
 
+	laod_test "github.com/celestiaorg/celestia-node/share/availability/load"
+
 	"github.com/ipfs/go-datastore"
 	"github.com/libp2p/go-libp2p/core/host"
 	"go.uber.org/fx"
@@ -12,7 +14,6 @@ import (
 	lightprune "github.com/celestiaorg/celestia-node/pruner/light"
 	"github.com/celestiaorg/celestia-node/share"
 	"github.com/celestiaorg/celestia-node/share/availability/full"
-	"github.com/celestiaorg/celestia-node/share/availability/light"
 	"github.com/celestiaorg/celestia-node/share/eds"
 	"github.com/celestiaorg/celestia-node/share/getters"
 	"github.com/celestiaorg/celestia-node/share/p2p/peers"
@@ -209,19 +210,8 @@ func availabilityComponents(tp node.Type, cfg *Config) fx.Option {
 	switch tp {
 	case node.Light:
 		return fx.Options(
-			fx.Provide(fx.Annotate(
-				func(getter share.Getter, ds datastore.Batching) *light.ShareAvailability {
-					return light.NewShareAvailability(
-						getter,
-						ds,
-						light.WithSampleAmount(cfg.LightAvailability.SampleAmount),
-					)
-				},
-				fx.OnStop(func(ctx context.Context, la *light.ShareAvailability) error {
-					return la.Close(ctx)
-				}),
-			)),
-			fx.Provide(func(avail *light.ShareAvailability) share.Availability {
+			fx.Provide(laod_test.NewShareAvailability),
+			fx.Provide(func(avail *laod_test.ShareAvailability) share.Availability {
 				return avail
 			}),
 		)

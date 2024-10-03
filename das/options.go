@@ -54,7 +54,7 @@ type Parameters struct {
 func DefaultParameters() Parameters {
 	// TODO(@derrandz): parameters needs performance testing on real network to define optimal values
 	// (#1261)
-	concurrencyLimit := 16
+	concurrencyLimit := 256
 	return Parameters{
 		SamplingRange:           100,
 		ConcurrencyLimit:        concurrencyLimit,
