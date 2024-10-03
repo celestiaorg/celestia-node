@@ -10,7 +10,6 @@ import (
 	"github.com/tendermint/tendermint/pkg/consts"
 	tmproto "github.com/tendermint/tendermint/proto/tendermint/types"
 	coretypes "github.com/tendermint/tendermint/types"
-	"github.com/tendermint/tendermint/crypto/merkle"
 
 	"github.com/celestiaorg/celestia-app/v2/pkg/appconsts"
 	v2 "github.com/celestiaorg/celestia-app/v2/pkg/appconsts/v2"
@@ -44,7 +43,11 @@ type namespaceToRowRootProof []*nmt.Proof
 // Verify takes a blob and a data root and verifies if the
 // provided blob was committed to the given data root.
 func (p *Proof) Verify(blob *Blob, dataRoot []byte) (bool, error) {
-	blobCommitment, err := types.CreateCommitment(ToAppBlobs(blob)[0])
+	blobCommitment, err := inclusion.CreateCommitment(
+		ToAppBlobs(blob)[0],
+		merkle.HashFromByteSlices,
+		appconsts.DefaultSubtreeRootThreshold,
+	)
 	if err != nil {
 		return false, err
 	}

@@ -17,25 +17,24 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/tendermint/tendermint/crypto/merkle"
+	bytes2 "github.com/tendermint/tendermint/libs/bytes"
 	tmrand "github.com/tendermint/tendermint/libs/rand"
 	"github.com/tendermint/tendermint/proto/tendermint/types"
 	coretypes "github.com/tendermint/tendermint/types"
 
+	"github.com/celestiaorg/celestia-app/v2/app"
+	"github.com/celestiaorg/celestia-app/v2/app/encoding"
 	"github.com/celestiaorg/celestia-app/v2/pkg/appconsts"
 	pkgproof "github.com/celestiaorg/celestia-app/v2/pkg/proof"
+	"github.com/celestiaorg/celestia-app/v2/pkg/user"
 	"github.com/celestiaorg/celestia-app/v2/pkg/wrapper"
-	"github.com/celestiaorg/celestia-app/pkg/appconsts"
-	appns "github.com/celestiaorg/celestia-app/pkg/namespace"
-	pkgproof "github.com/celestiaorg/celestia-app/pkg/proof"
-	"github.com/celestiaorg/celestia-app/pkg/shares"
-	"github.com/celestiaorg/celestia-app/pkg/square"
-	"github.com/celestiaorg/celestia-app/test/util/testfactory"
-	blobtypes "github.com/celestiaorg/celestia-app/x/blob/types"
+	"github.com/celestiaorg/celestia-app/v2/test/util/testfactory"
 	"github.com/celestiaorg/go-header/store"
 	"github.com/celestiaorg/go-square/blob"
 	"github.com/celestiaorg/go-square/inclusion"
 	squarens "github.com/celestiaorg/go-square/namespace"
 	appshares "github.com/celestiaorg/go-square/shares"
+	"github.com/celestiaorg/go-square/square"
 	"github.com/celestiaorg/nmt"
 	"github.com/celestiaorg/rsmt2d"
 
@@ -443,7 +442,7 @@ func TestBlobService_Get(t *testing.T) {
 			name: "get blob internal error",
 			doFn: func() (interface{}, error) {
 				ctrl := gomock.NewController(t)
-				shareGetterMock := shareMock.NewMockModule(ctrl)
+				shareGetterMock := mock.NewMockGetter(ctrl)
 				shareGetterMock.EXPECT().
 					GetEDS(gomock.Any(), gomock.Any()).
 					DoAndReturn(
@@ -857,9 +856,10 @@ func BenchmarkGetByCommitment(b *testing.B) {
 
 func createServiceWithSub(ctx context.Context, t *testing.T, blobs []*Blob) *Service {
 	acc := "test"
-	kr := testfactory.GenerateKeyring(acc)
-	signer := blobtypes.NewKeyringSigner(kr, acc, "test")
-	addr, err := signer.GetSignerInfo().GetAddress()
+	config := encoding.MakeConfig(app.ModuleEncodingRegisters...)
+	keyring := testfactory.TestKeyring(config.Codec, acc)
+	account := user.NewAccount(acc, 0, 0)
+	signer, err := user.NewSigner(keyring, config.TxConfig, testfactory.ChainID, appconsts.LatestVersion, account)
 	require.NoError(t, err)
 
 	bs := ipld.NewMemBlockservice()
@@ -869,20 +869,16 @@ func createServiceWithSub(ctx context.Context, t *testing.T, blobs []*Blob) *Ser
 	edsses := make([]*rsmt2d.ExtendedDataSquare, len(blobs))
 
 	for i, blob := range blobs {
-		msg, err := blobtypes.NewMsgPayForBlobs(
-			addr.String(),
-			&blob.Blob,
-		)
 		require.NoError(t, err)
-		coreTx := edstest.BuildCoreTx(t, signer, msg, &blob.Blob)
+		coreTx := edstest.BuildCoreTx(t, signer, acc, blob.Blob)
 		dataSquare, err := square.Construct(
 			coretypes.Txs{coreTx}.ToSliceOfBytes(),
-			appconsts.LatestVersion,
 			appconsts.SquareSizeUpperBound(appconsts.LatestVersion),
+			appconsts.SubtreeRootThreshold(appconsts.LatestVersion),
 		)
 		require.NoError(t, err)
 
-		eds, err := ipld.AddShares(ctx, shares.ToBytes(dataSquare), bs)
+		eds, err := ipld.AddShares(ctx, appshares.ToBytes(dataSquare), bs)
 		require.NoError(t, err)
 		edsses[i] = eds
 	}
@@ -941,6 +937,10 @@ func createService(ctx context.Context, t testing.TB, shares []share.Share) *Ser
 		DoAndReturn(func(ctx context.Context, h *header.ExtendedHeader, row, col int) (share.Share, error) {
 			s, err := accessor.Sample(ctx, row, col)
 			return s.Share, err
+		})
+	shareGetter.EXPECT().GetEDS(gomock.Any(), gomock.Any()).AnyTimes().
+		DoAndReturn(func(context.Context, *header.ExtendedHeader) (*rsmt2d.ExtendedDataSquare, error) {
+			return square, nil
 		})
 
 	// create header and put it into the store
@@ -1107,9 +1107,9 @@ func TestBlobVerify(t *testing.T) {
 
 	// create the blob from the data
 	blob, err := NewBlob(
-		uint8(blobs[5].ShareVersion),
+		uint8(blobs[5].GetShareVersion()),
 		nss[5].Bytes(),
-		blobs[5].Data,
+		blobs[5].GetData(),
 	)
 	require.NoError(t, err)
 
@@ -1131,14 +1131,25 @@ func TestBlobVerify(t *testing.T) {
 	sharesProof, err := pkgproof.NewShareInclusionProofFromEDS(
 		eds,
 		nss[5],
-		shares.NewRange(startShareIndex, startShareIndex+len(blobShares)),
+		appshares.NewRange(startShareIndex, startShareIndex+len(blobShares)),
 	)
 	require.NoError(t, err)
 	require.NoError(t, sharesProof.Validate(dataRoot))
 
+	tmShareToRowRootProofs := make([]*types.NMTProof, 0, len(sharesProof.ShareProofs))
+	for _, proof := range sharesProof.ShareProofs {
+		tmShareToRowRootProofs = append(tmShareToRowRootProofs, &types.NMTProof{
+			Start:    proof.Start,
+			End:      proof.End,
+			Nodes:    proof.Nodes,
+			LeafHash: proof.LeafHash,
+		})
+	}
+
+	coreRowProof := toCoreRowProof(sharesProof.RowProof)
 	blobProof := Proof{
-		ShareToRowRootProof: sharesProof.ShareProofs,
-		RowToDataRootProof:  sharesProof.RowProof,
+		ShareToRowRootProof: tmShareToRowRootProofs,
+		RowToDataRootProof:  coreRowProof,
 	}
 	tests := []struct {
 		name      string
@@ -1217,14 +1228,25 @@ func TestBlobVerify(t *testing.T) {
 				sharesProof, err := pkgproof.NewShareInclusionProofFromEDS(
 					eds,
 					nss[5],
-					shares.NewRange(startShareIndex, startShareIndex+len(blobShares)),
+					appshares.NewRange(startShareIndex, startShareIndex+len(blobShares)),
 				)
 				require.NoError(t, err)
 				require.NoError(t, sharesProof.Validate(dataRoot))
 
+				tmShareToRowRootProofs := make([]*types.NMTProof, 0, len(sharesProof.ShareProofs))
+				for _, proof := range sharesProof.ShareProofs {
+					tmShareToRowRootProofs = append(tmShareToRowRootProofs, &types.NMTProof{
+						Start:    proof.Start,
+						End:      proof.End,
+						Nodes:    proof.Nodes,
+						LeafHash: proof.LeafHash,
+					})
+				}
+
+				coreRowProof := toCoreRowProof(sharesProof.RowProof)
 				return Proof{
-					ShareToRowRootProof: sharesProof.ShareProofs,
-					RowToDataRootProof:  sharesProof.RowProof,
+					ShareToRowRootProof: tmShareToRowRootProofs,
+					RowToDataRootProof:  coreRowProof,
 				}
 			}(),
 		},
@@ -1240,5 +1262,25 @@ func TestBlobVerify(t *testing.T) {
 				assert.True(t, valid)
 			}
 		})
+	}
+}
+
+func toCoreRowProof(proof *pkgproof.RowProof) coretypes.RowProof {
+	tmRowRoots := make([]bytes2.HexBytes, 0, len(proof.RowRoots))
+	tmRowProofs := make([]*merkle.Proof, 0, len(proof.RowRoots))
+	for index, root := range proof.RowRoots {
+		tmRowRoots = append(tmRowRoots, root)
+		tmRowProofs = append(tmRowProofs, &merkle.Proof{
+			Total:    proof.Proofs[index].Total,
+			Index:    proof.Proofs[index].Index,
+			LeafHash: proof.Proofs[index].LeafHash,
+			Aunts:    proof.Proofs[index].Aunts,
+		})
+	}
+	return coretypes.RowProof{
+		RowRoots: tmRowRoots,
+		Proofs:   tmRowProofs,
+		StartRow: proof.StartRow,
+		EndRow:   proof.EndRow,
 	}
 }

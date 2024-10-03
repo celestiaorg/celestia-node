@@ -5,7 +5,6 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/require"
-	tmproto "github.com/tendermint/tendermint/proto/tendermint/types"
 	coretypes "github.com/tendermint/tendermint/types"
 
 	"github.com/celestiaorg/celestia-app/v2/app"
@@ -191,10 +190,9 @@ func createTestBlobTransaction(
 ) (namespace.Namespace, *types.MsgPayForBlobs, *blob.Blob, coretypes.Tx) {
 	ns := namespace.RandomBlobNamespace()
 	account := signer.Account(accountName)
-	msg, blob := blobfactory.RandMsgPayForBlobsWithNamespaceAndSigner(account.Address().String(), ns, size)
-	require.NoError(t, err)
-	cTx := BuildCoreTx(t, signer, msg, blob)
-	return ns, msg, blob, cTx
+	msg, b := blobfactory.RandMsgPayForBlobsWithNamespaceAndSigner(account.Address().String(), ns, size)
+	cTx := BuildCoreTx(t, signer, accountName, b)
+	return ns, msg, b, cTx
 }
 
 // BuildCoreTx takes a signer, a message and a blob and creates a core transaction.
@@ -202,11 +200,11 @@ func createTestBlobTransaction(
 // into the square builder.
 func BuildCoreTx(
 	t *testing.T,
-	signer *types.KeyringSigner,
-	msg *types.MsgPayForBlobs,
-	blob *tmproto.Blob,
+	signer *user.Signer,
+	accountName string,
+	b *blob.Blob,
 ) coretypes.Tx {
-	cTx, _, err := signer.CreatePayForBlobs(accountName, []*blob.Blob{blob})
+	cTx, _, err := signer.CreatePayForBlobs(accountName, []*blob.Blob{b})
 	require.NoError(t, err)
-	return ns, msg, blob, cTx
+	return cTx
 }

@@ -12,6 +12,7 @@ import (
 	"github.com/cosmos/cosmos-sdk/types"
 	logging "github.com/ipfs/go-log/v2"
 	"github.com/tendermint/tendermint/libs/bytes"
+	tmproto "github.com/tendermint/tendermint/proto/tendermint/types"
 	core "github.com/tendermint/tendermint/types"
 	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/attribute"
@@ -671,9 +672,17 @@ func (s *Service) retrieveBlobProof(
 				if err != nil {
 					return nil, nil, err
 				}
-
+				tmShareToRowRootProofs := make([]*tmproto.NMTProof, 0, len(shareToRowRootProofs))
+				for _, proof := range shareToRowRootProofs {
+					tmShareToRowRootProofs = append(tmShareToRowRootProofs, &tmproto.NMTProof{
+						Start:    proof.Start,
+						End:      proof.End,
+						Nodes:    proof.Nodes,
+						LeafHash: proof.LeafHash,
+					})
+				}
 				proof := Proof{
-					ShareToRowRootProof: shareToRowRootProofs,
+					ShareToRowRootProof: tmShareToRowRootProofs,
 					RowToDataRootProof: core.RowProof{
 						RowRoots: rowRoots,
 						Proofs:   rowProofs,
