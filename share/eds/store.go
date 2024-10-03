@@ -16,7 +16,6 @@ import (
 	"github.com/filecoin-project/dagstore/index"
 	"github.com/filecoin-project/dagstore/mount"
 	"github.com/filecoin-project/dagstore/shard"
-	bstore "github.com/ipfs/boxo/blockstore"
 	"github.com/ipfs/go-datastore"
 	carv1 "github.com/ipld/go-car"
 	"go.opentelemetry.io/otel/attribute"
@@ -48,7 +47,7 @@ type Store struct {
 	dgstr  *dagstore.DAGStore
 	mounts *mount.Registry
 
-	bs    *blockstore
+	BS    *BlockstoreWithMetrics
 	cache atomic.Pointer[cache.DoubleCache]
 
 	carIdx      index.FullIndexRepo
@@ -130,7 +129,12 @@ func NewStore(params *Parameters, basePath string, ds datastore.Batching) (*Stor
 		mounts:        r,
 		shardFailures: failureChan,
 	}
-	store.bs = newBlockstore(store, ds)
+
+	bs, err := NewBlockstoreWithMetrics(newBlockstore(store, ds))
+	if err != nil {
+		return nil, fmt.Errorf("failed to create blockstore with metrics: %w", err)
+	}
+	store.BS = bs
 	store.cache.Store(cache.NewDoubleCache(recentBlocksCache, blockstoreCache))
 	return store, nil
 }
@@ -372,8 +376,8 @@ func (s *Store) getCAR(ctx context.Context, root share.DataHash) (io.ReadCloser,
 // registered on the Store. NOTE: The blockstore does not store whole Celestia Blocks but IPFS
 // blocks. We represent `shares` and NMT Merkle proofs as IPFS blocks and IPLD nodes so Bitswap can
 // access those.
-func (s *Store) Blockstore() bstore.Blockstore {
-	return s.bs
+func (s *Store) Blockstore() *BlockstoreWithMetrics {
+	return s.BS
 }
 
 // CARBlockstore returns an IPFS Blockstore providing access to individual shares/nodes of a

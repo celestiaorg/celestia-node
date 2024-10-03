@@ -72,7 +72,7 @@ func blockstoreFromDatastore(
 		// prefix
 		ctx = ipfsmetrics.CtxScope(ctx, "blockstore")
 	}
-	bs, err := blockstore.CachedBlockstore(
+	return blockstore.CachedBlockstore(
 		ctx,
 		blockstore.NewBlockstore(ds),
 		blockstore.CacheOpts{
@@ -81,10 +81,6 @@ func blockstoreFromDatastore(
 			HasTwoQueueCacheSize: defaultARCCacheSize,
 		},
 	)
-	if err != nil {
-		return nil, fmt.Errorf("failed to create blockstore: %w", err)
-	}
-	return eds.NewBlockstoreWithMetrics(bs)
 }
 
 func blockstoreFromEDSStore(
@@ -97,17 +93,13 @@ func blockstoreFromEDSStore(
 		// prefix
 		ctx = ipfsmetrics.CtxScope(ctx, "blockstore")
 	}
-	bs, err := blockstore.CachedBlockstore(
+	return blockstore.CachedBlockstore(
 		ctx,
 		store.Blockstore(),
 		blockstore.CacheOpts{
 			HasTwoQueueCacheSize: defaultARCCacheSize,
 		},
 	)
-	if err != nil {
-		return nil, fmt.Errorf("failed to create blockstore: %w", err)
-	}
-	return eds.NewBlockstoreWithMetrics(bs)
 }
 
 type blockstoreParams struct {

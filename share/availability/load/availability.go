@@ -34,14 +34,8 @@ type ShareAvailability struct {
 func NewShareAvailability(
 	getter share.Getter,
 ) *ShareAvailability {
-	sample, err := meter.Float64Histogram("load_test_sample_time_hist",
-		metric.WithDescription("duration of sampling a single header"))
-	if err != nil {
-		panic(err)
-	}
 	return &ShareAvailability{
 		getter: getter,
-		sample: sample,
 	}
 }
 
@@ -52,14 +46,26 @@ func (la *ShareAvailability) SharesAvailable(ctx context.Context, header *header
 	size := len(header.DAH.RowRoots)
 	row, col := rand.Intn(size), rand.Intn(size)
 	_, err := la.getter.GetShare(ctx, header, row, col)
-	la.sample.Record(ctx, time.Since(now).Seconds(),
-		metric.WithAttributes(attribute.Int("header_width", size)),
-		metric.WithAttributes(attribute.Bool("failed", err != nil)),
-	)
+	if la.sample != nil {
+		la.sample.Record(ctx, time.Since(now).Seconds(),
+			metric.WithAttributes(attribute.Int("header_width", size)),
+			metric.WithAttributes(attribute.Bool("failed", err != nil)),
+		)
+	}
 	if err != nil {
-		log.Errorf("LOADTEST: failed to sample share height=%d hash=%s row=%d col=%d err=%s",
-			header.Height(), header.Hash(), row, col, err)
+		log.Errorf("LOADTEST: failed to sample share height=%d row=%d col=%d err=%s after: %v",
+			header.Height(), header.Hash(), row, col, err, time.Since(now))
 		return err
 	}
+	return nil
+}
+
+func (la *ShareAvailability) WithMetrics() error {
+	sample, err := meter.Float64Histogram("load_test_sample_time_hist",
+		metric.WithDescription("duration of sampling a single header"))
+	if err != nil {
+		return err
+	}
+	la.sample = sample
 	return nil
 }

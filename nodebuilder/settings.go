@@ -5,6 +5,8 @@ import (
 	"fmt"
 	"time"
 
+	laod_test "github.com/celestiaorg/celestia-node/share/availability/load"
+
 	otelpyroscope "github.com/grafana/otel-profiling-go"
 	"github.com/grafana/pyroscope-go"
 	logging "github.com/ipfs/go-log/v2"
@@ -104,6 +106,7 @@ func WithMetrics(metricOpts []otlpmetrichttp.Option, nodeType node.Type) fx.Opti
 		fx.Invoke(share.WithShrexGetterMetrics),
 	)
 
+	fmt.Println("/////////////////INVOKED Metrics/////////////////\n\n\n\n\n", nodeType.String())
 	var opts fx.Option
 	switch nodeType {
 	case node.Full:
@@ -117,6 +120,9 @@ func WithMetrics(metricOpts []otlpmetrichttp.Option, nodeType node.Type) fx.Opti
 		opts = fx.Options(
 			baseComponents,
 			samplingMetrics,
+			fx.Invoke(func(a *laod_test.ShareAvailability) error {
+				return a.WithMetrics()
+			}),
 		)
 	case node.Bridge:
 		opts = fx.Options(
