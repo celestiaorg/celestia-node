@@ -93,13 +93,7 @@ func blockstoreFromEDSStore(
 		// prefix
 		ctx = ipfsmetrics.CtxScope(ctx, "blockstore")
 	}
-	return blockstore.CachedBlockstore(
-		ctx,
-		store.Blockstore(),
-		blockstore.CacheOpts{
-			HasTwoQueueCacheSize: defaultARCCacheSize,
-		},
-	)
+	return store.Blockstore(), nil
 }
 
 type blockstoreParams struct {

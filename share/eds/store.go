@@ -110,12 +110,12 @@ func NewStore(params *Parameters, basePath string, ds datastore.Batching) (*Stor
 		return nil, fmt.Errorf("failed to create DAGStore: %w", err)
 	}
 
-	recentBlocksCache, err := cache.NewAccessorCache("recent", params.RecentBlocksCacheSize)
+	recentBlocksCache, err := cache.NewAccessorCache("recent", 1)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create recent blocks cache: %w", err)
 	}
 
-	blockstoreCache, err := cache.NewAccessorCache("blockstore", params.BlockstoreCacheSize)
+	blockstoreCache, err := cache.NewAccessorCache("blockstore", 1)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create blockstore cache: %w", err)
 	}
