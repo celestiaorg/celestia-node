@@ -46,8 +46,8 @@ func (p *Parameters) Validate() error {
 }
 
 // DefaultParameters returns the default configuration values for the peer manager parameters
-func DefaultParameters() Parameters {
-	return Parameters{
+func DefaultParameters() *Parameters {
+	return &Parameters{
 		// PoolValidationTimeout's default value is based on the default daser sampling timeout of 1 minute.
 		// If a received datahash has not tried to be sampled within these two minutes, the pool will be
 		// removed.
