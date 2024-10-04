@@ -5,7 +5,6 @@ package tests
 import (
 	"bytes"
 	"context"
-	"github.com/celestiaorg/go-square/v2/share"
 	"testing"
 	"time"
 
@@ -13,6 +12,8 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"go.uber.org/fx"
+
+	"github.com/celestiaorg/go-square/v2/share"
 
 	"github.com/celestiaorg/celestia-node/blob"
 	"github.com/celestiaorg/celestia-node/libs/fxutil"

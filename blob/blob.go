@@ -86,11 +86,14 @@ func NewBlob(shareVersion uint8, namespace share.Namespace, data, signer []byte)
 		return nil, fmt.Errorf("blob data must be > 0 && <= %d, but it was %d bytes", appconsts.DefaultMaxBytes, len(data))
 	}
 
-	if err := share.ValidateUserNamespace(namespace.Version(), namespace.ID()); err != nil {
+	if err := share.ValidateForData(namespace); err != nil {
 		return nil, fmt.Errorf("invalid user namespace: %w", err)
 	}
 	if !namespace.IsUsableNamespace() {
-		return nil, fmt.Errorf("namespace %s is not usable", namespace.ID()) // rename
+		return nil, fmt.Errorf("parity of tail padding namespaces %s are not allowed", namespace.ID())
+	}
+	if namespace.IsReserved() {
+		return nil, fmt.Errorf("reserved namespace %s is not allowed", namespace.ID())
 	}
 
 	squareBlob, err := share.NewBlob(namespace, data, shareVersion, signer)

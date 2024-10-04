@@ -180,7 +180,7 @@ func (rnd RowNamespaceData) verifyInclusion(rowRoot []byte, namespace share.Name
 		namespaceBytes := sh.Namespace().Bytes()
 		leave := make([]byte, len(sh.ToBytes())+len(namespaceBytes))
 		copy(leave, namespaceBytes)
-		copy(leave[len(namespaceBytes):], sh.ToBytes()) // rework
+		copy(leave[len(namespaceBytes):], sh.ToBytes())
 		leaves = append(leaves, leave)
 	}
 
