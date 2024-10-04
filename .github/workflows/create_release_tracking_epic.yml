@@ -7,7 +7,7 @@ on:
     types: [released]
 jobs:
   trigger_issue:
-    uses: celestiaorg/.github/.github/workflows/reusable_create_release_tracking_epic.yml@v0.4.3
+    uses: celestiaorg/.github/.github/workflows/reusable_create_release_tracking_epic.yml@v0.4.5
     secrets: inherit
     with:
       release-repo: ${{ github.repository }}
