@@ -7,17 +7,15 @@ import (
 	"time"
 
 	"github.com/cosmos/cosmos-sdk/client/flags"
-	ds "github.com/ipfs/go-datastore"
-	ds_sync "github.com/ipfs/go-datastore/sync"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"github.com/celestiaorg/celestia-app/test/util/testnode"
+	"github.com/celestiaorg/celestia-app/v2/test/util/testnode"
 
 	"github.com/celestiaorg/celestia-node/header"
 	"github.com/celestiaorg/celestia-node/pruner"
 	"github.com/celestiaorg/celestia-node/share"
-	"github.com/celestiaorg/celestia-node/share/eds"
+	"github.com/celestiaorg/celestia-node/store"
 )
 
 func TestCoreExchange_RequestHeaders(t *testing.T) {
@@ -25,12 +23,12 @@ func TestCoreExchange_RequestHeaders(t *testing.T) {
 	t.Cleanup(cancel)
 
 	cfg := DefaultTestConfig()
-	cfg.ChainID = testChainID
 	fetcher, cctx := createCoreFetcher(t, cfg)
 
 	generateNonEmptyBlocks(t, ctx, fetcher, cfg, cctx)
 
-	store := createStore(t)
+	store, err := store.NewStore(store.DefaultParameters(), t.TempDir())
+	require.NoError(t, err)
 
 	ce, err := NewExchange(fetcher, store, header.MakeExtendedHeader)
 	require.NoError(t, err)
@@ -56,7 +54,11 @@ func TestCoreExchange_RequestHeaders(t *testing.T) {
 	assert.Equal(t, expectedLastHeightInRange, headers[len(headers)-1].Height())
 
 	for _, h := range headers {
-		has, err := store.Has(ctx, h.DAH.Hash())
+		has, err := store.HasByHash(ctx, h.DAH.Hash())
+		require.NoError(t, err)
+		assert.True(t, has)
+
+		has, err = store.HasByHeight(ctx, h.Height())
 		require.NoError(t, err)
 		assert.True(t, has)
 	}
@@ -69,12 +71,12 @@ func TestExchange_DoNotStoreHistoric(t *testing.T) {
 	t.Cleanup(cancel)
 
 	cfg := DefaultTestConfig()
-	cfg.ChainID = testChainID
 	fetcher, cctx := createCoreFetcher(t, cfg)
 
 	generateNonEmptyBlocks(t, ctx, fetcher, cfg, cctx)
 
-	store := createStore(t)
+	store, err := store.NewStore(store.DefaultParameters(), t.TempDir())
+	require.NoError(t, err)
 
 	ce, err := NewExchange(
 		fetcher,
@@ -96,10 +98,15 @@ func TestExchange_DoNotStoreHistoric(t *testing.T) {
 
 	// ensure none of the "historic" EDSs were stored
 	for _, h := range headers {
-		if bytes.Equal(h.DataHash, share.EmptyRoot().Hash()) {
+		has, err := store.HasByHeight(ctx, h.Height())
+		require.NoError(t, err)
+		assert.False(t, has)
+
+		// empty EDSs are expected to exist in the store, so we skip them
+		if h.DAH.Equals(share.EmptyEDSRoots()) {
 			continue
 		}
-		has, err := store.Has(ctx, h.DAH.Hash())
+		has, err = store.HasByHash(ctx, h.DAH.Hash())
 		require.NoError(t, err)
 		assert.False(t, has)
 	}
@@ -112,32 +119,6 @@ func createCoreFetcher(t *testing.T, cfg *testnode.Config) (*BlockFetcher, testn
 	_, err := cctx.WaitForHeightWithTimeout(2, time.Second*2) // TODO @renaynay: configure?
 	require.NoError(t, err)
 	return NewBlockFetcher(cctx.Client), cctx
-}
-
-func createStore(t *testing.T) *eds.Store {
-	t.Helper()
-
-	storeCfg := eds.DefaultParameters()
-	store, err := eds.NewStore(storeCfg, t.TempDir(), ds_sync.MutexWrap(ds.NewMapDatastore()))
-	require.NoError(t, err)
-
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
-
-	err = store.Start(ctx)
-	require.NoError(t, err)
-
-	// store an empty square to initialize EDS store
-	eds := share.EmptyExtendedDataSquare()
-	err = store.Put(ctx, share.EmptyRoot().Hash(), eds)
-	require.NoError(t, err)
-
-	t.Cleanup(func() {
-		err = store.Stop(ctx)
-		require.NoError(t, err)
-	})
-
-	return store
 }
 
 // fillBlocks fills blocks until the context is canceled.
@@ -154,7 +135,7 @@ func fillBlocks(
 		default:
 		}
 
-		_, err := cctx.FillBlock(16, cfg.Accounts, flags.BroadcastBlock)
+		_, err := cctx.FillBlock(16, cfg.Genesis.Accounts()[0].Name, flags.BroadcastBlock)
 		require.NoError(t, err)
 	}
 }
@@ -187,10 +168,11 @@ func generateNonEmptyBlocks(
 		case b, ok := <-sub:
 			require.True(t, ok)
 
-			if !bytes.Equal(b.Data.Hash(), share.EmptyRoot().Hash()) {
-				hashes = append(hashes, share.DataHash(b.Data.Hash()))
-				i++
+			if bytes.Equal(share.EmptyEDSDataHash(), b.Data.Hash()) {
+				continue
 			}
+			hashes = append(hashes, share.DataHash(b.Data.Hash()))
+			i++
 		case <-ctx.Done():
 			t.Fatal("failed to fill blocks within timeout")
 		}

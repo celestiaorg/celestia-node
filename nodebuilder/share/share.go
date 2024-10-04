@@ -5,12 +5,14 @@ import (
 
 	"github.com/tendermint/tendermint/types"
 
+	"github.com/celestiaorg/nmt"
 	"github.com/celestiaorg/rsmt2d"
 
 	"github.com/celestiaorg/celestia-node/header"
 	headerServ "github.com/celestiaorg/celestia-node/nodebuilder/header"
 	"github.com/celestiaorg/celestia-node/share"
 	"github.com/celestiaorg/celestia-node/share/eds"
+	"github.com/celestiaorg/celestia-node/share/shwap"
 )
 
 var _ Module = (*API)(nil)
@@ -50,7 +52,7 @@ type Module interface {
 	// Shares are returned in a row-by-row order if the namespace spans multiple rows.
 	GetSharesByNamespace(
 		ctx context.Context, header *header.ExtendedHeader, namespace share.Namespace,
-	) (share.NamespacedShares, error)
+	) (NamespacedShares, error)
 	// GetRange gets a list of shares and their corresponding proof.
 	GetRange(ctx context.Context, height uint64, start, end int) (*GetRangeResult, error)
 }
@@ -73,7 +75,7 @@ type API struct {
 			ctx context.Context,
 			header *header.ExtendedHeader,
 			namespace share.Namespace,
-		) (share.NamespacedShares, error) `perm:"read"`
+		) (NamespacedShares, error) `perm:"read"`
 		GetRange func(
 			ctx context.Context,
 			height uint64,
@@ -102,12 +104,12 @@ func (api *API) GetSharesByNamespace(
 	ctx context.Context,
 	header *header.ExtendedHeader,
 	namespace share.Namespace,
-) (share.NamespacedShares, error) {
+) (NamespacedShares, error) {
 	return api.Internal.GetSharesByNamespace(ctx, header, namespace)
 }
 
 type module struct {
-	share.Getter
+	shwap.Getter
 	share.Availability
 	hs headerServ.Module
 }
@@ -125,6 +127,7 @@ func (m module) GetRange(ctx context.Context, height uint64, start, end int) (*G
 	if err != nil {
 		return nil, err
 	}
+
 	proof, err := eds.ProveShares(extendedDataSquare, start, end)
 	if err != nil {
 		return nil, err
@@ -133,4 +136,47 @@ func (m module) GetRange(ctx context.Context, height uint64, start, end int) (*G
 		extendedDataSquare.FlattenedODS()[start:end],
 		proof,
 	}, nil
+}
+
+func (m module) GetSharesByNamespace(
+	ctx context.Context,
+	header *header.ExtendedHeader,
+	namespace share.Namespace,
+) (NamespacedShares, error) {
+	nd, err := m.Getter.GetSharesByNamespace(ctx, header, namespace)
+	if err != nil {
+		return nil, err
+	}
+	return convertToNamespacedShares(nd), nil
+}
+
+// NamespacedShares represents all shares with proofs within a specific namespace of an EDS.
+// This is a copy of the share.NamespacedShares type, that is used to avoid breaking changes
+// in the API.
+type NamespacedShares []NamespacedRow
+
+// NamespacedRow represents all shares with proofs within a specific namespace of a single EDS row.
+type NamespacedRow struct {
+	Shares []share.Share `json:"shares"`
+	Proof  *nmt.Proof    `json:"proof"`
+}
+
+// Flatten returns the concatenated slice of all NamespacedRow shares.
+func (ns NamespacedShares) Flatten() []share.Share {
+	var shares []share.Share
+	for _, row := range ns {
+		shares = append(shares, row.Shares...)
+	}
+	return shares
+}
+
+func convertToNamespacedShares(nd shwap.NamespaceData) NamespacedShares {
+	ns := make(NamespacedShares, 0, len(nd))
+	for _, row := range nd {
+		ns = append(ns, NamespacedRow{
+			Shares: row.Shares,
+			Proof:  row.Proof,
+		})
+	}
+	return ns
 }

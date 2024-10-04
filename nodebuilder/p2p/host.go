@@ -104,8 +104,8 @@ func host(params hostParams) (HostBase, error) {
 		libp2p.DefaultMuxers,
 	}
 
-	if params.Registry != nil {
-		opts = append(opts, libp2p.PrometheusRegisterer(params.Registry))
+	if params.Registerer != nil {
+		opts = append(opts, libp2p.PrometheusRegisterer(params.Registerer))
 	} else {
 		opts = append(opts, libp2p.DisableMetrics())
 	}
@@ -143,7 +143,7 @@ type hostParams struct {
 	ConnGater       *conngater.BasicConnectionGater
 	Bandwidth       *metrics.BandwidthCounter
 	ResourceManager network.ResourceManager
-	Registry        prometheus.Registerer `optional:"true"`
+	Registerer      prometheus.Registerer `optional:"true"`
 
 	Tp node.Type
 }

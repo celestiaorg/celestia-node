@@ -41,11 +41,28 @@ jobs:
           go-version: ${{ inputs.go-version }}
 
       - name: golangci-lint
-        uses: golangci/golangci-lint-action@v6.0.1
+        uses: golangci/golangci-lint-action@v6.1.0
         with:
           args: --timeout 10m
-          version: v1.59
-          skip-cache: true
+          version: v1.60
+
+  lint-imports:
+    needs: [setup]
+    name: Lint Imports
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-go@v5
+        with:
+          go-version: ${{ inputs.go-version }}
+
+      - name: install goimports-reviser
+        run: go install -v github.com/incu6us/goimports-reviser/v3@latest
+
+      - name: lint imports
+        run: make lint-imports
 
   go_mod_tidy_check:
     needs: [setup]
@@ -65,7 +82,7 @@ jobs:
         run: git diff --exit-code
 
   test_coverage:
-    needs: [lint, go_mod_tidy_check, setup]
+    needs: [setup]
     name: Unit Tests Coverage
     strategy:
       fail-fast: false
@@ -128,7 +145,7 @@ jobs:
 
   integration_test:
     name: Integration Tests
-    needs: [lint, go_mod_tidy_check]
+    needs: [go_mod_tidy_check, lint, lint-imports, test_coverage]
     uses: ./.github/workflows/integration-tests.yml
     with:
       go-version: ${{ inputs.go-version }}

@@ -2,12 +2,12 @@ package blob
 
 import (
 	"bytes"
+	"errors"
 	"fmt"
 
-	coretypes "github.com/tendermint/tendermint/types"
-
-	"github.com/celestiaorg/celestia-app/pkg/appconsts"
-	"github.com/celestiaorg/celestia-app/pkg/shares"
+	"github.com/celestiaorg/celestia-app/v2/pkg/appconsts"
+	"github.com/celestiaorg/celestia-app/v2/pkg/proof"
+	"github.com/celestiaorg/go-square/inclusion"
 	"github.com/celestiaorg/nmt"
 	"github.com/celestiaorg/nmt/namespace"
 
@@ -33,8 +33,8 @@ type CommitmentProof struct {
 	NamespaceID namespace.ID `json:"namespace_id"`
 	// RowProof is the proof of the rows containing the blob's data to the
 	// data root.
-	RowProof         coretypes.RowProof `json:"row_proof"`
-	NamespaceVersion uint8              `json:"namespace_version"`
+	RowProof         proof.RowProof `json:"row_proof"`
+	NamespaceVersion uint8          `json:"namespace_version"`
 }
 
 func (com Commitment) String() string {
@@ -86,6 +86,15 @@ func (commitmentProof *CommitmentProof) Validate() error {
 // Expects the commitment proof to be properly formulated and validated
 // using the Validate() function.
 func (commitmentProof *CommitmentProof) Verify(root []byte, subtreeRootThreshold int) (bool, error) {
+	if len(root) == 0 {
+		return false, errors.New("root must be non-empty")
+	}
+
+	rp := commitmentProof.RowProof
+	if err := rp.Validate(root); err != nil {
+		return false, err
+	}
+
 	nmtHasher := nmt.NewNmtHasher(appconsts.NewBaseHashFunc(), share.NamespaceSize, true)
 
 	// computes the total number of shares proven.
@@ -94,12 +103,16 @@ func (commitmentProof *CommitmentProof) Verify(root []byte, subtreeRootThreshold
 		numberOfShares += proof.End() - proof.Start()
 	}
 
+	if subtreeRootThreshold <= 0 {
+		return false, errors.New("subtreeRootThreshould must be > 0")
+	}
+
 	// use the computed total number of shares to calculate the subtree roots
 	// width.
 	// the subtree roots width is defined in ADR-013:
 	//
 	//https://github.com/celestiaorg/celestia-app/blob/main/docs/architecture/adr-013-non-interactive-default-rules-for-zero-padding.md
-	subtreeRootsWidth := shares.SubTreeWidth(numberOfShares, subtreeRootThreshold)
+	subtreeRootsWidth := inclusion.SubTreeWidth(numberOfShares, subtreeRootThreshold)
 
 	// verify the proof of the subtree roots
 	subtreeRootsCursor := 0
@@ -108,6 +121,15 @@ func (commitmentProof *CommitmentProof) Verify(root []byte, subtreeRootThreshold
 		ranges, err := nmt.ToLeafRanges(subtreeRootProof.Start(), subtreeRootProof.End(), subtreeRootsWidth)
 		if err != nil {
 			return false, err
+		}
+
+		if len(commitmentProof.SubtreeRoots) < subtreeRootsCursor {
+			return false, fmt.Errorf("len(commitmentProof.SubtreeRoots)=%d < subtreeRootsCursor=%d",
+				len(commitmentProof.SubtreeRoots), subtreeRootsCursor)
+		}
+		if len(commitmentProof.SubtreeRoots) < subtreeRootsCursor+len(ranges) {
+			return false, fmt.Errorf("len(commitmentProof.SubtreeRoots)=%d < subtreeRootsCursor+len(ranges)=%d",
+				len(commitmentProof.SubtreeRoots), subtreeRootsCursor+len(ranges))
 		}
 		valid, err := subtreeRootProof.VerifySubtreeRootInclusion(
 			nmtHasher,

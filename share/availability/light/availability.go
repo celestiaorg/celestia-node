@@ -12,7 +12,7 @@ import (
 
 	"github.com/celestiaorg/celestia-node/header"
 	"github.com/celestiaorg/celestia-node/share"
-	"github.com/celestiaorg/celestia-node/share/getters"
+	"github.com/celestiaorg/celestia-node/share/shwap"
 )
 
 var (
@@ -26,7 +26,7 @@ var (
 // its availability. It is assumed that there are a lot of lightAvailability instances
 // on the network doing sampling over the same Root to collectively verify its availability.
 type ShareAvailability struct {
-	getter share.Getter
+	getter shwap.Getter
 	params Parameters
 
 	// TODO(@Wondertan): Once we come to parallelized DASer, this lock becomes a contention point
@@ -38,7 +38,7 @@ type ShareAvailability struct {
 
 // NewShareAvailability creates a new light Availability.
 func NewShareAvailability(
-	getter share.Getter,
+	getter shwap.Getter,
 	ds datastore.Batching,
 	opts ...Option,
 ) *ShareAvailability {
@@ -61,8 +61,8 @@ func NewShareAvailability(
 // ExtendedHeader. This way SharesAvailable subjectively verifies that Shares are available.
 func (la *ShareAvailability) SharesAvailable(ctx context.Context, header *header.ExtendedHeader) error {
 	dah := header.DAH
-	// short-circuit if the given root is minimum DAH of an empty data square
-	if share.DataHash(dah.Hash()).IsEmptyRoot() {
+	// short-circuit if the given root is an empty data square
+	if share.DataHash(dah.Hash()).IsEmptyEDS() {
 		return nil
 	}
 
@@ -99,10 +99,6 @@ func (la *ShareAvailability) SharesAvailable(ctx context.Context, header *header
 		log.Errorw("DAH validation failed", "error", err)
 		return err
 	}
-
-	// indicate to the share.Getter that a blockservice session should be created. This
-	// functionality is optional and must be supported by the used share.Getter.
-	ctx = getters.WithSession(ctx)
 
 	var (
 		failedSamplesLock sync.Mutex
@@ -153,7 +149,7 @@ func (la *ShareAvailability) SharesAvailable(ctx context.Context, header *header
 	return nil
 }
 
-func rootKey(root *share.Root) datastore.Key {
+func rootKey(root *share.AxisRoots) datastore.Key {
 	return datastore.NewKey(root.String())
 }
 

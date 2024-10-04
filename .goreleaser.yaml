@@ -58,7 +58,7 @@ signs:
         "${artifact}",
       ]
 snapshot:
-  name_template: "{{ incpatch .Version }}-next"
+  version_template: "{{ incpatch .Version }}-next"
 changelog:
   sort: asc
   filters:

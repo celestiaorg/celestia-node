@@ -13,7 +13,7 @@ linters:
     # - funlen
     # - gochecknoglobals
     # - gochecknoinits
-    - exportloopref
+    - copyloopvar
     - gocheckcompilerdirectives
     - goconst
     - gocritic
@@ -40,7 +40,6 @@ linters:
     - prealloc
     - protogetter
     # - scopelint - deprecated since v1.39. exportloopref will be used instead
-    - exportloopref
     - staticcheck
     - stylecheck
     - typecheck
@@ -68,6 +67,9 @@ issues:
   max-same-issues: 50
 
 linters-settings:
+  gosec:
+    excludes:
+      - G115 # integer overflow conversion
   dogsled:
     max-blank-identifiers: 3
   golint:

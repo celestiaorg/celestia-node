@@ -12,22 +12,25 @@ import (
 	"github.com/cosmos/cosmos-sdk/types"
 	logging "github.com/ipfs/go-log/v2"
 	"github.com/tendermint/tendermint/libs/bytes"
+	tmproto "github.com/tendermint/tendermint/proto/tendermint/types"
 	core "github.com/tendermint/tendermint/types"
 	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/codes"
 	"go.opentelemetry.io/otel/trace"
 
-	"github.com/celestiaorg/celestia-app/pkg/appconsts"
-	appns "github.com/celestiaorg/celestia-app/pkg/namespace"
-	pkgproof "github.com/celestiaorg/celestia-app/pkg/proof"
-	"github.com/celestiaorg/celestia-app/pkg/shares"
+	"github.com/celestiaorg/celestia-app/v2/pkg/appconsts"
+	pkgproof "github.com/celestiaorg/celestia-app/v2/pkg/proof"
+	"github.com/celestiaorg/go-square/inclusion"
+	appns "github.com/celestiaorg/go-square/namespace"
+	"github.com/celestiaorg/go-square/shares"
 	"github.com/celestiaorg/nmt"
 	"github.com/celestiaorg/rsmt2d"
 
 	"github.com/celestiaorg/celestia-node/header"
 	"github.com/celestiaorg/celestia-node/libs/utils"
 	"github.com/celestiaorg/celestia-node/share"
+	"github.com/celestiaorg/celestia-node/share/shwap"
 	"github.com/celestiaorg/celestia-node/state"
 )
 
@@ -58,7 +61,7 @@ type Service struct {
 	// accessor dials the given celestia-core endpoint to submit blobs.
 	blobSubmitter Submitter
 	// shareGetter retrieves the EDS to fetch all shares from the requested header.
-	shareGetter share.Getter
+	shareGetter shwap.Getter
 	// headerGetter fetches header by the provided height
 	headerGetter func(context.Context, uint64) (*header.ExtendedHeader, error)
 	// headerSub subscribes to new headers to supply to blob subscriptions.
@@ -67,7 +70,7 @@ type Service struct {
 
 func NewService(
 	submitter Submitter,
-	getter share.Getter,
+	getter shwap.Getter,
 	headerGetter func(context.Context, uint64) (*header.ExtendedHeader, error),
 	headerSub func(ctx context.Context) (<-chan *header.ExtendedHeader, error),
 ) *Service {
@@ -172,15 +175,15 @@ func (s *Service) Subscribe(ctx context.Context, ns share.Namespace) (<-chan *Su
 func (s *Service) Submit(ctx context.Context, blobs []*Blob, txConfig *SubmitOptions) (uint64, error) {
 	log.Debugw("submitting blobs", "amount", len(blobs))
 
-	appblobs := make([]*state.Blob, len(blobs))
+	squareBlobs := make([]*state.Blob, len(blobs))
 	for i := range blobs {
 		if err := blobs[i].Namespace().ValidateForBlob(); err != nil {
 			return 0, err
 		}
-		appblobs[i] = &blobs[i].Blob
+		squareBlobs[i] = blobs[i].Blob
 	}
 
-	resp, err := s.blobSubmitter.SubmitPayForBlob(ctx, appblobs, txConfig)
+	resp, err := s.blobSubmitter.SubmitPayForBlob(ctx, squareBlobs, txConfig)
 	if err != nil {
 		return 0, err
 	}
@@ -374,7 +377,7 @@ func (s *Service) retrieve(
 	// collect shares for the requested namespace
 	namespacedShares, err := s.shareGetter.GetSharesByNamespace(getCtx, header, namespace)
 	if err != nil {
-		if errors.Is(err, share.ErrNotFound) {
+		if errors.Is(err, shwap.ErrNotFound) {
 			err = ErrBlobNotFound
 		}
 		getSharesSpan.SetStatus(codes.Error, err.Error())
@@ -669,9 +672,17 @@ func (s *Service) retrieveBlobProof(
 				if err != nil {
 					return nil, nil, err
 				}
-
+				tmShareToRowRootProofs := make([]*tmproto.NMTProof, 0, len(shareToRowRootProofs))
+				for _, proof := range shareToRowRootProofs {
+					tmShareToRowRootProofs = append(tmShareToRowRootProofs, &tmproto.NMTProof{
+						Start:    proof.Start,
+						End:      proof.End,
+						Nodes:    proof.Nodes,
+						LeafHash: proof.LeafHash,
+					})
+				}
 				proof := Proof{
-					ShareToRowRootProof: shareToRowRootProofs,
+					ShareToRowRootProof: tmShareToRowRootProofs,
 					RowToDataRootProof: core.RowProof{
 						RowRoots: rowRoots,
 						Proofs:   rowProofs,
@@ -822,10 +833,12 @@ func ProveCommitment(
 	// convert the shares to row root proofs to nmt proofs
 	nmtProofs := make([]*nmt.Proof, 0)
 	for _, proof := range sharesProof.ShareProofs {
-		nmtProof := nmt.NewInclusionProof(int(proof.Start),
+		nmtProof := nmt.NewInclusionProof(
+			int(proof.Start),
 			int(proof.End),
 			proof.Nodes,
-			true)
+			true,
+		)
 		nmtProofs = append(
 			nmtProofs,
 			&nmtProof,
@@ -842,7 +855,7 @@ func ProveCommitment(
 		ranges, err := nmt.ToLeafRanges(
 			proof.Start(),
 			proof.End(),
-			shares.SubTreeWidth(len(blobShares), appconsts.DefaultSubtreeRootThreshold),
+			inclusion.SubTreeWidth(len(blobShares), appconsts.DefaultSubtreeRootThreshold),
 		)
 		if err != nil {
 			return nil, err
@@ -864,7 +877,7 @@ func ProveCommitment(
 		SubtreeRoots:      subtreeRoots,
 		SubtreeRootProofs: nmtProofs,
 		NamespaceID:       namespace.ID(),
-		RowProof:          sharesProof.RowProof,
+		RowProof:          *sharesProof.RowProof,
 		NamespaceVersion:  namespace.Version(),
 	}
 	return &commitmentProof, nil

@@ -11,13 +11,18 @@ import (
 	tmproto "github.com/tendermint/tendermint/proto/tendermint/types"
 	coretypes "github.com/tendermint/tendermint/types"
 
-	"github.com/celestiaorg/celestia-app/pkg/appconsts"
-	"github.com/celestiaorg/celestia-app/pkg/shares"
-	"github.com/celestiaorg/celestia-app/x/blob/types"
+	"github.com/celestiaorg/celestia-app/v2/pkg/appconsts"
+	v2 "github.com/celestiaorg/celestia-app/v2/pkg/appconsts/v2"
+	"github.com/celestiaorg/go-square/blob"
+	"github.com/celestiaorg/go-square/inclusion"
+	"github.com/celestiaorg/go-square/shares"
 	"github.com/celestiaorg/nmt"
 
 	"github.com/celestiaorg/celestia-node/share"
 )
+
+// appVersion is the current application version of celestia-app.
+const appVersion = v2.Version
 
 var errEmptyShares = errors.New("empty shares")
 
@@ -38,7 +43,11 @@ type namespaceToRowRootProof []*nmt.Proof
 // Verify takes a blob and a data root and verifies if the
 // provided blob was committed to the given data root.
 func (p *Proof) Verify(blob *Blob, dataRoot []byte) (bool, error) {
-	blobCommitment, err := types.CreateCommitment(ToAppBlobs(blob)[0])
+	blobCommitment, err := inclusion.CreateCommitment(
+		ToAppBlobs(blob)[0],
+		merkle.HashFromByteSlices,
+		appconsts.DefaultSubtreeRootThreshold,
+	)
 	if err != nil {
 		return false, err
 	}
@@ -93,7 +102,7 @@ func (p *Proof) VerifyShares(rawShares [][]byte, namespace share.Namespace, data
 
 // Blob represents any application-specific binary data that anyone can submit to Celestia.
 type Blob struct {
-	types.Blob `json:"blob"`
+	*blob.Blob `json:"blob"`
 
 	Commitment Commitment `json:"commitment"`
 
@@ -121,18 +130,18 @@ func NewBlob(shareVersion uint8, namespace share.Namespace, data []byte) (*Blob,
 		return nil, err
 	}
 
-	blob := tmproto.Blob{
+	blob := blob.Blob{
 		NamespaceId:      namespace.ID(),
 		Data:             data,
 		ShareVersion:     uint32(shareVersion),
 		NamespaceVersion: uint32(namespace.Version()),
 	}
 
-	com, err := types.CreateCommitment(&blob)
+	com, err := inclusion.CreateCommitment(&blob, merkle.HashFromByteSlices, appconsts.SubtreeRootThreshold(appVersion))
 	if err != nil {
 		return nil, err
 	}
-	return &Blob{Blob: blob, Commitment: com, namespace: namespace, index: -1}, nil
+	return &Blob{Blob: &blob, Commitment: com, namespace: namespace, index: -1}, nil
 }
 
 // Namespace returns blob's namespace.
@@ -194,19 +203,24 @@ func (b *Blob) MarshalJSON() ([]byte, error) {
 }
 
 func (b *Blob) UnmarshalJSON(data []byte) error {
-	var blob jsonBlob
-	err := json.Unmarshal(data, &blob)
+	var jsonBlob jsonBlob
+	err := json.Unmarshal(data, &jsonBlob)
 	if err != nil {
 		return err
 	}
 
-	b.Blob.NamespaceVersion = uint32(blob.Namespace.Version())
-	b.Blob.NamespaceId = blob.Namespace.ID()
-	b.Blob.Data = blob.Data
-	b.Blob.ShareVersion = blob.ShareVersion
-	b.Commitment = blob.Commitment
-	b.namespace = blob.Namespace
-	b.index = blob.Index
+	if len(jsonBlob.Namespace) == 0 {
+		return errors.New("expected a non-empty namespace")
+	}
+
+	b.Blob = &blob.Blob{}
+	b.Blob.NamespaceVersion = uint32(jsonBlob.Namespace.Version())
+	b.Blob.NamespaceId = jsonBlob.Namespace.ID()
+	b.Blob.Data = jsonBlob.Data
+	b.Blob.ShareVersion = jsonBlob.ShareVersion
+	b.Commitment = jsonBlob.Commitment
+	b.namespace = jsonBlob.Namespace
+	b.index = jsonBlob.Index
 	return nil
 }
 
