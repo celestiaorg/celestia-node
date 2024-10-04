@@ -33,7 +33,7 @@ require (
 	github.com/hashicorp/go-retryablehttp v0.7.7
 	github.com/hashicorp/golang-lru/v2 v2.0.7
 	github.com/imdario/mergo v0.3.16
-	github.com/ipfs/boxo v0.22.0
+	github.com/ipfs/boxo v0.24.0
 	github.com/ipfs/go-block-format v0.2.0
 	github.com/ipfs/go-cid v0.4.1
 	github.com/ipfs/go-datastore v0.6.0
@@ -44,7 +44,7 @@ require (
 	github.com/ipfs/go-metrics-interface v0.0.1
 	github.com/ipfs/go-metrics-prometheus v0.0.2
 	github.com/klauspost/reedsolomon v1.12.1
-	github.com/libp2p/go-libp2p v0.36.2
+	github.com/libp2p/go-libp2p v0.36.5
 	github.com/libp2p/go-libp2p-kad-dht v0.26.1
 	github.com/libp2p/go-libp2p-pubsub v0.12.0
 	github.com/libp2p/go-libp2p-record v0.2.0
@@ -52,7 +52,7 @@ require (
 	github.com/mitchellh/go-homedir v1.1.0
 	github.com/multiformats/go-base32 v0.1.0
 	github.com/multiformats/go-multiaddr v0.13.0
-	github.com/multiformats/go-multiaddr-dns v0.3.1
+	github.com/multiformats/go-multiaddr-dns v0.4.0
 	github.com/multiformats/go-multihash v0.2.3
 	github.com/open-rpc/meta-schema v0.0.0-20201029221707-1b72ef2ea333
 	github.com/prometheus/client_golang v1.20.0
