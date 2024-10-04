@@ -6,6 +6,8 @@ import (
 
 	"github.com/cosmos/cosmos-sdk/x/staking/types"
 
+	"github.com/celestiaorg/go-square/v2/share"
+
 	"github.com/celestiaorg/celestia-node/state"
 )
 
@@ -42,7 +44,7 @@ func (s stubbedStateModule) Transfer(
 
 func (s stubbedStateModule) SubmitPayForBlob(
 	context.Context,
-	[]*state.Blob,
+	[]*share.Blob,
 	*state.TxConfig,
 ) (*state.TxResponse, error) {
 	return nil, ErrNoStateAccess
