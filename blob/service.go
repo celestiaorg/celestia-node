@@ -45,7 +45,7 @@ type SubmitOptions = state.TxConfig
 // avoid a circular dependency between the blob and the state package, since the state package needs
 // the blob.Blob type for this signature.
 type Submitter interface {
-	SubmitPayForBlob(context.Context, []*state.Blob, *state.TxConfig) (*types.TxResponse, error)
+	SubmitPayForBlob(context.Context, []*share.Blob, *state.TxConfig) (*types.TxResponse, error)
 }
 
 type Service struct {
@@ -171,8 +171,15 @@ func (s *Service) Submit(ctx context.Context, blobs []*Blob, txConfig *SubmitOpt
 
 	squareBlobs := make([]*share.Blob, len(blobs))
 	for i := range blobs {
-		if err := share.ValidateForData(blobs[i].Namespace()); err != nil {
+		namespace := blobs[i].Namespace()
+		if err := share.ValidateForData(namespace); err != nil {
 			return 0, err
+		}
+		if !blobs[i].Namespace().IsUsableNamespace() {
+			return 0, fmt.Errorf("parity of tail padding namespaces %s are not allowed", namespace.ID())
+		}
+		if blobs[i].Namespace().IsReserved() {
+			return 0, fmt.Errorf("reserved namespace %s is not allowed", namespace.ID())
 		}
 		squareBlobs[i] = blobs[i].Blob
 	}
