@@ -16,7 +16,6 @@ import (
 	"github.com/celestiaorg/celestia-node/share/availability/full"
 	"github.com/celestiaorg/celestia-node/share/availability/light"
 	"github.com/celestiaorg/celestia-node/share/shwap"
-	"github.com/celestiaorg/celestia-node/share/shwap/p2p/bitswap"
 	"github.com/celestiaorg/celestia-node/share/shwap/p2p/shrex/peers"
 	"github.com/celestiaorg/celestia-node/share/shwap/p2p/shrex/shrex_getter"
 	"github.com/celestiaorg/celestia-node/share/shwap/p2p/shrex/shrexeds"
@@ -64,7 +63,7 @@ func ConstructModule(tp node.Type, cfg *Config, options ...fx.Option) fx.Option 
 func bitswapComponents(tp node.Type, cfg *Config) fx.Option {
 	opts := fx.Options(
 		fx.Provide(dataExchange),
-		fx.Provide(bitswap.NewGetter),
+		fx.Provide(bitswapGetter),
 	)
 	switch tp {
 	case node.Light:
