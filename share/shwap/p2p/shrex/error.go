@@ -1,6 +1,8 @@
 package shrex
 
-import "errors"
+import (
+	"errors"
+)
 
 // ErrorContains reports whether any error in err's tree matches any error in targets tree.
 func ErrorContains(err, target error) bool {

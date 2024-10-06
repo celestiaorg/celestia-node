@@ -69,6 +69,7 @@ type CoreAccessor struct {
 	coreConn *grpc.ClientConn
 	coreIP   string
 	grpcPort string
+	network  string
 
 	// these fields are mutatable and thus need to be protected by a mutex
 	lock            sync.Mutex
@@ -90,6 +91,7 @@ func NewCoreAccessor(
 	getter libhead.Head[*header.ExtendedHeader],
 	coreIP,
 	grpcPort string,
+	network string,
 	options ...Option,
 ) (*CoreAccessor, error) {
 	// create verifier
@@ -104,6 +106,7 @@ func NewCoreAccessor(
 		coreIP:               coreIP,
 		grpcPort:             grpcPort,
 		prt:                  prt,
+		network:              network,
 	}
 
 	for _, opt := range options {
@@ -142,6 +145,15 @@ func (ca *CoreAccessor) Start(ctx context.Context) error {
 
 	// create ABCI query client
 	ca.abciQueryCli = tmservice.NewServiceClient(ca.coreConn)
+	resp, err := ca.abciQueryCli.GetNodeInfo(ctx, &tmservice.GetNodeInfoRequest{})
+	if err != nil {
+		return fmt.Errorf("failed to get node info: %w", err)
+	}
+
+	defaultNetwork := resp.GetDefaultNodeInfo().GetNetwork()
+	if defaultNetwork != ca.network {
+		return fmt.Errorf("wrong network in core.ip endpoint, expected %s, got %s", defaultNetwork, ca.network)
+	}
 
 	// set up signer to handle tx submission
 	ca.client, err = ca.setupTxClient(ctx, ca.defaultSignerAccount)
