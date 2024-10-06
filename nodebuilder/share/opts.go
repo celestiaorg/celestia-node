@@ -54,9 +54,5 @@ func WithShrexGetterMetrics(sg *shrex_getter.Getter) error {
 }
 
 func WithStoreMetrics(s *store.Store) error {
-	err := s.BS.WithMetrics()
-	if err != nil {
-		return err
-	}
 	return s.WithMetrics()
 }

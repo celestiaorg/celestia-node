@@ -5,6 +5,8 @@ import (
 	"math/rand"
 	"time"
 
+	"github.com/celestiaorg/celestia-node/share/shwap"
+
 	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/metric"
@@ -12,7 +14,6 @@ import (
 	logging "github.com/ipfs/go-log/v2"
 
 	"github.com/celestiaorg/celestia-node/header"
-	"github.com/celestiaorg/celestia-node/share"
 )
 
 var (
@@ -25,14 +26,14 @@ var (
 // its availability. It is assumed that there are a lot of lightAvailability instances
 // on the network doing sampling over the same Root to collectively verify its availability.
 type ShareAvailability struct {
-	getter share.Getter
+	getter shwap.Getter
 
 	sample metric.Float64Histogram
 }
 
 // NewShareAvailability creates a new light Availability.
 func NewShareAvailability(
-	getter share.Getter,
+	getter shwap.Getter,
 ) *ShareAvailability {
 	return &ShareAvailability{
 		getter: getter,

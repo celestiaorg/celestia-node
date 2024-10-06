@@ -1,9 +1,11 @@
-package eds
+package bitswap
 
 import (
 	"context"
 	"errors"
 	"fmt"
+
+	"go.opentelemetry.io/otel"
 
 	bstore "github.com/ipfs/boxo/blockstore"
 	blocks "github.com/ipfs/go-block-format"
@@ -15,9 +17,13 @@ import (
 
 const (
 	notFoundKey = "not_found"
+	failedKey   = "failed"
 )
 
-var _ bstore.Blockstore = (*BlockstoreWithMetrics)(nil)
+var (
+	meter                   = otel.Meter("bitswap_blockstore")
+	_     bstore.Blockstore = (*BlockstoreWithMetrics)(nil)
+)
 
 type BlockstoreWithMetrics struct {
 	bs bstore.Blockstore

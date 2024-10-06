@@ -23,7 +23,7 @@ import (
 // dataExchange constructs Exchange(Bitswap Composition) for Shwap
 func dataExchange(tp node.Type, params bitSwapParams) exchange.SessionExchange {
 	prefix := protocolID(params.Net)
-	net := bitswap.NewNetwork(params.Host, prefix)
+	net := bitswap.NewNetwork(params.Host, prefix+"_load_test")
 
 	if params.PromReg != nil {
 		// metrics scope is required for prometheus metrics and will be used as metrics name prefix
@@ -64,17 +64,21 @@ func blockstoreFromDatastore(ds datastore.Batching) (blockstore.Blockstore, erro
 	return blockstore.NewBlockstore(ds), nil
 }
 
-func blockstoreFromEDSStore(store *store.Store, blockStoreCacheSize int) (blockstore.Blockstore, error) {
-	if blockStoreCacheSize == 0 {
-		// no cache, return plain blockstore
-		return &bitswap.Blockstore{Getter: store}, nil
+func blockstoreFromEDSStore(store *store.Store, blockStoreCacheSize int) (*bitswap.BlockstoreWithMetrics, error) {
+	bs := &bitswap.Blockstore{Getter: store}
+	if blockStoreCacheSize > 0 {
+		withCache, err := store.WithCache("blockstore", blockStoreCacheSize)
+		if err != nil {
+			return nil, fmt.Errorf("create cached store for blockstore:%w", err)
+		}
+		bs.Getter = withCache
 	}
-	withCache, err := store.WithCache("blockstore", blockStoreCacheSize)
+
+	withMetrics, err := bitswap.NewBlockstoreWithMetrics(bs)
 	if err != nil {
-		return nil, fmt.Errorf("create cached store for blockstore:%w", err)
+		return nil, fmt.Errorf("create metrics for blockstore:%w", err)
 	}
-	bs := &bitswap.Blockstore{Getter: withCache}
-	return bs, nil
+	return withMetrics, nil
 }
 
 type bitSwapParams struct {

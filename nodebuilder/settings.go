@@ -5,6 +5,8 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/celestiaorg/celestia-node/share/shwap/p2p/bitswap"
+
 	laod_test "github.com/celestiaorg/celestia-node/share/availability/load"
 
 	otelpyroscope "github.com/grafana/otel-profiling-go"
@@ -113,6 +115,9 @@ func WithMetrics(metricOpts []otlpmetrichttp.Option, nodeType node.Type) fx.Opti
 		opts = fx.Options(
 			baseComponents,
 			fx.Invoke(share.WithStoreMetrics),
+			fx.Invoke(func(bs *bitswap.BlockstoreWithMetrics) error {
+				return bs.WithMetrics()
+			}),
 			fx.Invoke(share.WithShrexServerMetrics),
 			samplingMetrics,
 		)

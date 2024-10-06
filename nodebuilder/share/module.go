@@ -4,10 +4,11 @@ import (
 	"context"
 	"fmt"
 
+	"github.com/celestiaorg/celestia-node/share/shwap/p2p/bitswap"
+
 	laod_test "github.com/celestiaorg/celestia-node/share/availability/load"
 
 	"github.com/ipfs/boxo/blockstore"
-	"github.com/ipfs/go-datastore"
 	"github.com/libp2p/go-libp2p/core/host"
 	"go.uber.org/fx"
 
@@ -16,7 +17,6 @@ import (
 	lightprune "github.com/celestiaorg/celestia-node/pruner/light"
 	"github.com/celestiaorg/celestia-node/share"
 	"github.com/celestiaorg/celestia-node/share/availability/full"
-	"github.com/celestiaorg/celestia-node/share/shwap"
 	"github.com/celestiaorg/celestia-node/share/shwap/p2p/shrex/peers"
 	"github.com/celestiaorg/celestia-node/share/shwap/p2p/shrex/shrex_getter"
 	"github.com/celestiaorg/celestia-node/share/shwap/p2p/shrex/shrexeds"
@@ -75,8 +75,11 @@ func bitswapComponents(tp node.Type, cfg *Config) fx.Option {
 	case node.Full, node.Bridge:
 		return fx.Options(
 			opts,
-			fx.Provide(func(store *store.Store) (blockstore.Blockstore, error) {
+			fx.Provide(func(store *store.Store) (*bitswap.BlockstoreWithMetrics, error) {
 				return blockstoreFromEDSStore(store, int(cfg.BlockStoreCacheSize))
+			}),
+			fx.Provide(func(bs *bitswap.BlockstoreWithMetrics) blockstore.Blockstore {
+				return bs
 			}),
 		)
 	default:
