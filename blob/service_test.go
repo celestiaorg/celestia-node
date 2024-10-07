@@ -306,7 +306,8 @@ func TestBlobService_Get(t *testing.T) {
 				require.NoError(t, err)
 
 				// tamper with the header getter to get a random data hash at height 12345
-				service.headerGetter = func(ctx context.Context, height uint64) (*header.ExtendedHeader, error) {
+				tamperedService := *service
+				tamperedService.headerGetter = func(ctx context.Context, height uint64) (*header.ExtendedHeader, error) {
 					if height == 12345 {
 						return &header.ExtendedHeader{
 							RawHeader: header.RawHeader{
@@ -317,7 +318,7 @@ func TestBlobService_Get(t *testing.T) {
 					return service.headerGetter(ctx, height)
 				}
 				// this blob was included in height 1, but we will check if it's included in height 2
-				return service.Included(
+				return tamperedService.Included(
 					ctx,
 					12345,
 					blobsWithDiffNamespaces[1].Namespace(),
