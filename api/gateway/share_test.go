@@ -6,7 +6,7 @@ import (
 
 	"github.com/stretchr/testify/require"
 
-	"github.com/celestiaorg/go-square/v2/share"
+	gosquare "github.com/celestiaorg/go-square/v2/share"
 )
 
 func Test_dataFromShares(t *testing.T) {
@@ -16,10 +16,10 @@ func Test_dataFromShares(t *testing.T) {
 		[]byte("BEEEEAHP"),
 	}
 
-	ns := share.RandomNamespace()
-	sss := share.NewSparseShareSplitter()
+	ns := gosquare.RandomNamespace()
+	sss := gosquare.NewSparseShareSplitter()
 	for _, data := range testData {
-		b, err := share.NewBlob(ns, data, share.ShareVersionZero, nil)
+		b, err := gosquare.NewBlob(ns, data, gosquare.ShareVersionZero, nil)
 		require.NoError(t, err)
 		require.NoError(t, sss.Write(b))
 	}
@@ -32,7 +32,7 @@ func Test_dataFromShares(t *testing.T) {
 		rawSSSShares[i] = d
 	}
 
-	shrs, err := share.FromBytes(rawSSSShares)
+	shrs, err := gosquare.FromBytes(rawSSSShares)
 	require.NoError(t, err)
 	parsedSSSShares, err := dataFromShares(shrs)
 	require.NoError(t, err)

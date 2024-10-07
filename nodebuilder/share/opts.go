@@ -3,11 +3,11 @@ package share
 import (
 	"errors"
 
-	"github.com/celestiaorg/celestia-node/square/shwap/p2p/discovery"
-	"github.com/celestiaorg/celestia-node/square/shwap/p2p/shrex/peers"
-	"github.com/celestiaorg/celestia-node/square/shwap/p2p/shrex/shrex_getter"
-	"github.com/celestiaorg/celestia-node/square/shwap/p2p/shrex/shrexeds"
-	"github.com/celestiaorg/celestia-node/square/shwap/p2p/shrex/shrexnd"
+	"github.com/celestiaorg/celestia-node/share/shwap/p2p/discovery"
+	"github.com/celestiaorg/celestia-node/share/shwap/p2p/shrex/peers"
+	"github.com/celestiaorg/celestia-node/share/shwap/p2p/shrex/shrex_getter"
+	"github.com/celestiaorg/celestia-node/share/shwap/p2p/shrex/shrexeds"
+	"github.com/celestiaorg/celestia-node/share/shwap/p2p/shrex/shrexnd"
 	"github.com/celestiaorg/celestia-node/store"
 )
 

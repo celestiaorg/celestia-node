@@ -11,7 +11,7 @@ import (
 	"github.com/spf13/cobra"
 	flag "github.com/spf13/pflag"
 
-	"github.com/celestiaorg/go-square/v2/share"
+	gosquare "github.com/celestiaorg/go-square/v2/share"
 
 	"github.com/celestiaorg/celestia-node/nodebuilder/core"
 	"github.com/celestiaorg/celestia-node/nodebuilder/gateway"
@@ -48,14 +48,14 @@ func PrintOutput(data interface{}, err error, formatData func(interface{}) inter
 // ParseV0Namespace parses a namespace from a base64 or hex string. The param
 // is expected to be the user-specified portion of a v0 namespace ID (i.e. the
 // last 10 bytes).
-func ParseV0Namespace(param string) (share.Namespace, error) {
+func ParseV0Namespace(param string) (gosquare.Namespace, error) {
 	userBytes, err := DecodeToBytes(param)
 	if err != nil {
-		return share.Namespace{}, err
+		return gosquare.Namespace{}, err
 	}
 
 	// if the namespace ID is <= 10 bytes, left pad it with 0s
-	return share.NewV0Namespace(userBytes)
+	return gosquare.NewV0Namespace(userBytes)
 }
 
 // DecodeToBytes decodes a Base64 or hex input string into a byte slice.

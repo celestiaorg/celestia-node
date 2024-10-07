@@ -9,7 +9,7 @@ import (
 
 	"github.com/celestiaorg/go-square/merkle"
 	"github.com/celestiaorg/go-square/v2/inclusion"
-	"github.com/celestiaorg/go-square/v2/share"
+	gosquare "github.com/celestiaorg/go-square/v2/share"
 
 	"github.com/celestiaorg/celestia-node/blob/blobtest"
 )
@@ -50,7 +50,7 @@ func TestBlob(t *testing.T) {
 			name: "verify namespace",
 			expectedRes: func(t *testing.T) {
 				ns := blob[0].Namespace()
-				require.NoError(t, share.ValidateUserNamespace(ns.Version(), ns.ID()))
+				require.NoError(t, gosquare.ValidateUserNamespace(ns.Version(), ns.ID()))
 			},
 		},
 		{
@@ -91,7 +91,7 @@ func TestBlob(t *testing.T) {
 	}
 }
 
-func convertBlobs(appBlobs ...*share.Blob) ([]*Blob, error) {
+func convertBlobs(appBlobs ...*gosquare.Blob) ([]*Blob, error) {
 	blobs := make([]*Blob, 0, len(appBlobs))
 	for _, appBlob := range appBlobs {
 		blob, err := NewBlob(appBlob.ShareVersion(), appBlob.Namespace(), appBlob.Data(), appBlob.Signer())
