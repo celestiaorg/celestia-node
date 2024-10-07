@@ -6,9 +6,9 @@ import (
 	"log"
 	"time"
 
-	"github.com/celestiaorg/celestia-app/v2/app"
-	"github.com/celestiaorg/celestia-app/v2/test/util/testnode"
+	"github.com/celestiaorg/celestia-app/v3/app"
 	"github.com/celestiaorg/celestia-app/v3/test/e2e/testnet"
+	"github.com/celestiaorg/celestia-app/v3/test/util/testnode"
 	"github.com/celestiaorg/celestia-node/nodebuilder/node"
 	nodeTestnet "github.com/celestiaorg/celestia-node/test/e2e/testnet"
 )

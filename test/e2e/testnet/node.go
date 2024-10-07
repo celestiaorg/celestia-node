@@ -13,17 +13,6 @@ import (
 	"github.com/prometheus/common/expfmt"
 )
 
-const (
-	rpcPort           = 26658
-	p2pPort           = 2121
-	prometheusPort    = 9090
-	otlpRemotePort    = 4318
-	dockerSrcURL      = "ghcr.io/celestiaorg/celestia-node"
-	remoteRootDir     = "/home/celestia"
-	txsimRootDir      = "/home/celestia"
-	celestiaCustomEnv = "CELESTIA_CUSTOM"
-)
-
 type Node struct {
 	Name     string
 	Type     node.Type

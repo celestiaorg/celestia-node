@@ -5,7 +5,8 @@ import (
 	"fmt"
 
 	"github.com/celestiaorg/celestia-app/v3/test/e2e/testnet"
-	"github.com/celestiaorg/celestia-app/v3/test/util/genesis" // Updated this import
+	"github.com/celestiaorg/celestia-app/v3/test/util/genesis"
+
 	"github.com/celestiaorg/celestia-node/nodebuilder/node"
 	"github.com/celestiaorg/knuu/pkg/instance"
 )
