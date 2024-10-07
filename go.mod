@@ -342,7 +342,7 @@ require (
 )
 
 replace (
-	github.com/celestiaorg/go-square/v2 v2.0.0 => ../go-square
+	github.com/celestiaorg/go-square/v2 v2.0.0 => github.com/celestiaorg/go-square/v2 v2.0.1-0.20241007123147-1359db0f487c
 	github.com/cosmos/cosmos-sdk => github.com/celestiaorg/cosmos-sdk v1.24.1-sdk-v0.46.16
 	github.com/filecoin-project/dagstore => github.com/celestiaorg/dagstore v0.0.0-20230824094345-537c012aa403
 	github.com/gogo/protobuf => github.com/regen-network/protobuf v1.3.3-alpha.regen.1
