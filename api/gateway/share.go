@@ -88,7 +88,11 @@ func (h *Handler) handleDataByNamespaceRequest(w http.ResponseWriter, r *http.Re
 	}
 }
 
-func (h *Handler) getShares(ctx context.Context, height uint64, namespace gosquare.Namespace) ([]gosquare.Share, error) {
+func (h *Handler) getShares(
+	ctx context.Context,
+	height uint64,
+	namespace gosquare.Namespace,
+) ([]gosquare.Share, error) {
 	header, err := h.header.GetByHeight(ctx, height)
 	if err != nil {
 		return nil, err

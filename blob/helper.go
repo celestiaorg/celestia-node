@@ -19,7 +19,6 @@ func BlobsToShares(nodeBlobs ...*Blob) ([]gosquare.Share, error) {
 		if err != nil {
 			return nil, fmt.Errorf("failed to split blob at index: %d: %w", i, err)
 		}
-
 	}
 	return splitter.Export(), nil
 }

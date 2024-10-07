@@ -564,6 +564,7 @@ func TestService_GetAllWithoutPadding(t *testing.T) {
 	rawShares = append(rawShares, append(sh, padding, padding, padding)...)
 
 	sh, err = BlobsToShares(blobs[4])
+	require.NoError(t, err)
 	rawShares = append(rawShares, sh...)
 	service := createService(ctx, t, rawShares)
 
@@ -953,7 +954,7 @@ func proveAndVerifyShareCommitments(t *testing.T, blobSize int) {
 	msgs, blobs, nss, eds, _, _, dataRoot := edstest.GenerateTestBlock(t, blobSize, 10)
 	for msgIndex, msg := range msgs {
 		t.Run(fmt.Sprintf("msgIndex=%d", msgIndex), func(t *testing.T) {
-			blb, err := NewBlob(uint8(blobs[msgIndex].ShareVersion()), nss[msgIndex], blobs[msgIndex].Data(), nil)
+			blb, err := NewBlob(blobs[msgIndex].ShareVersion(), nss[msgIndex], blobs[msgIndex].Data(), nil)
 			require.NoError(t, err)
 			blobShares, err := BlobsToShares(blb)
 			require.NoError(t, err)

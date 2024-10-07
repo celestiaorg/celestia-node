@@ -14,8 +14,9 @@ const RowNamespaceDataIDSize = RowIDSize + gosquare.NamespaceSize
 // RowNamespaceDataID uniquely identifies a piece of namespaced data within a row of an Extended
 // Data Square (EDS).
 type RowNamespaceDataID struct {
-	RowID                            // Embedded RowID representing the specific row in the EDS.
-	DataNamespace gosquare.Namespace // DataNamespace is a string representation of the namespace to facilitate comparisons.
+	RowID // Embedded RowID representing the specific row in the EDS.
+	// DataNamespace is a string representation of the namespace to facilitate comparisons.
+	DataNamespace gosquare.Namespace
 }
 
 // NewRowNamespaceDataID creates a new RowNamespaceDataID with the specified parameters. It
@@ -56,6 +57,9 @@ func RowNamespaceDataIDFromBinary(data []byte) (RowNamespaceDataID, error) {
 	}
 
 	ns, err := gosquare.NewNamespaceFromBytes(data[RowIDSize:])
+	if err != nil {
+		return RowNamespaceDataID{}, fmt.Errorf("invalid namespace format: %w", err)
+	}
 	rndid := RowNamespaceDataID{
 		RowID:         rid,
 		DataNamespace: ns,
