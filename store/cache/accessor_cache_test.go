@@ -11,12 +11,12 @@ import (
 
 	"github.com/stretchr/testify/require"
 
-	"github.com/celestiaorg/go-square/v2/share"
+	gosquare "github.com/celestiaorg/go-square/v2/share"
 	"github.com/celestiaorg/rsmt2d"
 
-	"github.com/celestiaorg/celestia-node/square"
-	"github.com/celestiaorg/celestia-node/square/eds"
-	"github.com/celestiaorg/celestia-node/square/shwap"
+	"github.com/celestiaorg/celestia-node/share"
+	"github.com/celestiaorg/celestia-node/share/eds"
+	"github.com/celestiaorg/celestia-node/share/shwap"
 )
 
 func TestAccessorCache(t *testing.T) {
@@ -307,11 +307,11 @@ func (m *mockAccessor) Size(context.Context) int {
 	panic("implement me")
 }
 
-func (m *mockAccessor) DataHash(context.Context) (square.DataHash, error) {
+func (m *mockAccessor) DataHash(context.Context) (share.DataHash, error) {
 	panic("implement me")
 }
 
-func (m *mockAccessor) AxisRoots(context.Context) (*square.AxisRoots, error) {
+func (m *mockAccessor) AxisRoots(context.Context) (*share.AxisRoots, error) {
 	panic("implement me")
 }
 
@@ -323,11 +323,11 @@ func (m *mockAccessor) AxisHalf(context.Context, rsmt2d.Axis, int) (eds.AxisHalf
 	panic("implement me")
 }
 
-func (m *mockAccessor) RowNamespaceData(context.Context, share.Namespace, int) (shwap.RowNamespaceData, error) {
+func (m *mockAccessor) RowNamespaceData(context.Context, gosquare.Namespace, int) (shwap.RowNamespaceData, error) {
 	panic("implement me")
 }
 
-func (m *mockAccessor) Shares(context.Context) ([]share.Share, error) {
+func (m *mockAccessor) Shares(context.Context) ([]gosquare.Share, error) {
 	panic("implement me")
 }
 

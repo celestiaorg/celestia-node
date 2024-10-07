@@ -11,14 +11,14 @@ import (
 	"github.com/celestiaorg/celestia-app/v3/pkg/wrapper"
 	"github.com/celestiaorg/go-square/shares"
 	libSquare "github.com/celestiaorg/go-square/v2"
-	"github.com/celestiaorg/go-square/v2/share"
+	gosquare "github.com/celestiaorg/go-square/v2/share"
 	"github.com/celestiaorg/nmt"
 	"github.com/celestiaorg/rsmt2d"
 
 	"github.com/celestiaorg/celestia-node/header"
 	"github.com/celestiaorg/celestia-node/pruner"
 	"github.com/celestiaorg/celestia-node/pruner/full"
-	"github.com/celestiaorg/celestia-node/square"
+	"github.com/celestiaorg/celestia-node/share"
 	"github.com/celestiaorg/celestia-node/store"
 )
 
@@ -27,11 +27,11 @@ import (
 // nil is returned in place of the eds.
 func extendBlock(data types.Data, appVersion uint64, options ...nmt.Option) (*rsmt2d.ExtendedDataSquare, error) {
 	if app.IsEmptyBlock(data, appVersion) {
-		return square.EmptyEDS(), nil
+		return share.EmptyEDS(), nil
 	}
 
 	// Construct the data square from the block's transactions
-	dataSquare, err := libSquare.Construct(
+	square, err := libSquare.Construct(
 		data.Txs.ToSliceOfBytes(),
 		appconsts.SquareSizeUpperBound(appVersion),
 		appconsts.SubtreeRootThreshold(appVersion),
@@ -39,7 +39,7 @@ func extendBlock(data types.Data, appVersion uint64, options ...nmt.Option) (*rs
 	if err != nil {
 		return nil, err
 	}
-	return extendShares(share.ToBytes(dataSquare), options...)
+	return extendShares(gosquare.ToBytes(square), options...)
 }
 
 func extendShares(s [][]byte, options ...nmt.Option) (*rsmt2d.ExtendedDataSquare, error) {

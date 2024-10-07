@@ -20,9 +20,9 @@ import (
 	"github.com/celestiaorg/celestia-node/header"
 	"github.com/celestiaorg/celestia-node/header/headertest"
 	"github.com/celestiaorg/celestia-node/pruner"
-	"github.com/celestiaorg/celestia-node/square"
-	"github.com/celestiaorg/celestia-node/square/availability/mocks"
-	"github.com/celestiaorg/celestia-node/square/eds/edstest"
+	"github.com/celestiaorg/celestia-node/share"
+	"github.com/celestiaorg/celestia-node/share/availability/mocks"
+	"github.com/celestiaorg/celestia-node/share/eds/edstest"
 )
 
 var timeout = time.Second * 15
@@ -285,7 +285,7 @@ func TestDASer_SamplingWindow(t *testing.T) {
 // createDASerSubcomponents takes numGetter (number of headers
 // to store in mockGetter) and numSub (number of headers to store
 // in the mock header.Subscriber), returning a newly instantiated
-// mockGetter, square.Availability, and mock header.Subscriber.
+// mockGetter, share.Availability, and mock header.Subscriber.
 func createDASerSubcomponents(
 	t *testing.T,
 	numGetter,
@@ -399,7 +399,7 @@ type benchGetterStub struct {
 
 func newBenchGetter() benchGetterStub {
 	return benchGetterStub{header: &header.ExtendedHeader{
-		DAH: &square.AxisRoots{RowRoots: make([][]byte, 0)},
+		DAH: &share.AxisRoots{RowRoots: make([][]byte, 0)},
 	}}
 }
 
@@ -420,7 +420,7 @@ func (m getterStub) GetByHeight(_ context.Context, height uint64) (*header.Exten
 	return &header.ExtendedHeader{
 		Commit:    &types.Commit{},
 		RawHeader: header.RawHeader{Height: int64(height)},
-		DAH:       &square.AxisRoots{RowRoots: make([][]byte, 0)},
+		DAH:       &share.AxisRoots{RowRoots: make([][]byte, 0)},
 	}, nil
 }
 
