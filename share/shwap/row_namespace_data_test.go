@@ -40,12 +40,12 @@ func TestNamespacedRowFromShares(t *testing.T) {
 	}
 }
 
-//func TestNamespacedRowFromSharesNonIncluded(t *testing.T) {
-//	// TODO: this will fail until absence proof support is added
+// func TestNamespacedRowFromSharesNonIncluded(t *testing.T) {
+// //TODO: this will fail until absence proof support is added
 //	t.Skip()
 //
 //	const odsSize = 8
-//	// Test absent namespace
+//	//Test absent namespace
 //	shares := gosquare.RandShares( odsSize)
 //	absentNs, err := share.GetNamespace(shares[0]).AddInt(1)
 //	require.NoError(t, err)
@@ -63,29 +63,29 @@ func TestNamespacedRowFromShares(t *testing.T) {
 //	require.True(t, nr.Proof.IsOfAbsence())
 //}
 
-//func TestValidateNamespacedRow(t *testing.T) {
-//	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
-//	t.Cleanup(cancel)
-//
-//	const odsSize = 8
-//	sharesAmount := odsSize * odsSize
-//	namespace := sharetest.RandV0Namespace()
-//	for amount := 1; amount < sharesAmount; amount++ {
-//		randEDS, root := edstest.RandEDSWithNamespace(t, namespace, amount, odsSize)
-//		rsmt2d := &eds.Rsmt2D{ExtendedDataSquare: randEDS}
-//		nd, err := eds.NamespaceData(ctx, rsmt2d, namespace)
-//		require.NoError(t, err)
-//		require.True(t, len(nd) > 0)
-//
-//		rowIdxs := share.RowsWithNamespace(root, namespace)
-//		require.Len(t, nd, len(rowIdxs))
-//
-//		for i, rowIdx := range rowIdxs {
-//			err = nd[i].Verify(root, namespace, rowIdx)
-//			require.NoError(t, err)
-//		}
-//	}
-//}
+func TestValidateNamespacedRow(t *testing.T) {
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	t.Cleanup(cancel)
+
+	const odsSize = 8
+	sharesAmount := odsSize * odsSize
+	namespace := gosquare.RandomNamespace()
+	for amount := 1; amount < sharesAmount; amount++ {
+		randEDS, root := edstest.RandEDSWithNamespace(t, namespace, amount, odsSize)
+		rsmt2d := &eds.Rsmt2D{ExtendedDataSquare: randEDS}
+		nd, err := eds.NamespaceData(ctx, rsmt2d, namespace)
+		require.NoError(t, err)
+		require.True(t, len(nd) > 0)
+
+		rowIdxs := share.RowsWithNamespace(root, namespace)
+		require.Len(t, nd, len(rowIdxs))
+
+		for i, rowIdx := range rowIdxs {
+			err = nd[i].Verify(root, namespace, rowIdx)
+			require.NoError(t, err)
+		}
+	}
+}
 
 func TestNamespacedRowProtoEncoding(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)

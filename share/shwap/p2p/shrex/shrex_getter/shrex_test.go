@@ -2,8 +2,6 @@ package shrex_getter //nolint:stylecheck // underscore in pkg name will be fixed
 
 import (
 	"context"
-	"encoding/binary"
-	"errors"
 	"sync/atomic"
 	"testing"
 	"time"
@@ -347,50 +345,4 @@ func newEDSClientServer(
 	client, err := shrexeds.NewClient(params, clHost)
 	require.NoError(t, err)
 	return client, server
-}
-
-// addToNamespace adds arbitrary int value to namespace, treating namespace as big-endian
-// implementation of int
-func addToNamespace(namespace gosquare.Namespace, val int) (gosquare.Namespace, error) {
-	if val == 0 {
-		return namespace, nil
-	}
-	// Convert the input integer to a byte slice and add it to result slice
-	result := make([]byte, gosquare.NamespaceSize)
-	if val > 0 {
-		binary.BigEndian.PutUint64(result[gosquare.NamespaceSize-8:], uint64(val))
-	} else {
-		binary.BigEndian.PutUint64(result[gosquare.NamespaceSize-8:], uint64(-val))
-	}
-
-	// Perform addition byte by byte
-	var carry int
-	for i := gosquare.NamespaceSize - 1; i >= 0; i-- {
-		var sum int
-		if val > 0 {
-			sum = int(namespace.Bytes()[i]) + int(result[i]) + carry
-		} else {
-			sum = int(namespace.Bytes()[i]) - int(result[i]) + carry
-		}
-
-		switch {
-		case sum > 255:
-			carry = 1
-			sum -= 256
-		case sum < 0:
-			carry = -1
-			sum += 256
-		default:
-			carry = 0
-		}
-
-		result[i] = uint8(sum)
-	}
-
-	// Handle any remaining carry
-	if carry != 0 {
-		return gosquare.Namespace{}, errors.New("namespace overflow")
-	}
-
-	return gosquare.NewNamespaceFromBytes(result)
 }
