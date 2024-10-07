@@ -1,9 +1,10 @@
 package blob
 
 import (
+	"testing"
+
 	"github.com/tendermint/tendermint/crypto/merkle"
 	coretypes "github.com/tendermint/tendermint/types"
-	"testing"
 
 	"github.com/celestiaorg/nmt"
 	"github.com/celestiaorg/nmt/pb"

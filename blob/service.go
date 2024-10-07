@@ -5,7 +5,6 @@ import (
 	"encoding/hex"
 	"errors"
 	"fmt"
-	"github.com/celestiaorg/go-square/inclusion"
 	"slices"
 	"sync"
 
@@ -20,13 +19,15 @@ import (
 
 	"github.com/celestiaorg/celestia-app/v2/pkg/appconsts"
 	pkgproof "github.com/celestiaorg/celestia-app/v2/pkg/proof"
+	"github.com/celestiaorg/go-square/inclusion"
+	"github.com/celestiaorg/go-square/shares"
+	"github.com/celestiaorg/nmt"
+
 	"github.com/celestiaorg/celestia-node/header"
 	"github.com/celestiaorg/celestia-node/libs/utils"
 	"github.com/celestiaorg/celestia-node/share"
 	"github.com/celestiaorg/celestia-node/share/shwap"
 	"github.com/celestiaorg/celestia-node/state"
-	"github.com/celestiaorg/go-square/shares"
-	"github.com/celestiaorg/nmt"
 )
 
 var (
