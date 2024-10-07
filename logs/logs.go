@@ -22,7 +22,7 @@ func SetAllLoggers(level logging.LogLevel) {
 	_ = logging.SetLogLevel("bitswap/network", "ERROR")
 	_ = logging.SetLogLevel("bitswap/session", "WARN")
 	_ = logging.SetLogLevel("bitswap/server", "WARN")
-	_ = logging.SetLogLevel("bitswap/server/decision", "WARN")
+	_ = logging.SetLogLevel("bitswap/server/decision", "INFO")
 	_ = logging.SetLogLevel("connmgr", "WARN")
 	_ = logging.SetLogLevel("nat", "INFO")
 	_ = logging.SetLogLevel("dht/RtRefreshManager", "FATAL")
