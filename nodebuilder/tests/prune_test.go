@@ -13,7 +13,7 @@ import (
 	"github.com/stretchr/testify/require"
 	"go.uber.org/fx"
 
-	"github.com/celestiaorg/go-square/v2/share"
+	gosquare "github.com/celestiaorg/go-square/v2/share"
 
 	"github.com/celestiaorg/celestia-node/blob"
 	"github.com/celestiaorg/celestia-node/libs/fxutil"
@@ -22,11 +22,11 @@ import (
 	"github.com/celestiaorg/celestia-node/nodebuilder/node"
 	"github.com/celestiaorg/celestia-node/nodebuilder/tests/swamp"
 	"github.com/celestiaorg/celestia-node/pruner"
-	"github.com/celestiaorg/celestia-node/square"
-	"github.com/celestiaorg/celestia-node/square/shwap/p2p/shrex/peers"
-	"github.com/celestiaorg/celestia-node/square/shwap/p2p/shrex/shrex_getter"
-	"github.com/celestiaorg/celestia-node/square/shwap/p2p/shrex/shrexeds"
-	"github.com/celestiaorg/celestia-node/square/shwap/p2p/shrex/shrexnd"
+	"github.com/celestiaorg/celestia-node/share"
+	"github.com/celestiaorg/celestia-node/share/shwap/p2p/shrex/peers"
+	"github.com/celestiaorg/celestia-node/share/shwap/p2p/shrex/shrex_getter"
+	"github.com/celestiaorg/celestia-node/share/shwap/p2p/shrex/shrexeds"
+	"github.com/celestiaorg/celestia-node/share/shwap/p2p/shrex/shrexnd"
 )
 
 // TestArchivalBlobSync tests whether a LN is able to sync historical blobs from
@@ -118,7 +118,7 @@ func TestArchivalBlobSync(t *testing.T) {
 	type archivalBlob struct {
 		blob   *blob.Blob
 		height uint64
-		root   square.DataHash
+		root   share.DataHash
 	}
 
 	archivalBlobs := make([]*archivalBlob, 0)
@@ -127,7 +127,7 @@ func TestArchivalBlobSync(t *testing.T) {
 		eh, err := archivalFN.HeaderServ.GetByHeight(ctx, uint64(i))
 		require.NoError(t, err)
 
-		if bytes.Equal(eh.DataHash, square.EmptyEDSRoots().Hash()) {
+		if bytes.Equal(eh.DataHash, share.EmptyEDSRoots().Hash()) {
 			i++
 			continue
 		}
@@ -135,7 +135,7 @@ func TestArchivalBlobSync(t *testing.T) {
 		shr, err := archivalFN.ShareServ.GetShare(ctx, eh, 2, 2)
 		require.NoError(t, err)
 
-		blobs, err := archivalFN.BlobServ.GetAll(ctx, uint64(i), []share.Namespace{shr.Namespace()})
+		blobs, err := archivalFN.BlobServ.GetAll(ctx, uint64(i), []gosquare.Namespace{shr.Namespace()})
 		require.NoError(t, err)
 
 		archivalBlobs = append(archivalBlobs, &archivalBlob{

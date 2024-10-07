@@ -4,11 +4,11 @@ import (
 	"fmt"
 
 	"github.com/celestiaorg/celestia-node/nodebuilder/node"
-	"github.com/celestiaorg/celestia-node/square/availability/light"
-	"github.com/celestiaorg/celestia-node/square/shwap/p2p/discovery"
-	"github.com/celestiaorg/celestia-node/square/shwap/p2p/shrex/peers"
-	"github.com/celestiaorg/celestia-node/square/shwap/p2p/shrex/shrexeds"
-	"github.com/celestiaorg/celestia-node/square/shwap/p2p/shrex/shrexnd"
+	"github.com/celestiaorg/celestia-node/share/availability/light"
+	"github.com/celestiaorg/celestia-node/share/shwap/p2p/discovery"
+	"github.com/celestiaorg/celestia-node/share/shwap/p2p/shrex/peers"
+	"github.com/celestiaorg/celestia-node/share/shwap/p2p/shrex/shrexeds"
+	"github.com/celestiaorg/celestia-node/share/shwap/p2p/shrex/shrexnd"
 	"github.com/celestiaorg/celestia-node/store"
 )
 

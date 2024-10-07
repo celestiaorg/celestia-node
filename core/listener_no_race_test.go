@@ -11,7 +11,7 @@ import (
 	"github.com/cosmos/cosmos-sdk/client/flags"
 	"github.com/stretchr/testify/require"
 
-	"github.com/celestiaorg/celestia-node/square"
+	"github.com/celestiaorg/celestia-node/share"
 	"github.com/celestiaorg/celestia-node/store"
 )
 
@@ -43,7 +43,7 @@ func TestListenerWithNonEmptyBlocks(t *testing.T) {
 	require.NoError(t, err)
 	t.Cleanup(sub.Cancel)
 
-	empty := square.EmptyEDSRoots()
+	empty := share.EmptyEDSRoots()
 	// TODO extract 16
 	for i := 0; i < 16; i++ {
 		accounts := cfg.Genesis.Accounts()

@@ -17,7 +17,7 @@ import (
 
 	"github.com/celestiaorg/celestia-node/header/headertest"
 	"github.com/celestiaorg/celestia-node/nodebuilder/node"
-	"github.com/celestiaorg/celestia-node/square"
+	"github.com/celestiaorg/celestia-node/share"
 )
 
 func TestLifecycle(t *testing.T) {
@@ -147,7 +147,7 @@ func TestEmptyBlockExists(t *testing.T) {
 
 			// ensure an empty block exists in store
 
-			eh := headertest.RandExtendedHeaderWithRoot(t, square.EmptyEDSRoots())
+			eh := headertest.RandExtendedHeaderWithRoot(t, share.EmptyEDSRoots())
 			err = node.ShareServ.SharesAvailable(ctx, eh)
 			require.NoError(t, err)
 

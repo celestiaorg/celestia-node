@@ -27,7 +27,7 @@ import (
 	apperrors "github.com/celestiaorg/celestia-app/v3/app/errors"
 	"github.com/celestiaorg/celestia-app/v3/pkg/user"
 	libhead "github.com/celestiaorg/go-header"
-	"github.com/celestiaorg/go-square/v2/share"
+	gosquare "github.com/celestiaorg/go-square/v2/share"
 
 	"github.com/celestiaorg/celestia-node/header"
 )
@@ -201,7 +201,7 @@ func (ca *CoreAccessor) cancelCtx() {
 // TxResponse. The user can specify additional options that can bee applied to the Tx.
 func (ca *CoreAccessor) SubmitPayForBlob(
 	ctx context.Context,
-	appblobs []*share.Blob,
+	appblobs []*gosquare.Blob,
 	cfg *TxConfig,
 ) (*TxResponse, error) {
 	if len(appblobs) == 0 {

@@ -13,7 +13,7 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/celestiaorg/celestia-app/v3/pkg/appconsts"
-	"github.com/celestiaorg/go-square/v2/share"
+	gosquare "github.com/celestiaorg/go-square/v2/share"
 
 	"github.com/celestiaorg/celestia-node/blob"
 	"github.com/celestiaorg/celestia-node/blob/blobtest"
@@ -27,7 +27,7 @@ func TestDaModule(t *testing.T) {
 	t.Cleanup(cancel)
 	sw := swamp.NewSwamp(t, swamp.WithBlockTime(time.Second))
 
-	namespace, err := share.NewV0Namespace([]byte("namespace"))
+	namespace, err := gosquare.NewV0Namespace([]byte("namespace"))
 	require.NoError(t, err)
 	require.False(t, namespace.IsReserved())
 

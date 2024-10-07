@@ -4,16 +4,16 @@ import (
 	"fmt"
 	"sort"
 
-	"github.com/celestiaorg/go-square/v2/share"
+	gosquare "github.com/celestiaorg/go-square/v2/share"
 )
 
 // BlobsToShares accepts blobs and convert them to the Shares.
-func BlobsToShares(nodeBlobs ...*Blob) ([]share.Share, error) {
+func BlobsToShares(nodeBlobs ...*Blob) ([]gosquare.Share, error) {
 	sort.Slice(nodeBlobs, func(i, j int) bool {
 		return nodeBlobs[i].Blob.Namespace().Compare(nodeBlobs[j].Blob.Namespace()) < 0
 	})
 
-	splitter := share.NewSparseShareSplitter()
+	splitter := gosquare.NewSparseShareSplitter()
 	for i, nodeBlob := range nodeBlobs {
 		err := splitter.Write(nodeBlob.Blob)
 		if err != nil {
@@ -25,8 +25,8 @@ func BlobsToShares(nodeBlobs ...*Blob) ([]share.Share, error) {
 }
 
 // ToAppBlobs converts node's blob type to the blob type from go-square.
-func ToAppBlobs(blobs ...*Blob) []*share.Blob {
-	appBlobs := make([]*share.Blob, len(blobs))
+func ToAppBlobs(blobs ...*Blob) []*gosquare.Blob {
+	appBlobs := make([]*gosquare.Blob, len(blobs))
 	for i := range blobs {
 		appBlobs[i] = blobs[i].Blob
 	}

@@ -7,7 +7,7 @@ import (
 	"github.com/ipfs/go-cid"
 	"github.com/spf13/cobra"
 
-	"github.com/celestiaorg/celestia-node/square/shwap/p2p/bitswap"
+	"github.com/celestiaorg/celestia-node/share/shwap/p2p/bitswap"
 )
 
 func init() {

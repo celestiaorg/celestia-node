@@ -5,7 +5,7 @@ import (
 
 	"github.com/cosmos/cosmos-sdk/x/staking/types"
 
-	"github.com/celestiaorg/go-square/v2/share"
+	gosquare "github.com/celestiaorg/go-square/v2/share"
 
 	"github.com/celestiaorg/celestia-node/state"
 )
@@ -39,7 +39,7 @@ type Module interface {
 	// SubmitPayForBlob builds, signs and submits a PayForBlob transaction.
 	SubmitPayForBlob(
 		ctx context.Context,
-		blobs []*share.Blob,
+		blobs []*gosquare.Blob,
 		config *state.TxConfig,
 	) (*state.TxResponse, error)
 	// CancelUnbondingDelegation cancels a user's pending undelegation from a validator.
@@ -114,7 +114,7 @@ type API struct {
 		) (*state.TxResponse, error) `perm:"write"`
 		SubmitPayForBlob func(
 			ctx context.Context,
-			blobs []*share.Blob,
+			blobs []*gosquare.Blob,
 			config *state.TxConfig,
 		) (*state.TxResponse, error) `perm:"write"`
 		CancelUnbondingDelegation func(
@@ -188,7 +188,7 @@ func (api *API) Transfer(
 
 func (api *API) SubmitPayForBlob(
 	ctx context.Context,
-	blobs []*share.Blob,
+	blobs []*gosquare.Blob,
 	config *state.TxConfig,
 ) (*state.TxResponse, error) {
 	return api.Internal.SubmitPayForBlob(ctx, blobs, config)

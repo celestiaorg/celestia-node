@@ -6,7 +6,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"github.com/celestiaorg/go-square/v2/share"
+	gosquare "github.com/celestiaorg/go-square/v2/share"
 )
 
 func Test_parseNamespaceID(t *testing.T) {
@@ -77,7 +77,7 @@ func Test_parseNamespaceID(t *testing.T) {
 			}
 
 			assert.NoError(t, err)
-			ns, err := share.NewNamespaceFromBytes(tc.want)
+			ns, err := gosquare.NewNamespaceFromBytes(tc.want)
 			require.NoError(t, err)
 			assert.Equal(t, ns, got)
 		})

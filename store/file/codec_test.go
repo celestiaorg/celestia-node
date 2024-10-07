@@ -7,7 +7,7 @@ import (
 	"github.com/klauspost/reedsolomon"
 	"github.com/stretchr/testify/require"
 
-	"github.com/celestiaorg/go-square/v2/share"
+	gosquare "github.com/celestiaorg/go-square/v2/share"
 )
 
 func BenchmarkCodec(b *testing.B) {
@@ -70,13 +70,13 @@ func BenchmarkCodec(b *testing.B) {
 
 func newShards(b testing.TB, size int, fillParity bool) [][]byte {
 	shards := make([][]byte, size)
-	original := share.RandShares(size / 2)
-	copy(shards, share.ToBytes(original))
+	original := gosquare.RandShares(size / 2)
+	copy(shards, gosquare.ToBytes(original))
 
 	if fillParity {
 		// fill with parity empty Shares
 		for j := len(original); j < len(shards); j++ {
-			shards[j] = make([]byte, share.ShareSize)
+			shards[j] = make([]byte, gosquare.ShareSize)
 		}
 	}
 	return shards

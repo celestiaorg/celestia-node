@@ -7,17 +7,17 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"github.com/celestiaorg/go-square/v2/share"
+	gosquare "github.com/celestiaorg/go-square/v2/share"
 )
 
 func TestBlobsToShares(t *testing.T) {
 	t.Run("should sort blobs by namespace in ascending order", func(t *testing.T) {
-		namespaceA := share.MustNewV0Namespace(bytes.Repeat([]byte{0xa}, 10))
-		namespaceB := share.MustNewV0Namespace(bytes.Repeat([]byte{0xb}, 10))
+		namespaceA := gosquare.MustNewV0Namespace(bytes.Repeat([]byte{0xa}, 10))
+		namespaceB := gosquare.MustNewV0Namespace(bytes.Repeat([]byte{0xb}, 10))
 
-		blobA, err := NewBlob(share.ShareVersionZero, namespaceA, []byte("dataA"), nil)
+		blobA, err := NewBlob(gosquare.ShareVersionZero, namespaceA, []byte("dataA"), nil)
 		require.NoError(t, err)
-		blobB, err := NewBlob(share.ShareVersionZero, namespaceB, []byte("dataB"), nil)
+		blobB, err := NewBlob(gosquare.ShareVersionZero, namespaceB, []byte("dataB"), nil)
 		require.NoError(t, err)
 
 		got, err := BlobsToShares(blobB, blobA)
@@ -29,15 +29,15 @@ func TestBlobsToShares(t *testing.T) {
 }
 
 func TestToAppBlobs(t *testing.T) {
-	namespaceA := share.MustNewV0Namespace(bytes.Repeat([]byte{0xa}, 10))
-	namespaceB := share.MustNewV0Namespace(bytes.Repeat([]byte{0xb}, 10))
+	namespaceA := gosquare.MustNewV0Namespace(bytes.Repeat([]byte{0xa}, 10))
+	namespaceB := gosquare.MustNewV0Namespace(bytes.Repeat([]byte{0xb}, 10))
 
-	blobA, err := NewBlob(share.ShareVersionZero, namespaceA, []byte("dataA"), nil)
+	blobA, err := NewBlob(gosquare.ShareVersionZero, namespaceA, []byte("dataA"), nil)
 	require.NoError(t, err)
-	blobB, err := NewBlob(share.ShareVersionZero, namespaceB, []byte("dataB"), nil)
+	blobB, err := NewBlob(gosquare.ShareVersionZero, namespaceB, []byte("dataB"), nil)
 	require.NoError(t, err)
 
 	got := ToAppBlobs(blobA, blobB)
 
-	assert.Equal(t, []*share.Blob{blobA.Blob, blobB.Blob}, got)
+	assert.Equal(t, []*gosquare.Blob{blobA.Blob, blobB.Blob}, got)
 }

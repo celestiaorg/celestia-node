@@ -6,32 +6,32 @@ import (
 
 	"golang.org/x/sync/errgroup"
 
-	"github.com/celestiaorg/go-square/v2/share"
+	gosquare "github.com/celestiaorg/go-square/v2/share"
 	"github.com/celestiaorg/rsmt2d"
 
-	"github.com/celestiaorg/celestia-node/square/eds"
+	"github.com/celestiaorg/celestia-node/share/eds"
 )
 
-type dataSquare [][]share.Share
+type square [][]gosquare.Share
 
-// readSquare reads Shares from the reader and returns a square. It assumes that the reader is
+// readSquare reads Shares from the reader and returns a share. It assumes that the reader is
 // positioned at the beginning of the Shares. It knows the size of the Shares and the size of the
 // square, so reads from reader are limited to exactly the amount of data required.
-func readSquare(r io.Reader, shareSize, edsSize int) (dataSquare, error) {
+func readSquare(r io.Reader, shareSize, edsSize int) (square, error) {
 	odsLn := edsSize / 2
 
 	shares, err := eds.ReadShares(r, shareSize, odsLn)
 	if err != nil {
 		return nil, fmt.Errorf("reading shares: %w", err)
 	}
-	square := make(dataSquare, odsLn)
+	square := make(square, odsLn)
 	for i := range square {
 		square[i] = shares[i*odsLn : (i+1)*odsLn]
 	}
 	return square, nil
 }
 
-func (s dataSquare) reader() (io.Reader, error) {
+func (s square) reader() (io.Reader, error) {
 	if s == nil {
 		return nil, fmt.Errorf("ods file not cached")
 	}
@@ -42,19 +42,19 @@ func (s dataSquare) reader() (io.Reader, error) {
 	return reader, nil
 }
 
-func (s dataSquare) size() int {
+func (s square) size() int {
 	return len(s)
 }
 
-func (s dataSquare) shares() ([]share.Share, error) {
-	shares := make([]share.Share, 0, s.size()*s.size())
+func (s square) shares() ([]gosquare.Share, error) {
+	shares := make([]gosquare.Share, 0, s.size()*s.size())
 	for _, row := range s {
 		shares = append(shares, row...)
 	}
 	return shares, nil
 }
 
-func (s dataSquare) axisHalf(axisType rsmt2d.Axis, axisIdx int) (eds.AxisHalf, error) {
+func (s square) axisHalf(axisType rsmt2d.Axis, axisIdx int) (eds.AxisHalf, error) {
 	if s == nil {
 		return eds.AxisHalf{}, fmt.Errorf("square is nil")
 	}
@@ -73,7 +73,7 @@ func (s dataSquare) axisHalf(axisType rsmt2d.Axis, axisIdx int) (eds.AxisHalf, e
 	}
 
 	// construct half column from row ordered square
-	col := make([]share.Share, s.size())
+	col := make([]gosquare.Share, s.size())
 	for i := 0; i < s.size(); i++ {
 		col[i] = s[i][axisIdx]
 	}
@@ -83,11 +83,11 @@ func (s dataSquare) axisHalf(axisType rsmt2d.Axis, axisIdx int) (eds.AxisHalf, e
 	}, nil
 }
 
-func (s dataSquare) computeAxisHalf(
+func (s square) computeAxisHalf(
 	axisType rsmt2d.Axis,
 	axisIdx int,
 ) (eds.AxisHalf, error) {
-	shares := make([]share.Share, s.size())
+	shares := make([]gosquare.Share, s.size())
 
 	// extend opposite half of the square while collecting Shares for the first half of required axis
 	g := errgroup.Group{}
@@ -106,9 +106,9 @@ func (s dataSquare) computeAxisHalf(
 
 			shards := make([][]byte, s.size()*2)
 			if half.IsParity {
-				copy(shards[s.size():], share.ToBytes(half.Shares))
+				copy(shards[s.size():], gosquare.ToBytes(half.Shares))
 			} else {
-				copy(shards, share.ToBytes(half.Shares))
+				copy(shards, gosquare.ToBytes(half.Shares))
 			}
 
 			target := make([]bool, s.size()*2)
@@ -119,7 +119,7 @@ func (s dataSquare) computeAxisHalf(
 				return fmt.Errorf("reconstruct some: %w", err)
 			}
 
-			shard, err := share.NewShare(shards[axisIdx])
+			shard, err := gosquare.NewShare(shards[axisIdx])
 			if err != nil {
 				return fmt.Errorf("creating share: %w", err)
 			}

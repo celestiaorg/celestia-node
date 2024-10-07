@@ -4,12 +4,12 @@ import (
 	"context"
 	"io"
 
-	"github.com/celestiaorg/go-square/v2/share"
+	gosquare "github.com/celestiaorg/go-square/v2/share"
 	"github.com/celestiaorg/rsmt2d"
 
-	"github.com/celestiaorg/celestia-node/square"
-	"github.com/celestiaorg/celestia-node/square/eds"
-	"github.com/celestiaorg/celestia-node/square/shwap"
+	"github.com/celestiaorg/celestia-node/share"
+	"github.com/celestiaorg/celestia-node/share/eds"
+	"github.com/celestiaorg/celestia-node/share/shwap"
 )
 
 var _ Cache = (*NoopCache)(nil)
@@ -51,12 +51,12 @@ func (n NoopFile) Size(context.Context) int {
 	return 0
 }
 
-func (n NoopFile) DataHash(context.Context) (square.DataHash, error) {
-	return square.DataHash{}, nil
+func (n NoopFile) DataHash(context.Context) (share.DataHash, error) {
+	return share.DataHash{}, nil
 }
 
-func (n NoopFile) AxisRoots(context.Context) (*square.AxisRoots, error) {
-	return &square.AxisRoots{}, nil
+func (n NoopFile) AxisRoots(context.Context) (*share.AxisRoots, error) {
+	return &share.AxisRoots{}, nil
 }
 
 func (n NoopFile) Sample(context.Context, int, int) (shwap.Sample, error) {
@@ -67,12 +67,12 @@ func (n NoopFile) AxisHalf(context.Context, rsmt2d.Axis, int) (eds.AxisHalf, err
 	return eds.AxisHalf{}, nil
 }
 
-func (n NoopFile) RowNamespaceData(context.Context, share.Namespace, int) (shwap.RowNamespaceData, error) {
+func (n NoopFile) RowNamespaceData(context.Context, gosquare.Namespace, int) (shwap.RowNamespaceData, error) {
 	return shwap.RowNamespaceData{}, nil
 }
 
-func (n NoopFile) Shares(context.Context) ([]share.Share, error) {
-	return []share.Share{}, nil
+func (n NoopFile) Shares(context.Context) ([]gosquare.Share, error) {
+	return []gosquare.Share{}, nil
 }
 
 func (n NoopFile) Close() error {

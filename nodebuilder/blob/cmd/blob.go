@@ -11,7 +11,7 @@ import (
 
 	"github.com/spf13/cobra"
 
-	"github.com/celestiaorg/go-square/v2/share"
+	gosquare "github.com/celestiaorg/go-square/v2/share"
 
 	"github.com/celestiaorg/celestia-node/blob"
 	cmdnode "github.com/celestiaorg/celestia-node/cmd"
@@ -106,7 +106,7 @@ var getAllCmd = &cobra.Command{
 			return fmt.Errorf("error parsing a namespace: %w", err)
 		}
 
-		blobs, err := client.Blob.GetAll(cmd.Context(), height, []share.Namespace{namespace})
+		blobs, err := client.Blob.GetAll(cmd.Context(), height, []gosquare.Namespace{namespace})
 		return cmdnode.PrintOutput(blobs, err, formatData(args[1]))
 	},
 }

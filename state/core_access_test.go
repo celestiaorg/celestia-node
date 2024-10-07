@@ -19,7 +19,7 @@ import (
 	"github.com/celestiaorg/celestia-app/v3/test/util/genesis"
 	"github.com/celestiaorg/celestia-app/v3/test/util/testnode"
 	apptypes "github.com/celestiaorg/celestia-app/v3/x/blob/types"
-	"github.com/celestiaorg/go-square/v2/share"
+	gosquare "github.com/celestiaorg/go-square/v2/share"
 )
 
 func TestSubmitPayForBlob(t *testing.T) {
@@ -32,31 +32,31 @@ func TestSubmitPayForBlob(t *testing.T) {
 		_ = ca.Stop(ctx)
 	})
 
-	ns, err := share.NewV0Namespace([]byte("namespace"))
+	ns, err := gosquare.NewV0Namespace([]byte("namespace"))
 	require.NoError(t, err)
 	require.False(t, ns.IsReserved())
 
 	require.NoError(t, err)
-	blobbyTheBlob, err := share.NewV0Blob(ns, []byte("data"))
+	blobbyTheBlob, err := gosquare.NewV0Blob(ns, []byte("data"))
 	require.NoError(t, err)
 
 	testcases := []struct {
 		name     string
-		blobs    []*share.Blob
+		blobs    []*gosquare.Blob
 		gasPrice float64
 		gasLim   uint64
 		expErr   error
 	}{
 		{
 			name:     "empty blobs",
-			blobs:    []*share.Blob{},
+			blobs:    []*gosquare.Blob{},
 			gasPrice: DefaultGasPrice,
 			gasLim:   0,
 			expErr:   errors.New("state: no blobs provided"),
 		},
 		{
 			name:     "good blob with user provided gas and fees",
-			blobs:    []*share.Blob{blobbyTheBlob},
+			blobs:    []*gosquare.Blob{blobbyTheBlob},
 			gasPrice: 0.005,
 			gasLim:   apptypes.DefaultEstimateGas([]uint32{uint32(blobbyTheBlob.DataLen())}),
 			expErr:   nil,

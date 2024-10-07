@@ -10,7 +10,7 @@ import (
 	app "github.com/celestiaorg/celestia-app/v3/pkg/appconsts/v2"
 	"github.com/celestiaorg/go-square/merkle"
 	"github.com/celestiaorg/go-square/v2/inclusion"
-	"github.com/celestiaorg/go-square/v2/share"
+	gosquare "github.com/celestiaorg/go-square/v2/share"
 	"github.com/celestiaorg/nmt"
 )
 
@@ -59,7 +59,7 @@ func (p Proof) equal(input Proof) error {
 
 // Blob represents any application-specific binary data that anyone can submit to Celestia.
 type Blob struct {
-	*share.Blob `json:"blob"`
+	*gosquare.Blob `json:"blob"`
 
 	Commitment Commitment `json:"commitment"`
 
@@ -70,33 +70,31 @@ type Blob struct {
 
 // NewBlobV0 constructs a new blob from the provided Namespace and data.
 // The blob will be formatted as v0 shares.
-func NewBlobV0(namespace share.Namespace, data []byte) (*Blob, error) {
-	return NewBlob(share.ShareVersionZero, namespace, data, nil)
+func NewBlobV0(namespace gosquare.Namespace, data []byte) (*Blob, error) {
+	return NewBlob(gosquare.ShareVersionZero, namespace, data, nil)
 }
 
 // NewBlobV1 constructs a new blob from the provided Namespace and data.
 // The blob will be formatted as v0 shares.
-func NewBlobV1(namespace share.Namespace, data, signer []byte) (*Blob, error) {
-	return NewBlob(share.ShareVersionOne, namespace, data, signer)
+func NewBlobV1(namespace gosquare.Namespace, data, signer []byte) (*Blob, error) {
+	return NewBlob(gosquare.ShareVersionOne, namespace, data, signer)
 }
 
 // NewBlob constructs a new blob from the provided Namespace, data and share version.
-func NewBlob(shareVersion uint8, namespace share.Namespace, data, signer []byte) (*Blob, error) {
+func NewBlob(shareVersion uint8, namespace gosquare.Namespace, data, signer []byte) (*Blob, error) {
 	if len(data) == 0 || len(data) > appconsts.DefaultMaxBytes {
 		return nil, fmt.Errorf("blob data must be > 0 && <= %d, but it was %d bytes", appconsts.DefaultMaxBytes, len(data))
 	}
 
-	if err := share.ValidateForData(namespace); err != nil {
+	if err := gosquare.ValidateForData(namespace); err != nil {
 		return nil, fmt.Errorf("invalid user namespace: %w", err)
 	}
-	if !namespace.IsUsableNamespace() {
-		return nil, fmt.Errorf("parity of tail padding namespaces %s are not allowed", namespace.ID())
-	}
-	if namespace.IsReserved() {
-		return nil, fmt.Errorf("reserved namespace %s is not allowed", namespace.ID())
+
+	if !gosquare.IsBlobNamespace(namespace) {
+		return nil, fmt.Errorf("namespace %s is not a blob namespace", namespace)
 	}
 
-	squareBlob, err := share.NewBlob(namespace, data, shareVersion, signer)
+	squareBlob, err := gosquare.NewBlob(namespace, data, shareVersion, signer)
 	if err != nil {
 		return nil, err
 	}
@@ -109,7 +107,7 @@ func NewBlob(shareVersion uint8, namespace share.Namespace, data, signer []byte)
 }
 
 // Namespace returns blob's namespace.
-func (b *Blob) Namespace() share.Namespace {
+func (b *Blob) Namespace() gosquare.Namespace {
 	return b.Blob.Namespace()
 }
 
@@ -129,7 +127,7 @@ func (b *Blob) Length() (int, error) {
 	if len(s) == 0 {
 		return 0, errors.New("blob with zero shares received")
 	}
-	return share.SparseSharesNeeded(s[0].SequenceLen()), nil
+	return gosquare.SparseSharesNeeded(s[0].SequenceLen()), nil
 }
 
 // Signer returns blob's author.
@@ -169,7 +167,7 @@ func (b *Blob) UnmarshalJSON(data []byte) error {
 		return err
 	}
 
-	ns, err := share.NewNamespaceFromBytes(jsonBlob.Namespace)
+	ns, err := gosquare.NewNamespaceFromBytes(jsonBlob.Namespace)
 	if err != nil {
 		return err
 	}

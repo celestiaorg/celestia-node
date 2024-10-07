@@ -10,7 +10,7 @@ import (
 	"github.com/celestiaorg/celestia-node/nodebuilder/core"
 	modfraud "github.com/celestiaorg/celestia-node/nodebuilder/fraud"
 	"github.com/celestiaorg/celestia-node/nodebuilder/p2p"
-	"github.com/celestiaorg/celestia-node/square/eds/byzantine"
+	"github.com/celestiaorg/celestia-node/share/eds/byzantine"
 	"github.com/celestiaorg/celestia-node/state"
 )
 
