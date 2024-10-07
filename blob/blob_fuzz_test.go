@@ -41,9 +41,9 @@ func FuzzProofEqual(f *testing.F) {
 }
 
 type verifyCorpus struct {
-	CP         *CommitmentProof `json:"commitment_proof"`
-	Root       []byte           `json:"root"`
-	SThreshold int              `json:"sub_threshold"`
+	Proof      *Proof `json:"proof"`
+	Root       []byte `json:"root"`
+	SThreshold int    `json:"sub_threshold"`
 }
 
 func FuzzCommitmentProofVerify(f *testing.F) {
@@ -83,7 +83,7 @@ func FuzzCommitmentProofVerify(f *testing.F) {
 		if err := json.Unmarshal(valueJSON, val); err != nil {
 			return
 		}
-		commitProof := val.CP
+		commitProof := val.Proof
 		if commitProof == nil {
 			return
 		}

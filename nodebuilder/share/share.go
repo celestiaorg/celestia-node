@@ -1,7 +1,10 @@
 package share
 
 import (
+	"bytes"
 	"context"
+	"errors"
+	"fmt"
 
 	"github.com/tendermint/tendermint/types"
 
@@ -17,11 +20,30 @@ import (
 
 var _ Module = (*API)(nil)
 
-// GetRangeResult wraps the return value of the GetRange endpoint
-// because Json-RPC doesn't support more than two return values.
-type GetRangeResult struct {
-	Shares []share.Share
-	Proof  *types.ShareProof
+// RangeResult wraps the return value of the GetRange endpoint.
+// It contains a set of shares along with their proof to
+// the data root.
+type RangeResult struct {
+	// Shares the queried shares.
+	Shares []share.Share `json:"shares"`
+	// Proof the proof of Shares up to the data root.
+	Proof *types.ShareProof `json:"proof"`
+}
+
+// Verify verifies if the shares and proof in the range
+// are being committed to by the provided data root.
+// Returns nil if the proof is valid and a sensible error otherwise.
+func (r RangeResult) Verify(dataRoot []byte) error {
+	if len(dataRoot) == 0 {
+		return errors.New("root must be non-empty")
+	}
+
+	for index, data := range r.Shares {
+		if !bytes.Equal(data, r.Proof.Data[index]) {
+			return fmt.Errorf("mismatching share %d between the range result and the proof", index)
+		}
+	}
+	return r.Proof.Validate(dataRoot)
 }
 
 // Module provides access to any data square or block share on the network.
@@ -54,7 +76,7 @@ type Module interface {
 		ctx context.Context, header *header.ExtendedHeader, namespace share.Namespace,
 	) (NamespacedShares, error)
 	// GetRange gets a list of shares and their corresponding proof.
-	GetRange(ctx context.Context, height uint64, start, end int) (*GetRangeResult, error)
+	GetRange(ctx context.Context, height uint64, start, end int) (*RangeResult, error)
 }
 
 // API is a wrapper around Module for the RPC.
@@ -80,7 +102,7 @@ type API struct {
 			ctx context.Context,
 			height uint64,
 			start, end int,
-		) (*GetRangeResult, error) `perm:"read"`
+		) (*RangeResult, error) `perm:"read"`
 	}
 }
 
@@ -96,7 +118,7 @@ func (api *API) GetEDS(ctx context.Context, header *header.ExtendedHeader) (*rsm
 	return api.Internal.GetEDS(ctx, header)
 }
 
-func (api *API) GetRange(ctx context.Context, height uint64, start, end int) (*GetRangeResult, error) {
+func (api *API) GetRange(ctx context.Context, height uint64, start, end int) (*RangeResult, error) {
 	return api.Internal.GetRange(ctx, height, start, end)
 }
 
@@ -118,7 +140,7 @@ func (m module) SharesAvailable(ctx context.Context, header *header.ExtendedHead
 	return m.Availability.SharesAvailable(ctx, header)
 }
 
-func (m module) GetRange(ctx context.Context, height uint64, start, end int) (*GetRangeResult, error) {
+func (m module) GetRange(ctx context.Context, height uint64, start, end int) (*RangeResult, error) {
 	extendedHeader, err := m.hs.GetByHeight(ctx, height)
 	if err != nil {
 		return nil, err
@@ -132,7 +154,7 @@ func (m module) GetRange(ctx context.Context, height uint64, start, end int) (*G
 	if err != nil {
 		return nil, err
 	}
-	return &GetRangeResult{
+	return &RangeResult{
 		extendedDataSquare.FlattenedODS()[start:end],
 		proof,
 	}, nil
