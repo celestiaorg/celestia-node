@@ -2,6 +2,7 @@ package blob
 
 import (
 	"context"
+	"encoding/hex"
 	"errors"
 	"fmt"
 	"github.com/celestiaorg/go-square/inclusion"
@@ -313,7 +314,11 @@ func (s *Service) Included(
 	)
 	// verify that the blob subtree roots match the proof subtree roots
 	if proofCommitment := proof.GenerateCommitment(); !commitment.Equal(proofCommitment) {
-		return false, ErrInvalidProof
+		return false, fmt.Errorf(
+			`unequal blob commitment %s and proof commitment %s`,
+			hex.EncodeToString(commitment),
+			hex.EncodeToString(proofCommitment),
+		)
 	}
 	header, err := s.headerGetter(ctx, height)
 	if err != nil {

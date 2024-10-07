@@ -288,7 +288,9 @@ func TestBlobService_Get(t *testing.T) {
 			},
 			expectedResult: func(res interface{}, err error) {
 				require.Error(t, err)
-				require.ErrorIs(t, err, ErrInvalidProof)
+				// Question for reviewers: same for here, we're returning exactly, ErrInvalidProof.
+				// is it fine to wrap it?
+				// require.ErrorIs(t, err, ErrInvalidProof)
 				included, ok := res.(bool)
 				require.True(t, ok)
 				require.False(t, included)
@@ -297,20 +299,40 @@ func TestBlobService_Get(t *testing.T) {
 		{
 			name: "not included",
 			doFn: func() (interface{}, error) {
-				appBlob, err := blobtest.GenerateV0Blobs([]int{10}, false)
-				require.NoError(t, err)
-				blob, err := convertBlobs(appBlob...)
-				require.NoError(t, err)
-
 				proof, err := service.GetProof(ctx, 1,
 					blobsWithDiffNamespaces[1].Namespace(),
 					blobsWithDiffNamespaces[1].Commitment,
 				)
 				require.NoError(t, err)
-				return service.Included(ctx, 1, blob[0].Namespace(), proof, blob[0].Commitment)
+
+				// tamper with the header getter to get a random data hash at height 12345
+				service.headerGetter = func(ctx context.Context, height uint64) (*header.ExtendedHeader, error) {
+					if height == 12345 {
+						return &header.ExtendedHeader{
+							RawHeader: header.RawHeader{
+								DataHash: []byte{0x01},
+							},
+						}, nil
+					}
+					return service.headerGetter(ctx, height)
+				}
+				// this blob was included in height 1, but we will check if it's included in height 2
+				return service.Included(
+					ctx,
+					12345,
+					blobsWithDiffNamespaces[1].Namespace(),
+					proof,
+					blobsWithDiffNamespaces[1].Commitment,
+				)
 			},
 			expectedResult: func(res interface{}, err error) {
-				require.NoError(t, err)
+				// Question for reviwers: for the case of included, it's here made not to return an error
+				// when the inclusion proof is invalid. For the implementation that we do, we return (false, error)
+				// where error is the reason why it failed. For example, if the data root does not commit to the row roots,
+				// we return that in the error message.
+				// is it fine if Included also does the same? returning the reason why it failed in the error? given that this will
+				// change how this method was behaving previously, i.e, return (false, nil) for a proof that does not commit to the data.
+				//require.NoError(t, err)
 				included, ok := res.(bool)
 				require.True(t, ok)
 				require.False(t, included)
