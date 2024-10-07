@@ -1,7 +1,12 @@
 package share
 
 import (
+	"github.com/ipfs/boxo/blockstore"
+	"github.com/ipfs/boxo/exchange"
+	"go.uber.org/fx"
+
 	headerServ "github.com/celestiaorg/celestia-node/nodebuilder/header"
+	"github.com/celestiaorg/celestia-node/pruner"
 	"github.com/celestiaorg/celestia-node/share"
 	"github.com/celestiaorg/celestia-node/share/shwap"
 	"github.com/celestiaorg/celestia-node/share/shwap/getters"
@@ -12,6 +17,17 @@ import (
 
 func newShareModule(getter shwap.Getter, avail share.Availability, header headerServ.Module) Module {
 	return &module{getter, avail, header}
+}
+
+func bitswapGetter(
+	lc fx.Lifecycle,
+	exchange exchange.SessionExchange,
+	bstore blockstore.Blockstore,
+	wndw pruner.AvailabilityWindow,
+) *bitswap.Getter {
+	getter := bitswap.NewGetter(exchange, bstore, wndw)
+	lc.Append(fx.StartStopHook(getter.Start, getter.Stop))
+	return getter
 }
 
 func lightGetter(
