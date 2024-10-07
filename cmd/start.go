@@ -76,7 +76,7 @@ Options passed on start override configuration options only on start and are not
 
 			fmt.Println("STARTED FULL NODE")
 			{
-				ctx := WithStorePath(ctx, StorePath(ctx)+"_load")
+				ctx := WithStorePath(ctx, StorePath(ctx)+"/load")
 				ctx = WithNodeType(ctx, node.Light)
 				ctx = WithNodeConfig(ctx, nodebuilder.DefaultConfig(node.Light))
 				PersistentPreRunEnv(cmd, node.Light, nil)
