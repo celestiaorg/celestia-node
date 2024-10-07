@@ -4,7 +4,7 @@ import (
 	"github.com/celestiaorg/go-fraud"
 
 	"github.com/celestiaorg/celestia-node/header"
-	"github.com/celestiaorg/celestia-node/square/eds/byzantine"
+	"github.com/celestiaorg/celestia-node/share/eds/byzantine"
 )
 
 var defaultProofUnmarshaler proofRegistry

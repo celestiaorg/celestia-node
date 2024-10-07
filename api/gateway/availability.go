@@ -8,7 +8,7 @@ import (
 
 	"github.com/gorilla/mux"
 
-	"github.com/celestiaorg/celestia-node/square"
+	"github.com/celestiaorg/celestia-node/share"
 )
 
 const heightAvailabilityEndpoint = "/data_available"
@@ -45,7 +45,7 @@ func (h *Handler) handleHeightAvailabilityRequest(w http.ResponseWriter, r *http
 		if werr != nil {
 			log.Errorw("serving request", "endpoint", heightAvailabilityEndpoint, "err", err)
 		}
-	case errors.Is(err, square.ErrNotAvailable):
+	case errors.Is(err, share.ErrNotAvailable):
 		resp, err := json.Marshal(&AvailabilityResponse{Available: false})
 		if err != nil {
 			writeError(w, http.StatusInternalServerError, heightAvailabilityEndpoint, err)

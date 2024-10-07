@@ -9,12 +9,12 @@ import (
 	"sync"
 	"sync/atomic"
 
-	"github.com/celestiaorg/go-square/v2/share"
+	gosquare "github.com/celestiaorg/go-square/v2/share"
 	"github.com/celestiaorg/rsmt2d"
 
-	"github.com/celestiaorg/celestia-node/square"
-	"github.com/celestiaorg/celestia-node/square/eds"
-	"github.com/celestiaorg/celestia-node/square/shwap"
+	"github.com/celestiaorg/celestia-node/share"
+	"github.com/celestiaorg/celestia-node/share/eds"
+	"github.com/celestiaorg/celestia-node/share/shwap"
 )
 
 var _ eds.AccessorStreamer = (*ODSQ4)(nil)
@@ -37,7 +37,7 @@ type ODSQ4 struct {
 // CreateODSQ4 creates ODS and Q4 files under the given FS paths.
 func CreateODSQ4(
 	pathODS, pathQ4 string,
-	roots *square.AxisRoots,
+	roots *share.AxisRoots,
 	eds *rsmt2d.ExtendedDataSquare,
 ) error {
 	errCh := make(chan error)
@@ -103,11 +103,11 @@ func (odsq4 *ODSQ4) Size(ctx context.Context) int {
 	return odsq4.ods.Size(ctx)
 }
 
-func (odsq4 *ODSQ4) DataHash(ctx context.Context) (square.DataHash, error) {
+func (odsq4 *ODSQ4) DataHash(ctx context.Context) (share.DataHash, error) {
 	return odsq4.ods.DataHash(ctx)
 }
 
-func (odsq4 *ODSQ4) AxisRoots(ctx context.Context) (*square.AxisRoots, error) {
+func (odsq4 *ODSQ4) AxisRoots(ctx context.Context) (*share.AxisRoots, error) {
 	return odsq4.ods.AxisRoots(ctx)
 }
 
@@ -138,7 +138,7 @@ func (odsq4 *ODSQ4) AxisHalf(ctx context.Context, axisType rsmt2d.Axis, axisIdx 
 }
 
 func (odsq4 *ODSQ4) RowNamespaceData(ctx context.Context,
-	namespace share.Namespace,
+	namespace gosquare.Namespace,
 	rowIdx int,
 ) (shwap.RowNamespaceData, error) {
 	half, err := odsq4.AxisHalf(ctx, rsmt2d.Row, rowIdx)
@@ -152,7 +152,7 @@ func (odsq4 *ODSQ4) RowNamespaceData(ctx context.Context,
 	return shwap.RowNamespaceDataFromShares(shares, namespace, rowIdx)
 }
 
-func (odsq4 *ODSQ4) Shares(ctx context.Context) ([]share.Share, error) {
+func (odsq4 *ODSQ4) Shares(ctx context.Context) ([]gosquare.Share, error) {
 	return odsq4.ods.Shares(ctx)
 }
 

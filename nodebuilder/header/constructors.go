@@ -18,7 +18,7 @@ import (
 
 	modfraud "github.com/celestiaorg/celestia-node/nodebuilder/fraud"
 	modp2p "github.com/celestiaorg/celestia-node/nodebuilder/p2p"
-	"github.com/celestiaorg/celestia-node/square/eds/byzantine"
+	"github.com/celestiaorg/celestia-node/share/eds/byzantine"
 )
 
 // newP2PExchange constructs a new Exchange for headers.

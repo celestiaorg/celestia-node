@@ -12,15 +12,15 @@ import (
 	"github.com/celestiaorg/celestia-node/nodebuilder/node"
 	modp2p "github.com/celestiaorg/celestia-node/nodebuilder/p2p"
 	lightprune "github.com/celestiaorg/celestia-node/pruner/light"
-	"github.com/celestiaorg/celestia-node/square"
-	"github.com/celestiaorg/celestia-node/square/availability/full"
-	"github.com/celestiaorg/celestia-node/square/availability/light"
-	"github.com/celestiaorg/celestia-node/square/shwap"
-	"github.com/celestiaorg/celestia-node/square/shwap/p2p/shrex/peers"
-	"github.com/celestiaorg/celestia-node/square/shwap/p2p/shrex/shrex_getter"
-	"github.com/celestiaorg/celestia-node/square/shwap/p2p/shrex/shrexeds"
-	"github.com/celestiaorg/celestia-node/square/shwap/p2p/shrex/shrexnd"
-	"github.com/celestiaorg/celestia-node/square/shwap/p2p/shrex/shrexsub"
+	"github.com/celestiaorg/celestia-node/share"
+	"github.com/celestiaorg/celestia-node/share/availability/full"
+	"github.com/celestiaorg/celestia-node/share/availability/light"
+	"github.com/celestiaorg/celestia-node/share/shwap"
+	"github.com/celestiaorg/celestia-node/share/shwap/p2p/shrex/peers"
+	"github.com/celestiaorg/celestia-node/share/shwap/p2p/shrex/shrex_getter"
+	"github.com/celestiaorg/celestia-node/share/shwap/p2p/shrex/shrexeds"
+	"github.com/celestiaorg/celestia-node/share/shwap/p2p/shrex/shrexnd"
+	"github.com/celestiaorg/celestia-node/share/shwap/p2p/shrex/shrexsub"
 	"github.com/celestiaorg/celestia-node/store"
 )
 
@@ -233,14 +233,14 @@ func availabilityComponents(tp node.Type, cfg *Config) fx.Option {
 					return la.Close(ctx)
 				}),
 			)),
-			fx.Provide(func(avail *light.ShareAvailability) square.Availability {
+			fx.Provide(func(avail *light.ShareAvailability) share.Availability {
 				return avail
 			}),
 		)
 	case node.Bridge, node.Full:
 		return fx.Options(
 			fx.Provide(full.NewShareAvailability),
-			fx.Provide(func(avail *full.ShareAvailability) square.Availability {
+			fx.Provide(func(avail *full.ShareAvailability) share.Availability {
 				return avail
 			}),
 		)
