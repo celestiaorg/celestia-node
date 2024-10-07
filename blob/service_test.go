@@ -19,7 +19,6 @@ import (
 	"github.com/tendermint/tendermint/crypto/merkle"
 	bytes2 "github.com/tendermint/tendermint/libs/bytes"
 	tmrand "github.com/tendermint/tendermint/libs/rand"
-	"github.com/tendermint/tendermint/proto/tendermint/types"
 	coretypes "github.com/tendermint/tendermint/types"
 
 	"github.com/celestiaorg/celestia-app/v2/app"
@@ -244,7 +243,7 @@ func TestBlobService_Get(t *testing.T) {
 				assert.True(t, ok)
 
 				verifyFn := func(t *testing.T, blob *Blob, proof *Proof) {
-					valid, err := proof.Verify(blob, header.DataHash)
+					valid, err := proof.Verify(header.DataHash, appconsts.SubtreeRootThreshold(appVersion))
 					require.NoError(t, err)
 					require.True(t, valid)
 				}
@@ -347,7 +346,7 @@ func TestBlobService_Get(t *testing.T) {
 				originalDataWidth := len(h.DAH.RowRoots) / 2
 				sizes := []int{blobSize0, blobSize1}
 				for i, proof := range proofs {
-					require.True(t, sizes[i]/originalDataWidth+1 == len(proof.ShareToRowRootProof))
+					require.True(t, sizes[i]/originalDataWidth+1 == len(proof.SubtreeRootProofs))
 				}
 			},
 		},
@@ -397,7 +396,7 @@ func TestBlobService_Get(t *testing.T) {
 
 				header, err := service.headerGetter(ctx, 1)
 				require.NoError(t, err)
-				valid, err := proof.Verify(blobsWithDiffNamespaces[1], header.DataHash)
+				valid, err := proof.Verify(header.DataHash, appconsts.SubtreeRootThreshold(appVersion))
 				require.NoError(t, err)
 				require.True(t, valid)
 			},
@@ -992,11 +991,10 @@ func proveAndVerifyShareCommitments(t *testing.T, blobSize int) {
 			blobShares, err := BlobsToShares(blb)
 			require.NoError(t, err)
 			// compute the commitment
-			actualCommitmentProof, err := ProveCommitment(eds, nss[msgIndex].Bytes(), blobShares)
+			actualCommitmentProof, err := proveCommitment(eds, nss[msgIndex].Bytes(), blobs[msgIndex], blobShares)
 			require.NoError(t, err)
 
 			// make sure the actual commitment attests to the data
-			require.NoError(t, actualCommitmentProof.Validate())
 			valid, err := actualCommitmentProof.Verify(
 				dataRoot,
 				appconsts.DefaultSubtreeRootThreshold,
@@ -1005,8 +1003,7 @@ func proveAndVerifyShareCommitments(t *testing.T, blobSize int) {
 			require.True(t, valid)
 
 			// generate an expected proof and verify it's valid
-			expectedCommitmentProof := generateCommitmentProofFromBlock(t, eds, nss[msgIndex].Bytes(), blobs[msgIndex], dataRoot)
-			require.NoError(t, expectedCommitmentProof.Validate())
+			expectedCommitmentProof := generateProofFromBlock(t, eds, nss[msgIndex].Bytes(), blobs[msgIndex], dataRoot)
 			valid, err = expectedCommitmentProof.Verify(
 				dataRoot,
 				appconsts.DefaultSubtreeRootThreshold,
@@ -1024,15 +1021,15 @@ func proveAndVerifyShareCommitments(t *testing.T, blobSize int) {
 	}
 }
 
-// generateCommitmentProofFromBlock takes a block and a PFB index and generates the commitment proof
+// generateProofFromBlock takes a block and a PFB index and generates the commitment proof
 // using the traditional way of doing, instead of using the API.
-func generateCommitmentProofFromBlock(
+func generateProofFromBlock(
 	t *testing.T,
 	eds *rsmt2d.ExtendedDataSquare,
 	ns share.Namespace,
 	blob *blob.Blob,
 	dataRoot []byte,
-) CommitmentProof {
+) Proof {
 	// create the blob from the data
 	blb, err := NewBlob(
 		uint8(blob.GetShareVersion()),
@@ -1065,38 +1062,13 @@ func generateCommitmentProofFromBlock(
 	require.NoError(t, sharesProof.Validate(dataRoot))
 
 	// calculate the subtree roots
-	subtreeRoots := make([][]byte, 0)
-	dataCursor := 0
-	for _, proof := range sharesProof.ShareProofs {
-		ranges, err := nmt.ToLeafRanges(
-			int(proof.Start),
-			int(proof.End),
-			inclusion.SubTreeWidth(len(blobShares), appconsts.DefaultSubtreeRootThreshold),
-		)
-		require.NoError(t, err)
-		roots, err := computeSubtreeRoots(
-			blobShares[dataCursor:int32(dataCursor)+proof.End-proof.Start],
-			ranges,
-			int(proof.Start),
-		)
-		require.NoError(t, err)
-		subtreeRoots = append(subtreeRoots, roots...)
-		dataCursor += int(proof.End - proof.Start)
-	}
+	subtreeRoots, err := blb.ComputeSubtreeRoots()
+	require.NoError(t, err)
 
-	// convert the nmt proof to be accepted by the commitment proof
-	nmtProofs := make([]*nmt.Proof, 0)
-	for _, proof := range sharesProof.ShareProofs {
-		nmtProof := nmt.NewInclusionProof(int(proof.Start), int(proof.End), proof.Nodes, true)
-		nmtProofs = append(nmtProofs, &nmtProof)
-	}
-
-	commitmentProof := CommitmentProof{
-		SubtreeRoots:      subtreeRoots,
-		SubtreeRootProofs: nmtProofs,
-		NamespaceID:       sharesProof.NamespaceId,
-		RowProof:          *sharesProof.RowProof,
-		NamespaceVersion:  uint8(sharesProof.NamespaceVersion),
+	commitmentProof := Proof{
+		SubtreeRoots:       subtreeRoots,
+		SubtreeRootProofs:  toNMTProof(sharesProof.ShareProofs),
+		RowToDataRootProof: toCoreRowProof(sharesProof.RowProof),
 	}
 
 	return commitmentProof
@@ -1106,7 +1078,7 @@ func TestBlobVerify(t *testing.T) {
 	_, blobs, nss, eds, _, _, dataRoot := edstest.GenerateTestBlock(t, 200, 10)
 
 	// create the blob from the data
-	blob, err := NewBlob(
+	blb, err := NewBlob(
 		uint8(blobs[5].GetShareVersion()),
 		nss[5].Bytes(),
 		blobs[5].GetData(),
@@ -1114,7 +1086,7 @@ func TestBlobVerify(t *testing.T) {
 	require.NoError(t, err)
 
 	// convert the blob to a number of shares
-	blobShares, err := BlobsToShares(blob)
+	blobShares, err := BlobsToShares(blb)
 	require.NoError(t, err)
 
 	// find the first share of the blob in the ODS
@@ -1136,20 +1108,13 @@ func TestBlobVerify(t *testing.T) {
 	require.NoError(t, err)
 	require.NoError(t, sharesProof.Validate(dataRoot))
 
-	tmShareToRowRootProofs := make([]*types.NMTProof, 0, len(sharesProof.ShareProofs))
-	for _, proof := range sharesProof.ShareProofs {
-		tmShareToRowRootProofs = append(tmShareToRowRootProofs, &types.NMTProof{
-			Start:    proof.Start,
-			End:      proof.End,
-			Nodes:    proof.Nodes,
-			LeafHash: proof.LeafHash,
-		})
-	}
-
+	subtreeRoots, err := blb.ComputeSubtreeRoots()
+	require.NoError(t, err)
 	coreRowProof := toCoreRowProof(sharesProof.RowProof)
 	blobProof := Proof{
-		ShareToRowRootProof: tmShareToRowRootProofs,
-		RowToDataRootProof:  coreRowProof,
+		SubtreeRoots:       subtreeRoots,
+		SubtreeRootProofs:  toNMTProof(sharesProof.ShareProofs),
+		RowToDataRootProof: coreRowProof,
 	}
 	tests := []struct {
 		name      string
@@ -1163,7 +1128,7 @@ func TestBlobVerify(t *testing.T) {
 			dataRoot: dataRoot,
 			proof:    blobProof,
 			blob: func() Blob {
-				b := *blob
+				b := *blb
 				b.Commitment = []byte{0x1}
 				return b
 			}(),
@@ -1178,25 +1143,22 @@ func TestBlobVerify(t *testing.T) {
 				p.RowToDataRootProof.EndRow = 15
 				return p
 			}(),
-			blob:      *blob,
+			blob:      *blb,
 			expectErr: true,
 		},
 		{
 			name:     "malformed blob and proof",
 			dataRoot: dataRoot,
 			proof: func() Proof {
+				inclusionProof := nmt.NewInclusionProof(1, 3, [][]byte{{0x01}}, true)
 				return Proof{
-					ShareToRowRootProof: []*types.NMTProof{{
-						Start:    1,
-						End:      3,
-						Nodes:    [][]byte{{0x01}},
-						LeafHash: nil,
-					}},
+					SubtreeRoots:       subtreeRoots,
+					SubtreeRootProofs:  []*nmt.Proof{&inclusionProof},
 					RowToDataRootProof: blobProof.RowToDataRootProof,
 				}
 			}(),
 			blob: func() Blob {
-				b := *blob
+				b := *blb
 				b.Commitment = []byte{0x1}
 				return b
 			}(),
@@ -1207,46 +1169,34 @@ func TestBlobVerify(t *testing.T) {
 			dataRoot: dataRoot,
 			proof: func() Proof {
 				p := blobProof
-				p.ShareToRowRootProof[0].End = 15
+				invalidProof := nmt.NewInclusionProof(
+					blobProof.SubtreeRootProofs[0].Start(),
+					15,
+					blobProof.SubtreeRootProofs[0].Nodes(),
+					true,
+				)
+				p.SubtreeRootProofs[0] = &invalidProof
 				return p
 			}(),
-			blob:      *blob,
+			blob:      *blb,
 			expectErr: true,
 		},
 		{
 			name:      "invalid data root",
 			dataRoot:  []byte{0x1, 0x2},
 			proof:     blobProof,
-			blob:      *blob,
+			blob:      *blb,
 			expectErr: true,
 		},
 		{
 			name:     "valid proof",
 			dataRoot: dataRoot,
-			blob:     *blob,
+			blob:     *blb,
 			proof: func() Proof {
-				sharesProof, err := pkgproof.NewShareInclusionProofFromEDS(
-					eds,
-					nss[5],
-					appshares.NewRange(startShareIndex, startShareIndex+len(blobShares)),
-				)
-				require.NoError(t, err)
-				require.NoError(t, sharesProof.Validate(dataRoot))
-
-				tmShareToRowRootProofs := make([]*types.NMTProof, 0, len(sharesProof.ShareProofs))
-				for _, proof := range sharesProof.ShareProofs {
-					tmShareToRowRootProofs = append(tmShareToRowRootProofs, &types.NMTProof{
-						Start:    proof.Start,
-						End:      proof.End,
-						Nodes:    proof.Nodes,
-						LeafHash: proof.LeafHash,
-					})
-				}
-
-				coreRowProof := toCoreRowProof(sharesProof.RowProof)
 				return Proof{
-					ShareToRowRootProof: tmShareToRowRootProofs,
-					RowToDataRootProof:  coreRowProof,
+					SubtreeRootProofs:  toNMTProof(sharesProof.ShareProofs),
+					RowToDataRootProof: coreRowProof,
+					SubtreeRoots:       subtreeRoots,
 				}
 			}(),
 		},
@@ -1254,7 +1204,7 @@ func TestBlobVerify(t *testing.T) {
 
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
-			valid, err := test.proof.Verify(&test.blob, test.dataRoot)
+			valid, err := test.proof.Verify(test.dataRoot, appconsts.SubtreeRootThreshold(appVersion))
 			if test.expectErr {
 				assert.Error(t, err)
 			} else {
@@ -1283,4 +1233,64 @@ func toCoreRowProof(proof *pkgproof.RowProof) coretypes.RowProof {
 		StartRow: proof.StartRow,
 		EndRow:   proof.EndRow,
 	}
+}
+
+func proveCommitment(
+	eds *rsmt2d.ExtendedDataSquare,
+	namespace share.Namespace,
+	blb *blob.Blob,
+	blobShares []share.Share,
+) (*Proof, error) {
+	// find the blob shares in the EDS
+	blobSharesStartIndex := -1
+	for index, share := range eds.FlattenedODS() {
+		if bytes.Equal(share, blobShares[0]) {
+			blobSharesStartIndex = index
+		}
+	}
+	if blobSharesStartIndex < 0 {
+		return nil, fmt.Errorf("couldn't find the blob shares in the ODS")
+	}
+
+	nID, err := squarens.From(namespace)
+	if err != nil {
+		return nil, err
+	}
+
+	sharesProof, err := pkgproof.NewShareInclusionProofFromEDS(
+		eds,
+		nID,
+		appshares.NewRange(blobSharesStartIndex, blobSharesStartIndex+len(blobShares)),
+	)
+	if err != nil {
+		return nil, err
+	}
+
+	// convert the shares to row root proofs to nmt proofs
+	nmtProofs := make([]*nmt.Proof, 0)
+	for _, proof := range sharesProof.ShareProofs {
+		nmtProof := nmt.NewInclusionProof(
+			int(proof.Start),
+			int(proof.End),
+			proof.Nodes,
+			true,
+		)
+		nmtProofs = append(
+			nmtProofs,
+			&nmtProof,
+		)
+	}
+
+	// compute the subtree roots of the blob shares
+	subtreeRoots, err := inclusion.GenerateSubtreeRoots(blb, appconsts.SubtreeRootThreshold(appVersion))
+	if err != nil {
+		return nil, err
+	}
+
+	commitmentProof := Proof{
+		SubtreeRoots:       subtreeRoots,
+		SubtreeRootProofs:  nmtProofs,
+		RowToDataRootProof: toCoreRowProof(sharesProof.RowProof),
+	}
+	return &commitmentProof, nil
 }

@@ -1,18 +1,16 @@
 package blob
 
 import (
-	bytes2 "bytes"
 	"context"
-	"encoding/hex"
 	"errors"
 	"fmt"
+	"github.com/celestiaorg/go-square/inclusion"
 	"slices"
 	"sync"
 
 	"github.com/cosmos/cosmos-sdk/types"
 	logging "github.com/ipfs/go-log/v2"
 	"github.com/tendermint/tendermint/libs/bytes"
-	tmproto "github.com/tendermint/tendermint/proto/tendermint/types"
 	core "github.com/tendermint/tendermint/types"
 	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/attribute"
@@ -21,17 +19,13 @@ import (
 
 	"github.com/celestiaorg/celestia-app/v2/pkg/appconsts"
 	pkgproof "github.com/celestiaorg/celestia-app/v2/pkg/proof"
-	"github.com/celestiaorg/go-square/inclusion"
-	appns "github.com/celestiaorg/go-square/namespace"
-	"github.com/celestiaorg/go-square/shares"
-	"github.com/celestiaorg/nmt"
-	"github.com/celestiaorg/rsmt2d"
-
 	"github.com/celestiaorg/celestia-node/header"
 	"github.com/celestiaorg/celestia-node/libs/utils"
 	"github.com/celestiaorg/celestia-node/share"
 	"github.com/celestiaorg/celestia-node/share/shwap"
 	"github.com/celestiaorg/celestia-node/state"
+	"github.com/celestiaorg/go-square/shares"
+	"github.com/celestiaorg/nmt"
 )
 
 var (
@@ -300,6 +294,8 @@ func (s *Service) getAll(
 // To ensure that blob was included in a specific height, we need:
 // 1. verify the provided commitment by recomputing it;
 // 2. verify the provided Proof against subtree roots that were used in 1.;
+// Note: this method can be deprecated because it's doing processing that can
+// be done locally.
 func (s *Service) Included(
 	ctx context.Context,
 	height uint64,
@@ -315,25 +311,15 @@ func (s *Service) Included(
 		attribute.Int64("height", int64(height)),
 		attribute.String("namespace", namespace.String()),
 	)
-
-	// In the current implementation, LNs will have to download all shares to recompute the commitment.
-	// TODO(@vgonkivs): rework the implementation to perform all verification without network requests.
-	sharesParser := &parser{verifyFn: func(blob *Blob) bool {
-		return blob.compareCommitments(commitment)
-	}}
-	blob, _, err := s.retrieve(ctx, height, namespace, sharesParser)
-	switch {
-	case err == nil:
-	case errors.Is(err, ErrBlobNotFound):
-		return false, nil
-	default:
-		return false, err
+	// verify that the blob subtree roots match the proof subtree roots
+	if proofCommitment := proof.GenerateCommitment(); !commitment.Equal(proofCommitment) {
+		return false, ErrInvalidProof
 	}
 	header, err := s.headerGetter(ctx, height)
 	if err != nil {
 		return false, err
 	}
-	return proof.Verify(blob, header.DataHash)
+	return proof.Verify(header.DataHash, appconsts.SubtreeRootThreshold(appVersion))
 }
 
 // retrieve retrieves blobs and their proofs by requesting the whole namespace and
@@ -672,23 +658,24 @@ func (s *Service) retrieveBlobProof(
 				if err != nil {
 					return nil, nil, err
 				}
-				tmShareToRowRootProofs := make([]*tmproto.NMTProof, 0, len(shareToRowRootProofs))
-				for _, proof := range shareToRowRootProofs {
-					tmShareToRowRootProofs = append(tmShareToRowRootProofs, &tmproto.NMTProof{
-						Start:    proof.Start,
-						End:      proof.End,
-						Nodes:    proof.Nodes,
-						LeafHash: proof.LeafHash,
-					})
+
+				// convert the share to row root proof to an nmt.Proof
+				nmtShareToRowRootProofs := toNMTProof(shareToRowRootProofs)
+
+				subtreeRoots, err := inclusion.GenerateSubtreeRoots(blob.Blob, appconsts.SubtreeRootThreshold(appVersion))
+				if err != nil {
+					return nil, nil, err
 				}
+
 				proof := Proof{
-					ShareToRowRootProof: tmShareToRowRootProofs,
+					SubtreeRootProofs: nmtShareToRowRootProofs,
 					RowToDataRootProof: core.RowProof{
 						RowRoots: rowRoots,
 						Proofs:   rowProofs,
 						StartRow: uint32(inclusiveBlobStartRowIndex),
 						EndRow:   uint32(exclusiveBlobEndRowIndex) - 1,
 					},
+					SubtreeRoots: subtreeRoots,
 				}
 				return blob, &proof, nil
 			}
@@ -701,6 +688,15 @@ func (s *Service) retrieveBlobProof(
 		}
 	}
 	return nil, nil, ErrBlobNotFound
+}
+
+func toNMTProof(proofs []*pkgproof.NMTProof) []*nmt.Proof {
+	nmtShareToRowRootProofs := make([]*nmt.Proof, 0, len(proofs))
+	for _, proof := range proofs {
+		nmtProof := nmt.NewInclusionProof(int(proof.Start), int(proof.End), proof.Nodes, true)
+		nmtShareToRowRootProofs = append(nmtShareToRowRootProofs, &nmtProof)
+	}
+	return nmtShareToRowRootProofs
 }
 
 // getBlobs retrieves the DAH and fetches all shares from the requested Namespace and converts
@@ -728,197 +724,4 @@ func (s *Service) getBlobs(
 
 	_, _, err = s.retrieve(ctx, header.Height(), namespace, sharesParser)
 	return blobs, err
-}
-
-func (s *Service) GetCommitmentProof(
-	ctx context.Context,
-	height uint64,
-	namespace share.Namespace,
-	shareCommitment []byte,
-) (*CommitmentProof, error) {
-	log.Debugw("proving share commitment", "height", height, "commitment", shareCommitment, "namespace", namespace)
-	if height == 0 {
-		return nil, fmt.Errorf("height cannot be equal to 0")
-	}
-
-	// get the blob to compute the subtree roots
-	log.Debugw(
-		"getting the blob",
-		"height",
-		height,
-		"commitment",
-		shareCommitment,
-		"namespace",
-		namespace,
-	)
-	blb, err := s.Get(ctx, height, namespace, shareCommitment)
-	if err != nil {
-		return nil, err
-	}
-
-	log.Debugw(
-		"converting the blob to shares",
-		"height",
-		height,
-		"commitment",
-		shareCommitment,
-		"namespace",
-		namespace,
-	)
-	blobShares, err := BlobsToShares(blb)
-	if err != nil {
-		return nil, err
-	}
-	if len(blobShares) == 0 {
-		return nil, fmt.Errorf("the blob shares for commitment %s are empty", hex.EncodeToString(shareCommitment))
-	}
-
-	// get the extended header
-	log.Debugw(
-		"getting the extended header",
-		"height",
-		height,
-	)
-	extendedHeader, err := s.headerGetter(ctx, height)
-	if err != nil {
-		return nil, err
-	}
-
-	log.Debugw("getting eds", "height", height)
-	eds, err := s.shareGetter.GetEDS(ctx, extendedHeader)
-	if err != nil {
-		return nil, err
-	}
-
-	return ProveCommitment(eds, namespace, blobShares)
-}
-
-func ProveCommitment(
-	eds *rsmt2d.ExtendedDataSquare,
-	namespace share.Namespace,
-	blobShares []share.Share,
-) (*CommitmentProof, error) {
-	// find the blob shares in the EDS
-	blobSharesStartIndex := -1
-	for index, share := range eds.FlattenedODS() {
-		if bytes2.Equal(share, blobShares[0]) {
-			blobSharesStartIndex = index
-		}
-	}
-	if blobSharesStartIndex < 0 {
-		return nil, fmt.Errorf("couldn't find the blob shares in the ODS")
-	}
-
-	nID, err := appns.From(namespace)
-	if err != nil {
-		return nil, err
-	}
-
-	log.Debugw(
-		"generating the blob share proof for commitment",
-		"start_share",
-		blobSharesStartIndex,
-		"end_share",
-		blobSharesStartIndex+len(blobShares),
-	)
-	sharesProof, err := pkgproof.NewShareInclusionProofFromEDS(
-		eds,
-		nID,
-		shares.NewRange(blobSharesStartIndex, blobSharesStartIndex+len(blobShares)),
-	)
-	if err != nil {
-		return nil, err
-	}
-
-	// convert the shares to row root proofs to nmt proofs
-	nmtProofs := make([]*nmt.Proof, 0)
-	for _, proof := range sharesProof.ShareProofs {
-		nmtProof := nmt.NewInclusionProof(
-			int(proof.Start),
-			int(proof.End),
-			proof.Nodes,
-			true,
-		)
-		nmtProofs = append(
-			nmtProofs,
-			&nmtProof,
-		)
-	}
-
-	// compute the subtree roots of the blob shares
-	log.Debugw("computing the subtree roots")
-	subtreeRoots := make([][]byte, 0)
-	dataCursor := 0
-	for _, proof := range nmtProofs {
-		// TODO: do we want directly use the default subtree root threshold
-		// or want to allow specifying which version to use?
-		ranges, err := nmt.ToLeafRanges(
-			proof.Start(),
-			proof.End(),
-			inclusion.SubTreeWidth(len(blobShares), appconsts.DefaultSubtreeRootThreshold),
-		)
-		if err != nil {
-			return nil, err
-		}
-		roots, err := computeSubtreeRoots(
-			blobShares[dataCursor:dataCursor+proof.End()-proof.Start()],
-			ranges,
-			proof.Start(),
-		)
-		if err != nil {
-			return nil, err
-		}
-		subtreeRoots = append(subtreeRoots, roots...)
-		dataCursor += proof.End() - proof.Start()
-	}
-
-	log.Debugw("successfully proved the share commitment")
-	commitmentProof := CommitmentProof{
-		SubtreeRoots:      subtreeRoots,
-		SubtreeRootProofs: nmtProofs,
-		NamespaceID:       namespace.ID(),
-		RowProof:          *sharesProof.RowProof,
-		NamespaceVersion:  namespace.Version(),
-	}
-	return &commitmentProof, nil
-}
-
-// computeSubtreeRoots takes a set of shares and ranges and returns the corresponding subtree roots.
-// the offset is the number of shares that are before the subtree roots we're calculating.
-func computeSubtreeRoots(shares []share.Share, ranges []nmt.LeafRange, offset int) ([][]byte, error) {
-	if len(shares) == 0 {
-		return nil, fmt.Errorf("cannot compute subtree roots for an empty shares list")
-	}
-	if len(ranges) == 0 {
-		return nil, fmt.Errorf("cannot compute subtree roots for an empty ranges list")
-	}
-	if offset < 0 {
-		return nil, fmt.Errorf("the offset %d cannot be stricly negative", offset)
-	}
-
-	// create a tree containing the shares to generate their subtree roots
-	tree := nmt.New(
-		appconsts.NewBaseHashFunc(),
-		nmt.IgnoreMaxNamespace(true),
-		nmt.NamespaceIDSize(share.NamespaceSize),
-	)
-	for _, sh := range shares {
-		leafData := make([]byte, 0)
-		leafData = append(append(leafData, share.GetNamespace(sh)...), sh...)
-		err := tree.Push(leafData)
-		if err != nil {
-			return nil, err
-		}
-	}
-
-	// generate the subtree roots
-	subtreeRoots := make([][]byte, 0)
-	for _, rg := range ranges {
-		root, err := tree.ComputeSubtreeRoot(rg.Start-offset, rg.End-offset)
-		if err != nil {
-			return nil, err
-		}
-		subtreeRoots = append(subtreeRoots, root)
-	}
-	return subtreeRoots, nil
 }
