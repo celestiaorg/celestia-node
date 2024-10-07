@@ -10,11 +10,11 @@ import (
 
 	"github.com/stretchr/testify/require"
 
-	"github.com/celestiaorg/go-square/v2/share"
+	gosquare "github.com/celestiaorg/go-square/v2/share"
 	"github.com/celestiaorg/rsmt2d"
 
-	"github.com/celestiaorg/celestia-node/square"
-	"github.com/celestiaorg/celestia-node/square/eds/edstest"
+	"github.com/celestiaorg/celestia-node/share"
+	"github.com/celestiaorg/celestia-node/share/eds/edstest"
 	"github.com/celestiaorg/celestia-node/store/cache"
 	"github.com/celestiaorg/celestia-node/store/file"
 )
@@ -426,7 +426,7 @@ func BenchmarkStore(b *testing.B) {
 	b.Cleanup(cancel)
 
 	eds := edstest.RandEDS(b, 128)
-	roots, err := square.NewAxisRoots(eds)
+	roots, err := share.NewAxisRoots(eds)
 	require.NoError(b, err)
 
 	// BenchmarkStore/put_128-16         	     186	   6623266 ns/op
@@ -477,9 +477,9 @@ func BenchmarkStore(b *testing.B) {
 	})
 }
 
-func randomEDS(t testing.TB) (*rsmt2d.ExtendedDataSquare, *square.AxisRoots) {
+func randomEDS(t testing.TB) (*rsmt2d.ExtendedDataSquare, *share.AxisRoots) {
 	eds := edstest.RandEDS(t, 4)
-	roots, err := square.NewAxisRoots(eds)
+	roots, err := share.NewAxisRoots(eds)
 	require.NoError(t, err)
 
 	return eds, roots
@@ -512,7 +512,7 @@ func hasByHashAndHeight(
 	t testing.TB,
 	store *Store,
 	ctx context.Context,
-	hash square.DataHash,
+	hash share.DataHash,
 	height uint64,
 	hasByHash, hasByHeight bool,
 ) {
