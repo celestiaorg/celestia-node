@@ -94,8 +94,7 @@ func (s *simpleInvertedIndex) GetShardsForMultihash(ctx context.Context, mh mult
 		return nil, errors.Join(ErrNotFoundInIndex, err)
 	}
 
-	// /root/.celestia-full-mocha-4/blocks/CF230D0A940324FD188833800FAC95AA55A6C7EA09D2139E8D62F9FEB2961BF6
-	return []shard.Key{shard.KeyFromString("/my_mount" + string(sbz))}, nil
+	return []shard.Key{shard.KeyFromString(string(sbz))}, nil
 }
 
 func (s *simpleInvertedIndex) close() error {
