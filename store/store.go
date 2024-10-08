@@ -66,12 +66,12 @@ func NewStore(params *Parameters, basePath string) (*Store, error) {
 	}
 
 	var recentCache cache.Cache = cache.NoopCache{}
-	if params.RecentBlocksCacheSize > 0 {
-		recentCache, err = cache.NewAccessorCache("recent", 0)
-		if err != nil {
-			return nil, fmt.Errorf("failed to create recent eds cache: %w", err)
-		}
-	}
+	//if params.RecentBlocksCacheSize > 0 {
+	//	recentCache, err = cache.NewAccessorCache("recent", 0)
+	//	if err != nil {
+	//		return nil, fmt.Errorf("failed to create recent eds cache: %w", err)
+	//	}
+	//}
 
 	store := &Store{
 		basepath:  basePath,
