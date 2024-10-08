@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"time"
 
 	bstore "github.com/ipfs/boxo/blockstore"
 	blocks "github.com/ipfs/go-block-format"
@@ -133,6 +134,8 @@ func (w *BlockstoreWithMetrics) Has(ctx context.Context, cid cid.Cid) (bool, err
 }
 
 func (w *BlockstoreWithMetrics) Get(ctx context.Context, cid cid.Cid) (blocks.Block, error) {
+	now := time.Now()
+	fmt.Println("got requiest for ")
 	get, err := w.bs.Get(ctx, cid)
 	notFound := errors.Is(err, ipld.ErrNotFound{})
 	failed := err != nil && !notFound
@@ -140,11 +143,12 @@ func (w *BlockstoreWithMetrics) Get(ctx context.Context, cid cid.Cid) (blocks.Bl
 		attribute.Bool(failedKey, failed),
 		attribute.Bool(notFoundKey, notFound),
 	))
-	//if err != nil {
-	//	fmt.Println("WRAPPER GETERROR ", notFound, failed, err)
-	//	return nil, err
-	//}
-	//fmt.Println("WRAPPER GET", notFound, failed, `block:`, len(get.RawData()))
+
+	if err != nil {
+		fmt.Println("WRAPPER GETERROR ", notFound, failed, err, "time", time.Since(now))
+		return nil, err
+	}
+	fmt.Println("WRAPPER GET", notFound, failed, "time", time.Since(now), `block:`, len(get.RawData()))
 	return get, err
 }
 

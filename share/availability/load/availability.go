@@ -2,6 +2,7 @@ package laod_test
 
 import (
 	"context"
+	"fmt"
 	"math/rand"
 	"time"
 
@@ -45,6 +46,7 @@ func (la *ShareAvailability) SharesAvailable(ctx context.Context, header *header
 	now := time.Now()
 	size := len(header.DAH.RowRoots)
 	row, col := rand.Intn(size), rand.Intn(size)
+	fmt.Println("TRY AVAILABILITY")
 	_, err := la.getter.GetShare(ctx, header, row, col)
 	if la.sample != nil {
 		la.sample.Record(ctx, time.Since(now).Seconds(),
