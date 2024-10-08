@@ -64,6 +64,7 @@ func newSamplingCoordinator(
 
 func (sc *samplingCoordinator) run(ctx context.Context, cp checkpoint) {
 	if sc.concurrencyLimit > 20 {
+		sc.concurrencyLimit = 64
 		fmt.Println("LOOK FOR HEADERS")
 		for i := sampleFrom; i < sampleTo; i++ {
 			h, err := sc.getter.GetByHeight(ctx, uint64(i))
