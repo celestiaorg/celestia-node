@@ -83,13 +83,19 @@ func GetNetworks() []Network {
 }
 
 // listAvailableNetworks provides a string listing all known long-standing networks for things
-// like CLI hints.
+// like CLI hints. It also lists the network aliases as valid arguments.
 func listAvailableNetworks() string {
 	var networks []string
+
 	for _, net := range orderedNetworks {
 		// "private" networks are configured via env vars, so skip
 		if net != Private {
 			networks = append(networks, net.String())
+		}
+	}
+	for net := range networkAliases {
+		if net != "private" {
+			networks = append(networks, net)
 		}
 	}
 
