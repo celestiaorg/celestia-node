@@ -1,13 +1,11 @@
 package shwap
 
 import (
-	"bytes"
 	"errors"
 	"fmt"
 	"github.com/celestiaorg/celestia-app/v2/pkg/appconsts"
 	"github.com/celestiaorg/celestia-app/v2/pkg/wrapper"
 	"github.com/celestiaorg/celestia-node/share"
-	"github.com/celestiaorg/celestia-node/share/shwap/pb"
 	"github.com/celestiaorg/nmt"
 )
 
@@ -83,47 +81,40 @@ func RangedNamespaceDataFromShares(
 // Additionally, it contains a `Sample` to ensure that received data is valid.
 // Please note: The response can contain proofs only if the user specifies this in the request.
 type RangeNamespaceData struct {
-	data   NamespaceData
-	sample Sample
+	NamespaceData
 }
 
-func NewRangeNamespaceData(data NamespaceData, sample Sample) RangeNamespaceData {
-	return RangeNamespaceData{data: data, sample: sample}
+func NewRangeNamespaceData(data NamespaceData) RangeNamespaceData {
+	return RangeNamespaceData{data}
 }
 
-// Verify performs a validation of the incoming data. It ensures that the response contains proofs and performs
+// Validate performs a validation of the incoming data. It ensures that the response contains proofs and performs
 // data validation in case the user has requested it.
-func (rngdata *RangeNamespaceData) Verify(root *share.AxisRoots, req *RangeNamespaceDataID) error {
-	// ensure that received sample corresponds to the requested sampleID
-	err := rngdata.sample.Validate(root, req.RowIndex, req.ShareIndex)
-	if err != nil {
-		return fmt.Errorf("RangeNamespaceData: sample validation failed: %w", err)
+func (rngdata *RangeNamespaceData) Validate(root *share.AxisRoots, req *RangeNamespaceDataID) error {
+	// verify that proofs were received
+	if len(rngdata.Proofs()) == 0 {
+		return errors.New("RangeNamespaceData: no proofs provided")
 	}
 
-	// verify that proofs were received
-	if len(rngdata.data.Proofs()) == 0 {
-		return errors.New("RangeNamespaceData: no proofs provided")
+	if rngdata.Proofs()[0].Start() != req.ShareIndex {
+		return fmt.Errorf("RangeNamespaceData: invalid start of the range: want: %d, got: %d",
+			req.ShareIndex, rngdata.Proofs()[0].Start(),
+		)
 	}
 
 	// short-circuit if user expects to receive proofs-only.
 	if req.ProofsOnly {
-		// TODO: build a sub-range proof(when NMT allows it) and compare it with the sample proof
 		return nil
 	}
 
 	// verify shares amount
-	rawShares := rngdata.data.Flatten()
+	rawShares := rngdata.Flatten()
 	if len(rawShares) != int(req.Length) {
 		return fmt.Errorf("RangeNamespaceData: shares amount mismatch: want: %d, got: %d", req.Length, len(rawShares))
 	}
 
-	// compare first received sample with the first share in range
-	if !bytes.Equal(rngdata.sample.Share, rawShares[0]) {
-		return fmt.Errorf("RangeNamespaceData: invalid start share")
-	}
-
 	rowStart := req.RowIndex
-	for i, row := range rngdata.data {
+	for i, row := range rngdata.NamespaceData {
 		verified := row.Proof.VerifyInclusion(
 			share.NewSHA256Hasher(),
 			req.RangeNamespace.ToNMT(),
@@ -135,26 +126,4 @@ func (rngdata *RangeNamespaceData) Verify(root *share.AxisRoots, req *RangeNames
 		}
 	}
 	return nil
-}
-
-// RangeNamespaceDataToProto converts RangeNamespaceData to its protobuf representation
-func (rngdata *RangeNamespaceData) RangeNamespaceDataToProto() *pb.RangeNamespaceData {
-	rowData := make([]*pb.RowNamespaceData, len(rngdata.data))
-	for i, row := range rngdata.data {
-		rowData[i] = row.ToProto()
-	}
-	return &pb.RangeNamespaceData{
-		Data:   rowData,
-		Sample: rngdata.sample.ToProto(),
-	}
-}
-
-// ProtoToRangeNamespaceData converts protobuf representation to RangeNamespaceData
-func ProtoToRangeNamespaceData(data *pb.RangeNamespaceData) RangeNamespaceData {
-	rowData := make([]RowNamespaceData, len(data.Data))
-	for i, row := range data.Data {
-		rowData[i] = RowNamespaceDataFromProto(row)
-	}
-	sample := SampleFromProto(data.Sample)
-	return NewRangeNamespaceData(rowData, sample)
 }

@@ -56,12 +56,8 @@ func TestRangeNamespaceData(t *testing.T) {
 			roots, err := extended.AxisRoots(context.Background())
 			require.NoError(t, err)
 
-			err = rngdata.Verify(roots, &dataID)
+			err = rngdata.Validate(roots, &dataID)
 			require.NoError(t, err)
-
-			protoRng := rngdata.RangeNamespaceDataToProto()
-			data := shwap.ProtoToRangeNamespaceData(protoRng)
-			assert.EqualValues(t, rngdata, data)
 		})
 	}
 }

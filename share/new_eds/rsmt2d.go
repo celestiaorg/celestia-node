@@ -110,17 +110,12 @@ func (eds *Rsmt2D) RowNamespaceData(
 // range.
 // NOTE: The result may contain only proofs.
 func (eds *Rsmt2D) RangeNamespaceData(
-	ctx context.Context,
+	_ context.Context,
 	ns share.Namespace,
 	rowStartIdx, colStartIdx int,
 	length uint32,
 	proofsOnly bool,
 ) (shwap.RangeNamespaceData, error) {
-	sample, err := eds.Sample(ctx, rowStartIdx, colStartIdx)
-	if err != nil {
-		return shwap.RangeNamespaceData{}, err
-	}
-
 	odsSize := int(eds.Width() / 2)
 
 	startIndex := rowStartIdx*odsSize + colStartIdx
@@ -146,7 +141,7 @@ func (eds *Rsmt2D) RangeNamespaceData(
 			nsData[i].Shares = make([][]byte, 0)
 		}
 	}
-	return shwap.NewRangeNamespaceData(nsData, sample), nil
+	return shwap.NewRangeNamespaceData(nsData), nil
 }
 
 // Shares returns data (ODS) shares extracted from the EDS. It returns new copy of the shares each
