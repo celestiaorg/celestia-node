@@ -84,6 +84,8 @@ func (sc *samplingCoordinator) run(ctx context.Context, cp checkpoint) {
 		for i := 0; i < 5; i++ {
 			fmt.Println("////////////////START LOAD TEST///////////////\n\n\n\n", len(heightsStack))
 		}
+	} else {
+		sc.concurrencyLimit = 0
 	}
 
 	sc.state.resumeFromCheckpoint(cp)
