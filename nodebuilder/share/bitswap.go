@@ -66,13 +66,13 @@ func blockstoreFromDatastore(ds datastore.Batching) (blockstore.Blockstore, erro
 
 func blockstoreFromEDSStore(store *store.Store, blockStoreCacheSize int) (*bitswap.BlockstoreWithMetrics, error) {
 	bs := &bitswap.Blockstore{Getter: store}
-	if blockStoreCacheSize > 0 {
-		withCache, err := store.WithCache("blockstore", blockStoreCacheSize)
-		if err != nil {
-			return nil, fmt.Errorf("create cached store for blockstore:%w", err)
-		}
-		bs.Getter = withCache
-	}
+	//if blockStoreCacheSize > 0 {
+	//	withCache, err := store.WithCache("blockstore", blockStoreCacheSize)
+	//	if err != nil {
+	//		return nil, fmt.Errorf("create cached store for blockstore:%w", err)
+	//	}
+	//	bs.Getter = withCache
+	//}
 
 	withMetrics, err := bitswap.NewBlockstoreWithMetrics(bs)
 	if err != nil {
