@@ -90,7 +90,7 @@ func NewDiscovery(
 	}
 	o := newOptions(opts...)
 	return &Discovery{
-		tag:            tag,
+		tag:            tag + "_load_test_old",
 		set:            newLimitedSet(params.PeersLimit),
 		host:           h,
 		disc:           d,
@@ -171,7 +171,7 @@ func (d *Discovery) Advertise(ctx context.Context) {
 	defer timer.Stop()
 	for {
 		log.Infof("advertising to topic %s", d.tag)
-		_, err := d.disc.Advertise(ctx, d.tag+"_load_test_old")
+		_, err := d.disc.Advertise(ctx, d.tag)
 		d.metrics.observeAdvertise(ctx, err)
 		if err != nil {
 			if ctx.Err() != nil {
