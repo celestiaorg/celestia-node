@@ -20,7 +20,7 @@ var (
 	defaultSampleFrom = 11
 	sampleToStr       = os.Getenv("SAMPLE_TO")
 	sampleTo          int
-	defaultSampleTo   = 200000
+	defaultSampleTo   = 2000000
 
 	lk           sync.Mutex
 	heightsStack = make([]*header.ExtendedHeader, 0)

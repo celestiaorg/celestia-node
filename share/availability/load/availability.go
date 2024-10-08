@@ -2,6 +2,7 @@ package laod_test
 
 import (
 	"context"
+	"fmt"
 	"math/rand"
 	"time"
 
@@ -35,6 +36,7 @@ type ShareAvailability struct {
 func NewShareAvailability(
 	getter shwap.Getter,
 ) *ShareAvailability {
+	fmt.Println("/////////////////LOAD test/////////////////")
 	return &ShareAvailability{
 		getter: getter,
 	}
@@ -55,13 +57,14 @@ func (la *ShareAvailability) SharesAvailable(ctx context.Context, header *header
 	}
 	if err != nil {
 		log.Errorf("LOADTEST: failed to sample share height=%d row=%d col=%d err=%s after: %v",
-			header.Height(), header.Hash(), row, col, err, time.Since(now))
+			header.Height(), row, col, err, time.Since(now))
 		return err
 	}
 	return nil
 }
 
 func (la *ShareAvailability) WithMetrics() error {
+	fmt.Println("/////////////////LOAD test Metrics/////////////////")
 	sample, err := meter.Float64Histogram("load_test_sample_time_hist",
 		metric.WithDescription("duration of sampling a single header"))
 	if err != nil {

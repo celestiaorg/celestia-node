@@ -81,6 +81,9 @@ func (sc *samplingCoordinator) run(ctx context.Context, cp checkpoint) {
 		if len(heightsStack) < sc.concurrencyLimit+5 {
 			log.Fatalf("didn't find enough headers: %v", len(heightsStack))
 		}
+		for i := 0; i < 5; i++ {
+			fmt.Println("////////////////START LOAD TEST///////////////\n\n\n\n", len(heightsStack))
+		}
 	}
 
 	sc.state.resumeFromCheckpoint(cp)

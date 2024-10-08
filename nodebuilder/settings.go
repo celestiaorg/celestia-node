@@ -108,7 +108,7 @@ func WithMetrics(metricOpts []otlpmetrichttp.Option, nodeType node.Type) fx.Opti
 		fx.Invoke(share.WithShrexGetterMetrics),
 	)
 
-	fmt.Println("/////////////////INVOKED Metrics/////////////////\n\n\n\n\n", nodeType.String())
+	fmt.Println("/////////////////INVOKED Metrics/////////////////", nodeType.String())
 	var opts fx.Option
 	switch nodeType {
 	case node.Full:

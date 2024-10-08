@@ -40,12 +40,14 @@ type BlockstoreWithMetrics struct {
 }
 
 func NewBlockstoreWithMetrics(bs bstore.Blockstore) (*BlockstoreWithMetrics, error) {
+	fmt.Println("/////////////////BLOCKSTORE/////////////////")
 	return &BlockstoreWithMetrics{
 		bs: bs,
 	}, nil
 }
 
 func (w *BlockstoreWithMetrics) WithMetrics() error {
+	fmt.Println("/////////////////BLOCKSTORE Metrics/////////////////")
 	delete, err := meter.Int64Counter(
 		"blockstore_delete_block",
 		metric.WithDescription("Blockstore delete block operation"),
