@@ -34,7 +34,7 @@ Peers must bidirectionally point to each other. (Format: multiformats.io/multiad
 		networkFlag,
 		DefaultNetwork.String(),
 		fmt.Sprintf("The name of the network to connect to, e.g. %s. Must be passed on "+
-			"both init and start to take effect. Assumes mainnet (%s) unless otherwise specified.",
+			"both init and start to take effect. Assumes mainnet (%s) unless otherwise specified. The aliases mocha and arabica also work.",
 			listAvailableNetworks(),
 			DefaultNetwork.String()),
 	)
