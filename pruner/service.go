@@ -13,6 +13,7 @@ import (
 	libhead "github.com/celestiaorg/go-header"
 
 	"github.com/celestiaorg/celestia-node/header"
+	headerService "github.com/celestiaorg/celestia-node/nodebuilder/header"
 )
 
 var log = logging.Logger("pruner/service")
@@ -104,7 +105,7 @@ func (s *Service) run() {
 	defer ticker.Stop()
 
 	lastPrunedHeader, err := s.lastPruned(s.ctx)
-	if err != nil && !errors.Is(err, header.ErrHeightZero) {
+	if err != nil && !errors.Is(err, headerService.ErrHeightZero) {
 		log.Errorw("failed to get last pruned header", "height", s.checkpoint.LastPrunedHeight,
 			"err", err)
 		log.Warn("exiting pruner service!")
