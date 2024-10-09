@@ -14,11 +14,11 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"github.com/celestiaorg/celestia-app/v2/app"
-	appconsts "github.com/celestiaorg/celestia-app/v2/pkg/appconsts"
-	genesis "github.com/celestiaorg/celestia-app/v2/test/util/genesis"
-	"github.com/celestiaorg/celestia-app/v2/test/util/testnode"
-	apptypes "github.com/celestiaorg/celestia-app/v2/x/blob/types"
+	"github.com/celestiaorg/celestia-app/v3/app"
+	appconsts "github.com/celestiaorg/celestia-app/v3/pkg/appconsts"
+	genesis "github.com/celestiaorg/celestia-app/v3/test/util/genesis"
+	"github.com/celestiaorg/celestia-app/v3/test/util/testnode"
+	apptypes "github.com/celestiaorg/celestia-app/v3/x/blob/types"
 	squareblob "github.com/celestiaorg/go-square/blob"
 
 	"github.com/celestiaorg/celestia-node/share"
