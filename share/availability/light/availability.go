@@ -42,7 +42,7 @@ func NewShareAvailability(
 	ds datastore.Batching,
 	opts ...Option,
 ) *ShareAvailability {
-	params := DefaultParameters()
+	params := *DefaultParameters()
 	ds = namespace.Wrap(ds, cacheAvailabilityPrefix)
 	autoDS := autobatch.NewAutoBatching(ds, writeBatchSize)
 

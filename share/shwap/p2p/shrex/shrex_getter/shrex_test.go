@@ -298,7 +298,7 @@ func testManager(
 		return nil, err
 	}
 	manager, err := peers.NewManager(
-		peers.DefaultParameters(),
+		*peers.DefaultParameters(),
 		host,
 		connGater,
 		"test",

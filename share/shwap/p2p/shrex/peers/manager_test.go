@@ -414,7 +414,7 @@ func TestIntegration(t *testing.T) {
 		connGater, err := conngater.NewBasicConnectionGater(dssync.MutexWrap(datastore.NewMapDatastore()))
 		require.NoError(t, err)
 		fnPeerManager, err := NewManager(
-			DefaultParameters(),
+			*DefaultParameters(),
 			nil,
 			connGater,
 			"test",
@@ -477,7 +477,7 @@ func testManager(ctx context.Context, headerSub libhead.Subscriber[*header.Exten
 		return nil, err
 	}
 	manager, err := NewManager(
-		DefaultParameters(),
+		*DefaultParameters(),
 		host,
 		connGater,
 		"test",

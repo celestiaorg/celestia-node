@@ -1,7 +1,6 @@
 package share
 
 import (
-	"crypto/sha256"
 	"fmt"
 
 	"github.com/celestiaorg/celestia-app/v2/pkg/appconsts"
@@ -69,7 +68,7 @@ func (s *ShareWithProof) Validate(rootHash []byte, x, y, edsSize int) bool {
 		namespace = GetNamespace(s.Share)
 	}
 	return s.Proof.VerifyInclusion(
-		sha256.New(), // TODO(@Wondertan): This should be defined somewhere globally
+		NewSHA256Hasher(),
 		namespace.ToNMT(),
 		[][]byte{s.Share},
 		rootHash,

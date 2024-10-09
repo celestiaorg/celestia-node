@@ -16,7 +16,6 @@ const (
 	defaultBlockstoreCacheSize = 128
 )
 
-// TODO: some params are pointers and other are not, Let's fix this.
 type Config struct {
 	// EDSStoreParams sets eds store configuration parameters
 	EDSStoreParams      *store.Parameters
@@ -28,9 +27,9 @@ type Config struct {
 	// ShrExNDParams sets shrexnd client and server configuration parameters
 	ShrExNDParams *shrexnd.Parameters
 	// PeerManagerParams sets peer-manager configuration parameters
-	PeerManagerParams peers.Parameters
+	PeerManagerParams *peers.Parameters
 
-	LightAvailability light.Parameters `toml:",omitempty"`
+	LightAvailability *light.Parameters `toml:",omitempty"`
 	Discovery         *discovery.Parameters
 }
 
