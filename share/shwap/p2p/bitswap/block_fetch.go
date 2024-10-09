@@ -187,7 +187,7 @@ func (h *hasher) Write(data []byte) (int, error) {
 	err := h.write(data)
 	if err != nil {
 		err = fmt.Errorf("hasher: %w", err)
-		log.Error(err)
+		log.Warn(err)
 		return 0, fmt.Errorf("shwap/bitswap: %w", err)
 	}
 
