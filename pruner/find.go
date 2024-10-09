@@ -20,7 +20,7 @@ func (s *Service) findPruneableHeaders(
 ) ([]*header.ExtendedHeader, error) {
 	pruneCutoff := time.Now().UTC().Add(-s.window.Duration())
 
-	if !lastPruned.Time().UTC().Before(pruneCutoff) {
+	if lastPruned != nil && !lastPruned.Time().UTC().Before(pruneCutoff) {
 		// this can happen when the network is young and all blocks
 		// are still within the AvailabilityWindow
 		return nil, nil
@@ -93,17 +93,18 @@ func (s *Service) calculateEstimatedCutoff(
 	lastPruned *header.ExtendedHeader,
 	pruneCutoff time.Time,
 ) (uint64, error) {
-	estimatedRange := uint64(pruneCutoff.UTC().Sub(lastPruned.Time().UTC()) / s.blockTime)
-	estimatedCutoffHeight := lastPruned.Height() + estimatedRange
-
 	head, err := s.getter.Head(ctx)
 	if err != nil {
 		log.Errorw("failed to get Head from header store", "error", err)
 		return 0, err
 	}
-
-	if head.Height() < estimatedCutoffHeight {
-		estimatedCutoffHeight = head.Height()
+	estimatedCutoffHeight := head.Height()
+	if lastPruned != nil {
+		estimatedRange := uint64(pruneCutoff.UTC().Sub(lastPruned.Time().UTC()) / s.blockTime)
+		lastPrunedEstimatedCutoffHeight := lastPruned.Height() + estimatedRange
+		if lastPrunedEstimatedCutoffHeight < estimatedCutoffHeight {
+			estimatedCutoffHeight = lastPrunedEstimatedCutoffHeight
+		}
 	}
 
 	if estimatedCutoffHeight-lastPruned.Height() > uint64(maxHeadersPerLoop) {
