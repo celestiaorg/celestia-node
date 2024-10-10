@@ -13,13 +13,12 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	squareblob "github.com/celestiaorg/go-square/blob"
+	gosquare "github.com/celestiaorg/go-square/v2/share"
 
 	"github.com/celestiaorg/celestia-node/blob"
 	"github.com/celestiaorg/celestia-node/blob/blobtest"
 	"github.com/celestiaorg/celestia-node/nodebuilder/node"
 	"github.com/celestiaorg/celestia-node/nodebuilder/tests/swamp"
-	"github.com/celestiaorg/celestia-node/share"
 	"github.com/celestiaorg/celestia-node/state"
 )
 
@@ -88,7 +87,7 @@ func TestBlobModule(t *testing.T) {
 			doFn: func(t *testing.T) {
 				// https://github.com/celestiaorg/celestia-node/issues/2915
 				time.Sleep(time.Second)
-				newBlobs, err := fullClient.Blob.GetAll(ctx, height, []share.Namespace{blobs[0].Namespace()})
+				newBlobs, err := fullClient.Blob.GetAll(ctx, height, []gosquare.Namespace{blobs[0].Namespace()})
 				require.NoError(t, err)
 				require.Len(t, newBlobs, len(appBlobs0))
 				require.True(t, bytes.Equal(blobs[0].Commitment, newBlobs[0].Commitment))
@@ -127,7 +126,7 @@ func TestBlobModule(t *testing.T) {
 				require.Error(t, err)
 				require.ErrorContains(t, err, blob.ErrBlobNotFound.Error())
 
-				blobs, err := fullClient.Blob.GetAll(ctx, height, []share.Namespace{newBlob.Namespace()})
+				blobs, err := fullClient.Blob.GetAll(ctx, height, []gosquare.Namespace{newBlob.Namespace()})
 				require.NoError(t, err)
 				assert.Empty(t, blobs)
 			},
@@ -204,6 +203,6 @@ func TestBlobModule(t *testing.T) {
 
 // convert converts a squareblob.Blob to a blob.Blob.
 // convert may be deduplicated with convertBlobs from the blob package.
-func convert(squareBlob *squareblob.Blob) (nodeBlob *blob.Blob, err error) {
-	return blob.NewBlob(uint8(squareBlob.GetShareVersion()), squareBlob.Namespace().Bytes(), squareBlob.GetData())
+func convert(squareBlob *gosquare.Blob) (nodeBlob *blob.Blob, err error) {
+	return blob.NewBlob(squareBlob.ShareVersion(), squareBlob.Namespace(), squareBlob.Data(), squareBlob.Signer())
 }

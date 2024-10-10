@@ -14,9 +14,9 @@ import (
 	"github.com/libp2p/go-libp2p/core/protocol"
 
 	"github.com/celestiaorg/go-libp2p-messenger/serde"
+	gosquare "github.com/celestiaorg/go-square/v2/share"
 
 	"github.com/celestiaorg/celestia-node/libs/utils"
-	"github.com/celestiaorg/celestia-node/share"
 	"github.com/celestiaorg/celestia-node/share/shwap"
 	"github.com/celestiaorg/celestia-node/share/shwap/p2p/shrex"
 	shrexpb "github.com/celestiaorg/celestia-node/share/shwap/p2p/shrex/pb"
@@ -46,14 +46,14 @@ func NewClient(params *Parameters, host host.Host) (*Client, error) {
 }
 
 // RequestND requests namespaced data from the given peer.
-// Returns NamespaceData with unverified inclusion proofs against the share.Root.
+// Returns NamespaceData with unverified inclusion proofs against the gosquare.Root.
 func (c *Client) RequestND(
 	ctx context.Context,
 	height uint64,
-	namespace share.Namespace,
+	namespace gosquare.Namespace,
 	peer peer.ID,
 ) (shwap.NamespaceData, error) {
-	if err := namespace.ValidateForData(); err != nil {
+	if err := gosquare.ValidateForData(namespace); err != nil {
 		return nil, err
 	}
 
@@ -83,7 +83,7 @@ func (c *Client) RequestND(
 func (c *Client) doRequest(
 	ctx context.Context,
 	height uint64,
-	namespace share.Namespace,
+	namespace gosquare.Namespace,
 	peerID peer.ID,
 ) (shwap.NamespaceData, error) {
 	streamOpenCtx, cancel := context.WithTimeout(ctx, c.params.ServerReadTimeout)

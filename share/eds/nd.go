@@ -4,6 +4,8 @@ import (
 	"context"
 	"fmt"
 
+	gosquare "github.com/celestiaorg/go-square/v2/share"
+
 	"github.com/celestiaorg/celestia-node/share"
 	"github.com/celestiaorg/celestia-node/share/shwap"
 )
@@ -14,7 +16,7 @@ import (
 func NamespaceData(
 	ctx context.Context,
 	eds Accessor,
-	namespace share.Namespace,
+	namespace gosquare.Namespace,
 ) (shwap.NamespaceData, error) {
 	roots, err := eds.AxisRoots(ctx)
 	if err != nil {

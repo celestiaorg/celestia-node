@@ -12,7 +12,8 @@ import (
 	blocks "github.com/ipfs/go-block-format"
 	"github.com/ipfs/go-cid"
 
-	"github.com/celestiaorg/celestia-app/v2/pkg/wrapper"
+	"github.com/celestiaorg/celestia-app/v3/pkg/wrapper"
+	gosquare "github.com/celestiaorg/go-square/v2/share"
 	"github.com/celestiaorg/nmt"
 	"github.com/celestiaorg/rsmt2d"
 
@@ -50,11 +51,11 @@ type proofsCache struct {
 type axisWithProofs struct {
 	half AxisHalf
 	// shares are the extended axis Shares
-	shares []share.Share
+	shares []gosquare.Share
 	// root caches the root of the tree. It will be set only when proofs are calculated
 	root []byte
 	// proofs are stored in a blockservice.BlockGetter by their CID. It will be set only when proofs
-	// are calculated and will be used to get the proof for a specific share. BlockGetter is used to
+	// are calculated and will be used to get the proof for a specific gosquare. BlockGetter is used to
 	// reuse ipld based proof generation logic, which traverses the tree from the root to the leafs and
 	// collects the nodes on the path. This is temporary and will be replaced with a more efficient
 	// proof caching mechanism in nmt package, once it is implemented.
@@ -165,7 +166,7 @@ func (c *proofsCache) axisWithProofs(ctx context.Context, axisType rsmt2d.Axis, 
 		nmt.NodeVisitor(adder.VisitFn()),
 	)
 	for _, shr := range ax.shares {
-		err := tree.Push(shr)
+		err := tree.Push(shr.ToBytes())
 		if err != nil {
 			return axisWithProofs{}, fmt.Errorf("push shares: %w", err)
 		}
@@ -212,7 +213,7 @@ func (c *proofsCache) AxisHalf(ctx context.Context, axisType rsmt2d.Axis, axisId
 
 func (c *proofsCache) RowNamespaceData(
 	ctx context.Context,
-	namespace share.Namespace,
+	namespace gosquare.Namespace,
 	rowIdx int,
 ) (shwap.RowNamespaceData, error) {
 	ax, err := c.axisWithProofs(ctx, rsmt2d.Row, rowIdx)
@@ -231,9 +232,9 @@ func (c *proofsCache) RowNamespaceData(
 	}, nil
 }
 
-func (c *proofsCache) Shares(ctx context.Context) ([]share.Share, error) {
+func (c *proofsCache) Shares(ctx context.Context) ([]gosquare.Share, error) {
 	odsSize := c.Size(ctx) / 2
-	shares := make([]share.Share, 0, odsSize*odsSize)
+	shares := make([]gosquare.Share, 0, odsSize*odsSize)
 	for i := 0; i < c.Size(ctx)/2; i++ {
 		ax, err := c.AxisHalf(ctx, rsmt2d.Row, i)
 		if err != nil {
@@ -264,7 +265,7 @@ func (c *proofsCache) Close() error {
 	return c.inner.Close()
 }
 
-func (c *proofsCache) axisShares(ctx context.Context, axisType rsmt2d.Axis, axisIdx int) ([]share.Share, error) {
+func (c *proofsCache) axisShares(ctx context.Context, axisType rsmt2d.Axis, axisIdx int) ([]gosquare.Share, error) {
 	ax, ok := c.getAxisFromCache(axisType, axisIdx)
 	if ok && len(ax.shares) != 0 {
 		return ax.shares, nil
@@ -317,7 +318,7 @@ func (c *proofsCache) getShare(rowIdx, colIdx int) ([]byte, error) {
 		if half.IsParity {
 			colIdx -= odsSize
 		}
-		return half.Shares[colIdx], nil
+		return half.Shares[colIdx].ToBytes(), nil
 	}
 
 	// if share index is from opposite part of axis, obtain full axis shares
@@ -325,7 +326,7 @@ func (c *proofsCache) getShare(rowIdx, colIdx int) ([]byte, error) {
 	if err != nil {
 		return nil, fmt.Errorf("reading axis shares: %w", err)
 	}
-	return shares[colIdx], nil
+	return shares[colIdx].ToBytes(), nil
 }
 
 // rowProofsGetter implements blockservice.BlockGetter interface

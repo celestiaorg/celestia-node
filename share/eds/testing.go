@@ -10,12 +10,12 @@ import (
 
 	"github.com/stretchr/testify/require"
 
+	gosquare "github.com/celestiaorg/go-square/v2/share"
 	"github.com/celestiaorg/nmt"
 	"github.com/celestiaorg/rsmt2d"
 
 	"github.com/celestiaorg/celestia-node/share"
 	"github.com/celestiaorg/celestia-node/share/eds/edstest"
-	"github.com/celestiaorg/celestia-node/share/sharetest"
 	"github.com/celestiaorg/celestia-node/share/shwap"
 )
 
@@ -214,7 +214,7 @@ func testAccessorRowNamespaceData(
 		t.Parallel()
 		// generate EDS with random data and some Shares with the same namespace
 		sharesAmount := odsSize * odsSize
-		namespace := sharetest.RandV0Namespace()
+		namespace := gosquare.RandomNamespace()
 		// test with different amount of shares
 		for amount := 1; amount < sharesAmount; amount++ {
 			// select random amount of shares, but not less than 1
@@ -257,8 +257,11 @@ func testAccessorRowNamespaceData(
 		// namespaced shares
 		for i, root := range roots.RowRoots[:odsSize] {
 			// select namespace that within the range of root namespaces, but is not included
-			maxNs := nmt.MaxNamespace(root, share.NamespaceSize)
-			absentNs, err := share.Namespace(maxNs).AddInt(-1)
+			maxNs := nmt.MaxNamespace(root, gosquare.NamespaceSize)
+			ns, err := gosquare.NewNamespaceFromBytes(maxNs)
+			require.NoError(t, err)
+
+			absentNs, err := gosquare.AddInt(ns, -1)
 			require.NoError(t, err)
 
 			acc := createAccessor(t, eds)
@@ -291,11 +294,15 @@ func testAccessorAxisHalf(
 				require.NoError(t, err)
 				require.Len(t, half.Shares, odsSize)
 
-				var expected []share.Share
+				var expected []gosquare.Share
 				if half.IsParity {
-					expected = getAxis(eds, axisType, axisIdx)[odsSize:]
+					expected, err = getAxis(eds, axisType, axisIdx)
+					require.NoError(t, err)
+					expected = expected[odsSize:]
 				} else {
-					expected = getAxis(eds, axisType, axisIdx)[:odsSize]
+					expected, err = getAxis(eds, axisType, axisIdx)
+					require.NoError(t, err)
+					expected = expected[:odsSize]
 				}
 
 				require.Equal(t, expected, half.Shares)
@@ -315,13 +322,17 @@ func testAccessorAxisHalf(
 					require.NoError(t, err)
 					require.Len(t, half.Shares, odsSize)
 
-					var expected []share.Share
+					var expected []gosquare.Share
 					if half.IsParity {
-						expected = getAxis(eds, axisType, idx)[odsSize:]
+						expected, err = getAxis(eds, axisType, idx)
+						require.NoError(t, err)
+						expected = expected[odsSize:]
 					} else {
-						expected = getAxis(eds, axisType, idx)[:odsSize]
+						expected, err = getAxis(eds, axisType, idx)
+						require.NoError(t, err)
+						expected = expected[:odsSize]
 					}
-
+					require.NoError(t, err)
 					require.Equal(t, expected, half.Shares)
 				}(axisType, i)
 			}
@@ -346,7 +357,9 @@ func testAccessorShares(
 			shares, err := acc.Shares(ctx)
 			require.NoError(t, err)
 			expected := eds.FlattenedODS()
-			require.Equal(t, expected, shares)
+			sh, err := gosquare.FromBytes(expected)
+			require.NoError(t, err)
+			require.Equal(t, sh, shares)
 		}()
 	}
 	wg.Wait()

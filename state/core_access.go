@@ -22,11 +22,12 @@ import (
 	"google.golang.org/grpc/connectivity"
 	"google.golang.org/grpc/credentials/insecure"
 
-	"github.com/celestiaorg/celestia-app/v2/app"
-	"github.com/celestiaorg/celestia-app/v2/app/encoding"
-	apperrors "github.com/celestiaorg/celestia-app/v2/app/errors"
-	"github.com/celestiaorg/celestia-app/v2/pkg/user"
+	"github.com/celestiaorg/celestia-app/v3/app"
+	"github.com/celestiaorg/celestia-app/v3/app/encoding"
+	apperrors "github.com/celestiaorg/celestia-app/v3/app/errors"
+	"github.com/celestiaorg/celestia-app/v3/pkg/user"
 	libhead "github.com/celestiaorg/go-header"
+	gosquare "github.com/celestiaorg/go-square/v2/share"
 
 	"github.com/celestiaorg/celestia-node/header"
 )
@@ -200,7 +201,7 @@ func (ca *CoreAccessor) cancelCtx() {
 // TxResponse. The user can specify additional options that can bee applied to the Tx.
 func (ca *CoreAccessor) SubmitPayForBlob(
 	ctx context.Context,
-	appblobs []*Blob,
+	appblobs []*gosquare.Blob,
 	cfg *TxConfig,
 ) (*TxResponse, error) {
 	if len(appblobs) == 0 {
@@ -220,7 +221,7 @@ func (ca *CoreAccessor) SubmitPayForBlob(
 	if gas == 0 {
 		blobSizes := make([]uint32, len(appblobs))
 		for i, blob := range appblobs {
-			blobSizes[i] = uint32(len(blob.GetData()))
+			blobSizes[i] = uint32(len(blob.Data()))
 		}
 		gas = estimateGasForBlobs(blobSizes)
 	}

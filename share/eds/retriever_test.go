@@ -11,6 +11,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
+	gosquare "github.com/celestiaorg/go-square/v2/share"
 	"github.com/celestiaorg/rsmt2d"
 
 	"github.com/celestiaorg/celestia-node/header"
@@ -19,7 +20,6 @@ import (
 	"github.com/celestiaorg/celestia-node/share/eds/byzantine"
 	"github.com/celestiaorg/celestia-node/share/eds/edstest"
 	"github.com/celestiaorg/celestia-node/share/ipld"
-	"github.com/celestiaorg/celestia-node/share/sharetest"
 )
 
 func TestRetriever_Retrieve(t *testing.T) {
@@ -46,7 +46,7 @@ func TestRetriever_Retrieve(t *testing.T) {
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
 			// generate EDS
-			shares := sharetest.RandShares(t, tc.squareSize*tc.squareSize)
+			shares := gosquare.RandShares(tc.squareSize * tc.squareSize)
 			in, err := ipld.AddShares(ctx, shares, bServ)
 			require.NoError(t, err)
 
@@ -75,7 +75,7 @@ func TestRetriever_MultipleRandQuadrants(t *testing.T) {
 	r := NewRetriever(bServ)
 
 	// generate EDS
-	shares := sharetest.RandShares(t, squareSize*squareSize)
+	shares := gosquare.RandShares(squareSize * squareSize)
 	in, err := ipld.AddShares(ctx, shares, bServ)
 	require.NoError(t, err)
 

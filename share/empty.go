@@ -5,9 +5,8 @@ import (
 	"fmt"
 	"sync"
 
-	"github.com/celestiaorg/celestia-app/v2/pkg/appconsts"
-	"github.com/celestiaorg/celestia-app/v2/pkg/da"
-	"github.com/celestiaorg/go-square/shares"
+	"github.com/celestiaorg/celestia-app/v3/pkg/da"
+	gosquare "github.com/celestiaorg/go-square/v2/share"
 	"github.com/celestiaorg/rsmt2d"
 )
 
@@ -23,14 +22,14 @@ func EmptyEDSRoots() *AxisRoots {
 	return emptyBlockRoots
 }
 
-// EmptyEDS returns the EDS of the empty block data square.
+// EmptyEDS returns the EDS of the empty block data share.
 func EmptyEDS() *rsmt2d.ExtendedDataSquare {
 	initEmpty()
 	return emptyBlockEDS
 }
 
 // EmptyBlockShares returns the shares of the empty block.
-func EmptyBlockShares() []Share {
+func EmptyBlockShares() []gosquare.Share {
 	initEmpty()
 	return emptyBlockShares
 }
@@ -40,7 +39,7 @@ var (
 	emptyBlockDataHash DataHash
 	emptyBlockRoots    *AxisRoots
 	emptyBlockEDS      *rsmt2d.ExtendedDataSquare
-	emptyBlockShares   []Share
+	emptyBlockShares   []gosquare.Share
 )
 
 // initEmpty enables lazy initialization for constant empty block data.
@@ -50,10 +49,10 @@ func initEmpty() {
 
 func computeEmpty() {
 	// compute empty block EDS and DAH for it
-	result := shares.TailPaddingShares(appconsts.MinShareCount)
-	emptyBlockShares = shares.ToBytes(result)
+	result := gosquare.TailPaddingShares(gosquare.MinShareCount)
+	rawEmptyBlockShares := gosquare.ToBytes(result)
 
-	eds, err := da.ExtendShares(emptyBlockShares)
+	eds, err := da.ExtendShares(rawEmptyBlockShares)
 	if err != nil {
 		panic(fmt.Errorf("failed to create empty EDS: %w", err))
 	}
@@ -69,6 +68,11 @@ func computeEmpty() {
 			"expected %s, got %s", minDAH.String(), emptyBlockRoots.String()))
 	}
 
+	sh := eds.FlattenedODS()
+	emptyBlockShares, err = gosquare.FromBytes(sh)
+	if err != nil {
+		panic(fmt.Errorf("failed to create shares: %w", err))
+	}
 	// precompute Hash, so it's cached internally to avoid potential races
 	emptyBlockDataHash = emptyBlockRoots.Hash()
 }

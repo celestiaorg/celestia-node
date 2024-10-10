@@ -13,6 +13,7 @@ import (
 	"go.opentelemetry.io/otel/metric"
 	"go.opentelemetry.io/otel/trace"
 
+	gosquare "github.com/celestiaorg/go-square/v2/share"
 	"github.com/celestiaorg/rsmt2d"
 
 	"github.com/celestiaorg/celestia-node/header"
@@ -90,7 +91,7 @@ func (sg *Getter) WithMetrics() error {
 	return nil
 }
 
-// Getter is a share.Getter that uses the shrex/eds and shrex/nd protocol to retrieve shares.
+// Getter is a gosquare.Getter that uses the shrex/eds and shrex/nd protocol to retrieve shares.
 type Getter struct {
 	edsClient *shrexeds.Client
 	ndClient  *shrexnd.Client
@@ -145,8 +146,8 @@ func (sg *Getter) Stop(ctx context.Context) error {
 	return sg.archivalPeerManager.Stop(ctx)
 }
 
-func (sg *Getter) GetShare(context.Context, *header.ExtendedHeader, int, int) (share.Share, error) {
-	return nil, fmt.Errorf("getter/shrex: GetShare %w", shwap.ErrOperationNotSupported)
+func (sg *Getter) GetShare(context.Context, *header.ExtendedHeader, int, int) (gosquare.Share, error) {
+	return gosquare.Share{}, fmt.Errorf("getter/shrex: GetShare %w", shwap.ErrOperationNotSupported)
 }
 
 func (sg *Getter) GetEDS(ctx context.Context, header *header.ExtendedHeader) (*rsmt2d.ExtendedDataSquare, error) {
@@ -216,9 +217,9 @@ func (sg *Getter) GetEDS(ctx context.Context, header *header.ExtendedHeader) (*r
 func (sg *Getter) GetSharesByNamespace(
 	ctx context.Context,
 	header *header.ExtendedHeader,
-	namespace share.Namespace,
+	namespace gosquare.Namespace,
 ) (shwap.NamespaceData, error) {
-	if err := namespace.ValidateForData(); err != nil {
+	if err := gosquare.ValidateForData(namespace); err != nil {
 		return nil, err
 	}
 	var (

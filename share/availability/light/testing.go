@@ -19,9 +19,9 @@ package light
 //	"github.com/celestiaorg/celestia-node/share/ipld"
 //)
 //
-//// GetterWithRandSquare provides a share.Getter filled with 'n' NMT trees of 'n' random shares,
-//// essentially storing a whole square.
-// func GetterWithRandSquare(t *testing.T, n int) (share.Getter, *header.ExtendedHeader) {
+//// GetterWithRandSquare provides a gosquare.Getter filled with 'n' NMT trees of 'n' random shares,
+//// essentially storing a whole share.
+// func GetterWithRandSquare(t *testing.T, n int) (gosquare.Getter, *header.ExtendedHeader) {
 //	bServ := ipld.NewMemBlockservice()
 //	getter := getters.NewIPLDGetter(bServ)
 //	root := availability_test.RandFillBS(t, n, bServ)
@@ -31,9 +31,9 @@ package light
 //	return getter, eh
 //}
 //
-//// EmptyGetter provides an unfilled share.Getter with corresponding blockservice.BlockService than
+//// EmptyGetter provides an unfilled gosquare.Getter with corresponding blockservice.BlockService than
 //// can be filled by the test.
-// func EmptyGetter() (share.Getter, blockservice.BlockService) {
+// func EmptyGetter() (gosquare.Getter, blockservice.BlockService) {
 //	bServ := ipld.NewMemBlockservice()
 //	getter := getters.NewIPLDGetter(bServ)
 //	return getter, bServ
@@ -53,7 +53,7 @@ package light
 //	return nd
 //}
 //
-// func TestAvailability(getter share.Getter) *ShareAvailability {
+// func TestAvailability(getter gosquare.Getter) *ShareAvailability {
 //	ds := datastore.NewMapDatastore()
 //	return NewShareAvailability(getter, ds)
 //}
@@ -84,15 +84,15 @@ package light
 //	}
 //}
 //
-// func (m onceGetter) GetShare(_ context.Context, _ *header.ExtendedHeader, row, col int) (share.Share, error) {
+// func (m onceGetter) GetShare(_ context.Context, _ *header.ExtendedHeader, row, col int) (gosquare.Share, error) {
 //	m.Lock()
 //	defer m.Unlock()
 //	s := Sample{Row: uint16(row), Col: uint16(col)}
 //	if _, ok := m.available[s]; ok {
 //		delete(m.available, s)
-//		return share.Share{}, nil
+//		return gosquare.Share{}, nil
 //	}
-//	return share.Share{}, share.ErrNotAvailable
+//	return gosquare.Share{}, share.ErrNotAvailable
 //}
 //
 // func (m onceGetter) GetEDS(_ context.Context, _ *header.ExtendedHeader) (*rsmt2d.ExtendedDataSquare, error) {
@@ -102,7 +102,7 @@ package light
 // func (m onceGetter) GetSharesByNamespace(
 //	_ context.Context,
 //	_ *header.ExtendedHeader,
-//	_ share.Namespace,
-// ) (share.NamespacedShares, error) {
+//	_ gosquare.Namespace,
+// ) (gosquare.NamespacedShares, error) {
 //	panic("not implemented")
 // }

@@ -6,6 +6,7 @@ import (
 	"io"
 	"sync/atomic"
 
+	gosquare "github.com/celestiaorg/go-square/v2/share"
 	"github.com/celestiaorg/rsmt2d"
 
 	"github.com/celestiaorg/celestia-node/share"
@@ -76,7 +77,7 @@ func (c *closeOnce) AxisHalf(
 
 func (c *closeOnce) RowNamespaceData(
 	ctx context.Context,
-	namespace share.Namespace,
+	namespace gosquare.Namespace,
 	rowIdx int,
 ) (shwap.RowNamespaceData, error) {
 	if c.closed.Load() {
@@ -85,7 +86,7 @@ func (c *closeOnce) RowNamespaceData(
 	return c.f.RowNamespaceData(ctx, namespace, rowIdx)
 }
 
-func (c *closeOnce) Shares(ctx context.Context) ([]share.Share, error) {
+func (c *closeOnce) Shares(ctx context.Context) ([]gosquare.Share, error) {
 	if c.closed.Load() {
 		return nil, errAccessorClosed
 	}

@@ -1,7 +1,6 @@
 package ipld
 
 import (
-	"bytes"
 	"context"
 	"errors"
 	mrand "math/rand"
@@ -15,13 +14,13 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"github.com/celestiaorg/celestia-app/v2/pkg/wrapper"
+	"github.com/celestiaorg/celestia-app/v3/pkg/wrapper"
+	gosquare "github.com/celestiaorg/go-square/v2/share"
 	"github.com/celestiaorg/rsmt2d"
 
 	"github.com/celestiaorg/celestia-node/libs/utils"
 	"github.com/celestiaorg/celestia-node/share"
 	"github.com/celestiaorg/celestia-node/share/eds/edstest"
-	"github.com/celestiaorg/celestia-node/share/sharetest"
 )
 
 func TestGetShare(t *testing.T) {
@@ -32,7 +31,7 @@ func TestGetShare(t *testing.T) {
 	bServ := NewMemBlockservice()
 
 	// generate random shares for the nmt
-	shares := sharetest.RandShares(t, size*size)
+	shares := gosquare.RandShares(size * size)
 	eds, err := AddShares(ctx, shares, bServ)
 	require.NoError(t, err)
 
@@ -54,12 +53,12 @@ func TestBlockRecovery(t *testing.T) {
 	extendedShareCount := extendedSquareWidth * extendedSquareWidth
 
 	// generate test data
-	quarterShares := sharetest.RandShares(t, shareCount)
-	allShares := sharetest.RandShares(t, shareCount)
+	quarterShares := gosquare.RandShares(shareCount)
+	allShares := gosquare.RandShares(shareCount)
 
 	testCases := []struct {
 		name      string
-		shares    []share.Share
+		shares    []gosquare.Share
 		expectErr bool
 		errString string
 		d         int // number of shares to delete
@@ -74,7 +73,7 @@ func TestBlockRecovery(t *testing.T) {
 			squareSize := utils.SquareSize(len(tc.shares))
 
 			testEds, err := rsmt2d.ComputeExtendedDataSquare(
-				tc.shares,
+				gosquare.ToBytes(tc.shares),
 				share.DefaultRSMT2DCodec(),
 				wrapper.NewConstructor(squareSize),
 			)
@@ -115,18 +114,18 @@ func TestBlockRecovery(t *testing.T) {
 
 func Test_ConvertEDStoShares(t *testing.T) {
 	squareWidth := 16
-	shares := sharetest.RandShares(t, squareWidth*squareWidth)
+	shares := gosquare.RandShares(squareWidth * squareWidth)
 
 	// compute extended square
 	testEds, err := rsmt2d.ComputeExtendedDataSquare(
-		shares,
+		gosquare.ToBytes(shares),
 		share.DefaultRSMT2DCodec(),
 		wrapper.NewConstructor(uint64(squareWidth)),
 	)
 	require.NoError(t, err)
 
 	resshares := testEds.FlattenedODS()
-	require.Equal(t, shares, resshares)
+	require.Equal(t, gosquare.ToBytes(shares), resshares)
 }
 
 // removes d shares from data
@@ -150,17 +149,17 @@ func TestGetSharesByNamespace(t *testing.T) {
 	bServ := NewMemBlockservice()
 
 	tests := []struct {
-		rawData []share.Share
+		rawData []gosquare.Share
 	}{
-		{rawData: sharetest.RandShares(t, 4)},
-		{rawData: sharetest.RandShares(t, 16)},
+		{rawData: gosquare.RandShares(4)},
+		{rawData: gosquare.RandShares(16)},
 	}
 
 	for i, tt := range tests {
 		t.Run(strconv.Itoa(i), func(t *testing.T) {
 			// choose random namespace from rand shares
 			expected := tt.rawData[len(tt.rawData)/2]
-			namespace := share.GetNamespace(expected)
+			namespace := expected.Namespace()
 
 			// change rawData to contain several shares with same namespace
 			tt.rawData[(len(tt.rawData)/2)+1] = expected
@@ -168,7 +167,7 @@ func TestGetSharesByNamespace(t *testing.T) {
 			eds, err := AddShares(ctx, tt.rawData, bServ)
 			require.NoError(t, err)
 
-			var shares []share.Share
+			var shares []gosquare.Share
 			rowRoots, err := eds.RowRoots()
 			require.NoError(t, err)
 			for _, row := range rowRoots {
@@ -194,12 +193,12 @@ func TestCollectLeavesByNamespace_IncompleteData(t *testing.T) {
 	t.Cleanup(cancel)
 	bServ := NewMemBlockservice()
 
-	shares := sharetest.RandShares(t, 16)
+	shares := gosquare.RandShares(16)
 
 	// set all shares to the same namespace id
-	namespace := share.GetNamespace(shares[0])
+	namespace := shares[0].Namespace()
 	for _, shr := range shares {
-		copy(share.GetNamespace(shr), namespace)
+		copy(shr.Namespace().Bytes(), namespace.Bytes())
 	}
 
 	eds, err := AddShares(ctx, shares, bServ)
@@ -238,7 +237,7 @@ func TestCollectLeavesByNamespace_AbsentNamespaceId(t *testing.T) {
 	t.Cleanup(cancel)
 	bServ := NewMemBlockservice()
 
-	shares := sharetest.RandShares(t, 1024)
+	shares := gosquare.RandShares(1024)
 
 	// set all shares to the same namespace
 	namespaces, err := randomNamespaces(5)
@@ -252,16 +251,16 @@ func TestCollectLeavesByNamespace_AbsentNamespaceId(t *testing.T) {
 	secondNamespaceFrom := mrand.Intn(len(shares)-2) + 1
 	for i, shr := range shares {
 		if i < secondNamespaceFrom {
-			copy(share.GetNamespace(shr), minIncluded)
+			copy(shr.Namespace().Bytes(), minIncluded.Bytes())
 			continue
 		}
-		copy(share.GetNamespace(shr), maxIncluded)
+		copy(shr.Namespace().Bytes(), maxIncluded.Bytes())
 	}
 
 	tests := []struct {
 		name             string
-		data             []share.Share
-		missingNamespace share.Namespace
+		data             []gosquare.Share
+		missingNamespace gosquare.Namespace
 		isAbsence        bool
 	}{
 		{name: "Namespace less than the minimum namespace in data", data: shares, missingNamespace: minNamespace},
@@ -283,10 +282,10 @@ func TestCollectLeavesByNamespace_MultipleRowsContainingSameNamespaceId(t *testi
 	t.Cleanup(cancel)
 	bServ := NewMemBlockservice()
 
-	shares := sharetest.RandShares(t, 16)
+	shares := gosquare.RandShares(16)
 
 	// set all shares to the same namespace and data but the last one
-	namespace := share.GetNamespace(shares[0])
+	namespace := shares[0].Namespace()
 	commonNamespaceData := shares[0]
 
 	for i, nspace := range shares {
@@ -294,7 +293,7 @@ func TestCollectLeavesByNamespace_MultipleRowsContainingSameNamespaceId(t *testi
 			break
 		}
 
-		copy(nspace, commonNamespaceData)
+		copy(nspace.ToBytes(), commonNamespaceData.ToBytes())
 	}
 
 	eds, err := AddShares(ctx, shares, bServ)
@@ -315,7 +314,9 @@ func TestCollectLeavesByNamespace_MultipleRowsContainingSameNamespaceId(t *testi
 		for _, node := range leaves {
 			// test that the data returned by collectLeavesByNamespace for nid
 			// matches the commonNamespaceData that was copied across almost all data
-			assert.Equal(t, commonNamespaceData, share.GetData(node.RawData()))
+			sh, err := gosquare.NewShare(node.RawData()[gosquare.NamespaceSize:])
+			require.NoError(t, err)
+			assert.Equal(t, commonNamespaceData, *sh)
 		}
 	}
 }
@@ -326,11 +327,11 @@ func TestGetSharesWithProofsByNamespace(t *testing.T) {
 	bServ := NewMemBlockservice()
 
 	tests := []struct {
-		rawData []share.Share
+		rawData []gosquare.Share
 	}{
-		{rawData: sharetest.RandShares(t, 4)},
-		{rawData: sharetest.RandShares(t, 16)},
-		{rawData: sharetest.RandShares(t, 64)},
+		{rawData: gosquare.RandShares(4)},
+		{rawData: gosquare.RandShares(16)},
+		{rawData: gosquare.RandShares(64)},
 	}
 
 	for i, tt := range tests {
@@ -345,7 +346,7 @@ func TestGetSharesWithProofsByNamespace(t *testing.T) {
 			}
 
 			expected := tt.rawData[from]
-			namespace := share.GetNamespace(expected)
+			namespace := expected.Namespace()
 
 			// change rawData to contain several shares with same namespace
 			for i := from; i <= to; i++ {
@@ -356,7 +357,7 @@ func TestGetSharesWithProofsByNamespace(t *testing.T) {
 			eds, err := AddShares(ctx, tt.rawData, bServ)
 			require.NoError(t, err)
 
-			var shares []share.Share
+			var shares []gosquare.Share
 			rowRoots, err := eds.RowRoots()
 			require.NoError(t, err)
 			for _, row := range rowRoots {
@@ -374,13 +375,13 @@ func TestGetSharesWithProofsByNamespace(t *testing.T) {
 					// construct nodes from shares by prepending namespace
 					var leaves [][]byte
 					for _, shr := range rowShares {
-						leaves = append(leaves, append(share.GetNamespace(shr), shr...))
+						leaves = append(leaves, append(shr.Namespace().Bytes(), shr.ToBytes()...))
 					}
 
 					// verify namespace
 					verified := proof.VerifyNamespace(
 						share.NewSHA256Hasher(),
-						namespace.ToNMT(),
+						namespace.Bytes(),
 						leaves,
 						row)
 					require.True(t, verified)
@@ -388,8 +389,8 @@ func TestGetSharesWithProofsByNamespace(t *testing.T) {
 					// verify inclusion
 					verified = proof.VerifyInclusion(
 						share.NewSHA256Hasher(),
-						namespace.ToNMT(),
-						rowShares,
+						namespace.Bytes(),
+						gosquare.ToBytes(rowShares),
 						row)
 					require.True(t, verified)
 				}
@@ -424,7 +425,10 @@ func TestBatchSize(t *testing.T) {
 			bs := NewMemBlockservice()
 
 			randEds := edstest.RandEDS(t, tt.origWidth)
-			_, err := AddShares(ctx, randEds.FlattenedODS(), bs)
+
+			shrs, err := gosquare.FromBytes(randEds.FlattenedODS())
+			require.NoError(t, err)
+			_, err = AddShares(ctx, shrs, bs)
 			require.NoError(t, err)
 
 			out, err := bs.Blockstore().AllKeysChan(ctx)
@@ -445,7 +449,7 @@ func assertNoRowContainsNID(
 	t *testing.T,
 	bServ blockservice.BlockService,
 	eds *rsmt2d.ExtendedDataSquare,
-	namespace share.Namespace,
+	namespace gosquare.Namespace,
 	isAbsent bool,
 ) {
 	rowRoots, err := eds.RowRoots()
@@ -478,7 +482,7 @@ func assertNoRowContainsNID(
 
 		// if no error returned, check absence proof
 		foundAbsenceRows++
-		verified := data.Proof().VerifyNamespace(share.NewSHA256Hasher(), namespace.ToNMT(), nil, rowRoot)
+		verified := data.Proof().VerifyNamespace(share.NewSHA256Hasher(), namespace.Bytes(), nil, rowRoot)
 		require.True(t, verified)
 	}
 
@@ -489,11 +493,11 @@ func assertNoRowContainsNID(
 	}
 }
 
-func randomNamespaces(total int) ([]share.Namespace, error) {
-	namespaces := make([]share.Namespace, total)
+func randomNamespaces(total int) ([]gosquare.Namespace, error) {
+	namespaces := make([]gosquare.Namespace, total)
 	for i := range namespaces {
-		namespaces[i] = sharetest.RandV0Namespace()
+		namespaces[i] = gosquare.RandomNamespace()
 	}
-	sort.Slice(namespaces, func(i, j int) bool { return bytes.Compare(namespaces[i], namespaces[j]) < 0 })
+	sort.Slice(namespaces, func(i, j int) bool { return namespaces[i].IsLessThan(namespaces[j]) })
 	return namespaces, nil
 }

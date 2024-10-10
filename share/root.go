@@ -7,7 +7,8 @@ import (
 	"fmt"
 	"hash"
 
-	"github.com/celestiaorg/celestia-app/v2/pkg/da"
+	"github.com/celestiaorg/celestia-app/v3/pkg/da"
+	gosquare "github.com/celestiaorg/go-square/v2/share"
 	"github.com/celestiaorg/rsmt2d"
 )
 
@@ -19,7 +20,7 @@ const (
 )
 
 // AxisRoots represents root commitment to multiple Shares.
-// In practice, it is a commitment to all the Data in a square.
+// In practice, it is a commitment to all the Data in a share.
 type AxisRoots = da.DataAvailabilityHeader
 
 // DataHash is a representation of the AxisRoots hash.
@@ -47,7 +48,7 @@ func NewSHA256Hasher() hash.Hash {
 }
 
 // NewAxisRoots generates AxisRoots(DataAvailabilityHeader) using the
-// provided extended data square.
+// provided extended data share.
 func NewAxisRoots(eds *rsmt2d.ExtendedDataSquare) (*AxisRoots, error) {
 	dah, err := da.NewDataAvailabilityHeader(eds)
 	if err != nil {
@@ -58,7 +59,7 @@ func NewAxisRoots(eds *rsmt2d.ExtendedDataSquare) (*AxisRoots, error) {
 
 // RowsWithNamespace inspects the AxisRoots for the Namespace and provides
 // a slices of Row indexes containing the namespace.
-func RowsWithNamespace(root *AxisRoots, namespace Namespace) (idxs []int) {
+func RowsWithNamespace(root *AxisRoots, namespace gosquare.Namespace) (idxs []int) {
 	for i, row := range root.RowRoots {
 		if !namespace.IsOutsideRange(row, row) {
 			idxs = append(idxs, i)

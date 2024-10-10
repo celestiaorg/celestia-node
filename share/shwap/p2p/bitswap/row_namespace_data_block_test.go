@@ -7,16 +7,17 @@ import (
 
 	"github.com/stretchr/testify/require"
 
+	gosquare "github.com/celestiaorg/go-square/v2/share"
+
 	"github.com/celestiaorg/celestia-node/share"
 	"github.com/celestiaorg/celestia-node/share/eds/edstest"
-	"github.com/celestiaorg/celestia-node/share/sharetest"
 )
 
 func TestRowNamespaceData_FetchRoundtrip(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second*5)
 	defer cancel()
 
-	namespace := sharetest.RandV0Namespace()
+	namespace := gosquare.RandomNamespace()
 	eds, root := edstest.RandEDSWithNamespace(t, namespace, 64, 16)
 	exchange := newExchangeOverEDS(ctx, t, eds)
 

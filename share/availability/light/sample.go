@@ -8,7 +8,7 @@ import (
 	"math/big"
 )
 
-// Sample is a point in 2D space over square.
+// Sample is a point in 2D space over share.
 type Sample struct {
 	Row, Col uint16
 }

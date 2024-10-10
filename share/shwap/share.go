@@ -3,47 +3,46 @@ package shwap
 import (
 	"fmt"
 
-	"github.com/celestiaorg/celestia-node/share"
+	gosquare "github.com/celestiaorg/go-square/v2/share"
+
 	"github.com/celestiaorg/celestia-node/share/shwap/pb"
 )
 
 // ShareFromProto converts a protobuf Share object to the application's internal share
 // representation. It returns nil if the input protobuf Share is nil, ensuring safe handling of nil
 // values.
-func ShareFromProto(s *pb.Share) share.Share {
+func ShareFromProto(s *pb.Share) (gosquare.Share, error) {
 	if s == nil {
-		return nil
+		return gosquare.Share{}, nil
 	}
-	return s.Data
+	sh, err := gosquare.NewShare(s.Data)
+	if err != nil {
+		return gosquare.Share{}, err
+	}
+	return *sh, err
 }
 
 // SharesToProto converts a slice of Shares from the application's internal representation to a
 // slice of protobuf Share objects. This function allocates memory for the protobuf objects and
 // copies data from the input slice.
-func SharesToProto(shrs []share.Share) []*pb.Share {
+func SharesToProto(shrs []gosquare.Share) []*pb.Share {
 	protoShares := make([]*pb.Share, len(shrs))
 	for i, shr := range shrs {
-		protoShares[i] = &pb.Share{Data: shr}
+		protoShares[i] = &pb.Share{Data: shr.ToBytes()}
 	}
 	return protoShares
 }
 
 // SharesFromProto converts a slice of protobuf Share objects to the application's internal slice
 // of Shares. It ensures that each Share is correctly transformed using the ShareFromProto function.
-func SharesFromProto(shrs []*pb.Share) []share.Share {
-	shares := make([]share.Share, len(shrs))
+func SharesFromProto(shrs []*pb.Share) ([]gosquare.Share, error) {
+	shares := make([]gosquare.Share, len(shrs))
+	var err error
 	for i, shr := range shrs {
-		shares[i] = ShareFromProto(shr)
-	}
-	return shares
-}
-
-// ValidateShares takes the slice of shares and checks their conformance to share format.
-func ValidateShares(shares []share.Share) error {
-	for i, shr := range shares {
-		if err := share.ValidateShare(shr); err != nil {
-			return fmt.Errorf("while validating share at index %d: %w", i, err)
+		shares[i], err = ShareFromProto(shr)
+		if err != nil {
+			return nil, fmt.Errorf("invalid share at index %d: %w", i, err)
 		}
 	}
-	return nil
+	return shares, nil
 }

@@ -5,7 +5,8 @@ import (
 	"fmt"
 	"io"
 
-	"github.com/celestiaorg/celestia-app/v2/pkg/wrapper"
+	"github.com/celestiaorg/celestia-app/v3/pkg/wrapper"
+	gosquare "github.com/celestiaorg/go-square/v2/share"
 	"github.com/celestiaorg/rsmt2d"
 
 	"github.com/celestiaorg/celestia-node/share"
@@ -19,7 +20,7 @@ type Rsmt2D struct {
 	*rsmt2d.ExtendedDataSquare
 }
 
-// Size returns the size of the Extended Data Square.
+// Size returns the size of the Extended Data share.
 func (eds *Rsmt2D) Size(context.Context) int {
 	return int(eds.Width())
 }
@@ -57,11 +58,14 @@ func (eds *Rsmt2D) SampleForProofAxis(
 	proofType rsmt2d.Axis,
 ) (shwap.Sample, error) {
 	axisIdx, shrIdx := relativeIndexes(rowIdx, colIdx, proofType)
-	shares := getAxis(eds.ExtendedDataSquare, proofType, axisIdx)
+	shares, err := getAxis(eds.ExtendedDataSquare, proofType, axisIdx)
+	if err != nil {
+		return shwap.Sample{}, err
+	}
 
 	tree := wrapper.NewErasuredNamespacedMerkleTree(uint64(eds.Width()/2), uint(axisIdx))
 	for _, shr := range shares {
-		err := tree.Push(shr)
+		err := tree.Push(shr.ToBytes())
 		if err != nil {
 			return shwap.Sample{}, fmt.Errorf("while pushing shares to NMT: %w", err)
 		}
@@ -81,7 +85,10 @@ func (eds *Rsmt2D) SampleForProofAxis(
 
 // AxisHalf returns Shares for the first half of the axis of the given type and index.
 func (eds *Rsmt2D) AxisHalf(_ context.Context, axisType rsmt2d.Axis, axisIdx int) (AxisHalf, error) {
-	shares := getAxis(eds.ExtendedDataSquare, axisType, axisIdx)
+	shares, err := getAxis(eds.ExtendedDataSquare, axisType, axisIdx)
+	if err != nil {
+		return AxisHalf{}, fmt.Errorf("while getting axis share: %w", err)
+	}
 	halfShares := shares[:eds.Width()/2]
 	return AxisHalf{
 		Shares:   halfShares,
@@ -91,25 +98,33 @@ func (eds *Rsmt2D) AxisHalf(_ context.Context, axisType rsmt2d.Axis, axisIdx int
 
 // HalfRow constructs a new shwap.Row from an Extended Data Square based on the specified index and
 // side.
-func (eds *Rsmt2D) HalfRow(idx int, side shwap.RowSide) shwap.Row {
+func (eds *Rsmt2D) HalfRow(idx int, side shwap.RowSide) (shwap.Row, error) {
 	shares := eds.ExtendedDataSquare.Row(uint(idx))
-	return shwap.RowFromShares(shares, side)
+	sh, err := gosquare.FromBytes(shares)
+	if err != nil {
+		return shwap.Row{}, fmt.Errorf("while converting shares from bytes: %w", err)
+	}
+	return shwap.RowFromShares(sh, side), nil
 }
 
 // RowNamespaceData returns data for the given namespace and row index.
 func (eds *Rsmt2D) RowNamespaceData(
 	_ context.Context,
-	namespace share.Namespace,
+	namespace gosquare.Namespace,
 	rowIdx int,
 ) (shwap.RowNamespaceData, error) {
 	shares := eds.Row(uint(rowIdx))
-	return shwap.RowNamespaceDataFromShares(shares, namespace, rowIdx)
+	sh, err := gosquare.FromBytes(shares)
+	if err != nil {
+		return shwap.RowNamespaceData{}, fmt.Errorf("while converting shares from bytes: %w", err)
+	}
+	return shwap.RowNamespaceDataFromShares(sh, namespace, rowIdx)
 }
 
 // Shares returns data (ODS) shares extracted from the EDS. It returns new copy of the shares each
 // time.
-func (eds *Rsmt2D) Shares(_ context.Context) ([]share.Share, error) {
-	return eds.ExtendedDataSquare.FlattenedODS(), nil
+func (eds *Rsmt2D) Shares(_ context.Context) ([]gosquare.Share, error) {
+	return gosquare.FromBytes(eds.ExtendedDataSquare.FlattenedODS())
 }
 
 func (eds *Rsmt2D) Close() error {
@@ -127,9 +142,9 @@ func (eds *Rsmt2D) Reader() (io.Reader, error) {
 }
 
 // Rsmt2DFromShares constructs an Extended Data Square from shares.
-func Rsmt2DFromShares(shares []share.Share, odsSize int) (*Rsmt2D, error) {
+func Rsmt2DFromShares(shares []gosquare.Share, odsSize int) (*Rsmt2D, error) {
 	treeFn := wrapper.NewConstructor(uint64(odsSize))
-	eds, err := rsmt2d.ComputeExtendedDataSquare(shares, share.DefaultRSMT2DCodec(), treeFn)
+	eds, err := rsmt2d.ComputeExtendedDataSquare(gosquare.ToBytes(shares), share.DefaultRSMT2DCodec(), treeFn)
 	if err != nil {
 		return &Rsmt2D{}, fmt.Errorf("computing extended data square: %w", err)
 	}
@@ -137,12 +152,14 @@ func Rsmt2DFromShares(shares []share.Share, odsSize int) (*Rsmt2D, error) {
 	return &Rsmt2D{eds}, nil
 }
 
-func getAxis(eds *rsmt2d.ExtendedDataSquare, axisType rsmt2d.Axis, axisIdx int) []share.Share {
+func getAxis(eds *rsmt2d.ExtendedDataSquare, axisType rsmt2d.Axis, axisIdx int) ([]gosquare.Share, error) {
 	switch axisType {
 	case rsmt2d.Row:
-		return eds.Row(uint(axisIdx))
+		sh, err := gosquare.FromBytes(eds.Row(uint(axisIdx)))
+		return sh, err
 	case rsmt2d.Col:
-		return eds.Col(uint(axisIdx))
+		sh, err := gosquare.FromBytes(eds.Col(uint(axisIdx)))
+		return sh, err
 	default:
 		panic("unknown axis")
 	}

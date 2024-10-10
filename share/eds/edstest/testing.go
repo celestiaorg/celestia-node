@@ -7,24 +7,22 @@ import (
 	"github.com/stretchr/testify/require"
 	coretypes "github.com/tendermint/tendermint/types"
 
-	"github.com/celestiaorg/celestia-app/v2/app"
-	"github.com/celestiaorg/celestia-app/v2/app/encoding"
-	"github.com/celestiaorg/celestia-app/v2/pkg/appconsts"
-	"github.com/celestiaorg/celestia-app/v2/pkg/da"
-	"github.com/celestiaorg/celestia-app/v2/pkg/user"
-	"github.com/celestiaorg/celestia-app/v2/pkg/wrapper"
-	"github.com/celestiaorg/celestia-app/v2/test/util/blobfactory"
-	"github.com/celestiaorg/celestia-app/v2/test/util/testfactory"
-	"github.com/celestiaorg/celestia-app/v2/x/blob/types"
-	"github.com/celestiaorg/go-square/blob"
-	"github.com/celestiaorg/go-square/namespace"
+	"github.com/celestiaorg/celestia-app/v3/app"
+	"github.com/celestiaorg/celestia-app/v3/app/encoding"
+	"github.com/celestiaorg/celestia-app/v3/pkg/appconsts"
+	"github.com/celestiaorg/celestia-app/v3/pkg/da"
+	"github.com/celestiaorg/celestia-app/v3/pkg/user"
+	"github.com/celestiaorg/celestia-app/v3/pkg/wrapper"
+	"github.com/celestiaorg/celestia-app/v3/test/util/blobfactory"
+	"github.com/celestiaorg/celestia-app/v3/test/util/testfactory"
+	blobtypes "github.com/celestiaorg/celestia-app/v3/x/blob/types"
 	appshares "github.com/celestiaorg/go-square/shares"
-	"github.com/celestiaorg/go-square/square"
+	libSquare "github.com/celestiaorg/go-square/square"
+	gosquare "github.com/celestiaorg/go-square/v2/share"
 	"github.com/celestiaorg/nmt"
 	"github.com/celestiaorg/rsmt2d"
 
 	"github.com/celestiaorg/celestia-node/share"
-	"github.com/celestiaorg/celestia-node/share/sharetest"
 )
 
 const (
@@ -35,7 +33,7 @@ const (
 func RandByzantineEDS(t testing.TB, odsSize int, options ...nmt.Option) *rsmt2d.ExtendedDataSquare {
 	eds := RandEDS(t, odsSize)
 	shares := eds.Flattened()
-	copy(share.GetData(shares[0]), share.GetData(shares[1])) // corrupting eds
+	copy(shares[0][gosquare.NamespaceSize:], shares[1][gosquare.NamespaceSize:]) // corrupting eds
 	eds, err := rsmt2d.ImportExtendedDataSquare(
 		shares,
 		share.DefaultRSMT2DCodec(),
@@ -45,11 +43,11 @@ func RandByzantineEDS(t testing.TB, odsSize int, options ...nmt.Option) *rsmt2d.
 	return eds
 }
 
-// RandEDS generates EDS filled with the random data with the given size for original square.
+// RandEDS generates EDS filled with the random data with the given size for original share.
 func RandEDS(t testing.TB, odsSize int) *rsmt2d.ExtendedDataSquare {
-	shares := sharetest.RandShares(t, odsSize*odsSize)
+	shares := gosquare.RandShares(odsSize * odsSize)
 	eds, err := rsmt2d.ComputeExtendedDataSquare(
-		shares,
+		gosquare.ToBytes(shares),
 		share.DefaultRSMT2DCodec(),
 		wrapper.NewConstructor(uint64(odsSize)),
 	)
@@ -59,14 +57,14 @@ func RandEDS(t testing.TB, odsSize int) *rsmt2d.ExtendedDataSquare {
 
 // RandEDSWithTailPadding generates EDS of given ODS size filled with randomized and tail padding shares.
 func RandEDSWithTailPadding(t testing.TB, odsSize, padding int) *rsmt2d.ExtendedDataSquare {
-	shares := sharetest.RandShares(t, odsSize*odsSize)
+	shares := gosquare.RandShares(odsSize * odsSize)
 	for i := len(shares) - padding; i < len(shares); i++ {
-		paddingShare := appshares.TailPaddingShare()
-		shares[i] = paddingShare.ToBytes()
+		paddingShare := gosquare.TailPaddingShare()
+		shares[i] = paddingShare
 	}
 
 	eds, err := rsmt2d.ComputeExtendedDataSquare(
-		shares,
+		gosquare.ToBytes(shares),
 		share.DefaultRSMT2DCodec(),
 		wrapper.NewConstructor(uint64(odsSize)),
 	)
@@ -78,12 +76,12 @@ func RandEDSWithTailPadding(t testing.TB, odsSize, padding int) *rsmt2d.Extended
 // namespacedAmount of shares with the given namespace.
 func RandEDSWithNamespace(
 	t testing.TB,
-	namespace share.Namespace,
+	namespace gosquare.Namespace,
 	namespacedAmount, odsSize int,
 ) (*rsmt2d.ExtendedDataSquare, *share.AxisRoots) {
-	shares := sharetest.RandSharesWithNamespace(t, namespace, namespacedAmount, odsSize*odsSize)
+	shares := gosquare.RandSharesWithNamespace(namespace, namespacedAmount, odsSize*odsSize)
 	eds, err := rsmt2d.ComputeExtendedDataSquare(
-		shares,
+		gosquare.ToBytes(shares),
 		share.DefaultRSMT2DCodec(),
 		wrapper.NewConstructor(uint64(odsSize)),
 	)
@@ -117,9 +115,9 @@ func GenerateTestBlock(
 	t *testing.T,
 	blobSize, numberOfTransactions int,
 ) (
-	[]*types.MsgPayForBlobs,
-	[]*blob.Blob,
-	[]namespace.Namespace,
+	[]*blobtypes.MsgPayForBlobs,
+	[]*gosquare.Blob,
+	[]gosquare.Namespace,
 	*rsmt2d.ExtendedDataSquare,
 	coretypes.Txs,
 	*da.DataAvailabilityHeader,
@@ -133,7 +131,7 @@ func GenerateTestBlock(
 
 	txs := make(coretypes.Txs, 0)
 	txs = append(txs, coreTxs...)
-	dataSquare, err := square.Construct(
+	square, err := libSquare.Construct(
 		txs.ToSliceOfBytes(),
 		appconsts.SquareSizeUpperBound(appconsts.LatestVersion),
 		appconsts.SubtreeRootThreshold(appconsts.LatestVersion),
@@ -141,7 +139,7 @@ func GenerateTestBlock(
 	require.NoError(t, err)
 
 	// erasure the data square which we use to create the data root.
-	eds, err := da.ExtendShares(appshares.ToBytes(dataSquare))
+	eds, err := da.ExtendShares(appshares.ToBytes(square))
 	require.NoError(t, err)
 
 	// create the new data root by creating the data availability header (merkle
@@ -159,10 +157,10 @@ func GenerateTestBlock(
 func createTestBlobTransactions(
 	t *testing.T,
 	numberOfTransactions, size int,
-) ([]namespace.Namespace, []*types.MsgPayForBlobs, []*blob.Blob, []coretypes.Tx) {
-	nss := make([]namespace.Namespace, 0)
-	msgs := make([]*types.MsgPayForBlobs, 0)
-	blobs := make([]*blob.Blob, 0)
+) ([]gosquare.Namespace, []*blobtypes.MsgPayForBlobs, []*gosquare.Blob, []coretypes.Tx) {
+	nss := make([]gosquare.Namespace, 0)
+	msgs := make([]*blobtypes.MsgPayForBlobs, 0)
+	blobs := make([]*gosquare.Blob, 0)
 	coreTxs := make([]coretypes.Tx, 0)
 	config := encoding.MakeConfig(app.ModuleEncodingRegisters...)
 	keyring := testfactory.TestKeyring(config.Codec, accountName)
@@ -187,11 +185,11 @@ func createTestBlobTransaction(
 	t *testing.T,
 	signer *user.Signer,
 	size int,
-) (namespace.Namespace, *types.MsgPayForBlobs, *blob.Blob, coretypes.Tx) {
-	ns := namespace.RandomBlobNamespace()
+) (gosquare.Namespace, *blobtypes.MsgPayForBlobs, *gosquare.Blob, coretypes.Tx) {
+	ns := gosquare.RandomBlobNamespace()
 	account := signer.Account(accountName)
 	msg, b := blobfactory.RandMsgPayForBlobsWithNamespaceAndSigner(account.Address().String(), ns, size)
-	cTx, _, err := signer.CreatePayForBlobs(accountName, []*blob.Blob{b})
+	cTx, _, err := signer.CreatePayForBlobs(accountName, []*gosquare.Blob{b})
 	require.NoError(t, err)
 	return ns, msg, b, cTx
 }

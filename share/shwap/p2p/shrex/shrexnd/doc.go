@@ -22,7 +22,7 @@
 //
 //	data, err := client.RequestND(ctx, dataRoot, peerID, namespaceID)
 //
-// where data is of type [share.NamespacedShares]
+// where data is of type [gosquare.NamespacedShares]
 //
 // To use a shrexnd server to respond to requests from peers, you must first create a new `shrexnd.Server` instance by:
 //
@@ -31,7 +31,7 @@
 //
 //	server, err := shrexnd.NewServer(params, host, store, storeShareGetter)
 //
-// where store is of type [share.Store] and storeShareGetter is of type [share.Getter]
+// where store is of type [gosquare.Store] and storeShareGetter is of type [gosquare.Getter]
 //
 // 2. Start the server by calling `Start` on the server:
 //

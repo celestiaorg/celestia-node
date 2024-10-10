@@ -6,6 +6,7 @@ import (
 
 	"github.com/ipfs/boxo/blockstore"
 
+	gosquare "github.com/celestiaorg/go-square/v2/share"
 	"github.com/celestiaorg/rsmt2d"
 
 	"github.com/celestiaorg/celestia-node/share"
@@ -16,7 +17,7 @@ import (
 // (merkle proofs do not match parity erasure-coding data).
 //
 // It is converted from rsmt2d.ByzantineRow/Col +
-// Merkle Proof for each share.
+// Merkle Proof for each gosquare.
 type ErrByzantine struct {
 	Index  uint32
 	Shares []*ShareWithProof
@@ -38,11 +39,16 @@ func NewErrByzantine(
 	sharesWithProof := make([]*ShareWithProof, len(errByz.Shares))
 	bGetter := ipld.NewBlockservice(bStore, nil)
 	var count int
-	for index, share := range errByz.Shares {
-		if len(share) == 0 {
+	for index, shr := range errByz.Shares {
+		if len(shr) == 0 {
 			continue
 		}
-		swp, err := GetShareWithProof(ctx, bGetter, roots, share, errByz.Axis, int(errByz.Index), index)
+		sh, err := gosquare.NewShare(shr)
+		if err != nil {
+			log.Warn("failed to create share", "index", index, "err", err)
+			continue
+		}
+		swp, err := GetShareWithProof(ctx, bGetter, roots, *sh, errByz.Axis, int(errByz.Index), index)
 		if err != nil {
 			log.Warn("requesting proof failed",
 				"errByz", errByz,

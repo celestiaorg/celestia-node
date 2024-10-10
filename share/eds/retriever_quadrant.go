@@ -87,7 +87,7 @@ func newQuadrants(roots *share.AxisRoots) []*quadrant {
 	return quadrants
 }
 
-// pos calculates position of a share in a data square.
+// pos calculates position of a share in a data share.
 func (q *quadrant) pos(rootIdx, cellIdx int) (int, int) {
 	cellIdx += len(q.roots) * q.x
 	rootIdx += len(q.roots) * q.y
