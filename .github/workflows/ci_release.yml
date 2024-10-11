@@ -6,7 +6,7 @@ on:
       - main
       - '**' # This allows the workflow to trigger on any branch
     tags:
-      - 'v*.*.*'
+      - 'v.*'
   release:
     types: [published]
   pull_request:
