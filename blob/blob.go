@@ -74,13 +74,13 @@ func NewBlobV0(namespace gosquare.Namespace, data []byte) (*Blob, error) {
 	return NewBlob(gosquare.ShareVersionZero, namespace, data, nil)
 }
 
-// NewBlobV1 constructs a new blob from the provided Namespace and data.
-// The blob will be formatted as v0 shares.
+// NewBlobV1 constructs a new blob from the provided Namespace, data, and signer.
+// The blob will be formatted as v1 shares.
 func NewBlobV1(namespace gosquare.Namespace, data, signer []byte) (*Blob, error) {
 	return NewBlob(gosquare.ShareVersionOne, namespace, data, signer)
 }
 
-// NewBlob constructs a new blob from the provided Namespace, data and share version.
+// NewBlob constructs a new blob from the provided Namespace, data, signer, and share version.
 func NewBlob(shareVersion uint8, namespace gosquare.Namespace, data, signer []byte) (*Blob, error) {
 	if len(data) == 0 || len(data) > appconsts.DefaultMaxBytes {
 		return nil, fmt.Errorf("blob data must be > 0 && <= %d, but it was %d bytes", appconsts.DefaultMaxBytes, len(data))

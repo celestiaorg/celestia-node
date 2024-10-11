@@ -81,7 +81,7 @@ func (commitmentProof *CommitmentProof) Validate() error {
 }
 
 // Verify verifies that a commitment proof is valid, i.e., the subtree roots commit
-// to some data that was posted to a share.
+// to some data that was posted to a square.
 // Expects the commitment proof to be properly formulated and validated
 // using the Validate() function.
 func (commitmentProof *CommitmentProof) Verify(root []byte, subtreeRootThreshold int) (bool, error) {

@@ -20,7 +20,7 @@ package light
 //)
 //
 //// GetterWithRandSquare provides a gosquare.Getter filled with 'n' NMT trees of 'n' random shares,
-//// essentially storing a whole share.
+//// essentially storing a whole square.
 // func GetterWithRandSquare(t *testing.T, n int) (gosquare.Getter, *header.ExtendedHeader) {
 //	bServ := ipld.NewMemBlockservice()
 //	getter := getters.NewIPLDGetter(bServ)
