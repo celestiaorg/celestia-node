@@ -1,5 +1,9 @@
 package node
 
+import (
+	"strings"
+)
+
 // Type defines the Node type (e.g. `light`, `bridge`) for identity purposes.
 // The zero value for Type is invalid.
 type Type uint8
@@ -36,7 +40,7 @@ func (t Type) IsValid() bool {
 
 // ParseType converts string in a type if possible.
 func ParseType(str string) Type {
-	tp, ok := stringToType[str]
+	tp, ok := stringToType[strings.ToLower(str)]
 	if !ok {
 		return 0
 	}
@@ -53,9 +57,9 @@ var typeToString = map[Type]string{
 
 // typeToString maps strings representations of all valid Types.
 var stringToType = map[string]Type{
-	"Bridge": Bridge,
-	"Light":  Light,
-	"Full":   Full,
+	"bridge": Bridge,
+	"light":  Light,
+	"full":   Full,
 }
 
 // orderedTypes is a slice of all valid types in order of priority.
