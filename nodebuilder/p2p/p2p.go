@@ -145,7 +145,13 @@ func (m *module) NATStatus(context.Context) (network.Reachability, error) {
 }
 
 func (m *module) BlockPeer(_ context.Context, p peer.ID) error {
-	return m.connGater.BlockPeer(p)
+	if err := m.connGater.BlockPeer(p); err != nil {
+		return err
+	}
+
+	m.host.Network().ClosePeer(p)
+
+	return nil
 }
 
 func (m *module) UnblockPeer(_ context.Context, p peer.ID) error {
