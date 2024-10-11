@@ -12,7 +12,7 @@ import (
 	"github.com/celestiaorg/celestia-node/share/eds"
 )
 
-// q4 stores the fourth quadrant of the share.
+// q4 stores the fourth quadrant of the square.
 type q4 struct {
 	hdr  *headerV0
 	file *os.File

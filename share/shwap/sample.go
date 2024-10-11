@@ -123,7 +123,7 @@ func (s Sample) verifyInclusion(roots *share.AxisRoots, rowIdx, colIdx int) bool
 
 // inclusionNamespace returns the namespace for the share based on its position in the share.
 // Shares from extended part of the square are considered parity shares. It means that
-// parity shares are located outside of first quadrant of the share. According to the nmt
+// parity shares are located outside of first quadrant of the square. According to the nmt
 // specification, the parity shares are prefixed with the namespace of the parity shares.
 func inclusionNamespace(sh gosquare.Share, rowIdx, colIdx, squareSize int) gosquare.Namespace {
 	isParity := colIdx >= squareSize/2 || rowIdx >= squareSize/2

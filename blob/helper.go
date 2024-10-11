@@ -10,7 +10,7 @@ import (
 // BlobsToShares accepts blobs and convert them to the Shares.
 func BlobsToShares(nodeBlobs ...*Blob) ([]gosquare.Share, error) {
 	sort.Slice(nodeBlobs, func(i, j int) bool {
-		return nodeBlobs[i].Blob.Namespace().Compare(nodeBlobs[j].Blob.Namespace()) < 0
+		return nodeBlobs[i].Blob.Namespace().IsLessThan(nodeBlobs[j].Blob.Namespace())
 	})
 
 	splitter := gosquare.NewSparseShareSplitter()

@@ -96,7 +96,7 @@ func writeODSFile(f *os.File, axisRoots *share.AxisRoots, eds *rsmt2d.ExtendedDa
 
 // writeODS writes the first quadrant(ODS) of the square to the writer. It writes the quadrant in
 // row-major order. Write finishes once all the shares are written or on the first instance of tail
-// padding gosquare. Tail padding share are constant and aren't stored.
+// padding share. Tail padding share are constant and aren't stored.
 func writeODS(w io.Writer, eds *rsmt2d.ExtendedDataSquare) error {
 	for i := range eds.Width() / 2 {
 		for j := range eds.Width() / 2 {
@@ -228,7 +228,7 @@ func (o *ODS) Sample(ctx context.Context, rowIdx, colIdx int) (shwap.Sample, err
 // implementation. Implementations should indicate the side in the returned AxisHalf.
 func (o *ODS) AxisHalf(_ context.Context, axisType rsmt2d.Axis, axisIdx int) (eds.AxisHalf, error) {
 	// Read the axis from the file if the axis is a row and from the top half of the square, or if the
-	// axis is a column and from the left half of the share.
+	// axis is a column and from the left half of the square.
 	if axisIdx < o.size()/2 {
 		half, err := o.readAxisHalf(axisType, axisIdx)
 		if err != nil {
