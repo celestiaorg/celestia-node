@@ -168,6 +168,10 @@ func (b *Blob) UnmarshalJSON(data []byte) error {
 		return err
 	}
 
+	if len(jsonBlob.Namespace) == 0 {
+		return errors.New("expected a non-empty namespace")
+	}
+
 	b.Blob = &blob.Blob{}
 	b.Blob.NamespaceVersion = uint32(jsonBlob.Namespace.Version())
 	b.Blob.NamespaceId = jsonBlob.Namespace.ID()

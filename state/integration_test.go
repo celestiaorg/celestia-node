@@ -52,7 +52,7 @@ func (s *IntegrationTestSuite) SetupSuite() {
 	s.Require().Greater(len(s.accounts), 0)
 	accountName := s.accounts[0].Name
 
-	accessor, err := NewCoreAccessor(s.cctx.Keyring, accountName, localHeader{s.cctx.Client}, "", "")
+	accessor, err := NewCoreAccessor(s.cctx.Keyring, accountName, localHeader{s.cctx.Client}, "", "", "")
 	require.NoError(s.T(), err)
 	setClients(accessor, s.cctx.GRPCClient)
 	s.accessor = accessor
