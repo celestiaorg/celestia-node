@@ -10,7 +10,7 @@ import (
 	"github.com/celestiaorg/celestia-app/v3/pkg/appconsts"
 	"github.com/celestiaorg/celestia-app/v3/pkg/wrapper"
 	"github.com/celestiaorg/go-square/shares"
-	libSquare "github.com/celestiaorg/go-square/v2"
+	libsquare "github.com/celestiaorg/go-square/v2"
 	gosquare "github.com/celestiaorg/go-square/v2/share"
 	"github.com/celestiaorg/nmt"
 	"github.com/celestiaorg/rsmt2d"
@@ -31,7 +31,7 @@ func extendBlock(data types.Data, appVersion uint64, options ...nmt.Option) (*rs
 	}
 
 	// Construct the data square from the block's transactions
-	square, err := libSquare.Construct(
+	square, err := libsquare.Construct(
 		data.Txs.ToSliceOfBytes(),
 		appconsts.SquareSizeUpperBound(appVersion),
 		appconsts.SubtreeRootThreshold(appVersion),
@@ -49,7 +49,7 @@ func extendShares(s [][]byte, options ...nmt.Option) (*rsmt2d.ExtendedDataSquare
 	}
 	// here we construct a tree
 	// Note: uses the nmt wrapper to construct the tree.
-	squareSize := libSquare.Size(len(s))
+	squareSize := libsquare.Size(len(s))
 	return rsmt2d.ComputeExtendedDataSquare(s,
 		appconsts.DefaultCodec(),
 		wrapper.NewConstructor(uint64(squareSize),
