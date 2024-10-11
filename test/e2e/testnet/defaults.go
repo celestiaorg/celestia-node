@@ -23,9 +23,9 @@ var DefaultBridgeResources = testnet.Resources{
 }
 
 var DefaultFullResources = testnet.Resources{
-	MemoryRequest: resource.MustParse("1000Mi"),
-	MemoryLimit:   resource.MustParse("2000Mi"),
-	CPU:           resource.MustParse("300m"),
+	MemoryRequest: resource.MustParse("15000Mi"),
+	MemoryLimit:   resource.MustParse("16000Mi"),
+	CPU:           resource.MustParse("6"),
 }
 
 var DefaultLightResources = testnet.Resources{
