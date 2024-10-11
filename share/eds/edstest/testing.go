@@ -43,7 +43,7 @@ func RandByzantineEDS(t testing.TB, odsSize int, options ...nmt.Option) *rsmt2d.
 	return eds
 }
 
-// RandEDS generates EDS filled with the random data with the given size for original share.
+// RandEDS generates EDS filled with the random data with the given size for original square.
 func RandEDS(t testing.TB, odsSize int) *rsmt2d.ExtendedDataSquare {
 	shares := gosquare.RandShares(odsSize * odsSize)
 	eds, err := rsmt2d.ComputeExtendedDataSquare(

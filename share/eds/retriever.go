@@ -41,7 +41,7 @@ var (
 //	 ---- ----
 //
 // Retriever randomly picks one of the data square quadrants and tries to request them one by one
-// until it is able to reconstruct the whole share.
+// until it is able to reconstruct the whole square.
 type Retriever struct {
 	bServ blockservice.BlockService
 }
@@ -283,7 +283,7 @@ func (rs *retrievalSession) doRequest(ctx context.Context, q *quadrant) {
 			ipld.GetShares(ctx, rs.bget, nd.Links()[q.x].Cid, size, func(j int, rawShare []byte) {
 				// NOTE: Each share can appear twice here, for a Row and Col, respectively.
 				// These shares are always equal, and we allow only the first one to be written
-				// in the share.
+				// in the square.
 				// NOTE-2: We may never actually fetch shares from the network *twice*.
 				// Once a share is downloaded from the network it may be cached on the IPLD(blockservice) level.
 				//
