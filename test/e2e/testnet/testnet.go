@@ -5,10 +5,10 @@ import (
 	"fmt"
 
 	"github.com/celestiaorg/celestia-app/v3/test/e2e/testnet"
-	"github.com/celestiaorg/celestia-app/v3/test/util/genesis"
 
 	"github.com/celestiaorg/celestia-node/nodebuilder/node"
 	"github.com/celestiaorg/knuu/pkg/instance"
+	"github.com/celestiaorg/knuu/pkg/knuu"
 )
 
 // LocalTestnet extends the testnet from celestia-app
@@ -16,34 +16,37 @@ type NodeTestnet struct {
 	testnet.Testnet
 	executor *instance.Instance
 	nodes    []*Node
-}
-
-type NodeTestnetOptions struct {
-	Name            string
-	Seed            int64
-	Grafana         *testnet.GrafanaInfo
-	ChainID         string
-	GenesisModifier []genesis.Modifier
+	knuu     *knuu.Knuu
 }
 
 // NewLocalTestnet creates a new instance of LocalTestnet
-func NewNodeTestnet(ctx context.Context, opts NodeTestnetOptions) (*NodeTestnet, error) {
-	tn, err := testnet.New(ctx, opts.Name, opts.Seed, opts.Grafana, opts.ChainID, opts.GenesisModifier...)
+func NewNodeTestnet(ctx context.Context, kn *knuu.Knuu, opts testnet.Options) (*NodeTestnet, error) {
+	tn, err := testnet.New(kn, opts)
 	if err != nil {
 		return nil, err
 	}
 
-	ex := Executor{Kn: tn.Knuu()}
+	ex := Executor{Kn: kn}
 	executorInstance, err := ex.NewInstance(ctx, "executor")
 	if err != nil {
 		return nil, err
 	}
-	return &NodeTestnet{*tn, executorInstance, []*Node{}}, nil
+
+	return &NodeTestnet{
+		Testnet:  *tn,
+		executor: executorInstance,
+		nodes:    []*Node{},
+		knuu:     kn,
+	}, nil
 }
 
 // DaNodes returns all DA nodes
 func (nt *NodeTestnet) DaNodes() []*Node {
 	return nt.nodes
+}
+
+func (nt *NodeTestnet) NewInstance(name string) (*instance.Instance, error) {
+	return nt.knuu.NewInstance(name)
 }
 
 // NodeCleanup cleans up the nodes
