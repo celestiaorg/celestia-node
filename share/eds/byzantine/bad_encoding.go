@@ -152,7 +152,7 @@ func (p *BadEncodingProof) Validate(hdr *header.ExtendedHeader) error {
 		// Since p.Shares should contain all the shares from either a row or a
 		// column, it should exactly match the number of row roots. In this
 		// context, the number of row roots is the width of the extended data
-		// share.
+		// square.
 		log.Infof("%s: %s (%d >= %d)",
 			invalidProofPrefix, errIncorrectAmountOfShares, int(p.Index), width,
 		)

@@ -28,7 +28,7 @@
 //
 // where `notification` is of type [shrexsub.Notification].
 //
-// and `DataHash` is the hash of the share that you want to broadcast, and `Height` is the height of the gosquare.
+// and `DataHash` is the hash of the share that you want to broadcast, and `Height` is the height of the share.
 //
 // You can also subscribe to the pubsub topic by:
 //

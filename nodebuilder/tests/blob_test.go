@@ -201,7 +201,7 @@ func TestBlobModule(t *testing.T) {
 	}
 }
 
-// convert converts a squareblob.Blob to a blob.Blob.
+// convert converts a gosquare.Blob to a blob.Blob.
 // convert may be deduplicated with convertBlobs from the blob package.
 func convert(squareBlob *gosquare.Blob) (nodeBlob *blob.Blob, err error) {
 	return blob.NewBlob(squareBlob.ShareVersion(), squareBlob.Namespace(), squareBlob.Data(), squareBlob.Signer())

@@ -20,7 +20,7 @@ type Rsmt2D struct {
 	*rsmt2d.ExtendedDataSquare
 }
 
-// Size returns the size of the Extended Data share.
+// Size returns the size of the Extended Data square.
 func (eds *Rsmt2D) Size(context.Context) int {
 	return int(eds.Width())
 }

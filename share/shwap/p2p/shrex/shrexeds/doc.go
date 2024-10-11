@@ -3,7 +3,7 @@
 //
 // This protocol is a request/response protocol that allows for sending requests for extended data squares by data root
 // to the peers in the network and receiving a response containing the original data square(s), which is used
-// to recompute the extended data share.
+// to recompute the extended data square.
 //
 // The streams are established using the protocol ID:
 //

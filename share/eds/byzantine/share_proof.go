@@ -70,7 +70,7 @@ func (s *ShareWithProof) ShareWithProofToProto() *pb.Share {
 	}
 }
 
-// GetShareWithProof attempts to get a share with proof for the given gosquare. It first tries to get
+// GetShareWithProof attempts to get a share with proof for the given share. It first tries to get
 // a row proof and if that fails or proof is invalid, it tries to get a column proof.
 func GetShareWithProof(
 	ctx context.Context,

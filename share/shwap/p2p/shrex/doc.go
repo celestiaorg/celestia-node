@@ -8,7 +8,7 @@
 //
 //   - shrexeds: a request/response protocol that is used to request extended data square shares from peers.
 //     This protocol exchanges the original data square in between the client and server, and it's up to the
-//     receiver to compute the extended data share.
+//     receiver to compute the extended data square.
 //
 // This package also defines a peer manager that is used to manage network peers that can be used to exchange
 // shares. The peer manager is primarily responsible for providing peers to request shares from,

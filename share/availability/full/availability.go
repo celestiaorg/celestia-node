@@ -20,7 +20,7 @@ var log = logging.Logger("share/full")
 
 // ShareAvailability implements share.Availability using the full data square
 // recovery technique. It is considered "full" because it is required
-// to download enough shares to fully reconstruct the data share.
+// to download enough shares to fully reconstruct the data square.
 type ShareAvailability struct {
 	store  *store.Store
 	getter shwap.Getter

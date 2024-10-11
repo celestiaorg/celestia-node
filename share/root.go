@@ -20,7 +20,7 @@ const (
 )
 
 // AxisRoots represents root commitment to multiple Shares.
-// In practice, it is a commitment to all the Data in a share.
+// In practice, it is a commitment to all the Data in a square.
 type AxisRoots = da.DataAvailabilityHeader
 
 // DataHash is a representation of the AxisRoots hash.
@@ -48,7 +48,7 @@ func NewSHA256Hasher() hash.Hash {
 }
 
 // NewAxisRoots generates AxisRoots(DataAvailabilityHeader) using the
-// provided extended data share.
+// provided extended data square.
 func NewAxisRoots(eds *rsmt2d.ExtendedDataSquare) (*AxisRoots, error) {
 	dah, err := da.NewDataAvailabilityHeader(eds)
 	if err != nil {

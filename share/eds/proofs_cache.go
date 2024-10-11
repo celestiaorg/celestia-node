@@ -55,7 +55,7 @@ type axisWithProofs struct {
 	// root caches the root of the tree. It will be set only when proofs are calculated
 	root []byte
 	// proofs are stored in a blockservice.BlockGetter by their CID. It will be set only when proofs
-	// are calculated and will be used to get the proof for a specific gosquare. BlockGetter is used to
+	// are calculated and will be used to get the proof for a specific share. BlockGetter is used to
 	// reuse ipld based proof generation logic, which traverses the tree from the root to the leafs and
 	// collects the nodes on the path. This is temporary and will be replaced with a more efficient
 	// proof caching mechanism in nmt package, once it is implemented.
