@@ -3,7 +3,6 @@ package main
 import (
 	"context"
 	"fmt"
-	"log"
 	"time"
 
 	"github.com/celestiaorg/celestia-app/v3/app"
@@ -11,47 +10,75 @@ import (
 	"github.com/celestiaorg/celestia-app/v3/test/util/testnode"
 	"github.com/celestiaorg/celestia-node/nodebuilder/node"
 	nodeTestnet "github.com/celestiaorg/celestia-node/test/e2e/testnet"
+	"github.com/celestiaorg/knuu/pkg/k8s"
+	"github.com/celestiaorg/knuu/pkg/knuu"
+	"github.com/celestiaorg/knuu/pkg/minio"
+
+	"github.com/sirupsen/logrus"
 )
 
-const appVersion = "v1.11.0"
-const nodeVersion = "v0.14.0"
+const (
+	// appVersion  = "v2.2.0"
+	appVersion  = "206b96c"
+	nodeVersion = "v0.17.1"
+	timeFormat  = "20060102_150405"
+)
 
 // This test runs a simple testnet with 4 validators. It submits both MsgPayForBlobs
 // and MsgSends over 30 seconds and then asserts that at least 10 transactions were
 // committed.
-func E2ESimple(logger *log.Logger) error {
-	const nodesCount = 4
+func E2ESimple(logger *logrus.Logger) error {
+	const (
+		testName        = "E2ESimple"
+		validatorsCount = 4
+	)
+
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
-	logger.Println("Running simple e2e test", "app version", appVersion, "node version", nodeVersion)
+	logger.WithFields(logrus.Fields{
+		"test_name":        testName,
+		"app_version":      appVersion,
+		"node_version":     nodeVersion,
+		"validators_count": validatorsCount,
+	}).Info("Running test")
 
-	testNet, err := nodeTestnet.NewNodeTestnet(ctx,
-		nodeTestnet.NodeTestnetOptions{
-			Name:    "E2ESimple",
-			Seed:    seed,
-			Grafana: nil,
-			ChainID: "test",
-		})
+	scope := fmt.Sprintf("%s-%s", testName, time.Now().Format(timeFormat))
+	k8sClient, err := k8s.NewClient(ctx, scope, logger)
+	testnet.NoError("failed to create k8s client", err)
+
+	minioClient, err := minio.New(ctx, k8sClient, logger)
+	testnet.NoError("failed to create minio client", err)
+
+	kn, err := knuu.New(ctx, knuu.Options{
+		ProxyEnabled: true,
+		K8sClient:    k8sClient,
+		MinioClient:  minioClient,
+	})
+	testnet.NoError("failed to initialize knuu", err)
+	kn.HandleStopSignal(ctx)
+	logger.WithField("scope", kn.Scope).Info("Knuu initialized")
+
+	testNet, err := nodeTestnet.NewNodeTestnet(ctx, kn, testnet.Options{})
 	testnet.NoError("failed to create testnet", err)
 
 	testNet.SetConsensusParams(app.DefaultInitialConsensusParams())
 
 	defer testNet.NodeCleanup(ctx)
 
-	logger.Println("Creating testnet validators")
-	testnet.NoError("failed to create genesis nodes", testNet.CreateGenesisNodes(ctx, nodesCount, appVersion, 10000000, 0, testnet.DefaultResources, true))
+	logger.Info("Creating testnet validators")
+	testnet.NoError("failed to create genesis nodes", testNet.CreateGenesisNodes(ctx, validatorsCount, appVersion, 10000000, 0, testnet.DefaultResources, true))
 
-	logger.Println("Creating txsim")
+	logger.Info("Creating txsim")
 	endpoints, err := testNet.RemoteGRPCEndpoints(ctx)
 	testnet.NoError("failed to get remote gRPC endpoints", err)
-	err = testNet.CreateTxClient(ctx, "txsim", testnet.TxsimVersion, 1, "100-2000", 100, testnet.DefaultResources, endpoints[0])
+	err = testNet.CreateTxClient(ctx, "txsim", testnet.TxsimVersion, 1, "100-2000", 100, testnet.DefaultResources, endpoints[0], nil)
 	testnet.NoError("failed to create tx client", err)
 
-	logger.Println("Setting up testnets")
+	logger.Info("Setting up testnets")
 	testnet.NoError("failed to setup testnets", testNet.Setup(ctx))
 
-	logger.Println("Starting testnets")
+	logger.Info("Starting testnets")
 	testnet.NoError("failed to start testnets", testNet.Start(ctx))
 
 	// FIXME: If you deploy more than one node of the same type, the keys will be the same
@@ -79,10 +106,10 @@ func E2ESimple(logger *log.Logger) error {
 		})
 	testnet.NoError("failed to create and start light node", err)
 
-	logger.Println("Waiting for 30 seconds")
+	logger.Info("Waiting for 30 seconds")
 	time.Sleep(30 * time.Second)
 
-	logger.Println("Reading blockchain")
+	logger.Info("Reading blockchain")
 	blockchain, err := testnode.ReadBlockchain(ctx, testNet.Node(0).AddressRPC())
 	testnet.NoError("failed to read blockchain", err)
 

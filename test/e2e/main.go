@@ -1,16 +1,17 @@
 package main
 
 import (
-	"log"
 	"os"
 	"strings"
+
+	"github.com/sirupsen/logrus"
 )
 
 const (
 	seed = 42
 )
 
-type TestFunc func(*log.Logger) error
+type TestFunc func(*logrus.Logger) error
 
 type Test struct {
 	Name string
@@ -18,7 +19,10 @@ type Test struct {
 }
 
 func main() {
-	logger := log.New(os.Stdout, "test-e2e", log.LstdFlags)
+	logger := logrus.New()
+	logger.SetFormatter(&logrus.TextFormatter{
+		FullTimestamp: true,
+	})
 
 	tests := []Test{
 		{"E2ESimple", E2ESimple},
@@ -37,9 +41,9 @@ func main() {
 	}
 
 	if !specificTestFound {
-		logger.Println("No particular test specified. Running all tests.")
-		logger.Println("make test-e2e <test_name> to run a specific test")
-		logger.Printf("Valid tests are: %s\n\n", getTestNames(tests))
+		logger.Info("No particular test specified. Running all tests.")
+		logger.Info("make test-e2e <test_name> to run a specific test")
+		logger.Infof("Valid tests are: %s\n\n", getTestNames(tests))
 		// if no specific test is passed, run all tests
 		for _, test := range tests {
 			runTest(logger, test)
@@ -47,13 +51,13 @@ func main() {
 	}
 }
 
-func runTest(logger *log.Logger, test Test) {
-	logger.Printf("=== RUN %s", test.Name)
+func runTest(logger *logrus.Logger, test Test) {
+	logger.Infof("=== RUN %s", test.Name)
 	err := test.Func(logger)
 	if err != nil {
 		logger.Fatalf("--- ERROR %s: %v", test.Name, err)
 	}
-	logger.Printf("--- ✅ PASS: %s \n\n", test.Name)
+	logger.Infof("--- ✅ PASS: %s \n\n", test.Name)
 }
 
 func getTestNames(tests []Test) string {

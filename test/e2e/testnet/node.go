@@ -38,7 +38,7 @@ func (nt *NodeTestnet) initInstance(ctx context.Context, opts InstanceOptions) (
 		return nil, err
 	}
 
-	ins, err := nt.Knuu().NewInstance(opts.InstanceName)
+	ins, err := nt.NewInstance(opts.InstanceName)
 	if err != nil {
 		return nil, err
 	}
@@ -98,6 +98,10 @@ func (nt *NodeTestnet) CreateNode(ctx context.Context, opts InstanceOptions, tru
 		return nil, err
 	}
 
+	if opts.executor == nil {
+		opts.SetExecutor(nt.executor)
+	}
+
 	nodeInst, err := nt.initInstance(ctx, opts)
 	if err != nil {
 		return nil, err
@@ -128,6 +132,10 @@ func (nt *NodeTestnet) CreateNode(ctx context.Context, opts InstanceOptions, tru
 	}
 
 	if opts.NodeType == node.Bridge {
+		if opts.consensus == nil {
+			opts.SetConsensus(nt.Testnet.Node(0).Instance)
+		}
+
 		consensusIP, err := opts.consensus.Network().GetIP(ctx)
 		if err != nil {
 			return nil, err
