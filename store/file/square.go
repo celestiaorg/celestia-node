@@ -14,7 +14,7 @@ import (
 
 type square [][]gosquare.Share
 
-// readSquare reads Shares from the reader and returns a share. It assumes that the reader is
+// readSquare reads Shares from the reader and returns a square. It assumes that the reader is
 // positioned at the beginning of the Shares. It knows the size of the Shares and the size of the
 // square, so reads from reader are limited to exactly the amount of data required.
 func readSquare(r io.Reader, shareSize, edsSize int) (square, error) {
