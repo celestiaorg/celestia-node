@@ -276,7 +276,7 @@ func dataPath(base string) string {
 func constraintBadgerConfig() *dsbadger.Options {
 	opts := dsbadger.DefaultOptions // this must be copied
 	// ValueLog:
-	// 2mib default => gosquare.Size - makes sure headers and samples are stored in value log
+	// 2mib default => gosquare.ShareSize - makes sure headers and samples are stored in value log
 	// This *tremendously* reduces the amount of memory used by the node, up to 10 times less during
 	// compaction
 	opts.ValueThreshold = gosquare.ShareSize

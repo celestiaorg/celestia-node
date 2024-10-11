@@ -22,7 +22,7 @@ func EmptyEDSRoots() *AxisRoots {
 	return emptyBlockRoots
 }
 
-// EmptyEDS returns the EDS of the empty block data share.
+// EmptyEDS returns the EDS of the empty block data square.
 func EmptyEDS() *rsmt2d.ExtendedDataSquare {
 	initEmpty()
 	return emptyBlockEDS
