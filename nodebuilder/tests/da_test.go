@@ -143,7 +143,7 @@ func TestDaModule(t *testing.T) {
 		{
 			name: "SubmitWithOptions - valid",
 			doFn: func(t *testing.T) {
-				ids, err := fullClient.DA.SubmitWithOptions(ctx, daBlobs, -1, namespace, []byte(`{"key_name": "validator"}`))
+				ids, err := fullClient.DA.SubmitWithOptions(ctx, daBlobs, -1, namespace.Bytes(), []byte(`{"key_name": "validator"}`))
 				require.NoError(t, err)
 				require.NotEmpty(t, ids)
 			},
@@ -151,7 +151,7 @@ func TestDaModule(t *testing.T) {
 		{
 			name: "SubmitWithOptions - invalid JSON",
 			doFn: func(t *testing.T) {
-				ids, err := fullClient.DA.SubmitWithOptions(ctx, daBlobs, -1, namespace, []byte("not JSON"))
+				ids, err := fullClient.DA.SubmitWithOptions(ctx, daBlobs, -1, namespace.Bytes(), []byte("not JSON"))
 				require.Error(t, err)
 				require.Nil(t, ids)
 			},
@@ -159,7 +159,7 @@ func TestDaModule(t *testing.T) {
 		{
 			name: "SubmitWithOptions - invalid key name",
 			doFn: func(t *testing.T) {
-				ids, err := fullClient.DA.SubmitWithOptions(ctx, daBlobs, -1, namespace, []byte(`{"key_name": "invalid"}`))
+				ids, err := fullClient.DA.SubmitWithOptions(ctx, daBlobs, -1, namespace.Bytes(), []byte(`{"key_name": "invalid"}`))
 				require.Error(t, err)
 				require.Nil(t, ids)
 			},
