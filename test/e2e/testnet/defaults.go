@@ -29,7 +29,7 @@ var DefaultFullResources = testnet.Resources{
 }
 
 var DefaultLightResources = testnet.Resources{
-	MemoryRequest: resource.MustParse("100Mi"),
-	MemoryLimit:   resource.MustParse("200Mi"),
-	CPU:           resource.MustParse("100m"),
+	MemoryRequest: resource.MustParse("450Mi"),
+	MemoryLimit:   resource.MustParse("500Mi"),
+	CPU:           resource.MustParse("1"),
 }
