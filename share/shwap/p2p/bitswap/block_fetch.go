@@ -269,3 +269,13 @@ func (options *fetchOptions) store(ctx context.Context, blk blocks.Block) error 
 
 	return options.Store.Put(ctx, blk)
 }
+
+// ListActiveFetches lists ongoing fetches.
+// Useful for debugging.
+func ListActiveFetches() (keys []cid.Cid) {
+	unmarshalFns.Range(func(key, _ any) bool {
+		keys = append(keys, key.(cid.Cid))
+		return true
+	})
+	return keys
+}
