@@ -3,6 +3,7 @@ package share
 import (
 	"context"
 
+	"github.com/ipfs/go-cid"
 	"github.com/tendermint/tendermint/types"
 
 	libshare "github.com/celestiaorg/go-square/v2/share"
@@ -12,6 +13,7 @@ import (
 	"github.com/celestiaorg/celestia-node/share"
 	"github.com/celestiaorg/celestia-node/share/eds"
 	"github.com/celestiaorg/celestia-node/share/shwap"
+	"github.com/celestiaorg/celestia-node/share/shwap/p2p/bitswap"
 )
 
 var _ Module = (*API)(nil)
@@ -54,6 +56,7 @@ type Module interface {
 	) (shwap.NamespaceData, error)
 	// GetRange gets a list of shares and their corresponding proof.
 	GetRange(ctx context.Context, height uint64, start, end int) (*GetRangeResult, error)
+	BitswapActiveFetches(ctx context.Context) ([]cid.Cid, error)
 }
 
 // API is a wrapper around Module for the RPC.
@@ -79,11 +82,18 @@ type API struct {
 			height uint64,
 			start, end int,
 		) (*GetRangeResult, error) `perm:"read"`
+		BitswapActiveFetches func(
+			ctx context.Context,
+		) ([]cid.Cid, error) `perm:"admin"`
 	}
 }
 
 func (api *API) SharesAvailable(ctx context.Context, height uint64) error {
 	return api.Internal.SharesAvailable(ctx, height)
+}
+
+func (api *API) BitswapActiveFetches(ctx context.Context) ([]cid.Cid, error) {
+	return api.Internal.BitswapActiveFetches(ctx)
 }
 
 func (api *API) GetShare(ctx context.Context, height uint64, row, col int) (libshare.Share, error) {
@@ -118,6 +128,11 @@ func (m module) GetShare(ctx context.Context, height uint64, row, col int) (libs
 		return libshare.Share{}, err
 	}
 	return m.getter.GetShare(ctx, header, row, col)
+}
+
+func (m module) BitswapActiveFetches(context.Context) ([]cid.Cid, error) {
+	keys := bitswap.ListActiveFetches()
+	return keys, nil
 }
 
 func (m module) GetEDS(ctx context.Context, height uint64) (*rsmt2d.ExtendedDataSquare, error) {

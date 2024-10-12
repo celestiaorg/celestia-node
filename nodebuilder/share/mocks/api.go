@@ -13,6 +13,7 @@ import (
 	share0 "github.com/celestiaorg/go-square/v2/share"
 	rsmt2d "github.com/celestiaorg/rsmt2d"
 	gomock "github.com/golang/mock/gomock"
+	cid "github.com/ipfs/go-cid"
 )
 
 // MockModule is a mock of Module interface.
@@ -36,6 +37,21 @@ func NewMockModule(ctrl *gomock.Controller) *MockModule {
 // EXPECT returns an object that allows the caller to indicate expected use.
 func (m *MockModule) EXPECT() *MockModuleMockRecorder {
 	return m.recorder
+}
+
+// BitswapActiveFetches mocks base method.
+func (m *MockModule) BitswapActiveFetches(arg0 context.Context) ([]cid.Cid, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "BitswapActiveFetches", arg0)
+	ret0, _ := ret[0].([]cid.Cid)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// BitswapActiveFetches indicates an expected call of BitswapActiveFetches.
+func (mr *MockModuleMockRecorder) BitswapActiveFetches(arg0 interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "BitswapActiveFetches", reflect.TypeOf((*MockModule)(nil).BitswapActiveFetches), arg0)
 }
 
 // GetEDS mocks base method.
