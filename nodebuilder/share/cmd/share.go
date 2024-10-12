@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/hex"
 	"fmt"
+	"github.com/celestiaorg/celestia-node/share/shwap/p2p/bitswap"
 	"strconv"
 
 	"github.com/spf13/cobra"
@@ -20,6 +21,7 @@ func init() {
 		getSharesByNamespaceCmd,
 		getShare,
 		getEDS,
+		bitswapActiveFetches,
 	)
 }
 
@@ -174,4 +176,31 @@ func getExtendedHeaderFromCmdArg(ctx context.Context, client *rpc.Client, arg st
 	}
 
 	return client.Header.GetByHash(ctx, hash)
+}
+
+var bitswapActiveFetches = &cobra.Command{
+	Use:   "bitswap-active-fetches",
+	Short: "Lists out all the active Shwap fetches over Bitswap",
+	Args:  cobra.NoArgs,
+	RunE: func(cmd *cobra.Command, args []string) error {
+		client, err := cmdnode.ParseClientFromCtx(cmd.Context())
+		if err != nil {
+			return err
+		}
+		defer client.Close()
+
+		cids, err := client.Share.BitswapActiveFetches(cmd.Context())
+
+		var heights []uint64
+		for _, cid := range cids {
+			blk, err := bitswap.EmptyBlock(cid)
+			if err != nil {
+				return err
+			}
+
+			heights = append(heights, blk.Height())
+		}
+
+		return cmdnode.PrintOutput(heights, err, nil)
+	},
 }
