@@ -71,6 +71,35 @@ func TestFetch_Options(t *testing.T) {
 	})
 }
 
+func TestFetch_List(t *testing.T) {
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second*5)
+	defer cancel()
+
+	const items = 128
+	bstore, cids := testBlockstore(ctx, t, items)
+	exchange := newExchange(ctx, t, bstore, true)
+
+	blks := make([]Block, 0, cids.Len())
+	_ = cids.ForEach(func(c cid.Cid) error {
+		blk, err := newEmptyTestBlock(c)
+		require.NoError(t, err)
+		blks = append(blks, blk)
+		return nil
+	})
+
+	go func() {
+		_ = Fetch(ctx, exchange, nil, blks)
+	}()
+
+	time.Sleep(time.Millisecond * 100)
+
+	awaiting := ListActiveFetches()
+	for _, cid := range awaiting {
+		assert.True(t, cids.Has(cid))
+	}
+	assert.Equal(t, cids.Len(), len(awaiting))
+}
+
 func TestFetch_Duplicates(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second*5)
 	defer cancel()
@@ -120,7 +149,12 @@ func newExchangeOverEDS(ctx context.Context, t *testing.T, rsmt2d *rsmt2d.Extend
 	return newExchange(ctx, t, bstore)
 }
 
-func newExchange(ctx context.Context, t *testing.T, bstore blockstore.Blockstore) exchange.SessionExchange {
+func newExchange(
+	ctx context.Context,
+	t *testing.T,
+	bstore blockstore.Blockstore,
+	stuck ...bool,
+) exchange.SessionExchange {
 	net, err := mocknet.FullMeshLinked(3)
 	require.NoError(t, err)
 
@@ -128,6 +162,10 @@ func newExchange(ctx context.Context, t *testing.T, bstore blockstore.Blockstore
 	newServer(ctx, net.Hosts()[1], bstore)
 
 	client := newClient(ctx, net.Hosts()[2], bstore)
+
+	if len(stuck) > 0 && stuck[0] {
+		return client
+	}
 
 	err = net.ConnectAllButSelf()
 	require.NoError(t, err)

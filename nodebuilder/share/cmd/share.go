@@ -20,6 +20,7 @@ func init() {
 		getSharesByNamespaceCmd,
 		getShare,
 		getEDS,
+		bitswapActiveFetches,
 	)
 }
 
@@ -174,4 +175,20 @@ func getExtendedHeaderFromCmdArg(ctx context.Context, client *rpc.Client, arg st
 	}
 
 	return client.Header.GetByHash(ctx, hash)
+}
+
+var bitswapActiveFetches = &cobra.Command{
+	Use:   "bitswap-active-fetches",
+	Short: "Lists out all the active Shwap fetches over Bitswap",
+	Args:  cobra.NoArgs,
+	RunE: func(cmd *cobra.Command, args []string) error {
+		client, err := cmdnode.ParseClientFromCtx(cmd.Context())
+		if err != nil {
+			return err
+		}
+		defer client.Close()
+
+		cids, err := client.Share.BitswapActiveFetches(cmd.Context())
+		return cmdnode.PrintOutput(cids, err, nil)
+	},
 }
