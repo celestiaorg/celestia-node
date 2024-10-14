@@ -362,7 +362,7 @@ func TestGetSharesWithProofsByNamespace(t *testing.T) {
 			require.NoError(t, err)
 			for _, row := range rowRoots {
 				rowShares, proof, err := GetSharesByNamespace(ctx, bServ, row, namespace, len(rowRoots))
-				if namespace.IsOutsideRange(row, row) {
+				if share.IsOutsideRange(namespace, row, row) {
 					require.ErrorIs(t, err, ErrNamespaceOutsideRange)
 					continue
 				}
@@ -465,7 +465,7 @@ func assertNoRowContainsNID(
 	var absentCount, foundAbsenceRows int
 	for _, rowRoot := range rowRoots {
 		var outsideRange bool
-		if !namespace.IsOutsideRange(rowRoot, rowRoot) {
+		if !share.IsOutsideRange(namespace, rowRoot, rowRoot) {
 			// namespace does belong to namespace range of the row
 			absentCount++
 		} else {
