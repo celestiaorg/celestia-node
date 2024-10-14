@@ -43,10 +43,7 @@ func (s *Store) WithCache(name string, size int) (*CachedStore, error) {
 
 // HasByHeight checks if accessor for the height is present.
 func (cs *CachedStore) HasByHeight(ctx context.Context, height uint64) (bool, error) {
-	if cs.combinedCache.Has(height) {
-		return true, nil
-	}
-
+	// store checks the combinedCache itself, so we can simply passthrough the call
 	return cs.store.HasByHeight(ctx, height)
 }
 
