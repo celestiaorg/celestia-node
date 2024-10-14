@@ -202,7 +202,7 @@ func (s *Store) createODSFile(
 ) (bool, error) {
 	pathODS := s.hashToPath(roots.Hash(), odsFileExt)
 	err := file.CreateODS(pathODS, roots, square)
-	if err != nil {
+	if err != nil && !errors.Is(err, os.ErrExist) {
 		// ensure we don't have partial writes if any operation fails
 		removeErr := s.removeODS(height, roots.Hash())
 		return false, errors.Join(
