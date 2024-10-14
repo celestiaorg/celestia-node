@@ -64,6 +64,9 @@ const (
 	// We set it to be equal to targetMessageSize * N, so there can max N messages being prepared for
 	// a peer at once.
 	outstandingBytesPerPeer = targetMessageSize * 4
+	// replaceHasWithBlockMaxSize configures Bitswap to use Has method instead of GetSize to check existence
+	// of a CID in Blockstore.
+	replaceHasWithBlockMaxSize = 0
 )
 
 // NewNetwork constructs Bitswap network for Shwap protocol composition.
@@ -114,6 +117,7 @@ func NewServer(
 		server.MaxQueuedWantlistEntriesPerPeer(maxServerWantListsPerPeer),
 		server.WithTargetMessageSize(targetMessageSize),
 		server.MaxOutstandingBytesPerPeer(outstandingBytesPerPeer),
+		server.WithWantHaveReplaceSize(replaceHasWithBlockMaxSize),
 	}
 	return server.New(ctx, net, bstore, opts...)
 }
