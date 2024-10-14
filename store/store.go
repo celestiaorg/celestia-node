@@ -169,11 +169,7 @@ func (s *Store) createODSQ4File(
 	pathQ4 := s.hashToPath(roots.Hash(), q4FileExt)
 
 	err := file.CreateODSQ4(pathODS, pathQ4, roots, square)
-	if errors.Is(err, os.ErrExist) {
-		// TODO(@Wondertan): Should we verify that the exist file is correct?
-		return true, nil
-	}
-	if err != nil {
+	if err != nil && !errors.Is(err, os.ErrExist) {
 		// ensure we don't have partial writes if any operation fails
 		removeErr := s.removeODSQ4(height, roots.Hash())
 		return false, errors.Join(
@@ -184,6 +180,10 @@ func (s *Store) createODSQ4File(
 
 	// create hard link with height as name
 	err = s.linkHeight(roots.Hash(), height)
+	// if both file and link exist, we consider it as success
+	if errors.Is(err, os.ErrExist) {
+		return true, nil
+	}
 	if err != nil {
 		// ensure we don't have partial writes if any operation fails
 		removeErr := s.removeODSQ4(height, roots.Hash())
@@ -202,10 +202,6 @@ func (s *Store) createODSFile(
 ) (bool, error) {
 	pathODS := s.hashToPath(roots.Hash(), odsFileExt)
 	err := file.CreateODS(pathODS, roots, square)
-	if errors.Is(err, os.ErrExist) {
-		// TODO(@Wondertan): Should we verify that the exist file is correct?
-		return true, nil
-	}
 	if err != nil {
 		// ensure we don't have partial writes if any operation fails
 		removeErr := s.removeODS(height, roots.Hash())
@@ -217,6 +213,10 @@ func (s *Store) createODSFile(
 
 	// create hard link with height as name
 	err = s.linkHeight(roots.Hash(), height)
+	// if both file and link exist, we consider it as success
+	if errors.Is(err, os.ErrExist) {
+		return true, nil
+	}
 	if err != nil {
 		// ensure we don't have partial writes if any operation fails
 		removeErr := s.removeODS(height, roots.Hash())
@@ -470,7 +470,7 @@ func mkdir(path string) error {
 
 func hardLink(filepath, linkpath string) error {
 	err := os.Link(filepath, linkpath)
-	if err != nil && !errors.Is(err, os.ErrExist) {
+	if err != nil {
 		return fmt.Errorf("creating hardlink (%s -> %s): %w", filepath, linkpath, err)
 	}
 	return nil
@@ -478,7 +478,7 @@ func hardLink(filepath, linkpath string) error {
 
 func symlink(filepath, linkpath string) error {
 	err := os.Symlink(filepath, linkpath)
-	if err != nil && !errors.Is(err, os.ErrExist) {
+	if err != nil {
 		return fmt.Errorf("creating symlink (%s -> %s): %w", filepath, linkpath, err)
 	}
 	return nil
