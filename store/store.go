@@ -120,8 +120,11 @@ func (s *Store) put(
 	if datahash.IsEmptyEDS() {
 		lock := s.stripLock.byHeight(height)
 		lock.Lock()
+		defer lock.Unlock()
 		err := s.linkHeight(datahash, height)
-		lock.Unlock()
+		if errors.Is(err, os.ErrExist) {
+			return nil
+		}
 		return err
 	}
 
