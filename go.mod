@@ -349,3 +349,5 @@ replace (
 	github.com/syndtr/goleveldb => github.com/syndtr/goleveldb v1.0.1-0.20210819022825-2ae1ddf74ef7
 	github.com/tendermint/tendermint => github.com/celestiaorg/celestia-core v1.42.0-tm-v0.34.35
 )
+
+replace github.com/ipfs/boxo => github.com/Wondertan/boxo v0.0.0-20241014045757-69fb3ba822db
