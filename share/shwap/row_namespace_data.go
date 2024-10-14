@@ -55,7 +55,7 @@ func RowNamespaceDataFromShares(
 	if err != nil {
 		return RowNamespaceData{}, fmt.Errorf("failed to get root for row %d: %w", rowIndex, err)
 	}
-	if namespace.IsOutsideRange(root, root) {
+	if share.IsOutsideRange(namespace, root, root) {
 		return RowNamespaceData{}, ErrNamespaceOutsideRange
 	}
 
@@ -163,7 +163,7 @@ func (rnd RowNamespaceData) Verify(roots *share.AxisRoots, namespace gosquare.Na
 	}
 
 	rowRoot := roots.RowRoots[rowIdx]
-	if namespace.IsOutsideRange(rowRoot, rowRoot) {
+	if share.IsOutsideRange(namespace, rowRoot, rowRoot) {
 		return fmt.Errorf("namespace out of range for row %d", rowIdx)
 	}
 

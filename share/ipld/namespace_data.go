@@ -14,6 +14,7 @@ import (
 	gosquare "github.com/celestiaorg/go-square/v2/share"
 	"github.com/celestiaorg/nmt"
 
+	"github.com/celestiaorg/celestia-node/share"
 	"github.com/celestiaorg/celestia-node/share/shwap"
 )
 
@@ -80,7 +81,7 @@ func (n *NamespaceData) validate(rootCid cid.Cid) error {
 	}
 
 	root := NamespacedSha256FromCID(rootCid)
-	if n.namespace.IsOutsideRange(root, root) {
+	if share.IsOutsideRange(n.namespace, root, root) {
 		return ErrNamespaceOutsideRange
 	}
 	return nil
@@ -284,17 +285,17 @@ func (n *NamespaceData) collectNDWithProofs(j job, links []*ipld.Link) []job {
 
 	var nextJobs []job
 	// check if target namespace is outside of boundaries of both links
-	if n.namespace.IsOutsideRange(leftLink, rightLink) {
+	if share.IsOutsideRange(n.namespace, leftLink, rightLink) {
 		log.Fatalf("target namespace outside of boundaries of links at depth: %v", j.depth)
 	}
 
-	if !n.namespace.IsAboveMax(leftLink) {
+	if !share.IsAboveMax(n.namespace, leftLink) {
 		// namespace is within the range of left link
 		nextJobs = append(nextJobs, j.next(left, leftCid, false))
 	} else {
 		// proof is on the left side, if the namespace is on the right side of the range of left link
 		n.addProof(left, leftCid, j.depth)
-		if n.namespace.IsBelowMin(rightLink) {
+		if share.IsBelowMin(n.namespace, rightLink) {
 			// namespace is not included in either links, convert to absence collector
 			n.isAbsentNamespace.Store(true)
 			nextJobs = append(nextJobs, j.next(right, rightCid, true))
@@ -302,7 +303,7 @@ func (n *NamespaceData) collectNDWithProofs(j job, links []*ipld.Link) []job {
 		}
 	}
 
-	if !n.namespace.IsBelowMin(rightLink) {
+	if !share.IsBelowMin(n.namespace, rightLink) {
 		// namespace is within the range of right link
 		nextJobs = append(nextJobs, j.next(right, rightCid, false))
 	} else {
