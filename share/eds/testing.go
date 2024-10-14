@@ -228,7 +228,7 @@ func testAccessorRowNamespaceData(
 				rowData, err := acc.RowNamespaceData(ctx, namespace, i)
 
 				// namespace is not included in the row, so there should be no shares
-				if namespace.IsOutsideRange(root, root) {
+				if share.IsOutsideRange(namespace, root, root) {
 					require.ErrorIs(t, err, shwap.ErrNamespaceOutsideRange)
 					require.Len(t, rowData.Shares, 0)
 					continue

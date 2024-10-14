@@ -13,7 +13,7 @@ import (
 func FilterRootByNamespace(root *share.AxisRoots, namespace gosquare.Namespace) []cid.Cid {
 	rowRootCIDs := make([]cid.Cid, 0, len(root.RowRoots))
 	for _, row := range root.RowRoots {
-		if !namespace.IsOutsideRange(row, row) {
+		if !share.IsOutsideRange(namespace, row, row) {
 			rowRootCIDs = append(rowRootCIDs, MustCidFromNamespacedSha256(row))
 		}
 	}
