@@ -25,6 +25,7 @@ import (
 
 	"github.com/celestiaorg/celestia-node/header"
 	"github.com/celestiaorg/celestia-node/libs/utils"
+	"github.com/celestiaorg/celestia-node/share"
 	"github.com/celestiaorg/celestia-node/share/shwap"
 	"github.com/celestiaorg/celestia-node/state"
 )
@@ -358,7 +359,7 @@ func (s *Service) retrieve(
 
 	rowIndex := -1
 	for i, row := range header.DAH.RowRoots {
-		if !namespace.IsOutsideRange(row, row) {
+		if !share.IsOutsideRange(namespace, row, row) {
 			rowIndex = i
 			break
 		}
