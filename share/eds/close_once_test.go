@@ -8,7 +8,7 @@ import (
 
 	"github.com/stretchr/testify/require"
 
-	gosquare "github.com/celestiaorg/go-square/v2/share"
+	libshare "github.com/celestiaorg/go-square/v2/share"
 	"github.com/celestiaorg/rsmt2d"
 
 	"github.com/celestiaorg/celestia-node/share"
@@ -24,7 +24,7 @@ func TestWithClosedOnce(t *testing.T) {
 	require.NoError(t, err)
 	_, err = closedOnce.AxisHalf(ctx, rsmt2d.Row, 0)
 	require.NoError(t, err)
-	_, err = closedOnce.RowNamespaceData(ctx, gosquare.Namespace{}, 0)
+	_, err = closedOnce.RowNamespaceData(ctx, libshare.Namespace{}, 0)
 	require.NoError(t, err)
 	_, err = closedOnce.Shares(ctx)
 	require.NoError(t, err)
@@ -37,7 +37,7 @@ func TestWithClosedOnce(t *testing.T) {
 	require.ErrorIs(t, err, errAccessorClosed)
 	_, err = closedOnce.AxisHalf(ctx, rsmt2d.Row, 0)
 	require.ErrorIs(t, err, errAccessorClosed)
-	_, err = closedOnce.RowNamespaceData(ctx, gosquare.Namespace{}, 0)
+	_, err = closedOnce.RowNamespaceData(ctx, libshare.Namespace{}, 0)
 	require.ErrorIs(t, err, errAccessorClosed)
 	_, err = closedOnce.Shares(ctx)
 	require.ErrorIs(t, err, errAccessorClosed)
@@ -69,13 +69,13 @@ func (s *stubEdsAccessorCloser) AxisHalf(context.Context, rsmt2d.Axis, int) (Axi
 
 func (s *stubEdsAccessorCloser) RowNamespaceData(
 	context.Context,
-	gosquare.Namespace,
+	libshare.Namespace,
 	int,
 ) (shwap.RowNamespaceData, error) {
 	return shwap.RowNamespaceData{}, nil
 }
 
-func (s *stubEdsAccessorCloser) Shares(context.Context) ([]gosquare.Share, error) {
+func (s *stubEdsAccessorCloser) Shares(context.Context) ([]libshare.Share, error) {
 	return nil, nil
 }
 

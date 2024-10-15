@@ -17,7 +17,7 @@ import (
 	dsbadger "github.com/ipfs/go-ds-badger4"
 	"github.com/mitchellh/go-homedir"
 
-	gosquare "github.com/celestiaorg/go-square/v2/share"
+	libshare "github.com/celestiaorg/go-square/v2/share"
 
 	"github.com/celestiaorg/celestia-node/libs/keystore"
 	nodemod "github.com/celestiaorg/celestia-node/nodebuilder/node"
@@ -276,10 +276,10 @@ func dataPath(base string) string {
 func constraintBadgerConfig() *dsbadger.Options {
 	opts := dsbadger.DefaultOptions // this must be copied
 	// ValueLog:
-	// 2mib default => gosquare.ShareSize - makes sure headers and samples are stored in value log
+	// 2mib default => libshare.ShareSize - makes sure headers and samples are stored in value log
 	// This *tremendously* reduces the amount of memory used by the node, up to 10 times less during
 	// compaction
-	opts.ValueThreshold = gosquare.ShareSize
+	opts.ValueThreshold = libshare.ShareSize
 	// make sure we don't have any limits for stored headers
 	opts.ValueLogMaxEntries = 100000000
 	// run value log GC more often to spread the work over time

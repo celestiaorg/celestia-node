@@ -6,7 +6,7 @@ import (
 	"fmt"
 	"sync/atomic"
 
-	gosquare "github.com/celestiaorg/go-square/v2/share"
+	libshare "github.com/celestiaorg/go-square/v2/share"
 	"github.com/celestiaorg/rsmt2d"
 
 	"github.com/celestiaorg/celestia-node/share/shwap"
@@ -56,7 +56,7 @@ func (f validation) AxisHalf(ctx context.Context, axisType rsmt2d.Axis, axisIdx 
 
 func (f validation) RowNamespaceData(
 	ctx context.Context,
-	namespace gosquare.Namespace,
+	namespace libshare.Namespace,
 	rowIdx int,
 ) (shwap.RowNamespaceData, error) {
 	_, err := shwap.NewRowNamespaceDataID(1, rowIdx, namespace, f.Size(ctx))

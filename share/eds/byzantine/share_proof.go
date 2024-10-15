@@ -7,7 +7,7 @@ import (
 	"github.com/ipfs/boxo/blockservice"
 	logging "github.com/ipfs/go-log/v2"
 
-	gosquare "github.com/celestiaorg/go-square/v2/share"
+	libshare "github.com/celestiaorg/go-square/v2/share"
 	"github.com/celestiaorg/nmt"
 	nmt_pb "github.com/celestiaorg/nmt/pb"
 	"github.com/celestiaorg/rsmt2d"
@@ -22,7 +22,7 @@ var log = logging.Logger("share/byzantine")
 // ShareWithProof contains data with corresponding Merkle Proof
 type ShareWithProof struct {
 	// Share is a full data including namespace
-	gosquare.Share
+	libshare.Share
 	// Proof is a Merkle Proof of current share
 	Proof *nmt.Proof
 	// Axis is a proof axis
@@ -41,7 +41,7 @@ func (s *ShareWithProof) Validate(roots *share.AxisRoots, axisType rsmt2d.Axis, 
 
 	edsSize := len(roots.RowRoots)
 	isParity := shrIdx >= edsSize/2 || axisIdx >= edsSize/2
-	namespace := gosquare.ParitySharesNamespace
+	namespace := libshare.ParitySharesNamespace
 	if !isParity {
 		namespace = s.Share.Namespace()
 	}
@@ -76,7 +76,7 @@ func GetShareWithProof(
 	ctx context.Context,
 	bGetter blockservice.BlockGetter,
 	roots *share.AxisRoots,
-	share gosquare.Share,
+	share libshare.Share,
 	axisType rsmt2d.Axis, axisIdx, shrIdx int,
 ) (*ShareWithProof, error) {
 	if axisType == rsmt2d.Col {
@@ -121,7 +121,7 @@ func ProtoToShare(protoShares []*pb.Share) ([]*ShareWithProof, error) {
 			continue
 		}
 		proof := ProtoToProof(protoSh.Proof)
-		sh, err := gosquare.NewShare(protoSh.Data)
+		sh, err := libshare.NewShare(protoSh.Data)
 		if err != nil {
 			return nil, err
 		}

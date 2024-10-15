@@ -13,7 +13,7 @@ import (
 	"github.com/ipfs/go-cid"
 
 	"github.com/celestiaorg/celestia-app/v3/pkg/wrapper"
-	gosquare "github.com/celestiaorg/go-square/v2/share"
+	libshare "github.com/celestiaorg/go-square/v2/share"
 	"github.com/celestiaorg/nmt"
 	"github.com/celestiaorg/rsmt2d"
 
@@ -51,7 +51,7 @@ type proofsCache struct {
 type axisWithProofs struct {
 	half AxisHalf
 	// shares are the extended axis Shares
-	shares []gosquare.Share
+	shares []libshare.Share
 	// root caches the root of the tree. It will be set only when proofs are calculated
 	root []byte
 	// proofs are stored in a blockservice.BlockGetter by their CID. It will be set only when proofs
@@ -213,7 +213,7 @@ func (c *proofsCache) AxisHalf(ctx context.Context, axisType rsmt2d.Axis, axisId
 
 func (c *proofsCache) RowNamespaceData(
 	ctx context.Context,
-	namespace gosquare.Namespace,
+	namespace libshare.Namespace,
 	rowIdx int,
 ) (shwap.RowNamespaceData, error) {
 	ax, err := c.axisWithProofs(ctx, rsmt2d.Row, rowIdx)
@@ -232,9 +232,9 @@ func (c *proofsCache) RowNamespaceData(
 	}, nil
 }
 
-func (c *proofsCache) Shares(ctx context.Context) ([]gosquare.Share, error) {
+func (c *proofsCache) Shares(ctx context.Context) ([]libshare.Share, error) {
 	odsSize := c.Size(ctx) / 2
-	shares := make([]gosquare.Share, 0, odsSize*odsSize)
+	shares := make([]libshare.Share, 0, odsSize*odsSize)
 	for i := 0; i < c.Size(ctx)/2; i++ {
 		ax, err := c.AxisHalf(ctx, rsmt2d.Row, i)
 		if err != nil {
@@ -265,7 +265,7 @@ func (c *proofsCache) Close() error {
 	return c.inner.Close()
 }
 
-func (c *proofsCache) axisShares(ctx context.Context, axisType rsmt2d.Axis, axisIdx int) ([]gosquare.Share, error) {
+func (c *proofsCache) axisShares(ctx context.Context, axisType rsmt2d.Axis, axisIdx int) ([]libshare.Share, error) {
 	ax, ok := c.getAxisFromCache(axisType, axisIdx)
 	if ok && len(ax.shares) != 0 {
 		return ax.shares, nil

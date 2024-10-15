@@ -16,7 +16,7 @@ import (
 	"go.opentelemetry.io/otel/trace"
 
 	"github.com/celestiaorg/celestia-app/v3/pkg/wrapper"
-	gosquare "github.com/celestiaorg/go-square/v2/share"
+	libshare "github.com/celestiaorg/go-square/v2/share"
 	"github.com/celestiaorg/nmt"
 	"github.com/celestiaorg/rsmt2d"
 
@@ -143,7 +143,7 @@ func (r *Retriever) newSession(ctx context.Context, roots *share.AxisRoots) (*re
 		return &tree
 	}
 
-	square, err := rsmt2d.NewExtendedDataSquare(share.DefaultRSMT2DCodec(), treeFn, uint(size), gosquare.ShareSize)
+	square, err := rsmt2d.NewExtendedDataSquare(share.DefaultRSMT2DCodec(), treeFn, uint(size), libshare.ShareSize)
 	if err != nil {
 		return nil, err
 	}

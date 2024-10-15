@@ -9,7 +9,7 @@ import (
 
 	"github.com/stretchr/testify/require"
 
-	gosquare "github.com/celestiaorg/go-square/v2/share"
+	libshare "github.com/celestiaorg/go-square/v2/share"
 
 	"github.com/celestiaorg/celestia-node/share"
 	"github.com/celestiaorg/celestia-node/share/eds"
@@ -20,17 +20,17 @@ import (
 func TestNamespacedRowFromShares(t *testing.T) {
 	const odsSize = 8
 
-	minNamespace, err := gosquare.NewV0Namespace(slices.Concat(bytes.Repeat([]byte{0}, 8), []byte{1, 0}))
+	minNamespace, err := libshare.NewV0Namespace(slices.Concat(bytes.Repeat([]byte{0}, 8), []byte{1, 0}))
 	require.NoError(t, err)
-	err = gosquare.ValidateForData(minNamespace)
+	err = libshare.ValidateForData(minNamespace)
 	require.NoError(t, err)
 
 	for namespacedAmount := 1; namespacedAmount < odsSize; namespacedAmount++ {
-		shares := gosquare.RandSharesWithNamespace(minNamespace, namespacedAmount, odsSize)
-		parity, err := share.DefaultRSMT2DCodec().Encode(gosquare.ToBytes(shares))
+		shares := libshare.RandSharesWithNamespace(minNamespace, namespacedAmount, odsSize)
+		parity, err := share.DefaultRSMT2DCodec().Encode(libshare.ToBytes(shares))
 		require.NoError(t, err)
 
-		paritySh, err := gosquare.FromBytes(parity)
+		paritySh, err := libshare.FromBytes(parity)
 		require.NoError(t, err)
 		extended := slices.Concat(shares, paritySh)
 
@@ -46,7 +46,7 @@ func TestNamespacedRowFromShares(t *testing.T) {
 //
 //	const odsSize = 8
 //	//Test absent namespace
-//	shares := gosquare.RandShares( odsSize)
+//	shares := libshare.RandShares( odsSize)
 //	absentNs, err := share.GetNamespace(shares[0]).AddInt(1)
 //	require.NoError(t, err)
 //
@@ -54,7 +54,7 @@ func TestNamespacedRowFromShares(t *testing.T) {
 //	require.NoError(t, err)
 //	extended := slices.Concat(shares, parity)
 //
-//	shrs, err := gosquare.FromBytes(extended)
+//	shrs, err := libshare.FromBytes(extended)
 //	require.NoError(t, err)
 //
 //	nr, err := shwap.RowNamespaceDataFromShares(shrs, absentNs, 0)
@@ -69,7 +69,7 @@ func TestValidateNamespacedRow(t *testing.T) {
 
 	const odsSize = 8
 	sharesAmount := odsSize * odsSize
-	namespace := gosquare.RandomNamespace()
+	namespace := libshare.RandomNamespace()
 	for amount := 1; amount < sharesAmount; amount++ {
 		randEDS, root := edstest.RandEDSWithNamespace(t, namespace, amount, odsSize)
 		rsmt2d := &eds.Rsmt2D{ExtendedDataSquare: randEDS}
@@ -93,7 +93,7 @@ func TestNamespacedRowProtoEncoding(t *testing.T) {
 	t.Cleanup(cancel)
 
 	const odsSize = 8
-	namespace := gosquare.RandomNamespace()
+	namespace := libshare.RandomNamespace()
 	randEDS, _ := edstest.RandEDSWithNamespace(t, namespace, odsSize, odsSize)
 	rsmt2d := &eds.Rsmt2D{ExtendedDataSquare: randEDS}
 	nd, err := eds.NamespaceData(ctx, rsmt2d, namespace)

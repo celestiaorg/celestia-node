@@ -6,7 +6,7 @@ import (
 
 	"github.com/stretchr/testify/require"
 
-	gosquare "github.com/celestiaorg/go-square/v2/share"
+	libshare "github.com/celestiaorg/go-square/v2/share"
 	"github.com/celestiaorg/rsmt2d"
 
 	"github.com/celestiaorg/celestia-node/share"
@@ -54,7 +54,7 @@ func TestSampleNegativeVerifyInclusion(t *testing.T) {
 	// Corrupt the share
 	b := sample.Share.ToBytes()
 	b[0] ^= 0xFF
-	shr, err := gosquare.NewShare(b)
+	shr, err := libshare.NewShare(b)
 	require.NoError(t, err)
 	sample.Share = *shr
 	err = sample.Verify(root, 0, 0)

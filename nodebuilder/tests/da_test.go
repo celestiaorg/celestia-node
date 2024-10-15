@@ -13,7 +13,7 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/celestiaorg/celestia-app/v3/pkg/appconsts"
-	gosquare "github.com/celestiaorg/go-square/v2/share"
+	libshare "github.com/celestiaorg/go-square/v2/share"
 
 	"github.com/celestiaorg/celestia-node/blob"
 	"github.com/celestiaorg/celestia-node/blob/blobtest"
@@ -27,23 +27,23 @@ func TestDaModule(t *testing.T) {
 	t.Cleanup(cancel)
 	sw := swamp.NewSwamp(t, swamp.WithBlockTime(time.Second))
 
-	namespace, err := gosquare.NewV0Namespace([]byte("namespace"))
+	namespace, err := libshare.NewV0Namespace([]byte("namespace"))
 	require.NoError(t, err)
 	require.False(t, namespace.IsReserved())
 
-	appBlobs0, err := blobtest.GenerateV0Blobs([]int{8, 4}, true)
+	libBlobs0, err := blobtest.GenerateV0Blobs([]int{8, 4}, true)
 	require.NoError(t, err)
-	appBlobs1, err := blobtest.GenerateV0Blobs([]int{4}, false)
+	libBlobs1, err := blobtest.GenerateV0Blobs([]int{4}, false)
 	require.NoError(t, err)
-	blobs := make([]*blob.Blob, 0, len(appBlobs0)+len(appBlobs1))
-	daBlobs := make([][]byte, 0, len(appBlobs0)+len(appBlobs1))
+	blobs := make([]*blob.Blob, 0, len(libBlobs0)+len(libBlobs1))
+	daBlobs := make([][]byte, 0, len(libBlobs0)+len(libBlobs1))
 
-	for _, squareBlob := range append(appBlobs0, appBlobs1...) {
+	for _, libBlob := range append(libBlobs0, libBlobs1...) {
 		blob, err := blob.NewBlob(
-			squareBlob.ShareVersion(),
-			squareBlob.Namespace(),
-			squareBlob.Data(),
-			squareBlob.Signer(),
+			libBlob.ShareVersion(),
+			libBlob.Namespace(),
+			libBlob.Data(),
+			libBlob.Signer(),
 		)
 		require.NoError(t, err)
 		blobs = append(blobs, blob)

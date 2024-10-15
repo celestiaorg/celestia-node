@@ -9,7 +9,7 @@ import (
 
 	"github.com/gorilla/mux"
 
-	gosquare "github.com/celestiaorg/go-square/v2/share"
+	libshare "github.com/celestiaorg/go-square/v2/share"
 )
 
 const (
@@ -22,7 +22,7 @@ var namespaceKey = "nid"
 // NamespacedSharesResponse represents the response to a
 // SharesByNamespace request.
 type NamespacedSharesResponse struct {
-	Shares []gosquare.Share `json:"shares"`
+	Shares []libshare.Share `json:"shares"`
 	Height uint64           `json:"height"`
 }
 
@@ -91,8 +91,8 @@ func (h *Handler) handleDataByNamespaceRequest(w http.ResponseWriter, r *http.Re
 func (h *Handler) getShares(
 	ctx context.Context,
 	height uint64,
-	namespace gosquare.Namespace,
-) ([]gosquare.Share, error) {
+	namespace libshare.Namespace,
+) ([]libshare.Share, error) {
 	header, err := h.header.GetByHeight(ctx, height)
 	if err != nil {
 		return nil, err
@@ -106,8 +106,8 @@ func (h *Handler) getShares(
 	return shares.Flatten(), nil
 }
 
-func dataFromShares(input []gosquare.Share) (data [][]byte, err error) {
-	sequences, err := gosquare.ParseShares(input, false)
+func dataFromShares(input []libshare.Share) (data [][]byte, err error) {
+	sequences, err := libshare.ParseShares(input, false)
 	if err != nil {
 		return nil, err
 	}
@@ -121,24 +121,24 @@ func dataFromShares(input []gosquare.Share) (data [][]byte, err error) {
 	return data, nil
 }
 
-func parseGetByNamespaceArgs(r *http.Request) (height uint64, namespace gosquare.Namespace, err error) {
+func parseGetByNamespaceArgs(r *http.Request) (height uint64, namespace libshare.Namespace, err error) {
 	vars := mux.Vars(r)
 	// if a height was given, parse it, otherwise get namespaced shares/data from the latest header
 	if strHeight, ok := vars[heightKey]; ok {
 		height, err = strconv.ParseUint(strHeight, 10, 64)
 		if err != nil {
-			return 0, gosquare.Namespace{}, err
+			return 0, libshare.Namespace{}, err
 		}
 	}
 	hexNamespace := vars[namespaceKey]
 	nsString, err := hex.DecodeString(hexNamespace)
 	if err != nil {
-		return 0, gosquare.Namespace{}, err
+		return 0, libshare.Namespace{}, err
 	}
-	ns, err := gosquare.NewNamespaceFromBytes(nsString)
+	ns, err := libshare.NewNamespaceFromBytes(nsString)
 	if err != nil {
-		return 0, gosquare.Namespace{}, err
+		return 0, libshare.Namespace{}, err
 	}
 	namespace = ns
-	return height, namespace, gosquare.ValidateForData(namespace)
+	return height, namespace, libshare.ValidateForData(namespace)
 }

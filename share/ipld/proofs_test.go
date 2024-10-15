@@ -7,7 +7,7 @@ import (
 
 	"github.com/stretchr/testify/require"
 
-	gosquare "github.com/celestiaorg/go-square/v2/share"
+	libshare "github.com/celestiaorg/go-square/v2/share"
 	"github.com/celestiaorg/rsmt2d"
 
 	"github.com/celestiaorg/celestia-node/share"
@@ -21,7 +21,7 @@ func TestGetProof(t *testing.T) {
 	defer cancel()
 	bServ := NewMemBlockservice()
 
-	shares := gosquare.RandShares(width * width)
+	shares := libshare.RandShares(width * width)
 	in, err := AddShares(ctx, shares, bServ)
 	require.NoError(t, err)
 
@@ -45,7 +45,7 @@ func TestGetProof(t *testing.T) {
 				node, err := GetLeaf(ctx, bServ, rootCid, shrIdx, int(in.Width()))
 				require.NoError(t, err)
 
-				sh, err := gosquare.NewShare(node.RawData()[gosquare.NamespaceSize:])
+				sh, err := libshare.NewShare(node.RawData()[libshare.NamespaceSize:])
 				require.NoError(t, err)
 				sample := shwap.Sample{
 					Share:     *sh,

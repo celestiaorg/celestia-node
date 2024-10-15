@@ -5,11 +5,11 @@ import (
 
 	"github.com/stretchr/testify/require"
 
-	gosquare "github.com/celestiaorg/go-square/v2/share"
+	libshare "github.com/celestiaorg/go-square/v2/share"
 )
 
 func TestExtendAxisHalf(t *testing.T) {
-	shares := gosquare.RandShares(16)
+	shares := libshare.RandShares(16)
 
 	original := AxisHalf{
 		Shares:   shares,

@@ -12,7 +12,7 @@ import (
 	"go.opentelemetry.io/otel/trace"
 
 	"github.com/celestiaorg/celestia-app/v3/pkg/wrapper"
-	gosquare "github.com/celestiaorg/go-square/v2/share"
+	libshare "github.com/celestiaorg/go-square/v2/share"
 	"github.com/celestiaorg/rsmt2d"
 
 	"github.com/celestiaorg/celestia-node/header"
@@ -72,7 +72,7 @@ func (g *Getter) GetShares(
 	ctx context.Context,
 	hdr *header.ExtendedHeader,
 	rowIdxs, colIdxs []int,
-) ([]gosquare.Share, error) {
+) ([]libshare.Share, error) {
 	if len(rowIdxs) != len(colIdxs) {
 		return nil, fmt.Errorf("row indecies and col indices must be same length")
 	}
@@ -104,7 +104,7 @@ func (g *Getter) GetShares(
 		return nil, err
 	}
 
-	shares := make([]gosquare.Share, len(blks))
+	shares := make([]libshare.Share, len(blks))
 	for i, blk := range blks {
 		shares[i] = blk.(*SampleBlock).Container.Share
 	}
@@ -118,14 +118,14 @@ func (g *Getter) GetShare(
 	ctx context.Context,
 	hdr *header.ExtendedHeader,
 	row, col int,
-) (gosquare.Share, error) {
+) (libshare.Share, error) {
 	shrs, err := g.GetShares(ctx, hdr, []int{row}, []int{col})
 	if err != nil {
-		return gosquare.Share{}, err
+		return libshare.Share{}, err
 	}
 
 	if len(shrs) != 1 {
-		return gosquare.Share{}, fmt.Errorf("expected 1 share row, got %d", len(shrs))
+		return libshare.Share{}, fmt.Errorf("expected 1 share row, got %d", len(shrs))
 	}
 
 	return shrs[0], nil
@@ -185,9 +185,9 @@ func (g *Getter) GetEDS(
 func (g *Getter) GetSharesByNamespace(
 	ctx context.Context,
 	hdr *header.ExtendedHeader,
-	ns gosquare.Namespace,
+	ns libshare.Namespace,
 ) (shwap.NamespaceData, error) {
-	if err := gosquare.ValidateForData(ns); err != nil {
+	if err := libshare.ValidateForData(ns); err != nil {
 		return nil, err
 	}
 
@@ -245,7 +245,7 @@ func (g *Getter) session(ctx context.Context, hdr *header.ExtendedHeader) exchan
 // edsFromRows imports given Rows and computes EDS out of them, assuming enough Rows were provided.
 // It is designed to reuse Row halves computed during verification on [Fetch] level.
 func edsFromRows(roots *share.AxisRoots, rows []shwap.Row) (*rsmt2d.ExtendedDataSquare, error) {
-	shrs := make([]gosquare.Share, len(roots.RowRoots)*len(roots.RowRoots))
+	shrs := make([]libshare.Share, len(roots.RowRoots)*len(roots.RowRoots))
 	for i, row := range rows {
 		rowShrs, err := row.Shares()
 		if err != nil {
@@ -258,7 +258,7 @@ func edsFromRows(roots *share.AxisRoots, rows []shwap.Row) (*rsmt2d.ExtendedData
 	}
 
 	square, err := rsmt2d.ImportExtendedDataSquare(
-		gosquare.ToBytes(shrs),
+		libshare.ToBytes(shrs),
 		share.DefaultRSMT2DCodec(),
 		wrapper.NewConstructor(uint64(len(roots.RowRoots)/2)),
 	)

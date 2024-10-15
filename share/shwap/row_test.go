@@ -5,7 +5,7 @@ import (
 
 	"github.com/stretchr/testify/require"
 
-	gosquare "github.com/celestiaorg/go-square/v2/share"
+	libshare "github.com/celestiaorg/go-square/v2/share"
 
 	"github.com/celestiaorg/celestia-node/share"
 	"github.com/celestiaorg/celestia-node/share/eds/edstest"
@@ -18,14 +18,14 @@ func TestRowFromShares(t *testing.T) {
 	for rowIdx := 0; rowIdx < odsSize*2; rowIdx++ {
 		for _, side := range []RowSide{Left, Right} {
 			shrs := eds.Row(uint(rowIdx))
-			shares, err := gosquare.FromBytes(shrs)
+			shares, err := libshare.FromBytes(shrs)
 			require.NoError(t, err)
 			row := RowFromShares(shares, side)
 			extended, err := row.Shares()
 			require.NoError(t, err)
 			require.Equal(t, shares, extended)
 
-			var half []gosquare.Share
+			var half []libshare.Share
 			if side == Right {
 				half = shares[odsSize:]
 			} else {
@@ -46,7 +46,7 @@ func TestRowValidate(t *testing.T) {
 	for rowIdx := 0; rowIdx < odsSize*2; rowIdx++ {
 		for _, side := range []RowSide{Left, Right} {
 			shrs := eds.Row(uint(rowIdx))
-			shares, err := gosquare.FromBytes(shrs)
+			shares, err := libshare.FromBytes(shrs)
 			require.NoError(t, err)
 			row := RowFromShares(shares, side)
 
@@ -63,7 +63,7 @@ func TestRowValidateNegativeCases(t *testing.T) {
 	root, err := share.NewAxisRoots(eds)
 	require.NoError(t, err)
 	shrs := eds.Row(0)
-	shares, err := gosquare.FromBytes(shrs)
+	shares, err := libshare.FromBytes(shrs)
 	require.NoError(t, err)
 	row := RowFromShares(shares, Left)
 
@@ -73,9 +73,9 @@ func TestRowValidateNegativeCases(t *testing.T) {
 	require.Error(t, err, "should error on invalid row side")
 
 	// Test with invalid shares (more shares than expected)
-	incorrectShares := make([]gosquare.Share, (eds.Width()/2)+1) // Adding an extra share
+	incorrectShares := make([]libshare.Share, (eds.Width()/2)+1) // Adding an extra share
 	for i := range incorrectShares {
-		shr, err := gosquare.NewShare(eds.GetCell(uint(i), 0))
+		shr, err := libshare.NewShare(eds.GetCell(uint(i), 0))
 		require.NoError(t, err)
 		incorrectShares[i] = *shr
 	}
@@ -84,7 +84,7 @@ func TestRowValidateNegativeCases(t *testing.T) {
 	require.Error(t, err, "should error on incorrect number of shares")
 
 	// Test with empty shares
-	emptyRow := Row{halfShares: []gosquare.Share{}, side: Left}
+	emptyRow := Row{halfShares: []libshare.Share{}, side: Left}
 	err = emptyRow.Verify(root, 0)
 	require.Error(t, err, "should error on empty halfShares")
 
@@ -101,7 +101,7 @@ func TestRowProtoEncoding(t *testing.T) {
 	for rowIdx := 0; rowIdx < odsSize*2; rowIdx++ {
 		for _, side := range []RowSide{Left, Right} {
 			shrs := eds.Row(uint(rowIdx))
-			shares, err := gosquare.FromBytes(shrs)
+			shares, err := libshare.FromBytes(shrs)
 			require.NoError(t, err)
 			row := RowFromShares(shares, side)
 
@@ -121,7 +121,7 @@ func BenchmarkRowValidate(b *testing.B) {
 	root, err := share.NewAxisRoots(eds)
 	require.NoError(b, err)
 	shrs := eds.Row(0)
-	shares, err := gosquare.FromBytes(shrs)
+	shares, err := libshare.FromBytes(shrs)
 	require.NoError(b, err)
 	row := RowFromShares(shares, Left)
 

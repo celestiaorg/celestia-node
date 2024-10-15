@@ -3,14 +3,14 @@ package ipld
 import (
 	"github.com/ipfs/go-cid"
 
-	gosquare "github.com/celestiaorg/go-square/v2/share"
+	libshare "github.com/celestiaorg/go-square/v2/share"
 
 	"github.com/celestiaorg/celestia-node/share"
 )
 
 // FilterRootByNamespace returns the row roots from the given share.AxisRoots that contain the
 // namespace.
-func FilterRootByNamespace(root *share.AxisRoots, namespace gosquare.Namespace) ([]cid.Cid, error) {
+func FilterRootByNamespace(root *share.AxisRoots, namespace libshare.Namespace) ([]cid.Cid, error) {
 	rowRootCIDs := make([]cid.Cid, 0, len(root.RowRoots))
 	for _, row := range root.RowRoots {
 		outside, err := share.IsOutsideRange(namespace, row, row)

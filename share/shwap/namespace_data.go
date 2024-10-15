@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"io"
 
-	gosquare "github.com/celestiaorg/go-square/v2/share"
+	libshare "github.com/celestiaorg/go-square/v2/share"
 
 	"github.com/celestiaorg/celestia-node/share"
 )
@@ -20,8 +20,8 @@ const NamespaceDataName = "nd_v0"
 type NamespaceData []RowNamespaceData
 
 // Flatten combines all shares from all rows within the namespace into a single slice.
-func (nd NamespaceData) Flatten() []gosquare.Share {
-	var shares []gosquare.Share
+func (nd NamespaceData) Flatten() []libshare.Share {
+	var shares []libshare.Share
 	for _, row := range nd {
 		shares = append(shares, row.Shares...)
 	}
@@ -29,7 +29,7 @@ func (nd NamespaceData) Flatten() []gosquare.Share {
 }
 
 // Verify checks the integrity of the NamespaceData against a provided root and namespace.
-func (nd NamespaceData) Verify(root *share.AxisRoots, namespace gosquare.Namespace) error {
+func (nd NamespaceData) Verify(root *share.AxisRoots, namespace libshare.Namespace) error {
 	rowIdxs, err := share.RowsWithNamespace(root, namespace)
 	if err != nil {
 		return err

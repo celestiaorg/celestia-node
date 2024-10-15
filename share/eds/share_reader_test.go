@@ -8,7 +8,7 @@ import (
 
 	"github.com/stretchr/testify/require"
 
-	gosquare "github.com/celestiaorg/go-square/v2/share"
+	libshare "github.com/celestiaorg/go-square/v2/share"
 
 	"github.com/celestiaorg/celestia-node/share/eds/edstest"
 )
@@ -24,7 +24,7 @@ func TestShareReader(t *testing.T) {
 	reader := NewShareReader(odsSize, getShare)
 	readBytes, err := readWithRandomBuffer(reader, 1024)
 	require.NoError(t, err)
-	expected := make([]byte, 0, odsSize*odsSize*gosquare.ShareSize)
+	expected := make([]byte, 0, odsSize*odsSize*libshare.ShareSize)
 	for _, share := range eds.FlattenedODS() {
 		expected = append(expected, share...)
 	}

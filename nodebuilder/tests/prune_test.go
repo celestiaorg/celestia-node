@@ -13,7 +13,7 @@ import (
 	"github.com/stretchr/testify/require"
 	"go.uber.org/fx"
 
-	gosquare "github.com/celestiaorg/go-square/v2/share"
+	libshare "github.com/celestiaorg/go-square/v2/share"
 
 	"github.com/celestiaorg/celestia-node/blob"
 	"github.com/celestiaorg/celestia-node/libs/fxutil"
@@ -135,7 +135,7 @@ func TestArchivalBlobSync(t *testing.T) {
 		shr, err := archivalFN.ShareServ.GetShare(ctx, eh, 2, 2)
 		require.NoError(t, err)
 
-		blobs, err := archivalFN.BlobServ.GetAll(ctx, uint64(i), []gosquare.Namespace{shr.Namespace()})
+		blobs, err := archivalFN.BlobServ.GetAll(ctx, uint64(i), []libshare.Namespace{shr.Namespace()})
 		require.NoError(t, err)
 
 		archivalBlobs = append(archivalBlobs, &archivalBlob{

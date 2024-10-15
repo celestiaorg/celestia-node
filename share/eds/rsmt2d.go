@@ -6,7 +6,7 @@ import (
 	"io"
 
 	"github.com/celestiaorg/celestia-app/v3/pkg/wrapper"
-	gosquare "github.com/celestiaorg/go-square/v2/share"
+	libshare "github.com/celestiaorg/go-square/v2/share"
 	"github.com/celestiaorg/rsmt2d"
 
 	"github.com/celestiaorg/celestia-node/share"
@@ -100,7 +100,7 @@ func (eds *Rsmt2D) AxisHalf(_ context.Context, axisType rsmt2d.Axis, axisIdx int
 // side.
 func (eds *Rsmt2D) HalfRow(idx int, side shwap.RowSide) (shwap.Row, error) {
 	shares := eds.ExtendedDataSquare.Row(uint(idx))
-	sh, err := gosquare.FromBytes(shares)
+	sh, err := libshare.FromBytes(shares)
 	if err != nil {
 		return shwap.Row{}, fmt.Errorf("while converting shares from bytes: %w", err)
 	}
@@ -110,11 +110,11 @@ func (eds *Rsmt2D) HalfRow(idx int, side shwap.RowSide) (shwap.Row, error) {
 // RowNamespaceData returns data for the given namespace and row index.
 func (eds *Rsmt2D) RowNamespaceData(
 	_ context.Context,
-	namespace gosquare.Namespace,
+	namespace libshare.Namespace,
 	rowIdx int,
 ) (shwap.RowNamespaceData, error) {
 	shares := eds.Row(uint(rowIdx))
-	sh, err := gosquare.FromBytes(shares)
+	sh, err := libshare.FromBytes(shares)
 	if err != nil {
 		return shwap.RowNamespaceData{}, fmt.Errorf("while converting shares from bytes: %w", err)
 	}
@@ -123,8 +123,8 @@ func (eds *Rsmt2D) RowNamespaceData(
 
 // Shares returns data (ODS) shares extracted from the EDS. It returns new copy of the shares each
 // time.
-func (eds *Rsmt2D) Shares(_ context.Context) ([]gosquare.Share, error) {
-	return gosquare.FromBytes(eds.ExtendedDataSquare.FlattenedODS())
+func (eds *Rsmt2D) Shares(_ context.Context) ([]libshare.Share, error) {
+	return libshare.FromBytes(eds.ExtendedDataSquare.FlattenedODS())
 }
 
 func (eds *Rsmt2D) Close() error {
@@ -142,9 +142,9 @@ func (eds *Rsmt2D) Reader() (io.Reader, error) {
 }
 
 // Rsmt2DFromShares constructs an Extended Data Square from shares.
-func Rsmt2DFromShares(shares []gosquare.Share, odsSize int) (*Rsmt2D, error) {
+func Rsmt2DFromShares(shares []libshare.Share, odsSize int) (*Rsmt2D, error) {
 	treeFn := wrapper.NewConstructor(uint64(odsSize))
-	eds, err := rsmt2d.ComputeExtendedDataSquare(gosquare.ToBytes(shares), share.DefaultRSMT2DCodec(), treeFn)
+	eds, err := rsmt2d.ComputeExtendedDataSquare(libshare.ToBytes(shares), share.DefaultRSMT2DCodec(), treeFn)
 	if err != nil {
 		return &Rsmt2D{}, fmt.Errorf("computing extended data square: %w", err)
 	}
@@ -152,13 +152,13 @@ func Rsmt2DFromShares(shares []gosquare.Share, odsSize int) (*Rsmt2D, error) {
 	return &Rsmt2D{eds}, nil
 }
 
-func getAxis(eds *rsmt2d.ExtendedDataSquare, axisType rsmt2d.Axis, axisIdx int) ([]gosquare.Share, error) {
+func getAxis(eds *rsmt2d.ExtendedDataSquare, axisType rsmt2d.Axis, axisIdx int) ([]libshare.Share, error) {
 	switch axisType {
 	case rsmt2d.Row:
-		sh, err := gosquare.FromBytes(eds.Row(uint(axisIdx)))
+		sh, err := libshare.FromBytes(eds.Row(uint(axisIdx)))
 		return sh, err
 	case rsmt2d.Col:
-		sh, err := gosquare.FromBytes(eds.Col(uint(axisIdx)))
+		sh, err := libshare.FromBytes(eds.Col(uint(axisIdx)))
 		return sh, err
 	default:
 		panic("unknown axis")

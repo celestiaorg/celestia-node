@@ -10,7 +10,7 @@ import (
 
 	"github.com/stretchr/testify/require"
 
-	gosquare "github.com/celestiaorg/go-square/v2/share"
+	libshare "github.com/celestiaorg/go-square/v2/share"
 	"github.com/celestiaorg/nmt"
 	"github.com/celestiaorg/rsmt2d"
 
@@ -214,7 +214,7 @@ func testAccessorRowNamespaceData(
 		t.Parallel()
 		// generate EDS with random data and some Shares with the same namespace
 		sharesAmount := odsSize * odsSize
-		namespace := gosquare.RandomNamespace()
+		namespace := libshare.RandomNamespace()
 		// test with different amount of shares
 		for amount := 1; amount < sharesAmount; amount++ {
 			// select random amount of shares, but not less than 1
@@ -259,11 +259,11 @@ func testAccessorRowNamespaceData(
 		// namespaced shares
 		for i, root := range roots.RowRoots[:odsSize] {
 			// select namespace that within the range of root namespaces, but is not included
-			maxNs := nmt.MaxNamespace(root, gosquare.NamespaceSize)
-			ns, err := gosquare.NewNamespaceFromBytes(maxNs)
+			maxNs := nmt.MaxNamespace(root, libshare.NamespaceSize)
+			ns, err := libshare.NewNamespaceFromBytes(maxNs)
 			require.NoError(t, err)
 
-			absentNs, err := gosquare.AddInt(ns, -1)
+			absentNs, err := libshare.AddInt(ns, -1)
 			require.NoError(t, err)
 
 			acc := createAccessor(t, eds)
@@ -296,7 +296,7 @@ func testAccessorAxisHalf(
 				require.NoError(t, err)
 				require.Len(t, half.Shares, odsSize)
 
-				var expected []gosquare.Share
+				var expected []libshare.Share
 				if half.IsParity {
 					expected, err = getAxis(eds, axisType, axisIdx)
 					require.NoError(t, err)
@@ -324,7 +324,7 @@ func testAccessorAxisHalf(
 					require.NoError(t, err)
 					require.Len(t, half.Shares, odsSize)
 
-					var expected []gosquare.Share
+					var expected []libshare.Share
 					if half.IsParity {
 						expected, err = getAxis(eds, axisType, idx)
 						require.NoError(t, err)
@@ -359,7 +359,7 @@ func testAccessorShares(
 			shares, err := acc.Shares(ctx)
 			require.NoError(t, err)
 			expected := eds.FlattenedODS()
-			sh, err := gosquare.FromBytes(expected)
+			sh, err := libshare.FromBytes(expected)
 			require.NoError(t, err)
 			require.Equal(t, sh, shares)
 		}()

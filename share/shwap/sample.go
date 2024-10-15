@@ -5,7 +5,7 @@ import (
 	"fmt"
 
 	"github.com/celestiaorg/celestia-app/v3/pkg/wrapper"
-	gosquare "github.com/celestiaorg/go-square/v2/share"
+	libshare "github.com/celestiaorg/go-square/v2/share"
 	"github.com/celestiaorg/nmt"
 	nmt_pb "github.com/celestiaorg/nmt/pb"
 	"github.com/celestiaorg/rsmt2d"
@@ -24,14 +24,14 @@ var ErrFailedVerification = errors.New("failed to verify inclusion")
 // Sample represents a data share along with its Merkle proof, used to validate the share's
 // inclusion in a data share.
 type Sample struct {
-	gosquare.Share             // Embeds the Share which includes the data with namespace.
+	libshare.Share             // Embeds the Share which includes the data with namespace.
 	Proof          *nmt.Proof  // Proof is the Merkle Proof validating the share's inclusion.
 	ProofType      rsmt2d.Axis // ProofType indicates whether the proof is against a row or a column.
 }
 
 // SampleFromShares creates a Sample from a list of shares, using the specified proof type and
 // the share index to be included in the sample.
-func SampleFromShares(shares []gosquare.Share, proofType rsmt2d.Axis, axisIdx, shrIdx int) (Sample, error) {
+func SampleFromShares(shares []libshare.Share, proofType rsmt2d.Axis, axisIdx, shrIdx int) (Sample, error) {
 	tree := wrapper.NewErasuredNamespacedMerkleTree(uint64(len(shares)/2), uint(axisIdx))
 	for _, shr := range shares {
 		err := tree.Push(shr.ToBytes())
@@ -125,10 +125,10 @@ func (s Sample) verifyInclusion(roots *share.AxisRoots, rowIdx, colIdx int) bool
 // Shares from extended part of the square are considered parity shares. It means that
 // parity shares are located outside of first quadrant of the square. According to the nmt
 // specification, the parity shares are prefixed with the namespace of the parity shares.
-func inclusionNamespace(sh gosquare.Share, rowIdx, colIdx, squareSize int) gosquare.Namespace {
+func inclusionNamespace(sh libshare.Share, rowIdx, colIdx, squareSize int) libshare.Namespace {
 	isParity := colIdx >= squareSize/2 || rowIdx >= squareSize/2
 	if isParity {
-		return gosquare.ParitySharesNamespace
+		return libshare.ParitySharesNamespace
 	}
 	return sh.Namespace()
 }

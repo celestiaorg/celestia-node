@@ -8,7 +8,7 @@ import (
 	"github.com/celestiaorg/celestia-app/v3/pkg/appconsts"
 	"github.com/celestiaorg/celestia-app/v3/pkg/wrapper"
 	"github.com/celestiaorg/go-libp2p-messenger/serde"
-	gosquare "github.com/celestiaorg/go-square/v2/share"
+	libshare "github.com/celestiaorg/go-square/v2/share"
 	"github.com/celestiaorg/nmt"
 	nmt_pb "github.com/celestiaorg/nmt/pb"
 
@@ -26,21 +26,21 @@ var ErrNamespaceOutsideRange = errors.New("target namespace is outside of namesp
 
 // RowNamespaceData holds shares and their corresponding proof for a single row within a namespace.
 type RowNamespaceData struct {
-	Shares []gosquare.Share `json:"shares"` // Shares within the namespace.
+	Shares []libshare.Share `json:"shares"` // Shares within the namespace.
 	Proof  *nmt.Proof       `json:"proof"`  // Proof of the shares' inclusion in the namespace.
 }
 
 // RowNamespaceDataFromShares extracts and constructs a RowNamespaceData from shares within the
 // specified namespace.
 func RowNamespaceDataFromShares(
-	shares []gosquare.Share,
-	namespace gosquare.Namespace,
+	shares []libshare.Share,
+	namespace libshare.Namespace,
 	rowIndex int,
 ) (RowNamespaceData, error) {
 	tree := wrapper.NewErasuredNamespacedMerkleTree(uint64(len(shares)/2), uint(rowIndex))
 	nmtTree := nmt.New(
 		appconsts.NewBaseHashFunc(),
-		nmt.NamespaceIDSize(gosquare.NamespaceSize),
+		nmt.NamespaceIDSize(libshare.NamespaceSize),
 		nmt.IgnoreMaxNamespace(true),
 	)
 	tree.SetTree(nmtTree)
@@ -89,7 +89,7 @@ func RowNamespaceDataFromShares(
 		}, nil
 	}
 
-	namespacedShares := make([]gosquare.Share, count)
+	namespacedShares := make([]libshare.Share, count)
 	copy(namespacedShares, shares[from:from+count])
 
 	proof, err := tree.ProveRange(from, from+count)
@@ -154,7 +154,7 @@ func (rnd RowNamespaceData) IsEmpty() bool {
 }
 
 // Verify checks validity of the RowNamespaceData against the AxisRoots, Namespace and Row index.
-func (rnd RowNamespaceData) Verify(roots *share.AxisRoots, namespace gosquare.Namespace, rowIdx int) error {
+func (rnd RowNamespaceData) Verify(roots *share.AxisRoots, namespace libshare.Namespace, rowIdx int) error {
 	if rnd.Proof == nil || rnd.Proof.IsEmptyProof() {
 		return fmt.Errorf("nil proof")
 	}
@@ -182,7 +182,7 @@ func (rnd RowNamespaceData) Verify(roots *share.AxisRoots, namespace gosquare.Na
 }
 
 // verifyInclusion checks the inclusion of the row's shares in the provided root using NMT.
-func (rnd RowNamespaceData) verifyInclusion(rowRoot []byte, namespace gosquare.Namespace) bool {
+func (rnd RowNamespaceData) verifyInclusion(rowRoot []byte, namespace libshare.Namespace) bool {
 	leaves := make([][]byte, 0, len(rnd.Shares))
 	for _, sh := range rnd.Shares {
 		namespaceBytes := sh.Namespace().Bytes()

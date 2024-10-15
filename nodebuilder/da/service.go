@@ -11,7 +11,7 @@ import (
 	"github.com/rollkit/go-da"
 
 	"github.com/celestiaorg/celestia-app/v3/pkg/appconsts"
-	gosquare "github.com/celestiaorg/go-square/v2/share"
+	libshare "github.com/celestiaorg/go-square/v2/share"
 
 	"github.com/celestiaorg/celestia-node/blob"
 	"github.com/celestiaorg/celestia-node/header"
@@ -68,7 +68,7 @@ func (s *Service) Get(ctx context.Context, ids []da.ID, ns da.Namespace) ([]da.B
 	blobs := make([]da.Blob, 0, len(ids))
 	for _, id := range ids {
 		height, commitment := SplitID(id)
-		namespace, err := gosquare.NewNamespaceFromBytes(ns)
+		namespace, err := libshare.NewNamespaceFromBytes(ns)
 		if err != nil {
 			return nil, err
 		}
@@ -85,14 +85,14 @@ func (s *Service) Get(ctx context.Context, ids []da.ID, ns da.Namespace) ([]da.B
 
 // GetIDs returns IDs of all Blobs located in DA at given height.
 func (s *Service) GetIDs(ctx context.Context, height uint64, namespace da.Namespace) (*da.GetIDsResult, error) {
-	ns, err := gosquare.NewNamespaceFromBytes(namespace)
+	ns, err := libshare.NewNamespaceFromBytes(namespace)
 	if err != nil {
 		return nil, err
 	}
 
 	var ids []da.ID //nolint:prealloc
 	log.Debugw("getting ids", "height", height, "namespace", ns)
-	blobs, err := s.blobServ.GetAll(ctx, height, []gosquare.Namespace{ns})
+	blobs, err := s.blobServ.GetAll(ctx, height, []libshare.Namespace{ns})
 	log.Debugw("got ids", "height", height, "namespace", ns)
 	if err != nil {
 		if strings.Contains(err.Error(), blob.ErrBlobNotFound.Error()) {
@@ -114,7 +114,7 @@ func (s *Service) GetIDs(ctx context.Context, height uint64, namespace da.Namesp
 func (s *Service) GetProofs(ctx context.Context, ids []da.ID, namespace da.Namespace) ([]da.Proof, error) {
 	proofs := make([]da.Proof, len(ids))
 	for i, id := range ids {
-		ns, err := gosquare.NewNamespaceFromBytes(namespace)
+		ns, err := libshare.NewNamespaceFromBytes(namespace)
 		if err != nil {
 			return nil, err
 		}
@@ -213,7 +213,7 @@ func (s *Service) blobsAndCommitments(
 	blobs := make([]*blob.Blob, 0, len(daBlobs))
 	commitments := make([]da.Commitment, 0, len(daBlobs))
 	for _, daBlob := range daBlobs {
-		ns, err := gosquare.NewNamespaceFromBytes(namespace)
+		ns, err := libshare.NewNamespaceFromBytes(namespace)
 		if err != nil {
 			return nil, nil, err
 		}
@@ -247,7 +247,7 @@ func (s *Service) Validate(
 		proofs[i] = blobProof
 	}
 	for i, id := range ids {
-		ns, err := gosquare.NewNamespaceFromBytes(namespace)
+		ns, err := libshare.NewNamespaceFromBytes(namespace)
 		if err != nil {
 			return nil, err
 		}

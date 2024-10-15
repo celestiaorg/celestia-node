@@ -5,7 +5,7 @@ import (
 	"fmt"
 
 	"github.com/celestiaorg/celestia-app/v3/pkg/wrapper"
-	gosquare "github.com/celestiaorg/go-square/v2/share"
+	libshare "github.com/celestiaorg/go-square/v2/share"
 
 	"github.com/celestiaorg/celestia-node/share"
 	"github.com/celestiaorg/celestia-node/share/shwap/pb"
@@ -24,12 +24,12 @@ const (
 
 // Row represents a portion of a row in an EDS, either left or right half.
 type Row struct {
-	halfShares []gosquare.Share // halfShares holds the shares of either the left or right half of a row.
+	halfShares []libshare.Share // halfShares holds the shares of either the left or right half of a row.
 	side       RowSide          // side indicates whether the row half is left or right.
 }
 
 // NewRow creates a new Row with the specified shares and side.
-func NewRow(halfShares []gosquare.Share, side RowSide) Row {
+func NewRow(halfShares []libshare.Share, side RowSide) Row {
 	return Row{
 		halfShares: halfShares,
 		side:       side,
@@ -38,8 +38,8 @@ func NewRow(halfShares []gosquare.Share, side RowSide) Row {
 
 // RowFromShares constructs a new Row from an Extended Data Square based on the specified index and
 // side.
-func RowFromShares(shares []gosquare.Share, side RowSide) Row {
-	var halfShares []gosquare.Share
+func RowFromShares(shares []libshare.Share, side RowSide) Row {
+	var halfShares []libshare.Share
 	if side == Right {
 		halfShares = shares[len(shares)/2:] // Take the right half of the shares.
 	} else {
@@ -63,8 +63,8 @@ func RowFromProto(r *pb.Row) (Row, error) {
 
 // Shares reconstructs the complete row shares from the half provided, using RSMT2D for data
 // recovery if needed.
-func (r Row) Shares() ([]gosquare.Share, error) {
-	shares := make([]gosquare.Share, len(r.halfShares)*2)
+func (r Row) Shares() ([]libshare.Share, error) {
+	shares := make([]libshare.Share, len(r.halfShares)*2)
 	offset := 0
 	if r.side == Right {
 		offset = len(r.halfShares) // Position the halfShares in the second half if it's the right side.
@@ -73,11 +73,11 @@ func (r Row) Shares() ([]gosquare.Share, error) {
 		shares[i+offset] = share
 	}
 
-	rowShares, err := share.DefaultRSMT2DCodec().Decode(gosquare.ToBytes(shares))
+	rowShares, err := share.DefaultRSMT2DCodec().Decode(libshare.ToBytes(shares))
 	if err != nil {
 		return nil, err
 	}
-	return gosquare.FromBytes(rowShares)
+	return libshare.FromBytes(rowShares)
 }
 
 // ToProto converts the Row to its protobuf representation.

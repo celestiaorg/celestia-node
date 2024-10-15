@@ -4,24 +4,24 @@ import (
 	"fmt"
 	"io"
 
-	gosquare "github.com/celestiaorg/go-square/v2/share"
+	libshare "github.com/celestiaorg/go-square/v2/share"
 )
 
 // NamespaceDataIDSize defines the total size of a NamespaceDataID in bytes, combining the
 // size of a EdsID and the size of a Namespace.
-const NamespaceDataIDSize = EdsIDSize + gosquare.NamespaceSize
+const NamespaceDataIDSize = EdsIDSize + libshare.NamespaceSize
 
 // NamespaceDataID filters the data in the EDS by a specific namespace.
 type NamespaceDataID struct {
 	// Embedding EdsID to include the block height.
 	EdsID
 	// DataNamespace will be used to identify the data within the EDS.
-	DataNamespace gosquare.Namespace
+	DataNamespace libshare.Namespace
 }
 
 // NewNamespaceDataID creates a new NamespaceDataID with the specified parameters. It
 // validates the namespace and returns an error if it is invalid.
-func NewNamespaceDataID(height uint64, namespace gosquare.Namespace) (NamespaceDataID, error) {
+func NewNamespaceDataID(height uint64, namespace libshare.Namespace) (NamespaceDataID, error) {
 	ndid := NamespaceDataID{
 		EdsID: EdsID{
 			Height: height,
@@ -48,7 +48,7 @@ func NamespaceDataIDFromBinary(data []byte) (NamespaceDataID, error) {
 		return NamespaceDataID{}, fmt.Errorf("error unmarshaling EDSID: %w", err)
 	}
 
-	ns, err := gosquare.NewNamespaceFromBytes(data[EdsIDSize:])
+	ns, err := libshare.NewNamespaceFromBytes(data[EdsIDSize:])
 	if err != nil {
 		return NamespaceDataID{}, fmt.Errorf("error unmarshaling namespace: %w", err)
 	}
@@ -112,7 +112,7 @@ func (ndid NamespaceDataID) Validate() error {
 		return fmt.Errorf("validating RowID: %w", err)
 	}
 
-	if err := gosquare.ValidateForData(ndid.DataNamespace); err != nil {
+	if err := libshare.ValidateForData(ndid.DataNamespace); err != nil {
 		return fmt.Errorf("%w: validating DataNamespace: %w", ErrInvalidID, err)
 	}
 	return nil

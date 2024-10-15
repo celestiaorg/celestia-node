@@ -19,7 +19,7 @@ import (
 	"github.com/celestiaorg/celestia-app/v3/pkg/appconsts"
 	pkgproof "github.com/celestiaorg/celestia-app/v3/pkg/proof"
 	"github.com/celestiaorg/go-square/v2/inclusion"
-	gosquare "github.com/celestiaorg/go-square/v2/share"
+	libshare "github.com/celestiaorg/go-square/v2/share"
 	"github.com/celestiaorg/nmt"
 	"github.com/celestiaorg/rsmt2d"
 
@@ -46,7 +46,7 @@ type SubmitOptions = state.TxConfig
 // avoid a circular dependency between the blob and the state package, since the state package needs
 // the blob.Blob type for this signature.
 type Submitter interface {
-	SubmitPayForBlob(context.Context, []*gosquare.Blob, *state.TxConfig) (*types.TxResponse, error)
+	SubmitPayForBlob(context.Context, []*libshare.Blob, *state.TxConfig) (*types.TxResponse, error)
 }
 
 type Service struct {
@@ -99,7 +99,7 @@ type SubscriptionResponse struct {
 // The channel will be closed when the context is canceled or the service is stopped.
 // Please note that no errors are returned: underlying operations are retried until successful.
 // Additionally, not reading from the returned channel will cause the stream to close after 16 messages.
-func (s *Service) Subscribe(ctx context.Context, ns gosquare.Namespace) (<-chan *SubscriptionResponse, error) {
+func (s *Service) Subscribe(ctx context.Context, ns libshare.Namespace) (<-chan *SubscriptionResponse, error) {
 	if s.ctx == nil {
 		return nil, fmt.Errorf("service has not been started")
 	}
@@ -133,7 +133,7 @@ func (s *Service) Subscribe(ctx context.Context, ns gosquare.Namespace) (<-chan 
 				var blobs []*Blob
 				var err error
 				for {
-					blobs, err = s.getAll(ctx, header, []gosquare.Namespace{ns})
+					blobs, err = s.getAll(ctx, header, []libshare.Namespace{ns})
 					if ctx.Err() != nil {
 						// context canceled, continuing would lead to unexpected missed heights for the client
 						log.Debugw("blobsub: canceling subscription due to user ctx closing", "namespace", ns.ID())
@@ -170,20 +170,20 @@ func (s *Service) Subscribe(ctx context.Context, ns gosquare.Namespace) (<-chan 
 func (s *Service) Submit(ctx context.Context, blobs []*Blob, txConfig *SubmitOptions) (uint64, error) {
 	log.Debugw("submitting blobs", "amount", len(blobs))
 
-	squareBlobs := make([]*gosquare.Blob, len(blobs))
+	libBlobs := make([]*libshare.Blob, len(blobs))
 	for i := range blobs {
 		namespace := blobs[i].Namespace()
-		if err := gosquare.ValidateForData(namespace); err != nil {
+		if err := libshare.ValidateForData(namespace); err != nil {
 			return 0, err
 		}
-		if !gosquare.IsBlobNamespace(namespace) {
+		if !libshare.IsBlobNamespace(namespace) {
 			return 0, fmt.Errorf("not allowed namespace %s were used to build the blob", namespace.ID())
 		}
 
-		squareBlobs[i] = blobs[i].Blob
+		libBlobs[i] = blobs[i].Blob
 	}
 
-	resp, err := s.blobSubmitter.SubmitPayForBlob(ctx, squareBlobs, txConfig)
+	resp, err := s.blobSubmitter.SubmitPayForBlob(ctx, libBlobs, txConfig)
 	if err != nil {
 		return 0, err
 	}
@@ -197,7 +197,7 @@ func (s *Service) Submit(ctx context.Context, blobs []*Blob, txConfig *SubmitOpt
 func (s *Service) Get(
 	ctx context.Context,
 	height uint64,
-	namespace gosquare.Namespace,
+	namespace libshare.Namespace,
 	commitment Commitment,
 ) (blob *Blob, err error) {
 	ctx, span := tracer.Start(ctx, "get")
@@ -223,7 +223,7 @@ func (s *Service) Get(
 func (s *Service) GetProof(
 	ctx context.Context,
 	height uint64,
-	namespace gosquare.Namespace,
+	namespace libshare.Namespace,
 	commitment Commitment,
 ) (proof *Proof, err error) {
 	ctx, span := tracer.Start(ctx, "get-proof")
@@ -252,7 +252,7 @@ func (s *Service) GetProof(
 // the user will receive all found blobs along with a combined error message.
 //
 // All blobs will preserve the order of the namespaces that were requested.
-func (s *Service) GetAll(ctx context.Context, height uint64, namespaces []gosquare.Namespace) ([]*Blob, error) {
+func (s *Service) GetAll(ctx context.Context, height uint64, namespaces []libshare.Namespace) ([]*Blob, error) {
 	header, err := s.headerGetter(ctx, height)
 	if err != nil {
 		return nil, err
@@ -264,7 +264,7 @@ func (s *Service) GetAll(ctx context.Context, height uint64, namespaces []gosqua
 func (s *Service) getAll(
 	ctx context.Context,
 	header *header.ExtendedHeader,
-	namespaces []gosquare.Namespace,
+	namespaces []libshare.Namespace,
 ) ([]*Blob, error) {
 	height := header.Height()
 	var (
@@ -274,7 +274,7 @@ func (s *Service) getAll(
 	)
 	for i, namespace := range namespaces {
 		wg.Add(1)
-		go func(i int, namespace gosquare.Namespace) {
+		go func(i int, namespace libshare.Namespace) {
 			log.Debugw("retrieving all blobs from", "namespace", namespace.String(), "height", height)
 			defer wg.Done()
 
@@ -303,7 +303,7 @@ func (s *Service) getAll(
 func (s *Service) Included(
 	ctx context.Context,
 	height uint64,
-	namespace gosquare.Namespace,
+	namespace libshare.Namespace,
 	proof *Proof,
 	commitment Commitment,
 ) (_ bool, err error) {
@@ -338,7 +338,7 @@ func (s *Service) Included(
 func (s *Service) retrieve(
 	ctx context.Context,
 	height uint64,
-	namespace gosquare.Namespace,
+	namespace libshare.Namespace,
 	sharesParser *parser,
 ) (_ *Blob, _ *Proof, err error) {
 	log.Infow("requesting blob",
@@ -386,7 +386,7 @@ func (s *Service) retrieve(
 		attribute.Int64("eds-size", int64(len(header.DAH.RowRoots)))))
 
 	var (
-		appShares = make([]gosquare.Share, 0)
+		appShares = make([]libshare.Share, 0)
 		proofs    = make(Proof, 0)
 	)
 
@@ -405,7 +405,7 @@ func (s *Service) retrieve(
 		for {
 			var (
 				isComplete bool
-				shrs       []gosquare.Share
+				shrs       []libshare.Share
 				wasEmpty   = sharesParser.isEmpty()
 			)
 
@@ -476,7 +476,7 @@ func (s *Service) retrieve(
 // them to Blobs.
 func (s *Service) getBlobs(
 	ctx context.Context,
-	namespace gosquare.Namespace,
+	namespace libshare.Namespace,
 	header *header.ExtendedHeader,
 ) (_ []*Blob, err error) {
 	ctx, span := tracer.Start(ctx, "get-blobs")
@@ -502,7 +502,7 @@ func (s *Service) getBlobs(
 func (s *Service) GetCommitmentProof(
 	ctx context.Context,
 	height uint64,
-	namespace gosquare.Namespace,
+	namespace libshare.Namespace,
 	shareCommitment []byte,
 ) (*CommitmentProof, error) {
 	log.Debugw("proving share commitment", "height", height, "commitment", shareCommitment, "namespace", namespace)
@@ -564,8 +564,8 @@ func (s *Service) GetCommitmentProof(
 
 func ProveCommitment(
 	eds *rsmt2d.ExtendedDataSquare,
-	namespace gosquare.Namespace,
-	blobShares []gosquare.Share,
+	namespace libshare.Namespace,
+	blobShares []libshare.Share,
 ) (*CommitmentProof, error) {
 	// find the blob shares in the EDS
 	blobSharesStartIndex := -1
@@ -588,7 +588,7 @@ func ProveCommitment(
 	sharesProof, err := pkgproof.NewShareInclusionProofFromEDS(
 		eds,
 		namespace,
-		gosquare.NewRange(blobSharesStartIndex, blobSharesStartIndex+len(blobShares)),
+		libshare.NewRange(blobSharesStartIndex, blobSharesStartIndex+len(blobShares)),
 	)
 	if err != nil {
 		return nil, err
@@ -649,7 +649,7 @@ func ProveCommitment(
 
 // computeSubtreeRoots takes a set of shares and ranges and returns the corresponding subtree roots.
 // the offset is the number of shares that are before the subtree roots we're calculating.
-func computeSubtreeRoots(shares []gosquare.Share, ranges []nmt.LeafRange, offset int) ([][]byte, error) {
+func computeSubtreeRoots(shares []libshare.Share, ranges []nmt.LeafRange, offset int) ([][]byte, error) {
 	if len(shares) == 0 {
 		return nil, fmt.Errorf("cannot compute subtree roots for an empty shares list")
 	}
@@ -664,7 +664,7 @@ func computeSubtreeRoots(shares []gosquare.Share, ranges []nmt.LeafRange, offset
 	tree := nmt.New(
 		appconsts.NewBaseHashFunc(),
 		nmt.IgnoreMaxNamespace(true),
-		nmt.NamespaceIDSize(gosquare.NamespaceSize),
+		nmt.NamespaceIDSize(libshare.NamespaceSize),
 	)
 	for _, sh := range shares {
 		leafData := make([]byte, 0)
