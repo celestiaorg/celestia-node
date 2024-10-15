@@ -5,7 +5,7 @@ import (
 
 	"github.com/tendermint/tendermint/types"
 
-	gosquare "github.com/celestiaorg/go-square/v2/share"
+	libshare "github.com/celestiaorg/go-square/v2/share"
 	"github.com/celestiaorg/nmt"
 	"github.com/celestiaorg/rsmt2d"
 
@@ -21,14 +21,14 @@ var _ Module = (*API)(nil)
 // GetRangeResult wraps the return value of the GetRange endpoint
 // because Json-RPC doesn't support more than two return values.
 type GetRangeResult struct {
-	Shares []gosquare.Share
+	Shares []libshare.Share
 	Proof  *types.ShareProof
 }
 
 // Module provides access to any data square or block share on the network.
 //
 // All Get methods provided on Module follow the following flow:
-//  1. Check local storage for the requested gosquare.
+//  1. Check local storage for the requested libshare.
 //  2. If exists
 //     * Load from disk
 //     * Return
@@ -46,13 +46,13 @@ type Module interface {
 	// ExtendedHeader are available on the Network.
 	SharesAvailable(context.Context, *header.ExtendedHeader) error
 	// GetShare gets a Share by coordinates in EDS.
-	GetShare(ctx context.Context, header *header.ExtendedHeader, row, col int) (gosquare.Share, error)
+	GetShare(ctx context.Context, header *header.ExtendedHeader, row, col int) (libshare.Share, error)
 	// GetEDS gets the full EDS identified by the given extended header.
 	GetEDS(ctx context.Context, header *header.ExtendedHeader) (*rsmt2d.ExtendedDataSquare, error)
 	// GetSharesByNamespace gets all shares from an EDS within the given namespace.
 	// Shares are returned in a row-by-row order if the namespace spans multiple rows.
 	GetSharesByNamespace(
-		ctx context.Context, header *header.ExtendedHeader, namespace gosquare.Namespace,
+		ctx context.Context, header *header.ExtendedHeader, namespace libshare.Namespace,
 	) (NamespacedShares, error)
 	// GetRange gets a list of shares and their corresponding proof.
 	GetRange(ctx context.Context, height uint64, start, end int) (*GetRangeResult, error)
@@ -67,7 +67,7 @@ type API struct {
 			ctx context.Context,
 			header *header.ExtendedHeader,
 			row, col int,
-		) (gosquare.Share, error) `perm:"read"`
+		) (libshare.Share, error) `perm:"read"`
 		GetEDS func(
 			ctx context.Context,
 			header *header.ExtendedHeader,
@@ -75,7 +75,7 @@ type API struct {
 		GetSharesByNamespace func(
 			ctx context.Context,
 			header *header.ExtendedHeader,
-			namespace gosquare.Namespace,
+			namespace libshare.Namespace,
 		) (NamespacedShares, error) `perm:"read"`
 		GetRange func(
 			ctx context.Context,
@@ -89,7 +89,7 @@ func (api *API) SharesAvailable(ctx context.Context, header *header.ExtendedHead
 	return api.Internal.SharesAvailable(ctx, header)
 }
 
-func (api *API) GetShare(ctx context.Context, header *header.ExtendedHeader, row, col int) (gosquare.Share, error) {
+func (api *API) GetShare(ctx context.Context, header *header.ExtendedHeader, row, col int) (libshare.Share, error) {
 	return api.Internal.GetShare(ctx, header, row, col)
 }
 
@@ -104,7 +104,7 @@ func (api *API) GetRange(ctx context.Context, height uint64, start, end int) (*G
 func (api *API) GetSharesByNamespace(
 	ctx context.Context,
 	header *header.ExtendedHeader,
-	namespace gosquare.Namespace,
+	namespace libshare.Namespace,
 ) (NamespacedShares, error) {
 	return api.Internal.GetSharesByNamespace(ctx, header, namespace)
 }
@@ -134,7 +134,7 @@ func (m module) GetRange(ctx context.Context, height uint64, start, end int) (*G
 		return nil, err
 	}
 
-	shares, err := gosquare.FromBytes(extendedDataSquare.FlattenedODS()[start:end])
+	shares, err := libshare.FromBytes(extendedDataSquare.FlattenedODS()[start:end])
 	if err != nil {
 		return nil, err
 	}
@@ -147,7 +147,7 @@ func (m module) GetRange(ctx context.Context, height uint64, start, end int) (*G
 func (m module) GetSharesByNamespace(
 	ctx context.Context,
 	header *header.ExtendedHeader,
-	namespace gosquare.Namespace,
+	namespace libshare.Namespace,
 ) (NamespacedShares, error) {
 	nd, err := m.Getter.GetSharesByNamespace(ctx, header, namespace)
 	if err != nil {
@@ -157,19 +157,19 @@ func (m module) GetSharesByNamespace(
 }
 
 // NamespacedShares represents all shares with proofs within a specific namespace of an EDS.
-// This is a copy of the gosquare.NamespacedShares type, that is used to avoid breaking changes
+// This is a copy of the libshare.NamespacedShares type, that is used to avoid breaking changes
 // in the API.
 type NamespacedShares []NamespacedRow
 
 // NamespacedRow represents all shares with proofs within a specific namespace of a single EDS row.
 type NamespacedRow struct {
-	Shares []gosquare.Share `json:"shares"`
+	Shares []libshare.Share `json:"shares"`
 	Proof  *nmt.Proof       `json:"proof"`
 }
 
 // Flatten returns the concatenated slice of all NamespacedRow shares.
-func (ns NamespacedShares) Flatten() []gosquare.Share {
-	var shares []gosquare.Share
+func (ns NamespacedShares) Flatten() []libshare.Share {
+	var shares []libshare.Share
 	for _, row := range ns {
 		shares = append(shares, row.Shares...)
 	}

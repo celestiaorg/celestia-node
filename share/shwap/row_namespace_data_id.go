@@ -4,19 +4,19 @@ import (
 	"fmt"
 	"io"
 
-	gosquare "github.com/celestiaorg/go-square/v2/share"
+	libshare "github.com/celestiaorg/go-square/v2/share"
 )
 
 // RowNamespaceDataIDSize defines the total size of a RowNamespaceDataID in bytes, combining the
 // size of a RowID and the size of a Namespace.
-const RowNamespaceDataIDSize = RowIDSize + gosquare.NamespaceSize
+const RowNamespaceDataIDSize = RowIDSize + libshare.NamespaceSize
 
 // RowNamespaceDataID uniquely identifies a piece of namespaced data within a row of an Extended
 // Data Square (EDS).
 type RowNamespaceDataID struct {
 	RowID // Embedded RowID representing the specific row in the EDS.
 	// DataNamespace is a string representation of the namespace to facilitate comparisons.
-	DataNamespace gosquare.Namespace
+	DataNamespace libshare.Namespace
 }
 
 // NewRowNamespaceDataID creates a new RowNamespaceDataID with the specified parameters. It
@@ -24,7 +24,7 @@ type RowNamespaceDataID struct {
 func NewRowNamespaceDataID(
 	height uint64,
 	rowIdx int,
-	namespace gosquare.Namespace,
+	namespace libshare.Namespace,
 	edsSize int,
 ) (RowNamespaceDataID, error) {
 	did := RowNamespaceDataID{
@@ -56,7 +56,7 @@ func RowNamespaceDataIDFromBinary(data []byte) (RowNamespaceDataID, error) {
 		return RowNamespaceDataID{}, fmt.Errorf("unmarshaling RowID: %w", err)
 	}
 
-	ns, err := gosquare.NewNamespaceFromBytes(data[RowIDSize:])
+	ns, err := libshare.NewNamespaceFromBytes(data[RowIDSize:])
 	if err != nil {
 		return RowNamespaceDataID{}, fmt.Errorf("invalid namespace format: %w", err)
 	}
@@ -127,7 +127,7 @@ func (rndid RowNamespaceDataID) Validate() error {
 	if err := rndid.RowID.Validate(); err != nil {
 		return fmt.Errorf("validating RowID: %w", err)
 	}
-	if err := gosquare.ValidateForData(rndid.DataNamespace); err != nil {
+	if err := libshare.ValidateForData(rndid.DataNamespace); err != nil {
 		return fmt.Errorf("%w: validating DataNamespace: %w", ErrInvalidID, err)
 	}
 

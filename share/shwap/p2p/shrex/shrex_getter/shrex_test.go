@@ -15,7 +15,7 @@ import (
 	"github.com/stretchr/testify/require"
 
 	libhead "github.com/celestiaorg/go-header"
-	gosquare "github.com/celestiaorg/go-square/v2/share"
+	libshare "github.com/celestiaorg/go-square/v2/share"
 	"github.com/celestiaorg/nmt"
 	"github.com/celestiaorg/rsmt2d"
 
@@ -69,7 +69,7 @@ func TestShrexGetter(t *testing.T) {
 
 		// generate test data
 		size := 64
-		namespace := gosquare.RandomNamespace()
+		namespace := libshare.RandomNamespace()
 		height := height.Add(1)
 		randEDS, roots := edstest.RandEDSWithNamespace(t, namespace, size*size, size)
 		eh := headertest.RandExtendedHeaderWithRoot(t, roots)
@@ -124,7 +124,7 @@ func TestShrexGetter(t *testing.T) {
 		})
 
 		// namespace inside root range
-		nID, err := gosquare.AddInt(maxNamespace, -1)
+		nID, err := libshare.AddInt(maxNamespace, -1)
 		require.NoError(t, err)
 		// check for namespace to be between max and min namespace in root
 		rows, err := share.RowsWithNamespace(roots, nID)
@@ -138,7 +138,7 @@ func TestShrexGetter(t *testing.T) {
 		require.Nil(t, emptyShares.Verify(roots, nID))
 
 		// namespace outside root range
-		nID, err = gosquare.AddInt(maxNamespace, 1)
+		nID, err = libshare.AddInt(maxNamespace, 1)
 		require.NoError(t, err)
 		// check for namespace to be not in root
 		rows, err = share.RowsWithNamespace(roots, nID)
@@ -169,7 +169,7 @@ func TestShrexGetter(t *testing.T) {
 			Height:   height,
 		})
 
-		namespace, err := gosquare.AddInt(maxNamespace, 1)
+		namespace, err := libshare.AddInt(maxNamespace, 1)
 		require.NoError(t, err)
 		// check for namespace to be not in root
 		rows, err := share.RowsWithNamespace(roots, namespace)
@@ -281,12 +281,12 @@ func newStore(t *testing.T) (*store.Store, error) {
 	return store.NewStore(store.DefaultParameters(), t.TempDir())
 }
 
-func generateTestEDS(t *testing.T) (*rsmt2d.ExtendedDataSquare, *share.AxisRoots, gosquare.Namespace) {
+func generateTestEDS(t *testing.T) (*rsmt2d.ExtendedDataSquare, *share.AxisRoots, libshare.Namespace) {
 	eds := edstest.RandEDS(t, 4)
 	roots, err := share.NewAxisRoots(eds)
 	require.NoError(t, err)
-	max := nmt.MaxNamespace(roots.RowRoots[(len(roots.RowRoots))/2-1], gosquare.NamespaceSize)
-	ns, err := gosquare.NewNamespaceFromBytes(max)
+	max := nmt.MaxNamespace(roots.RowRoots[(len(roots.RowRoots))/2-1], libshare.NamespaceSize)
+	ns, err := libshare.NewNamespaceFromBytes(max)
 	require.NoError(t, err)
 	return eds, roots, ns
 }

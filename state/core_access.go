@@ -27,7 +27,7 @@ import (
 	apperrors "github.com/celestiaorg/celestia-app/v3/app/errors"
 	"github.com/celestiaorg/celestia-app/v3/pkg/user"
 	libhead "github.com/celestiaorg/go-header"
-	gosquare "github.com/celestiaorg/go-square/v2/share"
+	libshare "github.com/celestiaorg/go-square/v2/share"
 
 	"github.com/celestiaorg/celestia-node/header"
 )
@@ -201,10 +201,10 @@ func (ca *CoreAccessor) cancelCtx() {
 // TxResponse. The user can specify additional options that can bee applied to the Tx.
 func (ca *CoreAccessor) SubmitPayForBlob(
 	ctx context.Context,
-	appblobs []*gosquare.Blob,
+	libBlobs []*libshare.Blob,
 	cfg *TxConfig,
 ) (*TxResponse, error) {
-	if len(appblobs) == 0 {
+	if len(libBlobs) == 0 {
 		return nil, errors.New("state: no blobs provided")
 	}
 
@@ -219,8 +219,8 @@ func (ca *CoreAccessor) SubmitPayForBlob(
 
 	gas := cfg.GasLimit()
 	if gas == 0 {
-		blobSizes := make([]uint32, len(appblobs))
-		for i, blob := range appblobs {
+		blobSizes := make([]uint32, len(libBlobs))
+		for i, blob := range libBlobs {
 			blobSizes[i] = uint32(len(blob.Data()))
 		}
 		gas = estimateGasForBlobs(blobSizes)
@@ -252,7 +252,7 @@ func (ca *CoreAccessor) SubmitPayForBlob(
 			opts = append(opts, feeGrant)
 		}
 
-		response, err := ca.client.SubmitPayForBlobWithAccount(ctx, accName, appblobs, opts...)
+		response, err := ca.client.SubmitPayForBlobWithAccount(ctx, accName, libBlobs, opts...)
 		// Network min gas price can be updated through governance in app
 		// If that's the case, we parse the insufficient min gas price error message and update the gas price
 		if apperrors.IsInsufficientMinGasPrice(err) {

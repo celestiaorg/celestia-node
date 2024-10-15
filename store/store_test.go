@@ -10,7 +10,7 @@ import (
 
 	"github.com/stretchr/testify/require"
 
-	gosquare "github.com/celestiaorg/go-square/v2/share"
+	libshare "github.com/celestiaorg/go-square/v2/share"
 	"github.com/celestiaorg/rsmt2d"
 
 	"github.com/celestiaorg/celestia-node/share"
@@ -68,7 +68,7 @@ func TestEDSStore(t *testing.T) {
 		require.NoError(t, err)
 		require.NoError(t, f.Close())
 		expected := eds.FlattenedODS()
-		require.Equal(t, expected, gosquare.ToBytes(fromFile))
+		require.Equal(t, expected, libshare.ToBytes(fromFile))
 	})
 
 	t.Run("Second Put should be noop", func(t *testing.T) {
@@ -106,7 +106,7 @@ func TestEDSStore(t *testing.T) {
 		require.NoError(t, err)
 		require.NoError(t, f.Close())
 		expected := eds.FlattenedODS()
-		require.Equal(t, expected, gosquare.ToBytes(fromFile))
+		require.Equal(t, expected, libshare.ToBytes(fromFile))
 	})
 
 	t.Run("GetByHash", func(t *testing.T) {
@@ -124,7 +124,7 @@ func TestEDSStore(t *testing.T) {
 		require.NoError(t, err)
 		require.NoError(t, f.Close())
 		expected := eds.FlattenedODS()
-		require.Equal(t, expected, gosquare.ToBytes(fromFile))
+		require.Equal(t, expected, libshare.ToBytes(fromFile))
 	})
 
 	t.Run("Does not exist", func(t *testing.T) {

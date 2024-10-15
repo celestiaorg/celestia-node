@@ -12,7 +12,7 @@ import (
 	"github.com/stretchr/testify/require"
 	"go.uber.org/fx"
 
-	gosquare "github.com/celestiaorg/go-square/v2/share"
+	libshare "github.com/celestiaorg/go-square/v2/share"
 
 	"github.com/celestiaorg/celestia-node/nodebuilder"
 	"github.com/celestiaorg/celestia-node/nodebuilder/node"
@@ -68,8 +68,8 @@ func TestShrexNDFromLights(t *testing.T) {
 		reqCtx, cancel := context.WithTimeout(ctx, time.Second*5)
 
 		// ensure to fetch random namespace (not the reserved namespace)
-		namespace := h.DAH.RowRoots[1][:gosquare.NamespaceSize]
-		ns, err := gosquare.NewNamespaceFromBytes(namespace)
+		namespace := h.DAH.RowRoots[1][:libshare.NamespaceSize]
+		ns, err := libshare.NewNamespaceFromBytes(namespace)
 		require.NoError(t, err)
 
 		expected, err := bridgeClient.Share.GetSharesByNamespace(reqCtx, h, ns)
@@ -144,8 +144,8 @@ func TestShrexNDFromLightsWithBadFulls(t *testing.T) {
 		reqCtx, cancel := context.WithTimeout(ctx, time.Second*5)
 
 		// ensure to fetch random namespace (not the reserved namespace)
-		namespace := h.DAH.RowRoots[1][:gosquare.NamespaceSize]
-		ns, err := gosquare.NewNamespaceFromBytes(namespace)
+		namespace := h.DAH.RowRoots[1][:libshare.NamespaceSize]
+		ns, err := libshare.NewNamespaceFromBytes(namespace)
 		expected, err := bridgeClient.Share.GetSharesByNamespace(reqCtx, h, ns)
 		require.NoError(t, err)
 		require.True(t, len(expected[0].Shares) > 0)

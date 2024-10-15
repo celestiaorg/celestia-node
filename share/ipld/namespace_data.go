@@ -11,7 +11,7 @@ import (
 	"github.com/ipfs/go-cid"
 	ipld "github.com/ipfs/go-ipld-format"
 
-	gosquare "github.com/celestiaorg/go-square/v2/share"
+	libshare "github.com/celestiaorg/go-square/v2/share"
 	"github.com/celestiaorg/nmt"
 
 	"github.com/celestiaorg/celestia-node/share"
@@ -47,13 +47,13 @@ type NamespaceData struct {
 
 	bounds    fetchedBounds
 	maxShares int
-	namespace gosquare.Namespace
+	namespace libshare.Namespace
 
 	isAbsentNamespace atomic.Bool
 	absenceProofLeaf  ipld.Node
 }
 
-func NewNamespaceData(maxShares int, namespace gosquare.Namespace, options ...Option) *NamespaceData {
+func NewNamespaceData(maxShares int, namespace libshare.Namespace, options ...Option) *NamespaceData {
 	data := &NamespaceData{
 		maxShares: maxShares,
 		namespace: namespace,
@@ -72,7 +72,7 @@ func NewNamespaceData(maxShares int, namespace gosquare.Namespace, options ...Op
 }
 
 func (n *NamespaceData) validate(rootCid cid.Cid) error {
-	if err := gosquare.ValidateUserNamespace(n.namespace.Version(), n.namespace.ID()); err != nil {
+	if err := libshare.ValidateUserNamespace(n.namespace.Version(), n.namespace.ID()); err != nil {
 		return err
 	}
 

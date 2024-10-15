@@ -11,7 +11,7 @@ import (
 	"github.com/celestiaorg/celestia-app/v3/pkg/wrapper"
 	"github.com/celestiaorg/go-square/shares"
 	libsquare "github.com/celestiaorg/go-square/v2"
-	gosquare "github.com/celestiaorg/go-square/v2/share"
+	libshare "github.com/celestiaorg/go-square/v2/share"
 	"github.com/celestiaorg/nmt"
 	"github.com/celestiaorg/rsmt2d"
 
@@ -39,7 +39,7 @@ func extendBlock(data types.Data, appVersion uint64, options ...nmt.Option) (*rs
 	if err != nil {
 		return nil, err
 	}
-	return extendShares(gosquare.ToBytes(square), options...)
+	return extendShares(libshare.ToBytes(square), options...)
 }
 
 func extendShares(s [][]byte, options ...nmt.Option) (*rsmt2d.ExtendedDataSquare, error) {

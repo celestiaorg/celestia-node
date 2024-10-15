@@ -14,7 +14,7 @@ import (
 	core "github.com/tendermint/tendermint/types"
 
 	"github.com/celestiaorg/celestia-app/v3/test/util/malicious"
-	gosquare "github.com/celestiaorg/go-square/v2/share"
+	libshare "github.com/celestiaorg/go-square/v2/share"
 	"github.com/celestiaorg/nmt"
 	"github.com/celestiaorg/rsmt2d"
 
@@ -89,7 +89,7 @@ func TestBEFP_Validate(t *testing.T) {
 			name: "incorrect share with Proof",
 			prepareFn: func() error {
 				// break the first shareWithProof to test negative case
-				sh := gosquare.RandShares(2)
+				sh := libshare.RandShares(2)
 				nmtProof := nmt.NewInclusionProof(0, 1, nil, false)
 				befp.Shares[0] = &ShareWithProof{sh[0], &nmtProof, rsmt2d.Row}
 				return proof.Validate(&header.ExtendedHeader{DAH: roots})
@@ -160,7 +160,7 @@ func TestIncorrectBadEncodingFraudProof(t *testing.T) {
 	bServ := ipld.NewMemBlockservice()
 
 	squareSize := 8
-	shares := gosquare.RandShares(squareSize * squareSize)
+	shares := libshare.RandShares(squareSize * squareSize)
 
 	eds, err := ipld.AddShares(ctx, shares, bServ)
 	require.NoError(t, err)
@@ -252,7 +252,7 @@ func newNamespacedBlockService() *namespacedBlockService {
 	sha256NamespaceFlagged := uint64(0x7701)
 	// register the nmt hasher to validate the order of namespaces
 	mhcore.Register(sha256NamespaceFlagged, func() hash.Hash {
-		nh := nmt.NewNmtHasher(share.NewSHA256Hasher(), gosquare.NamespaceSize, true)
+		nh := nmt.NewNmtHasher(share.NewSHA256Hasher(), libshare.NamespaceSize, true)
 		nh.Reset()
 		return nh
 	})
@@ -265,7 +265,7 @@ func newNamespacedBlockService() *namespacedBlockService {
 		Codec:   sha256NamespaceFlagged,
 		MhType:  sha256NamespaceFlagged,
 		// equals to NmtHasher.Size()
-		MhLength: share.NewSHA256Hasher().Size() + 2*gosquare.NamespaceSize,
+		MhLength: share.NewSHA256Hasher().Size() + 2*libshare.NamespaceSize,
 	}
 	return bs
 }

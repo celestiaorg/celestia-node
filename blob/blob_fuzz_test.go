@@ -15,12 +15,12 @@ func FuzzProofEqual(f *testing.F) {
 	}
 
 	// 1. Generate the corpus.
-	squareBlobs, err := blobtest.GenerateV0Blobs([]int{16}, false)
+	libBlobs, err := blobtest.GenerateV0Blobs([]int{16}, false)
 	if err != nil {
 		f.Fatal(err)
 	}
 
-	blobs, err := convertBlobs(squareBlobs...)
+	blobs, err := convertBlobs(libBlobs...)
 	if err != nil {
 		f.Fatal(err)
 	}

@@ -12,7 +12,7 @@ import (
 	"github.com/ipfs/go-datastore/sync"
 	"github.com/stretchr/testify/require"
 
-	gosquare "github.com/celestiaorg/go-square/v2/share"
+	libshare "github.com/celestiaorg/go-square/v2/share"
 )
 
 func TestDeleteNode_FullSquare(t *testing.T) {
@@ -21,7 +21,7 @@ func TestDeleteNode_FullSquare(t *testing.T) {
 	defer cancel()
 	bServ := NewMemBlockservice()
 
-	shares := gosquare.RandShares(size * size)
+	shares := libshare.RandShares(size * size)
 	eds, err := AddShares(ctx, shares, bServ)
 	require.NoError(t, err)
 
@@ -63,7 +63,7 @@ func TestDeleteNode_Sample(t *testing.T) {
 	defer cancel()
 	full := NewMemBlockservice()
 
-	shares := gosquare.RandShares(size * size)
+	shares := libshare.RandShares(size * size)
 	eds, err := AddShares(ctx, shares, full)
 	require.NoError(t, err)
 

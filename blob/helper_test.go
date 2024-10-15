@@ -7,17 +7,17 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	gosquare "github.com/celestiaorg/go-square/v2/share"
+	libshare "github.com/celestiaorg/go-square/v2/share"
 )
 
 func TestBlobsToShares(t *testing.T) {
 	t.Run("should sort blobs by namespace in ascending order", func(t *testing.T) {
-		namespaceA := gosquare.MustNewV0Namespace(bytes.Repeat([]byte{0xa}, 10))
-		namespaceB := gosquare.MustNewV0Namespace(bytes.Repeat([]byte{0xb}, 10))
+		namespaceA := libshare.MustNewV0Namespace(bytes.Repeat([]byte{0xa}, 10))
+		namespaceB := libshare.MustNewV0Namespace(bytes.Repeat([]byte{0xb}, 10))
 
-		blobA, err := NewBlob(gosquare.ShareVersionZero, namespaceA, []byte("dataA"), nil)
+		blobA, err := NewBlob(libshare.ShareVersionZero, namespaceA, []byte("dataA"), nil)
 		require.NoError(t, err)
-		blobB, err := NewBlob(gosquare.ShareVersionZero, namespaceB, []byte("dataB"), nil)
+		blobB, err := NewBlob(libshare.ShareVersionZero, namespaceB, []byte("dataB"), nil)
 		require.NoError(t, err)
 
 		got, err := BlobsToShares(blobB, blobA)
@@ -28,16 +28,16 @@ func TestBlobsToShares(t *testing.T) {
 	})
 }
 
-func TestToAppBlobs(t *testing.T) {
-	namespaceA := gosquare.MustNewV0Namespace(bytes.Repeat([]byte{0xa}, 10))
-	namespaceB := gosquare.MustNewV0Namespace(bytes.Repeat([]byte{0xb}, 10))
+func TestToLibBlobs(t *testing.T) {
+	namespaceA := libshare.MustNewV0Namespace(bytes.Repeat([]byte{0xa}, 10))
+	namespaceB := libshare.MustNewV0Namespace(bytes.Repeat([]byte{0xb}, 10))
 
-	blobA, err := NewBlob(gosquare.ShareVersionZero, namespaceA, []byte("dataA"), nil)
+	blobA, err := NewBlob(libshare.ShareVersionZero, namespaceA, []byte("dataA"), nil)
 	require.NoError(t, err)
-	blobB, err := NewBlob(gosquare.ShareVersionZero, namespaceB, []byte("dataB"), nil)
+	blobB, err := NewBlob(libshare.ShareVersionZero, namespaceB, []byte("dataB"), nil)
 	require.NoError(t, err)
 
-	got := ToAppBlobs(blobA, blobB)
+	got := ToLibBlobs(blobA, blobB)
 
-	assert.Equal(t, []*gosquare.Blob{blobA.Blob, blobB.Blob}, got)
+	assert.Equal(t, []*libshare.Blob{blobA.Blob, blobB.Blob}, got)
 }

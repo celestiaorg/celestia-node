@@ -2,7 +2,7 @@ package share
 
 import (
 	"github.com/celestiaorg/celestia-app/v3/pkg/appconsts"
-	gosquare "github.com/celestiaorg/go-square/v2/share"
+	libshare "github.com/celestiaorg/go-square/v2/share"
 	"github.com/celestiaorg/nmt"
 	"github.com/celestiaorg/rsmt2d"
 )
@@ -17,7 +17,7 @@ var MaxSquareSize = appconsts.SquareSizeUpperBound(appconsts.LatestVersion)
 // ShareWithProof contains data with corresponding Merkle Proof
 type ShareWithProof struct { //nolint: revive
 	// Share is a full data including namespace
-	gosquare.Share
+	libshare.Share
 	// Proof is a Merkle Proof of current share
 	Proof *nmt.Proof
 	// Axis is a type of axis against which the share proof is computed
@@ -27,7 +27,7 @@ type ShareWithProof struct { //nolint: revive
 // Validate validates inclusion of the share under the given root CID.
 func (s *ShareWithProof) Validate(rootHash []byte, x, y, edsSize int) bool {
 	isParity := x >= edsSize/2 || y >= edsSize/2
-	namespace := gosquare.ParitySharesNamespace
+	namespace := libshare.ParitySharesNamespace
 	if !isParity {
 		namespace = s.Share.Namespace()
 	}
