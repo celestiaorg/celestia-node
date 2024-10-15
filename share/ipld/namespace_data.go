@@ -81,7 +81,11 @@ func (n *NamespaceData) validate(rootCid cid.Cid) error {
 	}
 
 	root := NamespacedSha256FromCID(rootCid)
-	if share.IsOutsideRange(n.namespace, root, root) {
+	outside, err := share.IsOutsideRange(n.namespace, root, root)
+	if err != nil {
+		return err
+	}
+	if outside {
 		return ErrNamespaceOutsideRange
 	}
 	return nil
@@ -284,18 +288,31 @@ func (n *NamespaceData) collectNDWithProofs(j job, links []*ipld.Link) []job {
 	rightLink := NamespacedSha256FromCID(rightCid)
 
 	var nextJobs []job
+	outside, err := share.IsOutsideRange(n.namespace, leftLink, rightLink)
+	if err != nil {
+		log.Fatalf("invalid hashes provided: %v", err)
+	}
 	// check if target namespace is outside of boundaries of both links
-	if share.IsOutsideRange(n.namespace, leftLink, rightLink) {
+	if outside {
 		log.Fatalf("target namespace outside of boundaries of links at depth: %v", j.depth)
 	}
 
-	if !share.IsAboveMax(n.namespace, leftLink) {
+	above, err := share.IsAboveMax(n.namespace, leftLink)
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	if above {
 		// namespace is within the range of left link
 		nextJobs = append(nextJobs, j.next(left, leftCid, false))
 	} else {
 		// proof is on the left side, if the namespace is on the right side of the range of left link
 		n.addProof(left, leftCid, j.depth)
-		if share.IsBelowMin(n.namespace, rightLink) {
+		below, err := share.IsBelowMin(n.namespace, rightLink)
+		if err != nil {
+			log.Fatal(err)
+		}
+		if below {
 			// namespace is not included in either links, convert to absence collector
 			n.isAbsentNamespace.Store(true)
 			nextJobs = append(nextJobs, j.next(right, rightCid, true))
@@ -303,7 +320,12 @@ func (n *NamespaceData) collectNDWithProofs(j job, links []*ipld.Link) []job {
 		}
 	}
 
-	if !share.IsBelowMin(n.namespace, rightLink) {
+	below, err := share.IsBelowMin(n.namespace, rightLink)
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	if !below {
 		// namespace is within the range of right link
 		nextJobs = append(nextJobs, j.next(right, rightCid, false))
 	} else {

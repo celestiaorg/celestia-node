@@ -30,7 +30,10 @@ func (nd NamespaceData) Flatten() []gosquare.Share {
 
 // Verify checks the integrity of the NamespaceData against a provided root and namespace.
 func (nd NamespaceData) Verify(root *share.AxisRoots, namespace gosquare.Namespace) error {
-	rowIdxs := share.RowsWithNamespace(root, namespace)
+	rowIdxs, err := share.RowsWithNamespace(root, namespace)
+	if err != nil {
+		return err
+	}
 	if len(rowIdxs) != len(nd) {
 		return fmt.Errorf("expected %d rows, found %d rows", len(rowIdxs), len(nd))
 	}
