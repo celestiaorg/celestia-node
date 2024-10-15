@@ -22,7 +22,7 @@ const SampleName = "sample_v0"
 var ErrFailedVerification = errors.New("failed to verify inclusion")
 
 // Sample represents a data share along with its Merkle proof, used to validate the share's
-// inclusion in a data share.
+// inclusion in a data square.
 type Sample struct {
 	libshare.Share             // Embeds the Share which includes the data with namespace.
 	Proof          *nmt.Proof  // Proof is the Merkle Proof validating the share's inclusion.
