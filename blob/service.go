@@ -359,7 +359,11 @@ func (s *Service) retrieve(
 
 	rowIndex := -1
 	for i, row := range header.DAH.RowRoots {
-		if !share.IsOutsideRange(namespace, row, row) {
+		outside, err := share.IsOutsideRange(namespace, row, row)
+		if err != nil {
+			return nil, nil, err
+		}
+		if !outside {
 			rowIndex = i
 			break
 		}

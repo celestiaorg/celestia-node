@@ -75,7 +75,7 @@ func (m *RecentEDSNotification) GetDataHash() []byte {
 }
 
 func init() {
-	proto.RegisterType((*RecentEDSNotification)(nil), "gosquare.p2p.shrex.sub.RecentEDSNotification")
+	proto.RegisterType((*RecentEDSNotification)(nil), "share.p2p.shrex.sub.RecentEDSNotification")
 }
 
 func init() {

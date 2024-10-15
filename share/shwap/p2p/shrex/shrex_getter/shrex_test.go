@@ -127,7 +127,9 @@ func TestShrexGetter(t *testing.T) {
 		nID, err := gosquare.AddInt(maxNamespace, -1)
 		require.NoError(t, err)
 		// check for namespace to be between max and min namespace in root
-		require.Len(t, share.RowsWithNamespace(roots, nID), 1)
+		rows, err := share.RowsWithNamespace(roots, nID)
+		require.NoError(t, err)
+		require.Len(t, rows, 1)
 
 		emptyShares, err := getter.GetSharesByNamespace(ctx, eh, nID)
 		require.NoError(t, err)
@@ -139,7 +141,9 @@ func TestShrexGetter(t *testing.T) {
 		nID, err = gosquare.AddInt(maxNamespace, 1)
 		require.NoError(t, err)
 		// check for namespace to be not in root
-		require.Len(t, share.RowsWithNamespace(roots, nID), 0)
+		rows, err = share.RowsWithNamespace(roots, nID)
+		require.NoError(t, err)
+		require.Len(t, rows, 0)
 
 		emptyShares, err = getter.GetSharesByNamespace(ctx, eh, nID)
 		require.NoError(t, err)
@@ -168,7 +172,9 @@ func TestShrexGetter(t *testing.T) {
 		namespace, err := gosquare.AddInt(maxNamespace, 1)
 		require.NoError(t, err)
 		// check for namespace to be not in root
-		require.Len(t, share.RowsWithNamespace(roots, namespace), 0)
+		rows, err := share.RowsWithNamespace(roots, namespace)
+		require.NoError(t, err)
+		require.Len(t, rows, 0)
 
 		emptyShares, err := getter.GetSharesByNamespace(ctx, eh, namespace)
 		require.NoError(t, err)

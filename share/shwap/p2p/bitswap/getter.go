@@ -23,7 +23,7 @@ import (
 
 var tracer = otel.Tracer("shwap/bitswap")
 
-// Getter implements gosquare.Getter.
+// Getter implements share.Getter.
 type Getter struct {
 	exchange  exchange.SessionExchange
 	bstore    blockstore.Blockstore
@@ -194,7 +194,10 @@ func (g *Getter) GetSharesByNamespace(
 	ctx, span := tracer.Start(ctx, "get-shares-by-namespace")
 	defer span.End()
 
-	rowIdxs := share.RowsWithNamespace(hdr.DAH, ns)
+	rowIdxs, err := share.RowsWithNamespace(hdr.DAH, ns)
+	if err != nil {
+		return nil, err
+	}
 	blks := make([]Block, len(rowIdxs))
 	for i, rowNdIdx := range rowIdxs {
 		rndblk, err := NewEmptyRowNamespaceDataBlock(hdr.Height(), rowNdIdx, ns, len(hdr.DAH.RowRoots))
@@ -207,8 +210,7 @@ func (g *Getter) GetSharesByNamespace(
 	}
 
 	ses := g.session(ctx, hdr)
-	err := Fetch(ctx, g.exchange, hdr.DAH, blks, WithFetcher(ses))
-	if err != nil {
+	if err = Fetch(ctx, g.exchange, hdr.DAH, blks, WithFetcher(ses)); err != nil {
 		span.RecordError(err)
 		span.SetStatus(codes.Error, "Fetch")
 		return nil, err

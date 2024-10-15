@@ -1,5 +1,5 @@
 /*
-package share contains logic related to the retrieval and random sampling of shares of
+Package share contains logic related to the retrieval and random sampling of shares of
 block data.
 
 Though this package contains several useful methods for getting specific shares and/or

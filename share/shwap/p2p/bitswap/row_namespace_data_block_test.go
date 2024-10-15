@@ -21,7 +21,8 @@ func TestRowNamespaceData_FetchRoundtrip(t *testing.T) {
 	eds, root := edstest.RandEDSWithNamespace(t, namespace, 64, 16)
 	exchange := newExchangeOverEDS(ctx, t, eds)
 
-	rowIdxs := share.RowsWithNamespace(root, namespace)
+	rowIdxs, err := share.RowsWithNamespace(root, namespace)
+	require.NoError(t, err)
 	blks := make([]Block, len(rowIdxs))
 	for i, rowIdx := range rowIdxs {
 		blk, err := NewEmptyRowNamespaceDataBlock(1, rowIdx, namespace, len(root.RowRoots))
@@ -29,7 +30,7 @@ func TestRowNamespaceData_FetchRoundtrip(t *testing.T) {
 		blks[i] = blk
 	}
 
-	err := Fetch(ctx, exchange, root, blks)
+	err = Fetch(ctx, exchange, root, blks)
 	require.NoError(t, err)
 
 	for _, blk := range blks {

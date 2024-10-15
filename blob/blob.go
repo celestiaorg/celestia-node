@@ -142,7 +142,7 @@ func (b *Blob) compareCommitments(com Commitment) bool {
 type jsonBlob struct {
 	Namespace    []byte     `json:"namespace"`
 	Data         []byte     `json:"data"`
-	ShareVersion uint32     `json:"share_version"`
+	ShareVersion uint8      `json:"share_version"`
 	Commitment   Commitment `json:"commitment"`
 	Signer       []byte     `json:"signer,omitempty"`
 	Index        int        `json:"index"`
@@ -152,7 +152,7 @@ func (b *Blob) MarshalJSON() ([]byte, error) {
 	blob := &jsonBlob{
 		Namespace:    b.Namespace().Bytes(),
 		Data:         b.Data(),
-		ShareVersion: uint32(b.ShareVersion()),
+		ShareVersion: b.ShareVersion(),
 		Commitment:   b.Commitment,
 		Signer:       b.Signer(),
 		Index:        b.index,
@@ -172,7 +172,7 @@ func (b *Blob) UnmarshalJSON(data []byte) error {
 		return err
 	}
 
-	blob, err := NewBlob(uint8(jsonBlob.ShareVersion), ns, jsonBlob.Data, jsonBlob.Signer)
+	blob, err := NewBlob(jsonBlob.ShareVersion, ns, jsonBlob.Data, jsonBlob.Signer)
 	if err != nil {
 		return err
 	}

@@ -22,7 +22,10 @@ func NamespaceData(
 	if err != nil {
 		return nil, fmt.Errorf("failed to get AxisRoots: %w", err)
 	}
-	rowIdxs := share.RowsWithNamespace(roots, namespace)
+	rowIdxs, err := share.RowsWithNamespace(roots, namespace)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get row indexes: %w", err)
+	}
 	rows := make(shwap.NamespaceData, len(rowIdxs))
 	for i, idx := range rowIdxs {
 		rows[i], err = eds.RowNamespaceData(ctx, namespace, idx)

@@ -59,9 +59,13 @@ func NewAxisRoots(eds *rsmt2d.ExtendedDataSquare) (*AxisRoots, error) {
 
 // RowsWithNamespace inspects the AxisRoots for the Namespace and provides
 // a slices of Row indexes containing the namespace.
-func RowsWithNamespace(root *AxisRoots, namespace gosquare.Namespace) (idxs []int) {
+func RowsWithNamespace(root *AxisRoots, namespace gosquare.Namespace) (idxs []int, err error) {
 	for i, row := range root.RowRoots {
-		if !IsOutsideRange(namespace, row, row) {
+		outside, err := IsOutsideRange(namespace, row, row)
+		if err != nil {
+			return nil, err
+		}
+		if !outside {
 			idxs = append(idxs, i)
 		}
 	}
@@ -90,41 +94,44 @@ func MustDataHashFromString(datahash string) DataHash {
 }
 
 // IsOutsideRange checks if the namespace is outside the min-max range of the given hashes.
-func IsOutsideRange(namespace gosquare.Namespace, leftHash, rightHash []byte) bool {
-	if len(leftHash) < gosquare.NamespaceSize || len(rightHash) < 2*gosquare.NamespaceSize {
-		return false
+func IsOutsideRange(namespace gosquare.Namespace, leftHash, rightHash []byte) (bool, error) {
+	if len(leftHash) < gosquare.NamespaceSize {
+		return false, fmt.Errorf("left can't be less than %d", gosquare.NamespaceSize)
+	}
+	if len(rightHash) < 2*gosquare.NamespaceSize {
+		return false, fmt.Errorf("rightHash can't be less than %d", 2*gosquare.NamespaceSize)
 	}
 	ns1, err := gosquare.NewNamespaceFromBytes(leftHash[:gosquare.NamespaceSize])
 	if err != nil {
-		return false
+		return false, err
 	}
 	ns2, err := gosquare.NewNamespaceFromBytes(rightHash[gosquare.NamespaceSize : gosquare.NamespaceSize*2])
 	if err != nil {
-		return false
+		return false, err
 	}
-	return namespace.IsLessThan(ns1) || !namespace.IsLessOrEqualThan(ns2)
+	return namespace.IsLessThan(ns1) || !namespace.IsLessOrEqualThan(ns2), nil
 }
 
 // IsAboveMax checks if the namespace is above the maximum namespace of the given hash.
-func IsAboveMax(namespace gosquare.Namespace, hash []byte) bool {
+func IsAboveMax(namespace gosquare.Namespace, hash []byte) (bool, error) {
 	if len(hash) < 2*gosquare.NamespaceSize {
-		return false
+		return false, fmt.Errorf("hash can't be less than: %d", 2*gosquare.NamespaceSize)
 	}
 	ns, err := gosquare.NewNamespaceFromBytes(hash[gosquare.NamespaceSize : gosquare.NamespaceSize*2])
 	if err != nil {
-		return false
+		return false, err
 	}
-	return !namespace.IsLessOrEqualThan(ns)
+	return !namespace.IsLessOrEqualThan(ns), nil
 }
 
 // IsBelowMin checks if the target namespace is below the minimum namespace of the given hash.
-func IsBelowMin(namespace gosquare.Namespace, hash []byte) bool {
+func IsBelowMin(namespace gosquare.Namespace, hash []byte) (bool, error) {
 	if len(hash) < gosquare.NamespaceSize {
-		return false
+		return false, fmt.Errorf("hash can't be less than: %d", gosquare.NamespaceSize)
 	}
 	ns1, err := gosquare.NewNamespaceFromBytes(hash[:gosquare.NamespaceSize])
 	if err != nil {
-		return false
+		return false, err
 	}
-	return namespace.IsLessThan(ns1)
+	return namespace.IsLessThan(ns1), nil
 }

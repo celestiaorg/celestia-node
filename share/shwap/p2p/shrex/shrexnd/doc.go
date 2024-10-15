@@ -31,7 +31,7 @@
 //
 //	server, err := shrexnd.NewServer(params, host, store, storeShareGetter)
 //
-// where store is of type [gosquare.Store] and storeShareGetter is of type [gosquare.Getter]
+// where store is of type [share.Store] and storeShareGetter is of type [share.Getter]
 //
 // 2. Start the server by calling `Start` on the server:
 //

@@ -46,7 +46,7 @@ func NewClient(params *Parameters, host host.Host) (*Client, error) {
 }
 
 // RequestND requests namespaced data from the given peer.
-// Returns NamespaceData with unverified inclusion proofs against the gosquare.Root.
+// Returns NamespaceData with unverified inclusion proofs against the share.Root.
 func (c *Client) RequestND(
 	ctx context.Context,
 	height uint64,

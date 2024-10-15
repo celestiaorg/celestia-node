@@ -362,7 +362,9 @@ func TestGetSharesWithProofsByNamespace(t *testing.T) {
 			require.NoError(t, err)
 			for _, row := range rowRoots {
 				rowShares, proof, err := GetSharesByNamespace(ctx, bServ, row, namespace, len(rowRoots))
-				if share.IsOutsideRange(namespace, row, row) {
+				outside, outsideErr := share.IsOutsideRange(namespace, row, row)
+				require.NoError(t, outsideErr)
+				if outside {
 					require.ErrorIs(t, err, ErrNamespaceOutsideRange)
 					continue
 				}
@@ -464,16 +466,15 @@ func assertNoRowContainsNID(
 	// for each row root cid check if the min namespace exists
 	var absentCount, foundAbsenceRows int
 	for _, rowRoot := range rowRoots {
-		var outsideRange bool
-		if !share.IsOutsideRange(namespace, rowRoot, rowRoot) {
+		outsideRange, err := share.IsOutsideRange(namespace, rowRoot, rowRoot)
+		require.NoError(t, err)
+		if !outsideRange {
 			// namespace does belong to namespace range of the row
 			absentCount++
-		} else {
-			outsideRange = true
 		}
 		data := NewNamespaceData(rowRootCount, namespace, WithProofs())
 		rootCID := MustCidFromNamespacedSha256(rowRoot)
-		err := data.CollectLeavesByNamespace(ctx, bServ, rootCID)
+		err = data.CollectLeavesByNamespace(ctx, bServ, rootCID)
 		if outsideRange {
 			require.ErrorIs(t, err, ErrNamespaceOutsideRange)
 			continue

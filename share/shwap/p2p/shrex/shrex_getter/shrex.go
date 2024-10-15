@@ -91,7 +91,7 @@ func (sg *Getter) WithMetrics() error {
 	return nil
 }
 
-// Getter is a gosquare.Getter that uses the shrex/eds and shrex/nd protocol to retrieve shares.
+// Getter is a share.Getter that uses the shrex/eds and shrex/nd protocol to retrieve shares.
 type Getter struct {
 	edsClient *shrexeds.Client
 	ndClient  *shrexnd.Client
@@ -235,7 +235,10 @@ func (sg *Getter) GetSharesByNamespace(
 
 	// verify that the namespace could exist inside the roots before starting network requests
 	dah := header.DAH
-	rowIdxs := share.RowsWithNamespace(dah, namespace)
+	rowIdxs, err := share.RowsWithNamespace(dah, namespace)
+	if err != nil {
+		return nil, err
+	}
 	if len(rowIdxs) == 0 {
 		return shwap.NamespaceData{}, nil
 	}
