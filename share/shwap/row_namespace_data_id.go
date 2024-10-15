@@ -15,7 +15,7 @@ const RowNamespaceDataIDSize = RowIDSize + libshare.NamespaceSize
 // Data Square (EDS).
 type RowNamespaceDataID struct {
 	RowID // Embedded RowID representing the specific row in the EDS.
-	// DataNamespace is a string representation of the namespace to facilitate comparisons.
+	// DataNamespace is used to facilitate comparisons.
 	DataNamespace libshare.Namespace
 }
 
@@ -60,15 +60,11 @@ func RowNamespaceDataIDFromBinary(data []byte) (RowNamespaceDataID, error) {
 	if err != nil {
 		return RowNamespaceDataID{}, fmt.Errorf("invalid namespace format: %w", err)
 	}
-	rndid := RowNamespaceDataID{
+
+	return RowNamespaceDataID{
 		RowID:         rid,
 		DataNamespace: ns,
-	}
-	if err := rndid.Validate(); err != nil {
-		return RowNamespaceDataID{}, fmt.Errorf("validating RowNamespaceDataID: %w", err)
-	}
-
-	return rndid, nil
+	}, nil
 }
 
 // Equals checks equality of RowNamespaceDataID.

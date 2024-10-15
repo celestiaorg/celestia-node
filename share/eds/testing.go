@@ -334,7 +334,6 @@ func testAccessorAxisHalf(
 						require.NoError(t, err)
 						expected = expected[:odsSize]
 					}
-					require.NoError(t, err)
 					require.Equal(t, expected, half.Shares)
 				}(axisType, i)
 			}

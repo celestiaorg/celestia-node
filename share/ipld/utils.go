@@ -16,7 +16,6 @@ func FilterRootByNamespace(root *share.AxisRoots, namespace libshare.Namespace) 
 		outside, err := share.IsOutsideRange(namespace, row, row)
 		if err != nil {
 			return nil, err
-
 		}
 
 		if !outside {

@@ -20,7 +20,7 @@ type Rsmt2D struct {
 	*rsmt2d.ExtendedDataSquare
 }
 
-// Size returns the size of the Extended Data square.
+// Size returns the size of the Extended Data Square.
 func (eds *Rsmt2D) Size(context.Context) int {
 	return int(eds.Width())
 }
@@ -155,11 +155,9 @@ func Rsmt2DFromShares(shares []libshare.Share, odsSize int) (*Rsmt2D, error) {
 func getAxis(eds *rsmt2d.ExtendedDataSquare, axisType rsmt2d.Axis, axisIdx int) ([]libshare.Share, error) {
 	switch axisType {
 	case rsmt2d.Row:
-		sh, err := libshare.FromBytes(eds.Row(uint(axisIdx)))
-		return sh, err
+		return libshare.FromBytes(eds.Row(uint(axisIdx)))
 	case rsmt2d.Col:
-		sh, err := libshare.FromBytes(eds.Col(uint(axisIdx)))
-		return sh, err
+		return libshare.FromBytes(eds.Col(uint(axisIdx)))
 	default:
 		panic("unknown axis")
 	}

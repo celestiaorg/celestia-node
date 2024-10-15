@@ -7,7 +7,6 @@ import (
 	"fmt"
 
 	"github.com/celestiaorg/celestia-app/v3/pkg/appconsts"
-	v3 "github.com/celestiaorg/celestia-app/v3/pkg/appconsts/v3"
 	"github.com/celestiaorg/go-square/merkle"
 	"github.com/celestiaorg/go-square/v2/inclusion"
 	libshare "github.com/celestiaorg/go-square/v2/share"
@@ -15,7 +14,7 @@ import (
 )
 
 // appVersion is the current application version of celestia-app.
-const appVersion = v3.Version
+const appVersion = appconsts.LatestVersion
 
 var errEmptyShares = errors.New("empty shares")
 
