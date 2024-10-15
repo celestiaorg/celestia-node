@@ -80,11 +80,8 @@ func (p *parser) parse() (*Blob, error) {
 		return nil, err
 	}
 
-	if len(blobs) == 0 {
-		return nil, ErrBlobNotFound
-	}
-	if len(blobs) > 1 {
-		return nil, errors.New("unexpected amount of blobs")
+	if len(blobs) != 1 {
+		return nil, errors.New("unexpected amount of blobs during parsing")
 	}
 
 	com, err := inclusion.CreateCommitment(blobs[0], merkle.HashFromByteSlices, subtreeRootThreshold)
