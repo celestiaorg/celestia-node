@@ -302,7 +302,7 @@ func (n *NamespaceData) collectNDWithProofs(j job, links []*ipld.Link) []job {
 		log.Fatal(err)
 	}
 
-	if above {
+	if !above {
 		// namespace is within the range of left link
 		nextJobs = append(nextJobs, j.next(left, leftCid, false))
 	} else {

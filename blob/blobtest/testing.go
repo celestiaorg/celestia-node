@@ -2,7 +2,6 @@ package blobtest
 
 import (
 	"encoding/binary"
-	"fmt"
 
 	tmrand "github.com/tendermint/tendermint/libs/rand"
 
@@ -22,8 +21,9 @@ func GenerateV0Blobs(sizes []int, sameNamespace bool) ([]*libshare.Blob, error) 
 			if err != nil {
 				return nil, err
 			}
-			if namespace.IsReserved() {
-				return nil, fmt.Errorf("reserved namespace")
+			for namespace.IsReserved() {
+				continue
+
 			}
 			libBlob, err = libshare.NewV0Blob(namespace, libBlob.Data())
 			if err != nil {

@@ -21,7 +21,7 @@ package full
 //// trees of 'n' random shares, essentially storing a whole share.
 // func GetterWithRandSquare(t *testing.T, n int) (share.Getter, *share.AxisRoots) {
 //	bServ := ipld.NewMemBlockservice()
-//	getter := shwap.NewIPLDGetter(bServ)
+//	getter := getters.NewIPLDGetter(bServ)
 //	return getter, availability_test.RandFillBS(t, n, bServ)
 //}
 //
