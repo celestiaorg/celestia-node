@@ -1,6 +1,6 @@
 syntax = "proto3";
 
-package gosquare.p2p.shrex.sub;
+package share.p2p.shrex.sub;
 
 message RecentEDSNotification {
   uint64 height = 1;
