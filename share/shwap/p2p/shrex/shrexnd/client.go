@@ -14,7 +14,7 @@ import (
 	"github.com/libp2p/go-libp2p/core/protocol"
 
 	"github.com/celestiaorg/go-libp2p-messenger/serde"
-	gosquare "github.com/celestiaorg/go-square/v2/share"
+	libshare "github.com/celestiaorg/go-square/v2/share"
 
 	"github.com/celestiaorg/celestia-node/libs/utils"
 	"github.com/celestiaorg/celestia-node/share/shwap"
@@ -50,10 +50,10 @@ func NewClient(params *Parameters, host host.Host) (*Client, error) {
 func (c *Client) RequestND(
 	ctx context.Context,
 	height uint64,
-	namespace gosquare.Namespace,
+	namespace libshare.Namespace,
 	peer peer.ID,
 ) (shwap.NamespaceData, error) {
-	if err := gosquare.ValidateForData(namespace); err != nil {
+	if err := libshare.ValidateForData(namespace); err != nil {
 		return nil, err
 	}
 
@@ -83,7 +83,7 @@ func (c *Client) RequestND(
 func (c *Client) doRequest(
 	ctx context.Context,
 	height uint64,
-	namespace gosquare.Namespace,
+	namespace libshare.Namespace,
 	peerID peer.ID,
 ) (shwap.NamespaceData, error) {
 	streamOpenCtx, cancel := context.WithTimeout(ctx, c.params.ServerReadTimeout)

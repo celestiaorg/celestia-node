@@ -8,7 +8,7 @@ import (
 	"github.com/celestiaorg/celestia-app/v3/pkg/appconsts"
 	"github.com/celestiaorg/celestia-app/v3/pkg/proof"
 	"github.com/celestiaorg/go-square/v2/inclusion"
-	gosquare "github.com/celestiaorg/go-square/v2/share"
+	libshare "github.com/celestiaorg/go-square/v2/share"
 	"github.com/celestiaorg/nmt"
 	"github.com/celestiaorg/nmt/namespace"
 )
@@ -94,7 +94,7 @@ func (commitmentProof *CommitmentProof) Verify(root []byte, subtreeRootThreshold
 		return false, err
 	}
 
-	nmtHasher := nmt.NewNmtHasher(appconsts.NewBaseHashFunc(), gosquare.NamespaceSize, true)
+	nmtHasher := nmt.NewNmtHasher(appconsts.NewBaseHashFunc(), libshare.NamespaceSize, true)
 
 	// computes the total number of shares proven.
 	numberOfShares := 0

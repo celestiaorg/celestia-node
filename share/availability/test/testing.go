@@ -17,7 +17,7 @@ import (
 	mocknet "github.com/libp2p/go-libp2p/p2p/net/mock"
 	"github.com/stretchr/testify/require"
 
-	gosquare "github.com/celestiaorg/go-square/v2/share"
+	libshare "github.com/celestiaorg/go-square/v2/share"
 
 	"github.com/celestiaorg/celestia-node/share"
 	"github.com/celestiaorg/celestia-node/share/ipld"
@@ -26,12 +26,12 @@ import (
 
 // RandFillBS fills the given BlockService with a random block of a given size.
 func RandFillBS(t *testing.T, n int, bServ blockservice.BlockService) *share.AxisRoots {
-	shares := gosquare.RandShares(n * n)
+	shares := libshare.RandShares(n * n)
 	return FillBS(t, bServ, shares)
 }
 
 // FillBS fills the given BlockService with the given shares.
-func FillBS(t *testing.T, bServ blockservice.BlockService, shares []gosquare.Share) *share.AxisRoots {
+func FillBS(t *testing.T, bServ blockservice.BlockService, shares []libshare.Share) *share.AxisRoots {
 	eds, err := ipld.AddShares(context.TODO(), shares, bServ)
 	require.NoError(t, err)
 	roots, err := share.NewAxisRoots(eds)

@@ -7,7 +7,7 @@ import (
 
 	"github.com/stretchr/testify/require"
 
-	gosquare "github.com/celestiaorg/go-square/v2/share"
+	libshare "github.com/celestiaorg/go-square/v2/share"
 
 	"github.com/celestiaorg/celestia-node/header/headertest"
 	"github.com/celestiaorg/celestia-node/share/eds/edstest"
@@ -67,7 +67,7 @@ func TestStoreGetter(t *testing.T) {
 	})
 
 	t.Run("GetSharesByNamespace", func(t *testing.T) {
-		ns := gosquare.RandomNamespace()
+		ns := libshare.RandomNamespace()
 		eds, roots := edstest.RandEDSWithNamespace(t, ns, 8, 16)
 		eh := headertest.RandExtendedHeaderWithRoot(t, roots)
 		height := height.Add(1)
@@ -80,7 +80,7 @@ func TestStoreGetter(t *testing.T) {
 		require.NoError(t, shares.Verify(eh.DAH, ns))
 
 		// namespace not found
-		randNamespace := gosquare.RandomNamespace()
+		randNamespace := libshare.RandomNamespace()
 		emptyShares, err := sg.GetSharesByNamespace(ctx, eh, randNamespace)
 		require.NoError(t, err)
 		require.Empty(t, emptyShares.Flatten())

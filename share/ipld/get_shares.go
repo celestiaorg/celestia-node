@@ -7,7 +7,7 @@ import (
 	"github.com/ipfs/go-cid"
 	format "github.com/ipfs/go-ipld-format"
 
-	gosquare "github.com/celestiaorg/go-square/v2/share"
+	libshare "github.com/celestiaorg/go-square/v2/share"
 	"github.com/celestiaorg/nmt"
 )
 
@@ -18,15 +18,15 @@ func GetShare(
 	rootCid cid.Cid,
 	leafIndex int,
 	totalLeafs int, // this corresponds to the extended square width
-) (gosquare.Share, error) {
+) (libshare.Share, error) {
 	nd, err := GetLeaf(ctx, bGetter, rootCid, leafIndex, totalLeafs)
 	if err != nil {
-		return gosquare.Share{}, err
+		return libshare.Share{}, err
 	}
 
-	sh, err := gosquare.NewShare(nd.RawData()[gosquare.NamespaceSize:])
+	sh, err := libshare.NewShare(nd.RawData()[libshare.NamespaceSize:])
 	if err != nil {
-		return gosquare.Share{}, err
+		return libshare.Share{}, err
 	}
 	return *sh, nil
 }
@@ -36,7 +36,7 @@ func GetShare(
 // (got all shares) or on context cancellation.
 func GetShares(ctx context.Context, bg blockservice.BlockGetter, root cid.Cid, shares int, put func(int, []byte)) {
 	putNode := func(i int, leaf format.Node) {
-		put(i, leaf.RawData()[gosquare.NamespaceSize:])
+		put(i, leaf.RawData()[libshare.NamespaceSize:])
 	}
 	GetLeaves(ctx, bg, root, shares, putNode)
 }
@@ -48,9 +48,9 @@ func GetSharesByNamespace(
 	ctx context.Context,
 	bGetter blockservice.BlockGetter,
 	root []byte,
-	namespace gosquare.Namespace,
+	namespace libshare.Namespace,
 	maxShares int,
-) ([]gosquare.Share, *nmt.Proof, error) {
+) ([]libshare.Share, *nmt.Proof, error) {
 	rootCid := MustCidFromNamespacedSha256(root)
 	data := NewNamespaceData(maxShares, namespace, WithLeaves(), WithProofs())
 	err := data.CollectLeavesByNamespace(ctx, bGetter, rootCid)
@@ -63,10 +63,10 @@ func GetSharesByNamespace(
 		return nil, data.Proof(), nil
 	}
 
-	shares := make([]gosquare.Share, len(leaves))
+	shares := make([]libshare.Share, len(leaves))
 	for i, leaf := range leaves {
 		if leaf != nil {
-			sh, err := gosquare.NewShare(leaf.RawData()[gosquare.NamespaceSize:])
+			sh, err := libshare.NewShare(leaf.RawData()[libshare.NamespaceSize:])
 			if err != nil {
 				return nil, nil, err
 			}

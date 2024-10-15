@@ -9,7 +9,7 @@ import (
 	"github.com/stretchr/testify/require"
 	"github.com/tendermint/tendermint/libs/rand"
 
-	gosquare "github.com/celestiaorg/go-square/v2/share"
+	libshare "github.com/celestiaorg/go-square/v2/share"
 	"github.com/celestiaorg/rsmt2d"
 
 	"github.com/celestiaorg/celestia-node/share"
@@ -27,7 +27,7 @@ func TestCreateODSQ4File(t *testing.T) {
 	shares, err := odsq4.Shares(ctx)
 	require.NoError(t, err)
 	expected := edsIn.FlattenedODS()
-	require.Equal(t, expected, gosquare.ToBytes(shares))
+	require.Equal(t, expected, libshare.ToBytes(shares))
 	require.NoError(t, odsq4.Close())
 }
 

@@ -10,7 +10,7 @@ import (
 	"github.com/ipfs/go-datastore"
 	"github.com/stretchr/testify/require"
 
-	gosquare "github.com/celestiaorg/go-square/v2/share"
+	libshare "github.com/celestiaorg/go-square/v2/share"
 	"github.com/celestiaorg/rsmt2d"
 
 	"github.com/celestiaorg/celestia-node/header"
@@ -35,11 +35,11 @@ func TestSharesAvailableCaches(t *testing.T) {
 	getter.EXPECT().
 		GetShare(gomock.Any(), eh, gomock.Any(), gomock.Any()).
 		DoAndReturn(
-			func(_ context.Context, _ *header.ExtendedHeader, row, col int) (gosquare.Share, error) {
+			func(_ context.Context, _ *header.ExtendedHeader, row, col int) (libshare.Share, error) {
 				rawSh := eds.GetCell(uint(row), uint(col))
-				sh, err := gosquare.NewShare(rawSh)
+				sh, err := libshare.NewShare(rawSh)
 				if err != nil {
-					return gosquare.Share{}, err
+					return libshare.Share{}, err
 				}
 				return *sh, nil
 			}).
@@ -72,7 +72,7 @@ func TestSharesAvailableHitsCache(t *testing.T) {
 	getter := mock.NewMockGetter(gomock.NewController(t))
 	getter.EXPECT().
 		GetShare(gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any()).
-		Return(gosquare.Share{}, shrex.ErrNotFound).
+		Return(libshare.Share{}, shrex.ErrNotFound).
 		AnyTimes()
 
 	ds := datastore.NewMapDatastore()
@@ -126,7 +126,7 @@ func TestSharesAvailableFailed(t *testing.T) {
 	// getter doesn't have the eds, so it should fail
 	getter.EXPECT().
 		GetShare(gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any()).
-		Return(gosquare.Share{}, shrex.ErrNotFound).
+		Return(libshare.Share{}, shrex.ErrNotFound).
 		AnyTimes()
 	err = avail.SharesAvailable(ctx, eh)
 	require.ErrorIs(t, err, share.ErrNotAvailable)
@@ -175,15 +175,15 @@ func (m onceGetter) AddSamples(samples []Sample) {
 	}
 }
 
-func (m onceGetter) GetShare(_ context.Context, _ *header.ExtendedHeader, row, col int) (gosquare.Share, error) {
+func (m onceGetter) GetShare(_ context.Context, _ *header.ExtendedHeader, row, col int) (libshare.Share, error) {
 	m.Lock()
 	defer m.Unlock()
 	s := Sample{Row: uint16(row), Col: uint16(col)}
 	if _, ok := m.available[s]; ok {
 		delete(m.available, s)
-		return gosquare.Share{}, nil
+		return libshare.Share{}, nil
 	}
-	return gosquare.Share{}, share.ErrNotAvailable
+	return libshare.Share{}, share.ErrNotAvailable
 }
 
 func (m onceGetter) GetEDS(_ context.Context, _ *header.ExtendedHeader) (*rsmt2d.ExtendedDataSquare, error) {
@@ -193,7 +193,7 @@ func (m onceGetter) GetEDS(_ context.Context, _ *header.ExtendedHeader) (*rsmt2d
 func (m onceGetter) GetSharesByNamespace(
 	_ context.Context,
 	_ *header.ExtendedHeader,
-	_ gosquare.Namespace,
+	_ libshare.Namespace,
 ) (shwap.NamespaceData, error) {
 	panic("not implemented")
 }

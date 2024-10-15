@@ -8,7 +8,7 @@ import (
 
 	"github.com/spf13/cobra"
 
-	gosquare "github.com/celestiaorg/go-square/v2/share"
+	libshare "github.com/celestiaorg/go-square/v2/share"
 
 	rpc "github.com/celestiaorg/celestia-node/api/rpc/client"
 	cmdnode "github.com/celestiaorg/celestia-node/cmd"
@@ -123,7 +123,7 @@ var getShare = &cobra.Command{
 		s, err := client.Share.GetShare(cmd.Context(), eh, int(row), int(col))
 
 		formatter := func(data interface{}) interface{} {
-			sh, ok := data.(gosquare.Share)
+			sh, ok := data.(libshare.Share)
 			if !ok {
 				return data
 			}

@@ -107,14 +107,14 @@ func TestBlobRPC(t *testing.T) {
 
 	rpcClient := getAdminClient(ctx, bridge, t)
 
-	appBlobs, err := blobtest.GenerateV0Blobs([]int{8}, false)
+	libBlobs, err := blobtest.GenerateV0Blobs([]int{8}, false)
 	require.NoError(t, err)
 
 	newBlob, err := blob.NewBlob(
-		appBlobs[0].ShareVersion(),
-		appBlobs[0].Namespace(),
-		appBlobs[0].Data(),
-		appBlobs[0].Signer(),
+		libBlobs[0].ShareVersion(),
+		libBlobs[0].Namespace(),
+		libBlobs[0].Data(),
+		libBlobs[0].Signer(),
 	)
 	require.NoError(t, err)
 

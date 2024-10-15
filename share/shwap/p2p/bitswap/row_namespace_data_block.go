@@ -6,7 +6,7 @@ import (
 
 	"github.com/ipfs/go-cid"
 
-	gosquare "github.com/celestiaorg/go-square/v2/share"
+	libshare "github.com/celestiaorg/go-square/v2/share"
 
 	"github.com/celestiaorg/celestia-node/share"
 	"github.com/celestiaorg/celestia-node/share/eds"
@@ -44,7 +44,7 @@ type RowNamespaceDataBlock struct {
 func NewEmptyRowNamespaceDataBlock(
 	height uint64,
 	rowIdx int,
-	namespace gosquare.Namespace,
+	namespace libshare.Namespace,
 	edsSize int,
 ) (*RowNamespaceDataBlock, error) {
 	id, err := shwap.NewRowNamespaceDataID(height, rowIdx, namespace, edsSize)
