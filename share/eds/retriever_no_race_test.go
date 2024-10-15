@@ -10,7 +10,7 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/celestiaorg/celestia-app/v3/pkg/wrapper"
-	gosquare "github.com/celestiaorg/go-square/v2/share"
+	libshare "github.com/celestiaorg/go-square/v2/share"
 	"github.com/celestiaorg/nmt"
 	"github.com/celestiaorg/rsmt2d"
 
@@ -31,7 +31,7 @@ func TestRetriever_ByzantineError(t *testing.T) {
 	require.NoError(t, err)
 
 	// corrupt shares so that eds erasure coding does not match
-	copy(shares[14][gosquare.NamespaceSize:], shares[15][gosquare.NamespaceSize:])
+	copy(shares[14][libshare.NamespaceSize:], shares[15][libshare.NamespaceSize:])
 
 	// import corrupted eds
 	batchAdder := ipld.NewNmtNodeAdder(ctx, bserv, ipld.MaxSizeBatchOption(width*2))

@@ -5,7 +5,7 @@ import (
 
 	"github.com/stretchr/testify/require"
 
-	gosquare "github.com/celestiaorg/go-square/v2/share"
+	libshare "github.com/celestiaorg/go-square/v2/share"
 
 	"github.com/celestiaorg/celestia-node/share"
 	"github.com/celestiaorg/celestia-node/share/eds/edstest"
@@ -19,7 +19,7 @@ func TestEDSFromRows(t *testing.T) {
 
 	rows := make([]shwap.Row, edsIn.Width()/2)
 	for i := range edsIn.Width() / 2 {
-		rowShrs, err := gosquare.FromBytes(edsIn.Row(i)[:edsIn.Width()/2])
+		rowShrs, err := libshare.FromBytes(edsIn.Row(i)[:edsIn.Width()/2])
 		require.NoError(t, err)
 		rows[i] = shwap.NewRow(rowShrs, shwap.Left)
 	}

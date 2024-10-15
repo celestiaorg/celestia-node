@@ -10,7 +10,7 @@ import (
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/trace"
 
-	gosquare "github.com/celestiaorg/go-square/v2/share"
+	libshare "github.com/celestiaorg/go-square/v2/share"
 	"github.com/celestiaorg/rsmt2d"
 
 	"github.com/celestiaorg/celestia-node/header"
@@ -44,7 +44,7 @@ func NewCascadeGetter(getters []shwap.Getter) *CascadeGetter {
 // GetShare gets a share from any of registered shwap.Getters in cascading order.
 func (cg *CascadeGetter) GetShare(
 	ctx context.Context, header *header.ExtendedHeader, row, col int,
-) (gosquare.Share, error) {
+) (libshare.Share, error) {
 	ctx, span := tracer.Start(ctx, "cascade/get-share", trace.WithAttributes(
 		attribute.Int("row", row),
 		attribute.Int("col", col),
@@ -55,9 +55,9 @@ func (cg *CascadeGetter) GetShare(
 	if row >= upperBound || col >= upperBound {
 		err := shwap.ErrOutOfBounds
 		span.RecordError(err)
-		return gosquare.Share{}, err
+		return libshare.Share{}, err
 	}
-	get := func(ctx context.Context, get shwap.Getter) (gosquare.Share, error) {
+	get := func(ctx context.Context, get shwap.Getter) (libshare.Share, error) {
 		return get.GetShare(ctx, header, row, col)
 	}
 
@@ -83,7 +83,7 @@ func (cg *CascadeGetter) GetEDS(
 func (cg *CascadeGetter) GetSharesByNamespace(
 	ctx context.Context,
 	header *header.ExtendedHeader,
-	namespace gosquare.Namespace,
+	namespace libshare.Namespace,
 ) (shwap.NamespaceData, error) {
 	ctx, span := tracer.Start(ctx, "cascade/get-shares-by-namespace", trace.WithAttributes(
 		attribute.String("namespace", namespace.String()),

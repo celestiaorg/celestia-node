@@ -7,7 +7,7 @@ import (
 
 	"github.com/stretchr/testify/require"
 
-	gosquare "github.com/celestiaorg/go-square/v2/share"
+	libshare "github.com/celestiaorg/go-square/v2/share"
 	"github.com/celestiaorg/rsmt2d"
 
 	"github.com/celestiaorg/celestia-node/share"
@@ -43,7 +43,7 @@ func TestRsmt2dHalfRow(t *testing.T) {
 			want := eds.Row(uint(rowIdx))
 			shares, err := row.Shares()
 			require.NoError(t, err)
-			require.Equal(t, want, gosquare.ToBytes(shares))
+			require.Equal(t, want, libshare.ToBytes(shares))
 		}
 	}
 }

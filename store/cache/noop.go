@@ -4,7 +4,7 @@ import (
 	"context"
 	"io"
 
-	gosquare "github.com/celestiaorg/go-square/v2/share"
+	libshare "github.com/celestiaorg/go-square/v2/share"
 	"github.com/celestiaorg/rsmt2d"
 
 	"github.com/celestiaorg/celestia-node/share"
@@ -67,12 +67,12 @@ func (n NoopFile) AxisHalf(context.Context, rsmt2d.Axis, int) (eds.AxisHalf, err
 	return eds.AxisHalf{}, nil
 }
 
-func (n NoopFile) RowNamespaceData(context.Context, gosquare.Namespace, int) (shwap.RowNamespaceData, error) {
+func (n NoopFile) RowNamespaceData(context.Context, libshare.Namespace, int) (shwap.RowNamespaceData, error) {
 	return shwap.RowNamespaceData{}, nil
 }
 
-func (n NoopFile) Shares(context.Context) ([]gosquare.Share, error) {
-	return []gosquare.Share{}, nil
+func (n NoopFile) Shares(context.Context) ([]libshare.Share, error) {
+	return []libshare.Share{}, nil
 }
 
 func (n NoopFile) Close() error {

@@ -7,31 +7,31 @@ import (
 	tmrand "github.com/tendermint/tendermint/libs/rand"
 
 	"github.com/celestiaorg/celestia-app/v3/test/util/testfactory"
-	gosquare "github.com/celestiaorg/go-square/v2/share"
+	libshare "github.com/celestiaorg/go-square/v2/share"
 )
 
 // GenerateV0Blobs is a test utility producing v0 share formatted blobs with the
 // requested size and random namespaces.
-func GenerateV0Blobs(sizes []int, sameNamespace bool) ([]*gosquare.Blob, error) {
-	blobs := make([]*gosquare.Blob, 0, len(sizes))
+func GenerateV0Blobs(sizes []int, sameNamespace bool) ([]*libshare.Blob, error) {
+	blobs := make([]*libshare.Blob, 0, len(sizes))
 	for _, size := range sizes {
-		size := RawBlobSize(gosquare.FirstSparseShareContentSize * size)
-		appBlob := testfactory.GenerateRandomBlob(size)
+		size := RawBlobSize(libshare.FirstSparseShareContentSize * size)
+		libBlob := testfactory.GenerateRandomBlob(size)
 		if !sameNamespace {
-			namespace, err := gosquare.NewV0Namespace(tmrand.Bytes(7))
+			namespace, err := libshare.NewV0Namespace(tmrand.Bytes(7))
 			if err != nil {
 				return nil, err
 			}
 			if namespace.IsReserved() {
 				return nil, fmt.Errorf("reserved namespace")
 			}
-			appBlob, err = gosquare.NewV0Blob(namespace, appBlob.Data())
+			libBlob, err = libshare.NewV0Blob(namespace, libBlob.Data())
 			if err != nil {
 				return nil, err
 			}
 		}
 
-		blobs = append(blobs, appBlob)
+		blobs = append(blobs, libBlob)
 	}
 	return blobs, nil
 }

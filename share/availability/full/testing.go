@@ -17,7 +17,7 @@ package full
 //	"github.com/celestiaorg/celestia-node/share/p2p/discovery"
 //)
 //
-//// GetterWithRandSquare provides a gosquare.Getter filled with 'n' NMT
+//// GetterWithRandSquare provides a libshare.Getter filled with 'n' NMT
 //// trees of 'n' random shares, essentially storing a whole share.
 // func GetterWithRandSquare(t *testing.T, n int) (share.Getter, *share.AxisRoots) {
 //	bServ := ipld.NewMemBlockservice()

@@ -9,7 +9,7 @@ import (
 	"sync"
 	"sync/atomic"
 
-	gosquare "github.com/celestiaorg/go-square/v2/share"
+	libshare "github.com/celestiaorg/go-square/v2/share"
 	"github.com/celestiaorg/rsmt2d"
 
 	"github.com/celestiaorg/celestia-node/share"
@@ -149,7 +149,7 @@ func (odsq4 *ODSQ4) AxisHalf(ctx context.Context, axisType rsmt2d.Axis, axisIdx 
 }
 
 func (odsq4 *ODSQ4) RowNamespaceData(ctx context.Context,
-	namespace gosquare.Namespace,
+	namespace libshare.Namespace,
 	rowIdx int,
 ) (shwap.RowNamespaceData, error) {
 	half, err := odsq4.AxisHalf(ctx, rsmt2d.Row, rowIdx)
@@ -163,7 +163,7 @@ func (odsq4 *ODSQ4) RowNamespaceData(ctx context.Context,
 	return shwap.RowNamespaceDataFromShares(shares, namespace, rowIdx)
 }
 
-func (odsq4 *ODSQ4) Shares(ctx context.Context) ([]gosquare.Share, error) {
+func (odsq4 *ODSQ4) Shares(ctx context.Context) ([]libshare.Share, error) {
 	return odsq4.ods.Shares(ctx)
 }
 

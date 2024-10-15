@@ -26,7 +26,7 @@ import (
 	squarens "github.com/celestiaorg/go-square/namespace"
 	appshares "github.com/celestiaorg/go-square/shares"
 	"github.com/celestiaorg/go-square/v2/inclusion"
-	gosquare "github.com/celestiaorg/go-square/v2/share"
+	libshare "github.com/celestiaorg/go-square/v2/share"
 	"github.com/celestiaorg/nmt"
 	"github.com/celestiaorg/rsmt2d"
 
@@ -52,14 +52,14 @@ func TestBlobService_Get(t *testing.T) {
 		blobSize3 = 12
 	)
 
-	appBlobs, err := blobtest.GenerateV0Blobs([]int{blobSize0, blobSize1}, false)
+	libBlobs, err := blobtest.GenerateV0Blobs([]int{blobSize0, blobSize1}, false)
 	require.NoError(t, err)
-	blobsWithDiffNamespaces, err := convertBlobs(appBlobs...)
+	blobsWithDiffNamespaces, err := convertBlobs(libBlobs...)
 	require.NoError(t, err)
 
-	appBlobs, err = blobtest.GenerateV0Blobs([]int{blobSize2, blobSize3}, true)
+	libBlobs, err = blobtest.GenerateV0Blobs([]int{blobSize2, blobSize3}, true)
 	require.NoError(t, err)
-	blobsWithSameNamespace, err := convertBlobs(appBlobs...)
+	blobsWithSameNamespace, err := convertBlobs(libBlobs...)
 	require.NoError(t, err)
 
 	blobs := slices.Concat(blobsWithDiffNamespaces, blobsWithSameNamespace)
@@ -94,7 +94,7 @@ func TestBlobService_Get(t *testing.T) {
 		{
 			name: "get all with the same namespace",
 			doFn: func() (interface{}, error) {
-				return service.GetAll(ctx, 1, []gosquare.Namespace{blobsWithSameNamespace[0].Namespace()})
+				return service.GetAll(ctx, 1, []libshare.Namespace{blobsWithSameNamespace[0].Namespace()})
 			},
 			expectedResult: func(res interface{}, err error) {
 				require.NoError(t, err)
@@ -123,7 +123,7 @@ func TestBlobService_Get(t *testing.T) {
 					blobsWithDiffNamespaces[1].Commitment,
 				)
 				require.NoError(t, err)
-				b23, err := service.GetAll(ctx, 1, []gosquare.Namespace{blobsWithSameNamespace[0].Namespace()})
+				b23, err := service.GetAll(ctx, 1, []libshare.Namespace{blobsWithSameNamespace[0].Namespace()})
 				require.NoError(t, err)
 				return []*Blob{b0, b1, b23[0], b23[1]}, nil
 			},
@@ -159,10 +159,10 @@ func TestBlobService_Get(t *testing.T) {
 		{
 			name: "get all with different namespaces",
 			doFn: func() (interface{}, error) {
-				nid, err := gosquare.NewV0Namespace(tmrand.Bytes(7))
+				nid, err := libshare.NewV0Namespace(tmrand.Bytes(7))
 				require.NoError(t, err)
 				b, err := service.GetAll(ctx, 1,
-					[]gosquare.Namespace{
+					[]libshare.Namespace{
 						blobsWithDiffNamespaces[0].Namespace(), nid,
 						blobsWithDiffNamespaces[1].Namespace(),
 					},
@@ -202,9 +202,9 @@ func TestBlobService_Get(t *testing.T) {
 		{
 			name: "get invalid blob",
 			doFn: func() (interface{}, error) {
-				appBlob, err := blobtest.GenerateV0Blobs([]int{10}, false)
+				libBlob, err := blobtest.GenerateV0Blobs([]int{10}, false)
 				require.NoError(t, err)
-				blob, err := convertBlobs(appBlob...)
+				blob, err := convertBlobs(libBlob...)
 				require.NoError(t, err)
 
 				b, err := service.Get(ctx, 1, blob[0].Namespace(), blob[0].Commitment)
@@ -236,7 +236,7 @@ func TestBlobService_Get(t *testing.T) {
 				proof, ok := res.(*Proof)
 				assert.True(t, ok)
 
-				verifyFn := func(t *testing.T, rawShares [][]byte, proof *Proof, namespace gosquare.Namespace) {
+				verifyFn := func(t *testing.T, rawShares [][]byte, proof *Proof, namespace libshare.Namespace) {
 					for _, row := range header.DAH.RowRoots {
 						to := 0
 						for _, p := range *proof {
@@ -253,7 +253,7 @@ func TestBlobService_Get(t *testing.T) {
 
 				rawShares, err := BlobsToShares(blobsWithDiffNamespaces[1])
 				require.NoError(t, err)
-				verifyFn(t, gosquare.ToBytes(rawShares), proof, blobsWithDiffNamespaces[1].Namespace())
+				verifyFn(t, libshare.ToBytes(rawShares), proof, blobsWithDiffNamespaces[1].Namespace())
 			},
 		},
 		{
@@ -302,9 +302,9 @@ func TestBlobService_Get(t *testing.T) {
 		{
 			name: "not included",
 			doFn: func() (interface{}, error) {
-				appBlob, err := blobtest.GenerateV0Blobs([]int{10}, false)
+				libBlob, err := blobtest.GenerateV0Blobs([]int{10}, false)
 				require.NoError(t, err)
-				blob, err := convertBlobs(appBlob...)
+				blob, err := convertBlobs(libBlob...)
 				require.NoError(t, err)
 
 				proof, err := service.GetProof(ctx, 1,
@@ -358,9 +358,9 @@ func TestBlobService_Get(t *testing.T) {
 		{
 			name: "empty result and err when blobs were not found ",
 			doFn: func() (interface{}, error) {
-				nid, err := gosquare.NewV0Namespace(tmrand.Bytes(squarens.NamespaceVersionZeroIDSize))
+				nid, err := libshare.NewV0Namespace(tmrand.Bytes(squarens.NamespaceVersionZeroIDSize))
 				require.NoError(t, err)
-				return service.GetAll(ctx, 1, []gosquare.Namespace{nid})
+				return service.GetAll(ctx, 1, []libshare.Namespace{nid})
 			},
 			expectedResult: func(i interface{}, err error) {
 				blobs, ok := i.([]*Blob)
@@ -417,7 +417,7 @@ func TestBlobService_Get(t *testing.T) {
 					GetSharesByNamespace(gomock.Any(), gomock.Any(), gomock.Any()).
 					DoAndReturn(
 						func(
-							ctx context.Context, h *header.ExtendedHeader, ns gosquare.Namespace,
+							ctx context.Context, h *header.ExtendedHeader, ns libshare.Namespace,
 						) (shwap.NamespaceData, error) {
 							if ns.Equals(blobsWithDiffNamespaces[0].Namespace()) {
 								return nil, errors.New("internal error")
@@ -427,7 +427,7 @@ func TestBlobService_Get(t *testing.T) {
 
 				service.shareGetter = getterWrapper
 				return service.GetAll(ctx, 1,
-					[]gosquare.Namespace{
+					[]libshare.Namespace{
 						blobsWithDiffNamespaces[0].Namespace(),
 						blobsWithSameNamespace[0].Namespace(),
 					},
@@ -460,21 +460,21 @@ func TestService_GetSingleBlobWithoutPadding(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second*5)
 	t.Cleanup(cancel)
 
-	appBlob, err := blobtest.GenerateV0Blobs([]int{9, 5}, true)
+	libBlob, err := blobtest.GenerateV0Blobs([]int{9, 5}, true)
 	require.NoError(t, err)
-	blobs, err := convertBlobs(appBlob...)
+	blobs, err := convertBlobs(libBlob...)
 	require.NoError(t, err)
 
-	padding0, err := gosquare.NamespacePaddingShare(blobs[0].Namespace(), gosquare.ShareVersionZero)
+	padding0, err := libshare.NamespacePaddingShare(blobs[0].Namespace(), libshare.ShareVersionZero)
 	require.NoError(t, err)
-	padding1, err := gosquare.NamespacePaddingShare(blobs[1].Namespace(), gosquare.ShareVersionZero)
+	padding1, err := libshare.NamespacePaddingShare(blobs[1].Namespace(), libshare.ShareVersionZero)
 	require.NoError(t, err)
 	rawShares0, err := BlobsToShares(blobs[0])
 	require.NoError(t, err)
 	rawShares1, err := BlobsToShares(blobs[1])
 	require.NoError(t, err)
 
-	rawShares := make([]gosquare.Share, 0)
+	rawShares := make([]libshare.Share, 0)
 	rawShares = append(rawShares, append(rawShares0, padding0)...)
 	rawShares = append(rawShares, append(rawShares1, padding1)...)
 	service := createService(ctx, t, rawShares)
@@ -501,9 +501,9 @@ func TestService_Get(t *testing.T) {
 
 	sizes := []int{1, 6, 3, 2, 4, 6, 8, 2, 15, 17}
 
-	appBlobs, err := blobtest.GenerateV0Blobs(sizes, true)
+	libBlobs, err := blobtest.GenerateV0Blobs(sizes, true)
 	require.NoError(t, err)
-	blobs, err := convertBlobs(appBlobs...)
+	blobs, err := convertBlobs(libBlobs...)
 	require.NoError(t, err)
 
 	shares, err := BlobsToShares(blobs...)
@@ -538,15 +538,15 @@ func TestService_GetAllWithoutPadding(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second*5)
 	t.Cleanup(cancel)
 
-	appBlob, err := blobtest.GenerateV0Blobs([]int{9, 5, 15, 4, 24}, true)
+	libBlob, err := blobtest.GenerateV0Blobs([]int{9, 5, 15, 4, 24}, true)
 	require.NoError(t, err)
-	blobs, err := convertBlobs(appBlob...)
+	blobs, err := convertBlobs(libBlob...)
 	require.NoError(t, err)
 
-	rawShares := make([]gosquare.Share, 0)
+	rawShares := make([]libshare.Share, 0)
 
 	require.NoError(t, err)
-	padding, err := gosquare.NamespacePaddingShare(blobs[0].Namespace(), gosquare.ShareVersionZero)
+	padding, err := libshare.NamespacePaddingShare(blobs[0].Namespace(), libshare.ShareVersionZero)
 	require.NoError(t, err)
 
 	for i := 0; i < 2; i++ {
@@ -568,7 +568,7 @@ func TestService_GetAllWithoutPadding(t *testing.T) {
 	rawShares = append(rawShares, sh...)
 	service := createService(ctx, t, rawShares)
 
-	newBlobs, err := service.GetAll(ctx, 1, []gosquare.Namespace{blobs[0].Namespace()})
+	newBlobs, err := service.GetAll(ctx, 1, []libshare.Namespace{blobs[0].Namespace()})
 	require.NoError(t, err)
 	assert.Equal(t, len(newBlobs), len(blobs))
 
@@ -591,13 +591,13 @@ func TestService_GetAllWithoutPadding(t *testing.T) {
 }
 
 func TestAllPaddingSharesInEDS(t *testing.T) {
-	nid, err := gosquare.NewV0Namespace(tmrand.Bytes(7))
+	nid, err := libshare.NewV0Namespace(tmrand.Bytes(7))
 	require.NoError(t, err)
 
-	padding, err := gosquare.NamespacePaddingShare(nid, gosquare.ShareVersionZero)
+	padding, err := libshare.NamespacePaddingShare(nid, libshare.ShareVersionZero)
 	require.NoError(t, err)
 
-	rawShares := make([]gosquare.Share, 16)
+	rawShares := make([]libshare.Share, 16)
 	for i := 0; i < 16; i++ {
 		rawShares[i] = padding
 	}
@@ -606,29 +606,29 @@ func TestAllPaddingSharesInEDS(t *testing.T) {
 	t.Cleanup(cancel)
 
 	service := createService(ctx, t, rawShares)
-	newBlobs, err := service.GetAll(ctx, 1, []gosquare.Namespace{nid})
+	newBlobs, err := service.GetAll(ctx, 1, []libshare.Namespace{nid})
 	require.NoError(t, err)
 	assert.Empty(t, newBlobs)
 }
 
 func TestSkipPaddingsAndRetrieveBlob(t *testing.T) {
-	nid := gosquare.RandomBlobNamespace()
-	padding, err := gosquare.NamespacePaddingShare(nid, gosquare.ShareVersionZero)
+	nid := libshare.RandomBlobNamespace()
+	padding, err := libshare.NamespacePaddingShare(nid, libshare.ShareVersionZero)
 	require.NoError(t, err)
 
-	rawShares := make([]gosquare.Share, 0, 64)
+	rawShares := make([]libshare.Share, 0, 64)
 	for i := 0; i < 58; i++ {
 		rawShares = append(rawShares, padding)
 	}
 
-	size := blobtest.RawBlobSize(gosquare.FirstSparseShareContentSize * 6)
-	ns, err := gosquare.NewNamespace(nid.Version(), nid.ID())
+	size := blobtest.RawBlobSize(libshare.FirstSparseShareContentSize * 6)
+	ns, err := libshare.NewNamespace(nid.Version(), nid.ID())
 	require.NoError(t, err)
 	data := tmrand.Bytes(size)
-	appBlob, err := gosquare.NewBlob(ns, data, gosquare.ShareVersionZero, nil)
+	libBlob, err := libshare.NewBlob(ns, data, libshare.ShareVersionZero, nil)
 	require.NoError(t, err)
 
-	blobs, err := convertBlobs(appBlob)
+	blobs, err := convertBlobs(libBlob)
 	require.NoError(t, err)
 	sh, err := BlobsToShares(blobs[0])
 	require.NoError(t, err)
@@ -639,7 +639,7 @@ func TestSkipPaddingsAndRetrieveBlob(t *testing.T) {
 	t.Cleanup(cancel)
 
 	service := createService(ctx, t, rawShares)
-	newBlob, err := service.GetAll(ctx, 1, []gosquare.Namespace{nid})
+	newBlob, err := service.GetAll(ctx, 1, []libshare.Namespace{nid})
 	require.NoError(t, err)
 	require.Len(t, newBlob, 1)
 	require.True(t, newBlob[0].compareCommitments(blobs[0].Commitment))
@@ -649,9 +649,9 @@ func TestService_Subscribe(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second*10)
 	t.Cleanup(cancel)
 
-	appBlobs, err := blobtest.GenerateV0Blobs([]int{16, 16, 16}, true)
+	libBlobs, err := blobtest.GenerateV0Blobs([]int{16, 16, 16}, true)
 	require.NoError(t, err)
-	blobs, err := convertBlobs(appBlobs...)
+	blobs, err := convertBlobs(libBlobs...)
 	require.NoError(t, err)
 
 	service := createServiceWithSub(ctx, t, blobs)
@@ -675,7 +675,7 @@ func TestService_Subscribe(t *testing.T) {
 	})
 
 	t.Run("subscription with no matching blobs", func(t *testing.T) {
-		ns, err := gosquare.NewV0Namespace([]byte("nonexist"))
+		ns, err := libshare.NewV0Namespace([]byte("nonexist"))
 		require.NoError(t, err)
 
 		subCh, err := service.Subscribe(ctx, ns)
@@ -754,18 +754,18 @@ func TestService_Subscribe_MultipleNamespaces(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second*10)
 	t.Cleanup(cancel)
 
-	appBlobs1, err := blobtest.GenerateV0Blobs([]int{100, 100}, true)
+	libBlobs1, err := blobtest.GenerateV0Blobs([]int{100, 100}, true)
 	require.NoError(t, err)
-	appBlobs2, err := blobtest.GenerateV0Blobs([]int{100, 100}, true)
-	for i := range appBlobs2 {
-		// if we don't do this, appBlobs1 and appBlobs2 will share a NS
-		appBlobs2[i].Namespace().ID()[len(appBlobs2[i].Namespace().ID())-1] = 0xDE
+	libBlobs2, err := blobtest.GenerateV0Blobs([]int{100, 100}, true)
+	for i := range libBlobs2 {
+		// if we don't do this, libBlobs1 and libBlobs2 will share a NS
+		libBlobs2[i].Namespace().ID()[len(libBlobs2[i].Namespace().ID())-1] = 0xDE
 	}
 	require.NoError(t, err)
 
-	blobs1, err := convertBlobs(appBlobs1...)
+	blobs1, err := convertBlobs(libBlobs1...)
 	require.NoError(t, err)
-	blobs2, err := convertBlobs(appBlobs2...)
+	blobs2, err := convertBlobs(libBlobs2...)
 	require.NoError(t, err)
 
 	//nolint: gocritic
@@ -815,10 +815,10 @@ func TestService_Subscribe_MultipleNamespaces(t *testing.T) {
 func BenchmarkGetByCommitment(b *testing.B) {
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second*5)
 	b.Cleanup(cancel)
-	appBlobs, err := blobtest.GenerateV0Blobs([]int{32, 32}, true)
+	libBlobs, err := blobtest.GenerateV0Blobs([]int{32, 32}, true)
 	require.NoError(b, err)
 
-	blobs, err := convertBlobs(appBlobs...)
+	blobs, err := convertBlobs(libBlobs...)
 	require.NoError(b, err)
 
 	shares, err := BlobsToShares(blobs...)
@@ -879,7 +879,7 @@ func createServiceWithSub(ctx context.Context, t testing.TB, blobs []*Blob) *Ser
 	shareGetter := mock.NewMockGetter(ctrl)
 
 	shareGetter.EXPECT().GetSharesByNamespace(gomock.Any(), gomock.Any(), gomock.Any()).AnyTimes().
-		DoAndReturn(func(ctx context.Context, h *header.ExtendedHeader, ns gosquare.Namespace) (shwap.NamespaceData, error) {
+		DoAndReturn(func(ctx context.Context, h *header.ExtendedHeader, ns libshare.Namespace) (shwap.NamespaceData, error) {
 			idx := int(h.Height()) - 1
 			accessor := &eds.Rsmt2D{ExtendedDataSquare: edsses[idx]}
 			nd, err := eds.NamespaceData(ctx, accessor, ns)
@@ -888,10 +888,10 @@ func createServiceWithSub(ctx context.Context, t testing.TB, blobs []*Blob) *Ser
 	return NewService(nil, shareGetter, fn, fn2)
 }
 
-func createService(ctx context.Context, t testing.TB, shares []gosquare.Share) *Service {
+func createService(ctx context.Context, t testing.TB, shares []libshare.Share) *Service {
 	odsSize := int(utils.SquareSize(len(shares)))
 	square, err := rsmt2d.ComputeExtendedDataSquare(
-		gosquare.ToBytes(shares),
+		libshare.ToBytes(shares),
 		share.DefaultRSMT2DCodec(),
 		wrapper.NewConstructor(uint64(odsSize)))
 	require.NoError(t, err)
@@ -900,12 +900,12 @@ func createService(ctx context.Context, t testing.TB, shares []gosquare.Share) *
 	ctrl := gomock.NewController(t)
 	shareGetter := mock.NewMockGetter(ctrl)
 	shareGetter.EXPECT().GetSharesByNamespace(gomock.Any(), gomock.Any(), gomock.Any()).AnyTimes().
-		DoAndReturn(func(ctx context.Context, h *header.ExtendedHeader, ns gosquare.Namespace) (shwap.NamespaceData, error) {
+		DoAndReturn(func(ctx context.Context, h *header.ExtendedHeader, ns libshare.Namespace) (shwap.NamespaceData, error) {
 			nd, err := eds.NamespaceData(ctx, accessor, ns)
 			return nd, err
 		})
 	shareGetter.EXPECT().GetShare(gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any()).AnyTimes().
-		DoAndReturn(func(ctx context.Context, h *header.ExtendedHeader, row, col int) (gosquare.Share, error) {
+		DoAndReturn(func(ctx context.Context, h *header.ExtendedHeader, row, col int) (libshare.Share, error) {
 			s, err := accessor.Sample(ctx, row, col)
 			return s.Share, err
 		})
@@ -996,8 +996,8 @@ func proveAndVerifyShareCommitments(t *testing.T, blobSize int) {
 func generateCommitmentProofFromBlock(
 	t *testing.T,
 	eds *rsmt2d.ExtendedDataSquare,
-	ns gosquare.Namespace,
-	blob *gosquare.Blob,
+	ns libshare.Namespace,
+	blob *libshare.Blob,
 	dataRoot []byte,
 ) CommitmentProof {
 	// create the blob from the data
@@ -1026,7 +1026,7 @@ func generateCommitmentProofFromBlock(
 	sharesProof, err := pkgproof.NewShareInclusionProofFromEDS(
 		eds,
 		ns,
-		gosquare.NewRange(startShareIndex, startShareIndex+len(blobShares)),
+		libshare.NewRange(startShareIndex, startShareIndex+len(blobShares)),
 	)
 	require.NoError(t, err)
 	require.NoError(t, sharesProof.Validate(dataRoot))

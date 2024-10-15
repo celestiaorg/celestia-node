@@ -16,7 +16,7 @@ import (
 	mh "github.com/multiformats/go-multihash"
 	mhcore "github.com/multiformats/go-multihash/core"
 
-	gosquare "github.com/celestiaorg/go-square/v2/share"
+	libshare "github.com/celestiaorg/go-square/v2/share"
 	"github.com/celestiaorg/nmt"
 
 	"github.com/celestiaorg/celestia-node/share"
@@ -36,13 +36,13 @@ const (
 	sha256NamespaceFlagged = 0x7701
 
 	// NmtHashSize is the size of a digest created by an NMT in bytes.
-	NmtHashSize = 2*gosquare.NamespaceSize + sha256.Size
+	NmtHashSize = 2*libshare.NamespaceSize + sha256.Size
 
 	// InnerNodeSize is the size of data in inner nodes.
 	InnerNodeSize = NmtHashSize * 2
 
 	// LeafNodeSize is the size of data in leaf nodes.
-	LeafNodeSize = gosquare.NamespaceSize + gosquare.ShareSize
+	LeafNodeSize = libshare.NamespaceSize + libshare.ShareSize
 
 	// cidPrefixSize is the size of the prepended buffer of the CID encoding
 	// for NamespacedSha256. For more information, see:
@@ -58,7 +58,7 @@ const (
 func init() {
 	// required for Bitswap to hash and verify inbound data correctly
 	mhcore.Register(sha256NamespaceFlagged, func() hash.Hash {
-		nh := nmt.NewNmtHasher(share.NewSHA256Hasher(), gosquare.NamespaceSize, true)
+		nh := nmt.NewNmtHasher(share.NewSHA256Hasher(), libshare.NamespaceSize, true)
 		nh.Reset()
 		return nh
 	})
