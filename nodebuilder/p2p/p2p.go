@@ -149,10 +149,8 @@ func (m *module) BlockPeer(_ context.Context, p peer.ID) error {
 	if err := m.connGater.BlockPeer(p); err != nil {
 		return err
 	}
-	if m.host != nil {
-		if err := m.host.Network().ClosePeer(p); err != nil {
-			log.Warnf("failed to close connection to blocked peer %s: %v", p, err)
-		}
+	if err := m.host.Network().ClosePeer(p); err != nil {
+		log.Warnf("failed to close connection to blocked peer %s: %v", p, err)
 	}
 	return nil
 }
