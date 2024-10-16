@@ -90,6 +90,30 @@ func TestEDSStore(t *testing.T) {
 		ensureAmountFileAndLinks(t, dir, 2, 1)
 	})
 
+	t.Run("Second Put after partial write", func(t *testing.T) {
+		dir := t.TempDir()
+		edsStore, err := NewStore(paramsNoCache(), dir)
+		require.NoError(t, err)
+
+		eds, roots := randomEDS(t)
+		height := height.Add(1)
+
+		err = edsStore.PutODS(ctx, roots, height, eds)
+		require.NoError(t, err)
+		// remove link
+		pathLink := edsStore.heightToPath(height, odsFileExt)
+		err = remove(pathLink)
+		require.NoError(t, err)
+		// ensure file is written. There should be only ods
+		ensureAmountLinks(t, dir, 0)
+
+		err = edsStore.PutODS(ctx, roots, height, eds)
+		require.NoError(t, err)
+
+		// ensure file is not duplicated.
+		ensureAmountLinks(t, dir, 1)
+	})
+
 	t.Run("GetByHeight", func(t *testing.T) {
 		eds, roots := randomEDS(t)
 		height := height.Add(1)
@@ -402,6 +426,11 @@ func randomEDS(t testing.TB) (*rsmt2d.ExtendedDataSquare, *share.AxisRoots) {
 }
 
 func ensureAmountFileAndLinks(t testing.TB, dir string, files, links int) {
+	ensureAmountFiles(t, dir, files)
+	ensureAmountLinks(t, dir, links)
+}
+
+func ensureAmountFiles(t testing.TB, dir string, files int) {
 	// add empty file ods and q4 parts and heights folder to the count
 	files += 3
 	// ensure block folder contains the correct amount of files
@@ -409,10 +438,12 @@ func ensureAmountFileAndLinks(t testing.TB, dir string, files, links int) {
 	entries, err := os.ReadDir(blockPath)
 	require.NoError(t, err)
 	require.Len(t, entries, files)
+}
 
+func ensureAmountLinks(t testing.TB, dir string, links int) {
 	// ensure heights folder contains the correct amount of links
 	linksPath := path.Join(dir, heightsPath)
-	entries, err = os.ReadDir(linksPath)
+	entries, err := os.ReadDir(linksPath)
 	require.NoError(t, err)
 	require.Len(t, entries, links)
 }
