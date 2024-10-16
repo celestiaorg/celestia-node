@@ -2,6 +2,9 @@ package bitswap
 
 import (
 	"context"
+	"encoding/json"
+	"github.com/ipfs/boxo/bitswap/message"
+	pb "github.com/ipfs/boxo/bitswap/message/pb"
 	"math/rand/v2"
 	"sync"
 	"testing"
@@ -98,6 +101,33 @@ func TestFetch_List(t *testing.T) {
 		assert.True(t, cids.Has(cid))
 	}
 	assert.Equal(t, cids.Len(), len(awaiting))
+}
+
+func TestFetch_Rerequest(t *testing.T) {
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second*500)
+	defer cancel()
+
+	const items = 128
+	bstore, cids := testBlockstore(ctx, t, items)
+	exchange := newExchange(ctx, t, bstore, true)
+
+	blks := make([]Block, 0, cids.Len())
+	_ = cids.ForEach(func(c cid.Cid) error {
+		blk, err := newEmptyTestBlock(c)
+		require.NoError(t, err)
+		blks = append(blks, blk)
+		return nil
+	})
+
+	ses := exchange.NewSession(ctx)
+	fetchCtx, cancel := context.WithTimeout(ctx, time.Millisecond*100)
+	defer cancel()
+	_ = Fetch(fetchCtx, exchange, nil, blks, WithFetcher(ses))
+
+	time.Sleep(time.Millisecond * 100)
+
+	_ = Fetch(ctx, exchange, nil, blks, WithFetcher(ses))
+
 }
 
 func TestFetch_Duplicates(t *testing.T) {
@@ -214,4 +244,118 @@ func (t *testFetcher) GetBlock(context.Context, cid.Cid) (blocks.Block, error) {
 func (t *testFetcher) GetBlocks(ctx context.Context, cids []cid.Cid) (<-chan blocks.Block, error) {
 	t.Fetched += len(cids)
 	return t.Embedded.GetBlocks(ctx, cids)
+}
+
+func Test(t *testing.T) {
+	// timeout
+	symbolsA := `[
+    "bagipaamr6aaqyaaaaaaaaaaffyaesaa7",
+    "bagipaamr6aaqyaaaaaaaaaafhyaekadt",
+    "bagipaamr6aaqyaaaaaaaaaafimagoad7",
+    "bagipaamr6aaqyaaaaaaaaaafiaagkaad",
+    "bagipaamr6aaqyaaaaaaaaaafimaboadm",
+    "bagipaamr6aaqyaaaaaaaaaafhyabmadz",
+    "bagipaamr6aaqyaaaaaaaaaafhyagiact",
+    "bagipaamr6aaqyaaaaaaaaaafhyae4acc",
+    "bagipaamr6aaqyaaaaaaaaaaffyaasaar",
+    "bagipaamr6aaqyaaaaaaaaaafiaacqabr",
+    "bagipaamr6aaqyaaaaaaaaaafimad4abc",
+    "bagipaamr6aaqyaaaaaaaaaaffyad6aag",
+    "bagipaamr6aaqyaaaaaaaaaafimaeaacd",
+    "bagipaamr6aaqyaaaaaaaaaafiaac4add",
+    "bagipaamr6aaqyaaaaaaaaaafiaafuadz",
+    "bagipaamr6aaqyaaaaaaaaaafiaah2adv",
+    "bagipaamr6aaqyaaaaaaaaaafiaacuaac",
+    "bagipaamr6aaqyaaaaaaaaaafhyaawad4",
+    "bagipaamr6aaqyaaaaaaaaaafiaadwady",
+    "bagipaamr6aaqyaaaaaaaaaafimadaaa2",
+    "bagipaamr6aaqyaaaaaaaaaafhyadwabi",
+    "bagipaamr6aaqyaaaaaaaaaafiaaaiaai",
+    "bagipaamr6aaqyaaaaaaaaaaffyah4act",
+    "bagipaamr6aaqyaaaaaaaaaafiaadyadi",
+    "bagipaamr6aaqyaaaaaaaaaaffyagsaax",
+    "bagipaamr6aaqyaaaaaaaaaafimaciaac",
+    "bagipaamr6aaqyaaaaaaaaaaffyab4abn",
+    "bagipaamr6aaqyaaaaaaaaaafiaaa4abr",
+    "bagipaamr6aaqyaaaaaaaaaafiaaegabj",
+    "bagipaamr6aaqyaaaaaaaaaafiaag6aay",
+    "bagipaamr6aaqyaaaaaaaaaafiaaciaab",
+    "bagipaamr6aaqyaaaaaaaaaaffyaekacc",
+    "bagipaamr6aaqyaaaaaaaaaaffyacuaay",
+    "bagipaamr6aaqyaaaaaaaaaafimaeaaaf",
+    "bagipaamr6aaqyaaaaaaaaaafhyadkabq",
+    "bagipaamr6aaqyaaaaaaaaaafhyaf4aav",
+    "bagipaamr6aaqyaaaaaaaaaaffyadyaaf",
+    "bagipaamr6aaqyaaaaaaaaaaffyabsaa7",
+    "bagipaamr6aaqyaaaaaaaaaaffyafuab7",
+    "bagipaamr6aaqyaaaaaaaaaafimaagaaq",
+    "bagipaamr6aaqyaaaaaaaaaafiaabuab3",
+    "bagipaamr6aaqyaaaaaaaaaafhyag2abp",
+    "bagipaamr6aaqyaaaaaaaaaafimaauabo",
+    "bagipaamr6aaqyaaaaaaaaaaffyacuabb",
+    "bagipaamr6aaqyaaaaaaaaaafhyaheacf",
+    "bagipaamr6aaqyaaaaaaaaaafimagyad6",
+    "bagipaamr6aaqyaaaaaaaaaafhyagsac3",
+    "bagipaamr6aaqyaaaaaaaaaafimaeeab7",
+    "bagipaamr6aaqyaaaaaaaaaaffyadeacf",
+    "bagipaamr6aaqyaaaaaaaaaafhyaeeaau",
+    "bagipaamr6aaqyaaaaaaaaaaffyabgadv",
+    "bagipaamr6aaqyaaaaaaaaaafhyad2adf",
+    "bagipaamr6aaqyaaaaaaaaaafimag4aaf",
+    "bagipaamr6aaqyaaaaaaaaaafiaadiabi",
+    "bagipaamr6aaqyaaaaaaaaaafimaewaai",
+    "bagipaamr6aaqyaaaaaaaaaafhyaaaad2",
+    "bagipaamr6aaqyaaaaaaaaaafimagqaah",
+    "bagipaamr6aaqyaaaaaaaaaafhyaawadb",
+    "bagipaamr6aaqyaaaaaaaaaafiaabuac5",
+    "bagipaamr6aaqyaaaaaaaaaaffyadsaaw",
+    "bagipaamr6aaqyaaaaaaaaaaffyaasadu",
+    "bagipaamr6aaqyaaaaaaaaaafhyab6aai",
+    "bagipaamr6aaqyaaaaaaaaaafimafqaby",
+    "bagipaamr6aaqyaaaaaaaaaafimahmaam"
+  ]`
+
+	// unmarshallers
+	symbolsB := `[
+        "bagipaamr6aaqyaaaaaaaaa5hkeaaoab7",
+        "bagipaamr6aaqyaaaaaaaaa7yaeae2aay",
+        "bagipaamr6aaqyaaaaaaaaa73rmafcabv",
+        "bagipaamr6aaqyaaaaaaaaa5d24afcadh",
+        "bagipaamr6aaqyaaaaaaaaa5etuabgadq",
+        "bagipaamr6aaqyaaaaaaaaa7zruagoaa4",
+        "bagipaamr6aaqyaaaaaaaaa73rmaeqabo",
+        "bagipaamr6aaqyaaaaaaaaa5ehiaegaar",
+        "bagipaamr6aaqyaaaaaaaaa5etuabaadp"
+    ]`
+
+	var idsA, idsB []string
+	json.Unmarshal([]byte(symbolsA), &idsA)
+	json.Unmarshal([]byte(symbolsB), &idsB)
+
+	t.Log("A: ", len(idsA))
+	var cidsA []cid.Cid
+	for _, id := range idsA {
+		cid, _ := cid.Decode(id)
+		cidsA = append(cidsA, cid)
+		blk, _ := EmptyBlock(cid)
+		t.Log(blk.Height(), blk.(*SampleBlock).ID.RowIndex, blk.(*SampleBlock).ID.ShareIndex)
+	}
+
+	msg := message.New(false)
+
+	var size int
+	for _, id := range cidsA {
+		size += msg.AddEntry(id, 1, pb.Message_Wantlist_Have, true)
+	}
+
+	t.Log(size)
+
+	//t.Log("PAUSE")
+	//for _, id := range idsB {
+	//	cid, _ := cid.Decode(id)
+	//	blk, _ := EmptyBlock(cid)
+	//	t.Log(blk.Height(), blk.(*SampleBlock).ID.RowIndex, blk.(*SampleBlock).ID.ShareIndex)
+	//}
+	//
+
 }
