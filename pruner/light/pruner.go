@@ -8,7 +8,6 @@ import (
 	"github.com/ipfs/go-datastore"
 
 	"github.com/celestiaorg/celestia-node/header"
-	"github.com/celestiaorg/celestia-node/pruner"
 	"github.com/celestiaorg/celestia-node/share"
 	"github.com/celestiaorg/celestia-node/share/ipld"
 )
@@ -18,7 +17,7 @@ type Pruner struct {
 	ds    datastore.Datastore
 }
 
-func NewPruner(bstore blockstore.Blockstore, ds datastore.Batching) pruner.Pruner {
+func NewPruner(bstore blockstore.Blockstore, ds datastore.Batching) *Pruner {
 	return &Pruner{bserv: ipld.NewBlockservice(bstore, nil), ds: ds}
 }
 

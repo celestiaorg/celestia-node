@@ -3,6 +3,8 @@ package pruner
 import (
 	"context"
 	"fmt"
+	"os"
+	"path/filepath"
 	"testing"
 	"time"
 
@@ -13,6 +15,10 @@ import (
 
 	"github.com/celestiaorg/celestia-node/header"
 	"github.com/celestiaorg/celestia-node/header/headertest"
+	"github.com/celestiaorg/celestia-node/pruner/archival"
+	"github.com/celestiaorg/celestia-node/pruner/full"
+	"github.com/celestiaorg/celestia-node/share/eds/edstest"
+	"github.com/celestiaorg/celestia-node/store"
 )
 
 /*
@@ -20,7 +26,7 @@ import (
 */
 
 // TestService tests the pruner service to check whether the expected
-// amount of blocks are pruned within a given AvailabilityWindow.
+// amount of blocks is pruned within a given AvailabilityWindow.
 // This test runs a pruning cycle once which should prune at least
 // 2 blocks (as the AvailabilityWindow is ~2 blocks). Since the
 // prune-able header determination is time-based, it cannot be
@@ -60,6 +66,123 @@ func TestService(t *testing.T) {
 
 	assert.Greater(t, lastPruned.Height(), uint64(2))
 	assert.Greater(t, serv.checkpoint.LastPrunedHeight, uint64(2))
+}
+
+// TestService_ArchivalTrimming // TODO @renaynay
+func TestService_ArchivalTrimming(t *testing.T) {
+	ctx, cancel := context.WithCancel(context.Background())
+	t.Cleanup(cancel)
+
+	tmp := t.TempDir()
+	edsStore, err := store.NewStore(store.DefaultParameters(), tmp)
+	require.NoError(t, err)
+
+	shg := NewSpacedHeaderGenerator(ctx, t, time.Now().Add(-time.Minute), time.Second, edsStore)
+	headerStore := headertest.NewCustomStore(t, shg, 60)
+	archivalPruner := archival.NewPruner(edsStore)
+	ds := sync.MutexWrap(datastore.NewMapDatastore())
+
+	serv, err := NewService(
+		archivalPruner,
+		AvailabilityWindow(time.Second*30),
+		headerStore,
+		ds,
+		time.Second,
+	)
+	require.NoError(t, err)
+
+	// initialize the pruner service manually
+	serv.ctx, serv.cancel = ctx, cancel
+	err = serv.loadCheckpoint(ctx)
+	require.NoError(t, err)
+
+	// run a prune job
+	lastPruned, err := serv.lastPruned(ctx)
+	require.NoError(t, err)
+	lastPruned = serv.prune(ctx, lastPruned)
+
+	// expected to have pruned ~30 blocks (so [1:31])
+	assert.Equal(t, uint64(31), lastPruned.Height())
+
+	// manually check that the archival pruner trimmed the Q4 file of
+	// a historic block
+	historicHeader, err := headerStore.GetByHeight(ctx, uint64(4))
+	require.NoError(t, err)
+	// TODO @renaynay: make this not ugly somehow ?
+	path := filepath.Join(tmp, "blocks", historicHeader.DAH.String()) + ".q4"
+	_, err = os.Stat(path)
+	assert.Error(t, err)
+
+	// manually check that the Q4 file of a recent block (within sampling
+	// window) was not trimmed
+	recentHeader, err := headerStore.GetByHeight(ctx, uint64(40))
+	require.NoError(t, err)
+	// TODO @renaynay: make this not ugly somehow ?
+	path = filepath.Join(tmp, "blocks", recentHeader.DAH.String()) + ".q4"
+	_, err = os.Stat(path)
+	assert.NoError(t, err)
+}
+
+// TestService_FullPruning // TODO @renaynay
+func TestService_FullPruning(t *testing.T) {
+	ctx, cancel := context.WithCancel(context.Background())
+	t.Cleanup(cancel)
+
+	tmp := t.TempDir()
+	edsStore, err := store.NewStore(store.DefaultParameters(), tmp)
+	require.NoError(t, err)
+
+	shg := NewSpacedHeaderGenerator(ctx, t, time.Now().Add(-time.Minute), time.Second, edsStore)
+	headerStore := headertest.NewCustomStore(t, shg, 60)
+	fullPruner := full.NewPruner(edsStore)
+	ds := sync.MutexWrap(datastore.NewMapDatastore())
+
+	serv, err := NewService(
+		fullPruner,
+		AvailabilityWindow(time.Second*30),
+		headerStore,
+		ds,
+		time.Second,
+	)
+	require.NoError(t, err)
+
+	// initialize the pruner service manually
+	serv.ctx, serv.cancel = ctx, cancel
+	err = serv.loadCheckpoint(ctx)
+	require.NoError(t, err)
+
+	// run a prune job
+	lastPruned, err := serv.lastPruned(ctx)
+	require.NoError(t, err)
+	lastPruned = serv.prune(ctx, lastPruned)
+
+	// expected to have pruned ~30 blocks (so [1:31])
+	assert.Equal(t, uint64(31), lastPruned.Height())
+
+	// manually check that the archival pruner trimmed the Q4 file of
+	// a historic block
+	historicHeader, err := headerStore.GetByHeight(ctx, uint64(4))
+	require.NoError(t, err)
+	// TODO @renaynay: make this not ugly somehow and assert concrete errors ?
+	//  check the file is expected size?
+	odsPath := filepath.Join(tmp, "blocks", historicHeader.DAH.String()) + ".ods"
+	_, err = os.Stat(odsPath)
+	assert.Error(t, err)
+	q4Path := filepath.Join(tmp, "blocks", historicHeader.DAH.String()) + ".q4"
+	_, err = os.Stat(q4Path)
+	assert.Error(t, err)
+
+	// manually check that the Q4 file of a recent block (within sampling
+	// window) was not trimmed
+	recentHeader, err := headerStore.GetByHeight(ctx, uint64(40))
+	require.NoError(t, err)
+	// TODO @renaynay: make this not ugly somehow ?
+	odsPath = filepath.Join(tmp, "blocks", recentHeader.DAH.String()) + ".ods"
+	_, err = os.Stat(odsPath)
+	assert.NoError(t, err)
+	q4Path = filepath.Join(tmp, "blocks", recentHeader.DAH.String()) + ".q4"
+	_, err = os.Stat(q4Path)
+	assert.NoError(t, err)
 }
 
 // TestService_FailedAreRecorded checks whether the pruner service
@@ -248,7 +371,7 @@ func TestFindPruneableHeaders(t *testing.T) {
 			ctx, cancel := context.WithCancel(context.Background())
 			t.Cleanup(cancel)
 
-			headerGenerator := NewSpacedHeaderGenerator(t, tc.startTime, tc.blockTime)
+			headerGenerator := NewSpacedHeaderGenerator(ctx, t, tc.startTime, tc.blockTime, nil)
 			store := headertest.NewCustomStore(t, headerGenerator, tc.headerAmount)
 
 			mp := &mockPruner{}
@@ -321,28 +444,46 @@ func (mp *mockPruner) Prune(_ context.Context, h *header.ExtendedHeader) error {
 // TODO @renaynay @distractedm1nd: Deduplicate via headertest utility.
 // https://github.com/celestiaorg/celestia-node/issues/3278.
 type SpacedHeaderGenerator struct {
-	t                  *testing.T
+	t     *testing.T
+	store *store.Store
+
+	ctx context.Context
+
 	TimeBetweenHeaders time.Duration
 	currentTime        time.Time
 	currentHeight      int64
 }
 
 func NewSpacedHeaderGenerator(
-	t *testing.T, startTime time.Time, timeBetweenHeaders time.Duration,
+	ctx context.Context,
+	t *testing.T,
+	startTime time.Time,
+	timeBetweenHeaders time.Duration,
+	edsStore *store.Store,
 ) *SpacedHeaderGenerator {
 	return &SpacedHeaderGenerator{
 		t:                  t,
+		ctx:                ctx,
 		TimeBetweenHeaders: timeBetweenHeaders,
 		currentTime:        startTime,
 		currentHeight:      1,
+		store:              edsStore,
 	}
 }
 
 func (shg *SpacedHeaderGenerator) NextHeader() *header.ExtendedHeader {
-	h := headertest.RandExtendedHeaderAtTimestamp(shg.t, shg.currentTime)
+	eds := edstest.RandEDS(shg.t, 4)
+
+	h := headertest.RandExtendedHeaderAtTimestamp(shg.t, shg.currentTime, eds)
 	h.RawHeader.Height = shg.currentHeight
 	h.RawHeader.Time = shg.currentTime
 	shg.currentHeight++
 	shg.currentTime = shg.currentTime.Add(shg.TimeBetweenHeaders)
+
+	if shg.store != nil {
+		err := shg.store.PutODSQ4(shg.ctx, h.DAH, h.Height(), eds)
+		require.NoError(shg.t, err)
+	}
+
 	return h
 }

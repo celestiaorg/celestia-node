@@ -254,7 +254,7 @@ func TestDASer_SamplingWindow(t *testing.T) {
 
 	// create and start DASer
 	daser, err := NewDASer(avail, sub, getter, ds, fserv, newBroadcastMock(1),
-		WithSamplingWindow(pruner.AvailabilityWindow(time.Second)))
+		WithSamplingWindow(time.Second))
 	require.NoError(t, err)
 
 	tests := []struct {

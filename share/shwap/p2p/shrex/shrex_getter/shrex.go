@@ -105,7 +105,7 @@ type Getter struct {
 	// attempt multiple peers in scope of one request before context timeout is reached
 	minAttemptsCount int
 
-	availabilityWindow pruner.AvailabilityWindow
+	availabilityWindow time.Duration
 
 	metrics *metrics
 }
@@ -115,7 +115,7 @@ func NewGetter(
 	ndClient *shrexnd.Client,
 	fullPeerManager *peers.Manager,
 	archivalManager *peers.Manager,
-	availWindow pruner.AvailabilityWindow,
+	availWindow time.Duration,
 ) *Getter {
 	s := &Getter{
 		edsClient:           edsClient,

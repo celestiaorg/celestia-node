@@ -38,18 +38,11 @@ func ConstructModule(tp node.Type, cfg *Config) fx.Option {
 
 	switch tp {
 	case node.Light:
-		if cfg.EnableService {
-			return fx.Module("prune",
-				baseComponents,
-				prunerService,
-				fx.Provide(light.NewPruner),
-			)
-		}
-		// We do not trigger DetectPreviousRun for Light nodes, to allow them to disable pruning at wish.
-		// They are not expected to store a samples outside the sampling window and so partially pruned is
-		// not a concern.
+		// enforce pruning by default
 		return fx.Module("prune",
 			baseComponents,
+			prunerService,
+			fx.Provide(light.NewPruner),
 		)
 	case node.Full:
 		if cfg.EnableService {
@@ -61,6 +54,8 @@ func ConstructModule(tp node.Type, cfg *Config) fx.Option {
 		}
 		return fx.Module("prune",
 			baseComponents,
+			prunerService,
+			fxutil.ProvideAs(archival.NewPruner, new(pruner.Pruner)),
 			fx.Invoke(func(ctx context.Context, ds datastore.Batching) error {
 				return pruner.DetectPreviousRun(ctx, ds)
 			}),
@@ -72,12 +67,14 @@ func ConstructModule(tp node.Type, cfg *Config) fx.Option {
 				prunerService,
 				fxutil.ProvideAs(full.NewPruner, new(pruner.Pruner)),
 				fx.Provide(func(window pruner.AvailabilityWindow) []core.Option {
-					return []core.Option{core.WithAvailabilityWindow(window)}
+					return []core.Option{core.WithAvailabilityWindow(window.Duration())}
 				}),
 			)
 		}
 		return fx.Module("prune",
 			baseComponents,
+			prunerService,
+			fxutil.ProvideAs(archival.NewPruner, new(pruner.Pruner)),
 			fx.Invoke(func(ctx context.Context, ds datastore.Batching) error {
 				return pruner.DetectPreviousRun(ctx, ds)
 			}),
@@ -96,14 +93,14 @@ func availWindow(tp node.Type, pruneEnabled bool) fx.Option {
 		// light nodes are still subject to sampling within window
 		// even if pruning is not enabled.
 		return fx.Provide(func() pruner.AvailabilityWindow {
-			return light.Window
+			return pruner.AvailabilityWindow(light.Window)
 		})
 	case node.Full, node.Bridge:
 		return fx.Provide(func() pruner.AvailabilityWindow {
 			if pruneEnabled {
-				return full.Window
+				return pruner.AvailabilityWindow(full.Window)
 			}
-			return archival.Window
+			return pruner.AvailabilityWindow(archival.Window)
 		})
 	default:
 		panic("unknown node type")

@@ -262,7 +262,7 @@ func TestShrexGetter(t *testing.T) {
 		eh.RawHeader.Height = int64(height)
 
 		// historical data expects an archival peer
-		eh.RawHeader.Time = time.Now().Add(-(time.Duration(full.Window) + time.Second))
+		eh.RawHeader.Time = time.Now().Add(-full.Window + time.Second)
 		id, _, err := getter.getPeer(ctx, eh)
 		require.NoError(t, err)
 		assert.Equal(t, archivalPeer.ID(), id)

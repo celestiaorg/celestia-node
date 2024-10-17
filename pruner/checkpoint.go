@@ -7,7 +7,6 @@ import (
 	"fmt"
 
 	"github.com/ipfs/go-datastore"
-	"github.com/ipfs/go-datastore/namespace"
 
 	"github.com/celestiaorg/celestia-node/header"
 )
@@ -33,15 +32,21 @@ type checkpoint struct {
 
 // DetectPreviousRun checks if the pruner has run before by checking for the existence of a
 // checkpoint.
-func DetectPreviousRun(ctx context.Context, ds datastore.Datastore) error {
-	_, err := getCheckpoint(ctx, namespace.Wrap(ds, storePrefix))
-	if errors.Is(err, errCheckpointNotFound) {
-		return nil
-	}
-	if err != nil {
-		return fmt.Errorf("failed to load checkpoint: %w", err)
-	}
-	return ErrDisallowRevertToArchival
+func DetectPreviousRun(_ context.Context, _ datastore.Datastore) error {
+	/*
+		_, err := getCheckpoint(ctx, namespace.Wrap(ds, storePrefix))
+		if errors.Is(err, errCheckpointNotFound) {
+			return nil
+		}
+		if err != nil {
+			return fmt.Errorf("failed to load checkpoint: %w", err)
+		}
+		return ErrDisallowRevertToArchival
+	*/
+	// TODO @renaynay: there needs to be some sort of way for an archival node to go --> pruned node now bc
+	//  it'll contain the checkpoint so the pruner will think the blocks have already been fully pruneed. Maybe we add
+	//  some additional info to the checkpoint to indicate that it's an archival node? or the previous mode of the run.
+	return nil
 }
 
 // storeCheckpoint persists the checkpoint to disk.

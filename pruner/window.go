@@ -13,9 +13,9 @@ func (aw AvailabilityWindow) Duration() time.Duration {
 // IsWithinAvailabilityWindow checks whether the given timestamp is within the
 // given AvailabilityWindow. If the window is disabled (0), it returns true for
 // every timestamp.
-func IsWithinAvailabilityWindow(t time.Time, window AvailabilityWindow) bool {
-	if window.Duration() == time.Duration(0) {
+func IsWithinAvailabilityWindow(t time.Time, window time.Duration) bool {
+	if window == time.Duration(0) {
 		return true
 	}
-	return time.Since(t) <= window.Duration()
+	return time.Since(t) <= window
 }

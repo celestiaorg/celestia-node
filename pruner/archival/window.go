@@ -1,5 +1,7 @@
 package archival
 
-import "github.com/celestiaorg/celestia-node/pruner"
+import (
+	"time"
+)
 
-const Window = pruner.AvailabilityWindow(0)
+const Window = time.Duration(0)

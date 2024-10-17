@@ -3,6 +3,7 @@ package core
 import (
 	"context"
 	"fmt"
+	"time"
 
 	"github.com/tendermint/tendermint/types"
 
@@ -61,7 +62,7 @@ func storeEDS(
 	eh *header.ExtendedHeader,
 	eds *rsmt2d.ExtendedDataSquare,
 	store *store.Store,
-	window pruner.AvailabilityWindow,
+	window time.Duration,
 ) error {
 	if !pruner.IsWithinAvailabilityWindow(eh.Time(), window) {
 		log.Debugw("skipping storage of historic block", "height", eh.Height())

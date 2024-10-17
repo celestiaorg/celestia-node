@@ -3,6 +3,7 @@ package bitswap
 import (
 	"context"
 	"fmt"
+	"time"
 
 	"github.com/ipfs/boxo/blockstore"
 	"github.com/ipfs/boxo/exchange"
@@ -27,7 +28,7 @@ var tracer = otel.Tracer("shwap/bitswap")
 type Getter struct {
 	exchange  exchange.SessionExchange
 	bstore    blockstore.Blockstore
-	availWndw pruner.AvailabilityWindow
+	availWndw time.Duration
 
 	availableSession exchange.Fetcher
 	archivalSession  exchange.Fetcher
@@ -39,7 +40,7 @@ type Getter struct {
 func NewGetter(
 	exchange exchange.SessionExchange,
 	bstore blockstore.Blockstore,
-	availWndw pruner.AvailabilityWindow,
+	availWndw time.Duration,
 ) *Getter {
 	return &Getter{exchange: exchange, bstore: bstore, availWndw: availWndw}
 }
