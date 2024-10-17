@@ -130,13 +130,13 @@ func writeAxisRoots(w io.Writer, roots *share.AxisRoots) error {
 	return nil
 }
 
-// CheckODSSize checks if the file under given FS path has the expected size.
-func CheckODSSize(path string, eds *rsmt2d.ExtendedDataSquare) error {
-	_, err := checkODSSize(path, eds)
+// ValidateODSSize checks if the file under given FS path has the expected size.
+func ValidateODSSize(path string, eds *rsmt2d.ExtendedDataSquare) error {
+	_, err := validateODSSize(path, eds)
 	return err
 }
 
-func checkODSSize(path string, eds *rsmt2d.ExtendedDataSquare) (*headerV0, error) {
+func validateODSSize(path string, eds *rsmt2d.ExtendedDataSquare) (*headerV0, error) {
 	ods, err := OpenODS(path)
 	if err != nil {
 		return nil, fmt.Errorf("opening ODS file: %w", err)

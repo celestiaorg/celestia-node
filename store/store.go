@@ -184,7 +184,7 @@ func (s *Store) createODSQ4File(
 	// if file already exists, check if it's corrupted
 	if errors.Is(err, os.ErrExist) {
 		// Validate the size of the file to ensure it's not corrupted
-		err = file.CheckODSQ4Size(pathODS, pathQ4, square)
+		err = file.ValidateODSQ4Size(pathODS, pathQ4, square)
 		if err != nil {
 			err = s.removeODSQ4(height, roots.Hash())
 			if err != nil {
@@ -233,7 +233,7 @@ func (s *Store) createODSFile(
 	// if file already exists, check if it's corrupted
 	if errors.Is(err, os.ErrExist) {
 		// Validate the size of the file to ensure it's not corrupted
-		err = file.CheckODSSize(pathODS, square)
+		err = file.ValidateODSSize(pathODS, square)
 		if err != nil {
 			err = s.removeODSQ4(height, roots.Hash())
 			if err != nil {

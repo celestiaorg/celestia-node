@@ -61,7 +61,7 @@ func TestODSFile(t *testing.T) {
 	eds.TestStreamer(ctx, t, createODSAccessorStreamer, ODSSize)
 }
 
-func TestCheckODSSize(t *testing.T) {
+func TestValidateODSSize(t *testing.T) {
 	tests := []struct {
 		name string
 		eds  *rsmt2d.ExtendedDataSquare
@@ -87,7 +87,7 @@ func TestCheckODSSize(t *testing.T) {
 			err = CreateODS(path, roots, tt.eds)
 			require.NoError(t, err)
 
-			err = CheckODSSize(path, tt.eds)
+			err = ValidateODSSize(path, tt.eds)
 			require.NoError(t, err)
 		})
 	}

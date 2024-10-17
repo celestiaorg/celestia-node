@@ -63,15 +63,15 @@ func CreateODSQ4(
 	return nil
 }
 
-// CheckODSQ4Size checks the size of the ODS and Q4 files under the given FS paths.
-func CheckODSQ4Size(pathODS, pathQ4 string, eds *rsmt2d.ExtendedDataSquare) error {
-	h, err := checkODSSize(pathODS, eds)
+// ValidateODSQ4Size checks the size of the ODS and Q4 files under the given FS paths.
+func ValidateODSQ4Size(pathODS, pathQ4 string, eds *rsmt2d.ExtendedDataSquare) error {
+	h, err := validateODSSize(pathODS, eds)
 	if err != nil {
-		return fmt.Errorf("checking ODS file: %w", err)
+		return fmt.Errorf("validating ODS file size: %w", err)
 	}
-	err = checkQ4Size(pathQ4, h)
+	err = validateQ4Size(pathQ4, h)
 	if err != nil {
-		return fmt.Errorf("checking Q4 file: %w", err)
+		return fmt.Errorf("validating Q4 file size: %w", err)
 	}
 	return nil
 }

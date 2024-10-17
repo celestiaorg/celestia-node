@@ -71,7 +71,7 @@ func writeQ4(w io.Writer, eds *rsmt2d.ExtendedDataSquare) error {
 	return nil
 }
 
-func checkQ4Size(path string, hdr *headerV0) error {
+func validateQ4Size(path string, hdr *headerV0) error {
 	f, err := os.Open(path)
 	if err != nil {
 		return fmt.Errorf("opening Q4 file: %w", err)

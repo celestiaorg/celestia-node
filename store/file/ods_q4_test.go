@@ -39,7 +39,7 @@ func TestODSQ4File(t *testing.T) {
 	eds.TestStreamer(ctx, t, createODSQ4AccessorStreamer, ODSSize)
 }
 
-func TestCheckODSQ4FileSize(t *testing.T) {
+func TestValidateODSQ4FileSize(t *testing.T) {
 	tests := []struct {
 		name string
 		eds  *rsmt2d.ExtendedDataSquare
@@ -65,7 +65,7 @@ func TestCheckODSQ4FileSize(t *testing.T) {
 			err = CreateODSQ4(path+".ods", path+".q4", roots, tt.eds)
 			require.NoError(t, err)
 
-			err = CheckODSQ4Size(path+".ods", path+".q4", tt.eds)
+			err = ValidateODSQ4Size(path+".ods", path+".q4", tt.eds)
 			require.NoError(t, err)
 		})
 	}
