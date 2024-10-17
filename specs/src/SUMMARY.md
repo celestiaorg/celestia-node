@@ -1,3 +1,3 @@
 # Summary
 
-- [WIP](./WIP.md)
+- [Shwap](./shwap/spec.md)
