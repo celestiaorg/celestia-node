@@ -21,8 +21,8 @@ type Option func(*Parameters)
 
 // DefaultParameters returns the default Parameters' configuration values
 // for the light availability implementation
-func DefaultParameters() Parameters {
-	return Parameters{
+func DefaultParameters() *Parameters {
+	return &Parameters{
 		SampleAmount: DefaultSampleAmount,
 	}
 }
