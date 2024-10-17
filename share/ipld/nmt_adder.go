@@ -196,5 +196,5 @@ func (a *ProofsAdder) addProof(id cid.Cid, proof []byte) {
 
 // innerNodesAmount return amount of inner nodes in eds with given size
 func innerNodesAmount(squareSize int) int {
-	return 2 * (squareSize - 1) * squareSize
+	return 2*squareSize - 1
 }
