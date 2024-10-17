@@ -28,7 +28,7 @@ type GetRangeResult struct {
 // Module provides access to any data square or block share on the network.
 //
 // All Get methods provided on Module follow the following flow:
-//  1. Check local storage for the requested libshare.
+//  1. Check local storage for the requested share.
 //  2. If exists
 //     * Load from disk
 //     * Return

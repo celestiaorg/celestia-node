@@ -2,10 +2,11 @@ package blob
 
 import (
 	"encoding/json"
-	libshare "github.com/celestiaorg/go-square/v2/share"
 	"os"
 	"path/filepath"
 	"testing"
+
+	libshare "github.com/celestiaorg/go-square/v2/share"
 )
 
 func FuzzProofEqual(f *testing.F) {
