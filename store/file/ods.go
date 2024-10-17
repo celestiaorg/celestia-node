@@ -102,7 +102,7 @@ func writeODS(w io.Writer, eds *rsmt2d.ExtendedDataSquare) error {
 	for i := range eds.Width() / 2 {
 		for j := range eds.Width() / 2 {
 			shr := eds.GetCell(i, j) // TODO: Avoid copying inside GetCell
-			ns, err := libshare.NewNamespace(shr[libshare.VersionIndex], shr[libshare.VersionIndex:libshare.NamespaceIDSize])
+			ns, err := libshare.NewNamespaceFromBytes(shr[:libshare.NamespaceSize])
 			if err != nil {
 				return fmt.Errorf("creating namespace: %w", err)
 			}
