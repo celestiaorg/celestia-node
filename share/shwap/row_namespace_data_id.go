@@ -123,7 +123,7 @@ func (rndid RowNamespaceDataID) Validate() error {
 	if err := rndid.RowID.Validate(); err != nil {
 		return fmt.Errorf("validating RowID: %w", err)
 	}
-	if err := libshare.ValidateForData(rndid.DataNamespace); err != nil {
+	if err := rndid.DataNamespace.ValidateForData(); err != nil {
 		return fmt.Errorf("%w: validating DataNamespace: %w", ErrInvalidID, err)
 	}
 

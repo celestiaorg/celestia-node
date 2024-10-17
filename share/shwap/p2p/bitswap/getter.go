@@ -187,7 +187,7 @@ func (g *Getter) GetSharesByNamespace(
 	hdr *header.ExtendedHeader,
 	ns libshare.Namespace,
 ) (shwap.NamespaceData, error) {
-	if err := libshare.ValidateForData(ns); err != nil {
+	if err := ns.ValidateForData(); err != nil {
 		return nil, err
 	}
 

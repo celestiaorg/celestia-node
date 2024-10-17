@@ -16,8 +16,7 @@ import (
 	"github.com/celestiaorg/celestia-app/v3/test/util/blobfactory"
 	"github.com/celestiaorg/celestia-app/v3/test/util/testfactory"
 	blobtypes "github.com/celestiaorg/celestia-app/v3/x/blob/types"
-	appshares "github.com/celestiaorg/go-square/shares"
-	libSquare "github.com/celestiaorg/go-square/square"
+	libSquare "github.com/celestiaorg/go-square/v2"
 	libshare "github.com/celestiaorg/go-square/v2/share"
 	"github.com/celestiaorg/nmt"
 	"github.com/celestiaorg/rsmt2d"
@@ -45,7 +44,8 @@ func RandByzantineEDS(t testing.TB, odsSize int, options ...nmt.Option) *rsmt2d.
 
 // RandEDS generates EDS filled with the random data with the given size for original square.
 func RandEDS(t testing.TB, odsSize int) *rsmt2d.ExtendedDataSquare {
-	shares := libshare.RandShares(odsSize * odsSize)
+	shares, err := libshare.RandShares(odsSize * odsSize)
+	require.NoError(t, err)
 	eds, err := rsmt2d.ComputeExtendedDataSquare(
 		libshare.ToBytes(shares),
 		share.DefaultRSMT2DCodec(),
@@ -57,7 +57,8 @@ func RandEDS(t testing.TB, odsSize int) *rsmt2d.ExtendedDataSquare {
 
 // RandEDSWithTailPadding generates EDS of given ODS size filled with randomized and tail padding shares.
 func RandEDSWithTailPadding(t testing.TB, odsSize, padding int) *rsmt2d.ExtendedDataSquare {
-	shares := libshare.RandShares(odsSize * odsSize)
+	shares, err := libshare.RandShares(odsSize * odsSize)
+	require.NoError(t, err)
 	for i := len(shares) - padding; i < len(shares); i++ {
 		paddingShare := libshare.TailPaddingShare()
 		shares[i] = paddingShare
@@ -79,7 +80,8 @@ func RandEDSWithNamespace(
 	namespace libshare.Namespace,
 	namespacedAmount, odsSize int,
 ) (*rsmt2d.ExtendedDataSquare, *share.AxisRoots) {
-	shares := libshare.RandSharesWithNamespace(namespace, namespacedAmount, odsSize*odsSize)
+	shares, err := libshare.RandSharesWithNamespace(namespace, namespacedAmount, odsSize*odsSize)
+	require.NoError(t, err)
 	eds, err := rsmt2d.ComputeExtendedDataSquare(
 		libshare.ToBytes(shares),
 		share.DefaultRSMT2DCodec(),
@@ -139,7 +141,7 @@ func GenerateTestBlock(
 	require.NoError(t, err)
 
 	// erasure the data square which we use to create the data root.
-	eds, err := da.ExtendShares(appshares.ToBytes(square))
+	eds, err := da.ExtendShares(libshare.ToBytes(square))
 	require.NoError(t, err)
 
 	// create the new data root by creating the data availability header (merkle

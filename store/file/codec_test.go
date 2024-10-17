@@ -70,7 +70,8 @@ func BenchmarkCodec(b *testing.B) {
 
 func newShards(b testing.TB, size int, fillParity bool) [][]byte {
 	shards := make([][]byte, size)
-	original := libshare.RandShares(size / 2)
+	original, err := libshare.RandShares(size / 2)
+	require.NoError(b, err)
 	copy(shards, libshare.ToBytes(original))
 
 	if fillParity {

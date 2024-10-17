@@ -21,7 +21,8 @@ func TestGetProof(t *testing.T) {
 	defer cancel()
 	bServ := NewMemBlockservice()
 
-	shares := libshare.RandShares(width * width)
+	shares, err := libshare.RandShares(width * width)
+	require.NoError(t, err)
 	in, err := AddShares(ctx, shares, bServ)
 	require.NoError(t, err)
 
