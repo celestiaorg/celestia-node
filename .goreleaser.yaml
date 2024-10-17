@@ -68,5 +68,6 @@ changelog:
       - "^test:"
 release:
   prerelease: auto
+  mode: keep-existing
 git:
   prerelease_suffix: "-rc*"
