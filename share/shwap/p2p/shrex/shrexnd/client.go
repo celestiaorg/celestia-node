@@ -53,7 +53,7 @@ func (c *Client) RequestND(
 	namespace libshare.Namespace,
 	peer peer.ID,
 ) (shwap.NamespaceData, error) {
-	if err := libshare.ValidateForData(namespace); err != nil {
+	if err := namespace.ValidateForData(); err != nil {
 		return nil, err
 	}
 

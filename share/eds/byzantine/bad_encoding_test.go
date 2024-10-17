@@ -89,7 +89,8 @@ func TestBEFP_Validate(t *testing.T) {
 			name: "incorrect share with Proof",
 			prepareFn: func() error {
 				// break the first shareWithProof to test negative case
-				sh := libshare.RandShares(2)
+				sh, err := libshare.RandShares(2)
+				require.NoError(t, err)
 				nmtProof := nmt.NewInclusionProof(0, 1, nil, false)
 				befp.Shares[0] = &ShareWithProof{sh[0], &nmtProof, rsmt2d.Row}
 				return proof.Validate(&header.ExtendedHeader{DAH: roots})
@@ -160,8 +161,8 @@ func TestIncorrectBadEncodingFraudProof(t *testing.T) {
 	bServ := ipld.NewMemBlockservice()
 
 	squareSize := 8
-	shares := libshare.RandShares(squareSize * squareSize)
-
+	shares, err := libshare.RandShares(squareSize * squareSize)
+	require.NoError(t, err)
 	eds, err := ipld.AddShares(ctx, shares, bServ)
 	require.NoError(t, err)
 

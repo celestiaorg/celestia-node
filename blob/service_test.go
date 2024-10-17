@@ -3,6 +3,7 @@ package blob
 import (
 	"bytes"
 	"context"
+	"encoding/binary"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -23,14 +24,11 @@ import (
 	"github.com/celestiaorg/celestia-app/v3/pkg/wrapper"
 	"github.com/celestiaorg/go-header/store"
 	"github.com/celestiaorg/go-square/merkle"
-	squarens "github.com/celestiaorg/go-square/namespace"
-	appshares "github.com/celestiaorg/go-square/shares"
 	"github.com/celestiaorg/go-square/v2/inclusion"
 	libshare "github.com/celestiaorg/go-square/v2/share"
 	"github.com/celestiaorg/nmt"
 	"github.com/celestiaorg/rsmt2d"
 
-	"github.com/celestiaorg/celestia-node/blob/blobtest"
 	"github.com/celestiaorg/celestia-node/header"
 	"github.com/celestiaorg/celestia-node/header/headertest"
 	"github.com/celestiaorg/celestia-node/libs/utils"
@@ -52,12 +50,12 @@ func TestBlobService_Get(t *testing.T) {
 		blobSize3 = 12
 	)
 
-	libBlobs, err := blobtest.GenerateV0Blobs([]int{blobSize0, blobSize1}, false)
+	libBlobs, err := libshare.GenerateV0Blobs([]int{blobSize0, blobSize1}, false)
 	require.NoError(t, err)
 	blobsWithDiffNamespaces, err := convertBlobs(libBlobs...)
 	require.NoError(t, err)
 
-	libBlobs, err = blobtest.GenerateV0Blobs([]int{blobSize2, blobSize3}, true)
+	libBlobs, err = libshare.GenerateV0Blobs([]int{blobSize2, blobSize3}, true)
 	require.NoError(t, err)
 	blobsWithSameNamespace, err := convertBlobs(libBlobs...)
 	require.NoError(t, err)
@@ -152,7 +150,7 @@ func TestBlobService_Get(t *testing.T) {
 					require.True(t, bytes.Equal(sh.ToBytes(), resultShares[shareOffset].ToBytes()),
 						fmt.Sprintf("issue on %d attempt. ROW:%d, COL: %d, blobIndex:%d", i, row, col, blobs[i].index),
 					)
-					shareOffset += appshares.SparseSharesNeeded(uint32(len(blobs[i].Data())))
+					shareOffset += libshare.SparseSharesNeeded(uint32(len(blobs[i].Data())))
 				}
 			},
 		},
@@ -202,7 +200,7 @@ func TestBlobService_Get(t *testing.T) {
 		{
 			name: "get invalid blob",
 			doFn: func() (interface{}, error) {
-				libBlob, err := blobtest.GenerateV0Blobs([]int{10}, false)
+				libBlob, err := libshare.GenerateV0Blobs([]int{10}, false)
 				require.NoError(t, err)
 				blob, err := convertBlobs(libBlob...)
 				require.NoError(t, err)
@@ -302,7 +300,7 @@ func TestBlobService_Get(t *testing.T) {
 		{
 			name: "not included",
 			doFn: func() (interface{}, error) {
-				libBlob, err := blobtest.GenerateV0Blobs([]int{10}, false)
+				libBlob, err := libshare.GenerateV0Blobs([]int{10}, false)
 				require.NoError(t, err)
 				blob, err := convertBlobs(libBlob...)
 				require.NoError(t, err)
@@ -358,7 +356,7 @@ func TestBlobService_Get(t *testing.T) {
 		{
 			name: "empty result and err when blobs were not found ",
 			doFn: func() (interface{}, error) {
-				nid, err := libshare.NewV0Namespace(tmrand.Bytes(squarens.NamespaceVersionZeroIDSize))
+				nid, err := libshare.NewV0Namespace(tmrand.Bytes(libshare.NamespaceVersionZeroIDSize))
 				require.NoError(t, err)
 				return service.GetAll(ctx, 1, []libshare.Namespace{nid})
 			},
@@ -460,7 +458,7 @@ func TestService_GetSingleBlobWithoutPadding(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second*5)
 	t.Cleanup(cancel)
 
-	libBlob, err := blobtest.GenerateV0Blobs([]int{9, 5}, true)
+	libBlob, err := libshare.GenerateV0Blobs([]int{9, 5}, true)
 	require.NoError(t, err)
 	blobs, err := convertBlobs(libBlob...)
 	require.NoError(t, err)
@@ -501,7 +499,7 @@ func TestService_Get(t *testing.T) {
 
 	sizes := []int{1, 6, 3, 2, 4, 6, 8, 2, 15, 17}
 
-	libBlobs, err := blobtest.GenerateV0Blobs(sizes, true)
+	libBlobs, err := libshare.GenerateV0Blobs(sizes, true)
 	require.NoError(t, err)
 	blobs, err := convertBlobs(libBlobs...)
 	require.NoError(t, err)
@@ -527,7 +525,7 @@ func TestService_Get(t *testing.T) {
 		require.NoError(t, err)
 
 		assert.Equal(t, sh, resultShares[shareOffset], fmt.Sprintf("issue on %d attempt", i))
-		shareOffset += appshares.SparseSharesNeeded(uint32(len(blob.Data())))
+		shareOffset += libshare.SparseSharesNeeded(uint32(len(blob.Data())))
 	}
 }
 
@@ -538,7 +536,7 @@ func TestService_GetAllWithoutPadding(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second*5)
 	t.Cleanup(cancel)
 
-	libBlob, err := blobtest.GenerateV0Blobs([]int{9, 5, 15, 4, 24}, true)
+	libBlob, err := libshare.GenerateV0Blobs([]int{9, 5, 15, 4, 24}, true)
 	require.NoError(t, err)
 	blobs, err := convertBlobs(libBlob...)
 	require.NoError(t, err)
@@ -586,7 +584,7 @@ func TestService_GetAllWithoutPadding(t *testing.T) {
 		require.NoError(t, err)
 
 		assert.Equal(t, sh, resultShares[shareOffset])
-		shareOffset += appshares.SparseSharesNeeded(uint32(len(blob.Data())))
+		shareOffset += libshare.SparseSharesNeeded(uint32(len(blob.Data())))
 	}
 }
 
@@ -621,7 +619,7 @@ func TestSkipPaddingsAndRetrieveBlob(t *testing.T) {
 		rawShares = append(rawShares, padding)
 	}
 
-	size := blobtest.RawBlobSize(libshare.FirstSparseShareContentSize * 6)
+	size := rawBlobSize(libshare.FirstSparseShareContentSize * 6)
 	ns, err := libshare.NewNamespace(nid.Version(), nid.ID())
 	require.NoError(t, err)
 	data := tmrand.Bytes(size)
@@ -649,7 +647,7 @@ func TestService_Subscribe(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second*10)
 	t.Cleanup(cancel)
 
-	libBlobs, err := blobtest.GenerateV0Blobs([]int{16, 16, 16}, true)
+	libBlobs, err := libshare.GenerateV0Blobs([]int{16, 16, 16}, true)
 	require.NoError(t, err)
 	blobs, err := convertBlobs(libBlobs...)
 	require.NoError(t, err)
@@ -754,9 +752,9 @@ func TestService_Subscribe_MultipleNamespaces(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second*10)
 	t.Cleanup(cancel)
 
-	libBlobs1, err := blobtest.GenerateV0Blobs([]int{100, 100}, true)
+	libBlobs1, err := libshare.GenerateV0Blobs([]int{100, 100}, true)
 	require.NoError(t, err)
-	libBlobs2, err := blobtest.GenerateV0Blobs([]int{100, 100}, true)
+	libBlobs2, err := libshare.GenerateV0Blobs([]int{100, 100}, true)
 	for i := range libBlobs2 {
 		// if we don't do this, libBlobs1 and libBlobs2 will share a NS
 		libBlobs2[i].Namespace().ID()[len(libBlobs2[i].Namespace().ID())-1] = 0xDE
@@ -815,7 +813,7 @@ func TestService_Subscribe_MultipleNamespaces(t *testing.T) {
 func BenchmarkGetByCommitment(b *testing.B) {
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second*5)
 	b.Cleanup(cancel)
-	libBlobs, err := blobtest.GenerateV0Blobs([]int{32, 32}, true)
+	libBlobs, err := libshare.GenerateV0Blobs([]int{32, 32}, true)
 	require.NoError(b, err)
 
 	blobs, err := convertBlobs(libBlobs...)
@@ -1067,4 +1065,14 @@ func generateCommitmentProofFromBlock(
 	}
 
 	return commitmentProof
+}
+
+func rawBlobSize(totalSize int) int {
+	return totalSize - delimLen(uint64(totalSize))
+}
+
+// delimLen calculates the length of the delimiter for a given unit size
+func delimLen(size uint64) int {
+	lenBuf := make([]byte, binary.MaxVarintLen64)
+	return binary.PutUvarint(lenBuf, size)
 }

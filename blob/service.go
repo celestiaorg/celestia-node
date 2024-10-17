@@ -172,12 +172,8 @@ func (s *Service) Submit(ctx context.Context, blobs []*Blob, txConfig *SubmitOpt
 
 	libBlobs := make([]*libshare.Blob, len(blobs))
 	for i := range blobs {
-		namespace := blobs[i].Namespace()
-		if err := libshare.ValidateForData(namespace); err != nil {
-			return 0, err
-		}
-		if !libshare.IsBlobNamespace(namespace) {
-			return 0, fmt.Errorf("not allowed namespace %s were used to build the blob", namespace.ID())
+		if err := blobs[i].Namespace().ValidateForBlob(); err != nil {
+			return 0, fmt.Errorf("not allowed namespace %s were used to build the blob", blobs[i].Namespace().ID())
 		}
 
 		libBlobs[i] = blobs[i].Blob

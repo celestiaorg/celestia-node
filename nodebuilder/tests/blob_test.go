@@ -16,7 +16,6 @@ import (
 	libshare "github.com/celestiaorg/go-square/v2/share"
 
 	"github.com/celestiaorg/celestia-node/blob"
-	"github.com/celestiaorg/celestia-node/blob/blobtest"
 	"github.com/celestiaorg/celestia-node/nodebuilder/node"
 	"github.com/celestiaorg/celestia-node/nodebuilder/tests/swamp"
 	"github.com/celestiaorg/celestia-node/state"
@@ -27,9 +26,9 @@ func TestBlobModule(t *testing.T) {
 	t.Cleanup(cancel)
 	sw := swamp.NewSwamp(t, swamp.WithBlockTime(time.Second*1))
 
-	libBlobs0, err := blobtest.GenerateV0Blobs([]int{8, 4}, true)
+	libBlobs0, err := libshare.GenerateV0Blobs([]int{8, 4}, true)
 	require.NoError(t, err)
-	libBlobs1, err := blobtest.GenerateV0Blobs([]int{4}, false)
+	libBlobs1, err := libshare.GenerateV0Blobs([]int{4}, false)
 	require.NoError(t, err)
 	blobs := make([]*blob.Blob, 0, len(libBlobs0)+len(libBlobs1))
 
@@ -116,7 +115,7 @@ func TestBlobModule(t *testing.T) {
 		{
 			name: "Not Found",
 			doFn: func(t *testing.T) {
-				libBlob, err := blobtest.GenerateV0Blobs([]int{4}, false)
+				libBlob, err := libshare.GenerateV0Blobs([]int{4}, false)
 				require.NoError(t, err)
 				newBlob, err := convert(libBlob[0])
 				require.NoError(t, err)
@@ -134,7 +133,7 @@ func TestBlobModule(t *testing.T) {
 		{
 			name: "Submit equal blobs",
 			doFn: func(t *testing.T) {
-				libBlob, err := blobtest.GenerateV0Blobs([]int{8, 4}, true)
+				libBlob, err := libshare.GenerateV0Blobs([]int{8, 4}, true)
 				require.NoError(t, err)
 				b, err := convert(libBlob[0])
 				require.NoError(t, err)

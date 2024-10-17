@@ -26,7 +26,8 @@ import (
 
 // RandFillBS fills the given BlockService with a random block of a given size.
 func RandFillBS(t *testing.T, n int, bServ blockservice.BlockService) *share.AxisRoots {
-	shares := libshare.RandShares(n * n)
+	shares, err := libshare.RandShares(n * n)
+	require.NoError(t, err)
 	return FillBS(t, bServ, shares)
 }
 

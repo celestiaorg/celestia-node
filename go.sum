@@ -361,12 +361,12 @@ github.com/celestiaorg/go-square v1.1.0 h1:K4tBL5PCJwDtpBfyDxxZ3N962aC9VYb5/bw3L
 github.com/celestiaorg/go-square v1.1.0/go.mod h1:1EXMErhDrWJM8B8V9hN7dqJ2kUTClfwdqMOmF9yQUa0=
 github.com/celestiaorg/go-square/merkle v0.0.0-20240117232118-fd78256df076 h1:PYInrsYzrDIsZW9Yb86OTi2aEKuPcpgJt6Mc0Jlc/yg=
 github.com/celestiaorg/go-square/merkle v0.0.0-20240117232118-fd78256df076/go.mod h1:hlidgivKyvv7m4Yl2Fdf2mSTmazZYxX8+bnr5IQrI98=
-github.com/celestiaorg/go-square/v2 v2.0.1-0.20241007123147-1359db0f487c h1:HOXirS9jNTqKSz/Iv7PauWuaC6Dt5RIPg95xhP2q5Mw=
-github.com/celestiaorg/go-square/v2 v2.0.1-0.20241007123147-1359db0f487c/go.mod h1:y0BolG0tRM7UN1sAQyDDUkT+aMJPwFIjviVvnCB62C0=
+github.com/celestiaorg/go-square/v2 v2.1.0-rc0 h1:Ra6bp+mVUXmUT1KYMiOCmW4tBK6EIknpP10uhPngOR8=
+github.com/celestiaorg/go-square/v2 v2.1.0-rc0/go.mod h1:n3ztrh8CBjWOD6iWYMo3pPOlQIgzLK9yrnqMPcNo6g8=
 github.com/celestiaorg/merkletree v0.0.0-20230308153949-c33506a7aa26 h1:P2RI1xJ49EZ8cuHMcH+ZSBonfRDtBS8OS9Jdt1BWX3k=
 github.com/celestiaorg/merkletree v0.0.0-20230308153949-c33506a7aa26/go.mod h1:2m8ukndOegwB0PU0AfJCwDUQHqd7QQRlSXvQL5VToVY=
-github.com/celestiaorg/nmt v0.22.1 h1:t7fqoP5MJ8mBns5DB2XjfcPxQpS3CKMkY+v+BEkDxYc=
-github.com/celestiaorg/nmt v0.22.1/go.mod h1:ia/EpCk0enD5yO5frcxoNoFToz2Ghtk2i+blmCRjIY8=
+github.com/celestiaorg/nmt v0.22.2 h1:JmOMtZL9zWAed1hiwb9DDs+ELcKp/ZQZ3rPverge/V8=
+github.com/celestiaorg/nmt v0.22.2/go.mod h1:/7huDiSRL/d2EGhoiKctgSzmLOJoWG8yEfbFtY1+Mow=
 github.com/celestiaorg/rsmt2d v0.14.0 h1:L7XJ3tRJDY8sQcvCjzHq0L7JmsmaSD+VItymIYFLqYc=
 github.com/celestiaorg/rsmt2d v0.14.0/go.mod h1:4kxqiTdFev49sGiKXTDjohbWYOG5GlcIfftTgaBJnpc=
 github.com/cenkalti/backoff v2.2.1+incompatible h1:tNowT99t7UNflLxfYYSlKYsBpXdEet03Pg2g16Swow4=
@@ -1814,8 +1814,8 @@ github.com/tidwall/btree v1.5.0/go.mod h1:LGm8L/DZjPLmeWGjv5kFrY8dL4uVhMmzmmLYms
 github.com/tidwall/gjson v1.6.0/go.mod h1:P256ACg0Mn+j1RXIDXoss50DeIABTYK1PULOJHhxOls=
 github.com/tidwall/gjson v1.12.1/go.mod h1:/wbyibRr2FHMks5tjHJ5F8dMZh3AcwJEMf5vlfC0lxk=
 github.com/tidwall/gjson v1.14.0/go.mod h1:/wbyibRr2FHMks5tjHJ5F8dMZh3AcwJEMf5vlfC0lxk=
-github.com/tidwall/gjson v1.17.1 h1:wlYEnwqAHgzmhNUFfw7Xalt2JzQvsMx2Se4PcoFCT/U=
-github.com/tidwall/gjson v1.17.1/go.mod h1:/wbyibRr2FHMks5tjHJ5F8dMZh3AcwJEMf5vlfC0lxk=
+github.com/tidwall/gjson v1.18.0 h1:FIDeeyB800efLX89e5a8Y0BNH+LOngJyGrIWxG2FKQY=
+github.com/tidwall/gjson v1.18.0/go.mod h1:/wbyibRr2FHMks5tjHJ5F8dMZh3AcwJEMf5vlfC0lxk=
 github.com/tidwall/match v1.0.1/go.mod h1:LujAq0jyVjBy028G1WhWfIzbpQfMO8bBZ6Tyb0+pL9E=
 github.com/tidwall/match v1.1.1 h1:+Ho715JplO36QYgwN9PGYNhgZvoUSc9X2c80KVTi+GA=
 github.com/tidwall/match v1.1.1/go.mod h1:eRSPERbgtNPcGhD8UCthc6PmLEQXEWd3PRB5JTxsfmM=

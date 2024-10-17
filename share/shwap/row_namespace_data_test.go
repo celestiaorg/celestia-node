@@ -22,11 +22,11 @@ func TestNamespacedRowFromShares(t *testing.T) {
 
 	minNamespace, err := libshare.NewV0Namespace(slices.Concat(bytes.Repeat([]byte{0}, 8), []byte{1, 0}))
 	require.NoError(t, err)
-	err = libshare.ValidateForData(minNamespace)
-	require.NoError(t, err)
+	require.NoError(t, minNamespace.ValidateForData())
 
 	for namespacedAmount := 1; namespacedAmount < odsSize; namespacedAmount++ {
-		shares := libshare.RandSharesWithNamespace(minNamespace, namespacedAmount, odsSize)
+		shares, err := libshare.RandSharesWithNamespace(minNamespace, namespacedAmount, odsSize)
+		require.NoError(t, err)
 		parity, err := share.DefaultRSMT2DCodec().Encode(libshare.ToBytes(shares))
 		require.NoError(t, err)
 
@@ -46,7 +46,8 @@ func TestNamespacedRowFromShares(t *testing.T) {
 //
 //	const odsSize = 8
 //	//Test absent namespace
-//	shares := libshare.RandShares( odsSize)
+//	shares,err := libshare.RandShares( odsSize)
+//	require.NoError(t, err)
 //	absentNs, err := share.GetNamespace(shares[0]).AddInt(1)
 //	require.NoError(t, err)
 //

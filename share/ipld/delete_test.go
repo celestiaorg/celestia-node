@@ -21,7 +21,8 @@ func TestDeleteNode_FullSquare(t *testing.T) {
 	defer cancel()
 	bServ := NewMemBlockservice()
 
-	shares := libshare.RandShares(size * size)
+	shares, err := libshare.RandShares(size * size)
+	require.NoError(t, err)
 	eds, err := AddShares(ctx, shares, bServ)
 	require.NoError(t, err)
 
@@ -63,7 +64,8 @@ func TestDeleteNode_Sample(t *testing.T) {
 	defer cancel()
 	full := NewMemBlockservice()
 
-	shares := libshare.RandShares(size * size)
+	shares, err := libshare.RandShares(size * size)
+	require.NoError(t, err)
 	eds, err := AddShares(ctx, shares, full)
 	require.NoError(t, err)
 

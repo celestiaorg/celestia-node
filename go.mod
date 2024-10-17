@@ -11,10 +11,9 @@ require (
 	github.com/celestiaorg/go-fraud v0.2.1
 	github.com/celestiaorg/go-header v0.6.2
 	github.com/celestiaorg/go-libp2p-messenger v0.2.0
-	github.com/celestiaorg/go-square v1.1.0
 	github.com/celestiaorg/go-square/merkle v0.0.0-20240117232118-fd78256df076
-	github.com/celestiaorg/go-square/v2 v2.0.0
-	github.com/celestiaorg/nmt v0.22.1
+	github.com/celestiaorg/go-square/v2 v2.1.0-rc0
+	github.com/celestiaorg/nmt v0.22.2
 	github.com/celestiaorg/rsmt2d v0.14.0
 	github.com/cosmos/cosmos-sdk v0.46.16
 	github.com/cristalhq/jwt/v5 v5.4.0
@@ -101,6 +100,7 @@ require (
 	github.com/bits-and-blooms/bitset v1.13.0 // indirect
 	github.com/btcsuite/btcd/btcec/v2 v2.3.4 // indirect
 	github.com/celestiaorg/blobstream-contracts/v3 v3.1.0 // indirect
+	github.com/celestiaorg/go-square v1.1.0 // indirect
 	github.com/celestiaorg/merkletree v0.0.0-20230308153949-c33506a7aa26 // indirect
 	github.com/cenkalti/backoff/v4 v4.3.0 // indirect
 	github.com/cespare/xxhash v1.1.0 // indirect
@@ -344,7 +344,6 @@ require (
 )
 
 replace (
-	github.com/celestiaorg/go-square/v2 v2.0.0 => github.com/celestiaorg/go-square/v2 v2.0.1-0.20241007123147-1359db0f487c
 	github.com/cosmos/cosmos-sdk => github.com/celestiaorg/cosmos-sdk v1.25.0-sdk-v0.46.16
 	github.com/filecoin-project/dagstore => github.com/celestiaorg/dagstore v0.0.0-20230824094345-537c012aa403
 	github.com/gogo/protobuf => github.com/regen-network/protobuf v1.3.3-alpha.regen.1
