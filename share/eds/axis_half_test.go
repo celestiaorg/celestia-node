@@ -9,7 +9,8 @@ import (
 )
 
 func TestExtendAxisHalf(t *testing.T) {
-	shares := libshare.RandShares(16)
+	shares, err := libshare.RandShares(16)
+	require.NoError(t, err)
 
 	original := AxisHalf{
 		Shares:   shares,

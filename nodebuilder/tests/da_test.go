@@ -16,7 +16,6 @@ import (
 	libshare "github.com/celestiaorg/go-square/v2/share"
 
 	"github.com/celestiaorg/celestia-node/blob"
-	"github.com/celestiaorg/celestia-node/blob/blobtest"
 	"github.com/celestiaorg/celestia-node/nodebuilder/da"
 	"github.com/celestiaorg/celestia-node/nodebuilder/node"
 	"github.com/celestiaorg/celestia-node/nodebuilder/tests/swamp"
@@ -31,9 +30,9 @@ func TestDaModule(t *testing.T) {
 	require.NoError(t, err)
 	require.False(t, namespace.IsReserved())
 
-	libBlobs0, err := blobtest.GenerateV0Blobs([]int{8, 4}, true)
+	libBlobs0, err := libshare.GenerateV0Blobs([]int{8, 4}, true)
 	require.NoError(t, err)
-	libBlobs1, err := blobtest.GenerateV0Blobs([]int{4}, false)
+	libBlobs1, err := libshare.GenerateV0Blobs([]int{4}, false)
 	require.NoError(t, err)
 	blobs := make([]*blob.Blob, 0, len(libBlobs0)+len(libBlobs1))
 	daBlobs := make([][]byte, 0, len(libBlobs0)+len(libBlobs1))

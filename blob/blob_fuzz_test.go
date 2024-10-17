@@ -2,11 +2,10 @@ package blob
 
 import (
 	"encoding/json"
+	libshare "github.com/celestiaorg/go-square/v2/share"
 	"os"
 	"path/filepath"
 	"testing"
-
-	"github.com/celestiaorg/celestia-node/blob/blobtest"
 )
 
 func FuzzProofEqual(f *testing.F) {
@@ -15,7 +14,7 @@ func FuzzProofEqual(f *testing.F) {
 	}
 
 	// 1. Generate the corpus.
-	libBlobs, err := blobtest.GenerateV0Blobs([]int{16}, false)
+	libBlobs, err := libshare.GenerateV0Blobs([]int{16}, false)
 	if err != nil {
 		f.Fatal(err)
 	}

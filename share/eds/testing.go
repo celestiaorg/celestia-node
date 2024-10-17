@@ -263,7 +263,7 @@ func testAccessorRowNamespaceData(
 			ns, err := libshare.NewNamespaceFromBytes(maxNs)
 			require.NoError(t, err)
 
-			absentNs, err := libshare.AddInt(ns, -1)
+			absentNs, err := ns.AddInt(-1)
 			require.NoError(t, err)
 
 			acc := createAccessor(t, eds)

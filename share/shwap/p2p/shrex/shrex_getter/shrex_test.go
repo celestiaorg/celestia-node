@@ -124,7 +124,7 @@ func TestShrexGetter(t *testing.T) {
 		})
 
 		// namespace inside root range
-		nID, err := libshare.AddInt(maxNamespace, -1)
+		nID, err := maxNamespace.AddInt(-1)
 		require.NoError(t, err)
 		// check for namespace to be between max and min namespace in root
 		rows, err := share.RowsWithNamespace(roots, nID)
@@ -138,7 +138,7 @@ func TestShrexGetter(t *testing.T) {
 		require.Nil(t, emptyShares.Verify(roots, nID))
 
 		// namespace outside root range
-		nID, err = libshare.AddInt(maxNamespace, 1)
+		nID, err = maxNamespace.AddInt(1)
 		require.NoError(t, err)
 		// check for namespace to be not in root
 		rows, err = share.RowsWithNamespace(roots, nID)
@@ -169,7 +169,7 @@ func TestShrexGetter(t *testing.T) {
 			Height:   height,
 		})
 
-		namespace, err := libshare.AddInt(maxNamespace, 1)
+		namespace, err := maxNamespace.AddInt(1)
 		require.NoError(t, err)
 		// check for namespace to be not in root
 		rows, err := share.RowsWithNamespace(roots, namespace)

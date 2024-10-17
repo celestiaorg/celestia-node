@@ -31,7 +31,8 @@ func TestGetShare(t *testing.T) {
 	bServ := NewMemBlockservice()
 
 	// generate random shares for the nmt
-	shares := libshare.RandShares(size * size)
+	shares, err := libshare.RandShares(size * size)
+	require.NoError(t, err)
 	eds, err := AddShares(ctx, shares, bServ)
 	require.NoError(t, err)
 
@@ -53,8 +54,10 @@ func TestBlockRecovery(t *testing.T) {
 	extendedShareCount := extendedSquareWidth * extendedSquareWidth
 
 	// generate test data
-	quarterShares := libshare.RandShares(shareCount)
-	allShares := libshare.RandShares(shareCount)
+	quarterShares, err := libshare.RandShares(shareCount)
+	require.NoError(t, err)
+	allShares, err := libshare.RandShares(shareCount)
+	require.NoError(t, err)
 
 	testCases := []struct {
 		name      string
@@ -114,7 +117,8 @@ func TestBlockRecovery(t *testing.T) {
 
 func Test_ConvertEDStoShares(t *testing.T) {
 	squareWidth := 16
-	shares := libshare.RandShares(squareWidth * squareWidth)
+	shares, err := libshare.RandShares(squareWidth * squareWidth)
+	require.NoError(t, err)
 
 	// compute extended square
 	testEds, err := rsmt2d.ComputeExtendedDataSquare(
@@ -147,12 +151,17 @@ func TestGetSharesByNamespace(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	t.Cleanup(cancel)
 	bServ := NewMemBlockservice()
+	sh0, err := libshare.RandShares(4)
+	require.NoError(t, err)
+
+	sh1, err := libshare.RandShares(4)
+	require.NoError(t, err)
 
 	tests := []struct {
 		rawData []libshare.Share
 	}{
-		{rawData: libshare.RandShares(4)},
-		{rawData: libshare.RandShares(16)},
+		{rawData: sh0},
+		{rawData: sh1},
 	}
 
 	for i, tt := range tests {
@@ -193,7 +202,8 @@ func TestCollectLeavesByNamespace_IncompleteData(t *testing.T) {
 	t.Cleanup(cancel)
 	bServ := NewMemBlockservice()
 
-	shares := libshare.RandShares(16)
+	shares, err := libshare.RandShares(16)
+	require.NoError(t, err)
 
 	// set all shares to the same namespace id
 	namespace := shares[0].Namespace()
@@ -237,8 +247,8 @@ func TestCollectLeavesByNamespace_AbsentNamespaceId(t *testing.T) {
 	t.Cleanup(cancel)
 	bServ := NewMemBlockservice()
 
-	shares := libshare.RandShares(1024)
-
+	shares, err := libshare.RandShares(1024)
+	require.NoError(t, err)
 	// set all shares to the same namespace
 	namespaces, err := randomNamespaces(5)
 	require.NoError(t, err)
@@ -282,8 +292,8 @@ func TestCollectLeavesByNamespace_MultipleRowsContainingSameNamespaceId(t *testi
 	t.Cleanup(cancel)
 	bServ := NewMemBlockservice()
 
-	shares := libshare.RandShares(16)
-
+	shares, err := libshare.RandShares(16)
+	require.NoError(t, err)
 	// set all shares to the same namespace and data but the last one
 	namespace := shares[0].Namespace()
 	commonNamespaceData := shares[0]
@@ -326,12 +336,18 @@ func TestGetSharesWithProofsByNamespace(t *testing.T) {
 	t.Cleanup(cancel)
 	bServ := NewMemBlockservice()
 
+	sh0, err := libshare.RandShares(4)
+	require.NoError(t, err)
+	sh1, err := libshare.RandShares(16)
+	require.NoError(t, err)
+	sh2, err := libshare.RandShares(64)
+	require.NoError(t, err)
 	tests := []struct {
 		rawData []libshare.Share
 	}{
-		{rawData: libshare.RandShares(4)},
-		{rawData: libshare.RandShares(16)},
-		{rawData: libshare.RandShares(64)},
+		{rawData: sh0},
+		{rawData: sh1},
+		{rawData: sh2},
 	}
 
 	for i, tt := range tests {

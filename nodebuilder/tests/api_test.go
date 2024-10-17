@@ -14,7 +14,6 @@ import (
 
 	"github.com/celestiaorg/celestia-node/api/rpc/client"
 	"github.com/celestiaorg/celestia-node/blob"
-	"github.com/celestiaorg/celestia-node/blob/blobtest"
 	"github.com/celestiaorg/celestia-node/nodebuilder"
 	"github.com/celestiaorg/celestia-node/nodebuilder/node"
 	"github.com/celestiaorg/celestia-node/nodebuilder/tests/swamp"
@@ -107,7 +106,7 @@ func TestBlobRPC(t *testing.T) {
 
 	rpcClient := getAdminClient(ctx, bridge, t)
 
-	libBlobs, err := blobtest.GenerateV0Blobs([]int{8}, false)
+	libBlobs, err := libshare.GenerateV0Blobs([]int{8}, false)
 	require.NoError(t, err)
 
 	newBlob, err := blob.NewBlob(

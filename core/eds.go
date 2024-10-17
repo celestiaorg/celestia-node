@@ -9,7 +9,6 @@ import (
 	"github.com/celestiaorg/celestia-app/v3/app"
 	"github.com/celestiaorg/celestia-app/v3/pkg/appconsts"
 	"github.com/celestiaorg/celestia-app/v3/pkg/wrapper"
-	"github.com/celestiaorg/go-square/shares"
 	libsquare "github.com/celestiaorg/go-square/v2"
 	libshare "github.com/celestiaorg/go-square/v2/share"
 	"github.com/celestiaorg/nmt"
@@ -44,7 +43,7 @@ func extendBlock(data types.Data, appVersion uint64, options ...nmt.Option) (*rs
 
 func extendShares(s [][]byte, options ...nmt.Option) (*rsmt2d.ExtendedDataSquare, error) {
 	// Check that the length of the square is a power of 2.
-	if !shares.IsPowerOfTwo(len(s)) {
+	if !libsquare.IsPowerOfTwo(len(s)) {
 		return nil, fmt.Errorf("number of shares is not a power of 2: got %d", len(s))
 	}
 	// here we construct a tree

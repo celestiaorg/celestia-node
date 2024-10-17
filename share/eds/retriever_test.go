@@ -46,7 +46,8 @@ func TestRetriever_Retrieve(t *testing.T) {
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
 			// generate EDS
-			shares := libshare.RandShares(tc.squareSize * tc.squareSize)
+			shares, err := libshare.RandShares(tc.squareSize * tc.squareSize)
+			require.NoError(t, err)
 			in, err := ipld.AddShares(ctx, shares, bServ)
 			require.NoError(t, err)
 
@@ -75,7 +76,8 @@ func TestRetriever_MultipleRandQuadrants(t *testing.T) {
 	r := NewRetriever(bServ)
 
 	// generate EDS
-	shares := libshare.RandShares(squareSize * squareSize)
+	shares, err := libshare.RandShares(squareSize * squareSize)
+	require.NoError(t, err)
 	in, err := ipld.AddShares(ctx, shares, bServ)
 	require.NoError(t, err)
 

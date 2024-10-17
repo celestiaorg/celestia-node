@@ -72,7 +72,7 @@ func NewNamespaceData(maxShares int, namespace libshare.Namespace, options ...Op
 }
 
 func (n *NamespaceData) validate(rootCid cid.Cid) error {
-	if err := libshare.ValidateUserNamespace(n.namespace.Version(), n.namespace.ID()); err != nil {
+	if err := n.namespace.ValidateForData(); err != nil {
 		return err
 	}
 
