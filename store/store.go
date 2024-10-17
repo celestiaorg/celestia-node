@@ -181,6 +181,22 @@ func (s *Store) createODSQ4File(
 		)
 	}
 
+	// if file already exists, check if it's corrupted
+	if errors.Is(err, os.ErrExist) {
+		// Validate the size of the file to ensure it's not corrupted
+		err = file.CheckODSQ4Size(pathODS, pathQ4, square)
+		if err != nil {
+			err = s.removeODSQ4(height, roots.Hash())
+			if err != nil {
+				return false, fmt.Errorf("removing corrupted ODSQ4 file: %w", err)
+			}
+			err = file.CreateODSQ4(pathODS, pathQ4, roots, square)
+			if err != nil {
+				return false, fmt.Errorf("recreating ODSQ4 file: %w", err)
+			}
+		}
+	}
+
 	// create hard link with height as name
 	err = s.linkHeight(roots.Hash(), height)
 	// if both file and link exist, we consider it as success
@@ -212,6 +228,22 @@ func (s *Store) createODSFile(
 			fmt.Errorf("creating ODS file: %w", err),
 			removeErr,
 		)
+	}
+
+	// if file already exists, check if it's corrupted
+	if errors.Is(err, os.ErrExist) {
+		// Validate the size of the file to ensure it's not corrupted
+		err = file.CheckODSSize(pathODS, square)
+		if err != nil {
+			err = s.removeODSQ4(height, roots.Hash())
+			if err != nil {
+				return false, fmt.Errorf("removing corrupted ODS file: %w", err)
+			}
+			err = file.CreateODS(pathODS, roots, square)
+			if err != nil {
+				return false, fmt.Errorf("recreating ODS file: %w", err)
+			}
+		}
 	}
 
 	// create hard link with height as name

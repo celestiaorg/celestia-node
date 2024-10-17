@@ -39,6 +39,38 @@ func TestODSQ4File(t *testing.T) {
 	eds.TestStreamer(ctx, t, createODSQ4AccessorStreamer, ODSSize)
 }
 
+func TestCheckODSQ4FileSize(t *testing.T) {
+	tests := []struct {
+		name string
+		eds  *rsmt2d.ExtendedDataSquare
+	}{
+		{
+			name: "no padding",
+			eds:  edstest.RandEDS(t, 8),
+		},
+		{
+			name: "with padding",
+			eds:  edstest.RandEDSWithTailPadding(t, 8, 11),
+		},
+		{
+			name: "empty", eds: share.EmptyEDS(),
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			path := t.TempDir() + "/" + tt.name
+			roots, err := share.NewAxisRoots(tt.eds)
+			require.NoError(t, err)
+			err = CreateODSQ4(path+".ods", path+".q4", roots, tt.eds)
+			require.NoError(t, err)
+
+			err = CheckODSQ4Size(path+".ods", path+".q4", tt.eds)
+			require.NoError(t, err)
+		})
+	}
+}
+
 // BenchmarkAxisFromODSQ4File/Size:32/ProofType:row/squareHalf:0-16         	  354836	      3345 ns/op
 // BenchmarkAxisFromODSQ4File/Size:32/ProofType:row/squareHalf:1-16         	  339547	      3187 ns/op
 // BenchmarkAxisFromODSQ4File/Size:32/ProofType:col/squareHalf:0-16         	   69364	     16440 ns/op

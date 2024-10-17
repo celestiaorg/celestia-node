@@ -63,6 +63,18 @@ func CreateODSQ4(
 	return nil
 }
 
+func CheckODSQ4Size(pathODS, pathQ4 string, eds *rsmt2d.ExtendedDataSquare) error {
+	h, err := checkODSSize(pathODS, eds)
+	if err != nil {
+		return fmt.Errorf("checking ODS file: %w", err)
+	}
+	err = checkQ4Size(pathQ4, h)
+	if err != nil {
+		return fmt.Errorf("checking Q4 file: %w", err)
+	}
+	return nil
+}
+
 // ODSWithQ4 returns ODSQ4 instance over ODS. It opens Q4 file lazily under the given path.
 func ODSWithQ4(ods *ODS, pathQ4 string) *ODSQ4 {
 	return &ODSQ4{
