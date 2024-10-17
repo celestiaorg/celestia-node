@@ -1,7 +1,6 @@
 package blob
 
 import (
-	"fmt"
 	"sort"
 
 	libshare "github.com/celestiaorg/go-square/v2/share"
@@ -13,14 +12,15 @@ func BlobsToShares(nodeBlobs ...*Blob) ([]libshare.Share, error) {
 		return nodeBlobs[i].Blob.Namespace().IsLessThan(nodeBlobs[j].Blob.Namespace())
 	})
 
-	splitter := libshare.NewSparseShareSplitter()
-	for i, nodeBlob := range nodeBlobs {
-		err := splitter.Write(nodeBlob.Blob)
+	shares := make([]libshare.Share, 0)
+	for _, nodeBlob := range nodeBlobs {
+		sh, err := nodeBlob.ToShares()
 		if err != nil {
-			return nil, fmt.Errorf("failed to split blob at index: %d: %w", i, err)
+			return nil, err
 		}
+		shares = append(shares, sh...)
 	}
-	return splitter.Export(), nil
+	return shares, nil
 }
 
 // ToLibBlobs converts node's blob type to the blob type from go-square.
