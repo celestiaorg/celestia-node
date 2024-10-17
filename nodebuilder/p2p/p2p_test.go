@@ -229,16 +229,13 @@ func TestP2PModule_ConnGater(t *testing.T) {
 
 	ctx := context.Background()
 
-	connectedness, err := mgr.Connectedness(ctx, peer.ID())
-	require.NoError(t, err)
-
 	assert.NoError(t, mgr.BlockPeer(ctx, peer.ID()))
 	blocked, err := mgr.ListBlockedPeers(ctx)
 	require.NoError(t, err)
 	assert.Contains(t, blocked, peer.ID())
 
 	// Check if the peer is disconnected (or remains disconnected) after blocking
-	connectedness, err = mgr.Connectedness(ctx, peer.ID())
+	connectedness, err := mgr.Connectedness(ctx, peer.ID())
 	require.NoError(t, err)
 	assert.Equal(t, network.NotConnected, connectedness)
 
