@@ -42,7 +42,8 @@ type Module interface {
 	// NATStatus returns the current NAT status.
 	NATStatus(context.Context) (network.Reachability, error)
 
-	// BlockPeer adds a peer to the set of blocked peers.
+	// BlockPeer adds a peer to the set of blocked peers and
+	// closes any existing connection to that peer.
 	BlockPeer(ctx context.Context, p peer.ID) error
 	// UnblockPeer removes a peer from the set of blocked peers.
 	UnblockPeer(ctx context.Context, p peer.ID) error
@@ -145,7 +146,13 @@ func (m *module) NATStatus(context.Context) (network.Reachability, error) {
 }
 
 func (m *module) BlockPeer(_ context.Context, p peer.ID) error {
-	return m.connGater.BlockPeer(p)
+	if err := m.connGater.BlockPeer(p); err != nil {
+		return err
+	}
+	if err := m.host.Network().ClosePeer(p); err != nil {
+		log.Warnf("failed to close connection to blocked peer %s: %v", p, err)
+	}
+	return nil
 }
 
 func (m *module) UnblockPeer(_ context.Context, p peer.ID) error {
