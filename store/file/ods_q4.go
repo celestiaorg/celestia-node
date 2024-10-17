@@ -63,6 +63,7 @@ func CreateODSQ4(
 	return nil
 }
 
+// CheckODSQ4Size checks the size of the ODS and Q4 files under the given FS paths.
 func CheckODSQ4Size(pathODS, pathQ4 string, eds *rsmt2d.ExtendedDataSquare) error {
 	h, err := checkODSSize(pathODS, eds)
 	if err != nil {

@@ -130,6 +130,7 @@ func writeAxisRoots(w io.Writer, roots *share.AxisRoots) error {
 	return nil
 }
 
+// CheckODSSize checks if the file under given FS path has the expected size.
 func CheckODSSize(path string, eds *rsmt2d.ExtendedDataSquare) error {
 	_, err := checkODSSize(path, eds)
 	return err
@@ -438,8 +439,9 @@ func readColHalf(r io.ReaderAt, colIdx int, hdr *headerV0, offset int) ([]share.
 	return shares, nil
 }
 
+// filledSharesAmount returns the amount of shares in the ODS that are not tail padding.
 func filledSharesAmount(eds *rsmt2d.ExtendedDataSquare) int {
-	amount := 0
+	var amount int
 	for i := range eds.Width() / 2 {
 		for j := range eds.Width() / 2 {
 			shr := eds.GetCell(i, j)
