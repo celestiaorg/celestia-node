@@ -13,13 +13,11 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	squareblob "github.com/celestiaorg/go-square/blob"
+	libshare "github.com/celestiaorg/go-square/v2/share"
 
 	"github.com/celestiaorg/celestia-node/blob"
-	"github.com/celestiaorg/celestia-node/blob/blobtest"
 	"github.com/celestiaorg/celestia-node/nodebuilder/node"
 	"github.com/celestiaorg/celestia-node/nodebuilder/tests/swamp"
-	"github.com/celestiaorg/celestia-node/share"
 	"github.com/celestiaorg/celestia-node/state"
 )
 
@@ -28,14 +26,14 @@ func TestBlobModule(t *testing.T) {
 	t.Cleanup(cancel)
 	sw := swamp.NewSwamp(t, swamp.WithBlockTime(time.Second*1))
 
-	appBlobs0, err := blobtest.GenerateV0Blobs([]int{8, 4}, true)
+	libBlobs0, err := libshare.GenerateV0Blobs([]int{8, 4}, true)
 	require.NoError(t, err)
-	appBlobs1, err := blobtest.GenerateV0Blobs([]int{4}, false)
+	libBlobs1, err := libshare.GenerateV0Blobs([]int{4}, false)
 	require.NoError(t, err)
-	blobs := make([]*blob.Blob, 0, len(appBlobs0)+len(appBlobs1))
+	blobs := make([]*blob.Blob, 0, len(libBlobs0)+len(libBlobs1))
 
-	for _, squareBlob := range append(appBlobs0, appBlobs1...) {
-		blob, err := convert(squareBlob)
+	for _, libBlob := range append(libBlobs0, libBlobs1...) {
+		blob, err := convert(libBlob)
 		require.NoError(t, err)
 		blobs = append(blobs, blob)
 	}
@@ -88,9 +86,9 @@ func TestBlobModule(t *testing.T) {
 			doFn: func(t *testing.T) {
 				// https://github.com/celestiaorg/celestia-node/issues/2915
 				time.Sleep(time.Second)
-				newBlobs, err := fullClient.Blob.GetAll(ctx, height, []share.Namespace{blobs[0].Namespace()})
+				newBlobs, err := fullClient.Blob.GetAll(ctx, height, []libshare.Namespace{blobs[0].Namespace()})
 				require.NoError(t, err)
-				require.Len(t, newBlobs, len(appBlobs0))
+				require.Len(t, newBlobs, len(libBlobs0))
 				require.True(t, bytes.Equal(blobs[0].Commitment, newBlobs[0].Commitment))
 				require.True(t, bytes.Equal(blobs[1].Commitment, newBlobs[1].Commitment))
 			},
@@ -117,9 +115,9 @@ func TestBlobModule(t *testing.T) {
 		{
 			name: "Not Found",
 			doFn: func(t *testing.T) {
-				appBlob, err := blobtest.GenerateV0Blobs([]int{4}, false)
+				libBlob, err := libshare.GenerateV0Blobs([]int{4}, false)
 				require.NoError(t, err)
-				newBlob, err := convert(appBlob[0])
+				newBlob, err := convert(libBlob[0])
 				require.NoError(t, err)
 
 				b, err := fullClient.Blob.Get(ctx, height, newBlob.Namespace(), newBlob.Commitment)
@@ -127,7 +125,7 @@ func TestBlobModule(t *testing.T) {
 				require.Error(t, err)
 				require.ErrorContains(t, err, blob.ErrBlobNotFound.Error())
 
-				blobs, err := fullClient.Blob.GetAll(ctx, height, []share.Namespace{newBlob.Namespace()})
+				blobs, err := fullClient.Blob.GetAll(ctx, height, []libshare.Namespace{newBlob.Namespace()})
 				require.NoError(t, err)
 				assert.Empty(t, blobs)
 			},
@@ -135,9 +133,9 @@ func TestBlobModule(t *testing.T) {
 		{
 			name: "Submit equal blobs",
 			doFn: func(t *testing.T) {
-				appBlob, err := blobtest.GenerateV0Blobs([]int{8, 4}, true)
+				libBlob, err := libshare.GenerateV0Blobs([]int{8, 4}, true)
 				require.NoError(t, err)
-				b, err := convert(appBlob[0])
+				b, err := convert(libBlob[0])
 				require.NoError(t, err)
 
 				height, err := fullClient.Blob.Submit(ctx, []*blob.Blob{b, b}, state.NewTxConfig())
@@ -202,8 +200,8 @@ func TestBlobModule(t *testing.T) {
 	}
 }
 
-// convert converts a squareblob.Blob to a blob.Blob.
+// convert converts a libshare.Blob to a blob.Blob.
 // convert may be deduplicated with convertBlobs from the blob package.
-func convert(squareBlob *squareblob.Blob) (nodeBlob *blob.Blob, err error) {
-	return blob.NewBlob(uint8(squareBlob.GetShareVersion()), squareBlob.Namespace().Bytes(), squareBlob.GetData())
+func convert(libBlob *libshare.Blob) (nodeBlob *blob.Blob, err error) {
+	return blob.NewBlob(libBlob.ShareVersion(), libBlob.Namespace(), libBlob.Data(), libBlob.Signer())
 }

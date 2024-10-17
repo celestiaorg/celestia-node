@@ -4,7 +4,8 @@ import (
 	"bytes"
 	"fmt"
 
-	"github.com/celestiaorg/celestia-app/v2/pkg/wrapper"
+	"github.com/celestiaorg/celestia-app/v3/pkg/wrapper"
+	libshare "github.com/celestiaorg/go-square/v2/share"
 
 	"github.com/celestiaorg/celestia-node/share"
 	"github.com/celestiaorg/celestia-node/share/shwap/pb"
@@ -23,12 +24,12 @@ const (
 
 // Row represents a portion of a row in an EDS, either left or right half.
 type Row struct {
-	halfShares []share.Share // halfShares holds the shares of either the left or right half of a row.
-	side       RowSide       // side indicates whether the row half is left or right.
+	halfShares []libshare.Share // halfShares holds the shares of either the left or right half of a row.
+	side       RowSide          // side indicates whether the row half is left or right.
 }
 
 // NewRow creates a new Row with the specified shares and side.
-func NewRow(halfShares []share.Share, side RowSide) Row {
+func NewRow(halfShares []libshare.Share, side RowSide) Row {
 	return Row{
 		halfShares: halfShares,
 		side:       side,
@@ -37,8 +38,8 @@ func NewRow(halfShares []share.Share, side RowSide) Row {
 
 // RowFromShares constructs a new Row from an Extended Data Square based on the specified index and
 // side.
-func RowFromShares(shares []share.Share, side RowSide) Row {
-	var halfShares []share.Share
+func RowFromShares(shares []libshare.Share, side RowSide) Row {
+	var halfShares []libshare.Share
 	if side == Right {
 		halfShares = shares[len(shares)/2:] // Take the right half of the shares.
 	} else {
@@ -49,17 +50,21 @@ func RowFromShares(shares []share.Share, side RowSide) Row {
 }
 
 // RowFromProto converts a protobuf Row to a Row structure.
-func RowFromProto(r *pb.Row) Row {
-	return Row{
-		halfShares: SharesFromProto(r.SharesHalf),
-		side:       sideFromProto(r.GetHalfSide()),
+func RowFromProto(r *pb.Row) (Row, error) {
+	shrs, err := SharesFromProto(r.SharesHalf)
+	if err != nil {
+		return Row{}, err
 	}
+	return Row{
+		halfShares: shrs,
+		side:       sideFromProto(r.GetHalfSide()),
+	}, nil
 }
 
 // Shares reconstructs the complete row shares from the half provided, using RSMT2D for data
 // recovery if needed.
-func (r Row) Shares() ([]share.Share, error) {
-	shares := make([]share.Share, len(r.halfShares)*2)
+func (r Row) Shares() ([]libshare.Share, error) {
+	shares := make([]libshare.Share, len(r.halfShares)*2)
 	offset := 0
 	if r.side == Right {
 		offset = len(r.halfShares) // Position the halfShares in the second half if it's the right side.
@@ -67,7 +72,12 @@ func (r Row) Shares() ([]share.Share, error) {
 	for i, share := range r.halfShares {
 		shares[i+offset] = share
 	}
-	return share.DefaultRSMT2DCodec().Decode(shares)
+
+	rowShares, err := share.DefaultRSMT2DCodec().Decode(libshare.ToBytes(shares))
+	if err != nil {
+		return nil, err
+	}
+	return libshare.FromBytes(rowShares)
 }
 
 // ToProto converts the Row to its protobuf representation.
@@ -93,9 +103,6 @@ func (r Row) Verify(roots *share.AxisRoots, idx int) error {
 	if len(r.halfShares) != expectedShares {
 		return fmt.Errorf("shares size doesn't match root size: %d != %d", len(r.halfShares), expectedShares)
 	}
-	if err := ValidateShares(r.halfShares); err != nil {
-		return fmt.Errorf("invalid shares: %w", err)
-	}
 	if r.side != Left && r.side != Right {
 		return fmt.Errorf("invalid RowSide: %d", r.side)
 	}
@@ -117,7 +124,7 @@ func (r Row) verifyInclusion(roots *share.AxisRoots, idx int) error {
 	sqrLn := uint64(len(shrs) / 2)
 	tree := wrapper.NewErasuredNamespacedMerkleTree(sqrLn, uint(idx))
 	for _, s := range shrs {
-		if err := tree.Push(s); err != nil {
+		if err := tree.Push(s.ToBytes()); err != nil {
 			return fmt.Errorf("while pushing shares to NMT: %w", err)
 		}
 	}

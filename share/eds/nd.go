@@ -4,6 +4,8 @@ import (
 	"context"
 	"fmt"
 
+	libshare "github.com/celestiaorg/go-square/v2/share"
+
 	"github.com/celestiaorg/celestia-node/share"
 	"github.com/celestiaorg/celestia-node/share/shwap"
 )
@@ -14,13 +16,16 @@ import (
 func NamespaceData(
 	ctx context.Context,
 	eds Accessor,
-	namespace share.Namespace,
+	namespace libshare.Namespace,
 ) (shwap.NamespaceData, error) {
 	roots, err := eds.AxisRoots(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get AxisRoots: %w", err)
 	}
-	rowIdxs := share.RowsWithNamespace(roots, namespace)
+	rowIdxs, err := share.RowsWithNamespace(roots, namespace)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get row indexes: %w", err)
+	}
 	rows := make(shwap.NamespaceData, len(rowIdxs))
 	for i, idx := range rowIdxs {
 		rows[i], err = eds.RowNamespaceData(ctx, namespace, idx)

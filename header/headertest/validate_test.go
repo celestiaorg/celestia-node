@@ -10,7 +10,7 @@ import (
 	tmproto "github.com/tendermint/tendermint/proto/tendermint/types"
 	"github.com/tendermint/tendermint/types"
 
-	"github.com/celestiaorg/celestia-app/v2/pkg/da"
+	"github.com/celestiaorg/celestia-app/v3/pkg/da"
 
 	"github.com/celestiaorg/celestia-node/header"
 )
@@ -30,7 +30,11 @@ func TestValidate(t *testing.T) {
 		},
 		{
 			extendedHeader: getExtendedHeader(t, 3),
-			wantErr: "has version 3, this node supports up to version 2. " +
+			wantErr:        "",
+		},
+		{
+			extendedHeader: getExtendedHeader(t, 4),
+			wantErr: "has version 4, this node supports up to version 3. " +
 				"Please upgrade to support new version. Note, 0 is not a valid version",
 		},
 	}

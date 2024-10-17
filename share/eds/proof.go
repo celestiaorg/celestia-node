@@ -6,8 +6,8 @@ import (
 	coretypes "github.com/tendermint/tendermint/proto/tendermint/types"
 	"github.com/tendermint/tendermint/types"
 
-	pkgproof "github.com/celestiaorg/celestia-app/v2/pkg/proof"
-	"github.com/celestiaorg/go-square/shares"
+	pkgproof "github.com/celestiaorg/celestia-app/v3/pkg/proof"
+	libshare "github.com/celestiaorg/go-square/v2/share"
 	"github.com/celestiaorg/rsmt2d"
 )
 
@@ -16,7 +16,7 @@ import (
 func ProveShares(eds *rsmt2d.ExtendedDataSquare, start, end int) (*types.ShareProof, error) {
 	log.Debugw("proving share range", "start", start, "end", end)
 
-	odsShares, err := shares.FromBytes(eds.FlattenedODS())
+	odsShares, err := libshare.FromBytes(eds.FlattenedODS())
 	if err != nil {
 		return nil, err
 	}
@@ -25,7 +25,7 @@ func ProveShares(eds *rsmt2d.ExtendedDataSquare, start, end int) (*types.SharePr
 		return nil, err
 	}
 	log.Debugw("generating the share proof", "start", start, "end", end)
-	proof, err := pkgproof.NewShareInclusionProofFromEDS(eds, nID, shares.NewRange(start, end))
+	proof, err := pkgproof.NewShareInclusionProofFromEDS(eds, nID, libshare.NewRange(start, end))
 	if err != nil {
 		return nil, err
 	}

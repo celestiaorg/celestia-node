@@ -14,14 +14,12 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"github.com/celestiaorg/celestia-app/v2/app"
-	appconsts "github.com/celestiaorg/celestia-app/v2/pkg/appconsts"
-	genesis "github.com/celestiaorg/celestia-app/v2/test/util/genesis"
-	"github.com/celestiaorg/celestia-app/v2/test/util/testnode"
-	apptypes "github.com/celestiaorg/celestia-app/v2/x/blob/types"
-	squareblob "github.com/celestiaorg/go-square/blob"
-
-	"github.com/celestiaorg/celestia-node/share"
+	"github.com/celestiaorg/celestia-app/v3/app"
+	"github.com/celestiaorg/celestia-app/v3/pkg/appconsts"
+	"github.com/celestiaorg/celestia-app/v3/test/util/genesis"
+	"github.com/celestiaorg/celestia-app/v3/test/util/testnode"
+	apptypes "github.com/celestiaorg/celestia-app/v3/x/blob/types"
+	libshare "github.com/celestiaorg/go-square/v2/share"
 )
 
 func TestSubmitPayForBlob(t *testing.T) {
@@ -34,30 +32,33 @@ func TestSubmitPayForBlob(t *testing.T) {
 		_ = ca.Stop(ctx)
 	})
 
-	ns, err := share.NewBlobNamespaceV0([]byte("namespace"))
+	ns, err := libshare.NewV0Namespace([]byte("namespace"))
 	require.NoError(t, err)
-	blobbyTheBlob, err := apptypes.NewBlob(ns.ToAppNamespace(), []byte("data"), 0)
+	require.False(t, ns.IsReserved())
+
+	require.NoError(t, err)
+	blobbyTheBlob, err := libshare.NewV0Blob(ns, []byte("data"))
 	require.NoError(t, err)
 
 	testcases := []struct {
 		name     string
-		blobs    []*squareblob.Blob
+		blobs    []*libshare.Blob
 		gasPrice float64
 		gasLim   uint64
 		expErr   error
 	}{
 		{
 			name:     "empty blobs",
-			blobs:    []*squareblob.Blob{},
+			blobs:    []*libshare.Blob{},
 			gasPrice: DefaultGasPrice,
 			gasLim:   0,
 			expErr:   errors.New("state: no blobs provided"),
 		},
 		{
 			name:     "good blob with user provided gas and fees",
-			blobs:    []*squareblob.Blob{blobbyTheBlob},
+			blobs:    []*libshare.Blob{blobbyTheBlob},
 			gasPrice: 0.005,
-			gasLim:   apptypes.DefaultEstimateGas([]uint32{uint32(len(blobbyTheBlob.GetData()))}),
+			gasLim:   apptypes.DefaultEstimateGas([]uint32{uint32(blobbyTheBlob.DataLen())}),
 			expErr:   nil,
 		},
 		// TODO: add more test cases. The problem right now is that the celestia-app doesn't

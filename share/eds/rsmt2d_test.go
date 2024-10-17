@@ -7,6 +7,7 @@ import (
 
 	"github.com/stretchr/testify/require"
 
+	libshare "github.com/celestiaorg/go-square/v2/share"
 	"github.com/celestiaorg/rsmt2d"
 
 	"github.com/celestiaorg/celestia-node/share"
@@ -36,12 +37,13 @@ func TestRsmt2dHalfRow(t *testing.T) {
 
 	for rowIdx := 0; rowIdx < odsSize*2; rowIdx++ {
 		for _, side := range []shwap.RowSide{shwap.Left, shwap.Right} {
-			row := eds.HalfRow(rowIdx, side)
+			row, err := eds.HalfRow(rowIdx, side)
+			require.NoError(t, err)
 
 			want := eds.Row(uint(rowIdx))
 			shares, err := row.Shares()
 			require.NoError(t, err)
-			require.Equal(t, want, shares)
+			require.Equal(t, want, libshare.ToBytes(shares))
 		}
 	}
 }
@@ -58,7 +60,7 @@ func TestRsmt2dSampleForProofAxis(t *testing.T) {
 				require.NoError(t, err)
 
 				want := eds.GetCell(uint(rowIdx), uint(colIdx))
-				require.Equal(t, want, sample.Share)
+				require.Equal(t, want, sample.Share.ToBytes())
 				require.Equal(t, proofType, sample.ProofType)
 				require.NotNil(t, sample.Proof)
 				require.Equal(t, sample.Proof.End()-sample.Proof.Start(), 1)

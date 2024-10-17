@@ -6,6 +6,8 @@ import (
 
 	"github.com/ipfs/go-cid"
 
+	libshare "github.com/celestiaorg/go-square/v2/share"
+
 	"github.com/celestiaorg/celestia-node/share"
 	"github.com/celestiaorg/celestia-node/share/eds"
 	"github.com/celestiaorg/celestia-node/share/shwap"
@@ -42,7 +44,7 @@ type RowNamespaceDataBlock struct {
 func NewEmptyRowNamespaceDataBlock(
 	height uint64,
 	rowIdx int,
-	namespace share.Namespace,
+	namespace libshare.Namespace,
 	edsSize int,
 ) (*RowNamespaceDataBlock, error) {
 	id, err := shwap.NewRowNamespaceDataID(height, rowIdx, namespace, edsSize)
@@ -120,7 +122,10 @@ func (rndb *RowNamespaceDataBlock) UnmarshalFn(root *share.AxisRoots) UnmarshalF
 			return fmt.Errorf("unmarshaling RowNamespaceData for %+v: %w", rndb.ID, err)
 		}
 
-		cntr := shwap.RowNamespaceDataFromProto(&rnd)
+		cntr, err := shwap.RowNamespaceDataFromProto(&rnd)
+		if err != nil {
+			return fmt.Errorf("unmarshaling RowNamespaceData for %+v: %w", rndb.ID, err)
+		}
 		if err := cntr.Verify(root, rndb.ID.DataNamespace, rndb.ID.RowIndex); err != nil {
 			return fmt.Errorf("validating RowNamespaceData for %+v: %w", rndb.ID, err)
 		}

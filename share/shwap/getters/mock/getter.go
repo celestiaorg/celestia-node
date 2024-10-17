@@ -9,8 +9,8 @@ import (
 	reflect "reflect"
 
 	header "github.com/celestiaorg/celestia-node/header"
-	share "github.com/celestiaorg/celestia-node/share"
 	shwap "github.com/celestiaorg/celestia-node/share/shwap"
+	share "github.com/celestiaorg/go-square/v2/share"
 	rsmt2d "github.com/celestiaorg/rsmt2d"
 	gomock "github.com/golang/mock/gomock"
 )
@@ -54,10 +54,10 @@ func (mr *MockGetterMockRecorder) GetEDS(arg0, arg1 interface{}) *gomock.Call {
 }
 
 // GetShare mocks base method.
-func (m *MockGetter) GetShare(arg0 context.Context, arg1 *header.ExtendedHeader, arg2, arg3 int) ([]byte, error) {
+func (m *MockGetter) GetShare(arg0 context.Context, arg1 *header.ExtendedHeader, arg2, arg3 int) (share.Share, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "GetShare", arg0, arg1, arg2, arg3)
-	ret0, _ := ret[0].([]byte)
+	ret0, _ := ret[0].(share.Share)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
