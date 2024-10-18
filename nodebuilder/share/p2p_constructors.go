@@ -64,7 +64,7 @@ func fullDiscoveryAndPeerManager(tp node.Type, cfg *Config) fx.Option {
 			}
 
 			fullManager, err := peers.NewManager(
-				cfg.PeerManagerParams,
+				*cfg.PeerManagerParams,
 				host,
 				connGater,
 				fullNodesTag,
@@ -114,7 +114,7 @@ func archivalDiscoveryAndPeerManager(tp node.Type, cfg *Config) fx.Option {
 			gater *conngater.BasicConnectionGater,
 		) (map[string]*peers.Manager, []*discovery.Discovery, error) {
 			archivalPeerManager, err := peers.NewManager(
-				cfg.PeerManagerParams,
+				*cfg.PeerManagerParams,
 				h,
 				gater,
 				archivalNodesTag,
