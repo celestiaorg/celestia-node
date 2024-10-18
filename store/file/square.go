@@ -35,8 +35,8 @@ func (s square) reader() (io.Reader, error) {
 	if s == nil {
 		return nil, fmt.Errorf("ods file not cached")
 	}
-	getShare := func(rowIdx, colIdx int) ([]byte, error) {
-		return s[rowIdx][colIdx].ToBytes(), nil
+	getShare := func(rowIdx, colIdx int) (libshare.Share, error) {
+		return s[rowIdx][colIdx], nil
 	}
 	reader := eds.NewShareReader(s.size(), getShare)
 	return reader, nil
