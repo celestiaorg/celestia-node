@@ -133,8 +133,14 @@ func (eds *Rsmt2D) Close() error {
 
 // Reader returns binary reader for the file.
 func (eds *Rsmt2D) Reader() (io.Reader, error) {
-	getShare := func(rowIdx, colIdx int) ([]byte, error) {
-		return eds.GetCell(uint(rowIdx), uint(colIdx)), nil
+	getShare := func(rowIdx, colIdx int) (libshare.Share, error) {
+		rawShare := eds.GetCell(uint(rowIdx), uint(colIdx))
+
+		sh, err := libshare.NewShare(rawShare)
+		if err != nil {
+			return libshare.Share{}, fmt.Errorf("while creating share: %w", err)
+		}
+		return *sh, nil
 	}
 	odsSize := int(eds.Width() / 2)
 	reader := NewShareReader(odsSize, getShare)

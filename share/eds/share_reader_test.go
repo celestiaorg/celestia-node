@@ -17,8 +17,13 @@ func TestShareReader(t *testing.T) {
 	// create io.Writer that write random data
 	odsSize := 16
 	eds := edstest.RandEDS(t, odsSize)
-	getShare := func(rowIdx, colIdx int) ([]byte, error) {
-		return eds.GetCell(uint(rowIdx), uint(colIdx)), nil
+	getShare := func(rowIdx, colIdx int) (libshare.Share, error) {
+		rawShare := eds.GetCell(uint(rowIdx), uint(colIdx))
+		sh, err := libshare.NewShare(rawShare)
+		if err != nil {
+			return libshare.Share{}, err
+		}
+		return *sh, nil
 	}
 
 	reader := NewShareReader(odsSize, getShare)
