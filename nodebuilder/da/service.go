@@ -10,12 +10,12 @@ import (
 	logging "github.com/ipfs/go-log/v2"
 	"github.com/rollkit/go-da"
 
-	"github.com/celestiaorg/celestia-app/v2/pkg/appconsts"
+	"github.com/celestiaorg/celestia-app/v3/pkg/appconsts"
+	libshare "github.com/celestiaorg/go-square/v2/share"
 
 	"github.com/celestiaorg/celestia-node/blob"
 	"github.com/celestiaorg/celestia-node/header"
 	nodeblob "github.com/celestiaorg/celestia-node/nodebuilder/blob"
-	"github.com/celestiaorg/celestia-node/share"
 	"github.com/celestiaorg/celestia-node/state"
 )
 
@@ -68,23 +68,32 @@ func (s *Service) Get(ctx context.Context, ids []da.ID, ns da.Namespace) ([]da.B
 	blobs := make([]da.Blob, 0, len(ids))
 	for _, id := range ids {
 		height, commitment := SplitID(id)
-		log.Debugw("getting blob", "height", height, "commitment", commitment, "namespace", share.Namespace(ns))
-		currentBlob, err := s.blobServ.Get(ctx, height, ns, commitment)
-		log.Debugw("got blob", "height", height, "commitment", commitment, "namespace", share.Namespace(ns))
+		namespace, err := libshare.NewNamespaceFromBytes(ns)
 		if err != nil {
 			return nil, err
 		}
-		blobs = append(blobs, currentBlob.Data)
+		log.Debugw("getting blob", "height", height, "commitment", commitment, "namespace", namespace)
+		currentBlob, err := s.blobServ.Get(ctx, height, namespace, commitment)
+		log.Debugw("got blob", "height", height, "commitment", commitment, "namespace", namespace)
+		if err != nil {
+			return nil, err
+		}
+		blobs = append(blobs, currentBlob.Data())
 	}
 	return blobs, nil
 }
 
 // GetIDs returns IDs of all Blobs located in DA at given height.
 func (s *Service) GetIDs(ctx context.Context, height uint64, namespace da.Namespace) (*da.GetIDsResult, error) {
+	ns, err := libshare.NewNamespaceFromBytes(namespace)
+	if err != nil {
+		return nil, err
+	}
+
 	var ids []da.ID //nolint:prealloc
-	log.Debugw("getting ids", "height", height, "namespace", share.Namespace(namespace))
-	blobs, err := s.blobServ.GetAll(ctx, height, []share.Namespace{namespace})
-	log.Debugw("got ids", "height", height, "namespace", share.Namespace(namespace))
+	log.Debugw("getting ids", "height", height, "namespace", ns)
+	blobs, err := s.blobServ.GetAll(ctx, height, []libshare.Namespace{ns})
+	log.Debugw("got ids", "height", height, "namespace", ns)
 	if err != nil {
 		if strings.Contains(err.Error(), blob.ErrBlobNotFound.Error()) {
 			return nil, nil //nolint:nilnil
@@ -105,8 +114,12 @@ func (s *Service) GetIDs(ctx context.Context, height uint64, namespace da.Namesp
 func (s *Service) GetProofs(ctx context.Context, ids []da.ID, namespace da.Namespace) ([]da.Proof, error) {
 	proofs := make([]da.Proof, len(ids))
 	for i, id := range ids {
+		ns, err := libshare.NewNamespaceFromBytes(namespace)
+		if err != nil {
+			return nil, err
+		}
 		height, commitment := SplitID(id)
-		proof, err := s.blobServ.GetProof(ctx, height, namespace, commitment)
+		proof, err := s.blobServ.GetProof(ctx, height, ns, commitment)
 		if err != nil {
 			return nil, err
 		}
@@ -200,7 +213,11 @@ func (s *Service) blobsAndCommitments(
 	blobs := make([]*blob.Blob, 0, len(daBlobs))
 	commitments := make([]da.Commitment, 0, len(daBlobs))
 	for _, daBlob := range daBlobs {
-		b, err := blob.NewBlobV0(namespace, daBlob)
+		ns, err := libshare.NewNamespaceFromBytes(namespace)
+		if err != nil {
+			return nil, nil, err
+		}
+		b, err := blob.NewBlobV0(ns, daBlob)
 		if err != nil {
 			return nil, nil, err
 		}
@@ -230,13 +247,17 @@ func (s *Service) Validate(
 		proofs[i] = blobProof
 	}
 	for i, id := range ids {
+		ns, err := libshare.NewNamespaceFromBytes(namespace)
+		if err != nil {
+			return nil, err
+		}
 		height, commitment := SplitID(id)
 		// TODO(tzdybal): for some reason, if proof doesn't match commitment, API returns (false, "blob:
 		// invalid proof")    but analysis of the code in celestia-node implies this should never happen -
 		// maybe it's caused by openrpc?    there is no way of gently handling errors here, but returned
 		// value is fine for us
 		fmt.Println("proof", proofs[i] == nil, "commitment", commitment == nil)
-		isIncluded, _ := s.blobServ.Included(ctx, height, namespace, proofs[i], commitment)
+		isIncluded, _ := s.blobServ.Included(ctx, height, ns, proofs[i], commitment)
 		included[i] = isIncluded
 	}
 	return included, nil

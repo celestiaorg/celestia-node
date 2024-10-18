@@ -4,24 +4,24 @@ import (
 	"fmt"
 	"io"
 
-	"github.com/celestiaorg/celestia-node/share"
+	libshare "github.com/celestiaorg/go-square/v2/share"
 )
 
 // NamespaceDataIDSize defines the total size of a NamespaceDataID in bytes, combining the
 // size of a EdsID and the size of a Namespace.
-const NamespaceDataIDSize = EdsIDSize + share.NamespaceSize
+const NamespaceDataIDSize = EdsIDSize + libshare.NamespaceSize
 
 // NamespaceDataID filters the data in the EDS by a specific namespace.
 type NamespaceDataID struct {
 	// Embedding EdsID to include the block height.
 	EdsID
 	// DataNamespace will be used to identify the data within the EDS.
-	DataNamespace share.Namespace
+	DataNamespace libshare.Namespace
 }
 
 // NewNamespaceDataID creates a new NamespaceDataID with the specified parameters. It
 // validates the namespace and returns an error if it is invalid.
-func NewNamespaceDataID(height uint64, namespace share.Namespace) (NamespaceDataID, error) {
+func NewNamespaceDataID(height uint64, namespace libshare.Namespace) (NamespaceDataID, error) {
 	ndid := NamespaceDataID{
 		EdsID: EdsID{
 			Height: height,
@@ -48,7 +48,11 @@ func NamespaceDataIDFromBinary(data []byte) (NamespaceDataID, error) {
 		return NamespaceDataID{}, fmt.Errorf("error unmarshaling EDSID: %w", err)
 	}
 
-	ns := share.Namespace(data[EdsIDSize:])
+	ns, err := libshare.NewNamespaceFromBytes(data[EdsIDSize:])
+	if err != nil {
+		return NamespaceDataID{}, fmt.Errorf("error unmarshaling namespace: %w", err)
+	}
+
 	ndid := NamespaceDataID{
 		EdsID:         edsID,
 		DataNamespace: ns,
@@ -107,6 +111,7 @@ func (ndid NamespaceDataID) Validate() error {
 	if err := ndid.EdsID.Validate(); err != nil {
 		return fmt.Errorf("validating RowID: %w", err)
 	}
+
 	if err := ndid.DataNamespace.ValidateForData(); err != nil {
 		return fmt.Errorf("%w: validating DataNamespace: %w", ErrInvalidID, err)
 	}
@@ -116,5 +121,5 @@ func (ndid NamespaceDataID) Validate() error {
 // appendTo helps in appending the binary form of DataNamespace to the serialized RowID data.
 func (ndid NamespaceDataID) appendTo(data []byte) []byte {
 	data = ndid.EdsID.appendTo(data)
-	return append(data, ndid.DataNamespace...)
+	return append(data, ndid.DataNamespace.Bytes()...)
 }

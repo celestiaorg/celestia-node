@@ -7,12 +7,12 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"github.com/celestiaorg/celestia-node/share/sharetest"
+	libshare "github.com/celestiaorg/go-square/v2/share"
 )
 
 func TestRowNamespaceDataID(t *testing.T) {
 	edsSize := 4
-	ns := sharetest.RandV0Namespace()
+	ns := libshare.RandomNamespace()
 
 	id, err := NewRowNamespaceDataID(1, 1, ns, edsSize)
 	require.NoError(t, err)
@@ -31,7 +31,7 @@ func TestRowNamespaceDataID(t *testing.T) {
 
 func TestRowNamespaceDataIDReaderWriter(t *testing.T) {
 	edsSize := 4
-	ns := sharetest.RandV0Namespace()
+	ns := libshare.RandomNamespace()
 
 	id, err := NewRowNamespaceDataID(1, 1, ns, edsSize)
 	require.NoError(t, err)

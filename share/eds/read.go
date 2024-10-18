@@ -7,13 +7,15 @@ import (
 	"fmt"
 	"io"
 
+	libshare "github.com/celestiaorg/go-square/v2/share"
+
 	"github.com/celestiaorg/celestia-node/share"
 )
 
 // ReadAccessor reads up EDS out of the io.Reader until io.EOF and provides.
 func ReadAccessor(ctx context.Context, reader io.Reader, root *share.AxisRoots) (*Rsmt2D, error) {
 	odsSize := len(root.RowRoots) / 2
-	shares, err := ReadShares(reader, share.Size, odsSize)
+	shares, err := ReadShares(reader, libshare.ShareSize, odsSize)
 	if err != nil {
 		return nil, fmt.Errorf("failed to read eds from ods bytes: %w", err)
 	}
@@ -39,23 +41,26 @@ func ReadAccessor(ctx context.Context, reader io.Reader, root *share.AxisRoots) 
 
 // ReadShares reads shares from the provided io.Reader until EOF. If EOF is reached, the remaining shares
 // are populated as tail padding shares. Provided reader must contain shares in row-major order.
-func ReadShares(r io.Reader, shareSize, odsSize int) ([]share.Share, error) {
-	shares := make([]share.Share, odsSize*odsSize)
+func ReadShares(r io.Reader, shareSize, odsSize int) ([]libshare.Share, error) {
+	shares := make([]libshare.Share, odsSize*odsSize)
 	var total int
 	for i := range shares {
-		shr := make(share.Share, shareSize)
+		shr := make([]byte, shareSize)
 		n, err := io.ReadFull(r, shr)
 		if errors.Is(err, io.EOF) {
 			for ; i < len(shares); i++ {
-				shares[i] = share.TailPadding()
+				shares[i] = libshare.TailPaddingShare()
 			}
 			return shares, nil
 		}
 		if err != nil {
 			return nil, fmt.Errorf("reading shares: %w, bytes read: %v", err, total+n)
 		}
-
-		shares[i] = shr
+		newShare, err := libshare.NewShare(shr)
+		if err != nil {
+			return nil, err
+		}
+		shares[i] = *newShare
 		total += n
 	}
 	return shares, nil
