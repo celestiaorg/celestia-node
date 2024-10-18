@@ -54,9 +54,10 @@ func CreateODS(
 		return fmt.Errorf("creating ODS file: %w", err)
 	}
 
+	shareSize := len(eds.GetCell(0, 0))
 	hdr := &headerV0{
 		fileVersion: fileV0,
-		shareSize:   share.Size,
+		shareSize:   uint16(shareSize),
 		squareSize:  uint16(eds.Width()),
 		datahash:    roots.Hash(),
 	}
