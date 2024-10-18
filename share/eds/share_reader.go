@@ -4,8 +4,9 @@ import (
 	"bytes"
 	"errors"
 	"fmt"
-	libshare "github.com/celestiaorg/go-square/v2/share"
 	"io"
+
+	libshare "github.com/celestiaorg/go-square/v2/share"
 )
 
 // ShareReader implement io.Reader over general function that gets shares by
