@@ -132,27 +132,23 @@ func writeAxisRoots(w io.Writer, roots *share.AxisRoots) error {
 
 // ValidateODSSize checks if the file under given FS path has the expected size.
 func ValidateODSSize(path string, eds *rsmt2d.ExtendedDataSquare) error {
-	_, err := validateODSSize(path, eds)
-	return err
-}
-
-func validateODSSize(path string, eds *rsmt2d.ExtendedDataSquare) (*headerV0, error) {
 	ods, err := OpenODS(path)
 	if err != nil {
-		return nil, fmt.Errorf("opening ODS file: %w", err)
+		return fmt.Errorf("opening file: %w", err)
 	}
 
 	shares := filledSharesAmount(eds)
-	expectedSize := ods.hdr.OffsetWithRoots() + shares*ods.hdr.ShareSize()
+	shareSize := len(eds.GetCell(0, 0))
+	expectedSize := ods.hdr.OffsetWithRoots() + shares*shareSize
 
 	info, err := ods.fl.Stat()
 	if err != nil {
-		return nil, fmt.Errorf("getting file info: %w", err)
+		return fmt.Errorf("getting file info: %w", err)
 	}
 	if info.Size() != int64(expectedSize) {
-		return nil, fmt.Errorf("file size mismatch: expected %d, got %d", expectedSize, info.Size())
+		return fmt.Errorf("file size mismatch: expected %d, got %d", expectedSize, info.Size())
 	}
-	return ods.hdr, nil
+	return nil
 }
 
 // OpenODS opens an existing ODS file under given FS path.

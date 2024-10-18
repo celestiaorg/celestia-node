@@ -71,21 +71,23 @@ func writeQ4(w io.Writer, eds *rsmt2d.ExtendedDataSquare) error {
 	return nil
 }
 
-func validateQ4Size(path string, hdr *headerV0) error {
+func validateQ4Size(path string, eds *rsmt2d.ExtendedDataSquare) error {
 	f, err := os.Open(path)
 	if err != nil {
-		return fmt.Errorf("opening Q4 file: %w", err)
+		return fmt.Errorf("opening file: %w", err)
 	}
 	defer f.Close()
 
-	expectedSize := hdr.ShareSize() * hdr.SquareSize() * hdr.SquareSize() / 4
+	odsSize := int(eds.Width() / 2)
+	shareSize := len(eds.GetCell(0, 0))
+	expectedSize := shareSize * odsSize * odsSize
 
 	info, err := f.Stat()
 	if err != nil {
 		return fmt.Errorf("getting file info: %w", err)
 	}
 	if info.Size() != int64(expectedSize) {
-		return fmt.Errorf("Q4 file size mismatch: expected %d, got %d", expectedSize, info.Size())
+		return fmt.Errorf("file size mismatch: expected %d, got %d", expectedSize, info.Size())
 	}
 	return nil
 }
