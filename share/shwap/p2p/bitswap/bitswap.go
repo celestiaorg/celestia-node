@@ -17,6 +17,15 @@ import (
 	"github.com/libp2p/go-libp2p/core/protocol"
 )
 
+var dontHaveTimeoutConfig = &client.DontHaveTimeoutConfig{
+	DontHaveTimeout:            5 * time.Second,
+	MaxExpectedWantProcessTime: 2 * time.Second,
+	MaxTimeout:                 7 * time.Second,
+	PingLatencyMultiplier:      3,
+	MessageLatencyAlpha:        0.5,
+	MessageLatencyMultiplier:   4,
+}
+
 // Client constants
 const (
 	// simulateDontHaves emulates DONT_HAVE message from a peer after 5 second timeout.
@@ -99,6 +108,7 @@ func NewClient(
 		// Prevents Has calls to Blockstore for metric that counts duplicates
 		// Unnecessary for our use case, so we can save some disk lookups.
 		client.WithoutDuplicatedBlockStats(),
+		client.WithDontHaveTimeoutConfig(dontHaveTimeoutConfig),
 	}
 	return client.New(
 		ctx,
