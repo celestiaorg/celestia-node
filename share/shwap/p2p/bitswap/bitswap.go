@@ -17,12 +17,24 @@ import (
 	"github.com/libp2p/go-libp2p/core/protocol"
 )
 
+var dontHaveTimeoutConfig = &client.DontHaveTimeoutConfig{
+	DontHaveTimeout:            5 * time.Second,
+	MaxExpectedWantProcessTime: 7 * time.Second,
+	MaxTimeout:                 30 * time.Second,
+	PingLatencyMultiplier:      3,
+	MessageLatencyAlpha:        0.7,
+	MessageLatencyMultiplier:   4,
+}
+
 // Client constants
 const (
 	// simulateDontHaves emulates DONT_HAVE message from a peer after 5 second timeout.
-	// This protects us from unresponsive/slow peers.
+	// This necessary as we configure servers to not send DONT_HAVEs.
+	// Simulating protects from malicious peers and ensure Bitswap tries new peers if originally
+	// selected one is slow.
 	// TODO(@Wondertan): PR to bitswap to make this timeout configurable
-	//  Higher timeout increases the probability of successful reconstruction
+	//  Higher timeout increases the probability of successful reconstruction,
+	//  as peers from who we get >=64 DONT_HAVEs are kicked from Bitswap session.
 	simulateDontHaves = true
 	// providerSearchDelay defines the initial delay before Bitswap client starts aggressive
 	// broadcasting of WANTs to all the peers. We offset this for longer than the default to minimize
@@ -50,6 +62,7 @@ const (
 	// client stuck for sometime.
 	// Thus, we make the limit a bit generous, so we minimize the chances of this happening.
 	// This is relevant until https://github.com/ipfs/boxo/pull/629#discussion_r1653362485 is fixed.
+	// TODO: This value has to be increased together with increasing blocksizes
 	maxServerWantListsPerPeer = 8096
 	// targetMessageSize defines how much data Bitswap will aim to pack within a single message, before
 	// splitting it up in multiple. Bitswap first looks up the size of the requested data across
@@ -95,6 +108,8 @@ func NewClient(
 		// Prevents Has calls to Blockstore for metric that counts duplicates
 		// Unnecessary for our use case, so we can save some disk lookups.
 		client.WithoutDuplicatedBlockStats(),
+		client.WithDontHaveTimeoutConfig(dontHaveTimeoutConfig),
+		client.WithDisabledMessageQueueRebroadcast(true),
 	}
 	return client.New(
 		ctx,
