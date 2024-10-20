@@ -17,6 +17,15 @@ import (
 	"github.com/libp2p/go-libp2p/core/protocol"
 )
 
+var dontHaveTimeoutConfig = &client.DontHaveTimeoutConfig{
+	DontHaveTimeout:            5 * time.Second,
+	MaxExpectedWantProcessTime: 2 * time.Second,
+	MaxTimeout:                 7 * time.Second,
+	PingLatencyMultiplier:      3,
+	MessageLatencyAlpha:        0.5,
+	MessageLatencyMultiplier:   4,
+}
+
 // Client constants
 const (
 	// simulateDontHaves emulates DONT_HAVE message from a peer after 5 second timeout.
@@ -26,7 +35,7 @@ const (
 	// TODO(@Wondertan): PR to bitswap to make this timeout configurable
 	//  Higher timeout increases the probability of successful reconstruction,
 	//  as peers from who we get >=64 DONT_HAVEs are kicked from Bitswap session.
-	simulateDontHaves = false
+	simulateDontHaves = true
 	// providerSearchDelay defines the initial delay before Bitswap client starts aggressive
 	// broadcasting of WANTs to all the peers. We offset this for longer than the default to minimize
 	// unnecessary broadcasting as in most cases we already have peers connected with needed data on
@@ -99,6 +108,7 @@ func NewClient(
 		// Prevents Has calls to Blockstore for metric that counts duplicates
 		// Unnecessary for our use case, so we can save some disk lookups.
 		client.WithoutDuplicatedBlockStats(),
+		client.WithDontHaveTimeoutConfig(dontHaveTimeoutConfig),
 	}
 	return client.New(
 		ctx,
