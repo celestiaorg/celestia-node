@@ -248,8 +248,8 @@ github.com/VictoriaMetrics/fastcache v1.12.2 h1:N0y9ASrJ0F6h0QaC3o6uJb3NIZ9VKLjC
 github.com/VictoriaMetrics/fastcache v1.12.2/go.mod h1:AmC+Nzz1+3G2eCPapF6UcsnkThDcMsQicp4xDukwJYI=
 github.com/VividCortex/gohistogram v1.0.0 h1:6+hBz+qvs0JOrrNhhmR7lFxo5sINxBCGXrdtl/UvroE=
 github.com/VividCortex/gohistogram v1.0.0/go.mod h1:Pf5mBqqDxYaXu3hDrrU+w6nw50o/4+TcAqDqk/vUH7g=
-github.com/Wondertan/boxo v0.0.0-20241019235916-353f5eae0743 h1:S9n5BrbpC38C/EY6gIb1THZFNe4pwXFATaPYa1yct6w=
-github.com/Wondertan/boxo v0.0.0-20241019235916-353f5eae0743/go.mod h1:wuGZCfGyGVeHmLo9GQpDPoML2D9r0nAMDk18L6wOjj8=
+github.com/Wondertan/boxo v0.0.0-20241020015324-cc884648a2bb h1:TvtIXAydRS0WcyMP3Vg184ulEAyt/i4IRHrP+eRK9rY=
+github.com/Wondertan/boxo v0.0.0-20241020015324-cc884648a2bb/go.mod h1:wuGZCfGyGVeHmLo9GQpDPoML2D9r0nAMDk18L6wOjj8=
 github.com/Workiva/go-datastructures v1.0.53 h1:J6Y/52yX10Xc5JjXmGtWoSSxs3mZnGSaq37xZZh7Yig=
 github.com/Workiva/go-datastructures v1.0.53/go.mod h1:1yZL+zfsztete+ePzZz/Zb1/t5BnDuE2Ya2MMGhzP6A=
 github.com/Zilliqa/gozilliqa-sdk v1.2.1-0.20201201074141-dd0ecada1be6/go.mod h1:eSYp2T6f0apnuW8TzhV3f6Aff2SE8Dwio++U4ha4yEM=
