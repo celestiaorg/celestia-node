@@ -2,6 +2,9 @@ package file
 
 import (
 	"context"
+	"fmt"
+	"io"
+	"os"
 	"strconv"
 	"testing"
 	"time"
@@ -37,6 +40,95 @@ func TestODSQ4File(t *testing.T) {
 	ODSSize := 16
 	eds.TestSuiteAccessor(ctx, t, createODSQ4Accessor, ODSSize)
 	eds.TestStreamer(ctx, t, createODSQ4AccessorStreamer, ODSSize)
+}
+
+func TestValidateODSQ4FileSize(t *testing.T) {
+	edses := []struct {
+		name string
+		eds  *rsmt2d.ExtendedDataSquare
+	}{
+		{
+			name: "no padding",
+			eds:  edstest.RandEDS(t, 8),
+		},
+		{
+			name: "with padding",
+			eds:  edstest.RandEDSWithTailPadding(t, 8, 11),
+		},
+		{
+			name: "empty", eds: share.EmptyEDS(),
+		},
+	}
+
+	tests := []struct {
+		name       string
+		createFile func(pathODS, pathQ4 string, roots *share.AxisRoots, eds *rsmt2d.ExtendedDataSquare) error
+		valid      bool
+	}{
+		{
+			name:       "valid",
+			createFile: CreateODSQ4,
+			valid:      true,
+		},
+		{
+			name: "shorter q4",
+			createFile: func(pathODS, pathQ4 string, roots *share.AxisRoots, eds *rsmt2d.ExtendedDataSquare) error {
+				err := CreateODSQ4(pathODS, pathQ4, roots, eds)
+				if err != nil {
+					return err
+				}
+				file, err := os.OpenFile(pathQ4, os.O_RDWR, 0)
+				if err != nil {
+					return err
+				}
+				defer file.Close()
+				info, err := file.Stat()
+				if err != nil {
+					return err
+				}
+				return file.Truncate(info.Size() - 1)
+			},
+			valid: false,
+		},
+		{
+			name: "longer q4",
+			createFile: func(pathODS, pathQ4 string, roots *share.AxisRoots, eds *rsmt2d.ExtendedDataSquare) error {
+				err := CreateODSQ4(pathODS, pathQ4, roots, eds)
+				if err != nil {
+					return err
+				}
+				file, err := os.OpenFile(pathQ4, os.O_RDWR, 0)
+				if err != nil {
+					return err
+				}
+				defer file.Close()
+				// append 1 byte to the file
+				_, err = file.Seek(0, io.SeekEnd)
+				if err != nil {
+					return err
+				}
+				_, err = file.Write([]byte{0})
+				return err
+			},
+			valid: false,
+		},
+	}
+
+	for _, tt := range tests {
+		for _, eds := range edses {
+			t.Run(fmt.Sprintf("%s/%s", tt.name, eds.name), func(t *testing.T) {
+				pathODS := t.TempDir() + tt.name + eds.name
+				pathQ4 := pathODS + ".q4"
+				roots, err := share.NewAxisRoots(eds.eds)
+				require.NoError(t, err)
+				err = tt.createFile(pathODS, pathQ4, roots, eds.eds)
+				require.NoError(t, err)
+
+				err = ValidateODSQ4Size(pathODS, pathQ4, eds.eds)
+				require.Equal(t, tt.valid, err == nil)
+			})
+		}
+	}
 }
 
 // BenchmarkAxisFromODSQ4File/Size:32/ProofType:row/squareHalf:0-16         	  354836	      3345 ns/op

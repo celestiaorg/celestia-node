@@ -15,6 +15,7 @@ import (
 	"github.com/celestiaorg/celestia-node/share"
 	"github.com/celestiaorg/celestia-node/share/eds/edstest"
 	"github.com/celestiaorg/celestia-node/store/cache"
+	"github.com/celestiaorg/celestia-node/store/file"
 )
 
 func TestEDSStore(t *testing.T) {
@@ -314,6 +315,103 @@ func TestEDSStore(t *testing.T) {
 		_, err = NewStore(paramsNoCache(), dir)
 		require.NoError(t, err)
 	})
+
+	t.Run("recover ODS", func(t *testing.T) {
+		dir := t.TempDir()
+		edsStore, err := NewStore(paramsNoCache(), dir)
+		require.NoError(t, err)
+
+		eds, roots := randomEDS(t)
+		height := height.Add(1)
+		err = edsStore.PutODS(ctx, roots, height, eds)
+		require.NoError(t, err)
+
+		// corrupt ODS file
+		pathODS := edsStore.heightToPath(height, odsFileExt)
+		err = corruptFile(pathODS)
+		require.NoError(t, err)
+
+		// check if file is corrupted
+		err = file.ValidateODSSize(pathODS, eds)
+		require.Error(t, err)
+
+		// second put should recover the file
+		err = edsStore.PutODS(ctx, roots, height, eds)
+		require.NoError(t, err)
+
+		// check if file is recovered
+		err = file.ValidateODSSize(pathODS, eds)
+		require.NoError(t, err)
+	})
+
+	t.Run("recover ODSQ4", func(t *testing.T) {
+		dir := t.TempDir()
+		edsStore, err := NewStore(paramsNoCache(), dir)
+		require.NoError(t, err)
+
+		t.Run("corrupt ODS file", func(t *testing.T) {
+			eds, roots := randomEDS(t)
+			height := height.Add(1)
+			err = edsStore.PutODSQ4(ctx, roots, height, eds)
+			require.NoError(t, err)
+
+			// corrupt ODS file
+			pathODS := edsStore.heightToPath(height, odsFileExt)
+			err := corruptFile(pathODS)
+			require.NoError(t, err)
+
+			// check if file is corrupted
+			pathQ4 := edsStore.hashToPath(roots.Hash(), q4FileExt)
+			err = file.ValidateODSQ4Size(pathODS, pathQ4, eds)
+			require.Error(t, err)
+
+			// second put should recover the file
+			err = edsStore.PutODSQ4(ctx, roots, height, eds)
+			require.NoError(t, err)
+
+			// check if file is recovered
+			err = file.ValidateODSQ4Size(pathODS, pathQ4, eds)
+			require.NoError(t, err)
+		})
+
+		t.Run("corrupt Q4 file", func(t *testing.T) {
+			eds, roots := randomEDS(t)
+			height := height.Add(1)
+			err = edsStore.PutODSQ4(ctx, roots, height, eds)
+			require.NoError(t, err)
+
+			// corrupt Q4 file
+			pathQ4 := edsStore.hashToPath(roots.Hash(), q4FileExt)
+			err := corruptFile(pathQ4)
+			require.NoError(t, err)
+
+			// check if file is corrupted
+			pathODS := edsStore.heightToPath(height, odsFileExt)
+			err = file.ValidateODSQ4Size(pathODS, pathQ4, eds)
+			require.Error(t, err)
+
+			// second put should recover the file
+			err = edsStore.PutODSQ4(ctx, roots, height, eds)
+			require.NoError(t, err)
+
+			// check if file is recovered
+			err = file.ValidateODSQ4Size(pathODS, pathQ4, eds)
+			require.NoError(t, err)
+		})
+	})
+}
+
+func corruptFile(path string) error {
+	file, err := os.OpenFile(path, os.O_RDWR, 0)
+	if err != nil {
+		return err
+	}
+	defer file.Close()
+	info, err := file.Stat()
+	if err != nil {
+		return err
+	}
+	return file.Truncate(info.Size() - 1)
 }
 
 func BenchmarkStore(b *testing.B) {
