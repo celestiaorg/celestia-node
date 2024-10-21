@@ -217,6 +217,7 @@ func (s *Store) validateAndRecoverODSQ4(
 	if err == nil {
 		return nil
 	}
+	log.Warnf("ODSQ4 file with height %d is corrupted, recovering", height)
 	err = s.removeODSQ4(height, roots.Hash())
 	if err != nil {
 		return fmt.Errorf("removing corrupted ODSQ4 file: %w", err)
@@ -281,6 +282,7 @@ func (s *Store) validateAndRecoverODS(
 	if err == nil {
 		return nil
 	}
+	log.Warnf("ODS file with height %d is corrupted, recovering", height)
 	err = s.removeODS(height, roots.Hash())
 	if err != nil {
 		return fmt.Errorf("removing corrupted ODS file: %w", err)
