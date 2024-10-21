@@ -2,6 +2,7 @@ package cache
 
 import (
 	"context"
+	"fmt"
 
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/metric"
@@ -19,21 +20,21 @@ type metrics struct {
 }
 
 func newMetrics(bc *AccessorCache) (*metrics, error) {
-	metricsPrefix := "eds_cache" + bc.name
+	metricsPrefix := fmt.Sprintf("eds_cache_%p_", bc)
 
-	evictedCounter, err := meter.Int64Counter(metricsPrefix+"_evicted_counter",
+	evictedCounter, err := meter.Int64Counter(metricsPrefix+"evicted_counter",
 		metric.WithDescription("eds cache evicted event counter"))
 	if err != nil {
 		return nil, err
 	}
 
-	getCounter, err := meter.Int64Counter(metricsPrefix+"_get_counter",
+	getCounter, err := meter.Int64Counter(metricsPrefix+"get_counter",
 		metric.WithDescription("eds cache get event counter"))
 	if err != nil {
 		return nil, err
 	}
 
-	cacheSize, err := meter.Int64ObservableGauge(metricsPrefix+"_size",
+	cacheSize, err := meter.Int64ObservableGauge(metricsPrefix+"size",
 		metric.WithDescription("total amount of items in cache"),
 	)
 	if err != nil {
