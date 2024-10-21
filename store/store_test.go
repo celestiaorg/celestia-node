@@ -123,15 +123,8 @@ func TestEDSStore(t *testing.T) {
 				require.NoError(t, err)
 				require.NoError(t, f.Close())
 				expected := eds.FlattenedODS()
-				require.Equal(t, expected, share.ToBytes(fromFile))
+				require.Equal(t, expected, libshare.ToBytes(fromFile))
 			})
-
-			// check that cached file is the same eds
-			fromFile, err := f.Shares(ctx)
-			require.NoError(t, err)
-			require.NoError(t, f.Close())
-			expected := eds.FlattenedODS()
-			require.Equal(t, expected, fromFile)
 		})
 
 		t.Run("Second Put should be noop", func(t *testing.T) {
@@ -249,7 +242,7 @@ func TestEDSStore(t *testing.T) {
 			require.NoError(t, err)
 			require.NoError(t, f.Close())
 			expected := eds.FlattenedODS()
-			require.Equal(t, expected, fromFile)
+			require.Equal(t, expected, libshare.ToBytes(fromFile))
 		})
 
 		t.Run("GetByHash", func(t *testing.T) {
@@ -271,7 +264,7 @@ func TestEDSStore(t *testing.T) {
 			require.NoError(t, err)
 			require.NoError(t, f.Close())
 			expected := eds.FlattenedODS()
-			require.Equal(t, expected, fromFile)
+			require.Equal(t, expected, libshare.ToBytes(fromFile))
 		})
 	}
 
