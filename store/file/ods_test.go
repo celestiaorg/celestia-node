@@ -2,6 +2,9 @@ package file
 
 import (
 	"context"
+	"fmt"
+	"io"
+	"os"
 	"strconv"
 	"testing"
 	"time"
@@ -62,7 +65,7 @@ func TestODSFile(t *testing.T) {
 }
 
 func TestValidateODSSize(t *testing.T) {
-	tests := []struct {
+	edses := []struct {
 		name string
 		eds  *rsmt2d.ExtendedDataSquare
 	}{
@@ -79,17 +82,73 @@ func TestValidateODSSize(t *testing.T) {
 		},
 	}
 
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			path := t.TempDir() + "/" + tt.name
-			roots, err := share.NewAxisRoots(tt.eds)
-			require.NoError(t, err)
-			err = CreateODS(path, roots, tt.eds)
-			require.NoError(t, err)
+	tests := []struct {
+		name       string
+		createFile func(path string, roots *share.AxisRoots, eds *rsmt2d.ExtendedDataSquare) error
+		valid      bool
+	}{
+		{
+			name:       "valid",
+			createFile: CreateODS,
+			valid:      true,
+		},
+		{
+			name: "shorter",
+			createFile: func(path string, roots *share.AxisRoots, eds *rsmt2d.ExtendedDataSquare) error {
+				err := CreateODS(path, roots, eds)
+				if err != nil {
+					return err
+				}
+				file, err := os.OpenFile(path, os.O_RDWR, 0)
+				if err != nil {
+					return err
+				}
+				defer file.Close()
+				info, err := file.Stat()
+				if err != nil {
+					return err
+				}
+				return file.Truncate(info.Size() - 1)
+			},
+			valid: false,
+		},
+		{
+			name: "longer",
+			createFile: func(path string, roots *share.AxisRoots, eds *rsmt2d.ExtendedDataSquare) error {
+				err := CreateODS(path, roots, eds)
+				if err != nil {
+					return err
+				}
+				file, err := os.OpenFile(path, os.O_RDWR, 0)
+				if err != nil {
+					return err
+				}
+				defer file.Close()
+				// append 1 byte to the file
+				_, err = file.Seek(0, io.SeekEnd)
+				if err != nil {
+					return err
+				}
+				_, err = file.Write([]byte{0})
+				return err
+			},
+			valid: false,
+		},
+	}
 
-			err = ValidateODSSize(path, tt.eds)
-			require.NoError(t, err)
-		})
+	for _, tt := range tests {
+		for _, eds := range edses {
+			t.Run(fmt.Sprintf("%s/%s", tt.name, eds.name), func(t *testing.T) {
+				path := t.TempDir() + tt.name + eds.name
+				roots, err := share.NewAxisRoots(eds.eds)
+				require.NoError(t, err)
+				err = tt.createFile(path, roots, eds.eds)
+				require.NoError(t, err)
+
+				err = ValidateODSSize(path, eds.eds)
+				require.Equal(t, tt.valid, err == nil)
+			})
+		}
 	}
 }
 
