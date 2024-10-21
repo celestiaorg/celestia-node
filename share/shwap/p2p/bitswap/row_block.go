@@ -116,8 +116,12 @@ func (rb *RowBlock) UnmarshalFn(root *share.AxisRoots) UnmarshalFn {
 			return fmt.Errorf("unmarshaling Row for %+v: %w", rb.ID, err)
 		}
 
-		cntr := shwap.RowFromProto(&row)
-		if err := cntr.Verify(root, rb.ID.RowIndex); err != nil {
+		cntr, err := shwap.RowFromProto(&row)
+		if err != nil {
+			return fmt.Errorf("unmarshaling Row: %w", err)
+		}
+
+		if err = cntr.Verify(root, rb.ID.RowIndex); err != nil {
 			return fmt.Errorf("validating Row for %+v: %w", rb.ID, err)
 		}
 

@@ -4,6 +4,7 @@ import (
 	"context"
 	"io"
 
+	libshare "github.com/celestiaorg/go-square/v2/share"
 	"github.com/celestiaorg/rsmt2d"
 
 	"github.com/celestiaorg/celestia-node/share"
@@ -29,9 +30,9 @@ type Accessor interface {
 	// implementation. Implementations should indicate the side in the returned AxisHalf.
 	AxisHalf(ctx context.Context, axisType rsmt2d.Axis, axisIdx int) (AxisHalf, error)
 	// RowNamespaceData returns data for the given namespace and row index.
-	RowNamespaceData(ctx context.Context, namespace share.Namespace, rowIdx int) (shwap.RowNamespaceData, error)
+	RowNamespaceData(ctx context.Context, namespace libshare.Namespace, rowIdx int) (shwap.RowNamespaceData, error)
 	// Shares returns data (ODS) shares extracted from the Accessor.
-	Shares(ctx context.Context) ([]share.Share, error)
+	Shares(ctx context.Context) ([]libshare.Share, error)
 }
 
 // AccessorStreamer is an interface that groups Accessor and Streamer interfaces.

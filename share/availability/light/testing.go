@@ -84,15 +84,15 @@ package light
 //	}
 //}
 //
-// func (m onceGetter) GetShare(_ context.Context, _ *header.ExtendedHeader, row, col int) (share.Share, error) {
+// func (m onceGetter) GetShare(_ context.Context, _ *header.ExtendedHeader, row, col int) (libshare.Share, error) {
 //	m.Lock()
 //	defer m.Unlock()
 //	s := Sample{Row: uint16(row), Col: uint16(col)}
 //	if _, ok := m.available[s]; ok {
 //		delete(m.available, s)
-//		return share.Share{}, nil
+//		return libshare.Share{}, nil
 //	}
-//	return share.Share{}, share.ErrNotAvailable
+//	return libshare.Share{}, share.ErrNotAvailable
 //}
 //
 // func (m onceGetter) GetEDS(_ context.Context, _ *header.ExtendedHeader) (*rsmt2d.ExtendedDataSquare, error) {
@@ -102,7 +102,7 @@ package light
 // func (m onceGetter) GetSharesByNamespace(
 //	_ context.Context,
 //	_ *header.ExtendedHeader,
-//	_ share.Namespace,
-// ) (share.NamespacedShares, error) {
+//	_ libshare.Namespace,
+// ) (libshare.NamespacedShares, error) {
 //	panic("not implemented")
 // }

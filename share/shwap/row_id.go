@@ -14,7 +14,7 @@ const RowIDSize = EdsIDSize + 2
 // with the row's index.
 type RowID struct {
 	EdsID        // Embedding EdsID to include the block height in RowID.
-	RowIndex int // RowIndex specifies the position of the row within the data square.
+	RowIndex int // RowIndex specifies the position of the row within the data share.
 }
 
 // NewRowID creates a new RowID with the specified block height, row index, and EDS size.

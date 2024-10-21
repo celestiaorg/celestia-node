@@ -3,8 +3,9 @@ package blob
 import (
 	"context"
 
+	libshare "github.com/celestiaorg/go-square/v2/share"
+
 	"github.com/celestiaorg/celestia-node/blob"
-	"github.com/celestiaorg/celestia-node/share"
 )
 
 var _ Module = (*API)(nil)
@@ -18,7 +19,7 @@ type Module interface {
 	// Uses default wallet registered on the Node.
 	Submit(_ context.Context, _ []*blob.Blob, _ *blob.SubmitOptions) (height uint64, _ error)
 	// Get retrieves the blob by commitment under the given namespace and height.
-	Get(_ context.Context, height uint64, _ share.Namespace, _ blob.Commitment) (*blob.Blob, error)
+	Get(_ context.Context, height uint64, _ libshare.Namespace, _ blob.Commitment) (*blob.Blob, error)
 	// GetAll returns all blobs under the given namespaces at the given height.
 	// If all blobs were found without any errors, the user will receive a list of blobs.
 	// If the BlobService couldn't find any blobs under the requested namespaces,
@@ -28,21 +29,21 @@ type Module interface {
 	// the user will receive all found blobs along with a combined error message.
 	//
 	// All blobs will preserve the order of the namespaces that were requested.
-	GetAll(_ context.Context, height uint64, _ []share.Namespace) ([]*blob.Blob, error)
+	GetAll(_ context.Context, height uint64, _ []libshare.Namespace) ([]*blob.Blob, error)
 	// GetProof retrieves proofs in the given namespaces at the given height by commitment.
-	GetProof(_ context.Context, height uint64, _ share.Namespace, _ blob.Commitment) (*blob.Proof, error)
+	GetProof(_ context.Context, height uint64, _ libshare.Namespace, _ blob.Commitment) (*blob.Proof, error)
 	// Included checks whether a blob's given commitment(Merkle subtree root) is included at
 	// given height and under the namespace.
-	Included(_ context.Context, height uint64, _ share.Namespace, _ *blob.Proof, _ blob.Commitment) (bool, error)
+	Included(_ context.Context, height uint64, _ libshare.Namespace, _ *blob.Proof, _ blob.Commitment) (bool, error)
 	// GetCommitmentProof generates a commitment proof for a share commitment.
 	GetCommitmentProof(
 		ctx context.Context,
 		height uint64,
-		namespace share.Namespace,
+		namespace libshare.Namespace,
 		shareCommitment []byte,
 	) (*blob.CommitmentProof, error)
 	// Subscribe to published blobs from the given namespace as they are included.
-	Subscribe(_ context.Context, _ share.Namespace) (<-chan *blob.SubscriptionResponse, error)
+	Subscribe(_ context.Context, _ libshare.Namespace) (<-chan *blob.SubscriptionResponse, error)
 }
 
 type API struct {
@@ -55,36 +56,36 @@ type API struct {
 		Get func(
 			context.Context,
 			uint64,
-			share.Namespace,
+			libshare.Namespace,
 			blob.Commitment,
 		) (*blob.Blob, error) `perm:"read"`
 		GetAll func(
 			context.Context,
 			uint64,
-			[]share.Namespace,
+			[]libshare.Namespace,
 		) ([]*blob.Blob, error) `perm:"read"`
 		GetProof func(
 			context.Context,
 			uint64,
-			share.Namespace,
+			libshare.Namespace,
 			blob.Commitment,
 		) (*blob.Proof, error) `perm:"read"`
 		Included func(
 			context.Context,
 			uint64,
-			share.Namespace,
+			libshare.Namespace,
 			*blob.Proof,
 			blob.Commitment,
 		) (bool, error) `perm:"read"`
 		GetCommitmentProof func(
 			ctx context.Context,
 			height uint64,
-			namespace share.Namespace,
+			namespace libshare.Namespace,
 			shareCommitment []byte,
 		) (*blob.CommitmentProof, error) `perm:"read"`
 		Subscribe func(
 			context.Context,
-			share.Namespace,
+			libshare.Namespace,
 		) (<-chan *blob.SubscriptionResponse, error) `perm:"read"`
 	}
 }
@@ -96,20 +97,20 @@ func (api *API) Submit(ctx context.Context, blobs []*blob.Blob, options *blob.Su
 func (api *API) Get(
 	ctx context.Context,
 	height uint64,
-	namespace share.Namespace,
+	namespace libshare.Namespace,
 	commitment blob.Commitment,
 ) (*blob.Blob, error) {
 	return api.Internal.Get(ctx, height, namespace, commitment)
 }
 
-func (api *API) GetAll(ctx context.Context, height uint64, namespaces []share.Namespace) ([]*blob.Blob, error) {
+func (api *API) GetAll(ctx context.Context, height uint64, namespaces []libshare.Namespace) ([]*blob.Blob, error) {
 	return api.Internal.GetAll(ctx, height, namespaces)
 }
 
 func (api *API) GetProof(
 	ctx context.Context,
 	height uint64,
-	namespace share.Namespace,
+	namespace libshare.Namespace,
 	commitment blob.Commitment,
 ) (*blob.Proof, error) {
 	return api.Internal.GetProof(ctx, height, namespace, commitment)
@@ -118,7 +119,7 @@ func (api *API) GetProof(
 func (api *API) GetCommitmentProof(
 	ctx context.Context,
 	height uint64,
-	namespace share.Namespace,
+	namespace libshare.Namespace,
 	shareCommitment []byte,
 ) (*blob.CommitmentProof, error) {
 	return api.Internal.GetCommitmentProof(ctx, height, namespace, shareCommitment)
@@ -127,7 +128,7 @@ func (api *API) GetCommitmentProof(
 func (api *API) Included(
 	ctx context.Context,
 	height uint64,
-	namespace share.Namespace,
+	namespace libshare.Namespace,
 	proof *blob.Proof,
 	commitment blob.Commitment,
 ) (bool, error) {
@@ -136,7 +137,7 @@ func (api *API) Included(
 
 func (api *API) Subscribe(
 	ctx context.Context,
-	namespace share.Namespace,
+	namespace libshare.Namespace,
 ) (<-chan *blob.SubscriptionResponse, error) {
 	return api.Internal.Subscribe(ctx, namespace)
 }

@@ -10,8 +10,8 @@ import (
 	tmconfig "github.com/tendermint/tendermint/config"
 	tmrand "github.com/tendermint/tendermint/libs/rand"
 
-	"github.com/celestiaorg/celestia-app/v2/test/util/genesis"
-	"github.com/celestiaorg/celestia-app/v2/test/util/testnode"
+	"github.com/celestiaorg/celestia-app/v3/test/util/genesis"
+	"github.com/celestiaorg/celestia-app/v3/test/util/testnode"
 )
 
 const chainID = "private"

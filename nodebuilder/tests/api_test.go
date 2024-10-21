@@ -12,9 +12,10 @@ import (
 	"github.com/libp2p/go-libp2p/core/peer"
 	"github.com/stretchr/testify/require"
 
+	libshare "github.com/celestiaorg/go-square/v2/share"
+
 	"github.com/celestiaorg/celestia-node/api/rpc/client"
 	"github.com/celestiaorg/celestia-node/blob"
-	"github.com/celestiaorg/celestia-node/blob/blobtest"
 	"github.com/celestiaorg/celestia-node/nodebuilder"
 	"github.com/celestiaorg/celestia-node/nodebuilder/node"
 	"github.com/celestiaorg/celestia-node/nodebuilder/tests/swamp"
@@ -107,13 +108,14 @@ func TestBlobRPC(t *testing.T) {
 
 	rpcClient := getAdminClient(ctx, bridge, t)
 
-	appBlobs, err := blobtest.GenerateV0Blobs([]int{8}, false)
+	libBlobs, err := libshare.GenerateV0Blobs([]int{8}, false)
 	require.NoError(t, err)
 
 	newBlob, err := blob.NewBlob(
-		uint8(appBlobs[0].GetShareVersion()),
-		appBlobs[0].Namespace().Bytes(),
-		appBlobs[0].GetData(),
+		libBlobs[0].ShareVersion(),
+		libBlobs[0].Namespace(),
+		libBlobs[0].Data(),
+		libBlobs[0].Signer(),
 	)
 	require.NoError(t, err)
 

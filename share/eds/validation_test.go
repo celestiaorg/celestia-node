@@ -7,10 +7,10 @@ import (
 
 	"github.com/stretchr/testify/require"
 
+	libshare "github.com/celestiaorg/go-square/v2/share"
 	"github.com/celestiaorg/rsmt2d"
 
 	"github.com/celestiaorg/celestia-node/share/eds/edstest"
-	"github.com/celestiaorg/celestia-node/share/sharetest"
 	"github.com/celestiaorg/celestia-node/share/shwap"
 )
 
@@ -91,7 +91,7 @@ func TestValidation_RowNamespaceData(t *testing.T) {
 			accessor := &Rsmt2D{ExtendedDataSquare: randEDS}
 			validation := WithValidation(AccessorAndStreamer(accessor, nil))
 
-			ns := sharetest.RandV0Namespace()
+			ns := libshare.RandomNamespace()
 			_, err := validation.RowNamespaceData(context.Background(), ns, tt.rowIdx)
 			if tt.expectFail {
 				require.ErrorIs(t, err, shwap.ErrInvalidID)

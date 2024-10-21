@@ -22,6 +22,7 @@ import (
 
 	"github.com/celestiaorg/go-fraud"
 	libhead "github.com/celestiaorg/go-header"
+	libshare "github.com/celestiaorg/go-square/v2/share"
 	"github.com/celestiaorg/rsmt2d"
 
 	"github.com/celestiaorg/celestia-node/blob"
@@ -165,7 +166,7 @@ func init() {
 
 	// randomly generated namespace that's used in the blob example above
 	// (AAAAAAAAAAAAAAAAAAAAAAAAAAAAAMJ/xGlNMdE=)
-	namespace, err := share.NewBlobNamespaceV0([]byte{0xc2, 0x7f, 0xc4, 0x69, 0x4d, 0x31, 0xd1})
+	namespace, err := libshare.NewV0Namespace([]byte{0xc2, 0x7f, 0xc4, 0x69, 0x4d, 0x31, 0xd1})
 	if err != nil {
 		panic(err)
 	}

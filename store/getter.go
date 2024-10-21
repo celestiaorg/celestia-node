@@ -5,11 +5,11 @@ import (
 	"errors"
 	"fmt"
 
+	libshare "github.com/celestiaorg/go-square/v2/share"
 	"github.com/celestiaorg/rsmt2d"
 
 	"github.com/celestiaorg/celestia-node/header"
 	"github.com/celestiaorg/celestia-node/libs/utils"
-	"github.com/celestiaorg/celestia-node/share"
 	"github.com/celestiaorg/celestia-node/share/eds"
 	"github.com/celestiaorg/celestia-node/share/shwap"
 )
@@ -24,13 +24,13 @@ func NewGetter(store *Store) *Getter {
 	return &Getter{store: store}
 }
 
-func (g *Getter) GetShare(ctx context.Context, h *header.ExtendedHeader, row, col int) (share.Share, error) {
+func (g *Getter) GetShare(ctx context.Context, h *header.ExtendedHeader, row, col int) (libshare.Share, error) {
 	acc, err := g.store.GetByHeight(ctx, h.Height())
 	if err != nil {
 		if errors.Is(err, ErrNotFound) {
-			return nil, shwap.ErrNotFound
+			return libshare.Share{}, shwap.ErrNotFound
 		}
-		return nil, fmt.Errorf("get accessor from store:%w", err)
+		return libshare.Share{}, fmt.Errorf("get accessor from store:%w", err)
 	}
 	logger := log.With(
 		"height", h.Height(),
@@ -41,7 +41,7 @@ func (g *Getter) GetShare(ctx context.Context, h *header.ExtendedHeader, row, co
 
 	sample, err := acc.Sample(ctx, row, col)
 	if err != nil {
-		return nil, fmt.Errorf("get sample from accessor:%w", err)
+		return libshare.Share{}, fmt.Errorf("get sample from accessor:%w", err)
 	}
 	return sample.Share, nil
 }
@@ -71,7 +71,7 @@ func (g *Getter) GetEDS(ctx context.Context, h *header.ExtendedHeader) (*rsmt2d.
 func (g *Getter) GetSharesByNamespace(
 	ctx context.Context,
 	h *header.ExtendedHeader,
-	ns share.Namespace,
+	ns libshare.Namespace,
 ) (shwap.NamespaceData, error) {
 	acc, err := g.store.GetByHeight(ctx, h.Height())
 	if err != nil {

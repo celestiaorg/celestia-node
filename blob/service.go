@@ -1,7 +1,7 @@
 package blob
 
 import (
-	bytes2 "bytes"
+	"bytes"
 	"context"
 	"encoding/hex"
 	"errors"
@@ -16,11 +16,10 @@ import (
 	"go.opentelemetry.io/otel/codes"
 	"go.opentelemetry.io/otel/trace"
 
-	"github.com/celestiaorg/celestia-app/v2/pkg/appconsts"
-	pkgproof "github.com/celestiaorg/celestia-app/v2/pkg/proof"
-	"github.com/celestiaorg/go-square/inclusion"
-	appns "github.com/celestiaorg/go-square/namespace"
-	"github.com/celestiaorg/go-square/shares"
+	"github.com/celestiaorg/celestia-app/v3/pkg/appconsts"
+	pkgproof "github.com/celestiaorg/celestia-app/v3/pkg/proof"
+	"github.com/celestiaorg/go-square/v2/inclusion"
+	libshare "github.com/celestiaorg/go-square/v2/share"
 	"github.com/celestiaorg/nmt"
 	"github.com/celestiaorg/rsmt2d"
 
@@ -47,7 +46,7 @@ type SubmitOptions = state.TxConfig
 // avoid a circular dependency between the blob and the state package, since the state package needs
 // the blob.Blob type for this signature.
 type Submitter interface {
-	SubmitPayForBlob(context.Context, []*state.Blob, *state.TxConfig) (*types.TxResponse, error)
+	SubmitPayForBlob(context.Context, []*libshare.Blob, *state.TxConfig) (*types.TxResponse, error)
 }
 
 type Service struct {
@@ -100,7 +99,7 @@ type SubscriptionResponse struct {
 // The channel will be closed when the context is canceled or the service is stopped.
 // Please note that no errors are returned: underlying operations are retried until successful.
 // Additionally, not reading from the returned channel will cause the stream to close after 16 messages.
-func (s *Service) Subscribe(ctx context.Context, ns share.Namespace) (<-chan *SubscriptionResponse, error) {
+func (s *Service) Subscribe(ctx context.Context, ns libshare.Namespace) (<-chan *SubscriptionResponse, error) {
 	if s.ctx == nil {
 		return nil, fmt.Errorf("service has not been started")
 	}
@@ -134,7 +133,7 @@ func (s *Service) Subscribe(ctx context.Context, ns share.Namespace) (<-chan *Su
 				var blobs []*Blob
 				var err error
 				for {
-					blobs, err = s.getAll(ctx, header, []share.Namespace{ns})
+					blobs, err = s.getAll(ctx, header, []libshare.Namespace{ns})
 					if ctx.Err() != nil {
 						// context canceled, continuing would lead to unexpected missed heights for the client
 						log.Debugw("blobsub: canceling subscription due to user ctx closing", "namespace", ns.ID())
@@ -171,15 +170,16 @@ func (s *Service) Subscribe(ctx context.Context, ns share.Namespace) (<-chan *Su
 func (s *Service) Submit(ctx context.Context, blobs []*Blob, txConfig *SubmitOptions) (uint64, error) {
 	log.Debugw("submitting blobs", "amount", len(blobs))
 
-	squareBlobs := make([]*state.Blob, len(blobs))
+	libBlobs := make([]*libshare.Blob, len(blobs))
 	for i := range blobs {
 		if err := blobs[i].Namespace().ValidateForBlob(); err != nil {
-			return 0, err
+			return 0, fmt.Errorf("not allowed namespace %s were used to build the blob", blobs[i].Namespace().ID())
 		}
-		squareBlobs[i] = blobs[i].Blob
+
+		libBlobs[i] = blobs[i].Blob
 	}
 
-	resp, err := s.blobSubmitter.SubmitPayForBlob(ctx, squareBlobs, txConfig)
+	resp, err := s.blobSubmitter.SubmitPayForBlob(ctx, libBlobs, txConfig)
 	if err != nil {
 		return 0, err
 	}
@@ -193,7 +193,7 @@ func (s *Service) Submit(ctx context.Context, blobs []*Blob, txConfig *SubmitOpt
 func (s *Service) Get(
 	ctx context.Context,
 	height uint64,
-	namespace share.Namespace,
+	namespace libshare.Namespace,
 	commitment Commitment,
 ) (blob *Blob, err error) {
 	ctx, span := tracer.Start(ctx, "get")
@@ -219,7 +219,7 @@ func (s *Service) Get(
 func (s *Service) GetProof(
 	ctx context.Context,
 	height uint64,
-	namespace share.Namespace,
+	namespace libshare.Namespace,
 	commitment Commitment,
 ) (proof *Proof, err error) {
 	ctx, span := tracer.Start(ctx, "get-proof")
@@ -248,7 +248,7 @@ func (s *Service) GetProof(
 // the user will receive all found blobs along with a combined error message.
 //
 // All blobs will preserve the order of the namespaces that were requested.
-func (s *Service) GetAll(ctx context.Context, height uint64, namespaces []share.Namespace) ([]*Blob, error) {
+func (s *Service) GetAll(ctx context.Context, height uint64, namespaces []libshare.Namespace) ([]*Blob, error) {
 	header, err := s.headerGetter(ctx, height)
 	if err != nil {
 		return nil, err
@@ -260,7 +260,7 @@ func (s *Service) GetAll(ctx context.Context, height uint64, namespaces []share.
 func (s *Service) getAll(
 	ctx context.Context,
 	header *header.ExtendedHeader,
-	namespaces []share.Namespace,
+	namespaces []libshare.Namespace,
 ) ([]*Blob, error) {
 	height := header.Height()
 	var (
@@ -270,13 +270,13 @@ func (s *Service) getAll(
 	)
 	for i, namespace := range namespaces {
 		wg.Add(1)
-		go func(i int, namespace share.Namespace) {
+		go func(i int, namespace libshare.Namespace) {
 			log.Debugw("retrieving all blobs from", "namespace", namespace.String(), "height", height)
 			defer wg.Done()
 
 			blobs, err := s.getBlobs(ctx, namespace, header)
 			if err != nil && !errors.Is(err, ErrBlobNotFound) {
-				log.Errorf("getting blobs for namespaceID(%s): %v", namespace.ID().String(), err)
+				log.Errorf("getting blobs for namespaceID(%s): %v", hex.EncodeToString(namespace.ID()), err)
 				resultErr[i] = err
 			}
 			if len(blobs) > 0 {
@@ -299,7 +299,7 @@ func (s *Service) getAll(
 func (s *Service) Included(
 	ctx context.Context,
 	height uint64,
-	namespace share.Namespace,
+	namespace libshare.Namespace,
 	proof *Proof,
 	commitment Commitment,
 ) (_ bool, err error) {
@@ -334,7 +334,7 @@ func (s *Service) Included(
 func (s *Service) retrieve(
 	ctx context.Context,
 	height uint64,
-	namespace share.Namespace,
+	namespace libshare.Namespace,
 	sharesParser *parser,
 ) (_ *Blob, _ *Proof, err error) {
 	log.Infow("requesting blob",
@@ -355,7 +355,11 @@ func (s *Service) retrieve(
 
 	rowIndex := -1
 	for i, row := range header.DAH.RowRoots {
-		if !namespace.IsOutsideRange(row, row) {
+		outside, err := share.IsOutsideRange(namespace, row, row)
+		if err != nil {
+			return nil, nil, err
+		}
+		if !outside {
 			rowIndex = i
 			break
 		}
@@ -378,7 +382,7 @@ func (s *Service) retrieve(
 		attribute.Int64("eds-size", int64(len(header.DAH.RowRoots)))))
 
 	var (
-		appShares = make([]shares.Share, 0)
+		appShares = make([]libshare.Share, 0)
 		proofs    = make(Proof, 0)
 	)
 
@@ -390,18 +394,14 @@ func (s *Service) retrieve(
 			return nil, nil, ErrBlobNotFound
 		}
 
-		appShares, err = toAppShares(row.Shares...)
-		if err != nil {
-			return nil, nil, err
-		}
-
+		appShares = row.Shares
 		proofs = append(proofs, row.Proof)
 		index := row.Proof.Start()
 
 		for {
 			var (
 				isComplete bool
-				shrs       []shares.Share
+				shrs       []libshare.Share
 				wasEmpty   = sharesParser.isEmpty()
 			)
 
@@ -459,11 +459,7 @@ func (s *Service) retrieve(
 
 	err = ErrBlobNotFound
 	for _, sh := range appShares {
-		ok, err := sh.IsPadding()
-		if err != nil {
-			return nil, nil, err
-		}
-		if !ok {
+		if !sh.IsPadding() {
 			err = fmt.Errorf("incomplete blob with the "+
 				"namespace: %s detected at %d: %w", namespace.String(), height, err)
 			log.Error(err)
@@ -476,7 +472,7 @@ func (s *Service) retrieve(
 // them to Blobs.
 func (s *Service) getBlobs(
 	ctx context.Context,
-	namespace share.Namespace,
+	namespace libshare.Namespace,
 	header *header.ExtendedHeader,
 ) (_ []*Blob, err error) {
 	ctx, span := tracer.Start(ctx, "get-blobs")
@@ -502,7 +498,7 @@ func (s *Service) getBlobs(
 func (s *Service) GetCommitmentProof(
 	ctx context.Context,
 	height uint64,
-	namespace share.Namespace,
+	namespace libshare.Namespace,
 	shareCommitment []byte,
 ) (*CommitmentProof, error) {
 	log.Debugw("proving share commitment", "height", height, "commitment", shareCommitment, "namespace", namespace)
@@ -564,23 +560,18 @@ func (s *Service) GetCommitmentProof(
 
 func ProveCommitment(
 	eds *rsmt2d.ExtendedDataSquare,
-	namespace share.Namespace,
-	blobShares []share.Share,
+	namespace libshare.Namespace,
+	blobShares []libshare.Share,
 ) (*CommitmentProof, error) {
 	// find the blob shares in the EDS
 	blobSharesStartIndex := -1
 	for index, share := range eds.FlattenedODS() {
-		if bytes2.Equal(share, blobShares[0]) {
+		if bytes.Equal(share, blobShares[0].ToBytes()) {
 			blobSharesStartIndex = index
 		}
 	}
 	if blobSharesStartIndex < 0 {
 		return nil, fmt.Errorf("couldn't find the blob shares in the ODS")
-	}
-
-	nID, err := appns.From(namespace)
-	if err != nil {
-		return nil, err
 	}
 
 	log.Debugw(
@@ -592,8 +583,8 @@ func ProveCommitment(
 	)
 	sharesProof, err := pkgproof.NewShareInclusionProofFromEDS(
 		eds,
-		nID,
-		shares.NewRange(blobSharesStartIndex, blobSharesStartIndex+len(blobShares)),
+		namespace,
+		libshare.NewRange(blobSharesStartIndex, blobSharesStartIndex+len(blobShares)),
 	)
 	if err != nil {
 		return nil, err
@@ -624,7 +615,7 @@ func ProveCommitment(
 		ranges, err := nmt.ToLeafRanges(
 			proof.Start(),
 			proof.End(),
-			inclusion.SubTreeWidth(len(blobShares), appconsts.DefaultSubtreeRootThreshold),
+			inclusion.SubTreeWidth(len(blobShares), subtreeRootThreshold),
 		)
 		if err != nil {
 			return nil, err
@@ -654,7 +645,7 @@ func ProveCommitment(
 
 // computeSubtreeRoots takes a set of shares and ranges and returns the corresponding subtree roots.
 // the offset is the number of shares that are before the subtree roots we're calculating.
-func computeSubtreeRoots(shares []share.Share, ranges []nmt.LeafRange, offset int) ([][]byte, error) {
+func computeSubtreeRoots(shares []libshare.Share, ranges []nmt.LeafRange, offset int) ([][]byte, error) {
 	if len(shares) == 0 {
 		return nil, fmt.Errorf("cannot compute subtree roots for an empty shares list")
 	}
@@ -669,11 +660,11 @@ func computeSubtreeRoots(shares []share.Share, ranges []nmt.LeafRange, offset in
 	tree := nmt.New(
 		appconsts.NewBaseHashFunc(),
 		nmt.IgnoreMaxNamespace(true),
-		nmt.NamespaceIDSize(share.NamespaceSize),
+		nmt.NamespaceIDSize(libshare.NamespaceSize),
 	)
 	for _, sh := range shares {
 		leafData := make([]byte, 0)
-		leafData = append(append(leafData, share.GetNamespace(sh)...), sh...)
+		leafData = append(append(leafData, sh.Namespace().Bytes()...), sh.ToBytes()...)
 		err := tree.Push(leafData)
 		if err != nil {
 			return nil, err

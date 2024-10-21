@@ -11,6 +11,7 @@ import (
 
 	"github.com/stretchr/testify/require"
 
+	libshare "github.com/celestiaorg/go-square/v2/share"
 	"github.com/celestiaorg/rsmt2d"
 
 	"github.com/celestiaorg/celestia-node/share"
@@ -322,11 +323,11 @@ func (m *mockAccessor) AxisHalf(context.Context, rsmt2d.Axis, int) (eds.AxisHalf
 	panic("implement me")
 }
 
-func (m *mockAccessor) RowNamespaceData(context.Context, share.Namespace, int) (shwap.RowNamespaceData, error) {
+func (m *mockAccessor) RowNamespaceData(context.Context, libshare.Namespace, int) (shwap.RowNamespaceData, error) {
 	panic("implement me")
 }
 
-func (m *mockAccessor) Shares(context.Context) ([]share.Share, error) {
+func (m *mockAccessor) Shares(context.Context) ([]libshare.Share, error) {
 	panic("implement me")
 }
 
