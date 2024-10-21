@@ -232,14 +232,15 @@ func (s *Store) createODSFile(
 }
 
 func (s *Store) linkHeight(datahash share.DataHash, height uint64) error {
-	// create hard link with height as name
-	pathOds := s.hashToPath(datahash, odsFileExt)
 	linktoOds := s.heightToPath(height, odsFileExt)
 	if datahash.IsEmptyEDS() {
 		// empty EDS is always symlinked, because there is limited number of hardlinks
 		// for the same file in some filesystems (ext4)
+		pathOds := s.hashToRelativePath(datahash, odsFileExt)
 		return symlink(pathOds, linktoOds)
 	}
+	// create hard link with height as name
+	pathOds := s.hashToPath(datahash, odsFileExt)
 	return hardLink(pathOds, linktoOds)
 }
 
@@ -442,6 +443,10 @@ func (s *Store) removeQ4(height uint64, datahash share.DataHash) error {
 
 func (s *Store) hashToPath(datahash share.DataHash, ext string) string {
 	return filepath.Join(s.basepath, blocksPath, datahash.String()) + ext
+}
+
+func (s *Store) hashToRelativePath(datahash share.DataHash, ext string) string {
+	return filepath.Join("..", datahash.String()) + ext
 }
 
 func (s *Store) heightToPath(height uint64, ext string) string {
