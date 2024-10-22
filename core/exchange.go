@@ -80,7 +80,7 @@ func (ce *Exchange) GetRangeByHeight(
 	ce.metrics.requestDurationPerHeader(ctx, time.Since(start), amount)
 
 	for _, h := range headers {
-		err := libhead.Verify[*header.ExtendedHeader](from, h, libhead.DefaultHeightThreshold)
+		err := libhead.Verify[*header.ExtendedHeader](from, h)
 		if err != nil {
 			return nil, fmt.Errorf("verifying next header against last verified height: %d: %w",
 				from.Height(), err)

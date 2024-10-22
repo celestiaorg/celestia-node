@@ -9,8 +9,8 @@ import (
 	reflect "reflect"
 
 	blob "github.com/celestiaorg/celestia-node/blob"
-	share "github.com/celestiaorg/celestia-node/share"
 	state "github.com/celestiaorg/celestia-node/state"
+	share "github.com/celestiaorg/go-square/v2/share"
 	gomock "github.com/golang/mock/gomock"
 )
 
