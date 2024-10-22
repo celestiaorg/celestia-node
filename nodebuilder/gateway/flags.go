@@ -20,7 +20,7 @@ func Flags() *flag.FlagSet {
 	flags.Bool(
 		enabledFlag,
 		false,
-		"Enables the REST gateway",
+		"Enables the REST gateway. WARNING: gateway will be deprecated in upcoming release!",
 	)
 	flags.String(
 		addrFlag,
