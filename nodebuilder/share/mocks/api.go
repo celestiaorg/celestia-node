@@ -10,7 +10,8 @@ import (
 
 	header "github.com/celestiaorg/celestia-node/header"
 	share "github.com/celestiaorg/celestia-node/nodebuilder/share"
-	share0 "github.com/celestiaorg/celestia-node/share"
+	shwap "github.com/celestiaorg/celestia-node/share/shwap"
+	share0 "github.com/celestiaorg/go-square/v2/share"
 	rsmt2d "github.com/celestiaorg/rsmt2d"
 	gomock "github.com/golang/mock/gomock"
 )
@@ -69,10 +70,10 @@ func (mr *MockModuleMockRecorder) GetRange(arg0, arg1, arg2, arg3 interface{}) *
 }
 
 // GetShare mocks base method.
-func (m *MockModule) GetShare(arg0 context.Context, arg1 *header.ExtendedHeader, arg2, arg3 int) ([]byte, error) {
+func (m *MockModule) GetShare(arg0 context.Context, arg1 *header.ExtendedHeader, arg2, arg3 int) (share0.Share, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "GetShare", arg0, arg1, arg2, arg3)
-	ret0, _ := ret[0].([]byte)
+	ret0, _ := ret[0].(share0.Share)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
@@ -84,10 +85,10 @@ func (mr *MockModuleMockRecorder) GetShare(arg0, arg1, arg2, arg3 interface{}) *
 }
 
 // GetSharesByNamespace mocks base method.
-func (m *MockModule) GetSharesByNamespace(arg0 context.Context, arg1 *header.ExtendedHeader, arg2 share0.Namespace) (share.NamespacedShares, error) {
+func (m *MockModule) GetSharesByNamespace(arg0 context.Context, arg1 *header.ExtendedHeader, arg2 share0.Namespace) (shwap.NamespaceData, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "GetSharesByNamespace", arg0, arg1, arg2)
-	ret0, _ := ret[0].(share.NamespacedShares)
+	ret0, _ := ret[0].(shwap.NamespaceData)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }

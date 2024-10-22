@@ -5,6 +5,8 @@ import (
 	"errors"
 	"fmt"
 	"io"
+
+	libshare "github.com/celestiaorg/go-square/v2/share"
 )
 
 // ShareReader implement io.Reader over general function that gets shares by
@@ -12,7 +14,7 @@ import (
 // It enables share streaming over arbitrary storages.
 type ShareReader struct {
 	// getShare general share getting function for share retrieval
-	getShare func(rowIdx, colIdx int) ([]byte, error)
+	getShare func(rowIdx, colIdx int) (libshare.Share, error)
 
 	// buf buffers shares from partial reads with default size
 	buf *bytes.Buffer
@@ -22,7 +24,7 @@ type ShareReader struct {
 }
 
 // NewShareReader constructs a new ShareGetter from underlying ODS size and general share getting function.
-func NewShareReader(odsSize int, getShare func(rowIdx, colIdx int) ([]byte, error)) *ShareReader {
+func NewShareReader(odsSize int, getShare func(rowIdx, colIdx int) (libshare.Share, error)) *ShareReader {
 	return &ShareReader{
 		getShare: getShare,
 		buf:      bytes.NewBuffer(nil),
@@ -54,24 +56,24 @@ func (r *ShareReader) Read(p []byte) (int, error) {
 		if err != nil {
 			return 0, fmt.Errorf("get share: %w", err)
 		}
-
+		rawShare := share.ToBytes()
 		// copy share to provided buffer
 		emptySpace := len(p) - written
 		r.current++
-		if len(share) < emptySpace {
-			n := copy(p[written:], share)
+		if len(rawShare) < emptySpace {
+			n := copy(p[written:], rawShare)
 			written += n
 			continue
 		}
 
 		// if share didn't fit into buffer fully, store remaining bytes into inner buf
-		n := copy(p[written:], share[:emptySpace])
+		n := copy(p[written:], rawShare[:emptySpace])
 		written += n
-		n, err = r.buf.Write(share[emptySpace:])
+		n, err = r.buf.Write(rawShare[emptySpace:])
 		if err != nil {
 			return 0, fmt.Errorf("write share to inner buffer: %w", err)
 		}
-		if n != len(share)-emptySpace {
+		if n != len(rawShare)-emptySpace {
 			return 0, fmt.Errorf("share was not written fully: %w", io.ErrShortWrite)
 		}
 		return written, nil

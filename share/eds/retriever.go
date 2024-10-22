@@ -15,7 +15,8 @@ import (
 	"go.opentelemetry.io/otel/codes"
 	"go.opentelemetry.io/otel/trace"
 
-	"github.com/celestiaorg/celestia-app/v2/pkg/wrapper"
+	"github.com/celestiaorg/celestia-app/v3/pkg/wrapper"
+	libshare "github.com/celestiaorg/go-square/v2/share"
 	"github.com/celestiaorg/nmt"
 	"github.com/celestiaorg/rsmt2d"
 
@@ -142,7 +143,7 @@ func (r *Retriever) newSession(ctx context.Context, roots *share.AxisRoots) (*re
 		return &tree
 	}
 
-	square, err := rsmt2d.NewExtendedDataSquare(share.DefaultRSMT2DCodec(), treeFn, uint(size), share.Size)
+	square, err := rsmt2d.NewExtendedDataSquare(share.DefaultRSMT2DCodec(), treeFn, uint(size), libshare.ShareSize)
 	if err != nil {
 		return nil, err
 	}
@@ -279,7 +280,7 @@ func (rs *retrievalSession) doRequest(ctx context.Context, q *quadrant) {
 			// and go get shares of left or the right side of the whole col/row axis
 			// the left or the right side of the tree represent some portion of the quadrant
 			// which we put into the rs.square share-by-share by calculating shares' indexes using q.index
-			ipld.GetShares(ctx, rs.bget, nd.Links()[q.x].Cid, size, func(j int, share share.Share) {
+			ipld.GetShares(ctx, rs.bget, nd.Links()[q.x].Cid, size, func(j int, rawShare []byte) {
 				// NOTE: Each share can appear twice here, for a Row and Col, respectively.
 				// These shares are always equal, and we allow only the first one to be written
 				// in the square.
@@ -306,7 +307,7 @@ func (rs *retrievalSession) doRequest(ctx context.Context, q *quadrant) {
 				if rs.isReconstructed() {
 					return
 				}
-				if err := rs.square.SetCell(uint(x), uint(y), share); err != nil {
+				if err := rs.square.SetCell(uint(x), uint(y), rawShare); err != nil {
 					// safe to ignore as:
 					// * share size already verified
 					// * the same share might come from either Row or Col

@@ -4,18 +4,19 @@ import (
 	"fmt"
 	"io"
 
-	"github.com/celestiaorg/celestia-node/share"
+	libshare "github.com/celestiaorg/go-square/v2/share"
 )
 
 // RowNamespaceDataIDSize defines the total size of a RowNamespaceDataID in bytes, combining the
 // size of a RowID and the size of a Namespace.
-const RowNamespaceDataIDSize = RowIDSize + share.NamespaceSize
+const RowNamespaceDataIDSize = RowIDSize + libshare.NamespaceSize
 
 // RowNamespaceDataID uniquely identifies a piece of namespaced data within a row of an Extended
 // Data Square (EDS).
 type RowNamespaceDataID struct {
-	RowID                         // Embedded RowID representing the specific row in the EDS.
-	DataNamespace share.Namespace // DataNamespace is a string representation of the namespace to facilitate comparisons.
+	RowID // Embedded RowID representing the specific row in the EDS.
+	// DataNamespace is used to facilitate comparisons.
+	DataNamespace libshare.Namespace
 }
 
 // NewRowNamespaceDataID creates a new RowNamespaceDataID with the specified parameters. It
@@ -23,7 +24,7 @@ type RowNamespaceDataID struct {
 func NewRowNamespaceDataID(
 	height uint64,
 	rowIdx int,
-	namespace share.Namespace,
+	namespace libshare.Namespace,
 	edsSize int,
 ) (RowNamespaceDataID, error) {
 	did := RowNamespaceDataID{
@@ -55,15 +56,15 @@ func RowNamespaceDataIDFromBinary(data []byte) (RowNamespaceDataID, error) {
 		return RowNamespaceDataID{}, fmt.Errorf("unmarshaling RowID: %w", err)
 	}
 
-	rndid := RowNamespaceDataID{
-		RowID:         rid,
-		DataNamespace: data[RowIDSize:],
-	}
-	if err := rndid.Validate(); err != nil {
-		return RowNamespaceDataID{}, fmt.Errorf("validating RowNamespaceDataID: %w", err)
+	ns, err := libshare.NewNamespaceFromBytes(data[RowIDSize:])
+	if err != nil {
+		return RowNamespaceDataID{}, fmt.Errorf("invalid namespace format: %w", err)
 	}
 
-	return rndid, nil
+	return RowNamespaceDataID{
+		RowID:         rid,
+		DataNamespace: ns,
+	}, nil
 }
 
 // Equals checks equality of RowNamespaceDataID.
@@ -132,5 +133,5 @@ func (rndid RowNamespaceDataID) Validate() error {
 // appendTo helps in appending the binary form of DataNamespace to the serialized RowID data.
 func (rndid RowNamespaceDataID) appendTo(data []byte) []byte {
 	data = rndid.RowID.appendTo(data)
-	return append(data, rndid.DataNamespace...)
+	return append(data, rndid.DataNamespace.Bytes()...)
 }

@@ -7,6 +7,7 @@ import (
 	"github.com/ipfs/boxo/blockservice"
 	logging "github.com/ipfs/go-log/v2"
 
+	libshare "github.com/celestiaorg/go-square/v2/share"
 	"github.com/celestiaorg/nmt"
 	nmt_pb "github.com/celestiaorg/nmt/pb"
 	"github.com/celestiaorg/rsmt2d"
@@ -21,7 +22,7 @@ var log = logging.Logger("share/byzantine")
 // ShareWithProof contains data with corresponding Merkle Proof
 type ShareWithProof struct {
 	// Share is a full data including namespace
-	share.Share
+	libshare.Share
 	// Proof is a Merkle Proof of current share
 	Proof *nmt.Proof
 	// Axis is a proof axis
@@ -40,14 +41,14 @@ func (s *ShareWithProof) Validate(roots *share.AxisRoots, axisType rsmt2d.Axis, 
 
 	edsSize := len(roots.RowRoots)
 	isParity := shrIdx >= edsSize/2 || axisIdx >= edsSize/2
-	namespace := share.ParitySharesNamespace
+	namespace := libshare.ParitySharesNamespace
 	if !isParity {
-		namespace = share.GetNamespace(s.Share)
+		namespace = s.Share.Namespace()
 	}
 	return s.Proof.VerifyInclusion(
 		share.NewSHA256Hasher(),
-		namespace.ToNMT(),
-		[][]byte{s.Share},
+		namespace.Bytes(),
+		[][]byte{s.Share.ToBytes()},
 		rootHash,
 	)
 }
@@ -56,9 +57,8 @@ func (s *ShareWithProof) ShareWithProofToProto() *pb.Share {
 	if s == nil {
 		return &pb.Share{}
 	}
-
 	return &pb.Share{
-		Data: s.Share,
+		Data: s.Share.ToBytes(),
 		Proof: &nmt_pb.Proof{
 			Start:                 int64(s.Proof.Start()),
 			End:                   int64(s.Proof.End()),
@@ -76,7 +76,7 @@ func GetShareWithProof(
 	ctx context.Context,
 	bGetter blockservice.BlockGetter,
 	roots *share.AxisRoots,
-	share share.Share,
+	share libshare.Share,
 	axisType rsmt2d.Axis, axisIdx, shrIdx int,
 ) (*ShareWithProof, error) {
 	if axisType == rsmt2d.Col {
@@ -114,20 +114,24 @@ func GetShareWithProof(
 	return nil, errors.New("failed to collect proof")
 }
 
-func ProtoToShare(protoShares []*pb.Share) []*ShareWithProof {
+func ProtoToShare(protoShares []*pb.Share) ([]*ShareWithProof, error) {
 	shares := make([]*ShareWithProof, len(protoShares))
-	for i, share := range protoShares {
-		if share.Proof == nil {
+	for i, protoSh := range protoShares {
+		if protoSh.Proof == nil {
 			continue
 		}
-		proof := ProtoToProof(share.Proof)
+		proof := ProtoToProof(protoSh.Proof)
+		sh, err := libshare.NewShare(protoSh.Data)
+		if err != nil {
+			return nil, err
+		}
 		shares[i] = &ShareWithProof{
-			Share: share.Data,
+			Share: *sh,
 			Proof: &proof,
-			Axis:  rsmt2d.Axis(share.ProofAxis),
+			Axis:  rsmt2d.Axis(protoSh.ProofAxis),
 		}
 	}
-	return shares
+	return shares, nil
 }
 
 func ProtoToProof(protoProof *nmt_pb.Proof) nmt.Proof {
