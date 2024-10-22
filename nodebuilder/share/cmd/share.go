@@ -1,9 +1,7 @@
 package cmd
 
 import (
-	"context"
 	"encoding/hex"
-	"fmt"
 	"strconv"
 
 	"github.com/spf13/cobra"
@@ -42,12 +40,12 @@ var sharesAvailableCmd = &cobra.Command{
 		}
 		defer client.Close()
 
-		eh, err := getExtendedHeaderFromCmdArg(cmd.Context(), client, args[0])
+		height, err := strconv.ParseUint(args[0], 10, 64)
 		if err != nil {
 			return err
 		}
 
-		err = client.Share.SharesAvailable(cmd.Context(), eh)
+		err = client.Share.SharesAvailable(cmd.Context(), height)
 		formatter := func(data interface{}) interface{} {
 			err, ok := data.(error)
 			available := false
@@ -79,7 +77,7 @@ var getSharesByNamespaceCmd = &cobra.Command{
 		}
 		defer client.Close()
 
-		eh, err := getExtendedHeaderFromCmdArg(cmd.Context(), client, args[0])
+		height, err := strconv.ParseUint(args[0], 10, 64)
 		if err != nil {
 			return err
 		}
@@ -89,7 +87,7 @@ var getSharesByNamespaceCmd = &cobra.Command{
 			return err
 		}
 
-		shares, err := client.Share.GetSharesByNamespace(cmd.Context(), eh, ns)
+		shares, err := client.Share.GetSharesByNamespace(cmd.Context(), height, ns)
 		return cmdnode.PrintOutput(shares, err, nil)
 	},
 }
@@ -105,7 +103,7 @@ var getShare = &cobra.Command{
 		}
 		defer client.Close()
 
-		eh, err := getExtendedHeaderFromCmdArg(cmd.Context(), client, args[0])
+		height, err := strconv.ParseUint(args[0], 10, 64)
 		if err != nil {
 			return err
 		}
@@ -120,7 +118,7 @@ var getShare = &cobra.Command{
 			return err
 		}
 
-		s, err := client.Share.GetShare(cmd.Context(), eh, int(row), int(col))
+		s, err := client.Share.GetShare(cmd.Context(), height, int(row), int(col))
 
 		formatter := func(data interface{}) interface{} {
 			sh, ok := data.(libshare.Share)
@@ -153,26 +151,12 @@ var getEDS = &cobra.Command{
 		}
 		defer client.Close()
 
-		eh, err := getExtendedHeaderFromCmdArg(cmd.Context(), client, args[0])
+		height, err := strconv.ParseUint(args[0], 10, 64)
 		if err != nil {
 			return err
 		}
 
-		shares, err := client.Share.GetEDS(cmd.Context(), eh)
+		shares, err := client.Share.GetEDS(cmd.Context(), height)
 		return cmdnode.PrintOutput(shares, err, nil)
 	},
-}
-
-func getExtendedHeaderFromCmdArg(ctx context.Context, client *rpc.Client, arg string) (*header.ExtendedHeader, error) {
-	height, err := strconv.ParseUint(arg, 10, 64)
-	if err == nil {
-		return client.Header.GetByHeight(ctx, height)
-	}
-
-	hash, err := hex.DecodeString(arg)
-	if err != nil {
-		return nil, fmt.Errorf("can't parse the height/hash argument: %w", err)
-	}
-
-	return client.Header.GetByHash(ctx, hash)
 }

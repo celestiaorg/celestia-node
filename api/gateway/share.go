@@ -93,12 +93,7 @@ func (h *Handler) getShares(
 	height uint64,
 	namespace libshare.Namespace,
 ) ([]libshare.Share, error) {
-	header, err := h.header.GetByHeight(ctx, height)
-	if err != nil {
-		return nil, err
-	}
-
-	shares, err := h.share.GetSharesByNamespace(ctx, header, namespace)
+	shares, err := h.share.GetSharesByNamespace(ctx, height, namespace)
 	if err != nil {
 		return nil, err
 	}

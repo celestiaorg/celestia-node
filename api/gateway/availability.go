@@ -27,13 +27,7 @@ func (h *Handler) handleHeightAvailabilityRequest(w http.ResponseWriter, r *http
 		return
 	}
 
-	header, err := h.header.GetByHeight(r.Context(), uint64(height))
-	if err != nil {
-		writeError(w, http.StatusInternalServerError, heightAvailabilityEndpoint, err)
-		return
-	}
-
-	err = h.share.SharesAvailable(r.Context(), header)
+	err = h.share.SharesAvailable(r.Context(), uint64(height))
 	switch {
 	case err == nil:
 		resp, err := json.Marshal(&AvailabilityResponse{Available: true})

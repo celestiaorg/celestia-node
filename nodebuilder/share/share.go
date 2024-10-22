@@ -8,7 +8,6 @@ import (
 	libshare "github.com/celestiaorg/go-square/v2/share"
 	"github.com/celestiaorg/rsmt2d"
 
-	"github.com/celestiaorg/celestia-node/header"
 	headerServ "github.com/celestiaorg/celestia-node/nodebuilder/header"
 	"github.com/celestiaorg/celestia-node/share"
 	"github.com/celestiaorg/celestia-node/share/eds"
@@ -43,15 +42,15 @@ type GetRangeResult struct {
 type Module interface {
 	// SharesAvailable subjectively validates if Shares committed to the given
 	// ExtendedHeader are available on the Network.
-	SharesAvailable(context.Context, *header.ExtendedHeader) error
+	SharesAvailable(ctx context.Context, height uint64) error
 	// GetShare gets a Share by coordinates in EDS.
-	GetShare(ctx context.Context, header *header.ExtendedHeader, row, col int) (libshare.Share, error)
+	GetShare(ctx context.Context, height uint64, row, col int) (libshare.Share, error)
 	// GetEDS gets the full EDS identified by the given extended header.
-	GetEDS(ctx context.Context, header *header.ExtendedHeader) (*rsmt2d.ExtendedDataSquare, error)
+	GetEDS(ctx context.Context, height uint64) (*rsmt2d.ExtendedDataSquare, error)
 	// GetSharesByNamespace gets all shares from an EDS within the given namespace.
 	// Shares are returned in a row-by-row order if the namespace spans multiple rows.
 	GetSharesByNamespace(
-		ctx context.Context, header *header.ExtendedHeader, namespace libshare.Namespace,
+		ctx context.Context, height uint64, namespace libshare.Namespace,
 	) (shwap.NamespaceData, error)
 	// GetRange gets a list of shares and their corresponding proof.
 	GetRange(ctx context.Context, height uint64, start, end int) (*GetRangeResult, error)
@@ -60,19 +59,19 @@ type Module interface {
 // API is a wrapper around Module for the RPC.
 type API struct {
 	Internal struct {
-		SharesAvailable func(context.Context, *header.ExtendedHeader) error `perm:"read"`
+		SharesAvailable func(ctx context.Context, height uint64) error `perm:"read"`
 		GetShare        func(
 			ctx context.Context,
-			header *header.ExtendedHeader,
+			height uint64,
 			row, col int,
 		) (libshare.Share, error) `perm:"read"`
 		GetEDS func(
 			ctx context.Context,
-			header *header.ExtendedHeader,
+			height uint64,
 		) (*rsmt2d.ExtendedDataSquare, error) `perm:"read"`
 		GetSharesByNamespace func(
 			ctx context.Context,
-			header *header.ExtendedHeader,
+			height uint64,
 			namespace libshare.Namespace,
 		) (shwap.NamespaceData, error) `perm:"read"`
 		GetRange func(
@@ -83,16 +82,16 @@ type API struct {
 	}
 }
 
-func (api *API) SharesAvailable(ctx context.Context, header *header.ExtendedHeader) error {
-	return api.Internal.SharesAvailable(ctx, header)
+func (api *API) SharesAvailable(ctx context.Context, height uint64) error {
+	return api.Internal.SharesAvailable(ctx, height)
 }
 
-func (api *API) GetShare(ctx context.Context, header *header.ExtendedHeader, row, col int) (libshare.Share, error) {
-	return api.Internal.GetShare(ctx, header, row, col)
+func (api *API) GetShare(ctx context.Context, height uint64, row, col int) (libshare.Share, error) {
+	return api.Internal.GetShare(ctx, height, row, col)
 }
 
-func (api *API) GetEDS(ctx context.Context, header *header.ExtendedHeader) (*rsmt2d.ExtendedDataSquare, error) {
-	return api.Internal.GetEDS(ctx, header)
+func (api *API) GetEDS(ctx context.Context, height uint64) (*rsmt2d.ExtendedDataSquare, error) {
+	return api.Internal.GetEDS(ctx, height)
 }
 
 func (api *API) GetRange(ctx context.Context, height uint64, start, end int) (*GetRangeResult, error) {
@@ -101,28 +100,44 @@ func (api *API) GetRange(ctx context.Context, height uint64, start, end int) (*G
 
 func (api *API) GetSharesByNamespace(
 	ctx context.Context,
-	header *header.ExtendedHeader,
+	height uint64,
 	namespace libshare.Namespace,
 ) (shwap.NamespaceData, error) {
-	return api.Internal.GetSharesByNamespace(ctx, header, namespace)
+	return api.Internal.GetSharesByNamespace(ctx, height, namespace)
 }
 
 type module struct {
-	shwap.Getter
-	share.Availability
-	hs headerServ.Module
+	getter shwap.Getter
+	avail  share.Availability
+	hs     headerServ.Module
 }
 
-func (m module) SharesAvailable(ctx context.Context, header *header.ExtendedHeader) error {
-	return m.Availability.SharesAvailable(ctx, header)
-}
-
-func (m module) GetRange(ctx context.Context, height uint64, start, end int) (*GetRangeResult, error) {
-	extendedHeader, err := m.hs.GetByHeight(ctx, height)
+func (m module) GetShare(ctx context.Context, height uint64, row, col int) (share.Share, error) {
+	header, err := m.hs.GetByHeight(ctx, height)
 	if err != nil {
 		return nil, err
 	}
-	extendedDataSquare, err := m.GetEDS(ctx, extendedHeader)
+	return m.getter.GetShare(ctx, header, row, col)
+}
+
+func (m module) GetEDS(ctx context.Context, height uint64) (*rsmt2d.ExtendedDataSquare, error) {
+	header, err := m.hs.GetByHeight(ctx, height)
+	if err != nil {
+		return nil, err
+	}
+	return m.getter.GetEDS(ctx, header)
+}
+
+func (m module) SharesAvailable(ctx context.Context, height uint64) error {
+	header, err := m.hs.GetByHeight(ctx, height)
+	if err != nil {
+		return err
+	}
+	return m.avail.SharesAvailable(ctx, header)
+}
+
+func (m module) GetRange(ctx context.Context, height uint64, start, end int) (*GetRangeResult, error) {
+	extendedDataSquare, err := m.GetEDS(ctx, height)
 	if err != nil {
 		return nil, err
 	}
