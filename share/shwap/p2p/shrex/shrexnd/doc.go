@@ -22,7 +22,7 @@
 //
 //	data, err := client.RequestND(ctx, dataRoot, peerID, namespaceID)
 //
-// where data is of type [share.NamespacedShares]
+// where data is of type [libshare.NamespacedShares]
 //
 // To use a shrexnd server to respond to requests from peers, you must first create a new `shrexnd.Server` instance by:
 //

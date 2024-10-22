@@ -7,9 +7,8 @@ import (
 	"github.com/ipfs/go-cid"
 	format "github.com/ipfs/go-ipld-format"
 
+	libshare "github.com/celestiaorg/go-square/v2/share"
 	"github.com/celestiaorg/nmt"
-
-	"github.com/celestiaorg/celestia-node/share"
 )
 
 // GetShare fetches and returns the data for leaf `leafIndex` of root `rootCid`.
@@ -19,21 +18,25 @@ func GetShare(
 	rootCid cid.Cid,
 	leafIndex int,
 	totalLeafs int, // this corresponds to the extended square width
-) (share.Share, error) {
+) (libshare.Share, error) {
 	nd, err := GetLeaf(ctx, bGetter, rootCid, leafIndex, totalLeafs)
 	if err != nil {
-		return nil, err
+		return libshare.Share{}, err
 	}
 
-	return leafToShare(nd), nil
+	sh, err := libshare.NewShare(nd.RawData()[libshare.NamespaceSize:])
+	if err != nil {
+		return libshare.Share{}, err
+	}
+	return *sh, nil
 }
 
 // GetShares walks the tree of a given root and puts shares into the given 'put' func.
 // Does not return any error, and returns/unblocks only on success
 // (got all shares) or on context cancellation.
-func GetShares(ctx context.Context, bg blockservice.BlockGetter, root cid.Cid, shares int, put func(int, share.Share)) {
+func GetShares(ctx context.Context, bg blockservice.BlockGetter, root cid.Cid, shares int, put func(int, []byte)) {
 	putNode := func(i int, leaf format.Node) {
-		put(i, leafToShare(leaf))
+		put(i, leaf.RawData()[libshare.NamespaceSize:])
 	}
 	GetLeaves(ctx, bg, root, shares, putNode)
 }
@@ -45,9 +48,9 @@ func GetSharesByNamespace(
 	ctx context.Context,
 	bGetter blockservice.BlockGetter,
 	root []byte,
-	namespace share.Namespace,
+	namespace libshare.Namespace,
 	maxShares int,
-) ([]share.Share, *nmt.Proof, error) {
+) ([]libshare.Share, *nmt.Proof, error) {
 	rootCid := MustCidFromNamespacedSha256(root)
 	data := NewNamespaceData(maxShares, namespace, WithLeaves(), WithProofs())
 	err := data.CollectLeavesByNamespace(ctx, bGetter, rootCid)
@@ -60,18 +63,15 @@ func GetSharesByNamespace(
 		return nil, data.Proof(), nil
 	}
 
-	shares := make([]share.Share, len(leaves))
+	shares := make([]libshare.Share, len(leaves))
 	for i, leaf := range leaves {
 		if leaf != nil {
-			shares[i] = leafToShare(leaf)
+			sh, err := libshare.NewShare(leaf.RawData()[libshare.NamespaceSize:])
+			if err != nil {
+				return nil, nil, err
+			}
+			shares[i] = *sh
 		}
 	}
 	return shares, data.Proof(), nil
-}
-
-// leafToShare converts an NMT leaf into a Share.
-func leafToShare(nd format.Node) share.Share {
-	// * Additional namespace is prepended so that parity data can be identified with a parity
-	// namespace, which we cut off
-	return share.GetData(nd.RawData())
 }

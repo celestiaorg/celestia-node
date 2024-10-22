@@ -13,6 +13,7 @@ import (
 	"go.opentelemetry.io/otel/metric"
 	"go.opentelemetry.io/otel/trace"
 
+	libshare "github.com/celestiaorg/go-square/v2/share"
 	"github.com/celestiaorg/rsmt2d"
 
 	"github.com/celestiaorg/celestia-node/header"
@@ -145,8 +146,8 @@ func (sg *Getter) Stop(ctx context.Context) error {
 	return sg.archivalPeerManager.Stop(ctx)
 }
 
-func (sg *Getter) GetShare(context.Context, *header.ExtendedHeader, int, int) (share.Share, error) {
-	return nil, fmt.Errorf("getter/shrex: GetShare %w", shwap.ErrOperationNotSupported)
+func (sg *Getter) GetShare(context.Context, *header.ExtendedHeader, int, int) (libshare.Share, error) {
+	return libshare.Share{}, fmt.Errorf("getter/shrex: GetShare %w", shwap.ErrOperationNotSupported)
 }
 
 func (sg *Getter) GetEDS(ctx context.Context, header *header.ExtendedHeader) (*rsmt2d.ExtendedDataSquare, error) {
@@ -216,7 +217,7 @@ func (sg *Getter) GetEDS(ctx context.Context, header *header.ExtendedHeader) (*r
 func (sg *Getter) GetSharesByNamespace(
 	ctx context.Context,
 	header *header.ExtendedHeader,
-	namespace share.Namespace,
+	namespace libshare.Namespace,
 ) (shwap.NamespaceData, error) {
 	if err := namespace.ValidateForData(); err != nil {
 		return nil, err
@@ -234,7 +235,10 @@ func (sg *Getter) GetSharesByNamespace(
 
 	// verify that the namespace could exist inside the roots before starting network requests
 	dah := header.DAH
-	rowIdxs := share.RowsWithNamespace(dah, namespace)
+	rowIdxs, err := share.RowsWithNamespace(dah, namespace)
+	if err != nil {
+		return nil, err
+	}
 	if len(rowIdxs) == 0 {
 		return shwap.NamespaceData{}, nil
 	}
