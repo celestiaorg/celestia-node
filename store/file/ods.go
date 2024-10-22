@@ -143,7 +143,10 @@ func ValidateODSSize(path string, eds *rsmt2d.ExtendedDataSquare) error {
 		return fmt.Errorf("opening file: %w", err)
 	}
 
-	shares := filledSharesAmount(eds)
+	shares, err := filledSharesAmount(eds)
+	if err != nil {
+		return fmt.Errorf("calculating shares amount: %w", err)
+	}
 	shareSize := len(eds.GetCell(0, 0))
 	expectedSize := ods.hdr.OffsetWithRoots() + shares*shareSize
 
@@ -451,16 +454,20 @@ func readColHalf(r io.ReaderAt, colIdx int, hdr *headerV0, offset int) ([]libsha
 }
 
 // filledSharesAmount returns the amount of shares in the ODS that are not tail padding.
-func filledSharesAmount(eds *rsmt2d.ExtendedDataSquare) int {
+func filledSharesAmount(eds *rsmt2d.ExtendedDataSquare) (int, error) {
 	var amount int
 	for i := range eds.Width() / 2 {
 		for j := range eds.Width() / 2 {
-			shr := eds.GetCell(i, j)
-			if share.GetNamespace(shr).Equals(share.TailPaddingNamespace) {
+			rawShr := eds.GetCell(i, j)
+			shr, err := libshare.NewShare(rawShr)
+			if err != nil {
+				return 0, fmt.Errorf("creating share at(%d,%d): %w", i, j, err)
+			}
+			if shr.Namespace().Equals(libshare.TailPaddingNamespace) {
 				break
 			}
 			amount++
 		}
 	}
-	return amount
+	return amount, nil
 }
