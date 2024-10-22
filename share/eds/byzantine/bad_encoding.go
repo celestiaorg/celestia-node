@@ -5,7 +5,7 @@ import (
 	"errors"
 	"fmt"
 
-	"github.com/celestiaorg/celestia-app/v2/pkg/wrapper"
+	"github.com/celestiaorg/celestia-app/v3/pkg/wrapper"
 	"github.com/celestiaorg/go-fraud"
 	"github.com/celestiaorg/rsmt2d"
 
@@ -88,10 +88,14 @@ func (p *BadEncodingProof) UnmarshalBinary(data []byte) error {
 	if err := in.Unmarshal(data); err != nil {
 		return err
 	}
+	sh, err := ProtoToShare(in.Shares)
+	if err != nil {
+		return err
+	}
 	befp := &BadEncodingProof{
 		headerHash:  in.HeaderHash,
 		BlockHeight: in.Height,
-		Shares:      ProtoToShare(in.Shares),
+		Shares:      sh,
 		Index:       in.Index,
 		Axis:        rsmt2d.Axis(in.Axis),
 	}
@@ -184,7 +188,7 @@ func (p *BadEncodingProof) Validate(hdr *header.ExtendedHeader) error {
 			log.Debugf("%s: %s at index %d", invalidProofPrefix, errIncorrectShare, index)
 			return errIncorrectShare
 		}
-		shares[index] = shr.Share
+		shares[index] = shr.Share.ToBytes()
 	}
 
 	codec := share.DefaultRSMT2DCodec()

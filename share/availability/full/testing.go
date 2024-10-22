@@ -1,8 +1,8 @@
 package full
 
-//
 // import (
 //	"context"
+//
 //	"testing"
 //	"time"
 //
@@ -18,7 +18,7 @@ package full
 //)
 //
 //// GetterWithRandSquare provides a share.Getter filled with 'n' NMT
-//// trees of 'n' random shares, essentially storing a whole square.
+//// trees of 'n' random shares, essentially storing a whole share.
 // func GetterWithRandSquare(t *testing.T, n int) (share.Getter, *share.AxisRoots) {
 //	bServ := ipld.NewMemBlockservice()
 //	getter := getters.NewIPLDGetter(bServ)

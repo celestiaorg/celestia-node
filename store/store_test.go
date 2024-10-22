@@ -10,6 +10,7 @@ import (
 
 	"github.com/stretchr/testify/require"
 
+	libshare "github.com/celestiaorg/go-square/v2/share"
 	"github.com/celestiaorg/rsmt2d"
 
 	"github.com/celestiaorg/celestia-node/share"
@@ -117,154 +118,153 @@ func TestEDSStore(t *testing.T) {
 				f, err := edsStore.cache.Get(height)
 				require.NoError(t, err)
 				require.NoError(t, f.Close())
-
 				// check that cached file is the same eds
 				fromFile, err := f.Shares(ctx)
 				require.NoError(t, err)
 				require.NoError(t, f.Close())
 				expected := eds.FlattenedODS()
-				require.Equal(t, expected, fromFile)
+				require.Equal(t, expected, libshare.ToBytes(fromFile))
 			})
+		})
 
-			t.Run("Second Put should be noop", func(t *testing.T) {
-				dir := t.TempDir()
-				edsStore, err := NewStore(paramsNoCache(), dir)
-				require.NoError(t, err)
+		t.Run("Second Put should be noop", func(t *testing.T) {
+			dir := t.TempDir()
+			edsStore, err := NewStore(paramsNoCache(), dir)
+			require.NoError(t, err)
 
-				eds, roots := test.newEds(t)
-				height := height.Add(1)
+			eds, roots := test.newEds(t)
+			height := height.Add(1)
 
-				err = test.putFn(edsStore)(ctx, roots, height, eds)
-				require.NoError(t, err)
-				// ensure correct amount of files and links are written
-				ensureAmountFileAndLinks(t, dir, test.addedFiles, test.addedLinks)
+			err = test.putFn(edsStore)(ctx, roots, height, eds)
+			require.NoError(t, err)
+			// ensure correct amount of files and links are written
+			ensureAmountFileAndLinks(t, dir, test.addedFiles, test.addedLinks)
 
-				err = test.putFn(edsStore)(ctx, roots, height, eds)
-				require.NoError(t, err)
+			err = test.putFn(edsStore)(ctx, roots, height, eds)
+			require.NoError(t, err)
 
-				// ensure no new files or links are written
-				ensureAmountFileAndLinks(t, dir, test.addedFiles, test.addedLinks)
-			})
+			// ensure no new files or links are written
+			ensureAmountFileAndLinks(t, dir, test.addedFiles, test.addedLinks)
+		})
 
-			t.Run("Second Put after partial write", func(t *testing.T) {
-				dir := t.TempDir()
-				edsStore, err := NewStore(paramsNoCache(), dir)
-				require.NoError(t, err)
+		t.Run("Second Put after partial write", func(t *testing.T) {
+			dir := t.TempDir()
+			edsStore, err := NewStore(paramsNoCache(), dir)
+			require.NoError(t, err)
 
-				eds, roots := test.newEds(t)
-				height := height.Add(1)
+			eds, roots := test.newEds(t)
+			height := height.Add(1)
 
-				err = test.putFn(edsStore)(ctx, roots, height, eds)
-				require.NoError(t, err)
-				// remove link
-				pathLink := edsStore.heightToPath(height, odsFileExt)
-				err = remove(pathLink)
-				require.NoError(t, err)
-				ensureAmountLinks(t, dir, 0)
+			err = test.putFn(edsStore)(ctx, roots, height, eds)
+			require.NoError(t, err)
+			// remove link
+			pathLink := edsStore.heightToPath(height, odsFileExt)
+			err = remove(pathLink)
+			require.NoError(t, err)
+			ensureAmountLinks(t, dir, 0)
 
-				// put should write the missing link
-				err = test.putFn(edsStore)(ctx, roots, height, eds)
-				require.NoError(t, err)
-				ensureAmountLinks(t, dir, test.addedLinks)
-			})
+			// put should write the missing link
+			err = test.putFn(edsStore)(ctx, roots, height, eds)
+			require.NoError(t, err)
+			ensureAmountLinks(t, dir, test.addedLinks)
+		})
 
-			t.Run("RemoveODSQ4", func(t *testing.T) {
-				dir := t.TempDir()
-				edsStore, err := NewStore(DefaultParameters(), dir)
-				require.NoError(t, err)
+		t.Run("RemoveODSQ4", func(t *testing.T) {
+			dir := t.TempDir()
+			edsStore, err := NewStore(DefaultParameters(), dir)
+			require.NoError(t, err)
 
-				eds, roots := test.newEds(t)
-				height := height.Add(1)
-				err = test.putFn(edsStore)(ctx, roots, height, eds)
-				require.NoError(t, err)
-				ensureAmountFileAndLinks(t, dir, test.addedFiles, test.addedLinks)
+			eds, roots := test.newEds(t)
+			height := height.Add(1)
+			err = test.putFn(edsStore)(ctx, roots, height, eds)
+			require.NoError(t, err)
+			ensureAmountFileAndLinks(t, dir, test.addedFiles, test.addedLinks)
 
-				hash := share.DataHash(roots.Hash())
-				err = edsStore.RemoveODSQ4(ctx, height, hash)
-				require.NoError(t, err)
+			hash := share.DataHash(roots.Hash())
+			err = edsStore.RemoveODSQ4(ctx, height, hash)
+			require.NoError(t, err)
 
-				// file should be removed from cache
-				_, err = edsStore.cache.Get(height)
-				require.ErrorIs(t, err, cache.ErrCacheMiss)
+			// file should be removed from cache
+			_, err = edsStore.cache.Get(height)
+			require.ErrorIs(t, err, cache.ErrCacheMiss)
 
-				// empty file should be accessible by hash, non-empty file should not
-				hasByHash := hash.IsEmptyEDS()
-				// all files should not be accessible by height
-				hasByHashAndHeight(t, edsStore, ctx, hash, height, hasByHash, false)
+			// empty file should be accessible by hash, non-empty file should not
+			hasByHash := hash.IsEmptyEDS()
+			// all files should not be accessible by height
+			hasByHashAndHeight(t, edsStore, ctx, hash, height, hasByHash, false)
 
-				// ensure all files and links are removed
-				ensureAmountFileAndLinks(t, dir, 0, 0)
-			})
+			// ensure all files and links are removed
+			ensureAmountFileAndLinks(t, dir, 0, 0)
+		})
 
-			t.Run("RemoveQ4", func(t *testing.T) {
-				dir := t.TempDir()
-				edsStore, err := NewStore(DefaultParameters(), dir)
-				require.NoError(t, err)
+		t.Run("RemoveQ4", func(t *testing.T) {
+			dir := t.TempDir()
+			edsStore, err := NewStore(DefaultParameters(), dir)
+			require.NoError(t, err)
 
-				eds, roots := test.newEds(t)
-				height := height.Add(1)
-				err = test.putFn(edsStore)(ctx, roots, height, eds)
-				require.NoError(t, err)
-				ensureAmountFileAndLinks(t, dir, test.addedFiles, test.addedLinks)
+			eds, roots := test.newEds(t)
+			height := height.Add(1)
+			err = test.putFn(edsStore)(ctx, roots, height, eds)
+			require.NoError(t, err)
+			ensureAmountFileAndLinks(t, dir, test.addedFiles, test.addedLinks)
 
-				hash := share.DataHash(roots.Hash())
-				err = edsStore.RemoveQ4(ctx, height, hash)
-				require.NoError(t, err)
+			hash := share.DataHash(roots.Hash())
+			err = edsStore.RemoveQ4(ctx, height, hash)
+			require.NoError(t, err)
 
-				// file should be removed from cache
-				_, err = edsStore.cache.Get(height)
-				require.ErrorIs(t, err, cache.ErrCacheMiss)
+			// file should be removed from cache
+			_, err = edsStore.cache.Get(height)
+			require.ErrorIs(t, err, cache.ErrCacheMiss)
 
-				// ods file should still be accessible by hash and height
-				hasByHashAndHeight(t, edsStore, ctx, hash, height, true, true)
+			// ods file should still be accessible by hash and height
+			hasByHashAndHeight(t, edsStore, ctx, hash, height, true, true)
 
-				// ensure ods file and link are not removed
-				ensureAmountFileAndLinks(t, dir, test.filesAfterRemoveQ4, test.addedLinks)
-			})
+			// ensure ods file and link are not removed
+			ensureAmountFileAndLinks(t, dir, test.filesAfterRemoveQ4, test.addedLinks)
+		})
 
-			t.Run("GetByHeight", func(t *testing.T) {
-				dir := t.TempDir()
-				edsStore, err := NewStore(DefaultParameters(), dir)
-				require.NoError(t, err)
+		t.Run("GetByHeight", func(t *testing.T) {
+			dir := t.TempDir()
+			edsStore, err := NewStore(DefaultParameters(), dir)
+			require.NoError(t, err)
 
-				eds, roots := test.newEds(t)
-				height := height.Add(1)
-				err = test.putFn(edsStore)(ctx, roots, height, eds)
-				require.NoError(t, err)
-				ensureAmountFileAndLinks(t, dir, test.addedFiles, test.addedLinks)
+			eds, roots := test.newEds(t)
+			height := height.Add(1)
+			err = test.putFn(edsStore)(ctx, roots, height, eds)
+			require.NoError(t, err)
+			ensureAmountFileAndLinks(t, dir, test.addedFiles, test.addedLinks)
 
-				f, err := edsStore.GetByHeight(ctx, height)
-				require.NoError(t, err)
+			f, err := edsStore.GetByHeight(ctx, height)
+			require.NoError(t, err)
 
-				// check that file is the same eds
-				fromFile, err := f.Shares(ctx)
-				require.NoError(t, err)
-				require.NoError(t, f.Close())
-				expected := eds.FlattenedODS()
-				require.Equal(t, expected, fromFile)
-			})
+			// check that file is the same eds
+			fromFile, err := f.Shares(ctx)
+			require.NoError(t, err)
+			require.NoError(t, f.Close())
+			expected := eds.FlattenedODS()
+			require.Equal(t, expected, libshare.ToBytes(fromFile))
+		})
 
-			t.Run("GetByHash", func(t *testing.T) {
-				dir := t.TempDir()
-				edsStore, err := NewStore(DefaultParameters(), dir)
-				require.NoError(t, err)
+		t.Run("GetByHash", func(t *testing.T) {
+			dir := t.TempDir()
+			edsStore, err := NewStore(DefaultParameters(), dir)
+			require.NoError(t, err)
 
-				eds, roots := test.newEds(t)
-				height := height.Add(1)
-				err = test.putFn(edsStore)(ctx, roots, height, eds)
-				require.NoError(t, err)
-				ensureAmountFileAndLinks(t, dir, test.addedFiles, test.addedLinks)
+			eds, roots := test.newEds(t)
+			height := height.Add(1)
+			err = test.putFn(edsStore)(ctx, roots, height, eds)
+			require.NoError(t, err)
+			ensureAmountFileAndLinks(t, dir, test.addedFiles, test.addedLinks)
 
-				f, err := edsStore.GetByHash(ctx, roots.Hash())
-				require.NoError(t, err)
+			f, err := edsStore.GetByHash(ctx, roots.Hash())
+			require.NoError(t, err)
 
-				// check that cached file is the same eds
-				fromFile, err := f.Shares(ctx)
-				require.NoError(t, err)
-				require.NoError(t, f.Close())
-				expected := eds.FlattenedODS()
-				require.Equal(t, expected, fromFile)
-			})
+			// check that cached file is the same eds
+			fromFile, err := f.Shares(ctx)
+			require.NoError(t, err)
+			require.NoError(t, f.Close())
+			expected := eds.FlattenedODS()
+			require.Equal(t, expected, libshare.ToBytes(fromFile))
 		})
 	}
 

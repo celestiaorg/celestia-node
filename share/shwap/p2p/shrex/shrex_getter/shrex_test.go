@@ -2,8 +2,6 @@ package shrex_getter //nolint:stylecheck // underscore in pkg name will be fixed
 
 import (
 	"context"
-	"encoding/binary"
-	"errors"
 	"sync/atomic"
 	"testing"
 	"time"
@@ -17,6 +15,7 @@ import (
 	"github.com/stretchr/testify/require"
 
 	libhead "github.com/celestiaorg/go-header"
+	libshare "github.com/celestiaorg/go-square/v2/share"
 	"github.com/celestiaorg/nmt"
 	"github.com/celestiaorg/rsmt2d"
 
@@ -26,7 +25,6 @@ import (
 	"github.com/celestiaorg/celestia-node/pruner/light"
 	"github.com/celestiaorg/celestia-node/share"
 	"github.com/celestiaorg/celestia-node/share/eds/edstest"
-	"github.com/celestiaorg/celestia-node/share/sharetest"
 	"github.com/celestiaorg/celestia-node/share/shwap"
 	"github.com/celestiaorg/celestia-node/share/shwap/p2p/shrex/peers"
 	"github.com/celestiaorg/celestia-node/share/shwap/p2p/shrex/shrexeds"
@@ -71,7 +69,7 @@ func TestShrexGetter(t *testing.T) {
 
 		// generate test data
 		size := 64
-		namespace := sharetest.RandV0Namespace()
+		namespace := libshare.RandomNamespace()
 		height := height.Add(1)
 		randEDS, roots := edstest.RandEDSWithNamespace(t, namespace, size*size, size)
 		eh := headertest.RandExtendedHeaderWithRoot(t, roots)
@@ -126,10 +124,12 @@ func TestShrexGetter(t *testing.T) {
 		})
 
 		// namespace inside root range
-		nID, err := addToNamespace(maxNamespace, -1)
+		nID, err := maxNamespace.AddInt(-1)
 		require.NoError(t, err)
 		// check for namespace to be between max and min namespace in root
-		require.Len(t, share.RowsWithNamespace(roots, nID), 1)
+		rows, err := share.RowsWithNamespace(roots, nID)
+		require.NoError(t, err)
+		require.Len(t, rows, 1)
 
 		emptyShares, err := getter.GetSharesByNamespace(ctx, eh, nID)
 		require.NoError(t, err)
@@ -138,10 +138,12 @@ func TestShrexGetter(t *testing.T) {
 		require.Nil(t, emptyShares.Verify(roots, nID))
 
 		// namespace outside root range
-		nID, err = addToNamespace(maxNamespace, 1)
+		nID, err = maxNamespace.AddInt(1)
 		require.NoError(t, err)
 		// check for namespace to be not in root
-		require.Len(t, share.RowsWithNamespace(roots, nID), 0)
+		rows, err = share.RowsWithNamespace(roots, nID)
+		require.NoError(t, err)
+		require.Len(t, rows, 0)
 
 		emptyShares, err = getter.GetSharesByNamespace(ctx, eh, nID)
 		require.NoError(t, err)
@@ -167,10 +169,12 @@ func TestShrexGetter(t *testing.T) {
 			Height:   height,
 		})
 
-		namespace, err := addToNamespace(maxNamespace, 1)
+		namespace, err := maxNamespace.AddInt(1)
 		require.NoError(t, err)
 		// check for namespace to be not in root
-		require.Len(t, share.RowsWithNamespace(roots, namespace), 0)
+		rows, err := share.RowsWithNamespace(roots, namespace)
+		require.NoError(t, err)
+		require.Len(t, rows, 0)
 
 		emptyShares, err := getter.GetSharesByNamespace(ctx, eh, namespace)
 		require.NoError(t, err)
@@ -277,12 +281,14 @@ func newStore(t *testing.T) (*store.Store, error) {
 	return store.NewStore(store.DefaultParameters(), t.TempDir())
 }
 
-func generateTestEDS(t *testing.T) (*rsmt2d.ExtendedDataSquare, *share.AxisRoots, share.Namespace) {
+func generateTestEDS(t *testing.T) (*rsmt2d.ExtendedDataSquare, *share.AxisRoots, libshare.Namespace) {
 	eds := edstest.RandEDS(t, 4)
 	roots, err := share.NewAxisRoots(eds)
 	require.NoError(t, err)
-	max := nmt.MaxNamespace(roots.RowRoots[(len(roots.RowRoots))/2-1], share.NamespaceSize)
-	return eds, roots, max
+	max := nmt.MaxNamespace(roots.RowRoots[(len(roots.RowRoots))/2-1], libshare.NamespaceSize)
+	ns, err := libshare.NewNamespaceFromBytes(max)
+	require.NoError(t, err)
+	return eds, roots, ns
 }
 
 func testManager(
@@ -345,104 +351,4 @@ func newEDSClientServer(
 	client, err := shrexeds.NewClient(params, clHost)
 	require.NoError(t, err)
 	return client, server
-}
-
-// addToNamespace adds arbitrary int value to namespace, treating namespace as big-endian
-// implementation of int
-func addToNamespace(namespace share.Namespace, val int) (share.Namespace, error) {
-	if val == 0 {
-		return namespace, nil
-	}
-	// Convert the input integer to a byte slice and add it to result slice
-	result := make([]byte, len(namespace))
-	if val > 0 {
-		binary.BigEndian.PutUint64(result[len(namespace)-8:], uint64(val))
-	} else {
-		binary.BigEndian.PutUint64(result[len(namespace)-8:], uint64(-val))
-	}
-
-	// Perform addition byte by byte
-	var carry int
-	for i := len(namespace) - 1; i >= 0; i-- {
-		var sum int
-		if val > 0 {
-			sum = int(namespace[i]) + int(result[i]) + carry
-		} else {
-			sum = int(namespace[i]) - int(result[i]) + carry
-		}
-
-		switch {
-		case sum > 255:
-			carry = 1
-			sum -= 256
-		case sum < 0:
-			carry = -1
-			sum += 256
-		default:
-			carry = 0
-		}
-
-		result[i] = uint8(sum)
-	}
-
-	// Handle any remaining carry
-	if carry != 0 {
-		return nil, errors.New("namespace overflow")
-	}
-
-	return result, nil
-}
-
-func TestAddToNamespace(t *testing.T) {
-	testCases := []struct {
-		name          string
-		value         int
-		input         share.Namespace
-		expected      share.Namespace
-		expectedError error
-	}{
-		{
-			name:          "Positive value addition",
-			value:         42,
-			input:         share.Namespace{0x01, 0x01, 0x01, 0x01, 0x01, 0x01, 0x01, 0x01, 0x01, 0x01},
-			expected:      share.Namespace{0x1, 0x1, 0x1, 0x1, 0x1, 0x1, 0x1, 0x1, 0x1, 0x2b},
-			expectedError: nil,
-		},
-		{
-			name:          "Negative value addition",
-			value:         -42,
-			input:         share.Namespace{0x01, 0x01, 0x01, 0x01, 0x01, 0x01, 0x01, 0x01, 0x01, 0x01, 0x01},
-			expected:      share.Namespace{0x1, 0x1, 0x1, 0x1, 0x1, 0x01, 0x1, 0x1, 0x1, 0x0, 0xd7},
-			expectedError: nil,
-		},
-		{
-			name:          "Overflow error",
-			value:         1,
-			input:         share.Namespace{0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF},
-			expected:      nil,
-			expectedError: errors.New("namespace overflow"),
-		},
-		{
-			name:          "Overflow error negative",
-			value:         -1,
-			input:         share.Namespace{0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0},
-			expected:      nil,
-			expectedError: errors.New("namespace overflow"),
-		},
-	}
-
-	for _, tc := range testCases {
-		t.Run(tc.name, func(t *testing.T) {
-			result, err := addToNamespace(tc.input, tc.value)
-			if tc.expectedError == nil {
-				require.NoError(t, err)
-				require.Equal(t, tc.expected, result)
-				return
-			}
-			require.Error(t, err)
-			if err.Error() != tc.expectedError.Error() {
-				t.Errorf("Unexpected error message. Expected: %v, Got: %v", tc.expectedError, err)
-			}
-		})
-	}
 }

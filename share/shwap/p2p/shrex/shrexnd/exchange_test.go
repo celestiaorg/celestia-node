@@ -12,9 +12,10 @@ import (
 	mocknet "github.com/libp2p/go-libp2p/p2p/net/mock"
 	"github.com/stretchr/testify/require"
 
+	libshare "github.com/celestiaorg/go-square/v2/share"
+
 	"github.com/celestiaorg/celestia-node/share"
 	"github.com/celestiaorg/celestia-node/share/eds/edstest"
-	"github.com/celestiaorg/celestia-node/share/sharetest"
 	"github.com/celestiaorg/celestia-node/share/shwap/p2p/shrex"
 	"github.com/celestiaorg/celestia-node/store"
 )
@@ -32,7 +33,7 @@ func TestExchange_RequestND_NotFound(t *testing.T) {
 		ctx, cancel := context.WithTimeout(ctx, time.Second)
 		t.Cleanup(cancel)
 
-		namespace := sharetest.RandV0Namespace()
+		namespace := libshare.RandomNamespace()
 		height := height.Add(1)
 		_, err := client.RequestND(ctx, height, namespace, server.host.ID())
 		require.ErrorIs(t, err, shrex.ErrNotFound)
@@ -50,7 +51,7 @@ func TestExchange_RequestND_NotFound(t *testing.T) {
 		err = edsStore.PutODSQ4(ctx, roots, height, eds)
 		require.NoError(t, err)
 
-		namespace := sharetest.RandV0Namespace()
+		namespace := libshare.RandomNamespace()
 		emptyShares, err := client.RequestND(ctx, height, namespace, server.host.ID())
 		require.NoError(t, err)
 		require.Empty(t, emptyShares.Flatten())
@@ -94,13 +95,13 @@ func TestExchange_RequestND(t *testing.T) {
 		// take server concurrency slots with blocked requests
 		for i := 0; i < rateLimit; i++ {
 			go func(i int) {
-				client.RequestND(ctx, 1, sharetest.RandV0Namespace(), server.host.ID()) //nolint:errcheck
+				client.RequestND(ctx, 1, libshare.RandomNamespace(), server.host.ID()) //nolint:errcheck
 			}(i)
 		}
 
 		// wait until all server slots are taken
 		wg.Wait()
-		_, err = client.RequestND(ctx, 1, sharetest.RandV0Namespace(), server.host.ID())
+		_, err = client.RequestND(ctx, 1, libshare.RandomNamespace(), server.host.ID())
 		require.ErrorIs(t, err, shrex.ErrRateLimited)
 	})
 }

@@ -12,6 +12,7 @@ import (
 	"github.com/stretchr/testify/require"
 	"github.com/tendermint/tendermint/libs/rand"
 
+	libshare "github.com/celestiaorg/go-square/v2/share"
 	"github.com/celestiaorg/rsmt2d"
 
 	"github.com/celestiaorg/celestia-node/share"
@@ -32,7 +33,7 @@ func TestCreateODSFile(t *testing.T) {
 	require.NoError(t, err)
 
 	expected := edsIn.FlattenedODS()
-	require.Equal(t, expected, shares)
+	require.Equal(t, expected, libshare.ToBytes(shares))
 
 	roots, err := f.AxisRoots(ctx)
 	require.NoError(t, err)
@@ -50,7 +51,7 @@ func TestReadODSFromFile(t *testing.T) {
 	for i, row := range ods {
 		original := eds.Row(uint(i))[:eds.Width()/2]
 		require.True(t, len(original) == len(row))
-		require.Equal(t, original, row)
+		require.Equal(t, original, libshare.ToBytes(row))
 	}
 }
 
