@@ -72,9 +72,10 @@ func TestShrexNDFromLights(t *testing.T) {
 		ns, err := libshare.NewNamespaceFromBytes(namespace)
 		require.NoError(t, err)
 
-		expected, err := bridgeClient.Share.GetSharesByNamespace(reqCtx, h, ns)
+		height := h.Height()
+		expected, err := bridgeClient.Share.GetSharesByNamespace(reqCtx, height, ns)
 		require.NoError(t, err)
-		got, err := lightClient.Share.GetSharesByNamespace(reqCtx, h, ns)
+		got, err := lightClient.Share.GetSharesByNamespace(reqCtx, height, ns)
 		require.NoError(t, err)
 
 		require.True(t, len(got[0].Shares) > 0)
@@ -147,18 +148,18 @@ func TestShrexNDFromLightsWithBadFulls(t *testing.T) {
 		namespace := h.DAH.RowRoots[1][:libshare.NamespaceSize]
 		ns, err := libshare.NewNamespaceFromBytes(namespace)
 		require.NoError(t, err)
-		expected, err := bridgeClient.Share.GetSharesByNamespace(reqCtx, h, ns)
+		expected, err := bridgeClient.Share.GetSharesByNamespace(reqCtx, h.Height(), ns)
 		require.NoError(t, err)
 		require.True(t, len(expected[0].Shares) > 0)
 
 		// choose a random full to test
 		fN := fulls[len(fulls)/2]
 		fnClient := getAdminClient(ctx, fN, t)
-		gotFull, err := fnClient.Share.GetSharesByNamespace(reqCtx, h, ns)
+		gotFull, err := fnClient.Share.GetSharesByNamespace(reqCtx, height, ns)
 		require.NoError(t, err)
 		require.True(t, len(gotFull[0].Shares) > 0)
 
-		gotLight, err := lightClient.Share.GetSharesByNamespace(reqCtx, h, ns)
+		gotLight, err := lightClient.Share.GetSharesByNamespace(reqCtx, height, ns)
 		require.NoError(t, err)
 		require.True(t, len(gotLight[0].Shares) > 0)
 
