@@ -39,11 +39,6 @@ func ConstructModule(tp node.Type, cfg *Config) fx.Option {
 		fx.Invoke(func(_ *pruner.Service) {}),
 	)
 
-	if cfg.EnableService && (tp == node.Full || tp == node.Bridge) {
-		log.Warnf("WARNING: `--experimental-pruning` flag will be removed in an upcoming release. " +
-			"Pruning will become the default mode for all nodes. " +
-			"If you want to retain history beyond the sampling window, please pass `--archival` flag.")
-	}
 	switch tp {
 	case node.Light:
 		if cfg.EnableService {
