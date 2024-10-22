@@ -15,7 +15,8 @@ const (
 func Flags() *flag.FlagSet {
 	flags := &flag.FlagSet{}
 
-	flags.Bool(pruningFlag, false, "EXPERIMENTAL: Enables pruning of blocks outside the pruning window.")
+	flags.Bool(pruningFlag, false, "EXPERIMENTAL: Enables pruning of blocks outside the pruning window."+
+		" Warning: flag will be removed in an upcoming release and pruning will become the default mode for all nodes.")
 	flags.Bool(archivalFlag, false, "Enables archival mode, which disables pruning and enables the storage of all blocks.")
 
 	return flags
