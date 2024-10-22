@@ -81,8 +81,6 @@ func (s *Service) GetByHeight(ctx context.Context, height uint64) (*header.Exten
 			"networkHeight: %d, requestedHeight: %d", head.Height(), height)
 	}
 
-	// TODO(vgonkivs): remove after https://github.com/celestiaorg/go-header/issues/32 is
-	//  implemented and fetch header from HeaderEx if missing locally
 	head, err = s.store.Head(ctx)
 	switch {
 	case err != nil:
