@@ -43,23 +43,34 @@ func CreateODSQ4(
 	go func() {
 		// doing this async shaves off ~27% of time for 128 ODS
 		// for bigger ODSes the discrepancy is even bigger
-		err := createQ4(pathQ4, eds)
-		if err != nil {
-			err = fmt.Errorf("сreating Q4 file: %w", err)
-		}
-
-		errCh <- err
+		errCh <- createQ4(pathQ4, eds)
 	}()
 
-	if err := CreateODS(pathODS, roots, eds); err != nil {
+	err := CreateODS(pathODS, roots, eds)
+	q4Err := <-errCh
+
+	if err != nil && q4Err != nil {
+		return fmt.Errorf("creating ODS and Q4 files: %w", errors.Join(err, q4Err))
+	}
+	if err != nil {
 		return fmt.Errorf("creating ODS file: %w", err)
 	}
-
-	err := <-errCh
-	if err != nil {
-		return err
+	if q4Err != nil {
+		return fmt.Errorf("creating Q4 file: %w", q4Err)
 	}
+	return nil
+}
 
+// ValidateODSQ4Size checks the size of the ODS and Q4 files under the given FS paths.
+func ValidateODSQ4Size(pathODS, pathQ4 string, eds *rsmt2d.ExtendedDataSquare) error {
+	err := ValidateODSSize(pathODS, eds)
+	if err != nil {
+		return fmt.Errorf("validating ODS file size: %w", err)
+	}
+	err = validateQ4Size(pathQ4, eds)
+	if err != nil {
+		return fmt.Errorf("validating Q4 file size: %w", err)
+	}
 	return nil
 }
 

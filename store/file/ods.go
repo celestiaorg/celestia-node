@@ -131,6 +131,27 @@ func writeAxisRoots(w io.Writer, roots *share.AxisRoots) error {
 	return nil
 }
 
+// ValidateODSSize checks if the file under given FS path has the expected size.
+func ValidateODSSize(path string, eds *rsmt2d.ExtendedDataSquare) error {
+	ods, err := OpenODS(path)
+	if err != nil {
+		return fmt.Errorf("opening file: %w", err)
+	}
+
+	shares := filledSharesAmount(eds)
+	shareSize := len(eds.GetCell(0, 0))
+	expectedSize := ods.hdr.OffsetWithRoots() + shares*shareSize
+
+	info, err := ods.fl.Stat()
+	if err != nil {
+		return fmt.Errorf("getting file info: %w", err)
+	}
+	if info.Size() != int64(expectedSize) {
+		return fmt.Errorf("file size mismatch: expected %d, got %d", expectedSize, info.Size())
+	}
+	return nil
+}
+
 // OpenODS opens an existing ODS file under given FS path.
 // It only reads the header with metadata. The other content
 // of the File is read lazily.
@@ -413,4 +434,19 @@ func readColHalf(r io.ReaderAt, colIdx int, hdr *headerV0, offset int) ([]share.
 		shares[i] = shr
 	}
 	return shares, nil
+}
+
+// filledSharesAmount returns the amount of shares in the ODS that are not tail padding.
+func filledSharesAmount(eds *rsmt2d.ExtendedDataSquare) int {
+	var amount int
+	for i := range eds.Width() / 2 {
+		for j := range eds.Width() / 2 {
+			shr := eds.GetCell(i, j)
+			if share.GetNamespace(shr).Equals(share.TailPaddingNamespace) {
+				break
+			}
+			amount++
+		}
+	}
+	return amount
 }
