@@ -3,14 +3,14 @@ package bitswap
 import (
 	"context"
 	"encoding/json"
-	"github.com/ipfs/boxo/bitswap/message"
-	pb "github.com/ipfs/boxo/bitswap/message/pb"
 	"math/rand/v2"
 	"sync"
 	"testing"
 	"time"
 
 	"github.com/ipfs/boxo/bitswap/client"
+	"github.com/ipfs/boxo/bitswap/message"
+	pb "github.com/ipfs/boxo/bitswap/message/pb"
 	"github.com/ipfs/boxo/blockstore"
 	"github.com/ipfs/boxo/exchange"
 	blocks "github.com/ipfs/go-block-format"

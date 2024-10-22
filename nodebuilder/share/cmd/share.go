@@ -4,7 +4,6 @@ import (
 	"context"
 	"encoding/hex"
 	"fmt"
-	"github.com/celestiaorg/celestia-node/share/shwap/p2p/bitswap"
 	"strconv"
 
 	"github.com/spf13/cobra"
@@ -13,6 +12,7 @@ import (
 	cmdnode "github.com/celestiaorg/celestia-node/cmd"
 	"github.com/celestiaorg/celestia-node/header"
 	"github.com/celestiaorg/celestia-node/share"
+	"github.com/celestiaorg/celestia-node/share/shwap/p2p/bitswap"
 )
 
 func init() {
