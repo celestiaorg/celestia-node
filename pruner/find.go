@@ -31,10 +31,11 @@ func (s *Service) findPruneableHeaders(
 		return nil, err
 	}
 
-	// note that GetRangeByHeight will fetch the range (lastPruned.Height(): estimatedCutoffHeight)
+	// note that GetRangeByHeight will fetch the range (from.Height(): to), also
+	// noted as [from.Height()+1: to-1].
 	// TODO @renaynay: once https://github.com/celestiaorg/go-header/pull/227 is merged + released,
 	//  fix accordingly.
-	if lastPruned.Height() >= estimatedCutoffHeight-1 {
+	if lastPruned.Height() >= estimatedCutoffHeight {
 		// nothing left to prune
 		return nil, nil
 	}
@@ -42,7 +43,9 @@ func (s *Service) findPruneableHeaders(
 	log.Debugw("finder: fetching header range", "last pruned", lastPruned.Height(),
 		"target height", estimatedCutoffHeight)
 
-	headers, err := s.getter.GetRangeByHeight(ctx, lastPruned, estimatedCutoffHeight)
+	// since the `to` is non-inclusive, we need to request one more header than
+	// the estimated cutoff
+	headers, err := s.getter.GetRangeByHeight(ctx, lastPruned, estimatedCutoffHeight+1)
 	if err != nil {
 		log.Errorw("failed to get range from header store", "from", lastPruned.Height(),
 			"to", estimatedCutoffHeight, "error", err)
