@@ -28,3 +28,5 @@ func (p *Pruner) Prune(ctx context.Context, eh *header.ExtendedHeader) error {
 	log.Debugf("trimming Q4 from block %s at height %d", eh.DAH.Hash(), eh.Height())
 	return p.store.RemoveQ4(ctx, eh.Height(), eh.DAH.Hash())
 }
+
+func (p *Pruner) Kind() string { return "archival" }

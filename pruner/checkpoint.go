@@ -26,6 +26,7 @@ var (
 // checkpoint contains information related to the state of the
 // pruner service that is periodically persisted to disk.
 type checkpoint struct {
+	PrunerType       string              `json:"pruner_type"`
 	LastPrunedHeight uint64              `json:"last_pruned_height"`
 	FailedHeaders    map[uint64]struct{} `json:"failed"`
 }
@@ -84,6 +85,7 @@ func (s *Service) loadCheckpoint(ctx context.Context) error {
 	if err != nil {
 		if errors.Is(err, errCheckpointNotFound) {
 			s.checkpoint = &checkpoint{
+				PrunerType:       s.pruner.Kind(),
 				LastPrunedHeight: 1,
 				FailedHeaders:    map[uint64]struct{}{},
 			}
@@ -92,8 +94,28 @@ func (s *Service) loadCheckpoint(ctx context.Context) error {
 		return err
 	}
 
-	s.checkpoint = cp
-	return nil
+	// ensure that the checkpoint is of the same pruner type as the current
+	// pruner
+	if cp.PrunerType == s.pruner.Kind() {
+		s.checkpoint = cp
+		return nil
+	}
+	// only a transition from archival --> full is allowed
+	if cp.PrunerType == "archival" && s.pruner.Kind() == "full" {
+		// reset the checkpoint
+		cp = &checkpoint{
+			PrunerType:       s.pruner.Kind(),
+			LastPrunedHeight: 1,
+			FailedHeaders:    make(map[uint64]struct{}),
+		}
+
+		s.checkpoint = cp
+		return nil
+	}
+
+	return fmt.Errorf("pruner: mismatched pruner type provided - only a "+
+		"transition from archival -> pruned node is allowed. Previous run: %s, "+
+		"current run: %s", cp.PrunerType, s.pruner.Kind())
 }
 
 // updateCheckpoint updates the checkpoint with the last pruned header height

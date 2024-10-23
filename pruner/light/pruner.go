@@ -40,6 +40,8 @@ func (p *Pruner) Prune(ctx context.Context, h *header.ExtendedHeader) error {
 	return p.ds.Delete(ctx, rootKey(dah))
 }
 
+func (p *Pruner) Kind() string { return "light" }
+
 func rootKey(root *share.AxisRoots) datastore.Key {
 	return datastore.NewKey(root.String())
 }

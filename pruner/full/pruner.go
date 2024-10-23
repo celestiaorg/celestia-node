@@ -25,3 +25,5 @@ func (p *Pruner) Prune(ctx context.Context, eh *header.ExtendedHeader) error {
 	log.Debugf("pruning block %s at height %d", eh.DAH.Hash(), eh.Height())
 	return p.store.RemoveODSQ4(ctx, eh.Height(), eh.DAH.Hash())
 }
+
+func (p *Pruner) Kind() string { return "full" }
