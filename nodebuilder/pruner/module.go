@@ -4,6 +4,7 @@ import (
 	"context"
 
 	"github.com/ipfs/go-datastore"
+	logging "github.com/ipfs/go-log/v2"
 	"go.uber.org/fx"
 
 	"github.com/celestiaorg/celestia-node/core"
@@ -14,6 +15,8 @@ import (
 	"github.com/celestiaorg/celestia-node/pruner/full"
 	"github.com/celestiaorg/celestia-node/pruner/light"
 )
+
+var log = logging.Logger("module/pruner")
 
 func ConstructModule(tp node.Type, cfg *Config) fx.Option {
 	baseComponents := fx.Options(
