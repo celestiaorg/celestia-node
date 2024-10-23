@@ -10,6 +10,7 @@ import (
 	"github.com/tendermint/tendermint/types"
 	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/attribute"
+	"go.opentelemetry.io/otel/codes"
 
 	libhead "github.com/celestiaorg/go-header"
 
@@ -220,12 +221,37 @@ func (cl *Listener) listen(ctx context.Context, sub <-chan types.EventDataSigned
 	}
 }
 
-func (cl *Listener) handleNewSignedBlock(ctx context.Context, b types.EventDataSignedBlock) error {
+func (cl *Listener) handleNewSignedBlock(ctx context.Context, b types.EventDataSignedBlock) (err error) {
 	ctx, span := tracer.Start(ctx, "handle-new-signed-block")
 	defer span.End()
 	span.SetAttributes(
 		attribute.Int64("height", b.Header.Height),
 	)
+
+	defer func() {
+		rerr := err
+		r := recover()
+		if r != nil {
+			var ok bool
+			rerr, ok = r.(error)
+			if !ok {
+				rerr = fmt.Errorf("%v", r)
+			}
+			// Record the "exception"/panic.
+			span.RecordError(rerr)
+		}
+
+		if rerr == nil {
+			return
+		}
+
+		// Otherwise now record the span error.
+		span.SetStatus(codes.Error, rerr.Error())
+
+		if r != nil { // Re-panic
+			panic(r)
+		}
+	}()
 
 	eds, err := extendBlock(b.Data, b.Header.Version.App)
 	if err != nil {
