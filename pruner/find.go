@@ -32,6 +32,8 @@ func (s *Service) findPruneableHeaders(
 	}
 
 	// note that GetRangeByHeight will fetch the range (lastPruned.Height(): estimatedCutoffHeight)
+	// TODO @renaynay: once https://github.com/celestiaorg/go-header/pull/227 is merged + released,
+	//  fix accordingly.
 	if lastPruned.Height() >= estimatedCutoffHeight-1 {
 		// nothing left to prune
 		return nil, nil
