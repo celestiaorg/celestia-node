@@ -132,15 +132,15 @@ func TestArchivalBlobSync(t *testing.T) {
 			continue
 		}
 
-		shr, err := archivalFN.ShareServ.GetShare(ctx, eh, 2, 2)
+		shr, err := archivalFN.ShareServ.GetShare(ctx, eh.Height(), 2, 2)
 		require.NoError(t, err)
 
-		blobs, err := archivalFN.BlobServ.GetAll(ctx, uint64(i), []libshare.Namespace{shr.Namespace()})
+		blobs, err := archivalFN.BlobServ.GetAll(ctx, eh.Height(), []libshare.Namespace{shr.Namespace()})
 		require.NoError(t, err)
 
 		archivalBlobs = append(archivalBlobs, &archivalBlob{
 			blob:   blobs[0],
-			height: uint64(i),
+			height: eh.Height(),
 			root:   eh.DAH.Hash(),
 		})
 
