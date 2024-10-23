@@ -22,6 +22,7 @@ func ConstructModule(tp node.Type, cfg *Config) fx.Option {
 		return fx.Options()
 	}
 
+	log.Warn("WARNING: gateway module is deprecated and will be removed in an upcoming release.")
 	baseComponents := fx.Options(
 		fx.Supply(cfg),
 		fx.Error(cfgErr),
