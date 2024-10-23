@@ -112,10 +112,10 @@ type module struct {
 	hs     headerServ.Module
 }
 
-func (m module) GetShare(ctx context.Context, height uint64, row, col int) (share.Share, error) {
+func (m module) GetShare(ctx context.Context, height uint64, row, col int) (libshare.Share, error) {
 	header, err := m.hs.GetByHeight(ctx, height)
 	if err != nil {
-		return nil, err
+		return libshare.Share{}, err
 	}
 	return m.getter.GetShare(ctx, header, row, col)
 }
@@ -159,8 +159,12 @@ func (m module) GetRange(ctx context.Context, height uint64, start, end int) (*G
 
 func (m module) GetSharesByNamespace(
 	ctx context.Context,
-	header *header.ExtendedHeader,
+	height uint64,
 	namespace libshare.Namespace,
 ) (shwap.NamespaceData, error) {
-	return m.Getter.GetSharesByNamespace(ctx, header, namespace)
+	header, err := m.hs.GetByHeight(ctx, height)
+	if err != nil {
+		return nil, err
+	}
+	return m.getter.GetSharesByNamespace(ctx, header, namespace)
 }

@@ -8,9 +8,7 @@ import (
 
 	libshare "github.com/celestiaorg/go-square/v2/share"
 
-	rpc "github.com/celestiaorg/celestia-node/api/rpc/client"
 	cmdnode "github.com/celestiaorg/celestia-node/cmd"
-	"github.com/celestiaorg/celestia-node/header"
 )
 
 func init() {

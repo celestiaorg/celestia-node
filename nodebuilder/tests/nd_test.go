@@ -146,9 +146,10 @@ func TestShrexNDFromLightsWithBadFulls(t *testing.T) {
 
 		// ensure to fetch random namespace (not the reserved namespace)
 		namespace := h.DAH.RowRoots[1][:libshare.NamespaceSize]
+		height := h.Height()
 		ns, err := libshare.NewNamespaceFromBytes(namespace)
 		require.NoError(t, err)
-		expected, err := bridgeClient.Share.GetSharesByNamespace(reqCtx, h.Height(), ns)
+		expected, err := bridgeClient.Share.GetSharesByNamespace(reqCtx, height, ns)
 		require.NoError(t, err)
 		require.True(t, len(expected[0].Shares) > 0)
 
