@@ -26,7 +26,7 @@ func bitswapGetter(
 	wndw pruner.AvailabilityWindow,
 ) *bitswap.Getter {
 	getter := bitswap.NewGetter(exchange, bstore, wndw)
-	lc.Append(fx.StartStopHook(getter.Start, getter.Stop))
+	// lc.Append(fx.StartStopHook(getter.Start, getter.Stop))
 	return getter
 }
 
