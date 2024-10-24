@@ -56,7 +56,7 @@ const (
 	//  * Clients simulate DONT_HAVEs after timeout anyway
 	//  * Servers may not have data immediately and this gives an opportunity to subscribe
 	//  * This is necessary for reconstruction. See https://github.com/celestiaorg/celestia-node/issues/732
-	sendDontHaves = false
+	sendDontHaves = true
 	// maxServerWantListsPerPeer defines the limit for maximum possible cached wants/requests per peer
 	// in the Bitswap. Exceeding this limit will cause Bitswap server to drop requested wants leaving
 	// client stuck for sometime.
