@@ -29,11 +29,9 @@ type ShareAvailability struct {
 	getter shwap.Getter
 	params Parameters
 
-	// TODO(@Wondertan): Once we come to parallelized DASer, this lock becomes a contention point
-	//  Related to #483
-	// TODO: Striped locks? :D
-	dsLk sync.RWMutex
-	ds   *autobatch.Datastore
+	inProgress sync.Map
+	dsLk       sync.RWMutex
+	ds         *autobatch.Datastore
 }
 
 // NewShareAvailability creates a new light Availability.
@@ -65,6 +63,17 @@ func (la *ShareAvailability) SharesAvailable(ctx context.Context, header *header
 	if share.DataHash(dah.Hash()).IsEmptyEDS() {
 		return nil
 	}
+
+	// Lock to prevent multiple sampling sessions for the same header height
+	lk, loaded := la.inProgress.LoadOrStore(header.Height(), &sync.Mutex{})
+	lk.(*sync.Mutex).Lock()
+	defer func() {
+		lk.(*sync.Mutex).Unlock()
+		// Delete the lock if it was created in this call
+		if !loaded {
+			la.inProgress.Delete(header.Height())
+		}
+	}()
 
 	// load snapshot of the last sampling errors from disk
 	key := rootKey(dah)
