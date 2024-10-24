@@ -37,7 +37,7 @@ const (
 	// TODO(@Wondertan): PR to bitswap to make this timeout configurable
 	//  Higher timeout increases the probability of successful reconstruction,
 	//  as peers from who we get >=64 DONT_HAVEs are kicked from Bitswap session.
-	simulateDontHaves = true
+	simulateDontHaves = false
 	// providerSearchDelay defines the initial delay before Bitswap client starts aggressive
 	// broadcasting of WANTs to all the peers. We offset this for longer than the default to minimize
 	// unnecessary broadcasting as in most cases we already have peers connected with needed data on
