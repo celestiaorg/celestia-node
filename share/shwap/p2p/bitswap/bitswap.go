@@ -17,6 +17,8 @@ import (
 	"github.com/libp2p/go-libp2p/core/protocol"
 )
 
+const broadcastLimit = 128
+
 var dontHaveTimeoutConfig = &client.DontHaveTimeoutConfig{
 	DontHaveTimeout:            5 * time.Second,
 	MaxExpectedWantProcessTime: 7 * time.Second,
@@ -110,6 +112,7 @@ func NewClient(
 		client.WithoutDuplicatedBlockStats(),
 		client.WithDontHaveTimeoutConfig(dontHaveTimeoutConfig),
 		client.WithDisabledMessageQueueRebroadcast(true),
+		client.WithRebroadcastLimit(broadcastLimit),
 	}
 	return client.New(
 		ctx,
