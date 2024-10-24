@@ -92,6 +92,7 @@ func NewNetwork(host host.Host, prefix protocol.ID) network.BitSwapNetwork {
 		routinghelpers.Null{},
 		network.Prefix(prefix),
 		network.SupportedProtocols([]protocol.ID{protocolID}),
+		network.WithStreamReuse(false),
 	)
 	return net
 }
