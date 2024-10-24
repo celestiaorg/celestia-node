@@ -16,9 +16,9 @@ import (
 	"github.com/celestiaorg/rsmt2d"
 
 	"github.com/celestiaorg/celestia-node/header"
-	"github.com/celestiaorg/celestia-node/pruner"
-	"github.com/celestiaorg/celestia-node/pruner/full"
 	"github.com/celestiaorg/celestia-node/share"
+	"github.com/celestiaorg/celestia-node/share/availability"
+	"github.com/celestiaorg/celestia-node/share/availability/full"
 	"github.com/celestiaorg/celestia-node/store"
 )
 
@@ -64,14 +64,14 @@ func storeEDS(
 	store *store.Store,
 	window time.Duration,
 ) error {
-	if !pruner.IsWithinAvailabilityWindow(eh.Time(), window) {
+	if !availability.IsWithinWindow(eh.Time(), window) {
 		log.Debugw("skipping storage of historic block", "height", eh.Height())
 		return nil
 	}
 
 	var err error
 	// archival nodes should not store Q4 outside the availability window.
-	if pruner.IsWithinAvailabilityWindow(eh.Time(), full.Window) {
+	if availability.IsWithinWindow(eh.Time(), full.Window) {
 		err = store.PutODSQ4(ctx, eh.DAH, eh.Height(), eds)
 	} else {
 		err = store.PutODS(ctx, eh.DAH, eh.Height(), eds)

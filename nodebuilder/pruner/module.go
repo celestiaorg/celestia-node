@@ -2,6 +2,7 @@ package pruner
 
 import (
 	"context"
+	"time"
 
 	"github.com/ipfs/go-datastore"
 	"go.uber.org/fx"
@@ -13,6 +14,9 @@ import (
 	"github.com/celestiaorg/celestia-node/pruner/archival"
 	"github.com/celestiaorg/celestia-node/pruner/full"
 	"github.com/celestiaorg/celestia-node/pruner/light"
+	"github.com/celestiaorg/celestia-node/share/availability"
+	fullavail "github.com/celestiaorg/celestia-node/share/availability/full"
+	lightavail "github.com/celestiaorg/celestia-node/share/availability/light"
 )
 
 func ConstructModule(tp node.Type, cfg *Config) fx.Option {
@@ -66,7 +70,7 @@ func ConstructModule(tp node.Type, cfg *Config) fx.Option {
 				baseComponents,
 				prunerService,
 				fxutil.ProvideAs(full.NewPruner, new(pruner.Pruner)),
-				fx.Provide(func(window pruner.AvailabilityWindow) []core.Option {
+				fx.Provide(func(window availability.Window) []core.Option {
 					return []core.Option{core.WithAvailabilityWindow(window.Duration())}
 				}),
 			)
@@ -92,15 +96,15 @@ func availWindow(tp node.Type, pruneEnabled bool) fx.Option {
 	case node.Light:
 		// light nodes are still subject to sampling within window
 		// even if pruning is not enabled.
-		return fx.Provide(func() pruner.AvailabilityWindow {
-			return pruner.AvailabilityWindow(light.Window)
+		return fx.Provide(func() availability.Window {
+			return availability.Window(lightavail.Window)
 		})
 	case node.Full, node.Bridge:
-		return fx.Provide(func() pruner.AvailabilityWindow {
+		return fx.Provide(func() availability.Window {
 			if pruneEnabled {
-				return pruner.AvailabilityWindow(full.Window)
+				return availability.Window(fullavail.Window)
 			}
-			return pruner.AvailabilityWindow(archival.Window)
+			return availability.Window(time.Duration(0))
 		})
 	default:
 		panic("unknown node type")

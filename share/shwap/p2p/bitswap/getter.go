@@ -17,8 +17,8 @@ import (
 	"github.com/celestiaorg/rsmt2d"
 
 	"github.com/celestiaorg/celestia-node/header"
-	"github.com/celestiaorg/celestia-node/pruner"
 	"github.com/celestiaorg/celestia-node/share"
+	"github.com/celestiaorg/celestia-node/share/availability"
 	"github.com/celestiaorg/celestia-node/share/shwap"
 )
 
@@ -234,7 +234,7 @@ func (g *Getter) GetSharesByNamespace(
 func (g *Getter) session(ctx context.Context, hdr *header.ExtendedHeader) exchange.Fetcher {
 	session := g.archivalSession
 
-	isWithinAvailability := pruner.IsWithinAvailabilityWindow(hdr.Time(), g.availWndw)
+	isWithinAvailability := availability.IsWithinWindow(hdr.Time(), g.availWndw)
 	if isWithinAvailability {
 		session = g.availableSession
 	}

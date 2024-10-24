@@ -73,7 +73,7 @@ func TestArchivalBlobSync(t *testing.T) {
 	pruningCfg := nodebuilder.DefaultConfig(node.Bridge)
 	pruningCfg.Pruner.EnableService = true
 
-	testAvailWindow := pruner.AvailabilityWindow(time.Millisecond)
+	testAvailWindow := pruner.availability.Window(time.Millisecond)
 	prunerOpts := fx.Options(
 		fx.Replace(testAvailWindow),
 		fxutil.ReplaceAs(func(

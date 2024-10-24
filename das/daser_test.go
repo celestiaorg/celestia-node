@@ -19,8 +19,8 @@ import (
 
 	"github.com/celestiaorg/celestia-node/header"
 	"github.com/celestiaorg/celestia-node/header/headertest"
-	"github.com/celestiaorg/celestia-node/pruner"
 	"github.com/celestiaorg/celestia-node/share"
+	"github.com/celestiaorg/celestia-node/share/availability"
 	"github.com/celestiaorg/celestia-node/share/availability/mocks"
 	"github.com/celestiaorg/celestia-node/share/eds/edstest"
 )
@@ -276,7 +276,7 @@ func TestDASer_SamplingWindow(t *testing.T) {
 			assert.Equal(
 				t,
 				tt.withinWindow,
-				pruner.IsWithinAvailabilityWindow(eh.Time(), daser.params.samplingWindow),
+				availability.IsWithinWindow(eh.Time(), daser.params.samplingWindow),
 			)
 		})
 	}

@@ -4,7 +4,7 @@ import (
 	"time"
 
 	"github.com/celestiaorg/celestia-node/nodebuilder/p2p"
-	"github.com/celestiaorg/celestia-node/pruner/archival"
+	"github.com/celestiaorg/celestia-node/share/availability/full"
 )
 
 type Option func(*params)
@@ -17,7 +17,7 @@ type params struct {
 
 func defaultParams() params {
 	return params{
-		availabilityWindow: archival.Window,
+		availabilityWindow: full.DisableStorageWindow,
 	}
 }
 

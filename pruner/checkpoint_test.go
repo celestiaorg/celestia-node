@@ -11,6 +11,7 @@ import (
 
 	"github.com/celestiaorg/celestia-node/header/headertest"
 	"github.com/celestiaorg/celestia-node/pruner/archival"
+	fullavail "github.com/celestiaorg/celestia-node/share/availability/full"
 	"github.com/celestiaorg/celestia-node/store"
 )
 
@@ -31,6 +32,9 @@ func TestStoreCheckpoint(t *testing.T) {
 }
 
 func TestCheckpoint_ArchivalToPruned(t *testing.T) {
+	ctx, cancel := context.WithCancel(context.Background())
+	t.Cleanup(cancel)
+
 	ds := ds_sync.MutexWrap(datastore.NewMapDatastore())
 	store, err := store.NewStore(store.DefaultParameters(), t.TempDir())
 	require.NoError(t, err)
@@ -39,8 +43,9 @@ func TestCheckpoint_ArchivalToPruned(t *testing.T) {
 
 	arch := archival.NewPruner(store)
 
-	serv, err := NewService(arch, AvailabilityWindow(archival.Window), getter, ds, time.Second)
+	serv, err := NewService(arch, fullavail.DisableStorageWindow, getter, ds, time.Second)
 	require.NoError(t, err)
 
-	serv.loa
+	err = serv.loadCheckpoint(ctx)
+	// TODO @renaynay: finish!!!!!!!
 }
