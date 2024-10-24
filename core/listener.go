@@ -14,7 +14,6 @@ import (
 	libhead "github.com/celestiaorg/go-header"
 
 	"github.com/celestiaorg/celestia-node/header"
-	"github.com/celestiaorg/celestia-node/pruner"
 	"github.com/celestiaorg/celestia-node/share/shwap/p2p/shrex/shrexsub"
 	"github.com/celestiaorg/celestia-node/store"
 )
@@ -38,7 +37,7 @@ type Listener struct {
 
 	construct          header.ConstructFn
 	store              *store.Store
-	availabilityWindow pruner.AvailabilityWindow
+	availabilityWindow time.Duration
 
 	headerBroadcaster libhead.Broadcaster[*header.ExtendedHeader]
 	hashBroadcaster   shrexsub.BroadcastFn

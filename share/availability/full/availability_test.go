@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"github.com/golang/mock/gomock"
+	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
 	"github.com/celestiaorg/celestia-node/header/headertest"
@@ -96,4 +97,10 @@ func TestSharesAvailable_ErrNotAvailable(t *testing.T) {
 		err := avail.SharesAvailable(ctx, eh)
 		require.ErrorIs(t, err, share.ErrNotAvailable)
 	}
+}
+
+// TestFullWindowConst exists to ensure that any changes to the sampling window
+// are deliberate.
+func TestFullWindowConst(t *testing.T) {
+	assert.Equal(t, Window, (30*24*time.Hour)+time.Hour)
 }

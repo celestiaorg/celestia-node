@@ -21,9 +21,9 @@ import (
 
 	"github.com/celestiaorg/celestia-node/header"
 	"github.com/celestiaorg/celestia-node/header/headertest"
-	"github.com/celestiaorg/celestia-node/pruner/full"
-	"github.com/celestiaorg/celestia-node/pruner/light"
 	"github.com/celestiaorg/celestia-node/share"
+	"github.com/celestiaorg/celestia-node/share/availability/full"
+	"github.com/celestiaorg/celestia-node/share/availability/light"
 	"github.com/celestiaorg/celestia-node/share/eds/edstest"
 	"github.com/celestiaorg/celestia-node/share/shwap"
 	"github.com/celestiaorg/celestia-node/share/shwap/p2p/shrex/peers"
@@ -262,7 +262,7 @@ func TestShrexGetter(t *testing.T) {
 		eh.RawHeader.Height = int64(height)
 
 		// historical data expects an archival peer
-		eh.RawHeader.Time = time.Now().Add(-(time.Duration(full.Window) + time.Second))
+		eh.RawHeader.Time = time.Now().Add(-full.Window + time.Second)
 		id, _, err := getter.getPeer(ctx, eh)
 		require.NoError(t, err)
 		assert.Equal(t, archivalPeer.ID(), id)

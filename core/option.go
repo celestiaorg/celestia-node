@@ -1,9 +1,10 @@
 package core
 
 import (
+	"time"
+
 	"github.com/celestiaorg/celestia-node/nodebuilder/p2p"
-	"github.com/celestiaorg/celestia-node/pruner"
-	"github.com/celestiaorg/celestia-node/pruner/archival"
+	"github.com/celestiaorg/celestia-node/share/availability/full"
 )
 
 type Option func(*params)
@@ -11,12 +12,12 @@ type Option func(*params)
 type params struct {
 	metrics            bool
 	chainID            string
-	availabilityWindow pruner.AvailabilityWindow
+	availabilityWindow time.Duration
 }
 
 func defaultParams() params {
 	return params{
-		availabilityWindow: archival.Window,
+		availabilityWindow: full.DisableStorageWindow,
 	}
 }
 
@@ -34,7 +35,7 @@ func WithChainID(id p2p.Network) Option {
 	}
 }
 
-func WithAvailabilityWindow(window pruner.AvailabilityWindow) Option {
+func WithAvailabilityWindow(window time.Duration) Option {
 	return func(p *params) {
 		p.availabilityWindow = window
 	}
