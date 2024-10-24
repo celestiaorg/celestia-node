@@ -140,50 +140,87 @@ func TestSharesAvailableFailed(t *testing.T) {
 	require.Len(t, failed, int(avail.params.SampleAmount))
 
 	// ensure that retry persists the failed samples selection
-	// create new getter with only the failed samples available, and add them to the onceGetter
 	onceGetter := newOnceGetter()
-	onceGetter.AddSamples(failed)
-
-	// replace getter with the new one
 	avail.getter = onceGetter
 
 	// should be able to retrieve all the failed samples now
 	err = avail.SharesAvailable(ctx, eh)
 	require.NoError(t, err)
 
-	// onceGetter should have no more samples stored after the call
-	require.Empty(t, onceGetter.available)
+	// onceGetter should have sampled all the failed samples once
+	onceGetter.checkOnce(t)
+	require.ElementsMatch(t, failed, onceGetter.sampledList())
+}
+
+func TestParallelAvailability(t *testing.T) {
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	getter := mock.NewMockGetter(gomock.NewController(t))
+	ds := datastore.NewMapDatastore()
+	avail := NewShareAvailability(getter, ds)
+
+	// create new eds, that is not available by getter
+	eds := edstest.RandEDS(t, 16)
+	roots, err := share.NewAxisRoots(eds)
+	require.NoError(t, err)
+	eh := headertest.RandExtendedHeaderWithRoot(t, roots)
+
+	// ensure that retry persists the failed samples selection
+	onceGetter := newOnceGetter()
+	avail.getter = onceGetter
+
+	wg := sync.WaitGroup{}
+	for i := 0; i < 100; i++ {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			err := avail.SharesAvailable(ctx, eh)
+			require.NoError(t, err)
+		}()
+	}
+	wg.Wait()
+	require.Len(t, onceGetter.sampledList(), int(avail.params.SampleAmount))
 }
 
 type onceGetter struct {
 	*sync.Mutex
-	available map[Sample]struct{}
+	sampled map[Sample]int
 }
 
 func newOnceGetter() onceGetter {
 	return onceGetter{
-		Mutex:     &sync.Mutex{},
-		available: make(map[Sample]struct{}),
+		Mutex:   &sync.Mutex{},
+		sampled: make(map[Sample]int),
 	}
 }
 
-func (m onceGetter) AddSamples(samples []Sample) {
+func (m onceGetter) checkOnce(t *testing.T) {
 	m.Lock()
 	defer m.Unlock()
-	for _, s := range samples {
-		m.available[s] = struct{}{}
+	for s, count := range m.sampled {
+		if count > 1 {
+			t.Errorf("sample %v was called more than once", s)
+		}
 	}
+}
+
+func (m onceGetter) sampledList() []Sample {
+	m.Lock()
+	defer m.Unlock()
+	samples := make([]Sample, 0, len(m.sampled))
+	for s := range m.sampled {
+		samples = append(samples, s)
+	}
+	return samples
 }
 
 func (m onceGetter) GetShare(_ context.Context, _ *header.ExtendedHeader, row, col int) (libshare.Share, error) {
 	m.Lock()
 	defer m.Unlock()
 	s := Sample{Row: uint16(row), Col: uint16(col)}
-	if _, ok := m.available[s]; ok {
-		delete(m.available, s)
-		return libshare.Share{}, nil
-	}
-	return libshare.Share{}, share.ErrNotAvailable
+	m.sampled[s]++
+	return libshare.Share{}, nil
 }
 
 func (m onceGetter) GetEDS(_ context.Context, _ *header.ExtendedHeader) (*rsmt2d.ExtendedDataSquare, error) {
