@@ -3,6 +3,7 @@ package bitswap
 import (
 	"context"
 	"fmt"
+	"sync"
 
 	"github.com/ipfs/boxo/blockstore"
 	"github.com/ipfs/boxo/exchange"
@@ -29,8 +30,8 @@ type Getter struct {
 	bstore    blockstore.Blockstore
 	availWndw pruner.AvailabilityWindow
 
-	availableSession exchange.Fetcher
-	archivalSession  exchange.Fetcher
+	availablePool sync.Pool
+	archivalPool  sync.Pool
 
 	cancel context.CancelFunc
 }
@@ -56,9 +57,14 @@ func NewGetter(
 // with regular full node peers.
 func (g *Getter) Start() {
 	ctx, cancel := context.WithCancel(context.Background())
-	g.availableSession = g.exchange.NewSession(ctx)
-	g.archivalSession = g.exchange.NewSession(ctx)
 	g.cancel = cancel
+
+	g.availablePool.New = func() interface{} {
+		return g.exchange.NewSession(ctx)
+	}
+	g.archivalPool.New = func() interface{} {
+		return g.exchange.NewSession(ctx)
+	}
 }
 
 // Stop shuts down Getter's internal fetching session.
@@ -97,6 +103,8 @@ func (g *Getter) GetShares(
 	}
 
 	ses := g.session(ctx, hdr)
+	defer g.poolSession(hdr, ses)
+
 	err := Fetch(ctx, g.exchange, hdr.DAH, blks, WithStore(g.bstore), WithFetcher(ses))
 	if err != nil {
 		span.RecordError(err)
@@ -156,6 +164,8 @@ func (g *Getter) GetEDS(
 	}
 
 	ses := g.session(ctx, hdr)
+	defer g.poolSession(hdr, ses)
+
 	err := Fetch(ctx, g.exchange, hdr.DAH, blks, WithFetcher(ses))
 	if err != nil {
 		span.RecordError(err)
@@ -210,6 +220,8 @@ func (g *Getter) GetSharesByNamespace(
 	}
 
 	ses := g.session(ctx, hdr)
+	defer g.poolSession(hdr, ses)
+
 	if err = Fetch(ctx, g.exchange, hdr.DAH, blks, WithFetcher(ses)); err != nil {
 		span.RecordError(err)
 		span.SetStatus(codes.Error, "Fetch")
@@ -230,16 +242,33 @@ func (g *Getter) GetSharesByNamespace(
 }
 
 // session decides which fetching session to use for the given header.
-func (g *Getter) session(ctx context.Context, hdr *header.ExtendedHeader) exchange.Fetcher {
-	session := g.archivalSession
-
+func (g *Getter) session(ctx context.Context, hdr *header.ExtendedHeader) (session exchange.Fetcher) {
 	isWithinAvailability := pruner.IsWithinAvailabilityWindow(hdr.Time(), g.availWndw)
 	if isWithinAvailability {
-		session = g.availableSession
+		v := g.availablePool.Get()
+		if v == nil {
+			panic("Getter must be started")
+		}
+		session = v.(exchange.Fetcher)
+	} else {
+		v := g.archivalPool.Get()
+		if v == nil {
+			panic("Getter must be started")
+		}
+		session = v.(exchange.Fetcher)
 	}
 
 	trace.SpanFromContext(ctx).SetAttributes(attribute.Bool("within_availability", isWithinAvailability))
 	return session
+}
+
+func (g *Getter) poolSession(hdr *header.ExtendedHeader, session exchange.Fetcher) {
+	isWithinAvailability := pruner.IsWithinAvailabilityWindow(hdr.Time(), g.availWndw)
+	if isWithinAvailability {
+		g.availablePool.Put(session)
+	} else {
+		g.archivalPool.Put(session)
+	}
 }
 
 // edsFromRows imports given Rows and computes EDS out of them, assuming enough Rows were provided.
