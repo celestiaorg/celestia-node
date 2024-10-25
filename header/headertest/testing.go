@@ -23,6 +23,7 @@ import (
 	"github.com/celestiaorg/rsmt2d"
 
 	"github.com/celestiaorg/celestia-node/header"
+	"github.com/celestiaorg/celestia-node/nodebuilder/p2p"
 	"github.com/celestiaorg/celestia-node/share"
 )
 
@@ -43,7 +44,7 @@ type TestSuite struct {
 }
 
 func NewStore(t *testing.T) libhead.Store[*header.ExtendedHeader] {
-	return headertest.NewStore[*header.ExtendedHeader](t, NewTestSuite(t, 3, 0), 10)
+	return headertest.NewStore[*header.ExtendedHeader](t, NewTestSuite(t, 3, p2p.BlockTime), 10)
 }
 
 func NewCustomStore(

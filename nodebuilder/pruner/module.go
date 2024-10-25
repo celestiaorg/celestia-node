@@ -46,7 +46,7 @@ func ConstructModule(tp node.Type, cfg *Config) fx.Option {
 		return fx.Module("prune",
 			baseComponents,
 			prunerService,
-			fx.Provide(light.NewPruner),
+			fxutil.ProvideAs(light.NewPruner, new(pruner.Pruner)),
 		)
 	case node.Full:
 		if cfg.EnableService {
