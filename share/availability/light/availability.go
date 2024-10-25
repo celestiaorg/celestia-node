@@ -65,15 +65,20 @@ func (la *ShareAvailability) SharesAvailable(ctx context.Context, header *header
 	}
 
 	// Lock to prevent multiple sampling sessions for the same header height
-	lk, loaded := la.inProgress.LoadOrStore(header.Height(), &sync.Mutex{})
-	lk.(*sync.Mutex).Lock()
-	defer func() {
-		lk.(*sync.Mutex).Unlock()
-		// Delete the lock if it was created in this call
-		if !loaded {
-			la.inProgress.Delete(header.Height())
+	lk, loaded := la.inProgress.LoadOrStore(header.Height(), make(chan struct{}))
+	if loaded {
+		select {
+		case <-lk.(chan struct{}):
+		case <-ctx.Done():
+			return ctx.Err()
 		}
-	}()
+	} else {
+		// Delete the lock if it was created in this call
+		defer func() {
+			close(lk.(chan struct{}))
+			la.inProgress.Delete(header.Height())
+		}()
+	}
 
 	// load snapshot of the last sampling errors from disk
 	key := rootKey(dah)
