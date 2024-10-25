@@ -55,6 +55,7 @@ func TestCheckpoint_ArchivalToPruned(t *testing.T) {
 
 	// ensure checkpoint is initialized correctly
 	err = serv.loadCheckpoint(ctx)
+	require.NoError(t, err)
 	assert.Equal(t, serv.checkpoint.PrunerType, archPruner.Kind())
 
 	// and prune some blocks (this will also update the checkpoint on disk)
@@ -70,6 +71,7 @@ func TestCheckpoint_ArchivalToPruned(t *testing.T) {
 
 	// ensure checkpoint was reset properly
 	err = serv.loadCheckpoint(ctx)
+	require.NoError(t, err)
 	assert.Equal(t, serv.checkpoint.PrunerType, fullPruner.Kind())
 	assert.Equal(t, uint64(1), serv.checkpoint.LastPrunedHeight)
 	// store the checkpoint
