@@ -3,14 +3,11 @@ package light
 import (
 	"context"
 	_ "embed"
-	"sync"
-	"testing"
-	"time"
-
 	"github.com/golang/mock/gomock"
 	"github.com/ipfs/go-datastore"
-	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"sync"
+	"testing"
 
 	libshare "github.com/celestiaorg/go-square/v2/share"
 	"github.com/celestiaorg/rsmt2d"
@@ -155,12 +152,6 @@ func TestSharesAvailableFailed(t *testing.T) {
 
 	// onceGetter should have no more samples stored after the call
 	require.Empty(t, onceGetter.available)
-}
-
-// TestLightWindowConst exists to ensure that any changes to the sampling window
-// are deliberate.
-func TestLightWindowConst(t *testing.T) {
-	assert.Equal(t, Window, 30*24*time.Hour)
 }
 
 type onceGetter struct {

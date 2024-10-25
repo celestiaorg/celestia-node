@@ -22,8 +22,7 @@ import (
 	"github.com/celestiaorg/celestia-node/header"
 	"github.com/celestiaorg/celestia-node/header/headertest"
 	"github.com/celestiaorg/celestia-node/share"
-	"github.com/celestiaorg/celestia-node/share/availability/full"
-	"github.com/celestiaorg/celestia-node/share/availability/light"
+	"github.com/celestiaorg/celestia-node/share/availability"
 	"github.com/celestiaorg/celestia-node/share/eds/edstest"
 	"github.com/celestiaorg/celestia-node/share/shwap"
 	"github.com/celestiaorg/celestia-node/share/shwap/p2p/shrex/peers"
@@ -57,7 +56,7 @@ func TestShrexGetter(t *testing.T) {
 	archivalPeerManager, err := testManager(ctx, clHost, sub)
 	require.NoError(t, err)
 
-	getter := NewGetter(edsClient, ndClient, fullPeerManager, archivalPeerManager, light.Window)
+	getter := NewGetter(edsClient, ndClient, fullPeerManager, archivalPeerManager, availability.RequestWindow)
 	require.NoError(t, getter.Start(ctx))
 
 	height := atomic.Uint64{}
@@ -262,7 +261,7 @@ func TestShrexGetter(t *testing.T) {
 		eh.RawHeader.Height = int64(height)
 
 		// historical data expects an archival peer
-		eh.RawHeader.Time = time.Now().Add(-full.Window + time.Second)
+		eh.RawHeader.Time = time.Now().Add(-availability.StorageWindow + time.Second)
 		id, _, err := getter.getPeer(ctx, eh)
 		require.NoError(t, err)
 		assert.Equal(t, archivalPeer.ID(), id)

@@ -2,6 +2,12 @@ package availability
 
 import "time"
 
+const (
+	RequestWindow = 30 * 24 * time.Hour
+	StorageWindow = RequestWindow + time.Hour
+	Disable
+)
+
 type Window time.Duration
 
 func (w Window) Duration() time.Duration {

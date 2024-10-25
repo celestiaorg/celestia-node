@@ -12,6 +12,7 @@ import (
 	"github.com/celestiaorg/celestia-node/nodebuilder/node"
 	modp2p "github.com/celestiaorg/celestia-node/nodebuilder/p2p"
 	"github.com/celestiaorg/celestia-node/share"
+	"github.com/celestiaorg/celestia-node/share/availability"
 	"github.com/celestiaorg/celestia-node/share/availability/full"
 	"github.com/celestiaorg/celestia-node/share/availability/light"
 	"github.com/celestiaorg/celestia-node/share/shwap"
@@ -116,7 +117,7 @@ func shrexComponents(tp node.Type, cfg *Config) fx.Option {
 					ndClient,
 					managers[fullNodesTag],
 					managers[archivalNodesTag],
-					light.Window, // always use light availability window for request routing
+					availability.RequestWindow,
 				)
 			},
 			fx.OnStart(func(ctx context.Context, getter *shrex_getter.Getter) error {

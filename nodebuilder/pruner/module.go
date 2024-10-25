@@ -16,7 +16,6 @@ import (
 	"github.com/celestiaorg/celestia-node/pruner/light"
 	"github.com/celestiaorg/celestia-node/share/availability"
 	fullavail "github.com/celestiaorg/celestia-node/share/availability/full"
-	lightavail "github.com/celestiaorg/celestia-node/share/availability/light"
 )
 
 func ConstructModule(tp node.Type, cfg *Config) fx.Option {
@@ -91,13 +90,15 @@ func ConstructModule(tp node.Type, cfg *Config) fx.Option {
 	}
 }
 
+// TODO @renaynay: fix --
 func availWindow(tp node.Type, pruneEnabled bool) fx.Option {
+
 	switch tp {
 	case node.Light:
 		// light nodes are still subject to sampling within window
 		// even if pruning is not enabled.
 		return fx.Provide(func() availability.Window {
-			return availability.Window(lightavail.Window)
+			return availability.Window(availability.Window)
 		})
 	case node.Full, node.Bridge:
 		return fx.Provide(func() availability.Window {

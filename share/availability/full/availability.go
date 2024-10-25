@@ -76,7 +76,7 @@ func (fa *ShareAvailability) SharesAvailable(ctx context.Context, header *header
 	}
 
 	// archival nodes should not store Q4 outside the availability window.
-	if availability.IsWithinWindow(header.Time(), Window) {
+	if availability.IsWithinWindow(header.Time(), availability.StorageWindow) {
 		err = fa.store.PutODSQ4(ctx, dah, header.Height(), eds)
 	} else {
 		err = fa.store.PutODS(ctx, dah, header.Height(), eds)
