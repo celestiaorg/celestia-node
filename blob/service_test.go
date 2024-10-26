@@ -902,10 +902,9 @@ func createService(ctx context.Context, t testing.TB, shares []libshare.Share) *
 			nd, err := eds.NamespaceData(ctx, accessor, ns)
 			return nd, err
 		})
-	shareGetter.EXPECT().GetShare(gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any()).AnyTimes().
-		DoAndReturn(func(ctx context.Context, h *header.ExtendedHeader, row, col int) (libshare.Share, error) {
-			s, err := accessor.Sample(ctx, row, col)
-			return s.Share, err
+	shareGetter.EXPECT().GetSamples(gomock.Any(), gomock.Any(), gomock.Any()).AnyTimes().
+		DoAndReturn(func(ctx context.Context, h *header.ExtendedHeader, indices []shwap.SampleIndex) ([]shwap.Sample, error) {
+			return smpls, nil
 		})
 
 	// create header and put it into the store
