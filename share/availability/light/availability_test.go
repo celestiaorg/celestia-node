@@ -11,11 +11,13 @@ import (
 	"github.com/stretchr/testify/require"
 
 	libshare "github.com/celestiaorg/go-square/v2/share"
+	"github.com/celestiaorg/nmt"
 	"github.com/celestiaorg/rsmt2d"
 
 	"github.com/celestiaorg/celestia-node/header"
 	"github.com/celestiaorg/celestia-node/header/headertest"
 	"github.com/celestiaorg/celestia-node/share"
+	"github.com/celestiaorg/celestia-node/share/eds"
 	"github.com/celestiaorg/celestia-node/share/eds/edstest"
 	"github.com/celestiaorg/celestia-node/share/shwap"
 	"github.com/celestiaorg/celestia-node/share/shwap/getters/mock"
@@ -26,22 +28,32 @@ func TestSharesAvailableCaches(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
-	eds := edstest.RandEDS(t, 16)
-	roots, err := share.NewAxisRoots(eds)
+	square := edstest.RandEDS(t, 16)
+	roots, err := share.NewAxisRoots(square)
 	require.NoError(t, err)
 	eh := headertest.RandExtendedHeaderWithRoot(t, roots)
 
 	getter := mock.NewMockGetter(gomock.NewController(t))
 	getter.EXPECT().
-		GetShare(gomock.Any(), eh, gomock.Any(), gomock.Any()).
+		GetSamples(gomock.Any(), eh, gomock.Any()).
 		DoAndReturn(
-			func(_ context.Context, _ *header.ExtendedHeader, row, col int) (libshare.Share, error) {
-				rawSh := eds.GetCell(uint(row), uint(col))
-				sh, err := libshare.NewShare(rawSh)
-				if err != nil {
-					return libshare.Share{}, err
+			func(_ context.Context, hdr *header.ExtendedHeader, indices []shwap.SampleIndex) ([]shwap.Sample, error) {
+				acc := eds.Rsmt2D{ExtendedDataSquare: square}
+				smpls := make([]shwap.Sample, len(indices))
+				for i, idx := range indices {
+					rowIdx, colIdx, err := idx.Coordinates(len(hdr.DAH.RowRoots))
+					if err != nil {
+						return nil, err
+					}
+
+					smpl, err := acc.Sample(ctx, rowIdx, colIdx)
+					if err != nil {
+						return nil, err
+					}
+
+					smpls[i] = smpl
 				}
-				return *sh, nil
+				return smpls, nil
 			}).
 		AnyTimes()
 
@@ -71,8 +83,8 @@ func TestSharesAvailableHitsCache(t *testing.T) {
 	// create getter that always return ErrNotFound
 	getter := mock.NewMockGetter(gomock.NewController(t))
 	getter.EXPECT().
-		GetShare(gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any()).
-		Return(libshare.Share{}, shrex.ErrNotFound).
+		GetSamples(gomock.Any(), gomock.Any(), gomock.Any()).
+		Return(nil, shrex.ErrNotFound).
 		AnyTimes()
 
 	ds := datastore.NewMapDatastore()
@@ -125,8 +137,8 @@ func TestSharesAvailableFailed(t *testing.T) {
 
 	// getter doesn't have the eds, so it should fail
 	getter.EXPECT().
-		GetShare(gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any()).
-		Return(libshare.Share{}, shrex.ErrNotFound).
+		GetSamples(gomock.Any(), gomock.Any(), gomock.Any()).
+		Return(make([]shwap.Sample, avail.params.SampleAmount), shrex.ErrNotFound).
 		AnyTimes()
 	err = avail.SharesAvailable(ctx, eh)
 	require.ErrorIs(t, err, share.ErrNotAvailable)
@@ -175,15 +187,24 @@ func (m onceGetter) AddSamples(samples []Sample) {
 	}
 }
 
-func (m onceGetter) GetShare(_ context.Context, _ *header.ExtendedHeader, row, col int) (libshare.Share, error) {
+func (m onceGetter) GetSamples(_ context.Context, hdr *header.ExtendedHeader, indices []shwap.SampleIndex) ([]shwap.Sample, error) {
 	m.Lock()
 	defer m.Unlock()
-	s := Sample{Row: uint16(row), Col: uint16(col)}
-	if _, ok := m.available[s]; ok {
-		delete(m.available, s)
-		return libshare.Share{}, nil
+
+	smpls := make([]shwap.Sample, 0, len(indices))
+	for _, idx := range indices {
+		rowIdx, colIdx, err := idx.Coordinates(len(hdr.DAH.RowRoots))
+		if err != nil {
+			return nil, err
+		}
+
+		s := Sample{Row: uint16(rowIdx), Col: uint16(colIdx)}
+		if _, ok := m.available[s]; ok {
+			delete(m.available, s)
+			smpls = append(smpls, shwap.Sample{Proof: &nmt.Proof{}})
+		}
 	}
-	return libshare.Share{}, share.ErrNotAvailable
+	return smpls, nil
 }
 
 func (m onceGetter) GetEDS(_ context.Context, _ *header.ExtendedHeader) (*rsmt2d.ExtendedDataSquare, error) {

@@ -100,33 +100,33 @@ func (la *ShareAvailability) SharesAvailable(ctx context.Context, header *header
 		return err
 	}
 
-	var (
-		failedSamplesLock sync.Mutex
-		failedSamples     []Sample
-	)
-
 	log.Debugw("starting sampling session", "root", dah.String())
-	var wg sync.WaitGroup
-	for _, s := range samples {
-		wg.Add(1)
-		go func(s Sample) {
-			defer wg.Done()
-			// check if the sample is available
-			_, err := la.getter.GetShare(ctx, header, int(s.Row), int(s.Col))
-			if err != nil {
-				log.Debugw("error fetching share", "root", dah.String(), "row", s.Row, "col", s.Col)
-				failedSamplesLock.Lock()
-				failedSamples = append(failedSamples, s)
-				failedSamplesLock.Unlock()
-			}
-		}(s)
-	}
-	wg.Wait()
 
+	idxs := make([]shwap.SampleIndex, len(samples))
+	for i, s := range samples {
+		idx, err := shwap.SampleIndexFromCoordinates(int(s.Row), int(s.Col), len(dah.RowRoots))
+		if err != nil {
+			return err
+		}
+
+		idxs[i] = idx
+	}
+
+	smpls, err := la.getter.GetSamples(ctx, header, idxs)
 	if errors.Is(ctx.Err(), context.Canceled) {
 		// Availability did not complete due to context cancellation, return context error instead of
 		// share.ErrNotAvailable
 		return ctx.Err()
+	}
+	if len(smpls) == 0 {
+		return share.ErrNotAvailable
+	}
+
+	var failedSamples []Sample
+	for i, smpl := range smpls {
+		if smpl.IsEmpty() {
+			failedSamples = append(failedSamples, samples[i])
+		}
 	}
 
 	// store the result of the sampling session
