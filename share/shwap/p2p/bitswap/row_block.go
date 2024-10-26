@@ -6,6 +6,7 @@ import (
 
 	"github.com/ipfs/go-cid"
 
+	libshare "github.com/celestiaorg/go-square/v2/share"
 	"github.com/celestiaorg/rsmt2d"
 
 	"github.com/celestiaorg/celestia-node/share"
@@ -70,6 +71,12 @@ func (rb *RowBlock) CID() cid.Cid {
 
 func (rb *RowBlock) Height() uint64 {
 	return rb.ID.Height
+}
+
+func (rb *RowBlock) Size(ctx context.Context, acc eds.Accessor) (int, error) {
+	squareSize := acc.Size(ctx)
+	rowSize := libshare.ShareSize * squareSize / 2
+	return rowSize, nil
 }
 
 func (rb *RowBlock) Marshal() ([]byte, error) {

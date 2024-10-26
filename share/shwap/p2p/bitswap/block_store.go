@@ -28,19 +28,28 @@ type Blockstore struct {
 	Getter AccessorGetter
 }
 
-func (b *Blockstore) getBlock(ctx context.Context, cid cid.Cid) (blocks.Block, error) {
+func (b *Blockstore) getBlockAndAccessor(ctx context.Context, cid cid.Cid) (Block, eds.AccessorStreamer, error) {
 	blk, err := EmptyBlock(cid)
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 
 	acc, err := b.Getter.GetByHeight(ctx, blk.Height())
 	if errors.Is(err, store.ErrNotFound) {
 		log.Debugf("no EDS Accessor for height %v found", blk.Height())
-		return nil, ipld.ErrNotFound{Cid: cid}
+		return nil, nil, ipld.ErrNotFound{Cid: cid}
 	}
 	if err != nil {
-		return nil, fmt.Errorf("getting EDS Accessor for height %v: %w", blk.Height(), err)
+		return nil, nil, fmt.Errorf("getting EDS Accessor for height %v: %w", blk.Height(), err)
+	}
+
+	return blk, acc, nil
+}
+
+func (b *Blockstore) Get(ctx context.Context, cid cid.Cid) (blocks.Block, error) {
+	blk, acc, err := b.getBlockAndAccessor(ctx, cid)
+	if err != nil {
+		return nil, err
 	}
 	defer func() {
 		if err := acc.Close(); err != nil {
@@ -55,24 +64,28 @@ func (b *Blockstore) getBlock(ctx context.Context, cid cid.Cid) (blocks.Block, e
 	return convertBitswap(blk)
 }
 
-func (b *Blockstore) Get(ctx context.Context, cid cid.Cid) (blocks.Block, error) {
-	blk, err := b.getBlock(ctx, cid)
-	if err != nil {
-		return nil, err
-	}
-
-	return blk, nil
-}
-
 func (b *Blockstore) GetSize(ctx context.Context, cid cid.Cid) (int, error) {
-	// TODO(@Wondertan): Bitswap checks the size of the data(GetSize) before serving it via Get. This means
-	//  GetSize may do an unnecessary read from disk which we can avoid by either caching on Blockstore level
-	//  or returning constant size(we know at that point that we have requested data)
-	blk, err := b.Get(ctx, cid)
+	// NOTE: Bitswap prioritizes peers based on their active/pending work and the priority that peers set for requests(work)
+	// themselves. The prioritization happens on the Get operation of Blockstore not GetSize, while GetSize is expected
+	// to be as lightweight as possible.
+	//
+	// Here is the best case we only open the Accessor and getting its size, avoiding expensive compute to get the size.
+	blk, acc, err := b.getBlockAndAccessor(ctx, cid)
 	if err != nil {
 		return 0, err
 	}
-	return len(blk.RawData()), nil
+	defer func() {
+		if err := acc.Close(); err != nil {
+			log.Warnf("failed to close EDS accessor for height %v: %s", blk.Height(), err)
+		}
+	}()
+
+	size, err := blk.Size(ctx, acc)
+	if err != nil {
+		return 0, fmt.Errorf("getting block size: %w", err)
+	}
+
+	return size, nil
 }
 
 func (b *Blockstore) Has(ctx context.Context, cid cid.Cid) (bool, error) {

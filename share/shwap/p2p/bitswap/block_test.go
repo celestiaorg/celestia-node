@@ -95,6 +95,10 @@ func (t *testBlock) Height() uint64 {
 	return 1
 }
 
+func (t *testBlock) Size(_ context.Context, _ eds.Accessor) (int, error) {
+	return len(t.data), nil
+}
+
 func (t *testBlock) Populate(context.Context, eds.Accessor) error {
 	return nil // noop
 }

@@ -78,6 +78,23 @@ func (rndb *RowNamespaceDataBlock) Height() uint64 {
 	return rndb.ID.Height
 }
 
+func (rndb *RowNamespaceDataBlock) Size(ctx context.Context, acc eds.Accessor) (int, error) {
+	// no way to statically learn the size of requested data, so read it out and compute
+	// TODO(@Wondertan): Consider adding optimized RowNamespaceDataSize method to the Accessor
+	err := rndb.Populate(ctx, acc)
+	if err != nil {
+		return 0, err
+	}
+
+	// TODO(@Wondertan): Avoid converting in favor of getting size just by looking at container
+	blk, err := convertBitswap(rndb)
+	if err != nil {
+		return 0, err
+	}
+
+	return len(blk.RawData()), nil
+}
+
 func (rndb *RowNamespaceDataBlock) Marshal() ([]byte, error) {
 	if rndb.Container.IsEmpty() {
 		return nil, fmt.Errorf("cannot marshal empty RowNamespaceDataBlock")

@@ -3,8 +3,11 @@ package bitswap
 import (
 	"context"
 	"fmt"
+	"math"
 
 	"github.com/ipfs/go-cid"
+
+	libshare "github.com/celestiaorg/go-square/v2/share"
 
 	"github.com/celestiaorg/celestia-node/share"
 	"github.com/celestiaorg/celestia-node/share/eds"
@@ -69,6 +72,12 @@ func (sb *SampleBlock) CID() cid.Cid {
 
 func (sb *SampleBlock) Height() uint64 {
 	return sb.ID.Height
+}
+
+func (sb *SampleBlock) Size(ctx context.Context, acc eds.Accessor) (int, error) {
+	squareSize := acc.Size(ctx)
+	sampleSize := libshare.ShareSize + share.AxisRootSize*int(math.Log2(float64(squareSize)))
+	return sampleSize, nil
 }
 
 func (sb *SampleBlock) Marshal() ([]byte, error) {
