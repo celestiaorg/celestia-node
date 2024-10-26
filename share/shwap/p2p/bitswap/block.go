@@ -21,6 +21,8 @@ type Block interface {
 	CID() cid.Cid
 	// Height reports the Height of the Shwap container behind the Block.
 	Height() uint64
+	// Size report the expected size of the Block.
+	Size(context.Context, eds.Accessor) (int, error)
 
 	// Populate fills up the Block with the Shwap container getting it out of the EDS
 	// Accessor.
