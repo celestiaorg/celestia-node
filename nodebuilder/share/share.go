@@ -112,12 +112,24 @@ type module struct {
 	hs     headerServ.Module
 }
 
+// TODO(@Wondertan): break
 func (m module) GetShare(ctx context.Context, height uint64, row, col int) (libshare.Share, error) {
 	header, err := m.hs.GetByHeight(ctx, height)
 	if err != nil {
 		return libshare.Share{}, err
 	}
-	return m.getter.GetShare(ctx, header, row, col)
+
+	idx, err := shwap.SampleIndexFromCoordinates(row, col, len(header.DAH.RowRoots))
+	if err != nil {
+		return libshare.Share{}, err
+	}
+
+	smpls, err := m.getter.GetSamples(ctx, header, []shwap.SampleIndex{idx})
+	if err != nil {
+		return libshare.Share{}, err
+	}
+
+	return smpls[0].Share, nil
 }
 
 func (m module) GetEDS(ctx context.Context, height uint64) (*rsmt2d.ExtendedDataSquare, error) {
