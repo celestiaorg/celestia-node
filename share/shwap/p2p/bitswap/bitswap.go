@@ -133,6 +133,7 @@ func NewServer(
 		server.WithTargetMessageSize(targetMessageSize),
 		server.MaxOutstandingBytesPerPeer(outstandingBytesPerPeer),
 		server.WithWantHaveReplaceSize(replaceHasWithBlockMaxSize),
+		server.TaskWorkerCount(32),
 	}
 	return server.New(ctx, net, bstore, opts...)
 }
