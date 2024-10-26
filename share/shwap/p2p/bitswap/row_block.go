@@ -3,7 +3,6 @@ package bitswap
 import (
 	"context"
 	"fmt"
-
 	"github.com/ipfs/go-cid"
 
 	"github.com/celestiaorg/rsmt2d"
@@ -20,6 +19,8 @@ const (
 
 	// rowMultihashCode is the multihash code for custom axis sampling multihash function.
 	rowMultihashCode = 0x7801
+
+	rowMaxSize = 256 / 2 * 512
 )
 
 func init() {
@@ -27,6 +28,7 @@ func init() {
 		rowMultihashCode,
 		rowCodec,
 		shwap.RowIDSize,
+		rowMaxSize,
 		func(cid cid.Cid) (Block, error) {
 			return EmptyRowBlockFromCID(cid)
 		},

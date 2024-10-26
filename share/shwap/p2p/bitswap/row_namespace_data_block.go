@@ -20,6 +20,8 @@ const (
 
 	// rowNamespaceDataMultihashCode is the multihash code for data multihash function.
 	rowNamespaceDataMultihashCode = 0x7821
+
+	rndMaxSize = 256 / 2 * 512
 )
 
 func init() {
@@ -27,6 +29,7 @@ func init() {
 		rowNamespaceDataMultihashCode,
 		rowNamespaceDataCodec,
 		shwap.RowNamespaceDataIDSize,
+		rndMaxSize,
 		func(cid cid.Cid) (Block, error) {
 			return EmptyRowNamespaceDataBlockFromCID(cid)
 		},

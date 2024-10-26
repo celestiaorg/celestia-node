@@ -19,6 +19,8 @@ const (
 
 	// sampleMultihashCode is the multihash code for share sampling multihash function.
 	sampleMultihashCode = 0x7811
+
+	sampleMaxSize = 512 + 8*90
 )
 
 func init() {
@@ -26,6 +28,7 @@ func init() {
 		sampleMultihashCode,
 		sampleCodec,
 		shwap.SampleIDSize,
+		sampleMaxSize,
 		func(cid cid.Cid) (Block, error) {
 			return EmptySampleBlockFromCID(cid)
 		},

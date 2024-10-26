@@ -28,6 +28,7 @@ func init() {
 		testMultihashCode,
 		testCodec,
 		testIDSize,
+		100,
 		func(cid cid.Cid) (Block, error) {
 			return newEmptyTestBlock(cid)
 		},

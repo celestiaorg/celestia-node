@@ -64,15 +64,8 @@ func (b *Blockstore) Get(ctx context.Context, cid cid.Cid) (blocks.Block, error)
 	return blk, nil
 }
 
-func (b *Blockstore) GetSize(ctx context.Context, cid cid.Cid) (int, error) {
-	// TODO(@Wondertan): Bitswap checks the size of the data(GetSize) before serving it via Get. This means
-	//  GetSize may do an unnecessary read from disk which we can avoid by either caching on Blockstore level
-	//  or returning constant size(we know at that point that we have requested data)
-	blk, err := b.Get(ctx, cid)
-	if err != nil {
-		return 0, err
-	}
-	return len(blk.RawData()), nil
+func (b *Blockstore) GetSize(_ context.Context, cid cid.Cid) (int, error) {
+	return specRegistry[cid.Prefix().MhType].maxDataSize, nil
 }
 
 func (b *Blockstore) Has(ctx context.Context, cid cid.Cid) (bool, error) {
