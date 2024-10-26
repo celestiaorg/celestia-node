@@ -20,13 +20,13 @@ func newShareModule(getter shwap.Getter, avail share.Availability, header header
 }
 
 func bitswapGetter(
-	lc fx.Lifecycle,
+	_ fx.Lifecycle,
 	exchange exchange.SessionExchange,
 	bstore blockstore.Blockstore,
 	wndw pruner.AvailabilityWindow,
 ) *bitswap.Getter {
 	getter := bitswap.NewGetter(exchange, bstore, wndw)
-	lc.Append(fx.StartStopHook(getter.Start, getter.Stop))
+	// lc.Append(fx.StartStopHook(getter.Start, getter.Stop))
 	return getter
 }
 
