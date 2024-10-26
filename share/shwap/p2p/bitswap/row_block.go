@@ -72,6 +72,12 @@ func (rb *RowBlock) Height() uint64 {
 	return rb.ID.Height
 }
 
+func (rb *RowBlock) Size(ctx context.Context, acc eds.Accessor) (int, error) {
+	squareSize := acc.Size(ctx)
+	rowSize := 512 * squareSize / 2
+	return rowSize, nil
+}
+
 func (rb *RowBlock) Marshal() ([]byte, error) {
 	if rb.Container.IsEmpty() {
 		return nil, fmt.Errorf("cannot marshal empty RowBlock")
