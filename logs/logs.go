@@ -13,7 +13,7 @@ func SetAllLoggers(level logging.LogLevel) {
 	_ = logging.SetLogLevel("swarm2", "WARN")
 	_ = logging.SetLogLevel("bitswap", "WARN")
 	_ = logging.SetLogLevel("bitswap/client", "WARN")
-	_ = logging.SetLogLevel("bitswap/client/msgq", "INFO")
+	_ = logging.SetLogLevel("bitswap/client/msgq", "ERROR")
 	_ = logging.SetLogLevel("bitswap/client/peermgr", "WARN")
 	_ = logging.SetLogLevel("bitswap/client/provqrymgr", "WARN")
 	_ = logging.SetLogLevel("bitswap/client/getter", "WARN")
