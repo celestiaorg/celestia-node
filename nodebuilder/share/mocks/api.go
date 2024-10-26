@@ -53,6 +53,21 @@ func (mr *MockModuleMockRecorder) GetEDS(arg0, arg1 interface{}) *gomock.Call {
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetEDS", reflect.TypeOf((*MockModule)(nil).GetEDS), arg0, arg1)
 }
 
+// GetNamespaceData mocks base method.
+func (m *MockModule) GetNamespaceData(arg0 context.Context, arg1 uint64, arg2 share0.Namespace) (shwap.NamespaceData, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "GetNamespaceData", arg0, arg1, arg2)
+	ret0, _ := ret[0].(shwap.NamespaceData)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// GetNamespaceData indicates an expected call of GetNamespaceData.
+func (mr *MockModuleMockRecorder) GetNamespaceData(arg0, arg1, arg2 interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetNamespaceData", reflect.TypeOf((*MockModule)(nil).GetNamespaceData), arg0, arg1, arg2)
+}
+
 // GetRange mocks base method.
 func (m *MockModule) GetRange(arg0 context.Context, arg1 uint64, arg2, arg3 int) (*share.GetRangeResult, error) {
 	m.ctrl.T.Helper()
@@ -81,21 +96,6 @@ func (m *MockModule) GetShare(arg0 context.Context, arg1 uint64, arg2, arg3 int)
 func (mr *MockModuleMockRecorder) GetShare(arg0, arg1, arg2, arg3 interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetShare", reflect.TypeOf((*MockModule)(nil).GetShare), arg0, arg1, arg2, arg3)
-}
-
-// GetSharesByNamespace mocks base method.
-func (m *MockModule) GetSharesByNamespace(arg0 context.Context, arg1 uint64, arg2 share0.Namespace) (shwap.NamespaceData, error) {
-	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "GetSharesByNamespace", arg0, arg1, arg2)
-	ret0, _ := ret[0].(shwap.NamespaceData)
-	ret1, _ := ret[1].(error)
-	return ret0, ret1
-}
-
-// GetSharesByNamespace indicates an expected call of GetSharesByNamespace.
-func (mr *MockModuleMockRecorder) GetSharesByNamespace(arg0, arg1, arg2 interface{}) *gomock.Call {
-	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetSharesByNamespace", reflect.TypeOf((*MockModule)(nil).GetSharesByNamespace), arg0, arg1, arg2)
 }
 
 // SharesAvailable mocks base method.

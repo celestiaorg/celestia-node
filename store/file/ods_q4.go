@@ -132,7 +132,12 @@ func (odsq4 *ODSQ4) Sample(ctx context.Context, rowIdx, colIdx int) (shwap.Sampl
 	if err != nil {
 		return shwap.Sample{}, fmt.Errorf("extending shares: %w", err)
 	}
-	return shwap.SampleFromShares(shares, rsmt2d.Row, rowIdx, colIdx)
+
+	idx, err := shwap.SampleIndexFromCoordinates(rowIdx, colIdx, odsq4.Size(ctx))
+	if err != nil {
+		return shwap.Sample{}, err
+	}
+	return shwap.SampleFromShares(shares, rsmt2d.Row, idx)
 }
 
 func (odsq4 *ODSQ4) AxisHalf(ctx context.Context, axisType rsmt2d.Axis, axisIdx int) (eds.AxisHalf, error) {
