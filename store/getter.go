@@ -24,26 +24,32 @@ func NewGetter(store *Store) *Getter {
 	return &Getter{store: store}
 }
 
-func (g *Getter) GetShare(ctx context.Context, h *header.ExtendedHeader, row, col int) (libshare.Share, error) {
-	acc, err := g.store.GetByHeight(ctx, h.Height())
+func (g *Getter) GetSamples(ctx context.Context, hdr *header.ExtendedHeader, indices []shwap.SampleIndex) ([]shwap.Sample, error) {
+	acc, err := g.store.GetByHeight(ctx, hdr.Height())
 	if err != nil {
 		if errors.Is(err, ErrNotFound) {
-			return libshare.Share{}, shwap.ErrNotFound
+			return nil, shwap.ErrNotFound
 		}
-		return libshare.Share{}, fmt.Errorf("get accessor from store:%w", err)
+		return nil, fmt.Errorf("get accessor from store:%w", err)
 	}
-	logger := log.With(
-		"height", h.Height(),
-		"row", row,
-		"col", col,
-	)
-	defer utils.CloseAndLog(logger, "getter/sample", acc)
+	defer utils.CloseAndLog(log.With("height", hdr.Height()), "getter/sample", acc)
 
-	sample, err := acc.Sample(ctx, row, col)
-	if err != nil {
-		return libshare.Share{}, fmt.Errorf("get sample from accessor:%w", err)
+	smpls := make([]shwap.Sample, len(indices))
+	for i, idx := range indices {
+		rowIdx, colIdx, err := idx.Coordinates(len(hdr.DAH.RowRoots))
+		if err != nil {
+			return nil, err
+		}
+
+		smpl, err := acc.Sample(ctx, rowIdx, colIdx)
+		if err != nil {
+			return nil, fmt.Errorf("get sample from accessor:%w", err)
+		}
+
+		smpls[i] = smpl
 	}
-	return sample.Share, nil
+
+	return smpls, nil
 }
 
 func (g *Getter) GetEDS(ctx context.Context, h *header.ExtendedHeader) (*rsmt2d.ExtendedDataSquare, error) {

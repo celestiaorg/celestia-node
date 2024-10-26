@@ -72,27 +72,24 @@ func (g *Getter) Stop() {
 	g.cancel()
 }
 
-// GetShares uses [SampleBlock] and [Fetch] to get and verify samples for given coordinates.
-// TODO(@Wondertan): Rework API to get coordinates as a single param to make it ergonomic.
-func (g *Getter) GetShares(
+// GetSamples uses [SampleBlock] and [Fetch] to get and verify samples for given coordinates.
+func (g *Getter) GetSamples(
 	ctx context.Context,
 	hdr *header.ExtendedHeader,
-	rowIdxs, colIdxs []int,
-) ([]libshare.Share, error) {
-	if len(rowIdxs) != len(colIdxs) {
-		return nil, fmt.Errorf("row indecies and col indices must be same length")
+	indices []shwap.SampleIndex,
+) ([]shwap.Sample, error) {
+	if len(indices) == 0 {
+		return nil, fmt.Errorf("no sample indicies to fetch")
 	}
 
-	if len(rowIdxs) == 0 {
-		return nil, fmt.Errorf("empty coordinates")
-	}
-
-	ctx, span := tracer.Start(ctx, "get-shares")
+	ctx, span := tracer.Start(ctx, "get-samples", trace.WithAttributes(
+		attribute.Int("amount", len(indices)),
+	))
 	defer span.End()
 
-	blks := make([]Block, len(rowIdxs))
-	for i, rowIdx := range rowIdxs {
-		sid, err := NewEmptySampleBlock(hdr.Height(), rowIdx, colIdxs[i], len(hdr.DAH.RowRoots))
+	blks := make([]Block, len(indices))
+	for i, idx := range indices {
+		sid, err := NewEmptySampleBlock(hdr.Height(), idx, len(hdr.DAH.RowRoots))
 		if err != nil {
 			span.RecordError(err)
 			span.SetStatus(codes.Error, "NewEmptySampleBlock")
@@ -107,36 +104,32 @@ func (g *Getter) GetShares(
 
 	err := Fetch(ctx, g.exchange, hdr.DAH, blks, WithStore(g.bstore), WithFetcher(ses))
 	if err != nil {
+		// handle partial fetches
+		var fetched int
+		smpls := make([]shwap.Sample, len(blks))
+		for i, blk := range blks {
+			if smpl := blk.(*SampleBlock).Container; !smpl.IsEmpty() {
+				smpls[i] = smpl
+				fetched++
+			}
+		}
+
 		span.RecordError(err)
 		span.SetStatus(codes.Error, "Fetch")
+		if fetched > 0 {
+			span.SetAttributes(attribute.Int("fetched", fetched))
+			return smpls, err
+		}
 		return nil, err
 	}
 
-	shares := make([]libshare.Share, len(blks))
+	smpls := make([]shwap.Sample, len(blks))
 	for i, blk := range blks {
-		shares[i] = blk.(*SampleBlock).Container.Share
+		smpls[i] = blk.(*SampleBlock).Container
 	}
 
 	span.SetStatus(codes.Ok, "")
-	return shares, nil
-}
-
-// GetShare uses [GetShare] to fetch and verify single share by the given coordinates.
-func (g *Getter) GetShare(
-	ctx context.Context,
-	hdr *header.ExtendedHeader,
-	row, col int,
-) (libshare.Share, error) {
-	shrs, err := g.GetShares(ctx, hdr, []int{row}, []int{col})
-	if err != nil {
-		return libshare.Share{}, err
-	}
-
-	if len(shrs) != 1 {
-		return libshare.Share{}, fmt.Errorf("expected 1 share row, got %d", len(shrs))
-	}
-
-	return shrs[0], nil
+	return smpls, nil
 }
 
 // GetEDS uses [RowBlock] and [Fetch] to get half of the first EDS quadrant(ODS) and
