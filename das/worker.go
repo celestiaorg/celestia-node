@@ -7,11 +7,10 @@ import (
 	"sync"
 	"time"
 
-	"github.com/celestiaorg/celestia-node/share"
-
 	libhead "github.com/celestiaorg/go-header"
 
 	"github.com/celestiaorg/celestia-node/header"
+	"github.com/celestiaorg/celestia-node/share"
 	"github.com/celestiaorg/celestia-node/share/shwap/p2p/shrex/shrexsub"
 )
 
