@@ -29,7 +29,7 @@ type ShareAvailability struct {
 	getter shwap.Getter
 	params Parameters
 
-	activeHeights sync.Map
+	activeHeights sync.Map // Tracks active sampling sessions by height
 	dsLk          sync.RWMutex
 	ds            *autobatch.Datastore
 }
