@@ -1,7 +1,7 @@
 package ipld
 
 import (
-	"math"
+	"math/bits"
 
 	"github.com/ipfs/go-cid"
 )
@@ -14,7 +14,10 @@ type proofCollector struct {
 
 func newProofCollector(maxShares int) *proofCollector {
 	// maximum possible amount of required proofs from each side is equal to tree height.
-	height := int(math.Log2(float64(maxShares))) + 1
+	height := bits.Len64(uint64(maxShares))
+	if maxShares > 0 {
+		height++
+	}
 	return &proofCollector{
 		left:  make([]cid.Cid, height),
 		right: make([]cid.Cid, height),

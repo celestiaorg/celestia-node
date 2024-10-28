@@ -13,6 +13,8 @@ import (
 	"github.com/stretchr/testify/require"
 	"go.uber.org/fx"
 
+	libshare "github.com/celestiaorg/go-square/v2/share"
+
 	"github.com/celestiaorg/celestia-node/blob"
 	"github.com/celestiaorg/celestia-node/libs/fxutil"
 	"github.com/celestiaorg/celestia-node/nodebuilder"
@@ -130,17 +132,15 @@ func TestArchivalBlobSync(t *testing.T) {
 			continue
 		}
 
-		shr, err := archivalFN.ShareServ.GetShare(ctx, eh, 2, 2)
-		require.NoError(t, err)
-		ns, err := share.NamespaceFromBytes(shr[:share.NamespaceSize])
+		shr, err := archivalFN.ShareServ.GetShare(ctx, eh.Height(), 2, 2)
 		require.NoError(t, err)
 
-		blobs, err := archivalFN.BlobServ.GetAll(ctx, uint64(i), []share.Namespace{ns})
+		blobs, err := archivalFN.BlobServ.GetAll(ctx, eh.Height(), []libshare.Namespace{shr.Namespace()})
 		require.NoError(t, err)
 
 		archivalBlobs = append(archivalBlobs, &archivalBlob{
 			blob:   blobs[0],
-			height: uint64(i),
+			height: eh.Height(),
 			root:   eh.DAH.Hash(),
 		})
 
@@ -172,7 +172,7 @@ func TestArchivalBlobSync(t *testing.T) {
 		got, err := ln.BlobServ.Get(ctx, b.height, b.blob.Namespace(), b.blob.Commitment)
 		require.NoError(t, err)
 		assert.Equal(t, b.blob.Commitment, got.Commitment)
-		assert.Equal(t, b.blob.Data, got.Data)
+		assert.Equal(t, b.blob.Data(), got.Data())
 	}
 }
 

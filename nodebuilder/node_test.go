@@ -15,9 +15,7 @@ import (
 	collectormetricpb "go.opentelemetry.io/proto/otlp/collector/metrics/v1"
 	"google.golang.org/protobuf/proto"
 
-	"github.com/celestiaorg/celestia-node/header/headertest"
 	"github.com/celestiaorg/celestia-node/nodebuilder/node"
-	"github.com/celestiaorg/celestia-node/share"
 )
 
 func TestLifecycle(t *testing.T) {
@@ -124,35 +122,4 @@ func StartMockOtelCollectorHTTPServer(t *testing.T) (string, func()) {
 
 	server.EnableHTTP2 = true
 	return server.URL, server.Close
-}
-
-func TestEmptyBlockExists(t *testing.T) {
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
-
-	test := []struct {
-		tp node.Type
-	}{
-		{tp: node.Bridge},
-		{tp: node.Full},
-		// technically doesn't need to be tested as a SharesAvailable call to
-		// light node short circuits on an empty EDS
-		{tp: node.Light},
-	}
-	for i, tt := range test {
-		t.Run(strconv.Itoa(i), func(t *testing.T) {
-			node := TestNode(t, tt.tp)
-			err := node.Start(ctx)
-			require.NoError(t, err)
-
-			// ensure an empty block exists in store
-
-			eh := headertest.RandExtendedHeaderWithRoot(t, share.EmptyEDSRoots())
-			err = node.ShareServ.SharesAvailable(ctx, eh)
-			require.NoError(t, err)
-
-			err = node.Stop(ctx)
-			require.NoError(t, err)
-		})
-	}
 }

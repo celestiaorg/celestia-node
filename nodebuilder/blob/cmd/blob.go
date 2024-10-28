@@ -11,10 +11,11 @@ import (
 
 	"github.com/spf13/cobra"
 
+	libshare "github.com/celestiaorg/go-square/v2/share"
+
 	"github.com/celestiaorg/celestia-node/blob"
 	cmdnode "github.com/celestiaorg/celestia-node/cmd"
 	state "github.com/celestiaorg/celestia-node/nodebuilder/state/cmd"
-	"github.com/celestiaorg/celestia-node/share"
 )
 
 // flagFileInput allows the user to provide file path to the json file
@@ -105,7 +106,7 @@ var getAllCmd = &cobra.Command{
 			return fmt.Errorf("error parsing a namespace: %w", err)
 		}
 
-		blobs, err := client.Blob.GetAll(cmd.Context(), height, []share.Namespace{namespace})
+		blobs, err := client.Blob.GetAll(cmd.Context(), height, []libshare.Namespace{namespace})
 		return cmdnode.PrintOutput(blobs, err, formatData(args[1]))
 	},
 }
@@ -285,8 +286,8 @@ func formatData(ns string) func(interface{}) interface{} {
 			for i, b := range blobs {
 				result[i] = tempBlob{
 					Namespace:    ns,
-					Data:         string(b.Data),
-					ShareVersion: b.ShareVersion,
+					Data:         string(b.Data()),
+					ShareVersion: uint32(b.ShareVersion()),
 					Commitment:   "0x" + hex.EncodeToString(b.Commitment),
 					Index:        b.Index(),
 				}
@@ -297,8 +298,8 @@ func formatData(ns string) func(interface{}) interface{} {
 		b := data.(*blob.Blob)
 		return tempBlob{
 			Namespace:    ns,
-			Data:         string(b.Data),
-			ShareVersion: b.ShareVersion,
+			Data:         string(b.Data()),
+			ShareVersion: uint32(b.ShareVersion()),
 			Commitment:   "0x" + hex.EncodeToString(b.Commitment),
 			Index:        b.Index(),
 		}

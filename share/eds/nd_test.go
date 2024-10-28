@@ -7,8 +7,9 @@ import (
 
 	"github.com/stretchr/testify/require"
 
+	libshare "github.com/celestiaorg/go-square/v2/share"
+
 	"github.com/celestiaorg/celestia-node/share/eds/edstest"
-	"github.com/celestiaorg/celestia-node/share/sharetest"
 )
 
 func TestNamespaceData(t *testing.T) {
@@ -17,7 +18,7 @@ func TestNamespaceData(t *testing.T) {
 
 	const odsSize = 8
 	sharesAmount := odsSize * odsSize
-	namespace := sharetest.RandV0Namespace()
+	namespace := libshare.RandomNamespace()
 	for amount := 1; amount < sharesAmount; amount++ {
 		eds, root := edstest.RandEDSWithNamespace(t, namespace, amount, odsSize)
 		rsmt2d := &Rsmt2D{ExtendedDataSquare: eds}

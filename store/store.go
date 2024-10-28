@@ -181,6 +181,14 @@ func (s *Store) createODSQ4File(
 		)
 	}
 
+	// if file already exists, check if it's corrupted
+	if errors.Is(err, os.ErrExist) {
+		err = s.validateAndRecoverODSQ4(square, roots, height, pathODS, pathQ4)
+		if err != nil {
+			return false, err
+		}
+	}
+
 	// create hard link with height as name
 	err = s.linkHeight(roots.Hash(), height)
 	// if both file and link exist, we consider it as success
@@ -196,6 +204,29 @@ func (s *Store) createODSQ4File(
 		)
 	}
 	return false, nil
+}
+
+func (s *Store) validateAndRecoverODSQ4(
+	square *rsmt2d.ExtendedDataSquare,
+	roots *share.AxisRoots,
+	height uint64,
+	pathODS, pathQ4 string,
+) error {
+	// Validate the size of the file to ensure it's not corrupted
+	err := file.ValidateODSQ4Size(pathODS, pathQ4, square)
+	if err == nil {
+		return nil
+	}
+	log.Warnf("ODSQ4 file with height %d is corrupted, recovering", height)
+	err = s.removeODSQ4(height, roots.Hash())
+	if err != nil {
+		return fmt.Errorf("removing corrupted ODSQ4 file: %w", err)
+	}
+	err = file.CreateODSQ4(pathODS, pathQ4, roots, square)
+	if err != nil {
+		return fmt.Errorf("recreating ODSQ4 file: %w", err)
+	}
+	return nil
 }
 
 func (s *Store) createODSFile(
@@ -214,6 +245,15 @@ func (s *Store) createODSFile(
 		)
 	}
 
+	// if file already exists, check if it's corrupted
+	if errors.Is(err, os.ErrExist) {
+		// Validate the size of the file to ensure it's not corrupted
+		err = s.validateAndRecoverODS(square, roots, height, pathODS)
+		if err != nil {
+			return false, err
+		}
+	}
+
 	// create hard link with height as name
 	err = s.linkHeight(roots.Hash(), height)
 	// if both file and link exist, we consider it as success
@@ -231,15 +271,39 @@ func (s *Store) createODSFile(
 	return false, nil
 }
 
+func (s *Store) validateAndRecoverODS(
+	square *rsmt2d.ExtendedDataSquare,
+	roots *share.AxisRoots,
+	height uint64,
+	pathODS string,
+) error {
+	// Validate the size of the file to ensure it's not corrupted
+	err := file.ValidateODSSize(pathODS, square)
+	if err == nil {
+		return nil
+	}
+	log.Warnf("ODS file with height %d is corrupted, recovering", height)
+	err = s.removeODS(height, roots.Hash())
+	if err != nil {
+		return fmt.Errorf("removing corrupted ODS file: %w", err)
+	}
+	err = file.CreateODS(pathODS, roots, square)
+	if err != nil {
+		return fmt.Errorf("recreating ODS file: %w", err)
+	}
+	return nil
+}
+
 func (s *Store) linkHeight(datahash share.DataHash, height uint64) error {
-	// create hard link with height as name
-	pathOds := s.hashToPath(datahash, odsFileExt)
 	linktoOds := s.heightToPath(height, odsFileExt)
 	if datahash.IsEmptyEDS() {
 		// empty EDS is always symlinked, because there is limited number of hardlinks
 		// for the same file in some filesystems (ext4)
+		pathOds := s.hashToRelativePath(datahash, odsFileExt)
 		return symlink(pathOds, linktoOds)
 	}
+	// create hard link with height as name
+	pathOds := s.hashToPath(datahash, odsFileExt)
 	return hardLink(pathOds, linktoOds)
 }
 
@@ -442,6 +506,10 @@ func (s *Store) removeQ4(height uint64, datahash share.DataHash) error {
 
 func (s *Store) hashToPath(datahash share.DataHash, ext string) string {
 	return filepath.Join(s.basepath, blocksPath, datahash.String()) + ext
+}
+
+func (s *Store) hashToRelativePath(datahash share.DataHash, ext string) string {
+	return filepath.Join("..", datahash.String()) + ext
 }
 
 func (s *Store) heightToPath(height uint64, ext string) string {

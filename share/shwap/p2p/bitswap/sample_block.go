@@ -115,8 +115,12 @@ func (sb *SampleBlock) UnmarshalFn(root *share.AxisRoots) UnmarshalFn {
 			return fmt.Errorf("unmarshaling Sample for %+v: %w", sb.ID, err)
 		}
 
-		cntr := shwap.SampleFromProto(&sample)
-		if err := cntr.Verify(root, sb.ID.RowIndex, sb.ID.ShareIndex); err != nil {
+		cntr, err := shwap.SampleFromProto(&sample)
+		if err != nil {
+			return fmt.Errorf("unmarshaling Sample for %+v: %w", sb.ID, err)
+		}
+
+		if err = cntr.Verify(root, sb.ID.RowIndex, sb.ID.ShareIndex); err != nil {
 			return fmt.Errorf("validating Sample for %+v: %w", sb.ID, err)
 		}
 
