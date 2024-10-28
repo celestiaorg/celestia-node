@@ -59,58 +59,33 @@ func E2ESimple(logger *logrus.Logger) error {
 	kn.HandleStopSignal(ctx)
 	logger.WithField("scope", kn.Scope).Info("Knuu initialized")
 
-	testNet, err := nodeTestnet.NewNodeTestnet(ctx, kn, testnet.Options{})
+	tn, err := nodeTestnet.NewNodeTestnet(ctx, kn, testnet.Options{})
 	testnet.NoError("failed to create testnet", err)
 
-	testNet.SetConsensusParams(app.DefaultInitialConsensusParams())
+	tn.SetConsensusParams(app.DefaultInitialConsensusParams())
 
-	defer testNet.NodeCleanup(ctx)
+	defer tn.NodeCleanup(ctx)
 
 	logger.Info("Creating testnet validators")
-	testnet.NoError("failed to create genesis nodes", testNet.CreateGenesisNodes(ctx, validatorsCount, appVersion, 10000000, 0, testnet.DefaultResources, true))
+	testnet.NoError("failed to create genesis nodes", tn.CreateGenesisNodes(ctx, validatorsCount, appVersion, 10000000, 0, testnet.DefaultResources, true))
 
 	logger.Info("Creating txsim")
-	endpoints, err := testNet.RemoteGRPCEndpoints(ctx)
+	endpoints, err := tn.RemoteGRPCEndpoints(ctx)
 	testnet.NoError("failed to get remote gRPC endpoints", err)
-	err = testNet.CreateTxClient(ctx, "txsim", testnet.TxsimVersion, 1, "100-2000", 100, testnet.DefaultResources, endpoints[0], nil)
+	err = tn.CreateTxClient(ctx, "txsim", testnet.TxsimVersion, 1, "100-2000", 100, testnet.DefaultResources, endpoints[0], nil)
 	testnet.NoError("failed to create tx client", err)
 
 	logger.Info("Setting up testnets")
-	testnet.NoError("failed to setup testnets", testNet.Setup(ctx))
+	testnet.NoError("failed to setup testnets", tn.Setup(ctx))
 
 	logger.Info("Starting testnets")
-	testnet.NoError("failed to start testnets", testNet.Start(ctx))
+	testnet.NoError("failed to start testnets", tn.Start(ctx))
 
-	// FIXME: If you deploy more than one node of the same type, the keys will be the same
-	err = testNet.CreateAndStartBridgeNodes(ctx, 1,
-		nodeTestnet.InstanceOptions{
-			InstanceName: "bridge",
-			Version:      nodeVersion,
-			Resources:    nodeTestnet.DefaultBridgeResources,
-		})
-	testnet.NoError("failed to create and start bridge node", err)
-
-	err = testNet.CreateAndStartFullNodes(ctx, 1,
-		nodeTestnet.InstanceOptions{
-			InstanceName: "full",
-			Version:      nodeVersion,
-			Resources:    nodeTestnet.DefaultFullResources,
-		})
-	testnet.NoError("failed to create and start full node", err)
-
-	err = testNet.CreateAndStartLightNodes(ctx, 1,
-		nodeTestnet.InstanceOptions{
-			InstanceName: "light",
-			Version:      nodeVersion,
-			Resources:    nodeTestnet.DefaultLightResources,
-		})
-	testnet.NoError("failed to create and start light node", err)
-
-	logger.Info("Waiting for 30 seconds")
-	time.Sleep(30 * time.Second)
+	logger.Info("Waiting for 60 seconds")
+	time.Sleep(60 * time.Second)
 
 	logger.Info("Reading blockchain")
-	blockchain, err := testnode.ReadBlockchain(ctx, testNet.Node(0).AddressRPC())
+	blockchain, err := testnode.ReadBlockchain(ctx, tn.Node(0).AddressRPC())
 	testnet.NoError("failed to read blockchain", err)
 
 	totalTxs := 0
@@ -121,7 +96,32 @@ func E2ESimple(logger *logrus.Logger) error {
 		return fmt.Errorf("expected at least 10 transactions, got %d", totalTxs)
 	}
 
-	for _, n := range testNet.DaNodes() {
+	// FIXME: If you deploy more than one node of the same type, the keys will be the same
+	err = tn.CreateAndStartBridgeNodes(ctx, 1,
+		nodeTestnet.InstanceOptions{
+			InstanceName: "bridge",
+			Version:      nodeVersion,
+			Resources:    nodeTestnet.DefaultBridgeResources,
+		})
+	testnet.NoError("failed to create and start bridge node", err)
+
+	err = tn.CreateAndStartFullNodes(ctx, 1,
+		nodeTestnet.InstanceOptions{
+			InstanceName: "full",
+			Version:      nodeVersion,
+			Resources:    nodeTestnet.DefaultFullResources,
+		})
+	testnet.NoError("failed to create and start full node", err)
+
+	err = tn.CreateAndStartLightNodes(ctx, 1,
+		nodeTestnet.InstanceOptions{
+			InstanceName: "light",
+			Version:      nodeVersion,
+			Resources:    nodeTestnet.DefaultLightResources,
+		})
+	testnet.NoError("failed to create and start light node", err)
+
+	for _, n := range tn.DaNodes() {
 		if n.Type == node.Full || n.Type == node.Light {
 			head, err := n.GetMetric("das_sampled_chain_head")
 			testnet.NoError("failed to get metric", err)

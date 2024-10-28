@@ -62,6 +62,10 @@ func (nt *NodeTestnet) initInstance(ctx context.Context, opts InstanceOptions) (
 		return nil, err
 	}
 
+	if opts.consensus == nil {
+		opts.SetConsensus(nt.Testnet.Node(0).Instance)
+	}
+
 	chainID, err := opts.ChainID(ctx)
 	if err != nil {
 		return nil, err
@@ -132,10 +136,6 @@ func (nt *NodeTestnet) CreateNode(ctx context.Context, opts InstanceOptions, tru
 	}
 
 	if opts.NodeType == node.Bridge {
-		if opts.consensus == nil {
-			opts.SetConsensus(nt.Testnet.Node(0).Instance)
-		}
-
 		consensusIP, err := opts.consensus.Network().GetIP(ctx)
 		if err != nil {
 			return nil, err
