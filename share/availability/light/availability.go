@@ -29,9 +29,9 @@ type ShareAvailability struct {
 	getter shwap.Getter
 	params Parameters
 
-	inProgress sync.Map
-	dsLk       sync.RWMutex
-	ds         *autobatch.Datastore
+	activeHeights sync.Map
+	dsLk          sync.RWMutex
+	ds            *autobatch.Datastore
 }
 
 // NewShareAvailability creates a new light Availability.
@@ -64,19 +64,19 @@ func (la *ShareAvailability) SharesAvailable(ctx context.Context, header *header
 		return nil
 	}
 
-	// Lock to prevent multiple sampling sessions for the same header height
-	lk, loaded := la.inProgress.LoadOrStore(header.Height(), make(chan struct{}))
+	// Prevent multiple sampling sessions for the same header height
+	lockChan, loaded := la.activeHeights.LoadOrStore(header.Height(), make(chan struct{}))
 	if loaded {
 		select {
-		case <-lk.(chan struct{}):
+		case <-lockChan.(chan struct{}):
 		case <-ctx.Done():
 			return ctx.Err()
 		}
 	} else {
-		// Delete the lock if it was created in this call
+		// Ensure the lock is released after sampling is complete
 		defer func() {
-			close(lk.(chan struct{}))
-			la.inProgress.Delete(header.Height())
+			close(lockChan.(chan struct{}))
+			la.activeHeights.Delete(header.Height())
 		}()
 	}
 
