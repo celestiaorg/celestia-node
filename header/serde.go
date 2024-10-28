@@ -64,37 +64,6 @@ func UnmarshalExtendedHeader(data []byte) (*ExtendedHeader, error) {
 	return out, nil
 }
 
-func ExtendedHeaderToProto(eh *ExtendedHeader) (*header_pb.ExtendedHeader, error) {
-	pb := &header_pb.ExtendedHeader{
-		Header: eh.RawHeader.ToProto(),
-		Commit: eh.Commit.ToProto(),
-	}
-	valSet, err := eh.ValidatorSet.ToProto()
-	if err != nil {
-		return nil, err
-	}
-	pb.ValidatorSet = valSet
-	dah, err := eh.DAH.ToProto()
-	if err != nil {
-		return nil, err
-	}
-	pb.Dah = dah
-	return pb, nil
-}
-
-func ProtoToExtendedHeader(pb *header_pb.ExtendedHeader) (*ExtendedHeader, error) {
-	bin, err := pb.Marshal()
-	if err != nil {
-		return nil, err
-	}
-	header := new(ExtendedHeader)
-	err = header.UnmarshalBinary(bin)
-	if err != nil {
-		return nil, err
-	}
-	return header, nil
-}
-
 // msgID computes an id for a pubsub message
 // TODO(@Wondertan): This cause additional allocations per each recvd message in the topic
 //
