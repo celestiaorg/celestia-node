@@ -156,9 +156,10 @@ func TestParallelAvailability(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
-	getter := mock.NewMockGetter(gomock.NewController(t))
 	ds := datastore.NewMapDatastore()
-	avail := NewShareAvailability(getter, ds)
+	// Simulate a getter that returns shares successfully
+	successfulGetter := newOnceGetter()
+	avail := NewShareAvailability(successfulGetter, ds)
 
 	// create new eds, that is not available by getter
 	eds := edstest.RandEDS(t, 16)
@@ -166,11 +167,7 @@ func TestParallelAvailability(t *testing.T) {
 	require.NoError(t, err)
 	eh := headertest.RandExtendedHeaderWithRoot(t, roots)
 
-	// ensure that retry persists the failed samples selection
-	onceGetter := newOnceGetter()
-	avail.getter = onceGetter
-
-	wg := sync.WaitGroup{}
+	var wg sync.WaitGroup
 	for i := 0; i < 100; i++ {
 		wg.Add(1)
 		go func() {
@@ -180,7 +177,7 @@ func TestParallelAvailability(t *testing.T) {
 		}()
 	}
 	wg.Wait()
-	require.Len(t, onceGetter.sampledList(), int(avail.params.SampleAmount))
+	require.Len(t, successfulGetter.sampledList(), int(avail.params.SampleAmount))
 }
 
 type onceGetter struct {
