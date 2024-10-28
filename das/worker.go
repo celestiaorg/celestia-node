@@ -7,6 +7,8 @@ import (
 	"sync"
 	"time"
 
+	"github.com/celestiaorg/celestia-node/share"
+
 	libhead "github.com/celestiaorg/go-header"
 
 	"github.com/celestiaorg/celestia-node/header"
@@ -127,18 +129,25 @@ func (w *worker) sample(ctx context.Context, timeout time.Duration, height uint6
 
 	w.metrics.observeSample(ctx, h, time.Since(start), w.state.jobType, err)
 	if err != nil {
-		if !errors.Is(err, context.Canceled) {
-			log.Debugw(
-				"failed to sample header",
-				"type", w.state.jobType,
-				"height", h.Height(),
-				"hash", h.Hash(),
-				"square width", len(h.DAH.RowRoots),
-				"data root", h.DAH.String(),
-				"err", err,
-				"finished (s)", time.Since(start),
-			)
+		if errors.Is(err, context.Canceled) {
+			return err
 		}
+
+		logFn := log.Debugw
+		// log unexpected errors as errors
+		if !errors.Is(err, share.ErrNotAvailable) {
+			logFn = log.Errorw
+		}
+		logFn(
+			"failed to sample header",
+			"type", w.state.jobType,
+			"height", h.Height(),
+			"hash", h.Hash(),
+			"square width", len(h.DAH.RowRoots),
+			"data root", h.DAH.String(),
+			"err", err,
+			"finished (s)", time.Since(start),
+		)
 		return err
 	}
 
