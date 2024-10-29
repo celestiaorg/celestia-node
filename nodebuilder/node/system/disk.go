@@ -7,6 +7,7 @@ import (
 	"go.opentelemetry.io/otel/metric"
 )
 
+// Would Int64ObservableGauge be suffice?
 type DiskMetrics struct {
 	readBytes   metric.Float64ObservableGauge
 	writeBytes  metric.Float64ObservableGauge
@@ -51,7 +52,7 @@ func newDiskMetrics() (*DiskMetrics, error) {
 	if err != nil {
 		return nil, fmt.Errorf("disk io wait metric: %w", err)
 	}
-
+	// Should this be pending or in progress?
 	pendingIOPS, err := meter.Float64ObservableGauge("system_disk_pending_iops",
 		metric.WithDescription("Disk pending IO operations"),
 		metric.WithUnit("operation/second"))
@@ -90,6 +91,8 @@ func (d *DiskMetrics) Collect(ctx context.Context, observer metric.Observer) err
 	var totalReadIOPS, totalWriteIOPS float64
 	var totalIOWait, totalPendingIOPS float64
 
+	// Aggregate disk stats, as we have multiple disks.
+	// stat.device should probably be used to distinguish between disks.
 	for _, stat := range diskStats {
 		totalReadBytes += float64(stat.ReadBytes)
 		totalWriteBytes += float64(stat.WriteBytes)

@@ -9,6 +9,9 @@ import (
 
 var meter = otel.Meter("node/system")
 
+// MetricCollector - Common interface for all metric collectors.
+// MetricCollector - One could implement a new metric collector by implementing this interface.
+// MetricCollector - Should we call it as MetricStats instead of MetricCollector?
 type MetricCollector interface {
 	Metrics() []metric.Observable
 	Collect(context.Context, metric.Observer) error
@@ -39,6 +42,7 @@ func New() (*Metrics, error) {
 	if err != nil {
 		return nil, fmt.Errorf("memory metrics init: %w", err)
 	}
+	// Expand collectors slice to include additional metric collectors.
 	collectors := []MetricCollector{
 		diskMetrics,
 		cpuMetrics,
@@ -47,6 +51,7 @@ func New() (*Metrics, error) {
 	}
 
 	var observables []metric.Observable
+	// Automatically add all metrics from all collectors to the observables slice.
 	for _, collector := range collectors {
 		observables = append(observables, collector.Metrics()...)
 	}

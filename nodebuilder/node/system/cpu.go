@@ -94,6 +94,7 @@ func (c *CPUMetrics) Collect(ctx context.Context, observer metric.Observer) erro
 		observer.ObserveFloat64(c.usage, percentages[0])
 	}
 
+	// We use gopsutil/load to get the load average
 	loadAvg, err := load.Avg()
 	if err != nil {
 		return fmt.Errorf("get load average: %w", err)

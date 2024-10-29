@@ -7,8 +7,9 @@ import (
 	"go.opentelemetry.io/otel/metric"
 )
 
+// MemoryMetrics - MemoryStats defines the memory statistics.
+// MemoryMetrics - Would Int64ObservableGauge be sufficient?
 type MemoryMetrics struct {
-	// Virtual Memory metrics
 	total     metric.Int64ObservableGauge
 	used      metric.Int64ObservableGauge
 	free      metric.Int64ObservableGauge
@@ -16,7 +17,6 @@ type MemoryMetrics struct {
 	cached    metric.Int64ObservableGauge
 	available metric.Int64ObservableGauge
 
-	// Swap metrics
 	swapTotal metric.Int64ObservableGauge
 	swapUsed  metric.Int64ObservableGauge
 	swapFree  metric.Int64ObservableGauge
@@ -114,7 +114,6 @@ func (m *MemoryMetrics) Metrics() []metric.Observable {
 }
 
 func (m *MemoryMetrics) Collect(ctx context.Context, observer metric.Observer) error {
-	// Get virtual memory stats
 	vmem, err := mem.VirtualMemory()
 	if err != nil {
 		return fmt.Errorf("get virtual memory stats: %w", err)
@@ -127,7 +126,6 @@ func (m *MemoryMetrics) Collect(ctx context.Context, observer metric.Observer) e
 	observer.ObserveInt64(m.cached, int64(vmem.Cached))
 	observer.ObserveInt64(m.available, int64(vmem.Available))
 
-	// Get swap memory stats
 	swap, err := mem.SwapMemory()
 	if err != nil {
 		return fmt.Errorf("get swap memory stats: %w", err)

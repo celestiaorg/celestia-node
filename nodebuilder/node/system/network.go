@@ -1,4 +1,3 @@
-// network.go
 package system
 
 import (
@@ -8,6 +7,8 @@ import (
 	"go.opentelemetry.io/otel/metric"
 )
 
+// NetworkMetrics is a struct that contains the metrics for network
+// NetworkMetrics - Would using Int64ObservableGauge be sufficient?
 type NetworkMetrics struct {
 	bytesIn    metric.Float64ObservableGauge
 	bytesOut   metric.Float64ObservableGauge
@@ -82,7 +83,7 @@ func (n *NetworkMetrics) Metrics() []metric.Observable {
 }
 
 func (n *NetworkMetrics) Collect(ctx context.Context, observer metric.Observer) error {
-	stats, err := net.IOCounters(false)
+	stats, err := net.IOCounters(false) // false, represent aggregated stats
 	if err != nil {
 		return fmt.Errorf("get network stats: %w", err)
 	}
