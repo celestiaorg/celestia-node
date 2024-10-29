@@ -3,6 +3,7 @@ package light
 import (
 	"context"
 	"errors"
+	"fmt"
 	"sync"
 
 	"github.com/ipfs/go-datastore"
@@ -123,19 +124,19 @@ func (la *ShareAvailability) SharesAvailable(ctx context.Context, header *header
 	}
 	wg.Wait()
 
-	if errors.Is(ctx.Err(), context.Canceled) {
-		// Availability did not complete due to context cancellation, return context error instead of
-		// share.ErrNotAvailable
-		return ctx.Err()
-	}
-
 	// store the result of the sampling session
 	bs := encodeSamples(failedSamples)
 	la.dsLk.Lock()
 	err = la.ds.Put(ctx, key, bs)
 	la.dsLk.Unlock()
 	if err != nil {
-		log.Errorw("Failed to store sampling result", "error", err)
+		return fmt.Errorf("failed to store sampling result: %w", err)
+	}
+
+	if errors.Is(ctx.Err(), context.Canceled) {
+		// Availability did not complete due to context cancellation, return context error instead of
+		// share.ErrNotAvailable
+		return ctx.Err()
 	}
 
 	// if any of the samples failed, return an error
