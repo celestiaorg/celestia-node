@@ -10,7 +10,6 @@ import (
 	libhead "github.com/celestiaorg/go-header"
 
 	"github.com/celestiaorg/celestia-node/header"
-	"github.com/celestiaorg/celestia-node/share"
 	"github.com/celestiaorg/celestia-node/share/shwap/p2p/shrex/shrexsub"
 )
 
@@ -132,12 +131,7 @@ func (w *worker) sample(ctx context.Context, timeout time.Duration, height uint6
 			return err
 		}
 
-		logFn := log.Debugw
-		// log unexpected errors as errors
-		if !errors.Is(err, share.ErrNotAvailable) {
-			logFn = log.Errorw
-		}
-		logFn(
+		log.Errorw(
 			"failed to sample header",
 			"type", w.state.jobType,
 			"height", h.Height(),
