@@ -294,8 +294,8 @@ require (
 	github.com/prometheus/common v0.55.0 // indirect
 	github.com/prometheus/procfs v0.15.1 // indirect
 	github.com/quic-go/qpack v0.5.1 // indirect
-	github.com/quic-go/quic-go v0.47.0 // indirect
-	github.com/quic-go/webtransport-go v0.8.0 // indirect
+	github.com/quic-go/quic-go v0.48.0 // indirect
+	github.com/quic-go/webtransport-go v0.8.1-0.20241018022711-4ac2c9250e66 // indirect
 	github.com/rakyll/statik v0.1.7 // indirect
 	github.com/raulk/go-watchdog v1.3.0 // indirect
 	github.com/rcrowley/go-metrics v0.0.0-20201227073835-cf1acfcdf475 // indirect
@@ -363,3 +363,5 @@ replace (
 )
 
 replace github.com/ipfs/boxo => github.com/Wondertan/boxo v0.0.0-20241030221731-9c55920ec0ea
+
+replace github.com/quic-go/quic-go => github.com/Wondertan/quic-go v0.0.0-20241030002924-ad08ed098f9b
