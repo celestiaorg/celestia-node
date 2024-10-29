@@ -46,6 +46,9 @@ type Parameters struct {
 	// in order to be sampled. If set to 0, the sampling window will include
 	// all headers.
 	samplingWindow time.Duration
+	// pruningEnabled determines whether the DASer should skip sampling over
+	// headers that are outside the samplingWindow
+	pruningEnabled bool
 }
 
 // DefaultParameters returns the default configuration values for the daser parameters
@@ -167,5 +170,13 @@ func WithSampleTimeout(sampleTimeout time.Duration) Option {
 func WithSamplingWindow(samplingWindow time.Duration) Option {
 	return func(d *DASer) {
 		d.params.samplingWindow = samplingWindow
+	}
+}
+
+// WithPruningEnabled is a functional option to configure whether the
+// DASer will sample over headers that are outside the samplingWindow.
+func WithPruningEnabled() Option {
+	return func(d *DASer) {
+		d.params.pruningEnabled = true
 	}
 }

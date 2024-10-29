@@ -62,15 +62,16 @@ func storeEDS(
 	eds *rsmt2d.ExtendedDataSquare,
 	store *store.Store,
 	window time.Duration,
+	pruningEnabled bool,
 ) error {
-	if !availability.IsWithinWindow(eh.Time(), window) {
+	if pruningEnabled && !availability.IsWithinWindow(eh.Time(), window) {
 		log.Debugw("skipping storage of historic block", "height", eh.Height())
 		return nil
 	}
 
 	var err error
 	// archival nodes should not store Q4 outside the availability window.
-	if availability.IsWithinWindow(eh.Time(), availability.StorageWindow) {
+	if availability.IsWithinWindow(eh.Time(), window) {
 		err = store.PutODSQ4(ctx, eh.DAH, eh.Height(), eds)
 	} else {
 		err = store.PutODS(ctx, eh.DAH, eh.Height(), eds)

@@ -9,6 +9,7 @@ import (
 	"github.com/celestiaorg/celestia-node/header"
 	modfraud "github.com/celestiaorg/celestia-node/nodebuilder/fraud"
 	"github.com/celestiaorg/celestia-node/nodebuilder/node"
+	"github.com/celestiaorg/celestia-node/nodebuilder/pruner"
 )
 
 func ConstructModule(tp node.Type, cfg *Config) fx.Option {
@@ -23,14 +24,18 @@ func ConstructModule(tp node.Type, cfg *Config) fx.Option {
 		fx.Supply(*cfg),
 		fx.Error(err),
 		fx.Provide(
-			func(c Config) []das.Option {
-				return []das.Option{
+			func(c Config, pruningCfg pruner.Config) []das.Option {
+				var opts []das.Option
+				if pruningCfg.EnableService {
+					opts = append(opts, das.WithPruningEnabled())
+				}
+				return append(opts, []das.Option{
 					das.WithSamplingRange(c.SamplingRange),
 					das.WithConcurrencyLimit(c.ConcurrencyLimit),
 					das.WithBackgroundStoreInterval(c.BackgroundStoreInterval),
 					das.WithSampleFrom(c.SampleFrom),
 					das.WithSampleTimeout(c.SampleTimeout),
-				}
+				}...)
 			},
 		),
 	)

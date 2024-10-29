@@ -2,8 +2,6 @@ package pruner
 
 import (
 	"context"
-	"time"
-
 	"github.com/ipfs/go-datastore"
 	"go.uber.org/fx"
 
@@ -15,13 +13,11 @@ import (
 	"github.com/celestiaorg/celestia-node/pruner/full"
 	"github.com/celestiaorg/celestia-node/pruner/light"
 	"github.com/celestiaorg/celestia-node/share/availability"
-	fullavail "github.com/celestiaorg/celestia-node/share/availability/full"
 )
 
 func ConstructModule(tp node.Type, cfg *Config) fx.Option {
 	baseComponents := fx.Options(
 		fx.Supply(cfg),
-		availWindow(tp, cfg.EnableService),
 	)
 
 	prunerService := fx.Options(
@@ -70,7 +66,10 @@ func ConstructModule(tp node.Type, cfg *Config) fx.Option {
 				prunerService,
 				fxutil.ProvideAs(full.NewPruner, new(pruner.Pruner)),
 				fx.Provide(func(window availability.Window) []core.Option {
-					return []core.Option{core.WithAvailabilityWindow(window.Duration())}
+					return []core.Option{
+						core.WithAvailabilityWindow(window.Duration()),
+						core.WithPruningEnabled(),
+					}
 				}),
 			)
 		}
@@ -85,28 +84,6 @@ func ConstructModule(tp node.Type, cfg *Config) fx.Option {
 				return []core.Option{}
 			}),
 		)
-	default:
-		panic("unknown node type")
-	}
-}
-
-// TODO @renaynay: fix --
-func availWindow(tp node.Type, pruneEnabled bool) fx.Option {
-
-	switch tp {
-	case node.Light:
-		// light nodes are still subject to sampling within window
-		// even if pruning is not enabled.
-		return fx.Provide(func() availability.Window {
-			return availability.Window(availability.Window)
-		})
-	case node.Full, node.Bridge:
-		return fx.Provide(func() availability.Window {
-			if pruneEnabled {
-				return availability.Window(fullavail.Window)
-			}
-			return availability.Window(time.Duration(0))
-		})
 	default:
 		panic("unknown node type")
 	}

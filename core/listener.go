@@ -35,9 +35,11 @@ var (
 type Listener struct {
 	fetcher *BlockFetcher
 
-	construct          header.ConstructFn
+	construct header.ConstructFn
+
 	store              *store.Store
 	availabilityWindow time.Duration
+	pruningEnabled     bool
 
 	headerBroadcaster libhead.Broadcaster[*header.ExtendedHeader]
 	hashBroadcaster   shrexsub.BroadcastFn
@@ -83,6 +85,7 @@ func NewListener(
 		construct:          construct,
 		store:              store,
 		availabilityWindow: p.availabilityWindow,
+		pruningEnabled:     p.pruningEnabled,
 		listenerTimeout:    5 * blocktime,
 		metrics:            metrics,
 		chainID:            p.chainID,
@@ -237,7 +240,7 @@ func (cl *Listener) handleNewSignedBlock(ctx context.Context, b types.EventDataS
 		panic(fmt.Errorf("making extended header: %w", err))
 	}
 
-	err = storeEDS(ctx, eh, eds, cl.store, cl.availabilityWindow)
+	err = storeEDS(ctx, eh, eds, cl.store, cl.availabilityWindow, cl.pruningEnabled)
 	if err != nil {
 		return fmt.Errorf("storing EDS: %w", err)
 	}

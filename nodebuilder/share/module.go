@@ -34,6 +34,9 @@ func ConstructModule(tp node.Type, cfg *Config, options ...fx.Option) fx.Option 
 	baseComponents := fx.Options(
 		fx.Supply(*cfg),
 		fx.Options(options...),
+		// note: all components that require an AvailabilityWindow
+		// are storage-related.
+		fx.Supply(availability.Window(availability.StorageWindow)),
 		fx.Provide(newShareModule),
 		availabilityComponents(tp, cfg),
 		shrexComponents(tp, cfg),

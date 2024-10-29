@@ -82,6 +82,7 @@ func TestExchange_DoNotStoreHistoric(t *testing.T) {
 		store,
 		header.MakeExtendedHeader,
 		WithAvailabilityWindow(time.Nanosecond), // all blocks will be "historic"
+		WithPruningEnabled(),
 	)
 	require.NoError(t, err)
 
