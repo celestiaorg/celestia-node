@@ -65,20 +65,11 @@ func (la *ShareAvailability) SharesAvailable(ctx context.Context, header *header
 	}
 
 	// Prevent multiple sampling sessions for the same header height
-	lockChan, loaded := la.activeHeights.LoadOrStore(header.Height(), make(chan struct{}))
-	if loaded {
-		select {
-		case <-lockChan.(chan struct{}):
-		case <-ctx.Done():
-			return ctx.Err()
-		}
-	} else {
-		// Ensure the lock is released after sampling is complete
-		defer func() {
-			close(lockChan.(chan struct{}))
-			la.activeHeights.Delete(header.Height())
-		}()
+	release, err := la.startSamplingSession(ctx, header)
+	if err != nil {
+		return err
 	}
+	defer release()
 
 	// load snapshot of the last sampling errors from disk
 	key := rootKey(dah)
@@ -161,6 +152,32 @@ func (la *ShareAvailability) SharesAvailable(ctx context.Context, header *header
 		return share.ErrNotAvailable
 	}
 	return nil
+}
+
+// startSamplingSession manages concurrent sampling sessions for the specified header height.
+// It ensures only one sampling session can proceed for each height, avoiding duplicate efforts.
+// If a session is already active for the given height, it waits until the session completes or
+// context error occurs. It provides a release function to clean up the session lock for this
+// height, once the sampling session is complete.
+func (la *ShareAvailability) startSamplingSession(ctx context.Context, header *header.ExtendedHeader) (releaseHeightLock func(), err error) {
+	// Attempt to load or initialize a channel to track the sampling session for this height
+	lockChan, alreadyActive := la.activeHeights.LoadOrStore(header.Height(), make(chan struct{}))
+	if alreadyActive {
+		// If a session is already active, wait for it to complete
+		select {
+		case <-lockChan.(chan struct{}):
+		case <-ctx.Done():
+			return nil, ctx.Err()
+		}
+		return func() {}, nil
+	}
+
+	// Provide a function to release the lock once sampling is complete
+	releaseLock := func() {
+		close(lockChan.(chan struct{}))
+		la.activeHeights.Delete(header.Height())
+	}
+	return releaseLock, nil
 }
 
 func rootKey(root *share.AxisRoots) datastore.Key {
