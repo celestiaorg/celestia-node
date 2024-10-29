@@ -3,6 +3,7 @@ package light
 import (
 	"context"
 	_ "embed"
+	"encoding/json"
 	"sync"
 	"testing"
 
@@ -22,7 +23,7 @@ import (
 	"github.com/celestiaorg/celestia-node/share/shwap/p2p/shrex"
 )
 
-func TestSharesAvailableCaches(t *testing.T) {
+func TestSharesAvailableSuccess(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
@@ -48,27 +49,29 @@ func TestSharesAvailableCaches(t *testing.T) {
 	ds := datastore.NewMapDatastore()
 	avail := NewShareAvailability(getter, ds)
 
-	// cache doesn't have eds yet
-	has, err := avail.ds.Has(ctx, rootKey(roots))
+	// Ensure the datastore doesn't have the sampling result yet
+	has, err := avail.ds.Has(ctx, datastoreKeyForRoot(roots))
 	require.NoError(t, err)
 	require.False(t, has)
 
 	err = avail.SharesAvailable(ctx, eh)
 	require.NoError(t, err)
 
-	// is now stored success result
-	result, err := avail.ds.Get(ctx, rootKey(roots))
+	// Verify that the sampling result is stored with all samples marked as available
+	result, err := avail.ds.Get(ctx, datastoreKeyForRoot(roots))
 	require.NoError(t, err)
-	failed, err := decodeSamples(result)
+
+	var failed []Sample
+	err = json.Unmarshal(result, &failed)
 	require.NoError(t, err)
 	require.Empty(t, failed)
 }
 
-func TestSharesAvailableHitsCache(t *testing.T) {
+func TestSharesAvailableSkipSampled(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
-	// create getter that always return ErrNotFound
+	// Create a getter that always returns ErrNotFound
 	getter := mock.NewMockGetter(gomock.NewController(t))
 	getter.EXPECT().
 		GetShare(gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any()).
@@ -86,16 +89,19 @@ func TestSharesAvailableHitsCache(t *testing.T) {
 	err := avail.SharesAvailable(ctx, eh)
 	require.ErrorIs(t, err, share.ErrNotAvailable)
 
-	// put success result in cache
-	err = avail.ds.Put(ctx, rootKey(roots), []byte{})
+	// Store a successful sampling result in the datastore
+	failed := []Sample{}
+	data, err := json.Marshal(failed)
+	require.NoError(t, err)
+	err = avail.ds.Put(ctx, datastoreKeyForRoot(roots), data)
 	require.NoError(t, err)
 
-	// should hit cache after putting
+	// SharesAvailable should now return no error since the success sampling result is stored
 	err = avail.SharesAvailable(ctx, eh)
 	require.NoError(t, err)
 }
 
-func TestSharesAvailableEmptyRoot(t *testing.T) {
+func TestSharesAvailableEmptyEDS(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
@@ -117,13 +123,13 @@ func TestSharesAvailableFailed(t *testing.T) {
 	ds := datastore.NewMapDatastore()
 	avail := NewShareAvailability(getter, ds)
 
-	// create new eds, that is not available by getter
+	// Create new eds, that is not available by getter
 	eds := edstest.RandEDS(t, 16)
 	roots, err := share.NewAxisRoots(eds)
 	require.NoError(t, err)
 	eh := headertest.RandExtendedHeaderWithRoot(t, roots)
 
-	// getter doesn't have the eds, so it should fail
+	// Getter doesn't have the eds, so it should fail for all samples
 	getter.EXPECT().
 		GetShare(gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any()).
 		Return(libshare.Share{}, shrex.ErrNotFound).
@@ -131,28 +137,26 @@ func TestSharesAvailableFailed(t *testing.T) {
 	err = avail.SharesAvailable(ctx, eh)
 	require.ErrorIs(t, err, share.ErrNotAvailable)
 
-	// cache should have failed results now
-	result, err := avail.ds.Get(ctx, rootKey(roots))
+	// The datastore should now contain the sampling result with all samples in Remaining
+	result, err := avail.ds.Get(ctx, datastoreKeyForRoot(roots))
 	require.NoError(t, err)
 
-	failed, err := decodeSamples(result)
+	var failed []Sample
+	err = json.Unmarshal(result, &failed)
 	require.NoError(t, err)
 	require.Len(t, failed, int(avail.params.SampleAmount))
 
-	// ensure that retry persists the failed samples selection
-	// create new getter with only the failed samples available, and add them to the onceGetter
-	onceGetter := newOnceGetter()
-	onceGetter.AddSamples(failed)
-
-	// replace getter with the new one
-	avail.getter = onceGetter
+	// Simulate a getter that now returns shares successfully
+	successfulGetter := newOnceGetter()
+	successfulGetter.AddSamples(failed)
+	avail.getter = successfulGetter
 
 	// should be able to retrieve all the failed samples now
 	err = avail.SharesAvailable(ctx, eh)
 	require.NoError(t, err)
 
 	// onceGetter should have no more samples stored after the call
-	require.Empty(t, onceGetter.available)
+	require.Empty(t, successfulGetter.available)
 }
 
 type onceGetter struct {
@@ -178,7 +182,7 @@ func (m onceGetter) AddSamples(samples []Sample) {
 func (m onceGetter) GetShare(_ context.Context, _ *header.ExtendedHeader, row, col int) (libshare.Share, error) {
 	m.Lock()
 	defer m.Unlock()
-	s := Sample{Row: uint16(row), Col: uint16(col)}
+	s := Sample{Row: row, Col: col}
 	if _, ok := m.available[s]; ok {
 		delete(m.available, s)
 		return libshare.Share{}, nil
