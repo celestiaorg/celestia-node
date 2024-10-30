@@ -159,7 +159,10 @@ func (la *ShareAvailability) SharesAvailable(ctx context.Context, header *header
 // If a session is already active for the given height, it waits until the session completes or
 // context error occurs. It provides a release function to clean up the session lock for this
 // height, once the sampling session is complete.
-func (la *ShareAvailability) startSamplingSession(ctx context.Context, header *header.ExtendedHeader) (releaseHeightLock func(), err error) {
+func (la *ShareAvailability) startSamplingSession(
+	ctx context.Context,
+	header *header.ExtendedHeader,
+) (releaseLock func(), err error) {
 	// Attempt to load or initialize a channel to track the sampling session for this height
 	lockChan, alreadyActive := la.activeHeights.LoadOrStore(header.Height(), make(chan struct{}))
 	if alreadyActive {
@@ -173,7 +176,7 @@ func (la *ShareAvailability) startSamplingSession(ctx context.Context, header *h
 	}
 
 	// Provide a function to release the lock once sampling is complete
-	releaseLock := func() {
+	releaseLock = func() {
 		close(lockChan.(chan struct{}))
 		la.activeHeights.Delete(header.Height())
 	}
