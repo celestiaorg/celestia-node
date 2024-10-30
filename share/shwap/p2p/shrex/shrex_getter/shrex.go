@@ -306,7 +306,7 @@ func (sg *Getter) getPeer(
 	ctx context.Context,
 	header *header.ExtendedHeader,
 ) (libpeer.ID, peers.DoneFunc, error) {
-	if availability.IsWithinWindow(header.Time(), sg.availabilityWindow) {
+	if !availability.IsWithinWindow(header.Time(), sg.availabilityWindow) {
 		p, df, err := sg.archivalPeerManager.Peer(ctx, header.DAH.Hash(), header.Height())
 		return p, df, err
 	}

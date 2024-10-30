@@ -56,7 +56,7 @@ func TestShrexGetter(t *testing.T) {
 	archivalPeerManager, err := testManager(ctx, clHost, sub)
 	require.NoError(t, err)
 
-	getter := NewGetter(edsClient, ndClient, fullPeerManager, archivalPeerManager, availability.StorageWindow)
+	getter := NewGetter(edsClient, ndClient, fullPeerManager, archivalPeerManager, availability.RequestWindow)
 	require.NoError(t, getter.Start(ctx))
 
 	height := atomic.Uint64{}
