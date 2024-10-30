@@ -31,7 +31,8 @@ type Server struct {
 
 	store *store.Store
 
-	params     *Parameters
+	params *Parameters
+	// TODO: decouple middleware metrics from shrex and remove middleware from Server
 	middleware *shrex.Middleware
 	metrics    *shrex.Metrics
 }
@@ -55,7 +56,10 @@ func (s *Server) Start(context.Context) error {
 	ctx, cancel := context.WithCancel(context.Background())
 	s.cancel = cancel
 
-	s.host.SetStreamHandler(s.protocolID, s.middleware.RateLimitHandler(s.streamHandler(ctx)))
+	handler := s.streamHandler(ctx)
+	withRateLimit := s.middleware.RateLimitHandler(handler)
+	withRecovery := shrex.RecoveryMiddleware(withRateLimit)
+	s.host.SetStreamHandler(s.protocolID, withRecovery)
 	return nil
 }
 

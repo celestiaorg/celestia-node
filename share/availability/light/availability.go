@@ -134,10 +134,6 @@ func (la *ShareAvailability) SharesAvailable(ctx context.Context, header *header
 
 	// if any of the samples failed, return an error
 	if len(failedSamples) > 0 {
-		log.Errorw("availability validation failed",
-			"height", header.Height(),
-			"failed_samples", failedSamples,
-		)
 		return share.ErrNotAvailable
 	}
 	return nil

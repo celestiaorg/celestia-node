@@ -3,7 +3,6 @@ package share
 import (
 	"bytes"
 	"crypto/sha256"
-	"encoding/hex"
 	"fmt"
 	"hash"
 
@@ -78,19 +77,6 @@ func RootHashForCoordinates(r *AxisRoots, axisType rsmt2d.Axis, rowIdx, colIdx u
 		return r.RowRoots[rowIdx]
 	}
 	return r.ColumnRoots[colIdx]
-}
-
-// MustDataHashFromString converts a hex string to a valid datahash.
-func MustDataHashFromString(datahash string) DataHash {
-	dh, err := hex.DecodeString(datahash)
-	if err != nil {
-		panic(fmt.Sprintf("datahash conversion: passed string was not valid hex: %s", datahash))
-	}
-	err = DataHash(dh).Validate()
-	if err != nil {
-		panic(fmt.Sprintf("datahash validation: passed hex string failed: %s", err))
-	}
-	return dh
 }
 
 // IsOutsideRange checks if the namespace is outside the min-max range of the given hashes.
