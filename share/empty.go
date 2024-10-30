@@ -28,18 +28,11 @@ func EmptyEDS() *rsmt2d.ExtendedDataSquare {
 	return emptyBlockEDS
 }
 
-// EmptyBlockShares returns the shares of the empty block.
-func EmptyBlockShares() []libshare.Share {
-	initEmpty()
-	return emptyBlockShares
-}
-
 var (
 	emptyOnce          sync.Once
 	emptyBlockDataHash DataHash
 	emptyBlockRoots    *AxisRoots
 	emptyBlockEDS      *rsmt2d.ExtendedDataSquare
-	emptyBlockShares   []libshare.Share
 )
 
 // initEmpty enables lazy initialization for constant empty block data.
@@ -68,11 +61,6 @@ func computeEmpty() {
 			"expected %s, got %s", minDAH.String(), emptyBlockRoots.String()))
 	}
 
-	sh := eds.FlattenedODS()
-	emptyBlockShares, err = libshare.FromBytes(sh)
-	if err != nil {
-		panic(fmt.Errorf("failed to create shares: %w", err))
-	}
 	// precompute Hash, so it's cached internally to avoid potential races
 	emptyBlockDataHash = emptyBlockRoots.Hash()
 }
