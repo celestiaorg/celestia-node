@@ -102,7 +102,6 @@ func (la *ShareAvailability) SharesAvailable(ctx context.Context, header *header
 	}
 
 	if err := dah.ValidateBasic(); err != nil {
-		log.Errorw("DAH validation failed", "error", err)
 		return err
 	}
 
@@ -146,10 +145,6 @@ func (la *ShareAvailability) SharesAvailable(ctx context.Context, header *header
 
 	// if any of the samples failed, return an error
 	if len(failedSamples) > 0 {
-		log.Errorw("availability validation failed",
-			"root", dah.String(),
-			"failed_samples", failedSamples,
-		)
 		return share.ErrNotAvailable
 	}
 	return nil
