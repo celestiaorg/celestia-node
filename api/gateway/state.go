@@ -17,10 +17,7 @@ const (
 
 const addrKey = "address"
 
-var (
-	ErrInvalidAddressFormat = errors.New("address must be a valid account or validator address")
-	ErrMissingAddress       = errors.New("address not specified")
-)
+var ErrInvalidAddressFormat = errors.New("address must be a valid account or validator address")
 
 func (h *Handler) handleBalanceRequest(w http.ResponseWriter, r *http.Request) {
 	var (
