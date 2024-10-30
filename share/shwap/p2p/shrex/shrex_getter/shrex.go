@@ -18,8 +18,8 @@ import (
 
 	"github.com/celestiaorg/celestia-node/header"
 	"github.com/celestiaorg/celestia-node/libs/utils"
-	"github.com/celestiaorg/celestia-node/pruner"
 	"github.com/celestiaorg/celestia-node/share"
+	"github.com/celestiaorg/celestia-node/share/availability"
 	"github.com/celestiaorg/celestia-node/share/shwap"
 	"github.com/celestiaorg/celestia-node/share/shwap/p2p/shrex"
 	"github.com/celestiaorg/celestia-node/share/shwap/p2p/shrex/peers"
@@ -105,7 +105,7 @@ type Getter struct {
 	// attempt multiple peers in scope of one request before context timeout is reached
 	minAttemptsCount int
 
-	availabilityWindow pruner.AvailabilityWindow
+	availabilityWindow time.Duration
 
 	metrics *metrics
 }
@@ -115,7 +115,7 @@ func NewGetter(
 	ndClient *shrexnd.Client,
 	fullPeerManager *peers.Manager,
 	archivalManager *peers.Manager,
-	availWindow pruner.AvailabilityWindow,
+	availWindow time.Duration,
 ) *Getter {
 	s := &Getter{
 		edsClient:           edsClient,
@@ -306,7 +306,7 @@ func (sg *Getter) getPeer(
 	ctx context.Context,
 	header *header.ExtendedHeader,
 ) (libpeer.ID, peers.DoneFunc, error) {
-	if !pruner.IsWithinAvailabilityWindow(header.Time(), sg.availabilityWindow) {
+	if availability.IsWithinWindow(header.Time(), sg.availabilityWindow) {
 		p, df, err := sg.archivalPeerManager.Peer(ctx, header.DAH.Hash(), header.Height())
 		return p, df, err
 	}

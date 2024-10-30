@@ -6,8 +6,8 @@ import (
 	"go.uber.org/fx"
 
 	headerServ "github.com/celestiaorg/celestia-node/nodebuilder/header"
-	"github.com/celestiaorg/celestia-node/pruner"
 	"github.com/celestiaorg/celestia-node/share"
+	"github.com/celestiaorg/celestia-node/share/availability"
 	"github.com/celestiaorg/celestia-node/share/shwap"
 	"github.com/celestiaorg/celestia-node/share/shwap/getters"
 	"github.com/celestiaorg/celestia-node/share/shwap/p2p/bitswap"
@@ -23,9 +23,9 @@ func bitswapGetter(
 	lc fx.Lifecycle,
 	exchange exchange.SessionExchange,
 	bstore blockstore.Blockstore,
-	wndw pruner.AvailabilityWindow,
+	wndw availability.Window,
 ) *bitswap.Getter {
-	getter := bitswap.NewGetter(exchange, bstore, wndw)
+	getter := bitswap.NewGetter(exchange, bstore, wndw.Duration())
 	lc.Append(fx.StartStopHook(getter.Start, getter.Stop))
 	return getter
 }

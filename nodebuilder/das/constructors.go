@@ -12,8 +12,8 @@ import (
 	"github.com/celestiaorg/celestia-node/das"
 	"github.com/celestiaorg/celestia-node/header"
 	modfraud "github.com/celestiaorg/celestia-node/nodebuilder/fraud"
-	"github.com/celestiaorg/celestia-node/pruner"
 	"github.com/celestiaorg/celestia-node/share"
+	"github.com/celestiaorg/celestia-node/share/availability"
 	"github.com/celestiaorg/celestia-node/share/eds/byzantine"
 	"github.com/celestiaorg/celestia-node/share/shwap/p2p/shrex/shrexsub"
 )
@@ -45,10 +45,10 @@ func newDASer(
 	batching datastore.Batching,
 	fraudServ fraud.Service[*header.ExtendedHeader],
 	bFn shrexsub.BroadcastFn,
-	availWindow pruner.AvailabilityWindow,
+	availWindow availability.Window,
 	options ...das.Option,
 ) (*das.DASer, *modfraud.ServiceBreaker[*das.DASer, *header.ExtendedHeader], error) {
-	options = append(options, das.WithSamplingWindow(availWindow))
+	options = append(options, das.WithSamplingWindow(availWindow.Duration()))
 
 	ds, err := das.NewDASer(da, hsub, store, batching, fraudServ, bFn, options...)
 	if err != nil {
