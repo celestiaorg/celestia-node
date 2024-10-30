@@ -166,5 +166,5 @@ func (m module) GetSharesByNamespace(
 	if err != nil {
 		return nil, err
 	}
-	return m.getter.GetSharesByNamespace(ctx, header, namespace)
+	return m.getter.GetNamespaceData(ctx, header, namespace)
 }
