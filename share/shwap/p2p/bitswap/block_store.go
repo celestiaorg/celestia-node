@@ -65,9 +65,9 @@ func (b *Blockstore) Get(ctx context.Context, cid cid.Cid) (blocks.Block, error)
 }
 
 func (b *Blockstore) GetSize(ctx context.Context, cid cid.Cid) (int, error) {
-	// NOTE: Bitswap prioritizes peers based on their active/pending work and the priority that peers set for requests(work)
-	// themselves. The prioritization happens on the Get operation of Blockstore not GetSize, while GetSize is expected
-	// to be as lightweight as possible.
+	// NOTE: Bitswap prioritizes peers based on their active/pending work and the priority that peers set for the work
+	// themselves, where the work is the Get operation. The prioritization happens only on the Get operation and not
+	// GetSize, while GetSize is expected to be as lightweight as possible.
 	//
 	// Here is the best case we only open the Accessor and getting its size, avoiding expensive compute to get the size.
 	blk, acc, err := b.getBlockAndAccessor(ctx, cid)
