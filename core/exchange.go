@@ -11,7 +11,6 @@ import (
 	libhead "github.com/celestiaorg/go-header"
 
 	"github.com/celestiaorg/celestia-node/header"
-	"github.com/celestiaorg/celestia-node/pruner"
 	"github.com/celestiaorg/celestia-node/store"
 )
 
@@ -22,7 +21,8 @@ type Exchange struct {
 	store     *store.Store
 	construct header.ConstructFn
 
-	availabilityWindow pruner.AvailabilityWindow
+	availabilityWindow time.Duration
+	pruningEnabled     bool
 
 	metrics *exchangeMetrics
 }
@@ -54,6 +54,7 @@ func NewExchange(
 		store:              store,
 		construct:          construct,
 		availabilityWindow: p.availabilityWindow,
+		pruningEnabled:     p.pruningEnabled,
 		metrics:            metrics,
 	}, nil
 }
@@ -147,7 +148,7 @@ func (ce *Exchange) Get(ctx context.Context, hash libhead.Hash) (*header.Extende
 			&block.Height, hash, eh.Hash())
 	}
 
-	err = storeEDS(ctx, eh, eds, ce.store, ce.availabilityWindow)
+	err = storeEDS(ctx, eh, eds, ce.store, ce.availabilityWindow, ce.pruningEnabled)
 	if err != nil {
 		return nil, err
 	}
@@ -183,7 +184,7 @@ func (ce *Exchange) getExtendedHeaderByHeight(ctx context.Context, height *int64
 		panic(fmt.Errorf("constructing extended header for height %d: %w", b.Header.Height, err))
 	}
 
-	err = storeEDS(ctx, eh, eds, ce.store, ce.availabilityWindow)
+	err = storeEDS(ctx, eh, eds, ce.store, ce.availabilityWindow, ce.pruningEnabled)
 	if err != nil {
 		return nil, err
 	}

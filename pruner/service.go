@@ -19,7 +19,7 @@ var log = logging.Logger("pruner/service")
 // Service handles running the pruning cycle for the node.
 type Service struct {
 	pruner Pruner
-	window AvailabilityWindow
+	window time.Duration
 
 	getter libhead.Getter[*header.ExtendedHeader]
 
@@ -38,7 +38,7 @@ type Service struct {
 
 func NewService(
 	p Pruner,
-	window AvailabilityWindow,
+	window time.Duration,
 	getter libhead.Getter[*header.ExtendedHeader],
 	ds datastore.Datastore,
 	blockTime time.Duration,

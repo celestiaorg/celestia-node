@@ -2,7 +2,6 @@ package pruner
 
 import (
 	"context"
-
 	"github.com/ipfs/go-datastore"
 	logging "github.com/ipfs/go-log/v2"
 	"go.uber.org/fx"
@@ -14,6 +13,7 @@ import (
 	"github.com/celestiaorg/celestia-node/pruner/archival"
 	"github.com/celestiaorg/celestia-node/pruner/full"
 	"github.com/celestiaorg/celestia-node/pruner/light"
+	"github.com/celestiaorg/celestia-node/share/availability"
 )
 
 var log = logging.Logger("module/pruner")
@@ -21,7 +21,6 @@ var log = logging.Logger("module/pruner")
 func ConstructModule(tp node.Type, cfg *Config) fx.Option {
 	baseComponents := fx.Options(
 		fx.Supply(cfg),
-		availWindow(tp, cfg.EnableService),
 	)
 
 	prunerService := fx.Options(
@@ -41,18 +40,11 @@ func ConstructModule(tp node.Type, cfg *Config) fx.Option {
 
 	switch tp {
 	case node.Light:
-		if cfg.EnableService {
-			return fx.Module("prune",
-				baseComponents,
-				prunerService,
-				fx.Provide(light.NewPruner),
-			)
-		}
-		// We do not trigger DetectPreviousRun for Light nodes, to allow them to disable pruning at wish.
-		// They are not expected to store a samples outside the sampling window and so partially pruned is
-		// not a concern.
+		// enforce pruning by default
 		return fx.Module("prune",
 			baseComponents,
+			prunerService,
+			fxutil.ProvideAs(light.NewPruner, new(pruner.Pruner)),
 		)
 	case node.Full:
 		if cfg.EnableService {
@@ -64,6 +56,8 @@ func ConstructModule(tp node.Type, cfg *Config) fx.Option {
 		}
 		return fx.Module("prune",
 			baseComponents,
+			prunerService,
+			fxutil.ProvideAs(archival.NewPruner, new(pruner.Pruner)),
 			fx.Invoke(func(ctx context.Context, ds datastore.Batching) error {
 				return pruner.DetectPreviousRun(ctx, ds)
 			}),
@@ -74,13 +68,18 @@ func ConstructModule(tp node.Type, cfg *Config) fx.Option {
 				baseComponents,
 				prunerService,
 				fxutil.ProvideAs(full.NewPruner, new(pruner.Pruner)),
-				fx.Provide(func(window pruner.AvailabilityWindow) []core.Option {
-					return []core.Option{core.WithAvailabilityWindow(window)}
+				fx.Provide(func(window availability.Window) []core.Option {
+					return []core.Option{
+						core.WithAvailabilityWindow(window.Duration()),
+						core.WithPruningEnabled(),
+					}
 				}),
 			)
 		}
 		return fx.Module("prune",
 			baseComponents,
+			prunerService,
+			fxutil.ProvideAs(archival.NewPruner, new(pruner.Pruner)),
 			fx.Invoke(func(ctx context.Context, ds datastore.Batching) error {
 				return pruner.DetectPreviousRun(ctx, ds)
 			}),
@@ -88,26 +87,6 @@ func ConstructModule(tp node.Type, cfg *Config) fx.Option {
 				return []core.Option{}
 			}),
 		)
-	default:
-		panic("unknown node type")
-	}
-}
-
-func availWindow(tp node.Type, pruneEnabled bool) fx.Option {
-	switch tp {
-	case node.Light:
-		// light nodes are still subject to sampling within window
-		// even if pruning is not enabled.
-		return fx.Provide(func() pruner.AvailabilityWindow {
-			return light.Window
-		})
-	case node.Full, node.Bridge:
-		return fx.Provide(func() pruner.AvailabilityWindow {
-			if pruneEnabled {
-				return full.Window
-			}
-			return archival.Window
-		})
 	default:
 		panic("unknown node type")
 	}

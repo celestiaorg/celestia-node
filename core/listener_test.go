@@ -15,7 +15,6 @@ import (
 
 	"github.com/celestiaorg/celestia-node/header"
 	nodep2p "github.com/celestiaorg/celestia-node/nodebuilder/p2p"
-	"github.com/celestiaorg/celestia-node/pruner"
 	"github.com/celestiaorg/celestia-node/share/shwap/p2p/shrex/shrexsub"
 	"github.com/celestiaorg/celestia-node/store"
 )
@@ -118,7 +117,7 @@ func TestListener_DoesNotStoreHistoric(t *testing.T) {
 	require.NoError(t, err)
 
 	// create Listener and start listening
-	opt := WithAvailabilityWindow(pruner.AvailabilityWindow(time.Nanosecond))
+	opt := WithAvailabilityWindow(time.Nanosecond)
 	cl := createListener(ctx, t, fetcher, ps0, eds, store, testChainID, opt)
 
 	dataRoots := generateNonEmptyBlocks(t, ctx, fetcher, cfg, cctx)

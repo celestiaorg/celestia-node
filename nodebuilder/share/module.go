@@ -11,8 +11,8 @@ import (
 
 	"github.com/celestiaorg/celestia-node/nodebuilder/node"
 	modp2p "github.com/celestiaorg/celestia-node/nodebuilder/p2p"
-	lightprune "github.com/celestiaorg/celestia-node/pruner/light"
 	"github.com/celestiaorg/celestia-node/share"
+	"github.com/celestiaorg/celestia-node/share/availability"
 	"github.com/celestiaorg/celestia-node/share/availability/full"
 	"github.com/celestiaorg/celestia-node/share/availability/light"
 	"github.com/celestiaorg/celestia-node/share/shwap"
@@ -34,6 +34,9 @@ func ConstructModule(tp node.Type, cfg *Config, options ...fx.Option) fx.Option 
 	baseComponents := fx.Options(
 		fx.Supply(*cfg),
 		fx.Options(options...),
+		// note: all components that require an AvailabilityWindow
+		// are storage-related.
+		fx.Supply(availability.Window(availability.StorageWindow)),
 		fx.Provide(newShareModule),
 		availabilityComponents(tp, cfg),
 		shrexComponents(tp, cfg),
@@ -117,7 +120,7 @@ func shrexComponents(tp node.Type, cfg *Config) fx.Option {
 					ndClient,
 					managers[fullNodesTag],
 					managers[archivalNodesTag],
-					lightprune.Window,
+					availability.RequestWindow,
 				)
 			},
 			fx.OnStart(func(ctx context.Context, getter *shrex_getter.Getter) error {

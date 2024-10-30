@@ -23,6 +23,7 @@ import (
 	"github.com/celestiaorg/rsmt2d"
 
 	"github.com/celestiaorg/celestia-node/header"
+	"github.com/celestiaorg/celestia-node/nodebuilder/p2p"
 	"github.com/celestiaorg/celestia-node/share"
 )
 
@@ -43,7 +44,7 @@ type TestSuite struct {
 }
 
 func NewStore(t *testing.T) libhead.Store[*header.ExtendedHeader] {
-	return headertest.NewStore[*header.ExtendedHeader](t, NewTestSuite(t, 3, 0), 10)
+	return headertest.NewStore[*header.ExtendedHeader](t, NewTestSuite(t, 3, p2p.BlockTime), 10)
 }
 
 func NewCustomStore(
@@ -225,11 +226,21 @@ func (s *TestSuite) nextProposer() *types.Validator {
 // RandExtendedHeader provides an ExtendedHeader fixture.
 func RandExtendedHeader(t testing.TB) *header.ExtendedHeader {
 	timestamp := time.Now().UTC()
-	return RandExtendedHeaderAtTimestamp(t, timestamp)
+	return RandExtendedHeaderAtTimestamp(t, timestamp, nil)
 }
 
-func RandExtendedHeaderAtTimestamp(t testing.TB, timestamp time.Time) *header.ExtendedHeader {
+func RandExtendedHeaderAtTimestamp(
+	t testing.TB,
+	timestamp time.Time,
+	eds *rsmt2d.ExtendedDataSquare,
+) *header.ExtendedHeader {
 	dah := share.EmptyEDSRoots()
+
+	if eds != nil {
+		roots, err := share.NewAxisRoots(eds)
+		require.NoError(t, err)
+		dah = roots
+	}
 
 	rh := RandRawHeader(t)
 	rh.DataHash = dah.Hash()

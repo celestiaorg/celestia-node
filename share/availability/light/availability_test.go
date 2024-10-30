@@ -3,12 +3,11 @@ package light
 import (
 	"context"
 	_ "embed"
-	"sync"
-	"testing"
-
 	"github.com/golang/mock/gomock"
 	"github.com/ipfs/go-datastore"
 	"github.com/stretchr/testify/require"
+	"sync"
+	"testing"
 
 	libshare "github.com/celestiaorg/go-square/v2/share"
 	"github.com/celestiaorg/rsmt2d"
