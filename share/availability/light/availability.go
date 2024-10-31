@@ -2,6 +2,7 @@ package light
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"sync"
@@ -17,9 +18,9 @@ import (
 )
 
 var (
-	log                     = logging.Logger("share/light")
-	cacheAvailabilityPrefix = datastore.NewKey("sampling_result")
-	writeBatchSize          = 2048
+	log                   = logging.Logger("share/light")
+	samplingResultsPrefix = datastore.NewKey("sampling_result")
+	writeBatchSize        = 2048
 )
 
 // ShareAvailability implements share.Availability using Data Availability Sampling technique.
@@ -30,9 +31,6 @@ type ShareAvailability struct {
 	getter shwap.Getter
 	params Parameters
 
-	// TODO(@Wondertan): Once we come to parallelized DASer, this lock becomes a contention point
-	//  Related to #483
-	// TODO: Striped locks? :D
 	dsLk sync.RWMutex
 	ds   *autobatch.Datastore
 }
@@ -44,7 +42,7 @@ func NewShareAvailability(
 	opts ...Option,
 ) *ShareAvailability {
 	params := *DefaultParameters()
-	ds = namespace.Wrap(ds, cacheAvailabilityPrefix)
+	ds = namespace.Wrap(ds, samplingResultsPrefix)
 	autoDS := autobatch.NewAutoBatching(ds, writeBatchSize)
 
 	for _, opt := range opts {
@@ -68,7 +66,7 @@ func (la *ShareAvailability) SharesAvailable(ctx context.Context, header *header
 	}
 
 	// load snapshot of the last sampling errors from disk
-	key := rootKey(dah)
+	key := datastoreKeyForRoot(dah)
 	la.dsLk.RLock()
 	last, err := la.ds.Get(ctx, key)
 	la.dsLk.RUnlock()
@@ -84,20 +82,13 @@ func (la *ShareAvailability) SharesAvailable(ctx context.Context, header *header
 		return err
 	case errors.Is(err, datastore.ErrNotFound):
 		// No sampling result found, select new samples
-		samples, err = SampleSquare(len(dah.RowRoots), int(la.params.SampleAmount))
-		if err != nil {
-			return err
-		}
+		samples = selectRandomSamples(len(dah.RowRoots), int(la.params.SampleAmount))
 	default:
 		// Sampling result found, unmarshal it
-		samples, err = decodeSamples(last)
+		err = json.Unmarshal(last, &samples)
 		if err != nil {
 			return err
 		}
-	}
-
-	if err := dah.ValidateBasic(); err != nil {
-		return err
 	}
 
 	var (
@@ -105,16 +96,16 @@ func (la *ShareAvailability) SharesAvailable(ctx context.Context, header *header
 		failedSamples     []Sample
 	)
 
-	log.Debugw("starting sampling session", "root", dah.String())
+	log.Debugw("starting sampling session", "height", header.Height())
 	var wg sync.WaitGroup
 	for _, s := range samples {
 		wg.Add(1)
 		go func(s Sample) {
 			defer wg.Done()
 			// check if the sample is available
-			_, err := la.getter.GetShare(ctx, header, int(s.Row), int(s.Col))
+			_, err := la.getter.GetShare(ctx, header, s.Row, s.Col)
 			if err != nil {
-				log.Debugw("error fetching share", "root", dah.String(), "row", s.Row, "col", s.Col)
+				log.Debugw("error fetching share", "height", header.Height(), "row", s.Row, "col", s.Col)
 				failedSamplesLock.Lock()
 				failedSamples = append(failedSamples, s)
 				failedSamplesLock.Unlock()
@@ -124,7 +115,10 @@ func (la *ShareAvailability) SharesAvailable(ctx context.Context, header *header
 	wg.Wait()
 
 	// store the result of the sampling session
-	bs := encodeSamples(failedSamples)
+	bs, err := json.Marshal(failedSamples)
+	if err != nil {
+		return fmt.Errorf("failed to marshal sampling result: %w", err)
+	}
 	la.dsLk.Lock()
 	err = la.ds.Put(ctx, key, bs)
 	la.dsLk.Unlock()
@@ -145,7 +139,7 @@ func (la *ShareAvailability) SharesAvailable(ctx context.Context, header *header
 	return nil
 }
 
-func rootKey(root *share.AxisRoots) datastore.Key {
+func datastoreKeyForRoot(root *share.AxisRoots) datastore.Key {
 	return datastore.NewKey(root.String())
 }
 
