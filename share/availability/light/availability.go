@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"sync"
 
-	"github.com/ipfs/go-datastore"
 	"github.com/ipfs/go-datastore/autobatch"
 	"github.com/ipfs/go-datastore/namespace"
 	logging "github.com/ipfs/go-log/v2"
@@ -168,7 +167,7 @@ func (la *ShareAvailability) startSamplingSession(
 		case <-ctx.Done():
 			return nil, ctx.Err()
 		}
-		return func() {}, nil
+		return la.startSamplingSession(ctx, header)
 	}
 
 	// Provide a function to release the lock once sampling is complete
