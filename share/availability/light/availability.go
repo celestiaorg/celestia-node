@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"sync"
+	"time"
 
 	"github.com/ipfs/go-datastore"
 	"github.com/ipfs/go-datastore/autobatch"
@@ -63,6 +64,7 @@ func NewShareAvailability(
 // ExtendedHeader. This way SharesAvailable subjectively verifies that Shares are available.
 func (la *ShareAvailability) SharesAvailable(ctx context.Context, header *header.ExtendedHeader) error {
 	dah := header.DAH
+
 	// short-circuit if the given root is an empty data square
 	if share.DataHash(dah.Hash()).IsEmptyEDS() {
 		return nil
@@ -75,62 +77,80 @@ func (la *ShareAvailability) SharesAvailable(ctx context.Context, header *header
 	}
 	defer release()
 
-	// load snapshot of the last sampling errors from disk
 	key := datastoreKeyForRoot(dah)
-	la.dsLk.RLock()
-	last, err := la.ds.Get(ctx, key)
-	la.dsLk.RUnlock()
+	samples := &SamplingResult{}
 
-	// Check for error cases
-	var samples []Sample
-	switch {
-	case err == nil && len(last) == 0:
-		// Availability has already been validated
-		return nil
-	case err != nil && !errors.Is(err, datastore.ErrNotFound):
-		// Other error occurred
-		return err
-	case errors.Is(err, datastore.ErrNotFound):
-		// No sampling result found, select new samples
-		samples = selectRandomSamples(len(dah.RowRoots), int(la.params.SampleAmount))
-	default:
-		// Sampling result found, unmarshal it
-		err = json.Unmarshal(last, &samples)
+	// Attempt to load previous sampling results
+	la.dsLk.RLock()
+	data, err := la.ds.Get(ctx, key)
+	la.dsLk.RUnlock()
+	if err != nil {
+		if !errors.Is(err, datastore.ErrNotFound) {
+			return err
+		}
+		// No previous results; create new samples
+		samples = NewSamplingResult(len(dah.RowRoots), int(la.params.SampleAmount))
+	} else {
+		err = json.Unmarshal(data, samples)
 		if err != nil {
 			return err
 		}
+		// Verify total samples count.
+		totalSamples := len(samples.Remaining) + len(samples.Available)
+		if totalSamples != int(la.params.SampleAmount) {
+			return fmt.Errorf("invalid sampling result:"+
+				" expected %d samples, got %d", la.params.SampleAmount, totalSamples)
+		}
+	}
+
+	if len(samples.Remaining) == 0 {
+		// All samples have been processed successfully
+		return nil
 	}
 
 	var (
-		failedSamplesLock sync.Mutex
-		failedSamples     []Sample
+		mutex         sync.Mutex
+		failedSamples []Sample
+		wg            sync.WaitGroup
 	)
 
 	log.Debugw("starting sampling session", "height", header.Height())
-	var wg sync.WaitGroup
-	for _, s := range samples {
+
+	// remove one second from the deadline to ensure we have enough time to process the results
+	samplingCtx, cancel := context.WithCancel(ctx)
+	if deadline, ok := ctx.Deadline(); ok {
+		samplingCtx, cancel = context.WithDeadline(ctx, deadline.Add(-time.Second))
+	}
+	defer cancel()
+
+	// Concurrently sample shares
+	for _, s := range samples.Remaining {
 		wg.Add(1)
 		go func(s Sample) {
 			defer wg.Done()
-			// check if the sample is available
-			_, err := la.getter.GetShare(ctx, header, s.Row, s.Col)
+			_, err := la.getter.GetShare(samplingCtx, header, s.Row, s.Col)
+			mutex.Lock()
+			defer mutex.Unlock()
 			if err != nil {
 				log.Debugw("error fetching share", "height", header.Height(), "row", s.Row, "col", s.Col)
-				failedSamplesLock.Lock()
 				failedSamples = append(failedSamples, s)
-				failedSamplesLock.Unlock()
+			} else {
+				samples.Available = append(samples.Available, s)
 			}
 		}(s)
 	}
 	wg.Wait()
 
-	// store the result of the sampling session
-	bs, err := json.Marshal(failedSamples)
+	// Update remaining samples with failed ones
+	samples.Remaining = failedSamples
+
+	// Store the updated sampling result
+	updatedData, err := json.Marshal(samples)
 	if err != nil {
-		return fmt.Errorf("failed to marshal sampling result: %w", err)
+		return err
 	}
 	la.dsLk.Lock()
-	err = la.ds.Put(ctx, key, bs)
+	err = la.ds.Put(ctx, key, updatedData)
 	la.dsLk.Unlock()
 	if err != nil {
 		return fmt.Errorf("failed to store sampling result: %w", err)
