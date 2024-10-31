@@ -12,6 +12,7 @@ import (
 	logging "github.com/ipfs/go-log/v2"
 
 	"github.com/celestiaorg/celestia-node/header"
+	"github.com/celestiaorg/celestia-node/libs/utils"
 	"github.com/celestiaorg/celestia-node/share"
 	"github.com/celestiaorg/celestia-node/share/shwap"
 )
@@ -30,7 +31,7 @@ type ShareAvailability struct {
 	getter shwap.Getter
 	params Parameters
 
-	activeHeights sync.Map // Tracks active sampling sessions by height
+	activeHeights *utils.Sessions
 	dsLk          sync.RWMutex
 	ds            *autobatch.Datastore
 }
@@ -50,9 +51,10 @@ func NewShareAvailability(
 	}
 
 	return &ShareAvailability{
-		getter: getter,
-		params: params,
-		ds:     autoDS,
+		getter:        getter,
+		params:        params,
+		activeHeights: utils.NewSessions(),
+		ds:            autoDS,
 	}
 }
 
@@ -66,7 +68,7 @@ func (la *ShareAvailability) SharesAvailable(ctx context.Context, header *header
 	}
 
 	// Prevent multiple sampling sessions for the same header height
-	release, err := la.startSamplingSession(ctx, header)
+	release, err := la.activeHeights.StartSession(ctx, header.Height())
 	if err != nil {
 		return err
 	}
@@ -148,35 +150,6 @@ func (la *ShareAvailability) SharesAvailable(ctx context.Context, header *header
 		return share.ErrNotAvailable
 	}
 	return nil
-}
-
-// startSamplingSession manages concurrent sampling sessions for the specified header height.
-// It ensures only one sampling session can proceed for each height, avoiding duplicate efforts.
-// If a session is already active for the given height, it waits until the session completes or
-// context error occurs. It provides a release function to clean up the session lock for this
-// height, once the sampling session is complete.
-func (la *ShareAvailability) startSamplingSession(
-	ctx context.Context,
-	header *header.ExtendedHeader,
-) (releaseLock func(), err error) {
-	// Attempt to load or initialize a channel to track the sampling session for this height
-	lockChan, alreadyActive := la.activeHeights.LoadOrStore(header.Height(), make(chan struct{}))
-	if alreadyActive {
-		// If a session is already active, wait for it to complete
-		select {
-		case <-lockChan.(chan struct{}):
-		case <-ctx.Done():
-			return nil, ctx.Err()
-		}
-		return la.startSamplingSession(ctx, header)
-	}
-
-	// Provide a function to release the lock once sampling is complete
-	releaseLock = func() {
-		close(lockChan.(chan struct{}))
-		la.activeHeights.Delete(header.Height())
-	}
-	return releaseLock, nil
 }
 
 func rootKey(root *share.AxisRoots) datastore.Key {
