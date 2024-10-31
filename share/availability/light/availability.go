@@ -13,6 +13,7 @@ import (
 	logging "github.com/ipfs/go-log/v2"
 
 	"github.com/celestiaorg/celestia-node/header"
+	"github.com/celestiaorg/celestia-node/libs/utils"
 	"github.com/celestiaorg/celestia-node/share"
 	"github.com/celestiaorg/celestia-node/share/shwap"
 )
@@ -31,8 +32,9 @@ type ShareAvailability struct {
 	getter shwap.Getter
 	params Parameters
 
-	dsLk sync.RWMutex
-	ds   *autobatch.Datastore
+	activeHeights *utils.Sessions
+	dsLk          sync.RWMutex
+	ds            *autobatch.Datastore
 }
 
 // NewShareAvailability creates a new light Availability.
@@ -50,9 +52,10 @@ func NewShareAvailability(
 	}
 
 	return &ShareAvailability{
-		getter: getter,
-		params: params,
-		ds:     autoDS,
+		getter:        getter,
+		params:        params,
+		activeHeights: utils.NewSessions(),
+		ds:            autoDS,
 	}
 }
 
@@ -64,6 +67,13 @@ func (la *ShareAvailability) SharesAvailable(ctx context.Context, header *header
 	if share.DataHash(dah.Hash()).IsEmptyEDS() {
 		return nil
 	}
+
+	// Prevent multiple sampling sessions for the same header height
+	release, err := la.activeHeights.StartSession(ctx, header.Height())
+	if err != nil {
+		return err
+	}
+	defer release()
 
 	// load snapshot of the last sampling errors from disk
 	key := datastoreKeyForRoot(dah)
