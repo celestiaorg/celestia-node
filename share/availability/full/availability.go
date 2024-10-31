@@ -50,14 +50,6 @@ func (fa *ShareAvailability) SharesAvailable(ctx context.Context, header *header
 		return nil
 	}
 
-	// we assume the caller of this method has already performed basic validation on the
-	// given roots. If for some reason this has not happened, the node should panic.
-	if err := dah.ValidateBasic(); err != nil {
-		log.Errorw("Availability validation cannot be performed on a malformed DataAvailabilityHeader",
-			"err", err)
-		panic(err)
-	}
-
 	// a hack to avoid loading the whole EDS in mem if we store it already.
 	if ok, _ := fa.store.HasByHeight(ctx, header.Height()); ok {
 		return nil
