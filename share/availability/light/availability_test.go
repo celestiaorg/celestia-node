@@ -58,13 +58,15 @@ func TestSharesAvailableSuccess(t *testing.T) {
 	require.NoError(t, err)
 
 	// Verify that the sampling result is stored with all samples marked as available
-	result, err := avail.ds.Get(ctx, datastoreKeyForRoot(roots))
+	data, err := avail.ds.Get(ctx, datastoreKeyForRoot(roots))
 	require.NoError(t, err)
 
-	var failed []Sample
-	err = json.Unmarshal(result, &failed)
+	var result SamplingResult
+	err = json.Unmarshal(data, &result)
 	require.NoError(t, err)
-	require.Empty(t, failed)
+
+	require.Empty(t, result.Remaining)
+	require.Len(t, result.Available, int(avail.params.SampleAmount))
 }
 
 func TestSharesAvailableSkipSampled(t *testing.T) {
@@ -90,13 +92,16 @@ func TestSharesAvailableSkipSampled(t *testing.T) {
 	require.ErrorIs(t, err, share.ErrNotAvailable)
 
 	// Store a successful sampling result in the datastore
-	failed := []Sample{}
-	data, err := json.Marshal(failed)
+	samplingResult := &SamplingResult{
+		Available: make([]Sample, avail.params.SampleAmount),
+		Remaining: []Sample{},
+	}
+	data, err := json.Marshal(samplingResult)
 	require.NoError(t, err)
 	err = avail.ds.Put(ctx, datastoreKeyForRoot(roots), data)
 	require.NoError(t, err)
 
-	// SharesAvailable should now return no error since the success sampling result is stored
+	// SharesAvailable should now return nil since the success sampling result is stored
 	err = avail.SharesAvailable(ctx, eh)
 	require.NoError(t, err)
 }
@@ -138,25 +143,38 @@ func TestSharesAvailableFailed(t *testing.T) {
 	require.ErrorIs(t, err, share.ErrNotAvailable)
 
 	// The datastore should now contain the sampling result with all samples in Remaining
-	result, err := avail.ds.Get(ctx, datastoreKeyForRoot(roots))
+	data, err := avail.ds.Get(ctx, datastoreKeyForRoot(roots))
 	require.NoError(t, err)
 
-	var failed []Sample
-	err = json.Unmarshal(result, &failed)
+	var failed SamplingResult
+	err = json.Unmarshal(data, &failed)
 	require.NoError(t, err)
-	require.Len(t, failed, int(avail.params.SampleAmount))
+
+	require.Empty(t, failed.Available)
+	require.Len(t, failed.Remaining, int(avail.params.SampleAmount))
 
 	// Simulate a getter that now returns shares successfully
-	onceGetter := newOnceGetter()
-	avail.getter = onceGetter
+	successfulGetter := newOnceGetter()
+	avail.getter = successfulGetter
 
 	// should be able to retrieve all the failed samples now
 	err = avail.SharesAvailable(ctx, eh)
 	require.NoError(t, err)
 
+	// The sampling result should now have all samples in Available
+	data, err = avail.ds.Get(ctx, datastoreKeyForRoot(roots))
+	require.NoError(t, err)
+
+	var result SamplingResult
+	err = json.Unmarshal(data, &result)
+	require.NoError(t, err)
+
+	require.Empty(t, result.Remaining)
+	require.Len(t, result.Available, int(avail.params.SampleAmount))
+
 	// onceGetter should have no more samples stored after the call
-	onceGetter.checkOnce(t)
-	require.ElementsMatch(t, failed, onceGetter.sampledList())
+	successfulGetter.checkOnce(t)
+	require.ElementsMatch(t, failed.Remaining, successfulGetter.sampledList())
 }
 
 func TestParallelAvailability(t *testing.T) {
@@ -185,6 +203,17 @@ func TestParallelAvailability(t *testing.T) {
 	}
 	wg.Wait()
 	require.Len(t, successfulGetter.sampledList(), int(avail.params.SampleAmount))
+
+	// Verify that the sampling result is stored with all samples marked as available
+	resultData, err := avail.ds.Get(ctx, datastoreKeyForRoot(roots))
+	require.NoError(t, err)
+
+	var samplingResult SamplingResult
+	err = json.Unmarshal(resultData, &samplingResult)
+	require.NoError(t, err)
+
+	require.Empty(t, samplingResult.Remaining)
+	require.Len(t, samplingResult.Available, int(avail.params.SampleAmount))
 }
 
 type onceGetter struct {
@@ -199,39 +228,39 @@ func newOnceGetter() onceGetter {
 	}
 }
 
-func (m onceGetter) checkOnce(t *testing.T) {
-	m.Lock()
-	defer m.Unlock()
-	for s, count := range m.sampled {
+func (g onceGetter) checkOnce(t *testing.T) {
+	g.Lock()
+	defer g.Unlock()
+	for s, count := range g.sampled {
 		if count > 1 {
 			t.Errorf("sample %v was called more than once", s)
 		}
 	}
 }
 
-func (m onceGetter) sampledList() []Sample {
-	m.Lock()
-	defer m.Unlock()
-	samples := make([]Sample, 0, len(m.sampled))
-	for s := range m.sampled {
+func (g onceGetter) sampledList() []Sample {
+	g.Lock()
+	defer g.Unlock()
+	samples := make([]Sample, 0, len(g.sampled))
+	for s := range g.sampled {
 		samples = append(samples, s)
 	}
 	return samples
 }
 
-func (m onceGetter) GetShare(_ context.Context, _ *header.ExtendedHeader, row, col int) (libshare.Share, error) {
-	m.Lock()
-	defer m.Unlock()
+func (g onceGetter) GetShare(_ context.Context, _ *header.ExtendedHeader, row, col int) (libshare.Share, error) {
+	g.Lock()
+	defer g.Unlock()
 	s := Sample{Row: row, Col: col}
-	m.sampled[s]++
+	g.sampled[s]++
 	return libshare.Share{}, nil
 }
 
-func (m onceGetter) GetEDS(_ context.Context, _ *header.ExtendedHeader) (*rsmt2d.ExtendedDataSquare, error) {
+func (g onceGetter) GetEDS(_ context.Context, _ *header.ExtendedHeader) (*rsmt2d.ExtendedDataSquare, error) {
 	panic("not implemented")
 }
 
-func (m onceGetter) GetSharesByNamespace(
+func (g onceGetter) GetSharesByNamespace(
 	_ context.Context,
 	_ *header.ExtendedHeader,
 	_ libshare.Namespace,
