@@ -68,7 +68,7 @@ func (g *Getter) GetEDS(ctx context.Context, h *header.ExtendedHeader) (*rsmt2d.
 	return rsmt2d.ExtendedDataSquare, nil
 }
 
-func (g *Getter) GetSharesByNamespace(
+func (g *Getter) GetNamespaceData(
 	ctx context.Context,
 	h *header.ExtendedHeader,
 	ns libshare.Namespace,

@@ -214,7 +214,7 @@ func (sg *Getter) GetEDS(ctx context.Context, header *header.ExtendedHeader) (*r
 	}
 }
 
-func (sg *Getter) GetSharesByNamespace(
+func (sg *Getter) GetNamespaceData(
 	ctx context.Context,
 	header *header.ExtendedHeader,
 	namespace libshare.Namespace,
