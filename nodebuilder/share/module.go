@@ -232,7 +232,6 @@ func availabilityComponents(tp node.Type, cfg *Config) fx.Option {
 				},
 				fx.As(fx.Self()),
 				fx.As(new(share.Availability)),
-				fx.As(new(pruner.Pruner)), // TODO(@walldiss): remove conversion after Availability and Pruner interfaces are merged
 				fx.OnStop(func(ctx context.Context, la *light.ShareAvailability) error {
 					return la.Close(ctx)
 				}),

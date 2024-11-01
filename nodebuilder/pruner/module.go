@@ -13,8 +13,8 @@ import (
 	"github.com/celestiaorg/celestia-node/nodebuilder/node"
 	"github.com/celestiaorg/celestia-node/pruner"
 	"github.com/celestiaorg/celestia-node/pruner/full"
-	"github.com/celestiaorg/celestia-node/pruner/light"
 	"github.com/celestiaorg/celestia-node/share/availability"
+	"github.com/celestiaorg/celestia-node/share/availability/light"
 )
 
 var log = logging.Logger("module/pruner")
@@ -45,7 +45,9 @@ func ConstructModule(tp node.Type, cfg *Config) fx.Option {
 		if cfg.EnableService {
 			return fx.Module("prune",
 				baseComponents,
-				prunerService,
+				// TODO(@walldiss @renaynay): remove conversion after Availability and Pruner interfaces are merged
+				//  note this provide exists in pruner module to avoid cyclical imports
+				fx.Provide(func(la *light.ShareAvailability) pruner.Pruner { return la }),
 			)
 		}
 		// We do not trigger DetectPreviousRun for Light nodes, to allow them to disable pruning at wish.
