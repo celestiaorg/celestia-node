@@ -7,10 +7,29 @@ import (
 	"golang.org/x/exp/maps"
 )
 
+// SamplingResult holds the available and remaining samples.
+type SamplingResult struct {
+	Available []Sample `json:"available"`
+	Remaining []Sample `json:"remaining"`
+}
+
 // Sample represents a coordinate in a 2D data square.
 type Sample struct {
 	Row int `json:"row"`
 	Col int `json:"col"`
+}
+
+// NewSamplingResult creates a new SamplingResult with randomly selected samples.
+func NewSamplingResult(squareSize, sampleCount int) *SamplingResult {
+	total := squareSize * squareSize
+	if sampleCount > total {
+		sampleCount = total
+	}
+
+	samples := selectRandomSamples(squareSize, sampleCount)
+	return &SamplingResult{
+		Remaining: samples,
+	}
 }
 
 // selectRandomSamples randomly picks unique coordinates from a square of given size.
