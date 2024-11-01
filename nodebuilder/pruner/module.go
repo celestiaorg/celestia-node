@@ -45,6 +45,7 @@ func ConstructModule(tp node.Type, cfg *Config) fx.Option {
 		if cfg.EnableService {
 			return fx.Module("prune",
 				baseComponents,
+				prunerService,
 				// TODO(@walldiss @renaynay): remove conversion after Availability and Pruner interfaces are merged
 				//  note this provide exists in pruner module to avoid cyclical imports
 				fx.Provide(func(la *light.ShareAvailability) pruner.Pruner { return la }),
