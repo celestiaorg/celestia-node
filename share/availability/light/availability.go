@@ -219,7 +219,7 @@ func (la *ShareAvailability) Prune(ctx context.Context, h *header.ExtendedHeader
 			if !errors.Is(err, ipld.ErrNodeNotFound) {
 				return fmt.Errorf("delete sample: %w", err)
 			}
-			log.Warnf("can't delete sample: %v, missing in blockstore", sample)
+			log.Warnf("can't delete sample: %v, height: %v,  missing in blockstore", h.Height(), sample)
 		}
 	}
 
