@@ -271,7 +271,7 @@ func (g onceGetter) GetEDS(_ context.Context, _ *header.ExtendedHeader) (*rsmt2d
 	panic("not implemented")
 }
 
-func (m onceGetter) GetNamespaceData(
+func (g onceGetter) GetNamespaceData(
 	_ context.Context,
 	_ *header.ExtendedHeader,
 	_ libshare.Namespace,
