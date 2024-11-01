@@ -4,7 +4,9 @@ import (
 	"context"
 	_ "embed"
 	"encoding/json"
+	"errors"
 	"sync"
+	"sync/atomic"
 	"testing"
 	"time"
 
@@ -12,6 +14,8 @@ import (
 	"github.com/ipfs/boxo/blockstore"
 	"github.com/ipfs/boxo/exchange"
 	"github.com/ipfs/boxo/exchange/offline"
+	blocks "github.com/ipfs/go-block-format"
+	"github.com/ipfs/go-cid"
 	"github.com/ipfs/go-datastore"
 	ds_sync "github.com/ipfs/go-datastore/sync"
 	"github.com/stretchr/testify/require"
@@ -275,7 +279,7 @@ func (g onceGetter) GetSharesByNamespace(
 	panic("not implemented")
 }
 
-func TestPrune(t *testing.T) {
+func TestPruneAll(t *testing.T) {
 	const size = 8
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second*2)
 	t.Cleanup(cancel)
@@ -290,21 +294,22 @@ func TestPrune(t *testing.T) {
 
 	// Create a new bitswap getter
 	ds := ds_sync.MutexWrap(datastore.NewMapDatastore())
-	bs := blockstore.NewBlockstore(ds)
-	ex := NewFakeExchange(store)
-	getter := bitswap.NewGetter(ex, bs, 0)
+	clientBs := blockstore.NewBlockstore(ds)
+	serverBS := &bitswap.Blockstore{Getter: store}
+	ex := newFakeExchange(serverBS)
+	getter := bitswap.NewGetter(ex, clientBs, 0)
 	getter.Start()
 	defer getter.Stop()
 
 	// Create a new ShareAvailability instance and sample the shares
 	sampleAmount := uint(20)
-	avail := NewShareAvailability(getter, ds, bs, WithSampleAmount(sampleAmount))
+	avail := NewShareAvailability(getter, ds, clientBs, WithSampleAmount(sampleAmount))
 	err = avail.SharesAvailable(ctx, h)
 	require.NoError(t, err)
 	// close ShareAvailability to force flush of batched writes
 	avail.Close(ctx)
 
-	preDeleteCount := countKeys(ctx, t, bs)
+	preDeleteCount := countKeys(ctx, t, clientBs)
 	require.EqualValues(t, sampleAmount, preDeleteCount)
 
 	// prune the samples
@@ -312,7 +317,55 @@ func TestPrune(t *testing.T) {
 	require.NoError(t, err)
 
 	// Check if samples are deleted
-	postDeleteCount := countKeys(ctx, t, bs)
+	postDeleteCount := countKeys(ctx, t, clientBs)
+	require.Zero(t, postDeleteCount)
+
+	// Check if sampling result is deleted
+	exist, err := avail.ds.Has(ctx, datastoreKeyForRoot(h.DAH))
+	require.NoError(t, err)
+	require.False(t, exist)
+}
+
+func TestPrunePartialFailed(t *testing.T) {
+	const size = 8
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second*2)
+	t.Cleanup(cancel)
+
+	dir := t.TempDir()
+	store, err := store.NewStore(store.DefaultParameters(), dir)
+	require.NoError(t, err)
+	defer require.NoError(t, store.Stop(ctx))
+	eds, h := randEdsAndHeader(t, size)
+	err = store.PutODSQ4(ctx, h.DAH, h.Height(), eds)
+	require.NoError(t, err)
+
+	// Create a new bitswap getter
+	ds := ds_sync.MutexWrap(datastore.NewMapDatastore())
+	clientBs := blockstore.NewBlockstore(ds)
+	serverBS := newHalfFailBlockstore(&bitswap.Blockstore{Getter: store})
+	ex := newFakeExchange(serverBS)
+	getter := bitswap.NewGetter(ex, clientBs, 0)
+	getter.Start()
+	defer getter.Stop()
+
+	// Create a new ShareAvailability instance and sample the shares
+	sampleAmount := uint(20)
+	avail := NewShareAvailability(getter, ds, clientBs, WithSampleAmount(sampleAmount))
+	err = avail.SharesAvailable(ctx, h)
+	require.NoError(t, err)
+	// close ShareAvailability to force flush of batched writes
+	avail.Close(ctx)
+
+	preDeleteCount := countKeys(ctx, t, clientBs)
+	// Only half of the samples should be stored
+	require.EqualValues(t, sampleAmount/2, preDeleteCount)
+
+	// prune the samples
+	err = avail.Prune(ctx, h)
+	require.NoError(t, err)
+
+	// Check if samples are deleted
+	postDeleteCount := countKeys(ctx, t, clientBs)
 	require.Zero(t, postDeleteCount)
 
 	// Check if sampling result is deleted
@@ -323,8 +376,7 @@ func TestPrune(t *testing.T) {
 
 var _ exchange.SessionExchange = (*fakeSessionExchange)(nil)
 
-func NewFakeExchange(store *store.Store) *fakeSessionExchange {
-	bs := &bitswap.Blockstore{Getter: store}
+func newFakeExchange(bs blockstore.Blockstore) *fakeSessionExchange {
 	return &fakeSessionExchange{
 		Interface: offline.Exchange(bs),
 		session:   offline.Exchange(bs),
@@ -336,11 +388,24 @@ type fakeSessionExchange struct {
 	session exchange.Fetcher
 }
 
-func (fe *fakeSessionExchange) NewSession(ctx context.Context) exchange.Fetcher {
-	if ctx == nil {
-		panic("nil context")
-	}
+func (fe *fakeSessionExchange) NewSession(context.Context) exchange.Fetcher {
 	return fe.session
+}
+
+type halfFailBlockstore struct {
+	blockstore.Blockstore
+	attempt atomic.Int32
+}
+
+func newHalfFailBlockstore(bs blockstore.Blockstore) *halfFailBlockstore {
+	return &halfFailBlockstore{Blockstore: bs}
+}
+
+func (hfb *halfFailBlockstore) Get(ctx context.Context, c cid.Cid) (blocks.Block, error) {
+	if hfb.attempt.Add(1)%2 == 0 {
+		return nil, errors.New("fail")
+	}
+	return hfb.Blockstore.Get(ctx, c)
 }
 
 func randEdsAndHeader(t *testing.T, size int) (*rsmt2d.ExtendedDataSquare, *header.ExtendedHeader) {
