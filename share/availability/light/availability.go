@@ -76,7 +76,7 @@ func (la *ShareAvailability) SharesAvailable(ctx context.Context, header *header
 		return nil
 	}
 
-	// Prevent multiple sampling sessions for the same header height
+	// Prevent multiple sampling and pruning sessions for the same header height
 	release, err := la.activeHeights.StartSession(ctx, header.Height())
 	if err != nil {
 		return err
@@ -183,7 +183,7 @@ func (la *ShareAvailability) Prune(ctx context.Context, h *header.ExtendedHeader
 		return nil
 	}
 
-	// Prevent multiple sampling sessions for the same header height
+	// Prevent multiple sampling and pruning sessions for the same header height
 	release, err := la.activeHeights.StartSession(ctx, h.Height())
 	if err != nil {
 		return err
