@@ -159,7 +159,7 @@ func (la *ShareAvailability) SharesAvailable(ctx context.Context, header *header
 	err = la.ds.Put(ctx, key, updatedData)
 	la.dsLk.Unlock()
 	if err != nil {
-		return fmt.Errorf("failed to store sampling result: %w", err)
+		return fmt.Errorf("store sampling result: %w", err)
 	}
 
 	if errors.Is(ctx.Err(), context.Canceled) {
@@ -199,31 +199,34 @@ func (la *ShareAvailability) Prune(ctx context.Context, h *header.ExtendedHeader
 		return nil
 	}
 	if err != nil {
-		return fmt.Errorf("failed to get sampling result: %w", err)
+		return fmt.Errorf("get sampling result: %w", err)
 	}
 
 	var result SamplingResult
 	err = json.Unmarshal(data, &result)
 	if err != nil {
-		return fmt.Errorf("failed to unmarshal sampling result: %w", err)
+		return fmt.Errorf("unmarshal sampling result: %w", err)
 	}
 
 	// delete stored samples
 	for _, sample := range result.Available {
 		blk, err := bitswap.NewEmptySampleBlock(h.Height(), sample.Row, sample.Col, len(h.DAH.RowRoots))
 		if err != nil {
-			return fmt.Errorf("failed to marshal sample ID: %w", err)
+			return fmt.Errorf("marshal sample ID: %w", err)
 		}
 		err = la.bs.DeleteBlock(ctx, blk.CID())
-		if err != nil && !errors.Is(err, ipld.ErrNodeNotFound) {
-			return fmt.Errorf("failed to delete sample: %w", err)
+		if err != nil {
+			if !errors.Is(err, ipld.ErrNodeNotFound) {
+				return fmt.Errorf("delete sample: %w", err)
+			}
+			log.Warnf("can't delete sample: %v, missing in blockstore", sample)
 		}
 	}
 
 	// delete the sampling result
-	err = la.ds.Delete(ctx, datastoreKeyForRoot(dah))
+	err = la.ds.Delete(ctx, key)
 	if err != nil {
-		return fmt.Errorf("failed to delete sampling result: %w", err)
+		return fmt.Errorf("delete sampling result: %w", err)
 	}
 	return nil
 }
