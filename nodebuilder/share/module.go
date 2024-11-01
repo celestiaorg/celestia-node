@@ -5,7 +5,6 @@ import (
 	"fmt"
 
 	"github.com/ipfs/boxo/blockstore"
-	"github.com/ipfs/go-datastore"
 	"github.com/libp2p/go-libp2p/core/host"
 	"go.uber.org/fx"
 
@@ -15,7 +14,6 @@ import (
 	"github.com/celestiaorg/celestia-node/share"
 	"github.com/celestiaorg/celestia-node/share/availability/full"
 	"github.com/celestiaorg/celestia-node/share/availability/light"
-	"github.com/celestiaorg/celestia-node/share/shwap"
 	"github.com/celestiaorg/celestia-node/share/shwap/p2p/shrex/peers"
 	"github.com/celestiaorg/celestia-node/share/shwap/p2p/shrex/shrex_getter"
 	"github.com/celestiaorg/celestia-node/share/shwap/p2p/shrex/shrexeds"
@@ -26,7 +24,7 @@ import (
 
 func ConstructModule(tp node.Type, cfg *Config, options ...fx.Option) fx.Option {
 	// sanitize config values before constructing module
-	err := cfg.Validate(tp)
+	err := cfg.Validate()
 	if err != nil {
 		return fx.Error(fmt.Errorf("nodebuilder/share: validate config: %w", err))
 	}
@@ -35,7 +33,7 @@ func ConstructModule(tp node.Type, cfg *Config, options ...fx.Option) fx.Option 
 		fx.Supply(*cfg),
 		fx.Options(options...),
 		fx.Provide(newShareModule),
-		availabilityComponents(tp, cfg),
+		availabilityComponents(tp),
 		shrexComponents(tp, cfg),
 		bitswapComponents(tp, cfg),
 		peerComponents(tp, cfg),
@@ -217,18 +215,12 @@ func edsStoreComponents(cfg *Config) fx.Option {
 	)
 }
 
-func availabilityComponents(tp node.Type, cfg *Config) fx.Option {
+func availabilityComponents(tp node.Type) fx.Option {
 	switch tp {
 	case node.Light:
 		return fx.Options(
 			fx.Provide(fx.Annotate(
-				func(getter shwap.Getter, ds datastore.Batching) *light.ShareAvailability {
-					return light.NewShareAvailability(
-						getter,
-						ds,
-						light.WithSampleAmount(cfg.LightAvailability.SampleAmount),
-					)
-				},
+				light.NewShareAvailability,
 				fx.OnStop(func(ctx context.Context, la *light.ShareAvailability) error {
 					return la.Close(ctx)
 				}),

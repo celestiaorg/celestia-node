@@ -144,7 +144,7 @@ func TestSharesAvailableFailed(t *testing.T) {
 	var failed []Sample
 	err = json.Unmarshal(result, &failed)
 	require.NoError(t, err)
-	require.Len(t, failed, int(avail.params.SampleAmount))
+	require.Len(t, failed, sampleAmount)
 
 	// Simulate a getter that now returns shares successfully
 	onceGetter := newOnceGetter()
@@ -184,7 +184,7 @@ func TestParallelAvailability(t *testing.T) {
 		}()
 	}
 	wg.Wait()
-	require.Len(t, successfulGetter.sampledList(), int(avail.params.SampleAmount))
+	require.Len(t, successfulGetter.sampledList(), sampleAmount)
 }
 
 type onceGetter struct {

@@ -3,8 +3,6 @@ package share
 import (
 	"fmt"
 
-	"github.com/celestiaorg/celestia-node/nodebuilder/node"
-	"github.com/celestiaorg/celestia-node/share/availability/light"
 	"github.com/celestiaorg/celestia-node/share/shwap/p2p/discovery"
 	"github.com/celestiaorg/celestia-node/share/shwap/p2p/shrex/peers"
 	"github.com/celestiaorg/celestia-node/share/shwap/p2p/shrex/shrexeds"
@@ -29,11 +27,10 @@ type Config struct {
 	// PeerManagerParams sets peer-manager configuration parameters
 	PeerManagerParams *peers.Parameters
 
-	LightAvailability *light.Parameters `toml:",omitempty"`
-	Discovery         *discovery.Parameters
+	Discovery *discovery.Parameters
 }
 
-func DefaultConfig(tp node.Type) Config {
+func DefaultConfig() Config {
 	cfg := Config{
 		EDSStoreParams:      store.DefaultParameters(),
 		BlockStoreCacheSize: defaultBlockstoreCacheSize,
@@ -44,21 +41,11 @@ func DefaultConfig(tp node.Type) Config {
 		PeerManagerParams:   peers.DefaultParameters(),
 	}
 
-	if tp == node.Light {
-		cfg.LightAvailability = light.DefaultParameters()
-	}
-
 	return cfg
 }
 
 // Validate performs basic validation of the config.
-func (cfg *Config) Validate(tp node.Type) error {
-	if tp == node.Light {
-		if err := cfg.LightAvailability.Validate(); err != nil {
-			return fmt.Errorf("nodebuilder/share: %w", err)
-		}
-	}
-
+func (cfg *Config) Validate() error {
 	if err := cfg.Discovery.Validate(); err != nil {
 		return fmt.Errorf("discovery: %w", err)
 	}

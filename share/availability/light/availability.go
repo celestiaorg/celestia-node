@@ -22,6 +22,10 @@ var (
 	log                   = logging.Logger("share/light")
 	samplingResultsPrefix = datastore.NewKey("sampling_result")
 	writeBatchSize        = 2048
+	// sampleAmount is the amount of samples to take from the data square. It is defined as 16
+	// to provide a good balance between the number of samples security guarantees it provides
+	// for DAS of light clients.
+	sampleAmount = 16
 )
 
 // ShareAvailability implements share.Availability using Data Availability Sampling technique.
@@ -30,7 +34,6 @@ var (
 // on the network doing sampling over the same Root to collectively verify its availability.
 type ShareAvailability struct {
 	getter shwap.Getter
-	params Parameters
 
 	activeHeights *utils.Sessions
 	dsLk          sync.RWMutex
@@ -41,19 +44,12 @@ type ShareAvailability struct {
 func NewShareAvailability(
 	getter shwap.Getter,
 	ds datastore.Batching,
-	opts ...Option,
 ) *ShareAvailability {
-	params := *DefaultParameters()
 	ds = namespace.Wrap(ds, samplingResultsPrefix)
 	autoDS := autobatch.NewAutoBatching(ds, writeBatchSize)
 
-	for _, opt := range opts {
-		opt(&params)
-	}
-
 	return &ShareAvailability{
 		getter:        getter,
-		params:        params,
 		activeHeights: utils.NewSessions(),
 		ds:            autoDS,
 	}
@@ -92,7 +88,7 @@ func (la *ShareAvailability) SharesAvailable(ctx context.Context, header *header
 		return err
 	case errors.Is(err, datastore.ErrNotFound):
 		// No sampling result found, select new samples
-		samples = selectRandomSamples(len(dah.RowRoots), int(la.params.SampleAmount))
+		samples = selectRandomSamples(len(dah.RowRoots), sampleAmount)
 	default:
 		// Sampling result found, unmarshal it
 		err = json.Unmarshal(last, &samples)
