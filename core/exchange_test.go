@@ -3,6 +3,7 @@ package core
 import (
 	"bytes"
 	"context"
+	"net"
 	"testing"
 	"time"
 
@@ -118,7 +119,11 @@ func createCoreFetcher(t *testing.T, cfg *testnode.Config) (*BlockFetcher, testn
 	// flakiness with accessing account state)
 	_, err := cctx.WaitForHeightWithTimeout(2, time.Second*2) // TODO @renaynay: configure?
 	require.NoError(t, err)
-	return NewBlockFetcher(cctx.Client), cctx
+	host, port, err := net.SplitHostPort(cctx.GRPCClient.Target())
+	require.NoError(t, err)
+	blockAPIClient, err := NewRemote(host, port)
+	require.NoError(t, err)
+	return NewBlockFetcher(blockAPIClient), cctx
 }
 
 // fillBlocks fills blocks until the context is canceled.
@@ -153,10 +158,6 @@ func generateNonEmptyBlocks(
 
 	sub, err := fetcher.SubscribeNewBlockEvent(ctx)
 	require.NoError(t, err)
-	defer func() {
-		err = fetcher.UnsubscribeNewBlockEvent(ctx)
-		require.NoError(t, err)
-	}()
 
 	go fillBlocks(t, generateCtx, cfg, cctx)
 

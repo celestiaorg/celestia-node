@@ -6,7 +6,6 @@ import (
 	"testing"
 	"time"
 
-	"github.com/stretchr/testify/require"
 	tmconfig "github.com/tendermint/tendermint/config"
 	tmrand "github.com/tendermint/tendermint/libs/rand"
 
@@ -50,22 +49,9 @@ func StartTestNode(t *testing.T) testnode.Context {
 func StartTestNodeWithConfig(t *testing.T, cfg *testnode.Config) testnode.Context {
 	cctx, _, _ := testnode.NewNetwork(t, cfg)
 	// we want to test over remote http client,
-	// so we are as close to the real environment as possible
-	// however, it might be useful to use local tendermint client
-	// if you need to debug something inside of it
-	ip, port, err := getEndpoint(cfg.TmConfig)
-	require.NoError(t, err)
-	client, err := NewRemote(ip, port)
-	require.NoError(t, err)
-
-	err = client.Start()
-	require.NoError(t, err)
-	t.Cleanup(func() {
-		err := client.Stop()
-		require.NoError(t, err)
-	})
-
-	cctx.WithClient(client)
+	// so we are as close to the real environment as possible,
+	// however, it might be useful to use a local tendermint client
+	// if you need to debug something inside it
 	return cctx
 }
 

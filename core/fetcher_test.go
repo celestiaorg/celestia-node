@@ -2,6 +2,7 @@ package core
 
 import (
 	"context"
+	"net"
 	"testing"
 	"time"
 
@@ -13,8 +14,11 @@ func TestBlockFetcher_GetBlock_and_SubscribeNewBlockEvent(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second*15)
 	t.Cleanup(cancel)
 
-	client := StartTestNode(t).Client
-	fetcher := NewBlockFetcher(client)
+	host, port, err := net.SplitHostPort(StartTestNode(t).GRPCClient.Target())
+	require.NoError(t, err)
+	blockAPIClient, err := NewRemote(host, port)
+	require.NoError(t, err)
+	fetcher := NewBlockFetcher(blockAPIClient)
 
 	// generate some blocks
 	newBlockChan, err := fetcher.SubscribeNewBlockEvent(ctx)
@@ -35,5 +39,4 @@ func TestBlockFetcher_GetBlock_and_SubscribeNewBlockEvent(t *testing.T) {
 			require.NoError(t, ctx.Err())
 		}
 	}
-	require.NoError(t, fetcher.UnsubscribeNewBlockEvent(ctx))
 }

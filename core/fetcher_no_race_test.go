@@ -4,6 +4,7 @@ package core
 
 import (
 	"context"
+	"net"
 	"testing"
 	"time"
 
@@ -18,8 +19,12 @@ func TestBlockFetcherHeaderValues(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second*15)
 	t.Cleanup(cancel)
 
-	client := StartTestNode(t).Client
-	fetcher := NewBlockFetcher(client)
+	node := StartTestNode(t)
+	host, port, err := net.SplitHostPort(node.GRPCClient.Target())
+	require.NoError(t, err)
+	blockAPIClient, err := NewRemote(host, port)
+	require.NoError(t, err)
+	fetcher := NewBlockFetcher(blockAPIClient)
 
 	// generate some blocks
 	newBlockChan, err := fetcher.SubscribeNewBlockEvent(ctx)
@@ -51,5 +56,4 @@ func TestBlockFetcherHeaderValues(t *testing.T) {
 	// compare ValidatorSet hash to the ValidatorsHash from first block height
 	hexBytes := valSet.Hash()
 	assert.Equal(t, nextBlock.ValidatorSet.Hash(), hexBytes)
-	require.NoError(t, fetcher.UnsubscribeNewBlockEvent(ctx))
 }
