@@ -63,6 +63,7 @@ func TestCoreExchange_RequestHeaders(t *testing.T) {
 		require.NoError(t, err)
 		assert.True(t, has)
 	}
+	require.NoError(t, fetcher.Stop(ctx))
 }
 
 // TestExchange_DoNotStoreHistoric tests that the CoreExchange will not
@@ -141,7 +142,9 @@ func fillBlocks(
 		}
 
 		_, err := cctx.FillBlock(16, cfg.Genesis.Accounts()[0].Name, flags.BroadcastBlock)
-		require.NoError(t, err)
+		if err != nil && ctx.Err() == nil {
+			require.NoError(t, err)
+		}
 	}
 }
 
