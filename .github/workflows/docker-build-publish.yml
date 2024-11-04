@@ -26,3 +26,4 @@ jobs:
       dockerfile: Dockerfile
       checkout_ref: ${{ github.event.inputs.ref }}
     secrets: inherit
+    continue-on-error: true
