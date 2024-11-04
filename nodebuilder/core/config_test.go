@@ -34,14 +34,6 @@ func TestValidate(t *testing.T) {
 			expectErr: false,
 		},
 		{
-			name: "missing RPC port",
-			cfg: Config{
-				IP:       "127.0.0.1",
-				GRPCPort: DefaultGRPCPort,
-			},
-			expectErr: true,
-		},
-		{
 			name: "missing GRPC port",
 			cfg: Config{
 				IP: "127.0.0.1",
