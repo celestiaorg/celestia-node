@@ -8,7 +8,6 @@ import (
 )
 
 const (
-	DefaultRPCPort  = "26657"
 	DefaultGRPCPort = "9090"
 )
 
@@ -17,7 +16,6 @@ var MetricsEnabled bool
 // Config combines all configuration fields for managing the relationship with a Core node.
 type Config struct {
 	IP       string
-	RPCPort  string
 	GRPCPort string
 }
 
@@ -26,7 +24,6 @@ type Config struct {
 func DefaultConfig() Config {
 	return Config{
 		IP:       "",
-		RPCPort:  DefaultRPCPort,
 		GRPCPort: DefaultGRPCPort,
 	}
 }
@@ -37,9 +34,6 @@ func (cfg *Config) Validate() error {
 		return nil
 	}
 
-	if cfg.RPCPort == "" {
-		return fmt.Errorf("nodebuilder/core: rpc port is not set")
-	}
 	if cfg.GRPCPort == "" {
 		return fmt.Errorf("nodebuilder/core: grpc port is not set")
 	}
@@ -49,10 +43,6 @@ func (cfg *Config) Validate() error {
 		return err
 	}
 	cfg.IP = ip
-	_, err = strconv.Atoi(cfg.RPCPort)
-	if err != nil {
-		return fmt.Errorf("nodebuilder/core: invalid rpc port: %s", err.Error())
-	}
 	_, err = strconv.Atoi(cfg.GRPCPort)
 	if err != nil {
 		return fmt.Errorf("nodebuilder/core: invalid grpc port: %s", err.Error())

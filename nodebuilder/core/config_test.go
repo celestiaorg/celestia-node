@@ -16,7 +16,6 @@ func TestValidate(t *testing.T) {
 			name: "valid config",
 			cfg: Config{
 				IP:       "127.0.0.1",
-				RPCPort:  DefaultRPCPort,
 				GRPCPort: DefaultGRPCPort,
 			},
 			expectErr: false,
@@ -30,7 +29,6 @@ func TestValidate(t *testing.T) {
 			name: "hostname preserved",
 			cfg: Config{
 				IP:       "celestia.org",
-				RPCPort:  DefaultRPCPort,
 				GRPCPort: DefaultGRPCPort,
 			},
 			expectErr: false,
@@ -46,8 +44,7 @@ func TestValidate(t *testing.T) {
 		{
 			name: "missing GRPC port",
 			cfg: Config{
-				IP:      "127.0.0.1",
-				RPCPort: DefaultRPCPort,
+				IP: "127.0.0.1",
 			},
 			expectErr: true,
 		},
@@ -55,25 +52,14 @@ func TestValidate(t *testing.T) {
 			name: "invalid IP, but will be accepted as host and not raise an error",
 			cfg: Config{
 				IP:       "invalid-ip",
-				RPCPort:  DefaultRPCPort,
 				GRPCPort: DefaultGRPCPort,
 			},
 			expectErr: false,
 		},
 		{
-			name: "invalid RPC port",
-			cfg: Config{
-				IP:       "127.0.0.1",
-				RPCPort:  "invalid-port",
-				GRPCPort: DefaultGRPCPort,
-			},
-			expectErr: true,
-		},
-		{
 			name: "invalid GRPC port",
 			cfg: Config{
 				IP:       "127.0.0.1",
-				RPCPort:  DefaultRPCPort,
 				GRPCPort: "invalid-port",
 			},
 			expectErr: true,
