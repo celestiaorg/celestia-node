@@ -2,6 +2,7 @@ package core
 
 import (
 	"fmt"
+
 	coregrpc "github.com/tendermint/tendermint/rpc/grpc"
 )
 
