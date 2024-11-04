@@ -73,18 +73,6 @@ func TestParseFlags(t *testing.T) {
 			expectError: false,
 		},
 		{
-			name: "core.ip and core.rpc.port",
-			args: []string{"--core.ip=127.0.0.1", "--core.rpc.port=12345"},
-			inputCfg: Config{
-				GRPCPort: DefaultGRPCPort,
-			},
-			expectedCfg: Config{
-				IP:       "127.0.0.1",
-				GRPCPort: DefaultGRPCPort,
-			},
-			expectError: false,
-		},
-		{
 			name: "core.ip and core.grpc.port",
 			args: []string{"--core.ip=127.0.0.1", "--core.grpc.port=54321"},
 			inputCfg: Config{
@@ -95,21 +83,6 @@ func TestParseFlags(t *testing.T) {
 				GRPCPort: "54321",
 			},
 			expectError: false,
-		},
-		{
-			name: "core.ip, core.rpc.port, and core.grpc.port",
-			args: []string{"--core.ip=127.0.0.1", "--core.rpc.port=12345", "--core.grpc.port=54321"},
-			expectedCfg: Config{
-				IP:       "127.0.0.1",
-				GRPCPort: "54321",
-			},
-			expectError: false,
-		},
-		{
-			name:        "core.rpc.port without core.ip",
-			args:        []string{"--core.rpc.port=12345"},
-			expectedCfg: Config{},
-			expectError: true,
 		},
 		{
 			name:        "core.grpc.port without core.ip",
