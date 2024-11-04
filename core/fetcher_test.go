@@ -39,4 +39,5 @@ func TestBlockFetcher_GetBlock_and_SubscribeNewBlockEvent(t *testing.T) {
 			require.NoError(t, ctx.Err())
 		}
 	}
+	require.NoError(t, fetcher.Stop(ctx))
 }

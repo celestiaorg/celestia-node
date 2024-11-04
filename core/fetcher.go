@@ -36,6 +36,16 @@ func NewBlockFetcher(client Client) *BlockFetcher {
 	}
 }
 
+func (f *BlockFetcher) Stop(ctx context.Context) error {
+	f.cancel()
+	select {
+	case <-f.doneCh:
+		return nil
+	case <-ctx.Done():
+		return fmt.Errorf("fetcher: unsubscribe from new block events: %w", ctx.Err())
+	}
+}
+
 // GetBlockInfo queries Core for additional block information, like Commit and ValidatorSet.
 func (f *BlockFetcher) GetBlockInfo(ctx context.Context, height *int64) (*types.Commit, *types.ValidatorSet, error) {
 	commit, err := f.Commit(ctx, height)
@@ -202,7 +212,9 @@ func (f *BlockFetcher) SubscribeNewBlockEvent(ctx context.Context) (<-chan types
 			default:
 				resp, err := subscription.Recv()
 				if err != nil {
-					log.Errorw("fetcher: error receiving new height", "err", err.Error())
+					if ctx.Err() == nil {
+						log.Errorw("fetcher: error receiving new height", "err", err.Error())
+					}
 					return
 				}
 				signedBlock, err := f.GetSignedBlock(ctx, &resp.Height)

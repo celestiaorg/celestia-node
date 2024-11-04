@@ -110,6 +110,11 @@ func (cl *Listener) Start(context.Context) error {
 
 // Stop stops the listener loop.
 func (cl *Listener) Stop(ctx context.Context) error {
+	err := cl.fetcher.Stop(ctx)
+	if err != nil {
+		log.Warnw("listener: stopping gRPC block event", "err", err)
+	}
+
 	cl.cancel()
 	select {
 	case <-cl.closed:
@@ -119,7 +124,7 @@ func (cl *Listener) Stop(ctx context.Context) error {
 		return ctx.Err()
 	}
 
-	err := cl.metrics.Close()
+	err = cl.metrics.Close()
 	if err != nil {
 		log.Warnw("listener: closing metrics", "err", err)
 	}
@@ -150,6 +155,11 @@ func (cl *Listener) runSubscriber(ctx context.Context, sub <-chan types.EventDat
 }
 
 func (cl *Listener) resubscribe(ctx context.Context) <-chan types.EventDataSignedBlock {
+	err := cl.fetcher.Stop(ctx)
+	if err != nil {
+		log.Warnw("listener: unsubscribe", "err", err)
+	}
+
 	ticker := time.NewTicker(retrySubscriptionDelay)
 	defer ticker.Stop()
 	for {

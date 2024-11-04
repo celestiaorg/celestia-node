@@ -179,8 +179,14 @@ func (s *Swamp) setupGenesis() {
 	store, err := store.NewStore(store.DefaultParameters(), s.t.TempDir())
 	require.NoError(s.t, err)
 
+	host, port, err := net.SplitHostPort(s.ClientContext.GRPCClient.Target())
+	require.NoError(t, err)
+	blockAPIClient, err := core.NewRemote(host, port)
+	require.NoError(t, err)
+	fetcher := core.NewBlockFetcher(blockAPIClient)
+
 	ex, err := core.NewExchange(
-		core.NewBlockFetcher(s.ClientContext.Client),
+		fetcher,
 		store,
 		header.MakeExtendedHeader,
 	)

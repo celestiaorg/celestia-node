@@ -158,6 +158,10 @@ func generateNonEmptyBlocks(
 
 	sub, err := fetcher.SubscribeNewBlockEvent(ctx)
 	require.NoError(t, err)
+	defer func() {
+		err = fetcher.Stop(ctx)
+		require.NoError(t, err)
+	}()
 
 	go fillBlocks(t, generateCtx, cfg, cctx)
 

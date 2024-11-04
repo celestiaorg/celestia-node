@@ -56,4 +56,5 @@ func TestBlockFetcherHeaderValues(t *testing.T) {
 	// compare ValidatorSet hash to the ValidatorsHash from first block height
 	hexBytes := valSet.Hash()
 	assert.Equal(t, nextBlock.ValidatorSet.Hash(), hexBytes)
+	require.NoError(t, fetcher.Stop(ctx))
 }
