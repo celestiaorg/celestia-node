@@ -30,7 +30,7 @@ func DefaultTestConfig() *testnode.Config {
 		WithConsensusParams(testnode.DefaultConsensusParams())
 
 	tmConfig := testnode.DefaultTendermintConfig()
-	tmConfig.Consensus.TimeoutCommit = time.Millisecond * 200
+	tmConfig.Consensus.TimeoutCommit = time.Millisecond * 2000
 
 	return testnode.DefaultConfig().
 		WithChainID(chainID).
