@@ -19,8 +19,11 @@ func TestBridge_WithMockedCoreClient(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	t.Cleanup(cancel)
 
-	client := core.StartTestNode(t).Client
-	node, err := New(node.Bridge, p2p.Private, repo, coremodule.WithClient(client))
+	host, port, err := net.SplitHostPort(core.StartTestNode(t).GRPCClient.Target())
+	require.NoError(t, err)
+	blockAPIClient, err := core.NewRemote(host, port)
+	require.NoError(t, err)
+	node, err := New(node.Bridge, p2p.Private, repo, coremodule.WithClient(blockAPIClient))
 	require.NoError(t, err)
 	require.NotNil(t, node)
 	err = node.Start(ctx)
