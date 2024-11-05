@@ -15,8 +15,10 @@ var MetricsEnabled bool
 
 // Config combines all configuration fields for managing the relationship with a Core node.
 type Config struct {
-	IP   string
-	Port string
+	IP        string
+	Port      string
+	GRPCPort  string
+	EnableTLS bool
 }
 
 // DefaultConfig returns default configuration for managing the

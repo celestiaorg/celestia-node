@@ -264,7 +264,7 @@ func buildAccessor(t *testing.T) (*CoreAccessor, []string) {
 		WithAppCreator(appCreator) // needed until https://github.com/celestiaorg/celestia-app/pull/3680 merges
 	cctx, _, grpcAddr := testnode.NewNetwork(t, config)
 
-	ca, err := NewCoreAccessor(cctx.Keyring, accounts[0].Name, nil, "127.0.0.1", extractPort(grpcAddr), chainID)
+	ca, err := NewCoreAccessor(cctx.Keyring, accounts[0].Name, nil, "127.0.0.1", extractPort(grpcAddr), false, chainID)
 	require.NoError(t, err)
 	return ca, getNames(accounts)
 }
