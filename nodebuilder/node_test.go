@@ -4,7 +4,6 @@ package nodebuilder
 
 import (
 	"context"
-	"github.com/celestiaorg/celestia-node/core"
 	"net"
 	"net/http"
 	"net/http/httptest"
@@ -17,6 +16,7 @@ import (
 	collectormetricpb "go.opentelemetry.io/proto/otlp/collector/metrics/v1"
 	"google.golang.org/protobuf/proto"
 
+	"github.com/celestiaorg/celestia-node/core"
 	"github.com/celestiaorg/celestia-node/nodebuilder/node"
 )
 
