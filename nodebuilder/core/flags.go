@@ -8,9 +8,10 @@ import (
 )
 
 var (
-	coreFlag     = "core.ip"
-	coreRPCFlag  = "core.rpc.port"
-	coreGRPCFlag = "core.grpc.port"
+	coreFlag          = "core.ip"
+	coreRPCFlag       = "core.rpc.port"
+	coreGRPCFlag      = "core.grpc.port"
+	coreEnableTLSFlag = "core.grpc.tls"
 )
 
 // Flags gives a set of hardcoded Core flags.
@@ -33,6 +34,11 @@ func Flags() *flag.FlagSet {
 		coreGRPCFlag,
 		DefaultGRPCPort,
 		"Set a custom gRPC port for the core node connection. The --core.ip flag must also be provided.",
+	)
+	flags.Bool(
+		coreEnableTLSFlag,
+		false,
+		"Enables grpc TLS. The --core.ip flag must also be provided.",
 	)
 	return flags
 }
@@ -58,6 +64,11 @@ func ParseFlags(
 	if cmd.Flag(coreGRPCFlag).Changed {
 		grpc := cmd.Flag(coreGRPCFlag).Value.String()
 		cfg.GRPCPort = grpc
+	}
+
+	if cmd.Flag(coreEnableTLSFlag).Changed {
+		enabled := cmd.Flag(coreEnableTLSFlag).Value.String() == "true"
+		cfg.EnableTLS = enabled
 	}
 
 	cfg.IP = coreIP

@@ -2,11 +2,18 @@ package state
 
 import (
 	"context"
+	"crypto/tls"
 	"errors"
 	"fmt"
 	"sync"
 	"time"
 
+	"github.com/celestiaorg/celestia-app/v3/app"
+	"github.com/celestiaorg/celestia-app/v3/app/encoding"
+	apperrors "github.com/celestiaorg/celestia-app/v3/app/errors"
+	"github.com/celestiaorg/celestia-app/v3/pkg/user"
+	libhead "github.com/celestiaorg/go-header"
+	libshare "github.com/celestiaorg/go-square/v2/share"
 	nodeservice "github.com/cosmos/cosmos-sdk/client/grpc/node"
 	"github.com/cosmos/cosmos-sdk/client/grpc/tmservice"
 	"github.com/cosmos/cosmos-sdk/crypto/keyring"
@@ -20,14 +27,8 @@ import (
 	"github.com/tendermint/tendermint/proto/tendermint/crypto"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/connectivity"
+	"google.golang.org/grpc/credentials"
 	"google.golang.org/grpc/credentials/insecure"
-
-	"github.com/celestiaorg/celestia-app/v3/app"
-	"github.com/celestiaorg/celestia-app/v3/app/encoding"
-	apperrors "github.com/celestiaorg/celestia-app/v3/app/errors"
-	"github.com/celestiaorg/celestia-app/v3/pkg/user"
-	libhead "github.com/celestiaorg/go-header"
-	libshare "github.com/celestiaorg/go-square/v2/share"
 
 	"github.com/celestiaorg/celestia-node/header"
 )
@@ -67,10 +68,11 @@ type CoreAccessor struct {
 
 	prt *merkle.ProofRuntime
 
-	coreConn *grpc.ClientConn
-	coreIP   string
-	grpcPort string
-	network  string
+	coreConn  *grpc.ClientConn
+	coreIP    string
+	grpcPort  string
+	enableTLS bool
+	network   string
 
 	// these fields are mutatable and thus need to be protected by a mutex
 	lock            sync.Mutex
@@ -86,15 +88,7 @@ type CoreAccessor struct {
 // NewCoreAccessor dials the given celestia-core endpoint and
 // constructs and returns a new CoreAccessor (state service) with the active
 // connection.
-func NewCoreAccessor(
-	keyring keyring.Keyring,
-	keyname string,
-	getter libhead.Head[*header.ExtendedHeader],
-	coreIP,
-	grpcPort string,
-	network string,
-	options ...Option,
-) (*CoreAccessor, error) {
+func NewCoreAccessor(keyring keyring.Keyring, keyname string, getter libhead.Head[*header.ExtendedHeader], coreIP, grpcPort string, enableTLS bool, network string, options ...Option) (*CoreAccessor, error) {
 	// create verifier
 	prt := merkle.DefaultProofRuntime()
 	prt.RegisterOpDecoder(storetypes.ProofOpIAVLCommitment, storetypes.CommitmentOpDecoder)
@@ -106,6 +100,7 @@ func NewCoreAccessor(
 		getter:               getter,
 		coreIP:               coreIP,
 		grpcPort:             grpcPort,
+		enableTLS:            enableTLS,
 		prt:                  prt,
 		network:              network,
 	}
@@ -124,9 +119,15 @@ func (ca *CoreAccessor) Start(ctx context.Context) error {
 
 	// dial given celestia-core endpoint
 	endpoint := fmt.Sprintf("%s:%s", ca.coreIP, ca.grpcPort)
+	grpcOpts := make([]grpc.DialOption, 0)
+	if ca.enableTLS {
+		grpcOpts = append(grpcOpts, grpc.WithTransportCredentials(credentials.NewTLS(&tls.Config{})))
+	} else {
+		grpcOpts = append(grpcOpts, grpc.WithTransportCredentials(insecure.NewCredentials()))
+	}
 	client, err := grpc.NewClient(
 		endpoint,
-		grpc.WithTransportCredentials(insecure.NewCredentials()),
+		grpcOpts...,
 	)
 	if err != nil {
 		return err
