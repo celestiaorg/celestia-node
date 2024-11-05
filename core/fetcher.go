@@ -106,13 +106,12 @@ func (f *BlockFetcher) GetBlockByHash(ctx context.Context, hash libhead.Hash) (*
 func (f *BlockFetcher) resolveHeight(ctx context.Context, height *int64) (int64, error) {
 	if height != nil {
 		return *height, nil
-	} else {
-		status, err := f.client.Status(ctx, &coregrpc.StatusRequest{})
-		if err != nil {
-			return 0, err
-		}
-		return status.SyncInfo.LatestBlockHeight, nil
 	}
+	status, err := f.client.Status(ctx, &coregrpc.StatusRequest{})
+	if err != nil {
+		return 0, err
+	}
+	return status.SyncInfo.LatestBlockHeight, nil
 }
 
 // GetSignedBlock queries Core for a `Block` at the given height.
@@ -250,7 +249,13 @@ func (f *BlockFetcher) IsSyncing(ctx context.Context) (bool, error) {
 	return resp.SyncInfo.CatchingUp, nil
 }
 
-func receiveBlockByHeight(streamer coregrpc.BlockAPI_BlockByHeightClient) (*types.Block, *types.BlockMeta, *types.Commit, *types.ValidatorSet, error) {
+func receiveBlockByHeight(streamer coregrpc.BlockAPI_BlockByHeightClient) (
+	*types.Block,
+	*types.BlockMeta,
+	*types.Commit,
+	*types.ValidatorSet,
+	error,
+) {
 	parts := make([]*tmproto.Part, 0)
 
 	// receive the first part to get the block meta, commit, and validator set

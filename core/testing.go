@@ -1,12 +1,9 @@
 package core
 
 import (
-	"net"
-	"net/url"
 	"testing"
 	"time"
 
-	tmconfig "github.com/tendermint/tendermint/config"
 	tmrand "github.com/tendermint/tendermint/libs/rand"
 
 	"github.com/celestiaorg/celestia-app/v3/test/util/genesis"
@@ -53,18 +50,6 @@ func StartTestNodeWithConfig(t *testing.T, cfg *testnode.Config) testnode.Contex
 	// however, it might be useful to use a local tendermint client
 	// if you need to debug something inside it
 	return cctx
-}
-
-func getEndpoint(cfg *tmconfig.Config) (string, string, error) {
-	url, err := url.Parse(cfg.RPC.ListenAddress)
-	if err != nil {
-		return "", "", err
-	}
-	host, _, err := net.SplitHostPort(url.Host)
-	if err != nil {
-		return "", "", err
-	}
-	return host, url.Port(), nil
 }
 
 // generateRandomAccounts generates n random account names.
