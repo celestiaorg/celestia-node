@@ -4,6 +4,8 @@ package nodebuilder
 
 import (
 	"context"
+	"github.com/celestiaorg/celestia-node/core"
+	"net"
 	"net/http"
 	"net/http/httptest"
 	"strconv"
@@ -29,7 +31,16 @@ func TestLifecycle(t *testing.T) {
 
 	for i, tt := range test {
 		t.Run(strconv.Itoa(i), func(t *testing.T) {
-			node := TestNode(t, tt.tp)
+			// we're also creating a test node because the gRPC connection
+			// is started automatically when starting the node.
+			host, port, err := net.SplitHostPort(core.StartTestNode(t).GRPCClient.Target())
+			require.NoError(t, err)
+
+			cfg := DefaultConfig(tt.tp)
+			cfg.Core.IP = host
+			cfg.Core.GRPCPort = port
+
+			node := TestNodeWithConfig(t, tt.tp, cfg)
 			require.NotNil(t, node)
 			require.NotNil(t, node.Config)
 			require.NotNil(t, node.Host)
@@ -41,7 +52,7 @@ func TestLifecycle(t *testing.T) {
 			ctx, cancel := context.WithCancel(context.Background())
 			defer cancel()
 
-			err := node.Start(ctx)
+			err = node.Start(ctx)
 			require.NoError(t, err)
 
 			err = node.Stop(ctx)
@@ -67,9 +78,19 @@ func TestLifecycle_WithMetrics(t *testing.T) {
 
 	for i, tt := range test {
 		t.Run(strconv.Itoa(i), func(t *testing.T) {
-			node := TestNode(
+			// we're also creating a test node because the gRPC connection
+			// is started automatically when starting the node.
+			host, port, err := net.SplitHostPort(core.StartTestNode(t).GRPCClient.Target())
+			require.NoError(t, err)
+
+			cfg := DefaultConfig(tt.tp)
+			cfg.Core.IP = host
+			cfg.Core.GRPCPort = port
+
+			node := TestNodeWithConfig(
 				t,
 				tt.tp,
+				cfg,
 				WithMetrics(
 					[]otlpmetrichttp.Option{
 						otlpmetrichttp.WithEndpoint(otelCollectorURL),
@@ -88,7 +109,7 @@ func TestLifecycle_WithMetrics(t *testing.T) {
 			ctx, cancel := context.WithCancel(context.Background())
 			defer cancel()
 
-			err := node.Start(ctx)
+			err = node.Start(ctx)
 			require.NoError(t, err)
 
 			err = node.Stop(ctx)
