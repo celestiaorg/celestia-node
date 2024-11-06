@@ -26,12 +26,17 @@ func TestSampleValidate(t *testing.T) {
 		for rowIdx := 0; rowIdx < odsSize*2; rowIdx++ {
 			for colIdx := 0; colIdx < odsSize*2; colIdx++ {
 				idx, err := shwap.SampleIndexFromCoordinates(rowIdx, colIdx, odsSize)
-				require.NoError(t, err)
+				if rowIdx < odsSize && colIdx < odsSize {
+					require.NoError(t, err)
+				} else {
+					require.Error(t, err)
+					continue
+				}
 
 				sample, err := inMem.SampleForProofAxis(idx, proofType)
 				require.NoError(t, err)
 
-				require.NoError(t, sample.Verify(root, rowIdx, colIdx))
+				require.NoError(t, sample.Verify(root, rowIdx, colIdx), "row: %d col: %d", rowIdx, colIdx)
 			}
 		}
 	}
@@ -87,7 +92,12 @@ func TestSampleProtoEncoding(t *testing.T) {
 		for rowIdx := 0; rowIdx < odsSize*2; rowIdx++ {
 			for colIdx := 0; colIdx < odsSize*2; colIdx++ {
 				idx, err := shwap.SampleIndexFromCoordinates(rowIdx, colIdx, odsSize)
-				require.NoError(t, err)
+				if rowIdx < odsSize && colIdx < odsSize {
+					require.NoError(t, err)
+				} else {
+					require.Error(t, err)
+					continue
+				}
 
 				sample, err := inMem.SampleForProofAxis(idx, proofType)
 				require.NoError(t, err)
