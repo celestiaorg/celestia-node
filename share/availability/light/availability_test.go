@@ -41,12 +41,7 @@ func TestSharesAvailableCaches(t *testing.T) {
 				acc := eds.Rsmt2D{ExtendedDataSquare: square}
 				smpls := make([]shwap.Sample, len(indices))
 				for i, idx := range indices {
-					rowIdx, colIdx, err := idx.Coordinates(len(hdr.DAH.RowRoots))
-					if err != nil {
-						return nil, err
-					}
-
-					smpl, err := acc.Sample(ctx, rowIdx, colIdx)
+					smpl, err := acc.Sample(ctx, idx)
 					if err != nil {
 						return nil, err
 					}

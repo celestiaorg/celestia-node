@@ -34,7 +34,9 @@ func TestValidation_Sample(t *testing.T) {
 			accessor := &Rsmt2D{ExtendedDataSquare: randEDS}
 			validation := WithValidation(AccessorAndStreamer(accessor, nil))
 
-			_, err := validation.Sample(context.Background(), tt.rowIdx, tt.colIdx)
+			idx, _ := shwap.SampleIndexFromCoordinates(tt.rowIdx, tt.colIdx, shwap.SampleIDSize)
+
+			_, err := validation.Sample(context.Background(), idx)
 			if tt.expectFail {
 				require.ErrorIs(t, err, shwap.ErrInvalidID)
 			} else {

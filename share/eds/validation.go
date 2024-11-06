@@ -38,17 +38,12 @@ func (f validation) Size(ctx context.Context) int {
 	return int(size)
 }
 
-func (f validation) Sample(ctx context.Context, rowIdx, colIdx int) (shwap.Sample, error) {
-	idx, err := shwap.SampleIndexFromCoordinates(rowIdx, colIdx, f.Size(ctx))
-	if err != nil {
-		return shwap.Sample{}, err
-	}
-
-	_, err = shwap.NewSampleID(1, idx, f.Size(ctx))
+func (f validation) Sample(ctx context.Context, idx shwap.SampleIndex) (shwap.Sample, error) {
+	_, err := shwap.NewSampleID(1, idx, f.Size(ctx))
 	if err != nil {
 		return shwap.Sample{}, fmt.Errorf("sample validation: %w", err)
 	}
-	return f.Accessor.Sample(ctx, rowIdx, colIdx)
+	return f.Accessor.Sample(ctx, idx)
 }
 
 func (f validation) AxisHalf(ctx context.Context, axisType rsmt2d.Axis, axisIdx int) (AxisHalf, error) {

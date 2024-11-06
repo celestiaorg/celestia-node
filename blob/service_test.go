@@ -145,9 +145,11 @@ func TestBlobService_Get(t *testing.T) {
 				shareOffset := 0
 				for i := range blobs {
 					row, col := calculateIndex(len(h.DAH.RowRoots), blobs[i].index)
-					sh, err := service.shareGetter.GetShare(ctx, h, row, col)
+					idx, err := shwap.SampleIndexFromCoordinates(row, col, len(h.DAH.RowRoots))
 					require.NoError(t, err)
-					require.True(t, bytes.Equal(sh.ToBytes(), resultShares[shareOffset].ToBytes()),
+					smpls, err := service.shareGetter.GetSamples(ctx, h, []shwap.SampleIndex{idx})
+					require.NoError(t, err)
+					require.True(t, bytes.Equal(smpls[0].Share.ToBytes(), resultShares[shareOffset].ToBytes()),
 						fmt.Sprintf("issue on %d attempt. ROW:%d, COL: %d, blobIndex:%d", i, row, col, blobs[i].index),
 					)
 					shareOffset += libshare.SparseSharesNeeded(uint32(len(blobs[i].Data())))
@@ -487,10 +489,13 @@ func TestService_GetSingleBlobWithoutPadding(t *testing.T) {
 	h, err := service.headerGetter(ctx, 1)
 	require.NoError(t, err)
 	row, col := calculateIndex(len(h.DAH.RowRoots), newBlob.index)
-	sh, err := service.shareGetter.GetShare(ctx, h, row, col)
+	idx, err := shwap.SampleIndexFromCoordinates(row, col, len(h.DAH.RowRoots))
 	require.NoError(t, err)
 
-	assert.Equal(t, sh, resultShares[0])
+	smpls, err := service.shareGetter.GetSamples(ctx, h, []shwap.SampleIndex{idx})
+	require.NoError(t, err)
+
+	assert.Equal(t, smpls[0].Share, resultShares[0])
 }
 
 func TestService_Get(t *testing.T) {
@@ -521,10 +526,13 @@ func TestService_Get(t *testing.T) {
 		assert.Equal(t, b.Commitment, blob.Commitment)
 
 		row, col := calculateIndex(len(h.DAH.RowRoots), b.index)
-		sh, err := service.shareGetter.GetShare(ctx, h, row, col)
+		idx, err := shwap.SampleIndexFromCoordinates(row, col, len(h.DAH.RowRoots))
 		require.NoError(t, err)
 
-		assert.Equal(t, sh, resultShares[shareOffset], fmt.Sprintf("issue on %d attempt", i))
+		smpls, err := service.shareGetter.GetSamples(ctx, h, []shwap.SampleIndex{idx})
+		require.NoError(t, err)
+
+		assert.Equal(t, smpls[0].Share, resultShares[shareOffset], fmt.Sprintf("issue on %d attempt", i))
 		shareOffset += libshare.SparseSharesNeeded(uint32(len(blob.Data())))
 	}
 }
@@ -580,10 +588,13 @@ func TestService_GetAllWithoutPadding(t *testing.T) {
 		require.True(t, blobs[i].compareCommitments(blob.Commitment))
 
 		row, col := calculateIndex(len(h.DAH.RowRoots), blob.index)
-		sh, err := service.shareGetter.GetShare(ctx, h, row, col)
+		idx, err := shwap.SampleIndexFromCoordinates(row, col, len(h.DAH.RowRoots))
 		require.NoError(t, err)
 
-		assert.Equal(t, sh, resultShares[shareOffset])
+		smpls, err := service.shareGetter.GetSamples(ctx, h, []shwap.SampleIndex{idx})
+		require.NoError(t, err)
+
+		assert.Equal(t, smpls[0].Share, resultShares[shareOffset])
 		shareOffset += libshare.SparseSharesNeeded(uint32(len(blob.Data())))
 	}
 }
@@ -904,7 +915,8 @@ func createService(ctx context.Context, t testing.TB, shares []libshare.Share) *
 		})
 	shareGetter.EXPECT().GetSamples(gomock.Any(), gomock.Any(), gomock.Any()).AnyTimes().
 		DoAndReturn(func(ctx context.Context, h *header.ExtendedHeader, indices []shwap.SampleIndex) ([]shwap.Sample, error) {
-			return smpls, nil
+			smpl, err := accessor.Sample(ctx, indices[0])
+			return []shwap.Sample{smpl}, err
 		})
 
 	// create header and put it into the store

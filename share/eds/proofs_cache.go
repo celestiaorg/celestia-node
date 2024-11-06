@@ -112,7 +112,12 @@ func (c *proofsCache) AxisRoots(ctx context.Context) (*share.AxisRoots, error) {
 	return roots, nil
 }
 
-func (c *proofsCache) Sample(ctx context.Context, rowIdx, colIdx int) (shwap.Sample, error) {
+func (c *proofsCache) Sample(ctx context.Context, idx shwap.SampleIndex) (shwap.Sample, error) {
+	rowIdx, colIdx, err := idx.Coordinates(shwap.EdsIDSize)
+	if err != nil {
+		return shwap.Sample{}, err
+	}
+
 	axisType, axisIdx, shrIdx := rsmt2d.Row, rowIdx, colIdx
 	ax, err := c.axisWithProofs(ctx, axisType, axisIdx)
 	if err != nil {

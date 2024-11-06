@@ -36,14 +36,16 @@ func TestStoreGetter(t *testing.T) {
 		squareSize := int(eds.Width())
 		for i := 0; i < squareSize; i++ {
 			for j := 0; j < squareSize; j++ {
-				share, err := sg.GetShare(ctx, eh, i, j)
+				idx, err := shwap.SampleIndexFromCoordinates(i, j, len(eh.DAH.RowRoots))
 				require.NoError(t, err)
-				require.Equal(t, eds.GetCell(uint(i), uint(j)), share.ToBytes())
+				smpls, err := sg.GetSamples(ctx, eh, []shwap.SampleIndex{idx})
+				require.NoError(t, err)
+				require.Equal(t, eds.GetCell(uint(i), uint(j)), smpls[0].Share.ToBytes())
 			}
 		}
 
 		// doesn't panic on indexes too high
-		_, err = sg.GetShare(ctx, eh, squareSize, squareSize)
+		_, err = sg.GetSamples(ctx, eh, []shwap.SampleIndex{shwap.SampleIndex(squareSize * squareSize)})
 		require.ErrorIs(t, err, shwap.ErrOutOfBounds)
 	})
 

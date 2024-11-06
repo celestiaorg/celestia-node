@@ -25,8 +25,7 @@ type Accessor interface {
 	// Sample returns share and corresponding proof for row and column indices. Implementation can
 	// choose which axis to use for proof. Chosen axis for proof should be indicated in the returned
 	// Sample.
-	// TODO(@Wondertan): change to SampleIndex
-	Sample(ctx context.Context, rowIdx, colIdx int) (shwap.Sample, error)
+	Sample(ctx context.Context, idx shwap.SampleIndex) (shwap.Sample, error)
 	// AxisHalf returns half of shares axis of the given type and index. Side is determined by
 	// implementation. Implementations should indicate the side in the returned AxisHalf.
 	AxisHalf(ctx context.Context, axisType rsmt2d.Axis, axisIdx int) (AxisHalf, error)

@@ -122,9 +122,9 @@ func (odsq4 *ODSQ4) AxisRoots(ctx context.Context) (*share.AxisRoots, error) {
 	return odsq4.ods.AxisRoots(ctx)
 }
 
-func (odsq4 *ODSQ4) Sample(ctx context.Context, rowIdx, colIdx int) (shwap.Sample, error) {
+func (odsq4 *ODSQ4) Sample(ctx context.Context, idx shwap.SampleIndex) (shwap.Sample, error) {
 	// use native AxisHalf implementation, to read axis from q4 quadrant when possible
-	half, err := odsq4.AxisHalf(ctx, rsmt2d.Row, rowIdx)
+	half, err := odsq4.AxisHalf(ctx, rsmt2d.Row, 0)
 	if err != nil {
 		return shwap.Sample{}, fmt.Errorf("reading axis: %w", err)
 	}
@@ -133,10 +133,6 @@ func (odsq4 *ODSQ4) Sample(ctx context.Context, rowIdx, colIdx int) (shwap.Sampl
 		return shwap.Sample{}, fmt.Errorf("extending shares: %w", err)
 	}
 
-	idx, err := shwap.SampleIndexFromCoordinates(rowIdx, colIdx, odsq4.Size(ctx))
-	if err != nil {
-		return shwap.Sample{}, err
-	}
 	return shwap.SampleFromShares(shares, rsmt2d.Row, idx)
 }
 
