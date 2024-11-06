@@ -25,13 +25,8 @@ func TestSampleValidate(t *testing.T) {
 	for _, proofType := range []rsmt2d.Axis{rsmt2d.Row, rsmt2d.Col} {
 		for rowIdx := 0; rowIdx < odsSize*2; rowIdx++ {
 			for colIdx := 0; colIdx < odsSize*2; colIdx++ {
-				idx, err := shwap.SampleIndexFromCoordinates(rowIdx, colIdx, odsSize)
-				if rowIdx < odsSize && colIdx < odsSize {
-					require.NoError(t, err)
-				} else {
-					require.Error(t, err)
-					continue
-				}
+				idx, err := shwap.SampleIndexFromCoordinates(rowIdx, colIdx, int(randEDS.Width()))
+				require.NoError(t, err)
 
 				sample, err := inMem.SampleForProofAxis(idx, proofType)
 				require.NoError(t, err)
@@ -91,13 +86,8 @@ func TestSampleProtoEncoding(t *testing.T) {
 	for _, proofType := range []rsmt2d.Axis{rsmt2d.Row, rsmt2d.Col} {
 		for rowIdx := 0; rowIdx < odsSize*2; rowIdx++ {
 			for colIdx := 0; colIdx < odsSize*2; colIdx++ {
-				idx, err := shwap.SampleIndexFromCoordinates(rowIdx, colIdx, odsSize)
-				if rowIdx < odsSize && colIdx < odsSize {
-					require.NoError(t, err)
-				} else {
-					require.Error(t, err)
-					continue
-				}
+				idx, err := shwap.SampleIndexFromCoordinates(rowIdx, colIdx, int(randEDS.Width()))
+				require.NoError(t, err)
 
 				sample, err := inMem.SampleForProofAxis(idx, proofType)
 				require.NoError(t, err)
