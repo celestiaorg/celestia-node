@@ -186,7 +186,7 @@ func testAccessorSample(
 			wg.Add(1)
 			go func() {
 				defer wg.Done()
-				idx := rand.IntN(42) //nolint:gosec
+				idx := rand.IntN(int(eds.Width())) //nolint:gosec
 				testSample(ctx, t, acc, roots, shwap.SampleIndex(idx))
 			}()
 		}
