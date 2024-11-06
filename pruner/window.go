@@ -1,6 +1,7 @@
 package pruner
 
 import (
+	"os"
 	"time"
 )
 
@@ -14,8 +15,14 @@ func (aw AvailabilityWindow) Duration() time.Duration {
 // given AvailabilityWindow. If the window is disabled (0), it returns true for
 // every timestamp.
 func IsWithinAvailabilityWindow(t time.Time, window AvailabilityWindow) bool {
+	if alwaysAvailable {
+		return true
+	}
 	if window.Duration() == time.Duration(0) {
 		return true
 	}
 	return time.Since(t) <= window.Duration()
 }
+
+// alwaysAvailable is a flag that disables the availability window.
+var alwaysAvailable = os.Getenv("CELESTIA_PRUNING_DISABLED") == "true"
