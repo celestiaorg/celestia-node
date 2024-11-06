@@ -30,7 +30,14 @@ func coreAccessor(
 	*modfraud.ServiceBreaker[*state.CoreAccessor, *header.ExtendedHeader],
 	error,
 ) {
-	ca, err := state.NewCoreAccessor(keyring, string(keyname), sync, corecfg.IP, corecfg.GRPCPort, corecfg.EnableTLS, network.String(), opts...)
+	if corecfg.EnableTLS {
+		tls, err := core.TLS()
+		if err != nil {
+			return nil, nil, nil, err
+		}
+		opts = append(opts, state.WithTLSConfig(tls))
+	}
+	ca, err := state.NewCoreAccessor(keyring, string(keyname), sync, corecfg.IP, corecfg.GRPCPort, network.String(), opts...)
 
 	sBreaker := &modfraud.ServiceBreaker[*state.CoreAccessor, *header.ExtendedHeader]{
 		Service:   ca,

@@ -47,6 +47,12 @@ var (
 // to configure parameters.
 type Option func(ca *CoreAccessor)
 
+func WithTLSConfig(cfg *tls.Config) Option {
+	return func(ca *CoreAccessor) {
+		ca.tls = cfg
+	}
+}
+
 // CoreAccessor implements service over a gRPC connection
 // with a celestia-core node.
 type CoreAccessor struct {
@@ -68,11 +74,12 @@ type CoreAccessor struct {
 
 	prt *merkle.ProofRuntime
 
-	coreConn  *grpc.ClientConn
-	coreIP    string
-	grpcPort  string
-	enableTLS bool
-	network   string
+	coreConn *grpc.ClientConn
+	coreIP   string
+	grpcPort string
+	network  string
+
+	tls *tls.Config
 
 	// these fields are mutatable and thus need to be protected by a mutex
 	lock            sync.Mutex
@@ -88,7 +95,7 @@ type CoreAccessor struct {
 // NewCoreAccessor dials the given celestia-core endpoint and
 // constructs and returns a new CoreAccessor (state service) with the active
 // connection.
-func NewCoreAccessor(keyring keyring.Keyring, keyname string, getter libhead.Head[*header.ExtendedHeader], coreIP, grpcPort string, enableTLS bool, network string, options ...Option) (*CoreAccessor, error) {
+func NewCoreAccessor(keyring keyring.Keyring, keyname string, getter libhead.Head[*header.ExtendedHeader], coreIP, grpcPort string, network string, options ...Option) (*CoreAccessor, error) {
 	// create verifier
 	prt := merkle.DefaultProofRuntime()
 	prt.RegisterOpDecoder(storetypes.ProofOpIAVLCommitment, storetypes.CommitmentOpDecoder)
@@ -100,7 +107,6 @@ func NewCoreAccessor(keyring keyring.Keyring, keyname string, getter libhead.Hea
 		getter:               getter,
 		coreIP:               coreIP,
 		grpcPort:             grpcPort,
-		enableTLS:            enableTLS,
 		prt:                  prt,
 		network:              network,
 	}
@@ -119,16 +125,18 @@ func (ca *CoreAccessor) Start(ctx context.Context) error {
 
 	// dial given celestia-core endpoint
 	endpoint := fmt.Sprintf("%s:%s", ca.coreIP, ca.grpcPort)
-	grpcOpts := make([]grpc.DialOption, 0)
-	if ca.enableTLS {
-		grpcOpts = append(grpcOpts, grpc.WithTransportCredentials(credentials.NewTLS(&tls.Config{})))
+
+	var creds credentials.TransportCredentials
+	if ca.tls != nil {
+		creds = credentials.NewTLS(ca.tls)
 	} else {
-		grpcOpts = append(grpcOpts, grpc.WithTransportCredentials(insecure.NewCredentials()))
+		creds = insecure.NewCredentials()
 	}
 	client, err := grpc.NewClient(
 		endpoint,
-		grpcOpts...,
+		grpc.WithTransportCredentials(creds),
 	)
+
 	if err != nil {
 		return err
 	}
