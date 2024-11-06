@@ -182,7 +182,9 @@ func (m onceGetter) AddSamples(samples []Sample) {
 	}
 }
 
-func (m onceGetter) GetSamples(_ context.Context, hdr *header.ExtendedHeader, indices []shwap.SampleIndex) ([]shwap.Sample, error) {
+func (m onceGetter) GetSamples(_ context.Context, hdr *header.ExtendedHeader,
+	indices []shwap.SampleIndex,
+) ([]shwap.Sample, error) {
 	m.Lock()
 	defer m.Unlock()
 
