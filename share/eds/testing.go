@@ -204,7 +204,7 @@ func testSample(
 	shr, err := acc.Sample(ctx, idx)
 	require.NoError(t, err)
 
-	rowIdx, colIdx, err := idx.Coordinates(shwap.EdsIDSize)
+	rowIdx, colIdx, err := idx.Coordinates(acc.Size(ctx))
 	require.NoError(t, err)
 
 	err = shr.Verify(roots, rowIdx, colIdx)
