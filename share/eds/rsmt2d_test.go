@@ -56,7 +56,10 @@ func TestRsmt2dSampleForProofAxis(t *testing.T) {
 	for _, proofType := range []rsmt2d.Axis{rsmt2d.Row, rsmt2d.Col} {
 		for rowIdx := 0; rowIdx < odsSize*2; rowIdx++ {
 			for colIdx := 0; colIdx < odsSize*2; colIdx++ {
-				sample, err := accessor.SampleForProofAxis(rowIdx, colIdx, proofType)
+				idx, err := shwap.SampleIndexFromCoordinates(rowIdx, colIdx, accessor.Size(context.Background()))
+				require.NoError(t, err)
+
+				sample, err := accessor.SampleForProofAxis(idx, proofType)
 				require.NoError(t, err)
 
 				want := eds.GetCell(uint(rowIdx), uint(colIdx))

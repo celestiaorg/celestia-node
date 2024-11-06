@@ -37,7 +37,9 @@ type SingleEDSGetter struct {
 }
 
 // GetSamples get samples from a kept EDS if exist and if the correct root is given.
-func (seg *SingleEDSGetter) GetSamples(ctx context.Context, hdr *header.ExtendedHeader, indices []shwap.SampleIndex) ([]shwap.Sample, error) {
+func (seg *SingleEDSGetter) GetSamples(ctx context.Context, hdr *header.ExtendedHeader,
+	indices []shwap.SampleIndex,
+) ([]shwap.Sample, error) {
 	err := seg.checkRoots(hdr.DAH)
 	if err != nil {
 		return nil, err
@@ -45,12 +47,7 @@ func (seg *SingleEDSGetter) GetSamples(ctx context.Context, hdr *header.Extended
 
 	smpls := make([]shwap.Sample, len(indices))
 	for i, idx := range indices {
-		rowIdx, colIdx, err := idx.Coordinates(len(hdr.DAH.RowRoots))
-		if err != nil {
-			return nil, err
-		}
-
-		smpl, err := seg.EDS.Sample(ctx, rowIdx, colIdx)
+		smpl, err := seg.EDS.Sample(ctx, idx)
 		if err != nil {
 			return nil, err
 		}

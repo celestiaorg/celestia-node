@@ -94,7 +94,12 @@ func (sb *SampleBlock) Marshal() ([]byte, error) {
 }
 
 func (sb *SampleBlock) Populate(ctx context.Context, eds eds.Accessor) error {
-	smpl, err := eds.Sample(ctx, sb.ID.RowIndex, sb.ID.ShareIndex)
+	idx, err := shwap.SampleIndexFromCoordinates(sb.ID.RowIndex, sb.ID.ShareIndex, eds.Size(ctx))
+	if err != nil {
+		return err
+	}
+
+	smpl, err := eds.Sample(ctx, idx)
 	if err != nil {
 		return fmt.Errorf("accessing Sample: %w", err)
 	}

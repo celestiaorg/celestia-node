@@ -24,7 +24,9 @@ func NewGetter(store *Store) *Getter {
 	return &Getter{store: store}
 }
 
-func (g *Getter) GetSamples(ctx context.Context, hdr *header.ExtendedHeader, indices []shwap.SampleIndex) ([]shwap.Sample, error) {
+func (g *Getter) GetSamples(ctx context.Context, hdr *header.ExtendedHeader,
+	indices []shwap.SampleIndex,
+) ([]shwap.Sample, error) {
 	acc, err := g.store.GetByHeight(ctx, hdr.Height())
 	if err != nil {
 		if errors.Is(err, ErrNotFound) {
@@ -36,12 +38,7 @@ func (g *Getter) GetSamples(ctx context.Context, hdr *header.ExtendedHeader, ind
 
 	smpls := make([]shwap.Sample, len(indices))
 	for i, idx := range indices {
-		rowIdx, colIdx, err := idx.Coordinates(len(hdr.DAH.RowRoots))
-		if err != nil {
-			return nil, err
-		}
-
-		smpl, err := acc.Sample(ctx, rowIdx, colIdx)
+		smpl, err := acc.Sample(ctx, idx)
 		if err != nil {
 			return nil, fmt.Errorf("get sample from accessor:%w", err)
 		}

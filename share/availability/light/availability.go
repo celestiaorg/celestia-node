@@ -126,10 +126,10 @@ func (la *ShareAvailability) SharesAvailable(ctx context.Context, header *header
 	}
 
 	smpls, err := la.getter.GetSamples(ctx, header, idxs)
-	if errors.Is(ctx.Err(), context.Canceled) {
+	if errors.Is(err, context.Canceled) {
 		// Availability did not complete due to context cancellation, return context error instead of
 		// share.ErrNotAvailable
-		return ctx.Err()
+		return err
 	}
 	if len(smpls) == 0 {
 		return share.ErrNotAvailable

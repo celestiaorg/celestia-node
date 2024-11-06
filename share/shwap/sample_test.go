@@ -25,10 +25,13 @@ func TestSampleValidate(t *testing.T) {
 	for _, proofType := range []rsmt2d.Axis{rsmt2d.Row, rsmt2d.Col} {
 		for rowIdx := 0; rowIdx < odsSize*2; rowIdx++ {
 			for colIdx := 0; colIdx < odsSize*2; colIdx++ {
-				sample, err := inMem.SampleForProofAxis(rowIdx, colIdx, proofType)
+				idx, err := shwap.SampleIndexFromCoordinates(rowIdx, colIdx, int(randEDS.Width()))
 				require.NoError(t, err)
 
-				require.NoError(t, sample.Verify(root, rowIdx, colIdx))
+				sample, err := inMem.SampleForProofAxis(idx, proofType)
+				require.NoError(t, err)
+
+				require.NoError(t, sample.Verify(root, rowIdx, colIdx), "row: %d col: %d", rowIdx, colIdx)
 			}
 		}
 	}
@@ -42,7 +45,7 @@ func TestSampleNegativeVerifyInclusion(t *testing.T) {
 	require.NoError(t, err)
 	inMem := eds.Rsmt2D{ExtendedDataSquare: randEDS}
 
-	sample, err := inMem.Sample(context.Background(), 0, 0)
+	sample, err := inMem.Sample(context.Background(), 0)
 	require.NoError(t, err)
 	err = sample.Verify(root, 0, 0)
 	require.NoError(t, err)
@@ -61,14 +64,14 @@ func TestSampleNegativeVerifyInclusion(t *testing.T) {
 	require.ErrorIs(t, err, shwap.ErrFailedVerification)
 
 	// incorrect proofType
-	sample, err = inMem.Sample(context.Background(), 0, 0)
+	sample, err = inMem.Sample(context.Background(), 0)
 	require.NoError(t, err)
 	sample.ProofType = rsmt2d.Col
 	err = sample.Verify(root, 0, 0)
 	require.ErrorIs(t, err, shwap.ErrFailedVerification)
 
 	// Corrupt the last root hash byte
-	sample, err = inMem.Sample(context.Background(), 0, 0)
+	sample, err = inMem.Sample(context.Background(), 0)
 	require.NoError(t, err)
 	root.RowRoots[0][len(root.RowRoots[0])-1] ^= 0xFF
 	err = sample.Verify(root, 0, 0)
@@ -83,7 +86,10 @@ func TestSampleProtoEncoding(t *testing.T) {
 	for _, proofType := range []rsmt2d.Axis{rsmt2d.Row, rsmt2d.Col} {
 		for rowIdx := 0; rowIdx < odsSize*2; rowIdx++ {
 			for colIdx := 0; colIdx < odsSize*2; colIdx++ {
-				sample, err := inMem.SampleForProofAxis(rowIdx, colIdx, proofType)
+				idx, err := shwap.SampleIndexFromCoordinates(rowIdx, colIdx, int(randEDS.Width()))
+				require.NoError(t, err)
+
+				sample, err := inMem.SampleForProofAxis(idx, proofType)
 				require.NoError(t, err)
 
 				pb := sample.ToProto()
@@ -103,7 +109,8 @@ func BenchmarkSampleValidate(b *testing.B) {
 	root, err := share.NewAxisRoots(randEDS)
 	require.NoError(b, err)
 	inMem := eds.Rsmt2D{ExtendedDataSquare: randEDS}
-	sample, err := inMem.SampleForProofAxis(0, 0, rsmt2d.Row)
+
+	sample, err := inMem.SampleForProofAxis(0, rsmt2d.Row)
 	require.NoError(b, err)
 
 	b.ResetTimer()
