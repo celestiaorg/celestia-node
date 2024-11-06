@@ -2,9 +2,10 @@ package core
 
 import (
 	"crypto/tls"
-	"github.com/celestiaorg/celestia-node/libs/utils"
-	"os"
+	"fmt"
 	"path/filepath"
+
+	"github.com/celestiaorg/celestia-node/libs/utils"
 )
 
 const (
@@ -12,22 +13,21 @@ const (
 	key  = "key.pem"
 )
 
-var tlsPath = "CELESTIA_GRPC_TLS_PATH"
-
-// TLS tries to read `CELESTIA_GRPC_TLS_PATH` to get the tls path and configure the config
-// with build certificate. In returns an empty config in case the path hasn't specified.
-func TLS() (*tls.Config, error) {
+// TLS parses the tls path and tries to configure the config with tls certificates.
+// In returns an empty config in case the path was not specified.
+func TLS(tlsPath string) (*tls.Config, error) {
 	cfg := &tls.Config{MinVersion: tls.VersionTLS12}
-	path := os.Getenv(tlsPath)
-	if path == "" {
+	if tlsPath == "" {
 		return cfg, nil
 	}
-
-	certPath := filepath.Join(path, cert)
-	keyPath := filepath.Join(path, key)
+	certPath := filepath.Join(tlsPath, cert)
+	keyPath := filepath.Join(tlsPath, key)
 	exist := utils.Exists(certPath) && utils.Exists(keyPath)
 	if !exist {
-		return cfg, nil
+		return nil, fmt.Errorf("can't find %s or %s under %s"+
+			"Please specify another path or disable tls in the config",
+			cert, key, tlsPath,
+		)
 	}
 
 	cert, err := tls.LoadX509KeyPair(certPath, keyPath)

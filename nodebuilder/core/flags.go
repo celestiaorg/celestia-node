@@ -12,6 +12,7 @@ var (
 	coreRPCFlag       = "core.rpc.port"
 	coreGRPCFlag      = "core.grpc.port"
 	coreEnableTLSFlag = "core.grpc.tls"
+	coreTLSPAthFlag   = "core.grpc.tls.path"
 )
 
 // Flags gives a set of hardcoded Core flags.
@@ -39,6 +40,11 @@ func Flags() *flag.FlagSet {
 		coreEnableTLSFlag,
 		false,
 		"Enables grpc TLS. The --core.ip flag must also be provided.",
+	)
+	flags.String(
+		coreTLSPAthFlag,
+		"",
+		fmt.Sprintf("Set a path to the TLS certificates. The --%s must be set to true ", coreEnableTLSFlag),
 	)
 	return flags
 }
@@ -69,6 +75,11 @@ func ParseFlags(
 	if cmd.Flag(coreEnableTLSFlag).Changed {
 		enabled := cmd.Flag(coreEnableTLSFlag).Value.String() == "true"
 		cfg.EnableTLS = enabled
+	}
+
+	if cmd.Flag(coreTLSPAthFlag).Changed {
+		path := cmd.Flag(coreTLSPAthFlag).Value.String()
+		cfg.TLSPath = path
 	}
 
 	cfg.IP = coreIP

@@ -8,12 +8,6 @@ import (
 	"sync"
 	"time"
 
-	"github.com/celestiaorg/celestia-app/v3/app"
-	"github.com/celestiaorg/celestia-app/v3/app/encoding"
-	apperrors "github.com/celestiaorg/celestia-app/v3/app/errors"
-	"github.com/celestiaorg/celestia-app/v3/pkg/user"
-	libhead "github.com/celestiaorg/go-header"
-	libshare "github.com/celestiaorg/go-square/v2/share"
 	nodeservice "github.com/cosmos/cosmos-sdk/client/grpc/node"
 	"github.com/cosmos/cosmos-sdk/client/grpc/tmservice"
 	"github.com/cosmos/cosmos-sdk/crypto/keyring"
@@ -29,6 +23,13 @@ import (
 	"google.golang.org/grpc/connectivity"
 	"google.golang.org/grpc/credentials"
 	"google.golang.org/grpc/credentials/insecure"
+
+	"github.com/celestiaorg/celestia-app/v3/app"
+	"github.com/celestiaorg/celestia-app/v3/app/encoding"
+	apperrors "github.com/celestiaorg/celestia-app/v3/app/errors"
+	"github.com/celestiaorg/celestia-app/v3/pkg/user"
+	libhead "github.com/celestiaorg/go-header"
+	libshare "github.com/celestiaorg/go-square/v2/share"
 
 	"github.com/celestiaorg/celestia-node/header"
 )
@@ -95,7 +96,13 @@ type CoreAccessor struct {
 // NewCoreAccessor dials the given celestia-core endpoint and
 // constructs and returns a new CoreAccessor (state service) with the active
 // connection.
-func NewCoreAccessor(keyring keyring.Keyring, keyname string, getter libhead.Head[*header.ExtendedHeader], coreIP, grpcPort string, network string, options ...Option) (*CoreAccessor, error) {
+func NewCoreAccessor(
+	keyring keyring.Keyring,
+	keyname string,
+	getter libhead.Head[*header.ExtendedHeader],
+	coreIP, grpcPort, network string,
+	options ...Option,
+) (*CoreAccessor, error) {
 	// create verifier
 	prt := merkle.DefaultProofRuntime()
 	prt.RegisterOpDecoder(storetypes.ProofOpIAVLCommitment, storetypes.CommitmentOpDecoder)
@@ -132,11 +139,11 @@ func (ca *CoreAccessor) Start(ctx context.Context) error {
 	} else {
 		creds = insecure.NewCredentials()
 	}
+
 	client, err := grpc.NewClient(
 		endpoint,
 		grpc.WithTransportCredentials(creds),
 	)
-
 	if err != nil {
 		return err
 	}

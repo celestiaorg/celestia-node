@@ -20,13 +20,13 @@ type Config struct {
 	RPCPort   string
 	GRPCPort  string
 	EnableTLS bool
+	TLSPath   string
 }
 
 // DefaultConfig returns default configuration for managing the
 // node's connection to a Celestia-Core endpoint.
 func DefaultConfig() Config {
 	return Config{
-		IP:       "",
 		RPCPort:  DefaultRPCPort,
 		GRPCPort: DefaultGRPCPort,
 	}
