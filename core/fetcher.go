@@ -308,11 +308,14 @@ func receiveBlockByHash(streamer coregrpc.BlockAPI_BlockByHashClient) (*types.Bl
 	return partsToBlock(parts)
 }
 
+// partsToBlock takes a slice of parts and generates the corresponding block.
+// It empties the slice to optimize the memory usage.
+// TODO(@rach-id): decide whether to keep the memory optimisation
 func partsToBlock(parts []*tmproto.Part) (*types.Block, error) {
 	partSet := types.NewPartSetFromHeader(types.PartSetHeader{
 		Total: uint32(len(parts)),
 	})
-	for _, part := range parts {
+	for i, part := range parts {
 		ok, err := partSet.AddPartWithoutProof(&types.Part{Index: part.Index, Bytes: part.Bytes})
 		if err != nil {
 			return nil, err
@@ -320,16 +323,22 @@ func partsToBlock(parts []*tmproto.Part) (*types.Block, error) {
 		if !ok {
 			return nil, err
 		}
+		// free up memory by clearing reference
+		parts[i] = nil
 	}
 	pbb := new(tmproto.Block)
 	bz, err := io.ReadAll(partSet.GetReader())
 	if err != nil {
 		return nil, err
 	}
+	// free up memory by clearing reference
+	partSet = nil
 	err = proto.Unmarshal(bz, pbb)
 	if err != nil {
 		return nil, err
 	}
+	// free up memory by clearing reference
+	bz = nil
 	block, err := types.BlockFromProto(pbb)
 	if err != nil {
 		return nil, err
