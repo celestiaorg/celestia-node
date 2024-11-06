@@ -251,7 +251,7 @@ func (o *ODS) Sample(ctx context.Context, idx shwap.SampleIndex) (shwap.Sample, 
 		return shwap.Sample{}, fmt.Errorf("reading axis: %w", err)
 	}
 
-	idx, err = shwap.SampleIndexFromCoordinates(rowIdx, shrIdx, o.Size(ctx))
+	idx, err = shwap.SampleIndexFromCoordinates(axisIdx, shrIdx, o.Size(ctx))
 	if err != nil {
 		return shwap.Sample{}, err
 	}
