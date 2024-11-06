@@ -19,6 +19,7 @@ type Config struct {
 	Port      string
 	GRPCPort  string
 	EnableTLS bool
+	TLSPath   string
 }
 
 // DefaultConfig returns default configuration for managing the

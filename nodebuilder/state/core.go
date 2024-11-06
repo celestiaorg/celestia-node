@@ -31,7 +31,7 @@ func coreAccessor(
 	error,
 ) {
 	if corecfg.EnableTLS {
-		tls, err := core.TLS()
+		tls, err := core.TLS(corecfg.TLSPath)
 		if err != nil {
 			return nil, nil, nil, err
 		}
