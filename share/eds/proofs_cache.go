@@ -113,7 +113,7 @@ func (c *proofsCache) AxisRoots(ctx context.Context) (*share.AxisRoots, error) {
 }
 
 func (c *proofsCache) Sample(ctx context.Context, idx shwap.SampleIndex) (shwap.Sample, error) {
-	rowIdx, colIdx, err := idx.Coordinates(shwap.EdsIDSize)
+	rowIdx, colIdx, err := idx.Coordinates(c.Size(ctx))
 	if err != nil {
 		return shwap.Sample{}, err
 	}

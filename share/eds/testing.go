@@ -148,7 +148,7 @@ func testAccessorSample(
 		// t.Parallel() this fails the test for some reason
 		for rowIdx := 0; rowIdx < width; rowIdx++ {
 			for colIdx := 0; colIdx < width; colIdx++ {
-				idx, err := shwap.SampleIndexFromCoordinates(rowIdx, colIdx, width)
+				idx, err := shwap.SampleIndexFromCoordinates(rowIdx, colIdx, acc.Size(ctx))
 				require.NoError(t, err)
 				testSample(ctx, t, acc, roots, idx)
 			}
@@ -164,7 +164,7 @@ func testAccessorSample(
 		for rowIdx := 0; rowIdx < width; rowIdx++ {
 			for colIdx := 0; colIdx < width; colIdx++ {
 				wg.Add(1)
-				idx, err := shwap.SampleIndexFromCoordinates(rowIdx, colIdx, int(eds.Width()))
+				idx, err := shwap.SampleIndexFromCoordinates(rowIdx, colIdx, acc.Size(ctx))
 				require.NoError(t, err)
 				go func(idx shwap.SampleIndex) {
 					defer wg.Done()
