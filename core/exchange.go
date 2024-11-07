@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"fmt"
+	"github.com/tendermint/tendermint/types"
 	"time"
 
 	"golang.org/x/sync/errgroup"
@@ -152,6 +153,16 @@ func (ce *Exchange) Get(ctx context.Context, hash libhead.Hash) (*header.Extende
 		return nil, err
 	}
 
+	fmt.Println("=== cleaning up")
+	eds = nil
+	block.Data = types.Data{}
+	time.Sleep(time.Second)
+	_, err = ce.store.GetByHeight(ctx, eh.Height())
+	if err != nil {
+		fmt.Println("error getting height from cache")
+	}
+	fmt.Println("got height from cache")
+
 	return eh, nil
 }
 
@@ -187,6 +198,16 @@ func (ce *Exchange) getExtendedHeaderByHeight(ctx context.Context, height *int64
 	if err != nil {
 		return nil, err
 	}
+
+	fmt.Println("=== cleaning up")
+	eds = nil
+	b.Data = types.Data{}
+	time.Sleep(time.Second)
+	_, err = ce.store.GetByHeight(ctx, eh.Height())
+	if err != nil {
+		fmt.Println("error getting height from cache")
+	}
+	fmt.Println("got height from cache")
 
 	return eh, nil
 }
