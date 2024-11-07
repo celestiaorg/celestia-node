@@ -269,16 +269,16 @@ func (cl *Listener) handleNewSignedBlock(ctx context.Context, b types.EventDataS
 			"err", err)
 	}
 
-	cl.store.GetByHeight(ctx, eh.Height())
-
-	fmt.Println("=== cleaning up1")
-	time.Sleep(5 * time.Second)
-	fmt.Println("=== cleaning up2")
-	eds = nil
-	b.Data = types.Data{}
-	time.Sleep(5 * time.Second)
-	fmt.Println("=== cleaning up3")
-	cl.store.GetByHeight(ctx, eh.Height())
+	//cl.store.GetByHeight(ctx, eh.Height())
+	//
+	//fmt.Println("=== cleaning up1")
+	//time.Sleep(5 * time.Second)
+	//fmt.Println("=== cleaning up2")
+	//eds = nil
+	//b.Data = types.Data{}
+	//time.Sleep(5 * time.Second)
+	//fmt.Println("=== cleaning up3")
+	//cl.store.GetByHeight(ctx, eh.Height())
 
 	return nil
 }

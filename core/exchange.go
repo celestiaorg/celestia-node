@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"context"
 	"fmt"
-	"github.com/tendermint/tendermint/types"
 	"time"
 
 	"golang.org/x/sync/errgroup"
@@ -153,10 +152,6 @@ func (ce *Exchange) Get(ctx context.Context, hash libhead.Hash) (*header.Extende
 		return nil, err
 	}
 
-	eds = nil
-	block.Data = types.Data{}
-	block = nil
-
 	return eh, nil
 }
 
@@ -192,10 +187,6 @@ func (ce *Exchange) getExtendedHeaderByHeight(ctx context.Context, height *int64
 	if err != nil {
 		return nil, err
 	}
-
-	eds = nil
-	b.Data = types.Data{}
-	b = nil
 
 	return eh, nil
 }
