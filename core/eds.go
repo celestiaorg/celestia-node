@@ -31,7 +31,7 @@ func extendBlock(data types.Data, appVersion uint64, options ...nmt.Option) (*rs
 
 	// Construct the data square from the block's transactions
 	square, err := libsquare.Construct(
-		data.Txs.ToSliceOfBytes(),
+		ToSliceOfBytes(data.Txs),
 		appconsts.SquareSizeUpperBound(appVersion),
 		appconsts.SubtreeRootThreshold(appVersion),
 	)
@@ -39,6 +39,21 @@ func extendBlock(data types.Data, appVersion uint64, options ...nmt.Option) (*rs
 		return nil, err
 	}
 	return extendShares(libshare.ToBytes(square), options...)
+}
+
+func ToSliceOfBytes(txs types.Txs) [][]byte {
+	if len(txs) == 0 {
+		return [][]byte{}
+	}
+	txBzs := make([][]byte, len(txs))
+	for i := 0; i < len(txs); i++ {
+		tx := make([]byte, len(txs[0]))
+		for j := 0; j < len(txs[0]); j++ {
+			tx[j] = txs[i][j]
+		}
+		txBzs[i] = tx
+	}
+	return txBzs
 }
 
 func extendShares(s [][]byte, options ...nmt.Option) (*rsmt2d.ExtendedDataSquare, error) {
