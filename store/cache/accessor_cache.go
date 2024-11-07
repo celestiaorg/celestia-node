@@ -157,6 +157,8 @@ func (bc *AccessorCache) Remove(height uint64) error {
 	}
 	// The cache will call evictFn on removal, where accessor close will be called.
 	bc.cache.Remove(height)
+	fmt.Println("======================== evicting things from cache")
+	fmt.Println(height)
 	return nil
 }
 

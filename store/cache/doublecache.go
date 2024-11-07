@@ -57,6 +57,8 @@ func (mc *DoubleCache) GetOrLoad(
 func (mc *DoubleCache) Remove(height uint64) error {
 	err1 := mc.first.Remove(height)
 	err2 := mc.second.Remove(height)
+	fmt.Println("======================== evicting things from double cache")
+	fmt.Println(height)
 	return errors.Join(err1, err2)
 }
 
