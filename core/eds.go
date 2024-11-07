@@ -47,8 +47,8 @@ func ToSliceOfBytes(txs types.Txs) [][]byte {
 	}
 	txBzs := make([][]byte, len(txs))
 	for i := 0; i < len(txs); i++ {
-		tx := make([]byte, len(txs[0]))
-		for j := 0; j < len(txs[0]); j++ {
+		tx := make([]byte, len(txs[i]))
+		for j := 0; j < len(txs[i]); j++ {
 			tx[j] = txs[i][j]
 		}
 		txBzs[i] = tx
