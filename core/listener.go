@@ -268,5 +268,13 @@ func (cl *Listener) handleNewSignedBlock(ctx context.Context, b types.EventDataS
 			"height", b.Header.Height,
 			"err", err)
 	}
+
+	cl.store.GetByHeight(ctx, eh.Height())
+
+	fmt.Println("=== cleaning up")
+	eds = nil
+	b.Data = types.Data{}
+	cl.store.GetByHeight(ctx, eh.Height())
+
 	return nil
 }
