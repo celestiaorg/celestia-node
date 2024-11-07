@@ -111,8 +111,6 @@ func (bc *AccessorCache) GetOrLoad(
 	height uint64,
 	loader OpenAccessorFn,
 ) (eds.AccessorStreamer, error) {
-	fmt.Println("priting get or load len")
-	fmt.Println(bc.cache.Len())
 	lk := bc.getLock(height)
 	lk.Lock()
 	defer lk.Unlock()
@@ -140,7 +138,17 @@ func (bc *AccessorCache) GetOrLoad(
 	if err != nil {
 		return nil, err
 	}
-	bc.cache.Add(height, ac)
+	if bc.cache.Len() == 10 {
+		_, _, ok := bc.cache.RemoveOldest()
+		if !ok {
+			fmt.Println("unable to remove oldest block in cache")
+			return nil, fmt.Errorf("unable to find oldest block")
+		}
+		fmt.Println("found oldest block in cache and removed it")
+		fmt.Println(bc.cache.Len())
+	} else {
+		bc.cache.Add(height, ac)
+	}
 	return rc, nil
 }
 
