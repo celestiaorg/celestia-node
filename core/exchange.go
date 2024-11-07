@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"fmt"
+	"github.com/celestiaorg/celestia-node/store/cache"
 	"time"
 
 	"golang.org/x/sync/errgroup"
@@ -132,6 +133,8 @@ func (ce *Exchange) Get(ctx context.Context, hash libhead.Hash) (*header.Extende
 		return nil, fmt.Errorf("fetching block info for height %d: %w", &block.Height, err)
 	}
 
+	cache.Blocks[uint64(block.Height)] = block.Data
+
 	eds, err := extendBlock(block.Data, block.Header.Version.App)
 	if err != nil {
 		return nil, fmt.Errorf("extending block data for height %d: %w", &block.Height, err)
@@ -172,6 +175,8 @@ func (ce *Exchange) getExtendedHeaderByHeight(ctx context.Context, height *int64
 		return nil, fmt.Errorf("fetching signed block at height %d from core: %w", *height, err)
 	}
 	log.Debugw("fetched signed block from core", "height", b.Header.Height)
+
+	cache.Blocks[uint64(b.Header.Height)] = b.Data
 
 	eds, err := extendBlock(b.Data, b.Header.Version.App)
 	if err != nil {

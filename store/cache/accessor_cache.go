@@ -3,6 +3,7 @@ package cache
 import (
 	"context"
 	"fmt"
+	"github.com/tendermint/tendermint/types"
 	"runtime"
 	"sync"
 	"sync/atomic"
@@ -16,6 +17,8 @@ import (
 const defaultCloseTimeout = time.Minute
 
 var _ Cache = (*AccessorCache)(nil)
+
+var Blocks = make(map[uint64]types.Data)
 
 // AccessorCache implements the Cache interface using an LRU cache backend.
 type AccessorCache struct {
@@ -139,19 +142,14 @@ func (bc *AccessorCache) GetOrLoad(
 		return nil, err
 	}
 	if bc.cache.Len() == 10 {
-		_, block, ok := bc.cache.RemoveOldest()
+		oldestHeight, _, ok := bc.cache.RemoveOldest()
 		if !ok {
 			fmt.Println("unable to remove oldest block in cache")
 			return nil, fmt.Errorf("unable to find oldest block")
 		}
-		fmt.Println("found oldest block in cache")
-		fmt.Println(bc.cache.Len())
-		block.EmptyIT()
-		fmt.Println("emptied the eds manually")
-		runtime.GC()
-	} else {
-		bc.cache.Add(height, ac)
+		delete(Blocks, oldestHeight)
 	}
+	bc.cache.Add(height, ac)
 	return rc, nil
 }
 
