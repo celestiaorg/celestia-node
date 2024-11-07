@@ -168,11 +168,13 @@ func (s *Store) createODSQ4File(
 	roots *share.AxisRoots,
 	height uint64,
 ) (bool, error) {
+	fmt.Println("creating ODSQ4 file")
 	pathODS := s.hashToPath(roots.Hash(), odsFileExt)
 	pathQ4 := s.hashToPath(roots.Hash(), q4FileExt)
 
 	err := file.CreateODSQ4(pathODS, pathQ4, roots, square)
 	if err != nil && !errors.Is(err, os.ErrExist) {
+		fmt.Println("================= 1")
 		// ensure we don't have partial writes if any operation fails
 		removeErr := s.removeODSQ4(height, roots.Hash())
 		return false, errors.Join(
@@ -183,6 +185,7 @@ func (s *Store) createODSQ4File(
 
 	// if file already exists, check if it's corrupted
 	if errors.Is(err, os.ErrExist) {
+		fmt.Println("================= 2")
 		err = s.validateAndRecoverODSQ4(square, roots, height, pathODS, pathQ4)
 		if err != nil {
 			return false, err
@@ -196,6 +199,7 @@ func (s *Store) createODSQ4File(
 		return true, nil
 	}
 	if err != nil {
+		fmt.Println("================= 3")
 		// ensure we don't have partial writes if any operation fails
 		removeErr := s.removeODSQ4(height, roots.Hash())
 		return false, errors.Join(
@@ -203,6 +207,7 @@ func (s *Store) createODSQ4File(
 			removeErr,
 		)
 	}
+	fmt.Println("=================== 9")
 	return false, nil
 }
 
@@ -234,9 +239,11 @@ func (s *Store) createODSFile(
 	roots *share.AxisRoots,
 	height uint64,
 ) (bool, error) {
+	fmt.Println("creating ODS file")
 	pathODS := s.hashToPath(roots.Hash(), odsFileExt)
 	err := file.CreateODS(pathODS, roots, square)
 	if err != nil && !errors.Is(err, os.ErrExist) {
+		fmt.Println("=================== 4")
 		// ensure we don't have partial writes if any operation fails
 		removeErr := s.removeODS(height, roots.Hash())
 		return false, errors.Join(
@@ -247,6 +254,7 @@ func (s *Store) createODSFile(
 
 	// if file already exists, check if it's corrupted
 	if errors.Is(err, os.ErrExist) {
+		fmt.Println("=================== 5")
 		// Validate the size of the file to ensure it's not corrupted
 		err = s.validateAndRecoverODS(square, roots, height, pathODS)
 		if err != nil {
@@ -261,6 +269,7 @@ func (s *Store) createODSFile(
 		return true, nil
 	}
 	if err != nil {
+		fmt.Println("=================== 6")
 		// ensure we don't have partial writes if any operation fails
 		removeErr := s.removeODS(height, roots.Hash())
 		return false, errors.Join(
@@ -268,6 +277,7 @@ func (s *Store) createODSFile(
 			removeErr,
 		)
 	}
+	fmt.Println("=================== 7")
 	return false, nil
 }
 
