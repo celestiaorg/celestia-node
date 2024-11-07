@@ -139,13 +139,15 @@ func (bc *AccessorCache) GetOrLoad(
 		return nil, err
 	}
 	if bc.cache.Len() == 10 {
-		_, _, ok := bc.cache.RemoveOldest()
+		_, block, ok := bc.cache.RemoveOldest()
 		if !ok {
 			fmt.Println("unable to remove oldest block in cache")
 			return nil, fmt.Errorf("unable to find oldest block")
 		}
-		fmt.Println("found oldest block in cache and removed it")
+		fmt.Println("found oldest block in cache")
 		fmt.Println(bc.cache.Len())
+		block.EmptyIT()
+		fmt.Println("emptied the eds manually")
 	} else {
 		bc.cache.Add(height, ac)
 	}

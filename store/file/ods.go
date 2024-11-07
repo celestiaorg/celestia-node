@@ -19,6 +19,10 @@ import (
 
 var _ eds.AccessorStreamer = (*ODS)(nil)
 
+func (c *ODS) EmptyIT() {
+
+}
+
 // ODS implements eds.Accessor as an FS file.
 // It stores the original data square(ODS), which is the first quadrant of EDS,
 // and it's metadata in file's header.

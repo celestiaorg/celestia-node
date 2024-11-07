@@ -22,6 +22,10 @@ type closeOnce struct {
 	closed atomic.Bool
 }
 
+func (c *closeOnce) EmptyIT() {
+
+}
+
 func WithClosedOnce(f AccessorStreamer) AccessorStreamer {
 	return &closeOnce{f: f}
 }

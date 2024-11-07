@@ -19,6 +19,10 @@ import (
 
 var _ eds.AccessorStreamer = (*ODSQ4)(nil)
 
+func (c *ODSQ4) EmptyIT() {
+
+}
+
 // ODSQ4 is an Accessor that combines ODS and Q4 files.
 // It extends the ODS with the ability to read Q4 of the EDS.
 // Reading from the fourth quadrant allows to efficiently read samples from Q2 and Q4 quadrants of

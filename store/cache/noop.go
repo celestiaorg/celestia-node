@@ -43,6 +43,14 @@ func (n NoopCache) EnableMetrics() (unreg func() error, err error) {
 
 var _ eds.AccessorStreamer = NoopFile{}
 
+func (c NoopFile) EmptyIT() {
+
+}
+
+func (c NoopCache) EmptyIT() {
+
+}
+
 // NoopFile implements noop version of eds.AccessorStreamer interface
 type NoopFile struct{}
 

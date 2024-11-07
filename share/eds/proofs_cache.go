@@ -24,6 +24,10 @@ import (
 
 var _ AccessorStreamer = (*proofsCache)(nil)
 
+func (c *proofsCache) EmptyIT() {
+
+}
+
 // proofsCache is eds accessor that caches proofs for rows and columns. It also caches extended
 // axis Shares. It is used to speed up the process of building proofs for rows and columns,
 // reducing the number of reads from the underlying accessor. Cache does not synchronize access
