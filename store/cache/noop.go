@@ -2,6 +2,7 @@ package cache
 
 import (
 	"context"
+	"fmt"
 	"io"
 
 	libshare "github.com/celestiaorg/go-square/v2/share"
@@ -22,10 +23,12 @@ func (n NoopCache) Has(uint64) bool {
 }
 
 func (n NoopCache) Get(uint64) (eds.AccessorStreamer, error) {
+	fmt.Println("from noop cache get")
 	return nil, ErrCacheMiss
 }
 
 func (n NoopCache) GetOrLoad(ctx context.Context, _ uint64, loader OpenAccessorFn) (eds.AccessorStreamer, error) {
+	fmt.Println("from noop cache GetOrLoad")
 	return loader(ctx)
 }
 

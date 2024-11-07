@@ -90,6 +90,7 @@ func (bc *AccessorCache) Has(height uint64) bool {
 // Get retrieves the accessor for a given uint64 from the Cache. If the Accessor is not in
 // the Cache, it returns an ErrCacheMiss.
 func (bc *AccessorCache) Get(height uint64) (eds.AccessorStreamer, error) {
+	fmt.Println("from accessor cache")
 	lk := bc.getLock(height)
 	lk.RLock()
 	defer lk.RUnlock()
@@ -111,6 +112,7 @@ func (bc *AccessorCache) GetOrLoad(
 	height uint64,
 	loader OpenAccessorFn,
 ) (eds.AccessorStreamer, error) {
+	fmt.Println("from accessor cache GetOrLoad")
 	lk := bc.getLock(height)
 	lk.Lock()
 	defer lk.Unlock()

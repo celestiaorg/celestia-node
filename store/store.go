@@ -412,6 +412,7 @@ func (s *Store) hasByHash(datahash share.DataHash) (bool, error) {
 }
 
 func (s *Store) HasByHeight(ctx context.Context, height uint64) (bool, error) {
+	fmt.Println("from caash has by height")
 	lock := s.stripLock.byHeight(height)
 	lock.RLock()
 	defer lock.RUnlock()
