@@ -148,7 +148,7 @@ func (bc *AccessorCache) GetOrLoad(
 		fmt.Println(bc.cache.Len())
 		block.EmptyIT()
 		fmt.Println("emptied the eds manually")
-		//runtime.GC()
+		runtime.GC()
 	} else {
 		bc.cache.Add(height, ac)
 	}
