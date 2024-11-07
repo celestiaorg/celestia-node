@@ -144,14 +144,10 @@ func (bc *AccessorCache) GetOrLoad(
 			fmt.Println("unable to remove oldest block in cache")
 			return nil, fmt.Errorf("unable to find oldest block")
 		}
-		fmt.Println("found oldest block in cache")
-		fmt.Println(bc.cache.Len())
 		block.EmptyIT()
-		fmt.Println("emptied the eds manually")
 		runtime.GC()
-	} else {
-		bc.cache.Add(height, ac)
 	}
+	bc.cache.Add(height, ac)
 	return rc, nil
 }
 
