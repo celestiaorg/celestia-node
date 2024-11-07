@@ -7,12 +7,6 @@ const (
 	StorageWindow = RequestWindow + time.Hour
 )
 
-type Window time.Duration
-
-func (w Window) Duration() time.Duration {
-	return time.Duration(w)
-}
-
 // IsWithinWindow checks whether the given timestamp is within the
 // given AvailabilityWindow. If the window is disabled (0), it returns true for
 // every timestamp.

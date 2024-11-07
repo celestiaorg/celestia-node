@@ -11,10 +11,12 @@ import (
 	"github.com/celestiaorg/celestia-node/core"
 	"github.com/celestiaorg/celestia-node/libs/fxutil"
 	"github.com/celestiaorg/celestia-node/nodebuilder/node"
+	modshare "github.com/celestiaorg/celestia-node/nodebuilder/share"
 	"github.com/celestiaorg/celestia-node/pruner"
 	"github.com/celestiaorg/celestia-node/pruner/full"
 	"github.com/celestiaorg/celestia-node/share/availability"
 	"github.com/celestiaorg/celestia-node/share/availability/light"
+	"github.com/celestiaorg/celestia-node/share/shwap/p2p/discovery"
 )
 
 var log = logging.Logger("module/pruner")
@@ -23,6 +25,7 @@ func ConstructModule(tp node.Type, cfg *Config) fx.Option {
 	baseComponents := fx.Options(
 		fx.Supply(cfg),
 		availWindow(tp, cfg.EnableService),
+		advertiseArchival(tp, cfg),
 	)
 
 	prunerService := fx.Options(
@@ -77,7 +80,7 @@ func ConstructModule(tp node.Type, cfg *Config) fx.Option {
 				baseComponents,
 				prunerService,
 				fxutil.ProvideAs(full.NewPruner, new(pruner.Pruner)),
-				fx.Provide(func(window availability.Window) []core.Option {
+				fx.Provide(func(window modshare.Window) []core.Option {
 					return []core.Option{core.WithAvailabilityWindow(window.Duration())}
 				}),
 			)
@@ -96,21 +99,31 @@ func ConstructModule(tp node.Type, cfg *Config) fx.Option {
 	}
 }
 
+func advertiseArchival(tp node.Type, pruneCfg *Config) fx.Option {
+	if (tp == node.Full || tp == node.Bridge) && !pruneCfg.EnableService {
+		return fx.Supply(discovery.WithAdvertise())
+	}
+	return fx.Provide(func() discovery.Option {
+		var opt discovery.Option
+		return opt
+	})
+}
+
 func availWindow(tp node.Type, pruneEnabled bool) fx.Option {
 	switch tp {
 	case node.Light:
 		// light nodes are still subject to sampling within window
 		// even if pruning is not enabled.
-		return fx.Provide(func() availability.Window {
-			return availability.Window(availability.StorageWindow)
+		return fx.Provide(func() modshare.Window {
+			return modshare.Window(availability.StorageWindow)
 		})
 	case node.Full, node.Bridge:
-		return fx.Provide(func() availability.Window {
+		return fx.Provide(func() modshare.Window {
 			if pruneEnabled {
-				return availability.Window(availability.StorageWindow)
+				return modshare.Window(availability.StorageWindow)
 			}
 			// implicitly disable pruning by setting the window to 0
-			return availability.Window(time.Duration(0))
+			return modshare.Window(time.Duration(0))
 		})
 	default:
 		panic("unknown node type")

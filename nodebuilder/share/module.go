@@ -38,7 +38,7 @@ func ConstructModule(tp node.Type, cfg *Config, options ...fx.Option) fx.Option 
 		availabilityComponents(tp, cfg),
 		shrexComponents(tp, cfg),
 		bitswapComponents(tp, cfg),
-		peerComponents(tp, cfg),
+		peerManagementComponents(tp, cfg),
 	)
 
 	switch tp {

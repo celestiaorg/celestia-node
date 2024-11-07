@@ -7,13 +7,13 @@ import (
 
 	"github.com/celestiaorg/celestia-node/header"
 	"github.com/celestiaorg/celestia-node/nodebuilder/p2p"
+	modshare "github.com/celestiaorg/celestia-node/nodebuilder/share"
 	"github.com/celestiaorg/celestia-node/pruner"
-	"github.com/celestiaorg/celestia-node/share/availability"
 )
 
 func newPrunerService(
 	p pruner.Pruner,
-	window availability.Window,
+	window modshare.Window,
 	getter libhead.Store[*header.ExtendedHeader],
 	ds datastore.Batching,
 	opts ...pruner.Option,
