@@ -155,6 +155,7 @@ func (ce *Exchange) Get(ctx context.Context, hash libhead.Hash) (*header.Extende
 
 	ce.store.GetByHeight(ctx, eh.Height())
 
+	fmt.Println("cleaning up")
 	eds = nil
 	block.Data = types.Data{}
 	block = nil
@@ -199,6 +200,7 @@ func (ce *Exchange) getExtendedHeaderByHeight(ctx context.Context, height *int64
 
 	ce.store.GetByHeight(ctx, eh.Height())
 
+	fmt.Println("cleaning up")
 	eds = nil
 	b.Data = types.Data{}
 	b = nil

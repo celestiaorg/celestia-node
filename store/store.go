@@ -360,8 +360,10 @@ func (s *Store) GetByHeight(ctx context.Context, height uint64) (eds.AccessorStr
 func (s *Store) getByHeight(ctx context.Context, height uint64) (eds.AccessorStreamer, error) {
 	f, err := s.cache.Get(height)
 	if err == nil {
+		fmt.Println("found in cache")
 		return f, nil
 	}
+	fmt.Println("not found in cache")
 
 	path := s.heightToPath(height, odsFileExt)
 	return s.openAccessor(ctx, path)

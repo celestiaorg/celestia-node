@@ -28,11 +28,12 @@ func (mc *DoubleCache) Has(height uint64) bool {
 
 // Get looks for an item in all the caches one by one and returns the Cache found item.
 func (mc *DoubleCache) Get(height uint64) (eds.AccessorStreamer, error) {
-	fmt.Println("from double cache")
 	accessor, err := mc.first.Get(height)
 	if err == nil {
+		fmt.Println("getting from first cache")
 		return accessor, nil
 	}
+	fmt.Println("getting from second cache")
 	return mc.second.Get(height)
 }
 
@@ -43,7 +44,6 @@ func (mc *DoubleCache) GetOrLoad(
 	height uint64,
 	loader OpenAccessorFn,
 ) (eds.AccessorStreamer, error) {
-	fmt.Println("from double cache GetOrLoad")
 	// look-up in second cache first
 	accessor, err := mc.second.Get(height)
 	if err == nil {
