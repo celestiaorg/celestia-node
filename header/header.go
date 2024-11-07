@@ -239,13 +239,19 @@ func (eh *ExtendedHeader) MarshalJSON() ([]byte, error) {
 	if err != nil {
 		return nil, err
 	}
+	commit, err := tmjson.Marshal(eh.Commit)
+	if err != nil {
+		return nil, err
+	}
 	return json.Marshal(&struct {
 		RawHeader    json.RawMessage `json:"header"`
 		ValidatorSet json.RawMessage `json:"validator_set"`
+		Commit       json.RawMessage `json:"commit"`
 		*Alias
 	}{
 		ValidatorSet: validatorSet,
 		RawHeader:    rawHeader,
+		Commit:       commit,
 		Alias:        (*Alias)(eh),
 	})
 }
@@ -257,6 +263,7 @@ func (eh *ExtendedHeader) UnmarshalJSON(data []byte) error {
 	aux := &struct {
 		RawHeader    json.RawMessage `json:"header"`
 		ValidatorSet json.RawMessage `json:"validator_set"`
+		Commit       json.RawMessage `json:"commit"`
 		*Alias
 	}{
 		Alias: (*Alias)(eh),
@@ -273,9 +280,14 @@ func (eh *ExtendedHeader) UnmarshalJSON(data []byte) error {
 	if err := tmjson.Unmarshal(aux.RawHeader, rawHeader); err != nil {
 		return err
 	}
+	commit := new(core.Commit)
+	if err := tmjson.Unmarshal(aux.Commit, commit); err != nil {
+		return err
+	}
 
 	eh.ValidatorSet = valSet
 	eh.RawHeader = *rawHeader
+	eh.Commit = commit
 	return nil
 }
 
