@@ -150,6 +150,8 @@ func (bc *AccessorCache) Remove(height uint64) error {
 	lk.RUnlock()
 	if !ok {
 		// item is not in cache
+		fmt.Println("======================== element not in cache")
+		fmt.Println(height)
 		return nil
 	}
 	if err := ac.close(); err != nil {
