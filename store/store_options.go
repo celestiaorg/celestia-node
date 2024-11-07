@@ -12,7 +12,7 @@ type Parameters struct {
 // DefaultParameters returns the default configuration values for the EDS store parameters.
 func DefaultParameters() *Parameters {
 	return &Parameters{
-		RecentBlocksCacheSize: 5,
+		RecentBlocksCacheSize: 10,
 	}
 }
 
