@@ -154,12 +154,12 @@ func (ce *Exchange) Get(ctx context.Context, hash libhead.Hash) (*header.Extende
 	}
 
 	fmt.Println("=== cleaning up")
-	eds = nil
 	block.Data = types.Data{}
 	time.Sleep(time.Second)
 	_, err = ce.store.GetByHeight(ctx, eh.Height())
 	if err != nil {
 		fmt.Println("error getting height from cache")
+		return eh, nil
 	}
 	fmt.Println("got height from cache")
 
@@ -200,7 +200,6 @@ func (ce *Exchange) getExtendedHeaderByHeight(ctx context.Context, height *int64
 	}
 
 	fmt.Println("=== cleaning up")
-	eds = nil
 	b.Data = types.Data{}
 	time.Sleep(time.Second)
 	_, err = ce.store.GetByHeight(ctx, eh.Height())

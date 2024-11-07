@@ -145,6 +145,7 @@ func (bc *AccessorCache) GetOrLoad(
 			return nil, fmt.Errorf("unable to find oldest block")
 		}
 		block.EmptyIT()
+		block.close()
 		runtime.GC()
 	}
 	bc.cache.Add(height, ac)
