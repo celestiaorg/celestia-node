@@ -168,7 +168,6 @@ func (s *Store) createODSQ4File(
 	roots *share.AxisRoots,
 	height uint64,
 ) (bool, error) {
-	fmt.Println("creating ODSQ4 file")
 	pathODS := s.hashToPath(roots.Hash(), odsFileExt)
 	pathQ4 := s.hashToPath(roots.Hash(), q4FileExt)
 
@@ -207,7 +206,6 @@ func (s *Store) createODSQ4File(
 			removeErr,
 		)
 	}
-	fmt.Println("=================== 9")
 	return false, nil
 }
 
