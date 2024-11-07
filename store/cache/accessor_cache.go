@@ -141,6 +141,10 @@ func (bc *AccessorCache) GetOrLoad(
 	bc.cache.Add(height, ac)
 	for _, key := range bc.cache.Keys() {
 		fmt.Printf(" %d ", key)
+		_, ok = bc.cache.Get(key)
+		if !ok {
+			fmt.Printf("couldnt find key %d\n", key)
+		}
 	}
 	fmt.Println()
 	return rc, nil
