@@ -21,14 +21,7 @@ type Rsmt2D struct {
 }
 
 func (eds *Rsmt2D) EmptyIT() {
-	for i := uint(0); i < eds.Width(); i++ {
-		for j := uint(0); j < eds.Width(); j++ {
-			err := eds.SetCell(i, j, []byte{})
-			if err != nil {
-				fmt.Printf("failed to set cell %d/%d/%d: %v\n", i, j, eds.Width(), err)
-			}
-		}
-	}
+	eds.EmptyEDS()
 }
 
 // Size returns the size of the Extended Data Square.

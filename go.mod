@@ -354,6 +354,7 @@ require (
 )
 
 replace (
+	github.com/celestiaorg/rsmt2d => github.com/rach-id/rsmt2d v0.0.0-20241107110325-753633a5a89a
 	github.com/cosmos/cosmos-sdk => github.com/celestiaorg/cosmos-sdk v1.25.0-sdk-v0.46.16
 	github.com/filecoin-project/dagstore => github.com/celestiaorg/dagstore v0.0.0-20230824094345-537c012aa403
 	github.com/gogo/protobuf => github.com/regen-network/protobuf v1.3.3-alpha.regen.1
