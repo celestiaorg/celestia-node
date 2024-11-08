@@ -3,12 +3,13 @@ package core
 import (
 	"context"
 	"fmt"
+	"io"
+
 	"github.com/gogo/protobuf/proto"
 	logging "github.com/ipfs/go-log/v2"
 	tmproto "github.com/tendermint/tendermint/proto/tendermint/types"
 	coregrpc "github.com/tendermint/tendermint/rpc/grpc"
 	"github.com/tendermint/tendermint/types"
-	"io"
 
 	libhead "github.com/celestiaorg/go-header"
 )
