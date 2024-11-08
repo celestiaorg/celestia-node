@@ -179,25 +179,19 @@ func (ce *Exchange) getExtendedHeaderByHeight(ctx context.Context, height *int64
 		return nil, fmt.Errorf("extending block data for height %d: %w", b.Header.Height, err)
 	}
 
-	h := &types.Header{
-		Version:            b.Header.Version,
-		ChainID:            b.Header.ChainID,
-		Height:             b.Header.Height,
-		Time:               b.Header.Time,
-		LastBlockID:        b.Header.LastBlockID,
-		LastCommitHash:     b.Header.LastCommitHash,
-		DataHash:           b.Header.DataHash,
-		ValidatorsHash:     b.Header.ValidatorsHash,
-		NextValidatorsHash: b.Header.NextValidatorsHash,
-		ConsensusHash:      b.Header.ConsensusHash,
-		AppHash:            b.Header.AppHash,
-		LastResultsHash:    b.Header.LastResultsHash,
-		EvidenceHash:       b.Header.EvidenceHash,
-		ProposerAddress:    b.Header.ProposerAddress,
+	commit := &types.Commit{
+		Height:     b.Commit.Height,
+		Round:      b.Commit.Round,
+		BlockID:    b.Commit.BlockID,
+		Signatures: b.Commit.Signatures,
 	}
 
+	vs := &types.ValidatorSet{
+		Validators: b.ValidatorSet.Validators,
+		Proposer:   b.ValidatorSet.Proposer,
+	}
 	// create extended header
-	eh, err := ce.construct(h, &b.Commit, &b.ValidatorSet, eds)
+	eh, err := ce.construct(&b.Header, commit, vs, eds)
 	if err != nil {
 		panic(fmt.Errorf("constructing extended header for height %d: %w", b.Header.Height, err))
 	}
