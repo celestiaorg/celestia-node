@@ -16,7 +16,7 @@
 
 ## Context
 
-After the offsite, there was a bit of confusion on what the default behaviour for running a Celestia Full node should be in the devnet. Since we decided on an architecture where Core nodes will communicate with Celestia Full nodes *exclusively* via RPC (over an HTTP connection, for example), it is necessary that a certain percentage of Celestia Full nodes in the devnet run with either an embedded Core node process or are able to fetch block information from a remote Core endpoint, otherwise there would be no way for the two separate networks (Core network and Celestia network) to communicate.
+After the offsite, there was a bit of confusion about what the default behaviour for running a Celestia Full node should be in the devnet. Since we decided on an architecture where Core nodes will communicate with Celestia Full nodes *exclusively* via RPC (over an HTTP connection, for example), it is necessary that a certain percentage of Celestia Full nodes in the devnet run with either an embedded Core node process or are able to fetch block information from a remote Core endpoint, otherwise there would be no way for the two separate networks (Core network and Celestia network) to communicate.
 
 ## Decision
 
