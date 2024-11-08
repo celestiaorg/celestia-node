@@ -52,7 +52,7 @@ func (f *FraudMaker) MakeExtendedHeader(odsSize int, edsStore *store.Store) head
 		eds *rsmt2d.ExtendedDataSquare,
 	) (*header.ExtendedHeader, error) {
 		if h.Height < f.height {
-			return header.MakeExtendedHeader(h, comm, vals, eds)
+			return header.MakeExtendedHeader(h, *comm, *vals, eds)
 		}
 
 		hdr := *h
@@ -79,9 +79,8 @@ func (f *FraudMaker) MakeExtendedHeader(odsSize int, edsStore *store.Store) head
 		require.NoError(f.t, err)
 
 		*h = hdr
-		*comm = *commit
 		f.prevHash = h.Hash()
-		return header.MakeExtendedHeader(h, comm, vals, eds)
+		return header.MakeExtendedHeader(h, *commit, *vals, eds)
 	}
 }
 
