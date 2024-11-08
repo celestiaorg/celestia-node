@@ -1,7 +1,6 @@
 package core
 
 import (
-	"bytes"
 	"context"
 	"fmt"
 	"time"
@@ -127,32 +126,32 @@ func (ce *Exchange) Get(ctx context.Context, hash libhead.Hash) (*header.Extende
 		return nil, fmt.Errorf("fetching block by hash %s: %w", hash.String(), err)
 	}
 
-	comm, vals, err := ce.fetcher.GetBlockInfo(ctx, &block.Height)
+	_, _, err = ce.fetcher.GetBlockInfo(ctx, &block.Height)
 	if err != nil {
 		return nil, fmt.Errorf("fetching block info for height %d: %w", &block.Height, err)
 	}
 
-	eds, err := extendBlock(block.Data, block.Header.Version.App)
-	if err != nil {
-		return nil, fmt.Errorf("extending block data for height %d: %w", &block.Height, err)
-	}
-	// construct extended header
-	eh, err := ce.construct(&block.Header, comm, vals, eds)
-	if err != nil {
-		panic(fmt.Errorf("constructing extended header for height %d: %w", &block.Height, err))
-	}
-	// verify hashes match
-	if !bytes.Equal(hash, eh.Hash()) {
-		return nil, fmt.Errorf("incorrect hash in header at height %d: expected %x, got %x",
-			&block.Height, hash, eh.Hash())
-	}
+	//eds, err := extendBlock(block.Data, block.Header.Version.App)
+	//if err != nil {
+	//	return nil, fmt.Errorf("extending block data for height %d: %w", &block.Height, err)
+	//}
+	//// construct extended header
+	//eh, err := ce.construct(&block.Header, comm, vals, eds)
+	//if err != nil {
+	//	panic(fmt.Errorf("constructing extended header for height %d: %w", &block.Height, err))
+	//}
+	//// verify hashes match
+	//if !bytes.Equal(hash, eh.Hash()) {
+	//	return nil, fmt.Errorf("incorrect hash in header at height %d: expected %x, got %x",
+	//		&block.Height, hash, eh.Hash())
+	//}
 
 	//err = storeEDS(ctx, eh, eds, ce.store, ce.availabilityWindow)
 	//if err != nil {
 	//	return nil, err
 	//}
 
-	return eh, nil
+	return &header.ExtendedHeader{}, nil
 }
 
 func (ce *Exchange) Head(
@@ -173,20 +172,20 @@ func (ce *Exchange) getExtendedHeaderByHeight(ctx context.Context, height *int64
 	}
 	log.Debugw("fetched signed block from core", "height", b.Header.Height)
 
-	eds, err := extendBlock(b.Data, b.Header.Version.App)
-	if err != nil {
-		return nil, fmt.Errorf("extending block data for height %d: %w", b.Header.Height, err)
-	}
+	//eds, err := extendBlock(b.Data, b.Header.Version.App)
+	//if err != nil {
+	//	return nil, fmt.Errorf("extending block data for height %d: %w", b.Header.Height, err)
+	//}
 	// create extended header
-	eh, err := ce.construct(&b.Header, &b.Commit, &b.ValidatorSet, eds)
-	if err != nil {
-		panic(fmt.Errorf("constructing extended header for height %d: %w", b.Header.Height, err))
-	}
+	//eh, err := ce.construct(&b.Header, &b.Commit, &b.ValidatorSet, eds)
+	//if err != nil {
+	//	panic(fmt.Errorf("constructing extended header for height %d: %w", b.Header.Height, err))
+	//}
 
 	//err = storeEDS(ctx, eh, eds, ce.store, ce.availabilityWindow)
 	//if err != nil {
 	//	return nil, err
 	//}
 
-	return eh, nil
+	return &header.ExtendedHeader{}, nil
 }
