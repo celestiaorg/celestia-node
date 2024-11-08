@@ -8,7 +8,6 @@ import (
 	"github.com/gogo/protobuf/proto"
 	logging "github.com/ipfs/go-log/v2"
 	tmproto "github.com/tendermint/tendermint/proto/tendermint/types"
-	coretypes "github.com/tendermint/tendermint/rpc/core/types"
 	coregrpc "github.com/tendermint/tendermint/rpc/grpc"
 	"github.com/tendermint/tendermint/types"
 
@@ -18,6 +17,10 @@ import (
 const newBlockSubscriber = "NewBlock/Events"
 
 type SignedBlock struct {
+	Header       *types.Header       `json:"header"`
+	Commit       *types.Commit       `json:"commit"`
+	Data         *types.Data         `json:"data"`
+	ValidatorSet *types.ValidatorSet `json:"validator_set"`
 }
 
 var (
@@ -119,7 +122,7 @@ func (f *BlockFetcher) resolveHeight(ctx context.Context, height *int64) (int64,
 
 // GetSignedBlock queries Core for a `Block` at the given height.
 // if the height is nil, use the latest height.
-func (f *BlockFetcher) GetSignedBlock(ctx context.Context, height *int64) (*coretypes.ResultSignedBlock, error) {
+func (f *BlockFetcher) GetSignedBlock(ctx context.Context, height *int64) (*SignedBlock, error) {
 	blockHeight, err := f.resolveHeight(ctx, height)
 	if err != nil {
 		return nil, err
@@ -133,11 +136,11 @@ func (f *BlockFetcher) GetSignedBlock(ctx context.Context, height *int64) (*core
 	if err != nil {
 		return nil, err
 	}
-	return &coretypes.ResultSignedBlock{
-		Header:       block.Header,
-		Commit:       *commit,
-		Data:         block.Data,
-		ValidatorSet: *validatorSet,
+	return &SignedBlock{
+		Header:       &block.Header,
+		Commit:       commit,
+		Data:         &block.Data,
+		ValidatorSet: validatorSet,
 	}, nil
 }
 
@@ -226,10 +229,10 @@ func (f *BlockFetcher) SubscribeNewBlockEvent(ctx context.Context) (<-chan types
 				}
 				select {
 				case signedBlockCh <- types.EventDataSignedBlock{
-					Header:       signedBlock.Header,
-					Commit:       signedBlock.Commit,
-					ValidatorSet: signedBlock.ValidatorSet,
-					Data:         signedBlock.Data,
+					Header:       *signedBlock.Header,
+					Commit:       *signedBlock.Commit,
+					ValidatorSet: *signedBlock.ValidatorSet,
+					Data:         *signedBlock.Data,
 				}:
 				case <-ctx.Done():
 					return

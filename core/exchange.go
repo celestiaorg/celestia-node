@@ -173,12 +173,12 @@ func (ce *Exchange) getExtendedHeaderByHeight(ctx context.Context, height *int64
 	}
 	log.Debugw("fetched signed block from core", "height", b.Header.Height)
 
-	eds, err := extendBlock(b.Data, b.Header.Version.App)
+	eds, err := extendBlock(*b.Data, b.Header.Version.App)
 	if err != nil {
 		return nil, fmt.Errorf("extending block data for height %d: %w", b.Header.Height, err)
 	}
 	// create extended header
-	eh, err := ce.construct(&b.Header, &b.Commit, &b.ValidatorSet, eds)
+	eh, err := ce.construct(b.Header, b.Commit, b.ValidatorSet, eds)
 	if err != nil {
 		panic(fmt.Errorf("constructing extended header for height %d: %w", b.Header.Height, err))
 	}
