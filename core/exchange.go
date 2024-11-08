@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"fmt"
+	"github.com/tendermint/tendermint/types"
 	"time"
 
 	"golang.org/x/sync/errgroup"
@@ -178,8 +179,21 @@ func (ce *Exchange) getExtendedHeaderByHeight(ctx context.Context, height *int64
 		return nil, fmt.Errorf("extending block data for height %d: %w", b.Header.Height, err)
 	}
 
+	// copying the commit and validator set so we break the link with
+	// the signed header and the signed block is garbage collected
+	commit := &types.Commit{
+		Height:     b.Commit.Height,
+		Round:      b.Commit.Round,
+		BlockID:    b.Commit.BlockID,
+		Signatures: b.Commit.Signatures,
+	}
+	vs := &types.ValidatorSet{
+		Validators: b.ValidatorSet.Validators,
+		Proposer:   b.ValidatorSet.Proposer,
+	}
+
 	// create extended header
-	eh, err := ce.construct(&b.Header, &b.Commit, &b.ValidatorSet, eds)
+	eh, err := ce.construct(&b.Header, commit, vs, eds)
 	if err != nil {
 		panic(fmt.Errorf("constructing extended header for height %d: %w", b.Header.Height, err))
 	}
