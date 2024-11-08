@@ -115,9 +115,9 @@ func (la *ShareAvailability) SharesAvailable(ctx context.Context, header *header
 
 	log.Debugw("starting sampling session", "root", dah.String())
 
-	idxs := make([]shwap.SampleIndex, len(samples.Available))
-	for i, s := range samples.Available {
-		idx, err := shwap.SampleIndexFromCoordinates(int(s.Row), int(s.Col), len(dah.RowRoots))
+	idxs := make([]shwap.SampleIndex, len(samples.Remaining))
+	for i, s := range samples.Remaining {
+		idx, err := shwap.SampleIndexFromCoordinates(s.Row, s.Col, len(dah.RowRoots))
 		if err != nil {
 			return err
 		}
@@ -126,9 +126,12 @@ func (la *ShareAvailability) SharesAvailable(ctx context.Context, header *header
 	}
 
 	smpls, err := la.getter.GetSamples(ctx, header, idxs)
-	if errors.Is(err, context.Canceled) {
-		// Availability did not complete due to context cancellation, return context error instead of
-		// share.ErrNotAvailable
+	if err != nil {
+		if errors.Is(err, context.Canceled) {
+			// Availability did not complete due to context cancellation, return context error instead of
+			// share.ErrNotAvailable
+			return context.Canceled
+		}
 		return err
 	}
 	if len(smpls) == 0 {

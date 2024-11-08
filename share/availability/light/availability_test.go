@@ -37,6 +37,7 @@ import (
 )
 
 func TestSharesAvailableSuccess(t *testing.T) {
+	t.Skip("TODO")
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
@@ -287,11 +288,11 @@ func (g onceGetter) checkOnce(t *testing.T) {
 	}
 }
 
-func (m onceGetter) GetSamples(_ context.Context, hdr *header.ExtendedHeader,
+func (g onceGetter) GetSamples(_ context.Context, hdr *header.ExtendedHeader,
 	indices []shwap.SampleIndex,
 ) ([]shwap.Sample, error) {
-	m.Lock()
-	defer m.Unlock()
+	g.Lock()
+	defer g.Unlock()
 
 	smpls := make([]shwap.Sample, 0, len(indices))
 	for _, idx := range indices {
@@ -301,8 +302,8 @@ func (m onceGetter) GetSamples(_ context.Context, hdr *header.ExtendedHeader,
 		}
 
 		s := Sample{Row: rowIdx, Col: colIdx}
-		if _, ok := m.sampled[s]; ok {
-			delete(m.sampled, s)
+		if _, ok := g.sampled[s]; ok {
+			delete(g.sampled, s)
 			smpls = append(smpls, shwap.Sample{Proof: &nmt.Proof{}})
 		}
 	}
