@@ -123,58 +123,29 @@ func (ce *Exchange) getRangeByHeight(ctx context.Context, from, amount uint64) (
 
 func (ce *Exchange) Get(ctx context.Context, hash libhead.Hash) (*header.ExtendedHeader, error) {
 	log.Debugw("requesting header", "hash", hash.String())
-	b, err := ce.fetcher.GetBlockByHash(ctx, hash)
+	block, err := ce.fetcher.GetBlockByHash(ctx, hash)
 	if err != nil {
-		return nil, fmt.Errorf("fetching b by hash %s: %w", hash.String(), err)
+		return nil, fmt.Errorf("fetching block by hash %s: %w", hash.String(), err)
 	}
 
-	comm, vals, err := ce.fetcher.GetBlockInfo(ctx, &b.Height)
+	comm, vals, err := ce.fetcher.GetBlockInfo(ctx, &block.Height)
 	if err != nil {
-		return nil, fmt.Errorf("fetching b info for height %d: %w", &b.Height, err)
+		return nil, fmt.Errorf("fetching block info for height %d: %w", &block.Height, err)
 	}
 
-	eds, err := extendBlock(b.Data, b.Header.Version.App)
+	eds, err := extendBlock(block.Data, block.Header.Version.App)
 	if err != nil {
-		return nil, fmt.Errorf("extending b data for height %d: %w", &b.Height, err)
+		return nil, fmt.Errorf("extending block data for height %d: %w", &block.Height, err)
 	}
-	h := &types.Header{
-		Version:            b.Header.Version,
-		ChainID:            b.Header.ChainID,
-		Height:             b.Header.Height,
-		Time:               b.Header.Time,
-		LastBlockID:        b.Header.LastBlockID,
-		LastCommitHash:     b.Header.LastCommitHash,
-		DataHash:           b.Header.DataHash,
-		ValidatorsHash:     b.Header.ValidatorsHash,
-		NextValidatorsHash: b.Header.NextValidatorsHash,
-		ConsensusHash:      b.Header.ConsensusHash,
-		AppHash:            b.Header.AppHash,
-		LastResultsHash:    b.Header.LastResultsHash,
-		EvidenceHash:       b.Header.EvidenceHash,
-		ProposerAddress:    b.Header.ProposerAddress,
-	}
-
-	commit := &types.Commit{
-		Height:     comm.Height,
-		Round:      comm.Round,
-		BlockID:    comm.BlockID,
-		Signatures: comm.Signatures,
-	}
-
-	vs := &types.ValidatorSet{
-		Validators: vals.Validators,
-		Proposer:   vals.Proposer,
-	}
-	// create extended header
-	eh, err := ce.construct(h, commit, vs, eds)
+	// construct extended header
+	eh, err := ce.construct(&block.Header, comm, vals, eds)
 	if err != nil {
-		panic(fmt.Errorf("constructing extended header for height %d: %w", b.Header.Height, err))
+		panic(fmt.Errorf("constructing extended header for height %d: %w", &block.Height, err))
 	}
-
 	// verify hashes match
 	if !bytes.Equal(hash, eh.Hash()) {
 		return nil, fmt.Errorf("incorrect hash in header at height %d: expected %x, got %x",
-			&b.Height, hash, eh.Hash())
+			&block.Height, hash, eh.Hash())
 	}
 
 	err = storeEDS(ctx, eh, eds, ce.store, ce.availabilityWindow)
