@@ -3,13 +3,12 @@ package core
 import (
 	"context"
 	"fmt"
-	"io"
-
 	"github.com/gogo/protobuf/proto"
 	logging "github.com/ipfs/go-log/v2"
 	tmproto "github.com/tendermint/tendermint/proto/tendermint/types"
 	coregrpc "github.com/tendermint/tendermint/rpc/grpc"
 	"github.com/tendermint/tendermint/types"
+	"io"
 
 	libhead "github.com/celestiaorg/go-header"
 )
@@ -211,32 +210,28 @@ func (f *BlockFetcher) SubscribeNewBlockEvent(ctx context.Context) (<-chan types
 		defer close(f.doneCh)
 		defer close(signedBlockCh)
 		for {
+			resp, err := subscription.Recv()
+			if err != nil {
+				// case where the context was not canceled but still received an error
+				if ctx.Err() == nil {
+					log.Errorw("fetcher: error receiving new height", "err", err.Error())
+				}
+				return
+			}
+			signedBlock, err := f.GetSignedBlock(ctx, &resp.Height)
+			if err != nil {
+				log.Errorw("fetcher: error receiving signed block", "height", resp.Height, "err", err.Error())
+				return
+			}
 			select {
+			case signedBlockCh <- types.EventDataSignedBlock{
+				Header:       *signedBlock.Header,
+				Commit:       *signedBlock.Commit,
+				ValidatorSet: *signedBlock.ValidatorSet,
+				Data:         *signedBlock.Data,
+			}:
 			case <-ctx.Done():
 				return
-			default:
-				resp, err := subscription.Recv()
-				if err != nil {
-					if ctx.Err() == nil {
-						log.Errorw("fetcher: error receiving new height", "err", err.Error())
-					}
-					return
-				}
-				signedBlock, err := f.GetSignedBlock(ctx, &resp.Height)
-				if err != nil {
-					log.Errorw("fetcher: error receiving signed block", "height", resp.Height, "err", err.Error())
-					return
-				}
-				select {
-				case signedBlockCh <- types.EventDataSignedBlock{
-					Header:       *signedBlock.Header,
-					Commit:       *signedBlock.Commit,
-					ValidatorSet: *signedBlock.ValidatorSet,
-					Data:         *signedBlock.Data,
-				}:
-				case <-ctx.Done():
-					return
-				}
 			}
 		}
 	}()
