@@ -1,3 +1,4 @@
+// Package edssser provides stress testing functionality for EDS (Extended Data Square) store
 package edssser
 
 import (
@@ -14,6 +15,7 @@ import (
 	"github.com/celestiaorg/celestia-node/store"
 )
 
+// Config defines parameters for EDS store stress testing
 type Config struct {
 	EDSSize     int
 	EDSWrites   int
@@ -24,7 +26,7 @@ type Config struct {
 	OpTimeout   time.Duration
 }
 
-// EDSsser stand for EDS Store Stresser.
+// EDSsser performs stress testing on EDS store operations
 type EDSsser struct {
 	config     Config
 	edsstoreMu sync.Mutex
@@ -111,10 +113,10 @@ func (ss *EDSsser) dumpStat(stats Stats) (err error) {
 	return ss.statsFile.Close()
 }
 
+// Stats tracks performance metrics during stress testing
 type Stats struct {
 	TotalWritten                         int
 	TotalTime, MinTime, MaxTime, AvgTime time.Duration
-	// Deviation ?
 }
 
 func (stats Stats) Finalize() Stats {
