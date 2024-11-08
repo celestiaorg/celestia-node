@@ -129,14 +129,14 @@ func (s *Store) put(
 	}
 
 	// put to cache before writing to make it accessible while write is happening
-	accessor := &eds.Rsmt2D{ExtendedDataSquare: square}
-	acc, err := s.cache.GetOrLoad(ctx, height, accessorLoader(accessor))
-	if err != nil {
-		log.Warnf("failed to put Accessor in the recent cache: %s", err)
-	} else {
-		// release the ref link to the accessor
-		utils.CloseAndLog(log, "recent accessor", acc)
-	}
+	//accessor := &eds.Rsmt2D{ExtendedDataSquare: square}
+	//acc, err := s.cache.GetOrLoad(ctx, height, accessorLoader(accessor))
+	//if err != nil {
+	//	log.Warnf("failed to put Accessor in the recent cache: %s", err)
+	//} else {
+	//	// release the ref link to the accessor
+	//	utils.CloseAndLog(log, "recent accessor", acc)
+	//}
 
 	tNow := time.Now()
 	lock := s.stripLock.byHashAndHeight(datahash, height)
@@ -144,6 +144,7 @@ func (s *Store) put(
 	defer lock.unlock()
 
 	var exists bool
+	var err error
 	if writeQ4 {
 		exists, err = s.createODSQ4File(square, roots, height)
 	} else {
