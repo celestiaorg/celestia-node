@@ -17,6 +17,9 @@ import (
 
 const newBlockSubscriber = "NewBlock/Events"
 
+type SignedBlock struct {
+}
+
 var (
 	log                     = logging.Logger("core")
 	newDataSignedBlockQuery = types.QueryForEvent(types.EventSignedBlock).String()
@@ -259,26 +262,26 @@ func receiveBlockByHeight(streamer coregrpc.BlockAPI_BlockByHeightClient) (
 	parts := make([]*tmproto.Part, 0)
 
 	// receive the first part to get the block meta, commit, and validator set
-	resp, err := streamer.Recv()
+	firstPart, err := streamer.Recv()
 	if err != nil {
 		return nil, nil, nil, nil, err
 	}
-	blockMeta, err := types.BlockMetaFromProto(resp.BlockMeta)
+	blockMeta, err := types.BlockMetaFromProto(firstPart.BlockMeta)
 	if err != nil {
 		return nil, nil, nil, nil, err
 	}
-	commit, err := types.CommitFromProto(resp.Commit)
+	commit, err := types.CommitFromProto(firstPart.Commit)
 	if err != nil {
 		return nil, nil, nil, nil, err
 	}
-	validatorSet, err := types.ValidatorSetFromProto(resp.ValidatorSet)
+	validatorSet, err := types.ValidatorSetFromProto(firstPart.ValidatorSet)
 	if err != nil {
 		return nil, nil, nil, nil, err
 	}
-	parts = append(parts, resp.BlockPart)
+	parts = append(parts, firstPart.BlockPart)
 
 	// receive the rest of the block
-	isLast := resp.IsLast
+	isLast := firstPart.IsLast
 	for !isLast {
 		resp, err := streamer.Recv()
 		if err != nil {
