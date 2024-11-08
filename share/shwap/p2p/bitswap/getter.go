@@ -99,8 +99,11 @@ func (g *Getter) GetSamples(
 		blks[i] = sid
 	}
 
-	ses := g.session(ctx, hdr)
-	defer g.poolSession(hdr, ses)
+	isArchival := g.isArchival(hdr)
+	span.SetAttributes(attribute.Bool("is_archival", isArchival))
+
+	ses := g.session(isArchival)
+	defer g.poolSession(ses, isArchival)
 
 	err := Fetch(ctx, g.exchange, hdr.DAH, blks, WithStore(g.bstore), WithFetcher(ses))
 	if err != nil {
@@ -156,8 +159,11 @@ func (g *Getter) GetEDS(
 		blks[i] = blk
 	}
 
-	ses := g.session(ctx, hdr)
-	defer g.poolSession(hdr, ses)
+	isArchival := g.isArchival(hdr)
+	span.SetAttributes(attribute.Bool("is_archival", isArchival))
+
+	ses := g.session(isArchival)
+	defer g.poolSession(ses, isArchival)
 
 	err := Fetch(ctx, g.exchange, hdr.DAH, blks, WithFetcher(ses))
 	if err != nil {
@@ -212,8 +218,11 @@ func (g *Getter) GetSharesByNamespace(
 		blks[i] = rndblk
 	}
 
-	ses := g.session(ctx, hdr)
-	defer g.poolSession(hdr, ses)
+	isArchival := g.isArchival(hdr)
+	span.SetAttributes(attribute.Bool("is_archival", isArchival))
+
+	ses := g.session(isArchival)
+	defer g.poolSession(ses, isArchival)
 
 	if err = Fetch(ctx, g.exchange, hdr.DAH, blks, WithFetcher(ses)); err != nil {
 		span.RecordError(err)
@@ -234,33 +243,36 @@ func (g *Getter) GetSharesByNamespace(
 	return nsShrs, nil
 }
 
-// session decides which fetching session to use for the given header.
-func (g *Getter) session(ctx context.Context, hdr *header.ExtendedHeader) (session exchange.Fetcher) {
-	isWithinAvailability := pruner.IsWithinAvailabilityWindow(hdr.Time(), g.availWndw)
-	if isWithinAvailability {
-		v := g.availablePool.Get()
-		if v == nil {
-			panic("Getter must be started")
-		}
-		session = v.(exchange.Fetcher)
-	} else {
+// isArchival reports whether the header is for archival data
+func (g *Getter) isArchival(hdr *header.ExtendedHeader) bool {
+	return !pruner.IsWithinAvailabilityWindow(hdr.Time(), g.availWndw)
+}
+
+// session takes a session out of the respective session pool
+func (g *Getter) session(isArchival bool) exchange.Fetcher {
+	if isArchival {
 		v := g.archivalPool.Get()
 		if v == nil {
 			panic("Getter must be started")
 		}
-		session = v.(exchange.Fetcher)
+
+		return v.(exchange.Fetcher)
 	}
 
-	trace.SpanFromContext(ctx).SetAttributes(attribute.Bool("within_availability", isWithinAvailability))
-	return session
+	v := g.availablePool.Get()
+	if v == nil {
+		panic("Getter must be started")
+	}
+
+	return v.(exchange.Fetcher)
 }
 
-func (g *Getter) poolSession(hdr *header.ExtendedHeader, session exchange.Fetcher) {
-	isWithinAvailability := pruner.IsWithinAvailabilityWindow(hdr.Time(), g.availWndw)
-	if isWithinAvailability {
-		g.availablePool.Put(session)
-	} else {
+// poolSession puts session back into the respective session pool
+func (g *Getter) poolSession(session exchange.Fetcher, isArchival bool) {
+	if isArchival {
 		g.archivalPool.Put(session)
+	} else {
+		g.availablePool.Put(session)
 	}
 }
 
