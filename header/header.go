@@ -43,8 +43,8 @@ type ExtendedHeader struct {
 // MakeExtendedHeader assembles new ExtendedHeader.
 func MakeExtendedHeader(
 	h *core.Header,
-	comm *core.Commit,
-	vals *core.ValidatorSet,
+	comm core.Commit,
+	vals core.ValidatorSet,
 	eds *rsmt2d.ExtendedDataSquare,
 ) (*ExtendedHeader, error) {
 	var (
@@ -64,8 +64,8 @@ func MakeExtendedHeader(
 	eh := &ExtendedHeader{
 		RawHeader:    *h,
 		DAH:          &dah,
-		Commit:       &*comm,
-		ValidatorSet: &*vals,
+		Commit:       &comm,
+		ValidatorSet: &vals,
 	}
 	return eh, nil
 }
