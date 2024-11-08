@@ -64,8 +64,8 @@ func MakeExtendedHeader(
 	eh := &ExtendedHeader{
 		RawHeader:    *h,
 		DAH:          &dah,
-		Commit:       comm,
-		ValidatorSet: vals,
+		Commit:       &*comm,
+		ValidatorSet: &*vals,
 	}
 	return eh, nil
 }
