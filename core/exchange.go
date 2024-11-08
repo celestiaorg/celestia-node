@@ -147,10 +147,10 @@ func (ce *Exchange) Get(ctx context.Context, hash libhead.Hash) (*header.Extende
 			&block.Height, hash, eh.Hash())
 	}
 
-	err = storeEDS(ctx, eh, eds, ce.store, ce.availabilityWindow)
-	if err != nil {
-		return nil, err
-	}
+	//err = storeEDS(ctx, eh, eds, ce.store, ce.availabilityWindow)
+	//if err != nil {
+	//	return nil, err
+	//}
 
 	return eh, nil
 }
@@ -183,10 +183,10 @@ func (ce *Exchange) getExtendedHeaderByHeight(ctx context.Context, height *int64
 		panic(fmt.Errorf("constructing extended header for height %d: %w", b.Header.Height, err))
 	}
 
-	err = storeEDS(ctx, eh, eds, ce.store, ce.availabilityWindow)
-	if err != nil {
-		return nil, err
-	}
+	//err = storeEDS(ctx, eh, eds, ce.store, ce.availabilityWindow)
+	//if err != nil {
+	//	return nil, err
+	//}
 
 	return eh, nil
 }
