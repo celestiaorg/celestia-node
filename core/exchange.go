@@ -179,19 +179,12 @@ func (ce *Exchange) getExtendedHeaderByHeight(ctx context.Context, height *int64
 		return nil, fmt.Errorf("extending block data for height %d: %w", b.Header.Height, err)
 	}
 
-	commit := &types.Commit{
-		Height:     b.Commit.Height,
-		Round:      b.Commit.Round,
-		BlockID:    b.Commit.BlockID,
-		Signatures: b.Commit.Signatures,
-	}
-
 	vs := &types.ValidatorSet{
 		Validators: b.ValidatorSet.Validators,
 		Proposer:   b.ValidatorSet.Proposer,
 	}
 	// create extended header
-	eh, err := ce.construct(&b.Header, commit, vs, eds)
+	eh, err := ce.construct(&b.Header, &b.Commit, vs, eds)
 	if err != nil {
 		panic(fmt.Errorf("constructing extended header for height %d: %w", b.Header.Height, err))
 	}
