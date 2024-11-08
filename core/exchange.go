@@ -196,19 +196,8 @@ func (ce *Exchange) getExtendedHeaderByHeight(ctx context.Context, height *int64
 		ProposerAddress:    b.Header.ProposerAddress,
 	}
 
-	commit := &types.Commit{
-		Height:     b.Commit.Height,
-		Round:      b.Commit.Round,
-		BlockID:    b.Commit.BlockID,
-		Signatures: b.Commit.Signatures,
-	}
-
-	vs := &types.ValidatorSet{
-		Validators: b.ValidatorSet.Validators,
-		Proposer:   b.ValidatorSet.Proposer,
-	}
 	// create extended header
-	eh, err := ce.construct(h, commit, vs, eds)
+	eh, err := ce.construct(h, &b.Commit, &b.ValidatorSet, eds)
 	if err != nil {
 		panic(fmt.Errorf("constructing extended header for height %d: %w", b.Header.Height, err))
 	}
