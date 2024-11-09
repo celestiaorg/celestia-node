@@ -3,6 +3,7 @@ package node
 import (
 	"context"
 	"fmt"
+	"github.com/celestiaorg/celestia-node/nodebuilder/node/system"
 	"time"
 
 	logging "github.com/ipfs/go-log/v2"
@@ -47,6 +48,12 @@ func WithMetrics(lc fx.Lifecycle) error {
 		return err
 	}
 
+	// System/Resource metrics.
+	systemMetrics, err := system.New()
+	if err != nil {
+		return fmt.Errorf("failed to create system metrics: %w", err)
+	}
+
 	callback := func(_ context.Context, observer metric.Observer) error {
 		if !nodeStarted {
 			// Observe node start timestamp
@@ -80,6 +87,9 @@ func WithMetrics(lc fx.Lifecycle) error {
 		fx.Hook{OnStop: func(context.Context) error {
 			if err := clientReg.Unregister(); err != nil {
 				log.Warn("failed to close metrics", "err", err)
+			}
+			if err := systemMetrics.Stop(); err != nil {
+				log.Warn("failed to close system stats", "err", err)
 			}
 			return nil
 		}},
