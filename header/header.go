@@ -2,7 +2,6 @@ package header
 
 import (
 	"bytes"
-	"encoding/json"
 	"errors"
 	"fmt"
 	"time"
@@ -227,56 +226,19 @@ func (eh *ExtendedHeader) UnmarshalBinary(data []byte) error {
 	return nil
 }
 
-// MarshalJSON marshals an ExtendedHeader to JSON. The ValidatorSet is wrapped with amino encoding,
-// to be able to unmarshal the crypto.PubKey type back from JSON.
+// MarshalJSON marshals an ExtendedHeader to JSON.
+// Uses tendermint encoder for tendermint compatiblity.
 func (eh *ExtendedHeader) MarshalJSON() ([]byte, error) {
-	type Alias ExtendedHeader
-	validatorSet, err := tmjson.Marshal(eh.ValidatorSet)
-	if err != nil {
-		return nil, err
-	}
-	rawHeader, err := tmjson.Marshal(eh.RawHeader)
-	if err != nil {
-		return nil, err
-	}
-	return json.Marshal(&struct {
-		RawHeader    json.RawMessage `json:"header"`
-		ValidatorSet json.RawMessage `json:"validator_set"`
-		*Alias
-	}{
-		ValidatorSet: validatorSet,
-		RawHeader:    rawHeader,
-		Alias:        (*Alias)(eh),
-	})
+	return tmjson.Marshal(*eh)
 }
 
-// UnmarshalJSON unmarshals an ExtendedHeader from JSON. The ValidatorSet is wrapped with amino
-// encoding, to be able to unmarshal the crypto.PubKey type back from JSON.
+// UnmarshalJSON unmarshals an ExtendedHeader from JSON.
+// Uses tendermint decoder for tendermint compatiblity.
 func (eh *ExtendedHeader) UnmarshalJSON(data []byte) error {
+	// alias the type to avoid going into recursion loop
+	// because tmjson.Unmarshal invokes custom json unmarshalling
 	type Alias ExtendedHeader
-	aux := &struct {
-		RawHeader    json.RawMessage `json:"header"`
-		ValidatorSet json.RawMessage `json:"validator_set"`
-		*Alias
-	}{
-		Alias: (*Alias)(eh),
-	}
-	if err := json.Unmarshal(data, &aux); err != nil {
-		return err
-	}
-
-	valSet := new(core.ValidatorSet)
-	if err := tmjson.Unmarshal(aux.ValidatorSet, valSet); err != nil {
-		return err
-	}
-	rawHeader := new(RawHeader)
-	if err := tmjson.Unmarshal(aux.RawHeader, rawHeader); err != nil {
-		return err
-	}
-
-	eh.ValidatorSet = valSet
-	eh.RawHeader = *rawHeader
-	return nil
+	return tmjson.Unmarshal(data, (*Alias)(eh))
 }
 
 var _ libhead.Header[*ExtendedHeader] = &ExtendedHeader{}
