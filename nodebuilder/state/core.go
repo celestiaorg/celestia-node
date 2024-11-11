@@ -33,7 +33,6 @@ func coreAccessor(
 	*modfraud.ServiceBreaker[*state.CoreAccessor, *header.ExtendedHeader],
 	error,
 ) {
-
 	tls, err := core.TLS(corecfg.TLSPath)
 	if err != nil && !errors.Is(err, os.ErrNotExist) {
 		return nil, nil, nil, err
@@ -52,6 +51,5 @@ func coreAccessor(
 		FraudType: byzantine.BadEncoding,
 		FraudServ: fraudServ,
 	}
-
 	return ca, ca, sBreaker, err
 }

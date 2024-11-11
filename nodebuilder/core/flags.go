@@ -12,7 +12,7 @@ var (
 	coreRPCFlag        = "core.rpc.port"
 	coreGRPCFlag       = "core.grpc.port"
 	coreTLSPathFlag    = "core.grpc.tls.path"
-	coreXTokenPathFlag = "core.grpc.xtoken.path"
+	coreXTokenPathFlag = "core.grpc.xtoken.path" //nolint:gosec
 )
 
 // Flags gives a set of hardcoded Core flags.
@@ -43,7 +43,6 @@ func Flags() *flag.FlagSet {
 			"It should not include file names ('cert.pem' and 'key.pem'). "+
 			"If left empty, the client will be configured for an insecure (non-TLS) connection",
 	)
-
 	flags.String(
 		coreXTokenPathFlag,
 		"",
