@@ -621,7 +621,8 @@ func (ca *CoreAccessor) startGRPCClient(ctx context.Context) error {
 			req, reply interface{},
 			cc *grpc.ClientConn,
 			invoker grpc.UnaryInvoker,
-			opts ...grpc.CallOption) error {
+			opts ...grpc.CallOption,
+		) error {
 			ctx = metadata.AppendToOutgoingContext(ctx, "x-token", ca.xtoken)
 			return invoker(ctx, method, req, reply, cc, opts...)
 		}

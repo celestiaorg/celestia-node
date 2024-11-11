@@ -20,7 +20,8 @@ const (
 // It constructs the full paths to the certificate and key files by joining the provided directory path
 // with their respective file names.
 // If either file is missing, it returns an os.ErrNotExist error.
-// If the files exist, it loads the X.509 key pair from the specified files and sets up a tls.Config with a minimum version of TLS 1.2.
+// If the files exist, it loads the X.509 key pair from the specified files and sets up a tls.Config
+// with a minimum version of TLS 1.2.
 // Parameters:
 // * tlsPath: The directory path where the TLS certificate ("cert.pem") and key ("key.pem") files are located.
 // Returns:
