@@ -185,7 +185,7 @@ func (commitmentProof *CommitmentProof) UnmarshalJSON(data []byte) error {
 		return err
 	}
 	rowProof := proof.RowProof{}
-	if err := tmjson.Unmarshal(aux.RowProof, rowProof); err != nil {
+	if err := tmjson.Unmarshal(aux.RowProof, &rowProof); err != nil {
 		return err
 	}
 
