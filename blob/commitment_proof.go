@@ -2,6 +2,7 @@ package blob
 
 import (
 	"bytes"
+	"encoding/json"
 	"errors"
 	"fmt"
 
@@ -11,6 +12,7 @@ import (
 	libshare "github.com/celestiaorg/go-square/v2/share"
 	"github.com/celestiaorg/nmt"
 	"github.com/celestiaorg/nmt/namespace"
+	tmjson "github.com/tendermint/tendermint/libs/json"
 )
 
 // Commitment is a Merkle Root of the subtree built from shares of the Blob.
@@ -152,4 +154,42 @@ func (commitmentProof *CommitmentProof) Verify(root []byte, subtreeRootThreshold
 
 	// verify row roots to data root proof
 	return commitmentProof.RowProof.VerifyProof(root), nil
+}
+
+// MarshalJSON marshals an CommitmentProof to JSON. Uses tendermint encoder for row proof for compatibility.
+func (commitmentProof *CommitmentProof) MarshalJSON() ([]byte, error) {
+	type Alias CommitmentProof
+	rowProof, err := tmjson.Marshal(commitmentProof.RowProof)
+	if err != nil {
+		return nil, err
+	}
+	return json.Marshal(&struct {
+		RowProof json.RawMessage `json:"row_proof"`
+		*Alias
+	}{
+		RowProof: rowProof,
+		Alias:    (*Alias)(commitmentProof),
+	})
+}
+
+// UnmarshalJSON unmarshals an CommitmentProof from JSON. Uses tendermint decoder for row proof for compatibility.
+func (commitmentProof *CommitmentProof) UnmarshalJSON(data []byte) error {
+	type Alias CommitmentProof
+	aux := &struct {
+		RowProof json.RawMessage `json:"row_proof"`
+		*Alias
+	}{
+		Alias: (*Alias)(commitmentProof),
+	}
+	if err := json.Unmarshal(data, &aux); err != nil {
+		return err
+	}
+	rowProof := proof.RowProof{}
+	if err := tmjson.Unmarshal(aux.RowProof, rowProof); err != nil {
+		return err
+	}
+
+	commitmentProof.RowProof = rowProof
+
+	return nil
 }
