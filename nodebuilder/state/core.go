@@ -1,6 +1,9 @@
 package state
 
 import (
+	"errors"
+	"os"
+
 	"github.com/cosmos/cosmos-sdk/crypto/keyring"
 
 	libfraud "github.com/celestiaorg/go-fraud"
@@ -30,13 +33,17 @@ func coreAccessor(
 	*modfraud.ServiceBreaker[*state.CoreAccessor, *header.ExtendedHeader],
 	error,
 ) {
-	if corecfg.EnableTLS {
-		tls, err := core.TLS(corecfg.TLSPath)
-		if err != nil {
-			return nil, nil, nil, err
-		}
-		opts = append(opts, state.WithTLSConfig(tls))
+
+	tls, err := core.TLS(corecfg.TLSPath)
+	if err != nil && !errors.Is(err, os.ErrNotExist) {
+		return nil, nil, nil, err
 	}
+	xtoken, err := core.XToken(corecfg.XTokenPath)
+	if err != nil && !errors.Is(err, os.ErrNotExist) {
+		return nil, nil, nil, err
+	}
+
+	opts = append(opts, state.WithTLSConfig(tls), state.WithXToken(xtoken))
 	ca, err := state.NewCoreAccessor(keyring, string(keyname), sync,
 		corecfg.IP, corecfg.GRPCPort, network.String(), opts...)
 

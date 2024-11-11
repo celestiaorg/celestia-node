@@ -2,38 +2,62 @@ package core
 
 import (
 	"crypto/tls"
-	"fmt"
+	"encoding/json"
+	"errors"
+	"os"
 	"path/filepath"
 
 	"github.com/celestiaorg/celestia-node/libs/utils"
 )
 
 const (
-	cert = "cert.pem"
-	key  = "key.pem"
+	cert   = "cert.pem"
+	key    = "key.pem"
+	xtoken = "xtoken.json"
 )
 
 // TLS parses the tls path and tries to configure the config with tls certificates.
 // In returns an empty config in case the path was not specified.
 func TLS(tlsPath string) (*tls.Config, error) {
-	cfg := &tls.Config{MinVersion: tls.VersionTLS12}
-	if tlsPath == "" {
-		return cfg, nil
-	}
 	certPath := filepath.Join(tlsPath, cert)
 	keyPath := filepath.Join(tlsPath, key)
 	exist := utils.Exists(certPath) && utils.Exists(keyPath)
 	if !exist {
-		return nil, fmt.Errorf("can't find %s or %s under %s"+
-			"Please specify another path or disable tls in the config",
-			cert, key, tlsPath,
-		)
+		return nil, os.ErrNotExist
 	}
 
+	cfg := &tls.Config{MinVersion: tls.VersionTLS12}
 	cert, err := tls.LoadX509KeyPair(certPath, keyPath)
 	if err != nil {
 		return nil, err
 	}
 	cfg.Certificates = append(cfg.Certificates, cert)
 	return cfg, nil
+}
+
+type AuthToken struct {
+	Token string `json:"x-token"`
+}
+
+func XToken(xtokenPath string) (string, error) {
+	xtokenPath = filepath.Join(xtokenPath, xtoken)
+	exist := utils.Exists(xtokenPath)
+	if !exist {
+		return "", os.ErrNotExist
+	}
+
+	token, err := os.ReadFile(xtokenPath)
+	if err != nil {
+		return "", err
+	}
+
+	var auth AuthToken
+	err = json.Unmarshal(token, &auth)
+	if err != nil {
+		return "", err
+	}
+	if auth.Token == "" {
+		return "", errors.New("x-token is empty. Please setup a token or cleanup xtokenPath")
+	}
+	return auth.Token, nil
 }
