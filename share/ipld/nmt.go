@@ -6,7 +6,6 @@ import (
 	"errors"
 	"fmt"
 	"hash"
-	"math/rand"
 
 	"github.com/ipfs/boxo/blockservice"
 	blocks "github.com/ipfs/go-block-format"
@@ -153,16 +152,6 @@ func MustCidFromNamespacedSha256(hash []byte) cid.Cid {
 		)
 	}
 	return cidFromHash
-}
-
-// Translate transforms square coordinates into IPLD NMT tree path to a leaf node.
-// It also adds randomization to evenly spread fetching from Rows and Columns.
-func Translate(roots *share.AxisRoots, row, col int) (cid.Cid, int) {
-	if rand.Intn(2) == 0 { //nolint:gosec
-		return MustCidFromNamespacedSha256(roots.ColumnRoots[col]), row
-	}
-
-	return MustCidFromNamespacedSha256(roots.RowRoots[row]), col
 }
 
 // NamespacedSha256FromCID derives the Namespaced hash from the given CID.

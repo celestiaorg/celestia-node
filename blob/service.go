@@ -368,7 +368,7 @@ func (s *Service) retrieve(
 	getCtx, getSharesSpan := tracer.Start(ctx, "get-shares-by-namespace")
 
 	// collect shares for the requested namespace
-	namespacedShares, err := s.shareGetter.GetSharesByNamespace(getCtx, header, namespace)
+	namespacedShares, err := s.shareGetter.GetNamespaceData(getCtx, header, namespace)
 	if err != nil {
 		if errors.Is(err, shwap.ErrNotFound) {
 			err = ErrBlobNotFound

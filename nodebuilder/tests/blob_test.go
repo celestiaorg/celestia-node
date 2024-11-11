@@ -59,6 +59,19 @@ func TestBlobModule(t *testing.T) {
 	fullClient := getAdminClient(ctx, fullNode, t)
 	lightClient := getAdminClient(ctx, lightNode, t)
 
+	address, err := fullClient.State.AccountAddress(ctx)
+	require.NoError(t, err)
+	v1Blob, err := libshare.NewV1Blob(
+		libshare.MustNewV0Namespace(bytes.Repeat([]byte{5}, libshare.NamespaceVersionZeroIDSize)),
+		[]byte("test data"),
+		address.Bytes(),
+	)
+	require.NoError(t, err)
+
+	v1, err := convert(v1Blob)
+	require.NoError(t, err)
+	blobs = append(blobs, v1)
+
 	height, err := fullClient.Blob.Submit(ctx, blobs, state.NewTxConfig())
 	require.NoError(t, err)
 
@@ -72,32 +85,42 @@ func TestBlobModule(t *testing.T) {
 		doFn func(t *testing.T)
 	}{
 		{
-			name: "Get",
+			name: "GetV0",
 			doFn: func(t *testing.T) {
-				// https://github.com/celestiaorg/celestia-node/issues/2915
-				time.Sleep(time.Second)
 				blob1, err := fullClient.Blob.Get(ctx, height, blobs[0].Namespace(), blobs[0].Commitment)
 				require.NoError(t, err)
-				require.Equal(t, blobs[0].Commitment, blob1.Commitment)
+				assert.Equal(t, blobs[0].Commitment, blob1.Commitment)
+				assert.Equal(t, blobs[0].Data(), blob1.Data())
+				assert.Nil(t, blob1.Signer())
 			},
 		},
 		{
-			name: "GetAll",
+			name: "GetAllV0",
 			doFn: func(t *testing.T) {
-				// https://github.com/celestiaorg/celestia-node/issues/2915
-				time.Sleep(time.Second)
 				newBlobs, err := fullClient.Blob.GetAll(ctx, height, []libshare.Namespace{blobs[0].Namespace()})
 				require.NoError(t, err)
-				require.Len(t, newBlobs, len(libBlobs0))
-				require.True(t, bytes.Equal(blobs[0].Commitment, newBlobs[0].Commitment))
-				require.True(t, bytes.Equal(blobs[1].Commitment, newBlobs[1].Commitment))
+				assert.Len(t, newBlobs, len(libBlobs0))
+				assert.Equal(t, blobs[0].Commitment, newBlobs[0].Commitment)
+				assert.Equal(t, blobs[1].Commitment, newBlobs[1].Commitment)
+				assert.Nil(t, newBlobs[0].Signer())
+				assert.Nil(t, newBlobs[1].Signer())
+			},
+		},
+		{
+			name: "Get BlobV1",
+			doFn: func(t *testing.T) {
+				blobV1, err := fullClient.Blob.Get(ctx, height, v1.Namespace(), v1.Commitment)
+				require.NoError(t, err)
+				assert.Equal(t, libshare.ShareVersionOne, blobV1.ShareVersion())
+				assert.Equal(t, v1.Commitment, blobV1.Commitment)
+				assert.NotNil(t, blobV1.Signer())
+				assert.Equal(t, blobV1.Signer(), v1.Signer())
+
 			},
 		},
 		{
 			name: "Included",
 			doFn: func(t *testing.T) {
-				// https://github.com/celestiaorg/celestia-node/issues/2915
-				time.Sleep(time.Second)
 				proof, err := fullClient.Blob.GetProof(ctx, height, blobs[0].Namespace(), blobs[0].Commitment)
 				require.NoError(t, err)
 
@@ -148,11 +171,6 @@ func TestBlobModule(t *testing.T) {
 				require.NoError(t, err)
 				require.Equal(t, b.Commitment, b0.Commitment)
 
-				// give some time to store the data,
-				// otherwise the test will hang on the IPLD level.
-				// https://github.com/celestiaorg/celestia-node/issues/2915
-				time.Sleep(time.Second)
-
 				proof, err := fullClient.Blob.GetProof(ctx, height, b.Namespace(), b.Commitment)
 				require.NoError(t, err)
 
@@ -176,11 +194,6 @@ func TestBlobModule(t *testing.T) {
 				b0, err := fullClient.Blob.Get(ctx, h, blobs[0].Namespace(), blobs[0].Commitment)
 				require.NoError(t, err)
 				require.Equal(t, blobs[0].Commitment, b0.Commitment)
-
-				// give some time to store the data,
-				// otherwise the test will hang on the IPLD level.
-				// https://github.com/celestiaorg/celestia-node/issues/2915
-				time.Sleep(time.Second)
 
 				proof, err := fullClient.Blob.GetProof(ctx, h, blobs[0].Namespace(), blobs[0].Commitment)
 				require.NoError(t, err)

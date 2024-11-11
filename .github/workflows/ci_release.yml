@@ -12,16 +12,6 @@ on:
   pull_request:
   workflow_dispatch:
     inputs:
-      version-bump:
-        # Friendly description to be shown in the UI instead of 'name'
-        description: "Semver type of new version (major / minor / patch)"
-        # Input has to be provided for the workflow to run
-        required: true
-        type: choice
-        options:
-          - patch
-          - minor
-          - major
       tag-as:
         description: 'Tag for snapshot release (optional)'
         required: false
@@ -88,31 +78,9 @@ jobs:
     with:
       go-version: ${{ needs.setup.outputs.go-version }}
 
-  # If this was a workflow dispatch event, we need to generate and push a tag
-  # for goreleaser to grab
-  version_bump:
-    needs: [hadolint, yamllint, markdown-lint, go-ci, setup]
-    runs-on: ubuntu-latest
-    permissions: "write-all"
-    steps:
-      - uses: actions/checkout@v4
-
-      - name: Bump version and push tag
-        # Placing the if condition here is a workaround for needing to block
-        # on this step during workflow dispatch events but the step not
-        # needing to run on tags. If we had the if condition on the full
-        # version_bump section, it would skip and not run, which would result
-        # in goreleaser not running either.
-        if: ${{ github.event_name == 'workflow_dispatch' }}
-        uses: mathieudutour/github-tag-action@v6.2
-        with:
-          github_token: ${{ secrets.GITHUB_TOKEN }}
-          default_bump: ${{ inputs.version-bump }}
-          release_branches: ${{ needs.setup.outputs.branch }}
-
   # Generate the release with goreleaser to include pre-built binaries
   goreleaser:
-    needs: [version_bump, setup]
+    needs: [setup]
     runs-on: ubuntu-latest
     if: |
       github.event_name == 'workflow_dispatch' ||

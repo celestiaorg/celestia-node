@@ -11,6 +11,7 @@ import (
 
 	"github.com/celestiaorg/celestia-node/nodebuilder/node"
 	modp2p "github.com/celestiaorg/celestia-node/nodebuilder/p2p"
+	"github.com/celestiaorg/celestia-node/pruner"
 	lightprune "github.com/celestiaorg/celestia-node/pruner/light"
 	"github.com/celestiaorg/celestia-node/share"
 	"github.com/celestiaorg/celestia-node/share/availability/full"
@@ -222,20 +223,21 @@ func availabilityComponents(tp node.Type, cfg *Config) fx.Option {
 	case node.Light:
 		return fx.Options(
 			fx.Provide(fx.Annotate(
-				func(getter shwap.Getter, ds datastore.Batching) *light.ShareAvailability {
+				func(getter shwap.Getter, ds datastore.Batching, bs blockstore.Blockstore) *light.ShareAvailability {
 					return light.NewShareAvailability(
 						getter,
 						ds,
+						bs,
 						light.WithSampleAmount(cfg.LightAvailability.SampleAmount),
 					)
 				},
+				fx.As(fx.Self()),
+				fx.As(new(share.Availability)),
+				fx.As(new(pruner.Pruner)), // TODO(@walldiss): remove conversion after Availability and Pruner interfaces are merged
 				fx.OnStop(func(ctx context.Context, la *light.ShareAvailability) error {
 					return la.Close(ctx)
 				}),
 			)),
-			fx.Provide(func(avail *light.ShareAvailability) share.Availability {
-				return avail
-			}),
 		)
 	case node.Bridge, node.Full:
 		return fx.Options(

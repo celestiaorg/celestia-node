@@ -45,7 +45,6 @@ func ConstructModule(tp node.Type, cfg *Config) fx.Option {
 			return fx.Module("prune",
 				baseComponents,
 				prunerService,
-				fx.Provide(light.NewPruner),
 			)
 		}
 		// We do not trigger DetectPreviousRun for Light nodes, to allow them to disable pruning at wish.

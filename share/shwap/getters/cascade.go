@@ -78,9 +78,9 @@ func (cg *CascadeGetter) GetEDS(
 	return cascadeGetters(ctx, cg.getters, get)
 }
 
-// GetSharesByNamespace gets NamespacedShares from any of registered shwap.Getters in cascading
+// GetNamespaceData gets NamespacedShares from any of registered shwap.Getters in cascading
 // order.
-func (cg *CascadeGetter) GetSharesByNamespace(
+func (cg *CascadeGetter) GetNamespaceData(
 	ctx context.Context,
 	header *header.ExtendedHeader,
 	namespace libshare.Namespace,
@@ -91,7 +91,7 @@ func (cg *CascadeGetter) GetSharesByNamespace(
 	defer span.End()
 
 	get := func(ctx context.Context, get shwap.Getter) (shwap.NamespaceData, error) {
-		return get.GetSharesByNamespace(ctx, header, namespace)
+		return get.GetNamespaceData(ctx, header, namespace)
 	}
 
 	return cascadeGetters(ctx, cg.getters, get)
