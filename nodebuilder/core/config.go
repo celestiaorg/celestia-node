@@ -15,11 +15,16 @@ var MetricsEnabled bool
 
 // Config combines all configuration fields for managing the relationship with a Core node.
 type Config struct {
-	IP        string
-	Port      string
-	GRPCPort  string
-	EnableTLS bool
-	TLSPath   string
+	IP   string
+	Port string
+	// TLSPath specifies the directory path where the TLS certificates are stored.
+	// It should not include file names('cert.pem' and 'key.pem').
+	// If left empty, the client will be configured for an insecure (non-TLS) connection.
+	TLSPath string
+	// XTokenPath specifies the file path to the JSON file containing the X-Token for gRPC authentication.
+	// The JSON file should have a key-value pair where the key is "x-token" and the value is the authentication token.
+	// If left empty, the client will not include the X-Token in its requests.
+	XTokenPath string
 }
 
 // DefaultConfig returns default configuration for managing the

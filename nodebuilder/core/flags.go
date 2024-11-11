@@ -8,10 +8,10 @@ import (
 )
 
 var (
-	coreFlag          = "core.ip"
-	coreGRPCFlag      = "core.grpc.port"
-	coreEnableTLSFlag = "core.grpc.tls"
-	coreTLSPAthFlag   = "core.grpc.tls.path"
+	coreFlag           = "core.ip"
+	coreGRPCFlag       = "core.grpc.port"
+	coreTLSPathFlag    = "core.grpc.tls.path"
+	coreXTokenPathFlag = "core.grpc.xtoken.path"
 )
 
 // Flags gives a set of hardcoded Core flags.
@@ -30,15 +30,20 @@ func Flags() *flag.FlagSet {
 		DefaultPort,
 		"Set a custom gRPC port for the core node connection. The --core.ip flag must also be provided.",
 	)
-	flags.Bool(
-		coreEnableTLSFlag,
-		false,
-		"Enables grpc TLS. The --core.ip flag must also be provided.",
-	)
 	flags.String(
-		coreTLSPAthFlag,
+		coreTLSPathFlag,
 		"",
-		fmt.Sprintf("Set a path to the TLS certificates. The --%s must be set to true ", coreEnableTLSFlag),
+		"specifies the directory path where the TLS certificates are stored. "+
+			"It should not include file names ('cert.pem' and 'key.pem'). "+
+			"If left empty, the client will be configured for an insecure (non-TLS) connection",
+	)
+
+	flags.String(
+		coreXTokenPathFlag,
+		"",
+		"specifies the file path to the JSON file containing the X-Token for gRPC authentication. "+
+			"The JSON file should have a key-value pair where the key is 'x-token' and the value is the authentication token. "+
+			"If left empty, the client will not include the X-Token in its requests.",
 	)
 	return flags
 }
@@ -61,16 +66,15 @@ func ParseFlags(
 		cfg.Port = grpc
 	}
 
-	if cmd.Flag(coreEnableTLSFlag).Changed {
-		enabled := cmd.Flag(coreEnableTLSFlag).Value.String() == "true"
-		cfg.EnableTLS = enabled
-	}
-
-	if cmd.Flag(coreTLSPAthFlag).Changed {
-		path := cmd.Flag(coreTLSPAthFlag).Value.String()
+	if cmd.Flag(coreTLSPathFlag).Changed {
+		path := cmd.Flag(coreTLSPathFlag).Value.String()
 		cfg.TLSPath = path
 	}
 
+	if cmd.Flag(coreXTokenPathFlag).Changed {
+		path := cmd.Flag(coreXTokenPathFlag).Value.String()
+		cfg.XTokenPath = path
+	}
 	cfg.IP = coreIP
 	return cfg.Validate()
 }
