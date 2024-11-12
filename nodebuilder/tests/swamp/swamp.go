@@ -205,7 +205,7 @@ func (s *Swamp) DefaultTestConfig(tp node.Type) *nodebuilder.Config {
 	require.NoError(s.t, err)
 
 	cfg.Core.IP = ip
-	cfg.Core.GRPCPort = port
+	cfg.Core.Port = port
 	return cfg
 }
 

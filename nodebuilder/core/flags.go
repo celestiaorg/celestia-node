@@ -25,7 +25,7 @@ func Flags() *flag.FlagSet {
 	)
 	flags.String(
 		coreGRPCFlag,
-		DefaultGRPCPort,
+		DefaultPort,
 		"Set a custom gRPC port for the core node connection. The --core.ip flag must also be provided.",
 	)
 	return flags
@@ -46,7 +46,7 @@ func ParseFlags(
 
 	if cmd.Flag(coreGRPCFlag).Changed {
 		grpc := cmd.Flag(coreGRPCFlag).Value.String()
-		cfg.GRPCPort = grpc
+		cfg.Port = grpc
 	}
 
 	cfg.IP = coreIP

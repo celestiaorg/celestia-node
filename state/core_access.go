@@ -69,7 +69,7 @@ type CoreAccessor struct {
 
 	coreConn *grpc.ClientConn
 	coreIP   string
-	grpcPort string
+	port     string
 	network  string
 
 	// these fields are mutatable and thus need to be protected by a mutex
@@ -91,7 +91,7 @@ func NewCoreAccessor(
 	keyname string,
 	getter libhead.Head[*header.ExtendedHeader],
 	coreIP,
-	grpcPort string,
+	port string,
 	network string,
 	options ...Option,
 ) (*CoreAccessor, error) {
@@ -105,7 +105,7 @@ func NewCoreAccessor(
 		defaultSignerAccount: keyname,
 		getter:               getter,
 		coreIP:               coreIP,
-		grpcPort:             grpcPort,
+		port:                 port,
 		prt:                  prt,
 		network:              network,
 	}
@@ -123,7 +123,7 @@ func (ca *CoreAccessor) Start(ctx context.Context) error {
 	ca.ctx, ca.cancel = context.WithCancel(context.Background())
 
 	// dial given celestia-core endpoint
-	endpoint := fmt.Sprintf("%s:%s", ca.coreIP, ca.grpcPort)
+	endpoint := fmt.Sprintf("%s:%s", ca.coreIP, ca.port)
 	client, err := grpc.NewClient(
 		endpoint,
 		grpc.WithTransportCredentials(insecure.NewCredentials()),

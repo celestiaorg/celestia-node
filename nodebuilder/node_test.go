@@ -38,7 +38,7 @@ func TestLifecycle(t *testing.T) {
 
 			cfg := DefaultConfig(tt.tp)
 			cfg.Core.IP = host
-			cfg.Core.GRPCPort = port
+			cfg.Core.Port = port
 
 			node := TestNodeWithConfig(t, tt.tp, cfg)
 			require.NotNil(t, node)
@@ -85,7 +85,7 @@ func TestLifecycle_WithMetrics(t *testing.T) {
 
 			cfg := DefaultConfig(tt.tp)
 			cfg.Core.IP = host
-			cfg.Core.GRPCPort = port
+			cfg.Core.Port = port
 
 			node := TestNodeWithConfig(
 				t,

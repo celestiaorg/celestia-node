@@ -5,5 +5,5 @@ import (
 )
 
 func remote(cfg Config) (core.Client, error) {
-	return core.NewRemote(cfg.IP, cfg.GRPCPort)
+	return core.NewRemote(cfg.IP, cfg.Port)
 }

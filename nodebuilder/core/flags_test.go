@@ -20,8 +20,8 @@ func TestParseFlags(t *testing.T) {
 			args:     []string{},
 			inputCfg: Config{},
 			expectedCfg: Config{
-				IP:       "",
-				GRPCPort: "",
+				IP:   "",
+				Port: "",
 			},
 			expectError: false,
 		},
@@ -29,11 +29,11 @@ func TestParseFlags(t *testing.T) {
 			name: "only core.ip",
 			args: []string{"--core.ip=127.0.0.1"},
 			inputCfg: Config{
-				GRPCPort: DefaultGRPCPort,
+				Port: DefaultPort,
 			},
 			expectedCfg: Config{
-				IP:       "127.0.0.1",
-				GRPCPort: DefaultGRPCPort,
+				IP:   "127.0.0.1",
+				Port: DefaultPort,
 			},
 			expectError: false,
 		},
@@ -42,8 +42,8 @@ func TestParseFlags(t *testing.T) {
 			args:     []string{"--core.ip=127.0.0.1"},
 			inputCfg: Config{},
 			expectedCfg: Config{
-				IP:       "127.0.0.1",
-				GRPCPort: DefaultGRPCPort,
+				IP:   "127.0.0.1",
+				Port: DefaultPort,
 			},
 			expectError: true,
 		},
@@ -51,12 +51,12 @@ func TestParseFlags(t *testing.T) {
 			name: "no flags, values from input config.toml ",
 			args: []string{},
 			inputCfg: Config{
-				IP:       "127.162.36.1",
-				GRPCPort: "5678",
+				IP:   "127.162.36.1",
+				Port: "5678",
 			},
 			expectedCfg: Config{
-				IP:       "127.162.36.1",
-				GRPCPort: "5678",
+				IP:   "127.162.36.1",
+				Port: "5678",
 			},
 			expectError: false,
 		},
@@ -64,11 +64,11 @@ func TestParseFlags(t *testing.T) {
 			name: "only core.ip, with config.toml overridden defaults for ports",
 			args: []string{"--core.ip=127.0.0.1"},
 			inputCfg: Config{
-				GRPCPort: "5678",
+				Port: "5678",
 			},
 			expectedCfg: Config{
-				IP:       "127.0.0.1",
-				GRPCPort: "5678",
+				IP:   "127.0.0.1",
+				Port: "5678",
 			},
 			expectError: false,
 		},
@@ -76,11 +76,11 @@ func TestParseFlags(t *testing.T) {
 			name: "core.ip and core.grpc.port",
 			args: []string{"--core.ip=127.0.0.1", "--core.grpc.port=54321"},
 			inputCfg: Config{
-				GRPCPort: DefaultGRPCPort,
+				Port: DefaultPort,
 			},
 			expectedCfg: Config{
-				IP:       "127.0.0.1",
-				GRPCPort: "54321",
+				IP:   "127.0.0.1",
+				Port: "54321",
 			},
 			expectError: false,
 		},

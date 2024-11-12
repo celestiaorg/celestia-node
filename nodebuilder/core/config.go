@@ -8,23 +8,23 @@ import (
 )
 
 const (
-	DefaultGRPCPort = "9090"
+	DefaultPort = "9090"
 )
 
 var MetricsEnabled bool
 
 // Config combines all configuration fields for managing the relationship with a Core node.
 type Config struct {
-	IP       string
-	GRPCPort string
+	IP   string
+	Port string
 }
 
 // DefaultConfig returns default configuration for managing the
 // node's connection to a Celestia-Core endpoint.
 func DefaultConfig() Config {
 	return Config{
-		IP:       "",
-		GRPCPort: DefaultGRPCPort,
+		IP:   "",
+		Port: DefaultPort,
 	}
 }
 
@@ -34,7 +34,7 @@ func (cfg *Config) Validate() error {
 		return nil
 	}
 
-	if cfg.GRPCPort == "" {
+	if cfg.Port == "" {
 		return fmt.Errorf("nodebuilder/core: grpc port is not set")
 	}
 
@@ -43,7 +43,7 @@ func (cfg *Config) Validate() error {
 		return err
 	}
 	cfg.IP = ip
-	_, err = strconv.Atoi(cfg.GRPCPort)
+	_, err = strconv.Atoi(cfg.Port)
 	if err != nil {
 		return fmt.Errorf("nodebuilder/core: invalid grpc port: %s", err.Error())
 	}
