@@ -132,6 +132,8 @@ func fillBlocks(
 		select {
 		case <-ctx.Done():
 			return
+		case <-cctx.GoContext().Done():
+			return
 		default:
 		}
 
