@@ -316,7 +316,8 @@ func (s *Service) Included(
 	// verify that the blob subtree roots match the proof subtree roots
 	if proofCommitment := proof.GenerateCommitment(); !commitment.Equal(proofCommitment) {
 		return false, fmt.Errorf(
-			`unequal blob commitment %s and proof commitment %s`,
+			"%w: unequal blob commitment %s and proof commitment %s",
+			ErrInvalidProof,
 			hex.EncodeToString(commitment),
 			hex.EncodeToString(proofCommitment),
 		)

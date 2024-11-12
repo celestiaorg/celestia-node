@@ -288,9 +288,7 @@ func TestBlobService_Get(t *testing.T) {
 			},
 			expectedResult: func(res interface{}, err error) {
 				require.Error(t, err)
-				// Question for reviewers: same for here, we're returning exactly, ErrInvalidProof.
-				// is it fine to wrap it?
-				// require.ErrorIs(t, err, ErrInvalidProof)
+				require.ErrorIs(t, err, ErrInvalidProof)
 				included, ok := res.(bool)
 				require.True(t, ok)
 				require.False(t, included)
