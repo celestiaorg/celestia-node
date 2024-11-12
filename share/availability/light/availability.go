@@ -138,7 +138,11 @@ func (la *ShareAvailability) SharesAvailable(ctx context.Context, header *header
 	var failedSamples []Sample
 	for i, smpl := range smpls {
 		if smpl.IsEmpty() {
-			failedSamples = append(failedSamples, samples.Available[i])
+			row, col, err := idxs[i].Coordinates(len(dah.RowRoots))
+			if err != nil {
+				return err
+			}
+			failedSamples = append(failedSamples, Sample{Row: row, Col: col})
 		}
 	}
 
