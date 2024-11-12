@@ -229,7 +229,10 @@ func (eh *ExtendedHeader) UnmarshalBinary(data []byte) error {
 // MarshalJSON marshals an ExtendedHeader to JSON.
 // Uses tendermint encoder for tendermint compatibility.
 func (eh *ExtendedHeader) MarshalJSON() ([]byte, error) {
-	return tmjson.Marshal(*eh)
+	// alias the type to avoid going into recursion loop
+	// because tmjson.Marshal invokes custom json marshalling
+	type Alias ExtendedHeader
+	return tmjson.Marshal((*Alias)(eh))
 }
 
 // UnmarshalJSON unmarshals an ExtendedHeader from JSON.
