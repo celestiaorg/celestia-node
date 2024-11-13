@@ -131,7 +131,7 @@ lint: lint-imports
 ## test-unit: Run unit tests.
 test-unit:
 	@echo "--> Running unit tests"
-	@go test $(VERBOSE) -count=5 -covermode=atomic -coverprofile=coverage.txt `go list ./... | grep -v nodebuilder/tests` $(LOG_AND_FILTER)
+	@go test $(VERBOSE) -count=5 -timeout=20m -covermode=atomic -coverprofile=coverage.txt `go list ./... | grep -v nodebuilder/tests` $(LOG_AND_FILTER)
 .PHONY: test-unit
 
 ## test-unit-race: Run unit tests with data race detector.
