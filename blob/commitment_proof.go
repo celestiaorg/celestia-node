@@ -5,13 +5,14 @@ import (
 	"errors"
 	"fmt"
 
+	tmjson "github.com/tendermint/tendermint/libs/json"
+
 	"github.com/celestiaorg/celestia-app/v3/pkg/appconsts"
 	"github.com/celestiaorg/celestia-app/v3/pkg/proof"
 	"github.com/celestiaorg/go-square/v2/inclusion"
 	libshare "github.com/celestiaorg/go-square/v2/share"
 	"github.com/celestiaorg/nmt"
 	"github.com/celestiaorg/nmt/namespace"
-	tmjson "github.com/tendermint/tendermint/libs/json"
 )
 
 // Commitment is a Merkle Root of the subtree built from shares of the Blob.
