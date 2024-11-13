@@ -2,7 +2,6 @@ package share
 
 import (
 	"context"
-	"encoding/json"
 
 	tmjson "github.com/tendermint/tendermint/libs/json"
 	"github.com/tendermint/tendermint/types"
@@ -26,41 +25,19 @@ type GetRangeResult struct {
 }
 
 // MarshalJSON marshals an GetRangeResult to JSON. Uses tendermint encoder for proof for compatibility.
-func (getRangeResult *GetRangeResult) MarshalJSON() ([]byte, error) {
+func (r *GetRangeResult) MarshalJSON() ([]byte, error) {
+	// alias the type to avoid going into recursion loop
+	// because tmjson.Marshal invokes custom json marshalling
 	type Alias GetRangeResult
-	proof, err := tmjson.Marshal(getRangeResult.Proof)
-	if err != nil {
-		return nil, err
-	}
-	return json.Marshal(&struct {
-		Proof json.RawMessage `json:"Proof"`
-		*Alias
-	}{
-		Proof: proof,
-		Alias: (*Alias)(getRangeResult),
-	})
+	return tmjson.Marshal((*Alias)(r))
 }
 
 // UnmarshalJSON unmarshals an GetRangeResult from JSON. Uses tendermint decoder for proof for compatibility.
-func (getRangeResult *GetRangeResult) UnmarshalJSON(data []byte) error {
+func (r *GetRangeResult) UnmarshalJSON(data []byte) error {
+	// alias the type to avoid going into recursion loop
+	// because tmjson.Unmarshal invokes custom json Unmarshalling
 	type Alias GetRangeResult
-	aux := &struct {
-		Proof json.RawMessage `json:"Proof"`
-		*Alias
-	}{
-		Alias: (*Alias)(getRangeResult),
-	}
-	if err := json.Unmarshal(data, &aux); err != nil {
-		return err
-	}
-	proof := new(types.ShareProof)
-	if err := tmjson.Unmarshal(aux.Proof, proof); err != nil {
-		return err
-	}
-
-	getRangeResult.Proof = proof
-
-	return nil
+	return tmjson.Unmarshal(data, (*Alias)(r))
 }
 
 // Module provides access to any data square or block share on the network.
