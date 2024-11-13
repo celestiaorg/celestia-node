@@ -157,17 +157,17 @@ func (commitmentProof *CommitmentProof) Verify(root []byte, subtreeRootThreshold
 }
 
 // MarshalJSON marshals an CommitmentProof to JSON. Uses tendermint encoder for row proof for compatibility.
-func (c *CommitmentProof) MarshalJSON() ([]byte, error) {
+func (commitmentProof *CommitmentProof) MarshalJSON() ([]byte, error) {
 	// alias the type to avoid going into recursion loop
-	// because tmjson.Marshal invokes custom json Marshalling
+	// because tmjson.Marshal invokes custom json Marshaling
 	type Alias CommitmentProof
-	return tmjson.Marshal((*Alias)(c))
+	return tmjson.Marshal((*Alias)(commitmentProof))
 }
 
 // UnmarshalJSON unmarshals an CommitmentProof from JSON. Uses tendermint decoder for row proof for compatibility.
-func (c *CommitmentProof) UnmarshalJSON(data []byte) error {
+func (commitmentProof *CommitmentProof) UnmarshalJSON(data []byte) error {
 	// alias the type to avoid going into recursion loop
-	// because tmjson.Unmarshal invokes custom json Unmarshalling
+	// because tmjson.Unmarshal invokes custom json Unmarshaling
 	type Alias CommitmentProof
-	return tmjson.Unmarshal(data, (*Alias)(c))
+	return tmjson.Unmarshal(data, (*Alias)(commitmentProof))
 }
