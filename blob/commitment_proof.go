@@ -2,7 +2,6 @@ package blob
 
 import (
 	"bytes"
-	"encoding/json"
 	"errors"
 	"fmt"
 
@@ -157,39 +156,17 @@ func (commitmentProof *CommitmentProof) Verify(root []byte, subtreeRootThreshold
 }
 
 // MarshalJSON marshals an CommitmentProof to JSON. Uses tendermint encoder for row proof for compatibility.
-func (commitmentProof *CommitmentProof) MarshalJSON() ([]byte, error) {
+func (c *CommitmentProof) MarshalJSON() ([]byte, error) {
+	// alias the type to avoid going into recursion loop
+	// because tmjson.Marshal invokes custom json Marshalling
 	type Alias CommitmentProof
-	rowProof, err := tmjson.Marshal(commitmentProof.RowProof)
-	if err != nil {
-		return nil, err
-	}
-	return json.Marshal(&struct {
-		RowProof json.RawMessage `json:"row_proof"`
-		*Alias
-	}{
-		RowProof: rowProof,
-		Alias:    (*Alias)(commitmentProof),
-	})
+	return tmjson.Marshal((*Alias)(c))
 }
 
 // UnmarshalJSON unmarshals an CommitmentProof from JSON. Uses tendermint decoder for row proof for compatibility.
-func (commitmentProof *CommitmentProof) UnmarshalJSON(data []byte) error {
+func (c *CommitmentProof) UnmarshalJSON(data []byte) error {
+	// alias the type to avoid going into recursion loop
+	// because tmjson.Unmarshal invokes custom json Unmarshalling
 	type Alias CommitmentProof
-	aux := &struct {
-		RowProof json.RawMessage `json:"row_proof"`
-		*Alias
-	}{
-		Alias: (*Alias)(commitmentProof),
-	}
-	if err := json.Unmarshal(data, &aux); err != nil {
-		return err
-	}
-	rowProof := proof.RowProof{}
-	if err := tmjson.Unmarshal(aux.RowProof, &rowProof); err != nil {
-		return err
-	}
-
-	commitmentProof.RowProof = rowProof
-
-	return nil
+	return tmjson.Unmarshal(data, (*Alias)(c))
 }
