@@ -81,10 +81,6 @@ func NewBlobV1(namespace libshare.Namespace, data, signer []byte) (*Blob, error)
 
 // NewBlob constructs a new blob from the provided Namespace, data, signer, and share version.
 func NewBlob(shareVersion uint8, namespace libshare.Namespace, data, signer []byte) (*Blob, error) {
-	if len(data) == 0 || len(data) > appconsts.DefaultMaxBytes {
-		return nil, fmt.Errorf("blob data must be > 0 && <= %d, but it was %d bytes", appconsts.DefaultMaxBytes, len(data))
-	}
-
 	if err := namespace.ValidateForBlob(); err != nil {
 		return nil, fmt.Errorf("invalid user namespace: %w", err)
 	}
