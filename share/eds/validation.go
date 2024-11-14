@@ -2,7 +2,6 @@ package eds
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"sync/atomic"
 
@@ -13,9 +12,6 @@ import (
 )
 
 var _ Accessor = validation{}
-
-// ErrOutOfBounds is returned whenever an index is out of bounds.
-var ErrOutOfBounds = errors.New("index is out of bounds")
 
 // validation is a  Accessor implementation that performs sanity checks on methods. It wraps
 // another  Accessor and performs bounds checks on index arguments.

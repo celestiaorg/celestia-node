@@ -85,7 +85,7 @@ var getSharesByNamespaceCmd = &cobra.Command{
 			return err
 		}
 
-		shares, err := client.Share.GetSharesByNamespace(cmd.Context(), height, ns)
+		shares, err := client.Share.GetNamespaceData(cmd.Context(), height, ns)
 		return cmdnode.PrintOutput(shares, err, nil)
 	},
 }

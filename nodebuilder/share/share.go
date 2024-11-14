@@ -47,9 +47,9 @@ type Module interface {
 	GetShare(ctx context.Context, height uint64, row, col int) (libshare.Share, error)
 	// GetEDS gets the full EDS identified by the given extended header.
 	GetEDS(ctx context.Context, height uint64) (*rsmt2d.ExtendedDataSquare, error)
-	// GetSharesByNamespace gets all shares from an EDS within the given namespace.
+	// GetNamespaceData gets all shares from an EDS within the given namespace.
 	// Shares are returned in a row-by-row order if the namespace spans multiple rows.
-	GetSharesByNamespace(
+	GetNamespaceData(
 		ctx context.Context, height uint64, namespace libshare.Namespace,
 	) (shwap.NamespaceData, error)
 	// GetRange gets a list of shares and their corresponding proof.
@@ -69,7 +69,7 @@ type API struct {
 			ctx context.Context,
 			height uint64,
 		) (*rsmt2d.ExtendedDataSquare, error) `perm:"read"`
-		GetSharesByNamespace func(
+		GetNamespaceData func(
 			ctx context.Context,
 			height uint64,
 			namespace libshare.Namespace,
@@ -98,12 +98,12 @@ func (api *API) GetRange(ctx context.Context, height uint64, start, end int) (*G
 	return api.Internal.GetRange(ctx, height, start, end)
 }
 
-func (api *API) GetSharesByNamespace(
+func (api *API) GetNamespaceData(
 	ctx context.Context,
 	height uint64,
 	namespace libshare.Namespace,
 ) (shwap.NamespaceData, error) {
-	return api.Internal.GetSharesByNamespace(ctx, height, namespace)
+	return api.Internal.GetNamespaceData(ctx, height, namespace)
 }
 
 type module struct {
@@ -157,7 +157,7 @@ func (m module) GetRange(ctx context.Context, height uint64, start, end int) (*G
 	}, nil
 }
 
-func (m module) GetSharesByNamespace(
+func (m module) GetNamespaceData(
 	ctx context.Context,
 	height uint64,
 	namespace libshare.Namespace,
@@ -166,5 +166,5 @@ func (m module) GetSharesByNamespace(
 	if err != nil {
 		return nil, err
 	}
-	return m.getter.GetSharesByNamespace(ctx, header, namespace)
+	return m.getter.GetNamespaceData(ctx, header, namespace)
 }

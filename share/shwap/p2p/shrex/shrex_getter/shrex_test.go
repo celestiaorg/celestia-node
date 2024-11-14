@@ -21,9 +21,8 @@ import (
 
 	"github.com/celestiaorg/celestia-node/header"
 	"github.com/celestiaorg/celestia-node/header/headertest"
-	"github.com/celestiaorg/celestia-node/pruner/full"
-	"github.com/celestiaorg/celestia-node/pruner/light"
 	"github.com/celestiaorg/celestia-node/share"
+	"github.com/celestiaorg/celestia-node/share/availability"
 	"github.com/celestiaorg/celestia-node/share/eds/edstest"
 	"github.com/celestiaorg/celestia-node/share/shwap"
 	"github.com/celestiaorg/celestia-node/share/shwap/p2p/shrex/peers"
@@ -57,7 +56,7 @@ func TestShrexGetter(t *testing.T) {
 	archivalPeerManager, err := testManager(ctx, clHost, sub)
 	require.NoError(t, err)
 
-	getter := NewGetter(edsClient, ndClient, fullPeerManager, archivalPeerManager, light.Window)
+	getter := NewGetter(edsClient, ndClient, fullPeerManager, archivalPeerManager, availability.RequestWindow)
 	require.NoError(t, getter.Start(ctx))
 
 	height := atomic.Uint64{}
@@ -82,7 +81,7 @@ func TestShrexGetter(t *testing.T) {
 			Height:   height,
 		})
 
-		got, err := getter.GetSharesByNamespace(ctx, eh, namespace)
+		got, err := getter.GetNamespaceData(ctx, eh, namespace)
 		require.NoError(t, err)
 		require.NoError(t, got.Verify(roots, namespace))
 	})
@@ -102,7 +101,7 @@ func TestShrexGetter(t *testing.T) {
 			Height:   height,
 		})
 
-		_, err := getter.GetSharesByNamespace(ctx, eh, namespace)
+		_, err := getter.GetNamespaceData(ctx, eh, namespace)
 		require.ErrorIs(t, err, shwap.ErrNotFound)
 	})
 
@@ -131,7 +130,7 @@ func TestShrexGetter(t *testing.T) {
 		require.NoError(t, err)
 		require.Len(t, rows, 1)
 
-		emptyShares, err := getter.GetSharesByNamespace(ctx, eh, nID)
+		emptyShares, err := getter.GetNamespaceData(ctx, eh, nID)
 		require.NoError(t, err)
 		// no shares should be returned
 		require.Nil(t, emptyShares.Flatten())
@@ -145,7 +144,7 @@ func TestShrexGetter(t *testing.T) {
 		require.NoError(t, err)
 		require.Len(t, rows, 0)
 
-		emptyShares, err = getter.GetSharesByNamespace(ctx, eh, nID)
+		emptyShares, err = getter.GetNamespaceData(ctx, eh, nID)
 		require.NoError(t, err)
 		// no shares should be returned
 		require.Nil(t, emptyShares.Flatten())
@@ -176,7 +175,7 @@ func TestShrexGetter(t *testing.T) {
 		require.NoError(t, err)
 		require.Len(t, rows, 0)
 
-		emptyShares, err := getter.GetSharesByNamespace(ctx, eh, namespace)
+		emptyShares, err := getter.GetNamespaceData(ctx, eh, namespace)
 		require.NoError(t, err)
 		// no shares should be returned
 		require.Empty(t, emptyShares.Flatten())
@@ -262,7 +261,7 @@ func TestShrexGetter(t *testing.T) {
 		eh.RawHeader.Height = int64(height)
 
 		// historical data expects an archival peer
-		eh.RawHeader.Time = time.Now().Add(-(time.Duration(full.Window) + time.Second))
+		eh.RawHeader.Time = time.Now().Add(-(availability.StorageWindow + time.Second))
 		id, _, err := getter.getPeer(ctx, eh)
 		require.NoError(t, err)
 		assert.Equal(t, archivalPeer.ID(), id)

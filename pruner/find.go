@@ -18,7 +18,7 @@ func (s *Service) findPruneableHeaders(
 	ctx context.Context,
 	lastPruned *header.ExtendedHeader,
 ) ([]*header.ExtendedHeader, error) {
-	pruneCutoff := time.Now().UTC().Add(-s.window.Duration())
+	pruneCutoff := time.Now().UTC().Add(-s.window)
 
 	if !lastPruned.Time().UTC().Before(pruneCutoff) {
 		// this can happen when the network is young and all blocks
@@ -31,7 +31,7 @@ func (s *Service) findPruneableHeaders(
 		return nil, err
 	}
 
-	if lastPruned.Height() == estimatedCutoffHeight {
+	if lastPruned.Height() >= estimatedCutoffHeight {
 		// nothing left to prune
 		return nil, nil
 	}
@@ -39,7 +39,9 @@ func (s *Service) findPruneableHeaders(
 	log.Debugw("finder: fetching header range", "last pruned", lastPruned.Height(),
 		"target height", estimatedCutoffHeight)
 
-	headers, err := s.getter.GetRangeByHeight(ctx, lastPruned, estimatedCutoffHeight)
+	// GetRangeByHeight requests (from:to), where `to` is non-inclusive, we need
+	// to request one more header than the estimated cutoff
+	headers, err := s.getter.GetRangeByHeight(ctx, lastPruned, estimatedCutoffHeight+1)
 	if err != nil {
 		log.Errorw("failed to get range from header store", "from", lastPruned.Height(),
 			"to", estimatedCutoffHeight, "error", err)

@@ -30,7 +30,7 @@ func TestGetter(t *testing.T) (shwap.Getter, *header.ExtendedHeader) {
 }
 
 // SingleEDSGetter contains a single EDS where data is retrieved from.
-// Its primary use is testing, and GetSharesByNamespace is not supported.
+// Its primary use is testing, and GetNamespaceData is not supported.
 type SingleEDSGetter struct {
 	EDS *rsmt2d.ExtendedDataSquare
 }
@@ -65,10 +65,10 @@ func (seg *SingleEDSGetter) GetEDS(
 	return seg.EDS, nil
 }
 
-// GetSharesByNamespace returns NamespacedShares from a kept EDS if the correct root is given.
-func (seg *SingleEDSGetter) GetSharesByNamespace(context.Context, *header.ExtendedHeader, libshare.Namespace,
+// GetNamespaceData returns NamespacedShares from a kept EDS if the correct root is given.
+func (seg *SingleEDSGetter) GetNamespaceData(context.Context, *header.ExtendedHeader, libshare.Namespace,
 ) (shwap.NamespaceData, error) {
-	panic("SingleEDSGetter: GetSharesByNamespace is not implemented")
+	panic("SingleEDSGetter: GetNamespaceData is not implemented")
 }
 
 func (seg *SingleEDSGetter) checkRoots(roots *share.AxisRoots) error {
