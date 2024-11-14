@@ -3,6 +3,7 @@ package bitswap
 import (
 	"context"
 	"fmt"
+	"time"
 
 	"github.com/ipfs/boxo/blockstore"
 	"github.com/ipfs/boxo/exchange"
@@ -16,8 +17,8 @@ import (
 	"github.com/celestiaorg/rsmt2d"
 
 	"github.com/celestiaorg/celestia-node/header"
-	"github.com/celestiaorg/celestia-node/pruner"
 	"github.com/celestiaorg/celestia-node/share"
+	"github.com/celestiaorg/celestia-node/share/availability"
 	"github.com/celestiaorg/celestia-node/share/shwap"
 )
 
@@ -27,7 +28,7 @@ var tracer = otel.Tracer("shwap/bitswap")
 type Getter struct {
 	exchange  exchange.SessionExchange
 	bstore    blockstore.Blockstore
-	availWndw pruner.AvailabilityWindow
+	availWndw time.Duration
 
 	availableSession exchange.Fetcher
 	archivalSession  exchange.Fetcher
@@ -39,7 +40,7 @@ type Getter struct {
 func NewGetter(
 	exchange exchange.SessionExchange,
 	bstore blockstore.Blockstore,
-	availWndw pruner.AvailabilityWindow,
+	availWndw time.Duration,
 ) *Getter {
 	return &Getter{exchange: exchange, bstore: bstore, availWndw: availWndw}
 }
@@ -233,7 +234,7 @@ func (g *Getter) GetNamespaceData(
 func (g *Getter) session(ctx context.Context, hdr *header.ExtendedHeader) exchange.Fetcher {
 	session := g.archivalSession
 
-	isWithinAvailability := pruner.IsWithinAvailabilityWindow(hdr.Time(), g.availWndw)
+	isWithinAvailability := availability.IsWithinWindow(hdr.Time(), g.availWndw)
 	if isWithinAvailability {
 		session = g.availableSession
 	}
