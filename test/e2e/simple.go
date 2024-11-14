@@ -125,6 +125,7 @@ func E2ESimple(logger *logrus.Logger) error {
 	err = tn.Prometheus.Start(ctx)
 	testnet.NoError("failed to start prometheus", err)
 
+	logger.Info("Waiting for prometheus metrics to be scraped from the DA nodes")
 	for _, n := range tn.DaNodes() {
 		nodeID, err := n.GetNodeID(ctx)
 		testnet.NoError("failed to get node ID", err)
@@ -137,7 +138,7 @@ func E2ESimple(logger *logrus.Logger) error {
 				MetricName: buildInfoMetricName,
 				Labels:     map[string]string{instanceMetricName: nodeID},
 			})
-			logger.Infof("metric: %v", value)
+			logger.Infof("node: %s, metric value: %v", n.Name, value)
 			return err
 		}, metricRetryInterval, metricRetryTimeout)
 

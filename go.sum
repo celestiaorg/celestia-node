@@ -348,6 +348,8 @@ github.com/celestiaorg/bittwister v0.0.0-20231213180407-65cdbaf5b8c7 h1:nxplQi8w
 github.com/celestiaorg/bittwister v0.0.0-20231213180407-65cdbaf5b8c7/go.mod h1:1EF5MfOxVf0WC51Gb7pJ6bcZxnXKNAf9pqWtjgPBAYc=
 github.com/celestiaorg/blobstream-contracts/v3 v3.1.0 h1:h1Y4V3EMQ2mFmNtWt2sIhZIuyASInj1a9ExI8xOsTOw=
 github.com/celestiaorg/blobstream-contracts/v3 v3.1.0/go.mod h1:x4DKyfKOSv1ZJM9NwV+Pw01kH2CD7N5zTFclXIVJ6GQ=
+github.com/celestiaorg/boxo v0.0.0-20241114103253-16dd306892a7 h1:aPpDCIQeGcuLmZF1Yvq28awJdQCd+H/KWgjIq2X9dpc=
+github.com/celestiaorg/boxo v0.0.0-20241114103253-16dd306892a7/go.mod h1:OpUrJtGmZZktUqJvPOtmP8wSfEFcdF/55d3PNCcYLwc=
 github.com/celestiaorg/celestia-app/v3 v3.0.0-rc0.0.20241029191623-b6a3ed29d977 h1:6+QvtK8eKrrf7z2UkSo83K98j38BCYNZ+rDQ+rDHuUs=
 github.com/celestiaorg/celestia-app/v3 v3.0.0-rc0.0.20241029191623-b6a3ed29d977/go.mod h1:K8U6TRHgofz0y5UcvlOL+CuNLbx4jeZrZF7HZdf+Rgs=
 github.com/celestiaorg/celestia-core v1.43.0-tm-v0.34.35 h1:L4GTm+JUXhB0a/nGPMq6jEqqe6THuYSQ8m2kUCtZYqw=
