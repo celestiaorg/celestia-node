@@ -8,9 +8,8 @@ import (
 	logging "github.com/ipfs/go-log/v2"
 
 	"github.com/celestiaorg/celestia-node/header"
-	"github.com/celestiaorg/celestia-node/pruner"
-	"github.com/celestiaorg/celestia-node/pruner/full"
 	"github.com/celestiaorg/celestia-node/share"
+	"github.com/celestiaorg/celestia-node/share/availability"
 	"github.com/celestiaorg/celestia-node/share/eds/byzantine"
 	"github.com/celestiaorg/celestia-node/share/shwap"
 	"github.com/celestiaorg/celestia-node/store"
@@ -69,7 +68,7 @@ func (fa *ShareAvailability) SharesAvailable(ctx context.Context, header *header
 	}
 
 	// archival nodes should not store Q4 outside the availability window.
-	if pruner.IsWithinAvailabilityWindow(header.Time(), full.Window) {
+	if availability.IsWithinWindow(header.Time(), availability.StorageWindow) {
 		err = fa.store.PutODSQ4(ctx, dah, header.Height(), eds)
 	} else {
 		err = fa.store.PutODS(ctx, dah, header.Height(), eds)
