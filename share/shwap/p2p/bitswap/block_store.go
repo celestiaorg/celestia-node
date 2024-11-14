@@ -28,29 +28,21 @@ type Blockstore struct {
 	Getter AccessorGetter
 }
 
-func (b *Blockstore) getBlockAndAccessor(ctx context.Context, cid cid.Cid) (Block, eds.AccessorStreamer, error) {
+func (b *Blockstore) Get(ctx context.Context, cid cid.Cid) (blocks.Block, error) {
 	blk, err := EmptyBlock(cid)
 	if err != nil {
-		return nil, nil, err
+		return nil, err
 	}
 
 	acc, err := b.Getter.GetByHeight(ctx, blk.Height())
 	if errors.Is(err, store.ErrNotFound) {
 		log.Debugf("no EDS Accessor for height %v found", blk.Height())
-		return nil, nil, ipld.ErrNotFound{Cid: cid}
+		return nil, ipld.ErrNotFound{Cid: cid}
 	}
 	if err != nil {
-		return nil, nil, fmt.Errorf("getting EDS Accessor for height %v: %w", blk.Height(), err)
+		return nil, fmt.Errorf("getting EDS Accessor for height %v: %w", blk.Height(), err)
 	}
 
-	return blk, acc, nil
-}
-
-func (b *Blockstore) Get(ctx context.Context, cid cid.Cid) (blocks.Block, error) {
-	blk, acc, err := b.getBlockAndAccessor(ctx, cid)
-	if err != nil {
-		return nil, err
-	}
 	defer func() {
 		if err := acc.Close(); err != nil {
 			log.Warnf("failed to close EDS accessor for height %v: %s", blk.Height(), err)
@@ -64,25 +56,16 @@ func (b *Blockstore) Get(ctx context.Context, cid cid.Cid) (blocks.Block, error)
 	return convertBitswap(blk)
 }
 
-func (b *Blockstore) GetSize(ctx context.Context, cid cid.Cid) (int, error) {
-	// NOTE: Bitswap prioritizes peers based on their active/pending work and the priority that peers set for the work
-	// themselves, where the work is the Get operation. The prioritization happens only on the Get operation and not
-	// GetSize, while GetSize is expected to be as lightweight as possible.
-	//
-	// Here is the best case we only open the Accessor and getting its size, avoiding expensive compute to get the size.
-	blk, acc, err := b.getBlockAndAccessor(ctx, cid)
+func (b *Blockstore) GetSize(_ context.Context, cid cid.Cid) (int, error) {
+	// NOTE: Size is used as a weight for the incoming Bitswap requests. Bitswap uses fair scheduling for the requests
+	// and prioritizes peers with less *active* work. Active work of a peer is a cumulative weight of all the in-progress
+	// requests.
+
+	// Constant max block size is used instead of factual size. This avoids disk IO but equalizes the weights of the
+	// requests of the same type. E.g. row of 2MB EDS and row of 8MB EDS will have the same weight.
+	size, err := maxBlockSize(cid)
 	if err != nil {
 		return 0, err
-	}
-	defer func() {
-		if err := acc.Close(); err != nil {
-			log.Warnf("failed to close EDS accessor for height %v: %s", blk.Height(), err)
-		}
-	}()
-
-	size, err := blk.Size(ctx, acc)
-	if err != nil {
-		return 0, fmt.Errorf("getting block size: %w", err)
 	}
 
 	return size, nil

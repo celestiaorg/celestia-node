@@ -23,10 +23,15 @@ const (
 	rowMultihashCode = 0x7801
 )
 
+// maxRowSize is the maximum size of the RowBlock.
+// It is calculated as half of the square size multiplied by the share size.
+var maxRowSize = share.MaxSquareSize / 2 * libshare.ShareSize
+
 func init() {
 	registerBlock(
 		rowMultihashCode,
 		rowCodec,
+		maxRowSize,
 		shwap.RowIDSize,
 		func(cid cid.Cid) (Block, error) {
 			return EmptyRowBlockFromCID(cid)
@@ -71,12 +76,6 @@ func (rb *RowBlock) CID() cid.Cid {
 
 func (rb *RowBlock) Height() uint64 {
 	return rb.ID.Height
-}
-
-func (rb *RowBlock) Size(ctx context.Context, acc eds.Accessor) (int, error) {
-	squareSize := acc.Size(ctx)
-	rowSize := libshare.ShareSize * squareSize / 2
-	return rowSize, nil
 }
 
 func (rb *RowBlock) Marshal() ([]byte, error) {

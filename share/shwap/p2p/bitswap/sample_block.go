@@ -24,10 +24,15 @@ const (
 	sampleMultihashCode = 0x7811
 )
 
+// maxSampleSize is the maximum size of the SampleBlock.
+// It is calculated as the size of the share plus the size of the proof.
+var maxSampleSize = libshare.ShareSize + share.AxisRootSize*int(math.Log2(float64(share.MaxSquareSize)))
+
 func init() {
 	registerBlock(
 		sampleMultihashCode,
 		sampleCodec,
+		maxSampleSize,
 		shwap.SampleIDSize,
 		func(cid cid.Cid) (Block, error) {
 			return EmptySampleBlockFromCID(cid)
@@ -72,12 +77,6 @@ func (sb *SampleBlock) CID() cid.Cid {
 
 func (sb *SampleBlock) Height() uint64 {
 	return sb.ID.Height
-}
-
-func (sb *SampleBlock) Size(ctx context.Context, acc eds.Accessor) (int, error) {
-	squareSize := acc.Size(ctx)
-	sampleSize := libshare.ShareSize + share.AxisRootSize*int(math.Log2(float64(squareSize)))
-	return sampleSize, nil
 }
 
 func (sb *SampleBlock) Marshal() ([]byte, error) {

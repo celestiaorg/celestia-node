@@ -23,13 +23,24 @@ func EmptyBlock(cid cid.Cid) (Block, error) {
 	return blk, nil
 }
 
+// maxBlockSize returns the maximum size of the Block type in the given CID.
+func maxBlockSize(cid cid.Cid) (int, error) {
+	spec, ok := specRegistry[cid.Prefix().MhType]
+	if !ok {
+		return -1, fmt.Errorf("unsupported Block type: %v", cid.Prefix().MhType)
+	}
+
+	return spec.maxSize, nil
+}
+
 // registerBlock registers the new Block type and multihash for it.
-func registerBlock(mhcode, codec uint64, idSize int, bldrFn func(cid.Cid) (Block, error)) {
+func registerBlock(mhcode, codec uint64, maxSize, idSize int, bldrFn func(cid.Cid) (Block, error)) {
 	mh.Register(mhcode, func() hash.Hash {
 		return &hasher{IDSize: idSize}
 	})
 	specRegistry[mhcode] = blockSpec{
 		idSize:  idSize,
+		maxSize: maxSize,
 		codec:   codec,
 		builder: bldrFn,
 	}
@@ -38,6 +49,7 @@ func registerBlock(mhcode, codec uint64, idSize int, bldrFn func(cid.Cid) (Block
 // blockSpec holds constant metadata about particular Block types.
 type blockSpec struct {
 	idSize  int
+	maxSize int
 	codec   uint64
 	builder func(cid.Cid) (Block, error)
 }
