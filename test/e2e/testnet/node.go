@@ -3,24 +3,21 @@ package testnet
 import (
 	"context"
 	"fmt"
-	"net/http"
 	"strings"
 
 	"github.com/celestiaorg/celestia-app/v3/test/e2e/testnet"
 	"github.com/celestiaorg/celestia-node/nodebuilder/node"
+	"github.com/celestiaorg/celestia-node/test/e2e/prometheus"
 	"github.com/celestiaorg/knuu/pkg/instance"
 	"github.com/celestiaorg/knuu/pkg/sidecars/observability"
-	"github.com/prometheus/common/expfmt"
 )
 
 type Node struct {
-	Name     string
-	Type     node.Type
-	Version  string
-	Instance *instance.Instance
-
-	rpcProxyHost        string
-	prometheusProxyHost string
+	Name         string
+	Type         node.Type
+	Version      string
+	Instance     *instance.Instance
+	rpcProxyHost string
 }
 
 type JSONRPCError struct {
@@ -81,16 +78,26 @@ func (nt *NodeTestnet) initInstance(ctx context.Context, opts InstanceOptions) (
 		return nil, err
 	}
 
-	obsy := observability.New()
-	if err := obsy.SetOtelEndpoint(otlpRemotePort); err != nil {
-		return nil, err
-	}
-
-	if err := obsy.SetPrometheusExporter(fmt.Sprintf("0.0.0.0:%d", prometheusPort)); err != nil {
+	obsy, err := nt.createObservability(ctx)
+	if err != nil {
 		return nil, err
 	}
 
 	if err := ins.Sidecars().Add(ctx, obsy); err != nil {
+		return nil, err
+	}
+
+	// Expose the prometheus exporter on the otel collector instance
+	if err := obsy.Instance().Network().AddPortTCP(prometheusExporterPort); err != nil {
+		return nil, err
+	}
+
+	err = nt.Prometheus.AddScrapeJob(ctx, prometheus.ScrapeJob{
+		Name:     opts.InstanceName,
+		Target:   fmt.Sprintf("%s:%d", opts.InstanceName, prometheusExporterPort),
+		Interval: prometheusScrapeInterval,
+	})
+	if err != nil {
 		return nil, err
 	}
 
@@ -131,11 +138,14 @@ func (nt *NodeTestnet) CreateNode(ctx context.Context, opts InstanceOptions, tru
 		"start",
 		"--node.store", remoteRootDir,
 		"--metrics",
-		"--metrics.endpoint", fmt.Sprintf("localhost:%d", otlpRemotePort),
+		"--metrics.endpoint", fmt.Sprintf("localhost:%d", otlpPort),
 		"--metrics.tls=false",
 	}
 
 	if opts.NodeType == node.Bridge {
+		if opts.consensus == nil {
+			opts.SetConsensus(nt.Testnet.Node(0).Instance)
+		}
 		consensusIP, err := opts.consensus.Network().GetIP(ctx)
 		if err != nil {
 			return nil, err
@@ -148,6 +158,10 @@ func (nt *NodeTestnet) CreateNode(ctx context.Context, opts InstanceOptions, tru
 			return nil, err
 		}
 		startCmd = append(startCmd, "--headers.trusted-peers", trustedPeers)
+	}
+
+	if err := nodeInst.Build().SetStartCommand(startCmd...); err != nil {
+		return nil, err
 	}
 
 	return &Node{
@@ -172,63 +186,22 @@ func (nt *NodeTestnet) CreateAndStartNode(ctx context.Context, opts InstanceOpti
 	if err != nil {
 		return nil, err
 	}
-	prometheusProxyHost, err := node.Instance.Network().AddHost(ctx, prometheusPort)
-	if err != nil {
-		return nil, err
-	}
-
 	node.rpcProxyHost = rpcProxyHost
-	node.prometheusProxyHost = prometheusProxyHost
 
 	return node, nil
 }
 
-// GetMetric returns a metric from the node
-func (n *Node) GetMetric(metricName string) (float64, error) {
-	host := n.AddressPrometheus()
-
-	resp, err := http.Get(fmt.Sprintf("%s/metrics", host))
-	if err != nil {
-		return 0, ErrFailedToFetchPrometheusData.Wrap(err)
-	}
-	defer resp.Body.Close()
-
-	parser := expfmt.TextParser{}
-	metricFamilies, err := parser.TextToMetricFamilies(resp.Body)
-	if err != nil {
-		return 0, ErrFailedToParsePrometheusMetrics.Wrap(err)
+func (nt *NodeTestnet) createObservability(ctx context.Context) (*observability.Obsy, error) {
+	obsy := observability.New()
+	if err := obsy.SetOtelEndpoint(otlpPort); err != nil {
+		return nil, err
 	}
 
-	var metricValue float64
-	found := false
-
-	if metricFamily, ok := metricFamilies[metricName]; ok {
-		for _, metric := range metricFamily.GetMetric() {
-			switch {
-			case metric.Counter != nil:
-				metricValue = metric.Counter.GetValue()
-				found = true
-			case metric.Gauge != nil:
-				metricValue = metric.Gauge.GetValue()
-				found = true
-			case metric.Untyped != nil:
-				metricValue = metric.Untyped.GetValue()
-				found = true
-			case metric.Summary != nil:
-				metricValue = metric.Summary.GetSampleSum()
-				found = true
-			case metric.Histogram != nil:
-				metricValue = metric.Histogram.GetSampleSum()
-				found = true
-			}
-		}
+	if err := obsy.SetPrometheusExporter(fmt.Sprintf("0.0.0.0:%d", prometheusExporterPort)); err != nil {
+		return nil, err
 	}
 
-	if !found {
-		return 0, ErrMetricNotFound.WithParams(metricName)
-	}
-
-	return metricValue, nil
+	return obsy, nil
 }
 
 // AddressRPC returns an RPC endpoint address for the node.
@@ -237,7 +210,11 @@ func (n Node) AddressRPC() string {
 	return n.rpcProxyHost
 }
 
-// AddressGRPC returns the GRPC endpoint address for the node.
-func (n Node) AddressPrometheus() string {
-	return n.prometheusProxyHost
+func (n Node) GetNodeID(ctx context.Context) (string, error) {
+	out, err := n.Instance.Execution().ExecuteCommand(ctx, "celestia", "p2p", "info | jq -r '.result.id'")
+	if err != nil {
+		return "", err
+	}
+
+	return strings.TrimSpace(string(out)), nil
 }

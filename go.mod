@@ -13,6 +13,7 @@ require (
 	github.com/celestiaorg/go-libp2p-messenger v0.2.0
 	github.com/celestiaorg/go-square/merkle v0.0.0-20240117232118-fd78256df076
 	github.com/celestiaorg/go-square/v2 v2.1.0-rc0
+	github.com/celestiaorg/knuu v0.16.1
 	github.com/celestiaorg/nmt v0.22.2
 	github.com/celestiaorg/rsmt2d v0.14.0
 	github.com/cosmos/cosmos-sdk v0.46.16
@@ -77,6 +78,7 @@ require (
 	golang.org/x/text v0.18.0
 	google.golang.org/grpc v1.67.1
 	google.golang.org/protobuf v1.35.1
+	k8s.io/apimachinery v0.31.1
 )
 
 require (
@@ -101,6 +103,7 @@ require (
 	github.com/bgentry/speakeasy v0.1.0 // indirect
 	github.com/bits-and-blooms/bitset v1.13.0 // indirect
 	github.com/btcsuite/btcd/btcec/v2 v2.3.4 // indirect
+	github.com/celestiaorg/bittwister v0.0.0-20231213180407-65cdbaf5b8c7 // indirect
 	github.com/celestiaorg/blobstream-contracts/v3 v3.1.0 // indirect
 	github.com/celestiaorg/go-square v1.1.1 // indirect
 	github.com/celestiaorg/merkletree v0.0.0-20230308153949-c33506a7aa26 // indirect
@@ -161,6 +164,7 @@ require (
 	github.com/fxamacker/cbor/v2 v2.7.0 // indirect
 	github.com/gammazero/deque v0.2.0 // indirect
 	github.com/getsentry/sentry-go v0.27.0 // indirect
+	github.com/go-ini/ini v1.67.0 // indirect
 	github.com/go-kit/kit v0.12.0 // indirect
 	github.com/go-kit/log v0.2.1 // indirect
 	github.com/go-logfmt/logfmt v0.6.0 // indirect
@@ -259,6 +263,8 @@ require (
 	github.com/mikioh/tcpopt v0.0.0-20190314235656-172688c1accc // indirect
 	github.com/mimoo/StrobeGo v0.0.0-20210601165009-122bf33a46e0 // indirect
 	github.com/minio/highwayhash v1.0.3 // indirect
+	github.com/minio/md5-simd v1.1.2 // indirect
+	github.com/minio/minio-go/v7 v7.0.74 // indirect
 	github.com/minio/sha256-simd v1.0.1 // indirect
 	github.com/mitchellh/go-testing-interface v1.14.1 // indirect
 	github.com/mitchellh/mapstructure v1.5.0 // indirect
@@ -302,6 +308,7 @@ require (
 	github.com/pmezard/go-difflib v1.0.1-0.20181226105442-5d4384ee4fb2 // indirect
 	github.com/polydawn/refmt v0.89.0 // indirect
 	github.com/prometheus/client_model v0.6.1 // indirect
+	github.com/prometheus/common v0.55.0 // indirect
 	github.com/prometheus/procfs v0.15.1 // indirect
 	github.com/quic-go/qpack v0.4.0 // indirect
 	github.com/quic-go/quic-go v0.46.0 // indirect
@@ -356,6 +363,7 @@ require (
 	google.golang.org/genproto v0.0.0-20240227224415-6ceb2ff114de // indirect
 	google.golang.org/genproto/googleapis/api v0.0.0-20240814211410-ddb44dafa142 // indirect
 	google.golang.org/genproto/googleapis/rpc v0.0.0-20240903143218-8af14fe29dc1 // indirect
+	gopkg.in/inf.v0 v0.9.1 // indirect
 	gopkg.in/ini.v1 v1.67.0 // indirect
 	gopkg.in/yaml.v2 v2.4.0 // indirect
 	gopkg.in/yaml.v3 v3.0.1 // indirect
@@ -373,6 +381,11 @@ require (
 )
 
 replace (
+	//TODO: remove this after a release is cut on the celestia-app repo
+	github.com/celestiaorg/celestia-app/v3 => github.com/celestiaorg/celestia-app/v3 v3.0.0-rc0.0.20241029191623-b6a3ed29d977
+	// TODO: remove this after a release is cut on the knuu repo. This is a temporary fix to unblock the e2e tests. (https://github.com/celestiaorg/knuu/pull/579)
+	github.com/celestiaorg/knuu => github.com/celestiaorg/knuu v0.16.2-0.20241114110444-b31395fb62f0
+
 	github.com/cosmos/cosmos-sdk => github.com/celestiaorg/cosmos-sdk v1.25.0-sdk-v0.46.16
 	github.com/filecoin-project/dagstore => github.com/celestiaorg/dagstore v0.0.0-20230824094345-537c012aa403
 	github.com/gogo/protobuf => github.com/regen-network/protobuf v1.3.3-alpha.regen.1

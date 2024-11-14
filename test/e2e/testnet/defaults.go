@@ -1,6 +1,8 @@
 package testnet
 
 import (
+	"time"
+
 	"github.com/celestiaorg/celestia-app/v3/test/e2e/testnet"
 	"k8s.io/apimachinery/pkg/api/resource"
 )
@@ -8,12 +10,15 @@ import (
 const (
 	rpcPort           = 26658
 	p2pPort           = 2121
-	prometheusPort    = 9090
-	otlpRemotePort    = 4318
 	dockerSrcURL      = "ghcr.io/celestiaorg/celestia-node"
 	remoteRootDir     = "/home/celestia"
 	txsimRootDir      = "/home/celestia"
 	celestiaCustomEnv = "CELESTIA_CUSTOM"
+
+	prometheusExporterPort   = 9091
+	prometheusScrapeInterval = time.Second * 2
+	otlpPort                 = 4317
+	otlpRemotePort           = 4318
 )
 
 var DefaultBridgeResources = testnet.Resources{

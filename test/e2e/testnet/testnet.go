@@ -7,6 +7,7 @@ import (
 	"github.com/celestiaorg/celestia-app/v3/test/e2e/testnet"
 
 	"github.com/celestiaorg/celestia-node/nodebuilder/node"
+	"github.com/celestiaorg/celestia-node/test/e2e/prometheus"
 	"github.com/celestiaorg/knuu/pkg/instance"
 	"github.com/celestiaorg/knuu/pkg/knuu"
 )
@@ -14,9 +15,11 @@ import (
 // LocalTestnet extends the testnet from celestia-app
 type NodeTestnet struct {
 	testnet.Testnet
+	knuu     *knuu.Knuu
 	executor *instance.Instance
 	nodes    []*Node
-	knuu     *knuu.Knuu
+
+	Prometheus *prometheus.Prometheus
 }
 
 // NewLocalTestnet creates a new instance of LocalTestnet
@@ -32,11 +35,17 @@ func NewNodeTestnet(ctx context.Context, kn *knuu.Knuu, opts testnet.Options) (*
 		return nil, err
 	}
 
+	prom, err := prometheus.New(kn)
+	if err != nil {
+		return nil, err
+	}
+
 	return &NodeTestnet{
-		Testnet:  *tn,
-		executor: executorInstance,
-		nodes:    []*Node{},
-		knuu:     kn,
+		Testnet:    *tn,
+		executor:   executorInstance,
+		nodes:      []*Node{},
+		knuu:       kn,
+		Prometheus: prom,
 	}, nil
 }
 
