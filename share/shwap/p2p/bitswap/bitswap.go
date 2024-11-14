@@ -49,13 +49,14 @@ const (
 	// available locally. This is useful for clients to quickly move on to another peer.
 	// This breaks reconstruction, unless we make reconstruction case detectable on the Server side blocking Bitswap
 	// from serving DONT_HAVE messages in Blockstore, which would be the goal.
-	sendDontHaves = true
+	// TODO(@Wondertan): enable once Blockstore handles recent blocks
+	sendDontHaves = false
 	// maxServerWantListsPerPeer defines the limit for maximum possible cached wants/requests per peer
 	// in the Bitswap. Exceeding this limit will cause Bitswap server to drop requested WANTs leaving
 	// client stuck for some time.
 	// This is relevant until https://github.com/ipfs/boxo/pull/629#discussion_r1653362485 is fixed.
-	// 8192 is 512 sampling requests of size 16.
-	maxServerWantListsPerPeer = 8192
+	// 1024 is 64 sampling requests of size 16 and 8 EDS requests with 8mb blocks
+	maxServerWantListsPerPeer = 1024
 	// targetResponseSize defines soft-limit of how much data server packs into a response.
 	// More data means more compute and time spend while serving a single peer under load, and thus increasing serving
 	// latency for other peers.
@@ -63,6 +64,7 @@ const (
 	targetResponseSize = 65 << 10
 	// responseWorkersCount is the number of workers packing responses on the server.
 	// More workers mean more parallelism and faster responses, but also more memory usage.
+	// Default is 8.
 	responseWorkersCount = 32
 	// maxWorkPerPeer sets maximum concurrent processing work allowed for a peer.
 	// We set it to be equal to targetResponseSize * responseWorkersCount, so a single peer
@@ -128,7 +130,6 @@ func NewClient(
 		client.WithoutDuplicatedBlockStats(),
 
 		// These two options have mixed up named. One should be another and vice versa.
-		// TODO(@Wondertan): Make an issue
 		client.ProviderSearchDelay(broadcastDelay),
 		client.RebroadcastDelay(delay.Fixed(provSearchDelay)),
 	}
