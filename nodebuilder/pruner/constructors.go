@@ -7,17 +7,18 @@ import (
 
 	"github.com/celestiaorg/celestia-node/header"
 	"github.com/celestiaorg/celestia-node/nodebuilder/p2p"
+	modshare "github.com/celestiaorg/celestia-node/nodebuilder/share"
 	"github.com/celestiaorg/celestia-node/pruner"
 )
 
 func newPrunerService(
 	p pruner.Pruner,
-	window pruner.AvailabilityWindow,
+	window modshare.Window,
 	getter libhead.Store[*header.ExtendedHeader],
 	ds datastore.Batching,
 	opts ...pruner.Option,
 ) (*pruner.Service, error) {
-	serv, err := pruner.NewService(p, window, getter, ds, p2p.BlockTime, opts...)
+	serv, err := pruner.NewService(p, window.Duration(), getter, ds, p2p.BlockTime, opts...)
 	if err != nil {
 		return nil, err
 	}
