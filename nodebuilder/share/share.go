@@ -27,7 +27,7 @@ type GetRangeResult struct {
 // MarshalJSON marshals an GetRangeResult to JSON. Uses tendermint encoder for proof for compatibility.
 func (r *GetRangeResult) MarshalJSON() ([]byte, error) {
 	// alias the type to avoid going into recursion loop
-	// because tmjson.Marshal invokes custom json marshalling
+	// because tmjson.Marshal invokes custom json marshaling
 	type Alias GetRangeResult
 	return tmjson.Marshal((*Alias)(r))
 }
@@ -35,7 +35,7 @@ func (r *GetRangeResult) MarshalJSON() ([]byte, error) {
 // UnmarshalJSON unmarshals an GetRangeResult from JSON. Uses tendermint decoder for proof for compatibility.
 func (r *GetRangeResult) UnmarshalJSON(data []byte) error {
 	// alias the type to avoid going into recursion loop
-	// because tmjson.Unmarshal invokes custom json Unmarshalling
+	// because tmjson.Unmarshal invokes custom json Unmarshaling
 	type Alias GetRangeResult
 	return tmjson.Unmarshal(data, (*Alias)(r))
 }
