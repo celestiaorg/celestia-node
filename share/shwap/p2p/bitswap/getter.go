@@ -180,10 +180,10 @@ func (g *Getter) GetEDS(
 	return square, nil
 }
 
-// GetSharesByNamespace uses [RowNamespaceDataBlock] and [Fetch] to get all the data
+// GetNamespaceData uses [RowNamespaceDataBlock] and [Fetch] to get all the data
 // by the given namespace. If data spans over multiple rows, the request is split into
 // parallel RowNamespaceDataID requests per each row and then assembled back into NamespaceData.
-func (g *Getter) GetSharesByNamespace(
+func (g *Getter) GetNamespaceData(
 	ctx context.Context,
 	hdr *header.ExtendedHeader,
 	ns libshare.Namespace,

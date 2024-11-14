@@ -81,7 +81,7 @@ func TestShrexGetter(t *testing.T) {
 			Height:   height,
 		})
 
-		got, err := getter.GetSharesByNamespace(ctx, eh, namespace)
+		got, err := getter.GetNamespaceData(ctx, eh, namespace)
 		require.NoError(t, err)
 		require.NoError(t, got.Verify(roots, namespace))
 	})
@@ -101,7 +101,7 @@ func TestShrexGetter(t *testing.T) {
 			Height:   height,
 		})
 
-		_, err := getter.GetSharesByNamespace(ctx, eh, namespace)
+		_, err := getter.GetNamespaceData(ctx, eh, namespace)
 		require.ErrorIs(t, err, shwap.ErrNotFound)
 	})
 
@@ -130,7 +130,7 @@ func TestShrexGetter(t *testing.T) {
 		require.NoError(t, err)
 		require.Len(t, rows, 1)
 
-		emptyShares, err := getter.GetSharesByNamespace(ctx, eh, nID)
+		emptyShares, err := getter.GetNamespaceData(ctx, eh, nID)
 		require.NoError(t, err)
 		// no shares should be returned
 		require.Nil(t, emptyShares.Flatten())
@@ -144,7 +144,7 @@ func TestShrexGetter(t *testing.T) {
 		require.NoError(t, err)
 		require.Len(t, rows, 0)
 
-		emptyShares, err = getter.GetSharesByNamespace(ctx, eh, nID)
+		emptyShares, err = getter.GetNamespaceData(ctx, eh, nID)
 		require.NoError(t, err)
 		// no shares should be returned
 		require.Nil(t, emptyShares.Flatten())
@@ -175,7 +175,7 @@ func TestShrexGetter(t *testing.T) {
 		require.NoError(t, err)
 		require.Len(t, rows, 0)
 
-		emptyShares, err := getter.GetSharesByNamespace(ctx, eh, namespace)
+		emptyShares, err := getter.GetNamespaceData(ctx, eh, namespace)
 		require.NoError(t, err)
 		// no shares should be returned
 		require.Empty(t, emptyShares.Flatten())

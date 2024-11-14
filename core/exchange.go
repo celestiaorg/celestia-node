@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/tendermint/tendermint/types"
 	"golang.org/x/sync/errgroup"
 
 	libhead "github.com/celestiaorg/go-header"
@@ -176,7 +177,11 @@ func (ce *Exchange) getExtendedHeaderByHeight(ctx context.Context, height *int64
 	if err != nil {
 		return nil, fmt.Errorf("extending block data for height %d: %w", b.Header.Height, err)
 	}
-	// create extended header
+
+	// TODO(@Wondertan): This is a hack to deref Data, allowing GC to pick it up.
+	//  The better footgun-less solution is to change core.ResultSignedBlock fields to be pointers instead of values.
+	b.Data = types.Data{}
+
 	eh, err := ce.construct(&b.Header, &b.Commit, &b.ValidatorSet, eds)
 	if err != nil {
 		panic(fmt.Errorf("constructing extended header for height %d: %w", b.Header.Height, err))

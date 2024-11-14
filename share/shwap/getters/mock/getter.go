@@ -53,6 +53,21 @@ func (mr *MockGetterMockRecorder) GetEDS(arg0, arg1 interface{}) *gomock.Call {
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetEDS", reflect.TypeOf((*MockGetter)(nil).GetEDS), arg0, arg1)
 }
 
+// GetNamespaceData mocks base method.
+func (m *MockGetter) GetNamespaceData(arg0 context.Context, arg1 *header.ExtendedHeader, arg2 share.Namespace) (shwap.NamespaceData, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "GetNamespaceData", arg0, arg1, arg2)
+	ret0, _ := ret[0].(shwap.NamespaceData)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// GetNamespaceData indicates an expected call of GetNamespaceData.
+func (mr *MockGetterMockRecorder) GetNamespaceData(arg0, arg1, arg2 interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetNamespaceData", reflect.TypeOf((*MockGetter)(nil).GetNamespaceData), arg0, arg1, arg2)
+}
+
 // GetShare mocks base method.
 func (m *MockGetter) GetShare(arg0 context.Context, arg1 *header.ExtendedHeader, arg2, arg3 int) (share.Share, error) {
 	m.ctrl.T.Helper()
@@ -66,19 +81,4 @@ func (m *MockGetter) GetShare(arg0 context.Context, arg1 *header.ExtendedHeader,
 func (mr *MockGetterMockRecorder) GetShare(arg0, arg1, arg2, arg3 interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetShare", reflect.TypeOf((*MockGetter)(nil).GetShare), arg0, arg1, arg2, arg3)
-}
-
-// GetSharesByNamespace mocks base method.
-func (m *MockGetter) GetSharesByNamespace(arg0 context.Context, arg1 *header.ExtendedHeader, arg2 share.Namespace) (shwap.NamespaceData, error) {
-	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "GetSharesByNamespace", arg0, arg1, arg2)
-	ret0, _ := ret[0].(shwap.NamespaceData)
-	ret1, _ := ret[1].(error)
-	return ret0, ret1
-}
-
-// GetSharesByNamespace indicates an expected call of GetSharesByNamespace.
-func (mr *MockGetterMockRecorder) GetSharesByNamespace(arg0, arg1, arg2 interface{}) *gomock.Call {
-	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetSharesByNamespace", reflect.TypeOf((*MockGetter)(nil).GetSharesByNamespace), arg0, arg1, arg2)
 }
