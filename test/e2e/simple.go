@@ -138,7 +138,9 @@ func E2ESimple(logger *logrus.Logger) error {
 				MetricName: buildInfoMetricName,
 				Labels:     map[string]string{instanceMetricName: nodeID},
 			})
-			logger.Infof("node: %s, metric value: %v", n.Name, value)
+			if err == nil {
+				logger.Infof("node: %s, metric value: %v", n.Name, value)
+			}
 			return err
 		}, metricRetryInterval, metricRetryTimeout)
 
