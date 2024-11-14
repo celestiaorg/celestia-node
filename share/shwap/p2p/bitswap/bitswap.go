@@ -146,10 +146,8 @@ func (bs *Bitswap) NotifyNewBlocks(ctx context.Context, blks ...blocks.Block) er
 }
 
 func (bs *Bitswap) Close() error {
-	return errors.Join(
-		bs.Client.Close(),
-		bs.Server.Close(),
-	)
+	bs.Server.Close()
+	return bs.Client.Close()
 }
 
 // TODO(@Wondertan): We have to use the protocol defined by Bitswap here
