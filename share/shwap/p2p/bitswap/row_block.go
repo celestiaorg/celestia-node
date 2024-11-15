@@ -6,6 +6,7 @@ import (
 
 	"github.com/ipfs/go-cid"
 
+	libshare "github.com/celestiaorg/go-square/v2/share"
 	"github.com/celestiaorg/rsmt2d"
 
 	"github.com/celestiaorg/celestia-node/share"
@@ -22,10 +23,15 @@ const (
 	rowMultihashCode = 0x7801
 )
 
+// maxRowSize is the maximum size of the RowBlock.
+// It is calculated as half of the square size multiplied by the share size.
+var maxRowSize = share.MaxSquareSize / 2 * libshare.ShareSize
+
 func init() {
 	registerBlock(
 		rowMultihashCode,
 		rowCodec,
+		maxRowSize,
 		shwap.RowIDSize,
 		func(cid cid.Cid) (Block, error) {
 			return EmptyRowBlockFromCID(cid)
