@@ -23,7 +23,7 @@ type Config struct {
 	// It should not include file names('cert.pem' and 'key.pem').
 	// If left empty, the client will be configured for an insecure (non-TLS) connection.
 	TLSPath string
-	// XTokenPath specifies the file path to the JSON file containing the X-Token for gRPC authentication.
+	// XTokenPath specifies the path to the directory with JSON file containing the X-Token for gRPC authentication.
 	// The JSON file should have a key-value pair where the key is "x-token" and the value is the authentication token.
 	// If left empty, the client will not include the X-Token in its requests.
 	XTokenPath string

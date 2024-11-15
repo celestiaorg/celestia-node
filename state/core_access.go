@@ -613,10 +613,8 @@ func (ca *CoreAccessor) startGRPCClient(ctx context.Context) error {
 	// the X-Token will be applied as an interceptor along with an empty TLS configuration.
 	opts := []grpc.DialOption{grpc.WithTransportCredentials(insecure.NewCredentials())}
 	if ca.tls != nil {
-		fmt.Println("TRANSPORT")
 		opts = append(opts, grpc.WithTransportCredentials(credentials.NewTLS(ca.tls)))
 	} else if ca.xtoken != "" {
-		fmt.Println("TOKEN")
 		authInterceptor := func(ctx context.Context,
 			method string,
 			req, reply interface{},
