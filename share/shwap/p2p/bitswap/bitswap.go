@@ -56,7 +56,7 @@ const (
 	// client stuck for some time.
 	// This is relevant until https://github.com/ipfs/boxo/pull/629#discussion_r1653362485 is fixed.
 	// 1024 is 64 sampling requests of size 16 and 8 EDS requests with 8mb blocks
-	maxServerWantListsPerPeer = 1024
+	maxServerWantListsPerPeer = 4096
 	// targetResponseSize defines soft-limit of how much data server packs into a response.
 	// More data means more compute and time spend while serving a single peer under load, and thus increasing serving
 	// latency for other peers.
