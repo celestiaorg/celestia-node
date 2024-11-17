@@ -362,4 +362,4 @@ replace (
 	github.com/tendermint/tendermint => github.com/celestiaorg/celestia-core v1.43.0-tm-v0.34.35
 )
 
-replace github.com/ipfs/boxo => github.com/celestiaorg/boxo v0.0.0-20241114103253-16dd306892a7
+replace github.com/ipfs/boxo => github.com/celestiaorg/boxo v0.0.0-20241117223905-f3dd3a208e91

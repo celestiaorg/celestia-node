@@ -83,6 +83,8 @@ const (
 var simulateDontHaveConfig = &client.DontHaveTimeoutConfig{
 	// MaxTimeout is the limit cutoff time for the dynamic timeout estimation.
 	MaxTimeout: 30 * time.Second,
+	// MinTimeout is the minimum timeout for the dynamic timeout estimation.
+	MinTimeout: 150 * time.Millisecond,
 	// MessageLatencyMultiplier is the multiplier for the message latency to account for errors
 	// THIS IS THE MOST IMPORTANT KNOB and is tricky to get right due to high variance in latency
 	// and particularly request processing time.
