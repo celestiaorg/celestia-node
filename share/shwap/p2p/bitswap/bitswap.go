@@ -35,7 +35,7 @@ const (
 	broadcastDelay = time.Second * 10
 	// disablePerPeerRetries disables rebroadcasting of WANTs with no response in peer message queue.
 	// We keep it enabled to account for case where maxServerWantListsPerPeer gets exceeded, loosing WANTs.
-	disablePerPeerRetries = false
+	disablePerPeerRetries = true
 	// provSearchDelay is similar to the broadcastDelay, but it targets DHT/ContentRouting
 	// peer discovery and a gentle broadcast of a single random live WANT to all connected peers.
 	// Considering no DHT usage and broadcasting configured by broadcastDelay, we set
