@@ -10,6 +10,7 @@ import (
 	libhead "github.com/celestiaorg/go-header"
 
 	"github.com/celestiaorg/celestia-node/header"
+	"github.com/celestiaorg/celestia-node/share/shwap/p2p/bitswap"
 	"github.com/celestiaorg/celestia-node/share/shwap/p2p/shrex/shrexsub"
 )
 
@@ -118,6 +119,10 @@ func (w *worker) sample(ctx context.Context, timeout time.Duration, height uint6
 	ctx, cancel := context.WithTimeout(ctx, timeout)
 	defer cancel()
 
+	// hack to use fresh session for recent jobs
+	if w.state.jobType == recentJob {
+		ctx = bitswap.WithSession(ctx)
+	}
 	err = w.sampleFn(ctx, h)
 	if errors.Is(err, errOutsideSamplingWindow) {
 		// if header is outside sampling window, do not log

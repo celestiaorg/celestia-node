@@ -112,8 +112,8 @@ func (g *Getter) GetShares(
 	isArchival := g.isArchival(hdr)
 	span.SetAttributes(attribute.Bool("is_archival", isArchival))
 
-	ses := g.session(isArchival)
-	defer g.poolSession(ses, isArchival)
+	ses, release := g.session(isArchival)
+	defer release()
 
 	err := Fetch(ctx, g.exchange, hdr.DAH, blks, WithStore(g.bstore), WithFetcher(ses))
 	if err != nil {
@@ -176,8 +176,8 @@ func (g *Getter) GetEDS(
 	isArchival := g.isArchival(hdr)
 	span.SetAttributes(attribute.Bool("is_archival", isArchival))
 
-	ses := g.session(isArchival)
-	defer g.poolSession(ses, isArchival)
+	ses, release := g.session(isArchival)
+	defer release()
 
 	err := Fetch(ctx, g.exchange, hdr.DAH, blks, WithFetcher(ses))
 	if err != nil {
@@ -235,8 +235,8 @@ func (g *Getter) GetNamespaceData(
 	isArchival := g.isArchival(hdr)
 	span.SetAttributes(attribute.Bool("is_archival", isArchival))
 
-	ses := g.session(isArchival)
-	defer g.poolSession(ses, isArchival)
+	ses, release := g.session(isArchival)
+	defer release()
 
 	if err = Fetch(ctx, g.exchange, hdr.DAH, blks, WithFetcher(ses)); err != nil {
 		span.RecordError(err)
@@ -263,14 +263,22 @@ func (g *Getter) isArchival(hdr *header.ExtendedHeader) bool {
 }
 
 // session takes a session out of the respective session pool
-func (g *Getter) session(isArchival bool) exchange.Fetcher {
+func (g *Getter) session(isArchival bool) (ses exchange.Fetcher, release func()) {
+	ses, ok := getSessionFromCtx(context.Background(), g.exchange)
+	if ok {
+		return ses, func() {}
+	}
+
 	if isArchival {
 		v := g.archivalPool.Get()
 		if v == nil {
 			panic("Getter must be started")
 		}
 
-		return v.(exchange.Fetcher)
+		release = func() {
+			g.archivalPool.Put(v)
+		}
+		return v.(exchange.Fetcher), release
 	}
 
 	v := g.availablePool.Get()
@@ -278,7 +286,10 @@ func (g *Getter) session(isArchival bool) exchange.Fetcher {
 		panic("Getter must be started")
 	}
 
-	return v.(exchange.Fetcher)
+	release = func() {
+		g.availablePool.Put(v)
+	}
+	return v.(exchange.Fetcher), release
 }
 
 // poolSession puts session back into the respective session pool
@@ -320,4 +331,41 @@ func edsFromRows(roots *share.AxisRoots, rows []shwap.Row) (*rsmt2d.ExtendedData
 	}
 
 	return square, nil
+}
+
+var sessionKey = &session{}
+
+// session is a struct that can optionally be passed by context to the share.Getter methods using
+// WithSession to indicate that a blockservice session should be created.
+type session struct {
+	sync.RWMutex
+	f   exchange.Fetcher
+	ctx context.Context
+}
+
+// WithSession stores an empty session in the context, indicating that a blockservice session should
+// be created.
+func WithSession(ctx context.Context) context.Context {
+	return context.WithValue(ctx, sessionKey, &session{ctx: ctx})
+}
+
+func getSessionFromCtx(ctx context.Context, exchange exchange.SessionExchange) (exchange.Fetcher, bool) {
+	s, ok := ctx.Value(sessionKey).(*session)
+	if !ok {
+		return nil, false
+	}
+
+	s.RLock()
+	f := s.f
+	s.RUnlock()
+	if f != nil {
+		return f, true
+	}
+
+	s.Lock()
+	defer s.Unlock()
+	if s.f == nil {
+		s.f = exchange.NewSession(s.ctx)
+	}
+	return s.f, true
 }
