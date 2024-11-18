@@ -151,8 +151,6 @@ func (la *ShareAvailability) SharesAvailable(ctx context.Context, header *header
 		}
 	}
 
-	log.Error(len(failedSamples))
-
 	samples.Available = fetchedSamples
 	samples.Remaining = failedSamples
 

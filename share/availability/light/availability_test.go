@@ -284,11 +284,11 @@ func newOnceGetter() onceGetter {
 	}
 }
 
-func (g onceGetter) addSamples(remaining []Sample) {
+func (g onceGetter) addSamples(samples []Sample) {
 	g.Lock()
 	defer g.Unlock()
 
-	for _, r := range remaining {
+	for _, r := range samples {
 		s := Sample{Row: r.Row, Col: r.Col}
 		g.sampled[s]++
 	}
@@ -336,7 +336,7 @@ func (g onceGetter) GetSamples(_ context.Context, hdr *header.ExtendedHeader,
 	return smpls, nil
 }
 
-func (g onceGetter) GetShare(_ context.Context, _ *header.ExtendedHeader, row, col int) (libshare.Share, error) {
+func (g onceGetter) GetShare(_ context.Context, _ *header.ExtendedHeader, _, _ int) (libshare.Share, error) {
 	panic("not implemented")
 }
 
