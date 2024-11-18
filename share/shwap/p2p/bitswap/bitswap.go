@@ -61,7 +61,7 @@ const (
 	// More data means more compute and time spend while serving a single peer under load, and thus increasing serving
 	// latency for other peers.
 	// We set it to 65KiB, which fits a Row of 8MB block with additional metadata.
-	targetResponseSize = 65 << 10
+	targetResponseSize = 20 << 10
 	// responseWorkersCount is the number of workers packing responses on the server.
 	// More workers mean more parallelism and faster responses, but also more memory usage.
 	// Default is 8.
