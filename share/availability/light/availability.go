@@ -135,21 +135,44 @@ func (la *ShareAvailability) SharesAvailable(ctx context.Context, header *header
 		return share.ErrNotAvailable
 	}
 
+	var fetchedSamples []Sample
 	var failedSamples []Sample
+
 	for i, smpl := range smpls {
-		if smpl.IsEmpty() {
-			row, col, err := idxs[i].Coordinates(len(dah.RowRoots))
-			if err != nil {
-				return err
-			}
-			failedSamples = append(failedSamples, Sample{Row: row, Col: col})
+		row, col, err := idxs[i].Coordinates(len(dah.RowRoots))
+		if err != nil {
+			return err
 		}
+
+		if smpl.IsEmpty() {
+			failedSamples = append(failedSamples, Sample{Row: row, Col: col})
+		} else {
+			fetchedSamples = append(fetchedSamples, Sample{Row: row, Col: col})
+		}
+	}
+
+	log.Error(len(failedSamples))
+
+	samples.Available = fetchedSamples
+	samples.Remaining = failedSamples
+
+	// Store the updated sampling result
+	updatedData, err := json.Marshal(samples)
+	if err != nil {
+		return err
+	}
+	la.dsLk.Lock()
+	err = la.ds.Put(ctx, key, updatedData)
+	la.dsLk.Unlock()
+	if err != nil {
+		return fmt.Errorf("store sampling result: %w", err)
 	}
 
 	// if any of the samples failed, return an error
 	if len(failedSamples) > 0 {
 		return share.ErrNotAvailable
 	}
+
 	return nil
 }
 

@@ -37,7 +37,6 @@ import (
 )
 
 func TestSharesAvailableSuccess(t *testing.T) {
-	t.Skip("TODO")
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
@@ -140,7 +139,6 @@ func TestSharesAvailableEmptyEDS(t *testing.T) {
 }
 
 func TestSharesAvailableFailed(t *testing.T) {
-	t.Skip("TODO")
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
@@ -171,6 +169,10 @@ func TestSharesAvailableFailed(t *testing.T) {
 		roots, err := share.NewAxisRoots(eds)
 		require.NoError(t, err)
 		eh := headertest.RandExtendedHeaderWithRoot(t, roots)
+		// // Simulate a getter that now returns shares successfully
+		// successfulGetter := newOnceGetter()
+		// successfulGetter.addSamples(failed.Remaining)
+		// avail.getter = successfulGetter
 
 		tests = append(tests, test{eh: eh, roots: roots, eds: eds})
 	}
@@ -226,10 +228,12 @@ func TestSharesAvailableFailed(t *testing.T) {
 	// // onceGetter should have no more samples stored after the call
 	// successfulGetter.checkOnce(t)
 	// require.ElementsMatch(t, failed.Remaining, len(successfulGetter.sampled))
+	// onceGetter should have no more samples stored after the call
+	// successfulGetter.checkOnce(t)
+	// require.Empty(t, successfulGetter.sampledList())
 }
 
 func TestParallelAvailability(t *testing.T) {
-	t.Skip("TODO")
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
@@ -245,8 +249,8 @@ func TestParallelAvailability(t *testing.T) {
 	eh := headertest.RandExtendedHeaderWithRoot(t, roots)
 
 	var wg sync.WaitGroup
+	wg.Add(100)
 	for i := 0; i < 100; i++ {
-		wg.Add(1)
 		go func() {
 			defer wg.Done()
 			err := avail.SharesAvailable(ctx, eh)
@@ -278,6 +282,26 @@ func newOnceGetter() onceGetter {
 		Mutex:   &sync.Mutex{},
 		sampled: make(map[Sample]int),
 	}
+}
+
+func (g onceGetter) addSamples(remaining []Sample) {
+	g.Lock()
+	defer g.Unlock()
+
+	for _, r := range remaining {
+		s := Sample{Row: r.Row, Col: r.Col}
+		g.sampled[s]++
+	}
+}
+
+func (g onceGetter) sampledList() []Sample {
+	g.Lock()
+	defer g.Unlock()
+	samples := make([]Sample, 0, len(g.sampled))
+	for s := range g.sampled {
+		samples = append(samples, s)
+	}
+	return samples
 }
 
 func (g onceGetter) checkOnce(t *testing.T) {
@@ -313,11 +337,7 @@ func (g onceGetter) GetSamples(_ context.Context, hdr *header.ExtendedHeader,
 }
 
 func (g onceGetter) GetShare(_ context.Context, _ *header.ExtendedHeader, row, col int) (libshare.Share, error) {
-	g.Lock()
-	defer g.Unlock()
-	s := Sample{Row: row, Col: col}
-	g.sampled[s]++
-	return libshare.Share{}, nil
+	panic("not implemented")
 }
 
 func (g onceGetter) GetEDS(_ context.Context, _ *header.ExtendedHeader) (*rsmt2d.ExtendedDataSquare, error) {
@@ -333,7 +353,6 @@ func (g onceGetter) GetNamespaceData(
 }
 
 func TestPruneAll(t *testing.T) {
-	t.Skip("TODO")
 	const size = 8
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second*2)
 	t.Cleanup(cancel)
@@ -381,7 +400,6 @@ func TestPruneAll(t *testing.T) {
 }
 
 func TestPrunePartialFailed(t *testing.T) {
-	t.Skip("TODO")
 	const size = 8
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second*2)
 	t.Cleanup(cancel)
