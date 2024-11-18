@@ -30,7 +30,7 @@ func TestCascadeGetter(t *testing.T) {
 	getter := NewCascadeGetter(getters)
 	t.Run("GetShare", func(t *testing.T) {
 		for _, eh := range headers {
-			sh, err := getter.GetSamples(ctx, eh, []shwap.SampleIndex{0})
+			sh, err := getter.GetShare(ctx, eh, 0, 0)
 			assert.NoError(t, err)
 			assert.NotEmpty(t, sh)
 		}

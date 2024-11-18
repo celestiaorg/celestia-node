@@ -246,12 +246,7 @@ func (o *ODS) Sample(ctx context.Context, rowIdx, colIdx int) (shwap.Sample, err
 		return shwap.Sample{}, fmt.Errorf("reading axis: %w", err)
 	}
 
-	idx, err := shwap.SampleIndexFromCoordinates(rowIdx, shrIdx, o.Size(ctx))
-	if err != nil {
-		return shwap.Sample{}, err
-	}
-
-	return shwap.SampleFromShares(axis, axisType, idx)
+	return shwap.SampleFromShares(axis, axisType, axisIdx, shrIdx)
 }
 
 // AxisHalf returns half of shares axis of the given type and index. Side is determined by

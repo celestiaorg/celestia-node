@@ -29,10 +29,8 @@ var (
 //
 //go:generate mockgen -destination=getters/mock/getter.go -package=mock . Getter
 type Getter interface {
-	// GetSamples gets samples by their indices.
-	// Returns Sample slice with requested number of samples in the requested order.
-	// May return partial response with some samples being empty if they weren't found.
-	GetSamples(ctx context.Context, header *header.ExtendedHeader, indices []SampleIndex) ([]Sample, error)
+	// GetShare gets a Share by coordinates in EDS.
+	GetShare(ctx context.Context, header *header.ExtendedHeader, row, col int) (libshare.Share, error)
 
 	// GetEDS gets the full EDS identified by the given extended header.
 	GetEDS(context.Context, *header.ExtendedHeader) (*rsmt2d.ExtendedDataSquare, error)

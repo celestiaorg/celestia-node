@@ -114,6 +114,12 @@ func (la *ShareAvailability) SharesAvailable(ctx context.Context, header *header
 		return nil
 	}
 
+	var (
+		mutex         sync.Mutex
+		failedSamples []Sample
+		wg            sync.WaitGroup
+	)
+
 	log.Debugw("starting sampling session", "height", header.Height())
 
 	// remove one second from the deadline to ensure we have enough time to process the results
@@ -123,29 +129,23 @@ func (la *ShareAvailability) SharesAvailable(ctx context.Context, header *header
 	}
 	defer cancel()
 
-	idxs := make([]shwap.SampleIndex, len(samples.Remaining))
-	for i, s := range samples.Remaining {
-		idx, err := shwap.SampleIndexFromCoordinates(s.Row, s.Col, len(dah.RowRoots))
-		if err != nil {
-			return err
-		}
-
-		idxs[i] = idx
+	// Concurrently sample shares
+	for _, s := range samples.Remaining {
+		wg.Add(1)
+		go func(s Sample) {
+			defer wg.Done()
+			_, err := la.getter.GetShare(samplingCtx, header, s.Row, s.Col)
+			mutex.Lock()
+			defer mutex.Unlock()
+			if err != nil {
+				log.Debugw("error fetching share", "height", header.Height(), "row", s.Row, "col", s.Col)
+				failedSamples = append(failedSamples, s)
+			} else {
+				samples.Available = append(samples.Available, s)
+			}
+		}(s)
 	}
-
-	smpls, err := la.getter.GetSamples(samplingCtx, header, idxs)
-	if err != nil {
-		log.Debugw("failed to get samples", "height", header.Height(), "error", err)
-	}
-
-	var failedSamples []Sample
-	for i, smpl := range smpls {
-		if smpl.IsEmpty() {
-			failedSamples = append(failedSamples, samples.Remaining[i])
-		} else {
-			samples.Available = append(samples.Available, samples.Remaining[i])
-		}
-	}
+	wg.Wait()
 
 	// Update remaining samples with failed ones
 	samples.Remaining = failedSamples
@@ -160,6 +160,12 @@ func (la *ShareAvailability) SharesAvailable(ctx context.Context, header *header
 	la.dsLk.Unlock()
 	if err != nil {
 		return fmt.Errorf("store sampling result: %w", err)
+	}
+
+	if errors.Is(ctx.Err(), context.Canceled) {
+		// Availability did not complete due to context cancellation, return context error instead of
+		// share.ErrNotAvailable
+		return ctx.Err()
 	}
 
 	// if any of the samples failed, return an error
@@ -204,12 +210,7 @@ func (la *ShareAvailability) Prune(ctx context.Context, h *header.ExtendedHeader
 
 	// delete stored samples
 	for _, sample := range result.Available {
-		idx, err := shwap.SampleIndexFromCoordinates(sample.Row, sample.Col, len(h.DAH.RowRoots))
-		if err != nil {
-			return err
-		}
-
-		blk, err := bitswap.NewEmptySampleBlock(h.Height(), idx, len(h.DAH.RowRoots))
+		blk, err := bitswap.NewEmptySampleBlock(h.Height(), sample.Row, sample.Col, len(h.DAH.RowRoots))
 		if err != nil {
 			return fmt.Errorf("marshal sample ID: %w", err)
 		}

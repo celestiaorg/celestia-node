@@ -14,51 +14,43 @@ import (
 	"github.com/celestiaorg/celestia-node/header"
 	"github.com/celestiaorg/celestia-node/header/headertest"
 	"github.com/celestiaorg/celestia-node/share"
-	"github.com/celestiaorg/celestia-node/share/eds"
 	"github.com/celestiaorg/celestia-node/share/eds/edstest"
 	"github.com/celestiaorg/celestia-node/share/shwap"
 )
 
 // TestGetter provides a testing SingleEDSGetter and the root of the EDS it holds.
 func TestGetter(t *testing.T) (shwap.Getter, *header.ExtendedHeader) {
-	square := edstest.RandEDS(t, 8)
-	roots, err := share.NewAxisRoots(square)
+	eds := edstest.RandEDS(t, 8)
+	roots, err := share.NewAxisRoots(eds)
 	eh := headertest.RandExtendedHeaderWithRoot(t, roots)
 	require.NoError(t, err)
 	return &SingleEDSGetter{
-		EDS: eds.Rsmt2D{ExtendedDataSquare: square},
+		EDS: eds,
 	}, eh
 }
 
 // SingleEDSGetter contains a single EDS where data is retrieved from.
 // Its primary use is testing, and GetNamespaceData is not supported.
 type SingleEDSGetter struct {
-	EDS eds.Rsmt2D
+	EDS *rsmt2d.ExtendedDataSquare
 }
 
-// GetSamples get samples from a kept EDS if exist and if the correct root is given.
-func (seg *SingleEDSGetter) GetSamples(ctx context.Context, hdr *header.ExtendedHeader, indices []shwap.SampleIndex) ([]shwap.Sample, error) {
-	err := seg.checkRoots(hdr.DAH)
+// GetShare gets a share from a kept EDS if exist and if the correct root is given.
+func (seg *SingleEDSGetter) GetShare(
+	_ context.Context,
+	header *header.ExtendedHeader,
+	row, col int,
+) (libshare.Share, error) {
+	err := seg.checkRoots(header.DAH)
 	if err != nil {
-		return nil, err
+		return libshare.Share{}, err
 	}
-
-	smpls := make([]shwap.Sample, len(indices))
-	for i, idx := range indices {
-		rowIdx, colIdx, err := idx.Coordinates(len(hdr.DAH.RowRoots))
-		if err != nil {
-			return nil, err
-		}
-
-		smpl, err := seg.EDS.Sample(ctx, rowIdx, colIdx)
-		if err != nil {
-			return nil, err
-		}
-
-		smpls[i] = smpl
+	rawSh := seg.EDS.GetCell(uint(row), uint(col))
+	sh, err := libshare.NewShare(rawSh)
+	if err != nil {
+		return libshare.Share{}, err
 	}
-
-	return smpls, nil
+	return *sh, nil
 }
 
 // GetEDS returns a kept EDS if the correct root is given.
@@ -70,7 +62,7 @@ func (seg *SingleEDSGetter) GetEDS(
 	if err != nil {
 		return nil, err
 	}
-	return seg.EDS.ExtendedDataSquare, nil
+	return seg.EDS, nil
 }
 
 // GetNamespaceData returns NamespacedShares from a kept EDS if the correct root is given.
@@ -80,7 +72,7 @@ func (seg *SingleEDSGetter) GetNamespaceData(context.Context, *header.ExtendedHe
 }
 
 func (seg *SingleEDSGetter) checkRoots(roots *share.AxisRoots) error {
-	dah, err := da.NewDataAvailabilityHeader(seg.EDS.ExtendedDataSquare)
+	dah, err := da.NewDataAvailabilityHeader(seg.EDS)
 	if err != nil {
 		return err
 	}
