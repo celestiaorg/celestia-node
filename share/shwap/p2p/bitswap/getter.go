@@ -3,13 +3,14 @@ package bitswap
 import (
 	"context"
 	"fmt"
+	"sync"
+	"sync/atomic"
 
 	"github.com/ipfs/boxo/blockstore"
 	"github.com/ipfs/boxo/exchange"
 	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/codes"
-	"go.opentelemetry.io/otel/trace"
 
 	"github.com/celestiaorg/celestia-app/v3/pkg/wrapper"
 	libshare "github.com/celestiaorg/go-square/v2/share"
@@ -29,8 +30,8 @@ type Getter struct {
 	bstore    blockstore.Blockstore
 	availWndw pruner.AvailabilityWindow
 
-	availableSession exchange.Fetcher
-	archivalSession  exchange.Fetcher
+	availablePool sync.Pool
+	archivalPool  sync.Pool
 
 	cancel context.CancelFunc
 }
@@ -56,9 +57,21 @@ func NewGetter(
 // with regular full node peers.
 func (g *Getter) Start() {
 	ctx, cancel := context.WithCancel(context.Background())
-	g.availableSession = g.exchange.NewSession(ctx)
-	g.archivalSession = g.exchange.NewSession(ctx)
 	g.cancel = cancel
+
+	var availableID atomic.Uint64
+	g.availablePool.New = func() interface{} {
+		log.Debugw("creating new available window session", "id", availableID.Load())
+		defer availableID.Add(1)
+		return g.exchange.NewSession(ctx)
+	}
+
+	var archivalID atomic.Uint64
+	g.archivalPool.New = func() interface{} {
+		log.Debugw("creating new archival session", "id", archivalID.Load())
+		defer archivalID.Add(1)
+		return g.exchange.NewSession(ctx)
+	}
 }
 
 // Stop shuts down Getter's internal fetching session.
@@ -96,7 +109,12 @@ func (g *Getter) GetShares(
 		blks[i] = sid
 	}
 
-	ses := g.session(ctx, hdr)
+	isArchival := g.isArchival(hdr)
+	span.SetAttributes(attribute.Bool("is_archival", isArchival))
+
+	ses := g.session(isArchival)
+	defer g.poolSession(ses, isArchival)
+
 	err := Fetch(ctx, g.exchange, hdr.DAH, blks, WithStore(g.bstore), WithFetcher(ses))
 	if err != nil {
 		span.RecordError(err)
@@ -155,7 +173,12 @@ func (g *Getter) GetEDS(
 		blks[i] = blk
 	}
 
-	ses := g.session(ctx, hdr)
+	isArchival := g.isArchival(hdr)
+	span.SetAttributes(attribute.Bool("is_archival", isArchival))
+
+	ses := g.session(isArchival)
+	defer g.poolSession(ses, isArchival)
+
 	err := Fetch(ctx, g.exchange, hdr.DAH, blks, WithFetcher(ses))
 	if err != nil {
 		span.RecordError(err)
@@ -209,7 +232,12 @@ func (g *Getter) GetNamespaceData(
 		blks[i] = rndblk
 	}
 
-	ses := g.session(ctx, hdr)
+	isArchival := g.isArchival(hdr)
+	span.SetAttributes(attribute.Bool("is_archival", isArchival))
+
+	ses := g.session(isArchival)
+	defer g.poolSession(ses, isArchival)
+
 	if err = Fetch(ctx, g.exchange, hdr.DAH, blks, WithFetcher(ses)); err != nil {
 		span.RecordError(err)
 		span.SetStatus(codes.Error, "Fetch")
@@ -229,17 +257,37 @@ func (g *Getter) GetNamespaceData(
 	return nsShrs, nil
 }
 
-// session decides which fetching session to use for the given header.
-func (g *Getter) session(ctx context.Context, hdr *header.ExtendedHeader) exchange.Fetcher {
-	session := g.archivalSession
+// isArchival reports whether the header is for archival data
+func (g *Getter) isArchival(hdr *header.ExtendedHeader) bool {
+	return !pruner.IsWithinAvailabilityWindow(hdr.Time(), g.availWndw)
+}
 
-	isWithinAvailability := pruner.IsWithinAvailabilityWindow(hdr.Time(), g.availWndw)
-	if isWithinAvailability {
-		session = g.availableSession
+// session takes a session out of the respective session pool
+func (g *Getter) session(isArchival bool) exchange.Fetcher {
+	if isArchival {
+		v := g.archivalPool.Get()
+		if v == nil {
+			panic("Getter must be started")
+		}
+
+		return v.(exchange.Fetcher)
 	}
 
-	trace.SpanFromContext(ctx).SetAttributes(attribute.Bool("within_availability", isWithinAvailability))
-	return session
+	v := g.availablePool.Get()
+	if v == nil {
+		panic("Getter must be started")
+	}
+
+	return v.(exchange.Fetcher)
+}
+
+// poolSession puts session back into the respective session pool
+func (g *Getter) poolSession(session exchange.Fetcher, isArchival bool) {
+	if isArchival {
+		g.archivalPool.Put(session)
+	} else {
+		g.availablePool.Put(session)
+	}
 }
 
 // edsFromRows imports given Rows and computes EDS out of them, assuming enough Rows were provided.
