@@ -110,6 +110,7 @@ func TestPoolConcurrency(t *testing.T) {
 
 	// Since the pool reuses sessions, the number of unique session IDs should be less than or equal to numGoroutines
 	if len(sessionIDSet) > numGoroutines {
-		t.Fatalf("expected number of unique sessions to be less than or equal to %d, got %d", numGoroutines, len(sessionIDSet))
+		t.Fatalf("expected number of unique sessions to be less than or equal to %d, got %d",
+			numGoroutines, len(sessionIDSet))
 	}
 }
