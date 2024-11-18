@@ -135,9 +135,15 @@ func TestSharesAvailableFailed(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
-	getter := mock.NewMockGetter(gomock.NewController(t))
+	failGetter := mock.NewMockGetter(gomock.NewController(t))
+	// Getter doesn't have the eds, so it should fail for all samples
+	failGetter.EXPECT().
+		GetShare(gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any()).
+		Return(libshare.Share{}, shrex.ErrNotFound).
+		AnyTimes()
+
 	ds := datastore.NewMapDatastore()
-	avail := NewShareAvailability(getter, ds, nil)
+	avail := NewShareAvailability(failGetter, ds, nil)
 
 	type test struct {
 		eh    *header.ExtendedHeader
@@ -147,8 +153,7 @@ func TestSharesAvailableFailed(t *testing.T) {
 
 	tests := make([]test, 0)
 
-	for i := 1; i <= 16; i *= 4 {
-		t.Log(i)
+	for i := 1; i <= 128; i *= 4 {
 		// Create new eds, that is not available by getter
 		eds := edstest.RandEDS(t, i)
 		roots, err := share.NewAxisRoots(eds)
@@ -156,18 +161,12 @@ func TestSharesAvailableFailed(t *testing.T) {
 		eh := headertest.RandExtendedHeaderWithRoot(t, roots)
 
 		tests = append(tests, test{eh: eh, roots: roots, eds: eds})
-		t.Log("i: ", i, "  roothash: ", eh.DAH.String())
 	}
 
 	for _, tt := range tests {
-		// Getter doesn't have the eds, so it should fail for all samples
-		getter.EXPECT().
-			GetShare(gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any()).
-			Return(libshare.Share{}, shrex.ErrNotFound).
-			AnyTimes()
+		avail.getter = failGetter
 
 		err := avail.SharesAvailable(ctx, tt.eh)
-		t.Log("err: ", err)
 		require.ErrorIs(t, err, share.ErrNotAvailable)
 
 		// The datastore should now contain the sampling result with all samples in Remaining
