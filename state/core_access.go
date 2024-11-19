@@ -615,7 +615,8 @@ func (ca *CoreAccessor) startGRPCClient(ctx context.Context) error {
 	opts := []grpc.DialOption{grpc.WithTransportCredentials(insecure.NewCredentials())}
 	if ca.tls != nil {
 		opts = append(opts, grpc.WithTransportCredentials(credentials.NewTLS(ca.tls)))
-	} else if ca.xtoken != "" {
+	}
+	if ca.xtoken != "" {
 		authInterceptor := func(ctx context.Context,
 			method string,
 			req, reply interface{},
@@ -626,13 +627,7 @@ func (ca *CoreAccessor) startGRPCClient(ctx context.Context) error {
 			ctx = metadata.AppendToOutgoingContext(ctx, "x-token", ca.xtoken)
 			return invoker(ctx, method, req, reply, cc, opts...)
 		}
-		// set the config with empty certificates along with the interceptor that will add x-token.
-		opts = append(opts,
-			grpc.WithTransportCredentials(
-				credentials.NewTLS(&tls.Config{MinVersion: tls.VersionTLS12}),
-			),
-			grpc.WithUnaryInterceptor(authInterceptor),
-		)
+		opts = append(opts, grpc.WithUnaryInterceptor(authInterceptor))
 	}
 
 	client, err := grpc.NewClient(

@@ -17,6 +17,9 @@ var MetricsEnabled bool
 type Config struct {
 	IP   string
 	Port string
+	// TLSEnabled specifies whether the connection is secure or not.
+	// PLEASE NOTE: it should be set to true in order to handle TLSPath and/or XTokenPath.
+	TLSEnabled bool
 	// TLSPath specifies the directory path where the TLS certificates are stored.
 	// It should not include file names('cert.pem' and 'key.pem').
 	// If left empty, the client will be configured for an insecure (non-TLS) connection.
