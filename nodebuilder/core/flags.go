@@ -11,6 +11,7 @@ var (
 	coreFlag           = "core.ip"
 	coreRPCFlag        = "core.rpc.port"
 	coreGRPCFlag       = "core.grpc.port"
+	coreTLS            = "core.tls"
 	coreTLSPathFlag    = "core.grpc.tls.path"
 	coreXTokenPathFlag = "core.grpc.xtoken.path" //nolint:gosec
 )
@@ -36,18 +37,26 @@ func Flags() *flag.FlagSet {
 		DefaultGRPCPort,
 		"Set a custom gRPC port for the core node connection. The --core.ip flag must also be provided.",
 	)
+	flags.Bool(
+		coreTLS,
+		false,
+		"Specifies whether TLS is enabled or not. Default: false",
+	)
 	flags.String(
 		coreTLSPathFlag,
 		"",
 		"specifies the directory path where the TLS certificates are stored. "+
 			"It should not include file names ('cert.pem' and 'key.pem'). "+
-			"If left empty, the client will be configured for an insecure (non-TLS) connection",
+			"NOTE: the path is parsed only if coreTLS enabled."+
+			"If left empty, with disabled coreTLS, the client will be configured for "+
+			"an insecure (non-TLS) connection",
 	)
 	flags.String(
 		coreXTokenPathFlag,
 		"",
 		"specifies the file path to the JSON file containing the X-Token for gRPC authentication. "+
 			"The JSON file should have a key-value pair where the key is 'x-token' and the value is the authentication token. "+
+			"NOTE: the path is parsed only if coreTLS enabled."+
 			"If left empty, the client will not include the X-Token in its requests.",
 	)
 	return flags
@@ -76,14 +85,22 @@ func ParseFlags(
 		cfg.GRPCPort = grpc
 	}
 
-	if cmd.Flag(coreTLSPathFlag).Changed {
-		path := cmd.Flag(coreTLSPathFlag).Value.String()
-		cfg.TLSPath = path
+	enabled, err := cmd.Flags().GetBool(coreTLS)
+	if err != nil {
+		panic(err)
 	}
 
-	if cmd.Flag(coreXTokenPathFlag).Changed {
-		path := cmd.Flag(coreXTokenPathFlag).Value.String()
-		cfg.XTokenPath = path
+	if enabled {
+		cfg.TLSEnabled = true
+		if cmd.Flag(coreTLSPathFlag).Changed {
+			path := cmd.Flag(coreTLSPathFlag).Value.String()
+			cfg.TLSPath = path
+		}
+
+		if cmd.Flag(coreXTokenPathFlag).Changed {
+			path := cmd.Flag(coreXTokenPathFlag).Value.String()
+			cfg.XTokenPath = path
+		}
 	}
 	cfg.IP = coreIP
 	return cfg.Validate()

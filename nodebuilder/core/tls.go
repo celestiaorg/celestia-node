@@ -20,8 +20,7 @@ const (
 // It constructs the full paths to the certificate and key files by joining the provided directory path
 // with their respective file names.
 // If either file is missing, it returns an os.ErrNotExist error.
-// If the files exist, it loads the X.509 key pair from the specified files and sets up a tls.Config
-// with a minimum version of TLS 1.2.
+// If the files exist, it loads the X.509 key pair from the specified files and sets up a tls.Config.
 // Parameters:
 // * tlsPath: The directory path where the TLS certificate ("cert.pem") and key ("key.pem") files are located.
 // Returns:
@@ -35,7 +34,7 @@ func TLS(tlsPath string) (*tls.Config, error) {
 		return nil, os.ErrNotExist
 	}
 
-	cfg := &tls.Config{MinVersion: tls.VersionTLS12}
+	cfg := &tls.Config{}
 	cert, err := tls.LoadX509KeyPair(certPath, keyPath)
 	if err != nil {
 		return nil, err
@@ -51,8 +50,8 @@ type AuthToken struct {
 // XToken retrieves the authentication token from a JSON file at the specified path.
 // It first constructs the full file path by joining the provided directory path with the token file name.
 // If the file does not exist, it returns an os.ErrNotExist error.
-// If the file exists, it reads the content and unmarshals it.
-// If the field in the unmarshaled struct is empty, an error is returned indicating that the token is missing.
+// If the file exists, it reads the content and unmarshalls it.
+// If the field in the unmarshalled struct is empty, an error is returned indicating that the token is missing.
 // Parameters:
 // * xtokenPath: The directory path where the JSON file containing the X-Token is located.
 // Returns:
