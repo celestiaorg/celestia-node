@@ -1,7 +1,6 @@
 package state
 
 import (
-	"crypto/tls"
 	"errors"
 	"os"
 
@@ -34,14 +33,13 @@ func coreAccessor(
 	*modfraud.ServiceBreaker[*state.CoreAccessor, *header.ExtendedHeader],
 	error,
 ) {
-
 	if corecfg.TLSEnabled {
 		tlsCfg, err := core.TLS(corecfg.TLSPath)
-		switch err {
-		case nil:
-		case os.ErrNotExist:
+		switch {
+		case err == nil:
+		case errors.Is(err, os.ErrNotExist):
 			// set an empty config if path is empty under `TLSEnabled=true`
-			tlsCfg = &tls.Config{}
+			tlsCfg = core.EmptyTLSConfig()
 		default:
 			return nil, nil, nil, err
 		}
@@ -52,6 +50,7 @@ func coreAccessor(
 		}
 		opts = append(opts, state.WithTLSConfig(tlsCfg), state.WithXToken(xtoken))
 	}
+
 	ca, err := state.NewCoreAccessor(keyring, string(keyname), sync,
 		corecfg.IP, corecfg.GRPCPort, network.String(), opts...)
 

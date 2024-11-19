@@ -16,6 +16,10 @@ const (
 	xtoken = "xtoken.json"
 )
 
+func EmptyTLSConfig() *tls.Config {
+	return &tls.Config{MinVersion: tls.VersionTLS12}
+}
+
 // TLS creates a TLS configuration using the certificate and key files from the specified path.
 // It constructs the full paths to the certificate and key files by joining the provided directory path
 // with their respective file names.
@@ -34,7 +38,7 @@ func TLS(tlsPath string) (*tls.Config, error) {
 		return nil, os.ErrNotExist
 	}
 
-	cfg := &tls.Config{}
+	cfg := EmptyTLSConfig()
 	cert, err := tls.LoadX509KeyPair(certPath, keyPath)
 	if err != nil {
 		return nil, err
