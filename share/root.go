@@ -3,11 +3,11 @@ package share
 import (
 	"bytes"
 	"crypto/sha256"
-	"encoding/hex"
 	"fmt"
 	"hash"
 
-	"github.com/celestiaorg/celestia-app/v2/pkg/da"
+	"github.com/celestiaorg/celestia-app/v3/pkg/da"
+	libshare "github.com/celestiaorg/go-square/v2/share"
 	"github.com/celestiaorg/rsmt2d"
 )
 
@@ -58,9 +58,13 @@ func NewAxisRoots(eds *rsmt2d.ExtendedDataSquare) (*AxisRoots, error) {
 
 // RowsWithNamespace inspects the AxisRoots for the Namespace and provides
 // a slices of Row indexes containing the namespace.
-func RowsWithNamespace(root *AxisRoots, namespace Namespace) (idxs []int) {
+func RowsWithNamespace(root *AxisRoots, namespace libshare.Namespace) (idxs []int, err error) {
 	for i, row := range root.RowRoots {
-		if !namespace.IsOutsideRange(row, row) {
+		outside, err := IsOutsideRange(namespace, row, row)
+		if err != nil {
+			return nil, err
+		}
+		if !outside {
 			idxs = append(idxs, i)
 		}
 	}
@@ -75,15 +79,45 @@ func RootHashForCoordinates(r *AxisRoots, axisType rsmt2d.Axis, rowIdx, colIdx u
 	return r.ColumnRoots[colIdx]
 }
 
-// MustDataHashFromString converts a hex string to a valid datahash.
-func MustDataHashFromString(datahash string) DataHash {
-	dh, err := hex.DecodeString(datahash)
-	if err != nil {
-		panic(fmt.Sprintf("datahash conversion: passed string was not valid hex: %s", datahash))
+// IsOutsideRange checks if the namespace is outside the min-max range of the given hashes.
+func IsOutsideRange(namespace libshare.Namespace, leftHash, rightHash []byte) (bool, error) {
+	if len(leftHash) < libshare.NamespaceSize {
+		return false, fmt.Errorf("left can't be less than %d", libshare.NamespaceSize)
 	}
-	err = DataHash(dh).Validate()
-	if err != nil {
-		panic(fmt.Sprintf("datahash validation: passed hex string failed: %s", err))
+	if len(rightHash) < 2*libshare.NamespaceSize {
+		return false, fmt.Errorf("rightHash can't be less than %d", 2*libshare.NamespaceSize)
 	}
-	return dh
+	ns1, err := libshare.NewNamespaceFromBytes(leftHash[:libshare.NamespaceSize])
+	if err != nil {
+		return false, err
+	}
+	ns2, err := libshare.NewNamespaceFromBytes(rightHash[libshare.NamespaceSize : libshare.NamespaceSize*2])
+	if err != nil {
+		return false, err
+	}
+	return namespace.IsLessThan(ns1) || !namespace.IsLessOrEqualThan(ns2), nil
+}
+
+// IsAboveMax checks if the namespace is above the maximum namespace of the given hash.
+func IsAboveMax(namespace libshare.Namespace, hash []byte) (bool, error) {
+	if len(hash) < 2*libshare.NamespaceSize {
+		return false, fmt.Errorf("hash can't be less than: %d", 2*libshare.NamespaceSize)
+	}
+	ns, err := libshare.NewNamespaceFromBytes(hash[libshare.NamespaceSize : libshare.NamespaceSize*2])
+	if err != nil {
+		return false, err
+	}
+	return !namespace.IsLessOrEqualThan(ns), nil
+}
+
+// IsBelowMin checks if the target namespace is below the minimum namespace of the given hash.
+func IsBelowMin(namespace libshare.Namespace, hash []byte) (bool, error) {
+	if len(hash) < libshare.NamespaceSize {
+		return false, fmt.Errorf("hash can't be less than: %d", libshare.NamespaceSize)
+	}
+	ns1, err := libshare.NewNamespaceFromBytes(hash[:libshare.NamespaceSize])
+	if err != nil {
+		return false, err
+	}
+	return namespace.IsLessThan(ns1), nil
 }

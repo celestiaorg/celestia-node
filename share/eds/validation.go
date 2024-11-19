@@ -2,20 +2,16 @@ package eds
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"sync/atomic"
 
+	libshare "github.com/celestiaorg/go-square/v2/share"
 	"github.com/celestiaorg/rsmt2d"
 
-	"github.com/celestiaorg/celestia-node/share"
 	"github.com/celestiaorg/celestia-node/share/shwap"
 )
 
 var _ Accessor = validation{}
-
-// ErrOutOfBounds is returned whenever an index is out of bounds.
-var ErrOutOfBounds = errors.New("index is out of bounds")
 
 // validation is a  Accessor implementation that performs sanity checks on methods. It wraps
 // another  Accessor and performs bounds checks on index arguments.
@@ -56,7 +52,7 @@ func (f validation) AxisHalf(ctx context.Context, axisType rsmt2d.Axis, axisIdx 
 
 func (f validation) RowNamespaceData(
 	ctx context.Context,
-	namespace share.Namespace,
+	namespace libshare.Namespace,
 	rowIdx int,
 ) (shwap.RowNamespaceData, error) {
 	_, err := shwap.NewRowNamespaceDataID(1, rowIdx, namespace, f.Size(ctx))

@@ -7,7 +7,8 @@ import (
 
 	"github.com/stretchr/testify/require"
 
-	"github.com/celestiaorg/celestia-app/v2/pkg/da"
+	"github.com/celestiaorg/celestia-app/v3/pkg/da"
+	libshare "github.com/celestiaorg/go-square/v2/share"
 	"github.com/celestiaorg/rsmt2d"
 
 	"github.com/celestiaorg/celestia-node/header"
@@ -29,7 +30,7 @@ func TestGetter(t *testing.T) (shwap.Getter, *header.ExtendedHeader) {
 }
 
 // SingleEDSGetter contains a single EDS where data is retrieved from.
-// Its primary use is testing, and GetSharesByNamespace is not supported.
+// Its primary use is testing, and GetNamespaceData is not supported.
 type SingleEDSGetter struct {
 	EDS *rsmt2d.ExtendedDataSquare
 }
@@ -39,12 +40,17 @@ func (seg *SingleEDSGetter) GetShare(
 	_ context.Context,
 	header *header.ExtendedHeader,
 	row, col int,
-) (share.Share, error) {
+) (libshare.Share, error) {
 	err := seg.checkRoots(header.DAH)
 	if err != nil {
-		return nil, err
+		return libshare.Share{}, err
 	}
-	return seg.EDS.GetCell(uint(row), uint(col)), nil
+	rawSh := seg.EDS.GetCell(uint(row), uint(col))
+	sh, err := libshare.NewShare(rawSh)
+	if err != nil {
+		return libshare.Share{}, err
+	}
+	return *sh, nil
 }
 
 // GetEDS returns a kept EDS if the correct root is given.
@@ -59,10 +65,10 @@ func (seg *SingleEDSGetter) GetEDS(
 	return seg.EDS, nil
 }
 
-// GetSharesByNamespace returns NamespacedShares from a kept EDS if the correct root is given.
-func (seg *SingleEDSGetter) GetSharesByNamespace(context.Context, *header.ExtendedHeader, share.Namespace,
+// GetNamespaceData returns NamespacedShares from a kept EDS if the correct root is given.
+func (seg *SingleEDSGetter) GetNamespaceData(context.Context, *header.ExtendedHeader, libshare.Namespace,
 ) (shwap.NamespaceData, error) {
-	panic("SingleEDSGetter: GetSharesByNamespace is not implemented")
+	panic("SingleEDSGetter: GetNamespaceData is not implemented")
 }
 
 func (seg *SingleEDSGetter) checkRoots(roots *share.AxisRoots) error {

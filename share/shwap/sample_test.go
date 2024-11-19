@@ -6,6 +6,7 @@ import (
 
 	"github.com/stretchr/testify/require"
 
+	libshare "github.com/celestiaorg/go-square/v2/share"
 	"github.com/celestiaorg/rsmt2d"
 
 	"github.com/celestiaorg/celestia-node/share"
@@ -51,7 +52,11 @@ func TestSampleNegativeVerifyInclusion(t *testing.T) {
 	require.ErrorIs(t, err, shwap.ErrFailedVerification)
 
 	// Corrupt the share
-	sample.Share[0] ^= 0xFF
+	b := sample.Share.ToBytes()
+	b[0] ^= 0xFF
+	shr, err := libshare.NewShare(b)
+	require.NoError(t, err)
+	sample.Share = *shr
 	err = sample.Verify(root, 0, 0)
 	require.ErrorIs(t, err, shwap.ErrFailedVerification)
 
@@ -82,7 +87,7 @@ func TestSampleProtoEncoding(t *testing.T) {
 				require.NoError(t, err)
 
 				pb := sample.ToProto()
-				sampleOut := shwap.SampleFromProto(pb)
+				sampleOut, err := shwap.SampleFromProto(pb)
 				require.NoError(t, err)
 				require.Equal(t, sample, sampleOut)
 			}

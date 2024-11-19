@@ -3,6 +3,7 @@ package p2p
 import (
 	"context"
 	"fmt"
+	"os"
 	"strings"
 
 	"github.com/libp2p/go-libp2p"
@@ -26,6 +27,8 @@ import (
 
 	"github.com/celestiaorg/celestia-node/nodebuilder/node"
 )
+
+var enableQUIC = os.Getenv("CELESTIA_ENABLE_QUIC") == "1"
 
 // routedHost constructs a wrapped Host that may fallback to address discovery,
 // if any top-level operation on the Host is provided with PeerID(Hash(PbK)) only.
@@ -80,6 +83,19 @@ func host(params hostParams) (HostBase, error) {
 		params.Cfg.Upgrade()
 	}
 
+	transports := []libp2p.Option{
+		libp2p.Transport(tcp.NewTCPTransport),
+		libp2p.Transport(libp2pwebrtc.New),
+		wsTransport(tlsCfg),
+	}
+
+	// disable quic and webtransport client support until it is stable
+	if enableQUIC {
+		transports = append(transports,
+			libp2p.Transport(quic.NewTransport),
+			libp2p.Transport(webtransport.New))
+	}
+
 	opts := []libp2p.Option{
 		libp2p.NoListenAddrs, // do not listen automatically
 		libp2p.AddrsFactory(params.AddrF),
@@ -92,13 +108,7 @@ func host(params hostParams) (HostBase, error) {
 		libp2p.DisableRelay(),
 		libp2p.BandwidthReporter(params.Bandwidth),
 		libp2p.ResourceManager(params.ResourceManager),
-		libp2p.ChainOptions(
-			libp2p.Transport(tcp.NewTCPTransport),
-			libp2p.Transport(quic.NewTransport),
-			libp2p.Transport(webtransport.New),
-			libp2p.Transport(libp2pwebrtc.New),
-			wsTransport(tlsCfg),
-		),
+		libp2p.ChainOptions(transports...),
 		// to clearly define what defaults we rely upon
 		libp2p.DefaultSecurity,
 		libp2p.DefaultMuxers,

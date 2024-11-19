@@ -28,7 +28,7 @@ type Blockstore struct {
 	Getter AccessorGetter
 }
 
-func (b *Blockstore) getBlock(ctx context.Context, cid cid.Cid) (blocks.Block, error) {
+func (b *Blockstore) Get(ctx context.Context, cid cid.Cid) (blocks.Block, error) {
 	blk, err := EmptyBlock(cid)
 	if err != nil {
 		return nil, err
@@ -42,6 +42,7 @@ func (b *Blockstore) getBlock(ctx context.Context, cid cid.Cid) (blocks.Block, e
 	if err != nil {
 		return nil, fmt.Errorf("getting EDS Accessor for height %v: %w", blk.Height(), err)
 	}
+
 	defer func() {
 		if err := acc.Close(); err != nil {
 			log.Warnf("failed to close EDS accessor for height %v: %s", blk.Height(), err)
@@ -55,24 +56,19 @@ func (b *Blockstore) getBlock(ctx context.Context, cid cid.Cid) (blocks.Block, e
 	return convertBitswap(blk)
 }
 
-func (b *Blockstore) Get(ctx context.Context, cid cid.Cid) (blocks.Block, error) {
-	blk, err := b.getBlock(ctx, cid)
-	if err != nil {
-		return nil, err
-	}
+func (b *Blockstore) GetSize(_ context.Context, cid cid.Cid) (int, error) {
+	// NOTE: Size is used as a weight for the incoming Bitswap requests. Bitswap uses fair scheduling for the requests
+	// and prioritizes peers with less *active* work. Active work of a peer is a cumulative weight of all the in-progress
+	// requests.
 
-	return blk, nil
-}
-
-func (b *Blockstore) GetSize(ctx context.Context, cid cid.Cid) (int, error) {
-	// TODO(@Wondertan): Bitswap checks the size of the data(GetSize) before serving it via Get. This means
-	//  GetSize may do an unnecessary read from disk which we can avoid by either caching on Blockstore level
-	//  or returning constant size(we know at that point that we have requested data)
-	blk, err := b.Get(ctx, cid)
+	// Constant max block size is used instead of factual size. This avoids disk IO but equalizes the weights of the
+	// requests of the same type. E.g. row of 2MB EDS and row of 8MB EDS will have the same weight.
+	size, err := maxBlockSize(cid)
 	if err != nil {
 		return 0, err
 	}
-	return len(blk.RawData()), nil
+
+	return size, nil
 }
 
 func (b *Blockstore) Has(ctx context.Context, cid cid.Cid) (bool, error) {

@@ -6,22 +6,19 @@ import (
 	"errors"
 	"fmt"
 
-	"github.com/tendermint/tendermint/crypto/merkle"
-
-	"github.com/celestiaorg/celestia-app/v2/pkg/appconsts"
-	v2 "github.com/celestiaorg/celestia-app/v2/pkg/appconsts/v2"
-	"github.com/celestiaorg/go-square/blob"
-	"github.com/celestiaorg/go-square/inclusion"
-	"github.com/celestiaorg/go-square/shares"
+	"github.com/celestiaorg/celestia-app/v3/pkg/appconsts"
+	"github.com/celestiaorg/go-square/merkle"
+	"github.com/celestiaorg/go-square/v2/inclusion"
+	libshare "github.com/celestiaorg/go-square/v2/share"
 	"github.com/celestiaorg/nmt"
-
-	"github.com/celestiaorg/celestia-node/share"
 )
 
 // appVersion is the current application version of celestia-app.
-const appVersion = v2.Version
+const appVersion = appconsts.LatestVersion
 
 var errEmptyShares = errors.New("empty shares")
+
+var subtreeRootThreshold = appconsts.SubtreeRootThreshold(appVersion)
 
 // The Proof is a set of nmt proofs that can be verified only through
 // the included method (due to limitation of the nmt https://github.com/celestiaorg/nmt/issues/218).
@@ -61,13 +58,9 @@ func (p Proof) equal(input Proof) error {
 
 // Blob represents any application-specific binary data that anyone can submit to Celestia.
 type Blob struct {
-	*blob.Blob `json:"blob"`
+	*libshare.Blob `json:"blob"`
 
 	Commitment Commitment `json:"commitment"`
-
-	// the celestia-node's namespace type
-	// this is to avoid converting to and from app's type
-	namespace share.Namespace
 
 	// index represents the index of the blob's first share in the EDS.
 	// Only retrieved, on-chain blobs will have the index set. Default is -1.
@@ -76,36 +69,37 @@ type Blob struct {
 
 // NewBlobV0 constructs a new blob from the provided Namespace and data.
 // The blob will be formatted as v0 shares.
-func NewBlobV0(namespace share.Namespace, data []byte) (*Blob, error) {
-	return NewBlob(appconsts.ShareVersionZero, namespace, data)
+func NewBlobV0(namespace libshare.Namespace, data []byte) (*Blob, error) {
+	return NewBlob(libshare.ShareVersionZero, namespace, data, nil)
 }
 
-// NewBlob constructs a new blob from the provided Namespace, data and share version.
-func NewBlob(shareVersion uint8, namespace share.Namespace, data []byte) (*Blob, error) {
-	if len(data) == 0 || len(data) > appconsts.DefaultMaxBytes {
-		return nil, fmt.Errorf("blob data must be > 0 && <= %d, but it was %d bytes", appconsts.DefaultMaxBytes, len(data))
-	}
+// NewBlobV1 constructs a new blob from the provided Namespace, data, and signer.
+// The blob will be formatted as v1 shares.
+func NewBlobV1(namespace libshare.Namespace, data, signer []byte) (*Blob, error) {
+	return NewBlob(libshare.ShareVersionOne, namespace, data, signer)
+}
+
+// NewBlob constructs a new blob from the provided Namespace, data, signer, and share version.
+func NewBlob(shareVersion uint8, namespace libshare.Namespace, data, signer []byte) (*Blob, error) {
 	if err := namespace.ValidateForBlob(); err != nil {
-		return nil, err
+		return nil, fmt.Errorf("invalid user namespace: %w", err)
 	}
 
-	blob := blob.Blob{
-		NamespaceId:      namespace.ID(),
-		Data:             data,
-		ShareVersion:     uint32(shareVersion),
-		NamespaceVersion: uint32(namespace.Version()),
-	}
-
-	com, err := inclusion.CreateCommitment(&blob, merkle.HashFromByteSlices, appconsts.SubtreeRootThreshold(appVersion))
+	libBlob, err := libshare.NewBlob(namespace, data, shareVersion, signer)
 	if err != nil {
 		return nil, err
 	}
-	return &Blob{Blob: &blob, Commitment: com, namespace: namespace, index: -1}, nil
+
+	com, err := inclusion.CreateCommitment(libBlob, merkle.HashFromByteSlices, subtreeRootThreshold)
+	if err != nil {
+		return nil, err
+	}
+	return &Blob{Blob: libBlob, Commitment: com, index: -1}, nil
 }
 
 // Namespace returns blob's namespace.
-func (b *Blob) Namespace() share.Namespace {
-	return b.namespace
+func (b *Blob) Namespace() libshare.Namespace {
+	return b.Blob.Namespace()
 }
 
 // Index returns the blob's first share index in the EDS.
@@ -124,18 +118,12 @@ func (b *Blob) Length() (int, error) {
 	if len(s) == 0 {
 		return 0, errors.New("blob with zero shares received")
 	}
+	return libshare.SparseSharesNeeded(s[0].SequenceLen()), nil
+}
 
-	appShare, err := shares.NewShare(s[0])
-	if err != nil {
-		return 0, err
-	}
-
-	seqLength, err := appShare.SequenceLen()
-	if err != nil {
-		return 0, err
-	}
-
-	return shares.SparseSharesNeeded(seqLength), nil
+// Signer returns blob's author.
+func (b *Blob) Signer() []byte {
+	return b.Blob.Signer()
 }
 
 func (b *Blob) compareCommitments(com Commitment) bool {
@@ -143,19 +131,21 @@ func (b *Blob) compareCommitments(com Commitment) bool {
 }
 
 type jsonBlob struct {
-	Namespace    share.Namespace `json:"namespace"`
-	Data         []byte          `json:"data"`
-	ShareVersion uint32          `json:"share_version"`
-	Commitment   Commitment      `json:"commitment"`
-	Index        int             `json:"index"`
+	Namespace    []byte     `json:"namespace"`
+	Data         []byte     `json:"data"`
+	ShareVersion uint8      `json:"share_version"`
+	Commitment   Commitment `json:"commitment"`
+	Signer       []byte     `json:"signer,omitempty"`
+	Index        int        `json:"index"`
 }
 
 func (b *Blob) MarshalJSON() ([]byte, error) {
 	blob := &jsonBlob{
-		Namespace:    b.Namespace(),
-		Data:         b.Data,
-		ShareVersion: b.ShareVersion,
+		Namespace:    b.Namespace().Bytes(),
+		Data:         b.Data(),
+		ShareVersion: b.ShareVersion(),
 		Commitment:   b.Commitment,
+		Signer:       b.Signer(),
 		Index:        b.index,
 	}
 	return json.Marshal(blob)
@@ -168,17 +158,18 @@ func (b *Blob) UnmarshalJSON(data []byte) error {
 		return err
 	}
 
-	if len(jsonBlob.Namespace) == 0 {
-		return errors.New("expected a non-empty namespace")
+	ns, err := libshare.NewNamespaceFromBytes(jsonBlob.Namespace)
+	if err != nil {
+		return err
 	}
 
-	b.Blob = &blob.Blob{}
-	b.Blob.NamespaceVersion = uint32(jsonBlob.Namespace.Version())
-	b.Blob.NamespaceId = jsonBlob.Namespace.ID()
-	b.Blob.Data = jsonBlob.Data
-	b.Blob.ShareVersion = jsonBlob.ShareVersion
-	b.Commitment = jsonBlob.Commitment
-	b.namespace = jsonBlob.Namespace
-	b.index = jsonBlob.Index
+	blob, err := NewBlob(jsonBlob.ShareVersion, ns, jsonBlob.Data, jsonBlob.Signer)
+	if err != nil {
+		return err
+	}
+
+	blob.Commitment = jsonBlob.Commitment
+	blob.index = jsonBlob.Index
+	*b = *blob
 	return nil
 }

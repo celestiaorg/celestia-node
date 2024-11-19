@@ -7,9 +7,10 @@ import (
 
 	"github.com/stretchr/testify/require"
 
+	libshare "github.com/celestiaorg/go-square/v2/share"
+
 	"github.com/celestiaorg/celestia-node/header/headertest"
 	"github.com/celestiaorg/celestia-node/share/eds/edstest"
-	"github.com/celestiaorg/celestia-node/share/sharetest"
 	"github.com/celestiaorg/celestia-node/share/shwap"
 )
 
@@ -37,7 +38,7 @@ func TestStoreGetter(t *testing.T) {
 			for j := 0; j < squareSize; j++ {
 				share, err := sg.GetShare(ctx, eh, i, j)
 				require.NoError(t, err)
-				require.Equal(t, eds.GetCell(uint(i), uint(j)), share)
+				require.Equal(t, eds.GetCell(uint(i), uint(j)), share.ToBytes())
 			}
 		}
 
@@ -65,8 +66,8 @@ func TestStoreGetter(t *testing.T) {
 		require.ErrorIs(t, err, shwap.ErrNotFound)
 	})
 
-	t.Run("GetSharesByNamespace", func(t *testing.T) {
-		ns := sharetest.RandV0Namespace()
+	t.Run("GetNamespaceData", func(t *testing.T) {
+		ns := libshare.RandomNamespace()
 		eds, roots := edstest.RandEDSWithNamespace(t, ns, 8, 16)
 		eh := headertest.RandExtendedHeaderWithRoot(t, roots)
 		height := height.Add(1)
@@ -74,19 +75,19 @@ func TestStoreGetter(t *testing.T) {
 		err := edsStore.PutODSQ4(ctx, eh.DAH, height, eds)
 		require.NoError(t, err)
 
-		shares, err := sg.GetSharesByNamespace(ctx, eh, ns)
+		shares, err := sg.GetNamespaceData(ctx, eh, ns)
 		require.NoError(t, err)
 		require.NoError(t, shares.Verify(eh.DAH, ns))
 
 		// namespace not found
-		randNamespace := sharetest.RandV0Namespace()
-		emptyShares, err := sg.GetSharesByNamespace(ctx, eh, randNamespace)
+		randNamespace := libshare.RandomNamespace()
+		emptyShares, err := sg.GetNamespaceData(ctx, eh, randNamespace)
 		require.NoError(t, err)
 		require.Empty(t, emptyShares.Flatten())
 
 		// root not found
 		eh.RawHeader.Height = 666
-		_, err = sg.GetSharesByNamespace(ctx, eh, ns)
+		_, err = sg.GetNamespaceData(ctx, eh, ns)
 		require.ErrorIs(t, err, shwap.ErrNotFound)
 	})
 }

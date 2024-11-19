@@ -3,20 +3,22 @@ package bitswap
 import (
 	"context"
 	"fmt"
+	"sync"
+	"time"
 
 	"github.com/ipfs/boxo/blockstore"
 	"github.com/ipfs/boxo/exchange"
 	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/codes"
-	"go.opentelemetry.io/otel/trace"
 
-	"github.com/celestiaorg/celestia-app/v2/pkg/wrapper"
+	"github.com/celestiaorg/celestia-app/v3/pkg/wrapper"
+	libshare "github.com/celestiaorg/go-square/v2/share"
 	"github.com/celestiaorg/rsmt2d"
 
 	"github.com/celestiaorg/celestia-node/header"
-	"github.com/celestiaorg/celestia-node/pruner"
 	"github.com/celestiaorg/celestia-node/share"
+	"github.com/celestiaorg/celestia-node/share/availability"
 	"github.com/celestiaorg/celestia-node/share/shwap"
 )
 
@@ -26,10 +28,10 @@ var tracer = otel.Tracer("shwap/bitswap")
 type Getter struct {
 	exchange  exchange.SessionExchange
 	bstore    blockstore.Blockstore
-	availWndw pruner.AvailabilityWindow
+	availWndw time.Duration
 
-	availableSession exchange.Fetcher
-	archivalSession  exchange.Fetcher
+	availablePool *pool
+	archivalPool  *pool
 
 	cancel context.CancelFunc
 }
@@ -38,9 +40,15 @@ type Getter struct {
 func NewGetter(
 	exchange exchange.SessionExchange,
 	bstore blockstore.Blockstore,
-	availWndw pruner.AvailabilityWindow,
+	availWndw time.Duration,
 ) *Getter {
-	return &Getter{exchange: exchange, bstore: bstore, availWndw: availWndw}
+	return &Getter{
+		exchange:      exchange,
+		bstore:        bstore,
+		availWndw:     availWndw,
+		availablePool: newPool(exchange),
+		archivalPool:  newPool(exchange),
+	}
 }
 
 // Start kicks off internal fetching sessions.
@@ -55,12 +63,13 @@ func NewGetter(
 // with regular full node peers.
 func (g *Getter) Start() {
 	ctx, cancel := context.WithCancel(context.Background())
-	g.availableSession = g.exchange.NewSession(ctx)
-	g.archivalSession = g.exchange.NewSession(ctx)
 	g.cancel = cancel
+
+	g.availablePool.ctx = ctx
+	g.availablePool.ctx = ctx
 }
 
-// Stop shuts down Getter's internal fetching session.
+// Stop shuts down Getter's internal fetching getSession.
 func (g *Getter) Stop() {
 	g.cancel()
 }
@@ -71,7 +80,7 @@ func (g *Getter) GetShares(
 	ctx context.Context,
 	hdr *header.ExtendedHeader,
 	rowIdxs, colIdxs []int,
-) ([]share.Share, error) {
+) ([]libshare.Share, error) {
 	if len(rowIdxs) != len(colIdxs) {
 		return nil, fmt.Errorf("row indecies and col indices must be same length")
 	}
@@ -95,7 +104,12 @@ func (g *Getter) GetShares(
 		blks[i] = sid
 	}
 
-	ses := g.session(ctx, hdr)
+	isArchival := g.isArchival(hdr)
+	span.SetAttributes(attribute.Bool("is_archival", isArchival))
+
+	ses, release := g.getSession(isArchival)
+	defer release()
+
 	err := Fetch(ctx, g.exchange, hdr.DAH, blks, WithStore(g.bstore), WithFetcher(ses))
 	if err != nil {
 		span.RecordError(err)
@@ -103,7 +117,7 @@ func (g *Getter) GetShares(
 		return nil, err
 	}
 
-	shares := make([]share.Share, len(blks))
+	shares := make([]libshare.Share, len(blks))
 	for i, blk := range blks {
 		shares[i] = blk.(*SampleBlock).Container.Share
 	}
@@ -117,14 +131,14 @@ func (g *Getter) GetShare(
 	ctx context.Context,
 	hdr *header.ExtendedHeader,
 	row, col int,
-) (share.Share, error) {
+) (libshare.Share, error) {
 	shrs, err := g.GetShares(ctx, hdr, []int{row}, []int{col})
 	if err != nil {
-		return nil, err
+		return libshare.Share{}, err
 	}
 
 	if len(shrs) != 1 {
-		return nil, fmt.Errorf("expected 1 share row, got %d", len(shrs))
+		return libshare.Share{}, fmt.Errorf("expected 1 share row, got %d", len(shrs))
 	}
 
 	return shrs[0], nil
@@ -154,7 +168,12 @@ func (g *Getter) GetEDS(
 		blks[i] = blk
 	}
 
-	ses := g.session(ctx, hdr)
+	isArchival := g.isArchival(hdr)
+	span.SetAttributes(attribute.Bool("is_archival", isArchival))
+
+	ses, release := g.getSession(isArchival)
+	defer release()
+
 	err := Fetch(ctx, g.exchange, hdr.DAH, blks, WithFetcher(ses))
 	if err != nil {
 		span.RecordError(err)
@@ -178,13 +197,13 @@ func (g *Getter) GetEDS(
 	return square, nil
 }
 
-// GetSharesByNamespace uses [RowNamespaceDataBlock] and [Fetch] to get all the data
+// GetNamespaceData uses [RowNamespaceDataBlock] and [Fetch] to get all the data
 // by the given namespace. If data spans over multiple rows, the request is split into
 // parallel RowNamespaceDataID requests per each row and then assembled back into NamespaceData.
-func (g *Getter) GetSharesByNamespace(
+func (g *Getter) GetNamespaceData(
 	ctx context.Context,
 	hdr *header.ExtendedHeader,
-	ns share.Namespace,
+	ns libshare.Namespace,
 ) (shwap.NamespaceData, error) {
 	if err := ns.ValidateForData(); err != nil {
 		return nil, err
@@ -193,7 +212,10 @@ func (g *Getter) GetSharesByNamespace(
 	ctx, span := tracer.Start(ctx, "get-shares-by-namespace")
 	defer span.End()
 
-	rowIdxs := share.RowsWithNamespace(hdr.DAH, ns)
+	rowIdxs, err := share.RowsWithNamespace(hdr.DAH, ns)
+	if err != nil {
+		return nil, err
+	}
 	blks := make([]Block, len(rowIdxs))
 	for i, rowNdIdx := range rowIdxs {
 		rndblk, err := NewEmptyRowNamespaceDataBlock(hdr.Height(), rowNdIdx, ns, len(hdr.DAH.RowRoots))
@@ -205,9 +227,13 @@ func (g *Getter) GetSharesByNamespace(
 		blks[i] = rndblk
 	}
 
-	ses := g.session(ctx, hdr)
-	err := Fetch(ctx, g.exchange, hdr.DAH, blks, WithFetcher(ses))
-	if err != nil {
+	isArchival := g.isArchival(hdr)
+	span.SetAttributes(attribute.Bool("is_archival", isArchival))
+
+	ses, release := g.getSession(isArchival)
+	defer release()
+
+	if err = Fetch(ctx, g.exchange, hdr.DAH, blks, WithFetcher(ses)); err != nil {
 		span.RecordError(err)
 		span.SetStatus(codes.Error, "Fetch")
 		return nil, err
@@ -226,23 +252,25 @@ func (g *Getter) GetSharesByNamespace(
 	return nsShrs, nil
 }
 
-// session decides which fetching session to use for the given header.
-func (g *Getter) session(ctx context.Context, hdr *header.ExtendedHeader) exchange.Fetcher {
-	session := g.archivalSession
+// isArchival reports whether the header is for archival data
+func (g *Getter) isArchival(hdr *header.ExtendedHeader) bool {
+	return !availability.IsWithinWindow(hdr.Time(), g.availWndw)
+}
 
-	isWithinAvailability := pruner.IsWithinAvailabilityWindow(hdr.Time(), g.availWndw)
-	if isWithinAvailability {
-		session = g.availableSession
+// getSession takes a session out of the respective session pool
+func (g *Getter) getSession(isArchival bool) (ses exchange.Fetcher, release func()) {
+	if isArchival {
+		ses = g.archivalPool.get()
+		return ses, func() { g.archivalPool.put(ses) }
 	}
-
-	trace.SpanFromContext(ctx).SetAttributes(attribute.Bool("within_availability", isWithinAvailability))
-	return session
+	ses = g.availablePool.get()
+	return ses, func() { g.availablePool.put(ses) }
 }
 
 // edsFromRows imports given Rows and computes EDS out of them, assuming enough Rows were provided.
 // It is designed to reuse Row halves computed during verification on [Fetch] level.
 func edsFromRows(roots *share.AxisRoots, rows []shwap.Row) (*rsmt2d.ExtendedDataSquare, error) {
-	shrs := make([]share.Share, len(roots.RowRoots)*len(roots.RowRoots))
+	shrs := make([]libshare.Share, len(roots.RowRoots)*len(roots.RowRoots))
 	for i, row := range rows {
 		rowShrs, err := row.Shares()
 		if err != nil {
@@ -255,7 +283,7 @@ func edsFromRows(roots *share.AxisRoots, rows []shwap.Row) (*rsmt2d.ExtendedData
 	}
 
 	square, err := rsmt2d.ImportExtendedDataSquare(
-		shrs,
+		libshare.ToBytes(shrs),
 		share.DefaultRSMT2DCodec(),
 		wrapper.NewConstructor(uint64(len(roots.RowRoots)/2)),
 	)
@@ -269,4 +297,41 @@ func edsFromRows(roots *share.AxisRoots, rows []shwap.Row) (*rsmt2d.ExtendedData
 	}
 
 	return square, nil
+}
+
+// pool is a pool of Bitswap sessions.
+type pool struct {
+	lock     sync.Mutex
+	sessions []exchange.Fetcher
+	ctx      context.Context
+	exchange exchange.SessionExchange
+}
+
+func newPool(ex exchange.SessionExchange) *pool {
+	return &pool{
+		exchange: ex,
+		sessions: make([]exchange.Fetcher, 0),
+	}
+}
+
+// get returns a session from the pool or creates a new one if the pool is empty.
+func (p *pool) get() exchange.Fetcher {
+	p.lock.Lock()
+	defer p.lock.Unlock()
+
+	if len(p.sessions) == 0 {
+		return p.exchange.NewSession(p.ctx)
+	}
+
+	ses := p.sessions[len(p.sessions)-1]
+	p.sessions = p.sessions[:len(p.sessions)-1]
+	return ses
+}
+
+// put returns a session to the pool.
+func (p *pool) put(ses exchange.Fetcher) {
+	p.lock.Lock()
+	defer p.lock.Unlock()
+
+	p.sessions = append(p.sessions, ses)
 }

@@ -5,11 +5,12 @@ import (
 
 	"github.com/stretchr/testify/require"
 
-	"github.com/celestiaorg/celestia-node/share/sharetest"
+	libshare "github.com/celestiaorg/go-square/v2/share"
 )
 
 func TestExtendAxisHalf(t *testing.T) {
-	shares := sharetest.RandShares(t, 16)
+	shares, err := libshare.RandShares(16)
+	require.NoError(t, err)
 
 	original := AxisHalf{
 		Shares:   shares,

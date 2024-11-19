@@ -9,6 +9,7 @@ import (
 	"os"
 	"sync"
 
+	libshare "github.com/celestiaorg/go-square/v2/share"
 	"github.com/celestiaorg/rsmt2d"
 
 	"github.com/celestiaorg/celestia-node/share"
@@ -54,9 +55,10 @@ func CreateODS(
 		return fmt.Errorf("creating ODS file: %w", err)
 	}
 
+	shareSize := len(eds.GetCell(0, 0))
 	hdr := &headerV0{
 		fileVersion: fileV0,
-		shareSize:   share.Size,
+		shareSize:   uint16(shareSize),
 		squareSize:  uint16(eds.Width()),
 		datahash:    roots.Hash(),
 	}
@@ -100,11 +102,15 @@ func writeODS(w io.Writer, eds *rsmt2d.ExtendedDataSquare) error {
 	for i := range eds.Width() / 2 {
 		for j := range eds.Width() / 2 {
 			shr := eds.GetCell(i, j) // TODO: Avoid copying inside GetCell
-			if share.GetNamespace(shr).Equals(share.TailPaddingNamespace) {
+			ns, err := libshare.NewNamespaceFromBytes(shr[:libshare.NamespaceSize])
+			if err != nil {
+				return fmt.Errorf("creating namespace: %w", err)
+			}
+			if ns.Equals(libshare.TailPaddingNamespace) {
 				return nil
 			}
 
-			_, err := w.Write(shr)
+			_, err = w.Write(shr)
 			if err != nil {
 				return fmt.Errorf("writing share: %w", err)
 			}
@@ -127,6 +133,30 @@ func writeAxisRoots(w io.Writer, roots *share.AxisRoots) error {
 		}
 	}
 
+	return nil
+}
+
+// ValidateODSSize checks if the file under given FS path has the expected size.
+func ValidateODSSize(path string, eds *rsmt2d.ExtendedDataSquare) error {
+	ods, err := OpenODS(path)
+	if err != nil {
+		return fmt.Errorf("opening file: %w", err)
+	}
+
+	shares, err := filledSharesAmount(eds)
+	if err != nil {
+		return fmt.Errorf("calculating shares amount: %w", err)
+	}
+	shareSize := len(eds.GetCell(0, 0))
+	expectedSize := ods.hdr.OffsetWithRoots() + shares*shareSize
+
+	info, err := ods.fl.Stat()
+	if err != nil {
+		return fmt.Errorf("getting file info: %w", err)
+	}
+	if info.Size() != int64(expectedSize) {
+		return fmt.Errorf("file size mismatch: expected %d, got %d", expectedSize, info.Size())
+	}
 	return nil
 }
 
@@ -248,7 +278,7 @@ func (o *ODS) AxisHalf(_ context.Context, axisType rsmt2d.Axis, axisIdx int) (ed
 // RowNamespaceData returns data for the given namespace and row index.
 func (o *ODS) RowNamespaceData(
 	ctx context.Context,
-	namespace share.Namespace,
+	namespace libshare.Namespace,
 	rowIdx int,
 ) (shwap.RowNamespaceData, error) {
 	shares, err := o.axis(ctx, rsmt2d.Row, rowIdx)
@@ -259,7 +289,7 @@ func (o *ODS) RowNamespaceData(
 }
 
 // Shares returns data shares extracted from the Accessor.
-func (o *ODS) Shares(context.Context) ([]share.Share, error) {
+func (o *ODS) Shares(context.Context) ([]libshare.Share, error) {
 	ods, err := o.readODS()
 	if err != nil {
 		return nil, err
@@ -283,7 +313,7 @@ func (o *ODS) Reader() (io.Reader, error) {
 	return reader, nil
 }
 
-func (o *ODS) axis(ctx context.Context, axisType rsmt2d.Axis, axisIdx int) ([]share.Share, error) {
+func (o *ODS) axis(ctx context.Context, axisType rsmt2d.Axis, axisIdx int) ([]libshare.Share, error) {
 	half, err := o.AxisHalf(ctx, axisType, axisIdx)
 	if err != nil {
 		return nil, err
@@ -346,7 +376,7 @@ func (o *ODS) readODS() (square, error) {
 	return ods, nil
 }
 
-func readAxisHalf(r io.ReaderAt, axisTp rsmt2d.Axis, axisIdx int, hdr *headerV0, offset int) ([]share.Share, error) {
+func readAxisHalf(r io.ReaderAt, axisTp rsmt2d.Axis, axisIdx int, hdr *headerV0, offset int) ([]libshare.Share, error) {
 	switch axisTp {
 	case rsmt2d.Row:
 		return readRowHalf(r, axisIdx, hdr, offset)
@@ -359,12 +389,12 @@ func readAxisHalf(r io.ReaderAt, axisTp rsmt2d.Axis, axisIdx int, hdr *headerV0,
 
 // readRowHalf reads specific Row half from the file in a single IO operation.
 // If some or all shares are missing, tail padding shares are returned instead.
-func readRowHalf(r io.ReaderAt, rowIdx int, hdr *headerV0, offset int) ([]share.Share, error) {
+func readRowHalf(r io.ReaderAt, rowIdx int, hdr *headerV0, offset int) ([]libshare.Share, error) {
 	odsLn := hdr.SquareSize() / 2
 	rowOffset := rowIdx * odsLn * hdr.ShareSize()
 	offset += rowOffset
 
-	shares := make([]share.Share, odsLn)
+	shares := make([]libshare.Share, odsLn)
 	axsData := make([]byte, odsLn*hdr.ShareSize())
 	n, err := r.ReadAt(axsData, int64(offset))
 	if err != nil && !errors.Is(err, io.EOF) {
@@ -377,24 +407,28 @@ func readRowHalf(r io.ReaderAt, rowIdx int, hdr *headerV0, offset int) ([]share.
 		if i > shrsRead-1 {
 			// partial or empty row was read
 			// fill the rest with tail padding it
-			shares[i] = share.TailPadding()
+			shares[i] = libshare.TailPaddingShare()
 			continue
 		}
-		shares[i] = axsData[i*hdr.ShareSize() : (i+1)*hdr.ShareSize()]
+		sh, err := libshare.NewShare(axsData[i*hdr.ShareSize() : (i+1)*hdr.ShareSize()])
+		if err != nil {
+			return nil, err
+		}
+		shares[i] = *sh
 	}
 	return shares, nil
 }
 
 // readColHalf reads specific Col half from the file in a single IO operation.
 // If some or all shares are missing, tail padding shares are returned instead.
-func readColHalf(r io.ReaderAt, colIdx int, hdr *headerV0, offset int) ([]share.Share, error) {
+func readColHalf(r io.ReaderAt, colIdx int, hdr *headerV0, offset int) ([]libshare.Share, error) {
 	odsLn := hdr.SquareSize() / 2
-	shares := make([]share.Share, odsLn)
+	shares := make([]libshare.Share, odsLn)
 	for i := range shares {
 		pos := colIdx + i*odsLn
 		offset := offset + pos*hdr.ShareSize()
 
-		shr := make(share.Share, hdr.ShareSize())
+		shr := make([]byte, hdr.ShareSize())
 		n, err := r.ReadAt(shr, int64(offset))
 		if err != nil && !errors.Is(err, io.EOF) {
 			// unknown error
@@ -404,12 +438,36 @@ func readColHalf(r io.ReaderAt, colIdx int, hdr *headerV0, offset int) ([]share.
 			// no shares left
 			// fill the rest with tail padding
 			for ; i < len(shares); i++ {
-				shares[i] = share.TailPadding()
+				shares[i] = libshare.TailPaddingShare()
 			}
 			return shares, nil
 		}
+
+		sh, err := libshare.NewShare(shr)
+		if err != nil {
+			return nil, err
+		}
 		// we got a share
-		shares[i] = shr
+		shares[i] = *sh
 	}
 	return shares, nil
+}
+
+// filledSharesAmount returns the amount of shares in the ODS that are not tail padding.
+func filledSharesAmount(eds *rsmt2d.ExtendedDataSquare) (int, error) {
+	var amount int
+	for i := range eds.Width() / 2 {
+		for j := range eds.Width() / 2 {
+			rawShr := eds.GetCell(i, j)
+			shr, err := libshare.NewShare(rawShr)
+			if err != nil {
+				return 0, fmt.Errorf("creating share at(%d,%d): %w", i, j, err)
+			}
+			if shr.Namespace().Equals(libshare.TailPaddingNamespace) {
+				break
+			}
+			amount++
+		}
+	}
+	return amount, nil
 }

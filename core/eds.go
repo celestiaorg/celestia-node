@@ -3,21 +3,21 @@ package core
 import (
 	"context"
 	"fmt"
+	"time"
 
 	"github.com/tendermint/tendermint/types"
 
-	"github.com/celestiaorg/celestia-app/v2/app"
-	"github.com/celestiaorg/celestia-app/v2/pkg/appconsts"
-	"github.com/celestiaorg/celestia-app/v2/pkg/wrapper"
-	"github.com/celestiaorg/go-square/shares"
-	"github.com/celestiaorg/go-square/square"
+	"github.com/celestiaorg/celestia-app/v3/app"
+	"github.com/celestiaorg/celestia-app/v3/pkg/appconsts"
+	"github.com/celestiaorg/celestia-app/v3/pkg/wrapper"
+	libsquare "github.com/celestiaorg/go-square/v2"
+	libshare "github.com/celestiaorg/go-square/v2/share"
 	"github.com/celestiaorg/nmt"
 	"github.com/celestiaorg/rsmt2d"
 
 	"github.com/celestiaorg/celestia-node/header"
-	"github.com/celestiaorg/celestia-node/pruner"
-	"github.com/celestiaorg/celestia-node/pruner/full"
 	"github.com/celestiaorg/celestia-node/share"
+	"github.com/celestiaorg/celestia-node/share/availability"
 	"github.com/celestiaorg/celestia-node/store"
 )
 
@@ -30,7 +30,7 @@ func extendBlock(data types.Data, appVersion uint64, options ...nmt.Option) (*rs
 	}
 
 	// Construct the data square from the block's transactions
-	dataSquare, err := square.Construct(
+	square, err := libsquare.Construct(
 		data.Txs.ToSliceOfBytes(),
 		appconsts.SquareSizeUpperBound(appVersion),
 		appconsts.SubtreeRootThreshold(appVersion),
@@ -38,17 +38,17 @@ func extendBlock(data types.Data, appVersion uint64, options ...nmt.Option) (*rs
 	if err != nil {
 		return nil, err
 	}
-	return extendShares(shares.ToBytes(dataSquare), options...)
+	return extendShares(libshare.ToBytes(square), options...)
 }
 
 func extendShares(s [][]byte, options ...nmt.Option) (*rsmt2d.ExtendedDataSquare, error) {
 	// Check that the length of the square is a power of 2.
-	if !shares.IsPowerOfTwo(len(s)) {
+	if !libsquare.IsPowerOfTwo(len(s)) {
 		return nil, fmt.Errorf("number of shares is not a power of 2: got %d", len(s))
 	}
 	// here we construct a tree
 	// Note: uses the nmt wrapper to construct the tree.
-	squareSize := square.Size(len(s))
+	squareSize := libsquare.Size(len(s))
 	return rsmt2d.ComputeExtendedDataSquare(s,
 		appconsts.DefaultCodec(),
 		wrapper.NewConstructor(uint64(squareSize),
@@ -61,16 +61,16 @@ func storeEDS(
 	eh *header.ExtendedHeader,
 	eds *rsmt2d.ExtendedDataSquare,
 	store *store.Store,
-	window pruner.AvailabilityWindow,
+	window time.Duration,
 ) error {
-	if !pruner.IsWithinAvailabilityWindow(eh.Time(), window) {
+	if !availability.IsWithinWindow(eh.Time(), window) {
 		log.Debugw("skipping storage of historic block", "height", eh.Height())
 		return nil
 	}
 
 	var err error
 	// archival nodes should not store Q4 outside the availability window.
-	if pruner.IsWithinAvailabilityWindow(eh.Time(), full.Window) {
+	if availability.IsWithinWindow(eh.Time(), availability.StorageWindow) {
 		err = store.PutODSQ4(ctx, eh.DAH, eh.Height(), eds)
 	} else {
 		err = store.PutODS(ctx, eh.DAH, eh.Height(), eds)

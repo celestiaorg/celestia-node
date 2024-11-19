@@ -6,7 +6,6 @@ import (
 	"errors"
 	"fmt"
 	"hash"
-	"math/rand"
 
 	"github.com/ipfs/boxo/blockservice"
 	blocks "github.com/ipfs/go-block-format"
@@ -16,7 +15,7 @@ import (
 	mh "github.com/multiformats/go-multihash"
 	mhcore "github.com/multiformats/go-multihash/core"
 
-	"github.com/celestiaorg/celestia-app/v2/pkg/appconsts"
+	libshare "github.com/celestiaorg/go-square/v2/share"
 	"github.com/celestiaorg/nmt"
 
 	"github.com/celestiaorg/celestia-node/share"
@@ -36,13 +35,13 @@ const (
 	sha256NamespaceFlagged = 0x7701
 
 	// NmtHashSize is the size of a digest created by an NMT in bytes.
-	NmtHashSize = 2*share.NamespaceSize + sha256.Size
+	NmtHashSize = 2*libshare.NamespaceSize + sha256.Size
 
 	// InnerNodeSize is the size of data in inner nodes.
 	InnerNodeSize = NmtHashSize * 2
 
 	// LeafNodeSize is the size of data in leaf nodes.
-	LeafNodeSize = share.NamespaceSize + appconsts.ShareSize
+	LeafNodeSize = libshare.NamespaceSize + libshare.ShareSize
 
 	// cidPrefixSize is the size of the prepended buffer of the CID encoding
 	// for NamespacedSha256. For more information, see:
@@ -58,7 +57,7 @@ const (
 func init() {
 	// required for Bitswap to hash and verify inbound data correctly
 	mhcore.Register(sha256NamespaceFlagged, func() hash.Hash {
-		nh := nmt.NewNmtHasher(share.NewSHA256Hasher(), share.NamespaceSize, true)
+		nh := nmt.NewNmtHasher(share.NewSHA256Hasher(), libshare.NamespaceSize, true)
 		nh.Reset()
 		return nh
 	})
@@ -153,16 +152,6 @@ func MustCidFromNamespacedSha256(hash []byte) cid.Cid {
 		)
 	}
 	return cidFromHash
-}
-
-// Translate transforms square coordinates into IPLD NMT tree path to a leaf node.
-// It also adds randomization to evenly spread fetching from Rows and Columns.
-func Translate(roots *share.AxisRoots, row, col int) (cid.Cid, int) {
-	if rand.Intn(2) == 0 { //nolint:gosec
-		return MustCidFromNamespacedSha256(roots.ColumnRoots[col]), row
-	}
-
-	return MustCidFromNamespacedSha256(roots.RowRoots[row]), col
 }
 
 // NamespacedSha256FromCID derives the Namespaced hash from the given CID.

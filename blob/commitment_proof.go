@@ -5,13 +5,12 @@ import (
 	"errors"
 	"fmt"
 
-	"github.com/celestiaorg/celestia-app/v2/pkg/appconsts"
-	"github.com/celestiaorg/celestia-app/v2/pkg/proof"
-	"github.com/celestiaorg/go-square/inclusion"
+	"github.com/celestiaorg/celestia-app/v3/pkg/appconsts"
+	"github.com/celestiaorg/celestia-app/v3/pkg/proof"
+	"github.com/celestiaorg/go-square/v2/inclusion"
+	libshare "github.com/celestiaorg/go-square/v2/share"
 	"github.com/celestiaorg/nmt"
 	"github.com/celestiaorg/nmt/namespace"
-
-	"github.com/celestiaorg/celestia-node/share"
 )
 
 // Commitment is a Merkle Root of the subtree built from shares of the Blob.
@@ -95,7 +94,7 @@ func (commitmentProof *CommitmentProof) Verify(root []byte, subtreeRootThreshold
 		return false, err
 	}
 
-	nmtHasher := nmt.NewNmtHasher(appconsts.NewBaseHashFunc(), share.NamespaceSize, true)
+	nmtHasher := nmt.NewNmtHasher(appconsts.NewBaseHashFunc(), libshare.NamespaceSize, true)
 
 	// computes the total number of shares proven.
 	numberOfShares := 0

@@ -10,11 +10,11 @@ import (
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/trace"
 
+	libshare "github.com/celestiaorg/go-square/v2/share"
 	"github.com/celestiaorg/rsmt2d"
 
 	"github.com/celestiaorg/celestia-node/header"
 	"github.com/celestiaorg/celestia-node/libs/utils"
-	"github.com/celestiaorg/celestia-node/share"
 	"github.com/celestiaorg/celestia-node/share/eds/byzantine"
 	"github.com/celestiaorg/celestia-node/share/shwap"
 )
@@ -44,7 +44,7 @@ func NewCascadeGetter(getters []shwap.Getter) *CascadeGetter {
 // GetShare gets a share from any of registered shwap.Getters in cascading order.
 func (cg *CascadeGetter) GetShare(
 	ctx context.Context, header *header.ExtendedHeader, row, col int,
-) (share.Share, error) {
+) (libshare.Share, error) {
 	ctx, span := tracer.Start(ctx, "cascade/get-share", trace.WithAttributes(
 		attribute.Int("row", row),
 		attribute.Int("col", col),
@@ -55,9 +55,9 @@ func (cg *CascadeGetter) GetShare(
 	if row >= upperBound || col >= upperBound {
 		err := shwap.ErrOutOfBounds
 		span.RecordError(err)
-		return nil, err
+		return libshare.Share{}, err
 	}
-	get := func(ctx context.Context, get shwap.Getter) (share.Share, error) {
+	get := func(ctx context.Context, get shwap.Getter) (libshare.Share, error) {
 		return get.GetShare(ctx, header, row, col)
 	}
 
@@ -78,12 +78,12 @@ func (cg *CascadeGetter) GetEDS(
 	return cascadeGetters(ctx, cg.getters, get)
 }
 
-// GetSharesByNamespace gets NamespacedShares from any of registered shwap.Getters in cascading
+// GetNamespaceData gets NamespacedShares from any of registered shwap.Getters in cascading
 // order.
-func (cg *CascadeGetter) GetSharesByNamespace(
+func (cg *CascadeGetter) GetNamespaceData(
 	ctx context.Context,
 	header *header.ExtendedHeader,
-	namespace share.Namespace,
+	namespace libshare.Namespace,
 ) (shwap.NamespaceData, error) {
 	ctx, span := tracer.Start(ctx, "cascade/get-shares-by-namespace", trace.WithAttributes(
 		attribute.String("namespace", namespace.String()),
@@ -91,7 +91,7 @@ func (cg *CascadeGetter) GetSharesByNamespace(
 	defer span.End()
 
 	get := func(ctx context.Context, get shwap.Getter) (shwap.NamespaceData, error) {
-		return get.GetSharesByNamespace(ctx, header, namespace)
+		return get.GetNamespaceData(ctx, header, namespace)
 	}
 
 	return cascadeGetters(ctx, cg.getters, get)
