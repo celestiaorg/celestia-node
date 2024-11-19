@@ -135,7 +135,6 @@ func (la *ShareAvailability) SharesAvailable(ctx context.Context, header *header
 		return share.ErrNotAvailable
 	}
 
-	var fetchedSamples []Sample
 	var failedSamples []Sample
 
 	for i, smpl := range smpls {
@@ -147,11 +146,10 @@ func (la *ShareAvailability) SharesAvailable(ctx context.Context, header *header
 		if smpl.IsEmpty() {
 			failedSamples = append(failedSamples, Sample{Row: row, Col: col})
 		} else {
-			fetchedSamples = append(fetchedSamples, Sample{Row: row, Col: col})
+			samples.Available = append(samples.Available, Sample{Row: row, Col: col})
 		}
 	}
 
-	samples.Available = fetchedSamples
 	samples.Remaining = failedSamples
 
 	// Store the updated sampling result
