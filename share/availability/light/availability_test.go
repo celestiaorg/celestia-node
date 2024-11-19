@@ -144,19 +144,6 @@ func TestSharesAvailableFailed(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
-	failGetter := mock.NewMockGetter(gomock.NewController(t))
-	// Getter doesn't have the eds, so it should fail for all samples
-	// failGetter.EXPECT().
-	// 	GetShare(gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any()).
-	// 	Return(libshare.Share{}, shrex.ErrNotFound).
-	failGetter.EXPECT().
-		GetSamples(gomock.Any(), gomock.Any(), gomock.Any()).
-		Return(make([]shwap.Sample, DefaultSampleAmount), shrex.ErrNotFound).
-		AnyTimes()
-
-	ds := datastore.NewMapDatastore()
-	avail := NewShareAvailability(failGetter, ds, nil)
-
 	type test struct {
 		eh    *header.ExtendedHeader
 		roots *share.AxisRoots
@@ -171,16 +158,21 @@ func TestSharesAvailableFailed(t *testing.T) {
 		roots, err := share.NewAxisRoots(eds)
 		require.NoError(t, err)
 		eh := headertest.RandExtendedHeaderWithRoot(t, roots)
-		// // Simulate a getter that now returns shares successfully
-		// successfulGetter := newOnceGetter()
-		// successfulGetter.addSamples(failed.Remaining)
-		// avail.getter = successfulGetter
 
 		tests = append(tests, test{eh: eh, roots: roots, eds: eds})
 	}
 
 	for _, tt := range tests {
-		avail.getter = failGetter
+		failGetter := mock.NewMockGetter(gomock.NewController(t))
+		ds := datastore.NewMapDatastore()
+		avail := NewShareAvailability(failGetter, ds, nil)
+
+		// Getter doesn't have the eds, so it should fail for all samples
+		mockSamples := min(int(avail.params.SampleAmount), 2*len(tt.eh.DAH.RowRoots))
+		failGetter.EXPECT().
+			GetSamples(gomock.Any(), gomock.Any(), gomock.Any()).
+			Return(make([]shwap.Sample, mockSamples), shrex.ErrNotFound).
+			AnyTimes()
 
 		err := avail.SharesAvailable(ctx, tt.eh)
 		require.ErrorIs(t, err, share.ErrNotAvailable)
@@ -201,7 +193,7 @@ func TestSharesAvailableFailed(t *testing.T) {
 		}
 
 		// Simulate a getter that now returns shares successfully
-		successfulGetter := newOnceGetter()
+		successfulGetter := newSuccessGetter()
 		avail.getter = successfulGetter
 
 		// should be able to retrieve all the failed samples now
@@ -224,15 +216,8 @@ func TestSharesAvailableFailed(t *testing.T) {
 		}
 
 		// onceGetter should have no more samples stored after the call
-		successfulGetter.checkOnce(t)
-		// require.ElementsMatch(t, failed.Remaining, successfulGetter.sampledList())
+		require.ElementsMatch(t, failed.Remaining, successfulGetter.sampledList())
 	}
-	// // onceGetter should have no more samples stored after the call
-	// successfulGetter.checkOnce(t)
-	// require.ElementsMatch(t, failed.Remaining, len(successfulGetter.sampled))
-	// onceGetter should have no more samples stored after the call
-	// successfulGetter.checkOnce(t)
-	// require.Empty(t, successfulGetter.sampledList())
 }
 
 func TestParallelAvailability(t *testing.T) {
@@ -403,7 +388,6 @@ func (g successGetter) GetNamespaceData(
 }
 
 func TestPruneAll(t *testing.T) {
-	t.Skip("TODO")
 	const size = 8
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second*2)
 	t.Cleanup(cancel)
@@ -451,7 +435,6 @@ func TestPruneAll(t *testing.T) {
 }
 
 func TestPrunePartialFailed(t *testing.T) {
-	t.Skip("TODO")
 	const size = 8
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second*2)
 	t.Cleanup(cancel)

@@ -15,6 +15,7 @@ import (
 
 	"github.com/celestiaorg/celestia-app/v3/pkg/wrapper"
 	libshare "github.com/celestiaorg/go-square/v2/share"
+	"github.com/celestiaorg/nmt"
 	"github.com/celestiaorg/rsmt2d"
 
 	"github.com/celestiaorg/celestia-node/header"
@@ -131,7 +132,9 @@ func (g *Getter) GetSamples(
 
 	smpls := make([]shwap.Sample, len(blks))
 	for i, blk := range blks {
-		smpls[i] = blk.(*SampleBlock).Container
+		c := blk.(*SampleBlock).Container
+		c.Proof = &nmt.Proof{} // TODO
+		smpls[i] = c
 	}
 
 	span.SetStatus(codes.Ok, "")
