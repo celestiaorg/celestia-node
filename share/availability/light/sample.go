@@ -50,8 +50,8 @@ func selectRandomSamples(squareSize, sampleCount int) []Sample {
 	return maps.Keys(samples)
 }
 
-func randInt(max int) int {
-	n, err := crand.Int(crand.Reader, big.NewInt(int64(max)))
+func randInt(m int) int {
+	n, err := crand.Int(crand.Reader, big.NewInt(int64(m)))
 	if err != nil {
 		panic(err) // won't panic as rand.Reader is endless
 	}

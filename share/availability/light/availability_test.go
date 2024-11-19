@@ -260,82 +260,6 @@ func TestParallelAvailability(t *testing.T) {
 	require.Len(t, samplingResult.Available, int(avail.params.SampleAmount))
 }
 
-type onceGetter struct {
-	*sync.Mutex
-	sampled map[Sample]int
-}
-
-func newOnceGetter() onceGetter {
-	return onceGetter{
-		Mutex:   &sync.Mutex{},
-		sampled: make(map[Sample]int),
-	}
-}
-
-func (g onceGetter) addSamples(samples []Sample) {
-	g.Lock()
-	defer g.Unlock()
-
-	for _, r := range samples {
-		s := Sample{Row: r.Row, Col: r.Col}
-		g.sampled[s]++
-	}
-}
-
-func (g onceGetter) sampledList() []Sample {
-	g.Lock()
-	defer g.Unlock()
-	samples := make([]Sample, 0, len(g.sampled))
-	for s := range g.sampled {
-		samples = append(samples, s)
-	}
-	return samples
-}
-
-func (g onceGetter) checkOnce(t *testing.T) {
-	g.Lock()
-	defer g.Unlock()
-	for s, count := range g.sampled {
-		if count > 1 {
-			t.Errorf("sample %v was called more than once", s)
-		}
-	}
-}
-
-func (g onceGetter) GetSamples(_ context.Context, hdr *header.ExtendedHeader,
-	indices []shwap.SampleIndex,
-) ([]shwap.Sample, error) {
-	g.Lock()
-	defer g.Unlock()
-
-	smpls := make([]shwap.Sample, 0, len(indices))
-	for _, idx := range indices {
-		rowIdx, colIdx, err := idx.Coordinates(len(hdr.DAH.RowRoots))
-		if err != nil {
-			return nil, err
-		}
-
-		s := Sample{Row: rowIdx, Col: colIdx}
-		if _, ok := g.sampled[s]; ok {
-			delete(g.sampled, s)
-			smpls = append(smpls, shwap.Sample{Proof: &nmt.Proof{}})
-		}
-	}
-	return smpls, nil
-}
-
-func (g onceGetter) GetEDS(_ context.Context, _ *header.ExtendedHeader) (*rsmt2d.ExtendedDataSquare, error) {
-	panic("not implemented")
-}
-
-func (g onceGetter) GetNamespaceData(
-	_ context.Context,
-	_ *header.ExtendedHeader,
-	_ libshare.Namespace,
-) (shwap.NamespaceData, error) {
-	panic("not implemented")
-}
-
 type successGetter struct {
 	*sync.Mutex
 	sampled map[Sample]int
@@ -370,7 +294,6 @@ func (g successGetter) GetSamples(_ context.Context, hdr *header.ExtendedHeader,
 		s := Sample{Row: rowIdx, Col: colIdx}
 		g.sampled[s]++
 		smpls = append(smpls, shwap.Sample{Proof: &nmt.Proof{}})
-
 	}
 	return smpls, nil
 }
