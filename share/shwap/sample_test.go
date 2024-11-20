@@ -25,7 +25,7 @@ func TestSampleValidate(t *testing.T) {
 	for _, proofType := range []rsmt2d.Axis{rsmt2d.Row, rsmt2d.Col} {
 		for rowIdx := 0; rowIdx < odsSize*2; rowIdx++ {
 			for colIdx := 0; colIdx < odsSize*2; colIdx++ {
-				idx := shwap.SampleIndex{Row: rowIdx, Col: colIdx}
+				idx := shwap.SampleCoords{Row: rowIdx, Col: colIdx}
 
 				sample, err := inMem.SampleForProofAxis(idx, proofType)
 				require.NoError(t, err)
@@ -44,7 +44,7 @@ func TestSampleNegativeVerifyInclusion(t *testing.T) {
 	require.NoError(t, err)
 	inMem := eds.Rsmt2D{ExtendedDataSquare: randEDS}
 
-	sample, err := inMem.Sample(context.Background(), shwap.SampleIndex{})
+	sample, err := inMem.Sample(context.Background(), shwap.SampleCoords{})
 	require.NoError(t, err)
 	err = sample.Verify(root, 0, 0)
 	require.NoError(t, err)
@@ -63,14 +63,14 @@ func TestSampleNegativeVerifyInclusion(t *testing.T) {
 	require.ErrorIs(t, err, shwap.ErrFailedVerification)
 
 	// incorrect proofType
-	sample, err = inMem.Sample(context.Background(), shwap.SampleIndex{})
+	sample, err = inMem.Sample(context.Background(), shwap.SampleCoords{})
 	require.NoError(t, err)
 	sample.ProofType = rsmt2d.Col
 	err = sample.Verify(root, 0, 0)
 	require.ErrorIs(t, err, shwap.ErrFailedVerification)
 
 	// Corrupt the last root hash byte
-	sample, err = inMem.Sample(context.Background(), shwap.SampleIndex{})
+	sample, err = inMem.Sample(context.Background(), shwap.SampleCoords{})
 	require.NoError(t, err)
 	root.RowRoots[0][len(root.RowRoots[0])-1] ^= 0xFF
 	err = sample.Verify(root, 0, 0)
@@ -85,7 +85,7 @@ func TestSampleProtoEncoding(t *testing.T) {
 	for _, proofType := range []rsmt2d.Axis{rsmt2d.Row, rsmt2d.Col} {
 		for rowIdx := 0; rowIdx < odsSize*2; rowIdx++ {
 			for colIdx := 0; colIdx < odsSize*2; colIdx++ {
-				idx := shwap.SampleIndex{Row: rowIdx, Col: colIdx}
+				idx := shwap.SampleCoords{Row: rowIdx, Col: colIdx}
 
 				sample, err := inMem.SampleForProofAxis(idx, proofType)
 				require.NoError(t, err)
@@ -108,7 +108,7 @@ func BenchmarkSampleValidate(b *testing.B) {
 	require.NoError(b, err)
 	inMem := eds.Rsmt2D{ExtendedDataSquare: randEDS}
 
-	sample, err := inMem.SampleForProofAxis(shwap.SampleIndex{}, rsmt2d.Row)
+	sample, err := inMem.SampleForProofAxis(shwap.SampleCoords{}, rsmt2d.Row)
 	require.NoError(b, err)
 
 	b.ResetTimer()

@@ -59,7 +59,7 @@ func (n NoopFile) AxisRoots(context.Context) (*share.AxisRoots, error) {
 	return &share.AxisRoots{}, nil
 }
 
-func (n NoopFile) Sample(context.Context, shwap.SampleIndex) (shwap.Sample, error) {
+func (n NoopFile) Sample(context.Context, shwap.SampleCoords) (shwap.Sample, error) {
 	return shwap.Sample{}, nil
 }
 

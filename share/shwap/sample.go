@@ -31,7 +31,7 @@ type Sample struct {
 
 // SampleFromShares creates a Sample from a list of shares, using the specified proof type and
 // the share index to be included in the sample.
-func SampleFromShares(shares []libshare.Share, proofType rsmt2d.Axis, idx SampleIndex) (Sample, error) {
+func SampleFromShares(shares []libshare.Share, proofType rsmt2d.Axis, idx SampleCoords) (Sample, error) {
 	tree := wrapper.NewErasuredNamespacedMerkleTree(uint64(len(shares)/2), uint(idx.Row))
 	for _, shr := range shares {
 		err := tree.Push(shr.ToBytes())

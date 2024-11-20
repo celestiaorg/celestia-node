@@ -57,7 +57,7 @@ func (c *closeOnce) AxisRoots(ctx context.Context) (*share.AxisRoots, error) {
 	return c.f.AxisRoots(ctx)
 }
 
-func (c *closeOnce) Sample(ctx context.Context, idx shwap.SampleIndex) (shwap.Sample, error) {
+func (c *closeOnce) Sample(ctx context.Context, idx shwap.SampleCoords) (shwap.Sample, error) {
 	if c.closed.Load() {
 		return shwap.Sample{}, errAccessorClosed
 	}

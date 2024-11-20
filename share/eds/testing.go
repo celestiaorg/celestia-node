@@ -148,7 +148,7 @@ func testAccessorSample(
 		// t.Parallel() this fails the test for some reason
 		for rowIdx := 0; rowIdx < width; rowIdx++ {
 			for colIdx := 0; colIdx < width; colIdx++ {
-				idx := shwap.SampleIndex{Row: rowIdx, Col: colIdx}
+				idx := shwap.SampleCoords{Row: rowIdx, Col: colIdx}
 				testSample(ctx, t, acc, roots, idx)
 			}
 		}
@@ -163,8 +163,8 @@ func testAccessorSample(
 		for rowIdx := 0; rowIdx < width; rowIdx++ {
 			for colIdx := 0; colIdx < width; colIdx++ {
 				wg.Add(1)
-				idx := shwap.SampleIndex{Row: rowIdx, Col: colIdx}
-				go func(idx shwap.SampleIndex) {
+				idx := shwap.SampleCoords{Row: rowIdx, Col: colIdx}
+				go func(idx shwap.SampleCoords) {
 					defer wg.Done()
 					testSample(ctx, t, acc, roots, idx)
 				}(idx)
@@ -186,7 +186,7 @@ func testAccessorSample(
 				defer wg.Done()
 				rowIdx := rand.IntN(int(eds.Width())) //nolint:gosec
 				colIdx := rand.IntN(int(eds.Width())) //nolint:gosec
-				testSample(ctx, t, acc, roots, shwap.SampleIndex{Row: rowIdx, Col: colIdx})
+				testSample(ctx, t, acc, roots, shwap.SampleCoords{Row: rowIdx, Col: colIdx})
 			}()
 		}
 		wg.Wait()
@@ -198,7 +198,7 @@ func testSample(
 	t *testing.T,
 	acc Accessor,
 	roots *share.AxisRoots,
-	idx shwap.SampleIndex,
+	idx shwap.SampleCoords,
 ) {
 	shr, err := acc.Sample(ctx, idx)
 	require.NoError(t, err)
@@ -447,7 +447,7 @@ func BenchGetSampleFromAccessor(
 			name := fmt.Sprintf("Size:%v/quadrant:%s", size, q)
 			b.Run(name, func(b *testing.B) {
 				rowIdx, colIdx := q.coordinates(acc.Size(ctx))
-				idx := shwap.SampleIndex{Row: rowIdx, Col: colIdx}
+				idx := shwap.SampleCoords{Row: rowIdx, Col: colIdx}
 
 				// warm up cache
 				_, err := acc.Sample(ctx, idx)

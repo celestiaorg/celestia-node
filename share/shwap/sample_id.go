@@ -10,28 +10,28 @@ import (
 // bytes for the ShareIndex.
 const SampleIDSize = RowIDSize + 2
 
-type SampleIndex struct {
+type SampleCoords struct {
 	Row, Col int
 }
 
-func SampleIndexAs1DIndex(idx SampleIndex, edsSize int) (int, error) {
+func SampleCoordsAs1DIndex(idx SampleCoords, edsSize int) (int, error) {
 	if idx.Row < 0 || idx.Col < 0 {
 		return 0, fmt.Errorf("negative row or col index: %w", ErrInvalidID)
 	}
 	if idx.Row >= edsSize || idx.Col >= edsSize {
-		return 0, fmt.Errorf("SampleIndex %d || %d > %d: %w", idx.Row, idx.Col, edsSize, ErrOutOfBounds)
+		return 0, fmt.Errorf("SampleCoords %d || %d > %d: %w", idx.Row, idx.Col, edsSize, ErrOutOfBounds)
 	}
 	return idx.Row*edsSize + idx.Col, nil
 }
 
-func SampleIndexFrom1DIndex(idx, squareSize int) (SampleIndex, error) {
+func SampleCoordsFrom1DIndex(idx, squareSize int) (SampleCoords, error) {
 	if int(idx) > squareSize*squareSize {
-		return SampleIndex{}, fmt.Errorf("SampleIndex %d > %d: %w", idx, squareSize*squareSize, ErrOutOfBounds)
+		return SampleCoords{}, fmt.Errorf("SampleCoords %d > %d: %w", idx, squareSize*squareSize, ErrOutOfBounds)
 	}
 
 	rowIdx := int(idx) / squareSize
 	colIdx := int(idx) % squareSize
-	return SampleIndex{Row: rowIdx, Col: colIdx}, nil
+	return SampleCoords{Row: rowIdx, Col: colIdx}, nil
 }
 
 // SampleID uniquely identifies a specific sample within a row of an Extended Data Square (EDS).
@@ -42,7 +42,7 @@ type SampleID struct {
 
 // NewSampleID constructs a new SampleID using the provided block height, sample index, and EDS
 // size. It calculates the row and share index based on the sample index and EDS size.
-func NewSampleID(height uint64, idx SampleIndex, edsSize int) (SampleID, error) {
+func NewSampleID(height uint64, idx SampleCoords, edsSize int) (SampleID, error) {
 	sid := SampleID{
 		RowID: RowID{
 			EdsID: EdsID{

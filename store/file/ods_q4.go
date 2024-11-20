@@ -122,7 +122,7 @@ func (odsq4 *ODSQ4) AxisRoots(ctx context.Context) (*share.AxisRoots, error) {
 	return odsq4.ods.AxisRoots(ctx)
 }
 
-func (odsq4 *ODSQ4) Sample(ctx context.Context, idx shwap.SampleIndex) (shwap.Sample, error) {
+func (odsq4 *ODSQ4) Sample(ctx context.Context, idx shwap.SampleCoords) (shwap.Sample, error) {
 	// use native AxisHalf implementation, to read axis from q4 quadrant when possible
 	half, err := odsq4.AxisHalf(ctx, rsmt2d.Row, idx.Row)
 	if err != nil {

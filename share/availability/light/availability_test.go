@@ -51,7 +51,7 @@ func TestSharesAvailableSuccess(t *testing.T) {
 	getter.EXPECT().
 		GetSamples(gomock.Any(), eh, gomock.Any()).
 		DoAndReturn(
-			func(_ context.Context, hdr *header.ExtendedHeader, indices []shwap.SampleIndex) ([]shwap.Sample, error) {
+			func(_ context.Context, hdr *header.ExtendedHeader, indices []shwap.SampleCoords) ([]shwap.Sample, error) {
 				acc := eds.Rsmt2D{ExtendedDataSquare: square}
 				smpls := make([]shwap.Sample, len(indices))
 				for i, idx := range indices {
@@ -279,7 +279,7 @@ func (g successGetter) sampledList() []Sample {
 }
 
 func (g successGetter) GetSamples(_ context.Context, hdr *header.ExtendedHeader,
-	indices []shwap.SampleIndex,
+	indices []shwap.SampleCoords,
 ) ([]shwap.Sample, error) {
 	g.Lock()
 	defer g.Unlock()

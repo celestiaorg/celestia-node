@@ -115,9 +115,9 @@ func (la *ShareAvailability) SharesAvailable(ctx context.Context, header *header
 
 	log.Debugw("starting sampling session", "root", dah.String())
 
-	idxs := make([]shwap.SampleIndex, len(samples.Remaining))
+	idxs := make([]shwap.SampleCoords, len(samples.Remaining))
 	for i, s := range samples.Remaining {
-		idxs[i] = shwap.SampleIndex{Row: s.Row, Col: s.Col}
+		idxs[i] = shwap.SampleCoords{Row: s.Row, Col: s.Col}
 	}
 
 	smpls, err := la.getter.GetSamples(ctx, header, idxs)
@@ -197,7 +197,7 @@ func (la *ShareAvailability) Prune(ctx context.Context, h *header.ExtendedHeader
 
 	// delete stored samples
 	for _, sample := range result.Available {
-		idx := shwap.SampleIndex{Row: sample.Row, Col: sample.Col}
+		idx := shwap.SampleCoords{Row: sample.Row, Col: sample.Col}
 
 		blk, err := bitswap.NewEmptySampleBlock(h.Height(), idx, len(h.DAH.RowRoots))
 		if err != nil {

@@ -34,7 +34,7 @@ func (f validation) Size(ctx context.Context) int {
 	return int(size)
 }
 
-func (f validation) Sample(ctx context.Context, idx shwap.SampleIndex) (shwap.Sample, error) {
+func (f validation) Sample(ctx context.Context, idx shwap.SampleCoords) (shwap.Sample, error) {
 	_, err := shwap.NewSampleID(1, idx, f.Size(ctx))
 	if err != nil {
 		return shwap.Sample{}, fmt.Errorf("sample validation: %w", err)

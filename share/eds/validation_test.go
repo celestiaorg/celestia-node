@@ -34,7 +34,7 @@ func TestValidation_Sample(t *testing.T) {
 			accessor := &Rsmt2D{ExtendedDataSquare: randEDS}
 			validation := WithValidation(AccessorAndStreamer(accessor, nil))
 
-			idx := shwap.SampleIndex{Row: tt.rowIdx, Col: tt.colIdx}
+			idx := shwap.SampleCoords{Row: tt.rowIdx, Col: tt.colIdx}
 
 			_, err := validation.Sample(context.Background(), idx)
 			if tt.expectFail {

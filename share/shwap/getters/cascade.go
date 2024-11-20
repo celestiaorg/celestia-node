@@ -43,7 +43,7 @@ func NewCascadeGetter(getters []shwap.Getter) *CascadeGetter {
 
 // GetSamples gets samples from any of registered shwap.Getters in cascading order.
 func (cg *CascadeGetter) GetSamples(ctx context.Context, hdr *header.ExtendedHeader,
-	indices []shwap.SampleIndex,
+	indices []shwap.SampleCoords,
 ) ([]shwap.Sample, error) {
 	ctx, span := tracer.Start(ctx, "cascade/get-samples", trace.WithAttributes(
 		attribute.Int("amount", len(indices)),

@@ -11,7 +11,7 @@ import (
 func TestSampleID(t *testing.T) {
 	edsSize := 4
 
-	id, err := NewSampleID(1, SampleIndex{Col: 1}, edsSize)
+	id, err := NewSampleID(1, SampleCoords{Col: 1}, edsSize)
 	require.NoError(t, err)
 
 	data, err := id.MarshalBinary()
@@ -29,7 +29,7 @@ func TestSampleID(t *testing.T) {
 func TestSampleIDReaderWriter(t *testing.T) {
 	edsSize := 4
 
-	id, err := NewSampleID(1, SampleIndex{Col: 1}, edsSize)
+	id, err := NewSampleID(1, SampleCoords{Col: 1}, edsSize)
 	require.NoError(t, err)
 
 	buf := bytes.NewBuffer(nil)
@@ -45,14 +45,14 @@ func TestSampleIDReaderWriter(t *testing.T) {
 	require.EqualValues(t, id, sidOut)
 }
 
-func TestSampleIndex(t *testing.T) {
+func TestSampleCoords(t *testing.T) {
 	edsSize := 16
 
 	rawIdx := 13 * 16
-	idxIn, err := SampleIndexFrom1DIndex(rawIdx, edsSize)
+	idxIn, err := SampleCoordsFrom1DIndex(rawIdx, edsSize)
 	require.NoError(t, err)
 
-	idxOut, err := SampleIndexAs1DIndex(idxIn, edsSize)
+	idxOut, err := SampleCoordsAs1DIndex(idxIn, edsSize)
 	require.NoError(t, err)
 	assert.Equal(t, rawIdx, idxOut)
 }

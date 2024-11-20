@@ -47,7 +47,7 @@ type SampleBlock struct {
 }
 
 // NewEmptySampleBlock constructs a new empty SampleBlock.
-func NewEmptySampleBlock(height uint64, idx shwap.SampleIndex, edsSize int) (*SampleBlock, error) {
+func NewEmptySampleBlock(height uint64, idx shwap.SampleCoords, edsSize int) (*SampleBlock, error) {
 	id, err := shwap.NewSampleID(height, idx, edsSize)
 	if err != nil {
 		return nil, err
@@ -94,7 +94,7 @@ func (sb *SampleBlock) Marshal() ([]byte, error) {
 }
 
 func (sb *SampleBlock) Populate(ctx context.Context, eds eds.Accessor) error {
-	idx := shwap.SampleIndex{Row: sb.ID.RowIndex, Col: sb.ID.ShareIndex}
+	idx := shwap.SampleCoords{Row: sb.ID.RowIndex, Col: sb.ID.ShareIndex}
 
 	smpl, err := eds.Sample(ctx, idx)
 	if err != nil {

@@ -228,7 +228,7 @@ func (o *ODS) Close() error {
 // Sample returns share and corresponding proof for row and column indices. Implementation can
 // choose which axis to use for proof. Chosen axis for proof should be indicated in the returned
 // Sample.
-func (o *ODS) Sample(ctx context.Context, idx shwap.SampleIndex) (shwap.Sample, error) {
+func (o *ODS) Sample(ctx context.Context, idx shwap.SampleCoords) (shwap.Sample, error) {
 	// Sample proof axis is selected to optimize read performance.
 	// - For the first and second quadrants, we read the row axis because it is more efficient to read
 	//   single row than reading full ODS to calculate single column
@@ -248,7 +248,7 @@ func (o *ODS) Sample(ctx context.Context, idx shwap.SampleIndex) (shwap.Sample, 
 		return shwap.Sample{}, fmt.Errorf("reading axis: %w", err)
 	}
 
-	idxNew := shwap.SampleIndex{Row: axisIdx, Col: shrIdx}
+	idxNew := shwap.SampleCoords{Row: axisIdx, Col: shrIdx}
 
 	return shwap.SampleFromShares(axis, axisType, idxNew)
 }

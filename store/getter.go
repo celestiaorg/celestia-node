@@ -25,7 +25,7 @@ func NewGetter(store *Store) *Getter {
 }
 
 func (g *Getter) GetSamples(ctx context.Context, hdr *header.ExtendedHeader,
-	indices []shwap.SampleIndex,
+	indices []shwap.SampleCoords,
 ) ([]shwap.Sample, error) {
 	acc, err := g.store.GetByHeight(ctx, hdr.Height())
 	if err != nil {

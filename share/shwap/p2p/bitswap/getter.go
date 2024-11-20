@@ -79,7 +79,7 @@ func (g *Getter) Stop() {
 func (g *Getter) GetSamples(
 	ctx context.Context,
 	hdr *header.ExtendedHeader,
-	indices []shwap.SampleIndex,
+	indices []shwap.SampleCoords,
 ) ([]shwap.Sample, error) {
 	if len(indices) == 0 {
 		return nil, fmt.Errorf("no sample indicies to fetch")

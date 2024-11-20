@@ -145,9 +145,9 @@ func TestBlobService_Get(t *testing.T) {
 				shareOffset := 0
 				for i := range blobs {
 					row, col := calculateIndex(len(h.DAH.RowRoots), blobs[i].index)
-					idx := shwap.SampleIndex{Row: row, Col: col}
+					idx := shwap.SampleCoords{Row: row, Col: col}
 					require.NoError(t, err)
-					smpls, err := service.shareGetter.GetSamples(ctx, h, []shwap.SampleIndex{idx})
+					smpls, err := service.shareGetter.GetSamples(ctx, h, []shwap.SampleCoords{idx})
 					require.NoError(t, err)
 					require.True(t, bytes.Equal(smpls[0].Share.ToBytes(), resultShares[shareOffset].ToBytes()),
 						fmt.Sprintf("issue on %d attempt. ROW:%d, COL: %d, blobIndex:%d", i, row, col, blobs[i].index),
@@ -489,10 +489,10 @@ func TestService_GetSingleBlobWithoutPadding(t *testing.T) {
 	h, err := service.headerGetter(ctx, 1)
 	require.NoError(t, err)
 	row, col := calculateIndex(len(h.DAH.RowRoots), newBlob.index)
-	idx := shwap.SampleIndex{Row: row, Col: col}
+	idx := shwap.SampleCoords{Row: row, Col: col}
 	require.NoError(t, err)
 
-	smpls, err := service.shareGetter.GetSamples(ctx, h, []shwap.SampleIndex{idx})
+	smpls, err := service.shareGetter.GetSamples(ctx, h, []shwap.SampleCoords{idx})
 	require.NoError(t, err)
 
 	assert.Equal(t, smpls[0].Share, resultShares[0])
@@ -526,10 +526,10 @@ func TestService_Get(t *testing.T) {
 		assert.Equal(t, b.Commitment, blob.Commitment)
 
 		row, col := calculateIndex(len(h.DAH.RowRoots), b.index)
-		idx := shwap.SampleIndex{Row: row, Col: col}
+		idx := shwap.SampleCoords{Row: row, Col: col}
 		require.NoError(t, err)
 
-		smpls, err := service.shareGetter.GetSamples(ctx, h, []shwap.SampleIndex{idx})
+		smpls, err := service.shareGetter.GetSamples(ctx, h, []shwap.SampleCoords{idx})
 		require.NoError(t, err)
 
 		assert.Equal(t, smpls[0].Share, resultShares[shareOffset], fmt.Sprintf("issue on %d attempt", i))
@@ -588,10 +588,10 @@ func TestService_GetAllWithoutPadding(t *testing.T) {
 		require.True(t, blobs[i].compareCommitments(blob.Commitment))
 
 		row, col := calculateIndex(len(h.DAH.RowRoots), blob.index)
-		idx := shwap.SampleIndex{Row: row, Col: col}
+		idx := shwap.SampleCoords{Row: row, Col: col}
 		require.NoError(t, err)
 
-		smpls, err := service.shareGetter.GetSamples(ctx, h, []shwap.SampleIndex{idx})
+		smpls, err := service.shareGetter.GetSamples(ctx, h, []shwap.SampleCoords{idx})
 		require.NoError(t, err)
 
 		assert.Equal(t, smpls[0].Share, resultShares[shareOffset])
@@ -914,7 +914,7 @@ func createService(ctx context.Context, t testing.TB, shares []libshare.Share) *
 			return nd, err
 		})
 	shareGetter.EXPECT().GetSamples(gomock.Any(), gomock.Any(), gomock.Any()).AnyTimes().
-		DoAndReturn(func(ctx context.Context, h *header.ExtendedHeader, indices []shwap.SampleIndex) ([]shwap.Sample, error) {
+		DoAndReturn(func(ctx context.Context, h *header.ExtendedHeader, indices []shwap.SampleCoords) ([]shwap.Sample, error) {
 			smpl, err := accessor.Sample(ctx, indices[0])
 			return []shwap.Sample{smpl}, err
 		})

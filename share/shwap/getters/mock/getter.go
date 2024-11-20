@@ -69,7 +69,7 @@ func (mr *MockGetterMockRecorder) GetNamespaceData(arg0, arg1, arg2 interface{})
 }
 
 // GetSamples mocks base method.
-func (m *MockGetter) GetSamples(arg0 context.Context, arg1 *header.ExtendedHeader, arg2 []shwap.SampleIndex) ([]shwap.Sample, error) {
+func (m *MockGetter) GetSamples(arg0 context.Context, arg1 *header.ExtendedHeader, arg2 []shwap.SampleCoords) ([]shwap.Sample, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "GetSamples", arg0, arg1, arg2)
 	ret0, _ := ret[0].([]shwap.Sample)

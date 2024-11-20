@@ -47,7 +47,7 @@ type Module interface {
 	// GetShare gets a Share by coordinates in EDS.
 	GetShare(ctx context.Context, height uint64, row, col int) (libshare.Share, error)
 	// GetSamples gets sample for given indices.
-	GetSamples(ctx context.Context, header *header.ExtendedHeader, indices []shwap.SampleIndex) ([]shwap.Sample, error)
+	GetSamples(ctx context.Context, header *header.ExtendedHeader, indices []shwap.SampleCoords) ([]shwap.Sample, error)
 	// GetEDS gets the full EDS identified by the given extended header.
 	GetEDS(ctx context.Context, height uint64) (*rsmt2d.ExtendedDataSquare, error)
 	// GetNamespaceData gets all shares from an EDS within the given namespace.
@@ -71,7 +71,7 @@ type API struct {
 		GetSamples func(
 			ctx context.Context,
 			header *header.ExtendedHeader,
-			indices []shwap.SampleIndex,
+			indices []shwap.SampleCoords,
 		) ([]shwap.Sample, error) `perm:"read"`
 		GetEDS func(
 			ctx context.Context,
@@ -99,7 +99,7 @@ func (api *API) GetShare(ctx context.Context, height uint64, row, col int) (libs
 }
 
 func (api *API) GetSamples(ctx context.Context, header *header.ExtendedHeader,
-	indices []shwap.SampleIndex,
+	indices []shwap.SampleCoords,
 ) ([]shwap.Sample, error) {
 	return api.Internal.GetSamples(ctx, header, indices)
 }
@@ -132,9 +132,9 @@ func (m module) GetShare(ctx context.Context, height uint64, row, col int) (libs
 		return libshare.Share{}, err
 	}
 
-	idx := shwap.SampleIndex{Row: row, Col: col}
+	idx := shwap.SampleCoords{Row: row, Col: col}
 
-	smpls, err := m.getter.GetSamples(ctx, header, []shwap.SampleIndex{idx})
+	smpls, err := m.getter.GetSamples(ctx, header, []shwap.SampleCoords{idx})
 	if err != nil {
 		return libshare.Share{}, err
 	}
@@ -143,7 +143,7 @@ func (m module) GetShare(ctx context.Context, height uint64, row, col int) (libs
 }
 
 func (m module) GetSamples(ctx context.Context, header *header.ExtendedHeader,
-	indices []shwap.SampleIndex,
+	indices []shwap.SampleCoords,
 ) ([]shwap.Sample, error) {
 	return m.getter.GetSamples(ctx, header, indices)
 }

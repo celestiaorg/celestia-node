@@ -146,7 +146,7 @@ func (sg *Getter) Stop(ctx context.Context) error {
 	return sg.archivalPeerManager.Stop(ctx)
 }
 
-func (sg *Getter) GetSamples(context.Context, *header.ExtendedHeader, []shwap.SampleIndex) ([]shwap.Sample, error) {
+func (sg *Getter) GetSamples(context.Context, *header.ExtendedHeader, []shwap.SampleCoords) ([]shwap.Sample, error) {
 	return nil, fmt.Errorf("getter/shrex: GetShare %w", shwap.ErrOperationNotSupported)
 }
 
