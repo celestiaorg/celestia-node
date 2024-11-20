@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"net"
 	"sync"
 	"time"
 
@@ -123,7 +124,7 @@ func (ca *CoreAccessor) Start(ctx context.Context) error {
 	ca.ctx, ca.cancel = context.WithCancel(context.Background())
 
 	// dial given celestia-core endpoint
-	endpoint := fmt.Sprintf("%s:%s", ca.coreIP, ca.port)
+	endpoint := net.JoinHostPort(ca.coreIP, ca.port)
 	client, err := grpc.NewClient(
 		endpoint,
 		grpc.WithTransportCredentials(insecure.NewCredentials()),
