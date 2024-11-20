@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"io"
+	"time"
 
 	"github.com/gogo/protobuf/proto"
 	logging "github.com/ipfs/go-log/v2"
@@ -219,7 +220,9 @@ func (f *BlockFetcher) SubscribeNewBlockEvent(ctx context.Context) (<-chan types
 				}
 				return
 			}
-			signedBlock, err := f.GetSignedBlock(ctx, &resp.Height)
+			withTimeout, ctxCancel := context.WithTimeout(ctx, 10*time.Second)
+			signedBlock, err := f.GetSignedBlock(withTimeout, &resp.Height)
+			ctxCancel()
 			if err != nil {
 				log.Errorw("fetcher: error receiving signed block", "height", resp.Height, "err", err.Error())
 				return
