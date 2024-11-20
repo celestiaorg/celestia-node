@@ -4,9 +4,6 @@ import (
 	"context"
 	_ "embed"
 	"encoding/json"
-	"github.com/ipfs/boxo/bitswap/client"
-	"github.com/libp2p/go-libp2p/core/host"
-	mocknet "github.com/libp2p/go-libp2p/p2p/net/mock"
 	"maps"
 	"slices"
 	"sync"
@@ -15,12 +12,15 @@ import (
 	"time"
 
 	"github.com/golang/mock/gomock"
+	"github.com/ipfs/boxo/bitswap/client"
 	"github.com/ipfs/boxo/blockstore"
 	"github.com/ipfs/boxo/exchange"
 	blocks "github.com/ipfs/go-block-format"
 	"github.com/ipfs/go-cid"
 	"github.com/ipfs/go-datastore"
 	ds_sync "github.com/ipfs/go-datastore/sync"
+	"github.com/libp2p/go-libp2p/core/host"
+	mocknet "github.com/libp2p/go-libp2p/p2p/net/mock"
 	"github.com/stretchr/testify/require"
 
 	libshare "github.com/celestiaorg/go-square/v2/share"
@@ -351,7 +351,7 @@ func TestPruneAll(t *testing.T) {
 
 func TestPrunePartialFailed(t *testing.T) {
 	const size = 8
-	ctx, cancel := context.WithTimeout(context.Background(), time.Second*200)
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second*2)
 	t.Cleanup(cancel)
 
 	eds, h := randEdsAndHeader(t, size)
