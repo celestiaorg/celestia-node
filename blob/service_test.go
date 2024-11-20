@@ -914,7 +914,9 @@ func createService(ctx context.Context, t testing.TB, shares []libshare.Share) *
 			return nd, err
 		})
 	shareGetter.EXPECT().GetSamples(gomock.Any(), gomock.Any(), gomock.Any()).AnyTimes().
-		DoAndReturn(func(ctx context.Context, h *header.ExtendedHeader, indices []shwap.SampleCoords) ([]shwap.Sample, error) {
+		DoAndReturn(func(ctx context.Context, h *header.ExtendedHeader,
+			indices []shwap.SampleCoords,
+		) ([]shwap.Sample, error) {
 			smpl, err := accessor.Sample(ctx, indices[0])
 			return []shwap.Sample{smpl}, err
 		})
