@@ -126,17 +126,13 @@ type module struct {
 	hs     headerServ.Module
 }
 
-// TODO(@Wondertan): break
 func (m module) GetShare(ctx context.Context, height uint64, row, col int) (libshare.Share, error) {
 	header, err := m.hs.GetByHeight(ctx, height)
 	if err != nil {
 		return libshare.Share{}, err
 	}
 
-	idx, err := shwap.SampleIndexFromCoordinates(row, col, len(header.DAH.RowRoots))
-	if err != nil {
-		return libshare.Share{}, err
-	}
+	idx := shwap.SampleIndex{Row: row, Col: col}
 
 	smpls, err := m.getter.GetSamples(ctx, header, []shwap.SampleIndex{idx})
 	if err != nil {

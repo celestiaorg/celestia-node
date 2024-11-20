@@ -20,7 +20,7 @@ func TestWithClosedOnce(t *testing.T) {
 	stub := &stubEdsAccessorCloser{}
 	closedOnce := WithClosedOnce(stub)
 
-	_, err := closedOnce.Sample(ctx, 0)
+	_, err := closedOnce.Sample(ctx, shwap.SampleIndex{})
 	require.NoError(t, err)
 	_, err = closedOnce.AxisHalf(ctx, rsmt2d.Row, 0)
 	require.NoError(t, err)
@@ -33,7 +33,7 @@ func TestWithClosedOnce(t *testing.T) {
 	require.True(t, stub.closed)
 
 	// Ensure that the underlying file is not accessible after closing
-	_, err = closedOnce.Sample(ctx, 0)
+	_, err = closedOnce.Sample(ctx, shwap.SampleIndex{})
 	require.ErrorIs(t, err, errAccessorClosed)
 	_, err = closedOnce.AxisHalf(ctx, rsmt2d.Row, 0)
 	require.ErrorIs(t, err, errAccessorClosed)

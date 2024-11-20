@@ -148,8 +148,7 @@ func testAccessorSample(
 		// t.Parallel() this fails the test for some reason
 		for rowIdx := 0; rowIdx < width; rowIdx++ {
 			for colIdx := 0; colIdx < width; colIdx++ {
-				idx, err := shwap.SampleIndexFromCoordinates(rowIdx, colIdx, acc.Size(ctx))
-				require.NoError(t, err)
+				idx := shwap.SampleIndex{Row: rowIdx, Col: colIdx}
 				testSample(ctx, t, acc, roots, idx)
 			}
 		}
@@ -164,8 +163,7 @@ func testAccessorSample(
 		for rowIdx := 0; rowIdx < width; rowIdx++ {
 			for colIdx := 0; colIdx < width; colIdx++ {
 				wg.Add(1)
-				idx, err := shwap.SampleIndexFromCoordinates(rowIdx, colIdx, acc.Size(ctx))
-				require.NoError(t, err)
+				idx := shwap.SampleIndex{Row: rowIdx, Col: colIdx}
 				go func(idx shwap.SampleIndex) {
 					defer wg.Done()
 					testSample(ctx, t, acc, roots, idx)
@@ -186,8 +184,9 @@ func testAccessorSample(
 			wg.Add(1)
 			go func() {
 				defer wg.Done()
-				idx := rand.IntN(int(eds.Width())) //nolint:gosec
-				testSample(ctx, t, acc, roots, shwap.SampleIndex(idx))
+				rowIdx := rand.IntN(int(eds.Width())) //nolint:gosec
+				colIdx := rand.IntN(int(eds.Width())) //nolint:gosec
+				testSample(ctx, t, acc, roots, shwap.SampleIndex{Row: rowIdx, Col: colIdx})
 			}()
 		}
 		wg.Wait()
@@ -204,10 +203,7 @@ func testSample(
 	shr, err := acc.Sample(ctx, idx)
 	require.NoError(t, err)
 
-	rowIdx, colIdx, err := idx.Coordinates(acc.Size(ctx))
-	require.NoError(t, err)
-
-	err = shr.Verify(roots, rowIdx, colIdx)
+	err = shr.Verify(roots, idx.Row, idx.Col)
 	require.NoError(t, err)
 }
 
@@ -451,11 +447,10 @@ func BenchGetSampleFromAccessor(
 			name := fmt.Sprintf("Size:%v/quadrant:%s", size, q)
 			b.Run(name, func(b *testing.B) {
 				rowIdx, colIdx := q.coordinates(acc.Size(ctx))
-				idx, err := shwap.SampleIndexFromCoordinates(rowIdx, colIdx, acc.Size(ctx))
-				require.NoError(b, err)
+				idx := shwap.SampleIndex{Row: rowIdx, Col: colIdx}
 
 				// warm up cache
-				_, err = acc.Sample(ctx, idx)
+				_, err := acc.Sample(ctx, idx)
 				require.NoError(b, err, q.String())
 
 				b.ResetTimer()

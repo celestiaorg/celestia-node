@@ -286,12 +286,7 @@ func (g successGetter) GetSamples(_ context.Context, hdr *header.ExtendedHeader,
 
 	smpls := make([]shwap.Sample, 0, len(indices))
 	for _, idx := range indices {
-		rowIdx, colIdx, err := idx.Coordinates(len(hdr.DAH.RowRoots))
-		if err != nil {
-			return nil, err
-		}
-
-		s := Sample{Row: rowIdx, Col: colIdx}
+		s := Sample{Row: idx.Row, Col: idx.Col}
 		g.sampled[s]++
 		smpls = append(smpls, shwap.Sample{Proof: &nmt.Proof{}})
 	}

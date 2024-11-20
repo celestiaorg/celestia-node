@@ -25,8 +25,8 @@ func TestSample_FetchRoundtrip(t *testing.T) {
 	blks := make([]Block, 0, width*width)
 	for x := 0; x < width; x++ {
 		for y := 0; y < width; y++ {
-			idx, err := shwap.SampleIndexFromCoordinates(x, y, width)
-			require.NoError(t, err)
+			idx := shwap.SampleIndex{Row: x, Col: y}
+
 			blk, err := NewEmptySampleBlock(1, idx, len(root.RowRoots))
 			require.NoError(t, err)
 			blks = append(blks, blk)

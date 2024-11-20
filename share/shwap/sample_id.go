@@ -10,24 +10,10 @@ import (
 // bytes for the ShareIndex.
 const SampleIDSize = RowIDSize + 2
 
-type SampleIndex int
+type SampleIndex struct {
+	Row, Col int
 
-func SampleIndexFromCoordinates(rowIdx, colIdx, edsSize int) (SampleIndex, error) {
-	if rowIdx < 0 || colIdx < 0 {
-		return 0, fmt.Errorf("negative row or col index: %w", ErrInvalidID)
-	}
-	if rowIdx >= edsSize || colIdx >= edsSize {
-		return 0, fmt.Errorf("SampleIndex %d || %d > %d: %w", rowIdx, colIdx, edsSize, ErrOutOfBounds)
-	}
-	return SampleIndex(rowIdx*edsSize + colIdx), nil
-}
-
-func (s SampleIndex) Coordinates(squareSize int) (int, int, error) {
-	if int(s) > squareSize*squareSize {
-		return 0, 0, fmt.Errorf("SampleIndex %d > %d: %w", s, squareSize*squareSize, ErrOutOfBounds)
-	}
-
-	return int(s) / squareSize, int(s) % squareSize, nil
+	_ struct{} // to prevent unkeyed literals
 }
 
 // SampleID uniquely identifies a specific sample within a row of an Extended Data Square (EDS).
@@ -39,19 +25,14 @@ type SampleID struct {
 // NewSampleID constructs a new SampleID using the provided block height, sample index, and EDS
 // size. It calculates the row and share index based on the sample index and EDS size.
 func NewSampleID(height uint64, idx SampleIndex, edsSize int) (SampleID, error) {
-	rowIdx, colIdx, err := idx.Coordinates(edsSize)
-	if err != nil {
-		return SampleID{}, err
-	}
-
 	sid := SampleID{
 		RowID: RowID{
 			EdsID: EdsID{
 				Height: height,
 			},
-			RowIndex: rowIdx,
+			RowIndex: idx.Row,
 		},
-		ShareIndex: colIdx,
+		ShareIndex: idx.Col,
 	}
 
 	if err := sid.Verify(edsSize); err != nil {

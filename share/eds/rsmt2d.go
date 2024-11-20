@@ -57,12 +57,7 @@ func (eds *Rsmt2D) SampleForProofAxis(
 	idx shwap.SampleIndex,
 	proofType rsmt2d.Axis,
 ) (shwap.Sample, error) {
-	rowIdx, colIdx, err := idx.Coordinates(int(eds.Width()))
-	if err != nil {
-		return shwap.Sample{}, err
-	}
-
-	axisIdx, shrIdx := relativeIndexes(rowIdx, colIdx, proofType)
+	axisIdx, shrIdx := relativeIndexes(idx.Row, idx.Col, proofType)
 	shares, err := getAxis(eds.ExtendedDataSquare, proofType, axisIdx)
 	if err != nil {
 		return shwap.Sample{}, err

@@ -117,12 +117,7 @@ func (la *ShareAvailability) SharesAvailable(ctx context.Context, header *header
 
 	idxs := make([]shwap.SampleIndex, len(samples.Remaining))
 	for i, s := range samples.Remaining {
-		idx, err := shwap.SampleIndexFromCoordinates(s.Row, s.Col, len(dah.RowRoots))
-		if err != nil {
-			return err
-		}
-
-		idxs[i] = idx
+		idxs[i] = shwap.SampleIndex{Row: s.Row, Col: s.Col}
 	}
 
 	smpls, err := la.getter.GetSamples(ctx, header, idxs)
@@ -138,15 +133,10 @@ func (la *ShareAvailability) SharesAvailable(ctx context.Context, header *header
 	var failedSamples []Sample
 
 	for i, smpl := range smpls {
-		row, col, err := idxs[i].Coordinates(len(dah.RowRoots))
-		if err != nil {
-			return err
-		}
-
 		if smpl.IsEmpty() {
-			failedSamples = append(failedSamples, Sample{Row: row, Col: col})
+			failedSamples = append(failedSamples, Sample{Row: idxs[i].Row, Col: idxs[i].Col})
 		} else {
-			samples.Available = append(samples.Available, Sample{Row: row, Col: col})
+			samples.Available = append(samples.Available, Sample{Row: idxs[i].Row, Col: idxs[i].Col})
 		}
 	}
 
@@ -207,10 +197,8 @@ func (la *ShareAvailability) Prune(ctx context.Context, h *header.ExtendedHeader
 
 	// delete stored samples
 	for _, sample := range result.Available {
-		idx, err := shwap.SampleIndexFromCoordinates(sample.Row, sample.Col, len(h.DAH.RowRoots))
-		if err != nil {
-			return err
-		}
+		idx := shwap.SampleIndex{Row: sample.Row, Col: sample.Col}
+
 		blk, err := bitswap.NewEmptySampleBlock(h.Height(), idx, len(h.DAH.RowRoots))
 		if err != nil {
 			return fmt.Errorf("marshal sample ID: %w", err)

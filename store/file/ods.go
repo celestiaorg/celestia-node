@@ -236,10 +236,7 @@ func (o *ODS) Sample(ctx context.Context, idx shwap.SampleIndex) (shwap.Sample, 
 	//   column than reading full ODS to calculate single row
 	// - For the fourth quadrant, it does not matter which axis we read because we need to read full ODS
 	//   to calculate the sample
-	rowIdx, colIdx, err := idx.Coordinates(o.Size(ctx))
-	if err != nil {
-		return shwap.Sample{}, err
-	}
+	rowIdx, colIdx := idx.Row, idx.Col
 
 	axisType, axisIdx, shrIdx := rsmt2d.Row, rowIdx, colIdx
 	if colIdx < o.size()/2 && rowIdx >= o.size()/2 {
@@ -251,12 +248,9 @@ func (o *ODS) Sample(ctx context.Context, idx shwap.SampleIndex) (shwap.Sample, 
 		return shwap.Sample{}, fmt.Errorf("reading axis: %w", err)
 	}
 
-	idx, err = shwap.SampleIndexFromCoordinates(axisIdx, shrIdx, o.Size(ctx))
-	if err != nil {
-		return shwap.Sample{}, err
-	}
+	idxNew := shwap.SampleIndex{Row: axisIdx, Col: shrIdx}
 
-	return shwap.SampleFromShares(axis, axisType, idx)
+	return shwap.SampleFromShares(axis, axisType, idxNew)
 }
 
 // AxisHalf returns half of shares axis of the given type and index. Side is determined by

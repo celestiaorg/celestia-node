@@ -145,7 +145,7 @@ func TestBlobService_Get(t *testing.T) {
 				shareOffset := 0
 				for i := range blobs {
 					row, col := calculateIndex(len(h.DAH.RowRoots), blobs[i].index)
-					idx, err := shwap.SampleIndexFromCoordinates(row, col, len(h.DAH.RowRoots))
+					idx := shwap.SampleIndex{Row: row, Col: col}
 					require.NoError(t, err)
 					smpls, err := service.shareGetter.GetSamples(ctx, h, []shwap.SampleIndex{idx})
 					require.NoError(t, err)
@@ -489,7 +489,7 @@ func TestService_GetSingleBlobWithoutPadding(t *testing.T) {
 	h, err := service.headerGetter(ctx, 1)
 	require.NoError(t, err)
 	row, col := calculateIndex(len(h.DAH.RowRoots), newBlob.index)
-	idx, err := shwap.SampleIndexFromCoordinates(row, col, len(h.DAH.RowRoots))
+	idx := shwap.SampleIndex{Row: row, Col: col}
 	require.NoError(t, err)
 
 	smpls, err := service.shareGetter.GetSamples(ctx, h, []shwap.SampleIndex{idx})
@@ -526,7 +526,7 @@ func TestService_Get(t *testing.T) {
 		assert.Equal(t, b.Commitment, blob.Commitment)
 
 		row, col := calculateIndex(len(h.DAH.RowRoots), b.index)
-		idx, err := shwap.SampleIndexFromCoordinates(row, col, len(h.DAH.RowRoots))
+		idx := shwap.SampleIndex{Row: row, Col: col}
 		require.NoError(t, err)
 
 		smpls, err := service.shareGetter.GetSamples(ctx, h, []shwap.SampleIndex{idx})
@@ -588,7 +588,7 @@ func TestService_GetAllWithoutPadding(t *testing.T) {
 		require.True(t, blobs[i].compareCommitments(blob.Commitment))
 
 		row, col := calculateIndex(len(h.DAH.RowRoots), blob.index)
-		idx, err := shwap.SampleIndexFromCoordinates(row, col, len(h.DAH.RowRoots))
+		idx := shwap.SampleIndex{Row: row, Col: col}
 		require.NoError(t, err)
 
 		smpls, err := service.shareGetter.GetSamples(ctx, h, []shwap.SampleIndex{idx})
