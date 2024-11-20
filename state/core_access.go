@@ -616,18 +616,9 @@ func (ca *CoreAccessor) startGRPCClient(ctx context.Context) error {
 	if ca.tls != nil {
 		opts = append(opts, grpc.WithTransportCredentials(credentials.NewTLS(ca.tls)))
 	}
-	if ca.xtoken != "" {
-		authInterceptor := func(ctx context.Context,
-			method string,
-			req, reply interface{},
-			cc *grpc.ClientConn,
-			invoker grpc.UnaryInvoker,
-			opts ...grpc.CallOption,
-		) error {
-			ctx = metadata.AppendToOutgoingContext(ctx, "x-token", ca.xtoken)
-			return invoker(ctx, method, req, reply, cc, opts...)
-		}
-		opts = append(opts, grpc.WithUnaryInterceptor(authInterceptor))
+
+	if interceptor := authInterceptor(ca.xtoken); interceptor != nil {
+		opts = append(opts, grpc.WithUnaryInterceptor(interceptor))
 	}
 
 	client, err := grpc.NewClient(
@@ -704,4 +695,22 @@ func convertToSdkTxResponse(resp *user.TxResponse) *TxResponse {
 		TxHash: resp.TxHash,
 		Height: resp.Height,
 	}
+}
+
+func authInterceptor(xtoken string) grpc.UnaryClientInterceptor {
+	if xtoken == "" {
+		return nil
+	}
+	return func(
+		ctx context.Context,
+		method string,
+		req, reply interface{},
+		cc *grpc.ClientConn,
+		invoker grpc.UnaryInvoker,
+		opts ...grpc.CallOption,
+	) error {
+		ctx = metadata.AppendToOutgoingContext(ctx, "x-token", xtoken)
+		return invoker(ctx, method, req, reply, cc, opts...)
+	}
+
 }
