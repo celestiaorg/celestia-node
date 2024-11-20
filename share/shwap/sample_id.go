@@ -12,8 +12,26 @@ const SampleIDSize = RowIDSize + 2
 
 type SampleIndex struct {
 	Row, Col int
+}
 
-	_ struct{} // to prevent unkeyed literals
+func SampleIndexAs1DIndex(idx SampleIndex, edsSize int) (int, error) {
+	if idx.Row < 0 || idx.Col < 0 {
+		return 0, fmt.Errorf("negative row or col index: %w", ErrInvalidID)
+	}
+	if idx.Row >= edsSize || idx.Col >= edsSize {
+		return 0, fmt.Errorf("SampleIndex %d || %d > %d: %w", idx.Row, idx.Col, edsSize, ErrOutOfBounds)
+	}
+	return idx.Row*edsSize + idx.Col, nil
+}
+
+func SampleIndexFrom1DIndex(idx, squareSize int) (SampleIndex, error) {
+	if int(idx) > squareSize*squareSize {
+		return SampleIndex{}, fmt.Errorf("SampleIndex %d > %d: %w", idx, squareSize*squareSize, ErrOutOfBounds)
+	}
+
+	rowIdx := int(idx) / squareSize
+	colIdx := int(idx) % squareSize
+	return SampleIndex{Row: rowIdx, Col: colIdx}, nil
 }
 
 // SampleID uniquely identifies a specific sample within a row of an Extended Data Square (EDS).

@@ -44,3 +44,15 @@ func TestSampleIDReaderWriter(t *testing.T) {
 
 	require.EqualValues(t, id, sidOut)
 }
+
+func TestSampleIndex(t *testing.T) {
+	edsSize := 16
+
+	rawIdx := 13 * 16
+	idxIn, err := SampleIndexFrom1DIndex(rawIdx, edsSize)
+	require.NoError(t, err)
+
+	idxOut, err := SampleIndexAs1DIndex(idxIn, edsSize)
+	require.NoError(t, err)
+	assert.Equal(t, rawIdx, idxOut)
+}
