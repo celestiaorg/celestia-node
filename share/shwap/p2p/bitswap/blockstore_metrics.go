@@ -105,10 +105,6 @@ func (w *BlockstoreWithMetrics) WithMetrics() error {
 		return fmt.Errorf("failed to create blockstore all keys chan counter: %w", err)
 	}
 
-	if err != nil {
-		return fmt.Errorf("failed to create blockstore hash on read counter: %w", err)
-	}
-
 	w.metrics = &metrics{
 		delete:      del,
 		has:         has,
