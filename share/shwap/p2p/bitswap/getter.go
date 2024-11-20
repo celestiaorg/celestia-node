@@ -109,17 +109,18 @@ func (g *Getter) GetSamples(
 	defer release()
 
 	err := Fetch(ctx, g.exchange, hdr.DAH, blks, WithStore(g.bstore), WithFetcher(ses))
-	if err != nil {
-		// handle partial fetches
-		var fetched int
-		smpls := make([]shwap.Sample, len(blks))
-		for i, blk := range blks {
-			if smpl := blk.(*SampleBlock).Container; !smpl.IsEmpty() {
-				smpls[i] = smpl
-				fetched++
-			}
-		}
 
+	var fetched int
+	smpls := make([]shwap.Sample, len(blks))
+	for i, blk := range blks {
+		c := blk.(*SampleBlock).Container
+		if !c.IsEmpty() {
+			fetched++
+			smpls[i] = c
+		}
+	}
+
+	if err != nil {
 		span.RecordError(err)
 		span.SetStatus(codes.Error, "Fetch")
 		if fetched > 0 {
@@ -127,12 +128,6 @@ func (g *Getter) GetSamples(
 			return smpls, err
 		}
 		return nil, err
-	}
-
-	smpls := make([]shwap.Sample, len(blks))
-	for i, blk := range blks {
-		c := blk.(*SampleBlock).Container
-		smpls[i] = c
 	}
 
 	span.SetStatus(codes.Ok, "")
