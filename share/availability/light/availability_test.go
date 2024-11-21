@@ -477,7 +477,6 @@ func (hse *timeoutExchange) GetBlocks(ctx context.Context, cids []cid.Cid) (<-ch
 	defer close(out)
 
 	for _, cid := range cids {
-
 		blk, err := hse.SessionExchange.GetBlock(ctx, cid)
 		if err != nil {
 			return nil, err
