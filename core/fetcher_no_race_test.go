@@ -38,10 +38,10 @@ func TestBlockFetcherHeaderValues(t *testing.T) {
 		require.NoError(t, ctx.Err())
 	}
 	// get Commit from current height
-	commit, err := fetcher.Commit(ctx, &h)
+	commit, err := fetcher.Commit(ctx, h)
 	require.NoError(t, err)
 	// get ValidatorSet from current height
-	valSet, err := fetcher.ValidatorSet(ctx, &h)
+	valSet, err := fetcher.ValidatorSet(ctx, h)
 	require.NoError(t, err)
 	// get next block
 	var nextBlock types.EventDataSignedBlock
