@@ -712,5 +712,4 @@ func authInterceptor(xtoken string) grpc.UnaryClientInterceptor {
 		ctx = metadata.AppendToOutgoingContext(ctx, "x-token", xtoken)
 		return invoker(ctx, method, req, reply, cc, opts...)
 	}
-
 }
