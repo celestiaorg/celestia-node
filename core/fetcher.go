@@ -54,7 +54,7 @@ func (f *BlockFetcher) Stop(ctx context.Context) error {
 }
 
 // GetBlockInfo queries Core for additional block information, like Commit and ValidatorSet.
-func (f *BlockFetcher) GetBlockInfo(ctx context.Context, height *int64) (*types.Commit, *types.ValidatorSet, error) {
+func (f *BlockFetcher) GetBlockInfo(ctx context.Context, height int64) (*types.Commit, *types.ValidatorSet, error) {
 	commit, err := f.Commit(ctx, height)
 	if err != nil {
 		return nil, nil, fmt.Errorf("core/fetcher: getting commit at height %d: %w", height, err)
@@ -65,7 +65,7 @@ func (f *BlockFetcher) GetBlockInfo(ctx context.Context, height *int64) (*types.
 	// commit and getting the latest validator set. Therefore, it is
 	// best to get the validator set at the latest commit's height to
 	// prevent this potential inconsistency.
-	valSet, err := f.ValidatorSet(ctx, &commit.Height)
+	valSet, err := f.ValidatorSet(ctx, commit.Height)
 	if err != nil {
 		return nil, nil, fmt.Errorf("core/fetcher: getting validator set at height %d: %w", height, err)
 	}
@@ -75,13 +75,8 @@ func (f *BlockFetcher) GetBlockInfo(ctx context.Context, height *int64) (*types.
 
 // GetBlock queries Core for a `Block` at the given height.
 // if the height is nil, use the latest height
-func (f *BlockFetcher) GetBlock(ctx context.Context, height *int64) (*types.Block, error) {
-	blockHeight, err := f.resolveHeight(ctx, height)
-	if err != nil {
-		return nil, err
-	}
-
-	stream, err := f.client.BlockByHeight(ctx, &coregrpc.BlockByHeightRequest{Height: blockHeight})
+func (f *BlockFetcher) GetBlock(ctx context.Context, height int64) (*types.Block, error) {
+	stream, err := f.client.BlockByHeight(ctx, &coregrpc.BlockByHeightRequest{Height: height})
 	if err != nil {
 		return nil, err
 	}
@@ -108,28 +103,10 @@ func (f *BlockFetcher) GetBlockByHash(ctx context.Context, hash libhead.Hash) (*
 	return block, nil
 }
 
-// resolveHeight takes a height pointer and returns its value if it's not nil.
-// otherwise, returns the latest height.
-func (f *BlockFetcher) resolveHeight(ctx context.Context, height *int64) (int64, error) {
-	if height != nil {
-		return *height, nil
-	}
-	status, err := f.client.Status(ctx, &coregrpc.StatusRequest{})
-	if err != nil {
-		return 0, err
-	}
-	return status.SyncInfo.LatestBlockHeight, nil
-}
-
 // GetSignedBlock queries Core for a `Block` at the given height.
 // if the height is nil, use the latest height.
-func (f *BlockFetcher) GetSignedBlock(ctx context.Context, height *int64) (*SignedBlock, error) {
-	blockHeight, err := f.resolveHeight(ctx, height)
-	if err != nil {
-		return nil, err
-	}
-
-	stream, err := f.client.BlockByHeight(ctx, &coregrpc.BlockByHeightRequest{Height: blockHeight})
+func (f *BlockFetcher) GetSignedBlock(ctx context.Context, height int64) (*SignedBlock, error) {
+	stream, err := f.client.BlockByHeight(ctx, &coregrpc.BlockByHeightRequest{Height: height})
 	if err != nil {
 		return nil, err
 	}
@@ -148,12 +125,8 @@ func (f *BlockFetcher) GetSignedBlock(ctx context.Context, height *int64) (*Sign
 // Commit queries Core for a `Commit` from the block at
 // the given height.
 // If the height is nil, use the latest height.
-func (f *BlockFetcher) Commit(ctx context.Context, height *int64) (*types.Commit, error) {
-	blockHeight, err := f.resolveHeight(ctx, height)
-	if err != nil {
-		return nil, err
-	}
-	res, err := f.client.Commit(ctx, &coregrpc.CommitRequest{Height: blockHeight})
+func (f *BlockFetcher) Commit(ctx context.Context, height int64) (*types.Commit, error) {
+	res, err := f.client.Commit(ctx, &coregrpc.CommitRequest{Height: height})
 	if err != nil {
 		return nil, err
 	}
@@ -173,12 +146,8 @@ func (f *BlockFetcher) Commit(ctx context.Context, height *int64) (*types.Commit
 // ValidatorSet queries Core for the ValidatorSet from the
 // block at the given height.
 // If the height is nil, use the latest height.
-func (f *BlockFetcher) ValidatorSet(ctx context.Context, height *int64) (*types.ValidatorSet, error) {
-	blockHeight, err := f.resolveHeight(ctx, height)
-	if err != nil {
-		return nil, err
-	}
-	res, err := f.client.ValidatorSet(ctx, &coregrpc.ValidatorSetRequest{Height: blockHeight})
+func (f *BlockFetcher) ValidatorSet(ctx context.Context, height int64) (*types.ValidatorSet, error) {
+	res, err := f.client.ValidatorSet(ctx, &coregrpc.ValidatorSetRequest{Height: height})
 	if err != nil {
 		return nil, err
 	}
@@ -221,7 +190,7 @@ func (f *BlockFetcher) SubscribeNewBlockEvent(ctx context.Context) (<-chan types
 				return
 			}
 			withTimeout, ctxCancel := context.WithTimeout(ctx, 10*time.Second)
-			signedBlock, err := f.GetSignedBlock(withTimeout, &resp.Height)
+			signedBlock, err := f.GetSignedBlock(withTimeout, resp.Height)
 			ctxCancel()
 			if err != nil {
 				log.Errorw("fetcher: error receiving signed block", "height", resp.Height, "err", err.Error())

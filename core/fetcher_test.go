@@ -28,7 +28,7 @@ func TestBlockFetcher_GetBlock_and_SubscribeNewBlockEvent(t *testing.T) {
 		select {
 		case newBlockFromChan := <-newBlockChan:
 			h := newBlockFromChan.Header.Height
-			block, err := fetcher.GetSignedBlock(ctx, &h)
+			block, err := fetcher.GetSignedBlock(ctx, h)
 			require.NoError(t, err)
 			assert.Equal(t, newBlockFromChan.Data, *block.Data)
 			assert.Equal(t, newBlockFromChan.Header, *block.Header)
