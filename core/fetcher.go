@@ -32,8 +32,9 @@ var (
 type BlockFetcher struct {
 	client Client
 
-	doneCh chan struct{}
-	cancel context.CancelFunc
+	doneCh               chan struct{}
+	cancel               context.CancelFunc
+	isListeningForBlocks bool
 }
 
 // NewBlockFetcher returns a new `BlockFetcher`.
@@ -167,9 +168,14 @@ func (f *BlockFetcher) ValidatorSet(ctx context.Context, height int64) (*types.V
 // SubscribeNewBlockEvent subscribes to new block events from Core, returning
 // a new block event channel on success.
 func (f *BlockFetcher) SubscribeNewBlockEvent(ctx context.Context) (<-chan types.EventDataSignedBlock, error) {
+	if f.isListeningForBlocks {
+		return nil, fmt.Errorf("already subscribed to new blocks")
+	}
 	ctx, cancel := context.WithCancel(ctx)
 	f.cancel = cancel
 	f.doneCh = make(chan struct{})
+	f.isListeningForBlocks = true
+	defer func() { f.isListeningForBlocks = false }()
 
 	subscription, err := f.client.SubscribeNewHeights(ctx, &coregrpc.SubscribeNewHeightsRequest{})
 	if err != nil {
