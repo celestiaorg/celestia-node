@@ -384,6 +384,49 @@ func TestPrunePartialFailed(t *testing.T) {
 	require.False(t, exist)
 }
 
+func TestPruneWithCancelledContext(t *testing.T) {
+	const size = 8
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second*2)
+	t.Cleanup(cancel)
+
+	eds, h := randEdsAndHeader(t, size)
+	ds := ds_sync.MutexWrap(datastore.NewMapDatastore())
+	clientBs := blockstore.NewBlockstore(ds)
+
+	ex := newTimeoutExchange(newExchangeOverEDS(ctx, t, eds))
+	getter := bitswap.NewGetter(ex, clientBs, 0)
+	getter.Start()
+	defer getter.Stop()
+
+	// Create a new ShareAvailability instance and sample the shares
+	sampleAmount := uint(20)
+	avail := NewShareAvailability(getter, ds, clientBs, WithSampleAmount(sampleAmount))
+
+	ctx2, cancel2 := context.WithTimeout(ctx, 1500*time.Millisecond)
+	defer cancel2()
+
+	err := avail.SharesAvailable(ctx2, h)
+	require.Error(t, err, context.Canceled)
+	// close ShareAvailability to force flush of batched writes
+	avail.Close(ctx)
+
+	preDeleteCount := countKeys(ctx, t, clientBs)
+	require.EqualValues(t, sampleAmount, preDeleteCount)
+
+	// prune the samples
+	err = avail.Prune(ctx, h)
+	require.NoError(t, err)
+
+	// Check if samples are deleted
+	postDeleteCount := countKeys(ctx, t, clientBs)
+	require.Zero(t, postDeleteCount)
+
+	// Check if sampling result is deleted
+	exist, err := avail.ds.Has(ctx, datastoreKeyForRoot(h.DAH))
+	require.NoError(t, err)
+	require.False(t, exist)
+}
+
 type halfSessionExchange struct {
 	exchange.SessionExchange
 	attempt atomic.Int32
@@ -413,6 +456,38 @@ func (hse *halfSessionExchange) GetBlocks(ctx context.Context, cids []cid.Cid) (
 
 		out <- blk
 	}
+
+	return out, nil
+}
+
+type timeoutExchange struct {
+	exchange.SessionExchange
+}
+
+func newTimeoutExchange(ex exchange.SessionExchange) *timeoutExchange {
+	return &timeoutExchange{SessionExchange: ex}
+}
+
+func (hse *timeoutExchange) NewSession(context.Context) exchange.Fetcher {
+	return hse
+}
+
+func (hse *timeoutExchange) GetBlocks(ctx context.Context, cids []cid.Cid) (<-chan blocks.Block, error) {
+	out := make(chan blocks.Block, len(cids))
+	defer close(out)
+
+	for _, cid := range cids {
+
+		blk, err := hse.SessionExchange.GetBlock(ctx, cid)
+		if err != nil {
+			return nil, err
+		}
+
+		out <- blk
+	}
+
+	// sleep 1 second guarantees that we will exhaust context.
+	time.Sleep(time.Second)
 
 	return out, nil
 }

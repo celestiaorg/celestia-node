@@ -116,17 +116,17 @@ func (la *ShareAvailability) SharesAvailable(ctx context.Context, header *header
 
 	log.Debugw("starting sampling session", "root", dah.String())
 
+	idxs := make([]shwap.SampleCoords, len(samples.Remaining))
+	for i, s := range samples.Remaining {
+		idxs[i] = shwap.SampleCoords{Row: s.Row, Col: s.Col}
+	}
+
 	// remove one second from the deadline to ensure we have enough time to process the results
 	samplingCtx, cancel := context.WithCancel(ctx)
 	if deadline, ok := ctx.Deadline(); ok {
 		samplingCtx, cancel = context.WithDeadline(ctx, deadline.Add(-time.Second))
 	}
 	defer cancel()
-
-	idxs := make([]shwap.SampleCoords, len(samples.Remaining))
-	for i, s := range samples.Remaining {
-		idxs[i] = shwap.SampleCoords{Row: s.Row, Col: s.Col}
-	}
 
 	smpls, errGetSamples := la.getter.GetSamples(samplingCtx, header, idxs)
 	if len(smpls) == 0 {
@@ -157,7 +157,8 @@ func (la *ShareAvailability) SharesAvailable(ctx context.Context, header *header
 		return fmt.Errorf("store sampling result: %w", err)
 	}
 
-	if errors.Is(errGetSamples, context.Canceled) {
+	if errors.Is(errGetSamples, context.Canceled) ||
+		errors.Is(errGetSamples, context.DeadlineExceeded) {
 		// Availability did not complete due to context cancellation, return context error instead of
 		// share.ErrNotAvailable
 		return context.Canceled
