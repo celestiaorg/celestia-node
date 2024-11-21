@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"sync"
+	"time"
 
 	"github.com/ipfs/boxo/blockstore"
 	"github.com/ipfs/go-datastore"
@@ -115,17 +116,19 @@ func (la *ShareAvailability) SharesAvailable(ctx context.Context, header *header
 
 	log.Debugw("starting sampling session", "root", dah.String())
 
+	// remove one second from the deadline to ensure we have enough time to process the results
+	samplingCtx, cancel := context.WithCancel(ctx)
+	if deadline, ok := ctx.Deadline(); ok {
+		samplingCtx, cancel = context.WithDeadline(ctx, deadline.Add(-time.Second))
+	}
+	defer cancel()
+
 	idxs := make([]shwap.SampleCoords, len(samples.Remaining))
 	for i, s := range samples.Remaining {
 		idxs[i] = shwap.SampleCoords{Row: s.Row, Col: s.Col}
 	}
 
-	smpls, err := la.getter.GetSamples(ctx, header, idxs)
-	if errors.Is(err, context.Canceled) {
-		// Availability did not complete due to context cancellation, return context error instead of
-		// share.ErrNotAvailable
-		return context.Canceled
-	}
+	smpls, err := la.getter.GetSamples(samplingCtx, header, idxs)
 	if len(smpls) == 0 {
 		return share.ErrNotAvailable
 	}
@@ -152,6 +155,12 @@ func (la *ShareAvailability) SharesAvailable(ctx context.Context, header *header
 	la.dsLk.Unlock()
 	if err != nil {
 		return fmt.Errorf("store sampling result: %w", err)
+	}
+
+	if errors.Is(err, context.Canceled) {
+		// Availability did not complete due to context cancellation, return context error instead of
+		// share.ErrNotAvailable
+		return context.Canceled
 	}
 
 	// if any of the samples failed, return an error
