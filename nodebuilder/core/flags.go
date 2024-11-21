@@ -11,8 +11,8 @@ var (
 	coreFlag           = "core.ip"
 	coreGRPCFlag       = "core.grpc.port"
 	coreTLS            = "core.tls"
-	coreTLSPathFlag    = "core.grpc.tls.path"
-	coreXTokenPathFlag = "core.grpc.xtoken.path" //nolint:gosec
+	coreTLSPathFlag    = "core.tls.path"
+	coreXTokenPathFlag = "core.xtoken.path" //nolint:gosec
 )
 
 // Flags gives a set of hardcoded Core flags.
