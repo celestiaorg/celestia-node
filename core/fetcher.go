@@ -315,7 +315,6 @@ func receiveBlockByHash(streamer coregrpc.BlockAPI_BlockByHashClient) (*types.Bl
 
 // partsToBlock takes a slice of parts and generates the corresponding block.
 // It empties the slice to optimize the memory usage.
-// TODO(@rach-id): decide whether to keep the memory optimisation
 func partsToBlock(parts []*tmproto.Part) (*types.Block, error) {
 	partSet := types.NewPartSetFromHeader(types.PartSetHeader{
 		Total: uint32(len(parts)),
