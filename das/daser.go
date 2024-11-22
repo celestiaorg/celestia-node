@@ -14,7 +14,6 @@ import (
 
 	"github.com/celestiaorg/celestia-node/header"
 	"github.com/celestiaorg/celestia-node/share"
-	"github.com/celestiaorg/celestia-node/share/availability"
 	"github.com/celestiaorg/celestia-node/share/eds/byzantine"
 	"github.com/celestiaorg/celestia-node/share/shwap/p2p/shrex/shrexsub"
 )
@@ -160,14 +159,6 @@ func (d *DASer) Stop(ctx context.Context) error {
 }
 
 func (d *DASer) sample(ctx context.Context, h *header.ExtendedHeader) error {
-	// short-circuit if pruning is enabled and the header is outside the
-	// availability window
-	if !availability.IsWithinWindow(h.Time(), d.params.samplingWindow) {
-		log.Debugw("skipping header outside sampling window", "height", h.Height(),
-			"time", h.Time())
-		return errOutsideSamplingWindow
-	}
-
 	err := d.da.SharesAvailable(ctx, h)
 	if err != nil {
 		var byzantineErr *byzantine.ErrByzantine
