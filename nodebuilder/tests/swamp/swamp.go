@@ -181,9 +181,10 @@ func (s *Swamp) setupGenesis() {
 
 	host, port, err := net.SplitHostPort(s.ClientContext.GRPCClient.Target())
 	require.NoError(s.t, err)
-	blockAPIClient, err := core.NewRemote(host, port)
+	client := core.NewClient(host, port)
+	require.NoError(s.t, client.Start())
+	fetcher, err := core.NewBlockFetcher(client)
 	require.NoError(s.t, err)
-	fetcher := core.NewBlockFetcher(blockAPIClient)
 
 	ex, err := core.NewExchange(
 		fetcher,
@@ -288,12 +289,12 @@ func (s *Swamp) NewNodeWithStore(
 		if err != nil {
 			return nil, err
 		}
-		blockAPIClient, err := core.NewRemote(host, port)
-		if err != nil {
+		client := core.NewClient(host, port)
+		if err := client.Start(); err != nil {
 			return nil, err
 		}
 		options = append(options,
-			coremodule.WithClient(blockAPIClient),
+			coremodule.WithClient(client),
 		)
 	default:
 	}

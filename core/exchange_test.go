@@ -122,9 +122,11 @@ func createCoreFetcher(t *testing.T, cfg *testnode.Config) (*BlockFetcher, testn
 	require.NoError(t, err)
 	host, port, err := net.SplitHostPort(cctx.GRPCClient.Target())
 	require.NoError(t, err)
-	blockAPIClient, err := NewRemote(host, port)
+	client := NewClient(host, port)
+	require.NoError(t, client.Start())
+	fetcher, err := NewBlockFetcher(client)
 	require.NoError(t, err)
-	return NewBlockFetcher(blockAPIClient), cctx
+	return fetcher, cctx
 }
 
 // fillBlocks fills blocks until the context is canceled.

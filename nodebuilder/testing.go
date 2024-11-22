@@ -74,7 +74,7 @@ func TestNodeWithConfig(t *testing.T, tp node.Type, cfg *Config, opts ...fx.Opti
 	if tp == node.Bridge {
 		cctx := core.StartTestNode(t)
 		opts = append(opts,
-			fxutil.ReplaceAs(cctx.Client, new(core.Client)),
+			fxutil.ReplaceAs(cctx.Client, new(*core.Client)),
 		)
 	}
 

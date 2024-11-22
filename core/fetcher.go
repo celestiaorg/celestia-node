@@ -2,6 +2,7 @@ package core
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"io"
 	"time"
@@ -30,7 +31,7 @@ var (
 )
 
 type BlockFetcher struct {
-	client Client
+	client *Client
 
 	doneCh               chan struct{}
 	cancel               context.CancelFunc
@@ -38,12 +39,14 @@ type BlockFetcher struct {
 }
 
 // NewBlockFetcher returns a new `BlockFetcher`.
-func NewBlockFetcher(client Client) *BlockFetcher {
+func NewBlockFetcher(client *Client) (*BlockFetcher, error) {
 	return &BlockFetcher{
 		client: client,
-	}
+	}, nil
 }
 
+// Stop stops the block fetcher.
+// The underlying gRPC connection needs to be stopped separately.
 func (f *BlockFetcher) Stop(ctx context.Context) error {
 	f.cancel()
 	select {
@@ -56,6 +59,10 @@ func (f *BlockFetcher) Stop(ctx context.Context) error {
 
 // GetBlockInfo queries Core for additional block information, like Commit and ValidatorSet.
 func (f *BlockFetcher) GetBlockInfo(ctx context.Context, height int64) (*types.Commit, *types.ValidatorSet, error) {
+	// return error if the client is still not started
+	if !f.client.IsRunning() {
+		return nil, nil, errors.New("client not running")
+	}
 	commit, err := f.Commit(ctx, height)
 	if err != nil {
 		return nil, nil, fmt.Errorf("core/fetcher: getting commit at height %d: %w", height, err)
@@ -77,6 +84,10 @@ func (f *BlockFetcher) GetBlockInfo(ctx context.Context, height int64) (*types.C
 // GetBlock queries Core for a `Block` at the given height.
 // if the height is nil, use the latest height
 func (f *BlockFetcher) GetBlock(ctx context.Context, height int64) (*types.Block, error) {
+	// return error if the client is still not started
+	if !f.client.IsRunning() {
+		return nil, errors.New("client not running")
+	}
 	stream, err := f.client.BlockByHeight(ctx, &coregrpc.BlockByHeightRequest{Height: height})
 	if err != nil {
 		return nil, err
@@ -89,6 +100,10 @@ func (f *BlockFetcher) GetBlock(ctx context.Context, height int64) (*types.Block
 }
 
 func (f *BlockFetcher) GetBlockByHash(ctx context.Context, hash libhead.Hash) (*types.Block, error) {
+	// return error if the client is still not started
+	if !f.client.IsRunning() {
+		return nil, errors.New("client not running")
+	}
 	if hash == nil {
 		return nil, fmt.Errorf("cannot get block with nil hash")
 	}
@@ -107,6 +122,10 @@ func (f *BlockFetcher) GetBlockByHash(ctx context.Context, hash libhead.Hash) (*
 // GetSignedBlock queries Core for a `Block` at the given height.
 // if the height is nil, use the latest height.
 func (f *BlockFetcher) GetSignedBlock(ctx context.Context, height int64) (*SignedBlock, error) {
+	// return error if the client is still not started
+	if !f.client.IsRunning() {
+		return nil, errors.New("client not running")
+	}
 	stream, err := f.client.BlockByHeight(ctx, &coregrpc.BlockByHeightRequest{Height: height})
 	if err != nil {
 		return nil, err
@@ -127,6 +146,10 @@ func (f *BlockFetcher) GetSignedBlock(ctx context.Context, height int64) (*Signe
 // the given height.
 // If the height is nil, use the latest height.
 func (f *BlockFetcher) Commit(ctx context.Context, height int64) (*types.Commit, error) {
+	// return error if the client is still not started
+	if !f.client.IsRunning() {
+		return nil, errors.New("client not running")
+	}
 	res, err := f.client.Commit(ctx, &coregrpc.CommitRequest{Height: height})
 	if err != nil {
 		return nil, err
@@ -148,6 +171,10 @@ func (f *BlockFetcher) Commit(ctx context.Context, height int64) (*types.Commit,
 // block at the given height.
 // If the height is nil, use the latest height.
 func (f *BlockFetcher) ValidatorSet(ctx context.Context, height int64) (*types.ValidatorSet, error) {
+	// return error if the client is still not started
+	if !f.client.IsRunning() {
+		return nil, errors.New("client not running")
+	}
 	res, err := f.client.ValidatorSet(ctx, &coregrpc.ValidatorSetRequest{Height: height})
 	if err != nil {
 		return nil, err
@@ -168,6 +195,10 @@ func (f *BlockFetcher) ValidatorSet(ctx context.Context, height int64) (*types.V
 // SubscribeNewBlockEvent subscribes to new block events from Core, returning
 // a new block event channel on success.
 func (f *BlockFetcher) SubscribeNewBlockEvent(ctx context.Context) (<-chan types.EventDataSignedBlock, error) {
+	// return error if the client is still not started
+	if !f.client.IsRunning() {
+		return nil, errors.New("client not running")
+	}
 	if f.isListeningForBlocks {
 		return nil, fmt.Errorf("already subscribed to new blocks")
 	}
@@ -187,30 +218,41 @@ func (f *BlockFetcher) SubscribeNewBlockEvent(ctx context.Context) (<-chan types
 		defer close(signedBlockCh)
 		defer func() { f.isListeningForBlocks = false }()
 		for {
-			resp, err := subscription.Recv()
-			if err != nil {
-				// case where the context was not canceled but still received an error
-				if ctx.Err() == nil {
-					log.Errorw("fetcher: error receiving new height", "err", err.Error())
-				}
-				return
-			}
-			withTimeout, ctxCancel := context.WithTimeout(ctx, 10*time.Second)
-			signedBlock, err := f.GetSignedBlock(withTimeout, resp.Height)
-			ctxCancel()
-			if err != nil {
-				log.Errorw("fetcher: error receiving signed block", "height", resp.Height, "err", err.Error())
-				return
-			}
 			select {
-			case signedBlockCh <- types.EventDataSignedBlock{
-				Header:       *signedBlock.Header,
-				Commit:       *signedBlock.Commit,
-				ValidatorSet: *signedBlock.ValidatorSet,
-				Data:         *signedBlock.Data,
-			}:
 			case <-ctx.Done():
 				return
+			default:
+				resp, err := subscription.Recv()
+				if err != nil {
+					// case where the context was not canceled but still received an error
+					if ctx.Err() == nil {
+						log.Errorw("fetcher: error receiving new height", "err", err.Error())
+						// sleeping a bit to avoid retrying instantly and give time for the gRPC connection
+						// to recover automatically.
+						time.Sleep(time.Second)
+					}
+					continue
+				}
+				withTimeout, ctxCancel := context.WithTimeout(ctx, 10*time.Second)
+				signedBlock, err := f.GetSignedBlock(withTimeout, resp.Height)
+				ctxCancel()
+				if err != nil {
+					log.Errorw("fetcher: error receiving signed block", "height", resp.Height, "err", err.Error())
+					// sleeping a bit to avoid retrying instantly and give time for the gRPC connection
+					// to recover automatically.
+					time.Sleep(time.Second)
+					continue
+				}
+				select {
+				case signedBlockCh <- types.EventDataSignedBlock{
+					Header:       *signedBlock.Header,
+					Commit:       *signedBlock.Commit,
+					ValidatorSet: *signedBlock.ValidatorSet,
+					Data:         *signedBlock.Data,
+				}:
+				case <-ctx.Done():
+					return
+				}
 			}
 		}
 	}()
@@ -222,6 +264,10 @@ func (f *BlockFetcher) SubscribeNewBlockEvent(ctx context.Context) (<-chan types
 // syncing, and false for already caught up. It can also return an error
 // in the case of a failed status request.
 func (f *BlockFetcher) IsSyncing(ctx context.Context) (bool, error) {
+	// return error if the client is still not started
+	if !f.client.IsRunning() {
+		return false, errors.New("client not running")
+	}
 	resp, err := f.client.Status(ctx, &coregrpc.StatusRequest{})
 	if err != nil {
 		return false, err

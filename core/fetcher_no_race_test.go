@@ -22,9 +22,10 @@ func TestBlockFetcherHeaderValues(t *testing.T) {
 	node := StartTestNode(t)
 	host, port, err := net.SplitHostPort(node.GRPCClient.Target())
 	require.NoError(t, err)
-	blockAPIClient, err := NewRemote(host, port)
+	client := NewClient(host, port)
+	require.NoError(t, client.Start())
+	fetcher, err := NewBlockFetcher(client)
 	require.NoError(t, err)
-	fetcher := NewBlockFetcher(blockAPIClient)
 
 	// generate some blocks
 	newBlockChan, err := fetcher.SubscribeNewBlockEvent(ctx)
