@@ -175,7 +175,6 @@ func (f *BlockFetcher) SubscribeNewBlockEvent(ctx context.Context) (<-chan types
 	f.cancel = cancel
 	f.doneCh = make(chan struct{})
 	f.isListeningForBlocks = true
-	defer func() { f.isListeningForBlocks = false }()
 
 	subscription, err := f.client.SubscribeNewHeights(ctx, &coregrpc.SubscribeNewHeightsRequest{})
 	if err != nil {
@@ -186,6 +185,7 @@ func (f *BlockFetcher) SubscribeNewBlockEvent(ctx context.Context) (<-chan types
 	go func() {
 		defer close(f.doneCh)
 		defer close(signedBlockCh)
+		defer func() { f.isListeningForBlocks = false }()
 		for {
 			resp, err := subscription.Recv()
 			if err != nil {
