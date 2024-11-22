@@ -122,6 +122,11 @@ func TestBlobRPC(t *testing.T) {
 	height, err := rpcClient.Blob.Submit(ctx, []*blob.Blob{newBlob}, state.NewTxConfig())
 	require.NoError(t, err)
 	require.True(t, height != 0)
+
+	txResp, err := rpcClient.State.SubmitPayForBlob(ctx, libBlobs, state.NewTxConfig())
+	require.NoError(t, err)
+	require.NotNil(t, txResp)
+	require.Equal(t, uint32(0), txResp.Code)
 }
 
 // TestHeaderSubscription ensures that the header subscription over RPC works
