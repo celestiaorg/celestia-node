@@ -35,16 +35,18 @@ func encodeToCID(bm encoding.BinaryMarshaler, mhcode, codec uint64) cid.Cid {
 
 // validateCID checks correctness of the CID.
 func validateCID(cid cid.Cid) error {
+	spec, err := getSpec(cid)
+	if err != nil {
+		return err
+	}
+
 	prefix := cid.Prefix()
-	spec, ok := specRegistry[prefix.MhType]
-	if !ok {
-		return fmt.Errorf("unsupported multihash type %d", prefix.MhType)
+	if prefix.Version != 1 {
+		return fmt.Errorf("invalid cid version %d", prefix.Version)
 	}
-
-	if prefix.Codec != spec.codec {
-		return fmt.Errorf("invalid CID codec %d", prefix.Codec)
+	if prefix.MhType != spec.mhCode {
+		return fmt.Errorf("invalid multihash type %d", prefix.MhType)
 	}
-
 	if prefix.MhLength != spec.idSize {
 		return fmt.Errorf("invalid multihash length %d", prefix.MhLength)
 	}

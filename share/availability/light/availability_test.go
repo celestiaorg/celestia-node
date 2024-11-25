@@ -135,57 +135,82 @@ func TestSharesAvailableFailed(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
-	getter := mock.NewMockGetter(gomock.NewController(t))
-	ds := datastore.NewMapDatastore()
-	avail := NewShareAvailability(getter, ds, nil)
-
-	// Create new eds, that is not available by getter
-	eds := edstest.RandEDS(t, 16)
-	roots, err := share.NewAxisRoots(eds)
-	require.NoError(t, err)
-	eh := headertest.RandExtendedHeaderWithRoot(t, roots)
-
+	failGetter := mock.NewMockGetter(gomock.NewController(t))
 	// Getter doesn't have the eds, so it should fail for all samples
-	getter.EXPECT().
+	failGetter.EXPECT().
 		GetShare(gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any()).
 		Return(libshare.Share{}, shrex.ErrNotFound).
 		AnyTimes()
-	err = avail.SharesAvailable(ctx, eh)
-	require.ErrorIs(t, err, share.ErrNotAvailable)
 
-	// The datastore should now contain the sampling result with all samples in Remaining
-	data, err := avail.ds.Get(ctx, datastoreKeyForRoot(roots))
-	require.NoError(t, err)
+	ds := datastore.NewMapDatastore()
+	avail := NewShareAvailability(failGetter, ds, nil)
 
-	var failed SamplingResult
-	err = json.Unmarshal(data, &failed)
-	require.NoError(t, err)
+	type test struct {
+		eh    *header.ExtendedHeader
+		roots *share.AxisRoots
+		eds   *rsmt2d.ExtendedDataSquare
+	}
 
-	require.Empty(t, failed.Available)
-	require.Len(t, failed.Remaining, int(avail.params.SampleAmount))
+	tests := make([]test, 0)
 
-	// Simulate a getter that now returns shares successfully
-	successfulGetter := newOnceGetter()
-	avail.getter = successfulGetter
+	for i := 1; i <= 128; i *= 4 {
+		// Create new eds, that is not available by getter
+		eds := edstest.RandEDS(t, i)
+		roots, err := share.NewAxisRoots(eds)
+		require.NoError(t, err)
+		eh := headertest.RandExtendedHeaderWithRoot(t, roots)
 
-	// should be able to retrieve all the failed samples now
-	err = avail.SharesAvailable(ctx, eh)
-	require.NoError(t, err)
+		tests = append(tests, test{eh: eh, roots: roots, eds: eds})
+	}
 
-	// The sampling result should now have all samples in Available
-	data, err = avail.ds.Get(ctx, datastoreKeyForRoot(roots))
-	require.NoError(t, err)
+	for _, tt := range tests {
+		avail.getter = failGetter
 
-	var result SamplingResult
-	err = json.Unmarshal(data, &result)
-	require.NoError(t, err)
+		err := avail.SharesAvailable(ctx, tt.eh)
+		require.ErrorIs(t, err, share.ErrNotAvailable)
 
-	require.Empty(t, result.Remaining)
-	require.Len(t, result.Available, int(avail.params.SampleAmount))
+		// The datastore should now contain the sampling result with all samples in Remaining
+		data, err := avail.ds.Get(ctx, datastoreKeyForRoot(tt.roots))
+		require.NoError(t, err)
 
-	// onceGetter should have no more samples stored after the call
-	successfulGetter.checkOnce(t)
-	require.ElementsMatch(t, failed.Remaining, successfulGetter.sampledList())
+		var failed SamplingResult
+		err = json.Unmarshal(data, &failed)
+		require.NoError(t, err)
+
+		require.Empty(t, failed.Available)
+		if len(tt.roots.RowRoots)*len(tt.roots.RowRoots) < int(avail.params.SampleAmount) {
+			require.Len(t, failed.Remaining, len(tt.roots.RowRoots)*len(tt.roots.RowRoots))
+		} else {
+			require.Len(t, failed.Remaining, int(avail.params.SampleAmount))
+		}
+
+		// Simulate a getter that now returns shares successfully
+		successfulGetter := newOnceGetter()
+		avail.getter = successfulGetter
+
+		// should be able to retrieve all the failed samples now
+		err = avail.SharesAvailable(ctx, tt.eh)
+		require.NoError(t, err)
+
+		// The sampling result should now have all samples in Available
+		data, err = avail.ds.Get(ctx, datastoreKeyForRoot(tt.roots))
+		require.NoError(t, err)
+
+		var result SamplingResult
+		err = json.Unmarshal(data, &result)
+		require.NoError(t, err)
+
+		require.Empty(t, result.Remaining)
+		if len(tt.roots.RowRoots)*len(tt.roots.RowRoots) < int(avail.params.SampleAmount) {
+			require.Len(t, result.Available, len(tt.roots.RowRoots)*len(tt.roots.RowRoots))
+		} else {
+			require.Len(t, result.Available, int(avail.params.SampleAmount))
+		}
+
+		// onceGetter should have no more samples stored after the call
+		successfulGetter.checkOnce(t)
+		require.ElementsMatch(t, failed.Remaining, successfulGetter.sampledList())
+	}
 }
 
 func TestParallelAvailability(t *testing.T) {

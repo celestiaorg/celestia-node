@@ -6,12 +6,12 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/tendermint/tendermint/types"
 	"golang.org/x/sync/errgroup"
 
 	libhead "github.com/celestiaorg/go-header"
 
 	"github.com/celestiaorg/celestia-node/header"
-	"github.com/celestiaorg/celestia-node/pruner"
 	"github.com/celestiaorg/celestia-node/store"
 )
 
@@ -22,7 +22,7 @@ type Exchange struct {
 	store     *store.Store
 	construct header.ConstructFn
 
-	availabilityWindow pruner.AvailabilityWindow
+	availabilityWindow time.Duration
 
 	metrics *exchangeMetrics
 }
