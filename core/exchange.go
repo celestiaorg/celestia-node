@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/tendermint/tendermint/types"
 	"golang.org/x/sync/errgroup"
 
 	libhead "github.com/celestiaorg/go-header"
