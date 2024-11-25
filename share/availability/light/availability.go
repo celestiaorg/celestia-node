@@ -103,7 +103,7 @@ func (la *ShareAvailability) SharesAvailable(ctx context.Context, header *header
 		}
 		// Verify total samples count.
 		totalSamples := len(samples.Remaining) + len(samples.Available)
-		if totalSamples != int(la.params.SampleAmount) {
+		if (totalSamples != int(la.params.SampleAmount)) && (totalSamples != len(dah.RowRoots)*len(dah.RowRoots)) {
 			return fmt.Errorf("invalid sampling result:"+
 				" expected %d samples, got %d", la.params.SampleAmount, totalSamples)
 		}

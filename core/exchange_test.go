@@ -13,7 +13,6 @@ import (
 	"github.com/celestiaorg/celestia-app/v3/test/util/testnode"
 
 	"github.com/celestiaorg/celestia-node/header"
-	"github.com/celestiaorg/celestia-node/pruner"
 	"github.com/celestiaorg/celestia-node/share"
 	"github.com/celestiaorg/celestia-node/store"
 )
@@ -82,7 +81,7 @@ func TestExchange_DoNotStoreHistoric(t *testing.T) {
 		fetcher,
 		store,
 		header.MakeExtendedHeader,
-		WithAvailabilityWindow(pruner.AvailabilityWindow(time.Nanosecond)), // all blocks will be "historic"
+		WithAvailabilityWindow(time.Nanosecond), // all blocks will be "historic"
 	)
 	require.NoError(t, err)
 
@@ -135,7 +134,7 @@ func fillBlocks(
 		default:
 		}
 
-		_, err := cctx.FillBlock(16, cfg.Genesis.Accounts()[0].Name, flags.BroadcastBlock)
+		_, err := cctx.FillBlock(16, cfg.Genesis.Accounts()[0].Name, flags.BroadcastAsync)
 		require.NoError(t, err)
 	}
 }

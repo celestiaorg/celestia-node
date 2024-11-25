@@ -11,9 +11,8 @@ import (
 
 	"github.com/celestiaorg/celestia-node/nodebuilder/node"
 	modp2p "github.com/celestiaorg/celestia-node/nodebuilder/p2p"
-	"github.com/celestiaorg/celestia-node/pruner"
-	lightprune "github.com/celestiaorg/celestia-node/pruner/light"
 	"github.com/celestiaorg/celestia-node/share"
+	"github.com/celestiaorg/celestia-node/share/availability"
 	"github.com/celestiaorg/celestia-node/share/availability/full"
 	"github.com/celestiaorg/celestia-node/share/availability/light"
 	"github.com/celestiaorg/celestia-node/share/shwap"
@@ -39,7 +38,7 @@ func ConstructModule(tp node.Type, cfg *Config, options ...fx.Option) fx.Option 
 		availabilityComponents(tp, cfg),
 		shrexComponents(tp, cfg),
 		bitswapComponents(tp, cfg),
-		peerComponents(tp, cfg),
+		peerManagementComponents(tp, cfg),
 	)
 
 	switch tp {
@@ -118,7 +117,7 @@ func shrexComponents(tp node.Type, cfg *Config) fx.Option {
 					ndClient,
 					managers[fullNodesTag],
 					managers[archivalNodesTag],
-					lightprune.Window,
+					availability.RequestWindow,
 				)
 			},
 			fx.OnStart(func(ctx context.Context, getter *shrex_getter.Getter) error {
@@ -233,7 +232,6 @@ func availabilityComponents(tp node.Type, cfg *Config) fx.Option {
 				},
 				fx.As(fx.Self()),
 				fx.As(new(share.Availability)),
-				fx.As(new(pruner.Pruner)), // TODO(@walldiss): remove conversion after Availability and Pruner interfaces are merged
 				fx.OnStop(func(ctx context.Context, la *light.ShareAvailability) error {
 					return la.Close(ctx)
 				}),

@@ -6,9 +6,6 @@ import (
 
 func SetAllLoggers(level logging.LogLevel) {
 	logging.SetAllLoggers(level)
-	_ = logging.SetLogLevel("engine", "FATAL")
-	_ = logging.SetLogLevel("blockservice", "WARN")
-	_ = logging.SetLogLevel("bs:sess", "WARN")
 	_ = logging.SetLogLevel("addrutil", "INFO")
 	_ = logging.SetLogLevel("dht", "ERROR")
 	_ = logging.SetLogLevel("swarm2", "WARN")
@@ -19,7 +16,7 @@ func SetAllLoggers(level logging.LogLevel) {
 	_ = logging.SetLogLevel("bitswap/client/provqrymgr", "WARN")
 	_ = logging.SetLogLevel("bitswap/client/getter", "WARN")
 	_ = logging.SetLogLevel("bitswap/client/sesspeermgr", "WARN")
-	_ = logging.SetLogLevel("bitswap/network", "ERROR")
+	_ = logging.SetLogLevel("bitswap/network", "WARN")
 	_ = logging.SetLogLevel("bitswap/session", "WARN")
 	_ = logging.SetLogLevel("bitswap/server", "WARN")
 	_ = logging.SetLogLevel("bitswap/server/decision", "INFO")
@@ -32,8 +29,6 @@ func SetAllLoggers(level logging.LogLevel) {
 	_ = logging.SetLogLevel("net/identify", "ERROR")
 	_ = logging.SetLogLevel("shrex/nd", "WARN")
 	_ = logging.SetLogLevel("shrex/eds", "WARN")
-	_ = logging.SetLogLevel("dagstore", "WARN")
-	_ = logging.SetLogLevel("dagstore/upgrader", "WARN")
 	_ = logging.SetLogLevel("fx", "FATAL")
 }
 
