@@ -11,7 +11,6 @@ var (
 	coreFlag           = "core.ip"
 	coreGRPCFlag       = "core.grpc.port"
 	coreTLS            = "core.tls"
-	coreTLSPathFlag    = "core.tls.path"
 	coreXTokenPathFlag = "core.xtoken.path" //nolint:gosec
 )
 
@@ -35,15 +34,6 @@ func Flags() *flag.FlagSet {
 		coreTLS,
 		false,
 		"Specifies whether TLS is enabled or not. Default: false",
-	)
-	flags.String(
-		coreTLSPathFlag,
-		"",
-		"specifies the directory path where the TLS certificates are stored. "+
-			"It should not include file names ('cert.pem' and 'key.pem'). "+
-			"NOTE: the path is parsed only if coreTLS enabled."+
-			"If left empty, with disabled coreTLS, the client will be configured for "+
-			"an insecure (non-TLS) connection",
 	)
 	flags.String(
 		coreXTokenPathFlag,
@@ -81,11 +71,6 @@ func ParseFlags(
 
 	if enabled {
 		cfg.TLSEnabled = true
-		if cmd.Flag(coreTLSPathFlag).Changed {
-			path := cmd.Flag(coreTLSPathFlag).Value.String()
-			cfg.TLSPath = path
-		}
-
 		if cmd.Flag(coreXTokenPathFlag).Changed {
 			path := cmd.Flag(coreXTokenPathFlag).Value.String()
 			cfg.XTokenPath = path

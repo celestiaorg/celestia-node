@@ -18,12 +18,8 @@ type Config struct {
 	IP   string
 	Port string
 	// TLSEnabled specifies whether the connection is secure or not.
-	// PLEASE NOTE: it should be set to true in order to handle TLSPath and/or XTokenPath.
+	// PLEASE NOTE: it should be set to true in order to handle XTokenPath.
 	TLSEnabled bool
-	// TLSPath specifies the directory path where the TLS certificates are stored.
-	// It should not include file names('cert.pem' and 'key.pem').
-	// If left empty, the client will be configured for an insecure (non-TLS) connection.
-	TLSPath string
 	// XTokenPath specifies the path to the directory with JSON file containing the X-Token for gRPC authentication.
 	// The JSON file should have a key-value pair where the key is "x-token" and the value is the authentication token.
 	// If left empty, the client will not include the X-Token in its requests.

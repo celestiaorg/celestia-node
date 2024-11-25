@@ -20,33 +20,6 @@ func EmptyTLSConfig() *tls.Config {
 	return &tls.Config{MinVersion: tls.VersionTLS12}
 }
 
-// TLS creates a TLS configuration using the certificate and key files from the specified path.
-// It constructs the full paths to the certificate and key files by joining the provided directory path
-// with their respective file names.
-// If either file is missing, it returns an os.ErrNotExist error.
-// If the files exist, it loads the X.509 key pair from the specified files and sets up a tls.Config.
-// Parameters:
-// * tlsPath: The directory path where the TLS certificate ("cert.pem") and key ("key.pem") files are located.
-// Returns:
-// * A tls.Config structure configured with the provided certificate and key.
-// * An error if the certificate or key file does not exist, or if loading the key pair fails.
-func TLS(tlsPath string) (*tls.Config, error) {
-	certPath := filepath.Join(tlsPath, cert)
-	keyPath := filepath.Join(tlsPath, key)
-	exist := utils.Exists(certPath) && utils.Exists(keyPath)
-	if !exist {
-		return nil, os.ErrNotExist
-	}
-
-	cfg := EmptyTLSConfig()
-	cert, err := tls.LoadX509KeyPair(certPath, keyPath)
-	if err != nil {
-		return nil, err
-	}
-	cfg.Certificates = append(cfg.Certificates, cert)
-	return cfg, nil
-}
-
 type AuthToken struct {
 	Token string `json:"x-token"`
 }

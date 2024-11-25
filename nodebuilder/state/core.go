@@ -34,16 +34,7 @@ func coreAccessor(
 	error,
 ) {
 	if corecfg.TLSEnabled {
-		tlsCfg, err := core.TLS(corecfg.TLSPath)
-		switch {
-		case err == nil:
-		case errors.Is(err, os.ErrNotExist):
-			// set an empty config if path is empty under `TLSEnabled=true`
-			tlsCfg = core.EmptyTLSConfig()
-		default:
-			return nil, nil, nil, err
-		}
-
+		tlsCfg := core.EmptyTLSConfig()
 		xtoken, err := core.XToken(corecfg.XTokenPath)
 		if err != nil && !errors.Is(err, os.ErrNotExist) {
 			return nil, nil, nil, err
