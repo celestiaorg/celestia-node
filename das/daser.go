@@ -20,11 +20,6 @@ import (
 
 var log = logging.Logger("das")
 
-// errOutsideSamplingWindow is an error used to inform
-// the caller of Sample that the given header is outside
-// the sampling window.
-var errOutsideSamplingWindow = fmt.Errorf("skipping header outside of sampling window")
-
 // DASer continuously validates availability of data committed to headers.
 type DASer struct {
 	params Parameters
