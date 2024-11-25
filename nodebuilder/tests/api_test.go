@@ -3,7 +3,12 @@
 package tests
 
 import (
+	"bytes"
 	"context"
+	"fmt"
+	"io"
+	"net/http"
+	"os"
 	"testing"
 	"time"
 
@@ -15,6 +20,7 @@ import (
 	libshare "github.com/celestiaorg/go-square/v2/share"
 
 	"github.com/celestiaorg/celestia-node/api/rpc/client"
+	"github.com/celestiaorg/celestia-node/api/rpc/perms"
 	"github.com/celestiaorg/celestia-node/blob"
 	"github.com/celestiaorg/celestia-node/nodebuilder"
 	"github.com/celestiaorg/celestia-node/nodebuilder/node"
@@ -127,6 +133,10 @@ func TestBlobRPC(t *testing.T) {
 	require.NoError(t, err)
 	require.NotNil(t, txResp)
 	require.Equal(t, uint32(0), txResp.Code)
+
+	b, err := rpcClient.Blob.Get(ctx, uint64(txResp.Height), newBlob.Namespace(), newBlob.Commitment)
+	require.NoError(t, err)
+	require.NotNil(t, b)
 }
 
 // TestHeaderSubscription ensures that the header subscription over RPC works
@@ -172,4 +182,44 @@ func TestHeaderSubscription(t *testing.T) {
 	// stop the light node and expect no outstanding subscription errors
 	err = light.Stop(ctx)
 	require.NoError(t, err)
+}
+
+func TestSubmitBlobOverHTTP(t *testing.T) {
+	ctx, cancel := context.WithTimeout(context.Background(), swamp.DefaultTestTimeout)
+	t.Cleanup(cancel)
+
+	sw := swamp.NewSwamp(t, swamp.WithBlockTime(time.Second))
+	// start a bridge node
+	bridge := sw.NewBridgeNode()
+	err := bridge.Start(ctx)
+	require.NoError(t, err)
+
+	bridgeAddr := "http://" + bridge.RPCServer.ListenAddr()
+
+	adminPerms := []auth.Permission{"public", "read", "write", "admin"}
+	jwt, err := bridge.AdminServ.AuthNew(ctx, adminPerms)
+	require.NoError(t, err)
+
+	f, err := os.Open("test_data/submitPFB.json")
+	require.NoError(t, err)
+	defer f.Close()
+
+	payload, err := io.ReadAll(f)
+	require.NoError(t, err)
+
+	req, err := http.NewRequest("POST", bridgeAddr, bytes.NewBuffer(payload))
+	if err != nil {
+		fmt.Printf("Failed to create request: %v\n", err)
+		return
+	}
+
+	req.Header = http.Header{
+		perms.AuthKey: []string{fmt.Sprintf("Bearer %s", jwt)},
+	}
+
+	httpClient := &http.Client{}
+	resp, err := httpClient.Do(req)
+	require.NoError(t, err)
+	defer resp.Body.Close()
+	require.Equal(t, http.StatusOK, resp.StatusCode)
 }
