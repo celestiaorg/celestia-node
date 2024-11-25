@@ -6,7 +6,6 @@ import (
 	"bytes"
 	"context"
 	"fmt"
-	"io"
 	"net/http"
 	"os"
 	"testing"
@@ -194,30 +193,22 @@ func TestSubmitBlobOverHTTP(t *testing.T) {
 	err := bridge.Start(ctx)
 	require.NoError(t, err)
 
-	bridgeAddr := "http://" + bridge.RPCServer.ListenAddr()
-
 	adminPerms := []auth.Permission{"public", "read", "write", "admin"}
 	jwt, err := bridge.AdminServ.AuthNew(ctx, adminPerms)
 	require.NoError(t, err)
 
-	f, err := os.Open("test_data/submitPFB.json")
-	require.NoError(t, err)
-	defer f.Close()
-
-	payload, err := io.ReadAll(f)
+	payload, err := os.ReadFile("testdata/submitPFB.json")
 	require.NoError(t, err)
 
+	bridgeAddr := "http://" + bridge.RPCServer.ListenAddr()
 	req, err := http.NewRequest("POST", bridgeAddr, bytes.NewBuffer(payload))
-	if err != nil {
-		fmt.Printf("Failed to create request: %v\n", err)
-		return
-	}
+	require.NoError(t, err)
 
 	req.Header = http.Header{
 		perms.AuthKey: []string{fmt.Sprintf("Bearer %s", jwt)},
 	}
 
-	httpClient := &http.Client{}
+	httpClient := &http.Client{Timeout: time.Second * 5}
 	resp, err := httpClient.Do(req)
 	require.NoError(t, err)
 	defer resp.Body.Close()
