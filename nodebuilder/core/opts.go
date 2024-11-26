@@ -10,7 +10,7 @@ import (
 
 // WithClient sets a custom client for core process
 func WithClient(client *core.Client) fx.Option {
-	return fxutil.ReplaceAs(client, new(*core.Client))
+	return fxutil.ReplaceAs(client, new(core.Client))
 }
 
 // WithHeaderConstructFn sets custom func that creates extended header
