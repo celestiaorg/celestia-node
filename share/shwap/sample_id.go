@@ -11,7 +11,8 @@ import (
 const SampleIDSize = RowIDSize + 2
 
 type SampleCoords struct {
-	Row, Col int
+	Row int `json:"row"`
+	Col int `json:"col"`
 }
 
 func SampleCoordsAs1DIndex(idx SampleCoords, edsSize int) (int, error) {

@@ -157,8 +157,7 @@ func (la *ShareAvailability) SharesAvailable(ctx context.Context, header *header
 		return fmt.Errorf("store sampling result: %w", err)
 	}
 
-	if errors.Is(errGetSamples, context.Canceled) ||
-		errors.Is(errGetSamples, context.DeadlineExceeded) {
+	if errors.Is(errGetSamples, context.Canceled) {
 		// Availability did not complete due to context cancellation, return context error instead of
 		// share.ErrNotAvailable
 		return context.Canceled

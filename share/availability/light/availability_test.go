@@ -246,7 +246,7 @@ func TestParallelAvailability(t *testing.T) {
 		}()
 	}
 	wg.Wait()
-	require.Equal(t, len(successfulGetter.sampledList()), int(avail.params.SampleAmount))
+	require.Len(t, successfulGetter.sampledList(), int(avail.params.SampleAmount))
 
 	// Verify that the sampling result is stored with all samples marked as available
 	resultData, err := avail.ds.Get(ctx, datastoreKeyForRoot(roots))
@@ -404,6 +404,11 @@ func TestPruneWithCancelledContext(t *testing.T) {
 
 	ctx2, cancel2 := context.WithTimeout(ctx, 1500*time.Millisecond)
 	defer cancel2()
+	go func() {
+		// cancel context a bit later.
+		time.Sleep(100 * time.Millisecond)
+		cancel2()
+	}()
 
 	err := avail.SharesAvailable(ctx2, h)
 	require.Error(t, err, context.Canceled)
@@ -485,8 +490,8 @@ func (hse *timeoutExchange) GetBlocks(ctx context.Context, cids []cid.Cid) (<-ch
 		out <- blk
 	}
 
-	// sleep 1 second guarantees that we will exhaust context.
-	time.Sleep(time.Second)
+	// sleep guarantees that we context will be cancelled in a test.
+	time.Sleep(200 * time.Millisecond)
 
 	return out, nil
 }
