@@ -22,10 +22,14 @@ const (
 	rowNamespaceDataMultihashCode = 0x7821
 )
 
+// maxRNDSize is the maximum size of the RowNamespaceDataBlock.
+var maxRNDSize = maxRowSize
+
 func init() {
 	registerBlock(
 		rowNamespaceDataMultihashCode,
 		rowNamespaceDataCodec,
+		maxRNDSize,
 		shwap.RowNamespaceDataIDSize,
 		func(cid cid.Cid) (Block, error) {
 			return EmptyRowNamespaceDataBlockFromCID(cid)

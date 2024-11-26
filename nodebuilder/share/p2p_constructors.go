@@ -13,7 +13,6 @@ import (
 
 	"github.com/celestiaorg/celestia-node/header"
 	"github.com/celestiaorg/celestia-node/nodebuilder/node"
-	modprune "github.com/celestiaorg/celestia-node/nodebuilder/pruner"
 	"github.com/celestiaorg/celestia-node/share/shwap/p2p/discovery"
 	"github.com/celestiaorg/celestia-node/share/shwap/p2p/shrex/peers"
 	"github.com/celestiaorg/celestia-node/share/shwap/p2p/shrex/shrexsub"
@@ -31,12 +30,11 @@ const (
 	protocolVersion = "v0.1.0"
 )
 
-// TODO @renaynay: rename
-func peerComponents(tp node.Type, cfg *Config) fx.Option {
+func peerManagementComponents(tp node.Type, cfg *Config) fx.Option {
 	return fx.Options(
 		fx.Provide(routingDiscovery),
 		fullDiscoveryAndPeerManager(tp, cfg),
-		archivalDiscoveryAndPeerManager(tp, cfg),
+		archivalDiscoveryAndPeerManager(cfg),
 	)
 }
 
@@ -101,17 +99,18 @@ func fullDiscoveryAndPeerManager(tp node.Type, cfg *Config) fx.Option {
 		})
 }
 
-// archivalDiscoveryAndPeerManager TODO @renaynay
-func archivalDiscoveryAndPeerManager(tp node.Type, cfg *Config) fx.Option {
+// archivalDiscoveryAndPeerManager builds the discovery instance and peer manager
+// for discovering and managing peers advertising on the `archival` tag
+func archivalDiscoveryAndPeerManager(cfg *Config) fx.Option {
 	return fx.Provide(
 		func(
 			lc fx.Lifecycle,
-			pruneCfg *modprune.Config,
 			fullDisc *discovery.Discovery,
 			fullManager *peers.Manager,
 			h host.Host,
 			disc p2pdisc.Discovery,
 			gater *conngater.BasicConnectionGater,
+			discOpt discovery.Option,
 		) (map[string]*peers.Manager, []*discovery.Discovery, error) {
 			archivalPeerManager, err := peers.NewManager(
 				*cfg.PeerManagerParams,
@@ -124,9 +123,8 @@ func archivalDiscoveryAndPeerManager(tp node.Type, cfg *Config) fx.Option {
 			}
 
 			discOpts := []discovery.Option{discovery.WithOnPeersUpdate(archivalPeerManager.UpdateNodePool)}
-
-			if (tp == node.Bridge || tp == node.Full) && !pruneCfg.EnableService {
-				discOpts = append(discOpts, discovery.WithAdvertise())
+			if discOpt != nil {
+				discOpts = append(discOpts, discOpt)
 			}
 
 			archivalDisc, err := discovery.NewDiscovery(
