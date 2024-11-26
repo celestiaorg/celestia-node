@@ -78,8 +78,11 @@ func TestFullDiscoveryViaBootstrapper(t *testing.T) {
 	// create and start a BN
 	cfg := nodebuilder.DefaultConfig(node.Bridge)
 	setTimeInterval(cfg, defaultTimeInterval)
+	var err error
+	cfg.Core.IP, cfg.Core.Port, err = net.SplitHostPort(sw.ClientContext.GRPCClient.Target())
+	require.NoError(t, err)
 	bridge := sw.NewNodeWithConfig(node.Bridge, cfg)
-	err := bridge.Start(ctx)
+	err = bridge.Start(ctx)
 	require.NoError(t, err)
 
 	// use BN as the bootstrapper
