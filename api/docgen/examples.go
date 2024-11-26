@@ -133,6 +133,7 @@ func init() {
 	}
 
 	addToExampleValues(exBlob)
+	addToExampleValues(exBlob.Blob)
 	addToExampleValues(blobProof)
 	addToExampleValues(txResponse)
 	addToExampleValues(samplingStats)
