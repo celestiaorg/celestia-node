@@ -95,13 +95,6 @@ jobs:
         with:
           go-version: ${{ needs.setup.outputs.go-version }}
 
-      - name: Bump version and push tag
-        if: ${{ github.event_name == 'workflow_dispatch' }} && ${{ inputs.tag-as }} != ''
-        uses: mathieudutour/github-tag-action@v6.2
-        with:
-          github_token: ${{ secrets.GITHUB_TOKEN }}
-          custom_tag: ${{ inputs.tag-as }}
-
       - name: Import GPG key
         id: import_gpg
         uses: crazy-max/ghaction-import-gpg@v6
