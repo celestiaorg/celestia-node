@@ -490,7 +490,7 @@ func (hse *timeoutExchange) GetBlocks(ctx context.Context, cids []cid.Cid) (<-ch
 		out <- blk
 	}
 
-	// sleep guarantees that we context will be cancelled in a test.
+	// sleep guarantees that we context will be canceled in a test.
 	time.Sleep(200 * time.Millisecond)
 
 	return out, nil
