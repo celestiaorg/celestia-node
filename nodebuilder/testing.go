@@ -1,6 +1,7 @@
 package nodebuilder
 
 import (
+	"net"
 	"testing"
 
 	"github.com/cosmos/cosmos-sdk/crypto/hd"
@@ -69,12 +70,15 @@ func TestNodeWithConfig(t *testing.T, tp node.Type, cfg *Config, opts ...fx.Opti
 		fxutil.ReplaceAs(headertest.NewStore(t), new(libhead.Store[*header.ExtendedHeader])),
 	)
 
-	// in fact, we don't need core.Client in tests, but Bridge requires is a valid one
-	// or fails otherwise with failed attempt to connect with custom build client
+	// in fact, we don't need core.Client in tests, but the Bridge node requires a valid one.
+	// otherwise, it fails with a failed attempt to connect with a custom build client.
 	if tp == node.Bridge {
-		cctx := core.StartTestNode(t)
+		host, port, err := net.SplitHostPort(core.StartTestNode(t).GRPCClient.Target())
+		require.NoError(t, err)
+		client := core.NewClient(host, port)
+		require.NoError(t, client.Start())
 		opts = append(opts,
-			fxutil.ReplaceAs(cctx.Client, new(*core.Client)),
+			fxutil.ReplaceAs(client, new(core.Client)),
 		)
 	}
 
