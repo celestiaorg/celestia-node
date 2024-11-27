@@ -349,8 +349,8 @@ github.com/celestiaorg/boxo v0.0.0-20241118122411-70a650316c3b h1:M9X7s1WJ/7Ju84
 github.com/celestiaorg/boxo v0.0.0-20241118122411-70a650316c3b/go.mod h1:OpUrJtGmZZktUqJvPOtmP8wSfEFcdF/55d3PNCcYLwc=
 github.com/celestiaorg/celestia-app/v3 v3.0.0-mocha h1:9tdQDaNgOfU56BueKq8i0Qte4FRmJJzG7woPTm6HHhk=
 github.com/celestiaorg/celestia-app/v3 v3.0.0-mocha/go.mod h1:K8U6TRHgofz0y5UcvlOL+CuNLbx4jeZrZF7HZdf+Rgs=
-github.com/celestiaorg/celestia-core v1.43.0-tm-v0.34.35.0.20241122130856-072b5eb2ca43 h1:ueNQhrkVx/d17j4XoEq5H0JBmTs6KEtmq7ajTfdnNOU=
-github.com/celestiaorg/celestia-core v1.43.0-tm-v0.34.35.0.20241122130856-072b5eb2ca43/go.mod h1:bFr0lAGwaJ0mOHSBmib5/ca5pbBf1yKWGPs93Td0HPw=
+github.com/celestiaorg/celestia-core v1.44.0-tm-v0.34.35.0.20241127151511-4ca8293c2468 h1:3g5si/M4gT4S3vpZs0QWkEKXMTHz2EdHHmjUGkR3sgg=
+github.com/celestiaorg/celestia-core v1.44.0-tm-v0.34.35.0.20241127151511-4ca8293c2468/go.mod h1:bFr0lAGwaJ0mOHSBmib5/ca5pbBf1yKWGPs93Td0HPw=
 github.com/celestiaorg/cosmos-sdk v1.25.0-sdk-v0.46.16.0.20241009080849-0cd36203b354 h1:3lqz1cEs0wx1PWQQezEaYttAMYMsdxU677Jh58keyyc=
 github.com/celestiaorg/cosmos-sdk v1.25.0-sdk-v0.46.16.0.20241009080849-0cd36203b354/go.mod h1:xDj0DMkHYv8u4oMOV88QU7g2f9nbHjVYlJ3S/6HeTEs=
 github.com/celestiaorg/go-fraud v0.2.1 h1:oYhxI0gM/EpGRgbVQdRI/LSlqyT65g/WhQGSVGfx09w=

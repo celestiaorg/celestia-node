@@ -86,7 +86,7 @@ func (f *BlockFetcher) GetBlockInfo(ctx context.Context, height int64) (*types.C
 
 // GetBlock queries Core for a `Block` at the given height.
 // if the height is nil, use the latest height
-func (f *BlockFetcher) GetBlock(ctx context.Context, height int64) (*types.Block, error) {
+func (f *BlockFetcher) GetBlock(ctx context.Context, height int64) (*SignedBlock, error) {
 	// return error if the client is still not started
 	if !f.client.IsRunning() {
 		return nil, ErrClientNotRunning
@@ -95,7 +95,7 @@ func (f *BlockFetcher) GetBlock(ctx context.Context, height int64) (*types.Block
 	if err != nil {
 		return nil, err
 	}
-	block, _, _, _, err := receiveBlockByHeight(stream)
+	block, err := receiveBlockByHeight(stream)
 	if err != nil {
 		return nil, err
 	}
@@ -133,16 +133,7 @@ func (f *BlockFetcher) GetSignedBlock(ctx context.Context, height int64) (*Signe
 	if err != nil {
 		return nil, err
 	}
-	block, _, commit, validatorSet, err := receiveBlockByHeight(stream)
-	if err != nil {
-		return nil, err
-	}
-	return &SignedBlock{
-		Header:       &block.Header,
-		Commit:       commit,
-		Data:         &block.Data,
-		ValidatorSet: validatorSet,
-	}, nil
+	return receiveBlockByHeight(stream)
 }
 
 // Commit queries Core for a `Commit` from the block at
@@ -279,10 +270,7 @@ func (f *BlockFetcher) IsSyncing(ctx context.Context) (bool, error) {
 }
 
 func receiveBlockByHeight(streamer coregrpc.BlockAPI_BlockByHeightClient) (
-	*types.Block,
-	*types.BlockMeta,
-	*types.Commit,
-	*types.ValidatorSet,
+	*SignedBlock,
 	error,
 ) {
 	parts := make([]*tmproto.Part, 0)
@@ -290,19 +278,15 @@ func receiveBlockByHeight(streamer coregrpc.BlockAPI_BlockByHeightClient) (
 	// receive the first part to get the block meta, commit, and validator set
 	firstPart, err := streamer.Recv()
 	if err != nil {
-		return nil, nil, nil, nil, err
-	}
-	blockMeta, err := types.BlockMetaFromProto(firstPart.BlockMeta)
-	if err != nil {
-		return nil, nil, nil, nil, err
+		return nil, err
 	}
 	commit, err := types.CommitFromProto(firstPart.Commit)
 	if err != nil {
-		return nil, nil, nil, nil, err
+		return nil, err
 	}
 	validatorSet, err := types.ValidatorSetFromProto(firstPart.ValidatorSet)
 	if err != nil {
-		return nil, nil, nil, nil, err
+		return nil, err
 	}
 	parts = append(parts, firstPart.BlockPart)
 
@@ -311,16 +295,21 @@ func receiveBlockByHeight(streamer coregrpc.BlockAPI_BlockByHeightClient) (
 	for !isLast {
 		resp, err := streamer.Recv()
 		if err != nil {
-			return nil, nil, nil, nil, err
+			return nil, err
 		}
 		parts = append(parts, resp.BlockPart)
 		isLast = resp.IsLast
 	}
 	block, err := partsToBlock(parts)
 	if err != nil {
-		return nil, nil, nil, nil, err
+		return nil, err
 	}
-	return block, blockMeta, commit, validatorSet, nil
+	return &SignedBlock{
+		Header:       &block.Header,
+		Commit:       commit,
+		Data:         &block.Data,
+		ValidatorSet: validatorSet,
+	}, nil
 }
 
 func receiveBlockByHash(streamer coregrpc.BlockAPI_BlockByHashClient) (*types.Block, error) {
