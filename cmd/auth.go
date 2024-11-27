@@ -20,6 +20,8 @@ import (
 	nodemod "github.com/celestiaorg/celestia-node/nodebuilder/node"
 )
 
+var ttlFlagName = "ttl"
+
 func AuthCmd(fsets ...*flag.FlagSet) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "auth [permission-level (e.g. read || write || admin)]",
@@ -35,7 +37,10 @@ func AuthCmd(fsets ...*flag.FlagSet) *cobra.Command {
 				return err
 			}
 
-			ttl, _ := cmd.Flags().GetDuration("ttl")
+			ttl, err := cmd.Flags().GetDuration(ttlFlagName)
+			if err != nil {
+				return err
+			}
 
 			ks, err := newKeystore(StorePath(cmd.Context()))
 			if err != nil {
@@ -65,6 +70,8 @@ func AuthCmd(fsets ...*flag.FlagSet) *cobra.Command {
 	for _, set := range fsets {
 		cmd.Flags().AddFlagSet(set)
 	}
+	cmd.Flags().Duration(ttlFlagName, 0, "Set a Time-to-live (TTL) for the token")
+
 	return cmd
 }
 
