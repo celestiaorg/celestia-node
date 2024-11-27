@@ -82,7 +82,7 @@ func (g *Getter) GetSamples(
 	indices []shwap.SampleCoords,
 ) ([]shwap.Sample, error) {
 	if len(indices) == 0 {
-		return nil, fmt.Errorf("no sample indicies to fetch")
+		return nil, shwap.ErrNoSampleIndicies
 	}
 
 	ctx, span := tracer.Start(ctx, "get-samples", trace.WithAttributes(

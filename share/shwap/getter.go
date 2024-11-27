@@ -22,6 +22,8 @@ var (
 	// ErrOutOfBounds is used to indicate that a passed row or column index is out of bounds of the
 	// square size.
 	ErrOutOfBounds = fmt.Errorf("index out of bounds: %w", ErrInvalidID)
+	// ErrNoSampleIndicies is used to indicate that no indicies where given to process.
+	ErrNoSampleIndicies = errors.New("no sample indicies to fetch")
 )
 
 // Getter interface provides a set of accessors for shares by the Root.
