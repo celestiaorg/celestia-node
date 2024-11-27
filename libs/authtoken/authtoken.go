@@ -24,7 +24,7 @@ func ExtractSignedPermissions(verifier jwt.Verifier, token string) ([]auth.Permi
 	if err := json.Unmarshal(tk.Claims(), p); err != nil {
 		return nil, err
 	}
-	if p.ExpiresAt.Before(time.Now().UTC()) {
+	if !p.ExpiresAt.IsZero() && p.ExpiresAt.Before(time.Now().UTC()) {
 		return nil, fmt.Errorf("token expired %s ago", time.Since(p.ExpiresAt))
 	}
 	return p.Allow, nil
