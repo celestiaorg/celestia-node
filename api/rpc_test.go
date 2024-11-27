@@ -59,7 +59,7 @@ func TestRPCCallsUnderlyingNode(t *testing.T) {
 	nd, server := setupNodeWithAuthedRPC(t, signer, verifier)
 	url := nd.RPCServer.ListenAddr()
 
-	adminToken, err := perms.NewTokenWithPerms(signer, perms.AllPerms, time.Minute)
+	adminToken, err := perms.NewTokenWithPerms(signer, perms.AllPerms)
 	require.NoError(t, err)
 
 	// we need to run this a few times to prevent the race where the server is not yet started
@@ -105,7 +105,7 @@ func TestRPCCallsTokenExpired(t *testing.T) {
 	nd, _ := setupNodeWithAuthedRPC(t, signer, verifier)
 	url := nd.RPCServer.ListenAddr()
 
-	adminToken, err := perms.NewTokenWithPerms(signer, perms.AllPerms, time.Millisecond)
+	adminToken, err := perms.NewTokenWithTTL(signer, perms.AllPerms, time.Millisecond)
 	require.NoError(t, err)
 
 	// we need to run this a few times to prevent the race where the server is not yet started
@@ -122,7 +122,7 @@ func TestRPCCallsTokenExpired(t *testing.T) {
 	require.NoError(t, err)
 
 	_, err = rpcClient.State.Balance(ctx)
-	require.Error(t, err, err)
+	require.ErrorContains(t, err, "request failed, http status 401 Unauthorized")
 }
 
 // api contains all modules that are made available as the node's
@@ -179,13 +179,13 @@ func TestAuthedRPC(t *testing.T) {
 	url := nd.RPCServer.ListenAddr()
 
 	// create permissioned tokens
-	publicToken, err := perms.NewTokenWithPerms(signer, perms.DefaultPerms, time.Minute)
+	publicToken, err := perms.NewTokenWithPerms(signer, perms.DefaultPerms)
 	require.NoError(t, err)
-	readToken, err := perms.NewTokenWithPerms(signer, perms.ReadPerms, time.Minute)
+	readToken, err := perms.NewTokenWithPerms(signer, perms.ReadPerms)
 	require.NoError(t, err)
-	rwToken, err := perms.NewTokenWithPerms(signer, perms.ReadWritePerms, time.Minute)
+	rwToken, err := perms.NewTokenWithPerms(signer, perms.ReadWritePerms)
 	require.NoError(t, err)
-	adminToken, err := perms.NewTokenWithPerms(signer, perms.AllPerms, time.Minute)
+	adminToken, err := perms.NewTokenWithPerms(signer, perms.AllPerms)
 	require.NoError(t, err)
 
 	tests := []struct {

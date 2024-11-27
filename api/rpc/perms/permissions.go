@@ -32,7 +32,26 @@ func (j *JWTPayload) MarshalBinary() (data []byte, err error) {
 
 // NewTokenWithPerms generates and signs a new JWT token with the given secret
 // and given permissions.
-func NewTokenWithPerms(signer jwt.Signer, perms []auth.Permission, ttl time.Duration) ([]byte, error) {
+func NewTokenWithPerms(signer jwt.Signer, perms []auth.Permission) ([]byte, error) {
+	nonce := make([]byte, 32)
+	if _, err := rand.Read(nonce); err != nil {
+		return nil, err
+	}
+
+	p := &JWTPayload{
+		Allow: perms,
+		Nonce: nonce,
+	}
+	token, err := jwt.NewBuilder(signer).Build(p)
+	if err != nil {
+		return nil, err
+	}
+	return token.Bytes(), nil
+}
+
+// NewTokenWithTTL generates and signs a new JWT token with the given secret
+// and given permissions and TTL.
+func NewTokenWithTTL(signer jwt.Signer, perms []auth.Permission, ttl time.Duration) ([]byte, error) {
 	nonce := make([]byte, 32)
 	if _, err := rand.Read(nonce); err != nil {
 		return nil, err
