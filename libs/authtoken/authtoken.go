@@ -44,7 +44,7 @@ func NewSignedJWT(signer jwt.Signer, permissions []auth.Permission, ttl time.Dur
 
 	token, err := jwt.NewBuilder(signer).Build(&perms.JWTPayload{
 		Allow:     permissions,
-		Nonce:     nonce[:],
+		Nonce:     nonce,
 		ExpiresAt: expiresAt,
 	})
 	if err != nil {

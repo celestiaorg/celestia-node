@@ -61,6 +61,8 @@ func (m *module) AuthNew(_ context.Context, permissions []auth.Permission) (stri
 	return authtoken.NewSignedJWT(m.signer, permissions, 0)
 }
 
-func (m *module) AuthNewWithExpiry(_ context.Context, permissions []auth.Permission, ttl time.Duration) (string, error) {
+func (m *module) AuthNewWithExpiry(_ context.Context,
+	permissions []auth.Permission, ttl time.Duration,
+) (string, error) {
 	return authtoken.NewSignedJWT(m.signer, permissions, ttl)
 }

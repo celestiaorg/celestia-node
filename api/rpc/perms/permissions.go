@@ -45,7 +45,7 @@ func NewTokenWithPerms(signer jwt.Signer, perms []auth.Permission, ttl time.Dura
 
 	p := &JWTPayload{
 		Allow:     perms,
-		Nonce:     nonce[:],
+		Nonce:     nonce,
 		ExpiresAt: expiresAt,
 	}
 	token, err := jwt.NewBuilder(signer).Build(p)
