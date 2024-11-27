@@ -128,7 +128,7 @@ func getToken(path string) (string, error) {
 		fmt.Printf("error getting the JWT secret: %v", err)
 		return "", err
 	}
-	return buildJWTToken(key.Body, perms.AllPerms)
+	return buildJWTToken(key.Body, perms.AllPerms, time.Minute)
 }
 
 type rpcClientKey struct{}

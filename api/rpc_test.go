@@ -59,7 +59,7 @@ func TestRPCCallsUnderlyingNode(t *testing.T) {
 	nd, server := setupNodeWithAuthedRPC(t, signer, verifier)
 	url := nd.RPCServer.ListenAddr()
 
-	adminToken, err := perms.NewTokenWithPerms(signer, perms.AllPerms)
+	adminToken, err := perms.NewTokenWithPerms(signer, perms.AllPerms, time.Minute)
 	require.NoError(t, err)
 
 	// we need to run this a few times to prevent the race where the server is not yet started
@@ -143,13 +143,13 @@ func TestAuthedRPC(t *testing.T) {
 	url := nd.RPCServer.ListenAddr()
 
 	// create permissioned tokens
-	publicToken, err := perms.NewTokenWithPerms(signer, perms.DefaultPerms)
+	publicToken, err := perms.NewTokenWithPerms(signer, perms.DefaultPerms, time.Minute)
 	require.NoError(t, err)
-	readToken, err := perms.NewTokenWithPerms(signer, perms.ReadPerms)
+	readToken, err := perms.NewTokenWithPerms(signer, perms.ReadPerms, time.Minute)
 	require.NoError(t, err)
-	rwToken, err := perms.NewTokenWithPerms(signer, perms.ReadWritePerms)
+	rwToken, err := perms.NewTokenWithPerms(signer, perms.ReadWritePerms, time.Minute)
 	require.NoError(t, err)
-	adminToken, err := perms.NewTokenWithPerms(signer, perms.AllPerms)
+	adminToken, err := perms.NewTokenWithPerms(signer, perms.AllPerms, time.Minute)
 	require.NoError(t, err)
 
 	tests := []struct {

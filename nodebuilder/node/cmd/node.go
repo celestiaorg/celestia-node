@@ -87,8 +87,8 @@ var authCmd = &cobra.Command{
 	Use:   "set-permissions",
 	Args:  cobra.MinimumNArgs(1),
 	Short: "Signs and returns a new token with the given permissions.",
-	RunE: func(c *cobra.Command, args []string) error {
-		client, err := cmdnode.ParseClientFromCtx(c.Context())
+	RunE: func(cmd *cobra.Command, args []string) error {
+		client, err := cmdnode.ParseClientFromCtx(cmd.Context())
 		if err != nil {
 			return err
 		}
@@ -99,7 +99,12 @@ var authCmd = &cobra.Command{
 			perms[i] = (auth.Permission)(p)
 		}
 
-		result, err := client.Node.AuthNew(c.Context(), perms)
+		ttl, err := cmd.Flags().GetDuration("ttl")
+		if err != nil {
+			return err
+		}
+
+		result, err := client.Node.AuthNew(cmd.Context(), perms, ttl)
 		return cmdnode.PrintOutput(result, err, nil)
 	},
 }
