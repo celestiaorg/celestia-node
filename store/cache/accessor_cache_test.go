@@ -315,7 +315,7 @@ func (m *mockAccessor) AxisRoots(context.Context) (*share.AxisRoots, error) {
 	panic("implement me")
 }
 
-func (m *mockAccessor) Sample(context.Context, int, int) (shwap.Sample, error) {
+func (m *mockAccessor) Sample(context.Context, shwap.SampleCoords) (shwap.Sample, error) {
 	panic("implement me")
 }
 
