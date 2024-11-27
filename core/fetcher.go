@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"sync/atomic"
 	"time"
 
 	"github.com/gogo/protobuf/proto"
@@ -35,7 +36,7 @@ type BlockFetcher struct {
 
 	doneCh               chan struct{}
 	cancel               context.CancelFunc
-	isListeningForBlocks bool
+	isListeningForBlocks atomic.Bool
 }
 
 // NewBlockFetcher returns a new `BlockFetcher`.
@@ -199,13 +200,13 @@ func (f *BlockFetcher) SubscribeNewBlockEvent(ctx context.Context) (<-chan types
 	if !f.client.IsRunning() {
 		return nil, errors.New("client not running")
 	}
-	if f.isListeningForBlocks {
+	if f.isListeningForBlocks.Load() {
 		return nil, fmt.Errorf("already subscribed to new blocks")
 	}
 	ctx, cancel := context.WithCancel(ctx)
 	f.cancel = cancel
 	f.doneCh = make(chan struct{})
-	f.isListeningForBlocks = true
+	f.isListeningForBlocks.Store(true)
 
 	subscription, err := f.client.SubscribeNewHeights(ctx, &coregrpc.SubscribeNewHeightsRequest{})
 	if err != nil {
@@ -216,7 +217,7 @@ func (f *BlockFetcher) SubscribeNewBlockEvent(ctx context.Context) (<-chan types
 	go func() {
 		defer close(f.doneCh)
 		defer close(signedBlockCh)
-		defer func() { f.isListeningForBlocks = false }()
+		defer func() { f.isListeningForBlocks.Store(false) }()
 		for {
 			select {
 			case <-ctx.Done():
