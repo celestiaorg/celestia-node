@@ -2,21 +2,17 @@ package light
 
 import (
 	crand "crypto/rand"
+	"maps"
 	"math/big"
+	"slices"
 
-	"golang.org/x/exp/maps"
+	"github.com/celestiaorg/celestia-node/share/shwap"
 )
 
 // SamplingResult holds the available and remaining samples.
 type SamplingResult struct {
-	Available []Sample `json:"available"`
-	Remaining []Sample `json:"remaining"`
-}
-
-// Sample represents a coordinate in a 2D data square.
-type Sample struct {
-	Row int `json:"row"`
-	Col int `json:"col"`
+	Available []shwap.SampleCoords `json:"available"`
+	Remaining []shwap.SampleCoords `json:"remaining"`
 }
 
 // NewSamplingResult creates a new SamplingResult with randomly selected samples.
@@ -33,21 +29,21 @@ func NewSamplingResult(squareSize, sampleCount int) *SamplingResult {
 }
 
 // selectRandomSamples randomly picks unique coordinates from a square of given size.
-func selectRandomSamples(squareSize, sampleCount int) []Sample {
+func selectRandomSamples(squareSize, sampleCount int) []shwap.SampleCoords {
 	total := squareSize * squareSize
 	if sampleCount > total {
 		sampleCount = total
 	}
 
-	samples := make(map[Sample]struct{}, sampleCount)
+	samples := make(map[shwap.SampleCoords]struct{}, sampleCount)
 	for len(samples) < sampleCount {
-		s := Sample{
+		s := shwap.SampleCoords{
 			Row: randInt(squareSize),
 			Col: randInt(squareSize),
 		}
 		samples[s] = struct{}{}
 	}
-	return maps.Keys(samples)
+	return slices.Collect(maps.Keys(samples))
 }
 
 func randInt(m int) int {

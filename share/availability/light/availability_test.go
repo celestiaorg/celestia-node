@@ -113,8 +113,8 @@ func TestSharesAvailableSkipSampled(t *testing.T) {
 
 	// Store a successful sampling result in the datastore
 	samplingResult := &SamplingResult{
-		Available: make([]Sample, avail.params.SampleAmount),
-		Remaining: []Sample{},
+		Available: make([]shwap.SampleCoords, avail.params.SampleAmount),
+		Remaining: []shwap.SampleCoords{},
 	}
 	data, err := json.Marshal(samplingResult)
 	require.NoError(t, err)
@@ -262,17 +262,17 @@ func TestParallelAvailability(t *testing.T) {
 
 type successGetter struct {
 	*sync.Mutex
-	sampled map[Sample]int
+	sampled map[shwap.SampleCoords]int
 }
 
 func newSuccessGetter() successGetter {
 	return successGetter{
 		Mutex:   &sync.Mutex{},
-		sampled: make(map[Sample]int),
+		sampled: make(map[shwap.SampleCoords]int),
 	}
 }
 
-func (g successGetter) sampledList() []Sample {
+func (g successGetter) sampledList() []shwap.SampleCoords {
 	g.Lock()
 	defer g.Unlock()
 	return slices.Collect(maps.Keys(g.sampled))
@@ -286,7 +286,7 @@ func (g successGetter) GetSamples(_ context.Context, hdr *header.ExtendedHeader,
 
 	smpls := make([]shwap.Sample, 0, len(indices))
 	for _, idx := range indices {
-		s := Sample{Row: idx.Row, Col: idx.Col}
+		s := shwap.SampleCoords{Row: idx.Row, Col: idx.Col}
 		g.sampled[s]++
 		smpls = append(smpls, shwap.Sample{Proof: &nmt.Proof{}})
 	}

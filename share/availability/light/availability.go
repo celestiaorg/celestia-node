@@ -133,13 +133,13 @@ func (la *ShareAvailability) SharesAvailable(ctx context.Context, header *header
 		return share.ErrNotAvailable
 	}
 
-	var failedSamples []Sample
+	var failedSamples []shwap.SampleCoords
 
 	for i, smpl := range smpls {
 		if smpl.IsEmpty() {
-			failedSamples = append(failedSamples, Sample{Row: idxs[i].Row, Col: idxs[i].Col})
+			failedSamples = append(failedSamples, shwap.SampleCoords{Row: idxs[i].Row, Col: idxs[i].Col})
 		} else {
-			samples.Available = append(samples.Available, Sample{Row: idxs[i].Row, Col: idxs[i].Col})
+			samples.Available = append(samples.Available, shwap.SampleCoords{Row: idxs[i].Row, Col: idxs[i].Col})
 		}
 	}
 
