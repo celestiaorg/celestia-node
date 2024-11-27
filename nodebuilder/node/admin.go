@@ -2,6 +2,7 @@ package node
 
 import (
 	"context"
+	"time"
 
 	"github.com/cristalhq/jwt/v5"
 	"github.com/filecoin-project/go-jsonrpc/auth"
@@ -57,5 +58,11 @@ func (m *module) AuthVerify(_ context.Context, token string) ([]auth.Permission,
 }
 
 func (m *module) AuthNew(_ context.Context, permissions []auth.Permission) (string, error) {
-	return authtoken.NewSignedJWT(m.signer, permissions)
+	return authtoken.NewSignedJWT(m.signer, permissions, 0)
+}
+
+func (m *module) AuthNewWithExpiry(_ context.Context,
+	permissions []auth.Permission, ttl time.Duration,
+) (string, error) {
+	return authtoken.NewSignedJWT(m.signer, permissions, ttl)
 }
