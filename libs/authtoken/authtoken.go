@@ -32,15 +32,20 @@ func ExtractSignedPermissions(verifier jwt.Verifier, token string) ([]auth.Permi
 
 // NewSignedJWT returns a signed JWT token with the passed permissions and signer.
 func NewSignedJWT(signer jwt.Signer, permissions []auth.Permission, ttl time.Duration) (string, error) {
-	var nonce [32]byte
-	if _, err := rand.Read(nonce[:]); err != nil {
+	nonce := make([]byte, 32)
+	if _, err := rand.Read(nonce); err != nil {
 		return "", err
+	}
+
+	var expiresAt time.Time
+	if ttl != 0 {
+		expiresAt = time.Now().UTC().Add(ttl)
 	}
 
 	token, err := jwt.NewBuilder(signer).Build(&perms.JWTPayload{
 		Allow:     permissions,
 		Nonce:     nonce[:],
-		ExpiresAt: time.Now().UTC().Add(ttl),
+		ExpiresAt: expiresAt,
 	})
 	if err != nil {
 		return "", err

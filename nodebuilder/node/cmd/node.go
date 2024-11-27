@@ -99,12 +99,13 @@ var authCmd = &cobra.Command{
 			perms[i] = (auth.Permission)(p)
 		}
 
-		ttl, err := cmd.Flags().GetDuration("ttl")
-		if err != nil {
-			return err
+		ttl, _ := cmd.Flags().GetDuration("ttl")
+		if ttl != 0 {
+			result, err := client.Node.AuthNewWithExpiry(cmd.Context(), perms, ttl)
+			return cmdnode.PrintOutput(result, err, nil)
 		}
 
-		result, err := client.Node.AuthNew(cmd.Context(), perms, ttl)
+		result, err := client.Node.AuthNew(cmd.Context(), perms)
 		return cmdnode.PrintOutput(result, err, nil)
 	},
 }

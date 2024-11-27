@@ -35,10 +35,7 @@ func AuthCmd(fsets ...*flag.FlagSet) *cobra.Command {
 				return err
 			}
 
-			ttl, err := cmd.Flags().GetDuration("ttl")
-			if err != nil {
-				return err
-			}
+			ttl, _ := cmd.Flags().GetDuration("ttl")
 
 			ks, err := newKeystore(StorePath(cmd.Context()))
 			if err != nil {
