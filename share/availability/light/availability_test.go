@@ -217,6 +217,7 @@ func TestSharesAvailableFailed(t *testing.T) {
 
 		// onceGetter should have no more samples stored after the call
 		require.ElementsMatch(t, failed.Remaining, successfulGetter.sampledList())
+		successfulGetter.checkOnce(t)
 	}
 }
 
@@ -247,6 +248,7 @@ func TestParallelAvailability(t *testing.T) {
 	}
 	wg.Wait()
 	require.Len(t, successfulGetter.sampledList(), int(avail.params.SampleAmount))
+	successfulGetter.checkOnce(t)
 
 	// Verify that the sampling result is stored with all samples marked as available
 	resultData, err := avail.ds.Get(ctx, datastoreKeyForRoot(roots))
@@ -276,6 +278,16 @@ func (g successGetter) sampledList() []shwap.SampleCoords {
 	g.Lock()
 	defer g.Unlock()
 	return slices.Collect(maps.Keys(g.sampled))
+}
+
+func (g successGetter) checkOnce(t *testing.T) {
+	g.Lock()
+	defer g.Unlock()
+	for s, count := range g.sampled {
+		if count > 1 {
+			t.Errorf("sample %v was called more than once", s)
+		}
+	}
 }
 
 func (g successGetter) GetSamples(_ context.Context, hdr *header.ExtendedHeader,
