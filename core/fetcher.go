@@ -19,7 +19,7 @@ import (
 
 const newBlockSubscriber = "NewBlock/Events"
 
-var ErrClientNotRunning = errors.New("client not running")
+var ErrClientNotRunning = errors.New("gRPC connection to core node is not running")
 
 type SignedBlock struct {
 	Header       *types.Header       `json:"header"`
