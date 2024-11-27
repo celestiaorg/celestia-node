@@ -143,9 +143,7 @@ func fillBlocks(
 		}
 
 		_, err := cctx.FillBlock(16, cfg.Genesis.Accounts()[0].Name, flags.BroadcastAsync)
-		if err != nil && ctx.Err() == nil {
-			require.NoError(t, err)
-		}
+		require.NoError(t, err)
 	}
 }
 
