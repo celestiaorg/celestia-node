@@ -19,6 +19,8 @@ import (
 
 const newBlockSubscriber = "NewBlock/Events"
 
+var ErrClientNotRunning = errors.New("client not running")
+
 type SignedBlock struct {
 	Header       *types.Header       `json:"header"`
 	Commit       *types.Commit       `json:"commit"`
@@ -62,7 +64,7 @@ func (f *BlockFetcher) Stop(ctx context.Context) error {
 func (f *BlockFetcher) GetBlockInfo(ctx context.Context, height int64) (*types.Commit, *types.ValidatorSet, error) {
 	// return error if the client is still not started
 	if !f.client.IsRunning() {
-		return nil, nil, errors.New("client not running")
+		return nil, nil, ErrClientNotRunning
 	}
 	commit, err := f.Commit(ctx, height)
 	if err != nil {
@@ -87,7 +89,7 @@ func (f *BlockFetcher) GetBlockInfo(ctx context.Context, height int64) (*types.C
 func (f *BlockFetcher) GetBlock(ctx context.Context, height int64) (*types.Block, error) {
 	// return error if the client is still not started
 	if !f.client.IsRunning() {
-		return nil, errors.New("client not running")
+		return nil, ErrClientNotRunning
 	}
 	stream, err := f.client.BlockByHeight(ctx, &coregrpc.BlockByHeightRequest{Height: height})
 	if err != nil {
@@ -103,7 +105,7 @@ func (f *BlockFetcher) GetBlock(ctx context.Context, height int64) (*types.Block
 func (f *BlockFetcher) GetBlockByHash(ctx context.Context, hash libhead.Hash) (*types.Block, error) {
 	// return error if the client is still not started
 	if !f.client.IsRunning() {
-		return nil, errors.New("client not running")
+		return nil, ErrClientNotRunning
 	}
 	if hash == nil {
 		return nil, fmt.Errorf("cannot get block with nil hash")
@@ -125,7 +127,7 @@ func (f *BlockFetcher) GetBlockByHash(ctx context.Context, hash libhead.Hash) (*
 func (f *BlockFetcher) GetSignedBlock(ctx context.Context, height int64) (*SignedBlock, error) {
 	// return error if the client is still not started
 	if !f.client.IsRunning() {
-		return nil, errors.New("client not running")
+		return nil, ErrClientNotRunning
 	}
 	stream, err := f.client.BlockByHeight(ctx, &coregrpc.BlockByHeightRequest{Height: height})
 	if err != nil {
@@ -149,7 +151,7 @@ func (f *BlockFetcher) GetSignedBlock(ctx context.Context, height int64) (*Signe
 func (f *BlockFetcher) Commit(ctx context.Context, height int64) (*types.Commit, error) {
 	// return error if the client is still not started
 	if !f.client.IsRunning() {
-		return nil, errors.New("client not running")
+		return nil, ErrClientNotRunning
 	}
 	res, err := f.client.Commit(ctx, &coregrpc.CommitRequest{Height: height})
 	if err != nil {
@@ -174,7 +176,7 @@ func (f *BlockFetcher) Commit(ctx context.Context, height int64) (*types.Commit,
 func (f *BlockFetcher) ValidatorSet(ctx context.Context, height int64) (*types.ValidatorSet, error) {
 	// return error if the client is still not started
 	if !f.client.IsRunning() {
-		return nil, errors.New("client not running")
+		return nil, ErrClientNotRunning
 	}
 	res, err := f.client.ValidatorSet(ctx, &coregrpc.ValidatorSetRequest{Height: height})
 	if err != nil {
@@ -198,7 +200,7 @@ func (f *BlockFetcher) ValidatorSet(ctx context.Context, height int64) (*types.V
 func (f *BlockFetcher) SubscribeNewBlockEvent(ctx context.Context) (<-chan types.EventDataSignedBlock, error) {
 	// return error if the client is still not started
 	if !f.client.IsRunning() {
-		return nil, errors.New("client not running")
+		return nil, ErrClientNotRunning
 	}
 	if f.isListeningForBlocks.Load() {
 		return nil, fmt.Errorf("already subscribed to new blocks")
@@ -267,7 +269,7 @@ func (f *BlockFetcher) SubscribeNewBlockEvent(ctx context.Context) (<-chan types
 func (f *BlockFetcher) IsSyncing(ctx context.Context) (bool, error) {
 	// return error if the client is still not started
 	if !f.client.IsRunning() {
-		return false, errors.New("client not running")
+		return false, ErrClientNotRunning
 	}
 	resp, err := f.client.Status(ctx, &coregrpc.StatusRequest{})
 	if err != nil {
