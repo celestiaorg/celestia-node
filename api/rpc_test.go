@@ -89,6 +89,42 @@ func TestRPCCallsUnderlyingNode(t *testing.T) {
 	require.Equal(t, expectedBalance, balance)
 }
 
+func TestRPCCallsTokenExpired(t *testing.T) {
+	ctx, cancel := context.WithCancel(context.Background())
+	t.Cleanup(cancel)
+
+	// generate dummy signer and sign admin perms token with it
+	key := make([]byte, 32)
+
+	signer, err := jwt.NewSignerHS(jwt.HS256, key)
+	require.NoError(t, err)
+
+	verifier, err := jwt.NewVerifierHS(jwt.HS256, key)
+	require.NoError(t, err)
+
+	nd, _ := setupNodeWithAuthedRPC(t, signer, verifier)
+	url := nd.RPCServer.ListenAddr()
+
+	adminToken, err := perms.NewTokenWithTTL(signer, perms.AllPerms, time.Millisecond)
+	require.NoError(t, err)
+
+	// we need to run this a few times to prevent the race where the server is not yet started
+	var rpcClient *client.Client
+	for i := 0; i < 3; i++ {
+		time.Sleep(time.Second * 1)
+		rpcClient, err = client.NewClient(ctx, "http://"+url, string(adminToken))
+		if err == nil {
+			t.Cleanup(rpcClient.Close)
+			break
+		}
+	}
+	require.NotNil(t, rpcClient)
+	require.NoError(t, err)
+
+	_, err = rpcClient.State.Balance(ctx)
+	require.ErrorContains(t, err, "request failed, http status 401 Unauthorized")
+}
+
 // api contains all modules that are made available as the node's
 // public API surface
 type api struct {
