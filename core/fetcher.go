@@ -218,13 +218,7 @@ func (f *BlockFetcher) SubscribeNewBlockEvent(ctx context.Context) (<-chan types
 			default:
 				resp, err := subscription.Recv()
 				if err != nil {
-					// case where the context was not canceled but still received an error
-					if ctx.Err() == nil {
-						log.Errorw("fetcher: error receiving new height", "err", err.Error())
-						// sleeping a bit to avoid retrying instantly and give time for the gRPC connection
-						// to recover automatically.
-						time.Sleep(time.Second)
-					}
+					log.Errorw("fetcher: error receiving new height", "err", err.Error())
 					continue
 				}
 				withTimeout, ctxCancel := context.WithTimeout(ctx, 10*time.Second)
