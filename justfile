@@ -28,9 +28,9 @@ check-and-fund:
     # If balance is less than 1 TIA or not found, try to fund
     if (( $(echo "$balance_tia < 1" | bc -l) )); then
         echo "Balance too low. Requesting funds from faucet..."
-        curl -X POST "https://faucet.celestia-arabica-11.com/api/v1/faucet/give_me" \
-            -H "Content-Type: application/json" \
-            -d "{\"address\":\"$address\", \"chainId\": \"arabica-11\"}"
+        curl -X POST 'https://faucet.celestia-arabica-11.com/api/v1/faucet/give_me' \
+            -H 'Content-Type: application/json' \
+            -d '{"address": "'$address'", "chainId": "arabica-11" }'
         echo "Waiting 10 seconds for transaction to process..."
         sleep 10
     fi
