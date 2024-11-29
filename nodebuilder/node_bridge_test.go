@@ -2,6 +2,7 @@ package nodebuilder
 
 import (
 	"context"
+	"net"
 	"testing"
 
 	"github.com/stretchr/testify/require"
@@ -19,7 +20,10 @@ func TestBridge_WithMockedCoreClient(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	t.Cleanup(cancel)
 
-	client := core.StartTestNode(t).Client
+	host, port, err := net.SplitHostPort(core.StartTestNode(t).GRPCClient.Target())
+	require.NoError(t, err)
+	client := core.NewClient(host, port)
+	require.NoError(t, client.Start())
 	node, err := New(node.Bridge, p2p.Private, repo, coremodule.WithClient(client))
 	require.NoError(t, err)
 	require.NotNil(t, node)
