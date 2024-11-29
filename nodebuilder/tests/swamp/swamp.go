@@ -179,8 +179,15 @@ func (s *Swamp) setupGenesis() {
 	store, err := store.NewStore(store.DefaultParameters(), s.t.TempDir())
 	require.NoError(s.t, err)
 
+	host, port, err := net.SplitHostPort(s.ClientContext.GRPCClient.Target())
+	require.NoError(s.t, err)
+	client := core.NewClient(host, port)
+	require.NoError(s.t, client.Start())
+	fetcher, err := core.NewBlockFetcher(client)
+	require.NoError(s.t, err)
+
 	ex, err := core.NewExchange(
-		core.NewBlockFetcher(s.ClientContext.Client),
+		fetcher,
 		store,
 		header.MakeExtendedHeader,
 	)
@@ -199,7 +206,7 @@ func (s *Swamp) DefaultTestConfig(tp node.Type) *nodebuilder.Config {
 	require.NoError(s.t, err)
 
 	cfg.Core.IP = ip
-	cfg.Core.GRPCPort = port
+	cfg.Core.Port = port
 	return cfg
 }
 
@@ -207,6 +214,9 @@ func (s *Swamp) DefaultTestConfig(tp node.Type) *nodebuilder.Config {
 // and a mockstore to the MustNewNodeWithStore method
 func (s *Swamp) NewBridgeNode(options ...fx.Option) *nodebuilder.Node {
 	cfg := s.DefaultTestConfig(node.Bridge)
+	var err error
+	cfg.Core.IP, cfg.Core.Port, err = net.SplitHostPort(s.ClientContext.GRPCClient.Target())
+	require.NoError(s.t, err)
 	store := nodebuilder.MockStore(s.t, cfg)
 
 	return s.MustNewNodeWithStore(node.Bridge, store, options...)
@@ -278,8 +288,16 @@ func (s *Swamp) NewNodeWithStore(
 
 	switch tp {
 	case node.Bridge:
+		host, port, err := net.SplitHostPort(s.ClientContext.GRPCClient.Target())
+		if err != nil {
+			return nil, err
+		}
+		client := core.NewClient(host, port)
+		if err := client.Start(); err != nil {
+			return nil, err
+		}
 		options = append(options,
-			coremodule.WithClient(s.ClientContext.Client),
+			coremodule.WithClient(client),
 		)
 	default:
 	}

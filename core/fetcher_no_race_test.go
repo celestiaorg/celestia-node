@@ -4,6 +4,7 @@ package core
 
 import (
 	"context"
+	"net"
 	"testing"
 	"time"
 
@@ -18,8 +19,13 @@ func TestBlockFetcherHeaderValues(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second*15)
 	t.Cleanup(cancel)
 
-	client := StartTestNode(t).Client
-	fetcher := NewBlockFetcher(client)
+	node := StartTestNode(t)
+	host, port, err := net.SplitHostPort(node.GRPCClient.Target())
+	require.NoError(t, err)
+	client := NewClient(host, port)
+	require.NoError(t, client.Start())
+	fetcher, err := NewBlockFetcher(client)
+	require.NoError(t, err)
 
 	// generate some blocks
 	newBlockChan, err := fetcher.SubscribeNewBlockEvent(ctx)
@@ -33,10 +39,10 @@ func TestBlockFetcherHeaderValues(t *testing.T) {
 		require.NoError(t, ctx.Err())
 	}
 	// get Commit from current height
-	commit, err := fetcher.Commit(ctx, &h)
+	commit, err := fetcher.Commit(ctx, h)
 	require.NoError(t, err)
 	// get ValidatorSet from current height
-	valSet, err := fetcher.ValidatorSet(ctx, &h)
+	valSet, err := fetcher.ValidatorSet(ctx, h)
 	require.NoError(t, err)
 	// get next block
 	var nextBlock types.EventDataSignedBlock
@@ -51,5 +57,5 @@ func TestBlockFetcherHeaderValues(t *testing.T) {
 	// compare ValidatorSet hash to the ValidatorsHash from first block height
 	hexBytes := valSet.Hash()
 	assert.Equal(t, nextBlock.ValidatorSet.Hash(), hexBytes)
-	require.NoError(t, fetcher.UnsubscribeNewBlockEvent(ctx))
+	require.NoError(t, fetcher.Stop(ctx))
 }

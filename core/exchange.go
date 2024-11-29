@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/tendermint/tendermint/types"
 	"golang.org/x/sync/errgroup"
 
 	libhead "github.com/celestiaorg/go-header"
@@ -60,8 +59,7 @@ func NewExchange(
 
 func (ce *Exchange) GetByHeight(ctx context.Context, height uint64) (*header.ExtendedHeader, error) {
 	log.Debugw("requesting header", "height", height)
-	intHeight := int64(height)
-	return ce.getExtendedHeaderByHeight(ctx, &intHeight)
+	return ce.getExtendedHeaderByHeight(ctx, int64(height))
 }
 
 func (ce *Exchange) GetRangeByHeight(
@@ -127,12 +125,12 @@ func (ce *Exchange) Get(ctx context.Context, hash libhead.Hash) (*header.Extende
 		return nil, fmt.Errorf("fetching block by hash %s: %w", hash.String(), err)
 	}
 
-	comm, vals, err := ce.fetcher.GetBlockInfo(ctx, &block.Height)
+	comm, vals, err := ce.fetcher.GetBlockInfo(ctx, block.Height)
 	if err != nil {
 		return nil, fmt.Errorf("fetching block info for height %d: %w", &block.Height, err)
 	}
 
-	eds, err := extendBlock(block.Data, block.Header.Version.App)
+	eds, err := extendBlock(&block.Data, block.Header.Version.App)
 	if err != nil {
 		return nil, fmt.Errorf("extending block data for height %d: %w", &block.Height, err)
 	}
@@ -160,16 +158,13 @@ func (ce *Exchange) Head(
 	_ ...libhead.HeadOption[*header.ExtendedHeader],
 ) (*header.ExtendedHeader, error) {
 	log.Debug("requesting head")
-	return ce.getExtendedHeaderByHeight(ctx, nil)
+	return ce.getExtendedHeaderByHeight(ctx, 0)
 }
 
-func (ce *Exchange) getExtendedHeaderByHeight(ctx context.Context, height *int64) (*header.ExtendedHeader, error) {
+func (ce *Exchange) getExtendedHeaderByHeight(ctx context.Context, height int64) (*header.ExtendedHeader, error) {
 	b, err := ce.fetcher.GetSignedBlock(ctx, height)
 	if err != nil {
-		if height == nil {
-			return nil, fmt.Errorf("fetching signed block for head from core: %w", err)
-		}
-		return nil, fmt.Errorf("fetching signed block at height %d from core: %w", *height, err)
+		return nil, fmt.Errorf("fetching signed block at height %d from core: %w", height, err)
 	}
 	log.Debugw("fetched signed block from core", "height", b.Header.Height)
 
@@ -177,12 +172,8 @@ func (ce *Exchange) getExtendedHeaderByHeight(ctx context.Context, height *int64
 	if err != nil {
 		return nil, fmt.Errorf("extending block data for height %d: %w", b.Header.Height, err)
 	}
-
-	// TODO(@Wondertan): This is a hack to deref Data, allowing GC to pick it up.
-	//  The better footgun-less solution is to change core.ResultSignedBlock fields to be pointers instead of values.
-	b.Data = types.Data{}
-
-	eh, err := ce.construct(&b.Header, &b.Commit, &b.ValidatorSet, eds)
+	// create extended header
+	eh, err := ce.construct(b.Header, b.Commit, b.ValidatorSet, eds)
 	if err != nil {
 		panic(fmt.Errorf("constructing extended header for height %d: %w", b.Header.Height, err))
 	}
