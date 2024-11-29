@@ -76,10 +76,10 @@ func ConstructModule(tp node.Type, cfg *Config, options ...fx.Option) fx.Option 
 			)),
 			fx.Provide(fx.Annotate(
 				remote,
-				fx.OnStart(func(_ context.Context, client core.Client) error {
+				fx.OnStart(func(_ context.Context, client *core.Client) error {
 					return client.Start()
 				}),
-				fx.OnStop(func(_ context.Context, client core.Client) error {
+				fx.OnStop(func(_ context.Context, client *core.Client) error {
 					return client.Stop()
 				}),
 			)),
