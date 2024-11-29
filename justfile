@@ -39,6 +39,7 @@ check-and-fund:
         echo "Waiting 10 seconds for transaction to process..."
         sleep 10
     fi
+
 # Reset node state and update config with latest block height
 reset-node:
     #!/usr/bin/env bash
