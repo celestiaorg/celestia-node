@@ -2,9 +2,6 @@ package light
 
 import (
 	"fmt"
-	"time"
-
-	"github.com/celestiaorg/celestia-node/share/availability"
 )
 
 // DefaultSampleAmount specifies the minimum required amount of samples a light node must perform
@@ -17,8 +14,6 @@ var (
 // availability implementation
 type Parameters struct {
 	SampleAmount uint // The minimum required amount of samples to perform
-
-	StorageWindow time.Duration
 }
 
 // Option is a function that configures light availability Parameters
@@ -28,8 +23,7 @@ type Option func(*Parameters)
 // for the light availability implementation
 func DefaultParameters() *Parameters {
 	return &Parameters{
-		SampleAmount:  DefaultSampleAmount,
-		StorageWindow: availability.StorageWindow,
+		SampleAmount: DefaultSampleAmount,
 	}
 }
 
