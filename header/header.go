@@ -229,7 +229,12 @@ func (eh *ExtendedHeader) UnmarshalBinary(data []byte) error {
 		return err
 	}
 
-	*eh = *out.Clone()
+	*eh = ExtendedHeader{
+		RawHeader:    out.RawHeader,
+		Commit:       out.Commit,
+		ValidatorSet: out.ValidatorSet,
+		DAH:          out.DAH,
+	}
 	return nil
 }
 
@@ -283,16 +288,6 @@ func (eh *ExtendedHeader) UnmarshalJSON(data []byte) error {
 	eh.ValidatorSet = valSet
 	eh.RawHeader = *rawHeader
 	return nil
-}
-
-// Clone creates a shallow copy of the ExtendedHeader and returns it.
-func (eh *ExtendedHeader) Clone() *ExtendedHeader {
-	return &ExtendedHeader{
-		RawHeader:    eh.RawHeader,
-		Commit:       eh.Commit,
-		ValidatorSet: eh.ValidatorSet,
-		DAH:          eh.DAH,
-	}
 }
 
 var _ libhead.Header[*ExtendedHeader] = &ExtendedHeader{}
