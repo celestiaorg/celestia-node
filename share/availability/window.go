@@ -17,6 +17,9 @@ func IsWithinWindow(t time.Time, window time.Duration) bool {
 	if alwaysAvailable {
 		return true
 	}
+	if windowOverride != time.Duration(0) {
+		window = windowOverride
+	}
 	if window == time.Duration(0) {
 		return true
 	}
@@ -25,3 +28,14 @@ func IsWithinWindow(t time.Time, window time.Duration) bool {
 
 // alwaysAvailable is a flag that disables the availability window.
 var alwaysAvailable = os.Getenv("CELESTIA_PRUNING_DISABLED") == "true"
+
+var windowOverride time.Duration
+
+func init() {
+	durationRaw := os.Getenv("CELESTIA_OVERRIDE_AVAILABILITY_WINDOW")
+	duration, err := time.ParseDuration(durationRaw)
+	if err != nil {
+		panic("failed to parse CELESTIA_OVERRIDE_AVAILABILITY_WINDOW: " + err.Error())
+	}
+	windowOverride = duration
+}
