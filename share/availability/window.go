@@ -26,9 +26,12 @@ func IsWithinWindow(t time.Time, window time.Duration) bool {
 	return time.Since(t) <= window
 }
 
-// alwaysAvailable is a flag that disables the availability window.
+// alwaysAvailable is a flag that disables the availability window. This flag is intended for
+// testing purposes only.
 var alwaysAvailable = os.Getenv("CELESTIA_PRUNING_DISABLED") == "true"
 
+// windowOverride is a flag that overrides the availability window. This flag is intended for
+// testing purposes only.
 var windowOverride time.Duration
 
 func init() {
