@@ -70,6 +70,7 @@ func MakeExtendedHeader(
 		DAH:          &dah,
 		Commit:       comm,
 		ValidatorSet: vals,
+		hashOnce:     &sync.Once{},
 	}
 	return eh, nil
 }
