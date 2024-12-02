@@ -40,7 +40,7 @@ type ExtendedHeader struct {
 	ValidatorSet *core.ValidatorSet         `json:"validator_set"`
 	DAH          *da.DataAvailabilityHeader `json:"dah"`
 
-	hashOnce sync.Once
+	hashOnce *sync.Once
 	hash     []byte
 }
 
