@@ -11,10 +11,6 @@ on:
     types: [published]
   pull_request:
   workflow_dispatch:
-    inputs:
-      tag-as:
-        description: 'Tag for snapshot release (optional)'
-        required: false
 
 jobs:
   # set up go version for use through pipelines, setting
