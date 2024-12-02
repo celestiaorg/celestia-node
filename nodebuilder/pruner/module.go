@@ -45,20 +45,13 @@ func ConstructModule(tp node.Type, cfg *Config) fx.Option {
 
 	switch tp {
 	case node.Light:
-		if cfg.EnableService {
-			return fx.Module("prune",
-				baseComponents,
-				prunerService,
-				// TODO(@walldiss @renaynay): remove conversion after Availability and Pruner interfaces are merged
-				//  note this provide exists in pruner module to avoid cyclical imports
-				fx.Provide(func(la *light.ShareAvailability) pruner.Pruner { return la }),
-			)
-		}
-		// We do not trigger DetectPreviousRun for Light nodes, to allow them to disable pruning at wish.
-		// They are not expected to store a samples outside the sampling window and so partially pruned is
-		// not a concern.
+		// LNs enforce pruning by default
 		return fx.Module("prune",
 			baseComponents,
+			prunerService,
+			// TODO(@walldiss @renaynay): remove conversion after Availability and Pruner interfaces are merged
+			//  note this provide exists in pruner module to avoid cyclical imports
+			fx.Provide(func(la *light.ShareAvailability) pruner.Pruner { return la }),
 		)
 	case node.Full:
 		if cfg.EnableService {
