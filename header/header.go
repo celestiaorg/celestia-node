@@ -14,6 +14,7 @@ import (
 	"github.com/celestiaorg/celestia-app/v3/pkg/appconsts"
 	"github.com/celestiaorg/celestia-app/v3/pkg/da"
 	libhead "github.com/celestiaorg/go-header"
+	"github.com/celestiaorg/go-square/merkle"
 	"github.com/celestiaorg/rsmt2d"
 )
 
@@ -38,6 +39,8 @@ type ExtendedHeader struct {
 	Commit       *core.Commit               `json:"commit"`
 	ValidatorSet *core.ValidatorSet         `json:"validator_set"`
 	DAH          *da.DataAvailabilityHeader `json:"dah"`
+
+	hash []byte
 }
 
 // MakeExtendedHeader assembles new ExtendedHeader.
@@ -94,7 +97,22 @@ func (eh *ExtendedHeader) Time() time.Time {
 // NOTE: It purposely overrides Hash method of RawHeader to get it directly from Commit without
 // recomputing.
 func (eh *ExtendedHeader) Hash() libhead.Hash {
-	return eh.Commit.BlockID.Hash.Bytes()
+	if len(eh.hash) == 0 {
+		bs := make([][]byte, len(eh.Commit.Signatures))
+		for i, commitSig := range eh.Commit.Signatures {
+			pbcs := commitSig.ToProto()
+
+			bz, err := pbcs.Marshal()
+			if err != nil {
+				panic(err)
+			}
+
+			bs[i] = bz
+		}
+
+		eh.hash = merkle.HashFromByteSlices(bs)
+	}
+	return eh.hash
 }
 
 // LastHeader returns the Hash of the last wrapped RawHeader.
