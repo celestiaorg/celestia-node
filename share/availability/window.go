@@ -14,11 +14,8 @@ const (
 // given AvailabilityWindow. If the window is disabled (0), it returns true for
 // every timestamp.
 func IsWithinWindow(t time.Time, window time.Duration) bool {
-	if alwaysAvailable {
-		return true
-	}
-	if windowOverride != time.Duration(0) {
-		window = windowOverride
+	if windowOverride {
+		window = windowOverrideDur
 	}
 	if window == time.Duration(0) {
 		return true
@@ -26,19 +23,24 @@ func IsWithinWindow(t time.Time, window time.Duration) bool {
 	return time.Since(t) <= window
 }
 
-// alwaysAvailable is a flag that disables the availability window. This flag is intended for
-// testing purposes only.
-var alwaysAvailable = os.Getenv("CELESTIA_PRUNING_DISABLED") == "true"
-
 // windowOverride is a flag that overrides the availability window. This flag is intended for
 // testing purposes only.
-var windowOverride time.Duration
+var (
+	windowOverride    bool
+	windowOverrideDur time.Duration
+)
 
 func init() {
-	durationRaw := os.Getenv("CELESTIA_OVERRIDE_AVAILABILITY_WINDOW")
+	durationRaw, ok := os.LookupEnv("CELESTIA_OVERRIDE_AVAILABILITY_WINDOW")
+	if !ok {
+		return
+	}
+
 	duration, err := time.ParseDuration(durationRaw)
 	if err != nil {
 		panic("failed to parse CELESTIA_OVERRIDE_AVAILABILITY_WINDOW: " + err.Error())
 	}
-	windowOverride = duration
+
+	windowOverride = true
+	windowOverrideDur = duration
 }
