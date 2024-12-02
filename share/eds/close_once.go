@@ -57,11 +57,11 @@ func (c *closeOnce) AxisRoots(ctx context.Context) (*share.AxisRoots, error) {
 	return c.f.AxisRoots(ctx)
 }
 
-func (c *closeOnce) Sample(ctx context.Context, rowIdx, colIdx int) (shwap.Sample, error) {
+func (c *closeOnce) Sample(ctx context.Context, idx shwap.SampleCoords) (shwap.Sample, error) {
 	if c.closed.Load() {
 		return shwap.Sample{}, errAccessorClosed
 	}
-	return c.f.Sample(ctx, rowIdx, colIdx)
+	return c.f.Sample(ctx, idx)
 }
 
 func (c *closeOnce) AxisHalf(

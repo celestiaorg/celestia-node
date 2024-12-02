@@ -146,8 +146,8 @@ func (sg *Getter) Stop(ctx context.Context) error {
 	return sg.archivalPeerManager.Stop(ctx)
 }
 
-func (sg *Getter) GetShare(context.Context, *header.ExtendedHeader, int, int) (libshare.Share, error) {
-	return libshare.Share{}, fmt.Errorf("getter/shrex: GetShare %w", shwap.ErrOperationNotSupported)
+func (sg *Getter) GetSamples(context.Context, *header.ExtendedHeader, []shwap.SampleCoords) ([]shwap.Sample, error) {
+	return nil, fmt.Errorf("getter/shrex: GetShare %w", shwap.ErrOperationNotSupported)
 }
 
 func (sg *Getter) GetEDS(ctx context.Context, header *header.ExtendedHeader) (*rsmt2d.ExtendedDataSquare, error) {

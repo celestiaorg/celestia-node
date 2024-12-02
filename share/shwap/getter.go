@@ -22,6 +22,8 @@ var (
 	// ErrOutOfBounds is used to indicate that a passed row or column index is out of bounds of the
 	// square size.
 	ErrOutOfBounds = fmt.Errorf("index out of bounds: %w", ErrInvalidID)
+	// ErrNoSampleIndicies is used to indicate that no indicies where given to process.
+	ErrNoSampleIndicies = errors.New("no sample indicies to fetch")
 )
 
 // Getter interface provides a set of accessors for shares by the Root.
@@ -29,8 +31,10 @@ var (
 //
 //go:generate mockgen -destination=getters/mock/getter.go -package=mock . Getter
 type Getter interface {
-	// GetShare gets a Share by coordinates in EDS.
-	GetShare(ctx context.Context, header *header.ExtendedHeader, row, col int) (libshare.Share, error)
+	// GetSamples gets samples by their indices.
+	// Returns Sample slice with requested number of samples in the requested order.
+	// May return partial response with some samples being empty if they weren't found.
+	GetSamples(ctx context.Context, header *header.ExtendedHeader, indices []SampleCoords) ([]Sample, error)
 
 	// GetEDS gets the full EDS identified by the given extended header.
 	GetEDS(context.Context, *header.ExtendedHeader) (*rsmt2d.ExtendedDataSquare, error)
