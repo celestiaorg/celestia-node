@@ -94,9 +94,8 @@ func (eh *ExtendedHeader) Time() time.Time {
 	return eh.RawHeader.Time
 }
 
-// Hash returns Hash of the wrapped RawHeader.
-// NOTE: It purposely overrides Hash method of RawHeader to get it directly from Commit without
-// recomputing.
+// Hash returns Hash of the wrapped [RawHeader].
+// Value is cached to not be recomuted every call.
 func (eh *ExtendedHeader) Hash() libhead.Hash {
 	eh.hashOnce.Do(func() {
 		eh.hash = eh.RawHeader.Hash()
