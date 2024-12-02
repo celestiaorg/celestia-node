@@ -30,7 +30,7 @@ func TestVerify(t *testing.T) {
 		},
 		{
 			prepare: func() *header.ExtendedHeader {
-				untrusted := *untrustedAdj
+				untrusted := *untrustedAdj.Clone()
 				untrusted.ValidatorsHash = tmrand.Bytes(32)
 				return &untrusted
 			},
@@ -38,7 +38,7 @@ func TestVerify(t *testing.T) {
 		},
 		{
 			prepare: func() *header.ExtendedHeader {
-				untrusted := *untrustedAdj
+				untrusted := *untrustedAdj.Clone()
 				untrusted.RawHeader.LastBlockID.Hash = tmrand.Bytes(32)
 				return &untrusted
 			},
@@ -46,7 +46,7 @@ func TestVerify(t *testing.T) {
 		},
 		{
 			prepare: func() *header.ExtendedHeader {
-				untrusted := *untrustedNonAdj
+				untrusted := *untrustedNonAdj.Clone()
 				untrusted.Commit = NewTestSuite(t, 2, 0).Commit(RandRawHeader(t))
 				return &untrusted
 			},

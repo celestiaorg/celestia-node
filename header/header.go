@@ -40,7 +40,7 @@ type ExtendedHeader struct {
 	ValidatorSet *core.ValidatorSet         `json:"validator_set"`
 	DAH          *da.DataAvailabilityHeader `json:"dah"`
 
-	hashOnce *sync.Once
+	hashOnce sync.Once
 	hash     []byte
 }
 
@@ -70,7 +70,6 @@ func MakeExtendedHeader(
 		DAH:          &dah,
 		Commit:       comm,
 		ValidatorSet: vals,
-		hashOnce:     &sync.Once{},
 	}
 	return eh, nil
 }
@@ -230,7 +229,7 @@ func (eh *ExtendedHeader) UnmarshalBinary(data []byte) error {
 		return err
 	}
 
-	*eh = *out
+	*eh = *out.Clone()
 	return nil
 }
 
@@ -284,6 +283,16 @@ func (eh *ExtendedHeader) UnmarshalJSON(data []byte) error {
 	eh.ValidatorSet = valSet
 	eh.RawHeader = *rawHeader
 	return nil
+}
+
+// Clone creates a shallow copy of the ExtendedHeader and returns it.
+func (eh *ExtendedHeader) Clone() *ExtendedHeader {
+	return &ExtendedHeader{
+		RawHeader:    eh.RawHeader,
+		Commit:       eh.Commit,
+		ValidatorSet: eh.ValidatorSet,
+		DAH:          eh.DAH,
+	}
 }
 
 var _ libhead.Header[*ExtendedHeader] = &ExtendedHeader{}
