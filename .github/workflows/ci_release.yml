@@ -144,7 +144,7 @@ jobs:
 
       - name: Set LATEST_TAG for workflow_dispatch
         if: github.event_name == 'workflow_dispatch'
-        run: echo "LATEST_TAG=${{ github.event.inputs.run-on-tag }}" >> $GITHUB_ENV
+        run: echo "LATEST_TAG=${{ inputs.run-on-tag }}" >> $GITHUB_ENV
 
       - name: Checkout a given tag
         if: github.event_name == 'workflow_dispatch'
