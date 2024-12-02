@@ -11,6 +11,10 @@ on:
     types: [published]
   pull_request:
   workflow_dispatch:
+    inputs:
+      run-on-tag:
+        description: 'Tag for release'
+        required: true
 
 jobs:
   # set up go version for use through pipelines, setting
@@ -87,6 +91,14 @@ jobs:
 
       - run: git fetch --force --tags
 
+      - name: Checkout a given tag
+        if: github.event_name == 'workflow_dispatch'
+        run: git checkout ${{ inputs.run-on-tag }}
+
+      - name: Checkout a given tag
+        if: github.event_name == 'workflow_dispatch'
+        run: git checkout ${{ inputs.run-on-tag }}
+
       - uses: actions/setup-go@v5
         with:
           go-version: ${{ needs.setup.outputs.go-version }}
@@ -100,6 +112,7 @@ jobs:
 
       # Generate the binaries and release
       - uses: goreleaser/goreleaser-action@v6
+        if: github.event_name == 'release'
         with:
           distribution: goreleaser
           version: latest
@@ -107,6 +120,19 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           GPG_FINGERPRINT: ${{ steps.import_gpg.outputs.fingerprint }}
+          GORELEASER_CURRENT_TAG: ${{ github.event.release.tag_name }}
+
+      # Generate the binaries and release
+      - uses: goreleaser/goreleaser-action@v6
+        if: github.event_name == 'workflow_dispatch'
+        with:
+          distribution: goreleaser
+          version: latest
+          args: release --clean
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GPG_FINGERPRINT: ${{ steps.import_gpg.outputs.fingerprint }}
+          GORELEASER_CURRENT_TAG: ${{ inputs.run-on-tag }}
 
   upload-docs:
     needs: goreleaser
