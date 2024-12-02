@@ -23,6 +23,9 @@ func defaultParams() *params {
 	}
 }
 
+// WithArchivalMode is a functional option to tell the full availability
+// implementation that the node wants to sync *all* blocks, not just those
+// within the sampling window.
 func WithArchivalMode() Option {
 	return func(p *params) {
 		p.archival = true
