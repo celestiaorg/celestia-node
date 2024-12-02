@@ -13,7 +13,7 @@ func init() {
 }
 
 type Codec interface {
-	Encoder(len int) (reedsolomon.Encoder, error)
+	Encoder(ln int) (reedsolomon.Encoder, error)
 }
 
 type codecCache struct {
@@ -24,15 +24,15 @@ func NewCodec() Codec {
 	return &codecCache{}
 }
 
-func (l *codecCache) Encoder(len int) (reedsolomon.Encoder, error) {
-	enc, ok := l.cache.Load(len)
+func (l *codecCache) Encoder(ln int) (reedsolomon.Encoder, error) {
+	enc, ok := l.cache.Load(ln)
 	if !ok {
 		var err error
-		enc, err = reedsolomon.New(len/2, len/2, reedsolomon.WithLeopardGF(true))
+		enc, err = reedsolomon.New(ln/2, ln/2, reedsolomon.WithLeopardGF(true))
 		if err != nil {
 			return nil, err
 		}
-		l.cache.Store(len, enc)
+		l.cache.Store(ln, enc)
 	}
 	return enc.(reedsolomon.Encoder), nil
 }

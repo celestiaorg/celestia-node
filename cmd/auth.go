@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"io"
 	"path/filepath"
+	"time"
 
 	"github.com/cristalhq/jwt/v5"
 	"github.com/filecoin-project/go-jsonrpc/auth"
@@ -19,6 +20,8 @@ import (
 	nodemod "github.com/celestiaorg/celestia-node/nodebuilder/node"
 )
 
+var ttlFlagName = "ttl"
+
 func AuthCmd(fsets ...*flag.FlagSet) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "auth [permission-level (e.g. read || write || admin)]",
@@ -30,6 +33,11 @@ func AuthCmd(fsets ...*flag.FlagSet) *cobra.Command {
 				return errors.New("must specify permissions")
 			}
 			permissions, err := convertToPerms(args[0])
+			if err != nil {
+				return err
+			}
+
+			ttl, err := cmd.Flags().GetDuration(ttlFlagName)
 			if err != nil {
 				return err
 			}
@@ -50,7 +58,7 @@ func AuthCmd(fsets ...*flag.FlagSet) *cobra.Command {
 				}
 			}
 
-			token, err := buildJWTToken(key.Body, permissions)
+			token, err := buildJWTToken(key.Body, permissions, ttl)
 			if err != nil {
 				return err
 			}
@@ -62,6 +70,8 @@ func AuthCmd(fsets ...*flag.FlagSet) *cobra.Command {
 	for _, set := range fsets {
 		cmd.Flags().AddFlagSet(set)
 	}
+	cmd.Flags().Duration(ttlFlagName, 0, "Set a Time-to-live (TTL) for the token")
+
 	return cmd
 }
 
@@ -73,12 +83,12 @@ func newKeystore(path string) (keystore.Keystore, error) {
 	return keystore.NewFSKeystore(filepath.Join(expanded, "keys"), nil)
 }
 
-func buildJWTToken(body []byte, permissions []auth.Permission) (string, error) {
+func buildJWTToken(body []byte, permissions []auth.Permission, ttl time.Duration) (string, error) {
 	signer, err := jwt.NewSignerHS(jwt.HS256, body)
 	if err != nil {
 		return "", err
 	}
-	return authtoken.NewSignedJWT(signer, permissions)
+	return authtoken.NewSignedJWT(signer, permissions, ttl)
 }
 
 func generateNewKey(ks keystore.Keystore) (keystore.PrivKey, error) {

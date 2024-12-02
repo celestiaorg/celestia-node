@@ -20,6 +20,7 @@ import (
 const (
 	testCodec         = 0x9999
 	testMultihashCode = 0x9999
+	testBlockSize     = 256
 	testIDSize        = 2
 )
 
@@ -27,6 +28,7 @@ func init() {
 	registerBlock(
 		testMultihashCode,
 		testCodec,
+		testBlockSize,
 		testIDSize,
 		func(cid cid.Cid) (Block, error) {
 			return newEmptyTestBlock(cid)
@@ -67,7 +69,7 @@ type testBlock struct {
 }
 
 func newTestBlock(id int) *testBlock {
-	bytes := make([]byte, 256)
+	bytes := make([]byte, testBlockSize)
 	_, _ = crand.Read(bytes)
 	return &testBlock{id: testID(id), data: bytes}
 }

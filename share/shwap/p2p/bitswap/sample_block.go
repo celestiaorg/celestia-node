@@ -3,8 +3,11 @@ package bitswap
 import (
 	"context"
 	"fmt"
+	"math"
 
 	"github.com/ipfs/go-cid"
+
+	libshare "github.com/celestiaorg/go-square/v2/share"
 
 	"github.com/celestiaorg/celestia-node/share"
 	"github.com/celestiaorg/celestia-node/share/eds"
@@ -21,10 +24,15 @@ const (
 	sampleMultihashCode = 0x7811
 )
 
+// maxSampleSize is the maximum size of the SampleBlock.
+// It is calculated as the size of the share plus the size of the proof.
+var maxSampleSize = libshare.ShareSize + share.AxisRootSize*int(math.Log2(float64(share.MaxSquareSize)))
+
 func init() {
 	registerBlock(
 		sampleMultihashCode,
 		sampleCodec,
+		maxSampleSize,
 		shwap.SampleIDSize,
 		func(cid cid.Cid) (Block, error) {
 			return EmptySampleBlockFromCID(cid)
@@ -39,8 +47,8 @@ type SampleBlock struct {
 }
 
 // NewEmptySampleBlock constructs a new empty SampleBlock.
-func NewEmptySampleBlock(height uint64, rowIdx, colIdx, edsSize int) (*SampleBlock, error) {
-	id, err := shwap.NewSampleID(height, rowIdx, colIdx, edsSize)
+func NewEmptySampleBlock(height uint64, idx shwap.SampleCoords, edsSize int) (*SampleBlock, error) {
+	id, err := shwap.NewSampleID(height, idx, edsSize)
 	if err != nil {
 		return nil, err
 	}
@@ -86,7 +94,9 @@ func (sb *SampleBlock) Marshal() ([]byte, error) {
 }
 
 func (sb *SampleBlock) Populate(ctx context.Context, eds eds.Accessor) error {
-	smpl, err := eds.Sample(ctx, sb.ID.RowIndex, sb.ID.ShareIndex)
+	idx := shwap.SampleCoords{Row: sb.ID.RowIndex, Col: sb.ID.ShareIndex}
+
+	smpl, err := eds.Sample(ctx, idx)
 	if err != nil {
 		return fmt.Errorf("accessing Sample: %w", err)
 	}
