@@ -83,13 +83,21 @@ jobs:
     needs: [setup]
     runs-on: ubuntu-latest
     if: |
-      github.event_name == 'workflow_dispatch' ||
-      github.event_name == 'release'
+      github.event_name == 'release' ||
+      github.event_name == 'workflow_dispatch'
     permissions: "write-all"
     steps:
       - uses: actions/checkout@v4
 
       - run: git fetch --force --tags
+
+      - name: Set LATEST_TAG for release
+        if: github.event_name == 'release'
+        run: echo "LATEST_TAG=${{ github.event.release.tag_name }}" >> $GITHUB_ENV
+
+      - name: Set LATEST_TAG for workflow_dispatch
+        if: github.event_name == 'workflow_dispatch'
+        run: echo "LATEST_TAG=${{ inputs.run-on-tag }}" >> $GITHUB_ENV
 
       - name: Checkout a given tag
         if: github.event_name == 'workflow_dispatch'
@@ -108,7 +116,6 @@ jobs:
 
       # Generate the binaries and release
       - uses: goreleaser/goreleaser-action@v6
-        if: github.event_name == 'release'
         with:
           distribution: goreleaser
           version: latest
@@ -116,23 +123,13 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           GPG_FINGERPRINT: ${{ steps.import_gpg.outputs.fingerprint }}
-          GORELEASER_CURRENT_TAG: ${{ github.event.release.tag_name }}
-
-      # Generate the binaries and release
-      - uses: goreleaser/goreleaser-action@v6
-        if: github.event_name == 'workflow_dispatch'
-        with:
-          distribution: goreleaser
-          version: latest
-          args: release --clean
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          GPG_FINGERPRINT: ${{ steps.import_gpg.outputs.fingerprint }}
-          GORELEASER_CURRENT_TAG: ${{ inputs.run-on-tag }}
+          GORELEASER_CURRENT_TAG: $LATEST_TAG
 
   upload-docs:
-    needs: goreleaser
-    if: github.event_name == 'release'
+    needs: [setup]
+    if: |
+      github.event_name == 'release' ||
+      github.event_name == 'workflow_dispatch'
     runs-on: ubuntu-latest
     permissions:
       contents: write
@@ -140,8 +137,21 @@ jobs:
       - uses: actions/checkout@v4
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Set LATEST_TAG for release
+        if: github.event_name == 'release'
+        run: echo "LATEST_TAG=${{ github.event.release.tag_name }}" >> $GITHUB_ENV
+
+      - name: Set LATEST_TAG for workflow_dispatch
+        if: github.event_name == 'workflow_dispatch'
+        run: echo "LATEST_TAG=${{ github.event.inputs.run-on-tag }}" >> $GITHUB_ENV
+
+      - name: Checkout a given tag
+        if: github.event_name == 'workflow_dispatch'
+        run: git checkout ${{ inputs.run-on-tag }}
+
       - run: |
           make openrpc-gen > openrpc.json
-          gh release upload ${{github.event.release.tag_name}} openrpc.json
+          gh release upload $LATEST_TAG openrpc.json
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
