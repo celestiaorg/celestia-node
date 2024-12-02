@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"sync"
 	"time"
 
 	tmjson "github.com/tendermint/tendermint/libs/json"
@@ -14,7 +15,6 @@ import (
 	"github.com/celestiaorg/celestia-app/v3/pkg/appconsts"
 	"github.com/celestiaorg/celestia-app/v3/pkg/da"
 	libhead "github.com/celestiaorg/go-header"
-	"github.com/celestiaorg/go-square/merkle"
 	"github.com/celestiaorg/rsmt2d"
 )
 
@@ -40,7 +40,8 @@ type ExtendedHeader struct {
 	ValidatorSet *core.ValidatorSet         `json:"validator_set"`
 	DAH          *da.DataAvailabilityHeader `json:"dah"`
 
-	hash []byte
+	hashOnce sync.Once
+	hash     []byte
 }
 
 // MakeExtendedHeader assembles new ExtendedHeader.
@@ -97,21 +98,9 @@ func (eh *ExtendedHeader) Time() time.Time {
 // NOTE: It purposely overrides Hash method of RawHeader to get it directly from Commit without
 // recomputing.
 func (eh *ExtendedHeader) Hash() libhead.Hash {
-	if len(eh.hash) == 0 {
-		bs := make([][]byte, len(eh.Commit.Signatures))
-		for i, commitSig := range eh.Commit.Signatures {
-			pbcs := commitSig.ToProto()
-
-			bz, err := pbcs.Marshal()
-			if err != nil {
-				panic(err)
-			}
-
-			bs[i] = bz
-		}
-
-		eh.hash = merkle.HashFromByteSlices(bs)
-	}
+	eh.hashOnce.Do(func() {
+		eh.hash = eh.RawHeader.Hash()
+	})
 	return eh.hash
 }
 
@@ -165,7 +154,7 @@ func (eh *ExtendedHeader) Validate() error {
 	if eh.Commit.Height != eh.RawHeader.Height {
 		return fmt.Errorf("header and commit height mismatch: %d vs %d", eh.RawHeader.Height, eh.Commit.Height)
 	}
-	if hhash, chash := eh.RawHeader.Hash(), eh.Commit.BlockID.Hash; !bytes.Equal(hhash, chash) {
+	if hhash, chash := eh.Hash(), eh.Commit.BlockID.Hash; !bytes.Equal(hhash, chash) {
 		return fmt.Errorf("commit signs block %X, header is block %X", chash, hhash)
 	}
 
