@@ -2,6 +2,7 @@ package bitswap
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"sync"
 	"time"
@@ -245,6 +246,49 @@ func (g *Getter) GetNamespaceData(
 // isArchival reports whether the header is for archival data
 func (g *Getter) isArchival(hdr *header.ExtendedHeader) bool {
 	return !availability.IsWithinWindow(hdr.Time(), g.availWndw)
+}
+func (g *Getter) GetSharesRange(
+	ctx context.Context,
+	hdr *header.ExtendedHeader,
+	ns libshare.Namespace,
+	from, to shwap.SampleCoords,
+	proofsOnly bool,
+) (shwap.RangeNamespaceData, error) {
+	if err := ns.ValidateForData(); err != nil {
+		return shwap.RangeNamespaceData{}, err
+	}
+
+	ctx, span := tracer.Start(ctx, "get-shares-range")
+	defer span.End()
+
+	sampleID, err := shwap.NewSampleID(hdr.Height(), from, len(hdr.DAH.RowRoots))
+	if err != nil {
+		return shwap.RangeNamespaceData{}, err
+	}
+
+	rangeDataBlock, err := NewEmptyRangeNamespaceDataBlock(ns, sampleID, to, proofsOnly, len(hdr.DAH.RowRoots))
+	if err != nil {
+		return shwap.RangeNamespaceData{}, err
+	}
+
+	isArchival := g.isArchival(hdr)
+	span.SetAttributes(attribute.Bool("is_archival", isArchival))
+
+	ses, release := g.getSession(isArchival)
+	defer release()
+
+	blks := []Block{rangeDataBlock}
+	if err = Fetch(ctx, g.exchange, hdr.DAH, blks, WithFetcher(ses)); err != nil {
+		span.RecordError(err)
+		span.SetStatus(codes.Error, "Fetch")
+		return shwap.RangeNamespaceData{}, err
+	}
+
+	for _, blk := range blks {
+		rnd := blk.(*RangeNamespaceDataBlock).Container
+		return rnd, nil
+	}
+	return shwap.RangeNamespaceData{}, errors.New("no data inside block")
 }
 
 // getSession takes a session out of the respective session pool

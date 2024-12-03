@@ -90,6 +90,16 @@ func (cg *CascadeGetter) GetNamespaceData(
 	return cascadeGetters(ctx, cg.getters, get)
 }
 
+func (cg *CascadeGetter) GetSharesRange(
+	ctx context.Context,
+	h *header.ExtendedHeader,
+	ns libshare.Namespace,
+	from, to shwap.SampleCoords,
+	proofsOnly bool,
+) (shwap.RangeNamespaceData, error) {
+	return shwap.RangeNamespaceData{}, errors.New("not implemented")
+}
+
 // cascade implements a cascading retry algorithm for getting a value from multiple sources.
 // Cascading implies trying the sources one-by-one in the given order with the
 // given interval until either:

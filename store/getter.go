@@ -95,3 +95,27 @@ func (g *Getter) GetNamespaceData(
 	}
 	return nd, nil
 }
+
+func (g *Getter) GetSharesRange(
+	ctx context.Context,
+	h *header.ExtendedHeader,
+	ns libshare.Namespace,
+	from, to shwap.SampleCoords,
+	proofsOnly bool,
+) (shwap.RangeNamespaceData, error) {
+	acc, err := g.store.GetByHeight(ctx, h.Height())
+	if err != nil {
+		return shwap.RangeNamespaceData{}, err
+	}
+
+	opts := make([]shwap.RangeNamespaceDataOption, 0)
+	if proofsOnly {
+		opts = append(opts, shwap.SkipData())
+	}
+	return acc.RangeNamespaceData(
+		ctx,
+		ns,
+		from, to,
+		opts...,
+	)
+}
