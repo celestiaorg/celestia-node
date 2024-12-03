@@ -228,7 +228,7 @@ func (o *ODS) Close() error {
 // Sample returns share and corresponding proof for row and column indices. Implementation can
 // choose which axis to use for proof. Chosen axis for proof should be indicated in the returned
 // Sample.
-func (o *ODS) Sample(ctx context.Context, rowIdx, colIdx int) (shwap.Sample, error) {
+func (o *ODS) Sample(ctx context.Context, idx shwap.SampleCoords) (shwap.Sample, error) {
 	// Sample proof axis is selected to optimize read performance.
 	// - For the first and second quadrants, we read the row axis because it is more efficient to read
 	//   single row than reading full ODS to calculate single column
@@ -236,6 +236,8 @@ func (o *ODS) Sample(ctx context.Context, rowIdx, colIdx int) (shwap.Sample, err
 	//   column than reading full ODS to calculate single row
 	// - For the fourth quadrant, it does not matter which axis we read because we need to read full ODS
 	//   to calculate the sample
+	rowIdx, colIdx := idx.Row, idx.Col
+
 	axisType, axisIdx, shrIdx := rsmt2d.Row, rowIdx, colIdx
 	if colIdx < o.size()/2 && rowIdx >= o.size()/2 {
 		axisType, axisIdx, shrIdx = rsmt2d.Col, colIdx, rowIdx
@@ -246,7 +248,9 @@ func (o *ODS) Sample(ctx context.Context, rowIdx, colIdx int) (shwap.Sample, err
 		return shwap.Sample{}, fmt.Errorf("reading axis: %w", err)
 	}
 
-	return shwap.SampleFromShares(axis, axisType, axisIdx, shrIdx)
+	idxNew := shwap.SampleCoords{Row: axisIdx, Col: shrIdx}
+
+	return shwap.SampleFromShares(axis, axisType, idxNew)
 }
 
 // AxisHalf returns half of shares axis of the given type and index. Side is determined by
