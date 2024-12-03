@@ -243,10 +243,6 @@ func (g *Getter) GetNamespaceData(
 	return nsShrs, nil
 }
 
-// isArchival reports whether the header is for archival data
-func (g *Getter) isArchival(hdr *header.ExtendedHeader) bool {
-	return !availability.IsWithinWindow(hdr.Time(), g.availWndw)
-}
 func (g *Getter) GetSharesRange(
 	ctx context.Context,
 	hdr *header.ExtendedHeader,
@@ -289,6 +285,11 @@ func (g *Getter) GetSharesRange(
 		return rnd, nil
 	}
 	return shwap.RangeNamespaceData{}, errors.New("no data inside block")
+}
+
+// isArchival reports whether the header is for archival data
+func (g *Getter) isArchival(hdr *header.ExtendedHeader) bool {
+	return !availability.IsWithinWindow(hdr.Time(), g.availWndw)
 }
 
 // getSession takes a session out of the respective session pool

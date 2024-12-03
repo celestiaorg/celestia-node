@@ -85,9 +85,9 @@ func (nd NamespaceData) WriteTo(writer io.Writer) (int64, error) {
 	return n, nil
 }
 
-func (rngdata NamespaceData) ToProto() *pb.NamespaceData {
-	data := make([]*pb.RowNamespaceData, len(rngdata))
-	for i, row := range rngdata {
+func (nd NamespaceData) ToProto() *pb.NamespaceData {
+	data := make([]*pb.RowNamespaceData, len(nd))
+	for i, row := range nd {
 		data[i] = row.ToProto()
 	}
 	return &pb.NamespaceData{NamespaceData: data}

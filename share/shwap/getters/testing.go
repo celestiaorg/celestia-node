@@ -76,7 +76,7 @@ func (seg *SingleEDSGetter) GetNamespaceData(context.Context, *header.ExtendedHe
 	panic("SingleEDSGetter: GetNamespaceData is not implemented")
 }
 
-func (g *SingleEDSGetter) GetSharesRange(
+func (seg *SingleEDSGetter) GetSharesRange(
 	_ context.Context,
 	_ *header.ExtendedHeader,
 	_ libshare.Namespace,

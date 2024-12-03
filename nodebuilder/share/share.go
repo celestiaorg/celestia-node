@@ -222,7 +222,13 @@ func (m module) GetNamespaceData(
 	return m.getter.GetNamespaceData(ctx, header, namespace)
 }
 
-func (m module) GetSharesRange(ctx context.Context, ns libshare.Namespace, height uint64, from, to uint32, proofsOnly bool) (shwap.RangeNamespaceData, error) {
+func (m module) GetSharesRange(
+	ctx context.Context,
+	ns libshare.Namespace,
+	height uint64,
+	from, to uint32,
+	proofsOnly bool,
+) (shwap.RangeNamespaceData, error) {
 	header, err := m.hs.GetByHeight(ctx, height)
 	if err != nil {
 		return shwap.RangeNamespaceData{}, err
