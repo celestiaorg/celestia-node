@@ -111,6 +111,55 @@ func TestExchange_DoNotStoreHistoric(t *testing.T) {
 	}
 }
 
+// TestExchange_StoreHistoricIfArchival makes sure blocks are stored past
+// sampling window if archival is enabled
+func TestExchange_StoreHistoricIfArchival(t *testing.T) {
+	ctx, cancel := context.WithCancel(context.Background())
+	t.Cleanup(cancel)
+
+	cfg := DefaultTestConfig()
+	fetcher, cctx := createCoreFetcher(t, cfg)
+
+	generateNonEmptyBlocks(t, ctx, fetcher, cfg, cctx)
+
+	store, err := store.NewStore(store.DefaultParameters(), t.TempDir())
+	require.NoError(t, err)
+
+	ce, err := NewExchange(
+		fetcher,
+		store,
+		header.MakeExtendedHeader,
+		WithAvailabilityWindow(time.Nanosecond), // all blocks will be "historic"
+		WithArchivalMode(),                      // make sure to store them anyway
+	)
+	require.NoError(t, err)
+
+	// initialize store with genesis block
+	genHeight := int64(1)
+	genBlock, err := fetcher.GetBlock(ctx, &genHeight)
+	require.NoError(t, err)
+	genHeader, err := ce.Get(ctx, genBlock.Header.Hash().Bytes())
+	require.NoError(t, err)
+
+	headers, err := ce.GetRangeByHeight(ctx, genHeader, 30)
+	require.NoError(t, err)
+
+	// ensure all "historic" EDSs were stored
+	for _, h := range headers {
+		has, err := store.HasByHeight(ctx, h.Height())
+		require.NoError(t, err)
+		assert.True(t, has)
+
+		// empty EDSs are expected to exist in the store, so we skip them
+		if h.DAH.Equals(share.EmptyEDSRoots()) {
+			continue
+		}
+		has, err = store.HasByHash(ctx, h.DAH.Hash())
+		require.NoError(t, err)
+		assert.True(t, has)
+	}
+}
+
 func createCoreFetcher(t *testing.T, cfg *testnode.Config) (*BlockFetcher, testnode.Context) {
 	cctx := StartTestNodeWithConfig(t, cfg)
 	// wait for height 2 in order to be able to start submitting txs (this prevents

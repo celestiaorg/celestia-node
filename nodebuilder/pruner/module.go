@@ -15,6 +15,7 @@ import (
 	"github.com/celestiaorg/celestia-node/pruner"
 	"github.com/celestiaorg/celestia-node/pruner/full"
 	"github.com/celestiaorg/celestia-node/share/availability"
+	fullavail "github.com/celestiaorg/celestia-node/share/availability/full"
 	"github.com/celestiaorg/celestia-node/share/availability/light"
 	"github.com/celestiaorg/celestia-node/share/shwap/p2p/discovery"
 )
@@ -59,6 +60,7 @@ func ConstructModule(tp node.Type, cfg *Config) fx.Option {
 				baseComponents,
 				prunerService,
 				fxutil.ProvideAs(full.NewPruner, new(pruner.Pruner)),
+				fx.Supply([]fullavail.Option{}),
 			)
 		}
 		return fx.Module("prune",
@@ -66,6 +68,7 @@ func ConstructModule(tp node.Type, cfg *Config) fx.Option {
 			fx.Invoke(func(ctx context.Context, ds datastore.Batching) error {
 				return pruner.DetectPreviousRun(ctx, ds)
 			}),
+			fx.Supply([]fullavail.Option{fullavail.WithArchivalMode()}),
 		)
 	case node.Bridge:
 		if cfg.EnableService {
@@ -73,9 +76,8 @@ func ConstructModule(tp node.Type, cfg *Config) fx.Option {
 				baseComponents,
 				prunerService,
 				fxutil.ProvideAs(full.NewPruner, new(pruner.Pruner)),
-				fx.Provide(func(window modshare.Window) []core.Option {
-					return []core.Option{core.WithAvailabilityWindow(window.Duration())}
-				}),
+				fx.Supply([]fullavail.Option{}),
+				fx.Supply([]core.Option{}),
 			)
 		}
 		return fx.Module("prune",
@@ -83,9 +85,8 @@ func ConstructModule(tp node.Type, cfg *Config) fx.Option {
 			fx.Invoke(func(ctx context.Context, ds datastore.Batching) error {
 				return pruner.DetectPreviousRun(ctx, ds)
 			}),
-			fx.Provide(func() []core.Option {
-				return []core.Option{}
-			}),
+			fx.Supply([]fullavail.Option{fullavail.WithArchivalMode()}),
+			fx.Supply([]core.Option{core.WithArchivalMode()}),
 		)
 	default:
 		panic("unknown node type")

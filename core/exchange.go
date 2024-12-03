@@ -23,6 +23,7 @@ type Exchange struct {
 	construct header.ConstructFn
 
 	availabilityWindow time.Duration
+	archival           bool
 
 	metrics *exchangeMetrics
 }
@@ -54,6 +55,7 @@ func NewExchange(
 		store:              store,
 		construct:          construct,
 		availabilityWindow: p.availabilityWindow,
+		archival:           p.archival,
 		metrics:            metrics,
 	}, nil
 }
@@ -147,7 +149,7 @@ func (ce *Exchange) Get(ctx context.Context, hash libhead.Hash) (*header.Extende
 			&block.Height, hash, eh.Hash())
 	}
 
-	err = storeEDS(ctx, eh, eds, ce.store, ce.availabilityWindow)
+	err = storeEDS(ctx, eh, eds, ce.store, ce.availabilityWindow, ce.archival)
 	if err != nil {
 		return nil, err
 	}
@@ -187,7 +189,7 @@ func (ce *Exchange) getExtendedHeaderByHeight(ctx context.Context, height *int64
 		panic(fmt.Errorf("constructing extended header for height %d: %w", b.Header.Height, err))
 	}
 
-	err = storeEDS(ctx, eh, eds, ce.store, ce.availabilityWindow)
+	err = storeEDS(ctx, eh, eds, ce.store, ce.availabilityWindow, ce.archival)
 	if err != nil {
 		return nil, err
 	}
