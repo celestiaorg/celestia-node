@@ -59,6 +59,14 @@ type Module interface {
 	) (shwap.NamespaceData, error)
 	// GetRange gets a list of shares and their corresponding proof.
 	GetRange(ctx context.Context, height uint64, start, end int) (*GetRangeResult, error)
+
+	GetSharesRange(
+		ctx context.Context,
+		ns libshare.Namespace,
+		height uint64,
+		from, length uint32,
+		proofsOnly bool,
+	) (shwap.RangeNamespaceData, error)
 }
 
 // API is a wrapper around Module for the RPC.
@@ -94,6 +102,13 @@ type API struct {
 			height uint64,
 			start, end int,
 		) (*GetRangeResult, error) `perm:"read"`
+		GetSharesRange func(
+			ctx context.Context,
+			ns libshare.Namespace,
+			height uint64,
+			start, length uint32,
+			proofsOnly bool,
+		) (shwap.RangeNamespaceData, error)
 	}
 }
 
@@ -129,6 +144,16 @@ func (api *API) GetNamespaceData(
 	namespace libshare.Namespace,
 ) (shwap.NamespaceData, error) {
 	return api.Internal.GetNamespaceData(ctx, height, namespace)
+}
+
+func (api *API) GetSharesRange(
+	ctx context.Context,
+	ns libshare.Namespace,
+	height uint64,
+	start, to uint32,
+	proofsOnly bool,
+) (shwap.RangeNamespaceData, error) {
+	return api.Internal.GetSharesRange(ctx, ns, height, start, to, proofsOnly)
 }
 
 type module struct {
@@ -214,4 +239,21 @@ func (m module) GetRow(ctx context.Context, height uint64, rowIdx int) (shwap.Ro
 		return shwap.Row{}, err
 	}
 	return m.getter.GetRow(ctx, header, rowIdx)
+}
+
+func (m module) GetSharesRange(ctx context.Context, ns libshare.Namespace, height uint64, from, to uint32, proofsOnly bool) (shwap.RangeNamespaceData, error) {
+	header, err := m.hs.GetByHeight(ctx, height)
+	if err != nil {
+		return shwap.RangeNamespaceData{}, err
+	}
+
+	fromCoords, err := shwap.SampleCoordsFrom1DIndex(int(from), len(header.DAH.RowRoots)/2)
+	if err != nil {
+		return shwap.RangeNamespaceData{}, err
+	}
+	toCoords, err := shwap.SampleCoordsFrom1DIndex(int(to), len(header.DAH.RowRoots)/2)
+	if err != nil {
+		return shwap.RangeNamespaceData{}, err
+	}
+	return m.getter.GetSharesRange(ctx, header, ns, fromCoords, toCoords, proofsOnly)
 }

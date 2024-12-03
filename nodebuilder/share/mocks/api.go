@@ -129,6 +129,21 @@ func (mr *MockModuleMockRecorder) GetShare(arg0, arg1, arg2, arg3 interface{}) *
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetShare", reflect.TypeOf((*MockModule)(nil).GetShare), arg0, arg1, arg2, arg3)
 }
 
+// GetSharesRange mocks base method.
+func (m *MockModule) GetSharesRange(arg0 context.Context, arg1 share0.Namespace, arg2 uint64, arg3, arg4 uint32, arg5 bool) (shwap.RangeNamespaceData, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "GetSharesRange", arg0, arg1, arg2, arg3, arg4, arg5)
+	ret0, _ := ret[0].(shwap.RangeNamespaceData)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// GetSharesRange indicates an expected call of GetSharesRange.
+func (mr *MockModuleMockRecorder) GetSharesRange(arg0, arg1, arg2, arg3, arg4, arg5 interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetSharesRange", reflect.TypeOf((*MockModule)(nil).GetSharesRange), arg0, arg1, arg2, arg3, arg4, arg5)
+}
+
 // SharesAvailable mocks base method.
 func (m *MockModule) SharesAvailable(arg0 context.Context, arg1 uint64) error {
 	m.ctrl.T.Helper()
