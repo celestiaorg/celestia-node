@@ -103,11 +103,11 @@ func (cg *CascadeGetter) GetNamespaceData(
 }
 
 func (cg *CascadeGetter) GetSharesRange(
-	ctx context.Context,
-	h *header.ExtendedHeader,
-	ns libshare.Namespace,
-	from, to shwap.SampleCoords,
-	proofsOnly bool,
+	_ context.Context,
+	_ *header.ExtendedHeader,
+	_ libshare.Namespace,
+	_, _ shwap.SampleCoords,
+	_ bool,
 ) (shwap.RangeNamespaceData, error) {
 	return shwap.RangeNamespaceData{}, errors.New("not implemented")
 }

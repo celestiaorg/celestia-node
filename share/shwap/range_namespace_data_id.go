@@ -8,8 +8,9 @@ import (
 	libshare "github.com/celestiaorg/go-square/v2/share"
 )
 
-// RangeNamespaceDataIDSize defines the size of the RangeNamespaceDataIDSize in bytes, combining SampleID size, Namespace size,
-// 2 additional bytes for length of the range and uint representation of bool flag.
+// RangeNamespaceDataIDSize defines the size of the RangeNamespaceDataIDSize in bytes,
+// combining SampleID size, Namespace size, 4 additional bytes
+// for the end coordinates of share of the range and uint representation of bool flag.
 const RangeNamespaceDataIDSize = SampleIDSize + libshare.NamespaceSize + 4 + 2
 
 // RangeNamespaceDataID identifies the continuous range of shares in the DataSquare(EDS),
@@ -130,13 +131,13 @@ func RangeNamespaceDataIDFromBinary(data []byte) (RangeNamespaceDataID, error) {
 		Col: int(binary.BigEndian.Uint16(data[len(data)-4 : len(data)-2])),
 	}
 
-	rngId := RangeNamespaceDataID{
+	rngID := RangeNamespaceDataID{
 		SampleID:      sid,
 		DataNamespace: ns,
 		To:            toCoords,
 		ProofsOnly:    data[len(data)-1] == 1,
 	}
-	return rngId, rngId.Validate()
+	return rngID, rngID.Validate()
 }
 
 // MarshalBinary encodes RangeNamespaceDataID into binary form.

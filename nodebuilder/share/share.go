@@ -241,7 +241,13 @@ func (m module) GetRow(ctx context.Context, height uint64, rowIdx int) (shwap.Ro
 	return m.getter.GetRow(ctx, header, rowIdx)
 }
 
-func (m module) GetSharesRange(ctx context.Context, ns libshare.Namespace, height uint64, from, to uint32, proofsOnly bool) (shwap.RangeNamespaceData, error) {
+func (m module) GetSharesRange(
+	ctx context.Context,
+	ns libshare.Namespace,
+	height uint64,
+	from, to uint32,
+	proofsOnly bool,
+) (shwap.RangeNamespaceData, error) {
 	header, err := m.hs.GetByHeight(ctx, height)
 	if err != nil {
 		return shwap.RangeNamespaceData{}, err
