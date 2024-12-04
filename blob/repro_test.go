@@ -18,7 +18,7 @@ func TestProofRowProofVerifyWithEmptyRoot(t *testing.T) {
 		},
 	}
 	root := []byte{0xd3, 0x4d, 0x34}
-	if _, err := cp.Verify(root, 1); err == nil {
+	if _, err := cp.Verify(root); err == nil {
 		t.Fatal("expected a non-nil error")
 	}
 }
@@ -30,7 +30,7 @@ func TestProofRowProofVerify(t *testing.T) {
 			Proofs: []*merkle.Proof{{}},
 		},
 	}
-	if _, err := cp.Verify(nil, 1); err == nil {
+	if _, err := cp.Verify(nil); err == nil {
 		t.Fatal("expected a non-nil error")
 	}
 }
@@ -43,15 +43,7 @@ func TestCommitmentProofVerifySliceBound(t *testing.T) {
 			&proof,
 		},
 	}
-	if _, err := cp.Verify(nil, 1); err == nil {
-		t.Fatal("expected a non-nil error")
-	}
-}
-
-// Reported at https://github.com/celestiaorg/celestia-node/issues/3728.
-func TestProofVerifyZeroSubThreshold(t *testing.T) {
-	cp := new(Proof)
-	if _, err := cp.Verify(nil, 0); err == nil {
+	if _, err := cp.Verify(nil); err == nil {
 		t.Fatal("expected a non-nil error")
 	}
 }

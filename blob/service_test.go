@@ -243,7 +243,7 @@ func TestBlobService_Get(t *testing.T) {
 				assert.True(t, ok)
 
 				verifyFn := func(t *testing.T, blob *Blob, proof *Proof) {
-					valid, err := proof.Verify(header.DataHash, appconsts.SubtreeRootThreshold(appVersion))
+					valid, err := proof.Verify(header.DataHash)
 					require.NoError(t, err)
 					require.True(t, valid)
 				}
@@ -411,7 +411,7 @@ func TestBlobService_Get(t *testing.T) {
 
 				header, err := service.headerGetter(ctx, 1)
 				require.NoError(t, err)
-				valid, err := proof.Verify(header.DataHash, appconsts.SubtreeRootThreshold(appVersion))
+				valid, err := proof.Verify(header.DataHash)
 				require.NoError(t, err)
 				require.True(t, valid)
 			},
@@ -1010,19 +1010,13 @@ func proveAndVerifyShareCommitments(t *testing.T, blobSize int) {
 			require.NoError(t, err)
 
 			// make sure the actual commitment attests to the data
-			valid, err := actualCommitmentProof.Verify(
-				dataRoot,
-				appconsts.DefaultSubtreeRootThreshold,
-			)
+			valid, err := actualCommitmentProof.Verify(dataRoot)
 			require.NoError(t, err)
 			require.True(t, valid)
 
 			// generate an expected proof and verify it's valid
 			expectedCommitmentProof := generateProofFromBlock(t, eds, nss[msgIndex].Bytes(), blobs[msgIndex], dataRoot)
-			valid, err = expectedCommitmentProof.Verify(
-				dataRoot,
-				appconsts.DefaultSubtreeRootThreshold,
-			)
+			valid, err = expectedCommitmentProof.Verify(dataRoot)
 			require.NoError(t, err)
 			require.True(t, valid)
 
@@ -1219,7 +1213,7 @@ func TestBlobVerify(t *testing.T) {
 
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
-			valid, err := test.proof.Verify(test.dataRoot, appconsts.SubtreeRootThreshold(appVersion))
+			valid, err := test.proof.Verify(test.dataRoot)
 			if test.expectErr {
 				assert.Error(t, err)
 			} else {

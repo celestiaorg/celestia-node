@@ -87,6 +87,6 @@ func FuzzCommitmentProofVerify(f *testing.F) {
 		if commitProof == nil {
 			return
 		}
-		_, _ = commitProof.Verify(val.Root, val.SThreshold)
+		_, _ = commitProof.Verify(val.Root)
 	})
 }

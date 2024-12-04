@@ -326,7 +326,7 @@ func (s *Service) Included(
 	if err != nil {
 		return false, err
 	}
-	return proof.Verify(header.DataHash, appconsts.SubtreeRootThreshold(appVersion))
+	return proof.Verify(header.DataHash)
 }
 
 // retrieve retrieves blobs and their proofs by requesting the whole namespace and

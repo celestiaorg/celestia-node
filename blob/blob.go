@@ -48,11 +48,12 @@ type Commitment []byte
 
 // Verify takes a data root and verifies if the
 // provided proof's subtree roots were committed to the given data root.
-func (p *Proof) Verify(dataRoot []byte, subtreeRootThreshold int) (bool, error) {
+func (p *Proof) Verify(dataRoot []byte) (bool, error) {
 	if len(dataRoot) == 0 {
 		return false, errors.New("root must be non-empty")
 	}
 
+	subtreeRootThreshold := appconsts.SubtreeRootThreshold(appVersion)
 	if subtreeRootThreshold <= 0 {
 		return false, errors.New("subtreeRootThreshold must be > 0")
 	}
