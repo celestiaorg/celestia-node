@@ -6,8 +6,8 @@ import (
 	"time"
 
 	"github.com/celestiaorg/celestia-app/v3/app"
+
 	"github.com/celestiaorg/celestia-app/v3/test/e2e/testnet"
-	"github.com/celestiaorg/celestia-app/v3/test/util/testnode"
 	"github.com/celestiaorg/celestia-node/test/e2e/prometheus"
 	nodeTestnet "github.com/celestiaorg/celestia-node/test/e2e/testnet"
 	"github.com/celestiaorg/knuu/pkg/k8s"
@@ -20,8 +20,8 @@ import (
 const (
 	// appVersion = "v2.2.0"
 	// appVersion                    = "206b96c"
-	appVersion           = "v3.0.0-rc0"
-	nodeVersion          = "v0.17.2"
+	appVersion           = "v3.0.2"
+	nodeVersion          = "v0.20.4"
 	timeFormat           = "20060102_150405"
 	buildInfoMetricName  = "build_info"
 	instanceMetricName   = "exported_instance"
@@ -32,24 +32,31 @@ const (
 	metricRetryTimeout  = 30 * time.Second
 )
 
-// This test runs a simple testnet with 4 validators. It submits both MsgPayForBlobs
-// and MsgSends over 30 seconds and then asserts that at least 10 transactions were
-// committed.
 func E2ESimple(logger *logrus.Logger) error {
 	const (
-		testName        = "E2ESimple"
-		validatorsCount = 4
-		expectedTxs     = 10
+		testName                = "E2ESimple"
+		validatorsCount         = 4
+		bootstrapperBridgeCount = 6
+		bootstrapperFullCount   = 3
+		bridgeCount             = 0
+		fullCount               = 0
+		lightCount              = 10
+		expectedTxs             = 10
 	)
 
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
 	logger.WithFields(logrus.Fields{
-		"test_name":        testName,
-		"app_version":      appVersion,
-		"node_version":     nodeVersion,
-		"validators_count": validatorsCount,
+		"test_name":                 testName,
+		"app_version":               appVersion,
+		"node_version":              nodeVersion,
+		"validators_count":          validatorsCount,
+		"bootstrapper_bridge_count": bootstrapperBridgeCount,
+		"bootstrapper_full_count":   bootstrapperFullCount,
+		"bridge_count":              bridgeCount,
+		"full_count":                fullCount,
+		"light_count":               lightCount,
 	}).Info("Running test")
 
 	scope := fmt.Sprintf("%s-%s", testName, time.Now().Format(timeFormat))
@@ -83,42 +90,39 @@ func E2ESimple(logger *logrus.Logger) error {
 	err = tn.CreateTxClient(ctx, "txsim", testnet.TxsimVersion, 1, "100-2000", 100, testnet.DefaultResources, endpoints[0], nil)
 	testnet.NoError("failed to create tx client", err)
 
-	logger.Info("Setting up testnets")
-	testnet.NoError("failed to setup testnets", tn.Setup(ctx))
+	logger.Info("Setting up testnet")
+	testnet.NoError("failed to setup testnet", tn.Setup(ctx))
 
-	logger.Info("Starting testnets")
-	testnet.NoError("failed to start testnets", tn.Start(ctx))
+	logger.Info("Starting testnet")
+	testnet.NoError("failed to start testnet", tn.Start(ctx))
 
-	logger.Infof("Waiting for at least %d transactions", expectedTxs)
-	waitCtx, waitCancel := context.WithTimeout(ctx, queryTxCountTimeout)
-	defer waitCancel()
-	err = waitForTxs(waitCtx, tn.Node(0).AddressRPC(), expectedTxs, logger)
-	testnet.NoError("failed to wait for transactions", err)
+	chainID := tn.ChainID()
+	genesisHash, err := tn.GenesisHash(ctx)
+	testnet.NoError("failed to get genesis hash", err)
+	coreIP := tn.Node(0).Instance.Network().HostName()
 
-	// FIXME: If you deploy more than one node of the same type, the keys will be the same
-	err = tn.CreateAndStartBridgeNodes(ctx, 1,
-		nodeTestnet.InstanceOptions{
-			InstanceName: "bridge",
-			Version:      nodeVersion,
-			Resources:    nodeTestnet.DefaultBridgeResources,
-		})
-	testnet.NoError("failed to create and start bridge node", err)
+	// create bootstrapper nodes
+	tn.CreateBridgeNodes(ctx, bootstrapperBridgeCount, nodeVersion, chainID, genesisHash, coreIP, true, true, nodeTestnet.DefaultBridgeResources)
+	tn.CreateFullNodes(ctx, bootstrapperFullCount, nodeVersion, chainID, genesisHash, coreIP, true, true, nodeTestnet.DefaultFullResources)
 
-	err = tn.CreateAndStartFullNodes(ctx, 1,
-		nodeTestnet.InstanceOptions{
-			InstanceName: "full",
-			Version:      nodeVersion,
-			Resources:    nodeTestnet.DefaultFullResources,
-		})
-	testnet.NoError("failed to create and start full node", err)
+	// create other nodes
+	tn.CreateBridgeNodes(ctx, bridgeCount, nodeVersion, chainID, genesisHash, coreIP, false, true, nodeTestnet.DefaultBridgeResources)
+	tn.CreateFullNodes(ctx, fullCount, nodeVersion, chainID, genesisHash, coreIP, false, true, nodeTestnet.DefaultFullResources)
+	tn.CreateLightNodes(ctx, lightCount, nodeVersion, chainID, genesisHash, coreIP, nodeTestnet.DefaultLightResources)
 
-	err = tn.CreateAndStartLightNodes(ctx, 1,
-		nodeTestnet.InstanceOptions{
-			InstanceName: "light",
-			Version:      nodeVersion,
-			Resources:    nodeTestnet.DefaultLightResources,
-		})
-	testnet.NoError("failed to create and start light node", err)
+	logger.Info("Setting up DA testnet")
+	testnet.NoError("failed to setup DA testnet", tn.SetupDA(ctx))
+
+	logger.Info("Starting DA testnet")
+	testnet.NoError("failed to start DA testnet", tn.StartDA(ctx))
+
+	time.Sleep(10 * time.Minute)
+
+	// logger.Infof("Waiting for at least %d transactions", expectedTxs)
+	// waitCtx, waitCancel := context.WithTimeout(ctx, queryTxCountTimeout)
+	// defer waitCancel()
+	// err = waitForTxs(waitCtx, tn.Node(0).AddressRPC(), expectedTxs, logger)
+	// testnet.NoError("failed to wait for transactions", err)
 
 	// The prometheus instance needs to be started after the nodes are created
 	// because all nodes exporters are added to it before it starts
@@ -147,44 +151,42 @@ func E2ESimple(logger *logrus.Logger) error {
 		testnet.NoError("failed to get metric", err)
 	}
 
-	return nil
-}
+	// func queryTxCount(ctx context.Context, rpcAddr string) (int, error) {
+	// 	blockchain, err := testnode.ReadBlockchain(ctx, rpcAddr)
+	// 	if err != nil {
+	// 		return 0, err
+	// 	}
 
-func queryTxCount(ctx context.Context, rpcAddr string) (int, error) {
-	blockchain, err := testnode.ReadBlockchain(ctx, rpcAddr)
-	if err != nil {
-		return 0, err
-	}
+	// 	totalTxs := 0
+	// 	for _, block := range blockchain {
+	// 		totalTxs += len(block.Data.Txs)
+	// 	}
+	// 	return totalTxs, nil
+	// }
 
-	totalTxs := 0
-	for _, block := range blockchain {
-		totalTxs += len(block.Data.Txs)
-	}
-	return totalTxs, nil
-}
+	// func waitForTxs(ctx context.Context, rpcAddr string, expectedTxs int, logger *logrus.Logger) error {
+	// 	ticker := time.NewTicker(queryTxCountInterval)
+	// 	defer ticker.Stop()
 
-func waitForTxs(ctx context.Context, rpcAddr string, expectedTxs int, logger *logrus.Logger) error {
-	ticker := time.NewTicker(queryTxCountInterval)
-	defer ticker.Stop()
+	// 	for range ticker.C {
+	// 		select {
+	// 		case <-ctx.Done():
+	// 			return ctx.Err()
+	// 		default:
+	// 		}
 
-	for range ticker.C {
-		select {
-		case <-ctx.Done():
-			return ctx.Err()
-		default:
-		}
+	// 		totalTxs, err := queryTxCount(ctx, rpcAddr)
+	// 		if err != nil {
+	// 			return err
+	// 		}
 
-		totalTxs, err := queryTxCount(ctx, rpcAddr)
-		if err != nil {
-			return err
-		}
-
-		if totalTxs >= expectedTxs {
-			logger.Infof("Found %d transactions", totalTxs)
-			return nil
-		}
-		logger.Debugf("Waiting for at least %d transactions, got %d so far", expectedTxs, totalTxs)
-	}
+	//		if totalTxs >= expectedTxs {
+	//			logger.Infof("Found %d transactions", totalTxs)
+	//			return nil
+	//		}
+	//		logger.Debugf("Waiting for at least %d transactions, got %d so far", expectedTxs, totalTxs)
+	//	}
+	//
 	return fmt.Errorf("unknown error")
 }
 

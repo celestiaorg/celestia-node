@@ -41,15 +41,12 @@ func getTrustedPeers(ctx context.Context, trustedNode *Node) (string, error) {
 		return "", ErrFailedToGetP2PInfo.Wrap(err)
 	}
 
-	bridgeIP, err := trustedNode.Instance.Network().GetIP(ctx)
+	bridgeHostName := trustedNode.Instance.Network().HostName()
+	nodeID, err := iDFromP2PInfo(p2pInfoNode)
 	if err != nil {
-		return "", ErrFailedToGetIP.Wrap(err)
+		return "", ErrFailedToGetNodeID.Wrap(err)
 	}
-	bridgeID, err := iDFromP2PInfo(p2pInfoNode)
-	if err != nil {
-		return "", ErrFailedToGetBridgeID.Wrap(err)
-	}
-	return fmt.Sprintf("/ip4/%s/tcp/2121/p2p/%s", bridgeIP, bridgeID), nil
+	return fmt.Sprintf("/ip4/%s/tcp/2121/p2p/%s", bridgeHostName, nodeID), nil
 }
 
 func hashFromBlock(block string) (string, error) {

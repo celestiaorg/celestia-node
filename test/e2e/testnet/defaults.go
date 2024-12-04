@@ -8,12 +8,15 @@ import (
 )
 
 const (
-	rpcPort           = 26658
-	p2pPort           = 2121
-	dockerSrcURL      = "ghcr.io/celestiaorg/celestia-node"
-	remoteRootDir     = "/home/celestia"
-	txsimRootDir      = "/home/celestia"
-	celestiaCustomEnv = "CELESTIA_CUSTOM"
+	p2pPortTcp           = 2121
+	p2pPortUdp           = 2121
+	websocketPort        = 2122
+	restPort             = 26659
+	rpcPort              = 26658
+	dockerSrcURL         = "ghcr.io/celestiaorg/celestia-node"
+	remoteRootDir        = "/home/celestia"
+	celestiaCustomEnv    = "CELESTIA_CUSTOM"
+	celestiaBootstrapEnv = "CELESTIA_BOOTSTRAPPER"
 
 	prometheusExporterPort   = 9091
 	prometheusScrapeInterval = time.Second * 2
@@ -22,19 +25,22 @@ const (
 )
 
 var DefaultBridgeResources = testnet.Resources{
-	MemoryRequest: resource.MustParse("15000Mi"),
-	MemoryLimit:   resource.MustParse("16000Mi"),
-	CPU:           resource.MustParse("6"),
+	MemoryRequest: resource.MustParse("400Mi"),
+	MemoryLimit:   resource.MustParse("400Mi"),
+	CPU:           resource.MustParse("300m"),
+	Volume:        resource.MustParse("1Gi"),
 }
 
 var DefaultFullResources = testnet.Resources{
-	MemoryRequest: resource.MustParse("15000Mi"),
-	MemoryLimit:   resource.MustParse("16000Mi"),
-	CPU:           resource.MustParse("6"),
+	MemoryRequest: resource.MustParse("400Mi"),
+	MemoryLimit:   resource.MustParse("400Mi"),
+	CPU:           resource.MustParse("300m"),
+	Volume:        resource.MustParse("1Gi"),
 }
 
 var DefaultLightResources = testnet.Resources{
-	MemoryRequest: resource.MustParse("450Mi"),
-	MemoryLimit:   resource.MustParse("500Mi"),
-	CPU:           resource.MustParse("1"),
+	MemoryRequest: resource.MustParse("200Mi"),
+	MemoryLimit:   resource.MustParse("200Mi"),
+	CPU:           resource.MustParse("150m"),
+	Volume:        resource.MustParse("1Gi"),
 }

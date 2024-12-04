@@ -14,15 +14,15 @@ type Status struct {
 	status []byte
 }
 
-func GetStatus(ctx context.Context, executor *instance.Instance, appIP string) (*Status, error) {
+func GetStatus(ctx context.Context, executor *instance.Instance, appHostName string) (*Status, error) {
 	if executor == nil {
 		return nil, ErrExecutorNotSet
 	}
-	if appIP == "" {
-		return nil, ErrEmptyAppIP
+	if appHostName == "" {
+		return nil, ErrEmptyAppHostName
 	}
 
-	status, err := executor.Execution().ExecuteCommand(ctx, "wget", "-q", "-O", "-", fmt.Sprintf("%s:26657/status", appIP))
+	status, err := executor.Execution().ExecuteCommand(ctx, "wget", "-q", "-O", "-", fmt.Sprintf("%s:26657/status", appHostName))
 	if err != nil {
 		return nil, ErrFailedToGetStatus.Wrap(err)
 	}
