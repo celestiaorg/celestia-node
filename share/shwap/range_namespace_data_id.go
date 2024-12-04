@@ -26,12 +26,18 @@ type RangeNamespaceDataID struct {
 }
 
 func NewRangeNamespaceDataID(
+	height uint64,
 	namespace libshare.Namespace,
-	sampleID SampleID,
+	from SampleCoords,
 	to SampleCoords,
 	proofsOnly bool,
 	edsSize int,
 ) (RangeNamespaceDataID, error) {
+	sampleID, err := NewSampleID(height, from, edsSize)
+	if err != nil {
+		return RangeNamespaceDataID{}, fmt.Errorf("creating sample ID: %w", err)
+	}
+
 	rngid := RangeNamespaceDataID{
 		SampleID:      sampleID,
 		DataNamespace: namespace,
@@ -39,7 +45,7 @@ func NewRangeNamespaceDataID(
 		ProofsOnly:    proofsOnly,
 	}
 
-	err := rngid.Verify(edsSize)
+	err = rngid.Verify(edsSize)
 	if err != nil {
 		return RangeNamespaceDataID{}, fmt.Errorf("verifying range id: %w", err)
 	}

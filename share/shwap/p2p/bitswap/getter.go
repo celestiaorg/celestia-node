@@ -257,12 +257,14 @@ func (g *Getter) GetSharesRange(
 	ctx, span := tracer.Start(ctx, "get-shares-range")
 	defer span.End()
 
-	sampleID, err := shwap.NewSampleID(hdr.Height(), from, len(hdr.DAH.RowRoots))
-	if err != nil {
-		return shwap.RangeNamespaceData{}, err
-	}
-
-	rangeDataBlock, err := NewEmptyRangeNamespaceDataBlock(ns, sampleID, to, proofsOnly, len(hdr.DAH.RowRoots))
+	rangeDataBlock, err := NewEmptyRangeNamespaceDataBlock(
+		hdr.Height(),
+		ns,
+		from,
+		to,
+		proofsOnly,
+		len(hdr.DAH.RowRoots),
+	)
 	if err != nil {
 		return shwap.RangeNamespaceData{}, err
 	}

@@ -47,13 +47,14 @@ type RangeNamespaceDataBlock struct {
 
 // NewEmptyRangeNamespaceDataBlock constructs a new empty RangeNamespaceDataBlock.
 func NewEmptyRangeNamespaceDataBlock(
+	height uint64,
 	namespace libshare.Namespace,
-	sampleID shwap.SampleID,
+	from shwap.SampleCoords,
 	to shwap.SampleCoords,
 	proofsOnly bool,
 	edsSize int,
 ) (*RangeNamespaceDataBlock, error) {
-	id, err := shwap.NewRangeNamespaceDataID(namespace, sampleID, to, proofsOnly, edsSize)
+	id, err := shwap.NewRangeNamespaceDataID(height, namespace, from, to, proofsOnly, edsSize)
 	if err != nil {
 		return nil, err
 	}

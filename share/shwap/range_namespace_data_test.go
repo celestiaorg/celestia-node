@@ -42,8 +42,6 @@ func TestRangeNamespaceData(t *testing.T) {
 	require.NoError(t, err)
 	col := nsData.Proof.Start()
 
-	sampleID, err := shwap.NewSampleID(1, shwap.SampleCoords{Row: nsRowStart, Col: col}, edsSize)
-	require.NoError(t, err)
 	for i := 1; i <= odsSize; i++ {
 		t.Run(fmt.Sprintf("range of %d shares", i), func(t *testing.T) {
 			toRow, toCol := nsRowStart, col+i-1
@@ -53,7 +51,14 @@ func TestRangeNamespaceData(t *testing.T) {
 			}
 
 			to := shwap.SampleCoords{Row: toRow, Col: toCol}
-			dataID, err := shwap.NewRangeNamespaceDataID(ns, sampleID, to, false, edsSize)
+			dataID, err := shwap.NewRangeNamespaceDataID(
+				1,
+				ns,
+				shwap.SampleCoords{Row: nsRowStart, Col: col},
+				to,
+				false,
+				edsSize,
+			)
 			require.NoError(t, err)
 
 			rngdata, err := extended.RangeNamespaceData(
