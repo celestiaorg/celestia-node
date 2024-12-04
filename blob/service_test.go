@@ -288,9 +288,7 @@ func TestBlobService_Get(t *testing.T) {
 			},
 			expectedResult: func(res interface{}, err error) {
 				require.Error(t, err)
-				// Question for reviewers: same for here, we're returning exactly, ErrInvalidProof.
-				// is it fine to wrap it?
-				// require.ErrorIs(t, err, ErrInvalidProof)
+				require.ErrorIs(t, err, ErrInvalidProof)
 				included, ok := res.(bool)
 				require.True(t, ok)
 				require.False(t, included)
@@ -327,13 +325,7 @@ func TestBlobService_Get(t *testing.T) {
 				)
 			},
 			expectedResult: func(res interface{}, err error) {
-				// Question for reviwers: for the case of included, it's here made not to return an error
-				// when the inclusion proof is invalid. For the implementation that we do, we return (false, error)
-				// where error is the reason why it failed. For example, if the data root does not commit to the
-				// row roots, we return that in the error message.
-				// is it fine if Included also does the same? returning the reason why it failed in the error?
-				// given that this will change how this method was behaving previously, i.e, return (false, nil)
-				// for a proof that does not commit to the data.require.NoError(t, err)
+				require.Error(t, err)
 				included, ok := res.(bool)
 				require.True(t, ok)
 				require.False(t, included)
