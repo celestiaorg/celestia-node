@@ -276,8 +276,7 @@ func (ca *CoreAccessor) SubmitPayForBlob(
 			numbers := regexpInt.FindAllString(err.Error(), -1)
 			log.Infof("Received nonce correction message from the network %w", err.Error())
 			if len(numbers) != 2 {
-				log.Infof("Could not parse acount sequence log")
-				continue
+				return nil, fmt.Errorf("unexpected wrong sequence error: %w", err)
 			}
 			nonce, _ := strconv.ParseUint(numbers[0], 10, 64)
 			log.Infof("Adjusting nonce to %d", nonce)
