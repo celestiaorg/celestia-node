@@ -6,6 +6,9 @@ import (
 	"fmt"
 	"sync"
 	"time"
+	"strings"
+	"regexp"
+	"strconv"
 
 	nodeservice "github.com/cosmos/cosmos-sdk/client/grpc/node"
 	"github.com/cosmos/cosmos-sdk/client/grpc/tmservice"
@@ -264,6 +267,21 @@ func (ca *CoreAccessor) SubmitPayForBlob(
 
 			ca.setMinGasPrice(gasPrice)
 			lastErr = err
+			continue
+		}
+
+		//https://github.com/celestiaorg/celestia-app/pull/4067 ?
+		if err != nil && strings.Contains(err.Error(), "incorrect account sequence") {
+			regexpInt := regexp.MustCompile(`[0-9]+`)
+			numbers := regexpInt.FindAllString(err.Error(), -1)
+			log.Infof("Received nonce correction message from the network %w", err.Error())
+			if len(numbers) != 2 {
+				log.Infof("Could not parse acount sequence log")
+				continue
+			}
+			nonce, _ := strconv.ParseUint(numbers[0], 10, 64)
+			log.Infof("Adjusting nonce to %d", nonce)
+			ca.client.Signer().SetSequence(accName, nonce)
 			continue
 		}
 
