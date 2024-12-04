@@ -157,7 +157,7 @@ func (p *Proof) Verify(dataRoot []byte, subtreeRootThreshold int) (bool, error) 
 
 // GenerateCommitment generates the share commitment corresponding
 // to the proof's subtree roots
-func (p *Proof) GenerateCommitment() []byte {
+func (p *Proof) GenerateCommitment() Commitment {
 	return merkle.HashFromByteSlices(p.SubtreeRoots)
 }
 
