@@ -19,7 +19,6 @@ func TestNewRangeNamespaceDataID(t *testing.T) {
 		ns,
 		SampleCoords{Row: 0, Col: 1},
 		SampleCoords{1, 1},
-		true,
 		edsSize,
 	)
 	require.NoError(t, err)
@@ -40,7 +39,7 @@ func TestRangeNamespaceDataIDReaderWriter(t *testing.T) {
 	ns := libshare.RandomNamespace()
 	to, err := SampleCoordsFrom1DIndex(10, edsSize)
 	require.NoError(t, err)
-	rngid, err := NewRangeNamespaceDataID(1, ns, SampleCoords{Row: 0, Col: 1}, to, false, edsSize)
+	rngid, err := NewRangeNamespaceDataID(1, ns, SampleCoords{Row: 0, Col: 1}, to, edsSize)
 	require.NoError(t, err)
 
 	buf := bytes.NewBuffer(nil)
