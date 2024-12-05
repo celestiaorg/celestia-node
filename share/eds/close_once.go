@@ -97,12 +97,11 @@ func (c *closeOnce) RangeNamespaceData(
 	ctx context.Context,
 	ns libshare.Namespace,
 	from, to shwap.SampleCoords,
-	opts ...shwap.RangeNamespaceDataOption,
 ) (shwap.RangeNamespaceData, error) {
 	if c.closed.Load() {
 		return shwap.RangeNamespaceData{}, errAccessorClosed
 	}
-	return c.f.RangeNamespaceData(ctx, ns, from, to, opts...)
+	return c.f.RangeNamespaceData(ctx, ns, from, to)
 }
 
 func (c *closeOnce) Reader() (io.Reader, error) {

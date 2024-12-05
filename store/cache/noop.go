@@ -75,7 +75,6 @@ func (n NoopFile) RangeNamespaceData(
 	_ context.Context,
 	_ libshare.Namespace,
 	_, _ shwap.SampleCoords,
-	_ ...shwap.RangeNamespaceDataOption,
 ) (shwap.RangeNamespaceData, error) {
 	return shwap.RangeNamespaceData{}, nil
 }

@@ -39,7 +39,6 @@ type Accessor interface {
 		ctx context.Context,
 		ns libshare.Namespace,
 		from, to shwap.SampleCoords,
-		opts ...shwap.RangeNamespaceDataOption,
 	) (shwap.RangeNamespaceData, error)
 }
 
