@@ -326,7 +326,6 @@ func (g successGetter) GetSharesRange(
 	_ *header.ExtendedHeader,
 	_ libshare.Namespace,
 	_, _ shwap.SampleCoords,
-	_ bool,
 ) (shwap.RangeNamespaceData, error) {
 	panic("not implemented")
 }

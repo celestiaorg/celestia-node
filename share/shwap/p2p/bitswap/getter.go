@@ -274,7 +274,6 @@ func (g *Getter) GetSharesRange(
 	hdr *header.ExtendedHeader,
 	ns libshare.Namespace,
 	from, to shwap.SampleCoords,
-	proofsOnly bool,
 ) (shwap.RangeNamespaceData, error) {
 	if err := ns.ValidateForData(); err != nil {
 		return shwap.RangeNamespaceData{}, err
@@ -288,7 +287,6 @@ func (g *Getter) GetSharesRange(
 		ns,
 		from,
 		to,
-		proofsOnly,
 		len(hdr.DAH.RowRoots),
 	)
 	if err != nil {

@@ -51,10 +51,9 @@ func NewEmptyRangeNamespaceDataBlock(
 	namespace libshare.Namespace,
 	from shwap.SampleCoords,
 	to shwap.SampleCoords,
-	proofsOnly bool,
 	edsSize int,
 ) (*RangeNamespaceDataBlock, error) {
-	id, err := shwap.NewRangeNamespaceDataID(height, namespace, from, to, proofsOnly, edsSize)
+	id, err := shwap.NewRangeNamespaceDataID(height, namespace, from, to, edsSize)
 	if err != nil {
 		return nil, err
 	}
@@ -98,17 +97,11 @@ func (rndb *RangeNamespaceDataBlock) Marshal() ([]byte, error) {
 }
 
 func (rndb *RangeNamespaceDataBlock) Populate(ctx context.Context, eds eds.Accessor) error {
-	opts := make([]shwap.RangeNamespaceDataOption, 0)
-	if rndb.ID.ProofsOnly {
-		opts = append(opts, shwap.SkipData())
-	}
-
 	rnd, err := eds.RangeNamespaceData(
 		ctx,
 		rndb.ID.DataNamespace,
 		shwap.SampleCoords{Row: rndb.ID.RowIndex, Col: rndb.ID.ShareIndex},
 		rndb.ID.To,
-		opts...,
 	)
 	if err != nil {
 		return fmt.Errorf("accessing RangeNamespaceData: %w", err)
