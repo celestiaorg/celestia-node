@@ -194,7 +194,6 @@ func (odsq4 *ODSQ4) RangeNamespaceData(
 	ctx context.Context,
 	ns libshare.Namespace,
 	from, to shwap.SampleCoords,
-	opts ...shwap.RangeNamespaceDataOption,
 ) (shwap.RangeNamespaceData, error) {
-	return odsq4.ods.RangeNamespaceData(ctx, ns, from, to, opts...)
+	return odsq4.ods.RangeNamespaceData(ctx, ns, from, to)
 }

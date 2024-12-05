@@ -259,9 +259,8 @@ func (c *proofsCache) RangeNamespaceData(
 	ctx context.Context,
 	ns libshare.Namespace,
 	from, to shwap.SampleCoords,
-	opts ...shwap.RangeNamespaceDataOption,
 ) (shwap.RangeNamespaceData, error) {
-	return c.inner.RangeNamespaceData(ctx, ns, from, to, opts...)
+	return c.inner.RangeNamespaceData(ctx, ns, from, to)
 }
 
 func (c *proofsCache) Reader() (io.Reader, error) {

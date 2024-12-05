@@ -4,6 +4,11 @@ import (
 	"errors"
 	"fmt"
 
+	"github.com/tendermint/tendermint/crypto/merkle"
+	corebytes "github.com/tendermint/tendermint/libs/bytes"
+	coretypes "github.com/tendermint/tendermint/proto/tendermint/types"
+	"github.com/tendermint/tendermint/types"
+
 	"github.com/celestiaorg/celestia-app/v3/pkg/appconsts"
 	"github.com/celestiaorg/celestia-app/v3/pkg/wrapper"
 	libshare "github.com/celestiaorg/go-square/v2/share"
@@ -12,17 +17,6 @@ import (
 	"github.com/celestiaorg/celestia-node/share"
 	"github.com/celestiaorg/celestia-node/share/shwap/pb"
 )
-
-type RangeNamespaceDataOption func(data *RangeNamespaceData)
-
-// SkipData is a functional option allows user to specify what kind of response user expects to receive
-func SkipData() RangeNamespaceDataOption {
-	return func(data *RangeNamespaceData) {
-		for i := range data.NamespaceData {
-			data.NamespaceData[i].Shares = nil
-		}
-	}
-}
 
 // RangeNamespaceData embeds `NamespaceData` and contains a contiguous range of shares
 // along with proofs for these shares.
@@ -40,7 +34,6 @@ func RangedNamespaceDataFromShares(
 	shares [][]libshare.Share,
 	namespace libshare.Namespace,
 	from, to SampleCoords,
-	options ...RangeNamespaceDataOption,
 ) (RangeNamespaceData, error) {
 	if len(shares) == 0 {
 		return RangeNamespaceData{}, fmt.Errorf("empty share list")
@@ -105,12 +98,7 @@ func RangedNamespaceDataFromShares(
 		from.Col = 0
 		row++
 	}
-	data := RangeNamespaceData{nsData}
-
-	for _, opt := range options {
-		opt(&data)
-	}
-	return data, nil
+	return RangeNamespaceData{nsData}, nil
 }
 
 // Validate performs a validation of the incoming data. It ensures that the response contains proofs and performs
@@ -125,11 +113,6 @@ func (rngdata *RangeNamespaceData) Validate(root *share.AxisRoots, req *RangeNam
 		return fmt.Errorf("RangeNamespaceData: invalid start of the range: want: %d, got: %d",
 			req.ShareIndex, rngdata.NamespaceData[0].Proof.Start(),
 		)
-	}
-
-	// short-circuit if user expects to receive proofs-only.
-	if req.ProofsOnly {
-		return nil
 	}
 
 	// verify shares amount
@@ -186,4 +169,39 @@ func (rngdata RangeNamespaceData) IsEmpty() (bool, error) {
 
 func (rngdata *RangeNamespaceData) ToProto() *pb.NamespaceData {
 	return rngdata.NamespaceData.ToProto()
+}
+
+// ProveRange proves that a range of shares exist in the set of rows that are part of the merkle tree of the data root.
+func (rngdata *RangeNamespaceData) ProveRange(from int, rowRoots, colRoots [][]byte) *types.ShareProof {
+	nmtProofs := make([]*coretypes.NMTProof, len(rngdata.NamespaceData))
+	for i, row := range rngdata.NamespaceData {
+		nmtProofs[i] = &coretypes.NMTProof{
+			Start:    int32(row.Proof.Start()),
+			End:      int32(row.Proof.End()),
+			Nodes:    row.Proof.Nodes(),
+			LeafHash: row.Proof.LeafHash(),
+		}
+	}
+
+	to := from + len(rngdata.NamespaceData)
+	// create the merkle inclusion proof for all rows to the data root
+	_, proofs := merkle.ProofsFromByteSlices(append(rowRoots, colRoots...))
+	rowProofs := proofs[from:to]
+	roots := make([]corebytes.HexBytes, to)
+	for i, rowRoot := range roots[from:to] {
+		rowRoots[i] = rowRoot
+	}
+
+	return &types.ShareProof{
+		Data:        libshare.ToBytes(rngdata.Flatten()),
+		ShareProofs: nmtProofs,
+		NamespaceID: rngdata.NamespaceData[0].Shares[0].Namespace().ID(),
+		RowProof: types.RowProof{
+			RowRoots: roots,
+			Proofs:   rowProofs,
+			StartRow: uint32(from),
+			EndRow:   uint32(to),
+		},
+		NamespaceVersion: uint32(rngdata.NamespaceData[0].Shares[0].Namespace().Version()),
+	}
 }

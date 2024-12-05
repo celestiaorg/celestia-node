@@ -321,7 +321,6 @@ func (o *ODS) RangeNamespaceData(
 	_ context.Context,
 	ns libshare.Namespace,
 	from, to shwap.SampleCoords,
-	opts ...shwap.RangeNamespaceDataOption,
 ) (shwap.RangeNamespaceData, error) {
 	shares := make([][]libshare.Share, to.Row-from.Row+1)
 
@@ -338,7 +337,7 @@ func (o *ODS) RangeNamespaceData(
 		shares[idx] = sh
 		idx++
 	}
-	return shwap.RangedNamespaceDataFromShares(shares, ns, from, to, opts...)
+	return shwap.RangedNamespaceDataFromShares(shares, ns, from, to)
 }
 
 func (o *ODS) axis(ctx context.Context, axisType rsmt2d.Axis, axisIdx int) ([]libshare.Share, error) {

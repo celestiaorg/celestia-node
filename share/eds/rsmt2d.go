@@ -122,7 +122,6 @@ func (eds *Rsmt2D) RangeNamespaceData(
 	_ context.Context,
 	ns libshare.Namespace,
 	from, to shwap.SampleCoords,
-	opts ...shwap.RangeNamespaceDataOption,
 ) (shwap.RangeNamespaceData, error) {
 	rawShares := make([][]libshare.Share, 0, to.Row-from.Row+1)
 	for row := from.Row; row <= to.Row; row++ {
@@ -133,7 +132,7 @@ func (eds *Rsmt2D) RangeNamespaceData(
 		}
 		rawShares = append(rawShares, sh)
 	}
-	return shwap.RangedNamespaceDataFromShares(rawShares, ns, from, to, opts...)
+	return shwap.RangedNamespaceDataFromShares(rawShares, ns, from, to)
 }
 
 // Shares returns data (ODS) shares extracted from the EDS. It returns new copy of the shares each

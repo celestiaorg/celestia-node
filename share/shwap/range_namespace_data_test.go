@@ -56,7 +56,6 @@ func TestRangeNamespaceData(t *testing.T) {
 				ns,
 				shwap.SampleCoords{Row: nsRowStart, Col: col},
 				to,
-				false,
 				edsSize,
 			)
 			require.NoError(t, err)
@@ -66,7 +65,6 @@ func TestRangeNamespaceData(t *testing.T) {
 				dataID.DataNamespace,
 				shwap.SampleCoords{Row: dataID.RowIndex, Col: dataID.ShareIndex},
 				to,
-				shwap.SkipData(),
 			)
 			require.NoError(t, err)
 
