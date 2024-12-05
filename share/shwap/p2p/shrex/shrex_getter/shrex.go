@@ -307,7 +307,6 @@ func (sg *Getter) GetSharesRange(
 	_ *header.ExtendedHeader,
 	_ libshare.Namespace,
 	_, _ shwap.SampleCoords,
-	_ bool,
 ) (shwap.RangeNamespaceData, error) {
 	return shwap.RangeNamespaceData{}, errors.New("not supported")
 }
