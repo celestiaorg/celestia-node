@@ -13,6 +13,7 @@ const (
 	websocketPort        = 2122
 	restPort             = 26659
 	rpcPort              = 26658
+	prometheusPort       = 6060
 	dockerSrcURL         = "ghcr.io/celestiaorg/celestia-node"
 	remoteRootDir        = "/home/celestia"
 	celestiaCustomEnv    = "CELESTIA_CUSTOM"
@@ -25,22 +26,22 @@ const (
 )
 
 var DefaultBridgeResources = testnet.Resources{
-	MemoryRequest: resource.MustParse("400Mi"),
-	MemoryLimit:   resource.MustParse("400Mi"),
+	MemoryRequest: resource.MustParse("1Gi"),
+	MemoryLimit:   resource.MustParse("1Gi"),
 	CPU:           resource.MustParse("300m"),
 	Volume:        resource.MustParse("1Gi"),
 }
 
 var DefaultFullResources = testnet.Resources{
-	MemoryRequest: resource.MustParse("400Mi"),
-	MemoryLimit:   resource.MustParse("400Mi"),
+	MemoryRequest: resource.MustParse("1Gi"),
+	MemoryLimit:   resource.MustParse("1Gi"),
 	CPU:           resource.MustParse("300m"),
 	Volume:        resource.MustParse("1Gi"),
 }
 
 var DefaultLightResources = testnet.Resources{
-	MemoryRequest: resource.MustParse("200Mi"),
-	MemoryLimit:   resource.MustParse("200Mi"),
+	MemoryRequest: resource.MustParse("500Mi"),
+	MemoryLimit:   resource.MustParse("500Mi"),
 	CPU:           resource.MustParse("150m"),
 	Volume:        resource.MustParse("1Gi"),
 }

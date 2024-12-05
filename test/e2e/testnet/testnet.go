@@ -30,17 +30,20 @@ func NewNodeTestnet(ctx context.Context, kn *knuu.Knuu, opts testnet.Options) (*
 		return nil, err
 	}
 
-	prom, err := prometheus.New(kn)
-	if err != nil {
-		return nil, err
-	}
-
 	return &NodeTestnet{
-		Testnet:    *tn,
-		nodes:      []*Node{},
-		knuu:       kn,
-		Prometheus: prom,
+		Testnet: *tn,
+		nodes:   []*Node{},
+		knuu:    kn,
 	}, nil
+}
+
+func (nt *NodeTestnet) EnablePrometheus(ctx context.Context) error {
+	prom, err := prometheus.New(nt.knuu)
+	if err != nil {
+		return err
+	}
+	nt.Prometheus = prom
+	return nil
 }
 
 func (nt *NodeTestnet) CreateBridgeNode(ctx context.Context, version string, chainID string, genesisHash string, coreIP string, bootstrapper bool, archival bool, resources testnet.Resources) error {
@@ -127,7 +130,7 @@ func (nt *NodeTestnet) SetupDA(ctx context.Context) error {
 				trustedPeers = append(trustedPeers, otherNode.Name)
 			}
 		}
-		if err := node.Init(ctx); err != nil {
+		if err := node.Init(ctx, nt.Prometheus); err != nil {
 			return err
 		}
 	}
@@ -189,6 +192,12 @@ func (nt *NodeTestnet) StartDA(ctx context.Context) error {
 	if err != nil {
 		return err
 	}
+	if nt.Prometheus != nil {
+		err = nt.Prometheus.Start(ctx)
+		if err != nil {
+			return fmt.Errorf("failed to start prometheus: %w", err)
+		}
+	}
 	return nil
 }
 
@@ -199,9 +208,4 @@ func (nt *NodeTestnet) DaNodes() []*Node {
 
 func (nt *NodeTestnet) NewInstance(name string) (*instance.Instance, error) {
 	return nt.knuu.NewInstance(name)
-}
-
-// NodeCleanup cleans up the nodes
-func (nt *NodeTestnet) NodeCleanup(ctx context.Context) {
-	nt.Cleanup(ctx)
 }

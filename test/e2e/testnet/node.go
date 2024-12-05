@@ -18,7 +18,7 @@ import (
 	"github.com/celestiaorg/celestia-node/nodebuilder/node"
 	nodebuilderNode "github.com/celestiaorg/celestia-node/nodebuilder/node"
 	"github.com/celestiaorg/celestia-node/nodebuilder/p2p"
-	"github.com/celestiaorg/celestia-node/test/e2e/prometheus"
+	e2ePrometheus "github.com/celestiaorg/celestia-node/test/e2e/prometheus"
 	"github.com/celestiaorg/knuu/pkg/instance"
 	"github.com/celestiaorg/knuu/pkg/knuu"
 	"github.com/celestiaorg/knuu/pkg/sidecars/observability"
@@ -36,6 +36,7 @@ type Node struct {
 	CoreIP       string
 	nodeID       string
 	bootstrapper bool
+	archival     bool
 	rpcProxyHost string
 }
 
@@ -98,16 +99,6 @@ func NewNode(ctx context.Context,
 		return nil, err
 	}
 
-	args := fmt.Sprintf("celestia %s start --node.store %s", strings.ToLower(nodeType.String()), remoteRootDir)
-	if archival {
-		args = fmt.Sprintf("%s --archival", args)
-	}
-	if err := knInstance.Build().SetStartCommand("bash", "-c"); err != nil {
-		return nil, err
-	}
-	if err := knInstance.Build().SetArgs(args); err != nil {
-		return nil, err
-	}
 	return &Node{
 		Name:         name,
 		Type:         nodeType,
@@ -117,10 +108,11 @@ func NewNode(ctx context.Context,
 		GenesisHash:  genesisHash,
 		CoreIP:       coreIP,
 		bootstrapper: bootstrapper,
+		archival:     archival,
 	}, nil
 }
 
-func (n *Node) Init(ctx context.Context) error {
+func (n *Node) Init(ctx context.Context, prometheus *e2ePrometheus.Prometheus) error {
 	tmpFolder, err := os.MkdirTemp("", "e2e_test_")
 	if err != nil {
 		return fmt.Errorf("creating temporary folder: %w", err)
@@ -167,6 +159,31 @@ func (n *Node) Init(ctx context.Context) error {
 		return fmt.Errorf("writing placeholder file: %w", err)
 	}
 
+	if prometheus != nil {
+		obsy, err := createObservability()
+		if err != nil {
+			return err
+		}
+
+		if err := n.Instance.Sidecars().Add(ctx, obsy); err != nil {
+			return err
+		}
+
+		// Expose the prometheus exporter on the otel collector instance
+		if err := obsy.Instance().Network().AddPortTCP(prometheusExporterPort); err != nil {
+			return err
+		}
+
+		err = prometheus.AddScrapeJob(ctx, e2ePrometheus.ScrapeJob{
+			Name:     n.Name,
+			Target:   fmt.Sprintf("%s:%d", n.Name, prometheusExporterPort),
+			Interval: prometheusScrapeInterval,
+		})
+		if err != nil {
+			return err
+		}
+	}
+
 	err = n.Instance.Build().Commit(ctx)
 	if err != nil {
 		return fmt.Errorf("committing: %w", err)
@@ -187,7 +204,25 @@ func (n *Node) Init(ctx context.Context) error {
 		}
 	}
 
+	args := fmt.Sprintf("celestia %s start --node.store %s", strings.ToLower(n.Type.String()), remoteRootDir)
+	if n.archival {
+		args = fmt.Sprintf("%s --archival", args)
+	}
+	if prometheus != nil {
+		args = fmt.Sprintf("%s --metrics --metrics.endpoint 0.0.0.0:%d --metrics.tls=false", args, otlpPort)
+	}
+	if err := n.Instance.Build().SetStartCommand("bash", "-c"); err != nil {
+		return fmt.Errorf("setting start command: %w", err)
+	}
+	if err := n.Instance.Build().SetArgs(args); err != nil {
+		return fmt.Errorf("setting args: %w", err)
+	}
+
 	return nil
+}
+
+func (n *Node) GetNodeID(ctx context.Context) (string, error) {
+	return n.nodeID, nil
 }
 
 func (n *Node) AddressP2P(ctx context.Context) (string, error) {
@@ -195,167 +230,12 @@ func (n *Node) AddressP2P(ctx context.Context) (string, error) {
 	return fmt.Sprintf("/dns/%s/tcp/2121/p2p/%s", hostName, n.nodeID), nil
 }
 
-func (nt *NodeTestnet) initInstance(ctx context.Context, opts InstanceOptions) (*instance.Instance, error) {
-	if err := opts.Validate(); err != nil {
-		return nil, err
-	}
-
-	ins, err := nt.NewInstance(opts.InstanceName)
-	if err != nil {
-		return nil, err
-	}
-
-	if err := ins.Build().SetImage(ctx, fmt.Sprintf("%s:%s", dockerSrcURL, opts.Version)); err != nil {
-		return nil, err
-	}
-
-	for _, port := range []int{p2pPortTcp, rpcPort} {
-		if err := ins.Network().AddPortTCP(port); err != nil {
-			return nil, err
-		}
-	}
-
-	err = ins.Build().ExecuteCommand("celestia", strings.ToLower(opts.NodeType.String()), "init", "--node.store", remoteRootDir)
-	if err != nil {
-		return nil, err
-	}
-
-	if err := ins.Build().Commit(ctx); err != nil {
-		return nil, err
-	}
-
-	if opts.consensus == nil {
-		opts.SetConsensus(nt.Testnet.Node(0).Instance)
-	}
-
-	chainID, err := opts.ChainID(ctx)
-	if err != nil {
-		return nil, err
-	}
-
-	genesisHash, err := opts.GenesisHash(ctx)
-	if err != nil {
-		return nil, err
-	}
-
-	err = ins.Build().SetEnvironmentVariable(celestiaCustomEnv, fmt.Sprintf("%s:%s", chainID, genesisHash))
-	if err != nil {
-		return nil, err
-	}
-
-	obsy, err := createObservability(ctx)
-	if err != nil {
-		return nil, err
-	}
-
-	if err := ins.Sidecars().Add(ctx, obsy); err != nil {
-		return nil, err
-	}
-
-	// Expose the prometheus exporter on the otel collector instance
-	if err := obsy.Instance().Network().AddPortTCP(prometheusExporterPort); err != nil {
-		return nil, err
-	}
-
-	err = nt.Prometheus.AddScrapeJob(ctx, prometheus.ScrapeJob{
-		Name:     opts.InstanceName,
-		Target:   fmt.Sprintf("%s:%d", opts.InstanceName, prometheusExporterPort),
-		Interval: prometheusScrapeInterval,
-	})
-	if err != nil {
-		return nil, err
-	}
-
-	return ins, nil
-}
-
-// func (nt *NodeTestnet) CreateNodeOld(ctx context.Context, opts InstanceOptions, trustedNode *Node) (*Node, error) {
-// 	if err := opts.Validate(); err != nil {
-// 		return nil, err
-// 	}
-
-// 	if opts.executor == nil {
-// 		opts.SetExecutor(nt.executor)
-// 	}
-
-// 	nodeInst, err := nt.initInstance(ctx, opts)
-// 	if err != nil {
-// 		return nil, err
-// 	}
-
-// 	//TODO: implement an IsEmpty method for Resources in the app testnet pkg
-// 	if opts.Resources == (testnet.Resources{}) {
-// 		opts.Resources = DefaultBridgeResources
-// 	}
-
-// 	err = nodeInst.Resources().SetMemory(opts.Resources.MemoryRequest, opts.Resources.MemoryLimit)
-// 	if err != nil {
-// 		return nil, err
-// 	}
-
-// 	if err := nodeInst.Resources().SetCPU(opts.Resources.CPU); err != nil {
-// 		return nil, err
-// 	}
-
-// 	startCmd := []string{
-// 		"celestia",
-// 		strings.ToLower(opts.NodeType.String()),
-// 		"start",
-// 		"--node.store", remoteRootDir,
-// 		"--metrics",
-// 		"--metrics.endpoint", fmt.Sprintf("localhost:%d", otlpPort),
-// 		"--metrics.tls=false",
-// 	}
-
-// 	if opts.NodeType == node.Bridge {
-// 		if opts.consensus == nil {
-// 			opts.SetConsensus(nt.Testnet.Node(0).Instance)
-// 		}
-// 		consensusHostName := opts.consensus.Network().HostName()
-// 		startCmd = append(startCmd, "--core.ip", consensusHostName, "--rpc.addr", "0.0.0.0")
-
-// 	} else {
-// 		trustedPeers, err := getTrustedPeers(ctx, trustedNode)
-// 		if err != nil {
-// 			return nil, err
-// 		}
-// 		startCmd = append(startCmd, "--headers.trusted-peers", trustedPeers)
-// 	}
-
-// 	if err := nodeInst.Build().SetStartCommand(startCmd...); err != nil {
-// 		return nil, err
-// 	}
-
-// 	return &Node{
-// 		Name:     opts.InstanceName,
-// 		Type:     opts.NodeType,
-// 		Version:  opts.Version,
-// 		Instance: nodeInst,
-// 	}, nil
-// }
-
-// func (nt *NodeTestnet) CreateAndStartNode(ctx context.Context, opts InstanceOptions, trustedNode *Node) (*Node, error) {
-// 	node, err := nt.CreateNodeOld(ctx, opts, trustedNode)
-// 	if err != nil {
-// 		return nil, ErrFailedToCreateNode.Wrap(err)
-// 	}
-
-// 	if err := node.Instance.Execution().Start(ctx); err != nil {
-// 		return nil, err
-// 	}
-
-// 	rpcProxyHost, err := node.Instance.Network().AddHost(ctx, rpcPort)
-// 	if err != nil {
-// 		return nil, err
-// 	}
-// 	node.rpcProxyHost = rpcProxyHost
-
-// 	return node, nil
-// }
-
-func createObservability(ctx context.Context) (*observability.Obsy, error) {
+func createObservability() (*observability.Obsy, error) {
 	obsy := observability.New()
 	if err := obsy.SetOtelEndpoint(otlpPort); err != nil {
+		return nil, err
+	}
+	if err := obsy.SetPrometheusEndpoint(prometheusPort, "libp2p", "10s"); err != nil {
 		return nil, err
 	}
 
@@ -382,12 +262,7 @@ func (n *Node) StartAsync(ctx context.Context, bootstrappers []string) error {
 	if err := n.Instance.Build().SetEnvironmentVariable(celestiaCustomEnv, envValue); err != nil {
 		return fmt.Errorf("setting celestia custom env: %w", err)
 	}
-	// if err := n.Instance.Build().SetStartCommand("sleep"); err != nil {
-	// 	return fmt.Errorf("setting start command: %w", err)
-	// }
-	// if err := n.Instance.Build().SetArgs("infinity"); err != nil {
-	// 	return fmt.Errorf("setting args: %w", err)
-	// }
+
 	return n.Instance.Execution().StartAsync(ctx)
 }
 
@@ -403,15 +278,6 @@ func (n *Node) WaitUntilStarted(ctx context.Context) error {
 // This returns the proxy host that can be used to communicate with the node
 func (n Node) AddressRPC() string {
 	return n.rpcProxyHost
-}
-
-func (n Node) GetNodeID(ctx context.Context) (string, error) {
-	out, err := n.Instance.Execution().ExecuteCommand(ctx, "celestia", "p2p", "info | jq -r '.result.id'")
-	if err != nil {
-		return "", err
-	}
-
-	return strings.TrimSpace(string(out)), nil
 }
 
 func DockerImageName(version string) string {

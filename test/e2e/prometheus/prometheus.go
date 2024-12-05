@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"strconv"
 	"strings"
 	"time"
 
@@ -147,10 +148,17 @@ func (p *Prometheus) GetMetric(filter MetricFilter) (float64, error) {
 		return 0, ErrMetricNotFound.WithParams(filter.MetricName)
 	}
 
-	metricValue, ok := valueArray[0].(float64)
+	// valueArray[0] is the timestamp
+	// valueArray[1] is the metric value
+	metricValueStr, ok := valueArray[1].(string)
 	if !ok {
 		return 0, ErrFailedToParsePrometheusMetrics.
-			Wrap(fmt.Errorf("value is not a float64 is %T", valueArray[0]))
+			Wrap(fmt.Errorf("value is not a string is %T", valueArray[1]))
+	}
+
+	metricValue, err := strconv.ParseFloat(metricValueStr, 64)
+	if err != nil {
+		return 0, ErrFailedToParsePrometheusMetrics.Wrap(err)
 	}
 
 	return metricValue, nil
