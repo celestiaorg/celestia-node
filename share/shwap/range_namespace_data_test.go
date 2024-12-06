@@ -42,9 +42,7 @@ func TestRangeNamespaceData(t *testing.T) {
 	require.NoError(t, err)
 	col := nsData.Proof.Start()
 
-	rowRoots, err := extended.RowRoots()
-	require.NoError(t, err)
-	colRoots, err := extended.ColRoots()
+	axisRoots, err := extended.AxisRoots(context.Background())
 	require.NoError(t, err)
 	dataHash, err := extended.DataHash(context.Background())
 	require.NoError(t, err)
@@ -80,7 +78,7 @@ func TestRangeNamespaceData(t *testing.T) {
 
 			err = rngdata.Validate(roots, &dataID)
 			require.NoError(t, err)
-			proof := rngdata.ProveRange(nsRowStart, rowRoots, colRoots)
+			proof := rngdata.ProveRange(axisRoots, nsRowStart)
 			err = proof.Validate(dataHash)
 			require.NoError(t, err)
 		})
