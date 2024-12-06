@@ -16,10 +16,10 @@ import (
 
 const (
 	// rangeNamespaceDataCodec is a CID codec used for data Bitswap requests over Namespaced Merkle Tree.
-	rangeNamespaceDataCodec = 0x7840
+	rangeNamespaceDataCodec = 0x7830
 
 	// rangeNamespaceDataMultihashCode is the multihash code for data multihash function.
-	rangeNamespaceDataMultihashCode = 0x7841
+	rangeNamespaceDataMultihashCode = 0x7831
 )
 
 // maxRangeSize is the maximum size of the RangeNamespaceDataBlock.
@@ -28,8 +28,8 @@ var maxRangeSize = maxRowSize * share.MaxSquareSize / 2
 
 func init() {
 	registerBlock(
-		rangeNamespaceDataCodec,
 		rangeNamespaceDataMultihashCode,
+		rangeNamespaceDataCodec,
 		maxRangeSize,
 		shwap.RangeNamespaceDataIDSize,
 		func(cid cid.Cid) (Block, error) {
@@ -113,7 +113,7 @@ func (rndb *RangeNamespaceDataBlock) Populate(ctx context.Context, eds eds.Acces
 
 func (rndb *RangeNamespaceDataBlock) UnmarshalFn(root *share.AxisRoots) UnmarshalFn {
 	return func(cntrData, idData []byte) error {
-		if empty, _ := rndb.Container.IsEmpty(); empty {
+		if empty, _ := rndb.Container.IsEmpty(); !empty {
 			return nil
 		}
 

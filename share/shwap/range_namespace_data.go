@@ -38,9 +38,12 @@ func RangedNamespaceDataFromShares(
 	if len(shares) == 0 {
 		return RangeNamespaceData{}, fmt.Errorf("empty share list")
 	}
+	if from.Row > to.Row {
+		return RangeNamespaceData{},
+			fmt.Errorf("start row must be less or equal to end row: %d-%d", from.Row, to.Row)
+	}
 
 	odsSize := len(shares[0]) / 2
-
 	nsData := make([]RowNamespaceData, 0, len(shares))
 	for i, row := 0, from.Row; i < len(shares); i++ {
 		tree := wrapper.NewErasuredNamespacedMerkleTree(uint64(odsSize), uint(row))
@@ -53,7 +56,6 @@ func RangedNamespaceDataFromShares(
 		tree.SetTree(nmtTree)
 
 		shrs := shares[i]
-
 		for _, shr := range shrs {
 			if err := tree.Push(shr.ToBytes()); err != nil {
 				return RangeNamespaceData{}, fmt.Errorf("failed to build tree for row %d: %w", row, err)
@@ -74,16 +76,20 @@ func RangedNamespaceDataFromShares(
 		}
 
 		// end index will be explicitly set only for the last row in range.
-		// in other cases, end index will be equal to the odsSize
+		// in other cases, it will be equal to the odsSize.
 		end := odsSize
 		if i == len(shares)-1 {
 			// `to.Col` is an inclusive index
 			end = to.Col + 1
 		}
 
+		// ensure that all shares from the range belong to the requested namespace
 		for offset := range shrs[from.Col:end] {
 			if !namespace.Equals(shrs[from.Col+offset].Namespace()) {
-				return RangeNamespaceData{}, fmt.Errorf("targeted namespace was not found in range at index: %d", offset)
+				return RangeNamespaceData{},
+					fmt.Errorf("targeted namespace was not found in share at {Row: %d, Col:%d}",
+						row, from.Col+offset,
+					)
 			}
 		}
 
@@ -172,7 +178,8 @@ func (rngdata *RangeNamespaceData) ToProto() *pb.NamespaceData {
 }
 
 // ProveRange proves that a range of shares exist in the set of rows that are part of the merkle tree of the data root.
-func (rngdata *RangeNamespaceData) ProveRange(from int, rowRoots, colRoots [][]byte) *types.ShareProof {
+func (rngdata *RangeNamespaceData) ProveRange(startRow int, rowRoots, colRoots [][]byte) *types.ShareProof {
+	// 1. convert nmt.Proof to the core type of NmtProof
 	nmtProofs := make([]*coretypes.NMTProof, len(rngdata.NamespaceData))
 	for i, row := range rngdata.NamespaceData {
 		nmtProofs[i] = &coretypes.NMTProof{
@@ -183,15 +190,16 @@ func (rngdata *RangeNamespaceData) ProveRange(from int, rowRoots, colRoots [][]b
 		}
 	}
 
-	to := from + len(rngdata.NamespaceData)
-	// create the merkle inclusion proof for all rows to the data root
+	// 2. create the merkle inclusion proof for all rows to the data root
 	_, proofs := merkle.ProofsFromByteSlices(append(rowRoots, colRoots...))
-	rowProofs := proofs[from:to]
-	roots := make([]corebytes.HexBytes, to)
-	for i, rowRoot := range roots[from:to] {
-		rowRoots[i] = rowRoot
-	}
 
+	endRowExclusive := startRow + len(rngdata.NamespaceData)
+	// 3. pick needed rowRoots along with their proofs
+	rowProofs := proofs[startRow:endRowExclusive]
+	roots := make([]corebytes.HexBytes, endRowExclusive-startRow)
+	for i, rowRoot := range rowRoots[startRow:endRowExclusive] {
+		roots[i] = rowRoot
+	}
 	return &types.ShareProof{
 		Data:        libshare.ToBytes(rngdata.Flatten()),
 		ShareProofs: nmtProofs,
@@ -199,8 +207,8 @@ func (rngdata *RangeNamespaceData) ProveRange(from int, rowRoots, colRoots [][]b
 		RowProof: types.RowProof{
 			RowRoots: roots,
 			Proofs:   rowProofs,
-			StartRow: uint32(from),
-			EndRow:   uint32(to),
+			StartRow: uint32(startRow),
+			EndRow:   uint32(endRowExclusive) - 1,
 		},
 		NamespaceVersion: uint32(rngdata.NamespaceData[0].Shares[0].Namespace().Version()),
 	}

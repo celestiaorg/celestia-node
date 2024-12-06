@@ -18,7 +18,7 @@ import (
 
 func TestRangeNamespaceData(t *testing.T) {
 	const (
-		odsSize = 8
+		odsSize = 16
 		edsSize = odsSize * odsSize
 	)
 
@@ -41,6 +41,13 @@ func TestRangeNamespaceData(t *testing.T) {
 	nsData, err := extended.RowNamespaceData(context.Background(), ns, nsRowStart)
 	require.NoError(t, err)
 	col := nsData.Proof.Start()
+
+	rowRoots, err := extended.RowRoots()
+	require.NoError(t, err)
+	colRoots, err := extended.ColRoots()
+	require.NoError(t, err)
+	dataHash, err := extended.DataHash(context.Background())
+	require.NoError(t, err)
 
 	for i := 1; i <= odsSize; i++ {
 		t.Run(fmt.Sprintf("range of %d shares", i), func(t *testing.T) {
@@ -72,6 +79,9 @@ func TestRangeNamespaceData(t *testing.T) {
 			require.NoError(t, err)
 
 			err = rngdata.Validate(roots, &dataID)
+			require.NoError(t, err)
+			proof := rngdata.ProveRange(nsRowStart, rowRoots, colRoots)
+			err = proof.Validate(dataHash)
 			require.NoError(t, err)
 		})
 	}

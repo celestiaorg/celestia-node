@@ -283,11 +283,7 @@ func (g *Getter) GetSharesRange(
 	defer span.End()
 
 	rangeDataBlock, err := NewEmptyRangeNamespaceDataBlock(
-		hdr.Height(),
-		ns,
-		from,
-		to,
-		len(hdr.DAH.RowRoots),
+		hdr.Height(), ns, from, to, len(hdr.DAH.RowRoots),
 	)
 	if err != nil {
 		return shwap.RangeNamespaceData{}, err
@@ -300,7 +296,9 @@ func (g *Getter) GetSharesRange(
 	defer release()
 
 	blks := []Block{rangeDataBlock}
-	if err = Fetch(ctx, g.exchange, hdr.DAH, blks, WithFetcher(ses)); err != nil {
+
+	err = Fetch(ctx, g.exchange, hdr.DAH, blks, WithFetcher(ses))
+	if err != nil {
 		span.RecordError(err)
 		span.SetStatus(codes.Error, "Fetch")
 		return shwap.RangeNamespaceData{}, err
