@@ -89,7 +89,7 @@ func NewBridgeCommand(plugs []node.Plugin) *cobra.Command {
 }
 ```
 
-When starting or initiating a new celestia node, the plugins are passed as settings
+When starting or initiating a new сelestia node, the plugins are passed as settings
 
 ```go
 // settings store all the non Config values that can be altered for Node with Options.
@@ -220,7 +220,7 @@ func newPluginService() PluginResult {
 }
 ```
 
-Also, the user must annotate this fxutil.Option with the `"plugins"` group tag
+Also, the user must annotate this `"fxutil.Option"` with the `"plugins"` group tag
 
 ```go
 func (plug *testPlugin) Components(cfg *Config, store Store) fxutil.Option {
