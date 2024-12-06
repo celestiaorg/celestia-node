@@ -196,6 +196,7 @@ func (m module) GetRange(
 	}
 
 	if !proofsOnly {
+		// set shares only if respectful flag was provided.
 		res.Shares = nData.Flatten()
 	}
 	return res, nil
