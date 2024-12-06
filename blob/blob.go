@@ -11,8 +11,6 @@ import (
 	"github.com/celestiaorg/go-square/v2/inclusion"
 	libshare "github.com/celestiaorg/go-square/v2/share"
 	"github.com/celestiaorg/nmt"
-	"github.com/tendermint/tendermint/pkg/consts"
-	tmproto "github.com/tendermint/tendermint/proto/tendermint/types"
 	coretypes "github.com/tendermint/tendermint/types"
 )
 
@@ -20,72 +18,149 @@ var errEmptyShares = errors.New("empty shares")
 
 // Proof constructs the proof of a blob to the data root.
 type Proof struct {
-	// ShareToRowRootProof the proofs of the shares to the row roots they belong to.
+	// SubtreeRoots are the subtree roots of the blob's data that are
+	// used to create the commitment.
+	SubtreeRoots [][]byte `json:"subtree_roots"`
+	// SubtreeRootProofs the proofs of the subtree roots to the row roots they belong to.
 	// If the blob spans across multiple rows, then this will contain multiple proofs.
-	ShareToRowRootProof []*tmproto.NMTProof
+	SubtreeRootProofs []*nmt.Proof `json:"share_to_row_root_proofs"`
 	// RowToDataRootProof the proofs of the row roots containing the blob shares
 	// to the data root.
-	RowToDataRootProof coretypes.RowProof
+	RowToDataRootProof coretypes.RowProof `json:"row_to_data_root_proof"`
 }
 
 // namespaceToRowRootProof a proof of a set of namespace shares to the row
 // roots they belong to.
 type namespaceToRowRootProof []*nmt.Proof
 
-// Verify takes a blob and a data root and verifies if the
-// provided blob was committed to the given data root.
-func (p *Proof) Verify(blob *Blob, dataRoot []byte) (bool, error) {
-	blobCommitment, err := inclusion.CreateCommitment(blob.Blob, merkle.HashFromByteSlices, appconsts.DefaultSubtreeRootThreshold)
-	if err != nil {
-		return false, err
+// Commitment is a Merkle Root of the subtree built from shares of the Blob.
+// It is computed by splitting the blob into shares and building the Merkle subtree to be included
+// after Submit.
+type Commitment []byte
+
+// Verify takes a data root and verifies if the
+// provided proof's subtree roots were committed to the given data root.
+func (p *Proof) Verify(dataRoot []byte) (bool, error) {
+	if len(dataRoot) == 0 {
+		return false, errors.New("root must be non-empty")
 	}
-	if !blob.Commitment.Equal(blobCommitment) {
+
+	subtreeRootThreshold := appconsts.SubtreeRootThreshold(appconsts.LatestVersion)
+	if subtreeRootThreshold <= 0 {
+		return false, errors.New("subtreeRootThreshold must be > 0")
+	}
+
+	// this check is < instead of != because we can have two subtree roots
+	// at the same height, depending on the subtree root threshold,
+	// and they can be used to create the above inner node without needing a proof inner node.
+	if len(p.SubtreeRoots) < len(p.SubtreeRootProofs) {
 		return false, fmt.Errorf(
-			"%w: generated commitment does not match the provided blob commitment",
-			ErrMismatchCommitment,
+			"the number of subtree roots %d should be bigger than the number of subtree root proofs %d",
+			len(p.SubtreeRoots),
+			len(p.SubtreeRootProofs),
 		)
 	}
-	shares, err := BlobsToShares(blob)
-	if err != nil {
+
+	// for each row, one or more subtree roots' inclusion is verified against
+	// their corresponding row root. then, these row roots' inclusion is verified
+	// against the data root. so their number should be the same.
+	if len(p.SubtreeRootProofs) != len(p.RowToDataRootProof.Proofs) {
+		return false, fmt.Errorf(
+			"the number of subtree root proofs %d should be equal to the number of row root proofs %d",
+			len(p.SubtreeRootProofs),
+			len(p.RowToDataRootProof.Proofs),
+		)
+	}
+
+	// the row root proofs' ranges are defined as [startRow, endRow].
+	if int(p.RowToDataRootProof.EndRow-p.RowToDataRootProof.StartRow+1) != len(p.RowToDataRootProof.RowRoots) {
+		return false, fmt.Errorf(
+			"the number of rows %d must equal the number of row roots %d",
+			int(p.RowToDataRootProof.EndRow-p.RowToDataRootProof.StartRow+1),
+			len(p.RowToDataRootProof.RowRoots),
+		)
+	}
+	if len(p.RowToDataRootProof.Proofs) != len(p.RowToDataRootProof.RowRoots) {
+		return false, fmt.Errorf(
+			"the number of proofs %d must equal the number of row roots %d",
+			len(p.RowToDataRootProof.Proofs),
+			len(p.RowToDataRootProof.RowRoots),
+		)
+	}
+
+	// verify the inclusion of the rows to the data root
+	if err := p.RowToDataRootProof.Validate(dataRoot); err != nil {
 		return false, err
 	}
-	return p.VerifyShares(libshare.ToBytes(shares), blob.Namespace(), dataRoot)
-}
 
-// VerifyShares takes a set of shares, a namespace and a data root, and verifies if the
-// provided shares are committed to by the data root.
-func (p *Proof) VerifyShares(rawShares [][]byte, namespace libshare.Namespace, dataRoot []byte) (bool, error) {
-	// verify the row proof
-	if err := p.RowToDataRootProof.Validate(dataRoot); err != nil {
-		return false, fmt.Errorf("%w: invalid row root to data root proof", err)
+	// computes the total number of shares proven given that each subtree root
+	// references a specific set of leaves.
+	numberOfShares := 0
+	for _, proof := range p.SubtreeRootProofs {
+		numberOfShares += proof.End() - proof.Start()
 	}
 
-	// verify the share proof
-	ns := append([]byte{namespace.Version()}, namespace.ID()...)
-	cursor := int32(0)
-	for i, proof := range p.ShareToRowRootProof {
-		sharesUsed := proof.End - proof.Start
-		if len(rawShares) < int(sharesUsed+cursor) {
-			return false, fmt.Errorf("%w: invalid number of shares", ErrInvalidProof)
+	// use the computed total number of shares to calculate the subtree roots
+	// width.
+	// the subtree roots width is defined in ADR-013:
+	//
+	//https://github.com/celestiaorg/celestia-app/blob/main/docs/architecture/adr-013-non-interactive-default-rules-for-zero-padding.md
+	subtreeRootsWidth := inclusion.SubTreeWidth(numberOfShares, subtreeRootThreshold)
+
+	nmtHasher := nmt.NewNmtHasher(appconsts.NewBaseHashFunc(), libshare.NamespaceSize, true)
+	// verify the proof of the subtree roots
+	subtreeRootsCursor := 0
+	for i, subtreeRootProof := range p.SubtreeRootProofs {
+		// calculate the share range that each subtree root commits to.
+		ranges, err := nmt.ToLeafRanges(subtreeRootProof.Start(), subtreeRootProof.End(), subtreeRootsWidth)
+		if err != nil {
+			return false, err
 		}
-		nmtProof := nmt.NewInclusionProof(
-			int(proof.Start),
-			int(proof.End),
-			proof.Nodes,
-			true,
-		)
-		valid := nmtProof.VerifyInclusion(
-			consts.NewBaseHashFunc(),
-			ns,
-			rawShares[cursor:sharesUsed+cursor],
+
+		if len(p.SubtreeRoots) < subtreeRootsCursor {
+			return false, fmt.Errorf("len(commitmentProof.SubtreeRoots)=%d < subtreeRootsCursor=%d",
+				len(p.SubtreeRoots), subtreeRootsCursor)
+		}
+		if len(p.SubtreeRoots) < subtreeRootsCursor+len(ranges) {
+			return false, fmt.Errorf("len(commitmentProof.SubtreeRoots)=%d < subtreeRootsCursor+len(ranges)=%d",
+				len(p.SubtreeRoots), subtreeRootsCursor+len(ranges))
+		}
+		valid, err := subtreeRootProof.VerifySubtreeRootInclusion(
+			nmtHasher,
+			p.SubtreeRoots[subtreeRootsCursor:subtreeRootsCursor+len(ranges)],
+			subtreeRootsWidth,
 			p.RowToDataRootProof.RowRoots[i],
 		)
-		if !valid {
-			return false, ErrInvalidProof
+		if err != nil {
+			return false, err
 		}
-		cursor += sharesUsed
+		if !valid {
+			return false,
+				fmt.Errorf(
+					"subtree root proof for range [%d, %d) is invalid",
+					subtreeRootProof.Start(),
+					subtreeRootProof.End(),
+				)
+		}
+		subtreeRootsCursor += len(ranges)
 	}
+
 	return true, nil
+}
+
+// GenerateCommitment generates the share commitment corresponding
+// to the proof's subtree roots
+func (p *Proof) GenerateCommitment() Commitment {
+	return merkle.HashFromByteSlices(p.SubtreeRoots)
+}
+
+func (com Commitment) String() string {
+	return string(com)
+}
+
+// Equal ensures that commitments are the same
+func (com Commitment) Equal(c Commitment) bool {
+	return bytes.Equal(com, c)
 }
 
 // Blob represents any application-specific binary data that anyone can submit to Celestia.
@@ -208,6 +283,10 @@ func (b *Blob) UnmarshalJSON(data []byte) error {
 	blob.index = jsonBlob.Index
 	*b = *blob
 	return nil
+}
+
+func (b *Blob) ComputeSubtreeRoots() ([][]byte, error) {
+	return inclusion.GenerateSubtreeRoots(b.Blob, appconsts.DefaultSubtreeRootThreshold)
 }
 
 // proveRowRootsToDataRoot creates a set of binary merkle proofs for all the

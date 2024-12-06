@@ -3,32 +3,33 @@ package blob
 import (
 	"testing"
 
-	"github.com/celestiaorg/celestia-app/v3/pkg/proof"
+	"github.com/celestiaorg/go-square/merkle"
 	"github.com/celestiaorg/nmt"
 	"github.com/celestiaorg/nmt/pb"
+	coretypes "github.com/tendermint/tendermint/types"
 )
 
 // Reported at https://github.com/celestiaorg/celestia-node/issues/3731.
-func TestCommitmentProofRowProofVerifyWithEmptyRoot(t *testing.T) {
-	cp := &CommitmentProof{
-		RowProof: proof.RowProof{
-			Proofs: []*proof.Proof{{}},
+func TestProofRowProofVerifyWithEmptyRoot(t *testing.T) {
+	cp := &Proof{
+		RowToDataRootProof: coretypes.RowProof{
+			Proofs: []*merkle.Proof{{}},
 		},
 	}
 	root := []byte{0xd3, 0x4d, 0x34}
-	if _, err := cp.Verify(root, 1); err == nil {
+	if _, err := cp.Verify(root); err == nil {
 		t.Fatal("expected a non-nil error")
 	}
 }
 
 // Reported at https://github.com/celestiaorg/celestia-node/issues/3730.
-func TestCommitmentProofRowProofVerify(t *testing.T) {
-	cp := &CommitmentProof{
-		RowProof: proof.RowProof{
-			Proofs: []*proof.Proof{{}},
+func TestProofRowProofVerify(t *testing.T) {
+	cp := &Proof{
+		RowToDataRootProof: coretypes.RowProof{
+			Proofs: []*merkle.Proof{{}},
 		},
 	}
-	if _, err := cp.Verify(nil, 1); err == nil {
+	if _, err := cp.Verify(nil); err == nil {
 		t.Fatal("expected a non-nil error")
 	}
 }
@@ -36,20 +37,12 @@ func TestCommitmentProofRowProofVerify(t *testing.T) {
 // Reported at https://github.com/celestiaorg/celestia-node/issues/3729.
 func TestCommitmentProofVerifySliceBound(t *testing.T) {
 	proof := nmt.ProtoToProof(pb.Proof{End: 1})
-	cp := &CommitmentProof{
+	cp := &Proof{
 		SubtreeRootProofs: []*nmt.Proof{
 			&proof,
 		},
 	}
-	if _, err := cp.Verify(nil, 1); err == nil {
-		t.Fatal("expected a non-nil error")
-	}
-}
-
-// Reported at https://github.com/celestiaorg/celestia-node/issues/3728.
-func TestCommitmentProofVerifyZeroSubThreshold(t *testing.T) {
-	cp := new(CommitmentProof)
-	if _, err := cp.Verify(nil, 0); err == nil {
+	if _, err := cp.Verify(nil); err == nil {
 		t.Fatal("expected a non-nil error")
 	}
 }
