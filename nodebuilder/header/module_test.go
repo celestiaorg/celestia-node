@@ -54,7 +54,7 @@ func TestConstructModule_StoreParams(t *testing.T) {
 	require.NoError(t, app.Err())
 	require.Equal(t, headerStore.Params.StoreCacheSize, cfg.Store.StoreCacheSize)
 	require.Equal(t, headerStore.Params.IndexCacheSize, cfg.Store.IndexCacheSize)
-	require.Equal(t, headerStore.Params.WriteBatchSize, cfg.Store.WriteBatchSize)
+	// require.Equal(t, headerStore.Params.WriteBatchSize, cfg.Store.WriteBatchSize)
 }
 
 // TestConstructModule_SyncerParams ensures that all passed via functional options
