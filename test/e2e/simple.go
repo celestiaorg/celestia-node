@@ -20,7 +20,6 @@ const (
 	appVersion           = "v3.0.2"
 	nodeVersion          = "v0.20.4"
 	timeFormat           = "20060102_150405"
-	buildInfoMetricName  = "build_info"
 	heightMetricsName    = "hdr_store_head_height_gauge"
 	instanceMetricName   = "exported_instance"
 	queryTxCountInterval = 10 * time.Second
