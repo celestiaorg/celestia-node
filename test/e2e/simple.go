@@ -11,7 +11,6 @@ import (
 	nodeTestnet "github.com/celestiaorg/celestia-node/test/e2e/testnet"
 	"github.com/celestiaorg/knuu/pkg/k8s"
 	"github.com/celestiaorg/knuu/pkg/knuu"
-	"github.com/celestiaorg/knuu/pkg/minio"
 
 	"github.com/sirupsen/logrus"
 )
@@ -62,14 +61,10 @@ func E2ESimple(logger *logrus.Logger) error {
 	k8sClient, err := k8s.NewClient(ctx, scope, logger)
 	testnet.NoError("failed to create k8s client", err)
 
-	minioClient, err := minio.New(ctx, k8sClient, logger)
-	testnet.NoError("failed to create minio client", err)
-
 	// Initializing Knuu
 	kn, err := knuu.New(ctx, knuu.Options{
 		ProxyEnabled: true,
 		K8sClient:    k8sClient,
-		MinioClient:  minioClient,
 	})
 	testnet.NoError("failed to initialize knuu", err)
 	kn.HandleStopSignal(ctx)
@@ -148,19 +143,33 @@ func E2ESimple(logger *logrus.Logger) error {
 			return fmt.Errorf("node ID is empty")
 		}
 
-		err = retryEventually(ctx, func() error {
-			value, err := tn.Prometheus.GetMetric(prometheus.MetricFilter{
-				MetricName: heightMetricsName,
-				Labels:     map[string]string{instanceMetricName: nodeID},
-			})
-			if err == nil {
-				logger.Infof("node: %s, metric value: %v", n.Name, value)
-			}
-			testnet.AssertGreaterOrEqual("node height", int(value), int(consensusHeight))
-			return err
-		}, metricRetryInterval, metricRetryTimeout)
+		// Retry for a maximum of 1 minute, checking every 10 seconds
+		retryCtx, cancel := context.WithTimeout(ctx, 1*time.Minute)
+		defer cancel()
 
-		testnet.NoError("failed to get metric", err)
+		ticker := time.NewTicker(10 * time.Second)
+		defer ticker.Stop()
+
+		success := false
+		for !success {
+			select {
+			case <-retryCtx.Done():
+				testnet.NoError("failed to get metric within 1 minute", fmt.Errorf("timeout reached"))
+				return fmt.Errorf("failed to get metric within 1 minute")
+			case <-ticker.C:
+				value, err := tn.Prometheus.GetMetric(prometheus.MetricFilter{
+					MetricName: heightMetricsName,
+					Labels:     map[string]string{instanceMetricName: nodeID},
+				})
+				if err == nil {
+					logger.Infof("node: %s, metric value: %v", n.Name, value)
+					if int(value) >= int(consensusHeight) {
+						success = true
+						break
+					}
+				}
+			}
+		}
 	}
 
 	return nil

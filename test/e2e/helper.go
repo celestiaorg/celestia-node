@@ -68,22 +68,3 @@ func getHeight(ctx context.Context, client *http.HTTP, period time.Duration) (in
 		}
 	}
 }
-
-func retryEventually(ctx context.Context, fn func() error, interval time.Duration, timeout time.Duration) error {
-	ticker := time.NewTicker(interval)
-	defer ticker.Stop()
-
-	var err error
-	for range ticker.C {
-		select {
-		case <-ctx.Done():
-			return ctx.Err()
-		default:
-		}
-
-		if err = fn(); err == nil {
-			return nil
-		}
-	}
-	return err
-}
