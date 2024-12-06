@@ -34,13 +34,6 @@ type Module interface {
 	// Included checks whether a blob's given commitment(Merkle subtree root) is included at
 	// given height and under the namespace.
 	Included(_ context.Context, height uint64, _ share.Namespace, _ *blob.Proof, _ blob.Commitment) (bool, error)
-	// GetCommitmentProof generates a commitment proof for a share commitment.
-	GetCommitmentProof(
-		ctx context.Context,
-		height uint64,
-		namespace share.Namespace,
-		shareCommitment []byte,
-	) (*blob.CommitmentProof, error)
 	// Subscribe to published blobs from the given namespace as they are included.
 	Subscribe(_ context.Context, _ share.Namespace) (<-chan *blob.SubscriptionResponse, error)
 }
@@ -76,12 +69,6 @@ type API struct {
 			*blob.Proof,
 			blob.Commitment,
 		) (bool, error) `perm:"read"`
-		GetCommitmentProof func(
-			ctx context.Context,
-			height uint64,
-			namespace share.Namespace,
-			shareCommitment []byte,
-		) (*blob.CommitmentProof, error) `perm:"read"`
 		Subscribe func(
 			context.Context,
 			share.Namespace,
@@ -113,15 +100,6 @@ func (api *API) GetProof(
 	commitment blob.Commitment,
 ) (*blob.Proof, error) {
 	return api.Internal.GetProof(ctx, height, namespace, commitment)
-}
-
-func (api *API) GetCommitmentProof(
-	ctx context.Context,
-	height uint64,
-	namespace share.Namespace,
-	shareCommitment []byte,
-) (*blob.CommitmentProof, error) {
-	return api.Internal.GetCommitmentProof(ctx, height, namespace, shareCommitment)
 }
 
 func (api *API) Included(
