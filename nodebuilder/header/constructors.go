@@ -105,7 +105,7 @@ func newInitStore[H libhead.Header[H]](
 	ds datastore.Batching,
 	ex libhead.Exchange[H],
 ) (libhead.Store[H], error) {
-	opts := []store.Option{store.WithParams(cfg.Store), store.WithWriteBatchSize(1)}
+	opts := []store.Option{store.WithParams(cfg.Store)}
 	if MetricsEnabled {
 		opts = append(opts, store.WithMetrics())
 	}
