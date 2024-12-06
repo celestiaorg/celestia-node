@@ -203,7 +203,7 @@ func (m module) GetRange(
 	}
 
 	res := &Range{
-		Proof: nData.ProveRange(fromCoords.Row, header.DAH.RowRoots, header.DAH.ColumnRoots),
+		Proof: nData.ProveRange(header.DAH, fromCoords.Row),
 	}
 
 	if !proofsOnly {

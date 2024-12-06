@@ -178,7 +178,7 @@ func (rngdata *RangeNamespaceData) ToProto() *pb.NamespaceData {
 }
 
 // ProveRange proves that a range of shares exist in the set of rows that are part of the merkle tree of the data root.
-func (rngdata *RangeNamespaceData) ProveRange(startRow int, rowRoots, colRoots [][]byte) *types.ShareProof {
+func (rngdata *RangeNamespaceData) ProveRange(roots *share.AxisRoots, startRow int) *types.ShareProof {
 	// 1. convert nmt.Proof to the core type of NmtProof
 	nmtProofs := make([]*coretypes.NMTProof, len(rngdata.NamespaceData))
 	for i, row := range rngdata.NamespaceData {
@@ -191,21 +191,21 @@ func (rngdata *RangeNamespaceData) ProveRange(startRow int, rowRoots, colRoots [
 	}
 
 	// 2. create the merkle inclusion proof for all rows to the data root
-	_, proofs := merkle.ProofsFromByteSlices(append(rowRoots, colRoots...))
+	_, proofs := merkle.ProofsFromByteSlices(append(roots.RowRoots, roots.ColumnRoots...))
 
 	endRowExclusive := startRow + len(rngdata.NamespaceData)
 	// 3. pick needed rowRoots along with their proofs
 	rowProofs := proofs[startRow:endRowExclusive]
-	roots := make([]corebytes.HexBytes, endRowExclusive-startRow)
-	for i, rowRoot := range rowRoots[startRow:endRowExclusive] {
-		roots[i] = rowRoot
+	rowRoots := make([]corebytes.HexBytes, endRowExclusive-startRow)
+	for i, rowRoot := range roots.RowRoots[startRow:endRowExclusive] {
+		rowRoots[i] = rowRoot
 	}
 	return &types.ShareProof{
 		Data:        libshare.ToBytes(rngdata.Flatten()),
 		ShareProofs: nmtProofs,
 		NamespaceID: rngdata.NamespaceData[0].Shares[0].Namespace().ID(),
 		RowProof: types.RowProof{
-			RowRoots: roots,
+			RowRoots: rowRoots,
 			Proofs:   rowProofs,
 			StartRow: uint32(startRow),
 			EndRow:   uint32(endRowExclusive) - 1,
