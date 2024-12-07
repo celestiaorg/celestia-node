@@ -82,7 +82,11 @@ func (eh *ExtendedHeader) ChainID() string {
 	return eh.RawHeader.ChainID
 }
 
+// Height is safe to use when ExtendedHeader is nil -> it will return default value 0
 func (eh *ExtendedHeader) Height() uint64 {
+	if eh == nil {
+		return 0
+	}
 	return uint64(eh.RawHeader.Height)
 }
 
