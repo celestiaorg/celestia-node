@@ -54,10 +54,10 @@ func (mr *MockModuleMockRecorder) GetEDS(arg0, arg1 interface{}) *gomock.Call {
 }
 
 // GetRange mocks base method.
-func (m *MockModule) GetRange(arg0 context.Context, arg1 uint64, arg2, arg3 int) (*share.GetRangeResult, error) {
+func (m *MockModule) GetRange(arg0 context.Context, arg1 uint64, arg2, arg3 int) (*share.RangeResult, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "GetRange", arg0, arg1, arg2, arg3)
-	ret0, _ := ret[0].(*share.GetRangeResult)
+	ret0, _ := ret[0].(*share.RangeResult)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }

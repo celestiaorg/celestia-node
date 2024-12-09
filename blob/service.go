@@ -1,7 +1,6 @@
 package blob
 
 import (
-	"bytes"
 	"context"
 	"encoding/hex"
 	"errors"
@@ -11,6 +10,8 @@ import (
 
 	"github.com/cosmos/cosmos-sdk/types"
 	logging "github.com/ipfs/go-log/v2"
+	"github.com/tendermint/tendermint/libs/bytes"
+	core "github.com/tendermint/tendermint/types"
 	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/codes"
@@ -21,7 +22,6 @@ import (
 	"github.com/celestiaorg/go-square/v2/inclusion"
 	libshare "github.com/celestiaorg/go-square/v2/share"
 	"github.com/celestiaorg/nmt"
-	"github.com/celestiaorg/rsmt2d"
 
 	"github.com/celestiaorg/celestia-node/header"
 	"github.com/celestiaorg/celestia-node/libs/utils"
@@ -31,8 +31,9 @@ import (
 )
 
 var (
-	ErrBlobNotFound = errors.New("blob: not found")
-	ErrInvalidProof = errors.New("blob: invalid proof")
+	ErrBlobNotFound       = errors.New("blob: not found")
+	ErrInvalidProof       = errors.New("blob: invalid proof")
+	ErrMismatchCommitment = errors.New("blob: mismatched commitment")
 
 	log    = logging.Logger("blob")
 	tracer = otel.Tracer("blob/service")
@@ -235,7 +236,7 @@ func (s *Service) GetProof(
 		return blob.compareCommitments(commitment)
 	}}
 
-	_, proof, err = s.retrieve(ctx, height, namespace, sharesParser)
+	_, proof, err = s.retrieveBlobProof(ctx, height, namespace, sharesParser)
 	return proof, err
 }
 
@@ -296,6 +297,8 @@ func (s *Service) getAll(
 // To ensure that blob was included in a specific height, we need:
 // 1. verify the provided commitment by recomputing it;
 // 2. verify the provided Proof against subtree roots that were used in 1.;
+// Note: this method can be deprecated because it's doing processing that can
+// be done locally.
 func (s *Service) Included(
 	ctx context.Context,
 	height uint64,
@@ -311,21 +314,20 @@ func (s *Service) Included(
 		attribute.Int64("height", int64(height)),
 		attribute.String("namespace", namespace.String()),
 	)
-
-	// In the current implementation, LNs will have to download all shares to recompute the commitment.
-	// TODO(@vgonkivs): rework the implementation to perform all verification without network requests.
-	sharesParser := &parser{verifyFn: func(blob *Blob) bool {
-		return blob.compareCommitments(commitment)
-	}}
-	_, resProof, err := s.retrieve(ctx, height, namespace, sharesParser)
-	switch {
-	case err == nil:
-	case errors.Is(err, ErrBlobNotFound):
-		return false, nil
-	default:
+	// verify that the blob subtree roots match the proof subtree roots
+	if proofCommitment := proof.GenerateCommitment(); !commitment.Equal(proofCommitment) {
+		return false, fmt.Errorf(
+			"%w: unequal blob commitment %s and proof commitment %s",
+			ErrInvalidProof,
+			hex.EncodeToString(commitment),
+			hex.EncodeToString(proofCommitment),
+		)
+	}
+	header, err := s.headerGetter(ctx, height)
+	if err != nil {
 		return false, err
 	}
-	return true, resProof.equal(*proof)
+	return proof.Verify(header.DataHash)
 }
 
 // retrieve retrieves blobs and their proofs by requesting the whole namespace and
@@ -336,7 +338,7 @@ func (s *Service) retrieve(
 	height uint64,
 	namespace libshare.Namespace,
 	sharesParser *parser,
-) (_ *Blob, _ *Proof, err error) {
+) (_ *Blob, _ *namespaceToRowRootProof, err error) {
 	log.Infow("requesting blob",
 		"height", height,
 		"namespace", namespace.String())
@@ -350,7 +352,7 @@ func (s *Service) retrieve(
 	}
 
 	headerGetterSpan.SetStatus(codes.Ok, "")
-	headerGetterSpan.AddEvent("received eds", trace.WithAttributes(
+	headerGetterSpan.AddEvent("received header", trace.WithAttributes(
 		attribute.Int64("eds-size", int64(len(header.DAH.RowRoots)))))
 
 	rowIndex := -1
@@ -364,6 +366,9 @@ func (s *Service) retrieve(
 			break
 		}
 	}
+
+	// Note: there is no need to check whether the row index is different from -1
+	// because it will be handled at the end to return the correct error.
 
 	getCtx, getSharesSpan := tracer.Start(ctx, "get-shares-by-namespace")
 
@@ -383,7 +388,7 @@ func (s *Service) retrieve(
 
 	var (
 		appShares = make([]libshare.Share, 0)
-		proofs    = make(Proof, 0)
+		proofs    = make(namespaceToRowRootProof, 0)
 	)
 
 	for _, row := range namespacedShares {
@@ -468,6 +473,229 @@ func (s *Service) retrieve(
 	return nil, nil, err
 }
 
+// retrieve retrieves blobs and their proofs by requesting the whole namespace and
+// comparing Commitments.
+// Retrieving is stopped once the `verify` condition in shareParser is met.
+func (s *Service) retrieveBlobProof(
+	ctx context.Context,
+	height uint64,
+	namespace libshare.Namespace,
+	sharesParser *parser,
+) (_ *Blob, _ *Proof, err error) {
+	log.Infow("requesting blob proof",
+		"height", height,
+		"namespace", namespace.String())
+
+	getCtx, headerGetterSpan := tracer.Start(ctx, "header-getter")
+
+	header, err := s.headerGetter(getCtx, height)
+	if err != nil {
+		headerGetterSpan.SetStatus(codes.Error, err.Error())
+		return nil, nil, err
+	}
+
+	// find the index of the row where the blob could start
+	inclusiveNamespaceStartRowIndex := -1
+	for i, row := range header.DAH.RowRoots {
+		outside, err := share.IsOutsideRange(namespace, row, row)
+		if err != nil {
+			return nil, nil, err
+		}
+		if !outside {
+			inclusiveNamespaceStartRowIndex = i
+			break
+		}
+	}
+	if inclusiveNamespaceStartRowIndex == -1 {
+		return nil, nil, ErrBlobNotFound
+	}
+
+	// end exclusive index of the row root containing the namespace
+	exclusiveNamespaceEndRowIndex := inclusiveNamespaceStartRowIndex
+	for _, row := range header.DAH.RowRoots[inclusiveNamespaceStartRowIndex:] {
+		outside, err := share.IsOutsideRange(namespace, row, row)
+		if err != nil {
+			return nil, nil, err
+		}
+
+		if outside {
+			break
+		}
+		exclusiveNamespaceEndRowIndex++
+	}
+	if exclusiveNamespaceEndRowIndex == inclusiveNamespaceStartRowIndex {
+		return nil, nil, fmt.Errorf("couldn't find the row index of the namespace end")
+	}
+
+	eds, err := s.shareGetter.GetEDS(ctx, header)
+	if err != nil {
+		headerGetterSpan.SetStatus(codes.Error, err.Error())
+		return nil, nil, err
+	}
+	headerGetterSpan.SetStatus(codes.Ok, "")
+	headerGetterSpan.AddEvent("received eds", trace.WithAttributes(
+		attribute.Int64("eds-size", int64(len(header.DAH.RowRoots)))))
+
+	// calculate the square size
+	squareSize := len(header.DAH.RowRoots) / 2
+
+	// get all the shares of the rows containing the namespace
+	_, getSharesSpan := tracer.Start(ctx, "get-all-shares-in-namespace")
+	// store the ODS shares of the rows containing the blob
+	odsShares := make([][]byte, 0, (exclusiveNamespaceEndRowIndex-inclusiveNamespaceStartRowIndex)*squareSize)
+	// store the EDS shares of the rows containing the blob
+	edsShares := make([][]libshare.Share, exclusiveNamespaceEndRowIndex-inclusiveNamespaceStartRowIndex)
+
+	for rowIndex := inclusiveNamespaceStartRowIndex; rowIndex < exclusiveNamespaceEndRowIndex; rowIndex++ {
+		rowShares := eds.Row(uint(rowIndex))
+		odsShares = append(odsShares, rowShares[:squareSize]...)
+		rowAppShares, err := libshare.FromBytes(rowShares)
+		if err != nil {
+			return nil, nil, err
+		}
+		edsShares[rowIndex-inclusiveNamespaceStartRowIndex] = rowAppShares
+	}
+
+	getSharesSpan.SetStatus(codes.Ok, "")
+	getSharesSpan.AddEvent("received shares", trace.WithAttributes(
+		attribute.Int64("eds-size", int64(squareSize*2))))
+
+	// go over the shares until finding the requested blobs
+	for currentShareIndex := 0; currentShareIndex < len(odsShares); {
+		currentShareApp, err := libshare.NewShare(odsShares[currentShareIndex])
+		if err != nil {
+			return nil, nil, err
+		}
+
+		// skip if it's a padding share
+		if currentShareApp.IsPadding() {
+			currentShareIndex++
+			continue
+		}
+		if currentShareApp.IsCompactShare() {
+			currentShareIndex++
+			continue
+		}
+		if currentShareApp.IsSequenceStart() {
+			// calculate the blob length
+			blobLen := libshare.SparseSharesNeeded(currentShareApp.SequenceLen())
+
+			exclusiveEndShareIndex := currentShareIndex + blobLen
+			if exclusiveEndShareIndex > len(odsShares) {
+				// this blob spans to the next row which has a namespace > requested namespace.
+				// this means that we can stop.
+				return nil, nil, ErrBlobNotFound
+			}
+			// convert the blob shares to app shares
+			blobShares := odsShares[currentShareIndex:exclusiveEndShareIndex]
+			appBlobShares, err := libshare.FromBytes(blobShares)
+			if err != nil {
+				return nil, nil, err
+			}
+
+			// parse the blob
+			sharesParser.length = blobLen
+			_, isComplete := sharesParser.addShares(appBlobShares)
+			if !isComplete {
+				return nil, nil, fmt.Errorf("expected the shares to construct a full blob")
+			}
+			blob, err := sharesParser.parse()
+			if err != nil {
+				return nil, nil, err
+			}
+
+			// number of shares per EDS row
+			numberOfSharesPerEDSRow := squareSize * 2
+			// number of shares from square start to namespace start
+			sharesFromSquareStartToNsStart := inclusiveNamespaceStartRowIndex * numberOfSharesPerEDSRow
+			// number of rows from namespace start row to current row
+			rowsFromNsStartToCurrentRow := currentShareIndex / squareSize
+			// number of shares from namespace row start to current row
+			sharesFromNsStartToCurrentRow := rowsFromNsStartToCurrentRow * numberOfSharesPerEDSRow
+			// number of shares from the beginning of current row to current share
+			sharesFromCurrentRowStart := currentShareIndex % squareSize
+			// setting the index manually since we didn't use the parser.set() method
+			blob.index = sharesFromSquareStartToNsStart +
+				sharesFromNsStartToCurrentRow +
+				sharesFromCurrentRowStart
+
+			if blob.Namespace().Equals(namespace) && sharesParser.verify(blob) {
+				// now that we found the requested blob, we will create
+				// its inclusion proof.
+				inclusiveBlobStartRowIndex := blob.index / (squareSize * 2)
+				exclusiveBlobEndRowIndex := inclusiveNamespaceStartRowIndex + exclusiveEndShareIndex/squareSize
+				if (currentShareIndex+blobLen)%squareSize != 0 {
+					// if the row is not complete with the blob shares,
+					// then we increment the exclusive blob end row index
+					// so that it's exclusive.
+					exclusiveBlobEndRowIndex++
+				}
+
+				// create the row roots to data root inclusion proof
+				rowProofs := proveRowRootsToDataRoot(
+					append(header.DAH.RowRoots, header.DAH.ColumnRoots...),
+					inclusiveBlobStartRowIndex,
+					exclusiveBlobEndRowIndex,
+				)
+				rowRoots := make([]bytes.HexBytes, exclusiveBlobEndRowIndex-inclusiveBlobStartRowIndex)
+				for index, rowRoot := range header.DAH.RowRoots[inclusiveBlobStartRowIndex:exclusiveBlobEndRowIndex] {
+					rowRoots[index] = rowRoot
+				}
+
+				edsShareStart := inclusiveBlobStartRowIndex - inclusiveNamespaceStartRowIndex
+				edsShareEnd := exclusiveBlobEndRowIndex - inclusiveNamespaceStartRowIndex
+				// create the share to row root proofs
+				shareToRowRootProofs, _, err := pkgproof.CreateShareToRowRootProofs(
+					squareSize,
+					edsShares[edsShareStart:edsShareEnd],
+					header.DAH.RowRoots[inclusiveBlobStartRowIndex:exclusiveBlobEndRowIndex],
+					currentShareIndex%squareSize,
+					(exclusiveEndShareIndex-1)%squareSize,
+				)
+				if err != nil {
+					return nil, nil, err
+				}
+
+				// convert the share to row root proof to an nmt.Proof
+				nmtShareToRowRootProofs := toNMTProof(shareToRowRootProofs)
+
+				subtreeRoots, err := inclusion.GenerateSubtreeRoots(blob.Blob, appconsts.DefaultSubtreeRootThreshold)
+				if err != nil {
+					return nil, nil, err
+				}
+
+				proof := Proof{
+					SubtreeRootProofs: nmtShareToRowRootProofs,
+					RowToDataRootProof: core.RowProof{
+						RowRoots: rowRoots,
+						Proofs:   rowProofs,
+						StartRow: uint32(inclusiveBlobStartRowIndex),
+						EndRow:   uint32(exclusiveBlobEndRowIndex) - 1,
+					},
+					SubtreeRoots: subtreeRoots,
+				}
+				return blob, &proof, nil
+			}
+			sharesParser.reset()
+			currentShareIndex += blobLen
+		} else {
+			// this is a continuation of a previous blob
+			// we can skip
+			currentShareIndex++
+		}
+	}
+	return nil, nil, ErrBlobNotFound
+}
+
+func toNMTProof(proofs []*pkgproof.NMTProof) []*nmt.Proof {
+	nmtShareToRowRootProofs := make([]*nmt.Proof, 0, len(proofs))
+	for _, proof := range proofs {
+		nmtProof := nmt.NewInclusionProof(int(proof.Start), int(proof.End), proof.Nodes, true)
+		nmtShareToRowRootProofs = append(nmtShareToRowRootProofs, &nmtProof)
+	}
+	return nmtShareToRowRootProofs
+}
+
 // getBlobs retrieves the DAH and fetches all shares from the requested Namespace and converts
 // them to Blobs.
 func (s *Service) getBlobs(
@@ -493,192 +721,4 @@ func (s *Service) getBlobs(
 
 	_, _, err = s.retrieve(ctx, header.Height(), namespace, sharesParser)
 	return blobs, err
-}
-
-func (s *Service) GetCommitmentProof(
-	ctx context.Context,
-	height uint64,
-	namespace libshare.Namespace,
-	shareCommitment []byte,
-) (*CommitmentProof, error) {
-	log.Debugw("proving share commitment", "height", height, "commitment", shareCommitment, "namespace", namespace)
-	if height == 0 {
-		return nil, fmt.Errorf("height cannot be equal to 0")
-	}
-
-	// get the blob to compute the subtree roots
-	log.Debugw(
-		"getting the blob",
-		"height",
-		height,
-		"commitment",
-		shareCommitment,
-		"namespace",
-		namespace,
-	)
-	blb, err := s.Get(ctx, height, namespace, shareCommitment)
-	if err != nil {
-		return nil, err
-	}
-
-	log.Debugw(
-		"converting the blob to shares",
-		"height",
-		height,
-		"commitment",
-		shareCommitment,
-		"namespace",
-		namespace,
-	)
-	blobShares, err := BlobsToShares(blb)
-	if err != nil {
-		return nil, err
-	}
-	if len(blobShares) == 0 {
-		return nil, fmt.Errorf("the blob shares for commitment %s are empty", hex.EncodeToString(shareCommitment))
-	}
-
-	// get the extended header
-	log.Debugw(
-		"getting the extended header",
-		"height",
-		height,
-	)
-	extendedHeader, err := s.headerGetter(ctx, height)
-	if err != nil {
-		return nil, err
-	}
-
-	log.Debugw("getting eds", "height", height)
-	eds, err := s.shareGetter.GetEDS(ctx, extendedHeader)
-	if err != nil {
-		return nil, err
-	}
-
-	return ProveCommitment(eds, namespace, blobShares)
-}
-
-func ProveCommitment(
-	eds *rsmt2d.ExtendedDataSquare,
-	namespace libshare.Namespace,
-	blobShares []libshare.Share,
-) (*CommitmentProof, error) {
-	// find the blob shares in the EDS
-	blobSharesStartIndex := -1
-	for index, share := range eds.FlattenedODS() {
-		if bytes.Equal(share, blobShares[0].ToBytes()) {
-			blobSharesStartIndex = index
-		}
-	}
-	if blobSharesStartIndex < 0 {
-		return nil, fmt.Errorf("couldn't find the blob shares in the ODS")
-	}
-
-	log.Debugw(
-		"generating the blob share proof for commitment",
-		"start_share",
-		blobSharesStartIndex,
-		"end_share",
-		blobSharesStartIndex+len(blobShares),
-	)
-	sharesProof, err := pkgproof.NewShareInclusionProofFromEDS(
-		eds,
-		namespace,
-		libshare.NewRange(blobSharesStartIndex, blobSharesStartIndex+len(blobShares)),
-	)
-	if err != nil {
-		return nil, err
-	}
-
-	// convert the shares to row root proofs to nmt proofs
-	nmtProofs := make([]*nmt.Proof, 0)
-	for _, proof := range sharesProof.ShareProofs {
-		nmtProof := nmt.NewInclusionProof(
-			int(proof.Start),
-			int(proof.End),
-			proof.Nodes,
-			true,
-		)
-		nmtProofs = append(
-			nmtProofs,
-			&nmtProof,
-		)
-	}
-
-	// compute the subtree roots of the blob shares
-	log.Debugw("computing the subtree roots")
-	subtreeRoots := make([][]byte, 0)
-	dataCursor := 0
-	for _, proof := range nmtProofs {
-		// TODO: do we want directly use the default subtree root threshold
-		// or want to allow specifying which version to use?
-		ranges, err := nmt.ToLeafRanges(
-			proof.Start(),
-			proof.End(),
-			inclusion.SubTreeWidth(len(blobShares), subtreeRootThreshold),
-		)
-		if err != nil {
-			return nil, err
-		}
-		roots, err := computeSubtreeRoots(
-			blobShares[dataCursor:dataCursor+proof.End()-proof.Start()],
-			ranges,
-			proof.Start(),
-		)
-		if err != nil {
-			return nil, err
-		}
-		subtreeRoots = append(subtreeRoots, roots...)
-		dataCursor += proof.End() - proof.Start()
-	}
-
-	log.Debugw("successfully proved the share commitment")
-	commitmentProof := CommitmentProof{
-		SubtreeRoots:      subtreeRoots,
-		SubtreeRootProofs: nmtProofs,
-		NamespaceID:       namespace.ID(),
-		RowProof:          *sharesProof.RowProof,
-		NamespaceVersion:  namespace.Version(),
-	}
-	return &commitmentProof, nil
-}
-
-// computeSubtreeRoots takes a set of shares and ranges and returns the corresponding subtree roots.
-// the offset is the number of shares that are before the subtree roots we're calculating.
-func computeSubtreeRoots(shares []libshare.Share, ranges []nmt.LeafRange, offset int) ([][]byte, error) {
-	if len(shares) == 0 {
-		return nil, fmt.Errorf("cannot compute subtree roots for an empty shares list")
-	}
-	if len(ranges) == 0 {
-		return nil, fmt.Errorf("cannot compute subtree roots for an empty ranges list")
-	}
-	if offset < 0 {
-		return nil, fmt.Errorf("the offset %d cannot be stricly negative", offset)
-	}
-
-	// create a tree containing the shares to generate their subtree roots
-	tree := nmt.New(
-		appconsts.NewBaseHashFunc(),
-		nmt.IgnoreMaxNamespace(true),
-		nmt.NamespaceIDSize(libshare.NamespaceSize),
-	)
-	for _, sh := range shares {
-		leafData := make([]byte, 0)
-		leafData = append(append(leafData, sh.Namespace().Bytes()...), sh.ToBytes()...)
-		err := tree.Push(leafData)
-		if err != nil {
-			return nil, err
-		}
-	}
-
-	// generate the subtree roots
-	subtreeRoots := make([][]byte, 0)
-	for _, rg := range ranges {
-		root, err := tree.ComputeSubtreeRoot(rg.Start-offset, rg.End-offset)
-		if err != nil {
-			return nil, err
-		}
-		subtreeRoots = append(subtreeRoots, root)
-	}
-	return subtreeRoots, nil
 }
