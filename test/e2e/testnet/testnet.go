@@ -123,7 +123,6 @@ func (nt *NodeTestnet) CreateDANode(
 }
 
 func (nt *NodeTestnet) SetupDA(ctx context.Context) error {
-	// TODO: add the nodes as a peer to each other
 	for _, node := range nt.nodes {
 		nt.logger.Printf("Initializing %s node", node.Type)
 		trustedPeers := []string{}
@@ -140,6 +139,7 @@ func (nt *NodeTestnet) SetupDA(ctx context.Context) error {
 }
 
 func (nt *NodeTestnet) WaitToSyncDANodes(ctx context.Context) error {
+	// TODO: not needed right now, but maybe later
 	return nil
 }
 
