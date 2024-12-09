@@ -148,7 +148,8 @@ func testAccessorSample(
 		// t.Parallel() this fails the test for some reason
 		for rowIdx := 0; rowIdx < width; rowIdx++ {
 			for colIdx := 0; colIdx < width; colIdx++ {
-				testSample(ctx, t, acc, roots, colIdx, rowIdx)
+				idx := shwap.SampleCoords{Row: rowIdx, Col: colIdx}
+				testSample(ctx, t, acc, roots, idx)
 			}
 		}
 	})
@@ -162,10 +163,11 @@ func testAccessorSample(
 		for rowIdx := 0; rowIdx < width; rowIdx++ {
 			for colIdx := 0; colIdx < width; colIdx++ {
 				wg.Add(1)
-				go func(rowIdx, colIdx int) {
+				idx := shwap.SampleCoords{Row: rowIdx, Col: colIdx}
+				go func(idx shwap.SampleCoords) {
 					defer wg.Done()
-					testSample(ctx, t, acc, roots, rowIdx, colIdx)
-				}(rowIdx, colIdx)
+					testSample(ctx, t, acc, roots, idx)
+				}(idx)
 			}
 		}
 		wg.Wait()
@@ -182,8 +184,9 @@ func testAccessorSample(
 			wg.Add(1)
 			go func() {
 				defer wg.Done()
-				rowIdx, colIdx := rand.IntN(width), rand.IntN(width) //nolint:gosec
-				testSample(ctx, t, acc, roots, rowIdx, colIdx)
+				rowIdx := rand.IntN(int(eds.Width())) //nolint:gosec
+				colIdx := rand.IntN(int(eds.Width())) //nolint:gosec
+				testSample(ctx, t, acc, roots, shwap.SampleCoords{Row: rowIdx, Col: colIdx})
 			}()
 		}
 		wg.Wait()
@@ -195,12 +198,12 @@ func testSample(
 	t *testing.T,
 	acc Accessor,
 	roots *share.AxisRoots,
-	rowIdx, colIdx int,
+	idx shwap.SampleCoords,
 ) {
-	shr, err := acc.Sample(ctx, rowIdx, colIdx)
+	shr, err := acc.Sample(ctx, idx)
 	require.NoError(t, err)
 
-	err = shr.Verify(roots, rowIdx, colIdx)
+	err = shr.Verify(roots, idx.Row, idx.Col)
 	require.NoError(t, err)
 }
 
@@ -444,13 +447,15 @@ func BenchGetSampleFromAccessor(
 			name := fmt.Sprintf("Size:%v/quadrant:%s", size, q)
 			b.Run(name, func(b *testing.B) {
 				rowIdx, colIdx := q.coordinates(acc.Size(ctx))
+				idx := shwap.SampleCoords{Row: rowIdx, Col: colIdx}
+
 				// warm up cache
-				_, err := acc.Sample(ctx, rowIdx, colIdx)
+				_, err := acc.Sample(ctx, idx)
 				require.NoError(b, err, q.String())
 
 				b.ResetTimer()
 				for i := 0; i < b.N; i++ {
-					_, err := acc.Sample(ctx, rowIdx, colIdx)
+					_, err := acc.Sample(ctx, idx)
 					require.NoError(b, err)
 				}
 			})

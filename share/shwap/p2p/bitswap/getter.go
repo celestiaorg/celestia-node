@@ -3,6 +3,7 @@ package bitswap
 import (
 	"context"
 	"fmt"
+	"sync"
 	"time"
 
 	"github.com/ipfs/boxo/blockstore"
@@ -30,8 +31,8 @@ type Getter struct {
 	bstore    blockstore.Blockstore
 	availWndw time.Duration
 
-	availableSession exchange.Fetcher
-	archivalSession  exchange.Fetcher
+	availablePool *pool
+	archivalPool  *pool
 
 	cancel context.CancelFunc
 }
@@ -42,7 +43,13 @@ func NewGetter(
 	bstore blockstore.Blockstore,
 	availWndw time.Duration,
 ) *Getter {
-	return &Getter{exchange: exchange, bstore: bstore, availWndw: availWndw}
+	return &Getter{
+		exchange:      exchange,
+		bstore:        bstore,
+		availWndw:     availWndw,
+		availablePool: newPool(exchange),
+		archivalPool:  newPool(exchange),
+	}
 }
 
 // Start kicks off internal fetching sessions.
@@ -57,37 +64,35 @@ func NewGetter(
 // with regular full node peers.
 func (g *Getter) Start() {
 	ctx, cancel := context.WithCancel(context.Background())
-	g.availableSession = g.exchange.NewSession(ctx)
-	g.archivalSession = g.exchange.NewSession(ctx)
 	g.cancel = cancel
+
+	g.availablePool.ctx = ctx
+	g.availablePool.ctx = ctx
 }
 
-// Stop shuts down Getter's internal fetching session.
+// Stop shuts down Getter's internal fetching getSession.
 func (g *Getter) Stop() {
 	g.cancel()
 }
 
-// GetShares uses [SampleBlock] and [Fetch] to get and verify samples for given coordinates.
-// TODO(@Wondertan): Rework API to get coordinates as a single param to make it ergonomic.
-func (g *Getter) GetShares(
+// GetSamples uses [SampleBlock] and [Fetch] to get and verify samples for given coordinates.
+func (g *Getter) GetSamples(
 	ctx context.Context,
 	hdr *header.ExtendedHeader,
-	rowIdxs, colIdxs []int,
-) ([]libshare.Share, error) {
-	if len(rowIdxs) != len(colIdxs) {
-		return nil, fmt.Errorf("row indecies and col indices must be same length")
+	indices []shwap.SampleCoords,
+) ([]shwap.Sample, error) {
+	if len(indices) == 0 {
+		return nil, shwap.ErrNoSampleIndicies
 	}
 
-	if len(rowIdxs) == 0 {
-		return nil, fmt.Errorf("empty coordinates")
-	}
-
-	ctx, span := tracer.Start(ctx, "get-shares")
+	ctx, span := tracer.Start(ctx, "get-samples", trace.WithAttributes(
+		attribute.Int("amount", len(indices)),
+	))
 	defer span.End()
 
-	blks := make([]Block, len(rowIdxs))
-	for i, rowIdx := range rowIdxs {
-		sid, err := NewEmptySampleBlock(hdr.Height(), rowIdx, colIdxs[i], len(hdr.DAH.RowRoots))
+	blks := make([]Block, len(indices))
+	for i, idx := range indices {
+		sid, err := NewEmptySampleBlock(hdr.Height(), idx, len(hdr.DAH.RowRoots))
 		if err != nil {
 			span.RecordError(err)
 			span.SetStatus(codes.Error, "NewEmptySampleBlock")
@@ -97,39 +102,36 @@ func (g *Getter) GetShares(
 		blks[i] = sid
 	}
 
-	ses := g.session(ctx, hdr)
+	isArchival := g.isArchival(hdr)
+	span.SetAttributes(attribute.Bool("is_archival", isArchival))
+
+	ses, release := g.getSession(isArchival)
+	defer release()
+
 	err := Fetch(ctx, g.exchange, hdr.DAH, blks, WithStore(g.bstore), WithFetcher(ses))
+
+	var fetched int
+	smpls := make([]shwap.Sample, len(blks))
+	for i, blk := range blks {
+		c := blk.(*SampleBlock).Container
+		if !c.IsEmpty() {
+			fetched++
+			smpls[i] = c
+		}
+	}
+
 	if err != nil {
 		span.RecordError(err)
 		span.SetStatus(codes.Error, "Fetch")
+		if fetched > 0 {
+			span.SetAttributes(attribute.Int("fetched", fetched))
+			return smpls, err
+		}
 		return nil, err
 	}
 
-	shares := make([]libshare.Share, len(blks))
-	for i, blk := range blks {
-		shares[i] = blk.(*SampleBlock).Container.Share
-	}
-
 	span.SetStatus(codes.Ok, "")
-	return shares, nil
-}
-
-// GetShare uses [GetShare] to fetch and verify single share by the given coordinates.
-func (g *Getter) GetShare(
-	ctx context.Context,
-	hdr *header.ExtendedHeader,
-	row, col int,
-) (libshare.Share, error) {
-	shrs, err := g.GetShares(ctx, hdr, []int{row}, []int{col})
-	if err != nil {
-		return libshare.Share{}, err
-	}
-
-	if len(shrs) != 1 {
-		return libshare.Share{}, fmt.Errorf("expected 1 share row, got %d", len(shrs))
-	}
-
-	return shrs[0], nil
+	return smpls, nil
 }
 
 // GetEDS uses [RowBlock] and [Fetch] to get half of the first EDS quadrant(ODS) and
@@ -156,7 +158,12 @@ func (g *Getter) GetEDS(
 		blks[i] = blk
 	}
 
-	ses := g.session(ctx, hdr)
+	isArchival := g.isArchival(hdr)
+	span.SetAttributes(attribute.Bool("is_archival", isArchival))
+
+	ses, release := g.getSession(isArchival)
+	defer release()
+
 	err := Fetch(ctx, g.exchange, hdr.DAH, blks, WithFetcher(ses))
 	if err != nil {
 		span.RecordError(err)
@@ -210,7 +217,12 @@ func (g *Getter) GetNamespaceData(
 		blks[i] = rndblk
 	}
 
-	ses := g.session(ctx, hdr)
+	isArchival := g.isArchival(hdr)
+	span.SetAttributes(attribute.Bool("is_archival", isArchival))
+
+	ses, release := g.getSession(isArchival)
+	defer release()
+
 	if err = Fetch(ctx, g.exchange, hdr.DAH, blks, WithFetcher(ses)); err != nil {
 		span.RecordError(err)
 		span.SetStatus(codes.Error, "Fetch")
@@ -230,17 +242,19 @@ func (g *Getter) GetNamespaceData(
 	return nsShrs, nil
 }
 
-// session decides which fetching session to use for the given header.
-func (g *Getter) session(ctx context.Context, hdr *header.ExtendedHeader) exchange.Fetcher {
-	session := g.archivalSession
+// isArchival reports whether the header is for archival data
+func (g *Getter) isArchival(hdr *header.ExtendedHeader) bool {
+	return !availability.IsWithinWindow(hdr.Time(), g.availWndw)
+}
 
-	isWithinAvailability := availability.IsWithinWindow(hdr.Time(), g.availWndw)
-	if isWithinAvailability {
-		session = g.availableSession
+// getSession takes a session out of the respective session pool
+func (g *Getter) getSession(isArchival bool) (ses exchange.Fetcher, release func()) {
+	if isArchival {
+		ses = g.archivalPool.get()
+		return ses, func() { g.archivalPool.put(ses) }
 	}
-
-	trace.SpanFromContext(ctx).SetAttributes(attribute.Bool("within_availability", isWithinAvailability))
-	return session
+	ses = g.availablePool.get()
+	return ses, func() { g.availablePool.put(ses) }
 }
 
 // edsFromRows imports given Rows and computes EDS out of them, assuming enough Rows were provided.
@@ -273,4 +287,41 @@ func edsFromRows(roots *share.AxisRoots, rows []shwap.Row) (*rsmt2d.ExtendedData
 	}
 
 	return square, nil
+}
+
+// pool is a pool of Bitswap sessions.
+type pool struct {
+	lock     sync.Mutex
+	sessions []exchange.Fetcher
+	ctx      context.Context
+	exchange exchange.SessionExchange
+}
+
+func newPool(ex exchange.SessionExchange) *pool {
+	return &pool{
+		exchange: ex,
+		sessions: make([]exchange.Fetcher, 0),
+	}
+}
+
+// get returns a session from the pool or creates a new one if the pool is empty.
+func (p *pool) get() exchange.Fetcher {
+	p.lock.Lock()
+	defer p.lock.Unlock()
+
+	if len(p.sessions) == 0 {
+		return p.exchange.NewSession(p.ctx)
+	}
+
+	ses := p.sessions[len(p.sessions)-1]
+	p.sessions = p.sessions[:len(p.sessions)-1]
+	return ses
+}
+
+// put returns a session to the pool.
+func (p *pool) put(ses exchange.Fetcher) {
+	p.lock.Lock()
+	defer p.lock.Unlock()
+
+	p.sessions = append(p.sessions, ses)
 }
