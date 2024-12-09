@@ -180,14 +180,16 @@ global:
 scrape_configs:
 `, defaultScrapeInterval.String())
 
+	var builder strings.Builder
 	for _, j := range p.scrapeJobs {
-		conf += fmt.Sprintf(`
+		builder.WriteString(fmt.Sprintf(`
   - job_name: %s
     scrape_interval: %s
     static_configs:
       - targets: [%s]
-`, j.Name, j.Interval.String(), j.Target)
+`, j.Name, j.Interval.String(), j.Target))
 	}
+	conf += builder.String()
 
 	return conf
 }
