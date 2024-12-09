@@ -3,6 +3,7 @@ package testnet
 import (
 	"context"
 	"fmt"
+	"log"
 
 	"github.com/celestiaorg/celestia-app/v3/test/e2e/testnet"
 
@@ -10,8 +11,6 @@ import (
 	"github.com/celestiaorg/celestia-node/test/e2e/prometheus"
 	"github.com/celestiaorg/knuu/pkg/instance"
 	"github.com/celestiaorg/knuu/pkg/knuu"
-
-	"github.com/rs/zerolog/log"
 )
 
 // LocalTestnet extends the testnet from celestia-app
@@ -21,11 +20,13 @@ type NodeTestnet struct {
 	nodes []*Node
 
 	Prometheus *prometheus.Prometheus
+
+	logger *log.Logger
 }
 
 // NewLocalTestnet creates a new instance of LocalTestnet
-func NewNodeTestnet(ctx context.Context, kn *knuu.Knuu, opts testnet.Options) (*NodeTestnet, error) {
-	tn, err := testnet.New(kn, opts)
+func NewNodeTestnet(ctx context.Context, logger *log.Logger, kn *knuu.Knuu, opts testnet.Options) (*NodeTestnet, error) {
+	tn, err := testnet.New(logger, kn, opts)
 	if err != nil {
 		return nil, err
 	}
@@ -34,6 +35,7 @@ func NewNodeTestnet(ctx context.Context, kn *knuu.Knuu, opts testnet.Options) (*
 		Testnet: *tn,
 		nodes:   []*Node{},
 		knuu:    kn,
+		logger:  logger,
 	}, nil
 }
 
@@ -111,8 +113,8 @@ func (nt *NodeTestnet) CreateDANode(
 	archival bool,
 	resources testnet.Resources,
 ) error {
-	log.Info().Msgf("Creating %s node", nodeType)
-	node, err := NewNode(ctx, fmt.Sprintf("%s%d", nodeType, len(nt.nodes)), version, nodeType, chainID, genesisHash, coreIP, bootstrapper, archival, resources, nt.knuu)
+	nt.logger.Printf("Creating %s node", nodeType)
+	node, err := NewNode(ctx, nt.logger, fmt.Sprintf("%s%d", nodeType, len(nt.nodes)), version, nodeType, chainID, genesisHash, coreIP, bootstrapper, archival, resources, nt.knuu)
 	if err != nil {
 		return err
 	}
@@ -123,7 +125,7 @@ func (nt *NodeTestnet) CreateDANode(
 func (nt *NodeTestnet) SetupDA(ctx context.Context) error {
 	// TODO: add the nodes as a peer to each other
 	for _, node := range nt.nodes {
-		log.Info().Msgf("Initializing %s node", node.Type)
+		nt.logger.Printf("Initializing %s node", node.Type)
 		trustedPeers := []string{}
 		for _, otherNode := range nt.nodes {
 			if otherNode.Name != node.Name {
@@ -187,7 +189,7 @@ func (nt *NodeTestnet) StartDA(ctx context.Context) error {
 		return err
 	}
 	// wait for nodes to sync
-	log.Info().Msg("waiting for DA nodes to sync")
+	nt.logger.Printf("waiting for DA nodes to sync")
 	err = nt.WaitToSync(ctx)
 	if err != nil {
 		return err

@@ -4,11 +4,11 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"log"
 	"time"
 
 	"github.com/celestiaorg/celestia-app/v3/test/util/testnode"
 
-	"github.com/sirupsen/logrus"
 	"github.com/tendermint/tendermint/rpc/client/http"
 )
 
@@ -25,7 +25,7 @@ func queryTxCount(ctx context.Context, rpcAddr string) (int, error) {
 	return totalTxs, nil
 }
 
-func waitForTxs(ctx context.Context, rpcAddr string, expectedTxs int, logger *logrus.Logger) error {
+func waitForTxs(ctx context.Context, rpcAddr string, expectedTxs int, logger *log.Logger) error {
 	ticker := time.NewTicker(queryTxCountInterval)
 	defer ticker.Stop()
 
@@ -42,10 +42,10 @@ func waitForTxs(ctx context.Context, rpcAddr string, expectedTxs int, logger *lo
 		}
 
 		if totalTxs >= expectedTxs {
-			logger.Infof("Found %d transactions", totalTxs)
+			logger.Printf("Found %d transactions", totalTxs)
 			return nil
 		}
-		logger.Debugf("Waiting for at least %d transactions, got %d so far", expectedTxs, totalTxs)
+		logger.Printf("Waiting for at least %d transactions, got %d so far", expectedTxs, totalTxs)
 	}
 	return nil
 }

@@ -3,13 +3,13 @@ package testnet
 import (
 	"context"
 	"fmt"
+	"log"
 	"os"
 	"path/filepath"
 	"strings"
 
 	"github.com/cosmos/cosmos-sdk/crypto/keyring"
 	"github.com/libp2p/go-libp2p/core/peer"
-	"github.com/rs/zerolog/log"
 
 	"github.com/celestiaorg/celestia-app/v3/app"
 	"github.com/celestiaorg/celestia-app/v3/app/encoding"
@@ -38,6 +38,8 @@ type Node struct {
 	bootstrapper bool
 	archival     bool
 	rpcProxyHost string
+
+	logger *log.Logger
 }
 
 type JSONRPCError struct {
@@ -51,6 +53,7 @@ func (e *JSONRPCError) Error() string {
 }
 
 func NewNode(ctx context.Context,
+	logger *log.Logger,
 	name string,
 	version string,
 	nodeType nodebuilderNode.Type,
@@ -109,6 +112,7 @@ func NewNode(ctx context.Context,
 		CoreIP:       coreIP,
 		bootstrapper: bootstrapper,
 		archival:     archival,
+		logger:       logger,
 	}, nil
 }
 
@@ -153,7 +157,7 @@ func (n *Node) Init(ctx context.Context, prometheus *e2ePrometheus.Prometheus) e
 		return fmt.Errorf("creating data folder: %w", err)
 	}
 	n.nodeID = peer.AddrInfosToIDs([]peer.AddrInfo{*host.InfoFromHost(node.Host)})[0].String()
-	log.Info().Msgf("id: %+v", n.nodeID)
+	n.logger.Printf("id: %+v", n.nodeID)
 	err = os.WriteFile(filepath.Join(tmpFolder, "data", ".folderkeep"), []byte("This file is needed so that knuu can start the node"), 0644)
 	if err != nil {
 		return fmt.Errorf("writing placeholder file: %w", err)
