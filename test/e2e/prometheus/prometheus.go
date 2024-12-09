@@ -114,7 +114,10 @@ func (p *Prometheus) GetMetric(filter MetricFilter) (float64, error) {
 	}
 	query := fmt.Sprintf("%s{%s}", filter.MetricName, strings.Join(labels, ","))
 
-	resp, err := http.Get(fmt.Sprintf("%s/api/v1/query?query=%s", p.prometheusProxyHost, query))
+	client := &http.Client{
+		Timeout: 10 * time.Second,
+	}
+	resp, err := client.Get(fmt.Sprintf("%s/api/v1/query?query=%s", p.prometheusProxyHost, query))
 	if err != nil {
 		return 0, ErrFailedToFetchPrometheusData.Wrap(err)
 	}
