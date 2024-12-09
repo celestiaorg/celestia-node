@@ -4,7 +4,9 @@ import (
 	"errors"
 	"fmt"
 
-	"github.com/celestiaorg/go-square/merkle"
+	"github.com/tendermint/tendermint/crypto/merkle"
+
+	"github.com/celestiaorg/celestia-app/v3/pkg/appconsts"
 	"github.com/celestiaorg/go-square/v2/inclusion"
 	libshare "github.com/celestiaorg/go-square/v2/share"
 )
@@ -84,7 +86,7 @@ func (p *parser) parse() (*Blob, error) {
 		return nil, errors.New("unexpected amount of blobs during parsing")
 	}
 
-	com, err := inclusion.CreateCommitment(blobs[0], merkle.HashFromByteSlices, subtreeRootThreshold)
+	com, err := inclusion.CreateCommitment(blobs[0], merkle.HashFromByteSlices, appconsts.DefaultSubtreeRootThreshold)
 	if err != nil {
 		return nil, err
 	}

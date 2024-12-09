@@ -1,31 +1,53 @@
-[
-  {
-    "end": 8,
-    "nodes": [
-      "/////////////////////////////////////////////////////////////////////////////wuxStDHcZ7+b5byNQMVLJbzBT3wmObsThoQ0sCTjTCP"
+{
+  "ShareToRowRootProof": [
+    {
+      "start": 3,
+      "end": 4,
+      "nodes": [
+        "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAEAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAQ72eTVOUxB9THxFjAEwtTePJQA1b0xcz2f6TJc400Uw",
+        "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAABBD0CYbGYoGN4q9VfSmeGZeg/h1NDBA/jtXjZrrKRHE6",
+        "/////////////////////////////////////////////////////////////////////////////8KDE4JDf0N2lZB7DW1Fpasdk/wz4jHOxuBPAk5Vf5ZI"
+      ]
+    },
+    {
+      "end": 1,
+      "nodes": [
+        "//////////////////////////////////////7//////////////////////////////////////plEqgR/c4IAVkNdYRWOYOAESD4whneKR54Dz5Dfe4p2",
+        "//////////////////////////////////////7//////////////////////////////////////lrD0qJ9dspxSO1Yl8NDioZfgOm8Yj63Y+BGDRHlKCRj",
+        "/////////////////////////////////////////////////////////////////////////////xQyI+g89aM6rhy9rl2eKr0Uc2NPauf3fkLY3Z+gBtuM"
+      ]
+    }
+  ],
+  "RowProof": {
+    "row_roots": [
+      "00000000000000000000000000000000000000000000000000000000010000000000000000000000000000000000000000000808080808080808BC517066A5A8C81E2A4353DB500EBB3410047A93D2EE8ADF0B6797B9A5519557",
+      "0000000000000000000000000000000000000000000808080808080808FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFE015AB6AAC6FAF0ABF26F9453AF390FDA3B39EB384F0B71D0170D84CF69CBA2BC"
     ],
-    "is_max_namespace_ignored": true
-  },
-  {
-    "end": 8,
-    "nodes": [
-      "//////////////////////////////////////////////////////////////////////////////n1NeJxPU2bZUAccKZZ+LAu2Wj5ajbVYURV9ojhSKwp"
+    "proofs": [
+      {
+        "total": 16,
+        "index": 1,
+        "leaf_hash": "lJek/BHnKH6PyRB8jlk69F6EY9Tfx2LRanaF74JVciU=",
+        "aunts": [
+          "bLjvftajE6jVsgQQBkV4RUPESRc+v4bhP0Ljf36858Q=",
+          "QaF9mNskaURxk98S3BExB1PzRAjOqVydrDLvUu0B5/M=",
+          "K2xW8JJ3Ff4FvtbfZi5ZD/ygnswaNCNIKXsSzbO2Jrc=",
+          "uySRG/gINLAgGgywJCTiXMlFkfQivF1O1zLg5+RRUP8="
+        ]
+      },
+      {
+        "total": 16,
+        "index": 2,
+        "leaf_hash": "h+4ND52kT4qkc9nWW22dIMAK/4YjkC6fBoD01WF0+Uo=",
+        "aunts": [
+          "2x8OISRBMLYJRV8NfTNtVvZUg2F7MtCK5xCZuE9fQwQ=",
+          "Xvr5IalE2y3pxHjxh5kcHFSRaz4g5MxdOj4NIGwRXY0=",
+          "K2xW8JJ3Ff4FvtbfZi5ZD/ygnswaNCNIKXsSzbO2Jrc=",
+          "uySRG/gINLAgGgywJCTiXMlFkfQivF1O1zLg5+RRUP8="
+        ]
+      }
     ],
-    "is_max_namespace_ignored": true
-  },
-  {
-    "end": 8,
-    "nodes": [
-      "/////////////////////////////////////////////////////////////////////////////0xK8BKnzDmwK0HR4ZJvyB4kh3jPPXGxaGPFoga8vPxF"
-    ],
-    "is_max_namespace_ignored": true
-  },
-  {
-    "end": 7,
-    "nodes": [
-      "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAMJ/xGlNMdEAAAAAAAAAAAAAAAAAAAAAAAAAAAAAwn/EaU0x0UTO9HUGKjyjcv5U2gHeSjJ8S1rftqv6k8kxlVWW8e/7",
-      "/////////////////////////////////////////////////////////////////////////////wexh4khLQ9HQ2X6nh9wU5B+m6r+LWwPTEDTa5/CosDF"
-    ],
-    "is_max_namespace_ignored": true
+    "start_row": 1,
+    "end_row": 3
   }
-]
+}

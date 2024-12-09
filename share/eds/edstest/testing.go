@@ -191,7 +191,20 @@ func createTestBlobTransaction(
 	ns := libshare.RandomBlobNamespace()
 	account := signer.Account(accountName)
 	msg, b := blobfactory.RandMsgPayForBlobsWithNamespaceAndSigner(account.Address().String(), ns, size)
+	cTx := BuildCoreTx(t, signer, accountName, b)
+	return ns, msg, b, cTx
+}
+
+// BuildCoreTx takes a signer, a message and a blob and creates a core transaction.
+// The core transaction is the final form of a transaction that gets pushed
+// into the square builder.
+func BuildCoreTx(
+	t *testing.T,
+	signer *user.Signer,
+	accountName string,
+	b *libshare.Blob,
+) coretypes.Tx {
 	cTx, _, err := signer.CreatePayForBlobs(accountName, []*libshare.Blob{b})
 	require.NoError(t, err)
-	return ns, msg, b, cTx
+	return cTx
 }
