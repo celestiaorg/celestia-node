@@ -24,7 +24,7 @@ var _ Module = (*API)(nil)
 // the data root.
 type RangeResult struct {
 	// Shares the queried shares.
-	Shares []share.Share `json:"shares"`
+	Shares []libshare.Share `json:"shares"`
 	// Proof the proof of Shares up to the data root.
 	Proof *types.ShareProof `json:"proof"`
 }
@@ -38,7 +38,7 @@ func (r RangeResult) Verify(dataRoot []byte) error {
 	}
 
 	for index, data := range r.Shares {
-		if !bytes.Equal(data, r.Proof.Data[index]) {
+		if !bytes.Equal(data.ToBytes(), r.Proof.Data[index]) {
 			return fmt.Errorf("mismatching share %d between the range result and the proof", index)
 		}
 	}
@@ -158,7 +158,7 @@ func (m module) SharesAvailable(ctx context.Context, height uint64) error {
 	return m.avail.SharesAvailable(ctx, header)
 }
 
-func (m module) GetRange(ctx context.Context, height uint64, start, end int) (*GetRangeResult, error) {
+func (m module) GetRange(ctx context.Context, height uint64, start, end int) (*RangeResult, error) {
 	extendedDataSquare, err := m.GetEDS(ctx, height)
 	if err != nil {
 		return nil, err

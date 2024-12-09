@@ -6,8 +6,9 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"github.com/tendermint/tendermint/crypto/merkle"
 
-	"github.com/celestiaorg/go-square/merkle"
+	"github.com/celestiaorg/celestia-app/v3/pkg/appconsts"
 	"github.com/celestiaorg/go-square/v2/inclusion"
 	libshare "github.com/celestiaorg/go-square/v2/share"
 )
@@ -28,7 +29,7 @@ func TestBlob(t *testing.T) {
 			expectedRes: func(t *testing.T) {
 				require.NotEmpty(t, blob)
 				require.NotEmpty(t, blob[0].Namespace())
-				require.NotEmpty(t, blob[0].Data)
+				require.NotEmpty(t, blob[0].Data())
 				require.NotEmpty(t, blob[0].Commitment)
 			},
 		},
@@ -38,7 +39,7 @@ func TestBlob(t *testing.T) {
 				comm, err := inclusion.CreateCommitment(
 					blob[0].Blob,
 					merkle.HashFromByteSlices,
-					subtreeRootThreshold,
+					appconsts.DefaultSubtreeRootThreshold,
 				)
 				require.NoError(t, err)
 				assert.Equal(t, blob[0].Commitment, Commitment(comm))

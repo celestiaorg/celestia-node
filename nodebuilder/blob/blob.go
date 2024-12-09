@@ -34,7 +34,7 @@ type Module interface {
 	GetProof(_ context.Context, height uint64, _ libshare.Namespace, _ blob.Commitment) (*blob.Proof, error)
 	// Included checks whether a blob's given commitment(Merkle subtree root) is included at
 	// given height and under the namespace.
-	Included(_ context.Context, height uint64, _ share.Namespace, _ *blob.Proof, _ blob.Commitment) (bool, error)
+	Included(_ context.Context, height uint64, _ libshare.Namespace, _ *blob.Proof, _ blob.Commitment) (bool, error)
 	// Subscribe to published blobs from the given namespace as they are included.
 	Subscribe(_ context.Context, _ libshare.Namespace) (<-chan *blob.SubscriptionResponse, error)
 }

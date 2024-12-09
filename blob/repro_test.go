@@ -3,10 +3,11 @@ package blob
 import (
 	"testing"
 
-	"github.com/celestiaorg/go-square/merkle"
+	"github.com/tendermint/tendermint/crypto/merkle"
+	coretypes "github.com/tendermint/tendermint/types"
+
 	"github.com/celestiaorg/nmt"
 	"github.com/celestiaorg/nmt/pb"
-	coretypes "github.com/tendermint/tendermint/types"
 )
 
 // Reported at https://github.com/celestiaorg/celestia-node/issues/3731.

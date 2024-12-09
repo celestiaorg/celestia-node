@@ -17,16 +17,19 @@ import (
 	ds_sync "github.com/ipfs/go-datastore/sync"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"github.com/tendermint/tendermint/crypto/merkle"
+	bytes2 "github.com/tendermint/tendermint/libs/bytes"
 	tmrand "github.com/tendermint/tendermint/libs/rand"
 	coretypes "github.com/tendermint/tendermint/types"
 
+	"github.com/celestiaorg/celestia-app/v3/app"
+	"github.com/celestiaorg/celestia-app/v3/app/encoding"
 	"github.com/celestiaorg/celestia-app/v3/pkg/appconsts"
 	pkgproof "github.com/celestiaorg/celestia-app/v3/pkg/proof"
+	"github.com/celestiaorg/celestia-app/v3/pkg/user"
 	"github.com/celestiaorg/celestia-app/v3/pkg/wrapper"
 	"github.com/celestiaorg/celestia-app/v3/test/util/testfactory"
-	blobtypes "github.com/celestiaorg/celestia-app/v3/x/blob/types"
 	"github.com/celestiaorg/go-header/store"
-	"github.com/celestiaorg/go-square/merkle"
 	libsquare "github.com/celestiaorg/go-square/v2"
 	"github.com/celestiaorg/go-square/v2/inclusion"
 	libshare "github.com/celestiaorg/go-square/v2/share"
@@ -416,10 +419,10 @@ func TestBlobService_Get(t *testing.T) {
 			name: "internal error",
 			doFn: func() (interface{}, error) {
 				ctrl := gomock.NewController(t)
-				shareService := service.shareGetter
-				shareGetterMock := shareMock.NewMockModule(ctrl)
-				shareGetterMock.EXPECT().
-					GetSharesByNamespace(gomock.Any(), gomock.Any(), gomock.Any()).
+				innerGetter := service.shareGetter
+				getterWrapper := mock.NewMockGetter(ctrl)
+				getterWrapper.EXPECT().
+					GetNamespaceData(gomock.Any(), gomock.Any(), gomock.Any()).
 					DoAndReturn(
 						func(
 							ctx context.Context, h *header.ExtendedHeader, ns libshare.Namespace,
@@ -427,7 +430,7 @@ func TestBlobService_Get(t *testing.T) {
 							if ns.Equals(blobsWithDiffNamespaces[0].Namespace()) {
 								return nil, errors.New("internal error")
 							}
-							return shareService.GetSharesByNamespace(ctx, h, ns)
+							return innerGetter.GetNamespaceData(ctx, h, ns)
 						}).AnyTimes()
 
 				service.shareGetter = getterWrapper
@@ -1089,6 +1092,7 @@ func delimLen(size uint64) int {
 	lenBuf := make([]byte, binary.MaxVarintLen64)
 	return binary.PutUvarint(lenBuf, size)
 }
+
 func TestBlobVerify(t *testing.T) {
 	_, blobs, nss, eds, _, _, dataRoot := edstest.GenerateTestBlock(t, 200, 10)
 
@@ -1293,7 +1297,7 @@ func proveCommitment(
 	}
 
 	// compute the subtree roots of the blob shares
-	subtreeRoots, err := inclusion.GenerateSubtreeRoots(blb, appconsts.SubtreeRootThreshold(appVersion))
+	subtreeRoots, err := inclusion.GenerateSubtreeRoots(blb, appconsts.DefaultSubtreeRootThreshold)
 	if err != nil {
 		return nil, err
 	}

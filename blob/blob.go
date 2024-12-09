@@ -6,12 +6,13 @@ import (
 	"errors"
 	"fmt"
 
+	"github.com/tendermint/tendermint/crypto/merkle"
+	coretypes "github.com/tendermint/tendermint/types"
+
 	"github.com/celestiaorg/celestia-app/v3/pkg/appconsts"
-	"github.com/celestiaorg/go-square/merkle"
 	"github.com/celestiaorg/go-square/v2/inclusion"
 	libshare "github.com/celestiaorg/go-square/v2/share"
 	"github.com/celestiaorg/nmt"
-	coretypes "github.com/tendermint/tendermint/types"
 )
 
 var errEmptyShares = errors.New("empty shares")
