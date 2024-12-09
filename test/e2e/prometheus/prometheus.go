@@ -134,22 +134,26 @@ func (p *Prometheus) GetMetric(filter MetricFilter) (float64, error) {
 
 	data, ok := result["data"].(map[string]interface{})
 	if !ok {
-		return 0, ErrMetricNotFound.WithParams(filter.MetricName)
+		return 0, ErrFailedToParsePrometheusMetrics.
+			Wrap(fmt.Errorf("unexpected data format: 'data' field is missing or not a map"))
 	}
 
 	results, ok := data["result"].([]interface{})
 	if !ok || len(results) == 0 {
-		return 0, ErrMetricNotFound.WithParams(filter.MetricName)
+		return 0, ErrFailedToParsePrometheusMetrics.
+			Wrap(fmt.Errorf("unexpected data format: 'result' field is missing or not a non-empty array"))
 	}
 
 	metric, ok := results[0].(map[string]interface{})
 	if !ok {
-		return 0, ErrMetricNotFound.WithParams(filter.MetricName)
+		return 0, ErrFailedToParsePrometheusMetrics.
+			Wrap(fmt.Errorf("unexpected data format: first result is not a map"))
 	}
 
 	valueArray, ok := metric["value"].([]interface{})
 	if !ok || len(valueArray) < 2 {
-		return 0, ErrMetricNotFound.WithParams(filter.MetricName)
+		return 0, ErrFailedToParsePrometheusMetrics.
+			Wrap(fmt.Errorf("unexpected data format: 'value' field is missing or not an array with at least two elements"))
 	}
 
 	// valueArray[0] is the timestamp
