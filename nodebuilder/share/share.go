@@ -8,6 +8,7 @@ import (
 	libshare "github.com/celestiaorg/go-square/v2/share"
 	"github.com/celestiaorg/rsmt2d"
 
+	"github.com/celestiaorg/celestia-node/header"
 	headerServ "github.com/celestiaorg/celestia-node/nodebuilder/header"
 	"github.com/celestiaorg/celestia-node/share"
 	"github.com/celestiaorg/celestia-node/share/eds"
@@ -45,6 +46,8 @@ type Module interface {
 	SharesAvailable(ctx context.Context, height uint64) error
 	// GetShare gets a Share by coordinates in EDS.
 	GetShare(ctx context.Context, height uint64, row, col int) (libshare.Share, error)
+	// GetSamples gets sample for given indices.
+	GetSamples(ctx context.Context, header *header.ExtendedHeader, indices []shwap.SampleCoords) ([]shwap.Sample, error)
 	// GetEDS gets the full EDS identified by the given extended header.
 	GetEDS(ctx context.Context, height uint64) (*rsmt2d.ExtendedDataSquare, error)
 	// GetNamespaceData gets all shares from an EDS within the given namespace.
@@ -65,6 +68,11 @@ type API struct {
 			height uint64,
 			row, col int,
 		) (libshare.Share, error) `perm:"read"`
+		GetSamples func(
+			ctx context.Context,
+			header *header.ExtendedHeader,
+			indices []shwap.SampleCoords,
+		) ([]shwap.Sample, error) `perm:"read"`
 		GetEDS func(
 			ctx context.Context,
 			height uint64,
@@ -88,6 +96,12 @@ func (api *API) SharesAvailable(ctx context.Context, height uint64) error {
 
 func (api *API) GetShare(ctx context.Context, height uint64, row, col int) (libshare.Share, error) {
 	return api.Internal.GetShare(ctx, height, row, col)
+}
+
+func (api *API) GetSamples(ctx context.Context, header *header.ExtendedHeader,
+	indices []shwap.SampleCoords,
+) ([]shwap.Sample, error) {
+	return api.Internal.GetSamples(ctx, header, indices)
 }
 
 func (api *API) GetEDS(ctx context.Context, height uint64) (*rsmt2d.ExtendedDataSquare, error) {
@@ -117,7 +131,21 @@ func (m module) GetShare(ctx context.Context, height uint64, row, col int) (libs
 	if err != nil {
 		return libshare.Share{}, err
 	}
-	return m.getter.GetShare(ctx, header, row, col)
+
+	idx := shwap.SampleCoords{Row: row, Col: col}
+
+	smpls, err := m.getter.GetSamples(ctx, header, []shwap.SampleCoords{idx})
+	if err != nil {
+		return libshare.Share{}, err
+	}
+
+	return smpls[0].Share, nil
+}
+
+func (m module) GetSamples(ctx context.Context, header *header.ExtendedHeader,
+	indices []shwap.SampleCoords,
+) ([]shwap.Sample, error) {
+	return m.getter.GetSamples(ctx, header, indices)
 }
 
 func (m module) GetEDS(ctx context.Context, height uint64) (*rsmt2d.ExtendedDataSquare, error) {

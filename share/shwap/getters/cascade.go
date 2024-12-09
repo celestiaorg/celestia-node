@@ -41,24 +41,17 @@ func NewCascadeGetter(getters []shwap.Getter) *CascadeGetter {
 	}
 }
 
-// GetShare gets a share from any of registered shwap.Getters in cascading order.
-func (cg *CascadeGetter) GetShare(
-	ctx context.Context, header *header.ExtendedHeader, row, col int,
-) (libshare.Share, error) {
-	ctx, span := tracer.Start(ctx, "cascade/get-share", trace.WithAttributes(
-		attribute.Int("row", row),
-		attribute.Int("col", col),
+// GetSamples gets samples from any of registered shwap.Getters in cascading order.
+func (cg *CascadeGetter) GetSamples(ctx context.Context, hdr *header.ExtendedHeader,
+	indices []shwap.SampleCoords,
+) ([]shwap.Sample, error) {
+	ctx, span := tracer.Start(ctx, "cascade/get-samples", trace.WithAttributes(
+		attribute.Int("amount", len(indices)),
 	))
 	defer span.End()
 
-	upperBound := len(header.DAH.RowRoots)
-	if row >= upperBound || col >= upperBound {
-		err := shwap.ErrOutOfBounds
-		span.RecordError(err)
-		return libshare.Share{}, err
-	}
-	get := func(ctx context.Context, get shwap.Getter) (libshare.Share, error) {
-		return get.GetShare(ctx, header, row, col)
+	get := func(ctx context.Context, get shwap.Getter) ([]shwap.Sample, error) {
+		return get.GetSamples(ctx, hdr, indices)
 	}
 
 	return cascadeGetters(ctx, cg.getters, get)

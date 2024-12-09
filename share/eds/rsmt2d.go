@@ -46,18 +46,18 @@ func (eds *Rsmt2D) AxisRoots(context.Context) (*share.AxisRoots, error) {
 // Sample returns share and corresponding proof for row and column indices.
 func (eds *Rsmt2D) Sample(
 	_ context.Context,
-	rowIdx, colIdx int,
+	idx shwap.SampleCoords,
 ) (shwap.Sample, error) {
-	return eds.SampleForProofAxis(rowIdx, colIdx, rsmt2d.Row)
+	return eds.SampleForProofAxis(idx, rsmt2d.Row)
 }
 
 // SampleForProofAxis samples a share from an Extended Data Square based on the provided
 // row and column indices and proof axis. It returns a sample with the share and proof.
 func (eds *Rsmt2D) SampleForProofAxis(
-	rowIdx, colIdx int,
+	idx shwap.SampleCoords,
 	proofType rsmt2d.Axis,
 ) (shwap.Sample, error) {
-	axisIdx, shrIdx := relativeIndexes(rowIdx, colIdx, proofType)
+	axisIdx, shrIdx := relativeIndexes(idx.Row, idx.Col, proofType)
 	shares, err := getAxis(eds.ExtendedDataSquare, proofType, axisIdx)
 	if err != nil {
 		return shwap.Sample{}, err
