@@ -52,7 +52,9 @@ func waitForTxs(ctx context.Context, rpcAddr string, expectedTxs int, logger *lo
 
 func getHeight(ctx context.Context, client *http.HTTP, period time.Duration) (int64, error) {
 	timer := time.NewTimer(period)
+	defer timer.Stop()
 	ticker := time.NewTicker(100 * time.Millisecond)
+	defer ticker.Stop()
 	for {
 		select {
 		case <-timer.C:
