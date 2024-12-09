@@ -222,7 +222,9 @@ func (la *ShareAvailability) Prune(ctx context.Context, h *header.ExtendedHeader
 	}
 
 	// delete the sampling result
+	la.dsLk.Lock()
 	err = la.ds.Delete(ctx, key)
+	la.dsLk.Unlock()
 	if err != nil {
 		return fmt.Errorf("delete sampling result: %w", err)
 	}
@@ -235,5 +237,7 @@ func datastoreKeyForRoot(root *share.AxisRoots) datastore.Key {
 
 // Close flushes all queued writes to disk.
 func (la *ShareAvailability) Close(ctx context.Context) error {
+	la.dsLk.Lock()
+	defer la.dsLk.Unlock()
 	return la.ds.Flush(ctx)
 }
