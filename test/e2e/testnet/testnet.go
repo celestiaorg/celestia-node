@@ -60,7 +60,7 @@ func (nt *NodeTestnet) CreateBridgeNodes(ctx context.Context, count int, version
 	for i := 0; i < count; i++ {
 		err := nt.CreateBridgeNode(ctx, version, chainID, genesisHash, coreIP, bootstrapper, archival, resources)
 		if err != nil {
-			return nil
+			return err
 		}
 	}
 	return nil
