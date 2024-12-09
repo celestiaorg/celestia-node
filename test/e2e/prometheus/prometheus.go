@@ -21,6 +21,7 @@ const (
 	defaultScrapeInterval = 15 * time.Second
 	prometheusConfig      = "/etc/prometheus/prometheus.yml"
 	prometheusArgs        = "--config.file=" + prometheusConfig
+	fileOwner             = "0:0"
 )
 
 type ScrapeJob struct {
@@ -81,7 +82,7 @@ func (p *Prometheus) Start(ctx context.Context) error {
 		return err
 	}
 
-	if err := p.instance.Storage().AddFileBytes([]byte(p.generateConfig()), prometheusConfig, "0:0"); err != nil {
+	if err := p.instance.Storage().AddFileBytes([]byte(p.generateConfig()), prometheusConfig, fileOwner); err != nil {
 		return err
 	}
 
