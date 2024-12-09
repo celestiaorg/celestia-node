@@ -62,8 +62,9 @@ func storeEDS(
 	eds *rsmt2d.ExtendedDataSquare,
 	store *store.Store,
 	window time.Duration,
+	archival bool,
 ) error {
-	if !availability.IsWithinWindow(eh.Time(), window) {
+	if !archival && !availability.IsWithinWindow(eh.Time(), window) {
 		log.Debugw("skipping storage of historic block", "height", eh.Height())
 		return nil
 	}

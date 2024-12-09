@@ -10,6 +10,7 @@ import (
 	libhead "github.com/celestiaorg/go-header"
 
 	"github.com/celestiaorg/celestia-node/header"
+	"github.com/celestiaorg/celestia-node/share/availability"
 	"github.com/celestiaorg/celestia-node/share/shwap/p2p/shrex/shrexsub"
 )
 
@@ -83,7 +84,7 @@ func (w *worker) run(ctx context.Context, timeout time.Duration, resultCh chan<-
 			// sampling worker will resume upon restart
 			return
 		}
-		if errors.Is(err, errOutsideSamplingWindow) {
+		if errors.Is(err, availability.ErrOutsideSamplingWindow) {
 			skipped++
 			err = nil
 		}
@@ -119,7 +120,7 @@ func (w *worker) sample(ctx context.Context, timeout time.Duration, height uint6
 	defer cancel()
 
 	err = w.sampleFn(ctx, h)
-	if errors.Is(err, errOutsideSamplingWindow) {
+	if errors.Is(err, availability.ErrOutsideSamplingWindow) {
 		// if header is outside sampling window, do not log
 		// or record it.
 		return err
