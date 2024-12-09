@@ -363,3 +363,5 @@ replace (
 )
 
 replace github.com/ipfs/boxo => github.com/celestiaorg/boxo v0.0.0-20241118122411-70a650316c3b
+
+replace github.com/quic-go/quic-go => github.com/Wondertan/quic-go v0.0.0-20241209192138-e609ac185a52
