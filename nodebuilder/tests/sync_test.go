@@ -250,6 +250,7 @@ func TestSyncStartStopLightWithBridge(t *testing.T) {
 
 	light = sw.NewLightNode()
 	require.NoError(t, light.Start(ctx))
+	lightClient = getAdminClient(ctx, light, t)
 
 	// ensure when light node comes back up, it can sync the remainder of the chain it
 	// missed while sleeping
