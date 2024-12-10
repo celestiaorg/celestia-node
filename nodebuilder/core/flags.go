@@ -66,7 +66,7 @@ func ParseFlags(
 
 	enabled, err := cmd.Flags().GetBool(coreTLS)
 	if err != nil {
-		panic(err)
+		return err
 	}
 
 	if enabled {

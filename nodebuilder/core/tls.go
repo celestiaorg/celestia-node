@@ -10,19 +10,15 @@ import (
 	"github.com/celestiaorg/celestia-node/libs/utils"
 )
 
-const xtoken = "xtoken.json"
+const xtokenFileName = "xtoken.json"
 
 func EmptyTLSConfig() *tls.Config {
 	return &tls.Config{MinVersion: tls.VersionTLS12}
 }
 
-type AuthToken struct {
-	Token string `json:"x-token"`
-}
-
 // XToken retrieves the authentication token from a JSON file at the specified path.
 func XToken(xtokenPath string) (string, error) {
-	xtokenPath = filepath.Join(xtokenPath, xtoken)
+	xtokenPath = filepath.Join(xtokenPath, xtokenFileName)
 	exist := utils.Exists(xtokenPath)
 	if !exist {
 		return "", os.ErrNotExist
@@ -33,7 +29,10 @@ func XToken(xtokenPath string) (string, error) {
 		return "", err
 	}
 
-	var auth AuthToken
+	auth := struct {
+		Token string `json:"x-token"`
+	}{}
+
 	err = json.Unmarshal(token, &auth)
 	if err != nil {
 		return "", err
