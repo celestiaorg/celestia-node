@@ -17,6 +17,7 @@ import (
 	"github.com/celestiaorg/celestia-node/header"
 	"github.com/celestiaorg/celestia-node/libs/utils"
 	"github.com/celestiaorg/celestia-node/share"
+	"github.com/celestiaorg/celestia-node/share/availability"
 	"github.com/celestiaorg/celestia-node/share/ipld"
 	"github.com/celestiaorg/celestia-node/share/shwap"
 	"github.com/celestiaorg/celestia-node/share/shwap/p2p/bitswap"
@@ -36,6 +37,8 @@ type ShareAvailability struct {
 	getter shwap.Getter
 	bs     blockstore.Blockstore
 	params Parameters
+
+	storageWindow time.Duration
 
 	activeHeights *utils.Sessions
 	dsLk          sync.RWMutex
@@ -61,6 +64,7 @@ func NewShareAvailability(
 		getter:        getter,
 		bs:            bs,
 		params:        params,
+		storageWindow: availability.StorageWindow,
 		activeHeights: utils.NewSessions(),
 		ds:            autoDS,
 	}
@@ -74,6 +78,11 @@ func (la *ShareAvailability) SharesAvailable(ctx context.Context, header *header
 	// short-circuit if the given root is an empty data square
 	if share.DataHash(dah.Hash()).IsEmptyEDS() {
 		return nil
+	}
+
+	// short-circuit if outside sampling window
+	if !availability.IsWithinWindow(header.Time(), la.storageWindow) {
+		return availability.ErrOutsideSamplingWindow
 	}
 
 	// Prevent multiple sampling and pruning sessions for the same header height
