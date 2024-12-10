@@ -616,9 +616,8 @@ func (ca *CoreAccessor) startGRPCClient(ctx context.Context) error {
 	if ca.tls != nil {
 		opts = append(opts, grpc.WithTransportCredentials(credentials.NewTLS(ca.tls)))
 	}
-
-	if interceptor := authInterceptor(ca.xtoken); interceptor != nil {
-		opts = append(opts, grpc.WithUnaryInterceptor(interceptor))
+	if ca.xtoken != "" {
+		opts = append(opts, grpc.WithUnaryInterceptor(authInterceptor(ca.xtoken)))
 	}
 
 	client, err := grpc.NewClient(
@@ -698,9 +697,6 @@ func convertToSdkTxResponse(resp *user.TxResponse) *TxResponse {
 }
 
 func authInterceptor(xtoken string) grpc.UnaryClientInterceptor {
-	if xtoken == "" {
-		return nil
-	}
 	return func(
 		ctx context.Context,
 		method string,
