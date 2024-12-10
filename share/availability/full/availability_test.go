@@ -114,8 +114,8 @@ func TestSharesAvailable_OutsideSamplingWindow_NonArchival(t *testing.T) {
 	suite := headertest.NewTestSuite(t, 3, time.Nanosecond)
 	headers := suite.GenExtendedHeaders(10)
 
-	storageWindow := time.Nanosecond // make all headers outside sampling window
-	avail := NewShareAvailability(store, getter, WithStorageWindow(storageWindow))
+	avail := NewShareAvailability(store, getter)
+	avail.storageWindow = time.Nanosecond // make all headers outside sampling window
 
 	for _, h := range headers {
 		err := avail.SharesAvailable(ctx, h)
@@ -140,8 +140,8 @@ func TestSharesAvailable_OutsideSamplingWindow_Archival(t *testing.T) {
 
 	getter.EXPECT().GetEDS(gomock.Any(), gomock.Any()).Times(1).Return(eds, nil)
 
-	storageWindow := time.Nanosecond // make all headers outside sampling window
-	avail := NewShareAvailability(store, getter, WithStorageWindow(storageWindow), WithArchivalMode())
+	avail := NewShareAvailability(store, getter, WithArchivalMode())
+	avail.storageWindow = time.Nanosecond // make all headers outside sampling window
 
 	err = avail.SharesAvailable(ctx, eh)
 	require.NoError(t, err)

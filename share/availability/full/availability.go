@@ -43,7 +43,7 @@ func NewShareAvailability(
 	return &ShareAvailability{
 		store:         store,
 		getter:        getter,
-		storageWindow: p.storageWindow,
+		storageWindow: availability.StorageWindow,
 		archival:      p.archival,
 	}
 }
