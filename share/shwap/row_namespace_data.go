@@ -89,16 +89,13 @@ func RowNamespaceDataFromShares(
 		}, nil
 	}
 
-	namespacedShares := make([]libshare.Share, count)
-	copy(namespacedShares, shares[from:from+count])
-
 	proof, err := tree.ProveRange(from, from+count)
 	if err != nil {
 		return RowNamespaceData{}, fmt.Errorf("failed to generate proof for row %d: %w", rowIndex, err)
 	}
 
 	return RowNamespaceData{
-		Shares: namespacedShares,
+		Shares: shares[from : from+count],
 		Proof:  &proof,
 	}, nil
 }
