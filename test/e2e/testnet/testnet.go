@@ -138,7 +138,7 @@ func (nt *NodeTestnet) SetupDA(ctx context.Context) error {
 	return nil
 }
 
-func (nt *NodeTestnet) WaitToSyncDANodes(ctx context.Context) error {
+func (nt *NodeTestnet) WaitToSyncDANodes(_ context.Context) error {
 	// TODO: not needed right now, but maybe later
 	return nil
 }

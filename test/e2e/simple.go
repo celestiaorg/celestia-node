@@ -88,13 +88,23 @@ func E2ESimple(logger *log.Logger) error {
 	coreIP := tn.Node(0).Instance.Network().HostName()
 
 	// Creating bootstrapper nodes
-	tn.CreateBridgeNodes(ctx, bootstrapperBridgeCount, nodeVersion, chainID, genesisHash, coreIP, true, true, nodeTestnet.DefaultBridgeResources)
-	tn.CreateFullNodes(ctx, bootstrapperFullCount, nodeVersion, chainID, genesisHash, coreIP, true, true, nodeTestnet.DefaultFullResources)
+	testnet.NoError("failed to create bootstrapper bridge nodes",
+		tn.CreateBridgeNodes(ctx, bootstrapperBridgeCount, nodeVersion, chainID, genesisHash, coreIP, true, true, nodeTestnet.DefaultBridgeResources),
+	)
+	testnet.NoError("failed to create bootstrapper full nodes",
+		tn.CreateFullNodes(ctx, bootstrapperFullCount, nodeVersion, chainID, genesisHash, coreIP, true, true, nodeTestnet.DefaultFullResources),
+	)
 
 	// Creating other nodes
-	tn.CreateBridgeNodes(ctx, bridgeCount, nodeVersion, chainID, genesisHash, coreIP, false, true, nodeTestnet.DefaultBridgeResources)
-	tn.CreateFullNodes(ctx, fullCount, nodeVersion, chainID, genesisHash, coreIP, false, true, nodeTestnet.DefaultFullResources)
-	tn.CreateLightNodes(ctx, lightCount, nodeVersion, chainID, genesisHash, coreIP, nodeTestnet.DefaultLightResources)
+	testnet.NoError("failed to create bridge nodes",
+		tn.CreateBridgeNodes(ctx, bridgeCount, nodeVersion, chainID, genesisHash, coreIP, false, true, nodeTestnet.DefaultBridgeResources),
+	)
+	testnet.NoError("failed to create full nodes",
+		tn.CreateFullNodes(ctx, fullCount, nodeVersion, chainID, genesisHash, coreIP, false, true, nodeTestnet.DefaultFullResources),
+	)
+	testnet.NoError("failed to create light nodes",
+		tn.CreateLightNodes(ctx, lightCount, nodeVersion, chainID, genesisHash, coreIP, nodeTestnet.DefaultLightResources),
+	)
 
 	// Enabling Prometheus
 	testnet.NoError("failed to enable prometheus", tn.EnablePrometheus(ctx))
