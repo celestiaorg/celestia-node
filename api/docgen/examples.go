@@ -64,7 +64,7 @@ var ExampleValues = map[reflect.Type]interface{}{
 	reflect.TypeOf(float64(42)):              float64(42),
 	reflect.TypeOf(true):                     true,
 	reflect.TypeOf([]byte{}):                 []byte("byte array"),
-	reflect.TypeOf(time.Duration(0)):         time.Duration(time.Second),
+	reflect.TypeOf(time.Duration(0)):         time.Second,
 	reflect.TypeOf(node.Full):                node.Full,
 	reflect.TypeOf(auth.Permission("admin")): auth.Permission("admin"),
 	reflect.TypeOf(byzantine.BadEncoding):    byzantine.BadEncoding,
