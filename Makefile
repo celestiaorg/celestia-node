@@ -21,6 +21,9 @@ ifeq ($(SHORT),true)
 else
 	INTEGRATION_RUN_LENGTH =
 endif
+
+include celestia-node.mk
+
 ## help: Get more info on make commands.
 help: Makefile
 	@echo " Choose a command run in "$(PROJECTNAME)":"
