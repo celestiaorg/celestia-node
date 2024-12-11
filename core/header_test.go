@@ -26,7 +26,6 @@ func TestMakeExtendedHeaderForEmptyBlock(t *testing.T) {
 	client := newTestClient(t, host, port)
 	fetcher, err := NewBlockFetcher(client)
 	require.NoError(t, err)
-	require.NoError(t, fetcher.Start(ctx))
 	sub, err := fetcher.SubscribeNewBlockEvent(ctx)
 	require.NoError(t, err)
 	<-sub

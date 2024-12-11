@@ -33,7 +33,6 @@ var (
 
 type BlockFetcher struct {
 	client coregrpc.BlockAPIClient
-	conn   *grpc.ClientConn
 
 	doneCh               chan struct{}
 	cancel               context.CancelFunc
@@ -43,13 +42,8 @@ type BlockFetcher struct {
 // NewBlockFetcher returns a new `BlockFetcher`.
 func NewBlockFetcher(conn *grpc.ClientConn) (*BlockFetcher, error) {
 	return &BlockFetcher{
-		conn: conn,
+		client: coregrpc.NewBlockAPIClient(conn),
 	}, nil
-}
-
-func (f *BlockFetcher) Start(context.Context) error {
-	f.client = coregrpc.NewBlockAPIClient(f.conn)
-	return nil
 }
 
 // Stop stops the block fetcher.

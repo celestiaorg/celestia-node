@@ -193,7 +193,6 @@ func (s *Swamp) setupGenesis() {
 	require.NoError(s.t, err)
 	fetcher, err := core.NewBlockFetcher(con)
 	require.NoError(s.t, err)
-	require.NoError(s.t, fetcher.Start(ctx))
 
 	ex, err := core.NewExchange(
 		fetcher,

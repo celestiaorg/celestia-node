@@ -98,7 +98,6 @@ func (cl *Listener) Start(context.Context) error {
 	ctx, cancel := context.WithCancel(context.Background())
 	cl.cancel = cancel
 	cl.closed = make(chan struct{})
-	_ = cl.fetcher.Start(ctx)
 
 	sub, err := cl.fetcher.SubscribeNewBlockEvent(ctx)
 	if err != nil {
