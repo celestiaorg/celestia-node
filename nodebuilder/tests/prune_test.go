@@ -1,5 +1,3 @@
-//go:build pruning || integration
-
 package tests
 
 import (
@@ -41,11 +39,6 @@ import (
 // spin up 3 pruning FNs, connect
 // spin up 1 LN that syncs historic blobs
 func TestArchivalBlobSync(t *testing.T) {
-	if testing.Short() {
-		// TODO: https://github.com/celestiaorg/celestia-node/issues/3636
-		t.Skip()
-	}
-
 	const (
 		blocks = 50
 		btime  = time.Millisecond * 300
@@ -181,7 +174,7 @@ func TestConvertFromPrunedToArchival(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second*30)
 	t.Cleanup(cancel)
 
-	// Light nodes are allowed to disable pruning in wish
+	// Light nodes have pruning enabled by default
 	for _, nt := range []node.Type{node.Bridge, node.Full} {
 		pruningCfg := nodebuilder.DefaultConfig(nt)
 		pruningCfg.Pruner.EnableService = true

@@ -101,3 +101,20 @@ func (fa *ShareAvailability) SharesAvailable(ctx context.Context, header *header
 	}
 	return nil
 }
+
+func (fa *ShareAvailability) Prune(ctx context.Context, eh *header.ExtendedHeader) error {
+	if fa.archival {
+		log.Debugf("trimming Q4 from block %s at height %d", eh.DAH.String(), eh.Height())
+		return fa.store.RemoveQ4(ctx, eh.Height(), eh.DAH.Hash())
+	}
+
+	log.Debugf("removing block %s at height %d", eh.DAH.String(), eh.Height())
+	return fa.store.RemoveODSQ4(ctx, eh.Height(), eh.DAH.Hash())
+}
+
+func (fa *ShareAvailability) Kind() string {
+	if fa.archival {
+		return "archival"
+	}
+	return "full"
+}

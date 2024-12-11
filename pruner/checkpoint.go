@@ -27,21 +27,44 @@ var (
 // checkpoint contains information related to the state of the
 // pruner service that is periodically persisted to disk.
 type checkpoint struct {
+	PrunerKind       string              `json:"pruner_kind"`
 	LastPrunedHeight uint64              `json:"last_pruned_height"`
 	FailedHeaders    map[uint64]struct{} `json:"failed"`
 }
 
-// DetectPreviousRun checks if the pruner has run before by checking for the existence of a
-// checkpoint.
-func DetectPreviousRun(ctx context.Context, ds datastore.Datastore) error {
-	_, err := getCheckpoint(ctx, namespace.Wrap(ds, storePrefix))
-	if errors.Is(err, errCheckpointNotFound) {
-		return nil
+func newCheckpoint(prunerKind string) *checkpoint {
+	return &checkpoint{
+		PrunerKind:       prunerKind,
+		LastPrunedHeight: 1,
+		FailedHeaders:    map[uint64]struct{}{},
 	}
+}
+
+// DetectPreviousRun ensures that a node that has been run with "full" pruning
+// mode previously cannot revert back to an "archival" one. This check should
+// only be performed when a node is either a Full or Bridge node.
+func DetectPreviousRun(ctx context.Context, ds datastore.Datastore, expectedKind string) error {
+	wrappedDs := namespace.Wrap(ds, storePrefix)
+
+	cp, err := getCheckpoint(ctx, wrappedDs)
 	if err != nil {
+		if errors.Is(err, errCheckpointNotFound) {
+			return nil
+		}
 		return fmt.Errorf("failed to load checkpoint: %w", err)
 	}
-	return ErrDisallowRevertToArchival
+
+	if cp.PrunerKind != expectedKind {
+		// do not allow reversion back to archival mode
+		if cp.PrunerKind == "full" {
+			return ErrDisallowRevertToArchival
+		}
+		// allow conversion from archival to full by overriding previous checkpoint
+		log.Infow("overriding checkpoint to enable full pruning mode...")
+		cp = newCheckpoint(expectedKind)
+		return storeCheckpoint(ctx, wrappedDs, cp)
+	}
+	return nil
 }
 
 // storeCheckpoint persists the checkpoint to disk.
@@ -78,10 +101,7 @@ func (s *Service) loadCheckpoint(ctx context.Context) error {
 	cp, err := getCheckpoint(ctx, s.ds)
 	if err != nil {
 		if errors.Is(err, errCheckpointNotFound) {
-			s.checkpoint = &checkpoint{
-				LastPrunedHeight: 1,
-				FailedHeaders:    map[uint64]struct{}{},
-			}
+			s.checkpoint = newCheckpoint(s.pruner.Kind())
 			return storeCheckpoint(ctx, s.ds, s.checkpoint)
 		}
 		return err

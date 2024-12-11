@@ -240,6 +240,10 @@ func (la *ShareAvailability) Prune(ctx context.Context, h *header.ExtendedHeader
 	return nil
 }
 
+func (la *ShareAvailability) Kind() string {
+	return "light"
+}
+
 func datastoreKeyForRoot(root *share.AxisRoots) datastore.Key {
 	return datastore.NewKey(root.String())
 }

@@ -318,6 +318,10 @@ func (mp *mockPruner) Prune(_ context.Context, h *header.ExtendedHeader) error {
 	return nil
 }
 
+func (mp *mockPruner) Kind() string {
+	return "mock"
+}
+
 // TODO @renaynay @distractedm1nd: Deduplicate via headertest utility.
 // https://github.com/celestiaorg/celestia-node/issues/3278.
 type SpacedHeaderGenerator struct {

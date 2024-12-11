@@ -10,4 +10,5 @@ import (
 // from the node's datastore.
 type Pruner interface {
 	Prune(context.Context, *header.ExtendedHeader) error
+	Kind() string
 }
