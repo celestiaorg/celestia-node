@@ -13,7 +13,7 @@
 
 This ADR is intended to describe p2p full node discovery in celestia node.
 P2P discovery helps light and full nodes to find other full nodes on the network at the specified topic(`full`).
-As soon as a full node is found and connection is established with it, then it(full node) will be added to a set of peers(limitedSet).
+As soon as a full node is found and connection is established with it, then it (full node) will be added to a set of peers (limitedSet).
 
 ## Decision
 
