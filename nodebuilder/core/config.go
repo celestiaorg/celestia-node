@@ -17,6 +17,13 @@ var MetricsEnabled bool
 type Config struct {
 	IP   string
 	Port string
+	// TLSEnabled specifies whether the connection is secure or not.
+	// PLEASE NOTE: it should be set to true in order to handle XTokenPath.
+	TLSEnabled bool
+	// XTokenPath specifies the path to the directory with JSON file containing the X-Token for gRPC authentication.
+	// The JSON file should have a key-value pair where the key is "x-token" and the value is the authentication token.
+	// If left empty, the client will not include the X-Token in its requests.
+	XTokenPath string
 }
 
 // DefaultConfig returns default configuration for managing the
