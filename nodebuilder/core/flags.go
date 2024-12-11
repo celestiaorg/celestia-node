@@ -8,8 +8,10 @@ import (
 )
 
 var (
-	coreFlag     = "core.ip"
-	coreGRPCFlag = "core.grpc.port"
+	coreFlag           = "core.ip"
+	coreGRPCFlag       = "core.grpc.port"
+	coreTLS            = "core.tls"
+	coreXTokenPathFlag = "core.xtoken.path" //nolint:gosec
 )
 
 // Flags gives a set of hardcoded Core flags.
@@ -27,6 +29,19 @@ func Flags() *flag.FlagSet {
 		coreGRPCFlag,
 		DefaultPort,
 		"Set a custom gRPC port for the core node connection. The --core.ip flag must also be provided.",
+	)
+	flags.Bool(
+		coreTLS,
+		false,
+		"Specifies whether TLS is enabled or not. Default: false",
+	)
+	flags.String(
+		coreXTokenPathFlag,
+		"",
+		"specifies the file path to the JSON file containing the X-Token for gRPC authentication. "+
+			"The JSON file should have a key-value pair where the key is 'x-token' and the value is the authentication token. "+
+			"NOTE: the path is parsed only if coreTLS enabled."+
+			"If left empty, the client will not include the X-Token in its requests.",
 	)
 	return flags
 }
@@ -49,6 +64,18 @@ func ParseFlags(
 		cfg.Port = grpc
 	}
 
+	enabled, err := cmd.Flags().GetBool(coreTLS)
+	if err != nil {
+		return err
+	}
+
+	if enabled {
+		cfg.TLSEnabled = true
+		if cmd.Flag(coreXTokenPathFlag).Changed {
+			path := cmd.Flag(coreXTokenPathFlag).Value.String()
+			cfg.XTokenPath = path
+		}
+	}
 	cfg.IP = coreIP
 	return cfg.Validate()
 }
