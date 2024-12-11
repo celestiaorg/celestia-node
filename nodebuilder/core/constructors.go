@@ -36,6 +36,7 @@ func grpcClient(lc fx.Lifecycle, cfg Config) (*grpc.ClientConn, error) {
 			return nil, err
 		}
 		opts = append(opts, grpc.WithUnaryInterceptor(authInterceptor(xToken)))
+		opts = append(opts, grpc.WithStreamInterceptor(authStreamInterceptor(xToken)))
 	}
 
 	endpoint := net.JoinHostPort(cfg.IP, cfg.Port)
@@ -66,6 +67,20 @@ func authInterceptor(xtoken string) grpc.UnaryClientInterceptor {
 	) error {
 		ctx = metadata.AppendToOutgoingContext(ctx, "x-token", xtoken)
 		return invoker(ctx, method, req, reply, cc, opts...)
+	}
+}
+
+func authStreamInterceptor(xtoken string) grpc.StreamClientInterceptor {
+	return func(
+		ctx context.Context,
+		desc *grpc.StreamDesc,
+		cc *grpc.ClientConn,
+		method string,
+		streamer grpc.Streamer,
+		opts ...grpc.CallOption,
+	) (grpc.ClientStream, error) {
+		ctx = metadata.AppendToOutgoingContext(ctx, "x-token", xtoken)
+		return streamer(ctx, desc, cc, method, opts...)
 	}
 }
 
