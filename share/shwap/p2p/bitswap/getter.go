@@ -134,6 +134,31 @@ func (g *Getter) GetSamples(
 	return smpls, nil
 }
 
+func (g *Getter) GetRow(ctx context.Context, hdr *header.ExtendedHeader, rowIdx int) (shwap.Row, error) {
+	ctx, span := tracer.Start(ctx, "get-eds")
+	defer span.End()
+	blk, err := NewEmptyRowBlock(hdr.Height(), rowIdx, len(hdr.DAH.RowRoots))
+	if err != nil {
+		span.RecordError(err)
+		span.SetStatus(codes.Error, "NewEmptyRowBlock")
+		return shwap.Row{}, err
+	}
+
+	isArchival := g.isArchival(hdr)
+	span.SetAttributes(attribute.Bool("is_archival", isArchival))
+
+	ses, release := g.getSession(isArchival)
+	defer release()
+
+	err = Fetch(ctx, g.exchange, hdr.DAH, []Block{blk}, WithFetcher(ses))
+	if err != nil {
+		span.RecordError(err)
+		span.SetStatus(codes.Error, "Fetch")
+		return shwap.Row{}, err
+	}
+	return blk.Container, nil
+}
+
 // GetEDS uses [RowBlock] and [Fetch] to get half of the first EDS quadrant(ODS) and
 // recomputes the whole EDS from it.
 // We fetch the ODS or Q1 to ensure better compatibility with archival nodes that only

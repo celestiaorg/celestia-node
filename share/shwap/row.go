@@ -2,6 +2,7 @@ package shwap
 
 import (
 	"bytes"
+	"encoding/json"
 	"fmt"
 
 	"github.com/celestiaorg/celestia-app/v3/pkg/wrapper"
@@ -168,6 +169,33 @@ func (r *Row) verifyInclusion(roots *share.AxisRoots, idx int) error {
 	if !bytes.Equal(roots.RowRoots[idx], root) {
 		return fmt.Errorf("invalid root hash: %X != %X", root, roots.RowRoots[idx])
 	}
+	return nil
+}
+
+// MarshalJSON encodes row to the json encoded bytes.
+func (r Row) MarshalJSON() ([]byte, error) {
+	jsonRow := struct {
+		Shares []libshare.Share `json:"shares"`
+		Side   RowSide          `json:"side"`
+	}{
+		Shares: r.halfShares,
+		Side:   r.side,
+	}
+	return json.Marshal(&jsonRow)
+}
+
+// UnmarshalJSON decodes json bytes to the row.
+func (r *Row) UnmarshalJSON(data []byte) error {
+	jsonRow := struct {
+		Shares []libshare.Share `json:"shares"`
+		Side   RowSide          `json:"side"`
+	}{}
+	err := json.Unmarshal(data, &jsonRow)
+	if err != nil {
+		return err
+	}
+	r.halfShares = jsonRow.Shares
+	r.side = jsonRow.Side
 	return nil
 }
 

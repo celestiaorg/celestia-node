@@ -39,6 +39,8 @@ type Getter interface {
 	// GetEDS gets the full EDS identified by the given extended header.
 	GetEDS(context.Context, *header.ExtendedHeader) (*rsmt2d.ExtendedDataSquare, error)
 
+	// GetRow gets all shares from the specified row.
+	GetRow(ctx context.Context, header *header.ExtendedHeader, rowIdx int) (Row, error)
 	// GetNamespaceData gets all shares from an EDS within the given namespace.
 	// Shares are returned in a row-by-row order if the namespace spans multiple rows.
 	// Inclusion of returned data could be verified using Verify method on NamespacedShares.
