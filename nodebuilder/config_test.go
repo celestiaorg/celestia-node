@@ -61,8 +61,7 @@ func TestUpdateConfig(t *testing.T) {
 var outdatedConfig = `
 [Core]
   IP = "0.0.0.0"
-  RPCPort = "0"
-  GRPCPort = "0"
+  Port = "0"
 
 [State]
   DefaultKeyName = "thisshouldnthavechanged"

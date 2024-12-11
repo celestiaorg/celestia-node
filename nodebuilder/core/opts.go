@@ -8,8 +8,8 @@ import (
 	"github.com/celestiaorg/celestia-node/libs/fxutil"
 )
 
-// WithClient sets custom client for core process
-func WithClient(client core.Client) fx.Option {
+// WithClient sets a custom client for core process
+func WithClient(client *core.Client) fx.Option {
 	return fxutil.ReplaceAs(client, new(core.Client))
 }
 
