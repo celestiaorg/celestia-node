@@ -1,9 +1,86 @@
 package core
 
 import (
-	"github.com/celestiaorg/celestia-node/core"
+	"context"
+	"crypto/tls"
+	"encoding/json"
+	"errors"
+	"net"
+	"os"
+	"path/filepath"
+
+	"google.golang.org/grpc"
+	"google.golang.org/grpc/credentials"
+	"google.golang.org/grpc/credentials/insecure"
+	"google.golang.org/grpc/metadata"
+
+	"github.com/celestiaorg/celestia-node/libs/utils"
 )
 
-func remote(cfg Config) *core.Client {
-	return core.NewClient(cfg.IP, cfg.Port)
+const xtokenFileName = "xtoken.json"
+
+func grpcClient(ctx context.Context, cfg Config) (*grpc.ClientConn, error) {
+	var opts []grpc.DialOption
+	if cfg.TLSEnabled {
+		opts = append(opts, grpc.WithTransportCredentials(
+			credentials.NewTLS(&tls.Config{MinVersion: tls.VersionTLS12})),
+		)
+	} else {
+		opts = append(opts, grpc.WithTransportCredentials(insecure.NewCredentials()))
+	}
+	if cfg.XTokenPath != "" {
+		xToken, err := parseTokenPath(cfg.XTokenPath)
+		if err != nil {
+			return nil, err
+		}
+		opts = append(opts, grpc.WithUnaryInterceptor(authInterceptor(xToken)))
+	}
+
+	endpoint := net.JoinHostPort(cfg.IP, cfg.Port)
+	conn, err := NewGRPCClient(ctx, endpoint, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return conn, nil
+}
+
+func authInterceptor(xtoken string) grpc.UnaryClientInterceptor {
+	return func(
+		ctx context.Context,
+		method string,
+		req, reply interface{},
+		cc *grpc.ClientConn,
+		invoker grpc.UnaryInvoker,
+		opts ...grpc.CallOption,
+	) error {
+		ctx = metadata.AppendToOutgoingContext(ctx, "x-token", xtoken)
+		return invoker(ctx, method, req, reply, cc, opts...)
+	}
+}
+
+// parseTokenPath retrieves the authentication token from a JSON file at the specified path.
+func parseTokenPath(xtokenPath string) (string, error) {
+	xtokenPath = filepath.Join(xtokenPath, xtokenFileName)
+	exist := utils.Exists(xtokenPath)
+	if !exist {
+		return "", os.ErrNotExist
+	}
+
+	token, err := os.ReadFile(xtokenPath)
+	if err != nil {
+		return "", err
+	}
+
+	auth := struct {
+		Token string `json:"x-token"`
+	}{}
+
+	err = json.Unmarshal(token, &auth)
+	if err != nil {
+		return "", err
+	}
+	if auth.Token == "" {
+		return "", errors.New("x-token is empty. Please setup a token or cleanup xtokenPath")
+	}
+	return auth.Token, nil
 }
