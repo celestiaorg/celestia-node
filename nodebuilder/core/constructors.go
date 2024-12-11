@@ -9,7 +9,9 @@ import (
 	"os"
 	"path/filepath"
 
+	"go.uber.org/fx"
 	"google.golang.org/grpc"
+	"google.golang.org/grpc/connectivity"
 	"google.golang.org/grpc/credentials"
 	"google.golang.org/grpc/credentials/insecure"
 	"google.golang.org/grpc/metadata"
@@ -19,7 +21,7 @@ import (
 
 const xtokenFileName = "xtoken.json"
 
-func grpcClient(ctx context.Context, cfg Config) (*grpc.ClientConn, error) {
+func grpcClient(lc fx.Lifecycle, cfg Config) (*grpc.ClientConn, error) {
 	var opts []grpc.DialOption
 	if cfg.TLSEnabled {
 		opts = append(opts, grpc.WithTransportCredentials(
@@ -37,10 +39,19 @@ func grpcClient(ctx context.Context, cfg Config) (*grpc.ClientConn, error) {
 	}
 
 	endpoint := net.JoinHostPort(cfg.IP, cfg.Port)
-	conn, err := NewGRPCClient(ctx, endpoint, opts...)
+	conn, err := NewGRPCClient(endpoint, opts...)
 	if err != nil {
 		return nil, err
 	}
+	lc.Append(fx.Hook{
+		OnStart: func(ctx context.Context) error {
+			conn.Connect()
+			if !conn.WaitForStateChange(ctx, connectivity.Ready) {
+				return errors.New("couldn't connect to core endpoint")
+			}
+			return nil
+		},
+	})
 	return conn, nil
 }
 

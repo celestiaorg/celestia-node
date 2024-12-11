@@ -1,7 +1,6 @@
 package nodebuilder
 
 import (
-	"context"
 	"net"
 	"testing"
 
@@ -80,11 +79,11 @@ func TestNodeWithConfig(t *testing.T, tp node.Type, cfg *Config, opts ...fx.Opti
 		_, _, err := net.SplitHostPort(core.StartTestNode(t).GRPCClient.Target())
 		require.NoError(t, err)
 		con, err := coremodule.NewGRPCClient(
-			context.Background(),
 			core.StartTestNode(t).GRPCClient.Target(),
 			grpc.WithTransportCredentials(insecure.NewCredentials()),
 		)
 		require.NoError(t, err)
+		con.Connect()
 		opts = append(opts,
 			fxutil.ReplaceAs(con, new(grpc.ClientConn)),
 		)
