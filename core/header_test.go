@@ -23,11 +23,9 @@ func TestMakeExtendedHeaderForEmptyBlock(t *testing.T) {
 
 	host, port, err := net.SplitHostPort(StartTestNode(t).GRPCClient.Target())
 	require.NoError(t, err)
-	client := NewClient(host, port)
-	require.NoError(t, client.Start())
+	client := newTestClient(t, host, port)
 	fetcher, err := NewBlockFetcher(client)
 	require.NoError(t, err)
-
 	sub, err := fetcher.SubscribeNewBlockEvent(ctx)
 	require.NoError(t, err)
 	<-sub

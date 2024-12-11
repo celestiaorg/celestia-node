@@ -23,11 +23,9 @@ var log = logging.Logger("module/state")
 func ConstructModule(tp node.Type, cfg *Config, coreCfg *core.Config) fx.Option {
 	// sanitize config values before constructing module
 	cfgErr := cfg.Validate()
-	opts := make([]state.Option, 0)
 	baseComponents := fx.Options(
 		fx.Supply(*cfg),
 		fx.Error(cfgErr),
-		fx.Supply(opts),
 		fx.Provide(func(ks keystore.Keystore) (keyring.Keyring, AccountName, error) {
 			return Keyring(*cfg, ks)
 		}),

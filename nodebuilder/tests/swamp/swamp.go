@@ -18,6 +18,8 @@ import (
 	"github.com/tendermint/tendermint/types"
 	"go.uber.org/fx"
 	"golang.org/x/exp/maps"
+	"google.golang.org/grpc"
+	"google.golang.org/grpc/credentials/insecure"
 
 	"github.com/celestiaorg/celestia-app/v3/test/util/testnode"
 	libhead "github.com/celestiaorg/go-header"
@@ -181,9 +183,15 @@ func (s *Swamp) setupGenesis() {
 
 	host, port, err := net.SplitHostPort(s.ClientContext.GRPCClient.Target())
 	require.NoError(s.t, err)
-	client := core.NewClient(host, port)
-	require.NoError(s.t, client.Start())
-	fetcher, err := core.NewBlockFetcher(client)
+	addr := net.JoinHostPort(host, port)
+	con, err := coremodule.NewGRPCClient(
+		addr,
+		grpc.WithTransportCredentials(insecure.NewCredentials()),
+	)
+	require.NoError(s.t, err)
+	con.Connect()
+	require.NoError(s.t, err)
+	fetcher, err := core.NewBlockFetcher(con)
 	require.NoError(s.t, err)
 
 	ex, err := core.NewExchange(
@@ -292,12 +300,15 @@ func (s *Swamp) NewNodeWithStore(
 		if err != nil {
 			return nil, err
 		}
-		client := core.NewClient(host, port)
-		if err := client.Start(); err != nil {
-			return nil, err
-		}
+		addr := net.JoinHostPort(host, port)
+		con, err := coremodule.NewGRPCClient(
+			addr,
+			grpc.WithTransportCredentials(insecure.NewCredentials()),
+		)
+		require.NoError(s.t, err)
+		con.Connect()
 		options = append(options,
-			coremodule.WithClient(client),
+			coremodule.WithConnection(con),
 		)
 	default:
 	}
