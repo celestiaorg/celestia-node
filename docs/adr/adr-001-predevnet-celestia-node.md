@@ -20,7 +20,7 @@ This ADR describes a basic pre-devnet design for a "Celestia Node" that was deci
 
 The goal of this design is to get a basic structure of "Celestia Node" interoperating with a "Celestia Core" consensus node by November 2021 (devnet).
 
-After basic interoperability on devnet, there will be an effort to merge consensus functionality into the "Celestia Node" design as a modulor service that can be added on top of the basic functions of a "Celestia Node".
+After basic interoperability on devnet, there will be an effort to merge consensus functionality into the "Celestia Node" design as a modular service that can be added on top of the basic functions of a "Celestia Node".
 
 ## Decision
 
