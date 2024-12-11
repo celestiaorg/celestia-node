@@ -428,7 +428,7 @@ func TestPruneWithCancelledContext(t *testing.T) {
 	avail.Close(ctx)
 
 	preDeleteCount := countKeys(ctx, t, clientBs)
-	require.EqualValues(t, sampleAmount, preDeleteCount)
+	require.EqualValues(t, sampleAmount, uint(preDeleteCount))
 
 	// prune the samples
 	err = avail.Prune(ctx, h)
