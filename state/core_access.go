@@ -136,29 +136,8 @@ func (ca *CoreAccessor) Start(ctx context.Context) error {
 }
 
 func (ca *CoreAccessor) Stop(context.Context) error {
-	if ca.cancel == nil {
-		log.Warn("core accessor already stopped")
-		return nil
-	}
-	if ca.coreConn == nil {
-		log.Warn("no connection found to close")
-		return nil
-	}
-	defer ca.cancelCtx()
-
-	// close out core connection
-	err := ca.coreConn.Close()
-	if err != nil {
-		return err
-	}
-
-	ca.coreConn = nil
-	return nil
-}
-
-func (ca *CoreAccessor) cancelCtx() {
 	ca.cancel()
-	ca.cancel = nil
+	return nil
 }
 
 // SubmitPayForBlob builds, signs, and synchronously submits a MsgPayForBlob with additional

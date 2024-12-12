@@ -52,6 +52,9 @@ func grpcClient(lc fx.Lifecycle, cfg Config) (*grpc.ClientConn, error) {
 			}
 			return nil
 		},
+		OnStop: func(context.Context) error {
+			return conn.Close()
+		},
 	})
 	return conn, nil
 }
