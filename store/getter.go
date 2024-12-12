@@ -77,11 +77,11 @@ func (g *Getter) GetRow(ctx context.Context, h *header.ExtendedHeader, rowIdx in
 		if errors.Is(err, ErrNotFound) {
 			return shwap.Row{}, shwap.ErrNotFound
 		}
-		return shwap.Row{}, fmt.Errorf("get accessor from store:%w", err)
+		return shwap.Row{}, fmt.Errorf("getting accessor from store: %w", err)
 	}
 	axisHalf, err := acc.AxisHalf(ctx, rsmt2d.Row, rowIdx)
 	if err != nil {
-		return shwap.Row{}, fmt.Errorf("get axis half from accessor:%w", err)
+		return shwap.Row{}, fmt.Errorf("getting axis half from accessor: %w", err)
 	}
 	return axisHalf.ToRow(), nil
 }
