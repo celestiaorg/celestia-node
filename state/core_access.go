@@ -102,9 +102,6 @@ func NewCoreAccessor(
 }
 
 func (ca *CoreAccessor) Start(ctx context.Context) error {
-	if ca.coreConn == nil {
-		return fmt.Errorf("core-access: not connected to core endpoint")
-	}
 	ca.ctx, ca.cancel = context.WithCancel(context.Background())
 	// create the staking query client
 	ca.stakingCli = stakingtypes.NewQueryClient(ca.coreConn)

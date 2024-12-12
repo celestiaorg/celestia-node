@@ -54,6 +54,9 @@ func (s *IntegrationTestSuite) SetupSuite() {
 
 	accessor, err := NewCoreAccessor(s.cctx.Keyring, accountName, localHeader{s.cctx.Client}, nil, "")
 	require.NoError(s.T(), err)
+	ctx, cancel := context.WithCancel(context.Background())
+	accessor.ctx = ctx
+	accessor.cancel = cancel
 	setClients(accessor, s.cctx.GRPCClient)
 	s.accessor = accessor
 
