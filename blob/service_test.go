@@ -933,7 +933,7 @@ func createService(ctx context.Context, t testing.TB, shares []libshare.Share) *
 		return headerStore.GetByHeight(ctx, height)
 	}
 	fn2 := func(ctx context.Context) (<-chan *header.ExtendedHeader, error) {
-		return nil, fmt.Errorf("not implemented")
+		return nil, errors.New("not implemented")
 	}
 	return NewService(nil, shareGetter, fn, fn2)
 }

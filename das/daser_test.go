@@ -2,6 +2,7 @@ package das
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"testing"
 	"time"
@@ -322,7 +323,7 @@ func (m *mockGetter) generateHeaders(t *testing.T, startHeight, endHeight int) {
 
 func (m *mockGetter) Head(
 	context.Context,
-	...libhead.HeadOption[*header.ExtendedHeader],
+...libhead.HeadOption[*header.ExtendedHeader],
 ) (*header.ExtendedHeader, error) {
 	return m.headers[m.head], nil
 }
@@ -348,7 +349,7 @@ func (m *mockGetter) GetByHeight(_ context.Context, height uint64) (*header.Exte
 	if h, ok := m.headers[int64(height)]; ok {
 		return h, nil
 	}
-	return nil, fmt.Errorf("header not found")
+	return nil, errors.New("header not found")
 }
 
 type benchGetterStub struct {
@@ -370,7 +371,7 @@ type getterStub struct{}
 
 func (m getterStub) Head(
 	context.Context,
-	...libhead.HeadOption[*header.ExtendedHeader],
+...libhead.HeadOption[*header.ExtendedHeader],
 ) (*header.ExtendedHeader, error) {
 	return &header.ExtendedHeader{RawHeader: header.RawHeader{Height: 1}}, nil
 }
