@@ -83,7 +83,6 @@ func TestNodeWithConfig(t *testing.T, tp node.Type, cfg *Config, opts ...fx.Opti
 			grpc.WithTransportCredentials(insecure.NewCredentials()),
 		)
 		require.NoError(t, err)
-		con.Connect()
 		opts = append(opts,
 			fxutil.ReplaceAs(con, new(grpc.ClientConn)),
 		)

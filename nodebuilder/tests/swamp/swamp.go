@@ -189,7 +189,6 @@ func (s *Swamp) setupGenesis() {
 		grpc.WithTransportCredentials(insecure.NewCredentials()),
 	)
 	require.NoError(s.t, err)
-	con.Connect()
 	require.NoError(s.t, err)
 	fetcher, err := core.NewBlockFetcher(con)
 	require.NoError(s.t, err)
@@ -306,7 +305,6 @@ func (s *Swamp) NewNodeWithStore(
 			grpc.WithTransportCredentials(insecure.NewCredentials()),
 		)
 		require.NoError(s.t, err)
-		con.Connect()
 		options = append(options,
 			coremodule.WithConnection(con),
 		)

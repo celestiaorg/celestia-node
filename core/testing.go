@@ -73,7 +73,6 @@ func newTestClient(t *testing.T, ip, port string) *grpc.ClientConn {
 	endpoint := net.JoinHostPort(ip, port)
 	client, err := grpc.NewClient(endpoint, opt)
 	require.NoError(t, err)
-	client.Connect()
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second*2)
 	t.Cleanup(cancel)
 	ready := client.WaitForStateChange(ctx, connectivity.Ready)

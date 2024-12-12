@@ -28,7 +28,6 @@ func TestBridge_WithMockedCoreClient(t *testing.T) {
 		core.StartTestNode(t).GRPCClient.Target(),
 		grpc.WithTransportCredentials(insecure.NewCredentials()),
 	)
-	con.Connect()
 	require.NoError(t, err)
 	node, err := New(node.Bridge, p2p.Private, repo, coremodule.WithConnection(con))
 	require.NoError(t, err)
