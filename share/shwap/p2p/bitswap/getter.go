@@ -137,6 +137,7 @@ func (g *Getter) GetSamples(
 func (g *Getter) GetRow(ctx context.Context, hdr *header.ExtendedHeader, rowIdx int) (shwap.Row, error) {
 	ctx, span := tracer.Start(ctx, "get-eds")
 	defer span.End()
+
 	blk, err := NewEmptyRowBlock(hdr.Height(), rowIdx, len(hdr.DAH.RowRoots))
 	if err != nil {
 		span.RecordError(err)

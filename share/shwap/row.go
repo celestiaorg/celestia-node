@@ -176,10 +176,10 @@ func (r *Row) verifyInclusion(roots *share.AxisRoots, idx int) error {
 func (r Row) MarshalJSON() ([]byte, error) {
 	jsonRow := struct {
 		Shares []libshare.Share `json:"shares"`
-		Side   RowSide          `json:"side"`
+		Side   string           `json:"side"`
 	}{
 		Shares: r.halfShares,
-		Side:   r.side,
+		Side:   r.side.toString(),
 	}
 	return json.Marshal(&jsonRow)
 }
@@ -188,14 +188,14 @@ func (r Row) MarshalJSON() ([]byte, error) {
 func (r *Row) UnmarshalJSON(data []byte) error {
 	jsonRow := struct {
 		Shares []libshare.Share `json:"shares"`
-		Side   RowSide          `json:"side"`
+		Side   string           `json:"side"`
 	}{}
 	err := json.Unmarshal(data, &jsonRow)
 	if err != nil {
 		return err
 	}
 	r.halfShares = jsonRow.Shares
-	r.side = jsonRow.Side
+	r.side = toRowSide(jsonRow.Side)
 	return nil
 }
 
@@ -213,4 +213,26 @@ func sideFromProto(side pb.Row_HalfSide) RowSide {
 		return Left
 	}
 	return Right
+}
+
+func (s RowSide) toString() string {
+	switch s {
+	case Left:
+		return "LEFT"
+	case Right:
+		return "RIGHT"
+	default:
+		panic("invalid row side")
+	}
+}
+
+func toRowSide(s string) RowSide {
+	switch s {
+	case "LEFT":
+		return Left
+	case "RIGHT":
+		return Right
+	default:
+		panic("invalid row side")
+	}
 }
