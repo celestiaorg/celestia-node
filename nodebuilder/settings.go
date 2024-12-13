@@ -69,11 +69,8 @@ func WithPyroscope(endpoint string, basicAuthUser string, basicAuthPassword stri
 					pyroscope.ProfileInuseSpace,
 					pyroscope.ProfileGoroutines,
 				},
-			}
-
-			if basicAuthUser != "" && basicAuthPassword != "" {
-				config.BasicAuthUser = basicAuthUser
-				config.BasicAuthPassword = basicAuthPassword
+				BasicAuthUser:     basicAuthUser,
+				BasicAuthPassword: basicAuthPassword,
 			}
 
 			_, err := pyroscope.Start(config)
