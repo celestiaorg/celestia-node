@@ -189,7 +189,6 @@ func (s *Swamp) setupGenesis() {
 		grpc.WithTransportCredentials(insecure.NewCredentials()),
 	)
 	require.NoError(s.t, err)
-	require.NoError(s.t, err)
 	fetcher, err := core.NewBlockFetcher(con)
 	require.NoError(s.t, err)
 
