@@ -6,6 +6,8 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/require"
+	"google.golang.org/grpc"
+	"google.golang.org/grpc/credentials/insecure"
 
 	"github.com/celestiaorg/celestia-node/core"
 	coremodule "github.com/celestiaorg/celestia-node/nodebuilder/core"
@@ -20,11 +22,14 @@ func TestBridge_WithMockedCoreClient(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	t.Cleanup(cancel)
 
-	host, port, err := net.SplitHostPort(core.StartTestNode(t).GRPCClient.Target())
+	_, _, err := net.SplitHostPort(core.StartTestNode(t).GRPCClient.Target())
 	require.NoError(t, err)
-	client := core.NewClient(host, port)
-	require.NoError(t, client.Start())
-	node, err := New(node.Bridge, p2p.Private, repo, coremodule.WithClient(client))
+	con, err := grpc.NewClient(
+		core.StartTestNode(t).GRPCClient.Target(),
+		grpc.WithTransportCredentials(insecure.NewCredentials()),
+	)
+	require.NoError(t, err)
+	node, err := New(node.Bridge, p2p.Private, repo, coremodule.WithConnection(con))
 	require.NoError(t, err)
 	require.NotNil(t, node)
 	err = node.Start(ctx)

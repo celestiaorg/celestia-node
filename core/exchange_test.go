@@ -138,7 +138,7 @@ func TestExchange_StoreHistoricIfArchival(t *testing.T) {
 
 	// initialize store with genesis block
 	genHeight := int64(1)
-	genBlock, err := fetcher.GetBlock(ctx, &genHeight)
+	genBlock, err := fetcher.GetBlock(ctx, genHeight)
 	require.NoError(t, err)
 	genHeader, err := ce.Get(ctx, genBlock.Header.Hash().Bytes())
 	require.NoError(t, err)
@@ -170,8 +170,7 @@ func createCoreFetcher(t *testing.T, cfg *testnode.Config) (*BlockFetcher, testn
 	require.NoError(t, err)
 	host, port, err := net.SplitHostPort(cctx.GRPCClient.Target())
 	require.NoError(t, err)
-	client := NewClient(host, port)
-	require.NoError(t, client.Start())
+	client := newTestClient(t, host, port)
 	fetcher, err := NewBlockFetcher(client)
 	require.NoError(t, err)
 	return fetcher, cctx
