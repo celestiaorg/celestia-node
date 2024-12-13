@@ -2,7 +2,6 @@ package core
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"io"
 	"sync/atomic"
@@ -13,13 +12,12 @@ import (
 	tmproto "github.com/tendermint/tendermint/proto/tendermint/types"
 	coregrpc "github.com/tendermint/tendermint/rpc/grpc"
 	"github.com/tendermint/tendermint/types"
+	"google.golang.org/grpc"
 
 	libhead "github.com/celestiaorg/go-header"
 )
 
 const newBlockSubscriber = "NewBlock/Events"
-
-var ErrClientNotRunning = errors.New("gRPC connection to core node is not running")
 
 type SignedBlock struct {
 	Header       *types.Header       `json:"header"`
@@ -34,7 +32,7 @@ var (
 )
 
 type BlockFetcher struct {
-	client *Client
+	client coregrpc.BlockAPIClient
 
 	doneCh               chan struct{}
 	cancel               context.CancelFunc
@@ -42,9 +40,9 @@ type BlockFetcher struct {
 }
 
 // NewBlockFetcher returns a new `BlockFetcher`.
-func NewBlockFetcher(client *Client) (*BlockFetcher, error) {
+func NewBlockFetcher(conn *grpc.ClientConn) (*BlockFetcher, error) {
 	return &BlockFetcher{
-		client: client,
+		client: coregrpc.NewBlockAPIClient(conn),
 	}, nil
 }
 
@@ -62,10 +60,6 @@ func (f *BlockFetcher) Stop(ctx context.Context) error {
 
 // GetBlockInfo queries Core for additional block information, like Commit and ValidatorSet.
 func (f *BlockFetcher) GetBlockInfo(ctx context.Context, height int64) (*types.Commit, *types.ValidatorSet, error) {
-	// return error if the client is still not started
-	if !f.client.IsRunning() {
-		return nil, nil, ErrClientNotRunning
-	}
 	commit, err := f.Commit(ctx, height)
 	if err != nil {
 		return nil, nil, fmt.Errorf("core/fetcher: getting commit at height %d: %w", height, err)
@@ -87,10 +81,6 @@ func (f *BlockFetcher) GetBlockInfo(ctx context.Context, height int64) (*types.C
 // GetBlock queries Core for a `Block` at the given height.
 // if the height is nil, use the latest height
 func (f *BlockFetcher) GetBlock(ctx context.Context, height int64) (*SignedBlock, error) {
-	// return error if the client is still not started
-	if !f.client.IsRunning() {
-		return nil, ErrClientNotRunning
-	}
 	stream, err := f.client.BlockByHeight(ctx, &coregrpc.BlockByHeightRequest{Height: height})
 	if err != nil {
 		return nil, err
@@ -103,10 +93,6 @@ func (f *BlockFetcher) GetBlock(ctx context.Context, height int64) (*SignedBlock
 }
 
 func (f *BlockFetcher) GetBlockByHash(ctx context.Context, hash libhead.Hash) (*types.Block, error) {
-	// return error if the client is still not started
-	if !f.client.IsRunning() {
-		return nil, ErrClientNotRunning
-	}
 	if hash == nil {
 		return nil, fmt.Errorf("cannot get block with nil hash")
 	}
@@ -125,10 +111,6 @@ func (f *BlockFetcher) GetBlockByHash(ctx context.Context, hash libhead.Hash) (*
 // GetSignedBlock queries Core for a `Block` at the given height.
 // if the height is nil, use the latest height.
 func (f *BlockFetcher) GetSignedBlock(ctx context.Context, height int64) (*SignedBlock, error) {
-	// return error if the client is still not started
-	if !f.client.IsRunning() {
-		return nil, ErrClientNotRunning
-	}
 	stream, err := f.client.BlockByHeight(ctx, &coregrpc.BlockByHeightRequest{Height: height})
 	if err != nil {
 		return nil, err
@@ -140,10 +122,6 @@ func (f *BlockFetcher) GetSignedBlock(ctx context.Context, height int64) (*Signe
 // the given height.
 // If the height is nil, use the latest height.
 func (f *BlockFetcher) Commit(ctx context.Context, height int64) (*types.Commit, error) {
-	// return error if the client is still not started
-	if !f.client.IsRunning() {
-		return nil, ErrClientNotRunning
-	}
 	res, err := f.client.Commit(ctx, &coregrpc.CommitRequest{Height: height})
 	if err != nil {
 		return nil, err
@@ -165,10 +143,6 @@ func (f *BlockFetcher) Commit(ctx context.Context, height int64) (*types.Commit,
 // block at the given height.
 // If the height is nil, use the latest height.
 func (f *BlockFetcher) ValidatorSet(ctx context.Context, height int64) (*types.ValidatorSet, error) {
-	// return error if the client is still not started
-	if !f.client.IsRunning() {
-		return nil, ErrClientNotRunning
-	}
 	res, err := f.client.ValidatorSet(ctx, &coregrpc.ValidatorSetRequest{Height: height})
 	if err != nil {
 		return nil, err
@@ -189,10 +163,6 @@ func (f *BlockFetcher) ValidatorSet(ctx context.Context, height int64) (*types.V
 // SubscribeNewBlockEvent subscribes to new block events from Core, returning
 // a new block event channel on success.
 func (f *BlockFetcher) SubscribeNewBlockEvent(ctx context.Context) (<-chan types.EventDataSignedBlock, error) {
-	// return error if the client is still not started
-	if !f.client.IsRunning() {
-		return nil, ErrClientNotRunning
-	}
 	if f.isListeningForBlocks.Load() {
 		return nil, fmt.Errorf("already subscribed to new blocks")
 	}
@@ -252,10 +222,6 @@ func (f *BlockFetcher) SubscribeNewBlockEvent(ctx context.Context) (<-chan types
 // syncing, and false for already caught up. It can also return an error
 // in the case of a failed status request.
 func (f *BlockFetcher) IsSyncing(ctx context.Context) (bool, error) {
-	// return error if the client is still not started
-	if !f.client.IsRunning() {
-		return false, ErrClientNotRunning
-	}
 	resp, err := f.client.Status(ctx, &coregrpc.StatusRequest{})
 	if err != nil {
 		return false, err
