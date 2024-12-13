@@ -5,9 +5,13 @@ multilingual = false
 src = "src"
 title = "Celestia Node Specification"
 
+[preprocessor.webinclude] # Necessary to retrieve and render external documents like CIPs
+[preprocessor.yml-header] # Necessary to remove front-matter headers that mdbook cannot render
+[preprocessor.pagetoc] # Generates nice and handy toc on the left side of a page
+
 [output.html]
 git-repository-url = "https://github.com/celestiaorg/celestia-node"
 
-[preprocessor.toc]
-command = "mdbook-toc"
-renderer = ["html"]
+# Necessary for pagetoc to work
+additional-css = ["theme/pagetoc.css"]
+additional-js  = ["theme/pagetoc.js"]
