@@ -8,6 +8,7 @@ import (
 	"errors"
 	"fmt"
 	"reflect"
+	"time"
 
 	"cosmossdk.io/math"
 	sdk "github.com/cosmos/cosmos-sdk/types"
@@ -63,6 +64,7 @@ var ExampleValues = map[reflect.Type]interface{}{
 	reflect.TypeOf(float64(42)):              float64(42),
 	reflect.TypeOf(true):                     true,
 	reflect.TypeOf([]byte{}):                 []byte("byte array"),
+	reflect.TypeOf(time.Duration(0)):         time.Second,
 	reflect.TypeOf(node.Full):                node.Full,
 	reflect.TypeOf(auth.Permission("admin")): auth.Permission("admin"),
 	reflect.TypeOf(byzantine.BadEncoding):    byzantine.BadEncoding,
@@ -188,6 +190,8 @@ func init() {
 		state.WithFeeGranterAddress("celestia1hakc56ax66ypjcmwj8w6hyr2c4g8cfs3wesguc"),
 	)
 	addToExampleValues(txConfig)
+
+	addToExampleValues(rsmt2d.Row)
 }
 
 func addToExampleValues(v interface{}) {
