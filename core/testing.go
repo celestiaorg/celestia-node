@@ -1,10 +1,16 @@
 package core
 
 import (
+	"context"
+	"net"
 	"testing"
 	"time"
 
+	"github.com/stretchr/testify/require"
 	tmrand "github.com/tendermint/tendermint/libs/rand"
+	"google.golang.org/grpc"
+	"google.golang.org/grpc/connectivity"
+	"google.golang.org/grpc/credentials/insecure"
 
 	"github.com/celestiaorg/celestia-app/v3/test/util/genesis"
 	"github.com/celestiaorg/celestia-app/v3/test/util/testnode"
@@ -59,4 +65,17 @@ func generateRandomAccounts(n int) []string {
 		accounts[i] = tmrand.Str(9)
 	}
 	return accounts
+}
+
+func newTestClient(t *testing.T, ip, port string) *grpc.ClientConn {
+	t.Helper()
+	opt := grpc.WithTransportCredentials(insecure.NewCredentials())
+	endpoint := net.JoinHostPort(ip, port)
+	client, err := grpc.NewClient(endpoint, opt)
+	require.NoError(t, err)
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second*2)
+	t.Cleanup(cancel)
+	ready := client.WaitForStateChange(ctx, connectivity.Ready)
+	require.True(t, ready)
+	return client
 }
