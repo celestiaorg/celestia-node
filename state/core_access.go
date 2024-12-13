@@ -2,10 +2,8 @@ package state
 
 import (
 	"context"
-	"crypto/tls"
 	"errors"
 	"fmt"
-	"net"
 	"sync"
 	"time"
 
@@ -21,10 +19,6 @@ import (
 	"github.com/tendermint/tendermint/crypto/merkle"
 	"github.com/tendermint/tendermint/proto/tendermint/crypto"
 	"google.golang.org/grpc"
-	"google.golang.org/grpc/connectivity"
-	"google.golang.org/grpc/credentials"
-	"google.golang.org/grpc/credentials/insecure"
-	"google.golang.org/grpc/metadata"
 
 	"github.com/celestiaorg/celestia-app/v3/app"
 	"github.com/celestiaorg/celestia-app/v3/app/encoding"
@@ -45,22 +39,6 @@ var (
 
 	log = logging.Logger("state")
 )
-
-// Option is the functional option that is applied to the coreAccessor instance
-// to configure parameters.
-type Option func(ca *CoreAccessor)
-
-func WithTLSConfig(cfg *tls.Config) Option {
-	return func(ca *CoreAccessor) {
-		ca.tls = cfg
-	}
-}
-
-func WithXToken(xtoken string) Option {
-	return func(ca *CoreAccessor) {
-		ca.xtoken = xtoken
-	}
-}
 
 // CoreAccessor implements service over a gRPC connection
 // with a celestia-core node.
@@ -84,12 +62,7 @@ type CoreAccessor struct {
 	prt *merkle.ProofRuntime
 
 	coreConn *grpc.ClientConn
-	coreIP   string
-	port     string
 	network  string
-
-	tls    *tls.Config
-	xtoken string
 
 	// these fields are mutatable and thus need to be protected by a mutex
 	lock            sync.Mutex
@@ -109,8 +82,8 @@ func NewCoreAccessor(
 	keyring keyring.Keyring,
 	keyname string,
 	getter libhead.Head[*header.ExtendedHeader],
-	coreIP, port, network string,
-	options ...Option,
+	conn *grpc.ClientConn,
+	network string,
 ) (*CoreAccessor, error) {
 	// create verifier
 	prt := merkle.DefaultProofRuntime()
@@ -121,33 +94,18 @@ func NewCoreAccessor(
 		keyring:              keyring,
 		defaultSignerAccount: keyname,
 		getter:               getter,
-		coreIP:               coreIP,
-		port:                 port,
 		prt:                  prt,
+		coreConn:             conn,
 		network:              network,
-	}
-
-	for _, opt := range options {
-		opt(ca)
 	}
 	return ca, nil
 }
 
 func (ca *CoreAccessor) Start(ctx context.Context) error {
-	if ca.coreConn != nil {
-		return fmt.Errorf("core-access: already connected to core endpoint")
-	}
 	ca.ctx, ca.cancel = context.WithCancel(context.Background())
-
-	err := ca.startGRPCClient(ctx)
-	if err != nil {
-		return fmt.Errorf("failed to start grpc client: %w", err)
-	}
-
 	// create the staking query client
 	ca.stakingCli = stakingtypes.NewQueryClient(ca.coreConn)
 	ca.feeGrantCli = feegrant.NewQueryClient(ca.coreConn)
-
 	// create ABCI query client
 	ca.abciQueryCli = tmservice.NewServiceClient(ca.coreConn)
 	resp, err := ca.abciQueryCli.GetNodeInfo(ctx, &tmservice.GetNodeInfoRequest{})
@@ -175,29 +133,8 @@ func (ca *CoreAccessor) Start(ctx context.Context) error {
 }
 
 func (ca *CoreAccessor) Stop(context.Context) error {
-	if ca.cancel == nil {
-		log.Warn("core accessor already stopped")
-		return nil
-	}
-	if ca.coreConn == nil {
-		log.Warn("no connection found to close")
-		return nil
-	}
-	defer ca.cancelCtx()
-
-	// close out core connection
-	err := ca.coreConn.Close()
-	if err != nil {
-		return err
-	}
-
-	ca.coreConn = nil
-	return nil
-}
-
-func (ca *CoreAccessor) cancelCtx() {
 	ca.cancel()
-	ca.cancel = nil
+	return nil
 }
 
 // SubmitPayForBlob builds, signs, and synchronously submits a MsgPayForBlob with additional
@@ -605,40 +542,6 @@ func (ca *CoreAccessor) setupTxClient(ctx context.Context, keyName string) (*use
 	)
 }
 
-func (ca *CoreAccessor) startGRPCClient(ctx context.Context) error {
-	// dial given celestia-core endpoint
-	endpoint := net.JoinHostPort(ca.coreIP, ca.port)
-	// By default, the gRPC client is configured to handle an insecure connection.
-	// If the TLS configuration is not empty, it will be applied to the client's options.
-	// If the TLS configuration is empty but the X-Token is provided,
-	// the X-Token will be applied as an interceptor along with an empty TLS configuration.
-	opts := []grpc.DialOption{grpc.WithTransportCredentials(insecure.NewCredentials())}
-	if ca.tls != nil {
-		opts = append(opts, grpc.WithTransportCredentials(credentials.NewTLS(ca.tls)))
-	}
-	if ca.xtoken != "" {
-		opts = append(opts, grpc.WithUnaryInterceptor(authInterceptor(ca.xtoken)))
-	}
-
-	client, err := grpc.NewClient(
-		endpoint,
-		opts...,
-	)
-	if err != nil {
-		return err
-	}
-	// this ensures we can't start the node without core connection
-	client.Connect()
-	if !client.WaitForStateChange(ctx, connectivity.Ready) {
-		// hits the case when context is canceled
-		return fmt.Errorf("couldn't connect to core endpoint(%s): %w", endpoint, ctx.Err())
-	}
-	ca.coreConn = client
-
-	log.Infof("Connection with core endpoint(%s) established", endpoint)
-	return nil
-}
-
 func (ca *CoreAccessor) submitMsg(
 	ctx context.Context,
 	msg sdktypes.Msg,
@@ -693,19 +596,5 @@ func convertToSdkTxResponse(resp *user.TxResponse) *TxResponse {
 		Code:   resp.Code,
 		TxHash: resp.TxHash,
 		Height: resp.Height,
-	}
-}
-
-func authInterceptor(xtoken string) grpc.UnaryClientInterceptor {
-	return func(
-		ctx context.Context,
-		method string,
-		req, reply interface{},
-		cc *grpc.ClientConn,
-		invoker grpc.UnaryInvoker,
-		opts ...grpc.CallOption,
-	) error {
-		ctx = metadata.AppendToOutgoingContext(ctx, "x-token", xtoken)
-		return invoker(ctx, method, req, reply, cc, opts...)
 	}
 }
