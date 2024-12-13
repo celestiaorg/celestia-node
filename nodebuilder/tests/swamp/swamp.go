@@ -184,7 +184,7 @@ func (s *Swamp) setupGenesis() {
 	host, port, err := net.SplitHostPort(s.ClientContext.GRPCClient.Target())
 	require.NoError(s.t, err)
 	addr := net.JoinHostPort(host, port)
-	con, err := coremodule.NewGRPCClient(
+	con, err := grpc.NewClient(
 		addr,
 		grpc.WithTransportCredentials(insecure.NewCredentials()),
 	)
@@ -300,7 +300,7 @@ func (s *Swamp) NewNodeWithStore(
 			return nil, err
 		}
 		addr := net.JoinHostPort(host, port)
-		con, err := coremodule.NewGRPCClient(
+		con, err := grpc.NewClient(
 			addr,
 			grpc.WithTransportCredentials(insecure.NewCredentials()),
 		)

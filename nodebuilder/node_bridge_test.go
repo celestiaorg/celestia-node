@@ -24,7 +24,7 @@ func TestBridge_WithMockedCoreClient(t *testing.T) {
 
 	_, _, err := net.SplitHostPort(core.StartTestNode(t).GRPCClient.Target())
 	require.NoError(t, err)
-	con, err := coremodule.NewGRPCClient(
+	con, err := grpc.NewClient(
 		core.StartTestNode(t).GRPCClient.Target(),
 		grpc.WithTransportCredentials(insecure.NewCredentials()),
 	)

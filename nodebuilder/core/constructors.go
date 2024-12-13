@@ -40,7 +40,7 @@ func grpcClient(lc fx.Lifecycle, cfg Config) (*grpc.ClientConn, error) {
 	}
 
 	endpoint := net.JoinHostPort(cfg.IP, cfg.Port)
-	conn, err := NewGRPCClient(endpoint, opts...)
+	conn, err := grpc.NewClient(endpoint, opts...)
 	if err != nil {
 		return nil, err
 	}

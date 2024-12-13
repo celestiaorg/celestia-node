@@ -68,8 +68,7 @@ func (s *IntegrationTestSuite) SetupSuite() {
 func setClients(ca *CoreAccessor, conn *grpc.ClientConn) {
 	ca.coreConn = conn
 	// create the staking query client
-	stakingCli := stakingtypes.NewQueryClient(ca.coreConn)
-	ca.stakingCli = stakingCli
+	ca.stakingCli = stakingtypes.NewQueryClient(ca.coreConn)
 
 	ca.abciQueryCli = tmservice.NewServiceClient(ca.coreConn)
 }

@@ -17,7 +17,6 @@ import (
 	"github.com/celestiaorg/celestia-node/header"
 	"github.com/celestiaorg/celestia-node/header/headertest"
 	"github.com/celestiaorg/celestia-node/libs/fxutil"
-	coremodule "github.com/celestiaorg/celestia-node/nodebuilder/core"
 	"github.com/celestiaorg/celestia-node/nodebuilder/node"
 	"github.com/celestiaorg/celestia-node/nodebuilder/p2p"
 	"github.com/celestiaorg/celestia-node/nodebuilder/state"
@@ -78,7 +77,7 @@ func TestNodeWithConfig(t *testing.T, tp node.Type, cfg *Config, opts ...fx.Opti
 	if tp == node.Bridge {
 		_, _, err := net.SplitHostPort(core.StartTestNode(t).GRPCClient.Target())
 		require.NoError(t, err)
-		con, err := coremodule.NewGRPCClient(
+		con, err := grpc.NewClient(
 			core.StartTestNode(t).GRPCClient.Target(),
 			grpc.WithTransportCredentials(insecure.NewCredentials()),
 		)
