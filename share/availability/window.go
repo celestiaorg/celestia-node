@@ -1,6 +1,7 @@
 package availability
 
 import (
+	"errors"
 	"os"
 	"time"
 )
@@ -9,6 +10,8 @@ const (
 	RequestWindow = 30 * 24 * time.Hour
 	StorageWindow = RequestWindow + time.Hour
 )
+
+var ErrOutsideSamplingWindow = errors.New("timestamp outside sampling window")
 
 // IsWithinWindow checks whether the given timestamp is within the
 // given AvailabilityWindow. If the window is disabled (0), it returns true for

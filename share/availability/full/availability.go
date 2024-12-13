@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"time"
 
 	logging "github.com/ipfs/go-log/v2"
 
@@ -23,16 +24,27 @@ var log = logging.Logger("share/full")
 type ShareAvailability struct {
 	store  *store.Store
 	getter shwap.Getter
+
+	storageWindow time.Duration
+	archival      bool
 }
 
 // NewShareAvailability creates a new full ShareAvailability.
 func NewShareAvailability(
 	store *store.Store,
 	getter shwap.Getter,
+	opts ...Option,
 ) *ShareAvailability {
+	p := defaultParams()
+	for _, opt := range opts {
+		opt(p)
+	}
+
 	return &ShareAvailability{
-		store:  store,
-		getter: getter,
+		store:         store,
+		getter:        getter,
+		storageWindow: availability.StorageWindow,
+		archival:      p.archival,
 	}
 }
 
@@ -40,6 +52,16 @@ func NewShareAvailability(
 // enough Shares from the network.
 func (fa *ShareAvailability) SharesAvailable(ctx context.Context, header *header.ExtendedHeader) error {
 	dah := header.DAH
+
+	if !fa.archival {
+		// do not sync blocks outside of sampling window if not archival
+		if !availability.IsWithinWindow(header.Time(), fa.storageWindow) {
+			log.Debugw("skipping availability check for block outside sampling"+
+				" window", "height", header.Height(), "data hash", dah.String())
+			return availability.ErrOutsideSamplingWindow
+		}
+	}
+
 	// if the data square is empty, we can safely link the header height in the store to an empty EDS.
 	if share.DataHash(dah.Hash()).IsEmptyEDS() {
 		err := fa.store.PutODSQ4(ctx, dah, header.Height(), share.EmptyEDS())
@@ -68,7 +90,7 @@ func (fa *ShareAvailability) SharesAvailable(ctx context.Context, header *header
 	}
 
 	// archival nodes should not store Q4 outside the availability window.
-	if availability.IsWithinWindow(header.Time(), availability.StorageWindow) {
+	if availability.IsWithinWindow(header.Time(), fa.storageWindow) {
 		err = fa.store.PutODSQ4(ctx, dah, header.Height(), eds)
 	} else {
 		err = fa.store.PutODS(ctx, dah, header.Height(), eds)
