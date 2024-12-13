@@ -179,7 +179,7 @@ func (r Row) MarshalJSON() ([]byte, error) {
 		Side   string           `json:"side"`
 	}{
 		Shares: r.halfShares,
-		Side:   r.side.toString(),
+		Side:   r.side.ToString(),
 	}
 	return json.Marshal(&jsonRow)
 }
@@ -215,7 +215,7 @@ func sideFromProto(side pb.Row_HalfSide) RowSide {
 	return Right
 }
 
-func (s RowSide) toString() string {
+func (s RowSide) ToString() string {
 	switch s {
 	case Left:
 		return "LEFT"
