@@ -38,6 +38,7 @@ type Listener struct {
 	construct          header.ConstructFn
 	store              *store.Store
 	availabilityWindow time.Duration
+	archival           bool
 
 	headerBroadcaster libhead.Broadcaster[*header.ExtendedHeader]
 	hashBroadcaster   shrexsub.BroadcastFn
@@ -83,6 +84,7 @@ func NewListener(
 		construct:          construct,
 		store:              store,
 		availabilityWindow: p.availabilityWindow,
+		archival:           p.archival,
 		listenerTimeout:    5 * blocktime,
 		metrics:            metrics,
 		chainID:            p.chainID,
@@ -237,7 +239,7 @@ func (cl *Listener) handleNewSignedBlock(ctx context.Context, b types.EventDataS
 		panic(fmt.Errorf("making extended header: %w", err))
 	}
 
-	err = storeEDS(ctx, eh, eds, cl.store, cl.availabilityWindow)
+	err = storeEDS(ctx, eh, eds, cl.store, cl.availabilityWindow, cl.archival)
 	if err != nil {
 		return fmt.Errorf("storing EDS: %w", err)
 	}

@@ -517,6 +517,7 @@ func randEdsAndHeader(t *testing.T, size int) (*rsmt2d.ExtendedDataSquare, *head
 	h := &header.ExtendedHeader{
 		RawHeader: header.RawHeader{
 			Height: int64(height),
+			Time:   time.Now(),
 		},
 		DAH: roots,
 	}
