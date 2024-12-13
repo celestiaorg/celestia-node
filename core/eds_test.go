@@ -22,7 +22,7 @@ func TestTrulyEmptySquare(t *testing.T) {
 		SquareSize: 1,
 	}
 
-	eds, err := extendBlock(data, appconsts.LatestVersion)
+	eds, err := extendBlock(&data, appconsts.LatestVersion)
 	require.NoError(t, err)
 	require.True(t, eds.Equals(share.EmptyEDS()))
 }
@@ -38,7 +38,7 @@ func TestEmptySquareWithZeroTxs(t *testing.T) {
 		Txs: []types.Tx{},
 	}
 
-	eds, err := extendBlock(data, appconsts.LatestVersion)
+	eds, err := extendBlock(&data, appconsts.LatestVersion)
 	require.NoError(t, err)
 	require.True(t, eds.Equals(share.EmptyEDS()))
 

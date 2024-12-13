@@ -4,6 +4,7 @@ package tests
 
 import (
 	"context"
+	"net"
 	"testing"
 	"time"
 
@@ -77,8 +78,11 @@ func TestFullDiscoveryViaBootstrapper(t *testing.T) {
 	// create and start a BN
 	cfg := nodebuilder.DefaultConfig(node.Bridge)
 	setTimeInterval(cfg, defaultTimeInterval)
+	var err error
+	cfg.Core.IP, cfg.Core.Port, err = net.SplitHostPort(sw.ClientContext.GRPCClient.Target())
+	require.NoError(t, err)
 	bridge := sw.NewNodeWithConfig(node.Bridge, cfg)
-	err := bridge.Start(ctx)
+	err = bridge.Start(ctx)
 	require.NoError(t, err)
 
 	// use BN as the bootstrapper
@@ -154,8 +158,11 @@ func TestRestartNodeDiscovery(t *testing.T) {
 	// create and start a BN as a bootstrapper
 	fullCfg := nodebuilder.DefaultConfig(node.Bridge)
 	setTimeInterval(fullCfg, defaultTimeInterval)
+	var err error
+	fullCfg.Core.IP, fullCfg.Core.Port, err = net.SplitHostPort(sw.ClientContext.GRPCClient.Target())
+	require.NoError(t, err)
 	bridge := sw.NewNodeWithConfig(node.Bridge, fullCfg)
-	err := bridge.Start(ctx)
+	err = bridge.Start(ctx)
 	require.NoError(t, err)
 
 	bridgeAddr := host.InfoFromHost(bridge.Host)

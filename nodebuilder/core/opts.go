@@ -2,15 +2,15 @@ package core
 
 import (
 	"go.uber.org/fx"
+	"google.golang.org/grpc"
 
-	"github.com/celestiaorg/celestia-node/core"
 	"github.com/celestiaorg/celestia-node/header"
 	"github.com/celestiaorg/celestia-node/libs/fxutil"
 )
 
-// WithClient sets custom client for core process
-func WithClient(client core.Client) fx.Option {
-	return fxutil.ReplaceAs(client, new(core.Client))
+// WithConnection sets a custom client for core process
+func WithConnection(conn *grpc.ClientConn) fx.Option {
+	return fxutil.ReplaceAs(conn, new(grpc.ClientConn))
 }
 
 // WithHeaderConstructFn sets custom func that creates extended header
