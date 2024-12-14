@@ -90,6 +90,24 @@ func (cg *CascadeGetter) GetNamespaceData(
 	return cascadeGetters(ctx, cg.getters, get)
 }
 
+func (cg *CascadeGetter) GetSharesRange(
+	ctx context.Context,
+	header *header.ExtendedHeader,
+	namespace libshare.Namespace,
+	from, to shwap.SampleCoords,
+) (shwap.RangeNamespaceData, error) {
+	ctx, span := tracer.Start(ctx, "cascade/get-shares-by-namespace", trace.WithAttributes(
+		attribute.String("namespace", namespace.String()),
+	))
+	defer span.End()
+
+	get := func(ctx context.Context, get shwap.Getter) (shwap.RangeNamespaceData, error) {
+		return get.GetSharesRange(ctx, header, namespace, from, to)
+	}
+
+	return cascadeGetters(ctx, cg.getters, get)
+}
+
 // cascade implements a cascading retry algorithm for getting a value from multiple sources.
 // Cascading implies trying the sources one-by-one in the given order with the
 // given interval until either:
