@@ -26,7 +26,7 @@ var headerCmd = &cobra.Command{
 
 var headerStoreInit = &cobra.Command{
 	Use: "store-init [node-type] [network] [height]",
-	Short: `Forcefully initialize header store head to be of the given height. Requires the node being stopped. 
+	Short: `Forcefully initialize header store head to be of the given height. Requires the node to be stopped. 
 Custom store path is not supported yet.`,
 	SilenceUsage: true,
 	RunE: func(cmd *cobra.Command, args []string) error {

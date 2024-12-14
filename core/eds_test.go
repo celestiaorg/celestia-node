@@ -31,7 +31,7 @@ func TestTrulyEmptySquare(t *testing.T) {
 // is equal to the datahash of an empty eds, even if SquareSize is set to
 // something non-zero. Technically, this block data is invalid because the
 // construction of the square is deterministic, and the rules which dictate the
-// square size do not allow for empty block data. However, should that ever
+// square size does not allow for empty block data. However, should that ever
 // occur, we need to ensure that the correct data root is generated.
 func TestEmptySquareWithZeroTxs(t *testing.T) {
 	data := types.Data{

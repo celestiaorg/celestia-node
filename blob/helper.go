@@ -6,7 +6,7 @@ import (
 	libshare "github.com/celestiaorg/go-square/v2/share"
 )
 
-// BlobsToShares accepts blobs and convert them to the Shares.
+// BlobsToShares accepts blobs and converts them to the Shares.
 func BlobsToShares(nodeBlobs ...*Blob) ([]libshare.Share, error) {
 	sort.Slice(nodeBlobs, func(i, j int) bool {
 		return nodeBlobs[i].Blob.Namespace().IsLessThan(nodeBlobs[j].Blob.Namespace())

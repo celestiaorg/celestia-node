@@ -52,7 +52,7 @@ func TestCoordinator(t *testing.T) {
 		coordinator := newSamplingCoordinator(testParams.dasParams, getterStub{}, sampler.sample, newBroadcastMock(1))
 		go coordinator.run(ctx, sampler.checkpoint)
 
-		// discover new height
+		// discover a new height
 		sampler.discover(ctx, newhead, coordinator.listen)
 
 		// check if all jobs were sampled successfully

@@ -10,7 +10,7 @@ if [[ $STAGED_GO_FILES == "" ]] && [[ $STAGED_MD_FILES == "" ]]; then
 elif [[ $STAGED_GO_FILES == "" ]]; then
   echo "--> Found markdown files, linting"
   if ! command -v markdownlint &> /dev/null ; then
-      echo "markdownlint is not installed of available in the PATH" >&2
+      echo "markdownlint is not installed or available in the PATH" >&2
       echo "please check https://github.com/igorshubovych/markdownlint-cli" >&2
       exit 1
   fi

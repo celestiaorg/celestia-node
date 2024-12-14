@@ -17,7 +17,7 @@ The central component of this package is the `samplingCoordinator`. It launches 
 workers that perform DAS on new ExtendedHeaders in the network. The DASer kicks off this
 loop by loading its last DASed headers snapshot (`checkpoint`) and kicking off worker pool
 to DAS all headers between the checkpoint and the current network head. It subscribes
-to notifications about to new ExtendedHeaders, received via gossipsub. Newly found headers
+to notifications about new ExtendedHeaders, received via gossipsub. Newly found headers
 are being put into workers directly, without applying concurrency limiting restrictions.
 */
 package das

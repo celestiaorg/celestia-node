@@ -537,9 +537,9 @@ func TestService_Get(t *testing.T) {
 	}
 }
 
-// TestService_GetAllWithoutPadding it retrieves all blobs under the given namespace:
-// the amount of the blobs is known and equal to 5. Then it ensures that each blob has a correct
-// index inside the eds by requesting share and comparing them.
+// TestService_GetAllWithoutPadding retrieves all blobs under the given namespace:
+// the amount of the blobs is known and equal to 5. Then it ensures that each blob has the correct
+// index inside the eds by requesting shares and comparing them.
 func TestService_GetAllWithoutPadding(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second*5)
 	t.Cleanup(cancel)
