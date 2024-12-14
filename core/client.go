@@ -8,7 +8,7 @@ import (
 	"github.com/tendermint/tendermint/rpc/client/http"
 )
 
-// Client is an alias to Core Client.
+// Client is an alias for Core Client.
 type Client = client.Client
 
 // NewRemote creates a new Client that communicates with a remote Core endpoint over HTTP.
