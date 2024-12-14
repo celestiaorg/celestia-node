@@ -34,7 +34,7 @@ Each stage of the process is aimed at creating feedback cycles which align contr
 
 ## PR Naming
 
-PRs should be titled as following:
+PRs should be titled as follows:
 
 ```txt
 pkg: Concise title of PR
@@ -58,7 +58,7 @@ easy to reference the pull request where a change was introduced.
 
 ### Development Procedure
 
-The latest state of development is on `main`, which must never fail `make test`. *Never* force push `main`.
+The latest state of development is on `main`, which must never fail `make test`. *Never* force push to `main`.
 
 To begin contributing, create a development branch on your fork.
 
