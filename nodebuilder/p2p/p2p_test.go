@@ -41,6 +41,11 @@ func TestP2PModule_Host(t *testing.T) {
 
 	connectedness, err := mgr.Connectedness(ctx, peer.ID())
 	require.NoError(t, err)
+
+	infos, err := mgr.ConnectionState(ctx, peer.ID())
+	require.NoError(t, err)
+	require.GreaterOrEqual(t, len(infos), 1)
+
 	assert.Equal(t, host.Network().Connectedness(peer.ID()), connectedness)
 	// now disconnect using manager and check for connectedness match again
 	assert.NoError(t, mgr.ClosePeer(ctx, peer.ID()))
