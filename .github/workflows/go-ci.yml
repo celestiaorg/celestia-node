@@ -121,10 +121,10 @@ jobs:
           file: ./coverage.txt
           name: coverage-${{ matrix.os }}
 
-  # @ramin - Temporarily removed while we figure out getting
+  # @ramin - Temporarily removed while we figure out how to get
   # these unit tests consistently running on ubuntu-latest
   # and then enabled for macos-latest. We aren't requiring
-  # unit_race_test to pass for PRs so lets remove and reintroduce
+  # unit_race_test to pass for PRs so let's remove and reintroduce
   # once green
   #
   # unit_test_race:
