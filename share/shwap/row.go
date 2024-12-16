@@ -178,7 +178,7 @@ func (r Row) MarshalJSON() ([]byte, error) {
 		Shares []libshare.Share `json:"shares"`
 		Side   string           `json:"side"`
 	}{
-		Shares: r.halfShares,
+		Shares: r.shares,
 		Side:   r.side.String(),
 	}
 	return json.Marshal(&jsonRow)
@@ -194,7 +194,7 @@ func (r *Row) UnmarshalJSON(data []byte) error {
 	if err != nil {
 		return err
 	}
-	r.halfShares = jsonRow.Shares
+	r.shares = jsonRow.Shares
 	r.side = toRowSide(jsonRow.Side)
 	return nil
 }
@@ -221,6 +221,8 @@ func (s RowSide) String() string {
 		return "LEFT"
 	case Right:
 		return "RIGHT"
+	case Both:
+		return "BOTH"
 	default:
 		panic("invalid row side")
 	}
@@ -232,6 +234,8 @@ func toRowSide(s string) RowSide {
 		return Left
 	case "RIGHT":
 		return Right
+	case "BOTH":
+		return Both
 	default:
 		panic("invalid row side")
 	}

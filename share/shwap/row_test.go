@@ -21,6 +21,11 @@ func TestRowShares(t *testing.T) {
 			row, err := RowFromEDS(eds, rowIdx, side)
 			require.NoError(t, err)
 			require.Equal(t, side, row.side)
+
+			extended, err := row.Shares()
+			require.NoError(t, err)
+			require.Len(t, extended, odsSize*2)
+			require.Equal(t, Both, row.side)
 		}
 	}
 }
@@ -30,21 +35,24 @@ func TestRowMarshal(t *testing.T) {
 	eds := edstest.RandEDS(t, odsSize)
 	for rowIdx := 0; rowIdx < odsSize*2; rowIdx++ {
 		for _, side := range []RowSide{Left, Right} {
-			shrs := eds.Row(uint(rowIdx))
-			shares, err := libshare.FromBytes(shrs)
+			row, err := RowFromEDS(eds, rowIdx, side)
 			require.NoError(t, err)
-
-			row := RowFromShares(shares, side)
 			rowData, err := json.Marshal(row)
 			require.NoError(t, err)
 
 			decodedRow := &Row{}
 			err = json.Unmarshal(rowData, decodedRow)
 			require.NoError(t, err)
-			extended, err := row.Shares()
-			require.NoError(t, err)
+
 			require.Equal(t, side, decodedRow.side)
+			extended, err := decodedRow.Shares()
+			require.NoError(t, err)
+
+			shares, err := row.Shares()
+			require.NoError(t, err)
+
 			require.Equal(t, shares, extended)
+			require.Equal(t, row.side, decodedRow.side)
 		}
 	}
 }
