@@ -40,7 +40,7 @@ light := sw.NewLightClient(node.WithTrustedPeer(addrs[0].String()))
 
 ## Conceptual overview
 
-Each of the test scenario requires flexibility in network topology.
+Each of the test scenarios requires flexibility in network topology.
 The user can define the necessary amount of each type of node and be able to control each of them.
 The below diagram provides more visual clarity of what can be done
 ![test swamp overview](./swamp/img/test_swamp.svg)
