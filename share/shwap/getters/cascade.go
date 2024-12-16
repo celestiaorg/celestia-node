@@ -71,6 +71,18 @@ func (cg *CascadeGetter) GetEDS(
 	return cascadeGetters(ctx, cg.getters, get)
 }
 
+// GetRow gets row shares from any of registered shwap.Getters in cascading
+// order.
+func (cg *CascadeGetter) GetRow(ctx context.Context, header *header.ExtendedHeader, rowIdx int) (shwap.Row, error) {
+	ctx, span := tracer.Start(ctx, "cascade/get-row")
+	defer span.End()
+
+	get := func(ctx context.Context, get shwap.Getter) (shwap.Row, error) {
+		return get.GetRow(ctx, header, rowIdx)
+	}
+	return cascadeGetters(ctx, cg.getters, get)
+}
+
 // GetNamespaceData gets NamespacedShares from any of registered shwap.Getters in cascading
 // order.
 func (cg *CascadeGetter) GetNamespaceData(

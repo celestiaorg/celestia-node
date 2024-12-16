@@ -290,7 +290,7 @@ func (g successGetter) checkOnce(t *testing.T) {
 	}
 }
 
-func (g successGetter) GetSamples(_ context.Context, hdr *header.ExtendedHeader,
+func (g successGetter) GetSamples(_ context.Context, _ *header.ExtendedHeader,
 	indices []shwap.SampleCoords,
 ) ([]shwap.Sample, error) {
 	g.Lock()
@@ -303,6 +303,10 @@ func (g successGetter) GetSamples(_ context.Context, hdr *header.ExtendedHeader,
 		smpls = append(smpls, shwap.Sample{Proof: &nmt.Proof{}})
 	}
 	return smpls, nil
+}
+
+func (g successGetter) GetRow(_ context.Context, _ *header.ExtendedHeader, _ int) (shwap.Row, error) {
+	panic("not implemented")
 }
 
 func (g successGetter) GetEDS(_ context.Context, _ *header.ExtendedHeader) (*rsmt2d.ExtendedDataSquare, error) {

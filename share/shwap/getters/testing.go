@@ -58,6 +58,23 @@ func (seg *SingleEDSGetter) GetSamples(ctx context.Context, hdr *header.Extended
 	return smpls, nil
 }
 
+func (seg *SingleEDSGetter) GetRow(
+	ctx context.Context,
+	header *header.ExtendedHeader,
+	rowIdx int,
+) (shwap.Row, error) {
+	err := seg.checkRoots(header.DAH)
+	if err != nil {
+		return shwap.Row{}, err
+	}
+
+	axisHalf, err := seg.EDS.AxisHalf(ctx, rsmt2d.Row, rowIdx)
+	if err != nil {
+		return shwap.Row{}, err
+	}
+	return axisHalf.ToRow(), nil
+}
+
 // GetEDS returns a kept EDS if the correct root is given.
 func (seg *SingleEDSGetter) GetEDS(
 	_ context.Context,
