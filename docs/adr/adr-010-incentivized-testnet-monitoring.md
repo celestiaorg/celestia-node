@@ -82,7 +82,7 @@ Node operators have the option of adding an additional exporter to their OTEL Co
 <details>
 <summary> How to monitor celestia-node with Grafana Cloud</summary>
 
-1. [Install celestia-node](https://docs.celestia.org/developers/celestia-node)
+1. [Install celestia-node](https://docs.celestia.org/how-to-guides/celestia-node)
 2. Sign up for an account on [Grafana](https://grafana.com/)
 3. [Install OTEL Collector](https://opentelemetry.io/docs/collector/getting-started/) on the same machine as celestia-node. If on a Linux machine follow [these steps](https://opentelemetry.io/docs/collector/getting-started/#linux-packaging=). OTEL Collector should start automatically immediately after installation.
 4. Configure OTEL Collector to receive metrics from celestia-node by confirming your `/etc/otelcol/config.yaml` has the default config:
@@ -127,7 +127,7 @@ Node operators have the option of adding an additional exporter to their OTEL Co
 <details>
 <summary> How to monitor celestia-node with Uptrace</summary>
 
-1. [Install celestia-node](https://docs.celestia.org/developers/celestia-node).
+1. [Install celestia-node](https://docs.celestia.org/how-to-guides/celestia-node).
 2. Create an account on [Uptrace](https://app.uptrace.dev/).
 3. Create a project on Uptrace.
 4. Follow [these steps](https://uptrace.dev/opentelemetry/collector.html#when-to-use-opentelemetry-collector=) to install OTEL Collector Contrib on the same host as celestia-node.
