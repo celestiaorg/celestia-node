@@ -11,7 +11,7 @@ import (
 // This error will also be returned by NewDASer if supplied with an invalid option
 var ErrInvalidOption = errors.New("das: invalid option")
 
-// errInvalidOptionValue is a utility function to dedup code for error-returning
+// errInvalidOptionValue is a utility function to deduplicate code for error-returning
 // when dealing with invalid parameter values
 func errInvalidOptionValue(optionName, value string) error {
 	return fmt.Errorf("%w: value %s cannot be %s", ErrInvalidOption, optionName, value)
