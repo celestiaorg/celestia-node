@@ -2,6 +2,8 @@ package rpc
 
 import (
 	"fmt"
+	"net"
+	"strconv"
 
 	logging "github.com/ipfs/go-log/v2"
 	"github.com/spf13/cobra"
@@ -39,21 +41,44 @@ func Flags() *flag.FlagSet {
 }
 
 // ParseFlags parses RPC flags from the given cmd and saves them to the passed config.
-func ParseFlags(cmd *cobra.Command, cfg *Config) {
-	addr := cmd.Flag(addrFlag).Value.String()
-	if addr != "" {
-		cfg.Address = addr
+func ParseFlags(cmd *cobra.Command, cfg *Config) error {
+	cfg.Address = cmd.Flag(addrFlag).Value.String()
+	cfg.Port = cmd.Flag(portFlag).Value.String()
+
+	// If address and port are not specified, use default values
+	if cfg.Address == "" {
+		cfg.Address = defaultBindAddress
 	}
-	port := cmd.Flag(portFlag).Value.String()
-	if port != "" {
-		cfg.Port = port
+	if cfg.Port == "" {
+		cfg.Port = defaultPort
 	}
-	ok, err := cmd.Flags().GetBool(authFlag)
-	if err != nil {
-		panic(err)
+
+	return cfg.Validate()
+}
+
+func (c *Config) Validate() error {
+	if c.Address != "" {
+		host, port, err := net.SplitHostPort(c.Address)
+		if err != nil {
+			return fmt.Errorf("invalid address format: %v", err)
+		}
+		if port != "" {
+			portNum, err := strconv.Atoi(port)
+			if err != nil || portNum < 1 || portNum > 65535 {
+				return fmt.Errorf("invalid port number")
+			}
+		}
+		if host != "" {
+			if ip := net.ParseIP(host); ip == nil {
+				return fmt.Errorf("invalid IP address")
+			}
+		}
 	}
-	if ok {
-		log.Warn("RPC authentication is disabled")
-		cfg.SkipAuth = true
+	if c.Port != "" {
+		portNum, err := strconv.Atoi(c.Port)
+		if err != nil || portNum < 1 || portNum > 65535 {
+			return fmt.Errorf("invalid port number")
+		}
 	}
+	return nil
 }
