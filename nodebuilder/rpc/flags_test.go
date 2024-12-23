@@ -28,10 +28,11 @@ func TestFlags(t *testing.T) {
 // TestParseFlags tests the ParseFlags function in rpc/flags.go
 func TestParseFlags(t *testing.T) {
 	tests := []struct {
-		name     string
-		addrFlag string
-		portFlag string
-		expected *Config
+		name        string
+		addrFlag    string
+		portFlag    string
+		expected    *Config
+		shouldError bool
 	}{
 		{
 			name:     "addrFlag is set",
@@ -69,6 +70,29 @@ func TestParseFlags(t *testing.T) {
 				Port:    "",
 			},
 		},
+		{
+			name:     "default values when flags are empty",
+			addrFlag: "",
+			portFlag: "",
+			expected: &Config{
+				Address: defaultBindAddress,
+				Port:    defaultPort,
+			},
+		},
+		{
+			name:        "invalid address format",
+			addrFlag:    "invalid:address:format",
+			portFlag:    "",
+			shouldError: true,
+			expected:    &Config{},
+		},
+		{
+			name:        "invalid port number",
+			addrFlag:    "",
+			portFlag:    "999999",
+			shouldError: true,
+			expected:    &Config{},
+		},
 	}
 
 	for _, test := range tests {
@@ -78,18 +102,59 @@ func TestParseFlags(t *testing.T) {
 
 			cmd.Flags().AddFlagSet(Flags())
 
-			err := cmd.Flags().Set(addrFlag, test.addrFlag)
-			if err != nil {
-				t.Errorf("error setting addrFlag: %s", err)
+			if err := cmd.Flags().Set(addrFlag, test.addrFlag); err != nil && !test.shouldError {
+				t.Fatalf("unexpected error setting addrFlag: %v", err)
 			}
-			err = cmd.Flags().Set(portFlag, test.portFlag)
-			if err != nil {
-				t.Errorf("error setting portFlag: %s", err)
+			if err := cmd.Flags().Set(portFlag, test.portFlag); err != nil && !test.shouldError {
+				t.Fatalf("unexpected error setting portFlag: %v", err)
 			}
 
-			ParseFlags(cmd, cfg)
+			err := ParseFlags(cmd, cfg)
+			if test.shouldError {
+				assert.Error(t, err)
+				return
+			}
+			
+			assert.NoError(t, err)
 			assert.Equal(t, test.expected.Address, cfg.Address)
 			assert.Equal(t, test.expected.Port, cfg.Port)
+		})
+	}
+}
+
+// TestAddressValidation tests the address validation functionality
+func TestAddressValidation(t *testing.T) {
+	tests := []struct {
+		name    string
+		address string
+		isValid bool
+	}{
+		{
+			name:    "valid IPv4 address",
+			address: "127.0.0.1:8080",
+			isValid: true,
+		},
+		{
+			name:    "valid IPv6 address",
+			address: "[::1]:8080",
+			isValid: true,
+		},
+		{
+			name:    "invalid address format",
+			address: "256.256.256.256:99999",
+			isValid: false,
+		},
+	}
+
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			cfg := &Config{Address: test.address}
+			err := cfg.Validate()
+			if test.isValid {
+				assert.NoError(t, err)
+			} else {
+				assert.Error(t, err)
+			}
 		})
 	}
 }
