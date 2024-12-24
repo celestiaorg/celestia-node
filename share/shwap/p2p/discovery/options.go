@@ -12,7 +12,7 @@ type Parameters struct {
 	// PeersLimit defines the soft limit of FNs to connect to via discovery.
 	// Set 0 to disable.
 	PeersLimit uint
-	// AdvertiseInterval is a interval between advertising sessions.
+	// AdvertiseInterval is an interval between advertising sessions.
 	// NOTE: only full and bridge can advertise themselves.
 	AdvertiseInterval time.Duration
 }
