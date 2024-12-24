@@ -41,7 +41,7 @@ func (dh DataHash) IsEmptyEDS() bool {
 	return bytes.Equal(EmptyEDSDataHash(), dh)
 }
 
-// NewSHA256Hasher returns a new instance of a SHA-256 hasher.
+// NewSHA256Hasher returns a new instance of an SHA-256 hasher.
 func NewSHA256Hasher() hash.Hash {
 	return sha256.New()
 }
