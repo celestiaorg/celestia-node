@@ -13,7 +13,7 @@ import (
 
 var _ Accessor = validation{}
 
-// validation is a  Accessor implementation that performs sanity checks on methods. It wraps
+// validation is an  Accessor implementation that performs sanity checks on methods. It wraps
 // another  Accessor and performs bounds checks on index arguments.
 type validation struct {
 	Accessor
