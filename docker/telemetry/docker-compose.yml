@@ -1,10 +1,7 @@
----
-version: '3.8'
-
 services:
   loki:
     container_name: loki
-    image: grafana/loki:2.6.1
+    image: grafana/loki:latest
     expose:
       - 3100
     ports:
@@ -16,6 +13,7 @@ services:
   promtail:
     container_name: promtail
     image: grafana/promtail:latest
+    restart: unless-stopped
     volumes:
       # custom config will read logs from the containers of
       # this project
@@ -28,9 +26,10 @@ services:
 
   prometheus:
     container_name: prometheus
-    image: prom/prometheus
+    image: prom/prometheus:latest
     ports:
       - 9000:9090
+    restart: unless-stopped
     volumes:
       - ${PWD}/prometheus:/etc/prometheus
       - prometheus-data:/prometheus
@@ -41,8 +40,9 @@ services:
 
   otel-collector:
     container_name: otel-collector
-    image: otel/opentelemetry-collector
+    image: otel/opentelemetry-collector:latest
     command: ["--config=/root/otel-collector/config.yml"]
+    restart: unless-stopped
     volumes:
       - ${PWD}/otel-collector:/root/otel-collector/
     ports:
@@ -56,6 +56,7 @@ services:
   jaeger:
     container_name: jaeger
     image: jaegertracing/all-in-one:latest
+    restart: unless-stopped
     ports:
       - "16686:16686"
       - "14268:14268"
@@ -82,6 +83,7 @@ services:
       - "4040:4040"
     command:
       - "server"
+    restart: unless-stopped
 
 volumes:
   prometheus-data:
