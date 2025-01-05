@@ -15,6 +15,24 @@ body:
         from source code
     validations:
       required: true
+  - type: dropdown
+    id: node_type
+    attributes:
+      label: Node Type
+      description: What type of Celestia node are you running?
+      options:
+        - Light Node
+        - Full Node
+        - Bridge Node
+    validations:
+      required: true
+  - type: input
+    id: go_version
+    attributes:
+      label: Go Version
+      description: Output of 'go version' if built from source
+    validations:
+      required: false
   - type: markdown
     attributes:
       value: |
