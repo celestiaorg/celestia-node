@@ -15,7 +15,6 @@ import (
 	tmproto "github.com/tendermint/tendermint/proto/tendermint/types"
 	"github.com/tendermint/tendermint/proto/tendermint/version"
 	"github.com/tendermint/tendermint/types"
-	tmtime "github.com/tendermint/tendermint/types/time"
 
 	"github.com/celestiaorg/celestia-app/v3/pkg/da"
 	libhead "github.com/celestiaorg/go-header"
@@ -40,6 +39,7 @@ type TestSuite struct {
 	// blockTime is optional - if set, the test suite will generate
 	// blocks timestamped at the specified interval
 	blockTime time.Duration
+	startTime time.Time
 }
 
 func NewStore(t *testing.T) libhead.Store[*header.ExtendedHeader] {
@@ -62,6 +62,18 @@ func NewTestSuite(t *testing.T, numValidators int, blockTime time.Duration) *Tes
 		vals:      vals,
 		valSet:    valSet,
 		blockTime: blockTime,
+		startTime: time.Now(),
+	}
+}
+
+func NewTestSuiteWithStartTime(t *testing.T, startTime time.Time, blockTime time.Duration) *TestSuite {
+	valSet, vals := RandValidatorSet(3, 1)
+	return &TestSuite{
+		t:         t,
+		vals:      vals,
+		valSet:    valSet,
+		blockTime: blockTime,
+		startTime: startTime,
 	}
 }
 
@@ -74,10 +86,11 @@ func (s *TestSuite) genesis() *header.ExtendedHeader {
 	gen.ValidatorsHash = s.valSet.Hash()
 	gen.NextValidatorsHash = s.valSet.Hash()
 	gen.Height = 1
+	gen.Time = s.startTime
 	voteSet := types.NewVoteSet(gen.ChainID, gen.Height, 0, tmproto.PrecommitType, s.valSet)
 	blockID := RandBlockID(s.t)
 	blockID.Hash = gen.Hash()
-	commit, err := MakeCommit(blockID, gen.Height, 0, voteSet, s.vals, time.Now())
+	commit, err := MakeCommit(blockID, gen.Height, 0, voteSet, s.vals, s.startTime)
 	require.NoError(s.t, err)
 
 	eh := &header.ExtendedHeader{
@@ -199,7 +212,7 @@ func (s *TestSuite) Commit(h *header.RawHeader) *types.Commit {
 			ValidatorIndex:   int32(i),
 			Height:           h.Height,
 			Round:            round,
-			Timestamp:        tmtime.Now().UTC(),
+			Timestamp:        h.Time,
 			Type:             tmproto.PrecommitType,
 			BlockID:          bid,
 		}
