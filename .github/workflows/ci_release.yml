@@ -37,7 +37,7 @@ jobs:
       - name: Trim branch name
         id: trim_ref
         run: |
-          echo "branch=$(${${{ github.ref }}:11})" >> $GITHUB_OUTPUT
+          echo "branch=${GITHUB_REF#refs/*/}" >> $GITHUB_OUTPUT
 
       - name: Set debug output
         id: debug
