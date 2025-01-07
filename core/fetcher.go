@@ -14,6 +14,7 @@ import (
 	libhead "github.com/celestiaorg/go-header"
 )
 
+// Constants for event subscription
 const newBlockSubscriber = "NewBlock/Events"
 
 var (
