@@ -24,6 +24,8 @@ var (
 	newDataSignedBlockQuery = types.QueryForEvent(types.EventSignedBlock).String()
 )
 
+// BlockFetcher provides functionality to fetch blocks, commits, and validator sets
+// from a Tendermint Core node. It also supports subscribing to new block events.
 type BlockFetcher struct {
 	client Client
 
