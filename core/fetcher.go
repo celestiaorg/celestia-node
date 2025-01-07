@@ -46,7 +46,7 @@ func NewBlockFetcher(client Client) *BlockFetcher {
 func (f *BlockFetcher) GetBlockInfo(ctx context.Context, height *int64) (*types.Commit, *types.ValidatorSet, error) {
 	commit, err := f.Commit(ctx, height)
 	if err != nil {
-		return nil, nil, fmt.Errorf("core/fetcher: getting commit at height %d: %w", height, err)
+		return nil, nil, fmt.Errorf("failed to get commit at height %v: %w", height, err)
 	}
 
 	// If a nil `height` is given as a parameter, there is a chance
