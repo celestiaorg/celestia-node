@@ -56,7 +56,7 @@ func (f *BlockFetcher) GetBlockInfo(ctx context.Context, height *int64) (*types.
 	// prevent this potential inconsistency.
 	valSet, err := f.ValidatorSet(ctx, &commit.Height)
 	if err != nil {
-		return nil, nil, fmt.Errorf("core/fetcher: getting validator set at height %d: %w", height, err)
+		return nil, nil, fmt.Errorf("failed to get validator set at height %v: %w", height, err)
 	}
 
 	return commit, valSet, nil
