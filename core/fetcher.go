@@ -40,7 +40,9 @@ func NewBlockFetcher(client Client) *BlockFetcher {
 	}
 }
 
-// GetBlockInfo queries Core for additional block information, like Commit and ValidatorSet.
+// GetBlockInfo queries Core for additional block information, including Commit and ValidatorSet.
+// If height is nil, it fetches information for the latest block.
+// Returns an error if either the commit or validator set cannot be retrieved.
 func (f *BlockFetcher) GetBlockInfo(ctx context.Context, height *int64) (*types.Commit, *types.ValidatorSet, error) {
 	commit, err := f.Commit(ctx, height)
 	if err != nil {
