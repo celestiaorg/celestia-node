@@ -59,31 +59,30 @@ func (f *BlockFetcher) GetBlockInfo(ctx context.Context, height *int64) (*types.
 		return nil, nil, fmt.Errorf("failed to get validator set at height %v: %w", height, err)
 	}
 
-	return commit, valSet, nil
-}
-
-// GetBlock queries Core for a `Block` at the given height.
+// GetBlock retrieves a block at the specified height from Core.
+// If height is nil, it fetches the latest block.
 func (f *BlockFetcher) GetBlock(ctx context.Context, height *int64) (*types.Block, error) {
 	res, err := f.client.Block(ctx, height)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed to get block: %w", err)
 	}
 
 	if res != nil && res.Block == nil {
-		return nil, fmt.Errorf("core/fetcher: block not found, height: %d", height)
+		return nil, fmt.Errorf("block not found at height %v", height)
 	}
 
 	return res.Block, nil
 }
 
+// GetBlockByHash retrieves a block with the specified hash from Core.
 func (f *BlockFetcher) GetBlockByHash(ctx context.Context, hash libhead.Hash) (*types.Block, error) {
 	res, err := f.client.BlockByHash(ctx, hash)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed to get block by hash: %w", err)
 	}
 
 	if res != nil && res.Block == nil {
-		return nil, fmt.Errorf("core/fetcher: block not found, hash: %s", hash.String())
+		return nil, fmt.Errorf("block not found with hash %s", hash.String())
 	}
 
 	return res.Block, nil
@@ -132,12 +131,12 @@ func (f *BlockFetcher) ValidatorSet(ctx context.Context, height *int64) (*types.
 	return types.NewValidatorSet(vals), nil
 }
 
-// SubscribeNewBlockEvent subscribes to new block events from Core, returning
-// a new block event channel on success.
+// SubscribeNewBlockEvent subscribes to new block events from Core.
+// Returns a channel that receives new block events and an error if the subscription fails.
+// The subscription can be cancelled using UnsubscribeNewBlockEvent or when the context is cancelled.
 func (f *BlockFetcher) SubscribeNewBlockEvent(ctx context.Context) (<-chan types.EventDataSignedBlock, error) {
-	// start the client if not started yet
 	if !f.client.IsRunning() {
-		return nil, errors.New("client not running")
+		return nil, errors.New("client is not running")
 	}
 
 	ctx, cancel := context.WithCancel(ctx)
@@ -146,7 +145,7 @@ func (f *BlockFetcher) SubscribeNewBlockEvent(ctx context.Context) (<-chan types
 
 	eventChan, err := f.client.Subscribe(ctx, newBlockSubscriber, newDataSignedBlockQuery)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed to subscribe to new blocks: %w", err)
 	}
 
 	signedBlockCh := make(chan types.EventDataSignedBlock)
@@ -159,7 +158,7 @@ func (f *BlockFetcher) SubscribeNewBlockEvent(ctx context.Context) (<-chan types
 				return
 			case newEvent, ok := <-eventChan:
 				if !ok {
-					log.Errorw("fetcher: new blocks subscription channel closed unexpectedly")
+					log.Errorw("new blocks subscription channel closed unexpectedly")
 					return
 				}
 				signedBlock := newEvent.Data.(types.EventDataSignedBlock)
@@ -196,3 +195,4 @@ func (f *BlockFetcher) IsSyncing(ctx context.Context) (bool, error) {
 	}
 	return resp.SyncInfo.CatchingUp, nil
 }
+
