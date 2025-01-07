@@ -1,3 +1,5 @@
+// Package core provides fundamental blockchain interaction functionality,
+// including block fetching, subscription handling, and validator set management.
 package core
 
 import (
