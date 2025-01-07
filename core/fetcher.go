@@ -18,7 +18,9 @@ import (
 const newBlockSubscriber = "NewBlock/Events"
 
 var (
+	// log is the package-level logger
 	log                     = logging.Logger("core")
+	// newDataSignedBlockQuery defines the query string for subscribing to signed block events
 	newDataSignedBlockQuery = types.QueryForEvent(types.EventSignedBlock).String()
 )
 
