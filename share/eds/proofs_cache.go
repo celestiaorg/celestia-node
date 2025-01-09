@@ -255,6 +255,14 @@ func (c *proofsCache) Shares(ctx context.Context) ([]libshare.Share, error) {
 	return shares, nil
 }
 
+func (c *proofsCache) RangeNamespaceData(
+	ctx context.Context,
+	ns libshare.Namespace,
+	from, to shwap.SampleCoords,
+) (shwap.RangeNamespaceData, error) {
+	return c.inner.RangeNamespaceData(ctx, ns, from, to)
+}
+
 func (c *proofsCache) Reader() (io.Reader, error) {
 	odsSize := c.Size(context.TODO()) / 2
 	reader := NewShareReader(odsSize, c.getShare)

@@ -26,6 +26,10 @@ message RowNamespaceData {
     proof.pb.Proof proof = 2;
 }
 
+message NamespaceData {
+    repeated RowNamespaceData namespaceData = 1;
+}
+
 message Share {
     bytes data = 1;
 }
