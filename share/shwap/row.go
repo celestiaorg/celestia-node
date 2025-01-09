@@ -2,6 +2,7 @@ package shwap
 
 import (
 	"bytes"
+	"encoding/json"
 	"fmt"
 
 	"github.com/celestiaorg/celestia-app/v3/pkg/wrapper"
@@ -171,6 +172,33 @@ func (r *Row) verifyInclusion(roots *share.AxisRoots, idx int) error {
 	return nil
 }
 
+// MarshalJSON encodes row to the json encoded bytes.
+func (r Row) MarshalJSON() ([]byte, error) {
+	jsonRow := struct {
+		Shares []libshare.Share `json:"shares"`
+		Side   string           `json:"side"`
+	}{
+		Shares: r.shares,
+		Side:   r.side.String(),
+	}
+	return json.Marshal(&jsonRow)
+}
+
+// UnmarshalJSON decodes json bytes to the row.
+func (r *Row) UnmarshalJSON(data []byte) error {
+	jsonRow := struct {
+		Shares []libshare.Share `json:"shares"`
+		Side   string           `json:"side"`
+	}{}
+	err := json.Unmarshal(data, &jsonRow)
+	if err != nil {
+		return err
+	}
+	r.shares = jsonRow.Shares
+	r.side = toRowSide(jsonRow.Side)
+	return nil
+}
+
 // ToProto converts a RowSide to its protobuf representation.
 func (s RowSide) ToProto() pb.Row_HalfSide {
 	if s == Left {
@@ -185,4 +213,30 @@ func sideFromProto(side pb.Row_HalfSide) RowSide {
 		return Left
 	}
 	return Right
+}
+
+func (s RowSide) String() string {
+	switch s {
+	case Left:
+		return "LEFT"
+	case Right:
+		return "RIGHT"
+	case Both:
+		return "BOTH"
+	default:
+		panic("invalid row side")
+	}
+}
+
+func toRowSide(s string) RowSide {
+	switch s {
+	case "LEFT":
+		return Left
+	case "RIGHT":
+		return Right
+	case "BOTH":
+		return Both
+	default:
+		panic("invalid row side")
+	}
 }
