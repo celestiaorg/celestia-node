@@ -151,7 +151,7 @@ func (sg *Getter) GetSamples(context.Context, *header.ExtendedHeader, []shwap.Sa
 }
 
 func (sg *Getter) GetRow(_ context.Context, _ *header.ExtendedHeader, _ int) (shwap.Row, error) {
-	return shwap.Row{}, fmt.Errorf("getter/shrex: GetShare %w", shwap.ErrOperationNotSupported)
+	return shwap.Row{}, fmt.Errorf("getter/shrex: GetRow %w", shwap.ErrOperationNotSupported)
 }
 
 func (sg *Getter) GetEDS(ctx context.Context, header *header.ExtendedHeader) (*rsmt2d.ExtendedDataSquare, error) {

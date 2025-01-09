@@ -34,7 +34,7 @@ func TestRowMarshal(t *testing.T) {
 	const odsSize = 8
 	eds := edstest.RandEDS(t, odsSize)
 	for rowIdx := 0; rowIdx < odsSize*2; rowIdx++ {
-		for _, side := range []RowSide{Left, Right} {
+		for _, side := range []RowSide{Left, Right, Both} {
 			row, err := RowFromEDS(eds, rowIdx, side)
 			require.NoError(t, err)
 			rowData, err := json.Marshal(row)
