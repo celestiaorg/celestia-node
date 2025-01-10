@@ -102,7 +102,11 @@ func (s *Sample) UnmarshalJSON(data []byte) error {
 	if err != nil {
 		return err
 	}
+
 	sample, err := SampleFromProto(&ss)
+	if err != nil {
+		return err
+	}
 	*s = sample
 	return nil
 }
