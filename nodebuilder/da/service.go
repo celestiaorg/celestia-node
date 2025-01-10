@@ -4,7 +4,6 @@ import (
 	"context"
 	"encoding/binary"
 	"encoding/json"
-	"fmt"
 	"strings"
 
 	logging "github.com/ipfs/go-log/v2"
@@ -256,7 +255,6 @@ func (s *Service) Validate(
 		// invalid proof")    but analysis of the code in celestia-node implies this should never happen -
 		// maybe it's caused by openrpc?    there is no way of gently handling errors here, but returned
 		// value is fine for us
-		fmt.Println("proof", proofs[i] == nil, "commitment", commitment == nil)
 		isIncluded, _ := s.blobServ.Included(ctx, height, ns, proofs[i], commitment)
 		included[i] = isIncluded
 	}
