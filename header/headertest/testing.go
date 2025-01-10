@@ -66,7 +66,7 @@ func NewTestSuite(t *testing.T, numValidators int, blockTime time.Duration) *Tes
 	}
 }
 
-func NewTestSuiteWithStartTime(t *testing.T, startTime time.Time, blockTime time.Duration) *TestSuite {
+func NewTestSuiteWithGenesisTime(t *testing.T, startTime time.Time, blockTime time.Duration) *TestSuite {
 	valSet, vals := RandValidatorSet(3, 1)
 	return &TestSuite{
 		t:         t,

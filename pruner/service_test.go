@@ -248,7 +248,7 @@ func TestFindPruneableHeaders(t *testing.T) {
 			ctx, cancel := context.WithCancel(context.Background())
 			t.Cleanup(cancel)
 
-			suite := headertest.NewTestSuiteWithStartTime(t, tc.startTime, tc.blockTime)
+			suite := headertest.NewTestSuiteWithGenesisTime(t, tc.startTime, tc.blockTime)
 			store := headertest.NewCustomStore(t, suite, tc.headerAmount)
 
 			mp := &mockPruner{}
