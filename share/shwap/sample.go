@@ -1,6 +1,7 @@
 package shwap
 
 import (
+	"encoding/json"
 	"errors"
 	"fmt"
 
@@ -86,6 +87,24 @@ func (s Sample) ToProto() *pb.Sample {
 		},
 		ProofType: pb.AxisType(s.ProofType),
 	}
+}
+
+// MarshalJSON encodes sample to the json encoded bytes.
+func (s Sample) MarshalJSON() ([]byte, error) {
+	pbSample := s.ToProto()
+	return json.Marshal(*pbSample)
+}
+
+// UnmarshalJSON decodes bytes to the Sample.
+func (s *Sample) UnmarshalJSON(data []byte) error {
+	var ss pb.Sample
+	err := json.Unmarshal(data, &ss)
+	if err != nil {
+		return err
+	}
+	sample, err := SampleFromProto(&ss)
+	*s = sample
+	return nil
 }
 
 // IsEmpty reports whether the Sample is empty, i.e. doesn't contain a proof.
