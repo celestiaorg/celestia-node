@@ -1,0 +1,46 @@
+syntax = "proto3";
+
+package celestia.node.v1.fraud;
+
+option go_package = "github.com/celestiaorg/celestia-node/api/v1/fraud";
+
+// BadEncodingFraudProof represents a proof of fraudulent data encoding
+message BadEncodingFraudProof {
+  uint64 height = 1;
+  // TODO: add concrete fields
+}
+
+// Request to get all Bad Encoding Fraud Proofs from a specific height
+message GetAllBEFPRequest {
+  uint64 from_height = 1;
+  uint64 max_amount = 2;  // For pagination
+}
+
+message GetAllBEFPResponse {
+  repeated BadEncodingFraudProof fraud_proofs = 1;
+}
+
+message SubscribeBEFPRequest {
+  uint64 from_height = 1;
+}
+
+message SubscribeBEFPResponse {
+  BadEncodingFraudProof fraud_proofs = 1;
+}
+
+message VerificationResponse {
+  bool valid = 1;
+  string error = 2;
+}
+
+// BadEncodingFraudProofService - handles operations related to Bad Encoding Fraud Proofs
+service BadEncodingFraudProofService {
+  // Get all fraud proofs from a specific height with pagination
+  rpc GetAll(GetAllBEFPRequest) returns (GetAllBEFPResponse);
+
+  // Subscribe to receive fraud proofs as they are discovered
+  rpc SubscribeBEFPs(SubscribeBEFPRequest) returns (stream SubscribeBEFPResponse);
+
+  // Verify a given fraud proof
+  rpc Verify(BadEncodingFraudProof) returns (VerificationResponse);
+}

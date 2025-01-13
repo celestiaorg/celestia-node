@@ -1,0 +1,39 @@
+syntax = "proto3";
+
+package celestia.node.v1.proof;
+
+option go_package = "github.com/celestiaorg/celestia-node/api/v1/proof";
+
+// Proof system supports two verification approaches:
+// 1. Row roots (V0) - Uses row roots from Data Availability Header (DAH) for verification
+// 2. Data root (V1) - Uses data root proofs directly, more efficient and doesn't require DAH
+enum ProofType {
+  PROOF_TYPE_UNSPECIFIED = 0;
+  // Data proofs
+  PROOF_TYPE_DATA_INCLUSION = 1;
+  // Contains leaf hashes for the range where namespace would be
+  PROOF_TYPE_DATA_NON_INCLUSION = 2;
+  // Commitment proof is used for blobs only.
+  // It contains first share of the blob and its inclusion proof
+  PROOF_TYPE_COMMITMENT = 3;
+  // TBD: structure for commitment non-inclusion
+  PROOF_TYPE_COMMITMENT_NON_INCLUSION = 4;
+}
+
+// Core proof structure used in both V0 (row roots) and V1 (data root) verification
+message Proof {
+  int32 start = 1;  // Start index in EDS
+  int32 end = 2;    // End index in EDS
+  repeated bytes nodes = 3;  // NMT proof nodes (48 bytes each: namespace bounds + hash)
+  bytes leaf_hash = 4;       // Used for non-inclusion proofs (40 bytes: namespace + hash)
+}
+
+message DataRootProof {
+  ProofType type = 1;
+  Proof proof = 2;
+}
+
+message RowRootProof {
+  Proof proof = 1;
+  uint64 row_index = 2;
+}

@@ -1,0 +1,100 @@
+syntax = "proto3";
+
+package celestia.node.v1.blob;
+
+option go_package = "github.com/celestiaorg/celestia-node/api/v1/blob";
+
+import "common.proto";
+import "types.proto";
+import "proof.proto";
+
+message SubmitOptions {
+  double gas_price = 1;    // Amount to be paid per gas unit
+  uint64 gas = 2;         // Gas amount
+  string key_name = 3;    // Keystore key for signing
+  optional string fee_granter = 4;  // Account paying for transaction
+  optional uint64 nonce = 5;        // Transaction nonce
+}
+
+message GetBlobRequest {
+  uint64 height = 1;
+  bytes namespace = 2;
+  bytes commitment = 3;
+  optional bool provide_commitment_proof = 4;
+  optional celestia.node.v1.common.Options options = 5;
+}
+
+message GetBlobResponseV0 {
+  celestia.node.v1.common.Status status = 1;
+  celestia.node.v1.types.BlobWithProofV0 blob = 2;
+}
+
+message GetBlobResponseV1 {
+  celestia.node.v1.common.Status status = 1;
+  celestia.node.v1.types.BlobWithProofV1 blob = 2;
+}
+
+message GetBlobsRequest {
+  uint64 height = 1;
+  bytes namespaces = 2;
+  optional celestia.node.v1.common.Options options = 3;
+}
+
+message GetBlobsResponseV0 {
+  celestia.node.v1.common.Status status = 1;
+  repeated celestia.node.v1.types.BlobWithProofV0 blobs = 2;
+}
+
+message GetBlobsResponseV1 {
+  celestia.node.v1.common.Status status = 1;
+  repeated celestia.node.v1.types.BlobWithProofV1 blobs = 2;
+}
+
+message SubmitDataRequest {
+  bytes namespace = 1;
+  repeated bytes data = 2;
+  SubmitOptions options = 3;
+}
+
+message SubmitDataResponse {
+  celestia.node.v1.common.Status status = 1;
+  uint64 height = 2;
+  repeated bytes commitments = 3;
+}
+
+message SubscribeAllRequest {
+  bytes namespaces = 1;
+  uint64 from_height = 2;
+  optional celestia.node.v1.common.Options options = 3;
+}
+
+message SubscribeAllResponse {
+  celestia.node.v1.common.Status status = 1;
+  uint64 height = 2;
+  repeated celestia.node.v1.types.BlobWithProofV1 blobs = 3;
+}
+
+message BlobsSubscribeRequest {
+  bytes namespaces = 1;
+  uint64 from_height = 2;
+  repeated bytes commitment = 3;
+  optional celestia.node.v1.common.Options options = 4;
+}
+
+message BlobsSubscribeResponse {
+  bytes commitment = 1;
+  celestia.node.v1.types.BlobWithProofV1 blob = 2;
+  uint64 height = 3;
+}
+
+// BlobService - handles blob operations
+service BlobService {
+  // Core operations
+  rpc GetBlob(GetBlobRequest) returns (GetBlobResponseV0);
+  rpc GetBlobs(GetBlobsRequest) returns (GetBlobsResponseV0);
+  rpc SubmitData(SubmitDataRequest) returns (SubmitDataResponse);
+
+  // Subscription operations
+  rpc SubscribeBlobs(BlobsSubscribeRequest) returns (stream BlobsSubscribeResponse);
+  rpc SubscribeAll(SubscribeAllRequest) returns (stream SubscribeAllResponse);
+}

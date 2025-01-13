@@ -1,0 +1,69 @@
+syntax = "proto3";
+
+package celestia.node.v1.proof;
+
+option go_package = "github.com/celestiaorg/celestia-node/api/v1/proof";
+
+import "common.proto";
+import "types.proto";
+
+message VerifyDataRequest {
+  bytes root = 1;
+  bytes namespace = 2;
+  Proof proof = 3;
+  optional bytes data = 4;  // Not used for non-inclusion proofs
+}
+
+message VerifySharesRequestV0 {
+  bytes row_root = 1;
+  // Each row includes its proof to row root
+  repeated celestia.node.v1.types.SharesWithProof rows = 2;
+}
+
+message VerifySharesRequestV1 {
+  bytes root = 1;
+  repeated celestia.node.v1.types.Share shares = 2;
+  DataRootProof proof = 3;
+}
+
+message VerifyNamespaceRequestV0 {
+  repeated bytes row_roots = 1;
+  bytes namespace = 2;
+  repeated celestia.node.v1.types.SharesWithProof rows = 3;
+}
+
+message VerifyNamespaceRequestV1 {
+  bytes root = 1;
+  bytes namespace = 2;
+  repeated celestia.node.v1.types.Share shares = 3;
+  DataRootProof proof = 4;
+}
+
+message VerifyCommitmentRequest {
+  bytes root = 1;
+  bytes namespace = 2;
+  bytes commitment = 3;
+  DataRootProof proof = 4;
+}
+
+message VerifyProofResponse {
+  celestia.node.v1.common.Status status = 1;
+  bool valid = 2;
+}
+
+// ProofsService - verification service that supports both V0 and V1 approaches
+service ProofsService {
+  // V0 verification of inclusion of shares. Requires row root to perform verification.
+  // Does not verifies namespace rules of provided shares and should be used only
+  // to verify inclusion of data spread over multiple namespaces
+  rpc VerifySharesV0(VerifySharesRequestV0) returns (VerifyProofResponse);
+  // Performs what VerifySharesV0 does with additional namespace rules verification on top.
+  rpc VerifyNamespaceV0(VerifyNamespaceRequestV0) returns (VerifyProofResponse);
+
+  // V1 verification
+  // VerifyDataProof verifies raw blob data using data root proof
+  rpc VerifyDataProof(VerifyDataRequest) returns (VerifyProofResponse);
+  // VerifyCommitmentProof verifies inclusion of blob, by using commitment and commitment data root proof.
+  // Provided proof type should be PROOF_TYPE_COMMITMENT
+  rpc VerifyCommitmentProof(VerifyCommitmentRequest) returns (VerifyProofResponse);
+}
