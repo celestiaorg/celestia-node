@@ -5,21 +5,20 @@ import (
 	"testing"
 	"time"
 
-	"github.com/ipfs/boxo/blockservice"
 	"github.com/stretchr/testify/require"
 	"github.com/tendermint/tendermint/libs/bytes"
 	tmproto "github.com/tendermint/tendermint/proto/tendermint/types"
 	"github.com/tendermint/tendermint/types"
 
-	"github.com/celestiaorg/celestia-app/pkg/da"
+	"github.com/celestiaorg/celestia-app/v3/pkg/da"
 	"github.com/celestiaorg/nmt"
 	"github.com/celestiaorg/rsmt2d"
 
 	"github.com/celestiaorg/celestia-node/header"
 	"github.com/celestiaorg/celestia-node/header/headertest"
-	"github.com/celestiaorg/celestia-node/share/eds"
 	"github.com/celestiaorg/celestia-node/share/eds/edstest"
 	"github.com/celestiaorg/celestia-node/share/ipld"
+	"github.com/celestiaorg/celestia-node/store"
 )
 
 // FraudMaker allows to produce an invalid header at the specified height in order to produce the
@@ -45,7 +44,7 @@ func NewFraudMaker(t *testing.T, height int64, vals []types.PrivValidator, valSe
 	}
 }
 
-func (f *FraudMaker) MakeExtendedHeader(odsSize int, edsStore *eds.Store) header.ConstructFn {
+func (f *FraudMaker) MakeExtendedHeader(odsSize int, edsStore *store.Store) header.ConstructFn {
 	return func(
 		h *types.Header,
 		comm *types.Commit,
@@ -58,14 +57,14 @@ func (f *FraudMaker) MakeExtendedHeader(odsSize int, edsStore *eds.Store) header
 
 		hdr := *h
 		if h.Height == f.height {
-			adder := ipld.NewProofsAdder(odsSize)
+			adder := ipld.NewProofsAdder(odsSize, false)
 			square := edstest.RandByzantineEDS(f.t, odsSize, nmt.NodeVisitor(adder.VisitFn()))
 			dah, err := da.NewDataAvailabilityHeader(square)
 			require.NoError(f.t, err)
 			hdr.DataHash = dah.Hash()
 
 			ctx := ipld.CtxWithProofsAdder(context.Background(), adder)
-			require.NoError(f.t, edsStore.Put(ctx, h.DataHash.Bytes(), square))
+			require.NoError(f.t, edsStore.PutODSQ4(ctx, &dah, uint64(h.Height), square))
 
 			*eds = *square
 		}
@@ -85,14 +84,12 @@ func (f *FraudMaker) MakeExtendedHeader(odsSize int, edsStore *eds.Store) header
 		return header.MakeExtendedHeader(h, comm, vals, eds)
 	}
 }
+
 func CreateFraudExtHeader(
 	t *testing.T,
 	eh *header.ExtendedHeader,
-	serv blockservice.BlockService,
 ) *header.ExtendedHeader {
 	square := edstest.RandByzantineEDS(t, len(eh.DAH.RowRoots))
-	err := ipld.ImportEDS(context.Background(), square, serv)
-	require.NoError(t, err)
 	dah, err := da.NewDataAvailabilityHeader(square)
 	require.NoError(t, err)
 	eh.DAH = &dah

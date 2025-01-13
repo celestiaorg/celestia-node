@@ -10,8 +10,11 @@ import (
 	libhead "github.com/celestiaorg/go-header"
 
 	"github.com/celestiaorg/celestia-node/header"
-	"github.com/celestiaorg/celestia-node/share/p2p/shrexsub"
+	"github.com/celestiaorg/celestia-node/share/availability"
+	"github.com/celestiaorg/celestia-node/share/shwap/p2p/shrex/shrexsub"
 )
+
+type jobType string
 
 const (
 	catchupJob jobType = "catchup"
@@ -36,8 +39,6 @@ type workerState struct {
 
 	curr uint64
 }
-
-type jobType string
 
 // job represents headers interval to be processed by worker
 type job struct {
@@ -75,11 +76,17 @@ func (w *worker) run(ctx context.Context, timeout time.Duration, resultCh chan<-
 	jobStart := time.Now()
 	log.Debugw("start sampling worker", "from", w.state.from, "to", w.state.to)
 
+	skipped := 0
+
 	for curr := w.state.from; curr <= w.state.to; curr++ {
 		err := w.sample(ctx, timeout, curr)
 		if errors.Is(err, context.Canceled) {
 			// sampling worker will resume upon restart
 			return
+		}
+		if errors.Is(err, availability.ErrOutsideSamplingWindow) {
+			skipped++
+			err = nil
 		}
 		w.setResult(curr, err)
 	}
@@ -91,6 +98,7 @@ func (w *worker) run(ctx context.Context, timeout time.Duration, resultCh chan<-
 			"from", w.state.from,
 			"to", w.state.curr,
 			"errors", len(w.state.failed),
+			"# of headers skipped as outside of sampling window", skipped,
 			"finished (s)", time.Since(jobStart),
 		)
 	}
@@ -112,20 +120,28 @@ func (w *worker) sample(ctx context.Context, timeout time.Duration, height uint6
 	defer cancel()
 
 	err = w.sampleFn(ctx, h)
+	if errors.Is(err, availability.ErrOutsideSamplingWindow) {
+		// if header is outside sampling window, do not log
+		// or record it.
+		return err
+	}
+
 	w.metrics.observeSample(ctx, h, time.Since(start), w.state.jobType, err)
 	if err != nil {
-		if !errors.Is(err, context.Canceled) {
-			log.Debugw(
-				"failed to sample header",
-				"type", w.state.jobType,
-				"height", h.Height(),
-				"hash", h.Hash(),
-				"square width", len(h.DAH.RowRoots),
-				"data root", h.DAH.String(),
-				"err", err,
-				"finished (s)", time.Since(start),
-			)
+		if errors.Is(err, context.Canceled) {
+			return err
 		}
+
+		log.Errorw(
+			"failed to sample header",
+			"type", w.state.jobType,
+			"height", h.Height(),
+			"hash", h.Hash(),
+			"square width", len(h.DAH.RowRoots),
+			"data root", h.DAH.String(),
+			"err", err,
+			"finished (s)", time.Since(start),
+		)
 		return err
 	}
 
@@ -150,7 +166,7 @@ func (w *worker) sample(ctx context.Context, timeout time.Duration, height uint6
 		"type", w.state.jobType,
 		"height", h.Height(),
 		"hash", h.Hash(),
-		"square width", len(h.DAH.RowRoots),
+		"EDS square width", len(h.DAH.RowRoots),
 		"data root", h.DAH.String(),
 		"finished (s)", time.Since(start),
 	)

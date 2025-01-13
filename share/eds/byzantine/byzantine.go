@@ -4,11 +4,12 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/ipfs/boxo/blockservice"
+	"github.com/ipfs/boxo/blockstore"
 
-	"github.com/celestiaorg/celestia-app/pkg/da"
+	libshare "github.com/celestiaorg/go-square/v2/share"
 	"github.com/celestiaorg/rsmt2d"
 
+	"github.com/celestiaorg/celestia-node/share"
 	"github.com/celestiaorg/celestia-node/share/ipld"
 )
 
@@ -31,50 +32,40 @@ func (e *ErrByzantine) Error() string {
 // If error happens during proof collection, it terminates the process with os.Exit(1).
 func NewErrByzantine(
 	ctx context.Context,
-	bGetter blockservice.BlockGetter,
-	dah *da.DataAvailabilityHeader,
+	bStore blockstore.Blockstore,
+	roots *share.AxisRoots,
 	errByz *rsmt2d.ErrByzantineData,
 ) error {
-	// changing the order to collect proofs against an orthogonal axis
-	roots := [][][]byte{
-		dah.ColumnRoots,
-		dah.RowRoots,
-	}[errByz.Axis]
-
 	sharesWithProof := make([]*ShareWithProof, len(errByz.Shares))
-
-	type result struct {
-		share *ShareWithProof
-		index int
-	}
-	resultCh := make(chan *result)
-	for index, share := range errByz.Shares {
-		if share == nil {
+	bGetter := ipld.NewBlockservice(bStore, nil)
+	var count int
+	for index, shr := range errByz.Shares {
+		if len(shr) == 0 {
+			continue
+		}
+		sh, err := libshare.NewShare(shr)
+		if err != nil {
+			log.Warn("failed to create share", "index", index, "err", err)
+			continue
+		}
+		swp, err := GetShareWithProof(ctx, bGetter, roots, *sh, errByz.Axis, int(errByz.Index), index)
+		if err != nil {
+			log.Warn("requesting proof failed",
+				"errByz", errByz,
+				"shareIndex", index,
+				"err", err)
 			continue
 		}
 
-		index := index
-		go func() {
-			share, err := getProofsAt(
-				ctx, bGetter,
-				ipld.MustCidFromNamespacedSha256(roots[index]),
-				int(errByz.Index), len(errByz.Shares),
-			)
-			if err != nil {
-				log.Warn("requesting proof failed", "root", roots[index], "err", err)
-				return
-			}
-			resultCh <- &result{share, index}
-		}()
+		sharesWithProof[index] = swp
+		// it is enough to collect half of the shares to construct the befp
+		if count++; count >= len(roots.RowRoots)/2 {
+			break
+		}
 	}
 
-	for i := 0; i < len(dah.RowRoots)/2; i++ {
-		select {
-		case t := <-resultCh:
-			sharesWithProof[t.index] = t.share
-		case <-ctx.Done():
-			return ipld.ErrNodeNotFound
-		}
+	if count < len(roots.RowRoots)/2 {
+		return fmt.Errorf("failed to collect proof")
 	}
 
 	return &ErrByzantine{

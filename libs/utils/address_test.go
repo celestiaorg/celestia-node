@@ -8,7 +8,7 @@ import (
 )
 
 func TestSanitizeAddr(t *testing.T) {
-	var tests = []struct {
+	tests := []struct {
 		addr string
 		want string
 		err  error
@@ -39,7 +39,7 @@ func TestValidateAddr(t *testing.T) {
 		addr       string
 		unresolved bool
 	}
-	var tests = []struct {
+	tests := []struct {
 		addr string
 		want want
 	}{
@@ -53,6 +53,8 @@ func TestValidateAddr(t *testing.T) {
 		{addr: "https://celestia.org", want: want{unresolved: true}},
 		// Testcase: hostname is valid, but no schema
 		{addr: "celestia.org", want: want{unresolved: true}},
+		// Testcase: localhost
+		{addr: "localhost", want: want{addr: "127.0.0.1"}},
 	}
 
 	for _, tt := range tests {

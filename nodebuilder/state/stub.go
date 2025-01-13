@@ -6,7 +6,8 @@ import (
 
 	"github.com/cosmos/cosmos-sdk/x/staking/types"
 
-	"github.com/celestiaorg/celestia-node/blob"
+	libshare "github.com/celestiaorg/go-square/v2/share"
+
 	"github.com/celestiaorg/celestia-node/state"
 )
 
@@ -35,21 +36,16 @@ func (s stubbedStateModule) BalanceForAddress(
 func (s stubbedStateModule) Transfer(
 	_ context.Context,
 	_ state.AccAddress,
-	_, _ state.Int,
-	_ uint64,
+	_ state.Int,
+	_ *state.TxConfig,
 ) (*state.TxResponse, error) {
-	return nil, ErrNoStateAccess
-}
-
-func (s stubbedStateModule) SubmitTx(context.Context, state.Tx) (*state.TxResponse, error) {
 	return nil, ErrNoStateAccess
 }
 
 func (s stubbedStateModule) SubmitPayForBlob(
 	context.Context,
-	state.Int,
-	uint64,
-	[]*blob.Blob,
+	[]*libshare.Blob,
+	*state.TxConfig,
 ) (*state.TxResponse, error) {
 	return nil, ErrNoStateAccess
 }
@@ -57,8 +53,8 @@ func (s stubbedStateModule) SubmitPayForBlob(
 func (s stubbedStateModule) CancelUnbondingDelegation(
 	_ context.Context,
 	_ state.ValAddress,
-	_, _, _ state.Int,
-	_ uint64,
+	_, _ state.Int,
+	_ *state.TxConfig,
 ) (*state.TxResponse, error) {
 	return nil, ErrNoStateAccess
 }
@@ -66,8 +62,8 @@ func (s stubbedStateModule) CancelUnbondingDelegation(
 func (s stubbedStateModule) BeginRedelegate(
 	_ context.Context,
 	_, _ state.ValAddress,
-	_, _ state.Int,
-	_ uint64,
+	_ state.Int,
+	_ *state.TxConfig,
 ) (*state.TxResponse, error) {
 	return nil, ErrNoStateAccess
 }
@@ -75,8 +71,8 @@ func (s stubbedStateModule) BeginRedelegate(
 func (s stubbedStateModule) Undelegate(
 	_ context.Context,
 	_ state.ValAddress,
-	_, _ state.Int,
-	_ uint64,
+	_ state.Int,
+	_ *state.TxConfig,
 ) (*state.TxResponse, error) {
 	return nil, ErrNoStateAccess
 }
@@ -84,8 +80,8 @@ func (s stubbedStateModule) Undelegate(
 func (s stubbedStateModule) Delegate(
 	_ context.Context,
 	_ state.ValAddress,
-	_, _ state.Int,
-	_ uint64,
+	_ state.Int,
+	_ *state.TxConfig,
 ) (*state.TxResponse, error) {
 	return nil, ErrNoStateAccess
 }
@@ -108,5 +104,22 @@ func (s stubbedStateModule) QueryRedelegations(
 	_ context.Context,
 	_, _ state.ValAddress,
 ) (*types.QueryRedelegationsResponse, error) {
+	return nil, ErrNoStateAccess
+}
+
+func (s stubbedStateModule) GrantFee(
+	_ context.Context,
+	_ state.AccAddress,
+	_ state.Int,
+	_ *state.TxConfig,
+) (*state.TxResponse, error) {
+	return nil, ErrNoStateAccess
+}
+
+func (s stubbedStateModule) RevokeGrantFee(
+	_ context.Context,
+	_ state.AccAddress,
+	_ *state.TxConfig,
+) (*state.TxResponse, error) {
 	return nil, ErrNoStateAccess
 }

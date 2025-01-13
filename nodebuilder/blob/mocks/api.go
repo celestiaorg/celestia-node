@@ -9,7 +9,8 @@ import (
 	reflect "reflect"
 
 	blob "github.com/celestiaorg/celestia-node/blob"
-	share "github.com/celestiaorg/celestia-node/share"
+	state "github.com/celestiaorg/celestia-node/state"
+	share "github.com/celestiaorg/go-square/v2/share"
 	gomock "github.com/golang/mock/gomock"
 )
 
@@ -66,6 +67,21 @@ func (mr *MockModuleMockRecorder) GetAll(arg0, arg1, arg2 interface{}) *gomock.C
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetAll", reflect.TypeOf((*MockModule)(nil).GetAll), arg0, arg1, arg2)
 }
 
+// GetCommitmentProof mocks base method.
+func (m *MockModule) GetCommitmentProof(arg0 context.Context, arg1 uint64, arg2 share.Namespace, arg3 []byte) (*blob.CommitmentProof, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "GetCommitmentProof", arg0, arg1, arg2, arg3)
+	ret0, _ := ret[0].(*blob.CommitmentProof)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// GetCommitmentProof indicates an expected call of GetCommitmentProof.
+func (mr *MockModuleMockRecorder) GetCommitmentProof(arg0, arg1, arg2, arg3 interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetCommitmentProof", reflect.TypeOf((*MockModule)(nil).GetCommitmentProof), arg0, arg1, arg2, arg3)
+}
+
 // GetProof mocks base method.
 func (m *MockModule) GetProof(arg0 context.Context, arg1 uint64, arg2 share.Namespace, arg3 blob.Commitment) (*blob.Proof, error) {
 	m.ctrl.T.Helper()
@@ -97,7 +113,7 @@ func (mr *MockModuleMockRecorder) Included(arg0, arg1, arg2, arg3, arg4 interfac
 }
 
 // Submit mocks base method.
-func (m *MockModule) Submit(arg0 context.Context, arg1 []*blob.Blob, arg2 blob.GasPrice) (uint64, error) {
+func (m *MockModule) Submit(arg0 context.Context, arg1 []*blob.Blob, arg2 *state.TxConfig) (uint64, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "Submit", arg0, arg1, arg2)
 	ret0, _ := ret[0].(uint64)
@@ -109,4 +125,19 @@ func (m *MockModule) Submit(arg0 context.Context, arg1 []*blob.Blob, arg2 blob.G
 func (mr *MockModuleMockRecorder) Submit(arg0, arg1, arg2 interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Submit", reflect.TypeOf((*MockModule)(nil).Submit), arg0, arg1, arg2)
+}
+
+// Subscribe mocks base method.
+func (m *MockModule) Subscribe(arg0 context.Context, arg1 share.Namespace) (<-chan *blob.SubscriptionResponse, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "Subscribe", arg0, arg1)
+	ret0, _ := ret[0].(<-chan *blob.SubscriptionResponse)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// Subscribe indicates an expected call of Subscribe.
+func (mr *MockModuleMockRecorder) Subscribe(arg0, arg1 interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Subscribe", reflect.TypeOf((*MockModule)(nil).Subscribe), arg0, arg1)
 }

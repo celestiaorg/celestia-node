@@ -94,3 +94,18 @@ func (mr *MockModuleMockRecorder) LogLevelSet(arg0, arg1, arg2 interface{}) *gom
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "LogLevelSet", reflect.TypeOf((*MockModule)(nil).LogLevelSet), arg0, arg1, arg2)
 }
+
+// Ready mocks base method.
+func (m *MockModule) Ready(arg0 context.Context) (bool, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "Ready", arg0)
+	ret0, _ := ret[0].(bool)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// Ready indicates an expected call of Ready.
+func (mr *MockModuleMockRecorder) Ready(arg0 interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Ready", reflect.TypeOf((*MockModule)(nil).Ready), arg0)
+}

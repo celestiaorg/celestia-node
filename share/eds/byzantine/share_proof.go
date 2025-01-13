@@ -2,14 +2,15 @@ package byzantine
 
 import (
 	"context"
-	"crypto/sha256"
+	"errors"
 
 	"github.com/ipfs/boxo/blockservice"
-	"github.com/ipfs/go-cid"
 	logging "github.com/ipfs/go-log/v2"
 
+	libshare "github.com/celestiaorg/go-square/v2/share"
 	"github.com/celestiaorg/nmt"
 	nmt_pb "github.com/celestiaorg/nmt/pb"
+	"github.com/celestiaorg/rsmt2d"
 
 	"github.com/celestiaorg/celestia-node/share"
 	pb "github.com/celestiaorg/celestia-node/share/eds/byzantine/pb"
@@ -21,34 +22,34 @@ var log = logging.Logger("share/byzantine")
 // ShareWithProof contains data with corresponding Merkle Proof
 type ShareWithProof struct {
 	// Share is a full data including namespace
-	share.Share
+	libshare.Share
 	// Proof is a Merkle Proof of current share
 	Proof *nmt.Proof
-}
-
-// NewShareWithProof takes the given leaf and its path, starting from the tree root,
-// and computes the nmt.Proof for it.
-func NewShareWithProof(index int, share share.Share, pathToLeaf []cid.Cid) *ShareWithProof {
-	rangeProofs := make([][]byte, 0, len(pathToLeaf))
-	for i := len(pathToLeaf) - 1; i >= 0; i-- {
-		node := ipld.NamespacedSha256FromCID(pathToLeaf[i])
-		rangeProofs = append(rangeProofs, node)
-	}
-
-	proof := nmt.NewInclusionProof(index, index+1, rangeProofs, true)
-	return &ShareWithProof{
-		share,
-		&proof,
-	}
+	// Axis is a proof axis
+	Axis rsmt2d.Axis
 }
 
 // Validate validates inclusion of the share under the given root CID.
-func (s *ShareWithProof) Validate(root cid.Cid) bool {
+func (s *ShareWithProof) Validate(roots *share.AxisRoots, axisType rsmt2d.Axis, axisIdx, shrIdx int) bool {
+	var rootHash []byte
+	switch axisType {
+	case rsmt2d.Row:
+		rootHash = rootHashForCoordinates(roots, s.Axis, shrIdx, axisIdx)
+	case rsmt2d.Col:
+		rootHash = rootHashForCoordinates(roots, s.Axis, axisIdx, shrIdx)
+	}
+
+	edsSize := len(roots.RowRoots)
+	isParity := shrIdx >= edsSize/2 || axisIdx >= edsSize/2
+	namespace := libshare.ParitySharesNamespace
+	if !isParity {
+		namespace = s.Share.Namespace()
+	}
 	return s.Proof.VerifyInclusion(
-		sha256.New(), // TODO(@Wondertan): This should be defined somewhere globally
-		share.GetNamespace(s.Share).ToNMT(),
-		[][]byte{share.GetData(s.Share)},
-		ipld.NamespacedSha256FromCID(root),
+		share.NewSHA256Hasher(),
+		namespace.Bytes(),
+		[][]byte{s.Share.ToBytes()},
+		rootHash,
 	)
 }
 
@@ -56,9 +57,8 @@ func (s *ShareWithProof) ShareWithProofToProto() *pb.Share {
 	if s == nil {
 		return &pb.Share{}
 	}
-
 	return &pb.Share{
-		Data: s.Share,
+		Data: s.Share.ToBytes(),
 		Proof: &nmt_pb.Proof{
 			Start:                 int64(s.Proof.Start()),
 			End:                   int64(s.Proof.End()),
@@ -66,62 +66,72 @@ func (s *ShareWithProof) ShareWithProofToProto() *pb.Share {
 			LeafHash:              s.Proof.LeafHash(),
 			IsMaxNamespaceIgnored: s.Proof.IsMaxNamespaceIDIgnored(),
 		},
+		ProofAxis: pb.Axis(s.Axis),
 	}
 }
 
-// GetProofsForShares fetches Merkle proofs for the given shares
-// and returns the result as an array of ShareWithProof.
-func GetProofsForShares(
+// GetShareWithProof attempts to get a share with proof for the given share. It first tries to get
+// a row proof and if that fails or proof is invalid, it tries to get a column proof.
+func GetShareWithProof(
 	ctx context.Context,
 	bGetter blockservice.BlockGetter,
-	root cid.Cid,
-	shares [][]byte,
-) ([]*ShareWithProof, error) {
-	proofs := make([]*ShareWithProof, len(shares))
-	for index, share := range shares {
-		if share != nil {
-			proof, err := getProofsAt(ctx, bGetter, root, index, len(shares))
-			if err != nil {
-				return nil, err
-			}
-			proofs[index] = proof
+	roots *share.AxisRoots,
+	share libshare.Share,
+	axisType rsmt2d.Axis, axisIdx, shrIdx int,
+) (*ShareWithProof, error) {
+	if axisType == rsmt2d.Col {
+		axisIdx, shrIdx, axisType = shrIdx, axisIdx, rsmt2d.Row
+	}
+	width := len(roots.RowRoots)
+	// try row proofs
+	root := roots.RowRoots[axisIdx]
+	proof, err := ipld.GetProof(ctx, bGetter, root, shrIdx, width)
+	if err == nil {
+		shareWithProof := &ShareWithProof{
+			Share: share,
+			Proof: &proof,
+			Axis:  rsmt2d.Row,
+		}
+		if shareWithProof.Validate(roots, axisType, axisIdx, shrIdx) {
+			return shareWithProof, nil
 		}
 	}
-	return proofs, nil
-}
 
-func getProofsAt(
-	ctx context.Context,
-	bGetter blockservice.BlockGetter,
-	root cid.Cid,
-	index,
-	total int,
-) (*ShareWithProof, error) {
-	proof := make([]cid.Cid, 0)
-	// TODO(@vgonkivs): Combine GetLeafData and GetProof in one function as the are traversing the same
-	// tree. Add options that will control what data will be fetched.
-	node, err := ipld.GetLeaf(ctx, bGetter, root, index, total)
+	// try column proofs
+	root = roots.ColumnRoots[shrIdx]
+	proof, err = ipld.GetProof(ctx, bGetter, root, axisIdx, width)
 	if err != nil {
 		return nil, err
 	}
-
-	proof, err = ipld.GetProof(ctx, bGetter, root, proof, index, total)
-	if err != nil {
-		return nil, err
+	shareWithProof := &ShareWithProof{
+		Share: share,
+		Proof: &proof,
+		Axis:  rsmt2d.Col,
 	}
-	return NewShareWithProof(index, node.RawData(), proof), nil
+	if shareWithProof.Validate(roots, axisType, axisIdx, shrIdx) {
+		return shareWithProof, nil
+	}
+	return nil, errors.New("failed to collect proof")
 }
 
-func ProtoToShare(protoShares []*pb.Share) []*ShareWithProof {
+func ProtoToShare(protoShares []*pb.Share) ([]*ShareWithProof, error) {
 	shares := make([]*ShareWithProof, len(protoShares))
-	for i, share := range protoShares {
-		if share.Proof == nil {
+	for i, protoSh := range protoShares {
+		if protoSh.Proof == nil {
 			continue
 		}
-		proof := ProtoToProof(share.Proof)
-		shares[i] = &ShareWithProof{share.Data, &proof}
+		proof := ProtoToProof(protoSh.Proof)
+		sh, err := libshare.NewShare(protoSh.Data)
+		if err != nil {
+			return nil, err
+		}
+		shares[i] = &ShareWithProof{
+			Share: *sh,
+			Proof: &proof,
+			Axis:  rsmt2d.Axis(protoSh.ProofAxis),
+		}
 	}
-	return shares
+	return shares, nil
 }
 
 func ProtoToProof(protoProof *nmt_pb.Proof) nmt.Proof {
@@ -131,4 +141,11 @@ func ProtoToProof(protoProof *nmt_pb.Proof) nmt.Proof {
 		protoProof.Nodes,
 		protoProof.IsMaxNamespaceIgnored,
 	)
+}
+
+func rootHashForCoordinates(r *share.AxisRoots, axisType rsmt2d.Axis, x, y int) []byte {
+	if axisType == rsmt2d.Row {
+		return r.RowRoots[y]
+	}
+	return r.ColumnRoots[x]
 }

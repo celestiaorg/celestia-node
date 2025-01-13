@@ -8,7 +8,7 @@ import (
 )
 
 var (
-	keyringAccNameFlag = "keyring.accname"
+	keyringKeyNameFlag = "keyring.keyname"
 	keyringBackendFlag = "keyring.backend"
 )
 
@@ -16,20 +16,21 @@ var (
 func Flags() *flag.FlagSet {
 	flags := &flag.FlagSet{}
 
-	flags.String(keyringAccNameFlag, "", "Directs node's keyring signer to use the key prefixed with the "+
-		"given string.")
-	flags.String(keyringBackendFlag, defaultKeyringBackend, fmt.Sprintf("Directs node's keyring signer to use the given "+
-		"backend. Default is %s.", defaultKeyringBackend))
-
+	flags.String(keyringKeyNameFlag, DefaultKeyName,
+		fmt.Sprintf("Directs node's keyring signer to use the key prefixed with the "+
+			"given string. Default is %s", DefaultKeyName))
+	flags.String(keyringBackendFlag, defaultBackendName,
+		fmt.Sprintf("Directs node's keyring signer to use the given "+
+			"backend. Default is %s.", defaultBackendName))
 	return flags
 }
 
 // ParseFlags parses State flags from the given cmd and saves them to the passed config.
 func ParseFlags(cmd *cobra.Command, cfg *Config) {
-	keyringAccName := cmd.Flag(keyringAccNameFlag).Value.String()
-	if keyringAccName != "" {
-		cfg.KeyringAccName = keyringAccName
+	if cmd.Flag(keyringKeyNameFlag).Changed {
+		cfg.DefaultKeyName = cmd.Flag(keyringKeyNameFlag).Value.String()
 	}
-
-	cfg.KeyringBackend = cmd.Flag(keyringBackendFlag).Value.String()
+	if cmd.Flag(keyringBackendFlag).Changed {
+		cfg.DefaultBackendName = cmd.Flag(keyringBackendFlag).Value.String()
+	}
 }

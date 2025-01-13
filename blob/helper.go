@@ -1,52 +1,35 @@
 package blob
 
 import (
-	"bytes"
 	"sort"
 
-	"github.com/tendermint/tendermint/types"
-
-	"github.com/celestiaorg/celestia-app/pkg/shares"
-
-	"github.com/celestiaorg/celestia-node/share"
+	libshare "github.com/celestiaorg/go-square/v2/share"
 )
 
 // BlobsToShares accepts blobs and convert them to the Shares.
-func BlobsToShares(blobs ...*Blob) ([]share.Share, error) {
-	b := make([]types.Blob, len(blobs))
-	for i, blob := range blobs {
-		namespace := blob.Namespace()
-		b[i] = types.Blob{
-			NamespaceVersion: namespace[0],
-			NamespaceID:      namespace[1:],
-			Data:             blob.Data,
-			ShareVersion:     uint8(blob.ShareVersion),
-		}
-	}
-
-	sort.Slice(b, func(i, j int) bool {
-		val := bytes.Compare(b[i].NamespaceID, b[j].NamespaceID)
-		return val < 0
+func BlobsToShares(nodeBlobs ...*Blob) ([]libshare.Share, error) {
+	sort.Slice(nodeBlobs, func(i, j int) bool {
+		return nodeBlobs[i].Blob.Namespace().IsLessThan(nodeBlobs[j].Blob.Namespace())
 	})
 
-	rawShares, err := shares.SplitBlobs(b...)
-	if err != nil {
-		return nil, err
-	}
-	return shares.ToBytes(rawShares), nil
-}
-
-// toAppShares converts node's raw shares to the app shares, skipping padding
-func toAppShares(shrs ...share.Share) ([]shares.Share, error) {
-	appShrs := make([]shares.Share, 0, len(shrs))
-	for _, shr := range shrs {
-		bShare, err := shares.NewShare(shr)
+	shares := make([]libshare.Share, 0)
+	for _, nodeBlob := range nodeBlobs {
+		sh, err := nodeBlob.ToShares()
 		if err != nil {
 			return nil, err
 		}
-		appShrs = append(appShrs, *bShare)
+		shares = append(shares, sh...)
 	}
-	return appShrs, nil
+	return shares, nil
+}
+
+// ToLibBlobs converts node's blob type to the blob type from go-square.
+func ToLibBlobs(blobs ...*Blob) []*libshare.Blob {
+	libBlobs := make([]*libshare.Blob, len(blobs))
+	for i := range blobs {
+		libBlobs[i] = blobs[i].Blob
+	}
+	return libBlobs
 }
 
 func calculateIndex(rowLength, blobIndex int) (row, col int) {

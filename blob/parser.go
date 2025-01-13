@@ -4,24 +4,26 @@ import (
 	"errors"
 	"fmt"
 
-	"github.com/celestiaorg/celestia-app/pkg/shares"
+	"github.com/celestiaorg/go-square/merkle"
+	"github.com/celestiaorg/go-square/v2/inclusion"
+	libshare "github.com/celestiaorg/go-square/v2/share"
 )
 
-// parser is a helper struct that allows collecting shares and transforming them into the blob.
-// it contains all necessary information that is needed to build the blob:
-// * position of the blob inside the EDS;
-// * blob's length;
-// * shares needed to build the blob;
-// * extra condition to verify the final blob.
+// parser helps to collect shares and transform them into a blob.
+// It can handle only one blob at a time.
 type parser struct {
-	index    int
-	length   int
-	shares   []shares.Share
+	// index is a position of the blob inside the EDS.
+	index int
+	// length is an amount of the shares needed to build the blob.
+	length int
+	// shares is a set of shares to build the blob.
+	shares   []libshare.Share
 	verifyFn func(blob *Blob) bool
 }
 
-// NOTE: passing shares here needed to detect padding shares(as we do not need this check in addShares)
-func (p *parser) set(index int, shrs []shares.Share) ([]shares.Share, error) {
+// set tries to find the first blob's share by skipping padding shares and
+// sets the metadata of the blob(index and length)
+func (p *parser) set(index int, shrs []libshare.Share) ([]libshare.Share, error) {
 	if len(shrs) == 0 {
 		return nil, errEmptyShares
 	}
@@ -37,19 +39,15 @@ func (p *parser) set(index int, shrs []shares.Share) ([]shares.Share, error) {
 
 	// `+=` as index could be updated in `skipPadding`
 	p.index += index
-	length, err := shrs[0].SequenceLen()
-	if err != nil {
-		return nil, err
-	}
-
-	p.length = shares.SparseSharesNeeded(length)
+	length := shrs[0].SequenceLen()
+	p.length = libshare.SparseSharesNeeded(length)
 	return shrs, nil
 }
 
-// addShares sets shares until the blob is completed and returns extra shares back.
-// we do not need here extra condition to check padding shares as we do not expect it here.
-// it is possible only between two blobs.
-func (p *parser) addShares(shares []shares.Share) (shrs []shares.Share, isComplete bool) {
+// addShares sets shares until the blob is completed and extra remaining shares back.
+// It assumes that the remaining shares required for blob completeness are correct and
+// do not include padding shares.
+func (p *parser) addShares(shares []libshare.Share) (shrs []libshare.Share, isComplete bool) {
 	index := -1
 	for i, sh := range shares {
 		p.shares = append(p.shares, sh)
@@ -70,65 +68,49 @@ func (p *parser) addShares(shares []shares.Share) (shrs []shares.Share, isComple
 	return shares[index+1:], true
 }
 
-// parse parses shares and creates the Blob.
+// parse ensures that correct amount of shares was collected and create a blob from the existing
+// shares.
 func (p *parser) parse() (*Blob, error) {
 	if p.length != len(p.shares) {
 		return nil, fmt.Errorf("invalid shares amount. want:%d, have:%d", p.length, len(p.shares))
 	}
 
-	sequence, err := shares.ParseShares(p.shares, true)
+	blobs, err := libshare.ParseBlobs(p.shares)
 	if err != nil {
 		return nil, err
 	}
 
-	// ensure that sequence length is not 0
-	if len(sequence) == 0 {
-		return nil, ErrBlobNotFound
-	}
-	if len(sequence) > 1 {
-		return nil, errors.New("unexpected amount of sequences")
+	if len(blobs) != 1 {
+		return nil, errors.New("unexpected amount of blobs during parsing")
 	}
 
-	data, err := sequence[0].RawData()
-	if err != nil {
-		return nil, err
-	}
-	if len(data) == 0 {
-		return nil, ErrBlobNotFound
-	}
-
-	shareVersion, err := sequence[0].Shares[0].Version()
+	com, err := inclusion.CreateCommitment(blobs[0], merkle.HashFromByteSlices, subtreeRootThreshold)
 	if err != nil {
 		return nil, err
 	}
 
-	blob, err := NewBlob(shareVersion, sequence[0].Namespace.Bytes(), data)
-	if err != nil {
-		return nil, err
-	}
-	blob.index = p.index
+	blob := &Blob{Blob: blobs[0], Commitment: com, index: p.index}
 	return blob, nil
 }
 
-// skipPadding skips first share in the range if this share is the Padding share.
-func (p *parser) skipPadding(shares []shares.Share) ([]shares.Share, error) {
+// skipPadding iterates through the shares until non-padding share will be found. It guarantees that
+// the returned set of shares will start with non-padding share(or empty set of shares).
+func (p *parser) skipPadding(shares []libshare.Share) ([]libshare.Share, error) {
 	if len(shares) == 0 {
 		return nil, errEmptyShares
 	}
 
-	isPadding, err := shares[0].IsPadding()
-	if err != nil {
-		return nil, err
+	offset := 0
+	for _, sh := range shares {
+		if !sh.IsPadding() {
+			break
+		}
+		offset++
 	}
-
-	if !isPadding {
-		return shares, nil
-	}
-
-	// update blob index if we are going to skip one share
-	p.index++
-	if len(shares) > 1 {
-		return shares[1:], nil
+	// set start index
+	p.index = offset
+	if len(shares) > offset {
+		return shares[offset:], nil
 	}
 	return nil, nil
 }
@@ -144,6 +126,7 @@ func (p *parser) isEmpty() bool {
 	return p.index == 0 && p.length == 0 && len(p.shares) == 0
 }
 
+// reset cleans up parser, so it can be re-used within the same verify functionality.
 func (p *parser) reset() {
 	p.index = 0
 	p.length = 0

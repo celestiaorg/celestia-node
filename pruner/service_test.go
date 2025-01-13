@@ -40,7 +40,7 @@ func TestService(t *testing.T) {
 
 	serv, err := NewService(
 		mp,
-		AvailabilityWindow(time.Millisecond*2),
+		time.Millisecond*2,
 		store,
 		sync.MutexWrap(datastore.NewMapDatastore()),
 		blockTime,
@@ -82,7 +82,7 @@ func TestService_FailedAreRecorded(t *testing.T) {
 
 	serv, err := NewService(
 		mp,
-		AvailabilityWindow(time.Millisecond*20),
+		time.Millisecond*20,
 		store,
 		sync.MutexWrap(datastore.NewMapDatastore()),
 		blockTime,
@@ -127,7 +127,7 @@ func TestServiceCheckpointing(t *testing.T) {
 
 	serv, err := NewService(
 		mp,
-		AvailabilityWindow(time.Second),
+		time.Second,
 		store,
 		sync.MutexWrap(datastore.NewMapDatastore()),
 		time.Millisecond,
@@ -159,18 +159,17 @@ func TestPrune_LargeNumberOfBlocks(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	t.Cleanup(cancel)
 
-	maxHeadersPerLoop = 10
-	t.Cleanup(func() {
-		maxHeadersPerLoop = 1024
-	})
+	var maxHeadersPerLoopOld int
+	maxHeadersPerLoopOld, maxHeadersPerLoop = maxHeadersPerLoop, 10
+	t.Cleanup(func() { maxHeadersPerLoop = maxHeadersPerLoopOld })
 
 	blockTime := time.Nanosecond
-	availabilityWindow := AvailabilityWindow(blockTime * 10)
+	availabilityWindow := blockTime * 10
 
 	// all headers generated in suite are timestamped to time.Now(), so
 	// they will all be considered "pruneable" within the availability window
 	suite := headertest.NewTestSuite(t, 1, blockTime)
-	store := headertest.NewCustomStore(t, suite, int(maxHeadersPerLoop*6)) // add small buffer
+	store := headertest.NewCustomStore(t, suite, maxHeadersPerLoop*6) // add small buffer
 
 	mp := &mockPruner{failHeight: make(map[uint64]int, 0)}
 
@@ -188,7 +187,7 @@ func TestPrune_LargeNumberOfBlocks(t *testing.T) {
 	require.NoError(t, err)
 
 	// ensures availability window has passed
-	time.Sleep(time.Duration(availabilityWindow) + time.Millisecond*100)
+	time.Sleep(availabilityWindow + time.Millisecond*100)
 
 	// trigger a prune job
 	lastPruned, err := serv.lastPruned(ctx)
@@ -196,14 +195,14 @@ func TestPrune_LargeNumberOfBlocks(t *testing.T) {
 	_ = serv.prune(ctx, lastPruned)
 
 	// ensure all headers have been pruned
-	assert.Equal(t, maxHeadersPerLoop*5, serv.checkpoint.LastPrunedHeight)
+	assert.Equal(t, uint64(maxHeadersPerLoop*5), serv.checkpoint.LastPrunedHeight)
 	assert.Len(t, serv.checkpoint.FailedHeaders, 0)
 }
 
 func TestFindPruneableHeaders(t *testing.T) {
 	testCases := []struct {
 		name           string
-		availWindow    AvailabilityWindow
+		availWindow    time.Duration
 		blockTime      time.Duration
 		startTime      time.Time
 		headerAmount   int
@@ -212,7 +211,7 @@ func TestFindPruneableHeaders(t *testing.T) {
 		{
 			name: "Estimated range matches expected",
 			// Availability window is one week
-			availWindow: AvailabilityWindow(time.Hour * 24 * 7),
+			availWindow: time.Hour * 24 * 7,
 			blockTime:   time.Hour,
 			// Make two weeks of headers
 			headerAmount: 2 * (24 * 7),
@@ -223,7 +222,7 @@ func TestFindPruneableHeaders(t *testing.T) {
 		{
 			name: "Estimated range not sufficient but finds the correct tail",
 			// Availability window is one week
-			availWindow: AvailabilityWindow(time.Hour * 24 * 7),
+			availWindow: time.Hour * 24 * 7,
 			blockTime:   time.Hour,
 			// Make three weeks of headers
 			headerAmount: 3 * (24 * 7),
@@ -234,7 +233,7 @@ func TestFindPruneableHeaders(t *testing.T) {
 		{
 			name: "No pruneable headers",
 			// Availability window is two weeks
-			availWindow: AvailabilityWindow(2 * time.Hour * 24 * 7),
+			availWindow: 2 * time.Hour * 24 * 7,
 			blockTime:   time.Hour,
 			// Make one week of headers
 			headerAmount: 24 * 7,
@@ -273,7 +272,7 @@ func TestFindPruneableHeaders(t *testing.T) {
 			require.NoError(t, err)
 			require.Len(t, pruneable, tc.expectedLength)
 
-			pruneableCutoff := time.Now().Add(-time.Duration(tc.availWindow))
+			pruneableCutoff := time.Now().Add(-tc.availWindow)
 			// All returned headers are older than the availability window
 			for _, h := range pruneable {
 				require.WithinRange(t, h.Time(), tc.startTime, pruneableCutoff)

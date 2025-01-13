@@ -2,6 +2,7 @@ package gateway
 
 import (
 	"encoding/json"
+	"errors"
 	"net/http"
 	"strconv"
 
@@ -26,15 +27,9 @@ func (h *Handler) handleHeightAvailabilityRequest(w http.ResponseWriter, r *http
 		return
 	}
 
-	header, err := h.header.GetByHeight(r.Context(), uint64(height))
-	if err != nil {
-		writeError(w, http.StatusInternalServerError, heightAvailabilityEndpoint, err)
-		return
-	}
-
-	err = h.share.SharesAvailable(r.Context(), header)
-	switch err {
-	case nil:
+	err = h.share.SharesAvailable(r.Context(), uint64(height))
+	switch {
+	case err == nil:
 		resp, err := json.Marshal(&AvailabilityResponse{Available: true})
 		if err != nil {
 			writeError(w, http.StatusInternalServerError, heightAvailabilityEndpoint, err)
@@ -44,7 +39,7 @@ func (h *Handler) handleHeightAvailabilityRequest(w http.ResponseWriter, r *http
 		if werr != nil {
 			log.Errorw("serving request", "endpoint", heightAvailabilityEndpoint, "err", err)
 		}
-	case share.ErrNotAvailable:
+	case errors.Is(err, share.ErrNotAvailable):
 		resp, err := json.Marshal(&AvailabilityResponse{Available: false})
 		if err != nil {
 			writeError(w, http.StatusInternalServerError, heightAvailabilityEndpoint, err)

@@ -10,7 +10,7 @@ import (
 // maxHeadersPerLoop is the maximum number of headers to fetch
 // for a prune loop (prevents fetching too many headers at a
 // time for nodes that have a large number of pruneable headers).
-var maxHeadersPerLoop = uint64(512)
+var maxHeadersPerLoop = 512
 
 // findPruneableHeaders returns all headers that are eligible for pruning
 // (outside the sampling window).
@@ -18,7 +18,7 @@ func (s *Service) findPruneableHeaders(
 	ctx context.Context,
 	lastPruned *header.ExtendedHeader,
 ) ([]*header.ExtendedHeader, error) {
-	pruneCutoff := time.Now().UTC().Add(time.Duration(-s.window))
+	pruneCutoff := time.Now().UTC().Add(-s.window)
 
 	if !lastPruned.Time().UTC().Before(pruneCutoff) {
 		// this can happen when the network is young and all blocks
@@ -31,7 +31,7 @@ func (s *Service) findPruneableHeaders(
 		return nil, err
 	}
 
-	if lastPruned.Height() == estimatedCutoffHeight {
+	if lastPruned.Height() >= estimatedCutoffHeight {
 		// nothing left to prune
 		return nil, nil
 	}
@@ -39,7 +39,9 @@ func (s *Service) findPruneableHeaders(
 	log.Debugw("finder: fetching header range", "last pruned", lastPruned.Height(),
 		"target height", estimatedCutoffHeight)
 
-	headers, err := s.getter.GetRangeByHeight(ctx, lastPruned, estimatedCutoffHeight)
+	// GetRangeByHeight requests (from:to), where `to` is non-inclusive, we need
+	// to request one more header than the estimated cutoff
+	headers, err := s.getter.GetRangeByHeight(ctx, lastPruned, estimatedCutoffHeight+1)
 	if err != nil {
 		log.Errorw("failed to get range from header store", "from", lastPruned.Height(),
 			"to", estimatedCutoffHeight, "error", err)
@@ -56,7 +58,7 @@ func (s *Service) findPruneableHeaders(
 	// loop we could increase by a range every iteration
 	headerCount := len(headers)
 	for {
-		if headerCount > int(maxHeadersPerLoop) {
+		if headerCount > maxHeadersPerLoop {
 			headers = headers[:maxHeadersPerLoop]
 			break
 		}
@@ -106,8 +108,8 @@ func (s *Service) calculateEstimatedCutoff(
 		estimatedCutoffHeight = head.Height()
 	}
 
-	if estimatedCutoffHeight-lastPruned.Height() > maxHeadersPerLoop {
-		estimatedCutoffHeight = lastPruned.Height() + maxHeadersPerLoop
+	if estimatedCutoffHeight-lastPruned.Height() > uint64(maxHeadersPerLoop) {
+		estimatedCutoffHeight = lastPruned.Height() + uint64(maxHeadersPerLoop)
 	}
 
 	return estimatedCutoffHeight, nil

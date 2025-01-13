@@ -1,7 +1,6 @@
 package gateway
 
 import (
-	"encoding/hex"
 	"encoding/json"
 	"errors"
 	"net/http"
@@ -13,21 +12,12 @@ import (
 )
 
 const (
-	balanceEndpoint  = "/balance"
-	submitTxEndpoint = "/submit_tx"
+	balanceEndpoint = "/balance"
 )
 
 const addrKey = "address"
 
-var (
-	ErrInvalidAddressFormat = errors.New("address must be a valid account or validator address")
-	ErrMissingAddress       = errors.New("address not specified")
-)
-
-// submitTxRequest represents a request to submit a raw transaction
-type submitTxRequest struct {
-	Tx string `json:"tx"`
-}
+var ErrInvalidAddressFormat = errors.New("address must be a valid account or validator address")
 
 func (h *Handler) handleBalanceRequest(w http.ResponseWriter, r *http.Request) {
 	var (
@@ -68,35 +58,5 @@ func (h *Handler) handleBalanceRequest(w http.ResponseWriter, r *http.Request) {
 	_, err = w.Write(resp)
 	if err != nil {
 		log.Errorw("writing response", "endpoint", balanceEndpoint, "err", err)
-	}
-}
-
-func (h *Handler) handleSubmitTx(w http.ResponseWriter, r *http.Request) {
-	// decode request
-	var req submitTxRequest
-	err := json.NewDecoder(r.Body).Decode(&req)
-	if err != nil {
-		writeError(w, http.StatusBadRequest, submitTxEndpoint, err)
-		return
-	}
-	rawTx, err := hex.DecodeString(req.Tx)
-	if err != nil {
-		writeError(w, http.StatusBadRequest, submitTxEndpoint, err)
-		return
-	}
-	// perform request
-	txResp, err := h.state.SubmitTx(r.Context(), rawTx)
-	if err != nil {
-		writeError(w, http.StatusInternalServerError, submitTxEndpoint, err)
-		return
-	}
-	resp, err := json.Marshal(txResp)
-	if err != nil {
-		writeError(w, http.StatusInternalServerError, submitTxEndpoint, err)
-		return
-	}
-	_, err = w.Write(resp)
-	if err != nil {
-		log.Errorw("writing response", "endpoint", submitTxEndpoint, "err", err)
 	}
 }

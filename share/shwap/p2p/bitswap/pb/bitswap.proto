@@ -1,0 +1,9 @@
+// Defined in CIP-19 https://github.com/celestiaorg/CIPs/blob/82aeb7dfc472105a11babffd548c730c899a3d24/cips/cip-19.md
+syntax = "proto3";
+package bitswap;
+option go_package = "github.com/celestiaorg/celestia-node/share/shwap/p2p/bitswap/pb";
+
+message Block {
+  bytes cid = 1;
+  bytes container = 2;
+}

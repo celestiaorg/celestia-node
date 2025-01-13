@@ -5,12 +5,8 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/require"
-	coretypes "github.com/tendermint/tendermint/types"
 
-	"github.com/celestiaorg/celestia-app/pkg/appconsts"
-	"github.com/celestiaorg/celestia-app/pkg/shares"
-
-	"github.com/celestiaorg/celestia-node/share/sharetest"
+	libshare "github.com/celestiaorg/go-square/v2/share"
 )
 
 func Test_dataFromShares(t *testing.T) {
@@ -20,17 +16,12 @@ func Test_dataFromShares(t *testing.T) {
 		[]byte("BEEEEAHP"),
 	}
 
-	ns := sharetest.RandV0Namespace()
-	sss := shares.NewSparseShareSplitter()
+	ns := libshare.RandomNamespace()
+	sss := libshare.NewSparseShareSplitter()
 	for _, data := range testData {
-		b := coretypes.Blob{
-			Data:             data,
-			NamespaceID:      ns.ID(),
-			NamespaceVersion: ns.Version(),
-			ShareVersion:     appconsts.ShareVersionZero,
-		}
-		err := sss.Write(b)
+		b, err := libshare.NewBlob(ns, data, libshare.ShareVersionZero, nil)
 		require.NoError(t, err)
+		require.NoError(t, sss.Write(b))
 	}
 
 	sssShares := sss.Export()
@@ -41,7 +32,9 @@ func Test_dataFromShares(t *testing.T) {
 		rawSSSShares[i] = d
 	}
 
-	parsedSSSShares, err := dataFromShares(rawSSSShares)
+	shrs, err := libshare.FromBytes(rawSSSShares)
+	require.NoError(t, err)
+	parsedSSSShares, err := dataFromShares(shrs)
 	require.NoError(t, err)
 
 	require.Equal(t, testData, parsedSSSShares)

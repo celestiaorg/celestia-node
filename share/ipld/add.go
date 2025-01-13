@@ -6,7 +6,8 @@ import (
 
 	"github.com/ipfs/boxo/blockservice"
 
-	"github.com/celestiaorg/celestia-app/pkg/wrapper"
+	"github.com/celestiaorg/celestia-app/v3/pkg/wrapper"
+	libshare "github.com/celestiaorg/go-square/v2/share"
 	"github.com/celestiaorg/nmt"
 	"github.com/celestiaorg/rsmt2d"
 
@@ -18,7 +19,7 @@ import (
 // ipld.NodeAdder.
 func AddShares(
 	ctx context.Context,
-	shares []share.Share,
+	shares []libshare.Share,
 	adder blockservice.BlockService,
 ) (*rsmt2d.ExtendedDataSquare, error) {
 	if len(shares) == 0 {
@@ -30,7 +31,7 @@ func AddShares(
 	// create the nmt wrapper to generate row and col commitments
 	// recompute the eds
 	eds, err := rsmt2d.ComputeExtendedDataSquare(
-		shares,
+		libshare.ToBytes(shares),
 		share.DefaultRSMT2DCodec(),
 		wrapper.NewConstructor(uint64(squareSize),
 			nmt.NodeVisitor(batchAdder.Visit)),
@@ -47,7 +48,7 @@ func AddShares(
 	return eds, batchAdder.Commit()
 }
 
-// ImportShares imports flattened pieces of data into Extended Data square and saves it in
+// ImportShares imports flattened pieces of data into Extended Data Square and saves it in
 // blockservice.BlockService
 func ImportShares(
 	ctx context.Context,

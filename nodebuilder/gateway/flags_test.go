@@ -16,7 +16,7 @@ func TestFlags(t *testing.T) {
 	enabled := flags.Lookup(enabledFlag)
 	require.NotNil(t, enabled)
 	assert.Equal(t, "false", enabled.Value.String())
-	assert.Equal(t, "Enables the REST gateway", enabled.Usage)
+	assert.Equal(t, "Enables the REST gateway. WARNING: gateway will be deprecated in upcoming release!", enabled.Usage)
 
 	addr := flags.Lookup(addrFlag)
 	require.NotNil(t, addr)

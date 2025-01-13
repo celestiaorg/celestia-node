@@ -28,7 +28,9 @@ type metrics struct {
 	getHeaderTime metric.Float64Histogram
 	newHead       metric.Int64Counter
 
-	lastSampledTS uint64
+	lastSampledTS atomic.Uint64
+
+	clientReg metric.Registration
 }
 
 func (d *DASer) InitMetrics() error {
@@ -111,7 +113,7 @@ func (d *DASer) InitMetrics() error {
 		observer.ObserveInt64(networkHead, int64(stats.NetworkHead))
 		observer.ObserveInt64(sampledChainHead, int64(stats.SampledChainHead))
 
-		if ts := atomic.LoadUint64(&d.sampler.metrics.lastSampledTS); ts != 0 {
+		if ts := d.sampler.metrics.lastSampledTS.Load(); ts != 0 {
 			observer.ObserveInt64(lastSampledTS, int64(ts))
 		}
 
@@ -119,7 +121,7 @@ func (d *DASer) InitMetrics() error {
 		return nil
 	}
 
-	_, err = meter.RegisterCallback(callback,
+	d.sampler.metrics.clientReg, err = meter.RegisterCallback(callback,
 		lastSampledTS,
 		busyWorkers,
 		networkHead,
@@ -131,6 +133,13 @@ func (d *DASer) InitMetrics() error {
 	}
 
 	return nil
+}
+
+func (m *metrics) close() error {
+	if m == nil {
+		return nil
+	}
+	return m.clientReg.Unregister()
 }
 
 // observeSample records the time it took to sample a header +
@@ -162,7 +171,7 @@ func (m *metrics) observeSample(
 			attribute.String(jobTypeLabel, string(jobType)),
 		))
 
-	atomic.StoreUint64(&m.lastSampledTS, uint64(time.Now().UTC().Unix()))
+	m.lastSampledTS.Store(uint64(time.Now().UTC().Unix()))
 }
 
 // observeGetHeader records the time it took to get a header from the header store.

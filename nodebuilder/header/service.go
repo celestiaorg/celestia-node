@@ -2,6 +2,7 @@ package header
 
 import (
 	"context"
+	"errors"
 	"fmt"
 
 	libhead "github.com/celestiaorg/go-header"
@@ -9,7 +10,11 @@ import (
 	"github.com/celestiaorg/go-header/sync"
 
 	"github.com/celestiaorg/celestia-node/header"
+	modfraud "github.com/celestiaorg/celestia-node/nodebuilder/fraud"
 )
+
+// ErrHeightZero returned when the provided block height is equal to 0.
+var ErrHeightZero = errors.New("height is equal to 0")
 
 // Service represents the header Service that can be started / stopped on a node.
 // Service's main function is to manage its sub-services. Service can contain several
@@ -33,14 +38,15 @@ type syncer interface {
 
 // newHeaderService creates a new instance of header Service.
 func newHeaderService(
-	syncer *sync.Syncer[*header.ExtendedHeader],
+	// getting Syncer wrapped in ServiceBreaker so we ensure service breaker is constructed
+	syncer *modfraud.ServiceBreaker[*sync.Syncer[*header.ExtendedHeader], *header.ExtendedHeader],
 	sub libhead.Subscriber[*header.ExtendedHeader],
 	p2pServer *p2p.ExchangeServer[*header.ExtendedHeader],
 	ex libhead.Exchange[*header.ExtendedHeader],
 	store libhead.Store[*header.ExtendedHeader],
 ) Module {
 	return &Service{
-		syncer:    syncer,
+		syncer:    syncer.Service,
 		sub:       sub,
 		p2pServer: p2pServer,
 		ex:        ex,
@@ -61,6 +67,9 @@ func (s *Service) GetRangeByHeight(
 }
 
 func (s *Service) GetByHeight(ctx context.Context, height uint64) (*header.ExtendedHeader, error) {
+	if height == 0 {
+		return nil, ErrHeightZero
+	}
 	head, err := s.syncer.Head(ctx)
 	switch {
 	case err != nil:
@@ -72,8 +81,6 @@ func (s *Service) GetByHeight(ctx context.Context, height uint64) (*header.Exten
 			"networkHeight: %d, requestedHeight: %d", head.Height(), height)
 	}
 
-	// TODO(vgonkivs): remove after https://github.com/celestiaorg/go-header/issues/32 is
-	//  implemented and fetch header from HeaderEx if missing locally
 	head, err = s.store.Head(ctx)
 	switch {
 	case err != nil:
@@ -123,7 +130,7 @@ func (s *Service) Subscribe(ctx context.Context) (<-chan *header.ExtendedHeader,
 		for {
 			h, err := subscription.NextHeader(ctx)
 			if err != nil {
-				if err != context.DeadlineExceeded && err != context.Canceled {
+				if !errors.Is(err, context.DeadlineExceeded) && !errors.Is(err, context.Canceled) {
 					log.Errorw("fetching header from subscription", "err", err)
 				}
 				return

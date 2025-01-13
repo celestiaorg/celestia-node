@@ -9,7 +9,7 @@ import (
 	"github.com/ipfs/go-datastore/namespace"
 	logging "github.com/ipfs/go-log/v2"
 
-	hdr "github.com/celestiaorg/go-header"
+	libhead "github.com/celestiaorg/go-header"
 
 	"github.com/celestiaorg/celestia-node/header"
 )
@@ -19,9 +19,9 @@ var log = logging.Logger("pruner/service")
 // Service handles running the pruning cycle for the node.
 type Service struct {
 	pruner Pruner
-	window AvailabilityWindow
+	window time.Duration
 
-	getter hdr.Getter[*header.ExtendedHeader]
+	getter libhead.Getter[*header.ExtendedHeader]
 
 	ds         datastore.Datastore
 	checkpoint *checkpoint
@@ -38,8 +38,8 @@ type Service struct {
 
 func NewService(
 	p Pruner,
-	window AvailabilityWindow,
-	getter hdr.Getter[*header.ExtendedHeader],
+	window time.Duration,
+	getter libhead.Getter[*header.ExtendedHeader],
 	ds datastore.Datastore,
 	blockTime time.Duration,
 	opts ...Option,
@@ -112,11 +112,16 @@ func (s *Service) run() {
 	}
 
 	for {
+		lastPrunedHeader = s.prune(s.ctx, lastPrunedHeader)
+		// pruning may take a while beyond ticker's time
+		// and this ensures we don't do idle spins right after the pruning
+		// and ensures there is always pruneCycle period between each run
+		ticker.Reset(s.params.pruneCycle)
+
 		select {
 		case <-s.ctx.Done():
 			return
 		case <-ticker.C:
-			lastPrunedHeader = s.prune(s.ctx, lastPrunedHeader)
 		}
 	}
 }
@@ -127,6 +132,12 @@ func (s *Service) prune(
 ) *header.ExtendedHeader {
 	// prioritize retrying previously-failed headers
 	s.retryFailed(s.ctx)
+
+	now := time.Now()
+	log.Debug("pruning round start")
+	defer func() {
+		log.Debugw("pruning round finished", "took", time.Since(now))
+	}()
 
 	for {
 		select {
@@ -166,7 +177,7 @@ func (s *Service) prune(
 			return lastPrunedHeader
 		}
 
-		if uint64(len(headers)) < maxHeadersPerLoop {
+		if len(headers) < maxHeadersPerLoop {
 			// we've pruned all the blocks we can
 			return lastPrunedHeader
 		}

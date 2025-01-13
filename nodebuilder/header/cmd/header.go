@@ -72,7 +72,7 @@ var getByHashCmd = &cobra.Command{
 
 		hash, err := hex.DecodeString(args[0])
 		if err != nil {
-			return fmt.Errorf("error decoding a hash: expected a hex encoded string:%v", err)
+			return fmt.Errorf("error decoding a hash: expected a hex encoded string: %w", err)
 		}
 		header, err := client.Header.GetByHash(cmd.Context(), hash)
 		return cmdnode.PrintOutput(header, err, nil)
@@ -92,7 +92,7 @@ var getByHeightCmd = &cobra.Command{
 
 		height, err := strconv.ParseUint(args[0], 10, 64)
 		if err != nil {
-			return fmt.Errorf("error parsing a height:%v", err)
+			return fmt.Errorf("error parsing a height: %w", err)
 		}
 
 		header, err := client.Header.GetByHeight(cmd.Context(), height)

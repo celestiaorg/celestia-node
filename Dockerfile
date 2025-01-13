@@ -1,4 +1,4 @@
-FROM --platform=$BUILDPLATFORM docker.io/golang:1.22-alpine3.18 as builder
+FROM --platform=$BUILDPLATFORM docker.io/golang:1.23-alpine3.20 AS builder
 
 ARG TARGETPLATFORM
 ARG BUILDPLATFORM
@@ -21,11 +21,13 @@ COPY go.mod go.sum ./
 RUN go mod download
 COPY . .
 
-RUN uname -a &&\
-    CGO_ENABLED=${CGO_ENABLED} GOOS=${TARGETOS} GOARCH=${TARGETARCH} \
-    make build && make cel-key
+RUN uname -a && \
+    export CGO_ENABLED=${CGO_ENABLED} GOOS=${TARGETOS} GOARCH=${TARGETARCH} && \
+    make build && \
+    make cel-key && \
+    make cel-shed
 
-FROM docker.io/alpine:3.19.1
+FROM docker.io/alpine:3.20.2
 
 # Read here why UID 10001: https://github.com/hexops/dockerfile/blob/main/README.md#do-not-use-a-uid-below-10000
 ARG UID=10001
@@ -34,8 +36,8 @@ ARG USER_NAME=celestia
 ENV CELESTIA_HOME=/home/${USER_NAME}
 
 # Default node type can be overwritten in deployment manifest
-ENV NODE_TYPE bridge
-ENV P2P_NETWORK mocha
+ENV NODE_TYPE=bridge
+ENV P2P_NETWORK=mocha
 
 # hadolint ignore=DL3018
 RUN uname -a &&\
@@ -54,6 +56,7 @@ RUN uname -a &&\
 # Copy in the binary
 COPY --from=builder /src/build/celestia /bin/celestia
 COPY --from=builder /src/./cel-key /bin/cel-key
+COPY --from=builder /src/./cel-shed /bin/cel-shed
 
 COPY --chown=${USER_NAME}:${USER_NAME} docker/entrypoint.sh /opt/entrypoint.sh
 

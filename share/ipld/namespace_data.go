@@ -11,13 +11,14 @@ import (
 	"github.com/ipfs/go-cid"
 	ipld "github.com/ipfs/go-ipld-format"
 
+	libshare "github.com/celestiaorg/go-square/v2/share"
 	"github.com/celestiaorg/nmt"
 
 	"github.com/celestiaorg/celestia-node/share"
+	"github.com/celestiaorg/celestia-node/share/shwap"
 )
 
-var ErrNamespaceOutsideRange = errors.New("share/ipld: " +
-	"target namespace is outside of namespace range for the given root")
+var ErrNamespaceOutsideRange = shwap.ErrNamespaceOutsideRange
 
 // Option is the functional option that is applied to the NamespaceData instance
 // to configure data that needs to be stored.
@@ -46,21 +47,23 @@ type NamespaceData struct {
 
 	bounds    fetchedBounds
 	maxShares int
-	namespace share.Namespace
+	namespace libshare.Namespace
 
 	isAbsentNamespace atomic.Bool
 	absenceProofLeaf  ipld.Node
 }
 
-func NewNamespaceData(maxShares int, namespace share.Namespace, options ...Option) *NamespaceData {
+func NewNamespaceData(maxShares int, namespace libshare.Namespace, options ...Option) *NamespaceData {
 	data := &NamespaceData{
-		// we don't know where in the tree the leaves in the namespace are,
-		// so we keep track of the bounds to return the correct slice
-		// maxShares acts as a sentinel to know if we find any leaves
-		bounds:    fetchedBounds{int64(maxShares), 0},
 		maxShares: maxShares,
 		namespace: namespace,
 	}
+
+	// we don't know where in the tree the leaves in the namespace are,
+	// so we keep track of the bounds to return the correct slice
+	// maxShares acts as a sentinel to know if we find any leaves
+	data.bounds.lowest.Store(int64(maxShares))
+	data.bounds.highest.Store(0)
 
 	for _, opt := range options {
 		opt(data)
@@ -69,7 +72,7 @@ func NewNamespaceData(maxShares int, namespace share.Namespace, options ...Optio
 }
 
 func (n *NamespaceData) validate(rootCid cid.Cid) error {
-	if err := n.namespace.Validate(); err != nil {
+	if err := n.namespace.ValidateForData(); err != nil {
 		return err
 	}
 
@@ -78,7 +81,11 @@ func (n *NamespaceData) validate(rootCid cid.Cid) error {
 	}
 
 	root := NamespacedSha256FromCID(rootCid)
-	if n.namespace.IsOutsideRange(root, root) {
+	outside, err := share.IsOutsideRange(n.namespace, root, root)
+	if err != nil {
+		return err
+	}
+	if outside {
 		return ErrNamespaceOutsideRange
 	}
 	return nil
@@ -107,7 +114,7 @@ func (n *NamespaceData) addLeaf(pos int, nd ipld.Node) {
 
 // noLeaves checks that there are no leaves under the given root in the given namespace.
 func (n *NamespaceData) noLeaves() bool {
-	return n.bounds.lowest == int64(n.maxShares)
+	return n.bounds.lowest.Load() == int64(n.maxShares)
 }
 
 type direction int
@@ -138,7 +145,7 @@ func (n *NamespaceData) Leaves() []ipld.Node {
 	if n.leaves == nil || n.noLeaves() || n.isAbsentNamespace.Load() {
 		return nil
 	}
-	return n.leaves[n.bounds.lowest : n.bounds.highest+1]
+	return n.leaves[n.bounds.lowest.Load() : n.bounds.highest.Load()+1]
 }
 
 // Proof returns proofs within the bounds in case if `WithProofs` option was passed,
@@ -160,8 +167,8 @@ func (n *NamespaceData) Proof() *nmt.Proof {
 
 	if n.isAbsentNamespace.Load() {
 		proof := nmt.NewAbsenceProof(
-			int(n.bounds.lowest),
-			int(n.bounds.highest)+1,
+			int(n.bounds.lowest.Load()),
+			int(n.bounds.highest.Load())+1,
 			nodes,
 			NamespacedSha256FromCID(n.absenceProofLeaf.Cid()),
 			NMTIgnoreMaxNamespace,
@@ -169,8 +176,8 @@ func (n *NamespaceData) Proof() *nmt.Proof {
 		return &proof
 	}
 	proof := nmt.NewInclusionProof(
-		int(n.bounds.lowest),
-		int(n.bounds.highest)+1,
+		int(n.bounds.lowest.Load()),
+		int(n.bounds.highest.Load())+1,
 		nodes,
 		NMTIgnoreMaxNamespace,
 	)
@@ -281,18 +288,31 @@ func (n *NamespaceData) collectNDWithProofs(j job, links []*ipld.Link) []job {
 	rightLink := NamespacedSha256FromCID(rightCid)
 
 	var nextJobs []job
+	outside, err := share.IsOutsideRange(n.namespace, leftLink, rightLink)
+	if err != nil {
+		log.Fatalf("invalid hashes provided: %v", err)
+	}
 	// check if target namespace is outside of boundaries of both links
-	if n.namespace.IsOutsideRange(leftLink, rightLink) {
+	if outside {
 		log.Fatalf("target namespace outside of boundaries of links at depth: %v", j.depth)
 	}
 
-	if !n.namespace.IsAboveMax(leftLink) {
+	above, err := share.IsAboveMax(n.namespace, leftLink)
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	if !above {
 		// namespace is within the range of left link
 		nextJobs = append(nextJobs, j.next(left, leftCid, false))
 	} else {
 		// proof is on the left side, if the namespace is on the right side of the range of left link
 		n.addProof(left, leftCid, j.depth)
-		if n.namespace.IsBelowMin(rightLink) {
+		below, err := share.IsBelowMin(n.namespace, rightLink)
+		if err != nil {
+			log.Fatal(err)
+		}
+		if below {
 			// namespace is not included in either links, convert to absence collector
 			n.isAbsentNamespace.Store(true)
 			nextJobs = append(nextJobs, j.next(right, rightCid, true))
@@ -300,7 +320,12 @@ func (n *NamespaceData) collectNDWithProofs(j job, links []*ipld.Link) []job {
 		}
 	}
 
-	if !n.namespace.IsBelowMin(rightLink) {
+	below, err := share.IsBelowMin(n.namespace, rightLink)
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	if !below {
 		// namespace is within the range of right link
 		nextJobs = append(nextJobs, j.next(right, rightCid, false))
 	} else {
@@ -311,24 +336,24 @@ func (n *NamespaceData) collectNDWithProofs(j job, links []*ipld.Link) []job {
 }
 
 type fetchedBounds struct {
-	lowest  int64
-	highest int64
+	lowest  atomic.Int64
+	highest atomic.Int64
 }
 
 // update checks if the passed index is outside the current bounds,
 // and updates the bounds atomically if it extends them.
 func (b *fetchedBounds) update(index int64) {
-	lowest := atomic.LoadInt64(&b.lowest)
+	lowest := b.lowest.Load()
 	// try to write index to the lower bound if appropriate, and retry until the atomic op is successful
 	// CAS ensures that we don't overwrite if the bound has been updated in another goroutine after the
 	// comparison here
-	for index < lowest && !atomic.CompareAndSwapInt64(&b.lowest, lowest, index) {
-		lowest = atomic.LoadInt64(&b.lowest)
+	for index < lowest && !b.lowest.CompareAndSwap(lowest, index) {
+		lowest = b.lowest.Load()
 	}
 	// we always run both checks because element can be both the lower and higher bound
 	// for example, if there is only one share in the namespace
-	highest := atomic.LoadInt64(&b.highest)
-	for index > highest && !atomic.CompareAndSwapInt64(&b.highest, highest, index) {
-		highest = atomic.LoadInt64(&b.highest)
+	highest := b.highest.Load()
+	for index > highest && !b.highest.CompareAndSwap(highest, index) {
+		highest = b.highest.Load()
 	}
 }

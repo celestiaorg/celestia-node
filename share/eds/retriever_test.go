@@ -11,7 +11,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"github.com/celestiaorg/celestia-app/pkg/da"
+	libshare "github.com/celestiaorg/go-square/v2/share"
 	"github.com/celestiaorg/rsmt2d"
 
 	"github.com/celestiaorg/celestia-node/header"
@@ -20,7 +20,6 @@ import (
 	"github.com/celestiaorg/celestia-node/share/eds/byzantine"
 	"github.com/celestiaorg/celestia-node/share/eds/edstest"
 	"github.com/celestiaorg/celestia-node/share/ipld"
-	"github.com/celestiaorg/celestia-node/share/sharetest"
 )
 
 func TestRetriever_Retrieve(t *testing.T) {
@@ -45,10 +44,10 @@ func TestRetriever_Retrieve(t *testing.T) {
 		{"128x128(max)", share.MaxSquareSize},
 	}
 	for _, tc := range tests {
-		tc := tc
 		t.Run(tc.name, func(t *testing.T) {
 			// generate EDS
-			shares := sharetest.RandShares(t, tc.squareSize*tc.squareSize)
+			shares, err := libshare.RandShares(tc.squareSize * tc.squareSize)
+			require.NoError(t, err)
 			in, err := ipld.AddShares(ctx, shares, bServ)
 			require.NoError(t, err)
 
@@ -56,9 +55,9 @@ func TestRetriever_Retrieve(t *testing.T) {
 			ctx, cancel := context.WithTimeout(ctx, time.Minute*5) // the timeout is big for the max size which is long
 			defer cancel()
 
-			dah, err := da.NewDataAvailabilityHeader(in)
+			roots, err := share.NewAxisRoots(in)
 			require.NoError(t, err)
-			out, err := r.Retrieve(ctx, &dah)
+			out, err := r.Retrieve(ctx, roots)
 			require.NoError(t, err)
 			assert.True(t, in.Equals(out))
 		})
@@ -77,13 +76,14 @@ func TestRetriever_MultipleRandQuadrants(t *testing.T) {
 	r := NewRetriever(bServ)
 
 	// generate EDS
-	shares := sharetest.RandShares(t, squareSize*squareSize)
+	shares, err := libshare.RandShares(squareSize * squareSize)
+	require.NoError(t, err)
 	in, err := ipld.AddShares(ctx, shares, bServ)
 	require.NoError(t, err)
 
-	dah, err := da.NewDataAvailabilityHeader(in)
+	roots, err := share.NewAxisRoots(in)
 	require.NoError(t, err)
-	ses, err := r.newSession(ctx, &dah)
+	ses, err := r.newSession(ctx, roots)
 	require.NoError(t, err)
 
 	// wait until two additional quadrants requested
@@ -206,7 +206,7 @@ func BenchmarkNewErrByzantineData(b *testing.B) {
 			b.StartTimer()
 
 			for i := 0; i < b.N; i++ {
-				err = byzantine.NewErrByzantine(ctx, bServ, h.DAH, errByz)
+				err = byzantine.NewErrByzantine(ctx, bServ.Blockstore(), h.DAH, errByz)
 				require.NotNil(t, err)
 			}
 		})

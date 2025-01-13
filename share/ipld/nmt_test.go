@@ -7,16 +7,16 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"github.com/celestiaorg/celestia-app/pkg/da"
 	"github.com/celestiaorg/rsmt2d"
 
+	"github.com/celestiaorg/celestia-node/share"
 	"github.com/celestiaorg/celestia-node/share/eds/edstest"
 )
 
 // TestNamespaceFromCID checks that deriving the Namespaced hash from
 // the given CID works correctly.
 func TestNamespaceFromCID(t *testing.T) {
-	var tests = []struct {
+	tests := []struct {
 		eds *rsmt2d.ExtendedDataSquare
 	}{
 		// note that the number of shares must be a power of two
@@ -26,10 +26,10 @@ func TestNamespaceFromCID(t *testing.T) {
 
 	for i, tt := range tests {
 		t.Run(strconv.Itoa(i), func(t *testing.T) {
-			dah, err := da.NewDataAvailabilityHeader(tt.eds)
+			roots, err := share.NewAxisRoots(tt.eds)
 			require.NoError(t, err)
 			// check to make sure NamespacedHash is correctly derived from CID
-			for _, row := range dah.RowRoots {
+			for _, row := range roots.RowRoots {
 				c, err := CidFromNamespacedSha256(row)
 				require.NoError(t, err)
 

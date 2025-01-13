@@ -6,7 +6,7 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/cristalhq/jwt"
+	"github.com/cristalhq/jwt/v5"
 	"github.com/ipfs/boxo/blockservice"
 	"github.com/ipfs/boxo/exchange"
 	logging "github.com/ipfs/go-log/v2"
@@ -22,6 +22,7 @@ import (
 	"github.com/celestiaorg/celestia-node/api/gateway"
 	"github.com/celestiaorg/celestia-node/api/rpc"
 	"github.com/celestiaorg/celestia-node/nodebuilder/blob"
+	"github.com/celestiaorg/celestia-node/nodebuilder/blobstream"
 	"github.com/celestiaorg/celestia-node/nodebuilder/da"
 	"github.com/celestiaorg/celestia-node/nodebuilder/das"
 	"github.com/celestiaorg/celestia-node/nodebuilder/fraud"
@@ -30,6 +31,7 @@ import (
 	"github.com/celestiaorg/celestia-node/nodebuilder/p2p"
 	"github.com/celestiaorg/celestia-node/nodebuilder/share"
 	"github.com/celestiaorg/celestia-node/nodebuilder/state"
+	"github.com/celestiaorg/celestia-node/store"
 )
 
 var (
@@ -56,23 +58,27 @@ type Node struct {
 	RPCServer     *rpc.Server     // not optional
 	GatewayServer *gateway.Server `optional:"true"`
 
+	// block store
+	EDSStore *store.Store `optional:"true"`
+
 	// p2p components
 	Host         host.Host
 	ConnGater    *conngater.BasicConnectionGater
 	Routing      routing.PeerRouting
-	DataExchange exchange.Interface
+	DataExchange exchange.SessionExchange
 	BlockService blockservice.BlockService
 	// p2p protocols
 	PubSub *pubsub.PubSub
 	// services
-	ShareServ  share.Module  // not optional
-	HeaderServ header.Module // not optional
-	StateServ  state.Module  // not optional
-	FraudServ  fraud.Module  // not optional
-	BlobServ   blob.Module   // not optional
-	DASer      das.Module    // not optional
-	AdminServ  node.Module   // not optional
-	DAMod      da.Module     // not optional
+	ShareServ     share.Module  // not optional
+	HeaderServ    header.Module // not optional
+	StateServ     state.Module  // not optional
+	FraudServ     fraud.Module  // not optional
+	BlobServ      blob.Module   // not optional
+	DASer         das.Module    // not optional
+	AdminServ     node.Module   // not optional
+	DAMod         da.Module     // not optional
+	BlobstreamMod blobstream.Module
 
 	// start and stop control ref internal fx.App lifecycle funcs to be called from Start and Stop
 	start, stop lifecycleFunc

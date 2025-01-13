@@ -3,19 +3,24 @@ run:
 
 linters:
   enable:
+    - bidichk
     - bodyclose
      # - depguard as of v1.54.2, the default config throws errors on our repo
     - dogsled
     - dupl
     - errcheck
+    - errorlint
     # - funlen
     # - gochecknoglobals
     # - gochecknoinits
+    - copyloopvar
+    - gocheckcompilerdirectives
     - goconst
     - gocritic
     # - gocyclo
     # - godox
     - gofmt
+    - gofumpt
     - goimports
     # - golint - deprecated since v1.41. revive will be used instead
     - revive
@@ -25,12 +30,16 @@ linters:
     - ineffassign
     # - interfacer
     - lll
+    - loggercheck
     - misspell
     # - maligned
     - nakedret
+    - nilerr
+    - nilnil
+    - nolintlint
     - prealloc
+    - protogetter
     # - scopelint - deprecated since v1.39. exportloopref will be used instead
-    - exportloopref
     - staticcheck
     - stylecheck
     - typecheck
@@ -40,8 +49,11 @@ linters:
     # - whitespace
     # - wsl
     # - gocognit
+    - wastedassign
+    - whitespace
     - nolintlint
     - asciicheck
+    - dupword
 
 issues:
   exclude-rules:
@@ -55,6 +67,9 @@ issues:
   max-same-issues: 50
 
 linters-settings:
+  gosec:
+    excludes:
+      - G115 # integer overflow conversion
   dogsled:
     max-blank-identifiers: 3
   golint:
@@ -67,3 +82,5 @@ linters-settings:
     local-prefixes: github.com/celestiaorg/celestia-node
   dupl:
     threshold: 200
+  gofumpt:
+    extra-rules: true

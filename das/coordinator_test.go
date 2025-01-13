@@ -14,7 +14,7 @@ import (
 
 	"github.com/celestiaorg/celestia-node/header"
 	"github.com/celestiaorg/celestia-node/share"
-	"github.com/celestiaorg/celestia-node/share/p2p/shrexsub"
+	"github.com/celestiaorg/celestia-node/share/shwap/p2p/shrex/shrexsub"
 )
 
 func TestCoordinator(t *testing.T) {
@@ -432,7 +432,7 @@ func (m *mockSampler) discover(ctx context.Context, newHeight uint64, emit liste
 	emit(ctx, &header.ExtendedHeader{
 		Commit:    &types.Commit{},
 		RawHeader: header.RawHeader{Height: int64(newHeight)},
-		DAH:       &share.Root{RowRoots: make([][]byte, 0)},
+		DAH:       &share.AxisRoots{RowRoots: make([][]byte, 0)},
 	})
 }
 
@@ -470,7 +470,6 @@ func (o *checkOrder) addInterval(start, end uint64) *checkOrder {
 			return o
 		}
 		start--
-
 	}
 	return o
 }

@@ -9,7 +9,7 @@ import (
 	"time"
 
 	sdk "github.com/cosmos/cosmos-sdk/types"
-	"github.com/cristalhq/jwt"
+	"github.com/cristalhq/jwt/v5"
 	"github.com/golang/mock/gomock"
 	"github.com/libp2p/go-libp2p/core/network"
 	"github.com/stretchr/testify/require"
@@ -22,6 +22,8 @@ import (
 	"github.com/celestiaorg/celestia-node/nodebuilder"
 	"github.com/celestiaorg/celestia-node/nodebuilder/blob"
 	blobMock "github.com/celestiaorg/celestia-node/nodebuilder/blob/mocks"
+	"github.com/celestiaorg/celestia-node/nodebuilder/blobstream"
+	blobstreamMock "github.com/celestiaorg/celestia-node/nodebuilder/blobstream/mocks"
 	"github.com/celestiaorg/celestia-node/nodebuilder/da"
 	daMock "github.com/celestiaorg/celestia-node/nodebuilder/da/mocks"
 	"github.com/celestiaorg/celestia-node/nodebuilder/das"
@@ -46,10 +48,15 @@ func TestRPCCallsUnderlyingNode(t *testing.T) {
 	t.Cleanup(cancel)
 
 	// generate dummy signer and sign admin perms token with it
-	signer, err := jwt.NewHS256(make([]byte, 32))
+	key := make([]byte, 32)
+
+	signer, err := jwt.NewSignerHS(jwt.HS256, key)
 	require.NoError(t, err)
 
-	nd, server := setupNodeWithAuthedRPC(t, signer)
+	verifier, err := jwt.NewVerifierHS(jwt.HS256, key)
+	require.NoError(t, err)
+
+	nd, server := setupNodeWithAuthedRPC(t, signer, verifier)
 	url := nd.RPCServer.ListenAddr()
 
 	adminToken, err := perms.NewTokenWithPerms(signer, perms.AllPerms)
@@ -82,18 +89,55 @@ func TestRPCCallsUnderlyingNode(t *testing.T) {
 	require.Equal(t, expectedBalance, balance)
 }
 
+func TestRPCCallsTokenExpired(t *testing.T) {
+	ctx, cancel := context.WithCancel(context.Background())
+	t.Cleanup(cancel)
+
+	// generate dummy signer and sign admin perms token with it
+	key := make([]byte, 32)
+
+	signer, err := jwt.NewSignerHS(jwt.HS256, key)
+	require.NoError(t, err)
+
+	verifier, err := jwt.NewVerifierHS(jwt.HS256, key)
+	require.NoError(t, err)
+
+	nd, _ := setupNodeWithAuthedRPC(t, signer, verifier)
+	url := nd.RPCServer.ListenAddr()
+
+	adminToken, err := perms.NewTokenWithTTL(signer, perms.AllPerms, time.Millisecond)
+	require.NoError(t, err)
+
+	// we need to run this a few times to prevent the race where the server is not yet started
+	var rpcClient *client.Client
+	for i := 0; i < 3; i++ {
+		time.Sleep(time.Second * 1)
+		rpcClient, err = client.NewClient(ctx, "http://"+url, string(adminToken))
+		if err == nil {
+			t.Cleanup(rpcClient.Close)
+			break
+		}
+	}
+	require.NotNil(t, rpcClient)
+	require.NoError(t, err)
+
+	_, err = rpcClient.State.Balance(ctx)
+	require.ErrorContains(t, err, "request failed, http status 401 Unauthorized")
+}
+
 // api contains all modules that are made available as the node's
 // public API surface
 type api struct {
-	Fraud  fraud.Module
-	Header header.Module
-	State  statemod.Module
-	Share  share.Module
-	DAS    das.Module
-	Node   node.Module
-	P2P    p2p.Module
-	Blob   blob.Module
-	DA     da.Module
+	Fraud      fraud.Module
+	Header     header.Module
+	State      statemod.Module
+	Share      share.Module
+	DAS        das.Module
+	Node       node.Module
+	P2P        p2p.Module
+	Blob       blob.Module
+	DA         da.Module
+	Blobstream blobstream.Module
 }
 
 func TestModulesImplementFullAPI(t *testing.T) {
@@ -123,10 +167,15 @@ func TestAuthedRPC(t *testing.T) {
 	t.Cleanup(cancel)
 
 	// generate dummy signer and sign admin perms token with it
-	signer, err := jwt.NewHS256(make([]byte, 32))
+	key := make([]byte, 32)
+
+	signer, err := jwt.NewSignerHS(jwt.HS256, key)
 	require.NoError(t, err)
 
-	nd, server := setupNodeWithAuthedRPC(t, signer)
+	verifier, err := jwt.NewVerifierHS(jwt.HS256, key)
+	require.NoError(t, err)
+
+	nd, server := setupNodeWithAuthedRPC(t, signer, verifier)
 	url := nd.RPCServer.ListenAddr()
 
 	// create permissioned tokens
@@ -139,7 +188,7 @@ func TestAuthedRPC(t *testing.T) {
 	adminToken, err := perms.NewTokenWithPerms(signer, perms.AllPerms)
 	require.NoError(t, err)
 
-	var tests = []struct {
+	tests := []struct {
 		perm  int
 		token string
 	}{
@@ -190,14 +239,14 @@ func TestAuthedRPC(t *testing.T) {
 			expectedResp := &state.TxResponse{}
 			if tt.perm > 2 {
 				server.State.EXPECT().Delegate(gomock.Any(), gomock.Any(),
-					gomock.Any(), gomock.Any(), gomock.Any()).Return(expectedResp, nil)
+					gomock.Any(), gomock.Any()).Return(expectedResp, nil)
 				txResp, err := rpcClient.State.Delegate(ctx,
-					state.ValAddress{}, state.Int{}, state.Int{}, 0)
+					state.ValAddress{}, state.Int{}, state.NewTxConfig())
 				require.NoError(t, err)
 				require.Equal(t, expectedResp, txResp)
 			} else {
 				_, err := rpcClient.State.Delegate(ctx,
-					state.ValAddress{}, state.Int{}, state.Int{}, 0)
+					state.ValAddress{}, state.Int{}, state.NewTxConfig())
 				require.Error(t, err)
 				require.ErrorContains(t, err, "missing permission")
 			}
@@ -280,12 +329,13 @@ func implementsMarshaler(t *testing.T, typ reflect.Type) {
 	default:
 		return
 	}
-
 }
 
 // setupNodeWithAuthedRPC sets up a node and overrides its JWT
 // signer with the given signer.
-func setupNodeWithAuthedRPC(t *testing.T, auth jwt.Signer) (*nodebuilder.Node, *mockAPI) {
+func setupNodeWithAuthedRPC(t *testing.T,
+	jwtSigner jwt.Signer, jwtVerifier jwt.Verifier,
+) (*nodebuilder.Node, *mockAPI) {
 	ctx, cancel := context.WithCancel(context.Background())
 	t.Cleanup(cancel)
 
@@ -301,6 +351,7 @@ func setupNodeWithAuthedRPC(t *testing.T, auth jwt.Signer) (*nodebuilder.Node, *
 		nodeMock.NewMockModule(ctrl),
 		blobMock.NewMockModule(ctrl),
 		daMock.NewMockModule(ctrl),
+		blobstreamMock.NewMockModule(ctrl),
 	}
 
 	// given the behavior of fx.Invoke, this invoke will be called last as it is added at the root
@@ -317,8 +368,8 @@ func setupNodeWithAuthedRPC(t *testing.T, auth jwt.Signer) (*nodebuilder.Node, *
 		srv.RegisterService("da", mockAPI.DA, &da.API{})
 	})
 	// fx.Replace does not work here, but fx.Decorate does
-	nd := nodebuilder.TestNode(t, node.Full, invokeRPC, fx.Decorate(func() (jwt.Signer, error) {
-		return auth, nil
+	nd := nodebuilder.TestNode(t, node.Full, invokeRPC, fx.Decorate(func() (jwt.Signer, jwt.Verifier, error) {
+		return jwtSigner, jwtVerifier, nil
 	}))
 	// start node
 	err := nd.Start(ctx)
@@ -331,13 +382,14 @@ func setupNodeWithAuthedRPC(t *testing.T, auth jwt.Signer) (*nodebuilder.Node, *
 }
 
 type mockAPI struct {
-	State  *stateMock.MockModule
-	Share  *shareMock.MockModule
-	Fraud  *fraudMock.MockModule
-	Header *headerMock.MockModule
-	Das    *dasMock.MockModule
-	P2P    *p2pMock.MockModule
-	Node   *nodeMock.MockModule
-	Blob   *blobMock.MockModule
-	DA     *daMock.MockModule
+	State      *stateMock.MockModule
+	Share      *shareMock.MockModule
+	Fraud      *fraudMock.MockModule
+	Header     *headerMock.MockModule
+	Das        *dasMock.MockModule
+	P2P        *p2pMock.MockModule
+	Node       *nodeMock.MockModule
+	Blob       *blobMock.MockModule
+	DA         *daMock.MockModule
+	Blobstream *blobstreamMock.MockModule
 }

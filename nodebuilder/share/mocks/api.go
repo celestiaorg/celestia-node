@@ -9,7 +9,9 @@ import (
 	reflect "reflect"
 
 	header "github.com/celestiaorg/celestia-node/header"
-	share "github.com/celestiaorg/celestia-node/share"
+	share "github.com/celestiaorg/celestia-node/nodebuilder/share"
+	shwap "github.com/celestiaorg/celestia-node/share/shwap"
+	share0 "github.com/celestiaorg/go-square/v2/share"
 	rsmt2d "github.com/celestiaorg/rsmt2d"
 	gomock "github.com/golang/mock/gomock"
 )
@@ -38,7 +40,7 @@ func (m *MockModule) EXPECT() *MockModuleMockRecorder {
 }
 
 // GetEDS mocks base method.
-func (m *MockModule) GetEDS(arg0 context.Context, arg1 *header.ExtendedHeader) (*rsmt2d.ExtendedDataSquare, error) {
+func (m *MockModule) GetEDS(arg0 context.Context, arg1 uint64) (*rsmt2d.ExtendedDataSquare, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "GetEDS", arg0, arg1)
 	ret0, _ := ret[0].(*rsmt2d.ExtendedDataSquare)
@@ -52,11 +54,71 @@ func (mr *MockModuleMockRecorder) GetEDS(arg0, arg1 interface{}) *gomock.Call {
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetEDS", reflect.TypeOf((*MockModule)(nil).GetEDS), arg0, arg1)
 }
 
+// GetNamespaceData mocks base method.
+func (m *MockModule) GetNamespaceData(arg0 context.Context, arg1 uint64, arg2 share0.Namespace) (shwap.NamespaceData, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "GetNamespaceData", arg0, arg1, arg2)
+	ret0, _ := ret[0].(shwap.NamespaceData)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// GetNamespaceData indicates an expected call of GetNamespaceData.
+func (mr *MockModuleMockRecorder) GetNamespaceData(arg0, arg1, arg2 interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetNamespaceData", reflect.TypeOf((*MockModule)(nil).GetNamespaceData), arg0, arg1, arg2)
+}
+
+// GetRange mocks base method.
+func (m *MockModule) GetRange(arg0 context.Context, arg1 uint64, arg2, arg3 int) (*share.GetRangeResult, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "GetRange", arg0, arg1, arg2, arg3)
+	ret0, _ := ret[0].(*share.GetRangeResult)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// GetRange indicates an expected call of GetRange.
+func (mr *MockModuleMockRecorder) GetRange(arg0, arg1, arg2, arg3 interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetRange", reflect.TypeOf((*MockModule)(nil).GetRange), arg0, arg1, arg2, arg3)
+}
+
+// GetRow mocks base method.
+func (m *MockModule) GetRow(arg0 context.Context, arg1 uint64, arg2 int) (shwap.Row, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "GetRow", arg0, arg1, arg2)
+	ret0, _ := ret[0].(shwap.Row)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// GetRow indicates an expected call of GetRow.
+func (mr *MockModuleMockRecorder) GetRow(arg0, arg1, arg2 interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetRow", reflect.TypeOf((*MockModule)(nil).GetRow), arg0, arg1, arg2)
+}
+
+// GetSamples mocks base method.
+func (m *MockModule) GetSamples(arg0 context.Context, arg1 *header.ExtendedHeader, arg2 []shwap.SampleCoords) ([]shwap.Sample, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "GetSamples", arg0, arg1, arg2)
+	ret0, _ := ret[0].([]shwap.Sample)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// GetSamples indicates an expected call of GetSamples.
+func (mr *MockModuleMockRecorder) GetSamples(arg0, arg1, arg2 interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetSamples", reflect.TypeOf((*MockModule)(nil).GetSamples), arg0, arg1, arg2)
+}
+
 // GetShare mocks base method.
-func (m *MockModule) GetShare(arg0 context.Context, arg1 *header.ExtendedHeader, arg2, arg3 int) ([]byte, error) {
+func (m *MockModule) GetShare(arg0 context.Context, arg1 uint64, arg2, arg3 int) (share0.Share, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "GetShare", arg0, arg1, arg2, arg3)
-	ret0, _ := ret[0].([]byte)
+	ret0, _ := ret[0].(share0.Share)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
@@ -67,23 +129,8 @@ func (mr *MockModuleMockRecorder) GetShare(arg0, arg1, arg2, arg3 interface{}) *
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetShare", reflect.TypeOf((*MockModule)(nil).GetShare), arg0, arg1, arg2, arg3)
 }
 
-// GetSharesByNamespace mocks base method.
-func (m *MockModule) GetSharesByNamespace(arg0 context.Context, arg1 *header.ExtendedHeader, arg2 share.Namespace) (share.NamespacedShares, error) {
-	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "GetSharesByNamespace", arg0, arg1, arg2)
-	ret0, _ := ret[0].(share.NamespacedShares)
-	ret1, _ := ret[1].(error)
-	return ret0, ret1
-}
-
-// GetSharesByNamespace indicates an expected call of GetSharesByNamespace.
-func (mr *MockModuleMockRecorder) GetSharesByNamespace(arg0, arg1, arg2 interface{}) *gomock.Call {
-	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetSharesByNamespace", reflect.TypeOf((*MockModule)(nil).GetSharesByNamespace), arg0, arg1, arg2)
-}
-
 // SharesAvailable mocks base method.
-func (m *MockModule) SharesAvailable(arg0 context.Context, arg1 *header.ExtendedHeader) error {
+func (m *MockModule) SharesAvailable(arg0 context.Context, arg1 uint64) error {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "SharesAvailable", arg0, arg1)
 	ret0, _ := ret[0].(error)

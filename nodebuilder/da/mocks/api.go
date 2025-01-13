@@ -9,6 +9,7 @@ import (
 	reflect "reflect"
 
 	gomock "github.com/golang/mock/gomock"
+	da "github.com/rollkit/go-da"
 )
 
 // MockModule is a mock of Module interface.
@@ -65,10 +66,10 @@ func (mr *MockModuleMockRecorder) Get(arg0, arg1, arg2 interface{}) *gomock.Call
 }
 
 // GetIDs mocks base method.
-func (m *MockModule) GetIDs(arg0 context.Context, arg1 uint64, arg2 []byte) ([][]byte, error) {
+func (m *MockModule) GetIDs(arg0 context.Context, arg1 uint64, arg2 []byte) (*da.GetIDsResult, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "GetIDs", arg0, arg1, arg2)
-	ret0, _ := ret[0].([][]byte)
+	ret0, _ := ret[0].(*da.GetIDsResult)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
@@ -122,6 +123,21 @@ func (m *MockModule) Submit(arg0 context.Context, arg1 [][]byte, arg2 float64, a
 func (mr *MockModuleMockRecorder) Submit(arg0, arg1, arg2, arg3 interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Submit", reflect.TypeOf((*MockModule)(nil).Submit), arg0, arg1, arg2, arg3)
+}
+
+// SubmitWithOptions mocks base method.
+func (m *MockModule) SubmitWithOptions(arg0 context.Context, arg1 [][]byte, arg2 float64, arg3, arg4 []byte) ([][]byte, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "SubmitWithOptions", arg0, arg1, arg2, arg3, arg4)
+	ret0, _ := ret[0].([][]byte)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// SubmitWithOptions indicates an expected call of SubmitWithOptions.
+func (mr *MockModuleMockRecorder) SubmitWithOptions(arg0, arg1, arg2, arg3, arg4 interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "SubmitWithOptions", reflect.TypeOf((*MockModule)(nil).SubmitWithOptions), arg0, arg1, arg2, arg3, arg4)
 }
 
 // Validate mocks base method.

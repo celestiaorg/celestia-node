@@ -9,9 +9,7 @@ import (
 
 	"github.com/gorilla/mux"
 
-	"github.com/celestiaorg/celestia-app/pkg/shares"
-
-	"github.com/celestiaorg/celestia-node/share"
+	libshare "github.com/celestiaorg/go-square/v2/share"
 )
 
 const (
@@ -24,8 +22,8 @@ var namespaceKey = "nid"
 // NamespacedSharesResponse represents the response to a
 // SharesByNamespace request.
 type NamespacedSharesResponse struct {
-	Shares []share.Share `json:"shares"`
-	Height uint64        `json:"height"`
+	Shares []libshare.Share `json:"shares"`
+	Height uint64           `json:"height"`
 }
 
 // NamespacedDataResponse represents the response to a
@@ -90,13 +88,12 @@ func (h *Handler) handleDataByNamespaceRequest(w http.ResponseWriter, r *http.Re
 	}
 }
 
-func (h *Handler) getShares(ctx context.Context, height uint64, namespace share.Namespace) ([]share.Share, error) {
-	header, err := h.header.GetByHeight(ctx, height)
-	if err != nil {
-		return nil, err
-	}
-
-	shares, err := h.share.GetSharesByNamespace(ctx, header, namespace)
+func (h *Handler) getShares(
+	ctx context.Context,
+	height uint64,
+	namespace libshare.Namespace,
+) ([]libshare.Share, error) {
+	shares, err := h.share.GetNamespaceData(ctx, height, namespace)
 	if err != nil {
 		return nil, err
 	}
@@ -104,12 +101,8 @@ func (h *Handler) getShares(ctx context.Context, height uint64, namespace share.
 	return shares.Flatten(), nil
 }
 
-func dataFromShares(input []share.Share) (data [][]byte, err error) {
-	appShares, err := shares.FromBytes(input)
-	if err != nil {
-		return nil, err
-	}
-	sequences, err := shares.ParseShares(appShares, false)
+func dataFromShares(input []libshare.Share) (data [][]byte, err error) {
+	sequences, err := libshare.ParseShares(input, false)
 	if err != nil {
 		return nil, err
 	}
@@ -123,19 +116,24 @@ func dataFromShares(input []share.Share) (data [][]byte, err error) {
 	return data, nil
 }
 
-func parseGetByNamespaceArgs(r *http.Request) (height uint64, namespace share.Namespace, err error) {
+func parseGetByNamespaceArgs(r *http.Request) (height uint64, namespace libshare.Namespace, err error) {
 	vars := mux.Vars(r)
 	// if a height was given, parse it, otherwise get namespaced shares/data from the latest header
 	if strHeight, ok := vars[heightKey]; ok {
 		height, err = strconv.ParseUint(strHeight, 10, 64)
 		if err != nil {
-			return 0, nil, err
+			return 0, libshare.Namespace{}, err
 		}
 	}
 	hexNamespace := vars[namespaceKey]
-	namespace, err = hex.DecodeString(hexNamespace)
+	nsString, err := hex.DecodeString(hexNamespace)
 	if err != nil {
-		return 0, nil, err
+		return 0, libshare.Namespace{}, err
 	}
+	ns, err := libshare.NewNamespaceFromBytes(nsString)
+	if err != nil {
+		return 0, libshare.Namespace{}, err
+	}
+	namespace = ns
 	return height, namespace, namespace.ValidateForData()
 }

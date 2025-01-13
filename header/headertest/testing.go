@@ -17,7 +17,7 @@ import (
 	"github.com/tendermint/tendermint/types"
 	tmtime "github.com/tendermint/tendermint/types/time"
 
-	"github.com/celestiaorg/celestia-app/pkg/da"
+	"github.com/celestiaorg/celestia-app/v3/pkg/da"
 	libhead "github.com/celestiaorg/go-header"
 	"github.com/celestiaorg/go-header/headertest"
 	"github.com/celestiaorg/rsmt2d"
@@ -66,7 +66,7 @@ func NewTestSuite(t *testing.T, numValidators int, blockTime time.Duration) *Tes
 }
 
 func (s *TestSuite) genesis() *header.ExtendedHeader {
-	dah := share.EmptyRoot()
+	dah := share.EmptyEDSRoots()
 
 	gen := RandRawHeader(s.t)
 
@@ -94,7 +94,6 @@ func MakeCommit(
 	blockID types.BlockID, height int64, round int32,
 	voteSet *types.VoteSet, validators []types.PrivValidator, now time.Time,
 ) (*types.Commit, error) {
-
 	// all sign
 	for i := 0; i < len(validators); i++ {
 		pubKey, err := validators[i].GetPubKey()
@@ -153,7 +152,7 @@ func (s *TestSuite) NextHeader() *header.ExtendedHeader {
 		return s.head
 	}
 
-	dah := share.EmptyRoot()
+	dah := share.EmptyEDSRoots()
 	height := s.Head().Height() + 1
 	rh := s.GenRawHeader(height, s.Head().Hash(), libhead.Hash(s.Head().Commit.Hash()), dah.Hash())
 	s.head = &header.ExtendedHeader{
@@ -230,7 +229,7 @@ func RandExtendedHeader(t testing.TB) *header.ExtendedHeader {
 }
 
 func RandExtendedHeaderAtTimestamp(t testing.TB, timestamp time.Time) *header.ExtendedHeader {
-	dah := share.EmptyRoot()
+	dah := share.EmptyEDSRoots()
 
 	rh := RandRawHeader(t)
 	rh.DataHash = dah.Hash()
@@ -323,10 +322,43 @@ func RandBlockID(testing.TB) types.BlockID {
 	return bid
 }
 
+func ExtendedHeadersFromEdsses(t testing.TB, edsses []*rsmt2d.ExtendedDataSquare) []*header.ExtendedHeader {
+	valSet, vals := RandValidatorSet(10, 10)
+	headers := make([]*header.ExtendedHeader, len(edsses))
+	for i, eds := range edsses {
+		gen := RandRawHeader(t)
+
+		roots, err := share.NewAxisRoots(eds)
+		require.NoError(t, err)
+		gen.DataHash = roots.Hash()
+		gen.ValidatorsHash = valSet.Hash()
+		gen.NextValidatorsHash = valSet.Hash()
+		gen.Height = int64(i + 1)
+		if i > 0 {
+			gen.LastBlockID = headers[i-1].Commit.BlockID
+			gen.LastCommitHash = headers[i-1].Commit.Hash()
+		}
+		blockID := RandBlockID(t)
+		blockID.Hash = gen.Hash()
+		voteSet := types.NewVoteSet(gen.ChainID, gen.Height, 0, tmproto.PrecommitType, valSet)
+		commit, err := MakeCommit(blockID, gen.Height, 0, voteSet, vals, time.Now().UTC())
+		require.NoError(t, err)
+		eh := &header.ExtendedHeader{
+			RawHeader:    *gen,
+			Commit:       commit,
+			ValidatorSet: valSet,
+			DAH:          roots,
+		}
+		require.NoError(t, eh.Validate())
+		headers[i] = eh
+	}
+	return headers
+}
+
 func ExtendedHeaderFromEDS(t testing.TB, height uint64, eds *rsmt2d.ExtendedDataSquare) *header.ExtendedHeader {
 	valSet, vals := RandValidatorSet(10, 10)
 	gen := RandRawHeader(t)
-	dah, err := share.NewRoot(eds)
+	dah, err := share.NewAxisRoots(eds)
 	require.NoError(t, err)
 
 	gen.DataHash = dah.Hash()

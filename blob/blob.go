@@ -6,33 +6,23 @@ import (
 	"errors"
 	"fmt"
 
-	tmproto "github.com/tendermint/tendermint/proto/tendermint/types"
-
-	"github.com/celestiaorg/celestia-app/pkg/appconsts"
-	"github.com/celestiaorg/celestia-app/x/blob/types"
+	"github.com/celestiaorg/celestia-app/v3/pkg/appconsts"
+	"github.com/celestiaorg/go-square/merkle"
+	"github.com/celestiaorg/go-square/v2/inclusion"
+	libshare "github.com/celestiaorg/go-square/v2/share"
 	"github.com/celestiaorg/nmt"
-
-	"github.com/celestiaorg/celestia-node/share"
 )
+
+// appVersion is the current application version of celestia-app.
+const appVersion = appconsts.LatestVersion
 
 var errEmptyShares = errors.New("empty shares")
 
-// Commitment is a Merkle Root of the subtree built from shares of the Blob.
-// It is computed by splitting the blob into shares and building the Merkle subtree to be included
-// after Submit.
-type Commitment []byte
+var subtreeRootThreshold = appconsts.SubtreeRootThreshold(appVersion)
 
-func (com Commitment) String() string {
-	return string(com)
-}
-
-// Equal ensures that commitments are the same
-func (com Commitment) Equal(c Commitment) bool {
-	return bytes.Equal(com, c)
-}
-
-// Proof is a collection of nmt.Proofs that verifies the inclusion of the data.
-// Proof proves the WHOLE namespaced data for the particular row.
+// The Proof is a set of nmt proofs that can be verified only through
+// the included method (due to limitation of the nmt https://github.com/celestiaorg/nmt/issues/218).
+// Proof proves the WHOLE namespaced data to the row roots.
 // TODO (@vgonkivs): rework `Proof` in order to prove a particular blob.
 // https://github.com/celestiaorg/celestia-node/issues/2303
 type Proof []*nmt.Proof
@@ -62,20 +52,15 @@ func (p Proof) equal(input Proof) error {
 		if !bytes.Equal(proof.LeafHash(), input[i].LeafHash()) {
 			return ErrInvalidProof
 		}
-
 	}
 	return nil
 }
 
 // Blob represents any application-specific binary data that anyone can submit to Celestia.
 type Blob struct {
-	types.Blob `json:"blob"`
+	*libshare.Blob `json:"blob"`
 
 	Commitment Commitment `json:"commitment"`
-
-	// the celestia-node's namespace type
-	// this is to avoid converting to and from app's type
-	namespace share.Namespace
 
 	// index represents the index of the blob's first share in the EDS.
 	// Only retrieved, on-chain blobs will have the index set. Default is -1.
@@ -84,36 +69,37 @@ type Blob struct {
 
 // NewBlobV0 constructs a new blob from the provided Namespace and data.
 // The blob will be formatted as v0 shares.
-func NewBlobV0(namespace share.Namespace, data []byte) (*Blob, error) {
-	return NewBlob(appconsts.ShareVersionZero, namespace, data)
+func NewBlobV0(namespace libshare.Namespace, data []byte) (*Blob, error) {
+	return NewBlob(libshare.ShareVersionZero, namespace, data, nil)
 }
 
-// NewBlob constructs a new blob from the provided Namespace, data and share version.
-func NewBlob(shareVersion uint8, namespace share.Namespace, data []byte) (*Blob, error) {
-	if len(data) == 0 || len(data) > appconsts.DefaultMaxBytes {
-		return nil, fmt.Errorf("blob data must be > 0 && <= %d, but it was %d bytes", appconsts.DefaultMaxBytes, len(data))
-	}
+// NewBlobV1 constructs a new blob from the provided Namespace, data, and signer.
+// The blob will be formatted as v1 shares.
+func NewBlobV1(namespace libshare.Namespace, data, signer []byte) (*Blob, error) {
+	return NewBlob(libshare.ShareVersionOne, namespace, data, signer)
+}
+
+// NewBlob constructs a new blob from the provided Namespace, data, signer, and share version.
+func NewBlob(shareVersion uint8, namespace libshare.Namespace, data, signer []byte) (*Blob, error) {
 	if err := namespace.ValidateForBlob(); err != nil {
-		return nil, err
+		return nil, fmt.Errorf("invalid user namespace: %w", err)
 	}
 
-	blob := tmproto.Blob{
-		NamespaceId:      namespace.ID(),
-		Data:             data,
-		ShareVersion:     uint32(shareVersion),
-		NamespaceVersion: uint32(namespace.Version()),
-	}
-
-	com, err := types.CreateCommitment(&blob)
+	libBlob, err := libshare.NewBlob(namespace, data, shareVersion, signer)
 	if err != nil {
 		return nil, err
 	}
-	return &Blob{Blob: blob, Commitment: com, namespace: namespace, index: -1}, nil
+
+	com, err := inclusion.CreateCommitment(libBlob, merkle.HashFromByteSlices, subtreeRootThreshold)
+	if err != nil {
+		return nil, err
+	}
+	return &Blob{Blob: libBlob, Commitment: com, index: -1}, nil
 }
 
 // Namespace returns blob's namespace.
-func (b *Blob) Namespace() share.Namespace {
-	return b.namespace
+func (b *Blob) Namespace() libshare.Namespace {
+	return b.Blob.Namespace()
 }
 
 // Index returns the blob's first share index in the EDS.
@@ -122,42 +108,68 @@ func (b *Blob) Index() int {
 	return b.index
 }
 
+// Length returns the number of shares in the blob.
+func (b *Blob) Length() (int, error) {
+	s, err := BlobsToShares(b)
+	if err != nil {
+		return 0, err
+	}
+
+	if len(s) == 0 {
+		return 0, errors.New("blob with zero shares received")
+	}
+	return libshare.SparseSharesNeeded(s[0].SequenceLen()), nil
+}
+
+// Signer returns blob's author.
+func (b *Blob) Signer() []byte {
+	return b.Blob.Signer()
+}
+
 func (b *Blob) compareCommitments(com Commitment) bool {
 	return bytes.Equal(b.Commitment, com)
 }
 
 type jsonBlob struct {
-	Namespace    share.Namespace `json:"namespace"`
-	Data         []byte          `json:"data"`
-	ShareVersion uint32          `json:"share_version"`
-	Commitment   Commitment      `json:"commitment"`
-	Index        int             `json:"index"`
+	Namespace    []byte     `json:"namespace"`
+	Data         []byte     `json:"data"`
+	ShareVersion uint8      `json:"share_version"`
+	Commitment   Commitment `json:"commitment"`
+	Signer       []byte     `json:"signer,omitempty"`
+	Index        int        `json:"index"`
 }
 
 func (b *Blob) MarshalJSON() ([]byte, error) {
 	blob := &jsonBlob{
-		Namespace:    b.Namespace(),
-		Data:         b.Data,
-		ShareVersion: b.ShareVersion,
+		Namespace:    b.Namespace().Bytes(),
+		Data:         b.Data(),
+		ShareVersion: b.ShareVersion(),
 		Commitment:   b.Commitment,
+		Signer:       b.Signer(),
 		Index:        b.index,
 	}
 	return json.Marshal(blob)
 }
 
 func (b *Blob) UnmarshalJSON(data []byte) error {
-	var blob jsonBlob
-	err := json.Unmarshal(data, &blob)
+	var jsonBlob jsonBlob
+	err := json.Unmarshal(data, &jsonBlob)
 	if err != nil {
 		return err
 	}
 
-	b.Blob.NamespaceVersion = uint32(blob.Namespace.Version())
-	b.Blob.NamespaceId = blob.Namespace.ID()
-	b.Blob.Data = blob.Data
-	b.Blob.ShareVersion = blob.ShareVersion
-	b.Commitment = blob.Commitment
-	b.namespace = blob.Namespace
-	b.index = blob.Index
+	ns, err := libshare.NewNamespaceFromBytes(jsonBlob.Namespace)
+	if err != nil {
+		return err
+	}
+
+	blob, err := NewBlob(jsonBlob.ShareVersion, ns, jsonBlob.Data, jsonBlob.Signer)
+	if err != nil {
+		return err
+	}
+
+	blob.Commitment = jsonBlob.Commitment
+	blob.index = jsonBlob.Index
+	*b = *blob
 	return nil
 }

@@ -11,6 +11,8 @@ import (
 	"github.com/spf13/cobra"
 	flag "github.com/spf13/pflag"
 
+	libshare "github.com/celestiaorg/go-square/v2/share"
+
 	"github.com/celestiaorg/celestia-node/nodebuilder/core"
 	"github.com/celestiaorg/celestia-node/nodebuilder/gateway"
 	"github.com/celestiaorg/celestia-node/nodebuilder/header"
@@ -19,7 +21,6 @@ import (
 	"github.com/celestiaorg/celestia-node/nodebuilder/pruner"
 	rpc_cfg "github.com/celestiaorg/celestia-node/nodebuilder/rpc"
 	"github.com/celestiaorg/celestia-node/nodebuilder/state"
-	"github.com/celestiaorg/celestia-node/share"
 )
 
 func PrintOutput(data interface{}, err error, formatData func(interface{}) interface{}) error {
@@ -47,14 +48,14 @@ func PrintOutput(data interface{}, err error, formatData func(interface{}) inter
 // ParseV0Namespace parses a namespace from a base64 or hex string. The param
 // is expected to be the user-specified portion of a v0 namespace ID (i.e. the
 // last 10 bytes).
-func ParseV0Namespace(param string) (share.Namespace, error) {
+func ParseV0Namespace(param string) (libshare.Namespace, error) {
 	userBytes, err := DecodeToBytes(param)
 	if err != nil {
-		return nil, err
+		return libshare.Namespace{}, err
 	}
 
 	// if the namespace ID is <= 10 bytes, left pad it with 0s
-	return share.NewBlobNamespaceV0(userBytes)
+	return libshare.NewV0Namespace(userBytes)
 }
 
 // DecodeToBytes decodes a Base64 or hex input string into a byte slice.
@@ -111,24 +112,18 @@ func PersistentPreRunEnv(cmd *cobra.Command, nodeType node.Type, _ []string) err
 		return err
 	}
 
+	state.ParseFlags(cmd, &cfg.State)
 	rpc_cfg.ParseFlags(cmd, &cfg.RPC)
 	gateway.ParseFlags(cmd, &cfg.Gateway)
-	state.ParseFlags(cmd, &cfg.State)
 
+	pruner.ParseFlags(cmd, &cfg.Pruner, nodeType)
 	switch nodeType {
-	case node.Light:
+	case node.Light, node.Full:
 		err = header.ParseFlags(cmd, &cfg.Header)
 		if err != nil {
 			return err
 		}
-	case node.Full:
-		err = header.ParseFlags(cmd, &cfg.Header)
-		if err != nil {
-			return err
-		}
-		pruner.ParseFlags(cmd, &cfg.Pruner)
 	case node.Bridge:
-		pruner.ParseFlags(cmd, &cfg.Pruner)
 	default:
 		panic(fmt.Sprintf("invalid node type: %v", nodeType))
 	}

@@ -3,8 +3,10 @@ package nodebuilder
 import (
 	"errors"
 	"fmt"
+	"os"
 	"path/filepath"
 	"runtime"
+	"strings"
 	"sync"
 	"time"
 
@@ -15,8 +17,11 @@ import (
 	dsbadger "github.com/ipfs/go-ds-badger4"
 	"github.com/mitchellh/go-homedir"
 
+	libshare "github.com/celestiaorg/go-square/v2/share"
+
 	"github.com/celestiaorg/celestia-node/libs/keystore"
-	"github.com/celestiaorg/celestia-node/share"
+	nodemod "github.com/celestiaorg/celestia-node/nodebuilder/node"
+	"github.com/celestiaorg/celestia-node/nodebuilder/p2p"
 )
 
 var (
@@ -24,6 +29,8 @@ var (
 	ErrOpened = errors.New("node: store is in use")
 	// ErrNotInited is thrown on attempt to open Store without initialization.
 	ErrNotInited = errors.New("node: store is not initialized")
+	// ErrNoOpenStore is thrown when no opened Store is found, indicating that no node is running.
+	ErrNoOpenStore = errors.New("no opened Node Store found (no node is running)")
 )
 
 // Store encapsulates storage for the Node. Basically, it is the Store of all Stores.
@@ -150,6 +157,74 @@ type fsStore struct {
 	dirLock *flock.Flock // protects directory
 }
 
+// DiscoverOpened finds a path of an opened Node Store and returns its path.
+// If multiple nodes are running, it only returns the path of the first found node.
+// Network is favored over node type.
+//
+// Network preference order: Mainnet, Mocha, Arabica, Private, Custom
+// Type preference order: Bridge, Full, Light
+func DiscoverOpened() (string, error) {
+	defaultNetwork := p2p.GetNetworks()
+	nodeTypes := nodemod.GetTypes()
+
+	for _, n := range defaultNetwork {
+		for _, tp := range nodeTypes {
+			path, err := DefaultNodeStorePath(tp, n)
+			if err != nil {
+				return "", err
+			}
+
+			ok, _ := IsOpened(path)
+			if ok {
+				return path, nil
+			}
+		}
+	}
+
+	return "", ErrNoOpenStore
+}
+
+// DefaultNodeStorePath constructs the default node store path using the given
+// node type and network.
+var DefaultNodeStorePath = func(tp nodemod.Type, network p2p.Network) (string, error) {
+	home := os.Getenv("CELESTIA_HOME")
+	if home != "" {
+		return home, nil
+	}
+
+	home, err := os.UserHomeDir()
+	if err != nil {
+		return "", err
+	}
+
+	if network == p2p.Mainnet {
+		return fmt.Sprintf("%s/.celestia-%s", home, strings.ToLower(tp.String())), nil
+	}
+	// only include network name in path for testnets and custom networks
+	return fmt.Sprintf(
+		"%s/.celestia-%s-%s",
+		home,
+		strings.ToLower(tp.String()),
+		strings.ToLower(network.String()),
+	), nil
+}
+
+// IsOpened checks if the Store is opened in a directory by checking its file lock.
+func IsOpened(path string) (bool, error) {
+	flk := flock.New(lockPath(path))
+	ok, err := flk.TryLock()
+	if err != nil {
+		return false, fmt.Errorf("locking file: %w", err)
+	}
+
+	err = flk.Unlock()
+	if err != nil {
+		return false, fmt.Errorf("unlocking file: %w", err)
+	}
+
+	return !ok, nil
+}
+
 func storePath(path string) (string, error) {
 	return homedir.Expand(filepath.Clean(path))
 }
@@ -201,10 +276,10 @@ func dataPath(base string) string {
 func constraintBadgerConfig() *dsbadger.Options {
 	opts := dsbadger.DefaultOptions // this must be copied
 	// ValueLog:
-	// 2mib default => share.Size - makes sure headers and samples are stored in value log
+	// 2mib default => libshare.ShareSize - makes sure headers and samples are stored in value log
 	// This *tremendously* reduces the amount of memory used by the node, up to 10 times less during
 	// compaction
-	opts.ValueThreshold = share.Size
+	opts.ValueThreshold = libshare.ShareSize
 	// make sure we don't have any limits for stored headers
 	opts.ValueLogMaxEntries = 100000000
 	// run value log GC more often to spread the work over time

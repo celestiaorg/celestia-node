@@ -1,17 +1,14 @@
 package cmd
 
 import (
-	"context"
 	"encoding/hex"
-	"fmt"
 	"strconv"
 
 	"github.com/spf13/cobra"
 
-	rpc "github.com/celestiaorg/celestia-node/api/rpc/client"
+	libshare "github.com/celestiaorg/go-square/v2/share"
+
 	cmdnode "github.com/celestiaorg/celestia-node/cmd"
-	"github.com/celestiaorg/celestia-node/header"
-	"github.com/celestiaorg/celestia-node/share"
 )
 
 func init() {
@@ -32,7 +29,7 @@ var Cmd = &cobra.Command{
 
 var sharesAvailableCmd = &cobra.Command{
 	Use:   "available",
-	Short: "Subjectively validates if Shares committed to the given Root are available on the Network.",
+	Short: "Subjectively validates if Shares committed to the given EDS are available on the Network.",
 	Args:  cobra.ExactArgs(1),
 	RunE: func(cmd *cobra.Command, args []string) error {
 		client, err := cmdnode.ParseClientFromCtx(cmd.Context())
@@ -41,13 +38,12 @@ var sharesAvailableCmd = &cobra.Command{
 		}
 		defer client.Close()
 
-		eh, err := getExtendedHeaderFromCmdArg(cmd.Context(), client, args[0])
-
+		height, err := strconv.ParseUint(args[0], 10, 64)
 		if err != nil {
 			return err
 		}
 
-		err = client.Share.SharesAvailable(cmd.Context(), eh)
+		err = client.Share.SharesAvailable(cmd.Context(), height)
 		formatter := func(data interface{}) interface{} {
 			err, ok := data.(error)
 			available := false
@@ -79,8 +75,7 @@ var getSharesByNamespaceCmd = &cobra.Command{
 		}
 		defer client.Close()
 
-		eh, err := getExtendedHeaderFromCmdArg(cmd.Context(), client, args[0])
-
+		height, err := strconv.ParseUint(args[0], 10, 64)
 		if err != nil {
 			return err
 		}
@@ -90,7 +85,7 @@ var getSharesByNamespaceCmd = &cobra.Command{
 			return err
 		}
 
-		shares, err := client.Share.GetSharesByNamespace(cmd.Context(), eh, ns)
+		shares, err := client.Share.GetNamespaceData(cmd.Context(), height, ns)
 		return cmdnode.PrintOutput(shares, err, nil)
 	},
 }
@@ -106,8 +101,7 @@ var getShare = &cobra.Command{
 		}
 		defer client.Close()
 
-		eh, err := getExtendedHeaderFromCmdArg(cmd.Context(), client, args[0])
-
+		height, err := strconv.ParseUint(args[0], 10, 64)
 		if err != nil {
 			return err
 		}
@@ -122,22 +116,22 @@ var getShare = &cobra.Command{
 			return err
 		}
 
-		s, err := client.Share.GetShare(cmd.Context(), eh, int(row), int(col))
+		s, err := client.Share.GetShare(cmd.Context(), height, int(row), int(col))
 
 		formatter := func(data interface{}) interface{} {
-			sh, ok := data.(share.Share)
+			sh, ok := data.(libshare.Share)
 			if !ok {
 				return data
 			}
 
-			ns := hex.EncodeToString(share.GetNamespace(sh))
+			ns := hex.EncodeToString(sh.Namespace().Bytes())
 
 			return struct {
 				Namespace string `json:"namespace"`
 				Data      []byte `json:"data"`
 			}{
 				Namespace: ns,
-				Data:      share.GetData(sh),
+				Data:      sh.RawData(),
 			}
 		}
 		return cmdnode.PrintOutput(s, err, formatter)
@@ -155,27 +149,12 @@ var getEDS = &cobra.Command{
 		}
 		defer client.Close()
 
-		eh, err := getExtendedHeaderFromCmdArg(cmd.Context(), client, args[0])
-
+		height, err := strconv.ParseUint(args[0], 10, 64)
 		if err != nil {
 			return err
 		}
 
-		shares, err := client.Share.GetEDS(cmd.Context(), eh)
+		shares, err := client.Share.GetEDS(cmd.Context(), height)
 		return cmdnode.PrintOutput(shares, err, nil)
 	},
-}
-
-func getExtendedHeaderFromCmdArg(ctx context.Context, client *rpc.Client, arg string) (*header.ExtendedHeader, error) {
-	height, err := strconv.ParseUint(arg, 10, 64)
-	if err == nil {
-		return client.Header.GetByHeight(ctx, height)
-	}
-
-	hash, err := hex.DecodeString(arg)
-	if err != nil {
-		return nil, fmt.Errorf("can't parse the height/hash argument: %w", err)
-	}
-
-	return client.Header.GetByHash(ctx, hash)
 }

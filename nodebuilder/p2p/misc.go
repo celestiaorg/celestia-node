@@ -44,7 +44,7 @@ func defaultConnManagerConfig(tp node.Type) connManagerConfig {
 }
 
 // connectionManager provides a constructor for ConnectionManager.
-func connectionManager(cfg Config, bpeers Bootstrappers) (connmgri.ConnManager, error) {
+func connectionManager(cfg *Config, bpeers Bootstrappers) (connmgri.ConnManager, error) {
 	fpeers, err := cfg.mutualPeers()
 	if err != nil {
 		return nil, err

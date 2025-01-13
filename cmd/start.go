@@ -10,8 +10,8 @@ import (
 	"github.com/cosmos/cosmos-sdk/crypto/keyring"
 	"github.com/spf13/cobra"
 
-	"github.com/celestiaorg/celestia-app/app"
-	"github.com/celestiaorg/celestia-app/app/encoding"
+	"github.com/celestiaorg/celestia-app/v3/app"
+	"github.com/celestiaorg/celestia-app/v3/app/encoding"
 
 	"github.com/celestiaorg/celestia-node/nodebuilder"
 )
@@ -38,7 +38,7 @@ Options passed on start override configuration options only on start and are not
 			// TODO @renaynay: Include option for setting custom `userInput` parameter with
 			//  implementation of https://github.com/celestiaorg/celestia-node/issues/415.
 			encConf := encoding.MakeConfig(app.ModuleEncodingRegisters...)
-			ring, err := keyring.New(app.Name, cfg.State.KeyringBackend, keysPath, os.Stdin, encConf.Codec)
+			ring, err := keyring.New(app.Name, cfg.State.DefaultBackendName, keysPath, os.Stdin, encConf.Codec)
 			if err != nil {
 				return err
 			}

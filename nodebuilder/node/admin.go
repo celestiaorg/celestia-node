@@ -2,25 +2,28 @@ package node
 
 import (
 	"context"
+	"time"
 
-	"github.com/cristalhq/jwt"
+	"github.com/cristalhq/jwt/v5"
 	"github.com/filecoin-project/go-jsonrpc/auth"
 	logging "github.com/ipfs/go-log/v2"
 
 	"github.com/celestiaorg/celestia-node/libs/authtoken"
 )
 
-const APIVersion = "v0.11.0"
+var APIVersion = GetBuildInfo().SemanticVersion
 
 type module struct {
-	tp     Type
-	signer jwt.Signer
+	tp       Type
+	signer   jwt.Signer
+	verifier jwt.Verifier
 }
 
-func newModule(tp Type, signer jwt.Signer) Module {
+func newModule(tp Type, signer jwt.Signer, verifier jwt.Verifier) Module {
 	return &module{
-		tp:     tp,
-		signer: signer,
+		tp:       tp,
+		signer:   signer,
+		verifier: verifier,
 	}
 }
 
@@ -51,9 +54,15 @@ func (m *module) LogLevelSet(_ context.Context, name, level string) error {
 }
 
 func (m *module) AuthVerify(_ context.Context, token string) ([]auth.Permission, error) {
-	return authtoken.ExtractSignedPermissions(m.signer, token)
+	return authtoken.ExtractSignedPermissions(m.verifier, token)
 }
 
 func (m *module) AuthNew(_ context.Context, permissions []auth.Permission) (string, error) {
-	return authtoken.NewSignedJWT(m.signer, permissions)
+	return authtoken.NewSignedJWT(m.signer, permissions, 0)
+}
+
+func (m *module) AuthNewWithExpiry(_ context.Context,
+	permissions []auth.Permission, ttl time.Duration,
+) (string, error) {
+	return authtoken.NewSignedJWT(m.signer, permissions, ttl)
 }
