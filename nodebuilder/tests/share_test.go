@@ -23,7 +23,7 @@ import (
 )
 
 func TestShareModule(t *testing.T) {
-	ctx, cancel := context.WithTimeout(context.Background(), 25*time.Minute)
+	ctx, cancel := context.WithTimeout(context.Background(), 25*time.Second)
 	t.Cleanup(cancel)
 	sw := swamp.NewSwamp(t, swamp.WithBlockTime(time.Second*1))
 	blobSize := 128
