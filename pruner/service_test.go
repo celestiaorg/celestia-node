@@ -291,6 +291,37 @@ func TestFindPruneableHeaders(t *testing.T) {
 	}
 }
 
+func TestService_ClearCheckpoint(t *testing.T) {
+	ctx, cancel := context.WithCancel(context.Background())
+	t.Cleanup(cancel)
+
+	serv, err := NewService(
+		&mockPruner{},
+		time.Second, // doesn't matter
+		headertest.NewStore(t),
+		sync.MutexWrap(datastore.NewMapDatastore()),
+		time.Second, // doesn't matter
+	)
+	require.NoError(t, err)
+	serv.ctx = ctx
+
+	oldCp := &checkpoint{LastPrunedHeight: 500, FailedHeaders: map[uint64]struct{}{4: {}}}
+	err = storeCheckpoint(ctx, serv.ds, oldCp)
+	require.NoError(t, err)
+
+	err = serv.loadCheckpoint(ctx)
+	require.NoError(t, err)
+	assert.Equal(t, oldCp, serv.checkpoint)
+
+	err = serv.ClearCheckpoint(ctx)
+	require.NoError(t, err)
+
+	err = serv.loadCheckpoint(ctx)
+	require.NoError(t, err)
+
+	assert.Equal(t, newCheckpoint(), serv.checkpoint)
+}
+
 type mockPruner struct {
 	deletedHeaderHashes []pruned
 
@@ -316,10 +347,6 @@ func (mp *mockPruner) Prune(_ context.Context, h *header.ExtendedHeader) error {
 	}
 	mp.deletedHeaderHashes = append(mp.deletedHeaderHashes, pruned{hash: h.Hash().String(), height: h.Height()})
 	return nil
-}
-
-func (mp *mockPruner) Kind() string {
-	return "mock"
 }
 
 // TODO @renaynay @distractedm1nd: Deduplicate via headertest utility.

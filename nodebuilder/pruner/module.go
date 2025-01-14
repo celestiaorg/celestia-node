@@ -3,7 +3,6 @@ package pruner
 import (
 	"context"
 
-	"github.com/ipfs/go-datastore"
 	logging "github.com/ipfs/go-log/v2"
 	"go.uber.org/fx"
 
@@ -33,9 +32,6 @@ func ConstructModule(tp node.Type, cfg *Config) fx.Option {
 		// This is necessary to invoke the pruner service as independent thanks to a
 		// quirk in FX.
 		fx.Invoke(func(_ *pruner.Service) {}),
-		fx.Invoke(func(ctx context.Context, ds datastore.Batching, p pruner.Pruner) error {
-			return pruner.DetectPreviousRun(ctx, ds, p.Kind())
-		}),
 	)
 
 	baseComponents := fx.Options(
@@ -67,6 +63,7 @@ func ConstructModule(tp node.Type, cfg *Config) fx.Option {
 			baseComponents,
 			fx.Supply(fullAvailOpts),
 			fx.Provide(func(fa *fullavail.ShareAvailability) pruner.Pruner { return fa }),
+			convertToPruned(),
 		)
 	case node.Bridge:
 		coreOpts := make([]core.Option, 0)
@@ -83,6 +80,7 @@ func ConstructModule(tp node.Type, cfg *Config) fx.Option {
 			fx.Provide(func(fa *fullavail.ShareAvailability) pruner.Pruner { return fa }),
 			fx.Supply(coreOpts),
 			fx.Supply(fullAvailOpts),
+			convertToPruned(),
 		)
 	default:
 		panic("unknown node type")
@@ -96,5 +94,36 @@ func advertiseArchival(tp node.Type, pruneCfg *Config) fx.Option {
 	return fx.Provide(func() discovery.Option {
 		var opt discovery.Option
 		return opt
+	})
+}
+
+// convertToPruned checks if the node is being converted to an archival node
+// to a pruned node.
+func convertToPruned() fx.Option {
+	return fx.Invoke(func(
+		ctx context.Context,
+		fa *fullavail.ShareAvailability,
+		p *pruner.Service,
+	) error {
+		lastPrunedHeight, err := p.LastPruned(ctx)
+		if err != nil {
+			return err
+		}
+
+		err = fullavail.DetectFirstRun(ctx, fa, lastPrunedHeight)
+		if err != nil {
+			return err
+		}
+
+		convert, err := fa.ConvertFromArchivalToPruned(ctx)
+		if err != nil {
+			return err
+		}
+
+		if convert {
+			return p.ClearCheckpoint(ctx)
+		}
+
+		return nil
 	})
 }

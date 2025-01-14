@@ -6,6 +6,9 @@ import (
 	"time"
 
 	"github.com/golang/mock/gomock"
+	"github.com/ipfs/go-datastore"
+	"github.com/ipfs/go-datastore/namespace"
+	ds_sync "github.com/ipfs/go-datastore/sync"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
@@ -33,7 +36,7 @@ func TestSharesAvailable(t *testing.T) {
 
 	store, err := store.NewStore(store.DefaultParameters(), t.TempDir())
 	require.NoError(t, err)
-	avail := NewShareAvailability(store, getter)
+	avail := NewShareAvailability(store, getter, datastore.NewMapDatastore())
 	err = avail.SharesAvailable(ctx, eh)
 	require.NoError(t, err)
 
@@ -60,7 +63,7 @@ func TestSharesAvailable_StoredEds(t *testing.T) {
 
 	store, err := store.NewStore(store.DefaultParameters(), t.TempDir())
 	require.NoError(t, err)
-	avail := NewShareAvailability(store, nil)
+	avail := NewShareAvailability(store, nil, datastore.NewMapDatastore())
 
 	err = store.PutODSQ4(ctx, roots, eh.Height(), eds)
 	require.NoError(t, err)
@@ -90,7 +93,7 @@ func TestSharesAvailable_ErrNotAvailable(t *testing.T) {
 
 	store, err := store.NewStore(store.DefaultParameters(), t.TempDir())
 	require.NoError(t, err)
-	avail := NewShareAvailability(store, getter)
+	avail := NewShareAvailability(store, getter, datastore.NewMapDatastore())
 
 	errors := []error{shwap.ErrNotFound, context.DeadlineExceeded}
 	for _, getterErr := range errors {
@@ -114,7 +117,7 @@ func TestSharesAvailable_OutsideSamplingWindow_NonArchival(t *testing.T) {
 	suite := headertest.NewTestSuite(t, 3, time.Nanosecond)
 	headers := suite.GenExtendedHeaders(10)
 
-	avail := NewShareAvailability(store, getter)
+	avail := NewShareAvailability(store, getter, datastore.NewMapDatastore())
 	avail.storageWindow = time.Nanosecond // make all headers outside sampling window
 
 	for _, h := range headers {
@@ -140,7 +143,7 @@ func TestSharesAvailable_OutsideSamplingWindow_Archival(t *testing.T) {
 
 	getter.EXPECT().GetEDS(gomock.Any(), gomock.Any()).Times(1).Return(eds, nil)
 
-	avail := NewShareAvailability(store, getter, WithArchivalMode())
+	avail := NewShareAvailability(store, getter, datastore.NewMapDatastore(), WithArchivalMode())
 	avail.storageWindow = time.Nanosecond // make all headers outside sampling window
 
 	err = avail.SharesAvailable(ctx, eh)
@@ -148,4 +151,108 @@ func TestSharesAvailable_OutsideSamplingWindow_Archival(t *testing.T) {
 	has, err := store.HasByHash(ctx, roots.Hash())
 	require.NoError(t, err)
 	assert.True(t, has)
+}
+
+// TestDisallowRevertArchival tests that a node that has been previously run
+// with full pruning cannot convert back into an "archival" node
+func TestDisallowRevertArchival(t *testing.T) {
+	ctx, cancel := context.WithCancel(context.Background())
+	t.Cleanup(cancel)
+
+	ds := ds_sync.MutexWrap(datastore.NewMapDatastore())
+	nsWrapped := namespace.Wrap(ds, storePrefix)
+	err := nsWrapped.Put(ctx, previousModeKey, pruned)
+	require.NoError(t, err)
+
+	// create a pruned node instance (non-archival) for the first time
+	fa := NewShareAvailability(nil, nil, ds)
+
+	convert, err := fa.ConvertFromArchivalToPruned(ctx)
+	assert.NoError(t, err)
+	assert.False(t, convert)
+	// ensure availability impl recorded the pruned run
+	prevMode, err := fa.ds.Get(ctx, previousModeKey)
+	require.NoError(t, err)
+	assert.Equal(t, pruned, prevMode)
+
+	// now change to archival mode
+	fa = NewShareAvailability(nil, nil, ds, WithArchivalMode())
+
+	// ensure failure
+	convert, err = fa.ConvertFromArchivalToPruned(ctx)
+	assert.Error(t, err)
+	assert.ErrorIs(t, err, ErrDisallowRevertToArchival)
+	assert.False(t, convert)
+
+	// ensure the node can still run in pruned mode
+	fa = NewShareAvailability(nil, nil, ds)
+	convert, err = fa.ConvertFromArchivalToPruned(ctx)
+	assert.NoError(t, err)
+	assert.False(t, convert)
+}
+
+// TestAllowConversionFromArchivalToPruned tests that a node that has been previously run
+// in archival mode can convert to a pruned node
+func TestAllowConversionFromArchivalToPruned(t *testing.T) {
+	ctx, cancel := context.WithCancel(context.Background())
+	t.Cleanup(cancel)
+
+	ds := ds_sync.MutexWrap(datastore.NewMapDatastore())
+	nsWrapped := namespace.Wrap(ds, storePrefix)
+	err := nsWrapped.Put(ctx, previousModeKey, archival)
+	require.NoError(t, err)
+
+	fa := NewShareAvailability(nil, nil, ds, WithArchivalMode())
+
+	convert, err := fa.ConvertFromArchivalToPruned(ctx)
+	assert.NoError(t, err)
+	assert.False(t, convert)
+
+	fa = NewShareAvailability(nil, nil, ds)
+
+	convert, err = fa.ConvertFromArchivalToPruned(ctx)
+	assert.NoError(t, err)
+	assert.True(t, convert)
+
+	prevMode, err := fa.ds.Get(ctx, previousModeKey)
+	require.NoError(t, err)
+	assert.Equal(t, pruned, prevMode)
+}
+
+func TestDetectFirstRun(t *testing.T) {
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	t.Run("FirstRunArchival", func(t *testing.T) {
+		ds := ds_sync.MutexWrap(datastore.NewMapDatastore())
+
+		fa := NewShareAvailability(nil, nil, ds, WithArchivalMode())
+		err := DetectFirstRun(ctx, fa, 1)
+		assert.NoError(t, err)
+
+		prevMode, err := fa.ds.Get(ctx, previousModeKey)
+		require.NoError(t, err)
+		assert.Equal(t, archival, prevMode)
+	})
+
+	t.Run("FirstRunPruned", func(t *testing.T) {
+		ds := ds_sync.MutexWrap(datastore.NewMapDatastore())
+
+		fa := NewShareAvailability(nil, nil, ds)
+		err := DetectFirstRun(ctx, fa, 1)
+		assert.NoError(t, err)
+
+		prevMode, err := fa.ds.Get(ctx, previousModeKey)
+		require.NoError(t, err)
+		assert.Equal(t, pruned, prevMode)
+	})
+
+	t.Run("RevertToArchivalNotAllowed", func(t *testing.T) {
+		ds := ds_sync.MutexWrap(datastore.NewMapDatastore())
+
+		fa := NewShareAvailability(nil, nil, ds, WithArchivalMode())
+		err := DetectFirstRun(ctx, fa, 500)
+		assert.Error(t, err)
+		assert.ErrorIs(t, err, ErrDisallowRevertToArchival)
+	})
 }
