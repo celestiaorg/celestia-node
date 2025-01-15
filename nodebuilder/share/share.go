@@ -50,6 +50,8 @@ type Module interface {
 	GetSamples(ctx context.Context, header *header.ExtendedHeader, indices []shwap.SampleCoords) ([]shwap.Sample, error)
 	// GetEDS gets the full EDS identified by the given extended header.
 	GetEDS(ctx context.Context, height uint64) (*rsmt2d.ExtendedDataSquare, error)
+	// GetRow gets all shares from specified row.
+	GetRow(context.Context, uint64, int) (shwap.Row, error)
 	// GetNamespaceData gets all shares from an EDS within the given namespace.
 	// Shares are returned in a row-by-row order if the namespace spans multiple rows.
 	GetNamespaceData(
@@ -77,6 +79,11 @@ type API struct {
 			ctx context.Context,
 			height uint64,
 		) (*rsmt2d.ExtendedDataSquare, error) `perm:"read"`
+		GetRow func(
+			context.Context,
+			uint64,
+			int,
+		) (shwap.Row, error) `perm:"read"`
 		GetNamespaceData func(
 			ctx context.Context,
 			height uint64,
@@ -106,6 +113,10 @@ func (api *API) GetSamples(ctx context.Context, header *header.ExtendedHeader,
 
 func (api *API) GetEDS(ctx context.Context, height uint64) (*rsmt2d.ExtendedDataSquare, error) {
 	return api.Internal.GetEDS(ctx, height)
+}
+
+func (api *API) GetRow(ctx context.Context, height uint64, rowIdx int) (shwap.Row, error) {
+	return api.Internal.GetRow(ctx, height, rowIdx)
 }
 
 func (api *API) GetRange(ctx context.Context, height uint64, start, end int) (*GetRangeResult, error) {
@@ -195,4 +206,12 @@ func (m module) GetNamespaceData(
 		return nil, err
 	}
 	return m.getter.GetNamespaceData(ctx, header, namespace)
+}
+
+func (m module) GetRow(ctx context.Context, height uint64, rowIdx int) (shwap.Row, error) {
+	header, err := m.hs.GetByHeight(ctx, height)
+	if err != nil {
+		return shwap.Row{}, err
+	}
+	return m.getter.GetRow(ctx, header, rowIdx)
 }
