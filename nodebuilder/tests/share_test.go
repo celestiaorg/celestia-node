@@ -30,7 +30,7 @@ func TestShareModule(t *testing.T) {
 	libBlob, err := libshare.GenerateV0Blobs([]int{blobSize}, true)
 	require.NoError(t, err)
 
-	nodeBlob, err := convert(libBlob[0])
+	nodeBlob, err := blob.ToNodeBlobs(libBlob[0])
 	require.NoError(t, err)
 
 	bridge := sw.NewBridgeNode()
@@ -54,7 +54,7 @@ func TestShareModule(t *testing.T) {
 	fullClient := getAdminClient(ctx, fullNode, t)
 	lightClient := getAdminClient(ctx, lightNode, t)
 
-	height, err := fullClient.Blob.Submit(ctx, []*blob.Blob{nodeBlob}, state.NewTxConfig())
+	height, err := fullClient.Blob.Submit(ctx, nodeBlob, state.NewTxConfig())
 	require.NoError(t, err)
 
 	_, err = fullClient.Header.WaitForHeight(ctx, height)
@@ -62,7 +62,7 @@ func TestShareModule(t *testing.T) {
 	_, err = lightClient.Header.WaitForHeight(ctx, height)
 	require.NoError(t, err)
 
-	sampledBlob, err := fullClient.Blob.Get(ctx, height, nodeBlob.Namespace(), nodeBlob.Commitment)
+	sampledBlob, err := fullClient.Blob.Get(ctx, height, nodeBlob[0].Namespace(), nodeBlob[0].Commitment)
 	require.NoError(t, err)
 
 	hdr, err := fullClient.Header.GetByHeight(ctx, height)
@@ -194,11 +194,11 @@ func TestShareModule(t *testing.T) {
 				dah := hdr.DAH
 				err = nsData.Verify(dah, blobAsShares[0].Namespace())
 				require.NoError(t, err)
-				blob, err := libshare.ParseBlobs(nsData.Flatten())
+				b, err := libshare.ParseBlobs(nsData.Flatten())
 				require.NoError(t, err)
-				blb, err := convert(blob[0])
+				blb, err := blob.ToNodeBlobs(b[0])
 				require.NoError(t, err)
-				require.Equal(t, nodeBlob.Commitment, blb.Commitment)
+				require.Equal(t, nodeBlob[0].Commitment, blb[0].Commitment)
 			},
 		},
 	}
@@ -208,10 +208,4 @@ func TestShareModule(t *testing.T) {
 			tt.doFn(t)
 		})
 	}
-}
-
-// convert converts a libshare.Blob to a blob.Blob.
-// convert may be deduplicated with convertBlobs from the blob package.
-func convert(libBlob *libshare.Blob) (nodeBlob *blob.Blob, err error) {
-	return blob.NewBlob(libBlob.ShareVersion(), libBlob.Namespace(), libBlob.Data(), libBlob.Signer())
 }
