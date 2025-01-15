@@ -69,6 +69,26 @@ func TestStoreGetter(t *testing.T) {
 		require.ErrorIs(t, err, shwap.ErrNotFound)
 	})
 
+	t.Run("GetRow", func(t *testing.T) {
+		eds, roots := randomEDS(t)
+		eh := headertest.RandExtendedHeaderWithRoot(t, roots)
+		height := height.Add(1)
+		eh.RawHeader.Height = int64(height)
+
+		err := edsStore.PutODSQ4(ctx, eh.DAH, height, eds)
+		require.NoError(t, err)
+
+		for i := 0; i < len(eh.DAH.RowRoots); i++ {
+			row, err := sg.GetRow(ctx, eh, i)
+			require.NoError(t, err)
+			retreivedShrs, err := row.Shares()
+			require.NoError(t, err)
+			edsShrs, err := libshare.FromBytes(eds.Row(uint(i)))
+			require.NoError(t, err)
+			require.Equal(t, edsShrs, retreivedShrs)
+		}
+	})
+
 	t.Run("GetNamespaceData", func(t *testing.T) {
 		ns := libshare.RandomNamespace()
 		eds, roots := edstest.RandEDSWithNamespace(t, ns, 8, 16)
