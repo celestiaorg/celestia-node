@@ -30,13 +30,9 @@ func TestBlobModule(t *testing.T) {
 	require.NoError(t, err)
 	libBlobs1, err := libshare.GenerateV0Blobs([]int{4}, false)
 	require.NoError(t, err)
-	blobs := make([]*blob.Blob, 0, len(libBlobs0)+len(libBlobs1))
 
-	for _, libBlob := range append(libBlobs0, libBlobs1...) {
-		blob, err := convert(libBlob)
-		require.NoError(t, err)
-		blobs = append(blobs, blob)
-	}
+	blobs, err := blob.ToNodeBlobs(append(libBlobs0, libBlobs1...)...)
+	require.NoError(t, err)
 
 	bridge := sw.NewBridgeNode()
 	require.NoError(t, bridge.Start(ctx))
@@ -68,9 +64,9 @@ func TestBlobModule(t *testing.T) {
 	)
 	require.NoError(t, err)
 
-	v1, err := convert(v1Blob)
+	v1, err := blob.ToNodeBlobs(v1Blob)
 	require.NoError(t, err)
-	blobs = append(blobs, v1)
+	blobs = append(blobs, v1[0])
 
 	height, err := fullClient.Blob.Submit(ctx, blobs, state.NewTxConfig())
 	require.NoError(t, err)
@@ -109,12 +105,12 @@ func TestBlobModule(t *testing.T) {
 		{
 			name: "Get BlobV1",
 			doFn: func(t *testing.T) {
-				blobV1, err := fullClient.Blob.Get(ctx, height, v1.Namespace(), v1.Commitment)
+				blobV1, err := fullClient.Blob.Get(ctx, height, v1[0].Namespace(), v1[0].Commitment)
 				require.NoError(t, err)
 				assert.Equal(t, libshare.ShareVersionOne, blobV1.ShareVersion())
-				assert.Equal(t, v1.Commitment, blobV1.Commitment)
+				assert.Equal(t, v1[0].Commitment, blobV1.Commitment)
 				assert.NotNil(t, blobV1.Signer())
-				assert.Equal(t, blobV1.Signer(), v1.Signer())
+				assert.Equal(t, blobV1.Signer(), v1[0].Signer())
 
 			},
 		},
@@ -140,15 +136,15 @@ func TestBlobModule(t *testing.T) {
 			doFn: func(t *testing.T) {
 				libBlob, err := libshare.GenerateV0Blobs([]int{4}, false)
 				require.NoError(t, err)
-				newBlob, err := convert(libBlob[0])
+				newBlob, err := blob.ToNodeBlobs(libBlob[0])
 				require.NoError(t, err)
 
-				b, err := fullClient.Blob.Get(ctx, height, newBlob.Namespace(), newBlob.Commitment)
+				b, err := fullClient.Blob.Get(ctx, height, newBlob[0].Namespace(), newBlob[0].Commitment)
 				assert.Nil(t, b)
 				require.Error(t, err)
 				require.ErrorContains(t, err, blob.ErrBlobNotFound.Error())
 
-				blobs, err := fullClient.Blob.GetAll(ctx, height, []libshare.Namespace{newBlob.Namespace()})
+				blobs, err := fullClient.Blob.GetAll(ctx, height, []libshare.Namespace{newBlob[0].Namespace()})
 				require.NoError(t, err)
 				assert.Empty(t, blobs)
 			},
@@ -158,23 +154,23 @@ func TestBlobModule(t *testing.T) {
 			doFn: func(t *testing.T) {
 				libBlob, err := libshare.GenerateV0Blobs([]int{8, 4}, true)
 				require.NoError(t, err)
-				b, err := convert(libBlob[0])
+				b, err := blob.ToNodeBlobs(libBlob[0])
 				require.NoError(t, err)
 
-				height, err := fullClient.Blob.Submit(ctx, []*blob.Blob{b, b}, state.NewTxConfig())
+				height, err := fullClient.Blob.Submit(ctx, []*blob.Blob{b[0], b[0]}, state.NewTxConfig())
 				require.NoError(t, err)
 
 				_, err = fullClient.Header.WaitForHeight(ctx, height)
 				require.NoError(t, err)
 
-				b0, err := fullClient.Blob.Get(ctx, height, b.Namespace(), b.Commitment)
+				b0, err := fullClient.Blob.Get(ctx, height, b[0].Namespace(), b[0].Commitment)
 				require.NoError(t, err)
-				require.Equal(t, b.Commitment, b0.Commitment)
+				require.Equal(t, b[0].Commitment, b0.Commitment)
 
-				proof, err := fullClient.Blob.GetProof(ctx, height, b.Namespace(), b.Commitment)
+				proof, err := fullClient.Blob.GetProof(ctx, height, b[0].Namespace(), b[0].Commitment)
 				require.NoError(t, err)
 
-				included, err := fullClient.Blob.Included(ctx, height, b.Namespace(), proof, b.Commitment)
+				included, err := fullClient.Blob.Included(ctx, height, b[0].Namespace(), proof, b[0].Commitment)
 				require.NoError(t, err)
 				require.True(t, included)
 			},
@@ -211,10 +207,4 @@ func TestBlobModule(t *testing.T) {
 			tt.doFn(t)
 		})
 	}
-}
-
-// convert converts a libshare.Blob to a blob.Blob.
-// convert may be deduplicated with convertBlobs from the blob package.
-func convert(libBlob *libshare.Blob) (nodeBlob *blob.Blob, err error) {
-	return blob.NewBlob(libBlob.ShareVersion(), libBlob.Namespace(), libBlob.Data(), libBlob.Signer())
 }
