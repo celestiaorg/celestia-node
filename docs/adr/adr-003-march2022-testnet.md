@@ -183,7 +183,7 @@ for
   the data itself. It is possible to get the namespace for each share encoded in inner non-leaf nodes of the NMT tree.
 * Pruning for shares.
 
-### [Move IPLD from celetia-node repo into its own repo](https://github.com/celestiaorg/celestia-node/issues/111)
+### [Move IPLD from celestia-node repo into its own repo](https://github.com/celestiaorg/celestia-node/issues/111)
 
 Since the IPLD package is pretty much entirely separate from the celestia-node implementation, it makes sense that it
 is removed from the celestia-node repository and maintained separately. The extraction of IPLD should also include a
