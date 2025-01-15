@@ -248,8 +248,8 @@ func TestFindPruneableHeaders(t *testing.T) {
 			ctx, cancel := context.WithCancel(context.Background())
 			t.Cleanup(cancel)
 
-			headerGenerator := NewSpacedHeaderGenerator(t, tc.startTime, tc.blockTime)
-			store := headertest.NewCustomStore(t, headerGenerator, tc.headerAmount)
+			suite := headertest.NewTestSuiteWithGenesisTime(t, tc.startTime, tc.blockTime)
+			store := headertest.NewCustomStore(t, suite, tc.headerAmount)
 
 			mp := &mockPruner{}
 
@@ -316,33 +316,4 @@ func (mp *mockPruner) Prune(_ context.Context, h *header.ExtendedHeader) error {
 	}
 	mp.deletedHeaderHashes = append(mp.deletedHeaderHashes, pruned{hash: h.Hash().String(), height: h.Height()})
 	return nil
-}
-
-// TODO @renaynay @distractedm1nd: Deduplicate via headertest utility.
-// https://github.com/celestiaorg/celestia-node/issues/3278.
-type SpacedHeaderGenerator struct {
-	t                  *testing.T
-	TimeBetweenHeaders time.Duration
-	currentTime        time.Time
-	currentHeight      int64
-}
-
-func NewSpacedHeaderGenerator(
-	t *testing.T, startTime time.Time, timeBetweenHeaders time.Duration,
-) *SpacedHeaderGenerator {
-	return &SpacedHeaderGenerator{
-		t:                  t,
-		TimeBetweenHeaders: timeBetweenHeaders,
-		currentTime:        startTime,
-		currentHeight:      1,
-	}
-}
-
-func (shg *SpacedHeaderGenerator) NextHeader() *header.ExtendedHeader {
-	h := headertest.RandExtendedHeaderAtTimestamp(shg.t, shg.currentTime)
-	h.RawHeader.Height = shg.currentHeight
-	h.RawHeader.Time = shg.currentTime
-	shg.currentHeight++
-	shg.currentTime = shg.currentTime.Add(shg.TimeBetweenHeaders)
-	return h
 }

@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"reflect"
+	"time"
 
 	pubsub "github.com/libp2p/go-libp2p-pubsub"
 	libhost "github.com/libp2p/go-libp2p/core/host"
@@ -14,14 +15,29 @@ import (
 	"github.com/libp2p/go-libp2p/p2p/host/autonat"
 	rcmgr "github.com/libp2p/go-libp2p/p2p/host/resource-manager"
 	"github.com/libp2p/go-libp2p/p2p/net/conngater"
+	"github.com/libp2p/go-libp2p/p2p/protocol/ping"
 )
 
 var _ Module = (*API)(nil)
 
+// ConnectionState holds information about a connection.
+type ConnectionState struct {
+	Info network.ConnectionState
+	// NumStreams is the number of streams on the connection.
+	NumStreams int
+	// Direction specifies whether this is an inbound or an outbound connection.
+	Direction network.Direction
+	// Opened is the timestamp when this connection was opened.
+	Opened time.Time
+	// Limited indicates that this connection is Limited. It maybe limited by
+	// bytes or time. In practice, this is a connection formed over a circuit v2
+	// relay.
+	Limited bool
+}
+
 // Module represents all accessible methods related to the node's p2p
 // host / operations.
 //
-//nolint:dupl
 //go:generate mockgen -destination=mocks/api.go -package=mocks . Module
 type Module interface {
 	// Info returns address information about the host.
@@ -39,6 +55,9 @@ type Module interface {
 	ClosePeer(ctx context.Context, id peer.ID) error
 	// Connectedness returns a state signaling connection capabilities.
 	Connectedness(ctx context.Context, id peer.ID) (network.Connectedness, error)
+	// ConnectionState returns information about each *active* connection to the peer.
+	// NOTE: At most cases there should be only a single connection.
+	ConnectionState(ctx context.Context, id peer.ID) ([]ConnectionState, error)
 	// NATStatus returns the current NAT status.
 	NATStatus(context.Context) (network.Reachability, error)
 
@@ -80,6 +99,9 @@ type Module interface {
 	PubSubPeers(ctx context.Context, topic string) ([]peer.ID, error)
 	// PubSubTopics reports current PubSubTopics the node participates in.
 	PubSubTopics(ctx context.Context) ([]string, error)
+
+	// Ping pings the selected peer and returns time it took or error.
+	Ping(ctx context.Context, peer peer.ID) (time.Duration, error)
 }
 
 // module contains all components necessary to access information and
@@ -205,9 +227,33 @@ func (m *module) PubSubTopics(_ context.Context) ([]string, error) {
 	return m.ps.GetTopics(), nil
 }
 
+func (m *module) Ping(ctx context.Context, peer peer.ID) (time.Duration, error) {
+	res := <-ping.Ping(ctx, m.host, peer) // context is handled for us
+	return res.RTT, res.Error
+}
+
+func (m *module) ConnectionState(_ context.Context, peer peer.ID) ([]ConnectionState, error) {
+	cons := m.host.Network().ConnsToPeer(peer)
+	if len(cons) == 0 {
+		return nil, fmt.Errorf("no connections to peer %s", peer)
+	}
+
+	conInfos := make([]ConnectionState, len(cons))
+	for i, con := range cons {
+		stat := con.Stat()
+		conInfos[i] = ConnectionState{
+			Info:       con.ConnState(),
+			NumStreams: stat.NumStreams,
+			Direction:  stat.Direction,
+			Opened:     stat.Opened,
+			Limited:    stat.Limited,
+		}
+	}
+
+	return conInfos, nil
+}
+
 // API is a wrapper around Module for the RPC.
-//
-//nolint:dupl
 type API struct {
 	Internal struct {
 		Info                 func(context.Context) (peer.AddrInfo, error)                         `perm:"admin"`
@@ -229,6 +275,8 @@ type API struct {
 		ResourceState        func(context.Context) (rcmgr.ResourceManagerStat, error)             `perm:"admin"`
 		PubSubPeers          func(ctx context.Context, topic string) ([]peer.ID, error)           `perm:"admin"`
 		PubSubTopics         func(ctx context.Context) ([]string, error)                          `perm:"admin"`
+		Ping                 func(ctx context.Context, peer peer.ID) (time.Duration, error)       `perm:"admin"`
+		ConnectionState      func(context.Context, peer.ID) ([]ConnectionState, error)            `perm:"admin"`
 	}
 }
 
@@ -306,4 +354,12 @@ func (api *API) PubSubPeers(ctx context.Context, topic string) ([]peer.ID, error
 
 func (api *API) PubSubTopics(ctx context.Context) ([]string, error) {
 	return api.Internal.PubSubTopics(ctx)
+}
+
+func (api *API) Ping(ctx context.Context, peer peer.ID) (time.Duration, error) {
+	return api.Internal.Ping(ctx, peer)
+}
+
+func (api *API) ConnectionState(ctx context.Context, peer peer.ID) ([]ConnectionState, error) {
+	return api.Internal.ConnectionState(ctx, peer)
 }
