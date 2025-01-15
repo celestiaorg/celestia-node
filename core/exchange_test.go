@@ -138,7 +138,7 @@ func TestExchange_StoreHistoricIfArchival(t *testing.T) {
 
 	// initialize store with genesis block
 	genHeight := int64(1)
-	genBlock, err := fetcher.GetBlock(ctx, &genHeight)
+	genBlock, err := fetcher.GetBlock(ctx, genHeight)
 	require.NoError(t, err)
 	genHeader, err := ce.Get(ctx, genBlock.Header.Hash().Bytes())
 	require.NoError(t, err)
