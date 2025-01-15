@@ -49,7 +49,7 @@ func WithBootstrappers(peers p2p.Bootstrappers) fx.Option {
 }
 
 // WithPyroscope enables pyroscope profiling for the node.
-func WithPyroscope(endpoint string, basicAuthUser string, basicAuthPassword string, nodeType node.Type) fx.Option {
+func WithPyroscope(endpoint, basicAuthUser, basicAuthPassword string, nodeType node.Type) fx.Option {
 	return fx.Options(
 		fx.Invoke(func(peerID peer.ID) error {
 			config := pyroscope.Config{
