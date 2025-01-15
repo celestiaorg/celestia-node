@@ -34,7 +34,7 @@ var (
 	pyroscopeTracing           = "pyroscope.tracing"
 	pyroscopeEndpoint          = "pyroscope.endpoint"
 	pyroscopeBasicAuthUser     = "pyroscope.basic-auth.user"
-	pyroscopeBasicAuthPassword = "pyroscope.basic-auth.password"
+	pyroscopeBasicAuthPassword = "pyroscope.basic-auth.password" //nolint:gosec
 )
 
 // MiscFlags gives a set of hardcoded miscellaneous flags.
