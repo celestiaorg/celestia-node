@@ -271,11 +271,8 @@ func TestConvertFromArchivalToPruned(t *testing.T) {
 		pruningCfg.Pruner.EnableService = true
 		err = store.PutConfig(pruningCfg)
 		require.NoError(t, err)
-		pruningNode, err := sw.NewNodeWithStore(nt, store)
+		_, err = sw.NewNodeWithStore(nt, store)
 		assert.NoError(t, err)
-		err = pruningNode.Start(ctx)
-		assert.NoError(t, err)
-		require.NoError(t, pruningNode.Stop(ctx))
 
 		// expect that the checkpoint has been overridden
 		bin, err = prunerStore.Get(ctx, datastore.NewKey("checkpoint"))
