@@ -12,11 +12,13 @@ type params struct {
 	metrics            bool
 	chainID            string
 	availabilityWindow time.Duration
+	archival           bool
 }
 
 func defaultParams() params {
 	return params{
 		availabilityWindow: time.Duration(0),
+		archival:           false,
 	}
 }
 
@@ -37,5 +39,11 @@ func WithChainID(id p2p.Network) Option {
 func WithAvailabilityWindow(window time.Duration) Option {
 	return func(p *params) {
 		p.availabilityWindow = window
+	}
+}
+
+func WithArchivalMode() Option {
+	return func(p *params) {
+		p.archival = true
 	}
 }
