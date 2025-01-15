@@ -2,7 +2,7 @@ package store
 
 import (
 	"github.com/celestiaorg/celestia-node/share"
-	"github.com/celestiaorg/celestia-node/utils"
+	"github.com/celestiaorg/celestia-node/libs/utils"
 )
 
 // Deprecated: Use utils.StripLock instead
