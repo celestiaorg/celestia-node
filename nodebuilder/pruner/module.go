@@ -3,6 +3,8 @@ package pruner
 import (
 	"context"
 
+	"github.com/ipfs/go-datastore"
+	"github.com/ipfs/go-datastore/namespace"
 	logging "github.com/ipfs/go-log/v2"
 	"go.uber.org/fx"
 
@@ -102,20 +104,23 @@ func advertiseArchival(tp node.Type, pruneCfg *Config) fx.Option {
 func convertToPruned() fx.Option {
 	return fx.Invoke(func(
 		ctx context.Context,
-		fa *fullavail.ShareAvailability,
+		cfg *Config,
+		ds datastore.Batching,
 		p *pruner.Service,
 	) error {
+		ds = namespace.Wrap(ds, storePrefix)
+
 		lastPrunedHeight, err := p.LastPruned(ctx)
 		if err != nil {
 			return err
 		}
 
-		err = fullavail.DetectFirstRun(ctx, fa, lastPrunedHeight)
+		err = detectFirstRun(ctx, cfg, ds, lastPrunedHeight)
 		if err != nil {
 			return err
 		}
 
-		convert, err := fa.ConvertFromArchivalToPruned(ctx)
+		convert, err := convertFromArchivalToPruned(ctx, cfg, ds)
 		if err != nil {
 			return err
 		}

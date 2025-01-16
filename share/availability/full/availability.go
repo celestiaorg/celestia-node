@@ -1,14 +1,11 @@
 package full
 
 import (
-	"bytes"
 	"context"
 	"errors"
 	"fmt"
 	"time"
 
-	"github.com/ipfs/go-datastore"
-	"github.com/ipfs/go-datastore/namespace"
 	logging "github.com/ipfs/go-log/v2"
 
 	"github.com/celestiaorg/celestia-node/header"
@@ -25,10 +22,7 @@ var ErrDisallowRevertToArchival = errors.New(
 	"node has been run with pruner enabled before, it is not safe to convert to an archival" +
 		"Run with --experimental-pruning enabled or consider re-initializing the store")
 
-var (
-	log         = logging.Logger("share/full")
-	storePrefix = datastore.NewKey("full_avail")
-)
+var log = logging.Logger("share/full")
 
 // ShareAvailability implements share.Availability using the full data square
 // recovery technique. It is considered "full" because it is required
@@ -36,8 +30,6 @@ var (
 type ShareAvailability struct {
 	store  *store.Store
 	getter shwap.Getter
-
-	ds datastore.Datastore
 
 	storageWindow time.Duration
 	archival      bool
@@ -47,7 +39,6 @@ type ShareAvailability struct {
 func NewShareAvailability(
 	store *store.Store,
 	getter shwap.Getter,
-	ds datastore.Datastore,
 	opts ...Option,
 ) *ShareAvailability {
 	p := defaultParams()
@@ -58,7 +49,6 @@ func NewShareAvailability(
 	return &ShareAvailability{
 		store:         store,
 		getter:        getter,
-		ds:            namespace.Wrap(ds, storePrefix),
 		storageWindow: availability.StorageWindow,
 		archival:      p.archival,
 	}
@@ -126,63 +116,4 @@ func (fa *ShareAvailability) Prune(ctx context.Context, eh *header.ExtendedHeade
 
 	log.Debugf("removing block %s at height %d", eh.DAH.String(), eh.Height())
 	return fa.store.RemoveODSQ4(ctx, eh.Height(), eh.DAH.Hash())
-}
-
-var (
-	previousModeKey = datastore.NewKey("previous_run")
-	pruned          = []byte("pruned")
-	archival        = []byte("archival")
-)
-
-// ConvertFromArchivalToPruned ensures that a node has not been run with pruning enabled before
-// cannot revert to archival mode. It returns true only if the node is converting to
-// pruned mode for the first time.
-func (fa *ShareAvailability) ConvertFromArchivalToPruned(ctx context.Context) (bool, error) {
-	prevMode, err := fa.ds.Get(ctx, previousModeKey)
-	if err != nil {
-		return false, err
-	}
-
-	if bytes.Equal(prevMode, pruned) && fa.archival {
-		return false, ErrDisallowRevertToArchival
-	}
-
-	if bytes.Equal(prevMode, archival) && !fa.archival {
-		// allow conversion from archival to pruned
-		err = fa.ds.Put(ctx, previousModeKey, pruned)
-		if err != nil {
-			return false, fmt.Errorf("share/availability/full: failed to updated pruning mode in "+
-				"datastore: %w", err)
-		}
-		return true, nil
-	}
-
-	// no changes in pruning mode
-	return false, nil
-}
-
-// DetectFirstRun is a temporary function that serves to assist migration to the refactored pruner
-// implementation (v0.21.0). It checks if the node has been run with pruning enabled before by checking
-// if the pruner service ran before, and disallows running as an archival node in the case it has.
-//
-// TODO @renaynay: remove this function after a few releases.
-func DetectFirstRun(ctx context.Context, fa *ShareAvailability, lastPrunedHeight uint64) error {
-	exists, err := fa.ds.Has(ctx, previousModeKey)
-	if err != nil {
-		return fmt.Errorf("share/availability/full: failed to check previous pruned run in "+
-			"datastore: %w", err)
-	}
-	if exists {
-		return nil
-	}
-
-	if fa.archival {
-		if lastPrunedHeight > 1 {
-			return ErrDisallowRevertToArchival
-		}
-
-		return fa.ds.Put(ctx, previousModeKey, archival)
-	}
-
-	return fa.ds.Put(ctx, previousModeKey, pruned)
 }

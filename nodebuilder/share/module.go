@@ -242,10 +242,9 @@ func availabilityComponents(tp node.Type, cfg *Config) fx.Option {
 			fx.Provide(func(
 				s *store.Store,
 				getter shwap.Getter,
-				ds datastore.Batching,
 				opts []full.Option,
 			) *full.ShareAvailability {
-				return full.NewShareAvailability(s, getter, ds, opts...)
+				return full.NewShareAvailability(s, getter, opts...)
 			}),
 			fx.Provide(func(avail *full.ShareAvailability) share.Availability {
 				return avail
