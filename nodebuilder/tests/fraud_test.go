@@ -4,6 +4,7 @@ package tests
 
 import (
 	"context"
+	"net"
 	"testing"
 	"time"
 
@@ -68,6 +69,8 @@ func TestFraudProofHandling(t *testing.T) {
 	})
 
 	cfg := nodebuilder.DefaultConfig(node.Bridge)
+	cfg.Core.IP, cfg.Core.Port, err = net.SplitHostPort(sw.ClientContext.GRPCClient.Target())
+	require.NoError(t, err)
 	// 1.
 	bridge := sw.NewNodeWithConfig(
 		node.Bridge,
