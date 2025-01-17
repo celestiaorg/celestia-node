@@ -4,7 +4,6 @@ import (
 	"context"
 
 	"github.com/ipfs/go-datastore"
-	"github.com/ipfs/go-datastore/namespace"
 	logging "github.com/ipfs/go-log/v2"
 	"go.uber.org/fx"
 
@@ -108,8 +107,6 @@ func convertToPruned() fx.Option {
 		ds datastore.Batching,
 		p *pruner.Service,
 	) error {
-		ds = namespace.Wrap(ds, storePrefix)
-
 		lastPrunedHeight, err := p.LastPruned(ctx)
 		if err != nil {
 			return err
@@ -120,7 +117,8 @@ func convertToPruned() fx.Option {
 			return err
 		}
 
-		convert, err := convertFromArchivalToPruned(ctx, cfg, ds)
+		isArchival := !cfg.EnableService
+		convert, err := fullavail.ConvertFromArchivalToPruned(ctx, ds, isArchival)
 		if err != nil {
 			return err
 		}

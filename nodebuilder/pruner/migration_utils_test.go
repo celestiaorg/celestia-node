@@ -13,110 +13,47 @@ import (
 	fullavail "github.com/celestiaorg/celestia-node/share/availability/full"
 )
 
-// TestDisallowRevertArchival tests that a node that has been previously run
-// with full pruning cannot convert back into an "archival" node
-func TestDisallowRevertArchival(t *testing.T) {
-	ctx, cancel := context.WithCancel(context.Background())
-	t.Cleanup(cancel)
-
-	// create a pruned node instance (non-archival) for the first time
-	cfg := &Config{EnableService: true}
-	ds := ds_sync.MutexWrap(datastore.NewMapDatastore())
-	nsWrapped := namespace.Wrap(ds, storePrefix)
-	err := nsWrapped.Put(ctx, previousModeKey, pruned)
-	require.NoError(t, err)
-
-	convert, err := convertFromArchivalToPruned(ctx, cfg, nsWrapped)
-	assert.NoError(t, err)
-	assert.False(t, convert)
-	// ensure availability impl recorded the pruned run
-	prevMode, err := nsWrapped.Get(ctx, previousModeKey)
-	require.NoError(t, err)
-	assert.Equal(t, pruned, prevMode)
-
-	// now change to archival mode
-	cfg.EnableService = false
-
-	// ensure failure
-	convert, err = convertFromArchivalToPruned(ctx, cfg, nsWrapped)
-	assert.Error(t, err)
-	assert.ErrorIs(t, err, fullavail.ErrDisallowRevertToArchival)
-	assert.False(t, convert)
-
-	// ensure the node can still run in pruned mode
-	cfg.EnableService = true
-	convert, err = convertFromArchivalToPruned(ctx, cfg, nsWrapped)
-	assert.NoError(t, err)
-	assert.False(t, convert)
-}
-
-// TestAllowConversionFromArchivalToPruned tests that a node that has been previously run
-// in archival mode can convert to a pruned node
-func TestAllowConversionFromArchivalToPruned(t *testing.T) {
-	ctx, cancel := context.WithCancel(context.Background())
-	t.Cleanup(cancel)
-
-	ds := ds_sync.MutexWrap(datastore.NewMapDatastore())
-	nsWrapped := namespace.Wrap(ds, storePrefix)
-	err := nsWrapped.Put(ctx, previousModeKey, archival)
-	require.NoError(t, err)
-
-	cfg := &Config{EnableService: false}
-
-	convert, err := convertFromArchivalToPruned(ctx, cfg, nsWrapped)
-	assert.NoError(t, err)
-	assert.False(t, convert)
-
-	cfg.EnableService = true
-
-	convert, err = convertFromArchivalToPruned(ctx, cfg, nsWrapped)
-	assert.NoError(t, err)
-	assert.True(t, convert)
-
-	prevMode, err := nsWrapped.Get(ctx, previousModeKey)
-	require.NoError(t, err)
-	assert.Equal(t, pruned, prevMode)
-}
-
 func TestDetectFirstRun(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
 	t.Run("FirstRunArchival", func(t *testing.T) {
 		ds := ds_sync.MutexWrap(datastore.NewMapDatastore())
-		nsWrapped := namespace.Wrap(ds, storePrefix)
 
 		cfg := &Config{EnableService: false}
 
-		err := detectFirstRun(ctx, cfg, nsWrapped, 1)
+		err := detectFirstRun(ctx, cfg, ds, 1)
 		assert.NoError(t, err)
 
+		nsWrapped := namespace.Wrap(ds, storePrefix)
 		prevMode, err := nsWrapped.Get(ctx, previousModeKey)
 		require.NoError(t, err)
-		assert.Equal(t, archival, prevMode)
+		assert.Equal(t, []byte("archival"), prevMode)
 	})
 
 	t.Run("FirstRunPruned", func(t *testing.T) {
 		ds := ds_sync.MutexWrap(datastore.NewMapDatastore())
-		nsWrapped := namespace.Wrap(ds, storePrefix)
 
 		cfg := &Config{EnableService: true}
 
-		err := detectFirstRun(ctx, cfg, nsWrapped, 1)
+		err := detectFirstRun(ctx, cfg, ds, 1)
 		assert.NoError(t, err)
 
+		nsWrapped := namespace.Wrap(ds, storePrefix)
 		prevMode, err := nsWrapped.Get(ctx, previousModeKey)
 		require.NoError(t, err)
-		assert.Equal(t, pruned, prevMode)
+		assert.Equal(t, []byte("pruned"), prevMode)
 	})
 
 	t.Run("RevertToArchivalNotAllowed", func(t *testing.T) {
 		ds := ds_sync.MutexWrap(datastore.NewMapDatastore())
-		nsWrapped := namespace.Wrap(ds, storePrefix)
 
+		// create archival node instance over a node that has been pruned before
+		// (height 500)
 		cfg := &Config{EnableService: false}
+		lastPrunedHeight := uint64(500)
 
-		err := detectFirstRun(ctx, cfg, nsWrapped, 500)
+		err := detectFirstRun(ctx, cfg, ds, lastPrunedHeight)
 		assert.Error(t, err)
 		assert.ErrorIs(t, err, fullavail.ErrDisallowRevertToArchival)
 	})
