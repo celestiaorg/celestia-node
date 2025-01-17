@@ -16,7 +16,7 @@ This ADR defines how the go light node will interact with the service as a clien
 
 ## Decision
 
-Allow users of Celestia nodes to opt in to automatic gas price and gas usage estimation
+Allow users of Celestia nodes to opt in to automatic gas price and gas usage estimation for every write method
 
 ## Detailed Design
 
