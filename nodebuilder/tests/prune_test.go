@@ -250,7 +250,7 @@ func TestConvertFromArchivalToPruned(t *testing.T) {
 
 		// the archival node has trimmed up to height 500
 		fullAvailStore := namespace.Wrap(ds, datastore.NewKey("full_avail"))
-		err = fullAvailStore.Put(ctx, datastore.NewKey("previous_run"), []byte("archival"))
+		err = fullAvailStore.Put(ctx, datastore.NewKey("previous_mode"), []byte("archival"))
 		require.NoError(t, err)
 
 		cp.LastPrunedHeight = 500
