@@ -11,7 +11,7 @@ import (
 
 var (
 	storePrefix     = datastore.NewKey("full_avail")
-	previousModeKey = datastore.NewKey("previous_run")
+	previousModeKey = datastore.NewKey("previous_mode")
 	pruned          = []byte("pruned")
 	archival        = []byte("archival")
 )

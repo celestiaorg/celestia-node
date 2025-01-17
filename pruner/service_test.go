@@ -313,7 +313,7 @@ func TestService_ClearCheckpoint(t *testing.T) {
 	require.NoError(t, err)
 	assert.Equal(t, oldCp, serv.checkpoint)
 
-	err = serv.ClearCheckpoint(ctx)
+	err = serv.ResetCheckpoint(ctx)
 	require.NoError(t, err)
 
 	err = serv.loadCheckpoint(ctx)

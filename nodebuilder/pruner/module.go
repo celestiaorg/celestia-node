@@ -123,8 +123,12 @@ func convertToPruned() fx.Option {
 			return err
 		}
 
+		// if we convert the node from archival to pruned, we need to reset the checkpoint
+		// to ensure the node goes back and deletes *all* blocks older than the
+		// availability window, as archival "pruning" only trims the .q4 file,
+		// but retains the ODS.
 		if convert {
-			return p.ClearCheckpoint(ctx)
+			return p.ResetCheckpoint(ctx)
 		}
 
 		return nil

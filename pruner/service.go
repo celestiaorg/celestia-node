@@ -102,7 +102,7 @@ func (s *Service) LastPruned(ctx context.Context) (uint64, error) {
 	return s.checkpoint.LastPrunedHeight, nil
 }
 
-func (s *Service) ClearCheckpoint(ctx context.Context) error {
+func (s *Service) ResetCheckpoint(ctx context.Context) error {
 	s.checkpoint = newCheckpoint()
 	return storeCheckpoint(ctx, s.ds, s.checkpoint)
 }

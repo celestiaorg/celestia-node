@@ -16,7 +16,7 @@ import (
 
 var (
 	storePrefix     = datastore.NewKey("full_avail")
-	previousModeKey = datastore.NewKey("previous_run")
+	previousModeKey = datastore.NewKey("previous_mode")
 )
 
 // detectFirstRun is a temporary function that serves to assist migration to the refactored pruner
