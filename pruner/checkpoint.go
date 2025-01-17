@@ -7,18 +7,11 @@ import (
 	"fmt"
 
 	"github.com/ipfs/go-datastore"
-	"github.com/ipfs/go-datastore/namespace"
 
 	"github.com/celestiaorg/celestia-node/header"
 )
 
 var (
-	// ErrDisallowRevertToArchival is returned when a node has been run with pruner enabled before and
-	// launching it with archival mode.
-	ErrDisallowRevertToArchival = errors.New(
-		"node has been run with pruner enabled before, it is not safe to convert to an archival" +
-			"Run with --experimental-pruning enabled or consider re-initializing the store")
-
 	storePrefix           = datastore.NewKey("pruner")
 	checkpointKey         = datastore.NewKey("checkpoint")
 	errCheckpointNotFound = errors.New("checkpoint not found")
@@ -31,17 +24,11 @@ type checkpoint struct {
 	FailedHeaders    map[uint64]struct{} `json:"failed"`
 }
 
-// DetectPreviousRun checks if the pruner has run before by checking for the existence of a
-// checkpoint.
-func DetectPreviousRun(ctx context.Context, ds datastore.Datastore) error {
-	_, err := getCheckpoint(ctx, namespace.Wrap(ds, storePrefix))
-	if errors.Is(err, errCheckpointNotFound) {
-		return nil
+func newCheckpoint() *checkpoint {
+	return &checkpoint{
+		LastPrunedHeight: 1,
+		FailedHeaders:    map[uint64]struct{}{},
 	}
-	if err != nil {
-		return fmt.Errorf("failed to load checkpoint: %w", err)
-	}
-	return ErrDisallowRevertToArchival
 }
 
 // storeCheckpoint persists the checkpoint to disk.
@@ -78,10 +65,7 @@ func (s *Service) loadCheckpoint(ctx context.Context) error {
 	cp, err := getCheckpoint(ctx, s.ds)
 	if err != nil {
 		if errors.Is(err, errCheckpointNotFound) {
-			s.checkpoint = &checkpoint{
-				LastPrunedHeight: 1,
-				FailedHeaders:    map[uint64]struct{}{},
-			}
+			s.checkpoint = newCheckpoint()
 			return storeCheckpoint(ctx, s.ds, s.checkpoint)
 		}
 		return err

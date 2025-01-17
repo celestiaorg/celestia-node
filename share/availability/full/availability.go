@@ -16,6 +16,12 @@ import (
 	"github.com/celestiaorg/celestia-node/store"
 )
 
+// ErrDisallowRevertToArchival is returned when a node has been run with pruner enabled before and
+// launching it with archival mode.
+var ErrDisallowRevertToArchival = errors.New(
+	"node has been run with pruner enabled before, it is not safe to convert to an archival" +
+		"Run with --experimental-pruning enabled or consider re-initializing the store")
+
 var log = logging.Logger("share/full")
 
 // ShareAvailability implements share.Availability using the full data square
@@ -100,4 +106,14 @@ func (fa *ShareAvailability) SharesAvailable(ctx context.Context, header *header
 		return fmt.Errorf("full availability: failed to store eds: %w", err)
 	}
 	return nil
+}
+
+func (fa *ShareAvailability) Prune(ctx context.Context, eh *header.ExtendedHeader) error {
+	if fa.archival {
+		log.Debugf("trimming Q4 from block %s at height %d", eh.DAH.String(), eh.Height())
+		return fa.store.RemoveQ4(ctx, eh.Height(), eh.DAH.Hash())
+	}
+
+	log.Debugf("removing block %s at height %d", eh.DAH.String(), eh.Height())
+	return fa.store.RemoveODSQ4(ctx, eh.Height(), eh.DAH.Hash())
 }
