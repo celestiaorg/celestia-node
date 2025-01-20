@@ -84,6 +84,21 @@ func (mr *MockModuleMockRecorder) GetRange(arg0, arg1, arg2, arg3 interface{}) *
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetRange", reflect.TypeOf((*MockModule)(nil).GetRange), arg0, arg1, arg2, arg3)
 }
 
+// GetRow mocks base method.
+func (m *MockModule) GetRow(arg0 context.Context, arg1 uint64, arg2 int) (shwap.Row, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "GetRow", arg0, arg1, arg2)
+	ret0, _ := ret[0].(shwap.Row)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// GetRow indicates an expected call of GetRow.
+func (mr *MockModuleMockRecorder) GetRow(arg0, arg1, arg2 interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetRow", reflect.TypeOf((*MockModule)(nil).GetRow), arg0, arg1, arg2)
+}
+
 // GetSamples mocks base method.
 func (m *MockModule) GetSamples(arg0 context.Context, arg1 *header.ExtendedHeader, arg2 []shwap.SampleCoords) ([]shwap.Sample, error) {
 	m.ctrl.T.Helper()
