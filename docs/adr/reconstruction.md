@@ -1,6 +1,3 @@
-# DRAFT
-
-This document is wip reconstruction protocol descrtipion. It is high level overview of proposal to spark the first iteration of discussion. The document will be split into CIP and ADR later.
 ## Abstract
 
 This document proposes a new block reconstruction protocol that addresses key bottlenecks in the current implementation, specifically targeting duplicate request reduction and bandwidth optimization. The protocol introduces a structured approach to data retrieval with explicit focus on network resource efficiency and scalability.
