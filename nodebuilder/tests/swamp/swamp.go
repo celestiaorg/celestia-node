@@ -200,6 +200,9 @@ func (s *Swamp) DefaultTestConfig(tp node.Type) *nodebuilder.Config {
 
 	cfg.Core.IP = ip
 	cfg.Core.GRPCPort = port
+
+	// trigger flushes more often in tests.
+	cfg.Header.Store.WriteBatchSize = 1
 	return cfg
 }
 
