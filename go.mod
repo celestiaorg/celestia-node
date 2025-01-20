@@ -13,7 +13,7 @@ require (
 	github.com/celestiaorg/go-libp2p-messenger v0.2.0
 	github.com/celestiaorg/go-square/merkle v0.0.0-20240117232118-fd78256df076
 	github.com/celestiaorg/go-square/v2 v2.1.0
-	github.com/celestiaorg/nmt v0.22.2
+	github.com/celestiaorg/nmt v0.22.3
 	github.com/celestiaorg/rsmt2d v0.14.0
 	github.com/cosmos/cosmos-sdk v0.46.16
 	github.com/cristalhq/jwt/v5 v5.4.0
@@ -39,8 +39,8 @@ require (
 	github.com/ipfs/go-ipld-format v0.6.0
 	github.com/ipfs/go-log/v2 v2.5.1
 	github.com/ipfs/go-metrics-interface v0.0.1
-	github.com/ipfs/go-metrics-prometheus v0.0.2
-	github.com/klauspost/reedsolomon v1.12.1
+	github.com/ipfs/go-metrics-prometheus v0.0.3
+	github.com/klauspost/reedsolomon v1.12.4
 	github.com/libp2p/go-libp2p v0.37.2
 	github.com/libp2p/go-libp2p-kad-dht v0.27.0
 	github.com/libp2p/go-libp2p-pubsub v0.12.0
