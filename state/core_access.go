@@ -55,7 +55,6 @@ type CoreAccessor struct {
 	keyring keyring.Keyring
 	client  *user.TxClient
 
-	// TODO: remove in scope of https://github.com/celestiaorg/celestia-node/issues/3515
 	defaultSignerAccount string
 	defaultSignerAddress AccAddress
 
@@ -100,9 +99,19 @@ func NewCoreAccessor(
 	prt.RegisterOpDecoder(storetypes.ProofOpIAVLCommitment, storetypes.CommitmentOpDecoder)
 	prt.RegisterOpDecoder(storetypes.ProofOpSimpleMerkleCommitment, storetypes.CommitmentOpDecoder)
 
+	rec, err := keyring.Key(keyname)
+	if err != nil {
+		return nil, err
+	}
+	addr, err := rec.GetAddress()
+	if err != nil {
+		return nil, err
+	}
+
 	ca := &CoreAccessor{
 		keyring:              keyring,
 		defaultSignerAccount: keyname,
+		defaultSignerAddress: addr,
 		getter:               getter,
 		coreIP:               coreIP,
 		grpcPort:             grpcPort,
@@ -156,17 +165,15 @@ func (ca *CoreAccessor) Start(ctx context.Context) error {
 		return fmt.Errorf("wrong network in core.ip endpoint, expected %s, got %s", ca.network, defaultNetwork)
 	}
 
-	// set up signer to handle tx submission
-	ca.client, err = ca.setupTxClient(ctx, ca.defaultSignerAccount)
+	err = ca.setupTxClient(ctx)
 	if err != nil {
-		log.Warnw("failed to set up signer, check if node's account is funded", "err", err)
+		log.Warn(err)
 	}
 
 	ca.minGasPrice, err = ca.queryMinimumGasPrice(ctx)
 	if err != nil {
 		return fmt.Errorf("querying minimum gas price: %w", err)
 	}
-
 	return nil
 }
 
@@ -204,6 +211,10 @@ func (ca *CoreAccessor) SubmitPayForBlob(
 	libBlobs []*libshare.Blob,
 	cfg *TxConfig,
 ) (*TxResponse, error) {
+	if err := ca.setupTxClient(ctx); err != nil {
+		return nil, err
+	}
+
 	if len(libBlobs) == 0 {
 		return nil, errors.New("state: no blobs provided")
 	}
@@ -583,22 +594,21 @@ func (ca *CoreAccessor) queryMinimumGasPrice(
 	return coins.AmountOf(app.BondDenom).MustFloat64(), nil
 }
 
-func (ca *CoreAccessor) setupTxClient(ctx context.Context, keyName string) (*user.TxClient, error) {
+func (ca *CoreAccessor) setupTxClient(ctx context.Context) error {
+	if ca.client != nil {
+		return nil
+	}
+
 	encCfg := encoding.MakeConfig(app.ModuleEncodingRegisters...)
-	// explicitly set default address. Otherwise, there could be a mismatch between defaultKey and
-	// defaultAddress.
-	rec, err := ca.keyring.Key(keyName)
-	if err != nil {
-		return nil, err
-	}
-	addr, err := rec.GetAddress()
-	if err != nil {
-		return nil, err
-	}
-	ca.defaultSignerAddress = addr
-	return user.SetupTxClient(ctx, ca.keyring, ca.coreConn, encCfg,
-		user.WithDefaultAccount(keyName), user.WithDefaultAddress(addr),
+	client, err := user.SetupTxClient(ctx, ca.keyring, ca.coreConn, encCfg,
+		user.WithDefaultAddress(ca.defaultSignerAddress),
 	)
+	if err != nil {
+		return fmt.Errorf("failed to setup a tx client: %w", err)
+	}
+
+	ca.client = client
+	return nil
 }
 
 func (ca *CoreAccessor) submitMsg(
@@ -606,11 +616,14 @@ func (ca *CoreAccessor) submitMsg(
 	msg sdktypes.Msg,
 	cfg *TxConfig,
 ) (*TxResponse, error) {
+	err := ca.setupTxClient(ctx)
+	if err != nil {
+		return nil, err
+	}
+
 	txConfig := make([]user.TxOption, 0)
-	var (
-		gas = cfg.GasLimit()
-		err error
-	)
+	gas := cfg.GasLimit()
+
 	if gas == 0 {
 		gas, err = estimateGas(ctx, ca.client, msg)
 		if err != nil {
