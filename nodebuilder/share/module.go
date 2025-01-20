@@ -239,7 +239,13 @@ func availabilityComponents(tp node.Type, cfg *Config) fx.Option {
 		)
 	case node.Bridge, node.Full:
 		return fx.Options(
-			fx.Provide(full.NewShareAvailability),
+			fx.Provide(func(
+				s *store.Store,
+				getter shwap.Getter,
+				opts []full.Option,
+			) *full.ShareAvailability {
+				return full.NewShareAvailability(s, getter, opts...)
+			}),
 			fx.Provide(func(avail *full.ShareAvailability) share.Availability {
 				return avail
 			}),
