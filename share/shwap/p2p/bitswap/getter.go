@@ -67,7 +67,7 @@ func (g *Getter) Start() {
 	g.cancel = cancel
 
 	g.availablePool.ctx = ctx
-	g.availablePool.ctx = ctx
+	g.archivalPool.ctx = ctx
 }
 
 // Stop shuts down Getter's internal fetching getSession.
