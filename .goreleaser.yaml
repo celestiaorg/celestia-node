@@ -1,3 +1,4 @@
+version: 2
 # This is an example .goreleaser.yml file with some sensible defaults.
 # Make sure to check the documentation at https://goreleaser.com
 before:
@@ -67,5 +68,7 @@ changelog:
       - "^test:"
 release:
   prerelease: auto
+  mode: keep-existing
 git:
   prerelease_suffix: "-rc*"
+  tag_sort: -version:creatordate

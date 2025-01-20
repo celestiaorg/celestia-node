@@ -12,13 +12,10 @@ import (
 	"go.opentelemetry.io/otel/attribute"
 
 	libhead "github.com/celestiaorg/go-header"
-	"github.com/celestiaorg/nmt"
 
 	"github.com/celestiaorg/celestia-node/header"
-	"github.com/celestiaorg/celestia-node/pruner"
-	"github.com/celestiaorg/celestia-node/share/eds"
-	"github.com/celestiaorg/celestia-node/share/ipld"
-	"github.com/celestiaorg/celestia-node/share/p2p/shrexsub"
+	"github.com/celestiaorg/celestia-node/share/shwap/p2p/shrex/shrexsub"
+	"github.com/celestiaorg/celestia-node/store"
 )
 
 var (
@@ -39,8 +36,9 @@ type Listener struct {
 	fetcher *BlockFetcher
 
 	construct          header.ConstructFn
-	store              *eds.Store
-	availabilityWindow pruner.AvailabilityWindow
+	store              *store.Store
+	availabilityWindow time.Duration
+	archival           bool
 
 	headerBroadcaster libhead.Broadcaster[*header.ExtendedHeader]
 	hashBroadcaster   shrexsub.BroadcastFn
@@ -51,6 +49,7 @@ type Listener struct {
 
 	listenerTimeout time.Duration
 	cancel          context.CancelFunc
+	closed          chan struct{}
 }
 
 func NewListener(
@@ -58,7 +57,7 @@ func NewListener(
 	fetcher *BlockFetcher,
 	hashBroadcaster shrexsub.BroadcastFn,
 	construct header.ConstructFn,
-	store *eds.Store,
+	store *store.Store,
 	blocktime time.Duration,
 	opts ...Option,
 ) (*Listener, error) {
@@ -85,6 +84,7 @@ func NewListener(
 		construct:          construct,
 		store:              store,
 		availabilityWindow: p.availabilityWindow,
+		archival:           p.archival,
 		listenerTimeout:    5 * blocktime,
 		metrics:            metrics,
 		chainID:            p.chainID,
@@ -99,6 +99,7 @@ func (cl *Listener) Start(context.Context) error {
 
 	ctx, cancel := context.WithCancel(context.Background())
 	cl.cancel = cancel
+	cl.closed = make(chan struct{})
 
 	sub, err := cl.fetcher.SubscribeNewBlockEvent(ctx)
 	if err != nil {
@@ -116,13 +117,25 @@ func (cl *Listener) Stop(ctx context.Context) error {
 	}
 
 	cl.cancel()
-	cl.cancel = nil
-	return cl.metrics.Close()
+	select {
+	case <-cl.closed:
+		cl.cancel = nil
+		cl.closed = nil
+	case <-ctx.Done():
+		return ctx.Err()
+	}
+
+	err = cl.metrics.Close()
+	if err != nil {
+		log.Warnw("listener: closing metrics", "err", err)
+	}
+	return nil
 }
 
 // runSubscriber runs a subscriber to receive event data of new signed blocks. It will attempt to
 // resubscribe in case error happens during listening of subscription
 func (cl *Listener) runSubscriber(ctx context.Context, sub <-chan types.EventDataSignedBlock) {
+	defer close(cl.closed)
 	for {
 		err := cl.listen(ctx, sub)
 		if ctx.Err() != nil {
@@ -131,7 +144,7 @@ func (cl *Listener) runSubscriber(ctx context.Context, sub <-chan types.EventDat
 		}
 		if errors.Is(err, errInvalidSubscription) {
 			// stop node if there is a critical issue with the block subscription
-			log.Fatalf("listener: %v", err)
+			log.Fatalf("listener: %v", err) //nolint:gocritic
 		}
 
 		log.Warnw("listener: subscriber error, resubscribing...", "err", err)
@@ -214,11 +227,8 @@ func (cl *Listener) handleNewSignedBlock(ctx context.Context, b types.EventDataS
 	span.SetAttributes(
 		attribute.Int64("height", b.Header.Height),
 	)
-	// extend block data
-	adder := ipld.NewProofsAdder(int(b.Data.SquareSize))
-	defer adder.Purge()
 
-	eds, err := extendBlock(b.Data, b.Header.Version.App, nmt.NodeVisitor(adder.VisitFn()))
+	eds, err := extendBlock(b.Data, b.Header.Version.App)
 	if err != nil {
 		return fmt.Errorf("extending block data: %w", err)
 	}
@@ -229,7 +239,7 @@ func (cl *Listener) handleNewSignedBlock(ctx context.Context, b types.EventDataS
 		panic(fmt.Errorf("making extended header: %w", err))
 	}
 
-	err = storeEDS(ctx, eh, eds, adder, cl.store, cl.availabilityWindow)
+	err = storeEDS(ctx, eh, eds, cl.store, cl.availabilityWindow, cl.archival)
 	if err != nil {
 		return fmt.Errorf("storing EDS: %w", err)
 	}

@@ -11,10 +11,11 @@ import (
 
 	"github.com/spf13/cobra"
 
+	libshare "github.com/celestiaorg/go-square/v2/share"
+
 	"github.com/celestiaorg/celestia-node/blob"
 	cmdnode "github.com/celestiaorg/celestia-node/cmd"
 	state "github.com/celestiaorg/celestia-node/nodebuilder/state/cmd"
-	"github.com/celestiaorg/celestia-node/share"
 )
 
 // flagFileInput allows the user to provide file path to the json file
@@ -42,11 +43,11 @@ var getCmd = &cobra.Command{
 	Short: "Returns the blob for the given namespace by commitment at a particular height.\n" +
 		"Note:\n* Both namespace and commitment input parameters are expected to be in their hex representation.",
 	PreRunE: func(_ *cobra.Command, args []string) error {
-		if !strings.HasPrefix(args[1], "0x") {
-			return fmt.Errorf("only hex namespace is supported")
+		if !strings.HasPrefix(args[0], "0x") {
+			args[0] = "0x" + args[0]
 		}
-		if !strings.HasPrefix(args[2], "0x") {
-			return fmt.Errorf("only hex commitment is supported")
+		if !strings.HasPrefix(args[1], "0x") {
+			args[1] = "0x" + args[1]
 		}
 		return nil
 	},
@@ -83,8 +84,11 @@ var getAllCmd = &cobra.Command{
 	Short: "Returns all blobs for the given namespace at a particular height.\n" +
 		"Note:\n* Namespace input parameter is expected to be in its hex representation.",
 	PreRunE: func(_ *cobra.Command, args []string) error {
+		if !strings.HasPrefix(args[0], "0x") {
+			args[0] = "0x" + args[0]
+		}
 		if !strings.HasPrefix(args[1], "0x") {
-			return fmt.Errorf("only hex namespace is supported")
+			args[1] = "0x" + args[1]
 		}
 		return nil
 	},
@@ -105,7 +109,7 @@ var getAllCmd = &cobra.Command{
 			return fmt.Errorf("error parsing a namespace: %w", err)
 		}
 
-		blobs, err := client.Blob.GetAll(cmd.Context(), height, []share.Namespace{namespace})
+		blobs, err := client.Blob.GetAll(cmd.Context(), height, []libshare.Namespace{namespace})
 		return cmdnode.PrintOutput(blobs, err, formatData(args[1]))
 	},
 }
@@ -135,7 +139,10 @@ var submitCmd = &cobra.Command{
 	},
 	PreRunE: func(_ *cobra.Command, args []string) error {
 		if !strings.HasPrefix(args[0], "0x") {
-			return fmt.Errorf("only hex namespace is supported")
+			args[0] = "0x" + args[0]
+		}
+		if !strings.HasPrefix(args[1], "0x") {
+			args[1] = "0x" + args[1]
 		}
 		return nil
 	},
@@ -234,11 +241,11 @@ var getProofCmd = &cobra.Command{
 	Short: "Retrieves the blob in the given namespaces at the given height by commitment and returns its Proof.\n" +
 		"Note:\n* Both namespace and commitment input parameters are expected to be in their hex representation.",
 	PreRunE: func(_ *cobra.Command, args []string) error {
-		if !strings.HasPrefix(args[1], "0x") {
-			return fmt.Errorf("only hex namespace is supported")
+		if !strings.HasPrefix(args[0], "0x") {
+			args[0] = "0x" + args[0]
 		}
-		if !strings.HasPrefix(args[2], "0x") {
-			return fmt.Errorf("only hex commitment is supported")
+		if !strings.HasPrefix(args[1], "0x") {
+			args[1] = "0x" + args[1]
 		}
 		return nil
 	},
@@ -285,8 +292,8 @@ func formatData(ns string) func(interface{}) interface{} {
 			for i, b := range blobs {
 				result[i] = tempBlob{
 					Namespace:    ns,
-					Data:         string(b.Data),
-					ShareVersion: b.ShareVersion,
+					Data:         string(b.Data()),
+					ShareVersion: uint32(b.ShareVersion()),
 					Commitment:   "0x" + hex.EncodeToString(b.Commitment),
 					Index:        b.Index(),
 				}
@@ -297,8 +304,8 @@ func formatData(ns string) func(interface{}) interface{} {
 		b := data.(*blob.Blob)
 		return tempBlob{
 			Namespace:    ns,
-			Data:         string(b.Data),
-			ShareVersion: b.ShareVersion,
+			Data:         string(b.Data()),
+			ShareVersion: uint32(b.ShareVersion()),
 			Commitment:   "0x" + hex.EncodeToString(b.Commitment),
 			Index:        b.Index(),
 		}

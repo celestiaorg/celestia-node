@@ -10,10 +10,10 @@ import (
 
 	math "cosmossdk.io/math"
 	state "github.com/celestiaorg/celestia-node/state"
+	share "github.com/celestiaorg/go-square/v2/share"
 	types "github.com/cosmos/cosmos-sdk/types"
 	types0 "github.com/cosmos/cosmos-sdk/x/staking/types"
 	gomock "github.com/golang/mock/gomock"
-	types1 "github.com/tendermint/tendermint/proto/tendermint/types"
 )
 
 // MockModule is a mock of Module interface.
@@ -205,7 +205,7 @@ func (mr *MockModuleMockRecorder) RevokeGrantFee(arg0, arg1, arg2 interface{}) *
 }
 
 // SubmitPayForBlob mocks base method.
-func (m *MockModule) SubmitPayForBlob(arg0 context.Context, arg1 []*types1.Blob, arg2 *state.TxConfig) (*types.TxResponse, error) {
+func (m *MockModule) SubmitPayForBlob(arg0 context.Context, arg1 []*share.Blob, arg2 *state.TxConfig) (*types.TxResponse, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "SubmitPayForBlob", arg0, arg1, arg2)
 	ret0, _ := ret[0].(*types.TxResponse)

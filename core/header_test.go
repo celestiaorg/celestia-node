@@ -9,7 +9,7 @@ import (
 	"github.com/stretchr/testify/require"
 	"github.com/tendermint/tendermint/libs/rand"
 
-	"github.com/celestiaorg/celestia-app/v2/pkg/appconsts"
+	"github.com/celestiaorg/celestia-app/v3/pkg/appconsts"
 
 	"github.com/celestiaorg/celestia-node/header"
 	"github.com/celestiaorg/celestia-node/header/headertest"
@@ -40,7 +40,7 @@ func TestMakeExtendedHeaderForEmptyBlock(t *testing.T) {
 	headerExt, err := header.MakeExtendedHeader(&b.Header, comm, val, eds)
 	require.NoError(t, err)
 
-	assert.Equal(t, share.EmptyRoot(), headerExt.DAH)
+	assert.Equal(t, share.EmptyEDSRoots(), headerExt.DAH)
 }
 
 func TestMismatchedDataHash_ComputedRoot(t *testing.T) {

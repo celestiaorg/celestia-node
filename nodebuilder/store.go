@@ -17,10 +17,11 @@ import (
 	dsbadger "github.com/ipfs/go-ds-badger4"
 	"github.com/mitchellh/go-homedir"
 
+	libshare "github.com/celestiaorg/go-square/v2/share"
+
 	"github.com/celestiaorg/celestia-node/libs/keystore"
 	nodemod "github.com/celestiaorg/celestia-node/nodebuilder/node"
 	"github.com/celestiaorg/celestia-node/nodebuilder/p2p"
-	"github.com/celestiaorg/celestia-node/share"
 )
 
 var (
@@ -168,7 +169,7 @@ func DiscoverOpened() (string, error) {
 
 	for _, n := range defaultNetwork {
 		for _, tp := range nodeTypes {
-			path, err := DefaultNodeStorePath(tp.String(), n.String())
+			path, err := DefaultNodeStorePath(tp, n)
 			if err != nil {
 				return "", err
 			}
@@ -185,25 +186,26 @@ func DiscoverOpened() (string, error) {
 
 // DefaultNodeStorePath constructs the default node store path using the given
 // node type and network.
-var DefaultNodeStorePath = func(tp, network string) (string, error) {
+var DefaultNodeStorePath = func(tp nodemod.Type, network p2p.Network) (string, error) {
 	home := os.Getenv("CELESTIA_HOME")
-
-	if home == "" {
-		var err error
-		home, err = os.UserHomeDir()
-		if err != nil {
-			return "", err
-		}
+	if home != "" {
+		return home, nil
 	}
-	if network == p2p.Mainnet.String() {
-		return fmt.Sprintf("%s/.celestia-%s", home, strings.ToLower(tp)), nil
+
+	home, err := os.UserHomeDir()
+	if err != nil {
+		return "", err
+	}
+
+	if network == p2p.Mainnet {
+		return fmt.Sprintf("%s/.celestia-%s", home, strings.ToLower(tp.String())), nil
 	}
 	// only include network name in path for testnets and custom networks
 	return fmt.Sprintf(
 		"%s/.celestia-%s-%s",
 		home,
-		strings.ToLower(tp),
-		strings.ToLower(network),
+		strings.ToLower(tp.String()),
+		strings.ToLower(network.String()),
 	), nil
 }
 
@@ -274,10 +276,10 @@ func dataPath(base string) string {
 func constraintBadgerConfig() *dsbadger.Options {
 	opts := dsbadger.DefaultOptions // this must be copied
 	// ValueLog:
-	// 2mib default => share.Size - makes sure headers and samples are stored in value log
+	// 2mib default => libshare.ShareSize - makes sure headers and samples are stored in value log
 	// This *tremendously* reduces the amount of memory used by the node, up to 10 times less during
 	// compaction
-	opts.ValueThreshold = share.Size
+	opts.ValueThreshold = libshare.ShareSize
 	// make sure we don't have any limits for stored headers
 	opts.ValueLogMaxEntries = 100000000
 	// run value log GC more often to spread the work over time

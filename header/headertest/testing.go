@@ -15,9 +15,8 @@ import (
 	tmproto "github.com/tendermint/tendermint/proto/tendermint/types"
 	"github.com/tendermint/tendermint/proto/tendermint/version"
 	"github.com/tendermint/tendermint/types"
-	tmtime "github.com/tendermint/tendermint/types/time"
 
-	"github.com/celestiaorg/celestia-app/v2/pkg/da"
+	"github.com/celestiaorg/celestia-app/v3/pkg/da"
 	libhead "github.com/celestiaorg/go-header"
 	"github.com/celestiaorg/go-header/headertest"
 	"github.com/celestiaorg/rsmt2d"
@@ -40,6 +39,7 @@ type TestSuite struct {
 	// blockTime is optional - if set, the test suite will generate
 	// blocks timestamped at the specified interval
 	blockTime time.Duration
+	startTime time.Time
 }
 
 func NewStore(t *testing.T) libhead.Store[*header.ExtendedHeader] {
@@ -62,11 +62,23 @@ func NewTestSuite(t *testing.T, numValidators int, blockTime time.Duration) *Tes
 		vals:      vals,
 		valSet:    valSet,
 		blockTime: blockTime,
+		startTime: time.Now(),
+	}
+}
+
+func NewTestSuiteWithGenesisTime(t *testing.T, startTime time.Time, blockTime time.Duration) *TestSuite {
+	valSet, vals := RandValidatorSet(3, 1)
+	return &TestSuite{
+		t:         t,
+		vals:      vals,
+		valSet:    valSet,
+		blockTime: blockTime,
+		startTime: startTime,
 	}
 }
 
 func (s *TestSuite) genesis() *header.ExtendedHeader {
-	dah := share.EmptyRoot()
+	dah := share.EmptyEDSRoots()
 
 	gen := RandRawHeader(s.t)
 
@@ -74,10 +86,11 @@ func (s *TestSuite) genesis() *header.ExtendedHeader {
 	gen.ValidatorsHash = s.valSet.Hash()
 	gen.NextValidatorsHash = s.valSet.Hash()
 	gen.Height = 1
+	gen.Time = s.startTime
 	voteSet := types.NewVoteSet(gen.ChainID, gen.Height, 0, tmproto.PrecommitType, s.valSet)
 	blockID := RandBlockID(s.t)
 	blockID.Hash = gen.Hash()
-	commit, err := MakeCommit(blockID, gen.Height, 0, voteSet, s.vals, time.Now())
+	commit, err := MakeCommit(blockID, gen.Height, 0, voteSet, s.vals, s.startTime)
 	require.NoError(s.t, err)
 
 	eh := &header.ExtendedHeader{
@@ -152,7 +165,7 @@ func (s *TestSuite) NextHeader() *header.ExtendedHeader {
 		return s.head
 	}
 
-	dah := share.EmptyRoot()
+	dah := share.EmptyEDSRoots()
 	height := s.Head().Height() + 1
 	rh := s.GenRawHeader(height, s.Head().Hash(), libhead.Hash(s.Head().Commit.Hash()), dah.Hash())
 	s.head = &header.ExtendedHeader{
@@ -199,7 +212,7 @@ func (s *TestSuite) Commit(h *header.RawHeader) *types.Commit {
 			ValidatorIndex:   int32(i),
 			Height:           h.Height,
 			Round:            round,
-			Timestamp:        tmtime.Now().UTC(),
+			Timestamp:        h.Time,
 			Type:             tmproto.PrecommitType,
 			BlockID:          bid,
 		}
@@ -229,7 +242,7 @@ func RandExtendedHeader(t testing.TB) *header.ExtendedHeader {
 }
 
 func RandExtendedHeaderAtTimestamp(t testing.TB, timestamp time.Time) *header.ExtendedHeader {
-	dah := share.EmptyRoot()
+	dah := share.EmptyEDSRoots()
 
 	rh := RandRawHeader(t)
 	rh.DataHash = dah.Hash()
@@ -328,9 +341,9 @@ func ExtendedHeadersFromEdsses(t testing.TB, edsses []*rsmt2d.ExtendedDataSquare
 	for i, eds := range edsses {
 		gen := RandRawHeader(t)
 
-		dah, err := share.NewRoot(eds)
+		roots, err := share.NewAxisRoots(eds)
 		require.NoError(t, err)
-		gen.DataHash = dah.Hash()
+		gen.DataHash = roots.Hash()
 		gen.ValidatorsHash = valSet.Hash()
 		gen.NextValidatorsHash = valSet.Hash()
 		gen.Height = int64(i + 1)
@@ -347,7 +360,7 @@ func ExtendedHeadersFromEdsses(t testing.TB, edsses []*rsmt2d.ExtendedDataSquare
 			RawHeader:    *gen,
 			Commit:       commit,
 			ValidatorSet: valSet,
-			DAH:          dah,
+			DAH:          roots,
 		}
 		require.NoError(t, eh.Validate())
 		headers[i] = eh
@@ -358,7 +371,7 @@ func ExtendedHeadersFromEdsses(t testing.TB, edsses []*rsmt2d.ExtendedDataSquare
 func ExtendedHeaderFromEDS(t testing.TB, height uint64, eds *rsmt2d.ExtendedDataSquare) *header.ExtendedHeader {
 	valSet, vals := RandValidatorSet(10, 10)
 	gen := RandRawHeader(t)
-	dah, err := share.NewRoot(eds)
+	dah, err := share.NewAxisRoots(eds)
 	require.NoError(t, err)
 
 	gen.DataHash = dah.Hash()

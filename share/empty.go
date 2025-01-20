@@ -5,35 +5,34 @@ import (
 	"fmt"
 	"sync"
 
-	"github.com/celestiaorg/celestia-app/v2/pkg/appconsts"
-	"github.com/celestiaorg/celestia-app/v2/pkg/da"
-	"github.com/celestiaorg/go-square/shares"
+	"github.com/celestiaorg/celestia-app/v3/pkg/da"
+	libshare "github.com/celestiaorg/go-square/v2/share"
 	"github.com/celestiaorg/rsmt2d"
 )
 
-// EmptyRoot returns Root of the empty block EDS.
-func EmptyRoot() *Root {
+// EmptyEDSDataHash returns DataHash of the empty block EDS.
+func EmptyEDSDataHash() DataHash {
 	initEmpty()
-	return emptyBlockRoot
+	return emptyBlockDataHash
 }
 
-// EmptyExtendedDataSquare returns the EDS of the empty block data square.
-func EmptyExtendedDataSquare() *rsmt2d.ExtendedDataSquare {
+// EmptyEDSRoots returns AxisRoots of the empty block EDS.
+func EmptyEDSRoots() *AxisRoots {
+	initEmpty()
+	return emptyBlockRoots
+}
+
+// EmptyEDS returns the EDS of the empty block data square.
+func EmptyEDS() *rsmt2d.ExtendedDataSquare {
 	initEmpty()
 	return emptyBlockEDS
 }
 
-// EmptyBlockShares returns the shares of the empty block.
-func EmptyBlockShares() []Share {
-	initEmpty()
-	return emptyBlockShares
-}
-
 var (
-	emptyOnce        sync.Once
-	emptyBlockRoot   *Root
-	emptyBlockEDS    *rsmt2d.ExtendedDataSquare
-	emptyBlockShares []Share
+	emptyOnce          sync.Once
+	emptyBlockDataHash DataHash
+	emptyBlockRoots    *AxisRoots
+	emptyBlockEDS      *rsmt2d.ExtendedDataSquare
 )
 
 // initEmpty enables lazy initialization for constant empty block data.
@@ -43,25 +42,25 @@ func initEmpty() {
 
 func computeEmpty() {
 	// compute empty block EDS and DAH for it
-	result := shares.TailPaddingShares(appconsts.MinShareCount)
-	emptyBlockShares = shares.ToBytes(result)
+	result := libshare.TailPaddingShares(libshare.MinShareCount)
+	rawEmptyBlockShares := libshare.ToBytes(result)
 
-	eds, err := da.ExtendShares(emptyBlockShares)
+	eds, err := da.ExtendShares(rawEmptyBlockShares)
 	if err != nil {
 		panic(fmt.Errorf("failed to create empty EDS: %w", err))
 	}
 	emptyBlockEDS = eds
 
-	emptyBlockRoot, err = NewRoot(eds)
+	emptyBlockRoots, err = NewAxisRoots(eds)
 	if err != nil {
 		panic(fmt.Errorf("failed to create empty DAH: %w", err))
 	}
 	minDAH := da.MinDataAvailabilityHeader()
-	if !bytes.Equal(minDAH.Hash(), emptyBlockRoot.Hash()) {
+	if !bytes.Equal(minDAH.Hash(), emptyBlockRoots.Hash()) {
 		panic(fmt.Sprintf("mismatch in calculated minimum DAH and minimum DAH from celestia-app, "+
-			"expected %s, got %s", minDAH.String(), emptyBlockRoot.String()))
+			"expected %s, got %s", minDAH.String(), emptyBlockRoots.String()))
 	}
 
 	// precompute Hash, so it's cached internally to avoid potential races
-	emptyBlockRoot.Hash()
+	emptyBlockDataHash = emptyBlockRoots.Hash()
 }

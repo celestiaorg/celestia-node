@@ -4,7 +4,7 @@ import (
 	"fmt"
 )
 
-// SampleAmount specifies the minimum required amount of samples a light node must perform
+// DefaultSampleAmount specifies the minimum required amount of samples a light node must perform
 // before declaring that a block is available
 var (
 	DefaultSampleAmount uint = 16
@@ -21,8 +21,8 @@ type Option func(*Parameters)
 
 // DefaultParameters returns the default Parameters' configuration values
 // for the light availability implementation
-func DefaultParameters() Parameters {
-	return Parameters{
+func DefaultParameters() *Parameters {
+	return &Parameters{
 		SampleAmount: DefaultSampleAmount,
 	}
 }

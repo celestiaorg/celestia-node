@@ -12,14 +12,17 @@ import (
 	"github.com/stretchr/testify/require"
 	"go.uber.org/fx"
 
+	libshare "github.com/celestiaorg/go-square/v2/share"
+
 	"github.com/celestiaorg/celestia-node/nodebuilder"
 	"github.com/celestiaorg/celestia-node/nodebuilder/node"
 	"github.com/celestiaorg/celestia-node/nodebuilder/p2p"
 	"github.com/celestiaorg/celestia-node/nodebuilder/tests/swamp"
-	"github.com/celestiaorg/celestia-node/share"
-	"github.com/celestiaorg/celestia-node/share/eds"
-	"github.com/celestiaorg/celestia-node/share/getters"
-	"github.com/celestiaorg/celestia-node/share/p2p/shrexnd"
+	"github.com/celestiaorg/celestia-node/share/shwap"
+	"github.com/celestiaorg/celestia-node/share/shwap/getters"
+	"github.com/celestiaorg/celestia-node/share/shwap/p2p/shrex/shrex_getter"
+	"github.com/celestiaorg/celestia-node/share/shwap/p2p/shrex/shrexnd"
+	"github.com/celestiaorg/celestia-node/store"
 )
 
 func TestShrexNDFromLights(t *testing.T) {
@@ -65,11 +68,14 @@ func TestShrexNDFromLights(t *testing.T) {
 		reqCtx, cancel := context.WithTimeout(ctx, time.Second*5)
 
 		// ensure to fetch random namespace (not the reserved namespace)
-		namespace := h.DAH.RowRoots[1][:share.NamespaceSize]
-
-		expected, err := bridgeClient.Share.GetSharesByNamespace(reqCtx, h, namespace)
+		namespace := h.DAH.RowRoots[1][:libshare.NamespaceSize]
+		ns, err := libshare.NewNamespaceFromBytes(namespace)
 		require.NoError(t, err)
-		got, err := lightClient.Share.GetSharesByNamespace(reqCtx, h, namespace)
+
+		height := h.Height()
+		expected, err := bridgeClient.Share.GetNamespaceData(reqCtx, height, ns)
+		require.NoError(t, err)
+		got, err := lightClient.Share.GetNamespaceData(reqCtx, height, ns)
 		require.NoError(t, err)
 
 		require.True(t, len(got[0].Shares) > 0)
@@ -139,20 +145,22 @@ func TestShrexNDFromLightsWithBadFulls(t *testing.T) {
 		reqCtx, cancel := context.WithTimeout(ctx, time.Second*5)
 
 		// ensure to fetch random namespace (not the reserved namespace)
-		namespace := h.DAH.RowRoots[1][:share.NamespaceSize]
-
-		expected, err := bridgeClient.Share.GetSharesByNamespace(reqCtx, h, namespace)
+		namespace := h.DAH.RowRoots[1][:libshare.NamespaceSize]
+		height := h.Height()
+		ns, err := libshare.NewNamespaceFromBytes(namespace)
+		require.NoError(t, err)
+		expected, err := bridgeClient.Share.GetNamespaceData(reqCtx, height, ns)
 		require.NoError(t, err)
 		require.True(t, len(expected[0].Shares) > 0)
 
 		// choose a random full to test
 		fN := fulls[len(fulls)/2]
 		fnClient := getAdminClient(ctx, fN, t)
-		gotFull, err := fnClient.Share.GetSharesByNamespace(reqCtx, h, namespace)
+		gotFull, err := fnClient.Share.GetNamespaceData(reqCtx, height, ns)
 		require.NoError(t, err)
 		require.True(t, len(gotFull[0].Shares) > 0)
 
-		gotLight, err := lightClient.Share.GetSharesByNamespace(reqCtx, h, namespace)
+		gotLight, err := lightClient.Share.GetNamespaceData(reqCtx, height, ns)
 		require.NoError(t, err)
 		require.True(t, len(gotLight[0].Shares) > 0)
 
@@ -177,7 +185,7 @@ func replaceNDServer(cfg *nodebuilder.Config, handler network.StreamHandler) fx.
 	return fx.Decorate(fx.Annotate(
 		func(
 			host host.Host,
-			store *eds.Store,
+			store *store.Store,
 			network p2p.Network,
 		) (*shrexnd.Server, error) {
 			cfg.Share.ShrExNDParams.WithNetworkID(network.String())
@@ -198,12 +206,12 @@ func replaceShareGetter() fx.Option {
 	return fx.Decorate(fx.Annotate(
 		func(
 			host host.Host,
-			store *eds.Store,
-			storeGetter *getters.StoreGetter,
-			shrexGetter *getters.ShrexGetter,
+			store *store.Store,
+			storeGetter *store.Getter,
+			shrexGetter *shrex_getter.Getter,
 			network p2p.Network,
-		) share.Getter {
-			cascade := make([]share.Getter, 0, 2)
+		) shwap.Getter {
+			cascade := make([]shwap.Getter, 0, 2)
 			cascade = append(cascade, storeGetter)
 			cascade = append(cascade, shrexGetter)
 			return getters.NewCascadeGetter(cascade)

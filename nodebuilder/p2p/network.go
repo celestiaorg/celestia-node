@@ -69,6 +69,11 @@ var networkAliases = map[string]Network{
 	"private": Private,
 }
 
+// GetNetwork returns the Network for the given string representation.
+func GetNetwork(networkStr string) Network {
+	return networkAliases[networkStr]
+}
+
 // orderedNetworks is a list of all known networks in order of priority.
 var orderedNetworks = []Network{Mainnet, Mocha, Arabica, Private}
 
@@ -78,13 +83,19 @@ func GetNetworks() []Network {
 }
 
 // listAvailableNetworks provides a string listing all known long-standing networks for things
-// like CLI hints.
+// like CLI hints. It also lists the network aliases as valid arguments.
 func listAvailableNetworks() string {
 	var networks []string
+
 	for _, net := range orderedNetworks {
 		// "private" networks are configured via env vars, so skip
 		if net != Private {
 			networks = append(networks, net.String())
+		}
+	}
+	for net := range networkAliases {
+		if net != "private" {
+			networks = append(networks, net)
 		}
 	}
 

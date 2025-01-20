@@ -77,7 +77,7 @@ func TestSyncAgainstBridge_NonEmptyChain(t *testing.T) {
 		assert.EqualValues(t, h.Commit.BlockID.Hash, sw.GetCoreBlockHashByHeight(ctx, numBlocks))
 
 		// check that the light node has also sampled over the block at height 20
-		err = lightClient.Share.SharesAvailable(ctx, h)
+		err = lightClient.Share.SharesAvailable(ctx, h.Height())
 		assert.NoError(t, err)
 
 		// wait until the entire chain (up to network head) has been sampled
@@ -97,7 +97,7 @@ func TestSyncAgainstBridge_NonEmptyChain(t *testing.T) {
 		assert.EqualValues(t, h.Commit.BlockID.Hash, sw.GetCoreBlockHashByHeight(ctx, numBlocks))
 
 		// check to ensure the full node can sync the 20th block's data
-		err = fullClient.Share.SharesAvailable(ctx, h)
+		err = fullClient.Share.SharesAvailable(ctx, h.Height())
 		assert.NoError(t, err)
 
 		// wait for full node to sync up the blocks from genesis -> network head.
@@ -167,7 +167,7 @@ func TestSyncAgainstBridge_EmptyChain(t *testing.T) {
 		assert.EqualValues(t, h.Commit.BlockID.Hash, sw.GetCoreBlockHashByHeight(ctx, numBlocks))
 
 		// check that the light node has also sampled over the block at height 20
-		err = lightClient.Share.SharesAvailable(ctx, h)
+		err = lightClient.Share.SharesAvailable(ctx, h.Height())
 		assert.NoError(t, err)
 
 		// wait until the entire chain (up to network head) has been sampled
@@ -187,7 +187,7 @@ func TestSyncAgainstBridge_EmptyChain(t *testing.T) {
 		assert.EqualValues(t, h.Commit.BlockID.Hash, sw.GetCoreBlockHashByHeight(ctx, numBlocks))
 
 		// check to ensure the full node can sync the 20th block's data
-		err = fullClient.Share.SharesAvailable(ctx, h)
+		err = fullClient.Share.SharesAvailable(ctx, h.Height())
 		assert.NoError(t, err)
 
 		// wait for full node to sync up the blocks from genesis -> network head.
@@ -250,6 +250,7 @@ func TestSyncStartStopLightWithBridge(t *testing.T) {
 
 	light = sw.NewLightNode()
 	require.NoError(t, light.Start(ctx))
+	lightClient = getAdminClient(ctx, light, t)
 
 	// ensure when light node comes back up, it can sync the remainder of the chain it
 	// missed while sleeping

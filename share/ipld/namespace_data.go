@@ -11,13 +11,14 @@ import (
 	"github.com/ipfs/go-cid"
 	ipld "github.com/ipfs/go-ipld-format"
 
+	libshare "github.com/celestiaorg/go-square/v2/share"
 	"github.com/celestiaorg/nmt"
 
 	"github.com/celestiaorg/celestia-node/share"
+	"github.com/celestiaorg/celestia-node/share/shwap"
 )
 
-var ErrNamespaceOutsideRange = errors.New("share/ipld: " +
-	"target namespace is outside of namespace range for the given root")
+var ErrNamespaceOutsideRange = shwap.ErrNamespaceOutsideRange
 
 // Option is the functional option that is applied to the NamespaceData instance
 // to configure data that needs to be stored.
@@ -46,13 +47,13 @@ type NamespaceData struct {
 
 	bounds    fetchedBounds
 	maxShares int
-	namespace share.Namespace
+	namespace libshare.Namespace
 
 	isAbsentNamespace atomic.Bool
 	absenceProofLeaf  ipld.Node
 }
 
-func NewNamespaceData(maxShares int, namespace share.Namespace, options ...Option) *NamespaceData {
+func NewNamespaceData(maxShares int, namespace libshare.Namespace, options ...Option) *NamespaceData {
 	data := &NamespaceData{
 		maxShares: maxShares,
 		namespace: namespace,
@@ -71,7 +72,7 @@ func NewNamespaceData(maxShares int, namespace share.Namespace, options ...Optio
 }
 
 func (n *NamespaceData) validate(rootCid cid.Cid) error {
-	if err := n.namespace.Validate(); err != nil {
+	if err := n.namespace.ValidateForData(); err != nil {
 		return err
 	}
 
@@ -80,7 +81,11 @@ func (n *NamespaceData) validate(rootCid cid.Cid) error {
 	}
 
 	root := NamespacedSha256FromCID(rootCid)
-	if n.namespace.IsOutsideRange(root, root) {
+	outside, err := share.IsOutsideRange(n.namespace, root, root)
+	if err != nil {
+		return err
+	}
+	if outside {
 		return ErrNamespaceOutsideRange
 	}
 	return nil
@@ -283,18 +288,31 @@ func (n *NamespaceData) collectNDWithProofs(j job, links []*ipld.Link) []job {
 	rightLink := NamespacedSha256FromCID(rightCid)
 
 	var nextJobs []job
+	outside, err := share.IsOutsideRange(n.namespace, leftLink, rightLink)
+	if err != nil {
+		log.Fatalf("invalid hashes provided: %v", err)
+	}
 	// check if target namespace is outside of boundaries of both links
-	if n.namespace.IsOutsideRange(leftLink, rightLink) {
+	if outside {
 		log.Fatalf("target namespace outside of boundaries of links at depth: %v", j.depth)
 	}
 
-	if !n.namespace.IsAboveMax(leftLink) {
+	above, err := share.IsAboveMax(n.namespace, leftLink)
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	if !above {
 		// namespace is within the range of left link
 		nextJobs = append(nextJobs, j.next(left, leftCid, false))
 	} else {
 		// proof is on the left side, if the namespace is on the right side of the range of left link
 		n.addProof(left, leftCid, j.depth)
-		if n.namespace.IsBelowMin(rightLink) {
+		below, err := share.IsBelowMin(n.namespace, rightLink)
+		if err != nil {
+			log.Fatal(err)
+		}
+		if below {
 			// namespace is not included in either links, convert to absence collector
 			n.isAbsentNamespace.Store(true)
 			nextJobs = append(nextJobs, j.next(right, rightCid, true))
@@ -302,7 +320,12 @@ func (n *NamespaceData) collectNDWithProofs(j job, links []*ipld.Link) []job {
 		}
 	}
 
-	if !n.namespace.IsBelowMin(rightLink) {
+	below, err := share.IsBelowMin(n.namespace, rightLink)
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	if !below {
 		// namespace is within the range of right link
 		nextJobs = append(nextJobs, j.next(right, rightCid, false))
 	} else {

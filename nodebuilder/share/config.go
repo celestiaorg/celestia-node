@@ -5,17 +5,21 @@ import (
 
 	"github.com/celestiaorg/celestia-node/nodebuilder/node"
 	"github.com/celestiaorg/celestia-node/share/availability/light"
-	"github.com/celestiaorg/celestia-node/share/eds"
-	"github.com/celestiaorg/celestia-node/share/p2p/discovery"
-	"github.com/celestiaorg/celestia-node/share/p2p/peers"
-	"github.com/celestiaorg/celestia-node/share/p2p/shrexeds"
-	"github.com/celestiaorg/celestia-node/share/p2p/shrexnd"
+	"github.com/celestiaorg/celestia-node/share/shwap/p2p/discovery"
+	"github.com/celestiaorg/celestia-node/share/shwap/p2p/shrex/peers"
+	"github.com/celestiaorg/celestia-node/share/shwap/p2p/shrex/shrexeds"
+	"github.com/celestiaorg/celestia-node/share/shwap/p2p/shrex/shrexnd"
+	"github.com/celestiaorg/celestia-node/store"
 )
 
-// TODO: some params are pointers and other are not, Let's fix this.
+const (
+	defaultBlockstoreCacheSize = 128
+)
+
 type Config struct {
 	// EDSStoreParams sets eds store configuration parameters
-	EDSStoreParams *eds.Parameters
+	EDSStoreParams      *store.Parameters
+	BlockStoreCacheSize uint
 
 	UseShareExchange bool
 	// ShrExEDSParams sets shrexeds client and server configuration parameters
@@ -23,20 +27,21 @@ type Config struct {
 	// ShrExNDParams sets shrexnd client and server configuration parameters
 	ShrExNDParams *shrexnd.Parameters
 	// PeerManagerParams sets peer-manager configuration parameters
-	PeerManagerParams peers.Parameters
+	PeerManagerParams *peers.Parameters
 
-	LightAvailability light.Parameters `toml:",omitempty"`
+	LightAvailability *light.Parameters `toml:",omitempty"`
 	Discovery         *discovery.Parameters
 }
 
 func DefaultConfig(tp node.Type) Config {
 	cfg := Config{
-		EDSStoreParams:    eds.DefaultParameters(),
-		Discovery:         discovery.DefaultParameters(),
-		ShrExEDSParams:    shrexeds.DefaultParameters(),
-		ShrExNDParams:     shrexnd.DefaultParameters(),
-		UseShareExchange:  true,
-		PeerManagerParams: peers.DefaultParameters(),
+		EDSStoreParams:      store.DefaultParameters(),
+		BlockStoreCacheSize: defaultBlockstoreCacheSize,
+		Discovery:           discovery.DefaultParameters(),
+		ShrExEDSParams:      shrexeds.DefaultParameters(),
+		ShrExNDParams:       shrexnd.DefaultParameters(),
+		UseShareExchange:    true,
+		PeerManagerParams:   peers.DefaultParameters(),
 	}
 
 	if tp == node.Light {
@@ -55,20 +60,23 @@ func (cfg *Config) Validate(tp node.Type) error {
 	}
 
 	if err := cfg.Discovery.Validate(); err != nil {
-		return fmt.Errorf("nodebuilder/share: %w", err)
+		return fmt.Errorf("discovery: %w", err)
 	}
 
 	if err := cfg.ShrExNDParams.Validate(); err != nil {
-		return fmt.Errorf("nodebuilder/share: %w", err)
+		return fmt.Errorf("shrexnd: %w", err)
 	}
 
 	if err := cfg.ShrExEDSParams.Validate(); err != nil {
-		return fmt.Errorf("nodebuilder/share: %w", err)
+		return fmt.Errorf("shrexeds: %w", err)
 	}
 
 	if err := cfg.PeerManagerParams.Validate(); err != nil {
-		return fmt.Errorf("nodebuilder/share: %w", err)
+		return fmt.Errorf("peer manager: %w", err)
 	}
 
+	if err := cfg.EDSStoreParams.Validate(); err != nil {
+		return fmt.Errorf("eds store: %w", err)
+	}
 	return nil
 }

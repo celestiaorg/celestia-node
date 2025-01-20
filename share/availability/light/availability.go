@@ -2,23 +2,31 @@ package light
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
+	"fmt"
 	"sync"
+	"time"
 
+	"github.com/ipfs/boxo/blockstore"
 	"github.com/ipfs/go-datastore"
 	"github.com/ipfs/go-datastore/autobatch"
 	"github.com/ipfs/go-datastore/namespace"
 	logging "github.com/ipfs/go-log/v2"
 
 	"github.com/celestiaorg/celestia-node/header"
+	"github.com/celestiaorg/celestia-node/libs/utils"
 	"github.com/celestiaorg/celestia-node/share"
-	"github.com/celestiaorg/celestia-node/share/getters"
+	"github.com/celestiaorg/celestia-node/share/availability"
+	"github.com/celestiaorg/celestia-node/share/ipld"
+	"github.com/celestiaorg/celestia-node/share/shwap"
+	"github.com/celestiaorg/celestia-node/share/shwap/p2p/bitswap"
 )
 
 var (
-	log                     = logging.Logger("share/light")
-	cacheAvailabilityPrefix = datastore.NewKey("sampling_result")
-	writeBatchSize          = 2048
+	log                   = logging.Logger("share/light")
+	samplingResultsPrefix = datastore.NewKey("sampling_result")
+	writeBatchSize        = 2048
 )
 
 // ShareAvailability implements share.Availability using Data Availability Sampling technique.
@@ -26,24 +34,26 @@ var (
 // its availability. It is assumed that there are a lot of lightAvailability instances
 // on the network doing sampling over the same Root to collectively verify its availability.
 type ShareAvailability struct {
-	getter share.Getter
+	getter shwap.Getter
+	bs     blockstore.Blockstore
 	params Parameters
 
-	// TODO(@Wondertan): Once we come to parallelized DASer, this lock becomes a contention point
-	//  Related to #483
-	// TODO: Striped locks? :D
-	dsLk sync.RWMutex
-	ds   *autobatch.Datastore
+	storageWindow time.Duration
+
+	activeHeights *utils.Sessions
+	dsLk          sync.RWMutex
+	ds            *autobatch.Datastore
 }
 
 // NewShareAvailability creates a new light Availability.
 func NewShareAvailability(
-	getter share.Getter,
+	getter shwap.Getter,
 	ds datastore.Batching,
+	bs blockstore.Blockstore,
 	opts ...Option,
 ) *ShareAvailability {
-	params := DefaultParameters()
-	ds = namespace.Wrap(ds, cacheAvailabilityPrefix)
+	params := *DefaultParameters()
+	ds = namespace.Wrap(ds, samplingResultsPrefix)
 	autoDS := autobatch.NewAutoBatching(ds, writeBatchSize)
 
 	for _, opt := range opts {
@@ -51,9 +61,12 @@ func NewShareAvailability(
 	}
 
 	return &ShareAvailability{
-		getter: getter,
-		params: params,
-		ds:     autoDS,
+		getter:        getter,
+		bs:            bs,
+		params:        params,
+		storageWindow: availability.StorageWindow,
+		activeHeights: utils.NewSessions(),
+		ds:            autoDS,
 	}
 }
 
@@ -61,103 +74,179 @@ func NewShareAvailability(
 // ExtendedHeader. This way SharesAvailable subjectively verifies that Shares are available.
 func (la *ShareAvailability) SharesAvailable(ctx context.Context, header *header.ExtendedHeader) error {
 	dah := header.DAH
-	// short-circuit if the given root is minimum DAH of an empty data square
-	if share.DataHash(dah.Hash()).IsEmptyRoot() {
+
+	// short-circuit if the given root is an empty data square
+	if share.DataHash(dah.Hash()).IsEmptyEDS() {
 		return nil
 	}
 
-	// load snapshot of the last sampling errors from disk
-	key := rootKey(dah)
+	// short-circuit if outside sampling window
+	if !availability.IsWithinWindow(header.Time(), la.storageWindow) {
+		return availability.ErrOutsideSamplingWindow
+	}
+
+	// Prevent multiple sampling and pruning sessions for the same header height
+	release, err := la.activeHeights.StartSession(ctx, header.Height())
+	if err != nil {
+		return err
+	}
+	defer release()
+
+	key := datastoreKeyForRoot(dah)
+	samples := &SamplingResult{}
+
+	// Attempt to load previous sampling results
 	la.dsLk.RLock()
-	last, err := la.ds.Get(ctx, key)
+	data, err := la.ds.Get(ctx, key)
 	la.dsLk.RUnlock()
+	if err != nil {
+		if !errors.Is(err, datastore.ErrNotFound) {
+			return err
+		}
+		// No previous results; create new samples
+		samples = NewSamplingResult(len(dah.RowRoots), int(la.params.SampleAmount))
+	} else {
+		err = json.Unmarshal(data, samples)
+		if err != nil {
+			return err
+		}
+		// Verify total samples count.
+		totalSamples := len(samples.Remaining) + len(samples.Available)
+		if (totalSamples != int(la.params.SampleAmount)) && (totalSamples != len(dah.RowRoots)*len(dah.RowRoots)) {
+			return fmt.Errorf("invalid sampling result:"+
+				" expected %d samples, got %d", la.params.SampleAmount, totalSamples)
+		}
+	}
 
-	// Check for error cases
-	var samples []Sample
-	switch {
-	case err == nil && len(last) == 0:
-		// Availability has already been validated
+	if len(samples.Remaining) == 0 {
+		// All samples have been processed successfully
 		return nil
-	case err != nil && !errors.Is(err, datastore.ErrNotFound):
-		// Other error occurred
-		return err
-	case errors.Is(err, datastore.ErrNotFound):
-		// No sampling result found, select new samples
-		samples, err = SampleSquare(len(dah.RowRoots), int(la.params.SampleAmount))
-		if err != nil {
-			return err
-		}
-	default:
-		// Sampling result found, unmarshal it
-		samples, err = decodeSamples(last)
-		if err != nil {
-			return err
-		}
 	}
-
-	if err := dah.ValidateBasic(); err != nil {
-		log.Errorw("DAH validation failed", "error", err)
-		return err
-	}
-
-	// indicate to the share.Getter that a blockservice session should be created. This
-	// functionality is optional and must be supported by the used share.Getter.
-	ctx = getters.WithSession(ctx)
-
-	var (
-		failedSamplesLock sync.Mutex
-		failedSamples     []Sample
-	)
 
 	log.Debugw("starting sampling session", "root", dah.String())
-	var wg sync.WaitGroup
-	for _, s := range samples {
-		wg.Add(1)
-		go func(s Sample) {
-			defer wg.Done()
-			// check if the sample is available
-			_, err := la.getter.GetShare(ctx, header, int(s.Row), int(s.Col))
-			if err != nil {
-				log.Debugw("error fetching share", "root", dah.String(), "row", s.Row, "col", s.Col)
-				failedSamplesLock.Lock()
-				failedSamples = append(failedSamples, s)
-				failedSamplesLock.Unlock()
-			}
-		}(s)
-	}
-	wg.Wait()
 
-	if errors.Is(ctx.Err(), context.Canceled) {
-		// Availability did not complete due to context cancellation, return context error instead of
-		// share.ErrNotAvailable
-		return ctx.Err()
+	idxs := make([]shwap.SampleCoords, len(samples.Remaining))
+	for i, s := range samples.Remaining {
+		idxs[i] = shwap.SampleCoords{Row: s.Row, Col: s.Col}
 	}
 
-	// store the result of the sampling session
-	bs := encodeSamples(failedSamples)
+	// remove one second from the deadline to ensure we have enough time to process the results
+	samplingCtx, cancel := context.WithCancel(ctx)
+	if deadline, ok := ctx.Deadline(); ok {
+		samplingCtx, cancel = context.WithDeadline(ctx, deadline.Add(-time.Second))
+	}
+	defer cancel()
+
+	smpls, errGetSamples := la.getter.GetSamples(samplingCtx, header, idxs)
+	if len(smpls) == 0 {
+		return share.ErrNotAvailable
+	}
+
+	var failedSamples []shwap.SampleCoords
+
+	for i, smpl := range smpls {
+		if smpl.IsEmpty() {
+			failedSamples = append(failedSamples, shwap.SampleCoords{Row: idxs[i].Row, Col: idxs[i].Col})
+		} else {
+			samples.Available = append(samples.Available, shwap.SampleCoords{Row: idxs[i].Row, Col: idxs[i].Col})
+		}
+	}
+
+	samples.Remaining = failedSamples
+
+	// Store the updated sampling result
+	updatedData, err := json.Marshal(samples)
+	if err != nil {
+		return err
+	}
 	la.dsLk.Lock()
-	err = la.ds.Put(ctx, key, bs)
+	err = la.ds.Put(ctx, key, updatedData)
 	la.dsLk.Unlock()
 	if err != nil {
-		log.Errorw("Failed to store sampling result", "error", err)
+		return fmt.Errorf("store sampling result: %w", err)
+	}
+
+	if errors.Is(errGetSamples, context.Canceled) {
+		// Availability did not complete due to context cancellation, return context error instead of
+		// share.ErrNotAvailable
+		return context.Canceled
 	}
 
 	// if any of the samples failed, return an error
 	if len(failedSamples) > 0 {
-		log.Errorw("availability validation failed",
-			"root", dah.String(),
-			"failed_samples", failedSamples,
-		)
 		return share.ErrNotAvailable
+	}
+
+	return nil
+}
+
+// Prune deletes samples and all sampling data corresponding to provided header from store.
+// The operation will remove all data that ShareAvailable might have created
+func (la *ShareAvailability) Prune(ctx context.Context, h *header.ExtendedHeader) error {
+	dah := h.DAH
+	if share.DataHash(dah.Hash()).IsEmptyEDS() {
+		return nil
+	}
+
+	// Prevent multiple sampling and pruning sessions for the same header height
+	release, err := la.activeHeights.StartSession(ctx, h.Height())
+	if err != nil {
+		return err
+	}
+	defer release()
+
+	key := datastoreKeyForRoot(dah)
+	la.dsLk.RLock()
+	data, err := la.ds.Get(ctx, key)
+	la.dsLk.RUnlock()
+	if errors.Is(err, datastore.ErrNotFound) {
+		// nothing to prune
+		return nil
+	}
+	if err != nil {
+		return fmt.Errorf("get sampling result: %w", err)
+	}
+
+	var result SamplingResult
+	err = json.Unmarshal(data, &result)
+	if err != nil {
+		return fmt.Errorf("unmarshal sampling result: %w", err)
+	}
+
+	// delete stored samples
+	for _, sample := range result.Available {
+		idx := shwap.SampleCoords{Row: sample.Row, Col: sample.Col}
+
+		blk, err := bitswap.NewEmptySampleBlock(h.Height(), idx, len(h.DAH.RowRoots))
+		if err != nil {
+			return fmt.Errorf("marshal sample ID: %w", err)
+		}
+		err = la.bs.DeleteBlock(ctx, blk.CID())
+		if err != nil {
+			if !errors.Is(err, ipld.ErrNodeNotFound) {
+				return fmt.Errorf("delete sample: %w", err)
+			}
+			log.Warnf("can't delete sample: %v, height: %v,  missing in blockstore", sample, h.Height())
+		}
+	}
+
+	// delete the sampling result
+	la.dsLk.Lock()
+	err = la.ds.Delete(ctx, key)
+	la.dsLk.Unlock()
+	if err != nil {
+		return fmt.Errorf("delete sampling result: %w", err)
 	}
 	return nil
 }
 
-func rootKey(root *share.Root) datastore.Key {
+func datastoreKeyForRoot(root *share.AxisRoots) datastore.Key {
 	return datastore.NewKey(root.String())
 }
 
 // Close flushes all queued writes to disk.
 func (la *ShareAvailability) Close(ctx context.Context) error {
+	la.dsLk.Lock()
+	defer la.dsLk.Unlock()
 	return la.ds.Flush(ctx)
 }

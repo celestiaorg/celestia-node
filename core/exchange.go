@@ -6,32 +6,31 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/tendermint/tendermint/types"
 	"golang.org/x/sync/errgroup"
 
 	libhead "github.com/celestiaorg/go-header"
-	"github.com/celestiaorg/nmt"
 
 	"github.com/celestiaorg/celestia-node/header"
-	"github.com/celestiaorg/celestia-node/pruner"
-	"github.com/celestiaorg/celestia-node/share/eds"
-	"github.com/celestiaorg/celestia-node/share/ipld"
+	"github.com/celestiaorg/celestia-node/store"
 )
 
-const concurrencyLimit = 4
+const concurrencyLimit = 16
 
 type Exchange struct {
 	fetcher   *BlockFetcher
-	store     *eds.Store
+	store     *store.Store
 	construct header.ConstructFn
 
-	availabilityWindow pruner.AvailabilityWindow
+	availabilityWindow time.Duration
+	archival           bool
 
 	metrics *exchangeMetrics
 }
 
 func NewExchange(
 	fetcher *BlockFetcher,
-	store *eds.Store,
+	store *store.Store,
 	construct header.ConstructFn,
 	opts ...Option,
 ) (*Exchange, error) {
@@ -56,6 +55,7 @@ func NewExchange(
 		store:              store,
 		construct:          construct,
 		availabilityWindow: p.availabilityWindow,
+		archival:           p.archival,
 		metrics:            metrics,
 	}, nil
 }
@@ -82,7 +82,7 @@ func (ce *Exchange) GetRangeByHeight(
 	ce.metrics.requestDurationPerHeader(ctx, time.Since(start), amount)
 
 	for _, h := range headers {
-		err := libhead.Verify[*header.ExtendedHeader](from, h, libhead.DefaultHeightThreshold)
+		err := libhead.Verify[*header.ExtendedHeader](from, h)
 		if err != nil {
 			return nil, fmt.Errorf("verifying next header against last verified height: %d: %w",
 				from.Height(), err)
@@ -134,11 +134,7 @@ func (ce *Exchange) Get(ctx context.Context, hash libhead.Hash) (*header.Extende
 		return nil, fmt.Errorf("fetching block info for height %d: %w", &block.Height, err)
 	}
 
-	// extend block data
-	adder := ipld.NewProofsAdder(int(block.Data.SquareSize))
-	defer adder.Purge()
-
-	eds, err := extendBlock(block.Data, block.Header.Version.App, nmt.NodeVisitor(adder.VisitFn()))
+	eds, err := extendBlock(block.Data, block.Header.Version.App)
 	if err != nil {
 		return nil, fmt.Errorf("extending block data for height %d: %w", &block.Height, err)
 	}
@@ -153,7 +149,7 @@ func (ce *Exchange) Get(ctx context.Context, hash libhead.Hash) (*header.Extende
 			&block.Height, hash, eh.Hash())
 	}
 
-	err = storeEDS(ctx, eh, eds, adder, ce.store, ce.availabilityWindow)
+	err = storeEDS(ctx, eh, eds, ce.store, ce.availabilityWindow, ce.archival)
 	if err != nil {
 		return nil, err
 	}
@@ -179,21 +175,21 @@ func (ce *Exchange) getExtendedHeaderByHeight(ctx context.Context, height *int64
 	}
 	log.Debugw("fetched signed block from core", "height", b.Header.Height)
 
-	// extend block data
-	adder := ipld.NewProofsAdder(int(b.Data.SquareSize))
-	defer adder.Purge()
-
-	eds, err := extendBlock(b.Data, b.Header.Version.App, nmt.NodeVisitor(adder.VisitFn()))
+	eds, err := extendBlock(b.Data, b.Header.Version.App)
 	if err != nil {
 		return nil, fmt.Errorf("extending block data for height %d: %w", b.Header.Height, err)
 	}
-	// create extended header
+
+	// TODO(@Wondertan): This is a hack to deref Data, allowing GC to pick it up.
+	//  The better footgun-less solution is to change core.ResultSignedBlock fields to be pointers instead of values.
+	b.Data = types.Data{}
+
 	eh, err := ce.construct(&b.Header, &b.Commit, &b.ValidatorSet, eds)
 	if err != nil {
 		panic(fmt.Errorf("constructing extended header for height %d: %w", b.Header.Height, err))
 	}
 
-	err = storeEDS(ctx, eh, eds, adder, ce.store, ce.availabilityWindow)
+	err = storeEDS(ctx, eh, eds, ce.store, ce.availabilityWindow, ce.archival)
 	if err != nil {
 		return nil, err
 	}

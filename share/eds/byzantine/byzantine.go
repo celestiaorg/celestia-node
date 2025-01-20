@@ -6,9 +6,10 @@ import (
 
 	"github.com/ipfs/boxo/blockstore"
 
-	"github.com/celestiaorg/celestia-app/v2/pkg/da"
+	libshare "github.com/celestiaorg/go-square/v2/share"
 	"github.com/celestiaorg/rsmt2d"
 
+	"github.com/celestiaorg/celestia-node/share"
 	"github.com/celestiaorg/celestia-node/share/ipld"
 )
 
@@ -32,17 +33,22 @@ func (e *ErrByzantine) Error() string {
 func NewErrByzantine(
 	ctx context.Context,
 	bStore blockstore.Blockstore,
-	dah *da.DataAvailabilityHeader,
+	roots *share.AxisRoots,
 	errByz *rsmt2d.ErrByzantineData,
 ) error {
 	sharesWithProof := make([]*ShareWithProof, len(errByz.Shares))
 	bGetter := ipld.NewBlockservice(bStore, nil)
 	var count int
-	for index, share := range errByz.Shares {
-		if len(share) == 0 {
+	for index, shr := range errByz.Shares {
+		if len(shr) == 0 {
 			continue
 		}
-		swp, err := GetShareWithProof(ctx, bGetter, dah, share, errByz.Axis, int(errByz.Index), index)
+		sh, err := libshare.NewShare(shr)
+		if err != nil {
+			log.Warn("failed to create share", "index", index, "err", err)
+			continue
+		}
+		swp, err := GetShareWithProof(ctx, bGetter, roots, *sh, errByz.Axis, int(errByz.Index), index)
 		if err != nil {
 			log.Warn("requesting proof failed",
 				"errByz", errByz,
@@ -53,12 +59,12 @@ func NewErrByzantine(
 
 		sharesWithProof[index] = swp
 		// it is enough to collect half of the shares to construct the befp
-		if count++; count >= len(dah.RowRoots)/2 {
+		if count++; count >= len(roots.RowRoots)/2 {
 			break
 		}
 	}
 
-	if count < len(dah.RowRoots)/2 {
+	if count < len(roots.RowRoots)/2 {
 		return fmt.Errorf("failed to collect proof")
 	}
 

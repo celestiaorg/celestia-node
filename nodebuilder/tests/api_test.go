@@ -3,7 +3,11 @@
 package tests
 
 import (
+	"bytes"
 	"context"
+	"fmt"
+	"net/http"
+	"os"
 	"testing"
 	"time"
 
@@ -12,9 +16,11 @@ import (
 	"github.com/libp2p/go-libp2p/core/peer"
 	"github.com/stretchr/testify/require"
 
+	libshare "github.com/celestiaorg/go-square/v2/share"
+
 	"github.com/celestiaorg/celestia-node/api/rpc/client"
+	"github.com/celestiaorg/celestia-node/api/rpc/perms"
 	"github.com/celestiaorg/celestia-node/blob"
-	"github.com/celestiaorg/celestia-node/blob/blobtest"
 	"github.com/celestiaorg/celestia-node/nodebuilder"
 	"github.com/celestiaorg/celestia-node/nodebuilder/node"
 	"github.com/celestiaorg/celestia-node/nodebuilder/tests/swamp"
@@ -107,19 +113,29 @@ func TestBlobRPC(t *testing.T) {
 
 	rpcClient := getAdminClient(ctx, bridge, t)
 
-	appBlobs, err := blobtest.GenerateV0Blobs([]int{8}, false)
+	libBlobs, err := libshare.GenerateV0Blobs([]int{8}, false)
 	require.NoError(t, err)
 
 	newBlob, err := blob.NewBlob(
-		uint8(appBlobs[0].GetShareVersion()),
-		appBlobs[0].Namespace().Bytes(),
-		appBlobs[0].GetData(),
+		libBlobs[0].ShareVersion(),
+		libBlobs[0].Namespace(),
+		libBlobs[0].Data(),
+		libBlobs[0].Signer(),
 	)
 	require.NoError(t, err)
 
 	height, err := rpcClient.Blob.Submit(ctx, []*blob.Blob{newBlob}, state.NewTxConfig())
 	require.NoError(t, err)
 	require.True(t, height != 0)
+
+	txResp, err := rpcClient.State.SubmitPayForBlob(ctx, libBlobs, state.NewTxConfig())
+	require.NoError(t, err)
+	require.NotNil(t, txResp)
+	require.Equal(t, uint32(0), txResp.Code)
+
+	b, err := rpcClient.Blob.Get(ctx, uint64(txResp.Height), newBlob.Namespace(), newBlob.Commitment)
+	require.NoError(t, err)
+	require.NotNil(t, b)
 }
 
 // TestHeaderSubscription ensures that the header subscription over RPC works
@@ -165,4 +181,36 @@ func TestHeaderSubscription(t *testing.T) {
 	// stop the light node and expect no outstanding subscription errors
 	err = light.Stop(ctx)
 	require.NoError(t, err)
+}
+
+func TestSubmitBlobOverHTTP(t *testing.T) {
+	ctx, cancel := context.WithTimeout(context.Background(), swamp.DefaultTestTimeout)
+	t.Cleanup(cancel)
+
+	sw := swamp.NewSwamp(t, swamp.WithBlockTime(time.Second))
+	// start a bridge node
+	bridge := sw.NewBridgeNode()
+	err := bridge.Start(ctx)
+	require.NoError(t, err)
+
+	adminPerms := []auth.Permission{"public", "read", "write", "admin"}
+	jwt, err := bridge.AdminServ.AuthNew(ctx, adminPerms)
+	require.NoError(t, err)
+
+	payload, err := os.ReadFile("testdata/submitPFB.json")
+	require.NoError(t, err)
+
+	bridgeAddr := "http://" + bridge.RPCServer.ListenAddr()
+	req, err := http.NewRequest("POST", bridgeAddr, bytes.NewBuffer(payload))
+	require.NoError(t, err)
+
+	req.Header = http.Header{
+		perms.AuthKey: []string{fmt.Sprintf("Bearer %s", jwt)},
+	}
+
+	httpClient := &http.Client{Timeout: time.Second * 5}
+	resp, err := httpClient.Do(req)
+	require.NoError(t, err)
+	defer resp.Body.Close()
+	require.Equal(t, http.StatusOK, resp.StatusCode)
 }

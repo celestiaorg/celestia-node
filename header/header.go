@@ -11,8 +11,8 @@ import (
 	"github.com/tendermint/tendermint/light"
 	core "github.com/tendermint/tendermint/types"
 
-	"github.com/celestiaorg/celestia-app/v2/pkg/appconsts"
-	"github.com/celestiaorg/celestia-app/v2/pkg/da"
+	"github.com/celestiaorg/celestia-app/v3/pkg/appconsts"
+	"github.com/celestiaorg/celestia-app/v3/pkg/da"
 	libhead "github.com/celestiaorg/go-header"
 	"github.com/celestiaorg/rsmt2d"
 )
@@ -201,7 +201,7 @@ func (eh *ExtendedHeader) Verify(untrst *ExtendedHeader) error {
 	if err := eh.ValidatorSet.VerifyCommitLightTrusting(eh.ChainID(), untrst.Commit, light.DefaultTrustLevel); err != nil {
 		return &libhead.VerifyError{
 			Reason:      fmt.Errorf("%w: %w", ErrVerifyCommitLightTrustingFailed, err),
-			SoftFailure: true,
+			SoftFailure: core.IsErrNotEnoughVotingPowerSigned(err),
 		}
 	}
 	return nil

@@ -41,6 +41,11 @@ func TestP2PModule_Host(t *testing.T) {
 
 	connectedness, err := mgr.Connectedness(ctx, peer.ID())
 	require.NoError(t, err)
+
+	infos, err := mgr.ConnectionState(ctx, peer.ID())
+	require.NoError(t, err)
+	require.GreaterOrEqual(t, len(infos), 1)
+
 	assert.Equal(t, host.Network().Connectedness(peer.ID()), connectedness)
 	// now disconnect using manager and check for connectedness match again
 	assert.NoError(t, mgr.ClosePeer(ctx, peer.ID()))
@@ -218,22 +223,36 @@ func TestP2PModule_Pubsub(t *testing.T) {
 // TestP2PModule_ConnGater tests P2P Module methods on
 // the instance of ConnectionGater.
 func TestP2PModule_ConnGater(t *testing.T) {
+	net, err := mocknet.FullMeshConnected(2)
+	require.NoError(t, err)
+	host, peer := net.Hosts()[0], net.Hosts()[1]
+
 	gater, err := connectionGater(datastore.NewMapDatastore())
 	require.NoError(t, err)
 
-	mgr := newModule(nil, nil, gater, nil, nil)
+	mgr := newModule(host, nil, gater, nil, nil)
 
 	ctx := context.Background()
 
-	assert.NoError(t, mgr.BlockPeer(ctx, "badpeer"))
+	assert.NoError(t, mgr.BlockPeer(ctx, peer.ID()))
 	blocked, err := mgr.ListBlockedPeers(ctx)
 	require.NoError(t, err)
-	assert.Len(t, blocked, 1)
+	assert.Contains(t, blocked, peer.ID())
 
-	assert.NoError(t, mgr.UnblockPeer(ctx, "badpeer"))
+	// Check if the peer is disconnected (or remains disconnected) after blocking
+	connectedness, err := mgr.Connectedness(ctx, peer.ID())
+	require.NoError(t, err)
+	assert.Equal(t, network.NotConnected, connectedness)
+
+	assert.NoError(t, mgr.UnblockPeer(ctx, peer.ID()))
 	blocked, err = mgr.ListBlockedPeers(ctx)
 	require.NoError(t, err)
-	assert.Len(t, blocked, 0)
+	assert.NotContains(t, blocked, peer.ID())
+
+	// Verify that unblocking doesn't automatically reconnect
+	connectedness, err = mgr.Connectedness(ctx, peer.ID())
+	require.NoError(t, err)
+	assert.Equal(t, network.NotConnected, connectedness)
 }
 
 // TestP2PModule_ResourceManager tests P2P Module methods on

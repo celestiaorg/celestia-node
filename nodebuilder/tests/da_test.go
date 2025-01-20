@@ -12,14 +12,13 @@ import (
 	"github.com/libp2p/go-libp2p/core/peer"
 	"github.com/stretchr/testify/require"
 
-	"github.com/celestiaorg/celestia-app/v2/pkg/appconsts"
+	"github.com/celestiaorg/celestia-app/v3/pkg/appconsts"
+	libshare "github.com/celestiaorg/go-square/v2/share"
 
 	"github.com/celestiaorg/celestia-node/blob"
-	"github.com/celestiaorg/celestia-node/blob/blobtest"
 	"github.com/celestiaorg/celestia-node/nodebuilder/da"
 	"github.com/celestiaorg/celestia-node/nodebuilder/node"
 	"github.com/celestiaorg/celestia-node/nodebuilder/tests/swamp"
-	"github.com/celestiaorg/celestia-node/share"
 )
 
 func TestDaModule(t *testing.T) {
@@ -27,25 +26,27 @@ func TestDaModule(t *testing.T) {
 	t.Cleanup(cancel)
 	sw := swamp.NewSwamp(t, swamp.WithBlockTime(time.Second))
 
-	namespace, err := share.NewBlobNamespaceV0([]byte("namespace"))
+	namespace, err := libshare.NewV0Namespace([]byte("namespace"))
 	require.NoError(t, err)
+	require.False(t, namespace.IsReserved())
 
-	appBlobs0, err := blobtest.GenerateV0Blobs([]int{8, 4}, true)
+	libBlobs0, err := libshare.GenerateV0Blobs([]int{8, 4}, true)
 	require.NoError(t, err)
-	appBlobs1, err := blobtest.GenerateV0Blobs([]int{4}, false)
+	libBlobs1, err := libshare.GenerateV0Blobs([]int{4}, false)
 	require.NoError(t, err)
-	blobs := make([]*blob.Blob, 0, len(appBlobs0)+len(appBlobs1))
-	daBlobs := make([][]byte, 0, len(appBlobs0)+len(appBlobs1))
+	blobs := make([]*blob.Blob, 0, len(libBlobs0)+len(libBlobs1))
+	daBlobs := make([][]byte, 0, len(libBlobs0)+len(libBlobs1))
 
-	for _, squareBlob := range append(appBlobs0, appBlobs1...) {
+	for _, libBlob := range append(libBlobs0, libBlobs1...) {
 		blob, err := blob.NewBlob(
-			uint8(squareBlob.GetShareVersion()),
-			squareBlob.Namespace().Bytes(),
-			squareBlob.GetData(),
+			libBlob.ShareVersion(),
+			libBlob.Namespace(),
+			libBlob.Data(),
+			libBlob.Signer(),
 		)
 		require.NoError(t, err)
 		blobs = append(blobs, blob)
-		daBlobs = append(daBlobs, blob.Data)
+		daBlobs = append(daBlobs, blob.Data())
 	}
 
 	require.NoError(t, err)
@@ -71,7 +72,7 @@ func TestDaModule(t *testing.T) {
 	fullClient := getAdminClient(ctx, fullNode, t)
 	lightClient := getAdminClient(ctx, lightNode, t)
 
-	ids, err := fullClient.DA.Submit(ctx, daBlobs, -1, namespace)
+	ids, err := fullClient.DA.Submit(ctx, daBlobs, -1, namespace.Bytes())
 	require.NoError(t, err)
 
 	test := []struct {
@@ -89,13 +90,12 @@ func TestDaModule(t *testing.T) {
 		{
 			name: "GetProofs + Validate",
 			doFn: func(t *testing.T) {
-				t.Skip()
 				h, _ := da.SplitID(ids[0])
 				lightClient.Header.WaitForHeight(ctx, h)
-				proofs, err := lightClient.DA.GetProofs(ctx, ids, namespace)
+				proofs, err := lightClient.DA.GetProofs(ctx, ids, namespace.Bytes())
 				require.NoError(t, err)
 				require.NotEmpty(t, proofs)
-				valid, err := fullClient.DA.Validate(ctx, ids, proofs, namespace)
+				valid, err := fullClient.DA.Validate(ctx, ids, proofs, namespace.Bytes())
 				require.NoError(t, err)
 				for _, v := range valid {
 					require.True(t, v)
@@ -105,11 +105,13 @@ func TestDaModule(t *testing.T) {
 		{
 			name: "GetIDs",
 			doFn: func(t *testing.T) {
-				t.Skip()
 				height, _ := da.SplitID(ids[0])
-				ids2, err := fullClient.DA.GetIDs(ctx, height, namespace)
+				result, err := fullClient.DA.GetIDs(ctx, height, namespace.Bytes())
 				require.NoError(t, err)
-				require.EqualValues(t, ids, ids2)
+				require.EqualValues(t, ids, result.IDs)
+				header, err := lightClient.Header.GetByHeight(ctx, height)
+				require.NoError(t, err)
+				require.EqualValues(t, header.Time(), result.Timestamp)
 			},
 		},
 		{
@@ -117,7 +119,7 @@ func TestDaModule(t *testing.T) {
 			doFn: func(t *testing.T) {
 				h, _ := da.SplitID(ids[0])
 				lightClient.Header.WaitForHeight(ctx, h)
-				fetched, err := lightClient.DA.Get(ctx, ids, namespace)
+				fetched, err := lightClient.DA.Get(ctx, ids, namespace.Bytes())
 				require.NoError(t, err)
 				require.Len(t, fetched, len(ids))
 				for i := range fetched {
@@ -128,8 +130,7 @@ func TestDaModule(t *testing.T) {
 		{
 			name: "Commit",
 			doFn: func(t *testing.T) {
-				t.Skip()
-				fetched, err := fullClient.DA.Commit(ctx, ids, namespace)
+				fetched, err := fullClient.DA.Commit(ctx, daBlobs, namespace.Bytes())
 				require.NoError(t, err)
 				require.Len(t, fetched, len(ids))
 				for i := range fetched {
@@ -138,10 +139,33 @@ func TestDaModule(t *testing.T) {
 				}
 			},
 		},
+		{
+			name: "SubmitWithOptions - valid",
+			doFn: func(t *testing.T) {
+				ids, err := fullClient.DA.SubmitWithOptions(ctx, daBlobs, -1, namespace.Bytes(), []byte(`{"key_name": "validator"}`))
+				require.NoError(t, err)
+				require.NotEmpty(t, ids)
+			},
+		},
+		{
+			name: "SubmitWithOptions - invalid JSON",
+			doFn: func(t *testing.T) {
+				ids, err := fullClient.DA.SubmitWithOptions(ctx, daBlobs, -1, namespace.Bytes(), []byte("not JSON"))
+				require.Error(t, err)
+				require.Nil(t, ids)
+			},
+		},
+		{
+			name: "SubmitWithOptions - invalid key name",
+			doFn: func(t *testing.T) {
+				ids, err := fullClient.DA.SubmitWithOptions(ctx, daBlobs, -1, namespace.Bytes(), []byte(`{"key_name": "invalid"}`))
+				require.Error(t, err)
+				require.Nil(t, ids)
+			},
+		},
 	}
 
 	for _, tt := range test {
-		tt := tt
 		t.Run(tt.name, func(t *testing.T) {
 			tt.doFn(t)
 		})
