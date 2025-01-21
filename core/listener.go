@@ -111,9 +111,9 @@ func (cl *Listener) Start(context.Context) error {
 
 // Stop stops the listener loop.
 func (cl *Listener) Stop(ctx context.Context) error {
-	err := cl.fetcher.UnsubscribeNewBlockEvent(ctx)
+	err := cl.fetcher.Stop(ctx)
 	if err != nil {
-		log.Warnw("listener: unsubscribing from new block event", "err", err)
+		log.Warnw("listener: stopping gRPC block event", "err", err)
 	}
 
 	cl.cancel()
@@ -156,7 +156,7 @@ func (cl *Listener) runSubscriber(ctx context.Context, sub <-chan types.EventDat
 }
 
 func (cl *Listener) resubscribe(ctx context.Context) <-chan types.EventDataSignedBlock {
-	err := cl.fetcher.UnsubscribeNewBlockEvent(ctx)
+	err := cl.fetcher.Stop(ctx)
 	if err != nil {
 		log.Warnw("listener: unsubscribe", "err", err)
 	}
@@ -228,7 +228,7 @@ func (cl *Listener) handleNewSignedBlock(ctx context.Context, b types.EventDataS
 		attribute.Int64("height", b.Header.Height),
 	)
 
-	eds, err := extendBlock(b.Data, b.Header.Version.App)
+	eds, err := extendBlock(&b.Data, b.Header.Version.App)
 	if err != nil {
 		return fmt.Errorf("extending block data: %w", err)
 	}
