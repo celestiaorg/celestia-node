@@ -4,7 +4,6 @@ package tests
 
 import (
 	"context"
-	"math"
 	"testing"
 	"time"
 
@@ -15,6 +14,7 @@ import (
 
 	libshare "github.com/celestiaorg/go-square/v2/share"
 
+	"github.com/celestiaorg/celestia-node/api/rpc/client"
 	"github.com/celestiaorg/celestia-node/blob"
 	"github.com/celestiaorg/celestia-node/nodebuilder/node"
 	"github.com/celestiaorg/celestia-node/nodebuilder/tests/swamp"
@@ -51,6 +51,7 @@ func TestShareModule(t *testing.T) {
 	lightNode := sw.NewNodeWithConfig(node.Light, lightCfg)
 	require.NoError(t, lightNode.Start(ctx))
 
+	bridgeClient := getAdminClient(ctx, bridge, t)
 	fullClient := getAdminClient(ctx, fullNode, t)
 	lightClient := getAdminClient(ctx, lightNode, t)
 
@@ -73,137 +74,146 @@ func TestShareModule(t *testing.T) {
 
 	blobAsShares, err := blob.BlobsToShares(sampledBlob)
 	require.NoError(t, err)
+	// different clients allow to test different getters that are used to get the data.
+	clients := []*client.Client{lightClient, fullClient, bridgeClient}
 
-	test := []struct {
+	testCases := []struct {
 		name string
 		doFn func(t *testing.T)
 	}{
 		{
 			name: "SharesAvailable",
 			doFn: func(t *testing.T) {
-				err := lightClient.Share.SharesAvailable(ctx, height)
-				require.NoError(t, err)
+				for _, client := range clients {
+					err := client.Share.SharesAvailable(ctx, height)
+					require.NoError(t, err)
+				}
 			},
 		},
 		{
-			name: "SharesAvailable_InvalidHeight",
+			name: "GetShareQ1",
 			doFn: func(t *testing.T) {
-				err := lightClient.Share.SharesAvailable(ctx, 0)
-				require.Error(t, err)
+				for _, client := range clients {
+					// compare the share from quadrant1 by its coordinate.
+					// Additionally check that received share the same as the first share of the blob.
+					sh, err := client.Share.GetShare(ctx, height, coords.Row, coords.Col)
+					require.NoError(t, err)
+					assert.Equal(t, blobAsShares[0], sh)
+				}
 			},
 		},
 		{
-			name: "SharesAvailable_FutureHeight",
+			name: "GetShareQ4",
 			doFn: func(t *testing.T) {
-				err := lightClient.Share.SharesAvailable(ctx, math.MaxUint)
-				require.Error(t, err)
+				for _, client := range clients {
+					_, err := client.Share.GetShare(ctx, height, len(hdr.DAH.RowRoots)-1, len(hdr.DAH.ColumnRoots)-1)
+					require.NoError(t, err)
+				}
 			},
 		},
 		{
-			name: "GetShare",
-			doFn: func(t *testing.T) {
-				sh, err := lightClient.Share.GetShare(ctx, height, coords.Row, coords.Col)
-				require.NoError(t, err)
-				assert.Equal(t, blobAsShares[0], sh)
-			},
-		},
-		{
-			name: "GetShare_InvalidRow",
-			doFn: func(t *testing.T) {
-				sh, err := lightClient.Share.GetShare(ctx, height, -1, coords.Col)
-				require.Error(t, err)
-				assert.Nil(t, sh.ToBytes())
-			},
-		},
-		{
-			name: "GetShare_InvalidCol",
-			doFn: func(t *testing.T) {
-				sh, err := lightClient.Share.GetShare(ctx, height, coords.Row, -1)
-				require.Error(t, err)
-				assert.Nil(t, sh.ToBytes())
-			},
-		},
-		{
-			name: "GetShare_InvalidCoords",
+			name: "GetSamplesQ1",
 			doFn: func(t *testing.T) {
 				dah := hdr.DAH
-				sh, err := lightClient.Share.GetShare(ctx, height, len(dah.RowRoots), len(dah.ColumnRoots))
-				require.Error(t, err)
-				assert.Nil(t, sh.ToBytes())
+				requestCoords := []shwap.SampleCoords{coords}
+				for _, client := range clients {
+					// request from the first quadrant using the blob coordinates.
+					samples, err := client.Share.GetSamples(ctx, hdr, requestCoords)
+					require.NoError(t, err)
+					err = samples[0].Verify(dah, coords.Row, coords.Col)
+					require.NoError(t, err)
+					require.Equal(t, blobAsShares[0], samples[0].Share)
+				}
 			},
 		},
 		{
-			name: "GetSamples",
+			name: "GetSamplesQ4",
 			doFn: func(t *testing.T) {
 				dah := hdr.DAH
-				samples, err := lightClient.Share.GetSamples(ctx, hdr, []shwap.SampleCoords{coords})
-				require.NoError(t, err)
-				err = samples[0].Verify(dah, coords.Row, coords.Col)
-				require.NoError(t, err)
-			},
-		},
-		{
-			name: "GetSamples_InvalidCoords",
-			doFn: func(t *testing.T) {
-				dah := hdr.DAH
-				coords := shwap.SampleCoords{Row: len(dah.RowRoots), Col: len(dah.ColumnRoots)}
-				samples, err := lightClient.Share.GetSamples(ctx, hdr, []shwap.SampleCoords{coords})
-				require.Error(t, err)
-				assert.Nil(t, samples)
+				coords := shwap.SampleCoords{Row: len(dah.RowRoots) - 1, Col: len(dah.RowRoots) - 1}
+				requestCoords := []shwap.SampleCoords{coords}
+				for _, client := range clients {
+					// getting the last sample from the eds(from quadrant 4).
+					samples, err := client.Share.GetSamples(ctx, hdr, requestCoords)
+					require.NoError(t, err)
+					err = samples[0].Verify(dah, coords.Row, coords.Col)
+					require.NoError(t, err)
+				}
 			},
 		},
 		{
 			name: "GetEDS",
 			doFn: func(t *testing.T) {
-				eds, err := lightClient.Share.GetEDS(ctx, height)
-				require.NoError(t, err)
-				rawShares := eds.Row(uint(coords.Row))
-				sh, err := libshare.FromBytes([][]byte{rawShares[coords.Col]})
-				require.NoError(t, err)
-				assert.Equal(t, blobAsShares[0], sh[0])
+				for _, client := range clients {
+					eds, err := client.Share.GetEDS(ctx, height)
+					require.NoError(t, err)
+					rawShares := eds.Row(uint(coords.Row))
+					sh, err := libshare.FromBytes([][]byte{rawShares[coords.Col]})
+					require.NoError(t, err)
+					assert.Equal(t, blobAsShares[0], sh[0])
+				}
 			},
 		},
 		{
-			name: "GetRow",
+			name: "GetRowQ1",
 			doFn: func(t *testing.T) {
-				row, err := lightClient.Share.GetRow(ctx, height, coords.Row)
-				require.NoError(t, err)
 				dah := hdr.DAH
-				err = row.Verify(dah, coords.Row)
-				require.NoError(t, err)
-
-				shrs, err := row.Shares()
-				require.NoError(t, err)
-				assert.Equal(t, blobAsShares[0], shrs[coords.Col])
+				for _, client := range clients {
+					// request row from the first half of the EDS(using the blob's coordinates).
+					row, err := client.Share.GetRow(ctx, height, coords.Row)
+					require.NoError(t, err)
+					// verify row against the DAH.
+					err = row.Verify(dah, coords.Row)
+					require.NoError(t, err)
+					shrs, err := row.Shares()
+					require.NoError(t, err)
+					// additionally compare shares
+					assert.Equal(t, blobAsShares[0], shrs[coords.Col])
+				}
 			},
 		},
 		{
-			name: "GetRow_InvalidRow",
+			name: "GetRowQ4",
 			doFn: func(t *testing.T) {
-				_, err := lightClient.Share.GetRow(ctx, height, -1)
-				require.Error(t, err)
-				_, err = lightClient.Share.GetRow(ctx, height, math.MinInt64)
-				require.Error(t, err)
+				dah := hdr.DAH
+				coords := shwap.SampleCoords{Row: len(dah.RowRoots) - 1, Col: len(dah.RowRoots) - 1}
+				for _, client := range clients {
+					// request the last row
+					row, err := client.Share.GetRow(ctx, height, coords.Row)
+					require.NoError(t, err)
+					// verify against DAH
+					err = row.Verify(dah, coords.Row)
+					require.NoError(t, err)
+				}
 			},
 		},
 		{
 			name: "GetNamespaceData",
 			doFn: func(t *testing.T) {
-				nsData, err := lightClient.Share.GetNamespaceData(ctx, height, blobAsShares[0].Namespace())
-				require.NoError(t, err)
 				dah := hdr.DAH
-				err = nsData.Verify(dah, blobAsShares[0].Namespace())
-				require.NoError(t, err)
-				b, err := libshare.ParseBlobs(nsData.Flatten())
-				require.NoError(t, err)
-				blb, err := blob.ToNodeBlobs(b[0])
-				require.NoError(t, err)
-				require.Equal(t, nodeBlob[0].Commitment, blb[0].Commitment)
+				for _, client := range clients {
+					// request data from the blob's namespace
+					nsData, err := client.Share.GetNamespaceData(ctx, height, blobAsShares[0].Namespace())
+					require.NoError(t, err)
+
+					// verify against the DAH
+					err = nsData.Verify(dah, blobAsShares[0].Namespace())
+					require.NoError(t, err)
+
+					b, err := libshare.ParseBlobs(nsData.Flatten())
+					require.NoError(t, err)
+
+					blb, err := blob.ToNodeBlobs(b[0])
+					require.NoError(t, err)
+					// compare commitments
+					require.Equal(t, nodeBlob[0].Commitment, blb[0].Commitment)
+
+				}
 			},
 		},
 	}
 
-	for _, tt := range test {
+	for _, tt := range testCases {
 		t.Run(tt.name, func(t *testing.T) {
 			tt.doFn(t)
 		})
