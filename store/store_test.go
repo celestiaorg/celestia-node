@@ -277,10 +277,14 @@ func TestEDSStore(t *testing.T) {
 		square, roots := randomEDS(t)
 		randHeight := uint64(8)
 
+		has, err := edsStore.HasQ4ByHash(ctx, roots.Hash())
+		require.NoError(t, err)
+		assert.False(t, has)
+
 		err = edsStore.PutODSQ4(ctx, roots, randHeight, square)
 		require.NoError(t, err)
 
-		has, err := edsStore.HasQ4ByHash(ctx, roots.Hash())
+		has, err = edsStore.HasQ4ByHash(ctx, roots.Hash())
 		require.NoError(t, err)
 		assert.True(t, has)
 
