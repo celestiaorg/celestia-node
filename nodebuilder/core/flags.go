@@ -9,7 +9,7 @@ import (
 
 var (
 	coreFlag           = "core.ip"
-	coreGRPCFlag       = "core.grpc.port"
+	coreGRPCFlag       = "core.port"
 	coreTLS            = "core.tls"
 	coreXTokenPathFlag = "core.xtoken.path" //nolint:gosec
 )
