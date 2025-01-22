@@ -8,8 +8,8 @@ import (
 )
 
 var (
-	coreFlag           = "core.ip"
-	coreGRPCFlag       = "core.port"
+	coreIPFlag         = "core.ip"
+	corePortFlag       = "core.port"
 	coreTLS            = "core.tls"
 	coreXTokenPathFlag = "core.xtoken.path" //nolint:gosec
 )
@@ -19,14 +19,14 @@ func Flags() *flag.FlagSet {
 	flags := &flag.FlagSet{}
 
 	flags.String(
-		coreFlag,
+		coreIPFlag,
 		"",
 		"Indicates node to connect to the given core node. "+
 			"Example: <ip>, 127.0.0.1. <dns>, subdomain.domain.tld "+
 			"Assumes gRPC port 9090 as default unless otherwise specified.",
 	)
 	flags.String(
-		coreGRPCFlag,
+		corePortFlag,
 		DefaultPort,
 		"Set a custom gRPC port for the core node connection. The --core.ip flag must also be provided.",
 	)
@@ -51,16 +51,16 @@ func ParseFlags(
 	cmd *cobra.Command,
 	cfg *Config,
 ) error {
-	coreIP := cmd.Flag(coreFlag).Value.String()
+	coreIP := cmd.Flag(coreIPFlag).Value.String()
 	if coreIP == "" {
-		if cmd.Flag(coreGRPCFlag).Changed {
+		if cmd.Flag(corePortFlag).Changed {
 			return fmt.Errorf("cannot specify gRPC port without specifying an IP address for --core.ip")
 		}
 		return nil
 	}
 
-	if cmd.Flag(coreGRPCFlag).Changed {
-		grpc := cmd.Flag(coreGRPCFlag).Value.String()
+	if cmd.Flag(corePortFlag).Changed {
+		grpc := cmd.Flag(corePortFlag).Value.String()
 		cfg.Port = grpc
 	}
 

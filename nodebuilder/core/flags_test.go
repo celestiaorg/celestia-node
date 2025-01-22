@@ -73,7 +73,7 @@ func TestParseFlags(t *testing.T) {
 			expectError: false,
 		},
 		{
-			name: "core.ip and core.grpc.port",
+			name: "core.ip and core.port",
 			args: []string{"--core.ip=127.0.0.1", "--core.port=54321"},
 			inputCfg: Config{
 				Port: DefaultPort,
