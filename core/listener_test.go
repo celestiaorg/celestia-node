@@ -2,8 +2,6 @@ package core
 
 import (
 	"context"
-	"os"
-	"path/filepath"
 	"testing"
 	"time"
 
@@ -134,9 +132,9 @@ func TestListener_DoesNotStoreHistoric(t *testing.T) {
 		assert.False(t, has)
 
 		// ensure .q4 file was not stored
-		fp := filepath.Join(t.TempDir(), "blocks", hash.String()) + ".q4"
-		_, err = os.Open(fp)
-		assert.True(t, os.IsNotExist(err))
+		has, err = store.HasQ4ByHash(ctx, hash)
+		require.NoError(t, err)
+		assert.False(t, has)
 	}
 }
 
