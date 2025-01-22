@@ -211,7 +211,8 @@ func (ca *CoreAccessor) SubmitPayForBlob(
 	libBlobs []*libshare.Blob,
 	cfg *TxConfig,
 ) (*TxResponse, error) {
-	if err := ca.setupTxClient(ctx); err != nil {
+	client, err := ca.getTxClient(ctx)
+	if err != nil {
 		return nil, err
 	}
 
@@ -249,7 +250,7 @@ func (ca *CoreAccessor) SubmitPayForBlob(
 
 	accName := ca.defaultSignerAccount
 	if !signer.Equals(ca.defaultSignerAddress) {
-		account := ca.client.AccountByAddress(signer)
+		account := client.AccountByAddress(signer)
 		if account == nil {
 			return nil, fmt.Errorf("account for signer %s not found", signer)
 		}
@@ -263,7 +264,7 @@ func (ca *CoreAccessor) SubmitPayForBlob(
 			opts = append(opts, feeGrant)
 		}
 
-		response, err := ca.client.SubmitPayForBlobWithAccount(ctx, accName, libBlobs, opts...)
+		response, err := client.SubmitPayForBlobWithAccount(ctx, accName, libBlobs, opts...)
 		// Network min gas price can be updated through governance in app
 		// If that's the case, we parse the insufficient min gas price error message and update the gas price
 		if apperrors.IsInsufficientMinGasPrice(err) {
@@ -611,12 +612,22 @@ func (ca *CoreAccessor) setupTxClient(ctx context.Context) error {
 	return nil
 }
 
+func (ca *CoreAccessor) getTxClient(ctx context.Context) (*user.TxClient, error) {
+	if ca.client == nil {
+		err := ca.setupTxClient(ctx)
+		if err != nil {
+			return nil, err
+		}
+	}
+	return ca.client, nil
+}
+
 func (ca *CoreAccessor) submitMsg(
 	ctx context.Context,
 	msg sdktypes.Msg,
 	cfg *TxConfig,
 ) (*TxResponse, error) {
-	err := ca.setupTxClient(ctx)
+	client, err := ca.getTxClient(ctx)
 	if err != nil {
 		return nil, err
 	}
@@ -625,7 +636,7 @@ func (ca *CoreAccessor) submitMsg(
 	gas := cfg.GasLimit()
 
 	if gas == 0 {
-		gas, err = estimateGas(ctx, ca.client, msg)
+		gas, err = estimateGas(ctx, client, msg)
 		if err != nil {
 			return nil, fmt.Errorf("estimating gas: %w", err)
 		}
@@ -646,7 +657,7 @@ func (ca *CoreAccessor) submitMsg(
 		txConfig = append(txConfig, user.SetFeeGranter(granter))
 	}
 
-	resp, err := ca.client.SubmitTx(ctx, []sdktypes.Msg{msg}, txConfig...)
+	resp, err := client.SubmitTx(ctx, []sdktypes.Msg{msg}, txConfig...)
 	return convertToSdkTxResponse(resp), err
 }
 
