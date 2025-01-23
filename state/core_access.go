@@ -19,8 +19,6 @@ import (
 	"github.com/tendermint/tendermint/crypto/merkle"
 	"github.com/tendermint/tendermint/proto/tendermint/crypto"
 	"google.golang.org/grpc"
-	"google.golang.org/grpc/connectivity"
-	"google.golang.org/grpc/credentials/insecure"
 
 	"github.com/celestiaorg/celestia-app/v3/app"
 	"github.com/celestiaorg/celestia-app/v3/app/encoding"
@@ -41,10 +39,6 @@ var (
 
 	log = logging.Logger("state")
 )
-
-// Option is the functional option that is applied to the coreAccessor instance
-// to configure parameters.
-type Option func(ca *CoreAccessor)
 
 // CoreAccessor implements service over a gRPC connection
 // with a celestia-core node.
@@ -67,8 +61,6 @@ type CoreAccessor struct {
 	prt *merkle.ProofRuntime
 
 	coreConn *grpc.ClientConn
-	coreIP   string
-	grpcPort string
 	network  string
 
 	// these fields are mutatable and thus need to be protected by a mutex
@@ -89,10 +81,8 @@ func NewCoreAccessor(
 	keyring keyring.Keyring,
 	keyname string,
 	getter libhead.Head[*header.ExtendedHeader],
-	coreIP,
-	grpcPort string,
+	conn *grpc.ClientConn,
 	network string,
-	options ...Option,
 ) (*CoreAccessor, error) {
 	// create verifier
 	prt := merkle.DefaultProofRuntime()
@@ -113,46 +103,18 @@ func NewCoreAccessor(
 		defaultSignerAccount: keyname,
 		defaultSignerAddress: addr,
 		getter:               getter,
-		coreIP:               coreIP,
-		grpcPort:             grpcPort,
 		prt:                  prt,
+		coreConn:             conn,
 		network:              network,
-	}
-
-	for _, opt := range options {
-		opt(ca)
 	}
 	return ca, nil
 }
 
 func (ca *CoreAccessor) Start(ctx context.Context) error {
-	if ca.coreConn != nil {
-		return fmt.Errorf("core-access: already connected to core endpoint")
-	}
 	ca.ctx, ca.cancel = context.WithCancel(context.Background())
-
-	// dial given celestia-core endpoint
-	endpoint := fmt.Sprintf("%s:%s", ca.coreIP, ca.grpcPort)
-	client, err := grpc.NewClient(
-		endpoint,
-		grpc.WithTransportCredentials(insecure.NewCredentials()),
-	)
-	if err != nil {
-		return err
-	}
-	// this ensures we can't start the node without core connection
-	client.Connect()
-	if !client.WaitForStateChange(ctx, connectivity.Ready) {
-		// hits the case when context is canceled
-		return fmt.Errorf("couldn't connect to core endpoint(%s): %w", endpoint, ctx.Err())
-	}
-
-	ca.coreConn = client
-
 	// create the staking query client
 	ca.stakingCli = stakingtypes.NewQueryClient(ca.coreConn)
 	ca.feeGrantCli = feegrant.NewQueryClient(ca.coreConn)
-
 	// create ABCI query client
 	ca.abciQueryCli = tmservice.NewServiceClient(ca.coreConn)
 	resp, err := ca.abciQueryCli.GetNodeInfo(ctx, &tmservice.GetNodeInfoRequest{})
@@ -178,29 +140,8 @@ func (ca *CoreAccessor) Start(ctx context.Context) error {
 }
 
 func (ca *CoreAccessor) Stop(context.Context) error {
-	if ca.cancel == nil {
-		log.Warn("core accessor already stopped")
-		return nil
-	}
-	if ca.coreConn == nil {
-		log.Warn("no connection found to close")
-		return nil
-	}
-	defer ca.cancelCtx()
-
-	// close out core connection
-	err := ca.coreConn.Close()
-	if err != nil {
-		return err
-	}
-
-	ca.coreConn = nil
-	return nil
-}
-
-func (ca *CoreAccessor) cancelCtx() {
 	ca.cancel()
-	ca.cancel = nil
+	return nil
 }
 
 // SubmitPayForBlob builds, signs, and synchronously submits a MsgPayForBlob with additional

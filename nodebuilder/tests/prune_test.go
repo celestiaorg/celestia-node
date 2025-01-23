@@ -6,6 +6,7 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"net"
 	"testing"
 	"time"
 
@@ -183,9 +184,12 @@ func TestDisallowConvertFromPrunedToArchival(t *testing.T) {
 	for _, nt := range []node.Type{node.Bridge, node.Full} {
 		pruningCfg := nodebuilder.DefaultConfig(nt)
 		pruningCfg.Pruner.EnableService = true
+		var err error
+		pruningCfg.Core.IP, pruningCfg.Core.Port, err = net.SplitHostPort(sw.ClientContext.GRPCClient.Target())
+		require.NoError(t, err)
 		store := nodebuilder.MockStore(t, pruningCfg)
 		pruningNode := sw.MustNewNodeWithStore(nt, store)
-		err := pruningNode.Start(ctx)
+		err = pruningNode.Start(ctx)
 		require.NoError(t, err)
 		err = pruningNode.Stop(ctx)
 		require.NoError(t, err)
