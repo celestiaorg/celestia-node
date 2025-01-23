@@ -32,6 +32,9 @@ func TestSubmitPayForBlob(t *testing.T) {
 	t.Cleanup(func() {
 		_ = ca.Stop(ctx)
 	})
+	// explicitly reset client to nil to ensure
+	// that retry mechanism works.
+	ca.client = nil
 
 	ns, err := libshare.NewV0Namespace([]byte("namespace"))
 	require.NoError(t, err)
