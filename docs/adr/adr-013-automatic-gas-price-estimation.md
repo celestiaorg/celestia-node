@@ -16,7 +16,7 @@ This ADR defines how the go light node will interact with the service as a clien
 
 ## Decision
 
-Allow users of Celestia nodes to opt in to automatic gas price and gas usage estimation for every write method
+Allow users of Celestia nodes to opt in to automatic gas price and gas usage estimation for every write method.
 
 ## Detailed Design
 
@@ -34,11 +34,11 @@ For all other messages (or combination of messages), the node will call the `Gas
 
 ### Setting guardrails
 
-A new field in the `TxConfig` will be introduced allowing for a user to  use the gas price estimation but setting a maximum gas price as a cap that the user is willing to pay. If the price returned by the estimator is greater than the cap, likely due to a price spike, an error will be returned informing the user that the gas price required is currently greater than the user is willing to pay
+A new field in the `TxConfig` will be introduced allowing for a user to  use the gas price estimation but setting a maximum gas price as a cap that the user is willing to pay. If the price returned by the estimator is greater than the cap, likely due to a price spike, an error will be returned informing the user that the gas price required is currently greater than the user is willing to pay. If the user doesn't specify a cap, a hardcoded value that is 100x the default min gas price will be used (i.e. 0.2 utia).
 
 ### Defaults
 
-By default, the same consensus node that the node is connected with, should be used as the `GasEstimator`. During construction, a user can optionally provide a grpc address that can be used instead.
+By default, the same consensus node that the node is connected with, should be used as the `GasEstimator`. During construction, a user can optionally provide a grpc address that can be used instead. This will require a new config field in the `state` config that can specify addr of estimator service.
 
 ### Fallback
 
@@ -52,11 +52,12 @@ There has been some discussion of a pricing mechanism built in to the protocol. 
 
 ### Positive
 
-- Light nodes should 
+- Light nodes should be able to automatically adjust to congestion so long as it falls under the maximum they are willing to pay.
 
 ### Negative
 
 - Extra round trip with either the consensus node or someone offering the `GasEstimator` service before the transaction is submitted
+- Reliance on a third party service which could become unavailable.
 
 ### Neutral
 
