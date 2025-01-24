@@ -16,6 +16,7 @@ import (
 	"github.com/celestiaorg/celestia-node/share/availability/full"
 	"github.com/celestiaorg/celestia-node/share/availability/light"
 	"github.com/celestiaorg/celestia-node/share/shwap"
+	"github.com/celestiaorg/celestia-node/share/shwap/p2p/bitswap"
 	"github.com/celestiaorg/celestia-node/share/shwap/p2p/shrex/peers"
 	"github.com/celestiaorg/celestia-node/share/shwap/p2p/shrex/shrex_getter"
 	"github.com/celestiaorg/celestia-node/share/shwap/p2p/shrex/shrexeds"
@@ -69,14 +70,26 @@ func bitswapComponents(tp node.Type, cfg *Config) fx.Option {
 	case node.Light:
 		return fx.Options(
 			opts,
-			fx.Provide(blockstoreFromDatastore),
+			fx.Provide(
+				fx.Annotate(
+					blockstoreFromDatastore,
+					fx.As(fx.Self()),
+					fx.As(new(blockstore.Blockstore)),
+				),
+			),
 		)
 	case node.Full, node.Bridge:
 		return fx.Options(
 			opts,
-			fx.Provide(func(store *store.Store) (blockstore.Blockstore, error) {
-				return blockstoreFromEDSStore(store, int(cfg.BlockStoreCacheSize))
-			}),
+			fx.Provide(
+				fx.Annotate(
+					func(store *store.Store) (*bitswap.BlockstoreWithMetrics, error) {
+						return blockstoreFromEDSStore(store, int(cfg.BlockStoreCacheSize))
+					},
+					fx.As(fx.Self()),
+					fx.As(new(blockstore.Blockstore)),
+				),
+			),
 		)
 	default:
 		panic("invalid node type")
