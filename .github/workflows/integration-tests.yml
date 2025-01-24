@@ -130,7 +130,7 @@ jobs:
         run: make test-integration SHORT=true TAGS=sync
 
   pruning_tests:
-    name: Integration Tests Sync
+    name: Integration Tests Pruning
     runs-on: ubuntu-latest
 
     steps:
