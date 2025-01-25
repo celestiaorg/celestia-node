@@ -59,11 +59,7 @@ func allowList(ctx context.Context, cfg *Config, bootstrappers Bootstrappers) (r
 }
 
 func traceReporter() rcmgr.Option {
-	str, err := rcmgr.NewStatsTraceReporter()
-	if err != nil {
-		panic(err) // err is always nil as per sources
-	}
-
+	str := rcmgr.NewStatsTraceReporter()
 	return rcmgr.WithTraceReporter(str)
 }
 
