@@ -367,8 +367,8 @@ github.com/celestiaorg/go-square/v2 v2.1.0 h1:ECIvYEeHIWiIJGDCJxQNtzqm5DmnBly7XG
 github.com/celestiaorg/go-square/v2 v2.1.0/go.mod h1:n3ztrh8CBjWOD6iWYMo3pPOlQIgzLK9yrnqMPcNo6g8=
 github.com/celestiaorg/merkletree v0.0.0-20230308153949-c33506a7aa26 h1:P2RI1xJ49EZ8cuHMcH+ZSBonfRDtBS8OS9Jdt1BWX3k=
 github.com/celestiaorg/merkletree v0.0.0-20230308153949-c33506a7aa26/go.mod h1:2m8ukndOegwB0PU0AfJCwDUQHqd7QQRlSXvQL5VToVY=
-github.com/celestiaorg/nmt v0.22.2 h1:JmOMtZL9zWAed1hiwb9DDs+ELcKp/ZQZ3rPverge/V8=
-github.com/celestiaorg/nmt v0.22.2/go.mod h1:/7huDiSRL/d2EGhoiKctgSzmLOJoWG8yEfbFtY1+Mow=
+github.com/celestiaorg/nmt v0.23.0 h1:cfYy//hL1HeDSH0ub3CPlJuox5U5xzgg4JGZrw23I/I=
+github.com/celestiaorg/nmt v0.23.0/go.mod h1:kYfIjRq5rmA2mJnv41GLWkxn5KyLNPlma3v5Q68rHdI=
 github.com/celestiaorg/rsmt2d v0.14.0 h1:L7XJ3tRJDY8sQcvCjzHq0L7JmsmaSD+VItymIYFLqYc=
 github.com/celestiaorg/rsmt2d v0.14.0/go.mod h1:4kxqiTdFev49sGiKXTDjohbWYOG5GlcIfftTgaBJnpc=
 github.com/cenkalti/backoff v2.2.1+incompatible h1:tNowT99t7UNflLxfYYSlKYsBpXdEet03Pg2g16Swow4=
