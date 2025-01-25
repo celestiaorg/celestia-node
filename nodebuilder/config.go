@@ -27,16 +27,45 @@ type ConfigLoader func() (*Config, error)
 // Config is main configuration structure for a Node.
 // It combines configuration units for all Node subsystems.
 type Config struct {
-	Node    node.Config
-	Core    core.Config
-	State   state.Config
-	P2P     p2p.Config
-	RPC     rpc.Config
+	// Node contains basic node configuration settings including the node type,
+	// store directory, and other core node parameters
+	Node node.Config
+
+	// Core manages the configuration for the core celestia node functionality,
+	// including block synchronization and validation settings
+	Core core.Config
+
+	// State handles configuration related to the node's state management,
+	// including state synchronization and storage settings
+	State state.Config
+
+	// P2P configures the peer-to-peer networking layer, including discovery
+	// mechanisms, connection limits, and protocol settings
+	P2P p2p.Config
+
+	// RPC defines the configuration for the node's RPC server, including
+	// endpoints, authentication, and rate limiting settings
+	RPC rpc.Config
+
+	// Gateway configures the gateway service that provides access to the
+	// node's functionality through standardized interfaces
 	Gateway gateway.Config
-	Share   share.Config
-	Header  header.Config
-	DASer   das.Config `toml:",omitempty"`
-	Pruner  pruner.Config
+
+	// Share manages configuration for share processing and storage,
+	// including data availability sampling parameters
+	Share share.Config
+
+	// Header contains configuration for header processing and validation,
+	// including synchronization settings and storage parameters
+	Header header.Config
+
+	// DASer configures the Data Availability Sampling (DAS) service,
+	// which is only present in Light and Full nodes
+	DASer das.Config `toml:",omitempty"`
+
+	// Pruner manages configuration for the pruning service that removes
+	// old data to optimize storage usage
+	Pruner pruner.Config
 }
 
 // DefaultConfig provides a default Config for a given Node Type 'tp'.
