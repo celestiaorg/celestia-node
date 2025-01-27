@@ -126,20 +126,19 @@ func (rndb *RangeNamespaceDataBlock) UnmarshalFn(root *share.AxisRoots) Unmarsha
 			return fmt.Errorf("requested %+v doesnt match given %+v", rndb.ID, rndid)
 		}
 
-		var rnd shwappb.NamespaceData
+		var rnd shwappb.RangeNamespaceData
 		if err := rnd.Unmarshal(cntrData); err != nil {
 			return fmt.Errorf("unmarshaling RangeNamespaceData for %+v: %w", rndb.ID, err)
 		}
 
-		nsData, err := shwap.NamespaceDataFromProto(&rnd)
+		rangeNsData, err := shwap.RangeNamespaceDataFromProto(&rnd)
 		if err != nil {
 			return fmt.Errorf("unmarshaling RangeNamespaceData for %+v: %w", rndb.ID, err)
 		}
-		cntr := shwap.RangeNamespaceData{NamespaceData: nsData}
-		if err := cntr.Validate(root, &rndid); err != nil {
+		if err := rangeNsData.Verify(root, &rndid); err != nil {
 			return fmt.Errorf("validating RangeNamespaceData for %+v: %w", rndb.ID, err)
 		}
-		rndb.Container = cntr
+		rndb.Container = *rangeNsData
 		return nil
 	}
 }

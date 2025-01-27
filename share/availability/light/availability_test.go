@@ -321,7 +321,7 @@ func (g successGetter) GetNamespaceData(
 	panic("not implemented")
 }
 
-func (g successGetter) GetSharesRange(
+func (g successGetter) GetRangeNamespaceData(
 	_ context.Context,
 	_ *header.ExtendedHeader,
 	_ libshare.Namespace,

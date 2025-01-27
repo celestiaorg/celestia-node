@@ -2,7 +2,6 @@ package bitswap
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"sync"
 	"time"
@@ -269,7 +268,7 @@ func (g *Getter) GetNamespaceData(
 	return nsShrs, nil
 }
 
-func (g *Getter) GetSharesRange(
+func (g *Getter) GetRangeNamespaceData(
 	ctx context.Context,
 	hdr *header.ExtendedHeader,
 	ns libshare.Namespace,
@@ -303,12 +302,7 @@ func (g *Getter) GetSharesRange(
 		span.SetStatus(codes.Error, "Fetch")
 		return shwap.RangeNamespaceData{}, err
 	}
-
-	for _, blk := range blks {
-		rnd := blk.(*RangeNamespaceDataBlock).Container
-		return rnd, nil
-	}
-	return shwap.RangeNamespaceData{}, errors.New("no data inside block")
+	return blks[0].(*RangeNamespaceDataBlock).Container, nil
 }
 
 // isArchival reports whether the header is for archival data

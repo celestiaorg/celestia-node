@@ -48,7 +48,7 @@ type Getter interface {
 	// Verify method.
 	GetNamespaceData(context.Context, *header.ExtendedHeader, libshare.Namespace) (NamespaceData, error)
 
-	GetSharesRange(
+	GetRangeNamespaceData(
 		_ context.Context,
 		_ *header.ExtendedHeader,
 		_ libshare.Namespace,

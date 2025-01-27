@@ -29,8 +29,8 @@ func (nd NamespaceData) Flatten() []libshare.Share {
 	return shares
 }
 
-// Validate checks the integrity of the NamespaceData against a provided root and namespace.
-func (nd NamespaceData) Validate(root *share.AxisRoots, namespace libshare.Namespace) error {
+// Verify checks the integrity of the NamespaceData against a provided root and namespace.
+func (nd NamespaceData) Verify(root *share.AxisRoots, namespace libshare.Namespace) error {
 	rowIdxs, err := share.RowsWithNamespace(root, namespace)
 	if err != nil {
 		return err

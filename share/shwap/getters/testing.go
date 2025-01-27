@@ -93,13 +93,13 @@ func (seg *SingleEDSGetter) GetNamespaceData(context.Context, *header.ExtendedHe
 	panic("SingleEDSGetter: GetNamespaceData is not implemented")
 }
 
-func (seg *SingleEDSGetter) GetSharesRange(
+func (seg *SingleEDSGetter) GetRangeNamespaceData(
 	_ context.Context,
 	_ *header.ExtendedHeader,
 	_ libshare.Namespace,
 	_, _ shwap.SampleCoords,
 ) (shwap.RangeNamespaceData, error) {
-	panic("SingleEDSGetter: GetSharesRange is not implemented")
+	panic("SingleEDSGetter: GetRangeNamespaceData is not implemented")
 }
 
 func (seg *SingleEDSGetter) checkRoots(roots *share.AxisRoots) error {

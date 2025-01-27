@@ -34,6 +34,6 @@ func TestRangeNamespaceData_FetchRoundtrip(t *testing.T) {
 
 	roots, err := share.NewAxisRoots(eds)
 	require.NoError(t, err)
-	err = blk.Container.Validate(roots, &blk.ID)
+	err = blk.Container.Verify(roots, &blk.ID)
 	require.NoError(t, err)
 }

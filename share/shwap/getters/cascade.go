@@ -102,19 +102,19 @@ func (cg *CascadeGetter) GetNamespaceData(
 	return cascadeGetters(ctx, cg.getters, get)
 }
 
-func (cg *CascadeGetter) GetSharesRange(
+func (cg *CascadeGetter) GetRangeNamespaceData(
 	ctx context.Context,
 	header *header.ExtendedHeader,
 	namespace libshare.Namespace,
 	from, to shwap.SampleCoords,
 ) (shwap.RangeNamespaceData, error) {
-	ctx, span := tracer.Start(ctx, "cascade/get-shares-by-namespace", trace.WithAttributes(
+	ctx, span := tracer.Start(ctx, "cascade/get-shares-range", trace.WithAttributes(
 		attribute.String("namespace", namespace.String()),
 	))
 	defer span.End()
 
 	get := func(ctx context.Context, get shwap.Getter) (shwap.RangeNamespaceData, error) {
-		return get.GetSharesRange(ctx, header, namespace, from, to)
+		return get.GetRangeNamespaceData(ctx, header, namespace, from, to)
 	}
 
 	return cascadeGetters(ctx, cg.getters, get)

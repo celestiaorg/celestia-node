@@ -260,6 +260,7 @@ func (c *proofsCache) RangeNamespaceData(
 	ns libshare.Namespace,
 	from, to shwap.SampleCoords,
 ) (shwap.RangeNamespaceData, error) {
+	// TODO(@vgonkivs): implement caching here
 	return c.inner.RangeNamespaceData(ctx, ns, from, to)
 }
 

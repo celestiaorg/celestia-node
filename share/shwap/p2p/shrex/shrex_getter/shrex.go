@@ -273,7 +273,7 @@ func (sg *Getter) GetNamespaceData(
 		switch {
 		case getErr == nil:
 			// both inclusion and non-inclusion cases needs verification
-			if verErr := nd.Validate(dah, namespace); verErr != nil {
+			if verErr := nd.Verify(dah, namespace); verErr != nil {
 				getErr = verErr
 				setStatus(peers.ResultBlacklistPeer)
 				break
@@ -306,7 +306,7 @@ func (sg *Getter) GetNamespaceData(
 	}
 }
 
-func (sg *Getter) GetSharesRange(
+func (sg *Getter) GetRangeNamespaceData(
 	_ context.Context,
 	_ *header.ExtendedHeader,
 	_ libshare.Namespace,

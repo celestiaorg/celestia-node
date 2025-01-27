@@ -25,7 +25,7 @@ type RangeNamespaceData struct {
 }
 
 // RangedNamespaceDataFromShares builds a range of namespaced data for the given coordinates:
-// shares is a list of shares(grouped by the rows) relative to the data square and
+// shares is a list of shares (grouped by the rows) relative to the data square and
 // needed to build the range;
 // namespace is the target namespace for the built range;
 // from is the coordinates of the first share of the range within the EDS.
@@ -46,8 +46,26 @@ func RangedNamespaceDataFromShares(
 	odsSize := len(shares[0]) / 2
 	nsData := make([]RowNamespaceData, 0, len(shares))
 	for i, row := 0, from.Row; i < len(shares); i++ {
-		tree := wrapper.NewErasuredNamespacedMerkleTree(uint64(odsSize), uint(row))
+		rowShares := shares[i]
+		// end index will be explicitly set only for the last row in range.
+		// in other cases, it will be equal to the odsSize.
+		exclusiveEnd := odsSize
+		if i == len(shares)-1 {
+			// `to.Col` is an inclusive index
+			exclusiveEnd = to.Col + 1
+		}
 
+		// ensure that all shares from the range belong to the requested namespace
+		for offset := range rowShares[from.Col:exclusiveEnd] {
+			if !namespace.Equals(rowShares[from.Col+offset].Namespace()) {
+				return RangeNamespaceData{},
+					fmt.Errorf("targeted namespace was not found in share at {Row: %d, Col: %d}",
+						row, from.Col+offset,
+					)
+			}
+		}
+
+		tree := wrapper.NewErasuredNamespacedMerkleTree(uint64(odsSize), uint(row))
 		nmtTree := nmt.New(
 			appconsts.NewBaseHashFunc(),
 			nmt.NamespaceIDSize(libshare.NamespaceSize),
@@ -55,8 +73,7 @@ func RangedNamespaceDataFromShares(
 		)
 		tree.SetTree(nmtTree)
 
-		shrs := shares[i]
-		for _, shr := range shrs {
+		for _, shr := range rowShares {
 			if err := tree.Push(shr.ToBytes()); err != nil {
 				return RangeNamespaceData{}, fmt.Errorf("failed to build tree for row %d: %w", row, err)
 			}
@@ -75,30 +92,12 @@ func RangedNamespaceDataFromShares(
 			return RangeNamespaceData{}, ErrNamespaceOutsideRange
 		}
 
-		// end index will be explicitly set only for the last row in range.
-		// in other cases, it will be equal to the odsSize.
-		end := odsSize
-		if i == len(shares)-1 {
-			// `to.Col` is an inclusive index
-			end = to.Col + 1
-		}
-
-		// ensure that all shares from the range belong to the requested namespace
-		for offset := range shrs[from.Col:end] {
-			if !namespace.Equals(shrs[from.Col+offset].Namespace()) {
-				return RangeNamespaceData{},
-					fmt.Errorf("targeted namespace was not found in share at {Row: %d, Col:%d}",
-						row, from.Col+offset,
-					)
-			}
-		}
-
-		proof, err := tree.ProveRange(from.Col, end)
+		proof, err := tree.ProveRange(from.Col, exclusiveEnd)
 		if err != nil {
 			return RangeNamespaceData{}, err
 		}
 
-		nsData = append(nsData, RowNamespaceData{Shares: shrs[from.Col:end], Proof: &proof})
+		nsData = append(nsData, RowNamespaceData{Shares: rowShares[from.Col:exclusiveEnd], Proof: &proof})
 
 		// reset from.Col as we are moving to the next row.
 		from.Col = 0
@@ -107,9 +106,9 @@ func RangedNamespaceDataFromShares(
 	return RangeNamespaceData{nsData}, nil
 }
 
-// Validate performs a validation of the incoming data. It ensures that the response contains proofs and performs
+// Verify performs a validation of the incoming data. It ensures that the response contains proofs and performs
 // data validation in case the user has requested it.
-func (rngdata *RangeNamespaceData) Validate(root *share.AxisRoots, req *RangeNamespaceDataID) error {
+func (rngdata *RangeNamespaceData) Verify(root *share.AxisRoots, req *RangeNamespaceDataID) error {
 	_, err := rngdata.IsEmpty()
 	if err != nil {
 		return fmt.Errorf("RangeNamespaceData: empty data: %w", err)
@@ -173,8 +172,19 @@ func (rngdata RangeNamespaceData) IsEmpty() (bool, error) {
 	return false, nil
 }
 
-func (rngdata *RangeNamespaceData) ToProto() *pb.NamespaceData {
-	return rngdata.NamespaceData.ToProto()
+func (rngdata *RangeNamespaceData) ToProto() *pb.RangeNamespaceData {
+	return &pb.RangeNamespaceData{RangeNamespaceData: rngdata.NamespaceData.ToProto()}
+}
+
+func RangeNamespaceDataFromProto(nd *pb.RangeNamespaceData) (*RangeNamespaceData, error) {
+	if nd == nil {
+		return nil, errors.New("empty data provided")
+	}
+	nsRowData, err := NamespaceDataFromProto(nd.RangeNamespaceData)
+	if err != nil {
+		return nil, fmt.Errorf("failed to build namespace data from proto: %w", err)
+	}
+	return &RangeNamespaceData{NamespaceData: nsRowData}, nil
 }
 
 // ProveRange proves that a range of shares exist in the set of rows that are part of the merkle tree of the data root.

@@ -76,7 +76,7 @@ func TestRangeNamespaceData(t *testing.T) {
 			roots, err := extended.AxisRoots(context.Background())
 			require.NoError(t, err)
 
-			err = rngdata.Validate(roots, &dataID)
+			err = rngdata.Verify(roots, &dataID)
 			require.NoError(t, err)
 			proof := rngdata.ProveRange(axisRoots, nsRowStart)
 			err = proof.Validate(dataHash)

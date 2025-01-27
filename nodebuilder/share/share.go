@@ -197,7 +197,7 @@ func (m module) GetRange(
 		return nil, err
 	}
 
-	nData, err := m.getter.GetSharesRange(ctx, header, ns, fromCoords, toCoords)
+	nData, err := m.getter.GetRangeNamespaceData(ctx, header, ns, fromCoords, toCoords)
 	if err != nil {
 		return nil, err
 	}
@@ -231,27 +231,4 @@ func (m module) GetRow(ctx context.Context, height uint64, rowIdx int) (shwap.Ro
 		return shwap.Row{}, err
 	}
 	return m.getter.GetRow(ctx, header, rowIdx)
-}
-
-func (m module) GetSharesRange(
-	ctx context.Context,
-	ns libshare.Namespace,
-	height uint64,
-	from, to uint32,
-	proofsOnly bool,
-) (shwap.RangeNamespaceData, error) {
-	header, err := m.hs.GetByHeight(ctx, height)
-	if err != nil {
-		return shwap.RangeNamespaceData{}, err
-	}
-
-	fromCoords, err := shwap.SampleCoordsFrom1DIndex(int(from), len(header.DAH.RowRoots)/2)
-	if err != nil {
-		return shwap.RangeNamespaceData{}, err
-	}
-	toCoords, err := shwap.SampleCoordsFrom1DIndex(int(to), len(header.DAH.RowRoots)/2)
-	if err != nil {
-		return shwap.RangeNamespaceData{}, err
-	}
-	return m.getter.GetSharesRange(ctx, header, ns, fromCoords, toCoords, proofsOnly)
 }
