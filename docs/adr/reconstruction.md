@@ -43,7 +43,7 @@ The initial draft aims to be optimized in terms of engineering efforts required 
    - Block size scaling
    - Node count scaling
 
-### Protocol Flow 
+## Protocol Flow 
 
 Diagram below outlines the high-level flow of the proposed protocols. The detailed specifications are provided in the subsequent sections. Full flow diiagrams are available in the end of this document.
 ```
@@ -61,6 +61,14 @@ Diagram below outlines the high-level flow of the proposed protocols. The detail
 ```
 
 ## Core Components
+
+#### List of Core Components
+
+1. Decision engine 
+2. State management 
+3. Bitmap subscription protocol
+4. Samples retrieval protocol 
+5. Samples store (new file format)
 
 ### 1. Reconstruction Process
 There should be a global per-block coordinator process that will be responsible for managing the data request process.
@@ -130,7 +138,7 @@ func (s *ProgressState) InProgress() bitmap
 func (s *ProgressState) Have() bitmap
 ```
 
-## Bitmap Protocol
+### 3. Bitmap Protocol
 ### Client
 - Client should send a request to subscribe to bitmap updates
 - If the subscription gets closed or interrupted, client should re-subscribe
@@ -185,9 +193,9 @@ The protocol will use 32-bit encoding for bitmaps to have greater multi-language
 - C++: https://github.com/RoaringBitmap/CRoaring
 - Java: https://github.com/RoaringBitmap/RoaringBitmap
 
-## Samples Request Protocol
+### 4. Samples Request Protocol
 
-### Request
+#### Request
 
 - Use shrex for data retrieval
 - Send bitmap for data request. Bitmap should contain coordinates for requested samples
@@ -198,7 +206,7 @@ message SampleRequest {
 }
 ```
 
-### Response
+#### Response
 Server should respond with samples with proofs defined in shwap CIP [past link].
 ```protobuf
 message SamplesResponse {
@@ -211,7 +219,7 @@ message SamplesResponse {
   Each part contains packed samples in Range format
 - If both Row and column are requested, intersection share can be sent once
 
-## Storage Backend
+### 5. Storage Backend
 A new storage format needs to be implemented for efficient storage of sample proofs. The format will be
 initially used for storing ongoing reconstruction process and later can be used for light node storage.
 
@@ -233,13 +241,7 @@ In the lifespan of the protocol, it may require a coordinated network upgrade. I
 2. Transition period support
 3. Fallback mechanisms
 
-## List of Core Components
 
-1. Bitmap subscription protocol
-2. Decision engine and state management
-3. Client to request set of samples
-4. Samples store
-5. Samples server with packaging
 
 
 ## Full reconstruction process diagram
