@@ -1,0 +1,43 @@
+syntax = "proto3";
+
+package celestia.node.v1.types;
+
+option go_package = "github.com/celestiaorg/celestia-node/api/v1/types";
+
+import "common.proto";
+import "proof.proto";
+
+// Core data types
+message Share {
+  bytes data = 1;
+}
+
+message SquareRange {
+  uint32 start = 1;
+  uint32 end = 2;
+}
+
+message Blob {
+  bytes data = 1;
+  optional bytes signer = 2;
+  bytes commitment = 3;
+}
+
+message BlobWithProofV0 {
+  optional celestia.node.v1.types.Blob blob = 1;
+  repeated celestia.node.v1.proof.RowRootProof row_proofs = 2;
+  uint64 index = 3;  // index of the first share of the blob in the EDS
+}
+
+message BlobWithProofV1 {
+  optional celestia.node.v1.types.Blob blob = 1;
+  celestia.node.v1.proof.DataRootProof proof = 2;
+  uint64 index = 3;  // index of the first share of the blob in the EDS
+}
+
+// SharesWithProof is used in V0 verification approach with row roots
+message SharesWithProof {
+  // Shares should be from the same row
+  repeated celestia.node.v1.types.Share shares = 1;
+  celestia.node.v1.proof.RowRootProof row_proof = 2;      // NMT proof to the row root
+}
