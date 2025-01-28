@@ -146,7 +146,7 @@ func TestExchange_StoreHistoricIfArchival(t *testing.T) {
 	headers, err := ce.GetRangeByHeight(ctx, genHeader, 30)
 	require.NoError(t, err)
 
-	// ensure all "historic" EDSs were stored
+	// ensure all "historic" EDSs were stored but not the .q4 files
 	for _, h := range headers {
 		has, err := store.HasByHeight(ctx, h.Height())
 		require.NoError(t, err)
@@ -159,6 +159,11 @@ func TestExchange_StoreHistoricIfArchival(t *testing.T) {
 		has, err = store.HasByHash(ctx, h.DAH.Hash())
 		require.NoError(t, err)
 		assert.True(t, has)
+
+		// ensure .q4 file was not stored
+		has, err = store.HasQ4ByHash(ctx, h.DAH.Hash())
+		require.NoError(t, err)
+		assert.False(t, has)
 	}
 }
 
