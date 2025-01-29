@@ -10,9 +10,10 @@ import (
 	"github.com/tendermint/tendermint/types"
 
 	"github.com/celestiaorg/celestia-app/v3/pkg/wrapper"
+	libshare "github.com/celestiaorg/go-square/v2/share"
+
 	"github.com/celestiaorg/celestia-node/share"
 	"github.com/celestiaorg/celestia-node/share/shwap/pb"
-	libshare "github.com/celestiaorg/go-square/v2/share"
 )
 
 // RangeNamespaceData embeds `NamespaceData` and contains a contiguous range of shares
