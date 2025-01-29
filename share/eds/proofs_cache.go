@@ -255,13 +255,68 @@ func (c *proofsCache) Shares(ctx context.Context) ([]libshare.Share, error) {
 	return shares, nil
 }
 
+// RangeNamespaceData tries to find all complete rows in cache. For all incomplete rows,
+// it uses the inner accessor to build the namespace data
 func (c *proofsCache) RangeNamespaceData(
 	ctx context.Context,
 	ns libshare.Namespace,
 	from, to shwap.SampleCoords,
 ) (shwap.RangeNamespaceData, error) {
-	// TODO(@vgonkivs): implement caching here
-	return c.inner.RangeNamespaceData(ctx, ns, from, to)
+	odsSize := c.Size(ctx) / 2
+	nd := shwap.NamespaceData{}
+	fromRow, fromCol := from.Row, from.Col
+
+	// iterate over each row in the range [from.Row; to.Row].
+	// All complete rows, where from.Col = 0 and to.Col = odsSize-1 is
+	// requested using `RowNamespaceData` that uses cache.
+	// Other cases are handled using `RangeNamespaceData` as these rows are incomplete.
+	for ; fromRow <= to.Row; fromRow++ {
+		if fromRow != to.Row {
+			if fromCol == 0 {
+				rowData, err := c.RowNamespaceData(ctx, ns, fromRow)
+				if err != nil {
+					return shwap.RangeNamespaceData{}, err
+				}
+				nd = append(nd, rowData)
+				continue
+			}
+
+			rngData, err := c.inner.RangeNamespaceData(
+				ctx,
+				ns,
+				shwap.SampleCoords{Row: fromRow, Col: fromCol},
+				shwap.SampleCoords{Row: fromRow, Col: odsSize - 1},
+			)
+			if err != nil {
+				return shwap.RangeNamespaceData{}, err
+			}
+
+			nd = append(nd, rngData.NamespaceData...)
+			fromCol = 0
+			continue
+		}
+
+		if fromCol == 0 && to.Col == odsSize-1 {
+			rowData, err := c.RowNamespaceData(ctx, ns, fromRow)
+			if err != nil {
+				return shwap.RangeNamespaceData{}, err
+			}
+			nd = append(nd, rowData)
+			continue
+		}
+
+		rngData, err := c.inner.RangeNamespaceData(
+			ctx,
+			ns,
+			shwap.SampleCoords{Row: fromRow, Col: fromCol},
+			shwap.SampleCoords{Row: fromRow, Col: to.Col},
+		)
+		if err != nil {
+			return shwap.RangeNamespaceData{}, err
+		}
+		nd = append(nd, rngData.NamespaceData...)
+	}
+	return shwap.RangeNamespaceData{NamespaceData: nd}, nil
 }
 
 func (c *proofsCache) Reader() (io.Reader, error) {
