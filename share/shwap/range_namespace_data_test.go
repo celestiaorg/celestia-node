@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -18,8 +19,8 @@ import (
 
 func TestRangeNamespaceData(t *testing.T) {
 	const (
-		odsSize = 16
-		edsSize = odsSize * odsSize
+		odsSize      = 16
+		sharesAmount = odsSize * odsSize
 	)
 
 	ns := libshare.RandomNamespace()
@@ -61,7 +62,7 @@ func TestRangeNamespaceData(t *testing.T) {
 				ns,
 				shwap.SampleCoords{Row: nsRowStart, Col: col},
 				to,
-				edsSize,
+				sharesAmount,
 			)
 			require.NoError(t, err)
 
@@ -83,4 +84,82 @@ func TestRangeNamespaceData(t *testing.T) {
 			require.NoError(t, err)
 		})
 	}
+}
+
+func TestRangeCoordsFromIdx(t *testing.T) {
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second*5)
+	t.Cleanup(cancel)
+	const (
+		odsSize = 4
+		edsSize = odsSize * 2
+	)
+
+	ns := libshare.RandomNamespace()
+	square, _ := edstest.RandEDSWithNamespace(t, ns, odsSize*odsSize, odsSize)
+	rngLengths := []int{2, 7, 11, 15}
+	extended := &eds.Rsmt2D{ExtendedDataSquare: square}
+	for _, length := range rngLengths {
+		from, to, err := shwap.RangeCoordsFromIdx(0, length, edsSize)
+		require.NoError(t, err)
+		rngData, err := extended.RangeNamespaceData(ctx, ns, from, to)
+		require.NoError(t, err)
+		require.Equal(t, length, len(rngData.Flatten()))
+	}
+}
+
+func FuzzRangeCoordsFromIdx(f *testing.F) {
+	if testing.Short() {
+		f.Skip()
+	}
+
+	const (
+		odsSize = 16
+		edsSize = odsSize * 2
+	)
+
+	square := edstest.RandEDS(f, odsSize)
+	shrs := square.FlattenedODS()
+	assert.Equal(f, len(shrs), odsSize*odsSize)
+
+	f.Add(0, 3, edsSize)
+	f.Add(10, 14, edsSize)
+	f.Add(23, 30, edsSize)
+	f.Add(62, 3, edsSize)
+
+	f.Fuzz(func(t *testing.T, edsIndex, length, size int) {
+		if edsIndex < 0 || edsIndex >= edsSize*edsSize {
+			return
+		}
+
+		coords, err := shwap.SampleCoordsFrom1DIndex(edsIndex, edsSize)
+		require.NoError(t, err)
+		if coords.Row >= odsSize || coords.Col >= odsSize {
+			return
+		}
+
+		odsIndexStart := coords.Row*odsSize + coords.Col
+		if odsIndexStart+length >= odsSize*odsSize {
+			return
+		}
+
+		if length <= 0 || length >= odsSize*odsSize {
+			return
+		}
+		if size != edsSize {
+			return
+		}
+
+		from, to, err := shwap.RangeCoordsFromIdx(edsIndex, length, size)
+		require.NoError(t, err)
+		edsStartShare := square.GetCell(uint(from.Row), uint(from.Col))
+		edsEndShare := square.GetCell(uint(to.Row), uint(to.Col))
+
+		odsIndexStart = from.Row*odsSize + from.Col
+		odsIndexEnd := to.Row*odsSize + to.Col
+
+		odsStartShare := shrs[odsIndexStart]
+		odsEndShare := shrs[odsIndexEnd]
+		require.Equal(t, edsStartShare, odsStartShare)
+		require.Equal(t, edsEndShare, odsEndShare)
+	})
 }

@@ -223,3 +223,25 @@ func (rngdata *RangeNamespaceData) ProveRange(roots *share.AxisRoots, startRow i
 		NamespaceVersion: uint32(rngdata.NamespaceData[0].Shares[0].Namespace().Version()),
 	}
 }
+
+// RangeCoordsFromIdx accepts the start index and the length of the range and
+// computes `shwap.SampleCoords` of the first and the last sample of this range.
+// * edsIndex is the index of the first sample inside the eds;
+// * length is the amount of *ORIGINAL* samples that are expected to get(including the first sample);
+func RangeCoordsFromIdx(edsIndex, length, edsSize int) (SampleCoords, SampleCoords, error) {
+	from, err := SampleCoordsFrom1DIndex(edsIndex, edsSize)
+	if err != nil {
+		return SampleCoords{}, SampleCoords{}, err
+	}
+	odsIndex, err := SampleCoordsAs1DIndex(from, edsSize/2)
+	if err != nil {
+		return SampleCoords{}, SampleCoords{}, err
+	}
+
+	toInclusive := odsIndex + length - 1
+	toCoords, err := SampleCoordsFrom1DIndex(toInclusive, edsSize/2)
+	if err != nil {
+		return SampleCoords{}, SampleCoords{}, err
+	}
+	return from, toCoords, nil
+}
