@@ -70,7 +70,7 @@ func (mr *MockModuleMockRecorder) GetNamespaceData(arg0, arg1, arg2 interface{})
 }
 
 // GetRange mocks base method.
-func (m *MockModule) GetRange(arg0 context.Context, arg1 share0.Namespace, arg2 uint64, arg3, arg4 uint32, arg5 bool) (*share.Range, error) {
+func (m *MockModule) GetRange(arg0 context.Context, arg1 share0.Namespace, arg2 uint64, arg3, arg4 shwap.SampleCoords, arg5 bool) (*share.Range, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "GetRange", arg0, arg1, arg2, arg3, arg4, arg5)
 	ret0, _ := ret[0].(*share.Range)

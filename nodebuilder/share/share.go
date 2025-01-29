@@ -58,7 +58,7 @@ type Module interface {
 	) (shwap.NamespaceData, error)
 	// GetRange gets a list of shares and their corresponding proof.
 	GetRange(
-		ctx context.Context, ns libshare.Namespace, height uint64, from, to uint32, proofsOnly bool,
+		ctx context.Context, ns libshare.Namespace, height uint64, from, to shwap.SampleCoords, proofsOnly bool,
 	) (*Range, error)
 }
 
@@ -94,7 +94,7 @@ type API struct {
 			ctx context.Context,
 			ns libshare.Namespace,
 			height uint64,
-			from, to uint32,
+			from, to shwap.SampleCoords,
 			proofsOnly bool,
 		) (*Range, error) `perm:"read"`
 	}
@@ -123,7 +123,7 @@ func (api *API) GetRow(ctx context.Context, height uint64, rowIdx int) (shwap.Ro
 }
 
 func (api *API) GetRange(
-	ctx context.Context, ns libshare.Namespace, height uint64, from, to uint32, proofsOnly bool,
+	ctx context.Context, ns libshare.Namespace, height uint64, from, to shwap.SampleCoords, proofsOnly bool,
 ) (*Range, error) {
 	return api.Internal.GetRange(ctx, ns, height, from, to, proofsOnly)
 }
@@ -181,29 +181,24 @@ func (m module) SharesAvailable(ctx context.Context, height uint64) error {
 }
 
 func (m module) GetRange(
-	ctx context.Context, ns libshare.Namespace, height uint64, from, to uint32, proofsOnly bool,
+	ctx context.Context,
+	ns libshare.Namespace,
+	height uint64,
+	from, to shwap.SampleCoords,
+	proofsOnly bool,
 ) (*Range, error) {
 	header, err := m.hs.GetByHeight(ctx, height)
 	if err != nil {
 		return nil, err
 	}
 
-	fromCoords, err := shwap.SampleCoordsFrom1DIndex(int(from), len(header.DAH.RowRoots)/2)
-	if err != nil {
-		return nil, err
-	}
-	toCoords, err := shwap.SampleCoordsFrom1DIndex(int(to), len(header.DAH.RowRoots)/2)
-	if err != nil {
-		return nil, err
-	}
-
-	nData, err := m.getter.GetRangeNamespaceData(ctx, header, ns, fromCoords, toCoords)
+	nData, err := m.getter.GetRangeNamespaceData(ctx, header, ns, from, to)
 	if err != nil {
 		return nil, err
 	}
 
 	res := &Range{
-		Proof: nData.ProveRange(header.DAH, fromCoords.Row),
+		Proof: nData.ProveRange(header.DAH, from.Row),
 	}
 
 	if !proofsOnly {
