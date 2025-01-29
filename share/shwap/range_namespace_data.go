@@ -9,13 +9,10 @@ import (
 	coretypes "github.com/tendermint/tendermint/proto/tendermint/types"
 	"github.com/tendermint/tendermint/types"
 
-	"github.com/celestiaorg/celestia-app/v3/pkg/appconsts"
 	"github.com/celestiaorg/celestia-app/v3/pkg/wrapper"
-	libshare "github.com/celestiaorg/go-square/v2/share"
-	"github.com/celestiaorg/nmt"
-
 	"github.com/celestiaorg/celestia-node/share"
 	"github.com/celestiaorg/celestia-node/share/shwap/pb"
+	libshare "github.com/celestiaorg/go-square/v2/share"
 )
 
 // RangeNamespaceData embeds `NamespaceData` and contains a contiguous range of shares
@@ -37,10 +34,6 @@ func RangedNamespaceDataFromShares(
 ) (RangeNamespaceData, error) {
 	if len(shares) == 0 {
 		return RangeNamespaceData{}, fmt.Errorf("empty share list")
-	}
-	if from.Row > to.Row {
-		return RangeNamespaceData{},
-			fmt.Errorf("start row must be less or equal to end row: %d-%d", from.Row, to.Row)
 	}
 
 	odsSize := len(shares[0]) / 2
@@ -66,12 +59,6 @@ func RangedNamespaceDataFromShares(
 		}
 
 		tree := wrapper.NewErasuredNamespacedMerkleTree(uint64(odsSize), uint(row))
-		nmtTree := nmt.New(
-			appconsts.NewBaseHashFunc(),
-			nmt.NamespaceIDSize(libshare.NamespaceSize),
-			nmt.IgnoreMaxNamespace(true),
-		)
-		tree.SetTree(nmtTree)
 
 		for _, shr := range rowShares {
 			if err := tree.Push(shr.ToBytes()); err != nil {

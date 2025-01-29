@@ -3,6 +3,7 @@ package getters
 import (
 	"context"
 	"errors"
+	"fmt"
 	"time"
 
 	logging "github.com/ipfs/go-log/v2"
@@ -112,6 +113,11 @@ func (cg *CascadeGetter) GetRangeNamespaceData(
 		attribute.String("namespace", namespace.String()),
 	))
 	defer span.End()
+
+	if from.Row > to.Row {
+		return shwap.RangeNamespaceData{},
+			fmt.Errorf("start row must not be bigger to end row: %d-%d", from.Row, to.Row)
+	}
 
 	get := func(ctx context.Context, get shwap.Getter) (shwap.RangeNamespaceData, error) {
 		return get.GetRangeNamespaceData(ctx, header, namespace, from, to)
