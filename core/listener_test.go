@@ -130,6 +130,11 @@ func TestListener_DoesNotStoreHistoric(t *testing.T) {
 		has, err := store.HasByHash(ctx, hash)
 		require.NoError(t, err)
 		assert.False(t, has)
+
+		// ensure .q4 file was not stored
+		has, err = store.HasQ4ByHash(ctx, hash)
+		require.NoError(t, err)
+		assert.False(t, has)
 	}
 }
 
