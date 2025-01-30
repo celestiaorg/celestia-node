@@ -48,8 +48,8 @@ If you want to retain history beyond the sampling window, please pass the --arch
 
 	// Warn the user if pruning is disabled and archival is not enabled for Full and Bridge nodes
 	if !archivalChanged && (tp == node.Full || tp == node.Bridge) {
-		log.Warn(`WARNING: Pruning is disabled.
-Pruning will become the default mode for all nodes.
+		log.Warn(`WARNING: Node is now running in ARCHIVAL mode.
+PRUNING mode will become the default for all nodes.
 If you want to retain history beyond the sampling window, please pass the --archival flag.`)
 	}
 }
