@@ -3,6 +3,7 @@ package core
 import (
 	"context"
 	"fmt"
+	"net"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -20,24 +21,26 @@ func TestMakeExtendedHeaderForEmptyBlock(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	t.Cleanup(cancel)
 
-	client := StartTestNode(t).Client
-	fetcher := NewBlockFetcher(client)
-
+	host, port, err := net.SplitHostPort(StartTestNode(t).GRPCClient.Target())
+	require.NoError(t, err)
+	client := newTestClient(t, host, port)
+	fetcher, err := NewBlockFetcher(client)
+	require.NoError(t, err)
 	sub, err := fetcher.SubscribeNewBlockEvent(ctx)
 	require.NoError(t, err)
 	<-sub
 
 	height := int64(1)
-	b, err := fetcher.GetBlock(ctx, &height)
+	b, err := fetcher.GetBlock(ctx, height)
 	require.NoError(t, err)
 
-	comm, val, err := fetcher.GetBlockInfo(ctx, &height)
+	comm, val, err := fetcher.GetBlockInfo(ctx, height)
 	require.NoError(t, err)
 
 	eds, err := extendBlock(b.Data, b.Header.Version.App)
 	require.NoError(t, err)
 
-	headerExt, err := header.MakeExtendedHeader(&b.Header, comm, val, eds)
+	headerExt, err := header.MakeExtendedHeader(b.Header, comm, val, eds)
 	require.NoError(t, err)
 
 	assert.Equal(t, share.EmptyEDSRoots(), headerExt.DAH)

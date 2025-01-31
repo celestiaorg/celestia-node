@@ -3,6 +3,7 @@ package core
 import (
 	"bytes"
 	"context"
+	"net"
 	"testing"
 	"time"
 
@@ -34,7 +35,7 @@ func TestCoreExchange_RequestHeaders(t *testing.T) {
 
 	// initialize store with genesis block
 	genHeight := int64(1)
-	genBlock, err := fetcher.GetBlock(ctx, &genHeight)
+	genBlock, err := fetcher.GetBlock(ctx, genHeight)
 	require.NoError(t, err)
 	genHeader, err := ce.Get(ctx, genBlock.Header.Hash().Bytes())
 	require.NoError(t, err)
@@ -61,6 +62,7 @@ func TestCoreExchange_RequestHeaders(t *testing.T) {
 		require.NoError(t, err)
 		assert.True(t, has)
 	}
+	require.NoError(t, fetcher.Stop(ctx))
 }
 
 // TestExchange_DoNotStoreHistoric tests that the CoreExchange will not
@@ -87,7 +89,7 @@ func TestExchange_DoNotStoreHistoric(t *testing.T) {
 
 	// initialize store with genesis block
 	genHeight := int64(1)
-	genBlock, err := fetcher.GetBlock(ctx, &genHeight)
+	genBlock, err := fetcher.GetBlock(ctx, genHeight)
 	require.NoError(t, err)
 	genHeader, err := ce.Get(ctx, genBlock.Header.Hash().Bytes())
 	require.NoError(t, err)
@@ -136,7 +138,7 @@ func TestExchange_StoreHistoricIfArchival(t *testing.T) {
 
 	// initialize store with genesis block
 	genHeight := int64(1)
-	genBlock, err := fetcher.GetBlock(ctx, &genHeight)
+	genBlock, err := fetcher.GetBlock(ctx, genHeight)
 	require.NoError(t, err)
 	genHeader, err := ce.Get(ctx, genBlock.Header.Hash().Bytes())
 	require.NoError(t, err)
@@ -144,7 +146,7 @@ func TestExchange_StoreHistoricIfArchival(t *testing.T) {
 	headers, err := ce.GetRangeByHeight(ctx, genHeader, 30)
 	require.NoError(t, err)
 
-	// ensure all "historic" EDSs were stored
+	// ensure all "historic" EDSs were stored but not the .q4 files
 	for _, h := range headers {
 		has, err := store.HasByHeight(ctx, h.Height())
 		require.NoError(t, err)
@@ -157,6 +159,11 @@ func TestExchange_StoreHistoricIfArchival(t *testing.T) {
 		has, err = store.HasByHash(ctx, h.DAH.Hash())
 		require.NoError(t, err)
 		assert.True(t, has)
+
+		// ensure .q4 file was not stored
+		has, err = store.HasQ4ByHash(ctx, h.DAH.Hash())
+		require.NoError(t, err)
+		assert.False(t, has)
 	}
 }
 
@@ -166,7 +173,12 @@ func createCoreFetcher(t *testing.T, cfg *testnode.Config) (*BlockFetcher, testn
 	// flakiness with accessing account state)
 	_, err := cctx.WaitForHeightWithTimeout(2, time.Second*2) // TODO @renaynay: configure?
 	require.NoError(t, err)
-	return NewBlockFetcher(cctx.Client), cctx
+	host, port, err := net.SplitHostPort(cctx.GRPCClient.Target())
+	require.NoError(t, err)
+	client := newTestClient(t, host, port)
+	fetcher, err := NewBlockFetcher(client)
+	require.NoError(t, err)
+	return fetcher, cctx
 }
 
 // fillBlocks fills blocks until the context is canceled.
@@ -202,7 +214,7 @@ func generateNonEmptyBlocks(
 	sub, err := fetcher.SubscribeNewBlockEvent(ctx)
 	require.NoError(t, err)
 	defer func() {
-		err = fetcher.UnsubscribeNewBlockEvent(ctx)
+		err = fetcher.Stop(ctx)
 		require.NoError(t, err)
 	}()
 
