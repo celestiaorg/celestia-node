@@ -191,7 +191,7 @@ func (f *BlockFetcher) SubscribeNewBlockEvent(ctx context.Context) (<-chan types
 					log.Errorw("fetcher: error receiving new height", "err", err.Error())
 					continue
 				}
-				withTimeout, ctxCancel := context.WithTimeout(ctx, 10*time.Second)
+				withTimeout, ctxCancel := context.WithTimeout(ctx, 60*time.Second)
 				signedBlock, err := f.GetSignedBlock(withTimeout, resp.Height)
 				ctxCancel()
 				if err != nil {
