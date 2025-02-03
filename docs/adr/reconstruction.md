@@ -43,22 +43,61 @@ The initial draft aims to be optimized in terms of engineering efforts required 
    - Block size scaling
    - Node count scaling
 
-## Protocol Flow 
+## Reconstruction Flow 
 
-Diagram below outlines the high-level flow of the proposed protocols. The detailed specifications are provided in the subsequent sections. Full flow diiagrams are available in the end of this document.
+Once the Full node identifies it cannot fetch the block using shrex protocol, it will start the reconstruction process. 
+Full node would need to collect samples from connected Light nodes and Full nodes. It should also allow efficient relay of samples to other Full nodes. In order to
+achieve this, it will need to implement the following reconstruction flow:
+1. **Get samples from LN**. Start process of collecting samples from connected Light nodes
+   1. Use GetSamples protocol to get samples from connected Light nodes
+   2. To prevent congestion of returned samples, use batching. Request samples from connected Light nodes in batches with fixed size (e.g. 100 LN at a time). 
+2. **Subscribe to bitmap updates**. Subscribe to bitmap updates from connected Full nodes
+   1. Use SubscribeBitmap protocol to subscribe to bitmap updates from connected Full nodes
+   2. If returned bitmap has samples that are not present in the node store, request samples from Full node using GetSamples protocol
+
+#### No bitmap subscription from Light nodes. Why?
+Bitmap subscription from Light nodes would allow reconstructing node (subscriber of bitmaps) to be fully in control
+of deduplication of requested samples. It will allow to make decision on what samples to request and to not have any duplicates being simultaniously requested However, it would also introduce additional complexity and overhead from round trips.
+The fact, that each LN has only few samples from  the same block and the probability of overlap is low, alternative solution can be to not use bitmaps and request samples without prior knowledge of what samples LN has. FN would send inverse have bitmap in request indicating what it want. 
+So the tradeoff would be
+- Pros:
+  - No additional round trips between LN and FN
+  - LN don't need to maintain subscriptions from FN
+  - LN does not need implement bitmap subscription protocol
+- Cons:
+  - Some samples might be requested multiple times
+
+To determine which approach to use, we need to know what is duplicates overhead. Monte carlo simulation can be used to estimate the number of duplicates.
+Here is summary of the results:
+
+| Block Size | % Overhead (ln = 256) | % Overhead (ln = 128) |
+|------------|-----------------------|-----------------------|
+| 16         | 21     | 24                    |
+| 32         | 22    | 17                    |
+| 64         | 9     | 4.7                   |
+| 128        | 2.4    | 1.12                  |
+| 256        | 0.57    | 0.28                  |
+| 512        | 0.14    | 0.07                  |
+
+Results show, that overhead is negligible on large block sizes. Given that overhead is negligible on larger blocks, we can use simpler approach of not using SubscribeBitmap protocol for LN and requesting samples without prior knowledge of what samples LN has.
+
+#### Protocol diagrams
+Diagram below outlines protocols proposed above. The detailed specifications of protocol are provided in the subsequent sections. Full flow diagrams are available in the end of this document.
 ```
-1. Bitmap Subscription
-   Client                                   Server
+1. Bitmap Subscription 
+   Client (FN)                            Server (FN)
       |---- Subscribe to bitmap -------------->|
       |<---- Initial bitmap -------------------|
       |<---- Updates  -------------------------|
       |<---- End updates(full eds/max samples)-|
 
-2. Data Request
-   Client                              Server
+2. GetSamples
+   Client (FN)                     Server (FN/LN)
       |---- Request(bitmap) ----------->|
       |<---- [Samples + Proof] parts ---|
 ```
+
+
 
 ## Core Components
 
@@ -69,6 +108,7 @@ Diagram below outlines the high-level flow of the proposed protocols. The detail
 3. Bitmap subscription protocol
 4. Samples retrieval protocol 
 5. Samples store (new file format)
+6. Peer identification
 
 ### 1. Reconstruction Process
 There should be a global per-block coordinator process that will be responsible for managing the data request process.
@@ -89,7 +129,7 @@ The first iteration of the decision engine can be implemented as simply as possi
 - Do not request data that can be derived from other data. Request just enough data for successful reconstruction
 
 #### First Implementation:
-1. Subscribe to bitmap updates
+1. Subscribe to bitmap updates from FN
 2. Handle bitmap updates. If any sample is not stored and not in progress, request it from a peer
    - Keep track of in-progress requests in local state
 3. Handle sample responses
@@ -139,6 +179,8 @@ func (s *ProgressState) Have() bitmap
 ```
 
 ### 3. Bitmap Protocol
+Bitmap protocol should be implemented by Full Nodes to allow efficient retranslation of samples. It uses bitmaps to sent representation the state of samples stored on Server to allow client to not request samples that it already has.
+
 ### Client
 - Client should send a request to subscribe to bitmap updates
 - If the subscription gets closed or interrupted, client should re-subscribe
@@ -157,14 +199,12 @@ message SubscribeBitmapRequest {
    - (Optional): Server can send updates more frequently if there is a significant change in the bitmap
 - Server should send an end-of-subscription flag when no more updates are expected
    - Full nodes: stream until EDS is available on server
-   - Light nodes: stream until max sampling amount is reached
-      - (Optional): Light node can send a single response with bitmap and end flag upon successful sampling
 
 #### Response
 ```
 message BitmapUpdate {
     Bitmap bitmap = 1;
-    bool is_end = 2;
+    bool completed = 2;
 }
 ```
 
@@ -206,8 +246,14 @@ message SampleRequest {
 }
 ```
 
+#### Client
+- Client should validate returned samples matches requested bitmap.
+- Client should verify proofs. If a proof is invalid, the peer should be penalized
+
 #### Response
-Server should respond with samples with proofs defined in shwap CIP [past link].
+- Server should respond with samples with proofs defined in shwap CIP [past link].
+- Server should send samples in a single response.
+- If server does not have all requested samples, it should send a partial response with available samples.
 ```protobuf
 message SamplesResponse {
   repeated Sample samples = 1;
@@ -233,6 +279,15 @@ initially used for storing ongoing reconstruction process and later can be used 
 2. Optional Optimizations
 - Bitmap subscription support for callbacks
 - Efficient proof generation to reduce proof size overhead
+
+### 6. Peer Identification
+
+Peer identification is required by FN to distinguish Full Nodes from Light Nodes, because they will be communicated with different protocols:
+- Full Nodes: SubscribeBitmap, GetSamples
+- Light Nodes: GetSamples
+
+Information about the peer can be obtained from the host using user agent or by `libp2p.Identity` protocol. 
+
 
 ## Backwards Compatibility
 
