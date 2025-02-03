@@ -1,95 +1,101 @@
 ## Abstract
 
-This document proposes a new block reconstruction protocol that addresses key bottlenecks in the current implementation, specifically targeting duplicate request reduction and bandwidth optimization. The protocol introduces a structured approach to data retrieval with an explicit focus on network resource efficiency and scalability.
+This document proposes a new block reconstruction protocol that addresses key bottlenecks in the current implementation, particularly focusing on reducing duplicate requests and optimizing bandwidth usage. The protocol provides a structured approach to data retrieval with a clear emphasis on network resource efficiency and scalability.
 
 ## Motivation
 
 The current block reconstruction protocol faces several limitations:
-1. High frequency of duplicate requests leading to network inefficiency
+
+1. Frequent duplicate requests, resulting in network inefficiency
 2. Suboptimal bandwidth utilization
-3. Limited scalability with increasing block sizes and node count
+3. Limited scalability as block sizes and node counts increase
 
 Key improvements include:
+
 - Structured bitmap sharing
 - Optimized proof packaging
 - Efficient state management
 - Robust failure handling
 
-This proposal aims to implement an efficient reconstruction protocol that:
+This proposal aims to implement a more efficient reconstruction protocol that:
+
 - Minimizes duplicate data requests
 - Optimizes bandwidth usage through smart data packaging
-- Supports network scaling across multiple dimensions
-- Maintains stability under varying network conditions
+- Scales effectively across multiple dimensions
+- Remains stable under varying network conditions
 
-#### Engineering Time
+### Engineering Time
 
-The initial draft aims to be optimized in terms of engineering efforts required for the first iteration of implementation. Optimizations marked as optional can be implemented in subsequent updates based on network performance metrics.
+The initial draft targets minimal engineering effort for the first implementation iteration. Optimizations marked as optional can be added later based on observed network performance metrics.
 
 ## Specification
 
 ### General Performance Requirements
 
-1. Base Scenario Support:
-   - 32MB block size
-   - Minimum required light nodes for 32MB blocks
-   - Network of 50+ full nodes
+1. **Base Scenario Support**
+    - 32 MB block size
+    - Minimum required Light Nodes for 32 MB blocks
+    - Network of 50+ Full Nodes
 
-2. Performance Metrics (in order of priority):
-   - System stability
-   - Reconstruction throughput (blocks/second)
-   - Per-block reconstruction time
+2. **Performance Metrics (in order of priority)**
+    - System stability
+    - Reconstruction throughput (blocks/second)
+    - Per-block reconstruction time
 
-3. Scalability Dimensions:
-   - Block size scaling
-   - Node count scaling
+3. **Scalability Dimensions**
+    - Block size scaling
+    - Node count scaling
 
-## Reconstruction Flow 
+## Reconstruction Flow
 
-Once the Full node identifies it cannot fetch the block using shrex protocol, it will start the reconstruction process. 
-Full node would need to collect samples from connected Light nodes and Full nodes. It should also allow efficient relay of samples to other Full nodes. In order to
-achieve this, it will need to implement the following reconstruction flow:
-1. **Get samples from LN**. Start process of collecting samples from connected Light nodes
-   1. Use GetSamples protocol to get samples from connected Light nodes
-   2. To prevent congestion of returned samples, use batching. Request samples from connected Light nodes in batches with fixed size (e.g. 100 LN at a time). 
-2. **Subscribe to bitmap updates**. Subscribe to bitmap updates from connected Full nodes
-   1. Use SubscribeBitmap protocol to subscribe to bitmap updates from connected Full nodes
-   2. If returned bitmap has samples that are not present in the node store, request samples from Full node using GetSamples protocol
+If a Full Node cannot retrieve a block via the shrex protocol, it initiates the reconstruction process. During this process, the Full Node collects samples from both connected Light Nodes and Full Nodes, and enables efficient sample relaying to other Full Nodes. The following steps outline the reconstruction flow:
 
-#### No bitmap subscription from Light nodes. Why?
-Bitmap subscription from Light nodes would allow reconstructing node (subscriber of bitmaps) to be fully in control
-of deduplication of requested samples. It will allow to make decision on what samples to request and to not have any duplicates being simultaniously requested However, it would also introduce additional complexity and overhead from round trips.
-The fact, that each LN has only few samples from  the same block and the probability of overlap is low, alternative solution can be to not use bitmaps and request samples without prior knowledge of what samples LN has. FN would send inverse have bitmap in request indicating what it want. 
-So the tradeoff would be
-- Pros:
-  - No additional round trips between LN and FN
-  - LN don't need to maintain subscriptions from FN
-  - LN does not need implement bitmap subscription protocol
-- Cons:
-  - Some samples might be requested multiple times
+1. **Get samples from LNs.**
+    - Use the GetSamples protocol to retrieve samples from connected Light Nodes.
+    - To avoid congestion, request samples in batches (e.g., up to 100 Light Nodes at a time).
 
-To determine which approach to use, we need to know what is duplicates overhead. Monte carlo simulation can be used to estimate the number of duplicates.
-Here is summary of the results:
+2. **Subscribe to bitmap updates.**
+    - Use the SubscribeBitmap protocol to receive bitmap updates from connected Full Nodes.
+    - If the returned bitmap contains samples not present locally, request them from the Full Node using GetSamples.
 
-| Block Size | % Overhead (ln = 256) | % Overhead (ln = 128) |
+### No Bitmap Subscription From Light Nodes: Why?
+
+Subscribing to bitmaps from Light Nodes would allow the reconstructing node to fully control deduplication of requested samples, preventing simultaneous duplicate requests. However, it also introduces extra complexity and round-trip overhead. Since each Light Node holds only a few samples from any given block and the probability of overlap is low, a simpler approach is to skip bitmap subscriptions for LNs. Instead, the Full Node can send an inverse “have” bitmap in the request to indicate which samples it still needs.
+
+**Tradeoff:**
+
+- **Pros**
+    - No additional round trips between LN and FN
+    - Light Nodes do not need to maintain subscriptions
+    - Light Nodes do not need to implement the bitmap subscription protocol
+
+- **Cons**
+    - Some samples may be requested multiple times
+
+To quantify the overhead of duplicate requests, a Monte Carlo simulation was conducted. Below is a summary of the results:
+
+| Block Size | % Overhead (LN = 256) | % Overhead (LN = 128) |
 |------------|-----------------------|-----------------------|
-| 16         | 21     | 24                    |
-| 32         | 22    | 17                    |
-| 64         | 9     | 4.7                   |
-| 128        | 2.4    | 1.12                  |
-| 256        | 0.57    | 0.28                  |
-| 512        | 0.14    | 0.07                  |
+| 16         | 21                   | 24                    |
+| 32         | 22                   | 17                    |
+| 64         | 9                    | 4.7                   |
+| 128        | 2.4                  | 1.12                  |
+| 256        | 0.57                 | 0.28                  |
+| 512        | 0.14                 | 0.07                  |
 
-Results show, that overhead is negligible on large block sizes. Given that overhead is negligible on larger blocks, we can use simpler approach of not using SubscribeBitmap protocol for LN and requesting samples without prior knowledge of what samples LN has.
+These results show that overhead is negligible for larger block sizes. Therefore, to keep the protocol simpler, we will not use SubscribeBitmap for Light Nodes and will request samples directly.
 
-#### Protocol diagrams
-Diagram below outlines protocols proposed above. The detailed specifications of protocol are provided in the subsequent sections. Full flow diagrams are available in the end of this document.
+### Protocol Diagrams
+
+Below is an outline of the proposed protocols. Detailed specifications are provided in subsequent sections. Full flow diagrams are at the end of this document.
+
 ```
 1. Bitmap Subscription 
    Client (FN)                            Server (FN)
       |---- Subscribe to bitmap -------------->|
       |<---- Initial bitmap -------------------|
       |<---- Updates  -------------------------|
-      |<---- End updates(full eds/max samples)-|
+      |<---- End updates ----------------------|
 
 2. GetSamples
    Client (FN)                     Server (FN/LN)
@@ -97,57 +103,61 @@ Diagram below outlines protocols proposed above. The detailed specifications of 
       |<---- [Samples + Proof] parts ---|
 ```
 
-
-
 ## Core Components
 
-#### List of Core Components
+### List of Core Components
 
-1. Decision engine 
-2. State management 
+1. Decision engine
+2. State management
 3. Bitmap subscription protocol
-4. Samples retrieval protocol 
+4. Samples retrieval protocol
 5. Samples store (new file format)
 6. Peer identification
 
 ### 1. Reconstruction Process
-There should be a global per-block coordinator process that will be responsible for managing the data request process.
 
-1. Request Initiation may have multiple strategies:
-   - Immediate request of all missing samples upon bitmap receipt
-   - (Optional): Delayed start for bandwidth optimization
-      - Wait for X% peer responses
-      - Fixed time delay
-      - Complete EDS availability
-      - Pre-confirmation threshold
-      - Combination of conditions
+A global, per-block coordinator should manage the data request process.
 
-2. Select which samples to request and from which peers
+1. **Request initiation** can follow multiple strategies:
+    - Immediate request for all missing samples upon receiving a bitmap
+    - (Optional) Delayed request start for bandwidth optimization:
+        - Wait for X% of peer responses
+        - Wait for a fixed time delay
+        - Wait for complete EDS availability
+        - Wait for a pre-confirmation threshold
+        - Combination of any conditions
 
-The first iteration of the decision engine can be implemented as simply as possible to allow easier testing of other components and prove the concept. The base properties should be:
+2. **Select which samples to request** and from which peers.
+
+For the first iteration, keep the decision engine simple to test other components and validate the overall concept. The main goals are:
+
 - Eliminate requests for duplicate data
-- Do not request data that can be derived from other data. Request just enough data for successful reconstruction
+- Avoid requesting data that can be derived from existing data
 
-#### First Implementation:
-1. Subscribe to bitmap updates from FN
-2. Handle bitmap updates. If any sample is not stored and not in progress, request it from a peer
-   - Keep track of in-progress requests in local state
-3. Handle sample responses
-   - Verify proofs. If a proof is invalid, the peer should be penalized
-   - Store samples in local store and update local Have state
-   - Remove samples from in-progress bitmap
-   - Clean up information about sample coordinates from remote state to free up memory
-4. If reconstruction is complete, clean up local state and shut down the reconstruction process
+#### First Implementation
+
+1. **Subscribe** to bitmap updates from Full Nodes.
+2. **Handle bitmap updates**: if a sample is neither stored locally nor already in-progress, request it from a peer.
+    - Maintain an in-progress list to avoid duplicate requests.
+3. **Handle sample responses**:
+    - Verify proofs. Penalize peers if proofs are invalid.
+    - Store samples in the local store and update the local “Have” state.
+    - Remove the samples from the in-progress bitmap.
+    - Clean up coordinate information from remote state to free memory.
+4. **When reconstruction completes**, clear local state and terminate the reconstruction process.
 
 #### Potential Optimizations
-- Skip encoded derivable data in response by requesting from peers that have all shares from the same rows/columns
-- Optimize proof sizes through range requests
-- Optimize proof sizes through subtree proofs if adjacent subroots are stored
-- Parallel request distribution to reduce network load on single peers
-- Request from peers with smaller latency
+
+- Skip encoding derivable data by requesting from peers that hold complete rows/columns.
+- Optimize proof sizes via range requests.
+- Use subtree proofs if adjacent subroots are already stored.
+- Distribute requests in parallel to minimize load on individual peers.
+- Prefer peers with lower latency.
 
 ### 2. State Management
-1. Remote State will store information about peers that have samples for given coordinates. If it has full rows/columns, it will be stored in a separate list.
+
+**Remote State** stores information about which peers hold samples for specific coordinates. If a peer has complete row or column data, it is tracked separately.
+
 ```go
 type RemoteState struct {
     coords [][]peers    // Peer lists by coordinates
@@ -156,150 +166,152 @@ type RemoteState struct {
     available bitmap    // Available samples bitmap
 }
 
-// Basic peer list structure. Structure might be replaced later to implement better 
-// peer scoring mechanics 
+// Basic peer list structure. May be replaced to implement peer scoring.
 type peers []peer.ID
 ```
 
-Query Interface
+**Query Interface**
 
-Remote state:
 ```go
 func (s *RemoteState) GetPeersWithSample(coords []Coord) []peer.ID
 func (s *RemoteState) GetPeersWithAxis(axisIdx int, axisType AxisType) []peer.ID
 func (s *RemoteState) Available() bitmap
 ```
 
-Progress state:
+**Progress state** tracks ongoing fetch sessions and locally stored samples:
+
 ```go
-// Tracks ongoing fetch sessions to prevent requesting duplicates
+// Tracks ongoing fetch sessions to prevent duplicate requests
 func (s *ProgressState) InProgress() bitmap
-// Tracks samples that are already stored locally to notify peers about it
+
+// Tracks samples already stored locally; used to inform peers about local availability
 func (s *ProgressState) Have() bitmap
 ```
 
 ### 3. Bitmap Protocol
-Bitmap protocol should be implemented by Full Nodes to allow efficient retranslation of samples. It uses bitmaps to sent representation the state of samples stored on Server to allow client to not request samples that it already has.
 
-### Client
-- Client should send a request to subscribe to bitmap updates
-- If the subscription gets closed or interrupted, client should re-subscribe
+Full Nodes implement this protocol to efficiently retransmit samples. It uses bitmaps to indicate which samples the server holds, enabling clients to avoid requesting duplicates.
 
-#### Request
+#### Client
+
+- The client sends a request to subscribe to bitmap updates.
+- If the subscription is closed or interrupted, the client should re-subscribe.
+
+**Request**
+
 ```protobuf
 message SubscribeBitmapRequest {
     uint64 height = 1;
 }
 ```
 
-### Server
-- Server implements a one-way stream for bitmap updates
-- Server should send the first bitmap update immediately
-- Next updates should be sent every 5 seconds
-   - (Optional): Server can send updates more frequently if there is a significant change in the bitmap
-- Server should send an end-of-subscription flag when no more updates are expected
-   - Full nodes: stream until EDS is available on server
+#### Server
 
-#### Response
-```
+- Implements a one-way stream for bitmap updates.
+- Sends the first bitmap update immediately.
+- Sends subsequent updates every 5 seconds (or more frequently if significant changes occur).
+- Sends an end-of-subscription flag when no more updates are expected.
+
+**Response**
+
+```protobuf
 message BitmapUpdate {
     Bitmap bitmap = 1;
     bool completed = 2;
 }
 ```
 
-The protocol utilizes Roaring Bitmaps for efficient bitmap operations and storage. Roaring Bitmaps provide several advantages for the reconstruction protocol:
+The protocol uses **Roaring Bitmaps** for efficient operations and storage:
 
-1. Efficient Operations
-   - Fast logical operations (AND, OR, XOR)
-   - Optimized for sparse and dense data
-   - Memory-efficient storage
+1. **Efficient Operations**
+    - Fast logical operations (AND, OR, XOR)
+    - Optimized for both sparse and dense data
+    - Memory-efficient storage
 
-2. Implementation Benefits
-   - Native support for common bitmap operations
-   - Optimized serialization
-   - Efficient iteration over set bits
-   - Support for rank/select operations
+2. **Implementation Benefits**
+    - Native support for common bitmap operations
+    - Optimized serialization
+    - Efficient iteration over set bits
+    - Rank/select operations available
 
-3. Performance Characteristics
-   - O(1) for most common operations
-   - Compressed storage format
-   - Efficient memory utilization
-   - Fast bitmap comparisons
+3. **Performance Characteristics**
+    - O(1) complexity for most operations
+    - Compressed storage format
+    - Efficient memory usage
 
-The protocol will use 32-bit encoding for bitmaps to have greater multi-language support. Implementation can use one of the encoding-compatible libraries:
-- Go: https://github.com/RoaringBitmap/roaring
-- Rust: https://github.com/RoaringBitmap/roaring-rs
-- C++: https://github.com/RoaringBitmap/CRoaring
-- Java: https://github.com/RoaringBitmap/RoaringBitmap
+The protocol uses 32-bit encoding for broad compatibility. Libraries include:
+
+- Go: [roaring](https://github.com/RoaringBitmap/roaring)
+- Rust: [roaring-rs](https://github.com/RoaringBitmap/roaring-rs)
+- C++: [CRoaring](https://github.com/RoaringBitmap/CRoaring)
+- Java: [RoaringBitmap](https://github.com/RoaringBitmap/RoaringBitmap)
 
 ### 4. Samples Request Protocol
 
-#### Request
+Data retrieval uses the **shrex** protocol. The client sends a bitmap indicating which samples it needs.
 
-- Use shrex for data retrieval
-- Send bitmap for data request. Bitmap should contain coordinates for requested samples
-```protobuf 
+```protobuf
 message SampleRequest {
-  height uint64 = 1;
-  Bitmap bitmap = 2;
+    uint64 height = 1;
+    Bitmap bitmap = 2;
 }
 ```
 
 #### Client
-- Client should validate returned samples matches requested bitmap.
-- Client should verify proofs. If a proof is invalid, the peer should be penalized
+
+- Validates that returned samples match the requested bitmap.
+- Verifies proofs and penalizes peers that provide invalid proofs.
 
 #### Response
-- Server should respond with samples with proofs defined in shwap CIP [past link].
-- Server should send samples in a single response.
-- If server does not have all requested samples, it should send a partial response with available samples.
+
+- The server responds with samples and proofs, as defined in shwap CIP.
+- The server sends all available samples in a single response. If it lacks certain samples, it sends a partial response.
+
 ```protobuf
 message SamplesResponse {
   repeated Sample samples = 1;
 }
 ```
 
-#### Optimizations:
-- Adjacent samples can have common proofs. Server would need to send shares with common proof in a single response.
-  Each part contains packed samples in Range format
-- If both Row and column are requested, intersection share can be sent once
+#### Optimizations
+
+- Adjacent samples can share common proofs. The server can package shares with common proofs in a single response.
+- If both a row and a column are requested, their intersection share need only be sent once.
 
 ### 5. Storage Backend
-A new storage format needs to be implemented for efficient storage of sample proofs. The format will be
-initially used for storing ongoing reconstruction process and later can be used for light node storage.
 
-1. Core Requirements
-- Sample storage with proofs
-- Allow purge of proofs on successful reconstruction
-- Bitmap query support
-- Row/column access implementation
-- Accessor interface compliance
+A new storage format is required for efficient sample proof storage. It will first be used for the ongoing reconstruction process but can later be adapted for Light Node storage.
 
-2. Optional Optimizations
-- Bitmap subscription support for callbacks
-- Efficient proof generation to reduce proof size overhead
+1. **Core Requirements**
+    - Sample storage with proofs
+    - Ability to purge proofs on successful reconstruction
+    - Bitmap query support
+    - Row/column access implementation
+    - Must comply with the accessor interface
+
+2. **Optional Optimizations**
+    - Bitmap subscription support with callbacks
+    - Efficient proof generation to reduce proof overhead
 
 ### 6. Peer Identification
 
-Peer identification is required by FN to distinguish Full Nodes from Light Nodes, because they will be communicated with different protocols:
+Peer identification enables Full Nodes (FNs) to distinguish Full Nodes from Light Nodes (LNs) because each is communicated with via different protocols:
+
 - Full Nodes: SubscribeBitmap, GetSamples
 - Light Nodes: GetSamples
 
-Information about the peer can be obtained from the host using user agent or by `libp2p.Identity` protocol. 
-
+Peer information can be obtained through the host (e.g., user agent or `libp2p.Identity` protocol).
 
 ## Backwards Compatibility
 
-In the lifespan of the protocol, it may require a coordinated network upgrade. Implementation should allow for:
-1. Version negotiation
-2. Transition period support
-3. Fallback mechanisms
+During this protocol’s lifecycle, it may require a coordinated network upgrade. The implementation should support:
 
+1. **Version negotiation**
+2. **Transition period support**
+3. **Fallback mechanisms**
 
+## Full Reconstruction Process Diagram
 
-
-## Full reconstruction process diagram
 ```mermaid
 sequenceDiagram
     participant N as New Node
