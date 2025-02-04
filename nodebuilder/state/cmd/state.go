@@ -3,6 +3,7 @@ package cmd
 import (
 	"fmt"
 	"strconv"
+	"strings"
 
 	"cosmossdk.io/math"
 	"github.com/spf13/cobra"
@@ -18,6 +19,8 @@ var (
 	gasPrice          float64
 	feeGranterAddress string
 	amount            uint64
+	txPriority        int
+	maxGasPrice       float64
 )
 
 func init() {
@@ -460,6 +463,25 @@ func ApplyFlags(cmds ...*cobra.Command) {
 				"Note: The granter should be provided as a Bech32 address.\n"+
 				"Example: celestiaxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
 		)
+
+		// add additional flags for all submit transactions besides submit blobs.
+		if !strings.Contains(cmd.Name(), "blob") {
+			cmd.PersistentFlags().Float64Var(
+				&maxGasPrice,
+				"max.gas.price",
+				state.DefaultMaxGasPrice,
+				"Specifies max gas price for the tx submission.",
+			)
+			cmd.PersistentFlags().IntVar(
+				&txPriority,
+				"tx.priority",
+				state.TxPriorityMedium,
+				"Specifies tx priority. Should be set in range:"+
+					"1. TxPriorityLow;\n"+
+					"2. TxPriorityMedium;\n"+
+					"3. TxPriorityHigh.\nDefault: TxPriorityMedium",
+			)
+		}
 	}
 }
 
@@ -470,5 +492,7 @@ func GetTxConfig() *state.TxConfig {
 		state.WithKeyName(keyName),
 		state.WithSignerAddress(signer),
 		state.WithFeeGranterAddress(feeGranterAddress),
+		state.WithMaxGasPrice(maxGasPrice),
+		state.WithTxPriority(txPriority),
 	)
 }
