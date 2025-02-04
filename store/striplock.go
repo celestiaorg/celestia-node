@@ -1,29 +1,20 @@
 package store
 
 import (
-	"sync"
-
+	"github.com/celestiaorg/celestia-node/libs/utils"
 	"github.com/celestiaorg/celestia-node/share"
 )
 
-// TODO: move to utils
-type striplock struct {
-	heights    []*sync.RWMutex
-	datahashes []*sync.RWMutex
-}
+// stripLock is deprecated, use utils.StripLock instead
+type striplock = utils.StripLock
 
-type multiLock struct {
-	mu []*sync.RWMutex
-}
+// multiLock is deprecated, use utils.MultiLock instead
+type multiLock = utils.MultiLock
 
+// newStripLock creates a new StripLock with the specified number of mutexes.
+// Deprecated: use utils.NewStripLock instead
 func newStripLock(size int) *striplock {
-	heights := make([]*sync.RWMutex, size)
-	datahashes := make([]*sync.RWMutex, size)
-	for i := 0; i < size; i++ {
-		heights[i] = &sync.RWMutex{}
-		datahashes[i] = &sync.RWMutex{}
-	}
-	return &striplock{heights, datahashes}
+	return utils.NewStripLock(size)
 }
 
 func (l *striplock) byHeight(height uint64) *sync.RWMutex {
