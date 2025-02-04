@@ -25,6 +25,7 @@ func ConstructModule(tp node.Type, cfg *Config, coreCfg *core.Config) fx.Option 
 	cfgErr := cfg.Validate()
 	baseComponents := fx.Options(
 		fx.Supply(*cfg),
+		fx.Supply(coreCfg.FeeEstimatorAddress),
 		fx.Error(cfgErr),
 		fx.Provide(func(ks keystore.Keystore) (keyring.Keyring, AccountName, error) {
 			return Keyring(*cfg, ks)

@@ -35,9 +35,9 @@ const (
 )
 
 var (
-	ErrInvalidAmount = errors.New("state: amount must be greater than zero")
-
-	log = logging.Logger("state")
+	ErrInvalidAmount        = errors.New("state: amount must be greater than zero")
+	errGasPriceExceedsLimit = errors.New("state: estimated gasPrice exceeds max gasPrice")
+	log                     = logging.Logger("state")
 )
 
 // CoreAccessor implements service over a gRPC connection
@@ -63,6 +63,7 @@ type CoreAccessor struct {
 	coreConn *grpc.ClientConn
 	network  string
 
+	estimator *estimator
 	// these fields are mutatable and thus need to be protected by a mutex
 	lock            sync.Mutex
 	lastPayForBlob  int64
@@ -83,6 +84,7 @@ func NewCoreAccessor(
 	getter libhead.Head[*header.ExtendedHeader],
 	conn *grpc.ClientConn,
 	network string,
+	estimatorAddress string,
 ) (*CoreAccessor, error) {
 	// create verifier
 	prt := merkle.DefaultProofRuntime()
@@ -106,6 +108,7 @@ func NewCoreAccessor(
 		prt:                  prt,
 		coreConn:             conn,
 		network:              network,
+		estimator:            &estimator{estimatorAddress: estimatorAddress, defaultClientConn: conn},
 	}
 	return ca, nil
 }
@@ -136,6 +139,7 @@ func (ca *CoreAccessor) Start(ctx context.Context) error {
 	if err != nil {
 		return fmt.Errorf("querying minimum gas price: %w", err)
 	}
+	ca.estimator.connect()
 	return nil
 }
 
@@ -176,7 +180,7 @@ func (ca *CoreAccessor) SubmitPayForBlob(
 		for i, blob := range libBlobs {
 			blobSizes[i] = uint32(len(blob.Data()))
 		}
-		gas = estimateGasForBlobs(blobSizes)
+		gas = ca.estimator.estimateGasForBlobs(blobSizes)
 	}
 
 	gasPrice := cfg.GasPrice()
@@ -574,22 +578,6 @@ func (ca *CoreAccessor) submitMsg(
 	}
 
 	txConfig := make([]user.TxOption, 0)
-	gas := cfg.GasLimit()
-
-	if gas == 0 {
-		gas, err = estimateGas(ctx, client, msg)
-		if err != nil {
-			return nil, fmt.Errorf("estimating gas: %w", err)
-		}
-	}
-
-	gasPrice := cfg.GasPrice()
-	if gasPrice == DefaultGasPrice {
-		gasPrice = ca.minGasPrice
-	}
-
-	txConfig = append(txConfig, user.SetGasLimitAndGasPrice(gas, gasPrice))
-
 	if cfg.FeeGranterAddress() != "" {
 		granter, err := parseAccAddressFromString(cfg.FeeGranterAddress())
 		if err != nil {
@@ -598,7 +586,33 @@ func (ca *CoreAccessor) submitMsg(
 		txConfig = append(txConfig, user.SetFeeGranter(granter))
 	}
 
+	if cfg.GasLimit() == 0 || cfg.GasPrice() == DefaultGasPrice {
+		gasPrice, gas, err := ca.estimator.estimateGas(ctx, client, cfg.priority, msg)
+		if err != nil {
+			return nil, err
+		}
+
+		if cfg.GasLimit() == 0 {
+			cfg.gas = gas
+		}
+		if cfg.GasPrice() == DefaultGasPrice {
+			migGasPrice := ca.getMinGasPrice()
+			if gasPrice < migGasPrice {
+				gasPrice = migGasPrice
+			}
+			cfg.gasPrice = gasPrice
+			cfg.isGasPriceSet = true
+		}
+	}
+
+	if cfg.maxGasPrice < cfg.GasPrice() {
+		return nil, errGasPriceExceedsLimit
+	}
+	txConfig = append(txConfig, user.SetGasLimitAndGasPrice(cfg.GasLimit(), cfg.GasPrice()))
 	resp, err := client.SubmitTx(ctx, []sdktypes.Msg{msg}, txConfig...)
+	if err != nil {
+		return nil, err
+	}
 	return convertToSdkTxResponse(resp), err
 }
 
