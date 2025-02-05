@@ -248,8 +248,7 @@ func testAccessorRowNamespaceData(
 
 			// check that the amount of shares in the namespace is equal to the expected amount
 			require.Equal(t, amount, actualSharesAmount)
-		}
-	})
+		})
 
 	t.Run("not included", func(t *testing.T) {
 		t.Parallel()
@@ -279,7 +278,7 @@ func testAccessorRowNamespaceData(
 
 			err = rowData.Verify(roots, absentNs, i)
 			require.NoError(t, err)
-		}
+		})
 	})
 }
 
@@ -472,9 +471,19 @@ func (q quadrantIdx) String() string {
 }
 
 func (q quadrantIdx) coordinates(edsSize int) (rowIdx, colIdx int) {
-	colIdx = edsSize/2*(int(q-1)%2) + 1
-	rowIdx = edsSize/2*(int(q-1)/2) + 1
-	return rowIdx, colIdx
+	half := edsSize / 2
+	switch q {
+	case q1:
+		return rand.IntN(half), rand.IntN(half)
+	case q2:
+		return rand.IntN(half), half + rand.IntN(half)
+	case q3:
+		return half + rand.IntN(half), rand.IntN(half)
+	case q4:
+		return half + rand.IntN(half), half + rand.IntN(half)
+	default:
+		panic("invalid quadrant")
+	}
 }
 
 func checkPowerOfTwo(n int) bool {
@@ -483,4 +492,35 @@ func checkPowerOfTwo(n int) bool {
 		return true
 	}
 	return n&(n-1) == 0
+}
+
+func TestAccessorSampling(t *testing.T) {
+	ctx := context.Background()
+	acc := NewRandAccessor(t, 8)
+	defer acc.Close()
+
+	size, err := acc.Size(ctx)
+	require.NoError(t, err)
+
+	for squareHalf := 0; squareHalf < 2; squareHalf++ {
+		for axisType := range []rsmt2d.Axis{rsmt2d.Row, rsmt2d.Col} {
+			_, err := acc.AxisHalf(ctx, axisType, size/2*(squareHalf))
+			require.NoError(t, err)
+		}
+	}
+}
+
+func TestAccessorSamplingQuadrants(t *testing.T) {
+	ctx := context.Background()
+	acc := NewRandAccessor(t, 8)
+	defer acc.Close()
+
+	size, err := acc.Size(ctx)
+	require.NoError(t, err)
+
+	for q := range []quadrant{q1, q2, q3, q4} {
+		rowIdx, colIdx := q.coordinates(size)
+		_, err := acc.Sample(ctx, shwap.SampleCoords{Row: rowIdx, Col: colIdx})
+		require.NoError(t, err)
+	}
 }
