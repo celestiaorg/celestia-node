@@ -8,9 +8,12 @@ import (
 	"net"
 	"os"
 	"path/filepath"
+	"time"
 
+	grpc_retry "github.com/grpc-ecosystem/go-grpc-middleware/retry"
 	"go.uber.org/fx"
 	"google.golang.org/grpc"
+	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/connectivity"
 	"google.golang.org/grpc/credentials"
 	"google.golang.org/grpc/credentials/insecure"
@@ -30,13 +33,30 @@ func grpcClient(lc fx.Lifecycle, cfg Config) (*grpc.ClientConn, error) {
 	} else {
 		opts = append(opts, grpc.WithTransportCredentials(insecure.NewCredentials()))
 	}
+
+	retryInterceptor := grpc_retry.UnaryClientInterceptor(
+		grpc_retry.WithMax(5),
+		grpc_retry.WithCodes(codes.Unavailable),
+		grpc_retry.WithBackoff(
+			grpc_retry.BackoffExponentialWithJitter(time.Second, 2.0)),
+	)
+	retryStreamInterceptor := grpc_retry.StreamClientInterceptor(
+		grpc_retry.WithMax(5),
+		grpc_retry.WithCodes(codes.Unavailable),
+		grpc_retry.WithBackoff(
+			grpc_retry.BackoffExponentialWithJitter(time.Second, 2.0)),
+	)
+
+	opts = append(opts, grpc.WithUnaryInterceptor(retryInterceptor))
+	opts = append(opts, grpc.WithStreamInterceptor(retryStreamInterceptor))
+
 	if cfg.XTokenPath != "" {
 		xToken, err := parseTokenPath(cfg.XTokenPath)
 		if err != nil {
 			return nil, err
 		}
-		opts = append(opts, grpc.WithUnaryInterceptor(authInterceptor(xToken)))
-		opts = append(opts, grpc.WithStreamInterceptor(authStreamInterceptor(xToken)))
+		opts = append(opts, grpc.WithChainUnaryInterceptor(authInterceptor(xToken), retryInterceptor))
+		opts = append(opts, grpc.WithChainStreamInterceptor(authStreamInterceptor(xToken), retryStreamInterceptor))
 	}
 
 	endpoint := net.JoinHostPort(cfg.IP, cfg.Port)

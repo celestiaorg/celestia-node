@@ -172,18 +172,11 @@ func (f *BlockFetcher) ValidatorSet(ctx context.Context, height int64) (*types.V
 }
 
 func (f *BlockFetcher) runSubscriber() (chan types.EventDataSignedBlock, error) {
-	var (
-		subscription coregrpc.BlockAPI_SubscribeNewHeightsClient
-		err          error
-	)
-
 	signedBlockCh := make(chan types.EventDataSignedBlock, 1)
 
 	go func() {
 		defer close(f.doneCh)
 		defer close(signedBlockCh)
-		timeout := time.NewTimer(retrySubscriptionDelay)
-		defer timeout.Stop()
 		for {
 			select {
 			case <-f.ctx.Done():
@@ -191,15 +184,13 @@ func (f *BlockFetcher) runSubscriber() (chan types.EventDataSignedBlock, error) 
 			default:
 			}
 
-			subscription, err = f.client.SubscribeNewHeights(f.ctx, &coregrpc.SubscribeNewHeightsRequest{})
+			subscription, err := f.client.SubscribeNewHeights(f.ctx, &coregrpc.SubscribeNewHeightsRequest{})
 			switch {
 			case err == nil:
 			case errors.Is(err, context.Canceled):
 				return
 			default:
 				log.Errorw("fetcher: failed to subscribe to new block events", "err", err)
-				timeout.Reset(retrySubscriptionDelay)
-				<-timeout.C
 				continue
 			}
 
@@ -229,9 +220,6 @@ func (f *BlockFetcher) receive(
 		ctxCancel()
 		if err != nil {
 			log.Errorw("fetcher: error receiving signed block", "height", resp.Height, "err", err.Error())
-			// sleeping a bit to avoid retrying instantly and give time for the gRPC connection
-			// to recover automatically.
-			time.Sleep(time.Second)
 			continue
 		}
 		select {

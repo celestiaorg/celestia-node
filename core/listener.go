@@ -18,10 +18,7 @@ import (
 	"github.com/celestiaorg/celestia-node/store"
 )
 
-var (
-	tracer                 = otel.Tracer("core/listener")
-	retrySubscriptionDelay = 5 * time.Second
-)
+var tracer = otel.Tracer("core/listener")
 
 // Listener is responsible for listening to Core for
 // new block events and converting new Core blocks into
