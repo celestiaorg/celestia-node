@@ -218,7 +218,7 @@ func (f *BlockFetcher) receive(
 		withTimeout, ctxCancel := context.WithTimeout(ctx, 10*time.Second)
 		signedBlock, err := f.GetSignedBlock(withTimeout, resp.Height)
 		ctxCancel()
-		if err != nil {
+		if err != nil && !errors.Is(err, context.Canceled) {
 			log.Errorw("fetcher: error receiving signed block", "height", resp.Height, "err", err.Error())
 			continue
 		}
