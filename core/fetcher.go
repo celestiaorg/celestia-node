@@ -32,12 +32,11 @@ var (
 )
 
 type BlockFetcher struct {
-	client coregrpc.BlockAPIClient
-
-	signedBlockCh chan types.EventDataSignedBlock
-
 	ctx    context.Context
 	cancel context.CancelFunc
+
+	client coregrpc.BlockAPIClient
+
 	doneCh chan struct{}
 }
 
@@ -51,7 +50,6 @@ func NewBlockFetcher(conn *grpc.ClientConn) (*BlockFetcher, error) {
 func (f *BlockFetcher) Start(ctx context.Context) error {
 	f.ctx, f.cancel = context.WithCancel(ctx)
 	f.doneCh = make(chan struct{})
-	f.signedBlockCh = make(chan types.EventDataSignedBlock, 1)
 	return nil
 }
 
@@ -174,18 +172,16 @@ func (f *BlockFetcher) ValidatorSet(ctx context.Context, height int64) (*types.V
 }
 
 func (f *BlockFetcher) runSubscriber() (chan types.EventDataSignedBlock, error) {
-	if f.signedBlockCh == nil {
-		return nil, fmt.Errorf("fetcher: subscriber not started")
-	}
-
 	var (
 		subscription coregrpc.BlockAPI_SubscribeNewHeightsClient
 		err          error
 	)
 
+	signedBlockCh := make(chan types.EventDataSignedBlock, 1)
+
 	go func() {
 		defer close(f.doneCh)
-
+		defer close(signedBlockCh)
 		timeout := time.NewTimer(retrySubscriptionDelay)
 		defer timeout.Stop()
 		for {
@@ -207,21 +203,21 @@ func (f *BlockFetcher) runSubscriber() (chan types.EventDataSignedBlock, error) 
 				continue
 			}
 
-			err = f.receive(f.ctx, subscription)
+			err = f.receive(f.ctx, signedBlockCh, subscription)
 			if err != nil {
 				log.Errorw("fetcher: error receiving new height", "err", err.Error())
 				continue
 			}
 		}
 	}()
-	return f.signedBlockCh, nil
+	return signedBlockCh, nil
 }
 
-func (f *BlockFetcher) receive(ctx context.Context, subscription coregrpc.BlockAPI_SubscribeNewHeightsClient) error {
-	if f.signedBlockCh == nil {
-		return fmt.Errorf("fetcher: subscriber not started")
-	}
-
+func (f *BlockFetcher) receive(
+	ctx context.Context,
+	signedBlockCh chan types.EventDataSignedBlock,
+	subscription coregrpc.BlockAPI_SubscribeNewHeightsClient,
+) error {
 	for {
 		resp, err := subscription.Recv()
 		if err != nil {
@@ -239,7 +235,7 @@ func (f *BlockFetcher) receive(ctx context.Context, subscription coregrpc.BlockA
 			continue
 		}
 		select {
-		case f.signedBlockCh <- types.EventDataSignedBlock{
+		case signedBlockCh <- types.EventDataSignedBlock{
 			Header:       *signedBlock.Header,
 			Commit:       *signedBlock.Commit,
 			ValidatorSet: *signedBlock.ValidatorSet,
