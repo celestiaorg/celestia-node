@@ -187,6 +187,7 @@ func (f *BlockFetcher) runSubscriber() (chan types.EventDataSignedBlock, error) 
 			subscription, err := f.client.SubscribeNewHeights(f.ctx, &coregrpc.SubscribeNewHeightsRequest{})
 			switch {
 			case err == nil:
+				log.Debug("fetcher: subscription created")
 			case errors.Is(err, context.Canceled):
 				return
 			default:
@@ -209,6 +210,7 @@ func (f *BlockFetcher) receive(
 	signedBlockCh chan types.EventDataSignedBlock,
 	subscription coregrpc.BlockAPI_SubscribeNewHeightsClient,
 ) error {
+	log.Debug("fetcher: starting listening for new blocks")
 	for {
 		resp, err := subscription.Recv()
 		if err != nil {
