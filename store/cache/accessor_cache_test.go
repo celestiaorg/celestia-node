@@ -304,31 +304,31 @@ type mockAccessor struct {
 }
 
 func (m *mockAccessor) Size(context.Context) int {
-	panic("implement me")
+	return len(m.data)
 }
 
 func (m *mockAccessor) DataHash(context.Context) (share.DataHash, error) {
-	panic("implement me")
+	return share.DataHash{}, nil
 }
 
 func (m *mockAccessor) AxisRoots(context.Context) (*share.AxisRoots, error) {
-	panic("implement me")
+	return &share.AxisRoots{}, nil
 }
 
 func (m *mockAccessor) Sample(context.Context, shwap.SampleCoords) (shwap.Sample, error) {
-	panic("implement me")
+	return shwap.Sample{}, nil
 }
 
 func (m *mockAccessor) AxisHalf(context.Context, rsmt2d.Axis, int) (eds.AxisHalf, error) {
-	panic("implement me")
+	return eds.AxisHalf{}, nil
 }
 
 func (m *mockAccessor) RowNamespaceData(context.Context, libshare.Namespace, int) (shwap.RowNamespaceData, error) {
-	panic("implement me")
+	return shwap.RowNamespaceData{}, nil
 }
 
 func (m *mockAccessor) Shares(context.Context) ([]libshare.Share, error) {
-	panic("implement me")
+	return nil, nil
 }
 
 func (m *mockAccessor) Reader() (io.Reader, error) {
