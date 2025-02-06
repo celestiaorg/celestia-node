@@ -25,9 +25,10 @@ func TestBlockFetcherHeaderValues(t *testing.T) {
 	client := newTestClient(t, host, port)
 	fetcher, err := NewBlockFetcher(client)
 	require.NoError(t, err)
-
+	err = fetcher.Start(ctx)
+	require.NoError(t, err)
 	// generate some blocks
-	newBlockChan, err := fetcher.SubscribeNewBlockEvent(ctx)
+	newBlockChan, err := fetcher.runSubscriber()
 	require.NoError(t, err)
 	// read once from channel to generate next block
 	var h int64

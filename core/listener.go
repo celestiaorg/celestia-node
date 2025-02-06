@@ -21,8 +21,6 @@ import (
 var (
 	tracer                 = otel.Tracer("core/listener")
 	retrySubscriptionDelay = 5 * time.Second
-
-	errInvalidSubscription = errors.New("invalid subscription")
 )
 
 // Listener is responsible for listening to Core for
@@ -101,11 +99,16 @@ func (cl *Listener) Start(context.Context) error {
 	cl.cancel = cancel
 	cl.closed = make(chan struct{})
 
-	sub, err := cl.fetcher.SubscribeNewBlockEvent(ctx)
+	err := cl.fetcher.Start(ctx)
 	if err != nil {
 		return err
 	}
-	go cl.runSubscriber(ctx, sub)
+	subs, err := cl.fetcher.runSubscriber()
+	if err != nil {
+		return err
+	}
+
+	go cl.listen(ctx, subs)
 	return nil
 }
 
@@ -132,56 +135,11 @@ func (cl *Listener) Stop(ctx context.Context) error {
 	return nil
 }
 
-// runSubscriber runs a subscriber to receive event data of new signed blocks. It will attempt to
-// resubscribe in case error happens during listening of subscription
-func (cl *Listener) runSubscriber(ctx context.Context, sub <-chan types.EventDataSignedBlock) {
-	defer close(cl.closed)
-	for {
-		err := cl.listen(ctx, sub)
-		if ctx.Err() != nil {
-			// listener stopped because external context was canceled
-			return
-		}
-		if errors.Is(err, errInvalidSubscription) {
-			// stop node if there is a critical issue with the block subscription
-			log.Fatalf("listener: %v", err) //nolint:gocritic
-		}
-
-		log.Warnw("listener: subscriber error, resubscribing...", "err", err)
-		sub = cl.resubscribe(ctx)
-		if sub == nil {
-			return
-		}
-	}
-}
-
-func (cl *Listener) resubscribe(ctx context.Context) <-chan types.EventDataSignedBlock {
-	err := cl.fetcher.Stop(ctx)
-	if err != nil {
-		log.Warnw("listener: unsubscribe", "err", err)
-	}
-
-	ticker := time.NewTicker(retrySubscriptionDelay)
-	defer ticker.Stop()
-	for {
-		sub, err := cl.fetcher.SubscribeNewBlockEvent(ctx)
-		if err == nil {
-			return sub
-		}
-		log.Errorw("listener: resubscribe", "err", err)
-
-		select {
-		case <-ctx.Done():
-			return nil
-		case <-ticker.C:
-		}
-	}
-}
-
 // listen kicks off a loop, listening for new block events from Core,
 // generating ExtendedHeaders and broadcasting them to the header-sub
 // gossipsub network.
-func (cl *Listener) listen(ctx context.Context, sub <-chan types.EventDataSignedBlock) error {
+func (cl *Listener) listen(ctx context.Context, sub <-chan types.EventDataSignedBlock) {
+	defer close(cl.closed)
 	defer log.Info("listener: listening stopped")
 	timeout := time.NewTimer(cl.listenerTimeout)
 	defer timeout.Stop()
@@ -189,13 +147,14 @@ func (cl *Listener) listen(ctx context.Context, sub <-chan types.EventDataSigned
 		select {
 		case b, ok := <-sub:
 			if !ok {
-				return errors.New("underlying subscription was closed")
+				log.Error("underlying subscription was closed")
+				return
 			}
 
 			if cl.chainID != "" && b.Header.ChainID != cl.chainID {
-				log.Errorf("listener: received block with unexpected chain ID: expected %s,"+
-					" received %s", cl.chainID, b.Header.ChainID)
-				return errInvalidSubscription
+				// stop node if there is a critical issue with the block subscription
+				panic(fmt.Sprintf("listener: received block with unexpected chain ID: expected %s,"+
+					" received %s", cl.chainID, b.Header.ChainID))
 			}
 
 			log.Debugw("listener: new block from core", "height", b.Header.Height)
@@ -211,13 +170,13 @@ func (cl *Listener) listen(ctx context.Context, sub <-chan types.EventDataSigned
 			if !timeout.Stop() {
 				<-timeout.C
 			}
-			timeout.Reset(cl.listenerTimeout)
 		case <-timeout.C:
 			cl.metrics.subscriptionStuck(ctx)
-			return errors.New("underlying subscription is stuck")
+			log.Error("underlying subscription is stuck")
 		case <-ctx.Done():
-			return ctx.Err()
+			return
 		}
+		timeout.Reset(cl.listenerTimeout)
 	}
 }
 

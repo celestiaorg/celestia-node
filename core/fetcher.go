@@ -2,9 +2,9 @@ package core
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"io"
-	"sync/atomic"
 	"time"
 
 	"github.com/gogo/protobuf/proto"
@@ -13,7 +13,6 @@ import (
 	coregrpc "github.com/tendermint/tendermint/rpc/grpc"
 	"github.com/tendermint/tendermint/types"
 	"google.golang.org/grpc"
-	"google.golang.org/grpc/status"
 
 	libhead "github.com/celestiaorg/go-header"
 )
@@ -35,9 +34,11 @@ var (
 type BlockFetcher struct {
 	client coregrpc.BlockAPIClient
 
-	doneCh               chan struct{}
-	cancel               context.CancelFunc
-	isListeningForBlocks atomic.Bool
+	signedBlockCh chan types.EventDataSignedBlock
+
+	ctx    context.Context
+	cancel context.CancelFunc
+	doneCh chan struct{}
 }
 
 // NewBlockFetcher returns a new `BlockFetcher`.
@@ -47,10 +48,22 @@ func NewBlockFetcher(conn *grpc.ClientConn) (*BlockFetcher, error) {
 	}, nil
 }
 
+func (f *BlockFetcher) Start(ctx context.Context) error {
+	f.ctx, f.cancel = context.WithCancel(ctx)
+	f.doneCh = make(chan struct{})
+	f.signedBlockCh = make(chan types.EventDataSignedBlock, 1)
+	return nil
+}
+
 // Stop stops the block fetcher.
 // The underlying gRPC connection needs to be stopped separately.
 func (f *BlockFetcher) Stop(ctx context.Context) error {
+	if f.cancel == nil {
+		return errors.New("block fetcher not started")
+	}
+
 	f.cancel()
+	f.cancel = nil
 	select {
 	case <-f.doneCh:
 		return nil
@@ -105,7 +118,6 @@ func (f *BlockFetcher) GetBlockByHash(ctx context.Context, hash libhead.Hash) (*
 	if err != nil {
 		return nil, err
 	}
-
 	return block, nil
 }
 
@@ -161,71 +173,82 @@ func (f *BlockFetcher) ValidatorSet(ctx context.Context, height int64) (*types.V
 	return validatorSet, nil
 }
 
-// SubscribeNewBlockEvent subscribes to new block events from Core, returning
-// a new block event channel on success.
-func (f *BlockFetcher) SubscribeNewBlockEvent(ctx context.Context) (<-chan types.EventDataSignedBlock, error) {
-	if f.isListeningForBlocks.Load() {
-		return nil, fmt.Errorf("already subscribed to new blocks")
-	}
-	ctx, cancel := context.WithCancel(ctx)
-	f.cancel = cancel
-	f.doneCh = make(chan struct{})
-	f.isListeningForBlocks.Store(true)
-
-	subscription, err := f.client.SubscribeNewHeights(ctx, &coregrpc.SubscribeNewHeightsRequest{})
-	if err != nil {
-		close(f.doneCh)
-		f.isListeningForBlocks.Store(false)
-		return nil, err
+func (f *BlockFetcher) runSubscriber() (chan types.EventDataSignedBlock, error) {
+	if f.signedBlockCh == nil {
+		return nil, fmt.Errorf("fetcher: subscriber not started")
 	}
 
-	log.Debug("created a subscription. Start listening for new blocks...")
-	signedBlockCh := make(chan types.EventDataSignedBlock)
+	var (
+		subscription coregrpc.BlockAPI_SubscribeNewHeightsClient
+		err          error
+	)
+
 	go func() {
 		defer close(f.doneCh)
-		defer close(signedBlockCh)
-		defer func() { f.isListeningForBlocks.Store(false) }()
+
+		timeout := time.NewTimer(retrySubscriptionDelay)
+		defer timeout.Stop()
 		for {
 			select {
-			case <-ctx.Done():
+			case <-f.ctx.Done():
 				return
 			default:
-				resp, err := subscription.Recv()
-				if err != nil {
-					log.Errorw("fetcher: error receiving new height", "err", err.Error())
-					_, ok := status.FromError(err) // parsing the gRPC error
-					if ok {
-						// ok means that err contains a gRPC status error.
-						// move on another round of resubscribing.
-						return
-					}
-					continue
-				}
-				withTimeout, ctxCancel := context.WithTimeout(ctx, 10*time.Second)
-				signedBlock, err := f.GetSignedBlock(withTimeout, resp.Height)
-				ctxCancel()
-				if err != nil {
-					log.Errorw("fetcher: error receiving signed block", "height", resp.Height, "err", err.Error())
-					// sleeping a bit to avoid retrying instantly and give time for the gRPC connection
-					// to recover automatically.
-					time.Sleep(time.Second)
-					continue
-				}
-				select {
-				case signedBlockCh <- types.EventDataSignedBlock{
-					Header:       *signedBlock.Header,
-					Commit:       *signedBlock.Commit,
-					ValidatorSet: *signedBlock.ValidatorSet,
-					Data:         *signedBlock.Data,
-				}:
-				case <-ctx.Done():
-					return
-				}
+			}
+
+			subscription, err = f.client.SubscribeNewHeights(f.ctx, &coregrpc.SubscribeNewHeightsRequest{})
+			switch {
+			case err == nil:
+			case errors.Is(err, context.Canceled):
+				return
+			default:
+				log.Errorw("fetcher: failed to subscribe to new block events", "err", err)
+				timeout.Reset(retrySubscriptionDelay)
+				<-timeout.C
+				continue
+			}
+
+			err = f.receive(f.ctx, subscription)
+			if err != nil {
+				log.Errorw("fetcher: error receiving new height", "err", err.Error())
+				continue
 			}
 		}
 	}()
+	return f.signedBlockCh, nil
+}
 
-	return signedBlockCh, nil
+func (f *BlockFetcher) receive(ctx context.Context, subscription coregrpc.BlockAPI_SubscribeNewHeightsClient) error {
+	if f.signedBlockCh == nil {
+		return fmt.Errorf("fetcher: subscriber not started")
+	}
+
+	for {
+		resp, err := subscription.Recv()
+		if err != nil {
+			return err
+		}
+
+		withTimeout, ctxCancel := context.WithTimeout(ctx, 10*time.Second)
+		signedBlock, err := f.GetSignedBlock(withTimeout, resp.Height)
+		ctxCancel()
+		if err != nil {
+			log.Errorw("fetcher: error receiving signed block", "height", resp.Height, "err", err.Error())
+			// sleeping a bit to avoid retrying instantly and give time for the gRPC connection
+			// to recover automatically.
+			time.Sleep(time.Second)
+			continue
+		}
+		select {
+		case f.signedBlockCh <- types.EventDataSignedBlock{
+			Header:       *signedBlock.Header,
+			Commit:       *signedBlock.Commit,
+			ValidatorSet: *signedBlock.ValidatorSet,
+			Data:         *signedBlock.Data,
+		}:
+		case <-ctx.Done():
+			return ctx.Err()
+		}
+	}
 }
 
 // IsSyncing returns the sync status of the Core connection: true for

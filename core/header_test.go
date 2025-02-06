@@ -26,7 +26,9 @@ func TestMakeExtendedHeaderForEmptyBlock(t *testing.T) {
 	client := newTestClient(t, host, port)
 	fetcher, err := NewBlockFetcher(client)
 	require.NoError(t, err)
-	sub, err := fetcher.SubscribeNewBlockEvent(ctx)
+	err = fetcher.Start(ctx)
+	require.NoError(t, err)
+	sub, err := fetcher.runSubscriber()
 	require.NoError(t, err)
 	<-sub
 
@@ -44,6 +46,7 @@ func TestMakeExtendedHeaderForEmptyBlock(t *testing.T) {
 	require.NoError(t, err)
 
 	assert.Equal(t, share.EmptyEDSRoots(), headerExt.DAH)
+	require.NoError(t, fetcher.Stop(ctx))
 }
 
 func TestMismatchedDataHash_ComputedRoot(t *testing.T) {

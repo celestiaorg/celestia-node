@@ -22,8 +22,10 @@ func TestBlockFetcher_GetBlock_and_SubscribeNewBlockEvent(t *testing.T) {
 	client := newTestClient(t, host, port)
 	fetcher, err := NewBlockFetcher(client)
 	require.NoError(t, err)
+	err = fetcher.Start(ctx)
+	require.NoError(t, err)
 	// generate some blocks
-	newBlockChan, err := fetcher.SubscribeNewBlockEvent(ctx)
+	newBlockChan, err := fetcher.runSubscriber()
 	require.NoError(t, err)
 
 	for i := 1; i < 3; i++ {
