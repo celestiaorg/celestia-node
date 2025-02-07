@@ -47,16 +47,20 @@ func grpcClient(lc fx.Lifecycle, cfg Config) (*grpc.ClientConn, error) {
 			grpc_retry.BackoffExponentialWithJitter(time.Second, 2.0)),
 	)
 
-	opts = append(opts, grpc.WithUnaryInterceptor(retryInterceptor))
-	opts = append(opts, grpc.WithStreamInterceptor(retryStreamInterceptor))
+	opts = append(opts,
+		grpc.WithUnaryInterceptor(retryInterceptor),
+		grpc.WithStreamInterceptor(retryStreamInterceptor),
+	)
 
 	if cfg.XTokenPath != "" {
 		xToken, err := parseTokenPath(cfg.XTokenPath)
 		if err != nil {
 			return nil, err
 		}
-		opts = append(opts, grpc.WithChainUnaryInterceptor(authInterceptor(xToken), retryInterceptor))
-		opts = append(opts, grpc.WithChainStreamInterceptor(authStreamInterceptor(xToken), retryStreamInterceptor))
+		opts = append(opts,
+			grpc.WithChainUnaryInterceptor(authInterceptor(xToken), retryInterceptor),
+			grpc.WithChainStreamInterceptor(authStreamInterceptor(xToken), retryStreamInterceptor),
+		)
 	}
 
 	endpoint := net.JoinHostPort(cfg.IP, cfg.Port)

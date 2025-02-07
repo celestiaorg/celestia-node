@@ -64,10 +64,11 @@ func (f *BlockFetcher) Stop(ctx context.Context) error {
 	f.cancel = nil
 	select {
 	case <-f.doneCh:
-		return nil
 	case <-ctx.Done():
 		return fmt.Errorf("fetcher: unsubscribe from new block events: %w", ctx.Err())
 	}
+	f.doneCh = nil
+	return nil
 }
 
 // GetBlockInfo queries Core for additional block information, like Commit and ValidatorSet.

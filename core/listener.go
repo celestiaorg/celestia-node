@@ -151,7 +151,9 @@ func (cl *Listener) listen(ctx context.Context, sub <-chan types.EventDataSigned
 			if cl.chainID != "" && b.Header.ChainID != cl.chainID {
 				// stop node if there is a critical issue with the block subscription
 				panic(fmt.Sprintf("listener: received block with unexpected chain ID: expected %s,"+
-					" received %s", cl.chainID, b.Header.ChainID))
+					" received %s. blockHeight: %d blockHash: %x.",
+					cl.chainID, b.Header.ChainID, b.Header.Height, b.Header.Hash()),
+				)
 			}
 
 			log.Debugw("listener: new block from core", "height", b.Header.Height)
