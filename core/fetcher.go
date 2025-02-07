@@ -13,6 +13,7 @@ import (
 	coregrpc "github.com/tendermint/tendermint/rpc/grpc"
 	"github.com/tendermint/tendermint/types"
 	"google.golang.org/grpc"
+	"google.golang.org/grpc/status"
 
 	libhead "github.com/celestiaorg/go-header"
 )
@@ -168,14 +169,17 @@ func (f *BlockFetcher) SubscribeNewBlockEvent(ctx context.Context) (<-chan types
 	}
 	ctx, cancel := context.WithCancel(ctx)
 	f.cancel = cancel
-	f.doneCh = make(chan struct{})
 	f.isListeningForBlocks.Store(true)
 
 	subscription, err := f.client.SubscribeNewHeights(ctx, &coregrpc.SubscribeNewHeightsRequest{})
 	if err != nil {
+		f.isListeningForBlocks.Store(false)
 		return nil, err
 	}
 
+	log.Debug("created a subscription. Start listening for new blocks...")
+
+	f.doneCh = make(chan struct{})
 	signedBlockCh := make(chan types.EventDataSignedBlock)
 	go func() {
 		defer close(f.doneCh)
@@ -189,6 +193,12 @@ func (f *BlockFetcher) SubscribeNewBlockEvent(ctx context.Context) (<-chan types
 				resp, err := subscription.Recv()
 				if err != nil {
 					log.Errorw("fetcher: error receiving new height", "err", err.Error())
+					_, ok := status.FromError(err) // parsing the gRPC error
+					if ok {
+						// ok means that err contains a gRPC status error.
+						// move on another round of resubscribing.
+						return
+					}
 					continue
 				}
 				withTimeout, ctxCancel := context.WithTimeout(ctx, 10*time.Second)
