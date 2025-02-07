@@ -119,6 +119,8 @@ func (m *mockAPIService) generateBlocksWithHeights(ctx context.Context, t *testi
 	require.NoError(t, fetcher.Stop(ctx))
 }
 
+// TestStart_SubscribeNewBlockEvent_Resubscription ensures that subscription will not stuck in case
+// gRPC server was stopped.
 func TestStart_SubscribeNewBlockEvent_Resubscription(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second*30)
 	t.Cleanup(cancel)
@@ -131,6 +133,7 @@ func TestStart_SubscribeNewBlockEvent_Resubscription(t *testing.T) {
 
 	fetcher, err := NewBlockFetcher(client)
 	require.NoError(t, err)
+	// subscribe to block event to get blocks
 	newBlockChan, err := fetcher.SubscribeNewBlockEvent(ctx)
 	require.NoError(t, err)
 
@@ -144,8 +147,14 @@ func TestStart_SubscribeNewBlockEvent_Resubscription(t *testing.T) {
 	}
 
 	require.NoError(t, m.Stop())
+
+	// stopping the server sends an error with the status code
+	// to client, so the subscription loop will be finished.
+	// check that newBlockChan was closed
 	_, ok := <-newBlockChan
 	require.False(t, ok)
+
+	// start server and try to get a new subscription
 	require.NoError(t, m.Start())
 	newBlockChan, err = fetcher.SubscribeNewBlockEvent(ctx)
 	require.NoError(t, err)
@@ -159,4 +168,5 @@ func TestStart_SubscribeNewBlockEvent_Resubscription(t *testing.T) {
 	}
 	require.NoError(t, m.Stop())
 	require.NoError(t, m.fetcher.Stop(ctx))
+	require.NoError(t, fetcher.Stop(ctx))
 }
