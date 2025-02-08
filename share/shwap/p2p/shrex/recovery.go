@@ -14,6 +14,8 @@ func RecoveryMiddleware(handler network.StreamHandler) network.StreamHandler {
 			if r != nil {
 				err := fmt.Errorf("PANIC while handling request: %s", r)
 				log.Error(err)
+				// Close the stream to prevent resource leaks
+				_ = stream.Close()
 			}
 		}()
 		handler(stream)
