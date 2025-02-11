@@ -46,7 +46,7 @@ The initial draft targets minimal engineering effort for the first implementatio
     - Block size scaling
     - Node count scaling
 
-## Reconstruction Flow
+## Reconstruction Overview
 
 If a Full Node cannot retrieve a block via the shrex protocol, it initiates the reconstruction process. During this process, the Full Node collects samples from both connected Light Nodes and Full Nodes, and enables efficient sample relaying to other Full Nodes. The following steps outline the reconstruction flow:
 
@@ -54,9 +54,74 @@ If a Full Node cannot retrieve a block via the shrex protocol, it initiates the 
     - Use the GetSamples protocol to retrieve samples from connected Light Nodes.
     - To avoid congestion, request samples in batches (e.g., up to 100 Light Nodes at a time).
 
-2. **Subscribe to bitmap updates.**
+2. **Get samples from FN. Relay samples to other FN.**
     - Use the SubscribeBitmap protocol to receive bitmap updates from connected Full Nodes.
     - If the returned bitmap contains samples not present locally, request them from the Full Node using GetSamples.
+    - Allow other Full Nodes to subscribe to the bitmap. Keep remote nodes updated with the latest state of collected samples bitmap.
+    - Serve collected samples to other Full Nodes if requested.
+
+## Reconstruction Flow
+
+1. **Initial network topology**
+   1. Attacker node joins the network, but keeps connections only to Light nodes.
+   2. Full nodes are interconnected, and have connections to Light nodes.
+   3. Light node 5 is isolated from the attacker node.
+
+   ![0](https://github.com/user-attachments/assets/f28edc73-324e-4760-9a22-cd9aa2126018)
+
+2. **Headers propagation and LN sample request**
+   1. Attacker tries to fool the network by sending a block header and allows LN to request samples.
+   2. Light nodes propagate the block header further to the network. First to FN and then FN relay it to isolated LN5.
+
+   ![01](https://github.com/user-attachments/assets/a6086ffd-3f9e-4f60-af6c-eb2ea7e1cb68)
+
+3. **Start of reconstruction** 
+   1. FNs tries to download the block using shrex, but fails due to timeout. It triggers reconstruction process.
+   2. FNs starts collecting samples from connected LNs.
+   3. FNs subscribes to bitmap updates from connected FNs.
+
+   ![1](https://github.com/user-attachments/assets/b5763a82-e73c-4393-9ea7-f4dc1afb2864)
+
+4. **Bitmap notification**
+   - FNs collects samples from LNs.
+   - FNs sends bitmap update to connected FNs.
+   
+   ![2](https://github.com/user-attachments/assets/984bedff-8bfc-49df-a35e-be70a05a230a)
+
+5. **Sample exchange** 
+   - FNs collect samples available in the network.
+   - FN do not collect samples available locally.
+
+   ![3](https://github.com/user-attachments/assets/1cb1a1a1-7bb1-4f46-afb8-1e2b494e8d7f)
+
+6. **Sample relaying. Exchange round 2,3...**
+   - After collecting samples from first round of exchange, FNs continues to send bitmap updates of collected samples to other FNs.
+   - FN2 collected some samples that are not available on FN1 and FN3. FN1 and FN3 collect samples from FN2.
+   - It could be more rounds of exchange, if needed.
+   
+   ![4](https://github.com/user-attachments/assets/afa3e44d-c1c7-4163-9ea4-18c4040273f9)
+
+7. **New LN joins the network**
+   - There is not enough samples to reconstruct the block on each FN.
+   - New LN joins the network with new set of samples and starts sending samples to FN2.
+
+   ![5](https://github.com/user-attachments/assets/2849d1a1-07bd-4284-b1ce-bcaebf713acd)
+
+8. **Reconstruct whole block**
+   - FN2 can now reconstruct the block using erasure decoding.
+
+   ![51](https://github.com/user-attachments/assets/51e81ccb-2107-45d7-b553-f7af1f1cada3)
+
+9. **Completed reconstruction notification**
+   - FN2 notifies other FNs that reconstruction it completed reconstruction and all samples are available.
+   - FN1 and FN3 can now download any missing samples from FN2. In shown case they can request any. For example they can request sample with coord: (X:1Y:0)
+
+   ![6](https://github.com/user-attachments/assets/8a0ef334-95fb-4180-aab2-63bb50ebf1da)
+
+10. **Reconstruction complete on all FN**
+   - All FNs can now reconstruct the block.
+
+   ![7](https://github.com/user-attachments/assets/25c5279b-e75d-415a-8c33-5f14c9c9082c)
 
 ### No Bitmap Subscription From Light Nodes: Why?
 
@@ -173,8 +238,11 @@ type peers []peer.ID
 **Query Interface**
 
 ```go
+// Returns peers that hold the given sample. Necessary for first implementation.
 func (s *RemoteState) GetPeersWithSample(coords []Coord) []peer.ID
+// Returns peers that hold the given axis. Will be used for bandwidth optimization.
 func (s *RemoteState) GetPeersWithAxis(axisIdx int, axisType AxisType) []peer.ID
+// Returns combination of all samples that are available in connected peers
 func (s *RemoteState) Available() bitmap
 ```
 
