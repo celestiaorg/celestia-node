@@ -248,7 +248,8 @@ func testAccessorRowNamespaceData(
 
 			// check that the amount of shares in the namespace is equal to the expected amount
 			require.Equal(t, amount, actualSharesAmount)
-		})
+		}
+	})
 
 	t.Run("not included", func(t *testing.T) {
 		t.Parallel()
