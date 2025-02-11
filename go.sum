@@ -355,8 +355,8 @@ github.com/celestiaorg/cosmos-sdk v1.27.0-sdk-v0.46.16 h1:qxWiGrDEcg4FzVTpIXU/v3
 github.com/celestiaorg/cosmos-sdk v1.27.0-sdk-v0.46.16/go.mod h1:W30mNt3+2l516HVR8Gt9+Gf4qOrWC9/x18MTEx2GljE=
 github.com/celestiaorg/go-fraud v0.2.1 h1:oYhxI0gM/EpGRgbVQdRI/LSlqyT65g/WhQGSVGfx09w=
 github.com/celestiaorg/go-fraud v0.2.1/go.mod h1:lNY1i4K6kUeeE60Z2VK8WXd+qXb8KRzfBhvwPkK6aUc=
-github.com/celestiaorg/go-header v0.6.4 h1:3kXi7N3qBc4SCmT+tNVWhLi0Ilw5e/7qq2cxVGbs0ss=
-github.com/celestiaorg/go-header v0.6.4/go.mod h1:Az4S4NxMOJ1eAzOaF8u5AZt5UzsSzg92uqpdXS3yOZE=
+github.com/celestiaorg/go-header v0.6.3-0.20250205122911-84a70905e679 h1:Q4TCjBrRQ8NRtvUrLnXK6DYcc+VwXXyP2+kR2D2yBJY=
+github.com/celestiaorg/go-header v0.6.3-0.20250205122911-84a70905e679/go.mod h1:Az4S4NxMOJ1eAzOaF8u5AZt5UzsSzg92uqpdXS3yOZE=
 github.com/celestiaorg/go-libp2p-messenger v0.2.0 h1:/0MuPDcFamQMbw9xTZ73yImqgTO3jHV7wKHvWD/Irao=
 github.com/celestiaorg/go-libp2p-messenger v0.2.0/go.mod h1:s9PIhMi7ApOauIsfBcQwbr7m+HBzmVfDIS+QLdgzDSo=
 github.com/celestiaorg/go-square v1.1.1 h1:Cy3p8WVspVcyOqHM8BWFuuYPwMitO1pYGe+ImILFZRA=
