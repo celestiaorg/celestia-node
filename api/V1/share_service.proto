@@ -1,0 +1,120 @@
+syntax = "proto3";
+
+package celestia.node.v1.share;
+
+option go_package = "github.com/celestiaorg/celestia-node/api/v1/share";
+
+import "common.proto";
+import "types.proto";
+import "proof.proto";
+
+message GetShareRequest {
+  uint64 height = 1;
+  uint32 row = 2;
+  uint32 col = 3;
+  optional celestia.node.v1.common.Options options = 4;
+}
+
+message GetShareResponse {
+  celestia.node.v1.common.Status status = 1;
+  optional celestia.node.v1.types.Share share = 2;
+  celestia.node.v1.proof.DataRootProof proof = 3;
+}
+
+message GetEDSRequest {
+  uint64 height = 1;
+  optional celestia.node.v1.common.Options options = 2;
+}
+
+message GetEDSResponse {
+  celestia.node.v1.common.Status status = 1;
+  repeated celestia.node.v1.types.Share shares = 2;
+}
+
+message GetRangeRequest {
+  uint64 height = 1;
+  celestia.node.v1.types.SquareRange range = 2;
+  optional celestia.node.v1.common.Options options = 3;
+}
+
+// V0 responses use row roots from DAH for verification
+message GetRangeResponseV0 {
+  celestia.node.v1.common.Status status = 1;
+  // Each row includes its proof to row root
+  repeated celestia.node.v1.types.SharesWithProof rows = 2;
+}
+
+// V1 responses use data root proofs directly
+message GetRangeResponseV1 {
+  celestia.node.v1.common.Status status = 1;
+  repeated celestia.node.v1.types.Share shares = 2;
+  celestia.node.v1.proof.DataRootProof proof = 3;  // Single proof for all shares
+}
+
+message GetRowRequest {
+  uint64 height = 1;
+  uint32 row = 2;
+  optional celestia.node.v1.common.Options options = 3;
+}
+
+// Row responses follow same V0/V1 pattern
+message GetRowResponseV0 {
+  celestia.node.v1.common.Status status = 1;
+  repeated celestia.node.v1.types.Share shares = 2;
+}
+
+message GetRowResponseV1 {
+  celestia.node.v1.common.Status status = 1;
+  repeated celestia.node.v1.types.Share shares = 2;
+  celestia.node.v1.proof.DataRootProof proof = 3;  // Requires proof to data root to prove shares are valid
+}
+
+message GetSharesByNamespaceRequest {
+  uint64 height = 1;
+  bytes namespace = 2;
+  optional celestia.node.v1.common.Options options = 3;
+}
+
+// V0: Namespace shares verified against row roots
+message GetSharesByNamespaceResponseV0 {
+  celestia.node.v1.common.Status status = 1;
+  // Each row includes its proof to row root
+  repeated celestia.node.v1.types.SharesWithProof rows = 2;
+  celestia.node.v1.types.SquareRange range = 3;
+}
+
+// V1: Namespace shares verified against data root
+message GetSharesByNamespaceResponseV1 {
+  celestia.node.v1.common.Status status = 1;
+  repeated celestia.node.v1.types.Share shares = 2;
+  celestia.node.v1.proof.DataRootProof proof = 3;
+  celestia.node.v1.types.SquareRange range = 4;
+}
+
+message SharesAvailableRequest {
+  uint64 height = 1;
+  optional uint32 sampling_window = 2;  // Blocks to check from height
+}
+
+message SharesAvailableResponse {
+  celestia.node.v1.common.Status status = 1;
+  bool is_available = 2;
+  uint64 highest_available_height = 3;
+}
+
+// ShareService - handles data share operations
+service ShareService {
+  // Core share operations
+  rpc GetShare(GetShareRequest) returns (GetShareResponse);
+  rpc GetEDS(GetEDSRequest) returns (GetEDSResponse);
+
+  // Range operations - support both V0 (row roots) and V1 (data root) responses
+  rpc GetRange(GetRangeRequest) returns (GetRangeResponseV0);
+  rpc GetRow(GetRowRequest) returns (GetRowResponseV0);
+
+  // Namespace operations - support both verification approaches
+  rpc GetSharesByNamespace(GetSharesByNamespaceRequest) returns (GetSharesByNamespaceResponseV0);
+
+  // Availability check
+  rpc SharesAvailable(SharesAvailableRequest) returns (SharesAvailableResponse);
+}
