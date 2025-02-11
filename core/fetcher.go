@@ -192,6 +192,8 @@ func (f *BlockFetcher) runSubscriber() (chan types.EventDataSignedBlock, error) 
 			case errors.Is(err, context.Canceled):
 				return
 			default:
+				// try re-subscribe in case of any errors that can come during subscription. gRPC
+				// retry mechanism has a back off on retries, so we don't need timers anymore.
 				log.Errorw("fetcher: failed to subscribe to new block events", "err", err)
 				continue
 			}
@@ -211,8 +213,14 @@ func (f *BlockFetcher) receive(
 	signedBlockCh chan types.EventDataSignedBlock,
 	subscription coregrpc.BlockAPI_SubscribeNewHeightsClient,
 ) error {
-	log.Debug("fetcher: starting listening for new blocks")
+	log.Error("fetcher: started listening for new blocks")
 	for {
+		select {
+		case <-ctx.Done():
+			return ctx.Err()
+		default:
+		}
+
 		resp, err := subscription.Recv()
 		if err != nil {
 			return err
@@ -221,10 +229,11 @@ func (f *BlockFetcher) receive(
 		withTimeout, ctxCancel := context.WithTimeout(ctx, 10*time.Second)
 		signedBlock, err := f.GetSignedBlock(withTimeout, resp.Height)
 		ctxCancel()
-		if err != nil && !errors.Is(err, context.Canceled) {
+		if err != nil {
 			log.Errorw("fetcher: error receiving signed block", "height", resp.Height, "err", err.Error())
 			continue
 		}
+
 		select {
 		case signedBlockCh <- types.EventDataSignedBlock{
 			Header:       *signedBlock.Header,
