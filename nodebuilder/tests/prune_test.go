@@ -245,8 +245,13 @@ func TestConvertFromArchivalToPruned(t *testing.T) {
 		FailedHeaders    map[uint64]struct{} `json:"failed"`
 	}
 
+	host, port, err := net.SplitHostPort(sw.ClientContext.GRPCClient.Target())
+	require.NoError(t, err)
+
 	for _, nt := range []node.Type{node.Bridge, node.Full} {
 		archivalCfg := nodebuilder.DefaultConfig(nt)
+		archivalCfg.Core.IP = host
+		archivalCfg.Core.Port = port
 
 		store := nodebuilder.MockStore(t, archivalCfg)
 		ds, err := store.Datastore()
