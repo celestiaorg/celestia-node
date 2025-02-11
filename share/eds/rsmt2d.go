@@ -22,9 +22,6 @@ type Rsmt2D struct {
 
 // Size returns the size of the Extended Data Square.
 func (eds *Rsmt2D) Size(context.Context) (int, error) {
-	if eds.ExtendedDataSquare == nil {
-		return 0, fmt.Errorf("extended data square is not initialized")
-	}
 	return int(eds.Width()), nil
 }
 
