@@ -424,6 +424,28 @@ A new protocol for Light Nodes to acquire block samples directly from Full Nodes
 
 ---
 
+## False Positive Overhead
+
+In certain rare scenarios, a Full Node (FN) might fail to obtain a block via shrex due to transient networking issues or software bugs. As a result, it may erroneously enter the reconstruction process (a “false positive”). This false alarm creates unnecessary overhead on the network, as the node begins sending sample requests to Light Nodes and setting up bitmap subscriptions. Although the likelihood of such events is relatively low, it is still worth considering potential mitigation strategies:
+
+### Potential Mitigation Strategies
+
+1. **Lower the Chance of a False Positive**
+   - **Track Multiple `NOT_HAVE` Responses**  
+     If an FN sees repeated `NOT_HAVE` responses over an extended period, it becomes more likely that the block truly isn’t available on the network. This reduces the chance of prematurely triggering reconstruction.
+   - **Extend Shrex Timeouts with Caution**  
+     If repeated attempts to fetch the block fail, the FN could increase its shrex timeouts while gathering enough evidence that the block is not available. However, this approach must guard against attackers who might falsely claim to have the block but never serve it (i.e., withholding attacks).
+
+2. **Lower the Impact of a False Positive**
+   - **Staged Reconstruction**  
+     Allow the node to run shrex in the background while performing reconstruction in phases. Initially, it might only subscribe to bitmaps lightly, ramping up resource usage gradually if it still can’t locate the block. This approach reduces unnecessary load on the network if the trigger was false, but it may also delay reconstruction if the block genuinely is unavailable.
+
+---
+
+All of these methods are optional considerations. **Ensuring robust reconstruction remains a higher priority**; therefore, these false positive mitigations can be evaluated and implemented at a later time if deemed necessary.
+
+--- 
+
 ## Backwards Compatibility
 
 A coordinated network upgrade may be required as this protocol evolves. The implementation should support:
