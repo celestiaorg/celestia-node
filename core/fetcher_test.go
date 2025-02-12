@@ -19,10 +19,8 @@ func TestBlockFetcher_GetBlock_and_SubscribeNewBlockEvent(t *testing.T) {
 	client := newTestClient(t, host, port)
 	fetcher, err := NewBlockFetcher(client)
 	require.NoError(t, err)
-	err = fetcher.Start(ctx)
-	require.NoError(t, err)
 	// generate some blocks
-	newBlockChan, err := fetcher.runSubscriber()
+	newBlockChan, err := fetcher.SubscribeNewBlockEvent(ctx)
 	require.NoError(t, err)
 
 	for i := 1; i < 3; i++ {
@@ -40,13 +38,11 @@ func TestBlockFetcher_GetBlock_and_SubscribeNewBlockEvent(t *testing.T) {
 			require.NoError(t, ctx.Err())
 		}
 	}
-	require.NoError(t, fetcher.Stop(ctx))
 }
 
 // TestFetcher_Resubscription ensures that subscription will not stuck in case
 // gRPC server was stopped.
 func TestFetcher_Resubscription(t *testing.T) {
-	t.Skip()
 	ctx, cancel := context.WithTimeout(context.Background(), time.Minute)
 	t.Cleanup(cancel)
 	// run new consensus node
@@ -58,12 +54,10 @@ func TestFetcher_Resubscription(t *testing.T) {
 	client := newTestClient(t, host, port)
 	fetcher, err := NewBlockFetcher(client)
 	require.NoError(t, err)
-	err = fetcher.Start(ctx)
-	require.NoError(t, err)
 
 	// subscribe to the channel to get new blocks
 	// and try to get one block
-	newBlockChan, err := fetcher.runSubscriber()
+	newBlockChan, err := fetcher.SubscribeNewBlockEvent(ctx)
 	require.NoError(t, err)
 	select {
 	case newBlockFromChan := <-newBlockChan:
@@ -99,7 +93,5 @@ func TestFetcher_Resubscription(t *testing.T) {
 	case <-ctx.Done():
 		t.Fatal("timeout waiting for block subscription")
 	}
-
 	require.NoError(t, tn.Stop())
-	require.NoError(t, fetcher.Stop(ctx))
 }

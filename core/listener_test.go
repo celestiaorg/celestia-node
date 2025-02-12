@@ -90,8 +90,7 @@ func TestListenerWithWrongChainRPC(t *testing.T) {
 
 	// create Listener and start listening
 	cl := createListener(ctx, t, fetcher, ps0, eds, store, "wrong-chain-rpc")
-	require.NoError(t, cl.fetcher.Start(ctx))
-	sub, err := cl.fetcher.runSubscriber()
+	sub, err := cl.fetcher.SubscribeNewBlockEvent(ctx)
 	require.NoError(t, err)
 
 	assert.Panics(t, func() { cl.listen(ctx, sub) })

@@ -87,6 +87,7 @@ func (f *BlockFetcher) GetBlockByHash(ctx context.Context, hash libhead.Hash) (*
 	if err != nil {
 		return nil, err
 	}
+
 	return block, nil
 }
 
@@ -143,7 +144,7 @@ func (f *BlockFetcher) ValidatorSet(ctx context.Context, height int64) (*types.V
 }
 
 // SubscribeNewBlockEvent subscribes to new block events from Core, returning
-// a new block event channel on success.
+// a new block event channel.
 func (f *BlockFetcher) SubscribeNewBlockEvent(ctx context.Context) (chan types.EventDataSignedBlock, error) {
 	signedBlockCh := make(chan types.EventDataSignedBlock, 1)
 
@@ -187,7 +188,7 @@ func (f *BlockFetcher) receive(
 			return err
 		}
 
-		//TODO(@vgonkivs): make timeout configurable
+		// TODO(@vgonkivs): make timeout configurable
 		withTimeout, ctxCancel := context.WithTimeout(ctx, 10*time.Second)
 		signedBlock, err := f.GetSignedBlock(withTimeout, resp.Height)
 		ctxCancel()

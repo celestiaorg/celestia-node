@@ -26,13 +26,11 @@ func TestMakeExtendedHeaderForEmptyBlock(t *testing.T) {
 	client := newTestClient(t, host, port)
 	fetcher, err := NewBlockFetcher(client)
 	require.NoError(t, err)
-	err = fetcher.Start(ctx)
+	sub, err := fetcher.SubscribeNewBlockEvent(ctx)
 	require.NoError(t, err)
-	sub, err := fetcher.runSubscriber()
-	require.NoError(t, err)
-	<-sub
+	dataBlock := <-sub
 
-	height := int64(1)
+	height := dataBlock.Header.Height
 	b, err := fetcher.GetBlock(ctx, height)
 	require.NoError(t, err)
 
@@ -46,7 +44,6 @@ func TestMakeExtendedHeaderForEmptyBlock(t *testing.T) {
 	require.NoError(t, err)
 
 	assert.Equal(t, share.EmptyEDSRoots(), headerExt.DAH)
-	require.NoError(t, fetcher.Stop(ctx))
 }
 
 func TestMismatchedDataHash_ComputedRoot(t *testing.T) {

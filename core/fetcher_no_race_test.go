@@ -25,10 +25,7 @@ func TestBlockFetcherHeaderValues(t *testing.T) {
 	client := newTestClient(t, host, port)
 	fetcher, err := NewBlockFetcher(client)
 	require.NoError(t, err)
-	err = fetcher.Start(ctx)
-	require.NoError(t, err)
-	// generate some blocks
-	newBlockChan, err := fetcher.runSubscriber()
+	newBlockChan, err := fetcher.SubscribeNewBlockEvent(ctx)
 	require.NoError(t, err)
 	// read once from channel to generate next block
 	var h int64
@@ -57,5 +54,4 @@ func TestBlockFetcherHeaderValues(t *testing.T) {
 	// compare ValidatorSet hash to the ValidatorsHash from first block height
 	hexBytes := valSet.Hash()
 	assert.Equal(t, nextBlock.ValidatorSet.Hash(), hexBytes)
-	require.NoError(t, fetcher.Stop(ctx))
 }

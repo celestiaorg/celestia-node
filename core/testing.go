@@ -104,7 +104,7 @@ func newTestClient(t *testing.T, ip, port string) *grpc.ClientConn {
 }
 
 // Network wraps `testnode.Context` allowing to manually stop all underlying connections.
-// TODO: remove after https://github.com/celestiaorg/celestia-app/issues/4304 is done.
+// TODO @vgonkivs: remove after https://github.com/celestiaorg/celestia-app/issues/4304 is done.
 type Network struct {
 	testnode.Context
 	config *testnode.Config

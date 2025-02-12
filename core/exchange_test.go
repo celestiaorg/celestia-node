@@ -73,7 +73,6 @@ func TestExchange_DoNotStoreHistoric(t *testing.T) {
 	fetcher, cctx := createCoreFetcher(t, cfg)
 	generateNonEmptyBlocks(t, ctx, fetcher, cfg, cctx)
 
-	require.NoError(t, fetcher.Start(ctx))
 	store, err := store.NewStore(store.DefaultParameters(), t.TempDir())
 	require.NoError(t, err)
 
@@ -208,13 +207,8 @@ func generateNonEmptyBlocks(
 	// generate several non-empty blocks
 	generateCtx, generateCtxCancel := context.WithCancel(context.Background())
 
-	require.NoError(t, fetcher.Start(ctx))
-	sub, err := fetcher.runSubscriber()
+	sub, err := fetcher.SubscribeNewBlockEvent(generateCtx)
 	require.NoError(t, err)
-	defer func() {
-		err = fetcher.Stop(ctx)
-		require.NoError(t, err)
-	}()
 
 	go fillBlocks(t, generateCtx, cfg, cctx)
 
