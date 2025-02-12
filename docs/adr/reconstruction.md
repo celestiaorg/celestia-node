@@ -68,6 +68,21 @@ If a Full Node (FN) cannot retrieve a block via the shrex protocol, it initiates
 
 ---
 
+## Sampling Protocol
+
+The current implementation of the sampling protocol relies on [bitswap](https://github.com/ipfs/go-bitswap) to request samples from Full (or Bridge) nodes. Under normal assumptions—when data is reliably available—bitswap works well. It provides a robust system for fetching data by content identifier (CID), along with advanced features for load distribution and prioritization.
+
+However, bitswap has a critical limitation: **it lacks content discovery**. When content discovery is absent, a node must attempt requests with each peer until it finds one that actually has the data. This becomes especially problematic during reconstruction. In that scenario, only the attacker nodes hold the block data initially; honest Full Nodes do not. As a result:
+
+1. Light Nodes (LNs) repeatedly attempt to fetch samples from honest Full Nodes, which cannot serve these requests because they don’t yet have the block data.
+2. This generates excessive “spam” requests directed at nodes that are in the process of reconstructing the block, ultimately degrading performance.
+
+**Replace bitswap with shrex-based Samples protocol.**
+
+To resolve this issue, the protocol must incorporate a more effective content discovery mechanism. Fortunately, the **shrex-based Samples protocol**, already required for reconstruction, can also serve LN sampling needs. By adopting this unified solution, we can eventually phase out bitswap for **all** data retrieval tasks, removing it as a dependency and streamlining the system’s architecture.
+
+---
+
 ## Reconstruction Flow
 
 Below is a step-by-step illustration of the reconstruction flow, with accompanying diagrams.
@@ -134,6 +149,26 @@ Below is a step-by-step illustration of the reconstruction flow, with accompanyi
 
 ---
 
+### Protocol Diagrams
+
+Below is an outline of the proposed protocols. Full flow diagrams appear at the end of this document.
+
+```
+1. Bitmap Subscription 
+   Client (FN)                            Server (FN)
+      |---- Subscribe to bitmap -------------->|
+      |<---- Initial bitmap -------------------|
+      |<---- Updates  -------------------------|
+      |<---- End updates ----------------------|
+
+2. GetSamples
+   Client (FN)                     Server (FN/LN)
+      |---- Request(bitmap) ----------->|
+      |<---- [Samples + Proof] parts ---|
+```
+
+---
+
 ### No Bitmap Subscription From Light Nodes: Why?
 
 Subscribing to bitmaps from Light Nodes would allow more precise deduplication of requested samples, but it also introduces additional complexity and round-trip overhead. Since each Light Node holds relatively few samples, the probability of overlap is low. Instead, the Full Node can send an inverse “have” bitmap in its request to indicate which samples are still needed.
@@ -163,26 +198,6 @@ The data indicates that overhead is negligible for larger block sizes. To keep t
 
 ---
 
-### Protocol Diagrams
-
-Below is an outline of the proposed protocols. Full flow diagrams appear at the end of this document.
-
-```
-1. Bitmap Subscription 
-   Client (FN)                            Server (FN)
-      |---- Subscribe to bitmap -------------->|
-      |<---- Initial bitmap -------------------|
-      |<---- Updates  -------------------------|
-      |<---- End updates ----------------------|
-
-2. GetSamples
-   Client (FN)                     Server (FN/LN)
-      |---- Request(bitmap) ----------->|
-      |<---- [Samples + Proof] parts ---|
-```
-
----
-
 ## Core Components
 
 ### List of Core Components
@@ -193,6 +208,7 @@ Below is an outline of the proposed protocols. Full flow diagrams appear at the 
 4. Samples retrieval protocol
 5. Samples store (new file format)
 6. Peer identification
+7. Light node sampling protocol
 
 ---
 
@@ -399,6 +415,12 @@ Peer identification ensures Full Nodes can distinguish Full Nodes from Light Nod
 - Light Nodes: `GetSamples`
 
 Peer information can be inferred from the host (e.g., user agent or a `libp2p.Identity` protocol).
+
+---
+
+### 7. Light node sampling protocol
+
+A new protocol for Light Nodes to acquire block samples directly from Full Nodes, **based on the Samples Retrieval Protocol (item #4)**. By adopting this approach, we can phase out bitswap and unify the mechanisms used for both normal sampling and reconstruction. Key advantages include:
 
 ---
 
