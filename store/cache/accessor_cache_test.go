@@ -301,10 +301,11 @@ type mockAccessor struct {
 	m        sync.Mutex
 	data     []byte
 	isClosed bool
+	size     int
 }
 
-func (m *mockAccessor) Size(context.Context) int {
-	panic("implement me")
+func (m *mockAccessor) Size(context.Context) (int, error) {
+	return m.size, nil
 }
 
 func (m *mockAccessor) DataHash(context.Context) (share.DataHash, error) {
