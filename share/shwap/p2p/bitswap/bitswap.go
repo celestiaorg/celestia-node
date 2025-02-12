@@ -8,6 +8,7 @@ import (
 
 	"github.com/ipfs/boxo/bitswap/client"
 	"github.com/ipfs/boxo/bitswap/network"
+	"github.com/ipfs/boxo/bitswap/network/bsnet"
 	"github.com/ipfs/boxo/bitswap/server"
 	"github.com/ipfs/boxo/blockstore"
 	blocks "github.com/ipfs/go-block-format"
@@ -33,9 +34,6 @@ const (
 	// unnecessary broadcasting as in most cases we already have peers connected with needed data on
 	// a new request.
 	broadcastDelay = time.Second * 10
-	// disablePerPeerRetries disables rebroadcasting of WANTs with no response in peer message queue.
-	// We keep it enabled to account for case where maxServerWantListsPerPeer gets exceeded, loosing WANTs.
-	disablePerPeerRetries = false
 	// provSearchDelay is similar to the broadcastDelay, but it targets DHT/ContentRouting
 	// peer discovery and a gentle broadcast of a single random live WANT to all connected peers.
 	// Considering no DHT usage and broadcasting configured by broadcastDelay, we set
@@ -74,8 +72,6 @@ const (
 	// replaceHasWithBlockMaxSize configures Bitswap to use Has method instead of GetSize to check existence
 	// of a CID in Blockstore.
 	replaceHasWithBlockMaxSize = 0
-	// providesEnabled dictates Bitswap Server not to provide content to DHT/ContentRouting as we don't use it
-	providesEnabled = false
 )
 
 // simulateDontHaveConfig contains the configuration for Bitswap's DONT_HAVE simulation.
@@ -107,11 +103,10 @@ var simulateDontHaveConfig = &client.DontHaveTimeoutConfig{
 // NewNetwork constructs Bitswap network for Shwap protocol composition.
 func NewNetwork(host host.Host, prefix protocol.ID) network.BitSwapNetwork {
 	prefix = shwapProtocolID(prefix)
-	net := network.NewFromIpfsHost(
+	net := bsnet.NewFromIpfsHost(
 		host,
-		routinghelpers.Null{},
-		network.Prefix(prefix),
-		network.SupportedProtocols([]protocol.ID{protocolID}),
+		bsnet.Prefix(prefix),
+		bsnet.SupportedProtocols([]protocol.ID{protocolID}),
 	)
 	return net
 }
@@ -126,7 +121,6 @@ func NewClient(
 	opts := []client.Option{
 		client.SetSimulateDontHavesOnTimeout(simulateDontHaves),
 		client.WithDontHaveTimeoutConfig(simulateDontHaveConfig),
-		client.WithDisabledMessageQueueRebroadcast(disablePerPeerRetries),
 		// Prevents Has calls to Blockstore for metric that counts duplicates
 		// Unnecessary for our use case, so we can save some disk lookups.
 		client.WithoutDuplicatedBlockStats(),
@@ -138,6 +132,7 @@ func NewClient(
 	return client.New(
 		ctx,
 		net,
+		routinghelpers.Null{},
 		bstore,
 		opts...,
 	)
@@ -151,7 +146,6 @@ func NewServer(
 	bstore blockstore.Blockstore,
 ) *server.Server {
 	opts := []server.Option{
-		server.ProvideEnabled(providesEnabled),
 		server.SetSendDontHaves(sendDontHaves),
 		server.MaxQueuedWantlistEntriesPerPeer(maxServerWantListsPerPeer),
 		server.WithTargetMessageSize(targetResponseSize),
@@ -195,7 +189,7 @@ func (bs *Bitswap) Close() error {
 //	due to a little bug. Bitswap allows setting custom protocols, but
 //	they have to be either one of the switch.
 //	https://github.com/ipfs/boxo/blob/dfd4a53ba828a368cec8d61c3fe12969ac6aa94c/bitswap/network/ipfs_impl.go#L250-L266
-var protocolID = network.ProtocolBitswap
+var protocolID = bsnet.ProtocolBitswap
 
 func shwapProtocolID(network protocol.ID) protocol.ID {
 	if network == "" {
