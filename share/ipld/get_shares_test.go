@@ -135,9 +135,11 @@ func Test_ConvertEDStoShares(t *testing.T) {
 // removes d shares from data
 func removeRandShares(data [][]byte, d int) [][]byte {
 	count := len(data)
+	// Initialize random number generator with current time as seed
+	r := mrand.New(mrand.NewSource(time.Now().UnixNano()))
 	// remove shares randomly
 	for i := 0; i < d; {
-		ind := mrand.Intn(count)
+		ind := r.Intn(count)
 		if len(data[ind]) == 0 {
 			continue
 		}
