@@ -96,11 +96,7 @@ func (cl *Listener) Start(context.Context) error {
 	cl.cancel = cancel
 	cl.closed = make(chan struct{})
 
-	err := cl.fetcher.Start(ctx)
-	if err != nil {
-		return err
-	}
-	subs, err := cl.fetcher.runSubscriber()
+	subs, err := cl.fetcher.SubscribeNewBlockEvent(ctx)
 	if err != nil {
 		return err
 	}
@@ -111,11 +107,6 @@ func (cl *Listener) Start(context.Context) error {
 
 // Stop stops the listener loop.
 func (cl *Listener) Stop(ctx context.Context) error {
-	err := cl.fetcher.Stop(ctx)
-	if err != nil {
-		log.Warnw("listener: stopping gRPC block event", "err", err)
-	}
-
 	cl.cancel()
 	select {
 	case <-cl.closed:
@@ -125,7 +116,7 @@ func (cl *Listener) Stop(ctx context.Context) error {
 		return ctx.Err()
 	}
 
-	err = cl.metrics.Close()
+	err := cl.metrics.Close()
 	if err != nil {
 		log.Warnw("listener: closing metrics", "err", err)
 	}
