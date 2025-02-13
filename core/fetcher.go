@@ -4,7 +4,6 @@ import (
 	"context"
 	"fmt"
 	"io"
-	"sync/atomic"
 	"time"
 
 	"github.com/gogo/protobuf/proto"
@@ -33,10 +32,6 @@ var (
 
 type BlockFetcher struct {
 	client coregrpc.BlockAPIClient
-
-	doneCh               chan struct{}
-	cancel               context.CancelFunc
-	isListeningForBlocks atomic.Bool
 }
 
 // NewBlockFetcher returns a new `BlockFetcher`.
@@ -44,18 +39,6 @@ func NewBlockFetcher(conn *grpc.ClientConn) (*BlockFetcher, error) {
 	return &BlockFetcher{
 		client: coregrpc.NewBlockAPIClient(conn),
 	}, nil
-}
-
-// Stop stops the block fetcher.
-// The underlying gRPC connection needs to be stopped separately.
-func (f *BlockFetcher) Stop(ctx context.Context) error {
-	f.cancel()
-	select {
-	case <-f.doneCh:
-		return nil
-	case <-ctx.Done():
-		return fmt.Errorf("fetcher: unsubscribe from new block events: %w", ctx.Err())
-	}
 }
 
 // GetBlockInfo queries Core for additional block information, like Commit and ValidatorSet.
@@ -161,61 +144,70 @@ func (f *BlockFetcher) ValidatorSet(ctx context.Context, height int64) (*types.V
 }
 
 // SubscribeNewBlockEvent subscribes to new block events from Core, returning
-// a new block event channel on success.
-func (f *BlockFetcher) SubscribeNewBlockEvent(ctx context.Context) (<-chan types.EventDataSignedBlock, error) {
-	if f.isListeningForBlocks.Load() {
-		return nil, fmt.Errorf("already subscribed to new blocks")
-	}
-	ctx, cancel := context.WithCancel(ctx)
-	f.cancel = cancel
-	f.doneCh = make(chan struct{})
-	f.isListeningForBlocks.Store(true)
+// a new block event channel.
+func (f *BlockFetcher) SubscribeNewBlockEvent(ctx context.Context) (chan types.EventDataSignedBlock, error) {
+	signedBlockCh := make(chan types.EventDataSignedBlock, 1)
 
-	subscription, err := f.client.SubscribeNewHeights(ctx, &coregrpc.SubscribeNewHeightsRequest{})
-	if err != nil {
-		return nil, err
-	}
-
-	signedBlockCh := make(chan types.EventDataSignedBlock)
 	go func() {
-		defer close(f.doneCh)
 		defer close(signedBlockCh)
-		defer func() { f.isListeningForBlocks.Store(false) }()
 		for {
 			select {
 			case <-ctx.Done():
 				return
 			default:
-				resp, err := subscription.Recv()
-				if err != nil {
-					log.Errorw("fetcher: error receiving new height", "err", err.Error())
-					continue
-				}
-				withTimeout, ctxCancel := context.WithTimeout(ctx, 10*time.Second)
-				signedBlock, err := f.GetSignedBlock(withTimeout, resp.Height)
-				ctxCancel()
-				if err != nil {
-					log.Errorw("fetcher: error receiving signed block", "height", resp.Height, "err", err.Error())
-					// sleeping a bit to avoid retrying instantly and give time for the gRPC connection
-					// to recover automatically.
-					time.Sleep(time.Second)
-					continue
-				}
-				select {
-				case signedBlockCh <- types.EventDataSignedBlock{
-					Header:       *signedBlock.Header,
-					Commit:       *signedBlock.Commit,
-					ValidatorSet: *signedBlock.ValidatorSet,
-					Data:         *signedBlock.Data,
-				}:
-				case <-ctx.Done():
-					return
-				}
+			}
+
+			subscription, err := f.client.SubscribeNewHeights(ctx, &coregrpc.SubscribeNewHeightsRequest{})
+			if err != nil {
+				// try re-subscribe in case of any errors that can come during subscription. gRPC
+				// retry mechanism has a back off on retries, so we don't need timers anymore.
+				log.Warnw("fetcher: failed to subscribe to new block events", "err", err)
+				continue
+			}
+
+			log.Debug("fetcher: subscription created")
+			err = f.receive(ctx, signedBlockCh, subscription)
+			if err != nil {
+				log.Warnw("fetcher: error receiving new height", "err", err.Error())
+				continue
 			}
 		}
 	}()
-
 	return signedBlockCh, nil
+}
+
+func (f *BlockFetcher) receive(
+	ctx context.Context,
+	signedBlockCh chan types.EventDataSignedBlock,
+	subscription coregrpc.BlockAPI_SubscribeNewHeightsClient,
+) error {
+	log.Debug("fetcher: started listening for new blocks")
+	for {
+		resp, err := subscription.Recv()
+		if err != nil {
+			return err
+		}
+
+		// TODO(@vgonkivs): make timeout configurable
+		withTimeout, ctxCancel := context.WithTimeout(ctx, 10*time.Second)
+		signedBlock, err := f.GetSignedBlock(withTimeout, resp.Height)
+		ctxCancel()
+		if err != nil {
+			log.Warnw("fetcher: error receiving signed block", "height", resp.Height, "err", err.Error())
+			continue
+		}
+
+		select {
+		case signedBlockCh <- types.EventDataSignedBlock{
+			Header:       *signedBlock.Header,
+			Commit:       *signedBlock.Commit,
+			ValidatorSet: *signedBlock.ValidatorSet,
+			Data:         *signedBlock.Data,
+		}:
+		case <-ctx.Done():
+			return ctx.Err()
+		}
+	}
 }
 
 // IsSyncing returns the sync status of the Core connection: true for
