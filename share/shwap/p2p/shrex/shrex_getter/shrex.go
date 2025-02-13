@@ -306,6 +306,15 @@ func (sg *Getter) GetNamespaceData(
 	}
 }
 
+func (sg *Getter) GetRangeNamespaceData(
+	_ context.Context,
+	_ *header.ExtendedHeader,
+	_ libshare.Namespace,
+	_, _ shwap.SampleCoords,
+) (shwap.RangeNamespaceData, error) {
+	return shwap.RangeNamespaceData{}, errors.New("not supported")
+}
+
 func (sg *Getter) getPeer(
 	ctx context.Context,
 	header *header.ExtendedHeader,

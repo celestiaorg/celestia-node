@@ -11,15 +11,14 @@ import (
 	"github.com/celestiaorg/celestia-node/header"
 	headerServ "github.com/celestiaorg/celestia-node/nodebuilder/header"
 	"github.com/celestiaorg/celestia-node/share"
-	"github.com/celestiaorg/celestia-node/share/eds"
 	"github.com/celestiaorg/celestia-node/share/shwap"
 )
 
 var _ Module = (*API)(nil)
 
-// GetRangeResult wraps the return value of the GetRange endpoint
+// Range wraps the return value of the GetRange endpoint
 // because Json-RPC doesn't support more than two return values.
-type GetRangeResult struct {
+type Range struct {
 	Shares []libshare.Share
 	Proof  *types.ShareProof
 }
@@ -58,7 +57,9 @@ type Module interface {
 		ctx context.Context, height uint64, namespace libshare.Namespace,
 	) (shwap.NamespaceData, error)
 	// GetRange gets a list of shares and their corresponding proof.
-	GetRange(ctx context.Context, height uint64, start, end int) (*GetRangeResult, error)
+	GetRange(
+		ctx context.Context, ns libshare.Namespace, height uint64, from, to shwap.SampleCoords, proofsOnly bool,
+	) (*Range, error)
 }
 
 // API is a wrapper around Module for the RPC.
@@ -91,9 +92,11 @@ type API struct {
 		) (shwap.NamespaceData, error) `perm:"read"`
 		GetRange func(
 			ctx context.Context,
+			ns libshare.Namespace,
 			height uint64,
-			start, end int,
-		) (*GetRangeResult, error) `perm:"read"`
+			from, to shwap.SampleCoords,
+			proofsOnly bool,
+		) (*Range, error) `perm:"read"`
 	}
 }
 
@@ -119,8 +122,10 @@ func (api *API) GetRow(ctx context.Context, height uint64, rowIdx int) (shwap.Ro
 	return api.Internal.GetRow(ctx, height, rowIdx)
 }
 
-func (api *API) GetRange(ctx context.Context, height uint64, start, end int) (*GetRangeResult, error) {
-	return api.Internal.GetRange(ctx, height, start, end)
+func (api *API) GetRange(
+	ctx context.Context, ns libshare.Namespace, height uint64, from, to shwap.SampleCoords, proofsOnly bool,
+) (*Range, error) {
+	return api.Internal.GetRange(ctx, ns, height, from, to, proofsOnly)
 }
 
 func (api *API) GetNamespaceData(
@@ -175,25 +180,32 @@ func (m module) SharesAvailable(ctx context.Context, height uint64) error {
 	return m.avail.SharesAvailable(ctx, header)
 }
 
-func (m module) GetRange(ctx context.Context, height uint64, start, end int) (*GetRangeResult, error) {
-	extendedDataSquare, err := m.GetEDS(ctx, height)
+func (m module) GetRange(
+	ctx context.Context,
+	ns libshare.Namespace,
+	height uint64,
+	from, to shwap.SampleCoords,
+	proofsOnly bool,
+) (*Range, error) {
+	header, err := m.hs.GetByHeight(ctx, height)
 	if err != nil {
 		return nil, err
 	}
 
-	proof, err := eds.ProveShares(extendedDataSquare, start, end)
+	nData, err := m.getter.GetRangeNamespaceData(ctx, header, ns, from, to)
 	if err != nil {
 		return nil, err
 	}
 
-	shares, err := libshare.FromBytes(extendedDataSquare.FlattenedODS()[start:end])
-	if err != nil {
-		return nil, err
+	res := &Range{
+		Proof: nData.ProveRange(header.DAH, from.Row),
 	}
-	return &GetRangeResult{
-		Shares: shares,
-		Proof:  proof,
-	}, nil
+
+	if !proofsOnly {
+		// set shares only if respectful flag was provided.
+		res.Shares = nData.Flatten()
+	}
+	return res, nil
 }
 
 func (m module) GetNamespaceData(
