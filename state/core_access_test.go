@@ -220,6 +220,12 @@ func TestDelegate(t *testing.T) {
 			require.NoError(t, err)
 			require.EqualValues(t, 0, resp.Code)
 
+			opts = NewTxConfig(
+				WithGas(tc.gasLim),
+				WithGasPrice(tc.gasPrice),
+				WithKeyName(accounts[2]),
+			)
+
 			resp, err = ca.Undelegate(ctx, ValAddress(valAddr), sdktypes.NewInt(100_000), opts)
 			require.NoError(t, err)
 			require.EqualValues(t, 0, resp.Code)

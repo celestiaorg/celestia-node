@@ -58,14 +58,12 @@ func (e *estimator) estimateGas(
 		return gasPrice, uint64(float64(gas) * gasMultiplier), nil
 	}
 
-	// NOTE: final result of the estimation will be multiplied by the `gasMultiplier`(1.1) to cover
-	// additional costs.
-	// set fee as 1utia helps to simulate the tx more reliably.
-	gas, err = client.EstimateGas(ctx, []sdktypes.Msg{msg}, user.SetFee(1))
+	// Tx client will multiple estimated gas by 1.1 to cover additional costs
+	gas, err = client.EstimateGas(ctx, []sdktypes.Msg{msg})
 	if err != nil {
 		return 0, 0, fmt.Errorf("state: failed to estimate gas: %w", err)
 	}
-	return DefaultGasPrice, uint64(float64(gas) * gasMultiplier), nil
+	return DefaultGasPrice, gas, nil
 }
 
 func (e *estimator) queryGasUsedAndPrice(
