@@ -19,7 +19,6 @@ import (
 	"go.uber.org/fx/fxevent"
 	"go.uber.org/zap/zapcore"
 
-	"github.com/celestiaorg/celestia-node/api/gateway"
 	"github.com/celestiaorg/celestia-node/api/rpc"
 	"github.com/celestiaorg/celestia-node/nodebuilder/blob"
 	"github.com/celestiaorg/celestia-node/nodebuilder/blobstream"
@@ -55,8 +54,7 @@ type Node struct {
 	AdminSigner   jwt.Signer
 
 	// rpc components
-	RPCServer     *rpc.Server     // not optional
-	GatewayServer *gateway.Server `optional:"true"`
+	RPCServer *rpc.Server // not optional
 
 	// block store
 	EDSStore *store.Store `optional:"true"`
