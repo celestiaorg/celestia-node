@@ -93,8 +93,7 @@ func TestListenerWithWrongChainRPC(t *testing.T) {
 	sub, err := cl.fetcher.SubscribeNewBlockEvent(ctx)
 	require.NoError(t, err)
 
-	err = cl.listen(ctx, sub)
-	assert.ErrorIs(t, err, errInvalidSubscription)
+	assert.Panics(t, func() { cl.listen(ctx, sub) })
 }
 
 // TestListener_DoesNotStoreHistoric tests the (unlikely) case that
@@ -136,6 +135,7 @@ func TestListener_DoesNotStoreHistoric(t *testing.T) {
 		require.NoError(t, err)
 		assert.False(t, has)
 	}
+	require.NoError(t, cl.Stop(ctx))
 }
 
 func createMocknetWithTwoPubsubEndpoints(ctx context.Context, t *testing.T) (*pubsub.PubSub, *pubsub.PubSub) {

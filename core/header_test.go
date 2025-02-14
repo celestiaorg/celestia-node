@@ -28,9 +28,9 @@ func TestMakeExtendedHeaderForEmptyBlock(t *testing.T) {
 	require.NoError(t, err)
 	sub, err := fetcher.SubscribeNewBlockEvent(ctx)
 	require.NoError(t, err)
-	<-sub
+	dataBlock := <-sub
 
-	height := int64(1)
+	height := dataBlock.Header.Height
 	b, err := fetcher.GetBlock(ctx, height)
 	require.NoError(t, err)
 

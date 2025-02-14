@@ -24,7 +24,6 @@ func TestCoreExchange_RequestHeaders(t *testing.T) {
 
 	cfg := DefaultTestConfig()
 	fetcher, cctx := createCoreFetcher(t, cfg)
-
 	generateNonEmptyBlocks(t, ctx, fetcher, cfg, cctx)
 
 	store, err := store.NewStore(store.DefaultParameters(), t.TempDir())
@@ -62,7 +61,6 @@ func TestCoreExchange_RequestHeaders(t *testing.T) {
 		require.NoError(t, err)
 		assert.True(t, has)
 	}
-	require.NoError(t, fetcher.Stop(ctx))
 }
 
 // TestExchange_DoNotStoreHistoric tests that the CoreExchange will not
@@ -73,7 +71,6 @@ func TestExchange_DoNotStoreHistoric(t *testing.T) {
 
 	cfg := DefaultTestConfig()
 	fetcher, cctx := createCoreFetcher(t, cfg)
-
 	generateNonEmptyBlocks(t, ctx, fetcher, cfg, cctx)
 
 	store, err := store.NewStore(store.DefaultParameters(), t.TempDir())
@@ -121,7 +118,6 @@ func TestExchange_StoreHistoricIfArchival(t *testing.T) {
 
 	cfg := DefaultTestConfig()
 	fetcher, cctx := createCoreFetcher(t, cfg)
-
 	generateNonEmptyBlocks(t, ctx, fetcher, cfg, cctx)
 
 	store, err := store.NewStore(store.DefaultParameters(), t.TempDir())
@@ -211,12 +207,8 @@ func generateNonEmptyBlocks(
 	// generate several non-empty blocks
 	generateCtx, generateCtxCancel := context.WithCancel(context.Background())
 
-	sub, err := fetcher.SubscribeNewBlockEvent(ctx)
+	sub, err := fetcher.SubscribeNewBlockEvent(generateCtx)
 	require.NoError(t, err)
-	defer func() {
-		err = fetcher.Stop(ctx)
-		require.NoError(t, err)
-	}()
 
 	go fillBlocks(t, generateCtx, cfg, cctx)
 
