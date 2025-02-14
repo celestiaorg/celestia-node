@@ -653,7 +653,7 @@ func computeSubtreeRoots(shares []libshare.Share, ranges []nmt.LeafRange, offset
 		return nil, fmt.Errorf("cannot compute subtree roots for an empty ranges list")
 	}
 	if offset < 0 {
-		return nil, fmt.Errorf("the offset %d cannot be stricly negative", offset)
+		return nil, fmt.Errorf("the offset %d cannot be strictly negative", offset)
 	}
 
 	// create a tree containing the shares to generate their subtree roots

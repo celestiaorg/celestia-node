@@ -18,7 +18,7 @@ func newDHT(
 	lc fx.Lifecycle,
 	tp node.Type,
 	network Network,
-	bootsrappers Bootstrappers,
+	bootstrappers Bootstrappers,
 	host HostBase,
 	dataStore datastore.Batching,
 ) (*dht.IpfsDHT, error) {
@@ -35,10 +35,10 @@ func newDHT(
 	// no bootstrappers for a bootstrapper ¯\_(ツ)_/¯
 	// otherwise dht.Bootstrap(OnStart hook) will deadlock
 	if isBootstrapper() {
-		bootsrappers = nil
+		bootstrappers = nil
 	}
 
-	dht, err := discovery.NewDHT(ctx, network.String(), bootsrappers, host, dataStore, mode)
+	dht, err := discovery.NewDHT(ctx, network.String(), bootstrappers, host, dataStore, mode)
 	if err != nil {
 		return nil, err
 	}

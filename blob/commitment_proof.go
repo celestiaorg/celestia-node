@@ -103,7 +103,7 @@ func (commitmentProof *CommitmentProof) Verify(root []byte, subtreeRootThreshold
 	}
 
 	if subtreeRootThreshold <= 0 {
-		return false, errors.New("subtreeRootThreshould must be > 0")
+		return false, errors.New("subtreeRootThreshold must be > 0")
 	}
 
 	// use the computed total number of shares to calculate the subtree roots

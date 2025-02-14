@@ -343,7 +343,7 @@ To remove stored EDS `Remove` method is introduced. Internally it:
 - Destroys `Shard` via `DAGStore`
   - Internally removes its `Mount` as well
 - Removes CARv1 file from disk under `Store.Path/DataHash` path
-- Drops indecies
+- Drops indices
 
 ___NOTES:___
 
