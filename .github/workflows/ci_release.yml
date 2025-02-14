@@ -153,6 +153,7 @@ jobs:
         run: git checkout ${{ inputs.run-on-tag }}
 
       - run: |
+          set -e
           make openrpc-gen > openrpc.json
           gh release upload "$LATEST_TAG" openrpc.json
         env:
