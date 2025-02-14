@@ -8,11 +8,12 @@ import (
 )
 
 var (
-	coreIPFlag         = "core.ip"
-	corePortFlag       = "core.port"
-	coreGRPCFlag       = "core.grpc.port"
-	coreTLS            = "core.tls"
-	coreXTokenPathFlag = "core.xtoken.path" //nolint:gosec
+	coreIPFlag               = "core.ip"
+	corePortFlag             = "core.port"
+	coreGRPCFlag             = "core.grpc.port"
+	coreTLS                  = "core.tls"
+	coreXTokenPathFlag       = "core.xtoken.path" //nolint:gosec
+	coreEstimatorAddressFlag = "core.estimator.address"
 )
 
 // Flags gives a set of hardcoded Core flags.
@@ -49,6 +50,13 @@ func Flags() *flag.FlagSet {
 			"The JSON file should have a key-value pair where the key is 'x-token' and the value is the authentication token. "+
 			"NOTE: the path is parsed only if coreTLS enabled."+
 			"If left empty, the client will not include the X-Token in its requests.",
+	)
+	flags.String(
+		coreEstimatorAddressFlag,
+		"",
+		"specifies the endpoint of the third-party service that should be used to calculate"+
+			"the gas price and gas. Format: <address>:<port>. Default connection to the consensus node will be used if "+
+			"left empty.",
 	)
 	return flags
 }
@@ -88,5 +96,10 @@ func ParseFlags(
 		}
 	}
 	cfg.IP = coreIP
+
+	if cmd.Flag(coreEstimatorAddressFlag).Changed {
+		addr := cmd.Flag(coreEstimatorAddressFlag).Value.String()
+		cfg.FeeEstimatorAddress = EstimatorAddress(addr)
+	}
 	return cfg.Validate()
 }
