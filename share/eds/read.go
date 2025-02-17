@@ -9,22 +9,32 @@ import (
 
 	libshare "github.com/celestiaorg/go-square/v2/share"
 
+	"github.com/celestiaorg/celestia-node/libs/utils"
 	"github.com/celestiaorg/celestia-node/share"
 )
 
 // ReadAccessor reads up EDS out of the io.Reader until io.EOF and provides.
 func ReadAccessor(ctx context.Context, reader io.Reader, root *share.AxisRoots) (*Rsmt2D, error) {
-	odsSize := len(root.RowRoots) / 2
+	var (
+		odsSize = len(root.RowRoots) / 2
+		err     error
+	)
+
+	ctx, span := tracer.Start(ctx, "read-shares")
 	shares, err := ReadShares(reader, libshare.ShareSize, odsSize)
 	if err != nil {
 		return nil, fmt.Errorf("failed to read eds from ods bytes: %w", err)
 	}
+	utils.SetStatusAndEnd(span, err)
 
+	ctx, span = tracer.Start(ctx, "extend-shares")
 	// verify that the EDS hash matches the expected hash
 	rsmt2d, err := Rsmt2DFromShares(shares, odsSize)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create rsmt2d from shares: %w", err)
 	}
+	utils.SetStatusAndEnd(span, err)
+
 	datahash, err := rsmt2d.DataHash(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("failed to calculate data hash: %w", err)
