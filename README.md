@@ -78,7 +78,7 @@ celestia <node_type> init
 celestia <node_type> start
 ```
 
-Please refer to [this guide](https://docs.celestia.org/nodes/celestia-node/) for more information on running a node.
+Please refer to [this guide](https://docs.celestia.org/how-to-guides/celestia-node/) for more information on running a node.
 
 ### Quick Start with Light Node on arabica
 
