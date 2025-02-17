@@ -128,6 +128,12 @@ func (s *Store) put(
 		return err
 	}
 
+	// ensure the blocks hash directory exists
+	blocksHashDir := filepath.Join(s.basepath, blocksPath, datahash.String()[:2])
+	if err := mkdir(blocksHashDir); err != nil {
+		return fmt.Errorf("ensuring blocks hash directory: %w", err)
+	}
+
 	// put to cache before writing to make it accessible while write is happening
 	accessor := &eds.Rsmt2D{ExtendedDataSquare: square}
 	acc, err := s.cache.GetOrLoad(ctx, height, accessorLoader(accessor))
@@ -317,6 +323,12 @@ func (s *Store) populateEmptyFile() error {
 	err := errors.Join(remove(pathOds), remove(pathQ4))
 	if err != nil {
 		return fmt.Errorf("cleaning old empty EDS file: %w", err)
+	}
+
+	// ensure the blocks hash directory exists
+	blocksHashDir := filepath.Join(s.basepath, blocksPath, share.EmptyEDSDataHash().String()[:2])
+	if err := mkdir(blocksHashDir); err != nil {
+		return fmt.Errorf("ensuring blocks hash directory: %w", err)
 	}
 
 	err = file.CreateODSQ4(pathOds, pathQ4, share.EmptyEDSRoots(), eds.EmptyAccessor.ExtendedDataSquare)
@@ -514,11 +526,11 @@ func (s *Store) removeQ4(height uint64, datahash share.DataHash) error {
 }
 
 func (s *Store) hashToPath(datahash share.DataHash, ext string) string {
-	return filepath.Join(s.basepath, blocksPath, datahash.String()) + ext
+	return filepath.Join(s.basepath, blocksPath, datahash.String()[:2], datahash.String()) + ext
 }
 
 func (s *Store) hashToRelativePath(datahash share.DataHash, ext string) string {
-	return filepath.Join("..", datahash.String()) + ext
+	return filepath.Join("..", datahash.String()[:2], datahash.String()) + ext
 }
 
 func (s *Store) heightToPath(height uint64, ext string) string {
