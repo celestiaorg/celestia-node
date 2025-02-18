@@ -14,7 +14,7 @@ import (
 	"github.com/celestiaorg/celestia-node/nodebuilder/state"
 )
 
-func NewBridge(options ...func(*cobra.Command, []*pflag.FlagSet)) *cobra.Command {
+func NewBridge(options ...func(*cobra.Command, node.Type, []*pflag.FlagSet)) *cobra.Command {
 	flags := []*pflag.FlagSet{
 		NodeFlags(),
 		p2p.Flags(),
@@ -29,17 +29,19 @@ func NewBridge(options ...func(*cobra.Command, []*pflag.FlagSet)) *cobra.Command
 		Use:   "bridge [subcommand]",
 		Args:  cobra.NoArgs,
 		Short: "Manage your Bridge node",
-		PersistentPreRunE: func(cmd *cobra.Command, args []string) error {
-			return PersistentPreRunEnv(cmd, node.Bridge, args)
+		PersistentPreRun: func(cmd *cobra.Command, args []string) {
+			ctx := WithNodeType(cmd.Context(), node.Bridge)
+			cmd.SetContext(ctx)
 		},
 	}
+
 	for _, option := range options {
-		option(cmd, flags)
+		option(cmd, node.Bridge, flags)
 	}
 	return cmd
 }
 
-func NewLight(options ...func(*cobra.Command, []*pflag.FlagSet)) *cobra.Command {
+func NewLight(options ...func(*cobra.Command, node.Type, []*pflag.FlagSet)) *cobra.Command {
 	flags := []*pflag.FlagSet{
 		NodeFlags(),
 		p2p.Flags(),
@@ -55,17 +57,18 @@ func NewLight(options ...func(*cobra.Command, []*pflag.FlagSet)) *cobra.Command 
 		Use:   "light [subcommand]",
 		Args:  cobra.NoArgs,
 		Short: "Manage your Light node",
-		PersistentPreRunE: func(cmd *cobra.Command, args []string) error {
-			return PersistentPreRunEnv(cmd, node.Light, args)
+		PersistentPreRun: func(cmd *cobra.Command, args []string) {
+			ctx := WithNodeType(cmd.Context(), node.Light)
+			cmd.SetContext(ctx)
 		},
 	}
 	for _, option := range options {
-		option(cmd, flags)
+		option(cmd, node.Light, flags)
 	}
 	return cmd
 }
 
-func NewFull(options ...func(*cobra.Command, []*pflag.FlagSet)) *cobra.Command {
+func NewFull(options ...func(*cobra.Command, node.Type, []*pflag.FlagSet)) *cobra.Command {
 	flags := []*pflag.FlagSet{
 		NodeFlags(),
 		p2p.Flags(),
@@ -81,12 +84,13 @@ func NewFull(options ...func(*cobra.Command, []*pflag.FlagSet)) *cobra.Command {
 		Use:   "full [subcommand]",
 		Args:  cobra.NoArgs,
 		Short: "Manage your Full node",
-		PersistentPreRunE: func(cmd *cobra.Command, args []string) error {
-			return PersistentPreRunEnv(cmd, node.Full, args)
+		PersistentPreRun: func(cmd *cobra.Command, args []string) {
+			ctx := WithNodeType(cmd.Context(), node.Full)
+			cmd.SetContext(ctx)
 		},
 	}
 	for _, option := range options {
-		option(cmd, flags)
+		option(cmd, node.Full, flags)
 	}
 	return cmd
 }
