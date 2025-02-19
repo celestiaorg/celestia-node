@@ -8,14 +8,23 @@ import (
 	"github.com/spf13/pflag"
 
 	cmdnode "github.com/celestiaorg/celestia-node/cmd"
-	"github.com/celestiaorg/celestia-node/nodebuilder/node"
 )
 
-func WithSubcommands() func(*cobra.Command, node.Type, []*pflag.FlagSet) {
-	return func(c *cobra.Command, tp node.Type, flags []*pflag.FlagSet) {
+// WithSubcommands returns the set of commands that require the full flagset.
+func WithSubcommands() func(*cobra.Command, []*pflag.FlagSet) {
+	return func(c *cobra.Command, flags []*pflag.FlagSet) {
 		c.AddCommand(
-			cmdnode.Init(tp, flags...),
-			cmdnode.Start(tp, cmdnode.WithFlagSet(flags)),
+			cmdnode.Init(flags...),
+			cmdnode.Start(cmdnode.WithFlagSet(flags)),
+		)
+	}
+}
+
+// WithAuxiliarySubcommands returns the set of commands that require only the
+// minimum flagset for node store determination.
+func WithAuxiliarySubcommands() func(*cobra.Command, []*pflag.FlagSet) {
+	return func(c *cobra.Command, flags []*pflag.FlagSet) {
+		c.AddCommand(
 			cmdnode.AuthCmd(flags...),
 			cmdnode.ResetStore(flags...),
 			cmdnode.RemoveConfigCmd(flags...),
@@ -25,9 +34,9 @@ func WithSubcommands() func(*cobra.Command, node.Type, []*pflag.FlagSet) {
 }
 
 func init() {
-	bridgeCmd := cmdnode.NewBridge(WithSubcommands())
-	lightCmd := cmdnode.NewLight(WithSubcommands())
-	fullCmd := cmdnode.NewFull(WithSubcommands())
+	bridgeCmd := cmdnode.NewBridge(WithSubcommands(), WithAuxiliarySubcommands())
+	lightCmd := cmdnode.NewLight(WithSubcommands(), WithAuxiliarySubcommands())
+	fullCmd := cmdnode.NewFull(WithSubcommands(), WithAuxiliarySubcommands())
 	rootCmd.AddCommand(
 		bridgeCmd,
 		lightCmd,

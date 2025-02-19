@@ -76,12 +76,15 @@ func DecodeToBytes(param string) ([]byte, error) {
 }
 
 func ParseMinimumFlags(cmd *cobra.Command) error {
+	ctx := cmd.Context()
+
 	net, err := p2p.ParseNetwork(cmd)
 	if err != nil {
 		return err
 	}
+	ctx = WithNetwork(cmd.Context(), net)
 
-	ctx, err := ParseNodeFlags(cmd.Context(), cmd, net)
+	ctx, err = ParseNodeStore(cmd.Context(), cmd, net)
 	if err != nil {
 		return err
 	}
@@ -90,11 +93,13 @@ func ParseMinimumFlags(cmd *cobra.Command) error {
 	return nil
 }
 
-func PersistentPreRunEnv(cmd *cobra.Command, nodeType node.Type, _ []string) error {
+func PreRunEnv(cmd *cobra.Command, _ []string) error {
 	var (
 		ctx = cmd.Context()
 		err error
 	)
+
+	nodeType := NodeType(ctx)
 
 	parsedNetwork, err := p2p.ParseNetwork(cmd)
 	if err != nil {

@@ -18,9 +18,26 @@ const (
 	mutualFlag  = "p2p.mutual"
 )
 
+func NetworkFlag() *flag.FlagSet {
+	flags := &flag.FlagSet{}
+
+	flags.String(
+		networkFlag,
+		DefaultNetwork.String(),
+		fmt.Sprintf("The name of the network to connect to, e.g. %s. Must be passed on "+
+			"both init and start to take effect. Assumes mainnet (%s) unless otherwise specified.",
+			listAvailableNetworks(),
+			DefaultNetwork.String()),
+	)
+
+	return flags
+}
+
 // Flags gives a set of p2p flags.
 func Flags() *flag.FlagSet {
 	flags := &flag.FlagSet{}
+
+	flags.AddFlagSet(NetworkFlag())
 
 	flags.StringSlice(
 		mutualFlag,
@@ -29,14 +46,6 @@ func Flags() *flag.FlagSet {
 Such connection is immune to peer scoring slashing and connection module trimming.
 Peers must bidirectionally point to each other. (Format: multiformats.io/multiaddr)
 `,
-	)
-	flags.String(
-		networkFlag,
-		DefaultNetwork.String(),
-		fmt.Sprintf("The name of the network to connect to, e.g. %s. Must be passed on "+
-			"both init and start to take effect. Assumes mainnet (%s) unless otherwise specified.",
-			listAvailableNetworks(),
-			DefaultNetwork.String()),
 	)
 
 	return flags

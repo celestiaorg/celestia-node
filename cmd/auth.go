@@ -28,7 +28,7 @@ func AuthCmd(fsets ...*flag.FlagSet) *cobra.Command {
 		Short: "Signs and outputs a hex-encoded JWT token with the given permissions.",
 		Long: "Signs and outputs a hex-encoded JWT token with the given permissions. NOTE: only use this command when " +
 			"the node has already been initialized and started.",
-		PreRunE: func(cmd *cobra.Command, args []string) error {
+		PreRunE: func(cmd *cobra.Command, _ []string) error {
 			return ParseMinimumFlags(cmd)
 		},
 		RunE: func(cmd *cobra.Command, args []string) error {

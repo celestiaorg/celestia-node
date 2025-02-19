@@ -18,8 +18,7 @@ const (
 	nodeConfigFlag = "node.config"
 )
 
-// NodeFlags gives a set of hardcoded Node package flags.
-func NodeFlags() *flag.FlagSet {
+func NodeStoreFlag() *flag.FlagSet {
 	flags := &flag.FlagSet{}
 
 	flags.String(
@@ -27,6 +26,16 @@ func NodeFlags() *flag.FlagSet {
 		"",
 		"The path to root/home directory of your Celestia Node Store",
 	)
+
+	return flags
+}
+
+// NodeFlags gives a set of hardcoded Node package flags.
+func NodeFlags() *flag.FlagSet {
+	flags := &flag.FlagSet{}
+
+	flags.AddFlagSet(NodeStoreFlag())
+
 	flags.String(
 		nodeConfigFlag,
 		"",
@@ -36,8 +45,7 @@ func NodeFlags() *flag.FlagSet {
 	return flags
 }
 
-// ParseNodeFlags parses Node flags from the given cmd and applies values to Env.
-func ParseNodeFlags(ctx context.Context, cmd *cobra.Command, network p2p.Network) (context.Context, error) {
+func ParseNodeStore(ctx context.Context, cmd *cobra.Command, network p2p.Network) (context.Context, error) {
 	store := cmd.Flag(nodeStoreFlag).Value.String()
 	if store == "" {
 		tp := NodeType(ctx)
@@ -47,7 +55,17 @@ func ParseNodeFlags(ctx context.Context, cmd *cobra.Command, network p2p.Network
 			return ctx, err
 		}
 	}
+
 	ctx = WithStorePath(ctx, store)
+	return ctx, nil
+}
+
+// ParseNodeFlags parses Node flags from the given cmd and applies values to Env.
+func ParseNodeFlags(ctx context.Context, cmd *cobra.Command, network p2p.Network) (context.Context, error) {
+	ctx, err := ParseNodeStore(ctx, cmd, network)
+	if err != nil {
+		return ctx, err
+	}
 
 	nodeConfig := cmd.Flag(nodeConfigFlag).Value.String()
 	if nodeConfig != "" {

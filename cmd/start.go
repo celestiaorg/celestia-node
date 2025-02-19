@@ -14,11 +14,10 @@ import (
 	"github.com/celestiaorg/celestia-app/v3/app/encoding"
 
 	"github.com/celestiaorg/celestia-node/nodebuilder"
-	"github.com/celestiaorg/celestia-node/nodebuilder/node"
 )
 
 // Start constructs a CLI command to start Celestia Node daemon of any type with the given flags.
-func Start(tp node.Type, options ...func(*cobra.Command)) *cobra.Command {
+func Start(options ...func(*cobra.Command)) *cobra.Command {
 	cmd := &cobra.Command{
 		Use: "start",
 		Short: `Starts Node daemon. First stopping signal gracefully stops the Node and second terminates it.
@@ -26,9 +25,7 @@ Options passed on start override configuration options only on start and are not
 		Aliases:      []string{"run", "daemon"},
 		Args:         cobra.NoArgs,
 		SilenceUsage: true,
-		PreRunE: func(cmd *cobra.Command, args []string) error {
-			return PersistentPreRunEnv(cmd, tp, args)
-		},
+		PreRunE:      PreRunEnv,
 		RunE: func(cmd *cobra.Command, _ []string) (err error) {
 			ctx := cmd.Context()
 
