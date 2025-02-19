@@ -76,15 +76,18 @@ func DecodeToBytes(param string) ([]byte, error) {
 }
 
 func ParseMinimumFlags(cmd *cobra.Command) error {
-	ctx := cmd.Context()
+	var (
+		ctx = cmd.Context()
+		err error
+	)
 
 	net, err := p2p.ParseNetwork(cmd)
 	if err != nil {
 		return err
 	}
-	ctx = WithNetwork(cmd.Context(), net)
+	ctx = WithNetwork(ctx, net)
 
-	ctx, err = ParseNodeStore(cmd.Context(), cmd, net)
+	ctx, err = ParseNodeStore(ctx, cmd, net)
 	if err != nil {
 		return err
 	}
