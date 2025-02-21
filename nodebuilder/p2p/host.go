@@ -19,7 +19,6 @@ import (
 	"github.com/libp2p/go-libp2p/p2p/net/conngater"
 	"github.com/libp2p/go-libp2p/p2p/transport/tcp"
 	libp2pwebrtc "github.com/libp2p/go-libp2p/p2p/transport/webrtc"
-	webtransport "github.com/libp2p/go-libp2p/p2p/transport/webtransport"
 	"github.com/prometheus/client_golang/prometheus"
 	"go.uber.org/fx"
 
@@ -93,7 +92,6 @@ func host(params hostParams) (HostBase, error) {
 		libp2p.ResourceManager(params.ResourceManager),
 		libp2p.ChainOptions(
 			libp2p.Transport(tcp.NewTCPTransport),
-			libp2p.Transport(webtransport.New),
 			libp2p.Transport(libp2pwebrtc.New),
 			wsTransport(tlsCfg),
 		),

@@ -2,21 +2,28 @@ package p2p
 
 import (
 	"fmt"
-
 	p2pconfig "github.com/libp2p/go-libp2p/config"
 	hst "github.com/libp2p/go-libp2p/core/host"
 	ma "github.com/multiformats/go-multiaddr"
+	"slices"
 )
 
-// Listen returns invoke function that starts listening for inbound connections with libp2p.Host.
 func Listen(cfg *Config) func(h hst.Host) (err error) {
 	return func(h hst.Host) (err error) {
-		maListen := make([]ma.Multiaddr, len(cfg.ListenAddresses))
-		for i, addr := range cfg.ListenAddresses {
-			maListen[i], err = ma.NewMultiaddr(addr)
+		maListen := make([]ma.Multiaddr, 0, len(cfg.ListenAddresses))
+		for _, addr := range cfg.ListenAddresses {
+			maddr, err := ma.NewMultiaddr(addr)
 			if err != nil {
 				return fmt.Errorf("failure to parse config.P2P.ListenAddresses: %w", err)
 			}
+			// TODO(@walldiss): Remove this check when QUIC is stable
+			if slices.ContainsFunc(maddr.Protocols(), func(p ma.Protocol) bool {
+				return p.Code == ma.P_QUIC_V1 || p.Code == ma.P_WEBTRANSPORT
+			}) {
+				continue
+			}
+
+			maListen = append(maListen, maddr)
 		}
 		return h.Network().Listen(maListen...)
 	}
