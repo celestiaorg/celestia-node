@@ -3,6 +3,7 @@ package p2p
 import (
 	"context"
 	"fmt"
+	"github.com/libp2p/go-libp2p/p2p/net/swarm"
 	"strings"
 
 	"github.com/libp2p/go-libp2p"
@@ -102,6 +103,7 @@ func host(params hostParams) (HostBase, error) {
 		// to clearly define what defaults we rely upon
 		libp2p.DefaultSecurity,
 		libp2p.DefaultMuxers,
+		libp2p.SwarmOpts(swarm.WithDialRanker(swarm.DefaultDialRanker)),
 	}
 
 	if params.Registerer != nil {
