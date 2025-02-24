@@ -26,6 +26,9 @@ const (
 	// gRPC client requires fetching a block on initialization that can be larger
 	// than the default message size set in gRPC. Increasing defaults up to 64MB
 	// to avoid fixing it every time the block size increases.
+	// Tested on mainnet node:
+	// square size = 128
+	// actual response size = 10,85mb
 	// TODO(@vgonkivs): Revisit this constant once the block size reaches 64MB.
 	defaultGRPCMessageSize = 64 * 1024 * 1024 // 64Mb
 	xtokenFileName         = "xtoken.json"
