@@ -109,7 +109,6 @@ func NewNetwork(host host.Host, prefix protocol.ID) network.BitSwapNetwork {
 	prefix = shwapProtocolID(prefix)
 	net := network.NewFromIpfsHost(
 		host,
-		routinghelpers.Null{},
 		network.Prefix(prefix),
 		network.SupportedProtocols([]protocol.ID{protocolID}),
 	)
@@ -126,7 +125,6 @@ func NewClient(
 	opts := []client.Option{
 		client.SetSimulateDontHavesOnTimeout(simulateDontHaves),
 		client.WithDontHaveTimeoutConfig(simulateDontHaveConfig),
-		client.WithDisabledMessageQueueRebroadcast(disablePerPeerRetries),
 		// Prevents Has calls to Blockstore for metric that counts duplicates
 		// Unnecessary for our use case, so we can save some disk lookups.
 		client.WithoutDuplicatedBlockStats(),
@@ -138,6 +136,7 @@ func NewClient(
 	return client.New(
 		ctx,
 		net,
+		routinghelpers.Null{},
 		bstore,
 		opts...,
 	)
@@ -151,7 +150,6 @@ func NewServer(
 	bstore blockstore.Blockstore,
 ) *server.Server {
 	opts := []server.Option{
-		server.ProvideEnabled(providesEnabled),
 		server.SetSendDontHaves(sendDontHaves),
 		server.MaxQueuedWantlistEntriesPerPeer(maxServerWantListsPerPeer),
 		server.WithTargetMessageSize(targetResponseSize),
