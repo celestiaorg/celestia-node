@@ -22,10 +22,25 @@ import (
 	"github.com/celestiaorg/celestia-node/libs/utils"
 )
 
-const xtokenFileName = "xtoken.json"
+const (
+	// gRPC client requires fetching a block on initialization that can be larger
+	// than the default message size set in gRPC. Increasing defaults up to 64MB
+	// to avoid fixing it every time the block size increases.
+	// Tested on mainnet node:
+	// square size = 128
+	// actual response size = 10,85mb
+	// TODO(@vgonkivs): Revisit this constant once the block size reaches 64MB.
+	defaultGRPCMessageSize = 64 * 1024 * 1024 // 64Mb
+	xtokenFileName         = "xtoken.json"
+)
 
 func grpcClient(lc fx.Lifecycle, cfg Config) (*grpc.ClientConn, error) {
-	var opts []grpc.DialOption
+	opts := []grpc.DialOption{
+		grpc.WithDefaultCallOptions(
+			grpc.MaxCallRecvMsgSize(defaultGRPCMessageSize),
+			grpc.MaxCallSendMsgSize(defaultGRPCMessageSize),
+		),
+	}
 	if cfg.TLSEnabled {
 		opts = append(opts, grpc.WithTransportCredentials(
 			credentials.NewTLS(&tls.Config{MinVersion: tls.VersionTLS12})),
