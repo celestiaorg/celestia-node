@@ -63,6 +63,7 @@ func TestRangeNamespaceData(t *testing.T) {
 				shwap.SampleCoords{Row: nsRowStart, Col: col},
 				to,
 				sharesAmount,
+				false,
 			)
 			require.NoError(t, err)
 

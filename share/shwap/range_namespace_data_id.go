@@ -11,7 +11,7 @@ import (
 // RangeNamespaceDataIDSize defines the size of the RangeNamespaceDataIDSize in bytes,
 // combining SampleID size, Namespace size, 4 additional bytes
 // for the end coordinates of share of the range and uint representation of bool flag.
-const RangeNamespaceDataIDSize = SampleIDSize + libshare.NamespaceSize + 4
+const RangeNamespaceDataIDSize = SampleIDSize + libshare.NamespaceSize + 6
 
 // RangeNamespaceDataID identifies the continuous range of shares in the DataSquare(EDS),
 // starting from the given `SampleID` and contains `Length` number of shares.
@@ -21,6 +21,8 @@ type RangeNamespaceDataID struct {
 	DataNamespace libshare.Namespace
 	// coordinates from the last share of the range
 	To SampleCoords
+
+	ProofsOnly bool
 }
 
 func NewRangeNamespaceDataID(
@@ -29,6 +31,7 @@ func NewRangeNamespaceDataID(
 	from SampleCoords,
 	to SampleCoords,
 	edsSize int,
+	proofsOnly bool,
 ) (RangeNamespaceDataID, error) {
 	sampleID, err := NewSampleID(height, from, edsSize)
 	if err != nil {
@@ -39,6 +42,7 @@ func NewRangeNamespaceDataID(
 		SampleID:      sampleID,
 		DataNamespace: namespace,
 		To:            to,
+		ProofsOnly:    proofsOnly,
 	}
 
 	err = rngid.Verify(edsSize)
@@ -130,13 +134,19 @@ func RangeNamespaceDataIDFromBinary(data []byte) (RangeNamespaceDataID, error) {
 
 	toCoords := SampleCoords{
 		Row: int(binary.BigEndian.Uint16(data[libshare.NamespaceSize+SampleIDSize : libshare.NamespaceSize+SampleIDSize+2])),
-		Col: int(binary.BigEndian.Uint16(data[libshare.NamespaceSize+SampleIDSize+2:])),
+		Col: int(binary.BigEndian.Uint16(data[libshare.NamespaceSize+SampleIDSize+2 : RangeNamespaceDataIDSize-2])),
+	}
+
+	var proofsOnly bool
+	if data[RangeNamespaceDataIDSize-1] == 1 {
+		proofsOnly = true
 	}
 
 	rngID := RangeNamespaceDataID{
 		SampleID:      sid,
 		DataNamespace: ns,
 		To:            toCoords,
+		ProofsOnly:    proofsOnly,
 	}
 	return rngID, rngID.Validate()
 }
@@ -154,5 +164,11 @@ func (rngid RangeNamespaceDataID) appendTo(data []byte) []byte {
 	data = append(data, rngid.DataNamespace.Bytes()...)
 	data = binary.BigEndian.AppendUint16(data, uint16(rngid.To.Row))
 	data = binary.BigEndian.AppendUint16(data, uint16(rngid.To.Col))
+
+	if rngid.ProofsOnly {
+		data = binary.BigEndian.AppendUint16(data, 1)
+	} else {
+		data = binary.BigEndian.AppendUint16(data, 0)
+	}
 	return data
 }

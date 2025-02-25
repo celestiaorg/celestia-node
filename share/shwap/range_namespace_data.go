@@ -164,6 +164,12 @@ func (rngdata *RangeNamespaceData) ToProto() *pb.RangeNamespaceData {
 	return &pb.RangeNamespaceData{RangeNamespaceData: rngdata.NamespaceData.ToProto()}
 }
 
+func (rngdata *RangeNamespaceData) CleanupData() {
+	for i := range rngdata.NamespaceData {
+		rngdata.NamespaceData[i].Shares = nil
+	}
+}
+
 func RangeNamespaceDataFromProto(nd *pb.RangeNamespaceData) (*RangeNamespaceData, error) {
 	if nd == nil {
 		return nil, errors.New("empty data provided")

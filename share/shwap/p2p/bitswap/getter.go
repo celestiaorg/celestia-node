@@ -273,6 +273,7 @@ func (g *Getter) GetRangeNamespaceData(
 	hdr *header.ExtendedHeader,
 	ns libshare.Namespace,
 	from, to shwap.SampleCoords,
+	proofsOnly bool,
 ) (shwap.RangeNamespaceData, error) {
 	if err := ns.ValidateForData(); err != nil {
 		return shwap.RangeNamespaceData{}, err
@@ -282,7 +283,7 @@ func (g *Getter) GetRangeNamespaceData(
 	defer span.End()
 
 	rangeDataBlock, err := NewEmptyRangeNamespaceDataBlock(
-		hdr.Height(), ns, from, to, len(hdr.DAH.RowRoots),
+		hdr.Height(), ns, from, to, len(hdr.DAH.RowRoots), proofsOnly,
 	)
 	if err != nil {
 		return shwap.RangeNamespaceData{}, err

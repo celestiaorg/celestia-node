@@ -53,5 +53,6 @@ type Getter interface {
 		_ *header.ExtendedHeader,
 		_ libshare.Namespace,
 		from, to SampleCoords,
+		_ bool,
 	) (RangeNamespaceData, error)
 }

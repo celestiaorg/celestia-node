@@ -192,7 +192,7 @@ func (m module) GetRange(
 		return nil, err
 	}
 
-	nData, err := m.getter.GetRangeNamespaceData(ctx, header, ns, from, to)
+	nData, err := m.getter.GetRangeNamespaceData(ctx, header, ns, from, to, proofsOnly)
 	if err != nil {
 		return nil, err
 	}
