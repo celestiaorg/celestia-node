@@ -31,7 +31,7 @@ A **bridge** node does not care about what kind of celestia-core node it is conn
 it only cares that it has a direct RPC connection to a celestia-core node from which it can listen for new blocks.
 
 The name **bridge** was chosen as the purpose of this node type is to provide a mechanism to relay celestia-core blocks
-to the data availability network.  
+to the data availability network.
 
 ### **Full Node**
 
@@ -131,7 +131,7 @@ checkpoint on any new headers.
 ### `HeaderService` becomes main component around which most other services are focused
 
 Initially, we started with BlockService being the more “important” component during devnet architecture, but overlooked
-some problems with regards to sync (we initially made the decision that a celestia full node would have to be started
+some problems with regard to sync (we initially made the decision that a celestia full node would have to be started
 together at the same time as a core node).
 
 This led us to an issue where eventually we needed to connect to an already-running core node and sync from it. We were
@@ -183,7 +183,7 @@ for
   the data itself. It is possible to get the namespace for each share encoded in inner non-leaf nodes of the NMT tree.
 * Pruning for shares.
 
-### [Move IPLD from celetia-node repo into its own repo](https://github.com/celestiaorg/celestia-node/issues/111)
+### [Move IPLD from celestia-node repo into its own repo](https://github.com/celestiaorg/celestia-node/issues/111)
 
 Since the IPLD package is pretty much entirely separate from the celestia-node implementation, it makes sense that it
 is removed from the celestia-node repository and maintained separately. The extraction of IPLD should also include a
@@ -192,7 +192,7 @@ documentation also needs updating.
 
 ### Implement additional light node verification logic similar to the Tendermint Light Client Model
 
-At the moment, the syncing logic for a **light** nodes is simple in that it syncs each header from a single peer.
+At the moment, the syncing logic for a **light** node is simple in that it syncs each header from a single peer.
 Instead, the **light** node should double-check headers with another randomly chosen
 ["witness"](https://github.com/tendermint/tendermint/blob/02d456b8b8274088e8d3c6e1714263a47ffe13ac/light/client.go#L154-L161)
 peer than the primary peer from which it received the header, as described in the
