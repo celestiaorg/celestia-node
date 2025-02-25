@@ -248,7 +248,7 @@ func testAccessorRowNamespaceData(
 
 			// check that the amount of shares in the namespace is equal to the expected amount
 			require.Equal(t, amount, actualSharesAmount)
-		}
+		})
 	})
 
 	t.Run("not included", func(t *testing.T) {
@@ -279,7 +279,7 @@ func testAccessorRowNamespaceData(
 
 			err = rowData.Verify(roots, absentNs, i)
 			require.NoError(t, err)
-		}
+		})
 	})
 }
 
@@ -465,16 +465,40 @@ func BenchGetSampleFromAccessor(
 
 type quadrantIdx int
 
-var quadrants = []quadrantIdx{1, 2, 3, 4}
+const (
+	q1 quadrantIdx = iota + 1 // top-left: original data quadrant
+	q2                        // top-right: row parity quadrant
+	q3                        // bottom-left: column parity quadrant
+	q4                        // bottom-right: combined parity quadrant
+)
+
+var quadrants = []quadrantIdx{q1, q2, q3, q4}
 
 func (q quadrantIdx) String() string {
 	return strconv.Itoa(int(q))
 }
 
+// coordinates returns random row and column indices within the specified quadrant.
+// The EDS is divided into 4 quadrants, each with size (edsSize/2 x edsSize/2):
+//   +-----+-----+
+//   | Q1  | Q2  |
+//   +-----+-----+
+//   | Q3  | Q4  |
+//   +-----+-----+
 func (q quadrantIdx) coordinates(edsSize int) (rowIdx, colIdx int) {
-	colIdx = edsSize/2*(int(q-1)%2) + 1
-	rowIdx = edsSize/2*(int(q-1)/2) + 1
-	return rowIdx, colIdx
+	half := edsSize / 2
+	switch q {
+	case q1: // top-left quadrant (original data)
+		return rand.IntN(half), rand.IntN(half)
+	case q2: // top-right quadrant (row parity)
+		return rand.IntN(half), half + rand.IntN(half)
+	case q3: // bottom-left quadrant (column parity)
+		return half + rand.IntN(half), rand.IntN(half)
+	case q4: // bottom-right quadrant (combined parity)
+		return half + rand.IntN(half), half + rand.IntN(half)
+	default:
+		panic("invalid quadrant")
+	}
 }
 
 func checkPowerOfTwo(n int) bool {
