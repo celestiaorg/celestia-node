@@ -3,12 +3,17 @@ package core
 import (
 	"context"
 	"net"
+	"path/filepath"
 	"testing"
 	"time"
 
+	srvtypes "github.com/cosmos/cosmos-sdk/server/types"
+	grpc_retry "github.com/grpc-ecosystem/go-grpc-middleware/retry"
 	"github.com/stretchr/testify/require"
 	tmrand "github.com/tendermint/tendermint/libs/rand"
+	"github.com/tendermint/tendermint/node"
 	"google.golang.org/grpc"
+	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/connectivity"
 	"google.golang.org/grpc/credentials/insecure"
 
@@ -69,13 +74,116 @@ func generateRandomAccounts(n int) []string {
 
 func newTestClient(t *testing.T, ip, port string) *grpc.ClientConn {
 	t.Helper()
-	opt := grpc.WithTransportCredentials(insecure.NewCredentials())
+
+	retryInterceptor := grpc_retry.UnaryClientInterceptor(
+		grpc_retry.WithMax(5),
+		grpc_retry.WithCodes(codes.Unavailable),
+		grpc_retry.WithBackoff(
+			grpc_retry.BackoffExponentialWithJitter(time.Second, 2.0)),
+	)
+	retryStreamInterceptor := grpc_retry.StreamClientInterceptor(
+		grpc_retry.WithMax(5),
+		grpc_retry.WithCodes(codes.Unavailable),
+		grpc_retry.WithBackoff(
+			grpc_retry.BackoffExponentialWithJitter(time.Second, 2.0)),
+	)
+
+	opts := []grpc.DialOption{
+		grpc.WithUnaryInterceptor(retryInterceptor),
+		grpc.WithStreamInterceptor(retryStreamInterceptor),
+		grpc.WithTransportCredentials(insecure.NewCredentials()),
+	}
 	endpoint := net.JoinHostPort(ip, port)
-	client, err := grpc.NewClient(endpoint, opt)
+	client, err := grpc.NewClient(endpoint, opts...)
 	require.NoError(t, err)
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second*2)
 	t.Cleanup(cancel)
 	ready := client.WaitForStateChange(ctx, connectivity.Ready)
 	require.True(t, ready)
 	return client
+}
+
+// Network wraps `testnode.Context` allowing to manually stop all underlying connections.
+// TODO @vgonkivs: remove after https://github.com/celestiaorg/celestia-app/issues/4304 is done.
+type Network struct {
+	testnode.Context
+	config *testnode.Config
+	app    srvtypes.Application
+	tmNode *node.Node
+
+	stopNode func() error
+	stopGRPC func() error
+	stopAPI  func() error
+}
+
+func NewNetwork(t testing.TB, config *testnode.Config) *Network {
+	t.Helper()
+
+	// initialize the genesis file and validator files for the first validator.
+	baseDir := filepath.Join(t.TempDir(), "testnode")
+	err := genesis.InitFiles(baseDir, config.TmConfig, config.AppConfig, config.Genesis, 0)
+	require.NoError(t, err)
+
+	tmNode, app, err := testnode.NewCometNode(baseDir, &config.UniversalTestingConfig)
+	require.NoError(t, err)
+
+	ctx, cancel := context.WithCancel(context.Background())
+	t.Cleanup(func() {
+		cancel()
+	})
+
+	cctx := testnode.NewContext(
+		ctx,
+		config.Genesis.Keyring(),
+		config.TmConfig,
+		config.Genesis.ChainID,
+		config.AppConfig.API.Address,
+	)
+
+	return &Network{
+		Context: cctx,
+		config:  config,
+		app:     app,
+		tmNode:  tmNode,
+	}
+}
+
+func (n *Network) Start() error {
+	cctx, stopNode, err := testnode.StartNode(n.tmNode, n.Context)
+	if err != nil {
+		return err
+	}
+	cctx, cleanupGRPC, err := testnode.StartGRPCServer(n.app, n.config.AppConfig, cctx)
+	if err != nil {
+		return err
+	}
+
+	apiServer, err := testnode.StartAPIServer(n.app, *n.config.AppConfig, cctx)
+	if err != nil {
+		return err
+	}
+
+	n.Context = cctx
+	n.stopNode = stopNode
+	n.stopGRPC = cleanupGRPC
+	n.stopAPI = apiServer.Close
+	return nil
+}
+
+func (n *Network) Stop() error {
+	err := n.stopNode()
+	if err != nil {
+		return err
+	}
+
+	err = n.stopGRPC()
+	if err != nil {
+		return err
+	}
+
+	err = n.stopAPI()
+	if err != nil {
+		return err
+	}
+	return nil
 }
