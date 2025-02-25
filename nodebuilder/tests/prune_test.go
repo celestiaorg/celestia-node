@@ -5,9 +5,13 @@ package tests
 import (
 	"bytes"
 	"context"
+	"encoding/json"
+	"net"
 	"testing"
 	"time"
 
+	"github.com/ipfs/go-datastore"
+	"github.com/ipfs/go-datastore/namespace"
 	"github.com/libp2p/go-libp2p/core/host"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -21,8 +25,8 @@ import (
 	"github.com/celestiaorg/celestia-node/nodebuilder/das"
 	"github.com/celestiaorg/celestia-node/nodebuilder/node"
 	"github.com/celestiaorg/celestia-node/nodebuilder/tests/swamp"
-	"github.com/celestiaorg/celestia-node/pruner"
 	"github.com/celestiaorg/celestia-node/share"
+	full_avail "github.com/celestiaorg/celestia-node/share/availability/full"
 	"github.com/celestiaorg/celestia-node/share/shwap/p2p/shrex/peers"
 	"github.com/celestiaorg/celestia-node/share/shwap/p2p/shrex/shrex_getter"
 	"github.com/celestiaorg/celestia-node/share/shwap/p2p/shrex/shrexeds"
@@ -41,11 +45,6 @@ import (
 // spin up 3 pruning FNs, connect
 // spin up 1 LN that syncs historic blobs
 func TestArchivalBlobSync(t *testing.T) {
-	if testing.Short() {
-		// TODO: https://github.com/celestiaorg/celestia-node/issues/3636
-		t.Skip()
-	}
-
 	const (
 		blocks = 50
 		btime  = time.Millisecond * 300
@@ -176,18 +175,21 @@ func TestArchivalBlobSync(t *testing.T) {
 	}
 }
 
-func TestConvertFromPrunedToArchival(t *testing.T) {
+func TestDisallowConvertFromPrunedToArchival(t *testing.T) {
 	sw := swamp.NewSwamp(t, swamp.WithBlockTime(time.Second))
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second*30)
 	t.Cleanup(cancel)
 
-	// Light nodes are allowed to disable pruning in wish
+	// Light nodes have pruning enabled by default
 	for _, nt := range []node.Type{node.Bridge, node.Full} {
 		pruningCfg := nodebuilder.DefaultConfig(nt)
 		pruningCfg.Pruner.EnableService = true
+		var err error
+		pruningCfg.Core.IP, pruningCfg.Core.Port, err = net.SplitHostPort(sw.ClientContext.GRPCClient.Target())
+		require.NoError(t, err)
 		store := nodebuilder.MockStore(t, pruningCfg)
 		pruningNode := sw.MustNewNodeWithStore(nt, store)
-		err := pruningNode.Start(ctx)
+		err = pruningNode.Start(ctx)
 		require.NoError(t, err)
 		err = pruningNode.Stop(ctx)
 		require.NoError(t, err)
@@ -196,6 +198,98 @@ func TestConvertFromPrunedToArchival(t *testing.T) {
 		err = store.PutConfig(archivalCfg)
 		require.NoError(t, err)
 		_, err = sw.NewNodeWithStore(nt, store)
-		require.ErrorIs(t, err, pruner.ErrDisallowRevertToArchival, nt.String())
+		assert.Error(t, err)
+		assert.ErrorIs(t, full_avail.ErrDisallowRevertToArchival, err)
+	}
+}
+
+func TestDisallowConvertToArchivalViaLastPrunedCheck(t *testing.T) {
+	sw := swamp.NewSwamp(t, swamp.WithBlockTime(time.Second))
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second*30)
+	t.Cleanup(cancel)
+
+	var cp struct {
+		LastPrunedHeight uint64              `json:"last_pruned_height"`
+		FailedHeaders    map[uint64]struct{} `json:"failed"`
+	}
+
+	for _, nt := range []node.Type{node.Bridge, node.Full} {
+		archivalCfg := nodebuilder.DefaultConfig(nt)
+
+		store := nodebuilder.MockStore(t, archivalCfg)
+		ds, err := store.Datastore()
+		require.NoError(t, err)
+
+		cp.LastPrunedHeight = 500
+		cp.FailedHeaders = make(map[uint64]struct{})
+		bin, err := json.Marshal(cp)
+		require.NoError(t, err)
+
+		prunerStore := namespace.Wrap(ds, datastore.NewKey("pruner"))
+		err = prunerStore.Put(ctx, datastore.NewKey("checkpoint"), bin)
+		require.NoError(t, err)
+
+		_, err = sw.NewNodeWithStore(nt, store)
+		require.Error(t, err)
+		assert.ErrorIs(t, full_avail.ErrDisallowRevertToArchival, err)
+	}
+}
+
+func TestConvertFromArchivalToPruned(t *testing.T) {
+	sw := swamp.NewSwamp(t, swamp.WithBlockTime(time.Second))
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second*30)
+	t.Cleanup(cancel)
+
+	var cp struct {
+		LastPrunedHeight uint64              `json:"last_pruned_height"`
+		FailedHeaders    map[uint64]struct{} `json:"failed"`
+	}
+
+	host, port, err := net.SplitHostPort(sw.ClientContext.GRPCClient.Target())
+	require.NoError(t, err)
+
+	for _, nt := range []node.Type{node.Bridge, node.Full} {
+		archivalCfg := nodebuilder.DefaultConfig(nt)
+		archivalCfg.Core.IP = host
+		archivalCfg.Core.Port = port
+
+		store := nodebuilder.MockStore(t, archivalCfg)
+		ds, err := store.Datastore()
+		require.NoError(t, err)
+
+		// the archival node has trimmed up to height 500
+		fullAvailStore := namespace.Wrap(ds, datastore.NewKey("full_avail"))
+		err = fullAvailStore.Put(ctx, datastore.NewKey("previous_mode"), []byte("archival"))
+		require.NoError(t, err)
+
+		cp.LastPrunedHeight = 500
+		cp.FailedHeaders = make(map[uint64]struct{})
+		bin, err := json.Marshal(cp)
+		require.NoError(t, err)
+
+		prunerStore := namespace.Wrap(ds, datastore.NewKey("pruner"))
+		err = prunerStore.Put(ctx, datastore.NewKey("checkpoint"), bin)
+		require.NoError(t, err)
+
+		archivalNode := sw.MustNewNodeWithStore(nt, store)
+		err = archivalNode.Start(ctx)
+		require.NoError(t, err)
+		err = archivalNode.Stop(ctx)
+		require.NoError(t, err)
+
+		// convert to pruned node
+		pruningCfg := nodebuilder.DefaultConfig(nt)
+		pruningCfg.Pruner.EnableService = true
+		err = store.PutConfig(pruningCfg)
+		require.NoError(t, err)
+		_, err = sw.NewNodeWithStore(nt, store)
+		assert.NoError(t, err)
+
+		// expect that the checkpoint has been overridden
+		bin, err = prunerStore.Get(ctx, datastore.NewKey("checkpoint"))
+		require.NoError(t, err)
+		err = json.Unmarshal(bin, &cp)
+		require.NoError(t, err)
+		assert.Equal(t, uint64(1), cp.LastPrunedHeight)
 	}
 }

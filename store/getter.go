@@ -71,6 +71,21 @@ func (g *Getter) GetEDS(ctx context.Context, h *header.ExtendedHeader) (*rsmt2d.
 	return rsmt2d.ExtendedDataSquare, nil
 }
 
+func (g *Getter) GetRow(ctx context.Context, h *header.ExtendedHeader, rowIdx int) (shwap.Row, error) {
+	acc, err := g.store.GetByHeight(ctx, h.Height())
+	if err != nil {
+		if errors.Is(err, ErrNotFound) {
+			return shwap.Row{}, shwap.ErrNotFound
+		}
+		return shwap.Row{}, fmt.Errorf("getting accessor from store: %w", err)
+	}
+	axisHalf, err := acc.AxisHalf(ctx, rsmt2d.Row, rowIdx)
+	if err != nil {
+		return shwap.Row{}, fmt.Errorf("getting axis half from accessor: %w", err)
+	}
+	return axisHalf.ToRow(), nil
+}
+
 func (g *Getter) GetNamespaceData(
 	ctx context.Context,
 	h *header.ExtendedHeader,
