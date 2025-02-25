@@ -5,6 +5,8 @@
 [![Go CI](https://github.com/celestiaorg/celestia-node/actions/workflows/go-ci.yml/badge.svg)](https://github.com/celestiaorg/celestia-node/actions/workflows/go-ci.yml)
 [![Go Report Card](https://goreportcard.com/badge/github.com/celestiaorg/celestia-node)](https://goreportcard.com/report/github.com/celestiaorg/celestia-node)
 [![codecov](https://codecov.io/gh/celestiaorg/celestia-node/branch/main/graph/badge.svg?token=CWGA4RLDS9)](https://codecov.io/gh/celestiaorg/celestia-node)
+[![Twitter](https://img.shields.io/twitter/follow/celestia)](https://x.com/celestia)
+[![Discord](https://img.shields.io/discord/638338779505229824)](https://discord.com/invite/YsnTPcSfWQ)
 
 Golang implementation of Celestia's data availability node types (`light` | `full` | `bridge`).
 
