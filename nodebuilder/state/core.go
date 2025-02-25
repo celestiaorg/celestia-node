@@ -8,6 +8,7 @@ import (
 	"github.com/celestiaorg/go-header/sync"
 
 	"github.com/celestiaorg/celestia-node/header"
+	"github.com/celestiaorg/celestia-node/nodebuilder/core"
 	modfraud "github.com/celestiaorg/celestia-node/nodebuilder/fraud"
 	"github.com/celestiaorg/celestia-node/nodebuilder/p2p"
 	"github.com/celestiaorg/celestia-node/share/eds/byzantine"
@@ -23,13 +24,14 @@ func coreAccessor(
 	fraudServ libfraud.Service[*header.ExtendedHeader],
 	network p2p.Network,
 	client *grpc.ClientConn,
+	address core.EstimatorAddress,
 ) (
 	*state.CoreAccessor,
 	Module,
 	*modfraud.ServiceBreaker[*state.CoreAccessor, *header.ExtendedHeader],
 	error,
 ) {
-	ca, err := state.NewCoreAccessor(keyring, string(keyname), sync, client, network.String())
+	ca, err := state.NewCoreAccessor(keyring, string(keyname), sync, client, network.String(), string(address))
 
 	sBreaker := &modfraud.ServiceBreaker[*state.CoreAccessor, *header.ExtendedHeader]{
 		Service:   ca,
