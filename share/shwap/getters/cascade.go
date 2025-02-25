@@ -151,14 +151,17 @@ func cascadeGetters[V any](
 		val, getErr := get(getCtx, getter)
 		cancel()
 		if getErr == nil {
+			err = nil // errors from previous getters already recorded in span
 			return val, nil
 		}
+		log.Debugw("cascade: getter failed", "getter_idx", i, "error", getErr)
 
 		if errors.Is(getErr, shwap.ErrOperationNotSupported) {
 			continue
 		}
 
 		span.RecordError(getErr, trace.WithAttributes(attribute.Int("getter_idx", i)))
+
 		var byzantineErr *byzantine.ErrByzantine
 		if errors.As(getErr, &byzantineErr) {
 			// short circuit if byzantine error was detected (to be able to handle it correctly
