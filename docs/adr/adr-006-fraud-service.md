@@ -128,7 +128,7 @@ In addition, `das.Daser`:
     ```
 
     ```go
-    // ProofType is a enum type that represents a particular type of fraud proof.
+    // ProofType is an enum type that represents a particular type of fraud proof.
     type ProofType string
 
     // Proof is a generic interface that will be used for all types of fraud proofs in the network.

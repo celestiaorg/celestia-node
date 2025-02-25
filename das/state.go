@@ -126,7 +126,7 @@ func (s *coordinatorState) handleRetryResult(res result) {
 		s.failed[h] = nextRetry
 	}
 
-	// processed height are either already moved to failed map or succeeded, cleanup inRetry
+	// processed heights are either already moved to failed map or succeeded, cleanup inRetry
 	for h := res.from; h <= res.to; h++ {
 		delete(s.inRetry, h)
 	}
