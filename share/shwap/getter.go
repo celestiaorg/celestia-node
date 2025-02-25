@@ -47,4 +47,12 @@ type Getter interface {
 	// If no shares are found for target namespace non-inclusion could be also verified by calling
 	// Verify method.
 	GetNamespaceData(context.Context, *header.ExtendedHeader, libshare.Namespace) (NamespaceData, error)
+
+	GetRangeNamespaceData(
+		_ context.Context,
+		_ *header.ExtendedHeader,
+		_ libshare.Namespace,
+		from, to SampleCoords,
+		_ bool,
+	) (RangeNamespaceData, error)
 }
