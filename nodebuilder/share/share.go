@@ -3,6 +3,7 @@ package share
 import (
 	"context"
 
+	tmjson "github.com/tendermint/tendermint/libs/json"
 	"github.com/tendermint/tendermint/types"
 
 	libshare "github.com/celestiaorg/go-square/v2/share"
@@ -21,6 +22,22 @@ var _ Module = (*API)(nil)
 type GetRangeResult struct {
 	Shares []libshare.Share
 	Proof  *types.ShareProof
+}
+
+// MarshalJSON marshals an GetRangeResult to JSON. Uses tendermint encoder for proof for compatibility.
+func (r *GetRangeResult) MarshalJSON() ([]byte, error) {
+	// alias the type to avoid going into recursion loop
+	// because tmjson.Marshal invokes custom json marshaling
+	type Alias GetRangeResult
+	return tmjson.Marshal((*Alias)(r))
+}
+
+// UnmarshalJSON unmarshals an GetRangeResult from JSON. Uses tendermint decoder for proof for compatibility.
+func (r *GetRangeResult) UnmarshalJSON(data []byte) error {
+	// alias the type to avoid going into recursion loop
+	// because tmjson.Unmarshal invokes custom json Unmarshaling
+	type Alias GetRangeResult
+	return tmjson.Unmarshal(data, (*Alias)(r))
 }
 
 // Module provides access to any data square or block share on the network.
