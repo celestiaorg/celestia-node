@@ -165,11 +165,12 @@ func parseEndpointString(endpointStr string, defaultTLS bool, defaultXToken stri
 		for i := 1; i < len(restParts); i++ {
 			if strings.HasPrefix(restParts[i], "tls=") {
 				tlsValue := strings.TrimPrefix(restParts[i], "tls=")
-				if tlsValue == "true" {
+				switch tlsValue {
+				case "true":
 					endpoint.TLSEnabled = true
-				} else if tlsValue == "false" {
+				case "false":
 					endpoint.TLSEnabled = false
-				} else {
+				default:
 					return Endpoint{}, fmt.Errorf("invalid TLS value in endpoint %s, expected 'true' or 'false'", endpointStr)
 				}
 			} else if strings.HasPrefix(restParts[i], "xtoken=") {
@@ -190,11 +191,12 @@ func parseEndpointString(endpointStr string, defaultTLS bool, defaultXToken stri
 		for i := 2; i < len(parts); i++ {
 			if strings.HasPrefix(parts[i], "tls=") {
 				tlsValue := strings.TrimPrefix(parts[i], "tls=")
-				if tlsValue == "true" {
+				switch tlsValue {
+				case "true":
 					endpoint.TLSEnabled = true
-				} else if tlsValue == "false" {
+				case "false":
 					endpoint.TLSEnabled = false
-				} else {
+				default:
 					return Endpoint{}, fmt.Errorf("invalid TLS value in endpoint %s, expected 'true' or 'false'", endpointStr)
 				}
 			} else if strings.HasPrefix(parts[i], "xtoken=") {
