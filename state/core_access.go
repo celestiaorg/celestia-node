@@ -61,7 +61,7 @@ type CoreAccessor struct {
 	// coreConns contains all available gRPC connections
 	coreConns []*grpc.ClientConn
 	// nextConnIndex tracks the next connection to use for round-robin selection
-	nextConnIndex atomic.Uint64
+	nextConnIndex atomic.Uint32
 	network       string
 
 	// these fields are mutatable and thus need to be protected by a mutex
@@ -121,7 +121,9 @@ func NewCoreAccessor(
 	return ca, nil
 }
 
-// getNextConn returns the next connection in a round-robin fashion
+// getNextConn returns the next connection in a round-robin fashion and advances
+// the internal counter. This provides simple load balancing across
+// multiple Core gRPC endpoints.
 func (ca *CoreAccessor) getNextConn() *grpc.ClientConn {
 	// If we only have one connection, just return it
 	if len(ca.coreConns) <= 1 {
@@ -131,7 +133,7 @@ func (ca *CoreAccessor) getNextConn() *grpc.ClientConn {
 	// Get the current index and increment it atomically
 	idx := ca.nextConnIndex.Add(1) - 1
 	// Use modulo to wrap around when we reach the end
-	connIdx := int(idx % uint64(len(ca.coreConns)))
+	connIdx := int(idx % uint32(len(ca.coreConns)))
 
 	return ca.coreConns[connIdx]
 }

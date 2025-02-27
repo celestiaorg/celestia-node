@@ -1,6 +1,7 @@
 package core
 
 import (
+	"sync/atomic"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -46,12 +47,12 @@ func TestBlockFetcherRoundRobin(t *testing.T) {
 	// Create fetcher with mock clients
 	fetcher := &BlockFetcher{
 		clients:       clients,
-		currentClient: 0,
+		currentClient: atomic.Uint32{},
 	}
 
 	// Test round-robin rotation
 	for i := 0; i < 6; i++ {
-		client := fetcher.getCurrentClient()
+		client := fetcher.getNextClient()
 		mockClient, ok := client.(*mockBlockAPIClient)
 		require.True(t, ok, "Expected mockBlockAPIClient")
 

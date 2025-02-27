@@ -27,14 +27,17 @@ type Endpoint struct {
 
 // Config combines all configuration fields for managing the relationship with a Core node.
 type Config struct {
-	// Legacy fields for backward compatibility
-	// IP address for a single core endpoint (legacy)
+	// Deprecated: Legacy field for backward compatibility. Use Endpoints instead.
+	// IP address for a single core endpoint.
 	IP string
-	// Port number for a single core endpoint (legacy)
+	// Deprecated: Legacy field for backward compatibility. Use Endpoints instead.
+	// Port number for a single core endpoint.
 	Port string
+	// Deprecated: Legacy field for backward compatibility. Use Endpoints instead.
 	// TLSEnabled specifies whether the connection is secure or not.
 	// PLEASE NOTE: it should be set to true in order to handle XTokenPath.
 	TLSEnabled bool
+	// Deprecated: Legacy field for backward compatibility. Use Endpoints instead.
 	// XTokenPath specifies the path to the directory with JSON file containing the X-Token for gRPC authentication.
 	// The JSON file should have a key-value pair where the key is "x-token" and the value is the authentication token.
 	// If left empty, the client will not include the X-Token in its requests.
@@ -70,7 +73,7 @@ func (cfg *Config) Validate() error {
 		cfg.IP = ip
 		_, err = strconv.Atoi(cfg.Port)
 		if err != nil {
-			return fmt.Errorf("nodebuilder/core: invalid grpc port: %s", err.Error())
+			return fmt.Errorf("nodebuilder/core: invalid grpc port: %w", err)
 		}
 	}
 

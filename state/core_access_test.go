@@ -29,7 +29,7 @@ func TestRoundRobinConnectionSelection(t *testing.T) {
 	// Create a minimal CoreAccessor with only the fields needed for the test
 	ca := &CoreAccessor{
 		coreConns:     conns,
-		nextConnIndex: atomic.Uint64{}, // Initialize zero value directly
+		nextConnIndex: atomic.Uint32{}, // Initialize zero value directly
 	}
 	// Initialize the counter to start from the beginning
 	ca.nextConnIndex.Store(0)

@@ -3,6 +3,7 @@ package core
 import (
 	"context"
 	"net"
+	"sync/atomic"
 	"testing"
 	"time"
 
@@ -23,29 +24,29 @@ func TestRoundRobinClientSelection(t *testing.T) {
 
 	fetcher := &BlockFetcher{
 		clients:       clients,
-		currentClient: 0,
+		currentClient: atomic.Uint32{},
 	}
 
 	// The first call should return client 0 (id: 1)
-	client1 := fetcher.getCurrentClient()
+	client1 := fetcher.getNextClient()
 	mockClient1, ok := client1.(*mockBlockAPIClient)
 	require.True(t, ok, "Expected mockBlockAPIClient")
 	assert.Equal(t, 1, mockClient1.id)
 
 	// The second call should return client 1 (id: 2)
-	client2 := fetcher.getCurrentClient()
+	client2 := fetcher.getNextClient()
 	mockClient2, ok := client2.(*mockBlockAPIClient)
 	require.True(t, ok, "Expected mockBlockAPIClient")
 	assert.Equal(t, 2, mockClient2.id)
 
 	// The third call should return client 2 (id: 3)
-	client3 := fetcher.getCurrentClient()
+	client3 := fetcher.getNextClient()
 	mockClient3, ok := client3.(*mockBlockAPIClient)
 	require.True(t, ok, "Expected mockBlockAPIClient")
 	assert.Equal(t, 3, mockClient3.id)
 
 	// The fourth call should wrap around and return client 0 (id: 1) again
-	client4 := fetcher.getCurrentClient()
+	client4 := fetcher.getNextClient()
 	mockClient4, ok := client4.(*mockBlockAPIClient)
 	require.True(t, ok, "Expected mockBlockAPIClient")
 	assert.Equal(t, 1, mockClient4.id)

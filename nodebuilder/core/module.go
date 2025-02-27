@@ -38,9 +38,7 @@ func ConstructModule(tp node.Type, cfg *Config, options ...fx.Option) fx.Option 
 			baseComponents,
 			// Creates a BlockFetcher using all configured connections with round-robin selection
 			// for client-side load balancing across multiple Core endpoints
-			fx.Provide(
-				core.NewMultiBlockFetcher,
-			),
+			fx.Provide(core.NewMultiBlockFetcher),
 			fxutil.ProvideAs(
 				func(
 					fetcher *core.BlockFetcher,
@@ -51,7 +49,6 @@ func ConstructModule(tp node.Type, cfg *Config, options ...fx.Option) fx.Option 
 					if MetricsEnabled {
 						opts = append(opts, core.WithMetrics())
 					}
-
 					return core.NewExchange(fetcher, store, construct, opts...)
 				},
 				new(libhead.Exchange[*header.ExtendedHeader])),
