@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	nodeservice "github.com/cosmos/cosmos-sdk/client/grpc/node"
@@ -36,12 +37,13 @@ const (
 
 var (
 	ErrInvalidAmount = errors.New("state: amount must be greater than zero")
+	ErrNoConnections = errors.New("state: no gRPC connections available")
 
 	log = logging.Logger("state")
 )
 
-// CoreAccessor implements service over a gRPC connection
-// with a celestia-core node.
+// CoreAccessor implements service over gRPC connections
+// with celestia-core nodes.
 type CoreAccessor struct {
 	ctx    context.Context
 	cancel context.CancelFunc
@@ -54,19 +56,20 @@ type CoreAccessor struct {
 
 	getter libhead.Head[*header.ExtendedHeader]
 
-	stakingCli   stakingtypes.QueryClient
-	feeGrantCli  feegrant.QueryClient
-	abciQueryCli tmservice.ServiceClient
-
 	prt *merkle.ProofRuntime
 
-	coreConn *grpc.ClientConn
-	network  string
+	// coreConns contains all available gRPC connections
+	coreConns []*grpc.ClientConn
+	// nextConnIndex tracks the next connection to use for round-robin selection
+	nextConnIndex atomic.Uint64
+	network       string
 
 	// these fields are mutatable and thus need to be protected by a mutex
 	lock            sync.Mutex
 	lastPayForBlob  int64
 	payForBlobCount int64
+	// txClients is a map of connection pointers to their respective TxClients
+	txClients map[*grpc.ClientConn]*user.TxClient
 	// minGasPrice is the minimum gas price that the node will accept.
 	// NOTE: just because the first node accepts the transaction, does not mean it
 	// will find a proposer that does accept the transaction. Better would be
@@ -74,16 +77,20 @@ type CoreAccessor struct {
 	minGasPrice float64
 }
 
-// NewCoreAccessor dials the given celestia-core endpoint and
+// NewCoreAccessor uses the given celestia-core endpoints and
 // constructs and returns a new CoreAccessor (state service) with the active
-// connection.
+// connections.
 func NewCoreAccessor(
 	keyring keyring.Keyring,
 	keyname string,
 	getter libhead.Head[*header.ExtendedHeader],
-	conn *grpc.ClientConn,
+	conns []*grpc.ClientConn,
 	network string,
 ) (*CoreAccessor, error) {
+	if len(conns) == 0 {
+		return nil, ErrNoConnections
+	}
+
 	// create verifier
 	prt := merkle.DefaultProofRuntime()
 	prt.RegisterOpDecoder(storetypes.ProofOpIAVLCommitment, storetypes.CommitmentOpDecoder)
@@ -104,20 +111,55 @@ func NewCoreAccessor(
 		defaultSignerAddress: addr,
 		getter:               getter,
 		prt:                  prt,
-		coreConn:             conn,
+		coreConns:            conns,
 		network:              network,
 	}
+
+	// Initialize the nextConnIndex to 0
+	ca.nextConnIndex.Store(0)
+
 	return ca, nil
+}
+
+// getNextConn returns the next connection in a round-robin fashion
+func (ca *CoreAccessor) getNextConn() *grpc.ClientConn {
+	// If we only have one connection, just return it
+	if len(ca.coreConns) <= 1 {
+		return ca.coreConns[0]
+	}
+
+	// Get the current index and increment it atomically
+	idx := ca.nextConnIndex.Add(1) - 1
+	// Use modulo to wrap around when we reach the end
+	connIdx := int(idx % uint64(len(ca.coreConns)))
+
+	return ca.coreConns[connIdx]
+}
+
+// getStakingClient returns a staking query client using round-robin connection selection
+func (ca *CoreAccessor) getStakingClient() stakingtypes.QueryClient {
+	return stakingtypes.NewQueryClient(ca.getNextConn())
+}
+
+// getABCIQueryClient returns an ABCI query client using round-robin connection selection
+func (ca *CoreAccessor) getABCIQueryClient() tmservice.ServiceClient {
+	return tmservice.NewServiceClient(ca.getNextConn())
+}
+
+// getNodeServiceClient returns a node service client using round-robin connection selection
+func (ca *CoreAccessor) getNodeServiceClient() nodeservice.ServiceClient {
+	return nodeservice.NewServiceClient(ca.getNextConn())
 }
 
 func (ca *CoreAccessor) Start(ctx context.Context) error {
 	ca.ctx, ca.cancel = context.WithCancel(context.Background())
-	// create the staking query client
-	ca.stakingCli = stakingtypes.NewQueryClient(ca.coreConn)
-	ca.feeGrantCli = feegrant.NewQueryClient(ca.coreConn)
-	// create ABCI query client
-	ca.abciQueryCli = tmservice.NewServiceClient(ca.coreConn)
-	resp, err := ca.abciQueryCli.GetNodeInfo(ctx, &tmservice.GetNodeInfoRequest{})
+
+	// Initialize the tx clients map
+	ca.txClients = make(map[*grpc.ClientConn]*user.TxClient)
+
+	// Verify we can connect to the network
+	abciQueryCli := ca.getABCIQueryClient()
+	resp, err := abciQueryCli.GetNodeInfo(ctx, &tmservice.GetNodeInfoRequest{})
 	if err != nil {
 		return fmt.Errorf("failed to get node info: %w", err)
 	}
@@ -127,9 +169,19 @@ func (ca *CoreAccessor) Start(ctx context.Context) error {
 		return fmt.Errorf("wrong network in core.ip endpoint, expected %s, got %s", ca.network, defaultNetwork)
 	}
 
-	err = ca.setupTxClient(ctx)
-	if err != nil {
-		log.Warn(err)
+	// Initialize a client for the first connection
+	if len(ca.coreConns) > 0 {
+		firstConn := ca.coreConns[0]
+		encCfg := encoding.MakeConfig(app.ModuleEncodingRegisters...)
+		client, err := user.SetupTxClient(ctx, ca.keyring, firstConn, encCfg,
+			user.WithDefaultAddress(ca.defaultSignerAddress),
+		)
+		if err != nil {
+			log.Warnf("Failed to setup initial tx client: %v", err)
+		} else {
+			ca.txClients[firstConn] = client
+			ca.client = client
+		}
 	}
 
 	ca.minGasPrice, err = ca.queryMinimumGasPrice(ctx)
@@ -152,7 +204,8 @@ func (ca *CoreAccessor) SubmitPayForBlob(
 	libBlobs []*libshare.Blob,
 	cfg *TxConfig,
 ) (*TxResponse, error) {
-	client, err := ca.getTxClient(ctx)
+	// Use the next client in round-robin fashion
+	client, err := ca.getNextTxClient(ctx)
 	if err != nil {
 		return nil, err
 	}
@@ -260,7 +313,9 @@ func (ca *CoreAccessor) BalanceForAddress(ctx context.Context, addr Address) (*B
 		Prove:  true,
 	}
 
-	result, err := ca.abciQueryCli.ABCIQuery(ctx, req)
+	// Use the round-robin ABCI query client
+	abciQueryCli := ca.getABCIQueryClient()
+	result, err := abciQueryCli.ABCIQuery(ctx, req)
 	if err != nil || result.GetCode() != 0 {
 		err = fmt.Errorf("failed to query for balance: %w; result log: %s", err, result.GetLog())
 		return nil, err
@@ -421,7 +476,9 @@ func (ca *CoreAccessor) QueryDelegation(
 	valAddr ValAddress,
 ) (*stakingtypes.QueryDelegationResponse, error) {
 	delAddr := ca.defaultSignerAddress
-	return ca.stakingCli.Delegation(ctx, &stakingtypes.QueryDelegationRequest{
+	// Use the round-robin staking client
+	stakingCli := ca.getStakingClient()
+	return stakingCli.Delegation(ctx, &stakingtypes.QueryDelegationRequest{
 		DelegatorAddr: delAddr.String(),
 		ValidatorAddr: valAddr.String(),
 	})
@@ -432,7 +489,9 @@ func (ca *CoreAccessor) QueryUnbonding(
 	valAddr ValAddress,
 ) (*stakingtypes.QueryUnbondingDelegationResponse, error) {
 	delAddr := ca.defaultSignerAddress
-	return ca.stakingCli.UnbondingDelegation(ctx, &stakingtypes.QueryUnbondingDelegationRequest{
+	// Use the round-robin staking client
+	stakingCli := ca.getStakingClient()
+	return stakingCli.UnbondingDelegation(ctx, &stakingtypes.QueryUnbondingDelegationRequest{
 		DelegatorAddr: delAddr.String(),
 		ValidatorAddr: valAddr.String(),
 	})
@@ -444,7 +503,9 @@ func (ca *CoreAccessor) QueryRedelegations(
 	dstValAddr ValAddress,
 ) (*stakingtypes.QueryRedelegationsResponse, error) {
 	delAddr := ca.defaultSignerAddress
-	return ca.stakingCli.Redelegations(ctx, &stakingtypes.QueryRedelegationsRequest{
+	// Use the round-robin staking client
+	stakingCli := ca.getStakingClient()
+	return stakingCli.Redelegations(ctx, &stakingtypes.QueryRedelegationsRequest{
 		DelegatorAddr:    delAddr.String(),
 		SrcValidatorAddr: srcValAddr.String(),
 		DstValidatorAddr: dstValAddr.String(),
@@ -524,7 +585,9 @@ func (ca *CoreAccessor) getMinGasPrice() float64 {
 func (ca *CoreAccessor) queryMinimumGasPrice(
 	ctx context.Context,
 ) (float64, error) {
-	rsp, err := nodeservice.NewServiceClient(ca.coreConn).Config(ctx, &nodeservice.ConfigRequest{})
+	// Use the round-robin node service client
+	nodeClient := ca.getNodeServiceClient()
+	rsp, err := nodeClient.Config(ctx, &nodeservice.ConfigRequest{})
 	if err != nil {
 		return 0, err
 	}
@@ -536,31 +599,31 @@ func (ca *CoreAccessor) queryMinimumGasPrice(
 	return coins.AmountOf(app.BondDenom).MustFloat64(), nil
 }
 
-func (ca *CoreAccessor) setupTxClient(ctx context.Context) error {
-	if ca.client != nil {
-		return nil
+// getNextTxClient returns the next transaction client in a round-robin fashion
+func (ca *CoreAccessor) getNextTxClient(ctx context.Context) (*user.TxClient, error) {
+	conn := ca.getNextConn()
+
+	// Check if we already have a client for this connection
+	ca.lock.Lock()
+	defer ca.lock.Unlock()
+
+	client, exists := ca.txClients[conn]
+	if exists {
+		return client, nil
 	}
 
+	// Create a new client for this connection
 	encCfg := encoding.MakeConfig(app.ModuleEncodingRegisters...)
-	client, err := user.SetupTxClient(ctx, ca.keyring, ca.coreConn, encCfg,
+	client, err := user.SetupTxClient(ctx, ca.keyring, conn, encCfg,
 		user.WithDefaultAddress(ca.defaultSignerAddress),
 	)
 	if err != nil {
-		return fmt.Errorf("failed to setup a tx client: %w", err)
+		return nil, fmt.Errorf("failed to setup tx client: %w", err)
 	}
 
-	ca.client = client
-	return nil
-}
-
-func (ca *CoreAccessor) getTxClient(ctx context.Context) (*user.TxClient, error) {
-	if ca.client == nil {
-		err := ca.setupTxClient(ctx)
-		if err != nil {
-			return nil, err
-		}
-	}
-	return ca.client, nil
+	// Cache the client for future use
+	ca.txClients[conn] = client
+	return client, nil
 }
 
 func (ca *CoreAccessor) submitMsg(
@@ -568,7 +631,8 @@ func (ca *CoreAccessor) submitMsg(
 	msg sdktypes.Msg,
 	cfg *TxConfig,
 ) (*TxResponse, error) {
-	client, err := ca.getTxClient(ctx)
+	// Use the next client in round-robin fashion
+	client, err := ca.getNextTxClient(ctx)
 	if err != nil {
 		return nil, err
 	}
@@ -613,7 +677,7 @@ func (ca *CoreAccessor) getSigner(cfg *TxConfig) (AccAddress, error) {
 	}
 }
 
-// convertToTxResponse converts the user.TxResponse to sdk.TxResponse.
+// convertToSdkTxResponse converts the user.TxResponse to sdk.TxResponse.
 // This is a temporary workaround in order to avoid breaking the api.
 func convertToSdkTxResponse(resp *user.TxResponse) *TxResponse {
 	return &TxResponse{
