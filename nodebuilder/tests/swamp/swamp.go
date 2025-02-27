@@ -211,8 +211,13 @@ func (s *Swamp) DefaultTestConfig(tp node.Type) *nodebuilder.Config {
 	ip, port, err := net.SplitHostPort(s.cfg.AppConfig.GRPC.Address)
 	require.NoError(s.t, err)
 
-	cfg.Core.IP = ip
-	cfg.Core.Port = port
+	// Replace deprecated fields with Endpoints
+	cfg.Core.Endpoints = []coremodule.Endpoint{
+		{
+			IP:   ip,
+			Port: port,
+		},
+	}
 	return cfg
 }
 
@@ -220,9 +225,16 @@ func (s *Swamp) DefaultTestConfig(tp node.Type) *nodebuilder.Config {
 // and a mockstore to the MustNewNodeWithStore method
 func (s *Swamp) NewBridgeNode(options ...fx.Option) *nodebuilder.Node {
 	cfg := s.DefaultTestConfig(node.Bridge)
-	var err error
-	cfg.Core.IP, cfg.Core.Port, err = net.SplitHostPort(s.ClientContext.GRPCClient.Target())
+	ip, port, err := net.SplitHostPort(s.ClientContext.GRPCClient.Target())
 	require.NoError(s.t, err)
+
+	// Replace deprecated fields with Endpoints
+	cfg.Core.Endpoints = []coremodule.Endpoint{
+		{
+			IP:   ip,
+			Port: port,
+		},
+	}
 	store := nodebuilder.MockStore(s.t, cfg)
 
 	return s.MustNewNodeWithStore(node.Bridge, store, options...)

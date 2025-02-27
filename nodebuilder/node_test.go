@@ -17,6 +17,7 @@ import (
 	"google.golang.org/protobuf/proto"
 
 	"github.com/celestiaorg/celestia-node/core"
+	coremodule "github.com/celestiaorg/celestia-node/nodebuilder/core"
 	"github.com/celestiaorg/celestia-node/nodebuilder/node"
 )
 
@@ -37,8 +38,12 @@ func TestLifecycle(t *testing.T) {
 			require.NoError(t, err)
 
 			cfg := DefaultConfig(tt.tp)
-			cfg.Core.IP = host
-			cfg.Core.Port = port
+			cfg.Core.Endpoints = []coremodule.Endpoint{
+				{
+					IP:   host,
+					Port: port,
+				},
+			}
 
 			node := TestNodeWithConfig(t, tt.tp, cfg)
 			require.NotNil(t, node)
@@ -84,8 +89,12 @@ func TestLifecycle_WithMetrics(t *testing.T) {
 			require.NoError(t, err)
 
 			cfg := DefaultConfig(tt.tp)
-			cfg.Core.IP = host
-			cfg.Core.Port = port
+			cfg.Core.Endpoints = []coremodule.Endpoint{
+				{
+					IP:   host,
+					Port: port,
+				},
+			}
 
 			node := TestNodeWithConfig(
 				t,
