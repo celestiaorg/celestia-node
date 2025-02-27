@@ -14,6 +14,7 @@ import (
 	"github.com/celestiaorg/celestia-node/nodebuilder/p2p"
 	"github.com/celestiaorg/celestia-node/share/shwap/p2p/shrex/shrexsub"
 	"github.com/celestiaorg/celestia-node/store"
+	"google.golang.org/grpc"
 )
 
 // ConstructModule collects all the components and services related to managing the relationship
@@ -25,7 +26,8 @@ func ConstructModule(tp node.Type, cfg *Config, options ...fx.Option) fx.Option 
 	baseComponents := fx.Options(
 		fx.Supply(*cfg),
 		fx.Error(cfgErr),
-		fx.Provide(grpcClient),
+		// Provides all gRPC connections from configured endpoints
+		fx.Provide(grpcClients),
 		fx.Options(options...),
 	)
 
@@ -35,7 +37,13 @@ func ConstructModule(tp node.Type, cfg *Config, options ...fx.Option) fx.Option 
 	case node.Bridge:
 		return fx.Module("core",
 			baseComponents,
-			fx.Provide(core.NewBlockFetcher),
+			// Creates a BlockFetcher using all configured connections with round-robin selection
+			// for client-side load balancing across multiple Core endpoints
+			fx.Provide(
+				func(conns []*grpc.ClientConn) (*core.BlockFetcher, error) {
+					return core.NewMultiBlockFetcher(conns)
+				},
+			),
 			fxutil.ProvideAs(
 				func(
 					fetcher *core.BlockFetcher,

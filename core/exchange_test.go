@@ -171,8 +171,7 @@ func createCoreFetcher(t *testing.T, cfg *testnode.Config) (*BlockFetcher, testn
 	require.NoError(t, err)
 	host, port, err := net.SplitHostPort(cctx.GRPCClient.Target())
 	require.NoError(t, err)
-	client := newTestClient(t, host, port)
-	fetcher, err := NewBlockFetcher(client)
+	fetcher, err := newTestBlockFetcher(t, host, port)
 	require.NoError(t, err)
 	return fetcher, cctx
 }

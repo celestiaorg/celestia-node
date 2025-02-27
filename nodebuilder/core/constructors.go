@@ -34,14 +34,18 @@ const (
 	xtokenFileName         = "xtoken.json"
 )
 
-func grpcClient(lc fx.Lifecycle, cfg Config) (*grpc.ClientConn, error) {
+// singleGRPCClient creates a single gRPC client connection for a given endpoint
+func singleGRPCClient(lc fx.Lifecycle, endpoint Endpoint) (*grpc.ClientConn, error) {
+	// Base options that apply to all connections
 	opts := []grpc.DialOption{
 		grpc.WithDefaultCallOptions(
 			grpc.MaxCallRecvMsgSize(defaultGRPCMessageSize),
 			grpc.MaxCallSendMsgSize(defaultGRPCMessageSize),
 		),
 	}
-	if cfg.TLSEnabled {
+
+	// Configure TLS or insecure connection based on the endpoint configuration
+	if endpoint.TLSEnabled {
 		opts = append(opts, grpc.WithTransportCredentials(
 			credentials.NewTLS(&tls.Config{MinVersion: tls.VersionTLS12})),
 		)
@@ -49,6 +53,7 @@ func grpcClient(lc fx.Lifecycle, cfg Config) (*grpc.ClientConn, error) {
 		opts = append(opts, grpc.WithTransportCredentials(insecure.NewCredentials()))
 	}
 
+	// Configure retry interceptors
 	retryInterceptor := grpc_retry.UnaryClientInterceptor(
 		grpc_retry.WithMax(5),
 		grpc_retry.WithCodes(codes.Unavailable),
@@ -67,8 +72,9 @@ func grpcClient(lc fx.Lifecycle, cfg Config) (*grpc.ClientConn, error) {
 		grpc.WithStreamInterceptor(retryStreamInterceptor),
 	)
 
-	if cfg.XTokenPath != "" {
-		xToken, err := parseTokenPath(cfg.XTokenPath)
+	// Add authentication token if configured
+	if endpoint.XTokenPath != "" {
+		xToken, err := parseTokenPath(endpoint.XTokenPath)
 		if err != nil {
 			return nil, err
 		}
@@ -78,11 +84,13 @@ func grpcClient(lc fx.Lifecycle, cfg Config) (*grpc.ClientConn, error) {
 		)
 	}
 
-	endpoint := net.JoinHostPort(cfg.IP, cfg.Port)
-	conn, err := grpc.NewClient(endpoint, opts...)
+	addr := net.JoinHostPort(endpoint.IP, endpoint.Port)
+	conn, err := grpc.NewClient(addr, opts...)
 	if err != nil {
 		return nil, err
 	}
+
+	// Add lifecycle hooks for proper connection management
 	lc.Append(fx.Hook{
 		OnStart: func(ctx context.Context) error {
 			conn.Connect()
@@ -96,6 +104,33 @@ func grpcClient(lc fx.Lifecycle, cfg Config) (*grpc.ClientConn, error) {
 		},
 	})
 	return conn, nil
+}
+
+// grpcClients creates gRPC client connections for all configured endpoints.
+// The connections are used by the BlockFetcher for load balancing in a round-robin fashion.
+func grpcClients(lc fx.Lifecycle, cfg Config) ([]*grpc.ClientConn, error) {
+	endpoints := cfg.GetAllEndpoints()
+
+	if len(endpoints) == 0 {
+		return nil, errors.New("no core endpoints configured")
+	}
+
+	conns := make([]*grpc.ClientConn, 0, len(endpoints))
+
+	// Create a connection for each endpoint
+	for _, endpoint := range endpoints {
+		conn, err := singleGRPCClient(lc, endpoint)
+		if err != nil {
+			// Clean up all previously created connections on error
+			for _, c := range conns {
+				c.Close()
+			}
+			return nil, err
+		}
+		conns = append(conns, conn)
+	}
+
+	return conns, nil
 }
 
 func authInterceptor(xtoken string) grpc.UnaryClientInterceptor {

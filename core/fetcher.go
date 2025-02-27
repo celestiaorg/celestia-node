@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"io"
+	"sync/atomic"
 	"time"
 
 	"github.com/gogo/protobuf/proto"
@@ -30,15 +31,48 @@ var (
 	newDataSignedBlockQuery = types.QueryForEvent(types.EventSignedBlock).String()
 )
 
+// BlockFetcher fetches blocks from core using one or more gRPC clients
 type BlockFetcher struct {
-	client coregrpc.BlockAPIClient
+	// clients holds all the BlockAPIClients for each connection
+	clients []coregrpc.BlockAPIClient
+	// currentClient is the index of the currently active client
+	currentClient int32
 }
 
-// NewBlockFetcher returns a new `BlockFetcher`.
-func NewBlockFetcher(conn *grpc.ClientConn) (*BlockFetcher, error) {
+// NewMultiBlockFetcher returns a new `BlockFetcher` using multiple connections.
+// It implements client-side load balancing using a simple round-robin mechanism.
+// If only one connection is provided, it will still use the same round-robin logic
+// but will only have one client to select from.
+func NewMultiBlockFetcher(conns []*grpc.ClientConn) (*BlockFetcher, error) {
+	if len(conns) == 0 {
+		return nil, fmt.Errorf("at least one connection is required")
+	}
+
+	clients := make([]coregrpc.BlockAPIClient, len(conns))
+	for i, conn := range conns {
+		clients[i] = coregrpc.NewBlockAPIClient(conn)
+	}
+
 	return &BlockFetcher{
-		client: coregrpc.NewBlockAPIClient(conn),
+		clients:       clients,
+		currentClient: 0,
 	}, nil
+}
+
+// getCurrentClient returns the current client and rotates to the next client
+// in a round-robin fashion. This provides simple load balancing across
+// multiple Core gRPC endpoints.
+func (f *BlockFetcher) getCurrentClient() coregrpc.BlockAPIClient {
+	// Get the current client
+	current := atomic.LoadInt32(&f.currentClient)
+
+	// Calculate the next client in round-robin fashion
+	next := (current + 1) % int32(len(f.clients))
+
+	// Update the current client atomically to avoid race conditions
+	atomic.StoreInt32(&f.currentClient, next)
+
+	return f.clients[current]
 }
 
 // GetBlockInfo queries Core for additional block information, like Commit and ValidatorSet.
@@ -64,7 +98,8 @@ func (f *BlockFetcher) GetBlockInfo(ctx context.Context, height int64) (*types.C
 // GetBlock queries Core for a `Block` at the given height.
 // if the height is nil, use the latest height
 func (f *BlockFetcher) GetBlock(ctx context.Context, height int64) (*SignedBlock, error) {
-	stream, err := f.client.BlockByHeight(ctx, &coregrpc.BlockByHeightRequest{Height: height})
+	client := f.getCurrentClient()
+	stream, err := client.BlockByHeight(ctx, &coregrpc.BlockByHeightRequest{Height: height})
 	if err != nil {
 		return nil, err
 	}
@@ -79,7 +114,8 @@ func (f *BlockFetcher) GetBlockByHash(ctx context.Context, hash libhead.Hash) (*
 	if hash == nil {
 		return nil, fmt.Errorf("cannot get block with nil hash")
 	}
-	stream, err := f.client.BlockByHash(ctx, &coregrpc.BlockByHashRequest{Hash: hash})
+	client := f.getCurrentClient()
+	stream, err := client.BlockByHash(ctx, &coregrpc.BlockByHashRequest{Hash: hash})
 	if err != nil {
 		return nil, err
 	}
@@ -94,7 +130,8 @@ func (f *BlockFetcher) GetBlockByHash(ctx context.Context, hash libhead.Hash) (*
 // GetSignedBlock queries Core for a `Block` at the given height.
 // if the height is nil, use the latest height.
 func (f *BlockFetcher) GetSignedBlock(ctx context.Context, height int64) (*SignedBlock, error) {
-	stream, err := f.client.BlockByHeight(ctx, &coregrpc.BlockByHeightRequest{Height: height})
+	client := f.getCurrentClient()
+	stream, err := client.BlockByHeight(ctx, &coregrpc.BlockByHeightRequest{Height: height})
 	if err != nil {
 		return nil, err
 	}
@@ -105,7 +142,8 @@ func (f *BlockFetcher) GetSignedBlock(ctx context.Context, height int64) (*Signe
 // the given height.
 // If the height is nil, use the latest height.
 func (f *BlockFetcher) Commit(ctx context.Context, height int64) (*types.Commit, error) {
-	res, err := f.client.Commit(ctx, &coregrpc.CommitRequest{Height: height})
+	client := f.getCurrentClient()
+	res, err := client.Commit(ctx, &coregrpc.CommitRequest{Height: height})
 	if err != nil {
 		return nil, err
 	}
@@ -126,7 +164,8 @@ func (f *BlockFetcher) Commit(ctx context.Context, height int64) (*types.Commit,
 // block at the given height.
 // If the height is nil, use the latest height.
 func (f *BlockFetcher) ValidatorSet(ctx context.Context, height int64) (*types.ValidatorSet, error) {
-	res, err := f.client.ValidatorSet(ctx, &coregrpc.ValidatorSetRequest{Height: height})
+	client := f.getCurrentClient()
+	res, err := client.ValidatorSet(ctx, &coregrpc.ValidatorSetRequest{Height: height})
 	if err != nil {
 		return nil, err
 	}
@@ -157,7 +196,9 @@ func (f *BlockFetcher) SubscribeNewBlockEvent(ctx context.Context) (chan types.E
 			default:
 			}
 
-			subscription, err := f.client.SubscribeNewHeights(ctx, &coregrpc.SubscribeNewHeightsRequest{})
+			// Get the current client for this subscription attempt
+			client := f.getCurrentClient()
+			subscription, err := client.SubscribeNewHeights(ctx, &coregrpc.SubscribeNewHeightsRequest{})
 			if err != nil {
 				// try re-subscribe in case of any errors that can come during subscription. gRPC
 				// retry mechanism has a back off on retries, so we don't need timers anymore.
@@ -214,7 +255,8 @@ func (f *BlockFetcher) receive(
 // syncing, and false for already caught up. It can also return an error
 // in the case of a failed status request.
 func (f *BlockFetcher) IsSyncing(ctx context.Context) (bool, error) {
-	resp, err := f.client.Status(ctx, &coregrpc.StatusRequest{})
+	client := f.getCurrentClient()
+	resp, err := client.Status(ctx, &coregrpc.StatusRequest{})
 	if err != nil {
 		return false, err
 	}
