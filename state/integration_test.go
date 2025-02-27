@@ -7,9 +7,7 @@ import (
 	"testing"
 
 	"github.com/cosmos/cosmos-sdk/client/flags"
-	"github.com/cosmos/cosmos-sdk/client/grpc/tmservice"
 	sdk "github.com/cosmos/cosmos-sdk/types"
-	stakingtypes "github.com/cosmos/cosmos-sdk/x/staking/types"
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
 	abci "github.com/tendermint/tendermint/abci/types"
@@ -17,6 +15,7 @@ import (
 	"google.golang.org/grpc"
 
 	"github.com/celestiaorg/celestia-app/v3/pkg/appconsts"
+	"github.com/celestiaorg/celestia-app/v3/pkg/user"
 	"github.com/celestiaorg/celestia-app/v3/test/util/genesis"
 	"github.com/celestiaorg/celestia-app/v3/test/util/testnode"
 	libhead "github.com/celestiaorg/go-header"
@@ -52,7 +51,13 @@ func (s *IntegrationTestSuite) SetupSuite() {
 	s.Require().Greater(len(s.accounts), 0)
 	accountName := s.accounts[0].Name
 
-	accessor, err := NewCoreAccessor(s.cctx.Keyring, accountName, localHeader{s.cctx.Client}, nil, "")
+	accessor, err := NewCoreAccessor(
+		s.cctx.Keyring,
+		accountName,
+		localHeader{s.cctx.Client},
+		[]*grpc.ClientConn{s.cctx.GRPCClient},
+		"",
+	)
 	require.NoError(s.T(), err)
 	ctx, cancel := context.WithCancel(context.Background())
 	accessor.ctx = ctx
@@ -66,11 +71,10 @@ func (s *IntegrationTestSuite) SetupSuite() {
 }
 
 func setClients(ca *CoreAccessor, conn *grpc.ClientConn) {
-	ca.coreConn = conn
-	// create the staking query client
-	ca.stakingCli = stakingtypes.NewQueryClient(ca.coreConn)
-
-	ca.abciQueryCli = tmservice.NewServiceClient(ca.coreConn)
+	ca.coreConns = []*grpc.ClientConn{conn}
+	ca.nextConnIndex.Store(0)
+	// Initialize the tx clients map
+	ca.txClients = make(map[*grpc.ClientConn]*user.TxClient)
 }
 
 func (s *IntegrationTestSuite) TearDownSuite() {

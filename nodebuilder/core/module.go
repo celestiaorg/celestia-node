@@ -25,7 +25,8 @@ func ConstructModule(tp node.Type, cfg *Config, options ...fx.Option) fx.Option 
 	baseComponents := fx.Options(
 		fx.Supply(*cfg),
 		fx.Error(cfgErr),
-		fx.Provide(grpcClient),
+		// Provides all gRPC connections from configured endpoints
+		fx.Provide(grpcClients),
 		fx.Options(options...),
 	)
 
@@ -35,7 +36,9 @@ func ConstructModule(tp node.Type, cfg *Config, options ...fx.Option) fx.Option 
 	case node.Bridge:
 		return fx.Module("core",
 			baseComponents,
-			fx.Provide(core.NewBlockFetcher),
+			// Creates a BlockFetcher using all configured connections with round-robin selection
+			// for client-side load balancing across multiple Core endpoints
+			fx.Provide(core.NewMultiBlockFetcher),
 			fxutil.ProvideAs(
 				func(
 					fetcher *core.BlockFetcher,
@@ -46,7 +49,6 @@ func ConstructModule(tp node.Type, cfg *Config, options ...fx.Option) fx.Option 
 					if MetricsEnabled {
 						opts = append(opts, core.WithMetrics())
 					}
-
 					return core.NewExchange(fetcher, store, construct, opts...)
 				},
 				new(libhead.Exchange[*header.ExtendedHeader])),
