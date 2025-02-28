@@ -126,7 +126,7 @@ func NewCoreAccessor(
 // multiple Core gRPC endpoints.
 func (ca *CoreAccessor) getNextConn() *grpc.ClientConn {
 	// If we only have one connection, just return it
-	if len(ca.coreConns) <= 1 {
+	if len(ca.coreConns) == 1 {
 		return ca.coreConns[0]
 	}
 
