@@ -3,12 +3,60 @@ package core
 import (
 	"context"
 	"net"
+	"sync/atomic"
 	"testing"
 	"time"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	coregrpc "github.com/tendermint/tendermint/rpc/grpc"
 )
+
+// TestRoundRobinClientSelection ensures that the round-robin client selection
+// mechanism works as expected, rotating through available clients.
+func TestRoundRobinClientSelection(t *testing.T) {
+	// Create a BlockFetcher with mock clients to test the round-robin behavior
+	clients := []coregrpc.BlockAPIClient{
+		&mockBlockAPIClient{id: 1},
+		&mockBlockAPIClient{id: 2},
+		&mockBlockAPIClient{id: 3},
+	}
+
+	fetcher := &BlockFetcher{
+		clients:       clients,
+		currentClient: atomic.Uint32{},
+	}
+
+	// The first call should return client 0 (id: 1)
+	client1 := fetcher.getNextClient()
+	mockClient1, ok := client1.(*mockBlockAPIClient)
+	require.True(t, ok, "Expected mockBlockAPIClient")
+	assert.Equal(t, 1, mockClient1.id)
+
+	// The second call should return client 1 (id: 2)
+	client2 := fetcher.getNextClient()
+	mockClient2, ok := client2.(*mockBlockAPIClient)
+	require.True(t, ok, "Expected mockBlockAPIClient")
+	assert.Equal(t, 2, mockClient2.id)
+
+	// The third call should return client 2 (id: 3)
+	client3 := fetcher.getNextClient()
+	mockClient3, ok := client3.(*mockBlockAPIClient)
+	require.True(t, ok, "Expected mockBlockAPIClient")
+	assert.Equal(t, 3, mockClient3.id)
+
+	// The fourth call should wrap around and return client 0 (id: 1) again
+	client4 := fetcher.getNextClient()
+	mockClient4, ok := client4.(*mockBlockAPIClient)
+	require.True(t, ok, "Expected mockBlockAPIClient")
+	assert.Equal(t, 1, mockClient4.id)
+}
+
+// mockBlockAPIClient is a mock implementation of coregrpc.BlockAPIClient for testing
+type mockBlockAPIClient struct {
+	id int
+	coregrpc.BlockAPIClient
+}
 
 func TestBlockFetcher_GetBlock_and_SubscribeNewBlockEvent(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second*15)
@@ -16,8 +64,7 @@ func TestBlockFetcher_GetBlock_and_SubscribeNewBlockEvent(t *testing.T) {
 
 	host, port, err := net.SplitHostPort(StartTestNode(t).GRPCClient.Target())
 	require.NoError(t, err)
-	client := newTestClient(t, host, port)
-	fetcher, err := NewBlockFetcher(client)
+	fetcher, err := newTestBlockFetcher(t, host, port)
 	require.NoError(t, err)
 	// generate some blocks
 	newBlockChan, err := fetcher.SubscribeNewBlockEvent(ctx)
@@ -51,8 +98,7 @@ func TestFetcher_Resubscription(t *testing.T) {
 	require.NoError(t, tn.Start())
 	host, port, err := net.SplitHostPort(tn.GRPCClient.Target())
 	require.NoError(t, err)
-	client := newTestClient(t, host, port)
-	fetcher, err := NewBlockFetcher(client)
+	fetcher, err := newTestBlockFetcher(t, host, port)
 	require.NoError(t, err)
 
 	// subscribe to the channel to get new blocks
