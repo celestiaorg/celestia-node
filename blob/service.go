@@ -101,7 +101,7 @@ type SubscriptionResponse struct {
 // Additionally, not reading from the returned channel will cause the stream to close after 16 messages.
 func (s *Service) Subscribe(ctx context.Context, ns libshare.Namespace) (<-chan *SubscriptionResponse, error) {
 	if s.ctx == nil {
-		return nil, fmt.Errorf("service has not been started")
+		return nil, errors.New("service has not been started")
 	}
 
 	headerCh, err := s.headerSub(ctx)
@@ -503,7 +503,7 @@ func (s *Service) GetCommitmentProof(
 ) (*CommitmentProof, error) {
 	log.Debugw("proving share commitment", "height", height, "commitment", shareCommitment, "namespace", namespace)
 	if height == 0 {
-		return nil, fmt.Errorf("height cannot be equal to 0")
+		return nil, errors.New("height cannot be equal to 0")
 	}
 
 	// get the blob to compute the subtree roots
@@ -571,7 +571,7 @@ func ProveCommitment(
 		}
 	}
 	if blobSharesStartIndex < 0 {
-		return nil, fmt.Errorf("couldn't find the blob shares in the ODS")
+		return nil, errors.New("couldn't find the blob shares in the ODS")
 	}
 
 	log.Debugw(
@@ -647,10 +647,10 @@ func ProveCommitment(
 // the offset is the number of shares that are before the subtree roots we're calculating.
 func computeSubtreeRoots(shares []libshare.Share, ranges []nmt.LeafRange, offset int) ([][]byte, error) {
 	if len(shares) == 0 {
-		return nil, fmt.Errorf("cannot compute subtree roots for an empty shares list")
+		return nil, errors.New("cannot compute subtree roots for an empty shares list")
 	}
 	if len(ranges) == 0 {
-		return nil, fmt.Errorf("cannot compute subtree roots for an empty ranges list")
+		return nil, errors.New("cannot compute subtree roots for an empty ranges list")
 	}
 	if offset < 0 {
 		return nil, fmt.Errorf("the offset %d cannot be strictly negative", offset)

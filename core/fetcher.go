@@ -2,6 +2,7 @@ package core
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"io"
 	"time"
@@ -77,7 +78,7 @@ func (f *BlockFetcher) GetBlock(ctx context.Context, height int64) (*SignedBlock
 
 func (f *BlockFetcher) GetBlockByHash(ctx context.Context, hash libhead.Hash) (*types.Block, error) {
 	if hash == nil {
-		return nil, fmt.Errorf("cannot get block with nil hash")
+		return nil, errors.New("cannot get block with nil hash")
 	}
 	stream, err := f.client.BlockByHash(ctx, &coregrpc.BlockByHashRequest{Hash: hash})
 	if err != nil {

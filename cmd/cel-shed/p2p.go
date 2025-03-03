@@ -4,6 +4,7 @@ import (
 	"context"
 	"crypto/rand"
 	"encoding/hex"
+	"errors"
 	"fmt"
 	"os"
 	"sync"
@@ -98,7 +99,7 @@ var p2pConnectBootstrappersCmd = &cobra.Command{
 	Short: "Connect to bootstrappers of a certain network",
 	RunE: func(cmd *cobra.Command, args []string) error {
 		if errorOnAnyFailure && errorOnAllFailure {
-			return fmt.Errorf("only one of --err-any and --err-all can be specified")
+			return errors.New("only one of --err-any and --err-all can be specified")
 		}
 
 		ctx, cancel := context.WithTimeout(cmd.Context(), connectionTimeout)

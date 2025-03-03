@@ -2,6 +2,7 @@ package byzantine
 
 import (
 	"context"
+	"errors"
 	"fmt"
 
 	"github.com/ipfs/boxo/blockstore"
@@ -65,7 +66,7 @@ func NewErrByzantine(
 	}
 
 	if count < len(roots.RowRoots)/2 {
-		return fmt.Errorf("failed to collect proof")
+		return errors.New("failed to collect proof")
 	}
 
 	return &ErrByzantine{

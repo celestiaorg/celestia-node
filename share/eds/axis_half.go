@@ -1,6 +1,7 @@
 package eds
 
 import (
+	"errors"
 	"fmt"
 
 	libshare "github.com/celestiaorg/go-square/v2/share"
@@ -38,7 +39,7 @@ func (a AxisHalf) Extended() ([]libshare.Share, error) {
 // extendShares constructs full axis shares from original half axis shares.
 func extendShares(original []libshare.Share) ([]libshare.Share, error) {
 	if len(original) == 0 {
-		return nil, fmt.Errorf("original shares are empty")
+		return nil, errors.New("original shares are empty")
 	}
 
 	parity, err := codec.Encode(libshare.ToBytes(original))
@@ -60,7 +61,7 @@ func extendShares(original []libshare.Share) ([]libshare.Share, error) {
 
 func reconstructShares(parity []libshare.Share) ([]libshare.Share, error) {
 	if len(parity) == 0 {
-		return nil, fmt.Errorf("parity shares are empty")
+		return nil, errors.New("parity shares are empty")
 	}
 
 	sqLen := len(parity) * 2
