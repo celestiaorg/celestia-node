@@ -130,7 +130,7 @@ func (rndb *RowNamespaceDataBlock) UnmarshalFn(root *share.AxisRoots) UnmarshalF
 		if err != nil {
 			return fmt.Errorf("unmarshaling RowNamespaceData for %+v: %w", rndb.ID, err)
 		}
-		if err := cntr.Verify(root, rndb.ID.DataNamespace, rndb.ID.RowIndex); err != nil {
+		if err := cntr.Verify(root.Hash(), rndb.ID.DataNamespace, rndb.ID.RowIndex); err != nil {
 			return fmt.Errorf("validating RowNamespaceData for %+v: %w", rndb.ID, err)
 		}
 

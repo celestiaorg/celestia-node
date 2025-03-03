@@ -161,7 +161,11 @@ func (odsq4 *ODSQ4) RowNamespaceData(ctx context.Context,
 	if err != nil {
 		return shwap.RowNamespaceData{}, fmt.Errorf("extending shares: %w", err)
 	}
-	return shwap.RowNamespaceDataFromShares(shares, namespace, rowIdx)
+	roots, err := odsq4.AxisRoots(ctx)
+	if err != nil {
+		return shwap.RowNamespaceData{}, fmt.Errorf("getting axis roots %w", err)
+	}
+	return shwap.RowNamespaceDataFromShares(shares, namespace, rowIdx, roots)
 }
 
 func (odsq4 *ODSQ4) Shares(ctx context.Context) ([]libshare.Share, error) {
@@ -188,4 +192,12 @@ func (odsq4 *ODSQ4) Close() error {
 		}
 	}
 	return err
+}
+
+func (odsq4 *ODSQ4) RangeNamespaceData(
+	ctx context.Context,
+	ns libshare.Namespace,
+	from, to shwap.SampleCoords,
+) (shwap.RangeNamespaceData, error) {
+	return odsq4.ods.RangeNamespaceData(ctx, ns, from, to)
 }

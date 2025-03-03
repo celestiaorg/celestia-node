@@ -23,7 +23,16 @@ message Sample {
 
 message RowNamespaceData {
     repeated Share shares = 1;
-    proof.pb.Proof proof = 2;
+    Proof proof = 2;
+}
+
+message NamespaceData {
+    repeated RowNamespaceData namespaceData = 1;
+}
+
+message RangeNamespaceData {
+    int32 start = 1;
+    NamespaceData rangeNamespaceData = 3;
 }
 
 message Share {
@@ -33,4 +42,17 @@ message Share {
 enum AxisType {
     ROW = 0;
     COL = 1;
+}
+
+message RowRootProof {
+    int64 total = 1;
+    int64 index = 2;
+    bytes leafHash = 3;
+    repeated bytes aunts = 4;
+}
+
+message Proof {
+    proof.pb.Proof sharesProof = 1;
+    RowRootProof rowRootProof = 2;
+    bytes root = 3;
 }

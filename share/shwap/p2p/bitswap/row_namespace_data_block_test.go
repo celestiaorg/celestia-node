@@ -35,7 +35,7 @@ func TestRowNamespaceData_FetchRoundtrip(t *testing.T) {
 
 	for _, blk := range blks {
 		rnd := blk.(*RowNamespaceDataBlock)
-		err = rnd.Container.Verify(root, rnd.ID.DataNamespace, rnd.ID.RowIndex)
+		err = rnd.Container.Verify(root.Hash(), rnd.ID.DataNamespace, rnd.ID.RowIndex)
 		require.NoError(t, err)
 	}
 }
