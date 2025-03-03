@@ -9,9 +9,8 @@ import (
 	reflect "reflect"
 
 	header "github.com/celestiaorg/celestia-node/header"
-	share "github.com/celestiaorg/celestia-node/nodebuilder/share"
 	shwap "github.com/celestiaorg/celestia-node/share/shwap"
-	share0 "github.com/celestiaorg/go-square/v2/share"
+	share "github.com/celestiaorg/go-square/v2/share"
 	rsmt2d "github.com/celestiaorg/rsmt2d"
 	gomock "github.com/golang/mock/gomock"
 )
@@ -55,7 +54,7 @@ func (mr *MockModuleMockRecorder) GetEDS(arg0, arg1 interface{}) *gomock.Call {
 }
 
 // GetNamespaceData mocks base method.
-func (m *MockModule) GetNamespaceData(arg0 context.Context, arg1 uint64, arg2 share0.Namespace) (shwap.NamespaceData, error) {
+func (m *MockModule) GetNamespaceData(arg0 context.Context, arg1 uint64, arg2 share.Namespace) (shwap.NamespaceData, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "GetNamespaceData", arg0, arg1, arg2)
 	ret0, _ := ret[0].(shwap.NamespaceData)
@@ -70,18 +69,18 @@ func (mr *MockModuleMockRecorder) GetNamespaceData(arg0, arg1, arg2 interface{})
 }
 
 // GetRange mocks base method.
-func (m *MockModule) GetRange(arg0 context.Context, arg1 uint64, arg2, arg3 int) (*share.GetRangeResult, error) {
+func (m *MockModule) GetRange(arg0 context.Context, arg1 share.Namespace, arg2 uint64, arg3, arg4 shwap.SampleCoords, arg5 bool) (shwap.RangeNamespaceData, error) {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "GetRange", arg0, arg1, arg2, arg3)
-	ret0, _ := ret[0].(*share.GetRangeResult)
+	ret := m.ctrl.Call(m, "GetRange", arg0, arg1, arg2, arg3, arg4, arg5)
+	ret0, _ := ret[0].(shwap.RangeNamespaceData)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
 
 // GetRange indicates an expected call of GetRange.
-func (mr *MockModuleMockRecorder) GetRange(arg0, arg1, arg2, arg3 interface{}) *gomock.Call {
+func (mr *MockModuleMockRecorder) GetRange(arg0, arg1, arg2, arg3, arg4, arg5 interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetRange", reflect.TypeOf((*MockModule)(nil).GetRange), arg0, arg1, arg2, arg3)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetRange", reflect.TypeOf((*MockModule)(nil).GetRange), arg0, arg1, arg2, arg3, arg4, arg5)
 }
 
 // GetRow mocks base method.
@@ -115,10 +114,10 @@ func (mr *MockModuleMockRecorder) GetSamples(arg0, arg1, arg2 interface{}) *gomo
 }
 
 // GetShare mocks base method.
-func (m *MockModule) GetShare(arg0 context.Context, arg1 uint64, arg2, arg3 int) (share0.Share, error) {
+func (m *MockModule) GetShare(arg0 context.Context, arg1 uint64, arg2, arg3 int) (share.Share, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "GetShare", arg0, arg1, arg2, arg3)
-	ret0, _ := ret[0].(share0.Share)
+	ret0, _ := ret[0].(share.Share)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
