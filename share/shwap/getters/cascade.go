@@ -110,7 +110,7 @@ func (cg *CascadeGetter) GetRangeNamespaceData(
 	from, to shwap.SampleCoords,
 	proofsOnly bool,
 ) (shwap.RangeNamespaceData, error) {
-	ctx, span := tracer.Start(ctx, "cascade/get-shares-range", trace.WithAttributes(
+	ctx, span := tracer.Start(ctx, "cascade/get-range-namespace-date", trace.WithAttributes(
 		attribute.String("namespace", namespace.String()),
 	))
 	defer span.End()
