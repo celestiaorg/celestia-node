@@ -92,6 +92,7 @@ func RangedNamespaceDataFromShares(
 		row++
 	}
 
+	rngData.Start = from.Row
 	rngData.NamespaceData = nsData
 	return rngData, nil
 }

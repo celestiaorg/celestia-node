@@ -61,3 +61,29 @@ func (f validation) RowNamespaceData(
 	}
 	return f.Accessor.RowNamespaceData(ctx, namespace, rowIdx)
 }
+
+func (f validation) RangeNamespaceData(
+	ctx context.Context,
+	ns libshare.Namespace,
+	from, to shwap.SampleCoords,
+) (shwap.RangeNamespaceData, error) {
+	if from.Row > to.Row {
+		return shwap.RangeNamespaceData{}, fmt.Errorf(
+			"range validation: from row %d is > then to row %d", from.Row, to.Row,
+		)
+	}
+	odsSize := f.Size(ctx) / 2
+	if from.Row > odsSize-1 || from.Col > odsSize {
+		return shwap.RangeNamespaceData{}, fmt.Errorf(
+			"range validation: invalid start coordinates of the range:{%d;%d}. ODS size %d",
+			from.Row, from.Col, odsSize,
+		)
+	}
+	if to.Row > odsSize-1 || to.Col > odsSize {
+		return shwap.RangeNamespaceData{}, fmt.Errorf(
+			"range validation: invalid end coordinates of the range:{%d;%d}. ODS size %d",
+			to.Row, to.Col, odsSize,
+		)
+	}
+	return f.Accessor.RangeNamespaceData(ctx, ns, from, to)
+}

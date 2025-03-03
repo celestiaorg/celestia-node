@@ -320,7 +320,7 @@ func (c *proofsCache) RangeNamespaceData(
 		}
 		nd = append(nd, rngData.NamespaceData...)
 	}
-	return shwap.RangeNamespaceData{Start: fromRow, NamespaceData: nd}, nil
+	return shwap.RangeNamespaceData{Start: from.Row, NamespaceData: nd}, nil
 }
 
 func (c *proofsCache) Reader() (io.Reader, error) {
