@@ -129,7 +129,7 @@ func writeAxisRoots(w io.Writer, roots *share.AxisRoots) error {
 
 	for _, root := range roots.ColumnRoots {
 		if _, err := w.Write(root); err != nil {
-			return fmt.Errorf("writing columm roots: %w", err)
+			return fmt.Errorf("writing column roots: %w", err)
 		}
 	}
 
