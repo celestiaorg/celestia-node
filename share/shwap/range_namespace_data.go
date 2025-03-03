@@ -1,8 +1,8 @@
 package shwap
 
 import (
+	"errors"
 	"fmt"
-	"github.com/pkg/errors"
 
 	"github.com/celestiaorg/celestia-app/v3/pkg/wrapper"
 	libshare "github.com/celestiaorg/go-square/v2/share"

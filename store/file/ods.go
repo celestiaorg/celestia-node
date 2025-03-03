@@ -289,7 +289,11 @@ func (o *ODS) RowNamespaceData(
 	if err != nil {
 		return shwap.RowNamespaceData{}, err
 	}
-	return shwap.RowNamespaceDataFromShares(shares, namespace, rowIdx)
+	roots, err := o.AxisRoots(ctx)
+	if err != nil {
+		return shwap.RowNamespaceData{}, fmt.Errorf("getting axis roots %w", err)
+	}
+	return shwap.RowNamespaceDataFromShares(shares, namespace, rowIdx, roots)
 }
 
 // Shares returns data shares extracted from the Accessor.
@@ -315,6 +319,34 @@ func (o *ODS) Reader() (io.Reader, error) {
 	total := int64(o.hdr.shareSize) * int64(o.size()*o.size()/4)
 	reader := io.NewSectionReader(o.fl, int64(offset), total)
 	return reader, nil
+}
+
+func (o *ODS) RangeNamespaceData(
+	ctx context.Context,
+	ns libshare.Namespace,
+	from, to shwap.SampleCoords,
+) (shwap.RangeNamespaceData, error) {
+	shares := make([][]libshare.Share, to.Row-from.Row+1)
+
+	for row, idx := from.Row, 0; row <= to.Row; row++ {
+		half, err := o.readAxisHalf(rsmt2d.Row, row)
+		if err != nil {
+			return shwap.RangeNamespaceData{}, fmt.Errorf("reading axis half: %w", err)
+		}
+
+		sh, err := half.Extended()
+		if err != nil {
+			return shwap.RangeNamespaceData{}, fmt.Errorf("extending the data: %w", err)
+		}
+		shares[idx] = sh
+		idx++
+	}
+
+	roots, err := o.AxisRoots(ctx)
+	if err != nil {
+		return shwap.RangeNamespaceData{}, err
+	}
+	return shwap.RangedNamespaceDataFromShares(shares, ns, roots, from, to)
 }
 
 func (o *ODS) axis(ctx context.Context, axisType rsmt2d.Axis, axisIdx int) ([]libshare.Share, error) {
