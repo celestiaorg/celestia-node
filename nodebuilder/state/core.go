@@ -15,21 +15,21 @@ import (
 )
 
 // coreAccessor constructs a new instance of state.Module over
-// a celestia-core connection.
+// celestia-core connections.
 func coreAccessor(
 	keyring keyring.Keyring,
 	keyname AccountName,
 	sync *sync.Syncer[*header.ExtendedHeader],
 	fraudServ libfraud.Service[*header.ExtendedHeader],
 	network p2p.Network,
-	client *grpc.ClientConn,
+	clients []*grpc.ClientConn,
 ) (
 	*state.CoreAccessor,
 	Module,
 	*modfraud.ServiceBreaker[*state.CoreAccessor, *header.ExtendedHeader],
 	error,
 ) {
-	ca, err := state.NewCoreAccessor(keyring, string(keyname), sync, client, network.String())
+	ca, err := state.NewCoreAccessor(keyring, string(keyname), sync, clients, network.String())
 
 	sBreaker := &modfraud.ServiceBreaker[*state.CoreAccessor, *header.ExtendedHeader]{
 		Service:   ca,
