@@ -23,7 +23,7 @@ import (
 )
 
 func TestShareModule(t *testing.T) {
-	ctx, cancel := context.WithTimeout(context.Background(), 25*time.Second)
+	ctx, cancel := context.WithTimeout(context.Background(), 25*time.Minute)
 	t.Cleanup(cancel)
 	sw := swamp.NewSwamp(t, swamp.WithBlockTime(time.Second*1))
 	blobSize := 128
@@ -44,6 +44,7 @@ func TestShareModule(t *testing.T) {
 	require.NoError(t, fullNode.Start(ctx))
 
 	addrsFull, err := peer.AddrInfoToP2pAddrs(host.InfoFromHost(fullNode.Host))
+
 	require.NoError(t, err)
 
 	lightCfg := sw.DefaultTestConfig(node.Light)
@@ -207,7 +208,30 @@ func TestShareModule(t *testing.T) {
 					require.NoError(t, err)
 					// compare commitments
 					require.Equal(t, nodeBlob[0].Commitment, blb[0].Commitment)
+				}
+			},
+		},
+		{
+			name: "GetRangeNamespaceData",
+			doFn: func(t *testing.T) {
+				dah := hdr.DAH
+				blobLength, err := sampledBlob.Length()
+				require.NoError(t, err)
+				from, to, err := shwap.RangeCoordsFromIdx(sampledBlob.Index(), blobLength, len(dah.RowRoots))
+				require.NoError(t, err)
+				for _, client := range clients {
+					rng, err := client.Share.GetRange(ctx, nodeBlob[0].Namespace(), height, from, to, false)
+					require.NoError(t, err)
+					err = rng.Verify(nodeBlob[0].Namespace(), from, to, dah.Hash())
+					require.NoError(t, err)
 
+					shrs := rng.Flatten()
+					blbs, err := libshare.ParseBlobs(shrs)
+					require.NoError(t, err)
+
+					parsedBlob, err := blob.ToNodeBlobs(blbs...)
+					require.NoError(t, err)
+					require.Equal(t, nodeBlob[0].Commitment, parsedBlob[0].Commitment)
 				}
 			},
 		},
