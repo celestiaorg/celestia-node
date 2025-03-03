@@ -395,7 +395,7 @@ func (s *Service) retrieve(
 		}
 
 		appShares = row.Shares
-		proofs = append(proofs, row.Proof)
+		proofs = append(proofs, row.Proof.SharesProof())
 		index := row.Proof.Start()
 
 		for {

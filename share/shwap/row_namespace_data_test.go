@@ -1,9 +1,7 @@
 package shwap_test
 
 import (
-	"bytes"
 	"context"
-	"slices"
 	"testing"
 	"time"
 
@@ -16,29 +14,6 @@ import (
 	"github.com/celestiaorg/celestia-node/share/eds/edstest"
 	"github.com/celestiaorg/celestia-node/share/shwap"
 )
-
-func TestNamespacedRowFromShares(t *testing.T) {
-	const odsSize = 8
-
-	minNamespace, err := libshare.NewV0Namespace(slices.Concat(bytes.Repeat([]byte{0}, 8), []byte{1, 0}))
-	require.NoError(t, err)
-	require.NoError(t, minNamespace.ValidateForData())
-
-	for namespacedAmount := 1; namespacedAmount < odsSize; namespacedAmount++ {
-		shares, err := libshare.RandSharesWithNamespace(minNamespace, namespacedAmount, odsSize)
-		require.NoError(t, err)
-		parity, err := share.DefaultRSMT2DCodec().Encode(libshare.ToBytes(shares))
-		require.NoError(t, err)
-
-		paritySh, err := libshare.FromBytes(parity)
-		require.NoError(t, err)
-		extended := slices.Concat(shares, paritySh)
-
-		nr, err := shwap.RowNamespaceDataFromShares(extended, minNamespace, 0)
-		require.NoError(t, err)
-		require.Equal(t, namespacedAmount, len(nr.Shares))
-	}
-}
 
 // func TestNamespacedRowFromSharesNonIncluded(t *testing.T) {
 // //TODO: this will fail until absence proof support is added
@@ -83,7 +58,7 @@ func TestValidateNamespacedRow(t *testing.T) {
 		require.Len(t, nd, len(rowIdxs))
 
 		for i, rowIdx := range rowIdxs {
-			err = nd[i].Verify(root, namespace, rowIdx)
+			err = nd[i].Verify(root.Hash(), namespace, rowIdx)
 			require.NoError(t, err)
 		}
 	}

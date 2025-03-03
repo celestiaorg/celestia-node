@@ -14,7 +14,7 @@ import (
 )
 
 func TestRangeNamespaceData_FetchRoundtrip(t *testing.T) {
-	ctx, cancel := context.WithTimeout(context.Background(), time.Minute*5)
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second*5)
 	defer cancel()
 
 	namespace := libshare.RandomNamespace()

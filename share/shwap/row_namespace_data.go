@@ -10,7 +10,6 @@ import (
 	"github.com/celestiaorg/go-libp2p-messenger/serde"
 	libshare "github.com/celestiaorg/go-square/v2/share"
 	"github.com/celestiaorg/nmt"
-	nmt_pb "github.com/celestiaorg/nmt/pb"
 
 	"github.com/celestiaorg/celestia-node/share"
 	"github.com/celestiaorg/celestia-node/share/shwap/pb"
@@ -27,7 +26,7 @@ var ErrNamespaceOutsideRange = errors.New("target namespace is outside of namesp
 // RowNamespaceData holds shares and their corresponding proof for a single row within a namespace.
 type RowNamespaceData struct {
 	Shares []libshare.Share `json:"shares"` // Shares within the namespace.
-	Proof  *nmt.Proof       `json:"proof"`  // Proof of the shares' inclusion in the namespace.
+	Proof  *Proof           `json:"proof"`  // Proof of the shares' inclusion in the namespace.
 }
 
 // RowNamespaceDataFromShares extracts and constructs a RowNamespaceData from shares within the
@@ -36,6 +35,7 @@ func RowNamespaceDataFromShares(
 	shares []libshare.Share,
 	namespace libshare.Namespace,
 	rowIndex int,
+	roots *share.AxisRoots,
 ) (RowNamespaceData, error) {
 	tree := wrapper.NewErasuredNamespacedMerkleTree(uint64(len(shares)/2), uint(rowIndex))
 	nmtTree := nmt.New(
@@ -77,60 +77,46 @@ func RowNamespaceDataFromShares(
 		}
 	}
 
+	var (
+		sharesProof nmt.Proof
+		rowShares   []libshare.Share
+	)
+
 	// if count is 0, then the namespace is not present in the shares. Return non-inclusion proof.
 	if count == 0 {
-		proof, err := nmtTree.ProveNamespace(namespace.Bytes())
+		sharesProof, err = nmtTree.ProveNamespace(namespace.Bytes())
 		if err != nil {
 			return RowNamespaceData{}, fmt.Errorf("failed to generate non-inclusion proof for row %d: %w", rowIndex, err)
 		}
-
-		return RowNamespaceData{
-			Proof: &proof,
-		}, nil
+	} else {
+		sharesProof, err = tree.ProveRange(from, from+count)
+		if err != nil {
+			return RowNamespaceData{}, fmt.Errorf("failed to generate proof for row %d: %w", rowIndex, err)
+		}
+		rowShares = shares[from : from+count]
+	}
+	prof := RowNamespaceData{
+		Shares: rowShares,
+		Proof:  NewProof(rowIndex, &sharesProof, roots),
 	}
 
-	namespacedShares := make([]libshare.Share, count)
-	copy(namespacedShares, shares[from:from+count])
-
-	proof, err := tree.ProveRange(from, from+count)
-	if err != nil {
-		return RowNamespaceData{}, fmt.Errorf("failed to generate proof for row %d: %w", rowIndex, err)
-	}
-
-	return RowNamespaceData{
-		Shares: namespacedShares,
-		Proof:  &proof,
-	}, nil
+	return prof, prof.Verify(roots.Hash(), namespace, rowIndex)
 }
 
 // RowNamespaceDataFromProto constructs RowNamespaceData out of its protobuf representation.
 func RowNamespaceDataFromProto(row *pb.RowNamespaceData) (RowNamespaceData, error) {
-	var proof nmt.Proof
-	if row.GetProof().GetLeafHash() != nil {
-		proof = nmt.NewAbsenceProof(
-			int(row.GetProof().GetStart()),
-			int(row.GetProof().GetEnd()),
-			row.GetProof().GetNodes(),
-			row.GetProof().GetLeafHash(),
-			row.GetProof().GetIsMaxNamespaceIgnored(),
-		)
-	} else {
-		proof = nmt.NewInclusionProof(
-			int(row.GetProof().GetStart()),
-			int(row.GetProof().GetEnd()),
-			row.GetProof().GetNodes(),
-			row.GetProof().GetIsMaxNamespaceIgnored(),
-		)
-	}
-
 	shares, err := SharesFromProto(row.GetShares())
 	if err != nil {
 		return RowNamespaceData{}, err
 	}
 
+	proof, err := ProofFromProto(row.Proof)
+	if err != nil {
+		return RowNamespaceData{}, err
+	}
 	return RowNamespaceData{
 		Shares: shares,
-		Proof:  &proof,
+		Proof:  proof,
 	}, nil
 }
 
@@ -138,66 +124,32 @@ func RowNamespaceDataFromProto(row *pb.RowNamespaceData) (RowNamespaceData, erro
 func (rnd RowNamespaceData) ToProto() *pb.RowNamespaceData {
 	return &pb.RowNamespaceData{
 		Shares: SharesToProto(rnd.Shares),
-		Proof: &nmt_pb.Proof{
-			Start:                 int64(rnd.Proof.Start()),
-			End:                   int64(rnd.Proof.End()),
-			Nodes:                 rnd.Proof.Nodes(),
-			LeafHash:              rnd.Proof.LeafHash(),
-			IsMaxNamespaceIgnored: rnd.Proof.IsMaxNamespaceIDIgnored(),
-		},
+		Proof:  rnd.Proof.ToProto(),
 	}
 }
 
 // IsEmpty reports whether the RowNamespaceData is empty, i.e. doesn't contain a proof.
 func (rnd RowNamespaceData) IsEmpty() bool {
-	return rnd.Proof == nil
+	return rnd.Proof.IsEmptyProof()
 }
 
 // Verify checks validity of the RowNamespaceData against the AxisRoots, Namespace and Row index.
-func (rnd RowNamespaceData) Verify(roots *share.AxisRoots, namespace libshare.Namespace, rowIdx int) error {
+func (rnd RowNamespaceData) Verify(dataRoot []byte, namespace libshare.Namespace, rowIdx int) error {
 	if rnd.Proof == nil || rnd.Proof.IsEmptyProof() {
 		return fmt.Errorf("nil proof")
 	}
-	if len(rnd.Shares) == 0 && !rnd.Proof.IsOfAbsence() {
+	if len(rnd.Shares) == 0 && !rnd.Proof.shareProof.IsOfAbsence() {
 		return fmt.Errorf("empty shares with non-absence proof for row %d", rowIdx)
 	}
-
-	if len(rnd.Shares) > 0 && rnd.Proof.IsOfAbsence() {
+	if len(rnd.Shares) > 0 && rnd.Proof.shareProof.IsOfAbsence() {
 		return fmt.Errorf("non-empty shares with absence proof for row %d", rowIdx)
 	}
 
-	rowRoot := roots.RowRoots[rowIdx]
-	outside, err := share.IsOutsideRange(namespace, rowRoot, rowRoot)
+	err := rnd.Proof.VerifyNamespace(rnd.Shares, namespace, dataRoot)
 	if err != nil {
-		return err
-	}
-	if outside {
-		return fmt.Errorf("namespace out of range for row %d", rowIdx)
-	}
-
-	if !rnd.verifyInclusion(rowRoot, namespace) {
-		return fmt.Errorf("%w for row: %d", ErrFailedVerification, rowIdx)
+		return fmt.Errorf("%w for row: %d, %w", ErrFailedVerification, rowIdx, err)
 	}
 	return nil
-}
-
-// verifyInclusion checks the inclusion of the row's shares in the provided root using NMT.
-func (rnd RowNamespaceData) verifyInclusion(rowRoot []byte, namespace libshare.Namespace) bool {
-	leaves := make([][]byte, 0, len(rnd.Shares))
-	for _, sh := range rnd.Shares {
-		namespaceBytes := sh.Namespace().Bytes()
-		leave := make([]byte, len(sh.ToBytes())+len(namespaceBytes))
-		copy(leave, namespaceBytes)
-		copy(leave[len(namespaceBytes):], sh.ToBytes())
-		leaves = append(leaves, leave)
-	}
-
-	return rnd.Proof.VerifyNamespace(
-		share.NewSHA256Hasher(),
-		namespace.Bytes(),
-		leaves,
-		rowRoot,
-	)
 }
 
 // ReadFrom reads length-delimited protobuf representation of RowNamespaceData

@@ -8,6 +8,7 @@ import (
 	libshare "github.com/celestiaorg/go-square/v2/share"
 
 	"github.com/celestiaorg/celestia-node/share"
+	"github.com/celestiaorg/celestia-node/share/shwap/pb"
 )
 
 // NamespaceDataName is the name identifier for the namespace data container.
@@ -39,7 +40,7 @@ func (nd NamespaceData) Verify(root *share.AxisRoots, namespace libshare.Namespa
 	}
 
 	for i, row := range nd {
-		if err := row.Verify(root, namespace, rowIdxs[i]); err != nil {
+		if err := row.Verify(root.Hash(), namespace, rowIdxs[i]); err != nil {
 			return fmt.Errorf("validating row: %w", err)
 		}
 	}
@@ -82,4 +83,28 @@ func (nd NamespaceData) WriteTo(writer io.Writer) (int64, error) {
 		}
 	}
 	return n, nil
+}
+
+func (nd NamespaceData) ToProto() *pb.NamespaceData {
+	data := make([]*pb.RowNamespaceData, len(nd))
+	for i, row := range nd {
+		data[i] = row.ToProto()
+	}
+	return &pb.NamespaceData{NamespaceData: data}
+}
+
+func NamespaceDataFromProto(nd *pb.NamespaceData) (NamespaceData, error) {
+	if nd == nil {
+		return nil, errors.New("empty data provided")
+	}
+
+	rowData := make([]RowNamespaceData, len(nd.NamespaceData))
+	for i, row := range nd.NamespaceData {
+		data, err := RowNamespaceDataFromProto(row)
+		if err != nil {
+			return nil, err
+		}
+		rowData[i] = data
+	}
+	return rowData, nil
 }
