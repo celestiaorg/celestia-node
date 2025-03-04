@@ -73,13 +73,13 @@ func (f validation) RangeNamespaceData(
 		)
 	}
 	odsSize := f.Size(ctx) / 2
-	if from.Row > odsSize-1 || from.Col > odsSize {
+	if from.Row > odsSize-1 || from.Col > odsSize-1 {
 		return shwap.RangeNamespaceData{}, fmt.Errorf(
 			"range validation: invalid start coordinates of the range:{%d;%d}. ODS size %d",
 			from.Row, from.Col, odsSize,
 		)
 	}
-	if to.Row > odsSize-1 || to.Col > odsSize {
+	if to.Row > odsSize-1 || to.Col > odsSize-1 {
 		return shwap.RangeNamespaceData{}, fmt.Errorf(
 			"range validation: invalid end coordinates of the range:{%d;%d}. ODS size %d",
 			to.Row, to.Col, odsSize,
