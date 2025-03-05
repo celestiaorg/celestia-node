@@ -33,7 +33,10 @@ const (
 	// broadcasting of live WANTs to all the peers. We offset this for longer than the default to minimize
 	// unnecessary broadcasting as in most cases we already have peers connected with needed data on
 	// a new request.
-	broadcastDelay = time.Second * 10
+	// disablePerPeerRetries disables rebroadcasting of WANTs with no response in peer message queue.
+	// We rely on DASer retries instead.
+	disablePerPeerRetries = true
+	broadcastDelay        = time.Second * 10
 	// provSearchDelay is similar to the broadcastDelay, but it targets DHT/ContentRouting
 	// peer discovery and a gentle broadcast of a single random live WANT to all connected peers.
 	// Considering no DHT usage and broadcasting configured by broadcastDelay, we set
@@ -121,6 +124,7 @@ func NewClient(
 	opts := []client.Option{
 		client.SetSimulateDontHavesOnTimeout(simulateDontHaves),
 		client.WithDontHaveTimeoutConfig(simulateDontHaveConfig),
+		client.WithPerPeerRebroadcastDisabled(disablePerPeerRetries),
 		// Prevents Has calls to Blockstore for metric that counts duplicates
 		// Unnecessary for our use case, so we can save some disk lookups.
 		client.WithoutDuplicatedBlockStats(),
