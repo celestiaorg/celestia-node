@@ -97,12 +97,35 @@ type RTTStats struct {
 	Count   int           `json:"count"`
 	Success int           `json:"success"`
 	Failed  int           `json:"failed"`
-	Min     time.Duration `json:"min"`
-	Max     time.Duration `json:"max"`
-	Average time.Duration `json:"average"`
-	Median  time.Duration `json:"median"`
-	StdDev  time.Duration `json:"std_dev"`
+	Min     time.Duration `json:"-"` // Use custom marshaling
+	Max     time.Duration `json:"-"` // Use custom marshaling
+	Average time.Duration `json:"-"` // Use custom marshaling
+	Median  time.Duration `json:"-"` // Use custom marshaling
+	StdDev  time.Duration `json:"-"` // Use custom marshaling
 	Results []RTTResult   `json:"results,omitempty"`
+
+	// String versions for JSON output
+	MinStr     string `json:"min,omitempty"`
+	MaxStr     string `json:"max,omitempty"`
+	AverageStr string `json:"average,omitempty"`
+	MedianStr  string `json:"median,omitempty"`
+	StdDevStr  string `json:"std_dev,omitempty"`
+}
+
+// MarshalJSON implements custom JSON marshaling for RTTStats
+func (s *RTTStats) MarshalJSON() ([]byte, error) {
+	type Alias RTTStats
+
+	// Create a copy with string versions of durations
+	if s.Success > 0 {
+		s.MinStr = s.Min.String()
+		s.MaxStr = s.Max.String()
+		s.AverageStr = s.Average.String()
+		s.MedianStr = s.Median.String()
+		s.StdDevStr = s.StdDev.String()
+	}
+
+	return json.Marshal(&struct{ *Alias }{Alias: (*Alias)(s)})
 }
 
 // RTTResult represents a single RTT measurement result
