@@ -35,9 +35,8 @@ const (
 )
 
 var (
-	ErrInvalidAmount        = errors.New("state: amount must be greater than zero")
-	errGasPriceExceedsLimit = errors.New("state: estimated gasPrice exceeds max gasPrice")
-	log                     = logging.Logger("state")
+	ErrInvalidAmount = errors.New("state: amount must be greater than zero")
+	log              = logging.Logger("state")
 )
 
 // CoreAccessor implements service over a gRPC connection
@@ -139,13 +138,17 @@ func (ca *CoreAccessor) Start(ctx context.Context) error {
 	if err != nil {
 		return fmt.Errorf("querying minimum gas price: %w", err)
 	}
-	ca.estimator.connect()
+
+	err = ca.estimator.Start(ctx)
+	if err != nil {
+		log.Warn("state: failed to connect to estimator endpoint", "err", err)
+	}
 	return nil
 }
 
-func (ca *CoreAccessor) Stop(context.Context) error {
+func (ca *CoreAccessor) Stop(ctx context.Context) error {
 	ca.cancel()
-	return nil
+	return ca.estimator.Stop(ctx)
 }
 
 // SubmitPayForBlob builds, signs, and synchronously submits a MsgPayForBlob with additional
@@ -586,29 +589,16 @@ func (ca *CoreAccessor) submitMsg(
 		txConfig = append(txConfig, user.SetFeeGranter(granter))
 	}
 
-	if cfg.GasLimit() == 0 || cfg.GasPrice() == DefaultGasPrice {
-		gasPrice, gas, err := ca.estimator.estimateGas(ctx, client, cfg.priority, msg)
-		if err != nil {
-			return nil, err
-		}
-
-		if cfg.GasLimit() == 0 {
-			cfg.gas = gas
-		}
-		if cfg.GasPrice() == DefaultGasPrice {
-			migGasPrice := ca.getMinGasPrice()
-			if gasPrice < migGasPrice {
-				gasPrice = migGasPrice
-			}
-			cfg.gasPrice = gasPrice
-			cfg.isGasPriceSet = true
-		}
+	gasPrice, gas, err := ca.estimator.estimate(ctx, cfg, client, msg)
+	if err != nil {
+		return nil, err
 	}
 
-	if cfg.maxGasPrice < cfg.GasPrice() {
-		return nil, errGasPriceExceedsLimit
+	if gasPrice < ca.getMinGasPrice() {
+		gasPrice = ca.getMinGasPrice()
 	}
-	txConfig = append(txConfig, user.SetGasLimitAndGasPrice(cfg.GasLimit(), cfg.GasPrice()))
+	txConfig = append(txConfig, user.SetGasLimitAndGasPrice(gas, gasPrice))
+
 	resp, err := client.SubmitTx(ctx, []sdktypes.Msg{msg}, txConfig...)
 	if err != nil {
 		return nil, err

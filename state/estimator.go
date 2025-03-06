@@ -4,10 +4,12 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"time"
 
 	sdktypes "github.com/cosmos/cosmos-sdk/types"
+	grpc_retry "github.com/grpc-ecosystem/go-grpc-middleware/retry"
 	"google.golang.org/grpc"
-	"google.golang.org/grpc/connectivity"
+	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/credentials/insecure"
 
 	"github.com/celestiaorg/celestia-app/v3/pkg/user"
@@ -17,6 +19,8 @@ import (
 // gasMultiplier is used to increase gas limit in case if tx has additional options.
 const gasMultiplier = 1.1
 
+var ErrGasPriceExceedsLimit = errors.New("state: estimated gasPrice exceeds max gasPrice")
+
 type estimator struct {
 	estimatorAddress string
 
@@ -24,20 +28,58 @@ type estimator struct {
 	estimatorConn     *grpc.ClientConn
 }
 
-func (e *estimator) connect() {
-	if e.estimatorConn != nil && e.estimatorConn.GetState() != connectivity.Shutdown {
-		return
-	}
+func (e *estimator) Start(context.Context) error {
 	if e.estimatorAddress == "" {
-		return
+		return nil
 	}
 
-	conn, err := grpc.NewClient(e.estimatorAddress, grpc.WithTransportCredentials(insecure.NewCredentials()))
+	conn, err := grpc.NewClient(
+		e.estimatorAddress,
+		grpc.WithTransportCredentials(insecure.NewCredentials()),
+		grpc.WithUnaryInterceptor(grpcRetry()),
+	)
 	if err != nil {
-		log.Warn("state: failed to connect to estimator endpoint", "err", err)
-		return
+		return err
 	}
 	e.estimatorConn = conn
+	return nil
+}
+
+func (e *estimator) Stop(context.Context) error {
+	if e.estimatorConn != nil {
+		if err := e.estimatorConn.Close(); err != nil {
+			return err
+		}
+	}
+	e.estimatorConn = nil
+	return nil
+}
+
+func (e *estimator) estimate(
+	ctx context.Context,
+	cfg *TxConfig,
+	client *user.TxClient,
+	msg sdktypes.Msg,
+) (float64, uint64, error) {
+	if cfg.GasPrice() != DefaultGasPrice && cfg.GasLimit() != 0 {
+		return cfg.GasPrice(), cfg.GasLimit(), nil
+	}
+
+	gasPrice, gasLimit, err := e.estimateGas(ctx, client, cfg.priority, msg)
+	if err != nil {
+		return 0, 0, err
+	}
+
+	if cfg.GasPrice() != DefaultGasPrice {
+		gasPrice = cfg.GasPrice()
+	}
+	if cfg.GasLimit() != 0 {
+		gasLimit = cfg.GasLimit()
+	}
+	if gasPrice > cfg.MaxGasPrice() {
+		return 0, 0, ErrGasPriceExceedsLimit
+	}
+	return gasPrice, gasLimit, nil
 }
 
 // estimateGas estimates gas in case it has not been set.
@@ -71,24 +113,18 @@ func (e *estimator) queryGasUsedAndPrice(
 	signer *user.Signer,
 	priority TxPriority,
 	rawTx []byte,
-) (float64, uint64, error) {
-	e.connect()
+) (gasPrice float64, gas uint64, err error) {
+	conns := []*grpc.ClientConn{e.estimatorConn, e.defaultClientConn}
+	for _, conn := range conns {
+		if conn == nil {
+			continue
+		}
 
-	if e.estimatorConn != nil && e.estimatorConn.GetState() != connectivity.Shutdown {
-		gasPrice, gas, err := signer.QueryGasUsedAndPrice(ctx, e.estimatorConn, priority.toApp(), rawTx)
+		gasPrice, gas, err = signer.QueryGasUsedAndPrice(ctx, conn, priority.toApp(), rawTx)
 		if err == nil {
 			return gasPrice, gas, nil
 		}
-		log.Warn("failed to query gas used and price from the estimator endpoint.", "err", err)
-	}
-
-	if e.defaultClientConn == nil || e.defaultClientConn.GetState() == connectivity.Shutdown {
-		return 0, 0, errors.New("connection with the consensus node is dropped")
-	}
-
-	gasPrice, gas, err := signer.QueryGasUsedAndPrice(ctx, e.defaultClientConn, priority.toApp(), rawTx)
-	if err != nil {
-		log.Warn("state: failed to query gas used and price from the default endpoint", "err", err)
+		log.Warnf("failed to query gas used and price from the endpoint(%s): %v", conn.Target(), err)
 	}
 	return gasPrice, gas, err
 }
@@ -99,4 +135,13 @@ func (e *estimator) queryGasUsedAndPrice(
 func (e *estimator) estimateGasForBlobs(blobSizes []uint32) uint64 {
 	gas := apptypes.DefaultEstimateGas(blobSizes)
 	return uint64(float64(gas) * gasMultiplier)
+}
+
+func grpcRetry() grpc.UnaryClientInterceptor {
+	return grpc_retry.UnaryClientInterceptor(
+		grpc_retry.WithMax(5),
+		grpc_retry.WithCodes(codes.Unavailable),
+		grpc_retry.WithBackoff(
+			grpc_retry.BackoffExponentialWithJitter(time.Second, 2.0)),
+	)
 }

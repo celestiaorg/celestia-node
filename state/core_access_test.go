@@ -125,18 +125,18 @@ func TestTransfer(t *testing.T) {
 			expErr:   nil,
 		},
 		{
-			name:     "transfer with options",
+			name:     "transfer with gasPrice set",
 			gasPrice: 0.005,
 			gasLim:   0,
 			account:  accounts[2],
 			expErr:   nil,
 		},
 		{
-			name:     "gas price limit exceeded",
-			gasPrice: DefaultMaxGasPrice * 100,
-			gasLim:   1000,
+			name:     "transfer with gas set",
+			gasPrice: DefaultGasPrice,
+			gasLim:   84617,
 			account:  accounts[2],
-			expErr:   errGasPriceExceedsLimit,
+			expErr:   nil,
 		},
 	}
 

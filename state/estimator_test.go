@@ -81,7 +81,7 @@ func TestEstimator(t *testing.T) {
 
 	defaultConn, err := grpc.NewClient(target, grpc.WithTransportCredentials(insecure.NewCredentials()))
 	require.NoError(t, err)
-	estimator := estimator{}
+	estimator := estimator{estimatorAddress: target}
 
 	testCases := []struct {
 		name string
@@ -90,16 +90,13 @@ func TestEstimator(t *testing.T) {
 		{
 			name: "query from estimator endpoint",
 			doFn: func() {
-				estimator.estimatorAddress = target
+				require.NoError(t, estimator.Start(context.TODO()))
 			},
 		},
 		{
 			name: "query from default estimator endpoint",
 			doFn: func() {
-				// cleanup estimator service
-				estimator.estimatorAddress = ""
-				require.NoError(t, estimator.estimatorConn.Close())
-
+				require.NoError(t, estimator.Stop(context.TODO()))
 				estimator.defaultClientConn = defaultConn
 			},
 		},
