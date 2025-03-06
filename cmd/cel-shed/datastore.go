@@ -4,13 +4,15 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"github.com/celestiaorg/celestia-node/nodebuilder"
+
 	"github.com/ipfs/boxo/blockstore"
 	ds "github.com/ipfs/go-datastore"
 	"github.com/ipfs/go-datastore/namespace"
 	dsq "github.com/ipfs/go-datastore/query"
 	"github.com/spf13/cobra"
 	"golang.org/x/sync/errgroup"
+
+	"github.com/celestiaorg/celestia-node/nodebuilder"
 )
 
 func init() {
@@ -67,7 +69,7 @@ var sampleDataKeys = []ds.Key{
 var eraseSamplesCmd = &cobra.Command{
 	Use:   "erase-samples [subcommand]",
 	Short: "Erase samples data and state. Useful to resample, avoiding resyncing headers",
-	RunE: func(cmd *cobra.Command, args []string) error {
+	RunE: func(cmd *cobra.Command, _ []string) error {
 		path, err := nodebuilder.DiscoverStopped()
 		if err != nil {
 			return fmt.Errorf("discovering stopped node: %w", err)
