@@ -326,7 +326,7 @@ var p2pConnectBootstrappersCmd = &cobra.Command{
 
 		if !jsonOutput {
 			fmt.Println("\nRTT Measurement Results:")
-			fmt.Println("=======================")
+			fmt.Println("========================")
 
 			for _, stats := range rttStats {
 				fmt.Printf("\nBootstrapper: %s\n", stats.PeerID)
@@ -334,11 +334,11 @@ var p2pConnectBootstrappersCmd = &cobra.Command{
 				fmt.Printf("  Ping Count: %d (Success: %d, Failed: %d)\n", stats.Count, stats.Success, stats.Failed)
 
 				if stats.Success > 0 {
-					fmt.Printf("  Min RTT: %s\n", stats.Min)
-					fmt.Printf("  Max RTT: %s\n", stats.Max)
-					fmt.Printf("  Avg RTT: %s\n", stats.Average)
-					fmt.Printf("  Median RTT: %s\n", stats.Median)
-					fmt.Printf("  StdDev RTT: %s\n", stats.StdDev)
+					fmt.Printf("  Min RTT: %v\n", stats.Min)
+					fmt.Printf("  Max RTT: %v\n", stats.Max)
+					fmt.Printf("  Avg RTT: %v\n", stats.Average)
+					fmt.Printf("  Median RTT: %v\n", stats.Median)
+					fmt.Printf("  StdDev RTT: %v\n", stats.StdDev)
 
 					if showDetailedPings && len(stats.Results) > 0 {
 						fmt.Println("  Detailed Results:")
@@ -346,7 +346,7 @@ var p2pConnectBootstrappersCmd = &cobra.Command{
 							if result.Error != "" {
 								fmt.Printf("    Attempt %d: Failed - %s\n", result.Attempt, result.Error)
 							} else {
-								fmt.Printf("    Attempt %d: %s\n", result.Attempt, result.RTT)
+								fmt.Printf("    Attempt %d: %v\n", result.Attempt, result.RTT)
 							}
 						}
 					}
