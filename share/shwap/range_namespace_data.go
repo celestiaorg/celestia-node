@@ -143,9 +143,9 @@ func (rngdata *RangeNamespaceData) Verify(
 }
 
 // Flatten combines all shares from all rows within the namespace into a single slice.
-func (nd *RangeNamespaceData) Flatten() []libshare.Share {
+func (rngdata *RangeNamespaceData) Flatten() []libshare.Share {
 	var shares []libshare.Share
-	for _, shrs := range nd.Shares {
+	for _, shrs := range rngdata.Shares {
 		shares = append(shares, shrs...)
 	}
 	return shares

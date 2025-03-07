@@ -104,7 +104,7 @@ func (eds *Rsmt2D) HalfRow(idx int, side shwap.RowSide) (shwap.Row, error) {
 
 // RowNamespaceData returns data for the given namespace and row index.
 func (eds *Rsmt2D) RowNamespaceData(
-	ctx context.Context,
+	_ context.Context,
 	namespace libshare.Namespace,
 	rowIdx int,
 ) (shwap.RowNamespaceData, error) {
