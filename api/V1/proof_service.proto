@@ -53,17 +53,21 @@ message VerifyProofResponse {
 
 // ProofsService - verification service that supports both V0 and V1 approaches
 service ProofsService {
-  // V0 verification of inclusion of shares. Requires row root to perform verification.
-  // Does not verifies namespace rules of provided shares and should be used only
-  // to verify inclusion of data spread over multiple namespaces
+  // V0 verification of inclusion of shares. Requires row root to perform
+  // verification. Does not verifies namespace rules of provided shares and
+  // should be used only to verify inclusion of data spread over multiple
+  // namespaces
   rpc VerifySharesV0(VerifySharesRequestV0) returns (VerifyProofResponse);
-  // Performs what VerifySharesV0 does with additional namespace rules verification on top.
+  // Performs what VerifySharesV0 does with additional namespace rules
+  // verification on top.
   rpc VerifyNamespaceV0(VerifyNamespaceRequestV0) returns (VerifyProofResponse);
 
   // V1 verification
   // VerifyDataProof verifies raw blob data using data root proof
   rpc VerifyDataProof(VerifyDataRequest) returns (VerifyProofResponse);
-  // VerifyCommitmentProof verifies inclusion of blob, by using commitment and commitment data root proof.
-  // Provided proof type should be PROOF_TYPE_COMMITMENT
-  rpc VerifyCommitmentProof(VerifyCommitmentRequest) returns (VerifyProofResponse);
+  // VerifyCommitmentProof verifies inclusion of blob, by using commitment and
+  // commitment data root proof. Provided proof type should be
+  // PROOF_TYPE_COMMITMENT
+  rpc VerifyCommitmentProof(VerifyCommitmentRequest)
+      returns (VerifyProofResponse);
 }

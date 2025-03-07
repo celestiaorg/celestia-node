@@ -48,7 +48,8 @@ message GetRangeResponseV0 {
 message GetRangeResponseV1 {
   celestia.node.v1.common.Status status = 1;
   repeated celestia.node.v1.types.Share shares = 2;
-  celestia.node.v1.proof.DataRootProof proof = 3;  // Single proof for all shares
+  celestia.node.v1.proof.DataRootProof proof =
+      3;  // Single proof for all shares
 }
 
 message GetRowRequest {
@@ -66,7 +67,8 @@ message GetRowResponseV0 {
 message GetRowResponseV1 {
   celestia.node.v1.common.Status status = 1;
   repeated celestia.node.v1.types.Share shares = 2;
-  celestia.node.v1.proof.DataRootProof proof = 3;  // Requires proof to data root to prove shares are valid
+  celestia.node.v1.proof.DataRootProof proof =
+      3;  // Requires proof to data root to prove shares are valid
 }
 
 message GetSharesByNamespaceRequest {
@@ -113,7 +115,8 @@ service ShareService {
   rpc GetRow(GetRowRequest) returns (GetRowResponseV0);
 
   // Namespace operations - support both verification approaches
-  rpc GetSharesByNamespace(GetSharesByNamespaceRequest) returns (GetSharesByNamespaceResponseV0);
+  rpc GetSharesByNamespace(GetSharesByNamespaceRequest)
+      returns (GetSharesByNamespaceResponseV0);
 
   // Availability check
   rpc SharesAvailable(SharesAvailableRequest) returns (SharesAvailableResponse);

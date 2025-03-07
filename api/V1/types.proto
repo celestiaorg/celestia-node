@@ -39,5 +39,6 @@ message BlobWithProofV1 {
 message SharesWithProof {
   // Shares should be from the same row
   repeated celestia.node.v1.types.Share shares = 1;
-  celestia.node.v1.proof.RowRootProof row_proof = 2;      // NMT proof to the row root
+  celestia.node.v1.proof.RowRootProof row_proof =
+      2;  // NMT proof to the row root
 }

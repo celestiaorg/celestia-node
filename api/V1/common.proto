@@ -11,14 +11,16 @@ enum StatusCode {
   // Success codes (1-99)
   STATUS_OK = 1;
   // Error codes (100+)
-  // ERROR_DATA_NOT_AVAILABLE is returned if data availability sampling gurantees was required for request
-  // and failed. Keep in mind that data availability sampling will be ensured for all blocks in
-  // sampling window till the requested height
+  // ERROR_DATA_NOT_AVAILABLE is returned if data availability sampling
+  // gurantees was required for request and failed. Keep in mind that data
+  // availability sampling will be ensured for all blocks in sampling window
+  // till the requested height
   ERROR_DATA_NOT_AVAILABLE = 100;
   // Fraud was detected in the chain before requested block
   ERROR_FRAUD_DETECTED = 101;
   ERROR_TIMEOUT = 102;
-  // invalid input was submit as part of request. More information is provided in Status message field.
+  // invalid input was submit as part of request. More information is provided
+  // in Status message field.
   ERROR_INVALID_REQUEST = 103;
   // unexpected error happened during handling the request
   ERROR_INTERNAL = 104;

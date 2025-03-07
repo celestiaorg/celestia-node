@@ -9,9 +9,9 @@ import "types.proto";
 import "proof.proto";
 
 message SubmitOptions {
-  double gas_price = 1;    // Amount to be paid per gas unit
-  uint64 gas = 2;         // Gas amount
-  string key_name = 3;    // Keystore key for signing
+  double gas_price = 1;             // Amount to be paid per gas unit
+  uint64 gas = 2;                   // Gas amount
+  string key_name = 3;              // Keystore key for signing
   optional string fee_granter = 4;  // Account paying for transaction
   optional uint64 nonce = 5;        // Transaction nonce
 }
@@ -95,6 +95,7 @@ service BlobService {
   rpc SubmitData(SubmitDataRequest) returns (SubmitDataResponse);
 
   // Subscription operations
-  rpc SubscribeBlobs(BlobsSubscribeRequest) returns (stream BlobsSubscribeResponse);
+  rpc SubscribeBlobs(BlobsSubscribeRequest)
+      returns (stream BlobsSubscribeResponse);
   rpc SubscribeAll(SubscribeAllRequest) returns (stream SubscribeAllResponse);
 }
