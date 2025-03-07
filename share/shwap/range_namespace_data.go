@@ -14,8 +14,9 @@ import (
 // RangeNamespaceData embeds `NamespaceData` and contains a contiguous range of shares
 // along with proofs for these shares.
 type RangeNamespaceData struct {
-	Start         int `json:"start"`
-	NamespaceData `json:"namespace_data"`
+	Start  int                `json:"start"`
+	Shares [][]libshare.Share `json:"shares,omitempty"`
+	Proof  []*Proof           `json:"proof"`
 }
 
 // RangedNamespaceDataFromShares builds a range of namespaced data for the given coordinates:
@@ -35,8 +36,11 @@ func RangedNamespaceDataFromShares(
 	}
 
 	odsSize := len(shares[0]) / 2
-	nsData := make([]RowNamespaceData, 0, len(shares))
-	rngData := RangeNamespaceData{Start: from.Row}
+	rngData := RangeNamespaceData{
+		Start:  from.Row,
+		Shares: make([][]libshare.Share, len(shares)),
+		Proof:  make([]*Proof, len(shares)),
+	}
 	for i, row := 0, from.Row; i < len(shares); i++ {
 		rowShares := shares[i]
 		// end index will be explicitly set only for the last row in range.
@@ -82,17 +86,12 @@ func RangedNamespaceDataFromShares(
 		if err != nil {
 			return RangeNamespaceData{}, err
 		}
-		dataRootProof := NewProof(row, &proof, roots)
-		nsData = append(nsData,
-			RowNamespaceData{Shares: rowShares[from.Col:exclusiveEnd], Proof: dataRootProof},
-		)
-
+		rngData.Shares[i] = rowShares[from.Col:exclusiveEnd]
+		rngData.Proof[i] = NewProof(row, &proof, roots)
 		// reset from.Col as we are moving to the next row.
 		from.Col = 0
 		row++
 	}
-
-	rngData.NamespaceData = nsData
 	return rngData, nil
 }
 
@@ -104,35 +103,38 @@ func (rngdata *RangeNamespaceData) Verify(
 	to SampleCoords,
 	dataHash []byte,
 ) error {
+	if len(rngdata.Shares) != len(rngdata.Proof) {
+		return fmt.Errorf(
+			"mismatch amount of row shares and proofs, %d:%d",
+			len(rngdata.Shares), len(rngdata.Proof),
+		)
+	}
 	if rngdata.IsEmpty() {
 		return errors.New("empty data")
-	}
-	if rngdata.NamespaceData[0].Proof.IsEmptyProof() {
-		return errors.New("empty proof")
 	}
 
 	if from.Row != rngdata.Start {
 		return fmt.Errorf("mismatched row: wanted: %d, got: %d", rngdata.Start, from.Row)
 	}
-	if from.Col != rngdata.NamespaceData[0].Proof.Start() {
-		return fmt.Errorf("mismatched col: wanted: %d, got: %d", rngdata.NamespaceData[0].Proof.Start(), from.Col)
+	if from.Col != rngdata.Proof[0].Start() {
+		return fmt.Errorf("mismatched col: wanted: %d, got: %d", rngdata.Proof[0].Start(), from.Col)
 	}
-	if to.Col != rngdata.NamespaceData[len(rngdata.NamespaceData)-1].Proof.End() {
+	if to.Col != rngdata.Proof[len(rngdata.Proof)-1].End() {
 		return fmt.Errorf(
 			"mismatched col: wanted: %d, got: %d",
-			rngdata.NamespaceData[len(rngdata.NamespaceData)-1].Proof.End(), to.Col,
+			rngdata.Proof[len(rngdata.Proof)-1].End(), to.Col,
 		)
 	}
 
-	for i, nsData := range rngdata.NamespaceData {
-		if nsData.Proof.IsEmptyProof() {
+	for i, nsData := range rngdata.Shares {
+		if rngdata.Proof[i].IsEmptyProof() {
 			return fmt.Errorf("nil proof for row: %d", rngdata.Start+i)
 		}
-		if nsData.Proof.shareProof.IsOfAbsence() {
+		if rngdata.Proof[i].shareProof.IsOfAbsence() {
 			return fmt.Errorf("absence proof for row: %d", rngdata.Start+i)
 		}
 
-		err := nsData.Proof.VerifyInclusion(nsData.Shares, namespace, dataHash)
+		err := rngdata.Proof[i].VerifyInclusion(nsData, namespace, dataHash)
 		if err != nil {
 			return fmt.Errorf("%w for row: %d, %w", ErrFailedVerification, rngdata.Start+i, err)
 		}
@@ -140,29 +142,58 @@ func (rngdata *RangeNamespaceData) Verify(
 	return nil
 }
 
+// Flatten combines all shares from all rows within the namespace into a single slice.
+func (nd *RangeNamespaceData) Flatten() []libshare.Share {
+	var shares []libshare.Share
+	for _, shrs := range nd.Shares {
+		shares = append(shares, shrs...)
+	}
+	return shares
+}
+
 func (rngdata *RangeNamespaceData) IsEmpty() bool {
-	return len(rngdata.NamespaceData) == 0
+	return len(rngdata.Shares) == 0 && len(rngdata.Proof) == 0
 }
 
 func (rngdata *RangeNamespaceData) ToProto() *pb.RangeNamespaceData {
+	pbShares := make([]*pb.RowShares, len(rngdata.Shares))
+	pbProofs := make([]*pb.Proof, len(rngdata.Proof))
+	for i, shr := range rngdata.Shares {
+		rowShares := SharesToProto(shr)
+		pbShares[i].Shares = rowShares
+		pbProofs[i] = rngdata.Proof[i].ToProto()
+	}
 	return &pb.RangeNamespaceData{
-		Start:              int32(rngdata.Start),
-		RangeNamespaceData: rngdata.NamespaceData.ToProto(),
+		Start:  int32(rngdata.Start),
+		Shares: pbShares,
+		Proofs: pbProofs,
 	}
 }
 
 func (rngdata *RangeNamespaceData) CleanupData() {
-	for i := range rngdata.NamespaceData {
-		rngdata.NamespaceData[i].Shares = nil
-	}
+	rngdata.Shares = nil
 }
 
 func RangeNamespaceDataFromProto(nd *pb.RangeNamespaceData) (*RangeNamespaceData, error) {
-	data, err := NamespaceDataFromProto(nd.RangeNamespaceData)
-	if err != nil {
-		return nil, err
+	shares := make([][]libshare.Share, len(nd.Shares))
+
+	for i, shr := range nd.Shares {
+		shrs, err := SharesFromProto(shr.GetShares())
+		if err != nil {
+			return nil, err
+		}
+		shares[i] = shrs
 	}
-	return &RangeNamespaceData{Start: int(nd.Start), NamespaceData: data}, nil
+
+	proofs := make([]*Proof, len(nd.Proofs))
+	for i, proof := range nd.Proofs {
+		p, err := ProofFromProto(proof)
+		if err != nil {
+			return nil, err
+		}
+		proofs[i] = p
+	}
+	return &RangeNamespaceData{Start: int(nd.Start), Shares: shares, Proof: proofs}, nil
 }
 
 // RangeCoordsFromIdx accepts the start index and the length of the range and
