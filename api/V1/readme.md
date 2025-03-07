@@ -73,21 +73,21 @@ Data availability verification is fundamental to light node security and must be
 Proposed Solutions:
 
 1. **Enhanced ShareAvailable Verification**:
-   The ShareAvailable call will verify the continuous chain of blocks from the oldest block in the availability window up to the requested height. The call will return false if any block within this range is unavailable.
+  The ShareAvailable call will verify the continuous chain of blocks from the oldest block in the availability window up to the requested height. The call will return false if any block within this range is unavailable.
 
 2. **Integrated Availability Verification**:
-   A new `verify_available` option will be added to all data fetching methods (blobs, shares, etc). When enabled:
-
-- The API will verify availability for both the requested block and all preceding blocks within the sampling window
-- Data will only be returned if the entire chain segment is verified as available
-- Failed availability checks will return a specific `data_not_available` error code
+  A new `verify_available` option will be added to all data fetching methods (blobs, shares, etc). When enabled:
+    - The API will verify availability for both the requested block and all preceding blocks within the sampling window
+    - Data will only be returned if the entire chain segment is verified as available
+    - Failed availability checks will return a specific `data_not_available` error code
 
 ```protobuf
 message Options {
     // if verify_available is enabled, node will additionally ensure
-    // data availability on top of fetching requiested data
+    // data availability on top of fetching requested data
     bool verify_available = 1;
-    // when proofs_only is enabled, proofs will be returned without sending data. 
+    // when proofs_only is enabled, proofs will be returned without sending
+    // data.
     bool proofs_only = 2;
 }
 ```
@@ -110,7 +110,7 @@ Advantages:
 
 Some error codes already listed in the draft, however the list might be not full and would need to be revisited with each particular usecase in mind
 
-Standardized Status Codes
+Standardized status codes
 
 ```protobuf
 // Common status codes used across all services
@@ -120,7 +120,7 @@ enum StatusCode {
   // Success codes (1-99)
   STATUS_OK = 1;
   // Error codes (100+)
-  // ERROR_DATA_NOT_AVAILABLE is returned if data availability sampling gurantees was required for request
+  // ERROR_DATA_NOT_AVAILABLE is returned if data availability sampling guarantees was required for request
   // and failed. Keep in mind that data availability sampling will be ensured for all blocks in
   // sampling window till the requested height
   ERROR_DATA_NOT_AVAILABLE = 100;
@@ -165,7 +165,7 @@ Chose raw data submission over pre-constructed blobs because:
 
 #### 2. Subscription Support
 
-Prevoiusly only one subscription endpoint existed to subscribe to all blobs from same namespace.
+Previously only one subscription endpoint existed to subscribe to all blobs from same namespace.
 
 ```protobuf
 rpc SubscribeAll(SubscribeAllRequest) returns (stream SubscribeAllResponse);
@@ -207,7 +207,7 @@ service ShareService {
 }
 ```
 
-`SharesAvailable` is reworked. Previously it was ensuring availability of single height. However availability of single height does not give availability gurantees. New version must ensure availability of range of height starting oldest block within availability window to the requested height. `sampling_window` option will allow users to specify smaller range verification.
+`SharesAvailable` is reworked. Previously it was ensuring availability of single height. However availability of single height does not give availability guarantees. New version must ensure availability of range of height starting oldest block within availability window to the requested height. `sampling_window` option will allow users to specify smaller range verification.
 
 ```protobuf
 message SharesAvailableRequest {
@@ -233,7 +233,7 @@ Benefits:
 
 #### 1. Dual Verification Approaches
 
-Accross all servecies some requests and response have V0/V1 suffix. Support both V0 (row roots) and V1 (data root) verification:
+Across all services some requests and response have V0/V1 suffix. Support both V0 (row roots) and V1 (data root) verification:
 
 ```protobuf
 service ProofsService {
@@ -289,7 +289,7 @@ The API is designed to evolve with proof systems:
 The design enables future extensions:
 
 - New service types can be added. For example for different types of fraud proofs.
-- Backward compatibility maintained by following proto guidelines. However, backwards compatability tests should be implemented for API implementation.
+- Backward compatibility maintained by following proto guidelines. However, backwards compatibility tests should be implemented for API implementation.
 - Clear versioning for API will allow easier migration of clients.
 
 ## Implementation Guidelines

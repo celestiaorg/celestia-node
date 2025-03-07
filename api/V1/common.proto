@@ -12,7 +12,7 @@ enum StatusCode {
   STATUS_OK = 1;
   // Error codes (100+)
   // ERROR_DATA_NOT_AVAILABLE is returned if data availability sampling
-  // gurantees was required for request and failed. Keep in mind that data
+  // guarantees was required for request and failed. Keep in mind that data
   // availability sampling will be ensured for all blocks in sampling window
   // till the requested height
   ERROR_DATA_NOT_AVAILABLE = 100;
@@ -36,7 +36,7 @@ message Status {
 
 message Options {
   // if verify_available is enabled, node will additionally ensure
-  // data availability on top of fetching requiested data
+  // data availability on top of fetching requested data
   bool verify_available = 1;
   // when proofs_only is enabled, proofs will be returned without sending data.
   bool proofs_only = 2;
