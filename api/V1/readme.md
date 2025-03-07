@@ -15,18 +15,18 @@ This document serves multiple purposes:
 
 ### Important Notes for Readers
 
-#### 1. **Complementary Documentation**
+#### 1. Complementary Documentation
 
 - This document should be read alongside the proto files which contain the detailed API specifications
 - The proto definitions include additional technical details and comments that complement this design overview
 
-#### 2. **Current Status**
+#### 2. Current Status
 
 - This is a first draft and will need further refinement and community feedback
 - Some design decisions may evolve as we gather more implementation experience
 - Sections marked with "TBD" indicate areas needing further discussion
 
-#### 3. **Implementation Context**
+#### 3. Implementation Context
 
 - The design primarily considers the celestia-go-node implementation as it's currently the main reference
 - However, the API is designed with language-agnostic principles to support future implementations (e.g., Rust)
@@ -179,7 +179,7 @@ rpc SubscribeBlobs(BlobsSubscribeRequest) returns (stream BlobsSubscribeResponse
 
 Motivations:
 
-- Essential for async submission workflows.It allows subscribing to blobs submitted in async mode
+- Essential for async submission workflows. It allows subscribing to blobs submitted in async mode
 - Enables event-driven architectures.
 - Better for monitoring submitted data
 - Reduces polling overhead
