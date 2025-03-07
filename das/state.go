@@ -283,7 +283,7 @@ func (s *coordinatorState) unsafeStats() SamplingStats {
 }
 
 func (s *coordinatorState) checkDone() {
-	if len(s.inProgress) == 0 && len(s.failed) == 0 && s.next > s.networkHead {
+	if len(s.inProgress) == 0 && len(s.failed) == 0 && s.next >= s.networkHead+1 {
 		if s.catchUpDone.CompareAndSwap(false, true) {
 			close(s.catchUpDoneCh)
 		}
