@@ -23,16 +23,21 @@ message Sample {
 
 message RowNamespaceData {
     repeated Share shares = 1;
-    Proof proof = 2;
+    proof.pb.Proof proof = 2;
 }
 
 message NamespaceData {
     repeated RowNamespaceData namespaceData = 1;
 }
 
+message RowShares {
+    repeated Share shares = 1;
+}
+
 message RangeNamespaceData {
     int32 start = 1;
-    NamespaceData rangeNamespaceData = 3;
+    repeated RowShares shares = 2;
+    repeated Proof proofs = 3;
 }
 
 message Share {
