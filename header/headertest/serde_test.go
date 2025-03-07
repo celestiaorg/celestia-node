@@ -3,8 +3,10 @@ package headertest
 import (
 	"testing"
 
+	pubsub_pb "github.com/libp2p/go-libp2p-pubsub/pb"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"golang.org/x/crypto/blake2b"
 
 	"github.com/celestiaorg/celestia-node/header"
 )
@@ -28,6 +30,33 @@ func TestMarshalUnmarshalExtendedHeader(t *testing.T) {
 	err = out.UnmarshalJSON(jsonData)
 	require.NoError(t, err)
 	equalExtendedHeader(t, in, out)
+}
+
+func TestMsgIDEquivalency(t *testing.T) {
+	randHeader := RandExtendedHeader(t)
+	bin, err := randHeader.MarshalBinary()
+	require.NoError(t, err)
+
+	oldMsgIDFunc := func(message *pubsub_pb.Message) string {
+		mID := func(data []byte) string {
+			hash := blake2b.Sum256(data)
+			return string(hash[:])
+		}
+
+		h, _ := header.UnmarshalExtendedHeader(message.Data)
+		if h == nil || h.RawHeader.ValidateBasic() != nil {
+			return mID(message.Data)
+		}
+
+		return h.Commit.BlockID.String()
+	}
+
+	inboundMsg := &pubsub_pb.Message{Data: bin}
+
+	expectedHash := oldMsgIDFunc(inboundMsg)
+	gotHash := header.MsgID(inboundMsg)
+
+	assert.Equal(t, expectedHash, gotHash)
 }
 
 func equalExtendedHeader(t *testing.T, in, out *header.ExtendedHeader) {
