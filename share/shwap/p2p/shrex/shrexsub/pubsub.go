@@ -15,7 +15,7 @@ import (
 
 var log = logging.Logger("shrex-sub")
 
-// pubsubTopic hardcodes the name of the EDS floodsub topic with the provided networkID.
+// pubsubTopicID hardcodes the name of the EDS floodsub topic with the provided networkID.
 func pubsubTopicID(networkID string) string {
 	return fmt.Sprintf("%s/eds-sub/v0.2.0", networkID)
 }
