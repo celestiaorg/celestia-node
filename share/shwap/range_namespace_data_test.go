@@ -2,6 +2,7 @@ package shwap_test
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"testing"
 	"time"
@@ -71,6 +72,9 @@ func TestRangeNamespaceData(t *testing.T) {
 			require.NoError(t, err)
 			err = rngdata.Verify(ns, dataID.From, dataID.To, root.Hash())
 			require.NoError(t, err)
+
+			err = rngdata.VerifyShares(rngdata.Shares, ns, dataID.From, dataID.To, root.Hash())
+			require.NoError(t, err)
 		})
 	}
 }
@@ -94,6 +98,42 @@ func TestRangeCoordsFromIdx(t *testing.T) {
 		require.NoError(t, err)
 		require.Equal(t, length, len(rngData.Flatten()))
 	}
+}
+
+func TestRangeNamespaceDataMarshalUnmarshal(t *testing.T) {
+	const (
+		odsSize      = 4
+		sharesAmount = odsSize * odsSize
+	)
+
+	ns := libshare.RandomNamespace()
+	square, root := edstest.RandEDSWithNamespace(t, ns, sharesAmount, odsSize)
+	eds := eds.Rsmt2D{ExtendedDataSquare: square}
+
+	from := shwap.SampleCoords{Row: 0, Col: 0}
+	to := shwap.SampleCoords{Row: odsSize - 1, Col: odsSize - 1}
+	rngdata, err := eds.RangeNamespaceData(
+		context.Background(),
+		ns,
+		from,
+		to,
+	)
+	require.NoError(t, err)
+	err = rngdata.Verify(ns, from, to, root.Hash())
+	require.NoError(t, err)
+
+	data, err := json.Marshal(rngdata)
+	require.NoError(t, err)
+
+	newData := &shwap.RangeNamespaceData{}
+	err = json.Unmarshal(data, newData)
+	require.NoError(t, err)
+	assert.Equal(t, rngdata, *newData)
+
+	pbData := newData.ToProto()
+	rangeNsData, err := shwap.RangeNamespaceDataFromProto(pbData)
+	require.NoError(t, err)
+	assert.Equal(t, rngdata, *rangeNsData)
 }
 
 func FuzzRangeCoordsFromIdx(f *testing.F) {

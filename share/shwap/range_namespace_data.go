@@ -25,6 +25,9 @@ type RangeNamespaceData struct {
 // namespace is the target namespace for the built range;
 // from is the coordinates of the first share of the range within the EDS.
 // to is the coordinates of the last inclusive share of the range within the EDS.
+// TODO(@vgonkivs): proof collection can be simplified to store only
+// incomplete rows(the first and the last), since we can recompute proofs
+// for all complete rows
 func RangedNamespaceDataFromShares(
 	shares [][]libshare.Share,
 	namespace libshare.Namespace,
@@ -95,18 +98,30 @@ func RangedNamespaceDataFromShares(
 	return rngData, nil
 }
 
-// Verify performs a basic validation of the incoming data. It ensures that the response data
-// correspond to the request.
+// Verify verifies the underlying shares are included in the data root.
 func (rngdata *RangeNamespaceData) Verify(
 	namespace libshare.Namespace,
 	from SampleCoords,
 	to SampleCoords,
 	dataHash []byte,
 ) error {
-	if len(rngdata.Shares) != len(rngdata.Proof) {
+	return rngdata.VerifyShares(rngdata.Shares, namespace, from, to, dataHash)
+}
+
+// VerifyShares verifies the passed shares are included in the data root.
+// `[][]libshare.Share` is a collection of the row shares from the range
+// NOTE: the underlying shares will be ignored even if they are not empty.
+func (rngdata *RangeNamespaceData) VerifyShares(
+	shares [][]libshare.Share,
+	namespace libshare.Namespace,
+	from SampleCoords,
+	to SampleCoords,
+	dataHash []byte,
+) error {
+	if len(shares) != len(rngdata.Proof) {
 		return fmt.Errorf(
 			"mismatch amount of row shares and proofs, %d:%d",
-			len(rngdata.Shares), len(rngdata.Proof),
+			len(shares), len(rngdata.Proof),
 		)
 	}
 	if rngdata.IsEmpty() {
@@ -126,7 +141,7 @@ func (rngdata *RangeNamespaceData) Verify(
 		)
 	}
 
-	for i, nsData := range rngdata.Shares {
+	for i, rowShares := range shares {
 		if rngdata.Proof[i].IsEmptyProof() {
 			return fmt.Errorf("nil proof for row: %d", rngdata.Start+i)
 		}
@@ -134,7 +149,7 @@ func (rngdata *RangeNamespaceData) Verify(
 			return fmt.Errorf("absence proof for row: %d", rngdata.Start+i)
 		}
 
-		err := rngdata.Proof[i].VerifyInclusion(nsData, namespace, dataHash)
+		err := rngdata.Proof[i].VerifyInclusion(rowShares, namespace, dataHash)
 		if err != nil {
 			return fmt.Errorf("%w for row: %d, %w", ErrFailedVerification, rngdata.Start+i, err)
 		}
@@ -159,10 +174,15 @@ func (rngdata *RangeNamespaceData) ToProto() *pb.RangeNamespaceData {
 	pbShares := make([]*pb.RowShares, len(rngdata.Shares))
 	pbProofs := make([]*pb.Proof, len(rngdata.Proof))
 	for i, shr := range rngdata.Shares {
+		pbShares[i] = &pb.RowShares{}
 		rowShares := SharesToProto(shr)
 		pbShares[i].Shares = rowShares
-		pbProofs[i] = rngdata.Proof[i].ToProto()
 	}
+
+	for i, proof := range rngdata.Proof {
+		pbProofs[i] = proof.ToProto()
+	}
+
 	return &pb.RangeNamespaceData{
 		Start:  int32(rngdata.Start),
 		Shares: pbShares,

@@ -232,6 +232,12 @@ func TestShareModule(t *testing.T) {
 					parsedBlob, err := blob.ToNodeBlobs(blbs...)
 					require.NoError(t, err)
 					require.Equal(t, nodeBlob[0].Commitment, parsedBlob[0].Commitment)
+
+					rngProofsOnly, err := client.Share.GetRange(ctx, nodeBlob[0].Namespace(), height, from, to, true)
+					require.NoError(t, err)
+					assert.Empty(t, rngProofsOnly.Shares)
+					err = rngProofsOnly.VerifyShares(rng.Shares, nodeBlob[0].Namespace(), from, to, dah.Hash())
+					require.NoError(t, err)
 				}
 			},
 		},
