@@ -4,6 +4,7 @@ import (
 	"testing"
 
 	"github.com/spf13/cobra"
+	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
 
@@ -108,6 +109,197 @@ func TestParseFlags(t *testing.T) {
 			} else {
 				require.NoError(t, err)
 				require.Equal(t, tt.expectedCfg, tt.inputCfg)
+			}
+		})
+	}
+}
+
+func TestParseEndpointString(t *testing.T) {
+	tests := []struct {
+		name                string
+		endpointStr         string
+		defaultTLS          bool
+		defaultXToken       string
+		expectedEndpoint    Endpoint
+		expectError         bool
+		expectedErrorPrefix string
+	}{
+		{
+			name:          "simple endpoint format",
+			endpointStr:   "127.0.0.1:9090",
+			defaultTLS:    false,
+			defaultXToken: "",
+			expectedEndpoint: Endpoint{
+				IP:         "127.0.0.1",
+				Port:       "9090",
+				TLSEnabled: false,
+				XTokenPath: "",
+			},
+			expectError: false,
+		},
+		{
+			name:          "simple endpoint with default TLS",
+			endpointStr:   "127.0.0.1:9090",
+			defaultTLS:    true,
+			defaultXToken: "/path/to/token",
+			expectedEndpoint: Endpoint{
+				IP:         "127.0.0.1",
+				Port:       "9090",
+				TLSEnabled: true,
+				XTokenPath: "/path/to/token",
+			},
+			expectError: false,
+		},
+		{
+			name:          "endpoint with TLS true",
+			endpointStr:   "127.0.0.1:9090:tls=true",
+			defaultTLS:    false,
+			defaultXToken: "",
+			expectedEndpoint: Endpoint{
+				IP:         "127.0.0.1",
+				Port:       "9090",
+				TLSEnabled: true,
+				XTokenPath: "",
+			},
+			expectError: false,
+		},
+		{
+			name:          "endpoint with TLS false",
+			endpointStr:   "127.0.0.1:9090:tls=false",
+			defaultTLS:    true,
+			defaultXToken: "/path/to/token",
+			expectedEndpoint: Endpoint{
+				IP:         "127.0.0.1",
+				Port:       "9090",
+				TLSEnabled: false,
+				XTokenPath: "/path/to/token",
+			},
+			expectError: false,
+		},
+		{
+			name:          "endpoint with TLS and X-Token",
+			endpointStr:   "127.0.0.1:9090:tls=true:xtoken=/custom/path",
+			defaultTLS:    false,
+			defaultXToken: "/default/path",
+			expectedEndpoint: Endpoint{
+				IP:         "127.0.0.1",
+				Port:       "9090",
+				TLSEnabled: true,
+				XTokenPath: "/custom/path",
+			},
+			expectError: false,
+		},
+		{
+			name:          "endpoint with X-Token only",
+			endpointStr:   "127.0.0.1:9090:xtoken=/custom/path",
+			defaultTLS:    true,
+			defaultXToken: "/default/path",
+			expectedEndpoint: Endpoint{
+				IP:         "127.0.0.1",
+				Port:       "9090",
+				TLSEnabled: true,
+				XTokenPath: "/custom/path",
+			},
+			expectError: false,
+		},
+		{
+			name:                "invalid endpoint format",
+			endpointStr:         "127.0.0.1",
+			defaultTLS:          false,
+			defaultXToken:       "",
+			expectError:         true,
+			expectedErrorPrefix: "invalid endpoint format",
+		},
+		{
+			name:                "invalid TLS value",
+			endpointStr:         "127.0.0.1:9090:tls=invalid",
+			defaultTLS:          false,
+			defaultXToken:       "",
+			expectError:         true,
+			expectedErrorPrefix: "invalid TLS value",
+		},
+		{
+			name:          "hostname with TLS and X-Token",
+			endpointStr:   "consensus.example.com:9090:tls=true:xtoken=/path/to/token",
+			defaultTLS:    false,
+			defaultXToken: "",
+			expectedEndpoint: Endpoint{
+				IP:         "consensus.example.com",
+				Port:       "9090",
+				TLSEnabled: true,
+				XTokenPath: "/path/to/token",
+			},
+			expectError: false,
+		},
+		{
+			name:          "IPv6 address basic",
+			endpointStr:   "[2001:db8::1]:9090",
+			defaultTLS:    false,
+			defaultXToken: "",
+			expectedEndpoint: Endpoint{
+				IP:         "2001:db8::1",
+				Port:       "9090",
+				TLSEnabled: false,
+				XTokenPath: "",
+			},
+			expectError: false,
+		},
+		{
+			name:          "IPv6 address with TLS",
+			endpointStr:   "[2001:db8::1]:9090:tls=true",
+			defaultTLS:    false,
+			defaultXToken: "",
+			expectedEndpoint: Endpoint{
+				IP:         "2001:db8::1",
+				Port:       "9090",
+				TLSEnabled: true,
+				XTokenPath: "",
+			},
+			expectError: false,
+		},
+		{
+			name:          "IPv6 address with TLS and X-Token",
+			endpointStr:   "[2001:db8::1]:9090:tls=true:xtoken=/path/to/token",
+			defaultTLS:    false,
+			defaultXToken: "",
+			expectedEndpoint: Endpoint{
+				IP:         "2001:db8::1",
+				Port:       "9090",
+				TLSEnabled: true,
+				XTokenPath: "/path/to/token",
+			},
+			expectError: false,
+		},
+		{
+			name:                "IPv6 address missing closing bracket",
+			endpointStr:         "[2001:db8::1:9090",
+			defaultTLS:          false,
+			defaultXToken:       "",
+			expectError:         true,
+			expectedErrorPrefix: "invalid IPv6 address format",
+		},
+		{
+			name:                "IPv6 address missing port",
+			endpointStr:         "[2001:db8::1]",
+			defaultTLS:          false,
+			defaultXToken:       "",
+			expectError:         true,
+			expectedErrorPrefix: "invalid port format",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			endpoint, err := parseEndpointString(tt.endpointStr, tt.defaultTLS, tt.defaultXToken)
+
+			if tt.expectError {
+				require.Error(t, err)
+				if tt.expectedErrorPrefix != "" {
+					assert.Contains(t, err.Error(), tt.expectedErrorPrefix)
+				}
+			} else {
+				require.NoError(t, err)
+				assert.Equal(t, tt.expectedEndpoint, endpoint)
 			}
 		})
 	}
