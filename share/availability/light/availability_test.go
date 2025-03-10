@@ -558,6 +558,7 @@ func newExchange(ctx context.Context, t *testing.T, bstore blockstore.Blockstore
 
 	err = net.ConnectAllButSelf()
 	require.NoError(t, err)
+	time.Sleep(time.Millisecond * 10) // give time for connection routines to finish
 	return client
 }
 
