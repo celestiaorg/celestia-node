@@ -131,7 +131,7 @@ func (rndid RowNamespaceDataID) Validate() error {
 }
 
 // AppendBinary helps in appending the binary form of DataNamespace to the serialized RowID data.
-func (rndid RowNamespaceDataID) AppendBinary(data []byte) []byte {
+func (rndid RowNamespaceDataID) AppendBinary(data []byte) ([]byte, error) {
 	data = rndid.RowID.AppendBinary(data)
 	return append(data, rndid.DataNamespace.Bytes()...)
 }
