@@ -119,7 +119,7 @@ func (rid RowID) Validate() error {
 
 // AppendBinary assists in binary encoding of RowID by appending the encoded fields to the given byte
 // slice.
-func (rid RowID) AppendBinary(data []byte) []byte {
+func (rid RowID) AppendBinary(data []byte) ([]byte, error) {
 	data = rid.EdsID.AppendBinary(data)
 	return binary.BigEndian.AppendUint16(data, uint16(rid.RowIndex))
 }
