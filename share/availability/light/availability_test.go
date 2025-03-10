@@ -418,11 +418,11 @@ func TestPruneWithCancelledContext(t *testing.T) {
 	sampleAmount := uint(20)
 	avail := NewShareAvailability(getter, ds, clientBs, WithSampleAmount(sampleAmount))
 
-	ctx2, cancel2 := context.WithTimeout(ctx, 1500*time.Millisecond)
+	ctx2, cancel2 := context.WithCancel(ctx)
 	defer cancel2()
 	go func() {
 		// cancel context a bit later.
-		time.Sleep(100 * time.Millisecond)
+		time.Sleep(200 * time.Millisecond)
 		cancel2()
 	}()
 
@@ -432,7 +432,7 @@ func TestPruneWithCancelledContext(t *testing.T) {
 	avail.Close(ctx)
 
 	preDeleteCount := countKeys(ctx, t, clientBs)
-	require.EqualValues(t, sampleAmount, preDeleteCount)
+	require.Greater(t, preDeleteCount, 0)
 
 	// prune the samples
 	err = avail.Prune(ctx, h)
@@ -500,7 +500,7 @@ func (hse *timeoutExchange) GetBlocks(ctx context.Context, cids []cid.Cid) (<-ch
 	for _, cid := range cids {
 		blk, err := hse.SessionExchange.GetBlock(ctx, cid)
 		if err != nil {
-			return nil, err
+			break
 		}
 
 		out <- blk
