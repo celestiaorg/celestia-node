@@ -147,7 +147,7 @@ func (sid SampleID) Validate() error {
 
 // AppendBinary helps in constructing the binary representation by appending the encoded ShareIndex to
 // the serialized RowID.
-func (sid SampleID) AppendBinary(data []byte) []byte {
+func (sid SampleID) AppendBinary(data []byte) ([]byte, error) {
 	data = sid.RowID.AppendBinary(data)
 	return binary.BigEndian.AppendUint16(data, uint16(sid.ShareIndex))
 }
