@@ -4,13 +4,12 @@ import (
 	"context"
 	"time"
 
-	"github.com/libp2p/go-libp2p/core/host"
 	"github.com/libp2p/go-libp2p/core/network"
 )
 
 const reachabilityCheckTick = 10 * time.Second
 
-func reachabilityCheck(ctx context.Context, host host.Host) {
+func reachabilityCheck(ctx context.Context, host HostBase) {
 	getter, ok := host.(autoNatGetter)
 	if !ok {
 		panic("host does not implement autoNatGetter")
