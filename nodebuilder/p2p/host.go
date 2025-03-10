@@ -67,8 +67,8 @@ func (ua *UserAgent) String() string {
 	)
 }
 
-// host returns constructor for Host.
-func host(params hostParams) (HostBase, error) {
+// newHost returns constructor for Host.
+func newHost(params hostParams) (HostBase, error) {
 	ua := newUserAgent().WithNetwork(params.Net).WithNodeType(params.Tp)
 
 	tlsCfg, isEnabled, err := tlsEnabled()
