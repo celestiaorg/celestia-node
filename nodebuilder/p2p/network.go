@@ -12,6 +12,8 @@ import (
 const (
 	// DefaultNetwork is the default network of the current build.
 	DefaultNetwork = Mainnet
+	// Mammoth ephemeral testnet.
+	Mammoth Network = "mamo-1"
 	// Arabica testnet. See: celestiaorg/networks.
 	Arabica Network = "arabica-11"
 	// Mocha testnet. See: celestiaorg/networks.
@@ -57,6 +59,7 @@ var networksList = map[Network]struct{}{
 	Arabica: {},
 	Mocha:   {},
 	Private: {},
+	Mammoth: {},
 }
 
 // networkAliases is a strict list of all known long-standing networks
@@ -67,6 +70,7 @@ var networkAliases = map[string]Network{
 	"arabica": Arabica,
 	"mocha":   Mocha,
 	"private": Private,
+	"mammoth": Mammoth,
 }
 
 // GetNetwork returns the Network for the given string representation.
@@ -75,7 +79,7 @@ func GetNetwork(networkStr string) Network {
 }
 
 // orderedNetworks is a list of all known networks in order of priority.
-var orderedNetworks = []Network{Mainnet, Mocha, Arabica, Private}
+var orderedNetworks = []Network{Mainnet, Mocha, Arabica, Mammoth, Private}
 
 // GetNetworks provides a list of all known networks in order of priority.
 func GetNetworks() []Network {
