@@ -90,6 +90,6 @@ func (eid EdsID) Validate() error {
 
 // AppendBinary helps in the binary encoding of EdsID by appending the binary form of Height to the
 // given byte slice.
-func (eid EdsID) AppendBinary(data []byte) []byte {
-	return binary.BigEndian.AppendUint64(data, eid.Height)
+func (eid EdsID) AppendBinary(data []byte) ([]byte, error) {
+ return binary.BigEndian.AppendUint64(data, eid.Height), nil
 }
