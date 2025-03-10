@@ -18,12 +18,12 @@ func reachabilityCheck(ctx context.Context, host host.Host) {
 	autoNAT := getter.GetAutoNat()
 
 	go func() {
-		timer := time.NewTimer(reachabilityCheckTick)
-		defer timer.Stop()
+		ticker := time.NewTicker(reachabilityCheckTick)
+		defer ticker.Stop()
 
 		for {
 			select {
-			case <-timer.C:
+			case <-ticker.C:
 				reachability := autoNAT.Status()
 				if reachability == network.ReachabilityPublic {
 					return
