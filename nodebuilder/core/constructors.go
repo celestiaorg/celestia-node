@@ -107,7 +107,7 @@ func authInterceptor(xtoken string) grpc.UnaryClientInterceptor {
 		invoker grpc.UnaryInvoker,
 		opts ...grpc.CallOption,
 	) error {
-		ctx = metadata.AppendToOutgoingContext(ctx, "x-token", xtoken)
+		ctx = metadata.AppendBinaryOutgoingContext(ctx, "x-token", xtoken)
 		return invoker(ctx, method, req, reply, cc, opts...)
 	}
 }
@@ -121,7 +121,7 @@ func authStreamInterceptor(xtoken string) grpc.StreamClientInterceptor {
 		streamer grpc.Streamer,
 		opts ...grpc.CallOption,
 	) (grpc.ClientStream, error) {
-		ctx = metadata.AppendToOutgoingContext(ctx, "x-token", xtoken)
+		ctx = metadata.AppendBinaryOutgoingContext(ctx, "x-token", xtoken)
 		return streamer(ctx, desc, cc, method, opts...)
 	}
 }
