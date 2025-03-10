@@ -7,7 +7,7 @@ import (
 )
 
 const (
-	RequestWindow = 30 * 24 * time.Hour
+	RequestWindow = 24 * time.Hour
 	StorageWindow = RequestWindow + time.Hour
 )
 
