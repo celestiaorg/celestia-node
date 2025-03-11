@@ -14,7 +14,6 @@ import (
 	libshare "github.com/celestiaorg/go-square/v2/share"
 
 	"github.com/celestiaorg/celestia-node/nodebuilder/core"
-	"github.com/celestiaorg/celestia-node/nodebuilder/gateway"
 	"github.com/celestiaorg/celestia-node/nodebuilder/header"
 	"github.com/celestiaorg/celestia-node/nodebuilder/node"
 	"github.com/celestiaorg/celestia-node/nodebuilder/p2p"
@@ -114,7 +113,6 @@ func PersistentPreRunEnv(cmd *cobra.Command, nodeType node.Type, _ []string) err
 
 	state.ParseFlags(cmd, &cfg.State)
 	rpc_cfg.ParseFlags(cmd, &cfg.RPC)
-	gateway.ParseFlags(cmd, &cfg.Gateway)
 
 	pruner.ParseFlags(cmd, &cfg.Pruner, nodeType)
 	switch nodeType {
