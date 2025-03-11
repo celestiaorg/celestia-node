@@ -112,7 +112,11 @@ func (sid *SampleID) ReadFrom(r io.Reader) (int64, error) {
 // * No support for uint16
 func (sid SampleID) MarshalBinary() ([]byte, error) {
 	data := make([]byte, 0, SampleIDSize)
-	return sid.AppendBinary(data), nil
+	data, err := sid.AppendBinary(data)
+	if err != nil {
+		return nil, err
+	}
+	return data, nil
 }
 
 // WriteTo writes the binary form of SampleID to the provided writer.
