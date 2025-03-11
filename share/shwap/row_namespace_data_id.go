@@ -96,7 +96,7 @@ func (rndid *RowNamespaceDataID) ReadFrom(r io.Reader) (int64, error) {
 // * No support for uint16
 func (rndid RowNamespaceDataID) MarshalBinary() ([]byte, error) {
 	data := make([]byte, 0, RowNamespaceDataIDSize)
-	return rndid.AppendBinary(data), nil
+	return rndid.AppendBinary(data)
 }
 
 // WriteTo writes the binary form of RowNamespaceDataID to the provided writer.
@@ -132,6 +132,9 @@ func (rndid RowNamespaceDataID) Validate() error {
 
 // AppendBinary helps in appending the binary form of DataNamespace to the serialized RowID data.
 func (rndid RowNamespaceDataID) AppendBinary(data []byte) ([]byte, error) {
-	data = rndid.RowID.AppendBinary(data)
-	return append(data, rndid.DataNamespace.Bytes()...)
+	data, err := rndid.RowID.AppendBinary(data)
+	if err != nil {
+		return nil, err
+	}
+	return append(data, rndid.DataNamespace.Bytes()...), nil
 }
