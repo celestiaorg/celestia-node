@@ -5,7 +5,7 @@ import (
 	"testing"
 
 	"github.com/ipfs/boxo/bitswap"
-	"github.com/ipfs/boxo/bitswap/network"
+	"github.com/ipfs/boxo/bitswap/network/bsnet"
 	"github.com/ipfs/boxo/blockservice"
 	"github.com/ipfs/boxo/blockstore"
 	"github.com/ipfs/boxo/routing/offline"
@@ -84,9 +84,9 @@ func (dn *TestDagNet) NewTestNodeWithBlockstore(dstore ds.Datastore, bstore bloc
 	routing := offline.NewOfflineRouter(dstore, record.NamespacedValidator{})
 	bs := bitswap.New(
 		dn.ctx,
-		network.NewFromIpfsHost(hst, routing),
+		bsnet.NewFromIpfsHost(hst),
+		routing,
 		bstore,
-		bitswap.ProvideEnabled(false),          // disable routines for DHT content provides, as we don't use them
 		bitswap.EngineBlockstoreWorkerCount(1), // otherwise it spawns 128 routines which is too much for tests
 		bitswap.EngineTaskWorkerCount(2),
 		bitswap.TaskWorkerCount(2),
