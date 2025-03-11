@@ -36,9 +36,9 @@ func (c *closeOnce) Close() error {
 	return err
 }
 
-func (c *closeOnce) Size(ctx context.Context) int {
+func (c *closeOnce) Size(ctx context.Context) (int, error) {
 	if c.closed.Load() {
-		return 0
+		return 0, errAccessorClosed
 	}
 	return c.f.Size(ctx)
 }
