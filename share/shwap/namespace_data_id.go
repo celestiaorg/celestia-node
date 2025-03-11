@@ -92,7 +92,11 @@ func (ndid *NamespaceDataID) ReadFrom(r io.Reader) (int64, error) {
 // * No support for uint16
 func (ndid NamespaceDataID) MarshalBinary() ([]byte, error) {
 	data := make([]byte, 0, NamespaceDataIDSize)
-	return ndid.AppendBinary(data), nil
+	data, err := ndid.AppendBinary(data)
+	if err != nil {
+		return nil, err
+	}
+	return data, nil
 }
 
 // WriteTo writes the binary form of NamespaceDataID to the provided writer.
@@ -120,6 +124,9 @@ func (ndid NamespaceDataID) Validate() error {
 
 // AppendBinary helps in appending the binary form of DataNamespace to the serialized RowID data.
 func (ndid NamespaceDataID) AppendBinary(data []byte) ([]byte, error) {
-	data = ndid.EdsID.AppendBinary(data)
-	return append(data, ndid.DataNamespace.Bytes()...)
+	data, err := ndid.EdsID.AppendBinary(data)
+	if err != nil {
+		return nil, err
+	}
+	return append(data, ndid.DataNamespace.Bytes()...), nil	
 }
