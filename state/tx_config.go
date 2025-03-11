@@ -213,9 +213,8 @@ func WithMaxGasPrice(gasPrice float64) ConfigOption {
 // WithTxPriority is an option that allows you to specify a priority of the tx.
 func WithTxPriority(priority int) ConfigOption {
 	return func(cfg *TxConfig) {
-		if priority < 0 || priority > 3 {
-			return
+		if priority >= TxPriorityLow && priority <= TxPriorityHigh {
+			cfg.priority = TxPriority(priority)
 		}
-		cfg.priority = TxPriority(priority)
 	}
 }
