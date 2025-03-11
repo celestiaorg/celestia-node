@@ -82,15 +82,12 @@ func (rid *RowID) ReadFrom(r io.Reader) (int64, error) {
 // MarshalBinary encodes the RowID into a binary form for storage or network transmission.
 func (rid RowID) MarshalBinary() ([]byte, error) {
 	data := make([]byte, 0, RowIDSize)
-<<<<<<< HEAD
 	data, err := rid.AppendBinary(data)
 	if err != nil {
 		return nil, err
 	}
 	return data, nil
-=======
 	return rid.AppendBinary(data)
->>>>>>> 6410bf54568fdde49c86d9d33335c53c8e77817b
 }
 
 // WriteTo writes the binary form of RowID to the provided writer.
