@@ -128,9 +128,6 @@ func (ndid NamespaceDataID) AppendBinary(data []byte) ([]byte, error) {
 	if err != nil {
 		return nil, err
 	}
-<<<<<<< HEAD
 	return append(data, ndid.DataNamespace.Bytes()...), nil
-=======
 	return append(data, ndid.DataNamespace.Bytes()...), nil	
->>>>>>> 6410bf54568fdde49c86d9d33335c53c8e77817b
 }
