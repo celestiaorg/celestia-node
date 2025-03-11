@@ -66,7 +66,7 @@ func (eid *EdsID) ReadFrom(r io.Reader) (int64, error) {
 // transmission.
 func (eid EdsID) MarshalBinary() ([]byte, error) {
 	data := make([]byte, 0, EdsIDSize)
-	return eid.AppendBinary(data), nil
+	return eid.AppendBinary(data)
 }
 
 // WriteTo writes the binary form of EdsID to the provided writer.
