@@ -286,7 +286,12 @@ func (m *Manager) doneFunc(datahash share.DataHash, peerID peer.ID, source peerS
 				m.nodes.putOnCooldown(peerID)
 				return
 			}
-			m.getPool(datahash.String()).putOnCooldown(peerID)
+			p := m.getPool(datahash.String())
+			if p == nil {
+				// pool was removed
+				return
+			}
+			p.putOnCooldown(peerID)
 		case ResultBlacklistPeer:
 			m.blacklistPeers(reasonMisbehave, peerID)
 		}
