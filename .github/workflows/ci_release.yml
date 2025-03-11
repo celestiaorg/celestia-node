@@ -135,6 +135,8 @@ jobs:
       contents: write
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
