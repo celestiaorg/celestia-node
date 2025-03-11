@@ -96,15 +96,12 @@ func (rndid *RowNamespaceDataID) ReadFrom(r io.Reader) (int64, error) {
 // * No support for uint16
 func (rndid RowNamespaceDataID) MarshalBinary() ([]byte, error) {
 	data := make([]byte, 0, RowNamespaceDataIDSize)
-<<<<<<< HEAD
 	data, err := rndid.AppendBinary(data)
 	if err != nil {
 		return nil, err
 	}
 	return data, nil
-=======
 	return rndid.AppendBinary(data)
->>>>>>> 6410bf54568fdde49c86d9d33335c53c8e77817b
 }
 
 // WriteTo writes the binary form of RowNamespaceDataID to the provided writer.
