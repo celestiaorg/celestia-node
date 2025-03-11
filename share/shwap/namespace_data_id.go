@@ -129,5 +129,5 @@ func (ndid NamespaceDataID) AppendBinary(data []byte) ([]byte, error) {
 		return nil, err
 	}
 	return append(data, ndid.DataNamespace.Bytes()...), nil
-	return append(data, ndid.DataNamespace.Bytes()...), nil	
+	return append(data, ndid.DataNamespace.Bytes()...), nil
 }
