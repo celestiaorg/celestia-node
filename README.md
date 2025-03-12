@@ -24,6 +24,7 @@ Continue reading [here](https://blog.celestia.org/celestia-mvp-release-data-avai
   - [API docs](#api-docs)
   - [Node types](#node-types)
   - [Run a node](#run-a-node)
+    - [Quick Start with Light Node on arabica](#quick-start-with-light-node-on-arabica)
   - [Environment variables](#environment-variables)
   - [Package-specific documentation](#package-specific-documentation)
   - [Code of Conduct](#code-of-conduct)
@@ -31,16 +32,12 @@ Continue reading [here](https://blog.celestia.org/celestia-mvp-release-data-avai
 ## Minimum requirements
 
 | Requirement | Notes          |
-| ----------- |----------------|
+| ----------- | -------------- |
 | Go version  | 1.23 or higher |
 
 ## System Requirements
 
-See the official docs page for system requirements per node type:
-
-- [Bridge](https://docs.celestia.org/nodes/bridge-node#hardware-requirements)
-- [Light](https://docs.celestia.org/nodes/light-node#hardware-requirements)
-- [Full](https://docs.celestia.org/nodes/full-storage-node#hardware-requirements)
+See the [official docs page](https://docs.celestia.org/how-to-guides/nodes-overview#data-availability-nodes) for system requirements for each node type.
 
 ## Installation
 
@@ -77,7 +74,41 @@ celestia <node_type> init
 celestia <node_type> start
 ```
 
-Please refer to [this guide](https://docs.celestia.org/nodes/celestia-node/) for more information on running a node.
+Please refer to [this guide](https://docs.celestia.org/how-to-guides/celestia-node/) for more information on running a node.
+
+### Quick Start with Light Node on arabica
+
+View available commands and their usage:
+
+```sh
+make node-help
+```
+
+Install celestia node and cel-key binaries:
+
+```sh
+make node-install
+```
+
+Start a light node with automated setup:
+
+```sh
+make light-arabica-up
+```
+
+This command:
+
+- Automatically checks wallet balance
+- Requests funds from faucet if needed
+- Sets node height to latest-1 for quick startup
+- Initializes the node if running for the first time
+
+Options:
+
+```sh
+make light-arabica-up COMMAND=again    # Reset node state to latest height
+make light-arabica-up CORE_IP=<ip>     # Use custom core IP
+```
 
 ## Environment variables
 

@@ -99,12 +99,7 @@ func (eds *Rsmt2D) AxisHalf(_ context.Context, axisType rsmt2d.Axis, axisIdx int
 // HalfRow constructs a new shwap.Row from an Extended Data Square based on the specified index and
 // side.
 func (eds *Rsmt2D) HalfRow(idx int, side shwap.RowSide) (shwap.Row, error) {
-	shares := eds.ExtendedDataSquare.Row(uint(idx))
-	sh, err := libshare.FromBytes(shares)
-	if err != nil {
-		return shwap.Row{}, fmt.Errorf("while converting shares from bytes: %w", err)
-	}
-	return shwap.RowFromShares(sh, side), nil
+	return shwap.RowFromEDS(eds.ExtendedDataSquare, idx, side)
 }
 
 // RowNamespaceData returns data for the given namespace and row index.

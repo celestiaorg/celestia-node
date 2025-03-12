@@ -12,7 +12,7 @@
 ## Context
 
 Celestia Node has been built for almost half a year with a bottom-up approach to
-development. The core lower level components are built first and public API
+development. The core lower-level components are built first and public API
 around them is getting organically shaped. Now that the project is maturing and
 its architecture is better defined, it's a good time to formally define a set of
 modules provided by the node and their respective APIs.
@@ -32,7 +32,7 @@ matching resource constraints of a type.
 ### Goals
 
 - Ergonomic. Simple, idiomatic and self-explanatory.
-- Module centric(modular). The API is not monolithic and is segregated into
+- Module-centric(modular). The API is not monolithic and is segregated into
 different categorized and independent modules.
 - Unified. All the node types implement the same set of APIs. The difference is
 defined by different implementations of some modules to meet resource
@@ -40,7 +40,7 @@ requirements of a type. Example: FullAvailability and LightAvailability.
 - Embeddable. Simply constructable Node with library style API. Not an
 SDK/Framework which dictates users the way to build an app, but users are those
 who decide how they want to build the app using the API.
-- Language agnostic. It should be simple to implement similar module
+- Language-agnostic. It should be simple to implement similar module
 interfaces/traits in other languages over RPC clients.
 
 ### Implementation

@@ -94,6 +94,19 @@ func (s *Service) Stop(ctx context.Context) error {
 	}
 }
 
+func (s *Service) LastPruned(ctx context.Context) (uint64, error) {
+	err := s.loadCheckpoint(ctx)
+	if err != nil {
+		return 0, err
+	}
+	return s.checkpoint.LastPrunedHeight, nil
+}
+
+func (s *Service) ResetCheckpoint(ctx context.Context) error {
+	s.checkpoint = newCheckpoint()
+	return storeCheckpoint(ctx, s.ds, s.checkpoint)
+}
+
 // run prunes blocks older than the availability wiindow periodically until the
 // pruner service is stopped.
 func (s *Service) run() {

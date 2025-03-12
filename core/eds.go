@@ -24,8 +24,8 @@ import (
 // extendBlock extends the given block data, returning the resulting
 // ExtendedDataSquare (EDS). If there are no transactions in the block,
 // nil is returned in place of the eds.
-func extendBlock(data types.Data, appVersion uint64, options ...nmt.Option) (*rsmt2d.ExtendedDataSquare, error) {
-	if app.IsEmptyBlockRef(&data, appVersion) {
+func extendBlock(data *types.Data, appVersion uint64, options ...nmt.Option) (*rsmt2d.ExtendedDataSquare, error) {
+	if app.IsEmptyBlockRef(data, appVersion) {
 		return share.EmptyEDS(), nil
 	}
 
@@ -62,8 +62,9 @@ func storeEDS(
 	eds *rsmt2d.ExtendedDataSquare,
 	store *store.Store,
 	window time.Duration,
+	archival bool,
 ) error {
-	if !availability.IsWithinWindow(eh.Time(), window) {
+	if !archival && !availability.IsWithinWindow(eh.Time(), window) {
 		log.Debugw("skipping storage of historic block", "height", eh.Height())
 		return nil
 	}
