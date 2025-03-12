@@ -87,7 +87,6 @@ func (rid RowID) MarshalBinary() ([]byte, error) {
 		return nil, err
 	}
 	return data, nil
-	return rid.AppendBinary(data)
 }
 
 // WriteTo writes the binary form of RowID to the provided writer.
