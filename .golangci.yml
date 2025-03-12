@@ -72,10 +72,6 @@ linters-settings:
       - G115 # integer overflow conversion
   dogsled:
     max-blank-identifiers: 3
-  golint:
-    min-confidence: 0
-  maligned:
-    suggest-new: true
   misspell:
     locale: US
   goimports:
