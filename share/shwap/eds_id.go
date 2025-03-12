@@ -71,7 +71,6 @@ func (eid EdsID) MarshalBinary() ([]byte, error) {
 		return nil, err
 	}
 	return data, nil
-	return eid.AppendBinary(data)
 }
 
 // WriteTo writes the binary form of EdsID to the provided writer.
