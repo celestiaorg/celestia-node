@@ -101,7 +101,6 @@ func (rndid RowNamespaceDataID) MarshalBinary() ([]byte, error) {
 		return nil, err
 	}
 	return data, nil
-	return rndid.AppendBinary(data)
 }
 
 // WriteTo writes the binary form of RowNamespaceDataID to the provided writer.
