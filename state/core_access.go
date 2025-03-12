@@ -142,6 +142,7 @@ func (ca *CoreAccessor) Start(ctx context.Context) error {
 	err = ca.estimator.Start(ctx)
 	if err != nil {
 		log.Warn("state: failed to connect to estimator endpoint", "err", err)
+		return err
 	}
 	return nil
 }

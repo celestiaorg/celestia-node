@@ -55,6 +55,9 @@ func (e *estimator) Stop(context.Context) error {
 	return nil
 }
 
+// estimate the gas price and limit.
+// if gas price is not default and gas limit is set then
+// this 2 values going to be returned (skipping all other checks).
 func (e *estimator) estimate(
 	ctx context.Context,
 	cfg *TxConfig,
