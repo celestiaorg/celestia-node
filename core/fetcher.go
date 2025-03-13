@@ -189,7 +189,7 @@ func (f *BlockFetcher) receive(
 		}
 
 		// TODO(@vgonkivs): make timeout configurable
-		withTimeout, ctxCancel := context.WithTimeout(ctx, 10*time.Second)
+		withTimeout, ctxCancel := context.WithTimeout(ctx, 60*time.Second)
 		signedBlock, err := f.GetSignedBlock(withTimeout, resp.Height)
 		ctxCancel()
 		if err != nil {
