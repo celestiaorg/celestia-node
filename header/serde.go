@@ -64,7 +64,9 @@ func UnmarshalExtendedHeader(data []byte) (*ExtendedHeader, error) {
 	return out, nil
 }
 
-// unmarhsalCommit // TODO @renaynay
+// unmarhsalCommit exists to assist the MsgID function in generating a unique
+// message ID without the additional allocations that the full
+// UnmarshalExtendedHeader would cause.
 func unmarshalCommit(data []byte) (*core.Commit, error) {
 	in := &header_pb.ExtendedHeader{}
 	err := in.Unmarshal(data)
@@ -78,8 +80,7 @@ func unmarshalCommit(data []byte) (*core.Commit, error) {
 // MsgID computes an id for a pubsub message
 // TODO(@Wondertan): This cause additional allocations per each recvd message in the topic
 // TODO(@renaynay): We will still allocate now but we're minimizing surface only to Commit of the
-//
-//	ExtendedHeader rather than the whole thing.
+//  ExtendedHeader rather than the whole thing.
 func MsgID(pmsg *pb.Message) string {
 	mID := func(data []byte) string {
 		hash := blake2b.Sum256(data)
