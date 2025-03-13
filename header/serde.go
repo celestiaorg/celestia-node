@@ -79,8 +79,7 @@ func unmarshalCommit(data []byte) (*core.Commit, error) {
 
 // MsgID computes an id for a pubsub message
 // TODO(@Wondertan): This cause additional allocations per each recvd message in the topic
-// TODO(@renaynay): We will still allocate now but we're minimizing surface only to Commit of the
-//  ExtendedHeader rather than the whole thing.
+// TODO(@renaynay): We will still allocate now but we're minimizing surface only to Commit
 func MsgID(pmsg *pb.Message) string {
 	mID := func(data []byte) string {
 		hash := blake2b.Sum256(data)
