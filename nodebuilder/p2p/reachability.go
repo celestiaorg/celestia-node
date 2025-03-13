@@ -23,6 +23,11 @@ func reachabilityCheck(ctx context.Context, host HostBase) {
 		for {
 			select {
 			case <-ticker.C:
+				if autoNAT == nil {
+					log.Error("autoNAT is nil on host")
+					continue
+				}
+
 				reachability := autoNAT.Status()
 				if reachability == network.ReachabilityPublic {
 					return
