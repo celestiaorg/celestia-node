@@ -66,7 +66,11 @@ func (eid *EdsID) ReadFrom(r io.Reader) (int64, error) {
 // transmission.
 func (eid EdsID) MarshalBinary() ([]byte, error) {
 	data := make([]byte, 0, EdsIDSize)
-	return eid.appendTo(data), nil
+	data, err := eid.AppendBinary(data)
+	if err != nil {
+		return nil, err
+	}
+	return data, nil
 }
 
 // WriteTo writes the binary form of EdsID to the provided writer.
@@ -88,8 +92,8 @@ func (eid EdsID) Validate() error {
 	return nil
 }
 
-// appendTo helps in the binary encoding of EdsID by appending the binary form of Height to the
+// AppendBinary helps in the binary encoding of EdsID by appending the binary form of Height to the
 // given byte slice.
-func (eid EdsID) appendTo(data []byte) []byte {
-	return binary.BigEndian.AppendUint64(data, eid.Height)
+func (eid EdsID) AppendBinary(data []byte) ([]byte, error) {
+	return binary.BigEndian.AppendUint64(data, eid.Height), nil
 }
