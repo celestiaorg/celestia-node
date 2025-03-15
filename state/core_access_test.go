@@ -125,9 +125,16 @@ func TestTransfer(t *testing.T) {
 			expErr:   nil,
 		},
 		{
-			name:     "transfer with options",
+			name:     "transfer with gasPrice set",
 			gasPrice: 0.005,
 			gasLim:   0,
+			account:  accounts[2],
+			expErr:   nil,
+		},
+		{
+			name:     "transfer with gas set",
+			gasPrice: DefaultGasPrice,
+			gasLim:   84617,
 			account:  accounts[2],
 			expErr:   nil,
 		},
@@ -213,6 +220,12 @@ func TestDelegate(t *testing.T) {
 			require.NoError(t, err)
 			require.EqualValues(t, 0, resp.Code)
 
+			opts = NewTxConfig(
+				WithGas(tc.gasLim),
+				WithGasPrice(tc.gasPrice),
+				WithKeyName(accounts[2]),
+			)
+
 			resp, err = ca.Undelegate(ctx, ValAddress(valAddr), sdktypes.NewInt(100_000), opts)
 			require.NoError(t, err)
 			require.EqualValues(t, 0, resp.Code)
@@ -265,7 +278,7 @@ func buildAccessor(t *testing.T) (*CoreAccessor, []string) {
 
 	conn, err := grpc.NewClient(grpcAddr, grpc.WithTransportCredentials(insecure.NewCredentials()))
 	require.NoError(t, err)
-	ca, err := NewCoreAccessor(cctx.Keyring, accounts[0].Name, nil, conn, chainID)
+	ca, err := NewCoreAccessor(cctx.Keyring, accounts[0].Name, nil, conn, chainID, "")
 	require.NoError(t, err)
 	return ca, getNames(accounts)
 }

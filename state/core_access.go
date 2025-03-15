@@ -36,8 +36,7 @@ const (
 
 var (
 	ErrInvalidAmount = errors.New("state: amount must be greater than zero")
-
-	log = logging.Logger("state")
+	log              = logging.Logger("state")
 )
 
 // CoreAccessor implements service over a gRPC connection
@@ -63,6 +62,7 @@ type CoreAccessor struct {
 	coreConn *grpc.ClientConn
 	network  string
 
+	estimator *estimator
 	// these fields are mutatable and thus need to be protected by a mutex
 	lock            sync.Mutex
 	lastPayForBlob  int64
@@ -83,6 +83,7 @@ func NewCoreAccessor(
 	getter libhead.Head[*header.ExtendedHeader],
 	conn *grpc.ClientConn,
 	network string,
+	estimatorAddress string,
 ) (*CoreAccessor, error) {
 	// create verifier
 	prt := merkle.DefaultProofRuntime()
@@ -106,6 +107,7 @@ func NewCoreAccessor(
 		prt:                  prt,
 		coreConn:             conn,
 		network:              network,
+		estimator:            &estimator{estimatorAddress: estimatorAddress, defaultClientConn: conn},
 	}
 	return ca, nil
 }
@@ -136,12 +138,18 @@ func (ca *CoreAccessor) Start(ctx context.Context) error {
 	if err != nil {
 		return fmt.Errorf("querying minimum gas price: %w", err)
 	}
+
+	err = ca.estimator.Start(ctx)
+	if err != nil {
+		log.Warn("state: failed to connect to estimator endpoint", "err", err)
+		return fmt.Errorf("state: failed to connect to estimator endpoint: %w", err)
+	}
 	return nil
 }
 
-func (ca *CoreAccessor) Stop(context.Context) error {
+func (ca *CoreAccessor) Stop(ctx context.Context) error {
 	ca.cancel()
-	return nil
+	return ca.estimator.Stop(ctx)
 }
 
 // SubmitPayForBlob builds, signs, and synchronously submits a MsgPayForBlob with additional
@@ -176,7 +184,7 @@ func (ca *CoreAccessor) SubmitPayForBlob(
 		for i, blob := range libBlobs {
 			blobSizes[i] = uint32(len(blob.Data()))
 		}
-		gas = estimateGasForBlobs(blobSizes)
+		gas = ca.estimator.estimateGasForBlobs(blobSizes)
 	}
 
 	gasPrice := cfg.GasPrice()
@@ -574,22 +582,6 @@ func (ca *CoreAccessor) submitMsg(
 	}
 
 	txConfig := make([]user.TxOption, 0)
-	gas := cfg.GasLimit()
-
-	if gas == 0 {
-		gas, err = estimateGas(ctx, client, msg)
-		if err != nil {
-			return nil, fmt.Errorf("estimating gas: %w", err)
-		}
-	}
-
-	gasPrice := cfg.GasPrice()
-	if gasPrice == DefaultGasPrice {
-		gasPrice = ca.minGasPrice
-	}
-
-	txConfig = append(txConfig, user.SetGasLimitAndGasPrice(gas, gasPrice))
-
 	if cfg.FeeGranterAddress() != "" {
 		granter, err := parseAccAddressFromString(cfg.FeeGranterAddress())
 		if err != nil {
@@ -598,7 +590,20 @@ func (ca *CoreAccessor) submitMsg(
 		txConfig = append(txConfig, user.SetFeeGranter(granter))
 	}
 
+	gasPrice, gas, err := ca.estimator.estimate(ctx, cfg, client, msg)
+	if err != nil {
+		return nil, err
+	}
+
+	if gasPrice < ca.getMinGasPrice() {
+		gasPrice = ca.getMinGasPrice()
+	}
+	txConfig = append(txConfig, user.SetGasLimitAndGasPrice(gas, gasPrice))
+
 	resp, err := client.SubmitTx(ctx, []sdktypes.Msg{msg}, txConfig...)
+	if err != nil {
+		return nil, err
+	}
 	return convertToSdkTxResponse(resp), err
 }
 

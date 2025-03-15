@@ -182,6 +182,8 @@ func init() {
 		state.WithKeyName("my_celes_key"),
 		state.WithSignerAddress("celestia1pjcmwj8w6hyr2c4wehakc5g8cfs36aysgucx66"),
 		state.WithFeeGranterAddress("celestia1hakc56ax66ypjcmwj8w6hyr2c4g8cfs3wesguc"),
+		state.WithMaxGasPrice(state.DefaultMaxGasPrice),
+		state.WithTxPriority(1),
 	))
 
 	add(network.DirUnknown)
