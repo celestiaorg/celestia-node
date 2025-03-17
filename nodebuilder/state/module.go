@@ -29,7 +29,7 @@ func ConstructModule(tp node.Type, cfg *Config, coreCfg *core.Config) fx.Option 
 		fx.Provide(func(ks keystore.Keystore) (keyring.Keyring, AccountName, error) {
 			return Keyring(*cfg, ks)
 		}),
-		fxutil.ProvideIf(coreCfg.IsEndpointConfigured(), fx.Annotate(
+		fxutil.ProvideIf(hasEndpoints(coreCfg), fx.Annotate(
 			coreAccessor,
 			fx.OnStart(func(ctx context.Context,
 				breaker *modfraud.ServiceBreaker[*state.CoreAccessor, *header.ExtendedHeader],
@@ -42,7 +42,7 @@ func ConstructModule(tp node.Type, cfg *Config, coreCfg *core.Config) fx.Option 
 				return breaker.Stop(ctx)
 			}),
 		)),
-		fxutil.ProvideIf(!coreCfg.IsEndpointConfigured(), func() (*state.CoreAccessor, Module) {
+		fxutil.ProvideIf(!hasEndpoints(coreCfg), func() (*state.CoreAccessor, Module) {
 			return nil, &stubbedStateModule{}
 		}),
 	)
@@ -56,4 +56,9 @@ func ConstructModule(tp node.Type, cfg *Config, coreCfg *core.Config) fx.Option 
 	default:
 		panic("invalid node type")
 	}
+}
+
+// hasEndpoints checks if the config has any endpoints configured (either legacy or new)
+func hasEndpoints(coreCfg *core.Config) bool {
+	return coreCfg.IsLegacyEndpointConfigured() || len(coreCfg.Endpoints) > 0
 }
