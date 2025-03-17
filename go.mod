@@ -7,7 +7,7 @@ require (
 	github.com/BurntSushi/toml v1.4.1-0.20240526193622-a339e1f7089c
 	github.com/alecthomas/jsonschema v0.0.0-20220216202328-9eeeec9d044b
 	github.com/benbjohnson/clock v1.3.5
-	github.com/celestiaorg/celestia-app/v3 v3.4.1-mocha
+	github.com/celestiaorg/celestia-app/v3 v3.4.2
 	github.com/celestiaorg/go-fraud v0.2.1
 	github.com/celestiaorg/go-header v0.6.4
 	github.com/celestiaorg/go-libp2p-messenger v0.2.0
@@ -40,7 +40,7 @@ require (
 	github.com/ipfs/go-log/v2 v2.5.1
 	github.com/ipfs/go-metrics-interface v0.3.0
 	github.com/ipfs/go-metrics-prometheus v0.1.0
-	github.com/klauspost/reedsolomon v1.12.1
+	github.com/klauspost/reedsolomon v1.12.4
 	github.com/libp2p/go-libp2p v0.41.0
 	github.com/libp2p/go-libp2p-kad-dht v0.30.2
 	github.com/libp2p/go-libp2p-pubsub v0.13.0
@@ -52,7 +52,7 @@ require (
 	github.com/multiformats/go-multiaddr-dns v0.4.1
 	github.com/multiformats/go-multihash v0.2.3
 	github.com/open-rpc/meta-schema v0.0.0-20201029221707-1b72ef2ea333
-	github.com/prometheus/client_golang v1.21.0
+	github.com/prometheus/client_golang v1.21.1
 	github.com/rollkit/go-da v0.8.0
 	github.com/spf13/cobra v1.9.1
 	github.com/spf13/pflag v1.0.6
