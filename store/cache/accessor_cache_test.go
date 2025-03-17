@@ -304,8 +304,8 @@ type mockAccessor struct {
 	size     int
 }
 
-func (m *mockAccessor) Size(context.Context) (int, error) {
-	return m.size, nil
+func (m *mockAccessor) Size(context.Context) int {
+	panic("implement me")
 }
 
 func (m *mockAccessor) DataHash(context.Context) (share.DataHash, error) {
