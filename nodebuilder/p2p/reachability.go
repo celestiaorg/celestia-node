@@ -14,7 +14,12 @@ func reachabilityCheck(ctx context.Context, host HostBase) {
 	if !ok {
 		panic("host does not implement autoNatGetter")
 	}
+
 	autoNAT := getter.GetAutoNat()
+	if autoNAT == nil {
+		log.Error("autoNAT is nil on host")
+		return
+	}
 
 	go func() {
 		ticker := time.NewTicker(reachabilityCheckTick)
