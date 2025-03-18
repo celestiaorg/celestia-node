@@ -21,7 +21,7 @@ func ConstructModule(tp node.Type, cfg *Config) fx.Option {
 		fx.Provide(peerStore),
 		fx.Provide(connectionManager),
 		fx.Provide(connectionGater),
-		fx.Provide(host),
+		fx.Provide(newHost),
 		fx.Provide(routedHost),
 		fx.Provide(pubSub),
 		fx.Provide(ipld.NewBlockservice),
@@ -41,6 +41,7 @@ func ConstructModule(tp node.Type, cfg *Config) fx.Option {
 			"p2p",
 			baseComponents,
 			fx.Provide(infiniteResources),
+			fx.Invoke(reachabilityCheck),
 		)
 	case node.Light:
 		return fx.Module(
