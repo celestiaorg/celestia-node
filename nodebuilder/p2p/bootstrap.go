@@ -56,6 +56,14 @@ var bootstrapList = map[Network][]string{
 		"/dnsaddr/celestia-mocha.qubelabs.io/p2p/12D3KooWQVmHy7JpfxpKZfLjvn12GjvMgKrWdsHkFbV2kKqQFBCG",
 		"/dnsaddr/celestia-mocha4-bootstrapper.binary.builders/p2p/12D3KooWK6AYaPSe2EP99NP5G2DKwWLfMi6zHMYdD65KRJwdJSVU",
 	},
+	Mammoth: {
+		"/dnsaddr/da-bridge-0.par.mammochain.com/p2p/12D3KooWNc3hDtzLvyKj8xbcE3SFMRy4uX5EojCScCuqYRrz4tzS",
+		"/dnsaddr/da-bridge-1.par.mammochain.com/p2p/12D3KooWQAm6jsEfsAZ8QSs2FRDyNyQBfDHkiC9WCSpyMG58Xc5o",
+		"/dnsaddr/da-bridge-2.ams.mammochain.com/p2p/12D3KooWMtTXAfjXCVNUTfB8n9zdL8XZBq1MteCR7Uoyo348i1xJ",
+		"/dnsaddr/da-bridge-3.ams.mammochain.com/p2p/12D3KooWSJZXE1qGE8yoZBEAEtjt8m4AS3fA7AChuJ9XsgqkDhkB",
+		"/dnsaddr/da-bridge-4.waw.mammochain.com/p2p/12D3KooWAUYfdakPjzY8LuvcXrq8mQQY8QbCXQjxi3SwhmnqtoTJ",
+		"/dnsaddr/da-bridge-5.waw.mammochain.com/p2p/12D3KooWGa4f3kycHgztSYAMRpKYMzSpwxuxNdBYUvs9NHXx9DLN",
+	},
 	Private: {},
 }
 
