@@ -238,8 +238,13 @@ func (o *ODS) Sample(ctx context.Context, idx shwap.SampleCoords) (shwap.Sample,
 	//   to calculate the sample
 	rowIdx, colIdx := idx.Row, idx.Col
 
+	size, err := o.Size(ctx)
+	if err != nil {
+		return shwap.Sample{}, fmt.Errorf("getting size: %w", err)
+	}
+
 	axisType, axisIdx, shrIdx := rsmt2d.Row, rowIdx, colIdx
-	if colIdx < o.size()/2 && rowIdx >= o.size()/2 {
+	if colIdx < size/2 && rowIdx >= size/2 {
 		axisType, axisIdx, shrIdx = rsmt2d.Col, colIdx, rowIdx
 	}
 
