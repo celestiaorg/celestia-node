@@ -111,7 +111,6 @@ func TestBlobModule(t *testing.T) {
 				assert.Equal(t, v1[0].Commitment, blobV1.Commitment)
 				assert.NotNil(t, blobV1.Signer())
 				assert.Equal(t, blobV1.Signer(), v1[0].Signer())
-
 			},
 		},
 		{
