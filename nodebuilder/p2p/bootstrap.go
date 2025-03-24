@@ -1,9 +1,12 @@
 package p2p
 
 import (
+	"context"
 	"os"
 	"strconv"
+	"sync"
 
+	"github.com/libp2p/go-libp2p/core/host"
 	"github.com/libp2p/go-libp2p/core/peer"
 	ma "github.com/multiformats/go-multiaddr"
 )
@@ -78,4 +81,38 @@ func parseAddrInfos(addrs []string) ([]peer.AddrInfo, error) {
 	}
 
 	return infos, nil
+}
+
+// connectBootstrappers ensures that the bootstrapper node
+// initiates a connection to other hardcoded bootstrap peers
+// while the connectionManager hook adds them as mutual peers to prevent
+// trimming the connection. This will aid the network's connectivity.
+func connectBootstrappers(ctx context.Context, h host.Host, network Network) error {
+	if !isBootstrapper() {
+		return nil
+	}
+
+	boots, err := BootstrappersFor(network)
+	if err != nil {
+		return err
+	}
+
+	wg := sync.WaitGroup{}
+	wg.Add(len(boots))
+	for _, b := range boots {
+		go func() {
+			defer wg.Done()
+
+			err = h.Connect(ctx, b)
+			if err != nil {
+				log.Errorw("bootstrap: failed to connect to bootstrapper", "id", b, "err", err)
+				return
+			}
+
+			log.Infow("bootstrap: succesfully connected to bootstrapper", "id", b.String())
+		}()
+	}
+	wg.Wait()
+
+	return nil
 }
