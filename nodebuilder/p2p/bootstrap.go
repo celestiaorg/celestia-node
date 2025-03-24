@@ -109,7 +109,7 @@ func connectBootstrappers(ctx context.Context, h host.Host, network Network) err
 				return
 			}
 
-			log.Infow("bootstrap: succesfully connected to bootstrapper", "id", b.String())
+			log.Infow("bootstrap: successfully connected to bootstrapper", "id", b.String())
 		}()
 	}
 	wg.Wait()
