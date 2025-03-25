@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"maps"
 	"net"
+	"slices"
 	"sync"
 	"testing"
 	"time"
@@ -154,7 +155,7 @@ func (s *Swamp) createPeer(ks keystore.Keystore) host.Host {
 	// IPv6 will be starting with 100:0
 	token := make([]byte, 12)
 	_, _ = rand.Read(token)
-	ip := append(net.IP{}, blackholeIP6...)
+	ip := slices.Clone(blackholeIP6)
 	copy(ip[net.IPv6len-len(token):], token)
 
 	// reference to GenPeer func in libp2p/p2p/net/mock/mock_net.go
