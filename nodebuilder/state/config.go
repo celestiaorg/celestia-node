@@ -2,6 +2,8 @@ package state
 
 import (
 	"github.com/cosmos/cosmos-sdk/crypto/keyring"
+
+	"github.com/celestiaorg/celestia-node/libs/utils"
 )
 
 var defaultBackendName = keyring.BackendTest
@@ -11,16 +13,27 @@ var defaultBackendName = keyring.BackendTest
 type Config struct {
 	DefaultKeyName     string
 	DefaultBackendName string
+	// EstimatorAddress specifies a third-party endpoint that will be used to
+	// calculate gas price and gas usage
+	EstimatorAddress string
 }
 
 func DefaultConfig() Config {
 	return Config{
 		DefaultKeyName:     DefaultKeyName,
 		DefaultBackendName: defaultBackendName,
+		EstimatorAddress:   "",
 	}
 }
 
 // Validate performs basic validation of the config.
 func (cfg *Config) Validate() error {
+	if cfg.EstimatorAddress == "" {
+		return nil
+	}
+
+	parsedAddr := utils.NormalizeAddress(cfg.EstimatorAddress)
+	cfg.EstimatorAddress = parsedAddr
+
 	return nil
 }
