@@ -12,7 +12,7 @@ require (
 	github.com/celestiaorg/go-header v0.6.4
 	github.com/celestiaorg/go-libp2p-messenger v0.2.0
 	github.com/celestiaorg/go-square/merkle v0.0.0-20240117232118-fd78256df076
-	github.com/celestiaorg/go-square/v2 v2.1.0
+	github.com/celestiaorg/go-square/v2 v2.2.0
 	github.com/celestiaorg/nmt v0.23.0
 	github.com/celestiaorg/rsmt2d v0.14.0
 	github.com/cosmos/cosmos-sdk v0.46.16
@@ -74,7 +74,7 @@ require (
 	golang.org/x/sync v0.11.0
 	golang.org/x/text v0.22.0
 	google.golang.org/grpc v1.68.0
-	google.golang.org/protobuf v1.36.5
+	google.golang.org/protobuf v1.36.6
 )
 
 require (
