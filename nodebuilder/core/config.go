@@ -13,8 +13,6 @@ const (
 
 var MetricsEnabled bool
 
-type EstimatorAddress string
-
 // Config combines all configuration fields for managing the relationship with a Core node.
 type Config struct {
 	IP   string
@@ -26,8 +24,6 @@ type Config struct {
 	// The JSON file should have a key-value pair where the key is "x-token" and the value is the authentication token.
 	// If left empty, the client will not include the X-Token in its requests.
 	XTokenPath string
-	// FeeEstimatorAddress specifies a third-party endpoint that will be used to calculate the gas price and gas.
-	FeeEstimatorAddress EstimatorAddress
 }
 
 // DefaultConfig returns default configuration for managing the
@@ -58,8 +54,6 @@ func (cfg *Config) Validate() error {
 	if err != nil {
 		return fmt.Errorf("nodebuilder/core: invalid grpc port: %s", err.Error())
 	}
-	pasedAddr := utils.NormalizeAddress(string(cfg.FeeEstimatorAddress))
-	cfg.FeeEstimatorAddress = EstimatorAddress(pasedAddr)
 	return nil
 }
 
