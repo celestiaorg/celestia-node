@@ -42,6 +42,7 @@ func ConstructModule(tp node.Type, cfg *Config) fx.Option {
 			baseComponents,
 			fx.Provide(infiniteResources),
 			fx.Invoke(reachabilityCheck),
+			fx.Invoke(connectBootstrappers),
 		)
 	case node.Light:
 		return fx.Module(
