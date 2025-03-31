@@ -3,6 +3,7 @@ package gateway
 import (
 	"fmt"
 	"net/http"
+	"slices"
 	"testing"
 
 	"github.com/gorilla/mux"
@@ -94,11 +95,9 @@ func hasEndpointRegistered(router *mux.Router, path, method string) bool {
 				return err
 			}
 
-			for _, m := range methods {
-				if m == method {
-					registered = true
-					return nil
-				}
+			if slices.Contains(methods, method) {
+				registered = true
+				return nil
 			}
 		}
 		return nil

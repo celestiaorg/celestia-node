@@ -184,10 +184,7 @@ func (s *coordinatorState) catchupJob() (next job, found bool) {
 		return job{}, false
 	}
 
-	to := s.next + s.samplingRange - 1
-	if to > s.networkHead {
-		to = s.networkHead
-	}
+	to := min(s.next+s.samplingRange-1, s.networkHead)
 	j := s.newJob(catchupJob, s.next, to)
 	s.next = to + 1
 	return j, true
