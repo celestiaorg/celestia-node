@@ -13,7 +13,7 @@ const (
 	// DefaultNetwork is the default network of the current build.
 	DefaultNetwork = Mainnet
 	// Mammoth ephemeral testnet.
-	Mammoth Network = "mamo-1"
+	Mammoth Network = "mamo-2"
 	// Arabica testnet. See: celestiaorg/networks.
 	Arabica Network = "arabica-11"
 	// Mocha testnet. See: celestiaorg/networks.
