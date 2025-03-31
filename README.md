@@ -24,7 +24,7 @@ Continue reading [here](https://blog.celestia.org/celestia-mvp-release-data-avai
   - [API docs](#api-docs)
   - [Node types](#node-types)
   - [Run a node](#run-a-node)
-    - [Quick Start with Light Node on arabica](#quick-start-with-light-node-on-arabica)
+    - [Quick Start with Light Node on mocha](#quick-start-with-light-node-on-mocha)
   - [Environment variables](#environment-variables)
   - [Package-specific documentation](#package-specific-documentation)
   - [Code of Conduct](#code-of-conduct)
@@ -76,7 +76,7 @@ celestia <node_type> start
 
 Please refer to [this guide](https://docs.celestia.org/how-to-guides/celestia-node/) for more information on running a node.
 
-### Quick Start with Light Node on arabica
+### Quick Start with Light Node on mocha
 
 View available commands and their usage:
 
@@ -93,7 +93,7 @@ make node-install
 Start a light node with automated setup:
 
 ```sh
-make light-arabica-up
+make light-mocha-up
 ```
 
 This command:
@@ -106,8 +106,8 @@ This command:
 Options:
 
 ```sh
-make light-arabica-up COMMAND=again    # Reset node state to latest height
-make light-arabica-up CORE_IP=<ip>     # Use custom core IP
+make light-mocha-up COMMAND=again    # Reset node state to latest height
+make light-mocha-up CORE_IP=<ip>     # Use custom core IP
 ```
 
 ## Environment variables
