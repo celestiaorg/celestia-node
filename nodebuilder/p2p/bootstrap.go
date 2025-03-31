@@ -103,7 +103,7 @@ func connectToBootstrappers(ctx context.Context, h host.Host, network Network) e
 		go func() {
 			defer wg.Done()
 
-			err = h.Connect(ctx, b)
+			err := h.Connect(ctx, b)
 			if err != nil {
 				log.Errorw("bootstrap: failed to connect to bootstrapper", "id", b, "err", err)
 				return
