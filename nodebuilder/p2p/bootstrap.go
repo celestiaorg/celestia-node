@@ -83,11 +83,11 @@ func parseAddrInfos(addrs []string) ([]peer.AddrInfo, error) {
 	return infos, nil
 }
 
-// connectBootstrappers ensures that the bootstrapper node
+// connectToBootstrappers ensures that the bootstrapper node
 // initiates a connection to other hardcoded bootstrap peers
 // while the connectionManager hook adds them as mutual peers to prevent
 // trimming the connection. This will aid the network's connectivity.
-func connectBootstrappers(ctx context.Context, h host.Host, network Network) error {
+func connectToBootstrappers(ctx context.Context, h host.Host, network Network) error {
 	if !isBootstrapper() {
 		return nil
 	}
