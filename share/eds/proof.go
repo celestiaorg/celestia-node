@@ -6,7 +6,7 @@ import (
 	coretypes "github.com/tendermint/tendermint/proto/tendermint/types"
 	"github.com/tendermint/tendermint/types"
 
-	pkgproof "github.com/celestiaorg/celestia-app/v3/pkg/proof"
+	pkgproof "github.com/celestiaorg/celestia-app/v4/pkg/proof"
 	libshare "github.com/celestiaorg/go-square/v2/share"
 	"github.com/celestiaorg/rsmt2d"
 )

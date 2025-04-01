@@ -5,7 +5,7 @@ import (
 	core "github.com/tendermint/tendermint/types"
 	"golang.org/x/crypto/blake2b"
 
-	"github.com/celestiaorg/celestia-app/v3/pkg/da"
+	"github.com/celestiaorg/celestia-app/v4/pkg/da"
 
 	header_pb "github.com/celestiaorg/celestia-node/header/pb"
 )

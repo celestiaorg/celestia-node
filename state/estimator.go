@@ -12,8 +12,8 @@ import (
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/credentials/insecure"
 
-	"github.com/celestiaorg/celestia-app/v3/pkg/user"
-	apptypes "github.com/celestiaorg/celestia-app/v3/x/blob/types"
+	"github.com/celestiaorg/celestia-app/v4/pkg/user"
+	apptypes "github.com/celestiaorg/celestia-app/v4/x/blob/types"
 )
 
 // gasMultiplier is used to increase gas limit in case if tx has additional options.
