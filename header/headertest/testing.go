@@ -205,7 +205,8 @@ func (s *TestSuite) Commit(h *header.RawHeader) *types.Commit {
 		PartSetHeader: types.PartSetHeader{Total: 1, Hash: tmrand.Bytes(32)},
 	}
 	round := int32(0)
-	comms := make([]types.CommitSig, len(s.vals))
+
+	sigs := make([]tmproto.CommitSig, len(s.vals))
 	for i, val := range s.vals {
 		v := &types.Vote{
 			ValidatorAddress: s.valSet.Validators[i].Address,
@@ -219,10 +220,28 @@ func (s *TestSuite) Commit(h *header.RawHeader) *types.Commit {
 		sgntr, err := val.(types.MockPV).PrivKey.Sign(types.VoteSignBytes(h.ChainID, v.ToProto()))
 		require.Nil(s.t, err)
 		v.Signature = sgntr
-		comms[i] = v.CommitSig()
+		commitSig := v.CommitSig()
+		sigs[i] = tmproto.CommitSig{
+			BlockIdFlag:      tmproto.BlockIDFlag(commitSig.BlockIDFlag),
+			ValidatorAddress: commitSig.ValidatorAddress,
+			Timestamp:        commitSig.Timestamp,
+			Signature:        commitSig.Signature,
+		}
 	}
 
-	return types.NewCommit(h.Height, round, bid, comms)
+	// Create a proto.Commit manually
+	protoCommit := &tmproto.Commit{
+		Height:     h.Height,
+		Round:      round,
+		BlockID:    bid.ToProto(),
+		Signatures: sigs,
+	}
+
+	// Convert to types.Commit
+	commit, err := types.CommitFromProto(protoCommit)
+	require.NoError(s.t, err)
+
+	return commit
 }
 
 func (s *TestSuite) nextProposer() *types.Validator {
