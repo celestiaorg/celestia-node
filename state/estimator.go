@@ -93,7 +93,7 @@ func (e *estimator) estimateGas(
 	msg sdktypes.Msg,
 ) (float64, uint64, error) {
 	signer := client.Signer()
-	rawTx, err := signer.CreateTx([]sdktypes.Msg{msg}, user.SetFee(1))
+	rawTx, _, err := signer.CreateTx([]sdktypes.Msg{msg}, user.SetFee(1))
 	if err != nil {
 		return 0, 0, fmt.Errorf("failed to create raw tx: %w", err)
 	}

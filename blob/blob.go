@@ -13,12 +13,9 @@ import (
 	"github.com/celestiaorg/nmt"
 )
 
-// appVersion is the current application version of celestia-app.
-const appVersion = appconsts.LatestVersion
-
 var errEmptyShares = errors.New("empty shares")
 
-var subtreeRootThreshold = appconsts.SubtreeRootThreshold(appVersion)
+var subtreeRootThreshold = appconsts.SubtreeRootThreshold
 
 // The Proof is a set of nmt proofs that can be verified only through
 // the included method (due to limitation of the nmt https://github.com/celestiaorg/nmt/issues/218).
