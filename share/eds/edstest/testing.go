@@ -135,8 +135,8 @@ func GenerateTestBlock(
 	txs = append(txs, coreTxs...)
 	square, err := libSquare.Construct(
 		txs.ToSliceOfBytes(),
-		appconsts.SquareSizeUpperBound(appconsts.LatestVersion),
-		appconsts.SubtreeRootThreshold(appconsts.LatestVersion),
+		appconsts.DefaultSquareSizeUpperBound,
+		appconsts.SubtreeRootThreshold,
 	)
 	require.NoError(t, err)
 
@@ -167,7 +167,7 @@ func createTestBlobTransactions(
 	config := encoding.MakeConfig(app.ModuleEncodingRegisters...)
 	keyring := testfactory.TestKeyring(config.Codec, accountName)
 	account := user.NewAccount(accountName, 0, 0)
-	signer, err := user.NewSigner(keyring, config.TxConfig, testChainID, appconsts.LatestVersion, account)
+	signer, err := user.NewSigner(keyring, config.TxConfig, testChainID, account)
 	require.NoError(t, err)
 
 	for i := 0; i < numberOfTransactions; i++ {
