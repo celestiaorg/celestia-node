@@ -104,15 +104,21 @@ func (s *TestSuite) genesis() *header.ExtendedHeader {
 }
 
 func MakeCommit(
-	blockID types.BlockID, height int64, round int32,
-	voteSet *types.VoteSet, validators []types.PrivValidator, now time.Time,
+	blockID types.BlockID,
+	height int64,
+	round int32,
+	voteSet *types.VoteSet,
+	validators []types.PrivValidator,
+	now time.Time,
 ) (*types.Commit, error) {
-	// all sign
-	for i := 0; i < len(validators); i++ {
+	commitSigs := make([]tmproto.CommitSig, len(validators))
+
+	for i := range validators {
 		pubKey, err := validators[i].GetPubKey()
 		if err != nil {
 			return nil, fmt.Errorf("can't get pubkey: %w", err)
 		}
+
 		vote := &types.Vote{
 			ValidatorAddress: pubKey.Address(),
 			ValidatorIndex:   int32(i),
@@ -125,11 +131,32 @@ func MakeCommit(
 
 		_, err = signAddVote(validators[i], vote, voteSet)
 		if err != nil {
-			return nil, err
+			return nil, fmt.Errorf("error signing vote: %w", err)
+		}
+
+		blockIDFlag := tmproto.BlockIDFlagAbsent
+		if !vote.BlockID.IsZero() {
+			blockIDFlag = tmproto.BlockIDFlagCommit
+		} else {
+			blockIDFlag = tmproto.BlockIDFlagNil
+		}
+
+		commitSigs[i] = tmproto.CommitSig{
+			BlockIdFlag:      blockIDFlag,
+			ValidatorAddress: vote.ValidatorAddress,
+			Timestamp:        vote.Timestamp,
+			Signature:        vote.Signature,
 		}
 	}
 
-	return voteSet.MakeCommit(), nil
+	protoCommit := &tmproto.Commit{
+		Height:     height,
+		Round:      round,
+		BlockID:    blockID.ToProto(),
+		Signatures: commitSigs,
+	}
+
+	return types.CommitFromProto(protoCommit)
 }
 
 func signAddVote(privVal types.PrivValidator, vote *types.Vote, voteSet *types.VoteSet) (signed bool, err error) {
