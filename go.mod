@@ -393,7 +393,6 @@ require (
 )
 
 replace (
-	github.com/cosmos/cosmos-sdk => github.com/01builders/cosmos-sdk v0.0.0-20250326090942-c30caa50cbee
 	//github.com/cosmos/cosmos-sdk => github.com/celestiaorg/cosmos-sdk v1.27.0-sdk-v0.46.16
 	github.com/filecoin-project/dagstore => github.com/celestiaorg/dagstore v0.0.0-20230824094345-537c012aa403
 	github.com/gogo/protobuf => github.com/regen-network/protobuf v1.3.3-alpha.regen.1
@@ -402,7 +401,9 @@ replace (
 )
 
 replace (
+	cosmossdk.io/x/upgrade => github.com/celestiaorg/cosmos-sdk/x/upgrade v0.0.0-20250320145042-6d8b2a52fbb2
 	github.com/cometbft/cometbft => github.com/celestiaorg/celestia-core v0.38.11-0.20250321105625-57e36546e8a3 // marko/core_changes_v3
+	github.com/cosmos/cosmos-sdk => github.com/01builders/cosmos-sdk v0.0.0-20250326090942-c30caa50cbee
 	github.com/tendermint/tendermint => github.com/celestiaorg/celestia-core v1.45.0-tm-v0.34.35
 )
 

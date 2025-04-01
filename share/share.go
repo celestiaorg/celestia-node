@@ -9,4 +9,4 @@ var DefaultRSMT2DCodec = appconsts.DefaultCodec
 
 // MaxSquareSize is currently the maximum size supported for unerasured data in
 // rsmt2d.ExtendedDataSquare.
-var MaxSquareSize = appconsts.SquareSizeUpperBound(appconsts.LatestVersion)
+var MaxSquareSize = appconsts.DefaultSquareSizeUpperBound

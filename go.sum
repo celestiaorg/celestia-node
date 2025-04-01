@@ -224,8 +224,6 @@ cosmossdk.io/x/feegrant v0.1.1 h1:EKFWOeo/pup0yF0svDisWWKAA9Zags6Zd0P3nRvVvw8=
 cosmossdk.io/x/feegrant v0.1.1/go.mod h1:2GjVVxX6G2fta8LWj7pC/ytHjryA6MHAJroBWHFNiEQ=
 cosmossdk.io/x/tx v0.13.8 h1:dQwC8jMe7awx/edi1HPPZ40AjHnsix6KSO/jbKMUYKk=
 cosmossdk.io/x/tx v0.13.8/go.mod h1:V6DImnwJMTq5qFjeGWpXNiT/fjgE4HtmclRmTqRVM3w=
-cosmossdk.io/x/upgrade v0.1.4 h1:/BWJim24QHoXde8Bc64/2BSEB6W4eTydq0X/2f8+g38=
-cosmossdk.io/x/upgrade v0.1.4/go.mod h1:9v0Aj+fs97O+Ztw+tG3/tp5JSlrmT7IcFhAebQHmOPo=
 dmitri.shuralyov.com/app/changes v0.0.0-20180602232624-0a106ad413e3/go.mod h1:Yl+fi1br7+Rr3LqpNJf1/uxUdtRUV+Tnj0o93V2B9MU=
 dmitri.shuralyov.com/gpu/mtl v0.0.0-20190408044501-666a987793e9/go.mod h1:H6x//7gZCb22OMCxBHrMx7a5I7Hp++hsVxbQ4BYO7hU=
 dmitri.shuralyov.com/html/belt v0.0.0-20180602232347-f7d459c86be0/go.mod h1:JLBrvjyP0v+ecvNYvCpyZgu5/xkfAUhi6wJj28eUfSU=
@@ -402,6 +400,8 @@ github.com/celestiaorg/celestia-core v0.38.11-0.20250321105625-57e36546e8a3 h1:M
 github.com/celestiaorg/celestia-core v0.38.11-0.20250321105625-57e36546e8a3/go.mod h1:o2x5x8cXRuJOdx4PfzF6lbxjq5/VbK0PnRDWRLsMLNM=
 github.com/celestiaorg/celestia-core v1.45.0-tm-v0.34.35 h1:T21AhezjcByAlWDHmiVbpg743Uqk/dqBzJkQsAnbQf8=
 github.com/celestiaorg/celestia-core v1.45.0-tm-v0.34.35/go.mod h1:fQ46s1hYFTGFBsHsuGsbxDZ720ZPQow5Iyqw+yErZSo=
+github.com/celestiaorg/cosmos-sdk/x/upgrade v0.0.0-20250320145042-6d8b2a52fbb2 h1:o+cQNLd5GQJdtlD8k7YofVIOJB9wkPX9cIEJz0E3FFg=
+github.com/celestiaorg/cosmos-sdk/x/upgrade v0.0.0-20250320145042-6d8b2a52fbb2/go.mod h1:GdR2F3YQhICk8j5cEHOoSBdsIkKBDUcznPfjgnDHg5U=
 github.com/celestiaorg/go-fraud v0.2.1 h1:oYhxI0gM/EpGRgbVQdRI/LSlqyT65g/WhQGSVGfx09w=
 github.com/celestiaorg/go-fraud v0.2.1/go.mod h1:lNY1i4K6kUeeE60Z2VK8WXd+qXb8KRzfBhvwPkK6aUc=
 github.com/celestiaorg/go-header v0.6.4 h1:3kXi7N3qBc4SCmT+tNVWhLi0Ilw5e/7qq2cxVGbs0ss=

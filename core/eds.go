@@ -3,9 +3,8 @@ package core
 import (
 	"context"
 	"fmt"
+	coretypes "github.com/cometbft/cometbft/types"
 	"time"
-
-	"github.com/tendermint/tendermint/types"
 
 	"github.com/celestiaorg/celestia-app/v4/app"
 	"github.com/celestiaorg/celestia-app/v4/pkg/appconsts"
@@ -24,7 +23,7 @@ import (
 // extendBlock extends the given block data, returning the resulting
 // ExtendedDataSquare (EDS). If there are no transactions in the block,
 // nil is returned in place of the eds.
-func extendBlock(data *types.Data, appVersion uint64, options ...nmt.Option) (*rsmt2d.ExtendedDataSquare, error) {
+func extendBlock(data *coretypes.Data, appVersion uint64, options ...nmt.Option) (*rsmt2d.ExtendedDataSquare, error) {
 	if app.IsEmptyBlockRef(data, appVersion) {
 		return share.EmptyEDS(), nil
 	}
@@ -32,8 +31,8 @@ func extendBlock(data *types.Data, appVersion uint64, options ...nmt.Option) (*r
 	// Construct the data square from the block's transactions
 	square, err := libsquare.Construct(
 		data.Txs.ToSliceOfBytes(),
-		appconsts.SquareSizeUpperBound(appVersion),
-		appconsts.SubtreeRootThreshold(appVersion),
+		appconsts.DefaultSquareSizeUpperBound,
+		appconsts.SubtreeRootThreshold,
 	)
 	if err != nil {
 		return nil, err
