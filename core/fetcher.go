@@ -6,11 +6,11 @@ import (
 	"io"
 	"time"
 
+	"github.com/cometbft/cometbft/types"
 	"github.com/gogo/protobuf/proto"
 	logging "github.com/ipfs/go-log/v2"
 	tmproto "github.com/tendermint/tendermint/proto/tendermint/types"
 	coregrpc "github.com/tendermint/tendermint/rpc/grpc"
-	"github.com/tendermint/tendermint/types"
 	"google.golang.org/grpc"
 
 	libhead "github.com/celestiaorg/go-header"
