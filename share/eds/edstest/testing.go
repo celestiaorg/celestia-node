@@ -4,8 +4,8 @@ import (
 	"crypto/rand"
 	"testing"
 
+	coretypes "github.com/cometbft/cometbft/types"
 	"github.com/stretchr/testify/require"
-	coretypes "github.com/tendermint/tendermint/types"
 
 	"github.com/celestiaorg/celestia-app/v4/app"
 	"github.com/celestiaorg/celestia-app/v4/app/encoding"

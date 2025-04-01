@@ -6,12 +6,12 @@ import (
 	"testing"
 	"time"
 
+	core "github.com/cometbft/cometbft/types"
 	"github.com/ipfs/boxo/blockservice"
 	blocks "github.com/ipfs/go-block-format"
 	"github.com/ipfs/go-cid"
 	mhcore "github.com/multiformats/go-multihash/core"
 	"github.com/stretchr/testify/require"
-	core "github.com/tendermint/tendermint/types"
 
 	"github.com/celestiaorg/celestia-app/v4/test/util/malicious"
 	libshare "github.com/celestiaorg/go-square/v2/share"

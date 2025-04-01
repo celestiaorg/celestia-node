@@ -1,10 +1,10 @@
 package eds
 
 import (
-	"github.com/tendermint/tendermint/crypto/merkle"
-	corebytes "github.com/tendermint/tendermint/libs/bytes"
-	coretypes "github.com/tendermint/tendermint/proto/tendermint/types"
-	"github.com/tendermint/tendermint/types"
+	"github.com/cometbft/cometbft/crypto/merkle"
+	corebytes "github.com/cometbft/cometbft/libs/bytes"
+	coretypes "github.com/cometbft/cometbft/proto/tendermint/types"
+	"github.com/cometbft/cometbft/types"
 
 	pkgproof "github.com/celestiaorg/celestia-app/v4/pkg/proof"
 	libshare "github.com/celestiaorg/go-square/v2/share"

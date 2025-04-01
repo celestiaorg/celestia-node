@@ -1,8 +1,8 @@
 package header
 
 import (
+	core "github.com/cometbft/cometbft/types"
 	pb "github.com/libp2p/go-libp2p-pubsub/pb"
-	core "github.com/tendermint/tendermint/types"
 	"golang.org/x/crypto/blake2b"
 
 	"github.com/celestiaorg/celestia-app/v4/pkg/da"

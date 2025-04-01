@@ -12,6 +12,8 @@ import (
 
 	storetypes "cosmossdk.io/store/types"
 	"cosmossdk.io/x/feegrant"
+	"github.com/cometbft/cometbft/crypto/merkle"
+	"github.com/cometbft/cometbft/proto/tendermint/crypto"
 	tmservice "github.com/cosmos/cosmos-sdk/client/grpc/cmtservice"
 	nodeservice "github.com/cosmos/cosmos-sdk/client/grpc/node"
 	"github.com/cosmos/cosmos-sdk/crypto/keyring"
@@ -19,8 +21,6 @@ import (
 	banktypes "github.com/cosmos/cosmos-sdk/x/bank/types"
 	stakingtypes "github.com/cosmos/cosmos-sdk/x/staking/types"
 	logging "github.com/ipfs/go-log/v2"
-	"github.com/tendermint/tendermint/crypto/merkle"
-	"github.com/tendermint/tendermint/proto/tendermint/crypto"
 	"google.golang.org/grpc"
 
 	"github.com/celestiaorg/celestia-app/v4/app"

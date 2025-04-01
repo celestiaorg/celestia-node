@@ -6,9 +6,9 @@ import (
 	"net"
 	"testing"
 
+	"github.com/cometbft/cometbft/libs/rand"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-	"github.com/tendermint/tendermint/libs/rand"
 
 	"github.com/celestiaorg/celestia-app/v4/pkg/appconsts"
 
