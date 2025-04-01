@@ -4,18 +4,18 @@ import (
 	"crypto/rand"
 	"testing"
 
+	coretypes "github.com/cometbft/cometbft/types"
 	"github.com/stretchr/testify/require"
-	coretypes "github.com/tendermint/tendermint/types"
 
-	"github.com/celestiaorg/celestia-app/v3/app"
-	"github.com/celestiaorg/celestia-app/v3/app/encoding"
-	"github.com/celestiaorg/celestia-app/v3/pkg/appconsts"
-	"github.com/celestiaorg/celestia-app/v3/pkg/da"
-	"github.com/celestiaorg/celestia-app/v3/pkg/user"
-	"github.com/celestiaorg/celestia-app/v3/pkg/wrapper"
-	"github.com/celestiaorg/celestia-app/v3/test/util/blobfactory"
-	"github.com/celestiaorg/celestia-app/v3/test/util/testfactory"
-	blobtypes "github.com/celestiaorg/celestia-app/v3/x/blob/types"
+	"github.com/celestiaorg/celestia-app/v4/app"
+	"github.com/celestiaorg/celestia-app/v4/app/encoding"
+	"github.com/celestiaorg/celestia-app/v4/pkg/appconsts"
+	"github.com/celestiaorg/celestia-app/v4/pkg/da"
+	"github.com/celestiaorg/celestia-app/v4/pkg/user"
+	"github.com/celestiaorg/celestia-app/v4/pkg/wrapper"
+	"github.com/celestiaorg/celestia-app/v4/test/util/blobfactory"
+	"github.com/celestiaorg/celestia-app/v4/test/util/testfactory"
+	blobtypes "github.com/celestiaorg/celestia-app/v4/x/blob/types"
 	libSquare "github.com/celestiaorg/go-square/v2"
 	libshare "github.com/celestiaorg/go-square/v2/share"
 	"github.com/celestiaorg/nmt"
@@ -135,8 +135,8 @@ func GenerateTestBlock(
 	txs = append(txs, coreTxs...)
 	square, err := libSquare.Construct(
 		txs.ToSliceOfBytes(),
-		appconsts.SquareSizeUpperBound(appconsts.LatestVersion),
-		appconsts.SubtreeRootThreshold(appconsts.LatestVersion),
+		appconsts.DefaultSquareSizeUpperBound,
+		appconsts.SubtreeRootThreshold,
 	)
 	require.NoError(t, err)
 
@@ -167,7 +167,7 @@ func createTestBlobTransactions(
 	config := encoding.MakeConfig(app.ModuleEncodingRegisters...)
 	keyring := testfactory.TestKeyring(config.Codec, accountName)
 	account := user.NewAccount(accountName, 0, 0)
-	signer, err := user.NewSigner(keyring, config.TxConfig, testChainID, appconsts.LatestVersion, account)
+	signer, err := user.NewSigner(keyring, config.TxConfig, testChainID, account)
 	require.NoError(t, err)
 
 	for i := 0; i < numberOfTransactions; i++ {

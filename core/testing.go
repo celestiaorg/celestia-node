@@ -2,23 +2,24 @@ package core
 
 import (
 	"context"
+	sdklog "cosmossdk.io/log"
 	"net"
 	"path/filepath"
 	"testing"
 	"time"
 
+	tmrand "github.com/cometbft/cometbft/libs/rand"
+	"github.com/cometbft/cometbft/node"
 	srvtypes "github.com/cosmos/cosmos-sdk/server/types"
 	grpc_retry "github.com/grpc-ecosystem/go-grpc-middleware/retry"
 	"github.com/stretchr/testify/require"
-	tmrand "github.com/tendermint/tendermint/libs/rand"
-	"github.com/tendermint/tendermint/node"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/connectivity"
 	"google.golang.org/grpc/credentials/insecure"
 
-	"github.com/celestiaorg/celestia-app/v3/test/util/genesis"
-	"github.com/celestiaorg/celestia-app/v3/test/util/testnode"
+	"github.com/celestiaorg/celestia-app/v4/test/util/genesis"
+	"github.com/celestiaorg/celestia-app/v4/test/util/testnode"
 )
 
 const chainID = "private"
@@ -153,12 +154,14 @@ func (n *Network) Start() error {
 	if err != nil {
 		return err
 	}
-	cctx, cleanupGRPC, err := testnode.StartGRPCServer(n.app, n.config.AppConfig, cctx)
+
+	// TODO: put a real logger
+	grpcSrv, cctx, cleanupGRPC, err := testnode.StartGRPCServer(sdklog.NewNopLogger(), n.app, n.config.AppConfig, cctx)
 	if err != nil {
 		return err
 	}
 
-	apiServer, err := testnode.StartAPIServer(n.app, *n.config.AppConfig, cctx)
+	apiServer, err := testnode.StartAPIServer(n.app, *n.config.AppConfig, cctx, grpcSrv)
 	if err != nil {
 		return err
 	}
