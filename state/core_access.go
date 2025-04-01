@@ -2,8 +2,11 @@ package state
 
 import (
 	"context"
+	sdkmath "cosmossdk.io/math"
 	"errors"
 	"fmt"
+	"github.com/celestiaorg/celestia-app/v4/pkg/appconsts"
+	v2bank "github.com/cosmos/cosmos-sdk/x/bank/migrations/v2"
 	"sync"
 	"time"
 
@@ -259,7 +262,7 @@ func (ca *CoreAccessor) BalanceForAddress(ctx context.Context, addr Address) (*B
 	// after applying the transactions contained in the previous block.
 	// TODO @renaynay: once https://github.com/cosmos/cosmos-sdk/pull/12674 is merged, use this method
 	// instead
-	prefixedAccountKey := append(banktypes.CreateAccountBalancesPrefix(addr.Bytes()), []byte(app.BondDenom)...)
+	prefixedAccountKey := append(v2bank.CreateAccountBalancesPrefix(addr.Bytes()), []byte(appconsts.BondDenom)...)
 	req := &tmservice.ABCIQueryRequest{
 		Data: prefixedAccountKey,
 		// TODO @renayay: once https://github.com/cosmos/cosmos-sdk/pull/12674 is merged, use const instead
@@ -280,11 +283,11 @@ func (ca *CoreAccessor) BalanceForAddress(ctx context.Context, addr Address) (*B
 	if len(value) == 0 {
 		log.Errorf("balance for account %s does not exist at block height %d", addr.String(), head.Height()-1)
 		return &Balance{
-			Denom:  app.BondDenom,
-			Amount: sdktypes.NewInt(0),
+			Denom:  appconsts.BondDenom,
+			Amount: sdkmath.NewInt(0),
 		}, nil
 	}
-	coin, ok := sdktypes.NewIntFromString(string(value))
+	coin, ok := sdkmath.NewIntFromString(string(value))
 	if !ok {
 		return nil, fmt.Errorf("cannot convert %s into sdktypes.Int", string(value))
 	}
@@ -317,7 +320,7 @@ func (ca *CoreAccessor) BalanceForAddress(ctx context.Context, addr Address) (*B
 	}
 
 	return &Balance{
-		Denom:  app.BondDenom,
+		Denom:  appconsts.BondDenom,
 		Amount: coin,
 	}, nil
 }
@@ -337,7 +340,7 @@ func (ca *CoreAccessor) Transfer(
 		return nil, err
 	}
 
-	coins := sdktypes.NewCoins(sdktypes.NewCoin(app.BondDenom, amount))
+	coins := sdktypes.NewCoins(sdktypes.NewCoin(appconsts.BondDenom, amount))
 	msg := banktypes.NewMsgSend(signer, addr, coins)
 	return ca.submitMsg(ctx, msg, cfg)
 }
@@ -358,8 +361,8 @@ func (ca *CoreAccessor) CancelUnbondingDelegation(
 		return nil, err
 	}
 
-	coins := sdktypes.NewCoin(app.BondDenom, amount)
-	msg := stakingtypes.NewMsgCancelUnbondingDelegation(signer, valAddr, height.Int64(), coins)
+	coins := sdktypes.NewCoin(appconsts.BondDenom, amount)
+	msg := stakingtypes.NewMsgCancelUnbondingDelegation(signer.String(), valAddr.String(), height.Int64(), coins)
 	return ca.submitMsg(ctx, msg, cfg)
 }
 
@@ -379,8 +382,8 @@ func (ca *CoreAccessor) BeginRedelegate(
 		return nil, err
 	}
 
-	coins := sdktypes.NewCoin(app.BondDenom, amount)
-	msg := stakingtypes.NewMsgBeginRedelegate(signer, srcValAddr, dstValAddr, coins)
+	coins := sdktypes.NewCoin(appconsts.BondDenom, amount)
+	msg := stakingtypes.NewMsgBeginRedelegate(signer.String(), srcValAddr.String(), dstValAddr.String(), coins)
 	return ca.submitMsg(ctx, msg, cfg)
 }
 
@@ -399,8 +402,8 @@ func (ca *CoreAccessor) Undelegate(
 		return nil, err
 	}
 
-	coins := sdktypes.NewCoin(app.BondDenom, amount)
-	msg := stakingtypes.NewMsgUndelegate(signer, delAddr, coins)
+	coins := sdktypes.NewCoin(appconsts.BondDenom, amount)
+	msg := stakingtypes.NewMsgUndelegate(signer.String(), delAddr.String(), coins)
 	return ca.submitMsg(ctx, msg, cfg)
 }
 
@@ -419,8 +422,8 @@ func (ca *CoreAccessor) Delegate(
 		return nil, err
 	}
 
-	coins := sdktypes.NewCoin(app.BondDenom, amount)
-	msg := stakingtypes.NewMsgDelegate(signer, delAddr, coins)
+	coins := sdktypes.NewCoin(appconsts.BondDenom, amount)
+	msg := stakingtypes.NewMsgDelegate(signer.String(), delAddr.String(), coins)
 	return ca.submitMsg(ctx, msg, cfg)
 }
 
@@ -473,7 +476,7 @@ func (ca *CoreAccessor) GrantFee(
 	allowance := &feegrant.BasicAllowance{}
 	if !amount.IsZero() {
 		// set spend limit
-		allowance.SpendLimit = sdktypes.NewCoins(sdktypes.NewCoin(app.BondDenom, amount))
+		allowance.SpendLimit = sdktypes.NewCoins(sdktypes.NewCoin(appconsts.BondDenom, amount))
 	}
 
 	msg, err := feegrant.NewMsgGrantAllowance(allowance, granter, grantee)
@@ -541,7 +544,7 @@ func (ca *CoreAccessor) queryMinimumGasPrice(
 	if err != nil {
 		return 0, err
 	}
-	return coins.AmountOf(app.BondDenom).MustFloat64(), nil
+	return coins.AmountOf(appconsts.BondDenom).MustFloat64(), nil
 }
 
 func (ca *CoreAccessor) setupTxClient(ctx context.Context) error {
