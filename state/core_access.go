@@ -19,8 +19,6 @@ import (
 	"github.com/tendermint/tendermint/crypto/merkle"
 	"github.com/tendermint/tendermint/proto/tendermint/crypto"
 	"google.golang.org/grpc"
-	"google.golang.org/grpc/connectivity"
-	"google.golang.org/grpc/credentials/insecure"
 
 	"github.com/celestiaorg/celestia-app/v3/app"
 	"github.com/celestiaorg/celestia-app/v3/app/encoding"
@@ -38,13 +36,8 @@ const (
 
 var (
 	ErrInvalidAmount = errors.New("state: amount must be greater than zero")
-
-	log = logging.Logger("state")
+	log              = logging.Logger("state")
 )
-
-// Option is the functional option that is applied to the coreAccessor instance
-// to configure parameters.
-type Option func(ca *CoreAccessor)
 
 // CoreAccessor implements service over a gRPC connection
 // with a celestia-core node.
@@ -55,7 +48,6 @@ type CoreAccessor struct {
 	keyring keyring.Keyring
 	client  *user.TxClient
 
-	// TODO: remove in scope of https://github.com/celestiaorg/celestia-node/issues/3515
 	defaultSignerAccount string
 	defaultSignerAddress AccAddress
 
@@ -68,10 +60,9 @@ type CoreAccessor struct {
 	prt *merkle.ProofRuntime
 
 	coreConn *grpc.ClientConn
-	coreIP   string
-	grpcPort string
 	network  string
 
+	estimator *estimator
 	// these fields are mutatable and thus need to be protected by a mutex
 	lock            sync.Mutex
 	lastPayForBlob  int64
@@ -90,60 +81,42 @@ func NewCoreAccessor(
 	keyring keyring.Keyring,
 	keyname string,
 	getter libhead.Head[*header.ExtendedHeader],
-	coreIP,
-	grpcPort string,
+	conn *grpc.ClientConn,
 	network string,
-	options ...Option,
+	estimatorAddress string,
 ) (*CoreAccessor, error) {
 	// create verifier
 	prt := merkle.DefaultProofRuntime()
 	prt.RegisterOpDecoder(storetypes.ProofOpIAVLCommitment, storetypes.CommitmentOpDecoder)
 	prt.RegisterOpDecoder(storetypes.ProofOpSimpleMerkleCommitment, storetypes.CommitmentOpDecoder)
 
+	rec, err := keyring.Key(keyname)
+	if err != nil {
+		return nil, err
+	}
+	addr, err := rec.GetAddress()
+	if err != nil {
+		return nil, err
+	}
+
 	ca := &CoreAccessor{
 		keyring:              keyring,
 		defaultSignerAccount: keyname,
+		defaultSignerAddress: addr,
 		getter:               getter,
-		coreIP:               coreIP,
-		grpcPort:             grpcPort,
 		prt:                  prt,
+		coreConn:             conn,
 		network:              network,
-	}
-
-	for _, opt := range options {
-		opt(ca)
+		estimator:            &estimator{estimatorAddress: estimatorAddress, defaultClientConn: conn},
 	}
 	return ca, nil
 }
 
 func (ca *CoreAccessor) Start(ctx context.Context) error {
-	if ca.coreConn != nil {
-		return fmt.Errorf("core-access: already connected to core endpoint")
-	}
 	ca.ctx, ca.cancel = context.WithCancel(context.Background())
-
-	// dial given celestia-core endpoint
-	endpoint := fmt.Sprintf("%s:%s", ca.coreIP, ca.grpcPort)
-	client, err := grpc.NewClient(
-		endpoint,
-		grpc.WithTransportCredentials(insecure.NewCredentials()),
-	)
-	if err != nil {
-		return err
-	}
-	// this ensures we can't start the node without core connection
-	client.Connect()
-	if !client.WaitForStateChange(ctx, connectivity.Ready) {
-		// hits the case when context is canceled
-		return fmt.Errorf("couldn't connect to core endpoint(%s): %w", endpoint, ctx.Err())
-	}
-
-	ca.coreConn = client
-
 	// create the staking query client
 	ca.stakingCli = stakingtypes.NewQueryClient(ca.coreConn)
 	ca.feeGrantCli = feegrant.NewQueryClient(ca.coreConn)
-
 	// create ABCI query client
 	ca.abciQueryCli = tmservice.NewServiceClient(ca.coreConn)
 	resp, err := ca.abciQueryCli.GetNodeInfo(ctx, &tmservice.GetNodeInfoRequest{})
@@ -156,10 +129,9 @@ func (ca *CoreAccessor) Start(ctx context.Context) error {
 		return fmt.Errorf("wrong network in core.ip endpoint, expected %s, got %s", ca.network, defaultNetwork)
 	}
 
-	// set up signer to handle tx submission
-	ca.client, err = ca.setupTxClient(ctx, ca.defaultSignerAccount)
+	err = ca.setupTxClient(ctx)
 	if err != nil {
-		log.Warnw("failed to set up signer, check if node's account is funded", "err", err)
+		log.Warn(err)
 	}
 
 	ca.minGasPrice, err = ca.queryMinimumGasPrice(ctx)
@@ -167,33 +139,17 @@ func (ca *CoreAccessor) Start(ctx context.Context) error {
 		return fmt.Errorf("querying minimum gas price: %w", err)
 	}
 
-	return nil
-}
-
-func (ca *CoreAccessor) Stop(context.Context) error {
-	if ca.cancel == nil {
-		log.Warn("core accessor already stopped")
-		return nil
-	}
-	if ca.coreConn == nil {
-		log.Warn("no connection found to close")
-		return nil
-	}
-	defer ca.cancelCtx()
-
-	// close out core connection
-	err := ca.coreConn.Close()
+	err = ca.estimator.Start(ctx)
 	if err != nil {
-		return err
+		log.Warn("state: failed to connect to estimator endpoint", "err", err)
+		return fmt.Errorf("state: failed to connect to estimator endpoint: %w", err)
 	}
-
-	ca.coreConn = nil
 	return nil
 }
 
-func (ca *CoreAccessor) cancelCtx() {
+func (ca *CoreAccessor) Stop(ctx context.Context) error {
 	ca.cancel()
-	ca.cancel = nil
+	return ca.estimator.Stop(ctx)
 }
 
 // SubmitPayForBlob builds, signs, and synchronously submits a MsgPayForBlob with additional
@@ -204,6 +160,11 @@ func (ca *CoreAccessor) SubmitPayForBlob(
 	libBlobs []*libshare.Blob,
 	cfg *TxConfig,
 ) (*TxResponse, error) {
+	client, err := ca.getTxClient(ctx)
+	if err != nil {
+		return nil, err
+	}
+
 	if len(libBlobs) == 0 {
 		return nil, errors.New("state: no blobs provided")
 	}
@@ -223,7 +184,7 @@ func (ca *CoreAccessor) SubmitPayForBlob(
 		for i, blob := range libBlobs {
 			blobSizes[i] = uint32(len(blob.Data()))
 		}
-		gas = estimateGasForBlobs(blobSizes)
+		gas = ca.estimator.estimateGasForBlobs(blobSizes)
 	}
 
 	gasPrice := cfg.GasPrice()
@@ -238,7 +199,7 @@ func (ca *CoreAccessor) SubmitPayForBlob(
 
 	accName := ca.defaultSignerAccount
 	if !signer.Equals(ca.defaultSignerAddress) {
-		account := ca.client.AccountByAddress(signer)
+		account := client.AccountByAddress(signer)
 		if account == nil {
 			return nil, fmt.Errorf("account for signer %s not found", signer)
 		}
@@ -252,7 +213,7 @@ func (ca *CoreAccessor) SubmitPayForBlob(
 			opts = append(opts, feeGrant)
 		}
 
-		response, err := ca.client.SubmitPayForBlobWithAccount(ctx, accName, libBlobs, opts...)
+		response, err := client.SubmitPayForBlobWithAccount(ctx, accName, libBlobs, opts...)
 		// Network min gas price can be updated through governance in app
 		// If that's the case, we parse the insufficient min gas price error message and update the gas price
 		if apperrors.IsInsufficientMinGasPrice(err) {
@@ -583,22 +544,31 @@ func (ca *CoreAccessor) queryMinimumGasPrice(
 	return coins.AmountOf(app.BondDenom).MustFloat64(), nil
 }
 
-func (ca *CoreAccessor) setupTxClient(ctx context.Context, keyName string) (*user.TxClient, error) {
+func (ca *CoreAccessor) setupTxClient(ctx context.Context) error {
+	if ca.client != nil {
+		return nil
+	}
+
 	encCfg := encoding.MakeConfig(app.ModuleEncodingRegisters...)
-	// explicitly set default address. Otherwise, there could be a mismatch between defaultKey and
-	// defaultAddress.
-	rec, err := ca.keyring.Key(keyName)
-	if err != nil {
-		return nil, err
-	}
-	addr, err := rec.GetAddress()
-	if err != nil {
-		return nil, err
-	}
-	ca.defaultSignerAddress = addr
-	return user.SetupTxClient(ctx, ca.keyring, ca.coreConn, encCfg,
-		user.WithDefaultAccount(keyName), user.WithDefaultAddress(addr),
+	client, err := user.SetupTxClient(ctx, ca.keyring, ca.coreConn, encCfg,
+		user.WithDefaultAddress(ca.defaultSignerAddress),
 	)
+	if err != nil {
+		return fmt.Errorf("failed to setup a tx client: %w", err)
+	}
+
+	ca.client = client
+	return nil
+}
+
+func (ca *CoreAccessor) getTxClient(ctx context.Context) (*user.TxClient, error) {
+	if ca.client == nil {
+		err := ca.setupTxClient(ctx)
+		if err != nil {
+			return nil, err
+		}
+	}
+	return ca.client, nil
 }
 
 func (ca *CoreAccessor) submitMsg(
@@ -606,25 +576,12 @@ func (ca *CoreAccessor) submitMsg(
 	msg sdktypes.Msg,
 	cfg *TxConfig,
 ) (*TxResponse, error) {
+	client, err := ca.getTxClient(ctx)
+	if err != nil {
+		return nil, err
+	}
+
 	txConfig := make([]user.TxOption, 0)
-	var (
-		gas = cfg.GasLimit()
-		err error
-	)
-	if gas == 0 {
-		gas, err = estimateGas(ctx, ca.client, msg)
-		if err != nil {
-			return nil, fmt.Errorf("estimating gas: %w", err)
-		}
-	}
-
-	gasPrice := cfg.GasPrice()
-	if gasPrice == DefaultGasPrice {
-		gasPrice = ca.minGasPrice
-	}
-
-	txConfig = append(txConfig, user.SetGasLimitAndGasPrice(gas, gasPrice))
-
 	if cfg.FeeGranterAddress() != "" {
 		granter, err := parseAccAddressFromString(cfg.FeeGranterAddress())
 		if err != nil {
@@ -633,7 +590,20 @@ func (ca *CoreAccessor) submitMsg(
 		txConfig = append(txConfig, user.SetFeeGranter(granter))
 	}
 
-	resp, err := ca.client.SubmitTx(ctx, []sdktypes.Msg{msg}, txConfig...)
+	gasPrice, gas, err := ca.estimator.estimate(ctx, cfg, client, msg)
+	if err != nil {
+		return nil, err
+	}
+
+	if gasPrice < ca.getMinGasPrice() {
+		gasPrice = ca.getMinGasPrice()
+	}
+	txConfig = append(txConfig, user.SetGasLimitAndGasPrice(gas, gasPrice))
+
+	resp, err := client.SubmitTx(ctx, []sdktypes.Msg{msg}, txConfig...)
+	if err != nil {
+		return nil, err
+	}
 	return convertToSdkTxResponse(resp), err
 }
 

@@ -4,7 +4,9 @@ import (
 	"context"
 	"crypto/rand"
 	"fmt"
+	"maps"
 	"net"
+	"slices"
 	"sync"
 	"testing"
 	"time"
@@ -17,7 +19,8 @@ import (
 	"github.com/tendermint/tendermint/privval"
 	"github.com/tendermint/tendermint/types"
 	"go.uber.org/fx"
-	"golang.org/x/exp/maps"
+	"google.golang.org/grpc"
+	"google.golang.org/grpc/credentials/insecure"
 
 	"github.com/celestiaorg/celestia-app/v3/test/util/testnode"
 	libhead "github.com/celestiaorg/go-header"
@@ -152,7 +155,7 @@ func (s *Swamp) createPeer(ks keystore.Keystore) host.Host {
 	// IPv6 will be starting with 100:0
 	token := make([]byte, 12)
 	_, _ = rand.Read(token)
-	ip := append(net.IP{}, blackholeIP6...)
+	ip := slices.Clone(blackholeIP6)
 	copy(ip[net.IPv6len-len(token):], token)
 
 	// reference to GenPeer func in libp2p/p2p/net/mock/mock_net.go
@@ -179,8 +182,19 @@ func (s *Swamp) setupGenesis() {
 	store, err := store.NewStore(store.DefaultParameters(), s.t.TempDir())
 	require.NoError(s.t, err)
 
+	host, port, err := net.SplitHostPort(s.ClientContext.GRPCClient.Target())
+	require.NoError(s.t, err)
+	addr := net.JoinHostPort(host, port)
+	con, err := grpc.NewClient(
+		addr,
+		grpc.WithTransportCredentials(insecure.NewCredentials()),
+	)
+	require.NoError(s.t, err)
+	fetcher, err := core.NewBlockFetcher(con)
+	require.NoError(s.t, err)
+
 	ex, err := core.NewExchange(
-		core.NewBlockFetcher(s.ClientContext.Client),
+		fetcher,
 		store,
 		header.MakeExtendedHeader,
 	)
@@ -199,7 +213,7 @@ func (s *Swamp) DefaultTestConfig(tp node.Type) *nodebuilder.Config {
 	require.NoError(s.t, err)
 
 	cfg.Core.IP = ip
-	cfg.Core.GRPCPort = port
+	cfg.Core.Port = port
 	return cfg
 }
 
@@ -207,6 +221,9 @@ func (s *Swamp) DefaultTestConfig(tp node.Type) *nodebuilder.Config {
 // and a mockstore to the MustNewNodeWithStore method
 func (s *Swamp) NewBridgeNode(options ...fx.Option) *nodebuilder.Node {
 	cfg := s.DefaultTestConfig(node.Bridge)
+	var err error
+	cfg.Core.IP, cfg.Core.Port, err = net.SplitHostPort(s.ClientContext.GRPCClient.Target())
+	require.NoError(s.t, err)
 	store := nodebuilder.MockStore(s.t, cfg)
 
 	return s.MustNewNodeWithStore(node.Bridge, store, options...)
@@ -278,8 +295,18 @@ func (s *Swamp) NewNodeWithStore(
 
 	switch tp {
 	case node.Bridge:
+		host, port, err := net.SplitHostPort(s.ClientContext.GRPCClient.Target())
+		if err != nil {
+			return nil, err
+		}
+		addr := net.JoinHostPort(host, port)
+		con, err := grpc.NewClient(
+			addr,
+			grpc.WithTransportCredentials(insecure.NewCredentials()),
+		)
+		require.NoError(s.t, err)
 		options = append(options,
-			coremodule.WithClient(s.ClientContext.Client),
+			coremodule.WithConnection(con),
 		)
 	default:
 	}

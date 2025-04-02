@@ -37,11 +37,7 @@ Continue reading [here](https://blog.celestia.org/celestia-mvp-release-data-avai
 
 ## System Requirements
 
-See the official docs page for system requirements per node type:
-
-- [Bridge](https://docs.celestia.org/nodes/bridge-node#hardware-requirements)
-- [Light](https://docs.celestia.org/nodes/light-node#hardware-requirements)
-- [Full](https://docs.celestia.org/nodes/full-storage-node#hardware-requirements)
+See the [official docs page](https://docs.celestia.org/how-to-guides/nodes-overview#data-availability-nodes) for system requirements for each node type.
 
 ## Installation
 
@@ -78,7 +74,7 @@ celestia <node_type> init
 celestia <node_type> start
 ```
 
-Please refer to [this guide](https://docs.celestia.org/nodes/celestia-node/) for more information on running a node.
+Please refer to [this guide](https://docs.celestia.org/how-to-guides/celestia-node/) for more information on running a node.
 
 ### Quick Start with Light Node on arabica
 

@@ -1,34 +1,54 @@
 package state
 
 import (
-	"context"
 	"encoding/json"
 	"fmt"
 
 	"github.com/cosmos/cosmos-sdk/crypto/keyring"
 	sdktypes "github.com/cosmos/cosmos-sdk/types"
 
-	"github.com/celestiaorg/celestia-app/v3/pkg/user"
-	apptypes "github.com/celestiaorg/celestia-app/v3/x/blob/types"
+	"github.com/celestiaorg/celestia-app/v3/app/grpc/gasestimation"
+	"github.com/celestiaorg/celestia-app/v3/pkg/appconsts"
 )
 
 const (
 	// DefaultGasPrice specifies the default gas price value to be used when the user
 	// wants to use the global minimal gas price, which is fetched from the celestia-app.
 	DefaultGasPrice float64 = -1.0
-	// gasMultiplier is used to increase gas limit in case if tx has additional cfg.
-	gasMultiplier = 1.1
+
+	DefaultMaxGasPrice = appconsts.DefaultMinGasPrice * 100
 )
 
 // NewTxConfig constructs a new TxConfig with the provided options.
 // It starts with a DefaultGasPrice and then applies any additional
 // options provided through the variadic parameter.
 func NewTxConfig(opts ...ConfigOption) *TxConfig {
-	options := &TxConfig{gasPrice: DefaultGasPrice}
+	options := &TxConfig{gasPrice: DefaultGasPrice, maxGasPrice: DefaultMaxGasPrice}
 	for _, opt := range opts {
 		opt(options)
 	}
 	return options
+}
+
+type TxPriority int
+
+const (
+	TxPriorityLow = iota + 1
+	TxPriorityMedium
+	TxPriorityHigh
+)
+
+func (t TxPriority) toApp() gasestimation.TxPriority {
+	switch t {
+	case TxPriorityLow:
+		return gasestimation.TxPriority_TX_PRIORITY_LOW
+	case TxPriorityMedium:
+		return gasestimation.TxPriority_TX_PRIORITY_MEDIUM
+	case TxPriorityHigh:
+		return gasestimation.TxPriority_TX_PRIORITY_HIGH
+	default:
+		return gasestimation.TxPriority_TX_PRIORITY_UNSPECIFIED
+	}
 }
 
 // TxConfig specifies additional options that will be applied to the Tx.
@@ -48,8 +68,16 @@ type TxConfig struct {
 	gasPrice float64
 	// since gasPrice can be 0, it is necessary to understand that user explicitly set it.
 	isGasPriceSet bool
+	// specifies the max gas price that user expects to pay for the transaction.
+	maxGasPrice float64
 	// 0 gas means users want us to calculate it for them.
 	gas uint64
+	// priority is the priority level of the requested gas price.
+	// - Low: The gas price is the value at the end of the lowest 10% of gas prices from the last 5 blocks.
+	// - Medium: The gas price is the mean of all gas prices from the last 5 blocks.
+	// - High: The gas price is the price at the start of the top 10% of transactions’ gas prices from the last 5 blocks.
+	// - Default: Medium.
+	priority TxPriority
 	// Specifies the account that will pay for the transaction.
 	// Input format Bech32.
 	feeGranterAddress string
@@ -62,7 +90,8 @@ func (cfg *TxConfig) GasPrice() float64 {
 	return cfg.gasPrice
 }
 
-func (cfg *TxConfig) GasLimit() uint64 { return cfg.gas }
+func (cfg *TxConfig) GasLimit() uint64     { return cfg.gas }
+func (cfg *TxConfig) MaxGasPrice() float64 { return cfg.maxGasPrice }
 
 func (cfg *TxConfig) KeyName() string { return cfg.keyName }
 
@@ -73,7 +102,9 @@ func (cfg *TxConfig) FeeGranterAddress() string { return cfg.feeGranterAddress }
 type jsonTxConfig struct {
 	GasPrice          float64 `json:"gas_price,omitempty"`
 	IsGasPriceSet     bool    `json:"is_gas_price_set,omitempty"`
+	MaxGasPrice       float64 `json:"max_gas_price"`
 	Gas               uint64  `json:"gas,omitempty"`
+	TxPriority        int     `json:"tx_priority,omitempty"`
 	KeyName           string  `json:"key_name,omitempty"`
 	SignerAddress     string  `json:"signer_address,omitempty"`
 	FeeGranterAddress string  `json:"fee_granter_address,omitempty"`
@@ -81,11 +112,13 @@ type jsonTxConfig struct {
 
 func (cfg *TxConfig) MarshalJSON() ([]byte, error) {
 	jsonOpts := &jsonTxConfig{
-		SignerAddress:     cfg.signerAddress,
-		KeyName:           cfg.keyName,
 		GasPrice:          cfg.gasPrice,
 		IsGasPriceSet:     cfg.isGasPriceSet,
+		MaxGasPrice:       cfg.maxGasPrice,
 		Gas:               cfg.gas,
+		TxPriority:        int(cfg.priority),
+		KeyName:           cfg.keyName,
+		SignerAddress:     cfg.signerAddress,
 		FeeGranterAddress: cfg.feeGranterAddress,
 	}
 	return json.Marshal(jsonOpts)
@@ -98,33 +131,15 @@ func (cfg *TxConfig) UnmarshalJSON(data []byte) error {
 		return fmt.Errorf("unmarshalling TxConfig: %w", err)
 	}
 
-	cfg.keyName = jsonOpts.KeyName
-	cfg.signerAddress = jsonOpts.SignerAddress
 	cfg.gasPrice = jsonOpts.GasPrice
 	cfg.isGasPriceSet = jsonOpts.IsGasPriceSet
+	cfg.maxGasPrice = jsonOpts.MaxGasPrice
 	cfg.gas = jsonOpts.Gas
+	cfg.priority = TxPriority(jsonOpts.TxPriority)
+	cfg.keyName = jsonOpts.KeyName
+	cfg.signerAddress = jsonOpts.SignerAddress
 	cfg.feeGranterAddress = jsonOpts.FeeGranterAddress
 	return nil
-}
-
-// estimateGas estimates gas in case it has not been set.
-// NOTE: final result of the estimation will be multiplied by the `gasMultiplier`(1.1) to cover
-// additional costs.
-func estimateGas(ctx context.Context, client *user.TxClient, msg sdktypes.Msg) (uint64, error) {
-	// set fee as 1utia helps to simulate the tx more reliably.
-	gas, err := client.EstimateGas(ctx, []sdktypes.Msg{msg}, user.SetFee(1))
-	if err != nil {
-		return 0, fmt.Errorf("estimating gas: %w", err)
-	}
-	return uint64(float64(gas) * gasMultiplier), nil
-}
-
-// estimateGasForBlobs returns a gas limit that can be applied to the `MsgPayForBlob` transactions.
-// NOTE: final result of the estimation will be multiplied by the `gasMultiplier`(1.1)
-// to cover additional options of the Tx.
-func estimateGasForBlobs(blobSizes []uint32) uint64 {
-	gas := apptypes.DefaultEstimateGas(blobSizes)
-	return uint64(float64(gas) * gasMultiplier)
 }
 
 func parseAccountKey(kr keyring.Keyring, accountKey string) (sdktypes.AccAddress, error) {
@@ -185,5 +200,21 @@ func WithSignerAddress(address string) ConfigOption {
 func WithFeeGranterAddress(granter string) ConfigOption {
 	return func(cfg *TxConfig) {
 		cfg.feeGranterAddress = granter
+	}
+}
+
+// WithMaxGasPrice is an option that allows you to specify a `maxGasPrice` field.
+func WithMaxGasPrice(gasPrice float64) ConfigOption {
+	return func(cfg *TxConfig) {
+		cfg.maxGasPrice = gasPrice
+	}
+}
+
+// WithTxPriority is an option that allows you to specify a priority of the tx.
+func WithTxPriority(priority int) ConfigOption {
+	return func(cfg *TxConfig) {
+		if priority >= TxPriorityLow && priority <= TxPriorityHigh {
+			cfg.priority = TxPriority(priority)
+		}
 	}
 }

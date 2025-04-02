@@ -1,6 +1,8 @@
 package cmd
 
 import (
+	"time"
+
 	"github.com/libp2p/go-libp2p/core/metrics"
 	"github.com/libp2p/go-libp2p/core/network"
 	"github.com/libp2p/go-libp2p/core/peer"
@@ -9,6 +11,7 @@ import (
 	"github.com/spf13/cobra"
 
 	cmdnode "github.com/celestiaorg/celestia-node/cmd"
+	"github.com/celestiaorg/celestia-node/nodebuilder/p2p"
 )
 
 type peerInfo struct {
@@ -35,6 +38,8 @@ func init() {
 		bandwidthForProtocolCmd,
 		pubsubPeersCmd,
 		pubsubTopicsCmd,
+		connectionInfoCmd,
+		pingCmd,
 	)
 }
 
@@ -597,5 +602,74 @@ var pubsubTopicsCmd = &cobra.Command{
 			}
 		}
 		return cmdnode.PrintOutput(topics, err, formatter)
+	},
+}
+
+var connectionInfoCmd = &cobra.Command{
+	Use:   "connection-state [peerID]",
+	Short: "Gets connection info for a given peer ID",
+	Args:  cobra.ExactArgs(1),
+	RunE: func(cmd *cobra.Command, args []string) error {
+		client, err := cmdnode.ParseClientFromCtx(cmd.Context())
+		if err != nil {
+			return err
+		}
+		defer client.Close()
+
+		pid, err := peer.Decode(args[0])
+		if err != nil {
+			return err
+		}
+
+		infos, err := client.P2P.ConnectionState(cmd.Context(), pid)
+		return cmdnode.PrintOutput(infos, err, func(i interface{}) interface{} {
+			type state struct {
+				Info       network.ConnectionState
+				NumStreams int
+				Direction  string
+				Opened     string
+				Limited    bool
+			}
+
+			states := i.([]p2p.ConnectionState)
+			infos := make([]state, len(states))
+			for i, s := range states {
+				infos[i] = state{
+					Info:       s.Info,
+					NumStreams: s.NumStreams,
+					Direction:  s.Direction.String(),
+					Opened:     s.Opened.Format(time.DateTime),
+					Limited:    s.Limited,
+				}
+			}
+
+			if len(infos) == 1 {
+				return infos[0]
+			}
+			return infos
+		})
+	},
+}
+
+var pingCmd = &cobra.Command{
+	Use:   "ping [peerID]",
+	Short: "Pings given peer and tell how much time that took or errors",
+	Args:  cobra.ExactArgs(1),
+	RunE: func(cmd *cobra.Command, args []string) error {
+		client, err := cmdnode.ParseClientFromCtx(cmd.Context())
+		if err != nil {
+			return err
+		}
+		defer client.Close()
+
+		pid, err := peer.Decode(args[0])
+		if err != nil {
+			return err
+		}
+
+		pingDuration, err := client.P2P.Ping(cmd.Context(), pid)
+		return cmdnode.PrintOutput(pingDuration, err, func(i interface{}) interface{} {
+			return i.(time.Duration).String()
+		})
 	},
 }

@@ -126,7 +126,7 @@ func (s *coordinatorState) handleRetryResult(res result) {
 		s.failed[h] = nextRetry
 	}
 
-	// processed height are either already moved to failed map or succeeded, cleanup inRetry
+	// processed heights are either already moved to failed map or succeeded, cleanup inRetry
 	for h := res.from; h <= res.to; h++ {
 		delete(s.inRetry, h)
 	}
@@ -184,10 +184,7 @@ func (s *coordinatorState) catchupJob() (next job, found bool) {
 		return job{}, false
 	}
 
-	to := s.next + s.samplingRange - 1
-	if to > s.networkHead {
-		to = s.networkHead
-	}
+	to := min(s.next+s.samplingRange-1, s.networkHead)
 	j := s.newJob(catchupJob, s.next, to)
 	s.next = to + 1
 	return j, true

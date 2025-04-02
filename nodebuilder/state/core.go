@@ -2,6 +2,7 @@ package state
 
 import (
 	"github.com/cosmos/cosmos-sdk/crypto/keyring"
+	"google.golang.org/grpc"
 
 	libfraud "github.com/celestiaorg/go-fraud"
 	"github.com/celestiaorg/go-header/sync"
@@ -17,27 +18,25 @@ import (
 // coreAccessor constructs a new instance of state.Module over
 // a celestia-core connection.
 func coreAccessor(
-	corecfg core.Config,
 	keyring keyring.Keyring,
 	keyname AccountName,
 	sync *sync.Syncer[*header.ExtendedHeader],
 	fraudServ libfraud.Service[*header.ExtendedHeader],
 	network p2p.Network,
-	opts []state.Option,
+	client *grpc.ClientConn,
+	address core.EstimatorAddress,
 ) (
 	*state.CoreAccessor,
 	Module,
 	*modfraud.ServiceBreaker[*state.CoreAccessor, *header.ExtendedHeader],
 	error,
 ) {
-	ca, err := state.NewCoreAccessor(keyring, string(keyname), sync, corecfg.IP, corecfg.GRPCPort,
-		network.String(), opts...)
+	ca, err := state.NewCoreAccessor(keyring, string(keyname), sync, client, network.String(), string(address))
 
 	sBreaker := &modfraud.ServiceBreaker[*state.CoreAccessor, *header.ExtendedHeader]{
 		Service:   ca,
 		FraudType: byzantine.BadEncoding,
 		FraudServ: fraudServ,
 	}
-
 	return ca, ca, sBreaker, err
 }
