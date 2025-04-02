@@ -64,7 +64,7 @@ func UnmarshalExtendedHeader(data []byte) (*ExtendedHeader, error) {
 	return out, nil
 }
 
-// unmarhsalCommit exists to assist the MsgID function in generating a unique
+// unmarshalCommit exists to assist the MsgID function in generating a unique
 // message ID without the additional allocations that the full
 // UnmarshalExtendedHeader would cause.
 func unmarshalCommit(data []byte) (*core.Commit, error) {
