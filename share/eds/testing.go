@@ -478,27 +478,10 @@ func (q quadrantIdx) String() string {
 	return strconv.Itoa(int(q))
 }
 
-// coordinates returns random row and column indices within the specified quadrant.
-// The EDS is divided into 4 quadrants, each with size (edsSize/2 x edsSize/2):
-//   +-----+-----+
-//   | Q1  | Q2  |
-//   +-----+-----+
-//   | Q3  | Q4  |
-//   +-----+-----+
 func (q quadrantIdx) coordinates(edsSize int) (rowIdx, colIdx int) {
-	half := edsSize / 2
-	switch q {
-	case q1: // top-left quadrant (original data)
-		return rand.IntN(half), rand.IntN(half)
-	case q2: // top-right quadrant (row parity)
-		return rand.IntN(half), half + rand.IntN(half)
-	case q3: // bottom-left quadrant (column parity)
-		return half + rand.IntN(half), rand.IntN(half)
-	case q4: // bottom-right quadrant (combined parity)
-		return half + rand.IntN(half), half + rand.IntN(half)
-	default:
-		panic("invalid quadrant")
-	}
+	colIdx = edsSize/2*(int(q-1)%2) + 1
+	rowIdx = edsSize/2*(int(q-1)/2) + 1
+	return rowIdx, colIdx
 }
 
 func checkPowerOfTwo(n int) bool {
