@@ -97,14 +97,14 @@ func TestEstimatorService(t *testing.T) {
 				name:        "configured gas price only",
 				txconf:      NewTxConfig(WithGasPrice(0.005)),
 				expGasPrice: 0.005,
-				expGasUsage: 10000 * 1.1, // gas multiplier
+				expGasUsage: 10000,
 			},
 			{
 				// should return estimated gas price and gas usage
 				name:        "estimate gas price and usage",
 				txconf:      NewTxConfig(),
 				expGasPrice: 0.02,
-				expGasUsage: 10000 * 1.1, // gas multiplier
+				expGasUsage: 10000,
 			},
 			{
 				// should return error as gas price exceeds limit

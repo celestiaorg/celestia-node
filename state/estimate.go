@@ -9,9 +9,6 @@ import (
 	apptypes "github.com/celestiaorg/celestia-app/v3/x/blob/types"
 )
 
-// gasMultiplier is used to increase gas limit if tx has additional options.
-const gasMultiplier = 1.1
-
 var ErrGasPriceExceedsLimit = errors.New("state: estimated gasPrice exceeds max gasPrice")
 
 func (ca *CoreAccessor) estimateGasPrice(ctx context.Context, cfg *TxConfig) (float64, error) {
@@ -65,9 +62,6 @@ func (ca *CoreAccessor) estimateGasPriceAndUsage(
 }
 
 // estimateGasForBlobs returns a gas limit that can be applied to the `MsgPayForBlob` transactions.
-// NOTE: final result of the estimation will be multiplied by the `gasMultiplier`(1.1)
-// to cover additional options of the Tx.
 func (ca *CoreAccessor) estimateGasForBlobs(blobSizes []uint32) uint64 {
-	gas := apptypes.DefaultEstimateGas(blobSizes)
-	return uint64(float64(gas) * gasMultiplier)
+	return apptypes.DefaultEstimateGas(blobSizes)
 }
