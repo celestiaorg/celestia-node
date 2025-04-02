@@ -146,8 +146,10 @@ func (s *coordinatorState) updateHead(newHead uint64) {
 		log.Infow("found first header, starting sampling")
 	}
 
+	oldHead := s.networkHead
 	s.networkHead = newHead
-	log.Debugw("updated head", "from_height", s.networkHead, "to_height", newHead)
+	
+	log.Debugw("updated head", "from_height", oldHead, "to_height", newHead)
 	s.checkDone()
 }
 
