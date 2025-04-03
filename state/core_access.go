@@ -189,11 +189,6 @@ func (ca *CoreAccessor) SubmitPayForBlob(
 		gas = ca.estimateGasForBlobs(blobSizes)
 	}
 
-	gasPrice, err := ca.estimateGasPrice(ctx, cfg)
-	if err != nil {
-		return nil, err
-	}
-
 	// get tx signer account name
 	author, err := ca.getTxAuthorAccAddress(cfg)
 	if err != nil {
@@ -205,39 +200,38 @@ func (ca *CoreAccessor) SubmitPayForBlob(
 	}
 
 	for attempt := 0; attempt < maxRetries; attempt++ {
+		gasPrice, err := ca.estimateGasPrice(ctx, cfg)
+		if err != nil {
+			return nil, err
+		}
+
 		opts := []user.TxOption{user.SetGasLimitAndGasPrice(gas, gasPrice)}
 		if feeGrant != nil {
 			opts = append(opts, feeGrant)
 		}
 
 		response, err := client.SubmitPayForBlobWithAccount(ctx, account.Name(), libBlobs, opts...)
-		if apperrors.IsInsufficientMinGasPrice(err) { // TODO @renaynay: use new rachid named func
-			// if the tx failed due to insufficient gas price, but the user set
-			// the gasPrice via the TxConfig, fail out.
-			// otherwise retry with the newly estimated gas price
-			if cfg.isGasPriceSet {
-				return nil, fmt.Errorf("tx failed due to insufficient gas price set in TxConfig: %w", err)
+		if err == nil {
+			// metrics should only be counted on a successful PFB tx
+			if response.Code == 0 {
+				ca.markSuccessfulPFB()
 			}
-
-			log.Debugw("insufficient gas price, retrying with new gas price",
-				"attempt", attempt, "err", err)
-
-			gasPrice, err = ca.estimateGasPrice(ctx, cfg)
-			if err != nil {
-				return nil, err
-			}
-
-			continue
+			return convertToSdkTxResponse(response), nil
 		}
-		if err != nil {
+		// TODO @renaynay: use new rachid named func
+		if !apperrors.IsInsufficientMinGasPrice(err) {
 			return nil, err
 		}
 
-		// metrics should only be counted on a successful PFB tx
-		if response.Code == 0 {
-			ca.markSuccessfulPFB()
+		// if the tx failed due to insufficient gas price, but the user set the
+		// gasPrice via the TxConfig, fail out. otherwise retry with the newly
+		// estimated gas price
+		if cfg.isGasPriceSet {
+			return nil, fmt.Errorf("tx failed due to insufficient gas price set in TxConfig: %w", err)
 		}
-		return convertToSdkTxResponse(response), nil
+
+		log.Debugw("insufficient gas price, retrying with new gas price",
+			"attempt", attempt, "err", err)
 	}
 
 	return nil, fmt.Errorf("failed to submit blobs after %d attempts due to insufficient gas price", maxRetries)
