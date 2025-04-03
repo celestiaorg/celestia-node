@@ -418,12 +418,16 @@ func BenchGetHalfAxisFromAccessor(
 				name := fmt.Sprintf("Size:%v/ProofType:%s/squareHalf:%s", size, axisType, strconv.Itoa(squareHalf))
 				b.Run(name, func(b *testing.B) {
 					// warm up cache
-					_, err := acc.AxisHalf(ctx, axisType, acc.Size(ctx)/2*(squareHalf))
+					size, err, _ := acc.Size(ctx)
+					require.NoError(b, err)
+					_, err = acc.AxisHalf(ctx, axisType, size/2*(squareHalf))
 					require.NoError(b, err)
 
 					b.ResetTimer()
 					for i := 0; i < b.N; i++ {
-						_, err := acc.AxisHalf(ctx, axisType, acc.Size(ctx)/2*(squareHalf))
+						size, err, _ := acc.Size(ctx)
+						require.NoError(b, err)
+						_, err = acc.AxisHalf(ctx, axisType, size/2*(squareHalf))
 						require.NoError(b, err)
 					}
 				})
@@ -443,7 +447,7 @@ func BenchGetSampleFromAccessor(
 		acc := createAccessor(b, eds)
 
 		// loop over all possible axis types and quadrants
-		for _, q := range quadrants {
+		for _, q := range []quadrantIdx{q1, q2, q3, q4} {
 			name := fmt.Sprintf("Size:%v/quadrant:%s", size, q)
 			b.Run(name, func(b *testing.B) {
 				rowIdx, colIdx := q.coordinates(acc.Size(ctx))
@@ -471,8 +475,6 @@ const (
 	q3                        // bottom-left: column parity quadrant
 	q4                        // bottom-right: combined parity quadrant
 )
-
-var quadrants = []quadrantIdx{q1, q2, q3, q4}
 
 func (q quadrantIdx) String() string {
 	return strconv.Itoa(int(q))
