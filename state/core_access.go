@@ -18,7 +18,6 @@ import (
 	"github.com/tendermint/tendermint/crypto/merkle"
 	"github.com/tendermint/tendermint/proto/tendermint/crypto"
 	"google.golang.org/grpc"
-	"google.golang.org/grpc/connectivity"
 	"google.golang.org/grpc/credentials/insecure"
 
 	"github.com/celestiaorg/celestia-app/v3/app"
@@ -529,7 +528,7 @@ func (ca *CoreAccessor) setupTxClient(ctx context.Context) error {
 
 	opts := []user.Option{user.WithDefaultAddress(ca.defaultSignerAddress)}
 	if ca.estimatorServiceAddr != "" {
-		estimatorConn, err := setupEstimatorConnection(ctx, ca.estimatorServiceAddr)
+		estimatorConn, err := setupEstimatorConnection(ca.estimatorServiceAddr)
 		if err != nil {
 			return err
 		}
@@ -610,7 +609,7 @@ func (ca *CoreAccessor) getTxAuthorAccAddress(cfg *TxConfig) (AccAddress, error)
 	}
 }
 
-func setupEstimatorConnection(ctx context.Context, addr string) (*grpc.ClientConn, error) {
+func setupEstimatorConnection(addr string) (*grpc.ClientConn, error) {
 	log.Infow("setting up estimator connection", "address", addr)
 
 	interceptor := utils.GRPCRetryInterceptor()
@@ -619,18 +618,9 @@ func setupEstimatorConnection(ctx context.Context, addr string) (*grpc.ClientCon
 		grpc.WithUnaryInterceptor(interceptor),
 	}
 
-	conn, err := utils.ConstructGRPCConnection(addr, grpcOpts...)
+	conn, err := grpc.NewClient(addr, grpcOpts...)
 	if err != nil {
 		return nil, fmt.Errorf("state: failed to set up grpc connection to estimator address %s: %w", addr, err)
-	}
-
-	conn.Connect()
-	if !conn.WaitForStateChange(ctx, connectivity.Ready) {
-		err = conn.Close()
-		if err != nil {
-			log.Errorw("failed to close grpc conn to estimator", "err", err)
-		}
-		return nil, fmt.Errorf("state: couldn't connect to estimator")
 	}
 
 	return conn, nil

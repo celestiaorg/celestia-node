@@ -43,7 +43,6 @@ func ParseFlags(cmd *cobra.Command, cfg *Config) {
 	}
 
 	if cmd.Flag(estimatorServiceAddressFlag).Changed {
-		addr := cmd.Flag(estimatorServiceAddressFlag).Value.String()
-		cfg.EstimatorAddress = addr
+		cfg.EstimatorAddress = cmd.Flag(estimatorServiceAddressFlag).Value.String()
 	}
 }

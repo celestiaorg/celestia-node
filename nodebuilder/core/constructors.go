@@ -26,6 +26,15 @@ const (
 	xtokenFileName = "xtoken.json"
 )
 
+// gRPC client requires fetching a block on initialization that can be larger
+// than the default message size set in gRPC. Increasing defaults up to 64MB
+// to avoid fixing it every time the block size increases.
+// Tested on mainnet node:
+// square size = 128
+// actual response size = 10,85mb
+// TODO(@vgonkivs): Revisit this constant once the block size reaches 64MB.
+var defaultGRPCMessageSize = 64 * 1024 * 1024 // 64Mb
+
 // TODO @renaynay: should we make this reusable so we can have all auth + other features
 // for the estimator service too?
 func grpcClient(lc fx.Lifecycle, cfg Config) (*grpc.ClientConn, error) {
@@ -61,8 +70,12 @@ func grpcClient(lc fx.Lifecycle, cfg Config) (*grpc.ClientConn, error) {
 			grpc.WithChainStreamInterceptor(authStreamInterceptor(xToken), retryStreamInterceptor),
 		)
 	}
+	opts = append(opts, grpc.WithDefaultCallOptions(
+		grpc.MaxCallRecvMsgSize(defaultGRPCMessageSize),
+		grpc.MaxCallSendMsgSize(defaultGRPCMessageSize),
+	))
 
-	conn, err := utils.ConstructGRPCConnection(net.JoinHostPort(cfg.IP, cfg.Port), opts...)
+	conn, err := grpc.NewClient(net.JoinHostPort(cfg.IP, cfg.Port), opts...)
 	if err != nil {
 		return nil, err
 	}
