@@ -183,8 +183,8 @@ func OpenODS(path string) (*ODS, error) {
 }
 
 // Size returns EDS size stored in file's header.
-func (o *ODS) Size(context.Context) int {
-	return o.size()
+func (o *ODS) Size(context.Context) (int, error) {
+	return o.size(), nil
 }
 
 func (o *ODS) size() int {
