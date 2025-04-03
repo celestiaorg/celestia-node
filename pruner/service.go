@@ -117,7 +117,7 @@ func (s *Service) run() {
 
 	lastPrunedHeader, err := s.lastPruned(s.ctx)
 	if err != nil {
-		log.Errorw("failed to get last pruned header", "height", s.checkpoint.LastPrunedHeight,
+		log.Errorw("failed to get last pruned block", "height", s.checkpoint.LastPrunedHeight,
 			"err", err)
 		log.Warn("exiting pruner service!")
 
@@ -166,7 +166,7 @@ func (s *Service) prune(
 
 		failed := make(map[uint64]struct{})
 
-		log.Debugw("pruning headers", "from", headers[0].Height(), "to",
+		log.Debugw("pruning block data", "from", headers[0].Height(), "to",
 			headers[len(headers)-1].Height())
 
 		for _, eh := range headers {
@@ -198,7 +198,7 @@ func (s *Service) prune(
 }
 
 func (s *Service) retryFailed(ctx context.Context) {
-	log.Debugw("retrying failed headers", "amount", len(s.checkpoint.FailedHeaders))
+	log.Debugw("retrying failed heights", "amount", len(s.checkpoint.FailedHeaders))
 
 	for failed := range s.checkpoint.FailedHeaders {
 		h, err := s.getter.GetByHeight(ctx, failed)
