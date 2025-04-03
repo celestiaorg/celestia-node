@@ -77,15 +77,16 @@ func WithProofsCache(ac AccessorStreamer) AccessorStreamer {
 
 func (c *proofsCache) Size(ctx context.Context) (int, error) {
 	size := c.size.Load()
-	if size == 0 {
-		loaded, err := c.inner.Size(ctx)
-		if err != nil {
-			return 0, fmt.Errorf("loading size from inner accessor: %w", err)
-		}
-		c.size.Store(int32(loaded))
-		return loaded, nil
+	if size != 0 {
+		return int(size), nil
 	}
-	return int(size), nil
+
+	loaded, err := c.inner.Size(ctx)
+	if err != nil {
+		return 0, fmt.Errorf("loading size from inner accessor: %w", err)
+	}
+	c.size.Store(int32(loaded))
+	return loaded, nil
 }
 
 func (c *proofsCache) DataHash(ctx context.Context) (share.DataHash, error) {
@@ -233,7 +234,11 @@ func (c *proofsCache) RowNamespaceData(
 		return shwap.RowNamespaceData{}, err
 	}
 
-	row, proof, err := ipld.GetSharesByNamespace(ctx, ax.proofs, ax.root, namespace, c.Size(ctx))
+	size, err := c.Size(ctx)
+	if err != nil {
+		return shwap.RowNamespaceData{}, fmt.Errorf("getting size: %w", err)
+	}
+	row, proof, err := ipld.GetSharesByNamespace(ctx, ax.proofs, ax.root, namespace, size)
 	if err != nil {
 		return shwap.RowNamespaceData{}, fmt.Errorf("shares by namespace %s for row %v: %w", namespace.String(), rowIdx, err)
 	}
@@ -272,7 +277,11 @@ func (c *proofsCache) Shares(ctx context.Context) ([]libshare.Share, error) {
 }
 
 func (c *proofsCache) Reader() (io.Reader, error) {
-	odsSize := c.Size(context.TODO()) / 2
+	size, err := c.Size(context.TODO())
+	if err != nil {
+		return nil, fmt.Errorf("getting size: %w", err)
+	}
+	odsSize := size / 2
 	reader := NewShareReader(odsSize, c.getShare)
 	return reader, nil
 }
@@ -323,7 +332,11 @@ func (c *proofsCache) getAxisFromCache(axisType rsmt2d.Axis, axisIdx int) (axisW
 
 func (c *proofsCache) getShare(rowIdx, colIdx int) (libshare.Share, error) {
 	ctx := context.TODO()
-	odsSize := c.Size(ctx) / 2
+	size, err := c.Size(ctx)
+	if err != nil {
+		return libshare.Share{}, fmt.Errorf("getting size: %w", err)
+	}
+	odsSize := size / 2
 	half, err := c.AxisHalf(ctx, rsmt2d.Row, rowIdx)
 	if err != nil {
 		return libshare.Share{}, fmt.Errorf("reading axis half: %w", err)
