@@ -447,7 +447,7 @@ func BenchGetSampleFromAccessor(
 		acc := createAccessor(b, eds)
 
 		// loop over all possible axis types and quadrants
-		for _, q := range []quadrantIdx{q1, q2, q3, q4} {
+		for _, q := range quadrants {
 			name := fmt.Sprintf("Size:%v/quadrant:%s", size, q)
 			b.Run(name, func(b *testing.B) {
 				rowIdx, colIdx := q.coordinates(acc.Size(ctx))
@@ -469,6 +469,7 @@ func BenchGetSampleFromAccessor(
 
 type quadrantIdx int
 
+var quadrants = []quadrantIdx{1, 2, 3, 4}
 
 func (q quadrantIdx) String() string {
 	return strconv.Itoa(int(q))
