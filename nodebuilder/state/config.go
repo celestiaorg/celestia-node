@@ -16,6 +16,9 @@ type Config struct {
 	// EstimatorAddress specifies a third-party endpoint that will be used to
 	// calculate gas price and gas usage
 	EstimatorAddress string
+	// EnableEstimatorTLS specifies whether to use TLS for the gRPC connection to the
+	// estimator service
+	EnableEstimatorTLS bool
 }
 
 func DefaultConfig() Config {

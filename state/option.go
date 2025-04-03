@@ -10,3 +10,11 @@ func WithEstimatorService(address string) Option {
 		ca.estimatorServiceAddr = address
 	}
 }
+
+// WithEstimatorServiceTLS indicates to the CoreAccessor to use TLS for the
+// estimator service connection.
+func WithEstimatorServiceTLS() Option {
+	return func(ca *CoreAccessor) {
+		ca.estimatorServiceTLS = true
+	}
+}

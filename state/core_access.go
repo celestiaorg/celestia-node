@@ -2,10 +2,13 @@ package state
 
 import (
 	"context"
+	"crypto/tls"
 	"errors"
 	"fmt"
 	"sync"
 	"time"
+
+	"google.golang.org/grpc/credentials"
 
 	"github.com/cosmos/cosmos-sdk/client/grpc/tmservice"
 	"github.com/cosmos/cosmos-sdk/crypto/keyring"
@@ -65,6 +68,7 @@ type CoreAccessor struct {
 	network  string
 
 	estimatorServiceAddr string
+	estimatorServiceTLS  bool
 	estimatorConn        *grpc.ClientConn
 
 	// these fields are mutatable and thus need to be protected by a mutex
@@ -519,7 +523,7 @@ func (ca *CoreAccessor) setupTxClient(ctx context.Context) error {
 
 	opts := []user.Option{user.WithDefaultAddress(ca.defaultSignerAddress)}
 	if ca.estimatorServiceAddr != "" {
-		estimatorConn, err := setupEstimatorConnection(ca.estimatorServiceAddr)
+		estimatorConn, err := setupEstimatorConnection(ca.estimatorServiceAddr, ca.estimatorServiceTLS)
 		if err != nil {
 			return err
 		}
@@ -600,13 +604,20 @@ func (ca *CoreAccessor) getTxAuthorAccAddress(cfg *TxConfig) (AccAddress, error)
 	}
 }
 
-func setupEstimatorConnection(addr string) (*grpc.ClientConn, error) {
+func setupEstimatorConnection(addr string, tlsEnabled bool) (*grpc.ClientConn, error) {
 	log.Infow("setting up estimator connection", "address", addr)
 
 	interceptor := utils.GRPCRetryInterceptor()
 	grpcOpts := []grpc.DialOption{
-		grpc.WithTransportCredentials(insecure.NewCredentials()),
 		grpc.WithUnaryInterceptor(interceptor),
+	}
+
+	if tlsEnabled {
+		grpcOpts = append(grpcOpts,
+			grpc.WithTransportCredentials(credentials.NewTLS(&tls.Config{MinVersion: tls.VersionTLS12})),
+		)
+	} else {
+		grpcOpts = append(grpcOpts, grpc.WithTransportCredentials(insecure.NewCredentials()))
 	}
 
 	conn, err := grpc.NewClient(addr, grpcOpts...)
