@@ -189,12 +189,9 @@ func (ca *CoreAccessor) SubmitPayForBlob(
 		gas = ca.estimateGasForBlobs(blobSizes)
 	}
 
-	gasPrice := cfg.GasPrice()
-	if gasPrice == DefaultGasPrice {
-		gasPrice, err = ca.estimateGasPrice(ctx, cfg)
-		if err != nil {
-			return nil, err
-		}
+	gasPrice, err := ca.estimateGasPrice(ctx, cfg)
+	if err != nil {
+		return nil, err
 	}
 
 	// get tx signer account name

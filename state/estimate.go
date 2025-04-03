@@ -11,16 +11,20 @@ import (
 
 var ErrGasPriceExceedsLimit = errors.New("state: estimated gasPrice exceeds max gasPrice")
 
+// estimateGasPrice queries the gas price for a transaction via the estimator
+// service, unless user specifies a GasPrice via the TxConfig.
 func (ca *CoreAccessor) estimateGasPrice(ctx context.Context, cfg *TxConfig) (float64, error) {
+	// if user set gas price, use it
+	if cfg.GasPrice() != DefaultGasPrice {
+		return cfg.GasPrice(), nil
+	}
+
 	gasPrice, err := ca.client.EstimateGasPrice(ctx, cfg.priority.toApp())
 	if err != nil {
 		return 0, err
 	}
 
-	// sanity check estimated gas price against user's set gas price
-	if cfg.GasPrice() != DefaultGasPrice {
-		gasPrice = cfg.GasPrice()
-	}
+	// sanity check against max gas price
 	if gasPrice > cfg.MaxGasPrice() {
 		return 0, ErrGasPriceExceedsLimit
 	}
