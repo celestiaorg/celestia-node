@@ -59,4 +59,4 @@ There has been some discussion of a pricing mechanism built in to the protocol. 
 
 ## References
 
-- [CIP 18](https://github.com/celestiaorg/CIPs/blob/main/cips/cip-18.md) 
+- [CIP 18](https://github.com/celestiaorg/CIPs/blob/main/cips/cip-18.md)
