@@ -117,7 +117,7 @@ install-key:
 fmt: sort-imports
 	@find . -name '*.go' -type f -not -path "*.git*" -not -name '*.pb.go' -not -name '*pb_test.go' | xargs gofmt -w -s
 	@go mod tidy -compat=1.20
-	@cfmt -w -m=100 ./...
+	@cfmt -w -m=120 ./...
 	@gofumpt -w -extra .
 	@markdownlint --fix --quiet --config .markdownlint.yaml .
 .PHONY: fmt
