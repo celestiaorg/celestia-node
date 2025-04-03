@@ -139,7 +139,7 @@ func (odsq4 *ODSQ4) Sample(ctx context.Context, idx shwap.SampleCoords) (shwap.S
 func (odsq4 *ODSQ4) AxisHalf(ctx context.Context, axisType rsmt2d.Axis, axisIdx int) (eds.AxisHalf, error) {
 	size, err := odsq4.Size(ctx)
 	if err != nil {
-		return nil, fmt.Errorf("getting size: %w", err)
+		return eds.AxisHalf{}, fmt.Errorf("getting size: %w", err)
 	}
 
 	if axisIdx >= size/2 {
