@@ -34,10 +34,6 @@ import (
 	"github.com/celestiaorg/celestia-node/libs/utils"
 )
 
-const (
-	maxRetries = 5
-)
-
 var (
 	ErrInvalidAmount = errors.New("state: amount must be greater than zero")
 	log              = logging.Logger("state")
@@ -203,42 +199,34 @@ func (ca *CoreAccessor) SubmitPayForBlob(
 		return nil, fmt.Errorf("account for signer %s not found", author)
 	}
 
-	for attempt := 0; attempt < maxRetries; attempt++ {
-		gasPrice, err := ca.estimateGasPrice(ctx, cfg)
-		if err != nil {
-			return nil, err
-		}
-
-		opts := []user.TxOption{user.SetGasLimitAndGasPrice(gas, gasPrice)}
-		if feeGrant != nil {
-			opts = append(opts, feeGrant)
-		}
-
-		response, err := client.SubmitPayForBlobWithAccount(ctx, account.Name(), libBlobs, opts...)
-		if err == nil {
-			// metrics should only be counted on a successful PFB tx
-			if response.Code == 0 {
-				ca.markSuccessfulPFB()
-			}
-			return convertToSdkTxResponse(response), nil
-		}
-		// TODO @renaynay: use new rachid named func
-		if !apperrors.IsInsufficientMinGasPrice(err) {
-			return nil, err
-		}
-
-		// if the tx failed due to insufficient gas price, but the user set the
-		// gasPrice via the TxConfig, fail out. otherwise retry with the newly
-		// estimated gas price
-		if cfg.isGasPriceSet {
-			return nil, fmt.Errorf("tx failed due to insufficient gas price set in TxConfig: %w", err)
-		}
-
-		log.Debugw("insufficient gas price, retrying with new gas price",
-			"attempt", attempt, "err", err)
+	gasPrice, err := ca.estimateGasPrice(ctx, cfg)
+	if err != nil {
+		return nil, err
 	}
 
-	return nil, fmt.Errorf("failed to submit blobs after %d attempts due to insufficient gas price", maxRetries)
+	opts := []user.TxOption{user.SetGasLimitAndGasPrice(gas, gasPrice)}
+	if feeGrant != nil {
+		opts = append(opts, feeGrant)
+	}
+
+	response, err := client.SubmitPayForBlobWithAccount(ctx, account.Name(), libBlobs, opts...)
+	if err == nil {
+		// metrics should only be counted on a successful PFB tx
+		if response.Code == 0 {
+			ca.markSuccessfulPFB()
+		}
+		return convertToSdkTxResponse(response), nil
+	}
+	// TODO @renaynay: use new rachid named func
+	if apperrors.IsInsufficientMinGasPrice(err) {
+		if cfg.isGasPriceSet {
+			return nil, fmt.Errorf("failed to submit blobs due to insufficient gas price in txconfig: %w", err)
+		}
+		return nil, fmt.Errorf("failed to submit blobs due to insufficient estimated "+
+			"gas price %f: %w", gasPrice, err)
+	}
+
+	return nil, fmt.Errorf("failed to submit blobs: %w", err)
 }
 
 func (ca *CoreAccessor) AccountAddress(context.Context) (Address, error) {
