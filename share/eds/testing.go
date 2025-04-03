@@ -469,12 +469,6 @@ func BenchGetSampleFromAccessor(
 
 type quadrantIdx int
 
-const (
-	q1 quadrantIdx = iota + 1 // top-left: original data quadrant
-	q2                        // top-right: row parity quadrant
-	q3                        // bottom-left: column parity quadrant
-	q4                        // bottom-right: combined parity quadrant
-)
 
 func (q quadrantIdx) String() string {
 	return strconv.Itoa(int(q))
