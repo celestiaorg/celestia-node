@@ -40,10 +40,6 @@ A new field in the `TxConfig` will be introduced allowing for a user to  use the
 
 By default, the same consensus node that the node is connected with, should be used as the `GasEstimator`. During construction, a user can optionally provide a grpc address that can be used instead. This will require a new config field in the `state` config that can specify addr of estimator service.
 
-### Fallback
-
-If there are any errors with interacting with the `GasEstimator` service, the node should log an error and fallback to using the minimum gas price. 
-
 ## Alternative Approaches
 
 There has been some discussion of a pricing mechanism built in to the protocol. This would be more complex but would remove the reliance on a trusted third party. This may be explored in the future but given resource constraints, the `GasEstimator` service has been prioritized
