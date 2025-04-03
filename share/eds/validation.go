@@ -26,15 +26,16 @@ func WithValidation(f Accessor) Accessor {
 
 func (f validation) Size(ctx context.Context) (int, error) {
 	size := f.size.Load()
-	if size == 0 {
-		loaded, err := f.Accessor.Size(ctx)
-		if err != nil {
-			return 0, fmt.Errorf("loading size: %w", err)
-		}
-		f.size.Store(int32(loaded))
-		return loaded, nil
+	if size != 0 {
+		return int(size), nil
 	}
-	return int(size), nil
+
+	loaded, err := f.Accessor.Size(ctx)
+	if err != nil {
+		return 0, fmt.Errorf("loading size: %w", err)
+	}
+	f.size.Store(int32(loaded))
+	return loaded, nil
 }
 
 func (f validation) Sample(ctx context.Context, idx shwap.SampleCoords) (shwap.Sample, error) {
