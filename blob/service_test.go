@@ -977,7 +977,7 @@ func proveAndVerifyShareCommitments(t *testing.T, blobSize int) {
 			require.NoError(t, actualCommitmentProof.Validate())
 			valid, err := actualCommitmentProof.Verify(
 				dataRoot,
-				appconsts.DefaultSubtreeRootThreshold,
+				appconsts.SubtreeRootThreshold,
 			)
 			require.NoError(t, err)
 			require.True(t, valid)
@@ -987,7 +987,7 @@ func proveAndVerifyShareCommitments(t *testing.T, blobSize int) {
 			require.NoError(t, expectedCommitmentProof.Validate())
 			valid, err = expectedCommitmentProof.Verify(
 				dataRoot,
-				appconsts.DefaultSubtreeRootThreshold,
+				appconsts.SubtreeRootThreshold,
 			)
 			require.NoError(t, err)
 			require.True(t, valid)

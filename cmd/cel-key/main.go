@@ -25,11 +25,11 @@ var initClientCtx = client.Context{}.
 	WithLegacyAmino(encodingConfig.Amino).
 	WithInput(os.Stdin).
 	WithAccountRetriever(types.AccountRetriever{}).
-	WithBroadcastMode(flags.BroadcastBlock).
+	WithBroadcastMode(flags.BroadcastSync). // TODO: was BroadcastBlock
 	WithHomeDir(app.DefaultNodeHome).
 	WithViper("CELESTIA")
 
-var rootCmd = keys.Commands("~")
+var rootCmd = keys.Commands()
 
 func init() {
 	rootCmd.PersistentFlags().AddFlagSet(DirectoryFlags())
