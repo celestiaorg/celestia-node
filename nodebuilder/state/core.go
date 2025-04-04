@@ -8,7 +8,6 @@ import (
 	"github.com/celestiaorg/go-header/sync"
 
 	"github.com/celestiaorg/celestia-node/header"
-	"github.com/celestiaorg/celestia-node/nodebuilder/core"
 	modfraud "github.com/celestiaorg/celestia-node/nodebuilder/fraud"
 	"github.com/celestiaorg/celestia-node/nodebuilder/p2p"
 	"github.com/celestiaorg/celestia-node/share/eds/byzantine"
@@ -18,20 +17,29 @@ import (
 // coreAccessor constructs a new instance of state.Module over
 // a celestia-core connection.
 func coreAccessor(
+	cfg Config,
 	keyring keyring.Keyring,
 	keyname AccountName,
 	sync *sync.Syncer[*header.ExtendedHeader],
 	fraudServ libfraud.Service[*header.ExtendedHeader],
 	network p2p.Network,
 	client *grpc.ClientConn,
-	address core.EstimatorAddress,
 ) (
 	*state.CoreAccessor,
 	Module,
 	*modfraud.ServiceBreaker[*state.CoreAccessor, *header.ExtendedHeader],
 	error,
 ) {
-	ca, err := state.NewCoreAccessor(keyring, string(keyname), sync, client, network.String(), string(address))
+	var opts []state.Option
+	if cfg.EstimatorAddress != "" {
+		opts = append(opts, state.WithEstimatorService(cfg.EstimatorAddress))
+
+		if cfg.EnableEstimatorTLS {
+			opts = append(opts, state.WithEstimatorServiceTLS())
+		}
+	}
+
+	ca, err := state.NewCoreAccessor(keyring, string(keyname), sync, client, network.String(), opts...)
 
 	sBreaker := &modfraud.ServiceBreaker[*state.CoreAccessor, *header.ExtendedHeader]{
 		Service:   ca,

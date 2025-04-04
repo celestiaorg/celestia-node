@@ -8,8 +8,10 @@ import (
 )
 
 var (
-	keyringKeyNameFlag = "keyring.keyname"
-	keyringBackendFlag = "keyring.backend"
+	keyringKeyNameFlag          = "keyring.keyname"
+	keyringBackendFlag          = "keyring.backend"
+	estimatorServiceAddressFlag = "estimator.service.address"
+	estimatorServiceTLSFlag     = "estimator.service.tls"
 )
 
 // Flags gives a set of hardcoded State flags.
@@ -22,6 +24,19 @@ func Flags() *flag.FlagSet {
 	flags.String(keyringBackendFlag, defaultBackendName,
 		fmt.Sprintf("Directs node's keyring signer to use the given "+
 			"backend. Default is %s.", defaultBackendName))
+	flags.String(
+		estimatorServiceAddressFlag,
+		"",
+		"specifies the endpoint of the third-party service that should be used to calculate"+
+			"the gas price and gas. Format: <address>:<port>. Default connection to the consensus node will be "+
+			"used if left empty.",
+	)
+	flags.Bool(
+		estimatorServiceTLSFlag,
+		false,
+		"enables TLS for the estimator service gRPC connection",
+	)
+
 	return flags
 }
 
@@ -32,5 +47,13 @@ func ParseFlags(cmd *cobra.Command, cfg *Config) {
 	}
 	if cmd.Flag(keyringBackendFlag).Changed {
 		cfg.DefaultBackendName = cmd.Flag(keyringBackendFlag).Value.String()
+	}
+
+	if cmd.Flag(estimatorServiceAddressFlag).Changed {
+		cfg.EstimatorAddress = cmd.Flag(estimatorServiceAddressFlag).Value.String()
+	}
+
+	if cmd.Flag(estimatorServiceTLSFlag).Changed {
+		cfg.EnableEstimatorTLS = true
 	}
 }

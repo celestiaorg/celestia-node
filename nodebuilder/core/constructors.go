@@ -23,24 +23,22 @@ import (
 )
 
 const (
-	// gRPC client requires fetching a block on initialization that can be larger
-	// than the default message size set in gRPC. Increasing defaults up to 64MB
-	// to avoid fixing it every time the block size increases.
-	// Tested on mainnet node:
-	// square size = 128
-	// actual response size = 10,85mb
-	// TODO(@vgonkivs): Revisit this constant once the block size reaches 64MB.
-	defaultGRPCMessageSize = 64 * 1024 * 1024 // 64Mb
-	xtokenFileName         = "xtoken.json"
+	xtokenFileName = "xtoken.json"
 )
 
+// gRPC client requires fetching a block on initialization that can be larger
+// than the default message size set in gRPC. Increasing defaults up to 64MB
+// to avoid fixing it every time the block size increases.
+// Tested on mainnet node:
+// square size = 128
+// actual response size = 10,85mb
+// TODO(@vgonkivs): Revisit this constant once the block size reaches 64MB.
+var defaultGRPCMessageSize = 64 * 1024 * 1024 // 64Mb
+
+// TODO @renaynay: should we make this reusable so we can have all auth + other features
+// for the estimator service too?
 func grpcClient(lc fx.Lifecycle, cfg Config) (*grpc.ClientConn, error) {
-	opts := []grpc.DialOption{
-		grpc.WithDefaultCallOptions(
-			grpc.MaxCallRecvMsgSize(defaultGRPCMessageSize),
-			grpc.MaxCallSendMsgSize(defaultGRPCMessageSize),
-		),
-	}
+	var opts []grpc.DialOption
 	if cfg.TLSEnabled {
 		opts = append(opts, grpc.WithTransportCredentials(
 			credentials.NewTLS(&tls.Config{MinVersion: tls.VersionTLS12})),
@@ -49,12 +47,7 @@ func grpcClient(lc fx.Lifecycle, cfg Config) (*grpc.ClientConn, error) {
 		opts = append(opts, grpc.WithTransportCredentials(insecure.NewCredentials()))
 	}
 
-	retryInterceptor := grpc_retry.UnaryClientInterceptor(
-		grpc_retry.WithMax(5),
-		grpc_retry.WithCodes(codes.Unavailable),
-		grpc_retry.WithBackoff(
-			grpc_retry.BackoffExponentialWithJitter(time.Second, 2.0)),
-	)
+	retryInterceptor := utils.GRPCRetryInterceptor()
 	retryStreamInterceptor := grpc_retry.StreamClientInterceptor(
 		grpc_retry.WithMax(5),
 		grpc_retry.WithCodes(codes.Unavailable),
@@ -77,12 +70,16 @@ func grpcClient(lc fx.Lifecycle, cfg Config) (*grpc.ClientConn, error) {
 			grpc.WithChainStreamInterceptor(authStreamInterceptor(xToken), retryStreamInterceptor),
 		)
 	}
+	opts = append(opts, grpc.WithDefaultCallOptions(
+		grpc.MaxCallRecvMsgSize(defaultGRPCMessageSize),
+		grpc.MaxCallSendMsgSize(defaultGRPCMessageSize),
+	))
 
-	endpoint := net.JoinHostPort(cfg.IP, cfg.Port)
-	conn, err := grpc.NewClient(endpoint, opts...)
+	conn, err := grpc.NewClient(net.JoinHostPort(cfg.IP, cfg.Port), opts...)
 	if err != nil {
 		return nil, err
 	}
+
 	lc.Append(fx.Hook{
 		OnStart: func(ctx context.Context) error {
 			conn.Connect()
