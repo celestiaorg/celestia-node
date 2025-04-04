@@ -8,8 +8,6 @@ import (
 	"sync"
 	"time"
 
-	"google.golang.org/grpc/credentials"
-
 	"github.com/cosmos/cosmos-sdk/client/grpc/tmservice"
 	"github.com/cosmos/cosmos-sdk/crypto/keyring"
 	storetypes "github.com/cosmos/cosmos-sdk/store/types"
@@ -21,6 +19,7 @@ import (
 	"github.com/tendermint/tendermint/crypto/merkle"
 	"github.com/tendermint/tendermint/proto/tendermint/crypto"
 	"google.golang.org/grpc"
+	"google.golang.org/grpc/credentials"
 	"google.golang.org/grpc/credentials/insecure"
 
 	"github.com/celestiaorg/celestia-app/v3/app"
