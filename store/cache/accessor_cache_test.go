@@ -303,7 +303,7 @@ type mockAccessor struct {
 	isClosed bool
 }
 
-func (m *mockAccessor) Size(context.Context) int {
+func (m *mockAccessor) Size(context.Context) (int, error) {
 	panic("implement me")
 }
 

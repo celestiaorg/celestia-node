@@ -47,8 +47,8 @@ func (n NoopFile) Reader() (io.Reader, error) {
 	return noopReader{}, nil
 }
 
-func (n NoopFile) Size(context.Context) int {
-	return 0
+func (n NoopFile) Size(context.Context) (int, error) {
+	return 0, nil
 }
 
 func (n NoopFile) DataHash(context.Context) (share.DataHash, error) {
