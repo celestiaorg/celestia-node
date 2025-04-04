@@ -10,6 +10,7 @@ import (
 
 	tmrand "github.com/cometbft/cometbft/libs/rand"
 	"github.com/cometbft/cometbft/node"
+	cmthttp "github.com/cometbft/cometbft/rpc/client/http"
 	srvtypes "github.com/cosmos/cosmos-sdk/server/types"
 	grpc_retry "github.com/grpc-ecosystem/go-grpc-middleware/retry"
 	"github.com/stretchr/testify/require"
@@ -62,6 +63,16 @@ func StartTestNodeWithConfig(t *testing.T, cfg *testnode.Config) testnode.Contex
 	// however, it might be useful to use a local tendermint client
 	// if you need to debug something inside it
 	return cctx
+}
+
+// StartTestNodeWithConfigAndClient initializes a test node with default configuration and a WebSocket HTTP client.
+func StartTestNodeWithConfigAndClient(t *testing.T) (testnode.Context, *cmthttp.HTTP) {
+	cctx, rpcAddr, _ := testnode.NewNetwork(t, DefaultTestConfig())
+	wsClient, err := cmthttp.New(rpcAddr, "/websocket")
+	if err != nil {
+		panic(err)
+	}
+	return cctx, wsClient
 }
 
 // generateRandomAccounts generates n random account names.
