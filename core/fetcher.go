@@ -31,13 +31,13 @@ var (
 )
 
 type BlockFetcher struct {
-	client coregrpc.BlockAPIClient
+	client coregrpc.BlockAPIServiceClient
 }
 
 // NewBlockFetcher returns a new `BlockFetcher`.
 func NewBlockFetcher(conn *grpc.ClientConn) (*BlockFetcher, error) {
 	return &BlockFetcher{
-		client: coregrpc.NewBlockAPIClient(conn),
+		client: coregrpc.NewBlockAPIServiceClient(conn),
 	}, nil
 }
 
@@ -179,7 +179,7 @@ func (f *BlockFetcher) SubscribeNewBlockEvent(ctx context.Context) (chan types.E
 func (f *BlockFetcher) receive(
 	ctx context.Context,
 	signedBlockCh chan types.EventDataSignedBlock,
-	subscription coregrpc.BlockAPI_SubscribeNewHeightsClient,
+	subscription coregrpc.BlockAPIService_SubscribeNewHeightsClient,
 ) error {
 	log.Debug("fetcher: started listening for new blocks")
 	for {
@@ -221,7 +221,7 @@ func (f *BlockFetcher) IsSyncing(ctx context.Context) (bool, error) {
 	return resp.SyncInfo.CatchingUp, nil
 }
 
-func receiveBlockByHeight(streamer coregrpc.BlockAPI_BlockByHeightClient) (
+func receiveBlockByHeight(streamer coregrpc.BlockAPIService_BlockByHeightClient) (
 	*SignedBlock,
 	error,
 ) {
@@ -264,7 +264,7 @@ func receiveBlockByHeight(streamer coregrpc.BlockAPI_BlockByHeightClient) (
 	}, nil
 }
 
-func receiveBlockByHash(streamer coregrpc.BlockAPI_BlockByHashClient) (*types.Block, error) {
+func receiveBlockByHash(streamer coregrpc.BlockAPIService_BlockByHashClient) (*types.Block, error) {
 	parts := make([]*tmproto.Part, 0)
 	isLast := false
 	for !isLast {

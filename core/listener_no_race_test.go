@@ -48,7 +48,7 @@ func TestListenerWithNonEmptyBlocks(t *testing.T) {
 	for i := 0; i < 16; i++ {
 		accounts := cfg.Genesis.Accounts()
 		require.Greater(t, len(accounts), 0)
-		_, err := cctx.FillBlock(16, accounts[0].Name, flags.BroadcastBlock)
+		_, err := cctx.FillBlock(16, accounts[0].Name, flags.BroadcastSync) // TODO: this was BroadcastBlock, expecting failures
 		require.NoError(t, err)
 		msg, err := sub.Next(ctx)
 		require.NoError(t, err)
