@@ -34,7 +34,7 @@ func DefaultParameters() *Parameters {
 		ServerReadTimeout:    5 * time.Second,
 		ServerWriteTimeout:   time.Minute, // based on max observed sample time for 256 blocks (~50s)
 		HandleRequestTimeout: time.Minute,
-		ConcurrencyLimit:     10,
+		ConcurrencyLimit:     32,
 	}
 }
 
