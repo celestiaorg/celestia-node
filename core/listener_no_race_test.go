@@ -5,6 +5,9 @@ package core
 import (
 	"bytes"
 	"context"
+	"github.com/celestiaorg/celestia-app/v4/test/util/testnode"
+	sdk "github.com/cosmos/cosmos-sdk/types"
+	authtx "github.com/cosmos/cosmos-sdk/x/auth/tx"
 	"testing"
 	"time"
 
@@ -25,7 +28,7 @@ func TestListenerWithNonEmptyBlocks(t *testing.T) {
 	ps0, _ := createMocknetWithTwoPubsubEndpoints(ctx, t)
 
 	// create one block to store as Head in local store and then unsubscribe from block events
-	cfg := DefaultTestConfig()
+	cfg := DefaultTestConfig().WithChainID(testChainID)
 	fetcher, cctx := createCoreFetcher(t, cfg)
 	eds := createEdsPubSub(ctx, t)
 
@@ -48,8 +51,14 @@ func TestListenerWithNonEmptyBlocks(t *testing.T) {
 	for i := 0; i < 16; i++ {
 		accounts := cfg.Genesis.Accounts()
 		require.Greater(t, len(accounts), 0)
-		_, err := cctx.FillBlock(16, accounts[0].Name, flags.BroadcastSync) // TODO: this was BroadcastBlock, expecting failures
+
+		resp, err := cctx.FillBlock(16, accounts[0].Name, flags.BroadcastSync)
 		require.NoError(t, err)
+		require.NotEmpty(t, resp.TxHash)
+
+		resp, err = waitForTxResponse(cctx, resp.TxHash, time.Second*10)
+		require.NoError(t, err)
+
 		msg, err := sub.Next(ctx)
 		require.NoError(t, err)
 
@@ -69,4 +78,27 @@ func TestListenerWithNonEmptyBlocks(t *testing.T) {
 	err = cl.Stop(ctx)
 	require.NoError(t, err)
 	require.Nil(t, cl.cancel)
+}
+
+// waitForTxResponse polls for a tx hash and returns a full sdk.TxResponse
+func waitForTxResponse(cctx testnode.Context, txHash string, timeout time.Duration) (*sdk.TxResponse, error) {
+	ctx, cancel := context.WithTimeout(context.Background(), timeout)
+	defer cancel()
+
+	ticker := time.NewTicker(500 * time.Millisecond)
+	defer ticker.Stop()
+
+	for {
+		select {
+		case <-ctx.Done():
+			return nil, ctx.Err()
+		case <-ticker.C:
+			fullyPopulatedTxResp, err := authtx.QueryTx(cctx.Context, txHash)
+			if err != nil {
+				continue
+			}
+			return fullyPopulatedTxResp, nil
+
+		}
+	}
 }

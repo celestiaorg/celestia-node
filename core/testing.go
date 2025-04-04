@@ -3,6 +3,8 @@ package core
 import (
 	"context"
 	sdklog "cosmossdk.io/log"
+	dbm "github.com/cosmos/cosmos-db"
+	io "io"
 	"net"
 	"path/filepath"
 	"testing"
@@ -40,13 +42,13 @@ func DefaultTestConfig() *testnode.Config {
 
 	tmConfig := testnode.DefaultTendermintConfig()
 	tmConfig.Consensus.TimeoutCommit = time.Millisecond * 200
-
+	
 	return testnode.DefaultConfig().
-		WithChainID(chainID).
-		WithFundedAccounts(generateRandomAccounts(10)...). // 10 usually is enough for testing
 		WithGenesis(genesis).
+		WithFundedAccounts(generateRandomAccounts(10)...). // 10 usually is enough for testing
+		WithChainID(chainID).
 		WithTendermintConfig(tmConfig).
-		WithSuppressLogs(true)
+		WithSuppressLogs(false)
 }
 
 // StartTestNode simply starts Tendermint and Celestia App tandem with default testing
