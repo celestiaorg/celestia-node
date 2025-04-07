@@ -3,8 +3,10 @@ package core
 import (
 	"context"
 	sdklog "cosmossdk.io/log"
+	"fmt"
 	"net"
 	"path/filepath"
+	"strings"
 	"testing"
 	"time"
 
@@ -113,6 +115,39 @@ func newTestClient(t *testing.T, ip, port string) *grpc.ClientConn {
 	ready := client.WaitForStateChange(ctx, connectivity.Ready)
 	require.True(t, ready)
 	return client
+}
+
+func newCometGRPCConn(endpoint string) (*grpc.ClientConn, error) {
+	retryInterceptor := grpc_retry.UnaryClientInterceptor(
+		grpc_retry.WithMax(5),
+		grpc_retry.WithCodes(codes.Unavailable),
+		grpc_retry.WithBackoff(
+			grpc_retry.BackoffExponentialWithJitter(time.Second, 2.0)),
+	)
+	retryStreamInterceptor := grpc_retry.StreamClientInterceptor(
+		grpc_retry.WithMax(5),
+		grpc_retry.WithCodes(codes.Unavailable),
+		grpc_retry.WithBackoff(
+			grpc_retry.BackoffExponentialWithJitter(time.Second, 2.0)),
+	)
+
+	opts := []grpc.DialOption{
+		grpc.WithUnaryInterceptor(retryInterceptor),
+		grpc.WithStreamInterceptor(retryStreamInterceptor),
+		grpc.WithTransportCredentials(insecure.NewCredentials()),
+	}
+
+	client, err := grpc.NewClient(strings.TrimPrefix(endpoint, "tcp://"), opts...)
+	if err != nil {
+		return nil, err
+	}
+
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second*2)
+	defer cancel()
+	if ready := client.WaitForStateChange(ctx, connectivity.Ready); !ready {
+		return nil, fmt.Errorf("client is not ready")
+	}
+	return client, nil
 }
 
 // Network wraps `testnode.Context` allowing to manually stop all underlying connections.

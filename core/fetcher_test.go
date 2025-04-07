@@ -49,9 +49,8 @@ func TestFetcher_Resubscription(t *testing.T) {
 	cfg := DefaultTestConfig()
 	tn := NewNetwork(t, cfg)
 	require.NoError(t, tn.Start())
-	host, port, err := net.SplitHostPort(tn.GRPCClient.Target())
+	client, err := newCometGRPCConn(cfg.TmConfig.RPC.GRPCListenAddress)
 	require.NoError(t, err)
-	client := newTestClient(t, host, port)
 	fetcher, err := NewBlockFetcher(client)
 	require.NoError(t, err)
 
