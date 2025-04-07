@@ -2,7 +2,6 @@ package core
 
 import (
 	"context"
-	"net"
 	"testing"
 	"time"
 
@@ -14,9 +13,9 @@ func TestBlockFetcher_GetBlock_and_SubscribeNewBlockEvent(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second*15)
 	t.Cleanup(cancel)
 
-	host, port, err := net.SplitHostPort(StartTestNode(t).GRPCClient.Target())
-	require.NoError(t, err)
-	client := newTestClient(t, host, port)
+	cfg := DefaultTestConfig()
+	StartTestNodeWithConfig(t, cfg)
+	client, err := newCometGRPCConn(cfg.TmConfig.RPC.GRPCListenAddress)
 	fetcher, err := NewBlockFetcher(client)
 	require.NoError(t, err)
 	// generate some blocks

@@ -95,6 +95,9 @@ func TestExchange_DoNotStoreHistoric(t *testing.T) {
 	genHeader, err := ce.Get(ctx, genBlock.Header.Hash().Bytes())
 	require.NoError(t, err)
 
+	_, err = cctx.WaitForHeight(30)
+	require.NoError(t, err)
+
 	headers, err := ce.GetRangeByHeight(ctx, genHeader, 30)
 	require.NoError(t, err)
 
@@ -141,6 +144,9 @@ func TestExchange_StoreHistoricIfArchival(t *testing.T) {
 	genBlock, err := fetcher.GetBlock(ctx, genHeight)
 	require.NoError(t, err)
 	genHeader, err := ce.Get(ctx, genBlock.Header.Hash().Bytes())
+	require.NoError(t, err)
+
+	_, err = cctx.WaitForHeight(30)
 	require.NoError(t, err)
 
 	headers, err := ce.GetRangeByHeight(ctx, genHeader, 30)
