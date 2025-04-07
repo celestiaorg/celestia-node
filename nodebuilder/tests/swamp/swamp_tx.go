@@ -19,7 +19,7 @@ func FillBlocks(ctx context.Context, cctx testnode.Context, account string, bsiz
 		time.Sleep(time.Millisecond * 50)
 		var err error
 		for i := 0; i < blocks; i++ {
-			_, err = cctx.FillBlock(bsize, account, flags.BroadcastBlock)
+			_, err = cctx.FillBlock(bsize, account, flags.BroadcastSync) // TODO(chatton) this will likley cause problems was BroadcastBlock.
 			if err != nil {
 				break
 			}
