@@ -45,6 +45,9 @@ func TestCoreExchange_RequestHeaders(t *testing.T) {
 	expectedLastHeightInRange := to - 1
 	expectedLenHeaders := to - expectedFirstHeightInRange
 
+	_, err = cctx.WaitForHeightWithTimeout(30, 10*time.Second)
+	require.NoError(t, err)
+
 	// request headers from height 1 to 20 [2:30)
 	headers, err := ce.GetRangeByHeight(context.Background(), genHeader, to)
 	require.NoError(t, err)
