@@ -269,9 +269,9 @@ func buildAccessor(t *testing.T) (*CoreAccessor, []string) {
 		WithTendermintConfig(tmCfg).
 		WithAppConfig(appConf).
 		WithGenesis(g)
-	
-	cctx, _, grpcAddr := testnode.NewNetwork(t, config)
 
+	cctx, _, grpcAddr := testnode.NewNetwork(t, config)
+	
 	conn, err := grpc.NewClient(grpcAddr, grpc.WithTransportCredentials(insecure.NewCredentials()))
 	require.NoError(t, err)
 	ca, err := NewCoreAccessor(cctx.Keyring, accounts[0].Name, nil, conn, chainID, "")

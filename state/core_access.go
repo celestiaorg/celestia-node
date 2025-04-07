@@ -552,7 +552,7 @@ func (ca *CoreAccessor) setupTxClient(ctx context.Context) error {
 		return nil
 	}
 
-	encCfg := encoding.MakeConfig(app.ModuleEncodingRegisters...)
+	encCfg := encoding.MakeTestConfig(app.ModuleEncodingRegisters...)
 	client, err := user.SetupTxClient(ctx, ca.keyring, ca.coreConn, encCfg,
 		user.WithDefaultAddress(ca.defaultSignerAddress),
 	)
