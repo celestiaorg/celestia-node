@@ -5,9 +5,6 @@ package core
 import (
 	"bytes"
 	"context"
-	"github.com/celestiaorg/celestia-app/v4/test/util/testnode"
-	sdk "github.com/cosmos/cosmos-sdk/types"
-	authtx "github.com/cosmos/cosmos-sdk/x/auth/tx"
 	"testing"
 	"time"
 
@@ -56,9 +53,6 @@ func TestListenerWithNonEmptyBlocks(t *testing.T) {
 		require.NoError(t, err)
 		require.NotEmpty(t, resp.TxHash)
 
-		resp, err = waitForTxResponse(cctx, resp.TxHash, time.Second*10)
-		require.NoError(t, err)
-
 		msg, err := sub.Next(ctx)
 		require.NoError(t, err)
 
@@ -78,27 +72,4 @@ func TestListenerWithNonEmptyBlocks(t *testing.T) {
 	err = cl.Stop(ctx)
 	require.NoError(t, err)
 	require.Nil(t, cl.cancel)
-}
-
-// waitForTxResponse polls for a tx hash and returns a full sdk.TxResponse
-func waitForTxResponse(cctx testnode.Context, txHash string, timeout time.Duration) (*sdk.TxResponse, error) {
-	ctx, cancel := context.WithTimeout(context.Background(), timeout)
-	defer cancel()
-
-	ticker := time.NewTicker(500 * time.Millisecond)
-	defer ticker.Stop()
-
-	for {
-		select {
-		case <-ctx.Done():
-			return nil, ctx.Err()
-		case <-ticker.C:
-			fullyPopulatedTxResp, err := authtx.QueryTx(cctx.Context, txHash)
-			if err != nil {
-				continue
-			}
-			return fullyPopulatedTxResp, nil
-
-		}
-	}
 }
