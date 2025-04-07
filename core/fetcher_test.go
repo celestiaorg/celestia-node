@@ -84,6 +84,15 @@ func TestFetcher_Resubscription(t *testing.T) {
 	// on the same address and listen for the new blocks
 	tn = NewNetwork(t, cfg)
 	require.NoError(t, tn.Start())
+
+	// TODO(chatton): verify the test is still testing what it was originally testing.
+	client, err = newCometGRPCConn(cfg.TmConfig.RPC.GRPCListenAddress)
+	require.NoError(t, err)
+	fetcher, err = NewBlockFetcher(client)
+	require.NoError(t, err)
+	newBlockChan, err = fetcher.SubscribeNewBlockEvent(ctx)
+	require.NoError(t, err)
+
 	select {
 	case newBlockFromChan := <-newBlockChan:
 		h := newBlockFromChan.Header.Height
