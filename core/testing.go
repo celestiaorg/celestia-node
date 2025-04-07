@@ -46,7 +46,7 @@ func DefaultTestConfig() *testnode.Config {
 		WithFundedAccounts(generateRandomAccounts(10)...). // 10 usually is enough for testing
 		WithChainID(chainID).
 		WithTendermintConfig(tmConfig).
-		WithSuppressLogs(false)
+		WithSuppressLogs(true)
 }
 
 // StartTestNode simply starts Tendermint and Celestia App tandem with default testing
