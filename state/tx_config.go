@@ -91,7 +91,8 @@ func (cfg *TxConfig) GasPrice() float64 {
 	return cfg.gasPrice
 }
 
-// MaxGasPrice will return the
+// MaxGasPrice will return the max gas price that the user set
+// in the TxConfig. If no value was set, it will return the default value.
 func (cfg *TxConfig) MaxGasPrice() float64 {
 	if cfg.maxGasPrice == 0 {
 		return DefaultMaxGasPrice
