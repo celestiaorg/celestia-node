@@ -16,9 +16,11 @@ var (
 	key  = "key.pem"
 )
 
-var tlsPath = "CELESTIA_TLS_PATH"
-var tlsKeyName = "CELESTIA_TLS_KEY_FILENAME"
-var tlsCertName = "CELESTIA_TLS_CERT_FILENAME"
+var (
+	tlsPath     = "CELESTIA_TLS_PATH"
+	tlsKeyName  = "CELESTIA_TLS_KEY_FILENAME"
+	tlsCertName = "CELESTIA_TLS_CERT_FILENAME"
+)
 
 // tlsEnabled checks whether `tlsPath` is not empty and creates a certificate.
 // it returns the cfg itself, the bool flag that specifies whether the config was created
