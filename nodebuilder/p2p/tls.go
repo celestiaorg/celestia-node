@@ -11,12 +11,14 @@ import (
 	"github.com/celestiaorg/celestia-node/libs/utils"
 )
 
-const (
+var (
 	cert = "cert.pem"
 	key  = "key.pem"
 )
 
 var tlsPath = "CELESTIA_TLS_PATH"
+var tlsKeyName = "CELESTIA_TLS_KEY_FILENAME"
+var tlsCertName = "CELESTIA_TLS_CERT_FILENAME"
 
 // tlsEnabled checks whether `tlsPath` is not empty and creates a certificate.
 // it returns the cfg itself, the bool flag that specifies whether the config was created
@@ -24,21 +26,35 @@ var tlsPath = "CELESTIA_TLS_PATH"
 func tlsEnabled() (*tls.Config, bool, error) {
 	path := os.Getenv(tlsPath)
 	if path == "" {
-		log.Debug("the CELESTIA_TLS_PATH was not set")
+		log.Debug("the CELESTIA_TLS_PATH was not set, disabling TLS")
 		return nil, false, nil
+	}
+
+	keyFileName := os.Getenv(tlsKeyName)
+	if keyFileName != "" {
+		key = keyFileName
+	}
+
+	certFileName := os.Getenv(tlsCertName)
+	if certFileName != "" {
+		cert = certFileName
 	}
 
 	certPath := filepath.Join(path, cert)
 	keyPath := filepath.Join(path, key)
 	exist := utils.Exists(certPath) && utils.Exists(keyPath)
 	if !exist {
+		log.Error("the TLS cert and/or key file were not found")
 		return nil, false, nil
 	}
 
 	cert, err := tls.LoadX509KeyPair(certPath, keyPath)
 	if err != nil {
+		log.Error("failed to load TLS keypair")
 		return nil, false, err
 	}
+
+	log.Info("TLS successfully loaded")
 
 	return &tls.Config{
 		MinVersion:   tls.VersionTLS12,
