@@ -8,6 +8,9 @@ import (
 	"sync"
 	"time"
 
+	grpc_retry "github.com/grpc-ecosystem/go-grpc-middleware/retry"
+	"google.golang.org/grpc/codes"
+
 	"github.com/cosmos/cosmos-sdk/client/grpc/tmservice"
 	"github.com/cosmos/cosmos-sdk/crypto/keyring"
 	storetypes "github.com/cosmos/cosmos-sdk/store/types"
@@ -30,7 +33,6 @@ import (
 	libshare "github.com/celestiaorg/go-square/v2/share"
 
 	"github.com/celestiaorg/celestia-node/header"
-	"github.com/celestiaorg/celestia-node/libs/utils"
 )
 
 var (
@@ -594,7 +596,12 @@ func (ca *CoreAccessor) getTxAuthorAccAddress(cfg *TxConfig) (AccAddress, error)
 func setupEstimatorConnection(addr string, tlsEnabled bool) (*grpc.ClientConn, error) {
 	log.Infow("setting up estimator connection", "address", addr)
 
-	interceptor := utils.GRPCRetryInterceptor()
+	interceptor := grpc_retry.UnaryClientInterceptor(
+		grpc_retry.WithMax(5),
+		grpc_retry.WithCodes(codes.Unavailable),
+		grpc_retry.WithBackoff(
+			grpc_retry.BackoffExponentialWithJitter(time.Second, 2.0)),
+	)
 	grpcOpts := []grpc.DialOption{
 		grpc.WithUnaryInterceptor(interceptor),
 	}

@@ -65,8 +65,7 @@ type TxConfig struct {
 	// TODO @renaynay: remove this and only allow setting via acc address
 	keyName string
 	// gasPrice represents the amount to be paid per gas unit.
-	// Negative gasPrice means user want us to use the minGasPrice
-	// defined in the node.
+	// Negative gasPrice means user want us to estimate the gas price
 	gasPrice float64
 	// since gasPrice can be 0, it is necessary to understand that user explicitly set it.
 	isGasPriceSet bool
@@ -92,8 +91,16 @@ func (cfg *TxConfig) GasPrice() float64 {
 	return cfg.gasPrice
 }
 
+// MaxGasPrice will return the
+func (cfg *TxConfig) MaxGasPrice() float64 {
+	if cfg.maxGasPrice == 0 {
+		return DefaultMaxGasPrice
+	}
+
+	return cfg.maxGasPrice
+}
+
 func (cfg *TxConfig) GasLimit() uint64          { return cfg.gas }
-func (cfg *TxConfig) MaxGasPrice() float64      { return cfg.maxGasPrice }
 func (cfg *TxConfig) KeyName() string           { return cfg.keyName }
 func (cfg *TxConfig) SignerAddress() string     { return cfg.signerAddress }
 func (cfg *TxConfig) FeeGranterAddress() string { return cfg.feeGranterAddress }

@@ -9,7 +9,7 @@ import (
 	apptypes "github.com/celestiaorg/celestia-app/v3/x/blob/types"
 )
 
-var ErrGasPriceExceedsLimit = errors.New("state: estimated gasPrice exceeds max gasPrice")
+var ErrGasPriceExceedsLimit = errors.New("state: estimated gas price exceeds max gas price in tx config")
 
 // estimateGasPrice queries the gas price for a transaction via the estimator
 // service, unless user specifies a GasPrice via the TxConfig.

@@ -47,7 +47,12 @@ func grpcClient(lc fx.Lifecycle, cfg Config) (*grpc.ClientConn, error) {
 		opts = append(opts, grpc.WithTransportCredentials(insecure.NewCredentials()))
 	}
 
-	retryInterceptor := utils.GRPCRetryInterceptor()
+	retryInterceptor := grpc_retry.UnaryClientInterceptor(
+		grpc_retry.WithMax(5),
+		grpc_retry.WithCodes(codes.Unavailable),
+		grpc_retry.WithBackoff(
+			grpc_retry.BackoffExponentialWithJitter(time.Second, 2.0)),
+	)
 	retryStreamInterceptor := grpc_retry.StreamClientInterceptor(
 		grpc_retry.WithMax(5),
 		grpc_retry.WithCodes(codes.Unavailable),
