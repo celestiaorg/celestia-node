@@ -61,10 +61,11 @@ type TxConfig struct {
 	// Specifies the key from the keystore associated with an account that
 	// will be used to sign transactions.
 	// NOTE: This `Account` must be available in the `Keystore`.
+	//
+	// TODO @renaynay: remove this and only allow setting via acc address
 	keyName string
 	// gasPrice represents the amount to be paid per gas unit.
-	// Negative gasPrice means user want us to use the minGasPrice
-	// defined in the node.
+	// Negative gasPrice means user want us to estimate the gas price
 	gasPrice float64
 	// since gasPrice can be 0, it is necessary to understand that user explicitly set it.
 	isGasPriceSet bool
@@ -90,14 +91,21 @@ func (cfg *TxConfig) GasPrice() float64 {
 	return cfg.gasPrice
 }
 
-func (cfg *TxConfig) GasLimit() uint64     { return cfg.gas }
-func (cfg *TxConfig) MaxGasPrice() float64 { return cfg.maxGasPrice }
+// MaxGasPrice will return the max gas price that the user set
+// in the TxConfig. If no value was set, it will return the default value.
+func (cfg *TxConfig) MaxGasPrice() float64 {
+	if cfg.maxGasPrice == 0 {
+		return DefaultMaxGasPrice
+	}
 
-func (cfg *TxConfig) KeyName() string { return cfg.keyName }
+	return cfg.maxGasPrice
+}
 
-func (cfg *TxConfig) SignerAddress() string { return cfg.signerAddress }
-
+func (cfg *TxConfig) GasLimit() uint64          { return cfg.gas }
+func (cfg *TxConfig) KeyName() string           { return cfg.keyName }
+func (cfg *TxConfig) SignerAddress() string     { return cfg.signerAddress }
 func (cfg *TxConfig) FeeGranterAddress() string { return cfg.feeGranterAddress }
+func (cfg *TxConfig) TxPriority() TxPriority    { return cfg.priority }
 
 type jsonTxConfig struct {
 	GasPrice          float64 `json:"gas_price,omitempty"`
