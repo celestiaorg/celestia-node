@@ -10,11 +10,12 @@ import (
 	"path/filepath"
 	"time"
 
+	"google.golang.org/grpc/connectivity"
+
 	grpc_retry "github.com/grpc-ecosystem/go-grpc-middleware/retry"
 	"go.uber.org/fx"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
-	"google.golang.org/grpc/connectivity"
 	"google.golang.org/grpc/credentials"
 	"google.golang.org/grpc/credentials/insecure"
 	"google.golang.org/grpc/metadata"

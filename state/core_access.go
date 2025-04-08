@@ -8,6 +8,8 @@ import (
 	"sync"
 	"time"
 
+	"google.golang.org/grpc/connectivity"
+
 	grpc_retry "github.com/grpc-ecosystem/go-grpc-middleware/retry"
 	"google.golang.org/grpc/codes"
 
@@ -512,7 +514,7 @@ func (ca *CoreAccessor) setupTxClient(ctx context.Context) error {
 
 	opts := []user.Option{user.WithDefaultAddress(ca.defaultSignerAddress)}
 	if ca.estimatorServiceAddr != "" {
-		estimatorConn, err := setupEstimatorConnection(ca.estimatorServiceAddr, ca.estimatorServiceTLS)
+		estimatorConn, err := setupEstimatorConnection(ctx, ca.estimatorServiceAddr, ca.estimatorServiceTLS)
 		if err != nil {
 			return err
 		}
@@ -593,7 +595,7 @@ func (ca *CoreAccessor) getTxAuthorAccAddress(cfg *TxConfig) (AccAddress, error)
 	}
 }
 
-func setupEstimatorConnection(addr string, tlsEnabled bool) (*grpc.ClientConn, error) {
+func setupEstimatorConnection(ctx context.Context, addr string, tlsEnabled bool) (*grpc.ClientConn, error) {
 	log.Infow("setting up estimator connection", "address", addr)
 
 	interceptor := grpc_retry.UnaryClientInterceptor(
@@ -619,6 +621,10 @@ func setupEstimatorConnection(addr string, tlsEnabled bool) (*grpc.ClientConn, e
 		return nil, fmt.Errorf("state: failed to set up grpc connection to estimator address %s: %w", addr, err)
 	}
 
+	conn.Connect()
+	if !conn.WaitForStateChange(ctx, connectivity.Ready) {
+		return nil, errors.New("couldn't connect to core endpoint")
+	}
 	return conn, nil
 }
 
