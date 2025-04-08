@@ -25,7 +25,7 @@ var initClientCtx = client.Context{}.
 	WithLegacyAmino(encodingConfig.Amino).
 	WithInput(os.Stdin).
 	WithAccountRetriever(types.AccountRetriever{}).
-	WithBroadcastMode(flags.BroadcastSync). // TODO: was BroadcastBlock
+	WithBroadcastMode(flags.BroadcastSync). // TODO(chatton): was BroadcastBlock
 	WithHomeDir(app.DefaultNodeHome).
 	WithViper("CELESTIA")
 

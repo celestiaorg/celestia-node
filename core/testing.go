@@ -3,13 +3,16 @@ package core
 import (
 	"context"
 	sdklog "cosmossdk.io/log"
+	"fmt"
 	"net"
 	"path/filepath"
+	"strings"
 	"testing"
 	"time"
 
 	tmrand "github.com/cometbft/cometbft/libs/rand"
 	"github.com/cometbft/cometbft/node"
+	cmthttp "github.com/cometbft/cometbft/rpc/client/http"
 	srvtypes "github.com/cosmos/cosmos-sdk/server/types"
 	grpc_retry "github.com/grpc-ecosystem/go-grpc-middleware/retry"
 	"github.com/stretchr/testify/require"
@@ -41,9 +44,9 @@ func DefaultTestConfig() *testnode.Config {
 	tmConfig.Consensus.TimeoutCommit = time.Millisecond * 200
 
 	return testnode.DefaultConfig().
-		WithChainID(chainID).
-		WithFundedAccounts(generateRandomAccounts(10)...). // 10 usually is enough for testing
 		WithGenesis(genesis).
+		WithFundedAccounts(generateRandomAccounts(10)...). // 10 usually is enough for testing
+		WithChainID(chainID).
 		WithTendermintConfig(tmConfig).
 		WithSuppressLogs(true)
 }
@@ -62,6 +65,16 @@ func StartTestNodeWithConfig(t *testing.T, cfg *testnode.Config) testnode.Contex
 	// however, it might be useful to use a local tendermint client
 	// if you need to debug something inside it
 	return cctx
+}
+
+// StartTestNodeWithConfigAndClient initializes a test node with default configuration and a WebSocket HTTP client.
+func StartTestNodeWithConfigAndClient(t *testing.T) (testnode.Context, *cmthttp.HTTP) {
+	cctx, rpcAddr, _ := testnode.NewNetwork(t, DefaultTestConfig())
+	wsClient, err := cmthttp.New(rpcAddr, "/websocket")
+	if err != nil {
+		panic(err)
+	}
+	return cctx, wsClient
 }
 
 // generateRandomAccounts generates n random account names.
@@ -102,6 +115,39 @@ func newTestClient(t *testing.T, ip, port string) *grpc.ClientConn {
 	ready := client.WaitForStateChange(ctx, connectivity.Ready)
 	require.True(t, ready)
 	return client
+}
+
+func newCometGRPCConn(endpoint string) (*grpc.ClientConn, error) {
+	retryInterceptor := grpc_retry.UnaryClientInterceptor(
+		grpc_retry.WithMax(5),
+		grpc_retry.WithCodes(codes.Unavailable),
+		grpc_retry.WithBackoff(
+			grpc_retry.BackoffExponentialWithJitter(time.Second, 2.0)),
+	)
+	retryStreamInterceptor := grpc_retry.StreamClientInterceptor(
+		grpc_retry.WithMax(5),
+		grpc_retry.WithCodes(codes.Unavailable),
+		grpc_retry.WithBackoff(
+			grpc_retry.BackoffExponentialWithJitter(time.Second, 2.0)),
+	)
+
+	opts := []grpc.DialOption{
+		grpc.WithUnaryInterceptor(retryInterceptor),
+		grpc.WithStreamInterceptor(retryStreamInterceptor),
+		grpc.WithTransportCredentials(insecure.NewCredentials()),
+	}
+
+	client, err := grpc.NewClient(strings.TrimPrefix(endpoint, "tcp://"), opts...)
+	if err != nil {
+		return nil, err
+	}
+
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second*2)
+	defer cancel()
+	if ready := client.WaitForStateChange(ctx, connectivity.Ready); !ready {
+		return nil, fmt.Errorf("client is not ready")
+	}
+	return client, nil
 }
 
 // Network wraps `testnode.Context` allowing to manually stop all underlying connections.

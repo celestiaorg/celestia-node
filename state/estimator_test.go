@@ -68,7 +68,7 @@ func TestEstimator(t *testing.T) {
 	config := encoding.MakeConfig(app.ModuleEncodingRegisters...)
 	keyring := testfactory.TestKeyring(config.Codec, accountName)
 	account := user.NewAccount(accountName, 0, 0)
-	signer, err := user.NewSigner(keyring, config.TxConfig, "test", appconsts.LatestVersion, account)
+	signer, err := user.NewSigner(keyring, config.TxConfig, "test", account)
 	require.NoError(t, err)
 
 	msgSend := banktypes.NewMsgSend(
@@ -76,7 +76,7 @@ func TestEstimator(t *testing.T) {
 		testnode.RandomAddress().(sdk.AccAddress),
 		sdk.NewCoins(sdk.NewInt64Coin(appconsts.BondDenom, 10)),
 	)
-	rawTx, err := signer.CreateTx([]sdk.Msg{msgSend})
+	rawTx, _, err := signer.CreateTx([]sdk.Msg{msgSend})
 	require.NoError(t, err)
 
 	defaultConn, err := grpc.NewClient(target, grpc.WithTransportCredentials(insecure.NewCredentials()))

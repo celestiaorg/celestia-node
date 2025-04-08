@@ -3,7 +3,6 @@ package core
 import (
 	"context"
 	"fmt"
-	"net"
 	"testing"
 
 	"github.com/cometbft/cometbft/libs/rand"
@@ -21,9 +20,12 @@ func TestMakeExtendedHeaderForEmptyBlock(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	t.Cleanup(cancel)
 
-	host, port, err := net.SplitHostPort(StartTestNode(t).GRPCClient.Target())
+	cfg := DefaultTestConfig()
+	StartTestNodeWithConfig(t, cfg)
+
+	client, err := newCometGRPCConn(cfg.TmConfig.RPC.GRPCListenAddress)
+	
 	require.NoError(t, err)
-	client := newTestClient(t, host, port)
 	fetcher, err := NewBlockFetcher(client)
 	require.NoError(t, err)
 	sub, err := fetcher.SubscribeNewBlockEvent(ctx)

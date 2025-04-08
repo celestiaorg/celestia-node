@@ -4,11 +4,11 @@ import (
 	"context"
 	sdkmath "cosmossdk.io/math"
 	"encoding/json"
+	"github.com/cosmos/cosmos-sdk/client"
 	"os"
 	"testing"
 
 	abci "github.com/cometbft/cometbft/abci/types"
-	rpcclient "github.com/cometbft/cometbft/rpc/client"
 	"github.com/cosmos/cosmos-sdk/client/flags"
 	tmservice "github.com/cosmos/cosmos-sdk/client/grpc/cmtservice"
 	sdk "github.com/cosmos/cosmos-sdk/types"
@@ -85,7 +85,7 @@ func (s *IntegrationTestSuite) TearDownSuite() {
 }
 
 type localHeader struct {
-	client rpcclient.Client
+	client client.CometRPC
 }
 
 func (l localHeader) Head(

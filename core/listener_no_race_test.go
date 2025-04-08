@@ -25,7 +25,7 @@ func TestListenerWithNonEmptyBlocks(t *testing.T) {
 	ps0, _ := createMocknetWithTwoPubsubEndpoints(ctx, t)
 
 	// create one block to store as Head in local store and then unsubscribe from block events
-	cfg := DefaultTestConfig()
+	cfg := DefaultTestConfig().WithChainID(testChainID)
 	fetcher, cctx := createCoreFetcher(t, cfg)
 	eds := createEdsPubSub(ctx, t)
 
@@ -48,8 +48,11 @@ func TestListenerWithNonEmptyBlocks(t *testing.T) {
 	for i := 0; i < 16; i++ {
 		accounts := cfg.Genesis.Accounts()
 		require.Greater(t, len(accounts), 0)
-		_, err := cctx.FillBlock(16, accounts[0].Name, flags.BroadcastSync) // TODO: this was BroadcastBlock, expecting failures
+
+		resp, err := cctx.FillBlock(16, accounts[0].Name, flags.BroadcastSync)
 		require.NoError(t, err)
+		require.NotEmpty(t, resp.TxHash)
+
 		msg, err := sub.Next(ctx)
 		require.NoError(t, err)
 

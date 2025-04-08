@@ -397,7 +397,7 @@ replace (
 replace (
 	cosmossdk.io/x/upgrade => github.com/celestiaorg/cosmos-sdk/x/upgrade v0.0.0-20250320145042-6d8b2a52fbb2
 	github.com/celestiaorg/celestia-app/v4 => github.com/01builders/celestia-app/v4 v4.0.0-20250327080441-0b12d06a9f94 // sdk 50 branch
-	github.com/cometbft/cometbft => github.com/celestiaorg/celestia-core v0.38.11-0.20250321105625-57e36546e8a3 // marko/core_changes_v3
+	github.com/cometbft/cometbft => github.com/celestiaorg/celestia-core v1.52.0-tm-v0.38.17
 	github.com/cosmos/cosmos-sdk => github.com/01builders/cosmos-sdk v0.0.0-20250326090942-c30caa50cbee
 	github.com/tendermint/tendermint => github.com/celestiaorg/celestia-core v1.47.0-tm-v0.34.35
 )
