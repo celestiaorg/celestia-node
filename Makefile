@@ -202,7 +202,7 @@ sort-imports:
 ## adr-gen: Generate ADR from template. Must set NUM and TITLE parameters.
 adr-gen:
 	@echo "--> Generating ADR"
-	@curl -sSL https://raw.githubusercontent.com/celestiaorg/.github/main/adr-template.md > docs/architecture/adr-$(NUM)-$(TITLE).md
+	@curl -sSL https://raw.githubusercontent.com/celestiaorg/.github/main/adr-template.md > docs/adr/adr-$(NUM)-$(TITLE).md
 .PHONY: adr-gen
 
 ## telemetry-infra-up: Launch local telemetry infra (grafana, jaeger, loki, pyroscope, and otel-collector).
