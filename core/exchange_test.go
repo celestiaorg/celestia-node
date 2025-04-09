@@ -3,8 +3,7 @@ package core
 import (
 	"bytes"
 	"context"
-	"net"
-	"strings"
+	"github.com/celestiaorg/celestia-node/internal"
 	"testing"
 	"time"
 
@@ -181,9 +180,10 @@ func createCoreFetcher(t *testing.T, cfg *testnode.Config) (*BlockFetcher, testn
 	// flakiness with accessing account state)
 	_, err := cctx.WaitForHeightWithTimeout(2, time.Second*2) // TODO @renaynay: configure?
 	require.NoError(t, err)
-	host, port, err := net.SplitHostPort(strings.TrimPrefix(cfg.TmConfig.RPC.GRPCListenAddress, "tcp://"))
+
+	client, err := internal.NewCoreConn(cfg.TmConfig.RPC.GRPCListenAddress)
 	require.NoError(t, err)
-	client := newTestClient(t, host, port)
+
 	fetcher, err := NewBlockFetcher(client)
 	require.NoError(t, err)
 	return fetcher, cctx

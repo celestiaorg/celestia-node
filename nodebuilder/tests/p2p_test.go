@@ -17,6 +17,7 @@ import (
 	"github.com/celestiaorg/celestia-node/nodebuilder"
 	"github.com/celestiaorg/celestia-node/nodebuilder/node"
 	"github.com/celestiaorg/celestia-node/nodebuilder/tests/swamp"
+	"go.uber.org/fx"
 )
 
 /*
@@ -41,8 +42,8 @@ func TestBridgeNodeAsBootstrapper(t *testing.T) {
 
 	addr := host.InfoFromHost(bridge.Host)
 
-	full := sw.NewFullNode(nodebuilder.WithBootstrappers([]peer.AddrInfo{*addr}))
-	light := sw.NewLightNode(nodebuilder.WithBootstrappers([]peer.AddrInfo{*addr}))
+	full := sw.NewFullNode(nodebuilder.WithBootstrappers([]peer.AddrInfo{*addr}), fx.Replace(sw.BlockFetcher()))
+	light := sw.NewLightNode(nodebuilder.WithBootstrappers([]peer.AddrInfo{*addr}), fx.Replace(sw.BlockFetcher()))
 
 	for _, nd := range []*nodebuilder.Node{full, light} {
 		// start node and ensure that BN is correctly set as bootstrapper

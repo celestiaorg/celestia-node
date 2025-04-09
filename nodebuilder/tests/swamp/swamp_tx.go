@@ -2,6 +2,8 @@ package swamp
 
 import (
 	"context"
+	sdk "github.com/cosmos/cosmos-sdk/types"
+	authtx "github.com/cosmos/cosmos-sdk/x/auth/tx"
 	"time"
 
 	"github.com/cosmos/cosmos-sdk/client/flags"
@@ -19,7 +21,14 @@ func FillBlocks(ctx context.Context, cctx testnode.Context, account string, bsiz
 		time.Sleep(time.Millisecond * 50)
 		var err error
 		for i := 0; i < blocks; i++ {
-			_, err = cctx.FillBlock(bsize, account, flags.BroadcastSync) // TODO(chatton) this will likley cause problems was BroadcastBlock.
+			var resp *sdk.TxResponse
+			resp, err = cctx.FillBlock(bsize, account, flags.BroadcastSync) // TODO(chatton) this will likley cause problems was BroadcastBlock.
+			if err != nil {
+				break
+			}
+
+			// ensure each tx is included before moving on to avoid account sequence mismatch errors in tests.
+			err = waitForTxResponse(cctx, resp.TxHash, time.Second*1)
 			if err != nil {
 				break
 			}
@@ -31,4 +40,26 @@ func FillBlocks(ctx context.Context, cctx testnode.Context, account string, bsiz
 		}
 	}()
 	return errCh
+}
+
+// waitForTxResponse polls for a tx hash, returns an error if the query is not successful within the given timeout.
+func waitForTxResponse(cctx testnode.Context, txHash string, timeout time.Duration) error {
+	ctx, cancel := context.WithTimeout(context.Background(), timeout)
+	defer cancel()
+
+	ticker := time.NewTicker(500 * time.Millisecond)
+	defer ticker.Stop()
+
+	for {
+		select {
+		case <-ctx.Done():
+			return ctx.Err()
+		case <-ticker.C:
+			_, err := authtx.QueryTx(cctx.Context, txHash)
+			if err != nil {
+				continue
+			}
+			return nil
+		}
+	}
 }

@@ -4,6 +4,7 @@ import (
 	"context"
 	sdkmath "cosmossdk.io/math"
 	"encoding/json"
+	"github.com/celestiaorg/celestia-node/internal"
 	"github.com/cosmos/cosmos-sdk/client"
 	"os"
 	"testing"
@@ -53,12 +54,15 @@ func (s *IntegrationTestSuite) SetupSuite() {
 	s.Require().Greater(len(s.accounts), 0)
 	accountName := s.accounts[0].Name
 
+	coreConn, err := internal.NewCoreConn(cfg.TmConfig.RPC.GRPCListenAddress)
+	require.NoError(s.T(), err)
+
 	accessor, err := NewCoreAccessor(s.cctx.Keyring, accountName, localHeader{s.cctx.Client}, nil, "", "")
 	require.NoError(s.T(), err)
 	ctx, cancel := context.WithCancel(context.Background())
 	accessor.ctx = ctx
 	accessor.cancel = cancel
-	setClients(accessor, s.cctx.GRPCClient)
+	setClients(accessor, s.cctx.GRPCClient, coreConn)
 	s.accessor = accessor
 
 	// required to ensure the Head request is non-nil
@@ -66,12 +70,13 @@ func (s *IntegrationTestSuite) SetupSuite() {
 	require.NoError(s.T(), err)
 }
 
-func setClients(ca *CoreAccessor, conn *grpc.ClientConn) {
-	ca.coreConn = conn
+func setClients(ca *CoreAccessor, appConn, coreConn *grpc.ClientConn) {
+	ca.coreConn = coreConn
+	ca.appConn = appConn
 	// create the staking query client
-	ca.stakingCli = stakingtypes.NewQueryClient(ca.coreConn)
+	ca.stakingCli = stakingtypes.NewQueryClient(ca.appConn)
 
-	ca.abciQueryCli = tmservice.NewServiceClient(ca.coreConn)
+	ca.abciQueryCli = tmservice.NewServiceClient(ca.appConn)
 }
 
 func (s *IntegrationTestSuite) TearDownSuite() {

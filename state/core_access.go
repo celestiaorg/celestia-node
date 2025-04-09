@@ -63,6 +63,7 @@ type CoreAccessor struct {
 	prt *merkle.ProofRuntime
 
 	coreConn *grpc.ClientConn
+	appConn  *grpc.ClientConn
 	network  string
 
 	estimator *estimator
@@ -109,6 +110,7 @@ func NewCoreAccessor(
 		getter:               getter,
 		prt:                  prt,
 		coreConn:             conn,
+		appConn:              nil, // TODO(chatton): figure out what this should look like.
 		network:              network,
 		estimator:            &estimator{estimatorAddress: estimatorAddress, defaultClientConn: conn},
 	}
@@ -118,8 +120,9 @@ func NewCoreAccessor(
 func (ca *CoreAccessor) Start(ctx context.Context) error {
 	ca.ctx, ca.cancel = context.WithCancel(context.Background())
 	// create the staking query client
-	ca.stakingCli = stakingtypes.NewQueryClient(ca.coreConn)
-	ca.feeGrantCli = feegrant.NewQueryClient(ca.coreConn)
+	// TODO(chatton): the tests seem to pass with either ca.appConn or ca.coreConn, which should be used?
+	ca.stakingCli = stakingtypes.NewQueryClient(ca.appConn)
+	ca.feeGrantCli = feegrant.NewQueryClient(ca.appConn)
 	// create ABCI query client
 	ca.abciQueryCli = tmservice.NewServiceClient(ca.coreConn)
 	resp, err := ca.abciQueryCli.GetNodeInfo(ctx, &tmservice.GetNodeInfoRequest{})

@@ -38,7 +38,7 @@ func TestShrexNDFromLights(t *testing.T) {
 	sw := swamp.NewSwamp(t, swamp.WithBlockTime(btime))
 	fillDn := swamp.FillBlocks(ctx, sw.ClientContext, sw.Accounts[0], bsize, blocks)
 
-	bridge := sw.NewBridgeNode()
+	bridge := sw.NewBridgeNode(fx.Replace(sw.BlockFetcher()))
 	sw.SetBootstrapper(t, bridge)
 
 	cfg := nodebuilder.DefaultConfig(node.Light)
@@ -100,7 +100,7 @@ func TestShrexNDFromLightsWithBadFulls(t *testing.T) {
 	sw := swamp.NewSwamp(t, swamp.WithBlockTime(btime))
 	fillDn := swamp.FillBlocks(ctx, sw.ClientContext, sw.Accounts[0], bsize, blocks)
 
-	bridge := sw.NewBridgeNode()
+	bridge := sw.NewBridgeNode(fx.Replace(sw.BlockFetcher()))
 	sw.SetBootstrapper(t, bridge)
 
 	// create full nodes with basic stream.reset handler

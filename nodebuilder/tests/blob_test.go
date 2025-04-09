@@ -12,6 +12,7 @@ import (
 	"github.com/libp2p/go-libp2p/core/peer"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"go.uber.org/fx"
 
 	libshare "github.com/celestiaorg/go-square/v2/share"
 
@@ -34,14 +35,14 @@ func TestBlobModule(t *testing.T) {
 	blobs, err := blob.ToNodeBlobs(append(libBlobs0, libBlobs1...)...)
 	require.NoError(t, err)
 
-	bridge := sw.NewBridgeNode()
+	bridge := sw.NewBridgeNode(fx.Replace(sw.BlockFetcher()))
 	require.NoError(t, bridge.Start(ctx))
 	addrs, err := peer.AddrInfoToP2pAddrs(host.InfoFromHost(bridge.Host))
 	require.NoError(t, err)
 
 	fullCfg := sw.DefaultTestConfig(node.Full)
 	fullCfg.Header.TrustedPeers = append(fullCfg.Header.TrustedPeers, addrs[0].String())
-	fullNode := sw.NewNodeWithConfig(node.Full, fullCfg)
+	fullNode := sw.NewNodeWithConfig(node.Full, fullCfg, fx.Replace(sw.BlockFetcher()))
 	require.NoError(t, fullNode.Start(ctx))
 
 	addrsFull, err := peer.AddrInfoToP2pAddrs(host.InfoFromHost(fullNode.Host))
