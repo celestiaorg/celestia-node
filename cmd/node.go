@@ -1,6 +1,9 @@
 package cmd
 
 import (
+	"fmt"
+	"strings"
+
 	"github.com/spf13/cobra"
 	"github.com/spf13/pflag"
 
@@ -14,62 +17,26 @@ import (
 	"github.com/celestiaorg/celestia-node/nodebuilder/state"
 )
 
-func NewBridge(options ...func(*cobra.Command, []*pflag.FlagSet)) *cobra.Command {
-	flags := []*pflag.FlagSet{
-		NodeFlags(),
-		p2p.Flags(),
-		MiscFlags(),
-		core.Flags(),
-		rpc.Flags(),
-		gateway.Flags(),
-		state.Flags(),
-		pruner.Flags(),
-	}
-	cmd := &cobra.Command{
-		Use:   "bridge [subcommand]",
-		Args:  cobra.NoArgs,
-		Short: "Manage your Bridge node",
-		PersistentPreRunE: func(cmd *cobra.Command, args []string) error {
-			return PersistentPreRunEnv(cmd, node.Bridge, args)
-		},
-	}
-	for _, option := range options {
-		option(cmd, flags)
-	}
-	return cmd
+func NewBridge(addFullFlags, addMinFlags func(*cobra.Command, []*pflag.FlagSet)) *cobra.Command {
+	return createTopLevelCmd(node.Bridge, addFullFlags, addMinFlags)
 }
 
-func NewLight(options ...func(*cobra.Command, []*pflag.FlagSet)) *cobra.Command {
-	flags := []*pflag.FlagSet{
-		NodeFlags(),
-		p2p.Flags(),
-		header.Flags(),
-		MiscFlags(),
-		core.Flags(),
-		rpc.Flags(),
-		gateway.Flags(),
-		state.Flags(),
-		pruner.Flags(),
-	}
-	cmd := &cobra.Command{
-		Use:   "light [subcommand]",
-		Args:  cobra.NoArgs,
-		Short: "Manage your Light node",
-		PersistentPreRunE: func(cmd *cobra.Command, args []string) error {
-			return PersistentPreRunEnv(cmd, node.Light, args)
-		},
-	}
-	for _, option := range options {
-		option(cmd, flags)
-	}
-	return cmd
+func NewFull(addFullFlags, addMinFlags func(*cobra.Command, []*pflag.FlagSet)) *cobra.Command {
+	return createTopLevelCmd(node.Full, addFullFlags, addMinFlags)
 }
 
-func NewFull(options ...func(*cobra.Command, []*pflag.FlagSet)) *cobra.Command {
-	flags := []*pflag.FlagSet{
+func NewLight(addFullFlags, addMinFlags func(*cobra.Command, []*pflag.FlagSet)) *cobra.Command {
+	return createTopLevelCmd(node.Light, addFullFlags, addMinFlags)
+}
+
+func createTopLevelCmd(
+	nodeType node.Type,
+	addFullFlags,
+	addMinFlags func(*cobra.Command, []*pflag.FlagSet),
+) *cobra.Command {
+	fullFlags := []*pflag.FlagSet{
 		NodeFlags(),
 		p2p.Flags(),
-		header.Flags(),
 		MiscFlags(),
 		core.Flags(),
 		rpc.Flags(),
@@ -77,16 +44,27 @@ func NewFull(options ...func(*cobra.Command, []*pflag.FlagSet)) *cobra.Command {
 		state.Flags(),
 		pruner.Flags(),
 	}
+	if nodeType != node.Bridge {
+		fullFlags = append(fullFlags, header.Flags())
+	}
+
+	minFlags := []*pflag.FlagSet{
+		NodeStoreFlag(),
+		p2p.NetworkFlag(),
+	}
+
 	cmd := &cobra.Command{
-		Use:   "full [subcommand]",
+		Use:   fmt.Sprintf("%s [subcommand]", strings.ToLower(nodeType.String())),
 		Args:  cobra.NoArgs,
-		Short: "Manage your Full node",
-		PersistentPreRunE: func(cmd *cobra.Command, args []string) error {
-			return PersistentPreRunEnv(cmd, node.Full, args)
+		Short: fmt.Sprintf("Manage your %s node", strings.ToLower(nodeType.String())),
+		PersistentPreRun: func(cmd *cobra.Command, _ []string) {
+			ctx := WithNodeType(cmd.Context(), nodeType)
+			cmd.SetContext(ctx)
 		},
 	}
-	for _, option := range options {
-		option(cmd, flags)
-	}
+
+	addFullFlags(cmd, fullFlags)
+	addMinFlags(cmd, minFlags)
+
 	return cmd
 }

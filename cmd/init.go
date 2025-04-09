@@ -10,9 +10,10 @@ import (
 // Init constructs a CLI command to initialize Celestia Node of any type with the given flags.
 func Init(fsets ...*flag.FlagSet) *cobra.Command {
 	cmd := &cobra.Command{
-		Use:   "init",
-		Short: "Initialization for Celestia Node. Passed flags have persisted effect.",
-		Args:  cobra.NoArgs,
+		Use:     "init",
+		Short:   "Initialization for Celestia Node. Passed flags have persisted effect.",
+		Args:    cobra.NoArgs,
+		PreRunE: PreRunEnv,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			ctx := cmd.Context()
 
