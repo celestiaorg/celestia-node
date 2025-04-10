@@ -638,7 +638,7 @@ var connectionInfoCmd = &cobra.Command{
 					Info:       s.Info,
 					NumStreams: s.NumStreams,
 					Direction:  s.Direction.String(),
-					Opened:     s.Opened.Format("2006-01-02 15:04:05"),
+					Opened:     s.Opened.Format(time.DateTime),
 					Limited:    s.Limited,
 				}
 			}

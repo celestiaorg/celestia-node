@@ -418,12 +418,16 @@ func BenchGetHalfAxisFromAccessor(
 				name := fmt.Sprintf("Size:%v/ProofType:%s/squareHalf:%s", size, axisType, strconv.Itoa(squareHalf))
 				b.Run(name, func(b *testing.B) {
 					// warm up cache
-					_, err := acc.AxisHalf(ctx, axisType, acc.Size(ctx)/2*(squareHalf))
+					size, err := acc.Size(ctx)
+					require.NoError(b, err)
+					_, err = acc.AxisHalf(ctx, axisType, size/2*(squareHalf))
 					require.NoError(b, err)
 
 					b.ResetTimer()
 					for i := 0; i < b.N; i++ {
-						_, err := acc.AxisHalf(ctx, axisType, acc.Size(ctx)/2*(squareHalf))
+						size, err := acc.Size(ctx)
+						require.NoError(b, err)
+						_, err = acc.AxisHalf(ctx, axisType, size/2*(squareHalf))
 						require.NoError(b, err)
 					}
 				})
@@ -446,11 +450,13 @@ func BenchGetSampleFromAccessor(
 		for _, q := range quadrants {
 			name := fmt.Sprintf("Size:%v/quadrant:%s", size, q)
 			b.Run(name, func(b *testing.B) {
-				rowIdx, colIdx := q.coordinates(acc.Size(ctx))
+				edsSize, err := acc.Size(ctx)
+				require.NoError(b, err)
+				rowIdx, colIdx := q.coordinates(edsSize)
 				idx := shwap.SampleCoords{Row: rowIdx, Col: colIdx}
 
 				// warm up cache
-				_, err := acc.Sample(ctx, idx)
+				_, err = acc.Sample(ctx, idx)
 				require.NoError(b, err, q.String())
 
 				b.ResetTimer()

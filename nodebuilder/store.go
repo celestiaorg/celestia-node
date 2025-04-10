@@ -309,10 +309,7 @@ func constraintBadgerConfig() *dsbadger.Options {
 
 	// Compaction:
 	// Dynamic compactor allocation
-	compactors := runtime.NumCPU() / 2
-	if compactors < 2 {
-		compactors = 2 // can't be less than 2
-	}
+	compactors := max(runtime.NumCPU()/2, 2)
 	if compactors > opts.MaxLevels { // ensure there is no more compactors than db table levels
 		compactors = opts.MaxLevels
 	}
