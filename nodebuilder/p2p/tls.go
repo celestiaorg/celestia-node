@@ -28,7 +28,7 @@ var (
 func tlsEnabled() (*tls.Config, bool, error) {
 	path := os.Getenv(tlsPath)
 	if path == "" {
-		log.Debug("the CELESTIA_TLS_PATH was not set, disabling TLS")
+		log.Debug("the CELESTIA_TLS_PATH was not set")
 		return nil, false, nil
 	}
 
@@ -52,7 +52,6 @@ func tlsEnabled() (*tls.Config, bool, error) {
 
 	cert, err := tls.LoadX509KeyPair(certPath, keyPath)
 	if err != nil {
-		log.Error("failed to load TLS keypair")
 		return nil, false, err
 	}
 
