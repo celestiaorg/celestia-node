@@ -63,6 +63,7 @@ func grpcClient(lc fx.Lifecycle, cfg Config) (*grpc.ClientConn, error) {
 	opts = append(opts,
 		grpc.WithUnaryInterceptor(retryInterceptor),
 		grpc.WithStreamInterceptor(retryStreamInterceptor),
+		grpc.WithDefaultCallOptions(grpc.MaxCallRecvMsgSize(128*1024*1024)),
 	)
 
 	if cfg.XTokenPath != "" {
