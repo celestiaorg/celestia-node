@@ -188,13 +188,12 @@ func DiscoverOpened() (string, error) {
 // node type and network.
 var DefaultNodeStorePath = func(tp nodemod.Type, network p2p.Network) (string, error) {
 	home := os.Getenv("CELESTIA_HOME")
-	if home != "" {
-		return home, nil
-	}
-
-	home, err := os.UserHomeDir()
-	if err != nil {
-		return "", err
+	if home == "" {
+		defaultHome, err := os.UserHomeDir()
+		if err != nil {
+			return "", err
+		}
+		home = defaultHome
 	}
 
 	if network == p2p.Mainnet {
