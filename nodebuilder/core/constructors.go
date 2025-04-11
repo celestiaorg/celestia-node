@@ -27,10 +27,9 @@ const (
 	// than the default message size set in gRPC. Increasing defaults up to 64MB
 	// to avoid fixing it every time the block size increases.
 	// Tested on mainnet node:
-	// square size = 128
-	// actual response size = 10,85mb
+	// square size = 1024 EDS
 	// TODO(@vgonkivs): Revisit this constant once the block size reaches 64MB.
-	defaultGRPCMessageSize = 64 * 1024 * 1024 // 64Mb
+	defaultGRPCMessageSize = 64 * 2048 * 2048 // 256 Mb
 	xtokenFileName         = "xtoken.json"
 )
 
