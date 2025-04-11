@@ -5,7 +5,6 @@ import (
 
 	"github.com/caddyserver/certmagic"
 	p2pForge "github.com/ipshipyard/p2p-forge/client"
-	"github.com/libp2p/go-libp2p/core/peer"
 )
 
 // User-Agent to use during DNS-01 ACME challenge
@@ -13,7 +12,7 @@ const userAgent = "go-libp2p/celestia-node"
 
 // setupAutoTLS attempts to obtain TLS certificates automatically using p2p-forge.
 // It returns a TLS config if successful, or nil if AutoTLS is not enabled or fails.
-func setupAutoTLS(peerId peer.ID, certstore certmagic.FileStorage) (*tls.Config, error) {
+func setupAutoTLS(certstore certmagic.FileStorage) (*tls.Config, error) {
 	// p2pforge is the AutoTLS client library.
 	// The cert manager handles the creation and management of certificate
 	certManager, err := p2pForge.NewP2PForgeCertMgr(
@@ -35,7 +34,12 @@ func setupAutoTLS(peerId peer.ID, certstore certmagic.FileStorage) (*tls.Config,
 	}
 
 	// Start the cert manager
-	certManager.Start()
+	certError := certManager.Start()
+	// Handle certManager errors
+	if certError != nil {
+		return nil, err
+	}
+
 	defer certManager.Stop()
 
 	return certManager.TLSConfig(), nil

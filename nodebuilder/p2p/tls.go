@@ -7,10 +7,10 @@ import (
 
 	"github.com/caddyserver/certmagic"
 	"github.com/libp2p/go-libp2p"
-	"github.com/libp2p/go-libp2p/core/peer"
 	ws "github.com/libp2p/go-libp2p/p2p/transport/websocket"
 
 	"github.com/celestiaorg/celestia-node/libs/utils"
+	"github.com/celestiaorg/celestia-node/nodebuilder/node"
 )
 
 const (
@@ -23,7 +23,12 @@ var tlsPath = "CELESTIA_TLS_PATH"
 // tlsEnabled checks whether `tlsPath` is not empty and creates a certificate.
 // it returns the cfg itself, the bool flag that specifies whether the config was created
 // and an error.
-func tlsEnabled(cfg *Config, peerId peer.ID, certstore certmagic.FileStorage) (*tls.Config, bool, error) {
+func tlsEnabled(cfg *Config, nodeType node.Type, certstore certmagic.FileStorage) (*tls.Config, bool, error) {
+	// Disable on light nodes
+	if nodeType == node.Light {
+		return nil, false, nil
+	}
+
 	if !cfg.TLSEnabled {
 		return nil, false, nil
 	}
@@ -32,7 +37,7 @@ func tlsEnabled(cfg *Config, peerId peer.ID, certstore certmagic.FileStorage) (*
 	if path == "" {
 		// use autotls if tls is enabled but no path is set
 		log.Debug("the CELESTIA_TLS_PATH was not set, using autotls")
-		autoTLSConfig, err := setupAutoTLS(peerId, certstore)
+		autoTLSConfig, err := setupAutoTLS(certstore)
 		if err != nil {
 			return nil, false, err
 		}

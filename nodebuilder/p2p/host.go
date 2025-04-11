@@ -72,7 +72,7 @@ func (ua *UserAgent) String() string {
 func newHost(params hostParams) (HostBase, error) {
 	ua := newUserAgent().WithNetwork(params.Net).WithNodeType(params.Tp)
 
-	tlsCfg, isEnabled, err := tlsEnabled(params.Cfg, params.ID, params.Certstore)
+	tlsCfg, isEnabled, err := tlsEnabled(params.Cfg, params.Tp, params.Certstore)
 	if err != nil {
 		return nil, err
 	}
