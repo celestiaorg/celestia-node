@@ -10,7 +10,6 @@ import (
 var (
 	coreIPFlag         = "core.ip"
 	corePortFlag       = "core.port"
-	coreGRPCFlag       = "core.grpc.port"
 	coreTLS            = "core.tls"
 	coreXTokenPathFlag = "core.xtoken.path" //nolint:gosec
 )
@@ -30,12 +29,6 @@ func Flags() *flag.FlagSet {
 		corePortFlag,
 		DefaultPort,
 		"Set a custom gRPC port for the core node connection. The --core.ip flag must also be provided.",
-	)
-	flags.String(
-		coreGRPCFlag,
-		"",
-		"Set a custom gRPC port for the core node connection.WARNING: --core.grpc.port is deprecated. "+
-			"Please use --core.port instead",
 	)
 	flags.Bool(
 		coreTLS,
@@ -58,10 +51,6 @@ func ParseFlags(
 	cmd *cobra.Command,
 	cfg *Config,
 ) error {
-	if cmd.Flag(coreGRPCFlag).Changed {
-		return fmt.Errorf("the flag is deprecated. Please use --core.port instead")
-	}
-
 	coreIP := cmd.Flag(coreIPFlag).Value.String()
 	if coreIP == "" {
 		if cmd.Flag(corePortFlag).Changed {
