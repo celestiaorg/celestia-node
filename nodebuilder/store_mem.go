@@ -3,6 +3,7 @@ package nodebuilder
 import (
 	"sync"
 
+	"github.com/caddyserver/certmagic"
 	"github.com/ipfs/go-datastore"
 	ds_sync "github.com/ipfs/go-datastore/sync"
 
@@ -31,6 +32,10 @@ func (m *memStore) Keystore() (keystore.Keystore, error) {
 
 func (m *memStore) Datastore() (datastore.Batching, error) {
 	return m.data, nil
+}
+
+func (m *memStore) Certstore() certmagic.FileStorage {
+	return certmagic.FileStorage{Path: "memstore"}
 }
 
 func (m *memStore) Config() (*Config, error) {
