@@ -56,6 +56,11 @@ func Init(cfg Config, path string, tp node.Type) error {
 		return err
 	}
 
+	err = initDir(certsPath(path))
+	if err != nil {
+		return err
+	}
+
 	cfgPath := configPath(path)
 	err = SaveConfig(cfgPath, &cfg)
 	if err != nil {

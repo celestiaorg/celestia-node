@@ -10,6 +10,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/caddyserver/certmagic"
 	"github.com/cosmos/cosmos-sdk/crypto/keyring"
 	"github.com/dgraph-io/badger/v4/options"
 	"github.com/gofrs/flock"
@@ -44,6 +45,9 @@ type Store interface {
 
 	// Datastore provides a Datastore - a KV store for arbitrary data to be stored on disk.
 	Datastore() (datastore.Batching, error)
+
+	// Certstore returns a FileStorage for the Store.
+	Certstore() certmagic.FileStorage
 
 	// Config loads the stored Node config.
 	Config() (*Config, error)
@@ -136,6 +140,10 @@ func (f *fsStore) Datastore() (datastore.Batching, error) {
 
 	f.data = ds
 	return ds, nil
+}
+
+func (f *fsStore) Certstore() certmagic.FileStorage {
+	return certmagic.FileStorage{Path: f.path}
 }
 
 func (f *fsStore) Close() (err error) {
@@ -257,6 +265,10 @@ func indexPath(base string) string {
 
 func dataPath(base string) string {
 	return filepath.Join(base, "data")
+}
+
+func certsPath(base string) string {
+	return filepath.Join(base, "certs")
 }
 
 // constraintBadgerConfig returns BadgerDB configuration optimized for low memory usage and more frequent

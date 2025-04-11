@@ -16,6 +16,7 @@ const EnvCustomNetwork = "CELESTIA_CUSTOM"
 const (
 	networkFlag = "p2p.network"
 	mutualFlag  = "p2p.mutual"
+	tlsFlag     = "p2p.tls"
 )
 
 // Flags gives a set of p2p flags.
@@ -37,6 +38,12 @@ Peers must bidirectionally point to each other. (Format: multiformats.io/multiad
 			"both init and start to take effect. Assumes mainnet (%s) unless otherwise specified.",
 			listAvailableNetworks(),
 			DefaultNetwork.String()),
+	)
+	flags.Bool(
+		tlsFlag,
+		false,
+		`Specifies whether TLS for libp2p should be enabled or not. If enabled it will 
+automatically generate a certificate using Letsencrypt. Default: false`,
 	)
 
 	return flags
@@ -61,6 +68,15 @@ func ParseFlags(
 
 	if len(mutualPeers) != 0 {
 		cfg.MutualPeers = mutualPeers
+	}
+
+	tlsEnabled, err := cmd.Flags().GetBool(tlsFlag)
+	if err != nil {
+		return err
+	}
+
+	if tlsEnabled {
+		cfg.TLSEnabled = true
 	}
 	return nil
 }
