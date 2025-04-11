@@ -40,7 +40,7 @@ func Flags() *flag.FlagSet {
 		"",
 		"specifies the file path to the JSON file containing the X-Token for gRPC authentication. "+
 			"The JSON file should have a key-value pair where the key is 'x-token' and the value is the authentication token. "+
-			"NOTE: the path is parsed only if coreTLS enabled."+
+			"NOTE: the path is parsed only if core.tls enabled. "+
 			"If left empty, the client will not include the X-Token in its requests.",
 	)
 	return flags
