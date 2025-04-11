@@ -42,6 +42,7 @@ func ConstructModule(tp node.Type, network p2p.Network, cfg *Config, store Store
 		fx.Supply(store.Config),
 		fx.Provide(store.Datastore),
 		fx.Provide(store.Keystore),
+		fx.Provide(store.Certstore),
 		core.ConstructModule(tp, &cfg.Core),
 		fx.Supply(node.StorePath(store.Path())),
 		// modules provided by the node

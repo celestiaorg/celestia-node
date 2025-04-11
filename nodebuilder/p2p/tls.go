@@ -5,7 +5,9 @@ import (
 	"os"
 	"path/filepath"
 
+	"github.com/caddyserver/certmagic"
 	"github.com/libp2p/go-libp2p"
+	"github.com/libp2p/go-libp2p/core/peer"
 	ws "github.com/libp2p/go-libp2p/p2p/transport/websocket"
 
 	"github.com/celestiaorg/celestia-node/libs/utils"
@@ -21,12 +23,23 @@ var tlsPath = "CELESTIA_TLS_PATH"
 // tlsEnabled checks whether `tlsPath` is not empty and creates a certificate.
 // it returns the cfg itself, the bool flag that specifies whether the config was created
 // and an error.
-func tlsEnabled() (*tls.Config, bool, error) {
-	path := os.Getenv(tlsPath)
-	if path == "" {
-		log.Debug("the CELESTIA_TLS_PATH was not set")
+func tlsEnabled(cfg *Config, peerId peer.ID, certstore certmagic.FileStorage) (*tls.Config, bool, error) {
+	if !cfg.TLSEnabled {
 		return nil, false, nil
 	}
+
+	path := os.Getenv(tlsPath)
+	if path == "" {
+		// use autotls if tls is enabled but no path is set
+		log.Debug("the CELESTIA_TLS_PATH was not set, using autotls")
+		autoTLSConfig, err := setupAutoTLS(peerId, certstore)
+		if err != nil {
+			return nil, false, err
+		}
+
+		return autoTLSConfig, false, nil
+	}
+	log.Debug("using custom TLS path")
 
 	certPath := filepath.Join(path, cert)
 	keyPath := filepath.Join(path, key)

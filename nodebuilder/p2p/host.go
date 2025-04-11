@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/caddyserver/certmagic"
 	"github.com/libp2p/go-libp2p"
 	p2pconfig "github.com/libp2p/go-libp2p/config"
 	"github.com/libp2p/go-libp2p/core/connmgr"
@@ -71,7 +72,7 @@ func (ua *UserAgent) String() string {
 func newHost(params hostParams) (HostBase, error) {
 	ua := newUserAgent().WithNetwork(params.Net).WithNodeType(params.Tp)
 
-	tlsCfg, isEnabled, err := tlsEnabled()
+	tlsCfg, isEnabled, err := tlsEnabled(params.Cfg, params.ID, params.Certstore)
 	if err != nil {
 		return nil, err
 	}
@@ -143,6 +144,7 @@ type hostParams struct {
 	ConnGater       *conngater.BasicConnectionGater
 	Bandwidth       *metrics.BandwidthCounter
 	ResourceManager network.ResourceManager
+	Certstore       certmagic.FileStorage
 	Registerer      prometheus.Registerer `optional:"true"`
 
 	Tp node.Type
