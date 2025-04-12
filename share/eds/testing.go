@@ -10,6 +10,7 @@ import (
 
 	"github.com/stretchr/testify/require"
 
+	"github.com/celestiaorg/celestia-app/v3/pkg/da"
 	libshare "github.com/celestiaorg/go-square/v2/share"
 	"github.com/celestiaorg/nmt"
 	"github.com/celestiaorg/rsmt2d"
@@ -65,6 +66,11 @@ func TestSuiteAccessor(
 			t.Run(fmt.Sprintf("Shares:%s", name), func(t *testing.T) {
 				t.Parallel()
 				testAccessorShares(ctx, t, createAccessor, eds)
+			})
+
+			t.Run(fmt.Sprintf("RangeNamespaceData:%s", name), func(t *testing.T) {
+				t.Parallel()
+				testRangeNamespaceData(ctx, t, createAccessor, size)
 			})
 		}
 	}
@@ -281,6 +287,49 @@ func testAccessorRowNamespaceData(
 			require.NoError(t, err)
 		}
 	})
+}
+
+func testRangeNamespaceData(
+	ctx context.Context,
+	t *testing.T,
+	createAccessor createAccessor,
+	odsSize int,
+) {
+	sharesAmount := odsSize * odsSize
+	namespace := libshare.RandomNamespace()
+	eds, _ := edstest.RandEDSWithNamespace(t, namespace, sharesAmount, odsSize)
+	acc := createAccessor(t, eds)
+	dah, err := da.NewDataAvailabilityHeader(eds)
+	require.NoError(t, err)
+
+	// request all possible ranges
+	for startRow := 0; startRow < odsSize; startRow++ {
+		for endRow := startRow; endRow < odsSize; endRow++ {
+			multiplier := (endRow - startRow) * odsSize
+			for startCol := 0; startCol < odsSize; startCol++ {
+				for endCol := startCol; endCol < odsSize; endCol++ {
+					actualSharesAmount := endCol - startCol + multiplier + 1
+					rngData, err := acc.RangeNamespaceData(
+						ctx,
+						namespace,
+						shwap.SampleCoords{Row: startRow, Col: startCol},
+						shwap.SampleCoords{Row: endRow, Col: endCol},
+					)
+					require.NoError(t, err)
+					shares := rngData.Flatten()
+					require.Equal(t, actualSharesAmount, len(shares))
+					require.NoError(t, err)
+					err = rngData.Verify(
+						namespace,
+						shwap.SampleCoords{Row: startRow, Col: startCol},
+						shwap.SampleCoords{Row: endRow, Col: endCol},
+						dah.Hash(),
+					)
+					require.NoError(t, err)
+				}
+			}
+		}
+	}
 }
 
 func testAccessorAxisHalf(
