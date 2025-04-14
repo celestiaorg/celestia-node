@@ -26,8 +26,8 @@ import (
 type Server struct {
 	cancel context.CancelFunc
 
-	host       host.Host
-	protocolID protocol.ID
+	host        host.Host
+	protocolIDs []protocol.ID
 
 	handler network.StreamHandler
 	store   *store.Store
@@ -44,12 +44,17 @@ func NewServer(params *Parameters, host host.Host, store *store.Store) (*Server,
 		return nil, fmt.Errorf("shrex-nd: server creation failed: %w", err)
 	}
 
+	var protocolIDs []protocol.ID
+	for _, name := range protocolNames {
+		protocolIDs = append(protocolIDs, shrex.ProtocolID(params.NetworkID(), name))
+	}
+
 	srv := &Server{
-		store:      store,
-		host:       host,
-		params:     params,
-		protocolID: shrex.ProtocolID(params.NetworkID(), protocolString),
-		middleware: shrex.NewMiddleware(params.ConcurrencyLimit),
+		store:       store,
+		host:        host,
+		params:      params,
+		protocolIDs: protocolIDs,
+		middleware:  shrex.NewMiddleware(params.ConcurrencyLimit),
 	}
 
 	ctx, cancel := context.WithCancel(context.Background())
@@ -64,14 +69,18 @@ func NewServer(params *Parameters, host host.Host, store *store.Store) (*Server,
 
 // Start starts the server
 func (srv *Server) Start(context.Context) error {
-	srv.host.SetStreamHandler(srv.protocolID, srv.handler)
+	for _, id := range srv.protocolIDs {
+		srv.host.SetStreamHandler(id, srv.handler)
+	}
 	return nil
 }
 
 // Stop stops the server
 func (srv *Server) Stop(context.Context) error {
 	srv.cancel()
-	srv.host.RemoveStreamHandler(srv.protocolID)
+	for _, id := range srv.protocolIDs {
+		srv.host.RemoveStreamHandler(id)
+	}
 	return nil
 }
 
@@ -223,4 +232,12 @@ func (srv *Server) observeStatus(ctx context.Context, status shrexpb.Status) {
 	case status == shrexpb.Status_INVALID:
 		srv.metrics.ObserveRequests(ctx, 1, shrex.StatusInternalErr)
 	}
+}
+
+var protocolNames = []string{
+	shwap.EDSName,
+	shwap.RowName,
+	shwap.NamespaceDataName,
+	shwap.SampleName,
+	// TODO: add more
 }
