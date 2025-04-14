@@ -30,6 +30,8 @@ type Config struct {
 
 	// Allowlist for IPColocation PubSub parameter, a list of string CIDRs
 	IPColocationWhitelist []string
+	// TLSEnabled specifies whether libp2p should use TLS or not.
+	TLSEnabled bool
 }
 
 // DefaultConfig returns default configuration for P2P subsystem.
