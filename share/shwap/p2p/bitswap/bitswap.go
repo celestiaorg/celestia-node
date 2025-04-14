@@ -28,7 +28,7 @@ const (
 	// selected one is slow or not responding.
 	// Dynamic timeout, in our case, can be treated as optimization allowing to move on a next peer faster.
 	// See simulateDontHaveConfig for more details.
-	simulateDontHaves = true
+	simulateDontHaves = false
 	// broadcastDelay defines the initial delay before Bitswap client starts aggressive
 	// broadcasting of live WANTs to all the peers. We offset this for longer than the default to minimize
 	// unnecessary broadcasting as in most cases we already have peers connected with needed data on
@@ -81,7 +81,7 @@ const (
 // This relies on latency to determine when to simulate a DONT_HAVE from a peer.
 var simulateDontHaveConfig = &client.DontHaveTimeoutConfig{
 	// MaxTimeout is the limit cutoff time for the dynamic timeout estimation.
-	MaxTimeout: 30 * time.Second,
+	MaxTimeout: 120 * time.Second,
 	// MinTimeout is the minimum timeout for the dynamic timeout estimation.
 	MinTimeout: 1 * time.Second,
 	// MessageLatencyMultiplier is the multiplier for the message latency to account for errors
