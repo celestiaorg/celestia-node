@@ -24,7 +24,7 @@ import (
 	"github.com/celestiaorg/celestia-node/share/shwap"
 )
 
-var disablePooling = os.Getenv("CELESTIA_BITSWAP_DISABLE_POOLING") == "1"
+var enablePooling = os.Getenv("CELESTIA_BITSWAP_ENABLE_POOLING") == "1"
 
 var tracer = otel.Tracer("shwap/bitswap")
 
@@ -278,7 +278,7 @@ func (g *Getter) isArchival(hdr *header.ExtendedHeader) bool {
 
 // getSession takes a session out of the respective session pool
 func (g *Getter) getSession(isArchival bool) (ses exchange.Fetcher, release func()) {
-	if disablePooling {
+	if !enablePooling {
 		ctx, cancel := context.WithCancel(context.Background())
 		f := g.exchange.NewSession(ctx)
 		return f, cancel
