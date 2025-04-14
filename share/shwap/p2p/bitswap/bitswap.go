@@ -28,7 +28,7 @@ const (
 	// selected one is slow or not responding.
 	// Dynamic timeout, in our case, can be treated as optimization allowing to move on a next peer faster.
 	// See simulateDontHaveConfig for more details.
-	simulateDontHaves = false
+	simulateDontHaves = true
 	// broadcastDelay defines the initial delay before Bitswap client starts aggressive
 	// broadcasting of live WANTs to all the peers. We offset this for longer than the default to minimize
 	// unnecessary broadcasting as in most cases we already have peers connected with needed data on
