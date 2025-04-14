@@ -8,19 +8,34 @@ import (
 	"net"
 	"time"
 
+	"github.com/celestiaorg/celestia-node/share/eds"
+
 	"github.com/libp2p/go-libp2p/core/host"
 	"github.com/libp2p/go-libp2p/core/network"
 	"github.com/libp2p/go-libp2p/core/peer"
 	"github.com/libp2p/go-libp2p/core/protocol"
 
-	"github.com/celestiaorg/go-libp2p-messenger/serde"
-	libshare "github.com/celestiaorg/go-square/v2/share"
-
 	"github.com/celestiaorg/celestia-node/libs/utils"
 	"github.com/celestiaorg/celestia-node/share/shwap"
 	"github.com/celestiaorg/celestia-node/share/shwap/p2p/shrex"
 	shrexpb "github.com/celestiaorg/celestia-node/share/shwap/p2p/shrex/pb"
+	"github.com/celestiaorg/go-libp2p-messenger/serde"
 )
+
+type id interface {
+	// client side
+	WriteTo(w io.Writer) (int64, error)
+	// server side
+	ReadFrom(r io.Reader) (int64, error)
+	Validate() error
+	CopyDataTo(acc eds.Accessor, w io.Writer) (int64, error)
+}
+
+type container interface {
+	Verify(dataroot []byte) error
+	// consider to use Unmarshal([]byte) error instead
+	ReadFrom(reader io.Reader) error
+}
 
 // Client implements client side of shrex/nd protocol to obtain namespaced shares data from remote
 // peers.
@@ -49,15 +64,14 @@ func NewClient(params *Parameters, host host.Host) (*Client, error) {
 // Returns NamespaceData with unverified inclusion proofs against the share.Root.
 func (c *Client) RequestND(
 	ctx context.Context,
-	height uint64,
-	namespace libshare.Namespace,
+	id id,
 	peer peer.ID,
 ) (shwap.NamespaceData, error) {
-	if err := namespace.ValidateForData(); err != nil {
+	if err := id.Validate(); err != nil {
 		return nil, err
 	}
 
-	shares, err := c.doRequest(ctx, height, namespace, peer)
+	shares, err := c.doRequest(ctx, id, peer)
 	if err == nil {
 		return shares, nil
 	}
@@ -82,10 +96,9 @@ func (c *Client) RequestND(
 
 func (c *Client) doRequest(
 	ctx context.Context,
-	height uint64,
-	namespace libshare.Namespace,
+	id id,
 	peerID peer.ID,
-) (shwap.NamespaceData, error) {
+) (container, error) {
 	streamOpenCtx, cancel := context.WithTimeout(ctx, c.params.ServerReadTimeout)
 	defer cancel()
 	stream, err := c.host.NewStream(streamOpenCtx, peerID, c.protocolID)
@@ -96,12 +109,7 @@ func (c *Client) doRequest(
 
 	c.setStreamDeadlines(ctx, stream)
 
-	req, err := shwap.NewNamespaceDataID(height, namespace)
-	if err != nil {
-		return nil, fmt.Errorf("client-nd: creating request: %w", err)
-	}
-
-	_, err = req.WriteTo(stream)
+	_, err = id.WriteTo(stream)
 	if err != nil {
 		c.metrics.ObserveRequests(ctx, 1, shrex.StatusSendReqErr)
 		return nil, fmt.Errorf("client-nd: writing request: %w", err)
@@ -112,21 +120,27 @@ func (c *Client) doRequest(
 		log.Warnw("client-nd: closing write side of the stream", "err", err)
 	}
 
-	if err := c.readStatus(ctx, stream); err != nil {
-		c.metrics.ObserveRequests(ctx, 1, shrex.StatusReadRespErr)
+	status, err := c.readStatus(ctx, stream)
+	if err != nil {
+		// metrics updated inside readstatus
+		return nil, fmt.Errorf("client-nd: reading status response: %w", err)
+	}
+
+	err = c.convertStatusToErr(ctx, status)
+	if err != nil {
 		return nil, err
 	}
 
-	nd := shwap.NamespaceData{}
-	_, err = nd.ReadFrom(stream)
+	cntr := id.container()
+	_, err = cntr.ReadFrom(stream)
 	if err != nil {
 		c.metrics.ObserveRequests(ctx, 1, shrex.StatusReadRespErr)
 		return nil, err
 	}
-	return nd, nil
+	return cntr, nil
 }
 
-func (c *Client) readStatus(ctx context.Context, stream network.Stream) error {
+func (c *Client) readStatus(ctx context.Context, stream network.Stream) (shrexpb.Status, error) {
 	var resp shrexpb.Response
 	_, err := serde.Read(stream, &resp)
 	if err != nil {
@@ -136,11 +150,10 @@ func (c *Client) readStatus(ctx context.Context, stream network.Stream) error {
 			return shrex.ErrRateLimited
 		}
 		c.metrics.ObserveRequests(ctx, 1, shrex.StatusReadRespErr)
-		stream.Reset() //nolint:errcheck
-		return fmt.Errorf("client-nd: reading status response: %w", err)
+		return err
 	}
 
-	return c.convertStatusToErr(ctx, resp.Status)
+	return
 }
 
 func (c *Client) setStreamDeadlines(ctx context.Context, stream network.Stream) {
@@ -179,12 +192,14 @@ func (c *Client) convertStatusToErr(ctx context.Context, status shrexpb.Status) 
 	case shrexpb.Status_NOT_FOUND:
 		c.metrics.ObserveRequests(ctx, 1, shrex.StatusNotFound)
 		return shrex.ErrNotFound
-	case shrexpb.Status_INVALID:
-		log.Warn("client-nd: invalid request")
-		fallthrough
 	case shrexpb.Status_INTERNAL:
-		fallthrough
+		c.metrics.ObserveRequests(ctx, 1, shrex.StatusInternalErr)
+		return shrex.ErrInternalServer
+	case shrexpb.Status_INVALID:
+		c.metrics.ObserveRequests(ctx, 1, shrex.StatusBadRequest)
+		return shrex.ErrInvalidRequest
 	default:
+		c.metrics.ObserveRequests(ctx, 1, shrex.StatusReadRespErr)
 		return shrex.ErrInvalidResponse
 	}
 }
