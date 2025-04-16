@@ -16,7 +16,7 @@ import (
 	"github.com/celestiaorg/celestia-app/v4/app/encoding"
 )
 
-var encodingConfig = encoding.MakeConfig(app.ModuleEncodingRegisters...)
+var encodingConfig = encoding.MakeTestConfig(app.ModuleEncodingRegisters...)
 
 var initClientCtx = client.Context{}.
 	WithCodec(encodingConfig.Codec).
