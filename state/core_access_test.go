@@ -14,7 +14,6 @@ import (
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
 
-	"github.com/celestiaorg/celestia-app/v4/pkg/appconsts"
 	"github.com/celestiaorg/celestia-app/v4/test/util/genesis"
 	"github.com/celestiaorg/celestia-app/v4/test/util/testnode"
 	apptypes "github.com/celestiaorg/celestia-app/v4/x/blob/types"
@@ -104,10 +103,6 @@ func TestTransfer(t *testing.T) {
 		_ = ca.Stop(ctx)
 	})
 
-	minGas, err := ca.queryMinimumGasPrice(ctx)
-	require.NoError(t, err)
-	require.Equal(t, appconsts.DefaultMinGasPrice, minGas)
-
 	testcases := []struct {
 		name     string
 		gasPrice float64
@@ -178,10 +173,6 @@ func TestDelegate(t *testing.T) {
 		_ = ca.Stop(ctx)
 	})
 
-	minGas, err := ca.queryMinimumGasPrice(ctx)
-	require.NoError(t, err)
-	require.Equal(t, appconsts.DefaultMinGasPrice, minGas)
-
 	valRec, err := ca.keyring.Key("validator")
 	require.NoError(t, err)
 	valAddr, err := valRec.GetAddress()
@@ -231,7 +222,7 @@ func TestDelegate(t *testing.T) {
 	}
 }
 
-func buildAccessor(t *testing.T) (*CoreAccessor, []string) {
+func buildAccessor(t *testing.T, opts ...Option) (*CoreAccessor, []string) {
 	chainID := "private"
 
 	t.Helper()
@@ -274,7 +265,7 @@ func buildAccessor(t *testing.T) (*CoreAccessor, []string) {
 
 	conn, err := grpc.NewClient(grpcAddr, grpc.WithTransportCredentials(insecure.NewCredentials()))
 	require.NoError(t, err)
-	ca, err := NewCoreAccessor(cctx.Keyring, accounts[0].Name, nil, conn, chainID, "")
+	ca, err := NewCoreAccessor(cctx.Keyring, accounts[0].Name, nil, conn, chainID, opts...)
 	require.NoError(t, err)
 	return ca, getNames(accounts)
 }

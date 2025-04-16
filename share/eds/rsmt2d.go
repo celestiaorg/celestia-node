@@ -21,8 +21,8 @@ type Rsmt2D struct {
 }
 
 // Size returns the size of the Extended Data Square.
-func (eds *Rsmt2D) Size(context.Context) int {
-	return int(eds.Width())
+func (eds *Rsmt2D) Size(context.Context) (int, error) {
+	return int(eds.Width()), nil
 }
 
 // DataHash returns data hash of the Accessor.
