@@ -219,7 +219,7 @@ func (ca *CoreAccessor) SubmitPayForBlob(
 		return convertToSdkTxResponse(response), nil
 	}
 	// TODO @renaynay: use new rachid named func
-	if apperrors.IsInsufficientMinGasPrice(err) {
+	if apperrors.IsInsufficientFee(err) {
 		if cfg.isGasPriceSet {
 			return nil, fmt.Errorf("failed to submit blobs due to insufficient gas price in txconfig: %w", err)
 		}
