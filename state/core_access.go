@@ -526,7 +526,6 @@ func (ca *CoreAccessor) setupTxClient(ctx context.Context) error {
 
 	encCfg := encoding.MakeTestConfig(app.ModuleEncodingRegisters...)
 	client, err := user.SetupTxClient(ctx, ca.keyring, ca.coreConn, encCfg, opts...)
-
 	if err != nil {
 		return fmt.Errorf("failed to setup a tx client: %w", err)
 	}
