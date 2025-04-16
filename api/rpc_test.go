@@ -2,13 +2,13 @@ package api
 
 import (
 	"context"
-	"cosmossdk.io/math"
 	"encoding/json"
 	"reflect"
 	"strconv"
 	"testing"
 	"time"
 
+	"cosmossdk.io/math"
 	"github.com/cristalhq/jwt/v5"
 	"github.com/golang/mock/gomock"
 	"github.com/libp2p/go-libp2p/core/network"

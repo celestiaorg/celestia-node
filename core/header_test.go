@@ -3,7 +3,7 @@ package core
 import (
 	"context"
 	"fmt"
-	"github.com/celestiaorg/celestia-node/internal"
+	"net"
 	"testing"
 
 	"github.com/cometbft/cometbft/libs/rand"
@@ -21,12 +21,9 @@ func TestMakeExtendedHeaderForEmptyBlock(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	t.Cleanup(cancel)
 
-	cfg := DefaultTestConfig()
-	StartTestNodeWithConfig(t, cfg)
-
-	client, err := internal.NewCoreConn(cfg.TmConfig.RPC.GRPCListenAddress)
-
+	host, port, err := net.SplitHostPort(StartTestNode(t).GRPCClient.Target())
 	require.NoError(t, err)
+	client := newTestClient(t, host, port)
 	fetcher, err := NewBlockFetcher(client)
 	require.NoError(t, err)
 	sub, err := fetcher.SubscribeNewBlockEvent(ctx)
@@ -40,7 +37,7 @@ func TestMakeExtendedHeaderForEmptyBlock(t *testing.T) {
 	comm, val, err := fetcher.GetBlockInfo(ctx, height)
 	require.NoError(t, err)
 
-	eds, err := extendBlock(b.Data, b.Header.Version.App)
+	eds, err := extendBlock(b.Data)
 	require.NoError(t, err)
 
 	headerExt, err := header.MakeExtendedHeader(b.Header, comm, val, eds)

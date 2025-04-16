@@ -3,10 +3,10 @@ package core
 import (
 	"context"
 	"fmt"
-	coretypes "github.com/cometbft/cometbft/types"
 	"time"
 
-	"github.com/celestiaorg/celestia-app/v4/app"
+	coretypes "github.com/cometbft/cometbft/types"
+
 	"github.com/celestiaorg/celestia-app/v4/pkg/appconsts"
 	"github.com/celestiaorg/celestia-app/v4/pkg/wrapper"
 	libsquare "github.com/celestiaorg/go-square/v2"
@@ -20,18 +20,24 @@ import (
 	"github.com/celestiaorg/celestia-node/store"
 )
 
+// isEmptyBlockRef returns true if the application considers the given block data
+// empty at a given version.
+func isEmptyBlockRef(data *coretypes.Data) bool {
+	return len(data.Txs) == 0
+}
+
 // extendBlock extends the given block data, returning the resulting
 // ExtendedDataSquare (EDS). If there are no transactions in the block,
 // nil is returned in place of the eds.
-func extendBlock(data *coretypes.Data, appVersion uint64, options ...nmt.Option) (*rsmt2d.ExtendedDataSquare, error) {
-	if app.IsEmptyBlockRef(data, appVersion) {
+func extendBlock(data *coretypes.Data, options ...nmt.Option) (*rsmt2d.ExtendedDataSquare, error) {
+	if isEmptyBlockRef(data) {
 		return share.EmptyEDS(), nil
 	}
 
 	// Construct the data square from the block's transactions
 	square, err := libsquare.Construct(
 		data.Txs.ToSliceOfBytes(),
-		appconsts.DefaultSquareSizeUpperBound,
+		appconsts.SquareSizeUpperBound,
 		appconsts.SubtreeRootThreshold,
 	)
 	if err != nil {

@@ -134,7 +134,7 @@ func MakeCommit(
 			return nil, fmt.Errorf("error signing vote: %w", err)
 		}
 
-		blockIDFlag := tmproto.BlockIDFlagAbsent
+		var blockIDFlag tmproto.BlockIDFlag
 		if !vote.BlockID.IsZero() {
 			blockIDFlag = tmproto.BlockIDFlagCommit
 		} else {

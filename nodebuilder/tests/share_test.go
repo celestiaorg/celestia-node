@@ -11,7 +11,6 @@ import (
 	"github.com/libp2p/go-libp2p/core/peer"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-	"go.uber.org/fx"
 
 	libshare "github.com/celestiaorg/go-square/v2/share"
 
@@ -34,7 +33,7 @@ func TestShareModule(t *testing.T) {
 	nodeBlob, err := blob.ToNodeBlobs(libBlob[0])
 	require.NoError(t, err)
 
-	bridge := sw.NewBridgeNode(fx.Replace(sw.BlockFetcher()))
+	bridge := sw.NewBridgeNode()
 	require.NoError(t, bridge.Start(ctx))
 	addrs, err := peer.AddrInfoToP2pAddrs(host.InfoFromHost(bridge.Host))
 	require.NoError(t, err)

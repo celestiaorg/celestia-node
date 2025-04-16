@@ -4,7 +4,6 @@ package tests
 
 import (
 	"context"
-	"go.uber.org/fx"
 	"testing"
 	"time"
 
@@ -54,7 +53,7 @@ func TestSyncAgainstBridge_NonEmptyChain(t *testing.T) {
 	sw.WaitTillHeight(ctx, numBlocks)
 
 	// create a bridge node and set it as the bootstrapper for the suite
-	bridge := sw.NewBridgeNode(fx.Replace(sw.BlockFetcher()))
+	bridge := sw.NewBridgeNode()
 	sw.SetBootstrapper(t, bridge)
 	// start bridge and wait for it to sync to 20
 	err := bridge.Start(ctx)
@@ -145,7 +144,7 @@ func TestSyncAgainstBridge_EmptyChain(t *testing.T) {
 	sw.WaitTillHeight(ctx, numBlocks)
 
 	// create bridge node and set it as the bootstrapper for the suite
-	bridge := sw.NewBridgeNode(fx.Replace(sw.BlockFetcher()))
+	bridge := sw.NewBridgeNode()
 	sw.SetBootstrapper(t, bridge)
 	// start  bridge and wait for it to sync to 20
 	err := bridge.Start(ctx)
@@ -227,7 +226,7 @@ func TestSyncStartStopLightWithBridge(t *testing.T) {
 	sw.WaitTillHeight(ctx, numBlocks)
 
 	// create bridge and set it as a bootstrapper
-	bridge := sw.NewBridgeNode(fx.Replace(sw.BlockFetcher()))
+	bridge := sw.NewBridgeNode()
 	sw.SetBootstrapper(t, bridge)
 	// and let bridge node sync up 20 blocks
 	err := bridge.Start(ctx)
@@ -295,7 +294,7 @@ func TestSyncLightAgainstFull(t *testing.T) {
 	sw.WaitTillHeight(ctx, numBlocks)
 
 	// create bridge and set it as a bootstrapper
-	bridge := sw.NewBridgeNode(fx.Replace(sw.BlockFetcher()))
+	bridge := sw.NewBridgeNode()
 	sw.SetBootstrapper(t, bridge)
 	// start a bridge node and wait for it to sync up 20 blocks
 	err := bridge.Start(ctx)
@@ -373,7 +372,7 @@ func TestSyncLightWithTrustedPeers(t *testing.T) {
 	sw.WaitTillHeight(ctx, numBlocks)
 
 	// create a BN and set as a bootstrapper
-	bridge := sw.NewBridgeNode(fx.Replace(sw.BlockFetcher()))
+	bridge := sw.NewBridgeNode()
 	sw.SetBootstrapper(t, bridge)
 	// let it sync to network head
 	err := bridge.Start(ctx)

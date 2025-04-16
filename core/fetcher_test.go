@@ -2,7 +2,7 @@ package core
 
 import (
 	"context"
-	"github.com/celestiaorg/celestia-node/internal"
+	"net"
 	"testing"
 	"time"
 
@@ -14,9 +14,9 @@ func TestBlockFetcher_GetBlock_and_SubscribeNewBlockEvent(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second*15)
 	t.Cleanup(cancel)
 
-	cfg := DefaultTestConfig()
-	StartTestNodeWithConfig(t, cfg)
-	client, err := internal.NewCoreConn(cfg.TmConfig.RPC.GRPCListenAddress)
+	host, port, err := net.SplitHostPort(StartTestNode(t).GRPCClient.Target())
+	require.NoError(t, err)
+	client := newTestClient(t, host, port)
 	fetcher, err := NewBlockFetcher(client)
 	require.NoError(t, err)
 	// generate some blocks
@@ -49,8 +49,9 @@ func TestFetcher_Resubscription(t *testing.T) {
 	cfg := DefaultTestConfig()
 	tn := NewNetwork(t, cfg)
 	require.NoError(t, tn.Start())
-	client, err := internal.NewCoreConn(cfg.TmConfig.RPC.GRPCListenAddress)
+	host, port, err := net.SplitHostPort(tn.GRPCClient.Target())
 	require.NoError(t, err)
+	client := newTestClient(t, host, port)
 	fetcher, err := NewBlockFetcher(client)
 	require.NoError(t, err)
 
@@ -84,15 +85,6 @@ func TestFetcher_Resubscription(t *testing.T) {
 	// on the same address and listen for the new blocks
 	tn = NewNetwork(t, cfg)
 	require.NoError(t, tn.Start())
-
-	// TODO(chatton): verify the test is still testing what it was originally testing.
-	client, err = internal.NewCoreConn(cfg.TmConfig.RPC.GRPCListenAddress)
-	require.NoError(t, err)
-	fetcher, err = NewBlockFetcher(client)
-	require.NoError(t, err)
-	newBlockChan, err = fetcher.SubscribeNewBlockEvent(ctx)
-	require.NoError(t, err)
-
 	select {
 	case newBlockFromChan := <-newBlockChan:
 		h := newBlockFromChan.Header.Height

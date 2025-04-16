@@ -135,7 +135,7 @@ func GenerateTestBlock(
 	txs = append(txs, coreTxs...)
 	square, err := libSquare.Construct(
 		txs.ToSliceOfBytes(),
-		appconsts.DefaultSquareSizeUpperBound,
+		appconsts.SquareSizeUpperBound,
 		appconsts.SubtreeRootThreshold,
 	)
 	require.NoError(t, err)

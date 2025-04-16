@@ -2,14 +2,12 @@ package state
 
 import (
 	"context"
-	sdkmath "cosmossdk.io/math"
 	"errors"
 	"fmt"
-	"github.com/celestiaorg/celestia-app/v4/pkg/appconsts"
-	v2bank "github.com/cosmos/cosmos-sdk/x/bank/migrations/v2"
 	"sync"
 	"time"
 
+	sdkmath "cosmossdk.io/math"
 	storetypes "cosmossdk.io/store/types"
 	"cosmossdk.io/x/feegrant"
 	"github.com/cometbft/cometbft/crypto/merkle"
@@ -18,6 +16,7 @@ import (
 	nodeservice "github.com/cosmos/cosmos-sdk/client/grpc/node"
 	"github.com/cosmos/cosmos-sdk/crypto/keyring"
 	sdktypes "github.com/cosmos/cosmos-sdk/types"
+	v2bank "github.com/cosmos/cosmos-sdk/x/bank/migrations/v2"
 	banktypes "github.com/cosmos/cosmos-sdk/x/bank/types"
 	stakingtypes "github.com/cosmos/cosmos-sdk/x/staking/types"
 	logging "github.com/ipfs/go-log/v2"
@@ -26,6 +25,7 @@ import (
 	"github.com/celestiaorg/celestia-app/v4/app"
 	"github.com/celestiaorg/celestia-app/v4/app/encoding"
 	apperrors "github.com/celestiaorg/celestia-app/v4/app/errors"
+	"github.com/celestiaorg/celestia-app/v4/pkg/appconsts"
 	"github.com/celestiaorg/celestia-app/v4/pkg/user"
 	libhead "github.com/celestiaorg/go-header"
 	libshare "github.com/celestiaorg/go-square/v2/share"
@@ -63,7 +63,6 @@ type CoreAccessor struct {
 	prt *merkle.ProofRuntime
 
 	coreConn *grpc.ClientConn
-	appConn  *grpc.ClientConn
 	network  string
 
 	estimator *estimator
@@ -110,7 +109,6 @@ func NewCoreAccessor(
 		getter:               getter,
 		prt:                  prt,
 		coreConn:             conn,
-		appConn:              nil, // TODO(chatton): figure out what this should look like.
 		network:              network,
 		estimator:            &estimator{estimatorAddress: estimatorAddress, defaultClientConn: conn},
 	}
@@ -120,9 +118,8 @@ func NewCoreAccessor(
 func (ca *CoreAccessor) Start(ctx context.Context) error {
 	ca.ctx, ca.cancel = context.WithCancel(context.Background())
 	// create the staking query client
-	// TODO(chatton): the tests seem to pass with either ca.appConn or ca.coreConn, which should be used?
-	ca.stakingCli = stakingtypes.NewQueryClient(ca.appConn)
-	ca.feeGrantCli = feegrant.NewQueryClient(ca.appConn)
+	ca.stakingCli = stakingtypes.NewQueryClient(ca.coreConn)
+	ca.feeGrantCli = feegrant.NewQueryClient(ca.coreConn)
 	// create ABCI query client
 	ca.abciQueryCli = tmservice.NewServiceClient(ca.coreConn)
 	resp, err := ca.abciQueryCli.GetNodeInfo(ctx, &tmservice.GetNodeInfoRequest{})
@@ -222,7 +219,7 @@ func (ca *CoreAccessor) SubmitPayForBlob(
 		response, err := client.SubmitPayForBlobWithAccount(ctx, accName, libBlobs, opts...)
 		// Network min gas price can be updated through governance in app
 		// If that's the case, we parse the insufficient min gas price error message and update the gas price
-		if apperrors.IsInsufficientMinGasPrice(err) {
+		if apperrors.IsInsufficientFee(err) {
 			// The error message contains enough information to parse the new min gas price
 			gasPrice, err = apperrors.ParseInsufficientMinGasPrice(err, gasPrice, gas)
 			if err != nil {

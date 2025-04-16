@@ -13,7 +13,6 @@ import (
 	"github.com/libp2p/go-libp2p/core/peer"
 	ma "github.com/multiformats/go-multiaddr"
 	"github.com/stretchr/testify/require"
-	"go.uber.org/fx"
 	"golang.org/x/sync/errgroup"
 
 	"github.com/celestiaorg/celestia-node/nodebuilder"
@@ -49,7 +48,7 @@ func TestFullReconstructFromBridge(t *testing.T) {
 	sw := swamp.NewSwamp(t, swamp.WithBlockTime(btime))
 	fillDn := swamp.FillBlocks(ctx, sw.ClientContext, sw.Accounts[0], bsize, blocks)
 
-	bridge := sw.NewBridgeNode(fx.Replace(sw.BlockFetcher()))
+	bridge := sw.NewBridgeNode()
 	err := bridge.Start(ctx)
 	require.NoError(t, err)
 	bridgeClient := getAdminClient(ctx, bridge, t)
@@ -108,7 +107,7 @@ func TestFullReconstructFromFulls(t *testing.T) {
 	fillDn := swamp.FillBlocks(ctx, sw.ClientContext, sw.Accounts[0], bsize, blocks)
 
 	const defaultTimeInterval = time.Second * 5
-	bridge := sw.NewBridgeNode(fx.Replace(sw.BlockFetcher()))
+	bridge := sw.NewBridgeNode()
 
 	sw.SetBootstrapper(t, bridge)
 	require.NoError(t, bridge.Start(ctx))
@@ -283,7 +282,7 @@ func TestFullReconstructFromLights(t *testing.T) {
 	cfg := nodebuilder.DefaultConfig(node.Full)
 	setTimeInterval(cfg, defaultTimeInterval)
 
-	bridge := sw.NewBridgeNode(fx.Replace(sw.BlockFetcher()))
+	bridge := sw.NewBridgeNode()
 	addrsBridge, err := peer.AddrInfoToP2pAddrs(host.InfoFromHost(bridge.Host))
 	require.NoError(t, err)
 

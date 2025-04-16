@@ -15,7 +15,6 @@ import (
 	"github.com/libp2p/go-libp2p/core/host"
 	"github.com/libp2p/go-libp2p/core/peer"
 	"github.com/stretchr/testify/require"
-	"go.uber.org/fx"
 
 	libshare "github.com/celestiaorg/go-square/v2/share"
 
@@ -38,7 +37,7 @@ func TestNodeModule(t *testing.T) {
 
 	sw := swamp.NewSwamp(t, swamp.WithBlockTime(time.Second))
 	// start a bridge node
-	bridge := sw.NewBridgeNode(fx.Replace(sw.BlockFetcher()))
+	bridge := sw.NewBridgeNode()
 	err := bridge.Start(ctx)
 	require.NoError(t, err)
 
@@ -79,7 +78,7 @@ func TestGetByHeight(t *testing.T) {
 	sw := swamp.NewSwamp(t, swamp.WithBlockTime(time.Second))
 
 	// start a bridge node
-	bridge := sw.NewBridgeNode(fx.Replace(sw.BlockFetcher()))
+	bridge := sw.NewBridgeNode()
 	err := bridge.Start(ctx)
 	require.NoError(t, err)
 
@@ -108,7 +107,7 @@ func TestBlobRPC(t *testing.T) {
 	sw := swamp.NewSwamp(t, swamp.WithBlockTime(btime))
 
 	// start a bridge node
-	bridge := sw.NewBridgeNode(fx.Replace(sw.BlockFetcher()))
+	bridge := sw.NewBridgeNode()
 	err := bridge.Start(ctx)
 	require.NoError(t, err)
 
@@ -148,7 +147,7 @@ func TestHeaderSubscription(t *testing.T) {
 	sw := swamp.NewSwamp(t, swamp.WithBlockTime(btime))
 
 	// start a bridge node
-	bridge := sw.NewBridgeNode(fx.Replace(sw.BlockFetcher()))
+	bridge := sw.NewBridgeNode()
 	err := bridge.Start(ctx)
 	require.NoError(t, err)
 
@@ -190,7 +189,7 @@ func TestSubmitBlobOverHTTP(t *testing.T) {
 
 	sw := swamp.NewSwamp(t, swamp.WithBlockTime(time.Second))
 	// start a bridge node
-	bridge := sw.NewBridgeNode(fx.Replace(sw.BlockFetcher()))
+	bridge := sw.NewBridgeNode()
 	err := bridge.Start(ctx)
 	require.NoError(t, err)
 

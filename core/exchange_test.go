@@ -3,7 +3,7 @@ package core
 import (
 	"bytes"
 	"context"
-	"github.com/celestiaorg/celestia-node/internal"
+	"net"
 	"testing"
 	"time"
 
@@ -166,7 +166,7 @@ func TestExchange_StoreHistoricIfArchival(t *testing.T) {
 		assert.True(t, has)
 
 		// ensure .q4 file was not stored if not IsEmptyEDS
-		// TODO(chatton): verify if this is the correct behaviour. Does the added WaitForHeight
+		// TODO(chatton): verify if this is the correct behavior. Does the added WaitForHeight
 		// make it so there are some headers that are not empty and so a different code path is followed?
 		has, err = store.HasQ4ByHash(ctx, h.DAH.Hash())
 		require.NoError(t, err)
@@ -180,10 +180,9 @@ func createCoreFetcher(t *testing.T, cfg *testnode.Config) (*BlockFetcher, testn
 	// flakiness with accessing account state)
 	_, err := cctx.WaitForHeightWithTimeout(2, time.Second*2) // TODO @renaynay: configure?
 	require.NoError(t, err)
-
-	client, err := internal.NewCoreConn(cfg.TmConfig.RPC.GRPCListenAddress)
+	host, port, err := net.SplitHostPort(cctx.GRPCClient.Target())
 	require.NoError(t, err)
-
+	client := newTestClient(t, host, port)
 	fetcher, err := NewBlockFetcher(client)
 	require.NoError(t, err)
 	return fetcher, cctx

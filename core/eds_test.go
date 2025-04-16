@@ -4,12 +4,8 @@ import (
 	"testing"
 
 	"github.com/cometbft/cometbft/types"
-	coretypes "github.com/cometbft/cometbft/types"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-
-	"github.com/celestiaorg/celestia-app/v4/app"
-	"github.com/celestiaorg/celestia-app/v4/pkg/appconsts"
 
 	"github.com/celestiaorg/celestia-node/share"
 )
@@ -18,12 +14,12 @@ import (
 // txs) will be recognized as empty and return nil from `extendBlock` so that
 // we do not redundantly store empty EDSes.
 func TestTrulyEmptySquare(t *testing.T) {
-	data := coretypes.Data{
+	data := types.Data{
 		Txs:        []types.Tx{},
 		SquareSize: 1,
 	}
 
-	eds, err := extendBlock(&data, appconsts.LatestVersion)
+	eds, err := extendBlock(&data)
 	require.NoError(t, err)
 	require.True(t, eds.Equals(share.EmptyEDS()))
 }
@@ -35,17 +31,18 @@ func TestTrulyEmptySquare(t *testing.T) {
 // square size do not allow for empty block data. However, should that ever
 // occur, we need to ensure that the correct data root is generated.
 func TestEmptySquareWithZeroTxs(t *testing.T) {
-	data := coretypes.Data{
-		Txs: []coretypes.Tx{},
+	data := types.Data{
+		Txs: []types.Tx{},
 	}
 
-	eds, err := extendBlock(&data, appconsts.LatestVersion)
+	eds, err := extendBlock(&data)
 	require.NoError(t, err)
 	require.True(t, eds.Equals(share.EmptyEDS()))
 
 	// force extend the square using an empty block and compare with the min DAH
-	eds, err = app.ExtendBlock(data)
-	require.NoError(t, err)
+	// TODO(chatton): app.ExtendBlock was removed, can we delete?
+	// eds, err = app.ExtendBlock(data)
+	// require.NoError(t, err)
 
 	roots, err := share.NewAxisRoots(eds)
 	require.NoError(t, err)

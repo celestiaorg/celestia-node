@@ -4,7 +4,7 @@ package core
 
 import (
 	"context"
-	"github.com/celestiaorg/celestia-node/internal"
+	"net"
 	"testing"
 	"time"
 
@@ -19,10 +19,10 @@ func TestBlockFetcherHeaderValues(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second*15)
 	t.Cleanup(cancel)
 
-	cfg := DefaultTestConfig()
-	StartTestNodeWithConfig(t, cfg)
-	client, err := internal.NewCoreConn(cfg.TmConfig.RPC.GRPCListenAddress)
+	node := StartTestNode(t)
+	host, port, err := net.SplitHostPort(node.GRPCClient.Target())
 	require.NoError(t, err)
+	client := newTestClient(t, host, port)
 	fetcher, err := NewBlockFetcher(client)
 	require.NoError(t, err)
 	newBlockChan, err := fetcher.SubscribeNewBlockEvent(ctx)

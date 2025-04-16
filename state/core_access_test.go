@@ -4,11 +4,11 @@ package state
 
 import (
 	"context"
-	"cosmossdk.io/math"
 	"errors"
 	"testing"
 	"time"
 
+	"cosmossdk.io/math"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"google.golang.org/grpc"
@@ -271,7 +271,7 @@ func buildAccessor(t *testing.T) (*CoreAccessor, []string) {
 		WithGenesis(g)
 
 	cctx, _, grpcAddr := testnode.NewNetwork(t, config)
-	
+
 	conn, err := grpc.NewClient(grpcAddr, grpc.WithTransportCredentials(insecure.NewCredentials()))
 	require.NoError(t, err)
 	ca, err := NewCoreAccessor(cctx.Keyring, accounts[0].Name, nil, conn, chainID, "")
