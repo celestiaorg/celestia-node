@@ -173,7 +173,8 @@ func (n *Network) Start() error {
 		return err
 	}
 
-	grpcSrv, cctx, cleanupGRPC, err := testnode.StartGRPCServer(n.logger, n.app, n.config.AppConfig, cctx, coreEnv)
+	grpcSrv, cctx, cleanupGRPC, err := testnode.StartGRPCServer(
+		sdklog.NewNopLogger(), n.app, n.config.AppConfig, cctx, coreEnv)
 	if err != nil {
 		return err
 	}
