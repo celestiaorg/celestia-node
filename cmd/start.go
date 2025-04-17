@@ -25,6 +25,7 @@ Options passed on start override configuration options only on start and are not
 		Aliases:      []string{"run", "daemon"},
 		Args:         cobra.NoArgs,
 		SilenceUsage: true,
+		PreRunE:      PreRunEnv,
 		RunE: func(cmd *cobra.Command, _ []string) (err error) {
 			ctx := cmd.Context()
 
