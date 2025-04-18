@@ -8,10 +8,10 @@ import (
 	"testing"
 	"time"
 
+	"github.com/cometbft/cometbft/types"
 	"github.com/libp2p/go-libp2p/core/host"
 	"github.com/libp2p/go-libp2p/core/peer"
 	"github.com/stretchr/testify/require"
-	"github.com/tendermint/tendermint/types"
 	"go.uber.org/fx"
 
 	"github.com/celestiaorg/go-fraud"

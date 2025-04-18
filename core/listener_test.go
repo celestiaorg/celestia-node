@@ -44,8 +44,7 @@ func TestListener(t *testing.T) {
 	t.Cleanup(subs.Cancel)
 
 	// create one block to store as Head in local store and then unsubscribe from block events
-	cfg := DefaultTestConfig()
-	cfg.Genesis.ChainID = testChainID
+	cfg := DefaultTestConfig().WithChainID(testChainID)
 	fetcher, _ := createCoreFetcher(t, cfg)
 
 	eds := createEdsPubSub(ctx, t)

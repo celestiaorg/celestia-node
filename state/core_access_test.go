@@ -5,20 +5,18 @@ package state
 import (
 	"context"
 	"errors"
-	"fmt"
 	"testing"
 	"time"
 
-	sdktypes "github.com/cosmos/cosmos-sdk/types"
+	"cosmossdk.io/math"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
 
-	"github.com/celestiaorg/celestia-app/v3/app"
-	"github.com/celestiaorg/celestia-app/v3/test/util/genesis"
-	"github.com/celestiaorg/celestia-app/v3/test/util/testnode"
-	apptypes "github.com/celestiaorg/celestia-app/v3/x/blob/types"
+	"github.com/celestiaorg/celestia-app/v4/test/util/genesis"
+	"github.com/celestiaorg/celestia-app/v4/test/util/testnode"
+	apptypes "github.com/celestiaorg/celestia-app/v4/x/blob/types"
 	libshare "github.com/celestiaorg/go-square/v2/share"
 )
 
@@ -147,7 +145,7 @@ func TestTransfer(t *testing.T) {
 			addr, err := key.GetAddress()
 			require.NoError(t, err)
 
-			resp, err := ca.Transfer(ctx, addr, sdktypes.NewInt(10_000), opts)
+			resp, err := ca.Transfer(ctx, addr, math.NewInt(10_000), opts)
 			require.Equal(t, tc.expErr, err)
 			if err == nil {
 				require.EqualValues(t, 0, resp.Code)
@@ -207,7 +205,7 @@ func TestDelegate(t *testing.T) {
 				WithGasPrice(tc.gasPrice),
 				WithKeyName(accounts[2]),
 			)
-			resp, err := ca.Delegate(ctx, ValAddress(valAddr), sdktypes.NewInt(100_000), opts)
+			resp, err := ca.Delegate(ctx, ValAddress(valAddr), math.NewInt(100_000), opts)
 			require.NoError(t, err)
 			require.EqualValues(t, 0, resp.Code)
 
@@ -217,7 +215,7 @@ func TestDelegate(t *testing.T) {
 				WithKeyName(accounts[2]),
 			)
 
-			resp, err = ca.Undelegate(ctx, ValAddress(valAddr), sdktypes.NewInt(100_000), opts)
+			resp, err = ca.Undelegate(ctx, ValAddress(valAddr), math.NewInt(100_000), opts)
 			require.NoError(t, err)
 			require.EqualValues(t, 0, resp.Code)
 		})
@@ -252,8 +250,6 @@ func buildAccessor(t *testing.T, opts ...Option) (*CoreAccessor, []string) {
 	appConf := testnode.DefaultAppConfig()
 	appConf.API.Enable = true
 
-	appCreator := testnode.CustomAppCreator(fmt.Sprintf("0.002%s", app.BondDenom))
-
 	g := genesis.NewDefaultGenesis().
 		WithChainID(chainID).
 		WithValidators(genesis.NewDefaultValidator(testnode.DefaultValidatorAccountName)).
@@ -263,8 +259,8 @@ func buildAccessor(t *testing.T, opts ...Option) (*CoreAccessor, []string) {
 		WithChainID(chainID).
 		WithTendermintConfig(tmCfg).
 		WithAppConfig(appConf).
-		WithGenesis(g).
-		WithAppCreator(appCreator) // needed until https://github.com/celestiaorg/celestia-app/pull/3680 merges
+		WithGenesis(g)
+
 	cctx, _, grpcAddr := testnode.NewNetwork(t, config)
 
 	conn, err := grpc.NewClient(grpcAddr, grpc.WithTransportCredentials(insecure.NewCredentials()))

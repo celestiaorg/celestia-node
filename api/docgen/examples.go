@@ -91,7 +91,7 @@ func init() {
 	)
 
 	add(errors.New("error"))
-	add(state.Balance{Amount: sdk.NewInt(42), Denom: "utia"})
+	add(state.Balance{Amount: math.NewInt(42), Denom: "utia"})
 	add(share.EmptyEDS())
 	add(rsmt2d.Row)
 	add(network.Connected)

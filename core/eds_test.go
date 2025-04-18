@@ -3,12 +3,9 @@ package core
 import (
 	"testing"
 
+	"github.com/cometbft/cometbft/types"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-	"github.com/tendermint/tendermint/types"
-
-	"github.com/celestiaorg/celestia-app/v3/app"
-	"github.com/celestiaorg/celestia-app/v3/pkg/appconsts"
 
 	"github.com/celestiaorg/celestia-node/share"
 )
@@ -22,7 +19,7 @@ func TestTrulyEmptySquare(t *testing.T) {
 		SquareSize: 1,
 	}
 
-	eds, err := extendBlock(&data, appconsts.LatestVersion)
+	eds, err := extendBlock(&data)
 	require.NoError(t, err)
 	require.True(t, eds.Equals(share.EmptyEDS()))
 }
@@ -38,13 +35,14 @@ func TestEmptySquareWithZeroTxs(t *testing.T) {
 		Txs: []types.Tx{},
 	}
 
-	eds, err := extendBlock(&data, appconsts.LatestVersion)
+	eds, err := extendBlock(&data)
 	require.NoError(t, err)
 	require.True(t, eds.Equals(share.EmptyEDS()))
 
 	// force extend the square using an empty block and compare with the min DAH
-	eds, err = app.ExtendBlock(data, appconsts.LatestVersion)
-	require.NoError(t, err)
+	// TODO(chatton): app.ExtendBlock was removed, can we delete?
+	// eds, err = app.ExtendBlock(data)
+	// require.NoError(t, err)
 
 	roots, err := share.NewAxisRoots(eds)
 	require.NoError(t, err)

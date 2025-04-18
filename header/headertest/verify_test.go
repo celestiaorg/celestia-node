@@ -5,8 +5,8 @@ import (
 	"strconv"
 	"testing"
 
+	tmrand "github.com/cometbft/cometbft/libs/rand"
 	"github.com/stretchr/testify/assert"
-	tmrand "github.com/tendermint/tendermint/libs/rand"
 
 	"github.com/celestiaorg/celestia-node/header"
 )

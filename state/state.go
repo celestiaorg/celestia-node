@@ -5,8 +5,8 @@ import (
 	"strings"
 
 	"cosmossdk.io/math"
+	coretypes "github.com/cometbft/cometbft/types"
 	sdk "github.com/cosmos/cosmos-sdk/types"
-	coretypes "github.com/tendermint/tendermint/types"
 )
 
 // Balance is an alias to the Coin type from Cosmos-SDK.

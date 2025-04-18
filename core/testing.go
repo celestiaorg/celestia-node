@@ -7,18 +7,20 @@ import (
 	"testing"
 	"time"
 
+	sdklog "cosmossdk.io/log"
+	tmrand "github.com/cometbft/cometbft/libs/rand"
+	"github.com/cometbft/cometbft/node"
+	cmthttp "github.com/cometbft/cometbft/rpc/client/http"
 	srvtypes "github.com/cosmos/cosmos-sdk/server/types"
 	grpc_retry "github.com/grpc-ecosystem/go-grpc-middleware/retry"
 	"github.com/stretchr/testify/require"
-	tmrand "github.com/tendermint/tendermint/libs/rand"
-	"github.com/tendermint/tendermint/node"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/connectivity"
 	"google.golang.org/grpc/credentials/insecure"
 
-	"github.com/celestiaorg/celestia-app/v3/test/util/genesis"
-	"github.com/celestiaorg/celestia-app/v3/test/util/testnode"
+	"github.com/celestiaorg/celestia-app/v4/test/util/genesis"
+	"github.com/celestiaorg/celestia-app/v4/test/util/testnode"
 )
 
 const chainID = "private"
@@ -40,9 +42,9 @@ func DefaultTestConfig() *testnode.Config {
 	tmConfig.Consensus.TimeoutCommit = time.Millisecond * 200
 
 	return testnode.DefaultConfig().
-		WithChainID(chainID).
-		WithFundedAccounts(generateRandomAccounts(10)...). // 10 usually is enough for testing
 		WithGenesis(genesis).
+		WithFundedAccounts(generateRandomAccounts(10)...). // 10 usually is enough for testing
+		WithChainID(chainID).
 		WithTendermintConfig(tmConfig).
 		WithSuppressLogs(true)
 }
@@ -61,6 +63,16 @@ func StartTestNodeWithConfig(t *testing.T, cfg *testnode.Config) testnode.Contex
 	// however, it might be useful to use a local tendermint client
 	// if you need to debug something inside it
 	return cctx
+}
+
+// StartTestNodeWithConfigAndClient initializes a test node with default configuration and a WebSocket HTTP client.
+func StartTestNodeWithConfigAndClient(t *testing.T) (testnode.Context, *cmthttp.HTTP) {
+	cctx, rpcAddr, _ := testnode.NewNetwork(t, DefaultTestConfig())
+	wsClient, err := cmthttp.New(rpcAddr, "/websocket")
+	if err != nil {
+		panic(err)
+	}
+	return cctx, wsClient
 }
 
 // generateRandomAccounts generates n random account names.
@@ -110,6 +122,7 @@ type Network struct {
 	config *testnode.Config
 	app    srvtypes.Application
 	tmNode *node.Node
+	logger sdklog.Logger
 
 	stopNode func() error
 	stopGRPC func() error
@@ -145,6 +158,7 @@ func NewNetwork(t testing.TB, config *testnode.Config) *Network {
 		config:  config,
 		app:     app,
 		tmNode:  tmNode,
+		logger:  sdklog.NewTestLogger(t),
 	}
 }
 
@@ -153,12 +167,19 @@ func (n *Network) Start() error {
 	if err != nil {
 		return err
 	}
-	cctx, cleanupGRPC, err := testnode.StartGRPCServer(n.app, n.config.AppConfig, cctx)
+
+	coreEnv, err := n.tmNode.ConfigureRPC()
 	if err != nil {
 		return err
 	}
 
-	apiServer, err := testnode.StartAPIServer(n.app, *n.config.AppConfig, cctx)
+	grpcSrv, cctx, cleanupGRPC, err := testnode.StartGRPCServer(
+		sdklog.NewNopLogger(), n.app, n.config.AppConfig, cctx, coreEnv)
+	if err != nil {
+		return err
+	}
+
+	apiServer, err := testnode.StartAPIServer(n.app, *n.config.AppConfig, cctx, grpcSrv)
 	if err != nil {
 		return err
 	}
