@@ -62,7 +62,8 @@ func AuthCmd(fsets ...*flag.FlagSet) *cobra.Command {
 			if err != nil {
 				return err
 			}
-			fmt.Printf("%s\n", token)
+			fmt.Printf("Generated token with %s permissions:\n%s\n\n", args[0], token)
+			fmt.Printf("Example usage:\ncelestia state balance --token=%s\n", token)
 			return nil
 		},
 	}
