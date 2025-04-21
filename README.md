@@ -54,6 +54,8 @@ For more information on setting up a node and the hardware requirements needed, 
 
 The celestia-node public API is documented [here](https://node-rpc-docs.celestia.org/).
 
+For information on using authentication tokens with the CLI, see [CLI Auth Tokens Guide](./docs/cli-auth-tokens.md).
+
 ## Node types
 
 - **Bridge** nodes - relay blocks from the celestia consensus network to the celestia data availability (DA) network
