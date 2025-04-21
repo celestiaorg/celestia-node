@@ -30,7 +30,7 @@ func init() {
 		balanceForAddressCmd,
 		transferCmd,
 		cancelUnbondingDelegationCmd,
-		beginRedelegateCmd,
+		redelegateCmd,
 		undelegateCmd,
 		delegateCmd,
 		queryDelegationCmd,
@@ -52,7 +52,7 @@ func init() {
 	ApplyFlags(
 		transferCmd,
 		cancelUnbondingDelegationCmd,
-		beginRedelegateCmd,
+		redelegateCmd,
 		undelegateCmd,
 		delegateCmd,
 		grantFeeCmd,
@@ -84,8 +84,7 @@ var accountAddressCmd = &cobra.Command{
 
 var balanceCmd = &cobra.Command{
 	Use: "balance",
-	Short: "Retrieves the Celestia coin balance for the node's account/signer and verifies it against " +
-		"the corresponding block's AppHash.",
+	Short: "Retrieves the node's wallet balance in utia.",
 	Args: cobra.NoArgs,
 	RunE: func(cmd *cobra.Command, _ []string) error {
 		client, err := cmdnode.ParseClientFromCtx(cmd.Context())
@@ -101,8 +100,7 @@ var balanceCmd = &cobra.Command{
 
 var balanceForAddressCmd = &cobra.Command{
 	Use: "balance-for-address [address]",
-	Short: "Retrieves the Celestia coin balance for the given address and verifies the returned balance against " +
-		"the corresponding block's AppHash.",
+	Short: "Retrieves the balance for the given address in utia.",
 	Args: cobra.ExactArgs(1),
 	RunE: func(cmd *cobra.Command, args []string) error {
 		client, err := cmdnode.ParseClientFromCtx(cmd.Context())
@@ -189,9 +187,9 @@ var cancelUnbondingDelegationCmd = &cobra.Command{
 	},
 }
 
-var beginRedelegateCmd = &cobra.Command{
-	Use:   "begin-redelegate [srcAddress] [dstAddress] [amount]",
-	Short: "Sends a user's delegated tokens to a new validator for redelegation",
+var redelegateCmd = &cobra.Command{
+	Use:   "redelegate [srcAddress] [dstAddress] [amount]",
+	Short: "Redelegates tokens from one validator to another",
 	Args:  cobra.ExactArgs(3),
 	RunE: func(cmd *cobra.Command, args []string) error {
 		client, err := cmdnode.ParseClientFromCtx(cmd.Context())
