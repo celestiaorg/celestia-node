@@ -29,14 +29,14 @@ func RPCFlags() *flag.FlagSet {
 		&requestURL,
 		"url",
 		"", // will try to load value from Config, which defines its own default url
-		"Request URL",
+		"RPC server URL (default: http://localhost:26658)",
 	)
 
 	fset.StringVar(
 		&authTokenFlag,
 		"token",
 		"",
-		"Authorization token",
+		"Authorization token. Generate one using 'celestia <node_type> auth <permission-level>' command",
 	)
 
 	fset.DurationVar(
@@ -62,7 +62,7 @@ func InitClient(cmd *cobra.Command, _ []string) error {
 
 		cfg, err := nodebuilder.LoadConfig(filepath.Join(storePath, "config.toml"))
 		if err != nil {
-			return fmt.Errorf("%s: root directory was not specified: %w", rootErrMsg, err)
+			return fmt.Errorf("%s: unable to load config file: %w. Use --token to provide your auth token or ensure your node store path is correct", rootErrMsg, err)
 		}
 
 		if requestURL == "" {
@@ -75,7 +75,7 @@ func InitClient(cmd *cobra.Command, _ []string) error {
 		} else {
 			token, err := getToken(storePath)
 			if err != nil {
-				return fmt.Errorf("%s: %w", rootErrMsg, err)
+				return fmt.Errorf("%s: %w. Generate a token using 'celestia <node_type> auth <permission-level>'", rootErrMsg, err)
 			}
 
 			authTokenFlag = token
@@ -107,7 +107,7 @@ func getStorePath(cmd *cobra.Command) (string, error) {
 	// try to detect a running node
 	path, err := nodebuilder.DiscoverOpened()
 	if err != nil {
-		return "", fmt.Errorf("token/node-store flag was not specified: %w", err)
+		return "", fmt.Errorf("token/node-store flag was not specified: %w. Make sure a node is running or use --token flag to provide your auth token", err)
 	}
 
 	return path, nil
