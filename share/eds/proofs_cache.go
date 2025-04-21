@@ -276,13 +276,15 @@ func (c *proofsCache) Shares(ctx context.Context) ([]libshare.Share, error) {
 	return shares, nil
 }
 
-func (c *proofsCache) Reader() (io.Reader, error) {
-	size, err := c.Size(context.TODO())
+func (c *proofsCache) Reader(ctx context.Context) (io.Reader, error) {
+	size, err := c.Size(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("getting size: %w", err)
 	}
 	odsSize := size / 2
-	reader := NewShareReader(odsSize, c.getShare)
+	reader := NewShareReader(odsSize, func(rowIdx, colIdx int) (libshare.Share, error) {
+		return c.getShare(ctx, rowIdx, colIdx)
+	})	
 	return reader, nil
 }
 
@@ -330,8 +332,7 @@ func (c *proofsCache) getAxisFromCache(axisType rsmt2d.Axis, axisIdx int) (axisW
 	return ax, ok
 }
 
-func (c *proofsCache) getShare(rowIdx, colIdx int) (libshare.Share, error) {
-	ctx := context.TODO()
+func (c *proofsCache) getShare(ctx context.Context, rowIdx, colIdx int) (libshare.Share, error) {
 	size, err := c.Size(ctx)
 	if err != nil {
 		return libshare.Share{}, fmt.Errorf("getting size: %w", err)
