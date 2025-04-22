@@ -75,7 +75,14 @@ func Init(cfg Config, path string, tp node.Type) error {
 		return err
 	}
 
-	ring, err := keyring.New(app.Name, cfg.State.DefaultBackendName, filepath.Join(path, "keys"), os.Stdin, encoding.MakeConfig(app.ModuleEncodingRegisters...).Codec)
+	encCfg := encoding.MakeConfig(app.ModuleEncodingRegisters...)
+	ring, err := keyring.New(
+		app.Name,
+		cfg.State.DefaultBackendName,
+		filepath.Join(path, "keys"),
+		os.Stdin,
+		encCfg.Codec,
+	)
 	if err != nil {
 		return fmt.Errorf("creating keyring: %w", err)
 	}
