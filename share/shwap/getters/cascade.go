@@ -8,6 +8,7 @@ import (
 	logging "github.com/ipfs/go-log/v2"
 	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/attribute"
+	"go.opentelemetry.io/otel/codes"
 	"go.opentelemetry.io/otel/trace"
 
 	libshare "github.com/celestiaorg/go-square/v2/share"
@@ -130,6 +131,9 @@ func cascadeGetters[V any](
 	defer func() {
 		if err != nil {
 			utils.SetStatusAndEnd(span, errors.New("all getters failed"))
+		} else {
+			span.SetStatus(codes.Ok, "getter-successful")
+			span.End()
 		}
 	}()
 

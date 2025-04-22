@@ -194,6 +194,7 @@ func (rs *retrievalSession) Reconstruct(ctx context.Context) (*rsmt2d.ExtendedDa
 	}
 	log.Infow("data square reconstructed", "data_hash", rs.roots.String(), "size", len(rs.roots.RowRoots))
 	close(rs.squareDn)
+	span.SetStatus(codes.Ok, "square-reconstructed")
 	return rs.square, nil
 }
 

@@ -133,7 +133,7 @@ func (g *Getter) GetSamples(
 		return nil, err
 	}
 
-	span.SetStatus(codes.Ok, "")
+	span.SetStatus(codes.Ok, "samples-fetched")
 	return smpls, nil
 }
 
@@ -160,6 +160,7 @@ func (g *Getter) GetRow(ctx context.Context, hdr *header.ExtendedHeader, rowIdx 
 		span.SetStatus(codes.Error, "Fetch")
 		return shwap.Row{}, err
 	}
+	span.SetStatus(codes.Ok, "namespace-data-fetched")
 	return blk.Container, nil
 }
 
@@ -212,7 +213,7 @@ func (g *Getter) GetEDS(
 		return nil, err
 	}
 
-	span.SetStatus(codes.Ok, "")
+	span.SetStatus(codes.Ok, "row-fetched") 
 	return square, nil
 }
 
@@ -267,7 +268,7 @@ func (g *Getter) GetNamespaceData(
 		}
 	}
 
-	span.SetStatus(codes.Ok, "")
+	span.SetStatus(codes.Ok, "eds-fetched") 
 	return nsShrs, nil
 }
 
