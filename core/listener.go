@@ -156,10 +156,6 @@ func (cl *Listener) listen(ctx context.Context, sub <-chan types.EventDataSigned
 					"hash", b.Header.Hash().String(),
 					"err", err)
 			}
-
-			if !timeout.Stop() {
-				<-timeout.C
-			}
 		case <-timeout.C:
 			cl.metrics.subscriptionStuck(ctx)
 			log.Error("underlying subscription is stuck")
