@@ -44,7 +44,7 @@ func FillBlocks(ctx context.Context, cctx testnode.Context, account string, bsiz
 
 // waitForTxResponse polls for a tx hash, returns an error if the query is not successful within the given timeout.
 func waitForTxResponse(cctx testnode.Context, txHash string, timeout time.Duration) error {
-	ctx, cancel := context.WithTimeout(context.Background(), timeout)
+	ctx, cancel := context.WithTimeout(cctx.GoContext(), timeout)
 	defer cancel()
 
 	ticker := time.NewTicker(500 * time.Millisecond)
