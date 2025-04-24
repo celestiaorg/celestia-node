@@ -3,10 +3,11 @@ package core
 import (
 	"testing"
 
-	"github.com/celestiaorg/celestia-app/v4/pkg/da"
-	libshare "github.com/celestiaorg/go-square/v2/share"
 	"github.com/cometbft/cometbft/types"
 	"github.com/stretchr/testify/require"
+
+	"github.com/celestiaorg/celestia-app/v4/pkg/da"
+	libshare "github.com/celestiaorg/go-square/v2/share"
 
 	"github.com/celestiaorg/celestia-node/share"
 )
