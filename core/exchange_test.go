@@ -121,6 +121,7 @@ func TestExchange_DoNotStoreHistoric(t *testing.T) {
 func TestExchange_StoreHistoricIfArchival(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	t.Cleanup(cancel)
+	t.Setenv("CELESTIA_OVERRIDE_AVAILABILITY_WINDOW", "1ns") // all blocks will be "historic"
 
 	cfg := DefaultTestConfig()
 	fetcher, cctx := createCoreFetcher(t, cfg)
@@ -133,8 +134,7 @@ func TestExchange_StoreHistoricIfArchival(t *testing.T) {
 		fetcher,
 		store,
 		header.MakeExtendedHeader,
-		WithAvailabilityWindow(time.Nanosecond), // all blocks will be "historic"
-		WithArchivalMode(),                      // make sure to store them anyway
+		WithArchivalMode(), // make sure to store them anyway
 	)
 	require.NoError(t, err)
 
