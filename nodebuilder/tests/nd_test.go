@@ -57,7 +57,7 @@ func TestShrexNDFromLights(t *testing.T) {
 	require.NoError(t, <-fillDn)
 
 	for i := range heightsCh {
-		h, err := bridgeClient.Header.GetByHeight(ctx, uint64(i))
+		h, err := bridgeClient.Header.GetByHeight(ctx, i)
 		require.NoError(t, err)
 
 		var ns libshare.Namespace
@@ -134,7 +134,7 @@ func TestShrexNDFromLightsWithBadFulls(t *testing.T) {
 	require.NoError(t, <-fillDn)
 
 	for i := range heightsCh {
-		h, err := bridgeClient.Header.GetByHeight(ctx, uint64(i))
+		h, err := bridgeClient.Header.GetByHeight(ctx, i)
 		require.NoError(t, err)
 
 		var ns libshare.Namespace

@@ -67,7 +67,7 @@ func TestArchivalBlobSync(t *testing.T) {
 
 	require.NoError(t, <-fillDn)
 
-	heights := make([]int64, 0, blocks)
+	heights := make([]uint64, 0, blocks)
 	// drain channel to get all heights
 	for height := range heightsCh {
 		heights = append(heights, height)
@@ -95,7 +95,7 @@ func TestArchivalBlobSync(t *testing.T) {
 	)
 
 	// wait until bn syncs to the latest submitted height
-	_, err = archivalFN.HeaderServ.WaitForHeight(ctx, uint64(heights[len(heights)-1]))
+	_, err = archivalFN.HeaderServ.WaitForHeight(ctx, heights[len(heights)-1])
 	require.NoError(t, err)
 	err = archivalBN.Stop(ctx)
 	require.NoError(t, err)
