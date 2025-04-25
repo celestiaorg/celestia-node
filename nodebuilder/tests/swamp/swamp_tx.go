@@ -19,7 +19,7 @@ func FillBlocks(
 ) (
 	<-chan uint64, <-chan error,
 ) {
-	errCh := make(chan error)
+	errCh := make(chan error, 1)
 	heightCh := make(chan uint64, blocks)
 	go func() {
 		defer close(errCh)
