@@ -17,11 +17,12 @@ func FillBlocks(
 	account string,
 	bsize, blocks int,
 ) (
-	<-chan int64, <-chan error,
+	<-chan uint64, <-chan error,
 ) {
 	errCh := make(chan error)
-	heightCh := make(chan int64, blocks)
+	heightCh := make(chan uint64, blocks)
 	go func() {
+		defer close(errCh)
 		defer close(heightCh)
 		// TODO: FillBlock must respect the context
 		// fill blocks is not working correctly without sleep rn.
@@ -32,7 +33,7 @@ func FillBlocks(
 			if err != nil {
 				break
 			}
-			heightCh <- txResp.Height
+			heightCh <- uint64(txResp.Height)
 		}
 
 		select {

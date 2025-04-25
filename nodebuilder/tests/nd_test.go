@@ -36,7 +36,7 @@ func TestShrexNDFromLights(t *testing.T) {
 	t.Cleanup(cancel)
 
 	sw := swamp.NewSwamp(t, swamp.WithBlockTime(btime))
-	heights, fillDn := swamp.FillBlocks(ctx, sw.ClientContext, sw.Accounts[0], bsize, blocks)
+	heightsCh, fillDn := swamp.FillBlocks(ctx, sw.ClientContext, sw.Accounts[0], bsize, blocks)
 
 	bridge := sw.NewBridgeNode()
 	sw.SetBootstrapper(t, bridge)
@@ -56,7 +56,7 @@ func TestShrexNDFromLights(t *testing.T) {
 	// wait for chain to be filled
 	require.NoError(t, <-fillDn)
 
-	for i := range heights {
+	for i := range heightsCh {
 		h, err := bridgeClient.Header.GetByHeight(ctx, uint64(i))
 		require.NoError(t, err)
 
@@ -101,7 +101,7 @@ func TestShrexNDFromLightsWithBadFulls(t *testing.T) {
 	t.Cleanup(cancel)
 
 	sw := swamp.NewSwamp(t, swamp.WithBlockTime(btime))
-	heights, fillDn := swamp.FillBlocks(ctx, sw.ClientContext, sw.Accounts[0], bsize, blocks)
+	heightsCh, fillDn := swamp.FillBlocks(ctx, sw.ClientContext, sw.Accounts[0], bsize, blocks)
 
 	bridge := sw.NewBridgeNode()
 	sw.SetBootstrapper(t, bridge)
@@ -133,7 +133,7 @@ func TestShrexNDFromLightsWithBadFulls(t *testing.T) {
 	// wait for chain to fill up
 	require.NoError(t, <-fillDn)
 
-	for i := range heights {
+	for i := range heightsCh {
 		h, err := bridgeClient.Header.GetByHeight(ctx, uint64(i))
 		require.NoError(t, err)
 
