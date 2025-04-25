@@ -141,6 +141,10 @@ func TestArchivalBlobSync(t *testing.T) {
 			}
 		}
 
+		if ns.ID() == nil {
+			t.Fatal("usable namespace was not found")
+		}
+
 		blobs, err := archivalFN.BlobServ.GetAll(ctx, eh.Height(), []libshare.Namespace{ns})
 		require.NoError(t, err)
 
