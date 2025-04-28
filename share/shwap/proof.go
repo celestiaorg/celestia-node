@@ -2,13 +2,13 @@ package shwap
 
 import (
 	"encoding/json"
-	"errors"
 	"fmt"
 
 	"github.com/tendermint/tendermint/crypto/merkle"
 
 	libshare "github.com/celestiaorg/go-square/v2/share"
 	"github.com/celestiaorg/nmt"
+	nmt_ns "github.com/celestiaorg/nmt/namespace"
 	nmt_pb "github.com/celestiaorg/nmt/pb"
 
 	"github.com/celestiaorg/celestia-node/share"
@@ -20,11 +20,9 @@ import (
 // It consists of multiple components to support verification:
 // * shareProof: A nmt proof that verifies the inclusion of a specific data share within a row of the datasquare.
 // * rowRootProof: A Merkle proof that verifies the inclusion of the row root within the final data root.
-// * root: The row root against which the proof is verified
 type Proof struct {
 	shareProof   *nmt.Proof
 	rowRootProof *merkle.Proof
-	root         []byte
 }
 
 func NewProof(rowIndex int, sharesProofs *nmt.Proof, root *share.AxisRoots) *Proof {
@@ -33,7 +31,6 @@ func NewProof(rowIndex int, sharesProofs *nmt.Proof, root *share.AxisRoots) *Pro
 	_, proofs := merkle.ProofsFromByteSlices(roots)
 
 	proof.rowRootProof = proofs[rowIndex]
-	proof.root = roots[rowIndex]
 	return proof
 }
 
@@ -49,64 +46,141 @@ func (p *Proof) RowRootProof() *merkle.Proof {
 
 // VerifyInclusion verifies the inclusion of the shares to the data root.
 func (p *Proof) VerifyInclusion(shares []libshare.Share, namespace libshare.Namespace, dataRoot []byte) error {
-	outside, err := share.IsOutsideRange(namespace, p.root, p.root)
+	nth := nmt.NewNmtHasher(
+		share.NewSHA256Hasher(),
+		nmt_ns.ID(namespace.ID()).Size(),
+		p.shareProof.IsMaxNamespaceIDIgnored(),
+	)
+
+	nid := namespace.ID()
+	leaves := libshare.ToBytes(shares)
+
+	// If the proof is empty and no leaves exist, it's a valid proof
+	if p.shareProof.IsEmptyProof() && len(leaves) == 0 {
+		return nil
+	}
+
+	// Compute leaf hashes
+	hashes, err := nmt.ComputeLeafHashes(nth, nid, leaves, false)
 	if err != nil {
-		return err
+		return fmt.Errorf("failed to compute leaf hashes: %w", err)
+	}
+
+	// Validate the proof structure
+	if err := p.shareProof.ValidateProofStructure(nth, nid, hashes); err != nil {
+		return fmt.Errorf("invalid proof structure: %w", err)
+	}
+
+	// Compute the root from proof and leaf hashes
+	root, err := p.shareProof.ComputeRoot(nth, hashes)
+	if err != nil {
+		return fmt.Errorf("failed to compute root from proof: %w", err)
+	}
+
+	// Validate the computed root's format
+	if err := nth.ValidateNodeFormat(root); err != nil {
+		return fmt.Errorf("invalid node format for root: %w", err)
+	}
+
+	// Check if namespace is outside the range
+	outside, err := share.IsOutsideRange(namespace, root, root)
+	if err != nil {
+		return fmt.Errorf("failed to check namespace range: %w", err)
 	}
 	if outside {
-		return fmt.Errorf("namespace out of range")
+		return fmt.Errorf("namespace %x is outside the root range", namespace.ID())
 	}
 
-	isValid := p.shareProof.VerifyInclusion(
-		share.NewSHA256Hasher(),
-		namespace.Bytes(),
-		libshare.ToBytes(shares),
-		p.root,
-	)
-	if !isValid {
-		return errors.New("failed to verify nmt proof")
+	// Verify against the data root
+	if err := p.rowRootProof.Verify(dataRoot, root); err != nil {
+		return fmt.Errorf("row root proof verification failed: %w", err)
 	}
 
-	err = p.rowRootProof.Verify(dataRoot, p.root)
-	if err != nil {
-		return err
-	}
 	return nil
 }
 
-// VerifyNamespace verifies the whole namespace of the shares to the data root.
-func (p *Proof) VerifyNamespace(shrs []libshare.Share, namespace libshare.Namespace, dataRoot []byte) error {
-	outside, err := share.IsOutsideRange(namespace, p.root, p.root)
+// VerifyNamespace verifies that the provided shares belong to the namespace and match the given data root.
+func (p *Proof) VerifyNamespace(shares []libshare.Share, namespace libshare.Namespace, dataRoot []byte) error {
+	nth := nmt.NewNmtHasher(
+		share.NewSHA256Hasher(),
+		nmt_ns.ID(namespace.ID()).Size(),
+		p.shareProof.IsMaxNamespaceIDIgnored(),
+	)
+	nid := namespace.ID()
+
+	// Prepare namespaced leaves
+	leaves := make([][]byte, len(shares))
+	for i, sh := range shares {
+		namespaceBytes := sh.Namespace().Bytes()
+		leafBytes := sh.ToBytes()
+		leaf := make([]byte, len(namespaceBytes)+len(leafBytes))
+		copy(leaf, namespaceBytes)
+		copy(leaf[len(namespaceBytes):], leafBytes)
+		leaves[i] = leaf
+	}
+
+	// Compute or prepare leaf hashes
+	var hashes [][]byte
+	var err error
+	if p.IsOfAbsence() {
+		hashes = [][]byte{p.shareProof.LeafHash()}
+	} else {
+		hashes, err = nmt.ComputeLeafHashes(nth, nid, leaves, true)
+		if err != nil {
+			return fmt.Errorf("failed to compute leaf hashes: %w", err)
+		}
+	}
+
+	// Validate proof structure
+	if err := p.shareProof.ValidateProofStructure(nth, nid, hashes); err != nil {
+		return fmt.Errorf("invalid proof structure: %w", err)
+	}
+
+	// For inclusion proofs, validate single namespace consistency
+	if !p.IsOfAbsence() {
+		if err := p.shareProof.ValidateSingleNamespace(nth, nid, hashes); err != nil {
+			return fmt.Errorf("invalid namespace consistency: %w", err)
+		}
+	}
+
+	// Validate completeness (no missed leaves outside proof range)
+	if err := p.shareProof.ValidateCompleteness(nth, nid); err != nil {
+		return fmt.Errorf("proof completeness failed: %w", err)
+	}
+
+	// Reconstruct the root from the proof
+	root, err := p.shareProof.ComputeRoot(nth, hashes)
 	if err != nil {
-		return err
+		return fmt.Errorf("failed to compute proof root: %w", err)
+	}
+
+	// Ensure the reconstructed root is valid
+	if err := nth.ValidateNodeFormat(root); err != nil {
+		return fmt.Errorf("invalid node format for root: %w", err)
+	}
+
+	// Handle empty proof case
+	if p.shareProof.IsEmptyProof() && len(leaves) == 0 {
+		if p.shareProof.IsValidEmptyRangeProof(nth, nid, root, leaves, true) {
+			return nil
+		}
+		// else continue checking
+	}
+
+	// Validate namespace is within the root range
+	outside, err := share.IsOutsideRange(namespace, root, root)
+	if err != nil {
+		return fmt.Errorf("failed to check namespace range: %w", err)
 	}
 	if outside {
-		return fmt.Errorf("namespace out of range")
+		return fmt.Errorf("namespace %x is outside root range", nid)
 	}
 
-	leaves := make([][]byte, 0, len(shrs))
-	for _, sh := range shrs {
-		namespaceBytes := sh.Namespace().Bytes()
-		leave := make([]byte, len(sh.ToBytes())+len(namespaceBytes))
-		copy(leave, namespaceBytes)
-		copy(leave[len(namespaceBytes):], sh.ToBytes())
-		leaves = append(leaves, leave)
+	// Verify row root proof against the data root
+	if err := p.rowRootProof.Verify(dataRoot, root); err != nil {
+		return fmt.Errorf("row root proof verification failed: %w", err)
 	}
 
-	valid := p.shareProof.VerifyNamespace(
-		share.NewSHA256Hasher(),
-		namespace.Bytes(),
-		leaves,
-		p.root,
-	)
-	if !valid {
-		return fmt.Errorf("failed to verify namespace for the shares in row")
-	}
-
-	err = p.rowRootProof.Verify(dataRoot, p.root)
-	if err != nil {
-		return err
-	}
 	return nil
 }
 
@@ -132,7 +206,6 @@ func (p *Proof) MarshalJSON() ([]byte, error) {
 	}{
 		ShareProof:   p.shareProof,
 		RowRootProof: p.rowRootProof,
-		Roots:        p.root,
 	}
 	return json.Marshal(temp)
 }
@@ -149,7 +222,6 @@ func (p *Proof) UnmarshalJSON(data []byte) error {
 	}
 	p.shareProof = temp.ShareProof
 	p.rowRootProof = temp.RowRootProof
-	p.root = temp.Root
 	return nil
 }
 
@@ -172,7 +244,6 @@ func (p *Proof) ToProto() *pb.Proof {
 	return &pb.Proof{
 		SharesProof:  nmtProof,
 		RowRootProof: rowRootProofs,
-		Root:         p.root,
 	}
 }
 
@@ -205,7 +276,6 @@ func ProofFromProto(p *pb.Proof) (*Proof, error) {
 	return &Proof{
 		shareProof:   &proof,
 		rowRootProof: rowRootProof,
-		root:         p.GetRoot(),
 	}, nil
 }
 
@@ -215,6 +285,5 @@ func (p *Proof) IsEmptyProof() bool {
 	return p == nil ||
 		p.shareProof == nil ||
 		p.shareProof.IsEmptyProof() ||
-		p.rowRootProof == nil ||
-		p.root == nil
+		p.rowRootProof == nil
 }

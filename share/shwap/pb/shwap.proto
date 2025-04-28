@@ -59,5 +59,4 @@ message RowRootProof {
 message Proof {
     proof.pb.Proof sharesProof = 1;
     RowRootProof rowRootProof = 2;
-    bytes root = 3;
 }
