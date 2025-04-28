@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"github.com/libp2p/go-libp2p/core/peer"
+	"slices"
 )
 
 // NOTE: Every time we add a new long-running network, it has to be added here.
@@ -79,7 +80,7 @@ var orderedNetworks = []Network{Mainnet, Mocha, Arabica, Private}
 
 // GetNetworks provides a list of all known networks in order of priority.
 func GetNetworks() []Network {
-	return append([]Network(nil), orderedNetworks...)
+	return slices.Clone(orderedNetworks)
 }
 
 // listAvailableNetworks provides a string listing all known long-standing networks for things

@@ -27,7 +27,7 @@ func Test_dataFromShares(t *testing.T) {
 	sssShares := sss.Export()
 
 	rawSSSShares := make([][]byte, len(sssShares))
-	for i := 0; i < len(sssShares); i++ {
+	for i := range sssShares {
 		d := sssShares[i].ToBytes()
 		rawSSSShares[i] = d
 	}

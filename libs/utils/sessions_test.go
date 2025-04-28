@@ -23,7 +23,7 @@ func TestSessionsSerialExecution(t *testing.T) {
 
 	numSessions := 20
 
-	for i := 0; i < numSessions; i++ {
+	for i := range numSessions {
 		wg.Add(1)
 		go func(id int) {
 			defer wg.Done()
@@ -96,7 +96,7 @@ func TestSessions_ConcurrentDifferentKeys(t *testing.T) {
 	activeSessions := atomic.Int32{}
 	maxActive := int32(0)
 
-	for i := 0; i < numKeys; i++ {
+	for i := range numKeys {
 		wg.Add(1)
 		go func(key int) {
 			defer wg.Done()

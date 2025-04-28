@@ -513,7 +513,7 @@ type subLock struct {
 
 func (s subLock) wait(ctx context.Context, count int) error {
 	s.wg.Add(count)
-	for i := 0; i < count; i++ {
+	for range count {
 		err := s.release(ctx)
 		if err != nil {
 			return err
