@@ -256,7 +256,7 @@ func (c *proofsCache) Shares(ctx context.Context) ([]libshare.Share, error) {
 	}
 	odsSize := size / 2
 	shares := make([]libshare.Share, 0, odsSize*odsSize)
-	for i := 0; i < odsSize; i++ {
+	for i := range odsSize {
 		ax, err := c.AxisHalf(ctx, rsmt2d.Row, i)
 		if err != nil {
 			return nil, err

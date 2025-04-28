@@ -170,7 +170,7 @@ func createTestBlobTransactions(
 	signer, err := user.NewSigner(keyring, config.TxConfig, testChainID, account)
 	require.NoError(t, err)
 
-	for i := 0; i < numberOfTransactions; i++ {
+	for i := range numberOfTransactions {
 		ns, msg, blob, coreTx := createTestBlobTransaction(t, signer, size+i*1000)
 		nss = append(nss, ns)
 		msgs = append(msgs, msg)

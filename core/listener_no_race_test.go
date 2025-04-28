@@ -45,7 +45,7 @@ func TestListenerWithNonEmptyBlocks(t *testing.T) {
 
 	empty := share.EmptyEDSRoots()
 	// TODO extract 16
-	for i := 0; i < 16; i++ {
+	for range 16 {
 		accounts := cfg.Genesis.Accounts()
 		require.Greater(t, len(accounts), 0)
 

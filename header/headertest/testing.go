@@ -112,7 +112,7 @@ func MakeCommit(
 	now time.Time,
 ) (*types.Commit, error) {
 	// all sign
-	for i := 0; i < len(validators); i++ {
+	for i := range validators {
 		pubKey, err := validators[i].GetPubKey()
 		if err != nil {
 			return nil, fmt.Errorf("can't get pubkey: %w", err)
@@ -299,7 +299,7 @@ func RandValidatorSet(numValidators int, votingPower int64) (*types.ValidatorSet
 		privValidators = make([]types.PrivValidator, numValidators)
 	)
 
-	for i := 0; i < numValidators; i++ {
+	for i := range numValidators {
 		val, privValidator := RandValidator(false, votingPower)
 		valz[i] = val
 		privValidators[i] = privValidator

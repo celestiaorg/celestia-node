@@ -61,7 +61,7 @@ func TestListener(t *testing.T) {
 	t.Cleanup(edsSubs.Cancel)
 
 	// ensure headers and dataHash are getting broadcasted to the relevant topics
-	for i := 0; i < 5; i++ {
+	for range 5 {
 		_, err := subs.NextHeader(ctx)
 		require.NoError(t, err)
 	}
@@ -160,7 +160,7 @@ func createMocknetWithTwoPubsubEndpoints(ctx context.Context, t *testing.T) (*pu
 	require.NoError(t, err)
 
 	// wait on both peer identification events
-	for i := 0; i < 2; i++ {
+	for range 2 {
 		select {
 		case <-sub0.Out():
 		case <-sub1.Out():

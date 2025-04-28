@@ -227,7 +227,7 @@ func (rs *retrievalSession) close(success bool) {
 func (rs *retrievalSession) request(ctx context.Context) {
 	t := time.NewTicker(RetrieveQuadrantTimeout)
 	defer t.Stop()
-	for retry := 0; retry < len(rs.squareQuadrants); retry++ {
+	for retry := range rs.squareQuadrants {
 		q := rs.squareQuadrants[retry]
 		log.Debugw("requesting quadrant",
 			"axis", q.source,
