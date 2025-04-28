@@ -1,6 +1,8 @@
 package shwap
 
 import (
+	"bytes"
+	"context"
 	"fmt"
 	"io"
 
@@ -33,6 +35,10 @@ func NewNamespaceDataID(height uint64, namespace libshare.Namespace) (NamespaceD
 		return NamespaceDataID{}, err
 	}
 	return ndid, nil
+}
+
+func (ndid NamespaceDataID) Name() string {
+	return NamespaceDataName
 }
 
 // NamespaceDataIDFromBinary deserializes a NamespaceDataID from its binary form. It returns
@@ -129,4 +135,19 @@ func (ndid NamespaceDataID) AppendBinary(data []byte) ([]byte, error) {
 		return nil, err
 	}
 	return append(data, ndid.DataNamespace.Bytes()...), nil
+}
+
+func (ndid NamespaceDataID) FetchContainerReader(ctx context.Context, acc Accessor) (io.Reader, error) {
+	rows, err := EDSData(ctx, acc, ndid.DataNamespace)
+	if err != nil {
+		return nil, err
+	}
+
+	buf := &bytes.Buffer{}
+	_, err = rows.WriteTo(buf)
+	if err != nil {
+		return nil, err
+	}
+
+	return buf, nil
 }

@@ -19,3 +19,6 @@ var ErrInvalidResponse = errors.New("server returned an invalid response or caus
 var ErrInvalidRequest = errors.New("server returned error indicating request was malformed")
 
 var ErrInternalServer = errors.New("server encountered unexpected error")
+
+// ErrUnsupportedProtocol is returned when the server does not support selected protocol.
+var ErrUnsupportedProtocol = errors.New("unsupported protocol")
