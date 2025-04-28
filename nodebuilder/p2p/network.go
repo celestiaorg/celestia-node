@@ -2,6 +2,7 @@ package p2p
 
 import (
 	"errors"
+	"slices"
 	"strings"
 	"time"
 
@@ -79,7 +80,7 @@ var orderedNetworks = []Network{Mainnet, Mocha, Arabica, Private}
 
 // GetNetworks provides a list of all known networks in order of priority.
 func GetNetworks() []Network {
-	return append([]Network(nil), orderedNetworks...)
+	return slices.Clone(orderedNetworks)
 }
 
 // listAvailableNetworks provides a string listing all known long-standing networks for things
