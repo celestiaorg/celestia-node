@@ -16,6 +16,7 @@ import (
 
 	"github.com/celestiaorg/celestia-node/share"
 	"github.com/celestiaorg/celestia-node/share/eds/edstest"
+	"github.com/celestiaorg/celestia-node/share/shwap"
 	"github.com/celestiaorg/celestia-node/share/shwap/p2p/shrex"
 	"github.com/celestiaorg/celestia-node/store"
 )
@@ -35,7 +36,11 @@ func TestExchange_RequestND_NotFound(t *testing.T) {
 
 		namespace := libshare.RandomNamespace()
 		height := height.Add(1)
-		_, err := client.RequestND(ctx, height, namespace, server.host.ID())
+
+		id, err := shwap.NewNamespaceDataID(height, namespace)
+		data := shwap.NamespaceData{}
+		require.NoError(t, err)
+		err = client.Get(ctx, &id, &data, server.host.ID())
 		require.ErrorIs(t, err, shrex.ErrNotFound)
 	})
 
@@ -52,9 +57,14 @@ func TestExchange_RequestND_NotFound(t *testing.T) {
 		require.NoError(t, err)
 
 		namespace := libshare.RandomNamespace()
-		emptyShares, err := client.RequestND(ctx, height, namespace, server.host.ID())
+
+		id, err := shwap.NewNamespaceDataID(height, namespace)
+		data := shwap.NamespaceData{}
 		require.NoError(t, err)
-		require.Empty(t, emptyShares.Flatten())
+
+		err = client.Get(ctx, &id, &data, server.host.ID())
+		require.NoError(t, err)
+		require.Empty(t, data.Flatten())
 	})
 }
 
@@ -65,7 +75,7 @@ func TestExchange_RequestND(t *testing.T) {
 
 		client, err := NewClient(DefaultParameters(), net.Hosts()[0])
 		require.NoError(t, err)
-		server, err := NewServer(DefaultParameters(), net.Hosts()[1], nil)
+		server, err := NewServer(DefaultParameters(), net.Hosts()[1], nil, SupportedProtocols())
 		require.NoError(t, err)
 
 		require.NoError(t, server.Start(context.Background()))
@@ -89,19 +99,34 @@ func TestExchange_RequestND(t *testing.T) {
 			}
 		}
 		middleware := shrex.NewMiddleware(rateLimit)
-		server.host.SetStreamHandler(server.protocolID,
-			middleware.RateLimitHandler(mockHandler))
+		protocols := SupportedProtocols()
+		for _, protocol := range protocols {
+			server.host.SetStreamHandler(
+				shrex.ProtocolID(server.params.NetworkID(), protocol),
+				middleware.RateLimitHandler(mockHandler),
+			)
+		}
 
 		// take server concurrency slots with blocked requests
 		for i := range rateLimit {
 			go func(i int) {
-				client.RequestND(ctx, 1, libshare.RandomNamespace(), server.host.ID()) //nolint:errcheck
+				namespace := libshare.RandomNamespace()
+				id, err := shwap.NewNamespaceDataID(1, namespace)
+				data := shwap.NamespaceData{}
+				require.NoError(t, err)
+
+				client.Get(ctx, &id, &data, server.host.ID()) //nolint:errcheck
 			}(i)
 		}
 
 		// wait until all server slots are taken
 		wg.Wait()
-		_, err = client.RequestND(ctx, 1, libshare.RandomNamespace(), server.host.ID())
+		namespace := libshare.RandomNamespace()
+		id, err := shwap.NewNamespaceDataID(1, namespace)
+		data := shwap.NamespaceData{}
+		require.NoError(t, err)
+
+		err = client.Get(ctx, &id, &data, server.host.ID())
 		require.ErrorIs(t, err, shrex.ErrRateLimited)
 	})
 }
@@ -123,7 +148,7 @@ func makeExchange(t *testing.T) (*store.Store, *Client, *Server) {
 
 	client, err := NewClient(DefaultParameters(), hosts[0])
 	require.NoError(t, err)
-	server, err := NewServer(DefaultParameters(), hosts[1], s)
+	server, err := NewServer(DefaultParameters(), hosts[1], s, SupportedProtocols())
 	require.NoError(t, err)
 
 	return s, client, server

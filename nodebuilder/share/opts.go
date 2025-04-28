@@ -7,7 +7,6 @@ import (
 	"github.com/celestiaorg/celestia-node/share/shwap/p2p/discovery"
 	"github.com/celestiaorg/celestia-node/share/shwap/p2p/shrex/peers"
 	"github.com/celestiaorg/celestia-node/share/shwap/p2p/shrex/shrex_getter"
-	"github.com/celestiaorg/celestia-node/share/shwap/p2p/shrex/shrexeds"
 	"github.com/celestiaorg/celestia-node/share/shwap/p2p/shrex/shrexnd"
 	"github.com/celestiaorg/celestia-node/store"
 )
@@ -32,21 +31,11 @@ func WithDiscoveryMetrics(discs []*discovery.Discovery) error {
 	return err
 }
 
-func WithShrexClientMetrics(edsClient *shrexeds.Client, ndClient *shrexnd.Client) error {
-	err := edsClient.WithMetrics()
-	if err != nil {
-		return err
-	}
-
+func WithShrexClientMetrics(ndClient *shrexnd.Client) error {
 	return ndClient.WithMetrics()
 }
 
-func WithShrexServerMetrics(edsServer *shrexeds.Server, ndServer *shrexnd.Server) error {
-	err := edsServer.WithMetrics()
-	if err != nil {
-		return err
-	}
-
+func WithShrexServerMetrics(ndServer *shrexnd.Server) error {
 	return ndServer.WithMetrics()
 }
 
