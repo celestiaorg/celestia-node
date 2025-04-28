@@ -133,6 +133,30 @@ func TestRowProtoEncoding(t *testing.T) {
 	}
 }
 
+func TestExtendAxisHalf(t *testing.T) {
+	shares, err := libshare.RandShares(16)
+	require.NoError(t, err)
+
+	original := AxisHalf{
+		Shares:   shares,
+		IsParity: false,
+	}
+
+	extended, err := original.Extended()
+	require.NoError(t, err)
+	require.Len(t, extended, len(shares)*2)
+
+	parity := AxisHalf{
+		Shares:   extended[len(shares):],
+		IsParity: true,
+	}
+
+	parityExtended, err := parity.Extended()
+	require.NoError(t, err)
+
+	require.Equal(t, extended, parityExtended)
+}
+
 // BenchmarkRowValidate benchmarks the performance of row validation.
 // BenchmarkRowValidate-10    	    9591	    121802 ns/op
 func BenchmarkRowValidate(b *testing.B) {
