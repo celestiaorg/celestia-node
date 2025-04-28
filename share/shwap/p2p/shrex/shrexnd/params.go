@@ -5,11 +5,8 @@ import (
 
 	logging "github.com/ipfs/go-log/v2"
 
-	"github.com/celestiaorg/celestia-node/share/shwap"
 	"github.com/celestiaorg/celestia-node/share/shwap/p2p/shrex"
 )
-
-const protocolString = shrex.ProtocolString + shwap.NamespaceDataName
 
 var log = logging.Logger("shrex/nd")
 
