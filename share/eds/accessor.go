@@ -11,6 +11,8 @@ import (
 	"github.com/celestiaorg/celestia-node/share/shwap"
 )
 
+var _ shwap.Accessor = (AccessorStreamer)(nil)
+
 // EmptyAccessor is an accessor of an empty EDS block.
 var EmptyAccessor = &Rsmt2D{ExtendedDataSquare: share.EmptyEDS()}
 
@@ -28,7 +30,7 @@ type Accessor interface {
 	Sample(ctx context.Context, idx shwap.SampleCoords) (shwap.Sample, error)
 	// AxisHalf returns half of shares axis of the given type and index. Side is determined by
 	// implementation. Implementations should indicate the side in the returned AxisHalf.
-	AxisHalf(ctx context.Context, axisType rsmt2d.Axis, axisIdx int) (AxisHalf, error)
+	AxisHalf(ctx context.Context, axisType rsmt2d.Axis, axisIdx int) (shwap.AxisHalf, error)
 	// RowNamespaceData returns data for the given namespace and row index.
 	RowNamespaceData(ctx context.Context, namespace libshare.Namespace, rowIdx int) (shwap.RowNamespaceData, error)
 	// Shares returns data (ODS) shares extracted from the Accessor.
