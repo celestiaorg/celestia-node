@@ -1,6 +1,7 @@
 package shwap
 
 import (
+	"context"
 	"encoding/binary"
 	"fmt"
 	"io"
@@ -37,6 +38,10 @@ func EdsIDFromBinary(data []byte) (EdsID, error) {
 	}
 
 	return eid, nil
+}
+
+func (eid EdsID) Name() string {
+	return EDSName
 }
 
 // Equals checks equality of EdsIDs.
@@ -90,6 +95,14 @@ func (eid EdsID) Validate() error {
 		return fmt.Errorf("%w: Height == 0", ErrInvalidID)
 	}
 	return nil
+}
+
+func (eid EdsID) Target() uint64 {
+	return eid.Height
+}
+
+func (eid EdsID) FetchContainerReader(_ context.Context, acc Accessor) (io.Reader, error) {
+	return acc.Reader()
 }
 
 // AppendBinary helps in the binary encoding of EdsID by appending the binary form of Height to the

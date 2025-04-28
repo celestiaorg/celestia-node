@@ -8,40 +8,21 @@ import (
 	"net"
 	"time"
 
-	"github.com/celestiaorg/celestia-node/share/eds"
-
 	"github.com/libp2p/go-libp2p/core/host"
 	"github.com/libp2p/go-libp2p/core/network"
 	"github.com/libp2p/go-libp2p/core/peer"
-	"github.com/libp2p/go-libp2p/core/protocol"
+
+	"github.com/celestiaorg/go-libp2p-messenger/serde"
 
 	"github.com/celestiaorg/celestia-node/libs/utils"
-	"github.com/celestiaorg/celestia-node/share/shwap"
 	"github.com/celestiaorg/celestia-node/share/shwap/p2p/shrex"
 	shrexpb "github.com/celestiaorg/celestia-node/share/shwap/p2p/shrex/pb"
-	"github.com/celestiaorg/go-libp2p-messenger/serde"
 )
 
-type id interface {
-	// client side
-	WriteTo(w io.Writer) (int64, error)
-	// server side
-	ReadFrom(r io.Reader) (int64, error)
-	Validate() error
-	CopyDataTo(acc eds.Accessor, w io.Writer) (int64, error)
-}
-
-type container interface {
-	Verify(dataroot []byte) error
-	// consider to use Unmarshal([]byte) error instead
-	ReadFrom(reader io.Reader) error
-}
-
-// Client implements client side of shrex/nd protocol to obtain namespaced shares data from remote
+// Client implements client side of shrex protocol to obtain data from remote
 // peers.
 type Client struct {
-	params     *Parameters
-	protocolID protocol.ID
+	params *Parameters
 
 	host    host.Host
 	metrics *shrex.Metrics
@@ -50,34 +31,27 @@ type Client struct {
 // NewClient creates a new shrEx/nd client
 func NewClient(params *Parameters, host host.Host) (*Client, error) {
 	if err := params.Validate(); err != nil {
-		return nil, fmt.Errorf("shrex-nd: client creation failed: %w", err)
+		return nil, fmt.Errorf("shrex-client: creation failed: %w", err)
 	}
-
 	return &Client{
-		host:       host,
-		protocolID: shrex.ProtocolID(params.NetworkID(), protocolString),
-		params:     params,
+		host:   host,
+		params: params,
 	}, nil
 }
 
-// RequestND requests namespaced data from the given peer.
-// Returns NamespaceData with unverified inclusion proofs against the share.Root.
-func (c *Client) RequestND(
+func (c *Client) Get(
 	ctx context.Context,
 	id id,
+	container container,
 	peer peer.ID,
-) (shwap.NamespaceData, error) {
-	if err := id.Validate(); err != nil {
-		return nil, err
-	}
-
-	shares, err := c.doRequest(ctx, id, peer)
+) error {
+	err := c.doRequest(ctx, id, container, peer)
 	if err == nil {
-		return shares, nil
+		return nil
 	}
 	if errors.Is(err, context.DeadlineExceeded) || errors.Is(err, context.Canceled) {
 		c.metrics.ObserveRequests(ctx, 1, shrex.StatusTimeout)
-		return nil, err
+		return err
 	}
 	// some net.Errors also mean the context deadline was exceeded, but yamux/mocknet do not
 	// unwrap to a ctx err
@@ -85,25 +59,27 @@ func (c *Client) RequestND(
 	if errors.As(err, &ne) && ne.Timeout() {
 		if deadline, _ := ctx.Deadline(); deadline.Before(time.Now()) {
 			c.metrics.ObserveRequests(ctx, 1, shrex.StatusTimeout)
-			return nil, context.DeadlineExceeded
+			return context.DeadlineExceeded
 		}
 	}
 	if !errors.Is(err, shrex.ErrNotFound) && errors.Is(err, shrex.ErrRateLimited) {
-		log.Warnw("client-nd: peer returned err", "err", err)
+		log.Warnw("shrex-client: peer returned err", "err", err)
 	}
-	return nil, err
+	return err
 }
 
 func (c *Client) doRequest(
 	ctx context.Context,
 	id id,
+	container container,
 	peerID peer.ID,
-) (container, error) {
+) error {
 	streamOpenCtx, cancel := context.WithTimeout(ctx, c.params.ServerReadTimeout)
 	defer cancel()
-	stream, err := c.host.NewStream(streamOpenCtx, peerID, c.protocolID)
+
+	stream, err := c.host.NewStream(streamOpenCtx, peerID, shrex.ProtocolID(c.params.NetworkID(), id.Name()))
 	if err != nil {
-		return nil, err
+		return err
 	}
 	defer utils.CloseAndLog(log, "client", stream)
 
@@ -112,32 +88,31 @@ func (c *Client) doRequest(
 	_, err = id.WriteTo(stream)
 	if err != nil {
 		c.metrics.ObserveRequests(ctx, 1, shrex.StatusSendReqErr)
-		return nil, fmt.Errorf("client-nd: writing request: %w", err)
+		return fmt.Errorf("shrex-client: writing request: %w", err)
 	}
 
 	err = stream.CloseWrite()
 	if err != nil {
-		log.Warnw("client-nd: closing write side of the stream", "err", err)
+		log.Warnw("shrex-client: closing write side of the stream", "err", err)
 	}
 
 	status, err := c.readStatus(ctx, stream)
 	if err != nil {
-		// metrics updated inside readstatus
-		return nil, fmt.Errorf("client-nd: reading status response: %w", err)
+		// metrics updated inside read status
+		return fmt.Errorf("shrex-client: reading status response: %w", err)
 	}
 
 	err = c.convertStatusToErr(ctx, status)
 	if err != nil {
-		return nil, err
+		return err
 	}
 
-	cntr := id.container()
-	_, err = cntr.ReadFrom(stream)
+	_, err = container.ReadFrom(stream)
 	if err != nil {
 		c.metrics.ObserveRequests(ctx, 1, shrex.StatusReadRespErr)
-		return nil, err
+		return err
 	}
-	return cntr, nil
+	return nil
 }
 
 func (c *Client) readStatus(ctx context.Context, stream network.Stream) (shrexpb.Status, error) {
@@ -147,13 +122,12 @@ func (c *Client) readStatus(ctx context.Context, stream network.Stream) (shrexpb
 		// server is overloaded and closed the stream
 		if errors.Is(err, io.EOF) {
 			c.metrics.ObserveRequests(ctx, 1, shrex.StatusRateLimited)
-			return shrex.ErrRateLimited
+			return shrexpb.Status_INTERNAL, shrex.ErrRateLimited
 		}
 		c.metrics.ObserveRequests(ctx, 1, shrex.StatusReadRespErr)
-		return err
+		return shrexpb.Status_INTERNAL, err
 	}
-
-	return
+	return resp.Status, nil
 }
 
 func (c *Client) setStreamDeadlines(ctx context.Context, stream network.Stream) {
@@ -164,14 +138,14 @@ func (c *Client) setStreamDeadlines(ctx context.Context, stream network.Stream) 
 		if err == nil {
 			return
 		}
-		log.Debugw("client-nd: set stream deadline", "err", err)
+		log.Debugw("shrex-client: set stream deadline", "err", err)
 	}
 
 	// if deadline not set, client read deadline defaults to server write deadline
 	if c.params.ServerWriteTimeout != 0 {
 		err := stream.SetReadDeadline(time.Now().Add(c.params.ServerWriteTimeout))
 		if err != nil {
-			log.Debugw("client-nd: set read deadline", "err", err)
+			log.Debugw("shrex-client: set read deadline", "err", err)
 		}
 	}
 
@@ -179,7 +153,7 @@ func (c *Client) setStreamDeadlines(ctx context.Context, stream network.Stream) 
 	if c.params.ServerReadTimeout != 0 {
 		err := stream.SetWriteDeadline(time.Now().Add(c.params.ServerReadTimeout))
 		if err != nil {
-			log.Debugw("client-nd: set write deadline", "err", err)
+			log.Debugw("shrex-client: set write deadline", "err", err)
 		}
 	}
 }
