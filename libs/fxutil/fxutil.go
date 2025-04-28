@@ -19,7 +19,7 @@ func WithLifecycle(ctx context.Context, lc fx.Lifecycle) context.Context {
 }
 
 // SupplyIf supplies DI if a condition is met.
-func SupplyIf(cond bool, val ...interface{}) fx.Option {
+func SupplyIf(cond bool, val ...any) fx.Option {
 	if cond {
 		return fx.Supply(val...)
 	}
@@ -27,7 +27,7 @@ func SupplyIf(cond bool, val ...interface{}) fx.Option {
 }
 
 // ProvideIf provides a given constructor if a condition is met.
-func ProvideIf(cond bool, ctor ...interface{}) fx.Option {
+func ProvideIf(cond bool, ctor ...any) fx.Option {
 	if cond {
 		return fx.Provide(ctor...)
 	}
@@ -36,7 +36,7 @@ func ProvideIf(cond bool, ctor ...interface{}) fx.Option {
 }
 
 // InvokeIf invokes a given function if a condition is met.
-func InvokeIf(cond bool, function interface{}) fx.Option {
+func InvokeIf(cond bool, function any) fx.Option {
 	if cond {
 		return fx.Invoke(function)
 	}
@@ -45,12 +45,12 @@ func InvokeIf(cond bool, function interface{}) fx.Option {
 
 // ProvideAs creates an FX option that provides constructor 'cnstr' with the returned values types
 // as 'cnstrs' It is as simple utility that hides away FX annotation details.
-func ProvideAs(cnstr interface{}, cnstrs ...interface{}) fx.Option {
+func ProvideAs(cnstr any, cnstrs ...any) fx.Option {
 	return fx.Provide(fx.Annotate(cnstr, fx.As(cnstrs...)))
 }
 
 // ReplaceAs creates an FX option that substitutes types defined by constructors 'cnstrs' with the
 // value 'val'. It is as simple utility that hides away FX annotation details.
-func ReplaceAs(val interface{}, cnstrs ...interface{}) fx.Option {
+func ReplaceAs(val any, cnstrs ...any) fx.Option {
 	return fx.Replace(fx.Annotate(val, fx.As(cnstrs...)))
 }

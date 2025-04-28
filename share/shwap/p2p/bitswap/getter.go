@@ -176,7 +176,7 @@ func (g *Getter) GetEDS(
 
 	sqrLn := len(hdr.DAH.RowRoots)
 	blks := make([]Block, sqrLn/2)
-	for i := 0; i < sqrLn/2; i++ {
+	for i := range sqrLn / 2 {
 		blk, err := NewEmptyRowBlock(hdr.Height(), i, sqrLn)
 		if err != nil {
 			span.RecordError(err)

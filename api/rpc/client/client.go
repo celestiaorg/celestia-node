@@ -87,9 +87,9 @@ func newClient(ctx context.Context, addr string, authHeader http.Header) (*Clien
 	return &client, nil
 }
 
-func moduleMap(client *Client) map[string]interface{} {
+func moduleMap(client *Client) map[string]any {
 	// TODO: this duplication of strings many times across the codebase can be avoided with issue #1176
-	return map[string]interface{}{
+	return map[string]any{
 		"share":      &client.Share.Internal,
 		"state":      &client.State.Internal,
 		"header":     &client.Header.Internal,

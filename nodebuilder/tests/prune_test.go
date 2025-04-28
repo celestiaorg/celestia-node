@@ -111,7 +111,7 @@ func TestArchivalBlobSync(t *testing.T) {
 	pruningCfg.DASer = das.DefaultConfig(node.Full)
 	pruningCfg.Pruner.EnableService = true
 	pruningFulls := make([]*nodebuilder.Node, 0, 3)
-	for i := 0; i < 3; i++ {
+	for range 3 {
 		pruningFN := sw.NewNodeWithConfig(node.Full, pruningCfg, prunerOpts)
 		err = pruningFN.Start(ctx)
 		require.NoError(t, err)

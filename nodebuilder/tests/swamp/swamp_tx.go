@@ -28,7 +28,7 @@ func FillBlocks(
 		// fill blocks is not working correctly without sleep rn.
 		time.Sleep(time.Millisecond * 50)
 		var err error
-		for i := 0; i < blocks; i++ {
+		for range blocks {
 			txResp, err := cctx.FillBlock(bsize, account, flags.BroadcastBlock)
 			if err != nil {
 				break
