@@ -3,7 +3,6 @@
 package tests
 
 import (
-	"bytes"
 	"context"
 	"encoding/json"
 	"net"
@@ -20,7 +19,6 @@ import (
 	libshare "github.com/celestiaorg/go-square/v2/share"
 
 	"github.com/celestiaorg/celestia-node/blob"
-	"github.com/celestiaorg/celestia-node/libs/fxutil"
 	"github.com/celestiaorg/celestia-node/nodebuilder"
 	"github.com/celestiaorg/celestia-node/nodebuilder/das"
 	"github.com/celestiaorg/celestia-node/nodebuilder/node"
@@ -46,7 +44,7 @@ import (
 // spin up 1 LN that syncs historic blobs
 func TestArchivalBlobSync(t *testing.T) {
 	const (
-		blocks = 50
+		blocks = 10
 		btime  = time.Millisecond * 300
 		bsize  = 16
 	)
@@ -55,7 +53,7 @@ func TestArchivalBlobSync(t *testing.T) {
 	t.Cleanup(cancel)
 
 	sw := swamp.NewSwamp(t, swamp.WithBlockTime(btime))
-	fillDn := swamp.FillBlocks(ctx, sw.ClientContext, sw.Accounts[0], bsize, blocks)
+	heightsCh, fillDn := swamp.FillBlocks(ctx, sw.ClientContext, sw.Accounts[0], bsize, blocks)
 
 	archivalBN := sw.NewBridgeNode()
 	sw.SetBootstrapper(t, archivalBN)
@@ -69,13 +67,19 @@ func TestArchivalBlobSync(t *testing.T) {
 
 	require.NoError(t, <-fillDn)
 
+	heights := make([]uint64, 0, blocks)
+	// drain channel to get all heights
+	for height := range heightsCh {
+		heights = append(heights, height)
+	}
+
 	pruningCfg := nodebuilder.DefaultConfig(node.Bridge)
 	pruningCfg.Pruner.EnableService = true
 
 	testAvailWindow := time.Millisecond
 	prunerOpts := fx.Options(
 		fx.Replace(testAvailWindow),
-		fxutil.ReplaceAs(func(
+		fx.Decorate(func(
 			edsClient *shrexeds.Client,
 			ndClient *shrexnd.Client,
 			managers map[string]*peers.Manager,
@@ -87,11 +91,12 @@ func TestArchivalBlobSync(t *testing.T) {
 				managers["archival"],
 				testAvailWindow,
 			)
-		}, new(shrex_getter.Getter)),
+		}),
 	)
 
-	// stop the archival BN to force LN to have to discover
-	// the archival FN later
+	// wait until bn syncs to the latest submitted height
+	_, err = archivalFN.HeaderServ.WaitForHeight(ctx, heights[len(heights)-1])
+	require.NoError(t, err)
 	err = archivalBN.Stop(ctx)
 	require.NoError(t, err)
 
@@ -120,21 +125,27 @@ func TestArchivalBlobSync(t *testing.T) {
 		root   share.DataHash
 	}
 
-	archivalBlobs := make([]*archivalBlob, 0)
-	i := 1
-	for {
-		eh, err := archivalFN.HeaderServ.GetByHeight(ctx, uint64(i))
+	archivalBlobs := make([]*archivalBlob, 0, blocks)
+	for _, height := range heights {
+		eh, err := archivalFN.HeaderServ.GetByHeight(ctx, uint64(height))
 		require.NoError(t, err)
-
-		if bytes.Equal(eh.DataHash, share.EmptyEDSRoots().Hash()) {
-			i++
-			continue
+		var ns libshare.Namespace
+		for _, roots := range eh.DAH.RowRoots {
+			namespace := roots[:libshare.NamespaceSize]
+			ns, err = libshare.NewNamespaceFromBytes(namespace)
+			require.NoError(t, err)
+			// Ideally we should check for `ValidateForBlob` here,
+			// but it throws an error every time.
+			if ns.IsUsableNamespace() {
+				break
+			}
 		}
 
-		shr, err := archivalFN.ShareServ.GetShare(ctx, eh.Height(), 2, 2)
-		require.NoError(t, err)
+		if ns.ID() == nil {
+			t.Fatal("usable namespace was not found")
+		}
 
-		blobs, err := archivalFN.BlobServ.GetAll(ctx, eh.Height(), []libshare.Namespace{shr.Namespace()})
+		blobs, err := archivalFN.BlobServ.GetAll(ctx, eh.Height(), []libshare.Namespace{ns})
 		require.NoError(t, err)
 
 		archivalBlobs = append(archivalBlobs, &archivalBlob{
@@ -142,11 +153,6 @@ func TestArchivalBlobSync(t *testing.T) {
 			height: eh.Height(),
 			root:   eh.DAH.Hash(),
 		})
-
-		if len(archivalBlobs) > 10 {
-			break
-		}
-		i++
 	}
 
 	// ensure pruned FNs don't have the blocks associated
