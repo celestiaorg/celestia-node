@@ -2,11 +2,11 @@ package p2p
 
 import (
 	"errors"
+	"slices"
 	"strings"
 	"time"
 
 	"github.com/libp2p/go-libp2p/core/peer"
-	"slices"
 )
 
 // NOTE: Every time we add a new long-running network, it has to be added here.
