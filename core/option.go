@@ -4,6 +4,7 @@ import (
 	"time"
 
 	"github.com/celestiaorg/celestia-node/nodebuilder/p2p"
+	"github.com/celestiaorg/celestia-node/share/availability"
 )
 
 type Option func(*params)
@@ -17,7 +18,7 @@ type params struct {
 
 func defaultParams() params {
 	return params{
-		availabilityWindow: time.Duration(0),
+		availabilityWindow: availability.StorageWindow,
 		archival:           false,
 	}
 }
