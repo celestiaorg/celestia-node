@@ -7,16 +7,28 @@ import (
 	"github.com/celestiaorg/celestia-node/share/shwap"
 )
 
-var initID = map[string]id{
-	shwap.NamespaceDataName: &shwap.NamespaceDataID{},
-	shwap.EDSName:           &shwap.EdsID{},
+var initID = map[string]func() id{
+	namespaceDataID().Name(): namespaceDataID,
+	edsID().Name():           edsID,
+}
+
+func namespaceDataID() id {
+	return &shwap.NamespaceDataID{}
+}
+
+func edsID() id {
+	return &shwap.EdsID{}
 }
 
 func SupportedProtocols() []string {
-	return []string{shwap.NamespaceDataName, shwap.EDSName}
+	protocolNames := make([]string, 0, len(initID))
+	for name := range initID {
+		protocolNames = append(protocolNames, name)
+	}
+	return protocolNames
 }
 
-// id represents compatible generalised interface type for all shwap requests
+// id represents compatible generalised interface type for shwap requests
 type id interface {
 	io.WriterTo
 	io.ReaderFrom
@@ -31,7 +43,7 @@ type id interface {
 	FetchContainerReader(ctx context.Context, acc shwap.Accessor) (io.Reader, error)
 }
 
-// represents compatible generalised interface type for all shwap responses
+// represents compatible generalised interface type for shwap responses
 type container interface {
 	io.ReaderFrom
 }
