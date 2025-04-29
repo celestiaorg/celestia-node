@@ -9,6 +9,7 @@ import (
 	"github.com/celestiaorg/celestia-node/share"
 )
 
+// Accessor is used to access the data from the shwap containers.
 type Accessor interface {
 	AxisRoots(context.Context) (*share.AxisRoots, error)
 	RowNamespaceData(context.Context, libshare.Namespace, int) (RowNamespaceData, error)
