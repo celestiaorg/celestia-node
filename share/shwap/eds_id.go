@@ -41,7 +41,7 @@ func EdsIDFromBinary(data []byte) (EdsID, error) {
 }
 
 func (eid EdsID) Name() string {
-	return EDSName
+	return edsName
 }
 
 // Equals checks equality of EdsIDs.
