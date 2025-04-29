@@ -7,6 +7,7 @@ import (
 	"github.com/celestiaorg/celestia-node/share/shwap"
 )
 
+// initID is a map of the supported protocol names along with their ids
 var initID = map[string]func() id{
 	namespaceDataID().Name(): namespaceDataID,
 	edsID().Name():           edsID,
@@ -20,6 +21,8 @@ func edsID() id {
 	return &shwap.EdsID{}
 }
 
+// SupportedProtocols returns  a slice of protocol names that
+// the client and server support
 func SupportedProtocols() []string {
 	protocolNames := make([]string, 0, len(initID))
 	for name := range initID {
