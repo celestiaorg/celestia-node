@@ -24,7 +24,7 @@ func TestCoreExchange_RequestHeaders(t *testing.T) {
 
 	cfg := DefaultTestConfig()
 	fetcher, cctx := createCoreFetcher(t, cfg)
-	generateNonEmptyBlocks(t, ctx, fetcher, cfg, cctx)
+	nonEmptyBlocks := generateNonEmptyBlocks(t, ctx, fetcher, cfg, cctx)
 
 	store, err := store.NewStore(store.DefaultParameters(), t.TempDir())
 	require.NoError(t, err)
@@ -39,15 +39,16 @@ func TestCoreExchange_RequestHeaders(t *testing.T) {
 	genHeader, err := ce.Get(ctx, genBlock.Header.Hash().Bytes())
 	require.NoError(t, err)
 
-	to := uint64(30)
+	to := nonEmptyBlocks[len(nonEmptyBlocks)-1].height
 	expectedFirstHeightInRange := genHeader.Height() + 1
 	expectedLastHeightInRange := to - 1
 	expectedLenHeaders := to - expectedFirstHeightInRange
 
-	_, err = cctx.WaitForHeightWithTimeout(30, 10*time.Second)
+	// request headers from height 1 to 20 [2:30)
+	_, err = cctx.WaitForHeightWithTimeout(int64(to), 10*time.Second)
 	require.NoError(t, err)
 
-	// request headers from height 1 to 20 [2:30)
+	// request headers from height 1 to last non-empty block height [2:to)
 	headers, err := ce.GetRangeByHeight(context.Background(), genHeader, to)
 	require.NoError(t, err)
 
@@ -74,7 +75,7 @@ func TestExchange_DoNotStoreHistoric(t *testing.T) {
 
 	cfg := DefaultTestConfig()
 	fetcher, cctx := createCoreFetcher(t, cfg)
-	generateNonEmptyBlocks(t, ctx, fetcher, cfg, cctx)
+	nonEmptyBlocks := generateNonEmptyBlocks(t, ctx, fetcher, cfg, cctx)
 
 	store, err := store.NewStore(store.DefaultParameters(), t.TempDir())
 	require.NoError(t, err)
@@ -94,10 +95,12 @@ func TestExchange_DoNotStoreHistoric(t *testing.T) {
 	genHeader, err := ce.Get(ctx, genBlock.Header.Hash().Bytes())
 	require.NoError(t, err)
 
-	err = cctx.WaitForBlocks(30)
+	to := nonEmptyBlocks[len(nonEmptyBlocks)-1].height
+
+	err = cctx.WaitForBlocks(int64(to))
 	require.NoError(t, err)
 
-	headers, err := ce.GetRangeByHeight(ctx, genHeader, 30)
+	headers, err := ce.GetRangeByHeight(ctx, genHeader, to)
 	require.NoError(t, err)
 
 	// ensure none of the "historic" EDSs were stored
@@ -121,11 +124,10 @@ func TestExchange_DoNotStoreHistoric(t *testing.T) {
 func TestExchange_StoreHistoricIfArchival(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	t.Cleanup(cancel)
-	t.Setenv("CELESTIA_OVERRIDE_AVAILABILITY_WINDOW", "1ns") // all blocks will be "historic"
 
 	cfg := DefaultTestConfig()
 	fetcher, cctx := createCoreFetcher(t, cfg)
-	generateNonEmptyBlocks(t, ctx, fetcher, cfg, cctx)
+	nonEmptyBlocks := generateNonEmptyBlocks(t, ctx, fetcher, cfg, cctx)
 
 	store, err := store.NewStore(store.DefaultParameters(), t.TempDir())
 	require.NoError(t, err)
@@ -134,7 +136,8 @@ func TestExchange_StoreHistoricIfArchival(t *testing.T) {
 		fetcher,
 		store,
 		header.MakeExtendedHeader,
-		WithArchivalMode(), // make sure to store them anyway
+		WithAvailabilityWindow(time.Nanosecond), // all blocks will be "historic"
+		WithArchivalMode(),                      // make sure to store them anyway
 	)
 	require.NoError(t, err)
 
@@ -145,10 +148,12 @@ func TestExchange_StoreHistoricIfArchival(t *testing.T) {
 	genHeader, err := ce.Get(ctx, genBlock.Header.Hash().Bytes())
 	require.NoError(t, err)
 
-	_, err = cctx.WaitForHeight(30)
+	to := nonEmptyBlocks[len(nonEmptyBlocks)-1].height
+
+	_, err = cctx.WaitForHeight(int64(to))
 	require.NoError(t, err)
 
-	headers, err := ce.GetRangeByHeight(ctx, genHeader, 30)
+	headers, err := ce.GetRangeByHeight(ctx, genHeader, to)
 	require.NoError(t, err)
 
 	// ensure all "historic" EDSs were stored but not the .q4 files
@@ -165,7 +170,7 @@ func TestExchange_StoreHistoricIfArchival(t *testing.T) {
 		require.NoError(t, err)
 		assert.True(t, has)
 
-		// ensure .q4 file was not stored if
+		// ensure .q4 file was not stored
 		has, err = store.HasQ4ByHash(ctx, h.DAH.Hash())
 		require.NoError(t, err)
 		assert.False(t, has)
@@ -205,6 +210,11 @@ func fillBlocks(
 	}
 }
 
+type testBlocks struct {
+	height   uint64
+	datahash share.DataHash
+}
+
 // generateNonEmptyBlocks generates at least 20 non-empty blocks
 func generateNonEmptyBlocks(
 	t *testing.T,
@@ -212,7 +222,7 @@ func generateNonEmptyBlocks(
 	fetcher *BlockFetcher,
 	cfg *testnode.Config,
 	cctx testnode.Context,
-) []share.DataHash {
+) []testBlocks {
 	// generate several non-empty blocks
 	generateCtx, generateCtxCancel := context.WithCancel(context.Background())
 
@@ -221,7 +231,7 @@ func generateNonEmptyBlocks(
 
 	go fillBlocks(t, generateCtx, cfg, cctx)
 
-	hashes := make([]share.DataHash, 0, 20)
+	filledBlocks := make([]testBlocks, 0, 20)
 
 	i := 0
 	for i < 20 {
@@ -232,7 +242,10 @@ func generateNonEmptyBlocks(
 			if bytes.Equal(share.EmptyEDSDataHash(), b.Data.Hash()) {
 				continue
 			}
-			hashes = append(hashes, share.DataHash(b.Data.Hash()))
+			filledBlocks = append(filledBlocks, testBlocks{
+				height:   uint64(b.Header.Height),
+				datahash: share.DataHash(b.Data.Hash()),
+			})
 			i++
 		case <-ctx.Done():
 			t.Fatal("failed to fill blocks within timeout")
@@ -240,5 +253,5 @@ func generateNonEmptyBlocks(
 	}
 	generateCtxCancel()
 
-	return hashes
+	return filledBlocks
 }
