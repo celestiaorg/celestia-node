@@ -30,7 +30,7 @@ func init() {
 		balanceForAddressCmd,
 		transferCmd,
 		cancelUnbondingDelegationCmd,
-		redelegateCmd,
+		beginRedelegateCmd,
 		undelegateCmd,
 		delegateCmd,
 		queryDelegationCmd,
@@ -52,7 +52,7 @@ func init() {
 	ApplyFlags(
 		transferCmd,
 		cancelUnbondingDelegationCmd,
-		redelegateCmd,
+		beginRedelegateCmd,
 		undelegateCmd,
 		delegateCmd,
 		grantFeeCmd,
@@ -83,9 +83,9 @@ var accountAddressCmd = &cobra.Command{
 }
 
 var balanceCmd = &cobra.Command{
-	Use: "balance",
+	Use:   "balance",
 	Short: "Retrieves the node's wallet balance in utia.",
-	Args: cobra.NoArgs,
+	Args:  cobra.NoArgs,
 	RunE: func(cmd *cobra.Command, _ []string) error {
 		client, err := cmdnode.ParseClientFromCtx(cmd.Context())
 		if err != nil {
@@ -99,9 +99,9 @@ var balanceCmd = &cobra.Command{
 }
 
 var balanceForAddressCmd = &cobra.Command{
-	Use: "balance-for-address [address]",
+	Use:   "balance-for-address [address]",
 	Short: "Retrieves the balance for the given address in utia.",
-	Args: cobra.ExactArgs(1),
+	Args:  cobra.ExactArgs(1),
 	RunE: func(cmd *cobra.Command, args []string) error {
 		client, err := cmdnode.ParseClientFromCtx(cmd.Context())
 		if err != nil {
@@ -187,8 +187,8 @@ var cancelUnbondingDelegationCmd = &cobra.Command{
 	},
 }
 
-var redelegateCmd = &cobra.Command{
-	Use:   "redelegate [srcAddress] [dstAddress] [amount]",
+var beginRedelegateCmd = &cobra.Command{
+	Use:   "begin-redelegate [srcAddress] [dstAddress] [amount]",
 	Short: "Redelegates tokens from one validator to another",
 	Args:  cobra.ExactArgs(3),
 	RunE: func(cmd *cobra.Command, args []string) error {
