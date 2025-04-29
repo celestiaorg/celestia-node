@@ -38,7 +38,7 @@ func NewNamespaceDataID(height uint64, namespace libshare.Namespace) (NamespaceD
 }
 
 func (ndid NamespaceDataID) Name() string {
-	return NamespaceDataName
+	return namespaceDataName
 }
 
 // NamespaceDataIDFromBinary deserializes a NamespaceDataID from its binary form. It returns
