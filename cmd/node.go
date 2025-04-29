@@ -84,8 +84,8 @@ func NewFull(options ...func(*cobra.Command, []*pflag.FlagSet)) *cobra.Command {
 		PersistentPreRunE: func(cmd *cobra.Command, args []string) error {
 			log.Error(
 				"DEPRECATION NOTICE: FULL NODE MODE WILL BE DEPRECATED SOON." +
-				" NODE OPERATORS SHOULD CONSIDER RUNNING A BRIDGE NODE INSTEAD IF THEY REQUIRE FULL DATA STORAGE FUNCTIONALITY."
-				)
+					" NODE OPERATORS SHOULD CONSIDER RUNNING A BRIDGE NODE INSTEAD IF THEY REQUIRE FULL DATA STORAGE FUNCTIONALITY.",
+			)
 			return PersistentPreRunEnv(cmd, node.Full, args)
 		},
 	}
