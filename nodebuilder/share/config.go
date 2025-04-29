@@ -7,7 +7,6 @@ import (
 	"github.com/celestiaorg/celestia-node/share/availability/light"
 	"github.com/celestiaorg/celestia-node/share/shwap/p2p/discovery"
 	"github.com/celestiaorg/celestia-node/share/shwap/p2p/shrex/peers"
-	"github.com/celestiaorg/celestia-node/share/shwap/p2p/shrex/shrexeds"
 	"github.com/celestiaorg/celestia-node/share/shwap/p2p/shrex/shrexnd"
 	"github.com/celestiaorg/celestia-node/store"
 )
@@ -22,8 +21,6 @@ type Config struct {
 	BlockStoreCacheSize uint
 
 	UseShareExchange bool
-	// ShrExEDSParams sets shrexeds client and server configuration parameters
-	ShrExEDSParams *shrexeds.Parameters
 	// ShrExNDParams sets shrexnd client and server configuration parameters
 	ShrExNDParams *shrexnd.Parameters
 	// PeerManagerParams sets peer-manager configuration parameters
@@ -38,7 +35,6 @@ func DefaultConfig(tp node.Type) Config {
 		EDSStoreParams:      store.DefaultParameters(),
 		BlockStoreCacheSize: defaultBlockstoreCacheSize,
 		Discovery:           discovery.DefaultParameters(),
-		ShrExEDSParams:      shrexeds.DefaultParameters(),
 		ShrExNDParams:       shrexnd.DefaultParameters(),
 		UseShareExchange:    true,
 		PeerManagerParams:   peers.DefaultParameters(),
@@ -65,10 +61,6 @@ func (cfg *Config) Validate(tp node.Type) error {
 
 	if err := cfg.ShrExNDParams.Validate(); err != nil {
 		return fmt.Errorf("shrexnd: %w", err)
-	}
-
-	if err := cfg.ShrExEDSParams.Validate(); err != nil {
-		return fmt.Errorf("shrexeds: %w", err)
 	}
 
 	if err := cfg.PeerManagerParams.Validate(); err != nil {
