@@ -2,7 +2,6 @@ package shrex
 
 import (
 	"context"
-	"fmt"
 
 	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/attribute"
@@ -11,7 +10,7 @@ import (
 	"github.com/celestiaorg/celestia-node/libs/utils"
 )
 
-var meter = otel.Meter("shrex/eds")
+var meter = otel.Meter("shrex")
 
 type status string
 
@@ -44,10 +43,10 @@ func (m *Metrics) ObserveRequests(ctx context.Context, count int64, status statu
 		))
 }
 
-func InitClientMetrics(protocol string) (*Metrics, error) {
+func InitClientMetrics() (*Metrics, error) {
 	totalRequestCounter, err := meter.Int64Counter(
-		fmt.Sprintf("shrex_%s_client_total_requests", protocol),
-		metric.WithDescription(fmt.Sprintf("Total count of sent shrex/%s requests", protocol)),
+		"shrex_client_total_requests",
+		metric.WithDescription("Total count of sent shrex requests"),
 	)
 	if err != nil {
 		return nil, err
@@ -58,10 +57,10 @@ func InitClientMetrics(protocol string) (*Metrics, error) {
 	}, nil
 }
 
-func InitServerMetrics(protocol string) (*Metrics, error) {
+func InitServerMetrics() (*Metrics, error) {
 	totalRequestCounter, err := meter.Int64Counter(
-		fmt.Sprintf("shrex_%s_server_total_responses", protocol),
-		metric.WithDescription(fmt.Sprintf("Total count of sent shrex/%s responses", protocol)),
+		"shrex_server_total_responses",
+		metric.WithDescription("Total count of sent shrex responses"),
 	)
 	if err != nil {
 		return nil, err
