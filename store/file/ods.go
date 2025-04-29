@@ -209,7 +209,7 @@ func (o *ODS) AxisRoots(context.Context) (*share.AxisRoots, error) {
 	}
 	rowRoots := make([][]byte, o.size())
 	colRoots := make([][]byte, o.size())
-	for i := 0; i < o.size(); i++ {
+	for i := range o.size() {
 		rowRoots[i] = roots[i*share.AxisRootSize : (i+1)*share.AxisRootSize]
 		colRoots[i] = roots[(o.size()+i)*share.AxisRootSize : (o.size()+i+1)*share.AxisRootSize]
 	}

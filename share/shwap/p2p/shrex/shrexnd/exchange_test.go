@@ -93,7 +93,7 @@ func TestExchange_RequestND(t *testing.T) {
 			middleware.RateLimitHandler(mockHandler))
 
 		// take server concurrency slots with blocked requests
-		for i := 0; i < rateLimit; i++ {
+		for i := range rateLimit {
 			go func(i int) {
 				client.RequestND(ctx, 1, libshare.RandomNamespace(), server.host.ID()) //nolint:errcheck
 			}(i)

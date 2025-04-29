@@ -13,7 +13,7 @@ import (
 
 // PackageToAPI maps a package to its API struct. Currently only used for
 // method discovery for openrpc spec generation
-var PackageToAPI = map[string]interface{}{
+var PackageToAPI = map[string]any{
 	"fraud":  &fraud.API{},
 	"state":  &state.API{},
 	"share":  &share.API{},
