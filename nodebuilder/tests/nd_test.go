@@ -78,6 +78,10 @@ func TestShrexNDFromLights(t *testing.T) {
 		height := h.Height()
 		expected, err := bridgeClient.Share.GetNamespaceData(ctx, height, ns)
 		require.NoError(t, err)
+
+		_, err = lightClient.Header.WaitForHeight(ctx, height)
+		require.NoError(t, err)
+
 		got, err := lightClient.Share.GetNamespaceData(ctx, height, ns)
 		require.NoError(t, err)
 
@@ -169,9 +173,16 @@ func TestShrexNDFromLightsWithBadFulls(t *testing.T) {
 		// choose a random full to test
 		fN := fulls[len(fulls)/2]
 		fnClient := getAdminClient(ctx, fN, t)
+		// wait until it syncs up to the requested height
+		_, err = fnClient.Header.WaitForHeight(ctx, height)
+		require.NoError(t, err)
+
 		gotFull, err := fnClient.Share.GetNamespaceData(ctx, height, ns)
 		require.NoError(t, err)
 		require.True(t, len(gotFull[0].Shares) > 0)
+
+		_, err = lightClient.Header.WaitForHeight(ctx, height)
+		require.NoError(t, err)
 
 		gotLight, err := lightClient.Share.GetNamespaceData(ctx, height, ns)
 		require.NoError(t, err)
