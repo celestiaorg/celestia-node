@@ -13,7 +13,7 @@ import (
 const edsName = "eds_v0"
 
 // NOTE: There is no EDS container as it's already defined by rsmt2d and shwap.Accessor interface.
-// TODO(@vgonkivs): add EDS container
+// TODO(@vgonkivs): add EDS container or move one from the eds package.
 
 // EDSData extracts shares for a specific namespace from an EDS, considering
 // each row independently. It uses root to determine which rows to extract data from,
