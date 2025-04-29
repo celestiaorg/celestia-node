@@ -62,7 +62,8 @@ func InitClient(cmd *cobra.Command, _ []string) error {
 
 		cfg, err := nodebuilder.LoadConfig(filepath.Join(storePath, "config.toml"))
 		if err != nil {
-			return fmt.Errorf("%s: unable to load config file: %w. Use --token to provide your auth token or ensure your node store path is correct", rootErrMsg, err)
+			return fmt.Errorf("%s: unable to load config file: %w. "+
+				"Use --token to provide your auth token or ensure your node store path is correct", rootErrMsg, err)
 		}
 
 		if requestURL == "" {
@@ -107,7 +108,8 @@ func getStorePath(cmd *cobra.Command) (string, error) {
 	// try to detect a running node
 	path, err := nodebuilder.DiscoverOpened()
 	if err != nil {
-		return "", fmt.Errorf("token/node-store flag was not specified: %w. Make sure a node is running or use --token flag to provide your auth token", err)
+		return "", fmt.Errorf("token/node-store flag was not specified: %w. "+
+			"Make sure a node is running or use --token flag to provide your auth token", err)
 	}
 
 	return path, nil
