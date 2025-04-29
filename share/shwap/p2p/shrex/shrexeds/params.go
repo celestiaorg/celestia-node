@@ -36,7 +36,7 @@ func (p *Parameters) Validate() error {
 }
 
 func (c *Client) WithMetrics() error {
-	metrics, err := shrex.InitClientMetrics("eds")
+	metrics, err := shrex.InitClientMetrics()
 	if err != nil {
 		return fmt.Errorf("shrex/eds: init Metrics: %w", err)
 	}
@@ -45,7 +45,7 @@ func (c *Client) WithMetrics() error {
 }
 
 func (s *Server) WithMetrics() error {
-	metrics, err := shrex.InitServerMetrics("eds")
+	metrics, err := shrex.InitServerMetrics()
 	if err != nil {
 		return fmt.Errorf("shrex/eds: init Metrics: %w", err)
 	}
