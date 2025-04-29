@@ -77,7 +77,7 @@ func SampleFromProto(s *pb.Sample) (Sample, error) {
 // ToProto converts a Sample into its protobuf representation for serialization purposes.
 func (s Sample) ToProto() *pb.Sample {
 	return &pb.Sample{
-		Share: &pb.Share{Data: s.Share.ToBytes()},
+		Share: &pb.Share{Data: s.ToBytes()},
 		Proof: &nmt_pb.Proof{
 			Start:                 int64(s.Proof.Start()),
 			End:                   int64(s.Proof.End()),
@@ -139,7 +139,7 @@ func (s Sample) verifyInclusion(roots *share.AxisRoots, rowIdx, colIdx int) bool
 	return s.Proof.VerifyInclusion(
 		share.NewSHA256Hasher(),
 		namespace.Bytes(),
-		[][]byte{s.Share.ToBytes()},
+		[][]byte{s.ToBytes()},
 		rootHash,
 	)
 }

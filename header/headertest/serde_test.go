@@ -45,7 +45,7 @@ func TestMsgIDEquivalency(t *testing.T) {
 		}
 
 		h, _ := header.UnmarshalExtendedHeader(message.Data)
-		if h == nil || h.RawHeader.ValidateBasic() != nil {
+		if h == nil || h.ValidateBasic() != nil {
 			return mID(message.Data)
 		}
 

@@ -99,7 +99,7 @@ func (eh *ExtendedHeader) Hash() libhead.Hash {
 
 // LastHeader returns the Hash of the last wrapped RawHeader.
 func (eh *ExtendedHeader) LastHeader() libhead.Hash {
-	return libhead.Hash(eh.RawHeader.LastBlockID.Hash)
+	return libhead.Hash(eh.LastBlockID.Hash)
 }
 
 // Equals returns whether the hash and height of the given header match.
@@ -109,15 +109,15 @@ func (eh *ExtendedHeader) Equals(header *ExtendedHeader) bool {
 
 // Validate performs *basic* validation to check for missed/incorrect fields.
 func (eh *ExtendedHeader) Validate() error {
-	err := eh.RawHeader.ValidateBasic()
+	err := eh.ValidateBasic()
 	if err != nil {
 		return fmt.Errorf("ValidateBasic error on RawHeader at height %d: %w", eh.Height(), err)
 	}
 
-	if eh.RawHeader.Version.App == 0 || eh.RawHeader.Version.App > appconsts.LatestVersion {
+	if eh.Version.App == 0 || eh.Version.App > appconsts.LatestVersion {
 		return fmt.Errorf("header received at height %d has version %d, this node supports up "+
 			"to version %d. Please upgrade to support new version. Note, 0 is not a valid version",
-			eh.RawHeader.Height, eh.RawHeader.Version.App, appconsts.LatestVersion)
+			eh.RawHeader.Height, eh.Version.App, appconsts.LatestVersion)
 	}
 
 	err = eh.Commit.ValidateBasic()
