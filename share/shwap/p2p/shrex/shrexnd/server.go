@@ -106,7 +106,9 @@ func (srv *Server) handleDataRequest(ctx context.Context, idName string, stream 
 	// registering handlers are done only after the verification that
 	// protocol supports it. There is no need to additionally verify here whether we support it
 	// or not.
-	requestID := initID[idName]
+	requestIDFn := initID[idName]
+	requestID := requestIDFn()
+
 	err := srv.readRequest(logger, requestID, stream)
 	if err != nil {
 		logger.Warnw("read request", "err", err)
@@ -143,7 +145,7 @@ func (srv *Server) handleDataRequest(ctx context.Context, idName string, stream 
 
 	_, err = io.Copy(stream, r)
 	if err != nil {
-		logger.Errorw("send nd data", "err", err)
+		logger.Errorw("send data", "err", err)
 		srv.metrics.ObserveRequests(ctx, 1, shrex.StatusSendRespErr)
 	}
 	return err

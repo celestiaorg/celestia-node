@@ -5,11 +5,10 @@ import (
 
 	logging "github.com/ipfs/go-log/v2"
 
-	"github.com/celestiaorg/celestia-node/share/shwap"
 	"github.com/celestiaorg/celestia-node/share/shwap/p2p/shrex"
 )
 
-const protocolString = shrex.ProtocolString + shwap.EDSName
+const protocolString = shrex.ProtocolString + "eds" // will be removed soon
 
 var log = logging.Logger("shrex/eds")
 
