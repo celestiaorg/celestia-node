@@ -183,8 +183,8 @@ func OpenODS(path string) (*ODS, error) {
 }
 
 // Size returns EDS size stored in file's header.
-func (o *ODS) Size(context.Context) int {
-	return o.size()
+func (o *ODS) Size(context.Context) (int, error) {
+	return o.size(), nil
 }
 
 func (o *ODS) size() int {
@@ -209,7 +209,7 @@ func (o *ODS) AxisRoots(context.Context) (*share.AxisRoots, error) {
 	}
 	rowRoots := make([][]byte, o.size())
 	colRoots := make([][]byte, o.size())
-	for i := 0; i < o.size(); i++ {
+	for i := range o.size() {
 		rowRoots[i] = roots[i*share.AxisRootSize : (i+1)*share.AxisRootSize]
 		colRoots[i] = roots[(o.size()+i)*share.AxisRootSize : (o.size()+i+1)*share.AxisRootSize]
 	}
@@ -238,8 +238,13 @@ func (o *ODS) Sample(ctx context.Context, idx shwap.SampleCoords) (shwap.Sample,
 	//   to calculate the sample
 	rowIdx, colIdx := idx.Row, idx.Col
 
+	size, err := o.Size(ctx)
+	if err != nil {
+		return shwap.Sample{}, fmt.Errorf("getting size: %w", err)
+	}
+
 	axisType, axisIdx, shrIdx := rsmt2d.Row, rowIdx, colIdx
-	if colIdx < o.size()/2 && rowIdx >= o.size()/2 {
+	if colIdx < size/2 && rowIdx >= size/2 {
 		axisType, axisIdx, shrIdx = rsmt2d.Col, colIdx, rowIdx
 	}
 

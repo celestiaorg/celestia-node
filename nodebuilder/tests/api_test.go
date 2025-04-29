@@ -168,7 +168,7 @@ func TestHeaderSubscription(t *testing.T) {
 	sub, err := lightClient.Header.Subscribe(subctx)
 	require.NoError(t, err)
 	// listen for 5 headers
-	for i := 0; i < 5; i++ {
+	for range 5 {
 		select {
 		case <-ctx.Done():
 			t.Fatal(ctx.Err())

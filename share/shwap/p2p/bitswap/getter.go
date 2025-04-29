@@ -3,6 +3,7 @@ package bitswap
 import (
 	"context"
 	"fmt"
+	"os"
 	"sync"
 	"time"
 
@@ -22,6 +23,8 @@ import (
 	"github.com/celestiaorg/celestia-node/share/availability"
 	"github.com/celestiaorg/celestia-node/share/shwap"
 )
+
+var disablePooling = os.Getenv("CELESTIA_BITSWAP_DISABLE_POOLING") == "1"
 
 var tracer = otel.Tracer("shwap/bitswap")
 
@@ -173,7 +176,7 @@ func (g *Getter) GetEDS(
 
 	sqrLn := len(hdr.DAH.RowRoots)
 	blks := make([]Block, sqrLn/2)
-	for i := 0; i < sqrLn/2; i++ {
+	for i := range sqrLn / 2 {
 		blk, err := NewEmptyRowBlock(hdr.Height(), i, sqrLn)
 		if err != nil {
 			span.RecordError(err)
@@ -275,6 +278,12 @@ func (g *Getter) isArchival(hdr *header.ExtendedHeader) bool {
 
 // getSession takes a session out of the respective session pool
 func (g *Getter) getSession(isArchival bool) (ses exchange.Fetcher, release func()) {
+	if disablePooling {
+		ctx, cancel := context.WithCancel(context.Background())
+		f := g.exchange.NewSession(ctx)
+		return f, cancel
+	}
+
 	if isArchival {
 		ses = g.archivalPool.get()
 		return ses, func() { g.archivalPool.put(ses) }

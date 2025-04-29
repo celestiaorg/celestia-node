@@ -31,16 +31,14 @@ const (
 	// actual response size = 10,85mb
 	// TODO(@vgonkivs): Revisit this constant once the block size reaches 64MB.
 	defaultGRPCMessageSize = 64 * 1024 * 1024 // 64Mb
-	xtokenFileName         = "xtoken.json"
+
+	xtokenFileName = "xtoken.json"
 )
 
+// TODO @renaynay: should we make this reusable so we can have all auth + other features
+// for the estimator service too?
 func grpcClient(lc fx.Lifecycle, cfg Config) (*grpc.ClientConn, error) {
-	opts := []grpc.DialOption{
-		grpc.WithDefaultCallOptions(
-			grpc.MaxCallRecvMsgSize(defaultGRPCMessageSize),
-			grpc.MaxCallSendMsgSize(defaultGRPCMessageSize),
-		),
-	}
+	var opts []grpc.DialOption
 	if cfg.TLSEnabled {
 		opts = append(opts, grpc.WithTransportCredentials(
 			credentials.NewTLS(&tls.Config{MinVersion: tls.VersionTLS12})),
@@ -77,12 +75,16 @@ func grpcClient(lc fx.Lifecycle, cfg Config) (*grpc.ClientConn, error) {
 			grpc.WithChainStreamInterceptor(authStreamInterceptor(xToken), retryStreamInterceptor),
 		)
 	}
+	opts = append(opts, grpc.WithDefaultCallOptions(
+		grpc.MaxCallRecvMsgSize(defaultGRPCMessageSize),
+		grpc.MaxCallSendMsgSize(defaultGRPCMessageSize),
+	))
 
-	endpoint := net.JoinHostPort(cfg.IP, cfg.Port)
-	conn, err := grpc.NewClient(endpoint, opts...)
+	conn, err := grpc.NewClient(net.JoinHostPort(cfg.IP, cfg.Port), opts...)
 	if err != nil {
 		return nil, err
 	}
+
 	lc.Append(fx.Hook{
 		OnStart: func(ctx context.Context) error {
 			conn.Connect()
@@ -102,7 +104,7 @@ func authInterceptor(xtoken string) grpc.UnaryClientInterceptor {
 	return func(
 		ctx context.Context,
 		method string,
-		req, reply interface{},
+		req, reply any,
 		cc *grpc.ClientConn,
 		invoker grpc.UnaryInvoker,
 		opts ...grpc.CallOption,

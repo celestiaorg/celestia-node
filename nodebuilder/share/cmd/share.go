@@ -44,7 +44,7 @@ var sharesAvailableCmd = &cobra.Command{
 		}
 
 		err = client.Share.SharesAvailable(cmd.Context(), height)
-		formatter := func(data interface{}) interface{} {
+		formatter := func(data any) any {
 			err, ok := data.(error)
 			available := false
 			if !ok {
@@ -118,7 +118,7 @@ var getShare = &cobra.Command{
 
 		s, err := client.Share.GetShare(cmd.Context(), height, int(row), int(col))
 
-		formatter := func(data interface{}) interface{} {
+		formatter := func(data any) any {
 			sh, ok := data.(libshare.Share)
 			if !ok {
 				return data
