@@ -62,7 +62,7 @@ func TestListener(t *testing.T) {
 	t.Cleanup(edsSubs.Cancel)
 
 	// ensure headers and dataHash are getting broadcasted to the relevant topics
-	for i := 0; i < 5; i++ {
+	for range 5 {
 		_, err := subs.NextHeader(ctx)
 		require.NoError(t, err)
 	}
@@ -119,19 +119,19 @@ func TestListener_DoesNotStoreHistoric(t *testing.T) {
 	opt := WithAvailabilityWindow(time.Nanosecond)
 	cl := createListener(ctx, t, fetcher, ps0, eds, store, testChainID, opt)
 
-	dataRoots := generateNonEmptyBlocks(t, ctx, fetcher, cfg, cctx)
+	nonEmptyBlocks := generateNonEmptyBlocks(t, ctx, fetcher, cfg, cctx)
 
 	err = cl.Start(ctx)
 	require.NoError(t, err)
 
 	// ensure none of the EDSes were stored
-	for _, hash := range dataRoots {
-		has, err := store.HasByHash(ctx, hash)
+	for _, block := range nonEmptyBlocks {
+		has, err := store.HasByHash(ctx, block.datahash)
 		require.NoError(t, err)
 		assert.False(t, has)
 
 		// ensure .q4 file was not stored
-		has, err = store.HasQ4ByHash(ctx, hash)
+		has, err = store.HasQ4ByHash(ctx, block.datahash)
 		require.NoError(t, err)
 		assert.False(t, has)
 	}
@@ -161,7 +161,7 @@ func createMocknetWithTwoPubsubEndpoints(ctx context.Context, t *testing.T) (*pu
 	require.NoError(t, err)
 
 	// wait on both peer identification events
-	for i := 0; i < 2; i++ {
+	for range 2 {
 		select {
 		case <-sub0.Out():
 		case <-sub1.Out():

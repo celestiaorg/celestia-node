@@ -35,7 +35,7 @@ func TestRsmt2dHalfRow(t *testing.T) {
 	const odsSize = 8
 	eds, _ := randRsmt2dAccsessor(t, odsSize)
 
-	for rowIdx := 0; rowIdx < odsSize*2; rowIdx++ {
+	for rowIdx := range odsSize * 2 {
 		for _, side := range []shwap.RowSide{shwap.Left, shwap.Right} {
 			row, err := eds.HalfRow(rowIdx, side)
 			require.NoError(t, err)
@@ -54,8 +54,8 @@ func TestRsmt2dSampleForProofAxis(t *testing.T) {
 	accessor := Rsmt2D{ExtendedDataSquare: eds}
 
 	for _, proofType := range []rsmt2d.Axis{rsmt2d.Row, rsmt2d.Col} {
-		for rowIdx := 0; rowIdx < odsSize*2; rowIdx++ {
-			for colIdx := 0; colIdx < odsSize*2; colIdx++ {
+		for rowIdx := range odsSize * 2 {
+			for colIdx := range odsSize * 2 {
 				idx := shwap.SampleCoords{Row: rowIdx, Col: colIdx}
 
 				sample, err := accessor.SampleForProofAxis(idx, proofType)
