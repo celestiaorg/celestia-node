@@ -25,7 +25,6 @@ import (
 	full_avail "github.com/celestiaorg/celestia-node/share/availability/full"
 	"github.com/celestiaorg/celestia-node/share/shwap/p2p/shrex/peers"
 	"github.com/celestiaorg/celestia-node/share/shwap/p2p/shrex/shrex_getter"
-	"github.com/celestiaorg/celestia-node/share/shwap/p2p/shrex/shrexnd"
 )
 
 // TestArchivalBlobSync tests whether a LN is able to sync historical blobs from
@@ -80,7 +79,7 @@ func TestArchivalBlobSync(t *testing.T) {
 	prunerOpts := fx.Options(
 		fx.Replace(testAvailWindow),
 		fx.Decorate(func(
-			ndClient *shrexnd.Client,
+			ndClient *shrex.Client,
 			managers map[string]*peers.Manager,
 		) *shrex_getter.Getter {
 			return shrex_getter.NewGetter(
