@@ -25,13 +25,8 @@ type Proof struct {
 	rowRootProof *merkle.Proof
 }
 
-func NewProof(rowIndex int, sharesProofs *nmt.Proof, root *share.AxisRoots) *Proof {
-	proof := &Proof{shareProof: sharesProofs}
-	roots := append(root.RowRoots, root.ColumnRoots...) //nolint: gocritic
-	_, proofs := merkle.ProofsFromByteSlices(roots)
-
-	proof.rowRootProof = proofs[rowIndex]
-	return proof
+func NewProof(sharesProofs *nmt.Proof, rowRootProof *merkle.Proof) *Proof {
+	return &Proof{shareProof: sharesProofs, rowRootProof: rowRootProof}
 }
 
 // SharesProof returns a shares inclusion proof.
@@ -54,11 +49,6 @@ func (p *Proof) VerifyInclusion(shares []libshare.Share, namespace libshare.Name
 
 	nid := namespace.ID()
 	leaves := libshare.ToBytes(shares)
-
-	// If the proof is empty and no leaves exist, it's a valid proof
-	if p.shareProof.IsEmptyProof() && len(leaves) == 0 {
-		return nil
-	}
 
 	// Compute leaf hashes
 	hashes, err := nmt.ComputeLeafHashes(nth, nid, leaves, false)
@@ -157,14 +147,6 @@ func (p *Proof) VerifyNamespace(shares []libshare.Share, namespace libshare.Name
 	// Ensure the reconstructed root is valid
 	if err := nth.ValidateNodeFormat(root); err != nil {
 		return fmt.Errorf("invalid node format for root: %w", err)
-	}
-
-	// Handle empty proof case
-	if p.shareProof.IsEmptyProof() && len(leaves) == 0 {
-		if p.shareProof.IsValidEmptyRangeProof(nth, nid, root, leaves, true) {
-			return nil
-		}
-		// else continue checking
 	}
 
 	// Validate namespace is within the root range

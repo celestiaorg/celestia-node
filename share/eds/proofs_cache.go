@@ -263,14 +263,17 @@ func (c *proofsCache) RangeNamespaceData(
 ) (shwap.RangeNamespaceData, error) {
 	odsSize := c.Size(ctx) / 2
 
-	roots, err := c.AxisRoots(ctx)
-	if err != nil {
-		return shwap.RangeNamespaceData{}, fmt.Errorf("accessing axis roots: %w", err)
+	incompleteProofSize := 0
+	if from.Col != 0 {
+		incompleteProofSize += 1
+	}
+	if to.Col != odsSize-1 {
+		incompleteProofSize += 1
 	}
 	rngdata := shwap.RangeNamespaceData{
 		Start:  from.Row,
 		Shares: make([][]libshare.Share, 0, to.Row-from.Row+1),
-		Proof:  make([]*shwap.Proof, 0, to.Row-from.Row+1),
+		Proof:  make([]*shwap.Proof, 0, incompleteProofSize),
 	}
 
 	// iterate over each row in the range [from.Row; to.Row].
@@ -291,7 +294,6 @@ func (c *proofsCache) RangeNamespaceData(
 				return shwap.RangeNamespaceData{}, err
 			}
 			rngdata.Shares = append(rngdata.Shares, rowData.Shares)
-			rngdata.Proof = append(rngdata.Proof, shwap.NewProof(row, rowData.Proof, roots))
 			continue
 		}
 
