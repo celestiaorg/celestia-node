@@ -17,9 +17,9 @@ import (
 	"github.com/celestiaorg/celestia-node/share/availability/light"
 	"github.com/celestiaorg/celestia-node/share/shwap"
 	"github.com/celestiaorg/celestia-node/share/shwap/p2p/bitswap"
+	"github.com/celestiaorg/celestia-node/share/shwap/p2p/shrex"
 	"github.com/celestiaorg/celestia-node/share/shwap/p2p/shrex/peers"
 	"github.com/celestiaorg/celestia-node/share/shwap/p2p/shrex/shrex_getter"
-	"github.com/celestiaorg/celestia-node/share/shwap/p2p/shrex/shrexnd"
 	"github.com/celestiaorg/celestia-node/share/shwap/p2p/shrex/shrexsub"
 	"github.com/celestiaorg/celestia-node/store"
 )
@@ -103,16 +103,16 @@ func shrexComponents(tp node.Type, cfg *Config) fx.Option {
 			}),
 		// shrex-nd client
 		fx.Provide(
-			func(host host.Host, network modp2p.Network) (*shrexnd.Client, error) {
+			func(host host.Host, network modp2p.Network) (*shrex.Client, error) {
 				cfg.ShrExNDParams.WithNetworkID(network.String())
-				return shrexnd.NewClient(cfg.ShrExNDParams, host)
+				return shrex.NewClient(cfg.ShrExNDParams, host)
 			},
 		),
 
 		// shrex-getter
 		fx.Provide(fx.Annotate(
 			func(
-				ndClient *shrexnd.Client,
+				ndClient *shrex.Client,
 				managers map[string]*peers.Manager,
 			) *shrex_getter.Getter {
 				return shrex_getter.NewGetter(
@@ -174,20 +174,20 @@ func shrexComponents(tp node.Type, cfg *Config) fx.Option {
 
 func shrexServerComponents(cfg *Config) fx.Option {
 	return fx.Options(
-		fx.Invoke(func(_ *shrexnd.Server) {}),
+		fx.Invoke(func(_ *shrex.Server) {}),
 		fx.Provide(fx.Annotate(
 			func(
 				host host.Host,
 				store *store.Store,
 				network modp2p.Network,
-			) (*shrexnd.Server, error) {
+			) (*shrex.Server, error) {
 				cfg.ShrExNDParams.WithNetworkID(network.String())
-				return shrexnd.NewServer(cfg.ShrExNDParams, host, store, shrexnd.SupportedProtocols())
+				return shrex.NewServer(cfg.ShrExNDParams, host, store, shrex.SupportedProtocols())
 			},
-			fx.OnStart(func(ctx context.Context, server *shrexnd.Server) error {
+			fx.OnStart(func(ctx context.Context, server *shrex.Server) error {
 				return server.Start(ctx)
 			}),
-			fx.OnStop(func(ctx context.Context, server *shrexnd.Server) error {
+			fx.OnStop(func(ctx context.Context, server *shrex.Server) error {
 				return server.Stop(ctx)
 			})),
 		),

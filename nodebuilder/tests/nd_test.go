@@ -22,7 +22,6 @@ import (
 	"github.com/celestiaorg/celestia-node/share/shwap/getters"
 	"github.com/celestiaorg/celestia-node/share/shwap/p2p/shrex"
 	"github.com/celestiaorg/celestia-node/share/shwap/p2p/shrex/shrex_getter"
-	"github.com/celestiaorg/celestia-node/share/shwap/p2p/shrex/shrexnd"
 	"github.com/celestiaorg/celestia-node/store"
 )
 
@@ -215,12 +214,12 @@ func replaceNDServer(cfg *nodebuilder.Config, handler network.StreamHandler) fx.
 			host host.Host,
 			store *store.Store,
 			network p2p.Network,
-		) (*shrexnd.Server, error) {
+		) (*shrex.Server, error) {
 			cfg.Share.ShrExNDParams.WithNetworkID(network.String())
-			return shrexnd.NewServer(cfg.Share.ShrExNDParams, host, store, shrexnd.SupportedProtocols())
+			return shrex.NewServer(cfg.Share.ShrExNDParams, host, store, shrex.SupportedProtocols())
 		},
-		fx.OnStart(func(ctx context.Context, server *shrexnd.Server) error {
-			for _, protocolName := range shrexnd.SupportedProtocols() {
+		fx.OnStart(func(ctx context.Context, server *shrex.Server) error {
+			for _, protocolName := range shrex.SupportedProtocols() {
 				// replace handler for server
 				server.SetHandler(
 					shrex.ProtocolID(cfg.Share.ShrExNDParams.NetworkID(), protocolName),
@@ -230,7 +229,7 @@ func replaceNDServer(cfg *nodebuilder.Config, handler network.StreamHandler) fx.
 
 			return server.Start(ctx)
 		}),
-		fx.OnStop(func(ctx context.Context, server *shrexnd.Server) error {
+		fx.OnStop(func(ctx context.Context, server *shrex.Server) error {
 			return server.Start(ctx)
 		}),
 	))
