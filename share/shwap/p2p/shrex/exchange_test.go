@@ -1,4 +1,4 @@
-package shrexnd
+package shrex
 
 import (
 	"context"
@@ -17,7 +17,6 @@ import (
 	"github.com/celestiaorg/celestia-node/share"
 	"github.com/celestiaorg/celestia-node/share/eds/edstest"
 	"github.com/celestiaorg/celestia-node/share/shwap"
-	"github.com/celestiaorg/celestia-node/share/shwap/p2p/shrex"
 	"github.com/celestiaorg/celestia-node/store"
 )
 
@@ -41,7 +40,7 @@ func TestExchange_RequestND_NotFound(t *testing.T) {
 		data := shwap.NamespaceData{}
 		require.NoError(t, err)
 		err = client.Get(ctx, &id, &data, server.host.ID())
-		require.ErrorIs(t, err, shrex.ErrNotFound)
+		require.ErrorIs(t, err, ErrNotFound)
 	})
 
 	t.Run("ErrNamespaceNotFound", func(t *testing.T) {
@@ -98,11 +97,11 @@ func TestExchange_RequestND(t *testing.T) {
 				t.Fatal("timeout")
 			}
 		}
-		middleware := shrex.NewMiddleware(rateLimit)
+		middleware := NewMiddleware(rateLimit)
 		protocols := SupportedProtocols()
 		for _, protocol := range protocols {
 			server.host.SetStreamHandler(
-				shrex.ProtocolID(server.params.NetworkID(), protocol),
+				ProtocolID(server.params.NetworkID(), protocol),
 				middleware.RateLimitHandler(mockHandler),
 			)
 		}
@@ -127,7 +126,7 @@ func TestExchange_RequestND(t *testing.T) {
 		require.NoError(t, err)
 
 		err = client.Get(ctx, &id, &data, server.host.ID())
-		require.ErrorIs(t, err, shrex.ErrRateLimited)
+		require.ErrorIs(t, err, ErrRateLimited)
 	})
 }
 

@@ -25,7 +25,6 @@ import (
 	"github.com/celestiaorg/celestia-node/share/shwap"
 	"github.com/celestiaorg/celestia-node/share/shwap/p2p/shrex"
 	"github.com/celestiaorg/celestia-node/share/shwap/p2p/shrex/peers"
-	"github.com/celestiaorg/celestia-node/share/shwap/p2p/shrex/shrexnd"
 )
 
 var (
@@ -94,7 +93,7 @@ func (sg *Getter) WithMetrics() error {
 
 // Getter is a share.Getter that uses the shrex/eds and shrex/nd protocol to retrieve shares.
 type Getter struct {
-	ndClient *shrexnd.Client
+	ndClient *shrex.Client
 
 	fullPeerManager     *peers.Manager
 	archivalPeerManager *peers.Manager
@@ -111,7 +110,7 @@ type Getter struct {
 }
 
 func NewGetter(
-	ndClient *shrexnd.Client,
+	ndClient *shrex.Client,
 	fullPeerManager *peers.Manager,
 	archivalManager *peers.Manager,
 	availWindow time.Duration,
