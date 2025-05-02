@@ -3,11 +3,8 @@ package shrex
 import (
 	"sync/atomic"
 
-	logging "github.com/ipfs/go-log/v2"
 	"github.com/libp2p/go-libp2p/core/network"
 )
-
-var log = logging.Logger("shrex/middleware")
 
 type Middleware struct {
 	// concurrencyLimit is the maximum number of requests that can be processed at once.
@@ -31,15 +28,16 @@ func (m *Middleware) DrainCounter() int64 {
 
 func (m *Middleware) RateLimitHandler(handler network.StreamHandler) network.StreamHandler {
 	return func(stream network.Stream) {
+		logger := log.With("middleware")
 		current := m.parallelRequests.Add(1)
 		defer m.parallelRequests.Add(-1)
 
 		if current > m.concurrencyLimit {
 			m.numRateLimited.Add(1)
-			log.Debug("concurrency limit reached")
+			logger.Debug("concurrency limit reached")
 			err := stream.Close()
 			if err != nil {
-				log.Debugw("server: closing stream", "err", err)
+				logger.Debugw("server: closing stream", "err", err)
 			}
 			return
 		}
