@@ -1,4 +1,4 @@
-package shrexnd
+package shrex
 
 import (
 	"context"
@@ -15,7 +15,6 @@ import (
 	"github.com/celestiaorg/go-libp2p-messenger/serde"
 
 	"github.com/celestiaorg/celestia-node/libs/utils"
-	"github.com/celestiaorg/celestia-node/share/shwap/p2p/shrex"
 	shrexpb "github.com/celestiaorg/celestia-node/share/shwap/p2p/shrex/pb"
 )
 
@@ -25,7 +24,7 @@ type Client struct {
 	params *Parameters
 
 	host    host.Host
-	metrics *shrex.Metrics
+	metrics *Metrics
 }
 
 // NewClient creates a new shrEx/nd client
@@ -50,7 +49,7 @@ func (c *Client) Get(
 		return nil
 	}
 	if errors.Is(err, context.DeadlineExceeded) || errors.Is(err, context.Canceled) {
-		c.metrics.ObserveRequests(ctx, 1, shrex.StatusTimeout)
+		c.metrics.ObserveRequests(ctx, 1, StatusTimeout)
 		return err
 	}
 	// some net.Errors also mean the context deadline was exceeded, but yamux/mocknet do not
@@ -58,11 +57,11 @@ func (c *Client) Get(
 	var ne net.Error
 	if errors.As(err, &ne) && ne.Timeout() {
 		if deadline, _ := ctx.Deadline(); deadline.Before(time.Now()) {
-			c.metrics.ObserveRequests(ctx, 1, shrex.StatusTimeout)
+			c.metrics.ObserveRequests(ctx, 1, StatusTimeout)
 			return context.DeadlineExceeded
 		}
 	}
-	if !errors.Is(err, shrex.ErrNotFound) && errors.Is(err, shrex.ErrRateLimited) {
+	if !errors.Is(err, ErrNotFound) && errors.Is(err, ErrRateLimited) {
 		log.Warnw("shrex-client: peer returned err", "err", err)
 	}
 	return err
@@ -77,7 +76,7 @@ func (c *Client) doRequest(
 	streamOpenCtx, cancel := context.WithTimeout(ctx, c.params.ServerReadTimeout)
 	defer cancel()
 
-	stream, err := c.host.NewStream(streamOpenCtx, peerID, shrex.ProtocolID(c.params.NetworkID(), id.Name()))
+	stream, err := c.host.NewStream(streamOpenCtx, peerID, ProtocolID(c.params.NetworkID(), id.Name()))
 	if err != nil {
 		return err
 	}
@@ -87,7 +86,7 @@ func (c *Client) doRequest(
 
 	_, err = id.WriteTo(stream)
 	if err != nil {
-		c.metrics.ObserveRequests(ctx, 1, shrex.StatusSendReqErr)
+		c.metrics.ObserveRequests(ctx, 1, StatusSendReqErr)
 		return fmt.Errorf("shrex-client: writing request: %w", err)
 	}
 
@@ -109,7 +108,7 @@ func (c *Client) doRequest(
 
 	_, err = container.ReadFrom(stream)
 	if err != nil {
-		c.metrics.ObserveRequests(ctx, 1, shrex.StatusReadRespErr)
+		c.metrics.ObserveRequests(ctx, 1, StatusReadRespErr)
 		return err
 	}
 	return nil
@@ -121,10 +120,10 @@ func (c *Client) readStatus(ctx context.Context, stream network.Stream) (shrexpb
 	if err != nil {
 		// server is overloaded and closed the stream
 		if errors.Is(err, io.EOF) {
-			c.metrics.ObserveRequests(ctx, 1, shrex.StatusRateLimited)
-			return shrexpb.Status_INTERNAL, shrex.ErrRateLimited
+			c.metrics.ObserveRequests(ctx, 1, StatusRateLimited)
+			return shrexpb.Status_INTERNAL, ErrRateLimited
 		}
-		c.metrics.ObserveRequests(ctx, 1, shrex.StatusReadRespErr)
+		c.metrics.ObserveRequests(ctx, 1, StatusReadRespErr)
 		return shrexpb.Status_INTERNAL, err
 	}
 	return resp.Status, nil
@@ -161,19 +160,28 @@ func (c *Client) setStreamDeadlines(ctx context.Context, stream network.Stream) 
 func (c *Client) convertStatusToErr(ctx context.Context, status shrexpb.Status) error {
 	switch status {
 	case shrexpb.Status_OK:
-		c.metrics.ObserveRequests(ctx, 1, shrex.StatusSuccess)
+		c.metrics.ObserveRequests(ctx, 1, StatusSuccess)
 		return nil
 	case shrexpb.Status_NOT_FOUND:
-		c.metrics.ObserveRequests(ctx, 1, shrex.StatusNotFound)
-		return shrex.ErrNotFound
+		c.metrics.ObserveRequests(ctx, 1, StatusNotFound)
+		return ErrNotFound
 	case shrexpb.Status_INTERNAL:
-		c.metrics.ObserveRequests(ctx, 1, shrex.StatusInternalErr)
-		return shrex.ErrInternalServer
+		c.metrics.ObserveRequests(ctx, 1, StatusInternalErr)
+		return ErrInternalServer
 	case shrexpb.Status_INVALID:
-		c.metrics.ObserveRequests(ctx, 1, shrex.StatusBadRequest)
-		return shrex.ErrInvalidRequest
+		c.metrics.ObserveRequests(ctx, 1, StatusBadRequest)
+		return ErrInvalidRequest
 	default:
-		c.metrics.ObserveRequests(ctx, 1, shrex.StatusReadRespErr)
-		return shrex.ErrInvalidResponse
+		c.metrics.ObserveRequests(ctx, 1, StatusReadRespErr)
+		return ErrInvalidResponse
 	}
+}
+
+func (c *Client) WithMetrics() error {
+	metrics, err := InitClientMetrics()
+	if err != nil {
+		return fmt.Errorf("shrex/nd: init Metrics: %w", err)
+	}
+	c.metrics = metrics
+	return nil
 }

@@ -25,8 +25,8 @@ import (
 	"github.com/celestiaorg/celestia-node/share/availability"
 	"github.com/celestiaorg/celestia-node/share/eds/edstest"
 	"github.com/celestiaorg/celestia-node/share/shwap"
+	"github.com/celestiaorg/celestia-node/share/shwap/p2p/shrex"
 	"github.com/celestiaorg/celestia-node/share/shwap/p2p/shrex/peers"
-	"github.com/celestiaorg/celestia-node/share/shwap/p2p/shrex/shrexnd"
 	"github.com/celestiaorg/celestia-node/share/shwap/p2p/shrex/shrexsub"
 	"github.com/celestiaorg/celestia-node/store"
 )
@@ -312,11 +312,11 @@ func testManager(
 
 func newNDClientServer(
 	ctx context.Context, t *testing.T, edsStore *store.Store, srvHost, clHost host.Host,
-) (*shrexnd.Client, *shrexnd.Server) {
-	params := shrexnd.DefaultParameters()
+) (*shrex.Client, *shrex.Server) {
+	params := shrex.DefaultParameters()
 
 	// create server and register handler
-	server, err := shrexnd.NewServer(params, srvHost, edsStore, shrexnd.SupportedProtocols())
+	server, err := shrex.NewServer(params, srvHost, edsStore, shrex.SupportedProtocols())
 	require.NoError(t, err)
 	require.NoError(t, server.Start(ctx))
 
@@ -325,7 +325,7 @@ func newNDClientServer(
 	})
 
 	// create client and connect it to server
-	client, err := shrexnd.NewClient(params, clHost)
+	client, err := shrex.NewClient(params, clHost)
 	require.NoError(t, err)
 	return client, server
 }

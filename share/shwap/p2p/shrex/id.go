@@ -1,4 +1,4 @@
-package shrexnd
+package shrex
 
 import (
 	"context"

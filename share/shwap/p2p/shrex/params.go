@@ -4,13 +4,16 @@ import (
 	"fmt"
 	"time"
 
+	logging "github.com/ipfs/go-log/v2"
 	"github.com/libp2p/go-libp2p/core/protocol"
 )
+
+var log = logging.Logger("shrex")
 
 // protocolString is the protocol string for the shrex protocol.
 const ProtocolString = "/shrex/v0.1.0/"
 
-// Parameters is the set of parameters that must be configured for the shrex/eds protocol.
+// Parameters is the set of parameters that must be configured for the shrex protocol.
 type Parameters struct {
 	// ServerReadTimeout sets the timeout for reading messages from the stream.
 	ServerReadTimeout time.Duration

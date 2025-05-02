@@ -1,4 +1,4 @@
-package shrexnd
+package shrex
 
 import (
 	"context"
@@ -15,7 +15,6 @@ import (
 	"github.com/celestiaorg/go-libp2p-messenger/serde"
 
 	"github.com/celestiaorg/celestia-node/libs/utils"
-	"github.com/celestiaorg/celestia-node/share/shwap/p2p/shrex"
 	shrexpb "github.com/celestiaorg/celestia-node/share/shwap/p2p/shrex/pb"
 	"github.com/celestiaorg/celestia-node/store"
 )
@@ -33,8 +32,8 @@ type Server struct {
 
 	params *Parameters
 	// TODO: decouple middleware metrics from shrex and remove middleware from Server
-	middleware *shrex.Middleware
-	metrics    *shrex.Metrics
+	middleware *Middleware
+	metrics    *Metrics
 }
 
 // NewServer creates new Server
@@ -51,7 +50,7 @@ func NewServer(params *Parameters, host host.Host, store *store.Store, supported
 		host:               host,
 		params:             params,
 		supportedProtocols: supportedProtocols,
-		middleware:         shrex.NewMiddleware(params.ConcurrencyLimit),
+		middleware:         NewMiddleware(params.ConcurrencyLimit),
 	}, nil
 }
 
@@ -59,15 +58,15 @@ func NewServer(params *Parameters, host host.Host, store *store.Store, supported
 func (srv *Server) Start(context.Context) error {
 	for _, protocolName := range srv.supportedProtocols {
 		if _, ok := initID[protocolName]; !ok {
-			return fmt.Errorf("shrex-server: %w: %s", shrex.ErrUnsupportedProtocol,
-				shrex.ProtocolID(srv.params.NetworkID(), protocolName),
+			return fmt.Errorf("shrex-server: %w: %s", ErrUnsupportedProtocol,
+				ProtocolID(srv.params.NetworkID(), protocolName),
 			)
 		}
 
 		handler := srv.streamHandler(srv.ctx, protocolName)
 		withRateLimit := srv.middleware.RateLimitHandler(handler)
-		withRecovery := shrex.RecoveryMiddleware(withRateLimit)
-		srv.SetHandler(shrex.ProtocolID(srv.params.NetworkID(), protocolName), withRecovery)
+		withRecovery := RecoveryMiddleware(withRateLimit)
+		srv.SetHandler(ProtocolID(srv.params.NetworkID(), protocolName), withRecovery)
 	}
 	return nil
 }
@@ -80,7 +79,7 @@ func (srv *Server) SetHandler(p protocol.ID, h network.StreamHandler) {
 func (srv *Server) Stop(context.Context) error {
 	srv.cancel()
 	for _, id := range srv.supportedProtocols {
-		srv.host.RemoveStreamHandler(shrex.ProtocolID(srv.params.NetworkID(), id))
+		srv.host.RemoveStreamHandler(ProtocolID(srv.params.NetworkID(), id))
 	}
 	return nil
 }
@@ -112,14 +111,14 @@ func (srv *Server) handleDataRequest(ctx context.Context, idName string, stream 
 	err := srv.readRequest(logger, requestID, stream)
 	if err != nil {
 		logger.Warnw("read request", "err", err)
-		srv.metrics.ObserveRequests(ctx, 1, shrex.StatusBadRequest)
+		srv.metrics.ObserveRequests(ctx, 1, StatusBadRequest)
 		return err
 	}
 
 	err = requestID.Validate()
 	if err != nil {
 		logger.Warnw("validate request", "err", err)
-		srv.metrics.ObserveRequests(ctx, 1, shrex.StatusBadRequest)
+		srv.metrics.ObserveRequests(ctx, 1, StatusBadRequest)
 		return err
 	}
 
@@ -132,7 +131,7 @@ func (srv *Server) handleDataRequest(ctx context.Context, idName string, stream 
 	sendErr := srv.respondStatus(ctx, logger, stream, status)
 	if sendErr != nil {
 		logger.Errorw("sending response status", "err", sendErr)
-		srv.metrics.ObserveRequests(ctx, 1, shrex.StatusSendRespErr)
+		srv.metrics.ObserveRequests(ctx, 1, StatusSendRespErr)
 	}
 	if err != nil {
 		logger.Errorw("handling request", "err", err)
@@ -146,7 +145,7 @@ func (srv *Server) handleDataRequest(ctx context.Context, idName string, stream 
 	_, err = io.Copy(stream, r)
 	if err != nil {
 		logger.Errorw("send data", "err", err)
-		srv.metrics.ObserveRequests(ctx, 1, shrex.StatusSendRespErr)
+		srv.metrics.ObserveRequests(ctx, 1, StatusSendRespErr)
 	}
 	return err
 }
@@ -199,7 +198,7 @@ func (srv *Server) getData(
 func (srv *Server) obServeRateLimitedRequests() {
 	numRateLimited := srv.middleware.DrainCounter()
 	if numRateLimited > 0 {
-		srv.metrics.ObserveRequests(context.Background(), numRateLimited, shrex.StatusRateLimited)
+		srv.metrics.ObserveRequests(context.Background(), numRateLimited, StatusRateLimited)
 	}
 }
 
@@ -227,10 +226,19 @@ func (srv *Server) respondStatus(
 func (srv *Server) observeStatus(ctx context.Context, status shrexpb.Status) {
 	switch {
 	case status == shrexpb.Status_OK:
-		srv.metrics.ObserveRequests(ctx, 1, shrex.StatusSuccess)
+		srv.metrics.ObserveRequests(ctx, 1, StatusSuccess)
 	case status == shrexpb.Status_NOT_FOUND:
-		srv.metrics.ObserveRequests(ctx, 1, shrex.StatusNotFound)
+		srv.metrics.ObserveRequests(ctx, 1, StatusNotFound)
 	case status == shrexpb.Status_INVALID:
-		srv.metrics.ObserveRequests(ctx, 1, shrex.StatusInternalErr)
+		srv.metrics.ObserveRequests(ctx, 1, StatusInternalErr)
 	}
+}
+
+func (srv *Server) WithMetrics() error {
+	metrics, err := InitServerMetrics()
+	if err != nil {
+		return fmt.Errorf("shrex/nd: init Metrics: %w", err)
+	}
+	srv.metrics = metrics
+	return nil
 }
