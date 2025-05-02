@@ -28,16 +28,15 @@ func (m *Middleware) DrainCounter() int64 {
 
 func (m *Middleware) RateLimitHandler(handler network.StreamHandler) network.StreamHandler {
 	return func(stream network.Stream) {
-		logger := log.With("middleware")
 		current := m.parallelRequests.Add(1)
 		defer m.parallelRequests.Add(-1)
 
 		if current > m.concurrencyLimit {
 			m.numRateLimited.Add(1)
-			logger.Debug("concurrency limit reached")
+			log.Debug("concurrency limit reached")
 			err := stream.Close()
 			if err != nil {
-				logger.Debugw("server: closing stream", "err", err)
+				log.Debugw("server: closing stream", "err", err)
 			}
 			return
 		}

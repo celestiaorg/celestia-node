@@ -6,8 +6,8 @@ import (
 	"github.com/celestiaorg/celestia-node/nodebuilder/node"
 	"github.com/celestiaorg/celestia-node/share/availability/light"
 	"github.com/celestiaorg/celestia-node/share/shwap/p2p/discovery"
+	"github.com/celestiaorg/celestia-node/share/shwap/p2p/shrex"
 	"github.com/celestiaorg/celestia-node/share/shwap/p2p/shrex/peers"
-	"github.com/celestiaorg/celestia-node/share/shwap/p2p/shrex/shrexnd"
 	"github.com/celestiaorg/celestia-node/store"
 )
 
@@ -22,7 +22,7 @@ type Config struct {
 
 	UseShareExchange bool
 	// ShrExNDParams sets shrexnd client and server configuration parameters
-	ShrExNDParams *shrexnd.Parameters
+	ShrExNDParams *shrex.Parameters
 	// PeerManagerParams sets peer-manager configuration parameters
 	PeerManagerParams *peers.Parameters
 
@@ -35,7 +35,7 @@ func DefaultConfig(tp node.Type) Config {
 		EDSStoreParams:      store.DefaultParameters(),
 		BlockStoreCacheSize: defaultBlockstoreCacheSize,
 		Discovery:           discovery.DefaultParameters(),
-		ShrExNDParams:       shrexnd.DefaultParameters(),
+		ShrExNDParams:       shrex.DefaultParameters(),
 		UseShareExchange:    true,
 		PeerManagerParams:   peers.DefaultParameters(),
 	}
