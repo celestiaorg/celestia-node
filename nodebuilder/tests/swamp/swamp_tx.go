@@ -10,19 +10,30 @@ import (
 )
 
 // FillBlocks produces the given amount of contiguous blocks with customizable size.
-// The returned channel reports when the process is finished.
-func FillBlocks(ctx context.Context, cctx testnode.Context, account string, bsize, blocks int) chan error {
-	errCh := make(chan error)
+// The returned channels report the submitted heights and when the process is finished.
+func FillBlocks(
+	ctx context.Context,
+	cctx testnode.Context,
+	account string,
+	bsize, blocks int,
+) (
+	<-chan uint64, <-chan error,
+) {
+	errCh := make(chan error, 1)
+	heightCh := make(chan uint64, blocks)
 	go func() {
+		defer close(errCh)
+		defer close(heightCh)
 		// TODO: FillBlock must respect the context
 		// fill blocks is not working correctly without sleep rn.
 		time.Sleep(time.Millisecond * 50)
 		var err error
-		for i := 0; i < blocks; i++ {
-			_, err = cctx.FillBlock(bsize, account, flags.BroadcastBlock)
+		for range blocks {
+			txResp, err := cctx.FillBlock(bsize, account, flags.BroadcastBlock)
 			if err != nil {
 				break
 			}
+			heightCh <- uint64(txResp.Height)
 		}
 
 		select {
@@ -30,5 +41,5 @@ func FillBlocks(ctx context.Context, cctx testnode.Context, account string, bsiz
 		case <-ctx.Done():
 		}
 	}()
-	return errCh
+	return heightCh, errCh
 }
