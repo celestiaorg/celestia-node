@@ -4,8 +4,6 @@ go 1.23.5
 
 replace github.com/celestiaorg/nmt => github.com/gupadhyaya/nmt v0.0.0-20250428044855-61fbcbfa18b7
 
-///Users/gupadhyaya/go/src/github.com/gupadhyaya/nmt
-
 require (
 	cosmossdk.io/math v1.4.0
 	github.com/BurntSushi/toml v1.4.1-0.20240526193622-a339e1f7089c
