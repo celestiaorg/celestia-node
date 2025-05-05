@@ -11,6 +11,7 @@ import (
 	"github.com/stretchr/testify/require"
 
 	libshare "github.com/celestiaorg/go-square/v2/share"
+	"github.com/tendermint/tendermint/crypto/merkle"
 
 	"github.com/celestiaorg/celestia-node/share"
 	"github.com/celestiaorg/celestia-node/share/eds"
@@ -26,6 +27,8 @@ func TestRangeNamespaceData(t *testing.T) {
 
 	ns := libshare.RandomNamespace()
 	square, root := edstest.RandEDSWithNamespace(t, ns, odsSize, odsSize)
+	roots := append(root.RowRoots, root.ColumnRoots...) //nolint: gocritic
+	_, rowRootProofs := merkle.ProofsFromByteSlices(roots)
 
 	nsRowStart := -1
 	for i, row := range root.RowRoots {
@@ -70,10 +73,10 @@ func TestRangeNamespaceData(t *testing.T) {
 				to,
 			)
 			require.NoError(t, err)
-			err = rngdata.Verify(ns, dataID.From, dataID.To, root.Hash())
+			err = rngdata.Verify(ns, dataID.From, dataID.To, odsSize, root.Hash(), rowRootProofs)
 			require.NoError(t, err)
 
-			err = rngdata.VerifyShares(rngdata.Shares, ns, dataID.From, dataID.To, root.Hash())
+			err = rngdata.VerifyShares(rngdata.Shares, ns, dataID.From, dataID.To, odsSize, root.Hash(), rowRootProofs)
 			require.NoError(t, err)
 		})
 	}
@@ -109,6 +112,8 @@ func TestRangeNamespaceDataMarshalUnmarshal(t *testing.T) {
 	ns := libshare.RandomNamespace()
 	square, root := edstest.RandEDSWithNamespace(t, ns, sharesAmount, odsSize)
 	eds := eds.Rsmt2D{ExtendedDataSquare: square}
+	roots := append(root.RowRoots, root.ColumnRoots...) //nolint: gocritic
+	_, rowRootProofs := merkle.ProofsFromByteSlices(roots)
 
 	from := shwap.SampleCoords{Row: 0, Col: 0}
 	to := shwap.SampleCoords{Row: odsSize - 1, Col: odsSize - 1}
@@ -119,7 +124,7 @@ func TestRangeNamespaceDataMarshalUnmarshal(t *testing.T) {
 		to,
 	)
 	require.NoError(t, err)
-	err = rngdata.Verify(ns, from, to, root.Hash())
+	err = rngdata.Verify(ns, from, to, odsSize, root.Hash(), rowRootProofs)
 	require.NoError(t, err)
 
 	data, err := json.Marshal(rngdata)

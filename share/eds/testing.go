@@ -326,6 +326,7 @@ func testRangeNamespaceData(
 						namespace,
 						shwap.SampleCoords{Row: startRow, Col: startCol},
 						shwap.SampleCoords{Row: endRow, Col: endCol},
+						odsSize,
 						dah.Hash(),
 						rowRootProofs,
 					)

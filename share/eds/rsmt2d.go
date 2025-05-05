@@ -157,7 +157,7 @@ func (eds *Rsmt2D) RangeNamespaceData(
 	if from.Col != 0 {
 		incompleteRowRootProofs[0] = rowRootProofs[from.Row]
 	}
-	if to.Col != odsSize-1 {
+	if to.Col != odsSize-1 && from.Row != to.Row {
 		incompleteRowRootProofs[incompleteProofSize-1] = rowRootProofs[to.Row]
 	}
 

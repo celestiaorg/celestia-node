@@ -41,13 +41,13 @@ func (p *Proof) RowRootProof() *merkle.Proof {
 
 // VerifyInclusion verifies the inclusion of the shares to the data root.
 func (p *Proof) VerifyInclusion(shares []libshare.Share, namespace libshare.Namespace, dataRoot []byte) error {
+	nid := namespace.Bytes()
 	nth := nmt.NewNmtHasher(
 		share.NewSHA256Hasher(),
-		nmt_ns.ID(namespace.ID()).Size(),
+		nmt_ns.ID(nid).Size(),
 		p.shareProof.IsMaxNamespaceIDIgnored(),
 	)
 
-	nid := namespace.ID()
 	leaves := libshare.ToBytes(shares)
 
 	// Compute leaf hashes
@@ -93,7 +93,7 @@ func (p *Proof) VerifyInclusion(shares []libshare.Share, namespace libshare.Name
 func (p *Proof) VerifyNamespace(shares []libshare.Share, namespace libshare.Namespace, dataRoot []byte) error {
 	nth := nmt.NewNmtHasher(
 		share.NewSHA256Hasher(),
-		nmt_ns.ID(namespace.ID()).Size(),
+		nmt_ns.ID(namespace.Bytes()).Size(),
 		p.shareProof.IsMaxNamespaceIDIgnored(),
 	)
 	nid := namespace.ID()
