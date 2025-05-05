@@ -1,9 +1,14 @@
 SHELL=/usr/bin/env bash
 PROJECTNAME=$(shell basename "$(PWD)")
 DIR_FULLPATH=$(shell pwd)
-versioningPath := "github.com/celestiaorg/celestia-node/nodebuilder/node"
+versioningPath := github.com/celestiaorg/celestia-node/nodebuilder/node
 OS := $(shell uname -s)
-LDFLAGS=-ldflags="-X '$(versioningPath).buildTime=$(shell date)' -X '$(versioningPath).lastCommit=$(shell git rev-parse HEAD)' -X '$(versioningPath).semanticVersion=$(shell git describe --tags --dirty=-dev 2>/dev/null || git rev-parse --abbrev-ref HEAD)'"
+LDFLAGS = -ldflags="-X $(versioningPath).buildTime=$(shell date -u +%Y-%m-%dT%H:%M:%SZ) \
+                    -X $(versioningPath).lastCommit=$(shell git rev-parse HEAD) \
+                    -X $(versioningPath).semanticVersion=$(shell \
+                      git name-rev --name-only --tags --no-undefined HEAD 2>/dev/null || \
+                      git describe --tags --dirty=-dev 2>/dev/null || \
+                      git rev-parse --short HEAD)"
 TAGS=integration
 SHORT=
 ifeq (${PREFIX},)
