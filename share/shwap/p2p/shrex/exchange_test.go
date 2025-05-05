@@ -24,7 +24,6 @@ func TestExchange_RequestND_NotFound(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	t.Cleanup(cancel)
 	edsStore, client, server := makeExchange(t)
-	require.NoError(t, server.Start(ctx))
 
 	height := atomic.Uint64{}
 	height.Add(1)
@@ -74,10 +73,8 @@ func TestExchange_RequestND(t *testing.T) {
 
 		client, err := NewClient(DefaultParameters(), net.Hosts()[0])
 		require.NoError(t, err)
-		server, err := NewServer(DefaultParameters(), net.Hosts()[1], nil, SupportedProtocols())
+		server, err := NewServer(DefaultParameters(), net.Hosts()[1], nil, SupportedProtocols()...)
 		require.NoError(t, err)
-
-		require.NoError(t, server.Start(context.Background()))
 
 		ctx, cancel := context.WithTimeout(context.Background(), time.Second)
 		t.Cleanup(cancel)
@@ -147,7 +144,7 @@ func makeExchange(t *testing.T) (*store.Store, *Client, *Server) {
 
 	client, err := NewClient(DefaultParameters(), hosts[0])
 	require.NoError(t, err)
-	server, err := NewServer(DefaultParameters(), hosts[1], s, SupportedProtocols())
+	server, err := NewServer(DefaultParameters(), hosts[1], s, SupportedProtocols()...)
 	require.NoError(t, err)
 
 	return s, client, server
