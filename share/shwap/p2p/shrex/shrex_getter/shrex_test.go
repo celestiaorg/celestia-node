@@ -316,9 +316,8 @@ func newNDClientServer(
 	params := shrex.DefaultParameters()
 
 	// create server and register handler
-	server, err := shrex.NewServer(params, srvHost, edsStore, shrex.SupportedProtocols())
+	server, err := shrex.NewServer(params, srvHost, edsStore, shrex.SupportedProtocols()...)
 	require.NoError(t, err)
-	require.NoError(t, server.Start(ctx))
 
 	t.Cleanup(func() {
 		_ = server.Stop(ctx)

@@ -137,7 +137,7 @@ func (ndid NamespaceDataID) AppendBinary(data []byte) ([]byte, error) {
 	return append(data, ndid.DataNamespace.Bytes()...), nil
 }
 
-func (ndid NamespaceDataID) FetchContainerReader(ctx context.Context, acc Accessor) (io.Reader, error) {
+func (ndid NamespaceDataID) ContainerDataReader(ctx context.Context, acc Accessor) (io.Reader, error) {
 	rows, err := EDSData(ctx, acc, ndid.DataNamespace)
 	if err != nil {
 		return nil, err

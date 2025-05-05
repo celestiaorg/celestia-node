@@ -37,38 +37,40 @@ type Server struct {
 }
 
 // NewServer creates new Server
-func NewServer(params *Parameters, host host.Host, store *store.Store, supportedProtocols []string) (*Server, error) {
+func NewServer(params *Parameters, host host.Host, store *store.Store, supportedProtocols ...string) (*Server, error) {
 	if err := params.Validate(); err != nil {
 		return nil, fmt.Errorf("shrex-server: Server creation failed: %w", err)
 	}
 
 	ctx, cancel := context.WithCancel(context.Background())
-	return &Server{
+	srv := &Server{
 		ctx:                ctx,
 		cancel:             cancel,
 		store:              store,
 		host:               host,
 		params:             params,
-		supportedProtocols: supportedProtocols,
+		supportedProtocols: SupportedProtocols(),
 		middleware:         NewMiddleware(params.ConcurrencyLimit),
-	}, nil
-}
+	}
+	if supportedProtocols != nil {
+		// overwrite the default protocols if they were provided by the user
+		srv.supportedProtocols = supportedProtocols
+	}
 
-// Start starts the Server
-func (srv *Server) Start(context.Context) error {
-	for _, protocolName := range srv.supportedProtocols {
-		if _, ok := initID[protocolName]; !ok {
-			return fmt.Errorf("shrex-server: %w: %s", ErrUnsupportedProtocol,
-				ProtocolID(srv.params.NetworkID(), protocolName),
+	initID := newInitID()
+	for _, protocolName := range supportedProtocols {
+		id, ok := initID[protocolName]
+		if !ok {
+			return nil, fmt.Errorf("shrex-server: %w: %s", ErrUnsupportedProtocol,
+				ProtocolID(params.NetworkID(), protocolName),
 			)
 		}
-
-		handler := srv.streamHandler(srv.ctx, protocolName)
+		handler := srv.streamHandler(srv.ctx, id)
 		withRateLimit := srv.middleware.RateLimitHandler(handler)
 		withRecovery := RecoveryMiddleware(withRateLimit)
 		srv.SetHandler(ProtocolID(srv.params.NetworkID(), protocolName), withRecovery)
 	}
-	return nil
+	return srv, nil
 }
 
 func (srv *Server) SetHandler(p protocol.ID, h network.StreamHandler) {
@@ -84,9 +86,9 @@ func (srv *Server) Stop(context.Context) error {
 	return nil
 }
 
-func (srv *Server) streamHandler(ctx context.Context, idName string) network.StreamHandler {
+func (srv *Server) streamHandler(ctx context.Context, id newID) network.StreamHandler {
 	return func(s network.Stream) {
-		err := srv.handleDataRequest(ctx, idName, s)
+		err := srv.handleDataRequest(ctx, id, s)
 		if err != nil {
 			s.Reset() //nolint:errcheck
 		}
@@ -96,8 +98,9 @@ func (srv *Server) streamHandler(ctx context.Context, idName string) network.Str
 	}
 }
 
-func (srv *Server) handleDataRequest(ctx context.Context, idName string, stream network.Stream) error {
-	logger := log.With("source", "Server", "peer", stream.Conn().RemotePeer().String())
+func (srv *Server) handleDataRequest(ctx context.Context, id newID, stream network.Stream) error {
+	requestID := id()
+	logger := log.With("source", "Server", "name", "peer", requestID.Name(), stream.Conn().RemotePeer().String())
 	logger.Debug("handling data request")
 
 	srv.obServeRateLimitedRequests()
@@ -105,8 +108,6 @@ func (srv *Server) handleDataRequest(ctx context.Context, idName string, stream 
 	// registering handlers are done only after the verification that
 	// protocol supports it. There is no need to additionally verify here whether we support it
 	// or not.
-	requestIDFn := initID[idName]
-	requestID := requestIDFn()
 
 	err := srv.readRequest(logger, requestID, stream)
 	if err != nil {
@@ -188,7 +189,7 @@ func (srv *Server) getData(
 
 	defer utils.CloseAndLog(log, "file", file)
 
-	w, err := id.FetchContainerReader(ctx, file)
+	w, err := id.ContainerDataReader(ctx, file)
 	if err != nil {
 		return nil, shrexpb.Status_INVALID, fmt.Errorf("getting data: %w", err)
 	}

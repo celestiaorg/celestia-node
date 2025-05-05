@@ -25,7 +25,7 @@ import (
 	"github.com/celestiaorg/celestia-node/store"
 )
 
-func TestShrexNDFromLights(t *testing.T) {
+func TestShrexFromLights(t *testing.T) {
 	t.Parallel()
 	const (
 		blocks = 10
@@ -98,7 +98,7 @@ func TestShrexNDFromLights(t *testing.T) {
 	sw.StopNode(ctx, light)
 }
 
-func TestShrexNDFromLightsWithBadFulls(t *testing.T) {
+func TestShrexFromLightsWithBadFulls(t *testing.T) {
 	const (
 		blocks        = 10
 		btime         = time.Millisecond * 300
@@ -215,22 +215,21 @@ func replaceNDServer(cfg *nodebuilder.Config, handler network.StreamHandler) fx.
 			store *store.Store,
 			network p2p.Network,
 		) (*shrex.Server, error) {
-			cfg.Share.ShrExNDParams.WithNetworkID(network.String())
-			return shrex.NewServer(cfg.Share.ShrExNDParams, host, store, shrex.SupportedProtocols())
+			cfg.Share.Shrex.WithNetworkID(network.String())
+			return shrex.NewServer(cfg.Share.Shrex, host, store, shrex.SupportedProtocols()...)
 		},
 		fx.OnStart(func(ctx context.Context, server *shrex.Server) error {
 			for _, protocolName := range shrex.SupportedProtocols() {
 				// replace handler for server
 				server.SetHandler(
-					shrex.ProtocolID(cfg.Share.ShrExNDParams.NetworkID(), protocolName),
+					shrex.ProtocolID(cfg.Share.Shrex.NetworkID(), protocolName),
 					handler,
 				)
 			}
-
-			return server.Start(ctx)
+			return nil
 		}),
 		fx.OnStop(func(ctx context.Context, server *shrex.Server) error {
-			return server.Start(ctx)
+			return server.Stop(ctx)
 		}),
 	))
 }

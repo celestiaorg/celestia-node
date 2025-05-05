@@ -11,7 +11,7 @@ import (
 var log = logging.Logger("shrex")
 
 // protocolString is the protocol string for the shrex protocol.
-const ProtocolString = "/shrex/v0.1.0/"
+const protocolString = "/shrex/v0.1.0/"
 
 // Parameters is the set of parameters that must be configured for the shrex protocol.
 type Parameters struct {
@@ -70,6 +70,6 @@ func (p *Parameters) NetworkID() string {
 }
 
 // ProtocolID creates a protocol ID string according to common format
-func ProtocolID(networkID, protocolString string) protocol.ID {
-	return protocol.ID(fmt.Sprintf("/%s%s", networkID, protocolString))
+func ProtocolID(networkID, protocolName string) protocol.ID {
+	return protocol.ID(fmt.Sprintf("/%s%s%s", networkID, protocolString, protocolName))
 }
