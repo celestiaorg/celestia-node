@@ -93,6 +93,6 @@ func CreateFraudExtHeader(
 	dah, err := da.NewDataAvailabilityHeader(square)
 	require.NoError(t, err)
 	eh.DAH = &dah
-	eh.RawHeader.DataHash = dah.Hash()
+	eh.DataHash = dah.Hash()
 	return eh
 }

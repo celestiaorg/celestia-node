@@ -78,7 +78,7 @@ func TestBlob(t *testing.T) {
 
 				newBlob := &Blob{}
 				require.NoError(t, newBlob.UnmarshalJSON(data))
-				require.True(t, bytes.Equal(blob[0].Blob.Data(), newBlob.Data()))
+				require.True(t, bytes.Equal(blob[0].Data(), newBlob.Data()))
 				require.True(t, bytes.Equal(blob[0].Commitment, newBlob.Commitment))
 			},
 		},
