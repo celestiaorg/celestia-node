@@ -88,17 +88,16 @@ func (srv *Server) Stop(context.Context) error {
 
 func (srv *Server) streamHandler(ctx context.Context, id newID) network.StreamHandler {
 	return func(s network.Stream) {
-		err := srv.handleDataRequest(ctx, id, s)
-		if err != nil {
+		if !srv.handleDataRequest(ctx, id, s) {
 			s.Reset() //nolint:errcheck
 		}
-		if err = s.Close(); err != nil {
+		if err := s.Close(); err != nil {
 			log.Debugw("shrex-server: closing stream", "err", err)
 		}
 	}
 }
 
-func (srv *Server) handleDataRequest(ctx context.Context, id newID, stream network.Stream) error {
+func (srv *Server) handleDataRequest(ctx context.Context, id newID, stream network.Stream) bool {
 	requestID := id()
 	logger := log.With("source", "Server", "name", "peer", requestID.Name(), stream.Conn().RemotePeer().String())
 	logger.Debug("handling data request")
@@ -113,14 +112,14 @@ func (srv *Server) handleDataRequest(ctx context.Context, id newID, stream netwo
 	if err != nil {
 		logger.Warnw("read request", "err", err)
 		srv.metrics.ObserveRequests(ctx, 1, StatusBadRequest)
-		return err
+		return false
 	}
 
 	err = requestID.Validate()
 	if err != nil {
 		logger.Warnw("validate request", "err", err)
 		srv.metrics.ObserveRequests(ctx, 1, StatusBadRequest)
-		return err
+		return false
 	}
 
 	logger.Debugw("new request")
@@ -128,27 +127,28 @@ func (srv *Server) handleDataRequest(ctx context.Context, id newID, stream netwo
 	defer cancel()
 
 	r, status, err := srv.getData(ctx, requestID)
-
 	sendErr := srv.respondStatus(ctx, logger, stream, status)
 	if sendErr != nil {
 		logger.Errorw("sending response status", "err", sendErr)
 		srv.metrics.ObserveRequests(ctx, 1, StatusSendRespErr)
 	}
+
 	if err != nil {
-		logger.Errorw("handling request", "err", err)
-		return errors.Join(err, sendErr)
+		logger.Errorw("handling request", "err", errors.Join(err, sendErr))
+		return false
 	}
 
 	if status != shrexpb.Status_OK {
-		return nil
+		return false
 	}
 
 	_, err = io.Copy(stream, r)
 	if err != nil {
 		logger.Errorw("send data", "err", err)
 		srv.metrics.ObserveRequests(ctx, 1, StatusSendRespErr)
+		return false
 	}
-	return err
+	return true
 }
 
 func (srv *Server) readRequest(
