@@ -104,8 +104,8 @@ func shrexComponents(tp node.Type, cfg *Config) fx.Option {
 		// shrex-nd client
 		fx.Provide(
 			func(host host.Host, network modp2p.Network) (*shrex.Client, error) {
-				cfg.ShrExNDParams.WithNetworkID(network.String())
-				return shrex.NewClient(cfg.ShrExNDParams, host)
+				cfg.Shrex.WithNetworkID(network.String())
+				return shrex.NewClient(cfg.Shrex, host)
 			},
 		),
 
@@ -181,12 +181,9 @@ func shrexServerComponents(cfg *Config) fx.Option {
 				store *store.Store,
 				network modp2p.Network,
 			) (*shrex.Server, error) {
-				cfg.ShrExNDParams.WithNetworkID(network.String())
-				return shrex.NewServer(cfg.ShrExNDParams, host, store, shrex.SupportedProtocols())
+				cfg.Shrex.WithNetworkID(network.String())
+				return shrex.NewServer(cfg.Shrex, host, store, shrex.SupportedProtocols()...)
 			},
-			fx.OnStart(func(ctx context.Context, server *shrex.Server) error {
-				return server.Start(ctx)
-			}),
 			fx.OnStop(func(ctx context.Context, server *shrex.Server) error {
 				return server.Stop(ctx)
 			})),

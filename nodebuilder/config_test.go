@@ -97,12 +97,11 @@ var outdatedConfig = `
   DiscoveryInterval = "30s"
   AdvertiseInterval = "30s"
   UseShareExchange = true
-  [Share.ShrExNDParams]
+  [Share.Shrex]
     ServerReadTimeout = "5s"
     ServerWriteTimeout = "2m35s"
     HandleRequestTimeout = "1m0s"
     ConcurrencyLimit = 10
- 	BufferSize = 32768
 
 [Header]
   TrustedHash = ""
