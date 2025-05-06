@@ -144,7 +144,7 @@ func (rngdata *RangeNamespaceData) VerifyShares(
 			return fmt.Errorf("failed to generate proof for row %d: %w", row, err)
 		}
 		proofs[i] = &Proof{shareProof: proof, rowRootProof: rowRootProofs[row]}
-
+		row++
 	}
 	if len(shares) != len(proofs) {
 		return fmt.Errorf(

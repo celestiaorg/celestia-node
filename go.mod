@@ -2,7 +2,7 @@ module github.com/celestiaorg/celestia-node
 
 go 1.23.5
 
-replace github.com/celestiaorg/nmt => github.com/gupadhyaya/nmt v0.0.0-20250428044855-61fbcbfa18b7
+replace github.com/celestiaorg/nmt => github.com/gupadhyaya/nmt v0.0.0-20250505135526-d056572e2383
 
 require (
 	cosmossdk.io/math v1.4.0

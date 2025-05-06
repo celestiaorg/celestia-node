@@ -51,7 +51,7 @@ func (p *Proof) VerifyInclusion(shares []libshare.Share, namespace libshare.Name
 	leaves := libshare.ToBytes(shares)
 
 	// Compute leaf hashes
-	hashes, err := nmt.ComputeLeafHashes(nth, nid, leaves, false)
+	hashes, err := nmt.ComputePrefixedLeafHashes(nth, nid, leaves)
 	if err != nil {
 		return fmt.Errorf("failed to compute leaf hashes: %w", err)
 	}
@@ -115,7 +115,7 @@ func (p *Proof) VerifyNamespace(shares []libshare.Share, namespace libshare.Name
 	if p.IsOfAbsence() {
 		hashes = [][]byte{p.shareProof.LeafHash()}
 	} else {
-		hashes, err = nmt.ComputeLeafHashes(nth, nid, leaves, true)
+		hashes, err = nmt.ComputeAndValidateLeafHashes(nth, nid, leaves)
 		if err != nil {
 			return fmt.Errorf("failed to compute leaf hashes: %w", err)
 		}
@@ -128,7 +128,7 @@ func (p *Proof) VerifyNamespace(shares []libshare.Share, namespace libshare.Name
 
 	// For inclusion proofs, validate single namespace consistency
 	if !p.IsOfAbsence() {
-		if err := p.shareProof.ValidateSingleNamespace(nth, nid, hashes); err != nil {
+		if err := p.shareProof.ValidateNamespace(nth, nid, hashes); err != nil {
 			return fmt.Errorf("invalid namespace consistency: %w", err)
 		}
 	}
